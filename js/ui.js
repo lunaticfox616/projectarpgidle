@@ -3824,27 +3824,22 @@ function renderSupportGemCard(name, highlightedName, stats) {
     let failure = getSupportEquipFailure(name, stats);
     let tier = getSupportActiveTier(name);
     let state = failure || `${def.name || getStatName(def.stat || '')}, 공명 ${getSupportTierResonanceCost(name)}`;
-    let classes = ['skill-gem', 'support-gem', 'gem-library-card', 'gem-tile', active ? 'active' : '', failure ? 'equipment-blocked' : ''].filter(Boolean).join(' ');
+    let classes = ['skill-gem', 'support-gem', 'gem-library-card', 'gem-tile', `is-tone-${supportGemSigil.tone(name)}`, active ? 'active' : '', failure ? 'equipment-blocked' : ''].filter(Boolean).join(' ');
     return `<article class="${classes}" ${getGemTileHandlers('support', name)} aria-label="${escapeHTML(name)}${active ? ', 장착 중' : (failure ? `, ${escapeHTML(failure)}` : '')}">
-        ${renderGemTileLevel(gemInfo)}${active ? '<span class="gem-tile-worn">장착</span>' : ''}<span class="gem-card-sigil gem-tile-art gem-tile-support-art" aria-hidden="true">✚<em>${'◆'.repeat(Math.max(1, Math.min(3, tier)))}</em></span>
+        ${renderGemTileLevel(gemInfo)}${active ? '<span class="gem-tile-worn">장착</span>' : ''}${supportGemSigil.html(name, 'gem-card-sigil gem-tile-art gem-tile-support-art', tier)}
         <strong class="gem-tile-name">${highlightedName}</strong><small class="gem-usage-state">${escapeHTML(state)}</small>
     </article>`;
 }
 
-/** Gem card hover, mouse only (a tap opens the detail instead): the name and full description. Range, numbers and tags
- * live in the detail popover that a click, Enter or Space opens (js/gem-selection-ui.js). */
+/** Gem card hover, mouse only (a tap opens the detail instead): the full gem tooltip with its numbers (2026-10-11 사용자: 젬을
+ * 고르는 곳의 툴팁에 수치가 없었다, 이름과 설명만 보였다). showGemTooltip stays quiet while the detail popover is open. */
 function showGemCardHint(event, type, name) {
-    if (event.pointerType !== 'mouse' || document.getElementById('gem-selection')?.matches(':popover-open')) return;
-    const support = type === 'support';
-    const info = getUiGemPresentation(name, support, cachedTooltipStats || getUiPlayerStats());
-    const html = `<div class="tooltip-title">${escapeHTML(name)}</div><div class="tooltip-line">${statToneText.markup(keepKoreanUnitParticles(escapeHTML(info.desc || '')))}</div>`
-        + '<div class="tooltip-line gem-card-hint">클릭하면 범위, 수치, 태그 상세</div>';
-    showInfoTooltipHtml(event.clientX, event.clientY, html, support ? '#2bcbba' : '#ff5252', `hint:${type}:${name}`);
+    if (event.pointerType === 'mouse') showGemTooltip(event, type, name);
 }
 
 function renderSealedGemCard(name, highlightedName, isSupport) {
     let releaseCall = isSupport ? `unsealSupportGem('${name}')` : `unsealSkillGem('${name}')`;
-    let art = isSupport ? '<span class="gem-card-sigil gem-tile-art gem-tile-support-art" aria-hidden="true">✚</span>' : renderSkillGemArt(name, 'gem-card-sigil gem-card-art gem-tile-art');
+    let art = isSupport ? supportGemSigil.html(name, 'gem-card-sigil gem-tile-art gem-tile-support-art', 0) : renderSkillGemArt(name, 'gem-card-sigil gem-card-art gem-tile-art');
     return `<article class="skill-gem gem-library-card gem-tile sealed-gem-card">${art}<strong class="gem-tile-name">${highlightedName}</strong><small class="gem-usage-state">봉인됨, 공명력 1로 복원</small><button type="button" class="gem-card-utility" onclick="${releaseCall}">봉인 해제</button></article>`;
 }
 
@@ -3970,7 +3965,23 @@ const PIXEL_ICONS = Object.freeze({
     coral: ['.#......#..', '#o#..#.#o#.', '#o#.#o##o#.', '.#o##o#o#..', '..#oo#o#.#.', '...#ooo##o#', '....#oo#o#.', '....#ooo#..', '...#ooo#...', '..#ooooo#..', '.#########.'],
     gem: ['...........', '..#######..', '.#o#ooo#o#.', '#oo#ooo#oo#', '###########', '.#ooo#ooo#.', '..#oo#oo#..', '...#o#o#...', '....#o#....', '.....#.....', '...........'],
     // 기억의 잎(js/memory-leaves-ui.js 도감 카드, js/battle-ground-loot-ui.js 바닥 더미): 잎맥이 있는 비스듬한 잎.
-    leaf: ['.......###.', '.....##ooo#', '....#oooo#.', '...#ooo#o#.', '..#oo#oo#..', '.#oo#ooo#..', '.#o#ooo#...', '..#oo##....', '.#.##......', '#..........', '...........']
+    leaf: ['.......###.', '.....##ooo#', '....#oooo#.', '...#ooo#o#.', '..#oo#oo#..', '.#oo#ooo#..', '.#o#ooo#...', '..#oo##....', '.#.##......', '#..........', '...........'],
+    // 보조 젬 문양(js/support-gem-sigil-ui.js, 2026-10-11): 효과 종류마다 하나씩, 색은 계열(물리, 원소, 속도, 치명 …)을 따른다.
+    arrow: ['......#####', '.......#oo#', '......#o#o#', '.....#o#.##', '....#o#...#', '...#o#.....', '#.#o#......', '##o#.......', '###........', '####.......', '...........'],
+    burst: ['.....#.....', '.#...#...#.', '..#..#..#..', '...#.o.#...', '....ooo....', '###ooooo###', '....ooo....', '...#.o.#...', '..#..#..#..', '.#...#...#.', '.....#.....'],
+    hammer: ['..#######..', '.#ooooooo#.', '.#ooooooo#.', '.#ooooooo#.', '..###o###..', '....#o#....', '....#o#....', '....#o#....', '....#o#....', '....#o#....', '....###....'],
+    prism: ['....###....', '...#ooo#...', '...#ooo#...', '....###....', '...........', '.###...###.', '#ooo#.#ooo#', '#ooo#.#ooo#', '.###...###.', '...........', '...........'],
+    hourglass: ['.#########.', '..#ooooo#..', '..#ooooo#..', '...#ooo#...', '....#o#....', '.....#.....', '....#.#....', '...#.o.#...', '..#.ooo.#..', '..#ooooo#..', '.#########.'],
+    twin: ['....##...##', '...#o#..#o#', '..#o#..#o#.', '.#o#..#o#..', '#o#..#o#...', '##..#o#....', '...#o#.....', '..#o#......', '.#o#.......', '#o#........', '##.........'],
+    down: ['....###....', '....#o#....', '....#o#....', '....#o#....', '.####o####.', '..#ooooo#..', '...#ooo#...', '....#o#....', '.....#.....', '...........', '.#########.'],
+    bolt: ['......###..', '.....#o#...', '....#o#....', '...#o#.....', '..#oo####..', '...###oo#..', '.....#o#...', '....#o#....', '...#o#.....', '..#o#......', '..##.......'],
+    rift: ['.....#.....', '....#o#....', '...#o.o#...', '..#o.#.o#..', '.#o.#o#.o#.', '#o.#ooo#.o#', '.#o.#o#.o#.', '..#o.#.o#..', '...#o.o#...', '....#o#....', '.....#.....'],
+    wave: ['#...#...#..', '.#...#...#.', '..#...#...#', '..#...#...#', '..#...#...#', '..#...#...#', '..#...#...#', '.#...#...#.', '#...#...#..', '...........', '...........'],
+    orb: ['...#####...', '..#ooooo#..', '.#o#ooooo#.', '#o#ooooooo#', '#o#ooooooo#', '#ooooooooo#', '#ooooooooo#', '#ooooooooo#', '.#ooooooo#.', '..#ooooo#..', '...#####...'],
+    bomb: ['.......#.#.', '......#.#..', '.....#.....', '...#####...', '..#ooooo#..', '.#o#ooooo#.', '.#o#ooooo#.', '.#ooooooo#.', '.#ooooooo#.', '..#ooooo#..', '...#####...'],
+    flask: ['...#####...', '....#o#....', '....#o#....', '....#o#....', '...#ooo#...', '..#ooooo#..', '.#ooooooo#.', '.#o#ooooo#.', '.#o#ooooo#.', '..#ooooo#..', '...#####...'],
+    skull: ['..#######..', '.#ooooooo#.', '#ooooooooo#', '#o##ooo##o#', '#o##ooo##o#', '#ooooooooo#', '.#ooo#ooo#.', '..#ooooo#..', '..#o#o#o#..', '..#######..', '...........'],
+    crack: ['.####.####.', '#ooo#.#ooo#', '#oo#...#oo#', '#ooo#.#ooo#', '#oo#...#oo#', '.#oo#.#oo#.', '.#o#...#o#.', '..#o#.#o#..', '...##.##...', '....#.#....', '...........']
 });
 const SKY_ENHANCEMENT_ICON_BY_STAT = Object.freeze({
     pctDmg: 'sword', flatSkillDmgPct: 'sword', hybrid: 'sword', awakenedDamageMul: 'sword',
@@ -4010,7 +4021,14 @@ function renderSkyEnhancementOption(enhancement, activeSlots, isGem) {
     let group = getSkyEnhancementGroup(enhancement);
     let compatible = typeof isSkyEnhancementCompatibleWithSkill !== 'function' || isSkyEnhancementCompatibleWithSkill(enhancement.id, getGemEnhanceTargetSkill());
     let actionLabel = applied ? `적용 중, 해제 창공 ${removeCost}` : !compatible ? '투사체 젬 전용' : locked ? '젬 각성 해금 필요' : '창공 1';
-    return `<button class="gem-engrave-option group-${group.className} ${applied ? 'applied' : ''}" onclick="toggleSkyGemEnhancement('${enhancement.id}')" ${!isGem || !compatible || (locked && !applied) ? 'disabled' : ''}><span class="gem-engrave-top"><em>${group.label}</em><b>${actionLabel}</b></span><strong>${escapeHTML(enhancement.name)}</strong><small>${escapeHTML(enhancement.desc)}</small></button>`;
+    return `<button class="gem-engrave-option group-${group.className} ${applied ? 'applied' : ''}" onclick="toggleSkyGemEnhancement('${enhancement.id}')" ${!isGem || !compatible || (locked && !applied) ? 'disabled' : ''}>${renderEngraveOptionFace(enhancement, group, actionLabel)}</button>`;
+}
+
+/** The face of an engraving card (전체 각인 list and the slot overlay): icon in the group colour, name, then the effect in the stat
+ * colours at reading size. 2026-10-11 사용자: 색이 없고 글씨가 작아 어떤 효과인지 읽기 어려웠다(효과가 8px 흰 글씨였다). */
+function renderEngraveOptionFace(enhancement, group, stateLabel) {
+    return `<span class="gem-engrave-icon">${renderSkyEnhancementIcon(enhancement)}</span><span class="gem-engrave-copy"><span class="gem-engrave-top"><strong>${escapeHTML(enhancement.name)}</strong><em>${group.label}</em></span>`
+        + `<small>${statToneText.html(enhancement.desc)}</small><b class="gem-engrave-state">${stateLabel}</b></span>`;
 }
 
 function closeGemEngraveSlotOverlay() {
@@ -4029,7 +4047,7 @@ function renderGemEngraveOverlayOption(enhancement, slots, slotIndex) {
     let group = getSkyEnhancementGroup(enhancement);
     let compatible = typeof isSkyEnhancementCompatibleWithSkill !== 'function' || isSkyEnhancementCompatibleWithSkill(enhancement.id, getGemEnhanceTargetSkill());
     let state = current ? '현재 각인, 누르면 해제' : usedElsewhere ? '다른 슬롯에 적용 중' : !compatible ? '투사체 젬 전용' : locked ? '젬 각성 해금 필요' : '이 슬롯에 각인';
-    return `<button type="button" class="gem-engrave-option group-${group.className} ${current ? 'applied' : ''}" data-engrave-id="${enhancement.id}" data-action="${current ? 'remove' : 'apply'}" ${usedElsewhere || !compatible || (locked && !current) ? 'disabled' : ''}><span class="gem-engrave-top"><em>${group.label}</em><b>${state}</b></span><strong>${escapeHTML(enhancement.name)}</strong><small>${escapeHTML(enhancement.desc)}</small></button>`;
+    return `<button type="button" class="gem-engrave-option group-${group.className} ${current ? 'applied' : ''}" data-engrave-id="${enhancement.id}" data-action="${current ? 'remove' : 'apply'}" ${usedElsewhere || !compatible || (locked && !current) ? 'disabled' : ''}>${renderEngraveOptionFace(enhancement, group, state)}</button>`;
 }
 
 function openGemEngraveSlotOverlay(index) {
@@ -4054,7 +4072,7 @@ function openGemEngraveSlotOverlay(index) {
     overlay.setAttribute('aria-label', `${slotIndex + 1}번 각인 슬롯 선택`);
     overlay.dataset.triggerSlotIndex = String(slotIndex);
     overlay.tabIndex = -1;
-    overlay.innerHTML = `<section class="gem-engrave-slot-dialog"><header><div class="gem-engrave-dialog-identity">${renderSkillGemArt(active, 'gem-engrave-dialog-art', { eager: true })}<div><span>하늘 각인</span><h3>${escapeHTML(active)}, ${slotIndex + 1}번 슬롯</h3><p>${current ? `현재 ${escapeHTML(current.name)}, 다른 각인을 누르면 교체됩니다.` : '이 슬롯에 넣을 각인을 선택하세요.'}</p></div></div><button type="button" data-action="close" aria-label="닫기">닫기</button></header><div class="gem-engrave-overlay-grid">${Object.values(GEM_SKY_ENHANCEMENTS).map(enhancement => renderGemEngraveOverlayOption(enhancement, slots, slotIndex)).join('')}</div></section>`;
+    overlay.innerHTML = `<section class="gem-engrave-slot-dialog"><header><div class="gem-engrave-dialog-identity">${renderSkillGemArt(active, 'gem-engrave-dialog-art', { eager: true })}<div><span>하늘 각인</span><h3>${escapeHTML(active)}, ${slotIndex + 1}번 슬롯</h3><p>${current ? `현재 <b>${escapeHTML(current.name)}</b> ${statToneText.html(current.desc)}` : '이 슬롯에 넣을 각인을 선택하세요.'}</p></div></div><button type="button" data-action="close" aria-label="닫기">닫기</button></header><div class="gem-engrave-overlay-grid">${Object.values(GEM_SKY_ENHANCEMENTS).map(enhancement => renderGemEngraveOverlayOption(enhancement, slots, slotIndex)).join('')}</div></section>`;
     overlay.addEventListener('click', event => {
         if (event.target === overlay) return closeGemEngraveSlotOverlay();
         let button = event.target.closest('button[data-action]');
@@ -5502,7 +5520,7 @@ function showGemTooltip(event, type, name, target = null) {
         html += `<div class="tooltip-line">${keepKoreanUnitParticles(info.desc)}</div>`;
         let tierText = typeof getSupportTierLabel === 'function' ? getSupportTierLabel(name, info.activeTier) : (info.activeTier === 3 ? '상급' : info.activeTier === 2 ? '중급' : '하급');
         let valueText = typeof formatSupportGemEffectValue === 'function' ? formatSupportGemEffectValue(info.value) : Number(info.value || 0).toFixed(1);
-        html += `<div class="tooltip-line" style="margin-top:6px;">효과(${tierText}): ${info.statName} +${valueText}${SUPPORT_GEM_DB[name].isPct ? '%' : ''}</div>`;
+        html += `<div class="tooltip-line" style="margin-top:6px;">효과(${tierText}): ${info.statName} +${valueText}${SUPPORT_GEM_DB[name].isPct ? '%' : ''}</div>` + gemSlotDialog.tierLineHtml(name, stats);
         if (info.scaleWithOwnStat) {
             let baseText = typeof formatSupportGemEffectValue === 'function' ? formatSupportGemEffectValue(info.scaleBase) : Number(info.scaleBase || 0).toFixed(1);
             let ratioText = typeof formatSupportGemEffectValue === 'function' ? formatSupportGemEffectValue(info.scaleRatioPct) : Number(info.scaleRatioPct || 0).toFixed(1);
