@@ -2837,6 +2837,7 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
     drawBattleScreenGrade(ctx, width, height, now);
     worldTreeSkillFx.feedback.screen(ctx, { width, height, now });
     drawBossAnnouncement(ctx, { width, height, now }, updateBossAnnouncement(enemies, now));
+    if (typeof stageRoomsView === 'object') stageRoomsView.drawFade(ctx, { width, height });
 
     // DOM은 그림을 다 그린 뒤에 만진다: 그리는 도중에 쓰면 다음 ctx.font나 ctx.filter가 문서 스타일을 다시 계산했다.
     setElementText(document.getElementById('ui-battlefield-caption'), getBattlefieldCaption());

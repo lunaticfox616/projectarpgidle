@@ -39,4 +39,30 @@ const STAGE_TERRAIN = Object.freeze({
         crown: Object.freeze({ floor: '#383b55', wall: '#2e314d' })
     })
 });
-safeExposeData({ STAGE_VIEW, STAGE_TERRAIN });
+// 방 단위 무대 (2026-10-11 사용자: "던파처럼 방 하나마다 이동하는 방식", js/act-exploration-rooms.js). 액트 지도의 방을 따로 떨어진
+// 넓은 방으로 놓고 길을 문으로 바꾼다. 방 안의 몬스터를 모두 잡아야 문이 열린다. 시험판: 테스트 실행기의 무대 항목(주소에 stage=1)에서만 쓴다.
+const STAGE_ROOMS = Object.freeze({
+    /** 방 바닥의 가로 칸 수: 지도에 적힌 방의 큰 쪽 반경(0~4)에 따라. 입구 방과 보스 방은 따로 정한다. 모두 홀수(가운데 칸이 있다). */
+    widthByRadius: Object.freeze([9, 9, 11, 13, 15]),
+    entryWidth: 9,
+    bossWidth: 15,
+    /** 방 하나가 차지하는 가로 자리: 가장 넓은 방의 너비. */
+    slot: 15,
+    /** 깊이 칸 수: 보통 5, 넓은 방(지도에 적힌 반경이 양쪽 다 3 이상)과 보스 방은 7. */
+    depth: 5,
+    deepDepth: 7,
+    /** 방 사이를 띄우는 칸 수: 경계하는 무리의 귀(12칸)와 튀는 피해(12칸)가 옆 방에 닿지 않게 그보다 넓다. */
+    gap: 16,
+    /** 방 위쪽의 벽 칸 수(뒷벽이 서는 자리)와 아래쪽 여백. */
+    top: 5,
+    bottom: 3,
+    /** 방에 들어서면 방 안을 모두 보고 방 안의 몬스터가 모두 알아챈다: 이 반경은 어느 방보다도 크기만 하면 된다. */
+    reach: 40,
+    /** 방 그림에 함께 담는 둘레의 벽 칸 수(좌우, 위, 아래). */
+    frame: Object.freeze({ side: 3, top: 5, bottom: 2 }),
+    /** 방을 화면 기준 줄보다 위로 올리는 칸 수의 상한(깊이 칸): 화면 아래쪽을 덮는 HUD에서 앞쪽 문을 꺼낸다. */
+    lift: 1.25,
+    /** 문을 지난 뒤 화면이 어둠에서 밝아지는 시간(ms). */
+    fadeMs: 280
+});
+safeExposeData({ STAGE_VIEW, STAGE_TERRAIN, STAGE_ROOMS });

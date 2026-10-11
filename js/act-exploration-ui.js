@@ -64,7 +64,9 @@ const actExplorationUi=(()=>{
         return {x0,y0,cols,rows,scale:8,markerScale:Math.max(1,Math.max(cols,rows)/MINI_MARKER_BASE)};
     }
     function draw(canvas,run) {
-        const map=actExplorationMap.forRun(run),view=mapView(canvas,map),scale=view.scale,ss=2;
+        const map=actExplorationMap.forRun(run);
+        if(map.stage){actExplorationRoomsUi.draw(canvas,run,map);return;} // 방 단위 무대: 방과 길의 약도
+        const view=mapView(canvas,map),scale=view.scale,ss=2;
         canvas.width=view.cols*scale*ss;canvas.height=view.rows*scale*ss;
         canvas.dataset.view=[view.x0,view.y0,view.cols,view.rows].join(',');
         const ctx=canvas.getContext('2d'),seen=new Set(run.discovered);
@@ -165,6 +167,7 @@ const actExplorationUi=(()=>{
         if(event.currentTarget.id==='act-exploration-map'&&window.matchMedia('(max-width: 1080px)').matches)return expand();
         const run=actExplorationState.current(game);if(!run||run.status!=='active')return;
         const map=actExplorationMap.forRun(run),rect=event.currentTarget.getBoundingClientRect();
+        if(map.stage){commandMove(actExplorationRoomsUi.pick(event,run,map));return;}
         const view=mapView(event.currentTarget,map);
         const cell={gx:view.x0+Math.floor((event.clientX-rect.left)/rect.width*view.cols),
             gy:view.y0+Math.floor((event.clientY-rect.top)/rect.height*view.rows)};

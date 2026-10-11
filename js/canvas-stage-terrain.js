@@ -28,6 +28,12 @@ const stageTerrain = (() => {
         const look = STAGE_TERRAIN.biomes[map.biome] || STAGE_TERRAIN.biomes.root;
         return { floor: rgbOf(look.floor), wall: rgbOf(look.wall) };
     }
+    /** 그릴 칸 범위의 칸마다 한 번씩. */
+    function eachCell(box, visit) {
+        for (let y = box.y; y < box.y + box.rows; y++) for (let x = box.x; x < box.x + box.columns; x++) visit(x, y);
+    }
+    /** 칸 범위가 그림에서 차지하는 도트 영역. */
+    const dotsOf = box => ({ x: box.x * WIDE, y: box.y * DEEP, w: box.columns * WIDE, h: box.rows * DEEP });
 
     const isFloor = (map, x, y) => x >= 0 && y >= 0 && x < map.columns && y < map.rows && map.tiles[y * map.columns + x] === 1;
     /** Dots the wall north of floor cell (x, y) stands: as many cells as the wall runs north, at most wallMax. */
@@ -38,30 +44,28 @@ const stageTerrain = (() => {
     }
 
     // ---------------------------------------------------------------- floor
-    function clipToFloor(ctx, map) {
+    function clipToFloor(ctx, scene) {
         ctx.beginPath();
-        for (let y = 0; y < map.rows; y++) for (let x = 0; x < map.columns; x++) {
-            if (isFloor(map, x, y)) ctx.rect(x * WIDE, y * DEEP, WIDE, DEEP);
-        }
+        eachCell(scene.box, (x, y) => { if (isFloor(scene.map, x, y)) ctx.rect(x * WIDE, y * DEEP, WIDE, DEEP); });
         ctx.clip();
     }
     /** Flagstones in staggered rows: nearly one colour, a thin darker joint on the top and left of each, as on the simulator's stage. */
-    function paintSlabs(ctx, width, height, floor) {
+    function paintSlabs(ctx, area, floor) {
         ctx.fillStyle = tone(floor, 0.82);
-        ctx.fillRect(0, 0, width, height);
-        for (let row = 0; row * SLAB.h < height; row++) {
+        ctx.fillRect(area.x, area.y, area.w, area.h);
+        for (let row = Math.floor(area.y / SLAB.h); row * SLAB.h < area.y + area.h; row++) {
             const offset = row % 2 ? SLAB.w / 2 : 0;
-            for (let x = -offset, column = 0; x < width; x += SLAB.w, column++) {
+            for (let column = Math.floor((area.x + offset) / SLAB.w); column * SLAB.w - offset < area.x + area.w; column++) {
                 ctx.fillStyle = tone(floor, 1, (noise(column, row, 1) - 0.5) * 7);
-                ctx.fillRect(x + 1, row * SLAB.h + 1, SLAB.w - 1, SLAB.h - 1);
+                ctx.fillRect(column * SLAB.w - offset + 1, row * SLAB.h + 1, SLAB.w - 1, SLAB.h - 1);
             }
         }
     }
     /** Broad darker and lighter patches (worn and damp stone), so a large room is not one flat tone. */
-    function paintStains(ctx, width, height) {
-        const count = Math.round(width * height / 26000);
+    function paintStains(ctx, area) {
+        const count = Math.round(area.w * area.h / 26000);
         for (let i = 0; i < count; i++) {
-            const x = noise(i, 23, 8) * width, y = noise(i, 29, 9) * height, r = 40 + noise(i, 31, 10) * 90;
+            const x = area.x + noise(i, 23 + area.x, 8) * area.w, y = area.y + noise(i, 29, 9) * area.h, r = 40 + noise(i, 31, 10) * 90;
             const patch = ctx.createRadialGradient(x, y, 0, x, y, r), dark = noise(i, 37, 11) > 0.35;
             patch.addColorStop(0, dark ? 'rgba(10,8,14,0.22)' : 'rgba(255,240,220,0.07)');
             patch.addColorStop(1, 'rgba(0,0,0,0)');
@@ -72,20 +76,21 @@ const stageTerrain = (() => {
         }
     }
     /** Chips and grit: a few darker and lighter flecks so the slabs do not read as flat tiles. */
-    function paintFlecks(ctx, width, height, floor) {
-        const count = Math.round(width * height / 900);
+    function paintFlecks(ctx, area, floor) {
+        const count = Math.round(area.w * area.h / 900);
         for (let i = 0; i < count; i++) {
-            const x = Math.floor(noise(i, 7, 2) * width), y = Math.floor(noise(i, 11, 3) * height), light = noise(i, 13, 4) > 0.6;
+            const x = area.x + Math.floor(noise(i, 7 + area.x, 2) * area.w), y = area.y + Math.floor(noise(i, 11, 3) * area.h), light = noise(i, 13, 4) > 0.6;
             ctx.fillStyle = tone(floor, light ? 1.22 : 0.7);
             ctx.fillRect(x, y, 1 + Math.floor(noise(i, 17, 5) * 3), 1);
         }
     }
-    function paintFloor(ctx, map, colours) {
+    function paintFloor(ctx, scene) {
+        const area = dotsOf(scene.box);
         ctx.save();
-        clipToFloor(ctx, map);
-        paintSlabs(ctx, ctx.canvas.width, ctx.canvas.height, colours.floor);
-        paintStains(ctx, ctx.canvas.width, ctx.canvas.height);
-        paintFlecks(ctx, ctx.canvas.width, ctx.canvas.height, colours.floor);
+        clipToFloor(ctx, scene);
+        paintSlabs(ctx, area, scene.colours.floor);
+        paintStains(ctx, area);
+        paintFlecks(ctx, area, scene.colours.floor);
         ctx.restore();
     }
 
@@ -143,43 +148,56 @@ const stageTerrain = (() => {
         ctx.fillStyle = tone(wall, 1.55);
         ctx.fillRect(face.x, face.y + face.h, WIDE, 2);
     }
-    function paintBackWalls(ctx, map, colours) {
-        for (let y = 1; y < map.rows; y++) for (let x = 0; x < map.columns; x++) {
-            if (!isFloor(map, x, y) || isFloor(map, x, y - 1)) continue;
+    function paintBackWalls(ctx, scene) {
+        const map = scene.map;
+        eachCell(scene.box, (x, y) => {
+            if (y < 1 || !isFloor(map, x, y) || isFloor(map, x, y - 1)) return;
             const h = wallHeight(map, x, y);
-            paintFace(ctx, { x: x * WIDE, y: y * DEEP - h, h, pillar: h >= 64 && x % STAGE_TERRAIN.pillarEvery === 2 }, colours.wall);
-        }
+            paintFace(ctx, { x: x * WIDE, y: y * DEEP - h, h, pillar: h >= 64 && x % STAGE_TERRAIN.pillarEvery === 2 }, scene.colours.wall);
+        });
     }
     /** Side walls are seen edge on (a dark band), and the near edge of a floor ends in a lip over the dark. */
-    function paintEdges(ctx, map, colours) {
-        for (let y = 0; y < map.rows; y++) for (let x = 0; x < map.columns; x++) {
-            if (!isFloor(map, x, y)) continue;
+    function paintEdges(ctx, scene) {
+        const { map, colours } = scene;
+        eachCell(scene.box, (x, y) => {
+            if (!isFloor(map, x, y)) return;
             ctx.fillStyle = tone(colours.wall, 0.55);
             if (!isFloor(map, x - 1, y)) ctx.fillRect(x * WIDE - 5, y * DEEP, 5, DEEP);
             if (!isFloor(map, x + 1, y)) ctx.fillRect((x + 1) * WIDE, y * DEEP, 5, DEEP);
-            if (isFloor(map, x, y + 1)) continue;
+            if (isFloor(map, x, y + 1)) return;
             ctx.fillStyle = tone(colours.floor, 0.62);
             ctx.fillRect(x * WIDE, (y + 1) * DEEP, WIDE, 4);
             ctx.fillStyle = tone(colours.floor, 0.36);
             ctx.fillRect(x * WIDE, (y + 1) * DEEP + 4, WIDE, 3);
-        }
+        });
     }
+    /** 벽의 윗면과 그 너머: 빛이 닿지 않는 어둠. */
+    const DARK = 0.34;
 
-    /** @param {object} map a compiled layout (js/act-exploration-map.js) @returns {HTMLCanvasElement} the whole map, columns×64 by rows×32 */
-    function paint(map) {
-        const canvas = document.createElement('canvas'), colours = coloursOf(map);
-        canvas.width = map.columns * WIDE;
-        canvas.height = map.rows * DEEP;
+    /** @param {object} map a compiled layout (js/act-exploration-map.js)
+     * @param {{x:number,y:number,columns:number,rows:number}} [box] the cells to paint (a room of a room-by-room map,
+     *   js/canvas-stage-rooms.js); the whole map if omitted
+     * @returns {HTMLCanvasElement} the box at 64 by 32 dots a cell */
+    function paint(map, box = { x: 0, y: 0, columns: map.columns, rows: map.rows }) {
+        const canvas = document.createElement('canvas'), scene = { map, box, colours: coloursOf(map) };
+        canvas.width = box.columns * WIDE;
+        canvas.height = box.rows * DEEP;
         const ctx = canvas.getContext('2d');
         ctx.imageSmoothingEnabled = false;
-        ctx.fillStyle = tone(colours.wall, 0.34);          // 벽의 윗면과 그 너머: 빛이 닿지 않는 어둠
+        ctx.fillStyle = tone(scene.colours.wall, DARK);
         ctx.fillRect(0, 0, canvas.width, canvas.height);
-        paintFloor(ctx, map, colours);
-        paintEdges(ctx, map, colours);
-        paintBackWalls(ctx, map, colours);
+        ctx.translate(-box.x * WIDE, -box.y * DEEP);
+        paintFloor(ctx, scene);
+        paintEdges(ctx, scene);
+        paintBackWalls(ctx, scene);
         return canvas;
     }
+    /** The colours a map is painted with, as CSS strings: the floor, the wall, and the dark beyond the walls. */
+    function colours(map) {
+        const look = coloursOf(map);
+        return { floor: tone(look.floor, 1), wall: tone(look.wall, 1), dark: tone(look.wall, DARK) };
+    }
 
-    return { paint };
+    return { paint, colours };
 })();
 safeExposeGlobals({ stageTerrain });

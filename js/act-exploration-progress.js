@@ -51,6 +51,7 @@ const actExplorationProgress = (() => {
         actExplorationMotion.advance(run,game.gridPlayer,run.motionTimeMs,canEnterMotionTile(run));
         swapSummonOutOfHeroTile(from);
         if(run.motion || !explore(run,stats))return;
+        actExplorationDoors.cross(run); // 방 단위 무대: 열린 문 칸에 서 있으면 이어진 방으로 옮겨진 뒤 그 방을 본다
         actExplorationState.discover(run,game.gridPlayer,actExplorationState.sightRadius(stats));
         const opened=actExplorationState.entrance(run);
         wakeBosses(actExplorationState.engage(game,actExplorationState.notice(run,game.gridPlayer),run.motionTimeMs));
@@ -65,7 +66,7 @@ const actExplorationProgress = (() => {
         walk(run,target,stats);
     }
     function walk(run,target,stats) {
-        const stepped=walkStep(target,stats);
+        const stepped=walkStep(actExplorationDoors.toward(run,target),stats);
         if(stepped || target!==run.destination){commandStalls.delete(run);return;}
         const stalls=(commandStalls.get(run)||0)+1;
         commandStalls.set(run,stalls);
@@ -102,7 +103,7 @@ const actExplorationProgress = (() => {
         const pile=ground.nearest(run,game.gridPlayer);
         if(!pile)return false;
         const memo=lootWalks.get(run)||{stalls:0,clearedAt:null};lootWalks.set(run,memo);
-        memo.stalls=walkStep(pile,stats)?0:memo.stalls+1;
+        memo.stalls=walkStep(actExplorationDoors.toward(run,pile),stats)?0:memo.stalls+1;
         if(memo.stalls>=COMMAND_GIVE_UP_STEPS){memo.stalls=0;collectExplorationFloorLoot(ground.takeAt(run,pile));}
         return true;
     }

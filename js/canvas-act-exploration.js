@@ -27,12 +27,20 @@ const actExplorationView=(()=>{
     function projection(width,height) {
         const run=actExplorationState.current(game),map=actExplorationMap.forRun(run);
         const cell=actExplorationMotion.position(run,game.gridPlayer),tile=stageView.enabled()?stageView.tile(width):tileSize(width,height);
-        const deep=tile*stageView.depth(),focus=bossLead(run,cell);
-        const mapX=snap(width/2-(cell.gx+focus.gx+.5)*tile),mapY=snap(height*stageView.anchorY()-(cell.gy+focus.gy+.5)*deep);
+        const deep=tile*stageView.depth(),centre=cameraCentre(run,cell,{columns:width/tile,rows:height/deep});
+        const mapX=snap(width/2-centre.gx*tile),mapY=snap(height*stageView.anchorY()-centre.gy*deep);
         shiftActors(run,{x:mapX,y:mapY,tile,deep});
         return {tileW:tile,tileH:deep,actorGroundOffsetY:deep/6,unitScaleCap:tile/46,mapX,mapY,
             mapWidth:map.columns*tile,mapHeight:map.rows*deep,
             cellToScreen:(gx,gy)=>({x:mapX+(gx+.5)*tile,y:mapY+(gy+.5)*deep})};
+    }
+    /** The cell (fractional) at the camera's centre: the hero's, leaning toward a boss; on a room-by-room stage the view its room
+     * holds (js/canvas-stage-rooms.js). */
+    function cameraCentre(run,cell,view) {
+        const held=stageRoomsView.focus(run,cell,view);
+        if(held)return held;
+        const focus=bossLead(run,cell);
+        return {gx:cell.gx+focus.gx+.5,gy:cell.gy+focus.gy+.5};
     }
     /** The boss the camera leans toward: the one fighting, else the one rising in its entrance. */
     function focusBoss(run) {
@@ -73,8 +81,17 @@ const actExplorationView=(()=>{
             current.closed=explorationArt.gate(true,map);current.open=explorationArt.gate(false,map);
         }).catch(error=>{current.error=error.message;console.error('탐험 지형 준비 실패',error);});
     }
+    /** 방 단위 무대(js/canvas-stage-rooms.js): 주인공이 선 방 하나만 그린다. 지도 전체 그림과 안개는 쓰지 않는다. */
+    function drawRoomStage(ctx,run,p,area) {
+        ctx.save();
+        const drawn=stageRoomsView.background(ctx,run,p,area);
+        if(drawn){actExplorationView.objects.drawGround(ctx,run,p);drawCommand(ctx,run,p);}
+        ctx.restore();
+        return drawn;
+    }
     function background(ctx,width,height,p) {
         const run=actExplorationState.current(game);if(!run)return false;
+        if(drawRoomStage(ctx,run,p,{width,height}))return true;
         const map=actExplorationMap.forRun(run);prepare(map);
         ctx.save();ctx.fillStyle=`rgb(${shadeOf(map).join(',')})`;ctx.fillRect(0,0,width,height);ctx.imageSmoothingEnabled=false;
         if(cache.surface){ctx.drawImage(cache.surface,p.mapX,p.mapY,p.mapWidth,p.mapHeight);actExplorationView.objects.drawGround(ctx,run,p);}
@@ -142,7 +159,8 @@ const actExplorationView=(()=>{
     }
     function appendScenery(actors,state) {
         actExplorationView.objects.append(actors,state);
-        const run=actExplorationState.current(game);if(!run || !cache?.surface)return;
+        // 방 단위 무대의 관문은 문으로 그려진다(js/canvas-stage-rooms.js): 옛 관문 그림을 세우지 않는다.
+        const run=actExplorationState.current(game);if(!run || !cache?.surface || actExplorationDoors.stageMap(run))return;
         const map=cache.map,seen=new Set(run.discovered),p=state.gridProj;
         if(seen.has(actExplorationMap.index(map,map.gate))) {
             const point=p.cellToScreen(map.gate.gx,map.gate.gy),box=gateBox(point,p);
@@ -166,7 +184,8 @@ const actExplorationView=(()=>{
     function bossRoomGlow() {
         const run=actExplorationState.current(game);
         if(!run || lastOrigin?.run!==run)return null;
-        const room=actExplorationState.bossRoomAt(run,game.gridPlayer),tile=lastOrigin.tile;
+        // 방 단위 무대에서는 어느 방이든 방 전체가 밝다.
+        const room=actExplorationDoors.room(run)||actExplorationState.bossRoomAt(run,game.gridPlayer),tile=lastOrigin.tile;
         if(!room)return null;
         return {x:lastOrigin.x+(room.gx+.5)*tile,y:lastOrigin.y+(room.gy+.5)*lastOrigin.deep,radius:Math.hypot(room.radiusX+1,room.radiusY+1)*tile};
     }

@@ -104,10 +104,15 @@ const actExplorationMap = (() => {
      * summons pathing), and generated() normalised and rebuilt the spec before its own cache lookup (2026-10-07 frame drops). */
     function forRun(run) {
         const hit=runMaps.get(run);
-        if(hit&&hit.source===run.source&&hit.act===run.act&&hit.rotation===run.rotation)return hit.map;
-        const map=run.source?generated(run.source,run.rotation):layout(run.act,run.rotation);
-        runMaps.set(run,{source:run.source,act:run.act,rotation:run.rotation,map});
+        if(hit&&hit.source===run.source&&hit.act===run.act&&hit.rotation===run.rotation&&hit.rooms===run.rooms)return hit.map;
+        const map=mapOf(run);
+        runMaps.set(run,{source:run.source,act:run.act,rotation:run.rotation,rooms:run.rooms,map});
         return map;
+    }
+    /** A run marked rooms walks its act's room-by-room stage layout (js/act-exploration-rooms.js), whatever its facing. */
+    function mapOf(run) {
+        if(run.source)return generated(run.source,run.rotation);
+        return run.rooms?actExplorationRooms.layout(run.act):layout(run.act,run.rotation);
     }
     function index(map,cell) {return cell.gy*map.columns+cell.gx;}
     function inBounds(map,cell) {
@@ -119,8 +124,12 @@ const actExplorationMap = (() => {
         return map.tiles[index(map,cell)]===1&&!(sealed&&cell.gx===map.gate.gx&&cell.gy===map.gate.gy);
     }
     function neighbors(map,cell) {
-        return [{gx:cell.gx-1,gy:cell.gy},{gx:cell.gx+1,gy:cell.gy},
+        const around=[{gx:cell.gx-1,gy:cell.gy},{gx:cell.gx+1,gy:cell.gy},
             {gx:cell.gx,gy:cell.gy-1},{gx:cell.gx,gy:cell.gy+1}].filter(p=>walkable(map,p));
+        // 방 단위 지도의 문 칸은 이어진 방의 문 안쪽으로도 통한다(js/act-exploration-rooms.js).
+        const beyond=map.portals&&map.portals.get(index(map,cell));
+        if(beyond)around.push(beyond);
+        return around;
     }
     /** @param {Set<number>} blocked Row-major tile indices, including a sealed gate if needed. */
     function route(map,from,to,blocked=new Set()) {
@@ -146,6 +155,7 @@ const actExplorationMap = (() => {
     /** One three-cell group in the longest quiet approach. Existing terrain stays unchanged; gate stays sealed.
      * Cached per immutable layout, not searched during movement/render ticks. Boss-only arenas have no candidate. */
     function roadGroup(map) {
+        if(map.stage)return null; // 방 단위 지도에는 방 사이의 길이 없다
         if(roadGroups.has(map))return roadGroups.get(map);
         const blocked=new Set([index(map,map.gate)]);
         let best=null,score=5;

@@ -98,6 +98,13 @@ const devTestPanel = (() => {
         refresh();
         note(level ? `효과 확장 +${level}${level >= 2 ? ' (피해 −30%)' : ''}` : '효과 확장 없음');
     }
+    /** 방 단위 이동(js/act-exploration-doors.js)을 켜고 끈다. 지금 액트의 지도를 처음부터 다시 열어 바로 보이게 한다. */
+    function setStageRooms(value) {
+        game.settings.stageRooms = value;
+        if (getZone(game.currentZoneId)?.type === 'act') changeZone(game.currentZoneId);
+        refresh();
+        note(value === 'off' ? '지도: 이어진 지도' : '지도: 방 단위 이동');
+    }
     function travelToAct(order) {
         const zoneId = order - 1;
         game.maxZoneId = Math.max(game.maxZoneId || 0, zoneId);
@@ -155,7 +162,8 @@ const devTestPanel = (() => {
                 button('끄기', () => setSetting('battleView', 'top', '전장: 위에서 보기'))]),
             row([el('label', { textContent: '크기' }), button('자동', () => setSetting('stageZoom', 0, '무대 크기: 자동')),
                 ...[1, 1.5, 2].map(zoom => button(`×${zoom}`, () => setSetting('stageZoom', zoom, `무대 크기 ×${zoom}`)))]),
-            row([el('label', { textContent: '자세' }), stance])
+            row([el('label', { textContent: '자세' }), stance]),
+            row([el('label', { textContent: '지도' }), button('방 단위', () => setStageRooms('on')), button('이어진 지도', () => setStageRooms('off'))])
         ]);
     }
     function gemSection() {

@@ -33,6 +33,7 @@ const actExplorationState = (() => {
     function create(where,packs,now=0) {
         const run=where.source ? {version:1,act:null,source:explorationLayouts.normalize(where.source),bossStages:where.bossStages,zoneId:where.zoneId}
             : {version:1,act:where.act,zoneId:where.act-1};
+        if(where.rooms && !where.source)run.rooms=1; // 방 단위 무대(js/act-exploration-rooms.js): 이 탐험이 끝날 때까지 그 지도를 걷는다
         if(where.rotation!==undefined)run.rotation=where.rotation;
         const map=actExplorationMap.forRun(run);
         if(!map)throw Error('알 수 없는 액트 탐험: '+where.act);
@@ -82,24 +83,32 @@ const actExplorationState = (() => {
     }
     /** @returns {ReadonlyArray<number>} Current visibility; only this owner updates discovered/visited lists. radius: the hero's
      * sight (sightRadius), kept per run for the fog. */
-    function discover(run,cell,radius=ACT_EXPLORATION_VISION.radius) {
+    function discover(run,cell,sightRadius=ACT_EXPLORATION_VISION.radius) {
+        const map=actExplorationMap.forRun(run),radius=roomReach(map,sightRadius);
         sights.set(run,radius);
         const prior=discoveryMemos.get(run),key=`${run.layoutId}:${cell.gx},${cell.gy}:${radius}`;
         if(prior?.key===key && prior.discovered===run.discovered && prior.visited===run.visitedRooms)return prior.visible;
-        const map=actExplorationMap.forRun(run),known=new Set(run.discovered);
+        const known=new Set(run.discovered);
         const visible=Object.freeze(actExplorationMap.visibleCells(map,cell,radius));
         visible.forEach(id=>known.add(id));run.discovered=[...known];
         for(const room of map.rooms) {
-            if(room.gx===cell.gx && room.gy===cell.gy && !run.visitedRooms.includes(room.id))run.visitedRooms.push(room.id);
+            if(standsIn(map,room,cell) && !run.visitedRooms.includes(room.id))run.visitedRooms.push(room.id);
         }
         discoveryMemos.set(run,{key,visible,discovered:run.discovered,visited:run.visitedRooms});
         return visible;
+    }
+    /** 방 단위 지도(js/act-exploration-rooms.js)에서는 방 하나를 통째로 본다: 벽이 시야를 막으므로 반경은 방보다 크기만 하면 된다. */
+    const roomReach=(map,radius)=>map.stage?STAGE_ROOMS.reach:radius;
+    /** A room counts as visited from its centre cell; on a room-by-room map from any of its cells. */
+    function standsIn(map,room,cell) {
+        return map.stage ? actExplorationRooms.roomAt(map,cell)===room : room.gx===cell.gx && room.gy===cell.gy;
     }
     /** Cells whose monsters notice the hero and join the fight: a tile inside the sight (ACT_EXPLORATION_VISION), memoized per cell. */
     function notice(run,cell) {
         const key=`${run.layoutId}:${cell.gx},${cell.gy}`,prior=noticeMemos.get(run);
         if(prior?.key===key)return prior.cells;
-        const cells=Object.freeze(actExplorationMap.visibleCells(actExplorationMap.forRun(run),cell,ACT_EXPLORATION_VISION.engageRadius));
+        const map=actExplorationMap.forRun(run);
+        const cells=Object.freeze(actExplorationMap.visibleCells(map,cell,roomReach(map,ACT_EXPLORATION_VISION.engageRadius)));
         noticeMemos.set(run,{key,cells});
         return cells;
     }
@@ -236,6 +245,7 @@ const actExplorationState = (() => {
         run.destination={gx:cell.gx,gy:cell.gy};return true;
     }
     function reachableBeforeBoss(map,cell) {
+        if(map.stage)return actExplorationRooms.roomAt(map,cell)?.role!=='boss'; // 보스 방만 관문 뒤에 있다
         if(cell.gx===map.entry.gx && cell.gy===map.entry.gy)return true;
         const blocked=new Set([actExplorationMap.index(map,map.gate)]);
         return actExplorationMap.route(map,map.entry,cell,blocked).length>0;
@@ -258,11 +268,16 @@ const actExplorationState = (() => {
             : candidates.filter(pack=>pack.eliteIds.length>0 || pack.stage!==null);
         let best=null,bestLength=Infinity;
         for(const pack of targets) {
-            const room=packPosition(map,pack);
-            const path=actExplorationMap.route(map,from,room,blocked);
-            if(path.length && path.length<bestLength){best=room;bestLength=path.length;}
+            const room=packPosition(map,pack),length=walkLength(map,from,room,blocked);
+            if(length && length<bestLength){best=room;bestLength=length;}
         }
         return best;
+    }
+    /** Steps to a pack; 0 when it cannot be reached. A room-by-room map counts doors first (no path search every step). */
+    function walkLength(map,from,room,blocked) {
+        if(!map.stage)return actExplorationMap.route(map,from,room,blocked).length;
+        const length=actExplorationRooms.steps(map,from,room);
+        return Number.isFinite(length)?length+1:0;
     }
     function validCell(map,cell) {
         if(!cell || !actExplorationMap.walkable(map,cell))throw Error('탐험 저장의 위치가 지형 밖입니다.');
@@ -360,14 +375,20 @@ const actExplorationState = (() => {
      * The save boundary (mergeDefaults) calls this before it validates the run. */
     function dropRetired(state) {
         const run=state.actExploration;
-        if(!run || !run.source || explorationLayouts.supports(run.source))return false;
+        if(!run || !retired(run))return false;
         actExplorationLoot.restore(state,run);
         actExplorationState.groundLoot.settleOnLoad(state,run);
-        console.warn('retired generated map dropped on load:', run.source.style);
+        console.warn('retired exploration map dropped on load:', run.source?run.source.style:'rooms');
         state.actExploration=null;
         state.enemies=(state.enemies||[]).filter(enemy=>!enemy || !enemy.explorationPack);
         state.encounterPlan=[];
         return true;
+    }
+    /** A generated map this build no longer draws, or a room-by-room run (rooms) opened where the room stage is off: such a run
+     * was laid out on a map this session would draw wrongly. */
+    function retired(run) {
+        if(run.source)return !explorationLayouts.supports(run.source);
+        return !!run.rooms && !actExplorationDoors.session();
     }
     /** Saves before 2026-10-04 carry no facing: they keep walking the map as it was drawn, so their tile indices still hold.
      * The save boundary (mergeDefaults) calls this before it validates the run; a run that already has one is left alone. */

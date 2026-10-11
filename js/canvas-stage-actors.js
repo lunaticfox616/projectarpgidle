@@ -264,6 +264,10 @@ const stageView = Object.freeze({
         return choice === 'stage' || (stageByAddress && choice !== 'top');
     },
     enabled: () => stageView.wanted() && stageActors.available(),
+    /** 무대 시험판으로 연 창인가(주소에 stage=1). 방 단위 지도는 이 창에서만 만들고, 이 창은 클라우드 저장을 쓰지 않는다. */
+    trial: () => stageByAddress,
+    /** 새 탐험을 방 단위 지도로 여는가(js/act-exploration-doors.js): 시험판 창에서 무대가 켜져 있고 테스트 패널에서 끄지 않았을 때. */
+    rooms: () => stageByAddress && stageView.enabled() && !!game.settings && game.settings.stageRooms !== 'off',
     /** Screen height of one depth cell ÷ its width: STAGE_VIEW.depth on the stage, 1 on the top-down field. */
     depth: () => (stageView.enabled() ? STAGE_VIEW.depth : 1),
     /** Cell width of an exploration map on the stage: the largest one that keeps STAGE_VIEW.minColumns across the view with a
@@ -283,4 +287,6 @@ const stageView = Object.freeze({
         return sides.get(unit) || 'west';
     }
 });
+// 시험판 창은 그림이 있는지 미리 물어 둔다: 첫 탐험을 열 때(방 단위 지도를 고를 때) 이미 답이 와 있도록.
+if (stageByAddress) stageActors.available();
 safeExposeGlobals({ stageActors, stageView });
