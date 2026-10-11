@@ -16,7 +16,7 @@ const R = require('./stage-monsters/render.cjs');
 const { decodePng, encodePng } = require('./lib/png.cjs');
 
 const root = path.resolve(__dirname, '..');
-const SETS = ['act1'];
+const SETS = ['act1', 'wisps'];
 const PREVIEW_SCALE = 3, HERO_CELL = 128, HERO_FEET = 110;
 const HERO_SHEET = path.join(root, 'assets/playable/stage/warrior/swordshield/idle.png');
 

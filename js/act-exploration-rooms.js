@@ -20,7 +20,7 @@ const actExplorationRooms = (() => {
         const rule = STAGE_ROOMS, widest = rule.widthByRadius.length - 1;
         const byRole = { boss: rule.bossWidth, entry: rule.entryWidth };
         const width = byRole[role] || rule.widthByRadius[Math.min(widest, Math.max(rx, ry))];
-        return { width, depth: role === 'boss' || (rx >= 3 && ry >= 3) ? rule.deepDepth : rule.depth };
+        return { width, depth: rule.depth };
     }
     /** 길 목록에 보스 방으로 가는 관문 길을 더한다. */
     function edgesOf(source) {
@@ -134,7 +134,7 @@ const actExplorationRooms = (() => {
     }
     function compileRooms(source) {
         const rule = STAGE_ROOMS, edges = edgesOf(source), rooms = placeRooms(source, orderOf(source, edges));
-        const columns = rooms.length * (rule.slot + rule.gap), rows = rule.top + rule.deepDepth + rule.bottom;
+        const columns = rooms.length * (rule.slot + rule.gap), rows = rule.top + rule.depth + rule.bottom;
         const doors = buildDoors(rooms, edges), { tiles, owner } = buildTiles(rooms, doors, columns, rows);
         const at = cell => cell.gy * columns + cell.gx;
         return Object.freeze({ id: source.id, act: source.act, biome: source.biome, columns, rows, tiles: Object.freeze(tiles),

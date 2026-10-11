@@ -268,6 +268,8 @@ const stageView = Object.freeze({
     trial: () => stageByAddress,
     /** 새 탐험을 방 단위 지도로 여는가(js/act-exploration-doors.js): 시험판 창에서 무대가 켜져 있고 테스트 패널에서 끄지 않았을 때. */
     rooms: () => stageByAddress && stageView.enabled() && !!game.settings && game.settings.stageRooms !== 'off',
+    /** 방을 배경 그림으로 그리는가(js/canvas-stage-backdrop.js): 테스트 패널에서 끄면 벽돌 뒷벽으로 돌아간다. */
+    backdrops: () => typeof game === 'object' && !!game.settings && game.settings.stageBackdrop !== 'off',
     /** Screen height of one depth cell ÷ its width: STAGE_VIEW.depth on the stage, 1 on the top-down field. */
     depth: () => (stageView.enabled() ? STAGE_VIEW.depth : 1),
     /** Cell width of an exploration map on the stage: the largest one that keeps STAGE_VIEW.minColumns across the view with a

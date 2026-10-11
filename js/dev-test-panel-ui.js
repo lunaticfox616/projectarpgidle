@@ -163,7 +163,9 @@ const devTestPanel = (() => {
             row([el('label', { textContent: '크기' }), button('자동', () => setSetting('stageZoom', 0, '무대 크기: 자동')),
                 ...[1, 1.5, 2].map(zoom => button(`×${zoom}`, () => setSetting('stageZoom', zoom, `무대 크기 ×${zoom}`)))]),
             row([el('label', { textContent: '자세' }), stance]),
-            row([el('label', { textContent: '지도' }), button('방 단위', () => setStageRooms('on')), button('이어진 지도', () => setStageRooms('off'))])
+            row([el('label', { textContent: '지도' }), button('방 단위', () => setStageRooms('on')), button('이어진 지도', () => setStageRooms('off'))]),
+            row([el('label', { textContent: '뒤쪽' }), button('배경 그림', () => setSetting('stageBackdrop', 'on', '방 뒤쪽: 배경 그림')),
+                button('벽돌 벽', () => setSetting('stageBackdrop', 'off', '방 뒤쪽: 벽돌 벽'))])
         ]);
     }
     function gemSection() {

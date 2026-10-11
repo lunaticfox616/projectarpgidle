@@ -138,6 +138,11 @@ actExplorationView.objects=(()=>{
     }
     /** A standing object (actor pass): ground shadow, the sprite, a shake and a fuse bar while an event is about to burst. */
     function draw(ctx,actor,view) {
+        if(stageObjects.ready())drawStaged(ctx,actor,view);
+        else drawDotted(ctx,actor,view);
+    }
+    /** The 16-dot sprite of the top-down field. */
+    function drawDotted(ctx,actor,view) {
         const row=actor.object,scale=view.gridProj.tileW/16,now=getCombatTime();
         const shake=row.phase==='warning'?Math.round(Math.sin(now/45))*scale:0;
         ctx.save();ctx.imageSmoothingEnabled=false;ctx.globalAlpha=fade(row);
@@ -159,6 +164,26 @@ actExplorationView.objects=(()=>{
         }
         ctx.restore();
     }
+    /** 옆에서 보는 무대(js/canvas-stage-objects.js): 캐릭터와 같은 도트 크기의 그림으로, 같은 그림자와 숨 쉬는 테, 흔들림, 도화선 막대. */
+    function drawStaged(ctx,actor,view) {
+        const row=actor.object,dot=stageActors.scaleFor(view.gridProj.tileW),now=getCombatTime(),tile=view.gridProj.tileW;
+        const shake=row.phase==='warning'?Math.round(Math.sin(now/45))*dot*2:0,at={x:actor.point.x+shake,y:actor.y,dot};
+        ctx.save();ctx.imageSmoothingEnabled=false;ctx.globalAlpha=fade(row);
+        ctx.fillStyle='rgba(10,6,4,.4)';ctx.beginPath();ctx.ellipse(at.x+dot*2,at.y-dot,tile*.36,tile*.085,0,0,Math.PI*2);ctx.fill();
+        if(actor.ready&&RIM[row.kind]) {
+            const hot=hovered===row.id,breath=hot?1:.6+.4*Math.sin(performance.now()/300+row.gx+row.gy);
+            ctx.globalAlpha=fade(row)*breath;
+            stageObjects.outline(ctx,look(row),at,hot?RIM_HOT:RIM[row.kind]);
+            ctx.globalAlpha=fade(row);
+        }
+        stageObjects.draw(ctx,look(row),at);
+        if(row.phase==='warning') {
+            const width=tile*.7,left=at.x-width/2,top=at.y-tile*.78;
+            ctx.fillStyle='#1a120d';ctx.fillRect(left-dot,top-dot,width+dot*2,dot*4);
+            ctx.fillStyle=row.kind==='sealed'?'#b47ae0':'#dfae75';ctx.fillRect(left,top,width*(1-row.remainingMs/actExplorationState.objects.warningMs[row.kind]),dot*2);
+        }
+        ctx.restore();
+    }
     /** A glint that wanders over a closed chest's lid every couple of seconds: it can be opened. */
     function twinkle(ctx,row,scale,now) {
         const cycle=(now+row.gx*311+row.gy*173)%(row.grade==='gold'?1100:2200);if(cycle>420)return;
@@ -168,12 +193,13 @@ actExplorationView.objects=(()=>{
     /** Floor decals (terrain pass): broken pots and crates, a spent nest, ambush tracks. The fog drawn after covers unseen ones. */
     function drawGround(ctx,run,p) {
         if(!run?.objects)return;
-        const scale=p.tileW/16;
+        const scale=p.tileW/16,staged=stageObjects.ready();
         for(const row of run.objects.entries) {
             const {name,standing}=look(row);
             if(standing||!actExplorationState.objects.visible(run,row))continue;
             const point=p.cellToScreen(row.gx,row.gy);
             ctx.globalAlpha=row.kind==='ambush'&&row.phase==='ready'?.75:1;
+            if(staged&&stageObjects.draw(ctx,look(row),{x:point.x,y:point.y+p.actorGroundOffsetY,dot:stageActors.scaleFor(p.tileW)}))continue;
             ctx.drawImage(sheet(name),Math.round(point.x-8*scale),Math.round(point.y+p.actorGroundOffsetY-15*scale),16*scale,16*scale);
         }
         ctx.globalAlpha=1;

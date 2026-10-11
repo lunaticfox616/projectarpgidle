@@ -24,8 +24,49 @@ function rotz(p, angle, pivot = [0, 0, 0]) {
     return [pivot[0] + x * c - y * s, pivot[1] + x * s + y * c, p[2]];
 }
 
+/** Rotation about x (turning y toward z) and about y (turning z toward x), around pivot. */
+function rotx(p, angle, pivot = [0, 0, 0]) {
+    const c = Math.cos(angle), s = Math.sin(angle), y = p[1] - pivot[1], z = p[2] - pivot[2];
+    return [p[0], pivot[1] + y * c - z * s, pivot[2] + y * s + z * c];
+}
+function roty(p, angle, pivot = [0, 0, 0]) {
+    const c = Math.cos(angle), s = Math.sin(angle), x = p[0] - pivot[0], z = p[2] - pivot[2];
+    return [pivot[0] + x * c + z * s, p[1], pivot[2] - x * s + z * c];
+}
+
 // ---------------------------------------------------------------- solids
 function sphere(c, r) { return p => len(sub(p, c)) - r; }
+/** A box with half sizes h, its edges rounded by r. */
+function box(c, h, r = 0) {
+    return p => {
+        const q = [Math.abs(p[0] - c[0]) - h[0] + r, Math.abs(p[1] - c[1]) - h[1] + r, Math.abs(p[2] - c[2]) - h[2] + r];
+        return len([Math.max(q[0], 0), Math.max(q[1], 0), Math.max(q[2], 0)]) + Math.min(Math.max(q[0], q[1], q[2]), 0) - r;
+    };
+}
+/** An upright cylinder (axis y): centre c, radius, half height, edges rounded by r. */
+function cylinder(c, radius, half, r = 0) {
+    return p => {
+        const side = Math.hypot(p[0] - c[0], p[2] - c[2]) - radius + r, cap = Math.abs(p[1] - c[1]) - half + r;
+        return Math.min(Math.max(side, cap), 0) + Math.hypot(Math.max(side, 0), Math.max(cap, 0)) - r;
+    };
+}
+/** A cylinder lying along x: centre c, radius, half length. */
+function barrel(c, radius, half) {
+    return p => Math.max(Math.hypot(p[1] - c[1], p[2] - c[2]) - radius, Math.abs(p[0] - c[0]) - half);
+}
+/** A ring lying flat (axis y): ring radius, tube radius. */
+function torus(c, ring, tube) {
+    return p => Math.hypot(Math.hypot(p[0] - c[0], p[2] - c[2]) - ring, p[1] - c[1]) - tube;
+}
+/** An octahedron (a crystal): half size s per axis. */
+function octa(c, s) {
+    return p => (Math.abs(p[0] - c[0]) / s[0] + Math.abs(p[1] - c[1]) / s[1] + Math.abs(p[2] - c[2]) / s[2] - 1) * Math.min(s[0], s[1], s[2]) * 0.577;
+}
+/** a without b; a only above the height y; a seen through a moved or turned frame (move: p → the solid's own p). */
+const without = (a, b) => p => Math.max(a(p), -b(p));
+const above = (a, y) => p => Math.max(a(p), y - p[1]);
+const below = (a, y) => p => Math.max(a(p), p[1] - y);
+const moved = (a, move) => p => a(move(p));
 /** Ellipsoid with radii r, optionally turned by `turn` radians about z. */
 function ellipsoid(c, r, turn = 0) {
     return p => {
@@ -176,4 +217,5 @@ function strip(frames, size) {
     return { width: frames.length * size, height: size, data };
 }
 
-module.exports = { add, sub, mul, dot, len, norm, lerp, mix, clamp, ease, rotz, sphere, ellipsoid, limb, chain, ramp, hexToRgb, scene, render, strip, UP };
+module.exports = { add, sub, mul, dot, len, norm, lerp, mix, clamp, ease, rotz, rotx, roty, sphere, box, cylinder, barrel, torus, octa, without, above, below, moved,
+    ellipsoid, limb, chain, ramp, hexToRgb, scene, render, strip, UP };

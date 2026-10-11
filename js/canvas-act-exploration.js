@@ -27,7 +27,7 @@ const actExplorationView=(()=>{
     function projection(width,height) {
         const run=actExplorationState.current(game),map=actExplorationMap.forRun(run);
         const cell=actExplorationMotion.position(run,game.gridPlayer),tile=stageView.enabled()?stageView.tile(width):tileSize(width,height);
-        const deep=tile*stageView.depth(),centre=cameraCentre(run,cell,{columns:width/tile,rows:height/deep});
+        const deep=tile*stageView.depth(),centre=cameraCentre(run,cell,{columns:width/tile,rows:height/deep,width});
         const mapX=snap(width/2-centre.gx*tile),mapY=snap(height*stageView.anchorY()-centre.gy*deep);
         shiftActors(run,{x:mapX,y:mapY,tile,deep});
         return {tileW:tile,tileH:deep,actorGroundOffsetY:deep/6,unitScaleCap:tile/46,mapX,mapY,

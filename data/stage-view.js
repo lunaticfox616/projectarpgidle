@@ -48,9 +48,10 @@ const STAGE_ROOMS = Object.freeze({
     bossWidth: 15,
     /** 방 하나가 차지하는 가로 자리: 가장 넓은 방의 너비. */
     slot: 15,
-    /** 깊이 칸 수: 보통 5, 넓은 방(지도에 적힌 반경이 양쪽 다 3 이상)과 보스 방은 7. */
+    /** 방 놓는 법의 판 번호: 탐험 기록(run.rooms)에 적힌다. 방 크기나 자리를 바꾸면 올린다(옛 번호의 탐험은 불러올 때 버리고 다시 연다). */
+    version: 2,
+    /** 깊이 칸 수: 어느 방이나 5(화면 높이의 3할쯤). 뒤쪽에 배경 그림이 설 자리를 남긴다. */
     depth: 5,
-    deepDepth: 7,
     /** 방 사이를 띄우는 칸 수: 경계하는 무리의 귀(12칸)와 튀는 피해(12칸)가 옆 방에 닿지 않게 그보다 넓다. */
     gap: 16,
     /** 방 위쪽의 벽 칸 수(뒷벽이 서는 자리)와 아래쪽 여백. */
@@ -58,11 +59,38 @@ const STAGE_ROOMS = Object.freeze({
     bottom: 3,
     /** 방에 들어서면 방 안을 모두 보고 방 안의 몬스터가 모두 알아챈다: 이 반경은 어느 방보다도 크기만 하면 된다. */
     reach: 40,
-    /** 방 그림에 함께 담는 둘레의 벽 칸 수(좌우, 위, 아래). */
+    /** 방 그림에 함께 담는 둘레의 벽 칸 수(좌우, 위, 아래). openFrame: 배경 그림을 쓰는 방(벽이 없어 바닥과 길이 화면 끝까지 간다). */
     frame: Object.freeze({ side: 3, top: 5, bottom: 2 }),
+    openFrame: Object.freeze({ side: 7, top: 4, bottom: 7 }),
+    /** 배경 그림을 쓰는 방에서 바닥의 앞쪽 끝이 놓이는 세로 자리(화면 높이의 비율): 그 아래는 HUD가 덮는다. 좁은 화면(휴대폰)은 narrow. */
+    floorBottom: Object.freeze({ wide: 0.76, narrow: 0.6 }),
     /** 방을 화면 기준 줄보다 위로 올리는 칸 수의 상한(깊이 칸): 화면 아래쪽을 덮는 HUD에서 앞쪽 문을 꺼낸다. */
     lift: 1.25,
     /** 문을 지난 뒤 화면이 어둠에서 밝아지는 시간(ms). */
     fadeMs: 280
 });
-safeExposeData({ STAGE_VIEW, STAGE_TERRAIN, STAGE_ROOMS });
+// 방 단위 무대의 배경 그림 (2026-10-11 사용자: "바닥이랑 오브젝트만 놔두고, 벽 대신 이런 느낌의 배경으로", js/canvas-stage-backdrop.js).
+// 지형마다 그림 한 장: 위쪽은 배경, 아래쪽은 바닥이 놓일 빈 띠다. ground = 그림에서 바닥이 시작하는 줄(그림 높이의 비율).
+// 그 지형의 방은 벽돌 벽 없이 바닥과 길만 그린다: floor 바닥 판석, kerb 바닥 옆 턱, earth 바닥 밖의 어두운 땅(그림의 빈 띠 색),
+// rim과 hollow 뒷문이 되는 굴의 테와 속, moss 바닥 뒤쪽 끝에 번지는 이끼. 그림이 없는 지형과 그림 파일이 없는 판은 벽돌 뒷벽 그대로다.
+// 그림은 캐릭터 그림과 같은 폴더에 두고 아직 저장소에 넣지 않는다(사용자가 준 그림: 써도 되는지 확인 뒤에 넣는다).
+const STAGE_BACKDROPS = Object.freeze({
+    path: 'assets/playable/stage/backdrops/',
+    /** 방이 화면보다 넓어 카메라가 움직일 때 배경이 따라 움직이는 비율(바닥보다 느리게). */
+    parallax: 0.3,
+    biomes: Object.freeze({
+        root: Object.freeze({ file: 'root.webp', ground: 0.5996, floor: '#4d4035', kerb: '#2f2620', earth: '#1e1a17', rim: '#6f5e4c', hollow: '#0e0b09', moss: '#6e5a2a' })
+    })
+});
+// 무대의 탐험 물체 그림(js/canvas-stage-objects.js): 한 장에 물체마다 한 칸(cell 도트), 발 자리 feet. names의 순서가 그림의 칸 순서다
+// (scripts/stage-monsters/objects.cjs와 같아야 한다). 보급 상자의 은, 금 등급은 chestSilver, chestGold와 그 열린 모습이다.
+const STAGE_OBJECTS = Object.freeze({
+    sheet: 'assets/objects/stage/objects.png',
+    cell: 96,
+    feet: Object.freeze([48, 84]),
+    /** 제 그림이 따로 있는 보급 상자 등급(나무 등급은 기본 그림 chest). */
+    grades: Object.freeze(['silver', 'gold']),
+    names: Object.freeze(['crate', 'crateBroken', 'pot', 'potBroken', 'chest', 'chestOpen', 'chestSilver', 'chestSilverOpen',
+        'chestGold', 'chestGoldOpen', 'sealed', 'sealedOpen', 'nest', 'nestSpent', 'tracks'])
+});
+safeExposeData({ STAGE_VIEW, STAGE_TERRAIN, STAGE_ROOMS, STAGE_BACKDROPS, STAGE_OBJECTS });

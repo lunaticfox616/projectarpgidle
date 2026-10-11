@@ -21,10 +21,17 @@ const monsterActors = (() => {
     /** The sheet a monster draws from: its side-view stage sheet while the stage is on (data MONSTER_STAGE_SHEETS), else its
      * four-direction sheet. A stage sheet that failed to load is not asked for again. */
     function sheetSource(id) {
-        const staged = stageView.enabled() && !sheets.get('stage:' + id)?.failed ? MONSTER_STAGE_SHEETS[id] : null;
-        if (staged) return { key: 'stage:' + id, spec: staged, kind: MONSTER_STAGE_KIND };
+        const art = stageArt(id);
+        const staged = art && stageView.enabled() && !sheets.get('stage:' + art.id)?.failed ? art : null;
+        if (staged) return { key: 'stage:' + art.id, spec: staged, kind: MONSTER_STAGE_KIND };
         const spec = typeof MONSTER_SPRITE_SHEETS === 'object' ? MONSTER_SPRITE_SHEETS[id] : null;
         return spec ? { key: id, spec, kind: MONSTER_SPRITE_KINDS[spec.kind] } : null;
+    }
+    /** A monster's stage sheet: its own, or for a wisp look (wisp-b01 …) the sheet of its element. */
+    function stageArt(id) {
+        if (MONSTER_STAGE_SHEETS[id]) return MONSTER_STAGE_SHEETS[id];
+        const element = typeof WISP_SPRITE_BY_VISUAL === 'object' ? WISP_SPRITE_BY_VISUAL[id] : null;
+        return element ? MONSTER_STAGE_SHEETS['wisp-' + element] || null : null;
     }
     /** The loaded (or loading) sheet pair of a source. A stage pair whose file is missing is marked, so the next look
      * falls back to the four-direction sheet. */

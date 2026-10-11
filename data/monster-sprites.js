@@ -72,8 +72,10 @@ const MONSTER_STAGE_KIND = Object.freeze({
     frame: 96, stage: true, shadow: 0.3,
     idleMs: Object.freeze([170, 170, 170, 170, 170, 170]), attackMs: Object.freeze([100, 90, 80, 70, 110, 150]), impactFrame: 3
 });
+// 속성 위습 여섯 장(wisp-fire …)은 위습 외형 18종이 나눠 쓴다: 외형 id → 속성은 data/wisp-sprites.js WISP_SPRITE_BY_VISUAL.
 const MONSTER_STAGE_SHEETS = Object.freeze(Object.fromEntries([
-    ['act1-slime', 44, [44, 84]], ['act1-ant', 40, [42, 84]], ['act1-worm', 52, [40, 84]]
+    ['act1-slime', 44, [44, 84]], ['act1-ant', 40, [42, 84]], ['act1-worm', 52, [40, 84]],
+    ...['fire', 'ice', 'lightning', 'poison', 'holy', 'void'].map(element => ['wisp-' + element, 78, [48, 84]])
 ].map(([id, height, feet]) => [id, Object.freeze({
     id, kind: 'stage', height, feet: Object.freeze(feet), idle: `assets/enemies/stage/${id}-idle.png`, attack: `assets/enemies/stage/${id}-attack.png`
 })])));

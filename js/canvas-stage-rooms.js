@@ -16,9 +16,9 @@ const stageRoomsView = (() => {
         const map = mapOf(run);
         return map ? actExplorationRooms.roomAt(map, game.gridPlayer) : null;
     }
-    /** 방 그림이 담는 칸 범위: 방과 둘레의 벽. */
-    function boxOf(map, room) {
-        const frame = STAGE_ROOMS.frame;
+    /** 방 그림이 담는 칸 범위: 방과 둘레의 벽. 배경 그림을 쓰는 방(open)은 바닥과 길이 화면 끝까지 가도록 더 넓게 담는다. */
+    function boxOf(map, room, open) {
+        const frame = open ? STAGE_ROOMS.openFrame : STAGE_ROOMS.frame;
         const x = Math.max(0, room.x0 - frame.side), y = Math.max(0, room.y0 - frame.top);
         return { x, y, columns: Math.min(map.columns, room.x1 + frame.side + 1) - x, rows: Math.min(map.rows, room.y1 + frame.bottom + 1) - y };
     }
@@ -29,7 +29,13 @@ const stageRoomsView = (() => {
         const left = room.x0 - 1, right = room.x1 + 2, span = right - left;
         const gx = span <= view.columns ? (left + right) / 2
             : Math.max(left + view.columns / 2, Math.min(right - view.columns / 2, cell.gx + .5));
-        return { gx, gy: focusRow(room, view) };
+        return { gx, gy: stageBackdrop.ready(mapOf(run)) ? openFocusRow(room, view) : focusRow(room, view) };
+    }
+    /** 배경 그림을 쓰는 방: 바닥의 앞쪽 끝이 화면의 정해진 높이(STAGE_ROOMS.floorBottom)에 오게 한다. 그 위로 바닥 다섯 줄, 그 위가 배경이다. */
+    function openFocusRow(room, view) {
+        const narrow = view.width < STAGE_VIEW.minColumns.narrowBelow;
+        const share = narrow ? STAGE_ROOMS.floorBottom.narrow : STAGE_ROOMS.floorBottom.wide;
+        return room.y1 + 1 - (share - stageView.anchorY()) * view.rows;
     }
     /** 세로로 화면의 기준 줄(stageView.anchorY)에 올 칸: 뒷벽 꼭대기(방 위 네 칸)부터 앞쪽 문 자리까지의 가운데에서, 뒷벽이 잘리지
      * 않는 만큼(최대 lift칸) 방을 위로 올린다. 화면 아래쪽은 HUD가 덮어 앞쪽 문이 가려지기 때문이다. */
@@ -38,11 +44,25 @@ const stageRoomsView = (() => {
         const headroom = stageView.anchorY() * view.rows - half - .5;
         return (top + bottom) / 2 + Math.max(0, Math.min(STAGE_ROOMS.lift, headroom));
     }
+    /** 배경 그림이 준비된 지형이면 벽 없는 방(바닥과 길, 뒷문의 굴)을, 아니면 벽돌 뒷벽이 선 방을 그려 둔다. */
     function prepare(map, room) {
-        if (picture && picture.map === map && picture.room === room) return picture;
-        const box = boxOf(map, room);
-        picture = { map, room, box, canvas: stageTerrain.paint(map, box) };
+        const open = stageBackdrop.ready(map);
+        if (picture && picture.map === map && picture.room === room && picture.open === open) return picture;
+        const box = boxOf(map, room, open);
+        picture = { map, room, box, open, canvas: open ? stageTerrain.paintOpen(map, room, box, stageBackdrop.look(map)) : stageTerrain.paint(map, box) };
         return picture;
+    }
+    /** 방 뒤쪽: 배경 그림을 바닥선 위에 세우고 그 아래는 그림의 빈 띠와 같은 어둠으로 채운다. 방이 화면보다 넓으면 배경이 조금 따라 움직인다. */
+    function drawBackdrop(ctx, view, p, area) {
+        const room = view.room, look = stageBackdrop.look(view.map), span = (room.x1 - room.x0 + 3) * p.tileW;
+        ctx.fillStyle = look.earth;
+        ctx.fillRect(0, 0, area.width, area.height);
+        stageBackdrop.draw(ctx, view.map, { width: area.width, groundY: p.mapY + room.y0 * p.tileH, dot: p.tileW / WIDE,
+            drift: p.mapX + (room.gx + .5) * p.tileW - area.width / 2, slack: Math.max(0, span - area.width) / 2 });
+    }
+    function drawWallDark(ctx, map, area) {
+        ctx.fillStyle = stageTerrain.colours(map).dark;
+        ctx.fillRect(0, 0, area.width, area.height);
     }
     /** 방이 바뀐 순간을 기억한다(밝아지기의 시작). 탐험이 바뀐 첫 방은 밝아지지 않고 바로 보인다. */
     function noteRoom(run, room, now) {
@@ -53,10 +73,10 @@ const stageRoomsView = (() => {
     function background(ctx, run, p, area) {
         const map = mapOf(run), room = map ? roomOf(run) : null;
         if (!room) return false;
-        const colours = stageTerrain.colours(map), view = prepare(map, room), box = view.box;
+        const view = prepare(map, room), box = view.box;
         noteRoom(run, room, performance.now());
-        ctx.fillStyle = colours.dark;
-        ctx.fillRect(0, 0, area.width, area.height);
+        if (view.open) drawBackdrop(ctx, view, p, area);
+        else drawWallDark(ctx, map, area);
         ctx.imageSmoothingEnabled = false;
         ctx.drawImage(view.canvas, p.mapX + box.x * p.tileW, p.mapY + box.y * p.tileH, box.columns * p.tileW, box.rows * p.tileH);
         for (const row of actExplorationDoors.doorsHere(run)) drawDoor(ctx, row, p);
