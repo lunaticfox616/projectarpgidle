@@ -22,14 +22,17 @@ const actExplorationView=(()=>{
     /** The map origin on the canvas pixel grid, so the terrain, the characters and the re-dotted effects share it
      * while the camera glides between cells. */
     function snap(value) { const scale=renderScale();return Math.round(value*scale)/scale; }
+    /** 옆에서 보는 무대(data/stage-view.js)에서는 깊이 한 칸(deep)을 가로 한 칸(tile)보다 낮게 그린다: 지도 그림, 안개, 칸 자리가
+     * 함께 눌린다. 위에서 보는 전장에서는 둘이 같다. */
     function projection(width,height) {
         const run=actExplorationState.current(game),map=actExplorationMap.forRun(run);
-        const cell=actExplorationMotion.position(run,game.gridPlayer),tile=tileSize(width,height),focus=bossLead(run,cell);
-        const mapX=snap(width/2-(cell.gx+focus.gx+.5)*tile),mapY=snap(height/2-(cell.gy+focus.gy+.5)*tile);
-        shiftActors(run,{x:mapX,y:mapY,tile});
-        return {tileW:tile,tileH:tile,actorGroundOffsetY:tile/6,unitScaleCap:tile/46,mapX,mapY,
-            mapWidth:map.columns*tile,mapHeight:map.rows*tile,
-            cellToScreen:(gx,gy)=>({x:mapX+(gx+.5)*tile,y:mapY+(gy+.5)*tile})};
+        const cell=actExplorationMotion.position(run,game.gridPlayer),tile=stageView.enabled()?stageView.tile(width):tileSize(width,height);
+        const deep=tile*stageView.depth(),focus=bossLead(run,cell);
+        const mapX=snap(width/2-(cell.gx+focus.gx+.5)*tile),mapY=snap(height*stageView.anchorY()-(cell.gy+focus.gy+.5)*deep);
+        shiftActors(run,{x:mapX,y:mapY,tile,deep});
+        return {tileW:tile,tileH:deep,actorGroundOffsetY:deep/6,unitScaleCap:tile/46,mapX,mapY,
+            mapWidth:map.columns*tile,mapHeight:map.rows*deep,
+            cellToScreen:(gx,gy)=>({x:mapX+(gx+.5)*tile,y:mapY+(gy+.5)*deep})};
     }
     /** The boss the camera leans toward: the one fighting, else the one rising in its entrance. */
     function focusBoss(run) {
@@ -49,7 +52,7 @@ const actExplorationView=(()=>{
         return {gx:lead.gx,gy:lead.gy};
     }
     function shiftActors(run,origin) {
-        if(lastOrigin?.run===run && lastOrigin.tile===origin.tile) {
+        if(lastOrigin?.run===run && lastOrigin.tile===origin.tile && lastOrigin.deep===origin.deep) {
             for(const bank of [battleVisualState.enemySmoothPos,battleVisualState.enemyGhostPos]) {
                 for(const point of Object.values(bank||{})){point.x+=origin.x-lastOrigin.x;point.y+=origin.y-lastOrigin.y;}
             }
@@ -98,7 +101,7 @@ const actExplorationView=(()=>{
     function cellAt(point) {
         const run=actExplorationState.current(game);
         if(!run || lastOrigin?.run!==run || !point)return null;
-        return {gx:Math.floor((point.x-lastOrigin.x)/lastOrigin.tile),gy:Math.floor((point.y-lastOrigin.y)/lastOrigin.tile)};
+        return {gx:Math.floor((point.x-lastOrigin.x)/lastOrigin.tile),gy:Math.floor((point.y-lastOrigin.y)/lastOrigin.deep)};
     }
     /** Discovered ground is clear within the sight radius and dims with distance past it (≤40%). Undiscovered ground is not a wall
      * of black: just past the sight it shows as a dim outline of what lies ahead (enemies there stay hidden until discovered). */
@@ -162,7 +165,7 @@ const actExplorationView=(()=>{
         if(!run || lastOrigin?.run!==run)return null;
         const room=actExplorationState.bossRoomAt(run,game.gridPlayer),tile=lastOrigin.tile;
         if(!room)return null;
-        return {x:lastOrigin.x+(room.gx+.5)*tile,y:lastOrigin.y+(room.gy+.5)*tile,radius:Math.hypot(room.radiusX+1,room.radiusY+1)*tile};
+        return {x:lastOrigin.x+(room.gx+.5)*tile,y:lastOrigin.y+(room.gy+.5)*lastOrigin.deep,radius:Math.hypot(room.radiusX+1,room.radiusY+1)*tile};
     }
     // Pixel-scale gate art (backdrop maps): integer scale, placed by its art-px offset from the gate tile centre.
     function gateBox(point,p) {

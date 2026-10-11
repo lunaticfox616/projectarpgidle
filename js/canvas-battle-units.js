@@ -1,4 +1,5 @@
-/** Battle units on the field: the player figure (Hana +6 sheets with the legacy strip as fallback) and the summons
+/** Battle units on the field: the player figure (the side-view stage sheets when the stage is on, else Hana +6 sheets with the
+ * legacy strip as fallback) and the summons
  * (wisps from their own sheets, js/canvas-hana-actors.js; the guard golem from the legacy summon1.png frame).
  * Split out of canvas-battlefield.js along the unit-drawing boundary; renderBattlefield still decides when they draw
  * (drawBattlePlayerActor → drawBattlePlayerFigure, drawBattleGroundLayer → drawActiveSummons). Rendering only.
@@ -15,14 +16,30 @@ function getSheetMonsterSkinId() {
     return id && monsterActors.isSheetMonster(id) ? id : null;
 }
 
-/** Legacy strips face east and are mirrored for west poses; Hana and monster sheets carry their own west row. */
+/** The stance the stage hero holds: the worn weapon's (settings.stageStance forces one from the test panel). */
+function getStageHeroStance() {
+    return stageActors.stanceFor(game.equipment?.['무기'], game.settings?.stageStance || 'auto', !!game.equipment?.['방패']);
+}
+
+/** The side-view stage draws its own hero (js/canvas-stage-actors.js) once the worn class × stance sheets have loaded. */
+function canDrawStagePlayer() {
+    return stageView.enabled() && !getSelectedMonsterSkinId() && stageActors.isReady(getHeroAppearanceId(), getStageHeroStance());
+}
+
+/** The hero's head top drawn this frame, whichever sprite set drew it (null: neither did). */
+function getHeroHeadY(now) {
+    return stageActors.headY(now) ?? hanaActors.headY(now);
+}
+
+/** Legacy strips face east and are mirrored for west poses; stage, Hana and monster sheets turn by themselves. */
 function isBattlePlayerMirrored(motion) {
-    if (canDrawHanaPlayer() || getSheetMonsterSkinId()) return false;
+    if (canDrawStagePlayer() || canDrawHanaPlayer() || getSheetMonsterSkinId()) return false;
     let pose = motion.facingDirection || motion.attackDirection || 'east';
     return motion.advanceBlend <= 0.08 && pose === 'west';
 }
 
 function drawBattlePlayerFigure(ctx, state, position) {
+    if (canDrawStagePlayer() && drawStagePlayerBody(ctx, state, position)) return;
     if (canDrawHanaPlayer() && drawHanaPlayerBody(ctx, state, position)) return;
     if (drawSheetMonsterSkin(ctx, state, position)) return;
     drawBattlePlayerBody(ctx, state, position);
@@ -60,7 +77,7 @@ drawBattlePlayerFigure.readability = (() => {
         boxes = []; outline = null;
         state = worldTreeSkillFx.actorState(state);
         const p = getPlayerHurtPosition(state), tile = state.gridProj.tileW;
-        const head = hanaActors.headY(state.now) ?? p.y - 82 * HERO_SIZE_SCALE;
+        const head = getHeroHeadY(state.now) ?? p.y - 82 * HERO_SIZE_SCALE;
         hero = { x: p.x - Math.max(26, tile * 0.38), y: head - 16, w: Math.max(52, tile * 0.76), h: p.y - head + 24 };
         if (state.returnWarp || state.returnDeparture || state.actorAlpha === 0) return;
         const clips = entries.filter(entry => entry.y >= p.y).map(entry => {
@@ -108,6 +125,23 @@ function drawHanaPlayerBody(ctx, state, position) {
             facing: spin ? spin.facing : motion.facingDirection || motion.attackDirection || 'east',
             moving: motion.advanceBlend > 0.08, moveDirection: motion.moveDirection,
             alpha: getBattleActorDrawAlpha(ctx, 1), tint: redrawnSkillFx.playerTint(state.now)
+        }, state.now);
+    } finally { ctx.battleActorAlpha = previous; }
+}
+
+/** The stage hero: timing from the same battle effects as the Hana figure; spells play the cast clips, a thrown flask the throw. */
+function drawStagePlayerBody(ctx, state, position) {
+    const motion = state.motionState, stance = getStageHeroStance(), skill = SKILL_DB[game.activeSkill] || {};
+    const previous = ctx.battleActorAlpha;
+    ctx.battleActorAlpha = state.actorAlpha;
+    try {
+        return stageActors.drawPlayer(ctx, position.x, position.y, {
+            ...collectHanaPlayerMotion(motion, state.now), classId: getHeroAppearanceId(), stance, tile: state.gridProj.tileW,
+            facing: motion.facingDirection || motion.attackDirection || 'east',
+            moving: motion.advanceBlend > 0.08, moveDirection: motion.moveDirection,
+            spell: (skill.tags || []).includes('spell'),
+            throwsWeapon: stance === 'flask' && HANA_THROWN_FLASK_GEMS.has(SKILL_FX_ATLAS[game.activeSkill]?.id),
+            alpha: getBattleActorDrawAlpha(ctx, 1)
         }, state.now);
     } finally { ctx.battleActorAlpha = previous; }
 }
@@ -166,7 +200,8 @@ const drawTintedBattlePlayerFigure = (() => {
         // Some sprite paths leave a shadow's low alpha on the context, so the tint is scaled by the alpha before the figure.
         const baseAlpha = ctx.globalAlpha;
         drawBattlePlayerFigure(ctx, state, position);
-        const strength = getHeroHitTintStrength(state.now, state.motionState && state.motionState.playerStats);
+        // 무대의 주인공은 몸 전체를 붉게 칠하지 않는다: 붉은 외곽선이 피격 표시다(js/canvas-stage-actors.js hitLook).
+        const strength = canDrawStagePlayer() ? 0 : getHeroHitTintStrength(state.now, state.motionState && state.motionState.playerStats);
         if (!(strength > 0) || !ctx.canvas) return;
         layer = layer || document.createElement('canvas');
         if (layer.width !== ctx.canvas.width || layer.height !== ctx.canvas.height) {

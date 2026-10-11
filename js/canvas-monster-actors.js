@@ -125,7 +125,7 @@ const monsterActors = (() => {
         drawPixelShadow(ctx, p.x, p.y + 2, p.tile * (pair === 'loading' ? 0.3 : pair.kind.shadow), p.tile * 0.09, 0.2);
         if (pair === 'loading') return true;
         const frame = clipFrame(enemy, pair.kind, p.now, p.moving);
-        const at = placement(pair, frame, FACING_ROW[p.facing] || 'down', p);
+        const at = placement(pair, frame, FACING_ROW[stageView.facing(enemy, p.facing)] || 'down', p);
         noteEnemyDrawnHeight(enemy, (pair.spec.height + frame.bob) * at.dot);
         drawFrame(ctx, pair, frame, at, { outline: getEnemyOutlineStyle(enemy), flash: p.flash });
         return true;

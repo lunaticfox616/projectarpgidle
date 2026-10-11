@@ -1578,7 +1578,7 @@ function getPlayerHealthBarLook(hpPct, now) {
 function drawBattlefieldPlayerHealthBar(ctx, scene) {
     // 2026-10-04 visibility: 64 -> 48px wide so the bar covers less of the field; the height stays readable.
     const look = getPlayerHealthBarLook(scene.hpPct, scene.now);
-    const width = 48, height = look.height, head = hanaActors.headY(scene.now), playerPos = scene.light;
+    const width = 48, height = look.height, head = getHeroHeadY(scene.now), playerPos = scene.light;
     const x = Math.round(playerPos.x - width / 2), y = Math.round(head === null ? playerPos.y - 82 * HERO_SIZE_SCALE : head - 10) - (height - 6);
     ctx.save();
     ctx.globalAlpha = look.alpha;
@@ -2589,7 +2589,7 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
             requestBattleHitStop(fx);
             let enemyPos = enemyPosMap[fx.enemyId] || battleVisualState.enemyGhostPos[fx.enemyId];
             if (typeof fx.damage === 'number') {
-                const head = hanaActors.headY(now);
+                const head = getHeroHeadY(now);
                 spawnDamageText({
                     start: now,
                     x: playerPos.x,
@@ -2626,7 +2626,7 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
             let anchorPos = enemyPos || playerPos;
             if (bodyCue) {
                 // 회피 · 막아냄 · 성채화: 맞은 쪽 머리 위 가운데, 대미지 숫자와 같은 크기 결(2026-10-06 사용자 요청 — 몸 옆에 11px로 작게 떴다).
-                const head = enemyPos ? null : hanaActors.headY(now);
+                const head = enemyPos ? null : getHeroHeadY(now);
                 const bodyHeight = enemyPos ? (enemyPos.enemy ? getEnemyFieldBarLift(enemyPos.enemy) - 10 : 46)
                     : (head === null ? 82 * HERO_SIZE_SCALE : playerPos.y - head);
                 spawnDamageText({ start: now, ...getBodyCueAnchor(anchorPos, bodyHeight), value: fx.text || '회피!', miss: true, bodyCue: true,

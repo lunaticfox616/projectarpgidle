@@ -7,6 +7,8 @@ const devTestPanel = (() => {
     const SPEEDS = [1, 2, 4, 8];
     const WEAPON_MODES = [['auto', '착용 무기'], ['class', '직업 기본'], ['greatsword', '대검'], ['scimitar', '곡도'],
         ['shortbow', '단궁'], ['orb', '오브'], ['flask', '플라스크'], ['censer', '향로']];
+    const STAGE_STANCES = [['auto', '착용 무기'], ['unarmed', '맨손'], ['swordshield', '검방패'], ['dagger', '단검'], ['bow', '활'],
+        ['orb', '오브'], ['flask', '플라스크'], ['censer', '향로']];
     let root = null, godTimer = null, speed = 1;
 
     function isEnabled() {
@@ -143,6 +145,19 @@ const devTestPanel = (() => {
             button('기존 스프라이트', () => setSetting('heroSpriteSet', 'legacy', '캐릭터: 기존'))
         ]), row([el('label', { textContent: '무기' }), weaponSelect()])]);
     }
+    /** 옆에서 보는 무대 시험판(data/stage-view.js): 켜고 끄기, 지도 칸 크기, 들 자세. 그림 폴더(assets/playable/stage)가 있어야 켜진다. */
+    function stageSection() {
+        const stance = el('select', { id: 'dtp-stance' }, STAGE_STANCES.map(([value, label]) => el('option', { value, textContent: label })));
+        stance.value = game.settings.stageStance || 'auto';
+        stance.onchange = () => setSetting('stageStance', stance.value, `무대 자세: ${stance.selectedOptions[0].textContent}`);
+        return section('옆에서 보는 무대(시험판)', [
+            row([button('무대 켜기', () => setSetting('battleView', 'stage', '전장: 옆에서 보는 무대')),
+                button('끄기', () => setSetting('battleView', 'top', '전장: 위에서 보기'))]),
+            row([el('label', { textContent: '크기' }), button('자동', () => setSetting('stageZoom', 0, '무대 크기: 자동')),
+                ...[1, 1.5, 2].map(zoom => button(`×${zoom}`, () => setSetting('stageZoom', zoom, `무대 크기 ×${zoom}`)))]),
+            row([el('label', { textContent: '자세' }), stance])
+        ]);
+    }
     function gemSection() {
         const select = gemSelect();
         return section('스킬 이펙트', [
@@ -184,7 +199,7 @@ const devTestPanel = (() => {
         const panel = el('div', { className: 'dtp-panel', hidden: true }, [
             el('header', {}, [el('strong', { textContent: '🧪 테스트 패널' }), button('닫기', () => { panel.hidden = true; })]),
             el('p', { className: 'dtp-status' }),
-            characterSection(), gemSection(), combatSection(), progressSection(),
+            characterSection(), stageSection(), gemSection(), combatSection(), progressSection(),
             el('p', { className: 'dtp-hint', textContent: '로컬 테스트 전용, 이 세이브에 바로 반영됩니다. 새 게임은 런처 2번(임시 세이브)으로.' })
         ]);
         const toggle = button('🧪 테스트', () => { panel.hidden = !panel.hidden; status(); }, { className: 'dtp-toggle' });

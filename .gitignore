@@ -43,5 +43,7 @@ __pycache__/
 
 # Private art is restored locally from projectarpgidle-assets (see docs/github-publish-20261001.md).
 /assets/playable/hana/
+# 옆에서 보는 무대의 캐릭터 그림(docs/stage-view-20261011.md): 배포 가능 여부를 확인할 때까지 로컬에만 둔다.
+/assets/playable/stage/
 /assets/summon/hana/
 /docs/skill-assets-hana/reference/

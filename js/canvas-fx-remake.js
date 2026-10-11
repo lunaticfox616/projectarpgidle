@@ -68,11 +68,12 @@ const fxRemake = (() => {
     function boardView(target, projection) {
         const canvas = target.canvas, scale = Number(canvas.dataset?.renderScale) || 1, css = cssBox(canvas);
         const width = css.width || canvas.width / scale, height = css.height || canvas.height / scale;
-        const origin = projection.cellToScreen(0, 0), s = projection.tileW / 48;
+        // sy: 옆에서 보는 무대(data/stage-view.js)에서는 깊이 한 칸이 가로 한 칸보다 낮다. 판은 정사각 칸 그대로 두고 화면에 옮길 때만 누른다.
+        const origin = projection.cellToScreen(0, 0), s = projection.tileW / 48, sy = projection.tileH / 48;
         const ox = Math.floor(((0 - origin.x) / s + 24 - 48) / BLOCK) * BLOCK;
-        const oy = Math.floor(((0 - origin.y) / s + 24 - 48) / BLOCK) * BLOCK;
-        const w = Math.ceil((width / s + 96) / BLOCK) * BLOCK, h = Math.ceil((height / s + 96) / BLOCK) * BLOCK;
-        return { origin, s, ox, oy, w, h };
+        const oy = Math.floor(((0 - origin.y) / sy + 24 - 48) / BLOCK) * BLOCK;
+        const w = Math.ceil((width / s + 96) / BLOCK) * BLOCK, h = Math.ceil((height / sy + 96) / BLOCK) * BLOCK;
+        return { origin, s, sy, ox, oy, w, h };
     }
     /** Opens a layer. Until end(), world-tree samples and redrawn dots land in the board buffer. */
     function begin(target, projection) {
@@ -97,7 +98,7 @@ const fxRemake = (() => {
     }
     /** Board px (cell 0 corner = 0) of a screen point, relative to the buffer. */
     function toBuffer(screenX, screenY) {
-        return { x: (screenX - scope.origin.x) / scope.s + 24 - scope.ox, y: (screenY - scope.origin.y) / scope.s + 24 - scope.oy };
+        return { x: (screenX - scope.origin.x) / scope.s + 24 - scope.ox, y: (screenY - scope.origin.y) / scope.sy + 24 - scope.oy };
     }
 
     // ------------------------------------------------------------------ atlas samples
@@ -144,7 +145,7 @@ const fxRemake = (() => {
         c.globalAlpha = Math.max(0, Math.min(1, sample.alpha));
         const filter = sampleFilter(sample, Math.abs(width), Math.abs(height)), source = brass(image);
         const baked = filter !== 'none' && frame.w > 0 && frame.h > 0 ? filteredFrame(source, frame, filter) : null;
-        c.translate(at.x, at.y); c.scale(k, psy / scope.s); c.rotate(sample.angle);
+        c.translate(at.x, at.y); c.scale(k, psy / scope.sy); c.rotate(sample.angle);
         if (height < 0) c.scale(1, -1);
         c.drawImage(baked || source, baked ? 0 : frame.x, baked ? 0 : frame.y, frame.w, frame.h, -width / 2, -Math.abs(height) / 2, width, Math.abs(height));
         markDirty(at.x - reach, at.y - reach, at.x + reach, at.y + reach);
@@ -367,11 +368,11 @@ const fxRemake = (() => {
         composite(open, area);
     }
     function composite(open, area) {
-        const t = open.target, s = open.s, dot = BLOCK * s;
-        const x = open.origin.x + (open.ox + area.x0 * BLOCK - 24) * s, y = open.origin.y + (open.oy + area.y0 * BLOCK - 24) * s;
+        const t = open.target, s = open.s, sy = open.sy;
+        const x = open.origin.x + (open.ox + area.x0 * BLOCK - 24) * s, y = open.origin.y + (open.oy + area.y0 * BLOCK - 24) * sy;
         t.save();
         t.globalAlpha = 1; t.globalCompositeOperation = 'source-over'; t.filter = 'none'; t.imageSmoothingEnabled = false;
-        t.drawImage(surfaces.lo, 0, 0, area.cols, area.rows, x, y, area.cols * dot, area.rows * dot);
+        t.drawImage(surfaces.lo, 0, 0, area.cols, area.rows, x, y, area.cols * BLOCK * s, area.rows * BLOCK * sy);
         t.restore();
     }
 
