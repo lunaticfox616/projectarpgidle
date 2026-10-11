@@ -11,15 +11,28 @@ const stageBackdrop = (() => {
     function look(map) {
         return (typeof STAGE_BACKDROPS === 'object' && map && STAGE_BACKDROPS.biomes[map.biome]) || null;
     }
-    function imageOf(spec) {
-        if (!images.has(spec.file)) {
+    /** 그림 폴더의 파일 하나: 다 불러왔으면 그 그림, 아니면 null(없는 파일도 null로 남는다). */
+    function pieceOf(file) {
+        if (!images.has(file)) {
             const image = new Image();
             image.decoding = 'async';
-            image.src = STAGE_BACKDROPS.path + spec.file;
-            images.set(spec.file, image);
+            image.src = STAGE_BACKDROPS.path + file;
+            images.set(file, image);
         }
-        const image = images.get(spec.file);
+        const image = images.get(file);
         return image.complete && image.naturalWidth > 0 ? image : null;
+    }
+    const imageOf = spec => pieceOf(spec.file);
+    /** 지형의 층 그림(STAGE_BACKDROPS의 layers: back 뒤쪽 띠, ground 바닥 무늬)이 정해져 있고 불러와졌으면 { image, spec }, 아니면 null:
+     * 그때는 그 층을 코드로 그린 임시 그림이 대신한다(js/canvas-stage-sanctum.js). */
+    function layer(map, name) {
+        const spec = look(map), row = spec && spec.layers ? spec.layers[name] : null, image = row ? pieceOf(row.file) : null;
+        return image ? { image, spec: row } : null;
+    }
+    /** 불러와진 층 그림의 수: 하나가 새로 오면 방 그림을 다시 그린다(js/canvas-stage-rooms.js). */
+    function layersReady(map) {
+        const spec = look(map);
+        return spec && spec.layers ? Object.keys(spec.layers).filter(name => layer(map, name)).length : 0;
     }
     /** 이 지도를 배경 그림으로 그릴 수 있는가: 지형에 그림이 정해져 있고, 그 파일이 이 서버에 있고, 테스트 패널에서 끄지 않았을 때. */
     function ready(map) {
@@ -58,6 +71,6 @@ const stageBackdrop = (() => {
         ctx.drawImage(copy, Math.round(x), Math.round(view.groundY - h), w, h);
         return true;
     }
-    return Object.freeze({ look, ready, draw });
+    return Object.freeze({ look, ready, draw, layer, layersReady });
 })();
 safeExposeGlobals({ stageBackdrop });

@@ -282,6 +282,23 @@ const stageSanctum = (() => {
         ctx.fillStyle = tone(palette.cap, 1.05); ctx.fillRect(cx - 1, cy - 4, 3, 1);
     }
 
+    /** The back strip: a fence of roots along the back of the clearing, posts of uneven height with two strands between them. It
+     * stands on the line where the floor meets the backdrop, so the two do not meet in one bare straight line; it opens for a back door. */
+    function paintFence(ctx, scene, room, box) {
+        const area = K.dotsOf(box), foot = scene.glade.top + 3, palette = scene.colours;
+        const doors = scene.map.doors.filter(row => row.room === room.index && row.side === 'north').map(door => (door.cell.gx + 0.5) * WIDE);
+        let last = null;
+        for (let x = area.x + 12, i = 0; x < area.x + area.w - 6; i++) {
+            const tall = 24 + noise(i, room.index, 380) * 22, post = doors.some(cx => Math.abs(x - cx) < 50) ? null : { x, tall };
+            if (post && last) {
+                for (const share of [0.4, 0.76]) strokeRoot(ctx, vine(i * 5 + share * 10, { x: last.x, y: foot - last.tall * share }, { x, y: foot - tall * share }, 2.1), palette, 0.8);
+            }
+            if (post) strokeRoot(ctx, vine(i * 3 + 1, { x, y: foot }, { x: x + (noise(i, 1, 381) - 0.5) * 6, y: foot - tall }, 3.3), palette, 0.9);
+            last = post;
+            x += 34 + noise(i, room.index, 382) * 26;
+        }
+    }
+
     // ---------------------------------------------------------------- the room
     /** @param {object} look the biome's backdrop row (data/stage-view.js STAGE_BACKDROPS): look.palette holds this theme's colours */
     function paint(map, room, box, look) {
@@ -289,18 +306,49 @@ const stageSanctum = (() => {
         const scene = { map, box, glade: clearingOf(room), floor: (x, y) => K.isFloor(map, x, y) || paths.has(x + ',' + y), colours: { ...palette, rim: K.rgbOf(look.rim), hollow: K.rgbOf(look.hollow) } };
         canvas.width = box.columns * WIDE;
         canvas.height = box.rows * DEEP;
-        const ctx = canvas.getContext('2d');
+        const ctx = canvas.getContext('2d'), ground = stageBackdrop.layer(map, 'ground'), back = stageBackdrop.layer(map, 'back');
         ctx.imageSmoothingEnabled = false;
-        paintGround(ctx, scene, room, box);
         ctx.translate(-box.x * WIDE, -box.y * DEEP);
+        // 층마다 그림이 있으면 그 그림을, 없으면 코드로 그린 임시 그림을 쓴다.
+        if (ground) tileStrip(ctx, box, ground, { foot: null, top: scene.glade.top });
+        else paintGround(ctx, scene, room, box);
+        if (back) tileStrip(ctx, box, back, { foot: scene.glade.top + (back.spec.sink || 0), top: null });
         for (const door of map.doors.filter(row => row.room === room.index && row.side === 'north')) K.paintHollow(ctx, door, room, scene.colours);
-        paintWild(ctx, scene, room, box);
-        paintLitter(ctx, scene, room);
-        paintRoots(ctx, room, palette);
-        paintEdge(ctx, scene, room);
-        paintSap(ctx, room, palette);
+        if (!back) paintFence(ctx, scene, room, box);
+        if (ground) shadeBeyond(ctx, scene, box);
+        else paintGrown(ctx, scene, room, box);
         K.paintOpenShade(ctx, scene, room, paths);
         return canvas;
+    }
+    /** What the coded ground carries besides its dirt: growth beyond the clearing, pebbles, the rare roots, the edge, sap. */
+    function paintGrown(ctx, scene, room, box) {
+        paintWild(ctx, scene, room, box);
+        paintLitter(ctx, scene, room);
+        paintRoots(ctx, room, scene.colours);
+        paintEdge(ctx, scene, room);
+        paintSap(ctx, room, scene.colours);
+    }
+    /** A layer picture repeated left to right across the room's picture, at places counted from the map's left edge (so it does
+     * not shift between rooms). It is drawn layer.spec.tall dots high: hung from `top` (the ground) or stood on `foot` (the back strip). */
+    function tileStrip(ctx, box, layer, place) {
+        const area = K.dotsOf(box), tall = layer.spec.tall, wide = Math.max(1, Math.round(layer.image.naturalWidth * tall / layer.image.naturalHeight));
+        const y = place.top === null ? place.foot - tall : place.top;
+        ctx.save();
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        for (let x = Math.floor(area.x / wide) * wide; x < area.x + area.w; x += wide) ctx.drawImage(layer.image, x, y, wide, tall);
+        ctx.restore();
+    }
+    /** With a ground picture the clearing has no edge of its own: the ground beyond the room's floor falls into shade instead. */
+    function shadeBeyond(ctx, scene, box) {
+        const area = K.dotsOf(box), glade = scene.glade, end = area.y + area.h;
+        ctx.fillStyle = 'rgba(8,6,5,0.42)';
+        ctx.fillRect(area.x, glade.top, glade.left - area.x, end - glade.top);
+        ctx.fillRect(glade.right, glade.top, area.x + area.w - glade.right, end - glade.top);
+        for (let i = 0; i < end - glade.bottom; i++) {
+            ctx.fillStyle = `rgba(8,6,5,${Math.min(0.62, 0.2 + i * 0.012).toFixed(3)})`;
+            ctx.fillRect(glade.left, glade.bottom + i, glade.right - glade.left, 1);
+        }
     }
 
     // ---------------------------------------------------------------- doors

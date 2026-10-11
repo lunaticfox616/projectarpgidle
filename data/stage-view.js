@@ -82,6 +82,11 @@ const STAGE_ROOMS = Object.freeze({
 // 그 지형의 방은 벽돌 벽 없이 바닥과 길만 그린다: floor 바닥 판석, kerb 바닥 옆 턱, earth 바닥 밖의 어두운 땅(그림의 빈 띠 색),
 // rim과 hollow 뒷문이 되는 굴의 테와 속, moss 바닥 뒤쪽 끝에 번지는 이끼. 그림이 없는 지형과 그림 파일이 없는 판은 벽돌 뒷벽 그대로다.
 // theme: 그 지형의 방을 제 방식으로 그리는 테마(바닥, 문), objects: 그 지형의 탐험 물체 그림 묶음(STAGE_OBJECTS.themes). 없으면 공용이다.
+// props: 그 지형의 방을 채우는 소품 묶음(STAGE_PROPS.themes). 없으면 소품을 놓지 않는다.
+// layers: 층 그림(같은 폴더의 파일). 좌우로 이어 붙는 띠이고 tall = 화면에 그릴 높이(캐릭터 도트). 없는 층은 코드로 그린 임시 그림이 대신한다.
+//   back   뒤쪽 띠: 바닥 뒤쪽 끝에 서는 울타리나 벽. 위쪽이 투명한 그림. sink = 바닥선 아래로 내려 겹치는 도트.
+//   ground 바닥 무늬: 바닥선에서 아래로 깔리는 띠. 방 바닥 일곱 줄이 224도트이므로 그보다 크게(바닥 밖까지 덮는다).
+//   예: layers: Object.freeze({ back: Object.freeze({ file: 'root-back.png', tall: 72, sink: 4 }), ground: Object.freeze({ file: 'root-ground.png', tall: 320 }) })
 // 그림은 캐릭터 그림과 같은 폴더에 두고 아직 저장소에 넣지 않는다(사용자가 준 그림: 써도 되는지 확인 뒤에 넣는다).
 const STAGE_BACKDROPS = Object.freeze({
     path: 'assets/playable/stage/backdrops/',
@@ -91,7 +96,7 @@ const STAGE_BACKDROPS = Object.freeze({
         root: Object.freeze({ file: 'root.webp', ground: 0.5996, floor: '#4d4035', kerb: '#2f2620', earth: '#1e1a17', rim: '#6f5e4c', hollow: '#0e0b09', moss: '#6e5a2a',
             // 뿌리끝 성소(js/canvas-stage-sanctum.js): 다져진 흙, 빈터 밖의 어두운 땅, 돌, 풀(몸, 밝은 잎, 밑동), 뿌리(몸, 빛 받는 쪽, 테), 수액(몸, 빛, 테), 빛나는 버섯,
             // 보스 방 문의 썩은 뿌리.
-            theme: 'sanctum', objects: 'root',
+            theme: 'sanctum', objects: 'root', props: 'root',
             palette: Object.freeze({ dirt: '#5a4532', wild: '#241d16', stone: '#74665a', grass: '#56602b', grassLight: '#808a3e', grassDark: '#2c321a',
                 root: '#6d5845', rootLight: '#957a5c', rootDark: '#241a14',
                 sap: '#c58f2a', sapLight: '#f4d572', sapDark: '#7a5416', cap: '#8fe3c8',
@@ -111,4 +116,25 @@ const STAGE_OBJECTS = Object.freeze({
     names: Object.freeze(['crate', 'crateBroken', 'pot', 'potBroken', 'chest', 'chestOpen', 'chestSilver', 'chestSilverOpen',
         'chestGold', 'chestGoldOpen', 'sealed', 'sealedOpen', 'nest', 'nestSpent', 'tracks'])
 });
-safeExposeData({ STAGE_VIEW, STAGE_TERRAIN, STAGE_ROOMS, STAGE_BACKDROPS, STAGE_OBJECTS });
+// 무대의 소품 층(js/canvas-stage-props.js): 던파의 무대처럼 배경, 뒤쪽 띠, 바닥, 소품, 앞쪽을 겹쳐 그릴 때 방을 채우는 조각 그림.
+// 한 장에 소품마다 한 칸(cell 도트), 발 자리 feet. names의 순서가 그림의 칸 순서다(scripts/stage-monsters/props.cjs와 같아야 한다).
+// themes: 지형의 소품 묶음(STAGE_BACKDROPS.biomes의 props가 고른다). back, side, front = 바닥 뒤쪽 끝, 양옆 바깥, 앞쪽 바깥에 놓일
+// [이름, 비중]. backGap, frontGap = 그 줄에서 소품 사이의 간격(도트, 가장 좁게와 넓게). sides = 한쪽 옆에 놓는 수.
+// 지금 그림은 임시다: 제대로 그린 조각이 오면 같은 이름으로 갈아 끼운다.
+const STAGE_PROPS = Object.freeze({
+    cell: 128,
+    feet: Object.freeze([64, 116]),
+    names: Object.freeze(['rock', 'rockSmall', 'rockTall', 'rootKnot', 'stump', 'shrineStone', 'shrineFallen', 'glowcaps', 'sapPod', 'fernSmall', 'fern', 'fernBig', 'grass']),
+    themes: Object.freeze({
+        root: Object.freeze({
+            sheet: 'assets/objects/stage/props-root.png',
+            back: Object.freeze([['rock', 3], ['rockTall', 2], ['rootKnot', 3], ['stump', 2], ['shrineStone', 2], ['glowcaps', 1], ['sapPod', 1], ['fern', 2], ['grass', 2]]),
+            side: Object.freeze([['rock', 2], ['rockSmall', 2], ['fern', 3], ['fernSmall', 2], ['stump', 1], ['glowcaps', 1], ['grass', 2]]),
+            front: Object.freeze([['rock', 2], ['rockSmall', 2], ['fernBig', 3], ['fern', 3], ['rootKnot', 1], ['shrineFallen', 1], ['grass', 3], ['glowcaps', 1]]),
+            backGap: Object.freeze([70, 170]),
+            frontGap: Object.freeze([90, 210]),
+            sides: 3
+        })
+    })
+});
+safeExposeData({ STAGE_VIEW, STAGE_TERRAIN, STAGE_ROOMS, STAGE_BACKDROPS, STAGE_OBJECTS, STAGE_PROPS });

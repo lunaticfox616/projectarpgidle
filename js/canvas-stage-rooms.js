@@ -46,12 +46,12 @@ const stageRoomsView = (() => {
     }
     /** 배경 그림이 준비된 지형이면 벽 없는 방(바닥과 길, 뒷문의 굴)을, 아니면 벽돌 뒷벽이 선 방을 그려 둔다. */
     function prepare(map, room, dot) {
-        const open = stageBackdrop.ready(map);
-        if (picture && picture.map === map && picture.room === room && picture.open === open && picture.dot === dot) return picture;
+        const open = stageBackdrop.ready(map), layers = open ? stageBackdrop.layersReady(map) : 0;
+        if (picture && picture.map === map && picture.room === room && picture.open === open && picture.dot === dot && picture.layers === layers) return picture;
         const box = boxOf(map, room, open);
         const painted = open ? stageTerrain.paintOpen(map, room, box, stageBackdrop.look(map)) : stageTerrain.paint(map, box);
         // 도트 하나가 캔버스 픽셀의 정수배가 아닌 배율에서는 그 배율로 미리 옮겨 둔다(js/canvas-stage-dots.js).
-        picture = { map, room, box, open, dot, canvas: stageDots.fitted(painted, dot), gates: gatesOf(map, room, open) };
+        picture = { map, room, box, open, dot, layers, canvas: stageDots.fitted(painted, dot), gates: gatesOf(map, room, open) };
         return picture;
     }
     /** 테마가 있는 방의 문 그림(문 id → 잠긴 그림과 열린 그림). 없으면 쇠창살과 화살표로 그린다. */
