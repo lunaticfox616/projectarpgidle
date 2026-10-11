@@ -252,10 +252,18 @@ const stageActors = (() => {
     return { drawPlayer: drawStageHero, headY, isReady, stanceFor, scaleFor, available };
 })();
 
-/** Whether the battlefield is drawn as the side-view stage (data/stage-view.js). */
 const sides = new WeakMap();
+/** A local test page opened with ?stage=1 (the launcher's stage entry) starts on the stage without touching the save. */
+const stageByAddress = typeof location === 'object' && ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname)
+    && new URLSearchParams(location.search).get('stage') === '1';
+/** The side-view stage (data/stage-view.js): whether the battlefield is drawn that way, and the numbers that follow from it. */
 const stageView = Object.freeze({
-    enabled: () => typeof game === 'object' && !!game.settings && game.settings.battleView === 'stage' && stageActors.available(),
+    /** settings.battleView 'stage' turns it on and 'top' turns it off; with neither, the address decides. The art must be there. */
+    wanted() {
+        const choice = typeof game === 'object' && game.settings ? game.settings.battleView : '';
+        return choice === 'stage' || (stageByAddress && choice !== 'top');
+    },
+    enabled: () => stageView.wanted() && stageActors.available(),
     /** Screen height of one depth cell ÷ its width: STAGE_VIEW.depth on the stage, 1 on the top-down field. */
     depth: () => (stageView.enabled() ? STAGE_VIEW.depth : 1),
     /** Cell width of an exploration map on the stage: the largest one that keeps STAGE_VIEW.minColumns across the view with a

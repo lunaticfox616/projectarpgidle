@@ -61,10 +61,13 @@ const actExplorationView=(()=>{
         }
         lastOrigin={run,...origin};
     }
+    /** The ground picture of a map: the painted top-down map, or on the side-view stage the stage terrain drawn here
+     * (js/canvas-stage-terrain.js). Switching the view prepares the other picture. */
     function prepare(map) {
-        if(cache?.map===map)return;
-        const current={map,surface:null,scenery:[],error:'',fogKey:'',fog:null,fogView:null,closed:null,open:null};cache=current;
-        explorationArt.terrain(map).then(surface=>{
+        const staged=stageView.enabled();
+        if(cache?.map===map && cache.staged===staged)return;
+        const current={map,staged,surface:null,scenery:[],error:'',fogKey:'',fog:null,fogView:null,closed:null,open:null};cache=current;
+        (staged?Promise.resolve().then(()=>stageTerrain.paint(map)):explorationArt.terrain(map)).then(surface=>{
             if(cache!==current)return;
             current.surface=surface;current.scenery=explorationArt.scenery(map);
             current.closed=explorationArt.gate(true,map);current.open=explorationArt.gate(false,map);

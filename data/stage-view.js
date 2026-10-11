@@ -21,4 +21,22 @@ const STAGE_VIEW = Object.freeze({
     shortWindupMs: 320,
     shortClipFrames: 9
 });
-safeExposeData({ STAGE_VIEW });
+// 무대의 지형(js/canvas-stage-terrain.js): 지도마다 바닥 판석 색과 뒷벽 벽돌 색 두 가지만 정한다. 나머지 음영은 그리는 쪽이 만든다.
+// wallMax: 뒷벽의 최대 높이(도트, 깊이 네 칸). pillarEvery: 높은 뒷벽에 기둥을 세우는 가로 간격(칸).
+const STAGE_TERRAIN = Object.freeze({
+    wallMax: 128,
+    pillarEvery: 5,
+    biomes: Object.freeze({
+        root: Object.freeze({ floor: '#4a3f42', wall: '#40343a' }),
+        courtyard: Object.freeze({ floor: '#454b3c', wall: '#364432' }),
+        aerial: Object.freeze({ floor: '#514c45', wall: '#3c4352' }),
+        maze: Object.freeze({ floor: '#4b3c30', wall: '#402d25' }),
+        sanctum: Object.freeze({ floor: '#343b4a', wall: '#2b3143' }),
+        ruins: Object.freeze({ floor: '#4c4840', wall: '#3f3b33' }),
+        trunk: Object.freeze({ floor: '#51402e', wall: '#453223' }),
+        veil: Object.freeze({ floor: '#403558', wall: '#352a50' }),
+        canopy: Object.freeze({ floor: '#3b4833', wall: '#30402d' }),
+        crown: Object.freeze({ floor: '#383b55', wall: '#2e314d' })
+    })
+});
+safeExposeData({ STAGE_VIEW, STAGE_TERRAIN });
