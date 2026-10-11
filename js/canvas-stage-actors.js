@@ -173,11 +173,10 @@ const stageActors = (() => {
         return headrooms.get(img.src);
     }
 
-    /** Screen px per art px for a cell width: canvas pixels per art dot in half steps (1, 1.5, 2, …); js/canvas-stage-dots.js
-     * keeps the dots even at the half steps. */
+    /** Screen px per art px for a cell width. Any scale: js/canvas-stage-dots.js keeps the dots even where a dot is not a whole
+     * number of canvas pixels. */
     function scaleFor(tile) {
-        const canvasPx = uiDisplay.battleRenderScale;
-        return Math.max(1, Math.round((Number(tile) || STAGE_VIEW.heroTile) / STAGE_VIEW.heroTile * canvasPx * 2) / 2) / canvasPx;
+        return (Number(tile) || STAGE_VIEW.heroTile) / STAGE_VIEW.heroTile;
     }
     /** Left and right follow the pose; up and down keep the side the figure faced last. */
     function turn(direction) {
@@ -267,13 +266,12 @@ const stageView = Object.freeze({
     backdrops: () => typeof game === 'object' && !!game.settings && game.settings.stageBackdrop !== 'off',
     /** Screen height of one depth cell ÷ its width: STAGE_VIEW.depth on the stage, 1 on the top-down field. */
     depth: () => (stageView.enabled() ? STAGE_VIEW.depth : 1),
-    /** Cell width of an exploration map on the stage: the largest one that keeps STAGE_VIEW.minColumns across the view with a
-     * character dot on a whole number of canvas pixels. settings.stageZoom (test panel) sets the dots per pixel directly. */
+    /** Cell width of an exploration map on the stage: the view's width shared among STAGE_VIEW.minColumns cells, so the same
+     * stretch of a room shows at any window size (a whole number of px, and no smaller than minDot per character dot).
+     * settings.stageZoom (test panel) sets the dots per pixel directly. */
     tile(width) {
-        const canvasPx = uiDisplay.battleRenderScale, rule = STAGE_VIEW.minColumns;
-        const columns = width < rule.narrowBelow ? rule.narrow : rule.wide;
-        // 도트 하나의 캔버스 픽셀 수는 반 걸음(1, 1.5, 2, …)으로 고른다.
-        const dots = Number(game.settings.stageZoom) || Math.max(1, Math.floor(width / (columns * STAGE_VIEW.heroTile) * canvasPx * 2 + 1e-6) / 2) / canvasPx;
+        const rule = STAGE_VIEW.minColumns, columns = width < rule.narrowBelow ? rule.narrow : rule.wide;
+        const dots = Number(game.settings.stageZoom) || Math.max(STAGE_VIEW.minDot, Math.floor(width / columns) / STAGE_VIEW.heroTile);
         return STAGE_VIEW.heroTile * dots;
     },
     /** Where the hero stands down the view (share of its height): the middle on the top-down field. */

@@ -9,9 +9,14 @@ const STAGE_VIEW = Object.freeze({
      * 2026-10-11 사용자 "보이는 캐릭터 사이즈 좀 작게": 넓은 화면 15 → 20칸. 1080p에서 캐릭터 도트 하나가 2px → 1.5px이 된다
      * (반 걸음 배율은 js/canvas-stage-dots.js가 도트를 고르게 찍는다). */
     minColumns: Object.freeze({ wide: 20, narrow: 8, narrowBelow: 700 }),
+    /** 2026-10-11 사용자 "게임 전체화면일때랑 창모드일때랑 맵 크기가 엄청 변함": 도트 크기를 반 걸음(1, 1.5, 2)으로만 고르던 때는 창이 조금만
+     * 좁아져도 1.5 → 1로 떨어져 캐릭터와 방이 3분의 1이나 작아졌다. 이제 칸 크기가 화면 너비를 따라 이어서 변해 어느 창 크기에서나 가로로
+     * 같은 칸 수가 보인다(도트가 캔버스 픽셀의 정수배가 아닌 배율은 js/canvas-stage-dots.js가 고르게 찍는다). 아주 작은 창에서는
+     * 도트가 이보다 작아지지 않고 대신 보이는 칸이 준다. */
+    minDot: 0.75,
     /** 주인공이 서는 세로 자리(화면 높이의 비율). 아래쪽은 HUD가 덮으므로 가운데보다 조금 위다. */
     anchorY: 0.46,
-    /** 칸 너비가 이 값일 때 캐릭터 도트 하나가 화면 1px이다. 칸은 캐릭터 도트가 캔버스 픽셀의 정수배가 되는 크기로만 잡는다. */
+    /** 칸 너비가 이 값일 때 캐릭터 도트 하나가 화면 1px이다. */
     heroTile: 64,
     /** 무기 자세 id (data/stage-characters.js의 무기 id와 같다). */
     stances: Object.freeze(['unarmed', 'swordshield', 'dagger', 'bow', 'orb', 'flask', 'censer']),
@@ -75,7 +80,10 @@ const STAGE_ROOMS = Object.freeze({
     /** 방을 화면 기준 줄보다 위로 올리는 칸 수의 상한(깊이 칸): 화면 아래쪽을 덮는 HUD에서 앞쪽 문을 꺼낸다. */
     lift: 1.25,
     /** 문을 지난 뒤 화면이 어둠에서 밝아지는 시간(ms). */
-    fadeMs: 280
+    fadeMs: 280,
+    /** 방 단위 탐험에서 주인공이 걷는 빠르기의 배수(2026-10-11 사용자: "기본 이동속도를 지금보다 50% 정도 빠르게"): 방이 넓어져 한 칸씩
+     * 걷는 시간이 길게 느껴졌다. 방 단위 탐험(run.rooms)에만 곱하므로 이어진 지도의 탐험과 그 계산은 그대로다. */
+    pace: 1.5
 });
 // 방 단위 무대의 배경 그림 (2026-10-11 사용자: "바닥이랑 오브젝트만 놔두고, 벽 대신 이런 느낌의 배경으로", js/canvas-stage-backdrop.js).
 // 지형마다 그림 한 장: 위쪽은 배경, 아래쪽은 바닥이 놓일 빈 띠다. ground = 그림에서 바닥이 시작하는 줄(그림 높이의 비율).
@@ -148,6 +156,7 @@ const STAGE_PROPS = Object.freeze({
 //          clear = 문 둘레에 비우는 반경. back 바닥 뒤쪽 끝, inner 바닥 앞쪽에 놓이는 낮은 조각, front 바닥 밖 앞쪽(캐릭터를 가린다).
 //          corners = 방의 왼쪽 앞, 오른쪽 앞 구석에 하나씩 [이름, 가로 자리, 깊이].
 //   doors  문: 방향 → [닫힌 그림, 열린 그림, 자리]. 뒤쪽과 앞쪽 문의 자리는 발 자리의 깊이, 좌우 문은 방 끝에서 바깥으로 나가는 거리다.
+//   sideMark 열린 좌우 문의 화살표 자리(js/canvas-stage-door-marks.js).
 //   fill 그림이 닿지 않는 땅의 색, sky 먼 배경 위쪽의 색, beyond 방의 옆쪽 바깥을 누르는 어둠의 세기.
 // 물을 제거한 뿌리끝 성소 v5 시안 기준 조각. 캐릭터 원본과 별도 경로에 보관한다. 열린/닫힌 문은 같은 문틀 픽셀과 발 자리를 쓴다.
 const STAGE_SCENES = Object.freeze({
@@ -181,7 +190,9 @@ const STAGE_SCENES = Object.freeze({
             doors: Object.freeze({
                 north: Object.freeze(['door-rear-closed', 'door-rear-open', 13]), south: Object.freeze(['door-front-closed', 'door-front-open', 293]),
                 west: Object.freeze(['door-left-closed', 'door-left-open', 1]), east: Object.freeze(['door-right-closed', 'door-right-open', -1])
-            })
+            }),
+            // 좌우 문이 열렸을 때 문틀의 뚫린 자리에 세우는 화살표: 그림 맨 아래 줄에서 올라간 높이, 빛이 퍼지는 너비, 굵기(도트).
+            sideMark: Object.freeze({ rise: 100, spread: 64, thick: 4 })
         })
     })
 });

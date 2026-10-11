@@ -77,6 +77,11 @@ function openAt(parts, p, n) {
     return clamp(1 - closed * 0.5, 0, 1);
 }
 
+/** Wood grain: wavering stripes that run along one direction (a unit vector). */
+function grainAt(p, along) {
+    const run = dot(p, along), q = sub(p, mul(along, run));
+    return Math.sin((q[0] * 1.1 + q[1] * 1.5 + q[2] * 1.3) * 1.25 + fbm(p, 0.06, 9) * 8 + run * 0.1) * 0.07;
+}
 /** The light a surface point takes, 0..1, before it is cut into tones. local = the point in the part's own frame. */
 function lightAt(parts, mat, hit) {
     const { p, n, local } = hit, facing = Math.max(0, dot(n, SUN)), lit = facing > 0 && !mat.unshadowed ? sunAt(parts, p, n) : facing > 0 ? 1 : 0;
@@ -84,6 +89,7 @@ function lightAt(parts, mat, hit) {
     let v = 0.12 + 0.58 * facing * lit + 0.22 * (0.5 + 0.5 * n[1]) * open + 0.07 * Math.max(0, -n[1]);
     v = v * lerp(0.62, 1, open) + (mat.glow || 0);
     if (mat.mottle) v += (fbm(local, mat.mottle[0], 21) - 0.5) * mat.mottle[1];
+    if (mat.grain) v += grainAt(local, mat.grain);
     const edge = Math.pow(1 - Math.max(0, dot(n, VIEW)), 2.2);
     if (mat.rimLight) v += mat.rimLight * edge * (0.35 + 0.65 * clamp(0.5 - 0.5 * dot(n, SUN), 0, 1));
     if (mat.rimDark) v -= mat.rimDark * edge;
@@ -95,7 +101,8 @@ function lightAt(parts, mat, hit) {
 
 /**
  * Renders a scene to a size×size RGBA cell. feet = [x, y] of the world origin in the cell.
- * mats: name → { ramp, gloss?, glossAt?, sheen?, glow?, contrast?, rimLight?, rimDark?, mottle?: [scale, strength], unshadowed?, rim?: hex, noRim? }.
+ * mats: name → { ramp, gloss?, glossAt?, sheen?, glow?, contrast?, rimLight?, rimDark?, mottle?: [scale, strength], grain?: [x, y, z],
+ *   unshadowed?, rim?: hex, noRim?, noEdge? }.
  * The top tone of a glossy material is kept for its glints. A part may carry local(p): the point in the part's own frame,
  * so a mottled surface moves with the part.
  */

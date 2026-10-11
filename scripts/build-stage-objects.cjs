@@ -4,7 +4,8 @@
  *   node scripts/build-stage-objects.cjs            # 미리보기만: artifacts/stage-monsters/objects-preview.png (공용, 그 아래 테마별)
  *   node scripts/build-stage-objects.cjs --write    # assets/objects/stage/objects.png 과 테마별 objects-<테마>.png 교체
  *
- * 물체 정의는 scripts/stage-monsters/objects.cjs, 그리는 법은 scripts/stage-monsters/render.cjs(몬스터와 같다).
+ * 물체 정의는 scripts/stage-monsters/objects.cjs, 그리는 법은 몬스터와 같다(입체는 scripts/stage-monsters/render.cjs, 칠은 paint.cjs).
+ * 임시 소품(props.cjs)은 예전 다섯 단계 칠(render.cjs) 그대로다: 조각 묶음이 있는 지형에서는 쓰이지 않는다.
  * 게임 쪽 규격(칸 크기, 발 자리, 이름 순서)은 data/stage-view.js STAGE_OBJECTS: 여기 순서와 같아야 한다.
  * 소품(방을 채우는 바위, 뿌리, 선돌, 고사리)은 scripts/stage-monsters/props.cjs → assets/objects/stage/props-<테마>.png,
  * 규격은 STAGE_PROPS. 미리보기는 artifacts/stage-monsters/props-preview.png.
@@ -13,6 +14,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const R = require('./stage-monsters/render.cjs');
+const P = require('./stage-monsters/paint.cjs');
 const { encodePng } = require('./lib/png.cjs');
 const { objects, themes, SIZE, FEET } = require('./stage-monsters/objects.cjs');
 const PROPS = require('./stage-monsters/props.cjs');
@@ -37,7 +39,7 @@ function preview(cells, size = SIZE) {
 
 function main() {
     const sets = [['objects', objects], ...Object.entries(themes).map(([theme, list]) => ['objects-' + theme, list])];
-    const drawn = sets.map(([file, list]) => ({ file, cells: list.map(object => R.render(object.build(), object.mats, SIZE, FEET)) }));
+    const drawn = sets.map(([file, list]) => ({ file, cells: list.map(object => P.paint(object.build(), object.mats, SIZE, FEET)) }));
     const previewDir = path.join(root, 'artifacts/stage-monsters');
     fs.mkdirSync(previewDir, { recursive: true });
     fs.writeFileSync(path.join(previewDir, 'objects-preview.png'), preview(drawn.flatMap(set => set.cells)));

@@ -1857,8 +1857,9 @@ function getExplorationPlayerVisualMotion(projection, player) {
     const cell = actExplorationMotion.position(run, player);
     const position = projection.cellToScreen(cell.gx, cell.gy);
     position.y += Number(projection.actorGroundOffsetY) || 0;
+    // 걸음 도중에 게임이 멈추면(선택 창, 안내, 창 열림) 걷는 그림도 멈춘다: 멈춘 화면에서 제자리걸음을 하지 않는다.
     return {position, targetPosition: position, direction: run.motionDirection,
-        progress: run.motion ? run.motion.elapsed / run.motion.duration : 1, animating: !!run.motion};
+        progress: run.motion ? run.motion.elapsed / run.motion.duration : 1, animating: !!run.motion && !isForegroundGameplayPausedForBackground()};
 }
 
 function getCardinalMoveDirection(fromCell, toCell) {
@@ -2832,6 +2833,7 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
         }
     });
     drawBattleLightingAndBars(ctx, { width, height, light: playerPos, hpPct: playerHpPct, ghostPct: playerHpGhostPct, esPct: playerEsPct, now, layout: dynamicLayout, targets: currentTargets, tileW: gridProj.tileW, projection: gridProj, pending: pendingEnemyCombatAttacks });
+    if (typeof stageScene === 'object' && stageView.enabled()) stageScene.drawMarks(ctx, gridProj);
     drawDamageTexts(ctx, now);
     ctx.setTransform(renderScale, 0, 0, renderScale, 0, 0);
     drawBattleScreenGrade(ctx, width, height, now);

@@ -1,22 +1,30 @@
 'use strict';
 // 옆에서 보는 무대의 탐험 물체(나무 상자, 항아리, 보급 상자 세 등급, 봉인된 보물함, 알집, 매복 흔적)와 그 부서진 모습.
-// 몬스터와 같은 도구(render.cjs)로 캐릭터와 같은 밀도로 그린다. 한 장씩 서 있는 그림이고 칸은 96, 발 자리는 FEET.
+// 몬스터와 같은 도구(입체는 render.cjs, 칠은 paint.cjs)로 캐릭터와 같은 밀도로 그린다. 한 장씩 서 있는 그림이고 칸은 96, 발 자리는 FEET.
+// 색은 어두운 뿌리 동굴에 놓일 것을 보고 손으로 고른 단계다(2026-10-11 사용자: "상자랑 항아리도 같은 방식으로 다시 칠해줘").
 // 게임 쪽 규격은 data/stage-view.js STAGE_OBJECTS(이름 순서가 그림 순서다), 그리는 쪽은 js/canvas-stage-objects.js.
 const S = require('./render.cjs');
-const { ramp } = S;
+const { through } = require('./paint.cjs');
 
 const SIZE = 96, FEET = [48, 84];
 /** A line every `step` along a coordinate, `width` wide: plank joints. */
 const joint = (value, step, width = 1.1) => Math.abs((((value % step) + step) % step) - step / 2) > step / 2 - width;
 
-const WOOD = { wood: { ramp: ramp('#8a6038', { cool: 18, warm: 12 }) }, woodDark: { ramp: ramp('#553a22', { cool: 14, warm: 8 }) },
-    beam: { ramp: ramp('#6f4a2a', { cool: 16, warm: 12 }) }, iron: { ramp: ramp('#5a5c66', { cool: 10, warm: 4 }), gloss: true },
-    nail: { ramp: ramp('#2c2a2e', { cool: 4, warm: 2 }) }, inside: { ramp: ramp('#1c1410', { cool: 4, warm: 2 }) } };
+/** Wood: a ramp, a grain that runs along one direction, a little mottling. Metal: a ramp with a hard shine. */
+const wood = (colours, grain, more) => ({ ramp: through(colours), grain, mottle: [0.17, 0.1], ...more });
+const metal = (colours, more) => ({ ramp: through(colours), gloss: true, glossAt: 0.93, sheen: 0.3, contrast: 1.15, ...more });
+const flat = colours => ({ ramp: through(colours), noEdge: true });
+const WOOD = { wood: wood(['#1c120e', '#33221a', '#4a3324', '#60442e', '#7a5a3c', '#96744e', '#b39264'], [1, 0, 0]),
+    slat: wood(['#1c120e', '#33221a', '#4a3324', '#60442e', '#7a5a3c', '#96744e', '#b39264'], [0, 1, 0]),
+    woodDark: flat(['#120b09', '#21150f', '#33221a', '#4a3324']),
+    beam: wood(['#190f0b', '#2c1c14', '#42291c', '#573824', '#6f4a2e', '#8a6340'], [0.7, 0.7, 0]),
+    iron: metal(['#15141a', '#26252c', '#3a3940', '#514f57', '#6c6a72', '#8d8a90', '#b5b1b3']),
+    nail: { ramp: through(['#0e0d10', '#1c1b20', '#2e2c32', '#45424a']) }, inside: flat(['#0a0706', '#140e0c', '#1f1512']) };
 
 // ---------------------------------------------------------------- 나무 상자
 function crate() {
     const m = S.scene();
-    m.add(S.box([0, 17, 0], [19, 17, 13], 0.8), 'wood', { paint: p => (joint(p[0] + 4.7, 9.5) ? 'woodDark' : null) });
+    m.add(S.box([0, 17, 0], [19, 17, 13], 0.8), 'slat', { paint: p => (joint(p[0] + 4.7, 9.5) ? 'woodDark' : null) });
     for (const x of [-18.6, 18.6]) for (const z of [-12.6, 12.6]) m.add(S.box([x, 17.2, z], [2.7, 17.8, 2.7], 0.6), 'beam');
     for (const y of [2.6, 32]) {
         m.add(S.box([0, y, 13.2], [19, 2.6, 1.7], 0.5), 'beam');
@@ -40,8 +48,8 @@ function crateBroken() {
 }
 
 // ---------------------------------------------------------------- 낡은 항아리
-const CLAY = { clay: { ramp: ramp('#a8694a', { cool: 22, warm: 14 }), gloss: true }, band: { ramp: ramp('#6b3d2c', { cool: 16, warm: 8 }) },
-    bandLight: { ramp: ramp('#d3a273', { cool: 16, warm: 10 }) }, mouth: { ramp: ramp('#1f1310', { cool: 4, warm: 2 }) } };
+const CLAY = { clay: { ramp: through(['#2a1610', '#4a281c', '#6e3d2a', '#8f5438', '#ad6e4a', '#c98e66', '#e6b890']), gloss: true, glossAt: 0.955, sheen: 0.18, mottle: [0.11, 0.12] },
+    band: flat(['#1c0f0c', '#34201a', '#4f3024', '#6b4130']), bandLight: flat(['#7a5a40', '#a88360', '#cfab82', '#ecd2ae']), mouth: flat(['#0c0706', '#170f0c', '#221612']) };
 /** The painted belt round the jar: a dark band with a pale zigzag. */
 function belt(p) {
     if (p[1] < 16.5 || p[1] > 22.5) return null;
@@ -95,17 +103,20 @@ function chest(turn, look) {
 }
 const CHEST_MATS = {
     ...WOOD,
-    lidWood: { ramp: ramp('#9a6c40', { cool: 18, warm: 12 }) },
-    brass: { ramp: ramp('#c9973a', { cool: 24, warm: 14 }), gloss: true },
-    steel: { ramp: ramp('#aab0be', { cool: 14, warm: 6 }), gloss: true }, silverWood: { ramp: ramp('#5d5560', { cool: 14, warm: 8 }) },
-    silverLid: { ramp: ramp('#6c6470', { cool: 14, warm: 8 }) }, silverSeam: { ramp: ramp('#3b3640', { cool: 10, warm: 4 }) },
-    silverLock: { ramp: ramp('#dfe4ee', { cool: 14, warm: 4 }), gloss: true },
-    gilt: { ramp: ramp('#c9972f', { cool: 26, warm: 14 }), gloss: true }, giltLid: { ramp: ramp('#dcae40', { cool: 26, warm: 14 }), gloss: true },
-    giltSeam: { ramp: ramp('#8a5f18', { cool: 20, warm: 8 }) }, giltStrap: { ramp: ramp('#f1d57a', { cool: 24, warm: 10 }), gloss: true },
-    ruby: { ramp: ramp('#c8372e', { cool: 20, warm: 16 }), gloss: true, glow: true },
-    rune: { ramp: ramp('#4a4466', { cool: 16, warm: 8 }) }, runeLid: { ramp: ramp('#5a5378', { cool: 16, warm: 8 }) },
-    runeSeam: { ramp: ramp('#2a2638', { cool: 8, warm: 4 }) }, runeStrap: { ramp: ramp('#8a84a6', { cool: 14, warm: 6 }), gloss: true },
-    seal: { ramp: ramp('#b47ae0', { cool: 20, warm: 20 }), gloss: true, glow: true }
+    lidWood: wood(['#1f140f', '#38251b', '#503726', '#684a32', '#836241', '#a07e56', '#bd9c6e'], [1, 0, 0]),
+    brass: metal(['#3a2710', '#5e4218', '#8a6524', '#b38a34', '#d4ad4c', '#eed27a', '#fff0b0']),
+    steel: metal(['#2a2c36', '#454852', '#666a75', '#8a8e9a', '#aeb2bd', '#d2d6de', '#f2f4f8']),
+    silverWood: wood(['#17161c', '#2a2830', '#3e3b46', '#55515e', '#6e6978', '#8a8494'], [1, 0, 0]),
+    silverLid: wood(['#1c1b22', '#312f38', '#474450', '#5f5b69', '#797484', '#9690a0'], [1, 0, 0]),
+    silverSeam: flat(['#0e0d12', '#1b1a20', '#2a2830', '#3b3840']), silverLock: metal(['#4a4e5a', '#747986', '#a0a5b2', '#c8ccd6', '#e6e9ef', '#ffffff']),
+    gilt: metal(['#3d2a0c', '#644612', '#8f671c', '#b88a2a', '#d9ad3e', '#f0cf66', '#fff0a8'], { contrast: 1.05 }),
+    giltLid: metal(['#473210', '#725116', '#a07522', '#c99a32', '#e6bc4a', '#f6da78', '#fff4b8'], { contrast: 1.05 }),
+    giltSeam: flat(['#2e1f08', '#4a330e', '#6b4c14', '#8a651c']), giltStrap: metal(['#6b4c14', '#a47a22', '#d9ad3e', '#f6dc84', '#fff6c8']),
+    ruby: { ramp: through(['#3d0c10', '#6e141a', '#a82024', '#d83a34', '#f4705c', '#ffd0c0']), gloss: true, glow: 0.1 },
+    rune: wood(['#12101c', '#221e34', '#342e4c', '#484066', '#5f5684', '#7a70a2'], [1, 0, 0]),
+    runeLid: wood(['#171426', '#2a2540', '#3e3759', '#544a74', '#6c6192', '#877cb0'], [1, 0, 0]),
+    runeSeam: flat(['#0b0a12', '#161422', '#221f34', '#302c46']), runeStrap: metal(['#3a3550', '#5a5478', '#7f78a0', '#a6a0c4', '#d0cbe6']),
+    seal: { ramp: through(['#3a1860', '#5e2a96', '#8a48c8', '#b47ae0', '#dab4f4', '#f6eaff']), gloss: true, glow: 0.15 }
 };
 const LOOKS = {
     wood: { body: 'wood', lid: 'lidWood', seam: 'woodDark', strap: 'iron', lock: 'brass' },
@@ -116,10 +127,11 @@ const LOOKS = {
 const LID_OPEN = 1.5;
 
 // ---------------------------------------------------------------- 알집, 매복 흔적
-const NEST = { nest: { ramp: ramp('#6f6a3a', { cool: 18, warm: 12 }) }, straw: { ramp: ramp('#8f8a52', { cool: 16, warm: 12 }) },
-    nestDark: { ramp: ramp('#45431f', { cool: 12, warm: 6 }) }, egg: { ramp: ramp('#e4e2c0', { cool: 26, warm: 8 }), gloss: true },
-    eggSpot: { ramp: ramp('#b9b68c', { cool: 20, warm: 8 }) }, yolk: { ramp: ramp('#3a3520', { cool: 8, warm: 4 }) },
-    mud: { ramp: ramp('#2a1d16', { cool: 6, warm: 4 }), noRim: true } };
+const NEST = { nest: { ramp: through(['#1c1a0e', '#33301a', '#4c4826', '#676236', '#827c48', '#9e975c']), mottle: [0.2, 0.12] },
+    straw: { ramp: through(['#33301a', '#565030', '#7a7344', '#9e975c', '#c2ba7a']) }, nestDark: flat(['#12110a', '#23210f', '#363318']),
+    egg: { ramp: through(['#6a6654', '#96917a', '#bdb89e', '#dcd8c0', '#f2efdc', '#fffdf2']), gloss: true, sheen: 0.2 },
+    eggSpot: flat(['#5a5644', '#807b64', '#a39e84', '#c2bda2']), yolk: flat(['#14120a', '#262210', '#3a3520']),
+    mud: { ramp: through(['#0f0a08', '#1c130f', '#2a1d16']), noRim: true, noEdge: true } };
 const fibre = p => (joint(p[0] * 0.8 + p[1] * 1.7 + p[2] * 0.5, 4.2, 0.7) ? 'nestDark' : null);
 function mound(m) {
     m.add(S.ellipsoid([0, 5.5, 0], [25, 8, 15]), 'nest', { group: 'mound', k: 4, paint: fibre });
@@ -167,12 +179,16 @@ const objects = [
 // ---------------------------------------------------------------- 뿌리끝 성소의 물체
 // 같은 물체가 오래 묵어 뿌리에 감기고 이끼가 앉았다: 나무는 어둡게 삭았고, 항아리에는 수액이 차 넘치고, 상자 위에는 빛나는 버섯이 돋았다.
 // 공용 그림과 이름, 순서가 같다(assets/objects/stage/objects-root.png).
-const AGED = { wood: { ramp: ramp('#6f4f30', { cool: 18, warm: 12 }) }, woodDark: { ramp: ramp('#3f2a1a', { cool: 14, warm: 8 }) },
-    beam: { ramp: ramp('#58391f', { cool: 16, warm: 12 }) }, lidWood: { ramp: ramp('#7a5733', { cool: 18, warm: 12 }) },
-    iron: { ramp: ramp('#4b4a4e', { cool: 10, warm: 4 }), gloss: true } };
-const GROWTH = { vine: { ramp: ramp('#6d5845', { cool: 16, warm: 14 }) }, moss: { ramp: ramp('#6b6a2c', { cool: 22, warm: 16 }) },
-    sap: { ramp: ramp('#d39a2e', { cool: 26, warm: 16 }), gloss: true, glow: true }, cap: { ramp: ramp('#8fe3c8', { cool: 20, warm: 10 }), glow: true },
-    stem: { ramp: ramp('#b9c6b4', { cool: 14, warm: 6 }) }, thorn: { ramp: ramp('#4a2a33', { cool: 12, warm: 10 }) } };
+const AGED = { wood: wood(['#150e0b', '#281a13', '#3d2a1c', '#523a26', '#6a4d32', '#846442'], [1, 0, 0]),
+    slat: wood(['#150e0b', '#281a13', '#3d2a1c', '#523a26', '#6a4d32', '#846442'], [0, 1, 0]), woodDark: flat(['#0d0807', '#1a100c', '#281a13', '#3a281c']),
+    beam: wood(['#120b08', '#22160f', '#342216', '#48301f', '#5e4029', '#775536'], [0.7, 0.7, 0]),
+    lidWood: wood(['#1a110d', '#2f1f16', '#463020', '#5e422b', '#775738', '#92704a'], [1, 0, 0]),
+    iron: metal(['#101014', '#1e1e24', '#2f2f36', '#44434b', '#5c5a62', '#7a777e', '#9e9a9c']) };
+const GROWTH = { vine: { ramp: through(['#1a120e', '#2f2018', '#463224', '#5e4632', '#785c42', '#94765a']), mottle: [0.2, 0.1] },
+    moss: { ramp: through(['#161a08', '#2a3010', '#40471a', '#586026', '#727a34', '#8e9648']), mottle: [0.35, 0.2] },
+    sap: { ramp: through(['#5c3113', '#8f562c', '#c88132', '#df9137', '#f6b65b', '#fcead3']), gloss: true, glow: 0.1 },
+    cap: { ramp: through(['#0f3a34', '#1a6258', '#2c8f7e', '#4fc0a6', '#8fe3c8', '#d6fff0']), glow: 0.2, unshadowed: true },
+    stem: { ramp: through(['#4a5248', '#727c6e', '#9aa694', '#c0ccb8']) }, thorn: { ramp: through(['#160a10', '#2a141c', '#40202a', '#5a2e3a', '#7a4250']) } };
 function glowcap(m, at, size) {
     m.add(S.limb(at, [at[0], at[1] + size * 1.3, at[2]], size * 0.3), 'stem');
     m.add(S.ellipsoid([at[0], at[1] + size * 1.5, at[2]], [size, size * 0.62, size]), 'cap');

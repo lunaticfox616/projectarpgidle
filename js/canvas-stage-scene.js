@@ -11,7 +11,8 @@
 const stageScene = (() => {
     const WIDE = 64, DEEP = 32;                 // 한 칸의 도트(js/canvas-stage-terrain.js와 같다)
     const images = new Map();                   // 파일 경로 → Image
-    const fits = new Map();                     // "파일|도트 크기" → 그 배율로 옮겨 둔 그림(먼 배경과 조각: 매 프레임 다시 옮기지 않는다)
+    const fits = new Map();                     // 파일 → 지금 배율(fitDot)로 옮겨 둔 그림(먼 배경과 조각: 매 프레임 다시 옮기지 않는다)
+    let fitDot = 0;
     const complete = new Set();                 // 그림을 모두 불러온 묶음
     const layouts = new WeakMap();              // 지도 → Map(방 번호 → 조각 자리)
 
@@ -43,7 +44,9 @@ const stageScene = (() => {
 
     // ---------------------------------------------------------------- far backdrop
     function fitted(kit, file, dot) {
-        const key = kit.dir + file + '|' + dot;
+        // 창 크기가 바뀌어 배율이 달라지면 앞 배율로 옮겨 둔 그림은 버린다(배율마다 쌓이지 않게).
+        if (fitDot !== dot) { fits.clear(); fitDot = dot; }
+        const key = kit.dir + file;
         if (!fits.has(key)) fits.set(key, stageDots.fitted(picture(kit, file), dot));
         return fits.get(key);
     }
@@ -169,6 +172,19 @@ const stageScene = (() => {
         ctx.drawImage(fitted(kit, name + '.png', dot), Math.round(actor.point.x - size[0] / 2 * dot), Math.round(actor.y - (size[3] + size[5]) * dot), size[0] * dot, size[1] * dot);
         ctx.restore();
     }
-    return Object.freeze({ ready, drawFar, paintRoom, append, draw });
+    /** 열린 좌우 문의 화살표: 문틀의 뚫린 자리에 세운다(문틀 그림이 문 칸을 덮어 바닥의 화살표가 보이지 않는다). 좌우 문은 화면
+     * 가장자리에 서서 전장의 조명(주인공에서 멀수록 어둡다)에 묻히므로, 조명을 입힌 뒤에 그린다(js/canvas-battlefield.js가 부른다). */
+    function drawMarks(ctx, p) {
+        const run = actExplorationState.current(game), map = actExplorationDoors.stageMap(run), room = map ? actExplorationDoors.room(run) : null;
+        const kit = room && ready(map) ? kitOf(map) : null;
+        if (!kit || !kit.sideMark) return;
+        const dot = stageActors.scaleFor(p.tileW), rule = kit.sideMark;
+        for (const row of actExplorationDoors.doorsHere(run)) {
+            if (row.locked || (row.door.side !== 'west' && row.door.side !== 'east')) continue;
+            const piece = doorPiece(room, row, kit);
+            stageDoorMarks.arrows(ctx, { cx: p.mapX + piece.x * dot, cy: p.mapY + (piece.y - rule.rise) * dot, w: rule.spread * dot }, row.door, { dot, thick: rule.thick, upright: true });
+        }
+    }
+    return Object.freeze({ ready, drawFar, paintRoom, append, draw, drawMarks });
 })();
 safeExposeGlobals({ stageScene });

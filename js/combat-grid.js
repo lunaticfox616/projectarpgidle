@@ -385,7 +385,7 @@ function beginExplorationGridStep(target,interval) {
     const run=actExplorationState.current(game);if(!run || run.motion)return false;
     const next={gx:game.gridPlayer.gx,gy:game.gridPlayer.gy};
     if(!gridStepToward(next,target.gx,target.gy,getExplorationPlanningBlockedCells(run)))return false;
-    return actExplorationMotion.start(run,game.gridPlayer,next,interval,run.motionTimeMs);
+    return actExplorationMotion.start(run,game.gridPlayer,next,interval/actExplorationDoors.pace(run),run.motionTimeMs);
 }
 
 /** The hero plans its exploration step around fighters and its own reserved tile, but not around dormant packs: they wake

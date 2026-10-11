@@ -104,8 +104,7 @@ const stageRoomsView = (() => {
     }
 
     // ---------------------------------------------------------------- doors
-    const ARROW = Object.freeze({ east: [1, 0], west: [-1, 0], north: [0, -1], south: [0, 1] });
-    const INK = Object.freeze({ open: '#f3e5b4', gate: '#ff7a66', bar: '#1b171c', barLight: '#6d6470' });
+    const INK = Object.freeze({ bar: '#1b171c', barLight: '#6d6470' });
     /** 한 칸짜리 문 자리의 화면 상자. */
     function cellBox(door, p) {
         const centre = p.cellToScreen(door.cell.gx, door.cell.gy);
@@ -126,55 +125,21 @@ const stageRoomsView = (() => {
         ctx.fillStyle = INK.bar;
         ctx.fillRect(box.x, box.y + box.h - height + dot * 3, box.w, dot * 2);
     }
-    /** 열린 문: 문 자리에 빛이 깔리고, 나가는 쪽을 가리키는 갈매기 표시 셋이 차례로 밝아진다. */
-    function drawArrows(ctx, box, door, dot) {
-        const [dx, dy] = ARROW[door.side], phase = performance.now() / 240, colour = door.gate ? INK.gate : INK.open;
-        glow(ctx, box, colour);
-        for (let i = 0; i < 3; i++) {
-            const reach = (i - 1) * dot * 7;
-            ctx.globalAlpha = .3 + .7 * Math.max(0, Math.sin(phase - i * .9));
-            chevron(ctx, { x: box.cx + dx * reach, y: box.cy + dy * reach * .5, dx, dy, dot, colour });
-        }
-        ctx.globalAlpha = 1;
-    }
-    /** 도트 갈매기 표시 하나(dx, dy 쪽을 가리킨다): 어두운 그림자 위에 두 도트 굵기로 찍는다. */
-    function chevron(ctx, mark) {
-        const { dx, dy, dot } = mark, size = dot * 2;
-        for (const [shade, colour] of [[dot, INK.bar], [0, mark.colour]]) {
-            ctx.fillStyle = colour;
-            for (let step = 0; step < 4; step++) {
-                const back = step * size, spread = step * size;
-                const along = dx ? [-dx * back, 0] : [0, -dy * back * .5], across = dx ? [0, spread * .5] : [spread, 0];
-                for (const side of [-1, 1]) {
-                    ctx.fillRect(Math.round(mark.x + along[0] + across[0] * side), Math.round(mark.y + along[1] + across[1] * side + shade), size, size);
-                }
-            }
-        }
-    }
     /** look.gate: 테마의 문 그림(잠긴 것과 열린 것). 있으면 그 그림을 문 칸에 세우고, 없으면 쇠창살을 친다. 열린 문에는 화살표가 깜빡인다. */
     function drawDoor(ctx, row, p, look) {
         const box = cellBox(row.door, p), dot = Math.max(1, Math.round(p.tileW / WIDE)), gate = look.gate;
+        const sideways = row.door.side === 'west' || row.door.side === 'east';
         ctx.save();
-        // 조각 묶음의 문은 캐릭터와 함께 깊이 순서로 그려진다(js/canvas-stage-scene.js): 여기서는 열린 문의 화살표만 얹는다.
+        // 조각 묶음의 문은 캐릭터와 함께 깊이 순서로 그려진다(js/canvas-stage-scene.js): 여기서는 열린 문의 화살표만 바닥에 얹는다.
+        // 묶음의 좌우 문은 문틀이 문 칸을 덮으므로 화살표도 문틀과 함께 그쪽에서 그린다.
         if (gate) drawGate(ctx, row.locked ? gate.locked : gate.open, box, p.tileW / WIDE);
         else if (row.locked && !look.kit) drawBars(ctx, box, dot);
-        if (!row.locked) drawArrows(ctx, box, row.door, dot);
+        if (!row.locked && !(look.kit && sideways)) stageDoorMarks.arrows(ctx, box, row.door, { dot: p.tileW / WIDE });
         ctx.restore();
     }
     function drawGate(ctx, image, box, scale) {
         const frame = stageSanctum.DOOR;
         stageDots.blit(ctx, image, { x: 0, y: 0, w: frame.w, h: frame.h }, { x: Math.round(box.cx - frame.ax * scale), y: Math.round(box.cy - frame.ay * scale), scale });
-    }
-    /** 문 자리 바닥에 깔리는 빛(납작한 타원). */
-    function glow(ctx, box, colour) {
-        const light = ctx.createRadialGradient(box.cx, box.cy, 0, box.cx, box.cy, box.w * .75);
-        light.addColorStop(0, colour + '66');
-        light.addColorStop(1, colour + '00');
-        ctx.save();
-        ctx.translate(box.cx, box.cy); ctx.scale(1, .5); ctx.translate(-box.cx, -box.cy);
-        ctx.fillStyle = light;
-        ctx.fillRect(box.cx - box.w, box.cy - box.w, box.w * 2, box.w * 2);
-        ctx.restore();
     }
 
     // ---------------------------------------------------------------- fade

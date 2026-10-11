@@ -58,6 +58,8 @@ const actExplorationDoors = (() => {
         if (!map || !here) return [];
         return map.doors.filter(door => door.room === here.index).map(door => ({ door, locked: locked(run, door) }));
     }
-    return Object.freeze({ session, planKey, stageMap, cross, toward, room, doorsHere });
+    /** 방 단위 탐험에서 주인공이 걷는 빠르기의 배수(STAGE_ROOMS.pace). 이어진 지도의 탐험은 1. */
+    const pace = run => (run && run.rooms ? STAGE_ROOMS.pace : 1);
+    return Object.freeze({ session, planKey, stageMap, cross, toward, room, doorsHere, pace });
 })();
 safeExposeGlobals({ actExplorationDoors });
