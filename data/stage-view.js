@@ -69,9 +69,9 @@ const STAGE_ROOMS = Object.freeze({
     reach: 40,
     /** 방 그림에 함께 담는 둘레의 벽 칸 수(좌우, 위, 아래). openFrame: 배경 그림을 쓰는 방(벽이 없어 바닥과 길이 화면 끝까지 간다). */
     frame: Object.freeze({ side: 3, top: 5, bottom: 2 }),
-    openFrame: Object.freeze({ side: 7, top: 4, bottom: 7 }),
+    openFrame: Object.freeze({ side: 7, top: 6, bottom: 7 }),
     /** 배경 그림을 쓰는 방에서 바닥의 앞쪽 끝이 놓이는 세로 자리(화면 높이의 비율): 그 아래는 HUD가 덮는다. 좁은 화면(휴대폰)은 narrow. */
-    floorBottom: Object.freeze({ wide: 0.76, narrow: 0.6 }),
+    floorBottom: Object.freeze({ wide: 0.745, narrow: 0.6 }),
     /** 방을 화면 기준 줄보다 위로 올리는 칸 수의 상한(깊이 칸): 화면 아래쪽을 덮는 HUD에서 앞쪽 문을 꺼낸다. */
     lift: 1.25,
     /** 문을 지난 뒤 화면이 어둠에서 밝아지는 시간(ms). */
@@ -137,4 +137,52 @@ const STAGE_PROPS = Object.freeze({
         })
     })
 });
-safeExposeData({ STAGE_VIEW, STAGE_TERRAIN, STAGE_ROOMS, STAGE_BACKDROPS, STAGE_OBJECTS, STAGE_PROPS });
+// 무대 조각 묶음 (js/canvas-stage-scene.js). 2026-10-11 사용자가 이미지 생성으로 만들어 온 "뿌리 성소 무대 조각"(root-stage-kit-20261011):
+// 먼 배경, 뒤쪽 띠, 바닥 세 가지, 작은 소품 열, 앞쪽 소품 넷, 네 방향 문의 닫힌 모습과 열린 모습. 그림 한 장이 캐릭터 도트 하나에 1px이다.
+// 수치는 모두 도트이고 방 바닥의 뒤쪽 끝(바닥선)과 왼쪽 끝에서 잰다. 묶음의 조립 화면(화면 px, 1.5배)을 도트로 옮긴 값이다.
+//   far    먼 배경: 좌우로 이어 붙는 띠. bottom = 바닥선 아래로 내려오는 깊이, parallax = 카메라를 따라 움직이는 비율, shift = 띠를 미는 양.
+//   back   뒤쪽 띠: 울타리와 뿌리 둔덕. bottom = 바닥선 아래로 내려오는 깊이. 바닥 띠와 이음매가 엇갈리게 shift만큼 민다.
+//   floor  바닥: 방마다 한 가지를 고른다. top = 바닥선 위로 올라가는 높이(음수).
+//   pieces 조각: 이름(= 파일 이름) → [그림 가로, 세로, 조각이 차지하는 상자의 왼쪽, 위, 가로, 세로]. 상자의 맨 아래 줄이 발 자리다.
+//   rows   줄지어 놓는 규칙: names를 차례로 돌리며 from부터 gaps 간격으로, 방 끝에서 until 앞까지. drops = 발 자리의 깊이(차례로).
+//          clear = 문 둘레에 비우는 반경. back 바닥 뒤쪽 끝, inner 바닥 앞쪽에 놓이는 낮은 조각, front 바닥 밖 앞쪽(캐릭터를 가린다).
+//          corners = 방의 왼쪽 앞, 오른쪽 앞 구석에 하나씩 [이름, 가로 자리, 깊이].
+//   doors  문: 방향 → [닫힌 그림, 열린 그림, 자리]. 뒤쪽과 앞쪽 문의 자리는 발 자리의 깊이, 좌우 문은 방 끝에서 바깥으로 나가는 거리다.
+//   fill 그림이 닿지 않는 땅의 색, sky 먼 배경 위쪽의 색, beyond 방의 옆쪽 바깥을 누르는 어둠의 세기.
+// 그림은 사용자가 만든 그림이라 캐릭터 그림과 같은 폴더에 두고 아직 저장소에 넣지 않았다. 폴더가 없는 판은 코드로 그린 임시 무대를 쓴다.
+const STAGE_SCENES = Object.freeze({
+    path: 'assets/playable/stage/scenes/',
+    biomes: Object.freeze({
+        root: Object.freeze({
+            dir: 'root/', fill: '#493d28', sky: '#2c2a1c', beyond: 0.26,
+            far: Object.freeze({ file: 'backdrop.png', width: 1536, height: 384, bottom: 19, parallax: 0.4, shift: -227 }),
+            back: Object.freeze({ file: 'rear-strip.png', width: 1024, height: 192, bottom: 20, shift: -207 }),
+            floor: Object.freeze({ files: Object.freeze(['floor-a.png', 'floor-b.png', 'floor-c.png']), width: 1536, height: 320, top: -24 }),
+            pieces: Object.freeze({
+                'rock-low': Object.freeze([96, 64, 4, 24, 88, 36]), 'root-low': Object.freeze([160, 64, 4, 18, 152, 42]),
+                'rock-small': Object.freeze([64, 48, 4, 7, 56, 37]), 'rock-tall': Object.freeze([80, 112, 12, 4, 55, 104]),
+                'root-stump': Object.freeze([112, 112, 4, 24, 104, 84]), 'fern-small': Object.freeze([64, 64, 4, 17, 56, 43]),
+                'fern-wide': Object.freeze([96, 80, 4, 23, 88, 53]), 'mushrooms': Object.freeze([64, 48, 8, 5, 48, 39]),
+                'sanctum-slab': Object.freeze([112, 80, 4, 17, 104, 59]), 'sanctum-pillar': Object.freeze([80, 112, 15, 4, 50, 104]),
+                'front-fern': Object.freeze([256, 160, 4, 16, 248, 140]), 'front-grass': Object.freeze([256, 160, 4, 60, 248, 96]),
+                'front-root': Object.freeze([384, 192, 33, 4, 317, 184]), 'door-rear-closed': Object.freeze([256, 240, 21, 28, 214, 177]),
+                'front-root-stone': Object.freeze([384, 192, 4, 45, 376, 143]), 'door-left-closed': Object.freeze([192, 224, 24, 21, 144, 182]),
+                'door-right-closed': Object.freeze([192, 224, 25, 18, 156, 197]), 'door-front-closed': Object.freeze([256, 160, 30, 49, 196, 85]),
+                'door-rear-open': Object.freeze([256, 240, 9, 23, 237, 196]), 'door-left-open': Object.freeze([192, 224, 24, 21, 144, 183]),
+                'door-right-open': Object.freeze([192, 224, 25, 18, 155, 198]), 'door-front-open': Object.freeze([256, 160, 29, 48, 197, 87])
+            }),
+            rows: Object.freeze({
+                back: Object.freeze({ names: Object.freeze(['root-low', 'fern-wide', 'rock-low', 'sanctum-pillar', 'mushrooms', 'root-stump', 'rock-small', 'fern-small', 'sanctum-slab', 'rock-tall']),
+                    from: 51, until: 11, gaps: Object.freeze([153, 211, 269]), drops: Object.freeze([4, 8, 12]), clear: 163 }),
+                inner: Object.freeze({ names: Object.freeze(['rock-small', 'sanctum-slab', 'mushrooms']), from: 184, until: 104, gaps: Object.freeze([473]), drops: Object.freeze([188, 216]), clear: 133 }),
+                front: Object.freeze({ names: Object.freeze(['front-fern', 'front-grass']), from: 451, until: 337, gaps: Object.freeze([653, 547]), drops: Object.freeze([332]), clear: 160 }),
+                corners: Object.freeze({ left: Object.freeze(['front-root-stone', 27, 327]), right: Object.freeze(['front-root', -64, 325]) })
+            }),
+            doors: Object.freeze({
+                north: Object.freeze(['door-rear-closed', 'door-rear-open', 13]), south: Object.freeze(['door-front-closed', 'door-front-open', 293]),
+                west: Object.freeze(['door-left-closed', 'door-left-open', 1]), east: Object.freeze(['door-right-closed', 'door-right-open', -1])
+            })
+        })
+    })
+});
+safeExposeData({ STAGE_VIEW, STAGE_TERRAIN, STAGE_ROOMS, STAGE_BACKDROPS, STAGE_OBJECTS, STAGE_PROPS, STAGE_SCENES });

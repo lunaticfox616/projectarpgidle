@@ -29,8 +29,10 @@ const stageRoomsView = (() => {
         const left = room.x0 - 1, right = room.x1 + 2, span = right - left;
         const gx = span <= view.columns ? (left + right) / 2
             : Math.max(left + view.columns / 2, Math.min(right - view.columns / 2, cell.gx + .5));
-        return { gx, gy: stageBackdrop.ready(mapOf(run)) ? openFocusRow(room, view) : focusRow(room, view) };
+        return { gx, gy: isOpen(mapOf(run)) ? openFocusRow(room, view) : focusRow(room, view) };
     }
+    /** 벽 없이 그리는 방인가: 조각 묶음(js/canvas-stage-scene.js)이나 배경 그림(js/canvas-stage-backdrop.js)이 준비된 지형. */
+    const isOpen = map => stageScene.ready(map) || stageBackdrop.ready(map);
     /** 배경 그림을 쓰는 방: 바닥의 앞쪽 끝이 화면의 정해진 높이(STAGE_ROOMS.floorBottom)에 오게 한다. 그 위로 바닥 다섯 줄, 그 위가 배경이다. */
     function openFocusRow(room, view) {
         const narrow = view.width < STAGE_VIEW.minColumns.narrowBelow;
@@ -46,13 +48,23 @@ const stageRoomsView = (() => {
     }
     /** 배경 그림이 준비된 지형이면 벽 없는 방(바닥과 길, 뒷문의 굴)을, 아니면 벽돌 뒷벽이 선 방을 그려 둔다. */
     function prepare(map, room, dot) {
-        const open = stageBackdrop.ready(map), layers = open ? stageBackdrop.layersReady(map) : 0;
-        if (picture && picture.map === map && picture.room === room && picture.open === open && picture.dot === dot && picture.layers === layers) return picture;
+        const mode = modeOf(map), open = mode.open, kit = mode.kit, key = [open, kit, dot, mode.layers].join('|');
+        if (picture && picture.map === map && picture.room === room && picture.key === key) return picture;
         const box = boxOf(map, room, open);
-        const painted = open ? stageTerrain.paintOpen(map, room, box, stageBackdrop.look(map)) : stageTerrain.paint(map, box);
+        const painted = roomPicture(map, room, box, mode);
         // 도트 하나가 캔버스 픽셀의 정수배가 아닌 배율에서는 그 배율로 미리 옮겨 둔다(js/canvas-stage-dots.js).
-        picture = { map, room, box, open, dot, layers, canvas: stageDots.fitted(painted, dot), gates: gatesOf(map, room, open) };
+        picture = { map, room, box, open, kit, key, canvas: stageDots.fitted(painted, dot), gates: kit ? null : gatesOf(map, room, open) };
         return picture;
+    }
+    /** 이 지도의 방을 무엇으로 그리는가: kit 조각 묶음, open 벽 없는 방(묶음이나 배경 그림), layers 불러와진 층 그림의 수. */
+    function modeOf(map) {
+        const kit = stageScene.ready(map), open = kit || stageBackdrop.ready(map);
+        return { kit, open, layers: open && !kit ? stageBackdrop.layersReady(map) : 0 };
+    }
+    /** 조각 묶음이 있으면 그 바닥과 뒤쪽 띠, 배경 그림만 있으면 코드로 그린 벽 없는 방, 둘 다 없으면 벽돌 뒷벽이 선 방. */
+    function roomPicture(map, room, box, mode) {
+        if (mode.kit) return stageScene.paintRoom(map, room, box);
+        return mode.open ? stageTerrain.paintOpen(map, room, box, stageBackdrop.look(map)) : stageTerrain.paint(map, box);
     }
     /** 테마가 있는 방의 문 그림(문 id → 잠긴 그림과 열린 그림). 없으면 쇠창살과 화살표로 그린다. */
     function gatesOf(map, room, open) {
@@ -82,11 +94,12 @@ const stageRoomsView = (() => {
         if (!room) return false;
         const view = prepare(map, room, p.tileW / WIDE), box = view.box;
         noteRoom(run, room, performance.now());
-        if (view.open) drawBackdrop(ctx, view, p, area);
+        if (view.kit) stageScene.drawFar(ctx, view, p, area);
+        else if (view.open) drawBackdrop(ctx, view, p, area);
         else drawWallDark(ctx, map, area);
         ctx.imageSmoothingEnabled = false;
         ctx.drawImage(view.canvas, p.mapX + box.x * p.tileW, p.mapY + box.y * p.tileH, box.columns * p.tileW, box.rows * p.tileH);
-        for (const row of actExplorationDoors.doorsHere(run)) drawDoor(ctx, row, p, view.gates && view.gates.get(row.door.id));
+        for (const row of actExplorationDoors.doorsHere(run)) drawDoor(ctx, row, p, { gate: view.gates && view.gates.get(row.door.id), kit: view.kit });
         return true;
     }
 
@@ -138,12 +151,13 @@ const stageRoomsView = (() => {
             }
         }
     }
-    /** gate: 테마의 문 그림(잠긴 것과 열린 것). 있으면 그 그림을 문 칸에 세우고, 없으면 쇠창살을 친다. 열린 문에는 화살표가 깜빡인다. */
-    function drawDoor(ctx, row, p, gate) {
-        const box = cellBox(row.door, p), dot = Math.max(1, Math.round(p.tileW / WIDE));
+    /** look.gate: 테마의 문 그림(잠긴 것과 열린 것). 있으면 그 그림을 문 칸에 세우고, 없으면 쇠창살을 친다. 열린 문에는 화살표가 깜빡인다. */
+    function drawDoor(ctx, row, p, look) {
+        const box = cellBox(row.door, p), dot = Math.max(1, Math.round(p.tileW / WIDE)), gate = look.gate;
         ctx.save();
+        // 조각 묶음의 문은 캐릭터와 함께 깊이 순서로 그려진다(js/canvas-stage-scene.js): 여기서는 열린 문의 화살표만 얹는다.
         if (gate) drawGate(ctx, row.locked ? gate.locked : gate.open, box, p.tileW / WIDE);
-        else if (row.locked) drawBars(ctx, box, dot);
+        else if (row.locked && !look.kit) drawBars(ctx, box, dot);
         if (!row.locked) drawArrows(ctx, box, row.door, dot);
         ctx.restore();
     }

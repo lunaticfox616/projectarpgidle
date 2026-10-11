@@ -13,6 +13,7 @@ const stageProps = (() => {
 
     /** 지도의 지형에 소품 묶음이 있고 그 방을 배경 그림으로 그릴 때만 놓는다. */
     function themeOf(map) {
+        if (stageScene.ready(map)) return null;     // 조각 묶음이 있는 지형은 그 묶음의 소품을 쓴다(js/canvas-stage-scene.js)
         const look = stageBackdrop.look(map);
         return look && stageBackdrop.ready(map) ? STAGE_PROPS.themes[look.props] || null : null;
     }
