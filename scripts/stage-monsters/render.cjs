@@ -121,8 +121,9 @@ function scene() {
     const parts = [], marks = [];
     return {
         parts, marks,
-        /** mat: material name; options: group (parts of one group melt together by k), k, paint(p) → another material name or null. */
-        add(sdf, mat, options = {}) { parts.push({ sdf, mat, group: options.group || null, k: options.k ?? 0, paint: options.paint || null, order: parts.length }); },
+        /** mat: material name; options: group (parts of one group melt together by k), k, paint(p) → another material name or null,
+         *  local(p) → the point in the part's own frame (paint.cjs lays a mottled surface in that frame so it moves with the part). */
+        add(sdf, mat, options = {}) { parts.push({ sdf, mat, group: options.group || null, k: options.k ?? 0, paint: options.paint || null, local: options.local || null, order: parts.length }); },
         /** A single dot of colour at a world point (eye glints), drawn after shading when that point is not hidden. */
         mark(point, colour) { marks.push({ point, colour }); }
     };

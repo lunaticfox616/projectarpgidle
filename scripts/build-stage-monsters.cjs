@@ -5,7 +5,8 @@
  *   node scripts/build-stage-monsters.cjs --write      # assets/enemies/stage/<id>-idle.png, <id>-attack.png 교체
  *   node scripts/build-stage-monsters.cjs act1-ant     # 한 마리만
  *
- * 몬스터 정의는 scripts/stage-monsters/<묶음>.cjs(입체 몇 개 + 자세), 그리는 법은 scripts/stage-monsters/render.cjs.
+ * 몬스터 정의는 scripts/stage-monsters/<묶음>.cjs(입체 몇 개 + 자세), 입체를 쏘는 법은 scripts/stage-monsters/render.cjs,
+ * 칠하는 법은 scripts/stage-monsters/paint.cjs(무대 조각 묶음의 화풍에 맞춘 빛과 색).
  * 게임 쪽 규격(발 자리, 높이, 프레임 시간)은 data/monster-sprites.js MONSTER_STAGE_SHEETS, MONSTER_STAGE_KIND.
  * 미리보기에는 무대 주인공 한 장을 옆에 세워 크기를 견준다(그림 폴더 assets/playable/stage가 있을 때만).
  */
@@ -13,6 +14,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const R = require('./stage-monsters/render.cjs');
+const P = require('./stage-monsters/paint.cjs');
 const { decodePng, encodePng } = require('./lib/png.cjs');
 
 const root = path.resolve(__dirname, '..');
@@ -21,7 +23,12 @@ const PREVIEW_SCALE = 3, HERO_CELL = 128, HERO_FEET = 110;
 const HERO_SHEET = path.join(root, 'assets/playable/stage/warrior/swordshield/idle.png');
 
 function frames(monster, state, count) {
-    return Array.from({ length: count }, (_, f) => R.render(monster.build({ state, f }), monster.mats, monster.size, monster.feet));
+    return Array.from({ length: count }, (_, f) => P.paint(monster.build({ state, f }), monster.mats, monster.size, monster.feet));
+}
+/** How far the picture rises above the feet in the first idle frame, in dots: the height the game needs for the life bar. */
+function heightOf(monster, frame) {
+    for (let y = 0; y < monster.size; y++) for (let x = 0; x < monster.size; x++) if (frame[(y * monster.size + x) * 4 + 3]) return monster.feet[1] - y;
+    return 0;
 }
 /** Copies the opaque dots of a source rect onto the preview at an integer scale. */
 function blit(target, from, at) {
@@ -56,6 +63,7 @@ function main() {
             if (only && monster.id !== only) continue;
             const idle = frames(monster, 'idle', IDLE_FRAMES), attack = frames(monster, 'attack', ATTACK_FRAMES);
             rows.push({ monster, list: idle.concat(attack) });
+            console.log(`  ${monster.id}: 높이 ${heightOf(monster, idle[0])}`);
             if (!write) continue;
             fs.mkdirSync(outDir, { recursive: true });
             for (const [name, list] of [['idle', idle], ['attack', attack]]) {

@@ -1,13 +1,15 @@
 'use strict';
-// 속성 위습 여섯(불씨, 서리, 전광, 독안개, 성광, 공허)의 옆모습, 오른쪽을 본다. 땅에서 떠 있다(발 자리는 그림자가 지는 곳).
+// 속성 위습 여섯(불씨, 서리날개, 전광, 독안개, 성광, 공허)의 옆모습, 오른쪽을 본다. 땅에서 떠 있다(발 자리는 그림자가 지는 곳).
+// 생김새와 색은 게임의 기존 그림(assets/enemies/wisps/elemental/*.png)을 따른다: 외눈 불꽃, 지느러미 달린 얼음 결정, 번개를 두른 먹구름 구슬,
+// 큰 눈의 독 주머니, 고리를 인 빛 구슬, 눈을 감싼 보랏빛 초승달. 그 그림을 캐릭터 밀도(4배)로 다시 그린 것이다.
 // 게임의 위습 외형 18종은 이 여섯 장을 나눠 쓴다(data/wisp-sprites.js WISP_SPRITE_BY_VISUAL → data/monster-sprites.js).
 // pose = { state: 'idle' | 'attack', f }. 칸 96, 발 자리 FEET. 위습은 원거리라 공격 그림은 움츠렸다가 앞으로 내뻗으며 빛난다.
 const S = require('./render.cjs');
-const { ramp } = S;
+const { through } = require('./paint.cjs');
 
-const IDLE_FRAMES = 6, ATTACK_FRAMES = 6, SIZE = 96, FEET = [48, 84], FLOAT = 31;
-/** The models below are drawn at a body of about 24 dots and then grown by GROW about the point under the wisp. */
-const GROW = 1.3;
+const IDLE_FRAMES = 6, ATTACK_FRAMES = 6, SIZE = 96, FEET = [48, 84], FLOAT = 28;
+/** The models below are drawn at a body of about 25 dots and then grown by GROW about the point under the wisp. */
+const GROW = 1.36;
 function grown(model) {
     const shrink = p => [p[0] / GROW, p[1] / GROW, p[2] / GROW];
     for (const part of model.parts) {
@@ -25,157 +27,159 @@ function motion(pose) {
     const turn = pose.f / IDLE_FRAMES * Math.PI * 2;
     if (pose.state !== 'attack') return { x: 0, y: FLOAT + 2.2 * Math.sin(turn), sway: 2.4 * Math.sin(turn + 1), size: 1, flare: 0, turn };
     const [wind, strike] = ATTACK[pose.f];
-    return { x: -5 * wind + 11 * strike, y: FLOAT + 1.5 * wind - 1.5 * strike, sway: 2 * wind - 4 * strike, size: 1 - 0.1 * wind + 0.12 * strike, flare: strike, turn: pose.f * 0.9 };
+    return { x: -5 * wind + 10 * strike, y: FLOAT + 1.5 * wind - 1.5 * strike, sway: 2 * wind - 4 * strike, size: 1 - 0.1 * wind + 0.1 * strike, flare: strike, turn: pose.f * 0.9 };
 }
 const near = (p, c, r) => S.len(S.sub(p, c)) < r;
-/** A tapering tail trailing down and back from the body. */
-function tail(m, at, mat, group, reach = 1) {
-    m.add(S.chain([[at.x - 2, at.y - 8 * at.size, 0], [at.x - 7 - at.sway, at.y - 17 * reach, 1], [at.x - 10 - at.sway * 1.8, at.y - 25 * reach, 0]],
-        [7 * at.size, 3.8, 1.3]), mat, { group, k: 5 });
+/** A round eye on the side the wisp faces: a pale ball with a dark pupil and a glint. at = the eye's centre. */
+function eye(m, at, size, mats = ['white', 'pupil']) {
+    m.add(S.sphere(at, size), mats[0]);
+    m.add(S.sphere([at[0] + size * 0.52, at[1] - size * 0.05, at[2] + size * 0.62], size * 0.56), mats[1]);
+    m.mark([at[0] + size * 0.2, at[1] + size * 0.5, at[2] + size * 1.2], '#ffffff');
 }
-/** Two eyes on the side the wisp faces, on a body of radius about 12. */
-function eyes(m, at, mat, glint) {
-    const first = [at.x + 6.5 * at.size, at.y + 2, 9.5 * at.size], second = [at.x + 10.6 * at.size, at.y + 1.6, 4.4 * at.size];
-    m.add(S.ellipsoid(first, [1.7, 2.8, 1.5]), mat);
-    m.add(S.ellipsoid(second, [1.5, 2.6, 1.4]), mat);
-    m.mark([first[0] - 0.4, first[1] + 1.7, first[2] + 1.7], glint);
-    m.mark([second[0] - 0.2, second[1] + 1.6, second[2] + 1.6], glint);
+/** The light it lets go in front of itself on the strike. */
+function flash(m, at, mat, reach = 17) {
+    if (at.flare > 0.3) m.add(S.sphere([at.x + reach, at.y + 1, 5], 1.4 + 2.4 * at.flare), mat);
 }
-/** Small lights circling behind the body. */
-function motes(m, at, mat, count, radius = 1.5) {
-    for (let i = 0; i < count; i++) {
-        const angle = at.turn + i * (Math.PI * 2 / count);
-        m.add(S.sphere([at.x - 15 + 6 * Math.cos(angle), at.y + 2 + 15 * Math.sin(angle), 5 - i * 3], radius), mat);
-    }
-}
+const EYE = { white: { ramp: through(['#b9a8a0', '#e8dccd', '#fcf6e9', '#ffffff']), unshadowed: true, noEdge: true }, pupil: { ramp: through(['#0e0a12', '#1c141e', '#36262d']), unshadowed: true, noEdge: true } };
+const rimmed = (mats, rim) => Object.fromEntries(Object.entries(mats).map(([name, mat]) => [name, { rim, ...mat }]));
 
-// ---------------------------------------------------------------- 불씨
+// ---------------------------------------------------------------- 불씨: 외눈 불꽃
 const fire = {
     id: 'wisp-fire', size: SIZE, feet: FEET,
-    mats: { flame: { ramp: ramp('#e56a22', { cool: 30, warm: 26 }), glow: true }, core: { ramp: ramp('#ffd45a', { cool: 24, warm: 10 }), glow: true },
-        ember: { ramp: ramp('#b23a1a', { cool: 26, warm: 20 }) }, eye: { ramp: ramp('#3a140c', { cool: 6, warm: 4 }) } },
+    mats: rimmed({
+        flame: { ramp: through(['#8c1a10', '#a82115', '#d34c38', '#f2643a', '#f86d38', '#fb8437']), glow: 0.22, unshadowed: true },
+        core: { ramp: through(['#f86d38', '#fb8a3a', '#fc9b34', '#fcbc69']), glow: 0.3, unshadowed: true, noEdge: true },
+        heart: { ramp: through(['#fc9b34', '#fcbc69', '#fddea7', '#fff2bb']), glow: 0.4, unshadowed: true, noEdge: true }, ...EYE
+    }, '#931711'),
     build(pose) {
-        const m = S.scene(), at = motion(pose), r = 12 * at.size;
-        const hot = p => (near(p, [at.x + 3, at.y - 2, r * 0.8], 7.5 + 3 * at.flare) ? 'core' : null);
-        m.add(S.sphere([at.x, at.y, 0], r), 'flame', { group: 'body', k: 6, paint: hot });
-        m.add(S.chain([[at.x - 1, at.y + 8, 0], [at.x - 4 + at.sway, at.y + 18, 0], [at.x - 2 + at.sway * 1.7, at.y + 27 + 4 * at.flare, 0]], [9 * at.size, 5.4, 1.5]),
-            'flame', { group: 'body', k: 6 });
-        m.add(S.chain([[at.x - 8, at.y + 4, 2], [at.x - 13 - at.sway, at.y + 14, 2]], [5, 1.3]), 'flame', { group: 'body', k: 5 });
-        m.add(S.chain([[at.x + 7, at.y + 6, -2], [at.x + 10 + at.sway * 0.6, at.y + 14, -2]], [4, 1.2]), 'flame', { group: 'body', k: 5 });
-        tail(m, at, 'ember', 'tail');
-        eyes(m, at, 'eye', '#ffe9a8');
-        motes(m, at, 'core', 3);
-        return m;
+        const m = S.scene(), at = motion(pose), r = 12.5 * at.size, lick = Math.sin(at.turn * 2), body = { group: 'flame', k: 6 };
+        const centre = [at.x, at.y, 0];
+        const hot = p => (near(p, [at.x + 5, at.y, 9], 7.5 + 2.5 * at.flare) ? 'heart' : near(p, [at.x + 2, at.y - 1, 6], 12.5 + 3 * at.flare) ? 'core' : null);
+        m.add(S.sphere(centre, r), 'flame', { ...body, paint: hot });
+        // the tongues: a tall one that leans back from the crown, a short one behind it, and the tail the flame hangs by
+        m.add(S.chain([[at.x - 1, at.y + 7, 0], [at.x - 5 - at.sway * 0.5, at.y + 18, 0], [at.x - 9 - at.sway + lick, at.y + 27 + lick, 0]], [9 * at.size, 5, 1.3]), 'flame', { ...body, paint: hot });
+        m.add(S.chain([[at.x - 8, at.y + 3, -1], [at.x - 14 - at.sway * 0.6, at.y + 11, -1], [at.x - 17 - at.sway - lick, at.y + 17 - lick, -1]], [6.5, 3.4, 1.1]), 'flame', body);
+        m.add(S.chain([[at.x, at.y - 8, 0], [at.x - 2 - at.sway * 0.4, at.y - 15, 0], [at.x - 3 - at.sway, at.y - 21, 0]], [6.5 * at.size, 3, 0.9]), 'flame', { ...body, paint: hot });
+        eye(m, [at.x + 7.5 * at.size, at.y + 1.5, 8.6 * at.size], 4.1);
+        for (let i = 0; i < 2; i++) { const a = at.turn + i * 3.1; m.add(S.sphere([at.x - 13 + 4 * Math.cos(a), at.y + 22 + 6 * Math.sin(a), 3], 1.4), 'core'); }
+        flash(m, at, 'heart');
+        return grown(m);
     }
 };
 
-// ---------------------------------------------------------------- 서리
+// ---------------------------------------------------------------- 서리날개: 지느러미 달린 얼음 결정
 const ice = {
     id: 'wisp-ice', size: SIZE, feet: FEET,
-    mats: { ice: { ramp: ramp('#7cc4ec', { cool: 22, warm: 30 }), gloss: true }, frost: { ramp: ramp('#d5f0ff', { cool: 18, warm: 10 }), gloss: true },
-        deep: { ramp: ramp('#3f7fc0', { cool: 20, warm: 20 }), gloss: true }, eye: { ramp: ramp('#10283e', { cool: 4, warm: 4 }) } },
+    mats: rimmed({
+        ice: { ramp: through(['#0d5670', '#3f7896', '#6f93b8', '#8da2c9', '#aac0de', '#cadff3', '#eff5fa', '#ffffff']), gloss: true, glossAt: 0.9, sheen: 0.3 },
+        slit: { ramp: through(['#053c4f', '#0d5670', '#1d6f88']), noEdge: true }, glint: { ramp: through(['#cadff3', '#eff5fa', '#ffffff']), glow: 0.4, unshadowed: true, noEdge: true }
+    }, '#084257'),
     build(pose) {
-        const m = S.scene(), at = motion(pose), s = at.size, c = [at.x, at.y, 0];
-        m.add(S.octa(c, [11 * s, 17 * s, 10 * s]), 'ice', { paint: p => (p[1] > at.y + 3 && p[0] < at.x + 1 ? 'frost' : null) });
-        for (const z of [-1, 1]) {
-            const root = [at.x - 5, at.y + 3, z * 4], flap = 0.45 + 0.1 * at.sway * z + 0.5 * at.flare;
-            m.add(S.moved(S.octa([root[0] - 10, root[1], root[2]], [11, 4.2, 3.6]), p => S.rotz(p, flap * (z > 0 ? 1 : 0.7), root)), z > 0 ? 'frost' : 'deep');
-        }
-        m.add(S.octa([at.x - 3 - at.sway * 0.6, at.y - 19, 0], [4.4, 8, 4.4]), 'deep');
-        m.add(S.octa([at.x - 9 - at.sway, at.y - 27, 1], [2.6, 4.6, 2.6]), 'ice');
-        m.add(S.ellipsoid([at.x + 4.6 * s, at.y + 1, 5.8 * s], [1.5, 2.6, 1.3]), 'eye');
-        m.add(S.ellipsoid([at.x + 7.6 * s, at.y + 0.6, 2.6 * s], [1.3, 2.3, 1.2]), 'eye');
-        for (let i = 0; i < 3; i++) {
-            const angle = at.turn + i * 2.1;
-            m.add(S.octa([at.x + 15 * Math.cos(angle) - 4, at.y + 16 * Math.sin(angle), 7 - i * 4], [1.8, 2.8, 1.8]), 'frost');
-        }
-        return m;
+        const m = S.scene(), at = motion(pose), k = at.size, tip = 0.12 * Math.sin(at.turn);
+        const turned = (solid, angle, pivot) => S.moved(solid, p => S.rotz(p, -angle, pivot));
+        // a long shard that points down, a blunt crown set a little back, two fins that beat slowly
+        m.add(turned(S.octa([at.x, at.y - 2, 0], [13 * k, 23 * k, 10 * k]), 0.1, [at.x, at.y, 0]), 'ice');
+        m.add(turned(S.octa([at.x - 1.5, at.y + 9, -1], [11 * k, 13 * k, 8.5 * k]), -0.16, [at.x, at.y + 9, 0]), 'ice');
+        const beat = 0.3 * Math.sin(at.turn) - 0.5 * at.flare;
+        m.add(turned(S.octa([at.x - 16, at.y + 3, -1], [9.5, 4.6, 3]), 0.35 + beat, [at.x - 9, at.y + 2, 0]), 'ice');
+        m.add(turned(S.octa([at.x + 13, at.y + 1, 5], [7, 3.6, 2.6]), -0.3 - beat, [at.x + 8, at.y + 1, 5]), 'ice');
+        m.add(S.ellipsoid([at.x + 4.6, at.y + 2, 6.6 * k], [1.3, 5.2, 1.4], tip), 'slit');
+        for (let i = 0; i < 2; i++) { const a = at.turn + i * 3.1; m.add(S.octa([at.x - 15 + 5 * Math.cos(a), at.y - 14 + 5 * Math.sin(a), 2], [1.8, 2.8, 1.6]), 'ice'); }
+        flash(m, at, 'glint');
+        return grown(m);
     }
 };
 
-// ---------------------------------------------------------------- 전광
+// ---------------------------------------------------------------- 전광: 번개를 두른 먹구름 구슬
 const lightning = {
     id: 'wisp-lightning', size: SIZE, feet: FEET,
-    mats: { spark: { ramp: ramp('#ffe45e', { cool: 26, warm: 8 }), glow: true }, white: { ramp: ramp('#fffbe0', { cool: 20, warm: 4 }), glow: true },
-        bolt: { ramp: ramp('#7f7df2', { cool: 20, warm: 40 }), glow: true }, eye: { ramp: ramp('#2a2350', { cool: 4, warm: 4 }) } },
+    mats: rimmed({
+        storm: { ramp: through(['#1c2233', '#2f3f4d', '#425a65', '#53737f', '#6d909b', '#89b3bb', '#b6dbdf']), gloss: true, glossAt: 0.92, mottle: [0.14, 0.12] },
+        bolt: { ramp: through(['#d8af40', '#f6cb5e', '#fad46e', '#fde8aa', '#fdf9f3']), glow: 0.4, unshadowed: true }, ...EYE
+    }, '#2f3395'),
     build(pose) {
-        const m = S.scene(), at = motion(pose), r = 9.5 * at.size, c = [at.x, at.y, 0];
-        m.add(S.sphere(c, r), 'spark', { paint: p => (near(p, [at.x + 2, at.y + 1, r * 0.8], 5.5 + 3 * at.flare) ? 'white' : null) });
-        for (let i = 0; i < 5; i++) {
-            const angle = i * 1.2566 + 0.5 + (pose.f % 2 ? 0.22 : -0.1) + at.turn * 0.15, dir = [Math.cos(angle), Math.sin(angle)], side = i % 2 ? 1 : -1;
-            const reach = (17 + (i * 3 + pose.f * 2) % 5 + 5 * at.flare) * at.size;
-            const from = [at.x + dir[0] * r * 0.7, at.y + dir[1] * r * 0.7, 0], bend = [at.x + dir[0] * reach * 0.6 - dir[1] * 4 * side, at.y + dir[1] * reach * 0.6 + dir[0] * 4 * side, 1];
-            m.add(S.chain([from, bend, [at.x + dir[0] * reach, at.y + dir[1] * reach, 0]], [3, 2, 0.7]), 'bolt');
-        }
-        eyes(m, { ...at, size: at.size * 0.78 }, 'eye', '#ffffff');
-        motes(m, at, 'white', 2, 1.3);
-        return m;
+        const m = S.scene(), at = motion(pose), r = 12.5 * at.size, jag = pose.f % 2 ? 1 : -1, long = 1 + 0.5 * at.flare;
+        m.add(S.sphere([at.x, at.y + 2, 0], r), 'storm');
+        m.add(S.ellipsoid([at.x - 5, at.y + 8, -3], [9, 7.5, 8]), 'storm');
+        // the bolts jump from frame to frame: one hangs below, one trails behind, a short one crackles in front
+        const bolt = (points, radii) => m.add(S.chain(points, radii), 'bolt');
+        bolt([[at.x - 1, at.y - 8, 2], [at.x + 4 * jag, at.y - 14, 2], [at.x - 3 * jag, at.y - 19, 2], [at.x + 2 * jag, at.y - 27 * long, 2]], [3, 2.5, 2.1, 0.7]);
+        bolt([[at.x - 10, at.y + 3, 1], [at.x - 16, at.y + 7 * jag * 0.6 + 3, 1], [at.x - 19, at.y + 1, 1], [at.x - 24 * long, at.y + 5 * jag * 0.5 + 2, 1]], [2.8, 2.3, 2, 0.7]);
+        bolt([[at.x + 8, at.y - 7, 6], [at.x + 13, at.y - 9 - jag, 6], [at.x + 12, at.y - 13, 6], [at.x + 15 * long, at.y - 16 + jag, 6]], [2.2, 1.9, 1.6, 0.6]);
+        eye(m, [at.x + 7.6 * at.size, at.y + 4, 8.6 * at.size], 3.9);
+        flash(m, at, 'bolt');
+        return grown(m);
     }
 };
 
-// ---------------------------------------------------------------- 독안개
+// ---------------------------------------------------------------- 독안개: 큰 눈의 독 주머니
 const poison = {
     id: 'wisp-poison', size: SIZE, feet: FEET,
-    mats: { toxin: { ramp: ramp('#6aa838', { cool: 34, warm: 22 }), gloss: true }, toxinDark: { ramp: ramp('#3f7a2c', { cool: 26, warm: 12 }), gloss: true },
-        bubble: { ramp: ramp('#c8ea7c', { cool: 26, warm: 10 }), gloss: true }, eye: { ramp: ramp('#16260e', { cool: 4, warm: 4 }) } },
+    mats: rimmed({
+        bulb: { ramp: through(['#2c4a2c', '#4f6240', '#6e794d', '#8a8f56', '#a4a55f', '#c0bf6a', '#e0de88', '#f5f19f']), gloss: true, glossAt: 0.93, mottle: [0.16, 0.1] },
+        sprout: { ramp: through(['#034d28', '#186c30', '#4f8a3a', '#8fb04a']) },
+        orb: { ramp: through(['#1c1018', '#2a1a24', '#553a46', '#7a5a66', '#c9b0b8']), gloss: true, glossAt: 0.9 },
+        mist: { ramp: through(['#a1bc2d', '#bdc24f', '#efed97']), glow: 0.3, unshadowed: true, noEdge: true }
+    }, '#04512b'),
     build(pose) {
-        const m = S.scene(), at = motion(pose), s = at.size;
-        const spots = p => (Math.sin(p[0] * 0.8 + 1) * Math.sin(p[1] * 0.75) > 0.78 ? 'toxinDark' : null);
-        m.add(S.sphere([at.x, at.y, 0], 11.5 * s), 'toxin', { group: 'body', k: 7, paint: spots });
-        m.add(S.sphere([at.x - 7, at.y - 5, 2], 9 * s), 'toxin', { group: 'body', k: 7, paint: spots });
-        m.add(S.sphere([at.x + 4, at.y + 7, -1], 7.5 * s), 'toxin', { group: 'body', k: 7 });
-        m.add(S.chain([[at.x + 2, at.y - 9, 2], [at.x + 2 + at.sway * 0.4, at.y - 19 - 2 * Math.sin(at.turn), 2]], [4.2, 2]), 'toxin', { group: 'body', k: 5 });
-        m.add(S.chain([[at.x - 9, at.y - 11, 1], [at.x - 10 - at.sway, at.y - 20, 1]], [3.6, 1.5]), 'toxinDark', { group: 'body', k: 5 });
-        m.add(S.sphere([at.x + 2 + at.sway * 0.4, at.y - 26 - 3 * Math.sin(at.turn), 2], 2), 'toxin');
-        eyes(m, at, 'eye', '#e6ffb0');
-        for (let i = 0; i < 3; i++) {
-            const lift = ((pose.f + i * 2) % 6) / 6;
-            m.add(S.sphere([at.x - 12 + i * 7, at.y + 13 + lift * 14, 4 - i * 2], 2.6 - lift * 1.4), 'bubble');
-        }
-        return m;
+        const m = S.scene(), at = motion(pose), k = at.size, body = { group: 'bulb', k: 5 }, drip = (pose.f % 3) * 1.6;
+        m.add(S.ellipsoid([at.x, at.y + 3, 0], [13 * k, 14 * k, 12 * k]), 'bulb', body);
+        m.add(S.chain([[at.x - 1, at.y - 8, 0], [at.x - 2 - at.sway * 0.4, at.y - 15, 0], [at.x - 1 - at.sway * 0.8, at.y - 20, 0]], [6.5, 3.3, 2.6]), 'bulb', body);
+        m.add(S.sphere([at.x - 1 - at.sway * 0.8, at.y - 23 - drip, 0], 2.4 - drip * 0.25), 'bulb');
+        m.add(S.chain([[at.x - 2, at.y + 15, 0], [at.x, at.y + 19, 0], [at.x + 3 + at.sway * 0.4, at.y + 21, 0]], [2.6, 1.8, 0.9]), 'sprout');
+        const socket = [at.x + 8.4 * k, at.y + 3.5, 7 * k];
+        m.add(S.ellipsoid(socket, [4.9, 5.7, 3.6]), 'orb');
+        m.mark([socket[0] - 0.5, socket[1] + 2.6, socket[2] + 3.4], '#f5f19f');
+        m.mark([socket[0] + 0.5, socket[1] + 2.6, socket[2] + 3.4], '#f5f19f');
+        for (let i = 0; i < 2; i++) { const a = at.turn + i * 3.1; m.add(S.sphere([at.x - 16 + 4 * Math.cos(a), at.y + 6 + 9 * Math.sin(a), 2], 1.6), 'mist'); }
+        flash(m, at, 'mist');
+        return grown(m);
     }
 };
 
-// ---------------------------------------------------------------- 성광
+// ---------------------------------------------------------------- 성광: 고리를 인 빛 구슬
 const holy = {
     id: 'wisp-holy', size: SIZE, feet: FEET,
-    mats: { light: { ramp: ramp('#f0d98a', { cool: 30, warm: 8 }), glow: true }, white: { ramp: ramp('#fffdf0', { cool: 22, warm: 4 }), glow: true },
-        gold: { ramp: ramp('#d9a23a', { cool: 26, warm: 14 }), gloss: true }, feather: { ramp: ramp('#f4efe0', { cool: 26, warm: 6 }) },
-        eye: { ramp: ramp('#5a3d18', { cool: 6, warm: 4 }) } },
+    mats: rimmed({
+        light: { ramp: through(['#b59049', '#d9c08a', '#f1debd', '#fbe9c8', '#fdf1d3', '#fdfdfd']), glow: 0.14 },
+        gold: { ramp: through(['#8e5c02', '#b68d39', '#f5b236', '#fdc03c', '#ffd767', '#fdebb9']), glow: 0.22, unshadowed: true },
+        slit: { ramp: through(['#492005', '#532605', '#7b4500']), noEdge: true, unshadowed: true }
+    }, '#7b4500'),
     build(pose) {
-        const m = S.scene(), at = motion(pose), r = 11 * at.size, crown = [at.x - 1, at.y + 16 + at.flare * 2, 0];
-        m.add(S.sphere([at.x, at.y, 0], r), 'light', { group: 'body', k: 5, paint: p => (near(p, [at.x + 3, at.y + 1, r * 0.8], 6 + 3 * at.flare) ? 'white' : null) });
-        m.add(S.moved(S.torus(crown, 8.5, 1.5), p => S.rotz(p, 0.22, crown)), 'gold');
-        for (const z of [-1, 1]) {
-            const root = [at.x - 7, at.y + 2, z * 6], flap = 0.5 + 0.12 * at.sway * z + 0.5 * at.flare;
-            m.add(S.moved(S.ellipsoid([root[0] - 9, root[1], root[2]], [10, 4.6, 2.6]), p => S.rotz(p, flap * (z > 0 ? 1 : 0.75), root)), 'feather');
-            m.add(S.moved(S.ellipsoid([root[0] - 7, root[1] - 5, root[2]], [7, 3, 2.2]), p => S.rotz(p, flap * 0.5, root)), 'feather');
-        }
-        tail(m, at, 'light', 'body', 0.85);
-        eyes(m, at, 'eye', '#ffffff');
-        motes(m, at, 'white', 2, 1.3);
-        return m;
+        const m = S.scene(), at = motion(pose), k = at.size, body = { group: 'light', k: 5 };
+        m.add(S.ellipsoid([at.x, at.y, 0], [12.5 * k, 13.5 * k, 11.5 * k]), 'light', body);
+        m.add(S.limb([at.x, at.y - 9, 0], [at.x - at.sway * 0.4, at.y - 20, 0], 6.5, 0.8), 'light', body);
+        m.add(S.ellipsoid([at.x - 12.5, at.y + 3 + 1.5 * Math.sin(at.turn), 2], [5, 2.6, 2.4], 0.6 + 0.3 * Math.sin(at.turn)), 'light', { group: 'light', k: 2 });
+        // the halo floats above and tips a little with the body's bob
+        m.add(S.moved(S.torus([at.x - 1, at.y + 22, 0], 8.6 + 1.5 * at.flare, 2), p => S.rotz(p, 0.12 * Math.sin(at.turn), [at.x - 1, at.y + 22, 0])), 'gold');
+        m.add(S.ellipsoid([at.x + 6.6 * k, at.y + 1.5, 8.6 * k], [4.2, 5.2, 3]), 'gold');
+        m.add(S.ellipsoid([at.x + 7.6 * k, at.y + 1.5, 11 * k], [1, 3.6, 1.2]), 'slit');
+        flash(m, at, 'gold');
+        return grown(m);
     }
 };
 
-// ---------------------------------------------------------------- 공허
+// ---------------------------------------------------------------- 공허: 눈을 감싼 보랏빛 초승달
 const voidWisp = {
     id: 'wisp-void', size: SIZE, feet: FEET,
-    mats: { void: { ramp: ramp('#33204f', { cool: 14, warm: 30 }), gloss: true }, rim: { ramp: ramp('#b07af0', { cool: 24, warm: 24 }), glow: true },
-        pupil: { ramp: ramp('#f3e6ff', { cool: 20, warm: 6 }), glow: true } },
+    mats: rimmed({
+        veil: { ramp: through(['#2b1c30', '#56516d', '#6e6184', '#8b7399', '#a58bb2', '#bfa1c5', '#e0cfe6']), rimLight: 0.2, mottle: [0.15, 0.1] },
+        pit: { ramp: through(['#120a18', '#1e1224', '#352137', '#5a1989']), gloss: true, glossAt: 0.9, noEdge: true },
+        spark: { ramp: through(['#774097', '#b99abf', '#f7f1fa']), glow: 0.35, unshadowed: true, noEdge: true }
+    }, '#4a0786'),
     build(pose) {
-        const m = S.scene(), at = motion(pose), s = at.size, c = [at.x, at.y, 0];
-        m.add(S.sphere(c, 11.5 * s), 'void', { group: 'body', k: 5 });
-        m.add(S.without(S.sphere(c, 15.5 * s), S.sphere([at.x + 6, at.y + 2, 4], 15 * s)), 'rim');
-        tail(m, at, 'void', 'body');
-        m.add(S.sphere([at.x - 10 - at.sway * 1.8, at.y - 25, 0], 2.2), 'rim');
-        const eye = [at.x + 7.6 * s, at.y + 1, 8.2 * s];
-        m.add(S.ellipsoid(eye, [2.6 + at.flare, 3.9 + at.flare, 2.2]), 'pupil');
-        m.mark([eye[0], eye[1], eye[2] + 2.4], '#2a1440');
-        motes(m, at, 'rim', 3, 1.6);
-        return m;
+        const m = S.scene(), at = motion(pose), k = at.size, open = 1 + 0.25 * at.flare;
+        // a ball with its face scooped out: the horns curl forward round the dark eye that floats in the hollow
+        const scoop = [at.x + 7.5, at.y + 3, 4], hollow = 11.4 * k * open;
+        const moon = S.without(S.sphere([at.x - 2, at.y + 2, 0], 14 * k), S.sphere(scoop, hollow));
+        m.add(moon, 'veil', { group: 'veil', k: 4, paint: p => (S.len(S.sub(p, scoop)) < hollow + 0.7 ? 'pit' : null) });
+        m.add(S.chain([[at.x - 6, at.y - 9, 0], [at.x - 8 - at.sway * 0.5, at.y - 17, 0], [at.x - 4 - at.sway, at.y - 24, 0]], [5.6, 3, 0.9]), 'veil', { group: 'veil', k: 4 });
+        const pit = [at.x + 5, at.y + 3, 2];
+        m.add(S.sphere(pit, 2.3 * k + 1.2 * at.flare), 'spark');
+        for (let i = 0; i < 3; i++) { const a = at.turn + i * 2.1; m.add(S.sphere([at.x - 17 + 3 * Math.cos(a), at.y + 4 + 13 * Math.sin(a), 2], 1.3), 'spark'); }
+        flash(m, at, 'spark');
+        return grown(m);
     }
 };
 
-const monsters = [fire, ice, lightning, poison, holy, voidWisp].map(wisp => ({ ...wisp, build: pose => grown(wisp.build(pose)) }));
-module.exports = { monsters, IDLE_FRAMES, ATTACK_FRAMES };
+module.exports = { monsters: [fire, ice, lightning, poison, holy, voidWisp], IDLE_FRAMES, ATTACK_FRAMES };

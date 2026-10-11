@@ -1,125 +1,136 @@
 'use strict';
 // 액트 1 몬스터(수액 슬라임, 뿌리 일개미, 뿌리 웜)의 옆모습, 오른쪽을 본다. pose = { state: 'idle' | 'attack', f }.
+// 생김새와 색은 게임의 기존 그림(assets/enemies/bugs/act1-*.png, 위에서 보는 전장용 48칸 시트의 옆줄)을 따른다:
+// 씨앗이 비치는 호박색 수액 더미, 배가 큰 붉은 개미, 바닥을 기는 살구색 애벌레. 그 그림을 캐릭터 밀도(4배)로 다시 그린 것이다.
 // 칸 96, 발 자리 feet. 게임 쪽 규격은 data/monster-sprites.js MONSTER_STAGE_SHEETS(높이, 발 자리)와 MONSTER_STAGE_KIND(프레임 시간).
 const S = require('./render.cjs');
-const { ramp, lerp, rotz } = S;
+const { through } = require('./paint.cjs');
+const { rotz } = S;
 
 const IDLE_FRAMES = 6, ATTACK_FRAMES = 6;
 /** wind 0..1 (drawing back) and strike 0..1 (thrown forward) for the six attack frames; frame 3 is the hit. */
 const ATTACK = [[0.35, 0], [0.8, 0], [1, 0], [0.1, 1], [0, 0.55], [0, 0.15]];
 function phase(pose) {
-    if (pose.state === 'attack') return { breath: 0, wind: ATTACK[pose.f][0], strike: ATTACK[pose.f][1] };
-    return { breath: Math.sin(pose.f / IDLE_FRAMES * Math.PI * 2), wind: 0, strike: 0 };
+    if (pose.state === 'attack') return { turn: 0, breath: 0, wind: ATTACK[pose.f][0], strike: ATTACK[pose.f][1] };
+    const turn = pose.f / IDLE_FRAMES * Math.PI * 2;
+    return { turn, breath: Math.sin(turn), wind: 0, strike: 0 };
 }
+/** The outline the older bug pictures wear: a near-black violet. */
+const INK = '#0d0616';
 
-// ---------------------------------------------------------------- 수액 슬라임
+// ---------------------------------------------------------------- 수액 슬라임: 씨앗 하나가 비치는 호박색 수액 더미
 const slime = {
     id: 'act1-slime', size: 96, feet: [44, 84],
     mats: {
-        sap: { ramp: ramp('#d98a1c', { cool: 28, warm: 14 }), gloss: true },
-        core: { ramp: ramp('#b5601a'), gloss: true },
-        eye: { ramp: ramp('#2a1a12', { cool: 6, warm: 0 }), gloss: true },
-        drip: { ramp: ramp('#c2761a', { cool: 26, warm: 12 }), gloss: true }
+        sap: { ramp: through(['#4a2710', '#74431f', '#8f562c', '#ac6a30', '#c88132', '#df9137', '#f6b65b', '#fcead3']), gloss: true, glossAt: 0.975, rimLight: 0.26, rim: INK },
+        deep: { ramp: through(['#3a1e0e', '#5a3218', '#74431f', '#8f562c', '#a3642f']), rim: INK, noEdge: true },
+        vein: { ramp: through(['#c88132', '#df9137', '#f0a84a', '#f6b65b']), rim: INK, noEdge: true, unshadowed: true },
+        seed: { ramp: through(['#1c0f10', '#33201c', '#422a24', '#5a3b32', '#7a5444', '#b08a70']), gloss: true, glossAt: 0.9, rim: INK }
     },
     build(pose) {
         const m = S.scene(), { breath, wind, strike } = phase(pose);
-        const squash = 1 - 0.07 * breath - 0.28 * wind + 0.2 * strike * (1 - strike) * 4 - 0.3 * strike;
-        const lean = -3 * wind + 13 * strike, height = 20 * squash, wide = 25 / Math.sqrt(squash);
-        const rise = wind * 5;
-        m.add(S.ellipsoid([lean * 0.4, height * 0.82, 0], [wide, height, 19 / Math.sqrt(squash)]), 'sap', { group: 'body', k: 5 });
-        m.add(S.ellipsoid([lean + 7, height * 1.2 + rise, 1], [13, 11 * squash + rise, 12]), 'sap', { group: 'body', k: 7 });
-        m.add(S.ellipsoid([lean * 0.3 - 13, height * 0.5, 2], [11, 9 * squash, 12]), 'sap', { group: 'body', k: 6 });
-        // drips round the foot
-        for (const [x, z, r] of [[-22, 6, 4.2], [-9, 15, 3.6], [15, 13, 4.4], [25, 3, 3.4], [3, 17, 3]]) {
-            m.add(S.ellipsoid([x + lean * 0.2, r * 0.6, z], [r * 1.25, r * 0.8, r]), 'drip', { group: 'body', k: 4 });
-        }
-        // the darker seed seen through the sap
-        const face = [lean + 15, height * 1.18 + rise * 0.8, 9];
-        m.add(S.ellipsoid([face[0] - 1, face[1] + 3.2, face[2] + 2.5], [2.4, 3.3, 2.2]), 'eye');
-        m.add(S.ellipsoid([face[0] + 4.5, face[1] + 2.6, face[2] - 3], [2, 2.9, 2]), 'eye');
-        m.mark([face[0] - 1.4, face[1] + 5.6, face[2] + 4.6], '#fff3c8');
-        m.mark([face[0] + 4.2, face[1] + 4.8, face[2] - 1.2], '#fff3c8');
-        if (strike > 0.5) m.add(S.ellipsoid([face[0] + 2.5, face[1] - 3.2, face[2] + 1], [3.4, 2.2 + strike, 2.4]), 'eye');
+        // q: how tall the mound stands (it sinks as it gathers and stretches low as it is thrown), lean: how far it is thrown
+        const q = 1 + 0.06 * breath - 0.3 * wind - 0.22 * strike, wide = 1 / Math.sqrt(q), lean = -4 * wind + 17 * strike;
+        const seed = [14 + lean * 1.25 + 1.2 * breath, 13.5 * q + 1, 12.5];
+        const body = { group: 'body', k: 9, paint: p => {
+            if (S.len(S.sub(p, seed)) < 11.5) return 'deep';
+            // pale threads of sap that run from the seed up into the mound
+            const dx = p[0] - (seed[0] - 13), dy = p[1] - seed[1];
+            if (p[2] > 6 && dx < 0 && dx > -17 && Math.abs(dy - 3 - dx * dx * 0.045 * q) < 1) return 'vein';
+            return p[2] > 6 && dx > -9 && dx < 0 && Math.abs(dy + 2 + dx * 0.55) < 0.9 ? 'vein' : null;
+        } };
+        m.add(S.ellipsoid([lean * 0.3, 13 * q, 0], [28 * wide, 16 * q, 18 * wide]), 'sap', body);
+        m.add(S.ellipsoid([-7 + lean * 0.5, 31 * q, -1], [15 * wide, 23 * q, 13]), 'sap', body);
+        m.add(S.ellipsoid([15 + lean, 13 * q, 3], [14 + 8 * strike, 12.5 * q, 13]), 'sap', body);
+        m.add(S.ellipsoid([2 + lean * 0.2, 2.6, 2], [31 * wide, 4, 20 * wide]), 'sap', { group: 'body', k: 5 });
+        for (const [x, z, r] of [[-29, 7, 4], [-13, 20, 3.4], [20, 18, 3.8], [32, 6, 3.2]]) m.add(S.ellipsoid([x * wide + lean * 0.15, r * 0.5, z], [r * 1.4, r * 0.7, r]), 'sap', { group: 'body', k: 4 });
+        m.add(S.sphere(seed, 8), 'seed');
+        m.mark([seed[0] - 2.5, seed[1] + 3.5, seed[2] + 7], '#fcead3');
+        m.mark([seed[0] - 1.5, seed[1] + 3.5, seed[2] + 7], '#fcead3');
         return m;
     }
 };
 
-// ---------------------------------------------------------------- 뿌리 일개미
+// ---------------------------------------------------------------- 뿌리 일개미: 배가 크고 턱이 밝은 붉은 개미
+const SHELL = ['#2a1218', '#4b2527', '#6a302c', '#8f4132', '#a84a35', '#bf5b3c', '#d67549', '#f89b62'];
 const ant = {
     id: 'act1-ant', size: 96, feet: [42, 84],
     mats: {
-        shell: { ramp: ramp('#a3411f', { cool: 28, warm: 12 }), gloss: true },
-        belly: { ramp: ramp('#7c2f1c', { cool: 24, warm: 10 }), gloss: true },
-        leg: { ramp: ramp('#5d2417', { cool: 18, warm: 8 }) },
-        legFar: { ramp: ramp('#3a1712', { cool: 12, warm: 4 }) },
-        jaw: { ramp: ramp('#2b1510', { cool: 8, warm: 6 }), gloss: true },
-        eye: { ramp: ramp('#160d0d', { cool: 4, warm: 0 }), gloss: true }
+        shell: { ramp: through(SHELL), gloss: true, glossAt: 0.93, sheen: 0.3, rimDark: 0.1, rim: INK },
+        band: { ramp: through(['#1f0e14', '#3a1c20', '#552826', '#6a302c']), rim: INK, noEdge: true },
+        leg: { ramp: through(['#1f1016', '#3a1c20', '#5a2a28', '#7a392f', '#974532']), rim: INK },
+        legFar: { ramp: through(['#170c14', '#2a151b', '#40201f', '#552826']), rim: INK, noEdge: true },
+        jaw: { ramp: through(['#6a4526', '#a76645', '#da8145', '#f4bd78', '#fcdaa3']), rim: INK },
+        eye: { ramp: through(['#0a0614', '#150d1c', '#2c1a29']), rim: INK, noEdge: true }
     },
     build(pose) {
-        const m = S.scene(), { breath, wind, strike } = phase(pose);
-        const shift = -5 * wind + 11 * strike, bob = 0.9 * breath - 1.5 * wind + 1.2 * strike, tilt = 0.14 * wind - 0.2 * strike;
-        const hip = [shift, 16 + bob, 0];
+        const m = S.scene(), { turn, breath, wind, strike } = phase(pose);
+        const shift = -5 * wind + 10 * strike, bob = 0.8 * breath - 1.4 * wind + 1 * strike, tilt = 0.1 * wind - 0.16 * strike, hip = [shift, 19 + bob, 0];
         const at = p => rotz([p[0] + shift, p[1] + bob, p[2]], tilt, hip);
-        // legs first (three a side): hip on the thorax, a raised knee, a foot on the ground that stays where it is
-        const stride = pose.state === 'idle' ? 0 : 1;
+        // three legs a side from under the thorax: up to a knee, down to the ground, a short foot. The feet keep their ground.
+        const walk = pose.state === 'idle' ? 0 : 0.4;
         for (const [mat, z] of [['legFar', -1], ['leg', 1]]) {
-            for (const [i, x] of [[0, 6], [1, 0], [2, -6]]) {
-                const reach = [11, 1, -11][i], foot = [x + reach + shift * 0.35 * stride, 0, z * 14 + (i === 1 ? z * 2 : 0)];
-                const knee = [x + reach * 0.6 + shift * 0.7, 21 + bob + (i === 1 ? 2 : 0), z * 11];
-                m.add(S.chain([at([x, 15, z * 4]), knee, foot], [2, 1.7, 1.2]), mat);
+            for (const [x, reach, high] of [[8, 13, 26], [3, -1, 28], [-3, -16, 27]]) {
+                const foot = [x + reach + shift * walk, 0.9, z * 14], knee = at([x + reach * 0.45, high, z * 10.5]);
+                m.add(S.chain([at([x, 16, z * 4]), knee, [foot[0] - 1.5, 3.5, foot[2]], [foot[0] + 3.5, 0.9, foot[2] + z * 0.5]], [1.9, 1.6, 1.2, 1]), mat);
             }
         }
-        m.add(S.ellipsoid(at([-19, 18, 0]), [14, 10.5, 10], tilt - 0.18), 'belly', { paint: p => (Math.sin((p[0] - shift) * 0.55 + p[1] * 0.25) > 0.72 ? 'jaw' : null) });
-        m.add(S.limb(at([-7, 16.5, 0]), at([-3, 16.5, 0]), 3.2), 'jaw');
-        m.add(S.ellipsoid(at([1, 17, 0]), [8.5, 6.8, 6.5]), 'shell');
-        const head = at([15, 19 + 1.2 * wind, 0]);
-        m.add(S.ellipsoid(head, [8, 7.4, 7], tilt), 'shell');
-        m.add(S.ellipsoid([head[0] + 3, head[1] + 2.2, head[2] + 5.2], [2.3, 2.7, 1.8]), 'eye');
-        m.mark([head[0] + 2.6, head[1] + 4, head[2] + 6.6], '#f3c9a0');
-        // mandibles open while it draws back and snap shut on the strike
-        const gape = 0.25 + 0.6 * wind - 0.3 * strike;
+        const swell = 1 + 0.03 * breath, belly = at([-25, 23.5, 0]);
+        m.add(S.ellipsoid(belly, [17 * swell, 12.6 * swell, 11.6 * swell], tilt + 0.24), 'shell', { paint: p => {
+            const q = rotz(p, -(tilt + 0.24), belly), along = q[0] - belly[0];
+            return along < 9 && along > -13 && Math.abs(((along + 40) % 7.5) - 3.75) > 3.1 ? 'band' : null;
+        } });
+        m.add(S.sphere(at([-8.5, 18.5, 0]), 3.6), 'shell');
+        m.add(S.ellipsoid(at([3, 20.5, 0]), [11.5, 7.6, 7], tilt - 0.08), 'shell');
+        const head = at([22, 22.5 + 1.5 * wind, 0]), nod = tilt - 0.28 - 0.25 * strike;
+        m.add(S.ellipsoid(head, [9.6, 8.6, 8], nod), 'shell');
+        m.add(S.ellipsoid([head[0] + 2.6, head[1] + 2.2, head[2] + 6.4], [2.3, 2.9, 1.7]), 'eye');
+        m.mark([head[0] + 2.2, head[1] + 3.6, head[2] + 7.6], '#f8c9a0');
+        // mandibles: open while it draws back, shut on the strike
+        const gape = 0.2 + 0.7 * wind - 0.25 * strike;
         for (const z of [-1, 1]) {
-            const root = [head[0] + 6, head[1] - 3, z * 2.6];
-            m.add(S.chain([root, rotz([root[0] + 6, root[1] - 1, root[2] + z * 1.5], -gape * 0.6, root), rotz([root[0] + 10, root[1] + 1.5, root[2] - z * 1], -gape, root)], [1.9, 1.5, 0.8]), 'jaw');
-            const base = [head[0] + 2, head[1] + 6, z * 2.4], sway = 0.12 * breath * z;
-            m.add(S.chain([base, [base[0] + 6, base[1] + 8 + sway * 6, base[2] + z * 1.5], [base[0] + 14 + 3 * strike, base[1] + 7 - 3 * wind + sway * 10, base[2] + z * 2]], [1.1, 0.9, 0.7]), z < 0 ? 'legFar' : 'leg');
+            const root = rotz([head[0] + 7, head[1] - 4.6, z * 3], nod, head);
+            m.add(S.chain([root, rotz([root[0] + 6.5, root[1] - 2.4, root[2] + z * 1.6], -gape * 0.5 * z, root), rotz([root[0] + 10.5, root[1] + 0.6, root[2] - z * 0.6], -gape * z, root)], [2.1, 1.7, 0.9]), 'jaw');
+            // antennae: a long first joint up from the brow, then a bent whip that sways
+            const brow = rotz([head[0] + 3, head[1] + 6.6, z * 3], nod, head), sway = 0.9 * Math.sin(turn + z) - 3 * wind + 2 * strike;
+            const elbow = [brow[0] + 6, brow[1] + 9.5 + sway * 0.5, brow[2] + z * 2];
+            m.add(S.chain([brow, elbow, [elbow[0] + 6, elbow[1] + 0.5 + sway * 0.6, elbow[2] + z], [elbow[0] + 11, elbow[1] - 2 + sway, elbow[2] + z * 1.5]], [1.3, 1.1, 1, 0.8]), z < 0 ? 'legFar' : 'leg');
         }
         return m;
     }
 };
 
-// ---------------------------------------------------------------- 뿌리 웜
+// ---------------------------------------------------------------- 뿌리 웜: 머리가 짙은 살구색 애벌레, 바닥을 긴다
 const worm = {
-    id: 'act1-worm', size: 96, feet: [40, 84],
+    id: 'act1-worm', size: 96, feet: [46, 84],
     mats: {
-        skin: { ramp: ramp('#c9a06e', { cool: 34, warm: 10 }) },
-        ring: { ramp: ramp('#9a6f4a', { cool: 30, warm: 8 }) },
-        mouth: { ramp: ramp('#5a1f24', { cool: 10, warm: 6 }) },
-        tooth: { ramp: ramp('#f0e6cf', { cool: 10, warm: 4 }), gloss: true },
-        soil: { ramp: ramp('#5b4636', { cool: 16, warm: 8 }) }
+        skin: { ramp: through(['#3e2a2c', '#6f433b', '#94685f', '#a9786a', '#c08e7a', '#d2a691', '#f0c5ac']), sheen: 0.18, mottle: [0.16, 0.1], rim: INK },
+        fold: { ramp: through(['#33222a', '#523534', '#6f433b', '#8c645b']), rim: INK, noEdge: true },
+        head: { ramp: through(['#1d1321', '#33222a', '#402a2c', '#523534', '#673f38', '#8c645b']), gloss: true, glossAt: 0.95, rim: INK, glow: -0.06 },
+        foot: { ramp: through(['#6f433b', '#a9786a', '#d2a691']), rim: INK, noEdge: true },
+        jaw: { ramp: through(['#150d1c', '#2c1a24', '#402a2c']), rim: INK, noEdge: true }
     },
     build(pose) {
-        const m = S.scene(), { breath, wind, strike } = phase(pose);
-        const sway = 2.2 * breath, back = 9 * wind, out = 20 * strike, dip = 10 * strike;
-        const spine = [[-4, 0, 0], [-9 - back * 0.5, 15, 0], [-5 - back + sway * 0.5 + out * 0.25, 30 - dip * 0.3, 0],
-            [5 - back * 0.8 + sway + out * 0.7, 40 + 3 * wind - dip * 0.8, 0], [15 - back * 0.5 + sway + out, 41 + 5 * wind - dip * 1.4, 0]];
-        const radii = [10.5, 10, 9.2, 8.6, 8];
-        const along = p => { let best = 0, bestD = Infinity; spine.forEach((q, i) => { const d = Math.hypot(p[0] - q[0], p[1] - q[1]); if (d < bestD) { bestD = d; best = i; } }); return best; };
-        m.add(S.chain(spine, radii), 'skin', { paint: p => {
-            const i = along(p), q = spine[i], next = spine[Math.min(spine.length - 1, i + 1)], prev = spine[Math.max(0, i - 1)];
-            const dir = S.norm([next[0] - prev[0], next[1] - prev[1], 0]), t = (p[0] - q[0]) * dir[0] + (p[1] - q[1]) * dir[1] + i * 13;
-            return Math.sin(t * 0.72) > 0.55 ? 'ring' : null;
-        } });
-        const head = spine[4], aim = S.norm([spine[4][0] - spine[3][0], spine[4][1] - spine[3][1], 0]);
-        const lip = [head[0] + aim[0] * 6.2, head[1] + aim[1] * 6.2, 0], open = 3.4 + 2.2 * wind + 1.5 * strike;
-        m.add(S.ellipsoid(lip, [3, open, open * 0.95], Math.atan2(aim[1], aim[0])), 'mouth');
-        for (let k = 0; k < 6; k++) {
-            const a = k / 6 * Math.PI * 2, r = open * 0.92;
-            const side = [-aim[1], aim[0], 0], root = [lip[0] + side[0] * Math.cos(a) * r, lip[1] + side[1] * Math.cos(a) * r, Math.sin(a) * r];
-            m.add(S.limb(root, [root[0] + aim[0] * 2.6 - side[0] * Math.cos(a) * 1.2, root[1] + aim[1] * 2.6 - side[1] * Math.cos(a) * 1.2, root[2] * 0.75], 1.25, 0.4), 'tooth');
+        const m = S.scene(), { turn, wind, strike } = phase(pose), idle = pose.state === 'idle';
+        // seven rings from the tail to the neck; a wave of swelling runs forward along them, and the attack bunches then throws them
+        const radii = [7.4, 10.2, 12.2, 13.2, 13, 12, 10.6], gap = 8.6 * (1 - 0.24 * wind + 0.14 * strike), tail = -28 + 5 * wind + 4 * strike;
+        const rings = radii.map((radius, i) => {
+            const wave = idle ? Math.sin(turn - i * 0.95) : 0, r = radius * (1 + 0.07 * wave + 0.1 * wind * Math.sin(i * 0.9) - 0.05 * strike);
+            const lift = (2.2 * wind * Math.sin(i / 6 * Math.PI) + strike * 5 * Math.pow(i / 6, 2.4)) * 1.6;
+            return { at: [tail + i * gap + 0.7 * wave, r + lift, 0], r };
+        });
+        rings.forEach(({ at, r }, i) => m.add(S.ellipsoid(at, [6.1, r, r * 0.96]), 'skin', { group: 'body', k: 1.6, local: p => [p[0] - at[0] + i * 9, p[1] - at[1], p[2]],
+            paint: p => (Math.abs(p[0] - at[0]) > 4.8 ? 'fold' : null) }));
+        const neck = rings[6].at, head = [neck[0] + 9 + 2 * strike, neck[1] - 1.4 + 1.2 * strike, 0];
+        m.add(S.ellipsoid(head, [8.4, 8.4, 8]), 'head');
+        m.mark([head[0] + 1, head[1] + 3.6, 7.6], '#f0c5ac');
+        const gape = 0.5 * wind + 0.9 * strike;
+        for (const z of [-1, 1]) m.add(S.limb([head[0] + 5.6, head[1] - 2.6 - z * gape * 1.2, z * 2.4], [head[0] + 9.4, head[1] - 3.4 - z * gape * 2, z * 1.2], 1.5, 0.7), 'jaw');
+        // three pairs of stub feet under the front rings
+        for (const i of [4, 5, 6]) for (const z of [-1, 1]) {
+            const ring = rings[i], under = ring.at[1] - ring.r;
+            m.add(S.limb([ring.at[0], under + 2.6, z * 5.5], [ring.at[0] + 1.4, under - 0.2, z * 7], 1.4, 0.9), 'foot');
         }
-        m.add(S.ellipsoid([-3, 1.5, 1], [19, 5, 12]), 'soil');
-        for (const [x, z, r] of [[-18, 7, 3.4], [12, 9, 3], [-2, 13, 2.6], [17, -2, 2.8]]) m.add(S.ellipsoid([x, r * 0.5, z], [r * 1.3, r * 0.8, r]), 'soil');
         return m;
     }
 };
