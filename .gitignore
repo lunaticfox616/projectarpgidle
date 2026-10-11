@@ -45,5 +45,7 @@ __pycache__/
 /assets/playable/hana/
 # 옆에서 보는 무대의 캐릭터 그림(docs/stage-view-20261011.md): 배포 가능 여부를 확인할 때까지 로컬에만 둔다.
 /assets/playable/stage/
+# 무대 조각 묶음(사용자가 이미지 생성으로 만든 그림): 저장소에 넣기로 정할 때까지 로컬에만 둔다.
+/assets/stage-scenes/
 /assets/summon/hana/
 /docs/skill-assets-hana/reference/

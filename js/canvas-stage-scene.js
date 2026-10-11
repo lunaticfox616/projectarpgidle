@@ -47,11 +47,13 @@ const stageScene = (() => {
         if (!fits.has(key)) fits.set(key, stageDots.fitted(picture(kit, file), dot));
         return fits.get(key);
     }
-    /** 먼 배경: 바닥선에 밑을 맞춘 띠를 좌우로 이어 붙인다. 방의 왼쪽 끝이 화면에서 움직인 만큼의 parallax배만 따라 움직인다. */
+    /** 먼 배경: 방 중심에 맞춰 양 끝 여백을 나눠 쓴다. 카메라 이동의 parallax배만 움직이고 필요할 때만 좌우로 잇는다. */
     function drawFar(ctx, view, p, area) {
         const kit = kitOf(view.map), far = kit.far, dot = p.tileW / WIDE, w = far.width * dot, h = far.height * dot;
-        const y = Math.round(p.mapY + view.room.y0 * p.tileH + far.bottom * dot - h), roomLeft = p.mapX + view.room.x0 * p.tileW;
-        const offset = (((far.shift * dot + roomLeft * far.parallax) % w) + w) % w, image = fitted(kit, far.file, dot);
+        const y = Math.round(p.mapY + view.room.y0 * p.tileH + far.bottom * dot - h);
+        const centre = p.mapX + (view.room.x0 + view.room.x1 + 1) * p.tileW / 2;
+        const origin = (area.width - w) / 2 + (centre - area.width / 2) * far.parallax + far.shift * dot;
+        const offset = ((origin % w) + w) % w, image = fitted(kit, far.file, dot);
         ctx.fillStyle = kit.fill;
         ctx.fillRect(0, 0, area.width, area.height);
         ctx.fillStyle = kit.sky;
@@ -61,10 +63,24 @@ const stageScene = (() => {
     }
 
     // ---------------------------------------------------------------- floor and back strip (painted once a room)
-    /** 띠 그림을 도트 그대로 좌우로 이어 붙인다: 지도 왼쪽 끝에서 shift만큼 민 자리부터 width마다. */
+    /** 띠 그림을 도트 그대로 이어 붙인다. 위/아래 이음은 원본의 2도트 줄을 투명하게 겹쳐 직선을 누른다(방 진입 시 한 번). */
     function strip(ctx, box, image, at) {
         const left = box.x * WIDE, right = (box.x + box.columns) * WIDE;
-        for (let x = Math.floor((left - at.shift) / at.width) * at.width + at.shift; x < right; x += at.width) ctx.drawImage(image, x, at.y);
+        const top = at.fadeTop || 0, bottom = at.fadeBottom || 0, height = image.naturalHeight;
+        ctx.save();
+        for (let x = Math.floor((left - at.shift) / at.width) * at.width + at.shift; x < right; x += at.width) {
+            ctx.globalAlpha = 1;
+            ctx.drawImage(image, 0, top, at.width, height - top - bottom, x, at.y + top, at.width, height - top - bottom);
+            for (let y = 0; y < top; y += 2) {
+                ctx.globalAlpha = (y + 1) / top;
+                ctx.drawImage(image, 0, y, at.width, 2, x, at.y + y, at.width, 2);
+            }
+            for (let y = 0; y < bottom; y += 2) {
+                ctx.globalAlpha = 1 - (y + 1) / bottom;
+                ctx.drawImage(image, 0, height - bottom + y, at.width, 2, x, at.y + height - bottom + y, at.width, 2);
+            }
+        }
+        ctx.restore();
     }
     /** 방 하나의 바닥과 뒤쪽 띠. 바닥 그림은 방마다 정해진 한 가지다. 방의 옆쪽 바깥은 조금 어둡게 눌러 걸을 수 있는 자리를 알린다. */
     function paintRoom(map, room, box) {
@@ -74,8 +90,10 @@ const stageScene = (() => {
         const ctx = canvas.getContext('2d'), floor = kit.floor.files[(room.index + (Number(map.act) || 0)) % kit.floor.files.length];
         ctx.imageSmoothingEnabled = false;
         ctx.translate(-box.x * WIDE, -box.y * DEEP);
-        strip(ctx, box, picture(kit, floor), { width: kit.floor.width, shift: 0, y: top + kit.floor.top });
-        strip(ctx, box, picture(kit, kit.back.file), { width: kit.back.width, shift: kit.back.shift, y: top + kit.back.bottom - kit.back.height });
+        // 한 장 안에 방 전체가 들어오도록 방 중심에 맞춘다. 기본 15~21칸에서는 바닥의 좌우 이음이 전투 칸 밖에 놓인다.
+        const floorShift = Math.round((room.x0 + room.x1 + 1) * WIDE / 2 - kit.floor.width / 2);
+        strip(ctx, box, picture(kit, floor), { width: kit.floor.width, shift: floorShift, y: top + kit.floor.top, fadeTop: 28 });
+        strip(ctx, box, picture(kit, kit.back.file), { width: kit.back.width, shift: kit.back.shift, y: top + kit.back.bottom - kit.back.height, fadeBottom: 14 });
         shadeBeyond(ctx, kit, room, box);
         return canvas;
     }
