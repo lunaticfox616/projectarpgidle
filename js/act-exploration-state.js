@@ -295,7 +295,17 @@ const actExplorationState = (() => {
         if(!room || room.role==='entry' || room.role==='path' || typeof pack.key!=='string')throw Error('탐험 저장의 적 무리가 잘못되었습니다.');
         if(!Array.isArray(pack.aliveIds) || !Array.isArray(pack.eliteIds) || !Array.isArray(pack.waiting))throw Error('탐험 저장의 적 목록이 없습니다.');
         if((room.role==='boss')!==(pack.stage!==null))throw Error('탐험 저장의 보스 단계가 잘못되었습니다.');
+        validatePackKind(map,pack,room);
+    }
+    /** A road group (anchor) and a stage room's added pack (extra) each have their own shape. */
+    function validatePackKind(map,pack,room) {
         if(pack.anchor!==undefined)validatePatrol(map,pack,room);
+        if(pack.extra!==undefined)validateExtra(map,pack,room);
+    }
+    /** 방 단위 무대의 방에 더 서는 무리(js/combat.js createStageExtraPacks): 방마다 둘까지, 정예 없이. */
+    function validateExtra(map,pack,room) {
+        const known=map.stage && [1,2].includes(pack.extra) && pack.key===`${room.id}:extra${pack.extra}`;
+        if(!known || pack.stage!==null || pack.eliteIds.length || pack.anchor!==undefined || pack.objectId)throw Error('탐험 저장의 덧무리가 잘못되었습니다.');
     }
     function validatePack(map,pack,context) {
         if(!pack || context.keys.has(pack.key))throw Error('탐험 저장의 적 무리가 중복되거나 잘못되었습니다.');
@@ -362,7 +372,7 @@ const actExplorationState = (() => {
     }
     function validateRoomPacks(run) {
         const rooms=packRooms(actExplorationMap.forRun(run));
-        if(rooms.some(room=>run.packs.filter(pack=>pack.roomId===room.id && pack.stage===null && !pack.anchor && !pack.objectId).length!==1))throw Error('탐험 저장에 탐색 구역이 누락되었습니다.');
+        if(rooms.some(room=>run.packs.filter(pack=>pack.roomId===room.id && pack.stage===null && !pack.anchor && !pack.objectId && !pack.extra).length!==1))throw Error('탐험 저장에 탐색 구역이 누락되었습니다.');
         if(run.packs.filter(pack=>pack.anchor).length>1)throw Error('탐험 저장의 길목 무리가 중복되었습니다.');
     }
     function bossStageCount(run) {return run.source?run.bossStages:STORY_ACTS[run.zoneId].maxKills;}

@@ -124,6 +124,12 @@ const actExplorationRooms = (() => {
         }
         return { hops, far };
     }
+    /** 입구에서 보스 방까지 문을 따라 지나는 방들(id). 여기에 없는 방은 보스에게 가는 데 들르지 않아도 되는 막다른 쪽이다. */
+    function routeIds(rooms, hops) {
+        const boss = rooms.find(room => room.role === 'boss').index, ids = [];
+        for (let at = rooms.find(room => room.role === 'entry').index; at !== boss; at = hops[at][boss].to) ids.push(rooms[at].id);
+        return Object.freeze([...ids, rooms[boss].id]);
+    }
     /** 미니맵의 방 그림: 지도에 적힌 자리를 무대 방향으로 돌린 것(js/act-exploration-rooms-ui.js). */
     function buildPlan(rooms, edges) {
         const boxes = rooms.map(room => {
@@ -142,11 +148,11 @@ const actExplorationRooms = (() => {
     function compileRooms(source, grow) {
         const rule = STAGE_ROOMS, edges = edgesOf(source), rooms = placeRooms(source, orderOf(source, edges), grow);
         const columns = rooms.length * (rule.slot + grow.wide + rule.gap), rows = rule.top + rule.depth + grow.deep + rule.bottom;
-        const doors = buildDoors(rooms, edges), { tiles, owner } = buildTiles(rooms, doors, columns, rows);
+        const doors = buildDoors(rooms, edges), { tiles, owner } = buildTiles(rooms, doors, columns, rows), ways = buildHops(rooms, doors);
         const at = cell => cell.gy * columns + cell.gx;
         return Object.freeze({ id: source.id, act: source.act, biome: source.biome, columns, rows, tiles: Object.freeze(tiles),
             rooms: Object.freeze(rooms), entry: rooms.find(room => room.role === 'entry'), gate: doors.find(door => door.gate).cell,
-            rotation: 0, stage: true, doors: Object.freeze(doors), owner, ...buildHops(rooms, doors),
+            rotation: 0, stage: true, doors: Object.freeze(doors), owner, ...ways, route: routeIds(rooms, ways.hops),
             portals: new Map(doors.map(door => [at(door.cell), door.exit])), doorAt: new Map(doors.map(door => [at(door.cell), door])),
             plan: buildPlan(rooms, edges) });
     }

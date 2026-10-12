@@ -127,14 +127,43 @@ actExplorationState.objects = (() => {
             cells.slice(0,count).forEach(c=>put(entries,kind,c,plan));
         }
     }
+    /** 방 단위 무대의 상자와 항아리(data/stage-view.js STAGE_ROOMS.objects, 2026-10-13 사용자): 방마다 따로 굴린다. 보스에게 가는
+     * 길에 없는 막다른 쪽의 방(map.route에 없는 방)은 확률이 높다. 항아리와 목재 상자는 한 방에 하나에서 넷까지, 서로 apart칸
+     * 넘게 떨어진 가장자리 칸에 선다(전에는 늘 둘이나 셋이 붙어 섰다). */
+    function roomObjects(entries,pool,config,rng,plan) {
+        const rule=STAGE_ROOMS.objects,map=plan.map;
+        const rooms=map.rooms.filter(room=>pool.some(cell=>cell.roomId===room.id));
+        for(const room of rooms) {
+            const side=map.route.includes(room.id)?0:1,cells=pool.filter(cell=>cell.roomId===room.id);
+            const free=()=>cells.filter(cell=>entries.every(e=>near(e,cell)>=rule.apart));
+            if(rng()<rule.chest[side]) {
+                const row=entries.length<rule.limit && placeOne(entries,'chest',free(),rng,plan);
+                if(row)row.grade=chestGrade(config.seed,row.id,config.chest);
+            }
+            if(rng()>=rule.props[side])continue;
+            const count=rule.propCounts[Math.floor(rng()*rule.propCounts.length)];
+            for(let n=0;n<count && entries.length<rule.limit;n++)placeOne(entries,rng()<.5?'pot':'crate',free(),rng,plan);
+        }
+    }
+    /** One object on a cell drawn from `cells`; null when none is left or it would shut the way. */
+    function placeOne(entries,kind,cells,rng,plan) {
+        const at=pick(cells,rng);
+        return at?put(entries,kind,at,plan):null;
+    }
     /** Once per NEW run. Old saves stay empty. quantity is a multiplier, rarity a percentage-point bonus.
      * remainingMs is combat-clock milliseconds; pendingId is a clicked row id or null. Frozen at map opening. */
     function create(run,config) {
         const map=actExplorationMap.forRun(run),rng=random(config.seed),entries=[];
         const pool=candidates(run,map),plan=wayPlan(run,map);
         const event=config.allowEvent?eventKind(config.loop,rng()):null;
-        specialObjects(entries,pool,{event,excludedRooms:config.excludedRooms,seed:config.seed,chest:config.chest||null},rng,plan);
-        props(entries,pool,rng,actExplorationState.packRooms(map).length,plan);
+        if(map.stage) {
+            const at=event && pick(pool.filter(c=>c.spacious&&!config.excludedRooms.includes(c.roomId)),rng);
+            if(at)put(entries,event,at,plan);
+            roomObjects(entries,pool,{seed:config.seed,chest:config.chest||null},rng,plan);
+        } else {
+            specialObjects(entries,pool,{event,excludedRooms:config.excludedRooms,seed:config.seed,chest:config.chest||null},rng,plan);
+            props(entries,pool,rng,actExplorationState.packRooms(map).length,plan);
+        }
         return {version:1,seed:config.seed,rotation:map.rotation,quantity:config.quantity,rarity:config.rarity,pendingId:null,entries};
     }
     function isEvent(row) {return events.includes(row.kind);}
@@ -173,7 +202,7 @@ actExplorationState.objects = (() => {
     }
     function validateHeader(source) {
         if(!source||source.version!==1||!Number.isInteger(source.seed)||source.seed<0||source.seed>4294967295)throw Error('잘못된 탐험 오브젝트 저장');
-        if(!Array.isArray(source.entries)||source.entries.length>16)throw Error('잘못된 탐험 오브젝트 수량');
+        if(!Array.isArray(source.entries)||source.entries.length>40)throw Error('잘못된 탐험 오브젝트 수량'); // 방 단위 무대는 방마다 놓는다(STAGE_ROOMS.objects.limit)
     }
     function validateReward(source) {
         if(!Number.isFinite(source.quantity)||source.quantity<1||source.quantity>4||!Number.isFinite(source.rarity)||source.rarity<0||source.rarity>500)throw Error('잘못된 탐험 오브젝트 보상 배율');
