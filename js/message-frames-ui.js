@@ -22,6 +22,8 @@ const messageFrames = (() => {
     // 크기 조절 테두리: 오른쪽 아래 모서리(보이는 손잡이) 말고도 위, 아래, 양옆과 나머지 세 모서리.
     const EDGES = Object.freeze(['n', 's', 'e', 'w', 'nw', 'ne', 'sw']);
     const homes = new Map();
+    // Last applied bounds, including clamping. Default placement stays responsive without persisting it as a custom layout.
+    const placedRects = { main: null, side: null };
     let state = readFrameState();
     let env = null;
     let mounted = false;
@@ -135,6 +137,7 @@ const messageFrames = (() => {
 
     function applyRect(frame, rect) {
         const el = frameEl(frame), folded = state.collapsed[frame];
+        placedRects[frame] = { ...rect };
         el.style.left = `${rect.x}px`;
         el.style.top = `${folded ? rect.y + rect.height - COLLAPSED_HEIGHT : rect.y}px`;
         el.style.width = `${rect.width}px`;
@@ -408,7 +411,9 @@ const messageFrames = (() => {
     window.addEventListener('resize', () => { stageBox = null; });
     function frameCoversHero(frame, at) {
         if (frame === 'side' && !state.split) return false;
-        const rect = rectFor(frame), scale = frameScale(), top = state.collapsed[frame] ? rect.y + rect.height - COLLAPSED_HEIGHT : rect.y;
+        const rect = placedRects[frame];
+        if (!rect) return false;
+        const scale = frameScale(), top = state.collapsed[frame] ? rect.y + rect.height - COLLAPSED_HEIGHT : rect.y;
         return at.x + HERO_HALF > rect.x * scale && at.x - HERO_HALF < (rect.x + rect.width) * scale && at.y > top * scale && at.top < (rect.y + rect.height) * scale;
     }
     function fadeFramesOverHero(x, y, top) {
