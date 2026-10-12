@@ -15,6 +15,17 @@ assert.strictEqual(typeof ctx.mergeDefaults, 'function', 'mergeDefaults를 불�
 
 const merge = save => ctx.mergeDefaults(JSON.parse(JSON.stringify(save)));
 
+// Sound level is a percentage of the previous mix, independent of the mute switch.
+{
+    assert.strictEqual(merge({settings: {uiSounds: false}}).settings.soundVolume, 100);
+    for (const [input, expected] of [[0, 0], [35, 35], [-10, 0], [150, 100], ['bad', 100]]) {
+        const loaded = merge({level: 12, settings: {uiSounds: false, soundVolume: input}});
+        assert.strictEqual(loaded.settings.soundVolume, expected);
+        assert.strictEqual(loaded.settings.uiSounds, false);
+        assert.strictEqual(loaded.level, 12);
+    }
+}
+
 // ── 새 게임 ──────────────────────────────────────────────────────────────
 {
     const g = merge({});

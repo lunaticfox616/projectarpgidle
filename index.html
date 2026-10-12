@@ -1128,6 +1128,12 @@
                     <input type="checkbox" role="switch" id="chk-ui-sounds" onchange="updateSettings()" checked>
                     <span class="cfg-sound-state" aria-hidden="true"></span>
                 </label>
+                <div class="cfg-sound-volume">
+                    <label for="range-sound-volume">음량</label>
+                    <input type="range" id="range-sound-volume" min="0" max="100" step="5" value="100" aria-valuetext="100%">
+                    <output id="sound-volume-value" for="range-sound-volume">100%</output>
+                    <button type="button" class="cfg-btn" id="btn-sound-preview">미리 듣기</button>
+                </div>
             </div>
 
             <!-- ── 저장 & 데이터 ── -->

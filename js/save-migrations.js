@@ -989,6 +989,7 @@ function mergeDefaults(save) {
         : null;
     merged.settings.showDeathNotice = merged.settings.showDeathNotice !== false;
     merged.settings.uiSounds = merged.settings.uiSounds !== false;
+    merged.settings.soundVolume = clampFiniteNumber(merged.settings.soundVolume, 100, 0, 100);
     // 라이트 모드는 2026-09 UI 개편에서 제거됐다(다크 전용). 이전 저장의 설정값은 버린다.
     delete merged.settings.themeMode;
     merged.settings.uiSkin = normalizeUiSkin(merged.settings.uiSkin);
