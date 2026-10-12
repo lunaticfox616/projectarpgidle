@@ -36,6 +36,21 @@ const stageDots = (() => {
      * @param {{x:number,y:number,scale:number}} at where its top-left lands and the size of one dot (the caller's units)
      */
     function blit(ctx, source, from, at) {
+        // Color filters do not extend the picture. Bound their offscreen pass to this draw, rather than the whole
+        // battlefield. Shadows and non-default compositing can affect pixels outside that picture.
+        if (!/^(?:(?:grayscale|saturate|brightness)\([^)]*\)\s*)+$/.test(ctx.filter)
+            || ctx.globalCompositeOperation !== 'source-over'
+            || ctx.shadowBlur || ctx.shadowOffsetX || ctx.shadowOffsetY) return paint(ctx, source, from, at);
+        const bounds = new Path2D();
+        bounds.rect(at.x - 1, at.y - 1, from.w * at.scale + 2, from.h * at.scale + 2);
+        ctx.save();
+        ctx.clip(bounds);
+        paint(ctx, source, from, at);
+        const quality = ctx.imageSmoothingQuality;
+        ctx.restore();
+        ctx.imageSmoothingQuality = quality;
+    }
+    function paint(ctx, source, from, at) {
         const width = from.w * at.scale, height = from.h * at.scale, smooth = ctx.imageSmoothingEnabled;
         if (whole(at.scale)) {
             ctx.imageSmoothingEnabled = false;
