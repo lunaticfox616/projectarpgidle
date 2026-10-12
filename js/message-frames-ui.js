@@ -425,6 +425,26 @@ const messageFrames = (() => {
         }
     }
 
-    return Object.freeze({ sync: syncFrames, showTab: showFrameTab, isTabVisible: isFrameTabVisible, isActive: () => mounted, reset: resetFrames, heroAt: fadeFramesOverHero });
+    /** 창 하나가 전장에서 차지하는 상자(전장의 px). 보이지 않거나 접혔거나 주인공 때문에 옅어진 창이면 null. */
+    function frameBoxOnStage(frame) {
+        if ((frame === 'side' && !state.split) || state.collapsed[frame] || faded[frame]) return null;
+        const rect = rectFor(frame), k = frameScale() / stageBox.scale, dx = stageBox.left / stageBox.scale, dy = stageBox.top / stageBox.scale;
+        return { left: rect.x * k - dx, right: (rect.x + rect.width) * k - dx, top: rect.y * k - dy, bottom: (rect.y + rect.height) * k - dy };
+    }
+    /** 전장의 높이 y에서 오른쪽 끝부터 창에 가려진 구간의 왼쪽 끝(전장의 px): 가려지지 않았으면 width 그대로. 오른쪽 끝에 붙은 창과
+     * 그 창에 잇닿은 창만 센다. 옆에서 보는 무대가 열린 문의 표시를 창 왼쪽에 세울 때 묻는다(js/canvas-stage-door-marks.js). */
+    const COVER_JOIN = 40;
+    function stageCoveredFrom(y, width) {
+        if (!mounted) return width;
+        if (!stageBox) readStageBox();
+        if (!stageBox) return width;
+        const boxes = FRAMES.map(frameBoxOnStage).filter(box => box && y >= box.top && y <= box.bottom).sort((a, b) => b.right - a.right);
+        let limit = width;
+        for (const box of boxes) if (box.right >= limit - COVER_JOIN) limit = Math.min(limit, box.left);
+        return limit;
+    }
+
+    return Object.freeze({ sync: syncFrames, showTab: showFrameTab, isTabVisible: isFrameTabVisible, isActive: () => mounted, reset: resetFrames, heroAt: fadeFramesOverHero,
+        coveredFrom: stageCoveredFrom });
 })();
 safeExposeGlobals({ messageFrames });
