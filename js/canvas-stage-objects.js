@@ -39,6 +39,8 @@ const stageObjects = (() => {
     }
     /** @param {{name:string,tint?:string}} look @param {{x:number,y:number,dot:number}} at 발 자리와 도트 하나의 크기 @returns {boolean} 그렸는지 */
     function draw(ctx, look, at) {
+        // 지역 무대 그림이 있는 방에서는 보급 상자, 항아리, 목재 상자를 그 재질의 그림으로 그린다(js/canvas-stage-region.js).
+        if (typeof stageRegion === 'object' && stageRegion.drawObject(ctx, look, at)) return true;
         const index = cellOf(look), source = image();
         if (index < 0 || !source) return false;
         const box = boxOf(index, at), cell = STAGE_OBJECTS.cell;
@@ -61,6 +63,7 @@ const stageObjects = (() => {
     }
     /** 누를 수 있는 물체의 밝은 테: 그림 둘레에 한 도트 두께로 두른다(그림을 찍기 전에 부른다). */
     function outline(ctx, look, at, colour) {
+        if (typeof stageRegion === 'object' && stageRegion.outlineObject(ctx, look, at, colour)) return;
         const index = cellOf(look);
         if (index < 0 || !image()) return;
         const box = boxOf(index, at), rim = silhouette(index, colour), cell = STAGE_OBJECTS.cell;

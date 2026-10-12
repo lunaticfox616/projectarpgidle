@@ -109,10 +109,10 @@ const actExplorationMap = (() => {
         runMaps.set(run,{source:run.source,act:run.act,rotation:run.rotation,rooms:run.rooms,map});
         return map;
     }
-    /** A run marked rooms walks its act's room-by-room stage layout (js/act-exploration-rooms.js), whatever its facing. */
+    /** A run marked rooms walks the room-by-room stage layout of its map (js/act-exploration-rooms.js), whatever its facing. */
     function mapOf(run) {
-        if(run.source)return generated(run.source,run.rotation);
-        return run.rooms?actExplorationRooms.layout(run.act,run.rooms):layout(run.act,run.rotation);
+        if(run.rooms)return actExplorationRooms.forRun(run);
+        return run.source?generated(run.source,run.rotation):layout(run.act,run.rotation);
     }
     function index(map,cell) {return cell.gy*map.columns+cell.gx;}
     function inBounds(map,cell) {

@@ -6942,6 +6942,8 @@ function handleTalentBloomClear(zone) {
 
 function isCrowdProgressPaused() {
     if (game.moveTimer > 0) return false;
+    // 방 단위 무대: 방 안의 몬스터를 다 잡아야 문이 열린다. 따로 멈출 진행이 없으니 무리가 많다는 알림도 내지 않는다.
+    if (actExplorationDoors.stageMap(actExplorationState.current(game))) return false;
     return (game.enemies || []).filter(enemy => enemy.hp > 0).length >= ENEMY_CROWD_PAUSE_LIMIT;
 }
 
@@ -7887,7 +7889,7 @@ function createActExplorationEncounter(zone,exploration) {
     if(!plan && exploration===true)throw Error('일반 액트나 전용 맵이 있는 콘텐츠에서만 탐험을 시작할 수 있습니다.');
     if(!plan)return null;
     plan.rotation=actExplorationProgress.objects.savedFacing(zone)??rollExplorationFacing();
-    if(plan.act && actExplorationDoors.session())plan.rooms=actExplorationDoors.planKey(); // 방 단위 무대 시험판(js/act-exploration-doors.js)
+    if(actExplorationDoors.session())plan.rooms=actExplorationDoors.planKey(zone,plan); // 방 단위 무대 시험판(js/act-exploration-doors.js): 액트와 그 밖의 모든 탐험 구역
     const run=actExplorationState.create(plan,createExplorationPacks(zone,actExplorationMap.forRun(plan),plan.bossStages),getCombatTime());
     run.mode=actExplorationProgress.startMode(game.settings);
     actExplorationProgress.objects.initialize(run,zone);

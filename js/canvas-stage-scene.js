@@ -7,6 +7,8 @@
  *   열렸으면 열린 그림이다. 주인공이 조각 뒤에 서면 그 조각이 비쳐 보인다.
  * 그림은 한 장이 캐릭터 도트 하나에 1px이라 캐릭터와 같은 배율로 찍는다(js/canvas-stage-dots.js). 그림 폴더가 없는 판에서는 ready가
  * 거짓이라 코드로 그린 임시 무대(js/canvas-stage-sanctum.js)가 그대로 나온다. 그리기만 하고 전투와 길 찾기에는 닿지 않는다.
+ * 지도에 지역 무대 그림(js/canvas-stage-region.js: 방 그림 한 장과 문, 소품)이 정해져 있고 그 그림이 준비됐으면 그쪽이 방을 그린다:
+ * 방을 그리는 쪽(js/canvas-stage-rooms.js)은 여기 하나만 부르고, 여기서 어느 묶음이 그릴지 가른다.
  */
 const stageScene = (() => {
     const WIDE = 64, DEEP = 32;                 // 한 칸의 도트(js/canvas-stage-terrain.js와 같다)
@@ -32,8 +34,10 @@ const stageScene = (() => {
         return image.complete && image.naturalWidth > 0 ? image : null;
     }
     const filesOf = kit => [kit.far.file, kit.back.file, ...kit.floor.files, ...Object.keys(kit.pieces).map(name => name + '.png')];
-    /** 묶음의 그림이 모두 불러와졌는가. 처음 물을 때 불러오기를 시작한다. */
-    function ready(map) {
+    /** 지역 무대 그림의 형편: 'ready', 'pending'(불러오는 중), 'failed'(그림이 없다), 지역이 없는 지도면 null. */
+    const regionState = map => (typeof stageRegion === 'object' ? stageRegion.status(map) : null);
+    /** 이 지형의 조각 묶음 그림이 모두 불러와졌는가. 처음 물을 때 불러오기를 시작한다. */
+    function sceneReady(map) {
         const kit = kitOf(map);
         if (!kit) return false;
         if (complete.has(kit)) return true;
@@ -41,6 +45,14 @@ const stageScene = (() => {
         if (loaded) complete.add(kit);
         return loaded;
     }
+    /** @returns {(string|boolean)} 이 지도의 방을 그릴 묶음: 'region' 지역 무대 그림, 'scene' 지형의 조각 묶음, 없으면 false.
+     * 지역 그림을 불러오는 동안은 false다(그동안 다른 지형의 그림이 잠깐 보이지 않게 pending이 화면을 가린다). */
+    function ready(map) {
+        const region = regionState(map);
+        if (region === 'ready') return 'region';
+        return region !== 'pending' && sceneReady(map) ? 'scene' : false;
+    }
+    const pending = map => regionState(map) === 'pending';
 
     // ---------------------------------------------------------------- far backdrop
     function fitted(kit, file, dot) {
@@ -52,6 +64,7 @@ const stageScene = (() => {
     }
     /** 먼 배경: 방 중심에 맞춰 양 끝 여백을 나눠 쓴다. 카메라 이동의 parallax배만 움직이고 필요할 때만 좌우로 잇는다. */
     function drawFar(ctx, view, p, area) {
+        if (regionState(view.map) === 'ready') { stageRegion.drawFar(ctx, view, p, area); return; }
         const kit = kitOf(view.map), far = kit.far, dot = p.tileW / WIDE, w = far.width * dot, h = far.height * dot;
         const y = Math.round(p.mapY + view.room.y0 * p.tileH + far.bottom * dot - h);
         const centre = p.mapX + (view.room.x0 + view.room.x1 + 1) * p.tileW / 2;
@@ -87,6 +100,7 @@ const stageScene = (() => {
     }
     /** 방 하나의 바닥과 뒤쪽 띠. 바닥 그림은 방마다 정해진 한 가지다. 방의 옆쪽 바깥은 조금 어둡게 눌러 걸을 수 있는 자리를 알린다. */
     function paintRoom(map, room, box) {
+        if (regionState(map) === 'ready') return stageRegion.paintRoom(map, room, box);
         const kit = kitOf(map), canvas = document.createElement('canvas'), top = room.y0 * DEEP;
         canvas.width = box.columns * WIDE;
         canvas.height = box.rows * DEEP;
@@ -146,9 +160,15 @@ const stageScene = (() => {
         return { name, x: (door.side === 'west' ? room.x0 * WIDE : (room.x1 + 1) * WIDE) + rule[2], y: (door.cell.gy + 1) * DEEP };
     }
     /** 전장 그리기의 배우 목록에 이 방의 소품과 문을 끼운다(깊이 순서는 그림 맨 아래 줄의 화면 y). */
-    function append(actors, state) {
+    /** 주인공이 선 방과 그 방을 그릴 묶음(mode: 'region', 'scene', false). 방 단위 무대가 아니면 mode가 false다. */
+    function standingRoom() {
         const run = actExplorationState.current(game), map = actExplorationDoors.stageMap(run), room = map ? actExplorationDoors.room(run) : null;
-        if (!room || !ready(map)) return;
+        return { run, map, room, mode: room ? ready(map) : false };
+    }
+    function append(actors, state) {
+        const here = standingRoom(), { run, map, room } = here;
+        if (here.mode === 'region') stageRegion.append(actors, state, here);
+        if (here.mode !== 'scene') return;
         const kit = kitOf(map), p = state.gridProj, dot = p.tileW / WIDE, reach = 400 * dot;
         const doors = actExplorationDoors.doorsHere(run).map(row => doorPiece(room, row, kit));
         piecesOf(map, room, kit).concat(doors).forEach((piece, index) => {
@@ -163,6 +183,7 @@ const stageScene = (() => {
     }
     /** 조각 하나: 가로 가운데를 point.x에, 그림의 맨 아래 줄을 actor.y에 맞춘다. */
     function draw(ctx, actor, state) {
+        if (actor.piece.region) { stageRegion.draw(ctx, actor, state); return; }
         const { name, kit } = actor.piece, size = kit.pieces[name];
         if (!size || !picture(kit, name + '.png')) return;
         const dot = stageActors.scaleFor(state.gridProj.tileW);
@@ -175,16 +196,19 @@ const stageScene = (() => {
     /** 열린 좌우 문의 화살표: 문틀의 뚫린 자리에 세운다(문틀 그림이 문 칸을 덮어 바닥의 화살표가 보이지 않는다). 좌우 문은 화면
      * 가장자리에 서서 전장의 조명(주인공에서 멀수록 어둡다)에 묻히므로, 조명을 입힌 뒤에 그린다(js/canvas-battlefield.js가 부른다). */
     function drawMarks(ctx, p) {
-        const run = actExplorationState.current(game), map = actExplorationDoors.stageMap(run), room = map ? actExplorationDoors.room(run) : null;
-        const kit = room && ready(map) ? kitOf(map) : null;
-        if (!kit || !kit.sideMark) return;
+        const here = standingRoom();
+        if (here.mode === 'region') stageRegion.drawMarks(ctx, p, here);
+        const kit = here.mode === 'scene' ? kitOf(here.map) : null;
+        if (kit && kit.sideMark) sceneSideMarks(ctx, p, here, kit);
+    }
+    function sceneSideMarks(ctx, p, here, kit) {
         const dot = stageActors.scaleFor(p.tileW), rule = kit.sideMark;
-        for (const row of actExplorationDoors.doorsHere(run)) {
+        for (const row of actExplorationDoors.doorsHere(here.run)) {
             if (row.locked || (row.door.side !== 'west' && row.door.side !== 'east')) continue;
-            const piece = doorPiece(room, row, kit);
+            const piece = doorPiece(here.room, row, kit);
             stageDoorMarks.arrows(ctx, { cx: p.mapX + piece.x * dot, cy: p.mapY + (piece.y - rule.rise) * dot, w: rule.spread * dot }, row.door, { dot, thick: rule.thick, upright: true });
         }
     }
-    return Object.freeze({ ready, drawFar, paintRoom, append, draw, drawMarks });
+    return Object.freeze({ ready, pending, drawFar, paintRoom, append, draw, drawMarks });
 })();
 safeExposeGlobals({ stageScene });

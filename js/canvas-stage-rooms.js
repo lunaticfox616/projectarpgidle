@@ -92,6 +92,8 @@ const stageRoomsView = (() => {
     function background(ctx, run, p, area) {
         const map = mapOf(run), room = map ? roomOf(run) : null;
         if (!room) return false;
+        // 지역 무대 그림을 불러오는 동안은 어둠만 둔다: 다른 지형의 방이 잠깐 비쳤다가 바뀌지 않게.
+        if (stageScene.pending(map)) { drawWallDark(ctx, map, area); return true; }
         const view = prepare(map, room, p.tileW / WIDE), box = view.box;
         noteRoom(run, room, performance.now());
         if (view.kit) stageScene.drawFar(ctx, view, p, area);

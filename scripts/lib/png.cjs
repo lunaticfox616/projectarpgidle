@@ -1,5 +1,6 @@
 'use strict';
-// Minimal PNG reader/writer for the drawing scripts: RGBA 8-bit, non-interlaced (the only kind they read or write).
+// Minimal PNG reader/writer for the drawing scripts: 8-bit, non-interlaced. Reads RGBA and RGB (opaque pictures such as the
+// stage room backdrops), always hands back RGBA, writes RGBA.
 const zlib = require('node:zlib');
 
 const SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
@@ -24,28 +25,35 @@ function chunk(type, data) {
 
 /** PNG → { width, height, data } with data = RGBA bytes, row by row. */
 function decodePng(buffer) {
-    let width = 0, height = 0;
+    let width = 0, height = 0, bpp = 4;
     const idat = [];
     for (let at = 8; at < buffer.length;) {
         const length = buffer.readUInt32BE(at), type = buffer.toString('ascii', at + 4, at + 8), data = buffer.subarray(at + 8, at + 8 + length);
         if (type === 'IHDR') {
             width = data.readUInt32BE(0);
             height = data.readUInt32BE(4);
-            if (data[8] !== 8 || data[9] !== 6 || data[12] !== 0) throw new Error('RGBA 8-bit non-interlaced PNG only');
+            if (data[8] !== 8 || (data[9] !== 6 && data[9] !== 2) || data[12] !== 0) throw new Error('RGBA or RGB 8-bit non-interlaced PNG only');
+            bpp = data[9] === 6 ? 4 : 3;
         } else if (type === 'IDAT') idat.push(data);
         at += 12 + length;
     }
-    const raw = zlib.inflateSync(Buffer.concat(idat)), stride = width * 4, out = Buffer.alloc(stride * height);
+    const raw = zlib.inflateSync(Buffer.concat(idat)), stride = width * bpp, out = Buffer.alloc(stride * height);
     for (let y = 0; y < height; y++) {
         const filter = raw[y * (stride + 1)], line = y * (stride + 1) + 1, row = y * stride;
         for (let x = 0; x < stride; x++) {
-            const a = x >= 4 ? out[row + x - 4] : 0, b = y ? out[row - stride + x] : 0, c = x >= 4 && y ? out[row - stride + x - 4] : 0;
+            const a = x >= bpp ? out[row + x - bpp] : 0, b = y ? out[row - stride + x] : 0, c = x >= bpp && y ? out[row - stride + x - bpp] : 0;
             const p = a + b - c, pa = Math.abs(p - a), pb = Math.abs(p - b), pc = Math.abs(p - c);
             const predictor = [0, a, b, (a + b) >> 1, pa <= pb && pa <= pc ? a : pb <= pc ? b : c][filter];
             out[row + x] = (raw[line + x] + predictor) & 255;
         }
     }
-    return { width, height, data: out };
+    return { width, height, data: bpp === 4 ? out : opaque(out, width * height) };
+}
+/** RGB bytes → RGBA bytes with full alpha. */
+function opaque(rgb, pixels) {
+    const out = Buffer.alloc(pixels * 4, 255);
+    for (let i = 0; i < pixels; i++) rgb.copy(out, i * 4, i * 3, i * 3 + 3);
+    return out;
 }
 
 /** RGBA bytes (row by row) → PNG buffer. Rows are stored unfiltered and deflated at level 9. */

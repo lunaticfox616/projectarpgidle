@@ -1,16 +1,25 @@
-/** 방 단위 무대의 미니맵 (js/act-exploration-rooms.js의 plan). 방을 상자로, 길을 선으로 그린 약도다.
- * 2026-10-11 사용자 "미니맵에서 돈 맵, 아직 안돈 맵 표기를 좀 더 고급스럽게": 가 본 방은 모서리가 살아 있는 황동 판이고, 문 너머로만 아는 방은
- * 점선 테두리에 속이 빈 마름모가 놓인 어두운 판이다. 걸어 본 길은 어두운 바탕 위의 황동 선, 아직 안 걸은 길은 점선이다. 나머지 방은 숨는다.
- * 지금 선 방은 금빛 테두리가 빛나고 그 안에 주인공 점이 선다. 무리 표식은 이어진 지도의 미니맵과 같은 색이다(보스 붉은색, 정예 금색,
- * 무리 갈색): 안 가 본 방에는 보스와 정예만 보인다. 방을 누르면 그 방으로 걷는다: 아직 안 가 본 방이면 그 방으로 가는 문까지.
+/** 방 단위 무대의 미니맵 (js/act-exploration-rooms.js의 plan). 방 놓임새의 격자를 그대로 옮긴 약도다: 방은 같은 크기의 칸, 문은
+ * 맞닿은 칸 사이의 짧은 이음(던파의 약도와 같다).
+ * 2026-10-13 사용자 "미니맵 고급화 하랬더니 금칠을 해놔서 더 이상하니까 좀 더 개선해줘": 황동 판을 걷어 내고 HUD의 돌빛에 맞춘
+ * 차분한 청회색으로 그린다. 색은 뜻이 있는 곳에만 쓴다.
+ * - 가 본 방: 청회색 칸. 몬스터가 남아 있으면 밝고, 다 비웠으면 한 단 어둡다.
+ * - 문 너머로만 아는 방: 속이 빈 어두운 칸. 그 밖의 방은 숨는다.
+ * - 지금 선 방: 청록 테가 빛나고 그 안에 주인공 점이 선다(주인공이 방 안에서 선 자리 그대로).
+ * - 보스 방: 붉은 칸에 뿔 달린 표식. 정예가 남은 방: 가운데의 작은 호박색 마름모.
+ * - 문: 지나 본 문은 밝은 이음, 아직 안 지난 문은 어두운 이음, 보스 방으로 가는 문은 붉다.
+ * 방을 누르면 그 방으로 걷는다: 아직 안 가 본 방이면 그 방으로 가는 문까지.
  * 그리기와 좌표 환산만 한다. 이동 명령은 js/act-exploration-ui.js가 내린다.
  */
 const actExplorationRoomsUi = (() => {
-    const INK = Object.freeze({ fog: '#050807', link: '#b89a5a', linkUnder: '#120d08', linkDim: '#6a6048', gate: '#e78077',
-        rim: '#140e08', plateTop: '#b39a62', plateBottom: '#74603a', plateLight: '#ecd9a4', plateShade: '#3f321d',
-        veil: '#131b19', veilEdge: 'rgba(214,190,130,.62)', veilMark: 'rgba(214,190,130,.5)',
-        here: '#ffe9a8', hereGlow: 'rgba(255,214,120,.9)', hero: '#91ecdf', heroLight: '#eafffb' });
-    const SIZE = Object.freeze({ mini: { w: 152, h: 152, pad: 10 }, large: { w: 560, h: 400, pad: 28 } });
+    const INK = Object.freeze({ back: '#080b0d', rim: '#0b0e11',
+        room: '#5b6a78', roomLight: '#8493a1', roomShade: '#3a4651', done: '#35404a', doneLight: '#4c5964', doneShade: '#252d35',
+        veil: '#12171c', veilEdge: '#627080',
+        boss: '#7c2a2c', bossLight: '#c2554f', bossShade: '#4a1719', bossVeil: '#2a1113', bossEdge: '#a7443f', bossMark: '#ffd9cf',
+        link: '#93a2b0', linkDim: '#46525d', gate: '#c2554f', elite: '#e2b457', eliteEdge: '#3a2a10',
+        here: '#7ff0de', hereGlow: 'rgba(110,240,220,.85)', hero: '#f4fffd', heroEdge: '#0b2a27' });
+    /** 약도가 들어가는 자리(px): 작은 미니맵은 둥글게 잘리므로 모서리를 넉넉히 비운다. cap, least = 격자 한 칸의 가장 큰 크기와 가장 작은 크기.
+     * 작은 미니맵은 방이 많아 least로도 다 들어가지 않으면 주인공이 선 방을 따라 움직인다(큰 지도는 언제나 전체를 보여 준다). */
+    const SIZE = Object.freeze({ mini: { w: 152, h: 152, pad: 18, cap: 30, least: 19 }, large: { w: 560, h: 400, pad: 40, cap: 92, least: 0 } });
 
     /** The rooms the map shows: visited ones, and the ones a door of a visited room leads to. */
     function knowledge(run, map) {
@@ -18,103 +27,106 @@ const actExplorationRoomsUi = (() => {
         for (const door of map.doors) if (visited.has(door.room)) known.add(door.to);
         return { visited, known };
     }
-    /** Plan units → canvas px: the whole plan fitted and centred. */
+    /** Where a plan span starts in a canvas span: centred when it fits, else following `at` (plan units) without leaving the plan. */
+    function planStart(span, room, pad, at) {
+        return span <= room - pad * 2 ? (room - span) / 2 : Math.max(room - pad - span, Math.min(pad, room / 2 - at));
+    }
+    /** Plan units → canvas px: the whole plan fitted and centred; a plan too large for the small map follows the hero's room. */
     function fit(canvas, map) {
         const size = canvas.id === 'act-exploration-map' ? SIZE.mini : SIZE.large, plan = map.plan;
-        const scale = Math.min((size.w - size.pad * 2) / plan.width, (size.h - size.pad * 2) / plan.height);
-        const left = (size.w - plan.width * scale) / 2, top = (size.h - plan.height * scale) / 2;
+        const room = actExplorationRooms.roomAt(map, game.gridPlayer), here = plan.boxes[room ? room.index : map.entry.index];
+        const scale = Math.max(size.least, Math.min(size.cap, (size.w - size.pad * 2) / plan.width, (size.h - size.pad * 2) / plan.height));
+        const left = planStart(plan.width * scale, size.w, size.pad, here.x * scale), top = planStart(plan.height * scale, size.h, size.pad, here.y * scale);
         return { size, scale, x: value => left + value * scale, y: value => top + value * scale };
     }
     function rectOf(box, view) {
-        return { x: view.x(box.x - box.halfW), y: view.y(box.y - box.halfH), w: box.halfW * 2 * view.scale, h: box.halfH * 2 * view.scale };
+        const x = Math.round(view.x(box.x - box.halfW)), y = Math.round(view.y(box.y - box.halfH));
+        return { x, y, w: Math.round(box.halfW * 2 * view.scale), h: Math.round(box.halfH * 2 * view.scale) };
     }
-    function trace(ctx, line, view) {
-        ctx.beginPath();
-        line.points.forEach(([x, y], index) => (index ? ctx.lineTo(view.x(x), view.y(y)) : ctx.moveTo(view.x(x), view.y(y))));
-        ctx.stroke();
-    }
-    /** A walked link is a brass line laid over a dark one; a link to a room not yet entered is dashed. The boss gate's is red. */
+    /** 문: 두 칸의 가운데를 잇는 띠(칸이 그 위를 덮어 칸 사이만 남는다). 지나 본 문은 밝고 아직 안 지난 문은 어둡다. */
     function drawLinks(ctx, map, view, seen) {
-        const width = Math.max(1.6, view.scale * .55);
+        const width = Math.max(2, Math.round(view.scale * .14));
         ctx.lineCap = 'butt';
         for (const line of map.plan.lines) {
             if (!seen.known.has(line.from) || !seen.known.has(line.to)) continue;
-            const walked = seen.visited.has(line.from) && seen.visited.has(line.to);
-            if (walked) { ctx.strokeStyle = INK.linkUnder; ctx.lineWidth = width + 2; trace(ctx, line, view); }
-            ctx.setLineDash(walked ? [] : [2, 2]);
-            ctx.strokeStyle = line.gate ? INK.gate : walked ? INK.link : INK.linkDim;
-            ctx.lineWidth = walked ? width : Math.max(1.2, width * .8);
-            trace(ctx, line, view);
+            const walked = seen.visited.has(line.from) && seen.visited.has(line.to), [from, to] = line.points;
+            ctx.strokeStyle = INK.rim; ctx.lineWidth = width + 2;
+            ctx.beginPath(); ctx.moveTo(view.x(from[0]), view.y(from[1])); ctx.lineTo(view.x(to[0]), view.y(to[1])); ctx.stroke();
+            ctx.strokeStyle = line.gate ? INK.gate : walked ? INK.link : INK.linkDim; ctx.lineWidth = width;
+            ctx.beginPath(); ctx.moveTo(view.x(from[0]), view.y(from[1])); ctx.lineTo(view.x(to[0]), view.y(to[1])); ctx.stroke();
         }
-        ctx.setLineDash([]);
     }
-    /** A room the hero has been in: a brass plate, lit along its top and left, shaded along its bottom and right. */
-    function plate(ctx, rect, edge) {
-        const body = ctx.createLinearGradient(0, rect.y, 0, rect.y + rect.h);
-        body.addColorStop(0, INK.plateTop); body.addColorStop(1, INK.plateBottom);
+    /** 칸 하나: 어두운 테, 몸, 위쪽과 왼쪽의 밝은 모서리, 아래쪽과 오른쪽의 그늘. */
+    function roomTile(ctx, rect, tone) {
+        const edge = Math.max(1, Math.round(rect.h * .14));
         ctx.fillStyle = INK.rim; ctx.fillRect(rect.x - 1, rect.y - 1, rect.w + 2, rect.h + 2);
-        ctx.fillStyle = body; ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
-        ctx.fillStyle = INK.plateLight; ctx.fillRect(rect.x, rect.y, rect.w, edge); ctx.fillRect(rect.x, rect.y, edge, rect.h);
-        ctx.fillStyle = INK.plateShade; ctx.fillRect(rect.x, rect.y + rect.h - edge, rect.w, edge); ctx.fillRect(rect.x + rect.w - edge, rect.y, edge, rect.h);
+        ctx.fillStyle = tone.body; ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+        ctx.fillStyle = tone.light; ctx.fillRect(rect.x, rect.y, rect.w, edge); ctx.fillRect(rect.x, rect.y, edge, rect.h);
+        ctx.fillStyle = tone.shade; ctx.fillRect(rect.x, rect.y + rect.h - edge, rect.w, edge); ctx.fillRect(rect.x + rect.w - edge, rect.y, edge, rect.h);
     }
-    /** A room known only through a door: a dark plate with a dashed edge and a hollow mark in its middle. */
-    function veil(ctx, rect) {
-        const x = rect.x + rect.w / 2, y = rect.y + rect.h / 2, r = Math.max(1.8, Math.min(rect.w, rect.h) * .24);
-        ctx.fillStyle = INK.veil; ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
-        ctx.lineWidth = 1; ctx.strokeStyle = INK.veilEdge;
-        ctx.setLineDash([2, 2]); ctx.strokeRect(rect.x + .5, rect.y + .5, rect.w - 1, rect.h - 1); ctx.setLineDash([]);
-        ctx.beginPath(); ctx.moveTo(x, y - r); ctx.lineTo(x + r, y); ctx.lineTo(x, y + r); ctx.lineTo(x - r, y); ctx.closePath();
-        ctx.strokeStyle = INK.veilMark; ctx.stroke();
+    /** 문 너머로만 아는 방: 속이 빈 어두운 칸. */
+    function hollowTile(ctx, rect, body, edge) {
+        ctx.fillStyle = INK.rim; ctx.fillRect(rect.x - 1, rect.y - 1, rect.w + 2, rect.h + 2);
+        ctx.fillStyle = edge; ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+        ctx.fillStyle = body; ctx.fillRect(rect.x + 1, rect.y + 1, rect.w - 2, rect.h - 2);
     }
-    function drawRooms(ctx, map, view, seen) {
-        const edge = Math.max(1, Math.min(3, Math.round(view.scale * .3)));
+    /** 보스 방의 표식: 뿔 둘이 솟은 얼굴(작은 칸에서도 읽히는 덩어리). */
+    function bossRoomMark(ctx, rect, colour) {
+        const u = Math.max(1, Math.round(Math.min(rect.w, rect.h) / 7)), cx = Math.round(rect.x + rect.w / 2), cy = Math.round(rect.y + rect.h / 2);
+        ctx.fillStyle = colour;
+        ctx.fillRect(cx - u * 2, cy - u, u * 4, u * 2);
+        ctx.fillRect(cx - u, cy + u, u * 2, u);
+        ctx.fillRect(cx - u * 3, cy - u * 2, u, u * 2);
+        ctx.fillRect(cx + u * 2, cy - u * 2, u, u * 2);
+    }
+    const livingRoomPacks = (run, room) => run.packs.filter(pack => pack.roomId === room.id && pack.aliveIds.length);
+    function drawRooms(ctx, run, map, view, seen) {
         for (const box of map.plan.boxes) {
             if (!seen.known.has(box.index)) continue;
-            if (seen.visited.has(box.index)) plate(ctx, rectOf(box, view), edge);
-            else veil(ctx, rectOf(box, view));
+            const room = map.rooms[box.index], rect = rectOf(box, view), boss = room.role === 'boss', visited = seen.visited.has(box.index);
+            if (!visited) hollowTile(ctx, rect, boss ? INK.bossVeil : INK.veil, boss ? INK.bossEdge : INK.veilEdge);
+            else if (boss) roomTile(ctx, rect, { body: INK.boss, light: INK.bossLight, shade: INK.bossShade });
+            else if (livingRoomPacks(run, room).length) roomTile(ctx, rect, { body: INK.room, light: INK.roomLight, shade: INK.roomShade });
+            else roomTile(ctx, rect, { body: INK.done, light: INK.doneLight, shade: INK.doneShade });
+            if (boss) bossRoomMark(ctx, rect, visited ? INK.bossMark : INK.bossEdge);
         }
     }
-    function diamond(ctx, x, y, r, fill) {
+    function eliteDiamond(ctx, x, y, r) {
         ctx.beginPath(); ctx.moveTo(x, y - r); ctx.lineTo(x + r, y); ctx.lineTo(x, y + r); ctx.lineTo(x - r, y); ctx.closePath();
-        ctx.fillStyle = fill; ctx.fill(); ctx.lineWidth = .8; ctx.strokeStyle = '#140d08'; ctx.stroke();
+        ctx.fillStyle = INK.elite; ctx.fill(); ctx.lineWidth = 1; ctx.strokeStyle = INK.eliteEdge; ctx.stroke();
     }
-    /** Living packs of shown rooms, in the colours of the continuous minimap (boss red, elite gold, pack brown). A room not yet
-     * entered shows only its boss or elite: what else waits there is not known. */
-    function drawPacks(ctx, run, map, view, seen) {
-        const r = Math.max(3, view.scale * 1.1);
+    /** 정예가 남은 방(가 보지 않은 방도)에는 가운데에 작은 호박색 마름모가 놓인다. 보스 방은 제 표식이 있다. */
+    function drawEliteMarks(ctx, run, map, view, seen) {
         for (const room of map.rooms) {
-            const packs = run.packs.filter(pack => pack.roomId === room.id && pack.aliveIds.length);
-            if (!packs.length || !seen.known.has(room.index)) continue;
-            const box = map.plan.boxes[room.index], boss = packs.find(pack => pack.stage !== null);
-            const elite = packs.some(pack => pack.eliteIds.some(id => pack.aliveIds.includes(id)));
-            if (!boss && !elite && !seen.visited.has(room.index)) continue;
-            diamond(ctx, view.x(box.x), view.y(box.y), boss ? r * 1.25 : r, boss ? INK.gate : elite ? '#e1bd62' : '#6b4a2e');
+            if (room.role === 'boss' || !seen.known.has(room.index)) continue;
+            if (!livingRoomPacks(run, room).some(pack => pack.eliteIds.some(id => pack.aliveIds.includes(id)))) continue;
+            const box = map.plan.boxes[room.index];
+            eliteDiamond(ctx, view.x(box.x), view.y(box.y), Math.max(2.5, view.scale * .13));
         }
     }
     /** The hero's room wears a bright frame; the hero's dot stands where the hero stands in the room. */
     function drawHero(ctx, map, view) {
         const room = actExplorationRooms.roomAt(map, game.gridPlayer);
         if (!room) return;
-        const box = map.plan.boxes[room.index], rect = rectOf(box, view);
+        const rect = rectOf(map.plan.boxes[room.index], view);
         ctx.save();
-        ctx.shadowColor = INK.hereGlow; ctx.shadowBlur = 6;
+        ctx.shadowColor = INK.hereGlow; ctx.shadowBlur = 5;
         ctx.strokeStyle = INK.here; ctx.lineWidth = 1.5;
         ctx.strokeRect(rect.x - 1.75, rect.y - 1.75, rect.w + 3.5, rect.h + 3.5);
         ctx.restore();
-        const fx = Math.max(0, Math.min(1, (game.gridPlayer.gx - room.x0 + .5) / (room.x1 - room.x0 + 1)));
-        const fy = Math.max(0, Math.min(1, (game.gridPlayer.gy - room.y0 + .5) / (room.y1 - room.y0 + 1)));
-        const x = rect.x + rect.w * fx, y = rect.y + rect.h * fy, r = Math.max(2.5, view.scale * .8);
+        const fx = Math.max(.12, Math.min(.88, (game.gridPlayer.gx - room.x0 + .5) / (room.x1 - room.x0 + 1)));
+        const fy = Math.max(.2, Math.min(.8, (game.gridPlayer.gy - room.y0 + .5) / (room.y1 - room.y0 + 1)));
+        const x = rect.x + rect.w * fx, y = rect.y + rect.h * fy, r = Math.max(2, view.scale * .1);
         ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
-        ctx.fillStyle = INK.hero; ctx.fill(); ctx.lineWidth = .8; ctx.strokeStyle = '#0b1a17'; ctx.stroke();
-        ctx.fillStyle = INK.heroLight; ctx.fillRect(x - r * .45, y - r * .45, Math.max(1, r * .5), Math.max(1, r * .5));
+        ctx.fillStyle = INK.hero; ctx.fill(); ctx.lineWidth = 1; ctx.strokeStyle = INK.heroEdge; ctx.stroke();
     }
     /** A move command is ringed on the room it leads to. */
     function drawCommand(ctx, run, map, view) {
         const room = run.destination ? actExplorationRooms.roomAt(map, run.destination) : null;
         if (!room) return;
-        const door = actExplorationRooms.doorAt(map, run.destination), box = map.plan.boxes[door ? door.to : room.index];
-        ctx.beginPath(); ctx.arc(view.x(box.x), view.y(box.y), Math.max(5, view.scale * 1.8), 0, Math.PI * 2);
-        ctx.setLineDash([2, 1.5]); ctx.lineWidth = 1; ctx.strokeStyle = INK.here; ctx.stroke(); ctx.setLineDash([]);
+        const door = actExplorationRooms.doorAt(map, run.destination), rect = rectOf(map.plan.boxes[door ? door.to : room.index], view);
+        ctx.setLineDash([2, 2]); ctx.lineWidth = 1; ctx.strokeStyle = INK.here;
+        ctx.strokeRect(rect.x - 3.5, rect.y - 3.5, rect.w + 7, rect.h + 7); ctx.setLineDash([]);
     }
     function draw(canvas, run, map) {
         const view = fit(canvas, map), ss = 2, seen = knowledge(run, map);
@@ -122,10 +134,10 @@ const actExplorationRoomsUi = (() => {
         canvas.dataset.view = 'rooms';
         const ctx = canvas.getContext('2d');
         ctx.setTransform(ss, 0, 0, ss, 0, 0);
-        ctx.fillStyle = INK.fog; ctx.fillRect(0, 0, view.size.w, view.size.h);
+        ctx.fillStyle = INK.back; ctx.fillRect(0, 0, view.size.w, view.size.h);
         drawLinks(ctx, map, view, seen);
-        drawRooms(ctx, map, view, seen);
-        drawPacks(ctx, run, map, view, seen);
+        drawRooms(ctx, run, map, view, seen);
+        drawEliteMarks(ctx, run, map, view, seen);
         drawCommand(ctx, run, map, view);
         drawHero(ctx, map, view);
     }

@@ -185,9 +185,13 @@ const devTestPanel = (() => {
             row([el('label', { textContent: '자세' }), stance]),
             row([el('label', { textContent: '지도' }), button('방 단위', () => setStageRooms('on')), button('이어진 지도', () => setStageRooms('off'))]),
             row([el('label', { textContent: '방 가로' }), ...STAGE_ROOMS.wideSteps.map(step => button(step ? `+${step}` : '기본',
-                () => setStageRoomSize('stageRoomWide', step, `방 가로: ${STAGE_ROOMS.bossWidth + step}칸까지`)))]),
+                () => setStageRoomSize('stageRoomWide', step, `방 가로: ${STAGE_ROOMS.widths.boss + step}칸까지`)))]),
             row([el('label', { textContent: '방 깊이' }), ...STAGE_ROOMS.deepSteps.map(step => button(`${STAGE_ROOMS.depth + step}칸`,
                 () => setStageRoomSize('stageRoomDeep', step, `방 깊이: ${STAGE_ROOMS.depth + step}칸`)))]),
+            // 방 놓임새(data/stage-room-plans.js): 액트는 프리셋 넷 가운데 하나가 소프트 랜덤으로 나온다. 여기서 하나를 못박거나 준 랜덤으로 짜 볼 수 있다.
+            row([el('label', { textContent: '놓임새' }), button('자동', () => setStageRoomSize('stageRoomPlan', 'auto', '방 놓임새: 자동(프리셋 넷 가운데)')),
+                ...[1, 2, 3, 4].map(index => button(String(index), () => setStageRoomSize('stageRoomPlan', index, `방 놓임새: 프리셋 ${index}`))),
+                button('준 랜덤', () => setStageRoomSize('stageRoomPlan', 'random', '방 놓임새: 준 랜덤'))]),
             row([el('label', { textContent: '뒤쪽' }), button('배경 그림', () => setSetting('stageBackdrop', 'on', '방 뒤쪽: 배경 그림')),
                 button('벽돌 벽', () => setSetting('stageBackdrop', 'off', '방 뒤쪽: 벽돌 벽'))]),
             ...monsterRows()
