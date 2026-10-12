@@ -200,6 +200,7 @@ const stageScene = (() => {
         if (here.mode === 'region') stageRegion.drawMarks(ctx, p, here);
         const kit = here.mode === 'scene' ? kitOf(here.map) : null;
         if (kit && kit.sideMark) sceneSideMarks(ctx, p, here, kit);
+        if (here.room) stageDoorMarks.edges(ctx, p, actExplorationDoors.doorsHere(here.run), lastBattlefieldCanvasSize.width);
     }
     function sceneSideMarks(ctx, p, here, kit) {
         const dot = stageActors.scaleFor(p.tileW), rule = kit.sideMark;

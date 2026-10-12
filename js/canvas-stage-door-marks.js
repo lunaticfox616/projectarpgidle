@@ -47,6 +47,18 @@ const stageDoorMarks = (() => {
         }
         ctx.restore();
     }
-    return Object.freeze({ arrows });
+    /** 열린 문이 화면 옆으로 벗어나 있으면 그쪽 화면 가장자리에 같은 표시를 세운다. 방이 화면보다 넓어(휴대폰은 여덟 칸만 보인다)
+     * 싸움이 끝난 뒤 어느 쪽으로 나가는지 보이지 않았다(2026-10-13 무대를 직접 돌려 본 결과). 문의 높이에 세우므로 뒤쪽, 옆, 앞쪽 문이
+     * 서로 다른 높이에 선다. @param rows actExplorationDoors.doorsHere의 줄들 @param width 전장의 가로(CSS px) */
+    function edgeMarks(ctx, p, rows, width) {
+        const inset = Math.round(p.tileW * 0.5), dot = p.tileW / 64;
+        for (const row of rows) {
+            const at = row.locked ? null : p.cellToScreen(row.door.cell.gx, row.door.cell.gy);
+            if (!at || (at.x >= 0 && at.x <= width)) continue;
+            const side = at.x < 0 ? 'west' : 'east';
+            arrows(ctx, { cx: side === 'west' ? inset : width - inset, cy: at.y, w: p.tileW * 0.7 }, { side, gate: row.door.gate }, { dot, thick: 3, upright: true });
+        }
+    }
+    return Object.freeze({ arrows, edges: edgeMarks });
 })();
 safeExposeGlobals({ stageDoorMarks });
