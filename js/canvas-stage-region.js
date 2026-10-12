@@ -87,23 +87,39 @@ const stageRegion = (() => {
         ctx.drawImage(regionPicture(view.map.region + '.png').image, x, y, Math.round(w), Math.round(h));
         if (room.mirror) ctx.restore();
     }
+    const shadeInk = step => `rgba(12,10,12,${(SHADE.alpha * Math.min(1, step / SHADE.reach)).toFixed(3)})`;
+    /** 바닥의 양옆(뒤쪽 끝에서 앞쪽 끝까지): 옆으로 멀어질수록 어둡다. */
+    function shadeRoomSides(ctx, edge) {
+        for (let step = 0; step < edge.reachX; step += 4) {
+            ctx.fillStyle = shadeInk(step);
+            ctx.fillRect(edge.right + step, edge.top, 4, edge.front - edge.top);
+            ctx.fillRect(edge.left - step - 4, edge.top, 4, edge.front - edge.top);
+        }
+    }
+    /** 바닥의 앞쪽 바깥과 두 구석: 앞쪽 끝과 옆 끝 가운데 더 먼 쪽의 거리만큼 어둡다. 구석을 따로 두면 좁은 바닥(고정 전장) 아래에서
+     * 그늘이 네모나게 끊겨 보였다. 가로 띠는 앞으로 먼 곳을, 세로 띠는 옆으로 더 먼 곳을 맡아 겹치지 않는다. */
+    function shadeRoomFront(ctx, edge) {
+        for (let step = 0; step < edge.far - edge.front; step += 4) {
+            ctx.fillStyle = shadeInk(step);
+            ctx.fillRect(edge.left - step - 4, edge.front + step, edge.right - edge.left + step * 2 + 8, 4);
+        }
+        for (let step = 4; step < edge.reachX; step += 4) {
+            ctx.fillStyle = shadeInk(step);
+            ctx.fillRect(edge.right + step, edge.front, 4, Math.min(edge.far - edge.front, step));
+            ctx.fillRect(edge.left - step - 4, edge.front, 4, Math.min(edge.far - edge.front, step));
+        }
+    }
     /** 방마다 한 번 그려 두는 그림: 걸을 수 있는 바닥의 양옆과 앞쪽 바깥이 멀어질수록 어두워진다(방 그림의 바닥이 화면 끝까지
      * 이어지므로 어디까지 걸을 수 있는지 알린다). */
     function paintRoomShade(map, room, box) {
-        const canvas = document.createElement('canvas'), top = room.y0 * DEEP, left = room.x0 * WIDE, right = (room.x1 + 1) * WIDE, front = (room.y1 + 1) * DEEP;
+        const canvas = document.createElement('canvas'), left = room.x0 * WIDE, right = (room.x1 + 1) * WIDE;
         canvas.width = box.columns * WIDE;
         canvas.height = box.rows * DEEP;
-        const ctx = canvas.getContext('2d'), far = (box.y + box.rows) * DEEP, edge = (box.x + box.columns) * WIDE;
+        const ctx = canvas.getContext('2d'), edge = { left, right, top: room.y0 * DEEP, front: (room.y1 + 1) * DEEP, far: (box.y + box.rows) * DEEP,
+            reachX: Math.max(left - box.x * WIDE, (box.x + box.columns) * WIDE - right) };
         ctx.translate(-box.x * WIDE, -box.y * DEEP);
-        for (let step = 0; step < Math.max(left - box.x * WIDE, edge - right); step += 4) {
-            ctx.fillStyle = `rgba(12,10,12,${(SHADE.alpha * Math.min(1, step / SHADE.reach)).toFixed(3)})`;
-            ctx.fillRect(right + step, top, 4, far - top);
-            ctx.fillRect(left - step - 4, top, 4, far - top);
-        }
-        for (let step = 0; step < far - front; step += 4) {
-            ctx.fillStyle = `rgba(12,10,12,${(SHADE.alpha * Math.min(1, step / SHADE.reach)).toFixed(3)})`;
-            ctx.fillRect(left, front + step, right - left, 4);
-        }
+        shadeRoomSides(ctx, edge);
+        shadeRoomFront(ctx, edge);
         return canvas;
     }
 
