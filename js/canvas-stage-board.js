@@ -3,7 +3,8 @@
  * 무대의 두 배 가까운 크기로 거칠게 보였고 바닥은 흐렸다. 그 구역의 지역 무대 그림(data/stage-regions.js)이 있으면 방 하나처럼
  * 그린다: 칸의 크기는 방 무대와 같고(화면 너비에 스무 칸), 아홉 칸에 여덟 줄의 판이 화면 가운데에 놓이며, 뒤에는 지역 그림이,
  * 판 밖의 바닥에는 그늘이 깔린다. 칸의 수와 판정은 그대로다: 그리는 자리만 바꾼다.
- * 그림이 없거나 테스트 패널에서 배경 그림을 끈 곳에서는 null과 false를 답해 앞서의 판 그림이 그대로 나온다.
+ * 그 구역의 지역 그림이 없으면(케르베로스 전장, 테스트 패널에서 배경 그림을 끈 때) 앞서의 판 그림을 그대로 쓰되 칸의 크기만 방 무대에
+ * 맞춘다. 무대가 꺼져 있으면 null과 false를 답해 위에서 보는 전장 그대로다.
  */
 const stageBoard = (() => {
     const WIDE = 64;                                                    // 그늘 그림에서 한 칸의 가로 도트(js/canvas-stage-region.js와 같다)
@@ -38,12 +39,16 @@ const stageBoard = (() => {
     /** 고정 전장의 화면 자리. 칸은 방 무대의 크기이되 판이 화면에 다 들어오게 줄인다(좁은 화면).
      * @returns {?object} js/ui.js getFixedBattleGridProjection과 같은 모양, 무대 그림으로 그리지 않는 구역이면 null */
     function boardProjection(width, height, zone) {
-        const stage = boardStage(zone);
-        if (!stage) return null;
-        const layout = boardLayout(), tile = Math.min(stageView.tile(width), Math.floor(width / (layout.columns + 0.5))), deep = tile * stageView.depth();
-        const mapX = Math.round((width - layout.columns * tile) / 2), mapY = Math.round(height * boardFloorShare(width, height) - layout.rows * deep);
-        return { tileW: tile, tileH: deep, actorGroundOffsetY: deep / 6, unitScaleCap: tile / 46, mapX, mapY, mapWidth: layout.columns * tile, mapHeight: layout.rows * deep,
-            stageBoard: stage, cellToScreen: (gx, gy) => ({ x: mapX + (gx + 0.5) * tile, y: mapY + (gy + 0.5) * deep }) };
+        if (!stageView.enabled()) return null;
+        const stage = boardStage(zone), layout = boardLayout();
+        const tile = Math.min(stageView.tile(width), Math.floor(width / (layout.columns + 0.5))), deep = tile * stageView.depth();
+        const left = Math.round((width - layout.columns * tile) / 2), top = Math.round(height * boardFloorShare(width, height) - layout.rows * deep);
+        const cells = { tileW: tile, tileH: deep, actorGroundOffsetY: deep / 6, unitScaleCap: tile / 46, cellToScreen: (gx, gy) => ({ x: left + (gx + 0.5) * tile, y: top + (gy + 0.5) * deep }) };
+        if (stage) return { ...cells, mapX: left, mapY: top, mapWidth: layout.columns * tile, mapHeight: layout.rows * deep, stageBoard: stage };
+        // 지역 그림이 없는 고정 전장(케르베로스): 앞서의 판 그림을 그대로 쓰되 칸은 방 무대의 크기다. 판 그림을 놓는 쪽(js/ui.js
+        // drawGridAlignedBackdrop)이 읽는 지도 상자는 판 그림 전체(칸 둘레의 장식까지)라, 칸의 자리에서 거꾸로 셈해 준다.
+        const scale = tile / layout.cellWidth, tall = deep / layout.cellHeight;
+        return { ...cells, mapX: left - layout.gridOriginX * scale, mapY: top - layout.gridOriginY * tall, mapWidth: layout.width * scale, mapHeight: layout.height * tall };
     }
     /** 판 밖의 바닥이 멀어질수록 어두워지는 그늘(판마다 한 번 그려 둔다). */
     function boardShade(map) {
