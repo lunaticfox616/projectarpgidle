@@ -332,11 +332,12 @@ test('release update waits for settlement and saves current progress before relo
     expect(failures).toEqual([]);
 });
 
-test('release update keeps unsaved progress open when local storage is full', async ({ page }, testInfo) => {
+test('release update preserves unsaved progress until a manual save recovers storage', async ({ page }, testInfo) => {
     await openGameWithUpdate(page);
     const before = await page.evaluate(() => localStorage.getItem(LOCAL_SAVE_KEY));
     await page.evaluate(() => {
         const setItem = Storage.prototype.setItem;
+        window.restoreUpdateTestStorage = () => { Storage.prototype.setItem = setItem; };
         Storage.prototype.setItem = function (key, value) {
             if (key === LOCAL_SAVE_KEY) throw new DOMException('test quota exceeded', 'QuotaExceededError');
             return setItem.call(this, key, value);
@@ -349,6 +350,21 @@ test('release update keeps unsaved progress open when local storage is full', as
     await page.locator('#app-update-notice').screenshot({ path: testInfo.outputPath('update-save-failed.png') });
     await page.locator('.app-update-later').click();
     await expect(page.locator('#app-update-notice')).not.toBeVisible();
+    await page.evaluate(() => switchTab('tab-settings'));
+    await dismissVisibleTutorials(page);
+    const category = page.locator('#settings-category');
+    if (await category.isVisible()) await category.selectOption('data');
+    await page.getByRole('button', { name: '지금 저장', exact: true }).click();
+    await expect(page.locator('#game-toast-region')).toContainText('저장공간이 부족합니다');
+    expect(await page.evaluate(() => localStorage.getItem(LOCAL_SAVE_KEY))).toBe(before);
+    await page.evaluate(() => window.restoreUpdateTestStorage());
+    await page.getByRole('button', { name: '지금 저장', exact: true }).click();
+    await expect(page.locator('#game-toast-region')).toContainText('이 기기에 진행을 저장했습니다');
+    expect(await page.evaluate(() => getLocalSaveStatus().writable)).toBe(true);
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem(LOCAL_SAVE_KEY)).level)).toBe(38);
+    await page.locator('#tab-settings').screenshot({ path: testInfo.outputPath('manual-save-recovered.png') });
+    await page.reload();
+    await expect.poll(() => page.evaluate(() => typeof game === 'undefined' ? null : game.level)).toBe(38);
 });
 
 test('manual loop advance asks once and cancel preserves the ready state', async ({ page }) => {
