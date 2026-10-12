@@ -12,9 +12,11 @@ const stageRoster = (() => {
     const KEEP = 14;                 // 들고 있는 그림 묶음 수(넘으면 가장 오래 안 쓴 것을 놓는다)
     const BREATH_MS = 1700;          // 숨 한 번
     const FLASH = '#fff4df';
+    const RIM = Object.freeze([[1, 0], [-1, 0], [0, 1], [0, -1]]), RIM_NONE = Object.freeze([0, 0]);
+    const TINTS = 8;                 // 한 묶음이 들고 있는 한 가지 색 그림 수(테 색, 맞았을 때의 흰빛)
     const AIRBORNE = Object.freeze(['fly', 'float', 'swim']);
-    const sheets = new Map(), layers = {};
-    let clock = 0;
+    const sheets = new Map();
+    let clock = 0, work = null;
 
     const table = () => (typeof MONSTER_STAGE_ROSTER === 'object' ? MONSTER_STAGE_ROSTER : null);
     const settings = () => (typeof game === 'object' && game.settings) || {};
@@ -50,7 +52,7 @@ const stageRoster = (() => {
     function pairOf(actor) {
         let pair = sheets.get(actor.id);
         if (!pair) {
-            pair = { walk: load(actor.id + '-walk.png'), attack: load(actor.id + '-attack.png'), failed: false, used: 0 };
+            pair = { walk: load(actor.id + '-walk.png'), attack: load(actor.id + '-attack.png'), tints: new Map(), failed: false, used: 0 };
             sheets.set(actor.id, pair);
             trim();
         }
@@ -92,17 +94,33 @@ const stageRoster = (() => {
         return fake ? { clip: 'attack', index: 0, ...fake(actor, walked) } : { clip: 'walk', index: walkFrame(enemy, actor, p, walked) };
     }
 
-    function layer(name, width, height) {
-        const canvas = layers[name] || (layers[name] = document.createElement('canvas'));
-        if (canvas.width < width) canvas.width = width;
-        if (canvas.height < height) canvas.height = height;
-        const ctx = canvas.getContext('2d');
+    /** The working surface (the art's own dots, one dot = one px), cleared for a picture of this size. */
+    function surface(width, height) {
+        if (!work) work = document.createElement('canvas');
+        if (work.width < width) work.width = width;
+        if (work.height < height) work.height = height;
+        const ctx = work.getContext('2d');
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.globalAlpha = 1;
-        ctx.globalCompositeOperation = 'source-over';
         ctx.imageSmoothingEnabled = false;
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.clearRect(0, 0, width, height);
         return ctx;
+    }
+    /** A sheet painted one colour (the rim, the flash of a hit). Made once and kept with its pair. */
+    function tint(pair, clip, colour) {
+        const key = clip + colour;
+        if (pair.tints.has(key)) return pair.tints.get(key);
+        const image = pair[clip], canvas = document.createElement('canvas');
+        canvas.width = image.naturalWidth;
+        canvas.height = image.naturalHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(image, 0, 0);
+        ctx.globalCompositeOperation = 'source-in';
+        ctx.fillStyle = colour;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        if (pair.tints.size >= TINTS) pair.tints.delete(pair.tints.keys().next().value);
+        pair.tints.set(key, canvas);
+        return canvas;
     }
     /** The frame's rows in bands, each slid sideways by whole dots (more the higher it is), or with the upper body a dot lower. */
     function bands(actor, pose) {
@@ -117,41 +135,35 @@ const stageRoster = (() => {
         }
         return list;
     }
-    /** The pose drawn in the art's own dots (one dot = one px) with `pad` dots of room around the cell. */
-    function body(image, actor, pose, pad) {
-        const width = actor.w + pad * 2, height = actor.h + pad * 2, ctx = layer('body', width, height);
-        const fx = pad + actor.feet[0], fy = pad + actor.feet[1];
-        if (pose.sx) ctx.setTransform(pose.sx, 0, 0, pose.sy, fx - fx * pose.sx, fy - fy * pose.sy);
-        for (const [from, until, dx, dy] of bands(actor, pose)) {
-            ctx.drawImage(image, pose.index * actor.w, from, actor.w, until - from, pad + dx, pad + from + dy, actor.w, until - from);
+    /** Room around the cell (dots) for what the pose pushes out of it: the lean at the top, the stretch, the rim. */
+    function padFor(actor, pose) {
+        const lean = Math.abs(pose.lean || 0) * actor.h;
+        const stretch = pose.sx ? Math.max(actor.w * Math.abs(pose.sx - 1), actor.h * Math.abs(pose.sy - 1)) : 0;
+        return 2 + Math.ceil(Math.max(lean, stretch));
+    }
+    /** Stamps the bands of one frame from `image` (a sheet, or its one-colour copy), moved by `shift` dots. */
+    function stamp(ctx, image, frame, shift) {
+        for (const [from, until, dx, dy] of frame.rows) {
+            ctx.drawImage(image, frame.x, from, frame.w, until - from, frame.pad + dx + shift[0], frame.pad + from + dy + shift[1], frame.w, until - from);
         }
-        return { width, height };
     }
-    /** The layer `from` painted one colour, on the layer `name`. */
-    function tinted(name, from, size, colour) {
-        const ctx = layer(name, size.width, size.height);
-        ctx.drawImage(layers[from], 0, 0);
-        ctx.globalCompositeOperation = 'source-in';
-        ctx.fillStyle = colour;
-        ctx.fillRect(0, 0, size.width, size.height);
-        return layers[name];
-    }
-    /** The body with its rim (the silhouette a dot out on four sides) and the pale flash of a hit over it. */
-    function finished(size, look) {
-        const ctx = layer('out', size.width, size.height);
+    /** The pose on the working surface: the rim (the silhouette a dot out on four sides), the frame, and over it the pale
+     * flash of a hit. Returns the size drawn and the room left around the cell (dots). */
+    function compose(pair, actor, pose, look) {
+        const pad = padFor(actor, pose), width = actor.w + pad * 2, height = actor.h + pad * 2, ctx = surface(width, height);
+        const fx = pad + actor.feet[0], fy = pad + actor.feet[1], frame = { x: pose.index * actor.w, w: actor.w, pad, rows: bands(actor, pose) };
+        if (pose.sx) ctx.setTransform(pose.sx, 0, 0, pose.sy, fx - fx * pose.sx, fy - fy * pose.sy);
         if (look.outline) {
-            const rim = tinted('tint', 'body', size, look.outline.color);
             ctx.globalAlpha = look.outline.alpha;
-            for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) ctx.drawImage(rim, dx, dy);
+            for (const shift of RIM) stamp(ctx, tint(pair, pose.clip, look.outline.color), frame, shift);
             ctx.globalAlpha = 1;
         }
-        ctx.drawImage(layers.body, 0, 0);
+        stamp(ctx, pair[pose.clip], frame, RIM_NONE);
         if (look.flash > 0) {
-            const pale = tinted('tint', 'body', size, FLASH);
             ctx.globalAlpha = Math.min(1, Number(look.flash));
-            ctx.drawImage(pale, 0, 0);
+            stamp(ctx, tint(pair, pose.clip, FLASH), frame, RIM_NONE);
         }
-        return layers.out;
+        return { width, height, pad };
     }
     /** One dot of the art on screen: the character's dot size, eased in while the monster appears (a boss is not enlarged:
      * the art is already drawn at its size). */
@@ -169,15 +181,14 @@ const stageRoster = (() => {
         if (!pair) return false;
         const dot = dotFor(enemy, p);
         if (pair === 'loading') { shadow(ctx, actor, p, dot, 0); return true; }
-        const pose = poseOf(enemy, actor, p), pad = Math.ceil(Math.max(actor.w, actor.h) * 0.2) + 4;
-        const size = body(pair[pose.clip], actor, pose, pad), hop = pose.hop || 0;
-        const picture = finished(size, { outline: getEnemyOutlineStyle(enemy), flash: p.flash });
+        const pose = poseOf(enemy, actor, p), hop = pose.hop || 0;
+        const size = compose(pair, actor, pose, { outline: getEnemyOutlineStyle(enemy), flash: p.flash });
         shadow(ctx, actor, p, dot, hop);
         noteEnemyDrawnHeight(enemy, (actor.height + hop) * dot);
         ctx.save();
         if (stageView.facing(enemy, p.facing) === 'west') { ctx.translate(p.x * 2, 0); ctx.scale(-1, 1); }
-        const left = monsterActors.snap(p.x - (pad + actor.feet[0]) * dot), top = monsterActors.snap(p.y - (pad + actor.feet[1] + hop) * dot);
-        stageDots.blit(ctx, picture, { x: 0, y: 0, w: size.width, h: size.height }, { x: left, y: top, scale: dot });
+        const left = monsterActors.snap(p.x - (size.pad + actor.feet[0]) * dot), top = monsterActors.snap(p.y - (size.pad + actor.feet[1] + hop) * dot);
+        stageDots.blit(ctx, work, { x: 0, y: 0, w: size.width, h: size.height }, { x: left, y: top, scale: dot });
         ctx.restore();
         return true;
     }
