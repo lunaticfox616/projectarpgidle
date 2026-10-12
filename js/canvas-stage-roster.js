@@ -14,6 +14,7 @@ const stageRoster = (() => {
     const KEEP = 14;                 // 들고 있는 그림 묶음 수(넘으면 가장 오래 안 쓴 것을 놓는다)
     const TINTS = 8;                 // 한 묶음이 들고 있는 한 가지 색 그림 수(테 색, 맞았을 때의 흰빛)
     const BREATH_MS = 1700;          // 숨 한 번
+    const HANG_DOTS = 4, HANG_MS = 2300;   // 그림이 한 장뿐인 떠 있는 몬스터가 오르내리는 높이(도트)와 한 번에 걸리는 시간
     const FLASH = '#fff4df';
     const RIM = Object.freeze([[1, 0], [-1, 0], [0, 1], [0, -1]]), RIM_NONE = Object.freeze([0, 0]);
     const AIRBORNE = Object.freeze(['fly', 'float', 'swim']);
@@ -107,11 +108,16 @@ const stageRoster = (() => {
         const fake = (actor.still || settings().stageMonsterWalk === 'code') && FAKE[actor.gait];
         return fake ? { ...rest(actor), ...fake(actor, stageStride.walked(enemy, p.now)) } : { clip: 'walk', index: walkFrame(enemy, actor, p) };
     }
-    /** { clip, index, hop, lean, sx, sy, breath, nudge }: the strike, else flying on, else walking, else standing with a breath. */
+    /** An airborne actor with one picture has no wing or drift clip to run: it hangs in the air, rising and sinking a few dots. */
+    const hangs = actor => actor.still && AIRBORNE.includes(actor.gait);
+    const hangLift = (enemy, p) => Math.round(HANG_DOTS * (0.5 + 0.5 * Math.sin((p.now + seedOf(enemy) * 211) * 2 * Math.PI / HANG_MS)));
+    /** { clip, index, hop, lean, sx, sy, breath, nudge }: the strike, else hanging in the air or flying on, else walking, else
+     * standing with a breath. */
     function poseOf(enemy, actor, p) {
-        const strike = striking(enemy, actor, p);
-        if (strike) return strike;
-        if (AIRBORNE.includes(actor.gait) && !actor.still) return { clip: 'walk', index: walkFrame(enemy, actor, p) };
+        const strike = striking(enemy, actor, p), lift = hangs(actor) ? hangLift(enemy, p) : 0;
+        if (strike) return lift ? { ...strike, hop: (strike.hop || 0) + lift } : strike;
+        if (hangs(actor)) return { ...rest(actor), hop: lift };
+        if (AIRBORNE.includes(actor.gait)) return { clip: 'walk', index: walkFrame(enemy, actor, p) };
         if (p.moving) return walking(enemy, actor, p);
         return { ...rest(actor), breath: frac((p.now + seedOf(enemy) * 211) / BREATH_MS) < 0.45 };
     }

@@ -1,12 +1,15 @@
 #!/usr/bin/env node
 /* 무대 몬스터의 새 그림(걷기와 공격)을 게임이 읽는 모양으로 옮긴다(docs/stage-view-20261011.md).
  *
- *   node scripts/build-stage-roster.cjs <정리한 그림 폴더> [복사해 둘 폴더] [--forge <새 묶음 폴더>]
+ *   node scripts/build-stage-roster.cjs <정리한 그림 폴더> [복사해 둘 폴더] [--forge <새 묶음 폴더>] [--looks <새 외형 선택.json>]
  *
  * 그림이 오는 곳은 둘이다.
  *   <정리한 그림 폴더>: 처음 받은 88종을 도트로 정리해 둔 곳(data.js, fixed/<id>/walk.png과 attack.png, 그 위 폴더의 motions.json).
  *   --forge: 영상에서 뽑아 다듬은 새 묶음(sprite-forge-selected-v1). delivery-summary.json의 확인 끝난 동작(readyActors)과,
  *     production.json에서 남기기로 고른 외형(decision keep)의 한 장 그림(master.png)을 쓴다.
+ *     targeted-data.json이 있으면 거기 적힌 동작(확인 끝난 것)이 같은 동작의 앞선 판을 덮고, 그 파일의 boss(동작 한 벌)도 넣는다.
+ *   --looks: 다시 만든 외형 가운데 사용자가 고른 것(검토 화면에서 내보낸 파일, choice keep이고 version이 같은 것)을 한 장 그림으로 넣는다.
+ *   새 묶음의 그림이 게임에서 다른 자리에 서면 FORGE_SLOT에 적는다(예: 부제나비는 액트 3 보스 그림 키 bossAct3).
  * 몬스터 하나는 한쪽 묶음의 그림만 쓴다: 새 묶음에 확인 끝난 동작이 있으면 그것(공격이 없으면 공격 그림 없이 간다), 없으면
  * 처음 받은 걷기와 공격, 그것도 없고 고른 외형만 있으면 그 한 장(걷기도 공격도 게임이 움직임을 만든다).
  * 받은 그림은 칸이 몸보다 훨씬 크다: 몬스터마다 걷기와 공격의 모든 프레임이 들어가는 가장 작은 칸으로 잘라, 한 줄에 12칸씩
@@ -23,12 +26,15 @@ const { decodePng, encodePng } = require('./lib/png.cjs');
 const { tidy } = require('./tidy-stage-art.cjs');
 
 const root = path.join(__dirname, '..');
-const args = process.argv.slice(2), forgeAt = args.indexOf('--forge'), forge = forgeAt >= 0 ? args[forgeAt + 1] : null;
-const [from, mirror] = args.filter((arg, index) => !arg.startsWith('--') && args[index - 1] !== '--forge');
-if (!from) { console.error('쓰는 법: node scripts/build-stage-roster.cjs <정리한 그림 폴더> [복사해 둘 폴더] [--forge <새 묶음 폴더>]'); process.exit(1); }
+const args = process.argv.slice(2), OPTIONS = ['--forge', '--looks'];
+const option = name => (args.includes(name) ? args[args.indexOf(name) + 1] : null);
+const forge = option('--forge'), looksFile = option('--looks');
+const [from, mirror] = args.filter((arg, index) => !arg.startsWith('--') && !OPTIONS.includes(args[index - 1]));
+if (!from) { console.error('쓰는 법: node scripts/build-stage-roster.cjs <정리한 그림 폴더> [복사해 둘 폴더] [--forge <새 묶음 폴더>] [--looks <새 외형 선택.json>]'); process.exit(1); }
 const PAD = 2, COLUMNS = 12;
 /** 걸음새: 걷는 그림을 고르는 방식과, 그림 없이 걷는 척할 때의 움직임을 정한다(js/canvas-stage-roster.js). */
 const GAIT_BY_TRAVEL = { 비행: 'fly', 부유: 'float', 유영: 'swim', 구르기: 'roll', 기어가기: 'crawl' };
+const AIRBORNE = ['fly', 'float', 'swim'];   // 떠서 움직이는 걸음새(js/canvas-stage-roster.js와 같다)
 const read = file => decodePng(fs.readFileSync(file));
 const middle = list => list.slice().sort((a, b) => a - b)[Math.floor(list.length / 2)];
 
@@ -99,41 +105,95 @@ function forgeClip(dir, hover) {
         ms: +(1000 / meta.fps).toFixed(2), hit: meta.hitEvents[0] ? meta.hitEvents[0].frame : null, pace: 'time'
     };
 }
+/** 핵심 자세 몇 장으로 된 동작(rignin.image-keyframes.v1): 시트 안의 칸과 프레임마다의 시간, 타격 프레임이 적혀 있다. */
+function forgeKeyframes(dir, hover) {
+    const meta = JSON.parse(fs.readFileSync(path.join(dir, 'animation.json'), 'utf8')), sheet = read(path.join(dir, meta.spriteSheet));
+    const feet = [meta.anchor[0], meta.anchor[1] + hover];
+    for (const row of meta.frames) if (row.rect[0] + row.rect[2] > sheet.width || row.rect[1] + row.rect[3] > sheet.height) throw new Error(dir + ': 칸이 시트 밖이다');
+    return { frames: meta.frames.map(row => frame(sheet, row.rect[0], row.rect[1], [row.rect[2], row.rect[3]], feet)), ms: meta.durationsMs, hit: meta.hitFrame, pace: 'time' };
+}
+/** 동작 하나: 폴더의 animation.json이 어느 모양인지 보고 읽는다. */
+function forgeAction(dir, hover) {
+    return JSON.parse(fs.readFileSync(path.join(dir, 'animation.json'), 'utf8')).fallback ? forgeClip(dir, hover) : forgeKeyframes(dir, hover);
+}
+/** 다시 만든 외형 한 장(이미 도트로 마감된 그림: 색을 다시 줄이지 않는다). 사용자가 그 판을 고르지 않았으면 null. */
+function forgeLook(dir, actor, decision, hover) {
+    if (!actor.redesign || !decision || decision.choice !== 'keep' || decision.version !== actor.redesign.version) return null;
+    const at = path.join(dir, path.dirname(actor.redesign.preview), 'pixel'), finish = JSON.parse(fs.readFileSync(path.join(at, 'finish.json'), 'utf8'));
+    const png = read(path.join(at, 'frames/frame_0000.png')), feet = [finish.canvas.anchor[0], finish.canvas.anchor[1] + hover];
+    return { frames: [frame(png, 0, 0, [png.width, png.height], feet)], ms: [1000], pace: 'stride' };
+}
+/** 새 묶음의 그림이 게임에서 서는 자리: id(스토리 보스는 그림 키), 걸음새, 떠 있는 높이(도트, 발 자리에서 몸 아래 끝까지).
+ * 표에 없으면 그림의 id 그대로이고, 걸음새와 높이는 고른 원본에서 정한다. */
+const FORGE_SLOT = Object.freeze({
+    'deacon-butterfly': { id: 'bossAct3', gait: 'fly', hover: 20 },                       // 기근의 맹수 자리(맹수는 다른 데 쓰려고 남겨 둔다)
+    boss: { id: 'bossAct10_2', name: '고치에서 태어난 존재', gait: 'float', hover: 12 }    // targeted-data.json의 boss: 꽃봉오리 머리의 여섯 팔
+});
 /** 고른 외형 한 장: 도트로 정리해(반투명 없애기, 색 줄이기) 걷기 한 프레임으로 쓴다. */
 function forgeStill(dir, actor) {
     const png = tidy(read(path.join(dir, actor.master)), { colours: actor.bodyHeight < 70 ? 32 : actor.bodyHeight < 130 ? 40 : 48, rim: false, accents: true });
     return { frames: [frame(png, 0, 0, [png.width, png.height], actor.sourceFeet)], ms: [1000], pace: 'stride' };
 }
+const readJson = (file, fallback) => (fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : fallback);
+/** 몬스터마다 확인 끝난 동작의 폴더: delivery-summary.json의 목록 위에 targeted-data.json의 더 새로운 판을 덮는다. */
+function forgeReady(dir, targeted) {
+    const ready = new Map();
+    const note = (id, action, folder) => ready.set(id, new Map(ready.get(id) || []).set(action, path.join(dir, folder)));
+    for (const actor of readJson(path.join(dir, 'delivery-summary.json'), { readyActors: [] }).readyActors) for (const action of actor.actions) note(actor.id, action.action, action.package);
+    for (const actor of targeted.actors || []) for (const action of actor.actions) if (action.ready && action.reviewed) note(actor.id, action.action, path.dirname(action.preview.sheet));
+    return ready;
+}
+/** 고른 원본에서 잰 떠 있는 높이: 발 자리가 그림의 아래 끝보다 얼마나 아래인가. 발 자리가 적혀 있지 않으면 0. */
+function forgeHover(dir, actor) {
+    if (!actor.sourceFeet) return 0;
+    const master = read(path.join(dir, actor.master)), rows = boxOf(frame(master, 0, 0, [master.width, master.height], actor.sourceFeet));
+    return Math.max(0, -rows[3] - 1);
+}
+/** 동작 한 벌뿐인 그림(targeted-data.json의 boss): 걷기 그림이 없으니 그 동작의 첫 자세 한 장으로 서고 걷는다. */
+function forgeBoss(dir, boss, slot) {
+    const attack = forgeKeyframes(path.join(dir, path.dirname(boss.previewSheet)), slot.hover);
+    return { id: slot.id, name: slot.name, gait: slot.gait, walk: { frames: [attack.frames[0]], ms: [1000], pace: 'stride' }, attack };
+}
 function forgeBatch(dir) {
-    const production = JSON.parse(fs.readFileSync(path.join(dir, 'production.json'), 'utf8'));
-    const ready = new Map(JSON.parse(fs.readFileSync(path.join(dir, 'delivery-summary.json'), 'utf8')).readyActors.map(actor => [actor.id, actor.actions]));
+    const production = JSON.parse(fs.readFileSync(path.join(dir, 'production.json'), 'utf8')), targeted = readJson(path.join(dir, 'targeted-data.json'), {});
+    const ready = forgeReady(dir, targeted), decisions = looksFile ? JSON.parse(fs.readFileSync(looksFile, 'utf8')).decisions : {};
     const out = new Map();
-    for (const actor of production.actors.filter(row => row.decision === 'keep')) {
-        const master = read(path.join(dir, actor.master)), rows = boxOf(frame(master, 0, 0, [master.width, master.height], actor.sourceFeet));
-        const hover = Math.max(0, -rows[3] - 1), actions = new Map((ready.get(actor.id) || []).map(action => [action.action, path.join(dir, action.package)]));
-        const base = { id: actor.id, name: actor.name, gait: gaitOf(actor.id, (motions.get(actor.id) || {}).travelLabel, actor.group) };
-        if (actions.has('walk')) out.set(actor.id, { ...base, walk: forgeClip(actions.get('walk'), hover), attack: actions.has('attack') ? forgeClip(actions.get('attack'), hover) : null });
-        else if (!motions.has(actor.id)) out.set(actor.id, { ...base, walk: forgeStill(dir, actor), attack: null });
+    for (const actor of production.actors) {
+        const slot = FORGE_SLOT[actor.id] || {}, hover = slot.hover ?? forgeHover(dir, actor), actions = ready.get(actor.id) || new Map();
+        const base = { id: slot.id || actor.id, name: actor.name, gait: slot.gait || gaitOf(actor.id, (motions.get(actor.id) || {}).travelLabel, actor.group) };
+        // 다시 만든 외형은 제 발 자리를 따로 가진 새 그림이다: 서 있는 몬스터는 원본에서 잰 높이를 쓰지 않는다(다리로 땅을 딛는다)
+        const look = forgeLook(dir, actor, decisions[actor.id], AIRBORNE.includes(base.gait) ? hover : 0);
+        if (look) out.set(base.id, { ...base, walk: look, attack: null });
+        else if (actor.decision !== 'keep') continue;
+        else if (actions.has('walk')) out.set(base.id, { ...base, walk: forgeAction(actions.get('walk'), hover), attack: actions.has('attack') ? forgeAction(actions.get('attack'), hover) : null });
+        else if (!motions.has(actor.id)) out.set(base.id, { ...base, walk: forgeStill(dir, actor), attack: null });
+    }
+    if (targeted.boss) {
+        // 그 자리에 앞서 넣은 그림은 견주어 볼 수 있게 다른 이름으로 남긴다(테스트 패널의 "몬스터 모습")
+        const slot = FORGE_SLOT.boss, before = out.get(slot.id);
+        if (before) out.set(slot.id + '-prev', { ...before, id: slot.id + '-prev', name: before.name + ' (이전 그림)' });
+        out.set(slot.id, forgeBoss(dir, targeted.boss, slot));
     }
     return out;
 }
 
 /** 새 동작이 아직 없는 위습 외형은 같은 속성의 새 위습 그림을 빌려 입는다(data/wisp-sprites.js WISP_SPRITE_BY_VISUAL의 속성).
- * 속성에 새 그림이 없으면(지금은 화염과 독) 처음 받은 제 그림 그대로다. 외형마다 새 동작이 오면 이 표에서 빠진다. */
-function wispWears(made) {
+ * 속성에 새 그림이 없으면(지금은 화염과 독) 처음 받은 제 그림 그대로다. 외형마다 새 그림(own: 동작이든 한 장이든)이 오면 이 표에서 빠진다. */
+function wispWears(made, own) {
     const data = {};
     global.safeExposeData = table => Object.assign(data, table);
     require(path.join(root, 'data/wisp-sprites.js'));
     const byElement = new Map();
     for (const id of made) if (data.WISP_SPRITE_BY_VISUAL[id] && !byElement.has(data.WISP_SPRITE_BY_VISUAL[id])) byElement.set(data.WISP_SPRITE_BY_VISUAL[id], id);
-    return Object.entries(data.WISP_SPRITE_BY_VISUAL).filter(([id, element]) => !made.includes(id) && byElement.has(element)).map(([id, element]) => [id, byElement.get(element)]);
+    return Object.entries(data.WISP_SPRITE_BY_VISUAL).filter(([id, element]) => !own.includes(id) && byElement.has(element)).map(([id, element]) => [id, byElement.get(element)]);
 }
 
 // ------------------------------------------------------------------ 옮기기
 const actors = new Map(window.ROSTER.actors.map(actor => [actor.id, firstBatch(actor)]));
-const counts = { first: actors.size, moving: 0, still: 0 }, moving = [];
+const counts = { first: actors.size, moving: 0, still: 0 }, moving = [], fromForge = [];
 if (forge) for (const [id, actor] of forgeBatch(forge)) {
     counts[actor.walk.frames.length > 1 ? 'moving' : 'still']++;
+    fromForge.push(id);
     if (actor.walk.frames.length > 1) moving.push(id);
     if (actors.has(id)) counts.first--;
     actors.set(id, actor);
@@ -160,7 +220,7 @@ for (const actor of actors.values()) {
         + `${attack ? clipText({ n: actor.attack.frames.length, cols: attack.cols, ms: actor.attack.ms, extra: actor.attack.hit }) : 'null'}]`);
 }
 
-const version = stamp.digest('hex').slice(0, 10), wears = wispWears(moving);
+const version = stamp.digest('hex').slice(0, 10), wears = wispWears(moving, fromForge);
 const text = `// 옆에서 보는 무대의 몬스터 새 그림(docs/stage-view-20261011.md): node scripts/build-stage-roster.cjs가 쓴다. 손으로 고치지 않는다.
 // 몬스터마다 걷기와 공격 두 장(오른쪽을 보는 그림, 한 줄에 cols칸, 도트 하나 = 캐릭터 도트 하나)이고, 두 장은 칸 크기와 발 자리가 같다.
 // 그림은 저장소에 없다(assets/enemies/roster/, 로컬에만 둔다). 없는 곳에서는 앞서 쓰던 그림으로 그린다(js/canvas-stage-roster.js).
