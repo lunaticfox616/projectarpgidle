@@ -260,9 +260,11 @@ const stageActors = (() => {
 })();
 
 const sides = new WeakMap();
-/** A local test page opened with ?stage=1 (the launcher's stage entry) starts on the stage without touching the save. */
+/** A local test page opened with ?stage=1 (the launcher's stage entry) starts on the stage without touching the save.
+ * Only the leading 1 counts: a link pasted into a sentence can drag what followed it into the value ("1)에서"), and the page
+ * then opened as the plain top-down game with no room maps at all (2026-10-13). */
 const stageByAddress = typeof location === 'object' && ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname)
-    && new URLSearchParams(location.search).get('stage') === '1';
+    && /^1(?!\d)/.test(new URLSearchParams(location.search).get('stage') || '');
 /** The side-view stage (data/stage-view.js): whether the battlefield is drawn that way, and the numbers that follow from it. */
 const stageView = Object.freeze({
     /** settings.battleView 'stage' turns it on and 'top' turns it off; with neither, the address decides. The art must be there. */

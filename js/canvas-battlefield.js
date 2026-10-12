@@ -2194,9 +2194,22 @@ function buildEnemyAttackMotionMap(effects, enemyPosMap, playerPos, now) {
     return result;
 }
 
+/** 옆에서 보는 무대의 몬스터는 왼쪽이나 오른쪽만 본다(2026-10-13 사용자: 걸어올 때 좌우가 맞지 않는다. 전에는 주인공이 위아래로 더
+ * 멀면 위나 아래를 본다고 답했고, 무대는 그때 직전 방향을 지켜서 처음 나온 몬스터가 등을 보이며 걸어왔다).
+ * 걷는 동안에는 가는 쪽(enemyPos.heading, glideBattleEnemy), 서 있거나 때릴 때는 주인공이 있는 쪽을 본다. 위아래로만 걷거나
+ * 주인공과 거의 같은 세로줄에 서 있으면 'south'를 답한다: 무대는 그때 직전 방향을 지킨다(stageView.facing). */
+const STAGE_SIDE_DEAD_PX = 10;
+function resolveStageEnemySide(enemyPos, playerPos) {
+    if (enemyPos.heading) return enemyPos.heading;
+    const dx = Number(playerPos.x) - Number(enemyPos.x);
+    if (Math.abs(dx) <= STAGE_SIDE_DEAD_PX) return 'south';
+    return dx < 0 ? 'west' : 'east';
+}
+
 function resolveEnemyFacingDirection(enemyPos, playerPos) {
     if (!enemyPos || !playerPos) return 'south';
     if (mobilitySkill.equipped()==='암살' && enemyPos.enemy?.facingDirection) return ({2:'south',4:'west',6:'east',8:'north'})[enemyPos.enemy.facingDirection];
+    if (stageView.enabled()) return resolveStageEnemySide(enemyPos, playerPos);
     const dx = Number(playerPos.x) - Number(enemyPos.x);
     const dy = Number(playerPos.y) - Number(enemyPos.y);
     if (Math.abs(dx) > Math.abs(dy)) return dx < 0 ? 'west' : 'east';
@@ -2289,7 +2302,9 @@ function glideBattleEnemy(entry, frame) {
         const stride = stageStride.read(entry.enemy, frame.now) || { dx: 0, dy: 0, moving: false };
         const at = { x: entry.x + stride.dx * frame.gridProj.tileW, y: entry.y + stride.dy * frame.gridProj.tileH };
         battleVisualState.enemySmoothPos[id] = at;
-        return { enemy: entry.enemy, x: at.x, y: at.y, moving: stride.moving };
+        // 가는 쪽: 그려진 자리가 제 칸보다 왼쪽에 남아 있으면 오른쪽으로 걷는 중이다(위아래로만 걸으면 없다)
+        const heading = stride.moving && Math.abs(stride.dx) > 0.02 ? (stride.dx < 0 ? 'east' : 'west') : null;
+        return { enemy: entry.enemy, x: at.x, y: at.y, moving: stride.moving, heading };
     }
     let smooth = battleVisualState.enemySmoothPos[id];
     if (!smooth) {
