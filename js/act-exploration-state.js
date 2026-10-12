@@ -385,7 +385,7 @@ const actExplorationState = (() => {
      * The save boundary (mergeDefaults) calls this before it validates the run. */
     function dropRetired(state) {
         const run=state.actExploration;
-        if(!run || !retired(run))return false;
+        if(!run || !(retired(run) || strayInRooms(state,run)))return false;
         actExplorationLoot.restore(state,run);
         actExplorationState.groundLoot.settleOnLoad(state,run);
         console.warn('retired exploration map dropped on load:', run.source?run.source.style:'rooms');
@@ -396,6 +396,12 @@ const actExplorationState = (() => {
     }
     /** A generated map this build no longer draws, or a room-by-room run (rooms) opened where the room stage is off or laid out
      * by a room plan this build does not lay out (an older STAGE_ROOMS.version): its cells belong to a map this session does not have. */
+    /** 방 단위 무대가 켜진 창이 방 없는 탐험을 불러 왔다: 이 창에서는 새 탐험이 모두 방 단위라(js/combat.js createActExplorationEncounter)
+     * 다른 주소로 열었을 때 시작한 탐험이다. 그대로 두면 구역을 다시 열 때까지 방 없는 지도가 무대에 그려진다
+     * (2026-10-13 사용자: 시험판에 들어가니 액트 1조차 방이 아니다). 테스트 패널에서 방을 끈 저장은 건드리지 않는다. */
+    function strayInRooms(state,run) {
+        return !run.rooms && actExplorationDoors.session() && (state.settings || {}).stageRooms!=='off';
+    }
     function retired(run) {
         if(run.source && !explorationLayouts.supports(run.source))return true;
         return !!run.rooms && (!actExplorationRooms.supports(run.rooms) || !actExplorationDoors.session() || !actExplorationRooms.forRun(run));
