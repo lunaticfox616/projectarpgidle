@@ -4,6 +4,8 @@
  * - 맞은 적에 붙는 타격 클립은 인계의 기본값 "약하게"로 낸다: 작게, 조금 투명하게, 다섯 칸까지만, 동시에 다섯 개까지.
  * - 클립의 자리는 칸(소수)과 거기서의 도트 오프셋으로 적어 둔다: 방이 화면보다 넓어 카메라가 움직여도 제자리에 남는다.
  * - 그림 1px이 캐릭터 도트 하나다(인계의 캐릭터와 무대 캐릭터가 같은 그림이다).
+ * - 그림 대신 코드로 그리는 연출(바늘 찌르기, 우주 틈: js/canvas-stage-skill-draws.js)도 같은 시계와 자리 셈으로 여기서 돌린다(paint).
+ * - 클립이 움직이는 몸을 따라가게 할 수 있고(follow), 프레임마다 전투를 살피는 일을 맡길 수 있다(watch: 대상이 죽는 순간 터지는 연출).
  * 무엇을 언제 틀지는 js/canvas-stage-skill-rules.js가 정하고 여기는 틀고 그리기만 한다. 전투 계산에는 닿지 않는다.
  * 그림이 없는 판(저장소에는 넣지 않는다)이나 무대가 꺼진 창에서는 vfxReady가 거짓이라 예전 이펙트가 그대로 나온다.
  */
@@ -18,6 +20,7 @@ const stageSkillVfx = (() => {
     const boxes = new Map();                      // 클립 이름 → 기준점과 크기
     const tones = new Map();                      // 색 → 옅게 바꾼 색
     const live = [];                              // 재생 중인 클립
+    const watchers = [];                          // 프레임마다 부르는 일(거짓을 돌려주면 그만 부른다)
 
     function loadVfxPicture() {
         if (picture || typeof STAGE_SKILL_VFX !== 'object') return;
@@ -115,7 +118,8 @@ const stageSkillVfx = (() => {
         return true;
     }
     /** 틀 때의 선택값: 주지 않은 것(undefined)은 바탕값을 쓴다. */
-    const PLAY_DEFAULTS = Object.freeze({ face: 1, delay: 0, ramp: 'phys', life: 1000, layer: 'top', alpha: 1, scale: 1, rot: 0, move: null, fall: null, nextLife: 0, hit: false, fadeIn: 0 });
+    const PLAY_DEFAULTS = Object.freeze({ face: 1, delay: 0, ramp: 'phys', life: 1000, layer: 'top', alpha: 1, scale: 1, rot: 0, move: null, fall: null, nextLife: 0, hit: false, fadeIn: 0,
+        follow: null, ms: 0, cut: 0 });
     function vfxOptions(options) {
         const o = { ...PLAY_DEFAULTS };
         for (const [key, value] of Object.entries(options || {})) if (value !== undefined) o[key] = value;
@@ -126,20 +130,37 @@ const stageSkillVfx = (() => {
      * @param {{gx:number,gy:number,dx?:number,dy?:number}} at 칸(소수, 그 칸에 선 발 자리)과 거기서의 도트 오프셋
      * @param {object} [o] face 방향(1 오른쪽, -1 왼쪽), delay 늦춤(ms), ramp 클립이 램프를 정하지 않았을 때의 램프, life 반복 클립의 길이,
      *   layer 'ground'|'top', alpha, scale, rot 돌림(라디안), hit 타격 클립, move { dx, dy, ms } 그동안 옮겨 가는 도트,
-     *   fall { from, to, ms } 위에서 가속하며 떨어지는 도트, nextLife 이어지는 반복 클립의 길이
-     * @returns {?object} 튼 클립(틀지 못했으면 null)
+     *   fall { from, to, ms } 위에서 가속하며 떨어지는 도트, nextLife 이어지는 반복 클립의 길이, follow 프레임마다 자리(칸)를 돌려주는 함수(없어지면 null),
+     *   ms 한 칸의 시간을 바꿀 때, cut 이보다 길면 여기서 끊는다(ms)
+     * @returns {?object} 튼 클립(틀지 못했으면 null). life를 줄이면 일찍 끝난다.
      */
+    /** 틀 클립 하나의 줄: 클립의 길이와 속도, 옵션이 정한 모습을 한데 묶는다. */
+    function vfxClipRow(name, clip, at, o) {
+        const box = vfxClipBox(name), ms = o.ms || clip.ms || 70, whole = clip.loop ? o.life : box.frames * ms;
+        return { name, clip, box, ramp: o.ramp, at: { dx: 0, dy: 0, ...at }, face: o.face, start: clock + o.delay, ms,
+            frames: box.frames, life: o.cut ? Math.min(whole, o.cut) : whole, layer: o.layer, alpha: o.alpha, scale: o.scale, rot: o.rot, move: o.move, fall: o.fall,
+            next: clip.next || null, nextLife: o.nextLife, hit: false, fadeIn: o.fadeIn, follow: o.follow };
+    }
     function vfxPlay(ref, at, options) {
         const text = String(Array.isArray(ref) ? ref[0] : ref), [name, rampName] = text.split('@'), clip = STAGE_SKILL_VFX.clips[name];
         if (!clip || live.length >= MAX_LIVE) return null;
-        const o = vfxOptions(options), box = vfxClipBox(name), ms = clip.ms || 70;
-        const row = { name, clip, box, ramp: rampName === undefined ? o.ramp : rampName, at: { dx: 0, dy: 0, ...at }, face: o.face, start: clock + o.delay, ms,
-            frames: box.frames, life: clip.loop ? o.life : box.frames * ms, layer: o.layer, alpha: o.alpha, scale: o.scale, rot: o.rot, move: o.move, fall: o.fall,
-            next: clip.next || null, nextLife: o.nextLife, hit: false, fadeIn: o.fadeIn };
+        const o = vfxOptions(options);
+        if (rampName !== undefined) o.ramp = rampName;
+        const row = vfxClipRow(name, clip, at, o);
         if (o.hit && !vfxStyleHit(row)) return null;
         live.push(row);
         return row;
     }
+    /** 코드로 그리는 연출 하나를 건다. paint(ctx, t, dot): 붓은 그 자리(발 자리 + 오프셋)로 옮겨져 있고, t는 시작한 뒤의 ms, dot은 도트 하나의 화면 크기다.
+     * @param {{gx:number,gy:number,dx?:number,dy?:number}} at @param {{life:number, delay?:number, layer?:string, follow?:Function}} o */
+    function vfxPaint(at, o, paint) {
+        if (live.length >= MAX_LIVE) return null;
+        const row = { paint, at: { dx: 0, dy: 0, ...at }, start: clock + (o.delay || 0), life: o.life, layer: o.layer || 'top', follow: o.follow || null, next: null };
+        live.push(row);
+        return row;
+    }
+    /** 프레임마다 부를 일을 건다: fn(지금 시각)이 거짓을 돌려주면 그만 부른다. */
+    function vfxWatch(fn) { if (watchers.length < 64) watchers.push(fn); }
     /** 끝난 클립을 걷어 낸다. 이어지는 클립이 정해진 것은 그 자리에서 이어 튼다. */
     function vfxSweep() {
         for (let i = live.length - 1; i >= 0; i--) {
@@ -161,7 +182,23 @@ const stageSkillVfx = (() => {
         const fadeOut = row.clip.loop && row.life - t < 120 ? Math.max(0, (row.life - t) / 120) : 1;
         return row.alpha * last * fadeIn * fadeOut;
     }
+    /** 따라가는 클립은 그 몸의 지금 자리로 옮긴다(몸이 없어지면 마지막 자리에 남는다). */
+    function vfxFollow(row) {
+        const spot = row.follow ? row.follow() : null;
+        if (spot) { row.at.gx = spot.gx; row.at.gy = spot.gy; }
+    }
+    function vfxPaintRow(ctx, row, p, dot) {
+        const t = clock - row.start;
+        if (t < 0) return;
+        const base = p.cellToScreen(row.at.gx, row.at.gy);
+        ctx.save();
+        ctx.translate(Math.round(base.x + row.at.dx * dot), Math.round(base.y + (p.actorGroundOffsetY || 0) + row.at.dy * dot));
+        row.paint(ctx, t, dot);
+        ctx.restore();
+    }
     function vfxDrawRow(ctx, row, p, dot) {
+        vfxFollow(row);
+        if (row.paint) { vfxPaintRow(ctx, row, p, dot); return; }
         const t = clock - row.start;
         if (t < 0) return;
         const step = Math.floor(t / row.ms), index = row.clip.loop ? step % row.frames : Math.min(row.frames - 1, step);
@@ -179,9 +216,10 @@ const stageSkillVfx = (() => {
     }
     /** 프레임마다 한 번: 재생 시계를 맞추고 끝난 클립을 걷는다. time은 전장의 그림 시계(타격 멈춤 동안 멎는다). */
     function vfxTick(time) {
-        if (time < clock - 2000) live.length = 0;   // 시계가 되돌아갔다(다른 판을 불러왔다)
+        if (time < clock - 2000) { live.length = 0; watchers.length = 0; }   // 시계가 되돌아갔다(다른 판을 불러왔다)
         clock = time;
         vfxSweep();
+        for (let i = watchers.length - 1; i >= 0; i--) if (!watchers[i](clock)) watchers.splice(i, 1);
     }
     /** 한 층('ground' 바닥, 'top' 캐릭터 위)의 클립을 그린다. */
     function vfxDraw(ctx, layer, p) {
@@ -206,7 +244,7 @@ const stageSkillVfx = (() => {
         return true;
     }
     const vfxNow = () => clock;
-    return Object.freeze({ ready: vfxReady, play: vfxPlay, draw: vfxDraw, tick: vfxTick, stamp: vfxStamp, now: vfxNow, clipOf: vfxClipOf, clipWidth: vfxClipWidth,
-        clipLength: vfxClipLength, HIT });
+    return Object.freeze({ ready: vfxReady, play: vfxPlay, paint: vfxPaint, watch: vfxWatch, draw: vfxDraw, tick: vfxTick, stamp: vfxStamp, now: vfxNow, clipOf: vfxClipOf,
+        clipWidth: vfxClipWidth, clipLength: vfxClipLength, HIT });
 })();
 safeExposeGlobals({ stageSkillVfx });

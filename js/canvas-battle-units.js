@@ -317,6 +317,9 @@ function isWispSummonFacingLeft(summon, at, view) {
 
 /** @returns {?number} top of the drawn body, or null when the summon is no wisp or its sheet is still loading. */
 function drawWispSummon(ctx, summon, at, view) {
+    // 옆에서 보는 무대: 인계 받은 새 스킬 이펙트의 위습 몸(js/canvas-stage-skill-casts.js).
+    const staged = view.proj && typeof stageSkillCasts === 'object' ? stageSkillCasts.wispBody(ctx, summon, at, view) : null;
+    if (staged !== null) return staged;
     if (typeof hanaActors !== 'object' || !view.proj) return null;
     const drawn = hanaActors.drawSummon(ctx, {
         skillName: summon.gemName, x: at.x, y: at.y, now: view.now, tile: view.proj.tileW, phase: (Number(summon.id) || 0) * 97,

@@ -192,6 +192,16 @@ const stageActors = (() => {
         const cell = table().cell;
         stageDots.blit(ctx, source, { x: sx, y: 0, w: cell, h: cell }, { x: Math.round(dest.x), y: Math.round(dest.y), scale: dest.scale });
     }
+    /** 시전 오라(js/canvas-stage-skill-sigil.js): 주문을 쓰는 예비 동작 동안 몸의 테두리에 속성 색이 돈다. 바깥 두 도트는 옅게, 안쪽 한 도트는 또렷하게. */
+    function drawAura(ctx, img, pose, dest) {
+        const colour = typeof stageSkillSigil === 'object' ? stageSkillSigil.aura() : null;
+        if (!colour) return;
+        const rim = silhouette(img, pose.frame, colour), alpha = ctx.globalAlpha;
+        ctx.globalAlpha = alpha * 0.45;
+        for (const [dx, dy] of [[-2, 0], [2, 0], [0, -2], [0, 2], [-2, -2], [2, 2], [-2, 2], [2, -2]]) blit(ctx, rim, 0, { ...dest, x: dest.x + dx * dest.scale, y: dest.y + dy * dest.scale });
+        ctx.globalAlpha = alpha;
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) blit(ctx, rim, 0, { ...dest, x: dest.x + dx * dest.scale, y: dest.y + dy * dest.scale });
+    }
     function drawOutline(ctx, img, pose, dest, look) {
         if (!look || !look.outline) return;
         const rim = silhouette(img, pose.frame, look.outline), step = table().hit.outlinePx * dest.scale;
@@ -234,6 +244,7 @@ const stageActors = (() => {
         drawShadow(ctx, x, y, figure.scale, 0.28 * figure.alpha);
         if (figure.left) { ctx.translate(figure.axis * 2, 0); ctx.scale(-1, 1); }
         ctx.globalAlpha = figure.alpha;
+        if (!look || !look.outline) drawAura(ctx, image(pose.clip.file), pose, figure.dest);
         drawOutline(ctx, image(pose.clip.file), pose, figure.dest, look);
         blit(ctx, image(pose.clip.file), pose.frame * table().cell, figure.dest);
         ctx.restore();
@@ -243,7 +254,9 @@ const stageActors = (() => {
     /** CSS y of the top of the head drawn this frame (overhead bars sit above it), or null when the stage hero was not drawn. */
     function headY(now) { return body && body.now === now ? body.headY : null; }
 
-    return { drawPlayer: drawStageHero, headY, isReady, stanceFor, scaleFor, available };
+    /** 주인공 그림이 지금 보는 쪽: 1 오른쪽, -1 왼쪽. */
+    const facing = () => (facingLeft ? -1 : 1);
+    return { drawPlayer: drawStageHero, headY, isReady, stanceFor, scaleFor, available, facing };
 })();
 
 const sides = new WeakMap();

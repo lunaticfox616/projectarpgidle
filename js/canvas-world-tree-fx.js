@@ -49,9 +49,15 @@ const worldTreeSkillFx = (() => {
         for(const state of [skillGemCombatRuntime,mobilitySkill.castState()])
             for(const event of state?.events || []) if(event.renderLayer===layer)paintCast(ctx,event,projection,clock);
     }
+    /** 이 사건을 다른 그림이 맡았는지(또는 그릴 그림이 없는지). */
+    function paintCastTaken(ctx,event,projection) {
+        // 옆에서 보는 무대: 따로 시전하는 젬의 단계를 인계 받은 새 연출이 맡으면 예전 그림은 그리지 않는다(js/canvas-stage-skill-casts.js).
+        if(typeof stageSkillRules==='object' && stageSkillRules.claim(event,{ctx,projection,now:castNow}))return true;
+        if(redrawnSkillFx.claim(event,redrawnSkillFx.specOf(event.skillName),'combat'))return true;
+        return !SKILL_FX_ATLAS[event.skillName]; // the movement gems have no PixelLab art: only their redrawn art draws them
+    }
     function paintCast(ctx,event,projection,clock) {
-        if(redrawnSkillFx.claim(event,redrawnSkillFx.specOf(event.skillName),'combat'))return;
-        if(!SKILL_FX_ATLAS[event.skillName])return; // the movement gems have no PixelLab art: only their redrawn art draws them
+        if(paintCastTaken(ctx,event,projection))return;
         const renderer=layouts.get(event) || prepareNative(event,projection);
         const native=renderer.effects[0];
         if(event.timeCenter)native.timeCenter=event.timeCenter;
@@ -162,7 +168,7 @@ const worldTreeSkillFx = (() => {
 
     function projectileEvents(fx,shared,launch,flight) {
         const route=straightShot(fx) ? flightRoute(fx,flight) : null,steady=route && steadyFlight(fx,aloft(route),flight);
-        const event=steady ? {...shared,kind:'travel',sourceCell:steady.path[0],targetCells:fx.targetCells.map(lifted),
+        const event=steady ? {...shared,kind:'travel',aloft:true,sourceCell:steady.path[0],targetCells:fx.targetCells.map(lifted),
             travelPath:fx.travelPath?.length>1 ? steady.path : undefined,contactSchedule:steady.contacts,
             at:launch+steady.hold,duration:steady.flight}
             : {...shared,kind:'travel',travelPath:fx.travelPath,contactSchedule:fx.contactSchedule,at:launch,duration:flight};

@@ -96,6 +96,8 @@ function tableText(name) {
 const table = name => readLiteral(tableText(name));
 
 const ramps = table('RAMP'), clips = table('CLIPS'), swingClips = table('SWING_CLIP'), gems = table('VFXMAP'), elementRamp = table('EL_RAMP');
+// 속성의 세 색(코드로 그리는 연출이 쓴다): 이름은 빼고 색만 옮긴다.
+const elements = Object.fromEntries(Object.entries(table('EL')).map(([key, row]) => [key, { c1: row.c1, c2: row.c2, c3: row.c3 }]));
 const atlasAll = JSON.parse(fs.readFileSync(path.join(sim, 'vfx/vfx.json'), 'utf8'));
 const gemList = Object.values(JSON.parse(fs.readFileSync(path.join(from, '젬_목록.json'), 'utf8')));
 
@@ -133,6 +135,7 @@ const text = `// 스킬 이펙트 묶음 (js/canvas-stage-skill-vfx.js). scripts
 // 저장소에 넣지 않는다)과 젬마다 어느 클립을 어느 때 쓰는지. 젬의 판정, 무기 조건, 수치는 옮기지 않았다(게임의 것 그대로).
 //   ramps   색 램프: 어두운 쪽에서 밝은 쪽으로 여섯 단계. 클립을 '이름@램프'로 부르면 그림의 밝기를 이 여섯 색으로 다시 칠한다('@='는 원래 색).
 //   elementRamp 속성 → 램프. 젬이 램프를 정하지 않은 클립은 젬의 속성 색으로 칠한다.
+//   elements 속성의 세 색(c1 밝은색, c2 중간색, c3 어두운색): 코드로 그리는 연출(마법진, 바늘, 창과 독니)이 쓴다.
 //   atlas   클립 원본: w, h 한 칸의 크기, n 칸 수, p 밝기의 범위(다시 칠할 때의 기준), fx 칸마다의 자리, fb 칸마다 그림이 차지하는 상자.
 //   clips   클립: a 원본, f 쓰는 칸의 처음과 끝, an 기준점(center 가운데, bottom 바닥, left 왼쪽, right 오른쪽), sc 배율, ms 한 칸의 시간,
 //           loop 반복, one 넓은 범위에도 하나만, few 고리에 적게, small 타격 효과로 쓸 때 줄이지 않음, next 이어지는 클립, flat 바닥에 눕히는 비율.
@@ -148,6 +151,9 @@ const STAGE_SKILL_VFX = Object.freeze({
 ${rows(ramps, '        ')}
     }),
     elementRamp: Object.freeze(${q(elementRamp)}),
+    elements: Object.freeze({
+${rows(elements, '        ')}
+    }),
     swingClips: Object.freeze(${q(swingClips)}),
     clips: Object.freeze({
 ${rows(clips, '        ')}

@@ -5,13 +5,13 @@
  */
 const stageSkillSigil = (() => {
     const TAU = Math.PI * 2;
-    /** 속성의 세 색(밝은색, 중간색, 어두운색)과 가운데 룬의 획(5×7 격자의 선분). */
-    const LOOK = Object.freeze({
-        phys: { c1: '#f1ece2', c2: '#aab0bb', c3: '#5f6673', rune: [[0, 6, 0, 0], [0, 0, 4, 2], [4, 2, 4, 6]] },
-        fire: { c1: '#ffe08a', c2: '#f0843c', c3: '#9c4a28', rune: [[2, 1, 0, 3], [0, 3, 2, 5], [2, 5, 4, 3], [4, 3, 2, 1]] },
-        cold: { c1: '#e2f8ff', c2: '#6cc4ea', c3: '#2f6f98', rune: [[2, 0, 2, 6], [1, 0, 3, 0], [1, 6, 3, 6]] },
-        light: { c1: '#fff6b8', c2: '#e8c43c', c3: '#8c7432', rune: [[3, 0, 1, 3], [1, 3, 3, 3], [3, 3, 1, 6]] },
-        chaos: { c1: '#ecdcff', c2: '#a46be6', c3: '#5a3592', rune: [[1, 0, 1, 6], [1, 0, 3, 2], [3, 2, 1, 3], [1, 3, 3, 4], [3, 4, 1, 6]] }
+    /** 속성마다 가운데에 서는 룬의 획(5×7 격자의 선분): 물리 우루즈, 화염 잉구즈, 냉기 이사, 번개 소윌로, 카오스 베르카노. 색은 표(elements)에 있다. */
+    const RUNES = Object.freeze({
+        phys: [[0, 6, 0, 0], [0, 0, 4, 2], [4, 2, 4, 6]],
+        fire: [[2, 1, 0, 3], [0, 3, 2, 5], [2, 5, 4, 3], [4, 3, 2, 1]],
+        cold: [[2, 0, 2, 6], [1, 0, 3, 0], [1, 6, 3, 6]],
+        light: [[3, 0, 1, 3], [1, 3, 3, 3], [3, 3, 1, 6]],
+        chaos: [[1, 0, 1, 6], [1, 0, 3, 2], [3, 2, 1, 3], [1, 3, 3, 4], [3, 4, 1, 6]]
     });
     const PRISM = Object.freeze(['fire', 'cold', 'light']);
     /** 고리: 가운데 반지름, 두 가닥이 물결치는 폭, 매듭의 수. 손 앞 자리(도트): 앞으로, 위로. */
@@ -21,8 +21,8 @@ const stageSkillSigil = (() => {
 
     const mix = (a, b, t) => '#' + [1, 3, 5].map(i => Math.round(parseInt(a.slice(i, i + 2), 16) + (parseInt(b.slice(i, i + 2), 16) - parseInt(a.slice(i, i + 2), 16)) * t).toString(16).padStart(2, '0')).join('');
     function palette(element) {
-        const look = LOOK[element] || LOOK.phys;
-        return { rim: mix(look.c3, '#000000', 0.5), dark: look.c3, mid: look.c2, lit: look.c1, white: mix(look.c1, '#ffffff', 0.6), rune: look.rune };
+        const look = STAGE_SKILL_VFX.elements[element] || STAGE_SKILL_VFX.elements.phys;
+        return { rim: mix(look.c3, '#000000', 0.5), dark: look.c3, mid: look.c2, lit: look.c1, white: mix(look.c1, '#ffffff', 0.6), rune: RUNES[element] || RUNES.phys };
     }
     /** 정수 격자의 선분(브레젠험). */
     function sigilLine(x0, y0, x1, y1, put) {
@@ -174,6 +174,13 @@ const stageSkillSigil = (() => {
             else if (age >= 0) drawSigil(ctx, live[i], p, dot, age);
         }
     }
-    return Object.freeze({ cast: castSigil, draw: drawSigils });
+    /** 시전 오라의 지금 색: 떠 있는 마법진의 속성 색 둘이 120ms마다 번갈아 돈다(분광은 속성이 돌아간다). 마법진이 없으면 null. */
+    function sigilAura() {
+        const row = live[live.length - 1], age = row ? stageSkillVfx.now() - row.start : -1;
+        if (!row || age < 0 || age >= row.ms) return null;
+        const element = row.element === 'prism' ? PRISM[Math.floor(age / 200) % 3] : row.element, look = STAGE_SKILL_VFX.elements[element] || STAGE_SKILL_VFX.elements.phys;
+        return Math.floor(age / 120) % 2 ? look.c1 : look.c2;
+    }
+    return Object.freeze({ cast: castSigil, draw: drawSigils, aura: sigilAura });
 })();
 safeExposeGlobals({ stageSkillSigil });

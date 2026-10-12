@@ -3,6 +3,7 @@
 // 저장소에 넣지 않는다)과 젬마다 어느 클립을 어느 때 쓰는지. 젬의 판정, 무기 조건, 수치는 옮기지 않았다(게임의 것 그대로).
 //   ramps   색 램프: 어두운 쪽에서 밝은 쪽으로 여섯 단계. 클립을 '이름@램프'로 부르면 그림의 밝기를 이 여섯 색으로 다시 칠한다('@='는 원래 색).
 //   elementRamp 속성 → 램프. 젬이 램프를 정하지 않은 클립은 젬의 속성 색으로 칠한다.
+//   elements 속성의 세 색(c1 밝은색, c2 중간색, c3 어두운색): 코드로 그리는 연출(마법진, 바늘, 창과 독니)이 쓴다.
 //   atlas   클립 원본: w, h 한 칸의 크기, n 칸 수, p 밝기의 범위(다시 칠할 때의 기준), fx 칸마다의 자리, fb 칸마다 그림이 차지하는 상자.
 //   clips   클립: a 원본, f 쓰는 칸의 처음과 끝, an 기준점(center 가운데, bottom 바닥, left 왼쪽, right 오른쪽), sc 배율, ms 한 칸의 시간,
 //           loop 반복, one 넓은 범위에도 하나만, few 고리에 적게, small 타격 효과로 쓸 때 줄이지 않음, next 이어지는 클립, flat 바닥에 눕히는 비율.
@@ -27,6 +28,15 @@ const STAGE_SKILL_VFX = Object.freeze({
         frost: ['#3f78a4','#6aa6cc','#93cce6','#b9e5f4','#dcf5fc','#f4fdff']
     }),
     elementRamp: Object.freeze({phys:'phys',fire:'fire',cold:'cold',light:'light',chaos:'chaos',none:'smoke',prism:'cold'}),
+    elements: Object.freeze({
+        phys: {c1:'#f1ece2',c2:'#aab0bb',c3:'#5f6673'},
+        fire: {c1:'#ffe08a',c2:'#f0843c',c3:'#9c4a28'},
+        cold: {c1:'#e2f8ff',c2:'#6cc4ea',c3:'#2f6f98'},
+        light: {c1:'#fff6b8',c2:'#e8c43c',c3:'#8c7432'},
+        chaos: {c1:'#ecdcff',c2:'#a46be6',c3:'#5a3592'},
+        none: {c1:'#ece6dc',c2:'#a39d92',c3:'#5c574f'},
+        prism: {c1:'#f4eefc',c2:'#c9b8e8',c3:'#6a5a8a'}
+    }),
     swingClips: Object.freeze({cut:'crescent',cut2:'slash_up',slam:'slam',thrust:'sl_thin',flail:'sweep_low',flail2:'sweep_low',punch:'punch',punch2:'punch',bash:'splash'}),
     clips: Object.freeze({
         crescent: {a:'fk2',f:[2,8],an:'center',sc:2},
