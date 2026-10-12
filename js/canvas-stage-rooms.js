@@ -36,9 +36,8 @@ const stageRoomsView = (() => {
     /** 배경 그림을 쓰는 방: 바닥의 앞쪽 끝이 화면의 정해진 높이(STAGE_ROOMS.floorBottom)에 오게 한다. 그 위로 바닥 다섯 줄, 그 위가 배경이다. */
     function openFocusRow(room, view) {
         const narrow = view.width < STAGE_VIEW.minColumns.narrowBelow;
-        const scale = (typeof uiDisplay === 'object' && uiDisplay.factor) || 1;
-        // 넓은 화면: 정해진 높이와, 가운데 구슬 위로 앞쪽 문이 드러나는 높이 가운데 더 위쪽
-        const share = narrow ? STAGE_ROOMS.floorBottom.narrow : Math.min(STAGE_ROOMS.floorBottom.wide, 1 - STAGE_ROOMS.hudClear * scale / view.height);
+        // 넓은 화면: 정해진 높이와, 하단 HUD 위로 앞쪽 문이 드러나는 높이 가운데 더 위쪽. 전장의 px은 UI 배율로 이미 나뉜 값이라 그대로 뺀다.
+        const share = narrow ? STAGE_ROOMS.floorBottom.narrow : Math.min(STAGE_ROOMS.floorBottom.wide, 1 - STAGE_ROOMS.hudClear / view.height);
         return room.y1 + 1 - (share - stageView.anchorY()) * view.rows;
     }
     /** 세로로 화면의 기준 줄(stageView.anchorY)에 올 칸: 뒷벽 꼭대기(방 위 네 칸)부터 앞쪽 문 자리까지의 가운데에서, 뒷벽이 잘리지
@@ -89,6 +88,12 @@ const stageRoomsView = (() => {
     function noteRoom(run, room, now) {
         if (shown.run === run && shown.room === room) return;
         shown = { run, room, at: shown.run === run ? now : -Infinity };
+        warmNextAct(mapOf(run), room);
+    }
+    /** 보스 방에 들어서면 다음 액트의 방 그림을 미리 불러 둔다: 액트가 넘어갈 때 그림을 기다리는 어둠이 짧아진다. */
+    function warmNextAct(map, room) {
+        const act = room.role === 'boss' ? /^act-(\d+)$/.exec(map.region || '') : null;
+        if (act) stageRegion.warm('act-' + String(Number(act[1]) + 1).padStart(2, '0'));
     }
     /** @returns {boolean} whether the run is a room-by-room stage and its room was drawn (the caller then skips the map picture and fog) */
     function background(ctx, run, p, area) {

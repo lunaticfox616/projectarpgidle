@@ -47,6 +47,24 @@ const stageDoorMarks = (() => {
         }
         ctx.restore();
     }
-    return Object.freeze({ arrows });
+    /** 열린 문이 화면 옆으로 벗어나 있으면 그쪽 화면 가장자리에 같은 표시를 세운다. 방이 화면보다 넓어(휴대폰은 여덟 칸만 보인다)
+     * 싸움이 끝난 뒤 어느 쪽으로 나가는지 보이지 않았다(2026-10-13 무대를 직접 돌려 본 결과). 문의 높이에 세우므로 뒤쪽, 옆, 앞쪽 문이
+     * 서로 다른 높이에 선다. @param rows actExplorationDoors.doorsHere의 줄들 @param width 전장의 가로(CSS px) */
+    function edgeMarks(ctx, p, rows, width) {
+        const inset = Math.round(p.tileW * 0.5), dot = p.tileW / 64;
+        if (!(width > 0)) return;   // 전장의 크기를 아직 모른다
+        for (const row of rows) {
+            const at = row.locked ? null : p.cellToScreen(row.door.cell.gx, row.door.cell.gy);
+            if (!at) continue;
+            // 오른쪽은 전투 기록이나 채팅 창이 가리는 데까지만 보인다: 창 밑에 깔린 문도 창 왼쪽에 표시를 세운다
+            const limit = shownUntil(at.y, width);
+            if (at.x >= 0 && at.x <= limit - inset) continue;
+            const side = at.x < 0 ? 'west' : 'east';
+            arrows(ctx, { cx: side === 'west' ? inset : limit - inset, cy: at.y, w: p.tileW * 0.7 }, { side, gate: row.door.gate }, { dot, thick: 3, upright: true });
+        }
+    }
+    /** 그 높이에서 전장이 오른쪽으로 어디까지 보이는가(전장의 px): 창에 가려지지 않았으면 전장의 너비. */
+    const shownUntil = (y, width) => (typeof messageFrames === 'object' ? messageFrames.coveredFrom(y, width) : width);
+    return Object.freeze({ arrows, edges: edgeMarks });
 })();
 safeExposeGlobals({ stageDoorMarks });

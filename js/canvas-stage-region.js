@@ -25,6 +25,7 @@ const stageRegion = (() => {
     const DOOR = Object.freeze({ north: [0, 12], south: [0, 19], west: [8, 0], east: [-8, 0] });
     /** 걸을 수 있는 바닥의 바깥을 누르는 어둠의 세기와, 그 어둠이 차오르는 거리(도트). */
     const SHADE = Object.freeze({ alpha: 0.3, reach: 96 });
+    const BLEND_DOTS = 56;                      // 방 그림의 위아래 끝을 메운 색으로 풀어 주는 길이(도트)
     /** 탐험 물체의 그림 이름 → 재질의 조각. 목재 상자는 항아리와 같은 그림을 뒤집어 쓴다. */
     const OBJECTS = Object.freeze({ chest: 'prop-4', chestOpen: 'prop-5', pot: 'prop-6', potBroken: 'prop-7', crate: 'prop-6', crateBroken: 'prop-7' });
     /** 보급 상자 등급의 빛깔(그 재질의 상자 그림에 얹는다). */
@@ -86,24 +87,54 @@ const stageRegion = (() => {
         if (room.mirror) { ctx.save(); ctx.translate(x * 2 + Math.round(w), 0); ctx.scale(-1, 1); }
         ctx.drawImage(regionPicture(view.map.region + '.png').image, x, y, Math.round(w), Math.round(h));
         if (room.mirror) ctx.restore();
+        blendPictureEdges(ctx, region, { y, h: Math.round(h), reach: Math.round(BLEND_DOTS * dot) }, area);
+    }
+    /** 방 그림이 화면의 위나 아래에 닿지 않으면(세로로 긴 화면) 그림의 끝이 메운 색과 맞닿아 줄로 보였다: 끝에서 reach만큼을 메운 색으로
+     * 풀어 준다. 그림이 화면을 덮는 넓은 화면에서는 아무것도 그리지 않는다. */
+    function blendPictureEdges(ctx, region, picture, area) {
+        const fade = (from, to, colour) => {
+            const ink = ctx.createLinearGradient(0, from, 0, to);
+            ink.addColorStop(0, colour);
+            ink.addColorStop(1, colour + '00');
+            ctx.fillStyle = ink;
+            ctx.fillRect(0, Math.min(from, to), area.width, Math.abs(to - from));
+        };
+        if (picture.y > 0) fade(picture.y, picture.y + picture.reach, region.sky);
+        if (picture.y + picture.h < area.height) fade(picture.y + picture.h, picture.y + picture.h - picture.reach, region.earth);
+    }
+    const shadeInk = step => `rgba(12,10,12,${(SHADE.alpha * Math.min(1, step / SHADE.reach)).toFixed(3)})`;
+    /** 바닥의 양옆(뒤쪽 끝에서 앞쪽 끝까지): 옆으로 멀어질수록 어둡다. */
+    function shadeRoomSides(ctx, edge) {
+        for (let step = 0; step < edge.reachX; step += 4) {
+            ctx.fillStyle = shadeInk(step);
+            ctx.fillRect(edge.right + step, edge.top, 4, edge.front - edge.top);
+            ctx.fillRect(edge.left - step - 4, edge.top, 4, edge.front - edge.top);
+        }
+    }
+    /** 바닥의 앞쪽 바깥과 두 구석: 앞쪽 끝과 옆 끝 가운데 더 먼 쪽의 거리만큼 어둡다. 구석을 따로 두면 좁은 바닥(고정 전장) 아래에서
+     * 그늘이 네모나게 끊겨 보였다. 가로 띠는 앞으로 먼 곳을, 세로 띠는 옆으로 더 먼 곳을 맡아 겹치지 않는다. */
+    function shadeRoomFront(ctx, edge) {
+        for (let step = 0; step < edge.far - edge.front; step += 4) {
+            ctx.fillStyle = shadeInk(step);
+            ctx.fillRect(edge.left - step - 4, edge.front + step, edge.right - edge.left + step * 2 + 8, 4);
+        }
+        for (let step = 4; step < edge.reachX; step += 4) {
+            ctx.fillStyle = shadeInk(step);
+            ctx.fillRect(edge.right + step, edge.front, 4, Math.min(edge.far - edge.front, step));
+            ctx.fillRect(edge.left - step - 4, edge.front, 4, Math.min(edge.far - edge.front, step));
+        }
     }
     /** 방마다 한 번 그려 두는 그림: 걸을 수 있는 바닥의 양옆과 앞쪽 바깥이 멀어질수록 어두워진다(방 그림의 바닥이 화면 끝까지
      * 이어지므로 어디까지 걸을 수 있는지 알린다). */
     function paintRoomShade(map, room, box) {
-        const canvas = document.createElement('canvas'), top = room.y0 * DEEP, left = room.x0 * WIDE, right = (room.x1 + 1) * WIDE, front = (room.y1 + 1) * DEEP;
+        const canvas = document.createElement('canvas'), left = room.x0 * WIDE, right = (room.x1 + 1) * WIDE;
         canvas.width = box.columns * WIDE;
         canvas.height = box.rows * DEEP;
-        const ctx = canvas.getContext('2d'), far = (box.y + box.rows) * DEEP, edge = (box.x + box.columns) * WIDE;
+        const ctx = canvas.getContext('2d'), edge = { left, right, top: room.y0 * DEEP, front: (room.y1 + 1) * DEEP, far: (box.y + box.rows) * DEEP,
+            reachX: Math.max(left - box.x * WIDE, (box.x + box.columns) * WIDE - right) };
         ctx.translate(-box.x * WIDE, -box.y * DEEP);
-        for (let step = 0; step < Math.max(left - box.x * WIDE, edge - right); step += 4) {
-            ctx.fillStyle = `rgba(12,10,12,${(SHADE.alpha * Math.min(1, step / SHADE.reach)).toFixed(3)})`;
-            ctx.fillRect(right + step, top, 4, far - top);
-            ctx.fillRect(left - step - 4, top, 4, far - top);
-        }
-        for (let step = 0; step < far - front; step += 4) {
-            ctx.fillStyle = `rgba(12,10,12,${(SHADE.alpha * Math.min(1, step / SHADE.reach)).toFixed(3)})`;
-            ctx.fillRect(left, front + step, right - left, 4);
-        }
+        shadeRoomSides(ctx, edge);
+        shadeRoomFront(ctx, edge);
         return canvas;
     }
 
@@ -273,7 +304,11 @@ const stageRegion = (() => {
         for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) stampRegionObject(ctx, rim, piece, { x: at.x + dx * at.dot, y: at.y + dy * at.dot, dot: at.dot });
         return true;
     }
-    return Object.freeze({ status: regionStatus, drawFar: drawRoomPicture, paintRoom: paintRoomShade, append: appendRegionPieces, draw: drawRegionPiece,
+    /** 곧 쓸 지역의 방 그림을 미리 불러 둔다(그림이 없는 지역이면 아무 일도 없다). */
+    function warmRegion(id) {
+        if (stageView.backdrops() && stageRegionFit.of(id)) regionPicture(id + '.png');
+    }
+    return Object.freeze({ warm: warmRegion, status: regionStatus, drawFar: drawRoomPicture, paintRoom: paintRoomShade, append: appendRegionPieces, draw: drawRegionPiece,
         drawMarks: drawRegionSideMarks, drawObject: drawRegionObject, outlineObject: outlineRegionObject });
 })();
 safeExposeGlobals({ stageRegion });

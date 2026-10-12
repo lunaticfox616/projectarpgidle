@@ -133,8 +133,11 @@ const monsterActors = (() => {
         const feet = (own && (own[row] || own)) || kind.feet;
         const src = [frame.index * cell, kind.rows.indexOf(row) * cell, cell, cell];
         const left = snap(p.x - feet[0] * dot), top = snap(p.y - (feet[1] + frame.bob) * dot);
-        return { src, left, top, size: cell * dot, dot };
+        return { src, left, top, size: cell * dot, dot, rim: stageRimStep(p, dot) };
     }
+    /** 테의 굵기(px). 옆에서 보는 무대에서는 예전 그림(한 도트가 화면의 여섯 px쯤으로 커진다)도 새 그림과 같이 캐릭터 도트 하나만큼만
+     * 두른다: 제 도트만큼 두르면 붉은 테가 새 그림의 네 배 굵기로 나와 한 무리 안에서 따로 놀았다(2026-10-13 지하계를 돌려 본 결과). */
+    const stageRimStep = (p, dot) => (stageView.enabled() ? Math.max(1, Math.round(stageActors.scaleFor(p.tile))) : dot);
     /** A stage sheet: one row facing right at the character's dot size; facing left mirrors it about the feet (mirror = that x). */
     function stagePlacement(pair, frame, row, p) {
         const cell = pair.kind.frame, dot = stageActors.scaleFor(p.tile) * (p.spawnScale || 1), feet = pair.spec.feet;
@@ -161,7 +164,8 @@ const monsterActors = (() => {
         if (look.outline) {
             const rim = silhouette(image, look.outline.color);
             ctx.globalAlpha *= look.outline.alpha;
-            for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) stamp(ctx, rim, at, dx * at.dot, dy * at.dot);
+            const step = at.rim || at.dot;
+            for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) stamp(ctx, rim, at, dx * step, dy * step);
             ctx.globalAlpha /= look.outline.alpha;
         }
         if (at.stage) drawStageFrame(ctx, image, at, look.flash);
@@ -171,7 +175,8 @@ const monsterActors = (() => {
     /** The shadow under a monster: a dot ellipse on the stage (js/canvas-stage-rings.js), the soft one elsewhere. */
     function groundShadow(ctx, pair, p) {
         const share = pair === 'loading' ? 0.3 : pair.kind.shadow;
-        if (pair !== 'loading' && pair.kind.stage) stageRings.shadow(ctx, { x: p.x, y: p.y, dot: stageActors.scaleFor(p.tile) }, Math.round(share * 64), 0.34);
+        // 무대에서는 예전 그림의 몬스터도 새 그림과 같은 도트 그림자를 딛는다(한 무리 안에서 그림자 두 가지가 섞여 보였다)
+        if (stageView.enabled() || (pair !== 'loading' && pair.kind.stage)) stageRings.shadow(ctx, { x: p.x, y: p.y, dot: stageActors.scaleFor(p.tile) }, Math.round(share * 64), 0.34);
         else drawPixelShadow(ctx, p.x, p.y + 2, p.tile * share, p.tile * 0.09, 0.2);
     }
     /** Draws a sheet monster (act monsters and roots by spriteVariantId, realm sets by monsterVisualId). On the stage a
