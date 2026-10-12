@@ -17,7 +17,25 @@
         if (notice) notice.remove();
         if (snooze) quietUntil = Date.now() + SNOOZE_MS;
     }
-    /** 화면 위 가운데의 알림 한 줄: 새로고침(떠날 때 저장은 js/main.js의 pagehide가 맡는다)과 나중에(30분 뒤 다시 알린다). */
+    /** pagehide cannot cancel a failed save, so persist synchronously before navigating. */
+    function reloadSavedGame(notice) {
+        const message = notice.querySelector('span');
+        if (getLocalSaveStatus().status === 'uninitialized') {
+            message.textContent = '저장 데이터를 불러오는 중입니다. 잠시 후 다시 눌러 주세요.';
+            return;
+        }
+        try {
+            if (saveGame({ skipCloudSync: true })) {
+                location.reload();
+                return;
+            }
+        } catch (error) {
+            console.warn('[app-update] 진행을 저장하지 못해 새로고침을 중단했습니다.', error);
+        }
+        message.textContent = '새로고침을 멈췄습니다. ' + (getLocalSaveStatus().message
+            || '지금은 진행 내용을 저장할 수 없습니다. 진행 정산 또는 저장 복구를 마친 뒤 다시 눌러 주세요.');
+    }
+    /** 화면 위 가운데의 알림 한 줄: 저장 후 새로고침과 나중에(30분 뒤 다시 알린다). */
     function showUpdateNotice() {
         if (document.getElementById('app-update-notice') || Date.now() < quietUntil) return;
         const notice = document.createElement('div');
@@ -25,7 +43,7 @@
         notice.setAttribute('role', 'status');
         notice.innerHTML = '<span>새 버전이 올라왔습니다. 새로고침하면 적용됩니다.</span>'
             + '<button type="button" class="app-update-reload">새로고침</button><button type="button" class="app-update-later">나중에</button>';
-        notice.querySelector('.app-update-reload').addEventListener('click', () => location.reload());
+        notice.querySelector('.app-update-reload').addEventListener('click', () => reloadSavedGame(notice));
         notice.querySelector('.app-update-later').addEventListener('click', () => hideUpdateNotice(true));
         document.body.appendChild(notice);
     }
@@ -55,6 +73,7 @@
         if (!enabled()) return;
         setInterval(checkForUpdate, CHECK_MS);
         document.addEventListener('visibilitychange', checkForUpdate);
+        navigator.serviceWorker?.addEventListener('controllerchange', checkForUpdate);
     }
     window.addEventListener('load', startUpdateChecks, { once: true });
 })();

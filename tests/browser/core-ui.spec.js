@@ -292,6 +292,65 @@ test('guest mode is local-only and survives reload', async ({ page }) => {
     expect(failures).toEqual([]);
 });
 
+async function openGameWithUpdate(page) {
+    await page.route('**/version.json?*', route => route.fulfill({ json: { build: 'test-next-release' } }));
+    await page.route(TEST_ORIGIN, async route => {
+        const response = await route.fetch();
+        await route.fulfill({ response, body: (await response.text()).replace(
+            '<meta name="app-deploy" content="dev">', '<meta name="app-deploy" content="test-current-release">'
+        ) });
+    });
+    await openLocalGame(page);
+    await page.evaluate(() => {
+        clearInterval(gameTickHandle);
+        gameTickHandle = null;
+        game.combatHalted = true;
+        game.level = 37;
+        saveGame({ skipCloudSync: true });
+        game.level = 38;
+        document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await expect(page.locator('#app-update-notice')).toBeVisible();
+}
+
+test('release update waits for settlement and saves current progress before reload', async ({ page }) => {
+    const failures = watchRuntimeFailures(page);
+    await openGameWithUpdate(page);
+    await page.evaluate(() => { backgroundCombatRuntime.processing = true; });
+    await page.locator('.app-update-reload').click();
+    await expect(page.locator('#app-update-notice')).toContainText('새로고침을 멈췄습니다');
+    expect(await page.evaluate(() => ({ current: game.level, saved: JSON.parse(localStorage.getItem(LOCAL_SAVE_KEY)).level })))
+        .toEqual({ current: 38, saved: 37 });
+    await page.evaluate(() => { backgroundCombatRuntime.processing = false; });
+    await Promise.all([
+        page.waitForEvent('domcontentloaded'),
+        page.locator('.app-update-reload').click()
+    ]);
+    await expect(page.locator('#startup-overlay')).toHaveClass(/active/);
+    await expect.poll(() => page.evaluate(() => game.level)).toBe(38);
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem(LOCAL_SAVE_KEY)).level)).toBe(38);
+    expect(failures).toEqual([]);
+});
+
+test('release update keeps unsaved progress open when local storage is full', async ({ page }, testInfo) => {
+    await openGameWithUpdate(page);
+    const before = await page.evaluate(() => localStorage.getItem(LOCAL_SAVE_KEY));
+    await page.evaluate(() => {
+        const setItem = Storage.prototype.setItem;
+        Storage.prototype.setItem = function (key, value) {
+            if (key === LOCAL_SAVE_KEY) throw new DOMException('test quota exceeded', 'QuotaExceededError');
+            return setItem.call(this, key, value);
+        };
+    });
+    await page.locator('.app-update-reload').click();
+    await expect(page.locator('#app-update-notice')).toContainText('새로고침을 멈췄습니다');
+    expect(await page.evaluate(() => game.level)).toBe(38);
+    expect(await page.evaluate(() => localStorage.getItem(LOCAL_SAVE_KEY))).toBe(before);
+    await page.locator('#app-update-notice').screenshot({ path: testInfo.outputPath('update-save-failed.png') });
+    await page.locator('.app-update-later').click();
+    await expect(page.locator('#app-update-notice')).not.toBeVisible();
+});
+
 test('manual loop advance asks once and cancel preserves the ready state', async ({ page }) => {
     const failures = watchRuntimeFailures(page);
     await openLocalGame(page);
