@@ -21,6 +21,9 @@ const stageRoster = (() => {
     /** 공격 그림이 없는 몬스터의 공격: 프레임 시간, 타격 프레임, 프레임마다 앞으로 내미는 거리(몸 너비 80도트 기준, 도트). */
     const MADE_STRIKE = Object.freeze({ attackMs: Object.freeze([110, 90, 70, 100, 150]), impactFrame: 2 });
     const MADE_REACH = Object.freeze([-2, -4, 9, 5, 1]);
+    /** 그 공격에서 몸이 기우는 몫(프레임마다): 뒤로 젖혔다가 앞으로 숙이며 내민다. 가장 많이 기울 때 머리가 MADE_LEAN_DOTS 도트쯤 나간다
+     * (2026-10-13: 한 장뿐인 보스가 선 채로 밀려 나갔다 돌아오기만 해서 때리는 것으로 읽히지 않았다). */
+    const MADE_LEAN = Object.freeze([-0.4, -0.8, 1, 0.5, 0.1]), MADE_LEAN_DOTS = 12;
     const sheets = new Map();
     let clock = 0, work = null;
 
@@ -103,7 +106,8 @@ const stageRoster = (() => {
         const strike = monsterActors.attackFrame(enemy, actor.attackMs ? actor : MADE_STRIKE, p.now, p.moving);
         if (!strike) return null;
         if (actor.attackMs) return { clip: 'attack', index: strike.index, hop: strike.bob };
-        return { ...rest(actor), hop: strike.bob, nudge: Math.round(MADE_REACH[strike.index] * Math.max(0.6, Math.min(2.5, actor.width / 80))) };
+        return { ...rest(actor), hop: strike.bob, nudge: Math.round(MADE_REACH[strike.index] * Math.max(0.6, Math.min(2.5, actor.width / 80))),
+            lean: MADE_LEAN[strike.index] * Math.min(0.1, MADE_LEAN_DOTS / actor.height) };
     }
     /** Walking: by code when asked or when there is only one picture, else the walk clip. */
     function walking(enemy, actor, p) {
