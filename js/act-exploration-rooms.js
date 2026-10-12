@@ -24,6 +24,9 @@ const actExplorationRooms = (() => {
         const rule = STAGE_ROOMS, width = rule.widths[cell.role];
         return { width: (Array.isArray(width) ? width[(cell.col + cell.row) % width.length] : width) + grow.wide, depth: rule.depth + grow.deep };
     }
+    /** 무대 그림을 좌우로 뒤집어 쓰는 방: 지역마다 방 그림이 한 장이라 이웃한 방이 똑같아 보였다(2026-10-13). 전투, 정예, 들르는 방은
+     * 놓임새의 자리가 홀수 칸이면 뒤집는다(이웃한 방끼리 번갈아). 입구와 보스 방은 그린 그대로 쓴다. */
+    const roomMirrored = cell => ['battle', 'elite', 'optional'].includes(cell.role) && (cell.col + cell.row) % 2 === 1;
     /** 입구에서 가까운 순서(너비 우선): 방을 놓는 차례. */
     function roomOrderOf(plan) {
         const order = [plan.cells.findIndex(cell => cell.role === 'entry')];
@@ -44,7 +47,7 @@ const actExplorationRooms = (() => {
             const x0 = rule.gap / 2 + index * (slot + rule.gap) + (slot - width) / 2, y0 = rule.top;
             rooms.set(cellIndex, Object.freeze({ id: cell.id, role: cell.role, index, x0, y0, x1: x0 + width - 1, y1: y0 + depth - 1,
                 gx: x0 + (width - 1) / 2, gy: y0 + (depth - 1) / 2, radiusX: (width - 1) / 2, radiusY: (depth - 1) / 2,
-                at: Object.freeze([cell.col, cell.row]) }));
+                at: Object.freeze([cell.col, cell.row]), mirror: roomMirrored(cell) }));
         });
         return rooms;
     }
@@ -61,7 +64,7 @@ const actExplorationRooms = (() => {
     /** 뒤쪽 벽의 문이 서는 칸(방 왼쪽 끝에서): 무대 그림에 문 자리가 정해져 있으면 그 자리, 아니면 가운데. */
     function backDoorColumn(room, region) {
         const columns = room.x1 - room.x0 + 1, fit = typeof stageRegionFit === 'object' ? stageRegionFit : null;
-        return fit ? fit.northColumn(region, columns, room.y1 - room.y0 + 1) : Math.floor(columns / 2);
+        return fit ? fit.northColumn(region, columns, room.y1 - room.y0 + 1, room.mirror) : Math.floor(columns / 2);
     }
     /** 문 칸은 벽에 한 칸 파인 자리이고, 문 안쪽(landing)은 그 앞의 방 바닥이다. 좌우 문은 깊이의 가운데 줄, 앞쪽 문은 가로의 가운데. */
     function doorCells(end, region) {

@@ -14,10 +14,11 @@ const stageRegionFit = (() => {
         return Math.max(span / region.width, above / region.ground, (fit.height - above) / (region.height - region.ground));
     }
     /** 뒤쪽 벽의 문이 서는 칸(방 왼쪽 끝에서 0부터): 그림에 정해진 문 자리에 가장 가까운 칸. 구석 칸은 피한다. */
-    function regionNorthColumn(id, columns, rows) {
+    function regionNorthColumn(id, columns, rows, mirror) {
         const region = regionRow(id), middle = Math.floor(columns / 2);
         if (!region || region.door === null) return middle;
-        const offset = (region.door - 0.5) * region.width * regionScale(region, columns, rows) / WIDE;
+        // 좌우로 뒤집어 쓰는 방(js/act-exploration-rooms.js roomMirrored)에서는 그림의 문 자리도 반대쪽이다
+        const offset = (mirror ? -1 : 1) * (region.door - 0.5) * region.width * regionScale(region, columns, rows) / WIDE;
         return Math.max(1, Math.min(columns - 2, middle + Math.round(offset)));
     }
     return Object.freeze({ of: regionRow, scale: regionScale, northColumn: regionNorthColumn });

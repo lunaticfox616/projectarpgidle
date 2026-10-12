@@ -82,7 +82,10 @@ const stageRegion = (() => {
         ctx.fillStyle = region.sky;
         ctx.fillRect(0, 0, area.width, Math.max(0, y + 2));
         ctx.imageSmoothingEnabled = false;
+        // 이웃한 방이 똑같아 보이지 않게, 정해진 방은 좌우로 뒤집어 그린다(js/act-exploration-rooms.js roomMirrored)
+        if (room.mirror) { ctx.save(); ctx.translate(x * 2 + Math.round(w), 0); ctx.scale(-1, 1); }
         ctx.drawImage(regionPicture(view.map.region + '.png').image, x, y, Math.round(w), Math.round(h));
+        if (room.mirror) ctx.restore();
     }
     /** 방마다 한 번 그려 두는 그림: 걸을 수 있는 바닥의 양옆과 앞쪽 바깥이 멀어질수록 어두워진다(방 그림의 바닥이 화면 끝까지
      * 이어지므로 어디까지 걸을 수 있는지 알린다). */
