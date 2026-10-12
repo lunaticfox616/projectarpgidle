@@ -6208,7 +6208,15 @@ function resizeBattlefieldCanvas() {
 // ACT 맵과 9x8 판정은 같은 변환을 쓴다. grid-contain은 장식만 잘라내고 전투 칸 전체를 보인다.
 function getBattleGridProjection(width, height, fitMode) {
     if(actExplorationState.current(game))return actExplorationView.projection(width,height);
-    return getFixedBattleGridProjection(width,height,fitMode);
+    return getStageBoardProjection(width,height,fitMode) || getFixedBattleGridProjection(width,height,fitMode);
+}
+
+/** 옆에서 보는 무대의 고정 전장(js/canvas-stage-board.js): 그 구역의 무대 그림이 있으면 방 하나처럼 놓는다. 전장을 그리는 쪽만 묻는다. */
+function getStageBoardProjection(width,height,fitMode) {
+    return fitMode==='grid-contain' && typeof stageBoard==='object' ? stageBoard.projection(width,height,getZone(game.currentZoneId)) : null;
+}
+function drawStageBoardBackdrop(ctx,width,height,gridProj) {
+    return typeof stageBoard==='object' && stageBoard.background(ctx,gridProj,{width,height});
 }
 
 function getFixedBattleGridProjection(width,height,fitMode) {
@@ -6467,6 +6475,7 @@ function drawActMapEffect(ctx, rect, key, now) {
 
 function drawBattleBackdrop(ctx, width, height, theme, now, zone, gridProj) {
     if(actExplorationView.background(ctx,width,height,gridProj))return true;
+    if(drawStageBoardBackdrop(ctx,width,height,gridProj))return true;
     let backdropEntry = getBattleBackdropForZone(zone);
     if (backdropEntry && backdropEntry.image) {
         const rect = drawGridAlignedBackdrop(ctx, width, height, backdropEntry.image, gridProj, backdropEntry.key);

@@ -76,7 +76,7 @@ const STAGE_ROOM_PLANS = Object.freeze({
      * upright 곁가지가 위아래로 붙는 무게(좌우는 1), loop 돌아가는 길 하나를 더 낼 확률. */
     random: Object.freeze({ mainShare: Object.freeze([0.6, 1]), eliteOnMain: 0.4, east: 3, bossEast: 3, turn: 2, entryHost: 0.25, chain: 1.3, upright: 2, loop: 0.35 }),
     /** 구역의 무대 그림(data/stage-regions.js의 지역). types 구역 종류, deep 혼돈 심화(깊이 21부터), zones 구역 id, rift 시간의 균열의
-     * 두 시대, tracks 정점 보스의 영역, rival 버려진 날들, capstone 우주의 끝. 여기에 없는 구역은 빌려 걷는 액트 지도의 그림을 쓴다. */
+     * 두 시대, tracks 정점 보스의 영역, rival 버려진 날들, capstone 우주의 끝, boards 고정 전장. 여기에 없는 구역은 빌려 걷는 액트 지도의 그림을 쓴다. */
     regions: Object.freeze({
         types: Object.freeze({ abyss: 'chaos', chaosRealm: 'chaos-realm', skyTower: 'sky', underworld: 'underworld', labyrinth: 'labyrinth', meteor: 'meteor' }),
         deep: 'deep-chaos',
@@ -84,7 +84,10 @@ const STAGE_ROOM_PLANS = Object.freeze({
         rift: Object.freeze({ past: 'act-02', future: 'act-06' }),
         tracks: Object.freeze({ underworld: 'underworld', sky: 'sky', ocean: 'ocean', convergence: 'beyond' }),
         rival: 'act-06',
-        capstone: 'cosmos'
+        capstone: 'cosmos',
+        /** 걷는 지도가 없는 고정 전장(구역 종류 → 지역): 판 전체를 방 하나처럼 그린다(js/canvas-stage-board.js). 여기에 없는 고정 전장은
+         * 앞서의 판 그림 그대로다. */
+        boards: Object.freeze({ beehive: 'beehive', colony: 'colony', oceanDepth: 'ocean', cosmos: 'cosmos', grandBreach: 'void', outsideChaos: 'beyond', woodsmanEcho: 'beyond' })
     })
 });
 safeExposeData({ STAGE_ROOM_PLANS });
