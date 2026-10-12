@@ -139,7 +139,7 @@ vm.runInContext(annulBlock, annulContext, { filename: 'market-annul.js' });
 
     assert(uiSource.includes("return { enabled: false, reason: `홀씨 부족"), 'crafting UI should explain insufficient spore cost');
     // Enabled/disabled controls and payment are exercised in crafting-workspace.spec.js.
-    assert(uiSource.includes('const targetSet = new Set(targetItems);'), 'search-based equipment salvage should keep a confirmation-time target snapshot');
+    assert(uiSource.includes('confirmedSalvageTargets(targetItems)'), 'search-based equipment salvage should keep a confirmation-time target snapshot');
     assert(!cardSource.includes('getItemSalvagePreviewText(item, true)'), 'compact inventory cards should not spend metadata space on salvage materials');
     assert(cardSource.includes('getItemSalvagePreviewText(item, false)'), 'the destructive action should retain a detailed salvage preview in its own hint');
     console.log('smoke-crafting-economy passed');

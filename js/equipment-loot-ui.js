@@ -111,7 +111,7 @@
         return `<div class="craft-picker-panel equipment-loot-panel" role="dialog" aria-modal="true" aria-label="장비 드랍 필터 및 해체 설정">
             <div class="craft-picker-head"><div><div class="craft-picker-title">장비 드랍 필터, 해체</div><div class="craft-picker-desc">목표 장비를 남기고, 필요 없는 장비를 정리합니다.</div></div><button type="button" onclick="closeAutoSalvageConfigOverlay()">닫기</button></div>
             <div class="equipment-loot-body"><div id="loot-target-config">${renderTargets()}</div>
-            <section class="loot-filter-section"><h3>자동해체</h3><p class="loot-filter-note">우선 보관 대상은 제외하고, 습득 조건을 통과한 장비 중 아래 등급을 해체합니다.</p>
+            <section class="loot-filter-section"><h3>자동해체</h3><p class="loot-filter-note">우선 보관 대상은 제외하고, 습득 조건을 통과한 장비 중 아래 등급을 해체합니다. 떨어진 주얼도 같은 등급을 따릅니다.</p>
             <div id="auto-salvage-rarity-chips" class="loot-filter-grades">${rarityChips}</div>
             <div class="loot-filter-actions"><button type="button" id="auto-salvage-toggle-btn" onclick="toggleAutoSalvage();refreshAutoSalvageConfigOverlay();">${enabled ? '자동해체 끄기' : '자동해체 켜기'}</button><span id="auto-salvage-status">현재: ${enabled ? '켜짐' : '꺼짐'}</span></div></section>
             ${renderPickup()}${renderFx()}<p class="loot-filter-note">설정은 자동 저장됩니다. 기존 인벤토리 표시 필터는 목록 표시만 바꿉니다.</p></div></div>`;
