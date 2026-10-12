@@ -175,7 +175,8 @@ const monsterActors = (() => {
     /** The shadow under a monster: a dot ellipse on the stage (js/canvas-stage-rings.js), the soft one elsewhere. */
     function groundShadow(ctx, pair, p) {
         const share = pair === 'loading' ? 0.3 : pair.kind.shadow;
-        if (pair !== 'loading' && pair.kind.stage) stageRings.shadow(ctx, { x: p.x, y: p.y, dot: stageActors.scaleFor(p.tile) }, Math.round(share * 64), 0.34);
+        // 무대에서는 예전 그림의 몬스터도 새 그림과 같은 도트 그림자를 딛는다(한 무리 안에서 그림자 두 가지가 섞여 보였다)
+        if (stageView.enabled() || (pair !== 'loading' && pair.kind.stage)) stageRings.shadow(ctx, { x: p.x, y: p.y, dot: stageActors.scaleFor(p.tile) }, Math.round(share * 64), 0.34);
         else drawPixelShadow(ctx, p.x, p.y + 2, p.tile * share, p.tile * 0.09, 0.2);
     }
     /** Draws a sheet monster (act monsters and roots by spriteVariantId, realm sets by monsterVisualId). On the stage a
