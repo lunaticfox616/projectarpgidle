@@ -413,8 +413,10 @@ const messageFrames = (() => {
     }
     function fadeFramesOverHero(x, y, top) {
         if (!mounted) return;
-        if (!stageBox) readStageBox();
-        const at = stageBox && Number.isFinite(x) ? { x: stageBox.left + x * stageBox.scale, y: stageBox.top + y * stageBox.scale, top: stageBox.top + top * stageBox.scale } : null;
+        // 자리가 없으면(위에서 보는 전장) 캔버스의 자리도 읽지 않는다: 옅어진 창만 되돌린다
+        const known = Number.isFinite(x);
+        if (known && !stageBox) readStageBox();
+        const at = known && stageBox ? { x: stageBox.left + x * stageBox.scale, y: stageBox.top + y * stageBox.scale, top: stageBox.top + top * stageBox.scale } : null;
         for (const frame of FRAMES) {
             const over = !!at && frameCoversHero(frame, at);
             if (over === faded[frame]) continue;
