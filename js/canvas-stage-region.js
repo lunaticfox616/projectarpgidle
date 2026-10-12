@@ -25,6 +25,7 @@ const stageRegion = (() => {
     const DOOR = Object.freeze({ north: [0, 12], south: [0, 19], west: [8, 0], east: [-8, 0] });
     /** 걸을 수 있는 바닥의 바깥을 누르는 어둠의 세기와, 그 어둠이 차오르는 거리(도트). */
     const SHADE = Object.freeze({ alpha: 0.3, reach: 96 });
+    const BLEND_DOTS = 56;                      // 방 그림의 위아래 끝을 메운 색으로 풀어 주는 길이(도트)
     /** 탐험 물체의 그림 이름 → 재질의 조각. 목재 상자는 항아리와 같은 그림을 뒤집어 쓴다. */
     const OBJECTS = Object.freeze({ chest: 'prop-4', chestOpen: 'prop-5', pot: 'prop-6', potBroken: 'prop-7', crate: 'prop-6', crateBroken: 'prop-7' });
     /** 보급 상자 등급의 빛깔(그 재질의 상자 그림에 얹는다). */
@@ -86,6 +87,20 @@ const stageRegion = (() => {
         if (room.mirror) { ctx.save(); ctx.translate(x * 2 + Math.round(w), 0); ctx.scale(-1, 1); }
         ctx.drawImage(regionPicture(view.map.region + '.png').image, x, y, Math.round(w), Math.round(h));
         if (room.mirror) ctx.restore();
+        blendPictureEdges(ctx, region, { y, h: Math.round(h), reach: Math.round(BLEND_DOTS * dot) }, area);
+    }
+    /** 방 그림이 화면의 위나 아래에 닿지 않으면(세로로 긴 화면) 그림의 끝이 메운 색과 맞닿아 줄로 보였다: 끝에서 reach만큼을 메운 색으로
+     * 풀어 준다. 그림이 화면을 덮는 넓은 화면에서는 아무것도 그리지 않는다. */
+    function blendPictureEdges(ctx, region, picture, area) {
+        const fade = (from, to, colour) => {
+            const ink = ctx.createLinearGradient(0, from, 0, to);
+            ink.addColorStop(0, colour);
+            ink.addColorStop(1, colour + '00');
+            ctx.fillStyle = ink;
+            ctx.fillRect(0, Math.min(from, to), area.width, Math.abs(to - from));
+        };
+        if (picture.y > 0) fade(picture.y, picture.y + picture.reach, region.sky);
+        if (picture.y + picture.h < area.height) fade(picture.y + picture.h, picture.y + picture.h - picture.reach, region.earth);
     }
     const shadeInk = step => `rgba(12,10,12,${(SHADE.alpha * Math.min(1, step / SHADE.reach)).toFixed(3)})`;
     /** 바닥의 양옆(뒤쪽 끝에서 앞쪽 끝까지): 옆으로 멀어질수록 어둡다. */
