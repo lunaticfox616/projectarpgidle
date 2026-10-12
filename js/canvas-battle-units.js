@@ -48,7 +48,7 @@ function drawBattlePlayerFigure(ctx, state, position) {
 const OCCLUDED_RIM_DIRECTIONS = Object.freeze([[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 1]]);
 /** Frame-local readability layout. CSS-pixel boxes and two small reused masks; never serialized with game data. */
 drawBattlePlayerFigure.readability = (() => {
-    let hero = null, boxes = [], mask, edge, outline = null;
+    let hero = null, boxes = [], mask, edge, cover, outline = null;
     const overlaps = (a, b) => a.x < b.x + b.w + 3 && a.x + a.w + 3 > b.x && a.y < b.y + b.h + 3 && a.y + a.h + 3 > b.y;
     function surface(current, size) {
         const canvas = current || document.createElement('canvas');
@@ -71,20 +71,35 @@ drawBattlePlayerFigure.readability = (() => {
         ctx.save();
         for (const [dx, dy] of OCCLUDED_RIM_DIRECTIONS) ctx.drawImage(mask, dx * step, dy * step);
         ctx.globalCompositeOperation = 'destination-out'; ctx.drawImage(mask, 0, 0); ctx.restore();
+        if (stageView.enabled()) cutToCover(state, { x, y, size }, clips);
         outline = { x, y, clips };
     }
-    function begin(state, entries) {
+    /** On the stage the pale body and its rim stay only where a monster in front really covers the hero: those monsters are
+     * drawn once more onto a mask and both layers are cut to it. Monsters there are wide and low or tall and thin, and the
+     * boxes alone lit the hero up beside them (2026-10-13 사용자: 겹친 부분이 하얗게 뜬다). */
+    function cutToCover(state, origin, clips) {
+        cover = surface(cover, origin.size);
+        const ctx = cover.getContext('2d');
+        ctx.save(); ctx.translate(-origin.x, -origin.y);
+        clips.forEach(box => drawBattleEnemyActor(ctx, box.entry, state));
+        ctx.restore();
+        for (const layer of [mask, edge]) {
+            const cut = layer.getContext('2d');
+            cut.save(); cut.globalCompositeOperation = 'destination-in'; cut.drawImage(cover, 0, 0); cut.restore();
+        }
+    }
+    function begin(scene, entries) {
         boxes = []; outline = null;
-        state = worldTreeSkillFx.actorState(state);
+        const state = worldTreeSkillFx.actorState(scene);
         const p = getPlayerHurtPosition(state), tile = state.gridProj.tileW;
         const head = getHeroHeadY(state.now) ?? p.y - 82 * HERO_SIZE_SCALE;
         hero = { x: p.x - Math.max(26, tile * 0.38), y: head - 16, w: Math.max(52, tile * 0.76), h: p.y - head + 24 };
         if (state.returnWarp || state.returnDeparture || state.actorAlpha === 0) return;
         const clips = entries.filter(entry => entry.y >= p.y).map(entry => {
             const height = getEnemyFieldBarLift(entry.enemy) - 8;
-            return { x: entry.x - height * 0.5, y: entry.y - height, w: height, h: height + 10 };
+            return { x: entry.x - height * 0.5, y: entry.y - height, w: height, h: height + 10, entry };
         }).filter(box => overlaps(box, hero));
-        if (clips.length) capture(state, p, clips);
+        if (clips.length) capture(scene, p, clips);
     }
     /** 가린 몬스터 자리에서만: 주인공의 몸이 반투명하게 비치고 그 둘레에 굵은 테. */
     function draw(ctx) {
@@ -98,6 +113,8 @@ drawBattlePlayerFigure.readability = (() => {
     /** A free spot for a label or bar: it steps up past the hero and the boxes already placed. avoidHero false keeps it over its
      * owner even across the hero (a boss bar beside its own cast bar; 2026-10-07 user: a boss bar leaping over the hero looked odd). */
     function place(box, avoidHero = true) {
+        // 옆에서 보는 무대: 몬스터가 주인공과 늘 겹쳐 서므로 비켜 올리면 막대가 걸음마다 위아래로 튄다. 제 몬스터 위에 그대로 둔다.
+        if (stageView.enabled()) return { ...box };
         const result = { ...box }, taken = avoidHero && hero ? [hero, ...boxes] : boxes;
         for (let n = 0; n < 12 && taken.some(other => overlaps(result, other)); n++) result.y -= result.h + 5;
         boxes.push(result);

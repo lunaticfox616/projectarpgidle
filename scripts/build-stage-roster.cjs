@@ -118,11 +118,23 @@ function forgeBatch(dir) {
     return out;
 }
 
+/** 새 동작이 아직 없는 위습 외형은 같은 속성의 새 위습 그림을 빌려 입는다(data/wisp-sprites.js WISP_SPRITE_BY_VISUAL의 속성).
+ * 속성에 새 그림이 없으면(지금은 화염과 독) 처음 받은 제 그림 그대로다. 외형마다 새 동작이 오면 이 표에서 빠진다. */
+function wispWears(made) {
+    const data = {};
+    global.safeExposeData = table => Object.assign(data, table);
+    require(path.join(root, 'data/wisp-sprites.js'));
+    const byElement = new Map();
+    for (const id of made) if (data.WISP_SPRITE_BY_VISUAL[id] && !byElement.has(data.WISP_SPRITE_BY_VISUAL[id])) byElement.set(data.WISP_SPRITE_BY_VISUAL[id], id);
+    return Object.entries(data.WISP_SPRITE_BY_VISUAL).filter(([id, element]) => !made.includes(id) && byElement.has(element)).map(([id, element]) => [id, byElement.get(element)]);
+}
+
 // ------------------------------------------------------------------ 옮기기
 const actors = new Map(window.ROSTER.actors.map(actor => [actor.id, firstBatch(actor)]));
-const counts = { first: actors.size, moving: 0, still: 0 };
+const counts = { first: actors.size, moving: 0, still: 0 }, moving = [];
 if (forge) for (const [id, actor] of forgeBatch(forge)) {
     counts[actor.walk.frames.length > 1 ? 'moving' : 'still']++;
+    if (actor.walk.frames.length > 1) moving.push(id);
     if (actors.has(id)) counts.first--;
     actors.set(id, actor);
 }
@@ -148,7 +160,7 @@ for (const actor of actors.values()) {
         + `${attack ? clipText({ n: actor.attack.frames.length, cols: attack.cols, ms: actor.attack.ms, extra: actor.attack.hit }) : 'null'}]`);
 }
 
-const version = stamp.digest('hex').slice(0, 10);
+const version = stamp.digest('hex').slice(0, 10), wears = wispWears(moving);
 const text = `// 옆에서 보는 무대의 몬스터 새 그림(docs/stage-view-20261011.md): node scripts/build-stage-roster.cjs가 쓴다. 손으로 고치지 않는다.
 // 몬스터마다 걷기와 공격 두 장(오른쪽을 보는 그림, 한 줄에 cols칸, 도트 하나 = 캐릭터 도트 하나)이고, 두 장은 칸 크기와 발 자리가 같다.
 // 그림은 저장소에 없다(assets/enemies/roster/, 로컬에만 둔다). 없는 곳에서는 앞서 쓰던 그림으로 그린다(js/canvas-stage-roster.js).
@@ -161,6 +173,8 @@ const MONSTER_STAGE_ROSTER = Object.freeze({
     path: 'assets/enemies/roster/',
     /** 그림 묶음의 지문: 그림을 이 값과 함께 불러, 칸이 바뀐 그림을 브라우저가 예전 것으로 쓰지 않게 한다. */
     version: '${version}',
+    /** 제 새 그림이 아직 없어 다른 외형의 그림을 빌려 입는 외형(위습: 같은 속성의 새 그림). */
+    wears: Object.freeze({ ${wears.map(([id, other]) => `'${id}': '${other}'`).join(', ')} }),
     // [id, 이름, 칸 가로, 칸 세로, 발 x, 발 y, 몸 높이, 몸 너비, 걸음새, 걷기, 공격]
     actors: Object.freeze(Object.fromEntries([
 ${rows.join(',\n')}

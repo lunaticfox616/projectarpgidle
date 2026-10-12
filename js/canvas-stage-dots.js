@@ -6,6 +6,7 @@
 const stageDots = (() => {
     let scratch = null;
     const TILE = 512;   // 큰 그림을 옮길 때 한 번에 다루는 조각(도트)
+    const GUARD = 2;    // 작업면에서 그림 둘레에 비워 두는 띠(px)
     const canvasPx = () => (typeof uiDisplay === 'object' ? uiDisplay.battleRenderScale : 1);
     /** 도트 하나의 캔버스 픽셀 수(scale = 도트 하나의 화면 크기). */
     const pxPerDot = scale => scale * canvasPx();
@@ -24,7 +25,9 @@ const stageDots = (() => {
         ctx.globalAlpha = 1;
         ctx.globalCompositeOperation = 'source-over';
         ctx.imageSmoothingEnabled = false;
-        ctx.clearRect(0, 0, width, height);
+        // 그림보다 GUARD만큼 넓게 비운다. 줄여 찍을 때 가장자리는 바로 바깥 픽셀까지 섞어 읽는데, 작업면에는 앞서 찍은 더 큰
+        // 그림이 남아 있어 그 색이 작은 그림의 오른쪽과 아래 끝에 가는 선으로 묻어 나왔다(2026-10-13 사용자: 미묘한 선이 자꾸 생긴다).
+        ctx.clearRect(0, 0, width + GUARD, height + GUARD);
         return ctx;
     }
     /**

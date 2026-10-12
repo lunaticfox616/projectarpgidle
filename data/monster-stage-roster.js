@@ -10,6 +10,8 @@ const MONSTER_STAGE_ROSTER = Object.freeze({
     path: 'assets/enemies/roster/',
     /** 그림 묶음의 지문: 그림을 이 값과 함께 불러, 칸이 바뀐 그림을 브라우저가 예전 것으로 쓰지 않게 한다. */
     version: '93115393a9',
+    /** 제 새 그림이 아직 없어 다른 외형의 그림을 빌려 입는 외형(위습: 같은 속성의 새 그림). */
+    wears: Object.freeze({ 'wisp-h02': 'wisp-b04', 'wisp-h03': 'wisp-b03', 'wisp-h05': 'wisp-b03', 'wisp-h06': 'wisp-b04', 'wisp-s01': 'wisp-b01', 'wisp-s03': 'wisp-b05', 'wisp-s04': 'wisp-b05', 'wisp-s05': 'wisp-b01' }),
     // [id, 이름, 칸 가로, 칸 세로, 발 x, 발 y, 몸 높이, 몸 너비, 걸음새, 걷기, 공격]
     actors: Object.freeze(Object.fromEntries([
         ['famine_beast', '기근의 맹수', 270, 173, 107, 171, 133, 220, 'legs', [6, 6, [110, 100, 110, 110, 100, 110], 'stride'], [6, 6, [160, 130, 170, 70, 110, 220], 2]],

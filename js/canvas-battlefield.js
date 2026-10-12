@@ -3279,18 +3279,21 @@ function drawRiftPlayerRing(ctx, proj, feet) {
     ctx.restore();
 }
 
-function getRiftUnitFootprintBox(proj, unit) {
+/** The screen box of a unit's cells. walking: an enemy on the stage is drawn short of its cell while it walks there
+ * (js/canvas-stage-stride.js), and its ring and target marks go with the picture, as the hero's ring does (2026-10-13 사용자). */
+function getRiftUnitFootprintBox(proj, unit, walking = false) {
     const cells = getGridUnitCells(unit);
     if (cells.length <= 0) return null;
     const points = cells.map(cell => proj.cellToScreen(cell.gx, cell.gy));
-    const xs = points.map(p => p.x), ys = points.map(p => p.y);
-    const left = Math.min(...xs) - proj.tileW / 2, right = Math.max(...xs) + proj.tileW / 2;
-    const top = Math.min(...ys) - proj.tileH / 2, bottom = Math.max(...ys) + proj.tileH / 2;
+    const xs = points.map(p => p.x), ys = points.map(p => p.y), stride = walking ? stageStride.read(unit, battleVisualState.visualNow) : null;
+    const dx = stride ? stride.dx * proj.tileW : 0, dy = stride ? stride.dy * proj.tileH : 0;
+    const left = Math.min(...xs) - proj.tileW / 2 + dx, right = Math.max(...xs) + proj.tileW / 2 + dx;
+    const top = Math.min(...ys) - proj.tileH / 2 + dy, bottom = Math.max(...ys) + proj.tileH / 2 + dy;
     return { left, right, top, bottom, cx: (left + right) / 2, cy: (top + bottom) / 2 };
 }
 
 function drawRiftUnitRing(ctx, proj, unit, tone) {
-    const box = getRiftUnitFootprintBox(proj, unit);
+    const box = getRiftUnitFootprintBox(proj, unit, tone === RIFT_CELL_TONES.enemy);
     if (!box) return;
     const rx = (box.right - box.left) * 0.4;
     const ry = Math.max(4, rx * 0.34);
@@ -3320,7 +3323,7 @@ function drawRiftAreaCell(ctx, proj, cell) {
 
 // 조준 대상: 발자국 상자의 네 모서리에만 짧은 꺾쇠를 긋는다.
 function drawRiftTargetBrackets(ctx, proj, unit) {
-    const box = getRiftUnitFootprintBox(proj, unit);
+    const box = getRiftUnitFootprintBox(proj, unit, true);
     if (!box) return;
     const arm = Math.min(box.right - box.left, box.bottom - box.top) * 0.22;
     const corners = [[box.left, box.top, 1, 1], [box.right, box.top, -1, 1], [box.left, box.bottom, 1, -1], [box.right, box.bottom, -1, -1]];

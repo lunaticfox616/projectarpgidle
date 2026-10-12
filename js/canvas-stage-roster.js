@@ -31,11 +31,13 @@ const stageRoster = (() => {
     const sum = list => list.reduce((total, value) => total + value, 0);
     const seedOf = enemy => Math.abs(enemy.id || 0);
 
-    /** The roster actor an enemy shows: the look picked in the test panel, its own look, or (a story boss) its asset key. */
+    /** The roster actor an enemy shows: the look picked in the test panel, its own look (or the look it wears for now,
+     * data wears), or (a story boss) its asset key. */
     function actorFor(enemy) {
         const data = table();
         if (!data) return null;
-        const own = data.actors[enemy.spriteVariantId || enemy.monsterVisualId] || data.actors[enemy.bossAssetKey];
+        const look = enemy.spriteVariantId || enemy.monsterVisualId;
+        const own = data.actors[data.wears[look] || look] || data.actors[enemy.bossAssetKey];
         return data.actors[settings().stageMonsterLook] || own || null;
     }
     function load(file) {
@@ -209,7 +211,7 @@ const stageRoster = (() => {
         const pose = poseOf(enemy, actor, p), hop = pose.hop || 0;
         const size = compose(pair, actor, pose, { outline: getEnemyOutlineStyle(enemy), flash: p.flash });
         shadow(ctx, actor, p, dot, hop);
-        noteEnemyDrawnHeight(enemy, (actor.height + hop) * dot);
+        noteEnemyDrawnHeight(enemy, actor.height * dot);   // 뛰는 높이는 넣지 않는다: 체력 막대가 걸음마다 따라 튄다
         ctx.save();
         if (stageView.facing(enemy, p.facing) === 'west') { ctx.translate(p.x * 2, 0); ctx.scale(-1, 1); }
         const left = monsterActors.snap(p.x - (size.pad + actor.feet[0] - (pose.nudge || 0)) * dot), top = monsterActors.snap(p.y - (size.pad + actor.feet[1] + hop) * dot);
