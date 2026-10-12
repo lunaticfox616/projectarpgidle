@@ -3,10 +3,10 @@
  * 받아 온 그림은 큰 그림을 줄인 것이라 도트마다 색이 다르고 가장자리가 반투명하다. 캐릭터 그림처럼 만들려고:
  *   - 반투명을 없앤다(절반 넘게 찬 도트만 남긴다).
  *   - 색을 몇 단계로 줄인다. 색은 색의 폭으로 나눠 고르므로(도트 수로 고르지 않는다) 버섯의 흰 줄기 같은 드문 색이 남는다.
- *   - 이웃에 같은 색이 없는 외톨이 도트는 가장 가까운 이웃 색을 입는다.
+ *   - 이웃에 같은 색이 없는 외톨이 도트는 가장 가까운 이웃 색을 입는다(--accents: 이웃과 뚜렷이 다른 도트는 눈이나 반짝임이라 둔다).
  *   - 바깥과 맞닿은 도트를 어두운 테로 바꾼다(--no-rim 으로 끈다).
  *
- *   node scripts/tidy-stage-art.cjs <그림.png 또는 폴더> <내보낼 폴더> [--colours 24] [--no-rim]
+ *   node scripts/tidy-stage-art.cjs <그림.png 또는 폴더> <내보낼 폴더> [--colours 24] [--no-rim] [--accents]
  *
  * 원본은 건드리지 않는다. 색 수를 주지 않으면 그림 크기에 따라 16~32색을 쓴다. RGBA 8비트 PNG만 읽는다.
  */
@@ -69,7 +69,10 @@ function tidy(png, options = {}) {
             if ((dx || dy) && nx >= 0 && ny >= 0 && nx < w && ny < h && on[ny * w + nx]) around.push(index[ny * w + nx]);
         }
         if (around.includes(index[here]) || around.length < 5) continue;
-        next[here] = around.reduce((best, value) => (distance(palette[value], palette[index[here]]) < distance(palette[best], palette[index[here]]) ? value : best), around[0]);
+        const pick = around.reduce((best, value) => (distance(palette[value], palette[index[here]]) < distance(palette[best], palette[index[here]]) ? value : best), around[0]);
+        // accents: 이웃과 뚜렷이 다른 외톨이 도트(눈, 반짝임)는 그대로 둔다
+        if (options.accents && palette[pick].some((value, channel) => Math.abs(value - palette[index[here]][channel]) > 28)) continue;
+        next[here] = pick;
     }
     const out = new Uint8Array(w * h * 4), darkest = palette.reduce((a, b) => (a[0] + a[1] + a[2] < b[0] + b[1] + b[2] ? a : b)), rim = darkest.map(value => Math.round(value * 0.55));
     for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
@@ -88,7 +91,7 @@ function main() {
     const files = fs.statSync(input).isDirectory() ? fs.readdirSync(input).filter(name => name.toLowerCase().endsWith('.png')).map(name => path.join(input, name)) : [input];
     fs.mkdirSync(outDir, { recursive: true });
     for (const file of files) {
-        const tidied = tidy(decodePng(fs.readFileSync(file)), { colours: value('--colours'), rim: !flag('--no-rim') });
+        const tidied = tidy(decodePng(fs.readFileSync(file)), { colours: value('--colours'), rim: !flag('--no-rim'), accents: flag('--accents') });
         fs.writeFileSync(path.join(outDir, path.basename(file)), encodePng(tidied.width, tidied.height, tidied.data));
         console.log(`${path.basename(file)}: ${tidied.width}x${tidied.height}, ${tidied.colours}색`);
     }
