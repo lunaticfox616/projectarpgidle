@@ -14,7 +14,8 @@ const messageFrames = (() => {
     const COLLAPSED_HEIGHT = 34;
     const DRAG_OUT_PX = 24;
     const DEFAULT_WIDTH = 300;
-    const DEFAULT_HEIGHT = 420;
+    // Recent messages stay visible without covering the whole right side of the fight; saved user sizes take precedence.
+    const DEFAULT_HEIGHT = 240;
     const GAP = 10;
     // 처음 자리의 위끝은 오른쪽 위 귀환(지역 줄)과 그 아래 목표 단추(css/themes/rift-stage.css, 아래 끝 약 96px) 밑이다.
     // 둘이 오른쪽 끝으로 옮겨 오며(2026-10-07) 작은 화면(높이 720)에서 기록 창이 목표 단추를 덮었다.

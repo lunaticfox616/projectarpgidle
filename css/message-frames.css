@@ -140,9 +140,11 @@ body[data-ui-skin] .message-frame-actions [data-message-action="settings"]::befo
    보통 굵기, 줄 높이 1.5, 줄 사이 4px, 구분선 없음, 위로 갈수록 흐려지는 오래된 줄. 창으로 옮기며 이 규칙들이 빠져
    글이 굵고 빽빽해져 흰 공격 줄이 덩어리로 보였다(2026-10-03 사용자 지적). */
 :root body .message-frame-body > #log {
-  -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 48px);
-  mask-image: linear-gradient(180deg, transparent 0, #000 48px);
+  -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 20px);
+  mask-image: linear-gradient(180deg, transparent 0, #000 20px);
 }
+/* When reading or scrolling history, keep the first visible line as readable as the latest messages. */
+:root body .message-frame:is(:hover, :focus-within) .message-frame-body > #log { -webkit-mask-image: none; mask-image: none; }
 :root body .message-frame-body > #log .log-msg { margin: 0 0 4px; padding: 2px 0; border-bottom: 0; font-weight: 400; line-height: 1.5; }
 /* 반투명 판 위의 글: 도트 검은 외곽(1px)으로 밝은 바닥이 비쳐도 읽힌다 */
 :root body .message-frame-body :is(#log .log-msg, .social-chat-msg) { text-shadow: 1px 1px 0 #000, -1px 0 0 rgba(0, 0, 0, .6); }
