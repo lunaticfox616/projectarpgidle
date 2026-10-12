@@ -2273,6 +2273,32 @@ function drawEnemyAfterimage(ctx, enemy, pose) {
     drawEnemySprite(ctx, enemy, pose.x, pose.y, pose.scale * boss, !!pose.flash, pose.now);
 }
 
+/** Where an enemy is drawn this frame: { enemy, x, y, moving }. A step on the grid must not look like a jump, so its picture
+ * glides from the cell it left: on the top-down field toward the new cell, most of the way at once (the wave judgement,
+ * js/combat.js pickWaveFrontTargets, counts with the same glide); on the stage at a walk over the whole step
+ * (js/canvas-stage-stride.js), with no follower in screen space, so a scrolling room does not drag the monsters.
+ * frame = { now, deltaSec, gridProj }. */
+function glideBattleEnemy(entry, frame) {
+    const id = entry.enemy.id;
+    if (stageView.enabled()) {
+        const stride = stageStride.read(entry.enemy, frame.now) || { dx: 0, dy: 0, moving: false };
+        const at = { x: entry.x + stride.dx * frame.gridProj.tileW, y: entry.y + stride.dy * frame.gridProj.tileH };
+        battleVisualState.enemySmoothPos[id] = at;
+        return { enemy: entry.enemy, x: at.x, y: at.y, moving: stride.moving };
+    }
+    let smooth = battleVisualState.enemySmoothPos[id];
+    if (!smooth) {
+        smooth = { x: entry.x, y: entry.y };
+        battleVisualState.enemySmoothPos[id] = smooth;
+    } else {
+        smooth.x = approachNumber(smooth.x, entry.x, COMBAT_GRID_CONFIG.enemyGlideRate, frame.deltaSec);
+        smooth.y = approachNumber(smooth.y, entry.y, COMBAT_GRID_CONFIG.enemyGlideRate, frame.deltaSec);
+    }
+    const distance = Math.hypot(entry.x - smooth.x, entry.y - smooth.y);
+    if (distance < 0.65) { smooth.x = entry.x; smooth.y = entry.y; }
+    return { enemy: entry.enemy, x: smooth.x, y: smooth.y, moving: distance >= 0.65 };
+}
+
 /** 보스는 BOSS_DRAW_SCALE배로 그린다(살아 있는 모습, 사라지는 잔상, 쓰러지는 모습 모두). 일반 몬스터는 1. */
 function getBossDrawScale(enemy) {
     return enemy && enemy.isBoss ? BOSS_DRAW_SCALE : 1;
@@ -2509,27 +2535,8 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
     };
     battleVisualState.playerPos = { x: playerPos.x, y: playerPos.y };
     if (!battleVisualState.enemySmoothPos) battleVisualState.enemySmoothPos = {};
-    let dynamicLayout = layout.map(entry => {
-        // 칸 단위 이동이 순간이동으로 보이지 않게 화면 좌표를 목표 칸으로 보간한다.
-        let smooth = battleVisualState.enemySmoothPos[entry.enemy.id];
-        if (!smooth) {
-            smooth = { x: entry.x, y: entry.y };
-            battleVisualState.enemySmoothPos[entry.enemy.id] = smooth;
-        } else {
-            // The wave judgement (js/combat.js pickWaveFrontTargets) counts with the same glide to know where a monster is drawn.
-            smooth.x = approachNumber(smooth.x, entry.x, COMBAT_GRID_CONFIG.enemyGlideRate, deltaSec);
-            smooth.y = approachNumber(smooth.y, entry.y, COMBAT_GRID_CONFIG.enemyGlideRate, deltaSec);
-        }
-        const movingDistance = Math.hypot(entry.x - smooth.x, entry.y - smooth.y);
-        if (movingDistance < 0.65) { smooth.x = entry.x; smooth.y = entry.y; }
-        entry = { enemy: entry.enemy, x: smooth.x, y: smooth.y, moving: movingDistance >= 0.65 };
-        return {
-            enemy: entry.enemy,
-            x: entry.x,
-            y: entry.y,
-            moving: entry.moving
-        };
-    });
+    const glideFrame = { now, deltaSec, gridProj };
+    let dynamicLayout = layout.map(entry => glideBattleEnemy(entry, glideFrame));
     let enemyPosMap = buildBattleEnemyPosMap(dynamicLayout, battleFx, now);
     playerMotionState.attackDirection = resolvePlayerAttackDirection(playerPos, currentTargets, enemyPosMap);
     if (playerMotion.animating) battleVisualState.playerFacingDirection = playerMotion.direction;

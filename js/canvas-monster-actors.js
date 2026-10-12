@@ -88,13 +88,19 @@ const monsterActors = (() => {
         const gauge = Number(enemy.attackTimer);
         return gauge >= WIND_UP_FROM && gauge < 1 ? { share: (gauge - WIND_UP_FROM) / (1 - WIND_UP_FROM), bob: 0 } : null;
     }
-    /** { clip, index, bob }: strike on the hit or release, wind-up while the gauge fills its last fifth, else idle (faster with a hop when walking). */
-    function clipFrame(enemy, kind, now, moving) {
+    /** { clip: 'attack', index, bob } while the strike (on the hit or release) or its wind-up (the gauge's last fifth) shows,
+     * else null. kind = { attackMs, impactFrame }: a sheet kind, or a roster actor (js/canvas-stage-roster.js). */
+    function attackFrame(enemy, kind, now, moving) {
         const attackMs = sum(kind.attackMs), impactMs = sum(kind.attackMs.slice(0, kind.impactFrame));
         const release = lastRelease(enemy, now, attackMs);
         if (release !== null && now - release + impactMs < attackMs) return { clip: 'attack', index: frameAt(kind.attackMs, now - release + impactMs), bob: 0 };
         const wind = windUp(enemy, moving, now);
-        if (wind) return { clip: 'attack', index: frameAt(kind.attackMs, wind.share * impactMs), bob: wind.bob };
+        return wind ? { clip: 'attack', index: frameAt(kind.attackMs, wind.share * impactMs), bob: wind.bob } : null;
+    }
+    /** { clip, index, bob }: the strike or its wind-up, else idle (faster with a hop when walking). */
+    function clipFrame(enemy, kind, now, moving) {
+        const strike = attackFrame(enemy, kind, now, moving);
+        if (strike) return strike;
         const speed = moving ? WALK_SPEED : 1, idleMs = sum(kind.idleMs);
         const index = frameAt(kind.idleMs, (now * speed + Math.abs(enemy.id || 0) * 137) % idleMs);
         return { clip: 'idle', index, bob: moving && index % 2 === 1 ? 1 : 0 };
@@ -168,10 +174,12 @@ const monsterActors = (() => {
         if (pair !== 'loading' && pair.kind.stage) stageRings.shadow(ctx, { x: p.x, y: p.y, dot: stageActors.scaleFor(p.tile) }, Math.round(share * 64), 0.34);
         else drawPixelShadow(ctx, p.x, p.y + 2, p.tile * share, p.tile * 0.09, 0.2);
     }
-    /** Draws a sheet monster (act monsters and roots by spriteVariantId, realm sets by monsterVisualId).
+    /** Draws a sheet monster (act monsters and roots by spriteVariantId, realm sets by monsterVisualId). On the stage a
+     * monster with newer art (js/canvas-stage-roster.js: walk and attack sheets, story bosses too) draws from that first.
      * p = { x, y (feet), tile, now, facing, flash, spawnScale, moving }. False → not one of these (or its sheet failed). */
     function draw(ctx, enemy, p) {
         if (!enemy || !(p.tile > 0) || typeof Image !== 'function') return false;
+        if (stageRoster.draw(ctx, enemy, p)) return true;
         const pair = sheetFor(enemy.spriteVariantId || enemy.monsterVisualId);
         if (!pair) return false;
         groundShadow(ctx, pair, p);
@@ -194,6 +202,6 @@ const monsterActors = (() => {
     }
     const isSheetMonster = id => typeof MONSTER_SPRITE_SHEETS === 'object' && !!MONSTER_SPRITE_SHEETS[id];
 
-    return { draw, drawSkin, isSheetMonster, clipFrame, frameAt };
+    return { draw, drawSkin, isSheetMonster, clipFrame, frameAt, attackFrame, snap };
 })();
 safeExposeGlobals({ monsterActors });

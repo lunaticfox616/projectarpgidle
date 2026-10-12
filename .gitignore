@@ -47,5 +47,7 @@ __pycache__/
 /assets/playable/stage/
 # 무대 조각 묶음(사용자가 이미지 생성으로 만든 그림): 저장소에 넣기로 정할 때까지 로컬에만 둔다.
 /assets/stage-scenes/
+# 무대 몬스터의 새 그림(사용자가 이미지 생성으로 만든 그림, scripts/build-stage-roster.cjs가 옮긴다): 저장소에 넣기로 정할 때까지 로컬에만 둔다.
+/assets/enemies/roster/
 /assets/summon/hana/
 /docs/skill-assets-hana/reference/
