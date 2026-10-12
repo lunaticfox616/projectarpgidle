@@ -52,6 +52,7 @@ const stageDoorMarks = (() => {
      * 서로 다른 높이에 선다. @param rows actExplorationDoors.doorsHere의 줄들 @param width 전장의 가로(CSS px) */
     function edgeMarks(ctx, p, rows, width) {
         const inset = Math.round(p.tileW * 0.5), dot = p.tileW / 64;
+        if (!(width > 0)) return;   // 전장의 크기를 아직 모른다
         for (const row of rows) {
             const at = row.locked ? null : p.cellToScreen(row.door.cell.gx, row.door.cell.gy);
             if (!at || (at.x >= 0 && at.x <= width)) continue;
