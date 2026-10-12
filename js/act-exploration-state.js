@@ -264,14 +264,26 @@ const actExplorationState = (() => {
         const blocked=new Set(remainingElites(run)>0?[actExplorationMap.index(map,map.gate)]:[]);
         const candidates=run.packs.filter(pack=>!pack.objectId && pack.aliveIds.length>0 && bossReady(run,pack));
         const ordinary=candidates.filter(pack=>pack.stage===null);
-        const targets=mode==='full' && ordinary.length ? ordinary
+        const wanted=mode==='full' && ordinary.length ? ordinary
             : candidates.filter(pack=>pack.eliteIds.length>0 || pack.stage!==null);
+        const targets=map.stage ? roomTourTargets(map,from,wanted) : wanted;
         let best=null,bestLength=Infinity;
         for(const pack of targets) {
             const room=packPosition(map,pack),length=walkLength(map,from,room,blocked);
             if(length && length<bestLength){best=room;bestLength=length;}
         }
         return best;
+    }
+    /** 방 단위 지도: 갈 무리를 방 순서로 좁힌다. 지금 선 방에 무리가 남았으면 그 무리, 없으면 남은 방을 모두 돌고 보스 방에서 끝나는
+     * 가장 짧은 순서의 다음 방에 있는 무리(js/act-exploration-rooms.js tourNext). 보스 단계만 남았으면 그대로 둔다. */
+    function roomTourTargets(map,from,wanted) {
+        const here=actExplorationRooms.roomAt(map,from),roomIndex=pack=>map.rooms.findIndex(room=>room.id===pack.roomId);
+        const rest=wanted.filter(pack=>pack.stage===null);
+        if(!here || !rest.length)return wanted;
+        const inRoom=rest.filter(pack=>roomIndex(pack)===here.index);
+        if(inRoom.length)return inRoom;
+        const next=actExplorationRooms.tourNext(map,here.index,rest.map(roomIndex),map.rooms.findIndex(room=>room.role==='boss'));
+        return next<0 ? wanted : rest.filter(pack=>roomIndex(pack)===next);
     }
     /** Steps to a pack; 0 when it cannot be reached. A room-by-room map counts doors first (no path search every step). */
     function walkLength(map,from,room,blocked) {

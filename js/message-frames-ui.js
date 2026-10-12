@@ -394,6 +394,35 @@ const messageFrames = (() => {
         renderFrames();
     }
 
-    return Object.freeze({ sync: syncFrames, showTab: showFrameTab, isTabVisible: isFrameTabVisible, isActive: () => mounted, reset: resetFrames });
+    /** 주인공이 창 뒤에 서면 그 창을 옅게 한다(2026-10-13 무대를 직접 돌려 본 결과: 방의 동쪽 문 앞에 선 주인공이 전투 기록 창에
+     * 가려졌다). x, y = 주인공 발의 자리, top = 머리 끝(전장 캔버스의 CSS px). 프레임마다 불리므로 레이아웃을 읽지 않는다: 창의
+     * 자리는 저장해 둔 값으로, 캔버스의 자리는 창 크기가 바뀔 때 읽어 둔 값으로 셈한다. 창의 모습은 바뀔 때만 쓴다.
+     * 마우스를 올린 창은 옅어지지 않는다(css/message-frames.css). */
+    const HERO_HALF = 30;
+    const faded = { main: false, side: false };
+    let stageBox = null;
+    function readStageBox() {
+        const canvas = document.getElementById('battlefield-canvas'), box = canvas ? canvas.getBoundingClientRect() : null;
+        stageBox = box && canvas.clientWidth ? { left: box.left, top: box.top, scale: box.width / canvas.clientWidth } : null;
+    }
+    window.addEventListener('resize', () => { stageBox = null; });
+    function frameCoversHero(frame, at) {
+        if (frame === 'side' && !state.split) return false;
+        const rect = rectFor(frame), scale = frameScale(), top = state.collapsed[frame] ? rect.y + rect.height - COLLAPSED_HEIGHT : rect.y;
+        return at.x + HERO_HALF > rect.x * scale && at.x - HERO_HALF < (rect.x + rect.width) * scale && at.y > top * scale && at.top < (rect.y + rect.height) * scale;
+    }
+    function fadeFramesOverHero(x, y, top) {
+        if (!mounted) return;
+        if (!stageBox) readStageBox();
+        const at = stageBox && Number.isFinite(x) ? { x: stageBox.left + x * stageBox.scale, y: stageBox.top + y * stageBox.scale, top: stageBox.top + top * stageBox.scale } : null;
+        for (const frame of FRAMES) {
+            const over = !!at && frameCoversHero(frame, at);
+            if (over === faded[frame]) continue;
+            faded[frame] = over;
+            frameEl(frame).classList.toggle('over-hero', over);
+        }
+    }
+
+    return Object.freeze({ sync: syncFrames, showTab: showFrameTab, isTabVisible: isFrameTabVisible, isActive: () => mounted, reset: resetFrames, heroAt: fadeFramesOverHero });
 })();
 safeExposeGlobals({ messageFrames });

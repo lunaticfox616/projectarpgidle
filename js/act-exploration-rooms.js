@@ -179,6 +179,38 @@ const actExplorationRooms = (() => {
         const next = waypoint(map, from, target);
         return map.far[here.index][there.index] * 100 + Math.abs(next.gx - from.gx) + Math.abs(next.gy - from.gy);
     }
-    return Object.freeze({ forRun: stageLayout, key: roomPlanKey, supports: key => !!readRoomKey(key), roomAt, doorAt, waypoint, steps });
+    /** 방 순서 셈의 한 걸음: mask의 방들을 돌고 last에 선 길에서 아직 안 간 방으로 한 번 더 간다. */
+    function tourRelax(table, far, list, at) {
+        const base = table.cost[at.mask][at.last];
+        for (let next = 0; next < list.length; next++) {
+            const into = at.mask | (1 << next), total = base + far[list[at.last]][list[next]];
+            if (into !== at.mask && total < table.cost[into][next]) { table.cost[into][next] = total; table.first[into][next] = table.first[at.mask][at.last]; }
+        }
+    }
+    /** 방 here에서 list의 방을 모두 지나 방 end에서 끝나는 가장 짧은 길(지나는 문의 수)의 첫 방. 방이 열두 개를 넘지 않아 부분집합을 모두 센다. */
+    function tourFirst(far, here, list, end) {
+        const n = list.length, full = (1 << n) - 1;
+        const table = { cost: Array.from({ length: full + 1 }, () => Array(n).fill(Infinity)), first: Array.from({ length: full + 1 }, () => Array(n).fill(-1)) };
+        list.forEach((room, i) => { table.cost[1 << i][i] = far[here][room]; table.first[1 << i][i] = i; });
+        for (let mask = 1; mask <= full; mask++) for (let last = 0; last < n; last++) if (table.cost[mask][last] < Infinity) tourRelax(table, far, list, { mask, last });
+        const whole = last => table.cost[full][last] + (end >= 0 && Number.isFinite(far[list[last]][end]) ? far[list[last]][end] : 0);
+        let best = 0;
+        for (let last = 1; last < n; last++) if (whole(last) < whole(best)) best = last;
+        return list[table.first[full][best]];
+    }
+    /** 자동 탐험이 다음에 갈 방: 방 here(번호)에서 들러야 할 방(must, 번호들)을 모두 지나 방 end에서 끝나는 가장 짧은 순서의 첫 방.
+     * 가까운 무리부터 가던 때에는 보스와 먼 가지가 마지막에 남아, 비운 방을 여러 번 되돌아 지났다(2026-10-13 액트 1을 돌려 본 결과:
+     * 방 이동 17번 가운데 9번이 되돌아가기). 같은 물음의 답은 지도마다 적어 둔다. 갈 방이 없으면 -1. */
+    const TOUR_LIMIT = 12, tours = new WeakMap();
+    function tourNext(map, here, must, end) {
+        const list = [...new Set(must)].filter(index => index !== here && Number.isFinite(map.far[here][index])).sort((a, b) => a - b);
+        if (!list.length) return -1;
+        if (list.length > TOUR_LIMIT) return list.reduce((near, index) => (map.far[here][index] < map.far[here][near] ? index : near));
+        const key = here + '>' + list.join(',') + '>' + end, memo = tours.get(map) || new Map();
+        if (!tours.has(map)) tours.set(map, memo);
+        if (!memo.has(key)) memo.set(key, tourFirst(map.far, here, list, end));
+        return memo.get(key);
+    }
+    return Object.freeze({ forRun: stageLayout, key: roomPlanKey, supports: key => !!readRoomKey(key), roomAt, doorAt, waypoint, steps, tourNext });
 })();
 safeExposeGlobals({ actExplorationRooms });

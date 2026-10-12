@@ -2319,6 +2319,18 @@ function glideBattleEnemy(entry, frame) {
     return { enemy: entry.enemy, x: smooth.x, y: smooth.y, moving: distance >= 0.65 };
 }
 
+/** 옆에서 보는 무대: 주인공이 전투 기록이나 채팅 창 뒤에 서면 그 창이 옅어진다(js/message-frames-ui.js heroAt). 머리 끝은 앞 프레임에
+ * 그린 높이다(이번 프레임의 몸은 아직 그리지 않았다). 위에서 보는 전장에서는 주인공이 늘 화면 가운데라 쓰지 않는다. */
+const STAGE_HERO_FALLBACK_HEIGHT = 120;
+let stageHeroTopOffset = STAGE_HERO_FALLBACK_HEIGHT;
+function noteStageHeroBehindFrames(playerPos, now) {
+    if (typeof messageFrames !== 'object' || !messageFrames.isActive()) return;
+    if (!stageView.enabled()) { messageFrames.heroAt(NaN, NaN, NaN); return; }
+    const head = getHeroHeadY(now);
+    if (Number.isFinite(head)) stageHeroTopOffset = Math.max(40, playerPos.y - head);
+    messageFrames.heroAt(playerPos.x, playerPos.y, playerPos.y - stageHeroTopOffset);
+}
+
 /** 보스는 BOSS_DRAW_SCALE배로 그린다(살아 있는 모습, 사라지는 잔상, 쓰러지는 모습 모두). 일반 몬스터는 1. */
 function getBossDrawScale(enemy) {
     return enemy && enemy.isBoss ? BOSS_DRAW_SCALE : 1;
@@ -2554,6 +2566,7 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
         downBlend
     };
     battleVisualState.playerPos = { x: playerPos.x, y: playerPos.y };
+    noteStageHeroBehindFrames(playerPos, now);
     if (!battleVisualState.enemySmoothPos) battleVisualState.enemySmoothPos = {};
     const glideFrame = { now, deltaSec, gridProj };
     let dynamicLayout = layout.map(entry => glideBattleEnemy(entry, glideFrame));
