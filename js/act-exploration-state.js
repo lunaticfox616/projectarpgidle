@@ -33,6 +33,7 @@ const actExplorationState = (() => {
     function create(where,packs,now=0) {
         const run=where.source ? {version:1,act:null,source:explorationLayouts.normalize(where.source),bossStages:where.bossStages,zoneId:where.zoneId}
             : {version:1,act:where.act,zoneId:where.act-1};
+        if(where.rooms)run.rooms=where.rooms; // 방 단위 무대의 열쇠(js/act-exploration-rooms.js: 방 크기, 놓임새, 무대 그림): 이 탐험이 끝날 때까지 그 지도를 걷는다
         if(where.rotation!==undefined)run.rotation=where.rotation;
         const map=actExplorationMap.forRun(run);
         if(!map)throw Error('알 수 없는 액트 탐험: '+where.act);
@@ -82,24 +83,32 @@ const actExplorationState = (() => {
     }
     /** @returns {ReadonlyArray<number>} Current visibility; only this owner updates discovered/visited lists. radius: the hero's
      * sight (sightRadius), kept per run for the fog. */
-    function discover(run,cell,radius=ACT_EXPLORATION_VISION.radius) {
+    function discover(run,cell,sightRadius=ACT_EXPLORATION_VISION.radius) {
+        const map=actExplorationMap.forRun(run),radius=roomReach(map,sightRadius);
         sights.set(run,radius);
         const prior=discoveryMemos.get(run),key=`${run.layoutId}:${cell.gx},${cell.gy}:${radius}`;
         if(prior?.key===key && prior.discovered===run.discovered && prior.visited===run.visitedRooms)return prior.visible;
-        const map=actExplorationMap.forRun(run),known=new Set(run.discovered);
+        const known=new Set(run.discovered);
         const visible=Object.freeze(actExplorationMap.visibleCells(map,cell,radius));
         visible.forEach(id=>known.add(id));run.discovered=[...known];
         for(const room of map.rooms) {
-            if(room.gx===cell.gx && room.gy===cell.gy && !run.visitedRooms.includes(room.id))run.visitedRooms.push(room.id);
+            if(standsIn(map,room,cell) && !run.visitedRooms.includes(room.id))run.visitedRooms.push(room.id);
         }
         discoveryMemos.set(run,{key,visible,discovered:run.discovered,visited:run.visitedRooms});
         return visible;
+    }
+    /** 방 단위 지도(js/act-exploration-rooms.js)에서는 방 하나를 통째로 본다: 벽이 시야를 막으므로 반경은 방보다 크기만 하면 된다. */
+    const roomReach=(map,radius)=>map.stage?STAGE_ROOMS.reach:radius;
+    /** A room counts as visited from its centre cell; on a room-by-room map from any of its cells. */
+    function standsIn(map,room,cell) {
+        return map.stage ? actExplorationRooms.roomAt(map,cell)===room : room.gx===cell.gx && room.gy===cell.gy;
     }
     /** Cells whose monsters notice the hero and join the fight: a tile inside the sight (ACT_EXPLORATION_VISION), memoized per cell. */
     function notice(run,cell) {
         const key=`${run.layoutId}:${cell.gx},${cell.gy}`,prior=noticeMemos.get(run);
         if(prior?.key===key)return prior.cells;
-        const cells=Object.freeze(actExplorationMap.visibleCells(actExplorationMap.forRun(run),cell,ACT_EXPLORATION_VISION.engageRadius));
+        const map=actExplorationMap.forRun(run);
+        const cells=Object.freeze(actExplorationMap.visibleCells(map,cell,roomReach(map,ACT_EXPLORATION_VISION.engageRadius)));
         noticeMemos.set(run,{key,cells});
         return cells;
     }
@@ -236,6 +245,7 @@ const actExplorationState = (() => {
         run.destination={gx:cell.gx,gy:cell.gy};return true;
     }
     function reachableBeforeBoss(map,cell) {
+        if(map.stage)return actExplorationRooms.roomAt(map,cell)?.role!=='boss'; // 보스 방만 관문 뒤에 있다
         if(cell.gx===map.entry.gx && cell.gy===map.entry.gy)return true;
         const blocked=new Set([actExplorationMap.index(map,map.gate)]);
         return actExplorationMap.route(map,map.entry,cell,blocked).length>0;
@@ -254,15 +264,32 @@ const actExplorationState = (() => {
         const blocked=new Set(remainingElites(run)>0?[actExplorationMap.index(map,map.gate)]:[]);
         const candidates=run.packs.filter(pack=>!pack.objectId && pack.aliveIds.length>0 && bossReady(run,pack));
         const ordinary=candidates.filter(pack=>pack.stage===null);
-        const targets=mode==='full' && ordinary.length ? ordinary
+        const wanted=mode==='full' && ordinary.length ? ordinary
             : candidates.filter(pack=>pack.eliteIds.length>0 || pack.stage!==null);
+        const targets=map.stage ? roomTourTargets(map,from,wanted) : wanted;
         let best=null,bestLength=Infinity;
         for(const pack of targets) {
-            const room=packPosition(map,pack);
-            const path=actExplorationMap.route(map,from,room,blocked);
-            if(path.length && path.length<bestLength){best=room;bestLength=path.length;}
+            const room=packPosition(map,pack),length=walkLength(map,from,room,blocked);
+            if(length && length<bestLength){best=room;bestLength=length;}
         }
         return best;
+    }
+    /** 방 단위 지도: 갈 무리를 방 순서로 좁힌다. 지금 선 방에 무리가 남았으면 그 무리, 없으면 남은 방을 모두 돌고 보스 방에서 끝나는
+     * 가장 짧은 순서의 다음 방에 있는 무리(js/act-exploration-rooms.js tourNext). 보스 단계만 남았으면 그대로 둔다. */
+    function roomTourTargets(map,from,wanted) {
+        const here=actExplorationRooms.roomAt(map,from),roomIndex=pack=>map.rooms.findIndex(room=>room.id===pack.roomId);
+        const rest=wanted.filter(pack=>pack.stage===null);
+        if(!here || !rest.length)return wanted;
+        const inRoom=rest.filter(pack=>roomIndex(pack)===here.index);
+        if(inRoom.length)return inRoom;
+        const next=actExplorationRooms.tourNext(map,here.index,rest.map(roomIndex),map.rooms.findIndex(room=>room.role==='boss'));
+        return next<0 ? wanted : rest.filter(pack=>roomIndex(pack)===next);
+    }
+    /** Steps to a pack; 0 when it cannot be reached. A room-by-room map counts doors first (no path search every step). */
+    function walkLength(map,from,room,blocked) {
+        if(!map.stage)return actExplorationMap.route(map,from,room,blocked).length;
+        const length=actExplorationRooms.steps(map,from,room);
+        return Number.isFinite(length)?length+1:0;
     }
     function validCell(map,cell) {
         if(!cell || !actExplorationMap.walkable(map,cell))throw Error('탐험 저장의 위치가 지형 밖입니다.');
@@ -280,7 +307,17 @@ const actExplorationState = (() => {
         if(!room || room.role==='entry' || room.role==='path' || typeof pack.key!=='string')throw Error('탐험 저장의 적 무리가 잘못되었습니다.');
         if(!Array.isArray(pack.aliveIds) || !Array.isArray(pack.eliteIds) || !Array.isArray(pack.waiting))throw Error('탐험 저장의 적 목록이 없습니다.');
         if((room.role==='boss')!==(pack.stage!==null))throw Error('탐험 저장의 보스 단계가 잘못되었습니다.');
+        validatePackKind(map,pack,room);
+    }
+    /** A road group (anchor) and a stage room's added pack (extra) each have their own shape. */
+    function validatePackKind(map,pack,room) {
         if(pack.anchor!==undefined)validatePatrol(map,pack,room);
+        if(pack.extra!==undefined)validateExtra(map,pack,room);
+    }
+    /** 방 단위 무대의 방에 더 서는 무리(js/combat.js createStageExtraPacks): 방마다 둘까지, 정예 없이. */
+    function validateExtra(map,pack,room) {
+        const known=map.stage && [1,2].includes(pack.extra) && pack.key===`${room.id}:extra${pack.extra}`;
+        if(!known || pack.stage!==null || pack.eliteIds.length || pack.anchor!==undefined || pack.objectId)throw Error('탐험 저장의 덧무리가 잘못되었습니다.');
     }
     function validatePack(map,pack,context) {
         if(!pack || context.keys.has(pack.key))throw Error('탐험 저장의 적 무리가 중복되거나 잘못되었습니다.');
@@ -347,7 +384,7 @@ const actExplorationState = (() => {
     }
     function validateRoomPacks(run) {
         const rooms=packRooms(actExplorationMap.forRun(run));
-        if(rooms.some(room=>run.packs.filter(pack=>pack.roomId===room.id && pack.stage===null && !pack.anchor && !pack.objectId).length!==1))throw Error('탐험 저장에 탐색 구역이 누락되었습니다.');
+        if(rooms.some(room=>run.packs.filter(pack=>pack.roomId===room.id && pack.stage===null && !pack.anchor && !pack.objectId && !pack.extra).length!==1))throw Error('탐험 저장에 탐색 구역이 누락되었습니다.');
         if(run.packs.filter(pack=>pack.anchor).length>1)throw Error('탐험 저장의 길목 무리가 중복되었습니다.');
     }
     function bossStageCount(run) {return run.source?run.bossStages:STORY_ACTS[run.zoneId].maxKills;}
@@ -360,14 +397,26 @@ const actExplorationState = (() => {
      * The save boundary (mergeDefaults) calls this before it validates the run. */
     function dropRetired(state) {
         const run=state.actExploration;
-        if(!run || !run.source || explorationLayouts.supports(run.source))return false;
+        if(!run || !(retired(run) || strayInRooms(state,run)))return false;
         actExplorationLoot.restore(state,run);
         actExplorationState.groundLoot.settleOnLoad(state,run);
-        console.warn('retired generated map dropped on load:', run.source.style);
+        console.warn('retired exploration map dropped on load:', run.source?run.source.style:'rooms');
         state.actExploration=null;
         state.enemies=(state.enemies||[]).filter(enemy=>!enemy || !enemy.explorationPack);
         state.encounterPlan=[];
         return true;
+    }
+    /** A generated map this build no longer draws, or a room-by-room run (rooms) opened where the room stage is off or laid out
+     * by a room plan this build does not lay out (an older STAGE_ROOMS.version): its cells belong to a map this session does not have. */
+    /** 방 단위 무대가 켜진 창이 방 없는 탐험을 불러 왔다: 이 창에서는 새 탐험이 모두 방 단위라(js/combat.js createActExplorationEncounter)
+     * 다른 주소로 열었을 때 시작한 탐험이다. 그대로 두면 구역을 다시 열 때까지 방 없는 지도가 무대에 그려진다
+     * (2026-10-13 사용자: 시험판에 들어가니 액트 1조차 방이 아니다). 테스트 패널에서 방을 끈 저장은 건드리지 않는다. */
+    function strayInRooms(state,run) {
+        return !run.rooms && actExplorationDoors.session() && (state.settings || {}).stageRooms!=='off';
+    }
+    function retired(run) {
+        if(run.source && !explorationLayouts.supports(run.source))return true;
+        return !!run.rooms && (!actExplorationRooms.supports(run.rooms) || !actExplorationDoors.session() || !actExplorationRooms.forRun(run));
     }
     /** Saves before 2026-10-04 carry no facing: they keep walking the map as it was drawn, so their tile indices still hold.
      * The save boundary (mergeDefaults) calls this before it validates the run; a run that already has one is left alone. */

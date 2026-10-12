@@ -1,0 +1,71 @@
+#!/usr/bin/env node
+/* 옆에서 보는 무대의 탐험 물체와 소품 그림을 그린다(docs/stage-view-20261011.md). 하나가 칸 하나, 가로 한 줄.
+ *
+ *   node scripts/build-stage-objects.cjs            # 미리보기만: artifacts/stage-monsters/objects-preview.png (공용, 그 아래 테마별)
+ *   node scripts/build-stage-objects.cjs --write    # assets/objects/stage/objects.png 과 테마별 objects-<테마>.png 교체
+ *
+ * 물체 정의는 scripts/stage-monsters/objects.cjs, 그리는 법은 몬스터와 같다(입체는 scripts/stage-monsters/render.cjs, 칠은 paint.cjs).
+ * 임시 소품(props.cjs)은 예전 다섯 단계 칠(render.cjs) 그대로다: 조각 묶음이 있는 지형에서는 쓰이지 않는다.
+ * 게임 쪽 규격(칸 크기, 발 자리, 이름 순서)은 data/stage-view.js STAGE_OBJECTS: 여기 순서와 같아야 한다.
+ * 소품(방을 채우는 바위, 뿌리, 선돌, 고사리)은 scripts/stage-monsters/props.cjs → assets/objects/stage/props-<테마>.png,
+ * 규격은 STAGE_PROPS. 미리보기는 artifacts/stage-monsters/props-preview.png.
+ */
+'use strict';
+const fs = require('node:fs');
+const path = require('node:path');
+const R = require('./stage-monsters/render.cjs');
+const P = require('./stage-monsters/paint.cjs');
+const { encodePng } = require('./lib/png.cjs');
+const { objects, themes, SIZE, FEET } = require('./stage-monsters/objects.cjs');
+const PROPS = require('./stage-monsters/props.cjs');
+
+const root = path.resolve(__dirname, '..');
+const PREVIEW_SCALE = 3, PREVIEW_COLUMNS = 5;
+
+/** The cells on a dark floor colour at an integer scale, a few to a row. size: the cell's side in dots. */
+function preview(cells, size = SIZE) {
+    const SIZE = size, rows = Math.ceil(cells.length / PREVIEW_COLUMNS), cell = SIZE * PREVIEW_SCALE;
+    const width = PREVIEW_COLUMNS * cell, height = rows * cell, data = new Uint8Array(width * height * 4);
+    for (let i = 0; i < width * height; i++) data.set([77, 64, 53, 255], i * 4);
+    cells.forEach((frame, index) => {
+        const left = (index % PREVIEW_COLUMNS) * cell, top = Math.floor(index / PREVIEW_COLUMNS) * cell;
+        for (let y = 0; y < cell; y++) for (let x = 0; x < cell; x++) {
+            const src = (Math.floor(y / PREVIEW_SCALE) * SIZE + Math.floor(x / PREVIEW_SCALE)) * 4;
+            if (frame[src + 3] >= 128) data.set(frame.subarray(src, src + 3), ((top + y) * width + left + x) * 4);
+        }
+    });
+    return encodePng(width, height, data);
+}
+
+function main() {
+    const sets = [['objects', objects], ...Object.entries(themes).map(([theme, list]) => ['objects-' + theme, list])];
+    const drawn = sets.map(([file, list]) => ({ file, cells: list.map(object => P.paint(object.build(), object.mats, SIZE, FEET)) }));
+    const previewDir = path.join(root, 'artifacts/stage-monsters');
+    fs.mkdirSync(previewDir, { recursive: true });
+    fs.writeFileSync(path.join(previewDir, 'objects-preview.png'), preview(drawn.flatMap(set => set.cells)));
+    if (process.argv.includes('--write')) {
+        const outDir = path.join(root, 'assets/objects/stage');
+        fs.mkdirSync(outDir, { recursive: true });
+        for (const set of drawn) {
+            const sheet = R.strip(set.cells, SIZE);
+            fs.writeFileSync(path.join(outDir, set.file + '.png'), encodePng(sheet.width, sheet.height, sheet.data));
+        }
+    }
+    console.log(`${objects.length}개씩 ${drawn.map(set => set.file).join(', ')}. 미리보기: artifacts/stage-monsters/objects-preview.png`);
+    buildProps(previewDir);
+}
+/** The prop sheets, one per theme, and their preview. */
+function buildProps(previewDir) {
+    const sets = Object.entries(PROPS.themes).map(([theme, list]) => ({ file: 'props-' + theme,
+        cells: list.map(prop => (prop.build ? R.render(prop.build(), prop.mats, PROPS.SIZE, PROPS.FEET) : prop.paint())), names: list.map(prop => prop.name) }));
+    fs.writeFileSync(path.join(previewDir, 'props-preview.png'), preview(sets.flatMap(set => set.cells), PROPS.SIZE));
+    if (process.argv.includes('--write')) {
+        for (const set of sets) {
+            const sheet = R.strip(set.cells, PROPS.SIZE);
+            fs.writeFileSync(path.join(root, 'assets/objects/stage', set.file + '.png'), encodePng(sheet.width, sheet.height, sheet.data));
+        }
+    }
+    for (const set of sets) console.log(`${set.file}: ${set.names.join(', ')}. 미리보기: artifacts/stage-monsters/props-preview.png`);
+}
+
+main();

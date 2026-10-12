@@ -1,0 +1,58 @@
+/** 무대 스킬 이펙트의 연결 규칙이 함께 쓰는 작은 도구 (js/canvas-stage-skill-rules.js, js/canvas-stage-skill-casts.js).
+ * 젬 이름에서 인계의 젬 번호와 연결표를 찾고, 주인공과 적이 선 자리, 보는 쪽, 클립의 램프를 답한다. 읽기만 한다.
+ */
+const stageSkillKit = (() => {
+    const WIDE = 64, DEEP = 32;                   // 한 칸의 도트
+    const BODY = -50;                             // 몸 가운데 높이(발에서, 도트)
+    const HAND = -58;                             // 손 높이: 투사체가 나는 높이
+    let lastFace = 1;
+    let names = null;                             // 인계의 젬 이름 → 번호(게임에 그림 번호가 없는 젬: 위습 소환)
+
+    function kitNames() {
+        if (!names) names = new Map(Object.entries(STAGE_SKILL_VFX.meta).map(([id, row]) => [row.name, Number(id)]));
+        return names;
+    }
+    /** 젬 이름 → 인계의 번호: 게임의 그림 번호, 따로 시전하는 젬의 번호, 그것도 없으면 이름으로 찾는다. */
+    function kitGemId(skillName) {
+        const spec = SKILL_FX_ATLAS[skillName], def = SKILL_DB[skillName];
+        return (spec && spec.id) || (def && def.nativeCastId) || kitNames().get(skillName) || 0;
+    }
+    /** @returns {?{id:number, map:object, meta:object}} 그 젬의 연결표와 갈래. 인계에 없는 젬이면 null. */
+    function kitGemOf(skillName) {
+        const id = kitGemId(skillName), map = id ? STAGE_SKILL_VFX.gems[id] : null;
+        return map ? { id, map, meta: STAGE_SKILL_VFX.meta[id] } : null;
+    }
+    const kitRamp = (gem, element) => gem.map.ramp || STAGE_SKILL_VFX.elementRamp[element] || STAGE_SKILL_VFX.elementRamp[gem.meta.el] || 'phys';
+    const kitRef = (value, index = 0) => (Array.isArray(value) ? value[index % value.length] : value);
+    const kitOnGround = ref => { const clip = stageSkillVfx.clipOf(ref); return !!clip && clip.an === 'bottom'; };
+    const kitHeroSpot = () => ({ gx: game.gridPlayer.gx, gy: game.gridPlayer.gy });
+    const kitEnemy = id => (game.enemies || []).find(unit => unit.id === id && hasGridCell(unit)) || null;
+    /** 적이 선 자리: 몸의 가로 가운데와 앞줄. */
+    function kitEnemySpot(enemy) {
+        const size = getGridUnitFootprint(enemy);
+        return { gx: enemy.gx + (size.columns - 1) / 2, gy: enemy.gy + size.rows - 1 };
+    }
+    /** 주인공이 보는 쪽(1 오른쪽, -1 왼쪽): 무대의 주인공 그림이 지금 보는 쪽. */
+    const kitHeroFace = () => (typeof stageActors === 'object' && stageActors.facing ? stageActors.facing() : lastFace);
+    /** 마지막으로 친 쪽을 적어 둔다(방향을 알 수 없는 사건이 쓴다). */
+    function kitNoteFace(face) { if (face) lastFace = face; }
+    const kitLastFace = () => lastFace;
+    const kitAt = (spot, dx = 0, dy = 0) => ({ gx: spot.gx, gy: spot.gy, dx, dy });
+    /** 그 자리의 화면 좌표(발 자리)와 도트 하나의 크기. */
+    function kitScreen(p, spot) {
+        const base = p.cellToScreen(spot.gx, spot.gy);
+        return { x: base.x, y: base.y + (p.actorGroundOffsetY || 0), dot: stageActors.scaleFor(p.tileW) };
+    }
+    /** 길(칸과 그 칸에 닿는 때)을 따라 지금 있는 자리와 나아가는 쪽. 길이 없으면 처음 칸에서 대상 칸으로 곧게 간다. */
+    function kitAlong(event, elapsed) {
+        const path = event.travelPath && event.travelPath.length > 1 ? event.travelPath
+            : [{ ...event.sourceCell, offsetMs: 0 }, { ...event.targetCells[0], offsetMs: event.duration }];
+        let i = 0;
+        while (i < path.length - 2 && path[i + 1].offsetMs <= elapsed) i++;
+        const a = path[i], b = path[i + 1], u = Math.max(0, Math.min(1, (elapsed - a.offsetMs) / Math.max(1, b.offsetMs - a.offsetMs)));
+        return { gx: a.gx + (b.gx - a.gx) * u, gy: a.gy + (b.gy - a.gy) * u, face: Math.sign(b.gx - a.gx) || lastFace, from: a, to: b };
+    }
+    return Object.freeze({ WIDE, DEEP, BODY, HAND, gemOf: kitGemOf, ramp: kitRamp, ref: kitRef, onGround: kitOnGround, heroSpot: kitHeroSpot, enemy: kitEnemy,
+        enemySpot: kitEnemySpot, heroFace: kitHeroFace, noteFace: kitNoteFace, lastFace: kitLastFace, at: kitAt, screen: kitScreen, along: kitAlong });
+})();
+safeExposeGlobals({ stageSkillKit });

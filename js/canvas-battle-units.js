@@ -1,4 +1,5 @@
-/** Battle units on the field: the player figure (Hana +6 sheets with the legacy strip as fallback) and the summons
+/** Battle units on the field: the player figure (the side-view stage sheets when the stage is on, else Hana +6 sheets with the
+ * legacy strip as fallback) and the summons
  * (wisps from their own sheets, js/canvas-hana-actors.js; the guard golem from the legacy summon1.png frame).
  * Split out of canvas-battlefield.js along the unit-drawing boundary; renderBattlefield still decides when they draw
  * (drawBattlePlayerActor → drawBattlePlayerFigure, drawBattleGroundLayer → drawActiveSummons). Rendering only.
@@ -15,14 +16,30 @@ function getSheetMonsterSkinId() {
     return id && monsterActors.isSheetMonster(id) ? id : null;
 }
 
-/** Legacy strips face east and are mirrored for west poses; Hana and monster sheets carry their own west row. */
+/** The stance the stage hero holds: the worn weapon's (settings.stageStance forces one from the test panel). */
+function getStageHeroStance() {
+    return stageActors.stanceFor(game.equipment?.['무기'], game.settings?.stageStance || 'auto', !!game.equipment?.['방패']);
+}
+
+/** The side-view stage draws its own hero (js/canvas-stage-actors.js) once the worn class × stance sheets have loaded. */
+function canDrawStagePlayer() {
+    return stageView.enabled() && !getSelectedMonsterSkinId() && stageActors.isReady(getHeroAppearanceId(), getStageHeroStance());
+}
+
+/** The hero's head top drawn this frame, whichever sprite set drew it (null: neither did). */
+function getHeroHeadY(now) {
+    return stageActors.headY(now) ?? hanaActors.headY(now);
+}
+
+/** Legacy strips face east and are mirrored for west poses; stage, Hana and monster sheets turn by themselves. */
 function isBattlePlayerMirrored(motion) {
-    if (canDrawHanaPlayer() || getSheetMonsterSkinId()) return false;
+    if (canDrawStagePlayer() || canDrawHanaPlayer() || getSheetMonsterSkinId()) return false;
     let pose = motion.facingDirection || motion.attackDirection || 'east';
     return motion.advanceBlend <= 0.08 && pose === 'west';
 }
 
 function drawBattlePlayerFigure(ctx, state, position) {
+    if (canDrawStagePlayer() && drawStagePlayerBody(ctx, state, position)) return;
     if (canDrawHanaPlayer() && drawHanaPlayerBody(ctx, state, position)) return;
     if (drawSheetMonsterSkin(ctx, state, position)) return;
     drawBattlePlayerBody(ctx, state, position);
@@ -31,7 +48,7 @@ function drawBattlePlayerFigure(ctx, state, position) {
 const OCCLUDED_RIM_DIRECTIONS = Object.freeze([[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 1]]);
 /** Frame-local readability layout. CSS-pixel boxes and two small reused masks; never serialized with game data. */
 drawBattlePlayerFigure.readability = (() => {
-    let hero = null, boxes = [], mask, edge, outline = null;
+    let hero = null, boxes = [], mask, edge, cover, outline = null;
     const overlaps = (a, b) => a.x < b.x + b.w + 3 && a.x + a.w + 3 > b.x && a.y < b.y + b.h + 3 && a.y + a.h + 3 > b.y;
     function surface(current, size) {
         const canvas = current || document.createElement('canvas');
@@ -54,20 +71,35 @@ drawBattlePlayerFigure.readability = (() => {
         ctx.save();
         for (const [dx, dy] of OCCLUDED_RIM_DIRECTIONS) ctx.drawImage(mask, dx * step, dy * step);
         ctx.globalCompositeOperation = 'destination-out'; ctx.drawImage(mask, 0, 0); ctx.restore();
+        if (stageView.enabled()) cutToCover(state, { x, y, size }, clips);
         outline = { x, y, clips };
     }
-    function begin(state, entries) {
+    /** On the stage the pale body and its rim stay only where a monster in front really covers the hero: those monsters are
+     * drawn once more onto a mask and both layers are cut to it. Monsters there are wide and low or tall and thin, and the
+     * boxes alone lit the hero up beside them (2026-10-13 사용자: 겹친 부분이 하얗게 뜬다). */
+    function cutToCover(state, origin, clips) {
+        cover = surface(cover, origin.size);
+        const ctx = cover.getContext('2d');
+        ctx.save(); ctx.translate(-origin.x, -origin.y);
+        clips.forEach(box => drawBattleEnemyActor(ctx, box.entry, state));
+        ctx.restore();
+        for (const layer of [mask, edge]) {
+            const cut = layer.getContext('2d');
+            cut.save(); cut.globalCompositeOperation = 'destination-in'; cut.drawImage(cover, 0, 0); cut.restore();
+        }
+    }
+    function begin(scene, entries) {
         boxes = []; outline = null;
-        state = worldTreeSkillFx.actorState(state);
+        const state = worldTreeSkillFx.actorState(scene);
         const p = getPlayerHurtPosition(state), tile = state.gridProj.tileW;
-        const head = hanaActors.headY(state.now) ?? p.y - 82 * HERO_SIZE_SCALE;
+        const head = getHeroHeadY(state.now) ?? p.y - 82 * HERO_SIZE_SCALE;
         hero = { x: p.x - Math.max(26, tile * 0.38), y: head - 16, w: Math.max(52, tile * 0.76), h: p.y - head + 24 };
         if (state.returnWarp || state.returnDeparture || state.actorAlpha === 0) return;
         const clips = entries.filter(entry => entry.y >= p.y).map(entry => {
             const height = getEnemyFieldBarLift(entry.enemy) - 8;
-            return { x: entry.x - height * 0.5, y: entry.y - height, w: height, h: height + 10 };
+            return { x: entry.x - height * 0.5, y: entry.y - height, w: height, h: height + 10, entry };
         }).filter(box => overlaps(box, hero));
-        if (clips.length) capture(state, p, clips);
+        if (clips.length) capture(scene, p, clips);
     }
     /** 가린 몬스터 자리에서만: 주인공의 몸이 반투명하게 비치고 그 둘레에 굵은 테. */
     function draw(ctx) {
@@ -81,6 +113,8 @@ drawBattlePlayerFigure.readability = (() => {
     /** A free spot for a label or bar: it steps up past the hero and the boxes already placed. avoidHero false keeps it over its
      * owner even across the hero (a boss bar beside its own cast bar; 2026-10-07 user: a boss bar leaping over the hero looked odd). */
     function place(box, avoidHero = true) {
+        // 옆에서 보는 무대: 몬스터가 주인공과 늘 겹쳐 서므로 비켜 올리면 막대가 걸음마다 위아래로 튄다. 제 몬스터 위에 그대로 둔다.
+        if (stageView.enabled()) return { ...box };
         const result = { ...box }, taken = avoidHero && hero ? [hero, ...boxes] : boxes;
         for (let n = 0; n < 12 && taken.some(other => overlaps(result, other)); n++) result.y -= result.h + 5;
         boxes.push(result);
@@ -108,6 +142,23 @@ function drawHanaPlayerBody(ctx, state, position) {
             facing: spin ? spin.facing : motion.facingDirection || motion.attackDirection || 'east',
             moving: motion.advanceBlend > 0.08, moveDirection: motion.moveDirection,
             alpha: getBattleActorDrawAlpha(ctx, 1), tint: redrawnSkillFx.playerTint(state.now)
+        }, state.now);
+    } finally { ctx.battleActorAlpha = previous; }
+}
+
+/** The stage hero: timing from the same battle effects as the Hana figure; spells play the cast clips, a thrown flask the throw. */
+function drawStagePlayerBody(ctx, state, position) {
+    const motion = state.motionState, stance = getStageHeroStance(), skill = SKILL_DB[game.activeSkill] || {};
+    const previous = ctx.battleActorAlpha;
+    ctx.battleActorAlpha = state.actorAlpha;
+    try {
+        return stageActors.drawPlayer(ctx, position.x, position.y, {
+            ...collectHanaPlayerMotion(motion, state.now), classId: getHeroAppearanceId(), stance, tile: state.gridProj.tileW,
+            facing: motion.facingDirection || motion.attackDirection || 'east',
+            moving: motion.advanceBlend > 0.08, moveDirection: motion.moveDirection,
+            spell: (skill.tags || []).includes('spell'),
+            throwsWeapon: stance === 'flask' && HANA_THROWN_FLASK_GEMS.has(SKILL_FX_ATLAS[game.activeSkill]?.id),
+            alpha: getBattleActorDrawAlpha(ctx, 1)
         }, state.now);
     } finally { ctx.battleActorAlpha = previous; }
 }
@@ -166,7 +217,8 @@ const drawTintedBattlePlayerFigure = (() => {
         // Some sprite paths leave a shadow's low alpha on the context, so the tint is scaled by the alpha before the figure.
         const baseAlpha = ctx.globalAlpha;
         drawBattlePlayerFigure(ctx, state, position);
-        const strength = getHeroHitTintStrength(state.now, state.motionState && state.motionState.playerStats);
+        // 무대의 주인공은 몸 전체를 붉게 칠하지 않는다: 붉은 외곽선이 피격 표시다(js/canvas-stage-actors.js hitLook).
+        const strength = canDrawStagePlayer() ? 0 : getHeroHitTintStrength(state.now, state.motionState && state.motionState.playerStats);
         if (!(strength > 0) || !ctx.canvas) return;
         layer = layer || document.createElement('canvas');
         if (layer.width !== ctx.canvas.width || layer.height !== ctx.canvas.height) {
@@ -265,6 +317,9 @@ function isWispSummonFacingLeft(summon, at, view) {
 
 /** @returns {?number} top of the drawn body, or null when the summon is no wisp or its sheet is still loading. */
 function drawWispSummon(ctx, summon, at, view) {
+    // 옆에서 보는 무대: 인계 받은 새 스킬 이펙트의 위습 몸(js/canvas-stage-skill-casts.js).
+    const staged = view.proj && typeof stageSkillCasts === 'object' ? stageSkillCasts.wispBody(ctx, summon, at, view) : null;
+    if (staged !== null) return staged;
     if (typeof hanaActors !== 'object' || !view.proj) return null;
     const drawn = hanaActors.drawSummon(ctx, {
         skillName: summon.gemName, x: at.x, y: at.y, now: view.now, tile: view.proj.tileW, phase: (Number(summon.id) || 0) * 97,

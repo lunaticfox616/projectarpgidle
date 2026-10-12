@@ -6942,6 +6942,8 @@ function handleTalentBloomClear(zone) {
 
 function isCrowdProgressPaused() {
     if (game.moveTimer > 0) return false;
+    // 방 단위 무대: 방 안의 몬스터를 다 잡아야 문이 열린다. 따로 멈출 진행이 없으니 무리가 많다는 알림도 내지 않는다.
+    if (actExplorationDoors.stageMap(actExplorationState.current(game))) return false;
     return (game.enemies || []).filter(enemy => enemy.hp > 0).length >= ENEMY_CROWD_PAUSE_LIMIT;
 }
 
@@ -7778,9 +7780,9 @@ const explorationPackFormation=(()=>{
     }
     function prepare(zone,room,stage,encounter,formation) {
         const shape=formation || {},patrol=Object.hasOwn(shape,'anchor');
-        const key=patrol?room.id+':patrol':explorationPackKey(room,stage),at=explorationPackSpawnAt(zone,key,stage);
-        const elite=patrol?false:(room.role==='elite' || !!encounter || isAtlasExtraEliteRoom(zone,room));
-        return {key,at,elite,anchor:shape.anchor,cells:shape.cells || cells(shape.center || room,roomCount(zone,stage,encounter,shape),at%4)};
+        const key=patrol?room.id+':patrol':shape.extra?`${room.id}:extra${shape.extra}`:explorationPackKey(room,stage),at=explorationPackSpawnAt(zone,key,stage);
+        const elite=patrol||shape.extra?false:(room.role==='elite' || !!encounter || isAtlasExtraEliteRoom(zone,room));
+        return {key,at,elite,anchor:shape.anchor,extra:shape.extra,cells:shape.cells || cells(shape.center || room,roomCount(zone,stage,encounter,shape),at%4)};
     }
     /** Leave the entry's five-tile notice radius empty when a larger first-room group spreads toward it. */
     function roomCenter(map,room) {
@@ -7832,7 +7834,7 @@ function explorationPackSpawnAt(zone,key,stage) {
 }
 
 function createActExplorationPack(zone,room,stage,encounter=null,formation=null) {
-    const {key,at,cells,elite,anchor}=explorationPackFormation.prepare(zone,room,stage,encounter,formation),waiting=[];
+    const {key,at,cells,elite,anchor,extra}=explorationPackFormation.prepare(zone,room,stage,encounter,formation),waiting=[];
     cells.forEach((cell,index)=>{
         const marker={at,count:1,boss:stage!==null,elite:elite && index===0,storyStage:stage,ownLook:atlasEncounters.hasOwnLook(encounter)};
         const enemy=createEnemy(zone,marker,index);
@@ -7846,6 +7848,7 @@ function createActExplorationPack(zone,room,stage,encounter=null,formation=null)
     const pack={key,roomId:room.id,stage,waiting,aliveIds:waiting.map(enemy=>enemy.id),eliteIds:waiting.filter(enemy=>enemy.isElite).map(enemy=>enemy.id)};
     if(encounter)pack.encounter=encounter;
     if(anchor)pack.anchor={...anchor};
+    if(extra)pack.extra=extra;
     markExplorationAlertPack(pack);
     atlasFinds.dressTreasurePack(zone,pack);
     return pack;
@@ -7886,6 +7889,7 @@ function createActExplorationEncounter(zone,exploration) {
     if(!plan && exploration===true)throw Error('일반 액트나 전용 맵이 있는 콘텐츠에서만 탐험을 시작할 수 있습니다.');
     if(!plan)return null;
     plan.rotation=actExplorationProgress.objects.savedFacing(zone)??rollExplorationFacing();
+    if(actExplorationDoors.session())plan.rooms=actExplorationDoors.planKey(zone,plan); // 방 단위 무대 시험판(js/act-exploration-doors.js): 액트와 그 밖의 모든 탐험 구역
     const run=actExplorationState.create(plan,createExplorationPacks(zone,actExplorationMap.forRun(plan),plan.bossStages),getCombatTime());
     run.mode=actExplorationProgress.startMode(game.settings);
     actExplorationProgress.objects.initialize(run,zone);
@@ -7902,7 +7906,27 @@ function createExplorationPacks(zone,map,bossStages) {
             : createActExplorationPack(zone,room,null,encounters[room.id]||null,counts.get(room.id)));continue;}
         for(let stage=0;stage<bossStages;stage++)packs.push(placeExplorationBoss(map,room,createActExplorationPack(zone,room,stage)));
     }
-    if(patrol)packs.push(createActExplorationPack(zone,map.rooms.find(room=>room.id===patrol.roomId),null,null,patrol));
+    return packs.concat(createAddedExplorationPacks(zone,map,patrol));
+}
+
+/** Packs beside the one each room has: the quiet-road group, and on a room-by-room stage the packs added to every room. */
+function createAddedExplorationPacks(zone,map,patrol) {
+    const packs=patrol?[createActExplorationPack(zone,map.rooms.find(room=>room.id===patrol.roomId),null,null,patrol)]:[];
+    return map.stage?packs.concat(createStageExtraPacks(zone,map)):packs;
+}
+
+/** 방 단위 무대의 방마다 더 서는 무리(data/stage-view.js STAGE_ROOMS.extraPacks, 2026-10-13 사용자: "한 방에 몬스터 한무리~1.5무리
+ * 정도 더"): 지역의 기본 무리 크기로(큰 방에 얹는 덧수는 원래 무리만 받는다), 방 가운데의 양옆에 선다(첫째는 보스 쪽, 둘째는 입구 쪽). 열쇠는 "방:extra1", "방:extra2".
+ * 정예는 없고 생김새는 열쇠마다 다르게 뽑힌다. 방에 들어서면 방 안을 모두 보므로 원래 무리와 함께 덤빈다. */
+function createStageExtraPacks(zone,map) {
+    const rule=STAGE_ROOMS.extraPacks,packs=[];
+    for(const room of actExplorationState.packRooms(map)) {
+        const more=rule.always+(Math.random()<rule.chance?1:0),reach=Math.round(room.radiusX*rule.spread);
+        for(let extra=1;extra<=more;extra++) {
+            const center={gx:room.gx+(extra===1?reach:-reach),gy:room.gy+(extra===1?-1:1)};
+            packs.push(createActExplorationPack(zone,room,null,null,{extra,center}));
+        }
+    }
     return packs;
 }
 

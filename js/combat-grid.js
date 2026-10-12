@@ -385,7 +385,7 @@ function beginExplorationGridStep(target,interval) {
     const run=actExplorationState.current(game);if(!run || run.motion)return false;
     const next={gx:game.gridPlayer.gx,gy:game.gridPlayer.gy};
     if(!gridStepToward(next,target.gx,target.gy,getExplorationPlanningBlockedCells(run)))return false;
-    return actExplorationMotion.start(run,game.gridPlayer,next,interval,run.motionTimeMs);
+    return actExplorationMotion.start(run,game.gridPlayer,next,interval/actExplorationDoors.pace(run),run.motionTimeMs);
 }
 
 /** The hero plans its exploration step around fighters and its own reserved tile, but not around dormant packs: they wake
@@ -949,7 +949,9 @@ function buildEarthSpikeHitSequence(skill, targets, primary, impactCells) {
 function getGridUnitDrawnDelta(unit, t) {
     const from = unit.gridStepFrom, at = Number(unit.gridStepAt);
     if (!from || !Number.isFinite(at)) return { dx: 0, dy: 0 };
-    const lag = Math.exp(-COMBAT_GRID_CONFIG.enemyGlideRate * Math.max(0, t - at) / 1000);
+    // 옆에서 보는 무대에서는 한 걸음을 고른 빠르기로 걸어간다(js/canvas-stage-stride.js): 그려지는 자리를 같은 식으로 센다
+    const walked = typeof stageStride === 'object' && typeof stageView === 'object' && stageView.enabled();
+    const lag = walked ? stageStride.lag(t - at) : Math.exp(-COMBAT_GRID_CONFIG.enemyGlideRate * Math.max(0, t - at) / 1000);
     return { dx: (from.gx - unit.gx) * lag, dy: (from.gy - unit.gy) * lag };
 }
 

@@ -6215,21 +6215,24 @@ function getFixedBattleGridProjection(width,height,fitMode) {
     const layout = ACT_BATTLE_MAP_LAYOUT;
     const gridContain = fitMode === 'grid-contain';
     const contain = fitMode === 'contain' || gridContain;
+    // 옆에서 보는 무대(data/stage-view.js): 세로(깊이)만 depth배로 눌러 그린다. 배경 그림과 칸이 함께 눌리고, 남는 높이만큼 무대가 커진다.
+    const depth = stageView.depth();
     const frameLeft = gridContain ? layout.gridOriginX - 48 : 0;
     const frameTop = gridContain ? layout.gridOriginY - 64 : 0;
     const frameWidth = gridContain ? layout.columns * layout.cellWidth + 96 : layout.width;
-    const frameHeight = gridContain ? layout.rows * layout.cellHeight + 112 : layout.height;
+    const frameHeight = (gridContain ? layout.rows * layout.cellHeight + 112 : layout.height) * depth;
     const scale = contain
         ? Math.min(width / frameWidth, height / frameHeight)
-        : Math.max(width / layout.width, height / layout.height) * layout.viewScale;
+        : Math.max(width / layout.width, height / (layout.height * depth)) * layout.viewScale;
+    const deep = scale * depth;
     const mapWidth = layout.width * scale;
-    const mapHeight = layout.height * scale;
+    const mapHeight = layout.height * deep;
     const frameX = (width - frameWidth * scale) / 2;
     const frameY = gridContain ? (height - frameHeight * scale) / 2 : height - frameHeight * scale;
     const mapX = contain ? frameX - frameLeft * scale : (width - mapWidth) / 2;
-    const mapY = contain ? frameY - frameTop * scale : (height - mapHeight) / 2;
+    const mapY = contain ? frameY - frameTop * deep : (height - mapHeight) / 2;
     const tileW = layout.cellWidth * scale;
-    const tileH = layout.cellHeight * scale;
+    const tileH = layout.cellHeight * deep;
     return {
         tileW,
         tileH,
@@ -6241,7 +6244,7 @@ function getFixedBattleGridProjection(width,height,fitMode) {
         cellToScreen(gx, gy) {
             return {
                 x: mapX + (layout.gridOriginX + (gx + 0.5) * layout.cellWidth) * scale,
-                y: mapY + (layout.gridOriginY + (gy + 0.5) * layout.cellHeight) * scale
+                y: mapY + (layout.gridOriginY + (gy + 0.5) * layout.cellHeight) * deep
             };
         }
     };
@@ -11244,6 +11247,8 @@ function getCloudConfig() {
     let supabaseUrl = String(raw.supabaseUrl || '').trim().replace(/\/+$/, '');
     let supabaseAnonKey = String(raw.supabaseAnonKey || '').trim();
     let enabled = raw.enabled !== false && !!supabaseUrl && !!supabaseAnonKey;
+    // 무대 시험판 창(주소에 stage=1, 로컬 전용)은 방 단위 지도처럼 다른 판이 읽지 못하는 탐험을 저장하므로 클라우드 저장을 쓰지 않는다.
+    if (typeof stageView === 'object' && stageView.trial()) enabled = false;
     return { enabled, supabaseUrl, supabaseAnonKey };
 }
 

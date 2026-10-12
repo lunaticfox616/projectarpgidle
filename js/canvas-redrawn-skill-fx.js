@@ -415,8 +415,8 @@ const redrawnSkillFx = (() => {
     function playerDot(view) {
         const p = view.projection, pos = typeof battleVisualState === 'object' ? battleVisualState.playerPos : null;
         if (!p || !pos) return null;
-        const origin = p.cellToScreen(0, 0), s = p.tileW / 48;
-        return { x: Math.round(((pos.x - origin.x) / s + 24) / 3), y: Math.round(((pos.y - (Number(p.actorGroundOffsetY) || 0) - origin.y) / s + 24) / 3) };
+        const origin = p.cellToScreen(0, 0), s = p.tileW / 48, sy = p.tileH / 48;
+        return { x: Math.round(((pos.x - origin.x) / s + 24) / 3), y: Math.round(((pos.y - (Number(p.actorGroundOffsetY) || 0) - origin.y) / sy + 24) / 3) };
     }
     /** The caster's hand in board dots, from the sprite drawn this frame (hanaActors); null before it is drawn. */
     function handDot(visualNow) {

@@ -134,7 +134,7 @@ const bossEntranceView = (() => {
     }
     /** The hero's drawn span on screen: overhead bar to feet. */
     function heroSpan(now) {
-        const feet = battleVisualState.playerPos, head = hanaActors.headY(now);
+        const feet = battleVisualState.playerPos, head = getHeroHeadY(now);
         return feet ? [head === null ? feet.y - 96 : head - 16, feet.y + 8] : null;
     }
 

@@ -65,4 +65,19 @@ const MONSTER_SPRITE_SHEETS = Object.freeze(Object.fromEntries([
     id, kind, height, feet: feet ? Object.freeze(feet) : null, idle: `assets/enemies/${stem}-idle.png`, attack: `assets/enemies/${stem}-attack.png`
 })])));
 
-safeExposeData({ MONSTER_SPRITE_KINDS, MONSTER_SPRITE_SHEETS });
+// 옆에서 보는 무대의 몬스터 시트(docs/stage-view-20261011.md): 오른쪽을 보는 가로 한 줄, 캐릭터와 같은 밀도(칸 너비 = 64도트).
+// 무대가 켜져 있고 여기에 그림이 있는 몬스터만 이 시트로 그린다(왼쪽은 좌우 반전). 없는 몬스터는 위 시트의 좌우 줄을 그대로 쓴다.
+// 그림은 node scripts/build-stage-monsters.cjs가 그린다(생김새와 색은 위 시트의 기존 그림을 따른다). [id, 발에서 그림 맨 위까지(도트), 발 자리].
+const MONSTER_STAGE_KIND = Object.freeze({
+    frame: 96, stage: true, shadow: 0.3,
+    idleMs: Object.freeze([170, 170, 170, 170, 170, 170]), attackMs: Object.freeze([100, 90, 80, 70, 110, 150]), impactFrame: 3
+});
+// 속성 위습 여섯 장(wisp-fire …)은 위습 외형 18종이 나눠 쓴다: 외형 id → 속성은 data/wisp-sprites.js WISP_SPRITE_BY_VISUAL.
+const MONSTER_STAGE_SHEETS = Object.freeze(Object.fromEntries([
+    ['act1-slime', 53, [44, 84]], ['act1-ant', 41, [42, 84]], ['act1-worm', 29, [46, 84]],
+    ...Object.entries({ fire: 74, ice: 66, lightning: 60, poison: 66, holy: 72, void: 60 }).map(([element, height]) => ['wisp-' + element, height, [48, 84]])
+].map(([id, height, feet]) => [id, Object.freeze({
+    id, kind: 'stage', height, feet: Object.freeze(feet), idle: `assets/enemies/stage/${id}-idle.png`, attack: `assets/enemies/stage/${id}-attack.png`
+})])));
+
+safeExposeData({ MONSTER_SPRITE_KINDS, MONSTER_SPRITE_SHEETS, MONSTER_STAGE_KIND, MONSTER_STAGE_SHEETS });

@@ -22,14 +22,25 @@ const actExplorationView=(()=>{
     /** The map origin on the canvas pixel grid, so the terrain, the characters and the re-dotted effects share it
      * while the camera glides between cells. */
     function snap(value) { const scale=renderScale();return Math.round(value*scale)/scale; }
+    /** 옆에서 보는 무대(data/stage-view.js)에서는 깊이 한 칸(deep)을 가로 한 칸(tile)보다 낮게 그린다: 지도 그림, 안개, 칸 자리가
+     * 함께 눌린다. 위에서 보는 전장에서는 둘이 같다. */
     function projection(width,height) {
         const run=actExplorationState.current(game),map=actExplorationMap.forRun(run);
-        const cell=actExplorationMotion.position(run,game.gridPlayer),tile=tileSize(width,height),focus=bossLead(run,cell);
-        const mapX=snap(width/2-(cell.gx+focus.gx+.5)*tile),mapY=snap(height/2-(cell.gy+focus.gy+.5)*tile);
-        shiftActors(run,{x:mapX,y:mapY,tile});
-        return {tileW:tile,tileH:tile,actorGroundOffsetY:tile/6,unitScaleCap:tile/46,mapX,mapY,
-            mapWidth:map.columns*tile,mapHeight:map.rows*tile,
-            cellToScreen:(gx,gy)=>({x:mapX+(gx+.5)*tile,y:mapY+(gy+.5)*tile})};
+        const cell=actExplorationMotion.position(run,game.gridPlayer),tile=stageView.enabled()?stageView.tile(width):tileSize(width,height);
+        const deep=tile*stageView.depth(),centre=cameraCentre(run,cell,{columns:width/tile,rows:height/deep,width,height});
+        const mapX=snap(width/2-centre.gx*tile),mapY=snap(height*stageView.anchorY()-centre.gy*deep);
+        shiftActors(run,{x:mapX,y:mapY,tile,deep});
+        return {tileW:tile,tileH:deep,actorGroundOffsetY:deep/6,unitScaleCap:tile/46,mapX,mapY,
+            mapWidth:map.columns*tile,mapHeight:map.rows*deep,
+            cellToScreen:(gx,gy)=>({x:mapX+(gx+.5)*tile,y:mapY+(gy+.5)*deep})};
+    }
+    /** The cell (fractional) at the camera's centre: the hero's, leaning toward a boss; on a room-by-room stage the view its room
+     * holds (js/canvas-stage-rooms.js). */
+    function cameraCentre(run,cell,view) {
+        const held=stageRoomsView.focus(run,cell,view);
+        if(held)return held;
+        const focus=bossLead(run,cell);
+        return {gx:cell.gx+focus.gx+.5,gy:cell.gy+focus.gy+.5};
     }
     /** The boss the camera leans toward: the one fighting, else the one rising in its entrance. */
     function focusBoss(run) {
@@ -49,7 +60,7 @@ const actExplorationView=(()=>{
         return {gx:lead.gx,gy:lead.gy};
     }
     function shiftActors(run,origin) {
-        if(lastOrigin?.run===run && lastOrigin.tile===origin.tile) {
+        if(lastOrigin?.run===run && lastOrigin.tile===origin.tile && lastOrigin.deep===origin.deep) {
             for(const bank of [battleVisualState.enemySmoothPos,battleVisualState.enemyGhostPos]) {
                 for(const point of Object.values(bank||{})){point.x+=origin.x-lastOrigin.x;point.y+=origin.y-lastOrigin.y;}
             }
@@ -58,17 +69,29 @@ const actExplorationView=(()=>{
         }
         lastOrigin={run,...origin};
     }
+    /** The ground picture of a map: the painted top-down map, or on the side-view stage the stage terrain drawn here
+     * (js/canvas-stage-terrain.js). Switching the view prepares the other picture. */
     function prepare(map) {
-        if(cache?.map===map)return;
-        const current={map,surface:null,scenery:[],error:'',fogKey:'',fog:null,fogView:null,closed:null,open:null};cache=current;
-        explorationArt.terrain(map).then(surface=>{
+        const staged=stageView.enabled();
+        if(cache?.map===map && cache.staged===staged)return;
+        const current={map,staged,surface:null,scenery:[],error:'',fogKey:'',fog:null,fogView:null,closed:null,open:null};cache=current;
+        (staged?Promise.resolve().then(()=>stageTerrain.paint(map)):explorationArt.terrain(map)).then(surface=>{
             if(cache!==current)return;
             current.surface=surface;current.scenery=explorationArt.scenery(map);
             current.closed=explorationArt.gate(true,map);current.open=explorationArt.gate(false,map);
         }).catch(error=>{current.error=error.message;console.error('탐험 지형 준비 실패',error);});
     }
+    /** 방 단위 무대(js/canvas-stage-rooms.js): 주인공이 선 방 하나만 그린다. 지도 전체 그림과 안개는 쓰지 않는다. */
+    function drawRoomStage(ctx,run,p,area) {
+        ctx.save();
+        const drawn=stageRoomsView.background(ctx,run,p,area);
+        if(drawn){actExplorationView.objects.drawGround(ctx,run,p);drawCommand(ctx,run,p);}
+        ctx.restore();
+        return drawn;
+    }
     function background(ctx,width,height,p) {
         const run=actExplorationState.current(game);if(!run)return false;
+        if(drawRoomStage(ctx,run,p,{width,height}))return true;
         const map=actExplorationMap.forRun(run);prepare(map);
         ctx.save();ctx.fillStyle=`rgb(${shadeOf(map).join(',')})`;ctx.fillRect(0,0,width,height);ctx.imageSmoothingEnabled=false;
         if(cache.surface){ctx.drawImage(cache.surface,p.mapX,p.mapY,p.mapWidth,p.mapHeight);actExplorationView.objects.drawGround(ctx,run,p);}
@@ -98,7 +121,7 @@ const actExplorationView=(()=>{
     function cellAt(point) {
         const run=actExplorationState.current(game);
         if(!run || lastOrigin?.run!==run || !point)return null;
-        return {gx:Math.floor((point.x-lastOrigin.x)/lastOrigin.tile),gy:Math.floor((point.y-lastOrigin.y)/lastOrigin.tile)};
+        return {gx:Math.floor((point.x-lastOrigin.x)/lastOrigin.tile),gy:Math.floor((point.y-lastOrigin.y)/lastOrigin.deep)};
     }
     /** Discovered ground is clear within the sight radius and dims with distance past it (≤40%). Undiscovered ground is not a wall
      * of black: just past the sight it shows as a dim outline of what lies ahead (enemies there stay hidden until discovered). */
@@ -136,7 +159,10 @@ const actExplorationView=(()=>{
     }
     function appendScenery(actors,state) {
         actExplorationView.objects.append(actors,state);
-        const run=actExplorationState.current(game);if(!run || !cache?.surface)return;
+        stageProps.append(actors,state); // 방 단위 무대의 소품 층(js/canvas-stage-props.js)
+        stageScene.append(actors,state); // 조각 묶음의 소품과 문(js/canvas-stage-scene.js)
+        // 방 단위 무대의 관문은 문으로 그려진다(js/canvas-stage-rooms.js): 옛 관문 그림을 세우지 않는다.
+        const run=actExplorationState.current(game);if(!run || !cache?.surface || actExplorationDoors.stageMap(run))return;
         const map=cache.map,seen=new Set(run.discovered),p=state.gridProj;
         if(seen.has(actExplorationMap.index(map,map.gate))) {
             const point=p.cellToScreen(map.gate.gx,map.gate.gy),box=gateBox(point,p);
@@ -160,9 +186,10 @@ const actExplorationView=(()=>{
     function bossRoomGlow() {
         const run=actExplorationState.current(game);
         if(!run || lastOrigin?.run!==run)return null;
-        const room=actExplorationState.bossRoomAt(run,game.gridPlayer),tile=lastOrigin.tile;
+        // 방 단위 무대에서는 어느 방이든 방 전체가 밝다.
+        const room=actExplorationDoors.room(run)||actExplorationState.bossRoomAt(run,game.gridPlayer),tile=lastOrigin.tile;
         if(!room)return null;
-        return {x:lastOrigin.x+(room.gx+.5)*tile,y:lastOrigin.y+(room.gy+.5)*tile,radius:Math.hypot(room.radiusX+1,room.radiusY+1)*tile};
+        return {x:lastOrigin.x+(room.gx+.5)*tile,y:lastOrigin.y+(room.gy+.5)*lastOrigin.deep,radius:Math.hypot(room.radiusX+1,room.radiusY+1)*tile};
     }
     // Pixel-scale gate art (backdrop maps): integer scale, placed by its art-px offset from the gate tile centre.
     function gateBox(point,p) {
@@ -173,6 +200,8 @@ const actExplorationView=(()=>{
     }
     function drawScenery(ctx,actor,state) {
         if(actor.kind==='object'){actExplorationView.objects.draw(ctx,actor,state);return;}
+        if(actor.prop){stageProps.draw(ctx,actor,state);return;}
+        if(actor.piece){stageScene.draw(ctx,actor,state);return;}
         const p=state.gridProj,player=state.playerPos;
         ctx.save();ctx.imageSmoothingEnabled=false;
         // The only scenery actor left is the boss gate (painted maps carry their props in the picture).

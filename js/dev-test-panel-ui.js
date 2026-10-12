@@ -7,6 +7,8 @@ const devTestPanel = (() => {
     const SPEEDS = [1, 2, 4, 8];
     const WEAPON_MODES = [['auto', '착용 무기'], ['class', '직업 기본'], ['greatsword', '대검'], ['scimitar', '곡도'],
         ['shortbow', '단궁'], ['orb', '오브'], ['flask', '플라스크'], ['censer', '향로']];
+    const STAGE_STANCES = [['auto', '착용 무기'], ['unarmed', '맨손'], ['swordshield', '검방패'], ['dagger', '단검'], ['bow', '활'],
+        ['orb', '오브'], ['flask', '플라스크'], ['censer', '향로']];
     let root = null, godTimer = null, speed = 1;
 
     function isEnabled() {
@@ -96,6 +98,20 @@ const devTestPanel = (() => {
         refresh();
         note(level ? `효과 확장 +${level}${level >= 2 ? ' (피해 −30%)' : ''}` : '효과 확장 없음');
     }
+    /** 방 단위 이동(js/act-exploration-doors.js)을 켜고 끈다. 지금 액트의 지도를 처음부터 다시 열어 바로 보이게 한다. */
+    function setStageRooms(value) {
+        game.settings.stageRooms = value;
+        if (getZone(game.currentZoneId)?.type === 'act') changeZone(game.currentZoneId);
+        refresh();
+        note(value === 'off' ? '지도: 이어진 지도' : '지도: 방 단위 이동');
+    }
+    /** 방 크기 덧칸(data/stage-view.js STAGE_ROOMS.grow)을 바꾸고 지금 액트의 지도를 그 크기로 다시 연다. */
+    function setStageRoomSize(key, value, label) {
+        game.settings[key] = value;
+        if (getZone(game.currentZoneId)?.type === 'act') changeZone(game.currentZoneId);
+        refresh();
+        note(label);
+    }
     function travelToAct(order) {
         const zoneId = order - 1;
         game.maxZoneId = Math.max(game.maxZoneId || 0, zoneId);
@@ -143,6 +159,47 @@ const devTestPanel = (() => {
             button('기존 스프라이트', () => setSetting('heroSpriteSet', 'legacy', '캐릭터: 기존'))
         ]), row([el('label', { textContent: '무기' }), weaponSelect()])]);
     }
+    /** 무대 몬스터(js/canvas-stage-roster.js): 걷는 모습을 걷기 그림으로 할지 그림 없이 걷는 척으로 할지, 그리고 지금 나오는
+     * 몬스터를 모두 한 가지 모습으로 바꿔 보기(새 그림이 있는 몬스터 아무나 실제 전투에서 본다). */
+    function monsterRows() {
+        const look = el('select', { id: 'dtp-monster-look' }, [el('option', { value: '', textContent: '원래 모습' }),
+            ...stageRoster.looks().map(([value, label]) => el('option', { value, textContent: label }))]);
+        look.value = game.settings.stageMonsterLook || '';
+        look.onchange = () => setSetting('stageMonsterLook', look.value, `몬스터 모습: ${look.selectedOptions[0].textContent}`);
+        return [
+            row([el('label', { textContent: '몬스터 걷기' }), button('걷기 그림', () => setSetting('stageMonsterWalk', 'clip', '몬스터 걷기: 걷기 그림')),
+                button('걷는 척', () => setSetting('stageMonsterWalk', 'code', '몬스터 걷기: 그림 없이 걷는 척'))]),
+            row([el('label', { textContent: '몬스터 모습' }), look])
+        ];
+    }
+    /** 옆에서 보는 무대 시험판(data/stage-view.js): 켜고 끄기, 지도 칸 크기, 들 자세. 그림 폴더(assets/playable/stage)가 있어야 켜진다. */
+    function stageSection() {
+        const stance = el('select', { id: 'dtp-stance' }, STAGE_STANCES.map(([value, label]) => el('option', { value, textContent: label })));
+        stance.value = game.settings.stageStance || 'auto';
+        stance.onchange = () => setSetting('stageStance', stance.value, `무대 자세: ${stance.selectedOptions[0].textContent}`);
+        return section('옆에서 보는 무대(시험판)', [
+            row([button('무대 켜기', () => setSetting('battleView', 'stage', '전장: 옆에서 보는 무대')),
+                button('끄기', () => setSetting('battleView', 'top', '전장: 위에서 보기'))]),
+            row([el('label', { textContent: '크기' }), button('자동', () => setSetting('stageZoom', 0, '무대 크기: 자동')),
+                ...[1, 1.5, 2].map(zoom => button(`×${zoom}`, () => setSetting('stageZoom', zoom, `무대 크기 ×${zoom}`)))]),
+            row([el('label', { textContent: '자세' }), stance]),
+            row([el('label', { textContent: '지도' }), button('방 단위', () => setStageRooms('on')), button('이어진 지도', () => setStageRooms('off'))]),
+            row([el('label', { textContent: '방 가로' }), ...STAGE_ROOMS.wideSteps.map(step => button(step ? `+${step}` : '기본',
+                () => setStageRoomSize('stageRoomWide', step, `방 가로: ${STAGE_ROOMS.widths.boss + step}칸까지`)))]),
+            row([el('label', { textContent: '방 깊이' }), ...STAGE_ROOMS.deepSteps.map(step => button(`${STAGE_ROOMS.depth + step}칸`,
+                () => setStageRoomSize('stageRoomDeep', step, `방 깊이: ${STAGE_ROOMS.depth + step}칸`)))]),
+            // 방 놓임새(data/stage-room-plans.js): 액트는 프리셋 넷 가운데 하나가 소프트 랜덤으로 나온다. 여기서 하나를 못박거나 준 랜덤으로 짜 볼 수 있다.
+            row([el('label', { textContent: '놓임새' }), button('자동', () => setStageRoomSize('stageRoomPlan', 'auto', '방 놓임새: 자동(프리셋 넷 가운데)')),
+                ...[1, 2, 3, 4].map(index => button(String(index), () => setStageRoomSize('stageRoomPlan', index, `방 놓임새: 프리셋 ${index}`))),
+                button('준 랜덤', () => setStageRoomSize('stageRoomPlan', 'random', '방 놓임새: 준 랜덤'))]),
+            row([el('label', { textContent: '뒤쪽' }), button('배경 그림', () => setSetting('stageBackdrop', 'on', '방 뒤쪽: 배경 그림')),
+                button('벽돌 벽', () => setSetting('stageBackdrop', 'off', '방 뒤쪽: 벽돌 벽'))]),
+            // 무대의 스킬 이펙트(js/canvas-stage-skill-vfx.js): 인계 받은 새 클립과 시전 마법진. 끄면 예전 이펙트가 나온다.
+            row([el('label', { textContent: '이펙트' }), button('새 그림', () => setSetting('stageSkillFx', 'on', '무대 스킬 이펙트: 새 그림')),
+                button('예전 그림', () => setSetting('stageSkillFx', 'off', '무대 스킬 이펙트: 예전 그림'))]),
+            ...monsterRows()
+        ]);
+    }
     function gemSection() {
         const select = gemSelect();
         return section('스킬 이펙트', [
@@ -184,7 +241,7 @@ const devTestPanel = (() => {
         const panel = el('div', { className: 'dtp-panel', hidden: true }, [
             el('header', {}, [el('strong', { textContent: '🧪 테스트 패널' }), button('닫기', () => { panel.hidden = true; })]),
             el('p', { className: 'dtp-status' }),
-            characterSection(), gemSection(), combatSection(), progressSection(),
+            characterSection(), stageSection(), gemSection(), combatSection(), progressSection(),
             el('p', { className: 'dtp-hint', textContent: '로컬 테스트 전용, 이 세이브에 바로 반영됩니다. 새 게임은 런처 2번(임시 세이브)으로.' })
         ]);
         const toggle = button('🧪 테스트', () => { panel.hidden = !panel.hidden; status(); }, { className: 'dtp-toggle' });

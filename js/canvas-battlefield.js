@@ -465,6 +465,8 @@ function mergeSkillCastVfx(list, fx, profile, target, now) {
 
 function queueSkillGemVfx(fx, enemyPos, playerPos, enemyPosMap, now, viewportScale) {
     if (!fx || fx.dot || !fx.skillName) return;
+    // 옆에서 보는 무대의 새 스킬 이펙트: 맞은 적마다의 타격 클립과 연쇄 번개(js/canvas-stage-skill-rules.js).
+    if (typeof stageSkillRules === 'object') stageSkillRules.hit(fx, enemyPosMap);
     if (worldTreeSkillFx.queueHit(fx, enemyPos, playerPos || enemyPos, now)) {
         trimBattleSkillEffects(battleVisualState.skillEffects);
         return;
@@ -1150,6 +1152,7 @@ function drawBattleGroundLayer(ctx, effects, view) {
     sideEncounterCanvas.portals(ctx, view.gridProj, getCombatTime());
     trialTrapArt.drawGround(ctx, effects, view.now, view.gridProj); // trap cracks, glow, frost, rune, puddle, scorch
     fxRemake.begin(ctx, view.gridProj);
+    if (typeof stageSkillVfx === 'object') stageSkillVfx.tick(view.now); // 무대의 새 스킬 이펙트(js/canvas-stage-skill-vfx.js): 프레임마다 시계를 맞춘다
     worldTreeSkillFx.castFrame(ctx,view.gridProj,'ground');
     worldTreeSkillFx.drawQueued(ctx, battleVisualState.skillEffects || [], view.now, 'ground');
     for (let fx of effects) {
@@ -1159,6 +1162,7 @@ function drawBattleGroundLayer(ctx, effects, view) {
     redrawnSkillFx.drawLayer('ground', view.now);
     wispSummonFx.drawLayer('ground', view.now);
     fxRemake.end();
+    if (typeof stageSkillVfx === 'object') stageSkillVfx.draw(ctx, 'ground', view.gridProj);
     drawActiveSummons(ctx, view.playerPos, view.now, view.gridProj);
 }
 
@@ -1434,6 +1438,7 @@ function drawSkillGemVfxLayer(ctx, now, gridProj) {
     worldTreeSkillFx.castFrame(ctx,gridProj,'foreground');
     let list = battleVisualState.skillEffects || [];
     worldTreeSkillFx.drawQueued(ctx, list, now, 'foreground');
+    if (typeof stageSkillVfx === 'object') { stageSkillVfx.draw(ctx, 'top', gridProj); stageSkillSigil.draw(ctx, gridProj); }
     const spriteRenderers = {continuousSlash:drawSwordSlashVfx};
     list.forEach(effect => {
         let image = getSkillGemVfxImage(effect.imageKey);
@@ -1578,7 +1583,7 @@ function getPlayerHealthBarLook(hpPct, now) {
 function drawBattlefieldPlayerHealthBar(ctx, scene) {
     // 2026-10-04 visibility: 64 -> 48px wide so the bar covers less of the field; the height stays readable.
     const look = getPlayerHealthBarLook(scene.hpPct, scene.now);
-    const width = 48, height = look.height, head = hanaActors.headY(scene.now), playerPos = scene.light;
+    const width = 48, height = look.height, head = getHeroHeadY(scene.now), playerPos = scene.light;
     const x = Math.round(playerPos.x - width / 2), y = Math.round(head === null ? playerPos.y - 82 * HERO_SIZE_SCALE : head - 10) - (height - 6);
     ctx.save();
     ctx.globalAlpha = look.alpha;
@@ -1857,8 +1862,9 @@ function getExplorationPlayerVisualMotion(projection, player) {
     const cell = actExplorationMotion.position(run, player);
     const position = projection.cellToScreen(cell.gx, cell.gy);
     position.y += Number(projection.actorGroundOffsetY) || 0;
+    // 걸음 도중에 게임이 멈추면(선택 창, 안내, 창 열림) 걷는 그림도 멈춘다: 멈춘 화면에서 제자리걸음을 하지 않는다.
     return {position, targetPosition: position, direction: run.motionDirection,
-        progress: run.motion ? run.motion.elapsed / run.motion.duration : 1, animating: !!run.motion};
+        progress: run.motion ? run.motion.elapsed / run.motion.duration : 1, animating: !!run.motion && !isForegroundGameplayPausedForBackground()};
 }
 
 function getCardinalMoveDirection(fromCell, toCell) {
@@ -2188,9 +2194,22 @@ function buildEnemyAttackMotionMap(effects, enemyPosMap, playerPos, now) {
     return result;
 }
 
+/** 옆에서 보는 무대의 몬스터는 왼쪽이나 오른쪽만 본다(2026-10-13 사용자: 걸어올 때 좌우가 맞지 않는다. 전에는 주인공이 위아래로 더
+ * 멀면 위나 아래를 본다고 답했고, 무대는 그때 직전 방향을 지켜서 처음 나온 몬스터가 등을 보이며 걸어왔다).
+ * 걷는 동안에는 가는 쪽(enemyPos.heading, glideBattleEnemy), 서 있거나 때릴 때는 주인공이 있는 쪽을 본다. 위아래로만 걷거나
+ * 주인공과 거의 같은 세로줄에 서 있으면 'south'를 답한다: 무대는 그때 직전 방향을 지킨다(stageView.facing). */
+const STAGE_SIDE_DEAD_PX = 10;
+function resolveStageEnemySide(enemyPos, playerPos) {
+    if (enemyPos.heading) return enemyPos.heading;
+    const dx = Number(playerPos.x) - Number(enemyPos.x);
+    if (Math.abs(dx) <= STAGE_SIDE_DEAD_PX) return 'south';
+    return dx < 0 ? 'west' : 'east';
+}
+
 function resolveEnemyFacingDirection(enemyPos, playerPos) {
     if (!enemyPos || !playerPos) return 'south';
     if (mobilitySkill.equipped()==='암살' && enemyPos.enemy?.facingDirection) return ({2:'south',4:'west',6:'east',8:'north'})[enemyPos.enemy.facingDirection];
+    if (stageView.enabled()) return resolveStageEnemySide(enemyPos, playerPos);
     const dx = Number(playerPos.x) - Number(enemyPos.x);
     const dy = Number(playerPos.y) - Number(enemyPos.y);
     if (Math.abs(dx) > Math.abs(dy)) return dx < 0 ? 'west' : 'east';
@@ -2270,6 +2289,46 @@ function drawEnemyAfterimage(ctx, enemy, pose) {
     const sheetPose = { x: pose.x, y: pose.y, tile, now: pose.now, facing: pose.facing, flash: !!pose.flash, spawnScale: boss };
     if (wispActors.draw(ctx, enemy, sheetPose) || monsterActors.draw(ctx, enemy, sheetPose)) return;
     drawEnemySprite(ctx, enemy, pose.x, pose.y, pose.scale * boss, !!pose.flash, pose.now);
+}
+
+/** Where an enemy is drawn this frame: { enemy, x, y, moving }. A step on the grid must not look like a jump, so its picture
+ * glides from the cell it left: on the top-down field toward the new cell, most of the way at once (the wave judgement,
+ * js/combat.js pickWaveFrontTargets, counts with the same glide); on the stage at a walk over the whole step
+ * (js/canvas-stage-stride.js), with no follower in screen space, so a scrolling room does not drag the monsters.
+ * frame = { now, deltaSec, gridProj }. */
+function glideBattleEnemy(entry, frame) {
+    const id = entry.enemy.id;
+    if (stageView.enabled()) {
+        const stride = stageStride.read(entry.enemy, frame.now) || { dx: 0, dy: 0, moving: false };
+        const at = { x: entry.x + stride.dx * frame.gridProj.tileW, y: entry.y + stride.dy * frame.gridProj.tileH };
+        battleVisualState.enemySmoothPos[id] = at;
+        // 가는 쪽: 그려진 자리가 제 칸보다 왼쪽에 남아 있으면 오른쪽으로 걷는 중이다(위아래로만 걸으면 없다)
+        const heading = stride.moving && Math.abs(stride.dx) > 0.02 ? (stride.dx < 0 ? 'east' : 'west') : null;
+        return { enemy: entry.enemy, x: at.x, y: at.y, moving: stride.moving, heading };
+    }
+    let smooth = battleVisualState.enemySmoothPos[id];
+    if (!smooth) {
+        smooth = { x: entry.x, y: entry.y };
+        battleVisualState.enemySmoothPos[id] = smooth;
+    } else {
+        smooth.x = approachNumber(smooth.x, entry.x, COMBAT_GRID_CONFIG.enemyGlideRate, frame.deltaSec);
+        smooth.y = approachNumber(smooth.y, entry.y, COMBAT_GRID_CONFIG.enemyGlideRate, frame.deltaSec);
+    }
+    const distance = Math.hypot(entry.x - smooth.x, entry.y - smooth.y);
+    if (distance < 0.65) { smooth.x = entry.x; smooth.y = entry.y; }
+    return { enemy: entry.enemy, x: smooth.x, y: smooth.y, moving: distance >= 0.65 };
+}
+
+/** 옆에서 보는 무대: 주인공이 전투 기록이나 채팅 창 뒤에 서면 그 창이 옅어진다(js/message-frames-ui.js heroAt). 머리 끝은 앞 프레임에
+ * 그린 높이다(이번 프레임의 몸은 아직 그리지 않았다). 위에서 보는 전장에서는 주인공이 늘 화면 가운데라 쓰지 않는다. */
+const STAGE_HERO_FALLBACK_HEIGHT = 120;
+let stageHeroTopOffset = STAGE_HERO_FALLBACK_HEIGHT;
+function noteStageHeroBehindFrames(playerPos, now) {
+    if (typeof messageFrames !== 'object' || !messageFrames.isActive()) return;
+    if (!stageView.enabled()) { messageFrames.heroAt(NaN, NaN, NaN); return; }
+    const head = getHeroHeadY(now);
+    if (Number.isFinite(head)) stageHeroTopOffset = Math.max(40, playerPos.y - head);
+    messageFrames.heroAt(playerPos.x, playerPos.y, playerPos.y - stageHeroTopOffset);
 }
 
 /** 보스는 BOSS_DRAW_SCALE배로 그린다(살아 있는 모습, 사라지는 잔상, 쓰러지는 모습 모두). 일반 몬스터는 1. */
@@ -2507,28 +2566,10 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
         downBlend
     };
     battleVisualState.playerPos = { x: playerPos.x, y: playerPos.y };
+    noteStageHeroBehindFrames(playerPos, now);
     if (!battleVisualState.enemySmoothPos) battleVisualState.enemySmoothPos = {};
-    let dynamicLayout = layout.map(entry => {
-        // 칸 단위 이동이 순간이동으로 보이지 않게 화면 좌표를 목표 칸으로 보간한다.
-        let smooth = battleVisualState.enemySmoothPos[entry.enemy.id];
-        if (!smooth) {
-            smooth = { x: entry.x, y: entry.y };
-            battleVisualState.enemySmoothPos[entry.enemy.id] = smooth;
-        } else {
-            // The wave judgement (js/combat.js pickWaveFrontTargets) counts with the same glide to know where a monster is drawn.
-            smooth.x = approachNumber(smooth.x, entry.x, COMBAT_GRID_CONFIG.enemyGlideRate, deltaSec);
-            smooth.y = approachNumber(smooth.y, entry.y, COMBAT_GRID_CONFIG.enemyGlideRate, deltaSec);
-        }
-        const movingDistance = Math.hypot(entry.x - smooth.x, entry.y - smooth.y);
-        if (movingDistance < 0.65) { smooth.x = entry.x; smooth.y = entry.y; }
-        entry = { enemy: entry.enemy, x: smooth.x, y: smooth.y, moving: movingDistance >= 0.65 };
-        return {
-            enemy: entry.enemy,
-            x: entry.x,
-            y: entry.y,
-            moving: entry.moving
-        };
-    });
+    const glideFrame = { now, deltaSec, gridProj };
+    let dynamicLayout = layout.map(entry => glideBattleEnemy(entry, glideFrame));
     let enemyPosMap = buildBattleEnemyPosMap(dynamicLayout, battleFx, now);
     playerMotionState.attackDirection = resolvePlayerAttackDirection(playerPos, currentTargets, enemyPosMap);
     if (playerMotion.animating) battleVisualState.playerFacingDirection = playerMotion.direction;
@@ -2589,7 +2630,7 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
             requestBattleHitStop(fx);
             let enemyPos = enemyPosMap[fx.enemyId] || battleVisualState.enemyGhostPos[fx.enemyId];
             if (typeof fx.damage === 'number') {
-                const head = hanaActors.headY(now);
+                const head = getHeroHeadY(now);
                 spawnDamageText({
                     start: now,
                     x: playerPos.x,
@@ -2626,7 +2667,7 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
             let anchorPos = enemyPos || playerPos;
             if (bodyCue) {
                 // 회피 · 막아냄 · 성채화: 맞은 쪽 머리 위 가운데, 대미지 숫자와 같은 크기 결(2026-10-06 사용자 요청 — 몸 옆에 11px로 작게 떴다).
-                const head = enemyPos ? null : hanaActors.headY(now);
+                const head = enemyPos ? null : getHeroHeadY(now);
                 const bodyHeight = enemyPos ? (enemyPos.enemy ? getEnemyFieldBarLift(enemyPos.enemy) - 10 : 46)
                     : (head === null ? 82 * HERO_SIZE_SCALE : playerPos.y - head);
                 spawnDamageText({ start: now, ...getBodyCueAnchor(anchorPos, bodyHeight), value: fx.text || '회피!', miss: true, bodyCue: true,
@@ -2832,11 +2873,13 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
         }
     });
     drawBattleLightingAndBars(ctx, { width, height, light: playerPos, hpPct: playerHpPct, ghostPct: playerHpGhostPct, esPct: playerEsPct, now, layout: dynamicLayout, targets: currentTargets, tileW: gridProj.tileW, projection: gridProj, pending: pendingEnemyCombatAttacks });
+    if (typeof stageScene === 'object' && stageView.enabled()) stageScene.drawMarks(ctx, gridProj);
     drawDamageTexts(ctx, now);
     ctx.setTransform(renderScale, 0, 0, renderScale, 0, 0);
     drawBattleScreenGrade(ctx, width, height, now);
     worldTreeSkillFx.feedback.screen(ctx, { width, height, now });
     drawBossAnnouncement(ctx, { width, height, now }, updateBossAnnouncement(enemies, now));
+    if (typeof stageRoomsView === 'object') stageRoomsView.drawFade(ctx, { width, height });
 
     // DOM은 그림을 다 그린 뒤에 만진다: 그리는 도중에 쓰면 다음 ctx.font나 ctx.filter가 문서 스타일을 다시 계산했다.
     setElementText(document.getElementById('ui-battlefield-caption'), getBattlefieldCaption());
@@ -3254,6 +3297,8 @@ function drawRiftCombatOccupants(ctx, layers) {
  * cells and the cell changes halfway, so a cell ring jumped ahead of the character. */
 function drawRiftPlayerRing(ctx, proj, feet) {
     if (!isBattleLightingEnabled() || !proj || !feet) return;
+    // 옆에서 보는 무대: 도트로 찍는 발밑 고리(js/canvas-stage-rings.js)
+    if (stageView.enabled()) return stageRings.ring(ctx, { x: feet.x, y: feet.y, dot: stageActors.scaleFor(proj.tileW) }, { tone: 'player', rx: 22, turning: true });
     const rx = proj.tileW * 0.4, ry = Math.max(4, rx * 0.34), tone = RIFT_CELL_TONES.player;
     ctx.save();
     ctx.globalAlpha = 1;
@@ -3267,22 +3312,29 @@ function drawRiftPlayerRing(ctx, proj, feet) {
     ctx.restore();
 }
 
-function getRiftUnitFootprintBox(proj, unit) {
+/** The screen box of a unit's cells. walking: an enemy on the stage is drawn short of its cell while it walks there
+ * (js/canvas-stage-stride.js), and its ring and target marks go with the picture, as the hero's ring does (2026-10-13 사용자). */
+function getRiftUnitFootprintBox(proj, unit, walking = false) {
     const cells = getGridUnitCells(unit);
     if (cells.length <= 0) return null;
     const points = cells.map(cell => proj.cellToScreen(cell.gx, cell.gy));
-    const xs = points.map(p => p.x), ys = points.map(p => p.y);
-    const left = Math.min(...xs) - proj.tileW / 2, right = Math.max(...xs) + proj.tileW / 2;
-    const top = Math.min(...ys) - proj.tileH / 2, bottom = Math.max(...ys) + proj.tileH / 2;
+    const xs = points.map(p => p.x), ys = points.map(p => p.y), stride = walking ? stageStride.read(unit, battleVisualState.visualNow) : null;
+    const dx = stride ? stride.dx * proj.tileW : 0, dy = stride ? stride.dy * proj.tileH : 0;
+    const left = Math.min(...xs) - proj.tileW / 2 + dx, right = Math.max(...xs) + proj.tileW / 2 + dx;
+    const top = Math.min(...ys) - proj.tileH / 2 + dy, bottom = Math.max(...ys) + proj.tileH / 2 + dy;
     return { left, right, top, bottom, cx: (left + right) / 2, cy: (top + bottom) / 2 };
 }
 
 function drawRiftUnitRing(ctx, proj, unit, tone) {
-    const box = getRiftUnitFootprintBox(proj, unit);
+    const box = getRiftUnitFootprintBox(proj, unit, tone === RIFT_CELL_TONES.enemy);
     if (!box) return;
     const rx = (box.right - box.left) * 0.4;
     const ry = Math.max(4, rx * 0.34);
     const cy = box.bottom - proj.tileH * 0.5 + (Number(proj.actorGroundOffsetY) || 0);
+    if (stageView.enabled()) {
+        const dot = stageActors.scaleFor(proj.tileW);
+        return stageRings.ring(ctx, { x: box.cx, y: cy, dot }, { tone: tone === RIFT_CELL_TONES.summon ? 'summon' : 'enemy', rx: Math.round(rx / dot * 0.86) });
+    }
     ctx.globalAlpha = 1;
     ctx.beginPath();
     ctx.ellipse(box.cx, cy, rx, ry, 0, 0, Math.PI * 2);
@@ -3304,7 +3356,7 @@ function drawRiftAreaCell(ctx, proj, cell) {
 
 // 조준 대상: 발자국 상자의 네 모서리에만 짧은 꺾쇠를 긋는다.
 function drawRiftTargetBrackets(ctx, proj, unit) {
-    const box = getRiftUnitFootprintBox(proj, unit);
+    const box = getRiftUnitFootprintBox(proj, unit, true);
     if (!box) return;
     const arm = Math.min(box.right - box.left, box.bottom - box.top) * 0.22;
     const corners = [[box.left, box.top, 1, 1], [box.right, box.top, -1, 1], [box.left, box.bottom, 1, -1], [box.right, box.bottom, -1, -1]];
