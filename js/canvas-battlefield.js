@@ -3348,7 +3348,18 @@ function drawRiftAreaCell(ctx, proj, cell) {
     const inset = Math.min(proj.tileW, proj.tileH) * 0.08;
     ctx.globalAlpha = 1;
     ctx.fillStyle = RIFT_CELL_TONES.area.fill;
+    if (stageView.enabled()) { drawStageAreaCell(ctx, c, proj, inset); return; }
     ctx.fillRect(c.x - proj.tileW / 2 + inset, c.y - proj.tileH / 2 + inset, proj.tileW - inset * 2, proj.tileH - inset * 2);
+}
+/** 옆에서 보는 무대: 스킬이 닿는 칸을 네모로 칠하면 그린 바닥 위에 상자가 얹힌 듯 보였다(2026-10-13 따로 맡긴 검토: "발밑에 황토색
+ * 사각형"). 칸에 눕힌 옅은 타원으로 그린다: 닿는 칸은 그대로 읽히고 바닥의 얼룩처럼 놓인다. */
+const STAGE_AREA_CELL_ALPHA = 0.6;
+function drawStageAreaCell(ctx, c, proj, inset) {
+    ctx.globalAlpha = STAGE_AREA_CELL_ALPHA;
+    ctx.beginPath();
+    ctx.ellipse(c.x, c.y, proj.tileW / 2 - inset, proj.tileH / 2 - inset, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
 }
 
 // 조준 대상: 발자국 상자의 네 모서리에만 짧은 꺾쇠를 긋는다.
