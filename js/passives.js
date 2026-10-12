@@ -10233,9 +10233,11 @@ function generateJewelDrop(zoneOrTier, odds = null) {
 }
 
 /** Jewels go straight into the bag (js/bag-items.js addJewel): with the bag full a rare or unique one waits in the temporary
- * storage and the rest are salvaged into jewel shards. */
+ * storage and the rest are salvaged into jewel shards. One whose rarity the auto-salvage takes is salvaged instead of kept
+ * (bagItems.salvagedOnDrop); the receipt then reads stored: false with the bag not full. */
 function receiveJewelDrop(jewel) {
-    combatLootReceipts.item(game,jewel,'jewel');
+    if(bagItems.salvagedOnDrop(jewel))return {jewel,inventoryFull:false,stored:false,protectOverflow:false,shardGain:salvageJewelObject(jewel,true)};
+    combatLootReceipts.item(game,jewel,'jewel'); // 가방에 들어온 것만 지도 결과에 적는다(장비와 같다)
     const added=bagItems.addJewel(jewel);
     return {jewel,inventoryFull:added.protectOverflow||!added.stored,...added};
 }
@@ -10414,7 +10416,7 @@ function rollItemSalvageRewards(item, options) {
 function salvageItemObject(item, silent, options) {
     if (!item) return {};
     const jewels = equipmentSockets.returnJewels(item);
-    if (jewels > 0) addLog(`💠 [${item.name}]에 끼운 주얼 ${jewels}개를 주얼 보관함으로 돌려받았습니다.`, 'loot-rare');
+    if (jewels > 0) addLog(`💠 [${item.name}]에 끼운 주얼 ${jewels}개를 가방으로 돌려받았습니다.`, 'loot-rare');
     let rewards = rollItemSalvageRewards(item, options);
     Object.entries(rewards).forEach(([key, amount]) => awardCurrency(key, amount, 'reward'));
     if (typeof salvageRecoveryRuntime !== 'undefined') salvageRecoveryRuntime.record(item, rewards);
@@ -10473,26 +10475,31 @@ function toggleAutoSalvage() {
 // 일괄 해체 보호: 잠금·장비 프리셋 아이템은 대상에서 제외한다.
 function isBulkSalvageProtectedItem(item) {
     if (!item) return true;
-    if (item.locked || bagItems.ownShape(item) || equipmentLootPolicy.matches(item)) return true; // 주얼과 코어는 하나씩 해체한다
+    if (item.locked || equipmentLootPolicy.matches(item)) return true;
     return typeof equipmentLoadoutRuntime !== 'undefined' && equipmentLoadoutRuntime.isReferenced(item);
+}
+
+/** Salvages `targets` (bag items) and returns the summed rewards. The bag keeps the rest and whatever came into it on the way:
+ * an item hands its socketed jewels back to the bag as it is salvaged, and a bag rebuilt from a list made beforehand lost them
+ * (2026-10-12). Jewels, cores and wards go the same way as gear (js/bag-items.js salvageProfile gives their rewards). */
+function salvageBagItems(targets) {
+    const rewards = {}, gone = new Set(targets);
+    targets.forEach(item => mergeSalvageRewards(rewards, salvageItemObject(item, true)));
+    game.inventory = game.inventory.filter(item => !gone.has(item));
+    return rewards;
+}
+
+/** Of the items a bulk salvage asked about, those still in the bag and still unprotected once the player has answered. */
+function confirmedSalvageTargets(items) {
+    return items.filter(item => game.inventory.includes(item) && !isBulkSalvageProtectedItem(item));
 }
 
 function bulkSalvage(maxRarity) {
     let targetRank = maxRarity === 'normal' ? 0 : 1;
-    let kept = [];
-    let removed = 0;
-    let rewards = {};
-    game.inventory.forEach(item => {
-        if (isBulkSalvageProtectedItem(item)) kept.push(item);
-        else if (getRarityRank(item.rarity) <= targetRank) {
-            mergeSalvageRewards(rewards, salvageItemObject(item, true));
-            removed++;
-        }
-        else kept.push(item);
-    });
-    game.inventory = kept;
+    const targets = game.inventory.filter(item => !isBulkSalvageProtectedItem(item) && getRarityRank(item.rarity) <= targetRank);
+    const rewards = salvageBagItems(targets);
     ensureCraftSelectionValid();
-    if (removed > 0) addLog(`🧪 장비 ${removed}개 해체, ${formatSalvageRewardSummary(rewards)}`, 'loot-normal');
+    if (targets.length > 0) addLog(`🧪 장비 ${targets.length}개 해체, ${formatSalvageRewardSummary(rewards)}`, 'loot-normal');
     updateStaticUI();
 }
 function getActiveRarityFilterSet() {
@@ -10510,35 +10517,21 @@ async function bulkSalvageSelected() {
     let targetCount = targetItems.length;
     if (targetCount <= 0) return addLog('선택한 등급의 해체 가능한 장비가 없습니다.', 'attack-monster');
     let labelText = selectedRarities.map(r => rarityLabels[r] || r).join('/');
-    if (!await requestGameConfirmation(`[${labelText}] 등급 장비 ${targetCount}개를 해체합니다.\n잠긴 장비는 보호됩니다.`, {
+    const note = bagItems.countNote(targetItems);
+    if (!await requestGameConfirmation(`[${labelText}] 등급 장비 ${targetCount}개를 해체합니다.${note ? `\n${note} 포함` : ''}\n잠긴 장비는 보호됩니다.`, {
         title: '등급 일괄 해체',
         tone: 'danger',
         confirmLabel: `${targetCount}개 해체`
     })) return;
-    let kept = [];
-    let removed = 0;
-    let lockedSkipped = 0;
-    let rewards = {};
-    game.inventory.forEach(item => {
-        if (selectedRarities.includes(item.rarity)) {
-            if (isBulkSalvageProtectedItem(item)) {
-                kept.push(item);
-                lockedSkipped++;
-            } else {
-                mergeSalvageRewards(rewards, salvageItemObject(item, true));
-                removed++;
-            }
-        } else {
-            kept.push(item);
-        }
-    });
-    if (removed === 0) {
+    const targets = confirmedSalvageTargets(targetItems);
+    const lockedSkipped = game.inventory.filter(item => selectedRarities.includes(item.rarity) && isBulkSalvageProtectedItem(item)).length;
+    if (targets.length === 0) {
         if (lockedSkipped > 0) return addLog(`🔒 선택 등급 아이템이 모두 보호 상태입니다. (잠금/배치/세팅 ${lockedSkipped}개)`, 'attack-monster');
         return addLog('선택한 등급의 장비가 없습니다.', 'attack-monster');
     }
-    game.inventory = kept;
+    const rewards = salvageBagItems(targets);
     ensureCraftSelectionValid();
-    addLog(`🧪 선택한 등급 장비 ${removed}개 해체, ${formatSalvageRewardSummary(rewards)}${lockedSkipped > 0 ? ` (잠금/배치/세팅 ${lockedSkipped}개 보호)` : ''}`, 'loot-normal');
+    addLog(`🧪 선택한 등급 장비 ${targets.length}개 해체, ${formatSalvageRewardSummary(rewards)}${lockedSkipped > 0 ? ` (잠금/배치/세팅 ${lockedSkipped}개 보호)` : ''}`, 'loot-normal');
     updateStaticUI();
 }
 async function bulkSalvageAllInventory() {
@@ -10547,21 +10540,15 @@ async function bulkSalvageAllInventory() {
     let targetItems = game.inventory.filter(item => !isBulkSalvageProtectedItem(item));
     let salvageCount = targetItems.length;
     if (salvageCount <= 0) return addLog('🔒 잠금/배치/세팅 보호되지 않은 아이템이 없어 전체해체를 실행할 수 없습니다.', 'attack-monster');
-    if (!await requestGameConfirmation(`인벤토리 장비 ${salvageCount}개를 모두 해체합니다.${lockedCount > 0 ? `\n잠금/배치/세팅 장비 ${lockedCount}개는 보호됩니다.` : ''}`, {
+    const note = bagItems.countNote(targetItems);
+    if (!await requestGameConfirmation(`인벤토리 장비 ${salvageCount}개를 모두 해체합니다.${note ? `\n${note} 포함` : ''}${lockedCount > 0 ? `\n잠금/배치/세팅 장비 ${lockedCount}개는 보호됩니다.` : ''}`, {
         title: '인벤토리 전체 해체',
         tone: 'danger',
         confirmLabel: `${salvageCount}개 해체`
     })) return;
-    let targetSet = new Set(targetItems);
-    let kept = [];
-    let rewards = {};
-    game.inventory.forEach(item => {
-        if (!targetSet.has(item) || isBulkSalvageProtectedItem(item)) kept.push(item);
-        else mergeSalvageRewards(rewards, salvageItemObject(item, true));
-    });
-    game.inventory = kept;
+    const targets = confirmedSalvageTargets(targetItems), rewards = salvageBagItems(targets);
     if (!isCraftSelectionEquip()) clearCraftSelection();
-    addLog(`🧪 인벤토리 전체해체 완료 (${salvageCount}개), ${formatSalvageRewardSummary(rewards)}${lockedCount > 0 ? `, 잠금/배치/세팅 ${lockedCount}개 보호` : ''}`, 'loot-normal');
+    addLog(`🧪 인벤토리 전체해체 완료 (${targets.length}개), ${formatSalvageRewardSummary(rewards)}${lockedCount > 0 ? `, 잠금/배치/세팅 ${lockedCount}개 보호` : ''}`, 'loot-normal');
     updateStaticUI();
 }
 
@@ -10951,7 +10938,7 @@ async function useCurrency(currencyKey) {
     } else if (actionKey === 'chance') {
         if (Math.random() < 0.25) {
             const jewels = destroySelectedCraftItem(item);
-            addLog(`💥 요정의 고리: 아이템이 파괴되었습니다.${jewels ? ` 끼운 주얼 ${jewels}개는 주얼 보관함으로 돌아왔습니다.` : ''}`, 'attack-monster');
+            addLog(`💥 요정의 고리: 아이템이 파괴되었습니다.${jewels ? ` 끼운 주얼 ${jewels}개는 가방으로 돌아왔습니다.` : ''}`, 'attack-monster');
         } else {
             let tier = Math.max(1, Math.floor(item.hiddenTier || item.itemTier || 1));
             let unique = generateUniqueItem(tier, item.slot);
@@ -10963,7 +10950,7 @@ async function useCurrency(currencyKey) {
             Object.assign(item, unique);
             // 배치 참조가 끊기지 않도록 원래 id를 유지한다.
             item.id = previousId;
-            addLog(`🌟 요정의 고리: [${item.name}] 고유로 진화했습니다.${jewels ? ` 끼운 주얼 ${jewels}개는 주얼 보관함으로 돌아왔습니다.` : ''}`, 'loot-unique');
+            addLog(`🌟 요정의 고리: [${item.name}] 고유로 진화했습니다.${jewels ? ` 끼운 주얼 ${jewels}개는 가방으로 돌아왔습니다.` : ''}`, 'loot-unique');
         }
     } else if (actionKey === 'annulment') {
         let removable = getAnnulmentRemovableStats(item);

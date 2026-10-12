@@ -8,8 +8,9 @@
     /** 알림창(js/ui-feedback.js): 황금률은 금빛, 체이싱 티어 재화(js/loot.js lootMoments jackpot: 요정의 고리, 우로보로스)는 붉은 금빛. */
     function noticeCurrency(currencyKey,gain) {
         if(!(gain>0))return;
-        const name=ORB_DB[currencyKey].name,chase=lootMoments.ofCurrency(currencyKey)==='jackpot';
-        if(currencyKey!=='goldenRule' && !chase)return;
+        const chase=lootMoments.ofCurrency(currencyKey)==='jackpot';
+        if(currencyKey!=='goldenRule' && !chase)return; // 그 밖의 재화는 알림이 없다(군락지 편린 같은 지갑 재화는 ORB_DB에 없어 이름을 읽다 멈췄다)
+        const name=ORB_DB[currencyKey].name;
         // 장비 드랍 필터 창의 발견 연출에서 끈 알림은 띄우지 않는다(game.settings.lootFx.notices).
         if(game.settings.lootFx?.notices?.[chase?'chase':'goldenRule']===false)return;
         showGameToast(`${name}${objectParticle(name)} 획득했습니다.`,{tone:chase?'chase':'reward',duration:chase?6000:3600});

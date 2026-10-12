@@ -8574,7 +8574,7 @@ const receiveFloorItem = {
  * drop was laid there; elsewhere the caller grants it at once. */
 function placeFloorItem(enemy, kind, item, overflow) {
     const run = explorationFloorFor(enemy);
-    if (!run) return false;
+    if (!run || (kind === 'jewel' && bagItems.salvagedOnDrop(item))) return false; // 자동해체될 주얼은 바닥에 놓지 않고 바로 해체한다(장비와 같다)
     actExplorationState.groundLoot.placeItem(run, enemy, kind, item, overflow);
     return true;
 }

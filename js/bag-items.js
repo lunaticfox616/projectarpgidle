@@ -10,7 +10,7 @@ const bagItems = (() => {
     const isJewel = item => !!item && item.slot === JEWEL;
     const isCore = item => !!item && item.slot === CORE;
     /** Jewels and cores keep their own shape: js/passives.js normalizeItem hands them to normalize below instead of treating
-     * them as gear, and bulk salvage leaves them alone. */
+     * them as gear. Bulk salvage takes them like anything else in the bag that is not locked. */
     const ownShape = item => isJewel(item) || isCore(item);
     /** Not plain gear: crafting, the stall, the hall and the gear analysis leave these alone. */
     const isSpecial = item => ownShape(item) || (typeof colonyWards === 'object' && colonyWards.isWard(item));
@@ -24,6 +24,20 @@ const bagItems = (() => {
     /** Picked up whatever the pickup filter and the rarity auto-salvage say: jewels and cores always (they never had a filter),
      * wards while their always-pick chip is on. */
     const keptOnPickup = item => ownShape(item) || colonyWards.keptOnPickup(item);
+    /** A jewel that drops is salvaged at once when the rarity auto-salvage takes its rarity (2026-10-12 사용자: 가방에 들어가게 된
+     * 것들이 자동해체로 해체가 안 된다), unless the target rules want it, as with gear. Cores have no rarity to go by and are
+     * always kept; wards follow their always-pick chip (keptOnPickup). */
+    function salvagedOnDrop(jewel, state = game) {
+        const settings = state.settings || {};
+        return !!settings.autoSalvageEnabled && !!(settings.autoSalvageRarities || {})[jewel.rarity || 'normal']
+            && !equipmentLootPolicy.matches(jewel, state);
+    }
+    /** "주얼 2개, 코어 1개, 액막이 1개": the special items among `items`, named in the bulk salvage confirms ('' when none). */
+    function countNote(items) {
+        const counts = [[JEWEL, items.filter(isJewel).length], [CORE, items.filter(isCore).length],
+            ['액막이', items.filter(item => colonyWards.isWard(item)).length]];
+        return counts.filter(([, count]) => count > 0).map(([label, count]) => `${label} ${count}개`).join(', ');
+    }
 
     /** Load boundary of a jewel or a core in the bag or a slot (the old jewel store's rule: lines from getJewelStats, at most four,
      * five when waxed). A broken one keeps its place with no lines rather than vanishing. Neither has requirements, so the load's
@@ -133,7 +147,7 @@ const bagItems = (() => {
         migrateCores(state);
     }
 
-    return Object.freeze({ JEWEL, CORE, isJewel, isCore, ownShape, isSpecial, asJewel, asCore, jewels, cores, artOf, keptOnPickup, normalize, put,
+    return Object.freeze({ JEWEL, CORE, isJewel, isCore, ownShape, isSpecial, asJewel, asCore, jewels, cores, artOf, keptOnPickup, salvagedOnDrop, countNote, normalize, put,
         take, addJewel, addCore, jewelSlots, candidateSlots, socketFromBag, salvageProfile, migrate });
 })();
 safeExposeGlobals({ bagItems });

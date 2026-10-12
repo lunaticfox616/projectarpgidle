@@ -9258,8 +9258,6 @@ function shouldBulkSalvageBySearch(isMatched, salvageUnmatched) { return salvage
 async function bulkSalvageEquipBySearch(salvageUnmatched) {
     if (!assertBuildEditable()) return;
     const sf = getSearchFilterState();
-    const survivors = [];
-    let removed = 0, lockedSkipped = 0;
     const targetItems = (game.inventory || []).filter(item => {
         if (!item) return false;
         const underEnchantHay = item.underEnchant ? `${item.underEnchant.id || ''} ${item.underEnchant.statName || getStatName(item.underEnchant.id || '') || ''} ${item.underEnchant.val || ''}` : '';
@@ -9269,24 +9267,16 @@ async function bulkSalvageEquipBySearch(salvageUnmatched) {
     });
     const targetCount = targetItems.length;
     if (targetCount <= 0) return addLog('해체 대상이 없습니다.', 'attack-monster');
-    if (!await requestGameConfirmation(`검색 조건에 해당하는 장비 ${targetCount}개를 해체합니다.\n잠금/장비 세팅으로 보호된 장비는 제외됩니다.`, {
+    const note = bagItems.countNote(targetItems);
+    if (!await requestGameConfirmation(`검색 조건에 해당하는 장비 ${targetCount}개를 해체합니다.${note ? `\n${note} 포함` : ''}\n잠금/장비 세팅으로 보호된 장비는 제외됩니다.`, {
         title: '검색 장비 일괄 해체',
         tone: 'danger',
         confirmLabel: `${targetCount}개 해체`
     })) return;
-    const targetSet = new Set(targetItems);
-    let rewards = {};
-    (game.inventory || []).forEach(item => {
-        if (!item) return;
-        if (!targetSet.has(item)) return survivors.push(item);
-        if (isBulkSalvageProtectedItem(item)) { lockedSkipped++; return survivors.push(item); }
-        if (typeof mergeSalvageRewards === 'function') mergeSalvageRewards(rewards, salvageItemObject(item, true));
-        else salvageItemObject(item, true);
-        removed++;
-    });
-    game.inventory = survivors;
-    let rewardText = typeof formatSalvageRewardSummary === 'function' ? `, ${formatSalvageRewardSummary(rewards)}` : '';
-    addLog(`🧪 장비 ${removed}개 해체 완료${rewardText}${lockedSkipped > 0 ? ` (잠금/배치/세팅 ${lockedSkipped}개 보호)` : ''}`, 'loot-normal');
+    // 끼운 주얼이 가방으로 돌아오므로 가방은 해체하는 쪽에서 다시 맞춘다(js/passives.js salvageBagItems)
+    const targets = confirmedSalvageTargets(targetItems), lockedSkipped = targetCount - targets.length;
+    const rewards = salvageBagItems(targets);
+    addLog(`🧪 장비 ${targets.length}개 해체 완료, ${formatSalvageRewardSummary(rewards)}${lockedSkipped > 0 ? ` (잠금/배치/세팅 ${lockedSkipped}개 보호)` : ''}`, 'loot-normal');
     updateStaticUI();
 }
 
