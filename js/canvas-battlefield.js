@@ -465,6 +465,8 @@ function mergeSkillCastVfx(list, fx, profile, target, now) {
 
 function queueSkillGemVfx(fx, enemyPos, playerPos, enemyPosMap, now, viewportScale) {
     if (!fx || fx.dot || !fx.skillName) return;
+    // 옆에서 보는 무대의 새 스킬 이펙트: 맞은 적마다의 타격 클립과 연쇄 번개(js/canvas-stage-skill-rules.js).
+    if (typeof stageSkillRules === 'object') stageSkillRules.hit(fx, enemyPosMap);
     if (worldTreeSkillFx.queueHit(fx, enemyPos, playerPos || enemyPos, now)) {
         trimBattleSkillEffects(battleVisualState.skillEffects);
         return;
@@ -1150,6 +1152,7 @@ function drawBattleGroundLayer(ctx, effects, view) {
     sideEncounterCanvas.portals(ctx, view.gridProj, getCombatTime());
     trialTrapArt.drawGround(ctx, effects, view.now, view.gridProj); // trap cracks, glow, frost, rune, puddle, scorch
     fxRemake.begin(ctx, view.gridProj);
+    if (typeof stageSkillVfx === 'object') stageSkillVfx.tick(view.now); // 무대의 새 스킬 이펙트(js/canvas-stage-skill-vfx.js): 프레임마다 시계를 맞춘다
     worldTreeSkillFx.castFrame(ctx,view.gridProj,'ground');
     worldTreeSkillFx.drawQueued(ctx, battleVisualState.skillEffects || [], view.now, 'ground');
     for (let fx of effects) {
@@ -1159,6 +1162,7 @@ function drawBattleGroundLayer(ctx, effects, view) {
     redrawnSkillFx.drawLayer('ground', view.now);
     wispSummonFx.drawLayer('ground', view.now);
     fxRemake.end();
+    if (typeof stageSkillVfx === 'object') stageSkillVfx.draw(ctx, 'ground', view.gridProj);
     drawActiveSummons(ctx, view.playerPos, view.now, view.gridProj);
 }
 
@@ -1434,6 +1438,7 @@ function drawSkillGemVfxLayer(ctx, now, gridProj) {
     worldTreeSkillFx.castFrame(ctx,gridProj,'foreground');
     let list = battleVisualState.skillEffects || [];
     worldTreeSkillFx.drawQueued(ctx, list, now, 'foreground');
+    if (typeof stageSkillVfx === 'object') { stageSkillVfx.draw(ctx, 'top', gridProj); stageSkillSigil.draw(ctx, gridProj); }
     const spriteRenderers = {continuousSlash:drawSwordSlashVfx};
     list.forEach(effect => {
         let image = getSkillGemVfxImage(effect.imageKey);

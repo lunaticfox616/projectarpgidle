@@ -194,6 +194,9 @@ const devTestPanel = (() => {
                 button('준 랜덤', () => setStageRoomSize('stageRoomPlan', 'random', '방 놓임새: 준 랜덤'))]),
             row([el('label', { textContent: '뒤쪽' }), button('배경 그림', () => setSetting('stageBackdrop', 'on', '방 뒤쪽: 배경 그림')),
                 button('벽돌 벽', () => setSetting('stageBackdrop', 'off', '방 뒤쪽: 벽돌 벽'))]),
+            // 무대의 스킬 이펙트(js/canvas-stage-skill-vfx.js): 인계 받은 새 클립과 시전 마법진. 끄면 예전 이펙트가 나온다.
+            row([el('label', { textContent: '이펙트' }), button('새 그림', () => setSetting('stageSkillFx', 'on', '무대 스킬 이펙트: 새 그림')),
+                button('예전 그림', () => setSetting('stageSkillFx', 'off', '무대 스킬 이펙트: 예전 그림'))]),
             ...monsterRows()
         ]);
     }

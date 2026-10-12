@@ -125,6 +125,8 @@ const worldTreeSkillFx = (() => {
     function renderEvent(ctx,event,now,projection,owner) {
         const spec=SKILL_FX_ATLAS[event.skillName];
         if(!spec || remaining<=0)return;
+        // 옆에서 보는 무대: 인계 받은 새 클립이 이 사건을 맡으면 예전 그림은 그리지 않는다(js/canvas-stage-skill-rules.js).
+        if(typeof stageSkillRules==='object' && stageSkillRules.claim(event,{ctx,projection,now}))return;
         if(redrawnSkillFx.claim(event,spec) || fxRemake.projectile(event,now,spec.id))return;
         const renderer=layouts.get(event) || prepareNative(event,projection,owner);
         renderer.layout(now,sample=>paint(ctx,sample,projection));
@@ -341,6 +343,7 @@ const worldTreeSkillFx = (() => {
 
     /** Gallery windup belongs at the cast origin, before confirmed contact events. */
     function swing(ctx,fx,now,projection) {
+        if(typeof stageSkillRules==='object')stageSkillRules.windup(fx); // 무대의 새 스킬 이펙트: 시전 마법진
         if(!SKILL_FX_ATLAS[fx.skillName]?.playback?.windup || !fx.sourceCell)return;
         if(!adapters.has(fx))adapters.set(fx,{skillName:fx.skillName,kind:'windup',sourceCell:fx.sourceCell,
             targetCells:[fx.sourceCell],element:fx.element,at:fx.start,duration:fx.impactDelayMs});
