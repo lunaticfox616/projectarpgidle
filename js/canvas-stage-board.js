@@ -33,8 +33,7 @@ const stageBoard = (() => {
     /** 바닥의 앞쪽 끝이 놓이는 높이(화면 높이의 비율): 방 무대와 같은 규칙(js/canvas-stage-rooms.js openFocusRow). */
     function boardFloorShare(width, height) {
         if (width < STAGE_VIEW.minColumns.narrowBelow) return STAGE_ROOMS.floorBottom.narrow;
-        const scale = (typeof uiDisplay === 'object' && uiDisplay.factor) || 1;
-        return Math.min(STAGE_ROOMS.floorBottom.wide, 1 - STAGE_ROOMS.hudClear * scale / height);
+        return Math.min(STAGE_ROOMS.floorBottom.wide, 1 - STAGE_ROOMS.hudClear / height);
     }
     /** 고정 전장의 화면 자리. 칸은 방 무대의 크기이되 판이 화면에 다 들어오게 줄인다(좁은 화면).
      * @returns {?object} js/ui.js getFixedBattleGridProjection과 같은 모양, 무대 그림으로 그리지 않는 구역이면 null */
