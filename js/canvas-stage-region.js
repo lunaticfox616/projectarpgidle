@@ -289,7 +289,11 @@ const stageRegion = (() => {
         for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) stampRegionObject(ctx, rim, piece, { x: at.x + dx * at.dot, y: at.y + dy * at.dot, dot: at.dot });
         return true;
     }
-    return Object.freeze({ status: regionStatus, drawFar: drawRoomPicture, paintRoom: paintRoomShade, append: appendRegionPieces, draw: drawRegionPiece,
+    /** 곧 쓸 지역의 방 그림을 미리 불러 둔다(그림이 없는 지역이면 아무 일도 없다). */
+    function warmRegion(id) {
+        if (stageView.backdrops() && stageRegionFit.of(id)) regionPicture(id + '.png');
+    }
+    return Object.freeze({ warm: warmRegion, status: regionStatus, drawFar: drawRoomPicture, paintRoom: paintRoomShade, append: appendRegionPieces, draw: drawRegionPiece,
         drawMarks: drawRegionSideMarks, drawObject: drawRegionObject, outlineObject: outlineRegionObject });
 })();
 safeExposeGlobals({ stageRegion });

@@ -89,6 +89,12 @@ const stageRoomsView = (() => {
     function noteRoom(run, room, now) {
         if (shown.run === run && shown.room === room) return;
         shown = { run, room, at: shown.run === run ? now : -Infinity };
+        warmNextAct(mapOf(run), room);
+    }
+    /** 보스 방에 들어서면 다음 액트의 방 그림을 미리 불러 둔다: 액트가 넘어갈 때 그림을 기다리는 어둠이 짧아진다. */
+    function warmNextAct(map, room) {
+        const act = room.role === 'boss' ? /^act-(\d+)$/.exec(map.region || '') : null;
+        if (act) stageRegion.warm('act-' + String(Number(act[1]) + 1).padStart(2, '0'));
     }
     /** @returns {boolean} whether the run is a room-by-room stage and its room was drawn (the caller then skips the map picture and fog) */
     function background(ctx, run, p, area) {
