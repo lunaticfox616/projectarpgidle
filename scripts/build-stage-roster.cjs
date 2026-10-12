@@ -10,6 +10,7 @@
  *     targeted-data.json이 있으면 거기 적힌 동작(확인 끝난 것)이 같은 동작의 앞선 판을 덮고, 그 파일의 boss(동작 한 벌)도 넣는다.
  *   --looks: 다시 만든 외형 가운데 사용자가 고른 것(검토 화면에서 내보낸 파일, choice keep이고 version이 같은 것)을 한 장 그림으로 넣는다.
  *   새 묶음의 그림이 게임에서 다른 자리에 서면 FORGE_SLOT에 적는다(예: 부제나비는 액트 3 보스 그림 키 bossAct3).
+ *   같은 생김새에 색만 다른 외형은 FORGE_TINTS에 적는다: 동작이 온 외형의 걷기와 공격을 제 색으로 옮겨 쓴다(--no-tint로 끈다).
  * 몬스터 하나는 한쪽 묶음의 그림만 쓴다: 새 묶음에 확인 끝난 동작이 있으면 그것(공격이 없으면 공격 그림 없이 간다), 없으면
  * 처음 받은 걷기와 공격, 그것도 없고 고른 외형만 있으면 그 한 장(걷기도 공격도 게임이 움직임을 만든다).
  * 받은 그림은 칸이 몸보다 훨씬 크다: 몬스터마다 걷기와 공격의 모든 프레임이 들어가는 가장 작은 칸으로 잘라, 한 줄에 12칸씩
@@ -154,6 +155,66 @@ function forgeBoss(dir, boss, slot) {
     const attack = forgeKeyframes(path.join(dir, path.dirname(boss.previewSheet)), slot.hover);
     return { id: slot.id, name: slot.name, gait: slot.gait, walk: { frames: [attack.frames[0]], ms: [1000], pace: 'stride' }, attack };
 }
+/** 같은 생김새에 색만 다른 외형(액트 6, 7, 8의 부제는 액트 2 부제의 색 바꿈이다): 동작이 온 쪽(오른쪽)의 걷기와 공격을 제 색으로 옮겨 쓴다.
+ * 제 동작이 따로 오면 이 표에서 뺀다. --no-tint로 끄면 고른 한 장 그대로다. */
+const FORGE_TINTS = Object.freeze(Object.fromEntries([6, 7, 8].flatMap(act => ['melee', 'ranged'].map(kind => [`deacon-act${act}-${kind}`, `deacon-act2-${kind}`]))));
+const TINT_MIN = 10;   // 색 하나를 옮길 근거로 삼는 최소 도트 수
+const rgbKey = (data, at) => (data[at] << 16) | (data[at + 1] << 8) | data[at + 2];
+const rgbOf = key => [key >> 16, (key >> 8) & 255, key & 255];
+const rgbFar = (a, b) => (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2;
+const nearestKey = (keys, rgb) => keys.reduce((near, key) => (rgbFar(rgbOf(key), rgb) < rgbFar(rgbOf(near), rgb) ? key : near));
+/** 동작 그림의 색마다, 그 색이 칠해진 자리(동작이 온 외형의 원본에서 그 색에 가장 가까운 도트들)에 색만 다른 외형이 쓴 색의 가운데 값.
+ * 두 원본은 몸이 가장 많이 겹치는 자리로 맞춘다. 원본에 자리가 없는 색(타격 궤적 같은 효과)은 표에 넣지 않아 그대로 남는다. */
+const solidAt = (png, x, y) => x >= 0 && y >= 0 && x < png.width && y < png.height && png.data[(y * png.width + x) * 4 + 3] > 127;
+/** 두 원본을 겹칠 자리(to의 좌표 = from의 좌표 + 답): 적힌 발 자리는 몇 도트씩 어긋나 있어, 그 둘레에서 몸이 가장 많이 겹치는 자리를 고른다. */
+function tintOffset(from, to, guess) {
+    let best = guess, bestCount = -1;
+    for (let dy = guess[1] - 4; dy <= guess[1] + 4; dy++) for (let dx = guess[0] - 10; dx <= guess[0] + 10; dx++) {
+        let count = 0;
+        for (let y = 0; y < from.height; y += 2) for (let x = 0; x < from.width; x += 2) if (solidAt(from, x, y) === solidAt(to, x + dx, y + dy)) count++;
+        if (count > bestCount) { bestCount = count; best = [dx, dy]; }
+    }
+    return best;
+}
+function tintTable(dir, donor, variant, sheets) {
+    const palette = new Set(), from = read(path.join(dir, donor.master)), to = read(path.join(dir, variant.master)), samples = new Map();
+    const shift = tintOffset(from, to, [variant.sourceFeet[0] - donor.sourceFeet[0], variant.sourceFeet[1] - donor.sourceFeet[1]]);
+    for (const sheet of sheets) for (let at = 0; at < sheet.data.length; at += 4) if (sheet.data[at + 3] > 127) palette.add(rgbKey(sheet.data, at));
+    const keys = [...palette];
+    for (let y = 0; y < from.height; y++) for (let x = 0; x < from.width; x++) {
+        const at = (y * from.width + x) * 4, ox = x + shift[0], oy = y + shift[1];
+        if (from.data[at + 3] < 128 || !solidAt(to, ox, oy)) continue;
+        const key = nearestKey(keys, [from.data[at], from.data[at + 1], from.data[at + 2]]), other = (oy * to.width + ox) * 4;
+        samples.set(key, (samples.get(key) || []).concat([[to.data[other], to.data[other + 1], to.data[other + 2]]]));
+    }
+    const table = new Map();
+    for (const [key, list] of samples) if (list.length >= TINT_MIN) table.set(key, [0, 1, 2].map(c => middle(list.map(rgb => rgb[c]))));
+    // 자리는 있는데 근거가 모자란 색: 가장 가까운 옮겨진 색이 움직인 만큼 따라 옮긴다
+    const moved = [...table.keys()];
+    for (const key of samples.keys()) {
+        if (table.has(key) || !moved.length) continue;
+        const near = nearestKey(moved, rgbOf(key)), was = rgbOf(near), now = table.get(near);
+        table.set(key, rgbOf(key).map((value, c) => Math.max(0, Math.min(255, value + now[c] - was[c]))));
+    }
+    return table;
+}
+/** 시트 한 장을 색 표대로 옮긴 사본. */
+function tintSheet(sheet, table) {
+    const data = Uint8Array.from(sheet.data);
+    for (let at = 0; at < data.length; at += 4) {
+        const rgb = data[at + 3] > 127 ? table.get(rgbKey(data, at)) : null;
+        if (rgb) data.set(rgb, at);
+    }
+    return { ...sheet, data };
+}
+/** 색만 다른 외형에 입힐 동작 한 벌: 동작이 온 외형의 걷기와 공격을 제 색으로 옮긴다. */
+function forgeTinted(dir, production, clips, row) {
+    const actorOf = id => production.actors.find(actor => actor.id === id), donor = actorOf(clips.id), variant = actorOf(row.id);
+    const sheets = [...new Set([clips.walk, clips.attack].filter(Boolean).flatMap(clip => clip.frames.map(cell => cell.png)))];
+    const table = tintTable(dir, donor, variant, sheets), copies = new Map(sheets.map(sheet => [sheet, tintSheet(sheet, table)]));
+    const tinted = clip => (clip ? { ...clip, frames: clip.frames.map(cell => ({ ...cell, png: copies.get(cell.png) })) } : null);
+    return { ...row, walk: tinted(clips.walk), attack: tinted(clips.attack) };
+}
 function forgeBatch(dir) {
     const production = JSON.parse(fs.readFileSync(path.join(dir, 'production.json'), 'utf8')), targeted = readJson(path.join(dir, 'targeted-data.json'), {});
     const ready = forgeReady(dir, targeted), decisions = looksFile ? JSON.parse(fs.readFileSync(looksFile, 'utf8')).decisions : {};
@@ -167,6 +228,10 @@ function forgeBatch(dir) {
         else if (actor.decision !== 'keep') continue;
         else if (actions.has('walk')) out.set(base.id, { ...base, walk: forgeAction(actions.get('walk'), hover), attack: actions.has('attack') ? forgeAction(actions.get('attack'), hover) : null });
         else if (!motions.has(actor.id)) out.set(base.id, { ...base, walk: forgeStill(dir, actor), attack: null });
+    }
+    for (const [id, donorId] of Object.entries(args.includes('--no-tint') ? {} : FORGE_TINTS)) {
+        const clips = out.get(donorId), row = out.get(id);
+        if (clips && row && clips.walk.frames.length > 1 && row.walk.frames.length === 1) out.set(id, forgeTinted(dir, production, clips, row));
     }
     if (targeted.boss) {
         // 그 자리에 앞서 넣은 그림은 견주어 볼 수 있게 다른 이름으로 남긴다(테스트 패널의 "몬스터 모습")
