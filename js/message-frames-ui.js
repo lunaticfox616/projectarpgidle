@@ -432,8 +432,12 @@ const messageFrames = (() => {
 
     /** 창 하나가 전장에서 차지하는 상자(전장의 px). 보이지 않거나 접혔거나 주인공 때문에 옅어진 창이면 null. */
     function frameBoxOnStage(frame) {
-        if ((frame === 'side' && !state.split) || state.collapsed[frame] || faded[frame]) return null;
-        const rect = rectFor(frame), k = frameScale() / stageBox.scale, dx = stageBox.left / stageBox.scale, dy = stageBox.top / stageBox.scale;
+        if ((frame === 'side' && !state.split) || state.collapsed[frame]) return null;
+        // Reading the frame restores its opacity in CSS, so its edge still blocks the door marker.
+        if (faded[frame] && !frameEl(frame).matches(':hover, :focus-within')) return null;
+        const rect = placedRects[frame];
+        if (!rect) return null;
+        const k = frameScale() / stageBox.scale, dx = stageBox.left / stageBox.scale, dy = stageBox.top / stageBox.scale;
         return { left: rect.x * k - dx, right: (rect.x + rect.width) * k - dx, top: rect.y * k - dy, bottom: (rect.y + rect.height) * k - dy };
     }
     /** 전장의 높이 y에서 오른쪽 끝부터 창에 가려진 구간의 왼쪽 끝(전장의 px): 가려지지 않았으면 width 그대로. 오른쪽 끝에 붙은 창과

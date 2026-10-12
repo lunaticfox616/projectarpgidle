@@ -21,10 +21,10 @@ body.message-frames-on .combat-feed { display: none; }
   pointer-events: auto;
   image-rendering: pixelated;
 }
-/* 주인공이 창 뒤에 서면 창이 옅어진다(js/message-frames-ui.js fadeFramesOverHero). 마우스를 올리면 다시 또렷하다.
+/* 주인공이 창 뒤에 서면 창이 옅어진다(js/message-frames-ui.js fadeFramesOverHero). 마우스나 키보드로 읽을 때는 다시 또렷하다.
    바뀌는 순간에만 도는 짧은 계단식 전환이다(늘 도는 부드러운 전환은 화면 주사율마다 합성을 시킨다). */
 .message-frame { transition: opacity .16s steps(4); }
-.message-frame.over-hero:not(:hover) { opacity: .2; }
+.message-frame.over-hero:not(:hover):not(:focus-within) { opacity: .2; }
 
 .message-frame-bar {
   flex: 0 0 auto;
