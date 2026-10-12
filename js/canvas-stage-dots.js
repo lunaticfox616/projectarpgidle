@@ -7,6 +7,9 @@ const stageDots = (() => {
     let scratch = null;
     const TILE = 512;   // 큰 그림을 옮길 때 한 번에 다루는 조각(도트)
     const GUARD = 2;    // 작업면에서 그림 둘레에 비워 두는 띠(px)
+    const STAMP_PIXELS = 2 * 1024 * 1024; // 고정 물체의 확대 작업면: RGBA 합계 8MB, 최대 32장
+    const stamps = [];
+    let stampPixels = 0;
     const canvasPx = () => (typeof uiDisplay === 'object' ? uiDisplay.battleRenderScale : 1);
     /** 도트 하나의 캔버스 픽셀 수(scale = 도트 하나의 화면 크기). */
     const pxPerDot = scale => scale * canvasPx();
@@ -30,27 +33,58 @@ const stageDots = (() => {
         ctx.clearRect(0, 0, width + GUARD, height + GUARD);
         return ctx;
     }
+    /** 고정된 그림만 정수배 확대를 재사용한다. 최종 축소는 매번 목적지에서 하므로 반 도트 위치와 반전도 그대로다. */
+    function enlarged(source, from, up, fixed) {
+        const width = from.w * up, height = from.h * up, pixels = (width + GUARD) * (height + GUARD);
+        if (!fixed || pixels > STAMP_PIXELS) {
+            const ctx = surface(width, height);
+            ctx.drawImage(source, from.x, from.y, from.w, from.h, 0, 0, width, height);
+            return ctx.canvas;
+        }
+        const key = `${from.x}|${from.y}|${from.w}|${from.h}|${up}`;
+        const index = stamps.findIndex(stamp => stamp.source === source && stamp.key === key);
+        if (index >= 0) {
+            const stamp = stamps.splice(index, 1)[0];
+            stamps.push(stamp);
+            return stamp.canvas;
+        }
+        while (stamps.length >= 32 || stampPixels + pixels > STAMP_PIXELS) {
+            const old = stamps.shift();
+            stampPixels -= old.pixels;
+            old.canvas.width = old.canvas.height = 1;
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width + GUARD;
+        canvas.height = height + GUARD;
+        const ctx = canvas.getContext('2d');
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(source, from.x, from.y, from.w, from.h, 0, 0, width, height);
+        stamps.push({ source, key, canvas, pixels });
+        stampPixels += pixels;
+        return canvas;
+    }
     /**
      * @param {CanvasImageSource} source
      * @param {{x:number,y:number,w:number,h:number}} from the dots to draw (source px)
      * @param {{x:number,y:number,scale:number}} at where its top-left lands and the size of one dot (the caller's units)
+     * @param {boolean} fixed source pixels never change; only static object images/tints may opt in, never animation canvases
      */
-    function blit(ctx, source, from, at) {
+    function blit(ctx, source, from, at, fixed = false) {
         // Color filters do not extend the picture. Bound their offscreen pass to this draw, rather than the whole
         // battlefield. Shadows and non-default compositing can affect pixels outside that picture.
         if (!/^(?:(?:grayscale|saturate|brightness)\([^)]*\)\s*)+$/.test(ctx.filter)
             || ctx.globalCompositeOperation !== 'source-over'
-            || ctx.shadowBlur || ctx.shadowOffsetX || ctx.shadowOffsetY) return paint(ctx, source, from, at);
+            || ctx.shadowBlur || ctx.shadowOffsetX || ctx.shadowOffsetY) return paint(ctx, source, from, at, fixed);
         const bounds = new Path2D();
         bounds.rect(at.x - 1, at.y - 1, from.w * at.scale + 2, from.h * at.scale + 2);
         ctx.save();
         ctx.clip(bounds);
-        paint(ctx, source, from, at);
+        paint(ctx, source, from, at, fixed);
         const quality = ctx.imageSmoothingQuality;
         ctx.restore();
         ctx.imageSmoothingQuality = quality;
     }
-    function paint(ctx, source, from, at) {
+    function paint(ctx, source, from, at, fixed) {
         const width = from.w * at.scale, height = from.h * at.scale, smooth = ctx.imageSmoothingEnabled;
         if (whole(at.scale)) {
             ctx.imageSmoothingEnabled = false;
@@ -58,11 +92,10 @@ const stageDots = (() => {
             ctx.imageSmoothingEnabled = smooth;
             return;
         }
-        const up = upscale(at.scale), big = surface(from.w * up, from.h * up);
-        big.drawImage(source, from.x, from.y, from.w, from.h, 0, 0, from.w * up, from.h * up);
+        const up = upscale(at.scale), big = enlarged(source, from, up, fixed);
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'low';
-        ctx.drawImage(scratch, 0, 0, from.w * up, from.h * up, at.x, at.y, width, height);
+        ctx.drawImage(big, 0, 0, from.w * up, from.h * up, at.x, at.y, width, height);
         ctx.imageSmoothingEnabled = smooth;
     }
     /** 도트 그림 한 장을 지금 배율의 캔버스 픽셀 크기로 옮겨 둔 그림(방 그림처럼 한 번 그려 두고 쓰는 큰 그림). 정수배면 그대로 돌려준다. */

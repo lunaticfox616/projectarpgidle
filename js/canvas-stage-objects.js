@@ -44,7 +44,7 @@ const stageObjects = (() => {
         const index = cellOf(look), source = image();
         if (index < 0 || !source) return false;
         const box = boxOf(index, at), cell = STAGE_OBJECTS.cell;
-        stageDots.blit(ctx, source, { x: box.sx, y: 0, w: cell, h: cell }, { x: box.x, y: box.y, scale: at.dot });
+        stageDots.blit(ctx, source, { x: box.sx, y: 0, w: cell, h: cell }, { x: box.x, y: box.y, scale: at.dot }, true);
         return true;
     }
     function silhouette(index, colour) {
@@ -68,7 +68,7 @@ const stageObjects = (() => {
         if (index < 0 || !image()) return;
         const box = boxOf(index, at), rim = silhouette(index, colour), cell = STAGE_OBJECTS.cell;
         for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-            stageDots.blit(ctx, rim, { x: 0, y: 0, w: cell, h: cell }, { x: box.x + dx * at.dot, y: box.y + dy * at.dot, scale: at.dot });
+            stageDots.blit(ctx, rim, { x: 0, y: 0, w: cell, h: cell }, { x: box.x + dx * at.dot, y: box.y + dy * at.dot, scale: at.dot }, true);
         }
     }
     return Object.freeze({ ready, draw, outline });

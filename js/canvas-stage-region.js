@@ -255,7 +255,7 @@ const stageRegion = (() => {
         const size = piece.size, x = Math.round(at.x - size[2] * at.dot), y = Math.round(at.y - size[3] * at.dot);
         ctx.save();
         if (piece.flip) { ctx.translate(Math.round(at.x) * 2, 0); ctx.scale(-1, 1); }
-        stageDots.blit(ctx, source, { x: 0, y: 0, w: size[0], h: size[1] }, { x, y, scale: at.dot });
+        stageDots.blit(ctx, source, { x: 0, y: 0, w: size[0], h: size[1] }, { x, y, scale: at.dot }, true);
         ctx.restore();
     }
     /** @param {{name:string,tint?:string}} look @param {{x:number,y:number,dot:number}} at 발 자리와 도트 하나의 크기 @returns {boolean} 그렸는지 */
