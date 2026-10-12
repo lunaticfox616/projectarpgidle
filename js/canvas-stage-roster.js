@@ -11,7 +11,7 @@
  * 그림은 보이는 몬스터 것만 들고 있는다. 그리기만 하고 전투 상태는 바꾸지 않는다.
  */
 const stageRoster = (() => {
-    const KEEP = 14;                 // 들고 있는 그림 묶음 수(넘으면 가장 오래 안 쓴 것을 놓는다)
+    const KEEP = 20;                 // 들고 있는 그림 묶음 수(넘으면 가장 오래 안 쓴 것을 놓는다)
     const TINTS = 8;                 // 한 묶음이 들고 있는 한 가지 색 그림 수(테 색, 맞았을 때의 흰빛)
     const BREATH_MS = 1700;          // 숨 한 번
     const HANG_DOTS = 4, HANG_MS = 2300;   // 그림이 한 장뿐인 떠 있는 몬스터가 오르내리는 높이(도트)와 한 번에 걸리는 시간
@@ -62,7 +62,9 @@ const stageRoster = (() => {
     function pairOf(actor) {
         let pair = sheets.get(actor.id);
         if (!pair) {
-            pair = { walk: load(actor.id + '-walk.png'), attack: actor.attackMs ? load(actor.id + '-attack.png') : null, tints: new Map(), failed: false, used: 0 };
+            // 쓴 때를 적고 나서 묶음을 줄인다: 0으로 넣고 줄이면 방금 넣은 묶음이 가장 오래된 것으로 뽑혀 바로 버려졌고, 그림을 비운
+            // 묶음은 '불러오지 못함'으로 읽혀 그 몬스터가 예전 그림으로 그려졌다(2026-10-13: 한 번의 플레이에서 열다섯 번째 모습부터 모두).
+            pair = { walk: load(actor.id + '-walk.png'), attack: actor.attackMs ? load(actor.id + '-attack.png') : null, tints: new Map(), failed: false, used: ++clock };
             sheets.set(actor.id, pair);
             trim();
         }
