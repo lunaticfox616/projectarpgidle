@@ -117,15 +117,16 @@ const equipmentWindowUi = (() => {
     const wornSlots = item => (bagItems.isSpecial(item) ? [] : compareSlots(item).filter(slot => (game.equipment || {})[slot]).slice(0, 3));
     /** 고른 장비와 지금 낀 장비의 옵션(2026-10-11, 개편으로 낀 장비의 옵션이 사라져 확인하기 힘들다는 사용자 말): 칸이 넓으면 나란히,
      * 좁으면(휴대폰, 좁게 뜬 칸) 탭으로 바꿔 본다(css/equipment-window.css .eqw-compare). @param {{ tab: string, label: string, node: Element }[]} panes */
-    function compareNode(panes) {
+    function compareNode(panes, selectedLabel) {
         const wrap = document.createElement('div');
         wrap.className = 'eqw-compare';
         wrap.dataset.panes = String(panes.length);
-        const tabs = panes.map((pane, index) => `<button type="button" class="${index ? '' : 'active'}" onclick="equipmentWindowUi.showPane(this, ${index})">${escapeHTML(pane.tab)}</button>`);
+        const selected = Math.max(0, panes.findIndex(pane => pane.label === selectedLabel));
+        const tabs = panes.map((pane, index) => `<button type="button" class="${index === selected ? 'active' : ''}" onclick="equipmentWindowUi.showPane(this, ${index})">${escapeHTML(pane.tab)}</button>`);
         wrap.innerHTML = `<div class="eqw-compare-tabs">${tabs.join('')}</div><div class="eqw-compare-panes"></div>`;
         panes.forEach((pane, index) => {
             const section = document.createElement('section');
-            section.className = `eqw-compare-pane${index ? '' : ' active'}`;
+            section.className = `eqw-compare-pane${index === selected ? ' active' : ''}`;
             const head = document.createElement('h5');
             head.textContent = pane.label;
             section.append(head, pane.node);
@@ -218,6 +219,7 @@ const equipmentWindowUi = (() => {
         return (rows + restButton(fold.length) + wardRows(item, slot) + uniqueRows(item, game.equipment[slot])) || '<p class="eqw-none">능력치 변화 없음</p>';
     }
     const deltaCache = new Map();
+    const deltaJobs = new WeakMap();
     /** A short key for the long gear signature (FNV-1a). */
     function hashKey(text) {
         let h = 2166136261;
@@ -226,6 +228,8 @@ const equipmentWindowUi = (() => {
     }
     /** Fills the panel's 바꾸면 tables once the browser is idle; the same item and gear (signature) reuse the last result. */
     function fillDeltas(root, item, signature) {
+        const job = {};
+        deltaJobs.set(root, job);
         const tables = [...root.querySelectorAll('.eqw-deltas[data-eqw-slot]')];
         if (!tables.length) return;
         const sig = hashKey(String(signature));
@@ -233,9 +237,15 @@ const equipmentWindowUi = (() => {
             if (!table.isConnected) return;
             const key = `${sig}|${table.dataset.eqwSlot}`;
             if (!deltaCache.has(key)) deltaCache.set(key, deltaHtml(item, table.dataset.eqwSlot));
-            table.querySelector('.eqw-dl-body').innerHTML = deltaCache.get(key);
+            const body = table.querySelector('.eqw-dl-body');
+            const focused = body.contains(document.activeElement);
+            body.innerHTML = deltaCache.get(key);
+            const more = body.querySelector('.eqw-dl-more');
+            if (more && body.classList.contains('is-open')) more.textContent = '접기';
+            if (focused) more?.focus({ preventScroll: true });
         };
         const run = () => {
+            if (deltaJobs.get(root) !== job) return; // A newer refresh owns these reused tables.
             tables.forEach(fill);
             equipmentInventoryInteraction.positionInspector(); // the taller floating panel finds its place again
         };
