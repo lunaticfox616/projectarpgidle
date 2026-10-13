@@ -41,7 +41,7 @@
   #fishing-workshop[data-recipe-group="forge"] .fishing-group:not([data-ui-disclosure="sea-gift-forge"]),
   #fishing-workshop[data-recipe-group="chase"] .fishing-group:not([data-ui-disclosure="sea-gift-chase"]),
   #fishing-workshop[data-recipe-group="supply"] .fishing-target { display: none; }
-  #tab-items > .subtab-row {
+  :is(#tab-items, #tab-items .merged-subtab-pane[data-tab-id="tab-items"]) > .subtab-row {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 4px;
@@ -263,7 +263,7 @@
 
 @media (max-width: 1080px) {
   html, body { overflow-x: hidden; }
-  #tab-items > .subtab-row {
+  :is(#tab-items, #tab-items .merged-subtab-pane[data-tab-id="tab-items"]) > .subtab-row {
     overflow: visible;
   }
   body { gap: 8px; }

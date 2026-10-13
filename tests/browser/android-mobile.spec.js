@@ -96,10 +96,11 @@ test('the phone dock keeps its cells when the map unlocks', async ({ page }, inf
     test.skip(!info.project.use.isMobile, 'Phone bottom dock');
     await openMobile(page);
     // Review 2026-10-01 #24: the dock grew from 4 to 5 cells after act 1 and 스킬 젬 moved under the thumb.
+    // 2026-10-13: 스킬 젬 opens from the 장비 button (one window, two tabs); the dock's third shortcut is 스킬트리.
     const cells = () => page.locator('#tab-header-bottom > :is(.tab-btn, .mobile-nav-more):visible').evaluateAll(elements =>
         elements.map(el => el.id + '@' + Math.round(el.getBoundingClientRect().left)));
     const before = await cells();
-    expect(before.map(cell => cell.split('@')[0]).sort()).toEqual(['btn-mobile-nav-more', 'btn-tab-battle', 'btn-tab-items', 'btn-tab-map', 'btn-tab-skills']);
+    expect(before.map(cell => cell.split('@')[0]).sort()).toEqual(['btn-mobile-nav-more', 'btn-tab-battle', 'btn-tab-char', 'btn-tab-items', 'btn-tab-map']);
     const map = page.locator('#btn-tab-map');
     await expect(map).toHaveClass(/nav-locked/);
     await expect(map).toHaveAttribute('aria-disabled', 'true');
@@ -206,6 +207,6 @@ test('the phone goal drawer folds on a screen change unless pinned', async ({ pa
     await opener.tap();
     await expect(drawer).toHaveClass(/expanded/);
     await page.locator('#ui-goal-pin').tap();
-    await page.locator('#btn-tab-skills').tap();
+    await page.locator('#btn-tab-char').tap();
     await expect(drawer).toHaveClass(/expanded/);
 });

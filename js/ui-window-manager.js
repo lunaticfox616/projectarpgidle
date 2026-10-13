@@ -21,18 +21,18 @@
     // PC HUD 메뉴 이름(아이콘 아래 한 줄)은 네 글자 폭에 맞춘다. 긴 이름은 줄이고, 전체 이름은 올려 두면 뜨는 이름표에 남는다.
     const RAIL_SHORT_CAPTIONS = Object.freeze({ 'btn-tab-season': '루프', 'btn-tab-stump': '그루터기' });
     // 바에 다 못 실을 때 기타로 보내는 순서: 나중에 열리는 부가 메뉴(뒤쪽부터)가 먼저, 이 핵심 창들은 마지막까지 바에 남는다.
-    const RAIL_CORE_TAB_IDS = new Set(['btn-tab-character', 'btn-tab-char', 'btn-tab-items', 'btn-tab-skills', 'btn-tab-map', 'btn-tab-journal']);
+    const RAIL_CORE_TAB_IDS = new Set(['btn-tab-character', 'btn-tab-char', 'btn-tab-items', 'btn-tab-map', 'btn-tab-journal']);
     const RAIL_EXTERNAL_TAB_IDS = new Set([
         'btn-tab-battle', 'btn-tab-social', 'btn-tab-settings', 'btn-map-complete-action-picker'
     ]);
     const WINDOW_DEFS = {
         'tab-character': { title: '캐릭터 능력치', x: 90, y: 40, width: 900, height: 940, minWidth: 520, minHeight: 480 },
+        // 2026-10-13: 스킬 젬은 장비 창 안의 화면, 해금은 루프 창 안의 화면이 됐다(js/ui.js MERGED_TAB_GROUPS: 창 머리의 탭으로 오간다).
+        // 제 창이 없으므로 여기에 줄이 없다(저장된 옛 창 자리는 쓰이지 않는다).
         'tab-items': { title: '장비 및 인벤토리', defaultMaximized: true, dock: true, x: 150, y: 54, width: 1060, height: 780, minWidth: 720, minHeight: 520 },
-        'tab-skills': { title: '스킬 젬', defaultMaximized: true, dock: true, x: 145, y: 54, width: 980, height: 760, minWidth: 620, minHeight: 460 },
         'tab-char': { title: '스킬트리', x: 210, y: 70, width: 920, height: 740, minWidth: 620, minHeight: 460, defaultMaximized: true },
         'tab-map': { title: '지도 및 콘텐츠', defaultMaximized: true, dock: true, x: 120, y: 60, width: 900, height: 720, minWidth: 620, minHeight: 440 },
         'tab-settings': { title: '설정', x: 360, y: 80, width: 680, height: 700, minWidth: 460, minHeight: 420 },
-        'tab-unlocks': { title: '해금', x: 190, y: 50, width: 980, height: 800, minWidth: 500, minHeight: 380 },
         // 2026-10-11: 아래 네 창은 기본 높이가 낮아 1080p 화면에서 원환 아래 절반, 재능 직업 줄, 조합창 끝 줄, 연대기가 잘렸다.
         // 높이는 작업 영역(HUD 위)까지만 쓰이므로 작은 화면에서는 전처럼 줄어든다. 사용자가 옮기거나 키운 창은 저장된 크기를 따른다.
         'tab-season': { title: '루프 패시브', x: 210, y: 20, width: 980, height: 920, minWidth: 500, minHeight: 380 },
@@ -515,6 +515,9 @@
         label.className = 'ui-rail-label';
         label.textContent = textNodes.map(node => node.textContent.trim()).join(' ');
         button.dataset.caption = railCaption(button.id, label.textContent);
+        // 화면 여럿을 여는 단추(장비 단추는 장비와 스킬 젬)는 올렸을 때의 이름표에 그 화면들을 모두 적는다. 아래의 짧은 이름은 그대로다.
+        let merged = button.dataset.mergedTabLauncher && typeof MERGED_TAB_GROUPS === 'object' ? MERGED_TAB_GROUPS[button.dataset.mergedTabLauncher] : null;
+        if (merged) label.textContent = merged.tabs.map(tab => tab.label).join(', ');
         if (button.dataset.hotkey) label.dataset.hotkey = button.dataset.hotkey;
         textNodes.forEach(node => button.removeChild(node));
         button.insertBefore(label, button.firstChild);
@@ -1268,11 +1271,23 @@
     /** PC 창 단축키(js/hotkeys-ui.js가 키를 해석): 맨 위에 열려 있으면 닫고, 아니면 연다. 잠긴 메뉴는 false. */
     function toggleWindowFromHotkey(tabId) {
         if (!document.body.classList.contains('desktop-windowed-ui') || !isMenuUnlocked(tabId)) return false;
-        let state = layoutState.windows[tabId];
-        let onTop = zOrder[zOrder.length - 1] === tabId;
-        if (state && state.open && !state.minimized && onTop) closeWindow(tabId);
-        else window.switchTab(tabId);
+        // 묶음 창 안의 화면(스킬 젬은 장비 창, 해금은 루프 창): 그 화면이 맨 위에 보이고 있으면 창을 닫고, 아니면 그 화면을 연다
+        let merged = mergedWindowOf(tabId), windowId = merged ? merged.windowId : tabId;
+        let state = layoutState.windows[windowId];
+        let onTop = zOrder[zOrder.length - 1] === windowId, showing = !merged || merged.shownId === tabId;
+        if (state && state.open && !state.minimized && onTop && showing) closeWindow(windowId);
+        // 묶음 창이 다른 화면을 보이며 열려 있으면 닫지 않고 화면만 바꾼다(창을 여닫는 것은 위의 줄이 맡는다)
+        else window.switchTab(tabId, { keepWindowOpen: !!merged });
         return true;
+    }
+    /** 그 화면이 묶음 창에 들어 있으면 그 창과 지금 보이는 화면, 아니면 null. 묶음은 메뉴 단추의 표시에서 읽는다(index.html:
+     * 문을 여는 단추의 data-merged-tab-launcher, 그 안의 화면 단추의 data-merged-tab-group). */
+    function mergedWindowOf(tabId) {
+        let button = document.getElementById('btn-' + tabId), groupKey = button ? button.dataset.mergedTabGroup || button.dataset.mergedTabLauncher : '';
+        let launcher = groupKey ? document.querySelector('.tab-btn[data-merged-tab-launcher="' + groupKey + '"]') : null;
+        if (!launcher) return null;
+        let windowId = launcher.id.replace(/^btn-/, ''), pane = document.querySelector('#' + windowId + ' .merged-subtab-pane.active');
+        return { windowId, shownId: pane ? pane.dataset.tabId : '' };
     }
 
     function initWindowManager() {
