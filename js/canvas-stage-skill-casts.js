@@ -236,6 +236,8 @@ const stageSkillCasts = (() => {
         }
         return true;
     }
-    return Object.freeze({ claim: castClaim, wispBody, wispShots });
+    /** 위습의 한 발이 닿는 자리에 붙는 타격 클립(그 속성의 것). */
+    const wispHit = element => WISP_HIT[element] || WISP_HIT.phys;
+    return Object.freeze({ claim: castClaim, wispBody, wispShots, wispHit });
 })();
 safeExposeGlobals({ stageSkillCasts });

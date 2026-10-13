@@ -8,7 +8,8 @@
  * 걷기 그림이 한 장뿐인 몬스터(외형만 고른 것)는 늘 걷는 척한다. 공격 그림이 없는 몬스터는 서 있는 그림을 뒤로 뺐다 앞으로 내밀어 때린다.
  * 떠서 움직이는 몬스터(날기, 떠다니기, 헤엄)는 다리가 없어 두 방식이 같다: 걷기 그림(날갯짓)을 늘 돌린다.
  * 서 있을 때는 서 있는 그림에 숨을 쉬듯 윗몸만 한 도트 오르내린다. 움직임은 모두 그림의 도트 단위다(기울임도 줄을 한 도트씩 민다).
- * 그림은 보이는 몬스터 것만 들고 있는다. 그리기만 하고 전투 상태는 바꾸지 않는다.
+ * 그림은 지금 지도의 무리와 화면에 나와 있는 몬스터 것만 들고 있는다(keepFor). 시트는 메인 스레드 밖에서 미리 풀어 둔 것이라
+ * (js/canvas-stage-pictures.js) 몬스터가 처음 화면에 나올 때 그림을 푸느라 멈추지 않는다. 그리기만 하고 전투 상태는 바꾸지 않는다.
  */
 const stageRoster = (() => {
     const KEEP = 20;                 // 들고 있는 그림 묶음 수(넘으면 한동안 안 쓴 것부터 놓는다. 화면에 나와 있는 묶음은 넘어도 놓지 않는다)
@@ -25,6 +26,8 @@ const stageRoster = (() => {
      * (2026-10-13: 한 장뿐인 보스가 선 채로 밀려 나갔다 돌아오기만 해서 때리는 것으로 읽히지 않았다). */
     const MADE_LEAN = Object.freeze([-0.4, -0.8, 1, 0.5, 0.1]), MADE_LEAN_DOTS = 12;
     const sheets = new Map();
+    let mapLooks = new Set();        // 지금 지도의 무리가 쓰는 외형 id: 화면에 나오기 전에도 그림을 들고 있는다(keepFor)
+    let sweepAt = 0;                 // 지난 지도의 그림을 놓을 때(keepFor가 건다. 0이면 걸린 것이 없다)
     const scales = new Map();        // 외형 id → 그리는 배율
     const FRAME_PIXELS = 2 * 1024 * 1024; // Immutable composed poses: at most 8 MB of RGBA and 160 entries.
     // 세 캐시 모두 방금까지 쓰인 그림은 놓지 않는다(js/canvas-stage-cache.js): 자리가 없으면 새 그림은 들이지 않고 그 자리에서 그린다.
@@ -36,8 +39,6 @@ const stageRoster = (() => {
 
     const table = () => (typeof MONSTER_STAGE_ROSTER === 'object' ? MONSTER_STAGE_ROSTER : null);
     const settings = () => (typeof game === 'object' && game.settings) || {};
-    const ready = image => image.complete && image.naturalWidth > 0;
-    const failed = image => image.complete && image.naturalWidth === 0;
     const frac = value => value - Math.floor(value);
     const sum = list => list.reduce((total, value) => total + value, 0);
     const seedOf = enemy => Math.abs(enemy.id || 0);
@@ -51,23 +52,38 @@ const stageRoster = (() => {
         const own = data.actors[data.wears[look] || look] || data.actors[enemy.bossAssetKey];
         return data.actors[settings().stageMonsterLook] || own || null;
     }
-    function load(file) {
-        const image = new Image();
-        image.decoding = 'async';
-        image.src = `${table().path}${file}?v=${table().version}`;
-        return image;
+    /** A sheet, decoded off the main thread (js/canvas-stage-pictures.js). */
+    const load = file => stagePictures.openPicture(`${table().path}${file}?v=${table().version}`);
+    function letGo(id, pair) {
+        stagePictures.closePicture(pair.walk);
+        if (pair.attack) stagePictures.closePicture(pair.attack);
+        sheets.delete(id);
     }
-    /** Past KEEP sheets, lets go of the ones not drawn for a while, longest ago first. Sheets on screen stay whatever their
-     * number: dropping one meant fetching and decoding it again on the next frame. Their painted frames and composed poses stay
-     * in their own caches (the pictures are the same when the sheet comes back) until those need the room. */
+    /** A pair that may be let go: not a look of this map's packs and not drawn for a while. */
+    const idlePair = entry => !mapLooks.has(entry[0]) && tick - entry[1].at > stageCache.HOT_MS;
+    /** Past KEEP sheets, lets go of the idle ones, longest ago first. Sheets on screen stay whatever their number: dropping one
+     * meant fetching and decoding it again on the next frame. Their painted frames and composed poses stay in their own caches
+     * (the pictures are the same when the sheet comes back) until those need the room. */
     function trim() {
         if (sheets.size <= KEEP) return;
-        const idle = [...sheets].filter(entry => tick - entry[1].at > stageCache.HOT_MS).sort((a, b) => a[1].at - b[1].at);
-        for (const [id, pair] of idle.slice(0, sheets.size - KEEP)) {
-            pair.walk.src = '';
-            if (pair.attack) pair.attack.src = '';
-            sheets.delete(id);
-        }
+        const idle = [...sheets].filter(idlePair).sort((a, b) => a[1].at - b[1].at);
+        for (const [id, pair] of idle.slice(0, sheets.size - KEEP)) letGo(id, pair);
+    }
+    /** 지도가 바뀔 때 부른다(js/canvas-stage-warmup.js). enemies: 그 지도에 서 있는 몬스터 모두. 그 외형의 그림을 미리 불러 풀어
+     * 둔다(화면에 나올 때 기다리지 않게). 지난 지도의 그림은 방금까지 그려졌으므로 조금 뒤에 놓는다(sweepLooks). 지도에 나중에
+     * 나타나는 몬스터(파도, 덧무리)의 그림은 처음 그려질 때 불러오고, KEEP장을 넘으면 오래 안 그린 것부터 놓는다(trim). */
+    function keepFor(enemies) {
+        const data = table();
+        if (!data) return;
+        tick = performance.now();
+        mapLooks = new Set(enemies.map(enemy => actorFor(enemy)).filter(Boolean).map(actor => actor.id));
+        sweepAt = tick + stageCache.HOT_MS * 2;
+        for (const id of mapLooks) pairOf(data.actors[id]);
+    }
+    /** keepFor가 건 때가 됐다: 이 지도의 무리가 아닌 그림 가운데 한동안 그려지지 않은 것을 놓는다. */
+    function sweepLooks() {
+        sweepAt = 0;
+        for (const entry of [...sheets]) if (idlePair(entry)) letGo(entry[0], entry[1]);
     }
     /** { walk, attack } once the sheets decode (attack is null for an actor without attack art), 'loading' meanwhile, null
      * when a file is missing (the older art draws instead). */
@@ -76,14 +92,13 @@ const stageRoster = (() => {
         if (!pair) {
             // 쓴 때를 적고 나서 묶음을 줄인다: 0으로 넣고 줄이면 방금 넣은 묶음이 가장 오래된 것으로 뽑혀 바로 버려졌고, 그림을 비운
             // 묶음은 '불러오지 못함'으로 읽혀 그 몬스터가 예전 그림으로 그려졌다(2026-10-13: 한 번의 플레이에서 열다섯 번째 모습부터 모두).
-            pair = { walk: load(actor.id + '-walk.png'), attack: actor.attackMs ? load(actor.id + '-attack.png') : null, failed: false, at: tick };
+            pair = { walk: load(actor.id + '-walk.png'), attack: actor.attackMs ? load(actor.id + '-attack.png') : null, at: tick };
             sheets.set(actor.id, pair);
             trim();
         }
         pair.at = tick;
-        if (failed(pair.walk) || (pair.attack && failed(pair.attack))) pair.failed = true;
-        if (pair.failed) return null;
-        return ready(pair.walk) && (!pair.attack || ready(pair.attack)) ? pair : 'loading';
+        if (pair.walk.failed || (pair.attack && pair.attack.failed)) return null;
+        return pair.walk.ready && (!pair.attack || pair.attack.ready) ? pair : 'loading';
     }
 
     /** How a walker moves without walk frames, t = dots walked. hop: dots off the ground. lean: dots a row slides per dot of
@@ -160,7 +175,7 @@ const stageRoster = (() => {
         canvas.width = actor.w;    // 크기를 넣으면 비워진다
         canvas.height = actor.h;
         const ctx = canvas.getContext('2d'), cell = cellOf(actor, pose);
-        ctx.drawImage(pair[pose.clip], cell.x, cell.y, actor.w, actor.h, 0, 0, actor.w, actor.h);
+        ctx.drawImage(pair[pose.clip].source, cell.x, cell.y, actor.w, actor.h, 0, 0, actor.w, actor.h);
         ctx.globalCompositeOperation = 'source-in';
         ctx.fillStyle = colour;
         ctx.fillRect(0, 0, actor.w, actor.h);
@@ -211,7 +226,7 @@ const stageRoster = (() => {
             for (const shift of RIM) stamp(ctx, rim, own, shift);
             ctx.globalAlpha = 1;
         }
-        stamp(ctx, pair[pose.clip], frame, RIM_NONE);
+        stamp(ctx, pair[pose.clip].source, frame, RIM_NONE);
         if (look.flash > 0) {
             ctx.globalAlpha = Math.min(1, Number(look.flash));
             stamp(ctx, tintedFrame(pair, actor, pose, FLASH), own, RIM_NONE);
@@ -263,6 +278,7 @@ const stageRoster = (() => {
      * is off, or its pictures are missing here. */
     function draw(ctx, enemy, p) {
         tick = performance.now();
+        if (sweepAt && tick > sweepAt) sweepLooks();
         const actor = stageView.enabled() ? actorFor(enemy) : null, pair = actor ? pairOf(actor) : null;
         if (!pair) return false;
         const dot = dotFor(enemy, actor, p);
@@ -281,6 +297,6 @@ const stageRoster = (() => {
     /** The looks the test panel can pick: [id, name], by name. */
     const looks = () => (table() ? Object.values(table().actors).map(actor => [actor.id, actor.name]).sort((a, b) => a[1].localeCompare(b[1], 'ko')) : []);
 
-    return Object.freeze({ draw, looks });
+    return Object.freeze({ draw, looks, keepFor });
 })();
 safeExposeGlobals({ stageRoster });

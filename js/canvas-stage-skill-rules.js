@@ -352,6 +352,49 @@ const stageSkillRules = (() => {
         if (mine && event.kind === 'travel') ruleDrawWave(gem, event, view);
         return mine;
     }
-    return Object.freeze({ claim: ruleClaimEvent, hit: ruleNoteHit, windup: ruleNoteWindup });
+    // ---------------------------------------------------------------- the clips a gem may play
+    const PRISM = Object.freeze(['fire', 'cold', 'light']);
+    /** 연결표 안의 클립 이름을 모두 든다(값이 목록이나 표면 그 안까지). 클립이 아닌 글자(램프 이름, 'none', 'pierce')는 거른다. */
+    function ruleClipNames(table) {
+        const out = [], open = [table];
+        while (open.length) {
+            const value = open.pop();
+            if (typeof value === 'string') { if (stageSkillVfx.clipOf(value)) out.push(value); }
+            else if (value && typeof value === 'object') open.push(...Object.values(value));
+        }
+        return out;
+    }
+    /** 클립 하나와, 그 클립이 끝나면 이어지는 클립들(같은 램프)을 out에 넣는다. */
+    function ruleFollowClips(ref, out) {
+        for (let at = ref, steps = 0; at && steps < 6; steps++) {
+            out.push(at);
+            const clip = stageSkillVfx.clipOf(at);
+            at = clip && clip.next ? clip.next + '@' + at.split('@')[1] : null;
+        }
+    }
+    /** 그 젬이 한 속성으로 틀 수 있는 클립 이름: 연결표의 것, 정해지지 않은 근접 젬의 기본 휘두름, 타격 클립, 위습이면 위습의 타격. */
+    function ruleGemClips(gem, element) {
+        const names = ruleClipNames(gem.map);
+        if (ruleSwings(gem) && !gem.map.swing) names.push(PLAIN_SWING);
+        names.push(ruleHitRef(gem, element) || '', gem.meta.kind === 'wisp' ? stageSkillCasts.wispHit(element) : '');
+        return names.filter(Boolean);
+    }
+    /** 그 젬이 틀 수 있는 클립('이름@램프')을 모두 든다: 낀 젬의 띠를 미리 만들어 두려고 묻는다(js/canvas-stage-warmup.js).
+     * elements: 그 젬의 타격이 띨 수 있는 속성(젬의 속성은 언제나 넣는다). 실제로 트는 것보다 조금 넉넉하다(램프를 정하는 값이
+     * 타격마다 달라질 수 있어, 있을 수 있는 램프를 모두 든다). 인계에 없는 젬이면 빈 목록. */
+    function ruleClipsOf(skillName, elements) {
+        const gem = K.gemOf(skillName), refs = [];
+        if (!gem) return refs;
+        const kinds = new Set([gem.meta.el].concat(elements).flatMap(element => (element === 'prism' ? PRISM : [element])).filter(Boolean));
+        for (const element of kinds) {
+            const ramps = new Set([K.ramp(gem, element), STAGE_SKILL_VFX.elementRamp[element] || 'phys']);
+            for (const name of ruleGemClips(gem, element)) {
+                if (name.includes('@')) ruleFollowClips(name, refs);
+                else ramps.forEach(ramp => ruleFollowClips(name + '@' + ramp, refs));
+            }
+        }
+        return refs;
+    }
+    return Object.freeze({ claim: ruleClaimEvent, hit: ruleNoteHit, windup: ruleNoteWindup, clipsOf: ruleClipsOf });
 })();
 safeExposeGlobals({ stageSkillRules });

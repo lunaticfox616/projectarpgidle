@@ -8,6 +8,11 @@
  * - 클립이 움직이는 몸을 따라가게 할 수 있고(follow), 프레임마다 전투를 살피는 일을 맡길 수 있다(watch: 대상이 죽는 순간 터지는 연출).
  * 무엇을 언제 틀지는 js/canvas-stage-skill-rules.js가 정하고 여기는 틀고 그리기만 한다. 전투 계산에는 닿지 않는다.
  * 그림이 없는 판(저장소에는 넣지 않는다)이나 무대가 꺼진 창에서는 vfxReady가 거짓이라 예전 이펙트가 그대로 나온다.
+ * 띠(원본의 칸들을 가로로 늘어놓고 램프로 다시 칠한 그림)는 그리는 도중에 만들지 않는다(2026-10-14, docs/stage-render-performance-20261013.md 7번). 원본 한 장을 푸는
+ * 데만 데스크톱에서 60ms, 느린 기기에서 300ms가 걸려, 젬의 이펙트가 처음 나오는 프레임이 그만큼 멈췄다. 지금은:
+ * - 낀 젬이 쓰는 띠를 미리 만든다(keepStrips: js/canvas-stage-warmup.js가 젬이 바뀔 때 부른다). 낀 젬이 쓰지 않는 띠는 놓는다.
+ * - 만들기는 그리기 밖에서 조금씩 한다(vfxCutPump). 원본은 메인 스레드 밖에서 풀고(js/canvas-stage-pictures.js) 자르는 동안만 든다.
+ * - 그릴 때 띠가 아직 없으면 그 클립은 그 프레임을 건너뛰고, 띠를 만들어 달라고 해 둔다(미리 짚지 못한 램프의 클립).
  */
 const stageSkillVfx = (() => {
     /** 타격 클립의 세기(인계의 "약하게"): 배율, 불투명도, 칸 수의 상한, 같은 적에게 다시 붙이는 간격(ms), 동시에 떠 있는 수. */
@@ -15,8 +20,15 @@ const stageSkillVfx = (() => {
     /** 색감(인계의 "옅게"): 채도를 낮추고 밝기를 위로 모은다. */
     const TONE = Object.freeze({ s: 0.72, l0: 0.32, l1: 0.92 });
     const MAX_LIVE = 120;                         // 동시에 재생하는 클립의 상한(넘으면 새 클립을 틀지 않는다)
+    const CUT_BUDGET_MS = 3;                      // 한 차례에 띠를 만드는 데 쓰는 시간(띠 하나는 끝까지 만든다)
+    const CUT_GAP_MS = 16;                        // 차례 사이의 쉼: 한 프레임에 한 차례만 들게 한다(느린 기기에서 잇달아 돌면 한 프레임에 몰렸다)
+    const ATLAS_IDLE_MS = 3000;                   // 만들 띠가 없어진 뒤 이만큼 지나면 풀어 둔 원본을 놓는다(62MB)
     let picture = null, failed = false, clock = 0, tintBlocked = false;
-    const sheets = new Map();                     // "원본|램프" → 다시 칠한 띠 그림(칸을 가로로 늘어놓은 것)
+    const sheets = new Map();                     // "원본|램프" → 다시 칠한 띠 그림(칸을 가로로 늘어놓은 것). 다 만든 것만 든다
+    const cutQueue = [];                          // 만들 띠의 열쇠(차례대로)
+    const asked = new Set();                      // cutQueue에 든 열쇠
+    let atlas = null, atlasUsedAt = 0;            // 풀어 둔 원본(자르는 동안만 든다)과 마지막으로 쓴 때
+    let pumpTimer = null, pumpDue = 0;            // 걸어 둔 다음 차례와 그때
     const boxes = new Map();                      // 클립 이름 → 기준점과 크기
     const tones = new Map();                      // 색 → 옅게 바꾼 색
     const live = [];                              // 재생 중인 클립
@@ -64,15 +76,13 @@ const stageSkillVfx = (() => {
             data[i] = colour[0]; data[i + 1] = colour[1]; data[i + 2] = colour[2];
         }
     }
-    /** 원본 하나의 칸들을 가로로 늘어놓고 다시 칠한 띠. 한 번 만들어 둔다. */
-    function vfxSheetOf(anim, rampName) {
-        const key = anim + '|' + rampName;
-        if (sheets.has(key)) return sheets.get(key);
-        const row = STAGE_SKILL_VFX.atlas[anim], canvas = document.createElement('canvas');
+    /** 원본 하나의 칸들을 가로로 늘어놓고 다시 칠한 띠를 만들어 둔다. source: 풀어 둔 원본. */
+    function vfxCutStrip(key, source) {
+        const [anim, rampName] = key.split('|'), row = STAGE_SKILL_VFX.atlas[anim], canvas = document.createElement('canvas');
         canvas.width = row.w * row.n;
         canvas.height = row.h;
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
-        row.fx.forEach(([x, y], index) => ctx.drawImage(picture, x, y, row.w, row.h, index * row.w, 0, row.w, row.h));
+        row.fx.forEach(([x, y], index) => ctx.drawImage(source, x, y, row.w, row.h, index * row.w, 0, row.w, row.h));
         if (!tintBlocked) {
             try {
                 const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -81,7 +91,71 @@ const stageSkillVfx = (() => {
             } catch { tintBlocked = true; }   // 그림을 읽을 수 없는 환경: 원래 색 그대로 쓴다
         }
         sheets.set(key, canvas);
-        return canvas;
+    }
+    /** 그 띠를 만들어 달라고 해 둔다(이미 있거나 해 둔 것은 그대로). 원본에 없는 이름은 받지 않는다. */
+    function vfxAskStrip(key) {
+        if (sheets.has(key) || asked.has(key) || !STAGE_SKILL_VFX.atlas[key.split('|')[0]]) return;
+        asked.add(key);
+        cutQueue.push(key);
+        vfxSchedulePump(0);
+    }
+    /** delay 뒤에 한 차례를 건다. 더 이른 차례가 이미 걸려 있으면 그대로 둔다(늦은 차례는 앞당긴다). */
+    function vfxSchedulePump(delay) {
+        const due = performance.now() + delay;
+        if (pumpTimer !== null && pumpDue <= due) return;
+        if (pumpTimer !== null) clearTimeout(pumpTimer);
+        pumpDue = due;
+        pumpTimer = setTimeout(vfxCutPump, delay);
+    }
+    /** 한 차례: 만들 띠가 있으면 원본을 열고(풀리기를 기다린다), CUT_BUDGET_MS 동안 띠를 만든다. 다 만들고 한동안 일이 없으면 원본을 놓는다. */
+    function vfxCutPump() {
+        pumpTimer = null;
+        if (!cutQueue.length) { vfxRestAtlas(); return; }
+        if (!atlas) atlas = stagePictures.openPicture(picture.src);
+        atlasUsedAt = performance.now();
+        // 밖에서 풀지 못한 곳에서는 불러온 그림 그대로 자른다(처음 자를 때 풀린다)
+        const source = atlas.ready ? atlas.source : (atlas.failed ? picture : null);
+        if (!source) { vfxSchedulePump(CUT_GAP_MS); return; }
+        const until = atlasUsedAt + CUT_BUDGET_MS;
+        while (cutQueue.length && performance.now() < until) {
+            const key = cutQueue.shift();
+            asked.delete(key);
+            vfxCutStrip(key, source);
+        }
+        vfxSchedulePump(cutQueue.length ? CUT_GAP_MS : ATLAS_IDLE_MS);
+    }
+    /** 만들 띠가 없는 채로 ATLAS_IDLE_MS가 지났으면 풀어 둔 원본을 놓는다. 아직이면 그때 다시 본다. */
+    function vfxRestAtlas() {
+        if (!atlas) return;
+        const idle = performance.now() - atlasUsedAt;
+        if (idle < ATLAS_IDLE_MS) { vfxSchedulePump(ATLAS_IDLE_MS - idle + 20); return; }
+        stagePictures.closePicture(atlas);
+        atlas = null;
+    }
+    /** 그 띠(다 만든 것). 아직 없으면 null: 만들어 달라고 해 두고, 그리는 쪽은 그 프레임을 건너뛴다. */
+    function vfxSheetOf(anim, rampName) {
+        const key = anim + '|' + rampName, sheet = sheets.get(key);
+        if (!sheet) vfxAskStrip(key);
+        return sheet || null;
+    }
+    /** 클립 '이름@램프'(램프가 없으면 phys)가 쓰는 띠의 열쇠. 없는 클립이면 ''. */
+    function vfxStripKey(ref) {
+        const [name, rampName] = String(ref).split('@'), clip = STAGE_SKILL_VFX.clips[name];
+        return clip ? clip.a + '|' + (rampName !== undefined ? rampName : 'phys') : '';
+    }
+    /** 낀 젬이 쓰는 클립들(refs: '이름@램프')의 띠를 미리 만들어 두고, 그 밖의 띠는 놓는다(지금 재생 중인 클립의 띠는 둔다).
+     * 젬이 바뀔 때 부른다. 원본 그림이 아직 오지 않았으면 아무 일도 하지 않는다(부른 쪽이 그림이 온 뒤에 다시 부른다). */
+    function vfxKeepStrips(refs) {
+        if (!vfxReady()) return;
+        const wanted = new Set(refs.map(vfxStripKey).filter(Boolean));
+        for (const row of live) if (row.clip) wanted.add(row.clip.a + '|' + row.ramp);
+        for (const [key, canvas] of [...sheets]) {
+            if (wanted.has(key)) continue;
+            canvas.width = canvas.height = 1;
+            sheets.delete(key);
+        }
+        for (let i = cutQueue.length - 1; i >= 0; i--) if (!wanted.has(cutQueue[i])) asked.delete(cutQueue.splice(i, 1)[0]);
+        wanted.forEach(vfxAskStrip);
     }
     /** 원본의 f0~f1 칸에서 그림이 차지하는 상자를 모두 덮는 상자 [왼쪽, 위, 오른쪽, 아래]. */
     function vfxFramesBox(row, f0, f1) {
@@ -149,6 +223,7 @@ const stageSkillVfx = (() => {
         const row = vfxClipRow(name, clip, at, o);
         if (o.hit && !vfxStyleHit(row)) return null;
         live.push(row);
+        vfxAskStrip(clip.a + '|' + o.ramp); // 미리 만들어 두지 않은 띠면 지금 맡긴다(늦춰 트는 클립은 그 사이에 준비된다)
         return row;
     }
     /** 코드로 그리는 연출 하나를 건다. paint(ctx, t, dot): 붓은 그 자리(발 자리 + 오프셋)로 옮겨져 있고, t는 시작한 뒤의 ms, dot은 도트 하나의 화면 크기다.
@@ -204,6 +279,7 @@ const stageSkillVfx = (() => {
         const step = Math.floor(t / row.ms), index = row.clip.loop ? step % row.frames : Math.min(row.frames - 1, step);
         const base = p.cellToScreen(row.at.gx, row.at.gy), offset = vfxOffsetOf(row, t), size = (row.clip.sc || 1) * row.scale * dot;
         const sheet = vfxSheetOf(row.clip.a, row.ramp), cell = STAGE_SKILL_VFX.atlas[row.clip.a];
+        if (!sheet) return; // 띠를 만드는 중이다: 다 되면 그때부터 그린다
         ctx.save();
         ctx.globalAlpha *= vfxAlphaOf(row, t, index);
         ctx.translate(Math.round(base.x + offset.dx * dot), Math.round(base.y + (p.actorGroundOffsetY || 0) + offset.dy * dot));
@@ -227,24 +303,28 @@ const stageSkillVfx = (() => {
         const dot = stageActors.scaleFor(p.tileW);
         for (const row of live) if (row.layer === layer) vfxDrawRow(ctx, row, p, dot);
     }
+    /** 바로 그리는 클립의 램프: 클립이 정한 것, 없으면 부른 쪽이 준 것, 그것도 없으면 phys. */
+    const vfxStampRamp = (rampName, at) => (rampName !== undefined ? rampName : (at.ramp || 'phys'));
     /** 클립 원본의 한 칸을 그 자리에 바로 그린다(투사체처럼 매 프레임 자리가 바뀌는 것). */
     function vfxStamp(ctx, ref, t, at) {
         const [name, rampName] = String(ref).split('@'), clip = STAGE_SKILL_VFX.clips[name];
         if (!clip) return false;
         const box = vfxClipBox(name), ms = clip.ms || 70, step = Math.floor(t / ms), index = clip.loop ? step % box.frames : Math.min(box.frames - 1, step);
         const cell = STAGE_SKILL_VFX.atlas[clip.a], size = (clip.sc || 1) * (at.scale || 1) * at.dot;
+        const sheet = vfxSheetOf(clip.a, vfxStampRamp(rampName, at));
+        if (!sheet) return true; // 띠를 만드는 중이다: 이 연출이 맡은 그림이므로 예전 그림으로 돌아가지 않고 그 프레임을 건너뛴다
         ctx.save();
         ctx.translate(Math.round(at.x), Math.round(at.y));
         if (at.face < 0) ctx.scale(-1, 1);
         if (at.rot) ctx.rotate(at.rot);
         ctx.imageSmoothingEnabled = false;
-        ctx.drawImage(vfxSheetOf(clip.a, rampName !== undefined ? rampName : (at.ramp || 'phys')), (box.f0 + index) * cell.w, 0, cell.w, cell.h,
+        ctx.drawImage(sheet, (box.f0 + index) * cell.w, 0, cell.w, cell.h,
             Math.round(-box.ax * size), Math.round(-box.ay * size), Math.round(cell.w * size), Math.round(cell.h * size));
         ctx.restore();
         return true;
     }
     const vfxNow = () => clock;
     return Object.freeze({ ready: vfxReady, play: vfxPlay, paint: vfxPaint, watch: vfxWatch, draw: vfxDraw, tick: vfxTick, stamp: vfxStamp, now: vfxNow, clipOf: vfxClipOf,
-        clipWidth: vfxClipWidth, clipLength: vfxClipLength, HIT });
+        clipWidth: vfxClipWidth, clipLength: vfxClipLength, keepStrips: vfxKeepStrips, HIT });
 })();
 safeExposeGlobals({ stageSkillVfx });

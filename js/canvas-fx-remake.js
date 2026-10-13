@@ -29,6 +29,7 @@ const fxRemake = (() => {
         [[33, 1869, 30, 7], { '56,55,59': '#382614', '115,118,121': '#96672a', '159,160,162': '#c0903c', '193,194,196': '#e4bc64' }]
     ];
     let palette = null, surfaces = null, scope = null, brassAtlas = null;
+    let sheetAhead = null, filtersPaid = 0;    // 미리 푸는 중인 세계수 시트, 처음 쓰는 값을 이미 치른 필터의 수(prepareSheet)
     const projectileArt = new Map();
     // (atlas image) → 'x,y,w,h|filter' → canvas holding that frame with the filter already applied.
     const filteredFrames = new WeakMap();
@@ -109,12 +110,14 @@ const fxRemake = (() => {
     function isStruck(e, age) {
         return (e.kind === 'hit' || e.kind === 'stage') && age >= 0 && age < 50 && !isQuiet(e);
     }
+    /** 표본에 거는 필터: 맞은 순간의 작은 그림은 하얗게, 큰 그림은 밝게, 수명의 끝 30%는 어둡게. */
+    const FILTERS = Object.freeze({ flash: 'brightness(0) invert(1)', bright: 'brightness(1.45)', dim: 'brightness(0.72)' });
     function sampleFilter(sample, width, height) {
         const e = sample.effect;
         if (!e || !Number.isFinite(sample.now)) return 'none';
         const age = sample.now - e.at, duration = e.duration || 300;
-        if (isStruck(e, age)) return Math.max(width, height) <= 84 ? 'brightness(0) invert(1)' : 'brightness(1.45)';
-        return age > duration * 0.7 && duration >= 160 ? 'brightness(0.72)' : 'none';
+        if (isStruck(e, age)) return Math.max(width, height) <= 84 ? FILTERS.flash : FILTERS.bright;
+        return age > duration * 0.7 && duration >= 160 ? FILTERS.dim : 'none';
     }
     /** The frame with a brightness/invert filter baked in (per-pixel colour maths, so baking before the transform draws
      * the same dots). A filter on the board context itself re-filtered the whole buffer on every draw. */
@@ -293,18 +296,62 @@ const fxRemake = (() => {
             data[q] = r; data[q + 1] = g; data[q + 2] = b;
         }
     }
-    function brass(image) {
-        if (brassAtlas?.source === image) return brassAtlas.canvas;
-        if (!image?.complete || image.naturalWidth !== 1024 || typeof document === 'undefined') return image;
+    const brassable = image => !!image?.complete && image.naturalWidth === 1024 && typeof document !== 'undefined';
+    /** 시트의 사본을 만들고 향로 자리만 놋쇠로 칠한다. picture: 그 시트의 화소(시트 그대로, 또는 미리 풀어 둔 것). 칠하는 세 자리만
+     * 읽고 쓴다: 시트 전체(8MB)를 읽고 다시 쓰던 것과 화소가 같다(2026-10-14에 견줌). */
+    function brassCopy(image, picture) {
         const canvas = document.createElement('canvas');
         canvas.width = image.naturalWidth; canvas.height = image.naturalHeight;
         const c = canvas.getContext('2d', { willReadFrequently: true });
-        c.drawImage(image, 0, 0);
-        const pixels = c.getImageData(0, 0, canvas.width, canvas.height);
-        BRASS.forEach(region => recolourRegion(pixels.data, canvas.width, region));
-        c.putImageData(pixels, 0, 0);
+        c.drawImage(picture, 0, 0);
+        for (const [[x, y, w, h], map] of BRASS) {
+            const pixels = c.getImageData(x, y, w, h);
+            recolourRegion(pixels.data, w, [[0, 0, w, h], map]);
+            c.putImageData(pixels, x, y);
+        }
         brassAtlas = { source: image, canvas };
         return canvas;
+    }
+    function brass(image) {
+        if (brassAtlas?.source === image) return brassAtlas.canvas;
+        return brassable(image) ? brassCopy(image, image) : image;
+    }
+    /** 필터를 건 작은 캔버스를 판에 처음 그려 읽을 때 필터의 종류마다 한 번 드는 값(15~35ms, CPU가 느려도 같다)을 미리 치른다:
+     * 판에 처음 맞는 섬광이 나오는 프레임이 그만큼 멈췄다. filteredFrame과 같은 길로 한 점을 그려 읽는다. 한 번 부를 때 필터
+     * 하나만 한다(한 프레임에 몰리지 않게). 게임의 캔버스에는 닿지 않는다.
+     * @returns {boolean} 모든 필터를 치렀는가 */
+    function payNextFilter(source) {
+        const filters = Object.values(FILTERS);
+        if (filtersPaid >= filters.length) return true;
+        const cell = document.createElement('canvas'), into = document.createElement('canvas');
+        cell.width = cell.height = 2; into.width = into.height = 8;
+        const c = cell.getContext('2d'), t = into.getContext('2d', { willReadFrequently: true });
+        c.filter = filters[filtersPaid++];
+        c.drawImage(source, 0, 0, 2, 2, 0, 0, 2, 2);
+        t.drawImage(cell, 0, 0);
+        t.getImageData(0, 0, 1, 1);
+        return filtersPaid >= filters.length;
+    }
+    /** 세계수 시트를 쓰는 이펙트가 전투에서 처음 나오기 전에 해 둔다(js/canvas-stage-warmup.js가 그 시트를 쓰는 젬을 꼈을 때 부른다).
+     * 놋쇠 사본은 메인 스레드 밖에서 푼 그림으로 만든다(js/canvas-stage-pictures.js): 처음 쓰는 프레임에서 시트를 풀면 그 프레임이
+     * 데스크톱에서 8ms, 느린 기기에서 30ms 넘게 멈췄다. 밖에서 풀지 못하면 예전처럼 처음 쓸 때 만든다.
+     * @returns {boolean} 다 됐는가. 아직이면(그림을 푸는 중) 부른 쪽이 다시 부른다. */
+    function prepareSheet(image) {
+        if (!image || !isEnabled()) return true;
+        if (!image.complete) return false;
+        if (!brassable(image)) return true;
+        if (!brassAhead(image)) return false;
+        return brassAtlas?.source !== image || payNextFilter(brassAtlas.canvas);
+    }
+    /** 놋쇠 사본을 미리 푼 그림으로 만든다. @returns {boolean} 끝났는가(만들었거나, 밖에서 풀지 못해 처음 쓸 때로 미뤘다). */
+    function brassAhead(image) {
+        if (brassAtlas?.source === image) return true;
+        if (!sheetAhead) sheetAhead = stagePictures.openPicture(image.src);
+        if (!sheetAhead.ready && !sheetAhead.failed) return false;
+        if (sheetAhead.ready) brassCopy(image, sheetAhead.source);
+        stagePictures.closePicture(sheetAhead);
+        sheetAhead = null;
+        return true;
     }
 
     // ------------------------------------------------------------------ re-dot and composite
@@ -376,6 +423,6 @@ const fxRemake = (() => {
         t.restore();
     }
 
-    return Object.freeze({ begin, end, discard, isOpen, projection, isEnabled, capture, drawDots, ring, projectile, hasProjectile, brass, ELEMENT_RAMPS });
+    return Object.freeze({ begin, end, discard, isOpen, projection, isEnabled, capture, drawDots, ring, projectile, hasProjectile, brass, prepareSheet, ELEMENT_RAMPS });
 })();
 safeExposeGlobals({ fxRemake });

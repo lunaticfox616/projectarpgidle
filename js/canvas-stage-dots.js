@@ -86,7 +86,7 @@ const stageDots = (() => {
      * @param {{x:number,y:number,w:number,h:number}} from the dots to draw (source px)
      * @param {{x:number,y:number,scale:number}} at where its top-left lands and the size of one dot (the caller's units)
      * @param {boolean} fixed source pixels never change; static images/tints or immutable pose snapshots, never mutable work canvases.
-     *   A loaded picture (an Image) never changes, so it counts as fixed without being told.
+     *   A loaded picture (an Image, or a picture decoded ahead: an ImageBitmap) never changes, so it counts as fixed without being told.
      */
     function blit(ctx, source, from, at, fixed = false) {
         if (!colorFilterOnly(ctx)) return paint(ctx, source, from, at, fixed);
@@ -111,7 +111,7 @@ const stageDots = (() => {
             ctx.imageSmoothingEnabled = smooth;
             return;
         }
-        const up = upscale(at.scale), big = enlarged(source, from, up, fixed || source instanceof HTMLImageElement);
+        const up = upscale(at.scale), big = enlarged(source, from, up, fixed || source instanceof HTMLImageElement || source instanceof ImageBitmap);
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'low';
         ctx.drawImage(big, 0, 0, from.w * up, from.h * up, at.x, at.y, width, height);

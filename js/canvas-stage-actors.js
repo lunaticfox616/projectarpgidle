@@ -34,12 +34,12 @@ const stageActors = (() => {
         const data = table(), entry = data && data.classes[classId];
         return entry ? entry.weapons[stance] || null : null;
     }
+    /** 그 시트(js/canvas-stage-pictures.js의 그림 한 장): 메인 스레드 밖에서 미리 풀어 두므로 그 동작을 처음 그릴 때 멈추지 않는다.
+     * ready가 참이면 source를 그릴 수 있다. 지금 직업과 자세의 시트만 열어 두고 나머지는 닫는다(retain). */
     function image(file) {
         let img = images.get(file);
         if (!img) {
-            img = new Image();
-            img.decoding = 'async';
-            img.src = table().path + file;
+            img = stagePictures.openPicture(table().path + file);
             images.set(file, img);
         }
         return img;
@@ -51,7 +51,7 @@ const stageActors = (() => {
         kept = prefix;
         for (const [file, img] of images) {
             if (file.startsWith(prefix) || file === death) continue;
-            img.src = '';
+            stagePictures.closePicture(img);
             images.delete(file);
         }
         silhouettes.clear();
@@ -62,7 +62,7 @@ const stageActors = (() => {
         if (!set) return false;
         retain(classId, stance);
         Object.values(set).forEach(clip => image(clip.file));
-        return ['idle', 'walk', 'attack'].every(id => loaded(image(set[id].file)));
+        return ['idle', 'walk', 'attack'].every(id => image(set[id].file).ready);
     }
 
     /** The stance a class shows for the weapon it wears: its category through STAGE_VIEW.stanceByCategory, a 곡도 with a shield
@@ -85,7 +85,7 @@ const stageActors = (() => {
     }
     /** Clip ids of one kind in order: 'attack' → attack, attack2, attack3 … (only those whose sheet has loaded). */
     function variants(set, base) {
-        return Object.keys(set).filter(id => id.replace(/\d+$/, '') === base && loaded(image(set[id].file)))
+        return Object.keys(set).filter(id => id.replace(/\d+$/, '') === base && image(set[id].file).ready)
             .sort((a, b) => (Number(a.slice(base.length)) || 1) - (Number(b.slice(base.length)) || 1));
     }
     /** The clips a swing may play: spells cast, a thrown flask throws, the rest attack. A quick windup keeps to the short clips. */
@@ -106,7 +106,7 @@ const stageActors = (() => {
     function downPose(classId, state) {
         if (!Number.isFinite(state.downProgress)) return null;
         const clip = setOf(classId, 'unarmed').death;
-        if (!loaded(image(clip.file))) return null;
+        if (!image(clip.file).ready) return null;
         return { clip, frame: Math.min(clip.frames - 1, Math.floor(state.downProgress * clip.frames)) };
     }
     function swingPose(set, state, now) {
@@ -145,13 +145,13 @@ const stageActors = (() => {
 
     /** One frame of a sheet painted one colour (the hit outline), most recent SILHOUETTE_LIMIT kept. */
     function silhouette(img, frame, colour) {
-        const key = `${img.src}|${frame}|${colour}`, cell = table().cell;
+        const key = `${img.url}|${frame}|${colour}`, cell = table().cell;
         let canvas = silhouettes.get(key);
         if (canvas) return canvas;
         canvas = document.createElement('canvas');
         canvas.width = canvas.height = cell;
         const c = canvas.getContext('2d');
-        c.drawImage(img, frame * cell, 0, cell, cell, 0, 0, cell, cell);
+        c.drawImage(img.source, frame * cell, 0, cell, cell, 0, 0, cell, cell);
         c.globalCompositeOperation = 'source-in';
         c.fillStyle = colour;
         c.fillRect(0, 0, cell, cell);
@@ -162,18 +162,18 @@ const stageActors = (() => {
     /** Dots from the feet line to the top of the head in the standing frame, measured once per set. */
     function headroom(set) {
         const img = image(set.idle.file), data = table();
-        if (headrooms.has(img.src)) return headrooms.get(img.src);
-        if (!loaded(img)) return FALLBACK_HEADROOM;
+        if (headrooms.has(img.url)) return headrooms.get(img.url);
+        if (!img.ready) return FALLBACK_HEADROOM;
         const canvas = document.createElement('canvas');
         canvas.width = canvas.height = data.cell;
         const c = canvas.getContext('2d', { willReadFrequently: true });
-        c.drawImage(img, 0, 0, data.cell, data.cell, 0, 0, data.cell, data.cell);
+        c.drawImage(img.source, 0, 0, data.cell, data.cell, 0, 0, data.cell, data.cell);
         const alpha = c.getImageData(0, 0, data.cell, data.cell).data;
         let first = 3;
         while (first < alpha.length && alpha[first] < 128) first += 4;
         const top = first < alpha.length ? Math.floor((first - 3) / 4 / data.cell) : data.feetY - FALLBACK_HEADROOM;
-        headrooms.set(img.src, data.feetY - top);
-        return headrooms.get(img.src);
+        headrooms.set(img.url, data.feetY - top);
+        return headrooms.get(img.url);
     }
 
     /** Screen px per art px for a cell width. Any scale: js/canvas-stage-dots.js keeps the dots even where a dot is not a whole
@@ -229,6 +229,13 @@ const stageActors = (() => {
             dest: { x: axis - (data.centerX + 0.5) * scale, y: y - data.feetY * scale, scale } };
     }
 
+    /** 몸: 시전 오라나 맞았을 때의 테, 그 위에 그 동작의 칸. 시트가 아직 오지 않은 동작은 그 프레임을 건너뛴다. */
+    function drawBody(ctx, sheet, o) {
+        if (!sheet.ready) return;
+        if (!o.look || !o.look.outline) drawAura(ctx, sheet, o.pose, o.dest);
+        drawOutline(ctx, sheet, o.pose, o.dest, o.look);
+        blit(ctx, sheet.source, o.pose.frame * table().cell, o.dest);
+    }
     /**
      * @param {CanvasRenderingContext2D} ctx
      * @param {number} x feet x (CSS px)
@@ -247,9 +254,7 @@ const stageActors = (() => {
         drawShadow(ctx, x, y, figure.scale, 0.28 * figure.alpha);
         if (figure.left) { ctx.translate(figure.axis * 2, 0); ctx.scale(-1, 1); }
         ctx.globalAlpha = figure.alpha;
-        if (!look || !look.outline) drawAura(ctx, image(pose.clip.file), pose, figure.dest);
-        drawOutline(ctx, image(pose.clip.file), pose, figure.dest, look);
-        blit(ctx, image(pose.clip.file), pose.frame * table().cell, figure.dest);
+        drawBody(ctx, image(pose.clip.file), { pose, look, dest: figure.dest });
         ctx.restore();
         body = { now, pose, headY: y - headroom(set) * figure.scale };
         return true;

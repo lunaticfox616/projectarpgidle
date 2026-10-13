@@ -2877,6 +2877,7 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
     // DOM은 그림을 다 그린 뒤에 만진다: 그리는 도중에 쓰면 다음 ctx.font나 ctx.filter가 문서 스타일을 다시 계산했다.
     setElementText(document.getElementById('ui-battlefield-caption'), getBattlefieldCaption());
     if (typeof actExplorationView === 'object' && actExplorationView.objects) actExplorationView.objects.flushButtons();
+    stageWarmup.afterBattleDraw(ctx); // 낀 젬의 이펙트를 미리 준비해 둔다(전투에서 처음 그릴 때 그림을 푸느라 멈추지 않게)
     return true;
 }
 
