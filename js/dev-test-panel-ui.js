@@ -112,6 +112,30 @@ const devTestPanel = (() => {
         refresh();
         note(label);
     }
+    /** 새 세이브로는 닿지 못하는 구역(혼돈, 영역, 고정 전장)의 무대를 바로 보기 위한 시험 입장: 입장 조건을 보지 않고 그 구역의 전투를
+     * 새로 연다. 낮은 레벨로 들어가므로 무적을 함께 켠다. 로컬 테스트 전용. 심화 혼돈은 루프가 낮으면 게임이 얕은 층으로 되돌려 넣지 않았다. */
+    const TEST_ZONES = Object.freeze([
+        ['혼돈 3층', () => getAbyssZoneIdForDepth(3)], ['1차 전직 시련', () => 'trial_1'],
+        ['창공의 탑', () => SKY_TOWER_ZONE_ID], ['지하계', () => UNDERWORLD_ZONE_ID], ['고대 미궁', () => LABYRINTH_ZONE_ID], ['혼돈계', () => CHAOS_REALM_ZONE_ID],
+        ['벌집 (고정 전장)', () => 'beehive_run'], ['케르베로스 (고정 전장)', () => 's6_beast_cerberus']
+    ]);
+    function enterTestZone(index) {
+        const [name, zoneId] = TEST_ZONES[index] || [];
+        if (!name) return;
+        const box = root.querySelector('#dtp-god');
+        if (box && !box.checked) { box.checked = true; toggleGodMode(true); }
+        const id = zoneId();
+        // 혼돈의 층은 가 본 깊이까지만 열려 있다: 액트 이동과 같이 기록을 그 층까지 올려 둔다
+        if (typeof id === 'number') game.maxZoneId = Math.max(game.maxZoneId || 0, id);
+        game.currentZoneId = id;
+        game.enemies = [];
+        game.actExploration = null;
+        game.encounterPlan = [];
+        game.runProgress = 0;
+        ensureEncounterRun();
+        refresh();
+        note(`${name}에 시험 입장(무적 켬)`);
+    }
     function travelToAct(order) {
         const zoneId = order - 1;
         game.maxZoneId = Math.max(game.maxZoneId || 0, zoneId);
@@ -219,9 +243,11 @@ const devTestPanel = (() => {
     }
     function progressSection() {
         const acts = el('select', { id: 'dtp-act' }, STORY_ACTS.map(act => el('option', { value: String(act.order), textContent: `액트 ${act.displayAct}, ${act.title}` })));
+        const zones = el('select', { id: 'dtp-zone' }, TEST_ZONES.map(([name], index) => el('option', { value: String(index), textContent: name })));
         return section('진행', [
             row([button('레벨 +1', () => addLevels(1)), button('레벨 +5', () => addLevels(5)), button('레벨 +20', () => addLevels(20))]),
             row([acts, button('이동', () => travelToAct(Number(acts.value)))]),
+            row([zones, button('시험 입장', () => enterTestZone(Number(zones.value)))]),
             row([button('그루터기 함 받기', grantStumpBox), button('씨앗/수액 +8', giveStumpItems), button('함 성장 +100', growStumpBox)])
         ]);
     }
