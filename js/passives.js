@@ -3751,6 +3751,11 @@ function getPassiveKeystoneConflict(path) {
 
 function activatePassivePath(targetNodeId, options) {
     let path = getPassiveActivationPath(targetNodeId);
+    const expected = options && options.expectedPath;
+    if (expected && (path.length !== expected.length || path.some((id, index) => id !== expected[index]))) {
+        return { activated: false, cost: path.length, path: path.slice(), reason: 'changed',
+            message: '확인 중 연결 경로가 바뀌었습니다. 노드를 다시 선택해 주세요.' };
+    }
     if (path.length === 0) return { activated: false, cost: 0, path: [] };
     let conflict = getPassiveKeystoneConflict(path);
     if (conflict) return { activated: false, cost: path.length, path: path.slice(), reason: 'conflict', message: conflict };

@@ -10803,10 +10803,7 @@ function setupCanvasEvents() {
         }
         if (canActivate || canPathActivate) {
             const attributeNodeCount = activationPath.filter(id => PASSIVE_TREE.nodes[id] && PASSIVE_TREE.nodes[id].kind === 'attribute').length;
-            if (canPathActivate && !await requestGameConfirmation(`최단 경로에 있는 노드를 함께 활성화하며 스킬트리 포인트 ${pointCost}점을 씁니다.${attributeNodeCount > 0 ? ` 경로의 능력치 노드 ${attributeNodeCount}개는 다음 단계에서 선택합니다.` : ''}`, {
-                title: '최단 경로 활성화',
-                confirmLabel: `${pointCost}포인트 사용`
-            })) return;
+            if (canPathActivate && !await passiveSelectionUi.confirmPath(targetNode, activationPath)) return;
             let attributeStat = null;
             if (attributeNodeCount > 0) {
                 attributeStat = await requestGameChoice({
@@ -10825,7 +10822,7 @@ function setupCanvasEvents() {
                 if (!attributeStat) return;
             }
             pendingTouchPassiveId = null;
-            let activationResult = activatePassivePath(targetNodeId, { forcePulseNodeId: targetNodeId, attributeStat });
+            let activationResult = activatePassivePath(targetNodeId, { forcePulseNodeId: targetNodeId, attributeStat, expectedPath: activationPath });
             if (!activationResult.activated) {
                 calculateReachableNodes();
                 let reason = activationResult.reason === 'points'
