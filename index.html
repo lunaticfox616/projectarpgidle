@@ -384,21 +384,21 @@
     <div class="tab-category-bar" id="tab-category-bar" style="display:none;"></div>
     <div class="tab-header" id="tab-header-main">
         <div class="tab-btn active" id="btn-tab-battle" onclick="switchTab('tab-battle')">전투 <span id="noti-battle" class="noti-dot"></span></div>
-        <div class="tab-btn" id="btn-tab-character" onclick="switchTab('tab-character')" style="display: flex;">캐릭터</div>
-        <div class="tab-btn" id="btn-tab-char" data-merged-tab-launcher="growth" onclick="openMergedTabPicker(event,'growth')" style="display:none;">스킬트리 <span id="noti-char" class="noti-dot"></span></div>
+        <div class="tab-btn" id="btn-tab-character" data-button-art onclick="switchTab('tab-character')" style="display: flex;">캐릭터</div>
+        <div class="tab-btn" id="btn-tab-char" data-button-art data-merged-tab-launcher="growth" onclick="openMergedTabPicker(event,'growth')" style="display:none;">스킬트리 <span id="noti-char" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-unlocks" onclick="switchTab('tab-unlocks')">해금</div>
-        <div class="tab-btn" id="btn-tab-season" onclick="switchTab('tab-season')">루프 패시브 <span id="noti-season" class="noti-dot"></span></div>
-        <div class="tab-btn" id="btn-tab-traits" data-merged-tab-member="1" onclick="switchTab('tab-traits')">전직 <span id="noti-traits" class="noti-dot"></span></div>
+        <div class="tab-btn" id="btn-tab-season" data-button-art onclick="switchTab('tab-season')">루프 패시브 <span id="noti-season" class="noti-dot"></span></div>
+        <div class="tab-btn" id="btn-tab-traits" data-button-art data-merged-tab-member="1" onclick="switchTab('tab-traits')">전직 <span id="noti-traits" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-talent" onclick="switchTab('tab-talent')" style="display:none;">재능 <span id="noti-talent" class="noti-dot"></span></div>
-        <div class="tab-btn" id="btn-tab-stump" onclick="switchTab('tab-stump')" style="display:none;">그루터기 함 <span id="noti-stump" class="noti-dot"></span></div>
-        <div class="tab-btn" id="btn-tab-items" onclick="switchTab('tab-items')">장비 <span id="inventory-full-warning" class="inventory-full-warning">가득 참</span><span id="noti-items" class="noti-dot"></span></div>
-        <div class="tab-btn" id="btn-tab-map" onclick="switchTab('tab-map')">지도 <span id="noti-map" class="noti-dot"></span></div>
+        <div class="tab-btn" id="btn-tab-stump" data-button-art onclick="switchTab('tab-stump')" style="display:none;">그루터기 함 <span id="noti-stump" class="noti-dot"></span></div>
+        <div class="tab-btn" id="btn-tab-items" data-button-art onclick="switchTab('tab-items')">장비 <span id="inventory-full-warning" class="inventory-full-warning">가득 참</span><span id="noti-items" class="noti-dot"></span></div>
+        <div class="tab-btn" id="btn-tab-map" data-button-art onclick="switchTab('tab-map')">지도 <span id="noti-map" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-skills" onclick="switchTab('tab-skills')">스킬 젬 <span id="noti-skills" class="noti-dot"></span></div>
-        <div class="tab-btn" id="btn-tab-journal" data-merged-tab-launcher="records" onclick="openMergedTabPicker(event,'records')" style="display:none;">기록 <span id="noti-journal" class="noti-dot"></span></div>
-        <div class="tab-btn" id="btn-tab-codex" data-merged-tab-member="1" onclick="switchTab('tab-codex')">도감 <span id="noti-codex" class="noti-dot"></span></div>
-        <div class="tab-btn" id="btn-tab-records" data-merged-tab-member="1" onclick="switchTab('tab-records')">전적</div>
+        <div class="tab-btn" id="btn-tab-journal" data-button-art data-merged-tab-launcher="records" onclick="openMergedTabPicker(event,'records')" style="display:none;">기록 <span id="noti-journal" class="noti-dot"></span></div>
+        <div class="tab-btn" id="btn-tab-codex" data-button-art data-merged-tab-member="1" onclick="switchTab('tab-codex')">도감 <span id="noti-codex" class="noti-dot"></span></div>
+        <div class="tab-btn" id="btn-tab-records" data-button-art data-merged-tab-member="1" onclick="switchTab('tab-records')">전적</div>
         <div class="tab-btn" id="btn-tab-social" onclick="switchTab('tab-social')" style="display: flex;">커뮤니티 <span id="noti-social" class="noti-dot"></span></div>
-        <div class="tab-btn" id="btn-tab-settings" onclick="switchTab('tab-settings')" style="display: flex;">설정</div>
+        <div class="tab-btn" id="btn-tab-settings" data-button-art onclick="switchTab('tab-settings')" style="display: flex;">설정</div>
         <div class="tab-btn" id="btn-map-complete-action-picker" onclick="openMapCompleteActionPicker(event)" style="display: flex;" role="button" aria-label="전투 완료 후 행동 선택" hidden>전투 완료: 다음 지역</div>
     </div>
     <div class="tab-header tab-header-bottom" id="tab-header-bottom"></div>
