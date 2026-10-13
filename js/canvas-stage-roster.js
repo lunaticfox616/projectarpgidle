@@ -11,8 +11,8 @@
  * 그림은 보이는 몬스터 것만 들고 있는다. 그리기만 하고 전투 상태는 바꾸지 않는다.
  */
 const stageRoster = (() => {
-    const KEEP = 20;                 // 들고 있는 그림 묶음 수(넘으면 가장 오래 안 쓴 것을 놓는다)
-    const TINTS = 8;                 // 한 묶음이 들고 있는 한 가지 색 그림 수(테 색, 맞았을 때의 흰빛)
+    const KEEP = 20;                 // 들고 있는 그림 묶음 수(넘으면 한동안 안 쓴 것부터 놓는다. 화면에 나와 있는 묶음은 넘어도 놓지 않는다)
+    const TINT_PIXELS = 1024 * 1024; // 한 가지 색으로 칠한 프레임(테 색, 맞았을 때의 흰빛): RGBA 합계 4MB, 최대 256장
     const BREATH_MS = 1700;          // 숨 한 번
     const HANG_DOTS = 4, HANG_MS = 2300;   // 그림이 한 장뿐인 떠 있는 몬스터가 오르내리는 높이(도트)와 한 번에 걸리는 시간
     const FLASH = '#fff4df';
@@ -26,10 +26,13 @@ const stageRoster = (() => {
     const MADE_LEAN = Object.freeze([-0.4, -0.8, 1, 0.5, 0.1]), MADE_LEAN_DOTS = 12;
     const sheets = new Map();
     const scales = new Map();        // 외형 id → 그리는 배율
-    const FRAME_PIXELS = 2 * 1024 * 1024; // Immutable composed poses: at most 8 MB of RGBA and 64 entries.
-    const frames = [];
-    let framePixels = 0;
-    let clock = 0, work = null;
+    const FRAME_PIXELS = 2 * 1024 * 1024; // Immutable composed poses: at most 8 MB of RGBA and 160 entries.
+    // 세 캐시 모두 방금까지 쓰인 그림은 놓지 않는다(js/canvas-stage-cache.js): 자리가 없으면 새 그림은 들이지 않고 그 자리에서 그린다.
+    const shrink = canvas => { canvas.width = canvas.height = 1; };
+    const tints = stageCache.stageCacheOf({ pixels: TINT_PIXELS, entries: 256, hotMs: stageCache.HOT_MS }, shrink);
+    const frames = stageCache.stageCacheOf({ pixels: FRAME_PIXELS, entries: 160, hotMs: stageCache.HOT_MS }, pose => shrink(pose.canvas));
+    let tick = 0;                    // 지금 그리는 때(performance.now): 캐시와 그림 묶음이 방금 쓰인 것을 가린다
+    let work = null, tintWork = null;
 
     const table = () => (typeof MONSTER_STAGE_ROSTER === 'object' ? MONSTER_STAGE_ROSTER : null);
     const settings = () => (typeof game === 'object' && game.settings) || {};
@@ -54,15 +57,16 @@ const stageRoster = (() => {
         image.src = `${table().path}${file}?v=${table().version}`;
         return image;
     }
-    /** Lets go of the sheets used longest ago. */
+    /** Past KEEP sheets, lets go of the ones not drawn for a while, longest ago first. Sheets on screen stay whatever their
+     * number: dropping one meant fetching and decoding it again on the next frame. Their painted frames and composed poses stay
+     * in their own caches (the pictures are the same when the sheet comes back) until those need the room. */
     function trim() {
-        while (sheets.size > KEEP) {
-            const [oldest] = [...sheets].reduce((least, entry) => (entry[1].used < least[1].used ? entry : least));
-            const pair = sheets.get(oldest);
+        if (sheets.size <= KEEP) return;
+        const idle = [...sheets].filter(entry => tick - entry[1].at > stageCache.HOT_MS).sort((a, b) => a[1].at - b[1].at);
+        for (const [id, pair] of idle.slice(0, sheets.size - KEEP)) {
             pair.walk.src = '';
             if (pair.attack) pair.attack.src = '';
-            for (let index = frames.length - 1; index >= 0; index--) if (frames[index].pair === pair) releaseFrame(index);
-            sheets.delete(oldest);
+            sheets.delete(id);
         }
     }
     /** { walk, attack } once the sheets decode (attack is null for an actor without attack art), 'loading' meanwhile, null
@@ -72,11 +76,11 @@ const stageRoster = (() => {
         if (!pair) {
             // 쓴 때를 적고 나서 묶음을 줄인다: 0으로 넣고 줄이면 방금 넣은 묶음이 가장 오래된 것으로 뽑혀 바로 버려졌고, 그림을 비운
             // 묶음은 '불러오지 못함'으로 읽혀 그 몬스터가 예전 그림으로 그려졌다(2026-10-13: 한 번의 플레이에서 열다섯 번째 모습부터 모두).
-            pair = { walk: load(actor.id + '-walk.png'), attack: actor.attackMs ? load(actor.id + '-attack.png') : null, tints: new Map(), failed: false, used: ++clock };
+            pair = { walk: load(actor.id + '-walk.png'), attack: actor.attackMs ? load(actor.id + '-attack.png') : null, failed: false, at: tick };
             sheets.set(actor.id, pair);
             trim();
         }
-        pair.used = ++clock;
+        pair.at = tick;
         if (failed(pair.walk) || (pair.attack && failed(pair.attack))) pair.failed = true;
         if (pair.failed) return null;
         return ready(pair.walk) && (!pair.attack || ready(pair.attack)) ? pair : 'loading';
@@ -145,20 +149,22 @@ const stageRoster = (() => {
         ctx.clearRect(0, 0, width, height);
         return ctx;
     }
-    /** A sheet painted one colour (the rim, the flash of a hit). Made once and kept with its pair. */
-    function tint(pair, clip, colour) {
-        const key = clip + colour;
-        if (pair.tints.has(key)) return pair.tints.get(key);
-        const image = pair[clip], canvas = document.createElement('canvas');
-        canvas.width = image.naturalWidth;
-        canvas.height = image.naturalHeight;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(image, 0, 0);
+    /** One frame painted one colour (the rim, the flash of a hit): the frame's own cell only, kept in a cache capped by area.
+     * A whole painted sheet per colour used to be kept with every pair (50 MB after eight regions). When everything kept is
+     * on screen the frame is painted on a scratch surface and not kept. The frame sits at the canvas's top left. */
+    function tintedFrame(pair, actor, pose, colour) {
+        const key = `${actor.id}|${pose.clip}|${pose.index}|${colour}`, kept = tints.cachedValue(key, tick);
+        if (kept) return kept;
+        const pixels = actor.w * actor.h, keeping = tints.cacheRoomFor(pixels, tick);
+        const canvas = keeping ? document.createElement('canvas') : (tintWork || (tintWork = document.createElement('canvas')));
+        canvas.width = actor.w;    // 크기를 넣으면 비워진다
+        canvas.height = actor.h;
+        const ctx = canvas.getContext('2d'), cell = cellOf(actor, pose);
+        ctx.drawImage(pair[pose.clip], cell.x, cell.y, actor.w, actor.h, 0, 0, actor.w, actor.h);
         ctx.globalCompositeOperation = 'source-in';
         ctx.fillStyle = colour;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        if (pair.tints.size >= TINTS) pair.tints.delete(pair.tints.keys().next().value);
-        pair.tints.set(key, canvas);
+        ctx.fillRect(0, 0, actor.w, actor.h);
+        if (keeping) tints.cacheKeep(key, canvas, pixels, tick);
         return canvas;
     }
     /** The frame's rows in bands, each slid sideways by whole dots (more the higher it is), or with the upper body a dot lower. */
@@ -180,7 +186,8 @@ const stageRoster = (() => {
         const stretch = pose.sx ? Math.max(actor.w * Math.abs(pose.sx - 1), actor.feet[1] * Math.abs(pose.sy - 1)) : 0;
         return 2 + Math.ceil(Math.max(lean, stretch));
     }
-    /** Stamps the bands of one frame from `image` (a sheet, or its one-colour copy), moved by `shift` dots. */
+    /** Stamps the bands of one frame from `image` (a sheet, or a one-colour copy of the frame: then frame.x and y are 0), moved
+     * by `shift` dots. */
     function stamp(ctx, image, frame, shift) {
         for (const [from, until, dx, dy] of frame.rows) {
             ctx.drawImage(image, frame.x, frame.y + from, frame.w, until - from, frame.pad + dx + shift[0], frame.pad + from + dy + shift[1], frame.w, until - from);
@@ -196,51 +203,43 @@ const stageRoster = (() => {
     function compose(pair, actor, pose, look) {
         const pad = padFor(actor, pose), width = actor.w + pad * 2, height = actor.h + pad * 2, ctx = surface(width, height);
         const fx = pad + actor.feet[0], fy = pad + actor.feet[1], frame = { ...cellOf(actor, pose), w: actor.w, pad, rows: bands(actor, pose) };
+        const own = { ...frame, x: 0, y: 0 }; // 한 가지 색 프레임은 제 칸만 담은 그림이다
         if (pose.sx) ctx.setTransform(pose.sx, 0, 0, pose.sy, fx - fx * pose.sx, fy - fy * pose.sy);
         if (look.outline) {
+            const rim = tintedFrame(pair, actor, pose, look.outline.color);
             ctx.globalAlpha = look.outline.alpha;
-            for (const shift of RIM) stamp(ctx, tint(pair, pose.clip, look.outline.color), frame, shift);
+            for (const shift of RIM) stamp(ctx, rim, own, shift);
             ctx.globalAlpha = 1;
         }
         stamp(ctx, pair[pose.clip], frame, RIM_NONE);
         if (look.flash > 0) {
             ctx.globalAlpha = Math.min(1, Number(look.flash));
-            stamp(ctx, tint(pair, pose.clip, FLASH), frame, RIM_NONE);
+            stamp(ctx, tintedFrame(pair, actor, pose, FLASH), own, RIM_NONE);
         }
         return { width, height, pad, canvas: ctx.canvas, fixed: false };
     }
-    /** Only discrete poses recur exactly. Continuous lean, stretch and partial hit flashes keep the live working surface. */
+    /** Only discrete poses recur exactly. Continuous lean, stretch and partial hit flashes keep the live working surface ('').
+     * The rim is told by its colour and strength (all compose reads of it). */
     function frameKey(actor, pose, look) {
         const flash = look.flash > 0 ? Math.min(1, Number(look.flash)) : 0;
-        if (pose.lean || pose.sx || (flash > 0 && flash < 1)) return null;
-        return JSON.stringify([actor.id, pose.clip, pose.index, !!pose.breath, look.outline, flash]);
+        if (pose.lean || pose.sx || (flash > 0 && flash < 1)) return '';
+        const rim = look.outline ? look.outline.color + '@' + look.outline.alpha : '';
+        return `${actor.id}|${pose.clip}|${pose.index}|${pose.breath ? 1 : 0}|${rim}|${flash}`;
     }
-    function releaseFrame(index) {
-        const old = frames.splice(index, 1)[0];
-        framePixels -= old.pixels;
-        old.picture.canvas.width = old.picture.canvas.height = 1;
-    }
-    /** Keep an immutable copy, never cache the shared mutable work canvas. Position, mirroring, alpha and scaling remain live. */
+    /** Keep an immutable copy, never cache the shared mutable work canvas. Position, mirroring, alpha and scaling remain live.
+     * When every kept pose is on screen the new one is drawn from the work canvas and not kept. */
     function picture(pair, actor, pose, look) {
         const key = frameKey(actor, pose, look);
         if (!key) return compose(pair, actor, pose, look);
-        const index = frames.findIndex(frame => frame.pair === pair && frame.key === key);
-        if (index >= 0) {
-            const frame = frames.splice(index, 1)[0];
-            frames.push(frame);
-            return frame.picture;
-        }
+        const kept = frames.cachedValue(key, tick);
+        if (kept) return kept;
         const size = compose(pair, actor, pose, look), pixels = size.width * size.height;
-        if (pixels > FRAME_PIXELS) return size;
-        while (frames.length >= 64 || framePixels + pixels > FRAME_PIXELS) {
-            releaseFrame(0);
-        }
+        if (!frames.cacheRoomFor(pixels, tick)) return size;
         const canvas = document.createElement('canvas');
         canvas.width = size.width; canvas.height = size.height;
         canvas.getContext('2d').drawImage(size.canvas, 0, 0, size.width, size.height, 0, 0, size.width, size.height);
         const result = { ...size, canvas, fixed: true };
-        frames.push({ pair, key, pixels, picture: result });
-        framePixels += pixels;
+        frames.cacheKeep(key, result, pixels, tick);
         return result;
     }
     /** One dot of the art on screen: the character's dot size, eased in while the monster appears (a boss is not enlarged:
@@ -263,6 +262,7 @@ const stageRoster = (() => {
     /** Draws a roster monster with its feet on (p.x, p.y). p as in monsterActors.draw. False → not in the roster, the stage
      * is off, or its pictures are missing here. */
     function draw(ctx, enemy, p) {
+        tick = performance.now();
         const actor = stageView.enabled() ? actorFor(enemy) : null, pair = actor ? pairOf(actor) : null;
         if (!pair) return false;
         const dot = dotFor(enemy, actor, p);

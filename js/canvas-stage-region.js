@@ -19,7 +19,7 @@ const stageRegion = (() => {
     const fits = new Map();                     // 파일 → 지금 배율(fitDot)로 옮겨 둔 그림
     const tints = new Map();                    // "파일|색" → 한 색을 얹은 그림(보급 상자의 등급, 누를 수 있는 물체의 테)
     const layouts = new WeakMap();              // 지도 → Map(방 번호 → 소품 자리)
-    let fitDot = 0;
+    let fitDot = 0, fitFamily = '';
     /** 문틀의 발 자리(도트): 뒤쪽 문은 바닥선 아래로, 앞쪽 문은 바닥의 앞쪽 끝 아래로 내려 서고, 좌우 문은 문 칸의 가운데에서
      * 방 쪽으로 조금 들어와 선다(묶음의 조립 화면의 자리를 도트로 옮긴 값). */
     const DOOR = Object.freeze({ north: [0, 12], south: [0, 19], west: [8, 0], east: [-8, 0] });
@@ -66,8 +66,10 @@ const stageRegion = (() => {
         return state;
     }
     function fittedRegionPiece(file, dot) {
-        // 창 크기가 바뀌어 배율이 달라지면 앞 배율로 옮겨 둔 그림은 버린다(배율마다 쌓이지 않게).
-        if (fitDot !== dot) { fits.clear(); fitDot = dot; }
+        // 창 크기가 바뀌어 배율이 달라지면 앞 배율로 옮겨 둔 그림은 버린다(배율마다 쌓이지 않게). 재질이 바뀌어도 버린다: 지도 하나는
+        // 한 재질의 조각만 쓰므로, 지나온 지역의 조각이 재질마다 쌓여 있을 까닭이 없다.
+        const family = file.slice(0, file.indexOf('/'));
+        if (fitDot !== dot || fitFamily !== family) { fits.clear(); fitDot = dot; fitFamily = family; }
         if (!fits.has(file)) fits.set(file, stageDots.fitted(regionPicture(file).image, dot));
         return fits.get(file);
     }

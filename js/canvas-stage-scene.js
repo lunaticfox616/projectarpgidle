@@ -64,7 +64,12 @@ const stageScene = (() => {
     }
     /** 먼 배경: 방 중심에 맞춰 양 끝 여백을 나눠 쓴다. 카메라 이동의 parallax배만 움직이고 필요할 때만 좌우로 잇는다. */
     function drawFar(ctx, view, p, area) {
-        if (regionState(view.map) === 'ready') { stageRegion.drawFar(ctx, view, p, area); return; }
+        if (regionState(view.map) === 'ready') {
+            // 지역 그림으로 그리는 지도에서는 조각 묶음의 옮겨 둔 그림을 쓰지 않는다: 놓아 준다(화면 배율 125%에서 19MB쯤이었다).
+            if (fits.size) fits.clear();
+            stageRegion.drawFar(ctx, view, p, area);
+            return;
+        }
         const kit = kitOf(view.map), far = kit.far, dot = p.tileW / WIDE, w = far.width * dot, h = far.height * dot;
         const y = Math.round(p.mapY + view.room.y0 * p.tileH + far.bottom * dot - h);
         const centre = p.mapX + (view.room.x0 + view.room.x1 + 1) * p.tileW / 2;
