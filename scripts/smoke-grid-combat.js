@@ -205,7 +205,9 @@ const cfg = context.COMBAT_GRID_CONFIG;
     [realmNormal, realmElite, realmBoss].forEach((enemy, roleIndex) => {
       const definition = context.getRealmMonsterVisualDefinitionById(enemy.monsterVisualId);
       assert.strictEqual(enemy.monsterVisualSetId, setId, `${setId} 구역은 전용 몬스터 세트를 사용해야 한다`);
-      assert.strictEqual(definition.role, ['normal', 'elite', 'boss'][roleIndex], `${setId} 전용 역할 이미지가 일치해야 한다`);
+      // 정예 종류가 남지 않은 영역(2026-10-13에 예전 그림뿐인 종류를 지운 지하계)의 정예는 그 영역의 일반 몬스터가 맡는다
+      const role = ['normal', 'elite', 'boss'][roleIndex], ownElite = context.REALM_MONSTER_VISUAL_SETS[setId].members.some(member => member.role === 'elite');
+      assert.strictEqual(definition.role, role === 'elite' && !ownElite ? 'normal' : role, `${setId} 전용 역할 이미지가 일치해야 한다`);
     });
     assert.strictEqual(realmNormal.name, realmNormal.baseMonsterName, `${setId} 일반 몬스터 이름과 이미지가 일치해야 한다`);
     assert.strictEqual(realmElite.name, `${realmElite.trait.name} ${realmElite.baseMonsterName}`,
@@ -213,14 +215,20 @@ const cfg = context.COMBAT_GRID_CONFIG;
   });
 
   Object.values(context.REALM_MONSTER_VISUAL_SETS).forEach(set => {
-    assert.deepStrictEqual(['normal', 'elite', 'boss'].map(role => set.members.filter(member => member.role === role).length), [4, 2, 1],
-      '각 영역 세트는 일반 4·정예 2·보스 1종이다');
+    const kinds = ['normal', 'elite', 'boss'].map(role => set.members.filter(member => member.role === role).length);
+    assert(kinds[0] >= 2 && kinds[2] === 1, '각 영역 세트는 일반 2종 이상과 보스 1종을 가진다(정예 종류는 없을 수 있다)');
+    assert(set.members.every(member => !context.RETIRED_REALM_MONSTERS[member.id]), '지운 영역 몬스터는 세트에 남지 않는다');
     set.members.forEach(member => {
       const sheet = context.MONSTER_SPRITE_SHEETS[member.id];
       assert(sheet, `${member.id}는 제 시트로 그린다`);
       assert.strictEqual(context.MONSTER_SPRITE_KINDS[sheet.kind].frame, member.role === 'boss' ? 64 : 48,
         `${member.id} 칸 크기(보스 64, 나머지 48)`);
     });
+  });
+
+  Object.entries(context.RETIRED_REALM_MONSTERS).forEach(([old, next]) => {
+    assert(!context.MONSTER_SPRITE_SHEETS[old] && !context.getRealmMonsterVisualDefinitionById(old), `${old}는 지워진 종류다`);
+    assert(context.getRealmMonsterVisualDefinitionById(next) && next.split('-')[0] === old.split('-')[0], `${old}는 같은 영역에 남은 몬스터가 잇는다`);
   });
 
   const wispVariants = context.buildWispEnemyVariants({
