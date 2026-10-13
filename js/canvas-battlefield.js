@@ -2234,20 +2234,40 @@ function getEnemySpawnAge(enemy, now, duration) {
 
 function drawBattleEnemyActor(ctx, entry, state) {
     let enemy = entry.enemy;
+    // 무대의 보스 입장: 그림을 키우며 띄우지 않고 제 크기로 선 검은 형체가 드러난다(js/canvas-boss-entrance.js stageLook)
+    const veil = bossEntranceView.stageLook(enemy, state.now);
+    if (veil) { drawEnteringEnemyActor(ctx, entry, state, veil); return; }
     let spawnDuration = enemy.isBoss ? 640 : (enemy.isElite ? 460 : 360);
     let age = getEnemySpawnAge(enemy, state.now, spawnDuration);
     let easedAge = 1 - Math.pow(1 - age, 3);
     let spawnScale = (enemy.isBoss ? 0.46 : 0.68) + easedAge * (enemy.isBoss ? 0.54 : 0.32);
     if (enemy.isBoss) spawnScale += Math.sin(age * Math.PI) * 0.08;
-    let count = state.enemyCount;
-    let crowdScale = count >= 9 ? (enemy.isBoss ? 3.25 : (enemy.isElite ? 1.72 : 1.46))
-        : (count >= 6 ? (enemy.isBoss ? 3.45 : (enemy.isElite ? 1.9 : 1.62))
-            : (enemy.isBoss ? 3.65 : (enemy.isElite ? 2.2 : 1.95)));
+    const crowdScale = getEnemyCrowdScale(enemy, state.enemyCount);
     ctx.save();
     ctx.globalAlpha = easedAge;
     drawEnemyActorSprite(ctx, entry, state, { y: entry.y - (1 - easedAge) * (enemy.isBoss ? 28 : 18), scale: crowdScale * state.gridUnitScale * spawnScale, spawnScale });
     if (enemy.encounterSparks) drawEncounterSparks(ctx, entry, state, enemy.encounterSparks);
     ctx.restore();
+}
+
+/** 예전 그림(한 장의 큰 그림에서 잘라 쓰는 것)을 그리는 배율: 적이 많을수록 조금 작게, 보스와 정예는 크게. */
+function getEnemyCrowdScale(enemy, count) {
+    const row = count >= 9 ? [3.25, 1.72, 1.46] : (count >= 6 ? [3.45, 1.9, 1.62] : [3.65, 2.2, 1.95]);
+    return enemy.isBoss ? row[0] : (enemy.isElite ? row[1] : row[2]);
+}
+
+/** 무대에서 입장 중인 적: 제 크기와 제자리에, 입장이 정한 모습(검은 형체, 속성 색 테, 드러나는 순간의 흰빛)으로 그린다. */
+function drawEnteringEnemyActor(ctx, entry, state, veil) {
+    ctx.save();
+    ctx.globalAlpha = veil.alpha;
+    drawEnemyActorSprite(ctx, entry, state, { y: entry.y, scale: getEnemyCrowdScale(entry.enemy, state.enemyCount) * state.gridUnitScale, spawnScale: 1, veil });
+    ctx.restore();
+}
+
+/** 입장 중인 적의 모습(js/canvas-boss-entrance.js stageLook)을 시트 그리기에 넘기는 값으로: 흰빛, 검은 형체, 테. 입장 중이 아니면 모두 없다. */
+function getEnemyVeilPose(veil) {
+    if (!veil) return { flash: 0, shade: 0, rim: null };
+    return { flash: veil.flash, shade: veil.shade, rim: veil.rim > 0 ? { color: veil.color, alpha: veil.rim } : null };
 }
 
 /** 잿불 터 무리(data/atlas.js encounters sparks): 몸에서 불씨 도트 셋이 떠올라 꺼진다. 그림만 그린다. */
@@ -2319,10 +2339,12 @@ function getBossDrawScale(enemy) {
 /** Wisps, act monsters, roots and realm sets draw from their own 16-dot sheets (js/canvas-wisp-actors.js,
  * js/canvas-monster-actors.js); story bosses keep their atlas sprites. */
 function drawEnemyActorSprite(ctx, entry, state, pose) {
-    const enemy = entry.enemy, flash = state.enemyHitFlashes.get(enemy.id) || 0, facing = resolveEnemyFacingDirection(entry, state.playerPos);
+    const enemy = entry.enemy, veil = getEnemyVeilPose(pose.veil), facing = resolveEnemyFacingDirection(entry, state.playerPos);
+    const flash = Math.max(state.enemyHitFlashes.get(enemy.id) || 0, veil.flash);
     const tile = state.gridProj && state.gridProj.tileW, recoil = (state.enemyHitRecoil || {})[enemy.id] || { x: 0, y: 0 };
     const x = entry.x + recoil.x, y = pose.y + recoil.y, boss = getBossDrawScale(enemy);
-    const sheetPose = { x, y, tile, now: state.now, facing, flash, spawnScale: pose.spawnScale * boss, moving: entry.moving === true };
+    const sheetPose = { x, y, tile, now: state.now, facing, flash, spawnScale: pose.spawnScale * boss, moving: entry.moving === true,
+        shade: veil.shade, rim: veil.rim };
     if (wispActors.draw(ctx, enemy, sheetPose) || monsterActors.draw(ctx, enemy, sheetPose)) return;
     noteEnemySpriteSide(enemy, entry, state.playerPos, tile);
     drawEnemySprite(ctx, enemy, x, y, pose.scale * boss, flash, state.now, entry.moving, state.enemyAttackMotions[enemy.id], facing);
@@ -3065,21 +3087,15 @@ function drawBossAnnouncement(ctx, area, banner) {
     if (!banner) return;
     const { width } = area;
     const cy = getBossBannerY(area, banner);
-    const rift = isBattleLightingEnabled();
     ctx.save();
     ctx.globalAlpha = getBossBannerAlpha(banner.age);
-    // 도트 띠: 흐린 그라디언트 대신 납작한 어둠 + 위아래 2px 청동 선
-    ctx.fillStyle = 'rgba(6,4,4,0.9)'; // 뒤의 안내 글이 이름 뒤로 비쳤다(검토 9차)
-    ctx.fillRect(0, cy - 36, width, 66);
-    ctx.fillStyle = rift ? '#5d4a2e' : '#4a3a24';
-    ctx.fillRect(0, cy - 38, width, 2);
-    ctx.fillRect(0, cy + 30, width, 2);
     ctx.textAlign = 'center';
     // 좁은 화면(휴대폰)에서는 제목 글꼴의 자모가 벌어져 "잔ㄱㅏㅈㅣ"처럼 읽혔다(검토 8차) — 본문 도트 글꼴로.
     ctx.font = width < 640 ? `26px ${BATTLE_PIXEL_FONT}` : `32px ${BATTLE_TITLE_FONT}`;
     const name = getEnemyDisplayName(banner.boss);
     const half = Math.min(width * 0.42, ctx.measureText(name).width / 2 + 60);
     const mid = Math.round(width / 2);
+    drawBossBannerPlate(ctx, mid, cy, Math.round(half + 36));
     drawBossBannerRule(ctx, Math.round(mid - half), Math.round(mid + half), cy + 10);
     ctx.lineWidth = 4;
     ctx.lineJoin = 'miter';
@@ -3088,8 +3104,30 @@ function drawBossAnnouncement(ctx, area, banner) {
     ctx.fillStyle = '#f0c46a';
     ctx.fillText(name, mid, cy);
     ctx.font = `12px ${BATTLE_PIXEL_FONT}`;
-    fillPixelToneText(ctx, [`${getElementLabel(banner.boss.ele)} 속성 보스`, ...getEnemyDefenseHighlights(banner.boss)].join(', '), mid, cy + 25, '#d98a6a');
+    fillPixelToneText(ctx, [`${getElementLabel(banner.boss.ele)} 속성 보스`, getBossReach(banner.boss).label, ...getEnemyDefenseHighlights(banner.boss)].join(', '), mid, cy + 25, '#d98a6a');
     ctx.restore();
+}
+
+/** 이름 뒤의 판: 납작한 어둠과 위아래 2px 청동 선. 이름 너비만큼만 짙고 양 끝은 띠(BOSS_BANNER_FADE.step px)마다 옅어져 사라진다
+ * (2026-10-14: 화면 끝에서 끝까지 가로지르는 검은 띠가 전장을 가렸다). 뒤의 안내 글이 이름 뒤로 비치지 않게 가운데는 거의 불투명하다. */
+const BOSS_BANNER_FADE = Object.freeze({ reach: 168, step: 4 });
+function drawBossBannerPlate(ctx, mid, cy, half) {
+    const base = ctx.globalAlpha, line = isBattleLightingEnabled() ? '#5d4a2e' : '#4a3a24';
+    const strip = (x, w, strength) => {
+        ctx.globalAlpha = base * strength;
+        ctx.fillStyle = 'rgba(6,4,4,0.9)';
+        ctx.fillRect(x, cy - 36, w, 66);
+        ctx.fillStyle = line;
+        ctx.fillRect(x, cy - 38, w, 2);
+        ctx.fillRect(x, cy + 30, w, 2);
+    };
+    strip(mid - half, half * 2, 1);
+    for (let out = 0; out < BOSS_BANNER_FADE.reach; out += BOSS_BANNER_FADE.step) {
+        const strength = Math.pow(1 - (out + BOSS_BANNER_FADE.step) / BOSS_BANNER_FADE.reach, 2);
+        strip(mid - half - out - BOSS_BANNER_FADE.step, BOSS_BANNER_FADE.step, strength);
+        strip(mid + half + out, BOSS_BANNER_FADE.step, strength);
+    }
+    ctx.globalAlpha = base;
 }
 
 function drawBossBannerRule(ctx, left, right, y) {

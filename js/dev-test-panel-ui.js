@@ -259,18 +259,14 @@ const devTestPanel = (() => {
             button('기존 스프라이트', () => setSetting('heroSpriteSet', 'legacy', '캐릭터: 기존'))
         ]), row([el('label', { textContent: '무기' }), weaponSelect()])]);
     }
-    /** 무대 몬스터(js/canvas-stage-roster.js): 걷는 모습을 걷기 그림으로 할지 그림 없이 걷는 척으로 할지, 그리고 지금 나오는
-     * 몬스터를 모두 한 가지 모습으로 바꿔 보기(새 그림이 있는 몬스터 아무나 실제 전투에서 본다). */
+    /** 무대 몬스터(js/canvas-stage-roster.js): 지금 나오는 몬스터를 모두 한 가지 모습으로 바꿔 보기(새 그림이 있는 몬스터 아무나
+     * 실제 전투에서 본다). */
     function monsterRows() {
         const look = el('select', { id: 'dtp-monster-look' }, [el('option', { value: '', textContent: '원래 모습' }),
             ...stageRoster.looks().map(([value, label]) => el('option', { value, textContent: label }))]);
         look.value = game.settings.stageMonsterLook || '';
         look.onchange = () => setSetting('stageMonsterLook', look.value, `몬스터 모습: ${look.selectedOptions[0].textContent}`);
-        return [
-            row([el('label', { textContent: '몬스터 걷기' }), button('걷기 그림', () => setSetting('stageMonsterWalk', 'clip', '몬스터 걷기: 걷기 그림')),
-                button('걷는 척', () => setSetting('stageMonsterWalk', 'code', '몬스터 걷기: 그림 없이 걷는 척'))]),
-            row([el('label', { textContent: '몬스터 모습' }), look])
-        ];
+        return [row([el('label', { textContent: '몬스터 모습' }), look])];
     }
     /** 옆에서 보는 무대 시험판(data/stage-view.js): 켜고 끄기, 지도 칸 크기, 들 자세. 그림 폴더(assets/playable/stage)가 있어야 켜진다. */
     function stageSection() {

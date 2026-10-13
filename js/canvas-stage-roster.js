@@ -1,13 +1,12 @@
 /** 옆에서 보는 무대의 몬스터 새 그림 (data/monster-stage-roster.js, docs/stage-view-20261011.md).
  * 몬스터마다 걷기와 공격 두 장을 쓴다. 공격은 앞서와 같은 규칙으로 타격 프레임을 때린 순간에 맞춘다(js/canvas-monster-actors.js).
- * 걷는 모습은 두 가지다(settings.stageMonsterWalk, 테스트 패널에서 바꾼다):
- *   clip  걷기 그림을 돌린다. 프레임은 그림마다 정해진 대로 걸어온 거리(js/canvas-stage-stride.js: 걸음이 빠르면 빨리 돈다)나
- *         시간(영상에서 뽑은 그림: 만든 빠르기 그대로)으로 고른다.
- *   code  걷기 그림을 쓰지 않는다. 서 있는 그림 한 장을 걸음마다 한쪽으로 기울이고 살짝 띄워 걷는 척한다.
- *         통통 뛰는 몬스터는 늘었다 눌리며 뛰고, 기어가는 몬스터는 늘었다 줄며 간다.
- * 걷기 그림이 한 장뿐인 몬스터(외형만 고른 것)는 늘 걷는 척한다. 공격 그림이 없는 몬스터는 서 있는 그림을 뒤로 뺐다 앞으로 내밀어 때린다.
- * 떠서 움직이는 몬스터(날기, 떠다니기, 헤엄)는 다리가 없어 두 방식이 같다: 걷기 그림(날갯짓)을 늘 돌린다.
- * 서 있을 때는 서 있는 그림에 숨을 쉬듯 윗몸만 한 도트 오르내린다. 움직임은 모두 그림의 도트 단위다(기울임도 줄을 한 도트씩 민다).
+ * 걸을 때는 걷기 그림을 돌린다. 프레임은 그림마다 정해진 대로 걸어온 거리(js/canvas-stage-stride.js: 걸음이 빠르면 빨리 돈다)나
+ * 시간(영상에서 뽑은 그림: 만든 빠르기 그대로)으로 고른다. 떠서 움직이는 몬스터(날기, 떠다니기, 헤엄)는 걷기 그림(날갯짓)을 늘 돌린다.
+ * 그림이 한 장뿐인 몬스터(외형만 고른 것: 액트 보스 여럿, 뿌리촉수)는 그 한 장으로 서고 걷고 때린다. 코드로 기울이고 내밀어 걷고 때리는
+ * 척하던 것은 뺐다(2026-10-14 사용자: "임시로 넣은 걷기, 공격 모션도 너무 구려서 사용 안하는게 나을 것 같아"). 때리는 순간은 공격 예고와
+ * 타격 이펙트가 알린다. 떠 있는 한 장짜리는 제자리에서 몇 도트 오르내린다.
+ * 서 있을 때는 서 있는 그림에 숨을 쉬듯 윗몸만 한 도트 오르내린다.
+ * 보스 입장(js/canvas-boss-entrance.js) 동안에는 검은 형체에 속성 색 테만 두른 모습으로 그린다(p.shade, p.rim).
  * 그림은 지금 지도의 무리와 화면에 나와 있는 몬스터 것만 들고 있는다(keepFor). 시트는 메인 스레드 밖에서 미리 풀어 둔 것이라
  * (js/canvas-stage-pictures.js) 몬스터가 처음 화면에 나올 때 그림을 푸느라 멈추지 않는다. 그리기만 하고 전투 상태는 바꾸지 않는다.
  */
@@ -16,15 +15,10 @@ const stageRoster = (() => {
     const TINT_PIXELS = 1024 * 1024; // 한 가지 색으로 칠한 프레임(테 색, 맞았을 때의 흰빛): RGBA 합계 4MB, 최대 256장
     const BREATH_MS = 1700;          // 숨 한 번
     const HANG_DOTS = 4, HANG_MS = 2300;   // 그림이 한 장뿐인 떠 있는 몬스터가 오르내리는 높이(도트)와 한 번에 걸리는 시간
-    const FLASH = '#fff4df';
+    const FLASH = '#fff4df', SHADE = '#0b090c';   // 맞았을 때 덮는 흰빛, 입장 전의 검은 형체
+    const PAD = 2;                   // 프레임 둘레에 두는 자리(도트): 테가 한 도트 나간다
     const RIM = Object.freeze([[1, 0], [-1, 0], [0, 1], [0, -1]]), RIM_NONE = Object.freeze([0, 0]);
     const AIRBORNE = Object.freeze(['fly', 'float', 'swim']);
-    /** 공격 그림이 없는 몬스터의 공격: 프레임 시간, 타격 프레임, 프레임마다 앞으로 내미는 거리(몸 너비 80도트 기준, 도트). */
-    const MADE_STRIKE = Object.freeze({ attackMs: Object.freeze([110, 90, 70, 100, 150]), impactFrame: 2 });
-    const MADE_REACH = Object.freeze([-2, -4, 9, 5, 1]);
-    /** 그 공격에서 몸이 기우는 몫(프레임마다): 뒤로 젖혔다가 앞으로 숙이며 내민다. 가장 많이 기울 때 머리가 MADE_LEAN_DOTS 도트쯤 나간다
-     * (2026-10-13: 한 장뿐인 보스가 선 채로 밀려 나갔다 돌아오기만 해서 때리는 것으로 읽히지 않았다). */
-    const MADE_LEAN = Object.freeze([-0.4, -0.8, 1, 0.5, 0.1]), MADE_LEAN_DOTS = 12;
     const sheets = new Map();
     let mapLooks = new Set();        // 지금 지도의 무리가 쓰는 외형 id: 화면에 나오기 전에도 그림을 들고 있는다(keepFor)
     let sweepAt = 0;                 // 지난 지도의 그림을 놓을 때(keepFor가 건다. 0이면 걸린 것이 없다)
@@ -101,22 +95,6 @@ const stageRoster = (() => {
         return pair.walk.ready && (!pair.attack || pair.attack.ready) ? pair : 'loading';
     }
 
-    /** How a walker moves without walk frames, t = dots walked. hop: dots off the ground. lean: dots a row slides per dot of
-     * height (the trunk tips one way on each step). sx, sy: stretch about the feet. */
-    const FAKE = Object.freeze({
-        legs(actor, t) {
-            const swing = Math.sin(Math.PI * t / (actor.stride / 2)), lift = Math.max(1, Math.min(5, Math.round(actor.height * 0.04)));
-            return { hop: Math.round(lift * Math.abs(swing)), lean: swing * Math.min(0.09, 5 / actor.height) };
-        },
-        hop(actor, t) {
-            const u = frac(t / actor.stride), stretch = 1 + 0.18 * Math.sin(2 * Math.PI * u);
-            return { hop: Math.round(actor.height * 0.32 * Math.sin(Math.PI * u)), sx: 1 / stretch, sy: stretch };
-        },
-        crawl(actor, t) {
-            const stretch = 1 + 0.09 * Math.sin(2 * Math.PI * t / actor.stride);
-            return { sx: stretch, sy: 1 / stretch };
-        }
-    });
     /** The frame an actor stands on: its attack's first frame (the ready pose), or its walk's when it has no attack art. */
     const rest = actor => (actor.attackMs ? { clip: 'attack', index: 0 } : { clip: 'walk', index: 0 });
     /** The walk clip's frame: by the clock for clips made to play at their own pace and for monsters that fly, else by the
@@ -125,30 +103,22 @@ const stageRoster = (() => {
         if (AIRBORNE.includes(actor.gait) || actor.pace === 'time') return monsterActors.frameAt(actor.walkMs, (p.now + seedOf(enemy) * 137) % sum(actor.walkMs));
         return Math.floor(frac(stageStride.walked(enemy, p.now) / actor.stride) * actor.walkMs.length);
     }
-    /** The strike or its wind-up: from the attack sheet, or (no attack art) the standing frame drawn back and thrust forward. */
+    /** The strike or its wind-up from the attack sheet. A monster without attack art keeps its standing picture. */
     function striking(enemy, actor, p) {
-        const strike = monsterActors.attackFrame(enemy, actor.attackMs ? actor : MADE_STRIKE, p.now, p.moving);
-        if (!strike) return null;
-        if (actor.attackMs) return { clip: 'attack', index: strike.index, hop: strike.bob };
-        return { ...rest(actor), hop: strike.bob, nudge: Math.round(MADE_REACH[strike.index] * Math.max(0.6, Math.min(2.5, actor.width / 80))),
-            lean: MADE_LEAN[strike.index] * Math.min(0.1, MADE_LEAN_DOTS / actor.height) };
-    }
-    /** Walking: by code when asked or when there is only one picture, else the walk clip. */
-    function walking(enemy, actor, p) {
-        const fake = (actor.still || settings().stageMonsterWalk === 'code') && FAKE[actor.gait];
-        return fake ? { ...rest(actor), ...fake(actor, stageStride.walked(enemy, p.now)) } : { clip: 'walk', index: walkFrame(enemy, actor, p) };
+        const strike = actor.attackMs ? monsterActors.attackFrame(enemy, actor, p.now, p.moving) : null;
+        return strike ? { clip: 'attack', index: strike.index, hop: strike.bob } : null;
     }
     /** An airborne actor with one picture has no wing or drift clip to run: it hangs in the air, rising and sinking a few dots. */
     const hangs = actor => actor.still && AIRBORNE.includes(actor.gait);
     const hangLift = (enemy, p) => Math.round(HANG_DOTS * (0.5 + 0.5 * Math.sin((p.now + seedOf(enemy) * 211) * 2 * Math.PI / HANG_MS)));
-    /** { clip, index, hop, lean, sx, sy, breath, nudge }: the strike, else hanging in the air or flying on, else walking, else
-     * standing with a breath. */
+    /** { clip, index, hop, breath }: the strike, else hanging in the air or flying on, else the walk clip, else standing with a
+     * breath. */
     function poseOf(enemy, actor, p) {
         const strike = striking(enemy, actor, p), lift = hangs(actor) ? hangLift(enemy, p) : 0;
         if (strike) return lift ? { ...strike, hop: (strike.hop || 0) + lift } : strike;
         if (hangs(actor)) return { ...rest(actor), hop: lift };
         if (AIRBORNE.includes(actor.gait)) return { clip: 'walk', index: walkFrame(enemy, actor, p) };
-        if (p.moving) return walking(enemy, actor, p);
+        if (p.moving) return { clip: 'walk', index: walkFrame(enemy, actor, p) };
         return { ...rest(actor), breath: frac((p.now + seedOf(enemy) * 211) / BREATH_MS) < 0.45 };
     }
 
@@ -182,24 +152,11 @@ const stageRoster = (() => {
         if (keeping) tints.cacheKeep(key, canvas, pixels, tick);
         return canvas;
     }
-    /** The frame's rows in bands, each slid sideways by whole dots (more the higher it is), or with the upper body a dot lower. */
+    /** The frame's rows in bands [from, until, dx, dy]: the whole frame, or (a breath) the upper body a dot lower. */
     function bands(actor, pose) {
-        if (pose.breath) { const cut = Math.max(1, actor.feet[1] - Math.round(actor.height * 0.55)); return [[0, cut, 0, 1], [cut, actor.h, 0, 0]]; }
-        if (!pose.lean) return [[0, actor.h, 0, 0]];
-        const list = [];
-        for (let y = 0, from = 0; y <= actor.h; y++) {
-            const slide = row => Math.round(pose.lean * (actor.feet[1] - row));
-            if (y < actor.h && slide(y) === slide(from)) continue;
-            list.push([from, y, slide(from), 0]);
-            from = y;
-        }
-        return list;
-    }
-    /** Room around the cell (dots) for what the pose pushes out of it: the lean at the top, the stretch, the rim. */
-    function padFor(actor, pose) {
-        const lean = Math.abs(pose.lean || 0) * Math.max(actor.h, actor.feet[1]);
-        const stretch = pose.sx ? Math.max(actor.w * Math.abs(pose.sx - 1), actor.feet[1] * Math.abs(pose.sy - 1)) : 0;
-        return 2 + Math.ceil(Math.max(lean, stretch));
+        if (!pose.breath) return [[0, actor.h, 0, 0]];
+        const cut = Math.max(1, actor.feet[1] - Math.round(actor.height * 0.55));
+        return [[0, cut, 0, 1], [cut, actor.h, 0, 0]];
     }
     /** Stamps the bands of one frame from `image` (a sheet, or a one-colour copy of the frame: then frame.x and y are 0), moved
      * by `shift` dots. */
@@ -213,13 +170,12 @@ const stageRoster = (() => {
         const cols = pose.clip === 'attack' ? actor.attackCols : actor.walkCols;
         return { x: (pose.index % cols) * actor.w, y: Math.floor(pose.index / cols) * actor.h };
     }
-    /** The pose on the working surface: the rim (the silhouette a dot out on four sides), the frame, and over it the pale
-     * flash of a hit. Returns the size drawn and the room left around the cell (dots). */
+    /** The pose on the working surface: the rim (the silhouette a dot out on four sides), the frame, over it the dark of a
+     * figure not yet shown (look.shade) and the pale flash of a hit. Returns the size drawn and the room left around the cell (dots). */
     function compose(pair, actor, pose, look) {
-        const pad = padFor(actor, pose), width = actor.w + pad * 2, height = actor.h + pad * 2, ctx = surface(width, height);
-        const fx = pad + actor.feet[0], fy = pad + actor.feet[1], frame = { ...cellOf(actor, pose), w: actor.w, pad, rows: bands(actor, pose) };
+        const pad = PAD, width = actor.w + pad * 2, height = actor.h + pad * 2, ctx = surface(width, height);
+        const frame = { ...cellOf(actor, pose), w: actor.w, pad, rows: bands(actor, pose) };
         const own = { ...frame, x: 0, y: 0 }; // 한 가지 색 프레임은 제 칸만 담은 그림이다
-        if (pose.sx) ctx.setTransform(pose.sx, 0, 0, pose.sy, fx - fx * pose.sx, fy - fy * pose.sy);
         if (look.outline) {
             const rim = tintedFrame(pair, actor, pose, look.outline.color);
             ctx.globalAlpha = look.outline.alpha;
@@ -227,17 +183,21 @@ const stageRoster = (() => {
             ctx.globalAlpha = 1;
         }
         stamp(ctx, pair[pose.clip].source, frame, RIM_NONE);
+        if (look.shade > 0) {
+            ctx.globalAlpha = Math.min(1, look.shade);
+            stamp(ctx, tintedFrame(pair, actor, pose, SHADE), own, RIM_NONE);
+        }
         if (look.flash > 0) {
             ctx.globalAlpha = Math.min(1, Number(look.flash));
             stamp(ctx, tintedFrame(pair, actor, pose, FLASH), own, RIM_NONE);
         }
         return { width, height, pad, canvas: ctx.canvas, fixed: false };
     }
-    /** Only discrete poses recur exactly. Continuous lean, stretch and partial hit flashes keep the live working surface ('').
-     * The rim is told by its colour and strength (all compose reads of it). */
+    /** Only discrete poses recur exactly. Partial hit flashes and the dark figure of an entrance (its rim grows frame by frame)
+     * keep the live working surface (''). The rim is told by its colour and strength (all compose reads of it). */
     function frameKey(actor, pose, look) {
         const flash = look.flash > 0 ? Math.min(1, Number(look.flash)) : 0;
-        if (pose.lean || pose.sx || (flash > 0 && flash < 1)) return '';
+        if (look.shade > 0 || (flash > 0 && flash < 1)) return '';
         const rim = look.outline ? look.outline.color + '@' + look.outline.alpha : '';
         return `${actor.id}|${pose.clip}|${pose.index}|${pose.breath ? 1 : 0}|${rim}|${flash}`;
     }
@@ -274,8 +234,11 @@ const stageRoster = (() => {
         const air = AIRBORNE.includes(actor.gait), rx = Math.round(actor.width * (air ? 0.26 : 0.38)) - Math.min(6, hop || 0);
         stageRings.shadow(ctx, { x: p.x, y: p.y, dot }, Math.max(6, rx), air ? 0.2 : 0.34);
     }
-    /** Draws a roster monster with its feet on (p.x, p.y). p as in monsterActors.draw. False → not in the roster, the stage
-     * is off, or its pictures are missing here. */
+    /** How the figure is dressed this frame: its rim (an entrance's, else the monster's own), the flash of a hit, the dark of an entrance. */
+    const lookOf = (enemy, p) => ({ outline: p.rim || getEnemyOutlineStyle(enemy), flash: p.flash, shade: p.shade || 0 });
+    /** Draws a roster monster with its feet on (p.x, p.y). p as in monsterActors.draw, plus (a boss entrance) p.shade: how dark
+     * the figure is (0 to 1) and p.rim: { color, alpha } its rim meanwhile. False → not in the roster, the stage is off, or its
+     * pictures are missing here. */
     function draw(ctx, enemy, p) {
         tick = performance.now();
         if (sweepAt && tick > sweepAt) sweepLooks();
@@ -284,12 +247,12 @@ const stageRoster = (() => {
         const dot = dotFor(enemy, actor, p);
         if (pair === 'loading') { shadow(ctx, actor, p, dot, 0); return true; }
         const pose = poseOf(enemy, actor, p), hop = pose.hop || 0;
-        const size = picture(pair, actor, pose, { outline: getEnemyOutlineStyle(enemy), flash: p.flash });
+        const size = picture(pair, actor, pose, lookOf(enemy, p));
         shadow(ctx, actor, p, dot, hop);
         noteEnemyDrawnHeight(enemy, actor.height * dot);   // 뛰는 높이는 넣지 않는다: 체력 막대가 걸음마다 따라 튄다
         ctx.save();
         if (stageView.facing(enemy, p.facing) === 'west') { ctx.translate(p.x * 2, 0); ctx.scale(-1, 1); }
-        const left = monsterActors.snap(p.x - (size.pad + actor.feet[0] - (pose.nudge || 0)) * dot), top = monsterActors.snap(p.y - (size.pad + actor.feet[1] + hop) * dot);
+        const left = monsterActors.snap(p.x - (size.pad + actor.feet[0]) * dot), top = monsterActors.snap(p.y - (size.pad + actor.feet[1] + hop) * dot);
         stageDots.blit(ctx, size.canvas, { x: 0, y: 0, w: size.width, h: size.height }, { x: left, y: top, scale: dot }, size.fixed);
         ctx.restore();
         return true;
