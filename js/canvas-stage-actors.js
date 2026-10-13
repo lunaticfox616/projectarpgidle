@@ -16,10 +16,13 @@ const stageActors = (() => {
     const table = () => (typeof STAGE_CHARACTERS === 'object' ? STAGE_CHARACTERS : null);
     const loaded = img => !!img && img.complete && img.naturalWidth > 0;
 
+    /** A web bundle made without the art folder says so in index.html (scripts/build-web.js): there the art is never asked for,
+     * since asking for a file that is not there answers 404 on every page load. Anywhere else (a dev server) one sheet is asked for. */
+    const packed = typeof document !== 'object' || typeof document.querySelector !== 'function' || !document.querySelector('meta[name="stage-art"][content="none"]');
     /** Whether the stage art is on this server at all: one small sheet is asked for once. A build without the art folder
      * keeps the top-down field whatever the setting says (a save can carry the setting from a test build). */
     function available() {
-        if (present || !table()) return present;
+        if (present || !table() || !packed) return present;
         if (!probe) {
             probe = new Image();
             probe.src = table().path + Object.values(table().classes)[0].weapons.unarmed.idle.file;
@@ -260,23 +263,24 @@ const stageActors = (() => {
 })();
 
 const sides = new WeakMap();
-/** A local test page opened with ?stage=1 (the launcher's stage entry) starts on the stage without touching the save.
- * Only the leading 1 counts: a link pasted into a sentence can drag what followed it into the value ("1)에서"), and the page
- * then opened as the plain top-down game with no room maps at all (2026-10-13). */
+/** A local test page opened with ?stage=1 (the launcher's stage entry): a test window that keeps its own local save and
+ * never uses the cloud save (stageView.trial). The stage itself no longer needs the flag (see stageView.wanted).
+ * Only the leading 1 counts: a link pasted into a sentence can drag what followed it into the value ("1)에서"). */
 const stageByAddress = typeof location === 'object' && ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname)
     && /^1(?!\d)/.test(new URLSearchParams(location.search).get('stage') || '');
 /** The side-view stage (data/stage-view.js): whether the battlefield is drawn that way, and the numbers that follow from it. */
 const stageView = Object.freeze({
-    /** settings.battleView 'stage' turns it on and 'top' turns it off; with neither, the address decides. The art must be there. */
+    /** The stage is the game's own battlefield (2026-10-13 사용자: "이제 새로 만든 전투방식 (방 탐색) 을 제대로 사용하도록 해줘").
+     * settings.battleView 'top' (test panel) goes back to the top-down field. The art must be there (enabled). */
     wanted() {
         const choice = typeof game === 'object' && game.settings ? game.settings.battleView : '';
-        return choice === 'stage' || (stageByAddress && choice !== 'top');
+        return choice !== 'top';
     },
     enabled: () => stageView.wanted() && stageActors.available(),
-    /** 무대 시험판으로 연 창인가(주소에 stage=1). 방 단위 지도는 이 창에서만 만들고, 이 창은 클라우드 저장을 쓰지 않는다. */
+    /** 무대 시험판으로 연 창인가(주소에 stage=1): 이 창은 클라우드 저장을 쓰지 않는다(시험하는 판이 계정의 저장을 고쳐 쓰지 않게). */
     trial: () => stageByAddress,
-    /** 새 탐험을 방 단위 지도로 여는가(js/act-exploration-doors.js): 시험판 창에서 무대가 켜져 있고 테스트 패널에서 끄지 않았을 때. */
-    rooms: () => stageByAddress && stageView.enabled() && !!game.settings && game.settings.stageRooms !== 'off',
+    /** 새 탐험을 방 단위 지도로 여는가(js/act-exploration-doors.js): 무대가 켜져 있고 테스트 패널에서 끄지 않았을 때. */
+    rooms: () => stageView.enabled() && !!game.settings && game.settings.stageRooms !== 'off',
     /** 방을 배경 그림으로 그리는가(js/canvas-stage-backdrop.js): 테스트 패널에서 끄면 벽돌 뒷벽으로 돌아간다. */
     backdrops: () => typeof game === 'object' && !!game.settings && game.settings.stageBackdrop !== 'off',
     /** Screen height of one depth cell ÷ its width: STAGE_VIEW.depth on the stage, 1 on the top-down field. */
@@ -298,6 +302,6 @@ const stageView = Object.freeze({
         return sides.get(unit) || 'west';
     }
 });
-// 시험판 창은 그림이 있는지 미리 물어 둔다: 첫 탐험을 열 때(방 단위 지도를 고를 때) 이미 답이 와 있도록.
-if (stageByAddress) stageActors.available();
+// 그림이 있는지 미리 물어 둔다: 첫 탐험을 열 때(방 단위 지도를 고를 때) 이미 답이 와 있도록.
+stageActors.available();
 safeExposeGlobals({ stageActors, stageView });

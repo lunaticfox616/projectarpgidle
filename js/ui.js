@@ -11266,7 +11266,7 @@ function getCloudConfig() {
     let supabaseUrl = String(raw.supabaseUrl || '').trim().replace(/\/+$/, '');
     let supabaseAnonKey = String(raw.supabaseAnonKey || '').trim();
     let enabled = raw.enabled !== false && !!supabaseUrl && !!supabaseAnonKey;
-    // 무대 시험판 창(주소에 stage=1, 로컬 전용)은 방 단위 지도처럼 다른 판이 읽지 못하는 탐험을 저장하므로 클라우드 저장을 쓰지 않는다.
+    // 무대 시험판 창(주소에 stage=1, 로컬 전용)은 클라우드 저장을 쓰지 않는다: 시험하는 판이 계정의 저장을 고쳐 쓰지 않게.
     if (typeof stageView === 'object' && stageView.trial()) enabled = false;
     return { enabled, supabaseUrl, supabaseAnonKey };
 }

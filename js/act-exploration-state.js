@@ -397,6 +397,7 @@ const actExplorationState = (() => {
      * The save boundary (mergeDefaults) calls this before it validates the run. */
     function dropRetired(state) {
         const run=state.actExploration;
+        actExplorationRooms.unseal(run);
         if(!run || !(retired(run) || strayInRooms(state,run)))return false;
         actExplorationLoot.restore(state,run);
         actExplorationState.groundLoot.settleOnLoad(state,run);

@@ -120,6 +120,7 @@ function refreshItemIdCounter() {
 function createSaveSnapshot(sourceGame) {
     let snapshot = JSON.parse(JSON.stringify(sourceGame || game || {}));
     snapshot.craftingWorkspace = craftingWorkspaceState.normalize(snapshot.craftingWorkspace, snapshot.currencies);
+    snapshot.actExploration = actExplorationRooms.seal(snapshot.actExploration);
     delete snapshot.talentCardRuntime;
     if (!snapshot.saveMeta || typeof snapshot.saveMeta !== 'object') snapshot.saveMeta = {};
     return snapshot;
@@ -131,6 +132,7 @@ function serializeSaveState(sourceGame) {
     let root = sourceGame || game || {};
     let serializable = root && typeof root === 'object' ? { ...root } : {};
     serializable.craftingWorkspace = craftingWorkspaceState.normalize(root.craftingWorkspace, root.currencies);
+    serializable.actExploration = actExplorationRooms.seal(root.actExploration);   // 방 단위 탐험: 앞선 판이 탐험만 버리고 읽는 모양으로
     delete serializable.talentCardRuntime;
     return JSON.stringify(serializable);
 }

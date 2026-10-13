@@ -214,6 +214,20 @@ const actExplorationRooms = (() => {
         if (!memo.has(key)) memo.set(key, tourFirst(map.far, here, list, end));
         return memo.get(key);
     }
-    return Object.freeze({ forRun: stageLayout, key: roomPlanKey, supports: key => !!readRoomKey(key), roomAt, doorAt, waypoint, steps, tourNext });
+    /** 방 단위 탐험을 저장에 적을 때의 봉인. 방을 모르는 앞선 판은 이 탐험을 불러오면 "탐험 저장의 발견 지도가 잘못되었습니다"로 저장
+     * 전체를 손상으로 본다(2026-10-13에 main 51219952의 코드로 불러 보아 확인). 그 판들이 아는 규칙(지금 그리지 않는 생성 지도는 탐험만
+     * 버리고 전리품은 지킨다: dropRetired)에 걸리도록, 저장에 적는 사본의 source를 그 판이 모르는 모양으로 감싼다. 원래 탐험은 그대로다. */
+    const SEALED_STYLE = 'rooms';
+    function roomSeal(run) {
+        return run && run.rooms ? { ...run, source: { style: SEALED_STYLE, of: run.source || null } } : run;
+    }
+    /** 불러온 탐험의 봉인을 푼다(js/act-exploration-state.js dropRetired가 맨 먼저 부른다). */
+    function roomUnseal(run) {
+        if (!run || !run.source || run.source.style !== SEALED_STYLE) return;
+        if (run.source.of) run.source = run.source.of;
+        else delete run.source;
+    }
+    return Object.freeze({ forRun: stageLayout, key: roomPlanKey, supports: key => !!readRoomKey(key), roomAt, doorAt, waypoint, steps, tourNext,
+        seal: roomSeal, unseal: roomUnseal });
 })();
 safeExposeGlobals({ actExplorationRooms });
