@@ -14,7 +14,8 @@ const messageFrames = (() => {
     const COLLAPSED_HEIGHT = 34;
     const DRAG_OUT_PX = 24;
     const DEFAULT_WIDTH = 300;
-    const DEFAULT_HEIGHT = 420;
+    // Recent messages stay visible without covering the whole right side of the fight; saved user sizes take precedence.
+    const DEFAULT_HEIGHT = 240;
     const GAP = 10;
     // 처음 자리의 위끝은 오른쪽 위 귀환(지역 줄)과 그 아래 목표 단추(css/themes/rift-stage.css, 아래 끝 약 96px) 밑이다.
     // 둘이 오른쪽 끝으로 옮겨 오며(2026-10-07) 작은 화면(높이 720)에서 기록 창이 목표 단추를 덮었다.
@@ -22,6 +23,8 @@ const messageFrames = (() => {
     // 크기 조절 테두리: 오른쪽 아래 모서리(보이는 손잡이) 말고도 위, 아래, 양옆과 나머지 세 모서리.
     const EDGES = Object.freeze(['n', 's', 'e', 'w', 'nw', 'ne', 'sw']);
     const homes = new Map();
+    // Last applied bounds, including clamping. Default placement stays responsive without persisting it as a custom layout.
+    const placedRects = { main: null, side: null };
     let state = readFrameState();
     let env = null;
     let mounted = false;
@@ -135,6 +138,7 @@ const messageFrames = (() => {
 
     function applyRect(frame, rect) {
         const el = frameEl(frame), folded = state.collapsed[frame];
+        placedRects[frame] = { ...rect };
         el.style.left = `${rect.x}px`;
         el.style.top = `${folded ? rect.y + rect.height - COLLAPSED_HEIGHT : rect.y}px`;
         el.style.width = `${rect.width}px`;
@@ -408,7 +412,9 @@ const messageFrames = (() => {
     window.addEventListener('resize', () => { stageBox = null; });
     function frameCoversHero(frame, at) {
         if (frame === 'side' && !state.split) return false;
-        const rect = rectFor(frame), scale = frameScale(), top = state.collapsed[frame] ? rect.y + rect.height - COLLAPSED_HEIGHT : rect.y;
+        const rect = placedRects[frame];
+        if (!rect) return false;
+        const scale = frameScale(), top = state.collapsed[frame] ? rect.y + rect.height - COLLAPSED_HEIGHT : rect.y;
         return at.x + HERO_HALF > rect.x * scale && at.x - HERO_HALF < (rect.x + rect.width) * scale && at.y > top * scale && at.top < (rect.y + rect.height) * scale;
     }
     function fadeFramesOverHero(x, y, top) {
@@ -427,8 +433,12 @@ const messageFrames = (() => {
 
     /** 창 하나가 전장에서 차지하는 상자(전장의 px). 보이지 않거나 접혔거나 주인공 때문에 옅어진 창이면 null. */
     function frameBoxOnStage(frame) {
-        if ((frame === 'side' && !state.split) || state.collapsed[frame] || faded[frame]) return null;
-        const rect = rectFor(frame), k = frameScale() / stageBox.scale, dx = stageBox.left / stageBox.scale, dy = stageBox.top / stageBox.scale;
+        if ((frame === 'side' && !state.split) || state.collapsed[frame]) return null;
+        // Reading the frame restores its opacity in CSS, so its edge still blocks the door marker.
+        if (faded[frame] && !frameEl(frame).matches(':hover, :focus-within')) return null;
+        const rect = placedRects[frame];
+        if (!rect) return null;
+        const k = frameScale() / stageBox.scale, dx = stageBox.left / stageBox.scale, dy = stageBox.top / stageBox.scale;
         return { left: rect.x * k - dx, right: (rect.x + rect.width) * k - dx, top: rect.y * k - dy, bottom: (rect.y + rect.height) * k - dy };
     }
     /** 전장의 높이 y에서 오른쪽 끝부터 창에 가려진 구간의 왼쪽 끝(전장의 px): 가려지지 않았으면 width 그대로. 오른쪽 끝에 붙은 창과

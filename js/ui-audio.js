@@ -12,7 +12,27 @@
 
     function permitted() {
         return typeof game !== 'undefined' && game.settings?.uiSounds !== false &&
-            !document.hidden && !game.isBackgroundCalculation;
+            game.settings?.soundVolume !== 0 && !document.hidden && !game.isBackgroundCalculation;
+    }
+
+    function masterLevel() {
+        return .55 * (game.settings.soundVolume ?? 100) / 100;
+    }
+
+    function updateMasterGain() {
+        if (!master) return;
+        master.gain.cancelScheduledValues(context.currentTime);
+        master.gain.setTargetAtTime(permitted() ? masterLevel() : 0, context.currentTime, .015);
+    }
+
+    function syncVolumeControl() {
+        const slider = document.getElementById('range-sound-volume');
+        if (!slider) return;
+        const volume = game.settings.soundVolume ?? 100;
+        slider.value = volume;
+        slider.setAttribute('aria-valuetext', `${volume}%`);
+        document.getElementById('sound-volume-value').value = `${volume}%`;
+        document.getElementById('btn-sound-preview').disabled = !permitted();
     }
 
     function failure(label, error) {
@@ -49,14 +69,14 @@
         try {
             if (!context) {
                 context = new AudioCtx();
-                master = context.createGain(); master.gain.value = .55;
+                master = context.createGain(); master.gain.value = masterLevel();
                 const compressor = context.createDynamicsCompressor();
                 compressor.threshold.value = -16; compressor.knee.value = 12;
                 compressor.ratio.value = 4; compressor.attack.value = .003; compressor.release.value = .12;
                 master.connect(compressor); compressor.connect(context.destination);
                 void loadBank();
             }
-            master.gain.value = .55;
+            updateMasterGain();
             if (context.state !== 'suspended' || resuming) return;
             resuming = true;
             context.resume().catch(error => failure('resume failed', error)).finally(() => { resuming = false; });
@@ -168,19 +188,31 @@
         if (major) playUiFeedbackSound('lootMajor');
     }
 
-    // Settings UI owns the saved flag; audio only mirrors it and stops ongoing voices.
+    // Mute preserves the chosen level; a zero level also stops all ongoing voices.
     playUiFeedbackSound.syncSettings = () => {
-        if (master) master.gain.value = permitted() ? .55 : 0;
-        if (!permitted()) silence();
+        if (!permitted()) { updateMasterGain(); silence(); }
         else unlock();
+        syncVolumeControl();
     };
+    document.addEventListener('input', event => {
+        if (event.target.id !== 'range-sound-volume') return;
+        game.settings.soundVolume = event.target.valueAsNumber;
+        playUiFeedbackSound.syncSettings();
+    });
+    document.addEventListener('change', event => {
+        if (event.target.id === 'range-sound-volume') saveGame({ skipCloudSync: true });
+    });
+    document.addEventListener('click', event => {
+        if (event.target.id === 'btn-sound-preview') playUiFeedbackSound('confirm');
+    });
+    window.addEventListener('project-idle:startup-visibility', syncVolumeControl);
     document.addEventListener('pointerdown', unlock, {passive:true});
     document.addEventListener('keydown', unlock);
     window.addEventListener('project-idle:encounter-finished', event => {
         if (!event.detail?.background) playUiFeedbackSound('stageClear');
     });
     document.addEventListener('visibilitychange', () => {
-        if (master) master.gain.value = permitted() ? .55 : 0;
+        updateMasterGain();
         if (document.hidden) silence();
     });
     safeExposeGlobals({playUiFeedbackSound, playLootDropSound});

@@ -1696,7 +1696,7 @@ function drawDamageImpactAccent(ctx, fx, t, enemyPosMap, playerPos) {
 }
 
 // 레벨업: 발밑 고리 + 금빛 기둥 + 떠오르는 레벨 글자. 지속 시간과 호출 시점은 전투 쪽 fx가 소유한다.
-function drawLevelUpFx(ctx, fx, t, playerPos) {
+function drawLevelUpFx(ctx, fx, t, playerPos, now) {
     const fade = t < 0.4 ? 1 : Math.max(0, (1 - t) / 0.6);
     const cx = playerPos.x, footY = playerPos.y + 2;
     ctx.save();
@@ -1718,7 +1718,9 @@ function drawLevelUpFx(ctx, fx, t, playerPos) {
     const radius = worldTreeSkillFx.feedback.reduced() ? 24 : 18 + t * 25;
     ctx.ellipse(cx, footY, radius, radius * 0.36, 0, 0, Math.PI * 2);
     ctx.stroke();
-    drawLevelUpLabel(ctx, fx, { x: cx, y: playerPos.y - 62, alpha: fade });
+    // The stage hero changes size with the viewport. Keep the label above its head and health bar, not on its torso.
+    const head = getHeroHeadY(now) ?? playerPos.y - 82 * HERO_SIZE_SCALE;
+    drawLevelUpLabel(ctx, fx, { x: cx, y: Math.max(26, head - 28), alpha: fade });
     ctx.restore();
 }
 
@@ -2739,7 +2741,7 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
         } else if (fx.type === 'hit') {
             drawLegacyHitFeedback(ctx, fx, t, playerPos, enemyPosMap);
         } else if (fx.type === 'levelUp') {
-            drawLevelUpFx(ctx, fx, t, playerPos);
+            drawLevelUpFx(ctx, fx, t, playerPos, now);
         } else if (fx.type === 'objectReward') {
             worldTreeSkillFx.feedback.object(ctx, fx, t, gridProj);
         } else if (fx.type === 'playerHit') {

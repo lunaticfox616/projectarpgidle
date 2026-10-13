@@ -8873,7 +8873,7 @@ const receiveFloorItem = {
  * drop was laid there; elsewhere the caller grants it at once. */
 function placeFloorItem(enemy, kind, item, overflow) {
     const run = explorationFloorFor(enemy);
-    if (!run) return false;
+    if (!run || (kind === 'jewel' && bagItems.salvagedOnDrop(item))) return false; // 자동해체될 주얼은 바닥에 놓지 않고 바로 해체한다(장비와 같다)
     actExplorationState.groundLoot.placeItem(run, enemy, kind, item, overflow);
     return true;
 }
@@ -11518,7 +11518,7 @@ function handlePlayerDefeat(zone, pStats, message, options) {
     }
     game.lastDeathLog = buildPlayerDeathLog(zone, opts, expLost, pStats);
     if (game.lastDeathLog.retreatZoneName) addLog(`🛡️ ${withDirectionParticle(game.lastDeathLog.retreatZoneName)} 물러나 레벨을 ${ACT_RETREAT_LEVELS} 올린 뒤 다시 도전합니다.`, 'season-up');
-    if (game.settings.showDeathNotice !== false) openDeathOverlay(game.lastDeathLog);
+    if (game.settings.showDeathNotice !== false) openDeathOverlay.request(game.lastDeathLog);
     game.playerHp = getPlayerHpCap(pStats);
     atlasRun.defeat(zone);
     startMoving(false);

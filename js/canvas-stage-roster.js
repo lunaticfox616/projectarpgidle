@@ -26,6 +26,9 @@ const stageRoster = (() => {
     const MADE_LEAN = Object.freeze([-0.4, -0.8, 1, 0.5, 0.1]), MADE_LEAN_DOTS = 12;
     const sheets = new Map();
     const scales = new Map();        // 외형 id → 그리는 배율
+    const FRAME_PIXELS = 2 * 1024 * 1024; // Immutable composed poses: at most 8 MB of RGBA and 64 entries.
+    const frames = [];
+    let framePixels = 0;
     let clock = 0, work = null;
 
     const table = () => (typeof MONSTER_STAGE_ROSTER === 'object' ? MONSTER_STAGE_ROSTER : null);
@@ -58,6 +61,7 @@ const stageRoster = (() => {
             const pair = sheets.get(oldest);
             pair.walk.src = '';
             if (pair.attack) pair.attack.src = '';
+            for (let index = frames.length - 1; index >= 0; index--) if (frames[index].pair === pair) releaseFrame(index);
             sheets.delete(oldest);
         }
     }
@@ -203,7 +207,41 @@ const stageRoster = (() => {
             ctx.globalAlpha = Math.min(1, Number(look.flash));
             stamp(ctx, tint(pair, pose.clip, FLASH), frame, RIM_NONE);
         }
-        return { width, height, pad };
+        return { width, height, pad, canvas: ctx.canvas, fixed: false };
+    }
+    /** Only discrete poses recur exactly. Continuous lean, stretch and partial hit flashes keep the live working surface. */
+    function frameKey(actor, pose, look) {
+        const flash = look.flash > 0 ? Math.min(1, Number(look.flash)) : 0;
+        if (pose.lean || pose.sx || (flash > 0 && flash < 1)) return null;
+        return JSON.stringify([actor.id, pose.clip, pose.index, !!pose.breath, look.outline, flash]);
+    }
+    function releaseFrame(index) {
+        const old = frames.splice(index, 1)[0];
+        framePixels -= old.pixels;
+        old.picture.canvas.width = old.picture.canvas.height = 1;
+    }
+    /** Keep an immutable copy, never cache the shared mutable work canvas. Position, mirroring, alpha and scaling remain live. */
+    function picture(pair, actor, pose, look) {
+        const key = frameKey(actor, pose, look);
+        if (!key) return compose(pair, actor, pose, look);
+        const index = frames.findIndex(frame => frame.pair === pair && frame.key === key);
+        if (index >= 0) {
+            const frame = frames.splice(index, 1)[0];
+            frames.push(frame);
+            return frame.picture;
+        }
+        const size = compose(pair, actor, pose, look), pixels = size.width * size.height;
+        if (pixels > FRAME_PIXELS) return size;
+        while (frames.length >= 64 || framePixels + pixels > FRAME_PIXELS) {
+            releaseFrame(0);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = size.width; canvas.height = size.height;
+        canvas.getContext('2d').drawImage(size.canvas, 0, 0, size.width, size.height, 0, 0, size.width, size.height);
+        const result = { ...size, canvas, fixed: true };
+        frames.push({ pair, key, pixels, picture: result });
+        framePixels += pixels;
+        return result;
     }
     /** One dot of the art on screen: the character's dot size, eased in while the monster appears (a boss is not enlarged:
      * the art is already drawn at its size). */
@@ -230,13 +268,13 @@ const stageRoster = (() => {
         const dot = dotFor(enemy, actor, p);
         if (pair === 'loading') { shadow(ctx, actor, p, dot, 0); return true; }
         const pose = poseOf(enemy, actor, p), hop = pose.hop || 0;
-        const size = compose(pair, actor, pose, { outline: getEnemyOutlineStyle(enemy), flash: p.flash });
+        const size = picture(pair, actor, pose, { outline: getEnemyOutlineStyle(enemy), flash: p.flash });
         shadow(ctx, actor, p, dot, hop);
         noteEnemyDrawnHeight(enemy, actor.height * dot);   // 뛰는 높이는 넣지 않는다: 체력 막대가 걸음마다 따라 튄다
         ctx.save();
         if (stageView.facing(enemy, p.facing) === 'west') { ctx.translate(p.x * 2, 0); ctx.scale(-1, 1); }
         const left = monsterActors.snap(p.x - (size.pad + actor.feet[0] - (pose.nudge || 0)) * dot), top = monsterActors.snap(p.y - (size.pad + actor.feet[1] + hop) * dot);
-        stageDots.blit(ctx, work, { x: 0, y: 0, w: size.width, h: size.height }, { x: left, y: top, scale: dot });
+        stageDots.blit(ctx, size.canvas, { x: 0, y: 0, w: size.width, h: size.height }, { x: left, y: top, scale: dot }, size.fixed);
         ctx.restore();
         return true;
     }

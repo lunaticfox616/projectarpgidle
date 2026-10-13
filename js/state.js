@@ -2295,6 +2295,7 @@ const defaultGame = {
         cameraShake: true,
         hitEmphasis: 'normal', // normal | mild; presentation only
         uiSounds: true,
+        soundVolume: 100, // 0..100 percent of the existing sound mix; independent of mute
         showCombatLog: true,
         showDetailedDamageLog: false,
         combatLogAggregate: true,

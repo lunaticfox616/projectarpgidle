@@ -10,14 +10,19 @@ test('real worker update preserves saves and exact cached script versions offlin
     await page.evaluate(async()=>{
         game=mergeDefaults({level:12,heroSelectionInitialized:true,playerHp:100,saveMeta:{lastModifiedAt:Date.now()}});
         persistLocalSave();
+        game.level=13;
         const old=await caches.open('project-arpg-runtime-v0');
         await old.put('/obsolete',new Response('old'));
         await navigator.serviceWorker.register('/service-worker.js?verification=2',{updateViaCache:'none'});
     });
-    // Updating the worker reloads the app itself; an extra reload races controllerchange.
-    await page.waitForFunction(previous => performance.timeOrigin !== previous
-        && typeof game !== 'undefined' && game.level === 12, originalDocument);
+    await page.waitForFunction(()=>navigator.serviceWorker.controller?.scriptURL.endsWith('?verification=2'));
+    expect(await page.evaluate(()=>performance.timeOrigin)).toBe(originalDocument);
+    expect(await page.evaluate(()=>game.level)).toBe(13);
+    expect(await page.evaluate(()=>JSON.parse(localStorage.getItem(LOCAL_SAVE_KEY)).level)).toBe(12);
     await page.waitForFunction(async()=>!(await caches.keys()).includes('project-arpg-runtime-v0'));
+    // Choosing to reload is separate from installing a worker; save the live session first.
+    expect(await page.evaluate(()=>saveGame({skipCloudSync:true}))).toBe(true);
+    await page.reload();
     await page.waitForFunction(async()=>{
         const registration=await navigator.serviceWorker.getRegistration();
         const expected=new URL('/service-worker.js',location.href).href;
@@ -34,7 +39,7 @@ test('real worker update preserves saves and exact cached script versions offlin
     const navigation=page.waitForEvent('framenavigated',{predicate:frame=>frame===page.mainFrame()});
     await page.evaluate(()=>location.reload());
     await navigation;
-    await page.waitForFunction(previous=>performance.timeOrigin!==previous && typeof mergeDefaults==='function' && game.level===12,previousDocument);
+    await page.waitForFunction(previous=>performance.timeOrigin!==previous && typeof mergeDefaults==='function' && game.level===13,previousDocument);
     expect(await page.evaluate(()=>Number.isFinite(game.combatTimeMs))).toBe(true);
     expect(await page.evaluate(()=>typeof getCombatTime)).toBe('function');
     await context.setOffline(false);

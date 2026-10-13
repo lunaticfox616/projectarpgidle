@@ -40,7 +40,7 @@ const emberCorruptionUi = (() => {
     function burnAway(item) {
         const name = item.name, growth = emberCorruption.ashGrowth(item), jewels = destroySelectedCraftItem(item);
         const fed = typeof stumpBox === 'object' ? stumpBox.feedAsh(game, growth) : null;
-        const parts = [`🔥 [${name}] 타서 재가 되었습니다.`, jewels ? `끼운 주얼 ${jewels}개는 주얼 보관함으로 돌아왔습니다.` : '',
+        const parts = [`🔥 [${name}] 타서 재가 되었습니다.`, jewels ? `끼운 주얼 ${jewels}개는 가방으로 돌아왔습니다.` : '',
             fed ? `재가 그루터기 함 거름이 되었습니다(자라는 ${fed.fed}개 +${fed.growth}).` : ''];
         addLog(parts.filter(Boolean).join(' '), 'attack-monster', { toast: true });
     }

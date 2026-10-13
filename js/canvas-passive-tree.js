@@ -955,8 +955,7 @@ function renderEquipmentInventoryInspector(rows) {
     let flags = [presetProtected ? '세팅 보호' : '', item.locked ? '잠금' : ''].filter(Boolean).join(', ');
     // 선택한 장비(2026-10-10 개편, js/equipment-window-ui.js): 그림과 이름, 지금 장착, 바꾸면 증감표, 단추, 툴팁.
     let html = equipmentWindowUi.inspectorHtml(item, slot, renderEquipmentInspectorActions(item, slot, presetProtected), flags);
-    if (root.__lastHtml !== html) root.innerHTML = root.__lastHtml = html;
-    equipmentInspectionUi.render(root, item, slot);
+    equipmentInspectionUi.render(root, item, slot, html);
     equipmentInventoryInteraction.positionInspector();
 }
 

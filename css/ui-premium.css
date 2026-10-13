@@ -415,6 +415,15 @@
 .cfg-sound-state::after { content: "꺼짐"; }
 .cfg-sound-switch input:checked + .cfg-sound-state { color: var(--color-accent-gold); }
 .cfg-sound-switch input:checked + .cfg-sound-state::after { content: "켜짐"; }
+.cfg-sound-volume { display: flex; align-items: center; gap: 10px; padding: 6px 10px; }
+.cfg-sound-volume label { flex-shrink: 0; color: var(--color-text-secondary); font-size: 13px; }
+.cfg-sound-volume input[type="range"] { flex: 1; min-width: 40px; width: 100%; min-height: 32px; margin: 0; accent-color: var(--color-accent-gold); cursor: pointer; }
+.cfg-sound-volume output { min-width: 4ch; color: var(--color-text); font-variant-numeric: tabular-nums; text-align: right; }
+.cfg-sound-volume .cfg-btn { flex-shrink: 0; min-height: 36px; white-space: nowrap; }
+@media (max-width: 768px) {
+  .cfg-sound-volume { flex-wrap: wrap; }
+  .cfg-sound-volume input[type="range"], .cfg-sound-volume .cfg-btn { min-height: 44px; }
+}
 @media (prefers-reduced-motion: reduce) {
   .cfg-sound-switch input[type="checkbox"], .cfg-sound-switch input[type="checkbox"]::before { transition: none; }
 }

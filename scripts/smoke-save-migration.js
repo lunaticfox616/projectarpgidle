@@ -7,7 +7,6 @@
 //
 // 게임 전체를 vm에 올리는 로더는 scripts/lib/game-runtime.js가 소유한다.
 const assert = require('assert');
-const fs = require('fs');
 const vm = require('vm');
 const { buildGameRuntime } = require('./lib/game-runtime');
 
@@ -15,6 +14,17 @@ const ctx = buildGameRuntime();
 assert.strictEqual(typeof ctx.mergeDefaults, 'function', 'mergeDefaults를 불러오지 못했다');
 
 const merge = save => ctx.mergeDefaults(JSON.parse(JSON.stringify(save)));
+
+// Sound level is a percentage of the previous mix, independent of the mute switch.
+{
+    assert.strictEqual(merge({settings: {uiSounds: false}}).settings.soundVolume, 100);
+    for (const [input, expected] of [[0, 0], [35, 35], [-10, 0], [150, 100], ['bad', 100]]) {
+        const loaded = merge({level: 12, settings: {uiSounds: false, soundVolume: input}});
+        assert.strictEqual(loaded.settings.soundVolume, expected);
+        assert.strictEqual(loaded.settings.uiSounds, false);
+        assert.strictEqual(loaded.level, 12);
+    }
+}
 
 // ── 새 게임 ──────────────────────────────────────────────────────────────
 {
@@ -225,10 +235,53 @@ const merge = save => ctx.mergeDefaults(JSON.parse(JSON.stringify(save)));
         level: 'abc', season: null, playerHp: NaN,
         inventory: 'not-an-array', equipment: null, currencies: [], unlocks: 42, settings: 'x'
     }), '타입이 망가진 저장은 예외로 알려야 한다(손상 저장 처리 경로가 받는다)');
-    const save = fs.readFileSync('js/save.js', 'utf8');
-    assert.ok(/catch\s*\([^)]*\)\s*\{[\s\S]{0,400}preserveCorruptLocalSave/.test(save),
-        '손상 저장은 백업을 남겨야 한다');
-    assert.ok(/setLocalSaveRuntimeState\('corrupt'/.test(save), '손상 상태를 기록해 자동 저장을 멈춰야 한다');
+}
+
+// A temporary storage write failure can be retried by the player, without bypassing
+// corruption, unread saves, or an unfinished background settlement.
+{
+    const runtime = buildGameRuntime(), storage = new Map();
+    const key = vm.runInContext('LOCAL_SAVE_KEY', runtime);
+    let full = false, unreadable = false;
+    runtime.localStorage = {
+        getItem: key => { if (unreadable) throw new Error('storage denied'); return storage.get(key) || null; },
+        setItem: (key, value) => { if (full) throw Object.assign(new Error('quota'), { name: 'QuotaExceededError' }); storage.set(key, value); },
+        removeItem: key => storage.delete(key)
+    };
+    runtime.loadGame();
+    vm.runInContext('game.level = 12;', runtime);
+    assert.strictEqual(runtime.saveGame({ skipCloudSync: true }), true);
+    const before = storage.get(key);
+    vm.runInContext('game.level = 13;', runtime);
+    full = true;
+    assert.strictEqual(runtime.saveGame({ skipCloudSync: true }), false);
+    assert.strictEqual(storage.get(key), before, 'failed write must keep the last save');
+    full = false;
+    assert.strictEqual(runtime.saveGame({ skipCloudSync: true }), false, 'auto save must not loop through recovery writes');
+    for (const field of ['processing', 'failed']) {
+        vm.runInContext(`backgroundCombatRuntime.${field} = true;`, runtime);
+        assert.strictEqual(runtime.saveGame({ manual: true, skipCloudSync: true }), false, 'manual retry must respect settlement protection');
+        assert.strictEqual(storage.get(key), before);
+        vm.runInContext(`backgroundCombatRuntime.${field} = false;`, runtime);
+    }
+    assert.strictEqual(runtime.saveGame({ manual: true, skipCloudSync: true }), true, 'manual save must retry a resolved write failure');
+    assert.strictEqual(runtime.getLocalSaveStatus().writable, true);
+    assert.strictEqual(JSON.parse(storage.get(key)).level, 13, 'recovery must save the live game, not reload old progress');
+    vm.runInContext('game.level = 14;', runtime);
+    assert.strictEqual(runtime.saveGame({ skipCloudSync: true }), true, 'auto save must resume after successful recovery');
+    assert.strictEqual(JSON.parse(storage.get(key)).level, 14);
+
+    storage.set(key, '{invalid save');
+    runtime.loadGame();
+    assert.strictEqual(runtime.getLocalSaveStatus().status, 'corrupt');
+    assert.strictEqual(storage.get(runtime.getLocalSaveStatus().backupKey), '{invalid save', 'corrupt data must have a recoverable copy');
+    assert.strictEqual(runtime.saveGame({ manual: true, skipCloudSync: true }), false, 'manual retry must never overwrite a corrupt save with defaults');
+    assert.strictEqual(storage.get(key), '{invalid save');
+    unreadable = true;
+    runtime.loadGame();
+    assert.strictEqual(runtime.getLocalSaveStatus().status, 'unavailable');
+    assert.strictEqual(runtime.saveGame({ manual: true, skipCloudSync: true }), false, 'an unread save must remain protected');
+    assert.strictEqual(storage.get(key), '{invalid save');
 }
 
 // An explicit account reset marker survives reloads; old/invalid metadata cannot become a reset.

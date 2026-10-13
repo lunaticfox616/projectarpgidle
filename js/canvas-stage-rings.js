@@ -29,19 +29,30 @@ const stageRings = (() => {
         outlines.set(key, dots);
         return dots;
     }
-    /** 납작한 도트 타원을 한 줄씩 채운다. */
+    /** 한 줄씩 만든 도트 타원 윤곽을 한 번에 채운다. 사망 필터를 줄마다 반복 적용하지 않고,
+     * 반 도트 배율에서 맞닿은 줄의 경계가 반투명 빗금처럼 겹치지 않게 한다. 호출자의 현재 경로는 보존한다. */
     function fillEllipse(ctx, at, rx, ry) {
+        const path = new Path2D();
         for (let row = -ry; row <= ry; row++) {
             const half = Math.round(rx * Math.sqrt(Math.max(0, 1 - (row * row) / (ry * ry + 0.01))));
-            ctx.fillRect(at.x - half * at.dot, at.y + row * at.dot, half * 2 * at.dot, at.dot);
+            path.rect(at.x - half * at.dot, at.y + row * at.dot, half * 2 * at.dot, at.dot);
         }
+        ctx.fill(path);
     }
     /** 발밑 그림자. at = { x, y(발끝), dot } */
     function shadow(ctx, at, rx, alpha) {
+        const centre = { x: Math.round(at.x), y: Math.round(at.y - LIFT * at.dot), dot: at.dot };
+        const ry = Math.max(2, Math.round(rx * 0.27));
         ctx.save();
         ctx.globalAlpha *= alpha;
         ctx.fillStyle = '#080605';
-        fillEllipse(ctx, { x: Math.round(at.x), y: Math.round(at.y - LIFT * at.dot), dot: at.dot }, rx, Math.max(2, Math.round(rx * 0.27)));
+        // Death colours also cover the ground shadow. Keep that filter pass local, without clipping its antialiased edge.
+        if (stageDots.colorFilterOnly(ctx)) {
+            const bounds = new Path2D();
+            bounds.rect(centre.x - rx * at.dot - 1, centre.y - ry * at.dot - 1, rx * at.dot * 2 + 2, (ry * 2 + 1) * at.dot + 2);
+            ctx.clip(bounds);
+        }
+        fillEllipse(ctx, centre, rx, ry);
         ctx.restore();
     }
     /**
