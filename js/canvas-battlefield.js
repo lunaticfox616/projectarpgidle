@@ -2328,15 +2328,16 @@ function drawEnemyActorSprite(ctx, entry, state, pose) {
     drawEnemySprite(ctx, enemy, x, y, pose.scale * boss, flash, state.now, entry.moving, state.enemyAttackMotions[enemy.id], facing);
 }
 
-/** This frame's enemy screen positions and their after-image ghosts. On an exploration map an enemy out of the hero's sight gets no
- * ghost, and its one-time combat text (hit numbers, evades, the alert "!") is skipped: a monster running in from the fog stays
- * unseen until it steps into sight (2026-10-09 사용자). */
+/** This frame's enemy screen positions and their after-image ghosts: every living enemy, on the screen or not (hits, projectiles
+ * and chains aim by this list). On an exploration map an enemy out of the hero's sight (entry.seen, js/canvas-battle-draw-list.js)
+ * gets no ghost, and its one-time combat text (hit numbers, evades, the alert "!") is skipped: a monster running in from the fog
+ * stays unseen until it steps into sight (2026-10-09 사용자). */
 const SIGHT_GATED_FX = new Set(['hit', 'enemyEvade', 'statusText']);
 function buildBattleEnemyPosMap(layout, fxList, now) {
     const map = {}, hidden = new Set();
     layout.forEach(entry => {
         map[entry.enemy.id] = entry;
-        if (!actExplorationView.inSight(entry.enemy)) {
+        if (!entry.seen) {
             hidden.add(entry.enemy.id);
             delete battleVisualState.enemyGhostPos[entry.enemy.id];
             return;
@@ -2349,9 +2350,16 @@ function buildBattleEnemyPosMap(layout, fxList, now) {
 
 function drawBattleActorLayer(ctx, enemyEntries, state) {
     state = { ...state, enemyHitRecoil: buildEnemyHitRecoilMap(battleFx, state) };
-    const waiting=getBattleLayout(actExplorationView.waitingEnemies(),0,0,state.gridProj);
-    // 달려오는 몬스터도 시야 안에 들어와야 보인다(actExplorationView.inSight).
-    const seen = (enemyEntries || []).filter(entry => actExplorationView.inSight(entry.enemy));
+    const view = { width: state.width, height: state.height, tile: state.gridProj.tileW };
+    // 서서 기다리는 무리도 그림이 화면에 걸치는 것만 그린다(이어진 지도에서는 발견한 곳의 무리가 모두 온다).
+    const waiting=getBattleLayout(actExplorationView.waitingEnemies(),0,0,state.gridProj).filter(entry => battleDrawList.touchesView(entry, view));
+    // 달려오는 몬스터도 시야 안에 들어와야 보이고(entry.seen), 그 가운데 그림이 화면에 걸치는 것만 그린다(entry.drawn). 화면 밖의 보이는
+    // 몬스터는 보는 쪽만 이어 적는다.
+    const seen = [];
+    for (const entry of enemyEntries || []) {
+        if (entry.drawn) seen.push(entry);
+        else if (entry.seen) battleDrawList.keepFacing(entry, state.playerPos, view.tile);
+    }
     let actors = seen.concat(waiting).map(entry => ({
         kind: 'enemy', id: entry.enemy.id, y: entry.y, entry
     }));
@@ -2549,7 +2557,8 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
     noteStageHeroBehindFrames(playerPos, gridProj);
     if (!battleVisualState.enemySmoothPos) battleVisualState.enemySmoothPos = {};
     const glideFrame = { now, deltaSec, gridProj };
-    let dynamicLayout = layout.map(entry => glideBattleEnemy(entry, glideFrame));
+    // 자리 목록은 모든 적을 담고, 그릴 적은 따로 가른다(js/canvas-battle-draw-list.js: 보이는 적, 그 가운데 그림이 화면에 걸치는 적).
+    let dynamicLayout = battleDrawList.markDrawn(layout.map(entry => glideBattleEnemy(entry, glideFrame)), { width, height, tile: gridProj.tileW });
     let enemyPosMap = buildBattleEnemyPosMap(dynamicLayout, battleFx, now);
     playerMotionState.attackDirection = resolvePlayerAttackDirection(playerPos, currentTargets, enemyPosMap);
     const stageStrikeSide = stageView.enabled() ? resolveStageStrikeSide(now) : null;
@@ -2957,7 +2966,7 @@ function drawBattleLightingAndBars(ctx, scene) {
     bossAttackView.drawMarks(ctx, scene);
     drawBattlePlayerFigure.readability.draw(ctx);
     drawBattlefieldPlayerHealthBar(ctx, scene);
-    drawBattlefieldEnemyHealthBars(ctx, scene.layout.filter(entry => actExplorationView.inSight(entry.enemy)), scene.targets, scene.tileW);
+    drawBattlefieldEnemyHealthBars(ctx, scene.layout.filter(entry => entry.drawn), scene.targets, scene.tileW);
     actTitleCard.draw(ctx, scene.width, scene.height, scene.now);
 }
 

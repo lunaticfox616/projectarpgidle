@@ -82,6 +82,7 @@ actExplorationView.objects=(()=>{
         for(const row of run.objects.entries) {
             if(!actExplorationState.objects.visible(run,row))continue;
             const point=p.cellToScreen(row.gx,row.gy),y=point.y+p.actorGroundOffsetY;
+            if(!nearScreen(point,view,p))continue; // 가 본 다른 방이나 지도 먼 곳의 물건은 그리지 않는다
             const ready=canClick(run,row);
             if(look(row).standing)actors.push({kind:'object',id:row.id,y,point,object:row,ready});
             if(ready&&onScreen(point,view))pending.rows.push({row,point});
@@ -102,6 +103,12 @@ actExplorationView.objects=(()=>{
     }
     function canClick(run,row) {return row.phase==='ready'&&row.kind!=='ambush'&&!run.arrival&&!run.completionApplied&&run.status==='active';}
     function onScreen(point,view) {return point.x>=0&&point.y>=0&&point.x<=view.width&&point.y<=view.height;}
+    /** Whether an object's picture can touch the view ({width, height}): its cell is within DRAW_REACH cells of the screen. */
+    const DRAW_REACH=3;
+    function nearScreen(point,view,p) {
+        const reach=p.tileW*DRAW_REACH;
+        return point.x>=-reach&&point.y>=-reach&&point.x<=view.width+reach&&point.y<=view.height+reach;
+    }
     function syncLayer(run) {
         if(!layer) {
             const wrap=document.getElementById('battlefield-wrap');if(!wrap)return;
@@ -193,14 +200,21 @@ actExplorationView.objects=(()=>{
         const x=4+Math.floor(cycle/60)%8,size=cycle<140||cycle>280?1:2;
         ctx.fillStyle=row.kind==='sealed'?'#f2d6ff':'#fff3c4';ctx.fillRect((x)*scale,3*scale,size*scale,size*scale);
     }
-    /** Floor decals (terrain pass): broken pots and crates, a spent nest, ambush tracks. The fog drawn after covers unseen ones. */
-    function drawGround(ctx,run,p) {
+    /** Where a floor decal is drawn, or null: the object lies on the floor, the player knows its cell and it is near the screen. */
+    function decalPoint(run,row,p,area) {
+        if(look(row).standing||!actExplorationState.objects.visible(run,row))return null;
+        const point=p.cellToScreen(row.gx,row.gy);
+        return nearScreen(point,area,p)?point:null;
+    }
+    /** Floor decals (terrain pass): broken pots and crates, a spent nest, ambush tracks. The fog drawn after covers unseen ones.
+     * area = { width, height } of the view: decals off the screen are skipped. */
+    function drawGround(ctx,run,p,area) {
         if(!run?.objects)return;
         const scale=p.tileW/16,staged=stageObjects.ready();
         for(const row of run.objects.entries) {
-            const {name,standing}=look(row);
-            if(standing||!actExplorationState.objects.visible(run,row))continue;
-            const point=p.cellToScreen(row.gx,row.gy);
+            const point=decalPoint(run,row,p,area);
+            if(!point)continue;
+            const {name}=look(row);
             ctx.globalAlpha=row.kind==='ambush'&&row.phase==='ready'?.75:1;
             if(staged&&stageObjects.draw(ctx,look(row),{x:point.x,y:point.y+p.actorGroundOffsetY,dot:stageActors.scaleFor(p.tileW)}))continue;
             ctx.drawImage(sheet(name),Math.round(point.x-8*scale),Math.round(point.y+p.actorGroundOffsetY-15*scale),16*scale,16*scale);
