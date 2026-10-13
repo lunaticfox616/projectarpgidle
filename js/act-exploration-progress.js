@@ -52,9 +52,9 @@ const actExplorationProgress = (() => {
         swapSummonOutOfHeroTile(from);
         if(run.motion || !explore(run,stats))return;
         actExplorationDoors.cross(run); // 방 단위 무대: 열린 문 칸에 서 있으면 이어진 방으로 옮겨진 뒤 그 방을 본다
-        actExplorationState.discover(run,game.gridPlayer,actExplorationState.sightRadius(stats));
+        actExplorationState.discover(run,game.gridPlayer,stats);
         const opened=actExplorationState.entrance(run);
-        wakeBosses(actExplorationState.engage(game,actExplorationState.notice(run,game.gridPlayer),run.motionTimeMs));
+        wakeBosses(actExplorationState.engage(game,run.motionTimeMs));
         announceAlerted(actExplorationState.wake(game,actExplorationState.alerted(game)));
         const entrance=watchEntrance(run,opened);
         const cleared=run.packs.filter(pack=>pack.aliveIds.length===0).length;

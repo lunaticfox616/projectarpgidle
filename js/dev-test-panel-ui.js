@@ -105,6 +105,13 @@ const devTestPanel = (() => {
         refresh();
         note(value === 'off' ? '지도: 이어진 지도' : '지도: 방 단위 이동');
     }
+    /** 시야 방식(js/act-exploration-sight.js): 'fog'면 어느 지역의 방이든 시야 반경과 안개로 걷는다(지역 정의가 켠 지역이 걷는 방식을
+     * 미리 본다). 걷던 탐험도 다음 걸음부터 그 방식을 따른다. */
+    function setStageSight(value) {
+        game.settings.stageSight = value;
+        refresh();
+        note(value === 'fog' ? '시야: 반경과 안개(특수 지역 방식)' : '시야: 방 전체(바탕)');
+    }
     /** 방 크기 덧칸(data/stage-view.js STAGE_ROOMS.grow)을 바꾸고 지금 액트의 지도를 그 크기로 다시 연다. */
     function setStageRoomSize(key, value, label) {
         game.settings[key] = value;
@@ -286,6 +293,7 @@ const devTestPanel = (() => {
             row([el('label', { textContent: '놓임새' }), button('자동', () => setStageRoomSize('stageRoomPlan', 'auto', '방 놓임새: 자동(프리셋 넷 가운데)')),
                 ...[1, 2, 3, 4].map(index => button(String(index), () => setStageRoomSize('stageRoomPlan', index, `방 놓임새: 프리셋 ${index}`))),
                 button('준 랜덤', () => setStageRoomSize('stageRoomPlan', 'random', '방 놓임새: 준 랜덤'))]),
+            row([el('label', { textContent: '시야' }), button('방 전체', () => setStageSight('room')), button('반경과 안개', () => setStageSight('fog'))]),
             row([el('label', { textContent: '뒤쪽' }), button('배경 그림', () => setSetting('stageBackdrop', 'on', '방 뒤쪽: 배경 그림')),
                 button('벽돌 벽', () => setSetting('stageBackdrop', 'off', '방 뒤쪽: 벽돌 벽'))]),
             // 무대의 스킬 이펙트(js/canvas-stage-skill-vfx.js): 인계 받은 새 클립과 시전 마법진. 끄면 예전 이펙트가 나온다.

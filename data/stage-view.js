@@ -106,8 +106,6 @@ const STAGE_ROOMS = Object.freeze({
     /** 방 위쪽의 벽 칸 수(뒷벽이 서는 자리)와 아래쪽 여백. */
     top: 5,
     bottom: 3,
-    /** 방에 들어서면 방 안을 모두 보고 방 안의 몬스터가 모두 알아챈다: 이 반경은 어느 방보다도 크기만 하면 된다. */
-    reach: 40,
     /** 방 그림에 함께 담는 둘레의 벽 칸 수(좌우, 위, 아래). openFrame: 배경 그림을 쓰는 방(벽이 없어 바닥과 길이 화면 끝까지 간다). */
     frame: Object.freeze({ side: 3, top: 5, bottom: 2 }),
     openFrame: Object.freeze({ side: 7, top: 6, bottom: 7 }),

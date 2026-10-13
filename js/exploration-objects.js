@@ -175,10 +175,8 @@ actExplorationState.objects = (() => {
     function autoTarget(run) {return (run?.objects?.entries||[]).find(e=>e.kind==='sealed'&&e.phase==='ready'&&visible(run,e))||null;}
     function solidCells(run) {return new Set((run?.objects?.entries||[]).filter(solid).map(cellKey));}
     function active(run) {return (run.objects?.entries||[]).some(e=>e.phase==='warning'||e.phase==='active');}
-    function visible(run,row) {
-        const map=actExplorationMap.forRun(run);
-        return run.discovered.includes(actExplorationMap.index(map,row));
-    }
+    /** The player knows the object's cell (js/act-exploration-sight.js: a visited room, or in fog mode a discovered cell). */
+    function visible(run,row) {return actExplorationSight.knownCell(run,row);}
     function validateRow(run,row,ids,cells) {
         const map=actExplorationMap.forRun(run);
         if(!row || !kinds.includes(row.kind) || typeof row.id!=='string' || ids.has(row.id))throw Error('잘못된 탐험 오브젝트 식별자');

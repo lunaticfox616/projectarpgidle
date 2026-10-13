@@ -44,10 +44,7 @@ const actExplorationUi=(()=>{
     // 표시 전용이며 탐험 규칙과 무관하다.
     function renderProgress(run) {
         const panel=document.getElementById('act-exploration-panel');if(!panel)return;
-        const map=actExplorationMap.forRun(run);
-        const floor=map.tiles.filter(Boolean).length;
-        const seen=run.discovered.filter(id=>map.tiles[id]).length;
-        panel.style.setProperty('--explore-pct',(floor?Math.round(seen/floor*100):0)+'%');
+        panel.style.setProperty('--explore-pct',Math.round(actExplorationSight.exploredShare(run)*100)+'%');
     }
     // 지도 그리기: 안개 격자 → 밝혀낸 지형(바닥·벽·경계선) → 표식. 표시 전용이며 좌표·선택 규칙은 그대로다.
     // 캔버스는 2배로 그려 CSS 축소 시 표식 윤곽이 뭉개지지 않게 한다.
@@ -69,7 +66,7 @@ const actExplorationUi=(()=>{
         const view=mapView(canvas,map),scale=view.scale,ss=2;
         canvas.width=view.cols*scale*ss;canvas.height=view.rows*scale*ss;
         canvas.dataset.view=[view.x0,view.y0,view.cols,view.rows].join(',');
-        const ctx=canvas.getContext('2d'),seen=new Set(run.discovered);
+        const ctx=canvas.getContext('2d'),seen=actExplorationSight.seenCells(run);
         ctx.setTransform(ss,0,0,ss,-view.x0*scale*ss,-view.y0*scale*ss);
         drawFog(ctx,map,scale);
         drawTerrain(ctx,map,seen,scale);

@@ -90,7 +90,11 @@ const STAGE_ROOM_PLANS = Object.freeze({
         capstone: 'cosmos',
         /** 걷는 지도가 없는 고정 전장(구역 종류 → 지역): 판 전체를 방 하나처럼 그린다(js/canvas-stage-board.js). 여기에 없는 고정 전장은
          * 앞서의 판 그림 그대로다. */
-        boards: Object.freeze({ beehive: 'beehive', colony: 'colony', oceanDepth: 'ocean', cosmos: 'cosmos', grandBreach: 'void', outsideChaos: 'beyond', woodsmanEcho: 'beyond' })
+        boards: Object.freeze({ beehive: 'beehive', colony: 'colony', oceanDepth: 'ocean', cosmos: 'cosmos', grandBreach: 'void', outsideChaos: 'beyond', woodsmanEcho: 'beyond' }),
+        /** 시야 방식을 켜는 지역(지역 이름, 예: 'underworld'). 여기에 없는 지역은 주인공이 선 방 전체가 보인다(시야 탐색, 안개, 칸별 발견
+         * 목록 없이). 적힌 지역의 방에서는 시야 반경, 벽의 가림, 안개, 발견 규칙이 돈다. 어느 방식인지는 js/act-exploration-sight.js가
+         * 여기만 읽어 정한다. 지금은 어느 지역도 켜지 않았다(테스트 패널의 "시야"로 걸어 볼 수 있다). */
+        sight: Object.freeze([])
     })
 });
 safeExposeData({ STAGE_ROOM_PLANS });

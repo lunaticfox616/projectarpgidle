@@ -132,9 +132,12 @@ actExplorationView.objects=(()=>{
         if(node.dataset.bounds!==style){node.style.cssText=style;node.dataset.bounds=style;}
         node.disabled=game.combatHalted||game.playerHp<=0||game.moveTimer>0;
     }
+    /** Fog mode dims an object past the sight radius; a room seen whole (room mode) dims nothing. */
     function fade(row) {
+        const run=actExplorationState.current(game);
+        if(actExplorationSight.wholeRoom(run))return 1;
         const distance=Math.hypot(row.gx-game.gridPlayer.gx,row.gy-game.gridPlayer.gy);
-        return Math.max(.35,1-Math.max(0,distance-actExplorationState.sight(actExplorationState.current(game)))*.08);
+        return Math.max(.35,1-Math.max(0,distance-actExplorationState.sight(run))*.08);
     }
     /** A standing object (actor pass): ground shadow, the sprite, a shake and a fuse bar while an event is about to burst. */
     function draw(ctx,actor,view) {
