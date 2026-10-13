@@ -728,7 +728,6 @@ function renderBackgroundResultNotes(result, summary, limits) {
     const notes = [
         ['bad', formatBackgroundSkippedReward(result.skippedMs - (result.cutMs || 0))],
         ...formatBackgroundRealLimits(result),
-        ['bad', summary.deaths > 0 ? '쓰러진 탐험에서 모은 임시 전리품은 사라집니다.' : ''],
         ['warn', backgroundNoExpReason(summary)],
         ['warn', result.stopped ? '사냥이 멈추거나 선택 창이 열려 여기까지만 진행했습니다.' : ''],
         ['warn', result.capped ? `방치 한도 ${limits.recognitionHours}시간을 다 채웠습니다.` : ''],
