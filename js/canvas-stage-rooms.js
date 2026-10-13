@@ -95,7 +95,23 @@ const stageRoomsView = (() => {
         ctx.imageSmoothingEnabled = false;
         ctx.drawImage(view.canvas, p.mapX + box.x * p.tileW, p.mapY + box.y * p.tileH, box.columns * p.tileW, box.rows * p.tileH);
         for (const row of actExplorationDoors.doorsHere(run)) drawDoor(ctx, row, p, { gate: view.gates && view.gates.get(row.door.id), kit: view.kit });
+        drawFrontShade(ctx, view, p, area);
         return true;
+    }
+    /** 바닥의 앞쪽 끝 아래는 걸어갈 수 없는 자리다: 아래로 갈수록 어둡게 덮어 걸을 수 있는 바닥과 가른다(STAGE_ROOMS.frontShade).
+     * 그림의 도트 줄에 맞춘 띠로 짙어진다. 앞쪽 문의 그림은 이 뒤에 깊이 순서로 그려져 덮이지 않는다(문 칸의 바닥만 따로 밝히면
+     * 계단 밑으로 네모가 비어져 나왔다). 벽으로 둘러싼 방은 앞쪽이 벽이라 하지 않는다. */
+    function drawFrontShade(ctx, view, p, area) {
+        const rule = STAGE_ROOMS.frontShade, top = Math.round(p.mapY + (view.room.y1 + 1) * p.tileH), bottom = area.height;
+        if ((!view.kit && !view.open) || top >= bottom) return;
+        const step = Math.max(1, Math.round(rule.bandDots * p.tileW / WIDE));
+        ctx.save();
+        ctx.fillStyle = rule.colour;
+        for (let band = 0; band < rule.bands && top + band * step < bottom; band++) {
+            ctx.globalAlpha = rule.alpha * (band + 1) / rule.bands;
+            ctx.fillRect(0, top + band * step, area.width, band === rule.bands - 1 ? bottom - top - band * step : step);
+        }
+        ctx.restore();
     }
 
     // ---------------------------------------------------------------- doors
