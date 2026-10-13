@@ -62,8 +62,35 @@ const STAGE_ROOMS = Object.freeze({
     slot: 11,
     /** 방 놓는 법의 판 번호: 탐험 기록(run.rooms)에 적힌다. 방 크기나 자리를 바꾸면 올린다(옛 번호의 탐험은 불러올 때 버리고 다시 연다).
      * 4 = 방 놓임새(data/stage-room-plans.js: 액트는 프리셋 넷, 그 밖의 구역은 준 랜덤)와 구역마다의 무대 그림. 5 = 방의 바탕 크기를 키움.
-     * 6 = 보통 방을 보스 방의 크기로, 보스 방은 더 작게. 7 = 모든 방을 그 작아진 보스 방의 크기로. */
-    version: 7,
+     * 6 = 보통 방을 보스 방의 크기로, 보스 방은 더 작게. 7 = 모든 방을 그 작아진 보스 방의 크기로.
+     * 8 = 방마다 생김새(shapes)와 문 자리(doorSpots)가 다르다. */
+    version: 8,
+    /** 방의 생김새 (2026-10-13 밤, 검토: "전부 직사각형이고 깊이는 9칸으로 같아" → 사용자 "규칙 상관없으니까 바꿔줘"): 전투, 정예, 들르는
+     * 방은 기준 방(widths + grow, depth + grow: 21×9)에서 가로와 깊이를 줄인 생김새 가운데 하나를 씨앗으로 고른다.
+     * [가로에서 빼는 칸, 깊이에서 빼는 칸, 무게]. 기준 방보다 커지지는 않는다: 무대 그림은 기준 방에 맞춘 한 배율로 모든 방에 놓이므로
+     * (구조물의 크기가 방마다 달라지지 않는다) 더 큰 방은 그림이 모자란다. 입구와 보스 방, 한 줄 지도의 방은 기준 크기다.
+     * 줄이는 칸은 덧칸(grow)을 넘지 않는다. 지금의 생김새: 21×9, 17×9, 15×9, 21×7, 19×7, 17×7. */
+    shapes: Object.freeze([Object.freeze([0, 0, 4]), Object.freeze([4, 0, 2]), Object.freeze([6, 0, 1]), Object.freeze([0, 2, 3]), Object.freeze([2, 2, 2]), Object.freeze([4, 2, 2])]),
+    /** 문이 벽을 따라 서는 자리(벽 길이의 비율): 길마다 씨앗으로 하나를 고른다. 좌우 문은 깊이의 위쪽, 가운데, 아래쪽이고 길의 두 끝이
+     * 같은 높이에 선다. 앞쪽 문은 가로의 왼쪽, 가운데, 오른쪽이다. 보스 방으로 가는 문과 한 줄 지도의 문은 가운데(0.5)이고, 뒤쪽 문은
+     * 무대 그림에 그려진 문 자리를 따른다. */
+    doorSpots: Object.freeze([0.2, 0.5, 0.8]),
+    /** 방 하나에 무리들이 서는 자리 묶음(2026-10-13 밤, 검토: "추가 몹팩 위치도 가운데 양옆으로 정해져 있어"): 방을 열 때 무게대로 하나를 고른다
+     * (js/combat.js stageRoomArranger). spots는 [가로, 깊이] 자리로, 방 가운데가 0이고 ±1이 무리가 설 수 있는 끝이다. 가로의 +는 들어온 문의
+     * 맞은편이다(문이 위아래에 있으면 반반). 첫 자리가 방의 원래 무리, 그다음이 덧무리의 자리다. 한 줄 지도의 방도 이 자리를 쓴다.
+     * centre 가운데와 양옆(전의 자리), wings 양 날개(가운데가 빈다), far 들어온 쪽의 맞은편에 몰려 있다, back 뒤쪽 줄, front 앞쪽 줄,
+     * corners 구석들, split 앞뒤로 갈라 선다. */
+    layouts: Object.freeze([
+        Object.freeze({ id: 'centre', weight: 3, spots: Object.freeze([[0, 0], [0.6, -0.5], [-0.6, 0.5]]) }),
+        Object.freeze({ id: 'wings', weight: 2, spots: Object.freeze([[0.7, 0], [-0.7, 0], [0, 1]]) }),
+        Object.freeze({ id: 'far', weight: 3, spots: Object.freeze([[0.75, -0.5], [0.75, 1], [0.2, 0]]) }),
+        Object.freeze({ id: 'back', weight: 2, spots: Object.freeze([[0, -1], [0.7, -1], [-0.7, -1]]) }),
+        Object.freeze({ id: 'front', weight: 1, spots: Object.freeze([[0.1, 1], [0.75, 0.5], [-0.6, 1]]) }),
+        Object.freeze({ id: 'corners', weight: 2, spots: Object.freeze([[0.85, -1], [-0.85, 1], [0.85, 1]]) }),
+        Object.freeze({ id: 'split', weight: 2, spots: Object.freeze([[0.3, -1], [-0.3, 1], [0.8, 0]]) })
+    ]),
+    /** 무리가 서는 꼴과 무게: cluster 뭉쳐서(전의 꼴), line 가로 한 줄, column 세로 줄, loose 한 칸씩 띄어서. 무리마다 따로 고른다. */
+    packShapes: Object.freeze([Object.freeze({ id: 'cluster', weight: 4 }), Object.freeze({ id: 'line', weight: 2 }), Object.freeze({ id: 'column', weight: 1 }), Object.freeze({ id: 'loose', weight: 3 })]),
     /** 깊이 칸 수의 바탕: 여기에 덧칸(grow.deep)이 붙는다. */
     depth: 5,
     /** 방을 넓히는 덧칸(사용자 2026-10-11: "좀 넓게 만들어봐 크기조절도 (위아래랑 양옆 둘다)"): 모든 방의 가로와 깊이에 더한다.

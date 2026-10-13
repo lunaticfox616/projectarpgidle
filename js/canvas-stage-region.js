@@ -76,7 +76,9 @@ const stageRegion = (() => {
     /** 방 그림: 가운데를 방의 가운데에, 바닥이 시작하는 줄을 방 바닥의 뒤쪽 끝에 맞춘다. */
     function drawRoomPicture(ctx, view, p, area) {
         const region = regionOfMap(view.map), room = view.room, dot = p.tileW / WIDE;
-        const scale = stageRegionFit.scale(region, room.x1 - room.x0 + 1, room.y1 - room.y0 + 1) * dot, w = region.width * scale, h = region.height * scale;
+        // 배율은 그 지도의 기준 방(map.frame)에 맞춘 하나다: 좁거나 얕은 방에서도 풍경과 구조물의 크기가 같다. 판(고정 전장)은 제 크기다.
+        const frame = view.map.frame || { columns: room.x1 - room.x0 + 1, rows: room.y1 - room.y0 + 1 };
+        const scale = stageRegionFit.scale(region, frame.columns, frame.rows) * dot, w = region.width * scale, h = region.height * scale;
         const x = Math.round(p.mapX + (room.x0 + room.x1 + 1) / 2 * p.tileW - w / 2), y = Math.round(p.mapY + room.y0 * p.tileH - region.ground * scale);
         ctx.fillStyle = region.earth;
         ctx.fillRect(0, 0, area.width, area.height);
@@ -150,12 +152,29 @@ const stageRegion = (() => {
     }
     /** 바닥의 앞쪽 구석 바깥에 서는 자리. */
     const frontPropSpot = (room, side) => ({ x: side === 'west' ? room.x0 * WIDE - 40 : (room.x1 + 1) * WIDE + 40, y: (room.y1 + 1) * DEEP - 14 });
-    /** 보통 방: 낮은 소품 두셋을 뒤쪽 끝의 양 구석과 앞쪽 구석에서 골라 놓는다. */
+    /** 바닥의 옆 끝 바깥에 서는 자리들(걸을 수 있는 칸의 바로 옆, 깊이의 위쪽과 아래쪽): 그쪽 벽의 문에서 세 줄 안이면 놓지 않는다.
+     * 방이 화면보다 좁으면 바닥 그림이 방 밖으로 이어지므로, 여기에 선 소품이 어디까지 걸을 수 있는지 알려 준다. */
+    function sidePropSpots(map, room) {
+        const rows = room.y1 - room.y0 + 1, spots = [];
+        for (const side of ['west', 'east']) {
+            const door = roomDoorOn(map, room, side), x = side === 'west' ? room.x0 * WIDE - 44 : (room.x1 + 1) * WIDE + 44;
+            for (const share of [0.3, 0.75]) {
+                const row = room.y0 + share * rows;
+                if (!door || Math.abs(door.cell.gy + 0.5 - row) > 3) spots.push({ x, y: Math.round(row * DEEP) });
+            }
+        }
+        return spots;
+    }
+    /** 보통 방: 낮은 소품 둘에서 넷을 고른 자리에 놓는다. 자리는 뒤쪽 끝의 양 구석과 그 안쪽, 앞쪽 구석, 옆 끝 바깥이다(2026-10-13 밤:
+     * 전에는 네 구석뿐이었다. 검토: "소품은 주로 구석에 놓아"). 모두 걸을 수 있는 칸의 바깥이다. */
     function normalRoomProps(map, room, region, rng) {
         const names = region.normal.filter(index => index < 2).map(index => 'prop-' + index), low = names.length ? names : ['prop-0'];
-        const spots = [backPropSpot(map, room, 'west', 90), backPropSpot(map, room, 'east', 90), frontPropSpot(room, 'west'), frontPropSpot(room, 'east')];
-        const start = Math.floor(rng() * spots.length), count = 2 + Math.floor(rng() * 2);
-        return Array.from({ length: count }, (unused, index) => ({ name: low[index % low.length], flip: rng() < 0.5, ...spots[(start + index) % spots.length] }));
+        const inner = Math.round((room.x1 - room.x0 + 1) * WIDE * 0.32);
+        const spots = [backPropSpot(map, room, 'west', 90), backPropSpot(map, room, 'east', 90), frontPropSpot(room, 'west'), frontPropSpot(room, 'east'),
+            backPropSpot(map, room, 'west', inner), backPropSpot(map, room, 'east', inner), ...sidePropSpots(map, room)];
+        for (let i = spots.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [spots[i], spots[j]] = [spots[j], spots[i]]; }
+        const count = 2 + Math.floor(rng() * 3);
+        return spots.slice(0, count).map((spot, index) => ({ name: low[index % low.length], flip: rng() < 0.5, ...spot }));
     }
     /** 정예 방: 높은 표식 둘이 뒤쪽 끝의 양쪽에 서고, 낮은 소품 하나가 앞쪽 구석에 놓인다. */
     function eliteRoomProps(map, room, region, rng) {
@@ -171,7 +190,8 @@ const stageRegion = (() => {
         return [{ name: 'prop-3', flip: side !== region.bossSide, x: spot.x, y: spot.y + 2 }];
     }
     function regionRoomLayout(map, room, region) {
-        const rng = createSeededRng(`stage-props:${map.id}:${room.id}:${map.plan.boxes.length}`), family = regionFamily(region);
+        // 씨앗에 방의 크기와 자리를 넣는다: 같은 지도라도 놓임새와 생김새가 달라지면 소품도 달라진다
+        const rng = createSeededRng(`stage-props:${map.id}:${room.id}:${map.plan.boxes.length}:${room.x1 - room.x0}:${room.y1 - room.y0}:${room.at.join('.')}`), family = regionFamily(region);
         const list = room.role === 'boss' ? bossRoomProps(map, room, region) : room.role === 'elite' ? eliteRoomProps(map, room, region, rng) : normalRoomProps(map, room, region, rng);
         return list.filter(piece => family.pieces[piece.name]);
     }

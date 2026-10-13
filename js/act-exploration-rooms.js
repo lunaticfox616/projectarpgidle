@@ -19,10 +19,19 @@ const actExplorationRooms = (() => {
         const known = Number(version) === rule.version && rule.wideSteps.includes(Number(wide)) && rule.deepSteps.includes(Number(deep));
         return known && actExplorationRoomPlans.valid(plan) && /^[a-z0-9-]*$/.test(region) ? { wide: Number(wide), deep: Number(deep), plan, region } : null;
     }
-    /** 방 바닥의 크기: 구실에 따라. 전투 방은 놓인 자리에 따라 두 너비를 번갈아 쓴다. */
-    function roomSizeOf(cell, grow) {
-        const rule = STAGE_ROOMS, width = rule.widths[cell.role];
-        return { width: (Array.isArray(width) ? width[(cell.col + cell.row) % width.length] : width) + grow.wide, depth: rule.depth + grow.deep };
+    /** 방의 생김새(STAGE_ROOMS.shapes): 기준 방에서 줄이는 [가로 칸, 깊이 칸]. 전투, 정예, 들르는 방만 씨앗으로 고르고, 입구와 보스 방,
+     * 한 줄 지도(놓임새 'c')의 방은 기준 크기다. 같은 씨앗과 방 이름이면 언제나 같은 생김새다. */
+    function roomShapeOf(cell, spec) {
+        if (spec.plan === 'c' || !['battle', 'elite', 'optional'].includes(cell.role)) return [0, 0];
+        const rows = STAGE_ROOMS.shapes, rng = createSeededRng(`shape:${spec.seed}:${cell.id}`);
+        let roll = rng() * rows.reduce((sum, row) => sum + row[2], 0);
+        const shape = rows.find(row => (roll -= row[2]) < 0) || rows[0];
+        return [Math.min(shape[0], spec.wide), Math.min(shape[1], spec.deep)];
+    }
+    /** 방 바닥의 크기: 구실에 따른 너비(값이 여럿이면 놓인 자리에 따라 번갈아)와 바탕 깊이에 덧칸을 더하고, 생김새만큼 줄인다. */
+    function roomSizeOf(cell, spec) {
+        const rule = STAGE_ROOMS, width = rule.widths[cell.role], [narrow, shallow] = roomShapeOf(cell, spec);
+        return { width: (Array.isArray(width) ? width[(cell.col + cell.row) % width.length] : width) + spec.wide - narrow, depth: rule.depth + spec.deep - shallow };
     }
     /** 무대 그림을 좌우로 뒤집어 쓰는 방: 지역마다 방 그림이 한 장이라 이웃한 방이 똑같아 보였다(2026-10-13). 전투, 정예, 들르는 방은
      * 놓임새의 자리가 홀수 칸이면 뒤집는다(이웃한 방끼리 번갈아). 입구와 보스 방은 그린 그대로 쓴다. */
@@ -52,32 +61,43 @@ const actExplorationRooms = (() => {
         return rooms;
     }
     /** 문 하나가 문 둘이 된다: 한쪽 방의 문과, 맞은편 벽에 붙는 건너편 방의 문. 보스 방으로 가는 문(보스 방 바깥쪽의 것)이 관문이다. */
-    function doorEnds(plan, rooms) {
+    function doorEnds(plan, rooms, spec) {
         const ends = [];
-        for (const link of plan.links) {
+        plan.links.forEach((link, index) => {
             const a = rooms.get(link.from), b = rooms.get(link.to), inward = a.role === 'boss';
-            const [near, far, side] = inward ? [b, a, OPPOSITE[link.side]] : [a, b, link.side];
-            ends.push({ room: near, to: far, side, gate: far.role === 'boss' }, { room: far, to: near, side: OPPOSITE[side], gate: false });
-        }
+            const [near, far, side] = inward ? [b, a, OPPOSITE[link.side]] : [a, b, link.side], along = doorAlong(index, spec, far.role === 'boss');
+            ends.push({ room: near, to: far, side, gate: far.role === 'boss', along }, { room: far, to: near, side: OPPOSITE[side], gate: false, along });
+        });
         return ends;
     }
-    /** 뒤쪽 벽의 문이 서는 칸(방 왼쪽 끝에서): 무대 그림에 문 자리가 정해져 있으면 그 자리, 아니면 가운데. */
-    function backDoorColumn(room, region) {
-        const columns = room.x1 - room.x0 + 1, fit = typeof stageRegionFit === 'object' ? stageRegionFit : null;
-        return fit ? fit.northColumn(region, columns, room.y1 - room.y0 + 1, room.mirror) : Math.floor(columns / 2);
+    /** 길 하나의 두 문이 벽을 따라 서는 자리(STAGE_ROOMS.doorSpots 가운데 하나, 씨앗으로). 보스 방으로 가는 길과 한 줄 지도는 가운데다. */
+    function doorAlong(index, spec, gate) {
+        if (gate || spec.plan === 'c') return 0.5;
+        const spots = STAGE_ROOMS.doorSpots;
+        return spots[Math.floor(createSeededRng(`door:${spec.seed}:${index}`)() * spots.length)];
     }
-    /** 문 칸은 벽에 한 칸 파인 자리이고, 문 안쪽(landing)은 그 앞의 방 바닥이다. 좌우 문은 깊이의 가운데 줄, 앞쪽 문은 가로의 가운데. */
-    function doorCells(end, region) {
-        const { room, side } = end, row = room.y0 + Math.floor((room.y1 - room.y0 + 1) / 2), column = room.x0 + Math.floor((room.x1 - room.x0 + 1) / 2);
+    /** 뒤쪽 벽의 문이 서는 칸(방 왼쪽 끝에서): 무대 그림에 문 자리가 정해져 있으면 그 자리, 아니면 가운데. */
+    function backDoorColumn(room, spec) {
+        const columns = room.x1 - room.x0 + 1, fit = typeof stageRegionFit === 'object' ? stageRegionFit : null;
+        return fit ? fit.northColumn(spec.region, columns, room.mirror, frameOf(spec)) : Math.floor(columns / 2);
+    }
+    /** 기준 방의 크기(칸): 그 지도의 가장 큰 방. 무대 그림의 배율과 화면의 칸 크기가 이 크기에 맞춰진다. */
+    const frameOf = spec => ({ columns: STAGE_ROOMS.slot + spec.wide, rows: STAGE_ROOMS.depth + spec.deep });
+    /** 문 칸은 벽에 한 칸 파인 자리이고, 문 안쪽(landing)은 그 앞의 방 바닥이다. 좌우 문과 앞쪽 문은 벽을 따라 end.along의 자리에 선다
+     * (가운데가 0.5. 구석 칸은 피한다). 뒤쪽 문은 무대 그림의 문 자리다. */
+    function doorCells(end, spec) {
+        const { room, side } = end, rows = room.y1 - room.y0 + 1, columns = room.x1 - room.x0 + 1;
+        const row = room.y0 + Math.max(1, Math.min(rows - 2, Math.round(end.along * (rows - 1))));
+        const column = room.x0 + Math.max(2, Math.min(columns - 3, Math.round(end.along * (columns - 1))));
         if (side === 'east') return [{ gx: room.x1 + 1, gy: row }, { gx: room.x1, gy: row }];
         if (side === 'west') return [{ gx: room.x0 - 1, gy: row }, { gx: room.x0, gy: row }];
         if (side === 'south') return [{ gx: column, gy: room.y1 + 1 }, { gx: column, gy: room.y1 }];
-        const back = room.x0 + backDoorColumn(room, region);
+        const back = room.x0 + backDoorColumn(room, spec);
         return [{ gx: back, gy: room.y0 - 1 }, { gx: back, gy: room.y0 }];
     }
-    function buildDoors(plan, rooms, region) {
-        const doors = doorEnds(plan, rooms).map((end, id) => {
-            const [cell, landing] = doorCells(end, region);
+    function buildDoors(plan, rooms, spec) {
+        const doors = doorEnds(plan, rooms, spec).map((end, id) => {
+            const [cell, landing] = doorCells(end, spec);
             return { id, roomId: end.room.id, room: end.room.index, toId: end.to.id, to: end.to.index, side: end.side, gate: end.gate,
                 cell: Object.freeze(cell), landing: Object.freeze(landing) };
         });
@@ -133,9 +153,9 @@ const actExplorationRooms = (() => {
     function compileRooms(base, plan, spec) {
         const rule = STAGE_ROOMS, byCell = placeRooms(plan, roomOrderOf(plan), spec), rooms = [...byCell.values()].sort((a, b) => a.index - b.index);
         const columns = rooms.length * (rule.slot + spec.wide + rule.gap), rows = rule.top + rule.depth + spec.deep + rule.bottom;
-        const doors = buildDoors(plan, byCell, spec.region), { tiles, owner } = buildTiles(rooms, doors, columns, rows), ways = buildHops(rooms, doors);
+        const doors = buildDoors(plan, byCell, spec), { tiles, owner } = buildTiles(rooms, doors, columns, rows), ways = buildHops(rooms, doors);
         const at = cell => cell.gy * columns + cell.gx;
-        return Object.freeze({ id: base.id, act: spec.act, biome: base.biome, region: spec.region, columns, rows, tiles: Object.freeze(tiles),
+        return Object.freeze({ id: base.id, act: spec.act, biome: base.biome, region: spec.region, columns, rows, tiles: Object.freeze(tiles), frame: Object.freeze(frameOf(spec)),
             rooms: Object.freeze(rooms), entry: rooms.find(room => room.role === 'entry'), gate: doors.find(door => door.gate).cell,
             rotation: 0, stage: true, doors: Object.freeze(doors), owner, ...ways, route: routeIds(rooms, ways.hops),
             portals: new Map(doors.map(door => [at(door.cell), door.exit])), doorAt: new Map(doors.map(door => [at(door.cell), door])),
@@ -159,7 +179,8 @@ const actExplorationRooms = (() => {
         const seed = run.source ? String(run.source.seed) : 'act', id = [base.id, explorationLayouts.key(run.source || { style: 'act', act: run.act }), run.rooms, seed].join('|');
         if (cache.has(id)) return cache.get(id);
         const plan = actExplorationRoomPlans.build(base, spec.plan, seed);
-        return rememberRoomMap(id, plan ? compileRooms(base, plan, { ...spec, act: run.source ? null : run.act }) : null);
+        // seed: 방의 생김새와 문 자리를 고르는 씨앗(지도, 놓임새, 탐험의 씨앗). 같은 탐험은 언제나 같은 지도다.
+        return rememberRoomMap(id, plan ? compileRooms(base, plan, { ...spec, act: run.source ? null : run.act, seed: [base.id, spec.plan, seed].join(':') }) : null);
     }
     const inside = (map, cell) => cell.gx >= 0 && cell.gy >= 0 && cell.gx < map.columns && cell.gy < map.rows;
     /** The room a cell belongs to (a door cell belongs to the room whose wall it is cut into); null on a wall. */

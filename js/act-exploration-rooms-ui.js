@@ -122,9 +122,9 @@ const actExplorationRoomsUi = (() => {
     }
     /** A move command is ringed on the room it leads to. */
     function drawCommand(ctx, run, map, view) {
-        const room = run.destination ? actExplorationRooms.roomAt(map, run.destination) : null;
+        const command = actExplorationState.markedDestination(run), room = command ? actExplorationRooms.roomAt(map, command) : null;
         if (!room) return;
-        const door = actExplorationRooms.doorAt(map, run.destination), rect = rectOf(map.plan.boxes[door ? door.to : room.index], view);
+        const door = actExplorationRooms.doorAt(map, command), rect = rectOf(map.plan.boxes[door ? door.to : room.index], view);
         ctx.setLineDash([2, 2]); ctx.lineWidth = 1; ctx.strokeStyle = INK.here;
         ctx.strokeRect(rect.x - 3.5, rect.y - 3.5, rect.w + 7, rect.h + 7); ctx.setLineDash([]);
     }

@@ -34,10 +34,11 @@ const actExplorationView=(()=>{
             mapWidth:map.columns*tile,mapHeight:map.rows*deep,
             cellToScreen:(gx,gy)=>({x:mapX+(gx+.5)*tile,y:mapY+(gy+.5)*deep})};
     }
-    /** 방 단위 무대에서 주인공이 선 방의 깊이(칸): 칸 크기가 화면 높이에 맞게 줄어들 기준이다. 이어진 지도에서는 0(너비만 따른다). */
+    /** 방 단위 무대에서 그 지도의 기준 방의 깊이(칸): 칸 크기가 화면 높이에 맞게 줄어들 기준이다(방마다 깊이가 달라도 칸 크기는
+     * 지도 하나에서 같다). 이어진 지도에서는 0(너비만 따른다). */
     function stageRoomRows(run) {
-        const room=actExplorationDoors.room(run);
-        return room?room.y1-room.y0+1:0;
+        const map=actExplorationDoors.stageMap(run);
+        return map?map.frame.rows:0;
     }
     /** The cell (fractional) at the camera's centre: the hero's, leaning toward a boss; on a room-by-room stage the view its room
      * holds (js/canvas-stage-rooms.js). */
@@ -113,9 +114,10 @@ const actExplorationView=(()=>{
         ctx.drawImage(cache.fogView,p.mapX,p.mapY,p.mapWidth,p.mapHeight);
         drawCommand(ctx,run,p);ctx.restore();return true;
     }
-    /** The player's move command: a thin pale-gold dashed ring on the cell's floor until the hero gets there. */
+    /** The player's move command: a thin pale-gold dashed ring on the cell's floor until the hero gets there. A command the
+     * keyboard steers (WASD) is not drawn: it is no chosen spot, only a few cells ahead of the hero. */
     function drawCommand(ctx,run,p) {
-        const cell=run.destination;if(!cell)return;
+        const cell=actExplorationState.markedDestination(run);if(!cell)return;
         const point=p.cellToScreen(cell.gx,cell.gy),dot=p.tileW/16;
         ctx.globalAlpha=.9;ctx.strokeStyle='#f3e5b4';ctx.lineWidth=Math.max(1,dot);ctx.setLineDash([dot*2,dot*1.5]);
         ctx.beginPath();ctx.ellipse(point.x,point.y+p.actorGroundOffsetY,p.tileW*.3,p.tileW*.13,0,0,Math.PI*2);ctx.stroke();

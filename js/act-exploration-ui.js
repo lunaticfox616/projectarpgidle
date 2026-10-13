@@ -124,8 +124,9 @@ const actExplorationUi=(()=>{
             if(!pack.aliveIds.length||!seen.has(actExplorationMap.index(map,room)))continue;
             drawDiamond(ctx,{x:at(room.gx),y:at(room.gy),r,fill:packMark(pack)});
         }
-        if(run.destination) {
-            ctx.beginPath();ctx.arc(at(run.destination.gx),at(run.destination.gy),r+1,0,Math.PI*2);
+        const command=actExplorationState.markedDestination(run);
+        if(command) {
+            ctx.beginPath();ctx.arc(at(command.gx),at(command.gy),r+1,0,Math.PI*2);
             ctx.setLineDash([2,1.5]);ctx.lineWidth=1;ctx.strokeStyle='#f3e5b4';ctx.stroke();ctx.setLineDash([]);
         }
         drawPlayerMarker(ctx,at(game.gridPlayer.gx),at(game.gridPlayer.gy),r);
@@ -178,6 +179,7 @@ const actExplorationUi=(()=>{
     // 칸이 바뀌므로 지금 칸으로 돌리면 되돌아 걷는다). 여러 방향을 누르면 마지막에 누른 쪽이다. 벽이나 안개, 물건 앞에서는 선다.
     const STEPS=Object.freeze({up:[0,-1],down:[0,1],left:[-1,0],right:[1,0]}),WALK_REACH=4,WALK_TICK_MS=90;
     const held=[];let walkTimer=null;
+    const KEYED=Object.freeze({unmarked:true});
     function press(direction,down) {
         const index=held.indexOf(direction);
         if(index>=0)held.splice(index,1);
@@ -214,13 +216,14 @@ const actExplorationUi=(()=>{
         if(!run||run.status!=='active'||!direction){held.length=0;return stopWalking(run);}
         const [dx,dy]=STEPS[direction],from=footing(run);
         let reached=0;
-        while(reached<WALK_REACH&&actExplorationState.selectDestination(run,{gx:from.gx+dx*(reached+1),gy:from.gy+dy*(reached+1)}))reached++;
-        if(!reached)actExplorationState.selectDestination(run,from);
+        // 키보드로 거는 명령은 화면에 표시하지 않는다(KEYED: 클릭한 자리가 아니라 누른 방향의 몇 칸 앞이다)
+        while(reached<WALK_REACH&&actExplorationState.selectDestination(run,{gx:from.gx+dx*(reached+1),gy:from.gy+dy*(reached+1)},KEYED))reached++;
+        if(!reached)actExplorationState.selectDestination(run,from,KEYED);
         render();
     }
     function stopWalking(run) {
         if(walkTimer){clearInterval(walkTimer);walkTimer=null;}
-        if(run&&run.status==='active'&&run.destination)actExplorationState.selectDestination(run,footing(run));
+        if(run&&run.status==='active'&&run.destination)actExplorationState.selectDestination(run,footing(run),KEYED);
     }
     function expand(){document.getElementById('act-exploration-dialog').showModal();render();}
     function hint(event) {

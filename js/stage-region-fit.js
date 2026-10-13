@@ -13,12 +13,14 @@ const stageRegionFit = (() => {
         const fit = STAGE_REGIONS.fit, above = fit.floorBottom - rows * DEEP, span = Math.max(fit.width, columns * WIDE + fit.margin);
         return Math.max(span / region.width, above / region.ground, (fit.height - above) / (region.height - region.ground));
     }
-    /** 뒤쪽 벽의 문이 서는 칸(방 왼쪽 끝에서 0부터): 그림에 정해진 문 자리에 가장 가까운 칸. 구석 칸은 피한다. */
-    function regionNorthColumn(id, columns, rows, mirror) {
+    /** 뒤쪽 벽의 문이 서는 칸(방 왼쪽 끝에서 0부터): 그림에 정해진 문 자리에 가장 가까운 칸. 구석 칸은 피한다.
+     * frame: 그림의 배율을 정하는 기준 방의 크기(칸). 2026-10-13 밤부터 방마다 크기가 달라, 그림은 방이 아니라 그 지도의 기준 방에 맞춘
+     * 한 배율로 놓인다(방마다 구조물의 크기가 달라지지 않게). */
+    function regionNorthColumn(id, columns, mirror, frame) {
         const region = regionRow(id), middle = Math.floor(columns / 2);
         if (!region || region.door === null) return middle;
         // 좌우로 뒤집어 쓰는 방(js/act-exploration-rooms.js roomMirrored)에서는 그림의 문 자리도 반대쪽이다
-        const offset = (mirror ? -1 : 1) * (region.door - 0.5) * region.width * regionScale(region, columns, rows) / WIDE;
+        const offset = (mirror ? -1 : 1) * (region.door - 0.5) * region.width * regionScale(region, frame.columns, frame.rows) / WIDE;
         return Math.max(1, Math.min(columns - 2, middle + Math.round(offset)));
     }
     return Object.freeze({ of: regionRow, scale: regionScale, northColumn: regionNorthColumn });

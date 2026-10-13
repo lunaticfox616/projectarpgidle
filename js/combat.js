@@ -7857,7 +7857,9 @@ const explorationPackFormation=(()=>{
         const varied=[...rooms].sort((a,b)=>explorationPackSpawnAt(zone,a.id,null)-explorationPackSpawnAt(zone,b.id,null));
         fillRooms(varied,counts,remainder);return {counts,patrol};
     }
-    return {prepare,plan,spots,around};
+    /** 그 방의 무리가 설 수(자리를 따로 정하는 쪽이 쓴다: stageRoomArranger). */
+    const count=(zone,encounter,shape)=>roomCount(zone,null,encounter,shape||{});
+    return {prepare,plan,spots,around,count};
 })();
 /** encounter: an atlas content room (js/atlas-encounters.js) — elite-led, larger and tuned, rewarding when emptied. */
 const explorationPackKey=(room,stage)=>room.id+':'+(stage===null?'pack':stage);
@@ -7947,15 +7949,16 @@ function createActExplorationEncounter(zone,exploration) {
 function createExplorationPacks(zone,map,bossStages) {
     const own=ownRoomPackBuilder(zone);
     if(own)return own(zone,map);
-    const packs=[],encounters=atlasEncounters.rooms(zone,map);
+    const packs=[],encounters=atlasEncounters.rooms(zone,map),arranger=stageRoomArranger.forMap(map);
     const {counts,patrol}=explorationPackFormation.plan(zone,map);
     for(const room of map.rooms) {
         if(room.role==='entry' || room.role==='path')continue;
+        const encounter=encounters[room.id]||null;
         if(room.role!=='boss'){packs.push(zone.atlasCleared?.includes(room.id) ? emptiedExplorationPack(room)
-            : createActExplorationPack(zone,room,null,encounters[room.id]||null,counts.get(room.id)));continue;}
+            : createActExplorationPack(zone,room,null,encounter,arrangedRoomFormation(arranger,zone,room,encounter,counts.get(room.id))));continue;}
         for(let stage=0;stage<bossStages;stage++)packs.push(createExplorationBossStage(zone,map,room,stage));
     }
-    return packs.concat(createAddedExplorationPacks(zone,map,patrol));
+    return packs.concat(createAddedExplorationPacks(zone,map,patrol,arranger));
 }
 
 /** 판의 진행 막대가 부를 무리(표식)의 수: generateEncounterPlan과 같은 셈이다(난수 없이). 방 단위 무대의 한 줄 지도가 이 수만큼 방을
@@ -7973,9 +7976,9 @@ function createMarkerEnemies(zone,marker) {
     return adds.concat(createEnemy(zone,{...marker,count:1,storyStage:game.killsInZone},count));
 }
 /** 이미 만든 적들을 방의 무리에 세운다: 보스는 방 가운데, 나머지는 그 둘레(보스가 없으면 가운데부터). 주인공이 그 방에 들어서면 덤빈다. */
-function fillRoomPack(map,room,pack,enemies) {
+function fillRoomPack(map,room,pack,enemies,places) {
     const bosses=enemies.filter(enemy=>enemy.isBoss),rest=enemies.filter(enemy=>!enemy.isBoss);
-    const cells=bosses.length?explorationPackFormation.around(room,rest.length):explorationPackFormation.spots(room,rest.length);
+    const cells=places || (bosses.length?explorationPackFormation.around(room,rest.length):explorationPackFormation.spots(room,rest.length));
     rest.forEach((enemy,index)=>Object.assign(enemy,cells[index]));
     for(const enemy of enemies)Object.assign(enemy,{gridMoveTimer:0,regenBank:0,spawnStamp:0,explorationPack:pack.key});
     Object.assign(pack,{waiting:enemies,aliveIds:enemies.map(enemy=>enemy.id),eliteIds:enemies.filter(enemy=>enemy.isElite).map(enemy=>enemy.id)});
@@ -7984,8 +7987,8 @@ function fillRoomPack(map,room,pack,enemies) {
 }
 /** 적들이 선 방의 무리. 끝 방의 무리는 단계 0이다(탐험은 끝 방이 비면 끝난다): 보스가 없으면 조용한 무리(quiet)라 보스 등장 연출 없이
  * 다른 방의 무리처럼 덤빈다(js/act-exploration-state.js holdBoss). */
-function createRoomPackOf(map,room,enemies) {
-    const final=room.role==='boss',pack=fillRoomPack(map,room,{key:explorationPackKey(room,final?0:null),roomId:room.id,stage:final?0:null},enemies);
+function createRoomPackOf(map,room,enemies,places) {
+    const final=room.role==='boss',pack=fillRoomPack(map,room,{key:explorationPackKey(room,final?0:null),roomId:room.id,stage:final?0:null},enemies,places);
     if(final && !enemies.some(enemy=>enemy.isBoss))pack.quiet=true;
     return pack;
 }
@@ -7994,10 +7997,14 @@ const chainRoomsOf=map=>map.route.slice(1).map(id=>map.rooms.find(room=>room.id=
 /** 진행 막대의 무리들을 한 줄 지도에 세운다(2026-10-13 밤: 우주계, 심해, 경계 너머). 판에서 진행도에 따라 차례로 나타나던 무리가 방마다
  * 하나씩 서고, 마지막 무리는 끝 방에 선다. 방보다 무리가 많으면(STAGE_BOARD_ROOMS.chainMax) 끝 방 앞의 방에 겹쳐 선다. */
 function createMarkerRoomPacks(zone,map) {
-    const markers=generateEncounterPlan(zone),rooms=chainRoomsOf(map),last=rooms.length-1,groups=rooms.map(()=>[]);
+    const markers=generateEncounterPlan(zone),rooms=chainRoomsOf(map),last=rooms.length-1,groups=rooms.map(()=>[]),arranger=stageRoomArranger.forMap(map);
     markers.forEach((marker,index)=>groups[index===markers.length-1?last:Math.min(index,last-1)].push(marker));
-    return rooms.map((room,index)=>(groups[index].length || index===last
-        ? createRoomPackOf(map,room,groups[index].flatMap(marker=>createMarkerEnemies(zone,marker))) : emptiedExplorationPack(room)));
+    return rooms.map((room,index)=>{
+        if(!groups[index].length && index!==last)return emptiedExplorationPack(room);
+        const enemies=groups[index].flatMap(marker=>createMarkerEnemies(zone,marker));
+        // 끝 방의 무리(보스가 있으면 보스 둘레)는 방 가운데에, 그 앞의 방들은 방마다 다른 자리에 선다
+        return createRoomPackOf(map,room,enemies,index===last?null:arranger.cells(room,0,enemies.length));
+    });
 }
 /** 한 줄 지도를 걷는 판 콘텐츠면 그 콘텐츠가 무리를 세우는 함수, 아니면 null. */
 const ownRoomPackBuilder=zone=>(zone.exploration && zone.exploration.chain ? ROOM_PACK_BUILDERS[zone.type] || null : null);
@@ -8108,22 +8115,88 @@ function createExplorationBossStage(zone,map,room,stage) {
     return pack;
 }
 
+/** 방 단위 무대의 방 하나에 무리들이 서는 자리 (data/stage-view.js STAGE_ROOMS.layouts와 packShapes. 2026-10-13 밤, 검토: "추가 몹팩 위치도
+ * 가운데 양옆으로 정해져 있어", 사용자: "규칙 상관없으니까 바꿔줘"). 방마다 자리 묶음 하나를 고르고, 무리마다 서는 꼴을 고른다.
+ * 벽에 붙은 칸(문 안쪽 자리, 상자와 항아리가 서는 가장자리)에는 서지 않고, 같은 방의 다른 무리와 겹치지 않는다. 방을 여는 때에 한 번
+ * 정한다(난수는 Math.random: 무리를 뽑는 것과 같다). 이어진 지도에서는 아무것도 바꾸지 않는다. */
+const stageRoomArranger=(()=>{
+    const SHAPES=Object.freeze({
+        cluster:[[0,0],[-1,0],[0,1],[1,-1],[-1,-1],[1,1],[0,-1],[-1,1],[1,0]],
+        line:[[0,0],[1,0],[-1,0],[2,0],[-2,0],[3,0],[-3,0],[4,0],[-4,0]],
+        column:[[0,0],[0,1],[0,-1],[0,2],[0,-2],[1,0],[-1,0],[1,1],[-1,-1]],
+        loose:[[0,0],[-2,0],[0,1],[2,-1],[-2,-1],[2,1],[0,-1],[-2,1],[2,0]]
+    });
+    function weightedPick(rows) {
+        let roll=Math.random()*rows.reduce((sum,row)=>sum+row.weight,0);
+        return rows.find(row=>(roll-=row.weight)<0) || rows[0];
+    }
+    /** 들어온 문(입구 쪽으로 가는 문)의 맞은편이 +가 되는 부호. 그 문이 위아래에 있으면 반반이다. */
+    function farSign(map,room) {
+        const back=map.hops[room.index][map.entry.index];
+        if(back && back.side==='east')return -1;
+        if(back && back.side==='west')return 1;
+        return Math.random()<.5?1:-1;
+    }
+    function openRoom(map,room) {
+        return {room,layout:weightedPick(STAGE_ROOMS.layouts),sign:farSign(map,room),taken:new Set()};
+    }
+    /** 자리 묶음의 slot번째 자리(칸): 뭉친 무리(가운데에서 한 칸)가 벽에 붙지 않는 범위 안에서. */
+    function spotCentre(state,slot) {
+        const room=state.room,[fx,fy]=state.layout.spots[slot%state.layout.spots.length];
+        return {gx:room.gx+Math.round(fx*state.sign*Math.max(0,room.radiusX-3)),gy:room.gy+Math.round(fy*Math.max(0,room.radiusY-2))};
+    }
+    const ringAround=(at,ring)=>{
+        const out=[];
+        for(let dy=-ring;dy<=ring;dy++)for(let dx=-ring;dx<=ring;dx++)if(Math.max(Math.abs(dx),Math.abs(dy))===ring)out.push({gx:at.gx+dx,gy:at.gy+dy});
+        return out;
+    };
+    /** want에서 가장 가까운, 벽에 붙지 않았고 아직 아무도 서지 않은 칸. */
+    function freeCellNear(state,want) {
+        const room=state.room,inner=cell=>cell.gx>room.x0 && cell.gx<room.x1 && cell.gy>room.y0 && cell.gy<room.y1;
+        for(let ring=0;ring<=room.radiusX*2;ring++) {
+            const cell=ringAround(want,ring).find(spot=>inner(spot) && !state.taken.has(spot.gx+','+spot.gy));
+            if(cell){state.taken.add(cell.gx+','+cell.gy);return cell;}
+        }
+        return want;
+    }
+    function packCells(state,slot,count) {
+        const centre=spotCentre(state,slot),shape=SHAPES[weightedPick(STAGE_ROOMS.packShapes).id];
+        return Array.from({length:count},(_,index)=>{
+            const [dx,dy]=shape[index] || [0,0];
+            return freeCellNear(state,{gx:centre.gx+dx,gy:centre.gy+dy});
+        });
+    }
+    /** 지도 하나의 무리 자리를 정하는 것: cells(room, slot, count)는 그 방의 slot번째 무리(0 = 원래 무리, 1부터 덧무리)가 설 칸들.
+     * 이어진 지도에서는 null을 준다(전의 자리 그대로). */
+    function forMap(map) {
+        const states=new Map();
+        const stateOf=room=>states.get(room.id) || states.set(room.id,openRoom(map,room)).get(room.id);
+        return {cells:(room,slot,count)=>(map.stage?packCells(stateOf(room),slot,count):null)};
+    }
+    return {forMap};
+})();
+/** 방의 원래 무리가 설 자리: 방 단위 무대에서는 그 방의 자리 묶음을 따른다(stageRoomArranger). 이어진 지도에서는 전의 자리 그대로다. */
+function arrangedRoomFormation(arranger,zone,room,encounter,formation) {
+    const cells=arranger.cells(room,0,explorationPackFormation.count(zone,encounter,formation));
+    return cells ? {...formation,cells} : formation;
+}
+
 /** Packs beside the one each room has: the quiet-road group, and on a room-by-room stage the packs added to every room. */
-function createAddedExplorationPacks(zone,map,patrol) {
+function createAddedExplorationPacks(zone,map,patrol,arranger) {
     const packs=patrol?[createActExplorationPack(zone,map.rooms.find(room=>room.id===patrol.roomId),null,null,patrol)]:[];
-    return map.stage?packs.concat(createStageExtraPacks(zone,map)):packs;
+    return map.stage?packs.concat(createStageExtraPacks(zone,map,arranger)):packs;
 }
 
 /** 방 단위 무대의 방마다 더 서는 무리(data/stage-view.js STAGE_ROOMS.extraPacks, 2026-10-13 사용자: "한 방에 몬스터 한무리~1.5무리
  * 정도 더"): 지역의 기본 무리 크기로(큰 방에 얹는 덧수는 원래 무리만 받는다), 방 가운데의 양옆에 선다(첫째는 보스 쪽, 둘째는 입구 쪽). 열쇠는 "방:extra1", "방:extra2".
  * 정예는 없고 생김새는 열쇠마다 다르게 뽑힌다. 방에 들어서면 방 안을 모두 보므로 원래 무리와 함께 덤빈다. */
-function createStageExtraPacks(zone,map) {
+function createStageExtraPacks(zone,map,arranger) {
     const rule=STAGE_ROOMS.extraPacks,packs=[];
     for(const room of actExplorationState.packRooms(map)) {
-        const more=rule.always+(Math.random()<rule.chance?1:0),reach=Math.round(room.radiusX*rule.spread);
+        const more=rule.always+(Math.random()<rule.chance?1:0);
+        // 자리는 그 방의 자리 묶음에서(2026-10-13 밤부터: 전에는 늘 방 가운데의 양옆이었다)
         for(let extra=1;extra<=more;extra++) {
-            const center={gx:room.gx+(extra===1?reach:-reach),gy:room.gy+(extra===1?-1:1)};
-            packs.push(createActExplorationPack(zone,room,null,null,{extra,center}));
+            packs.push(createActExplorationPack(zone,room,null,null,{extra,cells:arranger.cells(room,extra,explorationPackFormation.count(zone,null,{extra}))}));
         }
     }
     return packs;

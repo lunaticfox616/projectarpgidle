@@ -239,7 +239,8 @@ const actExplorationState = (() => {
     }
     /** The player's move command (minimap, map or battlefield click). It never changes the mode: with auto-move on the
      * hero walks there and then goes on exploring. Unknown cells stay unavailable; a sealed gate blocks every route. */
-    /** A move command. options.object: walking up to an object (exploration-object-combat request), whose own cell is taken. */
+    /** A move command. options.object: walking up to an object (exploration-object-combat request), whose own cell is taken.
+     * options.unmarked: 키보드로 걷는 동안의 명령(js/act-exploration-ui.js steer): 화면에 표시하지 않는다(markedDestination). */
     function selectDestination(run,cell,options={}) {
         const map=actExplorationMap.forRun(run);
         const sealed=gateSealed(run);
@@ -248,7 +249,17 @@ const actExplorationState = (() => {
         if(!run.discovered.includes(actExplorationMap.index(map,cell)))return false;
         if(sealed && !reachableBeforeBoss(map,cell))return false;
         if(run.objects)run.objects.pendingId=null;
-        run.destination={gx:cell.gx,gy:cell.gy};return true;
+        run.destination={gx:cell.gx,gy:cell.gy};
+        if(options.unmarked)unmarkedCommands.add(run.destination);
+        return true;
+    }
+    // 2026-10-13 사용자 "wasd로 움직일때 클릭한표시 안나오게해줘": 키보드로 걸을 때의 이동 명령은 누른 방향의 몇 칸 앞일 뿐 고른 자리가
+    // 아니라, 걷는 내내 발 앞에 점선 고리가 따라다녔다. 그런 명령은 여기에 적어 두고 표시하지 않는다(저장하지 않는다: 불러온 명령은
+    // 도착할 때까지 잠깐 보인다).
+    const unmarkedCommands=new WeakSet();
+    /** 화면에 표시할 이동 명령(전장의 점선 고리, 약도의 고리): 클릭으로 고른 자리. 키보드로 걷는 중이면 null. */
+    function markedDestination(run) {
+        return run.destination && !unmarkedCommands.has(run.destination) ? run.destination : null;
     }
     function reachableBeforeBoss(map,cell) {
         if(map.stage)return actExplorationRooms.roomAt(map,cell)?.role!=='boss'; // 보스 방만 관문 뒤에 있다
@@ -464,6 +475,6 @@ const actExplorationState = (() => {
         // Older saves may be partway through the former 5.5 second presentation.
         exit.remainingMs=Math.min(exit.remainingMs,settlementMs);
     }
-    return {settlementMs,current,create,packRooms,packPosition,sightRadius,sight,inSight,fogDistance,discover,notice,engage,dormantNear,wake,alerted,entrance,bossRoomAt,recordDeath,retireCombat,remainingElites,gateSealed,selectDestination,destination,validate,restore,dropRetired,upgradeRotation};
+    return {settlementMs,current,create,packRooms,packPosition,sightRadius,sight,inSight,fogDistance,discover,notice,engage,dormantNear,wake,alerted,entrance,bossRoomAt,recordDeath,retireCombat,remainingElites,gateSealed,selectDestination,markedDestination,destination,validate,restore,dropRetired,upgradeRotation};
 })();
 safeExposeGlobals({actExplorationState});
