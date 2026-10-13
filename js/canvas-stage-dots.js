@@ -117,21 +117,34 @@ const stageDots = (() => {
         ctx.drawImage(big, 0, 0, from.w * up, from.h * up, at.x, at.y, width, height);
         ctx.imageSmoothingEnabled = smooth;
     }
-    /** 도트 그림 한 장을 지금 배율의 캔버스 픽셀 크기로 옮겨 둔 그림(방 그림처럼 한 번 그려 두고 쓰는 큰 그림). 정수배면 그대로 돌려준다. */
-    function fitted(source, scale) {
-        if (whole(scale)) return source;
+    /** fitted를 나누어 한다(방 그림을 그리기 밖에서 준비할 때: js/canvas-stage-room-pictures.js). step()을 부를 때마다 한 조각(TILE)을
+     * 옮기고, 다 옮겼으면 true를 돌려준다. canvas는 옮겨 담는 그림이다(정수배면 source 그대로이고 옮길 것이 없다). */
+    function fitter(source, scale) {
+        if (whole(scale)) return { canvas: source, step: () => true };
         const k = pxPerDot(scale), out = document.createElement('canvas');
         out.width = Math.round(source.width * k);
         out.height = Math.round(source.height * k);
         const ctx = out.getContext('2d');
-        for (let y = 0; y < source.height; y += TILE) for (let x = 0; x < source.width; x += TILE) {
+        let x = 0, y = 0;
+        function step() {
+            if (y >= source.height) return true;
             const w = Math.min(TILE, source.width - x), h = Math.min(TILE, source.height - y);
             blitRaw(ctx, source, { x, y, w, h }, { x: x * k, y: y * k, k });
+            x += TILE;
+            if (x >= source.width) { x = 0; y += TILE; }
+            if (y < source.height) return false;
+            // 큰 그림을 옮기느라 커진 작업면을 놓는다(1536px 변이면 9MB): 그대로 두면 그 뒤에 작업면을 거치는 작은 그림마다 그 넓이를 다룬다.
+            shrink(scratch);
+            scratch = null;
+            return true;
         }
-        // 큰 그림을 옮기느라 커진 작업면을 놓는다(1536px 변이면 9MB): 그대로 두면 그 뒤에 작업면을 거치는 작은 그림마다 그 넓이를 다룬다.
-        shrink(scratch);
-        scratch = null;
-        return out;
+        return { canvas: out, step };
+    }
+    /** 도트 그림 한 장을 지금 배율의 캔버스 픽셀 크기로 옮겨 둔 그림(방 그림처럼 한 번 그려 두고 쓰는 큰 그림). 정수배면 그대로 돌려준다. */
+    function fitted(source, scale) {
+        const job = fitter(source, scale);
+        while (!job.step()) { /* 조각마다 한 걸음 */ }
+        return job.canvas;
     }
     /** blit in canvas px (k px per dot), for fitted. */
     function blitRaw(ctx, source, from, at) {
@@ -143,6 +156,6 @@ const stageDots = (() => {
     }
     /** 캔버스 픽셀의 정수배가 되도록 올림한 도트 크기: 배경 그림처럼 도트 격자를 스스로 정할 수 있는 그림에 쓴다. */
     const wholeDot = scale => Math.max(1, Math.ceil(pxPerDot(scale) - 0.01)) / canvasPx();
-    return Object.freeze({ blit, fitted, whole, wholeDot, colorFilterOnly });
+    return Object.freeze({ blit, fitted, fitter, whole, wholeDot, colorFilterOnly });
 })();
 safeExposeGlobals({ stageDots });

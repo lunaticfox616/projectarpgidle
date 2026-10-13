@@ -326,11 +326,18 @@ const stageRegion = (() => {
         for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) stampRegionObject(ctx, rim, piece, { x: at.x + dx * at.dot, y: at.y + dy * at.dot, dot: at.dot });
         return true;
     }
+    /** 그 방을 그릴 때 쓰는 조각 그림(소품, 문틀, 닫힌 문의 덧그림)을 화면 배율로 옮겨 두는 일들, 하나에 그림 한 장. 방 그림을 준비할
+     * 때 미리 해 둔다(js/canvas-stage-room-pictures.js): 예전에는 방을 처음 그리는 프레임에서 조각마다 옮겼다. */
+    function regionFitJobs(map, room, dot) {
+        const region = regionOfMap(map), family = regionFamily(region), names = regionRoomPieces(map, room, region).map(piece => piece.name);
+        for (const door of map.doors.filter(row => row.room === room.index)) names.push('door-' + door.side + '-frame', doorLockName(region, door.side));
+        return [...new Set(names)].filter(name => family.pieces[name] || family.locks[name]).map(name => () => fittedRegionPiece(regionPieceFile(region, name), dot));
+    }
     /** 곧 쓸 지역의 방 그림을 미리 불러 둔다(그림이 없는 지역이면 아무 일도 없다). */
     function warmRegion(id) {
         if (stageView.backdrops() && stageRegionFit.of(id)) regionPicture(id + '.png');
     }
     return Object.freeze({ warm: warmRegion, status: regionStatus, drawFar: drawRoomPicture, paintRoom: paintRoomShade, append: appendRegionPieces, draw: drawRegionPiece,
-        drawMarks: drawRegionSideMarks, drawObject: drawRegionObject, outlineObject: outlineRegionObject });
+        drawMarks: drawRegionSideMarks, drawObject: drawRegionObject, outlineObject: outlineRegionObject, fitJobs: regionFitJobs });
 })();
 safeExposeGlobals({ stageRegion });

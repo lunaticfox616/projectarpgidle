@@ -164,6 +164,16 @@ const stageScene = (() => {
         if (door.side === 'north' || door.side === 'south') return { name, x: (door.cell.gx + 0.5) * WIDE, y: top + rule[2] };
         return { name, x: (door.side === 'west' ? room.x0 * WIDE : (room.x1 + 1) * WIDE) + rule[2], y: (door.cell.gy + 1) * DEEP };
     }
+    /** 그 방을 그릴 때 화면 배율로 옮겨 쓰는 그림(먼 배경, 소품, 잠긴 문과 열린 문)을 미리 옮겨 두는 일들, 하나에 그림 한 장
+     * (js/canvas-stage-room-pictures.js가 방 그림을 준비할 때 한 걸음씩 한다). 지역 그림으로 그리는 지도는 그쪽의 조각이다. */
+    function sceneFitJobs(map, room, dot) {
+        const mode = ready(map);
+        if (mode === 'region') return stageRegion.fitJobs(map, room, dot);
+        if (mode !== 'scene') return [];
+        const kit = kitOf(map), doors = map.doors.filter(door => door.room === room.index).flatMap(door => kit.doors[door.side].slice(0, 2));
+        const names = [...new Set(piecesOf(map, room, kit).map(piece => piece.name).concat(doors))].filter(name => kit.pieces[name]);
+        return [kit.far.file].concat(names.map(name => name + '.png')).map(file => () => fitted(kit, file, dot));
+    }
     /** 전장 그리기의 배우 목록에 이 방의 소품과 문을 끼운다(깊이 순서는 그림 맨 아래 줄의 화면 y). */
     /** 주인공이 선 방과 그 방을 그릴 묶음(mode: 'region', 'scene', false). 방 단위 무대가 아니면 mode가 false다. */
     function standingRoom() {
@@ -172,6 +182,8 @@ const stageScene = (() => {
     }
     function append(actors, state) {
         const here = standingRoom(), { run, map, room } = here;
+        // 방 그림을 아직 준비하는 중이면(어둠으로 가린 프레임) 소품과 문도 그리지 않는다: 그 조각들은 방 그림과 함께 준비된다.
+        if (room && stageRoomPictures.roomPictureWaiting(map, room)) return;
         if (here.mode === 'region') stageRegion.append(actors, state, here);
         if (here.mode !== 'scene') return;
         const kit = kitOf(map), p = state.gridProj, dot = p.tileW / WIDE, reach = 400 * dot;
@@ -215,6 +227,6 @@ const stageScene = (() => {
             stageDoorMarks.arrows(ctx, { cx: p.mapX + piece.x * dot, cy: p.mapY + (piece.y - rule.rise) * dot, w: rule.spread * dot }, row.door, { dot, thick: rule.thick, upright: true });
         }
     }
-    return Object.freeze({ ready, pending, drawFar, paintRoom, append, draw, drawMarks });
+    return Object.freeze({ ready, pending, drawFar, paintRoom, append, draw, drawMarks, fitJobs: sceneFitJobs });
 })();
 safeExposeGlobals({ stageScene });

@@ -1,26 +1,22 @@
 /** 방 단위 무대를 그리는 쪽 (2026-10-11 사용자: "던파처럼 방 하나마다 이동하는 방식"). 지도는 js/act-exploration-rooms.js,
  * 문을 지나는 규칙은 js/act-exploration-doors.js에 있고 여기는 그리기만 한다.
  * - 카메라는 주인공이 선 방에 고정된다: 방이 화면보다 좁으면 방을 가운데에 두고, 넓으면 방 끝에서 멈추며 주인공을 따라간다.
- * - 방 그림은 그 방 하나만 그려 둔다(js/canvas-stage-terrain.js의 box). 방이 바뀌면 다시 그린다(몇 ms).
+ * - 방 그림은 그리기 밖에서 준비해 둔 것을 쓴다(js/canvas-stage-room-pictures.js): 지금 방, 걸어가는 문 너머의 방, 방금 나온 방.
+ *   아직 준비되지 않은 방은 어둠으로 두고, 그림이 오면 그때부터 밝아진다(다른 방의 그림을 잠깐 쓰지 않는다).
  * - 문: 잠긴 문은 쇠창살, 열린 문은 나가는 쪽을 가리키며 깜빡이는 화살표. 보스 방으로 가는 문은 붉다.
  * - 방을 옮기면 화면이 어둠에서 밝아진다(STAGE_ROOMS.fadeMs).
  */
 const stageRoomsView = (() => {
     const WIDE = 64;                             // 방 그림에서 한 칸의 가로 도트(js/canvas-stage-terrain.js와 같다)
-    let picture = null;                          // { map, room, canvas, box }
+    const AHEAD_MS = 250;                        // 걸어가는 문 너머의 방을 다시 묻는 간격
     let shown = { run: null, room: null, at: 0 }; // 마지막으로 그린 방과 그 방에 들어선 시각(화면 밝아지기)
+    let ahead = { run: null, room: null, at: 0, next: null };
 
     const mapOf = run => actExplorationDoors.stageMap(run);
     /** The room the camera holds: the hero's (the one being left until the step's half-way point moves the hero). */
     function roomOf(run) {
         const map = mapOf(run);
         return map ? actExplorationRooms.roomAt(map, game.gridPlayer) : null;
-    }
-    /** 방 그림이 담는 칸 범위: 방과 둘레의 벽. 배경 그림을 쓰는 방(open)은 바닥과 길이 화면 끝까지 가도록 더 넓게 담는다. */
-    function boxOf(map, room, open) {
-        const frame = open ? STAGE_ROOMS.openFrame : STAGE_ROOMS.frame;
-        const x = Math.max(0, room.x0 - frame.side), y = Math.max(0, room.y0 - frame.top);
-        return { x, y, columns: Math.min(map.columns, room.x1 + frame.side + 1) - x, rows: Math.min(map.rows, room.y1 + frame.bottom + 1) - y };
     }
     /** 카메라의 가운데 칸(소수): 가로는 방 안에서 주인공을 따라가되 방 둘레의 벽 한 칸 밖은 보이지 않게, 세로는 방에 고정. */
     function focus(run, cell, view) {
@@ -45,30 +41,15 @@ const stageRoomsView = (() => {
         const headroom = stageView.anchorY() * view.rows - half - .5;
         return (top + bottom) / 2 + Math.max(0, Math.min(STAGE_ROOMS.lift, headroom));
     }
-    /** 배경 그림이 준비된 지형이면 벽 없는 방(바닥과 길, 뒷문의 굴)을, 아니면 벽돌 뒷벽이 선 방을 그려 둔다. */
-    function prepare(map, room, dot) {
-        const mode = modeOf(map), open = mode.open, kit = mode.kit, key = [open, kit, dot, mode.layers].join('|');
-        if (picture && picture.map === map && picture.room === room && picture.key === key) return picture;
-        const box = boxOf(map, room, open);
-        const painted = roomPicture(map, room, box, mode);
-        // 도트 하나가 캔버스 픽셀의 정수배가 아닌 배율에서는 그 배율로 미리 옮겨 둔다(js/canvas-stage-dots.js).
-        picture = { map, room, box, open, kit, key, canvas: stageDots.fitted(painted, dot), gates: kit ? null : gatesOf(map, room, open) };
-        return picture;
-    }
-    /** 이 지도의 방을 무엇으로 그리는가: kit 조각 묶음, open 벽 없는 방(묶음이나 배경 그림), layers 불러와진 층 그림의 수. */
-    function modeOf(map) {
-        const kit = stageScene.ready(map), open = kit || stageBackdrop.ready(map);
-        return { kit, open, layers: open && !kit ? stageBackdrop.layersReady(map) : 0 };
-    }
-    /** 조각 묶음이 있으면 그 바닥과 뒤쪽 띠, 배경 그림만 있으면 코드로 그린 벽 없는 방, 둘 다 없으면 벽돌 뒷벽이 선 방. */
-    function roomPicture(map, room, box, mode) {
-        if (mode.kit) return stageScene.paintRoom(map, room, box);
-        return mode.open ? stageTerrain.paintOpen(map, room, box, stageBackdrop.look(map)) : stageTerrain.paint(map, box);
-    }
-    /** 테마가 있는 방의 문 그림(문 id → 잠긴 그림과 열린 그림). 없으면 쇠창살과 화살표로 그린다. */
-    function gatesOf(map, room, open) {
-        const look = open ? stageBackdrop.look(map) : null;
-        return look && look.theme === 'sanctum' ? stageSanctum.doorPictures(map, room, look) : null;
+    /** 주인공이 걸어가는 문 너머의 방(없으면 null): 이동 명령이나 자동 탐험의 목표가 다른 방이면 그 방으로 가는 문을 향해 걷는다. 그 방의
+     * 그림을 미리 준비하려고 묻는다. 싸우는 동안에는 문이 잠겨 목표가 방 안에 있다. AHEAD_MS마다 한 번만 묻는다. */
+    function aheadRoom(run, map, room) {
+        const now = performance.now();
+        if (ahead.run === run && ahead.room === room && now - ahead.at < AHEAD_MS) return ahead.next;
+        const target = run.status === 'active' ? actExplorationState.destination(run, game.gridPlayer, actExplorationProgress.runMode(run)) : null;
+        const door = target ? actExplorationRooms.doorAt(map, actExplorationDoors.toward(run, target)) : null;
+        ahead = { run, room, at: now, next: door && door.room === room.index ? map.rooms[door.to] : null };
+        return ahead.next;
     }
     /** 방 뒤쪽: 배경 그림을 바닥선 위에 세우고 그 아래는 그림의 빈 띠와 같은 어둠으로 채운다. 방이 화면보다 넓으면 배경이 조금 따라 움직인다. */
     function drawBackdrop(ctx, view, p, area) {
@@ -82,10 +63,14 @@ const stageRoomsView = (() => {
         ctx.fillStyle = stageTerrain.colours(map).dark;
         ctx.fillRect(0, 0, area.width, area.height);
     }
-    /** 방이 바뀐 순간을 기억한다(밝아지기의 시작). 탐험이 바뀐 첫 방은 밝아지지 않고 바로 보인다. */
-    function noteRoom(run, room, now) {
-        if (shown.run === run && shown.room === room) return;
-        shown = { run, room, at: shown.run === run ? now : -Infinity };
+    /** 방이 바뀐 순간을 기억한다(밝아지기의 시작). 탐험이 바뀐 첫 방은 밝아지지 않고 바로 보인다. waiting: 방 그림이 아직 준비되지
+     * 않았다. 그동안은 어둠을 지키고(밝아지기의 시작을 뒤로 민다) 그림이 온 때부터 밝아진다. */
+    function noteRoom(run, room, now, waiting) {
+        if (shown.run === run && shown.room === room) {
+            if (waiting) shown.at = now;
+            return;
+        }
+        shown = { run, room, at: shown.run === run || waiting ? now : -Infinity };
         warmNextAct(mapOf(run), room);
     }
     /** 보스 방에 들어서면 다음 액트의 방 그림을 미리 불러 둔다: 액트가 넘어갈 때 그림을 기다리는 어둠이 짧아진다. */
@@ -99,8 +84,11 @@ const stageRoomsView = (() => {
         if (!room) return false;
         // 지역 무대 그림을 불러오는 동안은 어둠만 둔다: 다른 지형의 방이 잠깐 비쳤다가 바뀌지 않게.
         if (stageScene.pending(map)) { drawWallDark(ctx, map, area); return true; }
-        const view = prepare(map, room, p.tileW / WIDE), box = view.box;
-        noteRoom(run, room, performance.now());
+        // 방 그림은 그리기 밖에서 준비된다: 아직 없으면 어둠을 두고 기다린다(걷기와 전투는 그대로 간다).
+        const view = stageRoomPictures.roomPictureFor(map, room, p.tileW / WIDE, aheadRoom(run, map, room));
+        noteRoom(run, room, performance.now(), !view);
+        if (!view) { drawWallDark(ctx, map, area); return true; }
+        const box = view.box;
         if (view.kit) stageScene.drawFar(ctx, view, p, area);
         else if (view.open) drawBackdrop(ctx, view, p, area);
         else drawWallDark(ctx, map, area);
