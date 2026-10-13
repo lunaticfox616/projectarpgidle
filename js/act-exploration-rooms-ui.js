@@ -9,6 +9,9 @@
  * - 문: 지나 본 문은 밝은 이음, 아직 안 지난 문은 어두운 이음, 보스 방으로 가는 문은 붉다.
  * 방을 누르면 그 방으로 걷는다: 아직 안 가 본 방이면 그 방으로 가는 문까지.
  * 그리기와 좌표 환산만 한다. 이동 명령은 js/act-exploration-ui.js가 내린다.
+ * 지도 바탕(방, 문, 정예와 보스 표식)은 캔버스마다 따로 그려 두고(bases), 주인공의 점과 이동 명령의 고리만 그 위에 다시 얹는다:
+ * 주인공이 걸을 때마다 방과 문을 모두 다시 그리지 않는다. 바탕은 지도 상태가 바뀌었을 때(js/act-exploration-ui.js가 세는 rev)와
+ * 약도의 자리가 움직였을 때(방이 많아 주인공의 방을 따라가는 작은 약도)만 다시 그린다.
  */
 const actExplorationRoomsUi = (() => {
     const INK = Object.freeze({ back: '#080b0d', rim: '#0b0e11',
@@ -128,18 +131,40 @@ const actExplorationRoomsUi = (() => {
         ctx.setLineDash([2, 2]); ctx.lineWidth = 1; ctx.strokeStyle = INK.here;
         ctx.strokeRect(rect.x - 3.5, rect.y - 3.5, rect.w + 7, rect.h + 7); ctx.setLineDash([]);
     }
-    function draw(canvas, run, map) {
-        const view = fit(canvas, map), ss = 2, seen = knowledge(run, map);
-        canvas.width = view.size.w * ss; canvas.height = view.size.h * ss;
-        canvas.dataset.view = 'rooms';
-        const ctx = canvas.getContext('2d');
-        ctx.setTransform(ss, 0, 0, ss, 0, 0);
+    const SS = 2;               // 캔버스는 두 배로 그린다(CSS로 줄여도 표식의 윤곽이 뭉개지지 않게)
+    const bases = new WeakMap(); // 약도 캔버스 → { canvas, key }: 그려 둔 지도 바탕
+    /** 지도 바탕: 바닥, 문, 방, 정예 표식. rev(지도 상태)나 약도의 자리와 크기가 바뀌었을 때만 다시 그린다. */
+    function mapBaseOf(canvas, run, map, at) {
+        const view = at.view, key = [at.rev, view.scale, view.x(0), view.y(0), canvas.width, canvas.height].join('|');
+        let memo = bases.get(canvas);
+        if (!memo) bases.set(canvas, memo = { canvas: document.createElement('canvas'), key: '', map: null });
+        if (memo.key === key && memo.map === map) return memo.canvas;
+        if (memo.canvas.width !== canvas.width || memo.canvas.height !== canvas.height) { memo.canvas.width = canvas.width; memo.canvas.height = canvas.height; }
+        const ctx = memo.canvas.getContext('2d'), seen = knowledge(run, map);
+        ctx.setTransform(SS, 0, 0, SS, 0, 0);
         ctx.fillStyle = INK.back; ctx.fillRect(0, 0, view.size.w, view.size.h);
         drawLinks(ctx, map, view, seen);
         drawRooms(ctx, run, map, view, seen);
         drawEliteMarks(ctx, run, map, view, seen);
+        memo.key = key; memo.map = map;
+        return memo.canvas;
+    }
+    /** @param {number} rev 지도 상태의 판 번호(바뀌면 바탕을 다시 그린다). 캔버스 크기는 달라질 때만 넣는다. */
+    function draw(canvas, run, map, rev) {
+        const view = fit(canvas, map), width = view.size.w * SS, height = view.size.h * SS;
+        if (canvas.width !== width || canvas.height !== height) { canvas.width = width; canvas.height = height; }
+        if (canvas.dataset.view !== 'rooms') canvas.dataset.view = 'rooms';
+        const ctx = canvas.getContext('2d');
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.drawImage(mapBaseOf(canvas, run, map, { view, rev }), 0, 0);
+        ctx.setTransform(SS, 0, 0, SS, 0, 0);
         drawCommand(ctx, run, map, view);
         drawHero(ctx, map, view);
+    }
+    /** 그 캔버스의 바탕을 놓는다(큰 지도를 닫았을 때). */
+    function forgetMapBase(canvas) {
+        const memo = bases.get(canvas);
+        if (memo) { memo.canvas.width = memo.canvas.height = 1; bases.delete(canvas); }
     }
     /** The shown room under a click on the minimap, or null. */
     function roomUnder(event, run, map) {
@@ -163,6 +188,6 @@ const actExplorationRoomsUi = (() => {
         const door = doors.find(row => here && row.room === here.index) || doors[0];
         return door ? { gx: door.cell.gx, gy: door.cell.gy } : null;
     }
-    return Object.freeze({ draw, pick });
+    return Object.freeze({ draw, pick, forgetMapBase });
 })();
 safeExposeGlobals({ actExplorationRoomsUi });

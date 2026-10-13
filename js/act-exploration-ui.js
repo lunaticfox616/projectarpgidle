@@ -1,27 +1,68 @@
 // Exploration controls render the domain snapshot; destination selection stays in the domain.
 const actExplorationUi=(()=>{
-    let lastKey='',lastRun=null;
     let departurePending=false,approvedDeparture=null;
+    // 약도가 보여 주는 것의 요약(2026-10-13 성능 작업, docs/stage-render-performance-20261013.md). 프레임마다 읽어 앞의 것과 견주고 바뀐
+    // 부분만 다시 그린다. 수와 참조만 담는다: 예전에는 프레임마다 모든 무리의 상태를 문자열로 이어 붙여 견줬다. 저장하지 않는다.
+    //   BASE  지도 바탕이 바뀌는 것: 탐험, 지도, 무리(packDigest), 가 본 방의 수, 발견한 칸의 목록, 진행 상태, 닫힌 관문
+    //   MODES 단추가 바뀌는 것: 탐험 방식과 자동 이동의 단축키
+    //   MARK  표식만 바뀌는 것: 주인공의 칸, 이동 명령의 자리, 큰 지도가 열렸는가
+    const BASE=['run','map','packs','visited','discovered','status','sealed'],MODES=['run','status','mode','hotkey'],MARK=['gx','gy','goalX','goalY','large'];
+    let shown={},baseRev=0;
+    /** 무리마다 살아 있는 수를 한 수로 접는다: 처치, 물건에서 나온 덧무리, 불러온 탐험이 모두 이 수를 바꾼다. */
+    function packDigest(run) {
+        let digest=run.packs.length;
+        for(const pack of run.packs)digest=(Math.imul(digest,31)+pack.aliveIds.length)|0;
+        return digest;
+    }
+    function summaryOf(run,map) {
+        const hero=game.gridPlayer,goal=actExplorationState.markedDestination(run);
+        return {run,map,packs:packDigest(run),visited:run.visitedRooms.length,discovered:run.discovered,status:run.status,sealed:!!run.sealed,
+            mode:run.mode,hotkey:autoKey(),gx:hero.gx,gy:hero.gy,goalX:goal?goal.gx:-1,goalY:goal?goal.gy:-1,
+            large:document.getElementById('act-exploration-dialog').open};
+    }
+    const summaryDiffers=(fields,now)=>fields.some(field=>now[field]!==shown[field]);
     function render() {
         const panel=document.getElementById('act-exploration-panel');if(!panel)return;
         // toggleAttribute leaves an unchanged flag alone, so per-frame calls do not restyle the page.
         const run=actExplorationState.current(game);panel.toggleAttribute('hidden',!run);
         document.getElementById('btn-act-exploration-map').toggleAttribute('hidden',!run);
         document.getElementById('btn-act-exploration-auto').toggleAttribute('hidden',!run);
-        if(!run){lastRun=null;lastKey='';return;}
-        const remaining=actExplorationState.remainingElites(run);
-        const key=[run.discovered.length,game.gridPlayer.gx,game.gridPlayer.gy,remaining,run.status,run.mode,
-            run.destination?.gx,run.destination?.gy,run.packs.map(p=>p.aliveIds.length).join(','),autoKey()].join(':');
-        if(run===lastRun&&key===lastKey)return;lastRun=run;lastKey=key;
-        renderModes(run);
-        const seal=document.getElementById('act-exploration-seal');
+        if(!run){shown={};return;}
+        refreshMaps(run,actExplorationMap.forRun(run));
+    }
+    /** 요약이 앞의 것과 같으면 아무것도 하지 않는다. 다르면 바뀐 부분(바탕, 단추, 표식)만 다시 그린다. */
+    function refreshMaps(run,map) {
+        const now=summaryOf(run,map),base=summaryDiffers(BASE,now),modes=summaryDiffers(MODES,now);
+        if(!base&&!modes&&!summaryDiffers(MARK,now))return;
+        const wasLarge=shown.large;
+        shown=now;
+        if(base){baseRev++;renderSeal(run);renderProgress(run);}
+        if(modes)renderModes(run);
+        paintMiniMap(document.getElementById('act-exploration-map'),run,map);
+        refreshLargeMap(run,map,wasLarge);
+    }
+    /** 닫혀 있는 큰 지도는 그리지 않는다. 여는 순간(요약의 large가 바뀐다) 그때의 상태로 그리고, 닫으면 캔버스를 놓는다. */
+    function refreshLargeMap(run,map,wasLarge) {
+        if(shown.large)paintMiniMap(document.getElementById('act-exploration-map-large'),run,map);
+        else if(wasLarge)releaseLarge();
+    }
+    function renderSeal(run) {
+        const remaining=actExplorationState.remainingElites(run),seal=document.getElementById('act-exploration-seal');
         // '봉인 n'은 무엇을 세는지 보이지 않았다(검토 4차): 남은 정예 수와, 다 잡으면 무엇이 열리는지.
         seal.textContent=remaining?'정예 '+remaining:'관문 개방';
         seal.title=remaining?`남은 정예 ${remaining}, 모두 처치하면 보스 관문이 열립니다`:'보스 관문이 열렸습니다';
         seal.setAttribute('aria-label',seal.title);
-        draw(document.getElementById('act-exploration-map'),run);
-        draw(document.getElementById('act-exploration-map-large'),run);
-        renderProgress(run);
+    }
+    /** 약도 한 장: 방 단위 무대는 방과 길의 약도(바탕과 표식을 따로 그린다), 이어진 지도는 주인공 둘레의 지형. */
+    function paintMiniMap(canvas,run,map) {
+        if(map.stage)actExplorationRoomsUi.draw(canvas,run,map,baseRev);
+        else draw(canvas,run,map);
+    }
+    /** 닫힌 큰 지도의 캔버스를 줄여 메모리를 돌려준다(1120×800이면 3.4MB, 바탕까지 두 장). 다시 열면 그때 제 크기로 그린다. */
+    function releaseLarge() {
+        const canvas=document.getElementById('act-exploration-map-large');
+        canvas.width=canvas.height=1;
+        actExplorationRoomsUi.forgetMapBase(canvas);
     }
     /** 크게 보기 창의 탐험 방식 단추와 미니맵의 자동 이동 단추(같은 상태: 직접 이동 = 자동 이동 꺼짐). */
     function renderModes(run) {
@@ -60,11 +101,11 @@ const actExplorationUi=(()=>{
         const y0=Math.max(0,Math.min(map.rows-rows,game.gridPlayer.gy-Math.floor(rows/2)));
         return {x0,y0,cols,rows,scale:8,markerScale:Math.max(1,Math.max(cols,rows)/MINI_MARKER_BASE)};
     }
-    function draw(canvas,run) {
-        const map=actExplorationMap.forRun(run);
-        if(map.stage){actExplorationRoomsUi.draw(canvas,run,map);return;} // 방 단위 무대: 방과 길의 약도
-        const view=mapView(canvas,map),scale=view.scale,ss=2;
-        canvas.width=view.cols*scale*ss;canvas.height=view.rows*scale*ss;
+    /** 이어진 지도의 약도. 작은 약도는 주인공이 한 칸 걸을 때마다 보이는 창이 통째로 움직이므로 바탕을 따로 두지 않고 다시 그린다.
+     * 캔버스 크기는 달라질 때만 넣는다(넣을 때마다 캔버스가 새로 잡힌다). */
+    function draw(canvas,run,map) {
+        const view=mapView(canvas,map),scale=view.scale,ss=2,width=view.cols*scale*ss,height=view.rows*scale*ss;
+        if(canvas.width!==width||canvas.height!==height){canvas.width=width;canvas.height=height;}
         canvas.dataset.view=[view.x0,view.y0,view.cols,view.rows].join(',');
         const ctx=canvas.getContext('2d'),seen=actExplorationSight.seenCells(run);
         ctx.setTransform(ss,0,0,ss,-view.x0*scale*ss,-view.y0*scale*ss);
