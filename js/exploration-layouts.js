@@ -23,6 +23,7 @@ const explorationLayouts = (() => {
     const seedOf = spec => String(spec.seed === undefined ? '' : spec.seed);
     function withArena(out, spec) {
         if (spec.arena === true) out.arena = true;
+        if (spec.chain === true) out.chain = true;
         return out;
     }
     /** Normalised copy of a spec; throws for anything but an act map or a content map (the save boundary drops such runs,
@@ -35,7 +36,7 @@ const explorationLayouts = (() => {
         }
         return withArena({ style: STYLE, act, seed: seedOf(spec) }, spec);
     }
-    const specKey = spec => [spec.style, spec.style === NAMED ? spec.id : spec.act, spec.arena ? 'arena' : 'map'].join(':');
+    const specKey = spec => [spec.style, spec.style === NAMED ? spec.id : spec.act, spec.arena ? 'arena' : spec.chain ? 'chain' : 'map'].join(':');
     /** Boss-only contents: the hero starts in the room before the boss gate; every other room is an empty path. */
     function arenaSource(base) {
         const rooms = base.rooms.map(room => {
@@ -44,9 +45,16 @@ const explorationLayouts = (() => {
         });
         return { ...base, rooms: Object.freeze(rooms) };
     }
+    /** 한 줄로 이어 걷는 지도(벌집 원정, js/content-maps.js hive): 입구와 보스 방 말고는 모두 같은 구실의 방이다. 방 단위 무대가 그 방들을
+     * 입구에서 보스 방까지 한 줄로 잇는다(js/act-exploration-room-plans.js의 놓임새 'c'). */
+    function chainSource(base) {
+        const rooms = base.rooms.map(room => Object.freeze([room[0], room[1], room[2], room[3], room[4], ['entry', 'boss'].includes(room[5]) ? room[5] : 'battle']));
+        return { ...base, rooms: Object.freeze(rooms) };
+    }
     /** @returns {object} a map source in the authored format (actExplorationMap compiles it). */
     function build(spec) {
         const clean = normalize(spec), base = clean.style === NAMED ? content(clean.id) : authored(clean.act);
+        if (clean.chain) return chainSource(base);
         return clean.arena ? arenaSource(base) : base;
     }
     /** Whether a saved spec still describes a map this build can draw (older saves held generated mazes, isles and shafts). */

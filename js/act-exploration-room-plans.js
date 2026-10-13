@@ -146,20 +146,38 @@ const actExplorationRoomPlans = (() => {
     // ---------------------------------------------------------------- which plan
     /** 보스만 서는 투기장: 보스 방 앞의 방(입구)과 보스 방. */
     const arenaPlan = base => nameRooms(parsePlanLines(['S-X']), { ...base, rooms: base.rooms.filter(row => row[5] === 'entry' || row[5] === 'boss') });
+    /** 한 줄로 이어진 놓임새(벌집 원정): 입구에서 보스 방까지 방을 CHAIN_WIDE칸씩 꺾어 가며 잇는다. 약도에서는 벌집처럼 접힌 한 줄이다.
+     *   S-b-b-b
+     *         |
+     *   b-b-b-b
+     *   |
+     *   b-b-b-X */
+    const CHAIN_WIDE = 4;
+    function chainPlan(base) {
+        const total = base.rooms.length, rows = Math.ceil(total / CHAIN_WIDE), lines = [];
+        const letter = index => (index >= total ? ' ' : index === 0 ? 'S' : index === total - 1 ? 'X' : 'b');
+        for (let row = 0; row < rows; row++) {
+            const cells = Array.from({ length: CHAIN_WIDE }, (unused, col) => letter(row * CHAIN_WIDE + (row % 2 ? CHAIN_WIDE - 1 - col : col)));
+            lines.push(cells.map((cell, col) => cell + (col < CHAIN_WIDE - 1 ? (cell !== ' ' && cells[col + 1] !== ' ' ? '-' : ' ') : '')).join(''));
+            if (row < rows - 1) lines.push(' '.repeat(row % 2 ? 0 : (CHAIN_WIDE - 1) * 2) + '|');
+        }
+        return nameRooms(parsePlanLines(lines), base);
+    }
     /** 액트의 프리셋 하나(0부터). 그 액트에 프리셋이 없거나 번호가 없으면 null. */
     function presetPlan(base, index) {
         const lines = (STAGE_ROOM_PLANS.acts[base.act] || [])[index];
         return lines ? nameRooms(parsePlanLines(lines), base) : null;
     }
     /** @param {object} base 지도(data/act-exploration-maps.js의 한 줄, 투기장이면 구실이 바뀐 것)
-     * @param {string} plan 놓임새 열쇠: 'p0'~'p3' 프리셋, 'g' 또는 'g숫자' 준 랜덤(숫자가 없으면 seed를 쓴다)
+     * @param {string} plan 놓임새 열쇠: 'p0'~'p3' 프리셋, 'g' 또는 'g숫자' 준 랜덤(숫자가 없으면 seed를 쓴다), 'c' 한 줄(벌집 원정)
      * @returns {?object} 방 이름이 붙은 놓임새. 없는 프리셋이면 null. */
     function buildRoomPlan(base, plan, seed) {
         if (base.rooms.some(row => row[5] === 'path')) return arenaPlan(base);
+        if (plan === 'c') return chainPlan(base);
         if (plan[0] === 'p') return presetPlan(base, Number(plan.slice(1)));
         return semiRandomPlan(base, plan.length > 1 ? plan.slice(1) : seed);
     }
-    const validPlanKey = plan => /^(p[0-3]|g\d{0,9})$/.test(String(plan));
+    const validPlanKey = plan => /^(p[0-3]|g\d{0,9}|c)$/.test(String(plan));
 
     const recent = new Map();                    // 액트 → 걸은 프리셋 번호(가장 최근이 맨 앞). 저장하지 않는다.
     /** 소프트 랜덤: 바로 앞의 프리셋은 soft.last, 그 앞의 것은 soft.before의 무게로 덜 나온다. */
@@ -174,6 +192,7 @@ const actExplorationRoomPlans = (() => {
     /** 새 탐험의 놓임새 열쇠. 액트는 프리셋 가운데 하나(테스트 패널에서 고른 번호가 있으면 그것, '준 랜덤'을 골랐으면 새 씨앗),
      * 그 밖의 구역은 그 탐험의 씨앗으로 짠다. */
     function chooseRoomPlan(where, wanted) {
+        if (where.source && where.source.chain) return 'c';
         if (!where.act) return 'g';
         if (wanted === 'semiRandomPlan') return 'g' + Math.floor(Math.random() * 1e9);
         const fixed = Number(wanted), count = (STAGE_ROOM_PLANS.acts[where.act] || []).length;

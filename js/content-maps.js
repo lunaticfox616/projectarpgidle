@@ -47,19 +47,25 @@ const contentMaps = (() => {
     function arena(id, biome = 'sanctum') {
         return spec(actForBiome(biome), `arena:${id}`, true);
     }
+    /** 벌집 원정의 전용 지도(2026-10-13 사용자: "벌집전용지도 만들던가"): 입구, 갈림길마다의 벌집 방 열, 여왕의 방이 한 줄로 이어진다.
+     * 방 단위 무대에서만 쓴다(js/state.js createBeehiveZone: 그 밖에서는 판에서 싸운다). 바탕은 방이 꼭 열둘인 액트 10의 지도다. */
+    const HIVE_ACT = 10;
+    function hive(state = game) {
+        return { style: 'act', act: HIVE_ACT, seed: `hive:${state.season || 1}`, chain: true };
+    }
     const TRACK_BIOMES = Object.freeze({ underworld: 'root', sky: 'aerial', ocean: 'courtyard', convergence: 'sanctum' });
     /** Where a boss zone's arena stands: a pinnacle in its realm's look, rivals among ruins, root bosses in the trunk. */
     function bossBiome(zone) {
         if (zone.pinnacleTrack) return TRACK_BIOMES[zone.pinnacleTrack] || 'sanctum';
         return zone.rivalBlade ? 'ruins' : (zone.cosmosCapstone ? 'sanctum' : 'trunk');
     }
-    /** A data-defined boss zone with its arena attached (a copy — the data row stays untouched). A board fight (Cerberus's three
-     * phases of heads and body) keeps the 9×8 board. */
-    const withArena = (zone, biome) => (zone && !zone.boardFight ? { ...zone, exploration: arena(zone.id, biome) } : zone);
+    /** A data-defined boss zone with its arena attached (a copy — the data row stays untouched). A row with bossStages (Cerberus's
+     * three phases of heads and body) has its boss rise that many times in the arena. */
+    const withArena = (zone, biome) => (zone ? { ...zone, exploration: zone.bossStages ? { ...arena(zone.id, biome), bossStages: zone.bossStages } : arena(zone.id, biome) } : zone);
     // 전직 시련: 함정이 번지는 방들을 지나 시련의 수호자에게. 2026-10-06(사용자 요청 "아직 없는 맵 디자인(시련 등)"): 액트 지도를
     // 빌리지 않고 시련마다 따로 짠 지도(data CONTENT_EXPLORATION_MAPS)를 걷는다.
     const TRIAL_MAPS = Object.freeze({ trial_1: 'trial-blades', trial_2: 'trial-triad', trial_3: 'trial-miasma', trial_4: 'trial-crossing', trial_5: 'trial-winter' });
     const trialCorridor = zone => (zone ? { ...zone, exploration: { style: 'map', id: TRIAL_MAPS[zone.id] || 'trial-blades', seed: `trial:${zone.id}` } } : zone);
-    return Object.freeze({ labyrinth, chaos, chaosRealm, skyTower, underworld, timeRift, arena, withArena, trialCorridor, bossBiome, actForBiome });
+    return Object.freeze({ labyrinth, chaos, chaosRealm, skyTower, underworld, timeRift, arena, withArena, trialCorridor, bossBiome, actForBiome, hive });
 })();
 safeExposeGlobals({ contentMaps });

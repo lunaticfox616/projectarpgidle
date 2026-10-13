@@ -21,8 +21,10 @@ const actExplorationState = (() => {
         const run=state.actExploration;
         return run && run.zoneId===state.currentZoneId ? run : null;
     }
+    /** Elites of the ordinary rooms still alive: they seal the boss gate. A boss stage's own escort (Cerberus's heads, elites that
+     * rise with the boss) never holds its own door. */
     function remainingElites(run) {
-        return run.packs.reduce((sum,pack)=>sum+pack.eliteIds.filter(id=>pack.aliveIds.includes(id)).length,0);
+        return run.packs.reduce((sum,pack)=>sum+(pack.stage===null?pack.eliteIds.filter(id=>pack.aliveIds.includes(id)).length:0),0);
     }
     /**
      * @param {{act:number,rotation?:number}|{source:object,zoneId:(number|string),bossStages:number,rotation?:number}} where a story

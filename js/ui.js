@@ -2473,7 +2473,7 @@ function openBeehiveChoiceOverlay(reasonText) {
     }
     let b = game.beehive;
     if (dismissedBeehiveChoices.has(b.pendingChoice)) return;
-    let alive = (game.enemies || []).filter(e => e && e.hp > 0).length;
+    let alive = countBeehiveWaveAlive();
     if (!b.inRun || !b.pendingChoice || b.awaitingClear || alive > 0 || document.getElementById('beehive-choice-overlay')) return;
     let next = Math.min(10, Math.max(1, Math.floor(b.branchStep + 1)));
     let html = `<div id="beehive-choice-overlay" class="beehive-choice-overlay" role="dialog" aria-modal="true" aria-label="벌집 갈림길">
@@ -2498,10 +2498,10 @@ function renderLoop8BeehivePanel(shouldRenderPanel = true) {
     let b = game.beehive || (game.beehive = { unlockedPermanent:false, inRun:false, branchStep:0, cleared:false, routeSeed:0 });
     if (b.inRun && !b.pendingChoice && !b.awaitingClear && !b.queenActive) prepareBeehiveBranchChoices(b);
     let choiceHtml = '';
-    if (b.inRun && b.awaitingClear && (game.enemies || []).filter(e => e.hp > 0).length === 0) {
+    if (b.inRun && b.awaitingClear && countBeehiveWaveAlive() === 0) {
         onBeehiveWaveCleared();
     }
-    let aliveBeeEnemies = (game.enemies || []).filter(e => e && e.hp > 0).length;
+    let aliveBeeEnemies = countBeehiveWaveAlive();
     if (b.inRun && b.pendingChoice && !b.awaitingClear && aliveBeeEnemies <= 0) {
         openBeehiveChoiceOverlay();
         choiceHtml = `<div class="map-hive-choices"><strong>갈림길 선택 (${Math.min(10, (b.branchStep || 0) + 1)}/10), 선택하면 전투가 시작됩니다.</strong>${getBeehiveChoiceButtonsHtml(b.pendingChoice)}</div>`;
@@ -2593,6 +2593,7 @@ function spawnBeehiveWave(isBoss){
     game.encounterPlan = [];
     game.encounterIndex = 0;
     game.moveTimer = 0;
+    let wave = [];
     for (let i = 0; i < count; i++) {
         let marker = { elite: !isBoss && i < eliteCount, boss: isBoss };
         let enemy = createEnemy(zone, marker, i);
@@ -2607,8 +2608,12 @@ function spawnBeehiveWave(isBoss){
             enemy.name = `${enemy.isElite ? '정예 ' : ''}벌집 전투벌`;
             enemy.traitName = enemy.traitName || '벌떼 돌격';
         }
-        game.enemies.push(enemy);
+        wave.push(enemy);
     }
+    // 방 단위 무대: 벌집 전용 지도의 다음 방(여왕은 여왕의 방)에 세운다(js/combat.js placeBeehiveRoomWave). 그 밖에서는 판에 바로 선다.
+    let roomRun = getBeehiveRoomRun();
+    if (roomRun) placeBeehiveRoomWave(roomRun, wave, step, isBoss);
+    else game.enemies.push(...wave);
     if (isBoss) addLog('👑 10개 갈림길을 완료해 여왕벌이 등장했습니다. 여왕벌을 처치하면 벌집 원정이 완료됩니다.', 'loot-unique');
     else addLog(`🐝 벌떼 웨이브 시작! 진행도 ${Math.min(100, step * 10)}%, 남은 적을 모두 처치해야 다음 갈림길이 열립니다.`, 'attack-monster');
 }
@@ -2791,6 +2796,7 @@ function startBeehiveRun(){
     game.encounterIndex = 0;
     game.runProgress = 0;
     game.moveTimer = 0;
+    if (actExplorationDoors.session()) startEncounterRun(); // 방 단위 무대: 벌집 전용 지도를 열고 입구에 선다(js/content-maps.js hive)
     game.combatHalted = true;
     prepareBeehiveBranchChoices(b);
     addLog(`🐝 벌집 원정 시작! 기준 난이도: 혼돈 심화 ${Math.max(21, Math.floor(b.entryDeepChaosDepth || 21))}, 갈림길을 선택하면 즉시 벌떼 웨이브가 시작됩니다.`, 'season-up');
@@ -2804,7 +2810,7 @@ function advanceBeehivePath(){
 }
 function canResolveBeehiveChoice(b) {
     return !!b?.inRun && !!b.pendingChoice && !b.awaitingClear
-        && !(game.enemies || []).some(enemy => enemy && enemy.hp > 0);
+        && countBeehiveWaveAlive() === 0;
 }
 function validateBeehiveChoicePayment(pick, displayedPenalty) {
     if (canPayBeehivePenalty(pick.penalty) && (!displayedPenalty || displayedPenalty === pick.penalty.key)) return true;
@@ -2857,6 +2863,7 @@ function exitBeehiveRun(message, logType){
     b.inRun = false;
     b.branchStep = 0;
     resetBeehiveRunModifiers(b);
+    actExplorationProgress.depart(game); // 벌집 전용 지도를 걷던 중이면 바닥의 전리품을 거두고 그 탐험을 닫는다
     game.currentZoneId = b.returnZoneId !== undefined && b.returnZoneId !== null ? b.returnZoneId : game.maxZoneId;
     b.returnZoneId = null;
     game.enemies = [];
@@ -2884,6 +2891,7 @@ function completeBeehiveRun(){
     b.unlockedPermanent = true;
     resetBeehiveRunModifiers(b);
     b.branchStep = 0;
+    actExplorationProgress.depart(game); // 벌집 전용 지도를 걷던 중이면 여왕이 떨군 것까지 거두고 그 탐험을 닫는다
     game.currentZoneId = b.returnZoneId !== undefined && b.returnZoneId !== null ? b.returnZoneId : game.maxZoneId;
     b.returnZoneId = null;
     game.enemies = [];

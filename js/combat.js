@@ -6763,13 +6763,6 @@ function generateEncounterPlan(zone) {
     }
     if (zone.type === 'meteor') return [{ at: 36, count: 3 }, { at: 76, count: 2, elite: true }, { at: 100, count: 1, boss: true }];
     if (zone.type === 'trial') return [{ at: 18, count: 1, elite: true }, { at: 54, count: 2, elite: true }, { at: 100, count: 2, boss: true }];
-    if (zone.id === 's6_beast_cerberus') {
-        return [
-            { at: 33, count: 3, boss: true, phase: 1 },
-            { at: 66, count: 2, boss: true, phase: 2 },
-            { at: 100, count: 1, boss: true, phase: 3 }
-        ];
-    }
     if (zone.type === 'seasonBoss') return [{ at: 100, count: 1, boss: true }];
     if (zone.type === 'outsideChaos') return [{ at: 100, count: 1, boss: true }];
     if (zone.type === 'chaosRealm') return generateChaosRealmEncounterPlan(zone);
@@ -7778,6 +7771,8 @@ const explorationPackFormation=(()=>{
         const extra=(zone.packExtra||0)+(encounter?ATLAS.encounters[encounter].packExtra:0);
         return shape.count || Math.min(9,3+extra);
     }
+    /** 방 가운데 둘레의 자리 count개(무리가 서는 차례 그대로). */
+    const spots=(room,count)=>cells(room,count,0);
     function prepare(zone,room,stage,encounter,formation) {
         const shape=formation || {},patrol=Object.hasOwn(shape,'anchor');
         const key=patrol?room.id+':patrol':shape.extra?`${room.id}:extra${shape.extra}`:explorationPackKey(room,stage),at=explorationPackSpawnAt(zone,key,stage);
@@ -7818,7 +7813,7 @@ const explorationPackFormation=(()=>{
         const varied=[...rooms].sort((a,b)=>explorationPackSpawnAt(zone,a.id,null)-explorationPackSpawnAt(zone,b.id,null));
         fillRooms(varied,counts,remainder);return {counts,patrol};
     }
-    return {prepare,plan};
+    return {prepare,plan,spots};
 })();
 /** encounter: an atlas content room (js/atlas-encounters.js) — elite-led, larger and tuned, rewarding when emptied. */
 const explorationPackKey=(room,stage)=>room.id+':'+(stage===null?'pack':stage);
@@ -7833,11 +7828,18 @@ function explorationPackSpawnAt(zone,key,stage) {
     return Math.abs(hashSeed(`${zone.atlasSeed || zone.id}:${key}`))%100;
 }
 
+/** 무리의 한 자리에 설 적. 그 자리에 따로 정한 배역(role: 케르베로스의 머리와 몸통)이 있으면 그 표식으로 만들고, 만든 뒤 꾸민다. */
+function createExplorationPackEnemy(zone,marker,index,role) {
+    const enemy=createEnemy(zone,role?{...marker,...role.marker}:marker,index);
+    if(role)role.dress(enemy);
+    return enemy;
+}
 function createActExplorationPack(zone,room,stage,encounter=null,formation=null) {
     const {key,at,cells,elite,anchor,extra}=explorationPackFormation.prepare(zone,room,stage,encounter,formation),waiting=[];
+    const cast=(formation && formation.cast) || [];
     cells.forEach((cell,index)=>{
         const marker={at,count:1,boss:stage!==null,elite:elite && index===0,storyStage:stage,ownLook:atlasEncounters.hasOwnLook(encounter)};
-        const enemy=createEnemy(zone,marker,index);
+        const enemy=createExplorationPackEnemy(zone,marker,index,cast[index]);
         if(encounter)atlasEncounters.tuneEnemy(enemy,encounter,zone);
         if(stage!==null && zone.atlasStages)atlasEndgame.tuneStage(enemy,zone,stage);
         if(stage!==null && zone.memoryTier)memoryDungeon.tuneBoss(enemy,zone.memoryTier);
@@ -7898,15 +7900,81 @@ function createActExplorationEncounter(zone,exploration) {
 /** A +28% ordinary-monster budget: one larger room, one quiet-road group, then small room additions.
  * One-time generation only; existing runs retain every enemy. Atlas and bespoke encounters keep their authored budgets. */
 function createExplorationPacks(zone,map,bossStages) {
+    if(zone.type==='beehive')return createBeehiveRoomPacks(zone,map);
     const packs=[],encounters=atlasEncounters.rooms(zone,map);
     const {counts,patrol}=explorationPackFormation.plan(zone,map);
     for(const room of map.rooms) {
         if(room.role==='entry' || room.role==='path')continue;
         if(room.role!=='boss'){packs.push(zone.atlasCleared?.includes(room.id) ? emptiedExplorationPack(room)
             : createActExplorationPack(zone,room,null,encounters[room.id]||null,counts.get(room.id)));continue;}
-        for(let stage=0;stage<bossStages;stage++)packs.push(placeExplorationBoss(map,room,createActExplorationPack(zone,room,stage)));
+        for(let stage=0;stage<bossStages;stage++)packs.push(createExplorationBossStage(zone,map,room,stage));
     }
     return packs.concat(createAddedExplorationPacks(zone,map,patrol));
+}
+
+/** 벌집 전용 지도의 무리(2026-10-13 사용자: "벌집전용지도 만들던가"): 벌집 방은 모두 비어 있고, 갈림길을 고를 때마다 다음 방에 그
+ * 벌떼가 선다(placeBeehiveRoomWave). 여왕의 방에는 여왕이 처음부터 서 있어 탐험이 먼저 끝나지 않는다: 마지막 갈림길 뒤에 그때의
+ * 강화 수치로 다시 만든다. */
+function createBeehiveRoomPacks(zone,map) {
+    return map.rooms.filter(room=>room.role!=='entry').map(room=>room.role==='boss'
+        ? placeExplorationBoss(map,room,createActExplorationPack(zone,room,0)) : emptiedExplorationPack(room));
+}
+/** 벌집 원정이 방 단위 지도를 걷고 있으면 그 탐험, 판에서 싸우면 null. */
+function getBeehiveRoomRun() {
+    const run=actExplorationState.current(game);
+    return run && run.rooms && game.currentZoneId==='beehive_run' ? run : null;
+}
+/** 방금 만든 벌떼(또는 여왕)를 벌집 지도의 방에 세운다: 벌떼는 입구에서 step번째 방, 여왕은 여왕의 방. 주인공이 그 방에 들어서면 덤빈다. */
+function placeBeehiveRoomWave(run,enemies,step,isBoss) {
+    const map=actExplorationMap.forRun(run),roomId=isBoss?map.route[map.route.length-1]:map.route[Math.min(step,map.route.length-2)];
+    const room=map.rooms.find(row=>row.id===roomId),pack=run.packs.find(row=>row.roomId===roomId);
+    const cells=explorationPackFormation.spots(room,enemies.length);
+    enemies.forEach((enemy,index)=>Object.assign(enemy,cells[index],{gridMoveTimer:0,regenBank:0,spawnStamp:0,explorationPack:pack.key}));
+    Object.assign(pack,{waiting:enemies,aliveIds:enemies.map(enemy=>enemy.id),eliteIds:enemies.filter(enemy=>enemy.isElite).map(enemy=>enemy.id)});
+    if(isBoss)placeExplorationBoss(map,room,pack);
+}
+/** 살아 있는 벌집의 적: 싸우는 것과, 방 단위 지도에서 다음 방에 서서 기다리는 것(여왕은 제 차례가 되어야 센다). */
+function countBeehiveWaveAlive() {
+    const fighting=(game.enemies||[]).filter(enemy=>enemy && enemy.hp>0).length,run=getBeehiveRoomRun();
+    if(!run)return fighting;
+    return fighting+run.packs.filter(pack=>pack.stage===null || game.beehive.queenActive).reduce((sum,pack)=>sum+pack.waiting.length,0);
+}
+
+/** 케르베로스의 세 단계(2026-10-13까지 9×8 판에서 싸우던 세 페이즈): 머리 셋(냉기, 화염, 번개), 물리 머리 둘, 본체.
+ * 단계마다 마지막 하나가 보스이고 나머지는 같이 일어서는 정예 머리다. */
+const CERBERUS_STAGES=Object.freeze([
+    Object.freeze({heads:['cold','fire'],boss:'fire',name:'👿 케르베로스 머리',atk:1.7,crit:0}),
+    Object.freeze({heads:['phys'],boss:'phys',name:'👿 케르베로스 머리',atk:1.7,crit:14,headCrit:10}),
+    Object.freeze({heads:[],boss:'phys',name:'👿 케르베로스 본체',atk:2.1,crit:14,hybrid:'chaos'})
+]);
+/** 케르베로스 한 단계의 배역: 머리들(정예)과 그 단계의 보스. */
+function cerberusStageCast(stage) {
+    const rule=CERBERUS_STAGES[stage];
+    const heads=rule.heads.map((ele,i)=>({marker:{boss:false,elite:true,storyStage:null},dress:enemy=>{
+        Object.assign(enemy,{name:`👿 케르베로스 머리 ${rule.heads.length+1-i}`,ele});
+        enemy.atkMul*=1.55;enemy.penetration+=12;enemy.critChance+=rule.headCrit||0;
+    }}));
+    return heads.concat({marker:{boss:true},dress:enemy=>{
+        Object.assign(enemy,{name:rule.name,ele:rule.boss,hybridElement:rule.hybrid||enemy.hybridElement});
+        enemy.atkMul*=rule.atk;enemy.penetration+=18;enemy.critChance+=rule.crit;
+    }});
+}
+/** 머리들이 서는 칸: 보스(방 가운데의 2×2) 앞쪽, 관문이 있는 쪽으로 세 칸 떨어진 위아래. 걸을 수 없는 칸이면 가운데 줄로 당긴다. */
+function cerberusHeadCells(map,room,count) {
+    const side=Math.sign(map.gate.gx-room.gx)||-1,forward=map.gate.gx!==room.gx;
+    return [-2,2].slice(0,count).map(offset=>{
+        const cell=forward?{gx:room.gx+side*3,gy:room.gy+offset}:{gx:room.gx+offset,gy:room.gy+(Math.sign(map.gate.gy-room.gy)||-1)*3};
+        return actExplorationMap.walkable(map,cell)?cell:{gx:Math.round((cell.gx+room.gx)/2),gy:Math.round((cell.gy+room.gy)/2)};
+    });
+}
+/** 보스 방의 한 단계. 케르베로스만 여럿이 함께 일어선다: 머리들은 제 칸에, 보스는 다른 보스처럼 방 가운데에. */
+function createExplorationBossStage(zone,map,room,stage) {
+    if(zone.id!=='s6_beast_cerberus')return placeExplorationBoss(map,room,createActExplorationPack(zone,room,stage));
+    const cast=cerberusStageCast(stage),heads=cerberusHeadCells(map,room,cast.length-1);
+    const pack=createActExplorationPack(zone,room,stage,null,{cells:heads.concat({gx:room.gx,gy:room.gy}),cast});
+    const body=pack.waiting[pack.waiting.length-1];
+    placeExplorationBoss(map,room,{waiting:[body]});
+    return pack;
 }
 
 /** Packs beside the one each room has: the quiet-road group, and on a room-by-room stage the packs added to every room. */
@@ -8164,20 +8232,11 @@ function reconcileMapProgressRuntimeState() {
 function spawnEncounterMarker(marker) {
     let zone = getZone(game.currentZoneId);
     let count = marker.count || 1;
-    let isCerberus = zone && zone.id === 's6_beast_cerberus';
     if (!hasGridCell(game.gridPlayer)) resetPlayerGridPosition();
     let blockedCells = getGridBlockedCells();
     if (marker.boss) {
         for (let i = 0; i < Math.max(0, count - 1); i++) {
             let enemy = createEnemy(zone, { ...marker, boss: false, elite: true }, i);
-            if (isCerberus) {
-                enemy.name = `👿 케르베로스 머리 ${Math.max(1, (count - i))}`;
-                if (marker.phase === 1) enemy.ele = ['cold', 'fire', 'light'][i % 3];
-                else enemy.ele = 'phys';
-                enemy.atkMul *= 1.55;
-                enemy.penetration += 12;
-                enemy.critChance += marker.phase >= 2 ? 10 : 0;
-            }
             assignEnemyGridSpawn(enemy, blockedCells);
             enemy.spawnStamp = getBattleSpawnStamp();
             game.enemies.push(enemy);
@@ -8191,23 +8250,12 @@ function spawnEncounterMarker(marker) {
             bossEnemy.nextForcedRegenAt = now + 5000;
             bossEnemy.forcedDoomAt = now + 10000;
         }
-        if (isCerberus) {
-            bossEnemy.name = marker.phase === 3 ? '👿 케르베로스 본체' : `👿 케르베로스 머리`;
-            bossEnemy.ele = marker.phase === 1 ? 'fire' : 'phys';
-            bossEnemy.atkMul *= marker.phase === 3 ? 2.1 : 1.7;
-            bossEnemy.penetration += 18;
-            bossEnemy.critChance += marker.phase >= 2 ? 14 : 0;
-            bossEnemy.hybridElement = marker.phase === 3 ? 'chaos' : bossEnemy.hybridElement;
-        }
         assignEnemyGridSpawn(bossEnemy, blockedCells);
         bossEnemy.spawnStamp = getBattleSpawnStamp();
         game.enemies.push(bossEnemy);
         addBattleFx('enemySpawn', { enemyId: bossEnemy.id, color: getElementColor(bossEnemy.ele), duration: 460, boss: true });
         if (game.settings.showSpawnLog !== false) {
             addLog(`👑 '${bossEnemy.name.replace(/^👿\s*/, '')}' 등장.`, "loot-unique");
-            if (isCerberus && marker.phase === 1) addLog('🐺 케르베로스 1페이즈: 냉기/화염/번개 머리 3개', 'attack-monster');
-            if (isCerberus && marker.phase === 2) addLog('🐺 케르베로스 2페이즈: 물리 머리 2개 (치명/연속공격 강화)', 'attack-monster');
-            if (isCerberus && marker.phase === 3) addLog('🐺 케르베로스 3페이즈: 본체 (브레스/헬파이어/몸통박치기)', 'attack-monster');
         }
     } else {
         for (let i = 0; i < count; i++) {
@@ -8966,7 +9014,7 @@ function handleEnemyDeath(enemy, pStats) {
     }
     if (game.enemyWitherStacks && typeof game.enemyWitherStacks === 'object') delete game.enemyWitherStacks[enemy.id];
     clearDotFxThrottleForEnemy(enemy.id);
-    if (zone && zone.id === 'beehive_run' && game.beehive && game.beehive.inRun && (game.enemies || []).filter(entry => entry && entry.hp > 0).length === 0) {
+    if (zone && zone.id === 'beehive_run' && game.beehive && game.beehive.inRun && countBeehiveWaveAlive() === 0) {
         if (typeof onBeehiveWaveCleared === 'function') onBeehiveWaveCleared();
     }
     if (zone && zone.id === 'colony_run' && game.colony && game.colony.inRun) {

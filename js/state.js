@@ -794,11 +794,14 @@ function createBeehiveZone(state) {
     const waveDamageMul = 1.2 + empower * 0.02;
     // Entry recommendations must already cover the final queen, not the current wave.
     const queenHpMul = (1 + 9 * 0.16 + empower * 0.22) * 2.6;
+    // 방 단위 무대에서는 벌집 전용 지도를 걷는다(js/content-maps.js hive). 그 밖에서는 판에서 싸운다.
+    const rooms = typeof actExplorationDoors === 'object' && actExplorationDoors.session();
     return {
         id: 'beehive_run', name: `벌집 심층 ${step}갈래`, type: 'beehive', tier: entryDepth,
         maxKills: 1, ele: 'chaos', entryDeepChaosDepth: entryDepth, waveHpMul, waveAttackRateMul, waveDamageMul,
         bossMods: { hpMul: queenHpMul, atkMul: 1.35 + empower * 0.02,
-            damageMul: 1.35 + empower * 0.025, critChanceBonus: 6, penetration: 8, patternMode: 'burst' }
+            damageMul: 1.35 + empower * 0.025, critChanceBonus: 6, penetration: 8, patternMode: 'burst' },
+        ...(rooms ? { exploration: contentMaps.hive(state) } : null)
     };
 }
 

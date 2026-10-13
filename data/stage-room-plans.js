@@ -78,7 +78,7 @@ const STAGE_ROOM_PLANS = Object.freeze({
     /** 구역의 무대 그림(data/stage-regions.js의 지역). types 구역 종류, deep 혼돈 심화(깊이 21부터), zones 구역 id, rift 시간의 균열의
      * 두 시대, tracks 정점 보스의 영역, rival 버려진 날들, capstone 우주의 끝, boards 고정 전장. 여기에 없는 구역은 빌려 걷는 액트 지도의 그림을 쓴다. */
     regions: Object.freeze({
-        types: Object.freeze({ abyss: 'chaos', chaosRealm: 'chaos-realm', skyTower: 'sky', underworld: 'underworld', labyrinth: 'labyrinth', meteor: 'meteor' }),
+        types: Object.freeze({ abyss: 'chaos', chaosRealm: 'chaos-realm', skyTower: 'sky', underworld: 'underworld', labyrinth: 'labyrinth', meteor: 'meteor', beehive: 'beehive' }),
         deep: 'deep-chaos',
         zones: Object.freeze({ trial_1: 'trial-01', trial_2: 'trial-02', trial_3: 'trial-03', trial_4: 'trial-04', trial_5: 'trial-05' }),
         rift: Object.freeze({ past: 'act-02', future: 'act-06' }),

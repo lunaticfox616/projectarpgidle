@@ -117,13 +117,21 @@ const devTestPanel = (() => {
     const TEST_ZONES = Object.freeze([
         ['혼돈 3층', () => getAbyssZoneIdForDepth(3)], ['1차 전직 시련', () => 'trial_1'],
         ['창공의 탑', () => SKY_TOWER_ZONE_ID], ['지하계', () => UNDERWORLD_ZONE_ID], ['고대 미궁', () => LABYRINTH_ZONE_ID], ['혼돈계', () => CHAOS_REALM_ZONE_ID],
-        ['벌집 (고정 전장)', () => 'beehive_run'], ['케르베로스 (고정 전장)', () => 's6_beast_cerberus']
+        ['벌집 원정', () => 'beehive_run', startTestBeehive], ['케르베로스', () => 's6_beast_cerberus']
     ]);
+    /** 벌집 원정은 구역만 바꾸면 갈림길 없이 빈 지도가 열린다: 열쇠 하나를 주고 원정을 시작해 첫 갈림길 창을 연다. */
+    function startTestBeehive() {
+        if (game.beehive && game.beehive.inRun) return;
+        game.currencies.hiveKey = (game.currencies.hiveKey || 0) + 1;
+        startBeehiveRun();
+        openBeehiveChoiceOverlay('시험 입장');
+    }
     function enterTestZone(index) {
-        const [name, zoneId] = TEST_ZONES[index] || [];
+        const [name, zoneId, start] = TEST_ZONES[index] || [];
         if (!name) return;
         const box = root.querySelector('#dtp-god');
         if (box && !box.checked) { box.checked = true; toggleGodMode(true); }
+        if (start) { start(); refresh(); note(`${name} 시험 입장(무적 켬)`); return; }
         const id = zoneId();
         // 혼돈의 층은 가 본 깊이까지만 열려 있다: 액트 이동과 같이 기록을 그 층까지 올려 둔다
         if (typeof id === 'number') game.maxZoneId = Math.max(game.maxZoneId || 0, id);
