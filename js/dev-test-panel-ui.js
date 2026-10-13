@@ -208,8 +208,9 @@ const devTestPanel = (() => {
                 ...[1, 1.5, 2].map(zoom => button(`×${zoom}`, () => setSetting('stageZoom', zoom, `무대 크기 ×${zoom}`)))]),
             row([el('label', { textContent: '자세' }), stance]),
             row([el('label', { textContent: '지도' }), button('방 단위', () => setStageRooms('on')), button('이어진 지도', () => setStageRooms('off'))]),
-            row([el('label', { textContent: '방 가로' }), ...STAGE_ROOMS.wideSteps.map(step => button(step ? `+${step}` : '기본',
-                () => setStageRoomSize('stageRoomWide', step, `방 가로: ${STAGE_ROOMS.widths.boss + step}칸까지`)))]),
+            // 단추에는 보통 방의 가로 칸 수를 적는다(전에는 덧칸 0이 '기본'이라고 적혀, 가장 작은 크기가 기본처럼 보였다)
+            row([el('label', { textContent: '방 가로' }), ...STAGE_ROOMS.wideSteps.map(step => button(`${STAGE_ROOMS.slot + step}칸`,
+                () => setStageRoomSize('stageRoomWide', step, `방 가로: ${STAGE_ROOMS.slot + step}칸`)))]),
             row([el('label', { textContent: '방 깊이' }), ...STAGE_ROOMS.deepSteps.map(step => button(`${STAGE_ROOMS.depth + step}칸`,
                 () => setStageRoomSize('stageRoomDeep', step, `방 깊이: ${STAGE_ROOMS.depth + step}칸`)))]),
             // 방 놓임새(data/stage-room-plans.js): 액트는 프리셋 넷 가운데 하나가 소프트 랜덤으로 나온다. 여기서 하나를 못박거나 준 랜덤으로 짜 볼 수 있다.
