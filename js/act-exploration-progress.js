@@ -94,14 +94,15 @@ const actExplorationProgress = (() => {
     }
     /** Floor items on the hero's cell are picked up; an offline replay walks no detours and picks everything up at once. */
     function pickUp(run) {
-        const rows=game.isBackgroundCalculation?ground.takeAll(run):ground.takeNear(run,game.gridPlayer);
+        const rows=game.isBackgroundCalculation?ground.takeAll(run):ground.takeNear(run,game.gridPlayer,getCombatTime());
         if(rows.length)collectExplorationFloorLoot(rows);
     }
     /** Auto-move heads for the nearest floor pile once nothing fights. A pile it cannot get closer to for COMMAND_GIVE_UP_STEPS
-     * steps is collected from where the hero stands, so a walled-off drop never holds the map. Returns whether it walked. */
+     * steps is collected from where the hero stands, so a walled-off drop never holds the map. Only a drop that has landed is
+     * walked to: while something is still falling the hero waits where it stands. Returns whether it walked or waited. */
     function walkToLoot(run,stats) {
-        const pile=ground.nearest(run,game.gridPlayer);
-        if(!pile)return false;
+        const now=getCombatTime(),pile=ground.nearest(run,game.gridPlayer,now);
+        if(!pile)return ground.falling(run,now);
         const memo=lootWalks.get(run)||{stalls:0,clearedAt:null};lootWalks.set(run,memo);
         memo.stalls=walkStep(actExplorationDoors.toward(run,pile),stats)?0:memo.stalls+1;
         if(memo.stalls>=COMMAND_GIVE_UP_STEPS){memo.stalls=0;collectExplorationFloorLoot(ground.takeAt(run,pile));}

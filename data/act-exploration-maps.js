@@ -234,4 +234,10 @@ const ACT_EXPLORATION_ALERT = Object.freeze({fromLoop:2,chance:0.2,hearReach:12,
 // Whole-pixel camera zoom for the 16px art (js/canvas-act-exploration.js tileSize). 2026-10-02: at most ×4 (was ×5): on a 125%
 // desktop display the ×5 tiles (80px) made the hero feel too big and the view cramped.
 const ACT_EXPLORATION_CAMERA = Object.freeze({minZoom:3,maxZoom:4});
-safeExposeData({ACT_EXPLORATION_MAPS,CONTENT_EXPLORATION_MAPS,ACT_EXPLORATION_BACKDROPS,ACT_EXPLORATION_ART_VERSION,ACT_EXPLORATION_VISION,ACT_EXPLORATION_ALERT,ACT_EXPLORATION_CAMERA});
+// 바닥에 떨어지는 전리품의 시간 (2026-10-13 사용자: "아이템이 바닥에 완전히 떨어지고 이름 뜨기까지의 시간을 줄이고 아이템이 완전히 떨어지고 나서
+// 캐릭터가 아이템을 줍거나 주우러 가도록 해줘"). 그림은 flightMs에 0~flightSpreadMs를 더한 동안 날아와 닿고(js/battle-ground-loot-ui.js
+// launch), 닿으면 이름이 nameMs에 걸쳐 뜬다(css/battle-ground-loot.css의 loot-name-in에 같은 값을 적는다). 주인공은 놓인 지 readyMs(전투
+// 시간)가 지난 것만 줍고 주우러 간다(js/exploration-ground-loot.js landed): 가장 늦게 닿는 그림에 이름이 다 뜬 뒤다. 전에는 580~679ms를
+// 날고 이름이 240ms에 걸쳐 떴으며, 주인공은 떨어지는 중에도 줍거나 주우러 갔다.
+const GROUND_LOOT_DROP = Object.freeze({flightMs:300,flightSpreadMs:60,nameMs:120,readyMs:520});
+safeExposeData({ACT_EXPLORATION_MAPS,CONTENT_EXPLORATION_MAPS,ACT_EXPLORATION_BACKDROPS,ACT_EXPLORATION_ART_VERSION,ACT_EXPLORATION_VISION,ACT_EXPLORATION_ALERT,ACT_EXPLORATION_CAMERA,GROUND_LOOT_DROP});
