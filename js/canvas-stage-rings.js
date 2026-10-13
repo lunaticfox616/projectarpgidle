@@ -41,10 +41,18 @@ const stageRings = (() => {
     }
     /** 발밑 그림자. at = { x, y(발끝), dot } */
     function shadow(ctx, at, rx, alpha) {
+        const centre = { x: Math.round(at.x), y: Math.round(at.y - LIFT * at.dot), dot: at.dot };
+        const ry = Math.max(2, Math.round(rx * 0.27));
         ctx.save();
         ctx.globalAlpha *= alpha;
         ctx.fillStyle = '#080605';
-        fillEllipse(ctx, { x: Math.round(at.x), y: Math.round(at.y - LIFT * at.dot), dot: at.dot }, rx, Math.max(2, Math.round(rx * 0.27)));
+        // Death colours also cover the ground shadow. Keep that filter pass local, without clipping its antialiased edge.
+        if (stageDots.colorFilterOnly(ctx)) {
+            const bounds = new Path2D();
+            bounds.rect(centre.x - rx * at.dot - 1, centre.y - ry * at.dot - 1, rx * at.dot * 2 + 2, (ry * 2 + 1) * at.dot + 2);
+            ctx.clip(bounds);
+        }
+        fillEllipse(ctx, centre, rx, ry);
         ctx.restore();
     }
     /**

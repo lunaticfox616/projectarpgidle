@@ -70,11 +70,7 @@ const stageDots = (() => {
      * @param {boolean} fixed source pixels never change; only static object images/tints may opt in, never animation canvases
      */
     function blit(ctx, source, from, at, fixed = false) {
-        // Color filters do not extend the picture. Bound their offscreen pass to this draw, rather than the whole
-        // battlefield. Shadows and non-default compositing can affect pixels outside that picture.
-        if (!/^(?:(?:grayscale|saturate|brightness)\([^)]*\)\s*)+$/.test(ctx.filter)
-            || ctx.globalCompositeOperation !== 'source-over'
-            || ctx.shadowBlur || ctx.shadowOffsetX || ctx.shadowOffsetY) return paint(ctx, source, from, at, fixed);
+        if (!colorFilterOnly(ctx)) return paint(ctx, source, from, at, fixed);
         const bounds = new Path2D();
         bounds.rect(at.x - 1, at.y - 1, from.w * at.scale + 2, from.h * at.scale + 2);
         ctx.save();
@@ -84,6 +80,10 @@ const stageDots = (() => {
         ctx.restore();
         ctx.imageSmoothingQuality = quality;
     }
+    /** These filters change colour without extending the drawing. Other filters, shadows and composites keep their full bounds. */
+    const colorFilterOnly = ctx => /^(?:(?:grayscale|saturate|brightness)\([^)]*\)\s*)+$/.test(ctx.filter)
+        && ctx.globalCompositeOperation === 'source-over'
+        && !ctx.shadowBlur && !ctx.shadowOffsetX && !ctx.shadowOffsetY;
     function paint(ctx, source, from, at, fixed) {
         const width = from.w * at.scale, height = from.h * at.scale, smooth = ctx.imageSmoothingEnabled;
         if (whole(at.scale)) {
@@ -121,6 +121,6 @@ const stageDots = (() => {
     }
     /** 캔버스 픽셀의 정수배가 되도록 올림한 도트 크기: 배경 그림처럼 도트 격자를 스스로 정할 수 있는 그림에 쓴다. */
     const wholeDot = scale => Math.max(1, Math.ceil(pxPerDot(scale) - 0.01)) / canvasPx();
-    return Object.freeze({ blit, fitted, whole, wholeDot });
+    return Object.freeze({ blit, fitted, whole, wholeDot, colorFilterOnly });
 })();
 safeExposeGlobals({ stageDots });
