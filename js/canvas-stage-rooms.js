@@ -35,10 +35,8 @@ const stageRoomsView = (() => {
     const isOpen = map => stageScene.ready(map) || stageBackdrop.ready(map);
     /** 배경 그림을 쓰는 방: 바닥의 앞쪽 끝이 화면의 정해진 높이(STAGE_ROOMS.floorBottom)에 오게 한다. 그 위로 바닥 다섯 줄, 그 위가 배경이다. */
     function openFocusRow(room, view) {
-        const narrow = view.width < STAGE_VIEW.minColumns.narrowBelow;
-        // 넓은 화면: 정해진 높이와, 하단 HUD 위로 앞쪽 문이 드러나는 높이 가운데 더 위쪽. 전장의 px은 UI 배율로 이미 나뉜 값이라 그대로 뺀다.
-        const share = narrow ? STAGE_ROOMS.floorBottom.narrow : Math.min(STAGE_ROOMS.floorBottom.wide, 1 - STAGE_ROOMS.hudClear / view.height);
-        return room.y1 + 1 - (share - stageView.anchorY()) * view.rows;
+        // 넓은 화면: 정해진 높이와, 하단 HUD 위로 앞쪽 문이 드러나는 높이 가운데 더 위쪽(stageView.floorShare). 전장의 px은 UI 배율로 이미 나뉜 값이다.
+        return room.y1 + 1 - (stageView.floorShare(view.width, view.height) - stageView.anchorY()) * view.rows;
     }
     /** 세로로 화면의 기준 줄(stageView.anchorY)에 올 칸: 뒷벽 꼭대기(방 위 네 칸)부터 앞쪽 문 자리까지의 가운데에서, 뒷벽이 잘리지
      * 않는 만큼(최대 lift칸) 방을 위로 올린다. 화면 아래쪽은 HUD가 덮어 앞쪽 문이 가려지기 때문이다. */

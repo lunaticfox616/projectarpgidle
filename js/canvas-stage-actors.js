@@ -288,10 +288,23 @@ const stageView = Object.freeze({
     /** Cell width of an exploration map on the stage: the view's width shared among STAGE_VIEW.minColumns cells, so the same
      * stretch of a room shows at any window size (a whole number of px, and no smaller than minDot per character dot).
      * settings.stageZoom (test panel) sets the dots per pixel directly. */
-    tile(width) {
+    /** height와 rows(방이나 판의 깊이 칸 수)를 주면 화면 높이도 따른다: 바닥의 앞쪽 끝(floorShare)에서 뒤쪽 끝까지와 그 위의
+     * 머리 높이(STAGE_VIEW.headroom)가 화면에 들어오는 칸까지만 커진다. 가로로 긴 창에서 뒤쪽 줄이 화면 위로 나가던 것을 막는다. */
+    tile(width, height, rows) {
         const rule = STAGE_VIEW.minColumns, columns = width < rule.narrowBelow ? rule.narrow : rule.wide;
-        const dots = Number(game.settings.stageZoom) || Math.max(STAGE_VIEW.minDot, Math.floor(width / columns) / STAGE_VIEW.heroTile);
-        return STAGE_VIEW.heroTile * dots;
+        if (Number(game.settings.stageZoom)) return STAGE_VIEW.heroTile * Number(game.settings.stageZoom);
+        const widest = Math.floor(Math.min(width / columns, rows ? stageView.tallestTile(width, height, rows) : Infinity));
+        return STAGE_VIEW.heroTile * Math.max(STAGE_VIEW.minDot, widest / STAGE_VIEW.heroTile);
+    },
+    /** 바닥의 앞쪽 끝이 놓이는 세로 자리(화면 높이의 비율): 그 아래는 HUD가 덮는다. 좁은 화면(휴대폰)은 narrow. */
+    floorShare(width, height) {
+        if (width < STAGE_VIEW.minColumns.narrowBelow) return STAGE_ROOMS.floorBottom.narrow;
+        return Math.min(STAGE_ROOMS.floorBottom.wide, 1 - STAGE_ROOMS.hudClear / height);
+    },
+    /** 깊이 rows칸의 바닥과 그 위의 머리 높이가 화면에 다 들어오는 가장 큰 칸 너비(px). */
+    tallestTile(width, height, rows) {
+        const room = STAGE_VIEW.headroom, floor = height * stageView.floorShare(width, height);
+        return (floor - room.top) / (rows * STAGE_VIEW.depth + room.dots / STAGE_VIEW.heroTile);
     },
     /** Where the hero stands down the view (share of its height): the middle on the top-down field. */
     anchorY: () => (stageView.enabled() ? STAGE_VIEW.anchorY : 0.5),

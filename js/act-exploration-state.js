@@ -26,6 +26,9 @@ const actExplorationState = (() => {
     function remainingElites(run) {
         return run.packs.reduce((sum,pack)=>sum+(pack.stage===null?pack.eliteIds.filter(id=>pack.aliveIds.includes(id)).length:0),0);
     }
+    /** 보스 관문이 닫혀 있는가: 정예가 남았거나, 그 콘텐츠가 아직 열지 않았다(run.sealed. 대균열의 생존 시간이 끝나기 전, 군락지의
+     * 지배체가 오기 전: js/combat.js). 닫힌 동안 끝 방의 무리는 깨어나지 않고 자동 탐험도 그 방을 노리지 않는다. */
+    function gateSealed(run) {return !!run.sealed || remainingElites(run)>0;}
     /**
      * @param {{act:number,rotation?:number}|{source:object,zoneId:(number|string),bossStages:number,rotation?:number}} where a story
      *   act's authored map, or a generated map (explorationLayouts spec) for any other zone with its boss stage count; rotation is the
@@ -116,7 +119,7 @@ const actExplorationState = (() => {
     }
     function bossReady(run,pack) {
         if(pack.stage===null)return true;
-        if(remainingElites(run)>0)return false;
+        if(gateSealed(run))return false;
         return !run.packs.some(other=>other.stage!==null && other.stage<pack.stage && other.aliveIds.length>0);
     }
     /** The gate cell counts: the player stops on the threshold and watches the boss rise a few cells away. */
@@ -152,7 +155,8 @@ const actExplorationState = (() => {
     }
     /** A visible boss keeps waiting through its entrance, and in background hunts set to stop before bosses. */
     function holdBoss(state,run,o) {
-        if(o.pack.stage===null)return false;
+        // 끝 방의 조용한 무리(quiet: 보스 없이 끝나는 한 줄 지도의 마지막 무리, js/combat.js createRoomPackOf)는 다른 방의 무리처럼 바로 덤빈다
+        if(o.pack.stage===null || o.pack.quiet)return false;
         // Stop before transferring a visible boss: a strong build could otherwise kill it
         // in this same tick, before the replay's next safety-policy check can see it.
         if(state.isBackgroundCalculation && state.offlineHuntMode==='stopBeforeBoss'){state.backgroundStopReason='before-boss';return true;}
@@ -238,7 +242,7 @@ const actExplorationState = (() => {
     /** A move command. options.object: walking up to an object (exploration-object-combat request), whose own cell is taken. */
     function selectDestination(run,cell,options={}) {
         const map=actExplorationMap.forRun(run);
-        const sealed=remainingElites(run)>0;
+        const sealed=gateSealed(run);
         if(!actExplorationMap.walkable(map,cell,sealed))return false;
         if(!options.object && actExplorationState.objects.solidCells(run).has(`${cell.gx},${cell.gy}`))return false;
         if(!run.discovered.includes(actExplorationMap.index(map,cell)))return false;
@@ -263,7 +267,7 @@ const actExplorationState = (() => {
     /** The pack automatic exploration walks to next: every ordinary pack in 전체 탐색, elites and boss stages in 직행. */
     function nearestPack(run,from,mode) {
         const map=actExplorationMap.forRun(run);
-        const blocked=new Set(remainingElites(run)>0?[actExplorationMap.index(map,map.gate)]:[]);
+        const blocked=new Set(gateSealed(run)?[actExplorationMap.index(map,map.gate)]:[]);
         const candidates=run.packs.filter(pack=>!pack.objectId && pack.aliveIds.length>0 && bossReady(run,pack));
         const ordinary=candidates.filter(pack=>pack.stage===null);
         const wanted=mode==='full' && ordinary.length ? ordinary
@@ -460,6 +464,6 @@ const actExplorationState = (() => {
         // Older saves may be partway through the former 5.5 second presentation.
         exit.remainingMs=Math.min(exit.remainingMs,settlementMs);
     }
-    return {settlementMs,current,create,packRooms,packPosition,sightRadius,sight,inSight,fogDistance,discover,notice,engage,dormantNear,wake,alerted,entrance,bossRoomAt,recordDeath,retireCombat,remainingElites,selectDestination,destination,validate,restore,dropRetired,upgradeRotation};
+    return {settlementMs,current,create,packRooms,packPosition,sightRadius,sight,inSight,fogDistance,discover,notice,engage,dormantNear,wake,alerted,entrance,bossRoomAt,recordDeath,retireCombat,remainingElites,gateSealed,selectDestination,destination,validate,restore,dropRetired,upgradeRotation};
 })();
 safeExposeGlobals({actExplorationState});

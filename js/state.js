@@ -822,18 +822,19 @@ function getZone(id) {
     if (id === ATLAS.zoneId) return atlas.zone(game);
     if (id === 'cosmos_challenge') {
         const challengeZone = createCosmosChallengeZone(game);
-        if (challengeZone) return challengeZone;
+        if (challengeZone) return contentMaps.withRooms(challengeZone);
     }
-    if (id === BEYOND_BOUNDARY_ZONE_ID) return createBeyondBoundaryZone(game);
+    if (id === BEYOND_BOUNDARY_ZONE_ID) return contentMaps.withRooms(createBeyondBoundaryZone(game));
     if (id === 'beehive_run') return createBeehiveZone(game);
-    if (id === 'colony_run') return createColonyZone(game);
+    // 판에서 싸우던 콘텐츠: 방 단위 무대에서는 제 지도를 걷는다(js/content-maps.js withRooms). 그 밖에서는 판 그대로다.
+    if (id === 'colony_run') return contentMaps.withRooms(createColonyZone(game));
     if (id === 'grand_breach_run') {
-        return {
+        return contentMaps.withRooms({
             id: 'grand_breach_run', name: '대균열', type: 'grandBreach', tier: 14, maxKills: 9999, ele: 'chaos',
             bossMods: { hpMul: 4, atkMul: 1.25, damageMul: 1.5, patternMode: 'intro' }
-        };
+        });
     }
-    if (id === OUTSIDE_CHAOS_ZONE_ID) return { id: OUTSIDE_CHAOS_ZONE_ID, name: '혼돈 밖', type: 'outsideChaos', tier: 25, maxKills: 1, ele: 'chaos', fixedDifficultyMul: 1 };
+    if (id === OUTSIDE_CHAOS_ZONE_ID) return contentMaps.withRooms({ id: OUTSIDE_CHAOS_ZONE_ID, name: '혼돈 밖', type: 'outsideChaos', tier: 25, maxKills: 1, ele: 'chaos', fixedDifficultyMul: 1 });
     if (id === CHAOS_REALM_ZONE_ID) {
         let realm = ensureChaosRealmState();
         let floor = Math.max(1, Math.floor(realm.currentFloor || 1));
@@ -844,7 +845,7 @@ function getZone(id) {
         let floor = Math.max(1, Math.floor(st.currentFloor || 1));
         return { id: SKY_TOWER_ZONE_ID, name: `창공의 탑 ${floor}층`, type: 'skyTower', tier: getSkyTowerTier(floor), maxKills: 1, ele: 'chaos', floor: floor, ...contentMaps.skyTower(floor) };
     }
-    if (id === WOODSMAN_ECHO_ZONE_ID) return { id: WOODSMAN_ECHO_ZONE_ID, name: '나무꾼의 잔상', type: 'woodsmanEcho', tier: getChaosRealmTier(30), maxKills: 1, ele: 'chaos' };
+    if (id === WOODSMAN_ECHO_ZONE_ID) return contentMaps.withRooms({ id: WOODSMAN_ECHO_ZONE_ID, name: '나무꾼의 잔상', type: 'woodsmanEcho', tier: getChaosRealmTier(30), maxKills: 1, ele: 'chaos' });
     if (id === TIME_RIFT_PAST_ZONE_ID || id === TIME_RIFT_FUTURE_ZONE_ID) {
         let rift = ensureTimeRiftState();
         let phase = id === TIME_RIFT_PAST_ZONE_ID ? 'past' : 'future';
@@ -885,7 +886,7 @@ function getZone(id) {
         let ocean = ensureOceanState();
         let depthM = Math.max(0, Math.floor(ocean.depthM || 0));
         let depthTier = getOceanDepthTier(depthM);
-        return { id: OCEAN_ZONE_ID, name: `심해 ${depthM}m`, type: 'oceanDepth', tier: getChaosRealmTier(21) + depthTier, maxKills: 1, ele: 'chaos', depthM: depthM, depthTier: depthTier, currents: getOceanCurrentAffixes(depthTier) };
+        return contentMaps.withRooms({ id: OCEAN_ZONE_ID, name: `심해 ${depthM}m`, type: 'oceanDepth', tier: getChaosRealmTier(21) + depthTier, maxKills: 1, ele: 'chaos', depthM: depthM, depthTier: depthTier, currents: getOceanCurrentAffixes(depthTier) });
     }
     if (id === LABYRINTH_ZONE_ID) {
         let floor = Math.max(1, game.labyrinthFloor || 1);

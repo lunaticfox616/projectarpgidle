@@ -153,13 +153,15 @@ const actExplorationRoomPlans = (() => {
      *   |
      *   b-b-b-X */
     const CHAIN_WIDE = 4;
+    /** 한 줄에 서는 방 수: 방이 열둘을 넘으면 줄을 넓힌다(약도가 세로로 길어지지 않게. 우주계와 깊은 심해는 방이 열셋을 넘는다). */
+    const chainWide = total => (total <= 12 ? CHAIN_WIDE : total <= 18 ? 6 : 8);
     function chainPlan(base) {
-        const total = base.rooms.length, rows = Math.ceil(total / CHAIN_WIDE), lines = [];
+        const total = base.rooms.length, wide = chainWide(total), rows = Math.ceil(total / wide), lines = [];
         const letter = index => (index >= total ? ' ' : index === 0 ? 'S' : index === total - 1 ? 'X' : 'b');
         for (let row = 0; row < rows; row++) {
-            const cells = Array.from({ length: CHAIN_WIDE }, (unused, col) => letter(row * CHAIN_WIDE + (row % 2 ? CHAIN_WIDE - 1 - col : col)));
-            lines.push(cells.map((cell, col) => cell + (col < CHAIN_WIDE - 1 ? (cell !== ' ' && cells[col + 1] !== ' ' ? '-' : ' ') : '')).join(''));
-            if (row < rows - 1) lines.push(' '.repeat(row % 2 ? 0 : (CHAIN_WIDE - 1) * 2) + '|');
+            const cells = Array.from({ length: wide }, (unused, col) => letter(row * wide + (row % 2 ? wide - 1 - col : col)));
+            lines.push(cells.map((cell, col) => cell + (col < wide - 1 ? (cell !== ' ' && cells[col + 1] !== ' ' ? '-' : ' ') : '')).join(''));
+            if (row < rows - 1) lines.push(' '.repeat(row % 2 ? 0 : (wide - 1) * 2) + '|');
         }
         return nameRooms(parsePlanLines(lines), base);
     }

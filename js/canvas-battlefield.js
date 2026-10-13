@@ -3238,7 +3238,7 @@ function drawBattleGridFloor(ctx, proj, theme, skillTargets, skillAreaCells, bac
     drawCosmosGravityField(ctx,proj);
     const map=getCombatGridSize(),run=actExplorationState.current(game);
     if(map.tiles) {
-        const sealed=actExplorationState.remainingElites(run)>0;
+        const sealed=actExplorationState.gateSealed(run);
         skillAreaCells=skillAreaCells.filter(cell=>actExplorationMap.walkable(map,cell,sealed));
     }
     const halfW = proj.tileW / 2;

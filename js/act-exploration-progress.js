@@ -59,7 +59,7 @@ const actExplorationProgress = (() => {
         const entrance=watchEntrance(run,opened);
         const cleared=run.packs.filter(pack=>pack.aliveIds.length===0).length;
         // 벌집 원정(한 줄 지도)의 진행도는 갈림길 수다(js/ui.js): 방은 처음부터 비어 있어 방 수로 세면 맞지 않는다
-        if(!(run.source && run.source.chain))game.runProgress=Math.min(99,100*cleared/run.packs.length);
+        if(!(run.source && run.source.chain===true))game.runProgress=Math.min(99,100*cleared/run.packs.length);
         if(holdsOrDetours(run,entrance,stats))return;
         const target=actExplorationState.destination(run,game.gridPlayer,runMode(run));
         if(!target)return;
@@ -137,7 +137,7 @@ const actExplorationProgress = (() => {
     /** Bosses wait in their room from the map's creation: their hidden-journal count (no hit) starts as they wake. */
     function wakeBosses(woken) {
         const zone=getZone(game.currentZoneId);
-        for(const enemy of woken)if(enemy.isBoss)restartHiddenJournalBossRun(enemy,zone);
+        for(const enemy of woken)if(enemy.isBoss){restartHiddenJournalBossRun(enemy,zone);beginRoomBossRules(zone);}
     }
     /** Occupancy matters only when the authoritative hit cell crosses the tile boundary. */
     function canEnterMotionTile(run) {

@@ -117,7 +117,12 @@ const devTestPanel = (() => {
     const TEST_ZONES = Object.freeze([
         ['혼돈 3층', () => getAbyssZoneIdForDepth(3)], ['1차 전직 시련', () => 'trial_1'],
         ['창공의 탑', () => SKY_TOWER_ZONE_ID], ['지하계', () => UNDERWORLD_ZONE_ID], ['고대 미궁', () => LABYRINTH_ZONE_ID], ['혼돈계', () => CHAOS_REALM_ZONE_ID],
-        ['벌집 원정', () => 'beehive_run', startTestBeehive], ['케르베로스', () => 's6_beast_cerberus']
+        ['벌집 원정', () => 'beehive_run', startTestBeehive], ['케르베로스', () => 's6_beast_cerberus'],
+        // 2026-10-13 밤: 판에서 싸우다 방 단위 지도를 걷게 된 콘텐츠, 그리고 아틀라스(지도 한 장과 수호자)
+        ['우주계', null, startTestCosmos], ['심해', null, () => startTestOcean(120)], ['심해 가디언', null, () => startTestOcean(500)],
+        ['경계 너머', null, startTestBoundary], ['군락지', null, startTestColony], ['대균열', null, startTestBreach],
+        ['혼돈 밖', () => OUTSIDE_CHAOS_ZONE_ID], ['나무꾼의 잔상', null, startTestEcho],
+        ['아틀라스 지도', null, () => startTestAtlas('map')], ['아틀라스 수호자', null, () => startTestAtlas('guardian')]
     ]);
     /** 벌집 원정은 구역만 바꾸면 갈림길 없이 빈 지도가 열린다: 열쇠 하나를 주고 원정을 시작해 첫 갈림길 창을 연다. */
     function startTestBeehive() {
@@ -125,6 +130,62 @@ const devTestPanel = (() => {
         game.currencies.hiveKey = (game.currencies.hiveKey || 0) + 1;
         startBeehiveRun();
         openBeehiveChoiceOverlay('시험 입장');
+    }
+    /** 그 구역의 전투를 새로 연다(입장 조건을 보지 않는다). */
+    function openTestZone(id) {
+        actExplorationProgress.depart(game);
+        game.currentZoneId = id;
+        game.enemies = [];
+        game.encounterPlan = [];
+        game.runProgress = 0;
+        game.moveTimer = 0;
+        game.combatHalted = false;
+        ensureEncounterRun();
+    }
+    /** 아래의 시험 입장들은 그 콘텐츠가 열려 있는 것처럼 상태를 만들어 들어간다(입장 재료는 받지 않는다). */
+    function startTestCosmos() {
+        game.cosmosAtlas.activeChallenge = { nodeId: null, galaxy: 1, name: '시험 행성', tier: 5, lootTier: 1, gravity: 1.2, sizeClass: 2, tag: '', theme: '',
+            mechanicId: '', ele: 'chaos', directive: null };
+        game.killsInZone = 0;
+        openTestZone('cosmos_challenge');
+    }
+    /** depth: 잠수를 시작하는 수심(m). 500이면 그 경계의 가디언이 기다린다. */
+    function startTestOcean(depth) {
+        const ocean = ensureOceanState(), oxygen = Math.max(1, Math.floor(getOceanOxygenMax()));
+        Object.assign(ocean, { unlocked: true, diving: true, checkpointM: depth, depthM: depth, bossClearM: 0, oxygenMax: oxygen, oxygenCur: oxygen,
+            drowning: false, drownSec: 0, lastTickAt: getCombatTime() });
+        openTestZone(OCEAN_ZONE_ID);
+    }
+    function startTestBoundary() {
+        const boundary = ensureBeyondBoundaryState(game);
+        boundary.activeRun = { tier: boundary.selectedTier, wave: 1, sealId: boundary.selectedSealId, rewardFocusId: boundary.selectedRewardFocusId,
+            intensityId: boundary.selectedIntensityId, returnZoneId: Number.isInteger(game.currentZoneId) ? game.currentZoneId : 0 };
+        openTestZone(BEYOND_BOUNDARY_ZONE_ID);
+    }
+    function startTestColony() {
+        if (game.colony.inRun) return;
+        game.currencies.colonyTrace = (game.currencies.colonyTrace || 0) + 1;
+        startColonyRun();
+    }
+    function startTestBreach() {
+        game.voidRift.grandBreachUnlock = true;
+        enterGrandBreach();
+    }
+    function startTestEcho() {
+        Object.assign(ensureWoodsmanEchoRunState(), { active: true, duration: 30, timeLeft: 30, lastTickAt: getCombatTime(), totalDamage: 0 });
+        openTestZone(WOODSMAN_ECHO_ZONE_ID);
+    }
+    /** kind: 'map' 일반 지도, 'guardian' 지역 수호자의 투기장. 지도석 하나를 만들어 지도 장치가 여는 것과 같은 길로 연다. 지도 장치는 이번 루프의
+     * 혼돈 20 클리어를 보므로 그 기록을 켠다(시험 저장에 남는다). */
+    function startTestAtlas(kind) {
+        if (game.atlas.run) atlasRun.abandon();
+        const node = atlas.nodes.find(row => row.kind === kind), map = atlasMaps.create(node.id, node.tier, 'normal');
+        map.uid = game.atlas.nextUid++;
+        game.atlas.unlocked = true;
+        game.loopProgressCurrent.chaos20Cleared = true;
+        game.atlas.stash.push(map);
+        const reason = atlasRun.open(map.uid);
+        if (reason) note(reason);
     }
     function enterTestZone(index) {
         const [name, zoneId, start] = TEST_ZONES[index] || [];

@@ -95,7 +95,7 @@ function getClosestGridUnitCell(from, unit) {
  * (each neighbour of a path search counted the living elites again, 2026-10-07 frame drops). */
 function getGridPlacementTerrain() {
     const run=actExplorationState.current(game);
-    return { map: getCombatGridSize(), sealed: !!run && actExplorationState.remainingElites(run)>0 };
+    return { map: getCombatGridSize(), sealed: !!run && actExplorationState.gateSealed(run) };
 }
 
 function canPlaceGridFootprint(blocked, gx, gy, footprint, terrain = getGridPlacementTerrain()) {

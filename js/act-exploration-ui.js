@@ -226,7 +226,7 @@ const actExplorationUi=(()=>{
     function hint(event) {
         const run=actExplorationState.current(game);if(!run)return;
         const rect=event.currentTarget.getBoundingClientRect(),count=actExplorationState.remainingElites(run);
-        showInfoTooltipHtml(rect.left,rect.bottom,count?'남은 정예 몬스터 수: '+count:'보스 관문이 열렸습니다.','#b79c58','act-gate-'+count);
+        showInfoTooltipHtml(rect.left,rect.bottom,count?'남은 정예 몬스터 수: '+count:run.sealed?'관문이 아직 닫혀 있습니다.':'보스 관문이 열렸습니다.','#b79c58','act-gate-'+count);
     }
     // Only explicit travel controls participate. Automatic travel and combat never depend on this UI.
     function departureClick(event) {

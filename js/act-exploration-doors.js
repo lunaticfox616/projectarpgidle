@@ -22,7 +22,7 @@ const actExplorationDoors = (() => {
     /** 싸우는 몬스터나 터지는 중인 물체가 있으면 방의 문이 모두 잠긴다. 보스 방 문은 정예가 남아 있어도 잠긴다. */
     function locked(run, door) {
         if (game.enemies.some(enemy => enemy.hp > 0) || actExplorationState.objects.active(run)) return true;
-        return door.gate && actExplorationState.remainingElites(run) > 0;
+        return door.gate && actExplorationState.gateSealed(run);
     }
     /** 살아 있는 소환수를 주인공이 도착한 칸 둘레로 데려온다: 방이 떨어져 있어 걸어서는 따라올 수 없다. */
     function bringSummons(cell) {

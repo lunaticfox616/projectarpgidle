@@ -1,6 +1,6 @@
 /** 옆에서 보는 무대의 고정 전장 (docs/stage-view-20261011.md, 2026-10-13 무대를 직접 돌려 본 결과).
- * 걷는 지도가 없는 구역(군락지, 심해, 우주계, 대균열, 혼돈 밖. 벌집은 2026-10-13부터 방 단위 무대에서 전용 지도를 걷고, 방 단위를 끈
- * 창에서만 판이다)은 위에서 본 판 그림을 세로로 눌러 그렸다: 주인공과 몬스터가 방
+ * 걷는 지도가 없는 구역은 위에서 본 판 그림을 세로로 눌러 그렸다(2026-10-13 밤부터 방 단위 무대에서는 벌집, 군락지, 심해, 우주계, 대균열,
+ * 혼돈 밖, 나무꾼의 잔상, 경계 너머가 모두 제 지도를 걷는다: js/content-maps.js withRooms. 판은 방 단위를 끈 창에만 남았다): 주인공과 몬스터가 방
  * 무대의 두 배 가까운 크기로 거칠게 보였고 바닥은 흐렸다. 그 구역의 지역 무대 그림(data/stage-regions.js)이 있으면 방 하나처럼
  * 그린다: 칸의 크기는 방 무대와 같고(화면 너비에 스무 칸), 아홉 칸에 여덟 줄의 판이 화면 가운데에 놓이며, 뒤에는 지역 그림이,
  * 판 밖의 바닥에는 그늘이 깔린다. 칸의 수와 판정은 그대로다: 그리는 자리만 바꾼다.
@@ -32,18 +32,14 @@ const stageBoard = (() => {
         const region = boardRegion(zone), map = region ? boardMapOf(region) : null, status = map ? stageRegion.status(map) : null;
         return status === 'ready' || status === 'pending' ? { map, status } : null;
     }
-    /** 바닥의 앞쪽 끝이 놓이는 높이(화면 높이의 비율): 방 무대와 같은 규칙(js/canvas-stage-rooms.js openFocusRow). */
-    function boardFloorShare(width, height) {
-        if (width < STAGE_VIEW.minColumns.narrowBelow) return STAGE_ROOMS.floorBottom.narrow;
-        return Math.min(STAGE_ROOMS.floorBottom.wide, 1 - STAGE_ROOMS.hudClear / height);
-    }
     /** 고정 전장의 화면 자리. 칸은 방 무대의 크기이되 판이 화면에 다 들어오게 줄인다(좁은 화면).
      * @returns {?object} js/ui.js getFixedBattleGridProjection과 같은 모양, 무대 그림으로 그리지 않는 구역이면 null */
     function boardProjection(width, height, zone) {
         if (!stageView.enabled()) return null;
         const stage = boardStage(zone), layout = boardLayout();
-        const tile = Math.min(stageView.tile(width), Math.floor(width / (layout.columns + 0.5))), deep = tile * stageView.depth();
-        const left = Math.round((width - layout.columns * tile) / 2), top = Math.round(height * boardFloorShare(width, height) - layout.rows * deep);
+        // 칸은 방 무대와 같은 규칙으로: 너비와, 판의 깊이가 화면 높이에 들어오는 크기(stageView.tile)
+        const tile = Math.min(stageView.tile(width, height, layout.rows), Math.floor(width / (layout.columns + 0.5))), deep = tile * stageView.depth();
+        const left = Math.round((width - layout.columns * tile) / 2), top = Math.round(height * stageView.floorShare(width, height) - layout.rows * deep);
         const cells = { tileW: tile, tileH: deep, actorGroundOffsetY: deep / 6, unitScaleCap: tile / 46, cellToScreen: (gx, gy) => ({ x: left + (gx + 0.5) * tile, y: top + (gy + 0.5) * deep }) };
         if (stage) return { ...cells, mapX: left, mapY: top, mapWidth: layout.columns * tile, mapHeight: layout.rows * deep, stageBoard: stage };
         // 지역 그림이 없는 고정 전장(케르베로스): 앞서의 판 그림을 그대로 쓰되 칸은 방 무대의 크기다. 판 그림을 놓는 쪽(js/ui.js

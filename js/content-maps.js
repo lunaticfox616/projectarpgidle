@@ -53,6 +53,31 @@ const contentMaps = (() => {
     function hive(state = game) {
         return { style: 'act', act: HIVE_ACT, seed: `hive:${state.season || 1}`, chain: true };
     }
+    // ---------------------------------------------------------------- 판에서 싸우던 콘텐츠의 방 단위 지도
+    // 2026-10-13 밤(사용자: "그거 포함해서 아틀라스도, 옮겨줘"): 군락지, 심해, 우주계, 대균열, 혼돈 밖, 나무꾼의 잔상, 경계 너머가 방 단위
+    // 무대에서는 제 지도를 걷는다(data/stage-view.js STAGE_BOARD_ROOMS). 그 밖에서는(위에서 보는 전장, 그림 없는 검사 환경) 구역 그대로라
+    // 전처럼 9×8 판에서 싸운다. 무리와 보스는 판에서 만들던 그대로 만든다(js/combat.js).
+    /** 보스만 서는 싸움: 입구와 보스 방. */
+    const boardArena = zone => spec(STAGE_BOARD_ROOMS.acts[zone.type], `arena:${zone.type}`, true);
+    /** 한 줄 지도: 입구와 끝 방 사이에 방이 rooms개. */
+    function boardChain(zone, rooms) {
+        const chain = Math.max(1, Math.min(STAGE_BOARD_ROOMS.chainMax, Math.floor(rooms)));
+        return { style: 'act', act: STAGE_BOARD_ROOMS.acts[zone.type], seed: `${zone.type}:${chain}`, chain };
+    }
+    /** 판의 진행 막대가 부르던 무리마다 방 하나: 마지막 무리(보스가 있으면 보스)는 끝 방에 선다. */
+    const markerChain = zone => boardChain(zone, countEncounterMarkers(zone) - 1);
+    const BOARD_ROOMS = Object.freeze({
+        outsideChaos: boardArena, woodsmanEcho: boardArena, cosmos: markerChain, beyondBoundary: markerChain,
+        // 심해: 500m 경계의 가디언이 기다리면 가디언만 서는 투기장, 아니면 무리마다 방 하나
+        oceanDepth: zone => (getOceanPendingBossBoundary(ensureOceanState()) > 0 ? boardArena(zone) : markerChain(zone)),
+        // 군락지: 웨이브마다 방 하나, 다섯째 웨이브(지배체)는 끝 방. 대균열: 균열의 방(생존)과 군주의 방
+        colony: zone => boardChain(zone, STAGE_BOARD_ROOMS.colonyWaves - 1), grandBreach: zone => boardChain(zone, 1)
+    });
+    /** 방 단위 무대에서 판 콘텐츠가 걷는 지도를 붙인 구역(사본). 그 밖에서는 구역 그대로. */
+    function withRooms(zone) {
+        const rooms = !!zone && !!BOARD_ROOMS[zone.type] && typeof actExplorationDoors === 'object' && actExplorationDoors.session();
+        return rooms ? { ...zone, exploration: BOARD_ROOMS[zone.type](zone) } : zone;
+    }
     const TRACK_BIOMES = Object.freeze({ underworld: 'root', sky: 'aerial', ocean: 'courtyard', convergence: 'sanctum' });
     /** Where a boss zone's arena stands: a pinnacle in its realm's look, rivals among ruins, root bosses in the trunk. */
     function bossBiome(zone) {
@@ -66,6 +91,6 @@ const contentMaps = (() => {
     // 빌리지 않고 시련마다 따로 짠 지도(data CONTENT_EXPLORATION_MAPS)를 걷는다.
     const TRIAL_MAPS = Object.freeze({ trial_1: 'trial-blades', trial_2: 'trial-triad', trial_3: 'trial-miasma', trial_4: 'trial-crossing', trial_5: 'trial-winter' });
     const trialCorridor = zone => (zone ? { ...zone, exploration: { style: 'map', id: TRIAL_MAPS[zone.id] || 'trial-blades', seed: `trial:${zone.id}` } } : zone);
-    return Object.freeze({ labyrinth, chaos, chaosRealm, skyTower, underworld, timeRift, arena, withArena, trialCorridor, bossBiome, actForBiome, hive });
+    return Object.freeze({ labyrinth, chaos, chaosRealm, skyTower, underworld, timeRift, arena, withArena, trialCorridor, bossBiome, actForBiome, hive, withRooms });
 })();
 safeExposeGlobals({ contentMaps });

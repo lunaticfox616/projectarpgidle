@@ -26,13 +26,18 @@ const actExplorationView=(()=>{
      * 함께 눌린다. 위에서 보는 전장에서는 둘이 같다. */
     function projection(width,height) {
         const run=actExplorationState.current(game),map=actExplorationMap.forRun(run);
-        const cell=actExplorationMotion.position(run,game.gridPlayer),tile=stageView.enabled()?stageView.tile(width):tileSize(width,height);
+        const cell=actExplorationMotion.position(run,game.gridPlayer),tile=stageView.enabled()?stageView.tile(width,height,stageRoomRows(run)):tileSize(width,height);
         const deep=tile*stageView.depth(),centre=cameraCentre(run,cell,{columns:width/tile,rows:height/deep,width,height});
         const mapX=snap(width/2-centre.gx*tile),mapY=snap(height*stageView.anchorY()-centre.gy*deep);
         shiftActors(run,{x:mapX,y:mapY,tile,deep});
         return {tileW:tile,tileH:deep,actorGroundOffsetY:deep/6,unitScaleCap:tile/46,mapX,mapY,
             mapWidth:map.columns*tile,mapHeight:map.rows*deep,
             cellToScreen:(gx,gy)=>({x:mapX+(gx+.5)*tile,y:mapY+(gy+.5)*deep})};
+    }
+    /** 방 단위 무대에서 주인공이 선 방의 깊이(칸): 칸 크기가 화면 높이에 맞게 줄어들 기준이다. 이어진 지도에서는 0(너비만 따른다). */
+    function stageRoomRows(run) {
+        const room=actExplorationDoors.room(run);
+        return room?room.y1-room.y0+1:0;
     }
     /** The cell (fractional) at the camera's centre: the hero's, leaning toward a boss; on a room-by-room stage the view its room
      * holds (js/canvas-stage-rooms.js). */
@@ -208,7 +213,7 @@ const actExplorationView=(()=>{
         const point=actor.point,box=gateBox(point,p)||{x:point.x-76,y:point.y-158,w:152,h:190,base:actor.y};
         const occluded=player.y<box.base&&player.y>box.y&&Math.abs(player.x-point.x)<box.w/2;
         ctx.globalAlpha=occluded?.38:1;
-        const locked=actExplorationState.remainingElites(game.actExploration)>0;
+        const locked=actExplorationState.gateSealed(game.actExploration);
         ctx.drawImage(locked?cache.closed:cache.open,box.x,box.y,box.w,box.h);
         ctx.restore();
     }

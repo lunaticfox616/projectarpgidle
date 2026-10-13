@@ -15,6 +15,10 @@ const STAGE_VIEW = Object.freeze({
      * 같은 칸 수가 보인다(도트가 캔버스 픽셀의 정수배가 아닌 배율은 js/canvas-stage-dots.js가 고르게 찍는다). 아주 작은 창에서는
      * 도트가 이보다 작아지지 않고 대신 보이는 칸이 준다. */
     minDot: 0.75,
+    /** 2026-10-13 (가로로 긴 창 2560×720에서 방의 뒤쪽 줄이 화면 위로 나가 몬스터의 머리와 체력바가 잘렸다): 칸 크기는 화면 높이도 따른다.
+     * 방 바닥의 뒤쪽 끝 위로 dots도트(뒤쪽 줄에 선 몬스터의 키와 체력바, 이름표)와 화면 위쪽의 top px(구역 이름과 진행 막대의 줄)이
+     * 남는 가장 큰 칸까지만 커진다. 그보다 작은 창에서는 전처럼 minDot이 아래 끝이다. */
+    headroom: Object.freeze({ dots: 104, top: 44 }),
     /** 주인공이 서는 세로 자리(화면 높이의 비율). 아래쪽은 HUD가 덮으므로 가운데보다 조금 위다. */
     anchorY: 0.46,
     /** 칸 너비가 이 값일 때 캐릭터 도트 하나가 화면 1px이다. */
@@ -221,4 +225,14 @@ const STAGE_SCENES = Object.freeze({
 // 주인공이 벌 밑에 묻힌다고 짚었다). 0.6배로 전투벌 60도트, 근위벌 85도트, 여왕 111도트다.
 const STAGE_MONSTER_SCALE = Object.freeze({ 'wisp-': 0.7, 'hive-': 0.6 });
 
-safeExposeData({ STAGE_VIEW, STAGE_TERRAIN, STAGE_ROOMS, STAGE_BACKDROPS, STAGE_OBJECTS, STAGE_PROPS, STAGE_SCENES, STAGE_MONSTER_SCALE });
+/** 판(9×8)에서 싸우던 콘텐츠가 방 단위 무대에서 걷는 지도(2026-10-13 밤 사용자: "그거 포함해서 아틀라스도, 옮겨줘". js/content-maps.js withRooms).
+ * acts 구역 종류 → 바탕으로 빌리는 액트 지도(지도 id와 어둠 색, 입구와 끝 방의 이름만 쓴다. 무대 그림은 그 구역의 지역 그림이다),
+ * chainMax 한 줄 지도의 사이 방 수의 위(무리가 그보다 많으면 마지막 방들에 겹쳐 선다),
+ * colonyWaves 군락지 지도 한 장이 받는 웨이브 수(다섯째마다 오는 지배체가 끝 방에 서고, 그 뒤에는 새 지도가 열린다). */
+const STAGE_BOARD_ROOMS = Object.freeze({
+    acts: Object.freeze({ cosmos: 10, oceanDepth: 2, beyondBoundary: 10, colony: 1, grandBreach: 8, outsideChaos: 10, woodsmanEcho: 10 }),
+    chainMax: 30,
+    colonyWaves: 5
+});
+
+safeExposeData({ STAGE_VIEW, STAGE_TERRAIN, STAGE_ROOMS, STAGE_BACKDROPS, STAGE_OBJECTS, STAGE_PROPS, STAGE_SCENES, STAGE_MONSTER_SCALE, STAGE_BOARD_ROOMS });

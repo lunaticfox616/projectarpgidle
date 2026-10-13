@@ -64,7 +64,7 @@ function clipSkillFootprint(ctx, footprint, includeCaster = false) {
 function clipSkillFootprintTerrain(ctx, footprint) {
     const map=getCombatGridSize(),run=actExplorationState.current(game);
     if(map.tiles) {
-        const sealed=!!run && actExplorationState.remainingElites(run)>0;
+        const sealed=!!run && actExplorationState.gateSealed(run);
         const x0=Math.max(0,Math.floor((footprint.x-footprint.width/2-footprint.board.x)/footprint.tileW));
         const y0=Math.max(0,Math.floor((footprint.y-footprint.height/2-footprint.board.y)/footprint.tileH));
         const x1=Math.min(map.columns,Math.ceil((footprint.x+footprint.width/2-footprint.board.x)/footprint.tileW));

@@ -2555,6 +2555,7 @@ function forfeitColonyRun(){
     game.encounterPlan = [];
     game.encounterIndex = 0;
     game.runProgress = 0;
+    actExplorationProgress.depart(game); // 방 단위 지도: 바닥의 전리품을 거두고 지도를 닫는다
     addLog(`🪲 군락지 ${Math.max(0, Math.floor(c.wave || 1) - 1)}웨이브 정산 후 철수했습니다. 획득 보상은 유지됩니다.`, 'season-up');
     updateStaticUI();
     queueImportantSave(200);
@@ -7508,9 +7509,13 @@ function setUiImageGaugePercent(element, percent) {
 /** The progress gauge speaks only for special content — a timer, waves, depth, a boss wait or a floor run. Story acts
  * are explored on the map (the minimap ring shows how much is revealed), so the gauge is hidden there. */
 /** Wide maps (story acts and every content with its own map) show progress on the minimap, not the bar. */
+/** 판에서 싸우다 제 지도를 걷게 된 콘텐츠(2026-10-13) 가운데 막대가 말해 주는 것이 있는 곳은 막대가 그대로 보인다: 대균열과 나무꾼의
+ * 잔상의 남은 시간, 군락지의 웨이브, 심해의 수심, 혼돈 밖에서 나무꾼을 기다리는 몇 초. */
+const MAP_PROGRESS_SPEAKING_TYPES = Object.freeze(['grandBreach', 'woodsmanEcho', 'colony', 'oceanDepth']);
 function syncMapProgressRow(zone) {
     const row = document.getElementById('ui-map-progress-row');
-    if (row) row.toggleAttribute('hidden', !!zone && (zone.type === 'act' || !!zone.exploration));
+    const speaks = !!zone && (MAP_PROGRESS_SPEAKING_TYPES.includes(zone.type) || (zone.type === 'outsideChaos' && !!game.woodsmanEntrancePending));
+    if (row) row.toggleAttribute('hidden', !!zone && (zone.type === 'act' || !!zone.exploration) && !speaks);
 }
 
 function setCombatProgressGaugePercent(percent) {
