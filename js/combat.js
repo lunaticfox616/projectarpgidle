@@ -11239,7 +11239,7 @@ function handlePlayerDefeat(zone, pStats, message, options) {
     }
     game.lastDeathLog = buildPlayerDeathLog(zone, opts, expLost, pStats);
     if (game.lastDeathLog.retreatZoneName) addLog(`🛡️ ${withDirectionParticle(game.lastDeathLog.retreatZoneName)} 물러나 레벨을 ${ACT_RETREAT_LEVELS} 올린 뒤 다시 도전합니다.`, 'season-up');
-    if (game.settings.showDeathNotice !== false) openDeathOverlay(game.lastDeathLog);
+    if (game.settings.showDeathNotice !== false) openDeathOverlay.request(game.lastDeathLog);
     game.playerHp = getPlayerHpCap(pStats);
     atlasRun.defeat(zone);
     startMoving(false);

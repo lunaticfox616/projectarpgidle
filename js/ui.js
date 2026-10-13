@@ -13353,6 +13353,7 @@ function gameLoop(frameNow = performance.now()) {
         // 백그라운드 재계산 중에는 캔버스 렌더를 쉬어 계산 청크에 프레임을 양보한다.
         // RAF timestamps share the display clock; callback execution can be delayed by combat/UI work.
         showNextTutorial();
+        openDeathOverlay.flushPending();
         let tutorialPause = isTutorialPausingCombat();
         if (tutorialPause || isRewardOpen() || isLoopHeroSelectOpen()) {
             if (document.getElementById('tab-char').classList.contains('active')) {

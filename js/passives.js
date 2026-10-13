@@ -5474,6 +5474,7 @@ function isDeathOverlayOpen() {
 
 function toggleDeathNoticeSetting(checked) {
     game.settings.showDeathNotice = !!checked;
+    if (!checked) openDeathOverlay.pending = null;
     let settingsCheckbox = document.getElementById('chk-death-notice');
     let inlineCheckbox = document.getElementById('chk-death-notice-inline');
     if (settingsCheckbox) settingsCheckbox.checked = !!checked;
@@ -5678,6 +5679,7 @@ function openDeathOverlay(log) {
     if (game.isBackgroundCalculation) return;
     let overlay = document.getElementById('death-overlay');
     if (!log || !overlay) return;
+    openDeathOverlay.pending = null;
     activeDeathLog = log;
     let ailments = Array.isArray(log.activeAilments) ? log.activeAilments.filter(entry => entry && entry.type) : [];
     let ailmentText = ailments.length > 0
@@ -5702,6 +5704,31 @@ function openDeathOverlay(log) {
     overlay.showModal();
     lastTime = Date.now();
 }
+
+// 자동 알림은 관리 화면과 다른 선택 창을 가리지 않는다. 저장된 사망 기록은 즉시 갱신되고,
+// 표시 예약만 가장 최근 한 건으로 합친다. 이미 읽는 기록은 새 사망으로 덮어쓰지 않는다.
+openDeathOverlay.request = function requestDeathNotice(log) {
+    if (game.isBackgroundCalculation || isDeathOverlayOpen()) return;
+    openDeathOverlay.pending = { owner: game, log };
+    openDeathOverlay.flushPending();
+};
+
+openDeathOverlay.flushPending = function flushPendingDeathNotice() {
+    const pending = openDeathOverlay.pending;
+    if (!pending) return;
+    if (pending.owner !== game || pending.log !== game.lastDeathLog || game.settings.showDeathNotice === false) {
+        openDeathOverlay.pending = null;
+        return;
+    }
+    if (game.isBackgroundCalculation || document.hidden) return;
+    const body = document.body.classList;
+    const managing = body.contains('desktop-windowed-ui')
+        ? body.contains('ui-management-mode')
+        : !document.getElementById('tab-battle').classList.contains('active');
+    if (managing) return;
+    if (document.querySelector('dialog[open], .tutorial-overlay.active, .selection-overlay, #background-combat-result-overlay, #startup-overlay.active, #loading-overlay.active')) return;
+    openDeathOverlay(pending.log);
+};
 
 function openLastDeathLog() {
     if (!game.lastDeathLog) return addLog('아직 기록된 데스로그가 없습니다.', 'attack-monster');
