@@ -9,17 +9,17 @@
 const redrawnSkillFx = (() => {
     const MOVE_EVENTS = ['windup', 'travel', 'stage', 'hit', 'transfer'];
     // Gems drawn only by the redrawn art (no PixelLab atlas entry): the movement gems of the 이동 스킬 slot.
-    const OWN_ART = Object.freeze({ '차원찢기': { id: 54 }, '향로구름': { id: 55 }, '작살화살': { id: 56 }, '공중강타': { id: 57 } });
+    const OWN_ART = Object.freeze({ '차원찢기': { id: 54 }, '향로구름': { id: 55 }, '작살화살': { id: 56 } });
     /** The art spec a skill is drawn under: its atlas entry, or its own redrawn-only id. */
     const specOf = name => SKILL_FX_ATLAS[name] || OWN_ART[name] || null;
-    const IDS = new Set([3, 5, 10, 16, 17, 18, 21, 28, 29, 30, 32, 33, 37, 38, 41, 42, 43, 45, 46, 48, 50, 51, 54, 55, 56, 57]);
-    const REPLACED = { 3: ['windup', 'stage', 'hit'], 33: ['windup', 'stage', 'hit'], 21: ['travel', 'hit'],
+    const IDS = new Set([3, 5, 10, 16, 17, 18, 21, 28, 29, 30, 37, 38, 42, 45, 46, 48, 50, 51, 54, 55, 56]);
+    const REPLACED = { 3: ['windup', 'stage', 'hit'], 21: ['travel', 'hit'],
         45: ['travel', 'stage', 'hit'], 38: ['travel', 'stage', 'hit'], 51: ['stage'], 16: ['windup', 'stage', 'hit'], 37: ['windup', 'stage', 'hit'],
         // 빙결 파열창 keeps its redrawn spear (fxRemake.projectile) and only its hits turn to frost mist; 과냉각 혼합물 keeps
         // its flask flight and hit sparks and only its heavy cloud ring (the wave stage) becomes thin frost rings.
         30: ['hit'], 48: ['stage'],
         // The movement gems have no original art at all: everything they show is redrawn.
-        54: MOVE_EVENTS, 55: MOVE_EVENTS, 56: MOVE_EVENTS, 57: MOVE_EVENTS };
+        54: MOVE_EVENTS, 55: MOVE_EVENTS, 56: MOVE_EVENTS };
     const CAST_LIMIT = 48;
     const TAIL_MS = 1400;
     const SPIN = ['east', 'south', 'west', 'north'];
@@ -113,10 +113,6 @@ const redrawnSkillFx = (() => {
         return p && p.tileW ? (Number(p.actorGroundOffsetY) || 0) * 48 / p.tileW : 8;
     }
     function feetY(cell, view) { return Math.round((cell.gy * 48 + 24 + feetDots(view)) / 3); }
-    function farthestCell(source, cells) {
-        const distance = c => Math.hypot(c.gx - source.gx, c.gy - source.gy);
-        return (cells || []).reduce((best, c) => (!best || distance(c) > distance(best) ? c : best), null);
-    }
     function unitToward(a, b) {
         const dx = b.x - a.x, dy = b.y - a.y, L = Math.hypot(dx, dy) || 1;
         return { x: dx / L, y: dy / L };
@@ -133,15 +129,6 @@ const redrawnSkillFx = (() => {
     }
 
     // ------------------------------------------------------------------ drawers (handoff ui_player.js, per cast)
-    function drawVoid(dot, cast, ft) {                        // 43 공허 절삭광
-        const st = firstOf(cast, 'stage');
-        const age = st ? ft - st.at : -1;
-        if (!st || age < 0 || age >= st.duration) return;
-        const S = cellDot(st.sourceCell), B = cellDot(st.targetCells[0]), d = unitToward(S, B), A = { x: S.x + d.x * 4, y: S.y + d.y * 4 - 2 };
-        const surge = cast.events.some(e => e.kind === 'hit' && ft >= e.at && ft < e.at + 70) ? 1 : 0;
-        art().VoidBolt.beam(dot, A, B, { age, dur: st.duration, variant: Math.floor(age / 70) % 4, surge, grow: age / 90 });
-        cast.events.forEach((e, i) => { const tc = e.kind === 'hit' && hitCell(e); if (tc) art().VoidBolt.impact(dot, tc.gx * 16 + 8, tc.gy * 16 + 6, ft - e.at, i + 1); });
-    }
     function drawCrescent(dot, cast, ft) {                    // 16 공허 베기
         const st = firstOf(cast, 'stage');
         if (!st) return;
@@ -163,37 +150,6 @@ const redrawnSkillFx = (() => {
             const t = hitCell(e);
             if (t.gx !== ctr.gx || t.gy !== ctr.gy) art().FrostRing.flake(dot, t.gx * 16 + 8, t.gy * 16 + 6, ft - e.at);
         }
-    }
-    function drawWave(dot, cast, ft) {                        // 41 집중 광선
-        const st = firstOf(cast, 'stage');
-        const age = st ? ft - st.at : -1;
-        if (!st || age < 0 || age >= st.duration) return;
-        const S = cellDot(st.sourceCell), B = cellDot(farthestCell(st.sourceCell, st.footprint?.cells) || st.targetCells[0]), d = unitToward(S, B);
-        const A = { x: S.x + d.x * 4, y: S.y + d.y * 4 - 2 }, B2 = { x: B.x + d.x * 6, y: B.y + d.y * 6 - 2 };
-        const surge = cast.events.some(e => e.kind === 'hit' && ft >= e.at && ft < e.at + 80) ? 1 : 0;
-        art().EnergyWave.wave(dot, A, B2, { age, dur: st.duration, surge });
-        for (const e of eventsOf(cast, 'hit')) { const tc = hitCell(e); if (tc) art().EnergyWave.hit(dot, tc.gx * 16 + 8, tc.gy * 16 + 6, ft - e.at); }
-    }
-    function triGeometry(st) {
-        const cn = st.footprint && st.footprint.cone, src = st.sourceCell, t = st.targetCells[0];
-        const d = cn ? { x: cn.dx, y: cn.dy } : unitToward({ x: src.gx, y: src.gy }, { x: t.gx, y: t.gy });
-        const len = cn ? cn.length : (st.stageIndex + 1) * 1.2;
-        return { O: { x: src.gx * 16 + 8 + d.x * 4, y: src.gy * 16 + 8 + d.y * 4 - 2 }, d, Rmax: Math.max(12, len * 16 - 2), T: st.duration + 60, start: st.at - 20 };
-    }
-    function triSpark(dot, e, stage, ft) {
-        const tc = hitCell(e);
-        if (!tc) return;
-        const g = stage.geo, x = tc.gx * 16 + 8, y = tc.gy * 16 + 6, dist = Math.hypot(x - g.O.x, y - g.O.y);
-        const f = Math.min(1, Math.max(0, (dist - 4) / (g.Rmax - 4))), arrive = g.start + g.T * (1 - Math.sqrt(1 - f));
-        art().TriWave.spark(dot, x, y, ft - arrive, { el: e.element || stage.element, seed: stage.seed });
-    }
-    function drawTri(dot, cast, ft) {                         // 32 삼원 파동
-        const stages = eventsOf(cast, 'stage').map(st => ({ st, geo: triGeometry(st) }));
-        stages.forEach(({ st, geo }) => art().TriWave.wave(dot, geo.O, geo.d, ft - geo.start, { T: geo.T, Rmax: geo.Rmax, half: .7, el: st.element, R0: 4 }));
-        cast.events.forEach((e, i) => {
-            const stage = e.kind === 'hit' && stages.find(s => s.st.stageIndex === e.stageIndex);
-            if (stage) triSpark(dot, e, { geo: stage.geo, element: stage.st.element, seed: i + 1 }, ft);
-        });
     }
     function breathFlames(dot, b, t0, i) {
         const dir = i % 2 ? -1 : 1;
@@ -285,12 +241,6 @@ const redrawnSkillFx = (() => {
         const ctr = st[0].footprint?.center || st[0].targetCells[0];
         const pull = SKILL_DB[cast.skillName]?.combatPattern?.stages?.[1]?.delayMs || 320, t1 = (st[1] ? st[1].at : st[0].at + pull) - st[0].at;
         art().GravityCollapse.collapse(dot, ctr.gx * 16 + 8, ctr.gy * 16 + 8, ft - st[0].at, { t1, R1: 27 + 16 * grownBy(cast, st[0]) });
-    }
-    function drawTriple(dot, cast, ft) {                      // 33 뇌격 삼연타 (the charge before the first hit is drawn from the swing)
-        eventsOf(cast, 'hit').filter(hitCell).forEach((e, i) => {
-            const tc = hitCell(e), k = e.repeatIndex != null ? e.repeatIndex : i;
-            art().TripleBolt.strike(dot, tc.gx * 16 + 8, tc.gy * 16 + 6, ft - e.at - k * 90, k % 3);
-        });
     }
     function drawLance(dot, cast, ft) {                       // 45 광창 강림
         const tr = firstOf(cast, 'travel');
@@ -404,11 +354,10 @@ const redrawnSkillFx = (() => {
     const DRAWERS = {
         3: { fore: drawDrain }, 5: { fore: drawWhirl }, 10: { fore: drawFrost }, 16: { fore: drawCrescent },
         18: { ground: drawQuakeGround, fore: drawQuake }, 21: { fore: drawFrostWave }, 28: { fore: drawCollapse },
-        32: { fore: drawTri }, 33: { fore: drawTriple }, 38: { ground: drawPotionGround, fore: drawPotion },
-        41: { fore: drawWave }, 42: { fore: drawBreath }, 43: { fore: drawVoid }, 45: { fore: drawLance },
+        38: { ground: drawPotionGround, fore: drawPotion }, 42: { fore: drawBreath }, 45: { fore: drawLance },
         46: { ground: drawTimeClock, fore: drawTimeMarks }, 50: { ground: drawMist }, 51: { fore: drawJudgment }
     };
-    /** js/canvas-redrawn-skill-fx-extra.js adds its drawers (17·29·30·37·48, 54~57) here. */
+    /** js/canvas-redrawn-skill-fx-extra.js adds its drawers (17·29·30·37·48, 54~56) here. */
     function registerDrawers(map) { Object.assign(DRAWERS, map); }
 
     // ------------------------------------------------------------------ per frame
@@ -424,16 +373,6 @@ const redrawnSkillFx = (() => {
         return hand ? { x: Math.round(hand.x / 3), y: Math.round(hand.y / 3) } : null;
     }
     function castNow(cast, visualNow) { return cast.clock === 'combat' ? worldTreeSkillFx.castClock() : visualNow; }
-    /** 33's charge before the first strike: from the swing, since its hits are not known yet. */
-    function drawCharges(dot, visualNow) {
-        for (let i = battleFx.length - 1; i >= 0; i--) {
-            const fx = battleFx[i];
-            if (!fx || fx.type !== 'playerSwing' || SKILL_FX_ATLAS[fx.skillName]?.id !== 33 || !fx.sourceCell) continue;
-            const age = visualNow - (fx.impactAt - 220);
-            if (age < 0 || age >= 220) continue;
-            art().TripleBolt.charge(dot, fx.sourceCell.gx * 16 + 8 + 6, fx.sourceCell.gy * 16 + 6, age);
-        }
-    }
     /** With the caster's back to the camera (facing north), what they send forward and the ground behind their feet
      * are hidden by the body: true for a dot under an opaque pixel of the sprite drawn this frame. Null otherwise. */
     function backMask(view, visualNow) {
@@ -464,7 +403,6 @@ const redrawnSkillFx = (() => {
             const pens = { front: dot, behind: behindBody(dot, hidden) };
             view.front = dot;
             drawCasts(layer, visualNow, view, pens);
-            if (layer === 'fore') drawCharges(pens.behind, visualNow);
         });
     }
 

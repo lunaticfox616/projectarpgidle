@@ -87,11 +87,6 @@ const redrawnSkillArt = (() => {
             run += len;
         }
     }
-    function plusKnot(put, at, cols, pri) {
-        const x = Math.round(at.x), y = Math.round(at.y);
-        put(x, y, cols[0], pri);
-        for (const [ox, oy] of PLUS) put(x + ox, y + oy, cols[1], pri - 1);
-    }
     /** Three short jagged prongs from one point (the lightning-style spark shared by several gems). */
     function forkSparks(dot, at, r, pal) {
         const x = at.x, y = at.y;
@@ -99,52 +94,6 @@ const redrawnSkillArt = (() => {
             const a = r() * Math.PI * 2, l = 3 + r() * 2;
             stroke(dot, jag({ x, y }, { x: x + Math.cos(a) * l, y: y + Math.sin(a) * l }, { rough: .5, minSeg: 1.5, r, cap: 1.5 }), 1e9, [k ? pal.L : pal.H, pal.M], 0);
         }
-    }
-
-    // ---------------------------------------------------------------- 43 공허 절삭광: irregular thunderbolt
-    function beamTrunk(lay, main, s) {
-        const cols = s.fade > .5 ? [C.L, C.M] : s.surge ? [C.W, C.H, C.M] : [C.H, C.L];
-        if (s.fade > .8) { for (let i = 0; i < main.length - 1; i += 3) stroke(lay.put, main.slice(i, i + 2), 1e9, [C.M, C.D], 0); }
-        else stroke(lay.put, main, s.reach, cols, s.surge ? 2 : 1);
-    }
-    function pathRun(main, i) {
-        let run = 0;
-        for (let j = 0; j < i; j++) run += Math.hypot(main[j + 1].x - main[j].x, main[j + 1].y - main[j].y);
-        return run;
-    }
-    function beamBranch(lay, main, s) {
-        const r = s.r, i = Math.floor(main.length * (.15 + r() * .7)), p = main[i], q = main[Math.min(main.length - 1, i + 2)];
-        if (pathRun(main, i) > s.reach) return;
-        const base = Math.atan2(q.y - p.y, q.x - p.x), ang = base + (r() < .5 ? -1 : 1) * (.45 + r() * .6), len = s.L * (.12 + r() * .22);
-        const E = { x: p.x + Math.cos(ang) * len, y: p.y + Math.sin(ang) * len }, br = jag(p, E, { rough: .55, minSeg: 2, r, cap: 3 });
-        stroke(lay.put, br, 1e9, [C.L, C.M], 0); lay.put(Math.round(E.x), Math.round(E.y), C.M, 1);
-        if (r() < .5) {
-            const m = br[Math.floor(br.length / 2)], a2 = ang + (r() < .5 ? -1 : 1) * (.5 + r() * .5), l2 = len * .5;
-            stroke(lay.put, jag(m, { x: m.x + Math.cos(a2) * l2, y: m.y + Math.sin(a2) * l2 }, { rough: .55, minSeg: 2, r, cap: 2.5 }), 1e9, [C.M, C.M], 0);
-        }
-    }
-    /** @param {{age:number, dur?:number, variant?:number, surge?:number, grow?:number}} t */
-    function beamFade(t) { return t.dur ? Math.max(0, (t.age - (t.dur - 160)) / 160) : 0; }
-    function beam(dot, A, B, t) {
-        const lay = layer(), r = rng(9173 + (t.variant || 0) * 7919);
-        const L = Math.hypot(B.x - A.x, B.y - A.y) || 1, reach = L * Math.min(1, t.grow == null ? 1 : t.grow);
-        const fade = beamFade(t), surge = t.surge || 0;
-        const main = jag(A, B, { rough: .5, minSeg: 2.2, r, cap: 4.5 });
-        beamTrunk(lay, main, { fade, surge, reach });
-        if (fade < .5) {
-            const nb = 2 + Math.floor(r() * 2) + (surge ? 1 : 0);
-            for (let k = 0; k < nb; k++) beamBranch(lay, main, { r, L, reach });
-        }
-        if (fade < .75) plusKnot(lay.put, A, [C.W, surge ? C.H : C.L], 4);
-        lay.flush(dot);
-    }
-    function impact(dot, x, y, age, seed = 1) {
-        x = Math.round(x); y = Math.round(y);
-        if (age < 0 || age >= 160) return;
-        const r = rng(seed * 97 + 13);
-        if (age < 90) { dot(x, y, C.W); forkSparks(dot, { x, y }, r, C); return; }
-        for (const [ox, oy] of DIAG) dot(x + ox * 2, y + oy * 2, C.M);
-        dot(x, y, C.L);
     }
 
     // ---------------------------------------------------------------- 16 공허 베기: crescent slash
@@ -237,115 +186,7 @@ const redrawnSkillArt = (() => {
         if (age < 100) for (const [ox, oy] of DIAG) dot(x + ox, y + oy, F.M);
     }
 
-    // ---------------------------------------------------------------- 41 집중 광선: braided energy wave
-    function waveStyle(t) {
-        const fade = t.dur ? Math.max(0, (t.age - (t.dur - 180)) / 180) : 0, surge = t.surge || 0, dim = fade > .5;
-        const cS = dim ? Y.M : surge ? Y.W : Y.H, cG = dim ? Y.D : surge ? Y.H : Y.L;
-        return { fade, surge, amp: (surge ? 4.2 : 3.2) * (1 - fade * .5),
-            strands: [{ a: 1, ph: 0, c: cS, g: cG, p: 3 }, { a: -.68, ph: .36, c: dim ? Y.D : Y.L, g: dim ? Y.D : Y.M, p: 2 }] };
-    }
-    function waveStrandDot(lay, g, w, p) {
-        const st = p.st, s = p.s, sg = Math.sign(st.a), o = st.a * w.amp * p.env * Math.sin((s / 22 - p.phase + st.ph) * Math.PI * 2);
-        const x = Math.round(g.A.x + g.d.x * s + g.n.x * o), y = Math.round(g.A.y + g.d.y * s + g.n.y * o);
-        if (w.fade > .8 && Math.floor(s / 3) % 2) return;
-        lay.put(x, y, st.c, st.p);
-        const gx = Math.round(g.A.x + g.d.x * s + g.n.x * (o + sg * 1)), gy = Math.round(g.A.y + g.d.y * s + g.n.y * (o + sg * 1));
-        lay.put(gx, gy, st.g, st.p - 2);
-    }
-    function waveSlice(lay, g, w, at) {
-        const s = at.s, env = Math.min(1, s / 7, (g.L - s) / 4 + .3);
-        for (const st of w.strands) waveStrandDot(lay, g, w, { st, s, env, phase: at.phase });
-        if (w.fade < .5 && Math.floor(s) % 2 === 0 && Math.abs(s - Math.round(s)) < .01) lay.put(Math.round(g.A.x + g.d.x * s), Math.round(g.A.y + g.d.y * s), Y.M, 0);
-    }
-    function waveChevrons(lay, g, age, reach) {
-        const spacing = 24, head = (age * .19) % spacing;
-        for (let s = head; s <= reach - 2; s += spacing) {
-            if (s < 4) continue;
-            for (let k = -2; k <= 2; k++) {
-                const back = Math.abs(k) * .9, x = Math.round(g.A.x + g.d.x * (s - back) + g.n.x * k), y = Math.round(g.A.y + g.d.y * (s - back) + g.n.y * k);
-                lay.put(x, y, Math.abs(k) < 2 ? Y.W : Y.L, 4);
-            }
-        }
-    }
-    function wave(dot, A, B, t) {
-        const dx = B.x - A.x, dy = B.y - A.y, L = Math.hypot(dx, dy) || 1, d = { x: dx / L, y: dy / L };
-        const g = { A, L, d, n: { x: -d.y, y: d.x } }, lay = layer(), age = t.age, reach = L * Math.min(1, age / 110), w = waveStyle(t);
-        for (let s = 0; s <= reach; s += .5) waveSlice(lay, g, w, { s, phase: age * .010 });
-        if (w.fade < .6) waveChevrons(lay, g, age, reach);
-        if (w.fade < .75) plusKnot(lay.put, A, [Y.W, w.surge ? Y.H : Y.L], 5);
-        lay.flush(dot);
-    }
-    function waveHit(dot, x, y, age) {
-        x = Math.round(x); y = Math.round(y);
-        if (age < 0 || age >= 150) return;
-        const r = age < 70 ? 2 : 3, c = age < 70 ? Y.H : Y.M;
-        if (age < 70) dot(x, y, Y.W);
-        for (let a = 0; a < 8; a++) {
-            const ang = a / 8 * Math.PI * 2;
-            dot(Math.round(x + Math.cos(ang) * r), Math.round(y + Math.sin(ang) * r), a % 2 ? c : (age < 70 ? Y.L : Y.D));
-        }
-    }
-
-    // ---------------------------------------------------------------- 32 삼원 파동: arc ripples diverging through the cone
-    // measured from reference shockwave sheets (not traced): a small filled burst, then a band ~1/3 of the radius
-    // thinning to a 1-dot line; a half ripple tapers to 1 dot at both tips; a dashed echo rides 5 dots behind.
-    function arcWaveState(O, d, age, o) {
-        const R0 = o.R0 || 4, u = age / o.T, ease = 1 - (1 - u) * (1 - u), r = R0 + (o.Rmax - R0) * ease, end = u > .8;
-        return { lay: layer(), O, age, u, r, R0, el: o.el, P: EL[o.el] || R, late: u > .72, end,
-            half: (o.half || .7) * (end ? 1 - (u - .8) / .2 * .85 : 1), base: Math.atan2(d.y, d.x), zig: o.el === 'light' ? 1.2 : 0,
-            th: Math.max(o.el === 'light' ? 2 : 1, Math.round(Math.min(r * .5, 2 + 4 * Math.pow(1 - u, 1.3)))) };
-    }
-    function arcRamp(w, e) {
-        const P = w.P;
-        let c = e < 1 ? (w.age < 60 ? P.W : P.H) : e < 2 ? P.L : P.M;
-        if (w.late) c = c === P.H || c === P.W ? P.L : c === P.L ? P.M : P.D;
-        return c;
-    }
-    function arcRadius(w, phi) {
-        if (!w.zig) return w.r;
-        const s = phi * w.r / 8, f = s - Math.floor(s);
-        return w.r + w.zig * (Math.abs(f * 2 - 1) * 2 - 1);
-    }
-    function isArcEcho(w, t, rr, dist) {
-        const e3 = rr - 5 - dist - 1;
-        return w.u > .12 && w.u < .8 && rr - 6 > w.R0 + 2 && t < .7 && e3 >= -.5 && e3 < .5;
-    }
-    function arcWaveDot(w, px, py) {
-        const qx = px + .5 - w.O.x, qy = py + .5 - w.O.y, dist = Math.hypot(qx, qy), phi = wrapAngle(Math.atan2(qy, qx) - w.base);
-        if (Math.abs(phi) > w.half) return;
-        const t = Math.abs(phi) / w.half, tA = Math.max(w.zig ? 2 : 1, Math.round(w.th * (1 - t * t * .8)));
-        const rr = arcRadius(w, phi), e = rr - dist;
-        if (e >= -.5 && e < tA - .5) w.lay.put(px, py, arcRamp(w, Math.max(0, Math.floor(e + .5))), 3);
-        if (isArcEcho(w, t, rr, dist)) w.lay.put(px, py, w.late ? w.P.D : w.P.M, 1);
-    }
-    function coldSpike(w, ox, oy) {
-        for (let s = 1; s <= 2; s++) w.lay.put(Math.round(w.O.x + ox * (w.r + s)), Math.round(w.O.y + oy * (w.r + s)), s === 2 ? (w.late ? w.P.M : w.P.L) : (w.late ? w.P.L : w.P.H), 4);
-    }
-    function fireSpike(w, k) {
-        for (let s = 1; s <= k.s2; s++) {
-            w.lay.put(Math.round(w.O.x + k.ox * (w.r + s)), Math.round(w.O.y + k.oy * (w.r + s)) - (s === k.s2 ? 1 : 0), w.late ? w.P.M : s === k.s2 ? w.P.L : w.P.H, 4);
-        }
-    }
-    function arcWaveRim(w) {
-        const n = w.el === 'light' ? 0 : 5;
-        for (let k = 0; k < n; k++) {
-            const a = w.base + (k / (n - 1) * 2 - 1) * w.half * .82, ox = Math.cos(a), oy = Math.sin(a);
-            if (w.el === 'cold') coldSpike(w, ox, oy);
-            else fireSpike(w, { ox, oy, s2: k % 2 ? 1 : 2 });
-        }
-    }
-    function arcWaveBurst(w) {
-        const cr = w.age < 30 ? 2 : 1, X = Math.round(w.O.x), Y0 = Math.round(w.O.y);
-        eachDot(-cr, -cr, cr, cr, (x, y) => { if (x * x + y * y <= cr * cr + .5) w.lay.put(X + x, Y0 + y, x || y ? w.P.H : w.P.W, 5); });
-    }
-    function arcWave(dot, O, d, age, o) {
-        if (age < 0 || age >= o.T) return;
-        const w = arcWaveState(O, d, age, o), Rb = Math.ceil(w.r + 4), X = Math.round(O.x), Y0 = Math.round(O.y);
-        eachDot(-Rb, -Rb, Rb, Rb, (x, y) => arcWaveDot(w, X + x, Y0 + y));
-        if (!w.end && w.r > 8) arcWaveRim(w);
-        if (age < 60) arcWaveBurst(w);
-        w.lay.flush(dot);
-    }
+    // ---------------------------------------------------------------- element sparks on a struck cell (what is left of 32 삼원 파동, removed 2026-10-13: 29, 38 and the spectral wisp use them)
     function lightSpark(dot, s) {
         const r = rng(s.seed * 131 + 7), P = s.P, x = s.x, y = s.y;
         if (s.age < 90) { dot(x, y, P.W); forkSparks(dot, { x, y }, r, P); return; }
@@ -683,44 +524,9 @@ const redrawnSkillArt = (() => {
         for (let k = 0; k < 4; k++) collapseStone(dot, c, { rs, k, tc });
     }
 
-    // ---------------------------------------------------------------- 33 뇌격 삼연타: three lightning strikes on the target
-    const STRIKE_ENDS = [[-9, -10, 7, 6], [9, -10, -7, 6], [1, -24, 0, 3]];
-    function strikeFork(lay, s) {
-        const m = s.pts[Math.floor(s.pts.length / 2)], fa = Math.atan2(s.B.y - s.A.y, s.B.x - s.A.x) + (s.kind === 1 ? -.9 : .9), fl = 5;
-        stroke(lay.put, jag(m, { x: m.x + Math.cos(fa) * fl, y: m.y + Math.sin(fa) * fl }, { rough: .5, minSeg: 1.5, r: s.r, cap: 1.5 }), 1e9, [Y.L, Y.M], 0);
-    }
-    function strikeImpact(dot, s) {
-        const ex = s.ex, ey = s.ey, u = s.u;
-        if (u < .5) { dot(ex, ey, Y.W); for (const [ox, oy] of PLUS) { dot(ex + ox, ey + oy, Y.H); dot(ex + ox * 2, ey + oy * 2, Y.L); } }
-        if (s.kind !== 2) return;
-        const rr = 3 + u * 5, c = u < .5 ? Y.H : Y.M;
-        for (let k = 0; k < 16; k++) {
-            if (u > .7 && k % 2) continue;
-            const a = k / 16 * Math.PI * 2;
-            dot(Math.round(ex + Math.cos(a) * rr), Math.round(ey + Math.sin(a) * rr * .6), c);
-        }
-    }
-    function strike(dot, x, y, age, kind) {
-        const life = kind === 2 ? 190 : 140;
-        if (age < 0 || age >= life) return;
-        const ends = STRIKE_ENDS[kind], A = { x: x + ends[0], y: y + ends[1] }, B = { x: x + ends[2], y: y + ends[3] };
-        const r = rng(5150 + kind * 31), pts = jag(A, B, { rough: .5, minSeg: 1.8, r, cap: kind === 2 ? 3.5 : 2.5 }), lay = layer();
-        const u = age / life, cols = u < .28 ? [Y.W, Y.H, Y.L] : u < .6 ? [Y.H, Y.L] : [Y.L, Y.M];
-        stroke(lay.put, pts, 1e9 * 1, cols, u < .28 ? 2 : u < .6 ? 1 : 0);
-        if (u < .6) strikeFork(lay, { pts, A, B, kind, r });
-        lay.flush(dot);
-        strikeImpact(dot, { ex: Math.round(B.x), ey: Math.round(B.y), u, kind });
-    }
-    // small zigzag sparks jumping round the weapon before the strikes (3 fixed glyphs, one set every 60ms)
+    // ---------------------------------------------------------------- zigzag spark glyphs (what is left of 33 뇌격 삼연타, removed 2026-10-13: 51 파문심판 uses them)
     const ZIG = [[[0, 0], [1, 1], [0, 2], [1, 3]], [[0, 0], [1, -1], [2, 0], [3, -1]], [[0, 0], [1, 1], [1, 2], [2, 3]]];
     const ZPOS = [[[2, -4], [-4, 1]], [[-3, -3], [2, 2]], [[3, 0], [-2, 3]]];
-    function charge(dot, x, y, age) {
-        if (age < 0 || age >= 220) return;
-        x = Math.round(x); y = Math.round(y);
-        const v = Math.floor(age / 60) % 3;
-        ZPOS[v].forEach(([ox, oy], k) => ZIG[(v + k) % 3].forEach(([gx, gy], i) => dot(x + ox + gx, y + oy + gy, i < 2 ? Y.H : Y.L)));
-        dot(x, y, age > 160 ? Y.W : Y.L);
-    }
 
     // ---------------------------------------------------------------- 45 광창 강림 (simplified): one plain lance of light per target
     const LANCE = [['.', 'W', '.'], ['L', 'W', 'L'], ['L', 'H', 'L'], ['.', 'H', '.'], ['M', 'H', 'M'], ['.', 'L', '.'], ['.', 'H', '.'], ['.', 'L', '.'], ['.', 'H', '.'], ['.', 'L', '.'], ['.', 'L', '.'], ['.', 'M', '.']];
@@ -1176,17 +982,14 @@ const redrawnSkillArt = (() => {
     }
 
     return Object.freeze({
-        VoidBolt: { beam, impact, colors: C },
         VoidCrescent: { crescent, slashMark },
         FrostRing: { ring: frostRing, flake, colors: F },
-        EnergyWave: { wave, hit: waveHit, colors: Y },
-        TriWave: { wave: arcWave, spark: elemSpark, colors: EL },
+        TriWave: { spark: elemSpark, colors: EL },
         DragonSweep: { swing, flame, colors: R },
         HolyMist: { mist, colors: S },
         Whirlwind: { whirl, cut, colors: W5 },
         FrostWave: { front: frostFront, pulse: frostPulse },
         GravityCollapse: { collapse, colors: ST },
-        TripleBolt: { strike, charge, colors: Y },
         RadiantLance: { lance },
         RippleSwing: { censer, trail: swingTrail, bolt: arcBolt, spark: groundSpark, colors: BR },
         BloodDrain: { slash: bloodSlash, splash: bloodSplash, drain, tint: drainTint, timing: DRAIN_T, colors: BL },

@@ -39,7 +39,7 @@ const mobilitySkill = (() => {
         return live.length > 0 && selectCombatGemTargets(name, SKILL_DB[name], game.gridPlayer, live).length > 0;
     }
     /** Every combat tick, with the main gem's casts: the mobility gem's own native casts move on
-     * (암살 · 차원찢기 · 향로구름 · 작살화살 · 공중강타). */
+     * (암살 · 차원찢기 · 향로구름 · 작살화살). */
     function advance() {
         const name = equipped();
         if (!name) { runtime = null; return; }

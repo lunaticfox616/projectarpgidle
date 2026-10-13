@@ -69,14 +69,6 @@ const worldTreeSkillFx = (() => {
         fxRemake.ring(native,at,SKILL_FX_ATLAS[event.skillName]);
     }
 
-    function beamGeometry(input,cells) {
-        const source=input.sourceCell;
-        const distance=cell=>Math.hypot(cell.gx-source.gx,cell.gy-source.gy);
-        const end=cells.reduce((a,b)=>distance(b)>distance(a)?b:a,source);
-        input.focusBeamRay={sourceCell:source,endCell:end,cells,
-            direction:{angle:Math.atan2(end.gy-source.gy,end.gx-source.gx)}};
-    }
-
     function coneGeometry(input,cells,angle) {
         const reach=input.footprint.cone?.length;
         input.dragonBreathCone={sourceCell:input.sourceCell,cells,direction:{angle},
@@ -86,7 +78,6 @@ const worldTreeSkillFx = (() => {
     function adaptFootprint(input) {
         const source=input.sourceCell,target=input.targetCells.at(-1),cells=input.footprint?.cells;
         const dx=target.gx-source.gx,dy=target.gy-source.gy,angle=Math.atan2(dy,dx);
-        if(input.skillName==='집중 광선' && cells?.length)beamGeometry(input,cells);
         if(input.skillName==='용화 숨결' && cells?.length)coneGeometry(input,cells,angle);
     }
 

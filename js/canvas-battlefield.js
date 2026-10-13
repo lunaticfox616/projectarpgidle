@@ -241,9 +241,7 @@ const SKILL_GEM_VFX_IMAGE_KEYS = Object.freeze({
     rune: 'skillFxBurst',
     dot: 'skillFxDotField',
     summon: 'skillFxSummonStrike',
-    focusBeam: 'skillFxFocusBeam',
-    dragonBreath: 'skillFxDragonBreath',
-    voidCutter: 'skillFxVoidCutter'
+    dragonBreath: 'skillFxDragonBreath'
 });
 
 function getSkillGemVfxProfile(skillName) {
@@ -1213,22 +1211,6 @@ function drawStormStrikeVfx(ctx, effect, progress) {
     ctx.stroke();
 }
 
-function drawBeamSkillVfx(ctx, effect, progress) {
-    let dx = effect.toX - effect.fromX;
-    let dy = effect.toY - effect.fromY;
-    let length = Math.max(20, Math.hypot(dx, dy));
-    ctx.translate((effect.fromX + effect.toX) / 2, (effect.fromY + effect.toY) / 2);
-    ctx.rotate(Math.atan2(dy, dx));
-    ctx.fillStyle = getElementColor(effect.element);
-    ctx.shadowColor = ctx.fillStyle;
-    ctx.shadowBlur = 10;
-    let thickness = Math.max(4, effect.size * (0.055 + Math.sin(progress * Math.PI) * 0.035));
-    ctx.fillRect(-length / 2, -thickness / 2, length, thickness);
-    ctx.globalAlpha *= 0.38;
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(-length / 2, -thickness * 0.16, length, thickness * 0.32);
-}
-
 function drawCoreSkillVfx(ctx, effect, progress) {
     ctx.translate(effect.x, effect.y);
     ctx.rotate(progress * Math.PI * 1.4 + effect.seed * 0.01);
@@ -1326,8 +1308,7 @@ function drawBreathSkillVfx(ctx, effect, progress) {
 function drawProceduralSkillImpact(ctx, effect, progress) {
     if (effect.family === 'iai') drawIaiSkillVfx(ctx, effect, progress);
     else if (effect.family === 'stormStrike') drawStormStrikeVfx(ctx, effect, progress);
-    else if (effect.family === 'beam') drawBeamSkillVfx(ctx, effect, progress);
-    else if (effect.family === 'fireCore' || effect.family === 'mine' || effect.family === 'voidBlade') drawCoreSkillVfx(ctx, effect, progress);
+    else if (effect.family === 'fireCore' || effect.family === 'mine') drawCoreSkillVfx(ctx, effect, progress);
     else if (effect.family === 'breath') drawBreathSkillVfx(ctx, effect, progress);
     else if (effect.family === 'charge') drawShieldChargeImpactVfx(ctx, effect, progress);
     else return false;

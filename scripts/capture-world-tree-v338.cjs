@@ -17,10 +17,6 @@ for(const row of legacy.cases) {
     }
     // Supply the same confirmed geometry used by the game's presentation boundary.
     const cells=event.footprint?.cells;
-    if(cells?.length && event.skillName==='집중 광선') {
-        const a=event.sourceCell,d=c=>Math.hypot(c.gx-a.gx,c.gy-a.gy),b=cells.reduce((x,y)=>d(y)>d(x)?y:x,a);
-        event.focusBeamRay={sourceCell:a,endCell:b,cells,direction:{angle:Math.atan2(b.gy-a.gy,b.gx-a.gx)}};
-    }
     if(cells?.length && event.skillName==='용화 숨결') {
         const a=event.sourceCell,b=event.targetCells.at(-1);
         event.dragonBreathCone={sourceCell:a,cells,range:event.footprint.cone?.length?event.footprint.cone.length-.5:4,direction:{angle:Math.atan2(b.gy-a.gy,b.gx-a.gx)}};

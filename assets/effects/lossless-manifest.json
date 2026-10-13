@@ -10,26 +10,6 @@
     ]
   },
   {
-    "source": "assets/effects/channel-focus-beam-v2.png",
-    "output": "assets/effects/channel-focus-beam-v2.webp",
-    "sourceSha256": "9d10790c2343183f43c47f9039221546fb5e0497d15bcd5cdcd303f81494d192",
-    "outputSha256": "67a1371b3c9574766b5d8874bfdf2a2193a4ad4d873987bc3a3091885e9cfd6b",
-    "size": [
-      771,
-      234
-    ]
-  },
-  {
-    "source": "assets/effects/channel-void-cutter-v2.png",
-    "output": "assets/effects/channel-void-cutter-v2.webp",
-    "sourceSha256": "793281d9a2c25aaf1ef62cd5a2b045a18337ab9d7e47b25485d42846ec2005e6",
-    "outputSha256": "1411317d8447db1dc9d51c4eab3b7fd25186d38a40497c84ac324676c0306409",
-    "size": [
-      738,
-      288
-    ]
-  },
-  {
     "source": "assets/effects/double-slash-sheet.png",
     "output": "assets/effects/double-slash-sheet.webp",
     "sourceSha256": "81cda94cbcff44c6b1857b78fe81a4fa754694f322b0315ce447d37c1cf29826",
@@ -430,26 +410,6 @@
     ]
   },
   {
-    "source": "assets/effects/skill-triWave-sheet-v1.png",
-    "output": "assets/effects/skill-triWave-sheet-v1.webp",
-    "sourceSha256": "65931d7fe47724974a02a13819bb1c866450a0b32a2d1415455afdd7da268257",
-    "outputSha256": "05c0b8962fc87ef2562c5a00e8c11bafed30b24ce34c6e25b259722ddfbddbca",
-    "size": [
-      1254,
-      1254
-    ]
-  },
-  {
-    "source": "assets/effects/skill-triple-sheet-v1.png",
-    "output": "assets/effects/skill-triple-sheet-v1.webp",
-    "sourceSha256": "47e9b139a853d7a687287237f10b657e9c865b376f6eba3adb4223488897286f",
-    "outputSha256": "970387d454b646d0c551620434307591accbf3e76541a1e352d1e695f7d862d9",
-    "size": [
-      1254,
-      1254
-    ]
-  },
-  {
     "source": "assets/effects/skill-venom-fang-v3.png",
     "output": "assets/effects/skill-venom-fang-v3.webp",
     "sourceSha256": "4bdc4767eb6a8d8c660cba37a125b6a65bc5ab0c9f7bec9b837ffba8f6c49eaa",
@@ -457,16 +417,6 @@
     "size": [
       579,
       189
-    ]
-  },
-  {
-    "source": "assets/effects/skill-voidCutter-sheet-v1.png",
-    "output": "assets/effects/skill-voidCutter-sheet-v1.webp",
-    "sourceSha256": "9a3c92e97050ab07fc1687a3ec28b249adeaea5c1e1feaae0eed1a7aa353f233",
-    "outputSha256": "8d88c01c5e4dbc7ddb7e401c9434d2cd433e95a49f8e1ea694fb41bb0a2a2710",
-    "size": [
-      1254,
-      1254
     ]
   },
   {

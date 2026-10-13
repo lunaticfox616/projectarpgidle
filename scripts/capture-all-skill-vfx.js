@@ -148,8 +148,8 @@ async function recordPixelMotion({baseTime}) {
 
 async function capturePixelMotion(page) {
     const names=['중력 붕괴','빙결 침식','화염 부패','심연 전염','화염 폭풍핵','지진 파쇄',
-        '용암 강타','공허 베기','혈기 폭쇄','연쇄 폭풍','불멸의 진동','천뢰 분기','삼원 파동',
-        '뇌격 삼연타','난타 눈보라','룬 지뢰','원소 포션 투척','방패 돌진','그림자 점멸','공허 절삭광'];
+        '용암 강타','공허 베기','혈기 폭쇄','연쇄 폭풍','불멸의 진동','천뢰 분기',
+        '난타 눈보라','룬 지뢰','원소 포션 투척','방패 돌진','그림자 점멸'];
     const cards=[];
     for(const [index,name] of names.entries()) {
         const prepared=await page.evaluate(captureSkill,{name,prepareOnly:true});
