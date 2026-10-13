@@ -16,6 +16,8 @@ const stageSkillRules = (() => {
     const REACH = 80;                             // 근접 휘두름이 닿는 거리(도트, 인계의 1.25칸)
     const ROT_MS = 2000;                          // 화염 부패의 구슬이 몸에 붙어 있는 시간(다시 걸리면 늘어난다)
     const WAVE_FRONT = 10;                        // 파동의 앞머리가 출발하는 자리(쓴 자리에서 앞으로, 도트)
+    const WAVE_DRIFT = 0.35;                      // 파동이 대상의 줄 쪽으로 따라가는 몫(0 = 쓴 줄 그대로, 1 = 대상의 줄까지)
+    const WAVE_BASE = -51;                        // 파동 그림의 가운데 높이(도트): 그림의 아래 끝(거품)이 바닥에 닿는다
     const handled = new WeakSet();                // 이미 클립으로 옮긴 사건
     const swung = new Map();                      // "젬:공격 묶음:반복" → 휘두름을 튼 시각
     const struck = new Map();                     // 적 id → 타격 클립을 붙인 시각
@@ -312,16 +314,20 @@ const stageSkillRules = (() => {
         travel: gem => !!gem.map.wave && gem.map.wave !== 'none'
     });
     const ruleTakes = (gem, kind) => !gem.map.old && !!TAKES[kind] && TAKES[kind](gem);
-    /** 나아가는 파동: 파동 클립이 길을 따라 몸 높이에서 조금 출렁이며 나아간다(매 프레임 그 자리에 찍는다). 쓴 자리의 몸 앞면보다
-     * 뒤쪽은 그리지 않는다(K.emerge): 파동이 몸 앞에서 자라 나와 나아간다. */
+    /** 나아가는 파동: 파동 클립이 바닥에 붙어 조금 출렁이며 앞으로 나아간다(매 프레임 그 자리에 찍는다). 쓴 자리의 몸 앞면보다
+     * 뒤쪽은 그리지 않는다(K.emerge): 파동이 몸 앞에서 자라 나와 나아간다.
+     * 게임의 판정은 대상이 선 칸까지의 줄이라 대상이 다른 줄에 있으면 비스듬하다. 그림을 그 줄대로 옮기면 화면에서는 위로 떠올라,
+     * 제 줄에 선 적들의 머리 위를 지나 허공에서 끝났다(2026-10-13 사용자: 높이를 "조절해줘"). 인계의 연출처럼 쓴 줄의 바닥을 따라
+     * 가로로 쓸고 가되, 대상의 줄 쪽으로는 WAVE_DRIFT만큼만 따라간다(그림의 키가 세 줄 높이라 다른 줄의 적도 덮는다). */
     function ruleDrawWave(gem, event, view) {
         const elapsed = view.now - event.at;
         if (elapsed < 0 || elapsed > event.duration + 200) return;
-        const spot = K.along(event, Math.min(elapsed, event.duration)), at = K.screen(view.projection, spot);
+        const spot = K.along(event, Math.min(elapsed, event.duration)), at = K.screen(view.projection, spot), from = K.screen(view.projection, K.along(event, 0));
+        const ground = from.y + (at.y - from.y) * WAVE_DRIFT;
         view.ctx.save();
         K.emerge(view.ctx, view.projection, event);
         view.ctx.globalAlpha *= elapsed > event.duration ? 1 - (elapsed - event.duration) / 200 : 1;
-        stageSkillVfx.stamp(view.ctx, gem.map.wave, elapsed, { x: at.x + spot.face * WAVE_FRONT * at.dot, y: at.y + (-54 + Math.round(Math.sin(elapsed / 70) * 2)) * at.dot,
+        stageSkillVfx.stamp(view.ctx, gem.map.wave, elapsed, { x: at.x + spot.face * WAVE_FRONT * at.dot, y: ground + (WAVE_BASE + Math.round(Math.sin(elapsed / 70) * 2)) * at.dot,
             face: spot.face, dot: at.dot, ramp: K.ramp(gem, event.element) });
         view.ctx.restore();
     }
