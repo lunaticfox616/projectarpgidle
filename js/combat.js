@@ -11760,13 +11760,26 @@ function getEnemyPreferredGridTarget(enemy) {
     return bestTarget;
 }
 
-/** 적이 자기 사거리(근접 1칸/원거리 3~5칸/보스 무제한) 안에 선택한 목표를 두고 있는지 판정한다. */
+/** 적이 자기 사거리(근접 1칸/원거리 3~5칸/보스는 data/bosses.js BOSS_REACH) 안에 선택한 목표를 두고 있는지 판정한다. */
 function isEnemyInGridAttackRange(enemy, target) {
     // 칸 미배정 상태(레거시 저장 복원 직후 등)에서는 다음 틱의 그리드 복구 전까지 기존 동작을 유지한다.
     target = target || game.gridPlayer;
     if (!hasGridCell(enemy) || !hasGridCell(target)) return true;
     let range = Number.isFinite(enemy.attackRange) ? enemy.attackRange : COMBAT_GRID_CONFIG.bossAttackRange;
     return getGridUnitDistance(enemy, target) <= range;
+}
+
+/** 사거리 밖에서도 그 자리에서 쓰는 공격인가: 보스의 다음 공격이 예고하는 특수기이고 대상이 BOSS_REACH.castRange칸 안일 때.
+ * 근접 보스도 지면 강타는 떨어진 곳에 내리친다(달아나기만 하면 아무것도 맞지 않는 싸움이 되지 않게). */
+function canBossCastFromAfar(enemy, target) {
+    if (!enemy.isBoss || !hasGridCell(enemy) || !hasGridCell(target)) return false;
+    const next = getBossPatternPreview(enemy);
+    return !!next && next.isSpecial === true && getGridUnitDistance(enemy, target) <= BOSS_REACH.castRange;
+}
+
+/** 적이 지금 선 자리에서 공격을 이어 가는가: 목표가 사거리 안이거나, 보스가 떨어진 곳에서 쓰는 특수기의 차례다. 아니면 다가간다. */
+function canEnemyAttackFromHere(enemy, target) {
+    return isEnemyInGridAttackRange(enemy, target) || canBossCastFromAfar(enemy, target || game.gridPlayer);
 }
 
 /** 사거리 밖의 적을 선택한 목표 쪽으로 한 칸씩 접근시킨다. slowPct(0~1)만큼 이동 주기가 길어진다. */
@@ -11777,7 +11790,7 @@ function advanceEnemyGridApproach(enemy, target, slowPct) {
     }
     target = target || game.gridPlayer;
     let slow = Math.max(0, Math.min(0.9, slowPct || 0));
-    let interval = COMBAT_GRID_CONFIG.enemyMoveIntervalSec / (1 - slow);
+    let interval = getGridUnitStepSec(enemy) / (1 - slow);
     advanceGridUnitMovement(enemy, target, 0.1, interval);
 }
 
@@ -11978,7 +11991,7 @@ function performMonsterAttacks(pStats) {
         if (!attackTarget) continue;
         // 그리드 사거리 밖이면 공격 대신 선택한 목표에게 접근한다(냉각/둔화는 이동도 늦춘다).
         // 공격 게이지는 1회분까지만 유지해 도착 직후 바로 공격하게 한다.
-        if (!pendingAttack && !enemy.patternArea && !isEnemyInGridAttackRange(enemy, attackTarget)) {
+        if (!pendingAttack && !enemy.patternArea && !canEnemyAttackFromHere(enemy, attackTarget)) {
             advanceEnemyGridApproach(enemy, attackTarget, chillSlow);
             enemy.attackTimer = Math.min(Number(enemy.attackTimer) || 0, 1);
             continue;

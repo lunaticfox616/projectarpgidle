@@ -2194,8 +2194,15 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
 {
   const boss = { isBoss: true };
   context.assignEnemyGridCombatProfile(boss);
-  assert.strictEqual(boss.attackKind, 'ranged', '보스는 항상 원거리여야 한다');
+  assert.strictEqual(boss.attackKind, 'ranged', '싸우는 거리가 정해지지 않은 보스는 사거리 무한이어야 한다');
   assert.strictEqual(boss.attackRange, cfg.bossAttackRange);
+  // 보스마다 정해진 싸우는 거리(data/bosses.js BOSS_REACH): 근접은 붙어서, 사거리 있음은 그 칸 수, 사거리 무한은 방 어디든
+  const reachOf = assetKey => { const row = { isBoss: true, bossAssetKey: assetKey }; context.assignEnemyGridCombatProfile(row); return [row.attackKind, row.attackRange]; };
+  assert.deepStrictEqual(reachOf('bossAct1'), ['melee', cfg.meleeAttackRange], '근접 보스는 붙어야 친다');
+  assert.deepStrictEqual(reachOf('bossAct5'), ['ranged', context.BOSS_REACH.kinds.ranged.range], '사거리 있는 보스는 그 칸 수 안에서 쏜다');
+  assert.deepStrictEqual(reachOf('bossAct9'), ['ranged', cfg.bossAttackRange], '사거리 무한 보스는 방 어디든 닿는다');
+  assert.ok(Object.values(context.BOSS_REACH.byAsset).every(kind => context.BOSS_REACH.kinds[kind]), '보스 그림마다 적힌 거리는 정해 둔 세 가지 가운데 하나다');
+  assert.strictEqual(Math.round(context.BOSS_REACH.stepSec * 10), context.BOSS_REACH.stepSec * 10, '보스의 걸음은 전투 틱(0.1초)의 배수다');
   const originalRandom = Math.random;
   try {
     Math.random = () => 0.0; // meleeEnemyChance 미만 → 근접

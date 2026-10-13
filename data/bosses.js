@@ -330,7 +330,41 @@ function getMonsterVisualAttackKind(visualId) {
     return typeof visualId === 'string' && visualId.startsWith('wisp-') ? 'ranged' : null;
 }
 
+// 보스의 싸우는 거리 (2026-10-14 사용자: "보스 몬스터의 특성별로 근접, 사거리 있음, 사거리 무한 등 특징을 만들고 전투 AI 적용이
+// 필요함"). 전에는 모든 보스가 제자리에서 방 어디든 닿았다(COMBAT_GRID_CONFIG.bossAttackRange).
+//   melee  근접: 붙어야 친다. 닿지 않으면 주인공에게 걸어온다.
+//   ranged 사거리 있음: range칸 안에서 쏜다. 사거리 밖이면 사거리 안까지 걸어 들어온다.
+//   far    사거리 무한: 제자리에서 방 어디든 닿는다(전과 같다).
+// 전투 규칙은 js/combat-grid.js(사거리 배정)와 js/combat.js(다가가기, 떨어진 곳에서 쓰는 특수기)가 읽는다.
+const BOSS_REACH = Object.freeze({
+    kinds: Object.freeze({
+        melee: Object.freeze({ id: 'melee', label: '근접', range: COMBAT_GRID_CONFIG.meleeAttackRange }),
+        ranged: Object.freeze({ id: 'ranged', label: '원거리', range: 4 }),
+        far: Object.freeze({ id: 'far', label: '사거리 무한', range: COMBAT_GRID_CONFIG.bossAttackRange })
+    }),
+    /** 그림 열쇠 → 싸우는 거리. 그림을 보고 정했다: 네 발 짐승, 철퇴를 든 기사, 거미 다리, 사슬과 낫을 든 순례자는 근접.
+     * 지팡이와 종을 든 자, 나비는 원거리. 정원사, 접목의 어머니, 고치에서 태어난 존재는 제자리에서 방 전체를 다스린다. */
+    byAsset: Object.freeze({
+        bossAct1: 'melee', bossAct2: 'ranged', bossAct3: 'ranged', bossAct4_1: 'melee', bossAct4_2: 'melee', bossAct5: 'ranged',
+        bossAct6: 'far', bossAct7: 'ranged', bossAct8_1: 'ranged', bossAct8_2: 'melee', bossAct8_3: 'melee', bossAct9: 'far',
+        bossAct10_1: 'far', bossAct10_2: 'far', bossAct10_3: 'far', bossAct10_4: 'far', bossAct10_5: 'far'
+    }),
+    /** 예고하는 특수기(지면 강타, 충격파 등)는 대상이 이 칸 수 안이면 사거리 밖이어도 그 자리에서 쓴다: 근접 보스에게서 달아나기만
+     * 하면 아무것도 맞지 않는 싸움이 되지 않게. */
+    castRange: 6,
+    /** 사거리 밖의 대상에게 다가가는 한 걸음(초): 방 단위 무대에서 주인공의 기본 걸음(0.4초)보다 빠르다. 전투는 0.1초 단위로
+     * 흐르므로 0.1의 배수로 적는다(0.34로 적으면 0.4초에 한 걸음이 된다). */
+    stepSec: 0.3
+});
+/** 보스의 싸우는 거리(BOSS_REACH.kinds의 하나): 그림 열쇠로 정해 둔 것, 없으면 외형이 정한 공격 방식(영역의 보스), 그것도 없으면
+ * 사거리 무한. */
+function getBossReach(enemy) {
+    const kind = BOSS_REACH.byAsset[enemy.bossAssetKey] || getMonsterVisualAttackKind(enemy.spriteVariantId || enemy.monsterVisualId);
+    return BOSS_REACH.kinds[kind] || BOSS_REACH.kinds.far;
+}
+
 safeExposeData({
+    BOSS_REACH, getBossReach,
     ACT_BOSS_NAMES, ACT_BOSS_ASSET_KEYS, BOSS_ASSET_SOURCES, BOSS_ASSET_MANIFEST, BOSS_ASSET_VARIANTS_BY_ACT, BOSS_ASSET_FRONT_FACING,
     getBossAssetKeyForZone, getBossNameForZone, ENEMY_TRAIT_POOL, MONSTER_VARIANT_DEFS, getMonsterVariantDefinition,
     ACT_MONSTER_VISUALS, ACT_MONSTER_VISUAL_BY_ID, ACT_MONSTER_POOLS, RETIRED_WOOD_MONSTER_SKINS, RETIRED_REALM_MONSTERS, getActMonsterPool,
