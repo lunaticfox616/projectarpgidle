@@ -2569,7 +2569,9 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
     let dynamicLayout = layout.map(entry => glideBattleEnemy(entry, glideFrame));
     let enemyPosMap = buildBattleEnemyPosMap(dynamicLayout, battleFx, now);
     playerMotionState.attackDirection = resolvePlayerAttackDirection(playerPos, currentTargets, enemyPosMap);
+    const stageStrikeSide = stageView.enabled() ? resolveStageStrikeSide(now) : null;
     if (playerMotion.animating) battleVisualState.playerFacingDirection = playerMotion.direction;
+    else if (stageStrikeSide) battleVisualState.playerFacingDirection = stageStrikeSide;
     else if (swingFx) battleVisualState.playerFacingDirection = playerMotionState.attackDirection;
     playerMotionState.facingDirection = battleVisualState.playerFacingDirection || playerMotionState.attackDirection;
 
@@ -3181,9 +3183,53 @@ function resolvePlayerAttackDirection(playerPos, currentTargets, enemyPosMap) {
     if (!anchor) return battleVisualState.playerAttackDirection || 'east';
     let dx = Number(anchor.x) - Number(playerPos.x);
     let dy = Number(anchor.y) - Number(playerPos.y);
-    let direction = Math.abs(dy) > 6 ? (dy < 0 ? 'north' : 'south') : (dx < 0 ? 'west' : 'east');
+    let direction = stageView.enabled() ? resolveStageAttackSide(dx)
+        : Math.abs(dy) > 6 ? (dy < 0 ? 'north' : 'south') : (dx < 0 ? 'west' : 'east');
     battleVisualState.playerAttackDirection = direction;
     return direction;
+}
+const STAGE_ATTACK_SIDE_DEAD_PX = 10;     // 대상이 이만큼(px) 안의 같은 세로줄이면 직전에 보던 쪽을 지킨다
+const STAGE_NATIVE_CAST_FACE_MS = 700;    // 따로 시전하는 젬을 쓴 뒤 그 겨냥한 쪽을 보는 동안
+let stageNativeCastFace = null;           // { side, until }: 막 쓴 따로 시전하는 젬이 겨냥한 쪽(그 젬의 기록이 치워진 뒤에도 연출이 끝날 때까지 지킨다)
+/** 옆에서 보는 무대: 주인공이 지금 치고 있는 쪽. 가장 늦게 시작한 공격이 겨냥한 칸(combatTravel 기록의 aimCell)이나, 그런 기록을 남기지
+ * 않는 따로 시전하는 젬(js/skill-gem-casts.js)이 겨냥한 자리를 주인공이 지금 선 칸에서 본 쪽이다. 지금 선 칸에서 보므로 적 옆으로
+ * 건너가 치는 이동기(그림자 점멸, 암살)는 건너간 뒤의 쪽을 답한다. 겨냥한 칸이 같은 세로줄이거나 치는 중이 아니면 null.
+ * 주인공 그림과 주인공에게 붙는 스킬 이펙트(js/canvas-stage-skill-kit.js heroFace)가 이 한 값으로 같은 쪽을 본다. */
+function resolveStageStrikeSide(now) {
+    const hero = game.gridPlayer, side = cell => (cell && cell.gx !== hero.gx ? (cell.gx < hero.gx ? 'west' : 'east') : null);
+    // 막 쓴 따로 시전하는 젬이 먼저다: 그 젬을 쓰는 동안에도 기본 공격은 다른 적을 겨냥해 이어질 수 있다(암살로 건너가 뒤를 베는 순간)
+    const cast = resolveStageNativeCastSide(side);
+    if (cast) return cast;
+    for (let index = battleFx.length - 1; index >= 0; index--) {
+        const fx = battleFx[index];
+        if (fx && fx.type === 'combatTravel' && fx.owner === 'player' && fx.aimCell && fx.start <= now) return side(fx.aimCell);
+    }
+    return null;
+}
+function resolveStageNativeCastSide(side) {
+    const clock = getCombatTime(), cast = latestStageNativeCast(clock), aimed = cast ? side(cast.aim) : null;
+    if (aimed) stageNativeCastFace = { side: aimed, until: cast.at + STAGE_NATIVE_CAST_FACE_MS };
+    // 암살은 베는 연출이 끝나기 전에 기록이 치워진다: 그동안 기본 공격의 다음 대상 쪽으로 돌아서면 등 뒤에서 베는 꼴이 된다
+    const kept = stageNativeCastFace;
+    if (kept && clock >= kept.until - STAGE_NATIVE_CAST_FACE_MS && clock <= kept.until) return kept.side;
+    stageNativeCastFace = null;
+    return null;
+}
+/** 막 쓴(STAGE_NATIVE_CAST_FACE_MS 안의) 따로 시전하는 젬의 기록: 주 스킬 자리의 것이 먼저, 없으면 이동기 자리의 것. */
+function latestStageNativeCast(clock) {
+    for (const state of [skillGemCombatRuntime, mobilitySkill.castState()]) {
+        const cast = state && state.casts.length ? state.casts[state.casts.length - 1] : null;
+        if (cast && cast.aim && clock >= cast.at && clock - cast.at <= STAGE_NATIVE_CAST_FACE_MS) return cast;
+    }
+    return null;
+}
+/** 옆에서 보는 무대의 주인공은 왼쪽이나 오른쪽만 본다: 대상이 선 쪽을 본다. 위에서 보는 전장의 규칙(대상이 다른 줄에 있으면 위나 아래)을
+ * 그대로 쓰면 무대의 주인공은 그때 직전 방향을 지켜, 왼쪽 위의 적을 치면서 오른쪽을 보고 서 있었고 스킬 이펙트만 왼쪽에 나왔다
+ * (2026-10-13 사용자: 이펙트가 "반대로 나오고"). 대상이 거의 같은 세로줄이면 직전에 보던 쪽을 지킨다. */
+function resolveStageAttackSide(dx) {
+    const last = battleVisualState.playerAttackDirection;
+    if (Math.abs(dx) <= STAGE_ATTACK_SIDE_DEAD_PX) return last === 'west' || last === 'east' ? last : (stageActors.facing() < 0 ? 'west' : 'east');
+    return dx < 0 ? 'west' : 'east';
 }
 
 // ACT 배경의 9x8 직교 그리드. 유닛 점유 칸과 플레이어의 현재 공격 칸을 함께 표시한다.

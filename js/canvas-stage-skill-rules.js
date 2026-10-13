@@ -91,7 +91,8 @@ const stageSkillRules = (() => {
         const key = `${fx.skillName}:${String(fx.damageTextGroupId).split(':')[0]}:${Number(fx.repeatIndex) || 0}`;
         if (swung.has(key)) return;
         swung.set(key, now);
-        rulePlaySwing(gem, fx, look);
+        // 휘두름은 주인공의 몸 앞에 나온다: 먼저 셈한 타격의 적이 등 뒤에 있어도(둘러싸였을 때) 주인공이 보는 쪽으로 낸다
+        rulePlaySwing(gem, fx, { ...look, face: K.heroFace() });
     }
 
     // ---------------------------------------------------------------- per victim
@@ -141,9 +142,10 @@ const stageSkillRules = (() => {
     function ruleWatchRot(id, time) {
         const rot = rots.get(id), enemy = rot ? K.enemy(id) : null;
         if (!rot) return false;
-        if (enemy && enemy.hp > 0 && time < rot.until) return true;
+        if (enemy === rot.unit && enemy.hp > 0 && time < rot.until) return true;
         rot.row.life = Math.min(rot.row.life, time - rot.row.start);
-        if (!enemy || enemy.hp <= 0) ruleRotBurst(rot);
+        // 터지는 것은 죽었을 때뿐이다: 구역이나 판이 바뀌어 목록에서 사라진 적(살아 있던 그대로 치워졌다)의 자리에서는 터지지 않는다
+        if (rot.unit.hp <= 0) ruleRotBurst(rot);
         rots.delete(id);
         return false;
     }
@@ -151,10 +153,11 @@ const stageSkillRules = (() => {
     function ruleStartRot(gem, hit) {
         const id = hit.fx.enemyId, known = rots.get(id);
         if (known && known.until > hit.now) { known.until = hit.now + ROT_MS; known.row.life = known.until - known.row.start; return; }
-        const follow = () => { const enemy = K.enemy(id); return enemy && enemy.hp > 0 ? K.enemySpot(enemy) : null; };
-        const row = stageSkillVfx.play(gem.map.orb, K.at(hit.victim, 0, -42), { ramp: hit.look.ramp, scale: 0.8, life: ROT_MS, follow });
+        // 같은 번호를 다시 쓰는 다른 판의 적을 따라가지 않게, 번호가 아니라 그 적 자체를 붙든다
+        const unit = K.enemy(id), follow = () => (unit && K.enemy(id) === unit && unit.hp > 0 ? K.enemySpot(unit) : null);
+        const row = unit ? stageSkillVfx.play(gem.map.orb, K.at(hit.victim, 0, -42), { ramp: hit.look.ramp, scale: 0.8, life: ROT_MS, follow }) : null;
         if (!row) return;
-        rots.set(id, { row, until: hit.now + ROT_MS, gem, ramp: hit.look.ramp });
+        rots.set(id, { row, until: hit.now + ROT_MS, gem, ramp: hit.look.ramp, unit });
         stageSkillVfx.watch(time => ruleWatchRot(id, time));
     }
 
@@ -320,9 +323,10 @@ const stageSkillRules = (() => {
         view.ctx.restore();
     }
     const EVENT_PLAYS = Object.freeze({ windup: rulePlayWindup, stage: rulePlayStage, travel: rulePlayMuzzle });
-    /** 처음 보는 사건이면 그때의 클립을 튼다. */
-    function rulePlayEvent(gem, event) {
-        if (handled.has(event) || !EVENT_PLAYS[event.kind]) return;
+    /** 제 때가 된 사건을 처음 보면 그때의 클립을 튼다. 게임은 닿는 사건(stage)을 날아가는 동안부터 알려 주므로(at이 앞날이다)
+     * 때가 되기 전에는 틀지 않는다: 처음 본 프레임에 틀던 때에는 유성이 떨어지기도 전에 버섯구름이 먼저 터졌다. */
+    function rulePlayEvent(gem, event, now) {
+        if (now < event.at || handled.has(event) || !EVENT_PLAYS[event.kind]) return;
         handled.add(event);
         const target = event.targetCells && event.targetCells[0], source = event.sourceCell || K.heroSpot();
         EVENT_PLAYS[event.kind](gem, event, { face: (target && Math.sign(target.gx - source.gx)) || K.heroFace(), ramp: K.ramp(gem, event.element) });
@@ -334,7 +338,7 @@ const stageSkillRules = (() => {
         if (!gem) return false;
         const cast = stageSkillCasts.claim(gem, event, view);   // 투사체의 몸, 따로 시전하는 젬, 이동기
         if (cast !== null) return cast;
-        rulePlayEvent(gem, event);
+        rulePlayEvent(gem, event, view.now);
         const mine = ruleTakes(gem, event.kind);
         if (mine && event.kind === 'travel') ruleDrawWave(gem, event, view);
         return mine;

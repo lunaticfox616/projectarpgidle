@@ -18,7 +18,8 @@ const stageSkillCasts = (() => {
         'causalityPhase', 'riftPhase', 'smokePhase', 'harpoonPhase', 'timePhase', 'judgmentPhase', 'leapPhase']);
     /** 위습이 쏜 구슬이 맞을 때의 타격 클립(속성별). */
     const WISP_HIT = Object.freeze({ fire: 'h_fire@fire', cold: 'h_ice@cold', light: 'h_lit@light', chaos: 'h_chaos@chaos', phys: 'h_xs@phys' });
-    const castFirst = event => (seen.has(event) ? false : (seen.add(event), true));
+    /** 제 때가 된 사건을 처음 보는가(때가 되기 전에 알려진 사건은 아직 틀지 않는다). */
+    const castFirst = c => c.view.now >= c.event.at && !seen.has(c.event) && !!seen.add(c.event);
     /** 클립을 그 칸에 세운다: 바닥 기준 클립은 발 자리, 가운데 기준 클립은 몸 높이. */
     function castStand(ref, spot, o) {
         return stageSkillVfx.play(ref, K.at(spot, o.dx || 0, K.onGround(ref) ? 1 : -46), o);
@@ -187,7 +188,7 @@ const stageSkillCasts = (() => {
     function castNativePhase(c, phase) {
         const play = (NATIVE[c.gem.id] || {})[phase];
         if (!play) return false;
-        c.first = castFirst(c.event);
+        c.first = castFirst(c);
         return play(c);
     }
     function castClaim(gem, event, view) {
@@ -195,7 +196,7 @@ const stageSkillCasts = (() => {
         if (phase) return castNativePhase(c, phase);
         const moving = event.kind === 'mobility';
         if (!moving && !(event.kind === 'travel' && BODIES[gem.id])) return null;
-        c.first = castFirst(event);
+        c.first = castFirst(c);
         return moving ? castMobility(c) : castBody(c);
     }
 
@@ -218,7 +219,7 @@ const stageSkillCasts = (() => {
         const dx = (to.gx - from.gx) * WIDE, dy = (to.gy - from.gy) * DEEP, ms = Math.max(120, rule.base + rule.perDot * Math.hypot(to.gx - from.gx, to.gy - from.gy) * 16);
         const element = gem.meta.el === 'prism' ? ['fire', 'cold', 'light'][(Number(fx.id) || 0) % 3] : gem.meta.el, ramp = STAGE_SKILL_VFX.elementRamp[element] || 'phys';
         stageSkillVfx.play(gem.map.shot, K.at(from, 0, -72), { ramp, face: Math.sign(dx) || 1, life: ms, move: { dx, dy: dy + 22, ms } });
-        stageSkillVfx.play(WISP_HIT[element] || WISP_HIT.phys, K.at(to, 0, K.BODY), { ramp, delay: ms, hit: true });
+        stageSkillVfx.play(WISP_HIT[element] || WISP_HIT.phys, K.at(to, 0, K.BODY), { ramp, face: Math.sign(dx) || 1, delay: ms, hit: true });
     }
     /** 위습들의 공격을 새 클립으로 옮긴다(공격마다 한 번). @returns {boolean} 새 그림이 맡았는지(맡았으면 예전 위습 공격 그림은 그리지 않는다) */
     function wispShots(now) {

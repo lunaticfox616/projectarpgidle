@@ -32,8 +32,15 @@ const stageSkillKit = (() => {
         const size = getGridUnitFootprint(enemy);
         return { gx: enemy.gx + (size.columns - 1) / 2, gy: enemy.gy + size.rows - 1 };
     }
-    /** 주인공이 보는 쪽(1 오른쪽, -1 왼쪽): 무대의 주인공 그림이 지금 보는 쪽. */
-    const kitHeroFace = () => (typeof stageActors === 'object' && stageActors.facing ? stageActors.facing() : lastFace);
+    const SIDE = Object.freeze({ west: -1, east: 1 });
+    /** 주인공이 보는 쪽(1 오른쪽, -1 왼쪽): 이번 프레임에 주인공 그림이 볼 쪽(걷는 쪽, 공격 중이면 대상이 선 쪽. js/canvas-battlefield.js가
+     * 타격을 넘기기 전에 정한다), 그것이 좌우가 아니면 공격 대상이 선 쪽, 그것도 없으면 마지막으로 그려진 쪽. 주인공에게 붙는 연출(휘두름,
+     * 마법진, 발사 섬광)은 이 값을 써서 늘 주인공 그림의 앞에 나온다. */
+    function kitHeroFace() {
+        const view = typeof battleVisualState === 'object' ? battleVisualState : {};
+        return SIDE[view.playerFacingDirection] || SIDE[view.playerAttackDirection]
+            || (typeof stageActors === 'object' && stageActors.facing ? stageActors.facing() : lastFace);
+    }
     /** 마지막으로 친 쪽을 적어 둔다(방향을 알 수 없는 사건이 쓴다). */
     function kitNoteFace(face) { if (face) lastFace = face; }
     const kitLastFace = () => lastFace;

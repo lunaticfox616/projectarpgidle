@@ -151,10 +151,14 @@ function drawStagePlayerBody(ctx, state, position) {
     const motion = state.motionState, stance = getStageHeroStance(), skill = SKILL_DB[game.activeSkill] || {};
     const previous = ctx.battleActorAlpha;
     ctx.battleActorAlpha = state.actorAlpha;
+    // 무대의 주인공은 휘두르는 동안에도 보는 쪽(facingDirection: 걷는 쪽, 치는 쪽. js/canvas-battlefield.js resolveStageStrikeSide)을 본다.
+    // 휘두름에 따로 적힌 방향(주 스킬의 첫 대상 쪽)을 따르면, 이동기로 건너가 뒤를 베는 동안 다른 적을 겨냥한 쪽으로 돌아섰다.
+    const facing = motion.facingDirection || motion.attackDirection || 'east', timing = collectHanaPlayerMotion(motion, state.now);
+    if (timing.attack) timing.attack = { ...timing.attack, direction: facing };
     try {
         return stageActors.drawPlayer(ctx, position.x, position.y, {
-            ...collectHanaPlayerMotion(motion, state.now), classId: getHeroAppearanceId(), stance, tile: state.gridProj.tileW,
-            facing: motion.facingDirection || motion.attackDirection || 'east',
+            ...timing, classId: getHeroAppearanceId(), stance, tile: state.gridProj.tileW,
+            facing,
             moving: motion.advanceBlend > 0.08, moveDirection: motion.moveDirection,
             spell: (skill.tags || []).includes('spell'),
             throwsWeapon: stance === 'flask' && HANA_THROWN_FLASK_GEMS.has(SKILL_FX_ATLAS[game.activeSkill]?.id),

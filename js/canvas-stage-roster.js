@@ -25,6 +25,7 @@ const stageRoster = (() => {
      * (2026-10-13: 한 장뿐인 보스가 선 채로 밀려 나갔다 돌아오기만 해서 때리는 것으로 읽히지 않았다). */
     const MADE_LEAN = Object.freeze([-0.4, -0.8, 1, 0.5, 0.1]), MADE_LEAN_DOTS = 12;
     const sheets = new Map();
+    const scales = new Map();        // 외형 id → 그리는 배율
     let clock = 0, work = null;
 
     const table = () => (typeof MONSTER_STAGE_ROSTER === 'object' ? MONSTER_STAGE_ROSTER : null);
@@ -206,8 +207,16 @@ const stageRoster = (() => {
     }
     /** One dot of the art on screen: the character's dot size, eased in while the monster appears (a boss is not enlarged:
      * the art is already drawn at its size). */
-    function dotFor(enemy, p) {
-        return stageActors.scaleFor(p.tile) * (p.spawnScale || 1) / getBossDrawScale(enemy);
+    function dotFor(enemy, actor, p) {
+        return stageActors.scaleFor(p.tile) * lookScale(actor) * (p.spawnScale || 1) / getBossDrawScale(enemy);
+    }
+    /** 그 외형을 그리는 배율(data/stage-view.js STAGE_MONSTER_SCALE: 외형 id의 앞머리로 정한다). 표에 없으면 1. */
+    function lookScale(actor) {
+        if (!scales.has(actor.id)) {
+            const rule = typeof STAGE_MONSTER_SCALE === 'object' ? STAGE_MONSTER_SCALE : {}, prefix = Object.keys(rule).find(head => actor.id.startsWith(head));
+            scales.set(actor.id, prefix ? rule[prefix] : 1);
+        }
+        return scales.get(actor.id);
     }
     function shadow(ctx, actor, p, dot, hop) {
         const air = AIRBORNE.includes(actor.gait), rx = Math.round(actor.width * (air ? 0.26 : 0.38)) - Math.min(6, hop || 0);
@@ -218,7 +227,7 @@ const stageRoster = (() => {
     function draw(ctx, enemy, p) {
         const actor = stageView.enabled() ? actorFor(enemy) : null, pair = actor ? pairOf(actor) : null;
         if (!pair) return false;
-        const dot = dotFor(enemy, p);
+        const dot = dotFor(enemy, actor, p);
         if (pair === 'loading') { shadow(ctx, actor, p, dot, 0); return true; }
         const pose = poseOf(enemy, actor, p), hop = pose.hop || 0;
         const size = compose(pair, actor, pose, { outline: getEnemyOutlineStyle(enemy), flash: p.flash });

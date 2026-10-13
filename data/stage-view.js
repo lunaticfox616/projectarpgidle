@@ -213,4 +213,9 @@ const STAGE_SCENES = Object.freeze({
         })
     })
 });
-safeExposeData({ STAGE_VIEW, STAGE_TERRAIN, STAGE_ROOMS, STAGE_BACKDROPS, STAGE_OBJECTS, STAGE_PROPS, STAGE_SCENES });
+/** 무대에서 몬스터 그림을 그리는 배율(js/canvas-stage-roster.js): 외형 id의 앞머리 → 배율, 여기에 없는 외형은 1(그림의 도트 = 캐릭터의 도트).
+ * 2026-10-13 사용자: "위습 크기 줄이고"(몬스터 위습). 새 위습 그림은 몸이 가로 75~108도트, 세로 60도트쯤에 머리 높이로 떠 있어
+ * 주인공(가로 40도트쯤)보다 크게 보였다. 0.7배로 줄여 몸이 가로 52~76도트, 세로 42도트쯤이다. */
+const STAGE_MONSTER_SCALE = Object.freeze({ 'wisp-': 0.7 });
+
+safeExposeData({ STAGE_VIEW, STAGE_TERRAIN, STAGE_ROOMS, STAGE_BACKDROPS, STAGE_OBJECTS, STAGE_PROPS, STAGE_SCENES, STAGE_MONSTER_SCALE });
