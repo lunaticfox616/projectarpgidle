@@ -67,7 +67,7 @@ const stageDots = (() => {
      * @param {CanvasImageSource} source
      * @param {{x:number,y:number,w:number,h:number}} from the dots to draw (source px)
      * @param {{x:number,y:number,scale:number}} at where its top-left lands and the size of one dot (the caller's units)
-     * @param {boolean} fixed source pixels never change; only static object images/tints may opt in, never animation canvases
+     * @param {boolean} fixed source pixels never change; static images/tints or immutable pose snapshots, never mutable work canvases
      */
     function blit(ctx, source, from, at, fixed = false) {
         if (!colorFilterOnly(ctx)) return paint(ctx, source, from, at, fixed);
