@@ -2444,7 +2444,9 @@ function getBattlefieldCaption() {
     return left > 0 && left <= MAP_MONSTERS_LEFT_HINT ? `몬스터 ${left}마리 남음` : '';
 }
 
-/** targetFrameMs: the drawing cadence of the frame loop (js/ui.js renderBattlefieldThrottled), for the effect density. */
+/** targetFrameMs: the drawing cadence of the frame loop (js/ui.js renderBattlefieldThrottled), for the effect density.
+ * @returns {(boolean|undefined)} true when the frame was drawn to the end (a hidden canvas or art still loading returns early):
+ *   only such draws are counted as battlefield frames (js/battle-frame-stats.js). */
 function renderBattlefield(forceWhenHidden, targetFrameMs) {
     worldTreeSkillFx.beginFrame();
     const canvas = document.getElementById('battlefield-canvas');
@@ -2875,6 +2877,7 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
     // DOM은 그림을 다 그린 뒤에 만진다: 그리는 도중에 쓰면 다음 ctx.font나 ctx.filter가 문서 스타일을 다시 계산했다.
     setElementText(document.getElementById('ui-battlefield-caption'), getBattlefieldCaption());
     if (typeof actExplorationView === 'object' && actExplorationView.objects) actExplorationView.objects.flushButtons();
+    return true;
 }
 
 function getBattleCameraShake(now) {

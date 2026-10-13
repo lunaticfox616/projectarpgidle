@@ -13428,7 +13428,9 @@ function renderBattlefieldThrottled(frameNow) {
     // 다른 탭의 모바일 PiP는 별도의 적응형 루프가 렌더 직후 곧바로 복사하므로,
     // 여기서 매 프레임 다시 복사하면 같은 화면을 30~45fps로 중복 복사하게 된다.
     // (전투 탭일 때 PiP는 숨겨져 어차피 복사가 일어나지 않는다.)
-    renderBattlefield(false, interval);
+    // 끝까지 그린 것만 전장의 프레임으로 센다(js/battle-frame-stats.js): 화면이 프레임을 부른 횟수와는 다른 수다.
+    const drawBegan = performance.now();
+    if (renderBattlefield(false, interval)) battleFrameStats.noteBattleDraw(drawBegan, performance.now(), interval);
 }
 
 /** '안내 중 전투 일시 정지'(설정): 안내 카드가 떠 있거나, 따라 하기의 대상 화면(젬 · 스킬트리 …)이 열려 있는 동안 — 첫 젬을
