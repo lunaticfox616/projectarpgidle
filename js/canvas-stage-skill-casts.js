@@ -15,7 +15,7 @@ const stageSkillCasts = (() => {
         38: 'flask', 44: 'flask', 47: 'flask', 48: 'flask', 49: 'flask' });
     /** 따로 시전하는 젬의 사건에서 단계 이름이 적힌 칸. */
     const PHASE_KEYS = Object.freeze(['flaskPhase', 'lancePhase', 'mixturePhase', 'supercooledPhase', 'emptyFlaskPhase', 'holyMistPhase', 'assassinationPhase',
-        'causalityPhase', 'riftPhase', 'smokePhase', 'harpoonPhase', 'timePhase', 'judgmentPhase', 'leapPhase']);
+        'causalityPhase', 'riftPhase', 'smokePhase', 'harpoonPhase', 'timePhase', 'judgmentPhase']);
     /** 위습이 쏜 구슬이 맞을 때의 타격 클립(속성별). */
     const WISP_HIT = Object.freeze({ fire: 'h_fire@fire', cold: 'h_ice@cold', light: 'h_lit@light', chaos: 'h_chaos@chaos', phys: 'h_xs@phys' });
     /** 제 때가 된 사건을 처음 보는가(때가 되기 전에 알려진 사건은 아직 틀지 않는다). */
@@ -38,12 +38,16 @@ const stageSkillCasts = (() => {
         ctx.restore();
         stageSkillDraws.body(ctx, look, { x: at.x, y: at.y - height * at.dot, dot: at.dot, face: 1, t: c.view.now - event.at, element: c.element });
     }
-    /** 곧게 나는 투사체: 길을 따라 손 높이로 날고, 나아가는 쪽을 보며 깊이 쪽으로 가면 그만큼 기운다. */
+    /** 곧게 나는 투사체: 길을 따라 손 높이로 날고, 나아가는 쪽을 보며 깊이 쪽으로 가면 그만큼 기운다. 쏜 자리의 몸 앞면보다 뒤쪽은
+     * 그리지 않는다(K.emerge): 창 자루가 등 뒤에서부터 보이지 않고 몸 앞에서 나온다. */
     function castDrawShot(c, look) {
         const event = c.event, elapsed = c.view.now - event.at, spot = K.along(event, elapsed), lift = event.aloft ? PROJECTILE_FLIGHT_LIFT : 0;
-        const at = K.screen(c.view.projection, { gx: spot.gx, gy: spot.gy + lift });
+        const at = K.screen(c.view.projection, { gx: spot.gx, gy: spot.gy + lift }), ctx = c.view.ctx;
         const angle = Math.atan2((spot.to.gy - spot.from.gy) * DEEP, Math.abs(spot.to.gx - spot.from.gx) * WIDE);
-        stageSkillDraws.body(c.view.ctx, look, { x: at.x, y: at.y + K.HAND * at.dot, dot: at.dot, face: spot.face, angle, t: elapsed, element: c.element });
+        ctx.save();
+        K.emerge(ctx, c.view.projection, event);
+        stageSkillDraws.body(ctx, look, { x: at.x, y: at.y + K.HAND * at.dot, dot: at.dot, face: spot.face, angle, t: elapsed, element: c.element });
+        ctx.restore();
     }
     /** 날아가는 사건 하나: 처음 볼 때 발사 섬광을 틀고, 나는 동안 프레임마다 몸을 그린다. */
     function castBody(c) {

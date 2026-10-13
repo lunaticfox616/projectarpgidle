@@ -8,13 +8,14 @@
  * - 그림 사건(js/canvas-world-tree-fx.js renderEvent와 paintCast: 예비 windup, 날아가는 travel, 닿는 stage, 이동 mobility):
  *   범위 클립, 여진, 낙하, 파동, 발사 섬광. 투사체의 몸과 따로 시전하는 젬, 이동기는 js/canvas-stage-skill-casts.js가 맡는다.
  *   그 젬의 그때를 새 연출이 맡으면 참을 돌려 예전 그림을 대신한다. 맡지 않는 것은 예전 그림이 그대로 그린다: 룬 지뢰, 시간 가속,
- *   파문심판(인계도 게임의 옛 그림을 쓴다), 인계에서 빠진 젬 다섯.
+ *   파문심판(인계도 게임의 옛 그림을 쓴다). 인계에서 빠진 젬 다섯은 2026-10-13에 게임에서도 지웠다.
  * 젬의 판정, 대상, 피해는 게임의 것 그대로다: 여기는 사건을 읽기만 한다.
  */
 const stageSkillRules = (() => {
     const K = stageSkillKit, WIDE = K.WIDE, DEEP = K.DEEP, BODY = K.BODY;
     const REACH = 80;                             // 근접 휘두름이 닿는 거리(도트, 인계의 1.25칸)
     const ROT_MS = 2000;                          // 화염 부패의 구슬이 몸에 붙어 있는 시간(다시 걸리면 늘어난다)
+    const WAVE_FRONT = 10;                        // 파동의 앞머리가 출발하는 자리(쓴 자리에서 앞으로, 도트)
     const handled = new WeakSet();                // 이미 클립으로 옮긴 사건
     const swung = new Map();                      // "젬:공격 묶음:반복" → 휘두름을 튼 시각
     const struck = new Map();                     // 적 id → 타격 클립을 붙인 시각
@@ -311,14 +312,16 @@ const stageSkillRules = (() => {
         travel: gem => !!gem.map.wave && gem.map.wave !== 'none'
     });
     const ruleTakes = (gem, kind) => !gem.map.old && !!TAKES[kind] && TAKES[kind](gem);
-    /** 나아가는 파동: 파동 클립이 길을 따라 몸 높이에서 조금 출렁이며 나아간다(매 프레임 그 자리에 찍는다). */
+    /** 나아가는 파동: 파동 클립이 길을 따라 몸 높이에서 조금 출렁이며 나아간다(매 프레임 그 자리에 찍는다). 쓴 자리의 몸 앞면보다
+     * 뒤쪽은 그리지 않는다(K.emerge): 파동이 몸 앞에서 자라 나와 나아간다. */
     function ruleDrawWave(gem, event, view) {
         const elapsed = view.now - event.at;
         if (elapsed < 0 || elapsed > event.duration + 200) return;
         const spot = K.along(event, Math.min(elapsed, event.duration)), at = K.screen(view.projection, spot);
         view.ctx.save();
+        K.emerge(view.ctx, view.projection, event);
         view.ctx.globalAlpha *= elapsed > event.duration ? 1 - (elapsed - event.duration) / 200 : 1;
-        stageSkillVfx.stamp(view.ctx, gem.map.wave, elapsed, { x: at.x + spot.face * 10 * at.dot, y: at.y + (-54 + Math.round(Math.sin(elapsed / 70) * 2)) * at.dot,
+        stageSkillVfx.stamp(view.ctx, gem.map.wave, elapsed, { x: at.x + spot.face * WAVE_FRONT * at.dot, y: at.y + (-54 + Math.round(Math.sin(elapsed / 70) * 2)) * at.dot,
             face: spot.face, dot: at.dot, ramp: K.ramp(gem, event.element) });
         view.ctx.restore();
     }

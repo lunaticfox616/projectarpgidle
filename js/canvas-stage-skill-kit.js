@@ -59,7 +59,20 @@ const stageSkillKit = (() => {
         const a = path[i], b = path[i + 1], u = Math.max(0, Math.min(1, (elapsed - a.offsetMs) / Math.max(1, b.offsetMs - a.offsetMs)));
         return { gx: a.gx + (b.gx - a.gx) * u, gy: a.gy + (b.gy - a.gy) * u, face: Math.sign(b.gx - a.gx) || lastFace, from: a, to: b };
     }
+    const EMERGE = 10;  // 쓴 자리에서 앞으로 내민 손까지(도트)
+    /** 쓴 자리에서 나아가는 그림(파동, 곧게 나는 투사체)을 쓴 사람이 내민 손보다 앞쪽에만 그리게 한다. 그런 그림은 앞머리가 기준점이라
+     * 몸통이 뒤로 길게 놓이고, 막 나갈 때는 쓴 사람의 등 뒤까지 걸쳐 등 뒤에서 나오는 것처럼 보였다(2026-10-13 사용자: 서리 파동이
+     * "캐릭터 몸 뒤쪽에서부터 나오는것 같으니"). 이렇게 가리면 몸 앞에서 자라 나와 나아간다. 깊이 쪽으로 곧게 가는 것은 가리지 않는다.
+     * 부른 쪽이 save와 restore로 감싼다. @param {CanvasRenderingContext2D} ctx @param {object} p 투영 @param {object} event 그림 사건 */
+    function kitEmerge(ctx, p, event) {
+        const first = kitAlong(event, 0), face = Math.sign(first.to.gx - first.from.gx);
+        if (!face || Math.abs(first.to.gx - first.from.gx) < 0.5) return;
+        const at = kitScreen(p, first.from), x = at.x + face * EMERGE * at.dot, span = ctx.canvas.width + ctx.canvas.height;
+        ctx.beginPath();
+        ctx.rect(face < 0 ? x - span : x, -span, span, span * 2);
+        ctx.clip();
+    }
     return Object.freeze({ WIDE, DEEP, BODY, HAND, gemOf: kitGemOf, ramp: kitRamp, ref: kitRef, onGround: kitOnGround, heroSpot: kitHeroSpot, enemy: kitEnemy,
-        enemySpot: kitEnemySpot, heroFace: kitHeroFace, noteFace: kitNoteFace, lastFace: kitLastFace, at: kitAt, screen: kitScreen, along: kitAlong });
+        enemySpot: kitEnemySpot, heroFace: kitHeroFace, noteFace: kitNoteFace, lastFace: kitLastFace, at: kitAt, screen: kitScreen, along: kitAlong, emerge: kitEmerge });
 })();
 safeExposeGlobals({ stageSkillKit });
