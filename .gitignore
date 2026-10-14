@@ -51,5 +51,7 @@ __pycache__/
 /assets/enemies/roster/
 # 무대의 새 스킬 이펙트 그림(scripts/build-stage-skill-vfx.cjs가 옮긴다): 구매 팩에서 온 그림이라 다시 나눠 주면 안 된다. 저장소에 넣지 않는다.
 /assets/stage-vfx/
+# 이야기 NPC의 도트와 일러스트(사용자가 이미지 생성으로 만든 그림, scripts/build-stage-npcs.cjs가 옮긴다): 저장소에 넣기로 정할 때까지 로컬에만 둔다.
+/assets/stage-npcs/
 /assets/summon/hana/
 /docs/skill-assets-hana/reference/

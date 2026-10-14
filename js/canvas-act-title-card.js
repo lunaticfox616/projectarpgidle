@@ -22,9 +22,10 @@ const actTitleCard = (() => {
     // js/canvas-battlefield.js). Lines wrap between words: bubbles at bubbleChars characters a row, bands at most maxRows rows.
     const LINE = Object.freeze({ baseMs: 1800, perCharMs: 65, maxMs: 6500, staleMs: 15000, watchMs: 200, introDelayMs: 3200, halfAt: 0.55, maxRows: 3, bubbleChars: 19 });
     const CARRY = new Set(['defeat', 'class']);
-    // The entry room's greeting: the hero's first words and the guide's line. The hero stands for it at most maxMs (the card,
-    // lines carried from the last map and the greeting itself fit well within it); a move command ends the wait at once.
-    const GREET = Object.freeze({ keys: new Set(['wake', 'npc']), maxMs: 25000 });
+    // The entry room's greeting: the hero's first words, the guide's line and the hero's answer. The hero stands for it at
+    // most maxMs (the card, two lines carried from the last map and the greeting fit within it at the longest line length);
+    // a move command ends the wait at once.
+    const GREET = Object.freeze({ keys: new Set(['wake', 'npc', 'reply']), maxMs: 32000 });
     const TONES = Object.freeze({ gold: '#e0c27e', violet: '#c9a4f2', cyan: '#8fe3d6', crimson: '#ef9a92' });
     const STORY_FONT = "'Galmuri14', 'MulmaruMono', 'Malgun Gothic', sans-serif";
     let zone, pending = null, card = null, frameAt = 0, line = null, watchedAt = 0, trackedAt = 0, place = null, watchedRun = null;
@@ -134,14 +135,22 @@ const actTitleCard = (() => {
         if (room && room.role === 'entry') watchEntryRoom(story, now);
         if (room && room.role === 'optional' && stele) queueStoryLine({ key: 'stele', who: 'stele', speaker: stele.title, text: stele.bark, tone: 'cyan' }, now);
     }
-    /** The entry room: in act 1 the hero wakes first (wakeLine), then the guide speaks, from loop 2 on with the line that
-     * remembers the hero (loopBark). */
+    /** The guide's line for this loop (docs/story-bible.md section 9): the first meeting in loop 1, the line for the hero's class
+     * in even loops, the line that remembers the hero (loopBark) in odd loops from 3 on. */
+    function npcLine(npc) {
+        const loop = game.season || 1, byClass = (npc.classBarks || {})[game.selectedClassId];
+        if (loop === 1) return npc.bark;
+        return loop % 2 === 0 ? byClass || npc.loopBark || npc.bark : npc.loopBark || byClass || npc.bark;
+    }
+    /** The entry room: in loop 1's act 1 the hero wakes first (wakeLine), then the guide speaks and the hero answers in its
+     * class's words (classReplies). */
     function watchEntryRoom(story, now) {
         const lore = storyClassLore(), act = actOf(zone), npc = story.npc;
-        if (act && act.order === 1 && lore) queueStoryLine({ key: 'wake', who: 'hero', speaker: lore.label, text: lore.wakeLine, tone: 'gold' }, now);
+        if (act && act.order === 1 && (game.season || 1) === 1 && lore) queueStoryLine({ key: 'wake', who: 'hero', speaker: lore.label, text: lore.wakeLine, tone: 'gold' }, now);
         if (!npc) return;
-        const text = (game.season || 1) >= 2 && npc.loopBark ? npc.loopBark : npc.bark;
-        queueStoryLine({ key: 'npc', who: 'npc', speaker: npc.name, text, tone: npc.tone }, now);
+        queueStoryLine({ key: 'npc', who: 'npc', speaker: npc.name, text: npcLine(npc), tone: npc.tone }, now);
+        const reply = lore ? (npc.classReplies || {})[game.selectedClassId] : null;
+        if (reply) queueStoryLine({ key: 'reply', who: 'hero', speaker: lore.label, text: reply, tone: 'gold' }, now);
     }
     const greets = row => !!row && GREET.keys.has(row.key) && row.zone === zone;
     /** The run whose entry room greets the hero now: an active map with the hero in its entry room and no move command given
@@ -164,10 +173,10 @@ const actTitleCard = (() => {
         return greetSpent < GREET.maxMs;
     }
 
-    // The guide stands in the entry room when the stage has a picture for it: the hero's friendly rim instead of a monster's
-    // red one, a name tag instead of a life bar, and its line in a bubble over it.
-    const npcFigures = new Map(); // picture id: the figure the roster draws (it keeps the facing and the drawn height by it)
-    /** The stage picture of this map's guide (data/stage-view.js STAGE_STORY_NPCS, by the last word of its name), or null. */
+    // The guide stands in the entry room when the stage has its picture (data/stage-view.js STAGE_STORY_NPCS, STAGE_NPC_ART):
+    // its idle frames from the art, a name tag over it, and its line in a bubble over the tag. It takes no part in the fight.
+    const npcSheets = new Map(); // picture id: the idle strip, decoded off the main thread (js/canvas-stage-pictures.js)
+    /** The picture id of this map's guide, by the last word of its name, or null. */
     function npcLook(story) {
         const looks = typeof STAGE_STORY_NPCS === 'object' ? STAGE_STORY_NPCS : {};
         return story && story.npc ? looks[String(story.npc.name).split(/[\s,]+/).pop()] || null : null;
@@ -187,16 +196,29 @@ const actTitleCard = (() => {
         const point = state.gridProj.cellToScreen(watch.npcCell.gx, watch.npcCell.gy), npc = watch.story.npc;
         actors.push({ kind: 'scenery', id: -3, x: point.x, y: point.y + state.gridProj.actorGroundOffsetY, npc: { look, name: npc.name, tone: npc.tone } });
     }
-    function npcFigure(look) {
-        if (!npcFigures.has(look.look)) npcFigures.set(look.look, { id: -3, bossAssetKey: look.look, isBoss: false });
-        return npcFigures.get(look.look);
+    function npcSheet(look) {
+        if (!npcSheets.has(look)) npcSheets.set(look, stagePictures.openPicture(`${STAGE_NPC_ART.path}${look}-idle.png`));
+        return npcSheets.get(look);
+    }
+    /** The idle frame shown now: the art's own frame times, looping. */
+    function npcFrame(now) {
+        const times = STAGE_NPC_ART.frameMs;
+        let left = now % times.reduce((sum, ms) => sum + ms, 0), index = 0;
+        while (left >= times[index]) left -= times[index++];
+        return index;
     }
     /** The guide facing the hero, then its name over it in its colour; the bubble of its line hangs over the name. */
     function drawNpc(ctx, actor, state) {
-        const npc = actor.npc, figure = npcFigure(npc.look), facing = state.playerPos.x < actor.x ? 'west' : 'east';
-        const pose = { x: actor.x, y: actor.y, tile: state.gridProj.tileW, now: state.now, facing, rim: BATTLE_SPRITE_OUTLINES.hero, spawnScale: npc.look.scale || 1 };
-        if (!stageRoster.draw(ctx, figure, pose)) return;
-        const top = actor.y - getEnemyFieldBarLift(figure);
+        const art = STAGE_NPC_ART, sheet = npcSheet(actor.npc.look);
+        if (!sheet.ready) return;
+        const dot = stageActors.scaleFor(state.gridProj.tileW) * art.scale, cell = art.cell;
+        stageRings.shadow(ctx, { x: actor.x, y: actor.y, dot }, 18, 0.34);
+        ctx.save();
+        if (state.playerPos.x < actor.x) { ctx.translate(actor.x * 2, 0); ctx.scale(-1, 1); }
+        const at = { x: Math.round(actor.x - art.feet[0] * dot), y: Math.round(actor.y - art.feet[1] * dot), scale: dot };
+        stageDots.blit(ctx, sheet.source, { x: npcFrame(state.now) * cell, y: 0, w: cell, h: cell }, at);
+        ctx.restore();
+        const top = Math.round(actor.y - (art.feet[1] - art.head) * dot);
         npcHead = { x: actor.x, y: top - 12 };
         ctx.save();
         ctx.font = `13px 'MulmaruMono', 'Malgun Gothic', sans-serif`;
@@ -204,9 +226,9 @@ const actTitleCard = (() => {
         ctx.textBaseline = 'middle';
         ctx.lineWidth = 3;
         ctx.strokeStyle = 'rgba(8,6,4,0.9)';
-        ctx.fillStyle = TONES[npc.tone] || TONES.gold;
-        ctx.strokeText(npc.name, actor.x, top);
-        ctx.fillText(npc.name, actor.x, top);
+        ctx.fillStyle = TONES[actor.npc.tone] || TONES.gold;
+        ctx.strokeText(actor.npc.name, actor.x, top);
+        ctx.fillText(actor.npc.name, actor.x, top);
         ctx.restore();
     }
     /** The hero's line when the last elite sealing the boss gate falls. */

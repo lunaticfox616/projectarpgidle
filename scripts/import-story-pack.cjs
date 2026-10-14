@@ -21,7 +21,9 @@ const STORY = 'data/story-journal.js', MAPS = 'data/maps.js', BIBLE = 'docs/stor
 const PARSE = Object.freeze({ ecmaVersion: 'latest', sourceType: 'script', range: true, loc: true, comment: true });
 // 화면 대사 한 줄: PC 띠 한 줄, 말풍선은 19자마다 접는다(js/canvas-act-title-card.js). 넘으면 경고만 한다.
 const SCREEN_MAX = 50;
-const SCREEN_FIELDS = new Set(['wakeLine', 'eliteLine', 'bossLines', 'bark', 'loopBark', 'intro', 'half', 'defeat', 'quote']);
+const SCREEN_FIELDS = new Set(['wakeLine', 'eliteLine', 'bossLines', 'bark', 'loopBark', 'classBarks', 'classReplies', 'intro', 'half', 'defeat', 'quote']);
+// 직업 id로 나뉜 대사: 열쇠가 직업 id가 아니면 그 줄은 게임에 나오지 않는다.
+const CLASS_KEYED = new Set(['classBarks', 'classReplies']);
 const BANNED = /[·・—―]/u;
 const HANGUL = /[가-힣]/u;
 const SCENE_TABLES = ['SUPPLIED_STORY_SCENES', 'STORY_BRIDGE_SCENES'];
@@ -31,7 +33,7 @@ const FIELDS = Object.freeze({
     STORY_CLASS_ORIGINS: ['label', 'wakeLine', 'eliteLine', 'bossLines'],
     STORY_ACT_ENCOUNTERS: ['npc', 'stele', 'boss'], STORY_TRIAL_ENCOUNTERS: ['npc', 'stele', 'boss'],
     STORY_ENDGAME_ENCOUNTERS: ['intro', 'half', 'defeat'], STORY_LOOP_MILESTONES: ['narration', 'speaker', 'quote'],
-    npc: ['name', 'bark', 'loopBark', 'tone'], stele: ['title', 'bark'], boss: ['intro', 'half', 'defeat']
+    npc: ['name', 'bark', 'loopBark', 'classBarks', 'classReplies', 'tone'], stele: ['title', 'bark'], boss: ['intro', 'half', 'defeat']
 });
 // 게임이 읽지 않아 옮길 때 빼는 표와 칸.
 const DROP = Object.freeze({
@@ -68,7 +70,8 @@ const COMMENTS = Object.freeze({
 function read(file) {
     return fs.readFileSync(file, 'utf8').replace(/^﻿/, '').replace(/\r\n/g, '\n');
 }
-function writeLike(file, text) {
+function writeLike(file, raw) {
+    const text = raw.endsWith('\n') ? raw : `${raw}\n`; // a pack file may end without a line break
     const crlf = fs.existsSync(file) && fs.readFileSync(file, 'utf8').includes('\r\n');
     fs.writeFileSync(file, crlf ? text.replace(/\n/g, '\r\n') : text);
 }
@@ -159,6 +162,17 @@ function makeReport() {
     return report;
 }
 const keyOf = (table, key) => (RENAME[table] && RENAME[table][key]) || key;
+/** Lines split by class (an NPC's classBarks, the hero's classReplies) under class ids only. */
+function checkClassLines(story, classes, report) {
+    for (const table of ['STORY_ACT_ENCOUNTERS', 'STORY_TRIAL_ENCOUNTERS']) {
+        for (const [key, entry] of Object.entries(story.tables[table] || {})) {
+            for (const field of CLASS_KEYED) {
+                const strange = Object.keys((entry.npc || {})[field] || {}).filter(id => !classes.includes(id));
+                if (strange.length) report.error(`${table}.${key}.npc.${field}: 직업 id가 아닌 열쇠 ${strange.join(', ')}`);
+            }
+        }
+    }
+}
 function checkKeys(story, ids, report) {
     for (const [table, known] of Object.entries(ids)) {
         const keys = Object.keys(story.tables[table] || {}).map(key => keyOf(table, key));
@@ -308,7 +322,9 @@ function tidyStory(packText) {
 // ---- 실행 ---------------------------------------------------------------------------------------------------------------
 function inspect(pack, game, report) {
     checkTables(pack, report);
-    checkKeys(pack, gameIds(), report);
+    const ids = gameIds();
+    checkKeys(pack, ids, report);
+    checkClassLines(pack, ids.STORY_CLASS_ORIGINS, report);
     checkScenes(pack, game, report);
     checkCode(pack, game, report);
     checkStrings(STORY, pack.text, report);
