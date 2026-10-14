@@ -2887,9 +2887,11 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
             ctx.restore();
         }
     });
-    drawBattleLightingAndBars(ctx, { width, height, light: playerPos, hpPct: playerHpPct, ghostPct: playerHpGhostPct, esPct: playerEsPct, now, layout: dynamicLayout, targets: currentTargets, tileW: gridProj.tileW, projection: gridProj, pending: pendingEnemyCombatAttacks });
+    const lightScene = { width, height, light: playerPos, hpPct: playerHpPct, ghostPct: playerHpGhostPct, esPct: playerEsPct, now, layout: dynamicLayout, targets: currentTargets, tileW: gridProj.tileW, projection: gridProj, pending: pendingEnemyCombatAttacks };
+    drawBattleLightingAndBars(ctx, lightScene);
     if (typeof stageScene === 'object' && stageView.enabled()) stageScene.drawMarks(ctx, gridProj);
     drawDamageTexts(ctx, now);
+    actTitleCard.draw(ctx, lightScene); // over the damage numbers: a speech bubble above the hero stays readable
     ctx.setTransform(renderScale, 0, 0, renderScale, 0, 0);
     drawBattleScreenGrade(ctx, width, height, now);
     worldTreeSkillFx.feedback.screen(ctx, { width, height, now });
@@ -2993,7 +2995,6 @@ function drawBattleLightingAndBars(ctx, scene) {
     drawBattlePlayerFigure.readability.draw(ctx);
     drawBattlefieldPlayerHealthBar(ctx, scene);
     drawBattlefieldEnemyHealthBars(ctx, scene.layout.filter(entry => entry.drawn), scene.targets, scene.tileW);
-    actTitleCard.draw(ctx, scene.width, scene.height, scene.now);
 }
 
 /** Only the existing cast boundary returns above foreground effects; never duplicate its opaque fill. */

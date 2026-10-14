@@ -1,9 +1,9 @@
 /** Act title card over the upper battlefield, like an area name in an ARPG: entering (or loading into) a story act
  * shows "액트 N" and the act name. It waits while a story or tutorial popup is open, so it is not spent behind it.
  * Bosses keep the battlefield's own banner (drawBossAnnouncement).
- * On the room stage the same place carries the story's spoken lines (data/story-journal.js): the act's or trial's
- * guide in the entry room, the inscription of a side room, the final boss's intro, half-life and fall, and the hero's
- * own words when the gate elites and the act boss fall. One line at a time, after the card.
+ * On the room stage it also plays the story's lines (data/story-journal.js), one at a time after the card: the hero's
+ * words and a boss's own words (“…”) in a speech bubble over the one speaking, so it is clear who talks; the guide of
+ * the entry room, a side room's inscription and the narration of a boss fight (「…」) in a band where the card stands.
  * Read-only: it watches game state; nothing here touches combat state.
  */
 const actTitleCard = (() => {
@@ -15,10 +15,11 @@ const actTitleCard = (() => {
     // dialog) does not count; a line still waiting after staleMs on screen, or queued on another map, is dropped, except the
     // boss's fall and the hero's words for it (CARRY): the reward window opens over them and the next act may begin first.
     // The boss intro waits introDelayMs from the boss's first sight, past its name banner (BOSS_BANNER_MS, 2.6 s,
-    // js/canvas-battlefield.js). Lines wrap between words, at most maxRows rows.
-    const LINE = Object.freeze({ baseMs: 1800, perCharMs: 65, maxMs: 6500, staleMs: 15000, watchMs: 200, introDelayMs: 3200, halfAt: 0.55, maxRows: 3 });
+    // js/canvas-battlefield.js). Lines wrap between words: bubbles at bubbleChars characters a row, bands at most maxRows rows.
+    const LINE = Object.freeze({ baseMs: 1800, perCharMs: 65, maxMs: 6500, staleMs: 15000, watchMs: 200, introDelayMs: 3200, halfAt: 0.55, maxRows: 3, bubbleChars: 19 });
     const CARRY = new Set(['defeat', 'class']);
     const TONES = Object.freeze({ gold: '#e0c27e', violet: '#c9a4f2', cyan: '#8fe3d6', crimson: '#ef9a92' });
+    const STORY_FONT = "'Galmuri14', 'MulmaruMono', 'Malgun Gothic', sans-serif";
     let zone, pending = null, card = null, frameAt = 0, line = null, watchedAt = 0, trackedAt = 0;
     const queue = [], spoken = new Set(), bossSeen = new Map(), gateLeft = new WeakMap();
 
@@ -61,13 +62,19 @@ const actTitleCard = (() => {
         if (line || card || pending || !queue.length) return;
         line = { ...queue.shift(), startAt: now };
     }
-    /** Queues a line once per loop and map; key names the moment (npc, stele, intro, half, defeat, class, elite). */
-    function queueStoryLine(key, speaker, text, tone, now) {
-        const id = `${game.season || 1}:${zone}:${key}`;
-        if (!text || spoken.has(id)) return;
+    /** Queues a line once per loop and map. row: key (npc, stele, intro, half, defeat, class, elite), who (hero, boss, npc,
+     * stele, narration), speaker, text, tone, and for a boss its id. */
+    function queueStoryLine(row, now) {
+        const id = `${game.season || 1}:${zone}:${row.key}`;
+        if (!row.text || spoken.has(id)) return;
         spoken.add(id);
-        const showMs = Math.min(LINE.maxMs, LINE.baseMs + [...text].length * LINE.perCharMs);
-        queue.push({ key, zone, speaker, text, colour: TONES[tone] || TONES.gold, at: now, showMs });
+        const showMs = Math.min(LINE.maxMs, LINE.baseMs + [...row.text].length * LINE.perCharMs);
+        queue.push({ ...row, zone, colour: TONES[row.tone] || TONES.gold, at: now, showMs });
+    }
+    /** A boss line in “…” is the boss speaking; in 「…」 it is narration of the fight. */
+    function queueBossLine(key, seen, text, now) {
+        const who = text && text.startsWith('“') ? 'boss' : 'narration';
+        queueStoryLine({ key, who, speaker: seen.name, text, tone: 'crimson', bossId: seen.id }, now);
     }
     function storyEncounter(zoneId) {
         const act = actOf(zoneId);
@@ -88,15 +95,15 @@ const actTitleCard = (() => {
         watchStoryBoss(run, story, now);
     }
     function watchStoryRooms(run, story, now) {
-        const room = actExplorationDoors.room(run);
-        if (room && room.role === 'entry' && story.npc) queueStoryLine('npc', story.npc.name, story.npc.bark, story.npc.tone, now);
-        if (room && room.role === 'optional' && story.stele) queueStoryLine('stele', story.stele.title, story.stele.bark, 'cyan', now);
+        const room = actExplorationDoors.room(run), npc = story.npc, stele = story.stele;
+        if (room && room.role === 'entry' && npc) queueStoryLine({ key: 'npc', who: 'npc', speaker: npc.name, text: npc.bark, tone: npc.tone }, now);
+        if (room && room.role === 'optional' && stele) queueStoryLine({ key: 'stele', who: 'stele', speaker: stele.title, text: stele.bark, tone: 'cyan' }, now);
     }
     /** The hero's line when the last elite sealing the boss gate falls. */
     function watchStoryGate(run, now) {
         const left = actExplorationState.remainingElites(run), before = gateLeft.get(run), lore = storyClassLore();
         gateLeft.set(run, left);
-        if (before > 0 && left === 0 && lore) queueStoryLine('elite', lore.label, lore.eliteLine, 'gold', now);
+        if (before > 0 && left === 0 && lore) queueStoryLine({ key: 'elite', who: 'hero', speaker: lore.label, text: lore.eliteLine, tone: 'gold' }, now);
     }
     /** The boss of the last stage (act 4 fights two): the one the intro, half and fall lines speak of. */
     function finalStoryBoss(run) {
@@ -109,11 +116,11 @@ const actTitleCard = (() => {
         if (run.status === 'cleared') { storyBossDown(story, now); return; }
         const boss = finalStoryBoss(run);
         if (!boss) return;
-        if (!bossSeen.has(boss.id)) bossSeen.set(boss.id, { at: now, name: getEnemyDisplayName(boss) });
+        if (!bossSeen.has(boss.id)) bossSeen.set(boss.id, { at: now, id: boss.id, name: getEnemyDisplayName(boss) });
         const seen = bossSeen.get(boss.id);
         if (now - seen.at < LINE.introDelayMs) return;
-        queueStoryLine('intro', seen.name, story.boss.intro, 'crimson', now);
-        if (boss.hp <= boss.maxHp * LINE.halfAt) queueStoryLine('half', seen.name, story.boss.half, 'crimson', now);
+        queueBossLine('intro', seen, story.boss.intro, now);
+        if (boss.hp <= boss.maxHp * LINE.halfAt) queueBossLine('half', seen, story.boss.half, now);
     }
     /** The fall, then the hero's words for the act; an intro or half line not yet shown is past. Nothing when this view never
      * saw the boss (loaded into a cleared map). */
@@ -121,8 +128,8 @@ const actTitleCard = (() => {
         const seen = [...bossSeen.values()].pop(), lore = storyClassLore(), act = actOf(zone);
         if (!seen) return;
         dropStoryLines(entry => entry.key === 'intro' || entry.key === 'half');
-        queueStoryLine('defeat', seen.name, story.boss.defeat, 'crimson', now);
-        if (lore && act) queueStoryLine('class', lore.label, lore.bossLines[act.order], 'violet', now);
+        queueBossLine('defeat', seen, story.boss.defeat, now);
+        if (lore && act) queueStoryLine({ key: 'class', who: 'hero', speaker: lore.label, text: lore.bossLines[act.order], tone: 'violet' }, now);
     }
     function opacity(age, showMs) {
         return Math.max(0, Math.min(1, age / FADE_IN_MS, (showMs - age) / FADE_OUT_MS));
@@ -145,7 +152,7 @@ const actTitleCard = (() => {
         ctx.fillRect(Math.round(view.x + gap), Math.round(view.top - view.size * 0.72), Math.round(half), 1);
     }
     function title(ctx, view) {
-        ctx.font = `${view.size}px 'Galmuri14', 'MulmaruMono', 'Malgun Gothic', sans-serif`;
+        ctx.font = `${view.size}px ${STORY_FONT}`;
         ctx.lineWidth = Math.max(3, view.size * 0.16);
         ctx.strokeStyle = 'rgba(8,6,4,0.9)';
         ctx.strokeText(card.title, view.x, view.top + view.size * 0.5);
@@ -164,7 +171,7 @@ const actTitleCard = (() => {
         title(ctx, view);
         ctx.restore();
     }
-    /** Rows of a line no wider than width, broken between words (measured once per line and width). */
+    /** Rows of a line no wider than width, broken between words. */
     function storyLineRows(ctx, text, width) {
         const rows = [];
         for (const word of text.split(' ')) {
@@ -172,53 +179,93 @@ const actTitleCard = (() => {
             if (last !== null && ctx.measureText(last).width <= width) rows[rows.length - 1] = last;
             else rows.push(word);
         }
-        return rows.slice(0, LINE.maxRows);
+        return rows;
     }
-    function storyLineBand(ctx, view, count) {
-        const top = view.top - view.size * 2, height = view.size * (count * 1.5 + 3);
+    /** The rows and widest row of the current line for this width, measured once. */
+    function storyLineLayout(ctx, width) {
+        if (line.layoutFor !== width) {
+            const rows = storyLineRows(ctx, line.text, width);
+            line.layout = { rows, widest: Math.ceil(Math.max(...rows.map(row => ctx.measureText(row).width))) };
+            line.layoutFor = width;
+        }
+        return line.layout;
+    }
+    /** Where the speaker stands this frame: just above the hero's life bar, or above the boss's bar. Null for a voice with
+     * no body on screen (guide, inscription, narration, a boss already gone): those take the band. */
+    function storyAnchor(scene) {
+        if (line.who === 'hero') return { x: scene.light.x, y: (getHeroHeadY(scene.now) ?? scene.light.y - 82 * HERO_SIZE_SCALE) - 18 };
+        if (line.who !== 'boss') return null;
+        const entry = scene.layout.find(row => row.drawn && row.enemy.id === line.bossId);
+        return entry ? { x: entry.x, y: entry.y - getEnemyFieldBarLift(entry.enemy) - 10 } : null;
+    }
+    function storyBubbleFrame(ctx, box, tipX) {
+        ctx.fillStyle = 'rgba(12,10,12,0.92)';
+        ctx.strokeStyle = line.colour;
+        ctx.lineWidth = 1;
+        ctx.fillRect(box.x, box.y, box.w, box.h);
+        ctx.strokeRect(box.x + 0.5, box.y + 0.5, box.w - 1, box.h - 1);
+        ctx.beginPath();
+        ctx.moveTo(tipX - 6, box.y + box.h - 0.5);
+        ctx.lineTo(tipX, box.y + box.h + 7);
+        ctx.lineTo(tipX + 6, box.y + box.h - 0.5);
+        ctx.fill();
+        ctx.stroke();
+    }
+    /** A speech bubble over the speaker, its tail on the speaker's head, kept inside the battlefield. */
+    function drawStoryBubble(ctx, view, anchor) {
+        const pad = Math.round(view.size * 0.6), rowH = Math.round(view.size * 1.45);
+        const { rows, widest } = storyLineLayout(ctx, Math.min(view.width - 32, view.size * LINE.bubbleChars));
+        const w = widest + pad * 2, h = rows.length * rowH + pad * 2;
+        const x = Math.round(Math.min(Math.max(8, anchor.x - w / 2), view.width - w - 8)), y = Math.round(Math.max(8, anchor.y - h - 7));
+        storyBubbleFrame(ctx, { x, y, w, h }, Math.round(Math.min(Math.max(x + 12, anchor.x), x + w - 12)));
+        ctx.fillStyle = '#efe7d6';
+        rows.forEach((row, index) => ctx.fillText(row, x + w / 2, y + pad + rowH * (index + 0.5)));
+    }
+    /** A line with no body to speak from: the band where the card stands, the speaker above unless it is narration. */
+    function drawStoryBand(ctx, view) {
+        const rows = storyLineLayout(ctx, Math.min(view.width - view.size * 3, view.size * 34)).rows.slice(0, LINE.maxRows);
+        const top = view.top - view.size * 2, height = view.size * (rows.length * 1.5 + 3);
         const shade = ctx.createLinearGradient(0, top, 0, top + height);
-        shade.addColorStop(0, 'rgba(6,8,10,0)');
-        shade.addColorStop(0.25, 'rgba(6,8,10,0.66)');
-        shade.addColorStop(0.75, 'rgba(6,8,10,0.66)');
-        shade.addColorStop(1, 'rgba(6,8,10,0)');
+        [[0, 0], [0.25, 0.66], [0.75, 0.66], [1, 0]].forEach(([at, alpha]) => shade.addColorStop(at, `rgba(6,8,10,${alpha})`));
         ctx.fillStyle = shade;
         ctx.fillRect(0, top, view.width, height);
-    }
-    function storyLineText(ctx, view, rows) {
-        ctx.font = `${Math.round(view.size * 0.8)}px 'MulmaruMono', 'Malgun Gothic', sans-serif`;
-        ctx.fillStyle = line.colour;
-        ctx.fillText(line.speaker, view.x, view.top - view.size * 0.6);
-        ctx.font = `${view.size}px 'Galmuri14', 'MulmaruMono', 'Malgun Gothic', sans-serif`;
+        if (line.who !== 'narration') storyBandSpeaker(ctx, view);
+        ctx.font = `${view.size}px ${STORY_FONT}`;
         ctx.lineWidth = Math.max(3, view.size * 0.2);
         ctx.strokeStyle = 'rgba(8,6,4,0.9)';
-        ctx.fillStyle = '#efe7d6';
+        ctx.fillStyle = line.who === 'narration' ? '#d9cdb0' : '#efe7d6';
         rows.forEach((row, index) => {
             const y = view.top + view.size * (0.9 + index * 1.5);
             ctx.strokeText(row, view.x, y);
             ctx.fillText(row, view.x, y);
         });
     }
-    /** The current line where the title card stands, in the font of the card. */
-    function drawStoryLine(ctx, width, height, now) {
-        const size = Math.round(Math.max(13, Math.min(18, Math.min(width, height) * 0.022)));
-        const view = { x: Math.round(width / 2), top: Math.round(height * 0.2), size, width };
+    function storyBandSpeaker(ctx, view) {
+        ctx.font = `${Math.round(view.size * 0.8)}px 'MulmaruMono', 'Malgun Gothic', sans-serif`;
+        ctx.fillStyle = line.colour;
+        ctx.fillText(line.speaker, view.x, view.top - view.size * 0.6);
+    }
+    function drawStoryLine(ctx, scene) {
+        const size = Math.round(Math.max(13, Math.min(18, Math.min(scene.width, scene.height) * 0.022)));
+        const view = { x: Math.round(scene.width / 2), top: Math.round(scene.height * 0.2), size, width: scene.width };
+        const anchor = storyAnchor(scene);
         ctx.save();
-        ctx.globalAlpha = opacity(now - line.startAt, line.showMs);
+        ctx.globalAlpha = opacity(scene.now - line.startAt, line.showMs);
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.font = `${size}px 'Galmuri14', 'MulmaruMono', 'Malgun Gothic', sans-serif`;
-        if (line.rowsFor !== width) { line.rows = storyLineRows(ctx, line.text, Math.min(width - size * 3, size * 34)); line.rowsFor = width; }
-        storyLineBand(ctx, view, line.rows.length);
-        storyLineText(ctx, view, line.rows);
+        ctx.font = `${size}px ${STORY_FONT}`;
+        if (anchor) drawStoryBubble(ctx, view, anchor);
+        else drawStoryBand(ctx, view);
         ctx.restore();
     }
-    /** Called once per battlefield frame, after the lighting pass. */
-    function draw(ctx, width, height, now) {
+    /** Called once per battlefield frame, after the life bars and the damage numbers. scene: the battlefield's frame scene
+     * (width, height, now, light = the hero's place, layout = the drawn enemies). */
+    function draw(ctx, scene) {
         frameAt = Date.now();
-        track(now);
-        if (stageView.enabled()) watchStory(now);
-        if (card) drawTitleCard(ctx, width, height, now);
-        else if (line) drawStoryLine(ctx, width, height, now);
+        track(scene.now);
+        if (stageView.enabled()) watchStory(scene.now);
+        if (card) drawTitleCard(ctx, scene.width, scene.height, scene.now);
+        else if (line) drawStoryLine(ctx, scene);
     }
     /** True while a title card is on screen or about to start — guide cards wait for it (js/tutorial-ui.js). It runs on
      * the battlefield's clock, so this asks the battlefield: a hidden or stalled view never holds the cards back. */
