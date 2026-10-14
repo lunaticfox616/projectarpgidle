@@ -74,8 +74,8 @@
 .unlock-detail-action{position:sticky;bottom:-26px;z-index:2;margin:0 -16px -16px;padding:10px 16px 26px;border-top:1px solid var(--skin-line);background:var(--skin-panel)}
 .unlock-detail-reward:empty{display:none}
 .unlock-detail-reward>p{font-size:11px;color:var(--color-text-tertiary);line-height:1.7;margin:0}
-#content-unlock-panel .unlock-detail-action>button{width:100%;min-height:44px;font-size:13px;border:1px solid var(--skin-accent);background:linear-gradient(120deg,rgba(157,127,59,.3),var(--skin-panel));white-space:normal}
-#content-unlock-panel .unlock-detail-action>button:disabled{border-color:var(--skin-line);opacity:.65}
+#content-unlock-panel .unlock-detail-action>button,.npc-dialog .unlock-detail-action>button{width:100%;min-height:44px;font-size:13px;border:1px solid var(--skin-accent);background:linear-gradient(120deg,rgba(157,127,59,.3),var(--skin-panel));white-space:normal}
+#content-unlock-panel .unlock-detail-action>button:disabled,.npc-dialog .unlock-detail-action>button:disabled{border-color:var(--skin-line);opacity:.65}
 #content-unlock-panel [data-unlock-content="craft"]:enabled{position:relative;margin-top:16px;overflow:visible}
 #content-unlock-panel [data-unlock-content="craft"]:enabled::after{content:"";position:absolute;left:calc(50% - 5px);top:-23px;width:10px;height:10px;border-right:2px solid var(--skin-accent);border-bottom:2px solid var(--skin-accent);pointer-events:none;transform:translateY(0) rotate(45deg);animation:unlock-first-prompt 1.8s ease-in-out infinite}
 @keyframes unlock-first-prompt{0%,100%{transform:translateY(0) rotate(45deg);opacity:.65}50%{transform:translateY(6px) rotate(45deg);opacity:1}}
@@ -152,7 +152,8 @@ body.desktop-windowed-ui #content-unlock-panel>.unlock-workspace{flex:1 0 auto}
  body.desktop-windowed-ui #content-unlock-panel .unlock-start{flex:1 0 auto}
 }
 /* 이야기 NPC의 창(js/content-progression-ui.js openNpc): 초상, 이름과 칭호, 이번 대사, 맡은 해금과 그 상세(해금 창과 같다). */
-.npc-dialog{width:min(880px,94vw);max-height:min(720px,90vh);padding:0;border:1px solid var(--skin-line);background:var(--color-bg-panel,#16120f);color:var(--color-text);overflow:hidden}
+.npc-dialog{width:min(880px,94vw);height:min(720px,90vh);padding:0;border:1px solid var(--skin-line);background:var(--color-bg-panel,#16120f);color:var(--color-text);overflow:hidden}
+.npc-dialog[open]{display:flex;flex-direction:column}
 .npc-dialog::backdrop{background:rgba(6,5,4,.62)}
 .npc-dialog-head{display:flex;gap:16px;align-items:flex-end;padding:14px 16px;border-bottom:1px solid var(--skin-line);background:linear-gradient(180deg,rgba(169,145,84,.12),transparent)}
 .npc-dialog-portrait{width:112px;height:168px;object-fit:cover;object-position:top;flex:none}
@@ -163,13 +164,13 @@ body.desktop-windowed-ui #content-unlock-panel>.unlock-workspace{flex:1 0 auto}
 .npc-dialog-title{margin:2px 0 8px;color:var(--color-text-secondary);font-size:.86rem}
 .npc-dialog-line{margin:0;color:var(--color-text)}
 .npc-dialog-close{align-self:flex-start}
-.npc-dialog-body{display:grid;grid-template-columns:260px 1fr;min-height:0;max-height:calc(min(720px,90vh) - 200px)}
+.npc-dialog-body{flex:1;display:grid;grid-template-columns:260px 1fr;min-height:0}
 .npc-dialog-unlocks{list-style:none;margin:0;padding:8px;overflow:auto;border-right:1px solid var(--skin-line)}
 .npc-dialog-unlocks button{display:grid;grid-template-columns:28px 1fr;gap:2px 8px;width:100%;padding:6px 8px;margin:0 0 4px;text-align:left;background:transparent;border:1px solid transparent;color:inherit;font:inherit;cursor:pointer}
 .npc-dialog-unlocks button[aria-pressed="true"]{border-color:var(--color-accent-gold);background:rgba(169,145,84,.12)}
 .npc-dialog-unlocks img{grid-row:span 2;width:28px;height:28px;object-fit:contain}
 .npc-dialog-unlocks em{font-style:normal;font-size:.8rem;color:var(--color-text-secondary)}
 .npc-dialog-unlocks em.is-ready{color:var(--color-accent-gold)}
-.npc-dialog-detail{overflow:auto;border-left:0}
-@media (max-width:720px){.npc-dialog-head{gap:10px;padding:10px 12px}.npc-dialog-portrait{width:72px;height:108px}.npc-dialog-body{grid-template-columns:1fr;max-height:calc(90vh - 150px);overflow:auto}.npc-dialog-unlocks{border-right:0;border-bottom:1px solid var(--skin-line)}}
+.npc-dialog-detail{min-height:0;overflow:auto;border-left:0}
+@media (max-width:720px){.npc-dialog-head{gap:10px;padding:10px 12px}.npc-dialog-portrait{width:72px;height:108px}.npc-dialog-body{grid-template-columns:1fr;grid-template-rows:auto 1fr}.npc-dialog-unlocks{max-height:30vh}.npc-dialog-unlocks{border-right:0;border-bottom:1px solid var(--skin-line)}}
 }

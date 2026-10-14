@@ -367,8 +367,12 @@ const contentUnlockUi = {
     /** The unlocks an NPC keeps: those whose loop lines it speaks (STORY_LOOP_MILESTONES speaker, matched by the personal name, the
      * last word of the name). */
     npcUnlocks(name) {
-        const who = text => String(text || '').split(/[\s,]+/).pop();
-        return CONTENT_UNLOCK_CATALOG.filter(def => STORY_LOOP_MILESTONES[def.id] && who(STORY_LOOP_MILESTONES[def.id].speaker) === who(name));
+        return CONTENT_UNLOCK_CATALOG.filter(def => this.keeperOf(def.id) === this.personal(name));
+    },
+    personal: text => String(text || '').split(/[\s,]+/).pop(),
+    /** The personal name of the NPC who speaks an unlock's loop lines, or ''. */
+    keeperOf(id) {
+        return STORY_LOOP_MILESTONES[id] ? this.personal(STORY_LOOP_MILESTONES[id].speaker) : '';
     },
     /** True while one of the NPC's unlocks can be bought now: the mark over it on the stage (js/canvas-act-title-card.js). */
     npcHasNews(name) {
@@ -380,7 +384,11 @@ const contentUnlockUi = {
         const status = contentProgression.status(def.id);
         if (status.unlocked) return ['is-owned', '해금 완료'];
         if (status.available && def.cost > 0) return ['is-ready', `해금 가능, ${def.cost}P`];
-        return ['is-locked', status.reason];
+        // Locked behind another NPC's unlock: name that NPC, the window points where to go.
+        const before = CONTENT_UNLOCK_CATALOG.filter(row => row.id !== def.id && String(status.reason).startsWith(row.name))
+            .sort((a, b) => b.name.length - a.name.length)[0];
+        const keeper = before ? this.keeperOf(before.id) : '';
+        return ['is-locked', keeper && keeper !== this.keeperOf(def.id) ? `${status.reason}, ${keeper}` : status.reason];
     },
     /** The NPC's window (2026-10-15): its picture, name and title, the line it spoke here, and the unlocks it keeps with the unlock
      * window's own detail (buy, open). npc: { id, name, title, tone, line } (js/canvas-act-title-card.js npcAt). */
