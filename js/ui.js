@@ -390,6 +390,8 @@ function isForegroundGameplayPausedForBackground() {
     // 사망 기록은 읽을거리일 뿐 — 열려 있어도 방치 진행은 멈추지 않는다(예전에는 닫을 때까지 전투 시간이 멈췄다).
     if (typeof isLoopHeroSelectOpen === 'function' && isLoopHeroSelectOpen()) return true;
     if (actExplorationUi.departurePending()) return true;
+    // 입구 방의 인사(js/canvas-act-title-card.js greeting): 이야기 팝업처럼 주인공이 서서 듣는다(2026-10-15 사용자 "처음에 바로 막 진행하는데").
+    if (typeof actTitleCard === 'object' && actTitleCard.greeting()) return true;
     let overlayPause = !!game?.settings?.pauseGameOnOverlay;
     // 안내 카드뿐 아니라 따라 하기의 대상 화면이 열려 있는 동안도(검토 7차) — isTutorialPausingCombat이 함께 본다.
     let tutorialOpen = isTutorialPausingCombat();

@@ -202,6 +202,7 @@ const actExplorationView=(()=>{
         actExplorationView.objects.append(actors,state);
         stageProps.append(actors,state); // 방 단위 무대의 소품 층(js/canvas-stage-props.js)
         stageScene.append(actors,state); // 조각 묶음의 소품과 문(js/canvas-stage-scene.js)
+        actTitleCard.appendNpc(actors,state); // 입구 방의 이야기 NPC(js/canvas-act-title-card.js)
         // 방 단위 무대의 관문은 문으로 그려진다(js/canvas-stage-rooms.js): 옛 관문 그림을 세우지 않는다.
         const run=actExplorationState.current(game);if(!run || !cache?.surface || actExplorationDoors.stageMap(run))return;
         const map=cache.map,p=state.gridProj;
@@ -252,6 +253,7 @@ const actExplorationView=(()=>{
         if(actor.kind==='object'){actExplorationView.objects.draw(ctx,actor,state);return;}
         if(actor.prop){stageProps.draw(ctx,actor,state);return;}
         if(actor.piece){stageScene.draw(ctx,actor,state);return;}
+        if(actor.npc){actTitleCard.drawNpc(ctx,actor,state);return;}
         const p=state.gridProj,player=state.playerPos;
         ctx.save();ctx.imageSmoothingEnabled=false;
         // The only scenery actor left is the boss gate (painted maps carry their props in the picture).

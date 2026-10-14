@@ -5,6 +5,9 @@
  * words and a boss's own words (“…”) in a speech bubble over the one speaking, so it is clear who talks; the guide of
  * the entry room, a side room's inscription and the narration of a boss fight (「…」) in a band where the card stands.
  * Acts and trials speak in their rooms, the endgame boss fights (STORY_ENDGAME_ENCOUNTERS) at the boss.
+ * The guide of the entry room stands there when the stage has a picture for it (data/stage-view.js STAGE_STORY_NPCS) and
+ * speaks in a bubble too; while the entry room's greeting waits or plays, the game pauses as for a story popup (greeting,
+ * read by js/ui.js), so the hero stands and listens instead of running on.
  * Read-only: it watches game state; nothing here touches combat state.
  */
 const actTitleCard = (() => {
@@ -19,10 +22,15 @@ const actTitleCard = (() => {
     // js/canvas-battlefield.js). Lines wrap between words: bubbles at bubbleChars characters a row, bands at most maxRows rows.
     const LINE = Object.freeze({ baseMs: 1800, perCharMs: 65, maxMs: 6500, staleMs: 15000, watchMs: 200, introDelayMs: 3200, halfAt: 0.55, maxRows: 3, bubbleChars: 19 });
     const CARRY = new Set(['defeat', 'class']);
+    // The entry room's greeting: the hero's first words and the guide's line. The hero stands for it at most maxMs (the card,
+    // lines carried from the last map and the greeting itself fit well within it); a move command ends the wait at once.
+    const GREET = Object.freeze({ keys: new Set(['wake', 'npc']), maxMs: 25000 });
     const TONES = Object.freeze({ gold: '#e0c27e', violet: '#c9a4f2', cyan: '#8fe3d6', crimson: '#ef9a92' });
     const STORY_FONT = "'Galmuri14', 'MulmaruMono', 'Malgun Gothic', sans-serif";
     let zone, pending = null, card = null, frameAt = 0, line = null, watchedAt = 0, trackedAt = 0, place = null, watchedRun = null;
-    // Per exploration run: its story and act, the bosses this view saw (id: first sight and name) and the gate elites left.
+    let covered = false, holding = false, greetSpent = 0, npcHead = null;
+    // Per exploration run: its story and act, the bosses this view saw (id: first sight and name), the gate elites left, where
+    // its guide stands, and whether a move command waived the greeting.
     const queue = [], spoken = new Set(), runs = new WeakMap();
 
     function actOf(zoneId) {
@@ -58,8 +66,10 @@ const actTitleCard = (() => {
         const waited = now - (trackedAt || now);
         trackedAt = now;
         if (line && now - line.startAt >= line.showMs) line = null;
-        if (storyCovered()) { queue.forEach(entry => { entry.at += waited; }); return; }
-        dropStoryLines(entry => (entry.zone !== zone && !CARRY.has(entry.key)) || now - entry.at > LINE.staleMs);
+        covered = storyCovered();
+        if (covered) { queue.forEach(entry => { entry.at += waited; }); return; }
+        // The greeting is not stale while it waits: the hero stands for it.
+        dropStoryLines(entry => (entry.zone !== zone && !CARRY.has(entry.key)) || (now - entry.at > LINE.staleMs && !GREET.keys.has(entry.key)));
         if (line || card || pending || !queue.length) return;
         line = { ...queue.shift(), startAt: now };
     }
@@ -106,10 +116,11 @@ const actTitleCard = (() => {
     /** The room-stage story of the map, looked at a few times a second. Not while the class is being chosen (the game waits
      * then): the hero's lines would be taken in the default class's words. */
     function watchStory(now) {
-        if (now - watchedAt < LINE.watchMs) return;
+        const run = actExplorationState.current(game);
+        // A new map is looked at at once: its greeting holds the hero before the first step.
+        if (now - watchedAt < LINE.watchMs && run === watchedRun) return;
         watchedAt = now;
         if (!game.heroSelectionInitialized || isLoopHeroSelectOpen()) return;
-        const run = actExplorationState.current(game);
         watchPassedRun(run, now);
         const watch = run ? runWatch(run) : null;
         if (!watch || !watch.story || !actExplorationDoors.stageMap(run)) return;
@@ -131,6 +142,72 @@ const actTitleCard = (() => {
         if (!npc) return;
         const text = (game.season || 1) >= 2 && npc.loopBark ? npc.loopBark : npc.bark;
         queueStoryLine({ key: 'npc', who: 'npc', speaker: npc.name, text, tone: npc.tone }, now);
+    }
+    const greets = row => !!row && GREET.keys.has(row.key) && row.zone === zone;
+    /** The run whose entry room greets the hero now: an active map with the hero in its entry room and no move command given
+     * meanwhile (a command waives the greeting for the run). */
+    function greetingRun() {
+        const run = actExplorationState.current(game), watch = run ? runs.get(run) : null;
+        if (!watch || run.status !== 'active' || watch.waived) return null;
+        if (run.destination) { watch.waived = true; return null; }
+        const room = actExplorationDoors.room(run);
+        return room && room.role === 'entry' ? run : null;
+    }
+    /** Whether the hero stands for the greeting this frame: it waits or plays, and has held the hero less than GREET.maxMs of
+     * battlefield time. Behind a window (time not counted) it holds only when windows pause the game: a game set to run behind
+     * windows walks on, and its greeting plays where the hero is once the window closes. waited: ms since the last frame. */
+    function holdsGreeting(waited) {
+        const waits = (greets(line) || queue.some(greets)) && !!greetingRun();
+        if (!waits) { greetSpent = 0; return false; }
+        if (covered) return !!game.settings.pauseGameOnOverlay && greetSpent < GREET.maxMs;
+        greetSpent += waited;
+        return greetSpent < GREET.maxMs;
+    }
+
+    // The guide stands in the entry room when the stage has a picture for it: the hero's friendly rim instead of a monster's
+    // red one, a name tag instead of a life bar, and its line in a bubble over it.
+    const npcFigures = new Map(); // picture id: the figure the roster draws (it keeps the facing and the drawn height by it)
+    /** The stage picture of this map's guide (data/stage-view.js STAGE_STORY_NPCS, by the last word of its name), or null. */
+    function npcLook(story) {
+        const looks = typeof STAGE_STORY_NPCS === 'object' ? STAGE_STORY_NPCS : {};
+        return story && story.npc ? looks[String(story.npc.name).split(/[\s,]+/).pop()] || null : null;
+    }
+    /** The back row of the entry room, two cells from where the hero first stood there, into the room. */
+    function npcCell(room, hero) {
+        const from = Math.round(hero.gx), side = from + 2 <= room.x1 ? 2 : -2;
+        return { gx: Math.max(room.x0, Math.min(room.x1, from + side)), gy: room.y0 };
+    }
+    /** Adds the guide to the battlefield's actors while the hero is in the entry room (js/canvas-act-exploration.js
+     * appendScenery), so it stands in depth with the hero and the monsters. */
+    function appendNpc(actors, state) {
+        const run = stageView.enabled() ? actExplorationState.current(game) : null, watch = run ? runs.get(run) : null;
+        const look = watch ? npcLook(watch.story) : null, map = look ? actExplorationDoors.stageMap(run) : null;
+        if (!map || actExplorationDoors.room(run) !== map.entry) return;
+        watch.npcCell = watch.npcCell || npcCell(map.entry, game.gridPlayer);
+        const point = state.gridProj.cellToScreen(watch.npcCell.gx, watch.npcCell.gy), npc = watch.story.npc;
+        actors.push({ kind: 'scenery', id: -3, x: point.x, y: point.y + state.gridProj.actorGroundOffsetY, npc: { look, name: npc.name, tone: npc.tone } });
+    }
+    function npcFigure(look) {
+        if (!npcFigures.has(look.look)) npcFigures.set(look.look, { id: -3, bossAssetKey: look.look, isBoss: false });
+        return npcFigures.get(look.look);
+    }
+    /** The guide facing the hero, then its name over it in its colour; the bubble of its line hangs over the name. */
+    function drawNpc(ctx, actor, state) {
+        const npc = actor.npc, figure = npcFigure(npc.look), facing = state.playerPos.x < actor.x ? 'west' : 'east';
+        const pose = { x: actor.x, y: actor.y, tile: state.gridProj.tileW, now: state.now, facing, rim: BATTLE_SPRITE_OUTLINES.hero, spawnScale: npc.look.scale || 1 };
+        if (!stageRoster.draw(ctx, figure, pose)) return;
+        const top = actor.y - getEnemyFieldBarLift(figure);
+        npcHead = { x: actor.x, y: top - 12 };
+        ctx.save();
+        ctx.font = `13px 'MulmaruMono', 'Malgun Gothic', sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = 'rgba(8,6,4,0.9)';
+        ctx.fillStyle = TONES[npc.tone] || TONES.gold;
+        ctx.strokeText(npc.name, actor.x, top);
+        ctx.fillText(npc.name, actor.x, top);
+        ctx.restore();
     }
     /** The hero's line when the last elite sealing the boss gate falls. */
     function watchStoryGate(run, watch, now) {
@@ -233,6 +310,7 @@ const actTitleCard = (() => {
      * no body on screen (guide, inscription, narration, a boss already gone): those take the band. */
     function storyAnchor(scene) {
         if (line.who === 'hero') return { x: scene.light.x, y: (getHeroHeadY(scene.now) ?? scene.light.y - 82 * HERO_SIZE_SCALE) - 18 };
+        if (line.who === 'npc') return npcHead;
         if (line.who !== 'boss') return null;
         const entry = scene.layout.find(row => row.drawn && row.enemy.id === line.bossId);
         return entry ? { x: entry.x, y: entry.y - getEnemyFieldBarLift(entry.enemy) - 10 } : null;
@@ -300,16 +378,22 @@ const actTitleCard = (() => {
     /** Called once per battlefield frame, after the life bars and the damage numbers. scene: the battlefield's frame scene
      * (width, height, now, light = the hero's place, layout = the drawn enemies). */
     function draw(ctx, scene) {
+        const waited = scene.now - (trackedAt || scene.now);
         frameAt = Date.now();
         track(scene.now);
         if (stageView.enabled()) watchStory(scene.now);
+        holding = stageView.enabled() && holdsGreeting(waited);
         if (card) drawTitleCard(ctx, scene.width, scene.height, scene.now);
         else if (line) drawStoryLine(ctx, scene);
+        npcHead = null; // the guide's head is placed again by the next frame's actor layer, if it stands there
     }
     /** True while a title card is on screen or about to start — guide cards wait for it (js/tutorial-ui.js). It runs on
      * the battlefield's clock, so this asks the battlefield: a hidden or stalled view never holds the cards back. */
     function busy() { return !!(card || pending) && Date.now() - frameAt < LIVE_MS; }
+    /** True while the hero stands for the entry room's greeting: js/ui.js pauses the game for it. Only while the battlefield
+     * draws, like busy. */
+    function greeting() { return holding && Date.now() - frameAt < LIVE_MS; }
     if (typeof document === 'object' && document.fonts?.load) document.fonts.load("20px 'Galmuri14'").catch(() => {});
-    return Object.freeze({ draw, busy });
+    return Object.freeze({ draw, busy, greeting, appendNpc, drawNpc });
 })();
 safeExposeGlobals({ actTitleCard });
