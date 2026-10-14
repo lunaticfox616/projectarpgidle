@@ -6,8 +6,9 @@
  * the entry room, a side room's inscription and the narration of a boss fight (「…」) in a band where the card stands.
  * Acts and trials speak in their rooms, the endgame boss fights (STORY_ENDGAME_ENCOUNTERS) at the boss.
  * The NPC of the entry room stands there when the stage has its picture (data/stage-view.js STAGE_NPC_ART, STAGE_NPC_POSTS)
- * and speaks in a bubble too (pressing it opens its window); while the entry room's greeting waits or plays, the game pauses as for a story popup (greeting,
- * read by js/ui.js), so the hero stands and listens instead of running on.
+ * and speaks in a bubble too (pressing it opens its window). While the entry room's greeting or a cleared map's ending waits
+ * or plays, the game pauses as for a story popup (greeting, read by js/ui.js): the hero stands and listens instead of running
+ * on, and an act's ending is told in its own boss room before the next act.
  * Read-only: it watches game state; nothing here touches combat state.
  */
 const actTitleCard = (() => {
@@ -162,11 +163,20 @@ const actTitleCard = (() => {
         const room = actExplorationDoors.room(run);
         return room && room.role === 'entry' ? run : null;
     }
-    /** Whether the hero stands for the greeting this frame: it waits or plays, and has held the hero less than GREET.maxMs of
-     * battlefield time. Behind a window (time not counted) it holds only when windows pause the game: a game set to run behind
-     * windows walks on, and its greeting plays where the hero is once the window closes. waited: ms since the last frame. */
+    const ends = row => !!row && CARRY.has(row.key) && row.zone === zone;
+    /** A cleared map still on screen (its boss fell, the departure waits) with no move command given. */
+    function endingRun() {
+        const run = actExplorationState.current(game);
+        return run && run.status === 'cleared' && !run.destination ? run : null;
+    }
+    /** Whether the game holds for the story this frame: the entry room's greeting, or a cleared map's ending (the boss's fall and
+     * the hero's words for it, 2026-10-15: they spilled into the next act's entry and kept the hero standing there for ~20 s),
+     * waits or plays, and the hold has lasted less than GREET.maxMs of battlefield time. Behind a window (time not counted) it holds
+     * only when windows pause the game: a game set to run behind windows walks on, and the lines play where the hero is once the
+     * window closes. waited: ms since the last frame. */
     function holdsGreeting(waited) {
-        const waits = (greets(line) || queue.some(greets)) && !!greetingRun();
+        const greeting = (greets(line) || queue.some(greets)) && !!greetingRun();
+        const waits = greeting || ((ends(line) || queue.some(ends)) && !!endingRun());
         if (!waits) { greetSpent = 0; return false; }
         if (covered) return !!game.settings.pauseGameOnOverlay && greetSpent < GREET.maxMs;
         greetSpent += waited;
