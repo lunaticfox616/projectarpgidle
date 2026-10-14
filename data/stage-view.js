@@ -269,21 +269,24 @@ const STAGE_BOARD_ROOMS = Object.freeze({
 // 발바닥 줄 110, 발 가운데 63, 오른쪽을 본다). 그림은 scripts/cut-stage-hero-motion.cjs로 잘라 assets/playable/stage/에 둔다(저장소에 넣지
 // 않는다). 2026-10-14 사용자가 준 전사의 찌르기(9장)와 베기(17장, 세 번 이어 베는 연속기): 베기는 휘두름 하나씩 셋으로 나눴다(0~3, 3~5,
 // 6~10번. 11~16번은 6~10번을 되풀이한 그림이라 쓰지 않았다). 찌르기의 6번 프레임은 칼끝의 흰 섬광이 칸 밖으로 12점 나가 잘렸다.
+// 같은 날 받은 셋째 그림(9장): 낮게 휘둘러 한 번 치고 몸을 한 바퀴 돌려 빛나는 칼로 크게 벤다(돌려베기, 타격은 마지막 8번).
 const STAGE_HERO_MOTIONS = Object.freeze({
     warrior: Object.freeze({
         swordshield: Object.freeze({
             thrust: Object.freeze({ frames: 9, ms: Object.freeze([90, 90, 80, 70, 70, 80, 140, 110, 110]), hit: Object.freeze([6]), file: 'warrior/swordshield/thrust.png' }),
             slash: Object.freeze({ frames: 4, ms: Object.freeze([90, 80, 140, 110]), hit: Object.freeze([2]), file: 'warrior/swordshield/slash.png' }),
             slash2: Object.freeze({ frames: 3, ms: Object.freeze([80, 80, 140]), hit: Object.freeze([2]), file: 'warrior/swordshield/slash2.png' }),
-            slash3: Object.freeze({ frames: 5, ms: Object.freeze([90, 90, 140, 110, 110]), hit: Object.freeze([2]), file: 'warrior/swordshield/slash3.png' })
+            slash3: Object.freeze({ frames: 5, ms: Object.freeze([90, 90, 140, 110, 110]), hit: Object.freeze([2]), file: 'warrior/swordshield/slash3.png' }),
+            spin: Object.freeze({ frames: 9, ms: Object.freeze([90, 80, 80, 90, 70, 70, 70, 90, 160]), hit: Object.freeze([8]), file: 'warrior/swordshield/spin.png' })
         })
     })
 });
-/** 휘두르는 모양: 스킬 → 찌르기(thrust) 또는 베기(slash). 그 동작이 있는 자세에서만 쓰고(지금은 전사의 검방패), 없는 자세와 여기에 없는
- * 스킬은 보통 공격 그림(공격, 공격2 …)을 돌린다. 한 대상을 노리는 찌르는 기술은 찌르기, 휘둘러 베는 기술은 베기로 나눴다. */
+/** 휘두르는 모양: 동작 이름 → 그 동작으로 휘두르는 스킬. 그 동작이 있는 자세에서만 쓰고(지금은 전사의 검방패), 없는 자세와 여기에 없는
+ * 스킬은 보통 공격 그림(공격, 공격2 …)을 돌린다. 한 대상을 노리는 찌르는 기술은 찌르기, 휘둘러 베는 기술은 베기, 도는 기술은 돌려베기. */
 const STAGE_HERO_STRIKES = Object.freeze({
     thrust: Object.freeze(['암살자의 일격', '흡혈 타격', '혈기 폭쇄']),
-    slash: Object.freeze(['기본 공격', '연속 베기', '묵직한 강타', '번개 타격', '화염 참격', '지진 파쇄', '용암 강타', '공허 베기', '그림자 점멸'])
+    slash: Object.freeze(['기본 공격', '연속 베기', '묵직한 강타', '번개 타격', '화염 참격', '지진 파쇄', '용암 강타', '공허 베기', '그림자 점멸']),
+    spin: Object.freeze(['회오리바람'])
 });
 
 safeExposeData({ STAGE_HERO_MOTIONS, STAGE_HERO_STRIKES, STAGE_VIEW, STAGE_TERRAIN, STAGE_ROOMS, STAGE_BACKDROPS, STAGE_OBJECTS, STAGE_PROPS, STAGE_SCENES, STAGE_MONSTER_SCALE, STAGE_BOARD_ROOMS });

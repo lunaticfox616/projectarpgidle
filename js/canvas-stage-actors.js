@@ -39,10 +39,9 @@ const stageActors = (() => {
         if (!mergedSets.has(key)) mergedSets.set(key, Object.freeze({ ...base, ...extra }));
         return mergedSets.get(key);
     }
-    /** 그 스킬을 휘두르는 모양(data/stage-view.js STAGE_HERO_STRIKES): 'thrust', 'slash', 정해지지 않았으면 null. */
+    /** 그 스킬을 휘두르는 모양(data/stage-view.js STAGE_HERO_STRIKES의 열쇠: 'thrust', 'slash', 'spin'), 정해지지 않았으면 null. */
     function strikeFor(skillName) {
-        if (STAGE_HERO_STRIKES.thrust.includes(skillName)) return 'thrust';
-        return STAGE_HERO_STRIKES.slash.includes(skillName) ? 'slash' : null;
+        return Object.keys(STAGE_HERO_STRIKES).find(shape => STAGE_HERO_STRIKES[shape].includes(skillName)) || null;
     }
     /** 그 시트(js/canvas-stage-pictures.js의 그림 한 장): 메인 스레드 밖에서 미리 풀어 두므로 그 동작을 처음 그릴 때 멈추지 않는다.
      * ready가 참이면 source를 그릴 수 있다. 지금 직업과 자세의 시트만 열어 두고 나머지는 닫는다(retain). */
