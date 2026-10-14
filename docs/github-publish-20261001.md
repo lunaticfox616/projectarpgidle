@@ -1,5 +1,7 @@
 # GitHub 올리기 — 공개 / 비공개 나눔 (2026-10-01)
 
+지금(2026-10-14) 코드는 `codex/…` 가지에서 `main`으로 PR을 올린다. 아래 나눠 올리기는 `rignin-next`의 Hana 그림을 올릴 때만 쓴다.
+
 Hana Caraka 캐릭터 스프라이트는 팀 내부 전용(재배포 금지)이라 공개 저장소에 올릴 수 없다.
 그래서 개발 브랜치 `rignin-next`를 두 저장소에 나눠 올린다.
 
@@ -39,10 +41,8 @@ Hana Caraka 캐릭터 스프라이트는 팀 내부 전용(재배포 금지)이�
   같은 이름은 이력이 달라 거절되지만, 다른 브랜치 이름으로 올리면 그대로 올라간다.
 - Hana 그림을 새 경로에 추가하면 `PRIVATE_PATHS`에 넣는다. 옛 커밋이 다시 쓰이므로 그다음 한 번은 `--force-public`이 필요하다.
 - 새 PC에서 전체 게임을 받으려면 공개 `rignin-next`를 받은 뒤 비공개 저장소의 `assets`, `docs` 폴더를 그 위에 복사한다.
-- 공개 저장소 CI(`.github/workflows/test.yml`)에는 비공개 경로가 없다. 그 파일을 읽는 검사(`smoke-hana-actors`의 시트 파일 검사,
-  `smoke-redrawn-skill-art` 전체)는 `CI` 환경 변수가 있고 그 폴더가 통째로 없을 때만 건너뛴다(`scripts/lib/private-assets.js`).
-  로컬에서는 예전처럼 빠진 파일이 실패로 잡힌다. 2026-09-30 공개 CI 실패 두 건이 이것이었다(2026-10-02 고침).
-  공개 상태를 미리 보려면 `git archive HEAD`에서 비공개 경로를 지운 복사본에서 `CI=true npm test`.
+- 공개 저장소 CI(`.github/workflows/test.yml`)에는 비공개 경로가 없다. 지금 스모크는 비공개 그림 없이 돈다.
+  공개 상태를 미리 보려면 `git archive HEAD` 복사본에서 `npm test`.
 
 ## 새 배포 알림 (2026-10-11)
 사용자: "PR 올려서 github pages에 들어가고 나면 새로고침 하라고 떴으면 좋겠는데".
@@ -54,3 +54,7 @@ Hana Caraka 캐릭터 스프라이트는 팀 내부 전용(재배포 금지)이�
   저장 실패나 진행 정산 중에는 현재 화면을 유지하고 이유를 알린다. 페이지 종료 이벤트의 저장에만 의존하지 않는다(2026-10-13).
 - 표식이 `dev`인 개발 서버와 앱(네이티브)에서는 켜지지 않는다. 기존 `<meta name="app-build">`는 플레이 기록용 이름표라 그대로 둔다.
 - 읽는 파일은 수십 바이트이고 GitHub Pages에서 받는다(클라우드 서버 요청은 늘지 않는다).
+
+## 무대 그림 (2026-10-11부터)
+- 무대 그림 네 폴더(`assets/playable/stage`, `assets/stage-scenes`, `assets/enemies/roster`, `assets/stage-vfx`)는 공개 저장소에도
+  비공개 저장소에도 없다(`.gitignore`). 그래서 지금 Pages 배포판은 위에서 보는 전장으로 돈다(`scripts/build-web.js`).
