@@ -250,11 +250,15 @@ const contentUnlockUi = {
             <div class="unlock-requirements"><h4>${status.unlocked ? '해금 완료' : `해금 조건${def.cost ? ', ' + def.cost + 'P' : ''}`}</h4>${conditions.map(row => `<div class="${row.met ? 'is-met' : ''}"><span>${escapeHTML(row.label)}</span><small>${row.met ? '달성' : '미달성'}</small></div>`).join('')}</div>
             <div class="unlock-detail-action">${action}</div>`;
     },
-    /** Who speaks for this unlock and what (data/story-journal.js STORY_LOOP_MILESTONES), under the unlock's description. */
+    /** Who speaks for this unlock and what (data/story-journal.js STORY_LOOP_MILESTONES), under the unlock's description, with
+     * the face of that NPC when the stage art is here (the same NPC whose window lists this unlock). */
     loreHtml(id) {
         const lore = STORY_LOOP_MILESTONES[id];
-        return lore ? `<blockquote class="story-scene-quote"><p>${lore.narration.map(escapeHTML).join(' ')}</p>
-            <p><strong>${escapeHTML(lore.speaker)}</strong> ${escapeHTML(lore.quote)}</p></blockquote>` : '';
+        if (!lore) return '';
+        const npc = Object.values(STORY_NPCS).find(row => this.personal(row.name) === this.personal(lore.speaker));
+        const face = npc && stageView.enabled() ? `<img class="unlock-lore-face" src="${STAGE_NPC_ART.path}${npc.id}-portrait.png" alt="">` : '';
+        return `<blockquote class="story-scene-quote${face ? ' has-face' : ''}">${face}<p>${lore.narration.map(escapeHTML).join(' ')}</p>
+            <p><strong>${escapeHTML(lore.speaker)}</strong> ${escapeHTML(lore.quote)}</p></blockquote>`;
     },
     openButton(def) {
         const reachable = def.action || (def.routes || []).some(route => route.startsWith('tab-') || route.startsWith('item-tab-') || route.startsWith('skill-tab-') || route.startsWith('map-'));
@@ -422,7 +426,6 @@ const contentUnlockUi = {
             <button type="button" class="npc-dialog-close" data-npc-close>닫기</button></header>
             <div class="npc-dialog-body"><ul class="npc-dialog-unlocks" aria-label="맡은 해금">${items}</ul>
             <div class="npc-dialog-detail unlock-detail">${this.detail(def)}</div></div>`;
-        dialog.querySelector('.npc-dialog-portrait').addEventListener('error', event => event.target.remove(), { once: true });
     },
     /** A row shows its detail; buying refreshes the window after the unlock window's own handler ran; opening a content closes it. */
     npcClick(dialog, view, event) {
@@ -454,4 +457,8 @@ document.addEventListener('click', event => {
     const open = event.target.closest('[data-open-content]');
     if (open) contentUnlockUi.open(open.dataset.openContent);
 });
+// NPC pictures are local stage art (assets/stage-npcs): where one is missing, drop it rather than show a broken image.
+document.addEventListener('error', event => {
+    if (event.target instanceof HTMLImageElement && event.target.matches('.npc-dialog-portrait, .unlock-lore-face')) event.target.remove();
+}, true);
 safeExposeGlobals({ contentUnlockUi });
