@@ -58,14 +58,16 @@ const storyJournalUi = (() => {
         }
     }
     /** Scenes added later (STORY_BRIDGE_SCENES) play once for a save that has not yet moved past their act;
-     * a save already beyond it, or on a later loop, gets them marked as seen instead of a replay out of order. */
+     * a save already beyond it, or on a later loop, gets them marked as seen instead of a replay out of order.
+     * v2 (2026-10-15): the ends of acts 3, 7 and 8 joined, so saves that ran v1 check again. */
     function markPassedBridges() {
-        const marker = 'story_bridges_v1';
+        const marker = 'story_bridges_v2';
         if (typeof STORY_BRIDGE_SCENES !== 'object' || game.seenTutorials.includes(marker)) return;
         game.seenTutorials.push(marker);
         const reached = Math.max(Number(game.maxZoneId) || 0, Number.isInteger(game.currentZoneId) ? game.currentZoneId : 0);
         for (const scene of STORY_BRIDGE_SCENES) {
-            if (reached > scene.act - 1 || (game.season || 1) > 1) game.seenTutorials.push('story_'+scene.id);
+            const key = 'story_'+scene.id;
+            if ((reached > scene.act - 1 || (game.season || 1) > 1) && !game.seenTutorials.includes(key)) game.seenTutorials.push(key);
         }
     }
     function sync() {

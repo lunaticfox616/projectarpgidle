@@ -10143,7 +10143,7 @@ function finishEncounterRun() {
             if (shouldUnlockTrial3) {
                 game.unlockedTrials.push('trial_3');
                 game.noti.map = true;
-                addLog(zone.name === '혼돈 5' ? "✨ [여신의 헌사] 혼돈 5 보스 확정 드랍! 3차 전직 시련 개방!" : "✨ [여신의 헌사] 획득! 3차 전직 시련 개방!", "loot-unique");
+                addLog(zone.name === '혼돈 5' ? "✨ [시련의 증표] 혼돈 5 보스 확정 드랍! 3차 전직 시련 개방!" : "✨ [시련의 증표] 획득! 3차 전직 시련 개방!", "loot-unique");
             }
         }
         // 다음 지역 해금은 "지금 막 클리어한 존"을 기준으로 보정한다.
