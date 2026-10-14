@@ -31,7 +31,9 @@ const STAGE_VIEW = Object.freeze({
     shieldStance: 'swordshield',
     /** 준비 시간(휘두르기 시작 → 타격)이 이보다 짧으면 9장 이하의 짧은 공격 그림만 쓴다: 17장짜리를 그 안에 넣으면 깜빡이기만 한다. */
     shortWindupMs: 320,
-    shortClipFrames: 9
+    shortClipFrames: 9,
+    /** 휘두름 사이가 이보다 길면 연속기를 처음 휘두름부터 다시 한다(쉬었다 다시 치면 준비 자세에서 시작한다). */
+    comboResetMs: 1500
 });
 // 무대의 지형(js/canvas-stage-terrain.js): 지도마다 바닥 판석 색과 뒷벽 벽돌 색 두 가지만 정한다. 나머지 음영은 그리는 쪽이 만든다.
 // wallMax: 뒷벽의 최대 높이(도트, 깊이 네 칸). pillarEvery: 높은 뒷벽에 기둥을 세우는 가로 간격(칸).
@@ -263,4 +265,25 @@ const STAGE_BOARD_ROOMS = Object.freeze({
     colonyWaves: 5
 });
 
-safeExposeData({ STAGE_VIEW, STAGE_TERRAIN, STAGE_ROOMS, STAGE_BACKDROPS, STAGE_OBJECTS, STAGE_PROPS, STAGE_SCENES, STAGE_MONSTER_SCALE, STAGE_BOARD_ROOMS });
+// 정리 묶음(data/stage-characters.js, 다시 가져와 만드는 표)에 없는 주인공 동작: 직업 → 무기 자세 → 동작. 규격은 묶음과 같다(칸 128×128,
+// 발바닥 줄 110, 발 가운데 63, 오른쪽을 본다). 그림은 scripts/cut-stage-hero-motion.cjs로 잘라 assets/playable/stage/에 둔다(저장소에 넣지
+// 않는다). 2026-10-14 사용자가 준 전사의 찌르기(9장)와 베기(17장, 세 번 이어 베는 연속기): 베기는 휘두름 하나씩 셋으로 나눴다(0~3, 3~5,
+// 6~10번. 11~16번은 6~10번을 되풀이한 그림이라 쓰지 않았다). 찌르기의 6번 프레임은 칼끝의 흰 섬광이 칸 밖으로 12점 나가 잘렸다.
+const STAGE_HERO_MOTIONS = Object.freeze({
+    warrior: Object.freeze({
+        swordshield: Object.freeze({
+            thrust: Object.freeze({ frames: 9, ms: Object.freeze([90, 90, 80, 70, 70, 80, 140, 110, 110]), hit: Object.freeze([6]), file: 'warrior/swordshield/thrust.png' }),
+            slash: Object.freeze({ frames: 4, ms: Object.freeze([90, 80, 140, 110]), hit: Object.freeze([2]), file: 'warrior/swordshield/slash.png' }),
+            slash2: Object.freeze({ frames: 3, ms: Object.freeze([80, 80, 140]), hit: Object.freeze([2]), file: 'warrior/swordshield/slash2.png' }),
+            slash3: Object.freeze({ frames: 5, ms: Object.freeze([90, 90, 140, 110, 110]), hit: Object.freeze([2]), file: 'warrior/swordshield/slash3.png' })
+        })
+    })
+});
+/** 휘두르는 모양: 스킬 → 찌르기(thrust) 또는 베기(slash). 그 동작이 있는 자세에서만 쓰고(지금은 전사의 검방패), 없는 자세와 여기에 없는
+ * 스킬은 보통 공격 그림(공격, 공격2 …)을 돌린다. 한 대상을 노리는 찌르는 기술은 찌르기, 휘둘러 베는 기술은 베기로 나눴다. */
+const STAGE_HERO_STRIKES = Object.freeze({
+    thrust: Object.freeze(['암살자의 일격', '흡혈 타격', '혈기 폭쇄']),
+    slash: Object.freeze(['기본 공격', '연속 베기', '묵직한 강타', '번개 타격', '화염 참격', '지진 파쇄', '용암 강타', '공허 베기', '그림자 점멸'])
+});
+
+safeExposeData({ STAGE_HERO_MOTIONS, STAGE_HERO_STRIKES, STAGE_VIEW, STAGE_TERRAIN, STAGE_ROOMS, STAGE_BACKDROPS, STAGE_OBJECTS, STAGE_PROPS, STAGE_SCENES, STAGE_MONSTER_SCALE, STAGE_BOARD_ROOMS });

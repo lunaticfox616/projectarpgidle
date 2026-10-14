@@ -162,6 +162,7 @@ function drawStagePlayerBody(ctx, state, position) {
             moving: motion.advanceBlend > 0.08, moveDirection: motion.moveDirection,
             spell: (skill.tags || []).includes('spell'),
             throwsWeapon: stance === 'flask' && HANA_THROWN_FLASK_GEMS.has(SKILL_FX_ATLAS[game.activeSkill]?.id),
+            strike: stageActors.strikeFor(game.activeSkill),
             alpha: getBattleActorDrawAlpha(ctx, 1)
         }, state.now);
     } finally { ctx.battleActorAlpha = previous; }

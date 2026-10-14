@@ -11,6 +11,7 @@ const stageActors = (() => {
     const images = new Map(), lists = new WeakMap(), silhouettes = new Map(), headrooms = new Map();
     let kept = '', body = null, facingLeft = false, probe = null, present = false;
     let chain = { start: -1, index: -1 };
+    const mergedSets = new Map();        // '직업|자세' → 정리 묶음의 동작에 따로 받은 동작(STAGE_HERO_MOTIONS)을 더한 표
     let hits = { at: -Infinity, chained: false };
 
     const table = () => (typeof STAGE_CHARACTERS === 'object' ? STAGE_CHARACTERS : null);
@@ -31,8 +32,17 @@ const stageActors = (() => {
         return present;
     }
     function setOf(classId, stance) {
-        const data = table(), entry = data && data.classes[classId];
-        return entry ? entry.weapons[stance] || null : null;
+        const data = table(), entry = data && data.classes[classId], base = entry ? entry.weapons[stance] || null : null;
+        const extra = base && STAGE_HERO_MOTIONS[classId] && STAGE_HERO_MOTIONS[classId][stance];
+        if (!extra) return base;
+        const key = classId + '|' + stance;
+        if (!mergedSets.has(key)) mergedSets.set(key, Object.freeze({ ...base, ...extra }));
+        return mergedSets.get(key);
+    }
+    /** 그 스킬을 휘두르는 모양(data/stage-view.js STAGE_HERO_STRIKES): 'thrust', 'slash', 정해지지 않았으면 null. */
+    function strikeFor(skillName) {
+        if (STAGE_HERO_STRIKES.thrust.includes(skillName)) return 'thrust';
+        return STAGE_HERO_STRIKES.slash.includes(skillName) ? 'slash' : null;
     }
     /** 그 시트(js/canvas-stage-pictures.js의 그림 한 장): 메인 스레드 밖에서 미리 풀어 두므로 그 동작을 처음 그릴 때 멈추지 않는다.
      * ready가 참이면 source를 그릴 수 있다. 지금 직업과 자세의 시트만 열어 두고 나머지는 닫는다(retain). */
@@ -88,17 +98,22 @@ const stageActors = (() => {
         return Object.keys(set).filter(id => id.replace(/\d+$/, '') === base && image(set[id].file).ready)
             .sort((a, b) => (Number(a.slice(base.length)) || 1) - (Number(b.slice(base.length)) || 1));
     }
-    /** The clips a swing may play: spells cast, a thrown flask throws, the rest attack. A quick windup keeps to the short clips. */
+    /** The clips a swing may play: spells cast, a thrown flask throws, a thrust or a slash (state.strike) plays that motion where
+     * the stance has it, the rest attack. A quick windup keeps to the short clips. */
     function swingPool(set, state) {
-        const kind = state.spell ? 'cast' : (state.throwsWeapon ? 'throw' : 'attack');
+        const kind = state.spell ? 'cast' : (state.throwsWeapon ? 'throw' : (state.strike || 'attack'));
         const all = variants(set, kind), pool = all.length ? all : variants(set, 'attack');
         const quick = state.attack.impactAt - state.attack.start < STAGE_VIEW.shortWindupMs;
         const short = pool.filter(id => set[id].frames <= STAGE_VIEW.shortClipFrames);
         return quick && short.length ? short : pool;
     }
-    /** Each new swing takes the next clip of the pool (공격 → 공격2 → …), so a row of attacks reads as a combo. */
+    /** Each new swing takes the next clip of the pool (공격 → 공격2 → …), so a row of attacks reads as a combo. After a pause
+     * (STAGE_VIEW.comboResetMs) the combo starts again from its first swing, which begins from the ready pose. */
     function swingClip(set, state) {
-        if (state.attack.start !== chain.start) chain = { start: state.attack.start, index: chain.index + 1 };
+        if (state.attack.start !== chain.start) {
+            const paused = !(state.attack.start - chain.start < STAGE_VIEW.comboResetMs);
+            chain = { start: state.attack.start, index: paused ? 0 : chain.index + 1 };
+        }
         const pool = swingPool(set, state);
         return pool.length ? pool[chain.index % pool.length] : null;
     }
@@ -264,7 +279,7 @@ const stageActors = (() => {
 
     /** 주인공 그림이 지금 보는 쪽: 1 오른쪽, -1 왼쪽. */
     const facing = () => (facingLeft ? -1 : 1);
-    return { drawPlayer: drawStageHero, headY, isReady, stanceFor, scaleFor, available, facing };
+    return { drawPlayer: drawStageHero, headY, isReady, stanceFor, strikeFor, scaleFor, available, facing };
 })();
 
 const sides = new WeakMap();
