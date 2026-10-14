@@ -537,7 +537,6 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
   letter-spacing: 0;
   text-shadow: var(--px-text-bold);
 }
-:root body[data-ui-skin] #loop-hero-select-overlay .hero-choice strong small { color: var(--px-copy); font-family: var(--font-pixel); font-size: 12px; text-shadow: var(--px-text-edge); }
 :root body[data-ui-skin] #loop-hero-select-overlay .hero-choice-badge { border: 1px solid var(--px-bronze); border-radius: 0; background: var(--px-stone); color: var(--px-gold); font-size: 12px; }
 /* 고른 카드(휴대폰 배치의 첫 누름): 두 도트 금 테와 금빛 이름 띠. 손을 뗀 뒤에도 :hover가 남는 휴대폰에서도 고른 표시가 이긴다. */
 :root body[data-ui-skin] #loop-hero-select-overlay .hero-choice[aria-pressed="true"],
@@ -584,9 +583,8 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
   :root body[data-ui-skin] #loop-hero-select-overlay .hero-choice-start { width: 100%; min-height: 44px; font-size: 12px; }
 }
 @media (max-width: 760px) {
-  /* 좁은 화면: 초상은 작게, 설명은 한 줄 말줄임 대신 여러 줄 */
+  /* 좁은 화면: 초상은 작게 */
   :root body[data-ui-skin] #loop-hero-select-overlay .hero-choice-portrait { height: 84px; }
-  :root body[data-ui-skin] #loop-hero-select-overlay .hero-choice strong small { white-space: normal; text-overflow: clip; line-height: 1.35; }
 }
 @media (max-width: 1080px) and (orientation: landscape) and (max-height: 600px) {
   /* 가로로 눕힌 휴대폰: 아래 확인 판이 카드 목록 높이를 다 먹었다 — 판을 목록 오른쪽에 세우고 긴 설명은 판 안에서 스크롤한다 */

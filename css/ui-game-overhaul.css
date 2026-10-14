@@ -87,18 +87,6 @@
   letter-spacing: 0.08em;
 }
 
-:root body .hero-choice strong small {
-  display:block;
-  margin-top:4px;
-  overflow:hidden;
-  color:#ffffff;
-  font-size:.61rem;
-  font-weight:600;
-  letter-spacing:0;
-  text-overflow:ellipsis;
-  white-space:nowrap;
-}
-
 :root body .hero-choice-badge {
   position:absolute;
   z-index:4;

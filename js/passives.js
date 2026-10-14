@@ -5308,19 +5308,16 @@ function isLoopHeroSelectOpen() {
     return !!overlay && overlay.classList.contains('active');
 }
 
-/** 직업 카드 툴팁: 카드에 이미 있는 한 줄 설명을 되풀이하지 않고 고를 때 필요한 것 — 첫 처치 때 받는 시작 스킬 젬과
- * 대표 무기(맨손일 때 든 그림, 제한은 아니다) (검토 2026-10-01). */
+/** 직업 카드 툴팁: 고를 때 필요한 것만, 첫 처치 때 받는 시작 스킬 젬과 그 설명, 전직 셋(검토 2026-10-01, 대표 무기 줄은
+ * 사용자 요청으로 뺐다 2026-10-15). */
 function buildHeroChoiceTooltipHtml(classId, experienced) {
     let def = PLAYER_CLASS_DEFS[classId];
     if (!def) return '';
     const gem = LOOP_STARTER_GEM_BY_HERO[def.recommendedTalentHeroId] || '연속 베기';
     const gemLine = String((SKILL_DB[gem] || {}).desc || '').split('.')[0];
-    const weaponSlug = HANA_WEAPON_COMBOS.classWeapons[classId];
-    const weapon = weaponSlug ? HANA_WEAPON_COMBOS.weapons[weaponSlug].label : '';
     return `<div class="tooltip-title">${escapeHTML(def.label)}${experienced ? ' <span style="color:#9fd8ff;">경험함</span>' : ''}</div>
         <div class="tooltip-line" style="color:#f6c461;">시작 스킬 젬: ${escapeHTML(gem)}</div>
         ${gemLine ? `<div class="tooltip-line">${escapeHTML(gemLine)}.</div>` : ''}
-        ${weapon ? `<div class="tooltip-line" style="color:#f6c461;">대표 무기: ${escapeHTML(weapon)}</div><div class="tooltip-line">다른 무기도 요구 능력치만 맞으면 낄 수 있습니다.</div>` : ''}
         <div class="tooltip-line" style="color:#d8b4ff;">전직: ${escapeHTML(getAscendanciesForClass(classId).map(id => CLASS_TEMPLATES[id].name).join(', '))}</div>`;
 }
 
@@ -5332,7 +5329,7 @@ function showHeroChoiceTooltip(event, classId, experienced) {
 }
 
 /** 직업 확인 판(index.html #loop-hero-select-overlay .hero-choice-confirm, 휴대폰 배치에서만 보인다): 고른 카드 표시, 툴팁과 같은
- * 시작 스킬 젬 · 대표 무기, "이 직업으로 시작" 단추(value = 고른 직업). 판이 커지며 카드 목록이 줄어도 고른 카드는 보이게 둔다.
+ * 시작 스킬 젬과 전직, "이 직업으로 시작" 단추(value = 고른 직업). 판이 커지며 카드 목록이 줄어도 고른 카드는 보이게 둔다.
  * classId가 없으면 고르기 전(안내 문구, 단추 잠김)으로 되돌린다. 판이 없는 DOM(노드 스모크)에서는 하는 일이 없다. */
 function renderLoopHeroChoiceDetail(classId, experienced) {
     let detail = document.getElementById('loop-hero-select-detail');
@@ -5350,7 +5347,7 @@ function renderLoopHeroChoiceDetail(classId, experienced) {
 }
 
 /** 직업 카드 누름. PC는 바로 정한다. 휴대폰 배치는 툴팁이 없어 직업을 모르고 골랐다(검토 2026-10-01) — 첫 누름은 카드를 고르고
- * 판에 시작 스킬 젬 · 대표 무기를 보이며, 고른 카드를 다시 누르거나 "이 직업으로 시작"을 누르면 chooseLoopHero로 정한다. */
+ * 판에 시작 스킬 젬과 전직을 보이며, 고른 카드를 다시 누르거나 "이 직업으로 시작"을 누르면 chooseLoopHero로 정한다. */
 function pressLoopHeroChoice(classId, experienced) {
     let start = document.getElementById('loop-hero-select-start');
     if (!uiDisplay.matches('(max-width: 1080px)') || start.value === classId) return chooseLoopHero(classId);
@@ -5375,10 +5372,9 @@ function openLoopHeroSelection(onSelect, options = {}) {
     grid.innerHTML = PLAYER_CLASS_ORDER.map(id => {
         let def = PLAYER_CLASS_DEFS[id];
         let experienced = experiencedSet.has(id);
-        let summary = def.description || '';
         let badge = experienced ? '<span class="hero-choice-badge">경험함</span>' : '';
         let args = `'${id}',${experienced}`;
-        return `<button class="reward-choice hero-choice" aria-label="${escapeHTML(def.label)} 선택" data-class-id="${escapeHTML(id)}" data-info-tooltip-anchor="1" onmouseenter="showHeroChoiceTooltip(event,${args})" onmousemove="showHeroChoiceTooltip(event,${args})" onmouseleave="hideInfoTooltip()" onclick="hideInfoTooltip();pressLoopHeroChoice(${args})">${badge}<img class="hero-choice-portrait" src="${escapeHTML(def.portrait)}" alt="" draggable="false"><strong>${escapeHTML(def.label)}<small>${escapeHTML(summary)}</small></strong></button>`;
+        return `<button class="reward-choice hero-choice" aria-label="${escapeHTML(def.label)} 선택" data-class-id="${escapeHTML(id)}" data-info-tooltip-anchor="1" onmouseenter="showHeroChoiceTooltip(event,${args})" onmousemove="showHeroChoiceTooltip(event,${args})" onmouseleave="hideInfoTooltip()" onclick="hideInfoTooltip();pressLoopHeroChoice(${args})">${badge}<img class="hero-choice-portrait" src="${escapeHTML(def.portrait)}" alt="" draggable="false"><strong>${escapeHTML(def.label)}</strong></button>`;
     }).join('');
     renderLoopHeroChoiceDetail(null);
     overlay.classList.add('active');
