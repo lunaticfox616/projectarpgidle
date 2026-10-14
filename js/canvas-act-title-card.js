@@ -4,6 +4,7 @@
  * On the room stage it also plays the story's lines (data/story-journal.js), one at a time after the card: the hero's
  * words and a boss's own words (“…”) in a speech bubble over the one speaking, so it is clear who talks; the guide of
  * the entry room, a side room's inscription and the narration of a boss fight (「…」) in a band where the card stands.
+ * Acts and trials speak in their rooms, the endgame boss fights (STORY_ENDGAME_ENCOUNTERS) at the boss.
  * Read-only: it watches game state; nothing here touches combat state.
  */
 const actTitleCard = (() => {
@@ -20,8 +21,9 @@ const actTitleCard = (() => {
     const CARRY = new Set(['defeat', 'class']);
     const TONES = Object.freeze({ gold: '#e0c27e', violet: '#c9a4f2', cyan: '#8fe3d6', crimson: '#ef9a92' });
     const STORY_FONT = "'Galmuri14', 'MulmaruMono', 'Malgun Gothic', sans-serif";
-    let zone, pending = null, card = null, frameAt = 0, line = null, watchedAt = 0, trackedAt = 0;
-    const queue = [], spoken = new Set(), bossSeen = new Map(), gateLeft = new WeakMap();
+    let zone, pending = null, card = null, frameAt = 0, line = null, watchedAt = 0, trackedAt = 0, place = null, watchedRun = null;
+    // Per exploration run: its story and act, the bosses this view saw (id: first sight and name) and the gate elites left.
+    const queue = [], spoken = new Set(), runs = new WeakMap();
 
     function actOf(zoneId) {
         return Number.isInteger(zoneId) && zoneId >= 0 && zoneId < STORY_ACTS.length ? STORY_ACTS[zoneId] : null;
@@ -40,7 +42,6 @@ const actTitleCard = (() => {
         zone = game.currentZoneId;
         const act = actOf(zone);
         card = null;
-        bossSeen.clear();
         // Act number and name only: the act's one-line subtitle repeats the goal panel (and ran under it on phones).
         pending = act ? { style: ACT, kicker: `액트 ${act.displayAct}`, title: act.title } : null;
     }
@@ -62,10 +63,10 @@ const actTitleCard = (() => {
         if (line || card || pending || !queue.length) return;
         line = { ...queue.shift(), startAt: now };
     }
-    /** Queues a line once per loop and map. row: key (npc, stele, intro, half, defeat, class, elite), who (hero, boss, npc,
-     * stele, narration), speaker, text, tone, and for a boss its id. */
+    /** Queues a line once per loop and place (the act, trial or endgame boss whose story it is). row: key (wake, npc, stele,
+     * intro, half, defeat, class, elite), who (hero, boss, npc, stele, narration), speaker, text, tone, and for a boss its id. */
     function queueStoryLine(row, now) {
-        const id = `${game.season || 1}:${zone}:${row.key}`;
+        const id = `${game.season || 1}:${place}:${row.key}`;
         if (!row.text || spoken.has(id)) return;
         spoken.add(id);
         const showMs = Math.min(LINE.maxMs, LINE.baseMs + [...row.text].length * LINE.perCharMs);
@@ -76,59 +77,97 @@ const actTitleCard = (() => {
         const who = text && text.startsWith('“') ? 'boss' : 'narration';
         queueStoryLine({ key, who, speaker: seen.name, text, tone: 'crimson', bossId: seen.id }, now);
     }
+    const storyAt = (key, lines) => (lines ? { place: key, ...lines } : null);
+    /** The map's story and the place its lines count under: an act's or a trial's by zone, an endgame boss fight's by zone id
+     * (atlas maps share one zone: an apex boss's map names it in atlasStages, js/atlas-endgame.js zoneExtras). */
     function storyEncounter(zoneId) {
         const act = actOf(zoneId);
-        if (act) return STORY_ACT_ENCOUNTERS[act.order] || null;
-        return typeof zoneId === 'string' ? STORY_TRIAL_ENCOUNTERS[zoneId] || null : null;
+        if (act) return storyAt(zoneId, STORY_ACT_ENCOUNTERS[act.order]);
+        if (typeof zoneId !== 'string') return null;
+        if (STORY_TRIAL_ENCOUNTERS[zoneId]) return storyAt(zoneId, STORY_TRIAL_ENCOUNTERS[zoneId]);
+        const here = zoneId === ATLAS.zoneId ? getZone(zoneId) : null, key = here ? here.atlasStages : zoneId;
+        // oneBoss: the stages of an endgame fight are bodies of one boss, so its intro greets the first body.
+        return key && STORY_ENDGAME_ENCOUNTERS[key] ? storyAt(key, { boss: STORY_ENDGAME_ENCOUNTERS[key], oneBoss: true }) : null;
+    }
+    function runWatch(run) {
+        if (!runs.has(run)) runs.set(run, { story: storyEncounter(zone), act: actOf(zone), seen: new Map(), left: undefined });
+        return runs.get(run);
+    }
+    /** A fight that sends the hero on in the tick its boss falls (a season boss leaves no cleared map on screen): its fall
+     * is told once the next map is up. */
+    function watchPassedRun(run, now) {
+        const passed = watchedRun && watchedRun !== run ? runs.get(watchedRun) : null;
+        if (passed && passed.story && passed.story.boss && watchedRun.status === 'cleared') storyBossDown(passed, now);
+        watchedRun = run;
     }
     function storyClassLore() {
         return STORY_CLASS_ORIGINS[game.selectedClassId] || null;
     }
-    /** The room-stage story of the map, looked at a few times a second. */
+    /** The room-stage story of the map, looked at a few times a second. Not while the class is being chosen (the game waits
+     * then): the hero's lines would be taken in the default class's words. */
     function watchStory(now) {
         if (now - watchedAt < LINE.watchMs) return;
         watchedAt = now;
-        const run = actExplorationState.current(game), story = storyEncounter(zone);
-        if (!story || !run || !actExplorationDoors.stageMap(run)) return;
-        watchStoryRooms(run, story, now);
-        watchStoryGate(run, now);
-        watchStoryBoss(run, story, now);
+        if (!game.heroSelectionInitialized || isLoopHeroSelectOpen()) return;
+        const run = actExplorationState.current(game);
+        watchPassedRun(run, now);
+        const watch = run ? runWatch(run) : null;
+        if (!watch || !watch.story || !actExplorationDoors.stageMap(run)) return;
+        place = watch.story.place;
+        watchStoryRooms(run, watch.story, now);
+        watchStoryGate(run, watch, now);
+        watchStoryBoss(run, watch, now);
     }
     function watchStoryRooms(run, story, now) {
-        const room = actExplorationDoors.room(run), npc = story.npc, stele = story.stele;
-        if (room && room.role === 'entry' && npc) queueStoryLine({ key: 'npc', who: 'npc', speaker: npc.name, text: npc.bark, tone: npc.tone }, now);
+        const room = actExplorationDoors.room(run), stele = story.stele;
+        if (room && room.role === 'entry') watchEntryRoom(story, now);
         if (room && room.role === 'optional' && stele) queueStoryLine({ key: 'stele', who: 'stele', speaker: stele.title, text: stele.bark, tone: 'cyan' }, now);
     }
+    /** The entry room: in act 1 the hero wakes first (wakeLine), then the guide speaks, from loop 2 on with the line that
+     * remembers the hero (loopBark). */
+    function watchEntryRoom(story, now) {
+        const lore = storyClassLore(), act = actOf(zone), npc = story.npc;
+        if (act && act.order === 1 && lore) queueStoryLine({ key: 'wake', who: 'hero', speaker: lore.label, text: lore.wakeLine, tone: 'gold' }, now);
+        if (!npc) return;
+        const text = (game.season || 1) >= 2 && npc.loopBark ? npc.loopBark : npc.bark;
+        queueStoryLine({ key: 'npc', who: 'npc', speaker: npc.name, text, tone: npc.tone }, now);
+    }
     /** The hero's line when the last elite sealing the boss gate falls. */
-    function watchStoryGate(run, now) {
-        const left = actExplorationState.remainingElites(run), before = gateLeft.get(run), lore = storyClassLore();
-        gateLeft.set(run, left);
+    function watchStoryGate(run, watch, now) {
+        const left = actExplorationState.remainingElites(run), before = watch.left, lore = storyClassLore();
+        watch.left = left;
         if (before > 0 && left === 0 && lore) queueStoryLine({ key: 'elite', who: 'hero', speaker: lore.label, text: lore.eliteLine, tone: 'gold' }, now);
     }
-    /** The boss of the last stage (act 4 fights two): the one the intro, half and fall lines speak of. */
+    /** The boss of the last stage (act 4 fights two): the one the half and fall lines speak of, and an act's intro. */
     function finalStoryBoss(run) {
         const stages = run.packs.filter(pack => pack.stage !== null);
         const last = stages.reduce((top, pack) => (top && top.stage > pack.stage ? top : pack), null);
         return last ? game.enemies.find(enemy => enemy && enemy.isBoss && last.aliveIds.includes(enemy.id)) || null : null;
     }
-    function watchStoryBoss(run, story, now) {
-        if (!story.boss) return;
-        if (run.status === 'cleared') { storyBossDown(story, now); return; }
-        const boss = finalStoryBoss(run);
-        if (!boss) return;
-        if (!bossSeen.has(boss.id)) bossSeen.set(boss.id, { at: now, id: boss.id, name: getEnemyDisplayName(boss) });
-        const seen = bossSeen.get(boss.id);
+    /** A boss this view has seen: its first sight and its name for the band. */
+    function sighted(watch, boss, now) {
+        if (!watch.seen.has(boss.id)) watch.seen.set(boss.id, { at: now, id: boss.id, name: getEnemyDisplayName(boss) });
+        return watch.seen.get(boss.id);
+    }
+    function watchStoryBoss(run, watch, now) {
+        const lines = watch.story.boss;
+        if (!lines) return;
+        if (run.status === 'cleared') { storyBossDown(watch, now); return; }
+        const last = finalStoryBoss(run), first = watch.story.oneBoss ? game.enemies.find(enemy => enemy && enemy.isBoss) : last;
+        if (!first) return;
+        const seen = sighted(watch, first, now), lastSeen = last ? sighted(watch, last, now) : null;
         if (now - seen.at < LINE.introDelayMs) return;
-        queueBossLine('intro', seen, story.boss.intro, now);
-        if (boss.hp <= boss.maxHp * LINE.halfAt) queueBossLine('half', seen, story.boss.half, now);
+        queueBossLine('intro', seen, lines.intro, now);
+        if (last && last.hp <= last.maxHp * LINE.halfAt) queueBossLine('half', lastSeen, lines.half, now);
     }
     /** The fall, then the hero's words for the act; an intro or half line not yet shown is past. Nothing when this view never
      * saw the boss (loaded into a cleared map). */
-    function storyBossDown(story, now) {
-        const seen = [...bossSeen.values()].pop(), lore = storyClassLore(), act = actOf(zone);
+    function storyBossDown(watch, now) {
+        const seen = [...watch.seen.values()].pop(), lore = storyClassLore(), act = watch.act;
         if (!seen) return;
+        place = watch.story.place;
         dropStoryLines(entry => entry.key === 'intro' || entry.key === 'half');
-        queueBossLine('defeat', seen, story.boss.defeat, now);
+        queueBossLine('defeat', seen, watch.story.boss.defeat, now);
         if (lore && act) queueStoryLine({ key: 'class', who: 'hero', speaker: lore.label, text: lore.bossLines[act.order], tone: 'violet' }, now);
     }
     function opacity(age, showMs) {
