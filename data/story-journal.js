@@ -5,24 +5,22 @@
 const SUPPLIED_STORY_SCENES = Object.freeze([
     {"id":"prologue","title":"프롤로그, 밑거름의 우물","act":0,"phase":"start","journal":"prologue","image":"assets/journal/prologue.webp","lines":["이 세계의 모든 생명은 거대한 세계수의 가지로 태어나지만, 뿌리내리지 못한 당신은 정원사의 판결 아래 밑거름의 우물로 버려졌습니다.","그러나 썩은 진흙과 부러진 가지들 속에서, 당신은 끝내 숨을 거두지 않고 차가운 눈을 떴습니다."]},
     {"id":"act_2_end","title":"액트 2, 다시 추락하다","act":2,"phase":"end","journal":"act_2","image":"assets/journal/unified-20260910/act-2.webp","lines":["잔뿌리 매듭을 가르고 오른 중정에서, 부정한 은총의 부제녀가 길을 가로막았습니다.","그녀의 심장을 꿰뚫었으나 중정 바닥의 황금 수액관이 맥동하자 상처는 순식간에 다시 붙었고, 되살아난 일격에 당신은 아래쪽 허공뿌리로 추락했습니다."]},
-    {"id":"act_3_start","title":"액트 3, 영원의 힘","act":3,"phase":"start","journal":"act_3","image":"assets/journal/unified-20260910/act-3.webp","lines":["추락한 허공뿌리 현수림의 가지들은 모든 수액을 중정으로 수탈당한 채 말라 죽어가고 있었습니다.","중정의 불멸을 지탱하는 황금 길의 수액 수송로가 이 굶주린 숲 너머 미궁으로 이어져 있었습니다."]},
-    {"id":"act_4_end","title":"액트 4, 조력자의 정체","act":4,"phase":"end","journal":"act_4","image":"assets/journal/unified-20260910/act-4.webp","lines":["수액 운반선이 끊기자 부제녀의 상처는 더 이상 아물지 않았습니다.","피를 토하며 쓰러진 부제녀는, 당신을 우물에서 건져 올린 지주근의 주인이 구원자가 아니라 당신을 무기로 벼려낸 장본인임을 폭로했습니다."]},
-    {"id":"act_5_end","title":"액트 5, 뿌리가 만든 길","act":5,"phase":"end","journal":"act_5","image":"assets/journal/unified-20260910/act_5.webp","lines":["지주근의 드루이드 하켄은 자신의 심장을 꿰뚫은 궤적에서 나무꾼의 첫 번째 날붙이를 읽어냈습니다.","그는 마지막 생명력을 끌어모아 거대한 받침뿌리들을 맞물렸고, 무너진 중정으로 직행하는 보랏빛 다리를 놓아주었습니다."]},
-    {"id":"act_6_end","title":"액트 6, 복수 그 이후","act":6,"phase":"end","journal":"act_6","image":"assets/journal/unified-20260910/act_6.webp","lines":["수액의 호혜를 잃은 정원사가 마침내 무릎을 꿇고, 그의 거대한 가위가 두 동강 났습니다.","그러나 가위가 부러지자 억눌려 있던 세계수의 모든 수액이 수관 꼭대기를 향해 폭주하기 시작했고, 바닥에 스민 지주근의 보랏빛 잔향이 속 빈 줄기를 가리켰습니다."]},
+    {"id":"act_3_start","title":"액트 3, 영원의 힘","act":3,"phase":"start","journal":"act_3","image":"assets/journal/unified-20260910/act-3.webp","lines":["추락한 허공뿌리 현수림은 잎 하나 없이 말라 비틀어져, 바람이 불 때마다 마른 가지들이 서로 부딪혀 울었습니다.","중정의 불멸을 지탱하는 황금 길의 수액 수송로가 이 굶주린 숲 너머 미궁으로 이어져 있었습니다."]},
+    {"id":"act_4_end","title":"액트 4, 조력자의 정체","act":4,"phase":"end","journal":"act_4","image":"assets/journal/unified-20260910/act-4.webp","lines":["수액 운반선이 끊기자 부제녀의 상처는 더 이상 아물지 않았습니다.","피를 토하며 쓰러진 부제녀는 마지막 힘을 짜내어, 떨리는 손가락으로 발밑 깊은 성소 쪽을 가리켰습니다."]},
+    {"id":"act_5_end","title":"액트 5, 뿌리가 만든 길","act":5,"phase":"end","journal":"act_5","image":"assets/journal/unified-20260910/act_5.webp","lines":["가슴을 꿰뚫린 하켄은 쓰러지지 않고, 한참 동안 당신의 칼날을 말없이 내려다보았습니다.","그는 마지막 생명력을 끌어모아 거대한 받침뿌리들을 맞물렸고, 무너진 중정으로 직행하는 보랏빛 다리를 놓아주었습니다."]},
+    {"id":"act_6_end","title":"액트 6, 복수 그 이후","act":6,"phase":"end","journal":"act_6","image":"assets/journal/unified-20260910/act_6.webp","lines":["수액의 호혜를 잃은 정원사가 마침내 무릎을 꿇고, 그의 거대한 가위가 두 동강 났습니다.","가위가 부러지는 소리와 함께 발밑의 수액이 거꾸로 솟구치기 시작했고, 바닥에 스민 보랏빛 잔향이 속 빈 줄기를 가리켰습니다."]},
     {"id":"act_7_start","title":"액트 7, 속 빈 줄기","act":7,"phase":"start","journal":"act_7","image":"assets/journal/unified-20260910/act-7.webp","lines":["역류하는 수액을 따라 들어선 큰 줄기 내부의 도시는 이미 양분을 모두 빼앗겨 텅 비어 있었습니다.","썩어가는 어미나무에서 스스로를 도려내어 탈출하려는 삽목들의 행렬 사이로, 수관으로 향하는 나선 계단이 이어져 있었습니다."]},
-    {"id":"act_8_start","title":"액트 8, 장막의 성소","act":8,"phase":"start","journal":"act_8","image":"assets/journal/unified-20260910/act-8.webp","lines":["줄기 끝을 넘어선 곳에는 이전 계절들의 흔적을 겹겹이 덮어둔 살아 있는 장막의 성소가 펼쳐져 있었습니다.","바닥에 박힌 녹슨 칼날들과 당신의 보폭과 정확히 겹치는 발자국들이, 이 등반이 처음이 아님을 무언으로 증언하고 있었습니다."]},
+    {"id":"act_8_start","title":"액트 8, 장막의 성소","act":8,"phase":"start","journal":"act_8","image":"assets/journal/unified-20260910/act-8.webp","lines":["줄기 끝을 넘어선 곳에는 이전 계절들의 흔적을 겹겹이 덮어둔 살아 있는 장막의 성소가 펼쳐져 있었습니다.","희미한 촛불이 줄지어 선 통로마다, 누군가 오래전에 지나간 순례의 흔적이 겹겹이 쌓여 있었습니다."]},
     {"id":"act_9_start","title":"액트 9, 황금빛 수관","act":9,"phase":"start","journal":"act_9","image":"assets/journal/unified-20260910/act-9-start.webp","lines":["장막이 걷히자 아래쪽 뿌리에서 끌어올린 모든 수액이 응집된 황금빛 수관이 모습을 드러냈습니다.","바깥의 도끼에 맞서기 위해 잘려 나간 아홉 가지를 하나로 꿰맨 거대한 고치가 수관 중심에서 맥동하고 있었습니다."]},
-    {"id":"act_9_end","title":"액트 9, 고치에서 태어난 존재","act":9,"phase":"end","journal":"act_9","image":"assets/journal/unified-20260910/act-9-end.webp","lines":["고치를 지키던 접목의 어머니가 쓰러지자, 아홉 가지의 울음을 삼킨 고치의 외피가 갈라졌습니다.","그 안에서 깨어난 형상이 옅은 금빛 후광을 두른 채 세계수의 가장 높은 차륜으로 날아올랐습니다."]},
-    {"id":"act_10_end","title":"액트 10, 손끝 사이","act":10,"phase":"end","journal":"act_10","image":"assets/journal/unified-20260910/act-10.webp","lines":["합일의 차륜 위에서 쓰러진 존재가 당신을 향해 힘없이 손을 뻗었습니다.","당신 또한 몸을 숙여 손을 내밀었으나, 맞닿지 못한 두 손끝의 작은 틈새로 계절의 나이테가 다시 감기기 시작했습니다."]}
+    {"id":"act_9_end","title":"액트 9, 고치에서 태어난 존재","act":9,"phase":"end","journal":"act_9","image":"assets/journal/unified-20260910/act-9-end.webp","lines":["고치를 지키던 접목의 어머니가 쓰러지자, 고치의 외피에 금이 가며 안쪽에서 낮은 박동이 터져 나왔습니다.","그 안에서 깨어난 형상이 옅은 금빛 후광을 두른 채 세계수의 가장 높은 차륜으로 날아올랐습니다."]},
+    {"id":"act_10_end","title":"액트 10, 손끝 사이","act":10,"phase":"end","journal":"act_10","image":"assets/journal/unified-20260910/act-10.webp","lines":["합일의 차륜 위에서 쓰러진 존재가 당신을 향해 힘없이 손을 뻗었습니다.","당신도 몸을 숙여 손을 내밀었지만, 손끝이 닿기 직전 차륜이 삐걱이며 거꾸로 돌기 시작했습니다."]}
 ]);
 
-// Text-only scenes for beats the illustrated set skips. A scene added here after release needs the seen marker in
-// js/story-journal-ui.js markPassedBridges raised, or saves already past its act get it out of order.
+// Text-only scenes for beats the illustrated set skips (act 1 only: the act 3, 7 and 8 ends were dropped on
+// 2026-10-15, docs/stage-view-20261011.md). A scene added here after release needs the seen marker in js/story-journal-ui.js
+// markPassedBridges raised, or saves already past its act get it out of order.
 const STORY_BRIDGE_SCENES = Object.freeze([
-    {"id":"act_1_start","title":"액트 1, 뿌리의 드루이드","act":1,"phase":"start","journal":"act_1","lines":["우물 바닥을 기어 나온 당신을 거둔 것은, 뿌리끝 성소에 홀로 은둔하던 늙은 드루이드 하켄이었습니다.","그는 당신의 손에 무기를 쥐여 주며, 정원사가 있는 위쪽 중정으로 오르려면 성소 출구를 틀어막은 잔뿌리 매듭부터 돌파해야 한다고 일러주었습니다."]},
-    {"id":"act_3_end","title":"액트 3, 접목사와 마른 수액관","act":3,"phase":"end","journal":"act_3","lines":["기근의 맹수가 쓰러진 자리 아래로, 하층의 수액을 빨아올려 중정으로 나르던 황금 길의 수송관이 드러났습니다.","잘린 가지들의 기억을 그루터기 함에 옮겨 심던 눈먼 접목사 베른은, 당신을 올려 보낸 드루이드 하켄의 눈빛이 구원자가 아니라 대장장이의 눈이었다고 나지막이 일러주었습니다."]},
-    {"id":"act_7_end","title":"액트 7, 배교자와 도살자의 밀서","act":7,"phase":"end","journal":"act_7","lines":["줄기의 전령이 남긴 부러진 나팔 안쪽에서 정원사가 남긴 오래된 밀서가 발견되었습니다.","부제복의 금실을 뜯어낸 배교자 이벨은, 바깥의 도끼날에 나무 전체가 찍혀 넘어가지 않으려고 정원사가 아홉 가지를 쳐내어 모든 수액을 수관의 고치 하나로 모으려 했던 것이라 전했습니다."]},
-    {"id":"act_8_end","title":"액트 8, 서른세 번의 손금","act":8,"phase":"end","journal":"act_8","lines":["순례자의 가면 아래에서 드러난 것은 수없이 되감긴 계절 동안 마모된 이전 회차의 당신 자신이었습니다.","수관 끝에서 두 손끝이 닿지 못할 때마다, 나무꾼과 세계수의 차륜이 계절의 나이테를 되감아 당신을 다시 우물 바닥의 모루로 던져 넣고 있었습니다."]}
+    {"id":"act_1_start","title":"액트 1, 뿌리의 드루이드","act":1,"phase":"start","journal":"act_1","lines":["우물 바닥을 기어 나온 당신을 거둔 것은, 뿌리끝 성소에 홀로 은둔하던 늙은 드루이드 하켄이었습니다.","그는 말없이 당신의 상처를 싸매고, 녹슨 무기 한 자루를 손에 쥐여 주었습니다."]}
 ]);
 
 // Story order: the journal, the popups and the idle-return fold read it in this order.
@@ -31,14 +29,11 @@ const STORY_JOURNAL_SCENES = Object.freeze([
     STORY_BRIDGE_SCENES[0],
     SUPPLIED_STORY_SCENES[1],
     SUPPLIED_STORY_SCENES[2],
-    STORY_BRIDGE_SCENES[1],
     SUPPLIED_STORY_SCENES[3],
     SUPPLIED_STORY_SCENES[4],
     SUPPLIED_STORY_SCENES[5],
     SUPPLIED_STORY_SCENES[6],
-    STORY_BRIDGE_SCENES[2],
     SUPPLIED_STORY_SCENES[7],
-    STORY_BRIDGE_SCENES[3],
     SUPPLIED_STORY_SCENES[8],
     SUPPLIED_STORY_SCENES[9],
     SUPPLIED_STORY_SCENES[10]

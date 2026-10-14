@@ -10064,8 +10064,8 @@ function buildCraftActionButtons(item) {
             woodsman: '혼돈 5층 클리어',
             woodsman_echo: '혼돈 밖에서 나무꾼 완전 격파',
             meteor_fall: '운석 낙하 지점 첫 정산',
-            beehive_queen: '루프 8 벌집 여왕 격파',
-            void_grand_breach: '루프 9 큰 구멍의 지배자 격파',
+            beehive_queen: '벌집 원정에서 여왕 격파',
+            void_grand_breach: '대균열의 지배자 격파',
             labyrinth_10: '고대 미궁 10층 클리어',
             ocean_500: '심해 500m 가디언 격파',
             sky_tower_10: '창공의 탑 10층 클리어',
@@ -10139,7 +10139,7 @@ function buildCraftActionButtons(item) {
                     let isUnlocked = unlocked.has(id);
                     let availability = availabilityById.get(id);
                     let available = availability === 'available';
-                    let displayTitle = isUnlocked || available ? def.title : (def.hidden ? '히든 저널 - ???' : '미확인 기록');
+                    let displayTitle = isUnlocked || available ? def.title : (def.hidden ? '히든 저널, ???' : '미확인 기록');
                     let rewardText = isUnlocked || available ? (def.bonus ? def.bonus.label : def.displayEffect) : '';
                     let action = available ? getJournalEntryAction(id) : null;
                     let stateLabel = isUnlocked ? '해금' : '해금 필요';

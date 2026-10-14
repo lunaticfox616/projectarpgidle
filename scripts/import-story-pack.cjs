@@ -52,8 +52,9 @@ const COMMENTS = Object.freeze({
         'fill the journal (js/story-journal-ui.js); the room-stage lines are spoken over the battlefield',
         '(js/canvas-act-title-card.js); the unlock lines sit in the unlock window and the loop result',
         '(js/content-progression-ui.js, js/loop-ui.js).'],
-    STORY_BRIDGE_SCENES: ['Text-only scenes for beats the illustrated set skips. A scene added here after release needs the seen marker in',
-        'js/story-journal-ui.js markPassedBridges raised, or saves already past its act get it out of order.'],
+    STORY_BRIDGE_SCENES: ['Text-only scenes for beats the illustrated set skips (act 1 only: the act 3, 7 and 8 ends were dropped on',
+        '2026-10-15, docs/stage-view-20261011.md). A scene added here after release needs the seen marker in js/story-journal-ui.js',
+        'markPassedBridges raised, or saves already past its act get it out of order.'],
     STORY_JOURNAL_SCENES: ['Story order: the journal, the popups and the idle-return fold read it in this order.'],
     STORY_QUOTE_PLACEMENT: ['The spoken lines of each journal entry (data/maps.js JOURNAL_DB) stay with the scene where they are said, before it',
         '(verdicts, last words) or after it (reflections).'],
@@ -221,12 +222,21 @@ function checkStrings(name, text, report) {
 }
 const sceneIds = story => SCENE_TABLES.flatMap(name => (story.tables[name] || []).map(scene => scene.id));
 const sceneOrder = story => (story.tables.STORY_JOURNAL_SCENES || []).map(scene => scene && scene.id).join(' ');
+/** A table the game has and the pack lacks would vanish on the way in: the pack was made on an older base. */
+function checkMissingTables(pack, game, report) {
+    const missing = Object.keys(game.tables).filter(name => !pack.tables[name]);
+    if (missing.length) report.error(`게임에 있는 표가 묶음에 없다 ${missing.join(', ')}: 지금 게임 파일을 바탕으로 다시 만들게 한다`);
+}
 function checkScenes(pack, game, report) {
     const theirs = sceneIds(pack), ours = sceneIds(game);
     const added = theirs.filter(id => !ours.includes(id)), removed = ours.filter(id => !theirs.includes(id));
     if (removed.length) report.error(`없어진 장면 ${removed.join(', ')}: 본 장면 저장과 일지가 이 id를 쓴다`);
     if (added.length) report.warn(`새 장면 ${added.join(', ')}: 이미 지난 저장에 순서가 꼬이지 않게 js/story-journal-ui.js markPassedBridges 표시를 올린다`);
     if (sceneOrder(pack) !== sceneOrder(game)) report.warn(`장면 순서가 바뀜: ${sceneOrder(pack)}`);
+    const lines = story => new Map(SCENE_TABLES.flatMap(name => story.tables[name] || []).map(scene => [scene.id, (scene.lines || []).join('|')]));
+    const ourLines = lines(game), changed = [...lines(pack)].filter(([id, text]) => ourLines.has(id) && ourLines.get(id) !== text).map(([id]) => id);
+    // 장면 해설은 게임에서도 고친다(2026-10-15 Gemini 검토): 바뀐 장면을 보여 주어 예전 글로 되돌아가는지 보게 한다.
+    if (changed.length && pack !== game) report.note(`장면 해설이 바뀜: ${changed.join(', ')}`);
 }
 const codeTokens = (story, stmt) => espree.tokenize(story.text.slice(...stmt.range), { ecmaVersion: 'latest' })
     .map(token => `${token.type}:${token.value}`).join(' ');
@@ -326,6 +336,7 @@ function inspect(pack, game, report) {
     checkKeys(pack, ids, report);
     checkClassLines(pack, ids.STORY_CLASS_ORIGINS, report);
     checkScenes(pack, game, report);
+    checkMissingTables(pack, game, report);
     checkCode(pack, game, report);
     checkStrings(STORY, pack.text, report);
     const longest = Math.max(0, ...report.lines.map(text => [...text].length));
