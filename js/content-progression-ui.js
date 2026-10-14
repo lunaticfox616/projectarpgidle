@@ -303,8 +303,9 @@ const contentUnlockUi = {
         root.querySelector(`[data-unlock-select="${id}"]`)?.focus({ preventScroll:true });
         if (root.clientWidth < 840) root.querySelector('.unlock-detail').scrollIntoView({ block:'nearest' });
     },
-    purchase(id) {
-        const key = document.querySelector(`[data-unlock-reward="${id}"]`)?.value, opened = this.openedContents();
+    /** scope: the detail the button was pressed in (the unlock tab or an NPC window show the same detail). */
+    purchase(id, scope = document) {
+        const key = scope.querySelector(`[data-unlock-reward="${id}"]`)?.value, opened = this.openedContents();
         const result = contentProgression.purchase(id, game, key);
         if (!result.ok) { addLog(result.message, 'attack-monster', { toast: true }); return; }
         // The unlock card says the same and more: no toast (PC) or bottom notice (phone) on top of it.
@@ -363,6 +364,67 @@ const contentUnlockUi = {
         contentProgression.sync();
         this.announceOpenedSince(before);
     },
+    /** The unlocks an NPC keeps: those whose loop lines it speaks (STORY_LOOP_MILESTONES speaker, matched by the personal name, the
+     * last word of the name). */
+    npcUnlocks(name) {
+        const who = text => String(text || '').split(/[\s,]+/).pop();
+        return CONTENT_UNLOCK_CATALOG.filter(def => STORY_LOOP_MILESTONES[def.id] && who(STORY_LOOP_MILESTONES[def.id].speaker) === who(name));
+    },
+    /** True while one of the NPC's unlocks can be bought now: the mark over it on the stage (js/canvas-act-title-card.js). */
+    npcHasNews(name) {
+        if (!game.contentProgression) return false;
+        return this.npcUnlocks(name).some(def => this.npcChip(def)[0] === 'is-ready');
+    },
+    /** [class, text] of an unlock's state in the NPC window. */
+    npcChip(def) {
+        const status = contentProgression.status(def.id);
+        if (status.unlocked) return ['is-owned', '해금 완료'];
+        if (status.available && def.cost > 0) return ['is-ready', `해금 가능, ${def.cost}P`];
+        return ['is-locked', status.reason];
+    },
+    /** The NPC's window (2026-10-15): its picture, name and title, the line it spoke here, and the unlocks it keeps with the unlock
+     * window's own detail (buy, open). npc: { id, name, title, tone, line } (js/canvas-act-title-card.js npcAt). */
+    openNpc(npc) {
+        const rows = this.npcUnlocks(npc.name);
+        if (!rows.length || document.getElementById('npc-dialog')) return false;
+        const first = state => rows.find(def => this.npcChip(def)[0] === state);
+        const view = { npc, rows, selected: (first('is-ready') || first('is-locked') || rows[0]).id };
+        const dialog = document.createElement('dialog');
+        dialog.id = 'npc-dialog';
+        dialog.className = 'npc-dialog';
+        dialog.setAttribute('aria-labelledby', 'npc-dialog-name');
+        dialog.addEventListener('click', event => this.npcClick(dialog, view, event));
+        dialog.addEventListener('close', () => dialog.remove(), { once: true });
+        document.body.appendChild(dialog);
+        this.renderNpc(dialog, view);
+        dialog.showModal();
+        return true;
+    },
+    renderNpc(dialog, view) {
+        const npc = view.npc, def = view.rows.find(row => row.id === view.selected);
+        const line = npc.line ? `<p class="npc-dialog-line">${escapeHTML(npc.line)}</p>` : '';
+        const items = view.rows.map(row => {
+            const [state, text] = this.npcChip(row);
+            return `<li><button type="button" data-npc-unlock="${row.id}" aria-pressed="${row.id === view.selected}">
+                <img src="${this.art(row)}" alt=""><span>${escapeHTML(row.name)}</span><em class="${state}">${escapeHTML(text)}</em></button></li>`;
+        }).join('');
+        dialog.innerHTML = `<header class="npc-dialog-head"><img class="npc-dialog-portrait" src="${STAGE_NPC_ART.path}${npc.id}-portrait.png" alt="">
+            <div class="npc-dialog-who"><h2 id="npc-dialog-name" data-tone="${escapeHTML(npc.tone)}">${escapeHTML(npc.name)}</h2>
+            <p class="npc-dialog-title">${escapeHTML(npc.title || '')}</p>${line}</div>
+            <button type="button" class="npc-dialog-close" data-npc-close>닫기</button></header>
+            <div class="npc-dialog-body"><ul class="npc-dialog-unlocks" aria-label="맡은 해금">${items}</ul>
+            <div class="npc-dialog-detail unlock-detail">${this.detail(def)}</div></div>`;
+        dialog.querySelector('.npc-dialog-portrait').addEventListener('error', event => event.target.remove(), { once: true });
+    },
+    /** A row shows its detail; buying refreshes the window after the unlock window's own handler ran; opening a content closes it. */
+    npcClick(dialog, view, event) {
+        const control = event.target.closest('button');
+        if (!control) return;
+        if (control.dataset.npcClose !== undefined) { dialog.close(); return; }
+        if (control.dataset.npcUnlock) { view.selected = control.dataset.npcUnlock; this.renderNpc(dialog, view); return; }
+        if (control.dataset.openContent) { dialog.close(); return; }
+        if (control.dataset.unlockContent) setTimeout(() => { if (dialog.open) this.renderNpc(dialog, view); }, 0);
+    },
     open(id) {
         if (!contentProgression.isUnlocked(id)) return false;
         const def = CONTENT_UNLOCK_CATALOG.find(row => row.id === id);
@@ -380,7 +442,7 @@ const contentUnlockUi = {
 document.addEventListener('click', event => {
     contentUnlockUi.handleControl(event.target.closest('button'));
     const button = event.target.closest('[data-unlock-content]');
-    if (button && !button.disabled) contentUnlockUi.purchase(button.dataset.unlockContent);
+    if (button && !button.disabled) contentUnlockUi.purchase(button.dataset.unlockContent, button.closest('.unlock-detail') || document);
     const open = event.target.closest('[data-open-content]');
     if (open) contentUnlockUi.open(open.dataset.openContent);
 });

@@ -5,8 +5,8 @@
  * words and a boss's own words (“…”) in a speech bubble over the one speaking, so it is clear who talks; the guide of
  * the entry room, a side room's inscription and the narration of a boss fight (「…」) in a band where the card stands.
  * Acts and trials speak in their rooms, the endgame boss fights (STORY_ENDGAME_ENCOUNTERS) at the boss.
- * The guide of the entry room stands there when the stage has a picture for it (data/stage-view.js STAGE_STORY_NPCS) and
- * speaks in a bubble too; while the entry room's greeting waits or plays, the game pauses as for a story popup (greeting,
+ * The NPC of the entry room stands there when the stage has its picture (data/stage-view.js STAGE_NPC_ART, STAGE_NPC_POSTS)
+ * and speaks in a bubble too (pressing it opens its window); while the entry room's greeting waits or plays, the game pauses as for a story popup (greeting,
  * read by js/ui.js), so the hero stands and listens instead of running on.
  * Read-only: it watches game state; nothing here touches combat state.
  */
@@ -173,32 +173,45 @@ const actTitleCard = (() => {
         return greetSpent < GREET.maxMs;
     }
 
-    // The guide stands in the entry room when the stage has its picture (data/stage-view.js STAGE_STORY_NPCS, STAGE_NPC_ART):
-    // its idle frames from the art, a name tag over it, and its line in a bubble over the tag. It takes no part in the fight.
-    const npcSheets = new Map(); // picture id: the idle strip, decoded off the main thread (js/canvas-stage-pictures.js)
-    /** The picture id of this map's guide, by the last word of its name, or null. */
-    function npcLook(story) {
-        const looks = typeof STAGE_STORY_NPCS === 'object' ? STAGE_STORY_NPCS : {};
-        return story && story.npc ? looks[String(story.npc.name).split(/[\s,]+/).pop()] || null : null;
+    // The NPC of the entry room stands there when the stage has its picture (data/stage-view.js STAGE_NPC_ART): in a story act or
+    // trial the NPC of its lines, elsewhere the NPC posted to that content (STAGE_NPC_POSTS). Its idle frames from the art, its name
+    // over it (with a mark while it has an unlock to offer), its line in a bubble over the name. Pressing it opens its window
+    // (npcAt, read by js/ui.js; js/content-progression-ui.js openNpc). It takes no part in the fight.
+    const NPC_MARK_MS = 1000;        // how often the mark asks whether the NPC has an unlock to offer
+    const npcSheets = new Map();     // picture id: the idle strip, decoded off the main thread (js/canvas-stage-pictures.js)
+    let npcHit = null, npcMark = { at: -Infinity, id: null, on: false };
+    const npcRows = () => (typeof STORY_NPCS === 'object' ? Object.values(STORY_NPCS) : []);
+    /** The colour the NPC speaks in (its tone in the act and trial lines). */
+    function npcTone(name) {
+        const lines = [...Object.values(STORY_ACT_ENCOUNTERS), ...Object.values(STORY_TRIAL_ENCOUNTERS)].find(row => row.npc && row.npc.name === name);
+        return lines ? lines.npc.tone : 'gold';
+    }
+    /** The run's NPC, found once: { id, name, title, tone, line } or null. */
+    function runNpc(watch) {
+        if (watch.npc !== undefined) return watch.npc;
+        const said = watch.story && watch.story.npc, here = said ? null : getZone(zone);
+        const row = said ? npcRows().find(npc => npc.name === said.name) : STORY_NPCS[STAGE_NPC_POSTS[here && here.type]];
+        watch.npc = row ? { id: row.id, name: row.name, title: row.title, tone: npcTone(row.name), line: said ? npcLine(said) : '' } : null;
+        return watch.npc;
     }
     /** The back row of the entry room, two cells from where the hero first stood there, into the room. */
     function npcCell(room, hero) {
         const from = Math.round(hero.gx), side = from + 2 <= room.x1 ? 2 : -2;
         return { gx: Math.max(room.x0, Math.min(room.x1, from + side)), gy: room.y0 };
     }
-    /** Adds the guide to the battlefield's actors while the hero is in the entry room (js/canvas-act-exploration.js
-     * appendScenery), so it stands in depth with the hero and the monsters. */
+    /** Adds the NPC to the battlefield's actors while the hero is in the entry room (js/canvas-act-exploration.js appendScenery),
+     * so it stands in depth with the hero and the monsters. */
     function appendNpc(actors, state) {
         const run = stageView.enabled() ? actExplorationState.current(game) : null, watch = run ? runs.get(run) : null;
-        const look = watch ? npcLook(watch.story) : null, map = look ? actExplorationDoors.stageMap(run) : null;
+        const npc = watch ? runNpc(watch) : null, map = npc ? actExplorationDoors.stageMap(run) : null;
         if (!map || actExplorationDoors.room(run) !== map.entry) return;
         watch.npcCell = watch.npcCell || npcCell(map.entry, game.gridPlayer);
-        const point = state.gridProj.cellToScreen(watch.npcCell.gx, watch.npcCell.gy), npc = watch.story.npc;
-        actors.push({ kind: 'scenery', id: -3, x: point.x, y: point.y + state.gridProj.actorGroundOffsetY, npc: { look, name: npc.name, tone: npc.tone } });
+        const point = state.gridProj.cellToScreen(watch.npcCell.gx, watch.npcCell.gy);
+        actors.push({ kind: 'scenery', id: -3, x: point.x, y: point.y + state.gridProj.actorGroundOffsetY, npc });
     }
-    function npcSheet(look) {
-        if (!npcSheets.has(look)) npcSheets.set(look, stagePictures.openPicture(`${STAGE_NPC_ART.path}${look}-idle.png`));
-        return npcSheets.get(look);
+    function npcSheet(id) {
+        if (!npcSheets.has(id)) npcSheets.set(id, stagePictures.openPicture(`${STAGE_NPC_ART.path}${id}-idle.png`));
+        return npcSheets.get(id);
     }
     /** The idle frame shown now: the art's own frame times, looping. */
     function npcFrame(now) {
@@ -207,29 +220,54 @@ const actTitleCard = (() => {
         while (left >= times[index]) left -= times[index++];
         return index;
     }
-    /** The guide facing the hero, then its name over it in its colour; the bubble of its line hangs over the name. */
+    /** Whether the NPC has an unlock to offer now, asked once a second. */
+    function npcOffers(npc, now) {
+        if (npcMark.id !== npc.id || now - npcMark.at > NPC_MARK_MS) npcMark = { at: now, id: npc.id, on: contentUnlockUi.npcHasNews(npc.name) };
+        return npcMark.on;
+    }
+    function npcLabel(ctx, npc, x, y) {
+        ctx.font = `13px 'MulmaruMono', 'Malgun Gothic', sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = 'rgba(8,6,4,0.9)';
+        ctx.fillStyle = TONES[npc.tone] || TONES.gold;
+        ctx.strokeText(npc.name, x, y);
+        ctx.fillText(npc.name, x, y);
+    }
+    /** The mark of an unlock to offer: a gold "!" in a dark square over the name. */
+    function npcOfferMark(ctx, x, y) {
+        ctx.fillStyle = 'rgba(12,10,12,0.92)';
+        ctx.fillRect(x - 8, y - 9, 16, 18);
+        ctx.strokeStyle = TONES.gold;
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x - 7.5, y - 8.5, 15, 17);
+        ctx.fillStyle = TONES.gold;
+        ctx.fillText('!', x, y + 1);
+    }
+    /** The NPC facing the hero, its name over it in its colour (and the offer mark); remembers where it stands for a press. */
     function drawNpc(ctx, actor, state) {
-        const art = STAGE_NPC_ART, sheet = npcSheet(actor.npc.look);
+        const art = STAGE_NPC_ART, sheet = npcSheet(actor.npc.id);
         if (!sheet.ready) return;
-        const dot = stageActors.scaleFor(state.gridProj.tileW) * art.scale, cell = art.cell;
+        const dot = stageActors.scaleFor(state.gridProj.tileW) * art.scale, cell = art.cell, top = Math.round(actor.y - (art.feet[1] - art.head) * dot);
         stageRings.shadow(ctx, { x: actor.x, y: actor.y, dot }, 18, 0.34);
         ctx.save();
         if (state.playerPos.x < actor.x) { ctx.translate(actor.x * 2, 0); ctx.scale(-1, 1); }
         const at = { x: Math.round(actor.x - art.feet[0] * dot), y: Math.round(actor.y - art.feet[1] * dot), scale: dot };
         stageDots.blit(ctx, sheet.source, { x: npcFrame(state.now) * cell, y: 0, w: cell, h: cell }, at);
         ctx.restore();
-        const top = Math.round(actor.y - (art.feet[1] - art.head) * dot);
-        npcHead = { x: actor.x, y: top - 12 };
         ctx.save();
-        ctx.font = `13px 'MulmaruMono', 'Malgun Gothic', sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.lineWidth = 3;
-        ctx.strokeStyle = 'rgba(8,6,4,0.9)';
-        ctx.fillStyle = TONES[actor.npc.tone] || TONES.gold;
-        ctx.strokeText(actor.npc.name, actor.x, top);
-        ctx.fillText(actor.npc.name, actor.x, top);
+        npcLabel(ctx, actor.npc, actor.x, top);
+        const marked = npcOffers(actor.npc, state.now);
+        if (marked) npcOfferMark(ctx, actor.x, top - 20);
         ctx.restore();
+        npcHead = { x: actor.x, y: top - (marked ? 32 : 12) };
+        npcHit = { npc: actor.npc, at: Date.now(), x0: actor.x - 30 * dot, x1: actor.x + 30 * dot, y0: top - 30, y1: actor.y };
+    }
+    /** The NPC drawn under a battlefield point (canvas CSS px) in the last frame, or null. */
+    function npcAt(point) {
+        const hit = npcHit && Date.now() - npcHit.at < LIVE_MS ? npcHit : null;
+        return hit && point && point.x >= hit.x0 && point.x <= hit.x1 && point.y >= hit.y0 && point.y <= hit.y1 ? hit.npc : null;
     }
     /** The hero's line when the last elite sealing the boss gate falls. */
     function watchStoryGate(run, watch, now) {
@@ -416,6 +454,6 @@ const actTitleCard = (() => {
      * draws, like busy. */
     function greeting() { return holding && Date.now() - frameAt < LIVE_MS; }
     if (typeof document === 'object' && document.fonts?.load) document.fonts.load("20px 'Galmuri14'").catch(() => {});
-    return Object.freeze({ draw, busy, greeting, appendNpc, drawNpc });
+    return Object.freeze({ draw, busy, greeting, appendNpc, drawNpc, npcAt });
 })();
 safeExposeGlobals({ actTitleCard });

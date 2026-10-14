@@ -150,4 +150,26 @@ body.desktop-windowed-ui #content-unlock-panel>.unlock-workspace{flex:1 0 auto}
  body.desktop-windowed-ui #content-unlock-panel .unlock-content{display:flex;flex-direction:column;min-height:0}
  body.desktop-windowed-ui #content-unlock-panel :is(.unlock-map,.unlock-milestones){flex:1 1 0;min-height:0;max-height:none}
  body.desktop-windowed-ui #content-unlock-panel .unlock-start{flex:1 0 auto}
-}}
+}
+/* 이야기 NPC의 창(js/content-progression-ui.js openNpc): 초상, 이름과 칭호, 이번 대사, 맡은 해금과 그 상세(해금 창과 같다). */
+.npc-dialog{width:min(880px,94vw);max-height:min(720px,90vh);padding:0;border:1px solid var(--skin-line);background:var(--color-bg-panel,#16120f);color:var(--color-text);overflow:hidden}
+.npc-dialog::backdrop{background:rgba(6,5,4,.62)}
+.npc-dialog-head{display:flex;gap:16px;align-items:flex-end;padding:14px 16px;border-bottom:1px solid var(--skin-line);background:linear-gradient(180deg,rgba(169,145,84,.12),transparent)}
+.npc-dialog-portrait{width:112px;height:168px;object-fit:cover;object-position:top;flex:none}
+.npc-dialog-who{flex:1;min-width:0}
+.npc-dialog-who h2{margin:0;font-size:1.15rem;color:var(--color-accent-gold)}
+.npc-dialog-who h2[data-tone="violet"]{color:#c9a4f2}
+.npc-dialog-who h2[data-tone="cyan"]{color:#8fe3d6}
+.npc-dialog-title{margin:2px 0 8px;color:var(--color-text-secondary);font-size:.86rem}
+.npc-dialog-line{margin:0;color:var(--color-text)}
+.npc-dialog-close{align-self:flex-start}
+.npc-dialog-body{display:grid;grid-template-columns:260px 1fr;min-height:0;max-height:calc(min(720px,90vh) - 200px)}
+.npc-dialog-unlocks{list-style:none;margin:0;padding:8px;overflow:auto;border-right:1px solid var(--skin-line)}
+.npc-dialog-unlocks button{display:grid;grid-template-columns:28px 1fr;gap:2px 8px;width:100%;padding:6px 8px;margin:0 0 4px;text-align:left;background:transparent;border:1px solid transparent;color:inherit;font:inherit;cursor:pointer}
+.npc-dialog-unlocks button[aria-pressed="true"]{border-color:var(--color-accent-gold);background:rgba(169,145,84,.12)}
+.npc-dialog-unlocks img{grid-row:span 2;width:28px;height:28px;object-fit:contain}
+.npc-dialog-unlocks em{font-style:normal;font-size:.8rem;color:var(--color-text-secondary)}
+.npc-dialog-unlocks em.is-ready{color:var(--color-accent-gold)}
+.npc-dialog-detail{overflow:auto;border-left:0}
+@media (max-width:720px){.npc-dialog-head{gap:10px;padding:10px 12px}.npc-dialog-portrait{width:72px;height:108px}.npc-dialog-body{grid-template-columns:1fr;max-height:calc(90vh - 150px);overflow:auto}.npc-dialog-unlocks{border-right:0;border-bottom:1px solid var(--skin-line)}}
+}

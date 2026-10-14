@@ -167,6 +167,17 @@ const STORY_CLASS_ORIGINS = Object.freeze({
     })
 });
 
+// The story's five NPCs (docs/story-bible.md section 4): id (also the stage art's id, data/stage-view.js STAGE_NPC_ART), name as
+// the encounters write it, and title. Each keeps the unlocks whose loop lines it speaks (STORY_LOOP_MILESTONES speaker): the NPC
+// window lists them (js/content-progression-ui.js openNpc).
+const STORY_NPCS = Object.freeze({
+    haken: Object.freeze({ id: 'haken', name: '뿌리끝의 드루이드, 하켄', title: '지주근의 주인, 비밀 담금질꾼' }),
+    bern: Object.freeze({ id: 'bern', name: '접목사 베른', title: '기억을 줍는 눈먼 수도사' }),
+    orga: Object.freeze({ id: 'orga', name: '벼림꾼 오르가', title: '부러진 모루의 잔류 사념' }),
+    ivel: Object.freeze({ id: 'ivel', name: '배교자 이벨', title: '장막을 걷는 순례자' }),
+    veila: Object.freeze({ id: 'veila', name: '관측자의 그림자, 베일라', title: '경계의 기록관' })
+});
+
 // Room-stage lines per act (key: STORY_ACTS order; STORY_TRIAL_ENCOUNTERS below has the same shape per trial zone id): npc on
 // entering the entry room (loopBark from loop 2 on), stele on entering a side room, boss intro once the final boss is up,
 // half at 55% life, defeat when the map is cleared. Each line 50 characters at most (one line of the band on PC).
@@ -772,5 +783,5 @@ const STORY_ENDGAME_ENCOUNTERS = Object.freeze({
 
 safeExposeData({
     STORY_JOURNAL_SCENES, STORY_BRIDGE_SCENES, STORY_SCENE_QUOTES,
-    STORY_CLASS_ORIGINS, STORY_ACT_ENCOUNTERS, STORY_TRIAL_ENCOUNTERS, STORY_ENDGAME_ENCOUNTERS, STORY_LOOP_MILESTONES
+    STORY_CLASS_ORIGINS, STORY_NPCS, STORY_ACT_ENCOUNTERS, STORY_TRIAL_ENCOUNTERS, STORY_ENDGAME_ENCOUNTERS, STORY_LOOP_MILESTONES
 });

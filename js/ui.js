@@ -1086,9 +1086,13 @@ function setupBattlefieldMovementInteraction() {
     });
 }
 
-/** 탐험 중 전장을 누르면 그 칸으로 걸어간다(미니맵 클릭과 같은 이동 명령 · 자동 이동은 그대로). */
+/** 탐험 중 전장을 누르면 그 칸으로 걸어간다(미니맵 클릭과 같은 이동 명령 · 자동 이동은 그대로). 입구 방의 NPC를 누르면 걷지 않고
+ * 그 NPC의 창을 연다(js/canvas-act-title-card.js npcAt, js/content-progression-ui.js openNpc). */
 function commandBattlefieldMove(canvas, event) {
-    let cell = actExplorationView.cellAt(getBattlefieldClientPoint(canvas, event.clientX, event.clientY));
+    let point = getBattlefieldClientPoint(canvas, event.clientX, event.clientY);
+    let npc = actTitleCard.npcAt(point);
+    if (npc && contentUnlockUi.openNpc(npc)) return;
+    let cell = actExplorationView.cellAt(point);
     if (cell) actExplorationUi.commandMove(cell);
 }
 

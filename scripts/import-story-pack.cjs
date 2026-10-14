@@ -33,11 +33,13 @@ const FIELDS = Object.freeze({
     STORY_CLASS_ORIGINS: ['label', 'wakeLine', 'eliteLine', 'bossLines'],
     STORY_ACT_ENCOUNTERS: ['npc', 'stele', 'boss'], STORY_TRIAL_ENCOUNTERS: ['npc', 'stele', 'boss'],
     STORY_ENDGAME_ENCOUNTERS: ['intro', 'half', 'defeat'], STORY_LOOP_MILESTONES: ['narration', 'speaker', 'quote'],
+    STORY_NPCS: ['id', 'name', 'title'],
     npc: ['name', 'bark', 'loopBark', 'classBarks', 'classReplies', 'tone'], stele: ['title', 'bark'], boss: ['intro', 'half', 'defeat']
 });
 // 게임이 읽지 않아 옮길 때 빼는 표와 칸.
 const DROP = Object.freeze({
-    tables: ['STORY_NPCS'], // NPC 설계표(바이블 4장)
+    tables: [],
+    STORY_NPCS: ['dialogues'], // 상황별 대사 초안(바이블 4장): 화면에 나오는 대사는 STORY_ACT_ENCOUNTERS가 맡는다
     STORY_CLASS_ORIGINS: ['crime'], // 추방 죄목: 직업 선택 창은 초상과 이름만 둔다(2026-10-15)
     STORY_ENDGAME_ENCOUNTERS: ['name'], // 띠의 화자는 그 싸움의 보스 이름
     npc: ['bubble'], stele: ['bubble'],
@@ -60,6 +62,9 @@ const COMMENTS = Object.freeze({
         '(verdicts, last words) or after it (reflections).'],
     STORY_CLASS_ORIGINS: ["Spoken by the hero: wakeLine in act 1's entry room, eliteLine when the boss gate opens, bossLines[act] after the act",
         'boss falls.'],
+    STORY_NPCS: ["The story's five NPCs (docs/story-bible.md section 4): id (also the stage art's id, data/stage-view.js STAGE_NPC_ART), name as",
+        'the encounters write it, and title. Each keeps the unlocks whose loop lines it speaks (STORY_LOOP_MILESTONES speaker): the NPC',
+        'window lists them (js/content-progression-ui.js openNpc).'],
     STORY_ACT_ENCOUNTERS: ['Room-stage lines per act (key: STORY_ACTS order; STORY_TRIAL_ENCOUNTERS below has the same shape per trial zone id): npc on',
         'entering the entry room (loopBark from loop 2 on), stele on entering a side room, boss intro once the final boss is up,',
         'half at 55% life, defeat when the map is cleared. Each line 50 characters at most (one line of the band on PC).'],
