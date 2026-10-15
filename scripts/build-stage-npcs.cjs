@@ -30,6 +30,11 @@ const MATCH = Object.freeze({ lightness: 7, hue: 30, enough: 200, chroma: 0.7, h
 // 금발로 물들었다.
 // KEEP: 그래도 바뀌는 색 가운데 그대로 둘 것(하켄의 흰머리와 수염 그늘: 손과 띠에도 쓰여 높이로 가려지지 않는다).
 const KEEP = Object.freeze({ haken: Object.freeze(['ac9690', '9a7c74']) });
+// ACCENT: 일러스트의 작은 색 하나를 도트의 그 자리 화소에 칠한다(화소의 자리와 모양은 그대로). 칸 안 box(x, y, 너비, 높이)에서 to에
+// 적힌 색을 쓰는 화소만 바꾼다. 하켄: 지팡이 고리 안의 2×2 밝은 점(흰머리 색을 빌려 썼다)이 일러스트의 보라 구슬 자리다.
+// 베일라의 파란 구슬은 고리와 옷이 같은 색을 써서 색으로 가를 수 없다(그림을 다시 받아야 한다).
+const ACCENT = Object.freeze({ haken: Object.freeze({ box: Object.freeze([86, 47, 2, 2]),
+    to: Object.freeze({ ac9690: Object.freeze([0xb5, 0x8b, 0xd6]), '9a7c74': Object.freeze([0x8a, 0x5c, 0xb4]), '816f5f': Object.freeze([0x63, 0x40, 0x8a]) }) }) });
 
 // ---- 색 공간(sRGB D65 ↔ CIE Lab) ------------------------------------------------------------------------------------
 const lin = v => { const c = v / 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
@@ -120,15 +125,22 @@ function paletteMap(sheet, samples, frames, keep = []) {
 }
 
 // ---- 시트와 초상 --------------------------------------------------------------------------------------------------------
+/** A pixel's colour: the accent's when the pixel sits in the accent box (cell coordinates) and uses one of its colours, otherwise
+ * the matched one. */
+function pixelColour(map, accent, x, y, key) {
+    const [bx, by, bw, bh] = accent ? accent.box : [];
+    const inBox = !!accent && x >= bx && x < bx + bw && y >= by && y < by + bh;
+    return (inBox && accent.to[key.toString(16).padStart(6, '0')]) || map.get(key);
+}
 /** The 3×2 idle sheet as one row of six cells, recoloured. */
-function stripOf(sheet, map, frames) {
+function stripOf(sheet, map, frames, accent) {
     const out = Buffer.alloc(CELL * frames.length * CELL * 4);
     frames.forEach((frame, index) => {
         for (let y = 0; y < CELL; y++) {
             for (let x = 0; x < CELL; x++) {
                 const from = ((frame.y + y) * sheet.width + frame.x + x) * 4, to = (y * CELL * frames.length + index * CELL + x) * 4;
                 if (sheet.data[from + 3] === 0) continue;
-                const [r, g, b] = map.get(sheet.data.readUInt32BE(from) >>> 8);
+                const [r, g, b] = pixelColour(map, accent, x, y, sheet.data.readUInt32BE(from) >>> 8);
                 out[to] = r; out[to + 1] = g; out[to + 2] = b; out[to + 3] = sheet.data[from + 3];
             }
         }
@@ -169,7 +181,7 @@ function main([source, copy]) {
         const frames = framesOf(JSON.parse(fs.readFileSync(path.join(source, 'export', id, 'idle.json'), 'utf8')));
         const art = decodePng(fs.readFileSync(path.join(source, 'illustrations', `${id}-selective-v4.png`)));
         const map = paletteMap(sheet, illustrationSamples(art), frames, KEEP[id]);
-        fs.writeFileSync(path.join(target, `${id}-idle.png`), stripOf(sheet, map, frames));
+        fs.writeFileSync(path.join(target, `${id}-idle.png`), stripOf(sheet, map, frames, ACCENT[id]));
         fs.writeFileSync(path.join(target, `${id}-portrait.png`), portraitOf(art));
         const moved = [...map].filter(([key, rgb]) => key !== ((rgb[0] << 16) | (rgb[1] << 8) | rgb[2])).length;
         console.log(`${id}: 색 ${map.size}칸 가운데 ${moved}칸 맞춤, 프레임 ${frames.map(frame => frame.ms).join('/')}ms`);
