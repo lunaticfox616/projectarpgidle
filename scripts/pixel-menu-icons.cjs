@@ -358,6 +358,70 @@ const ICONS = {
         '..........dlm',
         '...........dd',
         '.............'
+    ],
+    // 22 설정 > 화면과 소리: 화면(어두운 유리에 반짝임 하나)과 받침
+    screen: [
+        '.............',
+        '.llllllllllm.',
+        '.lkkkkkkkkmd.',
+        '.lkwkkkkkkmd.',
+        '.lkkwkkkkkmd.',
+        '.lkkkkkkkkmd.',
+        '.lkkkkkkkkmd.',
+        '.lkkkkkkkkmd.',
+        '.lmmmmmmmmmd.',
+        '..dddddddddd.',
+        '.....lmd.....',
+        '...llmmmdd...',
+        '...ddddddd...'
+    ],
+    // 23 설정 > 알림과 채팅: 종
+    bell: [
+        '......w......',
+        '.....lmd.....',
+        '....lwmmd....',
+        '...lwmmmmd...',
+        '...lmmmmmd...',
+        '...lmmmmmd...',
+        '..lmmmmmmmd..',
+        '..lmmmmmmmd..',
+        '.lmmmmmmmmmd.',
+        'lllmmmmmmmddd',
+        '.ddddddddddd.',
+        '.....lmd.....',
+        '......d......'
+    ],
+    // 24 설정 > 조작: 자판(검은 홈이 키, 아래 긴 홈이 띄어쓰기)
+    keyboard: [
+        '.............',
+        '.............',
+        '.llllllllllm.',
+        'lwmmmmmmmmmmd',
+        'lmkmkmkmkmkmd',
+        'lmmmmmmmmmmmd',
+        'lmmkmkmkmkmmd',
+        'lmmmmmmmmmmmd',
+        'lmmkkkkkkkmmd',
+        'lmmmmmmmmmmmd',
+        '.ddddddddddd.',
+        '.............',
+        '.............'
+    ],
+    // 25 설정 > 저장과 계정: 저장 디스크(위 덮개 홈, 아래 이름표)
+    disk: [
+        '.............',
+        '.llllllllll..',
+        '.lmmkkkkwmmd.',
+        '.lmmkkkkwmmmd',
+        '.lmmkkkkkmmmd',
+        '.lmmmmmmmmmmd',
+        '.lmmmmmmmmmmd',
+        '.lmwwwwwwwwmd',
+        '.lmwkkkkkkwmd',
+        '.lmwwwwwwwwmd',
+        '.lmwkkkkkkwmd',
+        '.ldddddddddd.',
+        '.............'
     ]
 };
 

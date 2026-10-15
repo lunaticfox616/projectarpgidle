@@ -1,73 +1,105 @@
-/* 설정 창(마크업은 index.html #tab-settings, 동작은 js/settings-ui.js). 왼쪽은 분류 목록, 오른쪽은 고른 분류 한 장.
-   묶음(.cfg-block) 안의 한 줄(.cfg-row)은 이름과 짧은 설명이 왼쪽, 조절이 오른쪽 끝에 선다. 창이 좁으면(휴대폰, 줄인 창)
-   분류 목록이 위쪽 가로 줄이 된다. 단축키 목록은 css/hotkeys.css, 단추 재질은 공통 단추 규칙을 따른다. */
+/* 설정 창(마크업은 index.html #tab-settings, 동작은 js/settings-ui.js). 왼쪽은 아이콘이 붙은 분류 목록, 오른쪽은 고른 분류 한 장.
+   분류 한 장은 묶음 판(.cfg-block) 몇 개이고, 판 안의 한 줄(.cfg-row)은 이름과 짧은 설명이 왼쪽, 조절이 오른쪽 끝에 선다.
+   창이 좁으면(휴대폰, 줄인 창) 분류 목록이 위쪽 세 칸 두 줄이 된다. 단축키 목록은 css/hotkeys.css, 단추 재질은 공통 단추 규칙을 따른다.
+   빛깔은 뜻이 있을 때만 쓴다: 고른 분류, 켜진 스위치, 묶음 제목, 위험한 초기화. */
 @layer features {
 #tab-settings { container: settings / inline-size; font: 400 13px/1.5 var(--font-body, 'Malgun Gothic', sans-serif); }
 #tab-settings :is(button, input, select, summary) { font-family: inherit; }
 #tab-settings [data-settings-group][hidden] { display: none; }
 #tab-settings :is(button, select, summary, input):focus-visible { outline: 2px solid var(--color-accent-gold); outline-offset: 2px; }
 
-.settings-workspace { display: grid; grid-template-columns: 188px minmax(0, 1fr); gap: 22px; align-items: start; }
-.settings-sections { position: sticky; top: 0; display: grid; gap: 2px; padding: 2px 0; }
+/* 분류 목록: 메뉴와 같은 13도트 아이콘(assets/ui/pixel/menu-icons.png, scripts/pixel-menu-icons.cjs)을 2배로. 고른 분류만 아이콘이 밝다. */
+.settings-workspace { display: grid; grid-template-columns: 216px minmax(0, 1fr); gap: 18px; align-items: start; }
+.settings-sections { position: sticky; top: 0; display: grid; gap: 4px; padding: 2px 0; }
+#tab-settings [data-settings-section="display"] { --px-icon: 22; }
+#tab-settings [data-settings-section="combat"] { --px-icon: 0; }
+#tab-settings [data-settings-section="progress"] { --px-icon: 4; }
+#tab-settings [data-settings-section="notifications"] { --px-icon: 23; }
+#tab-settings [data-settings-section="layout"] { --px-icon: 24; }
+#tab-settings [data-settings-section="data"] { --px-icon: 25; }
 #tab-settings .settings-sections > button {
   display: grid;
-  gap: 1px;
+  grid-template-columns: 26px minmax(0, 1fr);
+  align-items: center;
   justify-items: start;
+  gap: 0 11px;
   width: 100%;
   min-height: 0;
   margin: 0;
-  padding: 9px 10px 9px 14px;
-  border: 0;
-  border-left: 2px solid transparent;
-  border-radius: 0;
+  padding: 9px 10px 9px 12px;
+  border: 1px solid transparent;
+  border-radius: 2px;
   background: none;
   box-shadow: none;
   color: var(--color-text-secondary);
   text-align: left;
   cursor: pointer;
 }
-#tab-settings .settings-sections > button b { font-size: 14px; font-weight: 700; letter-spacing: 0; }
-#tab-settings .settings-sections > button small { color: var(--px-copy-muted, var(--color-text-secondary)); font-size: 11px; line-height: 1.4; }
-#tab-settings .settings-sections > button:hover { background: rgba(255, 255, 255, .035); color: var(--color-text); }
-#tab-settings .settings-sections > button[aria-pressed="true"] {
-  border-left-color: var(--color-accent-gold);
-  background: linear-gradient(90deg, rgba(215, 179, 111, .13), transparent 90%);
-  color: var(--color-accent-gold);
+#tab-settings .settings-sections > button::before {
+  content: '';
+  grid-row: 1 / span 2;
+  width: 26px;
+  height: 26px;
+  background: var(--px-menu-icons) calc(var(--px-icon, 19) * -26px) 0 / calc(var(--px-icon-count, 26) * 26px) 26px no-repeat;
+  image-rendering: pixelated;
+  opacity: .42;
+  filter: saturate(.35);
 }
-.settings-note { margin: 10px 0 0 14px; padding-top: 10px; border-top: 1px solid var(--skin-line); color: var(--px-copy-muted, var(--color-text-secondary)); font-size: 11px; }
+#tab-settings .settings-sections > button b { color: inherit; font-size: 15px; font-weight: 400; line-height: 1.3; letter-spacing: 0; }
+#tab-settings .settings-sections > button small { color: var(--px-copy-muted, var(--color-text-secondary)); font-size: 12px; line-height: 1.35; white-space: nowrap; }
+#tab-settings .settings-sections > button:hover { background: rgba(255, 255, 255, .035); color: var(--color-text); }
+#tab-settings .settings-sections > button:hover::before { opacity: .75; }
+#tab-settings .settings-sections > button[aria-pressed="true"] {
+  border-color: rgba(215, 179, 111, .38);
+  background: linear-gradient(90deg, rgba(215, 179, 111, .16), rgba(215, 179, 111, .03));
+  box-shadow: inset 2px 0 var(--color-accent-gold);
+  color: #f0d79c;
+}
+#tab-settings .settings-sections > button[aria-pressed="true"]::before { opacity: 1; filter: none; }
+.settings-note { margin: 12px 4px 0; padding-top: 10px; border-top: 1px solid var(--skin-line); color: var(--px-copy-muted, var(--color-text-secondary)); font-size: 12px; }
 
-.settings-content { min-width: 0; max-width: 700px; }
-.cfg-page { display: grid; gap: 22px; padding-bottom: 6px; }
-.cfg-block { display: grid; min-width: 0; }
+/* 묶음 판: 창 바탕보다 한 겹 밝은 판에 얇은 테. 제목은 판 맨 위에 금빛 글과 가는 선. */
+.settings-content { min-width: 0; max-width: 720px; }
+.cfg-page { display: grid; gap: 14px; padding-bottom: 6px; }
+.cfg-block {
+  display: grid;
+  min-width: 0;
+  padding: 10px 14px 6px;
+  border: 1px solid rgba(255, 255, 255, .075);
+  border-radius: 3px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, .035), rgba(255, 255, 255, .015));
+  box-shadow: inset 0 1px rgba(255, 255, 255, .03), 0 2px 6px rgba(0, 0, 0, .25);
+}
 #tab-settings .cfg-block-title {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin: 0 0 2px;
+  margin: 0 0 4px;
   padding: 0 0 6px;
   border: 0;
   background: none;
   color: var(--color-accent-gold);
-  font-size: 13px;
-  font-weight: 700;
+  font-size: 15px;
+  font-weight: 400;
   letter-spacing: .02em;
 }
-#tab-settings .cfg-block-title::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, rgba(215, 179, 111, .38), transparent); }
+#tab-settings .cfg-block-title::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, rgba(215, 179, 111, .4), transparent); }
 
-/* 한 줄: 이름 칸은 남는 폭을 쓰고, 조절은 줄 끝에 같은 너비로 선다. */
-.cfg-row { display: flex; align-items: center; justify-content: space-between; gap: 8px 18px; min-height: 44px; padding: 6px 4px; }
-.cfg-row + :is(.cfg-row, .cfg-disclosure) { border-top: 1px solid rgba(255, 255, 255, .055); }
-.cfg-row-text { display: grid; gap: 1px; flex: 1 1 auto; min-width: 0; }
-.cfg-row-text > :is(label, span) { color: var(--color-text); font-size: 13px; }
+/* 한 줄: 이름 칸은 남는 폭을 쓰고, 조절은 줄 끝에 같은 너비로 선다. 올려 두면 줄 전체가 살짝 밝아져 어느 조절인지 따라가기 쉽다. */
+.cfg-row { display: flex; align-items: center; justify-content: space-between; gap: 8px 18px; min-height: 48px; margin: 0 -8px; padding: 7px 8px; border-radius: 2px; }
+.cfg-row + :is(.cfg-row, .cfg-disclosure) { border-top: 1px solid rgba(255, 255, 255, .06); }
+.cfg-row:hover { background: rgba(255, 255, 255, .03); }
+.cfg-row-text { display: grid; gap: 2px; flex: 1 1 auto; min-width: 0; }
+.cfg-row-text > :is(label, span) { color: #eee4cf; font-size: 14px; line-height: 1.35; }
 .cfg-row-text > label { cursor: pointer; }
-.cfg-row-text > small { color: var(--px-copy-muted, var(--color-text-secondary)); font-size: 12px; line-height: 1.45; }
+.cfg-row-text > small { color: #a89c84; font-size: 12px; line-height: 1.45; }
 .cfg-row-text > small[hidden] { display: none; }
-#tab-settings .cfg-row > .cfg-select { flex: 0 1 220px; width: 220px; min-width: 130px; min-height: 34px; }
+#tab-settings .cfg-row > .cfg-select { flex: 0 1 230px; width: 230px; min-width: 130px; min-height: 36px; }
 .cfg-row-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; flex-shrink: 0; }
 /* 단추를 다른 모듈이 채우는 줄(창 배치는 PC 창 화면에서만)은 단추가 없으면 접는다. */
 .cfg-row:has(> .cfg-row-actions):not(:has(button)) { display: none; }
 .cfg-row:has(> .cfg-row-actions):not(:has(button)) + .cfg-disclosure { border-top: 0; }
-#tab-settings :is(.cfg-row, .cfg-row-actions) > .cfg-btn { min-height: 34px; padding: 6px 16px; white-space: nowrap; }
+#tab-settings :is(.cfg-row, .cfg-row-actions) > .cfg-btn { min-height: 36px; padding: 6px 16px; white-space: nowrap; }
 
 .cfg-select {
   padding: 5px 8px;
@@ -76,23 +108,24 @@
   background: var(--skin-canvas);
   color: var(--color-text);
   font: inherit;
-  font-size: 12px;
+  font-size: 13px;
   cursor: pointer;
 }
 .cfg-select:hover, .cfg-select:focus { border-color: var(--skin-line-strong); }
 .cfg-select:disabled { opacity: .5; cursor: not-allowed; }
 
-/* 켜고 끄기: 네모난 손잡이의 스위치. 반쯤 켜짐(여러 값이 섞인 옛 설정)은 손잡이가 가운데에 선다. */
+/* 켜고 끄기: 네모난 손잡이의 스위치. 켜지면 판이 금빛으로 차고 손잡이가 밝아진다. 반쯤 켜짐(여러 값이 섞인 옛 설정)은 손잡이가 가운데에 선다. */
 .cfg-switch {
   appearance: none;
   position: relative;
   flex: 0 0 auto;
-  width: 40px;
-  height: 22px;
+  width: 46px;
+  height: 24px;
   margin: 0;
-  border: 1px solid var(--skin-line-strong);
+  border: 1px solid #5a4f40;
   border-radius: 2px;
-  background: rgba(0, 0, 0, .45);
+  background: rgba(0, 0, 0, .5);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, .6);
   cursor: pointer;
   transition: background .15s ease, border-color .15s ease;
 }
@@ -101,39 +134,40 @@
   position: absolute;
   top: 3px;
   left: 3px;
-  width: 14px;
-  height: 14px;
-  background: #7d7466;
+  width: 16px;
+  height: 16px;
+  background: #8a8070;
+  box-shadow: inset -1px -1px rgba(0, 0, 0, .35), inset 1px 1px rgba(255, 255, 255, .18);
   transition: transform .15s ease, background .15s ease;
 }
-.cfg-switch:checked { border-color: var(--color-accent-gold); background: rgba(215, 179, 111, .24); }
-.cfg-switch:checked::before { transform: translateX(18px); background: var(--color-accent-gold); }
-.cfg-switch:indeterminate::before { transform: translateX(9px); background: #b39a6a; }
+.cfg-switch:checked { border-color: #c69f5e; background: linear-gradient(180deg, rgba(215, 179, 111, .42), rgba(215, 179, 111, .22)); }
+.cfg-switch:checked::before { transform: translateX(22px); background: #f0d28e; }
+.cfg-switch:indeterminate::before { transform: translateX(11px); background: #b39a6a; }
+.cfg-switch:hover:not(:disabled) { border-color: var(--color-accent-gold); }
 .cfg-switch:disabled { opacity: .45; cursor: not-allowed; }
 @media (prefers-reduced-motion: reduce) {
   .cfg-switch, .cfg-switch::before { transition: none; }
 }
 
-.cfg-volume { display: flex; align-items: center; gap: 10px; flex: 0 1 340px; min-width: 0; }
+.cfg-volume { display: flex; align-items: center; gap: 12px; flex: 0 1 360px; min-width: 0; }
 .cfg-volume input[type="range"] { flex: 1; min-width: 60px; min-height: 28px; margin: 0; accent-color: var(--color-accent-gold); cursor: pointer; }
-.cfg-volume output { min-width: 4ch; color: var(--color-text); font-variant-numeric: tabular-nums; text-align: right; }
-#tab-settings .cfg-volume .cfg-btn { flex-shrink: 0; min-height: 34px; padding: 6px 12px; white-space: nowrap; }
+.cfg-volume output { min-width: 4ch; color: var(--color-text); font-size: 13px; font-variant-numeric: tabular-nums; text-align: right; }
+#tab-settings .cfg-volume .cfg-btn { flex-shrink: 0; min-height: 36px; padding: 6px 12px; white-space: nowrap; }
 
-.cfg-note { margin: 6px 4px 0; color: var(--px-copy-muted, var(--color-text-secondary)); font-size: 12px; line-height: 1.5; }
+.cfg-note { margin: 6px 0 4px; color: #a89c84; font-size: 12px; line-height: 1.5; }
 .cfg-note:empty { display: none; }
 
-.cfg-disclosure > summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 44px; padding: 6px 8px 6px 4px; color: var(--color-text); font-size: 13px; cursor: pointer; list-style: none; user-select: none; }
+.cfg-disclosure > summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 48px; margin: 0 -8px; padding: 6px 8px; border-radius: 2px; color: #eee4cf; font-size: 14px; cursor: pointer; list-style: none; user-select: none; }
 .cfg-disclosure > summary::-webkit-details-marker { display: none; }
 .cfg-disclosure > summary::after { content: '＋'; flex-shrink: 0; color: var(--color-accent-gold); }
 .cfg-disclosure[open] > summary::after { content: '－'; }
-.cfg-disclosure > summary:hover { background: rgba(255, 255, 255, .035); }
-.cfg-disclosure > .cfg-note { margin-bottom: 4px; }
+.cfg-disclosure > summary:hover { background: rgba(255, 255, 255, .03); }
 
-/* 메뉴 순서 바꾸기(js/tab-layout-ui.js가 채운다) */
-.cfg-tab-order { display: grid; padding: 0 4px 6px; }
+/* 메뉴 순서 바꾸기(js/tab-layout-ui.js가 채운다): 판 안의 한 겹 더 어두운 칸. */
+.cfg-tab-order { display: grid; margin-bottom: 4px; padding: 4px 10px 6px; border-radius: 2px; background: rgba(0, 0, 0, .22); }
 .cfg-tab-platform, .cfg-tab-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .cfg-tab-platform { padding: 4px 0 8px; color: var(--color-accent-gold); font-weight: 600; }
-.cfg-tab-row { padding: 5px 0; border-top: 1px solid rgba(255, 255, 255, .055); color: var(--color-text); }
+.cfg-tab-row { padding: 5px 0; border-top: 1px solid rgba(255, 255, 255, .06); color: var(--color-text); }
 .cfg-tab-row > span { min-width: 0; overflow-wrap: anywhere; }
 .cfg-tab-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
 #tab-settings .cfg-tab-actions button { min-width: 34px; min-height: 30px; padding: 2px 7px; }
@@ -143,26 +177,30 @@
    (상태 표의 online, syncing은 js/ui.js의 updateCloudSaveUI가 붙인다). */
 .cloud-header { display: flex; align-items: center; gap: 10px; }
 #tab-settings .cloud-header .cfg-block-title { flex: 1; min-width: 0; }
-.cloud-status-pill { display: inline-flex; align-items: center; padding: 2px 9px; border: 1px solid var(--skin-line); border-radius: 2px; background: rgba(0, 0, 0, .35); color: var(--color-text-secondary); font-size: 12px; font-weight: 700; white-space: nowrap; }
+.cloud-status-pill { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 4px; padding: 2px 9px; border: 1px solid var(--skin-line); border-radius: 2px; background: rgba(0, 0, 0, .35); color: var(--color-text-secondary); font-size: 12px; font-weight: 700; white-space: nowrap; }
+.cloud-status-pill::before { content: ''; width: 6px; height: 6px; background: currentColor; }
 .cloud-status-pill.online { border-color: #3e7a52; color: #9fd8b0; }
 .cloud-status-pill.syncing { border-color: #8a6c24; color: #f0d48a; }
 .cloud-status-pill.error { border-color: #8f3838; color: #f0a8a0; }
-.cloud-panel > .cfg-note { margin-top: 2px; }
-.cloud-actions { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 4px 4px; }
-#tab-settings .cloud-actions > button { min-height: 34px; padding: 6px 14px; white-space: nowrap; }
-.cloud-meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 18px; margin: 8px 0 0; }
-.cloud-meta > div { display: grid; gap: 1px; min-width: 0; padding: 7px 4px; border-top: 1px solid rgba(255, 255, 255, .055); }
+.cloud-panel > .cfg-note { margin-top: 0; }
+.cloud-actions { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 6px; }
+#tab-settings .cloud-actions > button { min-height: 36px; padding: 6px 14px; white-space: nowrap; }
+.cloud-meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 18px; margin: 4px 0 0; padding: 2px 10px; border-radius: 2px; background: rgba(0, 0, 0, .22); }
+.cloud-meta > div { display: grid; align-content: start; gap: 1px; min-width: 0; padding: 7px 0; }
+.cloud-meta > div:nth-child(n + 3) { border-top: 1px solid rgba(255, 255, 255, .06); }
 .cloud-meta dt { color: var(--px-copy-muted, var(--color-text-secondary)); font-size: 12px; }
 .cloud-meta dd { margin: 0; color: var(--color-text); font-size: 12px; overflow-wrap: anywhere; }
-.cloud-link { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 4px; border-top: 1px solid rgba(255, 255, 255, .055); }
-.cloud-link > span { margin-right: auto; color: var(--color-text); font-size: 13px; }
+.cloud-link { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 0 6px; }
+.cloud-link > span { margin-right: auto; color: #eee4cf; font-size: 14px; }
 #tab-settings .cloud-link .social-login-image-btn img { height: 36px; border-radius: 6px; }
-.cloud-panel > .cfg-disclosure { border-top: 1px solid rgba(255, 255, 255, .055); }
+.cloud-panel > .cfg-disclosure { margin-top: 6px; border-top: 1px solid rgba(255, 255, 255, .06); }
 .cloud-panel:has(#ui-cloud-status-pill:not(.online, .syncing)) :is(#btn-cloud-logout, #btn-cloud-pull, .cloud-link) { display: none; }
-.cloud-policy-links { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; padding: 0 4px; font-size: 12px; }
+.cloud-policy-links { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 4px 0 6px; font-size: 12px; }
 
-#tab-settings .cfg-block--danger .cfg-block-title { color: #d8907f; }
-#tab-settings .cfg-block--danger .cfg-block-title::after { background: linear-gradient(90deg, rgba(216, 144, 127, .32), transparent); }
+/* 초기화: 붉은 기가 도는 판. */
+#tab-settings .cfg-block--danger { border-color: rgba(216, 144, 127, .22); background: linear-gradient(180deg, rgba(150, 50, 40, .1), rgba(150, 50, 40, .04)); }
+#tab-settings .cfg-block--danger .cfg-block-title { color: #e09a88; }
+#tab-settings .cfg-block--danger .cfg-block-title::after { background: linear-gradient(90deg, rgba(216, 144, 127, .35), transparent); }
 
 /* 작은 전투 화면은 휴대폰 전용, 단축키는 키보드가 있는 기기 전용 설정이다. */
 .cfg-mobile-only { display: none; }
@@ -171,16 +209,20 @@
 }
 @media (hover: none) and (pointer: coarse) {
   #tab-settings .cfg-block--hotkeys { display: none; }
+  .cfg-row:hover, .cfg-disclosure > summary:hover { background: none; }
 }
 
-/* 좁은 창: 분류는 위쪽 세 칸 두 줄(모두 한눈에 보이게), 단추가 있는 줄은 단추를 아래로 내린다. */
+/* 좁은 창: 분류는 위쪽 세 칸 두 줄(모두 한눈에 보이게, 아이콘 위 이름), 단추가 있는 줄은 단추를 아래로 내린다. */
 @container settings (max-width: 620px) {
-  .settings-workspace { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .settings-workspace { grid-template-columns: minmax(0, 1fr); gap: 14px; }
   .settings-sections { position: static; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; padding: 0; }
-  #tab-settings .settings-sections > button { justify-items: center; min-height: 40px; padding: 8px 4px; border: 1px solid var(--skin-line); border-radius: 2px; background: rgba(0, 0, 0, .25); text-align: center; }
-  #tab-settings .settings-sections > button[aria-pressed="true"] { border-color: var(--color-accent-gold); background: rgba(215, 179, 111, .13); }
+  #tab-settings .settings-sections > button { grid-template-columns: minmax(0, 1fr); justify-items: center; gap: 2px; min-height: 58px; padding: 7px 4px 6px; border-color: var(--skin-line); background: rgba(0, 0, 0, .25); text-align: center; }
+  #tab-settings .settings-sections > button::before { grid-row: auto; }
+  #tab-settings .settings-sections > button[aria-pressed="true"] { box-shadow: inset 0 -2px var(--color-accent-gold); }
   #tab-settings .settings-sections > button b { font-size: 13px; white-space: nowrap; }
   #tab-settings .settings-sections > button small, .settings-note { display: none; }
+  .cfg-block { padding: 8px 10px 4px; }
+  .cfg-row, .cfg-disclosure > summary { margin: 0 -4px; padding-inline: 4px; }
   #tab-settings .cfg-row > .cfg-select { flex-basis: 170px; width: 170px; }
   .cfg-row:has(> .cfg-row-actions), .cfg-row--volume { flex-wrap: wrap; }
   .cfg-row > .cfg-row-actions { flex: 1 1 100%; justify-content: flex-start; }
@@ -188,7 +230,13 @@
 }
 }
 
-/* 도트 테마는 창 안의 접기 제목을 큰 제목 글꼴(15px, css/themes/pixel.css)로 바꾼다. 설정의 접기는 한 줄 이름과 같은 글꼴, 크기(12px)로 둔다. */
+/* 도트 테마(css/themes/pixel.css)는 창 안의 글을 12px 도트 글꼴로, 제목과 접기를 15px 읽기 글꼴로 바꾼다. 설정은 한 줄 이름, 접기, 단축키 이름을
+   14px 읽기 글꼴(Galmuri14, 14px에서 또렷하다)로, 분류 이름을 15px로 키워 한눈에 읽히게 한다. 설명과 값은 12~13px 도트 글꼴 그대로. */
 @layer overrides {
-  :root body[data-ui-skin] #tab-settings.tab-content .cfg-disclosure > summary { font-family: var(--font-body); font-size: 12px; font-weight: 400; letter-spacing: 0; }
+  :root body[data-ui-skin] #tab-settings.tab-content .settings-content :is(.cfg-row-text > :is(label, span), .cfg-disclosure > summary, .cloud-link > span, .hotkey-row > .cfg-label) { font-family: var(--font-pixel-read, var(--font-body)); font-size: 14px; font-weight: 400; letter-spacing: 0; }
+  :root body[data-ui-skin] #tab-settings.tab-content .settings-sections > button b { font-family: var(--font-pixel-read, var(--font-body)); font-size: 15px; }
+  :root body[data-ui-skin] #tab-settings.tab-content .settings-content .cfg-select { font-size: 13px; }
+  @container settings (max-width: 620px) {
+    :root body[data-ui-skin] #tab-settings.tab-content .settings-sections > button b { font-size: 13px; }
+  }
 }
