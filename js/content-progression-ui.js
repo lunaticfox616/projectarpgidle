@@ -394,13 +394,16 @@ const contentUnlockUi = {
         const keeper = before ? this.keeperOf(before.id) : '';
         return ['is-locked', keeper && keeper !== this.keeperOf(def.id) ? `${status.reason}, ${keeper}` : status.reason];
     },
-    /** The NPC's window (2026-10-15): its picture, name and title, the line it spoke here, and the unlocks it keeps with the unlock
-     * window's own detail (buy, open). npc: { id, name, title, tone, line } (js/canvas-act-title-card.js npcAt). */
+    /** The NPC's window (2026-10-15): its picture, name and title over a conversation like an ARPG's NPC talk (사용자: "NPC 클릭하면
+     * 다짜고짜 해금 나오는것도 이상하고. POE처럼 키워드 누르면 관련 스크립트만"): keywords on the left, the chosen keyword's lines on
+     * the right (npcTopics). The last keyword, 맡은 해금, turns the window into the unlocks it keeps with the unlock window's own detail
+     * (buy, open) and a way back. npc: { id, name, title, tone, line } (js/canvas-act-title-card.js npcAt). */
     openNpc(npc) {
-        const rows = this.npcUnlocks(npc.name);
-        if (!rows.length || document.getElementById('npc-dialog')) return false;
-        const first = state => rows.find(def => this.npcChip(def)[0] === state);
-        const view = { npc, rows, selected: (first('is-ready') || first('is-locked') || rows[0]).id };
+        const old = document.getElementById('npc-dialog');
+        if (!npc || (old && old.open)) return false;
+        if (old) old.remove(); // closed a moment ago, its close event (which removes it) not yet run
+        const rows = this.npcUnlocks(npc.name), first = state => rows.find(def => this.npcChip(def)[0] === state);
+        const view = { npc, rows, mode: 'talk', topic: 'greet', selected: rows.length ? (first('is-ready') || first('is-locked') || rows[0]).id : null };
         const dialog = document.createElement('dialog');
         dialog.id = 'npc-dialog';
         dialog.className = 'npc-dialog';
@@ -413,25 +416,81 @@ const contentUnlockUi = {
         return true;
     },
     renderNpc(dialog, view) {
-        const npc = view.npc, def = view.rows.find(row => row.id === view.selected);
-        const line = npc.line ? `<p class="npc-dialog-line">${escapeHTML(npc.line)}</p>` : '';
-        const items = view.rows.map(row => {
-            const [state, text] = this.npcChip(row);
-            return `<li><button type="button" data-npc-unlock="${row.id}" aria-pressed="${row.id === view.selected}">
-                <img src="${this.art(row)}" alt=""><span>${escapeHTML(row.name)}</span><em class="${state}">${escapeHTML(text)}</em></button></li>`;
-        }).join('');
+        const npc = view.npc;
         dialog.innerHTML = `<header class="npc-dialog-head"><img class="npc-dialog-portrait" src="${STAGE_NPC_ART.path}${npc.id}-portrait.png" alt="">
             <div class="npc-dialog-who"><h2 id="npc-dialog-name" data-tone="${escapeHTML(npc.tone)}">${escapeHTML(npc.name)}</h2>
-            <p class="npc-dialog-title">${escapeHTML(npc.title || '')}</p>${line}</div>
+            <p class="npc-dialog-title">${escapeHTML(npc.title || '')}</p></div>
             <button type="button" class="npc-dialog-close" data-npc-close>닫기</button></header>
-            <div class="npc-dialog-body"><ul class="npc-dialog-unlocks" aria-label="맡은 해금">${items}</ul>
+            ${view.mode === 'unlocks' ? this.npcUnlockBody(view) : this.npcTalkBody(view)}`;
+    },
+    /** The keywords and the lines of the chosen one. A group's first keyword carries the group's caption. */
+    npcTalkBody(view) {
+        const topics = this.npcTopics(view.npc, view.rows), topic = topics.find(row => row.id === view.topic) || topics[0];
+        const keys = topics.map(row => `${row.group ? `<li class="npc-dialog-group">${escapeHTML(row.group)}</li>` : ''}<li><button type="button"
+            data-npc-topic="${escapeHTML(row.id)}" aria-pressed="${row.id === topic.id}"><span>${escapeHTML(row.label)}</span>${row.badge ? `<em>${escapeHTML(row.badge)}</em>` : ''}</button></li>`).join('');
+        const lines = topic.lines.map(line => `<p class="npc-script-line is-${line.who}">${line.speaker ? `<b>${escapeHTML(line.speaker)}</b>` : ''}${escapeHTML(line.text)}</p>`).join('');
+        return `<div class="npc-dialog-body"><ul class="npc-dialog-topics" aria-label="이야깃거리">${keys}</ul>
+            <div class="npc-dialog-script" aria-live="polite"><h3>${escapeHTML(topic.label)}</h3>${lines}</div></div>`;
+    },
+    /** 맡은 해금: the unlocks the NPC keeps, each with the unlock window's detail, and the way back to the talk. */
+    npcUnlockBody(view) {
+        const def = view.rows.find(row => row.id === view.selected) || view.rows[0];
+        const items = view.rows.map(row => {
+            const [state, text] = this.npcChip(row);
+            return `<li><button type="button" data-npc-unlock="${row.id}" aria-pressed="${row.id === def.id}">
+                <img src="${this.art(row)}" alt=""><span>${escapeHTML(row.name)}</span><em class="${state}">${escapeHTML(text)}</em></button></li>`;
+        }).join('');
+        return `<div class="npc-dialog-body"><div class="npc-dialog-side"><button type="button" class="npc-dialog-back" data-npc-topic="greet">대화로 돌아가기</button>
+            <ul class="npc-dialog-unlocks" aria-label="맡은 해금">${items}</ul></div>
             <div class="npc-dialog-detail unlock-detail">${this.detail(def)}</div></div>`;
     },
-    /** A row shows its detail; buying refreshes the window after the unlock window's own handler ran; opening a content closes it. */
+    /** The NPC's keywords, nothing ahead of the hero's progress: 인사 (the line it spoke here), the acts where it met the hero, the
+     * unlocks it keeps that are open or can be opened now (their story), the records it left that the hero holds, then 맡은 해금. */
+    npcTopics(npc, rows) {
+        const me = this.personal(npc.name), acts = this.npcActTopics(me);
+        const greeting = npc.line || (acts.length ? acts[acts.length - 1].lines[0].text : npc.title);
+        const topics = [{ id: 'greet', label: '인사', lines: [{ who: 'npc', speaker: me, text: greeting }] }, ...acts, ...this.npcUnlockTopics(rows), ...this.npcRecordTopics(me)];
+        if (rows.length) topics.push({ id: 'unlocks', label: '맡은 해금', group: '해금', badge: rows.some(def => this.npcChip(def)[0] === 'is-ready') ? '해금 가능' : '', lines: [] });
+        return topics;
+    },
+    /** The acts the hero has reached whose entry-room guide is this NPC (STORY_ACT_ENCOUNTERS npc): its first words there, the line
+     * that remembers the hero (from loop 2), the line for the hero's class and the hero's answer. */
+    npcActTopics(me) {
+        const reached = Math.max(Number(game.maxZoneId) || 0, Number.isInteger(game.currentZoneId) ? game.currentZoneId : 0);
+        const lore = STORY_CLASS_ORIGINS[game.selectedClassId] || null;
+        return STORY_ACTS.map((act, index) => ({ act, index, said: (STORY_ACT_ENCOUNTERS[act.order] || {}).npc }))
+            .filter(row => row.said && this.personal(row.said.name) === me && row.index <= reached)
+            .map((row, n) => ({ id: `act${row.act.order}`, group: n ? '' : '만난 곳', label: `액트 ${row.act.displayAct}, ${row.act.title}`, lines: this.npcActLines(row.said, me, lore) }));
+    },
+    npcActLines(said, me, lore) {
+        const cls = game.selectedClassId, lines = [{ who: 'npc', speaker: me, text: said.bark }];
+        if ((game.season || 1) > 1) lines.push({ who: 'npc', speaker: me, text: said.loopBark });
+        if (lore) lines.push({ who: 'npc', speaker: me, text: (said.classBarks || {})[cls] }, { who: 'hero', speaker: lore.label, text: (said.classReplies || {})[cls] });
+        return lines.filter(line => line.text);
+    },
+    /** The unlocks the NPC keeps that are open or can be opened now, each with its story lines (STORY_LOOP_MILESTONES). */
+    npcUnlockTopics(rows) {
+        return rows.filter(def => STORY_LOOP_MILESTONES[def.id] && (status => status.unlocked || status.available)(contentProgression.status(def.id)))
+            .map((def, n) => {
+                const lore = STORY_LOOP_MILESTONES[def.id];
+                return { id: `unlock:${def.id}`, group: n ? '' : '해금 이야기', label: def.name,
+                    lines: [...lore.narration.map(text => ({ who: 'narration', text })), { who: 'npc', speaker: this.personal(lore.speaker), text: lore.quote }] };
+            });
+    },
+    /** The records the hero holds that name this NPC as their source (JOURNAL_DB source): the situation, the record and its source. */
+    npcRecordTopics(me) {
+        const held = new Set(game.journalEntries || []);
+        return Object.entries(JOURNAL_DB).filter(([key, entry]) => held.has(key) && String(entry.source || '').includes(me))
+            .map(([key, entry], n) => ({ id: `record:${key}`, group: n ? '' : '남긴 기록', label: entry.title,
+                lines: [{ who: 'narration', text: entry.intro }, ...(entry.lines || []).map(text => ({ who: 'record', text })), { who: 'narration', text: entry.source }].filter(line => line.text) }));
+    },
+    /** A keyword shows its lines (맡은 해금 the unlock list); a row shows its detail; buying refreshes the window after the unlock
+     * window's own handler ran; opening a content closes it. */
     npcClick(dialog, view, event) {
         const control = event.target.closest('button');
         if (!control) return;
         if (control.dataset.npcClose !== undefined) { dialog.close(); return; }
+        if (control.dataset.npcTopic) { Object.assign(view, control.dataset.npcTopic === 'unlocks' ? { mode: 'unlocks' } : { mode: 'talk', topic: control.dataset.npcTopic }); this.renderNpc(dialog, view); return; }
         if (control.dataset.npcUnlock) { view.selected = control.dataset.npcUnlock; this.renderNpc(dialog, view); return; }
         if (control.dataset.openContent) { dialog.close(); return; }
         if (control.dataset.unlockContent) setTimeout(() => { if (dialog.open) this.renderNpc(dialog, view); }, 0);
