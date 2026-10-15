@@ -2245,8 +2245,7 @@ function switchTab(tabId) {
             scheduleStableResize();
         }, 40);
     } else if (tabId === 'tab-settings') {
-        syncCombatTacticsSettingsControls();
-        renderTabOrderSettings();
+        settingsUi.sync();
     }
 }
 
@@ -5249,77 +5248,6 @@ function applyChatMessageSize(size) {
     let normalized = ['small', 'medium', 'large'].includes(size) ? size : 'medium';
     if (document.body && document.body.dataset) document.body.dataset.chatMessageSize = normalized;
     return normalized;
-}
-
-function updateSettings() {
-    let previousSocialChatNotifications = game.settings.socialChatNotifications !== false;
-    game.settings.showCombatScene = document.getElementById('chk-combat-scene').checked;
-    let cameraShakeCheckbox = document.getElementById('chk-camera-shake');
-    game.settings.cameraShake = !cameraShakeCheckbox || cameraShakeCheckbox.checked;
-    game.settings.hitEmphasis = document.getElementById('sel-hit-emphasis')?.value === 'mild' ? 'mild' : 'normal';
-    let uiSoundsCheckbox = document.getElementById('chk-ui-sounds');
-    game.settings.uiSounds = !uiSoundsCheckbox || uiSoundsCheckbox.checked;
-    playUiFeedbackSound.syncSettings();
-    game.settings.showCombatLog = document.getElementById('chk-log-combat').checked;
-    let detailedDamageLogCheckbox = document.getElementById('chk-log-damage-detail');
-    game.settings.showDetailedDamageLog = !!(detailedDamageLogCheckbox && detailedDamageLogCheckbox.checked);
-    game.settings.combatLogAggregate = document.getElementById('chk-log-aggregate').checked;
-    game.settings.combatLogRateLimit = document.getElementById('chk-log-rate-limit').checked;
-    game.settings.showSpawnLog = document.getElementById('chk-log-spawn').checked;
-    game.settings.showStoryLog = document.getElementById('chk-log-story').checked;
-    game.settings.showExpLog = document.getElementById('chk-log-exp').checked;
-    game.settings.showLootLog = document.getElementById('chk-log-loot').checked;
-    game.settings.showCrowdPauseLog = document.getElementById('chk-log-crowd').checked;
-    game.settings.showDeathNotice = document.getElementById('chk-death-notice').checked;
-    game.settings.showMobileBattlePip = document.getElementById('chk-mobile-battle-pip').checked;
-    let tabNotiCheckbox = document.getElementById('chk-tab-noti');
-    if (tabNotiCheckbox) game.settings.tabNotiEnabled = tabNotiCheckbox.checked;
-    let socialChatNotiCheckbox = document.getElementById('chk-social-chat-noti');
-    if (socialChatNotiCheckbox) game.settings.socialChatNotifications = socialChatNotiCheckbox.checked;
-    let chatMessageSizeSelect = document.getElementById('sel-chat-message-size');
-    game.settings.chatMessageSize = applyChatMessageSize(chatMessageSizeSelect ? chatMessageSizeSelect.value : game.settings.chatMessageSize);
-    if (game.settings.socialChatNotifications === false && game.noti) game.noti.social = false;
-    if (previousSocialChatNotifications !== (game.settings.socialChatNotifications !== false)
-        && typeof syncSocialChatNotificationSetting === 'function') syncSocialChatNotificationSetting();
-    game.settings.twoRowTabs = false;
-    lastTabHeaderUiSignature = null;
-    let pauseOverlayCheckbox = document.getElementById('chk-pause-overlay');
-    game.settings.pauseGameOnOverlay = !!(pauseOverlayCheckbox && pauseOverlayCheckbox.checked);
-    let autoEquipCheckbox = document.getElementById('chk-auto-equip-empty');
-    game.settings.autoEquipEmptySlots = !autoEquipCheckbox || autoEquipCheckbox.checked;
-    if (game.combatTacticsUnlocked) {
-        let targetSelect = document.getElementById('sel-combat-target-priority');
-        let positionSelect = document.getElementById('sel-combat-position-mode');
-        let tactics = normalizeCombatTacticsSettings({
-            combatTargetPriority: targetSelect && targetSelect.value,
-            combatPositionMode: positionSelect && positionSelect.value
-        });
-        game.settings.combatTargetPriority = tactics.targetPriority;
-        game.settings.combatPositionMode = tactics.positionMode;
-    }
-    let damageFormatSelect = document.getElementById('sel-damage-number-format');
-    let damageFormat = damageFormatSelect ? damageFormatSelect.value : game.settings.damageNumberFormat;
-    game.settings.damageNumberFormat = ['comma', 'korean', 'korean_short', 'english'].includes(damageFormat) ? damageFormat : 'comma';
-    game.settings.showExpComma = document.getElementById('chk-exp-comma').checked;
-    game.settings.showHpComma = document.getElementById('chk-hp-comma').checked;
-    game.settings.showEnemyHpComma = document.getElementById('chk-enemy-hp-comma').checked;
-    game.settings.showCharacterComma = document.getElementById('chk-character-comma').checked;
-    game.settings.mapCompleteAction = getMapCompleteActionOption((document.getElementById('sel-map-complete-action') || {}).value).value;
-    let disableItemAutomationAfterLoop = document.getElementById('chk-loop-disable-item-automation');
-    let postLoopMapCompleteAction = document.getElementById('sel-loop-map-complete-action');
-    game.settings.disableItemAutomationAfterLoop = !disableItemAutomationAfterLoop || disableItemAutomationAfterLoop.checked;
-    game.settings.postLoopMapCompleteAction = getMapCompleteActionOption(postLoopMapCompleteAction ? postLoopMapCompleteAction.value : game.settings.postLoopMapCompleteAction).value;
-    let townReturnValue = (document.getElementById('sel-town-return-action') || {}).value;
-    game.settings.townReturnAction = ['retry', 'stop'].includes(townReturnValue) ? townReturnValue : 'retry';
-    let skinSelect = document.getElementById('sel-ui-skin');
-    game.settings.uiSkin = normalizeUiSkin(skinSelect ? skinSelect.value : game.settings.uiSkin);
-    let highContrastToggle = document.getElementById('chk-high-contrast');
-    game.settings.highContrast = highContrastToggle ? highContrastToggle.checked : game.settings.highContrast === true;
-    applyUiSkin(game.settings.uiSkin);
-    applyHighContrast(game.settings.highContrast);
-    toggleDeathNoticeSetting(game.settings.showDeathNotice);
-    syncMapCompleteActionQuickControl();
-    updateStaticUI();
 }
 
 function applyTooltipPosition(el, x, y) {
@@ -12078,7 +12006,6 @@ function updateCloudSaveUI() {
     let uploadProfileEl = document.getElementById('ui-cloud-upload-profile');
     let msgEl = document.getElementById('ui-cloud-message');
     let openGateBtn = document.getElementById('btn-cloud-open-gate');
-    let switchGateBtn = document.getElementById('btn-cloud-return-startup');
     let canSync = config.enabled && !cloudState.busy && !!cloudState.user;
 
     if (pill) {
@@ -12107,7 +12034,6 @@ function updateCloudSaveUI() {
     if (pill && cloudState.lastMessage && /실패|오류/.test(cloudState.lastMessage) && !cloudState.busy) pill.classList.add('error');
 
     if (openGateBtn) openGateBtn.disabled = cloudState.busy;
-    if (switchGateBtn) switchGateBtn.disabled = cloudState.busy || (!cloudState.user && !gameplayStarted);
     ['btn-cloud-logout', 'btn-cloud-push', 'btn-cloud-pull'].forEach(id => {
         let el = document.getElementById(id);
         if (el) el.disabled = !canSync;

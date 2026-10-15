@@ -1058,7 +1058,7 @@
     }
 
     function installSettingsReset() {
-        let host = document.querySelector('#tab-settings .cfg-action-row');
+        let host = document.getElementById('settings-window-actions');
         if (!host || document.getElementById('btn-reset-window-layout')) return;
         let button = document.createElement('button');
         button.id = 'btn-reset-window-layout';

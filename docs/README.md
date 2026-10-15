@@ -27,6 +27,7 @@
 | 캐릭터·몬스터 | [Hana 연결](hana-integration-20260929.md), [액트 몬스터](act-monsters-20261002.md), [위습](wisp-monsters-20260929.md) |
 | 전직·스킬 | [전직 개편 기록](ascendancy-18-20261002.md), [이동 스킬·소환 변경](skill-delta2-20260930.md) |
 | UI·CSS | [CSS 구조와 이전 이관 기록](css-architecture-20260915.md), [도트 UI 작업 기록](pixel-ui-20260929.md) |
+| 설정·화면 배율 | [설정 구성, 저장 호환성과 화면 배율](ui-display.md) |
 | 브라우저 검사·CI | [현재 실행 방법](browser-ci.md) |
 | Android 검사 | [빌드 경로와 과거 시험판 기록](android-testing.md) |
 | 공개·비공개 자산 | [배포 경계](github-publish-20261001.md) |
