@@ -20,7 +20,7 @@ const SUPPLIED_STORY_SCENES = Object.freeze([
 // 2026-10-15, docs/stage-view-20261011.md). A scene added here after release needs the seen marker in js/story-journal-ui.js
 // markPassedBridges raised, or saves already past its act get it out of order.
 const STORY_BRIDGE_SCENES = Object.freeze([
-    {"id":"act_1_start","title":"액트 1, 뿌리의 드루이드","act":1,"phase":"start","journal":"act_1","lines":["우물 바닥을 기어 나온 당신을 거둔 것은, 뿌리끝 성소에 홀로 은둔하던 늙은 드루이드 하켄이었습니다.","그는 말없이 당신의 상처를 싸매고, 녹슨 무기 한 자루를 손에 쥐여 주었습니다."]}
+    {"id":"act_1_start","title":"액트 1, 뿌리의 드루이드","act":1,"phase":"start","journal":"act_1","lines":["추락의 충격 속에서 눈을 떴을 때, 첫 방 구석에서 폭주한 잔뿌리 괴물들에게 몰려 신음하는 늙은 드루이드 하켄이 보였습니다.","당신이 무장을 고쳐 쥐고 달려들어 괴물들을 베어 넘기자, 기사회생한 노인은 떨리는 숨을 고르며 중정으로 오르는 통로를 가리켰습니다."]}
 ]);
 
 // Story order: the journal, the popups and the idle-return fold read it in this order.
@@ -65,7 +65,7 @@ for (const entryId of new Set(STORY_JOURNAL_SCENES.map(scene => scene.journal)))
 const STORY_CLASS_ORIGINS = Object.freeze({
     warrior: Object.freeze({
         label: '전사 (부러진 근위병)',
-        wakeLine: '“진흙 구덩이에 던져졌는데도 검과 방패는 멀쩡하군. 다시 올라간다.”',
+        wakeLine: '“추락해도 검과 방패는 멀쩡하군. 저쪽의 노인이 괴물들에게 몰리고 있나!”',
         eliteLine: '“방패에 걸리는 손맛이 가볍군. 보스 방 빗장이 풀렸다.”',
         bossLines: Object.freeze({
             1: '“잔뿌리들이 내 검끝을 두려워하며 통로를 막고 있었군.”',
@@ -82,7 +82,7 @@ const STORY_CLASS_ORIGINS = Object.freeze({
     }),
     wanderer: Object.freeze({
         label: '방랑자 (그림자 처형인)',
-        wakeLine: '“시체 더미 밑바닥이라, 늘 일하던 그림자 속이랑 다를 것도 없네.”',
+        wakeLine: '“추락한 바닥치곤 꽤 소란스럽네. 저 노인네, 괴물들한테 뜯어먹히기 직전인데?”',
         eliteLine: '“성가신 문지기는 치웠어. 이제 안쪽 주인을 보러 갈까.”',
         bossLines: Object.freeze({
             1: '“단검 끝에 닿자마자 움츠러드네. 쇠 맛을 아는 뿌리들이야.”',
@@ -99,7 +99,7 @@ const STORY_CLASS_ORIGINS = Object.freeze({
     }),
     archer: Object.freeze({
         label: '궁수 (별을 쫓는 파수꾼)',
-        wakeLine: '“위쪽 통로에서 마른 바람이 불어 내려와. 올라갈 길이 있다는 뜻이야.”',
+        wakeLine: '“진흙 바닥에 떨어졌는데도 활시위는 무사해. 저기 노인을 덮치는 괴물들부터 쏘자.”',
         eliteLine: '“막혀 있던 바람길이 트였어. 이제 보스 방으로 갈 수 있겠네.”',
         bossLines: Object.freeze({
             1: '“뿌리들이 내 화살촉의 서늘한 기운을 피해 스스로 엉켜 있었어.”',
@@ -116,7 +116,7 @@ const STORY_CLASS_ORIGINS = Object.freeze({
     }),
     cleric: Object.freeze({
         label: '성직자 (파문당한 고해사제)',
-        wakeLine: '“가장 낮은 진흙 구덩이에서도 향로의 불씨만큼은 꺼지지 않았군요.”',
+        wakeLine: '“추락 속에서도 향로의 불씨는 꺼지지 않았군요. 위기에 처한 저 노인분부터 구하죠.”',
         eliteLine: '“향로의 연기가 거짓 결계를 거두었습니다. 심장부로 나아가죠.”',
         bossLines: Object.freeze({
             1: '“두려움에 통로를 막았던 잔뿌리들이여, 향 연기 속에 잠드소서.”',
@@ -133,7 +133,7 @@ const STORY_CLASS_ORIGINS = Object.freeze({
     }),
     occultist: Object.freeze({
         label: '비술사 (금서의 해독자)',
-        wakeLine: '“우물 바닥인데도 오브가 공명하고 있어. 계산대로 아직 끝나지 않았네.”',
+        wakeLine: '“추락의 충격에도 오브는 멀쩡하네. 저 노인을 포위한 잔뿌리 개체들부터 정리하자.”',
         eliteLine: '“결계의 수액 회로가 끊겼어. 오브가 보스 방의 파장을 가리키네.”',
         bossLines: Object.freeze({
             1: '“잔뿌리들이 내 오브의 공허 파장을 본능적으로 두려워하고 있었어.”',
@@ -150,7 +150,7 @@ const STORY_CLASS_ORIGINS = Object.freeze({
     }),
     alchemist: Object.freeze({
         label: '연금술사 (이단 배양가)',
-        wakeLine: '“최고급 부패 수액 속에서 눈을 뜨다니, 시작부터 훌륭한 배양 환경이네요.”',
+        wakeLine: '“진흙 구덩이로 떨어졌는데 플라스크는 무사하네요. 저기 위험한 노인분부터 구해볼까요.”',
         eliteLine: '“좋은 시료였어요. 보스 방 문에 걸린 응고 봉인도 다 녹았네요.”',
         bossLines: Object.freeze({
             1: '“썩은 잔뿌리에 초록 시약을 한 방울 떨어뜨렸더니 거품을 물고 녹네요.”',
@@ -171,7 +171,7 @@ const STORY_CLASS_ORIGINS = Object.freeze({
 // the encounters write it, and title. Each keeps the unlocks whose loop lines it speaks (STORY_LOOP_MILESTONES speaker): the NPC
 // window lists them (js/content-progression-ui.js openNpc).
 const STORY_NPCS = Object.freeze({
-    haken: Object.freeze({ id: 'haken', name: '뿌리끝의 드루이드, 하켄', title: '지주근의 주인, 비밀 담금질꾼' }),
+    haken: Object.freeze({ id: 'haken', name: '뿌리끝의 드루이드, 하켄', title: '뿌리끝 성소의 은둔자' }),
     bern: Object.freeze({ id: 'bern', name: '접목사 베른', title: '기억을 줍는 눈먼 수도사' }),
     orga: Object.freeze({ id: 'orga', name: '벼림꾼 오르가', title: '부러진 모루의 잔류 사념' }),
     ivel: Object.freeze({ id: 'ivel', name: '배교자 이벨', title: '장막을 걷는 순례자' }),
@@ -185,23 +185,23 @@ const STORY_ACT_ENCOUNTERS = Object.freeze({
     1: Object.freeze({
         npc: Object.freeze({
             name: '뿌리끝의 드루이드, 하켄',
-            bark: '“찬 진흙 속에서 숨이 붙어 있더구나. 상처가 아물 때까지 내 성소에서 몸을 녹이렴.”',
-            loopBark: '“기이한 일이군. 방금 우물에서 건졌는데 네 무기엔 이미 마른 피가 배어 있다.”',
+            bark: '“하마터면 잔뿌리들에게 먹힐 뻔했구나. 구해주어 고맙다, 앞길의 어미 매듭도 베어주렴.”',
+            loopBark: '“기이한 일이군. 내가 도움을 청하기도 전에 잔뿌리가 덮칠 자리를 먼저 베어내다니.”',
             classBarks: Object.freeze({
-                warrior: '“부러진 근위병의 방패로구나. 정원사의 가위를 꺾던 손이 아직 떨리는구나.”',
-                wanderer: '“단검 끝에 중정의 그늘이 배어 있구나. 여기선 등 뒤를 걱정하지 않아도 된다.”',
-                archer: '“수관 너머의 별을 보려다 떨어졌구나. 네 활시위가 마를 때까지 쉬어가거라.”',
-                cleric: '“파문당한 사제의 향로에서 아직 따뜻한 온기가 나는구나. 기특한 일이다.”',
-                occultist: '“금서를 읽다 버려진 아이야, 네 오브의 불빛이 꺼지지 않아 다행이구나.”',
-                alchemist: '“진흙 속에서도 플라스크를 놓지 않았구나. 네 약초 냄새가 반갑기만 하다.”'
+                warrior: '“부러진 방패로 날 덮치던 괴물을 단숨에 쳐내다니, 중정 근위병의 실력이 그대로구나.”',
+                wanderer: '“소리도 없이 잔뿌리의 급소를 따버리는구나. 중정의 그림자 처형인이 바로 너였군.”',
+                archer: '“눈을 뜨자마자 날 덮치던 잔뿌리를 꿰뚫다니, 별을 쫓던 파수꾼의 눈매가 분명하구나.”',
+                cleric: '“향로의 불씨로 잔뿌리 괴물을 물리쳐 주었구나. 파문당한 고해사제여, 고맙다.”',
+                occultist: '“공허 오브의 파장으로 잔뿌리들을 단숨에 떨쳐내다니, 금서를 해독하던 학자로구나.”',
+                alchemist: '“시약 한 방울로 날 덮치던 괴물을 녹여버리다니, 추방당한 이단 배양가가 너였구나.”'
             }),
             classReplies: Object.freeze({
-                warrior: '“불길 옆에서 쉴 틈은 없다. 중정으로 오르는 길이나 알려줘.”',
-                wanderer: '“공짜로 건져준 건 아닐 텐데? 원하는 게 뭔지부터 말해봐.”',
-                archer: '“불을 쬘 필요는 없어. 위쪽에서 불어오는 바람만 따라가면 돼.”',
-                cleric: '“거두어 주신 은혜는 잊지 않겠습니다. 향로의 불씨도 무사하군요.”',
-                occultist: '“몸을 녹이는 것보다 이 성소의 지맥 구조부터 파악하는 게 먼저야.”',
-                alchemist: '“고마워요, 할아버지. 덕분에 우물 밑바닥에서 귀한 시료를 건졌네요.”'
+                warrior: '“몸을 추스르고 물러서 있어라. 중정으로 오르는 통로의 잔뿌리도 내가 다 베겠다.”',
+                wanderer: '“구해준 값은 중정으로 올라가는 길 안내면 충분해. 남은 잔뿌리들도 마저 치우지.”',
+                archer: '“다친 데가 없다면 다행이야. 위쪽 통로에서 불어오는 바람을 따라 마저 올라가 볼게.”',
+                cleric: '“다행히 큰 상처는 없으시군요. 성소 출구를 막은 어미 잔뿌리도 제가 거두겠습니다.”',
+                occultist: '“구해준 김에 물어보지. 중정으로 오르는 수액 통로가 저 잔뿌리 매듭 너머 맞지?”',
+                alchemist: '“구해드린 보답으로 저 잔뿌리들은 제 시료로 쓸게요. 중정 길은 저 너머인가요?”'
             }),
             tone: 'violet'
         }),
@@ -223,9 +223,9 @@ const STORY_ACT_ENCOUNTERS = Object.freeze({
             }),
             classReplies: Object.freeze({
                 warrior: '“상극이든 뭐든 내 방패 앞에서는 똑같다. 정원사는 어디 있지?”',
-                wanderer: '“눈먼 수도사님이 소문은 다 듣고 계시네. 입단속은 해줄 거지?”',
-                archer: '“냄새만으로 내 출신을 맞히다니, 바람을 읽는 감각이 남다르네.”',
-                cleric: '“버려진 가지들의 눈물을 거두시다니, 중정의 사제들보다 성스럽군요.”',
+                wanderer: '“그루터기 함 다루는 법은 잘 들었어. 이제 중정 안쪽 구경이나 가볼까.”',
+                archer: '“씨앗에도 서로 밀어내는 바람결이 있구나. 기억해 두고 중정으로 오르겠어.”',
+                cleric: '“버려진 씨앗을 거두는 그루터기 함이라니, 중정의 성소보다 훨씬 따뜻하군요.”',
                 occultist: '“상극의 억제와 동질의 공명이라, 그루터기 함의 법칙은 명확하네.”',
                 alchemist: '“불씨와 서리를 섞으면 폭발한다는 뜻이죠? 실험 노트에 적어둘게요.”'
             }),
@@ -237,15 +237,15 @@ const STORY_ACT_ENCOUNTERS = Object.freeze({
     3: Object.freeze({
         npc: Object.freeze({
             name: '뿌리끝의 드루이드, 하켄',
-            bark: '“그 높은 중정에서 떨어지고도 살아남았구나. 다친 곳은 없느냐? 천천히 숨을 고르거라.”',
-            loopBark: '“현수림의 짐승들이 널 보자마자 뒷걸음질 치는군. 전에 물려본 사냥감처럼.”',
+            bark: '“추락하고도 살아남았구나. 부제녀의 불멸을 잇는 수액관이 이 굶주린 숲 아래로 흐른다.”',
+            loopBark: '“기이한 일이군. 추락한 자리에서 일어서자마자 수액관이 흐르는 숲 아래를 노려보는구나.”',
             classBarks: Object.freeze({
-                warrior: '“방패가 반쯤 찌그러졌는데도 눈빛은 더 단단해졌구나. 다행이다.”',
-                wanderer: '“추락하면서도 단검으로 뿌리를 찍어 낙하를 멈췄구나. 놀라운 감각이다.”',
-                archer: '“허공뿌리의 거센 바람 속에서도 화살통 하나 흐트러지지 않았구나.”',
-                cleric: '“성녀의 창에 찔리고도 향로의 불씨를 지켰구나. 이제 아랫길을 보거라.”',
-                occultist: '“떨어지는 와중에도 중정의 수액 회로를 읽었느냐. 참으로 영리한 아이로구나.”',
-                alchemist: '“부제녀의 황금 수액을 플라스크에 받아 왔구나. 네 집념엔 혀를 내두르겠다.”'
+                warrior: '“방패로 추락을 버텨냈구나. 부제녀의 상처를 붙이던 수액관이 이 숲 아래로 흐른다.”',
+                wanderer: '“단검으로 허공뿌리를 찍어 낙하를 멈췄군. 네가 찾는 부제녀의 수액줄이 이 아래에 있다.”',
+                archer: '“추락하는 바람 속에서도 길을 읽었군. 중정으로 수액을 나르는 관로가 이 숲 아래다.”',
+                cleric: '“거짓 성녀의 일격을 견뎌냈구나. 이 굶주린 숲이 중정에 수액을 빼앗기는 현장이다.”',
+                occultist: '“추락하며 중정의 재생 회로를 보았겠지. 그 수액 수송로가 이 현수림 아래로 이어진다.”',
+                alchemist: '“부제녀의 재생을 보았느냐. 이 숲의 진액을 빨아올리는 황금 수액관이 바로 아래에 있다.”'
             }),
             classReplies: Object.freeze({
                 warrior: '“이 정도 추락으론 안 죽는다. 바닥의 수액관부터 부수러 가겠다.”',
@@ -253,7 +253,7 @@ const STORY_ACT_ENCOUNTERS = Object.freeze({
                 archer: '“떨어지면서 수액관이 어디로 흐르는지 위에서 다 봐두었어.”',
                 cleric: '“아래쪽 뿌리들의 굶주림을 보았습니다. 저 거짓 은총을 끊어내겠습니다.”',
                 occultist: '“부제녀의 재생 술식은 하층 수송로에 직결되어 있어. 미궁으로 간다.”',
-                alchemist: '“높은 곳에서 떨어진 덕분에 희귀한 기근 표본들을 잔뜩 만났어요.”'
+                alchemist: '“부제녀를 살리던 황금 수액관이라니, 부식 시약으로 통째로 녹여버릴게요.”'
             }),
             tone: 'violet'
         }),
@@ -263,23 +263,23 @@ const STORY_ACT_ENCOUNTERS = Object.freeze({
     4: Object.freeze({
         npc: Object.freeze({
             name: '접목사 베른',
-            bark: '“너를 올려 보낸 드루이드의 눈은 구원자가 아닌 대장장이의 눈이었어.”',
+            bark: '“첫 방에서 괴물에게 몰리던 그 노인의 연기에 속지 마라. 눈빛은 대장장이였어.”',
             loopBark: '“미궁의 갈림길마다 망설임이 없구나. 수액 독이 어디 숨었는지 다 아는 것처럼.”',
             classBarks: Object.freeze({
-                warrior: '“하켄은 네 방패가 아니라 정원사의 목을 칠 네 검끝만 보고 있단다.”',
-                wanderer: '“남의 밀담을 잘 듣는 처형인이 정작 등 뒤의 숫돌 소리는 못 들었느냐.”',
-                archer: '“먼 곳의 별만 보다가 발밑의 덫을 놓치지 마라. 성소의 은인을 경계하렴.”',
-                cleric: '“중정의 위선을 미워한 나머지 또 다른 거짓 구원자에게 속지 마라.”',
-                occultist: '“모든 인과를 계산한다면서 왜 너를 건져 올린 손의 의도는 의심하지 않았니.”',
-                alchemist: '“네가 시약을 배양하듯, 아래쪽의 드루이드도 너를 배양하고 있었단다.”'
+                warrior: '“하켄이 잔뿌리에게 당하던 건 미끼였단다. 네 검끝이 정원사를 벨 만한지 시험한 게야.”',
+                wanderer: '“남의 밀담을 잘 듣는 처형인이 정작 성소의 구출극이 꾸며진 연극인 줄은 몰랐느냐.”',
+                archer: '“먼 곳의 별만 보다가 발밑의 덫을 놓치지 마라. 네가 구해준 그 노인을 경계하렴.”',
+                cleric: '“가엾은 노인을 구해준 줄 알았겠지만, 하켄은 처음부터 너를 연장으로 벼리고 있었다.”',
+                occultist: '“모든 인과를 계산한다면서 왜 첫 방의 습격이 너를 시험할 미끼였다는 건 놓쳤느냐.”',
+                alchemist: '“네가 첫 방에서 구해준 줄 알았던 그 드루이드가, 실은 너를 배양하고 있었단다.”'
             }),
             classReplies: Object.freeze({
-                warrior: '“하켄이 날 이용했든 말든 상관없다. 부제녀부터 베고 확인하겠다.”',
-                wanderer: '“어쩐지 너무 친절하다 했어. 노인네 속셈은 이따가 직접 물어보지.”',
-                archer: '“경고는 고마워. 먼저 눈앞의 운반선부터 끊고 성소로 내려가겠어.”',
-                cleric: '“은인마저 저를 연장으로 보았다면, 그 업보 또한 직접 묻겠습니다.”',
-                occultist: '“성소의 숫돌 파장, 역시 우연이 아니었군. 이 미궁부터 정리하지.”',
-                alchemist: '“어머, 제가 배양당하는 쪽이었다고요? 누가 시료가 될지는 두고 봐야죠.”'
+                warrior: '“그 구출극이 날 시험하려는 연기였다고? 부제녀부터 베고 내려가 직접 확인하겠다.”',
+                wanderer: '“어쩐지 잔뿌리 따위한테 당한다 했어. 노인네 속셈은 이따 내려가서 직접 따져보지.”',
+                archer: '“첫 만남부터 꾸며진 시험이었다니, 먼저 눈앞의 운반선부터 끊고 성소로 내려가겠어.”',
+                cleric: '“제가 구해드린 분이 저를 연장으로 보았다면, 그 업보 또한 내려가서 직접 묻겠습니다.”',
+                occultist: '“첫 방의 습격조차 날 측정하려는 설계였다니, 이 미궁부터 정리하고 내려가 보지.”',
+                alchemist: '“어머, 불쌍한 노인인 척 저를 시험하셨다고요? 누가 시료가 될지는 두고 봐야죠.”'
             }),
             tone: 'gold'
         }),
@@ -309,8 +309,8 @@ const STORY_ACT_ENCOUNTERS = Object.freeze({
             }),
             tone: 'gold'
         }),
-        stele: Object.freeze({ title: '담금질 수조의 일지', bark: '“독을 먹이고 추락으로 날을 세웠다. 내 심장이 마지막 숫돌이다. (하켄 일지)”' }),
-        boss: Object.freeze({ intro: '「드루이드 하켄이 자신이 벼려낸 칼날의 예리함을 시험하려 일어난다.」', half: '“단검을 벼린 줄 알았건만, 네 궤적에서 도끼의 그림자가 보이는구나.”', defeat: '“나무꾼의 첫 날붙이여, 내 뿌리로 중정으로 오르는 다리를 놓아주마.”' })
+        stele: Object.freeze({ title: '담금질 수조의 일지', bark: '“미끼로 살의를 보았고 추락으로 날을 세웠다. 내 심장이 마지막 숫돌이다. (하켄 일지)”' }),
+        boss: Object.freeze({ intro: '「드루이드 하켄이 자신이 벼려낸 칼날의 마지막 담금질을 위해 일어난다.」', half: '“성소의 독과 중정의 추락을 모두 견뎠구나. 이제 내 심장을 꿰뚫어 보아라!”', defeat: '“충분히 예리해졌구나. 내 죽음을 밟고 올라가 정원사의 목을 베어라.”' })
     }),
     6: Object.freeze({
         npc: Object.freeze({
@@ -367,7 +367,7 @@ const STORY_ACT_ENCOUNTERS = Object.freeze({
     8: Object.freeze({
         npc: Object.freeze({
             name: '배교자 이벨',
-            bark: '“장막 안의 순례자가 왜 너와 같은 검법을 쓰는지 직접 확인해 봐.”',
+            bark: '“장막 안의 순례자가 왜 너와 똑같은 기술을 쓰는지 직접 확인해 봐.”',
             loopBark: '“장막 바닥의 발자국이 지난번보다 더 깊게 패였어. 대체 몇 번째 걸음이야?”',
             classBarks: Object.freeze({
                 warrior: '“장막 안의 저 순례자, 방패를 치켜드는 각도가 너랑 소름 끼치게 똑같아.”',
@@ -492,12 +492,12 @@ const STORY_LOOP_MILESTONES = Object.freeze({
     support: Object.freeze({
         narration: Object.freeze(['지주근 바닥에서 건져 올린 젬의 파편들이 주력 기술의 맥동에 공명하기 시작합니다.', '하나의 칼끝에 여러 갈래의 결을 덧대어 위력을 증폭시킬 수 있습니다.']),
         speaker: '뿌리끝의 드루이드, 하켄',
-        quote: '“줄기 하나에 잔가지를 엮으면 수액의 물살도 두 배로 거세진다.”'
+        quote: '“줄기 하나에 잔가지를 덧대어 엮으면 수액의 물살도 배로 거세진단다.”'
     }),
     research: Object.freeze({
         narration: Object.freeze(['부서진 젬의 잔향 속에서 잊힌 전투 기법의 문양들이 떠오릅니다.', '흩어진 잔향을 모아 아직 손에 넣지 못한 새로운 기술을 복원합니다.']),
         speaker: '뿌리끝의 드루이드, 하켄',
-        quote: '“부서진 잔향 속에도 이전 계절의 날붙이들이 남긴 기술이 깃들어 있다.”'
+        quote: '“부서진 잔향 속에도 우물로 버려졌던 옛 가지들의 기술이 깃들어 있단다.”'
     }),
     gemForge: Object.freeze({
         narration: Object.freeze(['군주의 핵과 창공의 정수가 젬의 중심부에 뜨거운 압력을 불어넣습니다.', '제련된 젬은 이전 계절보다 훨씬 날카로운 파장을 내뿜습니다.']),
