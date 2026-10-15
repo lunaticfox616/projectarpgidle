@@ -68,6 +68,7 @@ function init() {
     document.getElementById('chk-log-aggregate').checked = game.settings.combatLogAggregate !== false;
     document.getElementById('chk-log-rate-limit').checked = game.settings.combatLogRateLimit !== false;
     document.getElementById('chk-log-spawn').checked = game.settings.showSpawnLog !== false;
+    document.getElementById('chk-log-story').checked = game.settings.showStoryLog !== false;
     document.getElementById('chk-log-exp').checked = game.settings.showExpLog !== false;
 
 

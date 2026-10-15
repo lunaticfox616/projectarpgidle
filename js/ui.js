@@ -5266,6 +5266,7 @@ function updateSettings() {
     game.settings.combatLogAggregate = document.getElementById('chk-log-aggregate').checked;
     game.settings.combatLogRateLimit = document.getElementById('chk-log-rate-limit').checked;
     game.settings.showSpawnLog = document.getElementById('chk-log-spawn').checked;
+    game.settings.showStoryLog = document.getElementById('chk-log-story').checked;
     game.settings.showExpLog = document.getElementById('chk-log-exp').checked;
     game.settings.showLootLog = document.getElementById('chk-log-loot').checked;
     game.settings.showCrowdPauseLog = document.getElementById('chk-log-crowd').checked;

@@ -2301,6 +2301,7 @@ const defaultGame = {
         combatLogAggregate: true,
         combatLogRateLimit: true,
         showSpawnLog: true,
+        showStoryLog: true, // the hero's, NPCs' and bosses' lines in the combat log (js/canvas-act-title-card.js logStoryLine)
         showExpLog: true,
         showLootLog: true,
         showCrowdPauseLog: true,

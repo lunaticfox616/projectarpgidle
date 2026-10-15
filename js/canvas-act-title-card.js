@@ -74,6 +74,16 @@ const actTitleCard = (() => {
         dropStoryLines(entry => (entry.zone !== zone && !CARRY.has(entry.key)) || (now - entry.at > LINE.staleMs && !GREET.keys.has(entry.key)));
         if (line || card || pending || !queue.length) return;
         line = { ...queue.shift(), startAt: now };
+        logStoryLine(line);
+    }
+    // Who is logged: the hero, the NPCs, the bosses. Narration and inscriptions stay on the stage.
+    const LOGGED = new Set(['hero', 'npc', 'boss']);
+    /** The line now on screen also goes to the combat log, short (2026-10-15 사용자: "전투로그에 캐릭터, 등장인물, 보스 대사 (마법사 :
+     * 대사) 이렇게 간결하게", 설정 '대사 표시' showStoryLog): the hero by its class name, an NPC by its name after the title. */
+    function logStoryLine(row) {
+        if (!LOGGED.has(row.who) || game.settings.showStoryLog === false) return;
+        const speaker = row.speaker.split(' (')[0].split(', ').pop(), words = row.text.replace(/^“|”$/g, '');
+        addLog(`<b class="log-speaker" style="color:${row.colour}">${escapeHTML(speaker)}</b> : ${escapeHTML(words)}`, 'story-line', { noToast: true });
     }
     /** Queues a line once per loop and place (the act, trial or endgame boss whose story it is). row: key (wake, npc, stele,
      * intro, half, defeat, class, elite), who (hero, boss, npc, stele, narration), speaker, text, tone, and for a boss its id. */
