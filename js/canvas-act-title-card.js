@@ -157,6 +157,11 @@ const actTitleCard = (() => {
     /** The guide of the entry room's lines: act 1's guide stands there only in loop 1 (2026-10-15 사용자: after a loop the first room has no
      * Haken, as there is no fall to wake from). */
     const guideHere = story => (story.npc && !(actOf(zone)?.order === 1 && (game.season || 1) > 1) ? story.npc : null);
+    /** ...so from loop 2 act 1's entry lines (loopBark, classBarks) are the hero's own, said on waking in the empty first room
+     * (docs/story-bible.md 5.2, 2026-10-16). */
+    function queueHeroMuse(story, lore, now) {
+        if (lore && story.npc && actOf(zone)?.order === 1 && (game.season || 1) > 1) queueStoryLine({ key: 'npc', who: 'hero', speaker: lore.label, text: npcLine(story.npc), tone: 'gold' }, now);
+    }
     /** The hero's first words, in loop 1's act 1 entry room. */
     /** The first start's hero lies in the entry room until pressed (js/opening-journey-ui.js): no lines meanwhile, nor under the intro
      * (the intro starts a tick after the class pick). */
@@ -187,6 +192,7 @@ const actTitleCard = (() => {
         if (hushed()) return;
         const lore = storyClassLore(), npc = guideHere(story);
         queueSpotLine(lore, run, now);
+        queueHeroMuse(story, lore, now);
         if (!npc || rescuing(run)) return;
         queueStoryLine({ key: 'npc', who: 'npc', speaker: npc.name, text: npcLine(npc), tone: npc.tone }, now);
         const reply = lore && (game.season || 1) === 1 ? (npc.classReplies || {})[game.selectedClassId] : null;
