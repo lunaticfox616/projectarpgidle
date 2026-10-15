@@ -157,11 +157,12 @@ body.desktop-windowed-ui #content-unlock-panel>.unlock-workspace{flex:1 0 auto}
 .npc-dialog[data-tone="violet"]{--npc-tone:#c9a4f2;--npc-glow:rgba(201,164,242,.16)}
 .npc-dialog[data-tone="cyan"]{--npc-tone:#8fe3d6;--npc-glow:rgba(143,227,214,.14)}
 .npc-dialog[data-tone="crimson"]{--npc-tone:#ef9a92;--npc-glow:rgba(239,154,146,.15)}
-.npc-dialog[open]{display:grid;grid-template-columns:minmax(220px,31%) minmax(0,1fr)}
+.npc-dialog[open]{display:grid;grid-template-columns:minmax(260px,36%) minmax(0,1fr)}
 .npc-dialog::backdrop{background:rgba(6,5,4,.66)}
-.npc-dialog-figure{position:relative;margin:0;min-height:0;overflow:hidden;border-right:1px solid var(--skin-line);background:radial-gradient(ellipse 85% 48% at 50% 64%,var(--npc-glow),transparent 72%),linear-gradient(180deg,#1c1712,#0c0a08 88%)}
+.npc-dialog-figure{position:relative;margin:0;min-height:0;overflow:hidden;border-right:1px solid var(--skin-line);background:radial-gradient(ellipse 80% 46% at 50% 38%,var(--npc-glow),transparent 72%),linear-gradient(180deg,#1c1712,#0c0a08 88%)}
 .npc-dialog-figure::after{content:'';position:absolute;inset:auto 0 0;height:22%;background:linear-gradient(transparent,#0c0a08);pointer-events:none}
-.npc-dialog-portrait{position:absolute;left:50%;bottom:0;width:auto;max-width:none;height:92%;transform:translateX(-50%);filter:drop-shadow(0 12px 22px rgba(0,0,0,.6))}
+/* 상반신만(2026-10-15 사용자: "상반신 허리정도까지만"): 다섯 그림 모두 허리띠가 높이의 46~56%에 있어, 위 58%가 칸을 채우게 키우고 아래는 넘친다. */
+.npc-dialog-portrait{position:absolute;left:50%;top:3%;width:auto;max-width:none;height:168%;transform:translateX(-50%);filter:drop-shadow(0 12px 22px rgba(0,0,0,.6))}
 .npc-dialog-main{display:flex;flex-direction:column;min-width:0;min-height:0;background:linear-gradient(180deg,rgba(169,145,84,.07),transparent 140px)}
 .npc-dialog-head{display:flex;align-items:flex-start;gap:16px;padding:20px 24px 12px}
 .npc-dialog-who{flex:1;min-width:0}
@@ -211,9 +212,8 @@ body.desktop-windowed-ui #content-unlock-panel>.unlock-workspace{flex:1 0 auto}
 /* 휴대폰: NPC는 위쪽 띠(상반신), 그 아래로 이름, 말 상자, 이야깃거리가 이어지고 맡은 해금은 맨 아래에 붙는다. */
 @media (max-width:720px){
 .npc-dialog{width:100vw;max-width:100vw;height:92dvh;max-height:92dvh;margin:auto 0 0}
-.npc-dialog[open]{grid-template-columns:1fr;grid-template-rows:150px minmax(0,1fr)}
+.npc-dialog[open]{grid-template-columns:1fr;grid-template-rows:180px minmax(0,1fr)}
 .npc-dialog-figure{border-right:0;border-bottom:1px solid var(--skin-line)}
-.npc-dialog-portrait{inset:0;width:100%;height:100%;transform:none;object-fit:cover;object-position:50% 8%}
 .npc-dialog-head{padding:12px 14px 8px}
 .npc-dialog-who h2{font-size:1.1rem}
 .npc-dialog-speech{margin:2px 14px 0;padding:12px 14px 14px;min-height:0}
