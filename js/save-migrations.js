@@ -982,6 +982,7 @@ function mergeDefaults(save) {
         merged.combatHalted = !!merged.combatHalted;
     }
     merged.seenTutorials = Array.isArray(merged.seenTutorials) ? merged.seenTutorials.filter(id => typeof id === 'string') : [];
+    merged.npcHeard = Array.isArray(merged.npcHeard) ? Array.from(new Set(merged.npcHeard.filter(id => typeof id === 'string' && id.includes(':')))) : [];
     merged.starterGemTutorialPending = typeof merged.starterGemTutorialPending === 'string'
         && Array.isArray(merged.skills) && merged.skills.includes(merged.starterGemTutorialPending)
         ? merged.starterGemTutorialPending

@@ -33,13 +33,12 @@ const FIELDS = Object.freeze({
     STORY_CLASS_ORIGINS: ['label', 'wakeLine', 'eliteLine', 'bossLines'],
     STORY_ACT_ENCOUNTERS: ['npc', 'stele', 'boss'], STORY_TRIAL_ENCOUNTERS: ['npc', 'stele', 'boss'],
     STORY_ENDGAME_ENCOUNTERS: ['intro', 'half', 'defeat'], STORY_LOOP_MILESTONES: ['narration', 'speaker', 'quote'],
-    STORY_NPCS: ['id', 'name', 'title'],
+    STORY_NPCS: ['id', 'name', 'title', 'dialogues'],
     npc: ['name', 'bark', 'loopBark', 'classBarks', 'classReplies', 'tone'], stele: ['title', 'bark'], boss: ['intro', 'half', 'defeat']
 });
 // 게임이 읽지 않아 옮길 때 빼는 표와 칸.
 const DROP = Object.freeze({
     tables: [],
-    STORY_NPCS: ['dialogues'], // 상황별 대사 초안(바이블 4장): 화면에 나오는 대사는 STORY_ACT_ENCOUNTERS가 맡는다
     STORY_CLASS_ORIGINS: ['crime'], // 추방 죄목: 직업 선택 창은 초상과 이름만 둔다(2026-10-15)
     STORY_ENDGAME_ENCOUNTERS: ['name'], // 띠의 화자는 그 싸움의 보스 이름
     npc: ['bubble'], stele: ['bubble'],
@@ -63,8 +62,9 @@ const COMMENTS = Object.freeze({
     STORY_CLASS_ORIGINS: ["Spoken by the hero: wakeLine in act 1's entry room, eliteLine when the boss gate opens, bossLines[act] after the act",
         'boss falls.'],
     STORY_NPCS: ["The story's five NPCs (docs/story-bible.md section 4): id (also the stage art's id, data/stage-view.js STAGE_NPC_ART), name as",
-        'the encounters write it, and title. Each keeps the unlocks whose loop lines it speaks (STORY_LOOP_MILESTONES speaker): the NPC',
-        'window lists them (js/content-progression-ui.js openNpc).'],
+        'the encounters write it, title, and dialogues: the keywords of its window (js/content-progression-ui.js openNpc), each the NPC',
+        "alone speaking (line), shown once the hero has reached act reqAct and loop reqLoop (both optional). Each keeps the unlocks whose",
+        'loop lines it speaks (STORY_LOOP_MILESTONES speaker): the window lists them under 맡은 해금.'],
     STORY_ACT_ENCOUNTERS: ['Room-stage lines per act (key: STORY_ACTS order; STORY_TRIAL_ENCOUNTERS below has the same shape per trial zone id): npc on',
         'entering the entry room (loopBark from loop 2 on), stele on entering a side room, boss intro once the final boss is up,',
         'half at 55% life, defeat when the map is cleared. Each line 50 characters at most (one line of the band on PC).'],
@@ -199,12 +199,28 @@ function checkNarration(where, value, report) {
     const lines = typeof value === 'string' ? value.split('<br>') : value;
     if (!Array.isArray(lines) || lines.some(line => typeof line !== 'string' || /[<>]/.test(line))) report.error(`${where}: 해설은 글 줄만(<br> 외 마크업 없이)`);
 }
+// NPC 창의 키워드 대화(js/content-progression-ui.js npcTopics): 키워드 이름, NPC 혼자 하는 말, 열리는 액트와 루프(없으면 처음부터).
+const DIALOGUE_FIELDS = new Set(['topic', 'line', 'reqAct', 'reqLoop']);
+const wholeFrom = (value, low) => value === undefined || (Number.isInteger(value) && value >= low);
+function checkDialogues(where, value, report) {
+    if (!Array.isArray(value) || !value.length) { report.error(`${where}: 키워드 대화는 목록이어야 한다`); return; }
+    const topics = new Set();
+    value.forEach((row, index) => {
+        const at = `${where}[${index}]`, strange = Object.keys(row || {}).filter(key => !DIALOGUE_FIELDS.has(key));
+        if (strange.length) report.error(`${at}: 모르는 칸 ${strange.join(', ')}`);
+        if (typeof row.topic !== 'string' || !row.topic.trim() || topics.has(row.topic)) report.error(`${at}: 키워드가 없거나 겹친다`);
+        if (typeof row.line !== 'string' || !HANGUL.test(row.line)) report.error(`${at}: 대사가 없다`);
+        if (!wholeFrom(row.reqAct, 1) || row.reqAct > 10 || !wholeFrom(row.reqLoop, 1)) report.error(`${at}: reqAct는 1~10, reqLoop는 1 이상의 정수`);
+        topics.add(row.topic);
+    });
+}
 function checkEntry(table, where, entry, report) {
     for (const [field, value] of Object.entries(entry || {})) {
         if ((DROP[table] || []).includes(field)) report.drop(`${table}.${field}`);
         else if (!FIELDS[table].includes(field)) report.error(`새 칸 ${where}.${field}: 화면에 연결해 FIELDS에 넣거나 DROP에 넣는다`);
         else if (FIELDS[field]) checkEntry(field, `${where}.${field}`, value, report);
         else if (field === 'narration') checkNarration(`${where}.${field}`, value, report);
+        else if (field === 'dialogues') checkDialogues(`${where}.${field}`, value, report);
         else if (SCREEN_FIELDS.has(field)) checkLine(`${where}.${field}`, value, report);
     }
 }

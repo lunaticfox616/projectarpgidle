@@ -378,10 +378,12 @@ const contentUnlockUi = {
     keeperOf(id) {
         return STORY_LOOP_MILESTONES[id] ? this.personal(STORY_LOOP_MILESTONES[id].speaker) : '';
     },
-    /** True while one of the NPC's unlocks can be bought now: the mark over it on the stage (js/canvas-act-title-card.js). */
-    npcHasNews(name) {
-        if (!game.contentProgression) return false;
-        return this.npcUnlocks(name).some(def => this.npcChip(def)[0] === 'is-ready');
+    /** What the NPC has for the hero, for the mark over it on the stage (js/canvas-act-title-card.js): 'unlock' while one of its
+     * unlocks can be bought now, 'talk' while a keyword it can speak of has not been heard, else ''. npc: { id, name }. */
+    npcNews(npc) {
+        if (!game.contentProgression) return '';
+        if (this.npcUnlocks(npc.name).some(def => this.npcChip(def)[0] === 'is-ready')) return 'unlock';
+        return this.npcTopics(npc).open.some(row => !this.npcHeard(npc, row.topic)) ? 'talk' : '';
     },
     /** [class, text] of an unlock's state in the NPC window. */
     npcChip(def) {
@@ -394,19 +396,21 @@ const contentUnlockUi = {
         const keeper = before ? this.keeperOf(before.id) : '';
         return ['is-locked', keeper && keeper !== this.keeperOf(def.id) ? `${status.reason}, ${keeper}` : status.reason];
     },
-    /** The NPC's window (2026-10-15): its picture, name and title over a conversation like an ARPG's NPC talk (사용자: "NPC 클릭하면
-     * 다짜고짜 해금 나오는것도 이상하고. POE처럼 키워드 누르면 관련 스크립트만"): keywords on the left, the chosen keyword's lines on
-     * the right (npcTopics). The last keyword, 맡은 해금, turns the window into the unlocks it keeps with the unlock window's own detail
-     * (buy, open) and a way back. npc: { id, name, title, tone, line } (js/canvas-act-title-card.js npcAt). */
+    /** The NPC's window, an ARPG's NPC talk (2026-10-15 사용자: "POE처럼 키워드 누르면 관련 스크립트만", "NPC 대화창도 정성들여서"):
+     * the NPC standing on the left; on the right its name, a speech box with what it says (its line on the stage when the window
+     * opens, then the chosen keyword's), the keywords it can speak of (STORY_NPCS dialogues, new ones marked until heard) and, under
+     * them, the unlocks it keeps (맡은 해금), which turn the right side into the unlock list with the unlock window's own detail.
+     * npc: { id, name, title, tone, line } (js/canvas-act-title-card.js npcAt). */
     openNpc(npc) {
         const old = document.getElementById('npc-dialog');
         if (!npc || (old && old.open)) return false;
         if (old) old.remove(); // closed a moment ago, its close event (which removes it) not yet run
         const rows = this.npcUnlocks(npc.name), first = state => rows.find(def => this.npcChip(def)[0] === state);
-        const view = { npc, rows, mode: 'talk', topic: 'greet', selected: rows.length ? (first('is-ready') || first('is-locked') || rows[0]).id : null };
+        const view = { npc, rows, mode: 'talk', topic: null, selected: rows.length ? (first('is-ready') || first('is-locked') || rows[0]).id : null };
         const dialog = document.createElement('dialog');
         dialog.id = 'npc-dialog';
         dialog.className = 'npc-dialog';
+        dialog.dataset.tone = npc.tone || 'gold';
         dialog.setAttribute('aria-labelledby', 'npc-dialog-name');
         dialog.addEventListener('click', event => this.npcClick(dialog, view, event));
         dialog.addEventListener('close', () => dialog.remove(), { once: true });
@@ -417,20 +421,32 @@ const contentUnlockUi = {
     },
     renderNpc(dialog, view) {
         const npc = view.npc;
-        dialog.innerHTML = `<header class="npc-dialog-head"><img class="npc-dialog-portrait" src="${STAGE_NPC_ART.path}${npc.id}-portrait.png" alt="">
-            <div class="npc-dialog-who"><h2 id="npc-dialog-name" data-tone="${escapeHTML(npc.tone)}">${escapeHTML(npc.name)}</h2>
-            <p class="npc-dialog-title">${escapeHTML(npc.title || '')}</p></div>
+        dialog.innerHTML = `<figure class="npc-dialog-figure"><img class="npc-dialog-portrait" src="${STAGE_NPC_ART.path}${npc.id}-portrait.png" alt=""></figure>
+            <div class="npc-dialog-main"><header class="npc-dialog-head"><div class="npc-dialog-who">
+            <h2 id="npc-dialog-name">${escapeHTML(npc.name)}</h2><p class="npc-dialog-title">${escapeHTML(npc.title || '')}</p></div>
             <button type="button" class="npc-dialog-close" data-npc-close>닫기</button></header>
-            ${view.mode === 'unlocks' ? this.npcUnlockBody(view) : this.npcTalkBody(view)}`;
+            ${view.mode === 'unlocks' ? this.npcUnlockBody(view) : this.npcTalkBody(view)}</div>`;
     },
-    /** The keywords and the lines of the chosen one. A group's first keyword carries the group's caption. */
+    /** The speech box, the keywords and the way to the unlocks it keeps. */
     npcTalkBody(view) {
-        const topics = this.npcTopics(view.npc, view.rows), topic = topics.find(row => row.id === view.topic) || topics[0];
-        const keys = topics.map(row => `${row.group ? `<li class="npc-dialog-group">${escapeHTML(row.group)}</li>` : ''}<li><button type="button"
-            data-npc-topic="${escapeHTML(row.id)}" aria-pressed="${row.id === topic.id}"><span>${escapeHTML(row.label)}</span>${row.badge ? `<em>${escapeHTML(row.badge)}</em>` : ''}</button></li>`).join('');
-        const lines = topic.lines.map(line => `<p class="npc-script-line is-${line.who}">${line.speaker ? `<b>${escapeHTML(line.speaker)}</b>` : ''}${escapeHTML(line.text)}</p>`).join('');
-        return `<div class="npc-dialog-body"><ul class="npc-dialog-topics" aria-label="이야깃거리">${keys}</ul>
-            <div class="npc-dialog-script" aria-live="polite"><h3>${escapeHTML(topic.label)}</h3>${lines}</div></div>`;
+        const npc = view.npc, { open, waiting } = this.npcTopics(npc), topic = open.find(row => row.topic === view.topic) || null;
+        const keys = open.map(row => {
+            const heard = this.npcHeard(npc, row.topic);
+            return `<li><button type="button" class="${heard ? 'is-heard' : 'is-new'}" data-npc-topic="${escapeHTML(row.topic)}" aria-pressed="${row === topic}">
+                <span>${escapeHTML(row.topic)}</span>${heard ? '' : '<em>새 이야기</em>'}</button></li>`;
+        }).join('');
+        const more = waiting ? `<p class="npc-dialog-more">이야기를 더 진행하면 ${waiting}개가 더 열립니다</p>` : '';
+        return `<section class="npc-dialog-speech" aria-live="polite">${topic ? `<h3>${escapeHTML(topic.topic)}</h3>` : ''}
+            <p>${escapeHTML(topic ? topic.line : this.npcGreeting(npc))}</p></section>
+            <nav class="npc-dialog-talk" aria-label="이야깃거리"><h4>이야기</h4><ul class="npc-dialog-topics">${keys}</ul>${more}</nav>
+            ${this.npcOfferBar(view)}`;
+    },
+    /** 맡은 해금: how many unlocks the NPC keeps and how many can be bought now. */
+    npcOfferBar(view) {
+        if (!view.rows.length) return '';
+        const ready = view.rows.filter(def => this.npcChip(def)[0] === 'is-ready').length;
+        return `<footer class="npc-dialog-foot"><button type="button" class="npc-dialog-offer${ready ? ' is-ready' : ''}" data-npc-topic="unlocks">
+            <span>맡은 해금</span><b>${view.rows.length}</b>${ready ? `<em>해금 가능 ${ready}</em>` : ''}</button></footer>`;
     },
     /** 맡은 해금: the unlocks the NPC keeps, each with the unlock window's detail, and the way back to the talk. */
     npcUnlockBody(view) {
@@ -444,56 +460,51 @@ const contentUnlockUi = {
             <ul class="npc-dialog-unlocks" aria-label="맡은 해금">${items}</ul></div>
             <div class="npc-dialog-detail unlock-detail">${this.detail(def)}</div></div>`;
     },
-    /** The NPC's keywords, nothing ahead of the hero's progress: 인사 (the line it spoke here), the acts where it met the hero, the
-     * unlocks it keeps that are open or can be opened now (their story), the records it left that the hero holds, then 맡은 해금. */
-    npcTopics(npc, rows) {
-        const me = this.personal(npc.name), acts = this.npcActTopics(me);
-        const greeting = npc.line || (acts.length ? acts[acts.length - 1].lines[0].text : npc.title);
-        const topics = [{ id: 'greet', label: '인사', lines: [{ who: 'npc', speaker: me, text: greeting }] }, ...acts, ...this.npcUnlockTopics(rows), ...this.npcRecordTopics(me)];
-        if (rows.length) topics.push({ id: 'unlocks', label: '맡은 해금', group: '해금', badge: rows.some(def => this.npcChip(def)[0] === 'is-ready') ? '해금 가능' : '', lines: [] });
-        return topics;
+    /** The keywords the NPC can speak of now (STORY_NPCS dialogues, docs/story-bible.md section 4) and how many wait: a keyword waits
+     * for the act it speaks of (reqAct, any act after a first loop) and for its loop (reqLoop). */
+    npcTopics(npc) {
+        const rows = (STORY_NPCS[npc.id] || {}).dialogues || [], act = this.npcReachedAct(), loop = game.season || 1;
+        const open = rows.filter(row => (!row.reqAct || act >= row.reqAct) && (!row.reqLoop || loop >= row.reqLoop));
+        return { open, waiting: rows.length - open.length };
     },
-    /** The acts the hero has reached whose entry-room guide is this NPC (STORY_ACT_ENCOUNTERS npc): its first words there, the line
-     * that remembers the hero (from loop 2), the line for the hero's class and the hero's answer. */
-    npcActTopics(me) {
-        const reached = Math.max(Number(game.maxZoneId) || 0, Number.isInteger(game.currentZoneId) ? game.currentZoneId : 0);
-        const lore = STORY_CLASS_ORIGINS[game.selectedClassId] || null;
-        return STORY_ACTS.map((act, index) => ({ act, index, said: (STORY_ACT_ENCOUNTERS[act.order] || {}).npc }))
-            .filter(row => row.said && this.personal(row.said.name) === me && row.index <= reached)
-            .map((row, n) => ({ id: `act${row.act.order}`, group: n ? '' : '만난 곳', label: `액트 ${row.act.displayAct}, ${row.act.title}`, lines: this.npcActLines(row.said, me, lore) }));
+    /** The furthest story act the hero has reached in this loop (STORY_ACTS order), or every act after a first loop. */
+    npcReachedAct() {
+        if ((game.season || 1) > 1) return STORY_ACTS.length;
+        const zone = Math.max(Number(game.maxZoneId) || 0, Number.isInteger(game.currentZoneId) ? game.currentZoneId : 0);
+        return STORY_ACTS.filter((act, index) => index <= zone).reduce((top, act) => Math.max(top, act.order), 1);
     },
-    npcActLines(said, me, lore) {
-        const cls = game.selectedClassId, lines = [{ who: 'npc', speaker: me, text: said.bark }];
-        if ((game.season || 1) > 1) lines.push({ who: 'npc', speaker: me, text: said.loopBark });
-        if (lore) lines.push({ who: 'npc', speaker: me, text: (said.classBarks || {})[cls] }, { who: 'hero', speaker: lore.label, text: (said.classReplies || {})[cls] });
-        return lines.filter(line => line.text);
+    /** What the NPC says when the window opens: its line on the stage, else its first words in the latest act it met the hero. */
+    npcGreeting(npc) {
+        if (npc.line) return npc.line;
+        const me = this.personal(npc.name), act = this.npcReachedAct();
+        const met = STORY_ACTS.filter(row => row.order <= act).map(row => (STORY_ACT_ENCOUNTERS[row.order] || {}).npc)
+            .filter(said => said && this.personal(said.name) === me).pop();
+        return met ? met.bark : npc.title;
     },
-    /** The unlocks the NPC keeps that are open or can be opened now, each with its story lines (STORY_LOOP_MILESTONES). */
-    npcUnlockTopics(rows) {
-        return rows.filter(def => STORY_LOOP_MILESTONES[def.id] && (status => status.unlocked || status.available)(contentProgression.status(def.id)))
-            .map((def, n) => {
-                const lore = STORY_LOOP_MILESTONES[def.id];
-                return { id: `unlock:${def.id}`, group: n ? '' : '해금 이야기', label: def.name,
-                    lines: [...lore.narration.map(text => ({ who: 'narration', text })), { who: 'npc', speaker: this.personal(lore.speaker), text: lore.quote }] };
-            });
+    /** Heard keywords are kept in the save (game.npcHeard, "npcId:keyword"): the window and the stage mark tell new ones apart. */
+    npcHeardKey: (npc, topic) => `${npc.id}:${topic}`,
+    npcHeard(npc, topic) {
+        return game.npcHeard.includes(this.npcHeardKey(npc, topic));
     },
-    /** The records the hero holds that name this NPC as their source (JOURNAL_DB source): the situation, the record and its source. */
-    npcRecordTopics(me) {
-        const held = new Set(game.journalEntries || []);
-        return Object.entries(JOURNAL_DB).filter(([key, entry]) => held.has(key) && String(entry.source || '').includes(me))
-            .map(([key, entry], n) => ({ id: `record:${key}`, group: n ? '' : '남긴 기록', label: entry.title,
-                lines: [{ who: 'narration', text: entry.intro }, ...(entry.lines || []).map(text => ({ who: 'record', text })), { who: 'narration', text: entry.source }].filter(line => line.text) }));
+    hearNpcTopic(npc, topic) {
+        if (!this.npcHeard(npc, topic)) game.npcHeard.push(this.npcHeardKey(npc, topic));
     },
-    /** A keyword shows its lines (맡은 해금 the unlock list); a row shows its detail; buying refreshes the window after the unlock
-     * window's own handler ran; opening a content closes it. */
+    /** A keyword shows its line (and counts as heard; 맡은 해금 shows the unlock list); a row shows its detail; buying refreshes the
+     * window after the unlock window's own handler ran; opening a content closes it. */
     npcClick(dialog, view, event) {
         const control = event.target.closest('button');
         if (!control) return;
         if (control.dataset.npcClose !== undefined) { dialog.close(); return; }
-        if (control.dataset.npcTopic) { Object.assign(view, control.dataset.npcTopic === 'unlocks' ? { mode: 'unlocks' } : { mode: 'talk', topic: control.dataset.npcTopic }); this.renderNpc(dialog, view); return; }
+        if (control.dataset.npcTopic) { this.npcPickTopic(view, control.dataset.npcTopic); this.renderNpc(dialog, view); return; }
         if (control.dataset.npcUnlock) { view.selected = control.dataset.npcUnlock; this.renderNpc(dialog, view); return; }
         if (control.dataset.openContent) { dialog.close(); return; }
         if (control.dataset.unlockContent) setTimeout(() => { if (dialog.open) this.renderNpc(dialog, view); }, 0);
+    },
+    npcPickTopic(view, topic) {
+        if (topic === 'unlocks') { view.mode = 'unlocks'; return; }
+        const known = this.npcTopics(view.npc).open.some(row => row.topic === topic);
+        Object.assign(view, { mode: 'talk', topic: known ? topic : null });
+        if (known) this.hearNpcTopic(view.npc, topic);
     },
     open(id) {
         if (!contentProgression.isUnlocked(id)) return false;

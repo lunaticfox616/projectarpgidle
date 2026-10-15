@@ -2544,6 +2544,8 @@ const defaultGame = {
     unlockedSeasonContents: ['season_1'],
     seenSeasonContentNotices: ['season_1'],
     seenTutorials: [],
+    // The NPC window's keywords already heard, "npcId:keyword" (js/content-progression-ui.js npcHeard): kept across loops.
+    npcHeard: [],
     journalEntries: ['prologue'],
     journalBonuses: [],
     journalBonusClaims: {},

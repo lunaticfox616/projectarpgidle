@@ -257,8 +257,8 @@ const actTitleCard = (() => {
     }
     /** Whether the NPC has an unlock to offer now, asked once a second. */
     function npcOffers(npc, now) {
-        if (npcMark.id !== npc.id || now - npcMark.at > NPC_MARK_MS) npcMark = { at: now, id: npc.id, on: contentUnlockUi.npcHasNews(npc.name) };
-        return npcMark.on;
+        if (npcMark.id !== npc.id || now - npcMark.at > NPC_MARK_MS) npcMark = { at: now, id: npc.id, kind: contentUnlockUi.npcNews(npc) };
+        return npcMark.kind;
     }
     function npcLabel(ctx, npc, x, y) {
         ctx.font = `13px 'MulmaruMono', 'Malgun Gothic', sans-serif`;
@@ -270,15 +270,18 @@ const actTitleCard = (() => {
         ctx.strokeText(npc.name, x, y);
         ctx.fillText(npc.name, x, y);
     }
-    /** The mark of an unlock to offer: a gold "!" in a dark square over the name. */
-    function npcOfferMark(ctx, x, y) {
+    /** The mark over the name in a dark square: a gold "!" for an unlock to offer, three pale dots for a keyword not yet heard
+     * (js/content-progression-ui.js npcNews). */
+    function npcOfferMark(ctx, x, y, kind) {
+        const colour = kind === 'unlock' ? TONES.gold : '#d9cfb8';
         ctx.fillStyle = 'rgba(12,10,12,0.92)';
         ctx.fillRect(x - 8, y - 9, 16, 18);
-        ctx.strokeStyle = TONES.gold;
+        ctx.strokeStyle = colour;
         ctx.lineWidth = 1;
         ctx.strokeRect(x - 7.5, y - 8.5, 15, 17);
-        ctx.fillStyle = TONES.gold;
-        ctx.fillText('!', x, y + 1);
+        ctx.fillStyle = colour;
+        if (kind === 'unlock') ctx.fillText('!', x, y + 1);
+        else for (let dot = -1; dot <= 1; dot++) ctx.fillRect(x + dot * 4 - 1, y + 2, 2, 2);
     }
     // A monster striking the NPC (act 1's first monster, js/combat.js strikeRescueTarget, battle fx 'npcStruck'): the NPC's frame
     // flashes white and a few sparks burst on it. The picture itself never moves (no code-made motion).
@@ -336,7 +339,7 @@ const actTitleCard = (() => {
         ctx.save();
         npcLabel(ctx, actor.npc, actor.x, top);
         const marked = npcOffers(actor.npc, state.now);
-        if (marked) npcOfferMark(ctx, actor.x, top - 20);
+        if (marked) npcOfferMark(ctx, actor.x, top - 20, marked);
         ctx.restore();
         npcHead = { x: actor.x, y: top - (marked ? 32 : 12) };
         npcHit = { npc: actor.npc, at: Date.now(), x0: actor.x - 30 * dot, x1: actor.x + 30 * dot, y0: top - 30, y1: actor.y };
