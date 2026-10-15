@@ -76,6 +76,14 @@ const COMMENTS = Object.freeze({
 function read(file) {
     return fs.readFileSync(file, 'utf8').replace(/^﻿/, '').replace(/\r\n/g, '\n');
 }
+// 저장소에 남기지 않는 말(2026-10-16 사용자 요청, 다른 게임 이름을 붙인 문체 이름): 옮길 때 지우고 몇 곳인지 알린다.
+const SCRUB = Object.freeze([/\uB2E4\uD06C\s?\uC18C\uC6B8\s?\uC2DD\s?/g]);
+function scrub(text, name) {
+    let count = 0;
+    const out = SCRUB.reduce((acc, pattern) => acc.replace(pattern, () => { count += 1; return ''; }), text);
+    if (count) console.log(`  ${name}: 남기지 않는 말 ${count}곳을 뺌`);
+    return out;
+}
 function writeLike(file, raw) {
     const text = raw.endsWith('\n') ? raw : `${raw}\n`; // a pack file may end without a line break
     const crlf = fs.existsSync(file) && fs.readFileSync(file, 'utf8').includes('\r\n');
@@ -401,9 +409,9 @@ function main(args) {
     const result = importPack(path.resolve(dir), report);
     printReport(report);
     if (!result || !args.includes('--write')) return result ? 0 : 1;
-    writeLike(path.join(root, STORY), result.story);
-    if (result.maps) writeLike(path.join(root, MAPS), result.maps);
-    if (fs.existsSync(result.bible)) writeLike(path.join(root, BIBLE), read(result.bible));
+    writeLike(path.join(root, STORY), scrub(result.story, STORY));
+    if (result.maps) writeLike(path.join(root, MAPS), scrub(result.maps, MAPS));
+    if (fs.existsSync(result.bible)) writeLike(path.join(root, BIBLE), scrub(read(result.bible), BIBLE));
     console.log(`옮김: ${STORY}${result.maps ? `, ${MAPS}` : ''}${fs.existsSync(result.bible) ? `, ${BIBLE}` : ''}`);
     return 0;
 }
