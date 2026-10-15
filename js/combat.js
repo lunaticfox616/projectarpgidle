@@ -7947,33 +7947,42 @@ function createActExplorationEncounter(zone,exploration) {
 }
 /** A +28% ordinary-monster budget: one larger room, one quiet-road group, then small room additions.
  * One-time generation only; existing runs retain every enemy. Atlas and bespoke encounters keep their authored budgets. */
+/** Rooms without their own packs: the entry room, path rooms, and the first start's rescue room (its one monster comes apart). */
+const ownsNoPack=(room,rescueRoom)=>room.role==='entry' || room.role==='path' || room===rescueRoom;
 function createExplorationPacks(zone,map,bossStages) {
     const own=ownRoomPackBuilder(zone);
     if(own)return own(zone,map);
     const packs=[],encounters=atlasEncounters.rooms(zone,map),arranger=stageRoomArranger.forMap(map);
-    const {counts,patrol}=explorationPackFormation.plan(zone,map);
+    const {counts,patrol}=explorationPackFormation.plan(zone,map),rescueRoom=starterRescueRoom(zone,map);
     for(const room of map.rooms) {
-        if(room.role==='entry' || room.role==='path')continue;
+        if(ownsNoPack(room,rescueRoom))continue;
         const encounter=encounters[room.id]||null;
         if(room.role!=='boss'){packs.push(zone.atlasCleared?.includes(room.id) ? emptiedExplorationPack(room)
             : createActExplorationPack(zone,room,null,encounter,arrangedRoomFormation(arranger,zone,room,encounter,counts.get(room.id))));continue;}
         for(let stage=0;stage<bossStages;stage++)packs.push(createExplorationBossStage(zone,map,room,stage));
     }
-    return packs.concat(createAddedExplorationPacks(zone,map,patrol,arranger),createStarterRescuePack(zone,map));
+    return packs.concat(createAddedExplorationPacks(zone,map,patrol,arranger,rescueRoom),createStarterRescuePack(zone,map,rescueRoom));
 }
 
-/** 액트 1 입구 방의 첫 몬스터(2026-10-15 사용자: "첫 방에 몬스터가 있고 그걸 잡으면 젬이 드랍되게", "하켄이 그 몬스터에게 맞고있는걸로"):
- * 이번 루프의 시작 젬을 아직 받지 않았을 때, 방 단위 무대의 입구 방에서 하켄 곁에 한 마리가 선다. 한 대 맞기 전까지는 하켄을
- * 친다(strikeRescueTarget). 이 몬스터가 루프의 첫 처치라 시작 젬이 그 자리 바닥에 떨어진다. @returns {object[]} 그 무리, 없으면 빈 목록. */
+/** 액트 1의 첫 몬스터(2026-10-15 사용자: "첫 방에 몬스터가 있고 그걸 잡으면 젬이 드랍되게", "하켄이 그 몬스터에게 맞고있는걸로"):
+ * 이번 루프의 시작 젬을 아직 받지 않았을 때, 방 단위 무대의 구출 방(starterRescueRoom)에서 하켄 곁에 한 마리가 선다. 그 방의 보통 무리는
+ * 없다. 한 대 맞기 전까지는 하켄을 친다(strikeRescueTarget). 이 몬스터가 루프의 첫 처치라 시작 젬이 그 자리 바닥에 떨어진다.
+ * @returns {object[]} 그 무리, 없으면 빈 목록. */
 /** 루프 1에만(2026-10-15 사용자: 루프 뒤에는 첫 방에 하켄이 없다). 그 뒤의 시작 젬은 그 루프의 첫 처치가 바닥에 떨어뜨린다. */
 const startsWithRescue=(zone,map)=>zone.type==='act' && zone.id===0 && !!map.stage && (game.season||1)===1
     && !game.loopStarterGemGranted && (game.skills||[]).length<=1;
-function createStarterRescuePack(zone,map) {
-    if(!startsWithRescue(zone,map))return [];
-    // 하켄 너머(주인공 반대쪽)에 선다: 첫 장면에서 주인공의 말풍선에 가리지 않고, 주인공이 하켄을 지나 달려간다. 방이 좁으면 하켄 앞쪽.
-    const post=actExplorationRooms.npcPost(map.entry),away=Math.sign(post.gx-Math.round(map.entry.gx))||1,beyond=post.gx+away;
-    const cell={gx:beyond>=map.entry.x0 && beyond<=map.entry.x1?beyond:post.gx-away,gy:post.gy};
-    const pack=createActExplorationPack(zone,map.entry,null,null,{cells:[cell],rescue:true});
+/** 구출 방: 입구 방 문 너머, 보스로 가는 길의 첫 전투 방(2026-10-15 사용자: "첫방에서 처음부터 하켄이 보이지 않도록 (조금 앞으로 걸어가야
+ * 있도록)". PC 화면은 입구 방 전체를 한 번에 보여 주므로 입구 방 안에서는 숨길 수 없다). 루프 1의 첫 시작에만, 없으면 null. */
+function starterRescueRoom(zone,map) {
+    if(!startsWithRescue(zone,map))return null;
+    return map.route.map(id=>map.rooms.find(room=>room.id===id)).find(room=>room.role==='battle')||null;
+}
+function createStarterRescuePack(zone,map,room) {
+    if(!room)return [];
+    // 하켄 너머(방 가운데의 반대쪽)에 선다: 주인공의 말풍선에 가리지 않고, 주인공이 하켄을 지나 달려간다. 방이 좁으면 하켄 앞쪽.
+    const post=actExplorationRooms.npcPost(room),away=Math.sign(post.gx-Math.round(room.gx))||1,beyond=post.gx+away;
+    const cell={gx:beyond>=room.x0 && beyond<=room.x1?beyond:post.gx-away,gy:post.gy};
+    const pack=createActExplorationPack(zone,room,null,null,{cells:[cell],rescue:true});
     // 게이지를 거의 채워 둔다: 첫 장면(액트 이름과 깨어나는 대사 동안 게임이 멈춘다)에서 하켄을 향해 공격을 준비하는 자세로 보인다.
     // 처음 시작(js/opening-journey-ui.js)의 주인공이 아직 이 괴물을 치지 않았으면, 다가와 칠 때까지 하켄을 계속 친다(patient).
     const patient=!(game.seenTutorials||[]).includes('opening_attack');
@@ -8218,17 +8227,18 @@ function arrangedRoomFormation(arranger,zone,room,encounter,formation) {
 }
 
 /** Packs beside the one each room has: the quiet-road group, and on a room-by-room stage the packs added to every room. */
-function createAddedExplorationPacks(zone,map,patrol,arranger) {
-    const packs=patrol?[createActExplorationPack(zone,map.rooms.find(room=>room.id===patrol.roomId),null,null,patrol)]:[];
-    return map.stage?packs.concat(createStageExtraPacks(zone,map,arranger)):packs;
+/** keep: a room left to its own scene (the first start's rescue room, starterRescueRoom): no patrol and no extra packs there. */
+function createAddedExplorationPacks(zone,map,patrol,arranger,keep) {
+    const packs=patrol && patrol.roomId!==keep?.id?[createActExplorationPack(zone,map.rooms.find(room=>room.id===patrol.roomId),null,null,patrol)]:[];
+    return map.stage?packs.concat(createStageExtraPacks(zone,map,arranger,keep)):packs;
 }
 
 /** 방 단위 무대의 방마다 더 서는 무리(data/stage-view.js STAGE_ROOMS.extraPacks, 2026-10-13 사용자: "한 방에 몬스터 한무리~1.5무리
  * 정도 더"): 지역의 기본 무리 크기로(큰 방에 얹는 덧수는 원래 무리만 받는다), 방 가운데의 양옆에 선다(첫째는 보스 쪽, 둘째는 입구 쪽). 열쇠는 "방:extra1", "방:extra2".
  * 정예는 없고 생김새는 열쇠마다 다르게 뽑힌다. 방에 들어서면 방 안을 모두 보므로 원래 무리와 함께 덤빈다. */
-function createStageExtraPacks(zone,map,arranger) {
+function createStageExtraPacks(zone,map,arranger,keep) {
     const rule=STAGE_ROOMS.extraPacks,packs=[];
-    for(const room of actExplorationState.packRooms(map)) {
+    for(const room of actExplorationState.packRooms(map).filter(row=>row!==keep)) {
         const more=rule.always+(Math.random()<rule.chance?1:0);
         // 자리는 그 방의 자리 묶음에서(2026-10-13 밤부터: 전에는 늘 방 가운데의 양옆이었다)
         for(let extra=1;extra<=more;extra++) {

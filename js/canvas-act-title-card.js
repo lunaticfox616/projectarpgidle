@@ -143,7 +143,7 @@ const actTitleCard = (() => {
     }
     function watchStoryRooms(run, story, now) {
         const room = actExplorationDoors.room(run), stele = story.stele;
-        if (room && room.role === 'entry') watchEntryRoom(story, now, rescuing(run));
+        if (room && inGuideRoom(run)) watchEntryRoom(story, now, rescuing(run));
         if (room && room.role === 'optional' && stele) queueStoryLine({ key: 'stele', who: 'stele', speaker: stele.title, text: stele.bark, tone: 'cyan' }, now);
     }
     /** The guide's line for this loop (docs/story-bible.md section 9): the first meeting in loop 1, the line for the hero's class
@@ -161,8 +161,15 @@ const actTitleCard = (() => {
         const act = actOf(zone);
         if (act && act.order === 1 && (game.season || 1) === 1 && lore) queueStoryLine({ key: 'wake', who: 'hero', speaker: lore.label, text: lore.wakeLine, tone: 'gold' }, now);
     }
-    /** The monster striking the guide in act 1's entry room still stands (js/combat.js createStarterRescuePack). */
+    /** The monster striking the guide in act 1 still stands (js/combat.js createStarterRescuePack). */
     const rescuing = run => run.packs.some(pack => pack.rescue && pack.aliveIds.length > 0);
+    /** The room where the map's guide stands and its first lines are said: the entry room, or in loop 1's first start the room behind
+     * it where the guide is struck (js/combat.js starterRescueRoom; saves from before kept it in the entry room). */
+    function guideRoom(run, map) {
+        const pack = run.packs.find(row => row.rescue);
+        return (pack && map.rooms.find(room => room.id === pack.roomId)) || map.entry;
+    }
+    const inGuideRoom = run => { const map = actExplorationDoors.stageMap(run), room = actExplorationDoors.room(run); return !!map && !!room && room === guideRoom(run, map); };
     /** The entry room: in loop 1's act 1 the hero wakes first (wakeLine), then the guide speaks and the hero answers in its
      * class's words (classReplies). While a monster strikes the guide (rescue) only the hero wakes: the guide speaks once it falls. */
     function watchEntryRoom(story, now, rescue) {
@@ -183,8 +190,7 @@ const actTitleCard = (() => {
         const run = actExplorationState.current(game), watch = run ? runs.get(run) : null;
         if (!watch || run.status !== 'active' || watch.waived) return null;
         if (run.destination) { watch.waived = true; return null; }
-        const room = actExplorationDoors.room(run);
-        return room && room.role === 'entry' ? run : null;
+        return inGuideRoom(run) ? run : null;
     }
     const ends = row => !!row && CARRY.has(row.key) && row.zone === zone;
     /** A cleared map still on screen (its boss fell, the departure waits) with no move command given. */
@@ -233,8 +239,8 @@ const actTitleCard = (() => {
     function appendNpc(actors, state) {
         const run = stageView.enabled() ? actExplorationState.current(game) : null, watch = run ? runs.get(run) : null;
         const npc = watch ? runNpc(watch) : null, map = npc ? actExplorationDoors.stageMap(run) : null;
-        if (!map || actExplorationDoors.room(run) !== map.entry) return;
-        watch.npcCell = watch.npcCell || actExplorationRooms.npcPost(map.entry);
+        if (!map || !inGuideRoom(run)) return;
+        watch.npcCell = watch.npcCell || actExplorationRooms.npcPost(guideRoom(run, map));
         const point = state.gridProj.cellToScreen(watch.npcCell.gx, watch.npcCell.gy);
         actors.push({ kind: 'scenery', id: -3, x: point.x, y: point.y + state.gridProj.actorGroundOffsetY, npc });
     }

@@ -24,6 +24,15 @@ const openingJourney = (() => {
     const mark = key => { if (!seen(key)) game.seenTutorials.push(key); };
     const actRun = () => { const run = actExplorationState.current(game); return run && run.zoneId === 0 && run.status === 'active' ? run : null; };
     const inEntry = run => { const room = run && actExplorationDoors.room(run); return !!room && room.role === 'entry'; };
+    const SIDES = Object.freeze({ east: '오른쪽', west: '왼쪽', north: '위쪽', south: '아래쪽' });
+    /** While the hero is not yet in the room where Haken is struck (js/combat.js starterRescueRoom): the side of the next door toward it. */
+    function doorToRescue(run) {
+        const map = run && actExplorationDoors.stageMap(run), pack = run && run.packs.find(row => row.rescue);
+        const here = map && actExplorationDoors.room(run), there = pack && map.rooms.find(room => room.id === pack.roomId);
+        if (!here || !there || here === there) return null;
+        const door = map.hops[here.index] && map.hops[here.index][there.index];
+        return door ? door.side : null;
+    }
     const coarse = () => typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
     const tutorialOpen = () => !!document.querySelector('#tutorial-overlay.active');
     /** A guide card is queued (its key counts as seen from then, js/state.js queueTutorialNotice) or on screen. */
@@ -194,7 +203,8 @@ const openingJourney = (() => {
     const HINTS = {
         rise: () => '쓰러진 캐릭터를 눌러 깨우세요',
         move: () => (coarse() ? '바닥을 눌러 움직이세요' : '바닥을 클릭하거나 <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 키로 움직이세요'),
-        attack: () => '하켄을 치는 괴물에게 다가가세요. 가까이 가면 자동으로 공격합니다',
+        attack: side => `${side ? `${SIDES[side]}으로 가서 하켄을 구하세요` : '하켄을 치는 괴물에게 다가가세요'}. 가까이 가면 자동으로 공격합니다`,
+        go: side => `${SIDES[side] || '앞쪽'} 문으로 나아가세요`,
         pickup: () => '떨어진 젬을 누르거나 그 위로 걸어가 주우세요',
         auto: () => '오른쪽 위 자동 단추를 눌러 자동 사냥을 켜세요'
     };
@@ -202,8 +212,19 @@ const openingJourney = (() => {
         if (hintHidden()) return null;
         const step = lesson();
         if (step === 'rise') return lying() ? 'rise' : null;
-        if (step && step !== 'gem') return storyTold() ? null : step;
+        if (step && step !== 'gem') return storyTold() ? null : lessonHint(step);
         return autoHintDue(now) ? 'auto' : null;
+    }
+    /** Before Haken's room is reached the attack lesson names the door to take; inside it, while the monster is beyond a phone's few
+     * cells of view, the side to walk to. */
+    function lessonHint(step) {
+        if (step !== 'attack') return step;
+        const door = doorToRescue(actRun()), far = rescueSide();
+        return door ? `go:${door}` : far ? `attack:${far}` : step;
+    }
+    function rescueSide() {
+        const enemy = game.enemies.find(row => row && row.rescue), dx = enemy ? enemy.gx - game.gridPlayer.gx : 0;
+        return Math.abs(dx) > 3 ? (dx > 0 ? 'east' : 'west') : null;
     }
     const hintHidden = () => !!intro || !!rising || tutorialOpen() || !!document.querySelector('dialog[open]');
     /** The auto button's line: for a while after the opening ends, until the auto hunt is switched on. */
@@ -221,7 +242,8 @@ const openingJourney = (() => {
         hintEl.hidden = !step;
         document.getElementById('btn-act-exploration-auto')?.classList.toggle('is-opening-glow', step === 'auto');
         if (!step) return;
-        if (hintEl.dataset.step !== step) { hintEl.dataset.step = step; hintEl.innerHTML = HINTS[step](); }
+        const [name, arg] = step.split(':');
+        if (hintEl.dataset.step !== step) { hintEl.dataset.step = step; hintEl.innerHTML = HINTS[name](arg); }
         const box = document.getElementById('battlefield-canvas').getBoundingClientRect();
         hintEl.style.left = `${Math.round(box.left + box.width / 2)}px`;
         hintEl.style.top = `${Math.round(box.top + box.height * 0.12)}px`;

@@ -340,7 +340,8 @@ const actExplorationState = (() => {
         if(!actExplorationMap.route(map,map.entry,pack.anchor,new Set([actExplorationMap.index(map,map.gate)])).length)
             throw Error('탐험 저장의 길목 무리에 도달할 수 없습니다.');
     }
-    /** 입구 방의 무리는 액트 1의 첫 몬스터 하나뿐이다(js/combat.js createStarterRescuePack): 그 방의 보통 무리 열쇠에 정예 없이. */
+    /** 입구 방의 무리는 액트 1의 첫 몬스터 하나뿐이다(2026-10-15 저녁 전의 저장. 지금은 js/combat.js starterRescueRoom의 전투 방에 선다):
+     * 그 방의 보통 무리 열쇠에 정예 없이. */
     const rescuePack=(map,pack,room)=>pack.rescue===true && !!map.stage && pack.key===`${room.id}:pack` && pack.stage===null
         && Array.isArray(pack.eliteIds) && !pack.eliteIds.length && pack.anchor===undefined && pack.extra===undefined;
     function validatePackShape(map,pack) {
