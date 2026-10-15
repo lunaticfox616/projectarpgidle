@@ -21,7 +21,7 @@ const STORY = 'data/story-journal.js', MAPS = 'data/maps.js', BIBLE = 'docs/stor
 const PARSE = Object.freeze({ ecmaVersion: 'latest', sourceType: 'script', range: true, loc: true, comment: true });
 // 화면 대사 한 줄: PC 띠 한 줄, 말풍선은 19자마다 접는다(js/canvas-act-title-card.js). 넘으면 경고만 한다.
 const SCREEN_MAX = 50;
-const SCREEN_FIELDS = new Set(['wakeLine', 'eliteLine', 'bossLines', 'bark', 'loopBark', 'classBarks', 'classReplies', 'intro', 'half', 'defeat', 'quote']);
+const SCREEN_FIELDS = new Set(['wakeLine', 'spotLine', 'eliteLine', 'bossLines', 'bark', 'loopBark', 'classBarks', 'classReplies', 'intro', 'half', 'defeat', 'quote']);
 // 직업 id로 나뉜 대사: 열쇠가 직업 id가 아니면 그 줄은 게임에 나오지 않는다.
 const CLASS_KEYED = new Set(['classBarks', 'classReplies']);
 const BANNED = /[·・—―]/u;
@@ -30,7 +30,7 @@ const SCENE_TABLES = ['SUPPLIED_STORY_SCENES', 'STORY_BRIDGE_SCENES'];
 const OTHER_TABLES = ['STORY_JOURNAL_SCENES', 'STORY_QUOTE_PLACEMENT', 'STORY_SCENE_QUOTES'];
 // 게임이 읽는 칸(js/canvas-act-title-card.js, js/content-progression-ui.js, js/loop-ui.js). 장면 표는 id와 순서만 본다.
 const FIELDS = Object.freeze({
-    STORY_CLASS_ORIGINS: ['label', 'wakeLine', 'eliteLine', 'bossLines'],
+    STORY_CLASS_ORIGINS: ['label', 'wakeLine', 'spotLine', 'eliteLine', 'bossLines'],
     STORY_ACT_ENCOUNTERS: ['npc', 'stele', 'boss'], STORY_TRIAL_ENCOUNTERS: ['npc', 'stele', 'boss'],
     STORY_ENDGAME_ENCOUNTERS: ['intro', 'half', 'defeat'], STORY_LOOP_MILESTONES: ['narration', 'speaker', 'quote'],
     STORY_NPCS: ['id', 'name', 'title', 'dialogues'],
@@ -59,8 +59,8 @@ const COMMENTS = Object.freeze({
     STORY_JOURNAL_SCENES: ['Story order: the journal, the popups and the idle-return fold read it in this order.'],
     STORY_QUOTE_PLACEMENT: ['The spoken lines of each journal entry (data/maps.js JOURNAL_DB) stay with the scene where they are said, before it',
         '(verdicts, last words) or after it (reflections).'],
-    STORY_CLASS_ORIGINS: ["Spoken by the hero: wakeLine in act 1's entry room, eliteLine when the boss gate opens, bossLines[act] after the act",
-        'boss falls.'],
+    STORY_CLASS_ORIGINS: ["Spoken by the hero: wakeLine on getting up in act 1's entry room, spotLine on seeing Haken struck in the room behind",
+        "its door (loop 1), eliteLine at the loop's first opened boss gate, bossLines[act] after the act boss falls."],
     STORY_NPCS: ["The story's five NPCs (docs/story-bible.md section 4): id (also the stage art's id, data/stage-view.js STAGE_NPC_ART), name as",
         'the encounters write it, title, and dialogues: the keywords of its window (js/content-progression-ui.js openNpc), each the NPC',
         "alone speaking (line), shown once the hero has reached act reqAct and loop reqLoop (both optional). Each keeps the unlocks whose",

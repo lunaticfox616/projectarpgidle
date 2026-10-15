@@ -262,6 +262,9 @@ const STAGE_MONSTER_SCALE = Object.freeze({ 'wisp-': 0.7, 'hive-': 0.6 });
  * <id>-portrait.png(일러스트, 480×720). scale: 몸이 89도트로 주인공(97도트)보다 작아 아이처럼 보여 늘려 그린다.
  * 저장소 밖 그림이다(scripts/build-stage-npcs.cjs가 옮긴다). 그림이 없으면 NPC는 서지 않고 대사만 띠에 나온다.
  * 2026-10-15 사용자: "하켄부터 세워봐", 이어서 NPC 도트와 일러스트 다섯을 만들어 줬다. 하켄은 액트 5에서 쓰러지므로 엔드게임 자리는 없다. */
+/** 쓰러진 자리에서 이야기가 다시 일으키는 보스(act bossId, js/canvas-boss-revive.js): 처치 대사가 나오는 동안 황금 수액 기둥과 다시 차오르는
+ * 체력바를 그린다(2026-10-15: 2막 부제녀의 처치 대사는 "다시 일으킨다!"인데 화면에는 아무 일도 없었다). fillMs: 막대가 다 차는 데 걸리는 시간. */
+const STAGE_BOSS_REVIVAL = Object.freeze({ bosses: Object.freeze(['gardener_immortal']), fillMs: 1400 });
 const STAGE_NPC_ART = Object.freeze({ path: 'assets/stage-npcs/', cell: 128, feet: Object.freeze([64, 112]), head: 22, scale: 1.15,
     frameMs: Object.freeze([720, 260, 460, 280, 140, 720]) });
 
@@ -303,4 +306,4 @@ const STAGE_HERO_STRIKES = Object.freeze({
     spin: Object.freeze(['회오리바람'])
 });
 
-safeExposeData({ STAGE_HERO_MOTIONS, STAGE_HERO_RISE, STAGE_HERO_STRIKES, STAGE_VIEW, STAGE_TERRAIN, STAGE_ROOMS, STAGE_BACKDROPS, STAGE_OBJECTS, STAGE_PROPS, STAGE_SCENES, STAGE_MONSTER_SCALE, STAGE_NPC_ART, STAGE_BOARD_ROOMS });
+safeExposeData({ STAGE_HERO_MOTIONS, STAGE_HERO_RISE, STAGE_HERO_STRIKES, STAGE_VIEW, STAGE_TERRAIN, STAGE_ROOMS, STAGE_BACKDROPS, STAGE_OBJECTS, STAGE_PROPS, STAGE_SCENES, STAGE_MONSTER_SCALE, STAGE_NPC_ART, STAGE_BOSS_REVIVAL, STAGE_BOARD_ROOMS });
