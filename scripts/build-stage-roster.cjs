@@ -2,6 +2,7 @@
 /* 무대 몬스터의 새 그림(걷기와 공격)을 게임이 읽는 모양으로 옮긴다(docs/stage-view-20261011.md).
  *
  *   node scripts/build-stage-roster.cjs <정리한 그림 폴더> [복사해 둘 폴더] [--forge <새 묶음 폴더>] [--looks <새 외형 선택.json>]
+ *     [--roots <무기 뿌리 묶음 폴더>]
  *
  * 그림이 오는 곳은 둘이다.
  *   <정리한 그림 폴더>: 처음 받은 88종을 도트로 정리해 둔 곳(data.js, fixed/<id>/walk.png과 attack.png, 그 위 폴더의 motions.json).
@@ -9,6 +10,7 @@
  *     production.json에서 남기기로 고른 외형(decision keep)의 한 장 그림(master.png)을 쓴다.
  *     targeted-data.json이 있으면 거기 적힌 동작(확인 끝난 것)이 같은 동작의 앞선 판을 덮고, 그 파일의 boss(동작 한 벌)도 넣는다.
  *   --looks: 다시 만든 외형 가운데 사용자가 고른 것(검토 화면에서 내보낸 파일, choice keep이고 version이 같은 것)을 한 장 그림으로 넣는다.
+ *   --roots: 무기 뿌리촉수 여섯의 새 그림(root-weapon-attack 묶음, 2026-10-15): 대기 한 장과 공격 여섯 장(rootBatch).
  *   새 묶음의 그림이 게임에서 다른 자리에 서면 FORGE_SLOT에 적는다(예: 부제나비는 액트 3 보스 그림 키 bossAct3).
  *   같은 생김새에 색만 다른 외형은 FORGE_TINTS에 적는다: 동작이 온 외형의 걷기와 공격을 제 색으로 옮겨 쓴다(--no-tint로 끈다).
  * 몬스터 하나는 한쪽 묶음의 그림만 쓴다: 새 묶음에 확인 끝난 동작이 있으면 그것(공격이 없으면 공격 그림 없이 간다), 없으면
@@ -27,11 +29,11 @@ const { decodePng, encodePng } = require('./lib/png.cjs');
 const { tidy } = require('./tidy-stage-art.cjs');
 
 const root = path.join(__dirname, '..');
-const args = process.argv.slice(2), OPTIONS = ['--forge', '--looks'];
+const args = process.argv.slice(2), OPTIONS = ['--forge', '--looks', '--roots'];
 const option = name => (args.includes(name) ? args[args.indexOf(name) + 1] : null);
-const forge = option('--forge'), looksFile = option('--looks');
+const forge = option('--forge'), looksFile = option('--looks'), rootsDir = option('--roots');
 const [from, mirror] = args.filter((arg, index) => !arg.startsWith('--') && !OPTIONS.includes(args[index - 1]));
-if (!from) { console.error('쓰는 법: node scripts/build-stage-roster.cjs <정리한 그림 폴더> [복사해 둘 폴더] [--forge <새 묶음 폴더>] [--looks <새 외형 선택.json>]'); process.exit(1); }
+if (!from) { console.error('쓰는 법: node scripts/build-stage-roster.cjs <정리한 그림 폴더> [복사해 둘 폴더] [--forge <새 묶음 폴더>] [--looks <새 외형 선택.json>] [--roots <무기 뿌리 묶음 폴더>]'); process.exit(1); }
 const PAD = 2, COLUMNS = 12;
 /** 걸음새: 걷는 그림을 고르는 방식과, 그림 없이 걷는 척할 때의 움직임을 정한다(js/canvas-stage-roster.js). */
 const GAIT_BY_TRAVEL = { 비행: 'fly', 부유: 'float', 유영: 'swim', 구르기: 'roll', 기어가기: 'crawl' };
@@ -242,6 +244,32 @@ function forgeBatch(dir) {
     return out;
 }
 
+// ------------------------------------------------------------------ 무기 뿌리촉수(--roots)
+/** 무기 뿌리촉수 여섯의 새 그림(2026-10-15 사용자 "뿌리 몬스터 새로 만들었는데 다듬어줘"): animations.json에 무기마다 7칸 한 줄
+ * 시트(왼쪽을 본다, 마지막 칸은 첫 칸과 같은 대기 자세), 밑동 기준점, 프레임 시간, 타격 프레임이 있다. 큰 그림을 줄인 것이라 도트마다
+ * 색이 달라(칸마다 약 1,300색) 일곱 칸이 함께 쓰는 ROOT_COLOURS색으로 정리하고(프레임마다 색이 달라 반짝이지 않게), 칸마다 좌우를
+ * 뒤집어 오른쪽을 보게 한다. 대기 한 장이 걷기, 공격 1~6번이 공격이다. 이름과 걸음새는 같은 id의 앞선 그림 것을 잇는다. */
+const ROOT_COLOURS = 32;
+function mirrorCells(png, cell) {
+    const data = new Uint8Array(png.data.length);
+    for (let y = 0; y < png.height; y++) for (let x = 0; x < png.width; x++) {
+        const start = x - (x % cell), from = (y * png.width + x) * 4, to = (y * png.width + start + cell - 1 - (x - start)) * 4;
+        data.set(png.data.subarray(from, from + 4), to);
+    }
+    return { width: png.width, height: png.height, data };
+}
+function rootBatch(dir, previous) {
+    const out = new Map();
+    for (const anim of JSON.parse(fs.readFileSync(path.join(dir, 'animations.json'), 'utf8')).animations) {
+        const [cw, ch] = anim.cell, sheet = mirrorCells(tidy(read(path.join(dir, anim.sheet)), { colours: ROOT_COLOURS, rim: false, accents: true }), cw);
+        const id = `root-${anim.id}`, before = previous.get(id), feet = [cw - 1 - anim.root[0], anim.root[1]];
+        const frames = gridFrames(sheet, [cw, ch], Math.round(sheet.width / cw), anim.attackFrames, feet);
+        out.set(id, { id, name: before ? before.name : `${anim.name} 뿌리촉수`, gait: before ? before.gait : 'legs',
+            walk: { frames: [frames[0]], ms: [1000], pace: 'stride' }, attack: { frames, ms: anim.durations.slice(0, anim.attackFrames), hit: anim.hitFrame } });
+    }
+    return out;
+}
+
 /** 새 동작이 아직 없는 위습 외형은 같은 속성의 새 위습 그림을 빌려 입는다(data/wisp-sprites.js WISP_SPRITE_BY_VISUAL의 속성).
  * 속성에 새 그림이 없으면(지금은 화염과 독) 처음 받은 제 그림 그대로다. 외형마다 새 그림(own: 동작이든 한 장이든)이 오면 이 표에서 빠진다. */
 function wispWears(made, own) {
@@ -261,6 +289,12 @@ if (forge) for (const [id, actor] of forgeBatch(forge)) {
     fromForge.push(id);
     if (actor.walk.frames.length > 1) moving.push(id);
     if (actors.has(id)) counts.first--;
+    actors.set(id, actor);
+}
+if (rootsDir) for (const [id, actor] of rootBatch(rootsDir, actors)) {
+    const replaced = actors.get(id);
+    if (replaced) counts[!fromForge.includes(id) ? 'first' : replaced.walk.frames.length > 1 ? 'moving' : 'still']--;
+    counts.roots = (counts.roots || 0) + 1;
     actors.set(id, actor);
 }
 const outDir = path.join(root, 'assets/enemies/roster'), folders = [outDir, mirror].filter(Boolean), written = new Set(), stamp = crypto.createHash('sha1');
@@ -321,5 +355,5 @@ for (const folder of folders) for (const name of fs.readdirSync(folder)) {
     if (/-(walk|attack)\.png$/.test(name) && !written.has(name)) fs.unlinkSync(path.join(folder, name));
 }
 const bytes = fs.readdirSync(outDir).reduce((sum, name) => sum + fs.statSync(path.join(outDir, name)).size, 0);
-console.log(`몬스터 ${rows.length}마리: 처음 받은 그림 ${counts.first}, 새 묶음의 동작 ${counts.moving}, 새 묶음의 한 장 ${counts.still}`);
+console.log(`몬스터 ${rows.length}마리: 처음 받은 그림 ${counts.first}, 새 묶음의 동작 ${counts.moving}, 새 묶음의 한 장 ${counts.still}, 무기 뿌리촉수 ${counts.roots || 0}`);
 console.log(`그림 ${fs.readdirSync(outDir).length}장 (${(bytes / 1048576).toFixed(1)}MB) → assets/enemies/roster/${mirror ? ' 와 ' + mirror : ''}`);
