@@ -4,7 +4,7 @@
 //   permanent growth  loop points (loop passive tree), deep points (deep passive, --deep-per-loop from loop 10). The loop-10 stat
 //                     buy left the game with the 2026-05-04 loop depth redesign (no button calls allocateLoop10BonusStat), so
 //                     loop points no longer go there (until 2026-10-08 this audit still bought them).
-//   unlock points     2 per loop from loop 2, bought power-first (craft, support gems, loop tree, trials, deep tree ...)
+//   unlock points     4, 4, 3, 3 at loops 2~5, then 2 a loop (contentProgression.earnedBy), bought power-first (craft, support gems, loop tree, trials, deep tree ...)
 //   in-loop rebuild   support gems and the ascendancy the player re-earns each loop (levels/points per zone below)
 // Usage extra: --talismans N caps the awake talismans (default 8).
 // Points go where the game's own readiness model (getMapPowerReadiness) gains most (geometric mean of DPS and EHP).
@@ -149,11 +149,11 @@ function auditCoreOptions() {
         apply() { game.equipment['코어'] = make([...lines, { id: def.id, value: (def.min + def.max) / 2, extraValue: def.extraMin ? (def.extraMin + def.extraMax) / 2 : undefined }]); },
         undo() { game.equipment['코어'] = make(lines); } }));
 }
-/** Unlock points (2 per loop from loop 2) bought power-first, as far as loop and order allow; a pick buys its missing
+/** Unlock points (contentProgression.earnedBy) bought power-first, as far as loop and order allow; a pick buys its missing
  * prerequisites (after/requires) first, or is skipped when they do not fit. */
 function auditUnlocks(season) {
     const order = ['craft', 'support', 'loopTree', 'trials', 'deepTree', 'talent', 'talisman', 'cube', 'engraving', 'jewel', 'gemForge', 'codex'];
-    let budget = Math.max(0, season - 1) * CONTENT_UNLOCK_POINTS_PER_LOOP;
+    let budget = contentProgression.earnedBy(season);
     const owned = [];
     const chain = (id, out) => {
         const def = CONTENT_UNLOCK_CATALOG.find(row => row.id === id);

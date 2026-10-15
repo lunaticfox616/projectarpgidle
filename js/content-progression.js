@@ -87,6 +87,12 @@ const contentProgression = (() => {
         return !!feature && isUnlocked(feature, owner);
     }
 
+    /** Unlock points earned up to a loop: loops 2~5 give CONTENT_UNLOCK_POINT_AWARDS.early, every later loop perLoop. */
+    function earnedBy(loop) {
+        const { early, perLoop } = CONTENT_UNLOCK_POINT_AWARDS, loops = Math.max(0, Math.floor(Number(loop) || 1) - 1);
+        return early.slice(0, loops).reduce((sum, points) => sum + points, 0) + Math.max(0, loops - early.length) * perLoop;
+    }
+
     /** Points earned by a loop, the points paid and what the catalog can still take (unbought paid unlocks). The record may still be
      * the saved one: the stump box restores its graft ranks (overflow) before mergeDefaults normalizes this ledger. */
     function ledger(state, loop) {
@@ -94,7 +100,7 @@ const contentProgression = (() => {
         const remaining = CONTENT_UNLOCK_CATALOG.reduce((sum, def) =>
             sum + (def.cost > 0 && !unlocked.includes(def.id) && !inherited.includes(def.id) ? def.cost : 0), 0);
         const spent = unlocked.reduce((sum, id) => sum + (Number((state.paidCosts || {})[id]) || 0), 0);
-        return { remaining, spent, earned: (Math.max(Number(state.highestLoop) || 1, loop) - 1) * CONTENT_UNLOCK_POINTS_PER_LOOP };
+        return { remaining, spent, earned: earnedBy(Math.max(Number(state.highestLoop) || 1, loop)) };
     }
 
     /** Read-only point budget; future gated growth counts, automatic combat never costs points. */
@@ -191,7 +197,7 @@ const contentProgression = (() => {
 
     function restorePurchases(purchased, next, record) {
         const version = Number(record.version) || 0;
-        let remaining = (next.highestLoop - 1) * CONTENT_UNLOCK_POINTS_PER_LOOP;
+        let remaining = earnedBy(next.highestLoop);
         for (const id of purchased) {
             const def = definitions.get(id);
             if (!def || def.cost === 0 || next.inherited.includes(id)) continue;
@@ -264,6 +270,6 @@ const contentProgression = (() => {
         if (owned.has('gemForge') && !owned.has('engraving')) next.inherited.push('engraving');
     }
 
-    return Object.freeze({ isUnlocked, canDropCurrency, canOpen, points, overflow, balance, cheapestOpen, status, requirements, sync, purchase, restore });
+    return Object.freeze({ isUnlocked, canDropCurrency, canOpen, earnedBy, points, overflow, balance, cheapestOpen, status, requirements, sync, purchase, restore });
 })();
 safeExposeGlobals({ contentProgression });

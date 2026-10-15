@@ -2262,7 +2262,7 @@ const defaultGame = {
     weaponMastery: { xp: {} },
     chronicle: { rings: 0 },
     saveVersion: 19,
-    // Permanent ledger: income follows CONTENT_UNLOCK_POINTS_PER_LOOP, starting at loop two.
+    // Permanent ledger: income follows CONTENT_UNLOCK_POINT_AWARDS (contentProgression.earnedBy), starting at loop two.
     contentProgression: { version: 7, highestLoop: 1, unlocked: [], paidCosts: {}, inherited: [], automatic: [], grandfathered: [] },
     loopChallenge: null,
     loopChallengeHistory: [],

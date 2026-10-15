@@ -1,5 +1,8 @@
 // Prices are paid once. Ascension trials also require the matching growth unlock.
-const CONTENT_UNLOCK_POINTS_PER_LOOP = 2;
+// Points a loop gives from loop 2 (js/content-progression.js earnedBy). Most paid unlocks open at loops 2~5 (17P of cost by loop 5), so
+// those loops give early[0..3] and every later loop perLoop: at most 3P short (one unlock behind), even again at loop 8. Before
+// 2026-10-15 every loop gave 2 and loops 5~6 were 9P short until loop 14 (사용자 "해금 점수 부족은 조율좀 잘해봐").
+const CONTENT_UNLOCK_POINT_AWARDS = Object.freeze({ early: Object.freeze([4, 4, 3, 3]), perLoop: 2 });
 // lifecycle describes loop transitions, not spending, deaths or individual expedition resets.
 // after: growth predecessor. progress: existing world condition. minLoop: earliest eligibility.
 const CONTENT_UNLOCK_CATALOG = Object.freeze([
@@ -42,4 +45,4 @@ const CONTENT_UNLOCK_CATALOG = Object.freeze([
     {"id":"meteorSite","name":"운석 낙하 지점","group":"전투","minLoop":7,"cost":0,"progress":"meteor","description":"사냥으로 하늘 균열 게이지를 채우면 한 번 들어가 희귀 이상 장비를 얻습니다. 운석 고유 장비도 이곳에서만 떨어집니다.","routes":["map-explore-meteor"]},
     {"id":"deepChaos","name":"심화 혼돈","group":"전투","minLoop":10,"cost":0,"progress":"deepChaos","description":"혼돈 20층 이후의 심화 등반이 열립니다.","routes":["map-explore-deep-chaos"]}
 ]);
-safeExposeData({ CONTENT_UNLOCK_CATALOG, CONTENT_UNLOCK_POINTS_PER_LOOP });
+safeExposeData({ CONTENT_UNLOCK_CATALOG, CONTENT_UNLOCK_POINT_AWARDS });
