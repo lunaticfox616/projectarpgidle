@@ -206,6 +206,9 @@
 /* 도트 테마(css/themes/pixel.css)는 창 안의 글을 12px 도트 글꼴로, 제목과 접기를 15px 읽기 글꼴로 바꾼다. 설정은 한 줄 이름, 접기, 단축키 이름을
    14px 읽기 글꼴(Galmuri14, 14px에서 또렷하다)로, 분류 이름을 15px로 키워 한눈에 읽히게 한다. 설명과 값은 12~13px 도트 글꼴 그대로. */
 @layer overrides {
+  /* PC 창: 도트 테마는 창 안을 비워 나무결 판이 비치게 한다. 설정 창 안은 휴대폰 설정과 같은 무늬 없는 검정(rgb 8, 10, 9):
+     나무결 판 위에서는 글의 대비가 낮고 무늬가 눈을 끌었다(2026-10-16). 제목 줄과 테는 다른 창과 같다. */
+  :root body[data-ui-skin].desktop-windowed-ui #tab-settings > .ui-window-body { background: #080a09; }
   :root body[data-ui-skin] #tab-settings.tab-content .settings-content :is(.cfg-row-text > :is(label, span), .cfg-disclosure > summary, .cloud-link > span, .hotkey-row > .cfg-label) { font-family: var(--font-pixel-read, var(--font-body)); font-size: 14px; font-weight: 400; letter-spacing: 0; }
   :root body[data-ui-skin] #tab-settings.tab-content .settings-sections > button b { font-family: var(--font-pixel-read, var(--font-body)); font-size: 15px; }
   :root body[data-ui-skin] #tab-settings.tab-content .settings-content .cfg-select { font-size: 13px; }
