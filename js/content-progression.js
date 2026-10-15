@@ -74,6 +74,8 @@ const contentProgression = (() => {
         'tab-map': canOpenMap,
         'tab-season': owner => owner.season >= 2,
         'tab-unlocks': owner => owner.season >= 2,
+        // NPC 탭(js/npc-roster-ui.js): 맵에서 NPC를 한 번이라도 만난 뒤.
+        'tab-npcs': owner => Object.keys(owner.npcMet || {}).length > 0,
         // 전술 규칙(예전 컨디션 젬 창의 자동 사용 규칙): 규칙 조건이 루프 2부터 열리고, 전술은 액트 3에서 배운다.
         'skill-tab-condition': owner => owner.season >= 2 && !!owner.combatTacticsUnlocked,
         // 세계수 탐험 창(아틀라스)은 혼돈계와 같은 경로지만, 아틀라스가 열렸으면 혼돈계 관문 전이라도 연다.

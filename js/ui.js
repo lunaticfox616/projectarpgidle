@@ -1306,8 +1306,8 @@ let tabHeaderDragState = null;
 let tabHeaderSuppressClickUntil = 0;
 let lastTabHeaderUiSignature = '';
 let lastActiveTabId = null;
-const TAB_HEADER_NOTI_KEYS = ['char', 'season', 'items', 'skills', 'codex', 'map', 'traits', 'talent', 'journal', 'currency', 'fossil', 'ascend', 'loop', 'social', 'stump'];
-const TAB_UNLOCK_BUTTON_KEYS = ['char', 'season', 'items', 'skills', 'codex', 'map', 'traits', 'talent', 'stump'];
+const TAB_HEADER_NOTI_KEYS = ['char', 'season', 'items', 'skills', 'codex', 'map', 'traits', 'talent', 'journal', 'currency', 'fossil', 'ascend', 'loop', 'social', 'stump', 'npcs'];
+const TAB_UNLOCK_BUTTON_KEYS = ['char', 'season', 'items', 'skills', 'codex', 'map', 'traits', 'talent', 'stump', 'npcs'];
 // 메뉴 단추 하나가 여는 창 하나에 화면 여럿(2026-10-13 사용자: 새 단추 그림에 맞춰 "단추 하나로 합치고 UI를 잘 만들어야겠지?").
 // 장비 단추는 장비와 스킬 젬을, 루프 단추는 루프 패시브와 해금을 연다(앞의 둘은 전부터 묶여 있었다). 창 머리의 탭으로 오가고,
 // 단추는 마지막에 보던 화면을 연다. icon: 창 머리 탭의 그림(assets/ui/pixel/menu-icons.png의 번호), count: 탭에 적는 수(쓸 포인트).
@@ -1324,7 +1324,7 @@ const TAB_GROUP_FIXED_TAB_IDS = ['tab-social', 'tab-settings'];
 const TAB_GROUPS = [
     { key: 'character', label: '캐릭터', icon: '👤', tabs: ['tab-character'] },
     { key: 'growth', label: '성장', icon: '📈', tabs: ['tab-char', 'tab-traits', 'tab-talent', 'tab-unlocks', 'tab-season', 'tab-stump', 'tab-skills'] },
-    { key: 'content', label: '콘텐츠', icon: '🗺️', tabs: ['tab-map', 'tab-codex', 'tab-journal', 'tab-records'] },
+    { key: 'content', label: '콘텐츠', icon: '🗺️', tabs: ['tab-map', 'tab-codex', 'tab-journal', 'tab-records', 'tab-npcs'] },
     { key: 'gear', label: '장비', icon: '⚔️', tabs: ['tab-items'] },
     { key: 'etc', label: '기타', icon: '⚙️', tabs: ['tab-social', 'tab-settings', 'tab-battle'] }
 ];
@@ -1919,6 +1919,7 @@ function getRenderingUiTabIds() {
 function renderVisibleManagementPanels(tabIds) {
     if (tabIds.has('tab-talent')) talentUi.render();
     if (tabIds.has('tab-stump')) stumpBoxUi.renderStumpBoxTab();
+    if (tabIds.has('tab-npcs')) npcRosterUi.render();
     if (tabIds.has('tab-items') && game.itemSubtab === 'item-tab-market') renderMarketUI();
     else refreshBlackMarket(false);
 }
@@ -13971,6 +13972,7 @@ function getLockedTabMessage(tabId) {
     if (tabId === 'tab-map') return '액트 1을 마치면 지도가 열립니다.';
     if (tabId === 'tab-traits') return '전직 시련을 통과하면 전직 탭이 열립니다.';
     if (tabId === 'tab-talent') return '재능 개화 시련을 클리어하면 재능 탭이 열립니다.';
+    if (tabId === 'tab-npcs') return '맵에서 NPC를 만나면 NPC 탭이 열립니다.';
     return '아직 해금되지 않은 탭입니다.';
 }
 

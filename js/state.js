@@ -2162,11 +2162,13 @@ function hasPermanentTalentTabUnlock(state) {
     return false;
 }
 
+/** The tabs a loop does not close again (run at load and after the loop's reset of game.unlocks): 재능 once a talent bloom was
+ * reached, NPC once an NPC was met on a map (game.npcMet, js/npc-roster-ui.js). */
 function syncPermanentTalentTabUnlock(state) {
     if (!state || typeof state !== 'object') return state;
-    if (!hasPermanentTalentTabUnlock(state)) return state;
     state.unlocks = (state.unlocks && typeof state.unlocks === 'object') ? state.unlocks : {};
-    state.unlocks.talent = true;
+    if (hasPermanentTalentTabUnlock(state)) state.unlocks.talent = true;
+    if (state.npcMet && Object.keys(state.npcMet).length) state.unlocks.npcs = true;
     return state;
 }
 
@@ -2545,6 +2547,10 @@ const defaultGame = {
     seenTutorials: [],
     // The NPC window's keywords already heard, "npcId:keyword" (js/content-progression-ui.js npcHeard): kept across loops.
     npcHeard: [],
+    // NPCs met on the maps, { npcId: { count, loop, zoneId, tone } } (js/npc-shop.js meet), kept across loops: the NPC tab lists them.
+    npcMet: {},
+    // Each NPC's shop stock, rolled at each meeting: { npcId: { loop, zoneId, offers } } (js/npc-shop.js); an earlier loop's is gone.
+    npcShops: {},
     journalEntries: ['prologue'],
     journalBonuses: [],
     journalBonusClaims: {},
@@ -2581,8 +2587,8 @@ const defaultGame = {
     },
     // cloudResetRevision: last explicit account reset's server revision (0 for pre-reset saves).
     saveMeta: { lastModifiedAt: 0, lastCloudSyncAt: 0, lastCloudUploadProfile: null, cloudUserId: null, cloudRevision: 0, cloudResetRevision: 0, maxSeenAt: 0 },
-    unlocks: { char: false, season: false, items: false, map: false, skills: false, codex: false, traits: false, talent: false, jewel: false, stump: false },
-    noti: { char: false, season: false, items: false, skills: false, map: false, codex: false, traits: false, jewel: false, journal: false, currency: false, fossil: false, ascend: false, loop: false, social: false, stump: false },
+    unlocks: { char: false, season: false, items: false, map: false, skills: false, codex: false, traits: false, talent: false, jewel: false, stump: false, npcs: false },
+    noti: { char: false, season: false, items: false, skills: false, map: false, codex: false, traits: false, jewel: false, journal: false, currency: false, fossil: false, ascend: false, loop: false, social: false, stump: false, npcs: false },
     mapAlarmSeen: {},
     mapAlarmMainSeen: {}
 };

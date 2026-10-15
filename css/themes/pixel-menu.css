@@ -31,6 +31,7 @@ body[data-ui-skin] #btn-ui-rail-misc { --px-icon: 11; }
 body[data-ui-skin] #btn-close-all-windows { --px-icon: 12; }
 body[data-ui-skin] #btn-mobile-nav-more { --px-icon: 13; }
 body[data-ui-skin] #btn-tab-talent { --px-icon: 17; }
+body[data-ui-skin] #btn-tab-npcs { --px-icon: 16; }
 body[data-ui-skin] #btn-tab-social { --px-icon: 18; }
 body[data-ui-skin] #btn-tab-settings { --px-icon: 19; }
 body[data-ui-skin] #btn-map-complete-action-picker { --px-icon: 20; }

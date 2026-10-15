@@ -146,7 +146,7 @@ const STORY_CLASS_ORIGINS = Object.freeze({
 // The story's five NPCs (docs/story-bible.md section 4): id (also the stage art's id, data/stage-view.js STAGE_NPC_ART), name as
 // the encounters write it, title, and dialogues: the keywords of its window (js/content-progression-ui.js openNpc), each the NPC
 // alone speaking (line), shown once the hero has reached act reqAct and loop reqLoop (both optional). Each keeps the unlocks whose
-// loop lines it speaks (STORY_LOOP_MILESTONES speaker): the window lists them under 능력 해금.
+// loop lines it speaks (STORY_LOOP_MILESTONES speaker): its window sells those buyable now (즉시 해금), and its shop (js/npc-shop.js) one kind of ware.
 const STORY_NPCS = Object.freeze({
     haken: Object.freeze({
         id: 'haken',

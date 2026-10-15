@@ -216,7 +216,7 @@ const contentUnlockUi = {
             <button type="button" data-unlock-horizon="toggle">${toggle}</button></div>
             <div class="unlock-milestones">${this.milestoneRuns(shown).map(run => this.milestone(run.start, run.end)).join('') || this.milestone(game.season)}</div>`;
     },
-    /** hides(id): in the NPC window, whether an unlock is still hidden there (npcKnows); its name is left out of the first reward. */
+    /** hides(id): in the NPC window's 즉시 해금, whether an unlock is still hidden there (npcKnows); its name is left out of the first reward. */
     entryReward(def, status, hides) {
         const text = hides ? this.withoutHidden(def.rewardText, hides) : def.rewardText;
         const reward = !status.unlocked && text ? `<p class="unlock-reward">${escapeHTML(text)}</p>` : '';
@@ -226,28 +226,25 @@ const contentUnlockUi = {
     lockAttribute(id) {
         return contentProgression.isUnlocked(id) ? '' : 'data-content-locked';
     },
-    lifecycle(def, hides) {
-        const life = def.lifecycle, keep = text => (hides ? this.withoutHidden(text, hides, '/') : text);
+    lifecycle(def) {
+        const life = def.lifecycle;
         if (!life) return '<p class="unlock-lifetime-note">기능 해금은 다음 루프에도 유지됩니다.</p>';
         return `<details class="unlock-lifetime" id="unlock-lifetime-${def.id}"><summary>루프 전환 시, ${escapeHTML(life.label)}</summary><p class="unlock-lifetime-note">기능 해금은 영구 유지</p>
-            ${keep(life.kept) ? `<p><b>유지</b>${escapeHTML(keep(life.kept))}</p>` : ''}${keep(life.reset) ? `<p><b>초기화</b>${escapeHTML(keep(life.reset))}</p>` : ''}</details>`;
+            ${life.kept ? `<p><b>유지</b>${escapeHTML(life.kept)}</p>` : ''}${life.reset ? `<p><b>초기화</b>${escapeHTML(life.reset)}</p>` : ''}</details>`;
     },
-    /** The parts of a list (", " or "/") that name no unlock still hidden in the NPC window. A name followed by 의 is part of another
-     * noun (the gem material 창공의 정수 is not the 창공 unlock). */
-    withoutHidden(text, hides, separator = ', ') {
+    /** The parts of a ", " list that name no unlock still hidden in the NPC window. A name followed by 의 is part of another noun
+     * (the gem material 창공의 정수 is not the 창공 unlock). */
+    withoutHidden(text, hides) {
         const names = CONTENT_UNLOCK_CATALOG.filter(row => hides(row.id)).map(row => row.name);
         const named = part => names.some(name => part.split(name).slice(1).some(rest => !rest.startsWith('의 ')));
-        return String(text || '').split(separator).filter(part => !named(part)).join(separator);
+        return String(text || '').split(', ').filter(part => !named(part)).join(', ');
     },
-    /** A feature with after (an unlock id) waits in the NPC window until that unlock shows there (hides). */
-    relatedFeatures(def, hides) {
-        const rows = (def.features || []).filter(row => !(hides && row.after && hides(row.after)));
-        if (!rows.length) return '';
-        return `<details class="unlock-related" id="unlock-related-${def.id}"><summary>포함된 성장 요소</summary>${rows.map(row =>
+    relatedFeatures(def) {
+        if (!def.features) return '';
+        return `<details class="unlock-related" id="unlock-related-${def.id}"><summary>포함된 성장 요소</summary>${def.features.map(row =>
             `<p><strong>${escapeHTML(row.name)}</strong>${escapeHTML(row.description)}</p>`).join('')}</details>`;
     },
-    /** hides(id), only from the NPC window: leaves out what names unlocks still hidden there. */
-    detail(def, hides = null) {
+    detail(def) {
         const status = contentProgression.status(def.id);
         const conditions = contentProgression.requirements(def.id);
         const action = status.unlocked ? this.openButton(def) : def.cost === 0
@@ -257,8 +254,8 @@ const contentUnlockUi = {
         // HUD 위 작업 영역)에서 단추가 스크롤 밖으로 밀려났다.
         return `<div class="unlock-detail-top"><span class="unlock-eyebrow">${escapeHTML(def.group)}, ${def.cost ? '선택 해금' : '자동 개방'}</span>
             <div class="unlock-detail-art"><img src="${this.art(def)}" alt=""></div><h3>${escapeHTML(def.name)}</h3><p>${escapeHTML(def.description)}</p>${this.loreHtml(def.id)}</div>
-            <div class="unlock-detail-reward">${this.entryReward(def, status, hides)}</div>
-            ${this.lifecycle(def, hides)}${this.relatedFeatures(def, hides)}
+            <div class="unlock-detail-reward">${this.entryReward(def, status)}</div>
+            ${this.lifecycle(def)}${this.relatedFeatures(def)}
             <div class="unlock-requirements"><h4>${status.unlocked ? '해금 완료' : `해금 조건${def.cost ? ', ' + def.cost + 'P' : ''}`}</h4>${conditions.map(row => `<div class="${row.met ? 'is-met' : ''}"><span>${escapeHTML(row.label)}</span><small>${row.met ? '달성' : '미달성'}</small></div>`).join('')}</div>
             <div class="unlock-detail-action">${action}</div>`;
     },
@@ -380,7 +377,7 @@ const contentUnlockUi = {
         contentProgression.sync();
         this.announceOpenedSince(before);
     },
-    /** The NPC's 능력 해금: the unlocks whose loop lines it speaks (STORY_LOOP_MILESTONES speaker, matched by the personal name, the
+    /** The unlocks the NPC keeps: those whose loop lines it speaks (STORY_LOOP_MILESTONES speaker, matched by the personal name, the
      * last word of the name) that the hero may know of now: bought ones and ones whose loop and progress conditions are met (buyable,
      * or short of points only). Ones still behind a loop, a progress step or another unlock stay hidden, so the window spoils nothing
      * (2026-10-16 사용자: 아직 알지 못하는 정보의 해금과 불가능한 해금은 안 보이게). */
@@ -396,31 +393,29 @@ const contentUnlockUi = {
     keeperOf(id) {
         return STORY_LOOP_MILESTONES[id] ? this.personal(STORY_LOOP_MILESTONES[id].speaker) : '';
     },
-    /** What the NPC has for the hero, for the mark over it on the stage (js/canvas-act-title-card.js): 'unlock' while one of its
-     * unlocks can be bought now, 'talk' while a keyword it can speak of has not been heard, else ''. npc: { id, name }. */
+    /** What the NPC has for the hero, for the mark over it on the stage (js/canvas-act-title-card.js) and in the NPC tab: 'unlock'
+     * while one of its unlocks can be bought now (npcReady), 'talk' while a keyword it can speak of has not been heard, else ''.
+     * npc: { id, name }. */
     npcNews(npc) {
         if (!game.contentProgression) return '';
-        if (this.npcUnlocks(npc.name).some(def => this.npcChip(def)[0] === 'is-ready')) return 'unlock';
+        if (this.npcReady(npc.name).length) return 'unlock';
         return this.npcTopics(npc).open.some(row => !this.npcHeard(npc, row.topic)) ? 'talk' : '';
     },
-    /** [class, text] of an unlock's state in the NPC window (only shown ones, npcUnlocks: bought, buyable, or short of points). */
-    npcChip(def) {
-        const status = contentProgression.status(def.id);
-        if (status.unlocked) return ['is-owned', '해금 완료'];
-        if (status.available && def.cost > 0) return ['is-ready', `해금 가능, ${def.cost}P`];
-        return ['is-locked', status.reason];
+    /** 즉시 해금: the NPC's unlocks that can be bought now with the unlock tab's points (2026-10-16 사용자: 맡은 해금 대신 기존 해금
+     * 시스템처럼, 조우 후 NPC를 누르면 그 NPC의 콘텐츠를 바로 해금). The unlock tab stays the place of the whole system. */
+    npcReady(name) {
+        return this.npcUnlocks(name).filter(def => def.cost > 0 && contentProgression.status(def.id).available);
     },
     /** The NPC's window, an ARPG's NPC talk (2026-10-15 사용자: "POE처럼 키워드 누르면 관련 스크립트만", "NPC 대화창도 정성들여서"):
-     * the NPC standing on the left; on the right its name, a speech box with what it says (its line on the stage when the window
-     * opens, then the chosen keyword's), the keywords it can speak of (STORY_NPCS dialogues, new ones marked until heard) and, under
-     * them, the unlocks it keeps (능력 해금), which turn the right side into the unlock list with the unlock window's own detail.
-     * npc: { id, name, title, tone, line } (js/canvas-act-title-card.js npcAt). */
+     * the NPC's portrait on the left; on the right its name, a speech box with what it says (its line on the stage when the window
+     * opens, then the chosen keyword's), the keywords it can speak of (STORY_NPCS dialogues, new ones marked until heard, heard ones
+     * grey) and, under them, its unlocks to buy now (즉시 해금) and the door to its shop (js/npc-shop-ui.js), which takes the body.
+     * npc: { id, name, title, tone, line } (js/canvas-act-title-card.js npcAt, js/npc-roster-ui.js). */
     openNpc(npc) {
         const old = document.getElementById('npc-dialog');
         if (!npc || (old && old.open)) return false;
         if (old) old.remove(); // closed a moment ago, its close event (which removes it) not yet run
-        const rows = this.npcUnlocks(npc.name), first = state => rows.find(def => this.npcChip(def)[0] === state);
-        const view = { npc, rows, mode: 'talk', topic: null, selected: rows.length ? (first('is-ready') || first('is-locked') || rows[0]).id : null };
+        const view = { npc, mode: 'talk', topic: null };
         const dialog = document.createElement('dialog');
         dialog.id = 'npc-dialog';
         dialog.className = 'npc-dialog';
@@ -435,51 +430,42 @@ const contentUnlockUi = {
     },
     renderNpc(dialog, view) {
         const npc = view.npc;
+        dialog.classList.toggle('is-shop', view.mode === 'shop');
         dialog.innerHTML = `<figure class="npc-dialog-figure"><img class="npc-dialog-portrait" src="${STAGE_NPC_ART.path}${npc.id}-portrait.png" alt=""></figure>
             <div class="npc-dialog-main"><header class="npc-dialog-head"><div class="npc-dialog-who">
             <h2 id="npc-dialog-name">${escapeHTML(npc.name)}</h2><p class="npc-dialog-title">${escapeHTML(npc.title || '')}</p></div>
             <button type="button" class="npc-dialog-close" data-npc-close>닫기</button></header>
-            ${view.mode === 'unlocks' ? this.npcUnlockBody(view) : this.npcTalkBody(view)}</div>`;
+            ${view.mode === 'shop' ? npcShopUi.body(npc) : this.npcTalkBody(view)}</div>`;
     },
-    /** The speech box, the keywords and the way to the unlocks it keeps. */
+    /** The speech box, the keywords and the foot (npcFoot). */
     npcTalkBody(view) {
-        const npc = view.npc, { open, waiting } = this.npcTopics(npc), topic = open.find(row => row.topic === view.topic) || null;
+        const npc = view.npc, { open } = this.npcTopics(npc), topic = open.find(row => row.topic === view.topic) || null;
         const keys = open.map(row => {
             const heard = this.npcHeard(npc, row.topic);
             return `<li><button type="button" class="${heard ? 'is-heard' : 'is-new'}" data-npc-topic="${escapeHTML(row.topic)}" aria-pressed="${row === topic}">
                 <span>${escapeHTML(row.topic)}</span>${heard ? '' : '<em>새 이야기</em>'}</button></li>`;
         }).join('');
-        const more = waiting ? `<p class="npc-dialog-more">이야기를 더 진행하면 ${waiting}개가 더 열립니다</p>` : '';
         return `<section class="npc-dialog-speech" aria-live="polite">${topic ? `<h3>${escapeHTML(topic.topic)}</h3>` : ''}
             <p>${escapeHTML(topic ? topic.line : this.npcGreeting(npc))}</p></section>
-            <nav class="npc-dialog-talk" aria-label="이야깃거리"><h4>이야기</h4><ul class="npc-dialog-topics">${keys}</ul>${more}</nav>
-            ${this.npcOfferBar(view)}`;
+            <nav class="npc-dialog-talk" aria-label="이야깃거리"><h4>이야기</h4><ul class="npc-dialog-topics">${keys}</ul></nav>
+            ${this.npcFoot(view)}`;
     },
-    /** 능력 해금: how many unlocks the NPC keeps and how many can be bought now. */
-    npcOfferBar(view) {
-        if (!view.rows.length) return '';
-        const ready = view.rows.filter(def => this.npcChip(def)[0] === 'is-ready').length;
-        return `<footer class="npc-dialog-foot"><button type="button" class="npc-dialog-offer${ready ? ' is-ready' : ''}" data-npc-topic="unlocks">
-            <span>능력 해금</span><b>${view.rows.length}</b>${ready ? `<em>해금 가능 ${ready}</em>` : ''}</button></footer>`;
+    /** 즉시 해금 (npcReady), each bought right here with its first reward choice, as in the unlock tab; then the door to the shop. */
+    npcFoot(view) {
+        const hides = id => !this.npcKnows(id);
+        const rows = this.npcReady(view.npc.name).map(def => `<li class="npc-instant-row"><img src="${this.art(def)}" alt="">
+            <div><strong>${escapeHTML(def.name)}</strong><p>${escapeHTML(def.description)}</p>${this.entryReward(def, contentProgression.status(def.id), hides)}</div>
+            <button type="button" data-unlock-content="${def.id}">해금, ${def.cost}P</button></li>`).join('');
+        const instant = rows ? `<section class="npc-dialog-instant" aria-label="즉시 해금"><h4>즉시 해금<small>해금 포인트 ${contentProgression.balance()}P</small></h4>
+            <ul>${rows}</ul></section>` : '';
+        const shop = npcShopUi.door(view.npc);
+        return instant || shop ? `<footer class="npc-dialog-foot">${instant}${shop}</footer>` : '';
     },
-    /** 능력 해금: the unlocks the NPC keeps, each with the unlock window's detail, and the way back to the talk. */
-    npcUnlockBody(view) {
-        const def = view.rows.find(row => row.id === view.selected) || view.rows[0];
-        const items = view.rows.map(row => {
-            const [state, text] = this.npcChip(row);
-            return `<li><button type="button" data-npc-unlock="${row.id}" aria-pressed="${row.id === def.id}">
-                <img src="${this.art(row)}" alt=""><span>${escapeHTML(row.name)}</span><em class="${state}">${escapeHTML(text)}</em></button></li>`;
-        }).join('');
-        return `<div class="npc-dialog-body"><div class="npc-dialog-side"><button type="button" class="npc-dialog-back" data-npc-topic="greet">대화로 돌아가기</button>
-            <ul class="npc-dialog-unlocks" aria-label="능력 해금">${items}</ul></div>
-            <div class="npc-dialog-detail unlock-detail">${this.detail(def, id => !this.npcKnows(id))}</div></div>`;
-    },
-    /** The keywords the NPC can speak of now (STORY_NPCS dialogues, docs/story-bible.md section 4) and how many wait: a keyword waits
-     * for the act it speaks of (reqAct, any act after a first loop) and for its loop (reqLoop). */
+    /** The keywords the NPC can speak of now (STORY_NPCS dialogues, docs/story-bible.md section 4): a keyword waits for the act it
+     * speaks of (reqAct, any act after a first loop) and for its loop (reqLoop). */
     npcTopics(npc) {
         const rows = (STORY_NPCS[npc.id] || {}).dialogues || [], act = this.npcReachedAct(), loop = game.season || 1;
-        const open = rows.filter(row => (!row.reqAct || act >= row.reqAct) && (!row.reqLoop || loop >= row.reqLoop));
-        return { open, waiting: rows.length - open.length };
+        return { open: rows.filter(row => (!row.reqAct || act >= row.reqAct) && (!row.reqLoop || loop >= row.reqLoop)) };
     },
     /** The furthest story act the hero has reached in this loop (STORY_ACTS order), or every act after a first loop. */
     npcReachedAct() {
@@ -503,19 +489,17 @@ const contentUnlockUi = {
     hearNpcTopic(npc, topic) {
         if (!this.npcHeard(npc, topic)) game.npcHeard.push(this.npcHeardKey(npc, topic));
     },
-    /** A keyword shows its line (and counts as heard; 능력 해금 shows the unlock list); a row shows its detail; buying refreshes the
-     * window after the unlock window's own handler ran; opening a content closes it. */
+    /** A keyword shows its line (and counts as heard; 상점 opens the shop, its 대화 the talk again); buying an unlock refreshes the
+     * window after the unlock window's own handler ran. The shop's own presses are js/npc-shop-ui.js's. */
     npcClick(dialog, view, event) {
         const control = event.target.closest('button');
         if (!control) return;
         if (control.dataset.npcClose !== undefined) { dialog.close(); return; }
         if (control.dataset.npcTopic) { this.npcPickTopic(view, control.dataset.npcTopic); this.renderNpc(dialog, view); return; }
-        if (control.dataset.npcUnlock) { view.selected = control.dataset.npcUnlock; this.renderNpc(dialog, view); return; }
-        if (control.dataset.openContent) { dialog.close(); return; }
         if (control.dataset.unlockContent) setTimeout(() => { if (dialog.open) this.renderNpc(dialog, view); }, 0);
     },
     npcPickTopic(view, topic) {
-        if (topic === 'unlocks') { view.mode = 'unlocks'; return; }
+        if (topic === 'shop') { view.mode = 'shop'; return; }
         const known = this.npcTopics(view.npc).open.some(row => row.topic === topic);
         Object.assign(view, { mode: 'talk', topic: known ? topic : null });
         if (known) this.hearNpcTopic(view.npc, topic);
@@ -537,7 +521,7 @@ const contentUnlockUi = {
 document.addEventListener('click', event => {
     contentUnlockUi.handleControl(event.target.closest('button'));
     const button = event.target.closest('[data-unlock-content]');
-    if (button && !button.disabled) contentUnlockUi.purchase(button.dataset.unlockContent, button.closest('.unlock-detail') || document);
+    if (button && !button.disabled) contentUnlockUi.purchase(button.dataset.unlockContent, button.closest('.unlock-detail, .npc-instant-row') || document);
     const open = event.target.closest('[data-open-content]');
     if (open) contentUnlockUi.open(open.dataset.openContent);
 });
@@ -549,6 +533,6 @@ window.addEventListener('project-idle:starter-gem-received', event => {
 });
 // NPC pictures are local stage art (assets/stage-npcs): where one is missing, drop it rather than show a broken image.
 document.addEventListener('error', event => {
-    if (event.target instanceof HTMLImageElement && event.target.matches('.npc-dialog-portrait, .unlock-lore-face')) event.target.remove();
+    if (event.target instanceof HTMLImageElement && event.target.matches('.npc-dialog-portrait, .unlock-lore-face, .npc-roster-portrait')) event.target.remove();
 }, true);
 safeExposeGlobals({ contentUnlockUi });

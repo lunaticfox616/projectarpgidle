@@ -983,6 +983,10 @@ function mergeDefaults(save) {
     }
     merged.seenTutorials = Array.isArray(merged.seenTutorials) ? merged.seenTutorials.filter(id => typeof id === 'string') : [];
     merged.npcHeard = Array.isArray(merged.npcHeard) ? Array.from(new Set(merged.npcHeard.filter(id => typeof id === 'string' && id.includes(':')))) : [];
+    // NPC meetings and shop stock (js/npc-shop.js): plain records; a stock's offers are read again before each sale.
+    const record = value => (value && typeof value === 'object' && !Array.isArray(value) ? value : {});
+    merged.npcMet = record(merged.npcMet);
+    merged.npcShops = record(merged.npcShops);
     merged.starterGemTutorialPending = typeof merged.starterGemTutorialPending === 'string'
         && Array.isArray(merged.skills) && merged.skills.includes(merged.starterGemTutorialPending)
         ? merged.starterGemTutorialPending

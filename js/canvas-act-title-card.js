@@ -204,9 +204,21 @@ const actTitleCard = (() => {
         queueSpotLine(lore, run, now);
         queueHeroMuse(story, lore, now);
         if (!npc || rescuing(run)) return;
+        countNpcMeeting(run);
         queueStoryLine({ key: 'npc', who: 'npc', speaker: npc.name, text: npcLine(npc), tone: npc.tone }, now);
         const reply = lore && (game.season || 1) === 1 ? (npc.classReplies || {})[game.selectedClassId] : null;
         if (reply) queueStoryLine({ key: 'reply', who: 'hero', speaker: lore.label, text: reply, tone: 'gold' }, now);
+    }
+    /** The first look at the guide standing free in its room is one meeting (js/npc-shop.js meet: the NPC tab and the stock of its
+     * shop), once per map run. The NPC tab shows from the first meeting on, with a dot while the NPC has an unlock to buy now. */
+    function countNpcMeeting(run) {
+        const watch = runs.get(run), npc = watch ? runNpc(watch) : null;
+        if (!npc || watch.met) return;
+        watch.met = true;
+        const tabShown = !!game.unlocks.npcs;
+        npcShop.meet(npc, zone);
+        if (contentUnlockUi.npcNews(npc) === 'unlock') game.noti.npcs = true;
+        if (!tabShown) updateTabUnlockButtons();
     }
     const greets = row => !!row && GREET.keys.has(row.key) && row.zone === zone;
     /** The run whose entry room greets the hero now: an active map with the hero in its entry room and no move command given
