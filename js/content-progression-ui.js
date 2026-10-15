@@ -368,10 +368,13 @@ const contentUnlockUi = {
         contentProgression.sync();
         this.announceOpenedSince(before);
     },
-    /** The unlocks an NPC keeps: those whose loop lines it speaks (STORY_LOOP_MILESTONES speaker, matched by the personal name, the
-     * last word of the name). */
+    /** The NPC's 능력 해금: the unlocks whose loop lines it speaks (STORY_LOOP_MILESTONES speaker, matched by the personal name, the
+     * last word of the name) that the hero may know of now: bought ones and ones whose loop and progress conditions are met (buyable,
+     * or short of points only). Ones still behind a loop, a progress step or another unlock stay hidden, so the window spoils nothing
+     * (2026-10-16 사용자: 아직 알지 못하는 정보의 해금과 불가능한 해금은 안 보이게). */
     npcUnlocks(name) {
-        return CONTENT_UNLOCK_CATALOG.filter(def => this.keeperOf(def.id) === this.personal(name));
+        return CONTENT_UNLOCK_CATALOG.filter(def => this.keeperOf(def.id) === this.personal(name)
+            && (contentProgression.isUnlocked(def.id) || contentProgression.requirements(def.id).every(row => row.met)));
     },
     personal: text => String(text || '').split(/[\s,]+/).pop(),
     /** The personal name of the NPC who speaks an unlock's loop lines, or ''. */
@@ -385,21 +388,17 @@ const contentUnlockUi = {
         if (this.npcUnlocks(npc.name).some(def => this.npcChip(def)[0] === 'is-ready')) return 'unlock';
         return this.npcTopics(npc).open.some(row => !this.npcHeard(npc, row.topic)) ? 'talk' : '';
     },
-    /** [class, text] of an unlock's state in the NPC window. */
+    /** [class, text] of an unlock's state in the NPC window (only shown ones, npcUnlocks: bought, buyable, or short of points). */
     npcChip(def) {
         const status = contentProgression.status(def.id);
         if (status.unlocked) return ['is-owned', '해금 완료'];
         if (status.available && def.cost > 0) return ['is-ready', `해금 가능, ${def.cost}P`];
-        // Locked behind another NPC's unlock: name that NPC, the window points where to go.
-        const before = CONTENT_UNLOCK_CATALOG.filter(row => row.id !== def.id && String(status.reason).startsWith(row.name))
-            .sort((a, b) => b.name.length - a.name.length)[0];
-        const keeper = before ? this.keeperOf(before.id) : '';
-        return ['is-locked', keeper && keeper !== this.keeperOf(def.id) ? `${status.reason}, ${keeper}` : status.reason];
+        return ['is-locked', status.reason];
     },
     /** The NPC's window, an ARPG's NPC talk (2026-10-15 사용자: "POE처럼 키워드 누르면 관련 스크립트만", "NPC 대화창도 정성들여서"):
      * the NPC standing on the left; on the right its name, a speech box with what it says (its line on the stage when the window
      * opens, then the chosen keyword's), the keywords it can speak of (STORY_NPCS dialogues, new ones marked until heard) and, under
-     * them, the unlocks it keeps (맡은 해금), which turn the right side into the unlock list with the unlock window's own detail.
+     * them, the unlocks it keeps (능력 해금), which turn the right side into the unlock list with the unlock window's own detail.
      * npc: { id, name, title, tone, line } (js/canvas-act-title-card.js npcAt). */
     openNpc(npc) {
         const old = document.getElementById('npc-dialog');
@@ -441,14 +440,14 @@ const contentUnlockUi = {
             <nav class="npc-dialog-talk" aria-label="이야깃거리"><h4>이야기</h4><ul class="npc-dialog-topics">${keys}</ul>${more}</nav>
             ${this.npcOfferBar(view)}`;
     },
-    /** 맡은 해금: how many unlocks the NPC keeps and how many can be bought now. */
+    /** 능력 해금: how many unlocks the NPC keeps and how many can be bought now. */
     npcOfferBar(view) {
         if (!view.rows.length) return '';
         const ready = view.rows.filter(def => this.npcChip(def)[0] === 'is-ready').length;
         return `<footer class="npc-dialog-foot"><button type="button" class="npc-dialog-offer${ready ? ' is-ready' : ''}" data-npc-topic="unlocks">
-            <span>맡은 해금</span><b>${view.rows.length}</b>${ready ? `<em>해금 가능 ${ready}</em>` : ''}</button></footer>`;
+            <span>능력 해금</span><b>${view.rows.length}</b>${ready ? `<em>해금 가능 ${ready}</em>` : ''}</button></footer>`;
     },
-    /** 맡은 해금: the unlocks the NPC keeps, each with the unlock window's detail, and the way back to the talk. */
+    /** 능력 해금: the unlocks the NPC keeps, each with the unlock window's detail, and the way back to the talk. */
     npcUnlockBody(view) {
         const def = view.rows.find(row => row.id === view.selected) || view.rows[0];
         const items = view.rows.map(row => {
@@ -457,7 +456,7 @@ const contentUnlockUi = {
                 <img src="${this.art(row)}" alt=""><span>${escapeHTML(row.name)}</span><em class="${state}">${escapeHTML(text)}</em></button></li>`;
         }).join('');
         return `<div class="npc-dialog-body"><div class="npc-dialog-side"><button type="button" class="npc-dialog-back" data-npc-topic="greet">대화로 돌아가기</button>
-            <ul class="npc-dialog-unlocks" aria-label="맡은 해금">${items}</ul></div>
+            <ul class="npc-dialog-unlocks" aria-label="능력 해금">${items}</ul></div>
             <div class="npc-dialog-detail unlock-detail">${this.detail(def)}</div></div>`;
     },
     /** The keywords the NPC can speak of now (STORY_NPCS dialogues, docs/story-bible.md section 4) and how many wait: a keyword waits
@@ -489,7 +488,7 @@ const contentUnlockUi = {
     hearNpcTopic(npc, topic) {
         if (!this.npcHeard(npc, topic)) game.npcHeard.push(this.npcHeardKey(npc, topic));
     },
-    /** A keyword shows its line (and counts as heard; 맡은 해금 shows the unlock list); a row shows its detail; buying refreshes the
+    /** A keyword shows its line (and counts as heard; 능력 해금 shows the unlock list); a row shows its detail; buying refreshes the
      * window after the unlock window's own handler ran; opening a content closes it. */
     npcClick(dialog, view, event) {
         const control = event.target.closest('button');

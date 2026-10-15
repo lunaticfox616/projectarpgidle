@@ -64,7 +64,7 @@ const COMMENTS = Object.freeze({
     STORY_NPCS: ["The story's five NPCs (docs/story-bible.md section 4): id (also the stage art's id, data/stage-view.js STAGE_NPC_ART), name as",
         'the encounters write it, title, and dialogues: the keywords of its window (js/content-progression-ui.js openNpc), each the NPC',
         "alone speaking (line), shown once the hero has reached act reqAct and loop reqLoop (both optional). Each keeps the unlocks whose",
-        'loop lines it speaks (STORY_LOOP_MILESTONES speaker): the window lists them under 맡은 해금.'],
+        'loop lines it speaks (STORY_LOOP_MILESTONES speaker): the window lists them under 능력 해금.'],
     STORY_ACT_ENCOUNTERS: ['Room-stage lines per act (key: STORY_ACTS order; STORY_TRIAL_ENCOUNTERS below has the same shape per trial zone id): npc on',
         'entering the entry room (loopBark from loop 2 on), stele in a side room (afterClear: after the ending instead), boss intro once the final boss is up,',
         'half at 55% life, defeat when the map is cleared. Each line 50 characters at most (one line of the band on PC).'],
