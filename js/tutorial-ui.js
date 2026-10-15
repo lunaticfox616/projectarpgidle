@@ -15,7 +15,7 @@ const tutorialActionUi = {
         return !!notice && (TUTORIAL_START_KEYS.has(notice.key) || TUTORIAL_GUIDED_CONTENT_KEYS.has(notice.key) || String(notice.key).startsWith('story_'));
     },
     noticeBody(notice, controls) {
-        const body = tutorialBodyHtml(notice.body) + controls.trim();
+        const body = tutorialQuoteHtml(notice.quote) + tutorialBodyHtml(notice.body) + controls.trim();
         return this.requiresAttention(notice) ? body : `<details class="tutorial-notice-details"><summary>자세히</summary>${body}</details>`;
     },
     expireNotice(now) {
@@ -349,6 +349,12 @@ function tutorialMarkup(line) {
         .replace(/\[([^\]]+)\]/g, '<span class="tutorial-name">[$1]</span>');
 }
 /** First line = what happened; the rest = what to do, as a short list (a line of speech in “…” keeps it prose). */
+/** A story line over a notice, styled like the loop close (js/loop-ui.js storyHtml). lore: { speaker, quote } as in
+ * data/story-journal.js STORY_LOOP_MILESTONES (the stump box card: who hands the box over says it as it is given). */
+function tutorialQuoteHtml(lore) {
+    if (!lore || !lore.quote) return '';
+    return `<blockquote class="story-scene-quote"><p><strong>${escapeHTML(lore.speaker || '')}</strong> ${escapeHTML(lore.quote)}</p></blockquote>`;
+}
 function tutorialBodyHtml(body) {
     const [lead = '', ...rest] = String(body || '').split('\n').map(line => line.trim()).filter(Boolean);
     const head = `<p class="tutorial-summary">${tutorialMarkup(lead)}</p>`;
