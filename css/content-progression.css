@@ -153,18 +153,21 @@ body.desktop-windowed-ui #content-unlock-panel>.unlock-workspace{flex:1 0 auto}
 }
 /* 이야기 NPC의 창(js/content-progression-ui.js openNpc): 왼쪽에 선 NPC, 오른쪽에 이름, 말 상자, 이야깃거리, 맡은 해금.
    말 상자와 표식은 NPC의 색(data-tone, 무대의 이름표와 같다)을 쓴다. */
-.npc-dialog{--npc-tone:#e0c27e;--npc-glow:rgba(224,194,126,.16);width:min(980px,94vw);height:min(640px,90vh);padding:0;border:1px solid var(--skin-line);background:#110e0b;color:var(--color-text);overflow:hidden;box-shadow:0 26px 80px rgba(0,0,0,.72)}
+.npc-dialog{--npc-tone:#e0c27e;--npc-glow:rgba(224,194,126,.16);width:min(880px,94vw);height:fit-content;max-height:min(640px,90vh);padding:0;border:1px solid var(--skin-line);background:linear-gradient(180deg,rgba(169,145,84,.07),transparent 140px),#110e0b;color:var(--color-text);overflow:hidden;box-shadow:0 26px 80px rgba(0,0,0,.72)}
 .npc-dialog[data-tone="violet"]{--npc-tone:#c9a4f2;--npc-glow:rgba(201,164,242,.16)}
 .npc-dialog[data-tone="cyan"]{--npc-tone:#8fe3d6;--npc-glow:rgba(143,227,214,.14)}
 .npc-dialog[data-tone="crimson"]{--npc-tone:#ef9a92;--npc-glow:rgba(239,154,146,.15)}
-.npc-dialog[open]{display:grid;grid-template-columns:minmax(260px,36%) minmax(0,1fr)}
+/* PC: 작은 초상 액자 옆에 이름과 말 상자, 그 아래로 이야깃거리와 맡은 해금이 창 폭을 다 쓴다(2026-10-16 사용자: 일러스트가 크게 나와 부담스러워
+   "작은 초상 액자 + 대사창을 그 옆에 압축"을 골랐다). 본문 묶음(.npc-dialog-main)은 칸을 나누지 않고 그 안의 줄들이 창의 칸에 선다. */
+.npc-dialog[open]{display:grid;grid-template-columns:auto minmax(0,1fr);grid-template-rows:auto auto minmax(0,1fr) auto}
+.npc-dialog:has(.npc-dialog-body){height:min(640px,90vh)}
 .npc-dialog::backdrop{background:rgba(6,5,4,.66)}
-.npc-dialog-figure{position:relative;margin:0;min-height:0;overflow:hidden;border-right:1px solid var(--skin-line);background:radial-gradient(ellipse 80% 46% at 50% 38%,var(--npc-glow),transparent 72%),linear-gradient(180deg,#1c1712,#0c0a08 88%)}
+.npc-dialog-figure{position:relative;grid-column:1;grid-row:1 / span 2;align-self:start;width:132px;height:166px;margin:20px 0 0 24px;overflow:hidden;border:1px solid rgba(169,145,84,.5);background:radial-gradient(ellipse 80% 46% at 50% 38%,var(--npc-glow),transparent 72%),linear-gradient(180deg,#1c1712,#0c0a08 88%)}
 .npc-dialog-figure::after{content:'';position:absolute;inset:auto 0 0;height:22%;background:linear-gradient(transparent,#0c0a08);pointer-events:none}
-/* 상반신만(2026-10-15 사용자: "상반신 허리정도까지만"): 다섯 그림 모두 허리띠가 높이의 46~56%에 있어, 위 58%가 칸을 채우게 키우고 아래는 넘친다. */
-.npc-dialog-portrait{position:absolute;left:50%;top:3%;width:auto;max-width:none;height:168%;transform:translateX(-50%);filter:drop-shadow(0 12px 22px rgba(0,0,0,.6))}
-.npc-dialog-main{display:flex;flex-direction:column;min-width:0;min-height:0;background:linear-gradient(180deg,rgba(169,145,84,.07),transparent 140px)}
-.npc-dialog-head{display:flex;align-items:flex-start;gap:16px;padding:20px 24px 12px}
+/* 액자에는 가슴 위만: 그림을 칸 높이의 2.7배로 키워 위 37%가 들어온다. 휴대폰 띠는 허리까지(아래 휴대폰 묶음, 2026-10-15 "상반신 허리정도까지만"). */
+.npc-dialog-portrait{position:absolute;left:50%;top:3%;width:auto;max-width:none;height:270%;transform:translateX(-50%);filter:drop-shadow(0 12px 22px rgba(0,0,0,.6))}
+.npc-dialog-main{display:contents}
+.npc-dialog-head{grid-column:2;grid-row:1;display:flex;align-items:flex-start;gap:16px;padding:18px 24px 8px 18px}
 .npc-dialog-who{flex:1;min-width:0}
 .npc-dialog-who h2{margin:0;padding:0;border:0;background:none;font-size:1.3rem;line-height:1.35;color:var(--npc-tone)}
 .npc-dialog-who h2::after{display:none}
@@ -172,12 +175,12 @@ body.desktop-windowed-ui #content-unlock-panel>.unlock-workspace{flex:1 0 auto}
 .npc-dialog-title{margin:8px 0 0;color:var(--color-text-secondary);font-size:.86rem}
 .npc-dialog-close{flex:none;min-height:34px;padding:4px 14px}
 /* 말 상자: NPC 쪽(왼쪽)으로 꼬리가 난 상자. 키워드를 고르면 새 말이 천천히 떠오른다. */
-.npc-dialog-speech{position:relative;margin:4px 24px 0;padding:16px 20px 18px;min-height:112px;border:1px solid rgba(169,145,84,.32);border-left:3px solid var(--npc-tone);background:linear-gradient(180deg,rgba(255,236,200,.05),rgba(0,0,0,.18))}
+.npc-dialog-speech{grid-column:2;grid-row:2;align-self:start;position:relative;margin:0 24px 0 18px;padding:12px 16px 14px;min-height:0;border:1px solid rgba(169,145,84,.32);border-left:3px solid var(--npc-tone);background:linear-gradient(180deg,rgba(255,236,200,.05),rgba(0,0,0,.18))}
 .npc-dialog-speech::before{content:'';position:absolute;left:-10px;top:22px;border:7px solid transparent;border-right-color:var(--npc-tone);border-left:0}
 .npc-dialog-speech h3{margin:0 0 8px;padding:0;border:0;background:none;font-size:.82rem;letter-spacing:.04em;color:var(--npc-tone)}
-.npc-dialog-speech p{margin:0;font-size:15px;line-height:1.85;color:#efe6d2;word-break:keep-all;overflow-wrap:break-word;animation:npc-speech-in .45s ease}
+.npc-dialog-speech p{margin:0;font-size:15px;line-height:1.7;color:#efe6d2;word-break:keep-all;overflow-wrap:break-word;animation:npc-speech-in .45s ease}
 @keyframes npc-speech-in{from{opacity:0;transform:translateY(4px)}}
-.npc-dialog-talk{flex:1;min-height:0;overflow:auto;padding:16px 24px 12px}
+.npc-dialog-talk{grid-column:1 / -1;grid-row:3;min-height:0;overflow:auto;padding:16px 24px 12px}
 .npc-dialog-talk h4{display:flex;align-items:center;gap:10px;margin:0 0 8px;font-size:.78rem;font-weight:600;letter-spacing:.06em;color:var(--color-text-secondary)}
 .npc-dialog-talk h4::after{content:'';flex:1;height:1px;background:var(--skin-line)}
 .npc-dialog-topics{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:2px 14px;list-style:none;margin:0;padding:0}
@@ -190,14 +193,14 @@ body.desktop-windowed-ui #content-unlock-panel>.unlock-workspace{flex:1 0 auto}
 .npc-dialog-topics button[aria-pressed="true"]{border-color:rgba(169,145,84,.55);background:rgba(169,145,84,.13);color:#f3ead6}
 .npc-dialog-topics em{flex:none;padding:1px 6px;border:1px solid var(--npc-tone);border-radius:2px;font-style:normal;font-size:.72rem;color:var(--npc-tone)}
 .npc-dialog-more{margin:12px 2px 0;font-size:.8rem;color:var(--color-text-secondary)}
-.npc-dialog-foot{padding:12px 24px 18px;border-top:1px solid var(--skin-line)}
+.npc-dialog-foot{grid-column:1 / -1;grid-row:4;padding:12px 24px 18px;border-top:1px solid var(--skin-line)}
 .npc-dialog-offer{display:flex;align-items:center;gap:10px;width:100%;min-height:44px;padding:8px 14px;text-align:left;font:inherit;cursor:pointer}
 .npc-dialog-offer>span{flex:1}
 .npc-dialog-offer b{min-width:24px;padding:0 6px;border:1px solid var(--skin-line);text-align:center;font-weight:400;color:var(--color-text-secondary)}
 .npc-dialog-offer em{font-style:normal;font-size:.8rem;color:var(--color-accent-gold)}
 .npc-dialog-offer.is-ready{border-color:var(--color-accent-gold)}
 /* 맡은 해금: 대화로 돌아가는 단추 아래 해금 목록, 오른쪽에 해금 창과 같은 상세. */
-.npc-dialog-body{flex:1;display:grid;grid-template-columns:240px minmax(0,1fr);min-height:0;border-top:1px solid var(--skin-line)}
+.npc-dialog-body{grid-column:1 / -1;grid-row:3 / span 2;display:grid;grid-template-columns:240px minmax(0,1fr);min-height:0;margin-top:14px;border-top:1px solid var(--skin-line)}
 .npc-dialog-side{display:flex;flex-direction:column;min-height:0;border-right:1px solid var(--skin-line)}
 .npc-dialog-back{margin:10px 10px 4px}
 .npc-dialog-unlocks{flex:1;list-style:none;margin:0;padding:8px;overflow:auto}
@@ -211,17 +214,19 @@ body.desktop-windowed-ui #content-unlock-panel>.unlock-workspace{flex:1 0 auto}
 .unlock-lore-face{float:left;width:44px;height:66px;margin:2px 10px 4px 0;object-fit:cover;object-position:top;border:1px solid var(--skin-line)}
 /* 휴대폰: NPC는 위쪽 띠(상반신), 그 아래로 이름, 말 상자, 이야깃거리가 이어지고 맡은 해금은 맨 아래에 붙는다. */
 @media (max-width:720px){
-.npc-dialog{width:100vw;max-width:100vw;height:92dvh;max-height:92dvh;margin:auto 0 0}
+.npc-dialog,.npc-dialog:has(.npc-dialog-body){width:100vw;max-width:100vw;height:92dvh;max-height:92dvh;margin:auto 0 0}
 .npc-dialog[open]{grid-template-columns:1fr;grid-template-rows:180px minmax(0,1fr)}
-.npc-dialog-figure{border-right:0;border-bottom:1px solid var(--skin-line)}
+.npc-dialog-figure{grid-row:auto;align-self:stretch;width:auto;height:auto;margin:0;border:0;border-bottom:1px solid var(--skin-line)}
+.npc-dialog-portrait{height:168%}
+.npc-dialog-main{display:flex;flex-direction:column;min-width:0;min-height:0}
 .npc-dialog-head{padding:12px 14px 8px}
 .npc-dialog-who h2{font-size:1.1rem}
 .npc-dialog-speech{margin:2px 14px 0;padding:12px 14px 14px;min-height:0}
 .npc-dialog-speech::before{display:none}
-.npc-dialog-talk{padding:12px 14px 8px}
+.npc-dialog-talk{flex:1;padding:12px 14px 8px}
 .npc-dialog-topics{grid-template-columns:1fr}
 .npc-dialog-foot{padding:10px 14px 14px}
-.npc-dialog-body{grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr)}
+.npc-dialog-body{flex:1;margin-top:0;grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr)}
 .npc-dialog-side{border-right:0;border-bottom:1px solid var(--skin-line)}
 .npc-dialog-unlocks{max-height:30dvh}
 }
