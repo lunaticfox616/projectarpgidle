@@ -30,8 +30,9 @@ const battleGroundLoot = (() => {
     const pileKind = (lead, currency) => (currency ? 'currency' : lead.leaf ? 'leaf' : 'equipment');
     /** A leaf shows the pixel leaf (PIXEL_ICONS.leaf); other items show their inventory art. */
     const LEAF_ART = 'pixel:leaf';
-    const leadArt = lead => (lead.leaf ? LEAF_ART : getInventoryItemVisualAsset(lead.item, lead.itemKind));
-    const leadName = lead => (lead.leaf ? memoryLeaves.leaf(lead.leaf).name : shownName(lead));
+    // The loop's starter gem (a floor row by name, js/exploration-ground-loot.js placeGem) shows the gem's own art and name.
+    const leadArt = lead => (lead.leaf ? LEAF_ART : lead.gem ? getSkillGemArtPath(lead.gem) : getInventoryItemVisualAsset(lead.item, lead.itemKind));
+    const leadName = lead => (lead.leaf ? memoryLeaves.leaf(lead.leaf).name : lead.gem ? `[${lead.gem}] 젬` : shownName(lead));
     /** The name a pile shows: an unidentified unique on the floor shows only its base (the name appears when picked up). */
     const shownName = receipt => (receipt.unidentified ? `미확인 ${receipt.item.baseName || receipt.item.slot || '고유'}` : receipt.item.name);
     /** Rows per arm of the name cross. Up sits over the picture; the side arms stay short so they fit between the up and
@@ -375,7 +376,8 @@ const battleGroundLoot = (() => {
         jewel: row => ({ item: row.item, itemKind: 'jewel', color: getJewelLootColor(row.item) }),
         core: row => ({ item: row.item, itemKind: 'core' }),
         talisman: row => ({ item: row.item, itemKind: 'talisman', color: TALISMAN_RARITY_TONES[row.item.rarity] }),
-        leaf: row => ({ leaf: row.leaf, itemKind: 'leaf', color: MEMORY_LEAVES.tone })
+        leaf: row => ({ leaf: row.leaf, itemKind: 'leaf', color: MEMORY_LEAVES.tone }),
+        gem: row => ({ gem: row.gem, itemKind: 'gem', color: getRarityColor('rare') })
     };
     const floorReceipts = pile => pile.rows.map(row => floorReceipt[actExplorationState.groundLoot.kindOf(row)](row))
         .sort((a, b) => importance(b) - importance(a));
@@ -402,7 +404,7 @@ const battleGroundLoot = (() => {
     }
 
     function floorRowKey(row) {
-        if (row.kind === 'talisman' || row.kind === 'leaf') {
+        if (row.kind === 'talisman' || row.kind === 'leaf' || row.kind === 'gem') {
             if (!talismanKeys.has(row)) talismanKeys.set(row, `talisman#${++nextTalismanKey}`);
             return talismanKeys.get(row);
         }

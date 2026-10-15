@@ -16,7 +16,9 @@ actExplorationState.groundLoot = (() => {
      * @typedef {{gx:number, gy:number, kind:'talisman', item:object, overflow:string}} GroundLootTalismanRow a rolled wild
      *   talisman (its fields, no stump box id yet) and the shard currency given instead when the stump box storage is full.
      * @typedef {{gx:number, gy:number, kind:'leaf', leaf:string}} GroundLootLeafRow a memory leaf id (data/memory-leaves.js, 2026-10-09).
-     * @typedef {GroundLootEquipmentRow|GroundLootCurrencyRow|GroundLootStoreRow|GroundLootTalismanRow|GroundLootLeafRow} GroundLootRow
+     * @typedef {{gx:number, gy:number, kind:'gem', gem:string}} GroundLootGemRow the loop's starter gem by name (SKILL_DB), dropped by
+     *   the loop's first kill (js/combat.js grantLoopStarterGemOnFirstKill, 2026-10-15).
+     * @typedef {GroundLootEquipmentRow|GroundLootCurrencyRow|GroundLootStoreRow|GroundLootTalismanRow|GroundLootLeafRow|GroundLootGemRow} GroundLootRow
      */
     // 놓인 줄마다의 전투 시각: 그림이 바닥에 닿아 이름이 뜬 뒤(GROUND_LOOT_DROP.readyMs)에야 주인공이 줍거나 주우러 간다
     // (2026-10-13 사용자: "아이템이 완전히 떨어지고 나서 캐릭터가 아이템을 줍거나 주우러 가도록"). 저장하지 않는다: 불러온 줄은 이미 바닥에 있다.
@@ -24,7 +26,7 @@ actExplorationState.groundLoot = (() => {
     const landed = (row, now) => !laidAt.has(row) || now - laidAt.get(row) >= GROUND_LOOT_DROP.readyMs;
     const rows = run => (run && Array.isArray(run.groundLoot) ? run.groundLoot : []);
     const floor = run => (Array.isArray(run.groundLoot) ? run.groundLoot : (run.groundLoot = []));
-    /** The kind of a row: 'equipment', 'currency', 'jewel', 'core', 'talisman' or 'leaf'. */
+    /** The kind of a row: 'equipment', 'currency', 'jewel', 'core', 'talisman', 'leaf' or 'gem'. */
     const kindOf = row => row.kind || (typeof row.currency === 'string' ? 'currency' : 'equipment');
 
     /** A row laid while an atlas map's kill or chest is settled also counts toward that map's result (js/combat-loot-receipts.js). */
@@ -44,6 +46,10 @@ actExplorationState.groundLoot = (() => {
     /** Lays a memory leaf (js/memory-leaves.js) on a walkable cell; each leaf is its own row. */
     function placeLeaf(run, cell, leaf) {
         lay(run, { gx: cell.gx, gy: cell.gy, kind: 'leaf', leaf });
+    }
+    /** Lays the loop's starter gem (its name) on a walkable cell. */
+    function placeGem(run, cell, gem) {
+        lay(run, { gx: cell.gx, gy: cell.gy, kind: 'gem', gem });
     }
     /** Lays an already resolved currency gain on a walkable cell, joining the same currency already lying there. */
     function placeCurrency(run, cell, currency, count) {
@@ -100,7 +106,8 @@ actExplorationState.groundLoot = (() => {
         jewel: (state, row) => { bagItems.put(bagItems.asJewel(row.item), state, true); },
         core: (state, row) => { coreItems.keep(row.item, state); },
         talisman: (state, row) => { talismans.receiveWild(state, { talisman: row.item, overflow: row.overflow }); },
-        leaf: (state, row) => { memoryLeaves.receive(state, row.leaf); }
+        leaf: (state, row) => { memoryLeaves.receive(state, row.leaf); },
+        gem: (state, row) => { receiveStarterGem(state, row.gem); }
     };
     function settleOnLoad(state, run) {
         for (const row of rows(run)) settleRow[kindOf(row)](state, row);
@@ -114,7 +121,7 @@ actExplorationState.groundLoot = (() => {
         const map = actExplorationMap.forRun(run), ids = new Set();
         for (const row of run.groundLoot) {
             if (!validRow(map, row)) throw Error('잘못된 탐험 바닥 아이템 저장');
-            if (['talisman', 'leaf'].includes(kindOf(row))) continue; // a rolled talisman has no id until the stump box stores it; leaves repeat
+            if (['talisman', 'leaf', 'gem'].includes(kindOf(row))) continue; // a rolled talisman has no id until the stump box stores it; leaves repeat; a gem is a name
             const key = row.item ? `item:${row.item.id}` : `currency:${row.gx},${row.gy},${row.currency}`;
             if (ids.has(key)) throw Error('중복된 탐험 바닥 아이템 저장');
             ids.add(key);
@@ -128,7 +135,8 @@ actExplorationState.groundLoot = (() => {
         jewel: row => loot.validJewel(row.item),
         core: row => loot.validCore(row.item),
         talisman: row => !!talismans.normalizeTalisman(row.item) && loot.isCurrency(row.overflow),
-        leaf: row => memoryLeaves.validId(row.leaf) && !row.item
+        leaf: row => memoryLeaves.validId(row.leaf) && !row.item,
+        gem: row => typeof row.gem === 'string' && !!SKILL_DB[row.gem] && !row.item
     };
     function validRow(map, row) {
         if (!row || !Number.isInteger(row.gx) || !Number.isInteger(row.gy) || !actExplorationMap.walkable(map, row, true)) return false;
@@ -136,5 +144,5 @@ actExplorationState.groundLoot = (() => {
         return !!check && check(row);
     }
 
-    return { PICKUP_RANGE, kindOf, place, placeItem, placeLeaf, placeCurrency, takeNear, takeAt, takeAll, nearest, falling, piles, reservedItems, settleOnLoad, validate };
+    return { PICKUP_RANGE, kindOf, place, placeItem, placeLeaf, placeGem, placeCurrency, takeNear, takeAt, takeAll, nearest, falling, piles, reservedItems, settleOnLoad, validate };
 })();

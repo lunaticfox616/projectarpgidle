@@ -248,7 +248,13 @@ const actExplorationRooms = (() => {
         if (run.source.of) run.source = run.source.of;
         else delete run.source;
     }
+    /** 입구 방의 NPC가 서는 칸: 뒷줄, 주인공이 서는 방 가운데(js/combat-grid.js resetPlayerGridPosition)에서 두 칸 옆(오른쪽이 좁으면
+     * 왼쪽). 그리는 쪽(js/canvas-act-title-card.js)과 하켄을 치는 첫 몬스터(js/combat.js createStarterRescuePack)가 함께 쓴다. */
+    function npcPost(room) {
+        const from = Math.round(room.gx), side = from + 2 <= room.x1 ? 2 : -2;
+        return { gx: Math.max(room.x0, Math.min(room.x1, from + side)), gy: room.y0 };
+    }
     return Object.freeze({ forRun: stageLayout, key: roomPlanKey, supports: key => !!readRoomKey(key), roomAt, doorAt, waypoint, steps, tourNext,
-        seal: roomSeal, unseal: roomUnseal });
+        npcPost, seal: roomSeal, unseal: roomUnseal });
 })();
 safeExposeGlobals({ actExplorationRooms });

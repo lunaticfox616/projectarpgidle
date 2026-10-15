@@ -133,7 +133,7 @@ const actTitleCard = (() => {
     }
     function watchStoryRooms(run, story, now) {
         const room = actExplorationDoors.room(run), stele = story.stele;
-        if (room && room.role === 'entry') watchEntryRoom(story, now);
+        if (room && room.role === 'entry') watchEntryRoom(story, now, rescuing(run));
         if (room && room.role === 'optional' && stele) queueStoryLine({ key: 'stele', who: 'stele', speaker: stele.title, text: stele.bark, tone: 'cyan' }, now);
     }
     /** The guide's line for this loop (docs/story-bible.md section 9): the first meeting in loop 1, the line for the hero's class
@@ -143,12 +143,19 @@ const actTitleCard = (() => {
         if (loop === 1) return npc.bark;
         return loop % 2 === 0 ? byClass || npc.loopBark || npc.bark : npc.loopBark || byClass || npc.bark;
     }
-    /** The entry room: in loop 1's act 1 the hero wakes first (wakeLine), then the guide speaks and the hero answers in its
-     * class's words (classReplies). */
-    function watchEntryRoom(story, now) {
-        const lore = storyClassLore(), act = actOf(zone), npc = story.npc;
+    /** The hero's first words, in loop 1's act 1 entry room. */
+    function queueWakeLine(lore, now) {
+        const act = actOf(zone);
         if (act && act.order === 1 && (game.season || 1) === 1 && lore) queueStoryLine({ key: 'wake', who: 'hero', speaker: lore.label, text: lore.wakeLine, tone: 'gold' }, now);
-        if (!npc) return;
+    }
+    /** The monster striking the guide in act 1's entry room still stands (js/combat.js createStarterRescuePack). */
+    const rescuing = run => run.packs.some(pack => pack.rescue && pack.aliveIds.length > 0);
+    /** The entry room: in loop 1's act 1 the hero wakes first (wakeLine), then the guide speaks and the hero answers in its
+     * class's words (classReplies). While a monster strikes the guide (rescue) only the hero wakes: the guide speaks once it falls. */
+    function watchEntryRoom(story, now, rescue) {
+        const lore = storyClassLore(), npc = story.npc;
+        queueWakeLine(lore, now);
+        if (!npc || rescue) return;
         queueStoryLine({ key: 'npc', who: 'npc', speaker: npc.name, text: npcLine(npc), tone: npc.tone }, now);
         const reply = lore ? (npc.classReplies || {})[game.selectedClassId] : null;
         if (reply) queueStoryLine({ key: 'reply', who: 'hero', speaker: lore.label, text: reply, tone: 'gold' }, now);
@@ -204,18 +211,14 @@ const actTitleCard = (() => {
         watch.npc = row ? { id: row.id, name: row.name, title: row.title, tone: npcTone(row.name), line: said ? npcLine(said) : '' } : null;
         return watch.npc;
     }
-    /** The back row of the entry room, two cells from where the hero first stood there, into the room. */
-    function npcCell(room, hero) {
-        const from = Math.round(hero.gx), side = from + 2 <= room.x1 ? 2 : -2;
-        return { gx: Math.max(room.x0, Math.min(room.x1, from + side)), gy: room.y0 };
-    }
     /** Adds the NPC to the battlefield's actors while the hero is in the entry room (js/canvas-act-exploration.js appendScenery),
-     * so it stands in depth with the hero and the monsters. */
+     * so it stands in depth with the hero and the monsters. It stands on the entry room's post (js/act-exploration-rooms.js npcPost:
+     * the back row, two cells from where the hero starts), where act 1's first monster strikes it. */
     function appendNpc(actors, state) {
         const run = stageView.enabled() ? actExplorationState.current(game) : null, watch = run ? runs.get(run) : null;
         const npc = watch ? runNpc(watch) : null, map = npc ? actExplorationDoors.stageMap(run) : null;
         if (!map || actExplorationDoors.room(run) !== map.entry) return;
-        watch.npcCell = watch.npcCell || npcCell(map.entry, game.gridPlayer);
+        watch.npcCell = watch.npcCell || actExplorationRooms.npcPost(map.entry);
         const point = state.gridProj.cellToScreen(watch.npcCell.gx, watch.npcCell.gy);
         actors.push({ kind: 'scenery', id: -3, x: point.x, y: point.y + state.gridProj.actorGroundOffsetY, npc });
     }
@@ -255,17 +258,59 @@ const actTitleCard = (() => {
         ctx.fillStyle = TONES.gold;
         ctx.fillText('!', x, y + 1);
     }
+    // A monster striking the NPC (act 1's first monster, js/combat.js strikeRescueTarget, battle fx 'npcStruck'): the NPC's frame
+    // flashes white and a few sparks burst on it. The picture itself never moves (no code-made motion).
+    const npcFlashes = new Map();    // "id:frame" → that idle frame painted white
+    /** 1 just after a strike on the NPC, fading to 0 over the fx's duration; 0 when none is recent. */
+    function npcStruck(now) {
+        let share = 0;
+        for (const fx of battleFx) {
+            if (!fx || fx.type !== 'npcStruck' || !(now - fx.start < fx.duration) || now < fx.start) continue;
+            share = Math.max(share, 1 - (now - fx.start) / fx.duration);
+        }
+        return share;
+    }
+    function npcFlashFrame(id, source, frame) {
+        const key = `${id}:${frame}`, cell = STAGE_NPC_ART.cell;
+        if (!npcFlashes.has(key)) {
+            const canvas = document.createElement('canvas'), c = canvas.getContext('2d');
+            canvas.width = canvas.height = cell;
+            c.drawImage(source, frame * cell, 0, cell, cell, 0, 0, cell, cell);
+            c.globalCompositeOperation = 'source-in';
+            c.fillStyle = '#fff4df';
+            c.fillRect(0, 0, cell, cell);
+            npcFlashes.set(key, canvas);
+        }
+        return npcFlashes.get(key);
+    }
+    function npcSparks(ctx, x, y, dot, struck) {
+        const spread = (1 - struck) * 14 * dot + 4 * dot, size = Math.max(2, Math.round(dot * 2));
+        ctx.save();
+        ctx.globalAlpha = struck;
+        for (let i = 0; i < 6; i++) {
+            const angle = i * Math.PI / 3 + 0.4;
+            ctx.fillStyle = i % 2 ? '#ffd27a' : '#fff4df';
+            ctx.fillRect(Math.round(x + Math.cos(angle) * spread), Math.round(y + Math.sin(angle) * spread), size, size);
+        }
+        ctx.restore();
+    }
     /** The NPC facing the hero, its name over it in its colour (and the offer mark); remembers where it stands for a press. */
     function drawNpc(ctx, actor, state) {
         const art = STAGE_NPC_ART, sheet = npcSheet(actor.npc.id);
         if (!sheet.ready) return;
         const dot = stageActors.scaleFor(state.gridProj.tileW) * art.scale, cell = art.cell, top = Math.round(actor.y - (art.feet[1] - art.head) * dot);
+        const frame = npcFrame(state.now), struck = npcStruck(state.now);
         stageRings.shadow(ctx, { x: actor.x, y: actor.y, dot }, 18, 0.34);
         ctx.save();
         if (state.playerPos.x < actor.x) { ctx.translate(actor.x * 2, 0); ctx.scale(-1, 1); }
         const at = { x: Math.round(actor.x - art.feet[0] * dot), y: Math.round(actor.y - art.feet[1] * dot), scale: dot };
-        stageDots.blit(ctx, sheet.source, { x: npcFrame(state.now) * cell, y: 0, w: cell, h: cell }, at);
+        stageDots.blit(ctx, sheet.source, { x: frame * cell, y: 0, w: cell, h: cell }, at);
+        if (struck > 0) {
+            ctx.globalAlpha = 0.6 * struck;
+            stageDots.blit(ctx, npcFlashFrame(actor.npc.id, sheet.source, frame), { x: 0, y: 0, w: cell, h: cell }, at);
+        }
         ctx.restore();
+        if (struck > 0) npcSparks(ctx, actor.x, Math.round((top + actor.y) / 2), dot, struck);
         ctx.save();
         npcLabel(ctx, actor.npc, actor.x, top);
         const marked = npcOffers(actor.npc, state.now);

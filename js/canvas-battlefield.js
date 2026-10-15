@@ -2184,6 +2184,9 @@ function buildEnemyAttackMotionMap(effects, enemyPosMap, playerPos, now) {
 const STAGE_SIDE_DEAD_PX = 10;
 function resolveStageEnemySide(enemyPos, playerPos) {
     if (enemyPos.heading) return enemyPos.heading;
+    // 액트 1 입구 방의 첫 몬스터는 하켄을 치는 동안 하켄 쪽을 본다(js/combat.js strikeRescueTarget).
+    const rescue = enemyPos.enemy && enemyPos.enemy.rescue;
+    if (rescue) return rescue.gx < enemyPos.enemy.gx ? 'west' : 'east';
     const dx = Number(playerPos.x) - Number(enemyPos.x);
     if (Math.abs(dx) <= STAGE_SIDE_DEAD_PX) return 'south';
     return dx < 0 ? 'west' : 'east';

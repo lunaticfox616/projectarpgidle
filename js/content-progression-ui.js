@@ -457,6 +457,12 @@ document.addEventListener('click', event => {
     const open = event.target.closest('[data-open-content]');
     if (open) contentUnlockUi.open(open.dataset.openContent);
 });
+// The loop's starter gem picked up from the floor (js/combat.js receiveStarterGemRow): its log line, and in a first loop the equip
+// guide right there (checkUnlocks → announceStarterGem), with the room already cleared.
+window.addEventListener('project-idle:starter-gem-received', event => {
+    addLog(`스킬 젬 [${event.detail.gem}] 획득`, 'loot-rare');
+    checkUnlocks();
+});
 // NPC pictures are local stage art (assets/stage-npcs): where one is missing, drop it rather than show a broken image.
 document.addEventListener('error', event => {
     if (event.target instanceof HTMLImageElement && event.target.matches('.npc-dialog-portrait, .unlock-lore-face')) event.target.remove();

@@ -340,9 +340,12 @@ const actExplorationState = (() => {
         if(!actExplorationMap.route(map,map.entry,pack.anchor,new Set([actExplorationMap.index(map,map.gate)])).length)
             throw Error('탐험 저장의 길목 무리에 도달할 수 없습니다.');
     }
+    /** 입구 방의 무리는 액트 1의 첫 몬스터 하나뿐이다(js/combat.js createStarterRescuePack): 그 방의 보통 무리 열쇠에 정예 없이. */
+    const rescuePack=(map,pack,room)=>pack.rescue===true && !!map.stage && pack.key===`${room.id}:pack` && pack.stage===null
+        && Array.isArray(pack.eliteIds) && !pack.eliteIds.length && pack.anchor===undefined && pack.extra===undefined;
     function validatePackShape(map,pack) {
         const room=map.rooms.find(row=>row.id===pack.roomId);
-        if(!room || room.role==='entry' || room.role==='path' || typeof pack.key!=='string')throw Error('탐험 저장의 적 무리가 잘못되었습니다.');
+        if(!room || (room.role==='entry' && !rescuePack(map,pack,room)) || room.role==='path' || typeof pack.key!=='string')throw Error('탐험 저장의 적 무리가 잘못되었습니다.');
         if(!Array.isArray(pack.aliveIds) || !Array.isArray(pack.eliteIds) || !Array.isArray(pack.waiting))throw Error('탐험 저장의 적 목록이 없습니다.');
         if((room.role==='boss')!==(pack.stage!==null))throw Error('탐험 저장의 보스 단계가 잘못되었습니다.');
         validatePackKind(map,pack,room);

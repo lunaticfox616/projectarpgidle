@@ -7897,6 +7897,7 @@ function createActExplorationPack(zone,room,stage,encounter=null,formation=null)
     if(encounter)pack.encounter=encounter;
     if(anchor)pack.anchor={...anchor};
     if(extra)pack.extra=extra;
+    if(formation && formation.rescue)pack.rescue=true;
     markExplorationAlertPack(pack);
     atlasFinds.dressTreasurePack(zone,pack);
     return pack;
@@ -7907,7 +7908,7 @@ function createActExplorationPack(zone,room,stage,encounter=null,formation=null)
  * each run, and it draws nothing from Math.random, so the rest of the map rolls as before. */
 function markExplorationAlertPack(pack) {
     const rule=ACT_EXPLORATION_ALERT;
-    if(pack.stage!==null || pack.encounter || pack.anchor || pack.eliteIds.length || !pack.waiting.length || !(game.season>=rule.fromLoop))return;
+    if(pack.stage!==null || pack.encounter || pack.anchor || pack.rescue || pack.eliteIds.length || !pack.waiting.length || !(game.season>=rule.fromLoop))return;
     if((Math.abs(hashSeed(`alert:${pack.key}:${pack.aliveIds[0]}`))%1000)/1000>=rule.chance)return;
     pack.alert=true;
     for(const enemy of pack.waiting)Object.assign(enemy,{alert:true,name:`${rule.prefix} ${enemy.name}`,encounterOutline:rule.outline});
@@ -7958,7 +7959,37 @@ function createExplorationPacks(zone,map,bossStages) {
             : createActExplorationPack(zone,room,null,encounter,arrangedRoomFormation(arranger,zone,room,encounter,counts.get(room.id))));continue;}
         for(let stage=0;stage<bossStages;stage++)packs.push(createExplorationBossStage(zone,map,room,stage));
     }
-    return packs.concat(createAddedExplorationPacks(zone,map,patrol,arranger));
+    return packs.concat(createAddedExplorationPacks(zone,map,patrol,arranger),createStarterRescuePack(zone,map));
+}
+
+/** 액트 1 입구 방의 첫 몬스터(2026-10-15 사용자: "첫 방에 몬스터가 있고 그걸 잡으면 젬이 드랍되게", "하켄이 그 몬스터에게 맞고있는걸로"):
+ * 이번 루프의 시작 젬을 아직 받지 않았을 때, 방 단위 무대의 입구 방에서 하켄 곁에 한 마리가 선다. 한 대 맞기 전까지는 하켄을
+ * 친다(strikeRescueTarget). 이 몬스터가 루프의 첫 처치라 시작 젬이 그 자리 바닥에 떨어진다. @returns {object[]} 그 무리, 없으면 빈 목록. */
+function createStarterRescuePack(zone,map) {
+    if(zone.type!=='act' || zone.id!==0 || !map.stage || game.loopStarterGemGranted || (game.skills||[]).length>1)return [];
+    // 하켄 너머(주인공 반대쪽)에 선다: 첫 장면에서 주인공의 말풍선에 가리지 않고, 주인공이 하켄을 지나 달려간다. 방이 좁으면 하켄 앞쪽.
+    const post=actExplorationRooms.npcPost(map.entry),away=Math.sign(post.gx-Math.round(map.entry.gx))||1,beyond=post.gx+away;
+    const cell={gx:beyond>=map.entry.x0 && beyond<=map.entry.x1?beyond:post.gx-away,gy:post.gy};
+    const pack=createActExplorationPack(zone,map.entry,null,null,{cells:[cell],rescue:true});
+    // 게이지를 거의 채워 둔다: 첫 장면(액트 이름과 깨어나는 대사 동안 게임이 멈춘다)에서 하켄을 향해 공격을 준비하는 자세로 보인다.
+    pack.waiting.forEach(enemy=>Object.assign(enemy,{rescue:{gx:post.gx,gy:post.gy,strikes:0},attackTimer:RESCUE_STRIKE.windUp}));
+    return [pack];
+}
+/** 하켄을 치는 첫 몬스터(createStarterRescuePack)의 한 틱: 한 대라도 맞거나 하켄을 RESCUE_STRIKE.maxStrikes번 치기 전까지는 하켄 쪽을
+ * 보고 RESCUE_STRIKE.rate의 빠르기로 공격 동작만 낸다(피해 없음, 하켄 위의 번쩍임은 js/canvas-act-title-card.js가 'npcStruck'로 그린다).
+ * 주인공은 하켄에서 두 칸 옆에서 시작해 곧 이 몬스터를 친다. 그 뒤로는 여느 몬스터처럼 주인공과 싸운다. true = 이번 틱은 하켄을 노렸다. */
+const RESCUE_STRIKE=Object.freeze({rate:0.42,windUp:0.9,maxStrikes:4,fxMs:260});
+function strikeRescueTarget(enemy) {
+    const npc=enemy.rescue;
+    if(!npc)return false;
+    if(enemy.hp<enemy.maxHp || !Number.isFinite(npc.gx) || !(npc.strikes<RESCUE_STRIKE.maxStrikes)){delete enemy.rescue;return false;}
+    enemy.attackTimer=(Number(enemy.attackTimer)||0)+0.1*RESCUE_STRIKE.rate;
+    if(enemy.attackTimer<1)return true;
+    enemy.attackTimer-=1;
+    npc.strikes++;
+    addBattleFx('enemyAttack',{enemyId:enemy.id,duration:220});
+    addBattleFx('npcStruck',{gx:npc.gx,gy:npc.gy,duration:RESCUE_STRIKE.fxMs});
+    return true;
 }
 
 /** 판의 진행 막대가 부를 무리(표식)의 수: generateEncounterPlan과 같은 셈이다(난수 없이). 방 단위 무대의 한 줄 지도가 이 수만큼 방을
@@ -8866,8 +8897,14 @@ const receiveFloorItem = {
     jewel: row => dispatchRuntimeEvent('jewel-drop-received', receiveJewelDrop(row.item)),
     core: row => { if (coreItems.keep(row.item)) dispatchRuntimeEvent('core-item-received', row.item); },
     talisman: row => announceWildTalisman(talismans.receiveWild(game, { talisman: row.item, overflow: row.overflow })),
-    leaf: row => atlasFinds.receiveMemoryLeaf(row.leaf)
+    leaf: row => atlasFinds.receiveMemoryLeaf(row.leaf),
+    gem: receiveStarterGemRow
 };
+/** The loop's starter gem picked up from the floor: the gem goes in here; the log line and, in a first loop, the equip guide come
+ * from the UI at once (js/content-progression-ui.js, event starter-gem-received): a floor gem misses the checks a kill runs. */
+function receiveStarterGemRow(row) {
+    if (receiveStarterGem(game, row.gem)) dispatchRuntimeEvent('starter-gem-received', { gem: row.gem });
+}
 
 /** Jewels, cores and wild talismans wait on the exploration floor like equipment (2026-10-06 user request). Returns whether the
  * drop was laid there; elsewhere the caller grants it at once. */
@@ -9084,23 +9121,41 @@ function clearDotFxThrottleForEnemy(enemyId) {
 // 루프 시작 시 스킬이 "기본 공격"만 남는 공백을 메우기 위해, 루프 첫 처치 때
 // 선택한 직업의 권장 전투 방식에 맞는 하위권 화력 스킬 젬을 확정 지급한다.
 // (좋은 젬을 직접 찾는 재미는 유지하도록 일부러 강한 젬은 고르지 않는다.)
-function grantLoopStarterGemOnFirstKill() {
-    if (game.loopStarterGemGranted) return;
+// 탐험 지도에서는 그 처치 자리 바닥에 떨어지고 주울 때 들어온다(2026-10-15 사용자 "첫 방에 몬스터가 있고 그걸 잡으면 젬이 드랍되게":
+// 액트 1 입구 방의 첫 몬스터, createStarterRescuePack). enemy가 없으면(스크립트) 바로 들어온다.
+function grantLoopStarterGemOnFirstKill(enemy) {
+    const gemName = takeLoopStarterGem();
+    if (!gemName) return;
+    const run = enemy ? explorationFloorFor(enemy) : null;
+    if (run) actExplorationState.groundLoot.placeGem(run, enemy, gemName);
+    else if (receiveStarterGem(game, gemName)) addLog(`스킬 젬 [${gemName}] 획득`, 'loot-rare');
+}
+/** 이번 루프의 시작 젬 이름(한 번만): 이미 받았거나 기본 공격 밖의 스킬이 있으면 null. */
+function takeLoopStarterGem() {
+    if (game.loopStarterGemGranted) return null;
     game.loopStarterGemGranted = true;
     // 마이그레이션 가드: 기존 저장 데이터는 이 플래그가 없어 false로 채워진다.
     // 이미 기본 공격 외의 스킬을 보유한 진행 중인 루프에는 소급 지급하지 않는다.
-    if (!Array.isArray(game.skills) || game.skills.length > 1) return;
-    let classDef = typeof PLAYER_CLASS_DEFS !== 'undefined' ? PLAYER_CLASS_DEFS[game.selectedClassId] : null;
-    let heroId = classDef && HERO_SELECTION_DEFS[classDef.recommendedTalentHeroId]
-        ? classDef.recommendedTalentHeroId : 'hero1';
-    let gemName = (typeof LOOP_STARTER_GEM_BY_HERO !== 'undefined' && LOOP_STARTER_GEM_BY_HERO[heroId]) || '연속 베기';
-    if (!SKILL_DB[gemName] || hasSkillGemOwned(gemName)) return;
-    game.skills.push(gemName);
-    game.gemData[gemName] = game.gemData[gemName] || { level: 1, exp: 0 };
-    game.unlocks.skills = true;
-    game.noti.skills = true;
-    if (!(game.seenTutorials || []).includes('tutorial_starter_gem_equip')) game.starterGemTutorialPending = gemName;
-    addLog(`스킬 젬 [${gemName}] 획득`, 'loot-rare');
+    if (!Array.isArray(game.skills) || game.skills.length > 1) return null;
+    const gemName = loopStarterGemName();
+    return SKILL_DB[gemName] && !hasSkillGemOwned(gemName) ? gemName : null;
+}
+/** The chosen class's starter gem (LOOP_STARTER_GEM_BY_HERO by its recommended hero). */
+function loopStarterGemName() {
+    const classDef = typeof PLAYER_CLASS_DEFS !== 'undefined' ? PLAYER_CLASS_DEFS[game.selectedClassId] : null;
+    const heroId = classDef && HERO_SELECTION_DEFS[classDef.recommendedTalentHeroId] ? classDef.recommendedTalentHeroId : 'hero1';
+    return (typeof LOOP_STARTER_GEM_BY_HERO !== 'undefined' && LOOP_STARTER_GEM_BY_HERO[heroId]) || '연속 베기';
+}
+/** The starter gem reaches the hero (picked up, or settled from a dropped map's floor): the gem, its record, the gem tab, and in a
+ * first loop the pending equip guide (js/content-progression-ui.js announceStarterGem). @returns {boolean} whether it went in. */
+function receiveStarterGem(state, gemName) {
+    if (!SKILL_DB[gemName] || state.skills.includes(gemName)) return false;
+    state.skills.push(gemName);
+    state.gemData[gemName] = state.gemData[gemName] || { level: 1, exp: 0 };
+    state.unlocks.skills = true;
+    state.noti.skills = true;
+    if (!(state.seenTutorials || []).includes('tutorial_starter_gem_equip')) state.starterGemTutorialPending = gemName;
+    return true;
 }
 
 
@@ -9138,7 +9193,7 @@ function handleEnemyDeath(enemy, pStats) {
         let bucket = enemy.isBoss ? 'boss' : (enemy.isElite ? 'elite' : 'normal');
         mix[bucket] = Math.max(0, Math.floor(mix[bucket] || 0)) + 1;
     }
-    grantLoopStarterGemOnFirstKill();
+    grantLoopStarterGemOnFirstKill(enemy);
     // 재능 런타임: 적별 누적 상태 정리(메모리 누수 방지)
     if (game.talentInquisitorMarks) delete game.talentInquisitorMarks[enemy.id];
     // 14 콜로세움 브레이커: 처치마다 관중의 함성 1중첩, 5중첩 시 다음 공격이 투기장 일격
@@ -11986,6 +12041,7 @@ function performMonsterAttacks(pStats) {
         chillSlow += Math.max(0, Math.min(0.5, Number(enemy.skillSlowPct || 0) / 100));
         chillSlow = Math.min(0.65, chillSlow + curseSlow);
         if (!pendingAttack && pendingEnemyCombatAttacks.some(row => row.enemyId === enemy.id)) continue;
+        if (!pendingAttack && strikeRescueTarget(enemy)) continue;
         let impactTargets = pendingAttack ? getEnemyCombatImpactTargets(pendingAttack) : [getEnemyPreferredGridTarget(enemy)];
         let attackTarget = impactTargets[0];
         if (!attackTarget) continue;
