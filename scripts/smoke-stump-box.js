@@ -78,9 +78,9 @@ assert.strictEqual(run(`stumpBox.unplace(game, ${loose}) && stumpBox.discard(gam
 assert.deepStrictEqual(json('[game.stumpBox.board[7], game.stumpBox.board[17], stumpBox.storage(game).length]'), [seed, sap, 0]);
 run('Math.random = globalThis.realRandom;');
 
-// ── 처치 성장: 판 위 미성숙품만, 보통 1 · 정예 6 · 보스 30 ────────────────────────────
+// ── 처치 성장: 판 위 미성숙품만, 보통 2 · 정예 12 · 보스 60 ────────────────────────────
 run('stumpBox.onEnemyKilled(game, {}); stumpBox.onEnemyKilled(game, { isElite: true });');
-assert.strictEqual(run(`stumpBox.itemById(game, ${seed}).xp`), 7);
+assert.strictEqual(run(`stumpBox.itemById(game, ${seed}).xp`), 14);
 const stored = run('stumpBox.createItem(game, { family: "seed", color: "fire", roll: 1 }).id');
 run('stumpBox.onEnemyKilled(game, {});');
 assert.strictEqual(run(`stumpBox.itemById(game, ${stored}).xp`), 0, 'storage items do not grow');
@@ -133,8 +133,8 @@ assert.strictEqual(run('stumpBox.storage(game).length'), 50, 'storage holds 50')
 const growingSap = run('game.stumpBox.board[17]'), sapBefore = run(`stumpBox.itemById(game, ${growingSap}).xp`);
 assert.deepStrictEqual(json(`stumpBox.growingItems(game).map(item => item.id)`), [growingSap], 'only the unsuppressed unripe sap is growing');
 assert.deepStrictEqual(json(`stumpBox.rollDrop(game, { isBoss: true }, ${sequence([0, 0, 0, 0, 0])})`),
-    { item: null, compost: { family: 'sap', color: 'fire', growth: 48, fed: 1, ripened: [] } }, 'a full storage turns the drop into compost');
-assert.strictEqual(run(`stumpBox.itemById(game, ${growingSap}).xp`), sapBefore + 48, 'the compost grows what is growing (80% quality → 48)');
+    { item: null, compost: { family: 'sap', color: 'fire', growth: 96, fed: 1, ripened: [] } }, 'a full storage turns the drop into compost');
+assert.strictEqual(run(`stumpBox.itemById(game, ${growingSap}).xp`), sapBefore + 96, 'the compost grows what is growing (80% quality → 96)');
 assert.strictEqual(run('stumpBox.storage(game).length'), 50, 'and storage stays full');
 assert.strictEqual(run(`(() => { const id = game.stumpBox.board[12]; return stumpBox.unplace(game, id); })()`), false, 'nor items taken off the board');
 run('game.stumpBox.items = game.stumpBox.items.filter(item => item.color !== "chaos");');
@@ -152,14 +152,14 @@ run(`globalThis.compostSap = stumpBox.createItem(game, { family: 'sap', color: '
     globalThis.growingBefore = stumpBox.growingItems(game).map(item => [item.id, item.xp]);`);
 const fed = run('growingBefore.length');
 assert.ok(fed > 0, 'something on the board is growing');
-assert.strictEqual(run('stumpBox.compostGrowth(compostSap)'), 72, 'compost growth follows quality (60 × 120%)');
+assert.strictEqual(run('stumpBox.compostGrowth(compostSap)'), 144, 'compost growth follows quality (120 × 120%)');
 assert.strictEqual(run('stumpBox.compostReason(game, game.stumpBox.board[17])'), '보관함의 씨앗이나 수액만 거름으로 쓸 수 있습니다.', 'a placed item is not compost');
 run('game.woodsmanBuildLock = true;');
 assert.strictEqual(run('stumpBox.compost(game, compostSap.id)'), null, 'the woodsman fight locks compost too');
 run('game.woodsmanBuildLock = false;');
-assert.deepStrictEqual(json('(() => { const result = stumpBox.compost(game, compostSap.id); return [result.growth, result.fed]; })()'), [72, fed]);
+assert.deepStrictEqual(json('(() => { const result = stumpBox.compost(game, compostSap.id); return [result.growth, result.fed]; })()'), [144, fed]);
 assert.strictEqual(run('stumpBox.itemById(game, compostSap.id)'), null, 'the compost is used up');
-assert.strictEqual(run('growingBefore.every(([id, xp]) => { const item = stumpBox.itemById(game, id); return item.xp === Math.min(stumpBox.need(item), xp + 72); })'),
+assert.strictEqual(run('growingBefore.every(([id, xp]) => { const item = stumpBox.itemById(game, id); return item.xp === Math.min(stumpBox.need(item), xp + 144); })'),
     true, 'every growing item gained the growth');
 
 // ── 나무꾼 전투 중에는 세팅을 바꾸지 않는다 ─────────────────────────────────────────
