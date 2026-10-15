@@ -18,7 +18,7 @@ const openingJourney = (() => {
     // it plays as before, auto hunt and all.
     const REPLACED = Object.freeze(['story_prologue']), STAGE_REPLACED = Object.freeze(['story_act_1_start', 'tutorial_battle_basics']);
     const TICK_MS = 150, LEAVE_MS = 900, REVEAL_MS = 1100, AUTO_HINT_MS = 45000;
-    let intro = null, rising = null, movedFrom = null, hintEl = null, autoHintUntil = 0;
+    let intro = null, rising = null, movedFrom = null, hintEl = null, autoHintUntil = 0, heldAuto = null;
 
     const seen = key => Array.isArray(game.seenTutorials) && game.seenTutorials.includes(key);
     const mark = key => { if (!seen(key)) game.seenTutorials.push(key); };
@@ -31,9 +31,10 @@ const openingJourney = (() => {
 
     /** A brand-new game: first loop, level 1 with no experience, standing in act 1 before any other map, the opening not yet played. */
     function fresh() {
-        const untouched = (game.season || 1) === 1 && (game.level || 1) === 1 && !(Number(game.exp) > 0) && !(Number(game.maxZoneId) > 0);
-        return untouched && !seen(KEY.intro) && !seen(KEY.done) && game.currentZoneId === 0 && started();
+        return newGame() && !seen(KEY.intro) && !seen(KEY.done) && started();
     }
+    const newGame = () => (game.season || 1) === 1 && (game.level || 1) === 1 && !(Number(game.exp) > 0) && !(Number(game.maxZoneId) > 0)
+        && game.currentZoneId === 0;
     const started = () => !!game.heroSelectionInitialized && !isLoopHeroSelectOpen();
     /** The opening is under way: from the intro until the auto hunt opens (old saves never start it, so nothing locks for them). */
     const active = () => (game.season || 1) === 1 && (!!intro || seen(KEY.intro)) && !seen(KEY.done);
@@ -69,6 +70,7 @@ const openingJourney = (() => {
         for (let i = tutorialQueue.length - 1; i >= 0; i--) if (replaced.includes(tutorialQueue[i].key)) tutorialQueue.splice(i, 1);
         if (activeTutorial && replaced.includes(activeTutorial.key)) dismissTutorial(false);
         if (staged) {
+            heldAuto = { settings: game.settings, autoMove: game.settings.autoMove };
             game.settings.autoMove = false;
             stageActors.preloadRise(game.selectedClassId);
             stageActors.setRise({ start: null }); // the stage under the intro already shows the hero lying when the dark lifts
@@ -95,6 +97,16 @@ const openingJourney = (() => {
             ${scene.lines.map(text => line('opening-intro-line', text)).join('')}
             <p class="opening-intro-next" data-step style="--step:${step}">눌러서 계속</p></div></div>`;
     }
+    /** A save loaded under the intro (a sign-in, a test fixture): the game is no longer new, so the intro goes without a trace and the
+     * auto hunt setting it turned off comes back (only on the settings it touched; a loaded save brings its own). */
+    function dropIntro() {
+        intro.remove();
+        intro = null;
+        rising = null;
+        stageActors.setRise(null);
+        if (heldAuto && heldAuto.settings === game.settings) game.settings.autoMove = heldAuto.autoMove;
+        heldAuto = null;
+    }
     function advanceIntro() {
         if (!intro || intro.classList.contains('is-leaving')) return;
         if (!intro.classList.contains('is-all')) { intro.classList.add('is-all'); return; }
@@ -106,6 +118,7 @@ const openingJourney = (() => {
         scene.classList.add('is-leaving');
         setTimeout(() => {
             mark(KEY.intro);
+            heldAuto = null;
             scene.classList.add('is-revealing');
             setTimeout(() => { scene.remove(); if (intro === scene) intro = null; }, REVEAL_MS);
         }, LEAVE_MS);
@@ -214,16 +227,22 @@ const openingJourney = (() => {
         hintEl.style.top = `${Math.round(box.top + box.height * 0.12)}px`;
     }
 
+    const ticking = () => typeof game === 'object' && !!game && Array.isArray(game.seenTutorials) && !game.isBackgroundCalculation;
     function tick() {
-        if (typeof game !== 'object' || !game || !Array.isArray(game.seenTutorials) || game.isBackgroundCalculation) return;
+        if (!ticking()) return;
         const now = Date.now();
-        if (!intro && fresh()) startIntro();
+        followGame();
         if (active()) {
             const run = actRun();
             holdManual(run);
             trackLesson(now, run);
-        }
+        } else if (stageActors.down()) stageActors.setRise(null); // a save loaded mid-opening: no one lies there any more
         showHint(hintFor(now));
+    }
+    /** Starts the intro for a new game; drops it when the game under it stopped being new. */
+    function followGame() {
+        if (intro && !intro.classList.contains('is-leaving') && !newGame()) dropIntro();
+        else if (!intro && fresh()) startIntro();
     }
     function init() {
         const canvas = document.getElementById('battlefield-canvas');
