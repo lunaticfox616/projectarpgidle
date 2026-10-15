@@ -216,26 +216,38 @@ const contentUnlockUi = {
             <button type="button" data-unlock-horizon="toggle">${toggle}</button></div>
             <div class="unlock-milestones">${this.milestoneRuns(shown).map(run => this.milestone(run.start, run.end)).join('') || this.milestone(game.season)}</div>`;
     },
-    entryReward(def, status) {
-        const reward = !status.unlocked && def.rewardText ? `<p class="unlock-reward">${escapeHTML(def.rewardText)}</p>` : '';
+    /** hides(id): in the NPC window, whether an unlock is still hidden there (npcKnows); its name is left out of the first reward. */
+    entryReward(def, status, hides) {
+        const text = hides ? this.withoutHidden(def.rewardText, hides) : def.rewardText;
+        const reward = !status.unlocked && text ? `<p class="unlock-reward">${escapeHTML(text)}</p>` : '';
         const picker = !status.unlocked && def.rewardChoices?.length > 1 ? `<label class="content-unlock-choice">첫 보상<select data-unlock-reward="${def.id}" aria-label="${escapeHTML(def.name)} 첫 보상">${def.rewardChoices.map(row => `<option value="${row.key}">${escapeHTML(row.label)}</option>`).join('')}</select></label>` : '';
         return reward + picker;
     },
     lockAttribute(id) {
         return contentProgression.isUnlocked(id) ? '' : 'data-content-locked';
     },
-    lifecycle(def) {
-        const life = def.lifecycle;
+    lifecycle(def, hides) {
+        const life = def.lifecycle, keep = text => (hides ? this.withoutHidden(text, hides, '/') : text);
         if (!life) return '<p class="unlock-lifetime-note">기능 해금은 다음 루프에도 유지됩니다.</p>';
         return `<details class="unlock-lifetime" id="unlock-lifetime-${def.id}"><summary>루프 전환 시, ${escapeHTML(life.label)}</summary><p class="unlock-lifetime-note">기능 해금은 영구 유지</p>
-            ${life.kept ? `<p><b>유지</b>${escapeHTML(life.kept)}</p>` : ''}${life.reset ? `<p><b>초기화</b>${escapeHTML(life.reset)}</p>` : ''}</details>`;
+            ${keep(life.kept) ? `<p><b>유지</b>${escapeHTML(keep(life.kept))}</p>` : ''}${keep(life.reset) ? `<p><b>초기화</b>${escapeHTML(keep(life.reset))}</p>` : ''}</details>`;
     },
-    relatedFeatures(def) {
-        if (!def.features) return '';
-        return `<details class="unlock-related" id="unlock-related-${def.id}"><summary>포함된 성장 요소</summary>${def.features.map(row =>
+    /** The parts of a list (", " or "/") that name no unlock still hidden in the NPC window. A name followed by 의 is part of another
+     * noun (the gem material 창공의 정수 is not the 창공 unlock). */
+    withoutHidden(text, hides, separator = ', ') {
+        const names = CONTENT_UNLOCK_CATALOG.filter(row => hides(row.id)).map(row => row.name);
+        const named = part => names.some(name => part.split(name).slice(1).some(rest => !rest.startsWith('의 ')));
+        return String(text || '').split(separator).filter(part => !named(part)).join(separator);
+    },
+    /** A feature with after (an unlock id) waits in the NPC window until that unlock shows there (hides). */
+    relatedFeatures(def, hides) {
+        const rows = (def.features || []).filter(row => !(hides && row.after && hides(row.after)));
+        if (!rows.length) return '';
+        return `<details class="unlock-related" id="unlock-related-${def.id}"><summary>포함된 성장 요소</summary>${rows.map(row =>
             `<p><strong>${escapeHTML(row.name)}</strong>${escapeHTML(row.description)}</p>`).join('')}</details>`;
     },
-    detail(def) {
+    /** hides(id), only from the NPC window: leaves out what names unlocks still hidden there. */
+    detail(def, hides = null) {
         const status = contentProgression.status(def.id);
         const conditions = contentProgression.requirements(def.id);
         const action = status.unlocked ? this.openButton(def) : def.cost === 0
@@ -245,8 +257,8 @@ const contentUnlockUi = {
         // HUD 위 작업 영역)에서 단추가 스크롤 밖으로 밀려났다.
         return `<div class="unlock-detail-top"><span class="unlock-eyebrow">${escapeHTML(def.group)}, ${def.cost ? '선택 해금' : '자동 개방'}</span>
             <div class="unlock-detail-art"><img src="${this.art(def)}" alt=""></div><h3>${escapeHTML(def.name)}</h3><p>${escapeHTML(def.description)}</p>${this.loreHtml(def.id)}</div>
-            <div class="unlock-detail-reward">${this.entryReward(def, status)}</div>
-            ${this.lifecycle(def)}${this.relatedFeatures(def)}
+            <div class="unlock-detail-reward">${this.entryReward(def, status, hides)}</div>
+            ${this.lifecycle(def, hides)}${this.relatedFeatures(def, hides)}
             <div class="unlock-requirements"><h4>${status.unlocked ? '해금 완료' : `해금 조건${def.cost ? ', ' + def.cost + 'P' : ''}`}</h4>${conditions.map(row => `<div class="${row.met ? 'is-met' : ''}"><span>${escapeHTML(row.label)}</span><small>${row.met ? '달성' : '미달성'}</small></div>`).join('')}</div>
             <div class="unlock-detail-action">${action}</div>`;
     },
@@ -373,8 +385,11 @@ const contentUnlockUi = {
      * or short of points only). Ones still behind a loop, a progress step or another unlock stay hidden, so the window spoils nothing
      * (2026-10-16 사용자: 아직 알지 못하는 정보의 해금과 불가능한 해금은 안 보이게). */
     npcUnlocks(name) {
-        return CONTENT_UNLOCK_CATALOG.filter(def => this.keeperOf(def.id) === this.personal(name)
-            && (contentProgression.isUnlocked(def.id) || contentProgression.requirements(def.id).every(row => row.met)));
+        return CONTENT_UNLOCK_CATALOG.filter(def => this.keeperOf(def.id) === this.personal(name) && this.npcKnows(def.id));
+    },
+    /** Whether the hero may know of an unlock now: bought, or its loop, progress and earlier-unlock conditions are met. */
+    npcKnows(id) {
+        return contentProgression.isUnlocked(id) || contentProgression.requirements(id).every(row => row.met);
     },
     personal: text => String(text || '').split(/[\s,]+/).pop(),
     /** The personal name of the NPC who speaks an unlock's loop lines, or ''. */
@@ -457,7 +472,7 @@ const contentUnlockUi = {
         }).join('');
         return `<div class="npc-dialog-body"><div class="npc-dialog-side"><button type="button" class="npc-dialog-back" data-npc-topic="greet">대화로 돌아가기</button>
             <ul class="npc-dialog-unlocks" aria-label="능력 해금">${items}</ul></div>
-            <div class="npc-dialog-detail unlock-detail">${this.detail(def)}</div></div>`;
+            <div class="npc-dialog-detail unlock-detail">${this.detail(def, id => !this.npcKnows(id))}</div></div>`;
     },
     /** The keywords the NPC can speak of now (STORY_NPCS dialogues, docs/story-bible.md section 4) and how many wait: a keyword waits
      * for the act it speaks of (reqAct, any act after a first loop) and for its loop (reqLoop). */
