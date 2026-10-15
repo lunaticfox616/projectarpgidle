@@ -2291,7 +2291,6 @@ const defaultGame = {
             desktop: { tabOrder: [], tabPlacement: {}, tabGroupOrder: [] },
             mobile: { tabOrder: [], tabPlacement: {}, tabGroupOrder: [] }
         },
-        showCombatScene: true,
         cameraShake: true,
         hitEmphasis: 'normal', // normal | mild; presentation only
         uiSounds: true,

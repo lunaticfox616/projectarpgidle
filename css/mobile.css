@@ -140,11 +140,6 @@
     position: absolute;
     inset: 0;
   }
-  body.mobile-battle-tab #tab-battle .battlefield-wrap.compressed {
-    width: 100%;
-    aspect-ratio: auto;
-    margin-top: 0;
-  }
   body.mobile-battle-tab #tab-battle #enemy-area,
   body.mobile-battle-tab #tab-battle .enemy-card.targeted { box-sizing: border-box; }
   body.mobile-battle-tab #tab-battle .enemy-card.targeted { padding: 7px 8px; }
@@ -280,9 +275,6 @@
     width: 100% !important;
     /* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */
     height: 100% !important;
-  }
-  body.mobile-battle-tab #tab-battle .battlefield-wrap.compressed {
-    height: 0;
   }
   body.mobile-battle-tab #tab-battle #enemy-area,
   body.mobile-battle-tab #tab-battle .enemy-card.targeted { width: 100%; min-width: 0; max-width: 100%; }

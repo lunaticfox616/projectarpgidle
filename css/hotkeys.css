@@ -47,12 +47,12 @@
   .player-hud-skill-rack .player-hud-skill-slot:is(.hud-key-used, .hud-key-denied) { animation: none; }
 }
 
-.hotkey-settings { display: grid; gap: 10px; }
+.hotkey-settings { display: grid; gap: 12px; }
 .hotkey-section { display: grid; gap: 2px; }
 .hotkey-section-title {
-  padding: 0 10px 2px;
-  color: var(--color-text-secondary);
-  font-size: 11px;
+  padding: 4px 4px 2px;
+  color: var(--px-copy-muted, var(--color-text-secondary));
+  font-size: 12px;
   font-weight: 700;
 }
 .hotkey-row {
@@ -60,14 +60,16 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 4px 10px;
+  min-height: 40px;
+  padding: 4px;
 }
+.hotkey-row + .hotkey-row { border-top: 1px solid rgba(255, 255, 255, .055); }
 .hotkey-key {
-  min-width: 64px;
+  min-width: 72px;
   min-height: 28px;
   padding: 3px 10px;
   border: 1px solid var(--skin-line);
-  border-radius: 4px;
+  border-radius: 3px;
   background: var(--skin-canvas);
   color: var(--color-text);
   font-size: 12px;
@@ -85,7 +87,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 6px 10px;
-  padding: 2px 10px;
+  padding: 4px 4px 0;
 }
 .hotkey-notice { min-height: 1.3em; color: var(--color-text-secondary); font-size: 11px; }
 }

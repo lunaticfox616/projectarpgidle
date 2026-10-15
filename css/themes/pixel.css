@@ -384,7 +384,7 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 :root body[data-ui-skin] .journal-section-title { font-size: 14px; }
 :root body[data-ui-skin] .journal-summary-main > b { font-size: 16px; }
 /* 작은 글(도감 카드 · 클라우드 계정 판 · 기록 · 해금 단계 · 루프 트리 요약)이 9.6~10.9px 소수 크기였다 — 도트 12px, 좁은 꼬리표는 11px */
-:root body[data-ui-skin] :is(.cloud-meta, .cloud-meta :is(div, strong), .cloud-policy-links a, .cloud-subtitle, .cloud-status-pill),
+:root body[data-ui-skin] :is(.cloud-meta :is(dt, dd), .cloud-policy-links a, .cloud-status-pill),
 :root body[data-ui-skin] :is(.records-stat-label, .records-note, .records-empty, .records-time-note summary, .records-section-title span, .unlock-depth-label, .unlock-lifetime-note, .trait-progress-summary span) { font-size: 12px; }
 :root body[data-ui-skin] .unlock-lifetime-tag { font-size: 11px; }
 :root body[data-ui-skin] :is(.records-stat-sub, .records-table, .records-offline > summary span, .records-fold > summary span, .records-fold-hint),

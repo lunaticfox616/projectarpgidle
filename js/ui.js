@@ -5051,7 +5051,7 @@ function tryUnlockMonsterSkinFromEnemy(enemy) {
     game.unlockedMonsterSkins = game.unlockedMonsterSkins || {};
     if (game.unlockedMonsterSkins[id]) return;
     game.unlockedMonsterSkins[id] = true;
-    addLog(`🎭 극희귀 발견! 몬스터 외형 [${getMonsterSkinLabel(id)}]을(를) 획득했습니다! (설정 > 몬스터 외형에서 적용)`, 'loot-unique');
+    addLog(`🎭 극희귀 발견! 몬스터 외형 [${getMonsterSkinLabel(id)}]을(를) 획득했습니다! (설정 > 화면과 소리에서 적용)`, 'loot-unique');
     if (typeof renderMonsterSkinControls === 'function') renderMonsterSkinControls();
     if (typeof saveGame === 'function') saveGame({ skipCloudSync: true });
 }
@@ -8998,16 +8998,7 @@ function performUpdateStaticUI() {
     cachedTooltipStats = pStats;
     updateCombatUI(pStats);
     __mark('combatUI');
-    let showCombatScene = game.settings.showCombatScene !== false;
-    let canvas = document.getElementById('battlefield-canvas');
-    let caption = document.getElementById('ui-battlefield-caption');
-    let battlefieldWrap = document.getElementById('battlefield-wrap');
-    let combatDashboard = document.querySelector('.combat-dashboard');
-    if (canvas) canvas.style.display = showCombatScene ? 'block' : 'none';
-    if (battlefieldWrap) battlefieldWrap.classList.toggle('compressed', !showCombatScene);
-    if (combatDashboard) combatDashboard.classList.toggle('combat-scene-hidden', !showCombatScene);
     applyPanelLayoutSettings();
-    if (!showCombatScene && caption) caption.innerText = '전투가 진행중입니다.';
     let loopDecisionOverlay = document.getElementById('loop-decision-overlay');
     if (loopDecisionOverlay) loopDecisionOverlay.classList.toggle('active', !!game.pendingLoopDecision);
     updateLoopDecisionOverlayUi();

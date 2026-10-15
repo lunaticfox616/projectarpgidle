@@ -1113,379 +1113,350 @@
     </div>
 
     <div id="tab-settings" class="tab-content" data-settings-category="display">
-        <div class="settings-intro">
-            <span>플레이 환경</span>
-            <small>변경 즉시 적용 · 자동 저장</small>
-        </div>
-        <nav class="settings-sections" aria-label="설정 분류">
-            <button type="button" data-settings-section="display" aria-pressed="true" onclick="settingsUi.select('display')">화면</button>
-            <button type="button" data-settings-section="progress" aria-pressed="false" onclick="settingsUi.select('progress')">자동 진행</button>
-            <button type="button" data-settings-section="notifications" aria-pressed="false" onclick="settingsUi.select('notifications')">알림·기록</button>
-            <button type="button" data-settings-section="layout" aria-pressed="false" onclick="settingsUi.select('layout')">조작·메뉴</button>
-            <button type="button" data-settings-section="data" aria-pressed="false" onclick="settingsUi.select('data')">저장·계정</button>
-        </nav>
-        <div class="settings-layout">
-            <div class="cfg-group cfg-group--wide cfg-group--sound">
-                <label class="cfg-sound-switch" for="chk-ui-sounds">
-                    <span class="cfg-sound-copy">
-                        <strong>효과음</strong>
-                        <small>전투와 메뉴 소리</small>
-                    </span>
-                    <input type="checkbox" role="switch" id="chk-ui-sounds" checked>
-                    <span class="cfg-sound-state" aria-hidden="true"></span>
-                </label>
-                <div class="cfg-sound-volume">
-                    <label for="range-sound-volume">음량</label>
-                    <input type="range" id="range-sound-volume" min="0" max="100" step="5" value="100" aria-valuetext="100%">
-                    <output id="sound-volume-value" for="range-sound-volume">100%</output>
-                    <button type="button" class="cfg-btn" id="btn-sound-preview">미리 듣기</button>
-                </div>
+        <!-- 설정(2026-10-16 사용자: "같은 계열인데 칸이 너무 나뉘어", "필요한 설정을 찾기 쉽도록", 오래된 설정 삭제): 왼쪽 분류 여섯,
+             오른쪽은 분류 한 장에 묶음별 한 줄 항목(이름과 짧은 설명, 오른쪽 끝에 조절). 저장과 동작은 js/settings-ui.js. -->
+        <div class="settings-workspace">
+            <nav class="settings-sections" aria-label="설정 분류">
+                <button type="button" data-settings-section="display" aria-pressed="true" onclick="settingsUi.select('display')"><b>화면과 소리</b><small aria-hidden="true">배율, 글꼴, 효과음, 외형</small></button>
+                <button type="button" data-settings-section="combat" aria-pressed="false" onclick="settingsUi.select('combat')"><b>전투</b><small aria-hidden="true">효과, 숫자, 전술, 기록</small></button>
+                <button type="button" data-settings-section="progress" aria-pressed="false" onclick="settingsUi.select('progress')"><b>자동 진행</b><small aria-hidden="true">클리어, 귀환, 새 루프</small></button>
+                <button type="button" data-settings-section="notifications" aria-pressed="false" onclick="settingsUi.select('notifications')"><b>알림과 채팅</b><small aria-hidden="true">알림, 이야기 저널, 채팅</small></button>
+                <button type="button" data-settings-section="layout" aria-pressed="false" onclick="settingsUi.select('layout')"><b>조작</b><small aria-hidden="true">창 배치, 메뉴 순서, 단축키</small></button>
+                <button type="button" data-settings-section="data" aria-pressed="false" onclick="settingsUi.select('data')"><b>저장과 계정</b><small aria-hidden="true">저장, 클라우드, 초기화</small></button>
+                <p class="settings-note">바꾸면 바로 적용되고 저장됩니다.</p>
+            </nav>
+            <div class="settings-content">
+                <section class="cfg-page" data-settings-group="display">
+                    <div class="cfg-block">
+                        <h3 class="cfg-block-title">화면과 글자</h3>
+                        <div class="cfg-row">
+                            <div class="cfg-row-text"><label for="sel-ui-scale">화면 배율</label><small>메뉴와 글자의 크기</small></div>
+                            <select id="sel-ui-scale" class="cfg-select">
+                                <option value="80">80%</option>
+                                <option value="90">90%</option>
+                                <option value="100" selected>100% (기본)</option>
+                                <option value="110">110%</option>
+                                <option value="125">125%</option>
+                                <option value="150">150%</option>
+                                <option value="175">175%</option>
+                                <option value="200">200%</option>
+                                <option value="225">225%</option>
+                                <option value="250">250%</option>
+                            </select>
+                        </div>
+                        <div class="cfg-row">
+                            <div class="cfg-row-text"><label for="sel-ui-font">글꼴</label></div>
+                            <select id="sel-ui-font" class="cfg-select">
+                                <option value="auto" selected>자동 (기본)</option>
+                                <option value="pixel">도트 글꼴</option>
+                                <option value="smooth">일반 글꼴</option>
+                            </select>
+                        </div>
+                        <div class="cfg-row">
+                            <div class="cfg-row-text"><label for="sel-icon-art">아이템 그림</label></div>
+                            <select id="sel-icon-art" class="cfg-select" onchange="iconArtUi.set(this.value)">
+                                <option value="pixel">도트</option>
+                                <option value="painted">원화</option>
+                            </select>
+                        </div>
+                        <div class="cfg-row">
+                            <div class="cfg-row-text"><label for="chk-high-contrast">고대비 모드</label><small>글자와 테두리를 또렷하게 하고 전장 가장자리의 어둠을 줄입니다</small></div>
+                            <input type="checkbox" role="switch" class="cfg-switch" id="chk-high-contrast">
+                        </div>
+                    </div>
+                    <div class="cfg-block">
+                        <h3 class="cfg-block-title">소리</h3>
+                        <div class="cfg-row">
+                            <div class="cfg-row-text"><label for="chk-ui-sounds">효과음</label><small>공격, 피격, 처치, 전리품, 버튼 소리</small></div>
+                            <input type="checkbox" role="switch" class="cfg-switch" id="chk-ui-sounds" checked>
+                        </div>
+                        <div class="cfg-row cfg-row--volume">
+                            <div class="cfg-row-text"><label for="range-sound-volume">음량</label></div>
+                            <div class="cfg-volume">
+                                <input type="range" id="range-sound-volume" min="0" max="100" step="5" value="100" aria-valuetext="100%">
+                                <output id="sound-volume-value" for="range-sound-volume">100%</output>
+                                <button type="button" class="cfg-btn" id="btn-sound-preview">미리 듣기</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="cfg-block">
+                        <h3 class="cfg-block-title">캐릭터 외형</h3>
+                        <div class="cfg-row">
+                            <div class="cfg-row-text"><label for="sel-hero-appearance-mode">외형 방식</label></div>
+                            <select id="sel-hero-appearance-mode" class="cfg-select" onchange="onHeroAppearanceModeChanged()">
+                                <option value="fixed">외형 고정</option>
+                                <option value="loop">현재 직업 외형 사용</option>
+                            </select>
+                        </div>
+                        <div class="cfg-row">
+                            <div class="cfg-row-text"><label for="sel-active-hero">고정 외형</label></div>
+                            <select id="sel-active-hero" class="cfg-select" onchange="onHeroSelectionChanged()">
+                            </select>
+                        </div>
+                        <div class="cfg-row">
+                            <div class="cfg-row-text"><label for="sel-monster-skin">수집한 몬스터로 변신</label></div>
+                            <select id="sel-monster-skin" class="cfg-select" onchange="onMonsterSkinChanged()">
+                            </select>
+                        </div>
+                        <div id="ui-hero-talent-summary" class="cfg-note">
+                        </div>
+                        <p class="cfg-note">외형은 능력치에 영향을 주지 않습니다.</p>
+                    </div>
+                </section>
+                <section class="cfg-page" data-settings-group="combat" hidden>
+                    <div class="cfg-block">
+                        <h3 class="cfg-block-title">전투 화면</h3>
+                        <div class="cfg-row">
+                            <div class="cfg-row-text"><label for="chk-camera-shake">카메라 흔들림</label></div>
+                            <input type="checkbox" role="switch" class="cfg-switch" id="chk-camera-shake">
+                        </div>
+                        <div class="cfg-row">
+                            <div class="cfg-row-text"><label for="sel-hit-emphasis">피격 강조</label><small>맞았을 때 화면 가장자리가 붉어지는 정도</small></div>
+                            <select id="sel-hit-emphasis" class="cfg-select">
+                                <option value="normal">기본</option>
+                                <option value="mild">약하게</option>
+                            </select>
+                        </div>
+                        <div class="cfg-row cfg-mobile-only">
+                            <div class="cfg-row-text"><label for="chk-mobile-battle-pip">작은 전투 화면</label><small>다른 메뉴를 보는 동안 구석에 띄웁니다</small></div>
+                            <input type="checkbox" role="switch" class="cfg-switch" id="chk-mobile-battle-pip">
+                        </div>
+                    </div>
+                    <div class="cfg-block">
+                        <h3 class="cfg-block-title">숫자 표시</h3>
+                        <div class="cfg-row">
+                            <div class="cfg-row-text"><label for="sel-damage-number-format">피해 숫자</label></div>
+                            <select id="sel-damage-number-format" class="cfg-select">
+                                <option value="comma">쉼표 (1,234,567,890)</option>
+                                <option value="korean">한글 전체 (12억3456만7890)</option>
+                                <option value="korean_short">한글 최대 단위 (12.3억)</option>
+                                <option value="english">영어 축약 (1.234B)</option>
+                            </select>
+                        </div>
+                        <div class="cfg-row">
+                            <div class="cfg-row-text"><label for="chk-number-commas">생명력, 경험치, 능력치에 쉼표</label><small id="chk-number-commas-mixed" hidden>지금은 일부만 켜져 있습니다. 바꾸면 모두 같이 바뀝니다</small></div>
+                            <input type="checkbox" role="switch" class="cfg-switch" id="chk-number-commas" aria-describedby="chk-number-commas-mixed">
+                        </div>
+                    </div>
+                    <div class="cfg-block" id="combat-tactics-settings">
+                        <h3 class="cfg-block-title">전투 전술</h3>
+                        <div class="cfg-row">
+                            <div class="cfg-row-text"><label for="sel-combat-target-priority">먼저 공격할 적</label></div>
+                            <select id="sel-combat-target-priority" class="cfg-select">
+                                <option value="nearest">가까운 적</option>
+                                <option value="weakest">약한 적</option>
+                                <option value="dangerous">위험한 적</option>
+                                <option value="dense">밀집 지역</option>
+                            </select>
+                        </div>
+                        <div class="cfg-row">
+                            <div class="cfg-row-text"><label for="sel-combat-position-mode">전투 거리</label></div>
+                            <select id="sel-combat-position-mode" class="cfg-select">
+                                <option value="auto">자동 (기존 방식)</option>
+                                <option value="pressure">압박 (근접 유지)</option>
+                                <option value="keepRange">거리 유지</option>
+                            </select>
+                        </div>
+                        <p id="combat-tactics-help" class="cfg-note">액트 3 클리어 후 해금됩니다.</p>
+                    </div>
+                    <div class="cfg-block">
+                        <h3 class="cfg-block-title">전투 기록</h3>
+                        <div class="cfg-row">
+                            <div class="cfg-row-text"><label for="chk-log-combat">전투 로그 표시</label></div>
+                            <input type="checkbox" role="switch" class="cfg-switch" id="chk-log-combat">
+                        </div>
+                        <div class="cfg-row">
+                            <div class="cfg-row-text"><label for="chk-log-story">대사</label><small>주인공, NPC, 보스의 대사를 로그에 남깁니다</small></div>
+                            <input type="checkbox" role="switch" class="cfg-switch" id="chk-log-story">
+                        </div>
+                        <div class="cfg-row">
+                            <div class="cfg-row-text"><label for="chk-log-compact">반복되는 타격 묶기</label><small id="chk-log-compact-mixed" hidden>지금은 일부만 켜져 있습니다. 바꾸면 모두 같이 바뀝니다</small></div>
+                            <input type="checkbox" role="switch" class="cfg-switch" id="chk-log-compact" aria-describedby="chk-log-compact-mixed">
+                        </div>
+                        <div class="cfg-row">
+                            <div class="cfg-row-text"><label for="chk-log-damage-detail">상세 피해 정보</label></div>
+                            <input type="checkbox" role="switch" class="cfg-switch" id="chk-log-damage-detail">
+                        </div>
+                        <div class="cfg-row">
+                            <div class="cfg-row-text"><label for="chk-log-spawn">적과 보스 등장</label></div>
+                            <input type="checkbox" role="switch" class="cfg-switch" id="chk-log-spawn">
+                        </div>
+                        <div class="cfg-row">
+                            <div class="cfg-row-text"><label for="chk-log-exp">경험치 획득</label></div>
+                            <input type="checkbox" role="switch" class="cfg-switch" id="chk-log-exp">
+                        </div>
+                        <div class="cfg-row">
+                            <div class="cfg-row-text"><label for="chk-log-loot">전리품 획득</label></div>
+                            <input type="checkbox" role="switch" class="cfg-switch" id="chk-log-loot">
+                        </div>
+                        <div class="cfg-row">
+                            <div class="cfg-row-text"><span>최근 사망 기록</span><small>마지막으로 쓰러졌을 때 받은 피해</small></div>
+                            <button type="button" id="btn-open-death-log" onclick="openLastDeathLog()" class="cfg-btn">열기</button>
+                        </div>
+                    </div>
+                </section>
+                <section class="cfg-page" data-settings-group="progress" hidden>
+                    <div class="cfg-block">
+                        <h3 class="cfg-block-title">진행</h3>
+                        <div class="cfg-row">
+                            <div class="cfg-row-text"><label for="sel-map-complete-action">지역 클리어 후</label></div>
+                            <select id="sel-map-complete-action" class="cfg-select">
+                                <option value="repeatZone">반복</option>
+                                <option value="nextZone">다음 지역</option>
+                                <option value="nextLoopBestPlusOne">최고층</option>
+                                <option value="stop">중단</option>
+                            </select>
+                        </div>
+                        <div class="cfg-row">
+                            <div class="cfg-row-text"><label for="sel-town-return-action">귀환 후</label></div>
+                            <select id="sel-town-return-action" class="cfg-select">
+                                <option value="retry">바로 재전투</option>
+                                <option value="stop">전투 중단</option>
+                            </select>
+                        </div>
+                        <div class="cfg-row">
+                            <div class="cfg-row-text"><label for="chk-auto-equip-empty">빈 장비 칸에 자동 장착</label></div>
+                            <input type="checkbox" role="switch" class="cfg-switch" id="chk-auto-equip-empty">
+                        </div>
+                        <div class="cfg-row">
+                            <div class="cfg-row-text"><label for="chk-pause-overlay">안내나 선택 창이 뜨면 멈춤</label></div>
+                            <input type="checkbox" role="switch" class="cfg-switch" id="chk-pause-overlay">
+                        </div>
+                    </div>
+                    <div class="cfg-block" id="loop-completion-settings">
+                        <h3 class="cfg-block-title">새 루프를 시작할 때</h3>
+                        <div class="cfg-row">
+                            <div class="cfg-row-text"><label for="chk-loop-disable-item-automation">자동 해체와 아이템 필터 끄기</label></div>
+                            <input type="checkbox" role="switch" class="cfg-switch" id="chk-loop-disable-item-automation">
+                        </div>
+                        <div class="cfg-row">
+                            <div class="cfg-row-text"><label for="sel-loop-map-complete-action">클리어 후 행동</label><small>새 루프가 시작될 때 한 번 적용합니다</small></div>
+                            <select id="sel-loop-map-complete-action" class="cfg-select">
+                                <option value="repeatZone">반복</option>
+                                <option value="nextZone">다음 지역</option>
+                                <option value="nextLoopBestPlusOne">최고층</option>
+                                <option value="stop">중단</option>
+                            </select>
+                        </div>
+                    </div>
+                </section>
+                <section class="cfg-page" data-settings-group="notifications" hidden>
+                    <div class="cfg-block">
+                        <h3 class="cfg-block-title">알림</h3>
+                        <div class="cfg-row">
+                            <div class="cfg-row-text"><label for="chk-tab-noti">새 항목이 있는 메뉴 표시</label></div>
+                            <input type="checkbox" role="switch" class="cfg-switch" id="chk-tab-noti">
+                        </div>
+                        <div class="cfg-row">
+                            <div class="cfg-row-text"><label for="chk-act-journal">이야기 저널 자동 표시</label></div>
+                            <input type="checkbox" role="switch" class="cfg-switch" id="chk-act-journal" onchange="storyJournalUi.setAutoShow(this.checked)">
+                        </div>
+                        <div class="cfg-row">
+                            <div class="cfg-row-text"><label for="chk-death-notice">사망 알림 표시</label></div>
+                            <input type="checkbox" role="switch" class="cfg-switch" id="chk-death-notice">
+                        </div>
+                    </div>
+                    <div class="cfg-block">
+                        <h3 class="cfg-block-title">채팅</h3>
+                        <div class="cfg-row">
+                            <div class="cfg-row-text"><label for="chk-social-chat-noti">새 채팅 알림</label></div>
+                            <input type="checkbox" role="switch" class="cfg-switch" id="chk-social-chat-noti">
+                        </div>
+                        <div class="cfg-row">
+                            <div class="cfg-row-text"><label for="sel-chat-message-size">채팅 글자 크기</label></div>
+                            <select id="sel-chat-message-size" class="cfg-select">
+                                <option value="small">작게</option>
+                                <option value="medium" selected>보통</option>
+                                <option value="large">크게</option>
+                            </select>
+                        </div>
+                    </div>
+                </section>
+                <section class="cfg-page" data-settings-group="layout" hidden>
+                    <div class="cfg-block">
+                        <h3 class="cfg-block-title">창과 메뉴 배치</h3>
+                        <div class="cfg-row">
+                            <div class="cfg-row-text"><span>창 배치</span><small>창, 로그, 채팅의 위치와 크기를 처음대로 되돌립니다</small></div>
+                            <div id="settings-window-actions" class="cfg-row-actions">
+                            </div>
+                        </div>
+                        <details class="cfg-disclosure" ontoggle="if(this.open) renderTabOrderSettings()">
+                            <summary>메뉴 순서 바꾸기</summary>
+                            <div id="ui-tab-order-settings" class="cfg-tab-order">
+                            </div>
+                            <p class="cfg-note">PC와 모바일 배치를 따로 저장합니다.</p>
+                        </details>
+                    </div>
+                    <div class="cfg-block cfg-block--hotkeys">
+                        <h3 class="cfg-block-title">단축키</h3>
+                        <div id="ui-hotkey-settings" class="hotkey-settings">
+                        </div>
+                        <p class="cfg-note">칸을 누른 뒤 새 키를 누르세요. Esc는 고정입니다.</p>
+                    </div>
+                </section>
+                <section class="cfg-page" data-settings-group="data" hidden>
+                    <div class="cfg-block">
+                        <h3 class="cfg-block-title">이 기기</h3>
+                        <div class="cfg-row">
+                            <div class="cfg-row-text"><span>저장</span><small>진행은 자동으로 저장됩니다. 기기를 옮기기 전에는 클라우드 상태를 확인하세요</small></div>
+                            <div class="cfg-row-actions">
+                                <button type="button" class="cfg-btn cfg-btn--save">지금 저장</button>
+                                <button type="button" class="cfg-btn" onclick="openPatchNotes()">패치 노트</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="cfg-block cloud-panel">
+                        <div class="cloud-header">
+                            <h3 class="cfg-block-title">클라우드 세이브</h3>
+                            <div class="cloud-status-pill" id="ui-cloud-status-pill">미설정</div>
+                        </div>
+                        <p class="cfg-note" id="ui-cloud-config-hint">로그인과 회원가입은 시작 화면에서 처리하고, 여기서는 연결 상태와 동기화만 관리합니다.</p>
+                        <div class="cloud-actions">
+                            <button id="btn-cloud-open-gate" onclick="openStartupGate({ accountOnly: true })">로그인, 계정 변경</button>
+                            <button id="btn-cloud-logout" onclick="cloudLogout()">로그아웃</button>
+                            <button id="btn-cloud-pull" onclick="cloudPullNow()">클라우드 불러오기</button>
+                        </div>
+                        <dl class="cloud-meta">
+                            <div><dt>계정</dt><dd id="ui-cloud-user">로그인 안 됨</dd></div>
+                            <div><dt>연결된 소셜 계정</dt><dd id="ui-cloud-identities">확인 전</dd></div>
+                            <div><dt>이 기기 마지막 저장</dt><dd id="ui-cloud-local-save">없음</dd></div>
+                            <div><dt>클라우드 마지막 확인</dt><dd id="ui-cloud-remote-save">없음</dd></div>
+                            <div><dt>마지막 업로드</dt><dd id="ui-cloud-upload-profile">없음</dd></div>
+                            <div><dt>최근 소식</dt><dd id="ui-cloud-message">아직 동기화하지 않았습니다.</dd></div>
+                        </dl>
+                        <div class="cloud-link" id="cloud-link-actions">
+                            <span>계정 연결</span>
+                            <button id="btn-cloud-link-google" class="social-login-image-btn" onclick="linkGoogleAccount()">
+                                <img src="assets/google_login.png" alt="Google 계정 연결">
+                            </button>
+                            <button id="btn-cloud-link-kakao" class="social-login-image-btn" onclick="linkKakaoAccount()">
+                                <img src="assets/kakao_login.png" alt="카카오 계정 연결">
+                            </button>
+                        </div>
+                        <details class="cfg-disclosure">
+                            <summary>저장 복구와 진단</summary>
+                            <div class="cloud-actions secondary">
+                                <button id="btn-cloud-push" onclick="cloudForcePullNow()">서버에서 강제 불러오기</button>
+                                <button type="button" onclick="copyClientDiagnostics()">진단 정보 복사</button>
+                                <button type="button" onclick="openCloudSaveHistory()">저장 이력</button>
+                                <button type="button" id="btn-ops-dashboard" onclick="openOpsDashboard()" hidden>운영 통계</button>
+                            </div>
+                        </details>
+                        <div class="cloud-policy-links">
+                            <a href="legal/terms.html" target="_blank" rel="noopener">이용약관</a>
+                            <a href="legal/privacy.html" target="_blank" rel="noopener">개인정보처리방침</a>
+                            <a href="mailto:pjh4611274@gmail.com?subject=%5BRignin%5D%20%EA%B3%84%EC%A0%95%20%EB%B0%8F%20%EB%8D%B0%EC%9D%B4%ED%84%B0%20%EC%82%AD%EC%A0%9C%20%EC%9A%94%EC%B2%AD&body=%EA%B3%84%EC%A0%95%EC%97%90%20%EC%82%AC%EC%9A%A9%ED%95%9C%20%EC%9D%B4%EB%A9%94%EC%9D%BC%EC%9D%84%20%EC%A0%81%EC%96%B4%EC%A3%BC%EC%84%B8%EC%9A%94.%0A">계정과 데이터 삭제 요청</a>
+                        </div>
+                    </div>
+                    <div class="cfg-block cfg-block--danger">
+                        <h3 class="cfg-block-title">초기화</h3>
+                        <div class="cfg-row">
+                            <div class="cfg-row-text"><span>세이브 초기화</span><small>지금 진행을 모두 지웁니다. 누르면 확인 창이 먼저 열립니다</small></div>
+                            <button type="button" onclick="resetGame()" class="cfg-btn cfg-btn--danger cfg-btn--danger-reset">초기화</button>
+                        </div>
+                    </div>
+                </section>
             </div>
-            <section class="cfg-group" data-settings-group="display">
-                <h3 class="cfg-group-title">화면과 글자</h3>
-                <div class="cfg-rows">
-                    <div class="cfg-select-row">
-                        <label class="cfg-label" for="sel-ui-scale">화면 배율</label>
-                        <select id="sel-ui-scale" class="cfg-select">
-                            <option value="80">80%</option>
-                            <option value="90">90%</option>
-                            <option value="100" selected>100% (기본)</option>
-                            <option value="110">110%</option>
-                            <option value="125">125%</option>
-                            <option value="150">150%</option>
-                            <option value="175">175%</option>
-                            <option value="200">200%</option>
-                            <option value="225">225%</option>
-                            <option value="250">250%</option>
-                        </select>
-                    </div>
-                    <div class="cfg-select-row">
-                        <label class="cfg-label" for="sel-ui-font">글꼴</label>
-                        <select id="sel-ui-font" class="cfg-select">
-                            <option value="auto" selected>자동 (기본)</option>
-                            <option value="pixel">도트 글꼴</option>
-                            <option value="smooth">일반 글꼴</option>
-                        </select>
-                    </div>
-                    <label class="cfg-toggle">
-                        <input type="checkbox" id="chk-high-contrast">
-                        <span class="cfg-label">고대비 모드</span>
-                    </label>
-                    <p class="cfg-sublabel">글자·테두리를 또렷하게 하고 전장 가장자리의 어둠을 줄입니다.</p>
-                    <div class="cfg-select-row">
-                        <label class="cfg-label" for="sel-icon-art">아이템 그림</label>
-                        <select id="sel-icon-art" class="cfg-select" onchange="iconArtUi.set(this.value)">
-                            <option value="pixel">도트</option>
-                            <option value="painted">원화</option>
-                        </select>
-                    </div>
-                </div>
-            </section>
-            <section class="cfg-group" data-settings-group="display">
-                <h3 class="cfg-group-title">전투 표현</h3>
-                <div class="cfg-rows">
-                    <label class="cfg-toggle">
-                        <input type="checkbox" id="chk-combat-scene">
-                        <span class="cfg-label">전투 화면 표시</span>
-                    </label>
-                    <label class="cfg-toggle">
-                        <input type="checkbox" id="chk-camera-shake">
-                        <span class="cfg-label">카메라 흔들림</span>
-                    </label>
-                    <div class="cfg-select-row">
-                        <label class="cfg-label" for="sel-hit-emphasis">피격 강조</label>
-                        <select id="sel-hit-emphasis" class="cfg-select">
-                            <option value="normal">기본</option>
-                            <option value="mild">약하게</option>
-                        </select>
-                    </div>
-                    <label class="cfg-toggle cfg-mobile-only">
-                        <input type="checkbox" id="chk-mobile-battle-pip">
-                        <span class="cfg-label">다른 창에서 작은 전투 화면 표시</span>
-                    </label>
-                    <details class="cfg-disclosure">
-                        <summary>숫자 표시</summary>
-                        <div class="cfg-rows">
-                            <div class="cfg-select-row">
-                                <label class="cfg-label" for="sel-damage-number-format">피해 숫자</label>
-                                <select id="sel-damage-number-format" class="cfg-select">
-                                    <option value="comma">쉼표 (1,234,567,890)</option>
-                                    <option value="korean">한글 전체 (12억3456만7890)</option>
-                                    <option value="korean_short">한글 최대 단위 (12.3억)</option>
-                                    <option value="english">영어 축약 (1.234B)</option>
-                                </select>
-                            </div>
-                            <label class="cfg-toggle">
-                                <input type="checkbox" id="chk-number-commas" aria-describedby="chk-number-commas-mixed">
-                                <span class="cfg-label">생명력·경험치·능력치에 쉼표 표시</span>
-                            </label>
-                            <small id="chk-number-commas-mixed" class="cfg-sublabel" hidden>기존 개별 설정 유지 중 · 변경하면 함께 적용됩니다.</small>
-                        </div>
-                    </details>
-                </div>
-            </section>
-            <section class="cfg-group" data-settings-group="display">
-                <h3 class="cfg-group-title">캐릭터 외형</h3>
-                <div class="cfg-rows">
-                    <details class="cfg-disclosure">
-                        <summary>직업 외형과 수집한 변신</summary>
-                        <div class="cfg-rows">
-                            <div class="cfg-select-row">
-                                <label class="cfg-label" for="sel-hero-appearance-mode">외형 방식</label>
-                                <select id="sel-hero-appearance-mode" class="cfg-select" onchange="onHeroAppearanceModeChanged()">
-                                    <option value="fixed">외형 고정</option>
-                                    <option value="loop">현재 직업 외형 사용</option>
-                                </select>
-                            </div>
-                            <div class="cfg-select-row">
-                                <label class="cfg-label" for="sel-active-hero">고정 외형</label>
-                                <select id="sel-active-hero" class="cfg-select" onchange="onHeroSelectionChanged()">
-                                </select>
-                            </div>
-                            <div class="cfg-select-row">
-                                <label class="cfg-label" for="sel-monster-skin">수집한 몬스터로 변신</label>
-                                <select id="sel-monster-skin" class="cfg-select" onchange="onMonsterSkinChanged()">
-                                </select>
-                            </div>
-                            <div id="ui-hero-talent-summary" class="cfg-sublabel">
-                            </div>
-                            <p class="cfg-sublabel">외형 변경은 능력치에 영향을 주지 않습니다.</p>
-                        </div>
-                    </details>
-                </div>
-            </section>
-            <section class="cfg-group" data-settings-group="progress" hidden>
-                <h3 class="cfg-group-title">자동 진행</h3>
-                <div class="cfg-rows">
-                    <div class="cfg-select-row">
-                        <label class="cfg-label" for="sel-map-complete-action">지역 클리어 후</label>
-                        <select id="sel-map-complete-action" class="cfg-select">
-                            <option value="repeatZone">반복</option>
-                            <option value="nextZone">다음 지역</option>
-                            <option value="nextLoopBestPlusOne">최고층</option>
-                            <option value="stop">중단</option>
-                        </select>
-                    </div>
-                    <div class="cfg-select-row">
-                        <label class="cfg-label" for="sel-town-return-action">귀환 후</label>
-                        <select id="sel-town-return-action" class="cfg-select">
-                            <option value="retry">바로 재전투</option>
-                            <option value="stop">전투 중단</option>
-                        </select>
-                    </div>
-                    <label class="cfg-toggle">
-                        <input type="checkbox" id="chk-auto-equip-empty">
-                        <span class="cfg-label">빈 장비 슬롯에 자동 장착</span>
-                    </label>
-                    <label class="cfg-toggle">
-                        <input type="checkbox" id="chk-pause-overlay">
-                        <span class="cfg-label">안내·선택 창에서 진행 일시 정지</span>
-                    </label>
-                </div>
-            </section>
-            <section class="cfg-group" data-settings-group="progress" id="loop-completion-settings" hidden>
-                <h3 class="cfg-group-title">새 루프 시작</h3>
-                <div class="cfg-rows">
-                    <label class="cfg-toggle">
-                        <input type="checkbox" id="chk-loop-disable-item-automation">
-                        <span class="cfg-label">자동 해체와 아이템 필터 끄기</span>
-                    </label>
-                    <div class="cfg-select-row">
-                        <label class="cfg-label" for="sel-loop-map-complete-action">클리어 후 행동을 변경</label>
-                        <select id="sel-loop-map-complete-action" class="cfg-select">
-                            <option value="repeatZone">반복</option>
-                            <option value="nextZone">다음 지역</option>
-                            <option value="nextLoopBestPlusOne">최고층</option>
-                            <option value="stop">중단</option>
-                        </select>
-                    </div>
-                    <p class="cfg-sublabel">새 루프가 시작될 때 한 번 적용합니다.</p>
-                </div>
-            </section>
-            <section class="cfg-group" data-settings-group="progress" id="combat-tactics-settings" hidden>
-                <h3 class="cfg-group-title">전투 전술</h3>
-                <div class="cfg-rows">
-                    <div class="cfg-select-row">
-                        <label class="cfg-label" for="sel-combat-target-priority">먼저 공격할 적</label>
-                        <select id="sel-combat-target-priority" class="cfg-select">
-                            <option value="nearest">가까운 적</option>
-                            <option value="weakest">약한 적</option>
-                            <option value="dangerous">위험한 적</option>
-                            <option value="dense">밀집 지역</option>
-                        </select>
-                    </div>
-                    <div class="cfg-select-row">
-                        <label class="cfg-label" for="sel-combat-position-mode">전투 거리</label>
-                        <select id="sel-combat-position-mode" class="cfg-select">
-                            <option value="auto">자동 (기존 방식)</option>
-                            <option value="pressure">압박 (근접 유지)</option>
-                            <option value="keepRange">거리 유지</option>
-                        </select>
-                    </div>
-                    <div id="combat-tactics-help" class="cfg-sublabel">액트 3 클리어 후 해금됩니다.</div>
-                </div>
-            </section>
-            <section class="cfg-group" data-settings-group="notifications" hidden>
-                <h3 class="cfg-group-title">알림과 채팅</h3>
-                <div class="cfg-rows">
-                    <label class="cfg-toggle">
-                        <input type="checkbox" id="chk-tab-noti">
-                        <span class="cfg-label">새 항목이 있는 메뉴 표시</span>
-                    </label>
-                    <label class="cfg-toggle">
-                        <input type="checkbox" id="chk-act-journal" onchange="storyJournalUi.setAutoShow(this.checked)">
-                        <span class="cfg-label">이야기 저널 자동 표시</span>
-                    </label>
-                    <label class="cfg-toggle">
-                        <input type="checkbox" id="chk-death-notice">
-                        <span class="cfg-label">사망 알림 표시</span>
-                    </label>
-                    <label class="cfg-toggle">
-                        <input type="checkbox" id="chk-social-chat-noti">
-                        <span class="cfg-label">새 채팅 알림</span>
-                    </label>
-                    <div class="cfg-select-row">
-                        <label class="cfg-label" for="sel-chat-message-size">채팅 글자 크기</label>
-                        <select id="sel-chat-message-size" class="cfg-select">
-                            <option value="small">작게</option>
-                            <option value="medium" selected>보통</option>
-                            <option value="large">크게</option>
-                        </select>
-                    </div>
-                </div>
-            </section>
-            <section class="cfg-group" data-settings-group="notifications" hidden>
-                <h3 class="cfg-group-title">전투 기록</h3>
-                <div class="cfg-rows">
-                    <label class="cfg-toggle">
-                        <input type="checkbox" id="chk-log-combat">
-                        <span class="cfg-label">전투 로그 표시</span>
-                    </label>
-                    <label class="cfg-toggle">
-                        <input type="checkbox" id="chk-log-story">
-                        <span class="cfg-label">대사 표시</span>
-                    </label>
-                    <label class="cfg-toggle">
-                        <input type="checkbox" id="chk-log-compact" aria-describedby="chk-log-compact-mixed">
-                        <span class="cfg-label">반복되는 타격 기록 묶기</span>
-                    </label>
-                    <small id="chk-log-compact-mixed" class="cfg-sublabel" hidden>기존 개별 설정 유지 중 · 변경하면 함께 적용됩니다.</small>
-                    <button type="button" id="btn-open-death-log" onclick="openLastDeathLog()" class="cfg-btn">최근 사망 기록</button>
-                    <details class="cfg-disclosure">
-                        <summary>기록할 내용</summary>
-                        <div class="cfg-rows">
-                            <label class="cfg-toggle">
-                                <input type="checkbox" id="chk-log-damage-detail">
-                                <span class="cfg-label">상세 피해 정보</span>
-                            </label>
-                            <label class="cfg-toggle">
-                                <input type="checkbox" id="chk-log-spawn">
-                                <span class="cfg-label">적·보스 등장</span>
-                            </label>
-                            <label class="cfg-toggle">
-                                <input type="checkbox" id="chk-log-exp">
-                                <span class="cfg-label">경험치 획득</span>
-                            </label>
-                            <label class="cfg-toggle">
-                                <input type="checkbox" id="chk-log-loot">
-                                <span class="cfg-label">전리품 획득</span>
-                            </label>
-                        </div>
-                    </details>
-                </div>
-            </section>
-            <section class="cfg-group" data-settings-group="layout" hidden>
-                <h3 class="cfg-group-title">창과 메뉴 배치</h3>
-                <div class="cfg-rows">
-                    <div id="settings-window-actions" class="cfg-action-row">
-                    </div>
-                    <p class="cfg-sublabel">창·로그·채팅의 위치와 크기를 기본 배치로 되돌립니다.</p>
-                    <details class="cfg-disclosure" ontoggle="if(this.open) renderTabOrderSettings()">
-                        <summary>메뉴 순서 편집</summary>
-                        <div class="cfg-rows">
-                            <div id="ui-tab-order-settings" class="cfg-rows">
-                            </div>
-                            <p class="cfg-sublabel">PC와 모바일 배치를 따로 저장합니다.</p>
-                        </div>
-                    </details>
-                </div>
-            </section>
-            <section class="cfg-group" data-settings-group="layout" hidden>
-                <h3 class="cfg-group-title">단축키</h3>
-                <div class="cfg-rows">
-                    <div id="ui-hotkey-settings" class="hotkey-settings">
-                    </div>
-                    <p class="cfg-sublabel">칸을 누른 뒤 새 키를 누르세요. Esc는 고정입니다.</p>
-                </div>
-            </section>
-            <section class="cfg-group" data-settings-group="data" hidden>
-                <h3 class="cfg-group-title">이 기기 저장</h3>
-                <div class="cfg-rows">
-                    <div class="cfg-action-row">
-                        <button type="button" class="cfg-btn cfg-btn--save">지금 저장</button>
-                        <button type="button" class="cfg-btn" onclick="openPatchNotes()">패치 노트</button>
-                    </div>
-                    <p class="cfg-sublabel">진행은 자동 저장됩니다. 기기를 옮기기 전에는 아래 클라우드 상태를 확인하세요.</p>
-                </div>
-            </section>
-            <section class="cfg-group cfg-group--wide cloud-panel" data-settings-group="data" hidden>
-                <div class="cloud-header">
-                    <div>
-                        <div class="cloud-title">클라우드 세이브</div>
-                        <div class="cloud-subtitle" id="ui-cloud-config-hint">로그인과 회원가입은 시작 화면에서 처리하고, 여기서는 연결 상태와 동기화만 관리합니다.</div>
-                    </div>
-                    <div class="cloud-status-pill" id="ui-cloud-status-pill">미설정</div>
-                </div>
-                <div class="cloud-actions">
-                    <button id="btn-cloud-open-gate" onclick="openStartupGate({ accountOnly: true })">로그인·계정 변경</button>
-                    <button id="btn-cloud-logout" onclick="cloudLogout()">로그아웃</button>
-                    <button id="btn-cloud-pull" onclick="cloudPullNow()">클라우드 불러오기</button>
-                </div>
-                <details class="cfg-disclosure">
-                    <summary>저장 복구와 진단</summary>
-                    <div class="cloud-actions secondary">
-                        <button id="btn-cloud-push" onclick="cloudForcePullNow()">서버에서 강제 불러오기</button>
-                        <button type="button" onclick="copyClientDiagnostics()">진단 정보 복사</button>
-                        <button type="button" onclick="openCloudSaveHistory()">저장 이력</button>
-                        <button type="button" id="btn-ops-dashboard" onclick="openOpsDashboard()" hidden>운영 통계</button>
-                    </div>
-                </details>
-                <div class="cloud-actions secondary" id="cloud-link-actions">
-                    <button id="btn-cloud-link-google" class="social-login-image-btn" onclick="linkGoogleAccount()">
-                        <img src="assets/google_login.png" alt="Google 계정 연결">
-                    </button>
-                    <button id="btn-cloud-link-kakao" class="social-login-image-btn" onclick="linkKakaoAccount()">
-                        <img src="assets/kakao_login.png" alt="카카오 계정 연결">
-                    </button>
-                </div>
-                <div class="cloud-meta" id="cloud-provider-meta">
-                    <div>연결된 소셜 계정: <strong id="ui-cloud-identities">확인 전</strong></div>
-                </div>
-                <div class="cloud-meta">
-                    <div>계정 상태: <strong id="ui-cloud-user">로그인 안 됨</strong></div>
-                    <div>로컬 마지막 저장: <strong id="ui-cloud-local-save">없음</strong></div>
-                    <div>클라우드 마지막 확인: <strong id="ui-cloud-remote-save">없음</strong></div>
-                    <div>마지막 업로드 시간: <strong id="ui-cloud-upload-profile">없음</strong></div>
-                    <div>최근 메시지: <strong id="ui-cloud-message">아직 동기화하지 않았습니다.</strong></div>
-                </div>
-                <div class="cloud-policy-links">
-                    <a href="legal/terms.html" target="_blank" rel="noopener">이용약관</a>
-                    <a href="legal/privacy.html" target="_blank" rel="noopener">개인정보처리방침</a>
-                    <a href="mailto:pjh4611274@gmail.com?subject=%5BRignin%5D%20%EA%B3%84%EC%A0%95%20%EB%B0%8F%20%EB%8D%B0%EC%9D%B4%ED%84%B0%20%EC%82%AD%EC%A0%9C%20%EC%9A%94%EC%B2%AD&body=%EA%B3%84%EC%A0%95%EC%97%90%20%EC%82%AC%EC%9A%A9%ED%95%9C%20%EC%9D%B4%EB%A9%94%EC%9D%BC%EC%9D%84%20%EC%A0%81%EC%96%B4%EC%A3%BC%EC%84%B8%EC%9A%94.%0A">계정/데이터 삭제 요청</a>
-                </div>
-            </section>
-            <section class="cfg-group" data-settings-group="data" hidden>
-                <h3 class="cfg-group-title">데이터 관리</h3>
-                <div class="cfg-rows">
-                    <details class="cfg-disclosure">
-                        <summary>세이브 초기화</summary>
-                        <div class="cfg-rows">
-                            <p class="cfg-sublabel">현재 진행을 삭제합니다. 실행 전 확인 창이 열립니다.</p>
-                            <button type="button" onclick="resetGame()" class="cfg-btn cfg-btn--danger cfg-btn--danger-reset">세이브 초기화</button>
-                        </div>
-                    </details>
-                </div>
-            </section>
         </div>
     </div>
 </div>
@@ -1619,7 +1590,7 @@
 <script defer src="js/item-appraisal.js?v=20260929-1&aux=20261002-1&uiwords=20261009-1"></script>
 <script defer src="js/player-stall.js?v=20260929-1&aux=20261002-1&drops=20261005-3&pickup=20261005-1&dmg=20261005-2&bag=20261010-1"></script>
 <script defer src="js/level-progression.js?v=20260911-1&requirements-review=20260911-1&unique-equipment=20260913-1&experience-curve=20260914-1&skill-delta2=20260930-8&drops=20261005-9"></script>
-<script defer src="js/state.js?flow=20260906-1&v=20260806-growth-boundaries1-20260807-accuracy-affix1-20260807-hero-appearance-mode1-20260807-flat-element-balance1&tactics=20260810-combat-tactics1&vfx=20260810-skill-vfx2&passive=20260810-presets1&craft=20260813-fossil-defense1&loop-completion=20260814-settings1&ux=20260814-first-flow1&cosmos=20260814-balance1&pinnacle=20260814-atlas1&loot=20260815-cosmos-tier1&ocean=20260817-fishing1&directives=20260817-2&shrine-removed=20261004-1&bounty=20260817-restore1&skin=20260818-1&balance=20260819-endless-cap1&underworld=20260819-depth1&loadout=20260820-1&endgame=20260820-pruning3&roadmap=20260821-1&hideout=20260821-2&map-tabs=20260823-1&equipment-grid=20260826-2&inventory-pages=20260827-1&temp-storage=20260827-1&test-character=20260827-1&player-classes=20260828-1&tree-visual=20260829-3&settings=20260901-1&beyond=20260901-2&review-fixes=20260901-1&tutorial-pause=20260901-1&drop-balance=20260902-1&underworld-yield=20260902-1&boundary-balance=20260902-1&save-reset=20260903-1&runtime=20260905-1&loot-overhaul=20260905-1&loot-filter=20260905-1&interface-fixes=20260906-2&refinement=20260906-1&content-choice=20260906-1&display=20260906-1&unlock-atlas=20260906-5&unlock-lifecycle=20260907-1&unlock-split=20260907-1&treasure=20260907-1&thermal=20260907-1&realm-ui=20260907-1&mobile-review=20260907-2&loop-map=20260908-1&hunt-rewards=20260908-1&login-idle=20260908-1&bounty-min-tier=20260908-1&bounty-choices=20260908-1&route=20260909-8&affix-balance=20260910-1&affix-ui=20260910-1&craft-origin=20260910-1&craft-copy=20260911-1&weapon-base=20260911-1&level-progression=20260911-1&requirements-review=20260911-1&affix-continuity=20260912-1&realm-base-drops=20260913-1&world-tree-journey=20260913-1&exploration=20260913-4&environment-readiness=20260913-1&time-rift=20260914-4&death-report=20260914-1&atlas-copy=20260914-3&journal-preference=20260914-1&crafting-workspace=20260914-1&experience-curve=20260914-1&gem-growth=20260914-1&gem-forge=20260914-1&gem-value=20260914-2&act-maps=20260915&skill-delta2=20260930-15&aux=20260930-3&aux=20260930-6&aux=20260930-7&aux=20260930-8&aux=20261001-1&aux=20261001-2&aux=20261001-3&aux=20261001-16&aux=20261001-17&aux=20261001-18&aux=20261001-20&aux=20261002-1&aux=20261002-5&aux=20261002-7&aux=20261002-11&late=20261002-1&weapons=20261002-1&realm=20261003-1&guest=20261003-1&shrine=20260817-field1&facing=20261004-1&balance=20261004-1&font=20261006-1&playtest=20261007-4&playtest=20261007-8&playtest=20261007-10&tags=20261008-1&stump16=20261008-1&b2=20261008-1&b2=20261008-2&goal=20261008-1&goal=20261008-4&goal=20261008-5&eff=20261008-1&sight=20261009-1&bases=20261009-1&post50=20261009-1&deep=20261009-1&uiwords=20261009-1&maplist=20261009-1&dive=20261009-1&drops=20261009-1&drops=20261009-4&filter=20261010-1&infl=20261010-1&ward=20261010-1&bag=20261010-1&eqw=20261010-1&chaosstep=20261011-1&hive=20261013-1&boardrooms=20261013-1&storylog=20261015-1&npctalk=20261015-1"></script>
+<script defer src="js/state.js?flow=20260906-1&v=20260806-growth-boundaries1-20260807-accuracy-affix1-20260807-hero-appearance-mode1-20260807-flat-element-balance1&tactics=20260810-combat-tactics1&vfx=20260810-skill-vfx2&passive=20260810-presets1&craft=20260813-fossil-defense1&loop-completion=20260814-settings1&ux=20260814-first-flow1&cosmos=20260814-balance1&pinnacle=20260814-atlas1&loot=20260815-cosmos-tier1&ocean=20260817-fishing1&directives=20260817-2&shrine-removed=20261004-1&bounty=20260817-restore1&skin=20260818-1&balance=20260819-endless-cap1&underworld=20260819-depth1&loadout=20260820-1&endgame=20260820-pruning3&roadmap=20260821-1&hideout=20260821-2&map-tabs=20260823-1&equipment-grid=20260826-2&inventory-pages=20260827-1&temp-storage=20260827-1&test-character=20260827-1&player-classes=20260828-1&tree-visual=20260829-3&settings=20260901-1&beyond=20260901-2&review-fixes=20260901-1&tutorial-pause=20260901-1&drop-balance=20260902-1&underworld-yield=20260902-1&boundary-balance=20260902-1&save-reset=20260903-1&runtime=20260905-1&loot-overhaul=20260905-1&loot-filter=20260905-1&interface-fixes=20260906-2&refinement=20260906-1&content-choice=20260906-1&display=20260906-1&unlock-atlas=20260906-5&unlock-lifecycle=20260907-1&unlock-split=20260907-1&treasure=20260907-1&thermal=20260907-1&realm-ui=20260907-1&mobile-review=20260907-2&loop-map=20260908-1&hunt-rewards=20260908-1&login-idle=20260908-1&bounty-min-tier=20260908-1&bounty-choices=20260908-1&route=20260909-8&affix-balance=20260910-1&affix-ui=20260910-1&craft-origin=20260910-1&craft-copy=20260911-1&weapon-base=20260911-1&level-progression=20260911-1&requirements-review=20260911-1&affix-continuity=20260912-1&realm-base-drops=20260913-1&world-tree-journey=20260913-1&exploration=20260913-4&environment-readiness=20260913-1&time-rift=20260914-4&death-report=20260914-1&atlas-copy=20260914-3&journal-preference=20260914-1&crafting-workspace=20260914-1&experience-curve=20260914-1&gem-growth=20260914-1&gem-forge=20260914-1&gem-value=20260914-2&act-maps=20260915&skill-delta2=20260930-15&aux=20260930-3&aux=20260930-6&aux=20260930-7&aux=20260930-8&aux=20261001-1&aux=20261001-2&aux=20261001-3&aux=20261001-16&aux=20261001-17&aux=20261001-18&aux=20261001-20&aux=20261002-1&aux=20261002-5&aux=20261002-7&aux=20261002-11&late=20261002-1&weapons=20261002-1&realm=20261003-1&guest=20261003-1&shrine=20260817-field1&facing=20261004-1&balance=20261004-1&font=20261006-1&playtest=20261007-4&playtest=20261007-8&playtest=20261007-10&tags=20261008-1&stump16=20261008-1&b2=20261008-1&b2=20261008-2&goal=20261008-1&goal=20261008-4&goal=20261008-5&eff=20261008-1&sight=20261009-1&bases=20261009-1&post50=20261009-1&deep=20261009-1&uiwords=20261009-1&maplist=20261009-1&dive=20261009-1&drops=20261009-1&drops=20261009-4&filter=20261010-1&infl=20261010-1&ward=20261010-1&bag=20261010-1&eqw=20261010-1&chaosstep=20261011-1&hive=20261013-1&boardrooms=20261013-1&storylog=20261015-1&npctalk=20261015-1&cfg=20261016-1"></script>
 <script defer src="js/combat-loot-receipts.js?v=20260930-15&drops=20261009-2&drops=20261009-4"></script>
 <script defer src="js/ui-display.js?v=20260906-1&display=20260906-1&thermal=20260907-1&battle-space=20260909-1&aux=20261001-8&font=20261006-1&playtest=20261007-5&playtest=20261007-8"></script>
 <script defer src="js/combat-clock.js?v=20260905-runtime1&release=20261003-1"></script>
@@ -1795,7 +1766,7 @@
 <script defer src="js/chronicle-ui.js?v=20261008-1&records=20261009-1"></script>
 <script defer src="js/crafting-catalog-ui.js?v=20260914-1&realm=20261003-1&playtest=20261007-4&goal=20261008-1&goal=20261008-4&uiwords=20261009-1&infl=20261010-1&infl=20261010-3"></script>
 <script defer src="js/crafting-workspace-ui.js?v=20260914-2&aux=20261001-17&drops=20261005-6&tags=20261008-1&goal=20261008-1&goal=20261008-4&uiwords=20261009-1&second=20261009-1&infl=20261010-1&infl=20261010-3&beltpetal=20261011-1"></script>
-<script defer src="js/ui.js?v=20260723-merged-tab-window-fix2-20260807-elemental-ehp1-20260807-gem-search-tags1-20260807-merged-pane-persistence1-20260807-rune-upgrade1-20260807-ui-refresh-queue1-20260807-hero-appearance-mode1-20260807-hero-stride1-20260808-background-records-fix1-20260810-management-ux1-20260810-ux-refine1-20260810-jewel-compare1-20260810-direct-actions1&tactics=20260810-combat-tactics1&passive=20260811-star-wedge-drawer1&void=20260811-reroll1&fx-backlog=20260811-clear1&status=20260811-clarity1&mobile=20260814-first-flow1&boss-traits=20260817-stable2&craft-toast=20260811-tainted1&spore-craft=20260811-tooltip1&power=20260814-readiness1&ehp=20260811-bosspeak1&flask-tooltip=20260811-custom1&pvp=20260817-arena-stable1&craft=20260813-magic-reroll2&shield-charge=20260814-armor1&loop-completion=20260814-settings1&tooltip=20260814-crisp1&pinnacle=20260814-atlas1&ocean=20260817-fishing1&triage=20260817-1&shrine-removed=20261004-1&bounty=20260817-restore1&hall=20260819-route3&nav=20260818-reliquary-goal-access1&skin=20260819-2&flask-hud=20260819-1&balance=20260819-ocean-role1&interaction=20260820-1&endgame=20260821-roadmap3&condition=20260821-1&backdrop=20260820-floor1&hideout=20260821-2&combat-log-icons=20260822-1&jewel-layout=20260822-1&map-tabs=20260823-1&save-guard=20260826-1&equipment-grid=20260827-9&inventory-pages=20260827-1&temp-storage=20260827-1&test-character=20260828-3&player-classes=20260828-1&passive-gate=20260829-1&tree-visual=20260829-4&death-feedback=20260901-1&settings=20260901-1&vfx-icons=20260901-1&review-fixes=20260901-2&ascend-info=20260901-1&inventory-search=20260901-1&square-map=20260901-3&actor-depth=20260901-1&walk-direction=20260901-1&boss-footprint=20260902-1&attack-direction=20260902-1&hud-gauges=20260902-5&idle-direction=20260902-1&enemy-lunge=20260902-1&attack-phase=20260902-1&facing-hold=20260902-1&enemy-hud=20260902-1&mobile-scale=20260902-1&mobile-fit=20260902-2&legal=20260902-1&signup-consent=20260902-2&realm-monsters=20260902-1&save-choice=20260902-1&save-reset=20260903-1&choice-feedback=20260904-1&wisps=20260904-1&item-compare=20260904-1&signup-confirmation=20260904-1&initial-class=20260914-1&character-smoothing=20260904-1&character-outline=20260904-2&runtime=20260905-1&loot-overhaul=20260905-1&loot-filter=20260905-1&equipment-cleanup=20260906-1&interface-fixes=20260906-2&refinement=20260906-1&content-choice=20260906-1&display=20260906-1&flow=20260906-1&unlock-atlas=20260906-5&unlock-loot=20260906-1&reward-flow=20260906-1&unlock-split=20260907-1&treasure=20260907-1&pr-review=20260907-1&market=20260907-1&thermal=20260907-1&realm-ui=20260907-1&profile-filter=20260907-1&mobile-review=20260908-3&flask-mobile=20260908-1&hud-text=20260908-1&frame-clock=20260908-1&passive-selection=20260914-2&tree-tools=20260908-1&craft-choice=20260908-1&craft-lists=20260908-1&craft-search=20260908-1&health-boundary=20260908-1&jewel-workspace=20260908-2&jewel-crafting=20260908-2&talisman-touch=20260908-1&talisman-workspace=20260908-1&inventory-library=20260908-1&talisman-workshop=20260908-1&unlock-path=20260908-1&loop-map=20260908-1&hunt-rewards=20260908-1&return-ui=20260908-1&effect-loading=20260908-1&login-idle=20260908-1&stat-touch=20260908-1&return-regions=20260908-1&hover-details=20260908-1&equipment-inspection=20260908-1&gem-selection=20260909-2&condition-feedback=20260909-1&stat-inputs=20260909-1&hover-compare=20260909-1&cosmos-route=20260909-8&story-fx=20260909-1&journal-reader=20260914-1&flask-review=20260914-1&affix-balance=20260910-1&affix-ui=20260910-1&craft-origin=20260910-1&craft-preview=20260910-1&level-progression=20260911-1&region-label=20260911-1&popup-layer=20260911-1&unique-equipment=20260913-1&realm-uniques=20260913-1&completion-loot=20260913-1&altar-flow=20260913-1&world-tree-journey=20260913-1&exploration=20260914-7&environment-readiness=20260913-1&craft-gem-review=20260914-1&research-review=20260914-2&hive-review=20260914-1&preparation=20260914-1&expedition-review=20260914-2&expedition-result=20260914-2&time-rift=20260914-4&ward=20260914-1&underworld-ui=20260914-1&rune-picker-review=20260914-1&sky-flow=20260914-1&ocean-flow=20260914-4&trial-priority=20260914-1&atlas-copy=20260914-3&crafting-workspace=20260914-2&gem-forge=20260914-1&gem-value=20260914-2&act-maps=20260915&skill-delta2=20260930-15&aux=20260930-3&aux=20260930-5&ward=20260930-1&aux=20260930-7&aux=20260930-8&aux=20261001-1&aux=20261001-2&aux=20261001-3&aux=20261001-4&aux=20261001-5&aux=20261001-6&aux=20261001-9&aux=20261001-11&aux=20261001-12&aux=20261001-14&aux=20261001-15&aux=20261001-16&aux=20261001-17&aux=20261001-19&aux=20261001-20&aux=20261001-21&aux=20261001-22&aux=20261001-23&aux=20261002-1&aux=20261002-5&aux=20261002-7&aux=20261002-8&aux=20261002-11&aux=20261002-12&aux=20261002-13&aux=20261002-15&aux=20261002-18&aux=20261002-20&aux=20261002-21&monsters=20261002-1&weapons=20261002-1&realm=20261003-1&review=20261003-1&dialog=20261003-1&traffic=20261003-1&herosize=20261003-1&dbsave=20261003-1&guest=20261003-1&frames=20261003-1&cards=20261003-1&points=20261004-1&vis=20261004-1&top=20261004-1&shrine=20260817-field1&board=20261013-1&eicon=20261004-1&balance=20261004-1&drops=20261005-9&audio=20261006-1&fixes=20261006-1&boss-face=20261006-1&boss-attacks=20261006-2&boards=20261006-1&tone=20261006-1&tone=20261006-2&hitlog=20261006-1&frames=20261007-1&review=20261007-1&playtest=20261007-5&playtest=20261007-9&playtest=20261007-10&tags=20261008-1&goal=20261008-1&goal=20261008-3&goal=20261008-4&goal=20261008-5&eff=20261008-1&names=20261008-1&finish=20261008-1&terms=20261009-1&sight=20261009-1&ascend=20261009-1&uniq=20261009-1&league=20261009-1&away=20261009-1&uiwords=20261009-1&talent=20261009-1&codex=20261009-1&maplist=20261009-1&maplist2=20261009-2&fishing=20261009-1&second=20261009-1&gemlevel=20261009-1&dive=20261009-1&drops=20261009-1&drops=20261009-4&drops=20261009-6&triage=20261010-1&infl=20261010-1&infl=20261010-3&ward=20261010-1&bag=20261010-1&eqw=20261010-1&eqw=20261010-2&bootfloor=20261011-1&gemslot=20261011-1&stage=20261011-1&rooms=20261013-9&hive=20261013-1&boardrooms=20261013-1&merge=20261013-1&rooms=20261011-1&salvage=20261012-1&perf=20261013-5&npc=20261015-1&journal=20261015-1&npc=20261015-3&storylog=20261015-1"></script>
+<script defer src="js/ui.js?v=20260723-merged-tab-window-fix2-20260807-elemental-ehp1-20260807-gem-search-tags1-20260807-merged-pane-persistence1-20260807-rune-upgrade1-20260807-ui-refresh-queue1-20260807-hero-appearance-mode1-20260807-hero-stride1-20260808-background-records-fix1-20260810-management-ux1-20260810-ux-refine1-20260810-jewel-compare1-20260810-direct-actions1&tactics=20260810-combat-tactics1&passive=20260811-star-wedge-drawer1&void=20260811-reroll1&fx-backlog=20260811-clear1&status=20260811-clarity1&mobile=20260814-first-flow1&boss-traits=20260817-stable2&craft-toast=20260811-tainted1&spore-craft=20260811-tooltip1&power=20260814-readiness1&ehp=20260811-bosspeak1&flask-tooltip=20260811-custom1&pvp=20260817-arena-stable1&craft=20260813-magic-reroll2&shield-charge=20260814-armor1&loop-completion=20260814-settings1&tooltip=20260814-crisp1&pinnacle=20260814-atlas1&ocean=20260817-fishing1&triage=20260817-1&shrine-removed=20261004-1&bounty=20260817-restore1&hall=20260819-route3&nav=20260818-reliquary-goal-access1&skin=20260819-2&flask-hud=20260819-1&balance=20260819-ocean-role1&interaction=20260820-1&endgame=20260821-roadmap3&condition=20260821-1&backdrop=20260820-floor1&hideout=20260821-2&combat-log-icons=20260822-1&jewel-layout=20260822-1&map-tabs=20260823-1&save-guard=20260826-1&equipment-grid=20260827-9&inventory-pages=20260827-1&temp-storage=20260827-1&test-character=20260828-3&player-classes=20260828-1&passive-gate=20260829-1&tree-visual=20260829-4&death-feedback=20260901-1&settings=20260901-1&vfx-icons=20260901-1&review-fixes=20260901-2&ascend-info=20260901-1&inventory-search=20260901-1&square-map=20260901-3&actor-depth=20260901-1&walk-direction=20260901-1&boss-footprint=20260902-1&attack-direction=20260902-1&hud-gauges=20260902-5&idle-direction=20260902-1&enemy-lunge=20260902-1&attack-phase=20260902-1&facing-hold=20260902-1&enemy-hud=20260902-1&mobile-scale=20260902-1&mobile-fit=20260902-2&legal=20260902-1&signup-consent=20260902-2&realm-monsters=20260902-1&save-choice=20260902-1&save-reset=20260903-1&choice-feedback=20260904-1&wisps=20260904-1&item-compare=20260904-1&signup-confirmation=20260904-1&initial-class=20260914-1&character-smoothing=20260904-1&character-outline=20260904-2&runtime=20260905-1&loot-overhaul=20260905-1&loot-filter=20260905-1&equipment-cleanup=20260906-1&interface-fixes=20260906-2&refinement=20260906-1&content-choice=20260906-1&display=20260906-1&flow=20260906-1&unlock-atlas=20260906-5&unlock-loot=20260906-1&reward-flow=20260906-1&unlock-split=20260907-1&treasure=20260907-1&pr-review=20260907-1&market=20260907-1&thermal=20260907-1&realm-ui=20260907-1&profile-filter=20260907-1&mobile-review=20260908-3&flask-mobile=20260908-1&hud-text=20260908-1&frame-clock=20260908-1&passive-selection=20260914-2&tree-tools=20260908-1&craft-choice=20260908-1&craft-lists=20260908-1&craft-search=20260908-1&health-boundary=20260908-1&jewel-workspace=20260908-2&jewel-crafting=20260908-2&talisman-touch=20260908-1&talisman-workspace=20260908-1&inventory-library=20260908-1&talisman-workshop=20260908-1&unlock-path=20260908-1&loop-map=20260908-1&hunt-rewards=20260908-1&return-ui=20260908-1&effect-loading=20260908-1&login-idle=20260908-1&stat-touch=20260908-1&return-regions=20260908-1&hover-details=20260908-1&equipment-inspection=20260908-1&gem-selection=20260909-2&condition-feedback=20260909-1&stat-inputs=20260909-1&hover-compare=20260909-1&cosmos-route=20260909-8&story-fx=20260909-1&journal-reader=20260914-1&flask-review=20260914-1&affix-balance=20260910-1&affix-ui=20260910-1&craft-origin=20260910-1&craft-preview=20260910-1&level-progression=20260911-1&region-label=20260911-1&popup-layer=20260911-1&unique-equipment=20260913-1&realm-uniques=20260913-1&completion-loot=20260913-1&altar-flow=20260913-1&world-tree-journey=20260913-1&exploration=20260914-7&environment-readiness=20260913-1&craft-gem-review=20260914-1&research-review=20260914-2&hive-review=20260914-1&preparation=20260914-1&expedition-review=20260914-2&expedition-result=20260914-2&time-rift=20260914-4&ward=20260914-1&underworld-ui=20260914-1&rune-picker-review=20260914-1&sky-flow=20260914-1&ocean-flow=20260914-4&trial-priority=20260914-1&atlas-copy=20260914-3&crafting-workspace=20260914-2&gem-forge=20260914-1&gem-value=20260914-2&act-maps=20260915&skill-delta2=20260930-15&aux=20260930-3&aux=20260930-5&ward=20260930-1&aux=20260930-7&aux=20260930-8&aux=20261001-1&aux=20261001-2&aux=20261001-3&aux=20261001-4&aux=20261001-5&aux=20261001-6&aux=20261001-9&aux=20261001-11&aux=20261001-12&aux=20261001-14&aux=20261001-15&aux=20261001-16&aux=20261001-17&aux=20261001-19&aux=20261001-20&aux=20261001-21&aux=20261001-22&aux=20261001-23&aux=20261002-1&aux=20261002-5&aux=20261002-7&aux=20261002-8&aux=20261002-11&aux=20261002-12&aux=20261002-13&aux=20261002-15&aux=20261002-18&aux=20261002-20&aux=20261002-21&monsters=20261002-1&weapons=20261002-1&realm=20261003-1&review=20261003-1&dialog=20261003-1&traffic=20261003-1&herosize=20261003-1&dbsave=20261003-1&guest=20261003-1&frames=20261003-1&cards=20261003-1&points=20261004-1&vis=20261004-1&top=20261004-1&shrine=20260817-field1&board=20261013-1&eicon=20261004-1&balance=20261004-1&drops=20261005-9&audio=20261006-1&fixes=20261006-1&boss-face=20261006-1&boss-attacks=20261006-2&boards=20261006-1&tone=20261006-1&tone=20261006-2&hitlog=20261006-1&frames=20261007-1&review=20261007-1&playtest=20261007-5&playtest=20261007-9&playtest=20261007-10&tags=20261008-1&goal=20261008-1&goal=20261008-3&goal=20261008-4&goal=20261008-5&eff=20261008-1&names=20261008-1&finish=20261008-1&terms=20261009-1&sight=20261009-1&ascend=20261009-1&uniq=20261009-1&league=20261009-1&away=20261009-1&uiwords=20261009-1&talent=20261009-1&codex=20261009-1&maplist=20261009-1&maplist2=20261009-2&fishing=20261009-1&second=20261009-1&gemlevel=20261009-1&dive=20261009-1&drops=20261009-1&drops=20261009-4&drops=20261009-6&triage=20261010-1&infl=20261010-1&infl=20261010-3&ward=20261010-1&bag=20261010-1&eqw=20261010-1&eqw=20261010-2&bootfloor=20261011-1&gemslot=20261011-1&stage=20261011-1&rooms=20261013-9&hive=20261013-1&boardrooms=20261013-1&merge=20261013-1&rooms=20261011-1&salvage=20261012-1&perf=20261013-5&npc=20261015-1&journal=20261015-1&npc=20261015-3&storylog=20261015-1&cfg=20261016-1"></script>
 <script defer src="js/icon-art-ui.js"></script>
 <script defer src="js/market-ui.js?v=20260907-1&mobile-exchange=20260908-1&mobile-services=20260908-1&mobile-black=20260908-1&aux=20260930-8&aux=20261002-1&tags=20261008-1&bag=20261010-1"></script>
 <script defer src="js/equipment-loot-ui.js?v=20260905-1&return-ui=20260908-1&aux=20261001-2&tags=20261008-1&away=20261009-1&uiwords=20261009-1&filter=20261010-1&infl=20261010-1&ward=20261010-1&salvage=20261012-1"></script>
@@ -1835,8 +1806,8 @@
 <script defer src="js/ghost-pvp.js?v=20260817-arena-stable1&aux=20261001-2&aux=20261001-14&uiwords=20261009-1"></script>
 <script defer src="js/player-exchange.js?v=20260819-hall-route3&loadout=20260820-1&aux=20261001-2&drops=20261005-3&uiwords=20261009-1&bag=20261010-1"></script>
 <script defer src="js/message-frames-ui.js?v=20261003-1&polish=20261003-1&freewin=20261004-1&playtest=20261007-2&names=20261008-1&herofade=20261013-2&cover=20261013-1"></script>
-    <script defer src="js/ui-window-manager.js?v=20260906-workspace1&interface-fixes=20260906-2&refinement=20260906-1&choice-tree=20260906-1&display=20260906-1&unlock-atlas=20260906-5&unlock-split=20260907-1&brand-logo=20260907-1&battle-controls=20260908-1&return-regions=20260908-1&rail-fit=20260908-1&popup-layer=20260911-1&aux=20260930-8&aux=20261001-1&aux=20261001-2&aux=20261001-3&aux=20261001-14&aux=20261001-15&aux=20261001-17&aux=20261001-19&review=20261003-1&dialog=20261003-1&frames=20261003-1&freewin=20261004-1&maxwin=20261004-1&uiwords=20261009-1&winsize=20261011-1&merge=20261013-1"></script>
-    <script defer src="js/hotkeys-ui.js?v=20260930-6&aux=20261001-1&review=20261003-1&wasd=20261009-1&uiwords=20261009-1"></script>
+    <script defer src="js/ui-window-manager.js?v=20260906-workspace1&interface-fixes=20260906-2&refinement=20260906-1&choice-tree=20260906-1&display=20260906-1&unlock-atlas=20260906-5&unlock-split=20260907-1&brand-logo=20260907-1&battle-controls=20260908-1&return-regions=20260908-1&rail-fit=20260908-1&popup-layer=20260911-1&aux=20260930-8&aux=20261001-1&aux=20261001-2&aux=20261001-3&aux=20261001-14&aux=20261001-15&aux=20261001-17&aux=20261001-19&review=20261003-1&dialog=20261003-1&frames=20261003-1&freewin=20261004-1&maxwin=20261004-1&uiwords=20261009-1&winsize=20261011-1&merge=20261013-1&cfg=20261016-1"></script>
+    <script defer src="js/hotkeys-ui.js?v=20260930-6&aux=20261001-1&review=20261003-1&wasd=20261009-1&uiwords=20261009-1&cfg=20261016-1"></script>
 <script defer src="js/ui-game-shell.js?v=20260715-radial-goals1"></script>
 <script defer src="js/scroll-top.js?v=20260821-scrolltop1&release=20261003-1"></script>
 <script defer src="js/content-unlock-guide.js?v=20260831-next-major-unlock1&content-choice=20260906-1&unlock-lifecycle=20260907-1&unlock-split=20260907-1&treasure=20260907-1&aux=20260930-5&aux=20260930-7&aux=20261001-16&points=20261004-1&uiwords=20261009-1"></script>
@@ -1863,7 +1834,7 @@
 <script defer src="js/combat-replay-projection.js?v=20261007-1&eff=20261008-1&split=20261008-1"></script>
 <script defer src="js/android-app-ui.js?v=20260907-1&thermal=20260907-1&popup-layer=20260911-1"></script>
 <script defer src="js/dev-test-panel-ui.js?v=20260930-5&uiwords=20261009-1&stage=20261011-1&rooms=20261011-1&backdrop=20261011-1&theme=20261011-1&roster=20261012-1&plans=20261013-1&skillvfx=20261013-1&jump=20261013-3&sizes=20261013-1&hive=20261013-1&boardrooms=20261013-1&perf=20261013-1&boss=20261014-1"></script>
-<script defer src="js/settings-ui.js?v=20261015-1"></script>
+<script defer src="js/settings-ui.js?v=20261015-1&cfg=20261016-1"></script>
 <script defer src="js/main.js?v=20260905-runtime1&loot-filter=20260905-1&display=20260906-1&thermal=20260907-1&return-ui=20260908-1&login-idle=20260908-1&return-regions=20260908-1&route=20260909-2&journal-preference=20260914-1&aux=20260930-8&aux=20261001-17&aux=20261002-1&font=20261006-1&eff=20261008-1&fg=20261008-1&storylog=20261015-1"></script>
 </body>
 </html>

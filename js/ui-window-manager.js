@@ -32,7 +32,7 @@
         'tab-items': { title: '장비 및 인벤토리', defaultMaximized: true, dock: true, x: 150, y: 54, width: 1060, height: 780, minWidth: 720, minHeight: 520 },
         'tab-char': { title: '스킬트리', x: 210, y: 70, width: 920, height: 740, minWidth: 620, minHeight: 460, defaultMaximized: true },
         'tab-map': { title: '지도 및 콘텐츠', defaultMaximized: true, dock: true, x: 120, y: 60, width: 900, height: 720, minWidth: 620, minHeight: 440 },
-        'tab-settings': { title: '설정', x: 360, y: 80, width: 680, height: 700, minWidth: 460, minHeight: 420 },
+        'tab-settings': { title: '설정', x: 230, y: 40, width: 1000, height: 800, minWidth: 460, minHeight: 420 },
         // 2026-10-11: 아래 네 창은 기본 높이가 낮아 1080p 화면에서 원환 아래 절반, 재능 직업 줄, 조합창 끝 줄, 연대기가 잘렸다.
         // 높이는 작업 영역(HUD 위)까지만 쓰이므로 작은 화면에서는 전처럼 줄어든다. 사용자가 옮기거나 키운 창은 저장된 크기를 따른다.
         'tab-season': { title: '루프 패시브', x: 210, y: 20, width: 980, height: 920, minWidth: 500, minHeight: 380 },

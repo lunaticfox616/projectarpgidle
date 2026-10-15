@@ -3,7 +3,6 @@
 {
     const checks = {
         'chk-ui-sounds': ['uiSounds'],
-        'chk-combat-scene': ['showCombatScene'],
         'chk-camera-shake': ['cameraShake'],
         'chk-death-notice': ['showDeathNotice'],
         'chk-mobile-battle-pip': ['showMobileBattlePip'],
