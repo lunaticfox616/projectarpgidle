@@ -293,6 +293,10 @@ const STAGE_HERO_MOTIONS = Object.freeze({
         })
     })
 });
+/** 처음 장면의 쓰러진 주인공이 일어나는 동작(2026-10-15 사용자가 만든 6직업 그림, scripts/build-stage-hero-rise.cjs가 옮긴다): 맨손 자세의
+ * <직업>/unarmed/rise.png, 주인공 칸과 같은 규격. 0번이 쓰러진 모습(처음 850ms는 쓰러진 채 머문다), 마지막은 맨손 대기의 첫 프레임이다.
+ * 쓰는 곳은 js/canvas-stage-actors.js setRise(js/opening-journey-ui.js가 정한다). */
+const STAGE_HERO_RISE = Object.freeze({ file: 'unarmed/rise.png', ms: Object.freeze([850, 180, 220, 240, 260, 220, 220, 650]) });
 /** 휘두르는 모양: 동작 이름 → 그 동작으로 휘두르는 스킬. 그 동작이 있는 자세에서만 쓰고(지금은 전사의 검방패), 없는 자세와 여기에 없는
  * 스킬은 보통 공격 그림(공격, 공격2 …)을 돌린다. 한 대상을 노리는 찌르는 기술은 찌르기, 휘둘러 베는 기술은 베기, 도는 기술은 돌려베기. */
 const STAGE_HERO_STRIKES = Object.freeze({
@@ -301,4 +305,4 @@ const STAGE_HERO_STRIKES = Object.freeze({
     spin: Object.freeze(['회오리바람'])
 });
 
-safeExposeData({ STAGE_HERO_MOTIONS, STAGE_HERO_STRIKES, STAGE_VIEW, STAGE_TERRAIN, STAGE_ROOMS, STAGE_BACKDROPS, STAGE_OBJECTS, STAGE_PROPS, STAGE_SCENES, STAGE_MONSTER_SCALE, STAGE_NPC_POSTS, STAGE_NPC_ART, STAGE_BOARD_ROOMS });
+safeExposeData({ STAGE_HERO_MOTIONS, STAGE_HERO_RISE, STAGE_HERO_STRIKES, STAGE_VIEW, STAGE_TERRAIN, STAGE_ROOMS, STAGE_BACKDROPS, STAGE_OBJECTS, STAGE_PROPS, STAGE_SCENES, STAGE_MONSTER_SCALE, STAGE_NPC_POSTS, STAGE_NPC_ART, STAGE_BOARD_ROOMS });

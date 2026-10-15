@@ -2996,7 +2996,7 @@ function drawBattleLightingAndBars(ctx, scene) {
     drawBattleDangerEdges(ctx, scene);
     bossAttackView.drawMarks(ctx, scene);
     drawBattlePlayerFigure.readability.draw(ctx);
-    drawBattlefieldPlayerHealthBar(ctx, scene);
+    if (!stageActors.down()) drawBattlefieldPlayerHealthBar(ctx, scene); // not over the first start's lying hero (js/opening-journey-ui.js)
     drawBattlefieldEnemyHealthBars(ctx, scene.layout.filter(entry => entry.drawn), scene.targets, scene.tileW);
 }
 

@@ -3,12 +3,29 @@
 const { test, expect } = require('@playwright/test');
 const { pickClass } = require('./helpers');
 
+/** One step of the first start's lessons after the intro (js/opening-journey-ui.js), the way a player takes them: the lying hero is
+ * pressed, the floor beside it is clicked (move), then the monster striking Haken (attack), then the gem it dropped. The top-down
+ * field (no stage art, as in CI) has no lessons. Returns the lesson acted on, or null. */
+async function takeOpeningStep(page) {
+    const step = await page.evaluate(() => openingJourney.lesson());
+    if (step === 'pickup') await page.locator('.battle-loot-drop.is-floor').first().dispatchEvent('click');
+    if (!['rise', 'move', 'attack'].includes(step)) return step;
+    const point = await page.evaluate(lesson => {
+        const canvas = document.getElementById('battlefield-canvas'), rect = canvas.getBoundingClientRect(), k = rect.width / canvas.clientWidth;
+        const enemy = game.enemies.find(row => row && row.rescue), hero = battleVisualState.playerPos;
+        const at = { rise: { x: hero.x, y: hero.y - 20 }, move: { x: hero.x + 70, y: hero.y } }[lesson] || (enemy && battleVisualState.enemySmoothPos[enemy.id]);
+        return at ? { x: rect.left + at.x * k, y: rect.top + at.y * k } : null;
+    }, step);
+    if (point) await page.mouse.click(point.x, point.y);
+    return step;
+}
+
 for (const [classId, label] of [['occultist', '비술사'], ['warrior', '전사']]) {
     test(`initial ${classId} selection updates HUD before the paused prologue ends`, async ({page}) => {
         await page.route('https://**',route=>route.fulfill({status:204,body:''}));
         await page.goto('/');await page.locator('#btn-startup-guest').click();
-        await pickClass(page, classId);
-        await expect(page.locator('#tutorial-overlay')).toHaveClass(/active/);
+        await pickClass(page, classId, { opening: true });
+        await expect(page.locator('#opening-intro')).toBeVisible();
         await expect(page.locator('#ui-player-name-label')).toHaveText(label);
         const resource=await page.evaluate(()=>({hp:game.playerHp,cap:getPlayerHpCap(getPlayerStats())}));
         expect(resource.hp).toBe(resource.cap);
@@ -23,11 +40,14 @@ test('a new warrior earns and equips the first gem through visible controls', as
     await page.route('https://**', route => route.fulfill({ status: 204, body: '' }));
     await page.goto('/');
     await page.locator('#btn-startup-guest').click();
-    await pickClass(page, 'warrior');
+    await pickClass(page, 'warrior', { opening: true });
+    await page.locator('#opening-intro .opening-intro-skip').click();
+    await expect(page.locator('#opening-intro')).toHaveCount(0);
     const startedAt = Date.now();
     const notices = [];
     let firstGemMs = null;
     await expect.poll(async () => {
+        await takeOpeningStep(page);
         if (firstGemMs === null && await page.evaluate(() => !!game.starterGemTutorialPending)) {
             firstGemMs = Date.now() - startedAt;
         }
@@ -38,7 +58,7 @@ test('a new warrior earns and equips the first gem through visible controls', as
             else await page.locator('#tutorial-dismiss-btn').click();
         }
         return page.locator('#tutorial-action-card').isVisible();
-    }, { timeout: 45000, intervals: [250, 500] }).toBe(true).catch(async error => {
+    }, { timeout: 60000, intervals: [250, 500] }).toBe(true).catch(async error => {
         const state = await page.evaluate(() => ({
             seen: game.seenTutorials, pending: game.starterGemTutorialPending, skill: game.activeSkill,
             queue: tutorialQueue, active: activeTutorial, guide: tutorialActionUi.active?.notice,

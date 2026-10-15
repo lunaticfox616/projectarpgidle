@@ -143,6 +143,9 @@ const actTitleCard = (() => {
         if (loop === 1) return npc.bark;
         return loop % 2 === 0 ? byClass || npc.loopBark || npc.bark : npc.loopBark || byClass || npc.bark;
     }
+    /** The guide of the entry room's lines: act 1's guide stands there only in loop 1 (2026-10-15 사용자: after a loop the first room has no
+     * Haken, as there is no fall to wake from). */
+    const guideHere = story => (story.npc && !(actOf(zone)?.order === 1 && (game.season || 1) > 1) ? story.npc : null);
     /** The hero's first words, in loop 1's act 1 entry room. */
     function queueWakeLine(lore, now) {
         const act = actOf(zone);
@@ -153,7 +156,10 @@ const actTitleCard = (() => {
     /** The entry room: in loop 1's act 1 the hero wakes first (wakeLine), then the guide speaks and the hero answers in its
      * class's words (classReplies). While a monster strikes the guide (rescue) only the hero wakes: the guide speaks once it falls. */
     function watchEntryRoom(story, now, rescue) {
-        const lore = storyClassLore(), npc = story.npc;
+        // The first start's hero lies there until pressed (js/opening-journey-ui.js): its first words come once it stands, not
+        // under the intro (the intro starts a tick after the class pick).
+        if (typeof openingJourney === 'object' && openingJourney.hushes()) return;
+        const lore = storyClassLore(), npc = guideHere(story);
         queueWakeLine(lore, now);
         if (!npc || rescue) return;
         queueStoryLine({ key: 'npc', who: 'npc', speaker: npc.name, text: npcLine(npc), tone: npc.tone }, now);
@@ -206,7 +212,7 @@ const actTitleCard = (() => {
     /** The run's NPC, found once: { id, name, title, tone, line } or null. */
     function runNpc(watch) {
         if (watch.npc !== undefined) return watch.npc;
-        const said = watch.story && watch.story.npc, here = said ? null : getZone(zone);
+        const said = watch.story && guideHere(watch.story), here = said || (watch.act && watch.act.order === 1) ? null : getZone(zone);
         const row = said ? npcRows().find(npc => npc.name === said.name) : STORY_NPCS[STAGE_NPC_POSTS[here && here.type]];
         watch.npc = row ? { id: row.id, name: row.name, title: row.title, tone: npcTone(row.name), line: said ? npcLine(said) : '' } : null;
         return watch.npc;
@@ -507,8 +513,13 @@ const actTitleCard = (() => {
     function busy() { return !!(card || pending) && Date.now() - frameAt < LIVE_MS; }
     /** True while the hero stands for the entry room's greeting: js/ui.js pauses the game for it. Only while the battlefield
      * draws, like busy. */
-    function greeting() { return holding && Date.now() - frameAt < LIVE_MS; }
+    function greeting() {
+        const opening = typeof openingJourney === 'object' && openingJourney.holds();
+        return (holding || opening) && Date.now() - frameAt < LIVE_MS;
+    }
+    /** True while a story line's bubble is on screen (the first start's lesson line steps aside for it, js/opening-journey-ui.js). */
+    function speaking() { return !!line && Date.now() - frameAt < LIVE_MS; }
     if (typeof document === 'object' && document.fonts?.load) document.fonts.load("20px 'Galmuri14'").catch(() => {});
-    return Object.freeze({ draw, busy, greeting, appendNpc, drawNpc, npcAt });
+    return Object.freeze({ draw, busy, greeting, speaking, appendNpc, drawNpc, npcAt });
 })();
 safeExposeGlobals({ actTitleCard });

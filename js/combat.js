@@ -7965,14 +7965,19 @@ function createExplorationPacks(zone,map,bossStages) {
 /** 액트 1 입구 방의 첫 몬스터(2026-10-15 사용자: "첫 방에 몬스터가 있고 그걸 잡으면 젬이 드랍되게", "하켄이 그 몬스터에게 맞고있는걸로"):
  * 이번 루프의 시작 젬을 아직 받지 않았을 때, 방 단위 무대의 입구 방에서 하켄 곁에 한 마리가 선다. 한 대 맞기 전까지는 하켄을
  * 친다(strikeRescueTarget). 이 몬스터가 루프의 첫 처치라 시작 젬이 그 자리 바닥에 떨어진다. @returns {object[]} 그 무리, 없으면 빈 목록. */
+/** 루프 1에만(2026-10-15 사용자: 루프 뒤에는 첫 방에 하켄이 없다). 그 뒤의 시작 젬은 그 루프의 첫 처치가 바닥에 떨어뜨린다. */
+const startsWithRescue=(zone,map)=>zone.type==='act' && zone.id===0 && !!map.stage && (game.season||1)===1
+    && !game.loopStarterGemGranted && (game.skills||[]).length<=1;
 function createStarterRescuePack(zone,map) {
-    if(zone.type!=='act' || zone.id!==0 || !map.stage || game.loopStarterGemGranted || (game.skills||[]).length>1)return [];
+    if(!startsWithRescue(zone,map))return [];
     // 하켄 너머(주인공 반대쪽)에 선다: 첫 장면에서 주인공의 말풍선에 가리지 않고, 주인공이 하켄을 지나 달려간다. 방이 좁으면 하켄 앞쪽.
     const post=actExplorationRooms.npcPost(map.entry),away=Math.sign(post.gx-Math.round(map.entry.gx))||1,beyond=post.gx+away;
     const cell={gx:beyond>=map.entry.x0 && beyond<=map.entry.x1?beyond:post.gx-away,gy:post.gy};
     const pack=createActExplorationPack(zone,map.entry,null,null,{cells:[cell],rescue:true});
     // 게이지를 거의 채워 둔다: 첫 장면(액트 이름과 깨어나는 대사 동안 게임이 멈춘다)에서 하켄을 향해 공격을 준비하는 자세로 보인다.
-    pack.waiting.forEach(enemy=>Object.assign(enemy,{rescue:{gx:post.gx,gy:post.gy,strikes:0},attackTimer:RESCUE_STRIKE.windUp}));
+    // 처음 시작(js/opening-journey-ui.js)의 주인공이 아직 이 괴물을 치지 않았으면, 다가와 칠 때까지 하켄을 계속 친다(patient).
+    const patient=!(game.seenTutorials||[]).includes('opening_attack');
+    pack.waiting.forEach(enemy=>Object.assign(enemy,{rescue:{gx:post.gx,gy:post.gy,strikes:0,patient},attackTimer:RESCUE_STRIKE.windUp}));
     return [pack];
 }
 /** 하켄을 치는 첫 몬스터(createStarterRescuePack)의 한 틱: 한 대라도 맞거나 하켄을 RESCUE_STRIKE.maxStrikes번 치기 전까지는 하켄 쪽을
@@ -7982,7 +7987,7 @@ const RESCUE_STRIKE=Object.freeze({rate:0.42,windUp:0.9,maxStrikes:4,fxMs:260});
 function strikeRescueTarget(enemy) {
     const npc=enemy.rescue;
     if(!npc)return false;
-    if(enemy.hp<enemy.maxHp || !Number.isFinite(npc.gx) || !(npc.strikes<RESCUE_STRIKE.maxStrikes)){delete enemy.rescue;return false;}
+    if(enemy.hp<enemy.maxHp || !Number.isFinite(npc.gx) || !(npc.patient || npc.strikes<RESCUE_STRIKE.maxStrikes)){delete enemy.rescue;return false;}
     enemy.attackTimer=(Number(enemy.attackTimer)||0)+0.1*RESCUE_STRIKE.rate;
     if(enemy.attackTimer<1)return true;
     enemy.attackTimer-=1;
