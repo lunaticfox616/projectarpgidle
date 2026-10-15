@@ -5,7 +5,7 @@
  * words and a boss's own words (“…”) in a speech bubble over the one speaking, so it is clear who talks; the guide of
  * the entry room, a side room's inscription and the narration of a boss fight (「…」) in a band where the card stands.
  * Acts and trials speak in their rooms, the endgame boss fights (STORY_ENDGAME_ENCOUNTERS) at the boss.
- * The NPC of the entry room stands there when the stage has its picture (data/stage-view.js STAGE_NPC_ART, STAGE_NPC_POSTS)
+ * The NPC of an act's or a trial's entry room stands there when the stage has its picture (data/stage-view.js STAGE_NPC_ART)
  * and speaks in a bubble too (pressing it opens its window). While the entry room's greeting or a cleared map's ending waits
  * or plays, the game pauses as for a story popup (greeting, read by js/ui.js): the hero stands and listens instead of running
  * on, and an act's ending is told in its own boss room before the next act.
@@ -213,7 +213,7 @@ const actTitleCard = (() => {
     }
 
     // The NPC of the entry room stands there when the stage has its picture (data/stage-view.js STAGE_NPC_ART): in a story act or
-    // trial the NPC of its lines, elsewhere the NPC posted to that content (STAGE_NPC_POSTS). Its idle frames from the art, its name
+    // trial the NPC of its lines (none on the endgame content maps). Its idle frames from the art, its name
     // over it (with a mark while it has an unlock to offer), its line in a bubble over the name. Pressing it opens its window
     // (npcAt, read by js/ui.js; js/content-progression-ui.js openNpc). It takes no part in the fight.
     const NPC_MARK_MS = 1000;        // how often the mark asks whether the NPC has an unlock to offer
@@ -228,9 +228,8 @@ const actTitleCard = (() => {
     /** The run's NPC, found once: { id, name, title, tone, line } or null. */
     function runNpc(watch) {
         if (watch.npc !== undefined) return watch.npc;
-        const said = watch.story && guideHere(watch.story), here = said || (watch.act && watch.act.order === 1) ? null : getZone(zone);
-        const row = said ? npcRows().find(npc => npc.name === said.name) : STORY_NPCS[STAGE_NPC_POSTS[here && here.type]];
-        watch.npc = row ? { id: row.id, name: row.name, title: row.title, tone: npcTone(row.name), line: said ? npcLine(said) : '' } : null;
+        const said = watch.story && guideHere(watch.story), row = said ? npcRows().find(npc => npc.name === said.name) : null;
+        watch.npc = row ? { id: row.id, name: row.name, title: row.title, tone: npcTone(row.name), line: npcLine(said) } : null;
         return watch.npc;
     }
     /** Adds the NPC to the battlefield's actors while the hero is in the entry room (js/canvas-act-exploration.js appendScenery),

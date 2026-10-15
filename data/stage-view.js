@@ -255,15 +255,13 @@ const STAGE_SCENES = Object.freeze({
 // 주인공이 벌 밑에 묻힌다고 짚었다). 0.6배로 전투벌 60도트, 근위벌 85도트, 여왕 111도트다.
 const STAGE_MONSTER_SCALE = Object.freeze({ 'wisp-': 0.7, 'hive-': 0.6 });
 
-/** 방 단위 무대의 입구 방에 서는 이야기 NPC(js/canvas-act-title-card.js). 이야기 액트와 시련에서는 그 대사의 NPC(data/story-journal.js
- * STORY_NPCS, 이름으로 찾는다)가, 그 밖의 콘텐츠에서는 그 콘텐츠를 맡은 NPC(STAGE_NPC_POSTS: 구역 종류 → NPC id, 해금 이야기의 화자와
- * 같다)가 입구 방에 선다. 누르면 그 NPC의 창(맡은 해금, 대사)이 열린다(js/content-progression-ui.js openNpc).
+/** 방 단위 무대의 입구 방에 서는 이야기 NPC(js/canvas-act-title-card.js). 이야기 액트와 시련에서 그 대사의 NPC(data/story-journal.js
+ * STORY_NPCS, 이름으로 찾는다)가 입구 방에 선다. 엔드게임 콘텐츠 지도에는 서지 않는다(2026-10-15 사용자: "콘텐츠 지도 입구 NPC도 빼줘",
+ * 지도마다 같은 NPC가 앞질러 서 있는 게 어색했다). 누르면 그 NPC의 창(맡은 해금, 대사)이 열린다(js/content-progression-ui.js openNpc).
  * 그림은 assets/stage-npcs/<id>-idle.png(대기 6프레임 한 줄, 칸 cell, 발 feet, 머리 꼭대기 head, 프레임마다 frameMs)와
  * <id>-portrait.png(일러스트, 480×720). scale: 몸이 89도트로 주인공(97도트)보다 작아 아이처럼 보여 늘려 그린다.
  * 저장소 밖 그림이다(scripts/build-stage-npcs.cjs가 옮긴다). 그림이 없으면 NPC는 서지 않고 대사만 띠에 나온다.
  * 2026-10-15 사용자: "하켄부터 세워봐", 이어서 NPC 도트와 일러스트 다섯을 만들어 줬다. 하켄은 액트 5에서 쓰러지므로 엔드게임 자리는 없다. */
-const STAGE_NPC_POSTS = Object.freeze({ atlasMap: 'veila', chaosRealm: 'veila', abyss: 'veila', skyTower: 'veila', cosmos: 'veila', meteor: 'veila',
-    grandBreach: 'veila', labyrinth: 'bern', oceanDepth: 'bern', timeRift: 'orga', underworld: 'orga', beehive: 'ivel' });
 const STAGE_NPC_ART = Object.freeze({ path: 'assets/stage-npcs/', cell: 128, feet: Object.freeze([64, 112]), head: 22, scale: 1.15,
     frameMs: Object.freeze([720, 260, 460, 280, 140, 720]) });
 
@@ -305,4 +303,4 @@ const STAGE_HERO_STRIKES = Object.freeze({
     spin: Object.freeze(['회오리바람'])
 });
 
-safeExposeData({ STAGE_HERO_MOTIONS, STAGE_HERO_RISE, STAGE_HERO_STRIKES, STAGE_VIEW, STAGE_TERRAIN, STAGE_ROOMS, STAGE_BACKDROPS, STAGE_OBJECTS, STAGE_PROPS, STAGE_SCENES, STAGE_MONSTER_SCALE, STAGE_NPC_POSTS, STAGE_NPC_ART, STAGE_BOARD_ROOMS });
+safeExposeData({ STAGE_HERO_MOTIONS, STAGE_HERO_RISE, STAGE_HERO_STRIKES, STAGE_VIEW, STAGE_TERRAIN, STAGE_ROOMS, STAGE_BACKDROPS, STAGE_OBJECTS, STAGE_PROPS, STAGE_SCENES, STAGE_MONSTER_SCALE, STAGE_NPC_ART, STAGE_BOARD_ROOMS });
