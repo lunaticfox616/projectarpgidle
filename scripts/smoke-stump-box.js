@@ -201,7 +201,7 @@ assert.strictEqual(run(`stumpBox.compost(game, ${idle})`), null);
 assert.ok(run(`stumpBox.itemById(game, ${idle}) !== null`), 'a refused compost keeps the item');
 run('while (stumpBox.createItem(game, { family: "sap", color: "chaos" })) {}');
 assert.deepStrictEqual(json(`stumpBox.rollDrop(game, { isBoss: true }, ${sequence([0, 0.9, 0, 0])}).compost`),
-    { family: 'seed', color: 'fire', growth: 48, fed: 0, ripened: [] }, 'with nothing growing the full-storage drop is lost (and said so)');
+    { family: 'seed', color: 'fire', growth: 96, fed: 0, ripened: [] }, 'with nothing growing the full-storage drop is lost (and said so)');
 
 // ── 일괄 거름 사용 · 일괄 버리기(2026-10-09): 색과 종류마다 좋은 것 셋, 황금, 고대는 남기고, 거름은 다 자랄 만큼만 ─────────
 fresh({ journalEntries: ['prologue', 'act_10'] });
@@ -212,9 +212,9 @@ assert.deepStrictEqual(json('stumpBox.bulkItems(game, "fire").map(item => item.r
 assert.deepStrictEqual(json('stumpBox.bulkItems(game, "cold")'), [], 'another colour takes nothing');
 assert.strictEqual(run('stumpBox.bulkItems(game, "all").length'), 3, 'the all filter takes every colour');
 assert.strictEqual(run('stumpBox.bulkCompostReason(game, "fire")'), '그루터기 함에서 성장 중인 그루터기 아이템이 없습니다.', 'bulk compost needs something growing');
-run("{ const sap = stumpBox.createItem(game, { family: 'sap', color: 'lightning', roll: 1 }); stumpBox.place(game, sap.id, 12); sap.xp = stumpBox.need(sap) - 60; }");
-assert.deepStrictEqual(json('stumpBox.bulkCompostPlan(game, "fire").map(item => item.roll)'), [0.8, 0.85], 'the plan stops once the growing sap would ripen (48 + 51 ≥ 60)');
-assert.deepStrictEqual(json('(() => { const result = stumpBox.compostMany(game, "fire"); return [result.count, result.growth, result.ripened.length]; })()'), [2, 99, 1]);
+run("{ const sap = stumpBox.createItem(game, { family: 'sap', color: 'lightning', roll: 1 }); stumpBox.place(game, sap.id, 12); sap.xp = stumpBox.need(sap) - 120; }");
+assert.deepStrictEqual(json('stumpBox.bulkCompostPlan(game, "fire").map(item => item.roll)'), [0.8, 0.85], 'the plan stops once the growing sap would ripen (96 + 102 ≥ 120)');
+assert.deepStrictEqual(json('(() => { const result = stumpBox.compostMany(game, "fire"); return [result.count, result.growth, result.ripened.length]; })()'), [2, 198, 1]);
 assert.deepStrictEqual(json('stumpBox.discardMany(game, "fire").map(item => item.roll)'), [0.9], 'bulk discard throws the remaining spares away');
 assert.ok(run('stumpBox.itemById(game, bulkGold) !== null'), 'golden seeds stay');
 assert.strictEqual(run('stumpBox.discardMany(game, "fire")'), null, 'nothing left to throw away');
