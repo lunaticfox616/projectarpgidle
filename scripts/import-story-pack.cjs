@@ -34,7 +34,7 @@ const FIELDS = Object.freeze({
     STORY_ACT_ENCOUNTERS: ['npc', 'stele', 'boss'], STORY_TRIAL_ENCOUNTERS: ['npc', 'stele', 'boss'],
     STORY_ENDGAME_ENCOUNTERS: ['intro', 'half', 'defeat'], STORY_LOOP_MILESTONES: ['narration', 'speaker', 'quote'],
     STORY_NPCS: ['id', 'name', 'title', 'dialogues'],
-    npc: ['name', 'bark', 'loopBark', 'classBarks', 'classReplies', 'tone'], stele: ['title', 'bark'], boss: ['intro', 'half', 'defeat']
+    npc: ['name', 'bark', 'loopBark', 'classBarks', 'classReplies', 'tone'], stele: ['title', 'bark', 'afterClear'], boss: ['intro', 'half', 'defeat']
 });
 // 게임이 읽지 않아 옮길 때 빼는 표와 칸.
 const DROP = Object.freeze({
@@ -66,7 +66,7 @@ const COMMENTS = Object.freeze({
         "alone speaking (line), shown once the hero has reached act reqAct and loop reqLoop (both optional). Each keeps the unlocks whose",
         'loop lines it speaks (STORY_LOOP_MILESTONES speaker): the window lists them under 맡은 해금.'],
     STORY_ACT_ENCOUNTERS: ['Room-stage lines per act (key: STORY_ACTS order; STORY_TRIAL_ENCOUNTERS below has the same shape per trial zone id): npc on',
-        'entering the entry room (loopBark from loop 2 on), stele on entering a side room, boss intro once the final boss is up,',
+        'entering the entry room (loopBark from loop 2 on), stele in a side room (afterClear: after the ending instead), boss intro once the final boss is up,',
         'half at 55% life, defeat when the map is cleared. Each line 50 characters at most (one line of the band on PC).'],
     STORY_ENDGAME_ENCOUNTERS: ["The boss lines of the endgame fights, spoken like an act boss's (key: zone id; an atlas map's apex boss by its",
         'atlasStages id).'],
@@ -221,6 +221,7 @@ function checkEntry(table, where, entry, report) {
         else if (FIELDS[field]) checkEntry(field, `${where}.${field}`, value, report);
         else if (field === 'narration') checkNarration(`${where}.${field}`, value, report);
         else if (field === 'dialogues') checkDialogues(`${where}.${field}`, value, report);
+        else if (field === 'afterClear' && typeof value !== 'boolean') report.error(`${where}.${field}: 참/거짓이어야 한다`);
         else if (SCREEN_FIELDS.has(field)) checkLine(`${where}.${field}`, value, report);
     }
 }

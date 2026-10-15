@@ -18,11 +18,11 @@ const actTitleCard = (() => {
     const LIVE_MS = 400; // the battlefield drew within this long: it is on screen and running
     // A line shows for baseMs plus perCharMs a character (at most maxMs). Time behind a window (story popup, act reward,
     // dialog) does not count; a line still waiting after staleMs on screen, or queued on another map, is dropped, except the
-    // boss's fall and the hero's words for it (CARRY): the reward window opens over them and the next act may begin first.
+    // boss's fall, the hero's words and the closing inscription (CARRY): the reward window may open over them.
     // The boss intro waits introDelayMs from the boss's first sight, past its name banner (BOSS_BANNER_MS, 2.6 s,
     // js/canvas-battlefield.js). Lines wrap between words: bubbles at bubbleChars characters a row, bands at most maxRows rows.
     const LINE = Object.freeze({ baseMs: 1800, perCharMs: 65, maxMs: 6500, staleMs: 15000, watchMs: 200, introDelayMs: 3200, halfAt: 0.55, maxRows: 3, bubbleChars: 19 });
-    const CARRY = new Set(['defeat', 'class']);
+    const CARRY = new Set(['defeat', 'class', 'epilogue']);
     // The entry room's greeting: the hero's first words, the guide's line and the hero's answer. The hero stands for it at
     // most maxMs (the card, two lines carried from the last map and the greeting fit within it at the longest line length);
     // a move command ends the wait at once.
@@ -64,14 +64,24 @@ const actTitleCard = (() => {
     function dropStoryLines(drop) {
         for (let i = queue.length - 1; i >= 0; i--) if (drop(queue[i])) queue.splice(i, 1);
     }
-    function trackStoryLine(now) {
+    /** Reading time advances only while the battlefield is uncovered. */
+    function trackReadingTime(now) {
         const waited = now - (trackedAt || now);
         trackedAt = now;
-        if (line && now - line.startAt >= line.showMs) line = null;
+        const wasCovered = covered;
         covered = storyCovered();
-        if (covered) { queue.forEach(entry => { entry.at += waited; }); return; }
-        // The greeting is not stale while it waits: the hero stands for it.
-        dropStoryLines(entry => (entry.zone !== zone && !CARRY.has(entry.key)) || (now - entry.at > LINE.staleMs && !GREET.keys.has(entry.key)));
+        // Both the current line and queued lines keep their unread time, including the frame that closes the window.
+        if (covered || wasCovered) {
+            if (line) line.startAt += waited;
+            queue.forEach(entry => { entry.at += waited; });
+        }
+    }
+    function trackStoryLine(now) {
+        trackReadingTime(now);
+        if (covered) return;
+        if (line && now - line.startAt >= line.showMs) line = null;
+        // Greetings and endings keep their place in the reading queue: the hero stands for them.
+        dropStoryLines(entry => !CARRY.has(entry.key) && (entry.zone !== zone || (now - entry.at > LINE.staleMs && !GREET.keys.has(entry.key))));
         if (line || card || pending || !queue.length) return;
         line = { ...queue.shift(), startAt: now };
         logStoryLine(line);
@@ -86,7 +96,7 @@ const actTitleCard = (() => {
         addLog(`<b class="log-speaker" style="color:${row.colour}">${escapeHTML(speaker)}</b> : ${escapeHTML(words)}`, 'story-line', { noToast: true });
     }
     /** Queues a line once per loop and place (the act, trial or endgame boss whose story it is). row: key (wake, npc, stele,
-     * intro, half, defeat, class, elite), who (hero, boss, npc, stele, narration), speaker, text, tone, and for a boss its id. */
+     * intro, half, defeat, class, epilogue, elite), who (hero, boss, npc, stele, narration), speaker, text, tone, and for a boss its id. */
     function queueStoryLine(row, now) {
         const id = `${game.season || 1}:${place}:${row.key}`;
         if (!row.text || spoken.has(id)) return;
@@ -145,7 +155,7 @@ const actTitleCard = (() => {
         const room = actExplorationDoors.room(run), stele = story.stele;
         if (room && room.role === 'entry') watchWake(now);
         if (room && inGuideRoom(run)) watchEntryRoom(story, now, run);
-        if (room && room.role === 'optional' && stele) queueStoryLine({ key: 'stele', who: 'stele', speaker: stele.title, text: stele.bark, tone: 'cyan' }, now);
+        if (room && room.role === 'optional' && stele && !stele.afterClear) queueStoryLine({ key: 'stele', who: 'stele', speaker: stele.title, text: stele.bark, tone: 'cyan' }, now);
     }
     /** The guide's line for this loop (docs/story-bible.md section 9): the first meeting in loop 1, the line for the hero's class
      * in even loops, the line that remembers the hero (loopBark) in odd loops from 3 on. */
@@ -157,11 +167,6 @@ const actTitleCard = (() => {
     /** The guide of the entry room's lines: act 1's guide stands there only in loop 1 (2026-10-15 사용자: after a loop the first room has no
      * Haken, as there is no fall to wake from). */
     const guideHere = story => (story.npc && !(actOf(zone)?.order === 1 && (game.season || 1) > 1) ? story.npc : null);
-    /** ...so from loop 2 act 1's entry lines (loopBark, classBarks) are the hero's own, said on waking in the empty first room
-     * (docs/story-bible.md 5.2, 2026-10-16). */
-    function queueHeroMuse(story, lore, now) {
-        if (lore && story.npc && actOf(zone)?.order === 1 && (game.season || 1) > 1) queueStoryLine({ key: 'npc', who: 'hero', speaker: lore.label, text: npcLine(story.npc), tone: 'gold' }, now);
-    }
     /** The hero's first words, in loop 1's act 1 entry room. */
     /** The first start's hero lies in the entry room until pressed (js/opening-journey-ui.js): no lines meanwhile, nor under the intro
      * (the intro starts a tick after the class pick). */
@@ -192,7 +197,6 @@ const actTitleCard = (() => {
         if (hushed()) return;
         const lore = storyClassLore(), npc = guideHere(story);
         queueSpotLine(lore, run, now);
-        queueHeroMuse(story, lore, now);
         if (!npc || rescuing(run)) return;
         queueStoryLine({ key: 'npc', who: 'npc', speaker: npc.name, text: npcLine(npc), tone: npc.tone }, now);
         const reply = lore && (game.season || 1) === 1 ? (npc.classReplies || {})[game.selectedClassId] : null;
@@ -256,7 +260,7 @@ const actTitleCard = (() => {
         if (!map || !inGuideRoom(run)) return;
         watch.npcCell = watch.npcCell || actExplorationRooms.npcPost(guideRoom(run, map));
         const point = state.gridProj.cellToScreen(watch.npcCell.gx, watch.npcCell.gy);
-        actors.push({ kind: 'scenery', id: -3, x: point.x, y: point.y + state.gridProj.actorGroundOffsetY, npc });
+        actors.push({ kind: 'scenery', id: -3, x: point.x, y: point.y + state.gridProj.actorGroundOffsetY, npc, talkable: !rescuing(run) });
     }
     function npcSheet(id) {
         if (!npcSheets.has(id)) npcSheets.set(id, stagePictures.openPicture(`${STAGE_NPC_ART.path}${id}-idle.png`));
@@ -352,11 +356,11 @@ const actTitleCard = (() => {
         if (struck > 0) npcSparks(ctx, actor.x, Math.round((top + actor.y) / 2), dot, struck);
         ctx.save();
         npcLabel(ctx, actor.npc, actor.x, top);
-        const marked = npcOffers(actor.npc, state.now);
+        const marked = actor.talkable ? npcOffers(actor.npc, state.now) : '';
         if (marked) npcOfferMark(ctx, actor.x, top - 20, marked);
         ctx.restore();
         npcHead = { x: actor.x, y: top - (marked ? 32 : 12) };
-        npcHit = { npc: actor.npc, at: Date.now(), x0: actor.x - 30 * dot, x1: actor.x + 30 * dot, y0: top - 30, y1: actor.y };
+        npcHit = actor.talkable ? { npc: actor.npc, at: Date.now(), x0: actor.x - 30 * dot, x1: actor.x + 30 * dot, y0: top - 30, y1: actor.y } : null;
     }
     /** The NPC drawn under a battlefield point (canvas CSS px) in the last frame, or null. */
     function npcAt(point) {
@@ -411,6 +415,9 @@ const actTitleCard = (() => {
         const revive = act && STAGE_BOSS_REVIVAL.bosses.includes(act.bossId) && Number.isFinite(seen.gx) ? { gx: seen.gx, gy: seen.gy, name: seen.name } : null;
         queueBossLine('defeat', seen, watch.story.boss.defeat, now, revive);
         if (lore && act) queueStoryLine({ key: 'class', who: 'hero', speaker: lore.label, text: lore.bossLines[act.order], tone: 'violet' }, now);
+        // An account of the completed fight must follow its last words, never precede it in an optional room.
+        const stele = watch.story.stele;
+        if (stele && stele.afterClear) queueStoryLine({ key: 'epilogue', who: 'stele', speaker: stele.title, text: stele.bark, tone: 'cyan' }, now);
     }
     function opacity(age, showMs) {
         return Math.max(0, Math.min(1, age / FADE_IN_MS, (showMs - age) / FADE_OUT_MS));
