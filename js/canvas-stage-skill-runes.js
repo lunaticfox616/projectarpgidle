@@ -3,7 +3,7 @@
  * 쓸 때 연출을 트는 자리와 때를 옮긴 것이고, 그리는 일은 js/canvas-stage-skill-strokes.js와 js/canvas-stage-skill-spells.js가 한다.
  * - 휘두름(swing): 이중 베기의 X자(xcut), 번개 타격의 세로 베기(vcut), 올려 베기(rise), 불사르기의 불길(fan), 얼어붙은 고리(icering).
  * - 맞은 적마다(victim): 올려 베기의 베임 선, 폭발성 타격의 불씨, 서리베기의 안개, 전도성 난격의 휘두름과 번개, 피뢰침의 첫 틱,
- *   공허 가르기에 끌려온 적의 꼬리.
+ *   공허 가르기에 끌려온 적의 꼬리, 단두대의 벼락, 고리의 큰 가시, 지진의 큰 기둥(실제로 맞은 적마다 따로).
  * - 그림 사건(claim): 참격파, 서리 파동, 부싯돌 베기, 피뢰침, 신성한 단두대, 혹한의 지진, 불씨의 함성, 서리바람 내지르기, 화살비.
  *   옛 그림 표(data/skill-fx-atlas.js)에 없는 새 룬의 사건도 무대에서는 여기로 온다(js/canvas-world-tree-fx.js).
  * - 시전 시작(windup): 부싯돌 베기의 불티. 이동(mobility): 돌진, 도약 강타, 섬머솔트 슬래시. 활을 들면 화살 룬은 마법 화살(bow).
@@ -35,12 +35,15 @@ const stageSkillRunes = (() => {
         return stages[index + 1] && stages[index] ? stages[index + 1].delayMs - stages[index].delayMs : 0;
     }
     const patternOf = gem => (SKILL_DB[gem.meta.name] && SKILL_DB[gem.meta.name].combatPattern) || {};
-    /** 그 사건의 범위 안에 서 있는 살아 있는 적(가까운 차례). */
-    function enemiesOn(event, limit) {
-        const cells = new Set((event.targetCells || []).map(cell => `${Math.round(cell.gx)},${Math.round(cell.gy)}`)), from = event.sourceCell || K.heroSpot();
-        const inside = (game.enemies || []).filter(enemy => enemy.hp > 0 && hasGridCell(enemy) && getGridUnitCells(enemy).some(cell => cells.has(`${cell.gx},${cell.gy}`)));
-        return inside.sort((a, b) => getGridUnitDistance(from, a) - getGridUnitDistance(from, b)).slice(0, limit || 99);
+    /** 같은 공격 단계의 그림 시작 시각. canvas-world-tree-fx stationaryEvents와 같은 시계이며 그 모듈을 역으로 호출하지 않는다. */
+    function stageArtAt(fx) {
+        for (let i = battleFx.length - 1; i >= 0 && fx.damageTextGroupId; i--) {
+            const row = battleFx[i];
+            if (row && row.type === 'combatTravel' && row.damageTextGroupId === fx.damageTextGroupId) return row.start + Math.max(1, row.flightMs || 1);
+        }
+        return null;
     }
+    const ringRadius = fx => Math.max(1, Number(fx.attackFootprint && fx.attackFootprint.radius) || 1);
     const faceOf = event => { const target = event.targetCells && event.targetCells[0], source = event.sourceCell; return (target && source && Math.sign(target.gx - source.gx)) || K.heroFace(); };
     const relative = (spot, from) => ({ dx: (spot.gx - from.gx) * WIDE, dy: (spot.gy - from.gy) * DEEP });
 
@@ -70,11 +73,14 @@ const stageSkillRunes = (() => {
                 move: { dx: ex - sx - look.face * 20, dy: ey - sy, ms: 300 } });
         });
     }
-    /** 얼어붙은 고리: 범위 안에 선 적들의 발밑에 큰 가시가 솟는다. */
+    /** 얼어붙은 고리: 휘두름마다 고리 하나. 실제 피격 대상의 큰 가시는 runeRingHit에서 따로 건다. */
     function runeIceRing(fx, look) {
-        const hero = K.heroSpot(), radius = Math.max(1, Number(fx.attackFootprint && fx.attackFootprint.radius) || 1);
-        const victims = (game.enemies || []).filter(enemy => enemy.hp > 0 && hasGridCell(enemy) && getGridUnitDistance(hero, enemy) <= radius + 0.5).map(enemy => relative(K.enemySpot(enemy), hero));
-        SP.iceRing({ at: K.at(hero), face: look.face, radius, victims });
+        SP.iceRing({ at: K.at(K.heroSpot()), face: look.face, radius: ringRadius(fx) });
+    }
+    /** 첫 단계에 실제로 맞은 적의 큰 가시 셋. 고리를 세운 첫 타격과 같은 프레임에 온다. */
+    function runeRingHit(hit) {
+        const hero = K.heroSpot();
+        SP.iceRingSpikes({ at: K.at(hero), radius: ringRadius(hit.fx), victim: relative(hit.victim, hero) });
     }
 
     // ---------------------------------------------------------------- per victim
@@ -91,7 +97,10 @@ const stageSkillRunes = (() => {
         (gem, hit, o) => gem.map.strike && o.lead && stageSkillVfx.play(gem.map.strike, K.at(hit.victim, 0, K.onGround(gem.map.strike) ? 1 : -46), { face: hit.look.face, ramp: hit.look.ramp, delay: 50 }),
         (gem, hit) => gem.map.wild && runeWildTick(gem, hit),
         (gem, hit) => gem.map.rod && hit.fx.stageKind === 'fieldStart' && gem.map.tick && runeRodTick(gem.map.tick, hit),
-        (gem, hit) => gem.map.gash && runeGashPull(hit.fx, hit)
+        (gem, hit) => gem.map.gash && runeGashPull(hit.fx, hit),
+        (gem, hit) => gem.map.icering && !Number(hit.fx.stageIndex) && !Number(hit.fx.repeatIndex) && runeRingHit(hit),
+        (gem, hit) => gem.map.pillars && Number(hit.fx.stageIndex) > 0 && !Number(hit.fx.repeatIndex) && runePillarHit(gem, hit),
+        (gem, hit) => gem.map.mark && gem.map.bolt && !Number(hit.fx.repeatIndex) && runeGuillotineBolt(gem, hit)
     ]);
     /** 피뢰침의 첫 틱(장판이 서는 순간)에도 그 적에게 번개 금이 튄다(뒤 틱은 지속 타격의 규칙이 튼다). */
     function runeRodTick(ref, hit) {
@@ -173,29 +182,35 @@ const stageSkillRunes = (() => {
         for (let i = 0; i < hits; i++) stageSkillVfx.play(rod.ring, K.at(hero, 0, -2), { face: i % 2 ? -face : face, layer: 'ground', alpha: 0.8, delay: i * every, follow: followHero });
         return event;
     }
-    /** 신성한 단두대: 시전하면 발밑에 날개가, 범위 안 가까운 적들의 머리 위에 표식과 단두대가 서고 칼날이 피해의 순간에 닿는다. 그때 벼락. */
+    /** 신성한 단두대: 시전 때 정한 후보들의 머리 위에 표식과 단두대가 선다. 벼락은 실제 피격 사건에서 따로 낸다. */
     function runeGuillotineStart(gem, event, now) {
         const face = K.heroFace(), wait = Math.max(0, event.duration - (now - event.at)), map = gem.map;
         if (map.wings) stageSkillVfx.play(map.wings, K.at(event.sourceCell, 0, -30), { face, layer: 'ground', alpha: 0.7 });
-        for (const enemy of enemiesOn(event, (SKILL_DB[gem.meta.name] || {}).targets)) {
+        for (const id of new Set(event.targetIds || [])) {
+            const enemy = K.enemy(id);
+            if (!enemy || !(enemy.hp > 0)) continue;
             const spot = K.enemySpot(enemy);
             if (map.mark) stageSkillVfx.play(map.mark, K.at(spot, 0, K.onGround(map.mark) ? 1 : -46), { face, alpha: 0.85, delay: Math.max(0, wait - 300) });
             SP.guillotine(K.at(spot), Math.max(0, wait - 150));
         }
     }
-    function runeGuillotineStrike(gem, event) {
+    /** 첫 반복의 실제 피격 위치에만 낙뢰를 낸다. 이번 타격으로 쓰러진 적도 같은 연출을 받는다. */
+    function runeGuillotineBolt(gem, hit) {
         const face = K.heroFace(), map = gem.map;
-        for (const enemy of enemiesOn(event, (SKILL_DB[gem.meta.name] || {}).targets)) {
-            const spot = K.enemySpot(enemy);
-            if (map.bolt) stageSkillVfx.play(map.bolt, K.at(spot, 0, 1), { face });
-            if (map.boltGround) stageSkillVfx.play(map.boltGround, K.at(spot, 0, 1), { face, layer: 'ground', delay: 30 });
-        }
+        stageSkillVfx.play(map.bolt, K.at(hit.victim, 0, 1), { face });
+        if (map.boltGround) stageSkillVfx.play(map.boltGround, K.at(hit.victim, 0, 1), { face, layer: 'ground', delay: 30 });
     }
     /** 혹한의 지진의 둘째 단계: 친 자리(몸 앞 반 칸)에서 앞 쐐기를 따라 얼음 기둥이 솟는다. */
     function runePillars(gem, event) {
         const face = faceOf(event), from = event.sourceCell, origin = { gx: from.gx + face * 0.5, gy: from.gy };
         const cone = event.footprint && event.footprint.cone, L = Math.max(1, Math.round(((cone && cone.length) || 3.5) - 0.5));
-        SP.iceColumns({ at: K.at(origin), face, L, rowMs: gem.map.pillars, victims: enemiesOn(event).map(enemy => relative(K.enemySpot(enemy), origin)) });
+        SP.iceColumns({ at: K.at(origin), face, L, rowMs: gem.map.pillars });
+    }
+    /** 실제 피격 대상의 큰 기둥. 전투 틱 때문에 늦게 온 타격은 기본 기둥 열의 시각으로 보정하고, 이미 지났으면 지금부터 온전히 그린다. */
+    function runePillarHit(gem, hit) {
+        const from = hit.fx.sourceCell, ahead = Math.max(0, Math.abs(hit.victim.gx - from.gx) - 0.5), artAt = stageArtAt(hit.fx);
+        const delay = Math.max(0, ahead * gem.map.pillars - (artAt === null ? 0 : hit.now - artAt));
+        SP.iceColumn({ at: K.at(hit.victim), delay, face: Math.sign(hit.victim.gx - from.gx) || K.heroFace(), seed: Number(hit.fx.enemyId) || 0 });
     }
     /** 불씨의 함성: 첫 단계에 외침, 불씨 앞면, 둘레 폭발, 타는 바닥을 한 번에 건다(뒤 단계는 바닥이 타는 동안이다). */
     function runeEmber(gem, event) {
@@ -220,7 +235,7 @@ const stageSkillRunes = (() => {
         [map => map.slashwave, { travel: runeSlashWave }],
         [map => map.iceTrail, { travel: runeIceTrail }],
         [map => map.rod, { stage: (gem, event) => (Number(event.stageIndex) ? null : runeRod(gem, event)) }],
-        [map => map.mark && map.bolt, { windup: runeGuillotineStart, stage: runeGuillotineStrike }],
+        [map => map.mark && map.bolt, { windup: runeGuillotineStart }], // 타격은 victim이 맡고 단계 사건의 옛 그림은 막는다.
         [map => map.pillars, { stage: (gem, event) => (Number(event.stageIndex) ? runePillars(gem, event) : null) }],
         [map => map.ember, { stage: (gem, event) => (Number(event.stageIndex) ? null : runeEmber(gem, event)) }],
         [map => map.frostcone, { stage: runeFrostCone }],

@@ -139,7 +139,7 @@ const worldTreeSkillFx = (() => {
     function visualEventBase(fx) {
         return {skillName:fx.skillName,sourceCell:fx.sourceCell,targetCells:fx.targetCells,
             element:fx.element,stageIndex:fx.stageIndex || 0,repeatIndex:fx.repeatIndex || 0,
-            channelId:fx.channelId,footprint:fx.attackFootprint,groupId:fx.damageTextGroupId};
+            channelId:fx.channelId,footprint:fx.attackFootprint,groupId:fx.damageTextGroupId,targetIds:fx.targetIds};
     }
 
     function travelEvents(fx) {

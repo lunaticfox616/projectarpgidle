@@ -2375,13 +2375,27 @@ function getPendingSkillImpactTargets(row) {
     }
     let used = new Set();
     let maxTargets = Math.max(1, row.options?.targetLimit || (row.targetEntries || []).length);
-    return getPendingSkillCollisionCells(row).map(cell => {
+    let cells = getPendingSkillCollisionCells(row);
+    // 단두대처럼 시전 대상에게 예고하는 기술: 아직 판정 칸에 남은 대상을 먼저 치고, 빈자리는 기존 칸 순서로 채운다.
+    function keptCastTargets() {
+        if (!row.pStats?.sSkill?.combatPattern?.keepCastTargets) return [];
+        const kept = [];
+        for (let entry of row.targetEntries) {
+            let enemy = (game.enemies || []).find(candidate => candidate && candidate.id === entry.enemyId && candidate.hp > 0);
+            let cell = enemy && !used.has(enemy.id) && cells.find(c => getGridUnitCells(enemy).some(o => o.gx === c.gx && o.gy === c.gy));
+            if (!cell) continue;
+            used.add(enemy.id);
+            kept.push({ enemy, mult: cell.mult });
+        }
+        return kept;
+    }
+    return keptCastTargets().concat(cells.map(cell => {
         let enemy = (game.enemies || []).find(candidate => candidate && candidate.hp > 0
             && getGridUnitCells(candidate).some(occupied => occupied.gx === cell.gx && occupied.gy === cell.gy) && !used.has(candidate.id));
         if (!enemy) return null;
         used.add(enemy.id);
         return { enemy, mult: cell.mult };
-    }).filter(Boolean).slice(0, maxTargets);
+    }).filter(Boolean)).slice(0, maxTargets);
 }
 
 /** Visual anchors are independent of integer collision cells and contact times. */

@@ -16,8 +16,8 @@ const stageSkillSpells = (() => {
     const iceWaveAt = d => (d <= ICE.RW0 ? ICE.W0 : ICE.W0 + ICE.WD * (1 - Math.pow(1 - Math.min(1, (d - ICE.RW0) / (ICE.RW1 - ICE.RW0)), 1 / 1.5)));
     /** 칼날 고리 위의 한 점: a는 등 뒤에서부터 돈 각, R은 가로 반지름, h는 높이. 바닥 자리의 y(깊이)도 함께. */
     function icePos(ring, a, R, h) { const p = Math.PI + a, y = R * ring.q * Math.sin(p); return [ring.face * R * Math.cos(p), y - h, y]; }
-    /** 남는 얼음 가시: 파동 마루가 지나간 자리의 작은 잔해와 맞은 적 발밑의 큰 가시. */
-    function iceSpikes(ring, victims) {
+    /** 파동 마루가 지나간 자리의 작은 잔해. 실제 피격 대상의 큰 가시는 spellIceRingSpikes가 그린다. */
+    function iceSpikes(ring) {
         const r = S.random(5531), spikes = [];
         [0.86, 1.04, 1.22, 1.38].forEach((d, j) => {
             const n = 11 + j * 2, a0 = r() * TAU;
@@ -28,11 +28,12 @@ const stageSkillSpells = (() => {
                     t0: iceWaveAt(dd) + 30 + r() * 20, hold: 40 + r() * 30, sd: 17 + i * 31 + j * 7 });
             }
         });
-        for (const v of victims) {
-            const t0 = iceWaveAt(Math.hypot(v.dx / ring.A, v.dy / ring.B));
-            [[-10, 22, 8], [1, 32, 11], [11, 20, 7]].forEach(([dx, H, W], i) => spikes.push({ x: v.dx + dx, y: v.dy + 2, H, W, lean: dx * 0.012, t0: t0 + i * 20, hold: 230, big: true, sd: 900 + i }));
-        }
         return spikes;
+    }
+    /** 실제 피격 대상 발밑의 큰 가시 셋. v는 고리를 건 자리에서 본 적의 위치(도트). */
+    function victimSpikes(ring, v) {
+        const t0 = iceWaveAt(Math.hypot(v.dx / ring.A, v.dy / ring.B));
+        return [[-10, 22, 8], [1, 32, 11], [11, 20, 7]].map(([dx, H, W], i) => ({ x: v.dx + dx, y: v.dy + 2, H, W, lean: dx * 0.012, t0: t0 + i * 20, hold: 230, big: true, sd: 900 + i }));
     }
     /** 얼음 가시 한 개: 밑동 그림자, 짙은 테, 왼면 밝게, 오른면 어둡게, 가운데 능선. */
     function iceSpike(g, ring, s) {
@@ -161,21 +162,29 @@ const stageSkillSpells = (() => {
         }
         g.globalAlpha = 1;
     }
-    /** 얼어붙은 고리: 몸을 한 바퀴 돌린 얼음 칼날 고리, 바닥에 내려앉는 서리, 바깥으로 퍼지는 얼음 파동과 가시, 맞은 적 발밑의 큰 가시.
-     * @param {{at:object, face:number, radius:number, victims:Array<{dx:number,dy:number}>}} o 건 자리(주인공), 반지름(칸), 맞은 적의 자리(도트) */
+    /** 얼어붙은 고리: 칼날 고리, 바닥 서리, 바깥으로 퍼지는 파동과 작은 가시. 큰 가시는 실제 피격 사건에서 따로 건다.
+     * @param {{at:object, face:number, radius:number}} o 건 자리(주인공), 반지름(칸) */
     function spellIceRing(o) {
         const A = (o.radius + 0.5) * WIDE, B = (o.radius + 0.5) * DEEP, r = S.random(77);
         const ring = { C: S.ramp('cold'), F: S.ramp('frost'), A, B, q: B / A, face: o.face, R_OUT: A * 0.98, BAND: A * 0.36, front: true };
-        ring.spikes = iceSpikes(ring, o.victims || []);
+        ring.spikes = iceSpikes(ring);
         ring.crest = Array.from({ length: 46 }, (_, i) => ({ a: i / 46 * TAU + (r() - 0.5) * 0.08, h: 0.55 + r() * 0.45 * (i % 2 ? 0.6 : 1), dr: (r() - 0.5) * 0.06, W: 7 + Math.round(r() * 3), ln: 0.15 + r() * 0.15 }));
         S.hang(o.at, { life: ICE.W0 + ICE.WD + 480,
             ground(g, t) { iceFloor(g, ring, t); icePieces(g, ring, t, false); },
             top(g, t) { icePieces(g, ring, t, true); iceShards(g, ring, t); } });
     }
 
+    /** 실제 피격 대상 하나의 큰 가시 셋. 고리와 같은 앞/뒤 층을 쓰되 독립된 생애로 끝까지 그린다.
+     * @param {{at:object, radius:number, victim:{dx:number,dy:number}}} o 고리 위치, 반지름(칸), 그 위치에서 본 적의 위치(도트) */
+    function spellIceRingSpikes(o) {
+        const A = (o.radius + 0.5) * WIDE, B = (o.radius + 0.5) * DEEP, ring = { C: S.ramp('cold'), F: S.ramp('frost'), A, B }, spikes = victimSpikes(ring, o.victim);
+        const draw = (g, t) => { for (const sp of spikes) if (t >= sp.t0) iceSpikeAt(g, ring, sp, t); g.globalAlpha = 1; };
+        S.hang(o.at, { life: spikes[2].t0 + 520, [o.victim.dy + 2 >= 0 ? 'top' : 'ground']: draw });
+    }
+
     // ---------------------------------------------------------------- ice columns (혹한의 지진)
     const COLUMN = Object.freeze({ RISE: 90, HOLD: 330, BRK: 220 });
-    /** 기둥들: 앞 쐐기를 따라 50도트 간격의 줄마다, 맞은 적 밑에는 큰 기둥. 가까운 줄부터 rowMs 간격으로 솟는다. */
+    /** 앞 쐐기를 따라 50도트 간격의 기둥 열. 실제 피격 대상의 큰 기둥은 spellIceColumn이 그린다. */
     function columnPlan(o) {
         const r = S.random(8117), Lp = o.L * WIDE, cols = [];
         const hd = x => (0.5 + Math.min(1, Math.max(0, x / Lp)) * (o.L / 2 - 0.5)) * DEEP;
@@ -186,7 +195,6 @@ const stageSkillSpells = (() => {
                 cols.push({ x: o.face * dx, y: k * h * 0.8 + (r() - 0.5) * 5, H: 46 + r() * 18 + dx / Lp * 18, W: 20 + Math.round(r() * 6), lean: (r() - 0.5) * 0.14, t0: dx / WIDE * o.rowMs + r() * 16 });
             }
         }
-        for (const v of o.victims) cols.push({ x: v.dx, y: v.dy - 2, H: 82 + r() * 10, W: 30, lean: 0, t0: Math.max(0, v.dx * o.face) / WIDE * o.rowMs, big: true });
         for (const c of cols) c.sh = [...Array(8)].map(() => [r() * 0.9, (r() - 0.5) * 80, -20 - r() * 50, r() < 0.5 ? 3 : 4]);
         cols.sort((a, b) => a.y - b.y);
         const cracks = [0, 1, 2].map(i => { const pts = [[0, 0]]; let x = 0, y = 0; while (x < Lp) { x += 10 + r() * 12; y += (r() - 0.5) * 8 + (i - 1) * 2.2; pts.push([x, y]); } return pts; });
@@ -232,7 +240,7 @@ const stageSkillSpells = (() => {
         else if (lt < COLUMN.RISE + COLUMN.HOLD + COLUMN.BRK) columnBreaking(g, o.C, c, { lt, face: o.face });
     }
     /** 혹한의 지진의 얼음 기둥: 친 자리에서 앞 쐐기를 따라 가까운 줄부터 솟아 0.33초 버틴 뒤 부서진다. 바닥에는 앞으로 뻗는 금 세 줄.
-     * 바닥 층에 그려 적이 기둥 앞에 선다(인계도 바닥 쪽에 그린다). @param {{at:object, face:number, L:number, rowMs:number, victims:Array}} o */
+     * 바닥 층에 그려 적이 기둥 앞에 선다(인계도 바닥 쪽에 그린다). @param {{at:object, face:number, L:number, rowMs:number}} o */
     function spellIceColumns(o) {
         const plan = columnPlan(o), C = S.ramp('frost');
         S.hang(o.at, { life: plan.last + 60, ground(g, t) {
@@ -242,6 +250,15 @@ const stageSkillSpells = (() => {
             for (const c of plan.cols) columnOne(g, plan, c, { t, C, face: o.face });
             g.globalAlpha = 1;
         } });
+    }
+
+    /** 실제 피격 대상 발밑의 큰 기둥 하나. 기본 기둥 열 앞의 바닥 층에서 온전한 생애를 그린다.
+     * @param {{at:object, delay:number, face:number, seed:number}} o 적의 발 위치, 지연(ms), 파편 방향, 모양 씨앗 */
+    function spellIceColumn(o) {
+        const r = S.random(8117 + o.seed), C = S.ramp('frost'), last = COLUMN.RISE + COLUMN.HOLD + COLUMN.BRK;
+        const c = { x: 0, y: -2, H: 82 + r() * 10, W: 30, lean: 0, t0: 0, big: true };
+        c.sh = [...Array(8)].map(() => [r() * 0.9, (r() - 0.5) * 80, -20 - r() * 50, r() < 0.5 ? 3 : 4]);
+        S.hang(o.at, { life: last, delay: o.delay, ground(g, t) { columnOne(g, { last }, c, { t, C, face: o.face }); g.globalAlpha = 1; } });
     }
 
     // ---------------------------------------------------------------- shouts (불씨의 함성, 서리바람 내지르기)
@@ -687,7 +704,7 @@ const stageSkillSpells = (() => {
         } });
     }
 
-    return Object.freeze({ iceRing: spellIceRing, iceColumns: spellIceColumns, emberShout: spellEmberShout, frostCone: spellFrostCone, wildSwing: spellWildSwing,
+    return Object.freeze({ iceRing: spellIceRing, iceRingSpikes: spellIceRingSpikes, iceColumns: spellIceColumns, iceColumn: spellIceColumn, emberShout: spellEmberShout, frostCone: spellFrostCone, wildSwing: spellWildSwing,
         discharge: spellDischarge, guillotine: spellGuillotine, fallSpear: spellFallSpear, volleyUp: spellVolleyUp, arrowRain: spellArrowRain, cosmos: spellCosmos,
         glassBreak: spellGlassBreak, glassShard: spellGlassShard, charge: spellCharge, flipTrail: spellFlipTrail });
 })();
