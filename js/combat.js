@@ -6021,6 +6021,12 @@ function getMonsterLoopHpMultiplier(zone, loopInputs, tierProgress) {
     if (loopInputs.exempt) return getMonsterLoopPowerScale(zone, 'hp');
     return interpolateLoopCurve(MONSTER_LOOP_HP_CURVE, loopInputs.seasonLoops + 1);
 }
+/** 보스 생명력에 더 곱하는 완화 배율(data/maps.js): 지역 단계(tier)의 BOSS_TIER_HP_EASE 곡선, 그리고 루프 생명력 배율(loopMul)
+ * 가운데 1을 넘는 몫은 BOSS_LOOP_HP_SHARE만 남긴다(1 이하는 그대로). 전투(createEnemy)와 권장 전투력이 같은 값을 쓴다. */
+function getBossHpEase(tier, loopMul) {
+    const loopShare = loopMul > 1 ? (1 + (loopMul - 1) * BOSS_LOOP_HP_SHARE) / loopMul : 1;
+    return loopShare * interpolateLoopCurve(BOSS_TIER_HP_EASE, Number(tier) || 1);
+}
 /** 정예 생명력 배율 1.4 + 루프 몫. 루프 몫은 +0.3까지(2026-10-06): 예전엔 상한 없이 루프 30에 2.6배까지 커져 루프 배율과 겹쳤다.
  * 우주계 사다리는 예전 그대로. 전투(createEnemy)와 아틀라스 무리 권장 전투력(getAtlasPackReadiness)이 같은 값을 쓴다. */
 function getEliteLoopHpMultiplier(zone, loopCount) {
@@ -6180,7 +6186,7 @@ function createEnemy(zone, marker, groupIndex) {
     }
     if (zone.type === 'beyondBoundary') hp = Math.floor(hp * Math.max(1, Number(zone.boundaryHpMul) || 1));
     if (isElite) hp = Math.floor(hp * getEliteLoopHpMultiplier(zone, loopInputs.loopCount));
-    if (isBoss) hp = Math.floor(hp * (1.8 + zone.tier * 0.6));
+    if (isBoss) hp = Math.floor(hp * (1.8 + zone.tier * 0.6) * getBossHpEase(zone.tier, getMonsterLoopHpMultiplier(zone, loopInputs, tierProgress)));
     if (isBoss) hp = Math.floor(hp * (1 + (tierProgress * 4)));
     const underworldEntryTuning = getUnderworldEntryBossTuning(zone, isBoss);
     hp = Math.floor(hp * underworldEntryTuning.hp * (zone.mapHpMul || 1));
@@ -6668,7 +6674,7 @@ function estimateMapZonePowerRequirements(zone) {
     let bossMods = (zone.bossMods && typeof zone.bossMods === 'object') ? zone.bossMods : {};
     if (zone.type === 'cosmos') bossMods = getCosmosEnemyModifiers(zone, false, true) || bossMods;
     let cosmosTrait = zone.type === 'cosmos' ? getCosmosExclusiveEnemyTrait(zone, false, true, hashSeed(zone.cosmosNodeId || zone.id)) : null;
-    let bossHp = hp * (1.8 + tier * 0.6) * (1 + tierProgress * 4)
+    let bossHp = hp * (1.8 + tier * 0.6) * (1 + tierProgress * 4) * getBossHpEase(tier, getMonsterLoopHpMultiplier(zone, loopInputs, tierProgress))
         * (abyssScale.hpMul || 1) * (abyssScale.bossMul || 1) * 0.92
         * contentScale.hp * (bossMods.hpMul || 1) * (zone.mapHpMul || 1)
         * (cosmosTrait && cosmosTrait.hpMul ? cosmosTrait.hpMul : 1);

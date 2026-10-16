@@ -423,11 +423,13 @@ const cfg = context.COMBAT_GRID_CONFIG;
   const rivalEnemiesAtUnlock = rivalZones.map(zone => context.createEnemy(zone, { boss: true, at: 100 }, 0));
   const commonRivalHealth = rivalEnemiesAtUnlock.slice(0, -1).map(enemy => enemy.maxHp);
   // 기준 범위(35M~80M · 100M)는 예전 생명력 공식(루프 성장 0.52 × 루프 카운트 배율) 기준이다. 2026-10-06부터 생명력의 루프 몫은
-  // 지역 단계와 무관한 한 곡선(data/maps.js MONSTER_LOOP_HP_CURVE)이라, 기준 범위에 새 배율 / 예전 배율을 곱한다.
+  // 지역 단계와 무관한 한 곡선(data/maps.js MONSTER_LOOP_HP_CURVE)이라, 기준 범위에 새 배율 / 예전 배율을 곱한다. 2026-10-16부터 보스는
+  // 루프 배율의 일부만 받아(getBossHpEase) 그 값도 곱한다.
   const rivalHpScale = vm.runInContext(`(() => {
     const zone = SEASON_BOSS_ZONES.find(row => row.rivalBlade), depth = getSoftenedLoopDepth(30);
     const share = Math.min(1, Math.max(0, (levelProgression.combatZone(zone).tier - 1) / 18)), old = MONSTER_LOOP_GROWTH.fixed.hp;
-    return interpolateLoopCurve(MONSTER_LOOP_HP_CURVE, 31) / ((1 + depth * (old.base + share * old.tier)) * getLoopHpScale(30));
+    const loopMul = interpolateLoopCurve(MONSTER_LOOP_HP_CURVE, 31);
+    return loopMul * getBossHpEase(levelProgression.combatZone(zone).tier, loopMul) / ((1 + depth * (old.base + share * old.tier)) * getLoopHpScale(30));
   })()`, context);
   assert.ok(rivalHpScale > 0.05 && rivalHpScale < 1, `the loop 31 benchmark follows the shared loop life curve (${rivalHpScale.toFixed(3)})`);
   assert.ok(Math.min(...commonRivalHealth) >= 35000000 * rivalHpScale && Math.max(...commonRivalHealth) <= 80000000 * rivalHpScale,
