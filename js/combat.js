@@ -12044,7 +12044,7 @@ function performMonsterAttacks(pStats) {
     for (let enemy of attackSources) {
         let pendingAttack = takePendingEnemyCombatAttack(enemy.id, getCombatTime());
         if (enemy.hp <= 0 && !pendingAttack) continue;
-        if (enemy.noAttack && !pendingAttack) continue;
+        if ((enemy.noAttack || actExplorationState.inArrivalGrace(actExplorationState.current(game), getCombatTime())) && !pendingAttack) continue;
         let ailMap = {};
         (enemy.ailments || []).forEach(ail => { if ((ail.time || 0) > 0) ailMap[ail.type] = Math.max(ailMap[ail.type] || 0, ail.power || 0); });
         if (!pendingAttack && enemyAttackRules.interrupt(enemy,getCombatTime())) continue;

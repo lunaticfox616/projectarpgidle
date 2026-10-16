@@ -197,6 +197,9 @@ const ACT_LOOP_SCALE_CAP = 20;
 // 혼돈 층의 루프 스케일 상한 = 액트 상한 + 층 × 이 값(2026-10-06): 액트 10 다음 혼돈 1이 높은 루프에서 한꺼번에 몇 배로
 // 뛰지 않게, 층을 내려갈수록 지금 루프의 난이도까지 계단처럼 따라붙는다(루프 30이면 혼돈 5층부터 루프 30 그대로).
 const CHAOS_LOOP_RAMP_PER_DEPTH = 2;
+// 지도에 들어선 뒤와 문을 지나 다른 방에 들어선 뒤, 몬스터가 공격을 시작하지 못하는 시간(ms, 걸어오기는 한다).
+// 2026-10-16 사용자 "맵 이동 시 잠깐의 유예시간 필요" (js/act-exploration-state.js arrive, js/combat.js performMonsterAttacks).
+const EXPLORATION_ARRIVAL_GRACE_MS = 1500;
 
 // 몬스터 생명력의 루프 배율(2026-10-06 재조율, js/combat.js getMonsterLoopHpMultiplier): [루프, 배율], 사이는 직선, 끝 뒤는 끝 값.
 // 지역 단계와 무관한 한 곡선이라 같은 레벨의 몬스터는 어느 지역이든 같은 비율로 세진다(레벨이 강함을 말한다).
