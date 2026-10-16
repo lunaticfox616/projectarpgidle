@@ -275,8 +275,10 @@ const openingJourney = (() => {
     }
     if (typeof document === 'object' && document.readyState !== 'loading') init();
     else if (typeof document === 'object') document.addEventListener('DOMContentLoaded', init, { once: true });
-    return Object.freeze({ holds, hushes, lying, autoLocked: active, lesson, introOpen: () => !!intro });
+    // 인트로가 떠 있거나 곧 뜰 때(직업을 고른 뒤 첫 확인 주기까지, fresh): 2026-10-16 사용자 "인트로 연출 나올때 예전에 뜨는 창이 잠깐 나왔다가
+    // 사라져": 그 틈에 예전 프롤로그 창(story_prologue, 인트로가 대신하는 안내)이 먼저 떴다가 인트로가 닫았다.
+    return Object.freeze({ holds, hushes, lying, autoLocked: active, lesson, introOpen: () => !!intro || fresh() });
 })();
-/** Guide cards wait for the intro (js/tutorial-ui.js isTutorialPresentationBlocked asks window functions by name). */
+/** Guide cards wait for the intro, also while it is about to start (js/tutorial-ui.js isTutorialPresentationBlocked asks window functions by name). */
 const isOpeningIntroOpen = () => openingJourney.introOpen();
 safeExposeGlobals({ openingJourney, isOpeningIntroOpen });
