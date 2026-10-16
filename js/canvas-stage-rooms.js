@@ -70,8 +70,20 @@ const stageRoomsView = (() => {
             if (waiting) shown.at = now;
             return;
         }
+        if (shown.run === run) clearLeftRoom();
         shown = { run, room, at: shown.run === run || waiting ? now : -Infinity };
         warmNextAct(mapOf(run), room);
+    }
+    /** 방을 옮기면 앞 방에서 떠 있던 연출을 걷는다: 대미지 숫자, 투사체, 스킬 효과, 무대 클립, 마법진, 임팩트. 2026-10-17 사용자 "방을
+     * 이동했는데 vfx, 대미지폰트 등이 남아있는데 없어지게 해줘": 화면 좌표에 묶인 것(대미지 숫자 등)은 카메라가 새 방으로 넘어가도
+     * 그 자리에 남았다. */
+    function clearLeftRoom() {
+        Object.assign(battleVisualState, { damageTexts: [], projectiles: [], skillProjectiles: [], skillEffects: [] });
+        if (battleVisualState.enemyHitPulses) battleVisualState.enemyHitPulses.clear();
+        stageSkillVfx.clear();
+        stageSkillSigil.clear();
+        if (typeof redrawnSkillFx === 'object') redrawnSkillFx.reset();
+        if (typeof attackFxClear === 'function') attackFxClear();
     }
     /** 보스 방에 들어서면 다음 액트의 방 그림을 미리 불러 둔다: 액트가 넘어갈 때 그림을 기다리는 어둠이 짧아진다. */
     function warmNextAct(map, room) {

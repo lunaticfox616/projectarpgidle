@@ -324,7 +324,9 @@ const stageSkillVfx = (() => {
         return true;
     }
     const vfxNow = () => clock;
+    /** 재생 중인 클립과 걸어 둔 일을 모두 걷는다(방을 옮길 때: js/canvas-stage-rooms.js). */
+    function vfxClear() { live.length = 0; watchers.length = 0; }
     return Object.freeze({ ready: vfxReady, play: vfxPlay, paint: vfxPaint, watch: vfxWatch, draw: vfxDraw, tick: vfxTick, stamp: vfxStamp, now: vfxNow, clipOf: vfxClipOf,
-        clipWidth: vfxClipWidth, clipLength: vfxClipLength, keepStrips: vfxKeepStrips, HIT });
+        clipWidth: vfxClipWidth, clipLength: vfxClipLength, keepStrips: vfxKeepStrips, clear: vfxClear, HIT });
 })();
 safeExposeGlobals({ stageSkillVfx });
