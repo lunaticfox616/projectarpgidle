@@ -120,3 +120,6 @@
 - 효과 그림: `node scripts/build-boss-fx.cjs <boss-vfx-20261016 폴더> <rignin-ui\stage-vfx\boss-fx>`가 보스 51종의 시트 39장을
   `assets/stage-vfx/boss-fx`(로컬만)와 `data/boss-fx.js`로 옮기며 검수한다(64KB, 48색, 알파 0/255, 칸 끝에 닿은 그림). 그림이 없으면
   경고와 판정만 남는다.
+- 공격 그림이 없어 서 있기만 하던 이야기 보스 여덟(액트 4의 운반자, 5, 6, 7, 8의 세 순례자, 9)은 GPT가 만든 공격 동작을 쓴다
+  (`scripts/build-stage-roster.cjs --attacks <boss-vfx-20261016 폴더>`, 서 있는 그림은 그대로). 예고 동안 준비 자세로 손을 들고 놓을 때
+  친다. 그 뒤 `build-boss-fx.cjs`를 다시 돌려 효과 자리를 프레임마다 맞춘다.

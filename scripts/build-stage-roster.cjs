@@ -2,7 +2,7 @@
 /* 무대 몬스터의 새 그림(걷기와 공격)을 게임이 읽는 모양으로 옮긴다(docs/stage-view-20261011.md).
  *
  *   node scripts/build-stage-roster.cjs <정리한 그림 폴더> [복사해 둘 폴더] [--forge <새 묶음 폴더>] [--looks <새 외형 선택.json>]
- *     [--roots <무기 뿌리 묶음 폴더>] [--actions <동작 묶음 폴더>]
+ *     [--roots <무기 뿌리 묶음 폴더>] [--actions <동작 묶음 폴더>] [--attacks <적 공격 효과 묶음 폴더>]
  *
  * 그림이 오는 곳은 둘이다.
  *   <정리한 그림 폴더>: 처음 받은 88종을 도트로 정리해 둔 곳(data.js, fixed/<id>/walk.png과 attack.png, 그 위 폴더의 motions.json).
@@ -12,6 +12,10 @@
  *   --looks: 다시 만든 외형 가운데 사용자가 고른 것(검토 화면에서 내보낸 파일, choice keep이고 version이 같은 것)을 한 장 그림으로 넣는다.
  *   --roots: 무기 뿌리촉수 여섯의 새 그림(root-weapon-attack 묶음, 2026-10-15): 대기 한 장과 공격 여섯 장(rootBatch).
  *   --actions: 칸마다 한 장씩 그린 동작 묶음 하나(animation.json의 actions.move와 actions.attack, 2026-10-16 부제나비): actionsBatch.
+ *   --attacks: 적 공격 효과 묶음(boss-vfx-20261016, 2026-10-16 사용자: "몬스터가 자연스럽게 사용하는지도 중요해")의 보스 공격 동작.
+ *     게임에 공격 그림이 없는 보스(review-data.json의 category가 regular가 아니고 actors/<id>/animation.json의 gameAttackPresent가
+ *     false)에만 공격으로 넣는다(attackBatch). 일반 적의 새 공격은 아직 넣지 않는다. 서 있는
+ *     그림은 그대로다. 그 동작의 프레임마다 효과가 나오는 자리는 scripts/build-boss-fx.cjs가 이 표를 보고 맞춘다(다시 돌린다).
  *   새 묶음의 그림이 게임에서 다른 자리에 서면 FORGE_SLOT에 적는다(예: 부제나비는 액트 3 보스 그림 키 bossAct3).
  *   같은 생김새에 색만 다른 외형은 FORGE_TINTS에 적는다: 동작이 온 외형의 걷기와 공격을 제 색으로 옮겨 쓴다(--no-tint로 끈다).
  * 몬스터 하나는 한쪽 묶음의 그림만 쓴다: 새 묶음에 확인 끝난 동작이 있으면 그것(공격이 없으면 공격 그림 없이 간다), 없으면
@@ -30,9 +34,9 @@ const { decodePng, encodePng } = require('./lib/png.cjs');
 const { tidy } = require('./tidy-stage-art.cjs');
 
 const root = path.join(__dirname, '..');
-const args = process.argv.slice(2), OPTIONS = ['--forge', '--looks', '--roots', '--actions'];
+const args = process.argv.slice(2), OPTIONS = ['--forge', '--looks', '--roots', '--actions', '--attacks'];
 const option = name => (args.includes(name) ? args[args.indexOf(name) + 1] : null);
-const forge = option('--forge'), looksFile = option('--looks'), rootsDir = option('--roots'), actionsDir = option('--actions');
+const forge = option('--forge'), looksFile = option('--looks'), rootsDir = option('--roots'), actionsDir = option('--actions'), attacksDir = option('--attacks');
 const [from, mirror] = args.filter((arg, index) => !arg.startsWith('--') && !OPTIONS.includes(args[index - 1]));
 if (!from) { console.error('쓰는 법: node scripts/build-stage-roster.cjs <정리한 그림 폴더> [복사해 둘 폴더] [--forge <새 묶음 폴더>] [--looks <새 외형 선택.json>] [--roots <무기 뿌리 묶음 폴더>] [--actions <동작 묶음 폴더>]'); process.exit(1); }
 const PAD = 2, COLUMNS = 12;
@@ -289,6 +293,23 @@ function actionsBatch(dir, previous) {
     return new Map([[id, actor]]);
 }
 
+// ------------------------------------------------------------------ 보스 공격 동작(--attacks)
+/** 공격 그림이 없는 보스에게 적 공격 효과 묶음의 공격 동작: 칸마다 한 장(attack-<n>.png, 칸 크기 size, 발 자리 anchor, 오른쪽을 본다),
+ * 프레임 시간 durations, 타격 프레임 hitFrame. 걷기(서 있는 그림), 이름, 걸음새는 그대로 둔다. */
+function attackBatch(dir, previous) {
+    const out = new Map(), review = JSON.parse(fs.readFileSync(path.join(dir, 'review-data.json'), 'utf8'));
+    const bosses = new Set(review.actors.filter(row => row.category !== 'regular').map(row => row.id));
+    for (const [id, actor] of previous) {
+        const at = path.join(dir, 'actors', id), file = path.join(at, 'animation.json');
+        if (actor.attack || !bosses.has(id) || !fs.existsSync(file)) continue;
+        const meta = JSON.parse(fs.readFileSync(file, 'utf8'));
+        if (meta.gameAttackPresent !== false || !meta.frames || !meta.frames.length) continue;
+        const frames = meta.frames.map(name => frame(read(path.join(at, name)), 0, 0, meta.size, meta.anchor));
+        out.set(id, { ...actor, attack: { frames, ms: meta.durations, hit: meta.hitFrame } });
+    }
+    return out;
+}
+
 /** 새 동작이 아직 없는 위습 외형은 같은 속성의 새 위습 그림을 빌려 입는다(data/wisp-sprites.js WISP_SPRITE_BY_VISUAL의 속성).
  * 속성에 새 그림이 없으면(지금은 화염과 독) 처음 받은 제 그림 그대로다. 외형마다 새 그림(own: 동작이든 한 장이든)이 오면 이 표에서 빠진다. */
 function wispWears(made, own) {
@@ -320,6 +341,10 @@ if (actionsDir) for (const [id, actor] of actionsBatch(actionsDir, actors)) {
     const replaced = actors.get(id);
     if (replaced) counts[!fromForge.includes(id) ? 'first' : replaced.walk.frames.length > 1 ? 'moving' : 'still']--;
     counts.actions = (counts.actions || 0) + 1;
+    actors.set(id, actor);
+}
+if (attacksDir) for (const [id, actor] of attackBatch(attacksDir, actors)) {
+    counts.attacks = (counts.attacks || 0) + 1;
     actors.set(id, actor);
 }
 const outDir = path.join(root, 'assets/enemies/roster'), folders = [outDir, mirror].filter(Boolean), written = new Set(), stamp = crypto.createHash('sha1');
@@ -380,5 +405,5 @@ for (const folder of folders) for (const name of fs.readdirSync(folder)) {
     if (/-(walk|attack)\.png$/.test(name) && !written.has(name)) fs.unlinkSync(path.join(folder, name));
 }
 const bytes = fs.readdirSync(outDir).reduce((sum, name) => sum + fs.statSync(path.join(outDir, name)).size, 0);
-console.log(`몬스터 ${rows.length}마리: 처음 받은 그림 ${counts.first}, 새 묶음의 동작 ${counts.moving}, 새 묶음의 한 장 ${counts.still}, 무기 뿌리촉수 ${counts.roots || 0}, 동작 묶음 ${counts.actions || 0}`);
+console.log(`몬스터 ${rows.length}마리: 처음 받은 그림 ${counts.first}, 새 묶음의 동작 ${counts.moving}, 새 묶음의 한 장 ${counts.still}, 무기 뿌리촉수 ${counts.roots || 0}, 동작 묶음 ${counts.actions || 0}, 보스 공격 동작 ${counts.attacks || 0}`);
 console.log(`그림 ${fs.readdirSync(outDir).length}장 (${(bytes / 1048576).toFixed(1)}MB) → assets/enemies/roster/${mirror ? ' 와 ' + mirror : ''}`);
