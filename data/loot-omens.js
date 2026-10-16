@@ -24,10 +24,10 @@ const LOOT_OMENS = Object.freeze({
     // 지도 보스의 보상(2026-10-09 사용자: 보스가 클라이맥스가 아니다): 장비 items개(extraChance로 하나 더), 앞의 장비부터 minimum의 희귀도
     // 이상. 고유 몫은 보물 무리와 상자에 있으므로 일반 몬스터의 희귀도 띠로 굴린다. 지도와 수호자 지도의 보스만(기억 싸움, 최종 싸움은 없다).
     mapBoss: Object.freeze({ items: 2, extraChance: 0.5, minimum: Object.freeze(['rare', 'magic']) }),
-    // 좋은 희귀(2026-10-09): 그 장비가 가질 수 있는 가장 높은 band개 등급(affixTierCap에서 band − 1 아래까지) 안의 옵션이 good줄이면 좋은
-    // 발견, great줄이면 큰 발견(js/loot.js lootMoments). 16등급 지도에서 희귀의 약 10%가 좋은, 1%가 큰 발견이다. 옵션 등급 상한이
-    // minCap보다 낮은 장비(초반 지역)는 상위 4등급이 거의 모든 등급이라 따지지 않는다.
-    fineRare: Object.freeze({ band: 4, good: 2, great: 3, minCap: 12 }),
+    // 좋은 희귀(2026-10-09): 그 장비가 가질 수 있는 가장 높은 band개 등급(affixTierCap에서 band − 1 아래까지) 안의 옵션이 good줄 이상이면
+    // 좋은 발견(js/loot.js lootMoments, 반짝임). 16등급 지도에서 희귀의 약 10%다. 2026-10-16 사용자 "단순한 희귀한 아이템에 빛기둥 없애고, 황금률같은
+    // 고급 아이템에만 빛기둥": 줄이 더 많아도 큰 발견(빛기둥)이 되지 않는다. 옵션 등급 상한이 minCap보다 낮은 장비(초반 지역)는 따지지 않는다.
+    fineRare: Object.freeze({ band: 4, good: 2, minCap: 12 }),
     list: Object.freeze([
         { id: 'fossil', name: '화석 광맥', note: '화석이 자주 나옵니다', kind: 'drops', weight: 8, tone: '#c9a46a', drops: Object.freeze([
             ['fossil', 40], ['fossilJagged', 6], ['fossilBound', 6], ['fossilGale', 6], ['fossilPrismatic', 5], ['fossilBulwark', 5],
