@@ -43,5 +43,13 @@ __pycache__/
 
 # Private art is restored locally from projectarpgidle-assets (see docs/github-publish-20261001.md).
 /assets/playable/hana/
+# 옆에서 보는 무대의 캐릭터 그림(docs/stage-view-20261011.md): 배포 가능 여부를 확인할 때까지 로컬에만 둔다.
+/assets/playable/stage/
+# 무대 조각 묶음(사용자가 이미지 생성으로 만든 그림): 저장소에 넣기로 정할 때까지 로컬에만 둔다.
+/assets/stage-scenes/
+# 무대 몬스터의 새 그림(사용자가 이미지 생성으로 만든 그림, scripts/build-stage-roster.cjs가 옮긴다): 저장소에 넣기로 정할 때까지 로컬에만 둔다.
+/assets/enemies/roster/
+# 무대의 새 스킬 이펙트 그림(scripts/build-stage-skill-vfx.cjs가 옮긴다): 구매 팩에서 온 그림이라 다시 나눠 주면 안 된다. 저장소에 넣지 않는다.
+/assets/stage-vfx/
 /assets/summon/hana/
 /docs/skill-assets-hana/reference/

@@ -241,9 +241,7 @@ const SKILL_GEM_VFX_IMAGE_KEYS = Object.freeze({
     rune: 'skillFxBurst',
     dot: 'skillFxDotField',
     summon: 'skillFxSummonStrike',
-    focusBeam: 'skillFxFocusBeam',
-    dragonBreath: 'skillFxDragonBreath',
-    voidCutter: 'skillFxVoidCutter'
+    dragonBreath: 'skillFxDragonBreath'
 });
 
 function getSkillGemVfxProfile(skillName) {
@@ -465,6 +463,8 @@ function mergeSkillCastVfx(list, fx, profile, target, now) {
 
 function queueSkillGemVfx(fx, enemyPos, playerPos, enemyPosMap, now, viewportScale) {
     if (!fx || fx.dot || !fx.skillName) return;
+    // 옆에서 보는 무대의 새 스킬 이펙트: 맞은 적마다의 타격 클립과 연쇄 번개(js/canvas-stage-skill-rules.js).
+    if (typeof stageSkillRules === 'object') stageSkillRules.hit(fx, enemyPosMap);
     if (worldTreeSkillFx.queueHit(fx, enemyPos, playerPos || enemyPos, now)) {
         trimBattleSkillEffects(battleVisualState.skillEffects);
         return;
@@ -1150,6 +1150,7 @@ function drawBattleGroundLayer(ctx, effects, view) {
     sideEncounterCanvas.portals(ctx, view.gridProj, getCombatTime());
     trialTrapArt.drawGround(ctx, effects, view.now, view.gridProj); // trap cracks, glow, frost, rune, puddle, scorch
     fxRemake.begin(ctx, view.gridProj);
+    if (typeof stageSkillVfx === 'object') stageSkillVfx.tick(view.now); // 무대의 새 스킬 이펙트(js/canvas-stage-skill-vfx.js): 프레임마다 시계를 맞춘다
     worldTreeSkillFx.castFrame(ctx,view.gridProj,'ground');
     worldTreeSkillFx.drawQueued(ctx, battleVisualState.skillEffects || [], view.now, 'ground');
     for (let fx of effects) {
@@ -1159,6 +1160,7 @@ function drawBattleGroundLayer(ctx, effects, view) {
     redrawnSkillFx.drawLayer('ground', view.now);
     wispSummonFx.drawLayer('ground', view.now);
     fxRemake.end();
+    if (typeof stageSkillVfx === 'object') stageSkillVfx.draw(ctx, 'ground', view.gridProj);
     drawActiveSummons(ctx, view.playerPos, view.now, view.gridProj);
 }
 
@@ -1207,22 +1209,6 @@ function drawStormStrikeVfx(ctx, effect, progress) {
     ctx.lineWidth *= 0.4;
     ctx.globalAlpha *= 0.9 - progress * 0.2;
     ctx.stroke();
-}
-
-function drawBeamSkillVfx(ctx, effect, progress) {
-    let dx = effect.toX - effect.fromX;
-    let dy = effect.toY - effect.fromY;
-    let length = Math.max(20, Math.hypot(dx, dy));
-    ctx.translate((effect.fromX + effect.toX) / 2, (effect.fromY + effect.toY) / 2);
-    ctx.rotate(Math.atan2(dy, dx));
-    ctx.fillStyle = getElementColor(effect.element);
-    ctx.shadowColor = ctx.fillStyle;
-    ctx.shadowBlur = 10;
-    let thickness = Math.max(4, effect.size * (0.055 + Math.sin(progress * Math.PI) * 0.035));
-    ctx.fillRect(-length / 2, -thickness / 2, length, thickness);
-    ctx.globalAlpha *= 0.38;
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(-length / 2, -thickness * 0.16, length, thickness * 0.32);
 }
 
 function drawCoreSkillVfx(ctx, effect, progress) {
@@ -1322,8 +1308,7 @@ function drawBreathSkillVfx(ctx, effect, progress) {
 function drawProceduralSkillImpact(ctx, effect, progress) {
     if (effect.family === 'iai') drawIaiSkillVfx(ctx, effect, progress);
     else if (effect.family === 'stormStrike') drawStormStrikeVfx(ctx, effect, progress);
-    else if (effect.family === 'beam') drawBeamSkillVfx(ctx, effect, progress);
-    else if (effect.family === 'fireCore' || effect.family === 'mine' || effect.family === 'voidBlade') drawCoreSkillVfx(ctx, effect, progress);
+    else if (effect.family === 'fireCore' || effect.family === 'mine') drawCoreSkillVfx(ctx, effect, progress);
     else if (effect.family === 'breath') drawBreathSkillVfx(ctx, effect, progress);
     else if (effect.family === 'charge') drawShieldChargeImpactVfx(ctx, effect, progress);
     else return false;
@@ -1434,6 +1419,7 @@ function drawSkillGemVfxLayer(ctx, now, gridProj) {
     worldTreeSkillFx.castFrame(ctx,gridProj,'foreground');
     let list = battleVisualState.skillEffects || [];
     worldTreeSkillFx.drawQueued(ctx, list, now, 'foreground');
+    if (typeof stageSkillVfx === 'object') { stageSkillVfx.draw(ctx, 'top', gridProj); stageSkillSigil.draw(ctx, gridProj); }
     const spriteRenderers = {continuousSlash:drawSwordSlashVfx};
     list.forEach(effect => {
         let image = getSkillGemVfxImage(effect.imageKey);
@@ -1578,7 +1564,7 @@ function getPlayerHealthBarLook(hpPct, now) {
 function drawBattlefieldPlayerHealthBar(ctx, scene) {
     // 2026-10-04 visibility: 64 -> 48px wide so the bar covers less of the field; the height stays readable.
     const look = getPlayerHealthBarLook(scene.hpPct, scene.now);
-    const width = 48, height = look.height, head = hanaActors.headY(scene.now), playerPos = scene.light;
+    const width = 48, height = look.height, head = getHeroHeadY(scene.now), playerPos = scene.light;
     const x = Math.round(playerPos.x - width / 2), y = Math.round(head === null ? playerPos.y - 82 * HERO_SIZE_SCALE : head - 10) - (height - 6);
     ctx.save();
     ctx.globalAlpha = look.alpha;
@@ -1710,7 +1696,7 @@ function drawDamageImpactAccent(ctx, fx, t, enemyPosMap, playerPos) {
 }
 
 // 레벨업: 발밑 고리 + 금빛 기둥 + 떠오르는 레벨 글자. 지속 시간과 호출 시점은 전투 쪽 fx가 소유한다.
-function drawLevelUpFx(ctx, fx, t, playerPos) {
+function drawLevelUpFx(ctx, fx, t, playerPos, now) {
     const fade = t < 0.4 ? 1 : Math.max(0, (1 - t) / 0.6);
     const cx = playerPos.x, footY = playerPos.y + 2;
     ctx.save();
@@ -1732,7 +1718,9 @@ function drawLevelUpFx(ctx, fx, t, playerPos) {
     const radius = worldTreeSkillFx.feedback.reduced() ? 24 : 18 + t * 25;
     ctx.ellipse(cx, footY, radius, radius * 0.36, 0, 0, Math.PI * 2);
     ctx.stroke();
-    drawLevelUpLabel(ctx, fx, { x: cx, y: playerPos.y - 62, alpha: fade });
+    // The stage hero changes size with the viewport. Keep the label above its head and health bar, not on its torso.
+    const head = getHeroHeadY(now) ?? playerPos.y - 82 * HERO_SIZE_SCALE;
+    drawLevelUpLabel(ctx, fx, { x: cx, y: Math.max(26, head - 28), alpha: fade });
     ctx.restore();
 }
 
@@ -1857,8 +1845,9 @@ function getExplorationPlayerVisualMotion(projection, player) {
     const cell = actExplorationMotion.position(run, player);
     const position = projection.cellToScreen(cell.gx, cell.gy);
     position.y += Number(projection.actorGroundOffsetY) || 0;
+    // 걸음 도중에 게임이 멈추면(선택 창, 안내, 창 열림) 걷는 그림도 멈춘다: 멈춘 화면에서 제자리걸음을 하지 않는다.
     return {position, targetPosition: position, direction: run.motionDirection,
-        progress: run.motion ? run.motion.elapsed / run.motion.duration : 1, animating: !!run.motion};
+        progress: run.motion ? run.motion.elapsed / run.motion.duration : 1, animating: !!run.motion && !isForegroundGameplayPausedForBackground()};
 }
 
 function getCardinalMoveDirection(fromCell, toCell) {
@@ -2188,9 +2177,22 @@ function buildEnemyAttackMotionMap(effects, enemyPosMap, playerPos, now) {
     return result;
 }
 
+/** 옆에서 보는 무대의 몬스터는 왼쪽이나 오른쪽만 본다(2026-10-13 사용자: 걸어올 때 좌우가 맞지 않는다. 전에는 주인공이 위아래로 더
+ * 멀면 위나 아래를 본다고 답했고, 무대는 그때 직전 방향을 지켜서 처음 나온 몬스터가 등을 보이며 걸어왔다).
+ * 걷는 동안에는 가는 쪽(enemyPos.heading, glideBattleEnemy), 서 있거나 때릴 때는 주인공이 있는 쪽을 본다. 위아래로만 걷거나
+ * 주인공과 거의 같은 세로줄에 서 있으면 'south'를 답한다: 무대는 그때 직전 방향을 지킨다(stageView.facing). */
+const STAGE_SIDE_DEAD_PX = 10;
+function resolveStageEnemySide(enemyPos, playerPos) {
+    if (enemyPos.heading) return enemyPos.heading;
+    const dx = Number(playerPos.x) - Number(enemyPos.x);
+    if (Math.abs(dx) <= STAGE_SIDE_DEAD_PX) return 'south';
+    return dx < 0 ? 'west' : 'east';
+}
+
 function resolveEnemyFacingDirection(enemyPos, playerPos) {
     if (!enemyPos || !playerPos) return 'south';
     if (mobilitySkill.equipped()==='암살' && enemyPos.enemy?.facingDirection) return ({2:'south',4:'west',6:'east',8:'north'})[enemyPos.enemy.facingDirection];
+    if (stageView.enabled()) return resolveStageEnemySide(enemyPos, playerPos);
     const dx = Number(playerPos.x) - Number(enemyPos.x);
     const dy = Number(playerPos.y) - Number(enemyPos.y);
     if (Math.abs(dx) > Math.abs(dy)) return dx < 0 ? 'west' : 'east';
@@ -2232,20 +2234,40 @@ function getEnemySpawnAge(enemy, now, duration) {
 
 function drawBattleEnemyActor(ctx, entry, state) {
     let enemy = entry.enemy;
+    // 무대의 보스 입장: 그림을 키우며 띄우지 않고 제 크기로 선 검은 형체가 드러난다(js/canvas-boss-entrance.js stageLook)
+    const veil = bossEntranceView.stageLook(enemy, state.now);
+    if (veil) { drawEnteringEnemyActor(ctx, entry, state, veil); return; }
     let spawnDuration = enemy.isBoss ? 640 : (enemy.isElite ? 460 : 360);
     let age = getEnemySpawnAge(enemy, state.now, spawnDuration);
     let easedAge = 1 - Math.pow(1 - age, 3);
     let spawnScale = (enemy.isBoss ? 0.46 : 0.68) + easedAge * (enemy.isBoss ? 0.54 : 0.32);
     if (enemy.isBoss) spawnScale += Math.sin(age * Math.PI) * 0.08;
-    let count = state.enemyCount;
-    let crowdScale = count >= 9 ? (enemy.isBoss ? 3.25 : (enemy.isElite ? 1.72 : 1.46))
-        : (count >= 6 ? (enemy.isBoss ? 3.45 : (enemy.isElite ? 1.9 : 1.62))
-            : (enemy.isBoss ? 3.65 : (enemy.isElite ? 2.2 : 1.95)));
+    const crowdScale = getEnemyCrowdScale(enemy, state.enemyCount);
     ctx.save();
     ctx.globalAlpha = easedAge;
     drawEnemyActorSprite(ctx, entry, state, { y: entry.y - (1 - easedAge) * (enemy.isBoss ? 28 : 18), scale: crowdScale * state.gridUnitScale * spawnScale, spawnScale });
     if (enemy.encounterSparks) drawEncounterSparks(ctx, entry, state, enemy.encounterSparks);
     ctx.restore();
+}
+
+/** 예전 그림(한 장의 큰 그림에서 잘라 쓰는 것)을 그리는 배율: 적이 많을수록 조금 작게, 보스와 정예는 크게. */
+function getEnemyCrowdScale(enemy, count) {
+    const row = count >= 9 ? [3.25, 1.72, 1.46] : (count >= 6 ? [3.45, 1.9, 1.62] : [3.65, 2.2, 1.95]);
+    return enemy.isBoss ? row[0] : (enemy.isElite ? row[1] : row[2]);
+}
+
+/** 무대에서 입장 중인 적: 제 크기와 제자리에, 입장이 정한 모습(검은 형체, 속성 색 테, 드러나는 순간의 흰빛)으로 그린다. */
+function drawEnteringEnemyActor(ctx, entry, state, veil) {
+    ctx.save();
+    ctx.globalAlpha = veil.alpha;
+    drawEnemyActorSprite(ctx, entry, state, { y: entry.y, scale: getEnemyCrowdScale(entry.enemy, state.enemyCount) * state.gridUnitScale, spawnScale: 1, veil });
+    ctx.restore();
+}
+
+/** 입장 중인 적의 모습(js/canvas-boss-entrance.js stageLook)을 시트 그리기에 넘기는 값으로: 흰빛, 검은 형체, 테. 입장 중이 아니면 모두 없다. */
+function getEnemyVeilPose(veil) {
+    if (!veil) return { flash: 0, shade: 0, rim: null };
+    return { flash: veil.flash, shade: veil.shade, rim: veil.rim > 0 ? { color: veil.color, alpha: veil.rim } : null };
 }
 
 /** 잿불 터 무리(data/atlas.js encounters sparks): 몸에서 불씨 도트 셋이 떠올라 꺼진다. 그림만 그린다. */
@@ -2272,6 +2294,43 @@ function drawEnemyAfterimage(ctx, enemy, pose) {
     drawEnemySprite(ctx, enemy, pose.x, pose.y, pose.scale * boss, !!pose.flash, pose.now);
 }
 
+/** Where an enemy is drawn this frame: { enemy, x, y, moving }. A step on the grid must not look like a jump, so its picture
+ * glides from the cell it left: on the top-down field toward the new cell, most of the way at once (the wave judgement,
+ * js/combat.js pickWaveFrontTargets, counts with the same glide); on the stage at a walk over the whole step
+ * (js/canvas-stage-stride.js), with no follower in screen space, so a scrolling room does not drag the monsters.
+ * frame = { now, deltaSec, gridProj }. */
+function glideBattleEnemy(entry, frame) {
+    const id = entry.enemy.id;
+    if (stageView.enabled()) {
+        const stride = stageStride.read(entry.enemy, frame.now) || { dx: 0, dy: 0, moving: false };
+        const at = { x: entry.x + stride.dx * frame.gridProj.tileW, y: entry.y + stride.dy * frame.gridProj.tileH };
+        battleVisualState.enemySmoothPos[id] = at;
+        // 가는 쪽: 그려진 자리가 제 칸보다 왼쪽에 남아 있으면 오른쪽으로 걷는 중이다(위아래로만 걸으면 없다)
+        const heading = stride.moving && Math.abs(stride.dx) > 0.02 ? (stride.dx < 0 ? 'east' : 'west') : null;
+        return { enemy: entry.enemy, x: at.x, y: at.y, moving: stride.moving, heading };
+    }
+    let smooth = battleVisualState.enemySmoothPos[id];
+    if (!smooth) {
+        smooth = { x: entry.x, y: entry.y };
+        battleVisualState.enemySmoothPos[id] = smooth;
+    } else {
+        smooth.x = approachNumber(smooth.x, entry.x, COMBAT_GRID_CONFIG.enemyGlideRate, frame.deltaSec);
+        smooth.y = approachNumber(smooth.y, entry.y, COMBAT_GRID_CONFIG.enemyGlideRate, frame.deltaSec);
+    }
+    const distance = Math.hypot(entry.x - smooth.x, entry.y - smooth.y);
+    if (distance < 0.65) { smooth.x = entry.x; smooth.y = entry.y; }
+    return { enemy: entry.enemy, x: smooth.x, y: smooth.y, moving: distance >= 0.65 };
+}
+
+/** 옆에서 보는 무대: 주인공이 전투 기록이나 채팅 창 뒤에 서면 그 창이 옅어진다(js/message-frames-ui.js heroAt). 주인공의 키는 그림의
+ * 도트 수로 어림한다(머리 위의 체력 막대까지). 위에서 보는 전장에서는 주인공이 늘 화면 가운데라 쓰지 않는다. */
+const STAGE_HERO_TALL_DOTS = 96;
+function noteStageHeroBehindFrames(playerPos, gridProj) {
+    if (typeof messageFrames !== 'object' || !messageFrames.isActive()) return;
+    if (!stageView.enabled()) { messageFrames.heroAt(NaN, NaN, NaN); return; }
+    messageFrames.heroAt(playerPos.x, playerPos.y, playerPos.y - STAGE_HERO_TALL_DOTS * stageActors.scaleFor(gridProj.tileW));
+}
+
 /** 보스는 BOSS_DRAW_SCALE배로 그린다(살아 있는 모습, 사라지는 잔상, 쓰러지는 모습 모두). 일반 몬스터는 1. */
 function getBossDrawScale(enemy) {
     return enemy && enemy.isBoss ? BOSS_DRAW_SCALE : 1;
@@ -2280,24 +2339,27 @@ function getBossDrawScale(enemy) {
 /** Wisps, act monsters, roots and realm sets draw from their own 16-dot sheets (js/canvas-wisp-actors.js,
  * js/canvas-monster-actors.js); story bosses keep their atlas sprites. */
 function drawEnemyActorSprite(ctx, entry, state, pose) {
-    const enemy = entry.enemy, flash = state.enemyHitFlashes.get(enemy.id) || 0, facing = resolveEnemyFacingDirection(entry, state.playerPos);
+    const enemy = entry.enemy, veil = getEnemyVeilPose(pose.veil), facing = resolveEnemyFacingDirection(entry, state.playerPos);
+    const flash = Math.max(state.enemyHitFlashes.get(enemy.id) || 0, veil.flash);
     const tile = state.gridProj && state.gridProj.tileW, recoil = (state.enemyHitRecoil || {})[enemy.id] || { x: 0, y: 0 };
     const x = entry.x + recoil.x, y = pose.y + recoil.y, boss = getBossDrawScale(enemy);
-    const sheetPose = { x, y, tile, now: state.now, facing, flash, spawnScale: pose.spawnScale * boss, moving: entry.moving === true };
+    const sheetPose = { x, y, tile, now: state.now, facing, flash, spawnScale: pose.spawnScale * boss, moving: entry.moving === true,
+        shade: veil.shade, rim: veil.rim };
     if (wispActors.draw(ctx, enemy, sheetPose) || monsterActors.draw(ctx, enemy, sheetPose)) return;
     noteEnemySpriteSide(enemy, entry, state.playerPos, tile);
     drawEnemySprite(ctx, enemy, x, y, pose.scale * boss, flash, state.now, entry.moving, state.enemyAttackMotions[enemy.id], facing);
 }
 
-/** This frame's enemy screen positions and their after-image ghosts. On an exploration map an enemy out of the hero's sight gets no
- * ghost, and its one-time combat text (hit numbers, evades, the alert "!") is skipped: a monster running in from the fog stays
- * unseen until it steps into sight (2026-10-09 사용자). */
+/** This frame's enemy screen positions and their after-image ghosts: every living enemy, on the screen or not (hits, projectiles
+ * and chains aim by this list). On an exploration map an enemy out of the hero's sight (entry.seen, js/canvas-battle-draw-list.js)
+ * gets no ghost, and its one-time combat text (hit numbers, evades, the alert "!") is skipped: a monster running in from the fog
+ * stays unseen until it steps into sight (2026-10-09 사용자). */
 const SIGHT_GATED_FX = new Set(['hit', 'enemyEvade', 'statusText']);
 function buildBattleEnemyPosMap(layout, fxList, now) {
     const map = {}, hidden = new Set();
     layout.forEach(entry => {
         map[entry.enemy.id] = entry;
-        if (!actExplorationView.inSight(entry.enemy)) {
+        if (!entry.seen) {
             hidden.add(entry.enemy.id);
             delete battleVisualState.enemyGhostPos[entry.enemy.id];
             return;
@@ -2310,9 +2372,16 @@ function buildBattleEnemyPosMap(layout, fxList, now) {
 
 function drawBattleActorLayer(ctx, enemyEntries, state) {
     state = { ...state, enemyHitRecoil: buildEnemyHitRecoilMap(battleFx, state) };
-    const waiting=getBattleLayout(actExplorationView.waitingEnemies(),0,0,state.gridProj);
-    // 달려오는 몬스터도 시야 안에 들어와야 보인다(actExplorationView.inSight).
-    const seen = (enemyEntries || []).filter(entry => actExplorationView.inSight(entry.enemy));
+    const view = { width: state.width, height: state.height, tile: state.gridProj.tileW };
+    // 서서 기다리는 무리도 그림이 화면에 걸치는 것만 그린다(이어진 지도에서는 발견한 곳의 무리가 모두 온다).
+    const waiting=getBattleLayout(actExplorationView.waitingEnemies(),0,0,state.gridProj).filter(entry => battleDrawList.touchesView(entry, view));
+    // 달려오는 몬스터도 시야 안에 들어와야 보이고(entry.seen), 그 가운데 그림이 화면에 걸치는 것만 그린다(entry.drawn). 화면 밖의 보이는
+    // 몬스터는 보는 쪽만 이어 적는다.
+    const seen = [];
+    for (const entry of enemyEntries || []) {
+        if (entry.drawn) seen.push(entry);
+        else if (entry.seen) battleDrawList.keepFacing(entry, state.playerPos, view.tile);
+    }
     let actors = seen.concat(waiting).map(entry => ({
         kind: 'enemy', id: entry.enemy.id, y: entry.y, entry
     }));
@@ -2397,7 +2466,9 @@ function getBattlefieldCaption() {
     return left > 0 && left <= MAP_MONSTERS_LEFT_HINT ? `몬스터 ${left}마리 남음` : '';
 }
 
-/** targetFrameMs: the drawing cadence of the frame loop (js/ui.js renderBattlefieldThrottled), for the effect density. */
+/** targetFrameMs: the drawing cadence of the frame loop (js/ui.js renderBattlefieldThrottled), for the effect density.
+ * @returns {(boolean|undefined)} true when the frame was drawn to the end (a hidden canvas or art still loading returns early):
+ *   only such draws are counted as battlefield frames (js/battle-frame-stats.js). */
 function renderBattlefield(forceWhenHidden, targetFrameMs) {
     worldTreeSkillFx.beginFrame();
     const canvas = document.getElementById('battlefield-canvas');
@@ -2507,31 +2578,16 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
         downBlend
     };
     battleVisualState.playerPos = { x: playerPos.x, y: playerPos.y };
+    noteStageHeroBehindFrames(playerPos, gridProj);
     if (!battleVisualState.enemySmoothPos) battleVisualState.enemySmoothPos = {};
-    let dynamicLayout = layout.map(entry => {
-        // 칸 단위 이동이 순간이동으로 보이지 않게 화면 좌표를 목표 칸으로 보간한다.
-        let smooth = battleVisualState.enemySmoothPos[entry.enemy.id];
-        if (!smooth) {
-            smooth = { x: entry.x, y: entry.y };
-            battleVisualState.enemySmoothPos[entry.enemy.id] = smooth;
-        } else {
-            // The wave judgement (js/combat.js pickWaveFrontTargets) counts with the same glide to know where a monster is drawn.
-            smooth.x = approachNumber(smooth.x, entry.x, COMBAT_GRID_CONFIG.enemyGlideRate, deltaSec);
-            smooth.y = approachNumber(smooth.y, entry.y, COMBAT_GRID_CONFIG.enemyGlideRate, deltaSec);
-        }
-        const movingDistance = Math.hypot(entry.x - smooth.x, entry.y - smooth.y);
-        if (movingDistance < 0.65) { smooth.x = entry.x; smooth.y = entry.y; }
-        entry = { enemy: entry.enemy, x: smooth.x, y: smooth.y, moving: movingDistance >= 0.65 };
-        return {
-            enemy: entry.enemy,
-            x: entry.x,
-            y: entry.y,
-            moving: entry.moving
-        };
-    });
+    const glideFrame = { now, deltaSec, gridProj };
+    // 자리 목록은 모든 적을 담고, 그릴 적은 따로 가른다(js/canvas-battle-draw-list.js: 보이는 적, 그 가운데 그림이 화면에 걸치는 적).
+    let dynamicLayout = battleDrawList.markDrawn(layout.map(entry => glideBattleEnemy(entry, glideFrame)), { width, height, tile: gridProj.tileW });
     let enemyPosMap = buildBattleEnemyPosMap(dynamicLayout, battleFx, now);
     playerMotionState.attackDirection = resolvePlayerAttackDirection(playerPos, currentTargets, enemyPosMap);
+    const stageStrikeSide = stageView.enabled() ? resolveStageStrikeSide(now) : null;
     if (playerMotion.animating) battleVisualState.playerFacingDirection = playerMotion.direction;
+    else if (stageStrikeSide) battleVisualState.playerFacingDirection = stageStrikeSide;
     else if (swingFx) battleVisualState.playerFacingDirection = playerMotionState.attackDirection;
     playerMotionState.facingDirection = battleVisualState.playerFacingDirection || playerMotionState.attackDirection;
 
@@ -2589,7 +2645,7 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
             requestBattleHitStop(fx);
             let enemyPos = enemyPosMap[fx.enemyId] || battleVisualState.enemyGhostPos[fx.enemyId];
             if (typeof fx.damage === 'number') {
-                const head = hanaActors.headY(now);
+                const head = getHeroHeadY(now);
                 spawnDamageText({
                     start: now,
                     x: playerPos.x,
@@ -2626,7 +2682,7 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
             let anchorPos = enemyPos || playerPos;
             if (bodyCue) {
                 // 회피 · 막아냄 · 성채화: 맞은 쪽 머리 위 가운데, 대미지 숫자와 같은 크기 결(2026-10-06 사용자 요청 — 몸 옆에 11px로 작게 떴다).
-                const head = enemyPos ? null : hanaActors.headY(now);
+                const head = enemyPos ? null : getHeroHeadY(now);
                 const bodyHeight = enemyPos ? (enemyPos.enemy ? getEnemyFieldBarLift(enemyPos.enemy) - 10 : 46)
                     : (head === null ? 82 * HERO_SIZE_SCALE : playerPos.y - head);
                 spawnDamageText({ start: now, ...getBodyCueAnchor(anchorPos, bodyHeight), value: fx.text || '회피!', miss: true, bodyCue: true,
@@ -2718,7 +2774,7 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
         } else if (fx.type === 'hit') {
             drawLegacyHitFeedback(ctx, fx, t, playerPos, enemyPosMap);
         } else if (fx.type === 'levelUp') {
-            drawLevelUpFx(ctx, fx, t, playerPos);
+            drawLevelUpFx(ctx, fx, t, playerPos, now);
         } else if (fx.type === 'objectReward') {
             worldTreeSkillFx.feedback.object(ctx, fx, t, gridProj);
         } else if (fx.type === 'playerHit') {
@@ -2832,15 +2888,19 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
         }
     });
     drawBattleLightingAndBars(ctx, { width, height, light: playerPos, hpPct: playerHpPct, ghostPct: playerHpGhostPct, esPct: playerEsPct, now, layout: dynamicLayout, targets: currentTargets, tileW: gridProj.tileW, projection: gridProj, pending: pendingEnemyCombatAttacks });
+    if (typeof stageScene === 'object' && stageView.enabled()) stageScene.drawMarks(ctx, gridProj);
     drawDamageTexts(ctx, now);
     ctx.setTransform(renderScale, 0, 0, renderScale, 0, 0);
     drawBattleScreenGrade(ctx, width, height, now);
     worldTreeSkillFx.feedback.screen(ctx, { width, height, now });
     drawBossAnnouncement(ctx, { width, height, now }, updateBossAnnouncement(enemies, now));
+    if (typeof stageRoomsView === 'object') stageRoomsView.drawFade(ctx, { width, height });
 
     // DOM은 그림을 다 그린 뒤에 만진다: 그리는 도중에 쓰면 다음 ctx.font나 ctx.filter가 문서 스타일을 다시 계산했다.
     setElementText(document.getElementById('ui-battlefield-caption'), getBattlefieldCaption());
     if (typeof actExplorationView === 'object' && actExplorationView.objects) actExplorationView.objects.flushButtons();
+    stageWarmup.afterBattleDraw(ctx); // 낀 젬의 이펙트를 미리 준비해 둔다(전투에서 처음 그릴 때 그림을 푸느라 멈추지 않게)
+    return true;
 }
 
 function getBattleCameraShake(now) {
@@ -2932,7 +2992,7 @@ function drawBattleLightingAndBars(ctx, scene) {
     bossAttackView.drawMarks(ctx, scene);
     drawBattlePlayerFigure.readability.draw(ctx);
     drawBattlefieldPlayerHealthBar(ctx, scene);
-    drawBattlefieldEnemyHealthBars(ctx, scene.layout.filter(entry => actExplorationView.inSight(entry.enemy)), scene.targets, scene.tileW);
+    drawBattlefieldEnemyHealthBars(ctx, scene.layout.filter(entry => entry.drawn), scene.targets, scene.tileW);
     actTitleCard.draw(ctx, scene.width, scene.height, scene.now);
 }
 
@@ -3027,21 +3087,15 @@ function drawBossAnnouncement(ctx, area, banner) {
     if (!banner) return;
     const { width } = area;
     const cy = getBossBannerY(area, banner);
-    const rift = isBattleLightingEnabled();
     ctx.save();
     ctx.globalAlpha = getBossBannerAlpha(banner.age);
-    // 도트 띠: 흐린 그라디언트 대신 납작한 어둠 + 위아래 2px 청동 선
-    ctx.fillStyle = 'rgba(6,4,4,0.9)'; // 뒤의 안내 글이 이름 뒤로 비쳤다(검토 9차)
-    ctx.fillRect(0, cy - 36, width, 66);
-    ctx.fillStyle = rift ? '#5d4a2e' : '#4a3a24';
-    ctx.fillRect(0, cy - 38, width, 2);
-    ctx.fillRect(0, cy + 30, width, 2);
     ctx.textAlign = 'center';
     // 좁은 화면(휴대폰)에서는 제목 글꼴의 자모가 벌어져 "잔ㄱㅏㅈㅣ"처럼 읽혔다(검토 8차) — 본문 도트 글꼴로.
     ctx.font = width < 640 ? `26px ${BATTLE_PIXEL_FONT}` : `32px ${BATTLE_TITLE_FONT}`;
     const name = getEnemyDisplayName(banner.boss);
     const half = Math.min(width * 0.42, ctx.measureText(name).width / 2 + 60);
     const mid = Math.round(width / 2);
+    drawBossBannerPlate(ctx, mid, cy, Math.round(half + 36));
     drawBossBannerRule(ctx, Math.round(mid - half), Math.round(mid + half), cy + 10);
     ctx.lineWidth = 4;
     ctx.lineJoin = 'miter';
@@ -3050,8 +3104,30 @@ function drawBossAnnouncement(ctx, area, banner) {
     ctx.fillStyle = '#f0c46a';
     ctx.fillText(name, mid, cy);
     ctx.font = `12px ${BATTLE_PIXEL_FONT}`;
-    fillPixelToneText(ctx, [`${getElementLabel(banner.boss.ele)} 속성 보스`, ...getEnemyDefenseHighlights(banner.boss)].join(', '), mid, cy + 25, '#d98a6a');
+    fillPixelToneText(ctx, [`${getElementLabel(banner.boss.ele)} 속성 보스`, getBossReach(banner.boss).label, ...getEnemyDefenseHighlights(banner.boss)].join(', '), mid, cy + 25, '#d98a6a');
     ctx.restore();
+}
+
+/** 이름 뒤의 판: 납작한 어둠과 위아래 2px 청동 선. 이름 너비만큼만 짙고 양 끝은 띠(BOSS_BANNER_FADE.step px)마다 옅어져 사라진다
+ * (2026-10-14: 화면 끝에서 끝까지 가로지르는 검은 띠가 전장을 가렸다). 뒤의 안내 글이 이름 뒤로 비치지 않게 가운데는 거의 불투명하다. */
+const BOSS_BANNER_FADE = Object.freeze({ reach: 168, step: 4 });
+function drawBossBannerPlate(ctx, mid, cy, half) {
+    const base = ctx.globalAlpha, line = isBattleLightingEnabled() ? '#5d4a2e' : '#4a3a24';
+    const strip = (x, w, strength) => {
+        ctx.globalAlpha = base * strength;
+        ctx.fillStyle = 'rgba(6,4,4,0.9)';
+        ctx.fillRect(x, cy - 36, w, 66);
+        ctx.fillStyle = line;
+        ctx.fillRect(x, cy - 38, w, 2);
+        ctx.fillRect(x, cy + 30, w, 2);
+    };
+    strip(mid - half, half * 2, 1);
+    for (let out = 0; out < BOSS_BANNER_FADE.reach; out += BOSS_BANNER_FADE.step) {
+        const strength = Math.pow(1 - (out + BOSS_BANNER_FADE.step) / BOSS_BANNER_FADE.reach, 2);
+        strip(mid - half - out - BOSS_BANNER_FADE.step, BOSS_BANNER_FADE.step, strength);
+        strip(mid + half + out, BOSS_BANNER_FADE.step, strength);
+    }
+    ctx.globalAlpha = base;
 }
 
 function drawBossBannerRule(ctx, left, right, y) {
@@ -3141,9 +3217,53 @@ function resolvePlayerAttackDirection(playerPos, currentTargets, enemyPosMap) {
     if (!anchor) return battleVisualState.playerAttackDirection || 'east';
     let dx = Number(anchor.x) - Number(playerPos.x);
     let dy = Number(anchor.y) - Number(playerPos.y);
-    let direction = Math.abs(dy) > 6 ? (dy < 0 ? 'north' : 'south') : (dx < 0 ? 'west' : 'east');
+    let direction = stageView.enabled() ? resolveStageAttackSide(dx)
+        : Math.abs(dy) > 6 ? (dy < 0 ? 'north' : 'south') : (dx < 0 ? 'west' : 'east');
     battleVisualState.playerAttackDirection = direction;
     return direction;
+}
+const STAGE_ATTACK_SIDE_DEAD_PX = 10;     // 대상이 이만큼(px) 안의 같은 세로줄이면 직전에 보던 쪽을 지킨다
+const STAGE_NATIVE_CAST_FACE_MS = 700;    // 따로 시전하는 젬을 쓴 뒤 그 겨냥한 쪽을 보는 동안
+let stageNativeCastFace = null;           // { side, until }: 막 쓴 따로 시전하는 젬이 겨냥한 쪽(그 젬의 기록이 치워진 뒤에도 연출이 끝날 때까지 지킨다)
+/** 옆에서 보는 무대: 주인공이 지금 치고 있는 쪽. 가장 늦게 시작한 공격이 겨냥한 칸(combatTravel 기록의 aimCell)이나, 그런 기록을 남기지
+ * 않는 따로 시전하는 젬(js/skill-gem-casts.js)이 겨냥한 자리를 주인공이 지금 선 칸에서 본 쪽이다. 지금 선 칸에서 보므로 적 옆으로
+ * 건너가 치는 이동기(그림자 점멸, 암살)는 건너간 뒤의 쪽을 답한다. 겨냥한 칸이 같은 세로줄이거나 치는 중이 아니면 null.
+ * 주인공 그림과 주인공에게 붙는 스킬 이펙트(js/canvas-stage-skill-kit.js heroFace)가 이 한 값으로 같은 쪽을 본다. */
+function resolveStageStrikeSide(now) {
+    const hero = game.gridPlayer, side = cell => (cell && cell.gx !== hero.gx ? (cell.gx < hero.gx ? 'west' : 'east') : null);
+    // 막 쓴 따로 시전하는 젬이 먼저다: 그 젬을 쓰는 동안에도 기본 공격은 다른 적을 겨냥해 이어질 수 있다(암살로 건너가 뒤를 베는 순간)
+    const cast = resolveStageNativeCastSide(side);
+    if (cast) return cast;
+    for (let index = battleFx.length - 1; index >= 0; index--) {
+        const fx = battleFx[index];
+        if (fx && fx.type === 'combatTravel' && fx.owner === 'player' && fx.aimCell && fx.start <= now) return side(fx.aimCell);
+    }
+    return null;
+}
+function resolveStageNativeCastSide(side) {
+    const clock = getCombatTime(), cast = latestStageNativeCast(clock), aimed = cast ? side(cast.aim) : null;
+    if (aimed) stageNativeCastFace = { side: aimed, until: cast.at + STAGE_NATIVE_CAST_FACE_MS };
+    // 암살은 베는 연출이 끝나기 전에 기록이 치워진다: 그동안 기본 공격의 다음 대상 쪽으로 돌아서면 등 뒤에서 베는 꼴이 된다
+    const kept = stageNativeCastFace;
+    if (kept && clock >= kept.until - STAGE_NATIVE_CAST_FACE_MS && clock <= kept.until) return kept.side;
+    stageNativeCastFace = null;
+    return null;
+}
+/** 막 쓴(STAGE_NATIVE_CAST_FACE_MS 안의) 따로 시전하는 젬의 기록: 주 스킬 자리의 것이 먼저, 없으면 이동기 자리의 것. */
+function latestStageNativeCast(clock) {
+    for (const state of [skillGemCombatRuntime, mobilitySkill.castState()]) {
+        const cast = state && state.casts.length ? state.casts[state.casts.length - 1] : null;
+        if (cast && cast.aim && clock >= cast.at && clock - cast.at <= STAGE_NATIVE_CAST_FACE_MS) return cast;
+    }
+    return null;
+}
+/** 옆에서 보는 무대의 주인공은 왼쪽이나 오른쪽만 본다: 대상이 선 쪽을 본다. 위에서 보는 전장의 규칙(대상이 다른 줄에 있으면 위나 아래)을
+ * 그대로 쓰면 무대의 주인공은 그때 직전 방향을 지켜, 왼쪽 위의 적을 치면서 오른쪽을 보고 서 있었고 스킬 이펙트만 왼쪽에 나왔다
+ * (2026-10-13 사용자: 이펙트가 "반대로 나오고"). 대상이 거의 같은 세로줄이면 직전에 보던 쪽을 지킨다. */
+function resolveStageAttackSide(dx) {
+    const last = battleVisualState.playerAttackDirection;
+    if (Math.abs(dx) <= STAGE_ATTACK_SIDE_DEAD_PX) return last === 'west' || last === 'east' ? last : (stageActors.facing() < 0 ? 'west' : 'east');
+    return dx < 0 ? 'west' : 'east';
 }
 
 // ACT 배경의 9x8 직교 그리드. 유닛 점유 칸과 플레이어의 현재 공격 칸을 함께 표시한다.
@@ -3171,7 +3291,7 @@ function drawBattleGridFloor(ctx, proj, theme, skillTargets, skillAreaCells, bac
     drawCosmosGravityField(ctx,proj);
     const map=getCombatGridSize(),run=actExplorationState.current(game);
     if(map.tiles) {
-        const sealed=actExplorationState.remainingElites(run)>0;
+        const sealed=actExplorationState.gateSealed(run);
         skillAreaCells=skillAreaCells.filter(cell=>actExplorationMap.walkable(map,cell,sealed));
     }
     const halfW = proj.tileW / 2;
@@ -3254,6 +3374,8 @@ function drawRiftCombatOccupants(ctx, layers) {
  * cells and the cell changes halfway, so a cell ring jumped ahead of the character. */
 function drawRiftPlayerRing(ctx, proj, feet) {
     if (!isBattleLightingEnabled() || !proj || !feet) return;
+    // 옆에서 보는 무대: 도트로 찍는 발밑 고리(js/canvas-stage-rings.js)
+    if (stageView.enabled()) return stageRings.ring(ctx, { x: feet.x, y: feet.y, dot: stageActors.scaleFor(proj.tileW) }, { tone: 'player', rx: 22, turning: true });
     const rx = proj.tileW * 0.4, ry = Math.max(4, rx * 0.34), tone = RIFT_CELL_TONES.player;
     ctx.save();
     ctx.globalAlpha = 1;
@@ -3267,22 +3389,29 @@ function drawRiftPlayerRing(ctx, proj, feet) {
     ctx.restore();
 }
 
-function getRiftUnitFootprintBox(proj, unit) {
+/** The screen box of a unit's cells. walking: an enemy on the stage is drawn short of its cell while it walks there
+ * (js/canvas-stage-stride.js), and its ring and target marks go with the picture, as the hero's ring does (2026-10-13 사용자). */
+function getRiftUnitFootprintBox(proj, unit, walking = false) {
     const cells = getGridUnitCells(unit);
     if (cells.length <= 0) return null;
     const points = cells.map(cell => proj.cellToScreen(cell.gx, cell.gy));
-    const xs = points.map(p => p.x), ys = points.map(p => p.y);
-    const left = Math.min(...xs) - proj.tileW / 2, right = Math.max(...xs) + proj.tileW / 2;
-    const top = Math.min(...ys) - proj.tileH / 2, bottom = Math.max(...ys) + proj.tileH / 2;
+    const xs = points.map(p => p.x), ys = points.map(p => p.y), stride = walking ? stageStride.read(unit, battleVisualState.visualNow) : null;
+    const dx = stride ? stride.dx * proj.tileW : 0, dy = stride ? stride.dy * proj.tileH : 0;
+    const left = Math.min(...xs) - proj.tileW / 2 + dx, right = Math.max(...xs) + proj.tileW / 2 + dx;
+    const top = Math.min(...ys) - proj.tileH / 2 + dy, bottom = Math.max(...ys) + proj.tileH / 2 + dy;
     return { left, right, top, bottom, cx: (left + right) / 2, cy: (top + bottom) / 2 };
 }
 
 function drawRiftUnitRing(ctx, proj, unit, tone) {
-    const box = getRiftUnitFootprintBox(proj, unit);
+    const box = getRiftUnitFootprintBox(proj, unit, tone === RIFT_CELL_TONES.enemy);
     if (!box) return;
     const rx = (box.right - box.left) * 0.4;
     const ry = Math.max(4, rx * 0.34);
     const cy = box.bottom - proj.tileH * 0.5 + (Number(proj.actorGroundOffsetY) || 0);
+    if (stageView.enabled()) {
+        const dot = stageActors.scaleFor(proj.tileW);
+        return stageRings.ring(ctx, { x: box.cx, y: cy, dot }, { tone: tone === RIFT_CELL_TONES.summon ? 'summon' : 'enemy', rx: Math.round(rx / dot * 0.86) });
+    }
     ctx.globalAlpha = 1;
     ctx.beginPath();
     ctx.ellipse(box.cx, cy, rx, ry, 0, 0, Math.PI * 2);
@@ -3299,12 +3428,23 @@ function drawRiftAreaCell(ctx, proj, cell) {
     const inset = Math.min(proj.tileW, proj.tileH) * 0.08;
     ctx.globalAlpha = 1;
     ctx.fillStyle = RIFT_CELL_TONES.area.fill;
+    if (stageView.enabled()) { drawStageAreaCell(ctx, c, proj, inset); return; }
     ctx.fillRect(c.x - proj.tileW / 2 + inset, c.y - proj.tileH / 2 + inset, proj.tileW - inset * 2, proj.tileH - inset * 2);
+}
+/** 옆에서 보는 무대: 스킬이 닿는 칸을 네모로 칠하면 그린 바닥 위에 상자가 얹힌 듯 보였다(2026-10-13 따로 맡긴 검토: "발밑에 황토색
+ * 사각형"). 칸에 눕힌 옅은 타원으로 그린다: 닿는 칸은 그대로 읽히고 바닥의 얼룩처럼 놓인다. */
+const STAGE_AREA_CELL_ALPHA = 0.6;
+function drawStageAreaCell(ctx, c, proj, inset) {
+    ctx.globalAlpha = STAGE_AREA_CELL_ALPHA;
+    ctx.beginPath();
+    ctx.ellipse(c.x, c.y, proj.tileW / 2 - inset, proj.tileH / 2 - inset, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
 }
 
 // 조준 대상: 발자국 상자의 네 모서리에만 짧은 꺾쇠를 긋는다.
 function drawRiftTargetBrackets(ctx, proj, unit) {
-    const box = getRiftUnitFootprintBox(proj, unit);
+    const box = getRiftUnitFootprintBox(proj, unit, true);
     if (!box) return;
     const arm = Math.min(box.right - box.left, box.bottom - box.top) * 0.22;
     const corners = [[box.left, box.top, 1, 1], [box.right, box.top, -1, 1], [box.left, box.bottom, 1, -1], [box.right, box.bottom, -1, -1]];

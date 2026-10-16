@@ -23,6 +23,32 @@ const passiveSelectionUi = (() => {
         return canRefundPassiveNode(node.id) && game.currencies.blightSpore > 0;
     }
 
+    function pathNodeDescription(id, index) {
+        const node = PASSIVE_TREE.nodes[id];
+        const name = getPassiveNodeDisplayName(node);
+        const effect = node.kind === 'attribute' ? '힘, 민첩, 지능 중 다음 단계에서 선택'
+            : normalizePassiveTooltipText(getPassiveEffectLabel(node).replace(/<br\s*\/?>/gi, ' / '));
+        const description = effect.startsWith(name + ' ') ? effect : `${name}${effect ? '\n' + effect : ''}`;
+        return `${index + 1}. ${description}`;
+    }
+
+    /** Show the same node descriptions as the tree, not a guessed final character-stat total. */
+    function confirmPath(node, path) {
+        const notes = [];
+        if (path.some(id => PASSIVE_TREE.nodes[id].kind === 'attribute')) {
+            notes.push('능력치 노드는 다음 단계에서 선택하며, 선택을 취소하면 포인트를 쓰지 않습니다.');
+        }
+        if (path.some(id => PASSIVE_TREE.nodes[id].activationRequirement || PASSIVE_TREE.nodes[id].connectedDevotionPenalty)) {
+            notes.push('조건부 효과와 연결 보정은 현재 투자 상태 기준입니다.');
+        }
+        const message = ['함께 활성화할 노드', ...path.map(pathNodeDescription), ...notes].join('\n\n');
+        return requestGameConfirmation(message, {
+            title: `${getPassiveNodeDisplayName(node)}까지 활성화`,
+            kicker: `최단 경로 노드 ${path.length}개`,
+            confirmLabel: `${path.length}포인트 사용`
+        });
+    }
+
     function present(node, tooltip, position) {
         if (!uiDisplay.matches('(max-width: 1080px)')) {
             invalidateTooltipSize(tooltip); tooltip.style.display = 'block';
@@ -74,6 +100,6 @@ const passiveSelectionUi = (() => {
             }
         }, true);
     }
-    return { present, hide, touch, bindTools };
+    return { present, hide, touch, bindTools, confirmPath };
 })();
 safeExposeGlobals({ passiveSelectionUi });

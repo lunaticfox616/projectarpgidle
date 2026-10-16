@@ -1,11 +1,12 @@
 /** 예전 저장의 동물 소환 젬 → 위습 정령 소환 젬 (스킬 변경분 2, 2026-09-30 · 표 data/wisp-summons.js LEGACY_SUMMON_GEM_TO_WISP).
+ * 2026-10-13에 지운 젬 다섯도 같은 길로 대신 받는 젬이 된다(표 data/skills.js RETIRED_GEM_SUCCESSORS).
  * mergeDefaults가 SKILL_DB에 없는 이름을 걸러내기 전에 부른다. 이름이 들어 있는 저장 필드를 모두 새 이름으로 바꾸고,
  * 같은 위습이 된 두 젬은 하나로 합친다: 젬 기록은 더 자란 쪽(레벨 → 경험치), 각성은 둘 중 하나라도, 소환 수는 합,
  * 하늘탑 젬 강화는 큰 쪽. 탐험 보상 줄은 한 줄로 합친다(같은 젬 두 줄은 저장 검증에서 거부된다).
  * 여러 번 불러와도 같다 — 예전 이름이 없으면 아무것도 바꾸지 않는다. 없는 필드는 만들지 않는다.
  */
 function renameLegacySummonGem(name) {
-    return LEGACY_SUMMON_GEM_TO_WISP[name] || name;
+    return LEGACY_SUMMON_GEM_TO_WISP[name] || RETIRED_GEM_SUCCESSORS[name] || name;
 }
 
 /** Gem record that grew further (level, then experience). */
@@ -21,8 +22,8 @@ function pickGrownLegacySummonGem(gemData, names) {
 function legacySummonGemSources(gemData) {
     const sources = {};
     Object.keys(gemData).forEach(name => {
-        const wisp = LEGACY_SUMMON_GEM_TO_WISP[name];
-        if (wisp) (sources[wisp] = sources[wisp] || []).push(name);
+        const wisp = renameLegacySummonGem(name);
+        if (wisp !== name) (sources[wisp] = sources[wisp] || []).push(name);
     });
     return sources;
 }
@@ -77,7 +78,7 @@ function migrateLegacySummonGemLoadout(state) {
     ['skills', 'sealedSkills', 'equippedSummonSkills'].forEach(key => {
         if (Array.isArray(state[key])) state[key] = [...new Set(state[key].map(renameLegacySummonGem))];
     });
-    ['activeSkill', 'gemEnhanceTargetSkill', 'starterGemTutorialPending'].forEach(key => {
+    ['activeSkill', 'mobilitySkill', 'gemEnhanceTargetSkill', 'starterGemTutorialPending'].forEach(key => {
         if (typeof state[key] === 'string') state[key] = renameLegacySummonGem(state[key]);
     });
     if (state.summonSkillCounts && typeof state.summonSkillCounts === 'object') {

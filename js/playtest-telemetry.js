@@ -238,15 +238,32 @@ function ensurePerformancePanel() {
     return panel;
 }
 
+/** 성능 패널(주소에 debug=perf). 두 가지 수를 갈라 적는다(2026-10-13 성능 작업): 화면이 프레임을 부른 횟수는 화면의 주사율과 메인
+ * 스레드가 막힌 시간을 말할 뿐 게임이 그린 횟수가 아니다. 전장이 실제로 그려진 횟수와 그 박자, 그리는 데 쓴 메인 스레드 시간은
+ * js/battle-frame-stats.js가 센다. 메모리는 JS 힙만이다(그림과 GPU가 쓰는 메모리는 여기에 없다). */
 function updatePerformancePanel() {
     let panel = ensurePerformancePanel();
     if (!panel) return;
     let average = getLiveFrameAverage();
     let summary = getPlaytestFrameSummary();
-    let fps = average > 0 ? Math.min(999, 1000 / average) : 0;
-    let memory = performance && performance.memory
-        ? `\n메모리 ${(performance.memory.usedJSHeapSize / 1048576).toFixed(0)}MB` : '';
-    panel.textContent = `FPS ${fps.toFixed(0)}\n평균 ${average.toFixed(1)}ms\np95 ${(summary.p95 || 0).toFixed(1)}ms\n긴 프레임 ${summary.longFrames}\nFX ${playtestRuntime.currentFx} / ${summary.peakFx}${memory}`;
+    let calls = average > 0 ? Math.min(999, 1000 / average) : 0;
+    let lines = [
+        `화면 갱신 ${calls.toFixed(0)}/s (브라우저가 프레임을 부른 횟수)`,
+        `갱신 간격 평균 ${average.toFixed(1)}ms, p95 ${(summary.p95 || 0).toFixed(1)}ms, 50ms 넘음 ${summary.longFrames}`
+    ].concat(getBattleDrawPanelLines(), [`FX ${playtestRuntime.currentFx} / ${summary.peakFx}`]);
+    if (performance && performance.memory) lines.push(`JS 힙 ${(performance.memory.usedJSHeapSize / 1048576).toFixed(0)}MB (그림과 GPU 메모리는 빼고)`);
+    panel.textContent = lines.join('\n');
+}
+
+function getBattleDrawPanelLines() {
+    let frame = battleFrameStats.frameSummary();
+    if (!frame) return ['전장 그리기 아직 없음'];
+    return [
+        `전장 그리기 ${frame.draws}/s (박자 ${frame.pace}/s, 박자보다 늦음 ${frame.late}/${frame.samples})`,
+        `그리기 간격 평균 ${frame.gapMs.mean}ms, p95 ${frame.gapMs.p95}ms, 최대 ${frame.gapMs.worst}ms`,
+        `그리기 CPU 평균 ${frame.cpuMs.mean}ms, p95 ${frame.cpuMs.p95}ms, 최대 ${frame.cpuMs.worst}ms (메인 스레드)`,
+        `방 그림 준비 ${frame.rooms.count}번, 최근 ${frame.rooms.lastMs.toFixed(1)}ms, 최대 ${frame.rooms.worstMs.toFixed(1)}ms`
+    ];
 }
 
 function sanitizeClientErrorText(value, maxLength) {

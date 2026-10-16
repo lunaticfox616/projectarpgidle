@@ -3751,6 +3751,11 @@ function getPassiveKeystoneConflict(path) {
 
 function activatePassivePath(targetNodeId, options) {
     let path = getPassiveActivationPath(targetNodeId);
+    const expected = options && options.expectedPath;
+    if (expected && (path.length !== expected.length || path.some((id, index) => id !== expected[index]))) {
+        return { activated: false, cost: path.length, path: path.slice(), reason: 'changed',
+            message: '확인 중 연결 경로가 바뀌었습니다. 노드를 다시 선택해 주세요.' };
+    }
     if (path.length === 0) return { activated: false, cost: 0, path: [] };
     let conflict = getPassiveKeystoneConflict(path);
     if (conflict) return { activated: false, cost: path.length, path: path.slice(), reason: 'conflict', message: conflict };
@@ -4774,37 +4779,6 @@ function formatDamageNumberForDisplay(value, format) {
 }
 
 const MAX_BATTLE_DAMAGE_TEXTS = 48;
-const DAMAGE_TEXT_STACK_WINDOW_MS = 520;
-const DAMAGE_TEXT_STACK_SPACING = 23;
-const DAMAGE_TEXT_STACK_SHIFT_MS = 90;
-const DAMAGE_TEXT_MAX_STACK = 9;
-
-function getDamageTextStackShift(text, now) {
-    let from = Number(text && text.stackShiftFrom) || 0;
-    let to = Number(text && text.stackShiftTo) || 0;
-    let startedAt = Number(text && text.stackShiftStart);
-    if (!Number.isFinite(startedAt) || from === to) return to;
-    let t = clampNumber((now - startedAt) / DAMAGE_TEXT_STACK_SHIFT_MS, 0, 1);
-    let eased = 1 - Math.pow(1 - t, 3);
-    return from + (to - from) * eased;
-}
-
-function queueDamageTextStackShift(activeTexts, start, x, y, enemyHit) {
-    activeTexts.forEach(text => {
-        let age = start - Number(text && text.start);
-        if (!Number.isFinite(age)
-            || age < 0
-            || age > DAMAGE_TEXT_STACK_WINDOW_MS
-            || !!text.enemyHit !== !!enemyHit
-            || Math.abs(Number(text.x) - x) > 34
-            || Math.abs(Number(text.y) - y) > 40) return;
-        let currentShift = getDamageTextStackShift(text, start);
-        let priorTarget = Math.min(currentShift, Number(text.stackShiftTo) || 0);
-        text.stackShiftFrom = currentShift;
-        text.stackShiftTo = Math.max(-DAMAGE_TEXT_STACK_SPACING * DAMAGE_TEXT_MAX_STACK, priorTarget - DAMAGE_TEXT_STACK_SPACING);
-        text.stackShiftStart = start;
-    });
-}
 
 function mergeDamageTextByKey(activeTexts, config, start, x, y) {
     if (!config.aggregateKey || config.bodyCue || config.dot || config.miss) return false;
@@ -4844,7 +4818,6 @@ function spawnDamageText(config) {
     let y = Number.isFinite(Number(config.y)) ? Number(config.y) : 0;
     let activeTexts = battleVisualState.damageTexts || (battleVisualState.damageTexts = []);
     if (mergeDamageTextByKey(activeTexts, config, start, x, y)) return;
-    if (!config.bodyCue) queueDamageTextStackShift(activeTexts, start, x, y, config.enemyHit);
     activeTexts.push({
         start: start,
         duration: getDamageTextDuration(config),
@@ -4854,9 +4827,6 @@ function spawnDamageText(config) {
         offsetY: 0,
         driftX: 0,
         side: Math.sign(Number(config.side) || 0),
-        stackShiftFrom: 0,
-        stackShiftTo: 0,
-        stackShiftStart: start,
         value: config.value || 0,
         hitCount: 1,
         aggregateKey: config.aggregateKey || '',
@@ -4913,15 +4883,6 @@ function isStrongDamageText(text) {
 function getDamageTextPeakAlpha(text) {
     return text.enemyHit || text.miss || text.bodyCue || isStrongDamageText(text) ? 1 : 0.9;
 }
-// 치명타·강타 숫자는 처음 잠깐 크게 튀어나왔다가 제자리 크기로 돌아온다(표시 전용).
-function applyDamageTextPop(ctx, text, t, anchor) {
-    if (text.bodyCue || (!text.crit && text.impactTier !== 'heavy' && text.impactTier !== 'annihilate')) return;
-    const pop = 1 + 0.38 * (1 - clampNumber(t / 0.16, 0, 1));
-    ctx.translate(anchor.x, anchor.y);
-    ctx.scale(pop, pop);
-    ctx.translate(-anchor.x, -anchor.y);
-}
-
 /** A damage number's text, formatted once per value and number format: toLocaleString for every number on screen every frame
  * was a measurable share of the frame (2026-10-07 frame drops). */
 function getDamageTextLabel(text) {
@@ -4934,23 +4895,70 @@ function getDamageTextLabel(text) {
 }
 
 function drawDamageTexts(ctx, now) {
-    (battleVisualState.damageTexts || []).forEach(text => {
-        let elapsed = now - Number(text.start);
-        if (!Number.isFinite(elapsed) || elapsed < 0 || elapsed > text.duration) return;
-        let t = clampNumber(elapsed / text.duration, 0, 1);
-        let easedRise = 1 - Math.pow(1 - t, 2);
-        let rise = text.bodyCue ? 10 : ((text.dot ? 14 : 20) + (text.crit ? 5 : 0));
-        let x = text.x;
-        let y = text.y + getDamageTextStackShift(text, now) - rise * easedRise;
+    drawDamageTexts.paint(ctx, now);
+}
+
+/** Keep each hit's body-centred x anchor. New labels reserve their actual glyph/pop/count bounds; older overlapping labels
+ * rise only as far as needed. A label keeps its lift until it expires, so removing a neighbour never makes it jump down.
+ * All categories share this layout, including incoming damage and block/evade cues. No combat or saved state is changed. */
+drawDamageTexts.paint = (() => {
+    const MAX_LIFT = 207, GAP = 3;
+    function font(text) {
+        const tier = text.impactTier === 'annihilate' ? 32 : (text.impactTier === 'heavy' ? 28 : 0);
+        const size = text.bodyCue ? 20 : (tier || (text.miss ? 16 : (text.dot ? 17 : (text.crit ? 25 : 21))));
+        return `800 ${size}px "DOSSaemmul", "Malgun Gothic", sans-serif`;
+    }
+    function appearance(text, t) {
+        const align = text.side > 0 ? 'left' : (text.side < 0 ? 'right' : 'center');
+        const pop = isStrongDamageText(text) ? 1 + 0.38 * (1 - clampNumber(t / 0.16, 0, 1)) : 1;
+        const label = text.miss ? String(text.value) : getDamageTextLabel(text);
+        return { font: font(text), align, pop, label };
+    }
+    function measure(ctx, row) {
+        const { text, pop } = row;
+        ctx.font = row.font; ctx.textAlign = row.align;
+        const metrics = ctx.measureText(row.label);
+        const count = !text.bodyCue && !text.miss && text.hitCount > 1 ? `${Math.floor(text.hitCount)}타` : '';
+        // Korean unit glyphs can overhang their advance width; leave a real gap before the hit-count suffix.
+        const countX = metrics.actualBoundingBoxRight + GAP * 2;
+        ctx.font = '800 10px "DOSSaemmul", "Malgun Gothic", sans-serif';
+        const right = Math.max(metrics.actualBoundingBoxRight, count ? countX + ctx.measureText(count).width : 0);
+        const box = { x: text.x - (metrics.actualBoundingBoxLeft + GAP) * pop,
+            y: row.y - (metrics.actualBoundingBoxAscent + GAP) * pop,
+            w: (metrics.actualBoundingBoxLeft + right + GAP * 2) * pop,
+            h: (metrics.actualBoundingBoxAscent + metrics.actualBoundingBoxDescent + GAP * 2) * pop };
+        return { ...row, count, countX, box };
+    }
+    function frame(ctx, text, now) {
+        const elapsed = now - Number(text.start);
+        if (!Number.isFinite(elapsed) || elapsed < 0 || elapsed > text.duration) return null;
+        const t = clampNumber(elapsed / text.duration, 0, 1);
+        const rise = text.bodyCue ? 10 : ((text.dot ? 14 : 20) + (text.crit ? 5 : 0));
+        const y = text.y - rise * (1 - Math.pow(1 - t, 2));
+        return measure(ctx, { text, t, x: text.x, y, ...appearance(text, t) });
+    }
+    function place(row, taken) {
+        const limit = Math.min(MAX_LIFT, Math.max(0, row.box.y - GAP));
+        let lift = Math.min(limit, row.text.readabilityLift || 0);
+        row.box.y -= lift;
+        // Bottom to top: moving above one box cannot re-enter a box already visited. At most 48x48 checks, no search loop.
+        for (const other of taken) {
+            if (row.box.x >= other.x + other.w || row.box.x + row.box.w <= other.x
+                || row.box.y >= other.y + other.h + GAP || row.box.y + row.box.h + GAP <= other.y) continue;
+            const move = Math.min(limit - lift, row.box.y + row.box.h + GAP - other.y);
+            lift += move; row.box.y -= move;
+        }
+        row.y -= lift;
+        row.text.readabilityLift = lift;
+        taken.push(row.box);
+        taken.sort((a, b) => b.y + b.h - a.y - a.h);
+    }
+    function paint(ctx, row) {
+        const { text, t, x, y } = row;
         ctx.save();
         ctx.globalAlpha = getDamageTextPeakAlpha(text) * (t < 0.62 ? 1 : Math.max(0, (1 - t) / 0.38));
-        // Sizes chosen for the pixel font over a busy floor (2026-10-05 user request: numbers were hard to see).
-        const tierSize = text.impactTier === 'annihilate' ? 32 : (text.impactTier === 'heavy' ? 28 : 0);
-        const fontSize = text.bodyCue ? 20 : (tierSize || (text.miss ? 16 : (text.dot ? 17 : (text.crit ? 25 : 21))));
-        ctx.font = `800 ${fontSize}px "DOSSaemmul", "Malgun Gothic", sans-serif`;
-        ctx.textAlign = text.side > 0 ? 'left' : (text.side < 0 ? 'right' : 'center');
-        applyDamageTextPop(ctx, text, t, { x, y });
-        let textValue = text.miss ? String(text.value) : getDamageTextLabel(text);
+        ctx.font = row.font; ctx.textAlign = row.align;
+        ctx.translate(x, y); ctx.scale(row.pop, row.pop); ctx.translate(-x, -y);
         const strong = isStrongDamageText(text);
         // Strokes straddle the glyph edge, so 2px reads as a 1px dark outline. Only crits and heavy hits keep a glow.
         ctx.lineWidth = text.impactTier === 'annihilate' ? 4 : (strong ? 3.5 : 3);
@@ -4958,25 +4966,31 @@ function drawDamageTexts(ctx, now) {
         ctx.strokeStyle = 'rgba(2,5,9,0.92)';
         ctx.shadowColor = text.impactTier === 'annihilate' ? 'rgba(255,155,72,.5)' : (strong ? 'rgba(255,211,102,0.38)' : 'transparent');
         ctx.shadowBlur = text.bodyCue ? 0 : (text.impactTier === 'annihilate' ? 7 : (strong ? 4 : 0));
-        ctx.strokeText(textValue, x, y);
+        ctx.strokeText(row.label, x, y);
         // The fill sits inside the stroke, so the stroke pass already casts the whole glow.
         ctx.shadowBlur = 0;
         ctx.fillStyle = getDamageTextFillColor(text);
-        ctx.fillText(textValue, x, y);
-        if (!text.bodyCue && !text.miss && Math.floor(Number(text.hitCount) || 1) > 1) {
-            let hitLabel = `${Math.floor(text.hitCount)}타`;
-            let valueWidth = ctx.measureText(textValue).width;
-            let labelX = x + (text.side > 0 ? valueWidth : (text.side < 0 ? 0 : valueWidth / 2)) + 4;
+        ctx.fillText(row.label, x, y);
+        if (row.count) {
             ctx.font = `800 10px "DOSSaemmul", "Malgun Gothic", sans-serif`;
             ctx.textAlign = 'left';
             ctx.lineWidth = 1.2;
-            ctx.strokeText(hitLabel, labelX, y - 3);
+            ctx.strokeText(row.count, x + row.countX, y - 3);
             ctx.fillStyle = '#c8d9e8';
-            ctx.fillText(hitLabel, labelX, y - 3);
+            ctx.fillText(row.count, x + row.countX, y - 3);
         }
         ctx.restore();
-    });
-}
+    }
+    return function render(ctx, now) {
+        ctx.save();
+        try {
+            const rows = (battleVisualState.damageTexts || []).map(text => frame(ctx, text, now)).filter(Boolean);
+            const taken = [];
+            for (let i = rows.length - 1; i >= 0; i--) place(rows[i], taken);
+            rows.forEach(row => paint(ctx, row));
+        } finally { ctx.restore(); }
+    };
+})();
 
 function getSpriteFrameRectByIndex(image, frameIndex, config) {
     if (!image || !config) return null;
@@ -5465,6 +5479,7 @@ function isDeathOverlayOpen() {
 
 function toggleDeathNoticeSetting(checked) {
     game.settings.showDeathNotice = !!checked;
+    if (!checked) openDeathOverlay.pending = null;
     let settingsCheckbox = document.getElementById('chk-death-notice');
     let inlineCheckbox = document.getElementById('chk-death-notice-inline');
     if (settingsCheckbox) settingsCheckbox.checked = !!checked;
@@ -5669,6 +5684,7 @@ function openDeathOverlay(log) {
     if (game.isBackgroundCalculation) return;
     let overlay = document.getElementById('death-overlay');
     if (!log || !overlay) return;
+    openDeathOverlay.pending = null;
     activeDeathLog = log;
     let ailments = Array.isArray(log.activeAilments) ? log.activeAilments.filter(entry => entry && entry.type) : [];
     let ailmentText = ailments.length > 0
@@ -5693,6 +5709,31 @@ function openDeathOverlay(log) {
     overlay.showModal();
     lastTime = Date.now();
 }
+
+// 자동 알림은 관리 화면과 다른 선택 창을 가리지 않는다. 저장된 사망 기록은 즉시 갱신되고,
+// 표시 예약만 가장 최근 한 건으로 합친다. 이미 읽는 기록은 새 사망으로 덮어쓰지 않는다.
+openDeathOverlay.request = function requestDeathNotice(log) {
+    if (game.isBackgroundCalculation || isDeathOverlayOpen()) return;
+    openDeathOverlay.pending = { owner: game, log };
+    openDeathOverlay.flushPending();
+};
+
+openDeathOverlay.flushPending = function flushPendingDeathNotice() {
+    const pending = openDeathOverlay.pending;
+    if (!pending) return;
+    if (pending.owner !== game || pending.log !== game.lastDeathLog || game.settings.showDeathNotice === false) {
+        openDeathOverlay.pending = null;
+        return;
+    }
+    if (game.isBackgroundCalculation || document.hidden) return;
+    const body = document.body.classList;
+    const managing = body.contains('desktop-windowed-ui')
+        ? body.contains('ui-management-mode')
+        : !document.getElementById('tab-battle').classList.contains('active');
+    if (managing) return;
+    if (document.querySelector('dialog[open], .tutorial-overlay.active, .selection-overlay, #background-combat-result-overlay, #startup-overlay.active, #loading-overlay.active')) return;
+    openDeathOverlay(pending.log);
+};
 
 function openLastDeathLog() {
     if (!game.lastDeathLog) return addLog('아직 기록된 데스로그가 없습니다.', 'attack-monster');
@@ -6485,9 +6526,7 @@ function initBattleAssets() {
         skillFxEarthSpike: 'assets/effects/pixel-earth-spike-v1.png',
         skillFxDotField: 'assets/effects/skill-dot-field-v2.png',
         skillFxSummonStrike: 'assets/effects/skill-summon-strike-v1.png',
-        skillFxFocusBeam: 'assets/effects/channel-focus-beam-v2.png',
         skillFxDragonBreath: 'assets/effects/skill-dragon-breath-v3.png',
-        skillFxVoidCutter: 'assets/effects/channel-void-cutter-v2.png',
         passiveTreeIcons: 'assets/ui/passive-tree-icons-v3.webp',
         passiveTreeKeystoneIcons: 'assets/ui/passive-tree-keystone-icons-v1.webp',
         passiveTreeNotableIcons: 'assets/ui/passive-tree-notable-icons-v4.webp',

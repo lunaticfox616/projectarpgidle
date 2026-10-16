@@ -204,6 +204,26 @@ function migrateRetiredWoodMonsters(merged) {
     });
 }
 
+/** 2026-10-13: 새 그림이 없던 영역 몬스터 열하나를 지웠다(data/bosses.js RETIRED_REALM_MONSTERS). 모은 외형은 대신하는 몬스터의 것이 되고,
+ * 싸우던 적은 그 몬스터의 외형과 이름으로 바뀌어 공격 방식을 다시 정한다(그림을 따른다). 두 번 불러와도 같다. */
+function migrateRetiredRealmMonsters(merged) {
+    const skins = merged.unlockedMonsterSkins;
+    if (skins && typeof skins === 'object') Object.entries(RETIRED_REALM_MONSTERS).forEach(([old, next]) => {
+        if (skins[old]) skins[next] = true;
+        delete skins[old];
+    });
+    merged.selectedMonsterSkin = RETIRED_REALM_MONSTERS[merged.selectedMonsterSkin] || merged.selectedMonsterSkin;
+    const packs = Array.isArray(merged.actExploration?.packs) ? merged.actExploration.packs : [];
+    [merged.enemies, ...packs.map(pack => pack?.waiting)].filter(Array.isArray).flat().forEach(retireRealmMonsterVisual);
+}
+function retireRealmMonsterVisual(enemy) {
+    const next = enemy && RETIRED_REALM_MONSTERS[enemy.monsterVisualId], def = next ? getRealmMonsterVisualDefinitionById(next) : null;
+    if (!def) return;
+    if (enemy.baseMonsterName && typeof enemy.name === 'string') enemy.name = enemy.name.replace(enemy.baseMonsterName, def.name);
+    Object.assign(enemy, { monsterVisualId: def.id, baseMonsterName: def.name });
+    ['attackKind', 'attackRange', 'attackDelivery', 'projectileToEdge', 'attackCastMs', 'attackLabel'].forEach(key => delete enemy[key]);
+}
+
 /** Realm sets fight as drawn since 2026-10-03: a realm enemy saved with the old per-visual roll picks its attack again. */
 function resetRedrawnRealmAttack(enemy) {
     const kind = enemy && enemy.monsterVisualId ? getMonsterVisualAttackKind(enemy.monsterVisualId) : null;
@@ -989,6 +1009,7 @@ function mergeDefaults(save) {
         : null;
     merged.settings.showDeathNotice = merged.settings.showDeathNotice !== false;
     merged.settings.uiSounds = merged.settings.uiSounds !== false;
+    merged.settings.soundVolume = clampFiniteNumber(merged.settings.soundVolume, 100, 0, 100);
     // 라이트 모드는 2026-09 UI 개편에서 제거됐다(다크 전용). 이전 저장의 설정값은 버린다.
     delete merged.settings.themeMode;
     merged.settings.uiSkin = normalizeUiSkin(merged.settings.uiSkin);
@@ -1303,6 +1324,7 @@ function mergeDefaults(save) {
     stripRemovedStarWedges(merged);
     stripRemovedAuxSystems(merged);
     migrateRetiredWoodMonsters(merged);
+    migrateRetiredRealmMonsters(merged);
     // Removed battlefield shrines: discard pending encounters and temporary blessings on every load.
     delete merged.shrineState;
     delete merged.shrineBuff;

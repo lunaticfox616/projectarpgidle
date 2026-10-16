@@ -26,8 +26,8 @@ const files = [
   'data/content-progression.js',
   'data/offline-progress.js',
   'js/utils.js',
-  'js/exploration-layouts.js', 'js/content-maps.js', 'js/act-exploration-map.js', 'js/act-exploration-motion.js', 'js/act-exploration-loot.js',
-  'js/act-exploration-state.js', 'js/exploration-objects.js', 'js/exploration-ground-loot.js',
+  'js/exploration-layouts.js', 'js/content-maps.js', 'js/act-exploration-map.js', 'js/act-exploration-rooms.js', 'js/act-exploration-sight.js', 'js/act-exploration-motion.js', 'js/act-exploration-loot.js',
+  'js/act-exploration-state.js', 'js/exploration-objects.js', 'js/act-exploration-doors.js', 'js/exploration-ground-loot.js',
   'data/ascendancies.js', 'js/state.js',
   'js/combat-loot-receipts.js',
   'js/level-progression.js', 'js/combat-equipment-stats.js', 'js/player-stat-cache.js',
@@ -205,7 +205,9 @@ const cfg = context.COMBAT_GRID_CONFIG;
     [realmNormal, realmElite, realmBoss].forEach((enemy, roleIndex) => {
       const definition = context.getRealmMonsterVisualDefinitionById(enemy.monsterVisualId);
       assert.strictEqual(enemy.monsterVisualSetId, setId, `${setId} 구역은 전용 몬스터 세트를 사용해야 한다`);
-      assert.strictEqual(definition.role, ['normal', 'elite', 'boss'][roleIndex], `${setId} 전용 역할 이미지가 일치해야 한다`);
+      // 정예 종류가 남지 않은 영역(2026-10-13에 예전 그림뿐인 종류를 지운 지하계)의 정예는 그 영역의 일반 몬스터가 맡는다
+      const role = ['normal', 'elite', 'boss'][roleIndex], ownElite = context.REALM_MONSTER_VISUAL_SETS[setId].members.some(member => member.role === 'elite');
+      assert.strictEqual(definition.role, role === 'elite' && !ownElite ? 'normal' : role, `${setId} 전용 역할 이미지가 일치해야 한다`);
     });
     assert.strictEqual(realmNormal.name, realmNormal.baseMonsterName, `${setId} 일반 몬스터 이름과 이미지가 일치해야 한다`);
     assert.strictEqual(realmElite.name, `${realmElite.trait.name} ${realmElite.baseMonsterName}`,
@@ -213,14 +215,20 @@ const cfg = context.COMBAT_GRID_CONFIG;
   });
 
   Object.values(context.REALM_MONSTER_VISUAL_SETS).forEach(set => {
-    assert.deepStrictEqual(['normal', 'elite', 'boss'].map(role => set.members.filter(member => member.role === role).length), [4, 2, 1],
-      '각 영역 세트는 일반 4·정예 2·보스 1종이다');
+    const kinds = ['normal', 'elite', 'boss'].map(role => set.members.filter(member => member.role === role).length);
+    assert(kinds[0] >= 2 && kinds[2] === 1, '각 영역 세트는 일반 2종 이상과 보스 1종을 가진다(정예 종류는 없을 수 있다)');
+    assert(set.members.every(member => !context.RETIRED_REALM_MONSTERS[member.id]), '지운 영역 몬스터는 세트에 남지 않는다');
     set.members.forEach(member => {
       const sheet = context.MONSTER_SPRITE_SHEETS[member.id];
       assert(sheet, `${member.id}는 제 시트로 그린다`);
       assert.strictEqual(context.MONSTER_SPRITE_KINDS[sheet.kind].frame, member.role === 'boss' ? 64 : 48,
         `${member.id} 칸 크기(보스 64, 나머지 48)`);
     });
+  });
+
+  Object.entries(context.RETIRED_REALM_MONSTERS).forEach(([old, next]) => {
+    assert(!context.MONSTER_SPRITE_SHEETS[old] && !context.getRealmMonsterVisualDefinitionById(old), `${old}는 지워진 종류다`);
+    assert(context.getRealmMonsterVisualDefinitionById(next) && next.split('-')[0] === old.split('-')[0], `${old}는 같은 영역에 남은 몬스터가 잇는다`);
   });
 
   const wispVariants = context.buildWispEnemyVariants({
@@ -1579,9 +1587,9 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   target.hp = target.maxHp;
   context.game.passives = ['nkf64engb6m', 'nwn5msikamo'];
   context.game.passiveSpecialization = { keystoneChoices: { wisdom_leap_element: 'chaos' } };
-  context.game.activeSkill = '공허 절삭광';
-  context.game.skills = Array.from(new Set([...(context.game.skills || []), '공허 절삭광']));
-  context.game.gemData['공허 절삭광'] = { level: 20, exp: 0, quality: 0 };
+  context.game.activeSkill = '암흑 파열';
+  context.game.skills = Array.from(new Set([...(context.game.skills || []), '암흑 파열']));
+  context.game.gemData['암흑 파열'] = { level: 20, exp: 0, quality: 0 };
   const chaosSkillStats = context.getPlayerStats();
   Object.assign(chaosSkillStats, {
     minDmgRoll: 100, maxDmgRoll: 100, accuracy: 1000000, crit: 0,
@@ -2186,8 +2194,15 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
 {
   const boss = { isBoss: true };
   context.assignEnemyGridCombatProfile(boss);
-  assert.strictEqual(boss.attackKind, 'ranged', '보스는 항상 원거리여야 한다');
+  assert.strictEqual(boss.attackKind, 'ranged', '싸우는 거리가 정해지지 않은 보스는 사거리 무한이어야 한다');
   assert.strictEqual(boss.attackRange, cfg.bossAttackRange);
+  // 보스마다 정해진 싸우는 거리(data/bosses.js BOSS_REACH): 근접은 붙어서, 사거리 있음은 그 칸 수, 사거리 무한은 방 어디든
+  const reachOf = assetKey => { const row = { isBoss: true, bossAssetKey: assetKey }; context.assignEnemyGridCombatProfile(row); return [row.attackKind, row.attackRange]; };
+  assert.deepStrictEqual(reachOf('bossAct1'), ['melee', cfg.meleeAttackRange], '근접 보스는 붙어야 친다');
+  assert.deepStrictEqual(reachOf('bossAct5'), ['ranged', context.BOSS_REACH.kinds.ranged.range], '사거리 있는 보스는 그 칸 수 안에서 쏜다');
+  assert.deepStrictEqual(reachOf('bossAct9'), ['ranged', cfg.bossAttackRange], '사거리 무한 보스는 방 어디든 닿는다');
+  assert.ok(Object.values(context.BOSS_REACH.byAsset).every(kind => context.BOSS_REACH.kinds[kind]), '보스 그림마다 적힌 거리는 정해 둔 세 가지 가운데 하나다');
+  assert.strictEqual(Math.round(context.BOSS_REACH.stepSec * 10), context.BOSS_REACH.stepSec * 10, '보스의 걸음은 전투 틱(0.1초)의 배수다');
   const originalRandom = Math.random;
   try {
     Math.random = () => 0.0; // meleeEnemyChance 미만 → 근접
@@ -2479,12 +2494,14 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   context.game.gridPlayer = { gx: 1, gy: 6, gridMoveTimer: 0 };
   const target = makeEnemy(301, 6, 6, { hp: 100000, maxHp: 100000 });
   context.game.enemies = [target];
-  const channelSkill = context.SKILL_DB['집중 광선'];
-  const channelTargets = context.selectGridSkillTargets('집중 광선', channelSkill, context.game.gridPlayer, context.game.enemies);
-  const channelStages = context.buildSkillHitSequence('집중 광선', channelSkill, channelTargets);
-  assert.strictEqual(channelStages.length, 5, '집중 광선은 다섯 번의 실제 시간차 타격이어야 한다');
-  assert.deepStrictEqual(Array.from(channelStages, stage => stage.delayMs), [0, 180, 360, 540, 720], '채널링 타격 간격은 젬 정의와 일치해야 한다');
-  assert.ok(Math.abs(context.getSkillHitSequenceDpsMultiplier('집중 광선', channelSkill) - 1.1) < 1e-9, '표시 DPS는 채널링 5회의 총 배율을 반영해야 한다');
+  // 채널 젬의 본보기는 용화 숨결이다(집중 광선과 공허 절삭광은 2026-10-13에 지웠다).
+  const channelSkill = context.SKILL_DB['용화 숨결'];
+  // 숨결의 사거리는 4칸이다: 다섯 칸 떨어진 대상을 한 칸 다가선 자리에서 겨눈다
+  const channelTargets = context.selectGridSkillTargets('용화 숨결', channelSkill, { gx: 2, gy: 6 }, context.game.enemies);
+  const channelStages = context.buildSkillHitSequence('용화 숨결', channelSkill, channelTargets);
+  assert.strictEqual(channelStages.length, 4, '용화 숨결은 네 번의 실제 시간차 타격이어야 한다');
+  assert.deepStrictEqual(Array.from(channelStages, stage => stage.delayMs), [0, 220, 440, 660], '채널링 타격 간격은 젬 정의와 일치해야 한다');
+  assert.ok(Math.abs(context.getSkillHitSequenceDpsMultiplier('용화 숨결', channelSkill) - 1.08) < 1e-9, '표시 DPS는 채널링 4회의 총 배율을 반영해야 한다');
 
   const chargeStats = { moveSpeed: 100 };
   assert.strictEqual(context.applySkillMobilityBeforeAttack(context.SKILL_DB['방패 돌진'], target, chargeStats), true, '방패 돌진은 사거리 안 대상에게 실제로 접근해야 한다');
@@ -2536,25 +2553,23 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   context.game.equipment['방패'].baseStats = [{ id: 'armor', val: 200 }];
   assert.ok(context.getPlayerStats().baseDmg > plainShieldChargeDamage, '방패 자체 방어도가 높아지면 방패돌진 피해가 증가해야 한다');
 
-  context.game.activeSkill = '집중 광선';
-  context.game.skills = ['기본 공격', '집중 광선'];
+  context.game.activeSkill = '용화 숨결';
+  context.game.skills = ['기본 공격', '용화 숨결'];
   context.game.gridPlayer = { gx: 1, gy: 6, gridMoveTimer: 0 };
   target.gx = 5; target.gy = 6; target.hp = target.maxHp;
   const pStats = context.getPlayerStats();
   context.performPlayerAttack(pStats);
-  const channelTravel = vm.runInContext(`battleFx.find(fx => fx.type === 'combatTravel' && fx.skillName === '집중 광선')`, context);
+  const channelTravel = vm.runInContext(`battleFx.find(fx => fx.type === 'combatTravel' && fx.skillName === '용화 숨결')`, context);
   assert.deepStrictEqual([channelTravel.aimCell.gx, channelTravel.aimCell.gy], [5, 6],
     '채널 이미지는 범위 중앙이 아니라 실제로 조준한 1차 대상 방향을 보존해야 한다');
-  assert.ok(channelTravel.targetCells.some(cell => cell.gx === 7 && cell.gy === 6),
-    '집중 광선 시각 범위는 첫 대상에서 끝나지 않고 실제 직선 판정 끝까지 전달되어야 한다');
   context.game.playerAilments = [{ type: 'freeze', time: 1, duration: 1, power: 1 }];
   context.updateCombatChannelRuntime(Date.now());
   vm.runInContext('pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();', context);
   assert.strictEqual(target.hp, target.maxHp, '채널링 중 동결되면 예약된 후속 타격이 남아 피해를 주면 안 된다');
 
   resetGame();
-  context.game.activeSkill = '집중 광선';
-  context.game.skills = ['기본 공격', '집중 광선'];
+  context.game.activeSkill = '용화 숨결';
+  context.game.skills = ['기본 공격', '용화 숨결'];
   context.game.playerAilments = [];
   context.game.gridPlayer = { gx: 1, gy: 6, gridMoveTimer: 0 };
   const sustainedTarget = makeEnemy(302, 5, 6, { hp: 100000, maxHp: 100000 });
@@ -2574,7 +2589,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   context.performPlayerAttack(sustainedStats);
   const continuationRows = vm.runInContext('pendingSkillStageHits.map(row => ({ at: row.at, channelId: row.channelId }))', context);
   const continuationRuntimeRemaining = vm.runInContext('combatChannelRuntime.endAt - Date.now()', context);
-  assert.strictEqual(continuationRows.length, 5, '이어지는 집중도 같은 수의 피해 틱을 예약해야 한다');
+  assert.strictEqual(continuationRows.length, 4, '이어지는 집중도 같은 수의 피해 틱을 예약해야 한다');
   const continuationDelay = continuationRows[0].at - Date.now();
   assert.ok(continuationDelay < 120, `이어지는 집중은 재시전 선딜 없이 바로 첫 피해 틱을 예약해야 한다 (${continuationDelay}ms)`);
   assert.ok(continuationRuntimeRemaining <= cycleMs + 100, '이어지는 집중 주기에 최초 시전 선딜이 다시 붙으면 안 된다');

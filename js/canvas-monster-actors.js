@@ -18,12 +18,40 @@ const monsterActors = (() => {
     }
     const ready = image => image.complete && image.naturalWidth > 0;
     const failed = image => image.complete && image.naturalWidth === 0;
+    /** The sheet a monster draws from: its side-view stage sheet while the stage is on (data MONSTER_STAGE_SHEETS), else its
+     * four-direction sheet. A stage sheet that failed to load is not asked for again. */
+    function sheetSource(id) {
+        const art = stageArt(id);
+        const staged = art && stageView.enabled() && !sheets.get('stage:' + art.id)?.failed ? art : null;
+        if (staged) return { key: 'stage:' + art.id, spec: staged, kind: MONSTER_STAGE_KIND };
+        const spec = typeof MONSTER_SPRITE_SHEETS === 'object' ? MONSTER_SPRITE_SHEETS[id] : null;
+        return spec ? { key: id, spec, kind: MONSTER_SPRITE_KINDS[spec.kind] } : null;
+    }
+    /** A monster's stage sheet: its own, or for a wisp look (wisp-b01 …) the sheet of its element. */
+    function stageArt(id) {
+        if (MONSTER_STAGE_SHEETS[id]) return MONSTER_STAGE_SHEETS[id];
+        const element = typeof WISP_SPRITE_BY_VISUAL === 'object' ? WISP_SPRITE_BY_VISUAL[id] : null;
+        return element ? MONSTER_STAGE_SHEETS['wisp-' + element] || null : null;
+    }
+    /** The loaded (or loading) sheet pair of a source. A stage pair whose file is missing is marked, so the next look
+     * falls back to the four-direction sheet. */
+    function pairOf(source) {
+        const { key, spec } = source;
+        if (!sheets.has(key)) sheets.set(key, { spec, kind: source.kind, idle: load(spec.idle), attack: load(spec.attack) });
+        const pair = sheets.get(key);
+        if (source.kind.stage && (failed(pair.idle) || failed(pair.attack))) pair.failed = true;
+        return pair;
+    }
     /** { spec, kind, idle, attack } once both sheets decode; 'loading' meanwhile; null for other enemies or a failed load. */
     function sheetFor(id) {
-        const spec = typeof MONSTER_SPRITE_SHEETS === 'object' ? MONSTER_SPRITE_SHEETS[id] : null;
-        if (!spec) return null;
-        if (!sheets.has(id)) sheets.set(id, { spec, kind: MONSTER_SPRITE_KINDS[spec.kind], idle: load(spec.idle), attack: load(spec.attack) });
-        const pair = sheets.get(id);
+        let source = sheetSource(id);
+        if (!source) return null;
+        let pair = pairOf(source);
+        if (pair.failed) {
+            source = sheetSource(id);
+            if (!source) return null;
+            pair = pairOf(source);
+        }
         if (failed(pair.idle) || failed(pair.attack)) return null;
         return ready(pair.idle) && ready(pair.attack) ? pair : 'loading';
     }
@@ -60,13 +88,19 @@ const monsterActors = (() => {
         const gauge = Number(enemy.attackTimer);
         return gauge >= WIND_UP_FROM && gauge < 1 ? { share: (gauge - WIND_UP_FROM) / (1 - WIND_UP_FROM), bob: 0 } : null;
     }
-    /** { clip, index, bob }: strike on the hit or release, wind-up while the gauge fills its last fifth, else idle (faster with a hop when walking). */
-    function clipFrame(enemy, kind, now, moving) {
+    /** { clip: 'attack', index, bob } while the strike (on the hit or release) or its wind-up (the gauge's last fifth) shows,
+     * else null. kind = { attackMs, impactFrame }: a sheet kind, or a roster actor (js/canvas-stage-roster.js). */
+    function attackFrame(enemy, kind, now, moving) {
         const attackMs = sum(kind.attackMs), impactMs = sum(kind.attackMs.slice(0, kind.impactFrame));
         const release = lastRelease(enemy, now, attackMs);
         if (release !== null && now - release + impactMs < attackMs) return { clip: 'attack', index: frameAt(kind.attackMs, now - release + impactMs), bob: 0 };
         const wind = windUp(enemy, moving, now);
-        if (wind) return { clip: 'attack', index: frameAt(kind.attackMs, wind.share * impactMs), bob: wind.bob };
+        return wind ? { clip: 'attack', index: frameAt(kind.attackMs, wind.share * impactMs), bob: wind.bob } : null;
+    }
+    /** { clip, index, bob }: the strike or its wind-up, else idle (faster with a hop when walking). */
+    function clipFrame(enemy, kind, now, moving) {
+        const strike = attackFrame(enemy, kind, now, moving);
+        if (strike) return strike;
         const speed = moving ? WALK_SPEED : 1, idleMs = sum(kind.idleMs);
         const index = frameAt(kind.idleMs, (now * speed + Math.abs(enemy.id || 0) * 137) % idleMs);
         return { clip: 'idle', index, bob: moving && index % 2 === 1 ? 1 : 0 };
@@ -94,38 +128,69 @@ const monsterActors = (() => {
     /** Where one frame lands: source rect in the sheet and destination box (feet on (x, y)). A sheet may set its own feet,
      * one pair for every direction or one per direction. */
     function placement(pair, frame, row, p) {
+        if (pair.kind.stage) return stagePlacement(pair, frame, row, p);
         const kind = pair.kind, cell = kind.frame, dot = p.tile / 16 * (p.spawnScale || 1), own = pair.spec.feet;
         const feet = (own && (own[row] || own)) || kind.feet;
         const src = [frame.index * cell, kind.rows.indexOf(row) * cell, cell, cell];
         const left = snap(p.x - feet[0] * dot), top = snap(p.y - (feet[1] + frame.bob) * dot);
-        return { src, left, top, size: cell * dot, dot };
+        return { src, left, top, size: cell * dot, dot, rim: stageRimStep(p, dot) };
     }
+    /** 테의 굵기(px). 옆에서 보는 무대에서는 예전 그림(한 도트가 화면의 여섯 px쯤으로 커진다)도 새 그림과 같이 캐릭터 도트 하나만큼만
+     * 두른다: 제 도트만큼 두르면 붉은 테가 새 그림의 네 배 굵기로 나와 한 무리 안에서 따로 놀았다(2026-10-13 지하계를 돌려 본 결과). */
+    const stageRimStep = (p, dot) => (stageView.enabled() ? Math.max(1, Math.round(stageActors.scaleFor(p.tile))) : dot);
+    /** A stage sheet: one row facing right at the character's dot size; facing left mirrors it about the feet (mirror = that x). */
+    function stagePlacement(pair, frame, row, p) {
+        const cell = pair.kind.frame, dot = stageActors.scaleFor(p.tile) * (p.spawnScale || 1), feet = pair.spec.feet;
+        const left = snap(p.x - feet[0] * dot), top = snap(p.y - (feet[1] + frame.bob) * dot);
+        return { src: [frame.index * cell, 0, cell, cell], left, top, size: cell * dot, dot, mirror: row === 'left' ? p.x : null, stage: true };
+    }
+    /** One frame at its place; a stage frame goes through stageDots so its dots stay even at any size. */
     function stamp(ctx, image, at, dx = 0, dy = 0) {
-        ctx.drawImage(image, ...at.src, at.left + dx, at.top + dy, at.size, at.size);
+        if (!at.stage) { ctx.drawImage(image, ...at.src, at.left + dx, at.top + dy, at.size, at.size); return; }
+        stageDots.blit(ctx, image, { x: at.src[0], y: at.src[1], w: at.src[2], h: at.src[3] }, { x: at.left + dx, y: at.top + dy, scale: at.dot });
+    }
+    /** A stage frame, and over it the hit flash as a pale silhouette. */
+    function drawStageFrame(ctx, image, at, flash) {
+        stamp(ctx, image, at);
+        if (!(flash > 0)) return;
+        ctx.globalAlpha *= Math.min(1, Number(flash));
+        stamp(ctx, silhouette(image, '#fff4df'), at);
     }
     function drawFrame(ctx, pair, frame, at, look) {
         const image = pair[frame.clip];
         ctx.save();
         ctx.imageSmoothingEnabled = false;
+        if (Number.isFinite(at.mirror)) { ctx.translate(at.mirror * 2, 0); ctx.scale(-1, 1); }
         if (look.outline) {
             const rim = silhouette(image, look.outline.color);
             ctx.globalAlpha *= look.outline.alpha;
-            for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) stamp(ctx, rim, at, dx * at.dot, dy * at.dot);
+            const step = at.rim || at.dot;
+            for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) stamp(ctx, rim, at, dx * step, dy * step);
             ctx.globalAlpha /= look.outline.alpha;
         }
-        drawBattleSpriteImage(ctx, image, at.src, [at.left, at.top, at.size, at.size], look.flash);
+        if (at.stage) drawStageFrame(ctx, image, at, look.flash);
+        else drawBattleSpriteImage(ctx, image, at.src, [at.left, at.top, at.size, at.size], look.flash);
         ctx.restore();
     }
-    /** Draws a sheet monster (act monsters and roots by spriteVariantId, realm sets by monsterVisualId).
+    /** The shadow under a monster: a dot ellipse on the stage (js/canvas-stage-rings.js), the soft one elsewhere. */
+    function groundShadow(ctx, pair, p) {
+        const share = pair === 'loading' ? 0.3 : pair.kind.shadow;
+        // 무대에서는 예전 그림의 몬스터도 새 그림과 같은 도트 그림자를 딛는다(한 무리 안에서 그림자 두 가지가 섞여 보였다)
+        if (stageView.enabled() || (pair !== 'loading' && pair.kind.stage)) stageRings.shadow(ctx, { x: p.x, y: p.y, dot: stageActors.scaleFor(p.tile) }, Math.round(share * 64), 0.34);
+        else drawPixelShadow(ctx, p.x, p.y + 2, p.tile * share, p.tile * 0.09, 0.2);
+    }
+    /** Draws a sheet monster (act monsters and roots by spriteVariantId, realm sets by monsterVisualId). On the stage a
+     * monster with newer art (js/canvas-stage-roster.js: walk and attack sheets, story bosses too) draws from that first.
      * p = { x, y (feet), tile, now, facing, flash, spawnScale, moving }. False → not one of these (or its sheet failed). */
     function draw(ctx, enemy, p) {
         if (!enemy || !(p.tile > 0) || typeof Image !== 'function') return false;
+        if (stageRoster.draw(ctx, enemy, p)) return true;
         const pair = sheetFor(enemy.spriteVariantId || enemy.monsterVisualId);
         if (!pair) return false;
-        drawPixelShadow(ctx, p.x, p.y + 2, p.tile * (pair === 'loading' ? 0.3 : pair.kind.shadow), p.tile * 0.09, 0.2);
+        groundShadow(ctx, pair, p);
         if (pair === 'loading') return true;
         const frame = clipFrame(enemy, pair.kind, p.now, p.moving);
-        const at = placement(pair, frame, FACING_ROW[p.facing] || 'down', p);
+        const at = placement(pair, frame, FACING_ROW[stageView.facing(enemy, p.facing)] || 'down', p);
         noteEnemyDrawnHeight(enemy, (pair.spec.height + frame.bob) * at.dot);
         drawFrame(ctx, pair, frame, at, { outline: getEnemyOutlineStyle(enemy), flash: p.flash });
         return true;
@@ -142,6 +207,6 @@ const monsterActors = (() => {
     }
     const isSheetMonster = id => typeof MONSTER_SPRITE_SHEETS === 'object' && !!MONSTER_SPRITE_SHEETS[id];
 
-    return { draw, drawSkin, isSheetMonster, clipFrame, frameAt };
+    return { draw, drawSkin, isSheetMonster, clipFrame, frameAt, attackFrame, snap };
 })();
 safeExposeGlobals({ monsterActors });

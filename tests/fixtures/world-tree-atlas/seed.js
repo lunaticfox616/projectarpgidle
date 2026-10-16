@@ -97,7 +97,8 @@
         parent.postMessage({type:'worldtree-lab-status',message},origin);
     }
     function reviewChase() {
-        seed('realms');game.currencies.colonyTrace=1;startColonyRun();
+        // 이 재현은 9×8 판의 칸 자리로 짠 것이다: 방 단위 무대에서는 군락지가 제 지도를 걸으므로(2026-10-13) 방 단위를 끄고 판에서 연다.
+        seed('realms');game.settings.stageRooms='off';game.currencies.colonyTrace=1;startColonyRun();
         const cells=[[6,1],[5,1],[5,6],[1,6],[1,3],[4,1],[2,5],[6,6],[7,2],[4,6],[6,2],[3,6],[6,3]];
         game.enemies=cells.map(([gx,gy],index)=>Object.assign(createEnemy(getZone('colony_run'),{},index),{
             gx,gy,hp:1000,maxHp:1000,isBoss:false,ailments:[{type:'freeze',time:30}]

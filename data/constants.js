@@ -120,7 +120,7 @@ const COMBAT_GRID_CONFIG = {
     meleeAttackRange: 1,            // 근접 공격 사거리(체비셰프 거리, 대각 포함)
     rangedEnemyMinRange: 3,         // 원거리형 최소 사거리(칸)
     rangedEnemyMaxRange: 5,         // 원거리형 최대 사거리(칸)
-    bossAttackRange: 99,            // 보스는 특수 케이스 제외 항상 원거리(사실상 무제한)
+    bossAttackRange: 99,            // 사거리 무한인 보스의 사거리(사실상 무제한). 보스마다의 거리는 data/bosses.js BOSS_REACH
     enemyMoveIntervalSec: 0.5,      // 적이 1칸 이동하는 데 걸리는 기본 시간(초)
     enemyGlideRate: 20,             // 걸음 뒤 그림이 새 칸으로 다가가는 비율(초당, js/canvas-battlefield.js). 파동 판정도 같은 값으로 그려진 위치를 셈
     waveContactSampleMs: 10,        // 파동 판정이 두 전투 틱 사이를 훑는 간격(밀리초): 그 사이에 고리가 스친 몹도 맞는다

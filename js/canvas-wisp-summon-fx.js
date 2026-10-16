@@ -23,6 +23,8 @@ const wispSummonFx = (() => {
     }
     /** Draws every wisp attack on screen into the open remake pass. layer: 'ground' | 'fore'. */
     function drawLayer(layer, visualNow) {
+        // 옆에서 보는 무대: 위습이 쏘는 구슬은 인계 받은 새 클립이 그린다(js/canvas-stage-skill-casts.js).
+        if (typeof stageSkillCasts === 'object' && stageSkillCasts.wispShots(visualNow)) return;
         const projection = fxRemake.projection();
         if (!fxRemake.isOpen() || !projection) return;
         const strikes = battleFx.filter(fx => isWispStrike(fx, visualNow));

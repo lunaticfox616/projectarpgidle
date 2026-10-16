@@ -120,6 +120,7 @@ function refreshItemIdCounter() {
 function createSaveSnapshot(sourceGame) {
     let snapshot = JSON.parse(JSON.stringify(sourceGame || game || {}));
     snapshot.craftingWorkspace = craftingWorkspaceState.normalize(snapshot.craftingWorkspace, snapshot.currencies);
+    snapshot.actExploration = actExplorationRooms.seal(snapshot.actExploration);
     delete snapshot.talentCardRuntime;
     if (!snapshot.saveMeta || typeof snapshot.saveMeta !== 'object') snapshot.saveMeta = {};
     return snapshot;
@@ -131,6 +132,7 @@ function serializeSaveState(sourceGame) {
     let root = sourceGame || game || {};
     let serializable = root && typeof root === 'object' ? { ...root } : {};
     serializable.craftingWorkspace = craftingWorkspaceState.normalize(root.craftingWorkspace, root.currencies);
+    serializable.actExploration = actExplorationRooms.seal(root.actExploration);   // 방 단위 탐험: 앞선 판이 탐험만 버리고 읽는 모양으로
     delete serializable.talentCardRuntime;
     return JSON.stringify(serializable);
 }
@@ -234,7 +236,7 @@ function persistLocalSave(options = {}) {
             let isQuota = retryError && (retryError.name === 'QuotaExceededError' || /quota|storage/i.test(String(retryError.message || '')));
             setLocalSaveRuntimeState('write-failed', {
                 writable: false,
-                message: isQuota ? '브라우저 저장공간 부족으로 자동 저장을 중단했습니다.' : '로컬 저장 실패로 자동 저장을 중단했습니다.'
+                message: isQuota ? '브라우저 저장공간이 부족합니다. 공간을 확보한 뒤 설정의 지금 저장을 눌러 주세요.' : '기기 저장에 실패했습니다. 설정의 지금 저장으로 다시 시도해 주세요.'
             });
             if (typeof addLog === 'function') addLog(isQuota ? '⚠️ 로컬 저장 실패: 브라우저 저장공간을 확인하세요.' : '⚠️ 로컬 저장 실패: 저장 데이터 형식 오류가 발생했습니다.', 'loot-rare');
             return false;
@@ -308,9 +310,12 @@ function loadGame() {
 
 function saveGame(options = {}) {
     let manual = !!options.manual;
-    let persisted = persistLocalSave({ touchModifiedAt: options.touchModifiedAt !== false });
+    // Only a known write failure may be retried. Unread/corrupt saves and ongoing
+    // settlements must stay protected even when the player presses Save.
+    let allowRecoveryWrite = manual && localSaveRuntimeState.status === 'write-failed';
+    let persisted = persistLocalSave({ touchModifiedAt: options.touchModifiedAt !== false, allowRecoveryWrite });
     if (!persisted) {
-        if (manual && typeof setCloudMessage === 'function') setCloudMessage(localSaveRuntimeState.message || '로컬 저장이 차단되어 저장하지 못했습니다.');
+        if (manual) setCloudMessage(localSaveRuntimeState.message || '로컬 저장이 차단되어 저장하지 못했습니다.');
         return false;
     }
     if (!options.skipCloudSync) {

@@ -35,7 +35,8 @@ const tabLayoutUi = {
     // The phone dock has three shortcuts plus battle; every other tab stays in the full menu.
     mobilePrimaryIds(layout = game.settings.tabLayouts.mobile) {
         const preferred = layout.tabOrder.filter(id => layout.tabPlacement[id] === 'top');
-        const defaults = ['btn-tab-items', 'btn-tab-skills', 'btn-tab-map']
+        // 스킬 젬은 장비 단추로 열린다(2026-10-13): 그 자리에는 스킬트리가 선다
+        const defaults = ['btn-tab-items', 'btn-tab-char', 'btn-tab-map']
             .filter(id => layout.tabPlacement[id] !== 'bottom');
         const candidates = [...new Set([...preferred, ...defaults])].filter(id => {
             const button = document.getElementById(id);

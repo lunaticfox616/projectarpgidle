@@ -73,6 +73,7 @@ const sideEncounterUi = (() => {
     function updateHud(zone) {
         updateMeteorProgress(zone);
         updateColonyProgress(zone);
+        updateEchoProgress(zone);
         const host = document.getElementById('side-encounter-hud');
         if (!host) return;
         const run = game.voidRift && game.voidRift.grandRun;
@@ -93,6 +94,15 @@ const sideEncounterUi = (() => {
         const bossAlive = game.enemies.some(enemy => enemy.isBoss && enemy.hp > 0);
         setTextById('ui-progress-label', bossAlive ? '운석 핵 파괴' : '운석 접근');
         setTextById('ui-move-time-text', bossAlive ? '처치 중' : `${game.runProgress.toFixed(0)}%`);
+    }
+
+    /** 나무꾼의 잔상: 남은 시간. 방 단위 지도에서는 잔상이 일어설 때까지 30초 그대로 서 있다. */
+    function updateEchoProgress(zone) {
+        const run = game.woodsmanEchoRun;
+        if (zone.type !== 'woodsmanEcho' || !run || !run.active) return;
+        setTextById('ui-progress-label', '남은 시간');
+        setTextById('ui-move-time-text', `${Math.ceil(Math.max(0, run.timeLeft))}초`);
+        setCombatProgressGaugePercent(run.duration > 0 ? run.timeLeft / run.duration * 100 : 0);
     }
 
     function updateColonyProgress(zone) {

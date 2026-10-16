@@ -28,12 +28,10 @@ const VFX_LABELS = Object.freeze({
     skillFxImpactFlare: ['적중 섬광', '투사체·개별 피격'],
     skillFxEarthSpike: ['지진 쐐기', '지진 파쇄 여진'],
     skillFxEarthCrack: ['지진 지면 균열', '지진 파쇄의 연결된 균열'],
-    skillFxRadialWave: ['원형 충격파', '불멸의 진동·삼원 파동·지뢰 폭발'],
+    skillFxRadialWave: ['원형 충격파', '불멸의 진동·지뢰 폭발'],
     skillFxDotField: ['지속 피해 장판', '화염 부패·빙결 침식·저주'],
     skillFxSummonStrike: ['소환수 타격', '소환수 공격 공통'],
-    skillFxFocusBeam: ['집중 광선', '집중 광선 채널링'],
-    skillFxDragonBreath: ['용화 숨결', '용화 숨결 채널링'],
-    skillFxVoidCutter: ['공허 절삭광', '공허 절삭광 채널링']
+    skillFxDragonBreath: ['용화 숨결', '용화 숨결 채널링']
 });
 
 const FIXED_LAYOUT_KEYS = new Set([

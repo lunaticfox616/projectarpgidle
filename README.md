@@ -1,7 +1,6 @@
 # Project ARPG Idle — 현재 개발본
 
-이 폴더가 게임의 **현재 개발본**입니다. 상위 폴더의 같은 이름을 가진 `js/`,
-`data/`, `index.html`은 이전 사본입니다. 작업 전 [개발 규칙](AGENTS.md)과
+이 폴더가 게임의 **현재 개발본**입니다. 작업 전 [개발 규칙](AGENTS.md)과
 [문서 색인](docs/README.md)을 읽고 `git status --short`로 기존 변경을 확인하세요.
 
 ## 실행 구조
@@ -21,6 +20,7 @@ Capacitor로 감쌉니다.
 | `js/items.js`, `js/skills.js`, `js/passives.js`, `js/core-items.js` | 장비·스킬·패시브·장착 코어 규칙 |
 | `js/stump-box.js`, `js/stump-cube.js` | 그루터기 함 배치·성장·접붙이기, 조합창 |
 | `js/combat-grid.js`, `js/combat-clock.js`, `js/combat-replay.js`, `js/combat.js` | 전장과 전투 진행 |
+| `js/canvas-stage-*.js`, `data/stage-*.js` | 옆에서 보는 무대 |
 | `js/canvas-*.js`, `js/ui.js`, `js/*-ui.js`, `js/main.js` | 그리기, DOM 입력, 최종 시작 흐름 |
 | `assets/`, `css/` | 게임 이미지·소리와 스타일 |
 | `db/`, `cloud-save-config.js` | 서버 데이터와 클라우드 저장 연결 |

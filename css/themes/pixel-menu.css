@@ -14,6 +14,8 @@ body[data-ui-skin] {
   --px-key-caption: 14px;
   --px-key-frame: url('../../assets/ui/pixel/hud-key.png');
   --px-key-frame-on: url('../../assets/ui/pixel/hud-key-on.png');
+  /* 새 단추 그림(틀까지 든 한 장)의 한 변: 공용 틀(40)보다 크게, 한 칸의 폭(48)을 다 쓴다. 원본이 73~91px이라 40px에서는 무늬가 뭉개졌다. */
+  --px-key-art: 48px;
 }
 body[data-ui-skin] #btn-tab-battle { --px-icon: 0; }
 body[data-ui-skin] #btn-tab-character { --px-icon: 1; }
@@ -32,6 +34,124 @@ body[data-ui-skin] #btn-tab-talent { --px-icon: 17; }
 body[data-ui-skin] #btn-tab-social { --px-icon: 18; }
 body[data-ui-skin] #btn-tab-settings { --px-icon: 19; }
 body[data-ui-skin] #btn-map-complete-action-picker { --px-icon: 20; }
+/* 새 단추 그림(2026-10-13 사용자가 만들어 온 여덟 개: 틀과 아이콘이 한 장에 있고 눌린 그림이 따로 있다. scripts/build-hud-buttons.cjs →
+   assets/ui/pixel/buttons/). 그림이 있는 메뉴(index.html의 data-button-art)는 공용 틀(hud-key)과 13도트 아이콘 대신 이 그림 한 장을 쓴다.
+   누르는 동안과 창이 열려 있는 동안은 눌린 그림이다. 그림은 도트 하나가 화면 한 점보다 작게 줄어들어 부드럽게 그린다(image-rendering: auto).
+   같은 아이콘을 나눠 쓰던 메뉴(전직은 스킬트리, 도감과 전적은 기록)는 그림도 나눠 쓴다. */
+body[data-ui-skin] #btn-tab-character { --px-button-art: url('../../assets/ui/pixel/buttons/character.png'); --px-button-art-down: url('../../assets/ui/pixel/buttons/character-down.png'); }
+body[data-ui-skin] :is(#btn-tab-char, #btn-tab-traits) { --px-button-art: url('../../assets/ui/pixel/buttons/passive.png'); --px-button-art-down: url('../../assets/ui/pixel/buttons/passive-down.png'); }
+body[data-ui-skin] #btn-tab-season { --px-button-art: url('../../assets/ui/pixel/buttons/loop.png'); --px-button-art-down: url('../../assets/ui/pixel/buttons/loop-down.png'); }
+body[data-ui-skin] #btn-tab-stump { --px-button-art: url('../../assets/ui/pixel/buttons/stump.png'); --px-button-art-down: url('../../assets/ui/pixel/buttons/stump-down.png'); }
+body[data-ui-skin] #btn-tab-items { --px-button-art: url('../../assets/ui/pixel/buttons/bag.png'); --px-button-art-down: url('../../assets/ui/pixel/buttons/bag-down.png'); }
+body[data-ui-skin] #btn-tab-map { --px-button-art: url('../../assets/ui/pixel/buttons/map.png'); --px-button-art-down: url('../../assets/ui/pixel/buttons/map-down.png'); }
+body[data-ui-skin] :is(#btn-tab-journal, #btn-tab-codex, #btn-tab-records) { --px-button-art: url('../../assets/ui/pixel/buttons/journal.png'); --px-button-art-down: url('../../assets/ui/pixel/buttons/journal-down.png'); }
+body[data-ui-skin] #btn-tab-settings { --px-button-art: url('../../assets/ui/pixel/buttons/settings.png'); --px-button-art-down: url('../../assets/ui/pixel/buttons/settings-down.png'); }
+
+/* ─── 묶음 창의 탭 (2026-10-13 사용자: 단추 하나로 합치고 "UI를 잘 만들어야겠지?") ─────────────────────────
+   메뉴 단추 하나가 창 하나를 열고, 그 창 안의 화면들(장비와 스킬 젬, 루프 패시브와 해금, 스킬트리와 전직, 저널과 도감과 기록)은
+   탭으로 오간다(js/ui.js MERGED_TAB_GROUPS, renderMergedTabStrip). 탭마다 그 화면의 13도트 그림과 이름이 있고, 쓸 포인트가 있으면
+   그 수가, 없고 새 소식이 있으면 점이 붙는다. PC에서는 창 머리의 제목 자리에 놓여 본문의 높이를 쓰지 않는다. 휴대폰에서는 화면 맨 위의 줄이다.
+   빛깔은 뜻이 있을 때만 쓴다: 보고 있는 탭의 이름과 밑줄, 그리고 수와 점. */
+body[data-ui-skin] .window-tab-icon {
+  flex: none;
+  display: block;
+  width: 26px;
+  height: 26px;
+  background: var(--px-menu-icons) calc(var(--px-icon, 0) * -26px) 0 / calc(var(--px-icon-count) * 26px) 26px no-repeat;
+  image-rendering: pixelated;
+  filter: brightness(.72);
+}
+body[data-ui-skin] .window-tab:is(:hover, :focus-visible) > .window-tab-icon { filter: brightness(1.05); }
+body[data-ui-skin] .window-tab.active > .window-tab-icon { filter: brightness(1.2); }
+body[data-ui-skin] .window-tab-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body[data-ui-skin] .window-tab-count {
+  flex: none;
+  min-width: 18px;
+  padding: 0 4px;
+  border: 1px solid var(--px-ink);
+  background: #e4a44b;
+  color: #1b1208;
+  font-family: var(--font-pixel);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 14px;
+  text-align: center;
+  text-shadow: none;
+}
+body[data-ui-skin] .window-tab-dot { flex: none; width: 8px; height: 8px; border: 2px solid #000; background: #e4a44b; }
+/* 그 화면의 단축키: 작은 자판 모양. 휴대폰에는 자판이 없어 그리지 않는다. */
+body[data-ui-skin] .window-tab-key {
+  flex: none;
+  min-width: 16px;
+  padding: 0 3px;
+  border: 1px solid var(--px-bronze-lo);
+  color: var(--px-copy-muted);
+  font-family: var(--font-pixel);
+  font-size: 12px;
+  line-height: 14px;
+  text-align: center;
+  text-shadow: none;
+}
+@media (max-width: 1080px) { body[data-ui-skin] .window-tab-key { display: none; } }
+/* 휴대폰과 창이 아닌 화면: 맨 위의 줄(전의 한 줄 단추 자리)에 그림과 이름을 나란히 */
+body[data-ui-skin] .merged-tab-shell > .window-tab-strip:not([hidden]) { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 4px; }
+body[data-ui-skin] .window-tab-strip > .window-tab { display: flex; align-items: center; justify-content: center; gap: 6px; min-width: 0; }
+
+@media (min-width: 1081px) {
+  /* 창 머리: 제목 글자는 읽어 주는 이름으로만 남기고(aria-labelledby) 그 자리에 탭이 놓인다. 탭이 없는 빈 자리를 잡고 창을 옮긴다. */
+  :root body[data-ui-skin].desktop-windowed-ui .ui-window-tabbed > .ui-window-titlebar > .ui-window-title {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  :root body[data-ui-skin].desktop-windowed-ui .ui-window-titlebar > .ui-window-tabs {
+    flex: 1 1 auto;
+    align-self: stretch;
+    display: flex;
+    align-items: stretch;
+    gap: 2px;
+    min-width: 0;
+    margin-left: -14px;
+  }
+  :root body[data-ui-skin].desktop-windowed-ui .ui-window-titlebar > .ui-window-tabs[hidden] { display: none; }
+  :root body[data-ui-skin].desktop-windowed-ui .ui-window-tabs > .window-tab {
+    flex: 0 1 auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    min-height: 0;
+    height: auto;
+    margin: 0;
+    padding: 0 16px 0 12px;
+    border: 0;
+    border-right: 1px solid var(--px-ink);
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+    color: var(--px-copy-muted);
+    font-family: var(--font-pixel);
+    font-size: 16px;
+    line-height: 1;
+    text-shadow: var(--px-text-edge);
+    cursor: pointer;
+    transform: none;
+  }
+  /* 도트 테마가 창 안의 단추 글씨를 12px로 묶는다(css/themes/pixel.css, #tab-battle을 뺀 모든 화면): 탭의 이름은 창의 제목 구실이라 제목 크기다 */
+  :root body[data-ui-skin].desktop-windowed-ui .tab-content:not(#tab-battle) .ui-window-tabs > .window-tab { font-size: 16px; }
+  :root body[data-ui-skin].desktop-windowed-ui .ui-window-tabs > .window-tab:first-child { border-left: 1px solid var(--px-ink); }
+  :root body[data-ui-skin].desktop-windowed-ui .ui-window-tabs > .window-tab:is(:hover, :focus-visible) { background: var(--px-board), var(--px-stone-control); color: var(--px-copy); }
+  /* 보고 있는 탭: 본문과 이어진 밝은 판, 금빛 이름, 아래의 금 줄 */
+  :root body[data-ui-skin].desktop-windowed-ui .ui-window-tabs > .window-tab.active {
+    background: var(--px-board-hot), var(--px-stone-control);
+    box-shadow: inset 0 -3px 0 var(--px-gold-bright), inset 0 1px 0 var(--px-bronze);
+    color: var(--px-gold-bright);
+    cursor: default;
+  }
+}
 
 /* ─── PC: 하단 HUD에 담긴 메뉴 ─────────────────────────────────────────────── */
 @media (min-width: 1081px) {
@@ -228,6 +348,28 @@ body[data-ui-skin] #btn-map-complete-action-picker { --px-icon: 20; }
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-external-controls > #btn-ui-rail-misc[aria-expanded='true']::after { filter: brightness(1.18); }
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-tab-layer > .tab-btn:active::after,
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-external-controls > button:active::after { top: 8px; }
+  /* 새 단추 그림이 있는 메뉴: 공용 틀과 13도트 아이콘 대신 그 그림 한 장(틀과 아이콘이 함께 있다)을 그린다. 아이콘을 그리던 ::after가
+     그림을 맡는다: 한 칸의 폭을 다 쓰는 크기(--px-key-art)로, 틀 자리의 아래 끝에 맞춰 위로 자란다(판 위쪽의 빈 자리).
+     올리면 조금 밝아지고, 누르는 동안과 창이 열린 동안은 눌린 그림이다(눌러도 자리는 그대로다: 눌린 그림에 내려앉은 모양이 있다). */
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-tab-layer > .tab-btn[data-button-art],
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-tab-layer > .tab-btn[data-button-art]:is(.ui-window-open, [aria-pressed='true']) { background: none; }
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-tab-layer > .tab-btn[data-button-art]::after {
+    inset: calc(var(--px-key) - var(--px-key-art)) calc((var(--px-key-slot) - var(--px-key-art)) / 2) auto;
+    height: var(--px-key-art);
+    background: var(--px-button-art) center / var(--px-key-art) var(--px-key-art) no-repeat;
+    image-rendering: auto;
+    filter: none;
+  }
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-tab-layer > .tab-btn[data-button-art]:is(:hover, :focus-visible)::after { filter: brightness(1.16); }
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-tab-layer > .tab-btn[data-button-art]:is(.ui-window-open, [aria-pressed='true'], :active)::after {
+    top: calc(var(--px-key) - var(--px-key-art));
+    background-image: var(--px-button-art-down);
+    filter: none;
+  }
+  /* 알림 점, 가득 참, 이름표는 커진 그림의 위 끝을 따라 올라간다 */
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-tab-layer > .tab-btn[data-button-art] > .noti-dot { top: calc(var(--px-key) - var(--px-key-art)); right: 0; }
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-tab-layer > .tab-btn[data-button-art] > .inventory-full-warning { top: calc(var(--px-key) - var(--px-key-art) - 10px); }
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-tab-layer > .tab-btn[data-button-art] > .ui-rail-label { bottom: calc(100% + var(--px-key-art) - var(--px-key) + 8px); }
 
   /* 이름표: 단추에 올리면 위에 뜬다(단축키가 있으면 옆에). 기타·정리는 aria-label을 쓴다. */
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-tab-layer > .tab-btn > .ui-rail-label,
@@ -365,6 +507,14 @@ body[data-ui-skin] #btn-map-complete-action-picker { --px-icon: 20; }
     box-shadow: none;
     image-rendering: pixelated;
   }
+  /* 기타 목록의 줄: 새 단추 그림이 있는 메뉴는 그 그림을 작게 그린다 */
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-misc-panel .tab-btn[data-button-art]::after {
+    flex-basis: 28px;
+    width: 28px;
+    height: 28px;
+    background: var(--px-button-art) center / 28px 28px no-repeat;
+    image-rendering: auto;
+  }
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-misc-panel .tab-btn .ui-rail-label { position: static; display: inline; overflow: visible; color: inherit; font-size: 12px; }
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-misc-panel .tab-btn > .noti-dot { position: absolute; top: 4px; right: 4px; width: 8px; height: 8px; border: 2px solid #000; border-radius: 0; background: #e4a44b; box-shadow: none; }
 }
@@ -437,6 +587,15 @@ body[data-ui-skin] #btn-map-complete-action-picker { --px-icon: 20; }
   }
   :root body[data-ui-skin].mobile-primary-navigation #tab-header-bottom > :is(.tab-btn, .mobile-nav-more).active::after,
   :root body[data-ui-skin].mobile-primary-navigation #tab-header-main > .tab-btn.active::after { filter: brightness(1.15); }
+  /* 새 단추 그림이 있는 메뉴: 13도트 아이콘 자리에 그 그림을 그린다(칸 46px 안에 그림 30px, 이름 12px). 흐리게 하고 밝히는 것은 위와 같다. */
+  :root body[data-ui-skin].mobile-primary-navigation #tab-header-bottom > .tab-btn[data-button-art]::after,
+  :root body[data-ui-skin].mobile-primary-navigation #tab-header-main > .tab-btn[data-button-art]::after {
+    flex-basis: 30px;
+    width: 30px;
+    height: 30px;
+    background: var(--px-button-art) center / 30px 30px no-repeat;
+    image-rendering: auto;
+  }
   /* 아직 잠긴 지도 칸: 열리면 들어갈 자리를 미리 지키는 흐린 칸(js/ui.js syncTabUnlockButton) */
   :root body[data-ui-skin].mobile-primary-navigation #tab-header-bottom > .tab-btn.nav-locked { color: #6c6258; }
   :root body[data-ui-skin].mobile-primary-navigation #tab-header-bottom > .tab-btn.nav-locked::after { filter: grayscale(1) brightness(.5); }

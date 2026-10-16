@@ -1,6 +1,6 @@
 /** 새로 그린 스킬 이펙트 — 2026-09-30 변경분의 그리는 쪽 (js/canvas-redrawn-skill-fx.js가 이벤트를 모아 넘겨 준다).
- * 17 혈기 폭쇄 · 29 화염 폭풍핵 · 30 빙결 파열창 · 37 룬 지뢰 · 48 과냉각 혼합물, 그리고 이동 스킬 칸의 이동기 4종
- * (54 차원찢기 · 55 향로구름 · 56 작살화살 · 57 공중강타 — 원본 그림이 없어 새 그림만 있다)과 그 동안의 캐릭터 움직임.
+ * 17 혈기 폭쇄 · 29 화염 폭풍핵 · 30 빙결 파열창 · 37 룬 지뢰 · 48 과냉각 혼합물, 그리고 이동 스킬 칸의 이동기 3종
+ * (54 차원찢기 · 55 향로구름 · 56 작살화살 — 원본 그림이 없어 새 그림만 있다)과 그 동안의 캐릭터 움직임.
  * Pure drawing from combat snapshots: nothing here schedules, resolves or applies damage.
  */
 const redrawnSkillFxExtra = (() => {
@@ -92,7 +92,7 @@ const redrawnSkillFxExtra = (() => {
         if (I) extra().FrostMist.burst(dot, I.x, I.y - 2, ft - I.land);
     }
 
-    // ------------------------------------------------------------------ 54~57 이동기 (Mobility4, 인계 ui_player.js drawMob4)
+    // ------------------------------------------------------------------ 54~56 이동기 (Mobility4, 인계 ui_player.js drawMob4)
     const moves = () => redrawnSkillArtMoves.Mobility4;
     /** The whole choreography of a movement cast (skill-gem-casts.js c.move), carried on its one 'move' event. */
     function moveOf(cast) { const e = cast.events.find(v => v.move); return e ? e.move : null; }
@@ -171,20 +171,6 @@ const redrawnSkillFxExtra = (() => {
         if (ft >= M.release && ft < M.hitAt) harpoonFlight(dot, H, T, (ft - M.release) / Math.max(1, M.hitAt - M.release));
         else if (ft >= M.hitAt && ft < end + 140) harpoonRope(dot, H, T, M, ft);
     }
-    function drawSlamGround(dot, cast, ft, view) {            // 57 공중강타: shock ring, cracks and the dent where the greatsword lands
-        const M = moveOf(cast);
-        if (!M) return;
-        const B = footAt(M.to, view);
-        moves().slamGround(dot, B.x, B.foot - 1, ft - M.slam, { seed: M.to.gx * 7 + M.to.gy, dr: grownBy(cast, moveEvent(cast)) });
-    }
-    function drawSlam(dot, cast, ft, view) {
-        const M = moveOf(cast);
-        if (!M) return;
-        const A = footAt(M.from, view), B = footAt(M.to, view);
-        moves().dustPuff(dot, A.x, A.foot, ft - M.jump);
-        moves().slamFore(dot, B.x, B.foot - 1, ft - M.slam);
-        moveStars(dot, cast, ft, 30);
-    }
 
     // ------------------------------------------------------------------ the caster during a movement cast
     function vanish(M, now) {                                 // 54·55: fades out over the first 42% of the window, back in over the last
@@ -202,20 +188,15 @@ const redrawnSkillFxExtra = (() => {
         const k = pullEase(M, now);
         return { alpha: 1, dx: (M.to.gx - M.from.gx) * k * 16, dy: (M.to.gy - M.from.gy) * k * 16, lift: 0 };
     }
-    function leap(M, now) {                                   // 57: a parabola, `peak` dots high at the middle
-        if (now < M.jump || now >= M.slam) return null;
-        const u = (now - M.jump) / Math.max(1, M.slam - M.jump);
-        return { alpha: 1, dx: (M.to.gx - M.from.gx) * u * 16, dy: (M.to.gy - M.from.gy) * u * 16, lift: Math.round(4 * M.peak * u * (1 - u)) };
-    }
-    /** After the pull or the slam, until combat has moved the caster into its new cell (up to one tick): stay there. */
+    /** After the pull, until combat has moved the caster into its new cell (up to one tick): stay there. */
     function arrived(M, now) {
-        const end = M.slam ?? M.pull1;
+        const end = M.pull1;
         return now >= end && now < end + 300 ? { alpha: 1, lift: 0, dx: (M.to.gx - M.from.gx) * 16, dy: (M.to.gy - M.from.gy) * 16 } : null;
     }
     /** Where the caster is drawn during a movement cast, relative to the cell it occupies (board dots) — null otherwise.
      * waiting: combat has not moved the caster out of M.from yet (the visual clock runs up to a tick ahead). */
     function moveCaster(id, M, now, waiting) {
-        if (id === 56 || id === 57) return (id === 56 ? glide(M, now) : leap(M, now)) || (waiting ? arrived(M, now) : null);
+        if (id === 56) return glide(M, now) || (waiting ? arrived(M, now) : null);
         const v = vanish(M, now);
         if (!v) return null;
         if (waiting && v.u >= 0.5) return { alpha: 0, lift: 0, dx: 0, dy: 0 };   // out of sight until it steps out of the other side
@@ -226,8 +207,7 @@ const redrawnSkillFxExtra = (() => {
         17: { ground: drawBurstGround, fore: drawBurst }, 29: { ground: drawVortexGround, fore: drawVortex },
         30: { ground: drawFrostMistGround, fore: drawFrostMist }, 37: { ground: drawMineGround, fore: drawMine },
         48: { ground: drawCoolGround, fore: drawCool },
-        54: { ground: drawRiftGround, fore: drawRift }, 55: { fore: drawSmoke }, 56: { fore: drawHarpoon },
-        57: { ground: drawSlamGround, fore: drawSlam }
+        54: { ground: drawRiftGround, fore: drawRift }, 55: { fore: drawSmoke }, 56: { fore: drawHarpoon }
     });
     return Object.freeze({ moveCaster });
 })();

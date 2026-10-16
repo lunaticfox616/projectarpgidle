@@ -95,7 +95,7 @@ function getClosestGridUnitCell(from, unit) {
  * (each neighbour of a path search counted the living elites again, 2026-10-07 frame drops). */
 function getGridPlacementTerrain() {
     const run=actExplorationState.current(game);
-    return { map: getCombatGridSize(), sealed: !!run && actExplorationState.remainingElites(run)>0 };
+    return { map: getCombatGridSize(), sealed: !!run && actExplorationState.gateSealed(run) };
 }
 
 function canPlaceGridFootprint(blocked, gx, gy, footprint, terrain = getGridPlacementTerrain()) {
@@ -130,8 +130,12 @@ function getGridBlockedCells(excludeUnit) {
 function addExplorationGridReservations(blocked,excludeUnit) {
     const run=actExplorationState.current(game);if(!run)return;
     actExplorationState.objects.solidCells(run).forEach(key=>blocked.add(key));
+    // 기다리는 무리의 자리는 비워 둔다. 다만 그 자리에 이미 서 있는 유닛(같은 자리에서 차례를 기다리는 다음 단계의 보스 위에 선 지금의
+    // 보스: 액트 4)은 가두지 않는다. 가두면 어느 쪽으로 한 칸을 가도 그 자리와 겹쳐 한 걸음도 떼지 못했다(2026-10-14, 보스가 걷게 되며 드러남).
+    const own=excludeUnit && hasGridCell(excludeUnit)?new Set(getGridUnitCells(excludeUnit).map(cell=>gridCellKey(cell.gx,cell.gy))):new Set();
     run.packs.forEach(pack=>pack.waiting.forEach(enemy=>{
-        getGridUnitCells(enemy).forEach(cell=>blocked.add(gridCellKey(cell.gx,cell.gy)));
+        const keys=getGridUnitCells(enemy).map(cell=>gridCellKey(cell.gx,cell.gy));
+        if(!keys.some(key=>own.has(key)))keys.forEach(key=>blocked.add(key));
     }));
     if(run.motion && excludeUnit!==game.gridPlayer)blocked.add(gridCellKey(run.motion.to.gx,run.motion.to.gy));
 }
@@ -222,8 +226,8 @@ function getEnemyPictureMelee(enemy) {
 }
 
 /**
- * 적의 근접/원거리 유형과 사거리를 배정한다. 보스는 항상 원거리(사실상 무제한 사거리),
- * 일반/정예는 그림이 정한 방식을 따르고(2026-10-02), 정하지 않은 외형은 외형 종류마다 같은 확률 유형을 쓴다.
+ * 적의 근접/원거리 유형과 사거리를 배정한다. 보스는 보스마다 정해진 싸우는 거리를 따른다(data/bosses.js BOSS_REACH: 근접,
+ * 사거리 있음, 사거리 무한). 일반/정예는 그림이 정한 방식을 따르고(2026-10-02), 정하지 않은 외형은 외형 종류마다 같은 확률 유형을 쓴다.
  * 외형 정보 없는 이전 적은 기존 확률을 사용한다.
  */
 function rollEnemyGridCombatProfile(enemy) {
@@ -240,8 +244,9 @@ function rollEnemyGridCombatProfile(enemy) {
 function assignEnemyGridCombatProfile(enemy) {
     let cfg = COMBAT_GRID_CONFIG;
     if (enemy.isBoss) {
-        enemy.attackKind = 'ranged';
-        enemy.attackRange = cfg.bossAttackRange;
+        const reach = getBossReach(enemy);
+        enemy.attackKind = reach.id === 'melee' ? 'melee' : 'ranged';
+        enemy.attackRange = reach.range;
         return;
     }
     const {melee,range} = rollEnemyGridCombatProfile(enemy);
@@ -376,6 +381,12 @@ function advanceGridUnitMovement(unit, target, dtSec, intervalSec) {
     return moved;
 }
 
+/** 적이 한 칸을 걷는 데 걸리는 기본 시간(초): 보스는 BOSS_REACH.stepSec, 그 밖에는 enemyMoveIntervalSec. 다가가는 규칙(js/combat.js)과
+ * 걷는 모습(js/canvas-stage-stride.js)이 같은 값을 읽는다. */
+function getGridUnitStepSec(unit) {
+    return unit && unit.isBoss ? BOSS_REACH.stepSec : COMBAT_GRID_CONFIG.enemyMoveIntervalSec;
+}
+
 /** A unit that stepped remembers the cell it left and when: the drawn unit glides between the two for a moment (getGridUnitDrawnDelta). */
 function markGridStep(unit, from, moved) {
     if (moved) Object.assign(unit, { gridStepFrom: from, gridStepAt: getCombatTime() });
@@ -385,7 +396,7 @@ function beginExplorationGridStep(target,interval) {
     const run=actExplorationState.current(game);if(!run || run.motion)return false;
     const next={gx:game.gridPlayer.gx,gy:game.gridPlayer.gy};
     if(!gridStepToward(next,target.gx,target.gy,getExplorationPlanningBlockedCells(run)))return false;
-    return actExplorationMotion.start(run,game.gridPlayer,next,interval,run.motionTimeMs);
+    return actExplorationMotion.start(run,game.gridPlayer,next,interval/actExplorationDoors.pace(run),run.motionTimeMs);
 }
 
 /** The hero plans its exploration step around fighters and its own reserved tile, but not around dormant packs: they wake
@@ -949,7 +960,9 @@ function buildEarthSpikeHitSequence(skill, targets, primary, impactCells) {
 function getGridUnitDrawnDelta(unit, t) {
     const from = unit.gridStepFrom, at = Number(unit.gridStepAt);
     if (!from || !Number.isFinite(at)) return { dx: 0, dy: 0 };
-    const lag = Math.exp(-COMBAT_GRID_CONFIG.enemyGlideRate * Math.max(0, t - at) / 1000);
+    // 옆에서 보는 무대에서는 한 걸음을 고른 빠르기로 걸어간다(js/canvas-stage-stride.js): 그려지는 자리를 같은 식으로 센다
+    const walked = typeof stageStride === 'object' && typeof stageView === 'object' && stageView.enabled();
+    const lag = walked ? stageStride.lag(t - at, unit) : Math.exp(-COMBAT_GRID_CONFIG.enemyGlideRate * Math.max(0, t - at) / 1000);
     return { dx: (from.gx - unit.gx) * lag, dy: (from.gy - unit.gy) * lag };
 }
 

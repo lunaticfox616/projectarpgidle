@@ -276,7 +276,7 @@ const battleGroundLoot = (() => {
         const dx = point.x - parseFloat(entry.marker.style.left), dy = point.y - parseFloat(entry.marker.style.top);
         const frames = [0, .125, .25, .375, .5, .625, .75, .875, 1].map(t => ({ offset: t,
             transform: `translate(${dx * (1 - t)}px,${dy * (1 - t) - 4 * t * (1 - t) * Math.min(65, 35 + Math.hypot(dx, dy) * .2)}px)` }));
-        const duration = reduced() ? 1 : 580 + Math.abs(dx) % 100;
+        const duration = reduced() ? 1 : GROUND_LOOT_DROP.flightMs + Math.abs(dx) % GROUND_LOOT_DROP.flightSpreadMs;
         flight.animate(frames, { duration, fill: 'backwards' });
         const art = flight.firstElementChild, rest = getComputedStyle(art).transform;
         art.animate([{ transform: rest + ' rotate(-45deg) scale(.75)' }, { transform: rest }], { duration, fill: 'backwards' });

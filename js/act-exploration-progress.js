@@ -51,13 +51,15 @@ const actExplorationProgress = (() => {
         actExplorationMotion.advance(run,game.gridPlayer,run.motionTimeMs,canEnterMotionTile(run));
         swapSummonOutOfHeroTile(from);
         if(run.motion || !explore(run,stats))return;
-        actExplorationState.discover(run,game.gridPlayer,actExplorationState.sightRadius(stats));
+        actExplorationDoors.cross(run); // 방 단위 무대: 열린 문 칸에 서 있으면 이어진 방으로 옮겨진 뒤 그 방을 본다
+        actExplorationState.discover(run,game.gridPlayer,stats);
         const opened=actExplorationState.entrance(run);
-        wakeBosses(actExplorationState.engage(game,actExplorationState.notice(run,game.gridPlayer),run.motionTimeMs));
+        wakeBosses(actExplorationState.engage(game,run.motionTimeMs));
         announceAlerted(actExplorationState.wake(game,actExplorationState.alerted(game)));
         const entrance=watchEntrance(run,opened);
         const cleared=run.packs.filter(pack=>pack.aliveIds.length===0).length;
-        game.runProgress=Math.min(99,100*cleared/run.packs.length);
+        // 벌집 원정(한 줄 지도)의 진행도는 갈림길 수다(js/ui.js): 방은 처음부터 비어 있어 방 수로 세면 맞지 않는다
+        if(!(run.source && run.source.chain===true))game.runProgress=Math.min(99,100*cleared/run.packs.length);
         if(holdsOrDetours(run,entrance,stats))return;
         const target=actExplorationState.destination(run,game.gridPlayer,runMode(run));
         if(!target)return;
@@ -65,7 +67,7 @@ const actExplorationProgress = (() => {
         walk(run,target,stats);
     }
     function walk(run,target,stats) {
-        const stepped=walkStep(target,stats);
+        const stepped=walkStep(actExplorationDoors.toward(run,target),stats);
         if(stepped || target!==run.destination){commandStalls.delete(run);return;}
         const stalls=(commandStalls.get(run)||0)+1;
         commandStalls.set(run,stalls);
@@ -93,16 +95,17 @@ const actExplorationProgress = (() => {
     }
     /** Floor items on the hero's cell are picked up; an offline replay walks no detours and picks everything up at once. */
     function pickUp(run) {
-        const rows=game.isBackgroundCalculation?ground.takeAll(run):ground.takeNear(run,game.gridPlayer);
+        const rows=game.isBackgroundCalculation?ground.takeAll(run):ground.takeNear(run,game.gridPlayer,getCombatTime());
         if(rows.length)collectExplorationFloorLoot(rows);
     }
     /** Auto-move heads for the nearest floor pile once nothing fights. A pile it cannot get closer to for COMMAND_GIVE_UP_STEPS
-     * steps is collected from where the hero stands, so a walled-off drop never holds the map. Returns whether it walked. */
+     * steps is collected from where the hero stands, so a walled-off drop never holds the map. Only a drop that has landed is
+     * walked to: while something is still falling the hero waits where it stands. Returns whether it walked or waited. */
     function walkToLoot(run,stats) {
-        const pile=ground.nearest(run,game.gridPlayer);
-        if(!pile)return false;
+        const now=getCombatTime(),pile=ground.nearest(run,game.gridPlayer,now);
+        if(!pile)return ground.falling(run,now);
         const memo=lootWalks.get(run)||{stalls:0,clearedAt:null};lootWalks.set(run,memo);
-        memo.stalls=walkStep(pile,stats)?0:memo.stalls+1;
+        memo.stalls=walkStep(actExplorationDoors.toward(run,pile),stats)?0:memo.stalls+1;
         if(memo.stalls>=COMMAND_GIVE_UP_STEPS){memo.stalls=0;collectExplorationFloorLoot(ground.takeAt(run,pile));}
         return true;
     }
@@ -134,7 +137,7 @@ const actExplorationProgress = (() => {
     /** Bosses wait in their room from the map's creation: their hidden-journal count (no hit) starts as they wake. */
     function wakeBosses(woken) {
         const zone=getZone(game.currentZoneId);
-        for(const enemy of woken)if(enemy.isBoss)restartHiddenJournalBossRun(enemy,zone);
+        for(const enemy of woken)if(enemy.isBoss){restartHiddenJournalBossRun(enemy,zone);beginRoomBossRules(zone);}
     }
     /** Occupancy matters only when the authoritative hit cell crosses the tile boundary. */
     function canEnterMotionTile(run) {

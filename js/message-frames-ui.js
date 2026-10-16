@@ -14,7 +14,8 @@ const messageFrames = (() => {
     const COLLAPSED_HEIGHT = 34;
     const DRAG_OUT_PX = 24;
     const DEFAULT_WIDTH = 300;
-    const DEFAULT_HEIGHT = 420;
+    // Recent messages stay visible without covering the whole right side of the fight; saved user sizes take precedence.
+    const DEFAULT_HEIGHT = 240;
     const GAP = 10;
     // 처음 자리의 위끝은 오른쪽 위 귀환(지역 줄)과 그 아래 목표 단추(css/themes/rift-stage.css, 아래 끝 약 96px) 밑이다.
     // 둘이 오른쪽 끝으로 옮겨 오며(2026-10-07) 작은 화면(높이 720)에서 기록 창이 목표 단추를 덮었다.
@@ -22,6 +23,8 @@ const messageFrames = (() => {
     // 크기 조절 테두리: 오른쪽 아래 모서리(보이는 손잡이) 말고도 위, 아래, 양옆과 나머지 세 모서리.
     const EDGES = Object.freeze(['n', 's', 'e', 'w', 'nw', 'ne', 'sw']);
     const homes = new Map();
+    // Last applied bounds, including clamping. Default placement stays responsive without persisting it as a custom layout.
+    const placedRects = { main: null, side: null };
     let state = readFrameState();
     let env = null;
     let mounted = false;
@@ -135,6 +138,7 @@ const messageFrames = (() => {
 
     function applyRect(frame, rect) {
         const el = frameEl(frame), folded = state.collapsed[frame];
+        placedRects[frame] = { ...rect };
         el.style.left = `${rect.x}px`;
         el.style.top = `${folded ? rect.y + rect.height - COLLAPSED_HEIGHT : rect.y}px`;
         el.style.width = `${rect.width}px`;
@@ -394,6 +398,63 @@ const messageFrames = (() => {
         renderFrames();
     }
 
-    return Object.freeze({ sync: syncFrames, showTab: showFrameTab, isTabVisible: isFrameTabVisible, isActive: () => mounted, reset: resetFrames });
+    /** 주인공이 창 뒤에 서면 그 창을 옅게 한다(2026-10-13 무대를 직접 돌려 본 결과: 방의 동쪽 문 앞에 선 주인공이 전투 기록 창에
+     * 가려졌다). x, y = 주인공 발의 자리, top = 머리 끝(전장 캔버스의 CSS px). 프레임마다 불리므로 레이아웃을 읽지 않는다: 창의
+     * 자리는 저장해 둔 값으로, 캔버스의 자리는 창 크기가 바뀔 때 읽어 둔 값으로 셈한다. 창의 모습은 바뀔 때만 쓴다.
+     * 마우스를 올린 창은 옅어지지 않는다(css/message-frames.css). */
+    const HERO_HALF = 30;
+    const faded = { main: false, side: false };
+    let stageBox = null;
+    function readStageBox() {
+        const canvas = document.getElementById('battlefield-canvas'), box = canvas ? canvas.getBoundingClientRect() : null;
+        stageBox = box && canvas.clientWidth ? { left: box.left, top: box.top, scale: box.width / canvas.clientWidth } : null;
+    }
+    window.addEventListener('resize', () => { stageBox = null; });
+    function frameCoversHero(frame, at) {
+        if (frame === 'side' && !state.split) return false;
+        const rect = placedRects[frame];
+        if (!rect) return false;
+        const scale = frameScale(), top = state.collapsed[frame] ? rect.y + rect.height - COLLAPSED_HEIGHT : rect.y;
+        return at.x + HERO_HALF > rect.x * scale && at.x - HERO_HALF < (rect.x + rect.width) * scale && at.y > top * scale && at.top < (rect.y + rect.height) * scale;
+    }
+    function fadeFramesOverHero(x, y, top) {
+        if (!mounted) return;
+        // 자리가 없으면(위에서 보는 전장) 캔버스의 자리도 읽지 않는다: 옅어진 창만 되돌린다
+        const known = Number.isFinite(x);
+        if (known && !stageBox) readStageBox();
+        const at = known && stageBox ? { x: stageBox.left + x * stageBox.scale, y: stageBox.top + y * stageBox.scale, top: stageBox.top + top * stageBox.scale } : null;
+        for (const frame of FRAMES) {
+            const over = !!at && frameCoversHero(frame, at);
+            if (over === faded[frame]) continue;
+            faded[frame] = over;
+            frameEl(frame).classList.toggle('over-hero', over);
+        }
+    }
+
+    /** 창 하나가 전장에서 차지하는 상자(전장의 px). 보이지 않거나 접혔거나 주인공 때문에 옅어진 창이면 null. */
+    function frameBoxOnStage(frame) {
+        if ((frame === 'side' && !state.split) || state.collapsed[frame]) return null;
+        // Reading the frame restores its opacity in CSS, so its edge still blocks the door marker.
+        if (faded[frame] && !frameEl(frame).matches(':hover, :focus-within')) return null;
+        const rect = placedRects[frame];
+        if (!rect) return null;
+        const k = frameScale() / stageBox.scale, dx = stageBox.left / stageBox.scale, dy = stageBox.top / stageBox.scale;
+        return { left: rect.x * k - dx, right: (rect.x + rect.width) * k - dx, top: rect.y * k - dy, bottom: (rect.y + rect.height) * k - dy };
+    }
+    /** 전장의 높이 y에서 오른쪽 끝부터 창에 가려진 구간의 왼쪽 끝(전장의 px): 가려지지 않았으면 width 그대로. 오른쪽 끝에 붙은 창과
+     * 그 창에 잇닿은 창만 센다. 옆에서 보는 무대가 열린 문의 표시를 창 왼쪽에 세울 때 묻는다(js/canvas-stage-door-marks.js). */
+    const COVER_JOIN = 40;
+    function stageCoveredFrom(y, width) {
+        if (!mounted) return width;
+        if (!stageBox) readStageBox();
+        if (!stageBox) return width;
+        const boxes = FRAMES.map(frameBoxOnStage).filter(box => box && y >= box.top && y <= box.bottom).sort((a, b) => b.right - a.right);
+        let limit = width;
+        for (const box of boxes) if (box.right >= limit - COVER_JOIN) limit = Math.min(limit, box.left);
+        return limit;
+    }
+
+    return Object.freeze({ sync: syncFrames, showTab: showFrameTab, isTabVisible: isFrameTabVisible, isActive: () => mounted, reset: resetFrames, heroAt: fadeFramesOverHero,
+        coveredFrom: stageCoveredFrom });
 })();
 safeExposeGlobals({ messageFrames });

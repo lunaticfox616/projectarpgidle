@@ -53,7 +53,7 @@ worldTreeSkillFx.feedback = (() => {
     }
 
     function areaSound(fx, skill, tags) {
-        if (fx.slam || tags.includes('slam') || skill.nativeCastId === 57) return 'hitSlam';
+        if (fx.slam || tags.includes('slam')) return 'hitSlam';
         if (skill.targetMode === 'whirl' || tags.includes('channeling')) return 'hitWhirl';
         if (tags.includes('aoe')) return 'hitSlam';
         return null;

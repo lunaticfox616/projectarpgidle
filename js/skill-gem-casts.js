@@ -6,8 +6,8 @@ const skillGemCasts = (() => {
     const same = (a,b) => a.gx===b.gx && a.gy===b.gy;
     const distance = (a,b) => Math.hypot(a.gx-b.gx,a.gy-b.gy);
     const dirs = {2:[0,1],4:[-1,0],6:[1,0],8:[0,-1]};
-    // Gems that never overlap themselves: the clock, the assassination and the four movement gems.
-    const SINGLE_CAST = new Set([46,52,54,55,56,57]);
+    // Gems that never overlap themselves: the clock, the assassination and the three movement gems.
+    const SINGLE_CAST = new Set([46,52,54,55,56]);
     // 효과 확장 +N (js/skill-effect-expansion.js): 탄성 플라스크 bounces, 폭발 혼합물·신성한 안개 radius, 파문심판 cross arms,
     // 빈 플라스크 shard reach and 암살 reach grow by it; 광창 강림·시간 가속·과냉각 혼합물·인과 never do.
     const grow = stats => skillEffectExpansion.extra(stats && stats.sSkill);
@@ -89,7 +89,7 @@ const skillGemCasts = (() => {
     function event(cast,phase,at,duration,extra={}) {
         const keys={44:'flaskPhase',45:'lancePhase',46:'timePhase',47:'mixturePhase',48:'supercooledPhase',
             49:'emptyFlaskPhase',50:'holyMistPhase',51:'judgmentPhase',52:'assassinationPhase',53:'causalityPhase',
-            54:'riftPhase',55:'smokePhase',56:'harpoonPhase',57:'leapPhase'};
+            54:'riftPhase',55:'smokePhase',56:'harpoonPhase'};
         const travel=['flight','flask','shard','fall'].includes(phase);
         const ground=['clock','wave','mist','sigil'].includes(phase);
         return {skillName:cast.name,kind:travel?'travel':'stage',[keys[cast.id]]:phase,at,duration,
@@ -114,7 +114,7 @@ const skillGemCasts = (() => {
     const contactAreas={45:c=>c.points,46:c=>cells(c.source,'circle',3),47:c=>cells(c.aim,'square',1+grow(c.stats)),
         48:c=>cells(c.aim,'ring',c.index+1).concat(c.index?[]:cells(c.aim,'square',.5)),
         50:c=>cells(c.source,'square',1+grow(c.stats)).filter(p=>!same(p,c.source)),51:c=>cells(c.aim,'cross',c.geometry.crossRadius),
-        53:c=>cells(c.source,'circle',4),54:c=>cells(c.move.to,'square',moveRadius(c)),57:c=>cells(c.move.to,'square',moveRadius(c))};
+        53:c=>cells(c.source,'circle',4),54:c=>cells(c.move.to,'square',moveRadius(c))};
     function flight(cast,base,perCell) {
         return Math.max(1,Math.round((base+distance(cast.source,cast.aim)*perCell)/cast.speed/1.8));
     }
@@ -175,10 +175,10 @@ const skillGemCasts = (() => {
         const duration=Math.round(Math.max(340,Math.min(520,300+distance(c.source,c.aim)*45))/c.speed/1.8);
         visual(state,c,'flight',c.nextAt,duration);c.nextAt+=duration;
     }
-    // ---------------------------------------------------------------- 54~57 이동기 (스킬 변경분 2 · 인계 mob4_core.js)
+    // ---------------------------------------------------------------- 54~56 이동기 (스킬 변경분 2 · 인계 mob4_core.js. 57 공중강타는 2026-10-13에 지웠다)
     // Reach is Euclidean; a landing is free (see free()) and never the caster's own cell; timings scale with attack speed.
     // Each cast carries its whole choreography in c.move (one 'move' event) for the redrawn art and the caster's motion.
-    const MOVES={54:{range:4,grows:'radius'},55:{range:5,grows:'range'},56:{range:5,grows:'range'},57:{range:3,grows:'radius'}};
+    const MOVES={54:{range:4,grows:'radius'},55:{range:5,grows:'range'},56:{range:5,grows:'range'}};
     const N8=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
     const reach2=(a,b)=>(a.gx-b.gx)**2+(a.gy-b.gy)**2;
     const ms=(c,value)=>Math.round(value/c.speed);
@@ -198,7 +198,7 @@ const skillGemCasts = (() => {
         }
         return best;
     }
-    /** 차원찢기·공중강타 land on the aimed cell if free, else on the first free cell back toward the caster, else on the aimed
+    /** 차원찢기 lands on the aimed cell if free, else on the first free cell back toward the caster, else on the aimed
      * cell's free neighbour nearest the caster — always within reach. */
     function landNear(source,want,enemies,range) {
         const ok=c=>!same(c,source) && reach2(source,c)<=range*range && free(c,enemies);
@@ -254,16 +254,8 @@ const skillGemCasts = (() => {
         c.nextAt=hitAt;
         visual(state,c,'move',c.at,pull1+ms(c,420)-c.at,{move:c.move,targetCells:[aim]});
     }
-    function launchLeap(state,c,enemies) {                   // 57: a parabola up and a slam on landing
-        const {live,aim}=moveStart(state,c,enemies),to=landNear(c.source,aim,live,moveReach(57,grow(c.stats)));
-        if(!to){c.done=true;return;}
-        const jump=c.at+ms(c,160),slam=jump+ms(c,280+distance(c.source,to)*70);
-        c.move={from:cell(c.source),to,jump,slam,peak:Math.round(8+distance(c.source,to)*3),swing:{impact:slam,until:slam+ms(c,140)}};
-        c.nextAt=slam;
-        visual(state,c,'move',c.at,slam+ms(c,560)-c.at,{move:c.move,targetCells:[to],footprint:{center:to,radius:moveRadius(c)}});
-    }
     const launch={44:bounce,45:launchLance,46:launchClock,47:launchFlask,48:launchFlask,49:launchFlask,
-        50:launchMist,51:launchJudgment,52:launchAssassin,54:launchRift,55:launchSmoke,56:launchHarpoon,57:launchLeap};
+        50:launchMist,51:launchJudgment,52:launchAssassin,54:launchRift,55:launchSmoke,56:launchHarpoon};
     function stepBounce(state,c,input) {
         visual(state,c,'splash',c.nextAt,280/c.speed);
         const result=contact(c,input.enemies.filter(e=>e.id===c.targetId && e.hp>0),c.nextAt);
@@ -407,13 +399,8 @@ const skillGemCasts = (() => {
         c.done=true;
         return landingNow(c,input) ? [moveTo(c,'pull')] : [];
     }
-    function stepLeap(state,c,input) {
-        c.done=true;
-        if(!landingNow(c,input)){c.failed=true;return [];}
-        return [moveTo(c,'leap'),contact(c,area(input.enemies,c.move.to,'square',moveRadius(c)),c.move.slam)];
-    }
     const steps={44:stepBounce,45:stepLance,46:stepClock,47:stepExplosion,48:stepCold,49:stepEmpty,
-        50:stepMist,51:stepJudgment,52:stepAssassin,54:stepRift,55:stepSmoke,56:stepHarpoon,57:stepLeap};
+        50:stepMist,51:stepJudgment,52:stepAssassin,54:stepRift,55:stepSmoke,56:stepHarpoon};
     function update(state,input) {
         const commands=[];
         updateMistTargets(state,input);

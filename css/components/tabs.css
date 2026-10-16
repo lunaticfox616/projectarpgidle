@@ -331,7 +331,7 @@ body button[onclick*="salvage"]:not(.subtab-btn):hover:not(:disabled) {
   }
 }
 @media (max-width: 1080px) {
-  #tab-items > .subtab-row > .subtab-btn {
+  :is(#tab-items, #tab-items .merged-subtab-pane[data-tab-id="tab-items"]) > .subtab-row > .subtab-btn {
     padding-inline: 4px;
     white-space: normal;
     word-break: keep-all;
@@ -356,7 +356,7 @@ body button[onclick*="salvage"]:not(.subtab-btn):hover:not(:disabled) {
   }
 }
 @media (max-width: 1080px) {
-  #tab-items > .subtab-row > .subtab-btn {
+  :is(#tab-items, #tab-items .merged-subtab-pane[data-tab-id="tab-items"]) > .subtab-row > .subtab-btn {
     min-width: 0;
     min-height: 44px;
   }

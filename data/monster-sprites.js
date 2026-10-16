@@ -53,16 +53,31 @@ const MONSTER_SPRITE_SHEETS = Object.freeze(Object.fromEntries([
         flask: { up: [30, 49], down: [31, 49], left: [35, 49], right: [29, 49] },
         censer: { up: [34, 49], down: [35, 49], left: [37.5, 48], right: [24.5, 49] }
     }).map(([weapon, feet]) => [`root-${weapon}`, 'root', `roots/${WEAPON_CATEGORIES[weapon].root}`, 31, feet]),
-        ['underworld-crawler', 'realm', 'realms/underworld/crawler', 21, [24, 32]], ['underworld-beetle', 'realm', 'realms/underworld/beetle', 17, [24, 32]], ['underworld-miner', 'realm', 'realms/underworld/miner', 26, [24, 33]], ['underworld-hound', 'realm', 'realms/underworld/hound', 22, [24, 31]], ['underworld-executioner', 'realm', 'realms/underworld/executioner', 32, [24, 35]], ['underworld-wraith', 'realm', 'realms/underworld/wraith', 29, [24, 36]], ['underworld-king', 'realmBoss', 'realms/underworld/king', 42, [32, 46]],
-        ['cosmos-star', 'realm', 'realms/cosmos/star', 22, [24, 33]], ['cosmos-ooze', 'realm', 'realms/cosmos/ooze', 24, [24, 32]], ['cosmos-wisp', 'realm', 'realms/cosmos/wisp', 28, [24, 34]], ['cosmos-wanderer', 'realm', 'realms/cosmos/wanderer', 28, [24, 34]], ['cosmos-sentinel', 'realm', 'realms/cosmos/sentinel', 30, [24, 36]], ['cosmos-seer', 'realm', 'realms/cosmos/seer', 23, [24, 38]], ['cosmos-colossus', 'realmBoss', 'realms/cosmos/colossus', 43, [32, 46]],
-        ['ocean-angler', 'realm', 'realms/ocean/angler', 28, [24, 32]], ['ocean-crab', 'realm', 'realms/ocean/crab', 19, [24, 33]], ['ocean-cultist', 'realm', 'realms/ocean/cultist', 28, [24, 34]], ['ocean-shell', 'realm', 'realms/ocean/shell', 14, [24, 31]], ['ocean-knight', 'realm', 'realms/ocean/knight', 31, [24, 37]], ['ocean-oracle', 'realm', 'realms/ocean/oracle', 26, [24, 37]], ['ocean-leviathan', 'realmBoss', 'realms/ocean/leviathan', 42, [32, 47]],
+        ['underworld-beetle', 'realm', 'realms/underworld/beetle', 17, [24, 32]], ['underworld-hound', 'realm', 'realms/underworld/hound', 22, [24, 31]], ['underworld-king', 'realmBoss', 'realms/underworld/king', 42, [32, 46]],
+        ['cosmos-star', 'realm', 'realms/cosmos/star', 22, [24, 33]], ['cosmos-ooze', 'realm', 'realms/cosmos/ooze', 24, [24, 32]], ['cosmos-sentinel', 'realm', 'realms/cosmos/sentinel', 30, [24, 36]], ['cosmos-colossus', 'realmBoss', 'realms/cosmos/colossus', 43, [32, 46]],
+        ['ocean-angler', 'realm', 'realms/ocean/angler', 28, [24, 32]], ['ocean-crab', 'realm', 'realms/ocean/crab', 19, [24, 33]], ['ocean-shell', 'realm', 'realms/ocean/shell', 14, [24, 31]], ['ocean-oracle', 'realm', 'realms/ocean/oracle', 26, [24, 37]], ['ocean-leviathan', 'realmBoss', 'realms/ocean/leviathan', 42, [32, 47]],
         ['hive-worker', 'realm', 'realms/hive/worker', 24, [24, 34]], ['hive-drone', 'realm', 'realms/hive/drone', 25, [24, 34]],
         ['hive-scout', 'realm', 'realms/hive/scout', 23, [24, 34]], ['hive-nurse', 'realm', 'realms/hive/nurse', 24, [24, 34]],
         ['hive-guard', 'realm', 'realms/hive/guard', 27, [24, 34]], ['hive-royal', 'realm', 'realms/hive/royal', 27, [24, 34]],
         ['hive-queen', 'realmBoss', 'realms/hive/queen', 40, [32, 46]],
-        ['sky-imp', 'realm', 'realms/sky/imp', 25, [24, 36]], ['sky-roc', 'realm', 'realms/sky/roc', 24, [24, 33]], ['sky-sentinel', 'realm', 'realms/sky/sentinel', 31, [24, 34]], ['sky-harpy', 'realm', 'realms/sky/harpy', 28, [24, 34]], ['sky-lancer', 'realm', 'realms/sky/lancer', 33, [24, 36]], ['sky-griffin', 'realm', 'realms/sky/griffin', 29, [24, 33]], ['sky-titan', 'realmBoss', 'realms/sky/titan', 44, [32, 46]]
+        ['sky-imp', 'realm', 'realms/sky/imp', 25, [24, 36]], ['sky-roc', 'realm', 'realms/sky/roc', 24, [24, 33]], ['sky-harpy', 'realm', 'realms/sky/harpy', 28, [24, 34]], ['sky-griffin', 'realm', 'realms/sky/griffin', 29, [24, 33]], ['sky-titan', 'realmBoss', 'realms/sky/titan', 44, [32, 46]]
 ].map(([id, kind, stem, height, feet]) => [id, Object.freeze({
     id, kind, height, feet: feet ? Object.freeze(feet) : null, idle: `assets/enemies/${stem}-idle.png`, attack: `assets/enemies/${stem}-attack.png`
 })])));
 
-safeExposeData({ MONSTER_SPRITE_KINDS, MONSTER_SPRITE_SHEETS });
+// 옆에서 보는 무대의 몬스터 시트(docs/stage-view-20261011.md): 오른쪽을 보는 가로 한 줄, 캐릭터와 같은 밀도(칸 너비 = 64도트).
+// 무대가 켜져 있고 여기에 그림이 있는 몬스터만 이 시트로 그린다(왼쪽은 좌우 반전). 없는 몬스터는 위 시트의 좌우 줄을 그대로 쓴다.
+// 그림은 node scripts/build-stage-monsters.cjs가 그린다(생김새와 색은 위 시트의 기존 그림을 따른다). [id, 발에서 그림 맨 위까지(도트), 발 자리].
+const MONSTER_STAGE_KIND = Object.freeze({
+    frame: 96, stage: true, shadow: 0.3,
+    idleMs: Object.freeze([170, 170, 170, 170, 170, 170]), attackMs: Object.freeze([100, 90, 80, 70, 110, 150]), impactFrame: 3
+});
+// 속성 위습 여섯 장(wisp-fire …)은 위습 외형 18종이 나눠 쓴다: 외형 id → 속성은 data/wisp-sprites.js WISP_SPRITE_BY_VISUAL.
+const MONSTER_STAGE_SHEETS = Object.freeze(Object.fromEntries([
+    ['act1-slime', 53, [44, 84]], ['act1-ant', 41, [42, 84]], ['act1-worm', 29, [46, 84]],
+    ...Object.entries({ fire: 74, ice: 66, lightning: 60, poison: 66, holy: 72, void: 60 }).map(([element, height]) => ['wisp-' + element, height, [48, 84]])
+].map(([id, height, feet]) => [id, Object.freeze({
+    id, kind: 'stage', height, feet: Object.freeze(feet), idle: `assets/enemies/stage/${id}-idle.png`, attack: `assets/enemies/stage/${id}-attack.png`
+})])));
+
+safeExposeData({ MONSTER_SPRITE_KINDS, MONSTER_SPRITE_SHEETS, MONSTER_STAGE_KIND, MONSTER_STAGE_SHEETS });

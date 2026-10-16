@@ -1,4 +1,4 @@
-// 클라우드 저장 복구와 운영 통계 UI. 데이터 접근 권한은 Supabase RPC가 최종 판정한다.
+// 수동 저장, 클라우드 저장 복구와 운영 통계 UI. 데이터 접근 권한은 Supabase RPC가 최종 판정한다.
 
 function cloudToolsEscape(value) {
     return typeof escapeHTML === 'function' ? escapeHTML(String(value == null ? '' : value)) : String(value == null ? '' : value);
@@ -125,6 +125,18 @@ function injectCloudToolsStyles() {
 
 function initializeCloudTools() {
     injectCloudToolsStyles();
+    let saveButton = document.querySelector('.cfg-btn--save');
+    if (saveButton) saveButton.addEventListener('click', () => {
+        try {
+            let saved = saveGame({ manual: true });
+            let message = saved ? '이 기기에 진행을 저장했습니다.' : (getLocalSaveStatus().message
+                || '진행 정산 또는 저장 복구를 마친 뒤 다시 눌러 주세요.');
+            showGameToast(message, { tone: saved ? 'success' : 'warning', duration: saved ? 2400 : 6000 });
+        } catch (error) {
+            console.error('[save-ui] 수동 저장 실패:', error);
+            showGameToast('저장에 실패했습니다. 게임을 닫지 말고 다시 시도해 주세요.', { tone: 'danger', duration: 6000 });
+        }
+    });
     let adminButton = document.getElementById('btn-ops-dashboard');
     if (adminButton && new URLSearchParams(location.search).get('admin') === '1') adminButton.hidden = false;
 }

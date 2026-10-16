@@ -1,4 +1,4 @@
-/** 새로 그린 이동기 4종(54 차원찢기 · 55 향로구름 · 56 작살화살 · 57 공중강타)과 위습 정령 소환 공격 6종 (Hana 스킬 인계 변경분 2).
+/** 새로 그린 이동기 3종(54 차원찢기 · 55 향로구름 · 56 작살화살)과 위습 정령 소환 공격 6종 (Hana 스킬 인계 변경분 2).
  * Ported from the handoff's void_fx.js (docs/skill-assets-hana/reference/void_fx.js.txt) like js/canvas-redrawn-skill-art.js;
  * same dots as the handoff. Board dots (one cell = 16 dots); pure drawing, no timers.
  */
@@ -209,7 +209,7 @@ const redrawnSkillArtMoves = (() => {
         lay.flush(dot);
     }
 
-    // ---------------------------------------------------------------- 이동기 4종 (54 차원찢기 · 55 향로구름 · 56 작살화살 · 57 공중강타)
+    // ---------------------------------------------------------------- 이동기 3종 (54 차원찢기 · 55 향로구름 · 56 작살화살)
     const MB = { K: '#1e1b38', D: '#352c4d', M: '#8151a8', L: '#d093ee', H: '#fae4ff', W: '#ffffff' };
     const SM = { D: '#3e444a', M: '#6c757b', L: '#b0aca6', H: '#fff3d3', G: '#f2d380', E: '#ff963e' };
     const RP = { D: '#8c7432', L: '#c18b3a', S: '#7f899d', H: '#c4d5df', W: '#ffffff', B: '#353844' };
@@ -323,82 +323,10 @@ const redrawnSkillArtMoves = (() => {
         for (const [dx, dy] of DIAG) if (corners) dot(x + dx * 2, y + dy * 2, P.L);
         dot(x, y, age < 80 ? P.W : P.H);
     }
-    /** 공중강타 takeoff dust at the feet. */
-    function dustPuff(dot, x, foot, age) {
-        if (age < 0 || age >= 240) return;
-        const u = age / 240;
-        for (const s of [-1, 1]) for (let k = 0; k < 3; k++) {
-            const px = Math.round(x + s * (3 + k * 2 + u * 6)), py = Math.round(foot - k - u * 2), r = u < .5 ? 1 : 0;
-            for (let dx = -r; dx <= r; dx++) dot(px + dx, py, u < .4 ? DU.H : u < .75 ? DU.L : DU.M);
-        }
-    }
-    function slamRing(put, x, y, s) {
-        const u = s.age / 240, R0 = 4 + (20 + 16 * s.dr) * (1 - (1 - u) * (1 - u)), B = Math.ceil(R0 + 1);
-        for (let yy = -B; yy <= B; yy++) for (let xx = -B; xx <= B; xx++) {
-            const d = Math.hypot(xx + .5, (yy + .5) / .8) - R0;
-            if (d > .5 || d < -1.5) continue;
-            if (u > .6 && hsh(x + xx, y + yy, 2) < (u - .6) * 2.5) continue;
-            put(x + xx, y + yy, d > -.5 ? (u < .35 ? DU.W : DU.L) : DU.M, 1);
-        }
-    }
-    function slamCrack(put, c, k, rs) {
-        const a = k / 6 * TAU + rs() * .5, len = (7 + rs() * 6 + 8 * c.dr) * Math.min(1, c.age / 70);
-        let px = c.x, py = c.y, aa = a;
-        for (let j = 0; j < len; j++) {
-            aa += (rs() - .5) * .5; px += Math.cos(aa); py += Math.sin(aa) * .8;
-            if (c.fade && hsh(Math.round(px), Math.round(py), k) < c.fade) continue;
-            put(Math.round(px), Math.round(py), DU.D, 2);
-            if (j < len - 2) put(Math.round(px), Math.round(py) - 1, DU.L, 1);
-        }
-    }
-    function slamDent(put, x, y, col) {
-        for (const [dx, dy] of [[0, 0], [1, 0], [-1, 0], [0, 1], [1, 1], [-1, 1]]) put(x + dx, y + dy, col, 3);
-    }
-    /** Landing on the floor: shock ring, six cracks, the dent. o = { seed, dr }. */
-    function slamGround(dot, x, y, age, o = {}) {
-        if (age < 0 || age >= 520) return;
-        const lay = layer(), rs = rng(o.seed || 57), dr = o.dr || 0;
-        if (age < 240) slamRing(lay.put, x, y, { age, dr });
-        const c = { x, y, age, dr, fade: age > 380 ? (age - 380) / 140 : 0 };
-        for (let k = 0; k < 6; k++) slamCrack(lay.put, c, k, rs);
-        slamDent(lay.put, x, y, age < 120 ? DU.M : DU.D);
-        lay.flush(dot);
-    }
-    function slamChips(put, x, y, age) {
-        const rs = rng(571);
-        for (let k = 0; k < 6; k++) {
-            const a = k / 6 * TAU + rs() * .6, v = 10 + rs() * 8, u = Math.min(1, age / 320);
-            const px = x + Math.cos(a) * v * u, py = y + Math.sin(a) * v * u * .7 - 10 * u * (1 - u) * 2;
-            if (age >= 320) continue;
-            put(Math.round(px), Math.round(py), k % 2 ? DU.L : DU.H, 3);
-            if (k % 3 === 0) put(Math.round(px) + 1, Math.round(py), DU.M, 3);
-        }
-    }
-    function dustBlob(put, px, py, u) {
-        const r = u < .5 ? 2 : 1, c = u < .3 ? DU.H : u < .7 ? DU.L : DU.M;
-        for (let dy = -r + 1; dy <= 0; dy++) for (let dx = -r; dx <= r; dx++) if (!(Math.abs(dx) === r && dy === -r + 1)) put(px + dx, py + dy, c, 2);
-    }
-    function slamDust(put, x, y, age) {
-        for (const s of [-1, 1]) for (let k = 0; k < 3; k++) {
-            const t = age - k * 30;
-            if (t < 0 || t > 300) continue;
-            const u = t / 300;
-            dustBlob(put, Math.round(x + s * (6 + k * 4 + u * 8)), Math.round(y - 1 - k * .5 - u * 3), u);
-        }
-    }
-    /** Landing in front: a flat white impact line, stone chips hopping out, dust rolling at the feet. */
-    function slamFore(dot, x, y, age) {
-        if (age < 0 || age >= 380) return;
-        const lay = layer();
-        if (age < 60) for (let dx = -7; dx <= 7; dx++) lay.put(x + dx, y, Math.abs(dx) < 4 ? DU.W : DU.H, 4);
-        slamChips(lay.put, x, y, age);
-        slamDust(lay.put, x, y, age);
-        lay.flush(dot);
-    }
 
     return Object.freeze({
         WispAttack: { attack: wispAttack, mist: wispMist, timing: wispTiming, wood: WOODC },
-        Mobility4: { rift, riftBurst, smoke, harpoon, rope, strikeStar, dustPuff, slamGround, slamFore, colors: { MB, SM, RP, DU } }
+        Mobility4: { rift, riftBurst, smoke, harpoon, rope, strikeStar, colors: { MB, SM, RP, DU } }
     });
 })();
 safeExposeGlobals({ redrawnSkillArtMoves });

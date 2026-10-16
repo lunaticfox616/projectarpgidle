@@ -728,7 +728,6 @@ function renderBackgroundResultNotes(result, summary, limits) {
     const notes = [
         ['bad', formatBackgroundSkippedReward(result.skippedMs - (result.cutMs || 0))],
         ...formatBackgroundRealLimits(result),
-        ['bad', summary.deaths > 0 ? '쓰러진 탐험에서 모은 임시 전리품은 사라집니다.' : ''],
         ['warn', backgroundNoExpReason(summary)],
         ['warn', result.stopped ? '사냥이 멈추거나 선택 창이 열려 여기까지만 진행했습니다.' : ''],
         ['warn', result.capped ? `방치 한도 ${limits.recognitionHours}시간을 다 채웠습니다.` : ''],
@@ -1303,9 +1302,14 @@ let lastTabHeaderUiSignature = '';
 let lastActiveTabId = null;
 const TAB_HEADER_NOTI_KEYS = ['char', 'season', 'items', 'skills', 'codex', 'map', 'traits', 'talent', 'journal', 'currency', 'fossil', 'ascend', 'loop', 'social', 'stump'];
 const TAB_UNLOCK_BUTTON_KEYS = ['char', 'season', 'items', 'skills', 'codex', 'map', 'traits', 'talent', 'stump'];
+// 메뉴 단추 하나가 여는 창 하나에 화면 여럿(2026-10-13 사용자: 새 단추 그림에 맞춰 "단추 하나로 합치고 UI를 잘 만들어야겠지?").
+// 장비 단추는 장비와 스킬 젬을, 루프 단추는 루프 패시브와 해금을 연다(앞의 둘은 전부터 묶여 있었다). 창 머리의 탭으로 오가고,
+// 단추는 마지막에 보던 화면을 연다. icon: 창 머리 탭의 그림(assets/ui/pixel/menu-icons.png의 번호), count: 탭에 적는 수(쓸 포인트).
 const MERGED_TAB_GROUPS = Object.freeze({
-    growth: { launcher: 'tab-char', title: '스킬트리', tabs: [{ id: 'tab-char', label: '스킬트리', detail: '스킬트리 노드에 포인트를 씁니다.' }, { id: 'tab-traits', label: '전직', detail: '전직과 키스톤을 선택합니다.' }] },
-    records: { launcher: 'tab-journal', title: '기록', tabs: [{ id: 'tab-journal', gate: 'journal', label: '저널', detail: '진행 기록과 안내를 확인합니다.' }, { id: 'tab-codex', gate: 'codex', label: '도감', detail: '발견한 항목과 수집 현황을 확인합니다.' }, { id: 'tab-records', gate: 'journal', label: '기록', detail: '루프 소요 시간과 최고 기록을 확인합니다.' }] }
+    growth: { launcher: 'tab-char', title: '스킬트리', tabs: [{ id: 'tab-char', label: '스킬트리', icon: 2, count: () => game.passivePoints, detail: '스킬트리 노드에 포인트를 씁니다.' }, { id: 'tab-traits', label: '전직', icon: 16, detail: '전직과 키스톤을 선택합니다.' }] },
+    gear: { launcher: 'tab-items', title: '장비', tabs: [{ id: 'tab-items', label: '장비', icon: 6, detail: '장비와 가방을 봅니다.' }, { id: 'tab-skills', label: '스킬 젬', icon: 9, detail: '젬을 장착하고 키웁니다.' }] },
+    loop: { launcher: 'tab-season', title: '루프', tabs: [{ id: 'tab-season', label: '루프 패시브', icon: 4, count: () => game.seasonPoints, detail: '루프 포인트로 영구 노드에 투자합니다.' }, { id: 'tab-unlocks', label: '해금', icon: 3, count: () => contentProgression.points(game).balance, detail: '해금 포인트로 다음 콘텐츠를 고릅니다.' }] },
+    records: { launcher: 'tab-journal', title: '기록', tabs: [{ id: 'tab-journal', gate: 'journal', label: '저널', icon: 10, detail: '진행 기록과 안내를 확인합니다.' }, { id: 'tab-codex', gate: 'codex', label: '도감', icon: 13, detail: '발견한 항목과 수집 현황을 확인합니다.' }, { id: 'tab-records', gate: 'journal', label: '기록', icon: 20, detail: '루프 소요 시간과 최고 기록을 확인합니다.' }] }
 });
 
 // 탭 2단 그룹핑: 상단 카테고리 바에서 그룹을 고르면 해당 그룹의 탭만 보인다.
@@ -1748,7 +1752,8 @@ function updateTabNotificationDots() {
     let dockDot = document.getElementById('noti-social-dock');
     if (dockDot) dockDot.style.display = (game.noti.social && isNotiEnabled('social')) ? 'block' : 'none';
     syncMergedTabLauncherState();
-    let skillTabButton = document.getElementById('btn-tab-skills');
+    // 스킬 젬은 장비 단추로 열린다(묶음 gear): 첫 젬을 알리는 표시는 화면에 있는 그 단추에 단다
+    let skillTabButton = document.getElementById('btn-tab-items');
     if (skillTabButton) skillTabButton.classList.toggle('starter-gem-tutorial-pending', !!getStarterGemTutorialTarget());
     syncMobilePrimaryNavigationState();
 }
@@ -1988,15 +1993,91 @@ function renderMergedTabPanels(groupKey) {
     let shell = mountMergedTabGroup(groupKey);
     if (!group || !shell) return;
     let selectedId = getSelectedMergedTabId(groupKey);
-    let nav = shell.querySelector('.merged-tab-subtabs');
-    let visibleTabs = group.tabs.filter(isMergedTabAvailable);
-    nav.hidden = visibleTabs.length <= 1;
-    nav.innerHTML = visibleTabs.map(tab =>
-        `<button type="button" class="subtab-btn${tab.id === selectedId ? ' active' : ''}" onclick="switchMergedTabSubtab('${groupKey}','${tab.id}')" ${isMergedTabAvailable(tab) ? '' : 'disabled title="루프 25에 해금"'}>${tab.label}${isMergedTabAvailable(tab) ? '' : ' 🔒 루프 25'}</button>`
-    ).join('');
+    renderMergedTabStrip(groupKey);
     shell.querySelectorAll('.merged-subtab-pane').forEach(pane => {
         pane.classList.toggle('active', pane.dataset.tabId === selectedId);
     });
+}
+
+/** 탭에 붙는 표시: 쓸 포인트가 있으면 그 수, 없고 새 소식이 있으면 점. */
+function mergedTabMarkHtml(tab) {
+    let key = tab.id.replace(/^tab-/, ''), count = Math.max(0, Math.floor(Number(tab.count ? tab.count() : 0) || 0));
+    if (count > 0) return `<b class="window-tab-count">${count}</b>`;
+    return game.noti && game.noti[key] && isNotiEnabled(key) ? '<i class="window-tab-dot"></i>' : '';
+}
+/** 그 화면을 바로 여는 단축키(PC)의 작은 자판: 메뉴 단추가 하나로 합쳐져도 키는 화면마다 그대로다. */
+function mergedTabHotkeyHtml(tab) {
+    let source = document.getElementById('btn-' + tab.id);
+    return source && source.dataset.hotkey ? `<kbd class="window-tab-key">${escapeHTML(source.dataset.hotkey)}</kbd>` : '';
+}
+/** 묶음 창의 탭 하나: 그 화면의 그림과 이름, 표시(mergedTabMarkHtml), 단축키. */
+function mergedTabButtonHtml(groupKey, tab, selectedId) {
+    let icon = Number.isInteger(tab.icon) ? `<span class="window-tab-icon" style="--px-icon:${tab.icon}"></span>` : '';
+    let active = tab.id === selectedId;
+    return `<button type="button" class="subtab-btn window-tab${active ? ' active' : ''}" role="tab" aria-selected="${active}" data-tab-id="${tab.id}" onclick="switchMergedTabSubtab('${groupKey}','${tab.id}')">${icon}<span class="window-tab-name">${tab.label}</span>${mergedTabMarkHtml(tab)}${mergedTabHotkeyHtml(tab)}</button>`;
+}
+
+/** PC의 창이면 창 머리(제목 줄) 안의 탭 자리, 창이 아니면(휴대폰) null. 창 머리는 화면 크기가 바뀔 때 다시 지어지므로 없으면 만든다. */
+function mergedTabTitleHost(root) {
+    let titlebar = root.querySelector(':scope > .ui-window-titlebar');
+    if (!titlebar) return null;
+    let host = titlebar.querySelector(':scope > .ui-window-tabs');
+    if (host) return host;
+    host = document.createElement('div');
+    host.className = 'ui-window-tabs';
+    host.setAttribute('role', 'tablist');
+    // 창 머리를 두 번 누르면 창을 키운다: 탭을 잇달아 누른 것은 그 뜻이 아니다
+    host.addEventListener('dblclick', event => { if (event.target.closest('button')) event.stopPropagation(); });
+    titlebar.insertBefore(host, titlebar.querySelector(':scope > .ui-window-actions'));
+    return host;
+}
+
+/** 묶음 창의 탭 줄을 그린다. PC의 창에서는 제목 대신 창 머리에 놓이고(본문의 높이를 쓰지 않는다), 휴대폰에서는 화면 맨 위의 줄이다.
+ * 내용이 같으면 손대지 않는다(화면을 고칠 때마다 불린다: 쓸 포인트의 수와 새 소식의 점이 따라온다). */
+function renderMergedTabStrip(groupKey) {
+    let group = MERGED_TAB_GROUPS[groupKey], root = group && document.getElementById(group.launcher);
+    let nav = root && root.querySelector('.merged-tab-subtabs');
+    if (!nav) return;
+    let selectedId = getSelectedMergedTabId(groupKey), visibleTabs = group.tabs.filter(isMergedTabAvailable), many = visibleTabs.length > 1;
+    let html = many ? visibleTabs.map(tab => mergedTabButtonHtml(groupKey, tab, selectedId)).join('') : '';
+    let titleHost = mergedTabTitleHost(root);
+    root.classList.toggle('ui-window-tabbed', !!titleHost && many);
+    nav.classList.add('window-tab-strip');
+    // 창 머리에 탭이 놓이면 본문의 줄은 비운다
+    setMergedTabStripHtml(titleHost, html, many);
+    setMergedTabStripHtml(nav, titleHost ? '' : html, many && !titleHost);
+}
+function setMergedTabStripHtml(host, html, shown) {
+    if (!host) return;
+    host.hidden = !shown;
+    if (host.dataset.rendered !== html) { host.innerHTML = html; host.dataset.rendered = html; }
+}
+
+// 묶음마다 방금까지 보이던 안쪽 화면(저장하지 않는다): 같은 창 안에서 화면을 바꿀 때 그 화면에 들어서는 일을 한 번만 하려고 적어 둔다.
+const mergedPaneShown = new Map();
+/** 창이 열리거나 창 안의 화면이 바뀌어 그 화면에 들어섰다: 장비 화면이면 첫 탭(장비)으로 돌리고 세팅 분석을 돌린다. */
+function enterShownTab(tabId) {
+    if (tabId !== 'tab-items') return;
+    if (game.noti) game.noti.items = false;
+    if (window.equipmentTriage) window.equipmentTriage.onOpen();
+    switchItemSubtab('item-tab-equip');
+}
+/** switchTab이 지금부터 보일 화면을 정한다. 묶음의 문을 여는 탭을 이름으로 부르면(단축키, 안내, "장비 열기" 같은 단추) 마지막에 보던
+ * 화면이 아니라 그 탭 자신의 화면을 고른다(단추와 창 머리의 탭은 switchMergedTabSubtab으로 고른 화면을 그대로 연다).
+ * @returns {{id: string, changed: boolean}} 보일 화면과, 같은 묶음 창에서 방금까지 다른 화면이 보였는지 */
+function resolveShownTab(tabId, mergedEntry) {
+    if (!mergedEntry) return { id: tabId, changed: false };
+    let groupKey = mergedEntry[0], own = mergedEntry[1].tabs.find(tab => tab.id === tabId);
+    if (!mergedTabSwitching && isMergedTabAvailable(own)) game.settings.mergedTabSelection[groupKey] = tabId;
+    let id = resolveRenderedTabId(tabId), changed = mergedPaneShown.get(groupKey) !== id;
+    mergedPaneShown.set(groupKey, id);
+    return { id, changed };
+}
+/** 이미 열려 있는 묶음 창을 다시 불렀다: 탭 줄을 맞추고, 화면이 바뀌었으면 그 화면에 들어서는 일을 한다. */
+function refreshShownMergedTab(mergedEntry, shown) {
+    if (!mergedEntry) return;
+    renderMergedTabSubtabs(mergedEntry[0]);
+    if (shown.changed) enterShownTab(shown.id);
 }
 
 function switchMergedTabSubtab(groupKey, tabId, options = {}) {
@@ -2009,9 +2090,13 @@ function switchMergedTabSubtab(groupKey, tabId, options = {}) {
     let wasCodexNotified = !!(game.noti && game.noti.codex);
     if (game.noti) game.noti[tabId.replace(/^tab-/, '')] = false;
     if (tabId === 'tab-codex' && wasCodexNotified) game.codexFocusNewOnOpen = true;
-    window.switchTab(group.launcher, { keepWindowOpen: options.keepWindowOpen !== false });
+    // 고른 화면 그대로 문을 여는 탭을 부른다(switchTab은 문을 여는 탭을 이름으로 부르면 그 탭 자신의 화면을 고른다)
+    mergedTabSwitching = true;
+    try { window.switchTab(group.launcher, { keepWindowOpen: options.keepWindowOpen !== false }); }
+    finally { mergedTabSwitching = false; }
     updateStaticUI();
 }
+let mergedTabSwitching = false;
 
 function syncMergedTabLauncherVisibility() {
     contentUnlockUi.sync();
@@ -2030,6 +2115,8 @@ function syncMergedTabLauncherState() {
         let sourceKeys = group.tabs.map(tab => tab.id.replace(/^tab-/, ''));
         let dot = launcher.querySelector('.noti-dot');
         if (dot) dot.style.display = sourceKeys.some(key => game.noti[key] && isNotiEnabled(key)) ? 'block' : 'none';
+        // 열려 있는 묶음 창의 탭 줄(쓸 포인트의 수, 새 소식의 점)도 함께 맞춘다
+        if (root && (root.classList.contains('active') || root.classList.contains('ui-window-open'))) renderMergedTabStrip(getMergedTabGroup(group.launcher)[0]);
     });
 }
 
@@ -2083,14 +2170,15 @@ function switchTab(tabId) {
         notifyLockedTab(tabId);
         return;
     }
+    let shown = resolveShownTab(tabId, mergedEntry), shownId = shown.id; // 지금부터 보일 화면: 묶음 창이면 그 안에서 고른 화면
     setMobileTabDrawerOpen(false);
     // 이미 활성인 탭을 다시 누르면 전체 UI 재구성(+ 캐릭터 탭의 패시브 트리 재드로우)을
     // 반복해 게임이 멈춘 것처럼 느껴진다. 같은 탭 재클릭은 무거운 재렌더를 생략한다.
     // (탭 내용 갱신은 게임 동작/주기 갱신이 별도로 처리한다.)
-    if (tabId === 'tab-items' && game.noti) game.noti.items = false;
+    if (shownId === 'tab-items' && game.noti) game.noti.items = false;
     let tabEl = document.getElementById(tabId);
     if (lastActiveTabId === tabId && tabEl && tabEl.classList.contains('active')) {
-        if (mergedEntry) renderMergedTabSubtabs(mergedEntry[0]);
+        refreshShownMergedTab(mergedEntry, shown);
         updateTabNotificationDots();
         return;
     }
@@ -2100,7 +2188,7 @@ function switchTab(tabId) {
     document.querySelectorAll('.tab-content:not(.merged-subtab-pane), .tab-btn').forEach(el => el.classList.remove('active'));
     document.getElementById(tabId).classList.add('active');
     // 장비 창을 열면 현재 세팅 분석을 한 번 돌린다(js/equipment-triage.js autoStart).
-    if (tabId === 'tab-items' && window.equipmentTriage) window.equipmentTriage.onOpen();
+    if (shownId === 'tab-items' && window.equipmentTriage) window.equipmentTriage.onOpen();
     document.body.classList.toggle('mobile-community-sheet-open', tabId === 'tab-social' && uiDisplay.matches('(max-width: 1080px)'));
     // 열 수 있는 화면을 다시 세웠으므로 잠금 정리 후의 복귀 예약은 소진된다.
     pendingRelockedTabFallback = false;
@@ -2122,7 +2210,7 @@ function switchTab(tabId) {
     // 알림 키 전체(TAB_HEADER_NOTI_KEYS)를 대상으로 해제한다. 과거에 하드코딩 목록에서
     // 'jewel'이 빠져 있어 주얼 탭을 방문해도 알림이 꺼지지 않았고, 저장 데이터에 true로
     // 남아 장비 상위탭 그룹 점이 영구히 켜져 있는 문제가 있었다.
-    TAB_HEADER_NOTI_KEYS.forEach(key => { if (tabId === 'tab-' + key) game.noti[key] = false; });
+    TAB_HEADER_NOTI_KEYS.forEach(key => { if (shownId === 'tab-' + key) game.noti[key] = false; });
     if (tabId === 'tab-map') acknowledgeMapMainAlarm();
     // 도감 탭에서 다른 탭으로 벗어날 때, 신규 등록 강조를 해제(처음 열었을 때만 강조).
     if (lastActiveTabId === 'tab-codex' && tabId !== 'tab-codex') game.codexNewlyRegistered = {};
@@ -2130,7 +2218,7 @@ function switchTab(tabId) {
     if (tabId === 'tab-social' && typeof renderSocialTab === 'function') renderSocialTab();
     else if (typeof syncSocialChatPolling === 'function') syncSocialChatPolling();
     if (tabId === 'tab-talent') talentUi.render();
-    if (tabId === 'tab-items') switchItemSubtab('item-tab-equip');
+    if (shownId === 'tab-items') switchItemSubtab('item-tab-equip');
     updateMobileBattlePipVisibility();
     // 탭 전환 직후 PiP가 보이면 한 번 즉시 갱신해, 적응형 루프 다음 주기를
     // 기다리는 동안 직전 프레임이 잠깐 남아 보이는 것을 막는다.
@@ -2473,7 +2561,7 @@ function openBeehiveChoiceOverlay(reasonText) {
     }
     let b = game.beehive;
     if (dismissedBeehiveChoices.has(b.pendingChoice)) return;
-    let alive = (game.enemies || []).filter(e => e && e.hp > 0).length;
+    let alive = countBeehiveWaveAlive();
     if (!b.inRun || !b.pendingChoice || b.awaitingClear || alive > 0 || document.getElementById('beehive-choice-overlay')) return;
     let next = Math.min(10, Math.max(1, Math.floor(b.branchStep + 1)));
     let html = `<div id="beehive-choice-overlay" class="beehive-choice-overlay" role="dialog" aria-modal="true" aria-label="벌집 갈림길">
@@ -2498,10 +2586,10 @@ function renderLoop8BeehivePanel(shouldRenderPanel = true) {
     let b = game.beehive || (game.beehive = { unlockedPermanent:false, inRun:false, branchStep:0, cleared:false, routeSeed:0 });
     if (b.inRun && !b.pendingChoice && !b.awaitingClear && !b.queenActive) prepareBeehiveBranchChoices(b);
     let choiceHtml = '';
-    if (b.inRun && b.awaitingClear && (game.enemies || []).filter(e => e.hp > 0).length === 0) {
+    if (b.inRun && b.awaitingClear && countBeehiveWaveAlive() === 0) {
         onBeehiveWaveCleared();
     }
-    let aliveBeeEnemies = (game.enemies || []).filter(e => e && e.hp > 0).length;
+    let aliveBeeEnemies = countBeehiveWaveAlive();
     if (b.inRun && b.pendingChoice && !b.awaitingClear && aliveBeeEnemies <= 0) {
         openBeehiveChoiceOverlay();
         choiceHtml = `<div class="map-hive-choices"><strong>갈림길 선택 (${Math.min(10, (b.branchStep || 0) + 1)}/10), 선택하면 전투가 시작됩니다.</strong>${getBeehiveChoiceButtonsHtml(b.pendingChoice)}</div>`;
@@ -2555,6 +2643,7 @@ function forfeitColonyRun(){
     game.encounterPlan = [];
     game.encounterIndex = 0;
     game.runProgress = 0;
+    actExplorationProgress.depart(game); // 방 단위 지도: 바닥의 전리품을 거두고 지도를 닫는다
     addLog(`🪲 군락지 ${Math.max(0, Math.floor(c.wave || 1) - 1)}웨이브 정산 후 철수했습니다. 획득 보상은 유지됩니다.`, 'season-up');
     updateStaticUI();
     queueImportantSave(200);
@@ -2593,6 +2682,7 @@ function spawnBeehiveWave(isBoss){
     game.encounterPlan = [];
     game.encounterIndex = 0;
     game.moveTimer = 0;
+    let wave = [];
     for (let i = 0; i < count; i++) {
         let marker = { elite: !isBoss && i < eliteCount, boss: isBoss };
         let enemy = createEnemy(zone, marker, i);
@@ -2607,8 +2697,12 @@ function spawnBeehiveWave(isBoss){
             enemy.name = `${enemy.isElite ? '정예 ' : ''}벌집 전투벌`;
             enemy.traitName = enemy.traitName || '벌떼 돌격';
         }
-        game.enemies.push(enemy);
+        wave.push(enemy);
     }
+    // 방 단위 무대: 벌집 전용 지도의 다음 방(여왕은 여왕의 방)에 세운다(js/combat.js placeBeehiveRoomWave). 그 밖에서는 판에 바로 선다.
+    let roomRun = getBeehiveRoomRun();
+    if (roomRun) placeBeehiveRoomWave(roomRun, wave, step, isBoss);
+    else game.enemies.push(...wave);
     if (isBoss) addLog('👑 10개 갈림길을 완료해 여왕벌이 등장했습니다. 여왕벌을 처치하면 벌집 원정이 완료됩니다.', 'loot-unique');
     else addLog(`🐝 벌떼 웨이브 시작! 진행도 ${Math.min(100, step * 10)}%, 남은 적을 모두 처치해야 다음 갈림길이 열립니다.`, 'attack-monster');
 }
@@ -2791,6 +2885,7 @@ function startBeehiveRun(){
     game.encounterIndex = 0;
     game.runProgress = 0;
     game.moveTimer = 0;
+    if (actExplorationDoors.session()) startEncounterRun(); // 방 단위 무대: 벌집 전용 지도를 열고 입구에 선다(js/content-maps.js hive)
     game.combatHalted = true;
     prepareBeehiveBranchChoices(b);
     addLog(`🐝 벌집 원정 시작! 기준 난이도: 혼돈 심화 ${Math.max(21, Math.floor(b.entryDeepChaosDepth || 21))}, 갈림길을 선택하면 즉시 벌떼 웨이브가 시작됩니다.`, 'season-up');
@@ -2804,7 +2899,7 @@ function advanceBeehivePath(){
 }
 function canResolveBeehiveChoice(b) {
     return !!b?.inRun && !!b.pendingChoice && !b.awaitingClear
-        && !(game.enemies || []).some(enemy => enemy && enemy.hp > 0);
+        && countBeehiveWaveAlive() === 0;
 }
 function validateBeehiveChoicePayment(pick, displayedPenalty) {
     if (canPayBeehivePenalty(pick.penalty) && (!displayedPenalty || displayedPenalty === pick.penalty.key)) return true;
@@ -2857,6 +2952,7 @@ function exitBeehiveRun(message, logType){
     b.inRun = false;
     b.branchStep = 0;
     resetBeehiveRunModifiers(b);
+    actExplorationProgress.depart(game); // 벌집 전용 지도를 걷던 중이면 바닥의 전리품을 거두고 그 탐험을 닫는다
     game.currentZoneId = b.returnZoneId !== undefined && b.returnZoneId !== null ? b.returnZoneId : game.maxZoneId;
     b.returnZoneId = null;
     game.enemies = [];
@@ -2884,6 +2980,7 @@ function completeBeehiveRun(){
     b.unlockedPermanent = true;
     resetBeehiveRunModifiers(b);
     b.branchStep = 0;
+    actExplorationProgress.depart(game); // 벌집 전용 지도를 걷던 중이면 여왕이 떨군 것까지 거두고 그 탐험을 닫는다
     game.currentZoneId = b.returnZoneId !== undefined && b.returnZoneId !== null ? b.returnZoneId : game.maxZoneId;
     b.returnZoneId = null;
     game.enemies = [];
@@ -6208,28 +6305,39 @@ function resizeBattlefieldCanvas() {
 // ACT 맵과 9x8 판정은 같은 변환을 쓴다. grid-contain은 장식만 잘라내고 전투 칸 전체를 보인다.
 function getBattleGridProjection(width, height, fitMode) {
     if(actExplorationState.current(game))return actExplorationView.projection(width,height);
-    return getFixedBattleGridProjection(width,height,fitMode);
+    return getStageBoardProjection(width,height,fitMode) || getFixedBattleGridProjection(width,height,fitMode);
+}
+
+/** 옆에서 보는 무대의 고정 전장(js/canvas-stage-board.js): 그 구역의 무대 그림이 있으면 방 하나처럼 놓는다. 전장을 그리는 쪽만 묻는다. */
+function getStageBoardProjection(width,height,fitMode) {
+    return fitMode==='grid-contain' && typeof stageBoard==='object' ? stageBoard.projection(width,height,getZone(game.currentZoneId)) : null;
+}
+function drawStageBoardBackdrop(ctx,width,height,gridProj) {
+    return typeof stageBoard==='object' && stageBoard.background(ctx,gridProj,{width,height});
 }
 
 function getFixedBattleGridProjection(width,height,fitMode) {
     const layout = ACT_BATTLE_MAP_LAYOUT;
     const gridContain = fitMode === 'grid-contain';
     const contain = fitMode === 'contain' || gridContain;
+    // 옆에서 보는 무대(data/stage-view.js): 세로(깊이)만 depth배로 눌러 그린다. 배경 그림과 칸이 함께 눌리고, 남는 높이만큼 무대가 커진다.
+    const depth = stageView.depth();
     const frameLeft = gridContain ? layout.gridOriginX - 48 : 0;
     const frameTop = gridContain ? layout.gridOriginY - 64 : 0;
     const frameWidth = gridContain ? layout.columns * layout.cellWidth + 96 : layout.width;
-    const frameHeight = gridContain ? layout.rows * layout.cellHeight + 112 : layout.height;
+    const frameHeight = (gridContain ? layout.rows * layout.cellHeight + 112 : layout.height) * depth;
     const scale = contain
         ? Math.min(width / frameWidth, height / frameHeight)
-        : Math.max(width / layout.width, height / layout.height) * layout.viewScale;
+        : Math.max(width / layout.width, height / (layout.height * depth)) * layout.viewScale;
+    const deep = scale * depth;
     const mapWidth = layout.width * scale;
-    const mapHeight = layout.height * scale;
+    const mapHeight = layout.height * deep;
     const frameX = (width - frameWidth * scale) / 2;
     const frameY = gridContain ? (height - frameHeight * scale) / 2 : height - frameHeight * scale;
     const mapX = contain ? frameX - frameLeft * scale : (width - mapWidth) / 2;
-    const mapY = contain ? frameY - frameTop * scale : (height - mapHeight) / 2;
+    const mapY = contain ? frameY - frameTop * deep : (height - mapHeight) / 2;
     const tileW = layout.cellWidth * scale;
-    const tileH = layout.cellHeight * scale;
+    const tileH = layout.cellHeight * deep;
     return {
         tileW,
         tileH,
@@ -6241,7 +6349,7 @@ function getFixedBattleGridProjection(width,height,fitMode) {
         cellToScreen(gx, gy) {
             return {
                 x: mapX + (layout.gridOriginX + (gx + 0.5) * layout.cellWidth) * scale,
-                y: mapY + (layout.gridOriginY + (gy + 0.5) * layout.cellHeight) * scale
+                y: mapY + (layout.gridOriginY + (gy + 0.5) * layout.cellHeight) * deep
             };
         }
     };
@@ -6464,6 +6572,7 @@ function drawActMapEffect(ctx, rect, key, now) {
 
 function drawBattleBackdrop(ctx, width, height, theme, now, zone, gridProj) {
     if(actExplorationView.background(ctx,width,height,gridProj))return true;
+    if(drawStageBoardBackdrop(ctx,width,height,gridProj))return true;
     let backdropEntry = getBattleBackdropForZone(zone);
     if (backdropEntry && backdropEntry.image) {
         const rect = drawGridAlignedBackdrop(ctx, width, height, backdropEntry.image, gridProj, backdropEntry.key);
@@ -7488,9 +7597,13 @@ function setUiImageGaugePercent(element, percent) {
 /** The progress gauge speaks only for special content — a timer, waves, depth, a boss wait or a floor run. Story acts
  * are explored on the map (the minimap ring shows how much is revealed), so the gauge is hidden there. */
 /** Wide maps (story acts and every content with its own map) show progress on the minimap, not the bar. */
+/** 판에서 싸우다 제 지도를 걷게 된 콘텐츠(2026-10-13) 가운데 막대가 말해 주는 것이 있는 곳은 막대가 그대로 보인다: 대균열과 나무꾼의
+ * 잔상의 남은 시간, 군락지의 웨이브, 심해의 수심, 혼돈 밖에서 나무꾼을 기다리는 몇 초. */
+const MAP_PROGRESS_SPEAKING_TYPES = Object.freeze(['grandBreach', 'woodsmanEcho', 'colony', 'oceanDepth']);
 function syncMapProgressRow(zone) {
     const row = document.getElementById('ui-map-progress-row');
-    if (row) row.toggleAttribute('hidden', !!zone && (zone.type === 'act' || !!zone.exploration));
+    const speaks = !!zone && (MAP_PROGRESS_SPEAKING_TYPES.includes(zone.type) || (zone.type === 'outsideChaos' && !!game.woodsmanEntrancePending));
+    if (row) row.toggleAttribute('hidden', !!zone && (zone.type === 'act' || !!zone.exploration) && !speaks);
 }
 
 function setCombatProgressGaugePercent(percent) {
@@ -10792,10 +10905,7 @@ function setupCanvasEvents() {
         }
         if (canActivate || canPathActivate) {
             const attributeNodeCount = activationPath.filter(id => PASSIVE_TREE.nodes[id] && PASSIVE_TREE.nodes[id].kind === 'attribute').length;
-            if (canPathActivate && !await requestGameConfirmation(`최단 경로에 있는 노드를 함께 활성화하며 스킬트리 포인트 ${pointCost}점을 씁니다.${attributeNodeCount > 0 ? ` 경로의 능력치 노드 ${attributeNodeCount}개는 다음 단계에서 선택합니다.` : ''}`, {
-                title: '최단 경로 활성화',
-                confirmLabel: `${pointCost}포인트 사용`
-            })) return;
+            if (canPathActivate && !await passiveSelectionUi.confirmPath(targetNode, activationPath)) return;
             let attributeStat = null;
             if (attributeNodeCount > 0) {
                 attributeStat = await requestGameChoice({
@@ -10814,7 +10924,7 @@ function setupCanvasEvents() {
                 if (!attributeStat) return;
             }
             pendingTouchPassiveId = null;
-            let activationResult = activatePassivePath(targetNodeId, { forcePulseNodeId: targetNodeId, attributeStat });
+            let activationResult = activatePassivePath(targetNodeId, { forcePulseNodeId: targetNodeId, attributeStat, expectedPath: activationPath });
             if (!activationResult.activated) {
                 calculateReachableNodes();
                 let reason = activationResult.reason === 'points'
@@ -11244,6 +11354,8 @@ function getCloudConfig() {
     let supabaseUrl = String(raw.supabaseUrl || '').trim().replace(/\/+$/, '');
     let supabaseAnonKey = String(raw.supabaseAnonKey || '').trim();
     let enabled = raw.enabled !== false && !!supabaseUrl && !!supabaseAnonKey;
+    // 무대 시험판 창(주소에 stage=1, 로컬 전용)은 클라우드 저장을 쓰지 않는다: 시험하는 판이 계정의 저장을 고쳐 쓰지 않게.
+    if (typeof stageView === 'object' && stageView.trial()) enabled = false;
     return { enabled, supabaseUrl, supabaseAnonKey };
 }
 
@@ -13316,7 +13428,9 @@ function renderBattlefieldThrottled(frameNow) {
     // 다른 탭의 모바일 PiP는 별도의 적응형 루프가 렌더 직후 곧바로 복사하므로,
     // 여기서 매 프레임 다시 복사하면 같은 화면을 30~45fps로 중복 복사하게 된다.
     // (전투 탭일 때 PiP는 숨겨져 어차피 복사가 일어나지 않는다.)
-    renderBattlefield(false, interval);
+    // 끝까지 그린 것만 전장의 프레임으로 센다(js/battle-frame-stats.js): 화면이 프레임을 부른 횟수와는 다른 수다.
+    const drawBegan = performance.now();
+    if (renderBattlefield(false, interval)) battleFrameStats.noteBattleDraw(drawBegan, performance.now(), interval);
 }
 
 /** '안내 중 전투 일시 정지'(설정): 안내 카드가 떠 있거나, 따라 하기의 대상 화면(젬 · 스킬트리 …)이 열려 있는 동안 — 첫 젬을
@@ -13340,6 +13454,7 @@ function gameLoop(frameNow = performance.now()) {
         // 백그라운드 재계산 중에는 캔버스 렌더를 쉬어 계산 청크에 프레임을 양보한다.
         // RAF timestamps share the display clock; callback execution can be delayed by combat/UI work.
         showNextTutorial();
+        openDeathOverlay.flushPending();
         let tutorialPause = isTutorialPausingCombat();
         if (tutorialPause || isRewardOpen() || isLoopHeroSelectOpen()) {
             if (document.getElementById('tab-char').classList.contains('active')) {

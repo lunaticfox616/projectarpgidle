@@ -54,6 +54,7 @@ CSS 전역 기본값은 `css/tokens.css`만 소유한다. 레이어 순서는
 | `scripts/` | Node 기반 회귀·스모크 검사; 프로덕션에서 로드하지 않음 |
 | `tests/browser/` | Playwright 기반 실제 브라우저 행동 검사 |
 | `artifacts/` | 시안·비교 화면·측정 결과; 실제 게임 반영 여부를 구분 |
+| 저장소 밖 그림 | Hana 그림과 무대 그림(`assets/playable/stage`, `assets/stage-scenes`, `assets/enemies/roster`, `assets/stage-vfx`)은 커밋하거나 공개하지 않는다(`.gitignore`) |
 
 허용하는 기본 의존 방향은 다음과 같다.
 
