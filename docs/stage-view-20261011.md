@@ -13,7 +13,7 @@
   설정 `battleView = 'top'`으로 위에서 보는 전장을 고른다. 로컬 주소에 `stage=1`을 붙인 창(테스트 실행기의 S 메뉴)은 시험 창이라 클라우드 저장을 쓰지 않는다.
   크기(자동, 또는 캐릭터 도트 하나의 화면 px 1, 1.5, 2)와 들 자세도 거기서 고른다.
 - 그림 폴더(`assets/playable/stage/`)가 서버에 없으면 설정이 켜져 있어도 위에서 보는 전장 그대로다(`stageActors.available`).
-  시험판 세이브가 그림 없는 빌드로 넘어가도 화면이 깨지지 않는다. 그림은 배포 가능 여부를 확인할 때까지 저장소에 넣지 않는다(.gitignore).
+  시험판 세이브가 그림 없는 빌드로 넘어가도 화면이 깨지지 않는다. 그림은 2026-10-16부터 저장소에 있고, 구입한 이펙트 그림(assets/stage-vfx/vfx.png)만 비공개 저장소에 둔다.
 - 가져오기: `node scripts/import-stage-characters.cjs <정리 묶음 폴더>` → `assets/playable/stage/<직업>/<무기>/<모션>.png`,
   `data/stage-characters.js`(프레임 수, ms, 반복, 타격 프레임, 피격과 이동 공용 규칙).
 - 주인공(js/canvas-stage-actors.js):

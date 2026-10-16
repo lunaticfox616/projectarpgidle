@@ -15,6 +15,7 @@ Hana Caraka 캐릭터 스프라이트는 팀 내부 전용(재배포 금지)이�
 - `assets/playable/hana/` — Hana 캐릭터 스프라이트 67장
 - `docs/skill-assets-hana/reference/` — 스킬 인계 원본 보관본 3개
 - `assets/summon/hana/` — 예전 Hana 소환수 스프라이트. 지금 트리에는 없지만 옛 커밋에 남아 있어 이력에서 뺀다
+- `assets/stage-vfx/vfx.png` — 구입한 무대 스킬 이펙트 묶음(상업적 이용 가능, 재배포 금지). 공개 쪽 이력에 들어간 적이 없어 비공개 저장소에 직접 올린다
 
 인계 스킬 이펙트 코드(`data/hana-skill-fx.js` 등)와 Hana 메타데이터(`data/hana-sprites.js`, `data/hana-weapon-combos.js`)는 그림이 아니라서 공개 쪽에 둔다(2026-10-01 결정).
 공개 브랜치만 받으면 캐릭터 그림이 빠진 상태다.
@@ -55,6 +56,6 @@ Hana Caraka 캐릭터 스프라이트는 팀 내부 전용(재배포 금지)이�
 - 표식이 `dev`인 개발 서버와 앱(네이티브)에서는 켜지지 않는다. 기존 `<meta name="app-build">`는 플레이 기록용 이름표라 그대로 둔다.
 - 읽는 파일은 수십 바이트이고 GitHub Pages에서 받는다(클라우드 서버 요청은 늘지 않는다).
 
-## 무대 그림 (2026-10-11부터)
-- 무대 그림 네 폴더(`assets/playable/stage`, `assets/stage-scenes`, `assets/enemies/roster`, `assets/stage-vfx`)는 공개 저장소에도
-  비공개 저장소에도 없다(`.gitignore`). 그래서 지금 Pages 배포판은 위에서 보는 전장으로 돈다(`scripts/build-web.js`).
+## 무대 그림 (2026-10-16부터)
+- 무대 그림(`assets/playable/stage`, `assets/stage-scenes`, `assets/enemies/roster`, `assets/stage-npcs`, `assets/stage-vfx/boss-fx`)은
+  공개 저장소에 있다. 구입한 `assets/stage-vfx/vfx.png`만 비공개 저장소에 있고 배포 때 묶음에 들어간다. 없으면 무대 스킬 효과는 게임의 원래 효과로 나온다.
