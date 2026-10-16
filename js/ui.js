@@ -392,11 +392,19 @@ function isForegroundGameplayPausedForBackground() {
     if (actExplorationUi.departurePending()) return true;
     // 입구 방의 인사(js/canvas-act-title-card.js greeting): 이야기 팝업처럼 주인공이 서서 듣는다(2026-10-15 사용자 "처음에 바로 막 진행하는데").
     if (typeof actTitleCard === 'object' && actTitleCard.greeting()) return true;
-    let overlayPause = !!game?.settings?.pauseGameOnOverlay;
+    // "창을 열면 전투 일시정지"가 꺼져 있으면 아래 창 검사의 답은 쓰이지 않는다: 묻지 않는다(2026-10-17 측정: 8초에 2,083번 검사).
+    if (!game?.settings?.pauseGameOnOverlay) return false;
     // 안내 카드뿐 아니라 따라 하기의 대상 화면이 열려 있는 동안도(검토 7차) — isTutorialPausingCombat이 함께 본다.
-    let tutorialOpen = isTutorialPausingCombat();
-    let optionalOverlayOpen = typeof isPauseSettingOverlayOpen === 'function' && isPauseSettingOverlayOpen();
-    return !!(overlayPause && (tutorialOpen || optionalOverlayOpen));
+    return !!(isTutorialPausingCombat() || isPauseSettingOverlayOpenNow());
+}
+
+/** 일시정지를 거는 창이 열려 있는지(isPauseSettingOverlayOpen)를 16ms 동안 한 번만 찾는다. 주 루프, 탐험 걸음, 전장 그림이 한 프레임에
+ * 여러 번 묻는다. 창은 입력으로 열리고 닫히므로 다음 프레임이 바뀐 상태를 본다. */
+const pauseOverlayMemo = { at: -Infinity, open: false };
+function isPauseSettingOverlayOpenNow() {
+    const now = performance.now();
+    if (now - pauseOverlayMemo.at >= 16 || now < pauseOverlayMemo.at) Object.assign(pauseOverlayMemo, { at: now, open: isPauseSettingOverlayOpen() });
+    return pauseOverlayMemo.open;
 }
 
 function isBackgroundCombatEligible(state) {
@@ -4689,14 +4697,26 @@ function decorateCombatLogMessage(message, cls, options) {
 
 /** null while the log sits in a hidden tab (phone, another menu open): measuring it then forced a style recalculation of
  * the page twice per flush (about 20 ms each on a 4x-throttled phone). Rows added meanwhile show from the latest. */
+/** 이전 줄을 읽는 동안의 자리(줄을 붙이고 지운 뒤 같은 줄을 보게 되돌린다). */
 function captureCombatLogScroll(log) {
-    if (isCombatLogHidden(log)) return null;
-    let bottomGap = log.scrollHeight - log.scrollTop - log.clientHeight;
-    return {
-        followsLatest: bottomGap <= 24 || log.followLatestPending === true,
-        scrollTop: log.scrollTop,
-        scrollHeight: log.scrollHeight
-    };
+    return { scrollTop: log.scrollTop, scrollHeight: log.scrollHeight };
+}
+
+/** 최신 줄을 따라가는지(log.combatLogAtBottom)는 읽는 사람이 스크롤할 때만 잰다. 줄을 붙인 뒤 맨 아래로 내린 직후(80ms)의 스크롤은
+ * 재지 않는다: 줄을 붙일 때마다 높이를 재던 일이 느린 기기에서 비쌌다(2026-10-17 측정). 로그가 60줄로 차 있으면 맨 아래로 내려도
+ * 자리가 그대로라 스크롤 사건이 없으므로, 한 번 쓰고 마는 표시가 아니라 시간으로 가른다. */
+function watchCombatLogScroll(log) {
+    if (log.combatLogScrollWatched) return;
+    log.combatLogScrollWatched = true;
+    log.addEventListener('scroll', () => {
+        if (performance.now() - (log.combatLogOwnScrollAt || -Infinity) < 80) return;
+        log.combatLogAtBottom = log.scrollHeight - log.scrollTop - log.clientHeight <= 24;
+    }, { passive: true });
+}
+
+function scrollCombatLogToLatest(log) {
+    log.combatLogOwnScrollAt = performance.now();
+    log.scrollTop = log.scrollHeight;
 }
 
 /** Hidden tab (phone, another menu open), a folded combat feed, or the PC message frames' stash (the other tab is showing, or the
@@ -4708,22 +4728,37 @@ function isCombatLogHidden(log) {
 }
 
 function restoreCombatLogScroll(log, scrollState) {
-    log.followLatestPending = !scrollState;
-    if (!scrollState) return;
-    if (scrollState.followsLatest) {
-        log.scrollTop = log.scrollHeight;
-        return;
-    }
     let heightDelta = log.scrollHeight - scrollState.scrollHeight;
     let maxScrollTop = Math.max(0, log.scrollHeight - log.clientHeight);
     log.scrollTop = Math.min(maxScrollTop, Math.max(0, scrollState.scrollTop + heightDelta));
 }
 
-function flushLogQueue() {
+/** 로그 줄을 모아 붙이는 간격(ms): 매 프레임 붙이며 높이를 재던 것을 줄인다. */
+const COMBAT_LOG_FLUSH_MS = 150;
+let lastLogFlushAt = -Infinity;
+
+/** 지난번에 붙인 뒤 COMBAT_LOG_FLUSH_MS가 안 지났으면 다음 프레임에 다시 본다. @returns {boolean} 미뤘는지 */
+function deferCombatLogFlush(frameNow) {
+    if (frameNow - lastLogFlushAt >= COMBAT_LOG_FLUSH_MS || frameNow < lastLogFlushAt) { lastLogFlushAt = frameNow; return false; }
+    logFlushRaf = requestAnimationFrame(flushLogQueue);
+    return true;
+}
+
+/** 붙인 뒤의 스크롤: 숨은 로그는 다시 보일 때 최신 줄을 따라가게 적어 두고, 이전 줄을 읽는 중이면 그 줄로 되돌리고, 아니면 맨 아래로. */
+function settleCombatLogScroll(log, view) {
+    if (view.hidden) log.combatLogAtBottom = true;
+    else if (view.scrollState) restoreCombatLogScroll(log, view.scrollState);
+    else scrollCombatLogToLatest(log);
+}
+
+function flushLogQueue(frameNow = performance.now()) {
     logFlushRaf = 0;
     const log = document.getElementById('log');
-    if (!log || logQueue.length === 0) return;
-    let scrollState = captureCombatLogScroll(log);
+    if (!log || logQueue.length === 0 || deferCombatLogFlush(frameNow)) return;
+    watchCombatLogScroll(log);
+    // 숨은 로그는 재지 않고, 다시 보이면 최신 줄을 따라간다. 이전 줄을 읽는 중이면 그 줄을 계속 보게 둔다.
+    const hidden = isCombatLogHidden(log), reading = !hidden && log.combatLogAtBottom === false;
+    let scrollState = reading ? captureCombatLogScroll(log) : null;
     // 백그라운드 재계산처럼 로그가 폭주하면 어차피 60줄만 남으므로,
     // DOM에 만들 필요가 없는 초과분은 만들기 전에 버린다.
     if (logQueue.length > 60) logQueue = logQueue.slice(-60);
@@ -4737,7 +4772,7 @@ function flushLogQueue() {
     logQueue = [];
     log.appendChild(frag);
     while (log.childElementCount > 60) log.removeChild(log.firstChild);
-    restoreCombatLogScroll(log, scrollState);
+    settleCombatLogScroll(log, { hidden, scrollState });
 }
 function isCombatLogRateLimited(opts, settings, now) {
     if (!opts.rateKey || settings.combatLogRateLimit === false) return false;
