@@ -37,6 +37,8 @@ const COMBAT_TACTIC_STALL_MS = 2000;
 const COMBAT_TACTIC_MAX_RETREATS = 2;
 /** 공격 후딜(getPlayerAttackRecoveryMs): 공격 간격에서 차지하는 몫, 게임 프레임 하나(걸음 시계, ms), 가장 긴 프레임 수. */
 const PLAYER_ATTACK_RECOVERY = Object.freeze({ share: 0.35, frameMs: 20, maxFrames: 20 });
+/** 사거리 안에 적이 있는데 걷는 동안 공격 게이지가 차는 빠르기(배수, getWalkingChargeScale). */
+const PLAYER_WALKING_CHARGE = 0.5;
 let combatTacticsRuntime = createCombatTacticsRuntime();
 let combatChannelRuntime = { id: 0, skillName: '', endAt: 0 };
 let combatChannelResumeSkillName = '';
@@ -181,6 +183,15 @@ function getPlayerAttackRecoveryMs(aspd) {
  * 한 칸은 마저 걷는다. 이동기는 후딜을 끊는다(js/mobility-skill.js). now: 그 걸음의 시각(걸음 시계 또는 전투 시각). */
 function isPlayerAttackRecovering(now = getCombatTime()) {
     return now < (Number(combatTacticsRuntime.recoverUntil) || 0);
+}
+
+/** 이번 전투 틱에 공격 게이지가 차는 배수: 걸은 몫(20ms 걸음 프레임으로 센다)만큼 PLAYER_WALKING_CHARGE(절반)로 찬다. 사거리 안에
+ * 적이 있을 때만이다(쏠 수 있는데 걸었다, 무빙샷): 적에게 다가가는 걸음은 그대로 찬다. 2026-10-17 사용자 "응 게이지 절반도 넣어줘".
+ * walkedMs: 이번 틱에 걸은 ms(actExplorationProgress.takeWalkedMs). */
+function getWalkingChargeScale(pStats, walkedMs) {
+    const share = Math.min(1, Math.max(0, Number(walkedMs) || 0) / 100);
+    if (!share || !getSkillTargets(pStats).length) return 1;
+    return 1 - (1 - PLAYER_WALKING_CHARGE) * share;
 }
 
 function getTacticalMoveAttackDelayMs(moveSpeed) {
@@ -2160,6 +2171,7 @@ function coreLoop(nowMs) {
         progressStallTicks = 0;
     }
     let hazardEvasion = updateCombatHazardEvasion(pStats);
+    let walkedMs = actExplorationProgress.takeWalkedMs(); // 이번 틱에 걸은 시간: 적이 없어도 비운다
     if (game.playerHp <= 0) return;
     if ((game.enemies || []).length > 0) {
         tickEnemyDotEffects(pStats, 0.1);
@@ -2173,7 +2185,7 @@ function coreLoop(nowMs) {
             ? channelGate.hasTargets
             : updatePlayerGridEngagement(pStats, { holdPosition: actExplorationProgress.holdPosition(hazardEvasion.holdPosition) }));
         if (!castBlocked) {
-            pTimer += 0.1 * pStats.aspd;
+            pTimer += 0.1 * pStats.aspd * getWalkingChargeScale(pStats, walkedMs);
             // 사거리 밖이면 스윙 게이지를 1회분까지만 모아 두고, 붙는 즉시 공격한다.
             if (!inSkillRange) pTimer = Math.min(pTimer, 1.0);
         }

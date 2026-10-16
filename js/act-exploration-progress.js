@@ -9,6 +9,7 @@ const actExplorationProgress = (() => {
     // hero cannot reach is collected from where it stands, and leaving the map settles anything left (js/exploration-ground-loot.js).
     const LOOT_WALK_MAX_MS=12000;
     const lootWalks=new WeakMap(); // run → {stalls, clearedAt} (transient, like the discovery memos)
+    const walkedMs=new WeakMap(); // run → ms the hero walked since the last combat tick took it (takeWalkedMs, transient)
     const ground=actExplorationState.groundLoot;
     function advance(stats) {
         const run=actExplorationState.current(game);
@@ -35,10 +36,15 @@ const actExplorationProgress = (() => {
         if(now-run.motionTimeMs>1000)actExplorationMotion.rebase(run,now-100);
         while(run.motionTimeMs+20<=now) {
             run.motionTimeMs+=20;
-            const walking=run.motion;
-            step(run,stats);
-            continueApproachAfterStep(run,walking,stats);
+            stepFrame(run,stats);
         }
+    }
+    /** One 20 ms movement frame: the step, the approach after a finished step, and the walked time (takeWalkedMs). */
+    function stepFrame(run,stats) {
+        const walking=run.motion;
+        step(run,stats);
+        continueApproachAfterStep(run,walking,stats);
+        if(walking)walkedMs.set(run,(walkedMs.get(run)||0)+20);
     }
     /** A step that ends goes on toward the fight at once, on a foreground frame and inside a combat tick alike. Waiting for
      * the next 100 ms tick (offline replay) locked the hero and an enemy across a blocked cell into mirrored steps: no kill
@@ -150,6 +156,13 @@ const actExplorationProgress = (() => {
         return canPlaceGridFootprint(getHeroStepBlockedCells(),motion.to.gx,motion.to.gy,{columns:1,rows:1});
     }
     function moving() {return !!actExplorationState.current(game)?.motion;}
+    /** The ms the hero walked (20 ms movement frames) since the last call, then 0: each combat tick takes it (js/combat.js
+     * getWalkingChargeScale). */
+    function takeWalkedMs() {
+        const run=actExplorationState.current(game),ms=run?walkedMs.get(run)||0:0;
+        if(run)walkedMs.delete(run);
+        return ms;
+    }
     /** A click on a floor pile (js/battle-ground-loot-ui.js) picks it up at once, wherever the hero stands. */
     function collectPile(cell) {
         const run=actExplorationState.current(game);
@@ -228,6 +241,6 @@ const actExplorationProgress = (() => {
         const run=actExplorationState.current(state);
         if(run && !run.completionApplied){actExplorationMotion.cancel(run);run.status='failed';}
     }
-    return {advance,tick,moving,collectPile,canFinish,beginCompletion,shouldTrackStall,holdPosition,runMode,startMode,waiting,deferDeparture,stopAfterCompletion,depart,reconcileDeparture,defeat};
+    return {advance,tick,moving,takeWalkedMs,collectPile,canFinish,beginCompletion,shouldTrackStall,holdPosition,runMode,startMode,waiting,deferDeparture,stopAfterCompletion,depart,reconcileDeparture,defeat};
 })();
 safeExposeGlobals({actExplorationProgress});
