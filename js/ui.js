@@ -8095,7 +8095,8 @@ function markPlayerEnergyShieldRow(hpTrack, hasEnergyShield) {
     if (frame) frame.toggleAttribute('data-energy-shield', hasEnergyShield);
 }
 
-/** 생명 구슬 안 보호막 글자: "보호막 현재/최대". 휴대폰의 작은 구슬(50px)에서는 CSS가 이름과 최대를 숨기고 파란 현재값만 남긴다(pixel-hud.css). */
+/** 생명 구슬 안 보호막 글자: 파란 "현재/최대"(이름 없이: 2026-10-17 사용자 "보호막 < 이 문구 삭제해줘"). 휴대폰의 작은 구슬(50px)에서는 CSS가
+ * 최대를 숨기고 현재값만 남긴다(pixel-hud.css). */
 /** 틱마다 숫자 글자만 바꾼다: innerHTML을 갈면 새 요소가 끼어들어 body의 :has() 규칙까지 다시 따졌다(2026-10-07 프레임 드랍). */
 function renderEnergyShieldInline(el, hasEnergyShield, current, max) {
     if (!el) return;
@@ -8108,11 +8109,11 @@ function renderEnergyShieldInline(el, hasEnergyShield, current, max) {
     if (parts.max.data !== maxText) parts.max.data = maxText;
 }
 
-/** The two number text nodes of the ES line, built once ("보호막 " label, current, "/max"). */
+/** The two number text nodes of the ES line, built once (current, "/max"). */
 function energyShieldInlineParts(el) {
     if (el.__esParts && el.__esParts.now.parentNode === el) return el.__esParts;
-    el.innerHTML = '<span class="combat-es-label">보호막 </span>0<span class="combat-es-max">/0</span>';
-    el.__esParts = { now: el.childNodes[1], max: el.lastChild.firstChild };
+    el.innerHTML = '0<span class="combat-es-max">/0</span>';
+    el.__esParts = { now: el.childNodes[0], max: el.lastChild.firstChild };
     return el.__esParts;
 }
 

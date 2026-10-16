@@ -80,7 +80,7 @@ test('effect timers tick in place and the shield text changes only its numbers',
     expect(result.kept).toBe(true);
     expect(result.after).toEqual([{angle:'225.00deg',time:'5'},{angle:'180.00deg',time:'3'}]);
     expect(result.fewer).toBe(1);
-    expect(result.esText).toBe('보호막 90/300');
+    expect(result.esText).toBe('90/300');
     expect(result.esLabelKept).toBe(true);
     expect(errors).toEqual([]);
 });
