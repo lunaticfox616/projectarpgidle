@@ -18,7 +18,19 @@
   --color-underworld: #54b8a4;
   --color-danger: #e36c73;
   --color-positive-muted: #74c79d;
-  --font-body: "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
+  /* Galmuri roles: controls 11/12px, reading 14/15px, headings 11 Bold/24px,
+     optional metadata 9/10px. Pixel families have no synthetic weights or italics. */
+  --font-pixel: 'Galmuri11', 'Galmuri14', sans-serif;
+  --font-pixel-read: 'Galmuri14', 'Galmuri11', sans-serif;
+  --font-pixel-title: var(--font-pixel);
+  --font-pixel-meta: 'Galmuri9', 'Galmuri11', sans-serif;
+  --font-size-ui: 12px;
+  --font-size-reading: 15px;
+  --font-size-heading: 24px;
+  --font-size-meta: 10px;
+  --font-weight-regular: 400;
+  --font-weight-emphasis: 700;
+  --font-body: var(--font-pixel);
   --font-title: var(--font-body);
   --color-reward-gold: #e9be67;
   --color-reward-gold-bright: #ffe0a1;

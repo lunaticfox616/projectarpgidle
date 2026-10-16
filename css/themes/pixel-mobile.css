@@ -188,7 +188,7 @@
   :root body[data-ui-skin] .mobile-menu-group-title { border-top: 1px solid var(--px-bronze-lo); color: var(--px-gold); font-size: 12px; text-shadow: var(--px-text-edge); }
 
   /* 휴대폰 탭 제목: 금빛 도트 제목 + 도트 밑줄 */
-  :root body[data-ui-skin] .tab-content h2:not([style*="color"]) { color: var(--px-gold-bright); font-family: var(--font-display); font-size: 16px; font-weight: 400; }
+  :root body[data-ui-skin] .tab-content h2:not([style*="color"]) { color: var(--px-gold-bright); font-family: var(--font-display); font-size: var(--font-size-heading); font-weight: var(--font-weight-emphasis); }
   :root body[data-ui-skin] .tab-content h2:not([style*="border"]) { border-bottom: 1px solid var(--px-bronze); box-shadow: 0 1px 0 var(--px-ink); }
 }
 @media (max-width: 1080px) and (orientation: landscape) and (max-height: 600px) {

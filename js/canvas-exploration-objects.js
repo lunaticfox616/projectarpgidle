@@ -200,7 +200,7 @@ actExplorationView.objects=(()=>{
     }
     /** 몬스터가 나오는 물체(봉인된 보물함, 알집, 매복 흔적)는 다 쓰기 전까지 머리 위에 이름이 달린다(2026-10-16 사용자: "몬스터가 나오는 컨텐츠는
      * 위에 이름이 달려있어야"). NPC 이름과 같은 글꼴, 테의 빛깔. y = 이름의 가운데(화면 px). */
-    const NAME_FONT=`13px 'MulmaruMono', 'Malgun Gothic', sans-serif`;
+    const NAME_FONT=`12px 'Galmuri11', 'Malgun Gothic', sans-serif`;
     function nameLabel(ctx,row,x,y) {
         if(!actExplorationState.objects.isEvent(row)||row.phase==='spent')return;
         ctx.save();ctx.globalAlpha=1;ctx.font=NAME_FONT;ctx.textAlign='center';ctx.textBaseline='middle';

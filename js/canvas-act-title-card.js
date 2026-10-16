@@ -28,7 +28,7 @@ const actTitleCard = (() => {
     // a move command ends the wait at once.
     const GREET = Object.freeze({ keys: new Set(['wake', 'spot', 'npc', 'reply']), maxMs: 32000 });
     const TONES = Object.freeze({ gold: '#e0c27e', violet: '#c9a4f2', cyan: '#8fe3d6', crimson: '#ef9a92' });
-    const STORY_FONT = "'Galmuri14', 'MulmaruMono', 'Malgun Gothic', sans-serif";
+    const STORY_FONT = "'Galmuri14', 'Galmuri11', 'Malgun Gothic', sans-serif";
     let zone, pending = null, card = null, frameAt = 0, line = null, watchedAt = 0, trackedAt = 0, place = null, watchedRun = null;
     let covered = false, holding = false, greetSpent = 0, npcHead = null;
     // Per exploration run: its story and act, the bosses this view saw (id: first sight and name), the gate elites left, where
@@ -297,7 +297,7 @@ const actTitleCard = (() => {
         return npcMark.kind;
     }
     function npcLabel(ctx, npc, x, y) {
-        ctx.font = `13px 'MulmaruMono', 'Malgun Gothic', sans-serif`;
+        ctx.font = `13px 'Galmuri11', 'Malgun Gothic', sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.lineWidth = 3;
@@ -450,7 +450,7 @@ const actTitleCard = (() => {
     }
     function kicker(ctx, view) {
         const half = view.size * 2.4;
-        ctx.font = `${Math.round(view.size * 0.5)}px 'MulmaruMono', 'Malgun Gothic', sans-serif`;
+        ctx.font = `${Math.round(view.size * 0.5)}px 'Galmuri11', 'Malgun Gothic', sans-serif`;
         ctx.fillStyle = card.style.kickerColour;
         ctx.fillText(card.kicker, view.x, view.top - view.size * 0.55);
         const gap = ctx.measureText(card.kicker).width / 2 + view.size * 0.5;
@@ -548,7 +548,7 @@ const actTitleCard = (() => {
         });
     }
     function storyBandSpeaker(ctx, view) {
-        ctx.font = `${Math.round(view.size * 0.8)}px 'MulmaruMono', 'Malgun Gothic', sans-serif`;
+        ctx.font = `${Math.round(view.size * 0.8)}px 'Galmuri11', 'Malgun Gothic', sans-serif`;
         ctx.fillStyle = line.colour;
         ctx.fillText(line.speaker, view.x, view.top - view.size * 0.6);
     }

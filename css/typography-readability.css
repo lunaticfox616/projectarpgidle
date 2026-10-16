@@ -1,9 +1,9 @@
 @layer components {
-/* Reading copy uses scalable screen fonts, including at fractional UI scales. */
+/* Workspace controls use the shared UI role. Long reading copy is assigned in themes/pixel.css. */
 
 /* Content workspaces share the same readable family as equipment and settings. */
 :is(#item-tab-craft, #item-tab-market, #tab-journal) {
-  font: 400 13px/1.5 var(--font-body);
+  font: var(--font-weight-regular) var(--font-size-ui)/1.5 var(--font-body);
   color: var(--color-text);
 }
 :is(#item-tab-craft, #item-tab-market, #tab-journal) :is(button, select, input, h2, h3, h4, summary) {

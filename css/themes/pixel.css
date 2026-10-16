@@ -5,13 +5,7 @@
    테 그림은 scripts/build-hud-kit.cjs가 사용자 HUD 그림에서 만든다. 금빛 제목, 구슬 · 미니맵(themes/pixel-hud.css). */
 
 body[data-ui-skin] {
-  /* 도트 글꼴은 보통 굵기 한 벌뿐이라 굵게(600~900)를 주면 브라우저가 획을 옆으로 번지게 덧그렸다(가짜 굵기, 2026-10-02 "폰트가
-     흐릿하다"). 굵기 대신 색 · 크기 · 겹쳐 찍기(--px-text-bold)로 구분한다. */
-  font-synthesis: none;
-  /* 도트 글꼴의 제 크기: 물마루 12px(UI 전반), 갈무리 15px(긴 글), DOS새물 16px(제목). 그 배수에서 가장 또렷하다. */
-  --font-pixel: 'MulmaruMono', 'Galmuri14', 'Malgun Gothic', sans-serif;
-  --font-pixel-read: 'Galmuri14', 'MulmaruMono', 'Malgun Gothic', sans-serif;
-  --font-pixel-title: 'DOSSaemmul', 'MulmaruMono', 'Malgun Gothic', sans-serif;
+  /* 글꼴 역할·크기 기본값은 tokens.css, 배정 규칙은 이 파일과 docs/ui-display.md가 소유한다. */
   --font-body: var(--font-pixel);
   --font-title: var(--font-pixel);
   --font-display: var(--font-pixel-title);
@@ -35,8 +29,8 @@ body[data-ui-skin] {
   --px-bevel-pressed: inset 1px 1px 0 #2c2126, inset -1px -1px 0 #845f42, inset 0 0 0 2px #483239, inset 0 0 0 3px #080508;
   --px-gold-rim: inset 1px 1px 0 #ffe39a, inset -1px -1px 0 #a8753c, inset 0 0 0 2px #c48a44, inset 0 0 0 3px #080508;
   --px-text-edge: 1px 1px 0 #000;
-  /* 겹쳐 찍기 굵게: 가는 DOS새물 제목을 한 도트 옆에 한 번 더 찍고 그림자를 붙인다(흐린 가짜 굵기 대신). */
-  --px-text-bold: 1px 0 0 currentColor, 1px 1px 0 #000, 2px 1px 0 #000;
+  /* 실제 Galmuri11 Bold를 쓰므로 획을 겹쳐 찍지 않고 배경 분리 그림자만 남긴다. */
+  --px-text-bold: var(--px-text-edge);
   --px-text-outline: 1px 0 0 #000, -1px 0 0 #000, 0 1px 0 #000, 0 -1px 0 #000, 1px 1px 0 #000;
   /* 테 그림(scripts/build-hud-kit.cjs): 창 · 판 = 모서리 매듭 단추 테(9칸 26), 가벼운 판 · 버튼 = 4도트 청동 빗면, 칸 = 움푹한 숯빛. */
   --px-frame-heavy: url('../../assets/ui/pixel/hud-window.png');
@@ -60,20 +54,14 @@ body[data-ui-skin] {
   --px-plate-border: 26px;
   --px-plate-frame: var(--px-frame-plate) 26 / var(--px-plate-border) / 0 stretch;
   font-family: var(--font-body);
-  /* 도트 글꼴은 400 한 벌뿐: 굵기 · 기울임을 브라우저가 흉내 내면 획이 두 겹으로 번진다(속성 한 벌만 아는 웹뷰도 막게 줄임 속성으로) */
+  font-size: var(--font-size-ui);
+  font-weight: var(--font-weight-regular);
+  line-height: 1.5;
+  /* 11의 실제 Bold만 사용한다. 14·9에 없는 굵기나 기울임을 브라우저가 흉내 내지 않는다. */
   font-synthesis: none;
   /* 도트 글꼴은 글자 폭이 넓어 줄이 자주 넘는다: 한글 단어 중간("초기/화")이 아니라 띄어쓰기에서 끊고, 한 단어가 줄보다 길 때만 쪼갠다. */
   word-break: keep-all;
   overflow-wrap: break-word;
-}
-
-/* 일반 글꼴(설정 "글꼴", 자동이면 소수 배율 PC 화면 — js/ui-display.js applyFont): 도트 글꼴 변수만 IBM Plex Sans KR로 바꾼다.
-   겹쳐 찍기 굵게(--px-text-bold)는 1px 옆에 한 번 더 찍는 도트 기법이라 일반 글꼴에서는 번져 보여 그림자만 남긴다. */
-:root body[data-ui-skin].ui-font-smooth {
-  --font-pixel: 'IBM Plex Sans KR', 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
-  --font-pixel-read: var(--font-pixel);
-  --font-pixel-title: var(--font-pixel);
-  --px-text-bold: 1px 1px 0 #000;
 }
 
 /* 좁은 화면과 가로로 눕힌 휴대폰(높이 600px 이하)은 테를 반 굵기로: 가로 휴대폰은 폭이 760px를 넘어도 높이가 293 ~ 393px뿐이다 */
@@ -129,15 +117,16 @@ body[data-ui-skin] #tree-container :is(.passive-overlay-node, .passive-reveal-bu
    (assets/items/illustrated/pixel/)도 확대할 때 번지지 않게 */
 body[data-ui-skin] :is(img[src*="assets/px/"], img[src*="assets/gems/world-tree/"], img[src*="assets/items/illustrated/pixel/"]) { image-rendering: pixelated; }
 
-/* 제목: DOS새물 16px 금빛, 흐림 없는 한 도트 그림자 */
+/* 독립 제목: Galmuri11 Bold 24px. 문장 중간의 강조와 달리 한 줄 전체 역할이다. */
 body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutorial-title, .combat-zone-row-title, #ui-combat-zone-inline, .startup-title) {
   font-family: var(--font-display);
-  font-weight: 400;
+  font-size: var(--font-size-heading);
+  font-weight: var(--font-weight-emphasis);
   letter-spacing: 0;
   text-shadow: var(--px-text-bold);
 }
-:root body[data-ui-skin] .ui-window-title { font-size: 16px; color: var(--px-gold-bright); }
-:root body[data-ui-skin] .combat-zone-row-title { font-size: 16px; color: var(--px-gold-bright); }
+:root body[data-ui-skin] .ui-window-title { font-size: var(--font-size-heading); color: var(--px-gold-bright); }
+:root body[data-ui-skin] .combat-zone-row-title { font-size: var(--font-size-ui); color: var(--px-gold-bright); }
 :root body[data-ui-skin] :is(.tutorial-kicker, .game-dialog-kicker) { letter-spacing: .12em; }
 /* 8~11px로 줄어 있던 글자는 물마루의 제 크기(12px)로. 그보다 작으면 도트가 뭉개져 읽히지 않는다. */
 :root body[data-ui-skin] :is(
@@ -213,11 +202,30 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 :root body[data-ui-skin] :is(.patch-note-list li, .patch-note-empty, .patch-note-date, .loop-automation small) { font-size: 12px; }
 :root body[data-ui-skin] .patch-note-version { font-size: 15px; }
 
-/* 긴 글(이야기·대화·설명)은 갈무리 15px */
-:root body[data-ui-skin] :is(.tutorial-body, .story-journal-text, .journal-entry-text, .game-dialog-body) {
+/* 긴 글은 Galmuri14 15px. 문단 안에서 11 Bold를 끼우지 않고 기존 의미 색상으로 강조한다. */
+:root body[data-ui-skin] :is(.tutorial-body, .story-journal-text, .journal-entry-text, .game-dialog-body,
+  .story-scene-copy, .item-description, .condition-gem-heading p, .tactics-defaults p, #item-tooltip-box, #canvas-tooltip, #info-tooltip) {
   font-family: var(--font-pixel-read);
-  font-size: 15px;
+  font-size: var(--font-size-reading);
+  font-weight: var(--font-weight-regular);
   line-height: 1.6;
+}
+:root body[data-ui-skin] :is(.story-scene-copy, .story-journal-text, .journal-entry-text, .game-dialog-body) {
+  padding: var(--space-1) var(--space-2);
+}
+:root body[data-ui-skin] :is(.story-scene-copy, .story-journal-text, .journal-entry-text, .game-dialog-body, .item-description) :is(p, b, strong, em) {
+  font-family: inherit; font-size: inherit; font-weight: var(--font-weight-regular); font-style: normal;
+}
+:root body[data-ui-skin] :is(#item-tooltip-box, #canvas-tooltip, #info-tooltip) :is(.tooltip-line:not(.tooltip-meta):not(.tooltip-section), .tooltip-final) {
+  font-family: var(--font-pixel-read); font-size: var(--font-size-reading); line-height: 1.6;
+}
+:root body[data-ui-skin] :is(#item-tooltip-box, #canvas-tooltip, #info-tooltip) .tooltip-title {
+  font-family: var(--font-pixel); font-size: var(--font-size-ui); font-weight: var(--font-weight-emphasis);
+}
+/* 날짜처럼 선택적인 보조 정보만 작은 격자를 쓴다. 본문·조작 설명은 줄이지 않는다. */
+:root body[data-ui-skin] .patch-note-date {
+  font-family: var(--font-pixel-meta); font-size: var(--font-size-meta);
+  font-weight: var(--font-weight-regular); line-height: 1.6; color: var(--color-text-secondary);
 }
 
 /* ─── 도트 판 ─────────────────────────────────────────────── */
@@ -425,7 +433,7 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
   border-bottom: 2px solid var(--px-ink);
   background: color-mix(in srgb, var(--tooltip-rarity) 16%, var(--px-stone));
   box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--tooltip-rarity) 45%, var(--px-bronze-lo));
-  font-size: 15px;
+  font-size: var(--font-size-ui);
   text-shadow: var(--px-text-edge);
 }
 :root body[data-ui-skin] #item-tooltip-box .tooltip-line.tooltip-section::before,
@@ -533,7 +541,8 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
   background: rgba(8, 5, 8, .88);
   color: var(--px-gold-bright);
   font-family: var(--font-display);
-  font-size: 16px;
+  font-size: var(--font-size-heading);
+  font-weight: var(--font-weight-emphasis);
   letter-spacing: 0;
   text-shadow: var(--px-text-bold);
 }
@@ -575,8 +584,8 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
     border-bottom: 1px solid var(--px-bronze-lo);
     color: var(--px-gold-bright);
     font-family: var(--font-display);
-    font-size: 16px;
-    font-weight: 400;
+    font-size: var(--font-size-heading);
+    font-weight: var(--font-weight-emphasis);
     text-shadow: var(--px-text-bold);
   }
   :root body[data-ui-skin] #loop-hero-select-overlay .hero-choice-detail .tooltip-line { margin: 0; color: var(--px-copy); line-height: 1.5; text-shadow: var(--px-text-edge); }
@@ -595,16 +604,15 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
   :root body[data-ui-skin] #loop-hero-select-overlay .hero-choice-portrait { height: 84px; }
 }
 
-/* ─── 도트 글꼴 크기 격자 (검토 2026-10-01) ───────────────────────────────────────────
-   도트 글꼴은 그려진 크기(물마루 12 · 24, 갈무리 15, DOS새물 16)에서만 또렷하다. 컴포넌트 CSS가 벡터 글꼴 시절에 정한 10 ~ 21px이
-   남아 창마다 번진 글자가 섞였다 → 창 안(전투 화면은 HUD가 따로 맞춘다)의 글자를 제목 · 소제목 15(갈무리) · 본문 12(물마루) 두 크기로
-   모은다. 창 안 제목에 DOS새물(넓은 글꼴)을 쓰면 "리"가 "ㄹ ㅣ"처럼 벌어져 읽혔다 — 제목과 소제목은 색 · 밑줄로 구분된다. */
-:root body[data-ui-skin] .tab-content:not(#tab-battle) :is(h1, h2) { font-family: var(--font-pixel-read); font-size: 15px; }
+/* ─── 역할별 글꼴 규칙 (docs/ui-display.md) ───────────────────────────────────────────
+   제목 11 Bold/24, 소제목 11 Bold/12, 조작·수치 11/12, 긴 글 14/15. 여백은 space 토큰을 쓴다.
+   새 UI도 이 역할을 재사용하며 같은 역할 수정은 토큰·소유 규칙에서 일괄 적용한다. */
+:root body[data-ui-skin] .tab-content:not(#tab-battle) :is(h1, h2) { font-family: var(--font-pixel-title); font-size: var(--font-size-heading); font-weight: var(--font-weight-emphasis); line-height: 1.5; }
 :root body[data-ui-skin] .tab-content:not(#tab-battle) :is(h1, h2) * { font-family: inherit; font-size: inherit; }
-:root body[data-ui-skin] .tab-content:not(#tab-battle) :is(h3, summary, .records-section-title, .records-stat-value, .journal-section-title, .gem-enhance-section-title,
-    .map-zone-group-title, .craft-spores-title, .stat-value) { font-family: var(--font-pixel-read); font-size: 15px; }
-:root body[data-ui-skin] .tab-content:not(#tab-battle) :is(p, li, label, button, select, input, textarea, small, td, th, h4, .subtab-btn strong, .equipment-slot-name, .equipment-slot-action,
-    .unlock-eyebrow, .unlock-lifetime-tag, .unlock-origin-label, .content-unlock-balance) { font-family: var(--font-pixel); font-size: 12px; }
+:root body[data-ui-skin] .tab-content:not(#tab-battle) :is(h3, summary, .records-section-title, .journal-section-title, .gem-enhance-section-title,
+    .map-zone-group-title, .craft-spores-title) { font-family: var(--font-pixel); font-size: var(--font-size-ui); font-weight: var(--font-weight-emphasis); }
+:root body[data-ui-skin] .tab-content:not(#tab-battle) :is(label, button, select, input, textarea, small, td, th, h4, .subtab-btn strong, .equipment-slot-name, .equipment-slot-action,
+    .unlock-eyebrow, .unlock-lifetime-tag, .unlock-origin-label, .content-unlock-balance, .records-stat-value, .stat-value) { font-family: var(--font-pixel); font-size: var(--font-size-ui); }
 /* 단추처럼 쓰는 접힘 제목(해금 상세의 '루프 전환 시' · '포함된 성장 요소')은 옆 단추와 같은 본문 글꼴 —
    소제목 크기(갈무리 15)라 옆 단추와 글꼴 · 크기가 달랐다(검토 4차) */
 :root body[data-ui-skin] .tab-content:not(#tab-battle) :is(.unlock-lifetime, .unlock-related, #map-ready-destinations > details, #market-panel-stall details) > summary { font-family: var(--font-pixel); font-size: 12px; }
@@ -698,7 +706,7 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 :root body[data-ui-skin] #content-unlock-panel .unlock-detail h3 { font-family: var(--font-pixel); font-size: 24px; }
 /* 전투 기록(PC는 창 밖)과 안내 카드 */
 :root body[data-ui-skin] #log .log-msg { font-size: 12px; }
-:root body[data-ui-skin] #tutorial-overlay #tutorial-title { font-size: 16px; }
+:root body[data-ui-skin] #tutorial-overlay #tutorial-title { font-size: var(--font-size-heading); }
 :root body[data-ui-skin] #tutorial-overlay :is(#tutorial-open-btn, #tutorial-dismiss-btn) { font-size: 12px; }
 }
 

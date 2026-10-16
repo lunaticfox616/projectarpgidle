@@ -56,7 +56,7 @@ const bossRevive = (() => {
         ctx.fillRect(x, y, Math.round(barW * share), 10);
         ctx.fillStyle = 'rgba(255,240,196,0.55)';
         ctx.fillRect(x, y, Math.round(barW * share), 3);
-        ctx.font = "13px 'Galmuri14', 'MulmaruMono', 'Malgun Gothic', sans-serif";
+        ctx.font = "13px 'Galmuri14', 'Galmuri11', 'Malgun Gothic', sans-serif";
         ctx.textAlign = 'center';
         ctx.textBaseline = 'bottom';
         ctx.lineWidth = 3;

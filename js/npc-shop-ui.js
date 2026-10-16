@@ -17,7 +17,7 @@ const npcShopUi = (() => {
     const howToBuy = () => HOW_TO_BUY[uiDisplay.matches('(hover: hover)') ? 'pointer' : 'touch'];
     const isChosen = (id, index) => !!chosen && chosen.id === id && chosen.index === index;
     function coinHtml(key) {
-        const icon = pixelIconPath(ORB_DB[key] && ORB_DB[key].icon);
+        const icon = ORB_DB[key] && ORB_DB[key].icon;
         return icon ? `<img class="npc-shop-coin" src="${icon}" alt="">` : '';
     }
 

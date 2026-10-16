@@ -13,7 +13,7 @@
   --board-support: #6fd3b0;
   --board-support-deep: #0f2a24;
   --board-read: var(--font-pixel-read, 'Galmuri14', sans-serif);
-  --board-label: var(--font-pixel, 'MulmaruMono', sans-serif);
+  --board-label: var(--font-pixel, 'Galmuri11', sans-serif);
 }
 .skill-board-layout { display: grid; grid-template-columns: minmax(300px, 372px) minmax(0, 1fr); gap: 10px; align-items: start; }
 .skill-board-column { display: grid; gap: 10px; min-width: 0; }

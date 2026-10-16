@@ -1021,7 +1021,10 @@ function mergeDefaults(save) {
     merged.settings.highContrast = merged.settings.highContrast === true;
     merged.settings.hotkeyOverrides = hotkeyBindings.normalize(merged.settings.hotkeyOverrides);
     merged.settings.uiScale = normalizeUiScale(merged.settings.uiScale);
-    merged.settings.uiFont = normalizeUiFont(merged.settings.uiFont);
+    // 표현 선택은 폐기: 갈무리·원화·플레이어 외형으로 고정한다. 획득 기록은 보존한다.
+    delete merged.settings.uiFont;
+    delete merged.settings.iconArtStyle;
+    delete merged.selectedMonsterSkin;
     merged.settings.tabLayouts = normalizeTabLayoutSettings(save.settings || {});
     ['tabOrder', 'tabPlacement', 'tabGroupOrder', 'tabPlacementInitialized'].forEach(key => delete merged.settings[key]);
     merged.settings.twoRowTabs = false;

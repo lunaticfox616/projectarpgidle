@@ -9,7 +9,7 @@ const oceanDiveUi = (() => {
     /** Currency art when the currency has a picture; the dive materials have none, so they get a pixel glyph in their colour. */
     const GLYPHS = Object.freeze({ skyEssence: 'cloud', oceanRerollShard: 'shard', reefFragment: 'coral', bossCore: 'gem' });
     function currencyIcon(key) {
-        const src = pixelIconPath(ORB_DB[key] && ORB_DB[key].icon);
+        const src = ORB_DB[key] && ORB_DB[key].icon;
         if (src) return `<img src="${src}" alt="" aria-hidden="true">`;
         return GLYPHS[key] ? renderPixelIcon(GLYPHS[key], `dive-glyph is-${GLYPHS[key]}`) : '';
     }

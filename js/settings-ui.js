@@ -27,9 +27,7 @@
         'sel-damage-number-format': 'damageNumberFormat',
         'sel-map-complete-action': 'mapCompleteAction',
         'sel-town-return-action': 'townReturnAction',
-        'sel-loop-map-complete-action': 'postLoopMapCompleteAction',
-        'sel-combat-target-priority': 'combatTargetPriority',
-        'sel-combat-position-mode': 'combatPositionMode'
+        'sel-loop-map-complete-action': 'postLoopMapCompleteAction'
     };
     const offByDefault = new Set(['showDetailedDamageLog', 'highContrast']);
     const root = document.getElementById('tab-settings');
@@ -54,10 +52,7 @@
         document.getElementById('chk-act-journal').checked = game.settings.showActJournal !== false;
         applyChatMessageSize(game.settings.chatMessageSize);
         playUiFeedbackSound.syncSettings();
-        syncCombatTacticsSettingsControls();
         renderHeroSelectionControls();
-        renderMonsterSkinControls();
-        iconArtUi.sync();
         select(root.dataset.settingsCategory);
     }
 
@@ -95,7 +90,6 @@
         }
         const key = selects[control.id];
         if (!key || ![...control.options].some(option => option.value === control.value)) return null;
-        if (key.startsWith('combat') && !game.combatTacticsUnlocked) return null;
         game.settings[key] = control.value;
         return key;
     }

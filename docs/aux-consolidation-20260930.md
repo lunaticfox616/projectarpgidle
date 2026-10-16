@@ -245,6 +245,8 @@
   보스 공격 예고 안에 서 있으면 3칸 안의 가장 가까운 안전 칸으로 옮기고 이동기 재사용 대기)로 옮겼다. 파멸 징표(처치 시 폭발 페이로드)는 옮기지 않았다.
 - 스킬 창의 '컨디션 젬' 하위 탭은 '전술 규칙'(조건 · 행동 규칙)이 됐다. 해금 포인트 없이 루프 2부터, 액트 3에서 전투 전술을
   배우면 열린다. 해금 목록의 '컨디션 젬' 항목은 없앴고 쓴 포인트는 content-progression 규칙대로 돌아온다.
+  이후 변경(2026-10-16): 기본 전술과 통합하고 루프 2 제한 없이 액트 3 클리어 시 무료로 연다.
+  현재 정책은 [콘텐츠 진행 규칙](content-progression.md)의 전투 전술 항목을 따른다.
 - 없앤 것: CONDITION_GEM_DB, 젬 선택 · 레벨 · 쿨다운 · 시전 지연 · 자동 시전, 루트 보스 처치 젬 해금, 젬 발동 피드백
   (js/condition-feedback-ui.js), 전투 HUD의 젬 칸, 젬 VFX, 파멸 징표 페이로드.
 - 저장: conditionGemUnlocked · conditionGemPool · conditionGemLevels · pendingConditionGemChoices · conditionGemCooldowns ·

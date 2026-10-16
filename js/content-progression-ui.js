@@ -53,8 +53,8 @@ const contentUnlockUi = {
             // 루프 10에 아틀라스가 열려도 창이 숨어 빈 화면이 됐다(2026-10-07 리뷰).
             for (const route of def.routes || []) this.syncRoute(route, !contentProgression.canOpen(route));
         }
-        // 해금 목록 항목 없이 진행 조건으로만 열리는 경로(전술 규칙: 루프 2 · 액트 3 전술).
-        for (const route of ['tab-map', 'tab-season', 'tab-unlocks', 'skill-tab-condition']) this.syncRoute(route, !contentProgression.canOpen(route));
+        // 해금 목록 항목 없이 진행 조건으로만 열리는 경로.
+        for (const route of ['tab-map', 'tab-season', 'tab-unlocks']) this.syncRoute(route, !contentProgression.canOpen(route));
         this.resetClosedSelection('itemSubtab', 'item-tab-equip', '#tab-items');
         this.resetClosedSelection('skillSubtab', 'skill-tab-equip', '#tab-skills');
         this.resetClosedSelection('mapSubtab', 'map-tab-zones', '#tab-map');
@@ -84,7 +84,7 @@ const contentUnlockUi = {
     },
     art(def) {
         const root = CONTENT_UNLOCK_CATALOG.find(row => row.id === this.branchRoot(def));
-        return pixelIconPath('assets/' + (def.art || root.art || 'ui/currency/sap-bud.png'));
+        return 'assets/' + (def.art || root.art || 'ui/currency/sap-bud.png');
     },
     node(def) {
         const status = contentProgression.status(def.id);
@@ -368,7 +368,7 @@ const contentUnlockUi = {
     /** New content card: what it is (the catalog line) and where it lives. Once per content; returns true if queued. */
     announceContent(id) {
         const def = CONTENT_UNLOCK_CATALOG.find(row => row.id === id);
-        if (!def || def.minLoop <= 1 || CONTENT_CARD_DEDICATED[id]) return false;
+        if (!def || (def.minLoop <= 1 && id !== 'tactics') || CONTENT_CARD_DEDICATED[id]) return false;
         const action = this.routeAction(def), route = action ? this.routeKey(action) : null;
         const path = CONTENT_ROUTE_PATHS[route];
         const before = tutorialQueue.length;

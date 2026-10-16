@@ -3,7 +3,7 @@ body { font-family: var(--font-body); }
 :is(h1, h2, h3, h4, h5, h6, .startup-wordmark, [class~="title"], [class$="-title"], [class*="-title "]) {
   font-family: var(--font-title);
 }
-.startup-wordmark { font-family: "DOSSaemmul", var(--font-body); }
+.startup-wordmark { font-family: "Galmuri11", var(--font-body); }
 
 .game-number-picker { display: grid; grid-template-columns: 48px minmax(96px, 1fr) 48px; align-items: center; gap: 9px; }
 .game-number-stepper { min-width: 48px; min-height: 46px; padding: 0; border-radius: var(--radius-sm); font-size: 22px; color: var(--color-accent-gold); background: var(--color-surface-raised); }

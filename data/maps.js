@@ -267,8 +267,8 @@ const TIME_RIFT_EQUIVALENT_CHAOS_DEPTHS = Object.freeze([1, 6, 11, 16, 22, 29, 3
 const TIME_RIFT_FUSION_ODDS = { perfectBase: 0.03, perfectPerPressure: 0.045, unstableBase: 0.42, unstablePerPressure: 0.035, unstableMin: 0.08 };
 
 const SEASON_CONTENT_ROADMAP = {
-    1: { title: '루프 1', features: ['시작: 기본 전투/장비/지도'] },
-    2: { title: '루프 2', features: ['해금: 홀씨 제작', '해금: 전술 규칙 (스킬 젬 → 전술 규칙)', '그루터기 함: 루프마다 한 칸씩 열림 (9칸 → 루프 17에 25칸)'] },
+    1: { title: '루프 1', features: ['시작: 기본 전투/장비/지도', '액트 3 클리어: 전투 전술 무료 해금 (스킬 젬 → 전술 규칙)'] },
+    2: { title: '루프 2', features: ['해금: 홀씨 제작', '그루터기 함: 루프마다 한 칸씩 열림 (9칸 → 루프 17에 25칸)'] },
     3: { title: '루프 3', features: ['해금: 고대 미궁(화석) / 대전'] },
     4: { title: '루프 4', features: ['해금: 창공 강화'] },
     5: { title: '루프 5', features: ['해금: 루프 패시브 확장 + 주얼'] },
