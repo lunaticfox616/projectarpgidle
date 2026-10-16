@@ -28,8 +28,9 @@ const stageRegion = (() => {
     const BLEND_DOTS = 56;                      // 방 그림의 위아래 끝을 메운 색으로 풀어 주는 길이(도트)
     /** 탐험 물체의 그림 이름 → 재질의 조각. 목재 상자는 항아리와 같은 그림을 뒤집어 쓴다. */
     const OBJECTS = Object.freeze({ chest: 'prop-4', chestOpen: 'prop-5', pot: 'prop-6', potBroken: 'prop-7', crate: 'prop-6', crateBroken: 'prop-7' });
-    /** 보급 상자 등급의 빛깔(그 재질의 상자 그림에 얹는다). */
-    const GRADE = Object.freeze({ silver: 'rgba(214,226,240,0.42)', gold: 'rgba(255,204,72,0.46)' });
+    /** 보급 상자 등급의 빛깔(그 재질의 닫힌 상자 그림에 옅게 얹는다). 2026-10-16 사용자 "상자가 열렸을 때 색이 이상해지고": 그림 전체를 덮던
+     * 진한 빛깔(.42, .46)은 상자를 납작한 한 색 덩어리로 만들었다. 열린 상자는 빛깔 없이 그 그림 그대로다. 등급은 테의 빛깔로도 읽힌다. */
+    const GRADE = Object.freeze({ silver: 'rgba(214,226,240,0.2)', gold: 'rgba(255,204,72,0.22)' });
 
     const regionOfMap = map => (map && stageView.backdrops() && stageRegionFit.of(map.region)) || null;
     const regionFamily = region => STAGE_REGIONS.families[region.family];
@@ -302,7 +303,7 @@ const stageRegion = (() => {
         const run = actExplorationState.current(game), map = actExplorationDoors.stageMap(run), name = OBJECTS[look.name];
         if (!name || !map || regionStatus(map) !== 'ready') return null;
         const region = regionOfMap(map), size = regionFamily(region).pieces[name];
-        return size ? { file: regionPieceFile(region, name), size, flip: look.name.startsWith('crate'), grade: GRADE[look.tint] || null } : null;
+        return size ? { file: regionPieceFile(region, name), size, flip: look.name.startsWith('crate'), grade: look.name === 'chest' ? GRADE[look.tint] || null : null } : null;
     }
     function stampRegionObject(ctx, source, piece, at) {
         const size = piece.size, x = Math.round(at.x - size[2] * at.dot), y = Math.round(at.y - size[3] * at.dot);

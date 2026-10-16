@@ -43,6 +43,8 @@ actExplorationView.objects=(()=>{
     // 색의 제 테두리만으로는 어두운 바닥에 묻혔다). 색은 종류마다(상자 금빛, 봉인 보라, 몬스터가 나오는 둥지 주황, 항아리와 나무 상자
     // 옅은 빛), 마우스를 올리거나 초점이 가면 하얗게.
     const RIM={chest:'#ffd36b',sealed:'#e0b4ff',nest:'#ff9a6a',pot:'#f3d6a4',crate:'#f3d6a4'},RIM_HOT='#fff8e6';
+    // 등급 있는 보급 상자의 테: 은은 차가운 흰빛, 금은 짙은 금빛(무대의 상자 그림에는 등급 빛깔을 옅게만 얹는다).
+    const RIM_GRADE={silver:'#e4eefa',gold:'#ffbf2e'},rimColour=row=>(row.kind==='chest'&&RIM_GRADE[row.grade])||RIM[row.kind];
     let hovered=null;
     const cache=new Map();
     /** 18 × 18: every empty dot that touches the sprite's 16 × 16 picture on a side. */
@@ -183,7 +185,7 @@ actExplorationView.objects=(()=>{
         if(actor.ready&&RIM[row.kind]) {
             const hot=hovered===row.id,breath=hot?1:.6+.4*Math.sin(performance.now()/300+row.gx+row.gy);
             ctx.globalAlpha=fade(row)*breath;
-            stageObjects.outline(ctx,look(row),at,hot?RIM_HOT:RIM[row.kind]);
+            stageObjects.outline(ctx,look(row),at,hot?RIM_HOT:rimColour(row));
             ctx.globalAlpha=fade(row);
         }
         stageObjects.draw(ctx,look(row),at);

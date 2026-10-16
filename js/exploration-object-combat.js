@@ -156,12 +156,14 @@ actExplorationProgress.objects = (() => {
         const enemy={id:0,gx:cell.gx,gy:cell.gy,isBoss:false,isElite:false};
         return mods?Object.assign(enemy,{equipmentDropMul:mods.equipmentMul,uniqueChanceMul:mods.uniqueMul}):enemy;
     }
-    /** An opened chest still stands on its cell: its loot falls beside it (a free neighbour near the hero, not the hero's cell). */
+    /** An opened chest still stands on its cell: its loot falls beside it (a free neighbour near the hero, not the hero's cell), in front of it
+     * or at its side, never on the cell behind it: the standing chest is drawn over that cell (2026-10-16 사용자: 아이템이 상자에 가려짐). */
     function spillCell(run,row) {
         const map=actExplorationMap.forRun(run),solid=state.solidCells(run);
         const hero=game.gridPlayer,free=actExplorationMap.neighbors(map,row).filter(c=>!solid.has(`${c.gx},${c.gy}`));
         // Nearest the hero, but never under the hero's own feet.
-        free.sort((a,b)=>Number(distance(a,hero)===0)-Number(distance(b,hero)===0)||distance(a,hero)-distance(b,hero));
+        const behind=c=>Number(c.gy<row.gy);
+        free.sort((a,b)=>behind(a)-behind(b)||Number(distance(a,hero)===0)-Number(distance(b,hero)===0)||distance(a,hero)-distance(b,hero));
         return free[0]||row;
     }
     /** Item rolls: the map quantity plus the chest grade's extra rolls. The grade's first rolls always give an item, the first
