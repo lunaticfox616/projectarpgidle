@@ -1727,9 +1727,8 @@ function drawLevelUpFx(ctx, fx, t, playerPos, now) {
 }
 
 function drawLevelUpLabel(ctx, fx, pos) {
-    const rift = typeof isBattleLightingEnabled === 'function' && isBattleLightingEnabled();
     ctx.globalAlpha = pos.alpha;
-    ctx.font = `${rift ? 24 : 12}px ${BATTLE_PIXEL_FONT}`;
+    ctx.font = `24px ${BATTLE_PIXEL_FONT}`;
     ctx.textAlign = 'center';
     ctx.lineWidth = 4;
     ctx.lineJoin = 'miter';
@@ -3307,19 +3306,6 @@ function drawBattleGridFloor(ctx, proj, theme, skillTargets, skillAreaCells, bac
         ctx.beginPath();
         ctx.rect(c.x - halfW, c.y - halfH, proj.tileW, proj.tileH);
     };
-    const fillCell = (unit, fillStyle, strokeStyle, alpha) => {
-        if (!hasGridCell(unit)) return;
-        getGridUnitCells(unit).forEach(cell => {
-            tilePath(cell.gx, cell.gy);
-            ctx.globalAlpha = alpha;
-            ctx.fillStyle = fillStyle;
-            ctx.fill();
-            ctx.globalAlpha = Math.min(0.95, alpha + 0.25);
-            ctx.strokeStyle = strokeStyle;
-            ctx.lineWidth = 2.4;
-            ctx.stroke();
-        });
-    };
     ctx.save();
     for (let gx = 0; !actExplorationState.current(game) && gx < getCombatGridSize().columns; gx++) {
         for (let gy = 0; gy < getCombatGridSize().rows; gy++) {
@@ -3336,25 +3322,12 @@ function drawBattleGridFloor(ctx, proj, theme, skillTargets, skillAreaCells, bac
             ctx.stroke();
         }
     }
-    drawBattleGridCombatOccupants(ctx, tilePath, fillCell, { proj, backdropActive, skillTargets, skillAreaCells });
+    drawRiftCombatOccupants(ctx, { proj, skillTargets, skillAreaCells });
     ctx.restore();
 }
 
-function drawBattleGridCombatOccupants(ctx, tilePath, fillCell, layers) {
-    if (isBattleLightingEnabled()) return drawRiftCombatOccupants(ctx, layers);
-    fillCell(game.gridPlayer, 'rgba(134, 190, 255, 0.13)', 'rgba(150, 203, 255, 0.55)', 0.9);
-    (game.enemies || []).forEach(enemy => {
-        if (enemy && enemy.hp > 0 && actExplorationView.inSight(enemy)) fillCell(enemy, 'rgba(255, 87, 87, 0.12)', 'rgba(255, 140, 120, 0.38)', 0.7);
-    });
-    (game.summons || []).forEach(summon => {
-        if (summon && !summon.isGhost && summon.alive && (summon.hp || 0) > 0) fillCell(summon, 'rgba(126, 255, 173, 0.12)', 'rgba(154, 255, 192, 0.38)', 0.75);
-    });
-    (layers.skillAreaCells || []).forEach(cell => fillCell(cell, 'rgba(124, 255, 214, 0.12)', 'rgba(124, 255, 214, 0.5)', 0.9));
-    (layers.skillTargets || []).forEach(hit => fillCell(hit && hit.enemy, 'rgba(255, 211, 91, 0.18)', 'rgba(255, 225, 151, 0.75)', 0.95));
-}
-
-// 균열 등불(rift) 스킨의 칸 표시: 네모 칸 대신 발밑 타원과 모서리 표식만 그린다.
-// 칸 판정·범위 계산은 그대로이고 그리는 모양만 바꾼다. 다른 스킨은 기존 칸 채우기를 쓴다.
+// 칸 표시: 네모 칸 대신 발밑 타원과 모서리 표식만 그린다. 칸 판정과 범위 계산은 그대로이고 그리는 모양만 바꾼다.
+// 고대비 모드도 같다(2026-10-16 사용자: 발밑이 네모로 바뀌고 캐릭터를 따라가지 않고 칸 단위로 옮겨 갔다. 고대비는 조명만 끈다).
 const RIFT_CELL_TONES = {
     player: { fill: 'rgba(120, 210, 196, 0.22)', line: 'rgba(160, 236, 222, 0.7)' },
     enemy: { fill: 'rgba(170, 52, 40, 0.24)', line: 'rgba(226, 116, 94, 0.55)' },
@@ -3379,7 +3352,7 @@ function drawRiftCombatOccupants(ctx, layers) {
 /** The player's foot ring sits under the drawn figure, not on the hit cell: while walking, the body glides between
  * cells and the cell changes halfway, so a cell ring jumped ahead of the character. */
 function drawRiftPlayerRing(ctx, proj, feet) {
-    if (!isBattleLightingEnabled() || !proj || !feet) return;
+    if (!proj || !feet) return;
     // 옆에서 보는 무대: 도트로 찍는 발밑 고리(js/canvas-stage-rings.js)
     if (stageView.enabled()) return stageRings.ring(ctx, { x: feet.x, y: feet.y, dot: stageActors.scaleFor(proj.tileW) }, { tone: 'player', rx: 22, turning: true });
     const rx = proj.tileW * 0.4, ry = Math.max(4, rx * 0.34), tone = RIFT_CELL_TONES.player;
