@@ -2,7 +2,7 @@
 /* 무대 몬스터의 새 그림(걷기와 공격)을 게임이 읽는 모양으로 옮긴다(docs/stage-view-20261011.md).
  *
  *   node scripts/build-stage-roster.cjs <정리한 그림 폴더> [복사해 둘 폴더] [--forge <새 묶음 폴더>] [--looks <새 외형 선택.json>]
- *     [--roots <무기 뿌리 묶음 폴더>] [--actions <동작 묶음 폴더>] [--attacks <적 공격 효과 묶음 폴더>]
+ *     [--roots <무기 뿌리 묶음 폴더>] [--actions <동작 묶음 폴더>] [--attacks <적 공격 효과 묶음 폴더>] [--deaths <장면 상태 그림 폴더>]
  *
  * 그림이 오는 곳은 둘이다.
  *   <정리한 그림 폴더>: 처음 받은 88종을 도트로 정리해 둔 곳(data.js, fixed/<id>/walk.png과 attack.png, 그 위 폴더의 motions.json).
@@ -16,13 +16,15 @@
  *     게임에 공격 그림이 없는 보스(review-data.json의 category가 regular가 아니고 actors/<id>/animation.json의 gameAttackPresent가
  *     false)에만 공격으로 넣는다(attackBatch). 일반 적의 새 공격은 아직 넣지 않는다. 서 있는
  *     그림은 그대로다. 그 동작의 프레임마다 효과가 나오는 자리는 scripts/build-boss-fx.cjs가 이 표를 보고 맞춘다(다시 돌린다).
+ *   --deaths: 장면 상태 그림 묶음(story-state-art-20261016, 2026-10-17)의 스토리 보스 쓰러짐(clips/<보스 id>, kind boss): deathBatch.
+ *     걷기와 공격의 칸과 발 자리는 그대로 두고 쓰러짐만 제 칸에 따로 둔다(<id>-death.png).
  *   새 묶음의 그림이 게임에서 다른 자리에 서면 FORGE_SLOT에 적는다(예: 부제나비는 액트 3 보스 그림 키 bossAct3).
  *   같은 생김새에 색만 다른 외형은 FORGE_TINTS에 적는다: 동작이 온 외형의 걷기와 공격을 제 색으로 옮겨 쓴다(--no-tint로 끈다).
  * 몬스터 하나는 한쪽 묶음의 그림만 쓴다: 새 묶음에 확인 끝난 동작이 있으면 그것(공격이 없으면 공격 그림 없이 간다), 없으면
  * 처음 받은 걷기와 공격, 그것도 없고 고른 외형만 있으면 그 한 장(걷기도 공격도 게임이 움직임을 만든다).
  * 받은 그림은 칸이 몸보다 훨씬 크다: 몬스터마다 걷기와 공격의 모든 프레임이 들어가는 가장 작은 칸으로 잘라, 한 줄에 12칸씩
  * 다시 놓는다. 걷기와 공격은 같은 칸, 같은 발 자리를 쓴다.
- *   그림: assets/enemies/roster/<id>-walk.png, <id>-attack.png (저장소에 넣지 않는다, .gitignore). [복사해 둘 폴더]에도 똑같이 둔다.
+ *   그림: assets/enemies/roster/<id>-walk.png, <id>-attack.png, 쓰러짐이 있는 보스는 <id>-death.png (2026-10-16부터 게임과 함께 저장소에 넣는다). [복사해 둘 폴더]에도 똑같이 둔다.
  *   표: data/monster-stage-roster.js.
  * 원본은 읽기만 한다. RGBA 8비트 PNG만 읽는다.
  */
@@ -34,9 +36,10 @@ const { decodePng, encodePng } = require('./lib/png.cjs');
 const { tidy } = require('./tidy-stage-art.cjs');
 
 const root = path.join(__dirname, '..');
-const args = process.argv.slice(2), OPTIONS = ['--forge', '--looks', '--roots', '--actions', '--attacks'];
+const args = process.argv.slice(2), OPTIONS = ['--forge', '--looks', '--roots', '--actions', '--attacks', '--deaths'];
 const option = name => (args.includes(name) ? args[args.indexOf(name) + 1] : null);
 const forge = option('--forge'), looksFile = option('--looks'), rootsDir = option('--roots'), actionsDir = option('--actions'), attacksDir = option('--attacks');
+const deathsDir = option('--deaths');
 const [from, mirror] = args.filter((arg, index) => !arg.startsWith('--') && !OPTIONS.includes(args[index - 1]));
 if (!from) { console.error('쓰는 법: node scripts/build-stage-roster.cjs <정리한 그림 폴더> [복사해 둘 폴더] [--forge <새 묶음 폴더>] [--looks <새 외형 선택.json>] [--roots <무기 뿌리 묶음 폴더>] [--actions <동작 묶음 폴더>]'); process.exit(1); }
 const PAD = 2, COLUMNS = 12;
@@ -310,6 +313,31 @@ function attackBatch(dir, previous) {
     return out;
 }
 
+// ------------------------------------------------------------------ 보스 쓰러짐(--deaths)
+/** 스토리 보스가 쓰러지는 그림(장면 상태 그림 묶음, 2026-10-17): clips/<보스 id>/animation.json(kind boss)의 프레임 파일(묶음 폴더
+ * 기준 경로), 칸 크기(width, height), 발 자리(anchor), 프레임 시간(durations, 게임은 마지막 장에 멈춘다). 오른쪽을 본다. */
+function deathBatch(dir, previous) {
+    const out = new Map();
+    for (const [id, actor] of previous) {
+        const file = path.join(dir, 'clips', id, 'animation.json');
+        if (!fs.existsSync(file)) continue;
+        const meta = JSON.parse(fs.readFileSync(file, 'utf8'));
+        if (meta.kind !== 'boss' || !meta.frames || !meta.frames.length) continue;
+        const size = [meta.width, meta.height], feet = [meta.anchor.x, meta.anchor.y];
+        out.set(id, { ...actor, death: { frames: meta.frames.map(name => frame(read(path.join(dir, name)), 0, 0, size, feet)), ms: meta.durations } });
+    }
+    return out;
+}
+/** 쓰러짐 시트를 쓰고 표의 쓰러짐 칸을 돌려준다: 제 프레임들만 담는 칸(발 자리 기준 상자)이라 걷기와 공격의 칸과 상관없다. 없으면 'null'. */
+function deathRowOf(actor) {
+    if (!actor.death) return 'null';
+    const boxes = actor.death.frames.map(boxOf).filter(Boolean);
+    const box = [Math.min(...boxes.map(b => b[0])) - PAD, Math.min(...boxes.map(b => b[1])) - PAD, Math.max(...boxes.map(b => b[2])) + PAD, Math.max(...boxes.map(b => b[3])) + PAD];
+    const sheet = atlas(actor.death.frames, box);
+    save(`${actor.id}-death.png`, sheet.png);
+    return `[${actor.death.frames.length}, ${sheet.cols}, [${actor.death.ms.join(', ')}], ${box[2] - box[0] + 1}, ${box[3] - box[1] + 1}, ${-box[0]}, ${-box[1]}]`;
+}
+
 /** 새 동작이 아직 없는 위습 외형은 같은 속성의 새 위습 그림을 빌려 입는다(data/wisp-sprites.js WISP_SPRITE_BY_VISUAL의 속성).
  * 속성에 새 그림이 없으면(지금은 화염과 독) 처음 받은 제 그림 그대로다. 외형마다 새 그림(own: 동작이든 한 장이든)이 오면 이 표에서 빠진다. */
 function wispWears(made, own) {
@@ -347,6 +375,10 @@ if (attacksDir) for (const [id, actor] of attackBatch(attacksDir, actors)) {
     counts.attacks = (counts.attacks || 0) + 1;
     actors.set(id, actor);
 }
+if (deathsDir) for (const [id, actor] of deathBatch(deathsDir, actors)) {
+    counts.deaths = (counts.deaths || 0) + 1;
+    actors.set(id, actor);
+}
 const outDir = path.join(root, 'assets/enemies/roster'), folders = [outDir, mirror].filter(Boolean), written = new Set(), stamp = crypto.createHash('sha1');
 folders.forEach(folder => fs.mkdirSync(folder, { recursive: true }));
 function save(file, png) {
@@ -366,34 +398,36 @@ for (const actor of actors.values()) {
     rows.push(`        ['${actor.id}', '${actor.name.replace(/'/g, "\\'")}', ${box[2] - box[0] + 1}, ${box[3] - box[1] + 1}, ${-box[0]}, ${-box[1]}, ${-stand[1]}, `
         + `${middle(walkBoxes.map(b => b[2] - b[0] + 1))}, '${actor.gait}', `
         + `${clipText({ n: actor.walk.frames.length, cols: walk.cols, ms: actor.walk.ms, extra: actor.walk.pace })}, `
-        + `${attack ? clipText({ n: actor.attack.frames.length, cols: attack.cols, ms: actor.attack.ms, extra: actor.attack.hit }) : 'null'}, [${-still[0]}, ${still[2]}]]`);
+        + `${attack ? clipText({ n: actor.attack.frames.length, cols: attack.cols, ms: actor.attack.ms, extra: actor.attack.hit }) : 'null'}, [${-still[0]}, ${still[2]}], ${deathRowOf(actor)}]`);
 }
 
 const version = stamp.digest('hex').slice(0, 10), wears = wispWears(moving, fromForge);
 const text = `// 옆에서 보는 무대의 몬스터 새 그림(docs/stage-view-20261011.md): node scripts/build-stage-roster.cjs가 쓴다. 손으로 고치지 않는다.
 // 몬스터마다 걷기와 공격 두 장(오른쪽을 보는 그림, 한 줄에 cols칸, 도트 하나 = 캐릭터 도트 하나)이고, 두 장은 칸 크기와 발 자리가 같다.
-// 그림은 저장소에 없다(assets/enemies/roster/, 로컬에만 둔다). 없는 곳에서는 앞서 쓰던 그림으로 그린다(js/canvas-stage-roster.js).
+// 그림은 assets/enemies/roster/에 있다(2026-10-16부터 저장소에 넣는다). 없는 곳에서는 앞서 쓰던 그림으로 그린다(js/canvas-stage-roster.js).
 // 스토리 보스는 그림 키(enemy.bossAssetKey)가 id와 같으면 이 그림을 쓴다.
 // 걸음새(gait): legs 다리로 걷는다, hop 통통 뛴다, crawl 기어간다, roll 굴러간다, fly, float, swim 떠서 움직인다.
 // 걷기 [프레임 수, cols, 프레임 시간(ms, 하나면 모두 같다), 맞추는 기준]: stride 걸어온 거리(한 바퀴 = 몸 너비의 0.7배), time 시간.
 //   프레임이 하나뿐이면 걷기 그림이 없는 몬스터다: 게임이 그 한 장을 움직여 걷는 척한다.
 // 공격 [프레임 수, cols, 프레임 시간, 타격 프레임] 또는 null(공격 그림이 없다: 서 있는 그림으로 때린다).
 // 품 [왼쪽, 오른쪽]: 서 있는 그림이 발에서 양옆으로 뻗은 도트(보스가 차지하는 칸 너비, js/combat-grid.js fitBossFootprint).
+// 쓰러짐 [프레임 수, cols, 프레임 시간, 칸 가로, 칸 세로, 발 x, 발 y] 또는 null: 스토리 보스가 쓰러지는 그림(<id>-death.png, 제 칸, 마지막 장에 멈춘다).
 const MONSTER_STAGE_ROSTER = Object.freeze({
     path: 'assets/enemies/roster/',
     /** 그림 묶음의 지문: 그림을 이 값과 함께 불러, 칸이 바뀐 그림을 브라우저가 예전 것으로 쓰지 않게 한다. */
     version: '${version}',
     /** 제 새 그림이 아직 없어 다른 외형의 그림을 빌려 입는 외형(위습: 같은 속성의 새 그림). */
     wears: Object.freeze({ ${wears.map(([id, other]) => `'${id}': '${other}'`).join(', ')} }),
-    // [id, 이름, 칸 가로, 칸 세로, 발 x, 발 y, 몸 높이, 몸 너비, 걸음새, 걷기, 공격, 품]
+    // [id, 이름, 칸 가로, 칸 세로, 발 x, 발 y, 몸 높이, 몸 너비, 걸음새, 걷기, 공격, 품, 쓰러짐]
     actors: Object.freeze(Object.fromEntries([
 ${rows.join(',\n')}
-    ].map(([id, name, w, h, feetX, feetY, height, width, gait, walk, attack, reach]) => {
+    ].map(([id, name, w, h, feetX, feetY, height, width, gait, walk, attack, reach, death]) => {
         const times = clip => Object.freeze(Array.isArray(clip[2]) ? clip[2] : Array(clip[0]).fill(clip[2]));
         return [id, Object.freeze({
             id, name, w, h, feet: Object.freeze([feetX, feetY]), height, width, gait, stride: Math.max(24, Math.round(width * 0.7)),
             walkMs: times(walk), walkCols: walk[1], pace: walk[3], still: walk[0] === 1,
-            attackMs: attack ? times(attack) : null, attackCols: attack ? attack[1] : 0, impactFrame: attack ? attack[3] : 0, reach: Object.freeze(reach)
+            attackMs: attack ? times(attack) : null, attackCols: attack ? attack[1] : 0, impactFrame: attack ? attack[3] : 0, reach: Object.freeze(reach),
+            death: death ? Object.freeze({ ms: times(death), cols: death[1], w: death[3], h: death[4], feet: Object.freeze([death[5], death[6]]) }) : null
         })];
     })))
 });
@@ -403,8 +437,8 @@ safeExposeData({ MONSTER_STAGE_ROSTER });
 fs.writeFileSync(path.join(root, 'data/monster-stage-roster.js'), text);
 // 이번에 쓰지 않은 걷기와 공격 그림(예: 공격 그림이 없어진 몬스터의 옛 공격)만 치운다. 폴더의 다른 파일은 건드리지 않는다.
 for (const folder of folders) for (const name of fs.readdirSync(folder)) {
-    if (/-(walk|attack)\.png$/.test(name) && !written.has(name)) fs.unlinkSync(path.join(folder, name));
+    if (/-(walk|attack|death)\.png$/.test(name) && !written.has(name)) fs.unlinkSync(path.join(folder, name));
 }
 const bytes = fs.readdirSync(outDir).reduce((sum, name) => sum + fs.statSync(path.join(outDir, name)).size, 0);
-console.log(`몬스터 ${rows.length}마리: 처음 받은 그림 ${counts.first}, 새 묶음의 동작 ${counts.moving}, 새 묶음의 한 장 ${counts.still}, 무기 뿌리촉수 ${counts.roots || 0}, 동작 묶음 ${counts.actions || 0}, 보스 공격 동작 ${counts.attacks || 0}`);
+console.log(`몬스터 ${rows.length}마리: 처음 받은 그림 ${counts.first}, 새 묶음의 동작 ${counts.moving}, 새 묶음의 한 장 ${counts.still}, 무기 뿌리촉수 ${counts.roots || 0}, 쓰러짐 ${counts.deaths || 0}, 동작 묶음 ${counts.actions || 0}, 보스 공격 동작 ${counts.attacks || 0}`);
 console.log(`그림 ${fs.readdirSync(outDir).length}장 (${(bytes / 1048576).toFixed(1)}MB) → assets/enemies/roster/${mirror ? ' 와 ' + mirror : ''}`);

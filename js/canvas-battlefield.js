@@ -149,6 +149,47 @@ function getKillHitStopMs(fx) {
     return death.boss ? KILL_HIT_STOP_MS.boss : (death.elite ? KILL_HIT_STOP_MS.elite : 0);
 }
 
+/** 쓰러짐 그림이 없는 보스의 사라짐 길이(ms). 보스의 쓰러짐 효과는 쓰러짐 그림을 보여 주려고 1.6초다(js/combat.js handleEnemyDeath). */
+const BOSS_DEATH_LEGACY_MS = 840;
+/** 쓰러진 보스가 흐려지기 시작하는 때(효과 길이의 비율): 그 앞까지는 쓰러짐 그림의 마지막 장(누운 모습)이 또렷하다. */
+const BOSS_DEFEAT_FADE_FROM = 0.78;
+/** 몬스터가 쓰러지는 연출(전투 효과 enemyDeath). 바닥 반응과 맞은 번쩍임은 모두 같다. 쓰러짐 그림이 있는 스토리 보스는 그 그림을 제자리에서
+ * 끝까지 보여 준다(drawBossDefeat). 그 밖에는 예전처럼 밀리며 바래 사라진다(쓰러짐 그림이 없는 보스는 예전 길이 BOSS_DEATH_LEGACY_MS로).
+ * at = { enemy (그 몬스터의 자리, 없으면 그리지 않는다), playerPos, gridProj, now }. */
+function drawEnemyDeathFx(ctx, fx, t, at) {
+    const enemy = at.enemy;
+    if (!enemy) return;
+    const deathEnemy = enemy.enemy || {}, isBossDeath = !!(fx.boss || deathEnemy.isBoss), elite = !!fx.elite;
+    const legacyT = isBossDeath ? Math.min(1, t * fx.duration / BOSS_DEATH_LEGACY_MS) : t;
+    const deathMotion = getEnemyDeathMotion(enemy, at.playerPos, legacyT, isBossDeath, elite);
+    drawEnemyDeathGroundReaction(ctx, enemy, deathMotion, fx.color, isBossDeath, elite);
+    drawEnemyDeathContactFlash(ctx, enemy, deathMotion, fx.color, isBossDeath, elite);
+    if (!(isBossDeath && drawBossDefeat(ctx, fx, t, at))) drawEnemyDeathAfterimage(ctx, fx, deathMotion, at);
+    worldTreeSkillFx.feedback.death(ctx, fx, legacyT, enemy);
+}
+/** 스토리 보스의 쓰러짐 그림(js/canvas-stage-roster.js drawDeath): 서 있던 자리에서 쓰러져 누운 채 머물다 끝에서 흐려진다. 그림이 없으면 false. */
+function drawBossDefeat(ctx, fx, t, at) {
+    const enemy = at.enemy, deathEnemy = enemy.enemy || {};
+    ctx.save();
+    ctx.globalAlpha = t < BOSS_DEFEAT_FADE_FROM ? 1 : Math.max(0, (1 - t) / (1 - BOSS_DEFEAT_FADE_FROM));
+    const drawn = stageRoster.drawDeath(ctx, deathEnemy, { x: enemy.x, y: enemy.y, tile: at.gridProj && at.gridProj.tileW, now: at.now,
+        facing: resolveEnemyFacingDirection(enemy, at.playerPos), deathMs: t * fx.duration, spawnScale: getBossDrawScale(deathEnemy) });
+    ctx.restore();
+    return drawn;
+}
+/** 예전 사라짐: 맞은 쪽으로 조금 밀리며 바래고 흐려지는 잔상. */
+function drawEnemyDeathAfterimage(ctx, fx, deathMotion, at) {
+    const enemy = at.enemy, deathEnemy = enemy.enemy || {}, isBossDeath = !!(fx.boss || deathEnemy.isBoss), dissolve = deathMotion.dissolve;
+    ctx.save();
+    ctx.globalAlpha = Math.pow(1 - dissolve, 1.62) * (isBossDeath ? 0.98 : (fx.elite ? 0.94 : 0.9));
+    ctx.translate(deathMotion.x, deathMotion.y);
+    ctx.scale(deathMotion.scaleX, deathMotion.scaleY);
+    ctx.filter = `grayscale(${Math.floor(dissolve * 78)}%) saturate(${1 - dissolve * 0.62}) brightness(${1 + deathMotion.impactAlpha * 0.45 + dissolve * 0.16})`;
+    drawEnemyAfterimage(ctx, deathEnemy, { x: 0, y: 0, scale: isBossDeath ? 3.65 : (fx.elite ? 2.1 : 1.9), flash: deathMotion.impactAlpha > 0.45,
+        gridProj: at.gridProj, now: at.now, facing: resolveEnemyFacingDirection(enemy, at.playerPos) });
+    ctx.restore();
+}
+
 function getEnemyDeathMotion(enemyPos, playerPos, progress, boss, elite) {
     let t = clampNumber(Number(progress) || 0, 0, 1);
     let dx = Number(enemyPos && enemyPos.x) - Number(playerPos && playerPos.x);
@@ -2824,24 +2865,7 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
             }
             ctx.restore();
         } else if (fx.type === 'enemyDeath') {
-            let enemy = enemyPosMap[fx.enemyId];
-            if (!enemy) return;
-            const deathEnemy = enemy.enemy || {};
-            const isBossDeath = !!(fx.boss || deathEnemy.isBoss);
-            const deathMotion = getEnemyDeathMotion(enemy, playerPos, t, isBossDeath, !!fx.elite);
-            const dissolve = deathMotion.dissolve;
-            const dissolveFade = Math.pow(1 - dissolve, 1.62);
-            drawEnemyDeathGroundReaction(ctx, enemy, deathMotion, fx.color, isBossDeath, !!fx.elite);
-            drawEnemyDeathContactFlash(ctx, enemy, deathMotion, fx.color, isBossDeath, !!fx.elite);
-            ctx.save();
-            ctx.globalAlpha = dissolveFade * (isBossDeath ? 0.98 : (fx.elite ? 0.94 : 0.9));
-            ctx.translate(deathMotion.x, deathMotion.y);
-            ctx.scale(deathMotion.scaleX, deathMotion.scaleY);
-            ctx.filter = `grayscale(${Math.floor(dissolve * 78)}%) saturate(${1 - dissolve * 0.62}) brightness(${1 + deathMotion.impactAlpha * 0.45 + dissolve * 0.16})`;
-            drawEnemyAfterimage(ctx, deathEnemy, { x: 0, y: 0, scale: isBossDeath ? 3.65 : (fx.elite ? 2.1 : 1.9), flash: deathMotion.impactAlpha > 0.45,
-                gridProj, now, facing: resolveEnemyFacingDirection(enemy, playerPos) });
-            ctx.restore();
-            worldTreeSkillFx.feedback.death(ctx, fx, t, enemy);
+            drawEnemyDeathFx(ctx, fx, t, { enemy: enemyPosMap[fx.enemyId], playerPos, gridProj, now });
         } else if (['bossAreaImpact', 'trialTrapWarning', 'trialTrap'].includes(fx.type)) {
             drawTrialTrapGridFx(ctx, fx, t, gridProj, fx.type === 'trialTrapWarning');
         } else if (fx.type === 'lootPickup') {
