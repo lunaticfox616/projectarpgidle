@@ -176,13 +176,26 @@ const contentProgression = (() => {
     function purchase(id, owner = game, rewardKey) {
         const check = status(id, owner);
         if (!check.available) return { ok: false, message: check.reason };
+        return takeUnlock(id, owner, rewardKey, definitions.get(id).cost);
+    }
+
+    /** An NPC's 즉시 해금 (js/content-progression-ui.js npcReady; 2026-10-16 사용자: 포인트 없이 공짜로): the same unlock and first
+     * reward for no points once its loop, progress and earlier-unlock conditions are met. paidCosts 0 keeps it free across loads. */
+    function gift(id, owner = game, rewardKey) {
         const def = definitions.get(id);
-        const choices = def.rewardChoices || [];
+        if (!def || def.cost === 0 || isUnlocked(id, owner)) return { ok: false, message: def ? '해금 완료' : '알 수 없는 콘텐츠입니다.' };
+        const missing = requirements(id, owner).find(row => !row.met);
+        if (missing) return { ok: false, message: missing.label + ' 필요' };
+        return takeUnlock(id, owner, rewardKey, 0);
+    }
+
+    function takeUnlock(id, owner, rewardKey, price) {
+        const choices = definitions.get(id).rewardChoices || [];
         const key = rewardKey === undefined ? choices[0]?.key : rewardKey;
         if (choices.length && !choices.some(row => row.key === key)) return { ok: false, message: '받을 보상을 선택하세요.' };
         grantEntryReward(id, key, owner);
         owner.contentProgression.unlocked.push(id);
-        owner.contentProgression.paidCosts[id] = def.cost;
+        owner.contentProgression.paidCosts[id] = price;
         sync(owner);
         return { ok: true, message: definitions.get(id).name + ' 해금' };
     }
@@ -216,10 +229,11 @@ const contentProgression = (() => {
             .every(key => next.unlocked.includes(key) || next.inherited.includes(key));
     }
 
-    // Save boundary: old 1P purchases are grandfathered; invalid new prices use the catalog.
+    // Save boundary: old 1P purchases are grandfathered and NPC gifts (gift, paid 0) stay free; invalid new prices use the catalog.
     function restoredPrice(def, record) {
         if ((Number(record.version) || 0) < 6) return 1;
-        return record.paidCosts?.[def.id] === 1 ? 1 : def.cost;
+        const paid = record.paidCosts?.[def.id];
+        return paid === 0 || paid === 1 ? paid : def.cost;
     }
 
     function inheritFormerFreeAccess(record, next, owner) {
@@ -272,6 +286,6 @@ const contentProgression = (() => {
         if (owned.has('gemForge') && !owned.has('engraving')) next.inherited.push('engraving');
     }
 
-    return Object.freeze({ isUnlocked, canDropCurrency, canOpen, earnedBy, points, overflow, balance, cheapestOpen, status, requirements, sync, purchase, restore });
+    return Object.freeze({ isUnlocked, canDropCurrency, canOpen, earnedBy, points, overflow, balance, cheapestOpen, status, requirements, sync, purchase, gift, restore });
 })();
 safeExposeGlobals({ contentProgression });

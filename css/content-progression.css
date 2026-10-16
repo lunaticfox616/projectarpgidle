@@ -76,6 +76,8 @@
 .unlock-detail-reward>p{font-size:11px;color:var(--color-text-tertiary);line-height:1.7;margin:0}
 #content-unlock-panel .unlock-detail-action>button{width:100%;min-height:44px;font-size:13px;border:1px solid var(--skin-accent);background:linear-gradient(120deg,rgba(157,127,59,.3),var(--skin-panel));white-space:normal}
 #content-unlock-panel .unlock-detail-action>button:disabled{border-color:var(--skin-line);opacity:.65}
+/* 만난 NPC가 포인트 없이 여는 해금(js/content-progression-ui.js npcGiftButton): 포인트로 사는 단추 위에 먼저 둔다. */
+#content-unlock-panel .unlock-detail-action>.unlock-npc-gift{margin-bottom:6px;border-color:var(--color-accent-gold);color:var(--color-accent-gold)}
 #content-unlock-panel [data-unlock-content="craft"]:enabled{position:relative;margin-top:16px;overflow:visible}
 #content-unlock-panel [data-unlock-content="craft"]:enabled::after{content:"";position:absolute;left:calc(50% - 5px);top:-23px;width:10px;height:10px;border-right:2px solid var(--skin-accent);border-bottom:2px solid var(--skin-accent);pointer-events:none;transform:translateY(0) rotate(45deg);animation:unlock-first-prompt 1.8s ease-in-out infinite}
 @keyframes unlock-first-prompt{0%,100%{transform:translateY(0) rotate(45deg);opacity:.65}50%{transform:translateY(6px) rotate(45deg);opacity:1}}

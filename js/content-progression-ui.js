@@ -257,7 +257,13 @@ const contentUnlockUi = {
             <div class="unlock-detail-reward">${this.entryReward(def, status)}</div>
             ${this.lifecycle(def)}${this.relatedFeatures(def)}
             <div class="unlock-requirements"><h4>${status.unlocked ? '해금 완료' : `해금 조건${def.cost ? ', ' + def.cost + 'P' : ''}`}</h4>${conditions.map(row => `<div class="${row.met ? 'is-met' : ''}"><span>${escapeHTML(row.label)}</span><small>${row.met ? '달성' : '미달성'}</small></div>`).join('')}</div>
-            <div class="unlock-detail-action">${action}</div>`;
+            <div class="unlock-detail-action">${this.npcGiftButton(def)}${action}</div>`;
+    },
+    /** The met NPC who opens this unlock for no points now (npcReady, 즉시 해금): a button to its window. */
+    npcGiftButton(def) {
+        const npc = Object.values(STORY_NPCS).find(row => this.personal(row.name) === this.keeperOf(def.id));
+        if (!npc || !game.npcMet[npc.id] || !this.npcReady(npc.name).includes(def)) return '';
+        return `<button type="button" class="unlock-npc-gift" data-npc-open="${npc.id}">${escapeHTML(this.personal(npc.name))}에게서 포인트 없이 열기</button>`;
     },
     /** Who speaks for this unlock and what (data/story-journal.js STORY_LOOP_MILESTONES), under the unlock's description, with
      * the face of that NPC when the stage art is here (the same NPC whose window lists this unlock). */
@@ -284,7 +290,7 @@ const contentUnlockUi = {
         const root = document.getElementById('content-unlock-panel');
         if (!root || !game.contentProgression) return;
         const states = CONTENT_UNLOCK_CATALOG.map(def => [def.id, contentProgression.status(def.id), contentProgression.requirements(def.id)]);
-        const key = JSON.stringify([game.season, contentProgression.balance(), states, this.view, this.group, this.selectedId, this.showAllMilestones]);
+        const key = JSON.stringify([game.season, contentProgression.balance(), states, this.view, this.group, this.selectedId, this.showAllMilestones, Object.keys(game.npcMet).length]);
         if (this.renderedKey === key && root.childNodes.length) return;
         this.renderedKey = key;
         const starter = root.querySelector('.unlock-start .unlock-node-art')?.getBoundingClientRect();
@@ -316,10 +322,17 @@ const contentUnlockUi = {
         root.querySelector(`[data-unlock-select="${id}"]`)?.focus({ preventScroll:true });
         if (root.clientWidth < 840) root.querySelector('.unlock-detail').scrollIntoView({ block:'nearest' });
     },
-    /** scope: the detail the button was pressed in (the unlock tab or an NPC window show the same detail). */
+    /** scope: the detail the button was pressed in (its first reward choice). */
     purchase(id, scope = document) {
+        this.takeContent(id, scope, contentProgression.purchase);
+    },
+    /** An NPC's 즉시 해금: the same as purchase, for no points (contentProgression.gift). */
+    gift(id, scope) {
+        this.takeContent(id, scope, contentProgression.gift);
+    },
+    takeContent(id, scope, take) {
         const key = scope.querySelector(`[data-unlock-reward="${id}"]`)?.value, opened = this.openedContents();
-        const result = contentProgression.purchase(id, game, key);
+        const result = take(id, game, key);
         if (!result.ok) { addLog(result.message, 'attack-monster', { toast: true }); return; }
         // The unlock card says the same and more: no toast (PC) or bottom notice (phone) on top of it.
         const carded = this.announceContent(id);
@@ -401,10 +414,11 @@ const contentUnlockUi = {
         if (this.npcReady(npc.name).length) return 'unlock';
         return this.npcTopics(npc).open.some(row => !this.npcHeard(npc, row.topic)) ? 'talk' : '';
     },
-    /** 즉시 해금: the NPC's unlocks that can be bought now with the unlock tab's points (2026-10-16 사용자: 맡은 해금 대신 기존 해금
-     * 시스템처럼, 조우 후 NPC를 누르면 그 NPC의 콘텐츠를 바로 해금). The unlock tab stays the place of the whole system. */
+    /** 즉시 해금: the NPC's unlocks whose loop, progress and earlier-unlock conditions are met, opened by the NPC for no points
+     * (2026-10-16 사용자: 맡은 해금 대신 기존 해금 시스템처럼, 조우 후 NPC를 누르면 그 NPC의 콘텐츠를 바로 해금, 포인트 없이 공짜로).
+     * The unlock tab stays the place of the whole system. */
     npcReady(name) {
-        return this.npcUnlocks(name).filter(def => def.cost > 0 && contentProgression.status(def.id).available);
+        return this.npcUnlocks(name).filter(def => def.cost > 0 && !contentProgression.isUnlocked(def.id));
     },
     /** The NPC's window, an ARPG's NPC talk (2026-10-15 사용자: "POE처럼 키워드 누르면 관련 스크립트만", "NPC 대화창도 정성들여서"):
      * the NPC's portrait on the left; on the right its name, a speech box with what it says (its line on the stage when the window
@@ -450,13 +464,13 @@ const contentUnlockUi = {
             <nav class="npc-dialog-talk" aria-label="이야깃거리"><h4>이야기</h4><ul class="npc-dialog-topics">${keys}</ul></nav>
             ${this.npcFoot(view)}`;
     },
-    /** 즉시 해금 (npcReady), each bought right here with its first reward choice, as in the unlock tab; then the door to the shop. */
+    /** 즉시 해금 (npcReady), each opened right here for no points with its first reward choice; then the door to the shop. */
     npcFoot(view) {
         const hides = id => !this.npcKnows(id);
         const rows = this.npcReady(view.npc.name).map(def => `<li class="npc-instant-row"><img src="${this.art(def)}" alt="">
             <div><strong>${escapeHTML(def.name)}</strong><p>${escapeHTML(def.description)}</p>${this.entryReward(def, contentProgression.status(def.id), hides)}</div>
-            <button type="button" data-unlock-content="${def.id}">해금, ${def.cost}P</button></li>`).join('');
-        const instant = rows ? `<section class="npc-dialog-instant" aria-label="즉시 해금"><h4>즉시 해금<small>해금 포인트 ${contentProgression.balance()}P</small></h4>
+            <button type="button" data-npc-gift="${def.id}">해금</button></li>`).join('');
+        const instant = rows ? `<section class="npc-dialog-instant" aria-label="즉시 해금"><h4>즉시 해금<small>포인트 없이 바로 엽니다</small></h4>
             <ul>${rows}</ul></section>` : '';
         const shop = npcShopUi.door(view.npc);
         return instant || shop ? `<footer class="npc-dialog-foot">${instant}${shop}</footer>` : '';
@@ -489,14 +503,14 @@ const contentUnlockUi = {
     hearNpcTopic(npc, topic) {
         if (!this.npcHeard(npc, topic)) game.npcHeard.push(this.npcHeardKey(npc, topic));
     },
-    /** A keyword shows its line (and counts as heard; 상점 opens the shop, its 대화 the talk again); buying an unlock refreshes the
-     * window after the unlock window's own handler ran. The shop's own presses are js/npc-shop-ui.js's. */
+    /** A keyword shows its line (and counts as heard; 상점 opens the shop, its 대화 the talk again); 해금 opens the content for no
+     * points (gift). The shop's own presses are js/npc-shop-ui.js's. */
     npcClick(dialog, view, event) {
         const control = event.target.closest('button');
         if (!control) return;
         if (control.dataset.npcClose !== undefined) { dialog.close(); return; }
         if (control.dataset.npcTopic) { this.npcPickTopic(view, control.dataset.npcTopic); this.renderNpc(dialog, view); return; }
-        if (control.dataset.unlockContent) setTimeout(() => { if (dialog.open) this.renderNpc(dialog, view); }, 0);
+        if (control.dataset.npcGift) { this.gift(control.dataset.npcGift, control.closest('.npc-instant-row')); this.renderNpc(dialog, view); }
     },
     npcPickTopic(view, topic) {
         if (topic === 'shop') { view.mode = 'shop'; return; }
@@ -521,7 +535,7 @@ const contentUnlockUi = {
 document.addEventListener('click', event => {
     contentUnlockUi.handleControl(event.target.closest('button'));
     const button = event.target.closest('[data-unlock-content]');
-    if (button && !button.disabled) contentUnlockUi.purchase(button.dataset.unlockContent, button.closest('.unlock-detail, .npc-instant-row') || document);
+    if (button && !button.disabled) contentUnlockUi.purchase(button.dataset.unlockContent, button.closest('.unlock-detail') || document);
     const open = event.target.closest('[data-open-content]');
     if (open) contentUnlockUi.open(open.dataset.openContent);
 });
