@@ -15,12 +15,13 @@
 .battle-loot-drop::after{content:'';position:absolute;left:-1px;bottom:30px;width:2px;height:var(--label-lift,0px);background:linear-gradient(color-mix(in srgb,var(--loot-color) 85%,transparent),color-mix(in srgb,var(--loot-color) 35%,transparent));box-shadow:0 0 0 1px rgba(0,0,0,.45);opacity:0;transition:opacity 220ms 90ms}
 .battle-loot-drop.landed::after{opacity:.9}
 /* 한 더미의 이름표 십자: 위 팔이 그림 바로 위(가장 중요한 이름이 가장 가깝다), 많으면 오른쪽, 왼쪽, 아래로 더 펼친다.
-   z-index 14라 모든 더미의 그림(12)과 캐릭터 판(13)보다 위에 그려진다(날아가는 알갱이 층 battle-loot-air 14가 그 위). */
-.battle-loot-labels{position:absolute;left:0;bottom:calc(30px + var(--label-lift,0px));transform:translateX(-50%);display:flex;flex-direction:column-reverse;align-items:center;gap:2px;z-index:14}
+   z-index 14라 모든 더미의 그림(12)과 캐릭터 판(13)보다 위에 그려진다(날아가는 알갱이 층 battle-loot-air 14가 그 위).
+   가장자리에서는 위·아래 팔을 안쪽으로 밀되 더미 지점은 이름표 아래에 남긴다. */
+.battle-loot-labels{position:absolute;left:0;bottom:calc(30px + var(--label-lift,0px));transform:translateX(calc(-50% + var(--label-shift,0px)));display:flex;flex-direction:column-reverse;align-items:center;gap:2px;z-index:14}
 .battle-loot-labels.is-right,.battle-loot-labels.is-left{bottom:auto;top:-3px;transform:translateY(-50%);flex-direction:column}
 .battle-loot-labels.is-right{left:26px;align-items:flex-start}
 .battle-loot-labels.is-left{left:auto;right:26px;align-items:flex-end}
-.battle-loot-labels.is-down{bottom:auto;top:24px;flex-direction:column}
+.battle-loot-labels.is-down{bottom:auto;top:24px;flex-direction:column;transform:translateX(calc(-50% + var(--down-shift,0px)))}
 .battle-loot-labels[hidden]{display:none}
 .battle-loot-name{position:relative;white-space:nowrap;max-width:min(220px,calc(var(--loot-width) - 16px));overflow:hidden;text-overflow:ellipsis;box-sizing:border-box;border:1px solid color-mix(in srgb,var(--loot-color) 58%,#26231d);background:rgba(6,7,9,.94);box-shadow:0 0 0 1px rgba(0,0,0,.88),0 2px 4px rgba(0,0,0,.55);padding:2px 7px;color:var(--loot-color);font:600 12px/1.4 sans-serif;text-shadow:0 1px 1px #000;opacity:0}
 .battle-loot-drop.landed .battle-loot-name{opacity:1;animation:loot-name-in 120ms cubic-bezier(.2,.9,.3,1.3) both;animation-delay:calc(var(--row,0) * 20ms)}
