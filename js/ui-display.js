@@ -2,7 +2,6 @@
 const uiDisplay = (() => {
     let factor = 1;
     let percent = 100;
-    let fontMode = 'auto';
     let resolutionQuery;
     const mediaRules = new Map();
     const visitedSheets = new WeakSet();
@@ -75,22 +74,6 @@ const uiDisplay = (() => {
         resolutionQuery.addEventListener('change', refresh, { once: true });
     }
 
-    // 윈도우 125% · 150% 같은 소수 배율에서 크롬은 글자를 픽셀 사이(소수 위치)에 찍는다. 1px 획인 도트 글꼴은 그때마다 두 칸에
-    // 번져 흐려지므로(2026-10-06 사용자 보고) 자동 모드는 그런 PC 화면에서만 일반 글꼴(body.ui-font-smooth, themes/pixel.css)로 바꾼다.
-    function applyFont() {
-        const dpr = window.devicePixelRatio || 1;
-        const fractionalPc = !mobileDevice && Math.abs(dpr - Math.round(dpr)) > 0.01;
-        document.body.classList.toggle('ui-font-smooth', fontMode === 'smooth' || (fontMode === 'auto' && fractionalPc));
-        const select = document.getElementById('sel-ui-font');
-        if (select) select.value = fontMode;
-    }
-
-    /** @param {'auto'|'pixel'|'smooth'} mode stored font choice (normalizeUiFont) */
-    function font(mode) {
-        fontMode = normalizeUiFont(mode);
-        applyFont();
-    }
-
     function apply(value) {
         percent = normalizeUiScale(value);
         // PC: 디스플레이 배율의 정수 배는 살리고 소수 부분만 되돌린다 — 도트가 늘 기기 픽셀의 정수 배로 그려진다.
@@ -106,7 +89,6 @@ const uiDisplay = (() => {
         const select = document.getElementById('sel-ui-scale');
         if (select) select.value = String(percent);
         watchResolution();
-        applyFont();
         if (changed) window.dispatchEvent(new Event('resize'));
     }
 
@@ -121,16 +103,11 @@ const uiDisplay = (() => {
     function init() {
         apply(100);
         document.getElementById('sel-ui-scale').addEventListener('change', event => select(event.target.value));
-        document.getElementById('sel-ui-font').addEventListener('change', event => {
-            game.settings.uiFont = normalizeUiFont(event.target.value);
-            font(game.settings.uiFont);
-            saveGame({ skipCloudSync: false });
-        });
         document.querySelectorAll('[style]').forEach(el => adaptStyle(el.style));
         new MutationObserver(() => registerStyles()).observe(document.head, { childList: true });
     }
 
-    return Object.freeze({ apply, font, init, matches, registerStyles, get factor() { return factor; },
+    return Object.freeze({ apply, init, matches, registerStyles, get factor() { return factor; },
         // Time since the last input: a long gap means the player is away (an idle run must not stop on a reward window).
         get inputIdleMs() { return performance.now() - lastInputAt; },
         get battleFrameMs() { return Math.max(mobileDevice ? 1000 / 30 : 22, restingFrameMs()); },

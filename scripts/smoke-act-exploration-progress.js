@@ -37,6 +37,10 @@ for(let act=1;act<=10;act++) {
     while(tick<3000 && run('game.actExploration && !game.actExploration.completionApplied'))advance();
     assert.equal(run('game.actExploration?.status'),'cleared',`Act ${act} reaches its boss through real combat`);
     assert.equal(run('game.actExploration.completionApplied'),true);
+    if(act===3) {
+        assert(run("game.combatTacticsUnlocked && contentProgression.canOpen('skill-tab-condition')"),'actual act-three combat completion opens tactics in loop one');
+        assert.equal(run('contentProgression.balance()'),0,'act-three tactics require no unlock points');
+    }
     assert.equal(run('game.combatHalted'),true,'stop-on-clear is honored');
     assert.equal(run('game.runProgress'),100,'stopping on a completed exploration displays full progress');
     assert.equal(run('actExplorationState.remainingElites(game.actExploration)'),0);

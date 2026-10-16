@@ -19,9 +19,11 @@ const actExplorationDoors = (() => {
         const map = run ? actExplorationMap.forRun(run) : null;
         return map && map.stage ? map : null;
     }
-    /** 싸우는 몬스터나 터지는 중인 물체가 있으면 방의 문이 모두 잠긴다. 보스 방 문은 정예가 남아 있어도 잠긴다. */
+    /** 싸우는 몬스터나 터지는 중인 물체가 있으면 방의 문이 모두 잠긴다. 보스 방 문은 정예가 남아 있어도 잠긴다. 지도나 방에 막 들어선 뒤
+     * (EXPLORATION_ARRIVAL_GRACE_MS)에도 잠긴다: 2026-10-16 사용자 "그동안에 방 이동못하게막아". */
     function locked(run, door) {
         if (game.enemies.some(enemy => enemy.hp > 0) || actExplorationState.objects.active(run)) return true;
+        if (actExplorationState.inArrivalGrace(run, getCombatTime())) return true;
         return door.gate && actExplorationState.gateSealed(run);
     }
     /** 살아 있는 소환수를 주인공이 도착한 칸 둘레로 데려온다: 방이 떨어져 있어 걸어서는 따라올 수 없다. */
@@ -43,6 +45,7 @@ const actExplorationDoors = (() => {
         if (run.destination && run.destination.gx === hero.gx && run.destination.gy === hero.gy) run.destination = null;
         Object.assign(hero, { gx: door.exit.gx, gy: door.exit.gy, gridMoveTimer: 0 });
         bringSummons(door.exit);
+        actExplorationState.arrive(run, getCombatTime());
         return true;
     }
     /** 지금 걸어갈 칸: 같은 방이면 목표 그대로, 다른 방이면 그 방으로 가는 문 칸. 이어진 지도에서는 언제나 목표 그대로다. */

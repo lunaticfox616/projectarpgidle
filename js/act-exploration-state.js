@@ -35,6 +35,10 @@ const actExplorationState = (() => {
      *   run's facing in clockwise quarter turns (0..3, chosen by combat), the map's drawn facing if omitted.
      * @returns {ActExplorationRun} Takes ownership of already-generated enemy records.
      */
+    // 주인공이 지도나 방에 들어선 전투 시각(탐험마다, 저장하지 않는다): 그 뒤 EXPLORATION_ARRIVAL_GRACE_MS 동안 몬스터는 공격을 시작하지 않는다.
+    const arrivals=new WeakMap();
+    function arrive(run,now) {if(run)arrivals.set(run,now);}
+    function inArrivalGrace(run,now) {const at=run?arrivals.get(run):undefined;return at!==undefined && now>=at && now-at<EXPLORATION_ARRIVAL_GRACE_MS;}
     function create(where,packs,now=0) {
         const run=where.source ? {version:1,act:null,source:explorationLayouts.normalize(where.source),bossStages:where.bossStages,zoneId:where.zoneId}
             : {version:1,act:where.act,zoneId:where.act-1};
@@ -47,6 +51,7 @@ const actExplorationState = (() => {
             departure:null,destination:null,discovered:actExplorationSight.wholeRoom(run)?[]:actExplorationMap.visibleCells(map,map.entry),
             visitedRooms:[map.entry.id],packs,groundLoot:[]});
         validate(run,[]);
+        arrive(run,getCombatTime());
         return run;
     }
     /** Rooms that hold a pack: every room but the entry, the boss room (its stages) and monster-free paths. */
@@ -457,9 +462,12 @@ const actExplorationState = (() => {
     function strayInRooms(state,run) {
         return !run.rooms && actExplorationDoors.session() && (state.settings || {}).stageRooms!=='off';
     }
+    // 무대 그림이 있는지 아직 모를 때(js/canvas-stage-actors.js stageArtKnown)는 방 단위 탐험을 버리지 않는다: 그림을 묻는 답이 저장을 불러온 뒤에
+    // 와서, 방 단위 탐험이 버려지고 예전 이어진 지도가 열렸다(2026-10-16 사용자 "저장 후 로드 시 간헐적으로 ... 던전탐험 식 맵으로 로딩").
+    const stageArtSettled=()=>typeof stageActors!=='object' || stageActors.stageArtKnown();
     function retired(run) {
         if(run.source && !explorationLayouts.supports(run.source))return true;
-        return !!run.rooms && (!actExplorationRooms.supports(run.rooms) || !actExplorationDoors.session() || !actExplorationRooms.forRun(run));
+        return !!run.rooms && (!actExplorationRooms.supports(run.rooms) || (!actExplorationDoors.session() && stageArtSettled()) || !actExplorationRooms.forRun(run));
     }
     /** Saves before 2026-10-04 carry no facing: they keep walking the map as it was drawn, so their tile indices still hold.
      * The save boundary (mergeDefaults) calls this before it validates the run; a run that already has one is left alone. */
@@ -500,6 +508,6 @@ const actExplorationState = (() => {
         // Older saves may be partway through the former 5.5 second presentation.
         exit.remainingMs=Math.min(exit.remainingMs,settlementMs);
     }
-    return {settlementMs,current,create,packRooms,packPosition,sightRadius,sight,inSight,fogDistance,discover,engage,dormantNear,wake,alerted,entrance,bossRoomAt,recordDeath,retireCombat,remainingElites,gateSealed,selectDestination,markedDestination,destination,validate,restore,dropRetired,upgradeRotation};
+    return {settlementMs,current,create,arrive,inArrivalGrace,packRooms,packPosition,sightRadius,sight,inSight,fogDistance,discover,engage,dormantNear,wake,alerted,entrance,bossRoomAt,recordDeath,retireCombat,remainingElites,gateSealed,selectDestination,markedDestination,destination,validate,restore,dropRetired,upgradeRotation};
 })();
 safeExposeGlobals({actExplorationState});

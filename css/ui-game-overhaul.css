@@ -1135,20 +1135,6 @@ body.desktop-windowed-ui .tab-content.ui-window > .ui-window-body {
 :root body.desktop-windowed-ui .ui-window-body {
   padding: clamp(12px, 1.15vw, 18px);
 }
-:root body.desktop-windowed-ui .tab-content.ui-window > .ui-window-resize {
-  position: absolute;
-  right: 1px;
-  bottom: 1px;
-  z-index: 4;
-  width: 18px;
-  height: 18px;
-  border-radius: 8px 0 0;
-}
-
-:root body.desktop-windowed-ui .tab-content.ui-window > .ui-window-resize {
-  background: rgba(7, 12, 18, .86);
-}
-
 /* A one-shot guide sits over the live game instead of replacing it with a modal lesson.
    Wide screens: right above the player HUD, centred on it (js/tutorial-ui.js placeTutorialCard sets the anchor) — not over the combat log. */
 :root body #tutorial-overlay {
@@ -1440,6 +1426,12 @@ body .item-card {
 .gem-forge-heading h2,
 .condition-gem-heading h2 { margin: 3px 0 0; color: #ffffff; font-size: 17px; }
 .condition-gem-heading p { max-width: 470px; margin: 0; color: #eef2f6; font-size: 10px; line-height: 1.5; }
+.tactics-defaults { margin-block: var(--space-3); padding: var(--space-3); border: 1px solid var(--skin-line-strong); }
+.tactics-defaults h3 { margin: 0 0 var(--space-2); }
+.tactics-defaults-fields { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+.tactics-defaults-fields label { flex: 1 1 200px; min-width: 0; display: grid; gap: var(--space-2); }
+.tactics-defaults-fields select { width: 100%; min-width: 0; padding: var(--space-2); }
+.tactics-defaults p { margin: var(--space-3) 0 0; color: var(--color-text-secondary); }
 .gem-application-note { color: var(--color-text-muted); font-size: 12px; line-height: 1.5; }
 #tab-skills .is-gem-selected { outline: 2px solid var(--color-accent-gold, #c8ad70); outline-offset: 2px; }
 #gem-selection {

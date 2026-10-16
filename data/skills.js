@@ -407,15 +407,16 @@ safeExposeData({ SKILL_GRID_DB });
 
 
 const CONDITION_PATTERN_TRIGGER_DB = Object.freeze([
-  { id:'hp_below', label:'생명력 이하', valueKind:'percent', unlock:{ loop:2 } },
-  { id:'hp_above', label:'생명력 이상', valueKind:'percent', unlock:{ loop:2 } },
-  { id:'enemy_many', label:'적 수 이상', valueKind:'count', unlock:{ loop:2 } },
-  { id:'enemy_few', label:'적 수 이하', valueKind:'count', unlock:{ loop:2 } },
-  { id:'es_below', label:'보호막 이하', valueKind:'percent', unlock:{ loop:2 } },
-  { id:'es_above', label:'보호막 이상', valueKind:'percent', unlock:{ loop:2 } },
-  { id:'boss_present', label:'보스 등장', valueKind:'none', unlock:{ loop:2 } },
-  { id:'boss_warning', label:'내 위치에 보스 패턴 예고', valueKind:'none', unlock:{ loop:2 } },
-  { id:'boss_absent', label:'보스 없음', valueKind:'none', unlock:{ loop:2 } },
+  // 기본 조건은 전투 전술(액트 3 클리어)과 함께 열린다. 고급 조건만 추가 진행을 요구한다.
+  { id:'hp_below', label:'생명력 이하', valueKind:'percent' },
+  { id:'hp_above', label:'생명력 이상', valueKind:'percent' },
+  { id:'enemy_many', label:'적 수 이상', valueKind:'count' },
+  { id:'enemy_few', label:'적 수 이하', valueKind:'count' },
+  { id:'es_below', label:'보호막 이하', valueKind:'percent' },
+  { id:'es_above', label:'보호막 이상', valueKind:'percent' },
+  { id:'boss_present', label:'보스 등장', valueKind:'none' },
+  { id:'boss_warning', label:'내 위치에 보스 패턴 예고', valueKind:'none' },
+  { id:'boss_absent', label:'보스 없음', valueKind:'none' },
   { id:'elite_present', label:'정예 등장', valueKind:'none', unlock:{ loop:5 } },
   { id:'ailment_active', label:'상태이상 보유', valueKind:'ailment', unlock:{ loop:8 } },
   { id:'distance_at_least', label:'가장 가까운 적 거리 이상', valueKind:'cells', unlock:{ loop:10 } },
@@ -426,11 +427,11 @@ const CONDITION_PATTERN_TRIGGER_DB = Object.freeze([
 ]);
 
 const CONDITION_PATTERN_ACTION_DB = Object.freeze([
-  { id:'target_nearest', label:'가장 가까운 적 우선', valueKind:'none', tactic:{ targetPriority:'nearest' }, unlock:{ act:3 } },
+  { id:'target_nearest', label:'가장 가까운 적 우선', valueKind:'none', tactic:{ targetPriority:'nearest' } },
   { id:'target_weakest', label:'약한 적 마무리', valueKind:'none', tactic:{ targetPriority:'weakest' }, unlock:{ loop:5 } },
   { id:'target_dangerous', label:'위험한 적 우선', valueKind:'none', tactic:{ targetPriority:'dangerous' }, unlock:{ loop:8 } },
   { id:'target_dense', label:'밀집 지역 우선', valueKind:'none', tactic:{ targetPriority:'dense' }, unlock:{ loop:10 } },
-  { id:'position_auto', label:'기본 위치 운용', valueKind:'none', tactic:{ positionMode:'auto' }, unlock:{ act:3 } },
+  { id:'position_auto', label:'기본 위치 운용', valueKind:'none', tactic:{ positionMode:'auto' } },
   { id:'position_pressure', label:'근접 압박', valueKind:'none', tactic:{ positionMode:'pressure' }, unlock:{ loop:8 } },
   { id:'position_keep_range', label:'거리 유지', valueKind:'none', tactic:{ positionMode:'keepRange' }, unlock:{ loop:10 } },
   // 예전 귀환 젬: 조건이 맞으면 마을로 돌아간다(5초에 한 번, 열린 지도의 마지막 포털은 쓰지 않는다).

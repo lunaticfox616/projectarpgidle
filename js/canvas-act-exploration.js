@@ -117,7 +117,7 @@ const actExplorationView=(()=>{
         else {
             // 지도를 만드는 동안 전장 한가운데에 도트 글씨로(점 셋이 차례로 찬다). 실패하면 까닭을 적는다.
             const dots='.'.repeat(1+Math.floor(performance.now()/400)%3);
-            ctx.font="16px 'MulmaruMono', 'Malgun Gothic', sans-serif";ctx.textAlign='center';ctx.textBaseline='middle';
+            ctx.font="16px 'Galmuri11', 'Malgun Gothic', sans-serif";ctx.textAlign='center';ctx.textBaseline='middle';
             ctx.lineWidth=4;ctx.strokeStyle='rgba(8,5,8,.9)';ctx.fillStyle='#e0c283';
             const label=cache.error?'지형을 준비하지 못했습니다: '+cache.error:'지형을 준비하는 중'+dots;
             ctx.strokeText(label,width/2,height/2);ctx.fillText(label,width/2,height/2);

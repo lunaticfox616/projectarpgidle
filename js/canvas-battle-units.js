@@ -7,13 +7,7 @@
 
 function canDrawHanaPlayer() {
     if (typeof hanaActors !== 'object' || game.settings?.heroSpriteSet === 'legacy') return false;
-    return !getSelectedMonsterSkinId() && hanaActors.isReady(getHeroAppearanceId());
-}
-
-/** A collected act-monster look (data/monster-sprites.js) draws from its own sheet, like the enemy. */
-function getSheetMonsterSkinId() {
-    const id = getSelectedMonsterSkinId();
-    return id && monsterActors.isSheetMonster(id) ? id : null;
+    return hanaActors.isReady(getHeroAppearanceId());
 }
 
 /** The stance the stage hero holds: the worn weapon's (settings.stageStance forces one from the test panel). */
@@ -23,7 +17,7 @@ function getStageHeroStance() {
 
 /** The side-view stage draws its own hero (js/canvas-stage-actors.js) once the worn class × stance sheets have loaded. */
 function canDrawStagePlayer() {
-    return stageView.enabled() && !getSelectedMonsterSkinId() && stageActors.isReady(getHeroAppearanceId(), getStageHeroStance());
+    return stageView.enabled() && stageActors.isReady(getHeroAppearanceId(), getStageHeroStance());
 }
 
 /** The hero's head top drawn this frame, whichever sprite set drew it (null: neither did). */
@@ -33,7 +27,7 @@ function getHeroHeadY(now) {
 
 /** Legacy strips face east and are mirrored for west poses; stage, Hana and monster sheets turn by themselves. */
 function isBattlePlayerMirrored(motion) {
-    if (canDrawStagePlayer() || canDrawHanaPlayer() || getSheetMonsterSkinId()) return false;
+    if (canDrawStagePlayer() || canDrawHanaPlayer()) return false;
     let pose = motion.facingDirection || motion.attackDirection || 'east';
     return motion.advanceBlend <= 0.08 && pose === 'west';
 }
@@ -41,7 +35,6 @@ function isBattlePlayerMirrored(motion) {
 function drawBattlePlayerFigure(ctx, state, position) {
     if (canDrawStagePlayer() && drawStagePlayerBody(ctx, state, position)) return;
     if (canDrawHanaPlayer() && drawHanaPlayerBody(ctx, state, position)) return;
-    if (drawSheetMonsterSkin(ctx, state, position)) return;
     drawBattlePlayerBody(ctx, state, position);
 }
 
@@ -122,13 +115,6 @@ drawBattlePlayerFigure.readability = (() => {
     }
     return { begin, draw, place };
 })();
-
-function drawSheetMonsterSkin(ctx, state, position) {
-    const id = getSheetMonsterSkinId(), motion = state.motionState;
-    if (!id) return false;
-    return monsterActors.drawSkin(ctx, id, { x: position.x, y: position.y, tile: state.gridProj.tileW, now: state.now, flash: state.playerFlash,
-        facing: motion.facingDirection || motion.attackDirection || 'east', moving: motion.advanceBlend > 0.08 });
-}
 
 function drawHanaPlayerBody(ctx, state, position) {
     let motion = state.motionState, hana = collectHanaPlayerMotion(motion, state.now);

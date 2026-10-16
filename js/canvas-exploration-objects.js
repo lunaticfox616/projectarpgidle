@@ -43,6 +43,8 @@ actExplorationView.objects=(()=>{
     // 색의 제 테두리만으로는 어두운 바닥에 묻혔다). 색은 종류마다(상자 금빛, 봉인 보라, 몬스터가 나오는 둥지 주황, 항아리와 나무 상자
     // 옅은 빛), 마우스를 올리거나 초점이 가면 하얗게.
     const RIM={chest:'#ffd36b',sealed:'#e0b4ff',nest:'#ff9a6a',pot:'#f3d6a4',crate:'#f3d6a4'},RIM_HOT='#fff8e6';
+    // 등급 있는 보급 상자의 테: 은은 차가운 흰빛, 금은 짙은 금빛(무대의 상자 그림에는 등급 빛깔을 옅게만 얹는다).
+    const RIM_GRADE={silver:'#e4eefa',gold:'#ffbf2e'},rimColour=row=>(row.kind==='chest'&&RIM_GRADE[row.grade])||RIM[row.kind];
     let hovered=null;
     const cache=new Map();
     /** 18 × 18: every empty dot that touches the sprite's 16 × 16 picture on a side. */
@@ -167,6 +169,7 @@ actExplorationView.objects=(()=>{
             ctx.globalAlpha=fade(row);
         }
         ctx.drawImage(sheet(name,tint),0,0,16*scale,16*scale);
+        nameLabel(ctx,row,8*scale,-5*scale);
         if(row.phase==='ready'&&['chest','sealed'].includes(row.kind))twinkle(ctx,row,scale,now);
         if(row.phase==='warning') {
             ctx.fillStyle='#1a120d';ctx.fillRect(2*scale,0,12*scale,2*scale);
@@ -183,15 +186,26 @@ actExplorationView.objects=(()=>{
         if(actor.ready&&RIM[row.kind]) {
             const hot=hovered===row.id,breath=hot?1:.6+.4*Math.sin(performance.now()/300+row.gx+row.gy);
             ctx.globalAlpha=fade(row)*breath;
-            stageObjects.outline(ctx,look(row),at,hot?RIM_HOT:RIM[row.kind]);
+            stageObjects.outline(ctx,look(row),at,hot?RIM_HOT:rimColour(row));
             ctx.globalAlpha=fade(row);
         }
         stageObjects.draw(ctx,look(row),at);
+        nameLabel(ctx,row,at.x,at.y-tile*.98);
         if(row.phase==='warning') {
             const width=tile*.7,left=at.x-width/2,top=at.y-tile*.78;
             ctx.fillStyle='#1a120d';ctx.fillRect(left-dot,top-dot,width+dot*2,dot*4);
             ctx.fillStyle=row.kind==='sealed'?'#b47ae0':'#dfae75';ctx.fillRect(left,top,width*(1-row.remainingMs/actExplorationState.objects.warningMs[row.kind]),dot*2);
         }
+        ctx.restore();
+    }
+    /** 몬스터가 나오는 물체(봉인된 보물함, 알집, 매복 흔적)는 다 쓰기 전까지 머리 위에 이름이 달린다(2026-10-16 사용자: "몬스터가 나오는 컨텐츠는
+     * 위에 이름이 달려있어야"). NPC 이름과 같은 글꼴, 테의 빛깔. y = 이름의 가운데(화면 px). */
+    const NAME_FONT=`12px 'Galmuri11', 'Malgun Gothic', sans-serif`;
+    function nameLabel(ctx,row,x,y) {
+        if(!actExplorationState.objects.isEvent(row)||row.phase==='spent')return;
+        ctx.save();ctx.globalAlpha=1;ctx.font=NAME_FONT;ctx.textAlign='center';ctx.textBaseline='middle';
+        ctx.lineWidth=3;ctx.strokeStyle='rgba(8,6,4,0.9)';ctx.fillStyle=RIM[row.kind]||'#f3d6a4';
+        const name=actExplorationState.objects.name(row);ctx.strokeText(name,Math.round(x),Math.round(y));ctx.fillText(name,Math.round(x),Math.round(y));
         ctx.restore();
     }
     /** A glint that wanders over a closed chest's lid every couple of seconds: it can be opened. */
@@ -216,6 +230,7 @@ actExplorationView.objects=(()=>{
             if(!point)continue;
             const {name}=look(row);
             ctx.globalAlpha=row.kind==='ambush'&&row.phase==='ready'?.75:1;
+            nameLabel(ctx,row,point.x,point.y+p.actorGroundOffsetY-p.tileW*(staged?.5:.75));
             if(staged&&stageObjects.draw(ctx,look(row),{x:point.x,y:point.y+p.actorGroundOffsetY,dot:stageActors.scaleFor(p.tileW)}))continue;
             ctx.drawImage(sheet(name),Math.round(point.x-8*scale),Math.round(point.y+p.actorGroundOffsetY-15*scale),16*scale,16*scale);
         }

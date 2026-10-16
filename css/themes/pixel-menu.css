@@ -40,12 +40,12 @@ body[data-ui-skin] #btn-map-complete-action-picker { --px-icon: 20; }
    누르는 동안과 창이 열려 있는 동안은 눌린 그림이다. 그림은 도트 하나가 화면 한 점보다 작게 줄어들어 부드럽게 그린다(image-rendering: auto).
    같은 아이콘을 나눠 쓰던 메뉴(전직은 스킬트리, 도감과 전적은 기록)는 그림도 나눠 쓴다. */
 body[data-ui-skin] #btn-tab-character { --px-button-art: url('../../assets/ui/pixel/buttons/character.png'); --px-button-art-down: url('../../assets/ui/pixel/buttons/character-down.png'); }
-body[data-ui-skin] :is(#btn-tab-char, #btn-tab-traits) { --px-button-art: url('../../assets/ui/pixel/buttons/passive.png'); --px-button-art-down: url('../../assets/ui/pixel/buttons/passive-down.png'); }
+body[data-ui-skin] :is(#btn-tab-char, #btn-tab-traits, #btn-tab-talent) { --px-button-art: url('../../assets/ui/pixel/buttons/passive.png'); --px-button-art-down: url('../../assets/ui/pixel/buttons/passive-down.png'); }
 body[data-ui-skin] #btn-tab-season { --px-button-art: url('../../assets/ui/pixel/buttons/loop.png'); --px-button-art-down: url('../../assets/ui/pixel/buttons/loop-down.png'); }
 body[data-ui-skin] #btn-tab-stump { --px-button-art: url('../../assets/ui/pixel/buttons/stump.png'); --px-button-art-down: url('../../assets/ui/pixel/buttons/stump-down.png'); }
 body[data-ui-skin] #btn-tab-items { --px-button-art: url('../../assets/ui/pixel/buttons/bag.png'); --px-button-art-down: url('../../assets/ui/pixel/buttons/bag-down.png'); }
 body[data-ui-skin] #btn-tab-map { --px-button-art: url('../../assets/ui/pixel/buttons/map.png'); --px-button-art-down: url('../../assets/ui/pixel/buttons/map-down.png'); }
-body[data-ui-skin] :is(#btn-tab-journal, #btn-tab-codex, #btn-tab-records) { --px-button-art: url('../../assets/ui/pixel/buttons/journal.png'); --px-button-art-down: url('../../assets/ui/pixel/buttons/journal-down.png'); }
+body[data-ui-skin] :is(#btn-tab-journal, #btn-tab-codex, #btn-tab-records, #btn-tab-npcs) { --px-button-art: url('../../assets/ui/pixel/buttons/journal.png'); --px-button-art-down: url('../../assets/ui/pixel/buttons/journal-down.png'); }
 body[data-ui-skin] #btn-tab-settings { --px-button-art: url('../../assets/ui/pixel/buttons/settings.png'); --px-button-art-down: url('../../assets/ui/pixel/buttons/settings-down.png'); }
 
 /* ─── 묶음 창의 탭 (2026-10-13 사용자: 단추 하나로 합치고 "UI를 잘 만들어야겠지?") ─────────────────────────

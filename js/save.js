@@ -250,7 +250,6 @@ function persistLocalSave(options = {}) {
 
 function normalizeLocalRuntimeAfterLoad() {
     if (!game) return;
-    if (typeof ensureCombatTacticsUnlockState === 'function') ensureCombatTacticsUnlockState(game);
     if (typeof normalizeCombatTacticsSettings === 'function') {
         let tactics = normalizeCombatTacticsSettings(game.settings);
         game.settings.combatTargetPriority = tactics.targetPriority;

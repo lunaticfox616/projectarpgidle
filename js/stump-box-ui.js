@@ -12,8 +12,6 @@
 const stumpBoxUi = (() => {
     const COLORS = Object.keys(STUMP_BOX_COLORS);
     const TALISMAN_CURRENCIES = ['sealShard', 'strongSealShard', 'radiantSealShard', 'beeswax'];
-    /** The tab switches to two columns at this width (css/stump-box.css @container). */
-    const WIDE_TAB = 761;
     let selectedId = null, selectedCell = null, moreTab = 'harvest', colorFilter = 'all', lastSignature = '', bound = false, ticker = null;
 
     function escStump(text) { return escapeHTML(String(text)); }
@@ -276,27 +274,21 @@ const stumpBoxUi = (() => {
         if (colorFilter === 'all') return true;
         return colorFilter === 'talisman' ? item.family === 'talisman' : item.color === colorFilter;
     }
-    /** Storage columns for the tab's width: the grid is as wide as the column it sits in, one cell about 50px. */
-    function stumpStorageColumns() {
-        const width = document.getElementById('tab-stump')?.clientWidth || 0;
-        const column = width >= WIDE_TAB ? width * 0.48 : width;
-        return Math.max(5, Math.min(12, Math.floor(column / 50) || 6));
-    }
-    /** Owned items, then empty slots to the end of their row plus one free row (a drop zone), never past capacity. */
-    function stumpStorageSlots(count, columns) {
-        if (colorFilter !== 'all') return 0;
-        const rows = Math.max(2, Math.ceil(count / columns) + 1);
-        return Math.max(0, Math.min(stumpBox.storageLimit(game), rows * columns) - count);
+    /** The empty slots after the owned items: the whole capacity is laid out like the equipment bag (2026-10-16 사용자 "창크기에따라
+     * 아이템크기 변경시키지 말고, 장비 인벤토리처럼 칸을 놓고 하나씩 들어가게"; css/stump-box.css: 10 columns of cells up to 44px).
+     * A colour filter shows only its items. */
+    function stumpStorageSlots(count) {
+        return colorFilter === 'all' ? Math.max(0, stumpBox.storageLimit(game) - count) : 0;
     }
     function stumpStorageHtml() {
-        const all = stumpBox.storage(game), items = all.filter(stumpFilterMatch), columns = stumpStorageColumns();
+        const all = stumpBox.storage(game), items = all.filter(stumpFilterMatch);
         const keys = ['all'].concat(COLORS, all.some(item => item.family === 'talisman') || colorFilter === 'talisman' ? ['talisman'] : []);
         const filters = all.length ? keys.map(key => `<button type="button" class="stump-filter${colorFilter === key ? ' is-on' : ''}" data-stump-action="filter"`
             + ` data-filter="${key}" aria-pressed="${colorFilter === key}">${stumpFilterLabel(key)}</button>`).join('') : '';
-        const slots = '<span class="stump-slot" aria-hidden="true"></span>'.repeat(stumpStorageSlots(all.length, columns));
+        const slots = '<span class="stump-slot" aria-hidden="true"></span>'.repeat(stumpStorageSlots(all.length));
         const target = selectedId !== null && game.stumpBox.board.includes(selectedId) ? ' is-target' : '';
         return `<div class="stump-storage-head"><h3>보관함 ${all.length}/${stumpBox.storageLimit(game)}</h3><div class="stump-filters">${filters}</div></div>`
-            + `${stumpRipeningUi.bulkHtml(colorFilter)}<div class="stump-storage-grid${target}" data-stump-action="storage" data-stump-drop-storage="1" style="--stump-columns:${columns}">`
+            + `${stumpRipeningUi.bulkHtml(colorFilter)}<div class="stump-storage-grid${target}" data-stump-action="storage" data-stump-drop-storage="1">`
             + `${items.map(stumpStorageCard).join('') || (all.length ? '<p class="stump-hint">이 분류는 비어 있습니다.</p>' : '')}${slots}</div>`;
     }
 
@@ -331,7 +323,7 @@ const stumpBoxUi = (() => {
         // 함 해금(보관함 한도, 뿌리 기억, 봉인 칸, 품질 상한, 씨앗 주머니 …)은 저널과 루프에서 계산된다(함이 그대로여도 바뀐다).
         const unlockInputs = [stumpBox.storageLimit(game), stumpBox.openUnlocks(game).map(row => row.id)];
         return JSON.stringify([game.stumpBox, selectedId, moreTab, colorFilter, stumpBox.openCount(game), !!game.woodsmanBuildLock, talismanInputs,
-            graftInputs, unlockInputs, stumpCubeUi.cubeSignature(), stumpStorageColumns()]);
+            graftInputs, unlockInputs, stumpCubeUi.cubeSignature()]);
     }
     /** Called for the visible tab (renderVisibleManagementPanels) and once a second while it stays open. */
     function renderStumpBoxTab(force) {

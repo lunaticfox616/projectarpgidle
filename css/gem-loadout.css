@@ -32,7 +32,7 @@
 .support-sigil-icon { display: block; width: 33px; height: 33px; image-rendering: pixelated; }
 .support-sigil-icon .m { fill: color-mix(in srgb, var(--sigil) 34%, #fff); }
 .support-sigil-icon .f { fill: color-mix(in srgb, var(--sigil) 78%, #17141b); }
-.support-sigil > em { position: absolute; right: 3px; bottom: 1px; color: var(--px-gold-bright, #e0c283); font: normal 9px var(--font-pixel, 'MulmaruMono', sans-serif); letter-spacing: -1px; text-shadow: 1px 1px 0 #000; }
+.support-sigil > em { position: absolute; right: 3px; bottom: 1px; color: var(--px-gold-bright, #e0c283); font: normal 9px var(--font-pixel, 'Galmuri11', sans-serif); letter-spacing: -1px; text-shadow: 1px 1px 0 #000; }
 /* 보드의 보조 젬 칸 */
 .support-slot > .support-sigil { width: 100%; max-width: 56px; height: 48px; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--sigil) 62%, #17141b), inset 0 1px 0 color-mix(in srgb, var(--sigil) 26%, transparent), 0 0 8px color-mix(in srgb, var(--sigil) 22%, transparent); }
 .support-slot:hover > .support-sigil { filter: brightness(1.2); }
@@ -81,7 +81,7 @@
 /* ── 젬 칸 창: 머리 띠(DPS, 한도) · 지금 낀 젬 · 바꿔 낄 젬 목록 ─────────────────────────────── */
 .selection-overlay-panel.gem-slot-panel {
   --slot-read: var(--font-pixel-read, 'Galmuri14', sans-serif);
-  --slot-label: var(--font-pixel, 'MulmaruMono', sans-serif);
+  --slot-label: var(--font-pixel, 'Galmuri11', sans-serif);
   --slot-copy: var(--px-copy, #dbd0b9);
   --slot-muted: var(--px-copy-muted, #9d927d);
   --slot-gold: var(--px-gold-bright, #e0c283);
@@ -175,9 +175,9 @@
 .gem-engrave-copy { display: grid; gap: 3px; min-width: 0; }
 .gem-engrave-copy > .gem-engrave-top { display: flex; align-items: baseline; justify-content: flex-start; gap: 7px; margin: 0; }
 .gem-engrave-copy > .gem-engrave-top > strong { color: var(--engrave-ink); font: 400 15px var(--font-pixel-read, 'Galmuri14', sans-serif); text-shadow: 1px 1px 0 #000; }
-.gem-engrave-copy > .gem-engrave-top > em { padding: 0 5px; border: 1px solid color-mix(in srgb, var(--engrave) 60%, #17141b); border-radius: 0; color: var(--engrave-ink); font: normal 12px var(--font-pixel, 'MulmaruMono', sans-serif); }
+.gem-engrave-copy > .gem-engrave-top > em { padding: 0 5px; border: 1px solid color-mix(in srgb, var(--engrave) 60%, #17141b); border-radius: 0; color: var(--engrave-ink); font: normal 12px var(--font-pixel, 'Galmuri11', sans-serif); }
 .gem-engrave-copy > small { display: block; margin: 0; color: var(--px-copy, #dbd0b9); font: 14px/1.4 var(--font-pixel-read, 'Galmuri14', sans-serif); }
-.gem-engrave-copy > .gem-engrave-state { color: var(--px-copy-muted, #9d927d); font: 400 12px var(--font-pixel, 'MulmaruMono', sans-serif); }
+.gem-engrave-copy > .gem-engrave-state { color: var(--px-copy-muted, #9d927d); font: 400 12px var(--font-pixel, 'Galmuri11', sans-serif); }
 .gem-engrave-option.applied .gem-engrave-state { color: var(--px-gold-bright, #e0c283); }
 .gem-engrave-slot-dialog { width: min(920px, calc(100vw - 28px)); }
 .gem-engrave-slot-dialog header p { font-size: 14px; line-height: 1.4; }

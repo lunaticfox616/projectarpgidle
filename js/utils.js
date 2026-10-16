@@ -4,28 +4,10 @@ function normalizeUiSkin() {
     return 'rift';
 }
 
-/** 아이콘 그림: 'pixel'(원화를 도트로 다시 찍은 사본, 기본) 또는 'painted'(원화). */
-function normalizeIconArtStyle(value) {
-    return value === 'painted' ? 'painted' : 'pixel';
-}
-
-const PIXEL_ICON_SOURCE_SET = new Set(typeof PIXEL_ICON_SOURCES !== 'undefined' ? PIXEL_ICON_SOURCES : []);
-/** 원화 아이콘 경로 → 도트 사본(assets/px/…png, scripts/build-pixel-icons.cjs). 원화를 골랐거나 사본이 없으면 그대로. */
-function pixelIconPath(path) {
-    const file = String(path || '').split('?')[0];
-    if (!PIXEL_ICON_SOURCE_SET.has(file) || normalizeIconArtStyle(game.settings && game.settings.iconArtStyle) === 'painted') return path;
-    return 'assets/px/' + file.slice('assets/'.length).replace(/\.(png|webp)$/i, '.png');
-}
-
 /** Stored user scale in percent, independent of the current monitor's pixel ratio. */
 function normalizeUiScale(value) {
     const number = Number(value);
     return [80, 90, 100, 110, 125, 150, 175, 200, 225, 250].includes(number) ? number : 100;
-}
-
-/** 글꼴: 'auto'(기본 — 소수 배율 PC 화면만 일반 글꼴), 'pixel'(도트 글꼴), 'smooth'(일반 글꼴). js/ui-display.js가 적용한다. */
-function normalizeUiFont(value) {
-    return value === 'pixel' || value === 'smooth' ? value : 'auto';
 }
 
 
@@ -628,7 +610,7 @@ let reachableNodes = new Set();
 let discoveredPassiveNodes = new Set();
 let previewPassiveNodes = new Set();
 
-safeExposeGlobals({ normalizeIconArtStyle, pixelIconPath, clampNumber, getInventoryLimit, lerpNumber, approachNumber, rndChoice, hashSeed, createSeededRng, formatValue, formatPercentMultiplier, translateSkillTag, getSkillTagList, getStatName, getRarityColor, getRarityRank, createEmptyStatBucket, addStatToBucket, applyStatsToBucket, getTaggedDamageBreakdown, getOwnedSkillGemNames, getOwnedSupportGemNames, hasSkillGemOwned, hasSupportGemOwned, dedupeList, makeSourceLine, getAdditiveDropBonusMultiplier, stripDecorativeEmoji, dispatchRuntimeEvent });
+safeExposeGlobals({ clampNumber, getInventoryLimit, lerpNumber, approachNumber, rndChoice, hashSeed, createSeededRng, formatValue, formatPercentMultiplier, translateSkillTag, getSkillTagList, getStatName, getRarityColor, getRarityRank, createEmptyStatBucket, addStatToBucket, applyStatsToBucket, getTaggedDamageBreakdown, getOwnedSkillGemNames, getOwnedSupportGemNames, hasSkillGemOwned, hasSupportGemOwned, dedupeList, makeSourceLine, getAdditiveDropBonusMultiplier, stripDecorativeEmoji, dispatchRuntimeEvent });
 
 window.__runtimeFallbackQueues = window.__runtimeFallbackQueues || {};
 

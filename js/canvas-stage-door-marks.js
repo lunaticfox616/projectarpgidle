@@ -30,9 +30,28 @@ const stageDoorMarks = (() => {
             }
         }
     }
+    /** 문 표시 위의 글(2026-10-16 사용자 "첫 시작 - 오른쪽 방 이동하는 위치(문) 좀 더 직관적으로"): 보스 방 문은 '보스 방', 아직 가 보지 않은
+     * 방으로 가는 문은 '다음 방', 가 본 방으로 가는 문은 글이 없다. NPC 이름과 같은 글꼴로 화살표 위에 선다. */
+    function doorLabel(door) {
+        if (door.gate) return '보스 방';
+        const run = actExplorationState.current(game), map = run ? actExplorationDoors.stageMap(run) : null, to = map && map.rooms[door.to];
+        return to && !run.visitedRooms.includes(to.id) ? '다음 방' : '';
+    }
+    const LABEL_FONT = `13px 'MulmaruMono', 'Malgun Gothic', sans-serif`;
+    function markLabel(ctx, label, at, colour) {
+        ctx.globalAlpha = 1;
+        ctx.font = LABEL_FONT;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = 'rgba(8,6,4,0.9)';
+        ctx.fillStyle = colour;
+        ctx.strokeText(label, Math.round(at.x), Math.round(at.y));
+        ctx.fillText(label, Math.round(at.x), Math.round(at.y));
+    }
     /**
      * @param {{cx:number, cy:number, w:number}} box where the mark sits and how wide its light spreads
-     * @param {{side:string, gate?:boolean}} door the side it leads out by; the boss gate is red
+     * @param {{side:string, gate?:boolean, to?:number}} door the side it leads out by; the boss gate is red; to = the room it leads to
      * @param {{dot:number, thick?:number, upright?:boolean}} look one dot on screen, the stroke in dots, standing in a door frame
      */
     function arrows(ctx, box, door, look) {
@@ -45,6 +64,8 @@ const stageDoorMarks = (() => {
             ctx.globalAlpha = dim + (1 - dim) * Math.max(0, Math.sin(phase - i * .9));
             chevron(ctx, { x: box.cx + dx * reach - size / 2, y: box.cy + dy * reach * squash - size / 2, dx, dy, dot: Math.max(1, Math.round(look.dot)), size, squash, colour });
         }
+        const label = doorLabel(door);
+        if (label) markLabel(ctx, label, { x: box.cx, y: box.cy - box.w * 0.8 }, colour);
         ctx.restore();
     }
     /** 열린 문이 화면 옆으로 벗어나 있으면 그쪽 화면 가장자리에 같은 표시를 세운다. 방이 화면보다 넓어(휴대폰은 여덟 칸만 보인다)
@@ -60,7 +81,7 @@ const stageDoorMarks = (() => {
             const limit = shownUntil(at.y, width);
             if (at.x >= 0 && at.x <= limit - inset) continue;
             const side = at.x < 0 ? 'west' : 'east';
-            arrows(ctx, { cx: side === 'west' ? inset : limit - inset, cy: at.y, w: p.tileW * 0.7 }, { side, gate: row.door.gate }, { dot, thick: 3, upright: true });
+            arrows(ctx, { cx: side === 'west' ? inset : limit - inset, cy: at.y, w: p.tileW * 0.7 }, { ...row.door, side }, { dot, thick: 3, upright: true });
         }
     }
     /** 그 높이에서 전장이 오른쪽으로 어디까지 보이는가(전장의 px): 창에 가려지지 않았으면 전장의 너비. */

@@ -9247,7 +9247,6 @@ function handleEnemyDeath(enemy, pStats) {
     recordKillProgress(enemy);
     if(actExplorationState.recordDeath(game,enemy))actExplorationProgress.objects.afterDeath(actExplorationState.current(game));
     // 0.002% 확률로 처치한 몬스터의 외형을 플레이어 외형으로 수집한다.
-    if (Math.random() < 0.00002 && typeof tryUnlockMonsterSkinFromEnemy === 'function') tryUnlockMonsterSkinFromEnemy(enemy);
     gainSkyRiftGaugeFromCombat(zone, enemy);
     applyAilmentEffectsOnDeath(enemy, pStats);
     // 루프 특수 보스 집계에는 일반 액트/혼돈 보스를 포함하지 않음.
@@ -10147,10 +10146,8 @@ function finishEncounterRun() {
             if (zone.id === 1) unlockJournalEntry('act_2');
             if (zone.id === 2) {
                 unlockJournalEntry('act_3');
-                if (ensureCombatTacticsUnlockState(game)) {
-                    addLog('🎯 전투 전술이 해금되었습니다. 설정에서 대상 우선순위와 위치 운용을 선택할 수 있습니다.', 'season-up');
-                    queueTutorialNotice('combat_tactics_unlock', '전투 전술', '전투 전술을 정할 수 있게 되었습니다.\n‘설정 → 전투 전술’에서 대상 우선순위와 위치 운용을 고르세요.\n전술 이동 중에는 다음 공격이 잠시 미뤄집니다.', 'tab-settings');
-                }
+                // 클리어 후 정지·방치 정산에서도 다음 화면 갱신을 기다리지 않고 전술을 연다.
+                contentUnlockUi.syncOpened();
             }
             if (zone.id === 3) unlockJournalEntry('act_4');
             if (zone.id === 4) unlockJournalEntry('act_5');
@@ -12044,7 +12041,7 @@ function performMonsterAttacks(pStats) {
     for (let enemy of attackSources) {
         let pendingAttack = takePendingEnemyCombatAttack(enemy.id, getCombatTime());
         if (enemy.hp <= 0 && !pendingAttack) continue;
-        if (enemy.noAttack && !pendingAttack) continue;
+        if ((enemy.noAttack || actExplorationState.inArrivalGrace(actExplorationState.current(game), getCombatTime())) && !pendingAttack) continue;
         let ailMap = {};
         (enemy.ailments || []).forEach(ail => { if ((ail.time || 0) > 0) ailMap[ail.type] = Math.max(ailMap[ail.type] || 0, ail.power || 0); });
         if (!pendingAttack && enemyAttackRules.interrupt(enemy,getCombatTime())) continue;
@@ -12642,7 +12639,7 @@ function buildTrialHazardCells(zone, origin, sequence) {
 }
 
 function getTrialHazardAvoidThreshold(profile) {
-    let mode = game.settings && game.settings.combatPositionMode;
+    let mode = game.combatTacticsUnlocked ? normalizeCombatTacticsSettings(game.settings).positionMode : 'auto';
     let baseThreshold = mode === 'keepRange' ? 0.1 : (mode === 'pressure' ? 0.32 : 0.18);
     return baseThreshold * profile.avoidThresholdMul;
 }

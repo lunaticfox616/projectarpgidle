@@ -11,10 +11,10 @@
         apex: '후반부 보스 고유 기믹'
     });
     const BOSS_PATTERN_DESCRIPTIONS = Object.freeze({
-        intro: '3번째 공격마다 예고한 칸에 특수기를 씁니다. 보스마다 세 가지(갈래 사격, 연쇄 폭발, 이중 파동 등)를 차례로 씁니다. 예고가 뜨면 이동 스킬을 눌러 범위를 벗어날 수 있습니다.',
-        burst: '4번째 공격마다 연속 참격으로 피해가 30% 증가합니다.',
-        slam: '3번째 공격마다 파쇄 강타로 피해가 55% 증가합니다.',
-        ramp: '생명력이 낮아질수록 최대 3단계까지 격앙하여 공격 피해가 증가합니다. 3번째 공격마다 영웅 자리에 충격파를 내고, 2단계부터는 매번 냅니다.',
+        intro: '때때로 예고한 칸에 특수기를 씁니다. 생명력이 적을수록 자주 쓰고, 보스마다 세 가지(갈래 사격, 연쇄 폭발, 이중 파동 등) 가운데 하나를 고르며 같은 특수기를 잇달아 쓰지 않습니다. 예고가 뜨면 이동 스킬을 눌러 범위를 벗어날 수 있습니다.',
+        burst: '때때로 연속 참격으로 피해가 30% 증가합니다. 생명력이 적을수록 자주 씁니다.',
+        slam: '때때로 파쇄 강타로 피해가 55% 증가합니다. 생명력이 적을수록 자주 씁니다.',
+        ramp: '생명력이 낮아질수록 최대 3단계까지 격앙하여 공격 피해가 증가합니다. 때때로 영웅 자리에 충격파를 내고, 생명력이 적을수록 자주 냅니다.',
         cosmos: '연속 참격/파쇄 강타/격앙을 차례로 순환합니다.',
         cosmosBoss: '은하 보스마다 고유한 공격 순서와 파훼 조건을 사용합니다.',
         apex: '아틀라스 후반부 보스는 단계마다 이름이 붙은 특수기를 정해진 횟수마다 예고한 뒤 씁니다.'
@@ -49,6 +49,40 @@
         return Math.max(...modes.map(getBossPatternPeakDamageMultiplier));
     }
 
+    // 특수기를 쓰는 때(2026-10-16 사용자 "피 기준으로 무조건 그 패턴만 쓰는게 아니라, 피가 많아도 쓸 가능성이 있고, 랜덤하고, 피가 적으면
+    // 더 쓸 확률이 높되, 같은 패턴은 약간의 쿨타임"): n번째 공격마다가 아니라 공격마다 굴린다. 생명력이 가득하면 SPECIAL_ODDS.full,
+    // 바닥이면 SPECIAL_ODDS.empty(사이는 직선). 첫 공격과 특수기 바로 다음 공격은 보통 공격이고, PITY번 넘게 없으면 다음은 특수기다.
+    // 같은 모양은 SHAPE_REST번의 공격이 지나야 다시 고른다. 굴림은 보스와 공격 번호로 정해지고(hashSeed) 그 공격을 처음 내다볼 때의
+    // 생명력으로 한 번 정해 enemy.specialPlan에 둔다: 예고가 그려지는 동안 생명력이 줄어도 바뀌지 않는다.
+    const SPECIAL_ODDS = Object.freeze({ full: 0.22, empty: 0.8 }), SHAPE_REST = 4, PITY = 5;
+    const rollShare = (enemy, attackNumber, salt) => (hashSeed(`${enemy.id}|${attackNumber}|${salt}`) >>> 0) / 4294967296;
+    function pickSpecialShape(enemy, attackNumber, count) {
+        const used = enemy.specialShapeUsedAt || {}, rested = [];
+        for (let index = 0; index < count; index++) if (!(attackNumber - (used[index] ?? -99) <= SHAPE_REST)) rested.push(index);
+        const pool = rested.length ? rested : [[...Array(count).keys()].sort((a, b) => (used[a] ?? -99) - (used[b] ?? -99))[0]];
+        return pool[Math.floor(rollShare(enemy, attackNumber, 'shape') * pool.length)];
+    }
+    /** The chance an attack is a special: SPECIAL_ODDS.full at full life, SPECIAL_ODDS.empty at none, in a line between. */
+    function specialOdds(enemy) {
+        const share = Math.max(0, Math.min(1, (Number(enemy.hp) || 0) / Math.max(1, Number(enemy.maxHp) || 1)));
+        return SPECIAL_ODDS.empty + (SPECIAL_ODDS.full - SPECIAL_ODDS.empty) * share;
+    }
+    /** @returns {{attackNumber:number, special:boolean, shape:number}} shape: the special's index among the boss's shapes (-1 when not special). */
+    function planBossSpecial(enemy, attackNumber, shapeCount) {
+        const kept = enemy.specialPlan;
+        if (kept && kept.attackNumber === attackNumber) return kept;
+        const last = Number(enemy.lastSpecialAttack) || 0, resting = attackNumber < 2 || (last > 0 && attackNumber - last <= 1);
+        const special = !resting && (attackNumber - last > PITY || rollShare(enemy, attackNumber, 'special') < specialOdds(enemy));
+        enemy.specialPlan = { attackNumber, special, shape: special ? pickSpecialShape(enemy, attackNumber, Math.max(1, shapeCount)) : -1 };
+        return enemy.specialPlan;
+    }
+    /** The special just used: no special on the next attack, and its shape rests SHAPE_REST attacks. */
+    function noteBossSpecial(enemy, state) {
+        if (!state.isSpecial || !Number.isFinite(state.shapeIndex)) return;
+        enemy.lastSpecialAttack = state.attackNumber;
+        if (state.shapeIndex >= 0) enemy.specialShapeUsedAt = { ...(enemy.specialShapeUsedAt || {}), [state.shapeIndex]: state.attackNumber };
+    }
+
     function normalizeAttackCount(enemy) {
         return Math.max(0, Math.floor(Number(enemy && enemy.patternAttackCount) || 0));
     }
@@ -64,19 +98,19 @@
     }
 
     // 처음 루프의 보스(2026-10-06 사용자 요청 "패턴이 너무 허접"): 한 칸 강타만 되풀이하던 것을 2026-10-16부터는 보스의 싸우는 방식
-    // (data/boss-fx.js kind)마다 세 모양을 차례로 쓴다(js/boss-moves.js intro: 근접은 강타, 연쇄 폭발, 이중 파동; 원거리는 강타, 갈래 사격,
-    // 관통 광선 등). 피해 배율은 그대로(1.15).
+    // (data/boss-fx.js kind)마다 세 모양 가운데 하나를 고른다(js/boss-moves.js intro: 근접은 강타, 연쇄 폭발, 이중 파동; 원거리는 강타,
+    // 갈래 사격, 관통 광선 등). 쓰는 때와 모양은 planBossSpecial이 굴린다. 피해 배율은 그대로(1.15).
     function buildSlamPatternState(mode, attackNumber, cosmosPattern, enemy) {
-        let special = cosmosPattern || attackNumber % 3 === 0;
-        let intro = mode === 'intro' ? bossMoves.intro(enemy, Math.ceil(attackNumber / 3)) : null;
-        return {
-            mode,
-            label: special ? (intro ? intro.label : BOSS_PATTERN_NAMES[mode]) : '무거운 일격',
-            damageMul: special ? getBossPatternPeakDamageMultiplier(cosmosPattern ? 'cosmos' : mode) : 1,
-            isSpecial: special,
-            telegraphKind: intro ? intro.telegraphKind : 'ring',
-            attackNumber
-        };
+        let plan = planBossSpecial(enemy, attackNumber, mode === 'intro' ? bossMoves.introCount(enemy) : 1);
+        let special = cosmosPattern || plan.special;
+        let intro = mode === 'intro' && special ? bossMoves.intro(enemy, Math.max(0, plan.shape) + 1) : null;
+        return { mode, ...slamLook(mode, special, intro, cosmosPattern), isSpecial: special, shapeIndex: cosmosPattern ? -1 : plan.shape, attackNumber };
+    }
+    /** The name, damage and warning shape of a 파쇄 강타 or first-loop attack: a plain heavy blow, or the special (the boss's own shape for intro). */
+    function slamLook(mode, special, intro, cosmosPattern) {
+        if (!special) return { label: '무거운 일격', damageMul: 1, telegraphKind: 'ring' };
+        return { label: intro ? intro.label : BOSS_PATTERN_NAMES[mode], damageMul: getBossPatternPeakDamageMultiplier(cosmosPattern ? 'cosmos' : mode),
+            telegraphKind: intro ? intro.telegraphKind : 'ring' };
     }
 
     // 격앙(루프 6부터): 2단계(생명력 42% 잃음) 전에는 예고 공격이 없어 루프 6 보스가 루프 1 보스보다 밋밋했다(2026-10-06).
@@ -88,8 +122,9 @@
             mode: 'ramp',
             label: cosmosStage > 0 ? `격앙 ${'ⅠⅡⅢ'[Math.min(2, cosmosStage - 1)]}` : '격앙 전조',
             damageMul: cosmosPattern ? 1.12 : (1 + stage * 0.07),
-            isSpecial: cosmosPattern || stage >= 2 || attackNumber % 3 === 0,
+            isSpecial: cosmosPattern || planBossSpecial(enemy, attackNumber, 1).special,
             telegraphKind: 'pulse',
+            shapeIndex: cosmosPattern ? -1 : 0,
             stage,
             attackNumber
         };
@@ -97,13 +132,14 @@
 
     function buildPatternState(mode, enemy, attackNumber, cosmosPattern) {
         if (mode === 'burst') {
-            let special = cosmosPattern || attackNumber % 4 === 0;
+            let special = cosmosPattern || planBossSpecial(enemy, attackNumber, 1).special;
             return {
                 mode,
                 label: special ? '연속 참격' : '빠른 베기',
                 damageMul: special ? (cosmosPattern ? 1.18 : getBossPatternPeakDamageMultiplier('burst')) : 1,
                 isSpecial: special,
                 telegraphKind: 'fan',
+                shapeIndex: cosmosPattern ? -1 : 0,
                 attackNumber
             };
         }
@@ -147,6 +183,7 @@
         let state = getBossPatternPreview(enemy);
         if (!state) return null;
         if (enemy.patternArea) state.area = enemy.patternArea;
+        noteBossSpecial(enemy, state);
         bossMoves.plan(state, enemy); // the special lands over time: shots, a beam, bursts one after another (js/boss-moves.js)
         state.castStartedAt = enemy.patternTelegraphStartedAt;
         enemy.patternAttackCount = normalizeAttackCount(enemy) + 1;

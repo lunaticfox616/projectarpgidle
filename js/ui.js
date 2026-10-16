@@ -713,9 +713,9 @@ function renderBackgroundResultCurrencies(currencies) {
     return `<section class="background-result-section"><h3>재화</h3><div class="background-result-chips">${chips.join('')}</div></section>`;
 }
 
-/** 재화 그림(js/utils.js pixelIconPath). 지갑 창의 getCurrencyIconHtml은 performUpdateStaticUI 안에 있어 여기서 못 부른다. */
+/** 재화 원화. 지갑 창의 getCurrencyIconHtml은 performUpdateStaticUI 안에 있어 여기서 못 부른다. */
 function backgroundResultCurrencyIcon(key) {
-    const icon = pixelIconPath(ORB_DB[key] && ORB_DB[key].icon);
+    const icon = ORB_DB[key] && ORB_DB[key].icon;
     return icon ? `<img class="background-result-icon" src="${icon}" alt="" aria-hidden="true">` : '';
 }
 
@@ -1312,10 +1312,10 @@ const TAB_UNLOCK_BUTTON_KEYS = ['char', 'season', 'items', 'skills', 'codex', 'm
 // 장비 단추는 장비와 스킬 젬을, 루프 단추는 루프 패시브와 해금을 연다(앞의 둘은 전부터 묶여 있었다). 창 머리의 탭으로 오가고,
 // 단추는 마지막에 보던 화면을 연다. icon: 창 머리 탭의 그림(assets/ui/pixel/menu-icons.png의 번호), count: 탭에 적는 수(쓸 포인트).
 const MERGED_TAB_GROUPS = Object.freeze({
-    growth: { launcher: 'tab-char', title: '스킬트리', tabs: [{ id: 'tab-char', label: '스킬트리', icon: 2, count: () => game.passivePoints, detail: '스킬트리 노드에 포인트를 씁니다.' }, { id: 'tab-traits', label: '전직', icon: 16, detail: '전직과 키스톤을 선택합니다.' }] },
+    growth: { launcher: 'tab-char', title: '스킬트리', tabs: [{ id: 'tab-char', label: '스킬트리', icon: 2, count: () => game.passivePoints, detail: '스킬트리 노드에 포인트를 씁니다.' }, { id: 'tab-traits', label: '전직', icon: 16, detail: '전직과 키스톤을 선택합니다.' }, { id: 'tab-talent', gate: 'talent', label: '재능', icon: 17, detail: '재능 개화 카드를 고르고 키웁니다.' }] },
     gear: { launcher: 'tab-items', title: '장비', tabs: [{ id: 'tab-items', label: '장비', icon: 6, detail: '장비와 가방을 봅니다.' }, { id: 'tab-skills', label: '스킬 젬', icon: 9, detail: '젬을 장착하고 키웁니다.' }] },
     loop: { launcher: 'tab-season', title: '루프', tabs: [{ id: 'tab-season', label: '루프 패시브', icon: 4, count: () => game.seasonPoints, detail: '루프 포인트로 영구 노드에 투자합니다.' }, { id: 'tab-unlocks', label: '해금', icon: 3, count: () => contentProgression.points(game).balance, detail: '해금 포인트로 다음 콘텐츠를 고릅니다.' }] },
-    records: { launcher: 'tab-journal', title: '기록', tabs: [{ id: 'tab-journal', gate: 'journal', label: '저널', icon: 10, detail: '진행 기록과 안내를 확인합니다.' }, { id: 'tab-codex', gate: 'codex', label: '도감', icon: 13, detail: '발견한 항목과 수집 현황을 확인합니다.' }, { id: 'tab-records', gate: 'journal', label: '기록', icon: 20, detail: '루프 소요 시간과 최고 기록을 확인합니다.' }] }
+    records: { launcher: 'tab-journal', title: '기록', tabs: [{ id: 'tab-journal', gate: 'journal', label: '저널', icon: 10, detail: '진행 기록과 안내를 확인합니다.' }, { id: 'tab-codex', gate: 'codex', label: '도감', icon: 13, detail: '발견한 항목과 수집 현황을 확인합니다.' }, { id: 'tab-records', gate: 'journal', label: '기록', icon: 20, detail: '루프 소요 시간과 최고 기록을 확인합니다.' }, { id: 'tab-npcs', gate: 'npcs', label: 'NPC', icon: 16, detail: '만난 NPC의 해금과 상점을 봅니다.' }] }
 });
 
 // 탭 2단 그룹핑: 상단 카테고리 바에서 그룹을 고르면 해당 그룹의 탭만 보인다.
@@ -2311,7 +2311,7 @@ function getDefaultSkillAutoRule() {
     };
 }
 
-const TACTICS_RULES_LOCK_MESSAGE = '전술 규칙은 루프 2부터, 액트 3에서 전술을 배운 뒤 씁니다.';
+const TACTICS_RULES_LOCK_MESSAGE = '액트 3을 클리어하면 전투 전술이 무료로 해금됩니다.';
 
 /** The rules panel (예전 컨디션 젬 창의 자동 사용 규칙) opens with the tactics it drives. */
 function isTacticsRulesOpen() {
@@ -2320,6 +2320,7 @@ function isTacticsRulesOpen() {
 
 function addSkillAutoRule() {
     if (!isTacticsRulesOpen()) return addLog(TACTICS_RULES_LOCK_MESSAGE, 'attack-monster');
+    if (!getConditionPatternTriggers(game, false).length) return;
     game.skillAutoRules = Array.isArray(game.skillAutoRules) ? game.skillAutoRules : [];
     game.skillAutoRules.push(getDefaultSkillAutoRule());
     renderSkillAutoRulePanel();
@@ -2415,6 +2416,7 @@ function moveSkillAutoRule(index, delta) {
 
 
 function setConditionPatternTrigger(index, triggerType) {
+    if (!isTacticsRulesOpen()) return;
     let rule = normalizeConditionPatternRule((game.skillAutoRules || [])[index]);
     let trigger = getConditionPatternTriggers(game, false).find(row => row.id === triggerType);
     if (!rule || !trigger) return;
@@ -2424,6 +2426,7 @@ function setConditionPatternTrigger(index, triggerType) {
 }
 
 function setConditionPatternAction(index, actionType) {
+    if (!isTacticsRulesOpen()) return;
     let rule = normalizeConditionPatternRule((game.skillAutoRules || [])[index]);
     let action = getConditionPatternActions(game, false).find(row => row.id === actionType);
     if (!rule || !action) return;
@@ -2432,6 +2435,7 @@ function setConditionPatternAction(index, actionType) {
 }
 
 function setConditionPatternValue(index, value) {
+    if (!isTacticsRulesOpen()) return;
     let rule = normalizeConditionPatternRule((game.skillAutoRules || [])[index]);
     if (!rule) return;
     rule.triggerValue = Number(value);
@@ -2495,12 +2499,13 @@ function paintSkillRulesPanel(panel, html) {
 }
 
 function renderSkillAutoRulePanel() {
+    syncCombatTacticsControls();
     let panel = document.getElementById('ui-skill-rules-panel');
     if (!panel) return;
     let unlocked = isTacticsRulesOpen();
     let addButton = document.getElementById('btn-condition-rule-add');
     let sortButton = document.getElementById('btn-condition-rule-sort');
-    if (addButton) addButton.disabled = !unlocked;
+    if (addButton) addButton.disabled = !unlocked || !getConditionPatternTriggers(game, false).length;
     if (sortButton) sortButton.disabled = !unlocked;
     if (!unlocked) return paintSkillRulesPanel(panel, `<div style="color:#d3a989; border:1px solid #6f4b31; border-radius:8px; padding:12px;">잠금 상태: ${TACTICS_RULES_LOCK_MESSAGE}</div>`);
     game.skillAutoRules = Array.isArray(game.skillAutoRules) ? game.skillAutoRules.map(normalizeConditionPatternRule) : [];
@@ -3833,7 +3838,7 @@ function getGemCardMeta(def) {
 
 function getSkillGemArtPath(name) {
     return typeof SKILL_GEM_ART_PATHS !== 'undefined' && SKILL_GEM_ART_PATHS[name]
-        ? pixelIconPath(SKILL_GEM_ART_PATHS[name])
+        ? SKILL_GEM_ART_PATHS[name]
         : '';
 }
 
@@ -4942,151 +4947,6 @@ function onHeroSelectionChanged() {
     updateStaticUI();
 }
 
-// ── 몬스터 외형 수집 시스템 ──
-// 액트 몬스터(data/bosses.js ACT_MONSTER_VISUALS, 그림은 js/canvas-monster-actors.js) · 영역 세트 · 위습과
-// 보스 전용 이미지(BOSS_ASSET_MANIFEST)를 플레이어 외형으로 수집/적용한다. 예전 목재 몬스터 넷은 저장을 불러올 때
-// 새 몬스터로 바뀐다(js/save-migrations.js migrateRetiredWoodMonsters).
-const MONSTER_SKIN_FRAME_DEFS = [
-    { id: 'boss', label: '마수 군주' }
-];
-
-/** 이름표가 정해진 외형(마수 군주, 액트 몬스터)의 이름. */
-function getNamedMonsterSkinLabel(id) {
-    const frameDef = MONSTER_SKIN_FRAME_DEFS.find(def => def.id === id);
-    return frameDef ? frameDef.label : (ACT_MONSTER_VISUAL_BY_ID[id] || {}).name;
-}
-
-function getMonsterSkinLabel(id) {
-    let named = getNamedMonsterSkinLabel(id);
-    if (named) return named;
-    const wispDef = typeof WISP_MONSTER_VISUALS !== 'undefined'
-        ? WISP_MONSTER_VISUALS.find(def => def.id === id)
-        : null;
-    if (wispDef) return wispDef.name;
-    const realmDef = typeof getRealmMonsterVisualDefinitionById === 'function'
-        ? getRealmMonsterVisualDefinitionById(id)
-        : null;
-    if (realmDef) return realmDef.name;
-    let m = /^bossAct(\d+)(?:_(\d+))?$/.exec(id || '');
-    if (m) {
-        let act = Number(m[1]);
-        let base = (typeof ACT_BOSS_NAMES !== 'undefined' && ACT_BOSS_NAMES[act - 1]) ? ACT_BOSS_NAMES[act - 1] : `${act}막 보스`;
-        let variants = (typeof BOSS_ASSET_VARIANTS_BY_ACT !== 'undefined') ? BOSS_ASSET_VARIANTS_BY_ACT[act] : null;
-        if (m[2] && variants && variants.length > 1) {
-            let roman = ['Ⅰ', 'Ⅱ', 'Ⅲ', 'Ⅳ', 'Ⅴ'][Number(m[2]) - 1] || m[2];
-            return `${base} ${roman}`;
-        }
-        return base;
-    }
-    return id || '';
-}
-
-function getMonsterSkinDefs() {
-    let defs = MONSTER_SKIN_FRAME_DEFS.map(def => ({ id: def.id, label: def.label, type: 'frame' }));
-    ACT_MONSTER_VISUALS.forEach(def => defs.push({ id: def.id, label: def.name, type: 'frame' }));
-    if (typeof REALM_MONSTER_VISUAL_SETS !== 'undefined') {
-        // 군락지 세트는 다른 세트의 개미, 웜, 벌을 다시 쓴다: 한 외형은 목록에 한 번만(2026-10-07 검토: 이름만 다른 줄이 겹쳤다).
-        const listed = new Set(defs.map(def => def.id));
-        Object.values(REALM_MONSTER_VISUAL_SETS).forEach(set => {
-            set.members.filter(member => !listed.has(member.id)).forEach(member => {
-                listed.add(member.id);
-                defs.push({ id: member.id, label: member.name, type: 'frame' });
-            });
-        });
-    }
-    if (typeof WISP_MONSTER_VISUALS !== 'undefined') {
-        WISP_MONSTER_VISUALS.forEach(wisp => defs.push({ id: wisp.id, label: wisp.name, type: 'frame' }));
-    }
-    if (typeof BOSS_ASSET_MANIFEST !== 'undefined') {
-        Object.keys(BOSS_ASSET_MANIFEST).forEach(key => defs.push({ id: key, label: getMonsterSkinLabel(key), type: 'boss' }));
-    }
-    return defs;
-}
-
-// 처치한 적의 외형 스킨 id. 보스 그림, 제 시트로 그리는 몬스터는 그 id, 나머지는 위습 외형 하나를 렌더러와 같은 규칙
-// (pickSeededEnemyVariant)으로 데이터에서 고른다. 옛 위습 그림은 그 외형을 입을 때만 불러오므로 그림을 보지 않는다.
-function getEnemySkinId(enemy) {
-    if (!enemy) return null;
-    if (enemy.bossAssetKey) return enemy.bossAssetKey;
-    const sheetId = enemy.spriteVariantId || enemy.monsterVisualId;
-    if (MONSTER_SPRITE_SHEETS[sheetId]) return sheetId;
-    if (enemy.isBoss) return 'boss';
-    const wisps = typeof WISP_MONSTER_VISUALS !== 'undefined' ? WISP_MONSTER_VISUALS : [];
-    return battleAssets && battleAssets.ready && wisps.length ? pickSeededEnemyVariant(enemy, wisps).id : null;
-}
-
-function resolveMonsterSkinSprite(id) {
-    if (!id || !battleAssets.ready || !battleAssets.atlas || !battleAssets.atlas.enemies) return null;
-    let enemyAtlas = battleAssets.atlas.enemies;
-    let bossImage = (enemyAtlas.bossImages || {})[id];
-    if (bossImage) {
-        return {
-            type: 'boss',
-            image: bossImage,
-            frame: { x: 0, y: 0, width: bossImage.width, height: bossImage.height, basisHeight: bossImage.height }
-        };
-    }
-    let frame = (enemyAtlas.frames || {})[id];
-    if (frame) return { type: 'frame', image: enemyAtlas.image, frame: frame };
-    let woodVariant = (enemyAtlas.skinVariants || {})[id];
-    if (woodVariant) return {
-        type: 'frame',
-        image: woodVariant.image,
-        frame: woodVariant.frame,
-        frames: woodVariant.frames
-    };
-    ensureWispSkinAtlas(id);
-    return null;
-}
-
-function getSelectedMonsterSkinId() {
-    let id = game && game.selectedMonsterSkin;
-    if (!id) return null;
-    return (game.unlockedMonsterSkins && game.unlockedMonsterSkins[id]) ? id : null;
-}
-
-// 몬스터 처치 시 0.002% 확률 해금 (handleEnemyDeath 에서 확률 판정 후 호출)
-function tryUnlockMonsterSkinFromEnemy(enemy) {
-    let id = getEnemySkinId(enemy);
-    if (!id) return;
-    game.unlockedMonsterSkins = game.unlockedMonsterSkins || {};
-    if (game.unlockedMonsterSkins[id]) return;
-    game.unlockedMonsterSkins[id] = true;
-    addLog(`🎭 극희귀 발견! 몬스터 외형 [${getMonsterSkinLabel(id)}]을(를) 획득했습니다! (설정 > 화면과 소리에서 적용)`, 'loot-unique');
-    if (typeof renderMonsterSkinControls === 'function') renderMonsterSkinControls();
-    if (typeof saveGame === 'function') saveGame({ skipCloudSync: true });
-}
-
-function renderMonsterSkinControls() {
-    let selectEl = document.getElementById('sel-monster-skin');
-    if (!selectEl) return;
-    let unlocked = (game && game.unlockedMonsterSkins) ? game.unlockedMonsterSkins : {};
-    let allDefs = getMonsterSkinDefs();
-    let ownedDefs = allDefs.filter(def => unlocked[def.id]);
-    let options = ['<option value="">사용 안 함 (기본 캐릭터)</option>'];
-    ownedDefs.forEach(def => options.push(`<option value="${def.id}">${def.label}</option>`));
-    selectEl.innerHTML = options.join('');
-    selectEl.value = (game && game.selectedMonsterSkin && unlocked[game.selectedMonsterSkin]) ? game.selectedMonsterSkin : '';
-    selectEl.disabled = ownedDefs.length === 0;
-    selectEl.title = ownedDefs.length === 0
-        ? '아직 획득한 몬스터 외형이 없습니다. 몬스터 처치 시 극히 낮은 확률로 외형을 얻습니다.'
-        : `획득한 몬스터 외형 ${ownedDefs.length}/${allDefs.length}`;
-}
-
-function onMonsterSkinChanged() {
-    let selectEl = document.getElementById('sel-monster-skin');
-    if (!selectEl) return;
-    let id = selectEl.value || null;
-    if (id && !(game.unlockedMonsterSkins && game.unlockedMonsterSkins[id])) {
-        renderMonsterSkinControls();
-        return;
-    }
-    game.selectedMonsterSkin = id;
-    addLog(`🎭 몬스터 외형 변경: ${id ? getMonsterSkinLabel(id) : '기본 캐릭터'}`, 'season-up');
-    if (typeof saveGame === 'function') saveGame({ skipCloudSync: true });
-    updateStaticUI();
-}
-
 function ensureInitialHeroSelection() {
     if (game.heroSelectionInitialized || isLoopHeroSelectOpen()) return true;
     return openLoopHeroSelection((pickedId) => {
@@ -5229,21 +5089,35 @@ async function openMapCompleteActionPicker(event) {
 
 safeExposeGlobals({ openMapCompleteActionPicker });
 
-function syncCombatTacticsSettingsControls() {
+function syncCombatTacticsControls() {
     let targetSelect = document.getElementById('sel-combat-target-priority');
     let positionSelect = document.getElementById('sel-combat-position-mode');
     let help = document.getElementById('combat-tactics-help');
     if (!targetSelect || !positionSelect) return;
     let tactics = normalizeCombatTacticsSettings(game.settings);
-    let unlocked = !!game.combatTacticsUnlocked;
+    let unlocked = isTacticsRulesOpen();
     targetSelect.value = tactics.targetPriority;
     positionSelect.value = tactics.positionMode;
     targetSelect.disabled = !unlocked;
     positionSelect.disabled = !unlocked;
     if (help) help.textContent = unlocked
-        ? '전술 이동이 실제로 발생하면 이동 속도에 따라 다음 공격이 0.3~0.65초 미뤄집니다.'
-        : '액트 3을 처음 클리어하면 영구 해금됩니다.';
+        ? '조건부 규칙이 맞지 않을 때 쓰는 전술입니다. 전술 이동 시 다음 공격이 0.3~0.65초 미뤄집니다.'
+        : TACTICS_RULES_LOCK_MESSAGE;
 }
+
+document.getElementById('combat-tactics-defaults')?.addEventListener('change', event => {
+    if (!isTacticsRulesOpen() || event.target.disabled) return;
+    const keys = { 'sel-combat-target-priority': 'combatTargetPriority', 'sel-combat-position-mode': 'combatPositionMode' };
+    const key = keys[event.target.id];
+    if (!key || ![...event.target.options].some(option => option.value === event.target.value)) return;
+    game.settings[key] = event.target.value;
+    queueImportantSave(180);
+});
+
+// 규칙 편집도 기본 전술과 같은 저장 대기열을 쓴다.
+for (const type of ['change', 'click']) document.getElementById('skill-tab-condition')?.addEventListener(type, event => {
+    if (isTacticsRulesOpen() && event.target.closest('button, input, select')) queueImportantSave(180);
+});
 
 function applyChatMessageSize(size) {
     let normalized = ['small', 'medium', 'large'].includes(size) ? size : 'medium';
@@ -6631,26 +6505,6 @@ function pickAttackVariantCycle(cycles, configuredWeights, seed) {
 
 function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now, motionState) {
     let activeSkillPlayback = getSkillPlaybackState(now);
-    let monsterSkinId = typeof getSelectedMonsterSkinId === 'function' ? getSelectedMonsterSkinId() : null;
-    if (monsterSkinId) {
-        let monsterSkinSprite = resolveMonsterSkinSprite(monsterSkinId);
-        if (monsterSkinSprite) {
-            let drawSize = (monsterSkinSprite.type === 'boss' ? 52 : 38) * clampNumber((Number(scale) || 1) / 1.9, 1, 2.4);
-            drawPixelShadow(ctx, x, y + 2, monsterSkinSprite.type === 'boss' ? 14 : 10, monsterSkinSprite.type === 'boss' ? 5 : 4, 0.18);
-            // 몬스터는 기본적으로 왼쪽(플레이어 방향)을 보므로 좌우반전해 오른쪽을 바라보게 한다.
-            drawBattleSprite(ctx, monsterSkinSprite.image, monsterSkinSprite.frame, x, y, drawSize, { smoothing: monsterSkinSprite.type === 'boss' ? 'high' : 'low', flipX: true });
-            if (flash) {
-                ctx.save();
-                ctx.globalAlpha = 0.16;
-                ctx.fillStyle = '#fff3c5';
-                ctx.beginPath();
-                ctx.ellipse(x, y + 4, 14, 7, 0, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.restore();
-            }
-            return;
-        }
-    }
     if (battleAssets.images.hero) {
         motionState = motionState || {};
         let animationStats = motionState.playerStats || getUiPlayerStats();
@@ -9321,7 +9175,7 @@ async function bulkSalvageEquipBySearch(salvageUnmatched) {
 }
 
 function getCurrencyIconHtml(orbKey, className = 'currency-icon') {
-    let icon = pixelIconPath(ORB_DB[orbKey] && ORB_DB[orbKey].icon);
+    let icon = ORB_DB[orbKey] && ORB_DB[orbKey].icon;
     return icon ? `<img class="${className}" src="${icon}" alt="" aria-hidden="true">` : '';
 }
 

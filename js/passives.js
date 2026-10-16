@@ -4907,7 +4907,7 @@ drawDamageTexts.paint = (() => {
     function font(text) {
         const tier = text.impactTier === 'annihilate' ? 32 : (text.impactTier === 'heavy' ? 28 : 0);
         const size = text.bodyCue ? 20 : (tier || (text.miss ? 16 : (text.dot ? 17 : (text.crit ? 25 : 21))));
-        return `800 ${size}px "DOSSaemmul", "Malgun Gothic", sans-serif`;
+        return `800 ${size}px "Galmuri11", "Malgun Gothic", sans-serif`;
     }
     function appearance(text, t) {
         const align = text.side > 0 ? 'left' : (text.side < 0 ? 'right' : 'center');
@@ -4922,7 +4922,7 @@ drawDamageTexts.paint = (() => {
         const count = !text.bodyCue && !text.miss && text.hitCount > 1 ? `${Math.floor(text.hitCount)}타` : '';
         // Korean unit glyphs can overhang their advance width; leave a real gap before the hit-count suffix.
         const countX = metrics.actualBoundingBoxRight + GAP * 2;
-        ctx.font = '800 10px "DOSSaemmul", "Malgun Gothic", sans-serif';
+        ctx.font = '800 10px "Galmuri11", "Malgun Gothic", sans-serif';
         const right = Math.max(metrics.actualBoundingBoxRight, count ? countX + ctx.measureText(count).width : 0);
         const box = { x: text.x - (metrics.actualBoundingBoxLeft + GAP) * pop,
             y: row.y - (metrics.actualBoundingBoxAscent + GAP) * pop,
@@ -4973,7 +4973,7 @@ drawDamageTexts.paint = (() => {
         ctx.fillStyle = getDamageTextFillColor(text);
         ctx.fillText(row.label, x, y);
         if (row.count) {
-            ctx.font = `800 10px "DOSSaemmul", "Malgun Gothic", sans-serif`;
+            ctx.font = `800 10px "Galmuri11", "Malgun Gothic", sans-serif`;
             ctx.textAlign = 'left';
             ctx.lineWidth = 1.2;
             ctx.strokeText(row.count, x + row.countX, y - 3);
@@ -6494,7 +6494,6 @@ function initBattleAssets() {
         ...(defaultHeroSrc ? { heroLegacy: defaultHeroSrc } : {}),
         // Sanitized ahead of time (both passes the atlas used to get at runtime); v2 and v3 are no longer drawn.
         enemies: 'assets/battle-clean/battle-enemies-v1.png',
-        // The old wisp atlas loads only for a wisp look the player wears (ensureWispSkinAtlas).
         bossTelegraphRing: 'assets/effects/boss-telegraph-ring-v1.png',
         bossTelegraphFan: 'assets/effects/boss-telegraph-fan-v1.png',
         bossTelegraphPulse: 'assets/effects/boss-telegraph-pulse-v1.png',
@@ -7187,43 +7186,6 @@ function buildWispEnemyVariants(images) {
             frames: directional.south.frames, attackFrames: directional.south.attackFrames,
             directions: directional
         };
-    });
-}
-
-/** The old wisp atlas (WISP_MONSTER_ASSET_MANIFEST) only draws a wisp look the player wears: wisp monsters draw from their own
- * sheets (js/canvas-wisp-actors.js) and the look a kill unlocks is read from the data (getEnemySkinId). So it loads on the
- * first such draw, cleaned like the startup sheets, instead of with the first screen (2026-10-07 memory review: its two
- * cleaned copies held 20 MB from the start). A failed file is not fetched again until the battle assets reload. */
-let wispSkinAtlasLoad = null;
-function ensureWispSkinAtlas(id) {
-    const atlas = battleAssets.atlas && battleAssets.atlas.enemies;
-    if (!atlas || (wispSkinAtlasLoad && wispSkinAtlasLoad.atlas === atlas) || !isWispSkinId(id)) return;
-    const images = battleAssets.images;
-    wispSkinAtlasLoad = { atlas };
-    Promise.all(Object.entries(WISP_MONSTER_ASSET_MANIFEST).map(([key, src]) => loadCleanBattleSheet(key, src).then(image => { images[key] = image; })))
-        .then(() => {
-            if (battleAssets.atlas && battleAssets.atlas.enemies === atlas) atlas.skinVariants = { ...atlas.skinVariants, ...buildWispSkinVariants(images) };
-        }, () => {});
-}
-
-function isWispSkinId(id) {
-    return typeof WISP_MONSTER_ASSET_MANIFEST !== 'undefined' && typeof WISP_MONSTER_VISUALS !== 'undefined'
-        && WISP_MONSTER_VISUALS.some(wisp => wisp.id === id);
-}
-
-function buildWispSkinVariants(images) {
-    return Object.fromEntries(buildWispEnemyVariants(images).map(entry => [entry.skinId, entry]));
-}
-
-/** One battle sheet fetched on demand and cleaned like the startup sheets. */
-function loadCleanBattleSheet(key, src) {
-    return new Promise((resolve, reject) => {
-        const image = new Image();
-        if (!isLocalFileProtocol()) image.crossOrigin = 'anonymous';
-        image.decoding = 'async';
-        image.onload = () => resolve(shouldPreserveOriginalBattleSheet(key) ? image : cleanLoadedBattleSheet(key, image));
-        image.onerror = reject;
-        image.src = src;
     });
 }
 
@@ -8093,7 +8055,6 @@ function buildBattleAssetAtlas() {
             image: enemySpriteImage,
             variants: enemyVariantPools,
             bossImages: bossImages,
-            skinVariants: Object.fromEntries(wispEnemyVariants.map(entry => [entry.skinId, entry])),
             frames: {
                 slime: enemyFrames.slime,
                 wraith: enemyFrames.wraith,

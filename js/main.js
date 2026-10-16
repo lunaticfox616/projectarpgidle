@@ -58,7 +58,6 @@ function init() {
     applyUiSkin(game.settings.uiSkin);
     applyHighContrast(game.settings.highContrast);
     hotkeysUi.init();
-    uiDisplay.font(game.settings.uiFont);
     uiDisplay.apply(game.settings.uiScale);
     syncMapCompleteActionQuickControl();
     ensureInitialHeroSelection();
@@ -274,6 +273,13 @@ window.addEventListener('error', function(event) {
     if (!event || !event.error) return;
     reportFatalError('runtime', event.error);
 });
-window.addEventListener('load', bootGame);
-if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bootGame);
-else setTimeout(bootGame, 0);
+// 저장을 불러오기 전에 무대 그림이 있는지 알아 둔다(js/canvas-stage-actors.js whenStageArtKnown): 답이 늦게 오면 방 단위 탐험을 저장한 게임이
+// 예전 이어진 지도로 열렸다(2026-10-16). 답을 기다리는 것은 STAGE_PROBE_WAIT_MS까지다.
+const STAGE_PROBE_WAIT_MS = 2500;
+function bootWhenStageArtKnown() {
+    const known = typeof stageActors === 'object' ? stageActors.whenStageArtKnown() : Promise.resolve();
+    Promise.race([known, new Promise(done => setTimeout(done, STAGE_PROBE_WAIT_MS))]).then(bootGame);
+}
+window.addEventListener('load', bootWhenStageArtKnown);
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bootWhenStageArtKnown);
+else setTimeout(bootWhenStageArtKnown, 0);

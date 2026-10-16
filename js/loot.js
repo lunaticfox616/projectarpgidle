@@ -530,10 +530,10 @@ safeExposeGlobals({ getCurrencyDrops });
         const rules = LOOT_OMENS.fineRare, cap = Number(item.affixTierCap) || 0, floor = cap - rules.band + 1;
         return cap >= rules.minCap && Array.isArray(item.stats) ? item.stats.filter(stat => Number(stat.tier) >= floor).length : 0;
     }
-    /** A rare with several top-tier lines: good, or great with even more (data/loot-omens.js fineRare). */
+    /** A rare with several top-tier lines: good (a sparkle, never a beam: data/loot-omens.js fineRare). */
     function ofRare(item) {
         const lines = fineLines(item), rules = LOOT_OMENS.fineRare;
-        return lines >= rules.great ? 'great' : lines >= rules.good ? 'good' : null;
+        return lines >= rules.good ? 'good' : null;
     }
     function ofEquipment(item) {
         if (item.rarity === 'unique') return isChaseUniqueItem(item) ? 'jackpot' : 'great';
@@ -554,12 +554,14 @@ safeExposeGlobals({ getCurrencyDrops });
         const judge = ITEM_KINDS[kind];
         return item && judge ? judge(item) : null;
     }
-    /** A ground loot receipt ({currency}, {leaf} or {item, itemKind, highlight}): a protected or hunted drop is at least great. */
+    /** A ground loot receipt ({currency}, {leaf} or {item, itemKind, highlight}): a hunted drop (a hunted unique, a target-option match:
+     * equipmentLootPolicy.highlight priority 3) is at least great. A corrupted or exceptional-base rare stays as it is (no beam). */
     function ofReceipt(receipt) {
         if (receipt.currency) return ofCurrency(receipt.currency);
         if (receipt.leaf) return memoryLeaves.momentOf(game, receipt.leaf);
         const tier = ofItem(receipt.item, receipt.itemKind || 'equipment');
-        return receipt.highlight ? higher(tier, 'great') : tier;
+        const hunted = receipt.highlight && (equipmentLootPolicy.highlight(receipt.item, game)?.priority || 0) >= 3;
+        return hunted ? higher(tier, 'great') : tier;
     }
     /** Whether picking this unique up opens a new codex entry (js/passives.js registerUniqueToCodexOnAcquire): the floor reveal and the
      * map result mark it. */

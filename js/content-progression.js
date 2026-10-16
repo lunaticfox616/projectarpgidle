@@ -8,6 +8,7 @@ const contentProgression = (() => {
 
     // Predicates only read normalized save state; unlocking a menu never grants world progress.
     const progressChecks = {
+        tactics: owner => [['액트 3 클리어', hasCombatTacticsUnlockProgress(owner)]],
         trials: owner => [['액트 3 도달', owner.maxZoneId >= 3 || owner.completedTrials.length > 0]],
         meteor: owner => [['액트 7 도달', owner.maxZoneId >= 7]],
         deepChaos: owner => [['혼돈 20층 클리어', hasCurrentLoopChaos20Clear(owner)]],
@@ -76,8 +77,6 @@ const contentProgression = (() => {
         'tab-unlocks': owner => owner.season >= 2,
         // NPC 탭(js/npc-roster-ui.js): 맵에서 NPC를 한 번이라도 만난 뒤(만나면 unlocks.npcs가 켜지고, 단추도 그 값을 따른다).
         'tab-npcs': owner => !!(owner.unlocks && owner.unlocks.npcs) || Object.keys(owner.npcMet || {}).length > 0,
-        // 전술 규칙(예전 컨디션 젬 창의 자동 사용 규칙): 규칙 조건이 루프 2부터 열리고, 전술은 액트 3에서 배운다.
-        'skill-tab-condition': owner => owner.season >= 2 && !!owner.combatTacticsUnlocked,
         // 세계수 탐험 창(아틀라스)은 혼돈계와 같은 경로지만, 아틀라스가 열렸으면 혼돈계 관문 전이라도 연다.
         'map-explore-worldtree': owner => !!owner.atlas?.unlocked || isUnlocked('chaosRealm', owner)
     };
@@ -261,7 +260,7 @@ const contentProgression = (() => {
             : savedIds(record.inherited);
         const savedChoices = savedIds(record.unlocked);
         const grandfathered = Number(record.version) < 5 ? savedChoices : record.grandfathered;
-        return { version: 7, highestLoop, legacy: legacy || record.legacy === true,
+        return { version: 8, highestLoop, legacy: legacy || record.legacy === true,
             unlocked: [], paidCosts: {}, inherited: savedIds(inherited), grandfathered: savedIds(grandfathered),
             automatic: savedIds(record.automatic).filter(id => definitions.get(id).cost === 0) };
     }
@@ -270,6 +269,7 @@ const contentProgression = (() => {
     function restore(raw, owner, existingSave) {
         const record = raw && typeof raw === 'object' ? raw : {};
         const next = restoredLedger(record, owner, raw === undefined && existingSave);
+        inheritFormerTactics(record, next, owner, existingSave);
         inheritFormerFreeAccess(record, next, owner);
         restorePurchases(savedIds(record.unlocked), next, record);
         if (Number(record.version) < 5 && [...next.unlocked, ...next.inherited].some(id => definitions.get(id).cost > 0)
@@ -277,6 +277,13 @@ const contentProgression = (() => {
         next.grandfathered = next.grandfathered.filter(id => next.unlocked.includes(id));
         inheritSplitGrowth(record, next);
         return next;
+    }
+
+    // 설정에서 쓰던 전술과 이전 유료 해금은 유지한다. 무료 전환된 구매 비용은 복원하지 않는다.
+    function inheritFormerTactics(record, next, owner, existingSave) {
+        if (!existingSave || next.inherited.includes('tactics')) return;
+        const formerSetting = Number(record.version || 0) < 8 && owner.combatTacticsUnlocked === true;
+        if (formerSetting || savedIds(record.unlocked).includes('tactics')) next.inherited.push('tactics');
     }
 
     // Pre-split owners keep their former bundled feature without a second purchase.

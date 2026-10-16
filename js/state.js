@@ -2186,15 +2186,10 @@ function normalizeCombatTacticsSettings(settings) {
 
 function hasCombatTacticsUnlockProgress(state) {
     if (!state || typeof state !== 'object') return false;
-    let journal = Array.isArray(state.journalUnlocked) ? state.journalUnlocked : [];
+    let journal = [...(Array.isArray(state.journalUnlocked) ? state.journalUnlocked : []),
+        ...(Array.isArray(state.journalEntries) ? state.journalEntries : [])];
     let claimed = Array.isArray(state.claimedActRewards) ? state.claimedActRewards : [];
     return journal.includes('act_3') || claimed.includes(2) || Math.floor(Number(state.maxZoneId) || 0) >= 3;
-}
-
-function ensureCombatTacticsUnlockState(state) {
-    if (!state || state.combatTacticsUnlocked || !hasCombatTacticsUnlockProgress(state)) return false;
-    state.combatTacticsUnlocked = true;
-    return true;
 }
 
 function isFreePassiveStartNodeId(nodeId) {
@@ -2265,7 +2260,7 @@ const defaultGame = {
     chronicle: { rings: 0 },
     saveVersion: 19,
     // Permanent ledger: income follows CONTENT_UNLOCK_POINT_AWARDS (contentProgression.earnedBy), starting at loop two.
-    contentProgression: { version: 7, highestLoop: 1, unlocked: [], paidCosts: {}, inherited: [], automatic: [], grandfathered: [] },
+    contentProgression: { version: 8, highestLoop: 1, unlocked: [], paidCosts: {}, inherited: [], automatic: [], grandfathered: [] },
     loopChallenge: null,
     loopChallengeHistory: [],
     level: 1,
@@ -2317,10 +2312,7 @@ const defaultGame = {
         showEnemyHpComma: true,
         showCharacterComma: true,
         uiScale: 100,
-        /** 'auto' | 'pixel' | 'smooth' (normalizeUiFont) */
-        uiFont: 'auto',
         uiSkin: 'rift',
-        iconArtStyle: 'pixel',
         highContrast: false,
         /** PC 단축키 중 기본값과 다른 것만: { 동작 id: KeyboardEvent.code | '' } (data/hotkeys.js) */
         hotkeyOverrides: {},
@@ -2391,7 +2383,6 @@ const defaultGame = {
     bloomTrialRegenSuppress: 0,
     pendingLoopHeroSelection: false,
     unlockedMonsterSkins: {},
-    selectedMonsterSkin: null,
     passivePoints: 0,
     playerHp: 100,
     playerEnergyShield: 0,
@@ -2598,7 +2589,7 @@ safeExposeGlobals({
     defaultGame, hasPermanentTalentTabUnlock, syncPermanentTalentTabUnlock,
     getBeyondBoundaryTierProfile,
     COMBAT_TACTIC_TARGET_PRIORITIES, COMBAT_TACTIC_POSITION_MODES,
-    normalizeCombatTacticsSettings, hasCombatTacticsUnlockProgress, ensureCombatTacticsUnlockState,
+    normalizeCombatTacticsSettings, hasCombatTacticsUnlockProgress,
     isFreePassiveStartNodeId, getPaidPassiveNodeIds
 });
 

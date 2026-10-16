@@ -248,11 +248,12 @@ const actExplorationRooms = (() => {
         if (run.source.of) run.source = run.source.of;
         else delete run.source;
     }
-    /** 입구 방의 NPC가 서는 칸: 뒷줄, 주인공이 서는 방 가운데(js/combat-grid.js resetPlayerGridPosition)에서 두 칸 옆(오른쪽이 좁으면
-     * 왼쪽). 그리는 쪽(js/canvas-act-title-card.js)과 하켄을 치는 첫 몬스터(js/combat.js createStarterRescuePack)가 함께 쓴다. */
+    /** 입구 방의 NPC가 서는 칸: 방 가운데 줄 바로 뒷줄, 주인공이 서는 방 가운데(js/combat-grid.js resetPlayerGridPosition)에서 두 칸 옆
+     * (오른쪽이 좁으면 왼쪽). 2026-10-16 사용자 "하켄의 위치를 위쪽 문 근처가 아닌, 가운데쪽으로": 예전에는 뒷줄(뒷벽의 문 옆)이었다.
+     * 그리는 쪽(js/canvas-act-title-card.js)과 하켄을 치는 첫 몬스터(js/combat.js createStarterRescuePack)가 함께 쓴다. */
     function npcPost(room) {
         const from = Math.round(room.gx), side = from + 2 <= room.x1 ? 2 : -2;
-        return { gx: Math.max(room.x0, Math.min(room.x1, from + side)), gy: room.y0 };
+        return { gx: Math.max(room.x0, Math.min(room.x1, from + side)), gy: Math.max(room.y0, Math.round(room.gy) - 1) };
     }
     return Object.freeze({ forRun: stageLayout, key: roomPlanKey, supports: key => !!readRoomKey(key), roomAt, doorAt, waypoint, steps, tourNext,
         npcPost, seal: roomSeal, unseal: roomUnseal });

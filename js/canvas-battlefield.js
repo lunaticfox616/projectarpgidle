@@ -12,10 +12,10 @@ function getCanvasRuntimeFunction(name) {
 let __canvasStatsCache = null;
 let __canvasStatsCacheAt = 0;
 const CANVAS_STATS_CACHE_MS = 150;
-// 전장 위 글자도 UI(css/themes/pixel.css)와 같은 도트 글꼴: 물마루는 12px 격자, 제목의 DOS새물은 16px 격자에서 또렷하다.
+// 전장 글자도 갈무리11의 12px 격자를 쓴다. 독립 제목은 실제 Bold, 본문은 Regular.
 // 흐린 그림자(shadowBlur) 대신 한 도트 어긋난 검은 글자를 먼저 찍는다.
-const BATTLE_PIXEL_FONT = "'MulmaruMono', 'Galmuri14', 'Malgun Gothic', sans-serif";
-const BATTLE_TITLE_FONT = "'DOSSaemmul', 'MulmaruMono', 'Malgun Gothic', sans-serif";
+const BATTLE_PIXEL_FONT = "'Galmuri11', 'Galmuri14', 'Malgun Gothic', sans-serif";
+const BATTLE_TITLE_FONT = "'Galmuri11', 'Galmuri14', 'Malgun Gothic', sans-serif";
 function fillPixelText(ctx, text, x, y, color) {
     ctx.fillStyle = '#000';
     ctx.fillText(text, x + 1, y + 1);
@@ -1727,9 +1727,8 @@ function drawLevelUpFx(ctx, fx, t, playerPos, now) {
 }
 
 function drawLevelUpLabel(ctx, fx, pos) {
-    const rift = typeof isBattleLightingEnabled === 'function' && isBattleLightingEnabled();
     ctx.globalAlpha = pos.alpha;
-    ctx.font = `${rift ? 24 : 12}px ${BATTLE_PIXEL_FONT}`;
+    ctx.font = `24px ${BATTLE_PIXEL_FONT}`;
     ctx.textAlign = 'center';
     ctx.lineWidth = 4;
     ctx.lineJoin = 'miter';
@@ -2540,7 +2539,7 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
         ctx.fillStyle = 'rgba(6,10,16,0.55)';
         ctx.fillRect(0, 0, width, height);
         ctx.fillStyle = 'rgba(201, 223, 244, 0.82)';
-        ctx.font = `16px ${BATTLE_TITLE_FONT}`;
+        ctx.font = `700 24px ${BATTLE_TITLE_FONT}`;
         ctx.textAlign = 'center';
         ctx.fillText('전장을 준비하는 중...', width / 2, height / 2);
         ctx.restore();
@@ -3097,7 +3096,7 @@ function drawBossAnnouncement(ctx, area, banner) {
     ctx.globalAlpha = getBossBannerAlpha(banner.age);
     ctx.textAlign = 'center';
     // 좁은 화면(휴대폰)에서는 제목 글꼴의 자모가 벌어져 "잔ㄱㅏㅈㅣ"처럼 읽혔다(검토 8차) — 본문 도트 글꼴로.
-    ctx.font = width < 640 ? `26px ${BATTLE_PIXEL_FONT}` : `32px ${BATTLE_TITLE_FONT}`;
+    ctx.font = `700 24px ${BATTLE_TITLE_FONT}`;
     const name = getEnemyDisplayName(banner.boss);
     const half = Math.min(width * 0.42, ctx.measureText(name).width / 2 + 60);
     const mid = Math.round(width / 2);
@@ -3114,26 +3113,22 @@ function drawBossAnnouncement(ctx, area, banner) {
     ctx.restore();
 }
 
-/** 이름 뒤의 판: 납작한 어둠과 위아래 2px 청동 선. 이름 너비만큼만 짙고 양 끝은 띠(BOSS_BANNER_FADE.step px)마다 옅어져 사라진다
- * (2026-10-14: 화면 끝에서 끝까지 가로지르는 검은 띠가 전장을 가렸다). 뒤의 안내 글이 이름 뒤로 비치지 않게 가운데는 거의 불투명하다. */
-const BOSS_BANNER_FADE = Object.freeze({ reach: 168, step: 4 });
+/** 이름 뒤의 그늘: 이름 둘레가 가장 짙고 위아래와 양옆 모두 둥글게 옅어져 사라지는 납작한 타원. 2026-10-16 사용자 "보스 등장씬에서
+ * 보스 밑의 까만색이 네모낳게 보임": 예전 판(높이 66px, 위아래가 딱 끊기고 청동 선이 둘린 어둠)이 등장하는 보스 발밑의 검은 네모로 읽혔다.
+ * reach: 이름 너비 바깥으로 그늘이 옅어지는 거리(px), height: 그늘의 위아래 반지름(px). */
+const BOSS_BANNER_SHADE = Object.freeze({ reach: 150, height: 44 });
 function drawBossBannerPlate(ctx, mid, cy, half) {
-    const base = ctx.globalAlpha, line = isBattleLightingEnabled() ? '#5d4a2e' : '#4a3a24';
-    const strip = (x, w, strength) => {
-        ctx.globalAlpha = base * strength;
-        ctx.fillStyle = 'rgba(6,4,4,0.9)';
-        ctx.fillRect(x, cy - 36, w, 66);
-        ctx.fillStyle = line;
-        ctx.fillRect(x, cy - 38, w, 2);
-        ctx.fillRect(x, cy + 30, w, 2);
-    };
-    strip(mid - half, half * 2, 1);
-    for (let out = 0; out < BOSS_BANNER_FADE.reach; out += BOSS_BANNER_FADE.step) {
-        const strength = Math.pow(1 - (out + BOSS_BANNER_FADE.step) / BOSS_BANNER_FADE.reach, 2);
-        strip(mid - half - out - BOSS_BANNER_FADE.step, BOSS_BANNER_FADE.step, strength);
-        strip(mid + half + out, BOSS_BANNER_FADE.step, strength);
-    }
-    ctx.globalAlpha = base;
+    const rx = half + BOSS_BANNER_SHADE.reach, ry = BOSS_BANNER_SHADE.height;
+    const shade = ctx.createRadialGradient(0, 0, 0, 0, 0, ry);
+    shade.addColorStop(0, 'rgba(6,4,4,0.84)');
+    shade.addColorStop(0.55, 'rgba(6,4,4,0.6)');
+    shade.addColorStop(1, 'rgba(6,4,4,0)');
+    ctx.save();
+    ctx.translate(mid, cy - 3);
+    ctx.scale(rx / ry, 1);
+    ctx.fillStyle = shade;
+    ctx.fillRect(-ry, -ry, ry * 2, ry * 2);
+    ctx.restore();
 }
 
 function drawBossBannerRule(ctx, left, right, y) {
@@ -3307,19 +3302,6 @@ function drawBattleGridFloor(ctx, proj, theme, skillTargets, skillAreaCells, bac
         ctx.beginPath();
         ctx.rect(c.x - halfW, c.y - halfH, proj.tileW, proj.tileH);
     };
-    const fillCell = (unit, fillStyle, strokeStyle, alpha) => {
-        if (!hasGridCell(unit)) return;
-        getGridUnitCells(unit).forEach(cell => {
-            tilePath(cell.gx, cell.gy);
-            ctx.globalAlpha = alpha;
-            ctx.fillStyle = fillStyle;
-            ctx.fill();
-            ctx.globalAlpha = Math.min(0.95, alpha + 0.25);
-            ctx.strokeStyle = strokeStyle;
-            ctx.lineWidth = 2.4;
-            ctx.stroke();
-        });
-    };
     ctx.save();
     for (let gx = 0; !actExplorationState.current(game) && gx < getCombatGridSize().columns; gx++) {
         for (let gy = 0; gy < getCombatGridSize().rows; gy++) {
@@ -3336,25 +3318,12 @@ function drawBattleGridFloor(ctx, proj, theme, skillTargets, skillAreaCells, bac
             ctx.stroke();
         }
     }
-    drawBattleGridCombatOccupants(ctx, tilePath, fillCell, { proj, backdropActive, skillTargets, skillAreaCells });
+    drawRiftCombatOccupants(ctx, { proj, skillTargets, skillAreaCells });
     ctx.restore();
 }
 
-function drawBattleGridCombatOccupants(ctx, tilePath, fillCell, layers) {
-    if (isBattleLightingEnabled()) return drawRiftCombatOccupants(ctx, layers);
-    fillCell(game.gridPlayer, 'rgba(134, 190, 255, 0.13)', 'rgba(150, 203, 255, 0.55)', 0.9);
-    (game.enemies || []).forEach(enemy => {
-        if (enemy && enemy.hp > 0 && actExplorationView.inSight(enemy)) fillCell(enemy, 'rgba(255, 87, 87, 0.12)', 'rgba(255, 140, 120, 0.38)', 0.7);
-    });
-    (game.summons || []).forEach(summon => {
-        if (summon && !summon.isGhost && summon.alive && (summon.hp || 0) > 0) fillCell(summon, 'rgba(126, 255, 173, 0.12)', 'rgba(154, 255, 192, 0.38)', 0.75);
-    });
-    (layers.skillAreaCells || []).forEach(cell => fillCell(cell, 'rgba(124, 255, 214, 0.12)', 'rgba(124, 255, 214, 0.5)', 0.9));
-    (layers.skillTargets || []).forEach(hit => fillCell(hit && hit.enemy, 'rgba(255, 211, 91, 0.18)', 'rgba(255, 225, 151, 0.75)', 0.95));
-}
-
-// 균열 등불(rift) 스킨의 칸 표시: 네모 칸 대신 발밑 타원과 모서리 표식만 그린다.
-// 칸 판정·범위 계산은 그대로이고 그리는 모양만 바꾼다. 다른 스킨은 기존 칸 채우기를 쓴다.
+// 칸 표시: 네모 칸 대신 발밑 타원과 모서리 표식만 그린다. 칸 판정과 범위 계산은 그대로이고 그리는 모양만 바꾼다.
+// 고대비 모드도 같다(2026-10-16 사용자: 발밑이 네모로 바뀌고 캐릭터를 따라가지 않고 칸 단위로 옮겨 갔다. 고대비는 조명만 끈다).
 const RIFT_CELL_TONES = {
     player: { fill: 'rgba(120, 210, 196, 0.22)', line: 'rgba(160, 236, 222, 0.7)' },
     enemy: { fill: 'rgba(170, 52, 40, 0.24)', line: 'rgba(226, 116, 94, 0.55)' },
@@ -3379,7 +3348,7 @@ function drawRiftCombatOccupants(ctx, layers) {
 /** The player's foot ring sits under the drawn figure, not on the hit cell: while walking, the body glides between
  * cells and the cell changes halfway, so a cell ring jumped ahead of the character. */
 function drawRiftPlayerRing(ctx, proj, feet) {
-    if (!isBattleLightingEnabled() || !proj || !feet) return;
+    if (!proj || !feet) return;
     // 옆에서 보는 무대: 도트로 찍는 발밑 고리(js/canvas-stage-rings.js)
     if (stageView.enabled()) return stageRings.ring(ctx, { x: feet.x, y: feet.y, dot: stageActors.scaleFor(proj.tileW) }, { tone: 'player', rx: 22, turning: true });
     const rx = proj.tileW * 0.4, ry = Math.max(4, rx * 0.34), tone = RIFT_CELL_TONES.player;

@@ -197,18 +197,8 @@ const monsterActors = (() => {
         drawFrame(ctx, pair, frame, at, { outline: getEnemyOutlineStyle(enemy), flash: p.flash });
         return true;
     }
-    /** The player wearing a collected monster look: the idle loop with the hero's cream rim (so it never reads as an enemy).
-     * False → not a sheet monster or not loaded yet. */
-    function drawSkin(ctx, id, p) {
-        const pair = sheetFor(id);
-        if (!pair || pair === 'loading' || !(p.tile > 0)) return false;
-        drawPixelShadow(ctx, p.x, p.y + 2, p.tile * pair.kind.shadow, p.tile * 0.09, 0.2);
-        const frame = clipFrame({ id: 0 }, pair.kind, p.now, p.moving);
-        drawFrame(ctx, pair, frame, placement(pair, frame, FACING_ROW[p.facing] || 'right', p), { outline: BATTLE_SPRITE_OUTLINES.hero, flash: p.flash });
-        return true;
-    }
     const isSheetMonster = id => typeof MONSTER_SPRITE_SHEETS === 'object' && !!MONSTER_SPRITE_SHEETS[id];
 
-    return { draw, drawSkin, isSheetMonster, clipFrame, frameAt, attackFrame, snap };
+    return { draw, isSheetMonster, clipFrame, frameAt, attackFrame, snap };
 })();
 safeExposeGlobals({ monsterActors });

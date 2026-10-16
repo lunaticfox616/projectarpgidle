@@ -1082,13 +1082,10 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   }
 }
 
-// ── 3-1. 전투 전술: 소급 해금 / 대상 우선순위 / 재배치 지연 ──
+// ── 3-1. 전투 전술: 대상 우선순위 / 재배치 지연 (저장 해금은 smoke-content-progression) ──
 {
   resetGame();
   assert.strictEqual(context.game.combatTacticsUnlocked, false, '새 게임은 전투 전술이 잠겨 있어야 한다');
-  context.game.journalUnlocked = ['act_3'];
-  assert.strictEqual(context.ensureCombatTacticsUnlockState(context.game), true, '액트 3 기록이 있는 저장은 소급 해금돼야 한다');
-  assert.strictEqual(context.ensureCombatTacticsUnlockState(context.game), false, '소급 해금은 한 번만 상태를 변경해야 한다');
 
   const attacker = { gx: 1, gy: 6 };
   const near = makeEnemy(201, 2, 6, { hp: 90, maxHp: 100 });
@@ -2066,6 +2063,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   vm.runInContext('pendingEnemyCombatAttacks = []; battleFx = [];', context);
   boss.attackTimer = 1;
   boss.patternAttackCount = 3;
+  boss.specialPlan = { attackNumber: 4, special: true, shape: 0 }; // 특수기를 쓰는 때는 굴린다(js/combat-patterns.js planBossSpecial): 이 공격으로 정해 둔다
   boss.nextPatternState = context.getBossPatternPreview(boss);
   context.updateBossPatternTelegraph(boss, context.getCombatTime() - context.COMBAT_GRID_CONFIG.bossPatternWarningMs, context.game.gridPlayer);
   context.performMonsterAttacks(defenseStats);

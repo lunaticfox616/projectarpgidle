@@ -7,7 +7,7 @@
  * 2. 브라우저(Playwright Chromium)로 짧은 변 32도트·긴 변 48도트를 넘지 않게 줄이고(정사각 32×32, 1×3칸 무기 16×48 —
  *    인벤토리 한 칸에 16도트 꼴), 반투명 가장자리를 끊고, 색을 단계로 묶고, 실루엣 둘레에 1도트 검은 윤곽을 두른다.
  *    이미 그보다 작은 그림(32도트 세계수 젬 등)은 건너뛴다.
- * 3. 사본 목록을 data/pixel-icons.js(PIXEL_ICON_SOURCES)로 쓴다. 화면은 js/utils.js pixelIconPath로 사본을 고른다.
+ * 3. 사본 목록을 data/pixel-icons.js(PIXEL_ICON_SOURCES)로 쓴다. 현재 게임은 원화로 고정되어 이 사본 목록을 로드하지 않는다.
  */
 'use strict';
 const fs = require('node:fs');

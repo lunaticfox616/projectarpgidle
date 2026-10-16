@@ -4,7 +4,8 @@
 
 Use `css/main.css` and its `reset, base, components, features, overrides` layers. `npm run build`
 bundles CSS into `dist/`; JavaScript remains classic scripts. The current pixel font/theme definitions
-are in `css/base.css` and `css/themes/pixel.css` (MulmaruMono/Galmuri14 with fallbacks).
+are in `css/base.css` and `css/themes/pixel.css`. Since 2026-10-16 they use Galmuri11 Regular/Bold,
+Galmuri14 for reading, and limited Galmuri9 metadata; roles and scaling rules are in [ui-display.md](ui-display.md).
 Run `npm run check:css` and `npm run build` for CSS changes. The migration measurements, system-font
 decision and test counts below describe September 15, not the current visual state or a new test run.
 

@@ -197,6 +197,9 @@ const ACT_LOOP_SCALE_CAP = 20;
 // 혼돈 층의 루프 스케일 상한 = 액트 상한 + 층 × 이 값(2026-10-06): 액트 10 다음 혼돈 1이 높은 루프에서 한꺼번에 몇 배로
 // 뛰지 않게, 층을 내려갈수록 지금 루프의 난이도까지 계단처럼 따라붙는다(루프 30이면 혼돈 5층부터 루프 30 그대로).
 const CHAOS_LOOP_RAMP_PER_DEPTH = 2;
+// 지도에 들어선 뒤와 문을 지나 다른 방에 들어선 뒤, 몬스터가 공격을 시작하지 못하는 시간(ms, 걸어오기는 한다).
+// 2026-10-16 사용자 "맵 이동 시 잠깐의 유예시간 필요" (js/act-exploration-state.js arrive, js/combat.js performMonsterAttacks).
+const EXPLORATION_ARRIVAL_GRACE_MS = 1500;
 
 // 몬스터 생명력의 루프 배율(2026-10-06 재조율, js/combat.js getMonsterLoopHpMultiplier): [루프, 배율], 사이는 직선, 끝 뒤는 끝 값.
 // 지역 단계와 무관한 한 곡선이라 같은 레벨의 몬스터는 어느 지역이든 같은 비율로 세진다(레벨이 강함을 말한다).
@@ -264,8 +267,8 @@ const TIME_RIFT_EQUIVALENT_CHAOS_DEPTHS = Object.freeze([1, 6, 11, 16, 22, 29, 3
 const TIME_RIFT_FUSION_ODDS = { perfectBase: 0.03, perfectPerPressure: 0.045, unstableBase: 0.42, unstablePerPressure: 0.035, unstableMin: 0.08 };
 
 const SEASON_CONTENT_ROADMAP = {
-    1: { title: '루프 1', features: ['시작: 기본 전투/장비/지도'] },
-    2: { title: '루프 2', features: ['해금: 홀씨 제작', '해금: 전술 규칙 (스킬 젬 → 전술 규칙)', '그루터기 함: 루프마다 한 칸씩 열림 (9칸 → 루프 17에 25칸)'] },
+    1: { title: '루프 1', features: ['시작: 기본 전투/장비/지도', '액트 3 클리어: 전투 전술 무료 해금 (스킬 젬 → 전술 규칙)'] },
+    2: { title: '루프 2', features: ['해금: 홀씨 제작', '그루터기 함: 루프마다 한 칸씩 열림 (9칸 → 루프 17에 25칸)'] },
     3: { title: '루프 3', features: ['해금: 고대 미궁(화석) / 대전'] },
     4: { title: '루프 4', features: ['해금: 창공 강화'] },
     5: { title: '루프 5', features: ['해금: 루프 패시브 확장 + 주얼'] },

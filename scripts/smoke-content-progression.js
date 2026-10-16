@@ -102,11 +102,34 @@ run("allocateLoopDeepStat('flatHp');buySeason(Object.keys(SEASON_NODES)[0])");
 assert.equal(run('game.loopDeepPoints'),19);
 assert.equal(run('game.loopDeepStats.flatHp'),1);
 assert.equal(run('game.seasonPoints'),6);
-run('game=mergeDefaults({});game.season=3;contentProgression.sync();contentProgression.purchase("craft")');
-// 전술 규칙 창(예전 컨디션 젬 창)은 해금 포인트 없이 루프 2부터, 액트 3에서 전술을 배운 뒤 열린다.
+// 액트 3 입장만으로는 열리지 않고 클리어 시 루프 1에서 무료로 기본 전술과 규칙이 열린다.
+run('game=mergeDefaults({});game.maxZoneId=2;contentProgression.sync()');
 assert(!run("contentProgression.canOpen('skill-tab-condition')"));
-run('game.combatTacticsUnlocked=true');
-assert(run("contentProgression.canOpen('skill-tab-condition')"),'the tactics rules open from loop 2 once combat tactics are learned');
+const tacticsBalance = run('contentProgression.balance()');
+assert(!run("contentProgression.purchase('tactics').ok"));
+run("unlockJournalEntry('act_3');contentUnlockUi.syncOpened()");
+assert.equal(run('contentProgression.balance()'), tacticsBalance);
+assert(run("game.combatTacticsUnlocked && contentProgression.canOpen('skill-tab-condition')"));
+assert(!run("contentProgression.isUnlocked('craft')"), 'tactics do not require crafting');
+assert(run("getConditionPatternTriggers(game,false).some(row=>row.id==='hp_below') && getConditionPatternActions(game,false).some(row=>row.id==='target_nearest')"), 'basic conditional tactics work during loop one');
+assert(!run("getConditionPatternTriggers(game,false).some(row=>row.id==='elite_present')"), 'advanced requirements stay intact');
+assert(!run("contentProgression.purchase('tactics').ok"), 'automatic unlock has no purchase');
+run('game=mergeDefaults(JSON.parse(JSON.stringify(game)))');
+assert(run("game.combatTacticsUnlocked && contentProgression.canOpen('skill-tab-condition')"), 'free tactics survive reload');
+run('game.season=2;game.maxZoneId=0;game.journalEntries=[];contentProgression.sync()');
+assert(run("game.combatTacticsUnlocked && contentProgression.canOpen('skill-tab-condition')"), 'automatic access persists across loop progress reset');
+run("game=mergeDefaults({season:1,combatTacticsUnlocked:true,settings:{combatTargetPriority:'dangerous',combatPositionMode:'keepRange'},contentProgression:{version:7,highestLoop:1,unlocked:[],inherited:[]}})");
+assert(run("contentProgression.isUnlocked('tactics') && game.combatTacticsUnlocked"), 'former act-3 tactics remain usable without a second purchase');
+assert.deepEqual(json('[game.settings.combatTargetPriority,game.settings.combatPositionMode]'), ['dangerous','keepRange']);
+run('game=mergeDefaults(JSON.parse(JSON.stringify(game)))');
+assert.equal(json('game.contentProgression.inherited').filter(id=>id==='tactics').length, 1, 'migration is idempotent');
+run("game=mergeDefaults({season:3,maxZoneId:4,journalEntries:['act_3'],contentProgression:{version:8,highestLoop:3,unlocked:[],inherited:[]}})");
+assert(run('game.combatTacticsUnlocked'), 'act-three completion also opens tactics in current saves');
+run("game=mergeDefaults({season:2,contentProgression:{version:8,highestLoop:2,unlocked:['craft','tactics'],paidCosts:{craft:1,tactics:1},inherited:[]}})");
+assert(run("game.combatTacticsUnlocked && contentProgression.isUnlocked('craft')"), 'previous paid tactics remain available');
+assert.equal(run('contentProgression.balance()'), 3, 'former one-point tactics purchase is refunded without refunding crafting');
+run('game=mergeDefaults(JSON.parse(JSON.stringify(game)))');
+assert.equal(run('contentProgression.balance()'), 3, 'refund is idempotent');
 run("game=mergeDefaults({season:3,combatTacticsUnlocked:true,skillAutoRules:[{triggerType:'boss_warning',actionType:'condition_gem',skillName:'긴급 회피'},{triggerType:'hp_below',skillName:'철의 맹세'},{triggerType:'hp_below',triggerValue:30,actionType:'return_town',enabled:true}]})");
 assert.deepEqual(json('game.skillAutoRules.map(rule=>rule.actionType)'),['return_town'],'old condition gem rules go, tactic rules stay');
 // 'bounty'(삭제된 보물사냥)는 저장에 남아 있어도 무시된다.
@@ -295,7 +318,7 @@ assert(!run("contentProgression.purchase('craft').ok"));
 assert.deepEqual(json('game'),before,'completed purchases cannot replay entry rewards');
 run("game=mergeDefaults({season:4,bountyHunt:{version:5,remaining:0,pending:{id:'x',status:'reward',offerIds:[]},completed:3}})");
 assert.equal(run("'bountyHunt' in game"),false,'removed treasure-hunt state is discarded without a reward');
-// 루프 2의 4점 중 장비 제련(1점)과 보조 젬(2점)을 고르면 1점이 남고, 나머지 루프 2 해금(루프 패시브)은 2점이다.
+// 루프 2에서 제련·보조 젬 뒤 남은 1점으로 전술을 고를 수 있다. 그 뒤 루프 패시브는 2점이 필요하다.
 // 목표는 고를 수 없는 선택을 재촉하지 않고 다음 해금까지 남은 점수를 센다(2026-10-04 사용자 보고).
 run('game=mergeDefaults({});game.season=2;game.contentProgression.inherited=[];contentProgression.sync()');
 assert.equal(run('contentProgression.balance()'),4);
@@ -303,8 +326,7 @@ assert.equal(run('getNextMajorContentUnlock(game).requirements[0].met'),true,'fo
 assert(run("contentProgression.purchase('craft').ok") && run("contentProgression.purchase('support').ok"));
 assert.equal(run('contentProgression.cheapestOpen(game).cost'),2);
 const waiting=json('getNextMajorContentUnlock(game)');
-assert.deepEqual(waiting.requirements[0],{label:'해금 포인트',met:false,current:1,target:2},'one point waits for the next unlock');
-assert(waiting.description.includes('2점이 필요') && !waiting.description.includes('선택하세요'),waiting.description);
+assert.deepEqual(waiting.requirements[0],{label:'해금 포인트',met:false,current:1,target:2},'remaining point waits for the next unlock');
 run('game.season=3;contentProgression.sync()');
 assert.equal(run('getNextMajorContentUnlock(game).requirements[0].met'),true,'the next loop makes the choice actionable again');
 // 루프 포인트 알림(js/goal-system.js)은 지금 살 노드가 있을 때만 뜬다: 다음 고리가 루프 5를 기다리거나 루프 패시브가 잠겨 있으면 조용하다.

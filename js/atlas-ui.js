@@ -313,7 +313,7 @@ const atlasUi = (() => {
         return { rank: LEAF_RANK, html: `<span class="atlas-find is-leaf">${renderPixelIcon('leaf', 'atlas-find-leaf')}${escapeHTML(leaf ? leaf.name : id)}${count > 1 ? ` <b>×${count}</b>` : ''}</span>` };
     }
     function currencyFind([key, count]) {
-        const moment = lootMoments.ofCurrency(key), src = pixelIconPath(ORB_DB[key] && ORB_DB[key].icon);
+        const moment = lootMoments.ofCurrency(key), src = ORB_DB[key] && ORB_DB[key].icon;
         const icon = src ? `<img class="atlas-find-icon" src="${src}" alt="" aria-hidden="true">` : '';
         return { rank: lootMoments.rank(moment), html: `<span class="atlas-find${momentClass(moment)}">${icon}${window.getStyledOrbName(key)} <b>×${count}</b></span>` };
     }

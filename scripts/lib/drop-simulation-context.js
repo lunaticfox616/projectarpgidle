@@ -174,7 +174,7 @@ var dropSimulation = (() => {
     /** Names, tones and pictures the simulator page shows (omens, currencies, leaves, regions). */
     function catalog() {
         const currencies = Object.fromEntries(Object.keys(ORB_DB).map(key => [key, { name: ORB_DB[key].name,
-            icon: pixelIconPath(ORB_DB[key].icon) || null, moment: lootMoments.ofCurrency(key) }]));
+            icon: ORB_DB[key].icon || null, moment: lootMoments.ofCurrency(key) }]));
         return { omens: LOOT_OMENS.list.map(({ id, name, note, tone, kind }) => ({ id, name, note, tone, kind })), currencies,
             leaves: memoryLeaves.list.map(leaf => ({ id: leaf.id, name: leaf.name, set: leaf.set, source: memoryLeaves.sourceText(leaf),
                 reward: memoryLeaves.rewardText(leaf) })),

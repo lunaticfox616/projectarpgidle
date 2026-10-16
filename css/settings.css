@@ -3,12 +3,12 @@
    창이 좁으면(휴대폰, 줄인 창) 분류 목록이 위쪽 세 칸 두 줄이 된다. 단축키 목록은 css/hotkeys.css, 단추 재질은 공통 단추 규칙을 따른다.
    빛깔은 뜻이 있을 때만 쓴다: 고른 분류, 켜진 스위치, 묶음 제목, 위험한 초기화. */
 @layer features {
-#tab-settings { container: settings / inline-size; font: 400 13px/1.5 var(--font-body, 'Malgun Gothic', sans-serif); }
+#tab-settings { container: settings / inline-size; font: var(--font-weight-regular) var(--font-size-ui)/1.5 var(--font-body); }
 #tab-settings :is(button, input, select, summary) { font-family: inherit; }
 #tab-settings [data-settings-group][hidden] { display: none; }
 #tab-settings :is(button, select, summary, input):focus-visible { outline: 2px solid var(--color-accent-gold); outline-offset: 2px; }
 
-/* 분류 목록: 밝은 이름만(15px, 도트 글꼴이 번지지 않게 굵기는 겹쳐 찍기 --px-text-bold). 고른 분류는 왼쪽 금빛 막대, 옅은 금빛 바탕, 금빛 이름. */
+/* 분류 목록: 갈무리11 실제 Bold. 고른 분류는 왼쪽 금빛 막대, 옅은 금빛 바탕, 금빛 이름. */
 .settings-workspace { display: grid; grid-template-columns: 164px minmax(0, 1fr); gap: 18px; align-items: start; }
 .settings-sections { position: sticky; top: 0; display: grid; gap: 2px; padding: 2px 0; }
 #tab-settings .settings-sections > button {
@@ -26,7 +26,7 @@
   text-align: left;
   cursor: pointer;
 }
-#tab-settings .settings-sections > button b { color: inherit; font-size: 15px; font-weight: 400; line-height: 1.3; letter-spacing: 0; text-shadow: var(--px-text-bold, none); white-space: nowrap; }
+#tab-settings .settings-sections > button b { color: inherit; font-size: var(--font-size-ui); font-weight: var(--font-weight-emphasis); line-height: 1.5; letter-spacing: 0; text-shadow: var(--px-text-edge, none); white-space: nowrap; }
 #tab-settings .settings-sections > button:hover { background: rgba(255, 255, 255, .04); color: #fff6e0; }
 #tab-settings .settings-sections > button[aria-pressed="true"] { background: rgba(215, 179, 111, .12); box-shadow: inset 3px 0 var(--color-accent-gold); color: #f8dfa2; }
 .settings-note { margin: 12px 4px 0; padding-top: 10px; border-top: 1px solid var(--skin-line); color: var(--px-copy-muted, var(--color-text-secondary)); font-size: 12px; }
@@ -51,8 +51,8 @@
   border: 0;
   background: none;
   color: var(--color-accent-gold);
-  font-size: 15px;
-  font-weight: 400;
+  font-size: var(--font-size-ui);
+  font-weight: var(--font-weight-emphasis);
   letter-spacing: .02em;
 }
 #tab-settings .cfg-block-title::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, rgba(215, 179, 111, .4), transparent); }
@@ -62,9 +62,9 @@
 .cfg-row + :is(.cfg-row, .cfg-disclosure) { border-top: 1px solid rgba(255, 255, 255, .06); }
 .cfg-row:hover { background: rgba(255, 255, 255, .03); }
 .cfg-row-text { display: grid; gap: 2px; flex: 1 1 auto; min-width: 0; }
-.cfg-row-text > :is(label, span) { color: #eee4cf; font-size: 14px; line-height: 1.35; }
+.cfg-row-text > :is(label, span) { color: #eee4cf; font-size: var(--font-size-ui); line-height: 1.5; }
 .cfg-row-text > label { cursor: pointer; }
-.cfg-row-text > small { color: #a89c84; font-size: 12px; line-height: 1.45; }
+.cfg-row-text > small { color: var(--color-text-secondary); font-size: var(--font-size-ui); line-height: 1.5; }
 .cfg-row-text > small[hidden] { display: none; }
 #tab-settings .cfg-row > .cfg-select { flex: 0 1 230px; width: 230px; min-width: 130px; min-height: 36px; }
 .cfg-row-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; flex-shrink: 0; }
@@ -80,7 +80,7 @@
   background: var(--skin-canvas);
   color: var(--color-text);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--font-size-ui);
   cursor: pointer;
 }
 .cfg-select:hover, .cfg-select:focus { border-color: var(--skin-line-strong); }
@@ -190,7 +190,7 @@
   .settings-sections { position: static; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; padding: 0; }
   #tab-settings .settings-sections > button { justify-items: center; align-content: center; min-height: 44px; padding: 8px 4px; border: 1px solid var(--skin-line); background: rgba(0, 0, 0, .25); text-align: center; }
   #tab-settings .settings-sections > button[aria-pressed="true"] { border-color: rgba(215, 179, 111, .5); box-shadow: inset 0 -2px var(--color-accent-gold); }
-  #tab-settings .settings-sections > button b { font-size: 13px; white-space: nowrap; }
+  #tab-settings .settings-sections > button b { font-size: var(--font-size-ui); white-space: nowrap; }
   .settings-note { display: none; }
   .cfg-block { padding: 8px 10px 4px; }
   .cfg-row, .cfg-disclosure > summary { margin: 0 -4px; padding-inline: 4px; }
@@ -201,16 +201,9 @@
 }
 }
 
-/* 도트 테마(css/themes/pixel.css)는 창 안의 글을 12px 도트 글꼴로, 제목과 접기를 15px 읽기 글꼴로 바꾼다. 설정은 한 줄 이름, 접기, 단축키 이름을
-   14px 읽기 글꼴(Galmuri14, 14px에서 또렷하다)로, 분류 이름을 15px로 키워 한눈에 읽히게 한다. 설명과 값은 12~13px 도트 글꼴 그대로. */
+/* 설정도 공통 갈무리 역할을 따른다. 화면 배율에 따라 글꼴이나 제 크기를 따로 바꾸지 않는다. */
 @layer overrides {
   /* PC 창: 도트 테마는 창 안을 비워 나무결 판이 비치게 한다. 설정 창 안은 휴대폰 설정과 같은 무늬 없는 검정(rgb 8, 10, 9):
      나무결 판 위에서는 글의 대비가 낮고 무늬가 눈을 끌었다(2026-10-16). 제목 줄과 테는 다른 창과 같다. */
   :root body[data-ui-skin].desktop-windowed-ui #tab-settings > .ui-window-body { background: #080a09; }
-  :root body[data-ui-skin] #tab-settings.tab-content .settings-content :is(.cfg-row-text > :is(label, span), .cfg-disclosure > summary, .cloud-link > span, .hotkey-row > .cfg-label) { font-family: var(--font-pixel-read, var(--font-body)); font-size: 14px; font-weight: 400; letter-spacing: 0; }
-  :root body[data-ui-skin] #tab-settings.tab-content .settings-sections > button b { font-family: var(--font-pixel-read, var(--font-body)); font-size: 15px; }
-  :root body[data-ui-skin] #tab-settings.tab-content .settings-content .cfg-select { font-size: 13px; }
-  @container settings (max-width: 620px) {
-    :root body[data-ui-skin] #tab-settings.tab-content .settings-sections > button b { font-size: 13px; }
-  }
 }
