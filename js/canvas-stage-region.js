@@ -29,8 +29,10 @@ const stageRegion = (() => {
     /** 탐험 물체의 그림 이름 → 재질의 조각. 목재 상자는 항아리와 같은 그림을 뒤집어 쓴다. */
     const OBJECTS = Object.freeze({ chest: 'prop-4', chestOpen: 'prop-5', pot: 'prop-6', potBroken: 'prop-7', crate: 'prop-6', crateBroken: 'prop-7' });
     /** 보급 상자 등급의 빛깔(그 재질의 닫힌 상자 그림에 옅게 얹는다). 2026-10-16 사용자 "상자가 열렸을 때 색이 이상해지고": 그림 전체를 덮던
-     * 진한 빛깔(.42, .46)은 상자를 납작한 한 색 덩어리로 만들었다. 열린 상자는 빛깔 없이 그 그림 그대로다. 등급은 테의 빛깔로도 읽힌다. */
-    const GRADE = Object.freeze({ silver: 'rgba(214,226,240,0.2)', gold: 'rgba(255,204,72,0.22)' });
+     * 진한 빛깔(.42, .46)은 상자를 납작한 한 색 덩어리로 만들었다. 열린 상자는 빛깔 없이 그 그림 그대로다. 등급은 테의 빛깔로도 읽힌다.
+     * 은빛은 빛깔을 얹지 않고 테로만 읽힌다(js/canvas-exploration-objects.js): 2026-10-17 사용자 "상자가 뿌옇게 되어있으니 테두리만 은은하게
+     * 더 강조". */
+    const GRADE = Object.freeze({ gold: 'rgba(255,204,72,0.22)' });
 
     const regionOfMap = map => (map && stageView.backdrops() && stageRegionFit.of(map.region)) || null;
     const regionFamily = region => STAGE_REGIONS.families[region.family];

@@ -156,7 +156,7 @@ const EXPLORATION_EVENT_NOTICES = Object.freeze({
 const EXPLORATION_PROP_LOOT = Object.freeze({ itemChance: 0.1, currencyChance: 0.3 });
 const EXPLORATION_CHEST_GRADES = Object.freeze([
     Object.freeze({ id: 'wood', label: '보급 상자', weight: 0.70, rolls: 0, guaranteed: 0, rare: 0, currency: 1, variantScale: 1 }),
-    Object.freeze({ id: 'silver', label: '은빛 보급 상자', weight: 0.24, rolls: 0, guaranteed: 1, rare: 0, currency: 2, variantScale: 2 }),
+    Object.freeze({ id: 'silver', label: '은빛 상자', weight: 0.24, rolls: 0, guaranteed: 1, rare: 0, currency: 2, variantScale: 2 }),
     Object.freeze({ id: 'gold', label: '황금 보급 상자', weight: 0.06, rolls: 1, guaranteed: 2, rare: 1, currency: 4, variantScale: 4 })
 ]);
 

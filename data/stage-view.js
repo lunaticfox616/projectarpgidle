@@ -171,8 +171,9 @@ const STAGE_OBJECTS = Object.freeze({
     themes: Object.freeze({ root: 'assets/objects/stage/objects-root.png' }),
     cell: 96,
     feet: Object.freeze([48, 84]),
-    /** 제 그림이 따로 있는 보급 상자 등급(나무 등급은 기본 그림 chest). */
-    grades: Object.freeze(['silver', 'gold']),
+    /** 제 그림으로 그리는 보급 상자 등급(나무 등급은 기본 그림 chest). 은빛은 나무 상자 그림에 테로만 읽힌다(js/canvas-exploration-objects.js):
+     * 2026-10-17 사용자 "은빛이라기 보단 상자가 뿌옇게 되어있으니 테두리만 은은하게 더 강조". chestSilver 칸은 그림에 남아 있다. */
+    grades: Object.freeze(['gold']),
     names: Object.freeze(['crate', 'crateBroken', 'pot', 'potBroken', 'chest', 'chestOpen', 'chestSilver', 'chestSilverOpen',
         'chestGold', 'chestGoldOpen', 'sealed', 'sealedOpen', 'nest', 'nestSpent', 'tracks'])
 });
