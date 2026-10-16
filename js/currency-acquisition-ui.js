@@ -30,11 +30,29 @@
         }
         if(unlocked.gem)addLog('☁️ 스킬룬 강화 탭이 개방되었습니다!','loot-unique');
     }
+    /** 새 공격 룬이 지금 주 공격 룬보다 보이는 DPS가 10% 넘게 높으면 알림창에 알린다. 주 공격 칸을 잠시 그 룬으로 바꿔 한 번 잰다. */
+    const RUNE_UPGRADE_NOTICE_GAIN=1.1;
+    function noticeRuneUpgrade(name) {
+        if(game.activeSkill===name || !(game.skills||[]).includes(name) || !canUseSkillWithCurrentEquipment(name))return;
+        const keep=game.activeSkill,before=getPlayerStats(false).dps||0;
+        let after=0;
+        game.activeSkill=name;
+        try { after=getPlayerStats(false).dps||0; } finally { game.activeSkill=keep; }
+        if(before>0 && after>=before*RUNE_UPGRADE_NOTICE_GAIN)showGameToast(`더 강한 공격 룬을 얻었습니다. 「${name}」`,{tone:'reward',duration:4200});
+    }
+    /** 주 공격으로 쓰는 공격 룬(위습 소환 말고)을 얻었으면 전투 틱이 끝난 뒤 noticeRuneUpgrade로 잰다. 방치 정산 중에는 재지 않는다. */
+    function queueRuneUpgradeNotice({gem,kind}) {
+        if(!gem || kind!=='attack' || game.isBackgroundCalculation || (SKILL_DB[gem.name]?.tags||[]).includes('summon'))return;
+        setTimeout(()=>noticeRuneUpgrade(gem.name),0);
+    }
+    /** 공격 룬 줄 끝: 지금 든 무기로 쓸 수 없으면 그 까닭. */
+    const runeWeaponNote=name=>(canUseSkillWithCurrentEquipment(name)?'':` (지금 무기로 쓸 수 없음: ${getSkillRuneWeaponNote(name)})`);
     function announceGemReward(reward) {
+        queueRuneUpgradeNotice(reward);
         if(!game.settings.showLootLog)return;
         const {gem,kind,shards,name}=reward,suffix=shards?` 룬 잔향 +${shards}`:'';
         if(gem) {
-            if(kind==='attack')addLog(`✨ 공격 룬 <span class='loot-magic'>[${gem.name}]</span> 획득!${gem.awakened?' (각성 후보)':''}${suffix}`);
+            if(kind==='attack')addLog(`✨ 공격 룬 <span class='loot-magic'>[${gem.name}]</span> 획득!${gem.awakened?' (각성 후보)':''}${runeWeaponNote(gem.name)}${suffix}`);
             else addLog(`🟢 보조스킬룬 <span class='loot-rare'>[${gem.name}]</span> 획득! (해금: ${getSupportTierLabel(gem.name,gem.tier)})${suffix}`);
             return;
         }
