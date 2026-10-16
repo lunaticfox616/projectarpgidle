@@ -20,6 +20,8 @@ const PRIVATE_BRANCH = 'main';
 const PUBLIC_BASE = '98bc57a481906e8b5de697ece8eccf240a015af5';
 // Changing this list rewrites public history: the next run then stops and needs --force-public.
 const PRIVATE_PATHS = ['assets/playable/hana', 'assets/summon/hana', 'docs/skill-assets-hana/reference'];
+// Files put into the private repo by hand (never in any public commit, so never in rignin-next): kept as they are on every sync.
+const HAND_PRIVATE_PATHS = ['assets/stage-vfx/vfx.png'];
 // Safety net for licensed art added somewhere new: any image whose path looks like it blocks the public push.
 const LICENSED_ART = /hana|caraka/i;
 const IMAGE = /\.(png|jpe?g|gif|webp|bmp|psd|aseprite)$/i;
@@ -30,6 +32,7 @@ RIGNIN(projectarpgidle)에서 **공개하면 안 되는 파일만** 모아 둔 �
 
 - \`assets/playable/hana/\` — Hana Caraka 캐릭터 스프라이트 (외부 라이선스 · 팀 내부 전용 · 재배포 금지)
 - \`docs/skill-assets-hana/reference/\` — 스킬 인계 원본 보관본
+- \`assets/stage-vfx/vfx.png\` — 구입한 무대 스킬 이펙트 묶음(상업적 이용 가능, 재배포 금지). 직접 올린 파일이라 갱신 때도 그대로 둔다
 
 코드는 공개 저장소 \`lunaticfox616/projectarpgidle\`의 \`${BRANCH}\` 브랜치에 있고, 위 파일들은 그 이력 전체에서 빠져 있습니다.
 경로가 같으므로 공개 브랜치를 받은 뒤 이 저장소의 \`assets\`, \`docs\` 폴더를 그 위에 그대로 복사하면 완전한 게임이 됩니다.
@@ -88,12 +91,13 @@ function isAncestor(git, older, newer) {
 function buildPrivateCommit(git, work, source) {
     const entries = lines(git(['ls-tree', '-r', '--full-tree', source, '--', ...PRIVATE_PATHS]));
     if (!entries.length) fail(`${PRIVATE_PATHS.join(', ')} 경로에 파일이 없습니다. 경로가 바뀌었다면 PRIVATE_PATHS를 고치세요.`);
-    const readme = git(['hash-object', '-w', '--stdin'], { input: PRIVATE_README });
-    const env = { ...process.env, GIT_INDEX_FILE: path.join(work, 'private.index') };
-    git(['update-index', '--add', '--index-info'], { env, input: [...entries, `100644 blob ${readme}\tREADME.md`].join('\n') + '\n' });
-    const tree = git(['write-tree'], { env });
     const remote = remoteHead(PRIVATE_URL, PRIVATE_BRANCH);
     if (remote) git(['fetch', '-q', PRIVATE_URL, `+refs/heads/${PRIVATE_BRANCH}:refs/private/${PRIVATE_BRANCH}`]);
+    const kept = remote ? lines(git(['ls-tree', '-r', '--full-tree', remote, '--', ...HAND_PRIVATE_PATHS])) : [];
+    const readme = git(['hash-object', '-w', '--stdin'], { input: PRIVATE_README });
+    const env = { ...process.env, GIT_INDEX_FILE: path.join(work, 'private.index') };
+    git(['update-index', '--add', '--index-info'], { env, input: [...entries, ...kept, `100644 blob ${readme}\tREADME.md`].join('\n') + '\n' });
+    const tree = git(['write-tree'], { env });
     if (remote && git(['rev-parse', `${remote}^{tree}`]) === tree) return { files: entries.length, remote, commit: remote };
     const message = `Sync licensed files from ${BRANCH} ${source.slice(0, 8)}`;
     const commit = git(['commit-tree', tree, ...(remote ? ['-p', remote] : []), '-m', message], { env: { ...process.env, ...git.identity } });
