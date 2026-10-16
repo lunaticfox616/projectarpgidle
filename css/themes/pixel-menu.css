@@ -367,10 +367,27 @@ body[data-ui-skin] .window-tab-strip > .window-tab { display: flex; align-items:
     background-image: var(--px-button-art-down);
     filter: none;
   }
-  /* 알림 점, 가득 참, 이름표는 커진 그림의 위 끝을 따라 올라간다 */
-  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-tab-layer > .tab-btn[data-button-art] > .noti-dot { top: calc(var(--px-key) - var(--px-key-art)); right: 0; }
-  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-tab-layer > .tab-btn[data-button-art] > .inventory-full-warning { top: calc(var(--px-key) - var(--px-key-art) - 10px); }
-  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-tab-layer > .tab-btn[data-button-art] > .ui-rail-label { bottom: calc(100% + var(--px-key-art) - var(--px-key) + 8px); }
+  /* 단추 그림이 없는 메뉴(재능, NPC)도 같은 크기다(2026-10-16 사용자 "재능이랑 NPC 탭 크기를 다른 탭버튼 이미지랑 통일"): 공용 틀과
+     아이콘을 ::after가 --px-key-art 크기로 함께 그리고(단추 바탕은 상자 밖 위로 자랄 수 없다), 그림 단추처럼 칸의 아래 끝에 맞춰 위로 자란다.
+     아이콘은 32px(틀 안쪽 자리)이고 content-box로 잘라 옆 아이콘이 비치지 않는다. */
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-tab-layer > .tab-btn:not([data-button-art]),
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-tab-layer > .tab-btn:not([data-button-art]):is(.ui-window-open, [aria-pressed='true']) { background: none; }
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-tab-layer > .tab-btn:not([data-button-art])::after,
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-tab-layer > .tab-btn:not([data-button-art]):active::after {
+    inset: calc(var(--px-key) - var(--px-key-art)) calc((var(--px-key-slot) - var(--px-key-art)) / 2) auto;
+    box-sizing: border-box;
+    height: var(--px-key-art);
+    padding: 8px;
+    background: var(--px-menu-icons) calc(var(--px-icon, 0) * -32px) 0 / calc(var(--px-icon-count) * 32px) 32px no-repeat content-box,
+      var(--px-key-frame) center / var(--px-key-art) var(--px-key-art) no-repeat border-box;
+  }
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-tab-layer > .tab-btn:not([data-button-art]):is(.ui-window-open, [aria-pressed='true'])::after {
+    background-image: var(--px-menu-icons), var(--px-key-frame-on);
+  }
+  /* 알림 점, 가득 참, 이름표는 커진 그림(틀)의 위 끝을 따라 올라간다 */
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-tab-layer > .tab-btn > .noti-dot { top: calc(var(--px-key) - var(--px-key-art)); right: 0; }
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-tab-layer > .tab-btn > .inventory-full-warning { top: calc(var(--px-key) - var(--px-key-art) - 10px); }
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-tab-layer > .tab-btn > .ui-rail-label { bottom: calc(100% + var(--px-key-art) - var(--px-key) + 8px); }
 
   /* 이름표: 단추에 올리면 위에 뜬다(단축키가 있으면 옆에). 기타·정리는 aria-label을 쓴다. */
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-tab-layer > .tab-btn > .ui-rail-label,
