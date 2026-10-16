@@ -21,7 +21,7 @@ const messageFrames = (() => {
     // 둘이 오른쪽 끝으로 옮겨 오며(2026-10-07) 작은 화면(높이 720)에서 기록 창이 목표 단추를 덮었다.
     const TOP_RESERVE = 96;
     // 크기 조절 테두리: 오른쪽 아래 모서리(보이는 손잡이) 말고도 위, 아래, 양옆과 나머지 세 모서리.
-    const EDGES = Object.freeze(['n', 's', 'e', 'w', 'nw', 'ne', 'sw']);
+    const EDGES = Object.freeze(['n', 's', 'e', 'w', 'nw', 'ne', 'sw', 'se']);
     const homes = new Map();
     // Last applied bounds, including clamping. Default placement stays responsive without persisting it as a custom layout.
     const placedRects = { main: null, side: null };
@@ -327,7 +327,7 @@ const messageFrames = (() => {
         el.className = 'message-frame';
         el.setAttribute('aria-label', frame === 'main' ? '전투 기록과 채팅' : '따로 띄운 탭');
         el.innerHTML = '<div class="message-frame-bar"><div class="message-frame-tabs" role="tablist"></div><div class="message-frame-actions"></div></div>'
-            + '<div class="message-frame-body"></div><div class="message-frame-resize" data-edges="se" aria-hidden="true"></div>'
+            + '<div class="message-frame-body"></div>'
             + EDGES.map(edges => `<div class="message-frame-edge" data-edges="${edges}" aria-hidden="true"></div>`).join('');
         el.querySelector('.message-frame-bar').addEventListener('pointerdown', event => onBarPointerDown(event, frame));
         el.querySelectorAll('[data-edges]').forEach(handle => handle.addEventListener('pointerdown', event => beginResize(event, frame, handle.dataset.edges)));

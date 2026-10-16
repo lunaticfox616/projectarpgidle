@@ -118,7 +118,6 @@ body[data-ui-skin="rift"].desktop-windowed-ui .ui-window-active .ui-window-title
   border-radius: 3px;
 }
 :root body[data-ui-skin="rift"].desktop-windowed-ui .ui-window-actions button:hover { color: #f3cf7a; border-color: var(--skin-line-strong); background: #1d2024; }
-:root body[data-ui-skin="rift"].desktop-windowed-ui .ui-window-resize::after { border-color: var(--skin-line-strong); }
 
 /* 전장: 두꺼운 푸른 테두리 대신 바닥에 스며드는 어둠. */
 :root body[data-ui-skin="rift"].desktop-windowed-ui .combat-panel { background: #07080a; }

@@ -168,8 +168,6 @@
   body.desktop-windowed-ui .ui-window-body button:focus-visible,
   body.desktop-windowed-ui .ui-window-body input:focus-visible,
   body.desktop-windowed-ui .ui-window-body select:focus-visible { outline: 2px solid rgba(245, 203, 113, .92); outline-offset: 2px; }
-  body.desktop-windowed-ui .ui-window-resize { position: absolute; z-index: 10; right: 5px; bottom: 5px; width: 26px; height: 26px; cursor: nwse-resize; }
-  body.desktop-windowed-ui .ui-window-resize::after { content: ''; position: absolute; right: 5px; bottom: 5px; width: 10px; height: 10px; border-right: 2px solid #d5b66f; border-bottom: 2px solid #d5b66f; filter: drop-shadow(0 1px 1px #000); }
   body.desktop-windowed-ui .ui-window-active { border-color: rgba(207, 174, 99, .82); box-shadow: 0 24px 74px rgba(0,0,0,.62), 0 0 0 1px rgba(232, 194, 106, 0.18); }
   body.desktop-windowed-ui .ui-window-active .ui-window-titlebar { background: linear-gradient(180deg, #28405e, #19283c); }
 

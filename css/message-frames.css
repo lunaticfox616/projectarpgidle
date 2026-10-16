@@ -89,26 +89,13 @@ body[data-ui-skin] .message-frame-actions [data-message-action="settings"]::befo
 }
 .message-frame-body { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; overflow: hidden; padding: 2px 4px 4px; }
 
-.message-frame.collapsed .message-frame-body,
-.message-frame.collapsed .message-frame-resize { display: none; }
+.message-frame.collapsed .message-frame-body { display: none; }
 
-.message-frame-resize {
-  position: absolute;
-  z-index: 2;
-  right: 0;
-  bottom: 0;
-  width: 14px;
-  height: 14px;
-  cursor: nwse-resize;
-  touch-action: none;
-  background: linear-gradient(135deg, transparent 50%, var(--px-bronze, #845f42) 50% 58%, transparent 58% 70%, var(--px-bronze, #845f42) 70% 78%, transparent 78%);
-}
-
-/* 테두리 어디서든 크기를 바꾼다. 화면 아래에 둔 창도 위로 키울 수 있다. 보이는 손잡이는 오른쪽 아래 하나다. */
+/* 테두리 어디서든 크기를 바꾼다. 화면 아래에 둔 창도 위로 키울 수 있다. 보이는 손잡이는 없다(2026-10-16 사용자). */
 .message-frame-edge { position: absolute; z-index: 1; touch-action: none; }
 .message-frame-edge:is([data-edges="n"], [data-edges="s"]) { right: 8px; left: 8px; height: 8px; cursor: ns-resize; }
 .message-frame-edge:is([data-edges="e"], [data-edges="w"]) { top: 8px; bottom: 8px; width: 8px; cursor: ew-resize; }
-.message-frame-edge:is([data-edges="nw"], [data-edges="ne"], [data-edges="sw"]) { width: 12px; height: 12px; }
+.message-frame-edge:is([data-edges="nw"], [data-edges="ne"], [data-edges="sw"], [data-edges="se"]) { width: 12px; height: 12px; }
 .message-frame-edge[data-edges="n"] { top: -4px; }
 .message-frame-edge[data-edges="s"] { bottom: -4px; }
 .message-frame-edge[data-edges="e"] { right: -4px; }
@@ -116,6 +103,7 @@ body[data-ui-skin] .message-frame-actions [data-message-action="settings"]::befo
 .message-frame-edge[data-edges="nw"] { top: -4px; left: -4px; cursor: nwse-resize; }
 .message-frame-edge[data-edges="ne"] { top: -4px; right: -4px; cursor: nesw-resize; }
 .message-frame-edge[data-edges="sw"] { bottom: -4px; left: -4px; cursor: nesw-resize; }
+.message-frame-edge[data-edges="se"] { bottom: -4px; right: -4px; cursor: nwse-resize; }
 .message-frame.collapsed .message-frame-edge { display: none; }
 
 /* 옮겨 온 기록과 채팅: 원래 판의 테와 자리(오른쪽 고정, 두꺼운 테) 규칙은 끄고 글만 쓴다. */
