@@ -46,6 +46,8 @@ __pycache__/
 # 무대 스킬 이펙트 그림(scripts/build-stage-skill-vfx.cjs가 옮긴다): 구매 팩이라 다시 나눠 주면 안 된다. 비공개 저장소에만 두고,
 # 배포할 때 그 저장소의 assets가 묶음에 들어간다. 나머지 무대 그림(주인공, 몬스터, NPC, 배경, 보스 효과)은 저장소에 있다.
 /assets/stage-vfx/vfx.png
+# 두 번째 묶음(2026-10-17 스킬룬 인계 v32: Met.Pxl Mega Pack, vfx_slash, magic_arrow, Effect Pack 1~7, 9). 같은 약관이다.
+/assets/stage-vfx/vfx2.png
 # 쓰지 않는 첫 무대 조각 키트(지금 배경은 assets/stage-scenes).
 /assets/playable/stage/scenes/
 /assets/summon/hana/

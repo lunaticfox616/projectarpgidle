@@ -1,15 +1,17 @@
 #!/usr/bin/env node
-/* 스킬 이펙트 묶음(2026-10-13 사용자가 준 "스킬젬 리메이크 인계": 구매 팩에서 고른 이펙트 그림 한 장과 젬마다의 연결표)을 게임이
- * 읽는 모양으로 옮긴다(docs/stage-view-20261011.md).
+/* 스킬룬 이펙트 묶음(2026-10-17 사용자가 준 "스킬룬 디렉터 전달" v32. 그 앞은 2026-10-13 "스킬젬 리메이크 인계" v21: 구매 팩에서 고른
+ * 이펙트 그림과 룬마다의 연결표)을 게임이 읽는 모양으로 옮긴다(docs/stage-view-20261011.md).
  *
  *   node scripts/build-stage-skill-vfx.cjs <인계 폴더> [복사해 둘 폴더]
  *
- * <인계 폴더>는 00_먼저_읽기_인계서.md가 있는 폴더다. 여기서
- *   2_시뮬레이터/vfx/vfx.json, vfx.png      이펙트 그림 한 장과 그 칸의 자리
- *   2_시뮬레이터/src/gem_template.html      색 램프(RAMP), 클립(CLIPS), 무기 휘두름의 기본 클립(SWING_CLIP), 젬마다의 연결(VFXMAP)
- *   젬_목록.json                            젬의 계열과 동작 슬롯(시전 마법진을 띄울 젬, 근접 타격을 쓰는 젬)
+ * <인계 폴더>는 00_먼저_읽기.md(v21은 00_먼저_읽기_인계서.md)가 있는 폴더다. 여기서
+ *   2_시뮬레이터/vfx/vfx.json, vfx.png      이펙트 그림 첫 장과 그 칸의 자리
+ *   2_시뮬레이터/vfx/vfx2.json, vfx2.png    둘째 장(v32부터, 있으면): 칸 표에 im: 1이 붙는다
+ *   2_시뮬레이터/src/gem_template.html      색 램프(RAMP), 클립(CLIPS), 무기 휘두름의 기본 클립(SWING_CLIP), 룬마다의 연결(VFXMAP),
+ *                                           속성별 타격 묶음(HIT_POOL, v32부터)
+ *   스킬룬_목록.json(v21은 젬_목록.json)     룬의 계열과 동작 슬롯, v32는 직업과 무기 자세마다 쓰는 동작(motions)도
  * 을 읽어
- *   그림: assets/stage-vfx/vfx.png (저장소에 넣지 않는다. 구매 팩에서 온 그림이라 다시 나눠 주면 안 된다). [복사해 둘 폴더]에도 둔다.
+ *   그림: assets/stage-vfx/vfx.png, vfx2.png (저장소에 넣지 않는다. 구매 팩에서 온 그림이라 다시 나눠 주면 안 된다). [복사해 둘 폴더]에도 둔다.
  *   표: data/stage-skill-vfx.js (수치와 이름만 있다).
  * 인계 폴더의 스크립트는 실행하지 않는다. 표는 글자로 읽어 풀고(값, 배열, 묶음만 받아들인다), 쓰이는 클립의 칸만 옮긴다.
  */
@@ -96,10 +98,32 @@ function tableText(name) {
 const table = name => readLiteral(tableText(name));
 
 const ramps = table('RAMP'), clips = table('CLIPS'), swingClips = table('SWING_CLIP'), gems = table('VFXMAP'), elementRamp = table('EL_RAMP');
+/** 클립 표의 줄 주석 안에 들어가 버린 클립 줄(v32: "// 신성한 기도: 번개창이 꽂힌 자리 p_bow: {...}"로 활 발사 섬광 클립이 시뮬레이터에서도
+ * 없어졌다. 시뮬레이터의 코드는 그 클립을 튼다): 주석 뒤의 "이름: { a: '원본', … }"을 살려 넣는다. */
+const commentedClips = [];
+for (const line of tableText('CLIPS').split('\n')) {
+    const comment = line.indexOf('//');
+    if (comment < 0) continue;
+    for (const m of line.slice(comment).matchAll(/([A-Za-z_]\w*): (\{ a: '[^']+'[^}]*\})/g)) {
+        if (clips[m[1]] || !(template.includes(`'${m[1]}@`) || template.includes(`'${m[1]}'`))) continue;   // 아무도 틀지 않는 클립은 살리지 않는다
+        clips[m[1]] = readLiteral(m[2]);
+        commentedClips.push(m[1]);
+    }
+}
 // 속성의 세 색(코드로 그리는 연출이 쓴다): 이름은 빼고 색만 옮긴다.
 const elements = Object.fromEntries(Object.entries(table('EL')).map(([key, row]) => [key, { c1: row.c1, c2: row.c2, c3: row.c3 }]));
-const atlasAll = JSON.parse(fs.readFileSync(path.join(sim, 'vfx/vfx.json'), 'utf8'));
-const gemList = Object.values(JSON.parse(fs.readFileSync(path.join(from, '젬_목록.json'), 'utf8')));
+const hitPool = template.includes('const HIT_POOL = {') ? table('HIT_POOL') : {};
+/** 칸 표: 첫 장은 그대로, 둘째 장(vfx2)은 줄마다 im: 1을 붙여 합친다. */
+const SHEETS = ['vfx', 'vfx2'].filter(name => fs.existsSync(path.join(sim, `vfx/${name}.json`)));
+const atlasAll = {};
+SHEETS.forEach((name, im) => {
+    for (const [key, row] of Object.entries(JSON.parse(fs.readFileSync(path.join(sim, `vfx/${name}.json`), 'utf8')))) {
+        if (atlasAll[key]) throw new Error('두 그림에 같은 이름: ' + key);
+        atlasAll[key] = im ? { ...row, im } : row;
+    }
+});
+const listFile = ['스킬룬_목록.json', '젬_목록.json'].map(name => path.join(from, name)).find(file => fs.existsSync(file));
+const gemList = Object.values(JSON.parse(fs.readFileSync(listFile, 'utf8')));
 
 // ---------------------------------------------------------------- what the game needs
 const used = new Set(Object.values(clips).map(clip => clip.a));
@@ -107,45 +131,78 @@ const atlas = {};
 for (const name of [...used].sort()) {
     const row = atlasAll[name];
     if (!row) throw new Error('그림에 없는 클립 원본: ' + name);
-    atlas[name] = { w: row.w, h: row.h, n: row.n, p: row.p.map(value => Math.round(value * 10) / 10), fx: row.fx, fb: row.fb };
+    atlas[name] = { w: row.w, h: row.h, n: row.n, p: row.p.map(value => Math.round(value * 10) / 10), fx: row.fx, fb: row.fb, ...(row.im ? { im: row.im } : {}) };
 }
 // 연결표가 가리키는 클립이 모두 있는지 본다.
 const refsOf = value => (typeof value === 'string' ? [value] : Array.isArray(value) ? value.flatMap(refsOf) : value && typeof value === 'object' ? Object.values(value).flatMap(refsOf) : []);
-const SPECIAL = new Set(['none', 'pierce', 'rune', 'clock', 'judgment']);
+// 클립이 아닌 글자: 'none' 끄기, 코드로 그리는 휘두름(pierce, rise), 옛 그림을 쓰는 룬(rune, clock, judgment)
+const SPECIAL = new Set(['none', 'pierce', 'rise', 'rune', 'clock', 'judgment']);
+for (const [pool, refs] of Object.entries(hitPool)) for (const ref of refs) if (!clips[ref.split('@')[0]]) throw new Error(`타격 묶음 ${pool}: 없는 클립 ${ref}`);
 for (const [id, map] of Object.entries(gems)) for (const [hook, value] of Object.entries(map)) {
     if (hook === 'ramp' || hook === 'chop' || hook === 'old') continue;
-    for (const ref of refsOf(value)) if (!SPECIAL.has(ref) && !clips[ref.split('@')[0]]) throw new Error(`젬 ${id}의 ${hook}: 없는 클립 ${ref}`);
+    for (const ref of refsOf(value)) if (!SPECIAL.has(ref) && !clips[ref.split('@')[0]]) throw new Error(`룬 ${id}의 ${hook}: 없는 클립 ${ref}`);
 }
-/** 젬의 갈래: cast 시전 마법진을 띄운다(주문, 위습, 시전과 집중 슬롯), melee 근접 타격 모양을 쓴다(인계의 kind가 strike, whirl, move). */
+/** 룬의 갈래: cast 시전 마법진을 띄운다(주문, 위습, 시전과 집중 슬롯), melee 근접 타격 모양을 쓴다(인계의 kind가 strike, whirl, move). */
 const meta = {};
 for (const gem of gemList) meta[gem.id] = { name: gem.n, el: gem.el, cast: /시전|집중/.test(gem.slot) || gem.fam === 'spell' || gem.fam === 'wisp', melee: ['strike', 'whirl', 'move'].includes(gem.kind), kind: gem.kind };
-
-const picture = fs.readFileSync(path.join(sim, 'vfx/vfx.png'));
-for (const out of [path.join(root, 'assets/stage-vfx'), ...(mirror ? [mirror] : [])]) {
-    fs.mkdirSync(out, { recursive: true });
-    fs.writeFileSync(path.join(out, 'vfx.png'), picture);
+/** 룬을 쓸 때 주인공이 하는 동작(v32의 motions): 룬 번호 → 직업 → 무기 자세 → data/stage-characters.js의 동작 이름('공격2' → 'attack2'). */
+const CLASS_IDS = { 방랑자: 'wanderer', 전사: 'warrior', 궁수: 'archer', 비술사: 'occultist', 연금술사: 'alchemist', 성직자: 'cleric' };
+const STANCE_IDS = { 맨손: 'unarmed', 검방패: 'swordshield', 단검: 'dagger', 활: 'bow', 오브: 'orb', 플라스크: 'flask', 향로: 'censer' };
+const MOTION_IDS = { 대기: 'idle', 걷기: 'walk', 공격: 'attack', 시전: 'cast', 투척: 'throw', 전용공격: 'special', 사망: 'death', 연타: 'flurry', 방패공격: 'bash' };
+function motionId(name) {
+    const hit = /^(\D+?)(\d*)$/.exec(name), base = hit && MOTION_IDS[hit[1]];
+    if (!base) throw new Error('모르는 동작 이름: ' + name);
+    return base + hit[2];
 }
-const version = crypto.createHash('sha1').update(picture).digest('hex').slice(0, 10);
+const motions = {};
+for (const gem of gemList) {
+    if (!gem.motions) continue;
+    const byClass = {};
+    for (const [classLabel, stances] of Object.entries(gem.motions)) {
+        const classId = CLASS_IDS[classLabel];
+        if (!classId) throw new Error('모르는 직업: ' + classLabel);
+        byClass[classId] = Object.fromEntries(Object.entries(stances).map(([stanceLabel, row]) => {
+            if (!STANCE_IDS[stanceLabel]) throw new Error('모르는 무기 자세: ' + stanceLabel);
+            return [STANCE_IDS[stanceLabel], motionId(row.m)];
+        }));
+    }
+    motions[gem.id] = byClass;
+}
+
+const files = SHEETS.map(name => name + '.png'), hash = crypto.createHash('sha1');
+for (const file of files) {
+    const picture = fs.readFileSync(path.join(sim, 'vfx', file));
+    hash.update(picture);
+    for (const out of [path.join(root, 'assets/stage-vfx'), ...(mirror ? [mirror] : [])]) {
+        fs.mkdirSync(out, { recursive: true });
+        fs.writeFileSync(path.join(out, file), picture);
+    }
+}
+const version = hash.digest('hex').slice(0, 10);
+const megabytes = files.reduce((sum, file) => sum + fs.statSync(path.join(sim, 'vfx', file)).size, 0) / 1048576;
 
 // ---------------------------------------------------------------- the table file
 const q = value => JSON.stringify(value).replace(/"([A-Za-z_$][\w$]*)":/g, '$1:').replace(/"/g, '\'');
 const rows = (object, indent) => Object.entries(object).map(([key, value]) => `${indent}${/^[A-Za-z_$][\w$]*$/.test(key) ? key : `'${key}'`}: ${q(value)}`).join(',\n');
 const text = `// 스킬 이펙트 묶음 (js/canvas-stage-skill-vfx.js). scripts/build-stage-skill-vfx.cjs가 만든 표다: 손으로 고치지 않는다.
-// 2026-10-13 사용자가 준 "스킬젬 리메이크 인계"에서 이펙트만 옮겼다: 구매 팩에서 고른 이펙트 그림 한 장(assets/stage-vfx/vfx.png,
-// 저장소에 넣지 않는다)과 젬마다 어느 클립을 어느 때 쓰는지. 젬의 판정, 무기 조건, 수치는 옮기지 않았다(게임의 것 그대로).
+// 2026-10-17 사용자가 준 "스킬룬 디렉터 전달"(v32)의 이펙트: 구매 팩에서 고른 이펙트 그림 두 장(assets/stage-vfx/vfx.png, vfx2.png,
+// 저장소에 넣지 않는다)과 룬마다 어느 클립을 어느 때 쓰는지, 룬을 쓸 때의 동작. 룬의 판정, 무기 조건, 수치는 data/skills.js가 갖는다.
 //   ramps   색 램프: 어두운 쪽에서 밝은 쪽으로 여섯 단계. 클립을 '이름@램프'로 부르면 그림의 밝기를 이 여섯 색으로 다시 칠한다('@='는 원래 색).
-//   elementRamp 속성 → 램프. 젬이 램프를 정하지 않은 클립은 젬의 속성 색으로 칠한다.
+//   elementRamp 속성 → 램프. 룬이 램프를 정하지 않은 클립은 룬의 속성 색으로 칠한다.
 //   elements 속성의 세 색(c1 밝은색, c2 중간색, c3 어두운색): 코드로 그리는 연출(마법진, 바늘, 창과 독니)이 쓴다.
-//   atlas   클립 원본: w, h 한 칸의 크기, n 칸 수, p 밝기의 범위(다시 칠할 때의 기준), fx 칸마다의 자리, fb 칸마다 그림이 차지하는 상자.
+//   atlas   클립 원본: w, h 한 칸의 크기, n 칸 수, p 밝기의 범위(다시 칠할 때의 기준), fx 칸마다의 자리, fb 칸마다 그림이 차지하는 상자,
+//           im 그림 번호(files의 몇째 장, 없으면 첫 장).
 //   clips   클립: a 원본, f 쓰는 칸의 처음과 끝, an 기준점(center 가운데, bottom 바닥, left 왼쪽, right 오른쪽), sc 배율, ms 한 칸의 시간,
 //           loop 반복, one 넓은 범위에도 하나만, few 고리에 적게, small 타격 효과로 쓸 때 줄이지 않음, next 이어지는 클립, flat 바닥에 눕히는 비율.
-//   swingClips 무기 휘두름의 기본 클립(젬이 휘두름을 정하지 않았을 때).
-//   gems    젬 번호(data/skill-fx-atlas.js의 id) → 훅: 클립. swing 휘두름, chop 내려찍기, impact 내려찍은 자리, hit 맞은 적, area 범위,
+//   swingClips 무기 휘두름의 기본 클립(룬이 휘두름을 정하지 않았을 때).
+//   hitPool 속성별 타격 묶음: 룬이 타격을 정하지 않았으면 맞을 때마다 이 가운데 하나(physM 근접 물리, physR 그 밖의 물리, blood 피 램프).
+//   gems    룬 번호(data/skill-fx-atlas.js의 id) → 훅: 클립. swing 휘두름, chop 내려찍기, impact 내려찍은 자리, hit 맞은 적, area 범위,
 //           after 여진, wave 나아가는 파동, zap 연쇄 번개, fall 낙하, tick 지속 타격, muzzle 발사 섬광, blast 착탄 … (인계의 02_이펙트_연결표.md).
-//   meta    젬 번호 → 인계의 젬 갈래: el 속성, cast 시전 마법진을 띄우는 젬, melee 근접 타격 모양을 쓰는 젬, kind 인계의 판정 갈래.
+//   meta    룬 번호 → 인계의 룬 갈래: el 속성, cast 시전 마법진을 띄우는 룬, melee 근접 타격 모양을 쓰는 룬, kind 인계의 판정 갈래.
+//   motions 룬 번호 → 직업 → 무기 자세 → 그 룬을 쓸 때의 동작(data/stage-characters.js의 동작 이름).
 const STAGE_SKILL_VFX = Object.freeze({
     path: 'assets/stage-vfx/',
-    file: 'vfx.png',
+    files: Object.freeze(${q(files)}),
     version: '${version}',
     ramps: Object.freeze({
 ${rows(ramps, '        ')}
@@ -155,6 +212,7 @@ ${rows(ramps, '        ')}
 ${rows(elements, '        ')}
     }),
     swingClips: Object.freeze(${q(swingClips)}),
+    hitPool: Object.freeze(${q(hitPool)}),
     clips: Object.freeze({
 ${rows(clips, '        ')}
     }),
@@ -164,6 +222,9 @@ ${rows(gems, '        ')}
     meta: Object.freeze({
 ${rows(meta, '        ')}
     }),
+    motions: Object.freeze({
+${rows(motions, '        ')}
+    }),
     atlas: Object.freeze({
 ${rows(atlas, '        ')}
     })
@@ -171,4 +232,5 @@ ${rows(atlas, '        ')}
 safeExposeData({ STAGE_SKILL_VFX });
 `;
 fs.writeFileSync(path.join(root, 'data/stage-skill-vfx.js'), text);
-console.log(`클립 ${Object.keys(clips).length}개(원본 ${Object.keys(atlas).length}개), 젬 ${Object.keys(gems).length}종, 그림 ${(picture.length / 1048576).toFixed(1)}MB, 판 ${version}`);
+if (commentedClips.length) console.log(`주석 안에서 살린 클립: ${commentedClips.join(', ')}`);
+console.log(`클립 ${Object.keys(clips).length}개(원본 ${Object.keys(atlas).length}개), 룬 ${Object.keys(gems).length}종, 동작 ${Object.keys(motions).length}종, 그림 ${files.length}장 ${megabytes.toFixed(1)}MB, 판 ${version}`);

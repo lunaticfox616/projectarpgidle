@@ -1,5 +1,6 @@
 /** 옆에서 보는 무대의 스킬 이펙트 (data/stage-skill-vfx.js, 2026-10-13 사용자: "첨부한 파일은 새로운 스킬 이펙트니까 이것도 게임에
- * 적용시켜줘"). 인계 받은 이펙트 그림 한 장(assets/stage-vfx/vfx.png)에서 클립을 잘라 재생한다. 인계 쪽 시뮬레이터의 재생기를 옮긴 것이다.
+ * 적용시켜줘"). 인계 받은 이펙트 그림(assets/stage-vfx/vfx.png, 2026-10-17 스킬룬 인계 v32부터 둘째 장 vfx2.png)에서 클립을 잘라 재생한다.
+ * 인계 쪽 시뮬레이터의 재생기를 옮긴 것이다. 칸 표의 im이 그 클립 원본이 든 그림(STAGE_SKILL_VFX.files의 몇째 장)이다.
  * - 클립은 '이름@램프'로 부른다: 그림의 밝기를 램프의 여섯 색으로 다시 칠한다('@='는 원래 색). 색감은 인계의 기본값인 "옅게"다.
  * - 맞은 적에 붙는 타격 클립은 인계의 기본값 "약하게"로 낸다: 작게, 조금 투명하게, 다섯 칸까지만, 동시에 다섯 개까지.
  * - 클립의 자리는 칸(소수)과 거기서의 도트 오프셋으로 적어 둔다: 방이 화면보다 넓어 카메라가 움직여도 제자리에 남는다.
@@ -23,11 +24,12 @@ const stageSkillVfx = (() => {
     const CUT_BUDGET_MS = 3;                      // 한 차례에 띠를 만드는 데 쓰는 시간(띠 하나는 끝까지 만든다)
     const CUT_GAP_MS = 16;                        // 차례 사이의 쉼: 한 프레임에 한 차례만 들게 한다(느린 기기에서 잇달아 돌면 한 프레임에 몰렸다)
     const ATLAS_IDLE_MS = 3000;                   // 만들 띠가 없어진 뒤 이만큼 지나면 풀어 둔 원본을 놓는다(62MB)
-    let picture = null, failed = false, clock = 0, tintBlocked = false;
+    let pictures = null, clock = 0, tintBlocked = false, lastProjection = null;   // 불러오는 그림들(STAGE_SKILL_VFX.files 차례)
     const sheets = new Map();                     // "원본|램프" → 다시 칠한 띠 그림(칸을 가로로 늘어놓은 것). 다 만든 것만 든다
     const cutQueue = [];                          // 만들 띠의 열쇠(차례대로)
     const asked = new Set();                      // cutQueue에 든 열쇠
-    let atlas = null, atlasUsedAt = 0;            // 풀어 둔 원본(자르는 동안만 든다)과 마지막으로 쓴 때
+    const atlases = new Map();                    // 그림 번호 → 풀어 둔 원본(자르는 동안만 든다)
+    let atlasUsedAt = 0;                          // 원본을 마지막으로 쓴 때
     let pumpTimer = null, pumpDue = 0;            // 걸어 둔 다음 차례와 그때
     const boxes = new Map();                      // 클립 이름 → 기준점과 크기
     const tones = new Map();                      // 색 → 옅게 바꾼 색
@@ -35,17 +37,25 @@ const stageSkillVfx = (() => {
     const watchers = [];                          // 프레임마다 부르는 일(거짓을 돌려주면 그만 부른다)
 
     function loadVfxPicture() {
-        if (picture || typeof STAGE_SKILL_VFX !== 'object') return;
-        picture = new Image();
-        picture.decoding = 'async';
-        picture.onerror = () => { failed = true; };
-        picture.src = STAGE_SKILL_VFX.path + STAGE_SKILL_VFX.file + '?v=' + STAGE_SKILL_VFX.version;
+        if (pictures || typeof STAGE_SKILL_VFX !== 'object') return;
+        pictures = STAGE_SKILL_VFX.files.map(file => {
+            const image = new Image();
+            image.decoding = 'async';
+            image.onerror = () => { image.dataset.failed = '1'; };
+            image.src = STAGE_SKILL_VFX.path + file + '?v=' + STAGE_SKILL_VFX.version;
+            return image;
+        });
     }
-    /** 무대가 켜져 있고, 설정에서 끄지 않았고, 그림이 왔는가. 처음 물을 때 그림을 불러오기 시작한다. */
+    /** 그 그림이 왔는가(못 불러온 그림은 끝내 오지 않는다). */
+    const vfxPictureLoaded = image => !!image && !image.dataset.failed && image.complete && image.naturalWidth > 0;
+    /** 칸 표 한 줄의 원본이 든 그림. */
+    const vfxPictureOf = anim => pictures && pictures[STAGE_SKILL_VFX.atlas[anim].im || 0];
+    /** 무대가 켜져 있고, 설정에서 끄지 않았고, 첫 그림이 왔는가. 처음 물을 때 그림을 불러오기 시작한다. 둘째 장이 없는 판에서는
+     * 그 장에서 자르는 클립만 나오지 않는다. */
     function vfxReady() {
         if (typeof stageView !== 'object' || !stageView.enabled() || game.settings.stageSkillFx === 'off') return false;
         loadVfxPicture();
-        return !!picture && !failed && picture.complete && picture.naturalWidth > 0;
+        return vfxPictureLoaded(pictures[0]);
     }
 
     // ---------------------------------------------------------------- colours
@@ -94,7 +104,10 @@ const stageSkillVfx = (() => {
     }
     /** 그 띠를 만들어 달라고 해 둔다(이미 있거나 해 둔 것은 그대로). 원본에 없는 이름은 받지 않는다. */
     function vfxAskStrip(key) {
-        if (sheets.has(key) || asked.has(key) || !STAGE_SKILL_VFX.atlas[key.split('|')[0]]) return;
+        const anim = key.split('|')[0];
+        if (sheets.has(key) || asked.has(key) || !STAGE_SKILL_VFX.atlas[anim]) return;
+        const image = vfxPictureOf(anim);
+        if (!image || image.dataset.failed) return;   // 그 그림이 없는 판: 그 클립은 나오지 않는다
         asked.add(key);
         cutQueue.push(key);
         vfxSchedulePump(0);
@@ -107,30 +120,40 @@ const stageSkillVfx = (() => {
         pumpDue = due;
         pumpTimer = setTimeout(vfxCutPump, delay);
     }
-    /** 한 차례: 만들 띠가 있으면 원본을 열고(풀리기를 기다린다), CUT_BUDGET_MS 동안 띠를 만든다. 다 만들고 한동안 일이 없으면 원본을 놓는다. */
+    /** 그 띠를 자를 원본: 그 그림을 열고(풀리기를 기다린다) 풀린 것을, 아직이면 null. 밖에서 풀지 못한 곳에서는 불러온 그림 그대로
+     * 자른다(처음 자를 때 풀린다). */
+    function vfxSourceOf(anim) {
+        const im = STAGE_SKILL_VFX.atlas[anim].im || 0, image = pictures[im];
+        if (!vfxPictureLoaded(image)) return null;
+        if (!atlases.has(im)) atlases.set(im, stagePictures.openPicture(image.src));
+        const open = atlases.get(im);
+        return open.ready ? open.source : (open.failed ? image : null);
+    }
+    /** 한 차례: 만들 띠가 있으면 그 원본을 열고, CUT_BUDGET_MS 동안 띠를 만든다(원본이 아직 풀리지 않은 띠는 다음 차례로 미룬다).
+     * 다 만들고 한동안 일이 없으면 원본을 놓는다. */
     function vfxCutPump() {
         pumpTimer = null;
         if (!cutQueue.length) { vfxRestAtlas(); return; }
-        if (!atlas) atlas = stagePictures.openPicture(picture.src);
         atlasUsedAt = performance.now();
-        // 밖에서 풀지 못한 곳에서는 불러온 그림 그대로 자른다(처음 자를 때 풀린다)
-        const source = atlas.ready ? atlas.source : (atlas.failed ? picture : null);
-        if (!source) { vfxSchedulePump(CUT_GAP_MS); return; }
-        const until = atlasUsedAt + CUT_BUDGET_MS;
+        const until = atlasUsedAt + CUT_BUDGET_MS, waiting = [];
         while (cutQueue.length && performance.now() < until) {
-            const key = cutQueue.shift();
+            const key = cutQueue.shift(), anim = key.split('|')[0];
+            if (vfxPictureOf(anim).dataset.failed) { asked.delete(key); continue; }   // 그 그림을 못 불러왔다: 띠를 만들지 않는다
+            const source = vfxSourceOf(anim);
+            if (!source) { waiting.push(key); continue; }
             asked.delete(key);
             vfxCutStrip(key, source);
         }
+        cutQueue.unshift(...waiting);
         vfxSchedulePump(cutQueue.length ? CUT_GAP_MS : ATLAS_IDLE_MS);
     }
-    /** 만들 띠가 없는 채로 ATLAS_IDLE_MS가 지났으면 풀어 둔 원본을 놓는다. 아직이면 그때 다시 본다. */
+    /** 만들 띠가 없는 채로 ATLAS_IDLE_MS가 지났으면 풀어 둔 원본들을 놓는다. 아직이면 그때 다시 본다. */
     function vfxRestAtlas() {
-        if (!atlas) return;
+        if (!atlases.size) return;
         const idle = performance.now() - atlasUsedAt;
         if (idle < ATLAS_IDLE_MS) { vfxSchedulePump(ATLAS_IDLE_MS - idle + 20); return; }
-        stagePictures.closePicture(atlas);
-        atlas = null;
+        for (const open of atlases.values()) stagePictures.closePicture(open);
+        atlases.clear();
     }
     /** 그 띠(다 만든 것). 아직 없으면 null: 만들어 달라고 해 두고, 그리는 쪽은 그 프레임을 건너뛴다. */
     function vfxSheetOf(anim, rampName) {
@@ -299,6 +322,7 @@ const stageSkillVfx = (() => {
     }
     /** 한 층('ground' 바닥, 'top' 캐릭터 위)의 클립을 그린다. */
     function vfxDraw(ctx, layer, p) {
+        lastProjection = p;
         if (!live.length || !vfxReady()) return;
         const dot = stageActors.scaleFor(p.tileW);
         for (const row of live) if (row.layer === layer) vfxDrawRow(ctx, row, p, dot);
@@ -324,9 +348,11 @@ const stageSkillVfx = (() => {
         return true;
     }
     const vfxNow = () => clock;
+    /** 마지막으로 그린 무대의 투영(그려진 주인공의 자리를 칸으로 되돌릴 때 쓴다: js/canvas-stage-skill-kit.js heroDrawn). 아직 없으면 null. */
+    const vfxProjection = () => lastProjection;
     /** 재생 중인 클립과 걸어 둔 일을 모두 걷는다(방을 옮길 때: js/canvas-stage-rooms.js). */
     function vfxClear() { live.length = 0; watchers.length = 0; }
-    return Object.freeze({ ready: vfxReady, play: vfxPlay, paint: vfxPaint, watch: vfxWatch, draw: vfxDraw, tick: vfxTick, stamp: vfxStamp, now: vfxNow, clipOf: vfxClipOf,
+    return Object.freeze({ ready: vfxReady, play: vfxPlay, paint: vfxPaint, watch: vfxWatch, draw: vfxDraw, tick: vfxTick, stamp: vfxStamp, now: vfxNow, projection: vfxProjection, clipOf: vfxClipOf,
         clipWidth: vfxClipWidth, clipLength: vfxClipLength, keepStrips: vfxKeepStrips, clear: vfxClear, HIT });
 })();
 safeExposeGlobals({ stageSkillVfx });

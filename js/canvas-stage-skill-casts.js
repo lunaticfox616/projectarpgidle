@@ -1,9 +1,11 @@
 /** 스킬 이펙트의 연결 규칙 둘째 묶음 (첫째는 js/canvas-stage-skill-rules.js): 투사체의 몸, 따로 시전하는 룬, 이동기, 위습.
  * - 투사체의 몸: 날아가는 사건(travel)마다 인계의 그림(속성 장식이 붙은 창, 쌍독니, 도는 방패, 화살, 던지는 플라스크)을 그 자리에 그린다.
  *   곧게 나는 것은 손 높이로, 던지는 플라스크는 포물선으로 난다.
- * - 따로 시전하는 룬(js/skill-gem-casts.js): 사건에 적힌 단계 이름마다 인계의 클립을 튼다. 탄성 플라스크, 신성한 기도, 폭발 혼합물,
- *   과냉각 혼합물, 빈 플라스크, 신성한 안개, 암살, 인과, 차원찢기, 향로구름. 시간 가속과 파문심판은 인계도 게임의 옛 그림을 쓴다.
- * - 이동기: 방패 돌진의 바람과 착지 먼지, 그림자 점멸의 연기. 주인공이 사라지고 나타나는 움직임은 게임의 것 그대로다.
+ * - 따로 시전하는 룬(js/skill-gem-casts.js): 사건에 적힌 단계 이름마다 인계의 클립과 연출을 튼다. 탄성 플라스크(튕길 때마다 중독 폭발),
+ *   신성한 기도(빛의 창), 폭발 혼합물, 과냉각 혼합물, 빈 플라스크(깨지는 병과 날아가는 유리 조각), 신성한 안개, 암살, 차원찢기(우주 구체),
+ *   향로구름. 시간 가속과 파문심판은 인계도 게임의 옛 그림을 쓴다.
+ * - 이동기: 그림자 점멸의 연기, v32의 돌진, 도약 강타, 섬머솔트 슬래시(js/canvas-stage-skill-runes.js). 주인공이 사라지고 나타나는
+ *   움직임은 게임의 것 그대로다. 활을 들고 쏘는 화살 룬은 몸 대신 마법 화살 클립이 난다.
  * - 위습: 소환된 위습의 몸과 쏘는 구슬을 그 속성의 클립으로 그린다.
  * 새 연출이 맡은 단계는 참을, 예전 그림에 맡기는 단계는 거짓을, 여기서 다루지 않는 사건은 null을 돌려준다. 읽기만 한다.
  */
@@ -11,7 +13,7 @@ const stageSkillCasts = (() => {
     const K = stageSkillKit, WIDE = K.WIDE, DEEP = K.DEEP;
     const seen = new WeakSet();                   // 이미 클립으로 옮긴 사건
     /** 투사체의 몸: 룬 번호 → 인계의 생김새(js/canvas-stage-skill-draws.js). */
-    const BODIES = Object.freeze({ 7: 'spear', 9: 'spear', 11: 'spear', 26: 'spear', 30: 'bigspear', 24: 'fang', 36: 'shield', 14: 'arrow', 25: 'arrow',
+    const BODIES = Object.freeze({ 7: 'spear', 9: 'spear', 11: 'spear', 26: 'spear', 30: 'bigspear', 14: 'arrow', 25: 'arrow',
         38: 'flask', 44: 'flask', 47: 'flask', 48: 'flask', 49: 'flask' });
     /** 따로 시전하는 룬의 사건에서 단계 이름이 적힌 칸. */
     const PHASE_KEYS = Object.freeze(['flaskPhase', 'lancePhase', 'mixturePhase', 'supercooledPhase', 'emptyFlaskPhase', 'holyMistPhase', 'assassinationPhase',
@@ -49,12 +51,25 @@ const stageSkillCasts = (() => {
         stageSkillDraws.body(ctx, look, { x: at.x, y: at.y + K.HAND * at.dot, dot: at.dot, face: spot.face, angle, t: elapsed, element: c.element });
         ctx.restore();
     }
-    /** 날아가는 사건 하나: 처음 볼 때 발사 섬광을 틀고, 나는 동안 프레임마다 몸을 그린다. */
+    /** 활로 쏜 마법 화살: 몸 대신 그 화살 클립이 손 높이로 나아가는 쪽을 보며 난다. */
+    function castDrawArrow(c, ref) {
+        const event = c.event, elapsed = c.view.now - event.at, spot = K.along(event, elapsed), lift = event.aloft ? PROJECTILE_FLIGHT_LIFT : 0;
+        const at = K.screen(c.view.projection, { gx: spot.gx, gy: spot.gy + lift }), ctx = c.view.ctx;
+        const rot = Math.atan2((spot.to.gy - spot.from.gy) * DEEP, Math.abs(spot.to.gx - spot.from.gx) * WIDE);
+        ctx.save();
+        K.emerge(ctx, c.view.projection, event);
+        stageSkillVfx.stamp(ctx, ref, elapsed, { x: at.x, y: at.y + K.HAND * at.dot, dot: at.dot, face: spot.face, rot, ramp: c.look.ramp });
+        ctx.restore();
+    }
+    /** 날아가는 사건 하나: 처음 볼 때 발사 섬광(활이면 활의 섬광)을 틀고, 나는 동안 프레임마다 몸을 그린다. */
     function castBody(c) {
-        const look = BODIES[c.gem.id], elapsed = c.view.now - c.event.at;
-        if (c.first && c.gem.map.muzzle) stageSkillVfx.play(c.gem.map.muzzle, K.at(K.heroSpot(), c.look.face * 26, -52), c.look);
+        const look = BODIES[c.gem.id], elapsed = c.view.now - c.event.at, bow = stageSkillRunes.bow(c.gem);
+        const flash = bow ? stageSkillRunes.bowFlash(c.gem, c.element) : c.gem.map.muzzle;
+        if (c.first && flash) stageSkillVfx.play(flash, K.at(K.heroSpot(), c.look.face * (bow ? 30 : 26), bow ? -54 : -52), c.look);
         if (elapsed < 0 || elapsed >= c.event.duration) return true;
-        if (look === 'flask') castDrawLob(c, look); else castDrawShot(c, look);
+        if (bow) castDrawArrow(c, bow.arrow);
+        else if (look === 'flask') castDrawLob(c, look);
+        else castDrawShot(c, look);
         return true;
     }
 
@@ -66,11 +81,17 @@ const stageSkillCasts = (() => {
         if (c.first && ref) stageSkillVfx.play(ref, K.at(spot, 0, K.onGround(ref) ? 1 : -8), { ...c.look, layer: K.onGround(ref) ? 'ground' : 'top' });
         return true;
     }
-    /** 신성한 기도: 손에서 빛이 터지고, 범위 안의 자리마다 빛의 창이 차례로 내리꽂힌다. */
+    /** 탄성 플라스크가 떨어진 자리: 연기와, 튕길 때마다 터지는 작은 중독 폭발. */
+    function castSplash(c) {
+        if (c.first && c.gem.map.pop) stageSkillVfx.play(c.gem.map.pop, K.at(c.event.landingCell, 0, -46), { face: Math.random() < 0.5 ? 1 : -1, ramp: c.look.ramp, delay: 30 });
+        return castLand(c);
+    }
+    /** 신성한 기도: 손에서 빛이 터지고, 범위 안의 적마다 빛의 창이 하늘에서 내리꽂혀 피해의 순간에 박힌다(꽂힌 자리에서 번개가 튄다). */
     function castLances(c) {
         if (!c.first) return true;
-        if (c.gem.map.cast) stageSkillVfx.play(c.gem.map.cast, K.at(K.heroSpot(), c.look.face * 22, -62), c.look);
-        c.event.targetCells.forEach((cell, index) => stageSkillVfx.play(c.gem.map.lance, K.at(cell, 0, 1), { ...c.look, delay: index * 60 }));
+        const map = c.gem.map, wait = Math.max(0, c.event.duration - 170);
+        if (map.cast) stageSkillVfx.play(map.cast, K.at(K.heroSpot(), c.look.face * 22, -62), c.look);
+        c.event.targetCells.forEach(cell => stageSkillSpells.fallSpear({ at: K.at(cell), delay: wait, element: c.element, hit: map.spearHit, ramp: c.look.ramp }));
         return true;
     }
     /** 폭발 혼합물: 떨어진 자리에서 터진다. */
@@ -116,18 +137,24 @@ const stageSkillCasts = (() => {
         stageSkillVfx.play(ref, K.at(from, face * Math.max(34, stageSkillVfx.clipWidth(ref) / 2 - 26), K.BODY), { ramp: c.look.ramp, face });
         return true;
     }
-    /** 인과: 집중을 시작할 때 몸 앞에 룬이 선다. */
-    function castRune(c) {
-        if (c.first) stageSkillVfx.play(c.gem.map.area, K.at(c.event.sourceCell, 0, -40), c.look);
+    /** 빈 플라스크가 깨지는 자리: 흰 십자 반짝임과 튀었다 떨어지는 작은 유리 조각. */
+    function castShatter(c) {
+        if (c.first) stageSkillSpells.glassBreak(K.at(c.event.landingCell));
         return true;
     }
-    /** 차원찢기: 떠나는 자리와 닿는 자리에 차원문이 차례로 열리고, 닿은 자리에서 터진다. */
+    /** 빈 플라스크의 유리 파편 하나: 깨진 자리에서 둘레의 적에게 포물선으로 날아가 꽂힌다. */
+    function castShard(c) {
+        const from = c.event.sourceCell, to = c.event.targetCells[0];
+        if (c.first) stageSkillSpells.glassShard({ at: K.at(from), to: { dx: (to.gx - from.gx) * WIDE, dy: (to.gy - from.gy) * DEEP }, k: Number(c.event.projectileIndex) || 0, ms: Math.max(1, c.event.duration), hit: true });
+        return true;
+    }
+    /** 차원찢기: 떠나는 자리의 우주 구체가 오그라들며 닫히고, 닿는 자리에 구체가 열렸다 닫히고, 닿은 자리에서 크게 부풀며 터진다. */
     function castRift(c) {
         if (!c.first) return true;
-        const move = c.event.move, at = c.event.at, face = Math.sign(move.to.gx - move.from.gx) || K.heroFace(), look = { ramp: c.look.ramp, face };
-        castStand(c.gem.map.rift, move.from, { ...look, dx: face * 10, delay: Math.max(0, move.tear - at) });
-        castStand(c.gem.map.rift, move.to, { ...look, dx: -face * 10, delay: Math.max(0, move.openB - at) });
-        stageSkillVfx.play(c.gem.map.area, K.at(move.to, 0, -30), { ...look, delay: Math.max(0, move.burst - at) });
+        const move = c.event.move, at = c.event.at, radius = Number(c.event.footprint && c.event.footprint.radius) || 1;
+        stageSkillSpells.cosmos({ at: K.at(move.from), R: 40, delay: Math.max(0, move.tear - at), life: 440, mode: 'close' });
+        stageSkillSpells.cosmos({ at: K.at(move.to), R: 40, delay: Math.max(0, move.openB - at), life: 380, mode: 'open' });
+        stageSkillSpells.cosmos({ at: K.at(move.to), R: Math.min(110, (radius + 0.5) * WIDE * 0.75), delay: Math.max(0, move.burst - at), life: 520, mode: 'burst' });
         return true;
     }
     /** 향로구름: 떠나는 자리와 닿는 자리에 연막이 차례로 핀다. */
@@ -146,37 +173,30 @@ const stageSkillCasts = (() => {
     }
     /** 룬 번호 → 단계 이름 → 그 단계의 연출. 여기에 없는 단계는 예전 그림이 그린다. */
     const NATIVE = Object.freeze({
-        44: { flight: castBody, splash: castLand },
+        44: { flight: castBody, splash: castSplash },
         45: { fall: castLances, land: castTake },
         47: { flight: castBody, burst: castBurst },
         48: { flight: castBody, wave: castRings },
-        49: { flask: castBody, shatter: castLand },
+        49: { flask: castBody, shard: castShard, shatter: castShatter },
         50: { censer: castTake, mist: castMist, debuff: castTake },
         52: { vanish: castVanish, arrive: castArrive, slash: castSlash },
-        53: { sigil: castRune, wave: castTake },
         54: { move: castRift },
         55: { move: castSmoke },
         56: { move: castHarpoon }
     });
 
     // ---------------------------------------------------------------- movement gems
-    /** 방패 돌진: 달리는 동안 등 뒤로 바람이 따라가고 멈춘 자리에 먼지가 인다. */
-    function castDash(c, from, to) {
-        const dx = (to.gx - from.gx) * WIDE, dy = (to.gy - from.gy) * DEEP;
-        stageSkillVfx.play(c.gem.map.dash, K.at(from, -c.look.face * 30, K.BODY), { ...c.look, move: { dx, dy, ms: 180 } });
-        stageSkillVfx.play(c.gem.map.land, K.at(to, 0, 1), { ...c.look, delay: 180, layer: 'ground' });
-    }
     /** 그림자 점멸: 떠난 자리와 나타난 자리에 연기가 핀다. */
     function castBlink(c, from, to) {
         castStand(c.gem.map.smoke, from, c.look);
         castStand(c.gem.map.land, to, { ...c.look, delay: 100 });
     }
-    /** 이동하는 사건(mobility): 방패 돌진과 그림자 점멸은 새 클립이, 암살은 제 단계가 그린다. */
+    /** 이동하는 사건(mobility): 돌진, 도약 강타, 섬머솔트 슬래시(js/canvas-stage-skill-runes.js)와 그림자 점멸은 새 연출이, 암살은 제 단계가 그린다. */
     function castMobility(c) {
-        const from = c.event.sourceCell, to = c.event.targetCells[0];
-        if (c.first && c.gem.map.dash) castDash(c, from, to);
-        else if (c.first && c.gem.id === 40) castBlink(c, from, to);
-        return !!c.gem.map.dash || c.gem.id === 40 || !!NATIVE[c.gem.id];
+        const move = { from: c.event.sourceCell, to: c.event.targetCells[0], ms: c.event.glideMs }, runes = stageSkillRunes.moves(c.gem);
+        if (c.first && runes) stageSkillRunes.mobility(c.gem, move);
+        else if (c.first && c.gem.id === 40) castBlink(c, move.from, move.to);
+        return runes || c.gem.id === 40 || !!NATIVE[c.gem.id];
     }
 
     // ---------------------------------------------------------------- claim

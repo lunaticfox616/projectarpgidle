@@ -26,6 +26,14 @@ const stageSkillKit = (() => {
     const kitRef = (value, index = 0) => (Array.isArray(value) ? value[index % value.length] : value);
     const kitOnGround = ref => { const clip = stageSkillVfx.clipOf(ref); return !!clip && clip.an === 'bottom'; };
     const kitHeroSpot = () => ({ gx: game.gridPlayer.gx, gy: game.gridPlayer.gy });
+    /** 그려진 주인공이 선 자리(칸, 소수): 걷거나 이동 룬으로 옮겨 가는 동안 그림은 칸보다 늦게 따라간다. 주인공에 붙어 따라가는 연출이 쓴다.
+     * 아직 그린 적이 없으면 주인공의 칸. */
+    function kitHeroDrawn() {
+        const p = stageSkillVfx.projection(), pos = typeof battleVisualState === 'object' ? battleVisualState.playerPos : null;
+        if (!p || !pos) return kitHeroSpot();
+        const o = p.cellToScreen(0, 0), ax = p.cellToScreen(1, 0), ay = p.cellToScreen(0, 1), lift = p.actorGroundOffsetY || 0;
+        return { gx: (pos.x - o.x) / ((ax.x - o.x) || 1), gy: (pos.y - lift - o.y) / ((ay.y - o.y) || 1) };
+    }
     const kitEnemy = id => (game.enemies || []).find(unit => unit.id === id && hasGridCell(unit)) || null;
     /** 적이 선 자리: 몸의 가로 가운데와 앞줄. */
     function kitEnemySpot(enemy) {
@@ -73,6 +81,6 @@ const stageSkillKit = (() => {
         ctx.clip();
     }
     return Object.freeze({ WIDE, DEEP, BODY, HAND, gemOf: kitGemOf, ramp: kitRamp, ref: kitRef, onGround: kitOnGround, heroSpot: kitHeroSpot, enemy: kitEnemy,
-        enemySpot: kitEnemySpot, heroFace: kitHeroFace, noteFace: kitNoteFace, lastFace: kitLastFace, at: kitAt, screen: kitScreen, along: kitAlong, emerge: kitEmerge });
+        heroDrawn: kitHeroDrawn, enemySpot: kitEnemySpot, heroFace: kitHeroFace, noteFace: kitNoteFace, lastFace: kitLastFace, at: kitAt, screen: kitScreen, along: kitAlong, emerge: kitEmerge });
 })();
 safeExposeGlobals({ stageSkillKit });

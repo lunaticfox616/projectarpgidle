@@ -6,6 +6,12 @@ const worldTreeSkillFx = (() => {
     const layouts=new WeakMap(),adapters=new WeakMap(),stageKeys=new Map();
     let castTick=null,castAnchor=0,castNow=0;
     function beginFrame() {remaining=48;fxRemake.discard();}
+    /** 옛 그림 표(data/skill-fx-atlas.js)에 없는 새 룬(2026-10-17 스킬룬 인계 v32): 무대의 새 연출이 켜져 있으면 그 사건을 무대의 규칙에 넘긴다
+     * (js/canvas-stage-skill-rules.js owns). 무대 연출을 끄면 예전처럼 공용 그림이 그린다. */
+    function stageOnly(name) {
+        return !SKILL_FX_ATLAS[name] && typeof stageSkillRules==='object' && stageSkillRules.owns(name);
+    }
+    const known=name=>!!SKILL_FX_ATLAS[name] || stageOnly(name);
 
     /** The caster during a mobility gem's cast: the movement gems' own motion, or 암살's vanish and thrust. */
     function actorState(state) {
@@ -121,9 +127,9 @@ const worldTreeSkillFx = (() => {
 
     function renderEvent(ctx,event,now,projection,owner) {
         const spec=SKILL_FX_ATLAS[event.skillName];
-        if(!spec || remaining<=0)return;
+        if(!known(event.skillName) || remaining<=0)return;
         // 옆에서 보는 무대: 인계 받은 새 클립이 이 사건을 맡으면 예전 그림은 그리지 않는다(js/canvas-stage-skill-rules.js).
-        if(typeof stageSkillRules==='object' && stageSkillRules.claim(event,{ctx,projection,now}))return;
+        if(typeof stageSkillRules==='object' && stageSkillRules.claim(event,{ctx,projection,now}) || !spec)return;
         if(redrawnSkillFx.claim(event,spec) || fxRemake.projectile(event,now,spec.id))return;
         const renderer=layouts.get(event) || prepareNative(event,projection,owner);
         renderer.layout(now,sample=>paint(ctx,sample,projection));
@@ -146,10 +152,11 @@ const worldTreeSkillFx = (() => {
     }
 
     function stationaryEvents(fx,shared,flight) {
-        const events=[];
-        if([34,37,38].includes(SKILL_FX_ATLAS[fx.skillName].id))events.push({...shared,
+        const events=[],spec=SKILL_FX_ATLAS[fx.skillName];
+        // 새 룬은 시전하는 순간도 알린다: 피해의 순간보다 먼저 서는 연출(신성한 단두대의 틀, 화살비의 쏘아 올림)이 쓴다
+        if(!spec || [34,37,38].includes(spec.id))events.push({...shared,
             kind:fx.skillName==='원소 포션 투척' ? 'travel' : 'windup',at:fx.start,duration:flight});
-        if(SKILL_FX_ATLAS[fx.skillName].gridKind==='line' && fx.attackFootprint?.cells?.length) {
+        if(spec?.gridKind==='line' && fx.attackFootprint?.cells?.length) {
             const source=fx.sourceCell,distance=c=>Math.hypot(c.gx-source.gx,c.gy-source.gy);
             shared.targetCells=[fx.attackFootprint.cells.reduce((best,c)=>distance(c)>distance(best)?c:best,source)];
         }
@@ -163,7 +170,7 @@ const worldTreeSkillFx = (() => {
             travelPath:fx.travelPath?.length>1 ? steady.path : undefined,contactSchedule:steady.contacts,
             at:launch+steady.hold,duration:steady.flight}
             : {...shared,kind:'travel',travelPath:fx.travelPath,contactSchedule:fx.contactSchedule,at:launch,duration:flight};
-        return SKILL_FX_ATLAS[fx.skillName].id===25 ? fanRays(fx,event,steady) : [event];
+        return SKILL_FX_ATLAS[fx.skillName]?.id===25 ? fanRays(fx,event,steady) : [event];
     }
 
     /** 연발 사격: one arrow to the far cell of each ray (the footprint's ray tips; the fan is narrow since 2026-10-07, so its rays
@@ -228,7 +235,7 @@ const worldTreeSkillFx = (() => {
     }
 
     function travel(ctx,fx,now,projection) {
-        if(fx.owner!=='player' || !SKILL_FX_ATLAS[fx.skillName])return false;
+        if(fx.owner!=='player' || !known(fx.skillName))return false;
         if(fx.cancelled)return true;
         if(!adapters.has(fx))adapters.set(fx,travelEvents(fx));
         for(const event of adapters.get(fx))renderEvent(ctx,event,contactPlaybackTime(event,now),projection,fx);
@@ -325,7 +332,7 @@ const worldTreeSkillFx = (() => {
     }
 
     function queueHit(fx,target,source,now) {
-        if(!SKILL_FX_ATLAS[fx.skillName])return false;
+        if(!SKILL_FX_ATLAS[fx.skillName])return stageOnly(fx.skillName); // 새 룬의 타격은 무대의 규칙이 그린다(js/canvas-battlefield.js가 먼저 넘긴다)
         now=fx.start ?? now;
         const list=battleVisualState.skillEffects,base=hitRecord(fx,target,source,now);
         const spec=SKILL_FX_ATLAS[fx.skillName],playback=hitPlayback(fx);
@@ -348,9 +355,9 @@ const worldTreeSkillFx = (() => {
     }
 
     function mobility(ctx,fx,progress,projection) {
-        if(!SKILL_FX_ATLAS[fx.skillName])return false;
+        if(!known(fx.skillName))return false;
         if(!adapters.has(fx))adapters.set(fx,{skillName:fx.skillName,
-            kind:'mobility',sourceCell:fx.fromCell,targetCells:[fx.toCell],at:0,duration:1});
+            kind:'mobility',sourceCell:fx.fromCell,targetCells:[fx.toCell],at:0,duration:1,glideMs:fx.duration});
         renderEvent(ctx,adapters.get(fx),progress,projection);
     }
 

@@ -110,18 +110,34 @@ const stageSkillDraws = (() => {
             g.fillRect(Math.round(x + k * 6), Math.round((side < 0 ? -1 : 1) * (2 + Math.abs(far) * k)), 2, 2);
         }
     }
-    /** 틈 하나의 별, 성운, 불티 자리(씨앗으로 정해 프레임마다 같다). */
-    function gashSky(length, seed) {
+    /** 틈 하나의 별, 성운, 불티, 끌려 드는 티끌 자리(씨앗으로 정해 프레임마다 같다). */
+    function gashSky(length, seed, rift) {
         const r = drawRandom(777 + seed), stars = [], clouds = [], sparks = [];
         for (let i = 0; i < 70; i++) stars.push([r() * length, (r() - 0.5) * 30, r() < 0.35 ? 2 : 1, r() * 6.28, 0.6 + r() * 0.4]);
         for (let i = 0; i < 8; i++) clouds.push([length * (0.1 + 0.8 * r()), (r() - 0.5) * 12, 10 + r() * 16, ['#7a3fd0', '#3b2a9c', '#b04aa0', '#2a6fb0'][i % 4]]);
         for (let i = 0; i < 14; i++) sparks.push([r() * length, r() - 0.5, (r() - 0.5) * 40, 60 + r() * 120]);
-        return { length, stars, clouds, sparks };
+        // 티끌: [선 위치, 시작 거리(위아래), 시작 지연, 걸리는 시간, 크기]
+        const motes = rift ? [...Array(46)].map(() => [length * (-0.1 + 1.2 * r()), (r() < 0.5 ? -1 : 1) * (26 + r() * 70), r() * 260, 220 + r() * 120, r() < 0.3 ? 2 : 1]) : [];
+        return { length, stars, clouds, sparks, motes, rift };
     }
-    /** @param {number} face 1 오른쪽, -1 왼쪽 @param {number} reach 베는 길이(도트) @returns {{life:number, paint:Function}} 주인공의 발 자리에 걸 연출:
-     * 머리 높이 앞에서 시작해 reach 앞의 무릎 높이까지 비스듬히 벤다. */
-    function gashPaint(face, reach, seed) {
-        const from = [14, -92], to = [reach + 26, -18], sky = gashSky(Math.hypot(to[0] - from[0], to[1] - from[1]), seed), angle = Math.atan2(to[1] - from[1], to[0] - from[0]);
+    /** 끌려 드는 티끌: 틈이 열린 동안 둘레에서 틈 쪽으로 가속하며 빨려 들고, 가는 쪽 반대로 짧은 꼬리를 끈다. 닫히면 없다. */
+    function gashMotes(g, sky, t) {
+        const ink = drawInk('chaos');
+        for (const [x, d0, wait, ms, size] of sky.motes) {
+            const age = t - sky.rift.at + 40 - wait;
+            if (age < 0 || age > ms || t > sky.rift.close) continue;
+            const k = age / ms, ease = k * k, y = d0 * (1 - ease), xx = x + (sky.length * 0.5 - x) * 0.12 * ease;
+            g.globalAlpha = Math.min(1, k * 4) * (1 - k * 0.3) * 0.85; g.fillStyle = k > 0.7 ? '#f3eaff' : (size > 1 ? ink.c1 : ink.c2);
+            g.fillRect(Math.round(xx), Math.round(y), size, size);
+            g.globalAlpha *= 0.5; g.fillRect(Math.round(xx), Math.round(y + Math.sign(d0) * (2 + 6 * k)), 1, Math.round(2 + 5 * k));
+        }
+        g.globalAlpha = 1;
+    }
+    /** @param {number} face 1 오른쪽, -1 왼쪽 @param {number} reach 베는 길이(도트) @param {{at:number, close:number}} rift 틈이 끌어당기기
+     * 시작하는 때와 닫히는 때(ms, 2026-10-17 스킬룬 인계 v32) @returns {{life:number, paint:Function}} 주인공의 발 자리에 걸 연출:
+     * 머리 높이 앞에서 시작해 reach 앞의 무릎 높이까지 비스듬히 벤다. 열린 동안 둘레의 티끌이 틈 쪽으로 가속하며 빨려 든다. */
+    function gashPaint(face, reach, seed, rift) {
+        const from = [14, -92], to = [reach + 26, -18], sky = gashSky(Math.hypot(to[0] - from[0], to[1] - from[1]), seed, rift), angle = Math.atan2(to[1] - from[1], to[0] - from[0]);
         return { life: 780, paint(ctx, t, dot) {
             const open = t < 60 ? 0 : t < 200 ? (t - 60) / 140 : t < 560 ? 1 : Math.max(0, 1 - (t - 560) / 220), w = 14 * Math.sin(open * Math.PI / 2);
             ctx.scale(face * dot, dot);
@@ -129,6 +145,7 @@ const stageSkillDraws = (() => {
             ctx.rotate(angle);
             if (w >= 0.5) gashOpening(ctx, sky, t, w);
             gashCut(ctx, sky, t);
+            if (sky.rift) gashMotes(ctx, sky, t);
         } };
     }
 
