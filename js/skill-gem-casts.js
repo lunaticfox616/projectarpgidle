@@ -166,11 +166,22 @@ const skillGemCasts = (() => {
         c.nextAt=c.at+100;
         visual(state,c,'vanish',c.at,180,{blinkCell:cell(c.source)});
     }
+    /** 탄성 플라스크(2026-10-17 스킬룬 인계 v32)의 다음 대상: 처음에는 사거리 안의 가장 가까운 적. 그 뒤로는 3칸 안의 아직 안 맞은 적,
+     * 없으면 3칸 안의 다른 적(둘이면 왔다 갔다), 그것도 없으면 같은 적에게 다시(제자리에서 높이 튄다). */
+    const BOUNCE_REACH=3;
+    function bounceTarget(c,enemies) {
+        const live=enemies.filter(e=>e.hp>0);
+        if(c.targetId===null)return findNearestGridEnemy(c.source,targets(44,c.source,live,grow(c.stats)));
+        const near=live.filter(e=>e.id!==c.targetId && distance(c.aim,getGridUnitCenter(e))<=BOUNCE_REACH);
+        const fresh=near.filter(e=>!c.struck.has(e.id));
+        if(fresh.length || near.length)return findNearestGridEnemy(c.aim,fresh.length?fresh:near);
+        return live.find(e=>e.id===c.targetId) || null;
+    }
     function bounce(state,c,enemies) {
-        const live=enemies.filter(e=>e.hp>0),others=live.filter(e=>e.id!==c.targetId);
-        const pool=others.length?others:live;
-        if(!pool.length){c.done=true;return;}
-        const target=pool[Math.floor(Math.random()*pool.length)];
+        c.struck ??= new Set();
+        const target=bounceTarget(c,enemies);
+        if(!target){c.done=true;return;}
+        c.struck.add(target.id);
         c.targetId=target.id;c.aim=getGridUnitCenter(target);
         const duration=Math.round(Math.max(340,Math.min(520,300+distance(c.source,c.aim)*45))/c.speed/1.8);
         visual(state,c,'flight',c.nextAt,duration);c.nextAt+=duration;
@@ -256,13 +267,16 @@ const skillGemCasts = (() => {
     }
     const launch={44:bounce,45:launchLance,46:launchClock,47:launchFlask,48:launchFlask,49:launchFlask,
         50:launchMist,51:launchJudgment,52:launchAssassin,54:launchRift,55:launchSmoke,56:launchHarpoon};
+    /** 튕길 때마다 떨어진 자리의 작은 중독 폭발: 1칸 안의 적에게 30%(인계의 제안 값). */
+    const BOUNCE_POP_PCT=30;
     function stepBounce(state,c,input) {
         visual(state,c,'splash',c.nextAt,280/c.speed);
+        const pop=contact(c,area(input.enemies,c.aim,'circle',1),c.nextAt,{damagePct:BOUNCE_POP_PCT,key:c.key+':pop'});
         const result=contact(c,input.enemies.filter(e=>e.id===c.targetId && e.hp>0),c.nextAt);
         c.index++;
         if(c.index===4+grow(c.stats))c.done=true;
         else {c.source=cell(c.aim);c.nextAt+=80/c.speed;c.pendingBounce=true;}
-        return [result];
+        return pop.targets.length ? [result,pop] : [result];
     }
     function stepLance(state,c,input) {
         const hit=input.enemies.filter(e=>e.hp>0 && c.points.some(p=>getGridUnitCells(e).some(t=>

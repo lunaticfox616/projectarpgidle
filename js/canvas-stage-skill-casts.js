@@ -33,7 +33,8 @@ const stageSkillCasts = (() => {
         const event = c.event, k = Math.max(0, Math.min(1, (c.view.now - event.at) / Math.max(1, event.duration)));
         const from = event.sourceCell, to = event.landingCell || event.targetCells[0], far = Math.hypot((to.gx - from.gx) * WIDE, (to.gy - from.gy) * DEEP * 2);
         const at = K.screen(c.view.projection, { gx: from.gx + (to.gx - from.gx) * k, gy: from.gy + (to.gy - from.gy) * k }), ctx = c.view.ctx;
-        const height = (1 - k) * 55 + Math.sin(k * Math.PI) * (24 + far * 0.12);
+        // 같은 적에게 다시 튀는 플라스크(탄성 플라스크)는 제자리에서 높이 튄다
+        const height = (1 - k) * 55 + Math.sin(k * Math.PI) * (far < 8 ? 44 : 24 + far * 0.12);
         ctx.save();
         ctx.fillStyle = 'rgba(8,6,12,0.35)';
         ctx.beginPath(); ctx.ellipse(Math.round(at.x), Math.round(at.y) + 1, 11 * at.dot, 3 * at.dot, 0, 0, Math.PI * 2); ctx.fill();

@@ -24,6 +24,7 @@ const stageSkillRules = (() => {
     const swung = new Map();                      // "룬:공격 묶음:반복" → 휘두름을 튼 시각
     const struck = new Map();                     // 적 id → 타격 클립을 붙인 시각
     const rots = new Map();                       // 적 id → 화염 부패의 구슬
+    const rotWatch = { on: false, seen: -1e9 };   // 구슬들을 살피는 일이 도는지, 마지막으로 돈 때(방을 옮기면 재생기가 걸어 둔 일을 걷는다)
     /** 근접 룬이 휘두름을 정하지 않았을 때 쓰는 클립. */
     const PLAIN_SWING = 'crescent';
     /** 휘두름을 제 단계에서 내는 룬(암살은 도착한 뒤의 베기 단계가 낸다). */
@@ -148,17 +149,45 @@ const stageSkillRules = (() => {
         if (map.boom) stageSkillVfx.play(map.boom, K.at(spot, 0, K.onGround(map.boom) ? 1 : -46), { ramp: rot.ramp, scale: 0.72, alpha: 0.9 });
         if (map.boom2) ruleFillArea(map.boom2, { centre: spot, radius: 1.5 }, { ramp: rot.ramp, life: 700, layer: 'ground' });
     }
-    /** 프레임마다: 적이 살아 있으면 구슬이 남고, 시간이 다하면 걷히고, 그 전에 죽으면 터진다. @returns {boolean} 더 볼지 */
+    /** 다시 맞혀 터뜨렸다(js/combat.js detonateFlameDecay): 그 자리의 폭발, 옮겨 붙은 적마다 불길 줄기와 새 구슬. */
+    function ruleRotDetonated(rot) {
+        ruleRotBurst(rot);
+        for (const id of rot.unit.flameDecaySpread || []) {
+            const other = K.enemy(id);
+            if (!other) continue;
+            const spot = K.enemySpot(other);
+            if (rot.gem.map.stream) rulePlayLink(rot.gem.map.stream, rot.follow() || rot.row.at, { gx: spot.gx, gy: spot.gy }, rot.ramp);
+            ruleStartRot(rot.gem, { fx: { enemyId: id }, victim: spot, look: { ramp: rot.ramp }, now: stageSkillVfx.now() });
+        }
+    }
+    /** 프레임마다 구슬 하나: 적이 살아 있으면 남고, 다시 맞혀 터뜨리면 터지고, 시간이 다하면 걷히고(흩어지는 클립), 그 전에 죽으면 터진다. */
     function ruleWatchRot(id, time) {
-        const rot = rots.get(id), enemy = rot ? K.enemy(id) : null;
-        if (!rot) return false;
-        if (enemy === rot.unit && enemy.hp > 0 && time < rot.until) return true;
+        const rot = rots.get(id), enemy = K.enemy(id), detonated = (rot.unit.flameDecayBurstAt || 0) !== rot.burstSeen && rot.unit.hp > 0;
+        if (enemy === rot.unit && enemy.hp > 0 && time < rot.until && !detonated) return;
         rot.row.life = Math.min(rot.row.life, time - rot.row.start);
-        // 터지는 것은 죽었을 때뿐이다: 구역이나 판이 바뀌어 목록에서 사라진 적(살아 있던 그대로 치워졌다)의 자리에서는 터지지 않는다
-        if (rot.unit.hp <= 0) ruleRotBurst(rot);
-        else if (enemy === rot.unit && rot.gem.map.orbEnd) stageSkillVfx.play(rot.gem.map.orbEnd, K.at(rot.follow(), 0, -42), { ramp: rot.ramp });   // 시간이 다해 걷힌다
         rots.delete(id);
-        return false;
+        ruleEndRot(rot, enemy, detonated);
+    }
+    /** 구슬이 끝나는 모습: 다시 맞혀 터뜨렸으면 터짐과 옮겨 붙음, 죽었으면 터짐, 시간이 다했으면 흩어짐. */
+    function ruleEndRot(rot, enemy, detonated) {
+        if (detonated) ruleRotDetonated(rot);
+        // 터지는 것은 죽었을 때뿐이다: 구역이나 판이 바뀌어 목록에서 사라진 적(살아 있던 그대로 치워졌다)의 자리에서는 터지지 않는다
+        else if (rot.unit.hp <= 0) ruleRotBurst(rot);
+        else if (enemy === rot.unit && rot.gem.map.orbEnd) stageSkillVfx.play(rot.gem.map.orbEnd, K.at(rot.follow(), 0, -42), { ramp: rot.ramp });
+    }
+    /** 모든 구슬을 살피는 하나의 일(재생기가 프레임마다 부른다). @returns {boolean} 더 볼지 */
+    function ruleWatchRots(time) {
+        rotWatch.seen = time;
+        for (const id of [...rots.keys()]) ruleWatchRot(id, time);
+        rotWatch.on = rots.size > 0;
+        return rotWatch.on;
+    }
+    /** 구슬을 살피는 일이 돌게 한다(돌고 있으면 그대로). */
+    function ruleKeepRotWatch() {
+        if (rotWatch.on && stageSkillVfx.now() - rotWatch.seen < 200) return;
+        rotWatch.on = true;
+        rotWatch.seen = stageSkillVfx.now();
+        stageSkillVfx.watch(ruleWatchRots);
     }
     /** 화염 부패: 대상의 몸 가운데에 용암 구슬이 붙어 따라다닌다. 다시 걸리면 시간이 늘어난다. */
     function ruleStartRot(gem, hit) {
@@ -168,8 +197,8 @@ const stageSkillRules = (() => {
         const unit = K.enemy(id), follow = () => (unit && K.enemy(id) === unit && unit.hp > 0 ? K.enemySpot(unit) : null);
         const row = unit ? stageSkillVfx.play(gem.map.orb, K.at(hit.victim, 0, -42), { ramp: hit.look.ramp, scale: 0.8, life: ROT_MS, follow }) : null;
         if (!row) return;
-        rots.set(id, { row, until: hit.now + ROT_MS, gem, ramp: hit.look.ramp, unit, follow });
-        stageSkillVfx.watch(time => ruleWatchRot(id, time));
+        rots.set(id, { row, until: hit.now + ROT_MS, gem, ramp: hit.look.ramp, unit, follow, burstSeen: unit.flameDecayBurstAt || 0 });
+        ruleKeepRotWatch();
     }
 
     // ---------------------------------------------------------------- frost seep (빙결 침식)

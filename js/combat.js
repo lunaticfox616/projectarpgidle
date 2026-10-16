@@ -7055,6 +7055,65 @@ function applyEnemyDotFromHit(enemy, hitDamage, pStats) {
     enemy.dotStacks = nextStacks;
 }
 
+/** 화염 부패(2026-10-17 스킬룬 인계 v32): 이미 걸린 적에게 다시 맞히면 남은 틱 피해를 한 번에 주고 둘레 마름모 2칸에 그 타격의 70%로 터지며,
+ * 폭발에 휘말린 가까운 적 가운데 아직 타지 않는 셋에게 새로 옮겨 붙는다. 걸린 채 죽어도 같은 폭발이 터진다(옮겨 붙지는 않는다).
+ * 같은 시전이 막 붙인 불은 그 시전 안에서 다시 터지지 않는다(settleMs). 수치는 인계의 제안 값이다. */
+const FLAME_DECAY_BURST = Object.freeze({ radius: 2, pct: 70, spread: 3, settleMs: 100 });
+function isFlameDecayLit(enemy) {
+    const dot = enemy && enemy.dotState;
+    return !!dot && dot.skillName === '화염 부패' && dot.timeLeft > 0;
+}
+/** 지속 피해 룬의 타격: 화염 부패가 터지면 새로 걸지 않고, 아니면 지속 피해를 건다(걸린 때를 적어 둔다). */
+function applySkillDotFromHit(enemy, hitDamage, pStats) {
+    if (pStats.sSkill && pStats.sSkill.flameDecayDebuff && detonateFlameDecay(enemy, hitDamage, pStats)) return;
+    applyEnemyDotFromHit(enemy, hitDamage, pStats);
+    markFlameDecayLit(enemy, hitDamage);
+}
+/** 막 붙인 불에 붙인 때와 터질 때의 피해를 적어 둔다(이미 적힌 불은 그대로). */
+function markFlameDecayLit(enemy, hitDamage) {
+    if (enemy.dotState && !enemy.dotState.appliedAt) Object.assign(enemy.dotState, { appliedAt: getCombatTime(), burstDamage: Math.floor(hitDamage * FLAME_DECAY_BURST.pct / 100) });
+}
+/** 그 적의 불을 끈다(지속 피해, 느려짐, 화염 부패 표시). */
+function clearFlameDecay(enemy) {
+    enemy.dotState = null;
+    enemy.dotStacks = 0;
+    enemy.skillSlowPct = 0;
+    enemy.ailments = Array.isArray(enemy.ailments) ? enemy.ailments.filter(ail => ail && ail.type !== 'flameDecay') : [];
+}
+const flameDecayMitigated = (enemy, damage, pStats) => Math.max(1, Math.floor(damage * (1 - getEffectiveEnemyMitigation('fire', (getZone(game.currentZoneId) || {}).tier || 1, enemy, pStats) / 100)));
+/** 터짐: 그 적 둘레(마름모 radius칸)의 다른 적에게 burst 피해를 준다. @returns {object[]} 휘말린 적(가까운 차례) */
+function burstFlameDecay(enemy, burstDamage, pStats) {
+    const reach = cell => Math.abs(cell.gx - enemy.gx) + Math.abs(cell.gy - enemy.gy) <= FLAME_DECAY_BURST.radius;
+    const near = (game.enemies || []).filter(other => other && other !== enemy && other.hp > 0 && hasGridCell(other) && getGridUnitCells(other).some(reach))
+        .sort((a, b) => getGridUnitDistance(enemy, a) - getGridUnitDistance(enemy, b));
+    for (const other of near) {
+        const damage = applyDamageToEnemyResource(other, flameDecayMitigated(other, burstDamage, pStats));
+        addBattleFx('hit', { enemyId: other.id, damage, element: 'fire', color: getElementColor('fire'), duration: 240, noLine: true });
+    }
+    enemy.flameDecayBurstAt = getCombatTime(); // 무대 연출이 그 자리에서 폭발을 그린다(js/canvas-stage-skill-rules.js)
+    return near;
+}
+/** 이미 걸린 적에게 다시 맞혔다. @returns {boolean} 터뜨렸는지 */
+function detonateFlameDecay(enemy, hitDamage, pStats) {
+    if (!hasGridCell(enemy) || !isFlameDecayLit(enemy) || getCombatTime() - (enemy.dotState.appliedAt || 0) < FLAME_DECAY_BURST.settleMs) return false;
+    const dot = enemy.dotState, burst = Math.max(1, Math.floor(hitDamage * FLAME_DECAY_BURST.pct / 100));
+    const ticks = Math.floor(dot.timeLeft / Math.max(0.02, Number(dot.tickInterval) || DOT_TICK_INTERVAL));
+    clearFlameDecay(enemy);
+    const damage = applyDamageToEnemyResource(enemy, flameDecayMitigated(enemy, ticks * (dot.rawTickDamage || 0) + burst, pStats));
+    addBattleFx('hit', { enemyId: enemy.id, damage, element: 'fire', color: getElementColor('fire'), duration: 240, noLine: true });
+    const spread = burstFlameDecay(enemy, burst, pStats).filter(other => other.hp > 0 && !isFlameDecayLit(other)).slice(0, FLAME_DECAY_BURST.spread);
+    for (const other of spread) { applyEnemyDotFromHit(other, hitDamage, pStats); markFlameDecayLit(other, hitDamage); }
+    enemy.flameDecaySpread = spread.map(other => other.id); // 불길 줄기를 그릴 대상
+    return true;
+}
+/** 화염 부패가 걸린 채 죽은 적: 둘레가 터진다(옮겨 붙지는 않는다). 터짐에 죽은 적은 다음 전투 틱의 정리(coreLoop sanitizeCombatRuntimeState)가 거둔다. */
+function burstFlameDecayOnDeath(enemy, pStats) {
+    if (!isFlameDecayLit(enemy) || !hasGridCell(enemy)) return;
+    const burst = Math.max(1, Math.floor((enemy.dotState.burstDamage || 0)));
+    clearFlameDecay(enemy);
+    if (burst > 1) burstFlameDecay(enemy, burst, pStats);
+}
+
 function getSkillAilmentStats(pStats, hitElement, curseFx) {
     let skill = pStats.sSkill || {};
     let bonus = skill.ailmentChanceBonus || {};
@@ -7439,6 +7498,7 @@ function applyAccountRewardStats(reward) {
 
 /** What a death passes on: the ct3 keystone spread and the region lines (poison, shock and ignite spread, ice shards). */
 function applyAilmentEffectsOnDeath(enemy, pStats) {
+    burstFlameDecayOnDeath(enemy, pStats);
     spreadCatalystAilmentsOnDeath(enemy, pStats);
     regionAffixEffects.onEnemyDeath(enemy, pStats);
 }
@@ -10528,7 +10588,7 @@ function applySkillGemContact(command,targets) {
     performPlayerAttack({...stats,projectileExtraShots:0},{...command.attackOptions,stageReplay:true,skillName:command.name,
         sourceCell:command.sourceCell,targetEntries:targets.map(e=>({enemyId:e.id,mult:1})),stageRepeatOnce:true,
         restrictRandomTargets:true,skipSlamEcho:true,skipGridControl:true,
-        hitDamageMultiplier:command.bonus?PROJECTILE_BONUS_SHOT_DAMAGE_PCT/100:1,damageTextGroupId:command.key});
+        hitDamageMultiplier:(command.bonus?PROJECTILE_BONUS_SHOT_DAMAGE_PCT/100:1)*(command.damagePct??100)/100,damageTextGroupId:command.key});
     if (!command.ailment) return;
     targets.forEach((enemy,i)=>{
         if (enemy.hp<=0 || enemy.hp+(enemy.energyShield||0)>=before[i]) return;
@@ -11432,7 +11492,7 @@ function performPlayerAttack(pStats, attackOptions) {
                 if (mark) { mark.time = 5; mark.power = stacks; }
                 else targetEnemy.ailments.push({ type: 'assassinWeakness', time: 5, power: stacks });
             }
-            if (isDotSkill) applyEnemyDotFromHit(targetEnemy, damageBeforeMitigation, pStats);
+            if (isDotSkill) applySkillDotFromHit(targetEnemy, damageBeforeMitigation, pStats);
             let ailmentType = getAilmentTypeFromElement(hitElement);
             let conditionAilmentTakenMul = curseFx && curseFx.ailmentTakenMul ? (curseFx.ailmentTakenMul[ailmentType] || 1) : 1;
             let ailmentStats = getSkillAilmentStats(pStats, hitElement, curseFx);
