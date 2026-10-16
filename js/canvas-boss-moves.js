@@ -14,6 +14,7 @@ const bossMoveView = (() => {
     const sum = list => list.reduce((total, ms) => total + ms, 0);
 
     function sheetOf(key) {
+        if (!stageActors.available()) return null; // a build without the stage art has no effect sheets either: never ask for them
         if (!sheets.has(key)) sheets.set(key, stagePictures.openPicture(`${fx().path}${key}.png?v=${fx().version}`));
         const sheet = sheets.get(key);
         return sheet.ready ? sheet : null;
