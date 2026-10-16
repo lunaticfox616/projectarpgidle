@@ -81,7 +81,7 @@
 
     function slotAttackState(name) {
         if (slot.kind === 'summon' && game.equippedSummonSkills.includes(name)) return { note: '다른 칸에 장착 중', blocked: true, rank: 2 };
-        if (!canUseSkillWithCurrentEquipment(name)) return { note: '방패 필요', blocked: true, rank: 1 };
+        if (!canUseSkillWithCurrentEquipment(name)) return { note: getSkillRuneWeaponNote(name), blocked: true, rank: 1 };
         return { note: getGemTileSummary(name, SKILL_DB[name]), blocked: false, rank: 0 };
     }
 

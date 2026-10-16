@@ -2,7 +2,7 @@
 const fs = require('fs');
 const fixture = require('./lib/replay-fixture');
 const builds = [
-    {classId:'warrior', skill:'연속 베기', kind:'근접 다수 타격'},
+    {classId:'warrior', skill:'이중 베기', kind:'근접 다수 타격'},
     {classId:'alchemist', skill:'빙결 침식', kind:'중첩 지속 피해'},
     {classId:'occultist', skill:'냉기 위습 소환', kind:'소환'}
 ];

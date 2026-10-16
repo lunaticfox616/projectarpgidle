@@ -218,7 +218,7 @@ const EDITS = [
         weapon.stats.push({ id: 'pctDmg', val: 40 }); game.equipment['무기'] = weapon;`, true],
     ['ring edited in place', `game.equipment['반지1'].stats.push({ id: 'pctHp', val: 30 });`, true],
     ['support gem level', `game.supportGemData[game.equippedSupports[2]].level = 1;`, true],
-    ['active skill', `game.skills.push('연속 베기'); game.gemData['연속 베기'] = { level: 10, exp: 0 }; game.activeSkill = '연속 베기';`, true],
+    ['active skill', `game.skills.push('이중 베기'); game.gemData['이중 베기'] = { level: 10, exp: 0 }; game.activeSkill = '이중 베기';`, true],
     ['talent card', `game.talentCards.hero5__crusader = { level: 5, score: 0, count: 1 }; game.talentCardLoadout[0] = 'hero5__crusader';`, true],
     ['stump board', `game.stumpBox.board = game.stumpBox.board.map(() => null);`, true],
     ['level', `game.level = 80;`, true],

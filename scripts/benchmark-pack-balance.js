@@ -44,7 +44,7 @@ const probe = function (input) {
 };
 run(`window.packProbe=${probe.toString()}`);
 const started=performance.now();
-for(const loop of [1,10,30])for(const zone of [2,6,9,14])for(const skill of ['연속 베기','서리 폭발']) {
+for(const loop of [1,10,30])for(const zone of [2,6,9,14])for(const skill of ['이중 베기','서리 폭발']) {
     seed=17;runtime.probeInput={loop,zone,skill};rows.push(JSON.parse(run('JSON.stringify(packProbe(probeInput))')));
 }
 const output=value('--output','artifacts/pack-balance/latest.json');

@@ -79,8 +79,8 @@ function auditBase(zoneName) {
     auditGear(levelProgression.maxDropTier(level));
     game.passives = Object.values(PASSIVE_TREE.nodes).filter(node => node.kind !== 'void' && !node.keystone && !node.intentionalNoEffect)
         .slice(0, Math.max(1, level - 1)).map(node => node.id);
-    game.skills = ['연속 베기']; game.activeSkill = '연속 베기';
-    game.gemData['연속 베기'] = { level: Math.max(1, Math.min(20, Math.round(level / 4))), exp: 0, quality: 0 };
+    game.skills = ['이중 베기']; game.activeSkill = '이중 베기';
+    game.gemData['이중 베기'] = { level: Math.max(1, Math.min(20, Math.round(level / 4))), exp: 0, quality: 0 };
     return zone;
 }
 function auditPower(zone) {

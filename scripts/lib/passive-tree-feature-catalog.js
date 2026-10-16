@@ -158,7 +158,7 @@ const FEATURE_EFFECT_PROFILES = Object.freeze({
     melee: {
         normal: [
             { id: 'edge', name: '날 선 일격', effects: [['meleePctDmg', 8], ['flatDmg', 3]] },
-            { id: 'flurry', name: '연속 베기', effects: [['meleePctDmg', 7.5], ['aspd', 2.5]] },
+            { id: 'flurry', name: '이중 베기', effects: [['meleePctDmg', 7.5], ['aspd', 2.5]] },
             { id: 'vital', name: '급소 절개', effects: [['meleePctDmg', 7.5], ['crit', 1.2]] },
             { id: 'pierce', name: '파고드는 칼끝', effects: [['meleePctDmg', 7], ['physIgnore', 2.5]] }
         ],

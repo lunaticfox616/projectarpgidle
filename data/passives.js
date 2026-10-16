@@ -352,7 +352,7 @@ const PASSIVE_SPECIAL_NODE_CONFIGS = [
     { sector: 'templar', kinds: ['deadend'], stat: 'regenSuppress', val: 0.5, title: '재생 봉인', desc: '공격이 적의 생명력 재생을 누적 억제합니다.' },
     { sector: 'witch', kinds: ['deadend'], stat: 'regenSuppress', val: 0.5, title: '부패한 상처', desc: '저주받은 흔적이 적의 재생 능력을 잠급니다.' },
     { sector: 'shadow', kinds: ['deadend'], stat: 'regenSuppress', val: 0.5, title: '그림자 상흔', desc: '은밀한 일격이 상처 재생을 가로막습니다.' },
-    { sector: 'duelist', kinds: ['deadend'], stat: 'regenSuppress', val: 0.5, title: '회복 절단', desc: '연속 베기로 적의 회복 루프를 끊어냅니다.' },
+    { sector: 'duelist', kinds: ['deadend'], stat: 'regenSuppress', val: 0.5, title: '회복 절단', desc: '이중 베기로 적의 회복 루프를 끊어냅니다.' },
     { sector: 'shadow', kinds: ['major', 'keystone'], stat: 'leechRateCap', val: 1.0, title: '혈류 가속', desc: '흡혈 인스턴스의 초당 회복 속도 한계를 높입니다.' },
     { sector: 'duelist', kinds: ['major', 'keystone'], stat: 'leechInstanceCap', val: 3, title: '깊은 상처', desc: '한 번의 타격으로 저장할 수 있는 흡혈량 한계를 높입니다.' },
     { sector: 'marauder', kinds: ['major', 'keystone'], stat: 'leechTotalCap', val: 5, title: '피의 저수지', desc: '동시에 유지할 수 있는 흡혈 총 저장량 한계를 높입니다.' },

@@ -7,7 +7,7 @@
  *   연쇄 번개, 지속 타격, 화염 부패의 구슬과 사망 폭발, 빙결 침식의 안개가 몸으로 감겨 드는 모습.
  * - 그림 사건(js/canvas-world-tree-fx.js renderEvent와 paintCast: 예비 windup, 날아가는 travel, 닿는 stage, 이동 mobility):
  *   범위 클립, 여진, 낙하, 파동, 발사 섬광. 투사체의 몸과 따로 시전하는 룬, 이동기는 js/canvas-stage-skill-casts.js가 맡는다.
- *   그 룬의 그때를 새 연출이 맡으면 참을 돌려 예전 그림을 대신한다. 맡지 않는 것은 예전 그림이 그대로 그린다: 룬 지뢰, 시간 가속,
+ *   그 룬의 그때를 새 연출이 맡으면 참을 돌려 예전 그림을 대신한다. 맡지 않는 것은 예전 그림이 그대로 그린다: 번개 각인, 시간 가속,
  *   파문심판(인계도 게임의 옛 그림을 쓴다). 인계에서 빠진 룬 다섯은 2026-10-13에 게임에서도 지웠다.
  * 룬의 판정, 대상, 피해는 게임의 것 그대로다: 여기는 사건을 읽기만 한다.
  */
@@ -56,7 +56,7 @@ const stageSkillRules = (() => {
         const cells = (fx.attackFootprint && fx.attackFootprint.cells) || [], hero = game.gridPlayer;
         return Math.max(2, ...cells.map(cell => Math.abs(cell.gx - hero.gx))) * WIDE;
     }
-    /** 코드로 그리는 휘두름: 공허 베기의 우주 틈, 혈기 폭쇄의 바늘 찌르기. @returns {boolean} 그렸는지 */
+    /** 코드로 그리는 휘두름: 공허 가르기의 우주 틈, 혈기 폭쇄의 바늘 찌르기. @returns {boolean} 그렸는지 */
     function rulePlayDrawn(gem, fx, look) {
         const hero = K.heroSpot();
         if (gem.map.gash) {
@@ -256,7 +256,7 @@ const stageSkillRules = (() => {
         ruleFillSpots(clip, area, stageSkillVfx.clipWidth(ref)).forEach(([dx, dy, delay], index) => stageSkillVfx.play(ref, K.at(area.centre, dx, dy + lift),
             { face: o.face, ramp: o.ramp, delay: (o.delay || 0) + delay, alpha: index ? 0.85 : 1, life: o.life, nextLife: o.nextLife, layer: o.layer }));
     }
-    /** 불멸의 진동: 몸에서 퍼지는 고리 셋, 바닥의 파문 둘, 좌우로 터지는 바람. */
+    /** 대지의 함성: 몸에서 퍼지는 고리 셋, 바닥의 파문 둘, 좌우로 터지는 바람. */
     function rulePlayShout(shout, look) {
         const hero = K.heroSpot();
         [0.6, 0.95, 1.3].forEach((scale, index) => stageSkillVfx.play(shout.ring, K.at(hero, 0, -48), { ramp: look.ramp, delay: index * 110, scale, alpha: 1 - index * 0.22 }));

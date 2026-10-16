@@ -12,7 +12,7 @@ const fxRemake = (() => {
     const BLOCK = 3;
     const DROP_BELOW = 0.3;
     const DIM_BELOW = 0.7;
-    // 17 혈기 폭쇄 and 37 룬 지뢰 bring their own shock ring (js/canvas-redrawn-skill-fx.js owns their stages).
+    // 17 혈기 폭쇄 and 37 번개 각인 bring their own shock ring (js/canvas-redrawn-skill-fx.js owns their stages).
     const RING_IDS = new Set([2, 12, 13, 26, 27, 34, 47]);
     const QUIET_ASSASSIN = new Set(['vanish', 'arrive', 'dagger']);
     const ELEMENT_RAMPS = {

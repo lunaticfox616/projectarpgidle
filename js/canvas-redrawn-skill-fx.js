@@ -129,7 +129,7 @@ const redrawnSkillFx = (() => {
     }
 
     // ------------------------------------------------------------------ drawers (handoff ui_player.js, per cast)
-    function drawCrescent(dot, cast, ft) {                    // 16 공허 베기
+    function drawCrescent(dot, cast, ft) {                    // 16 공허 가르기
         const st = firstOf(cast, 'stage');
         if (!st) return;
         const S = cellDot(st.sourceCell), d = unitToward(S, cellDot(st.targetCells.at(-1)));
@@ -193,7 +193,7 @@ const redrawnSkillFx = (() => {
         const times = hits.map(e => e.at);
         return { t0: Math.min(...times), t1: Math.max(...times) + 140 };
     }
-    function drawWhirl(dot, cast, ft, view) {                 // 5 회오리바람: the blade wind stays on the caster as they move
+    function drawWhirl(dot, cast, ft, view) {                 // 5 회오리: the blade wind stays on the caster as they move
         const hits = eventsOf(cast, 'hit').filter(hitCell);
         if (!hits.length) return;
         const src = hits[0].sourceCell || hitCell(hits[0]), span = whirlSpan(hits), c = view.playerDot || cellDot(src);
@@ -242,7 +242,7 @@ const redrawnSkillFx = (() => {
         const pull = SKILL_DB[cast.skillName]?.combatPattern?.stages?.[1]?.delayMs || 320, t1 = (st[1] ? st[1].at : st[0].at + pull) - st[0].at;
         art().GravityCollapse.collapse(dot, ctr.gx * 16 + 8, ctr.gy * 16 + 8, ft - st[0].at, { t1, R1: 27 + 16 * grownBy(cast, st[0]) });
     }
-    function drawLance(dot, cast, ft) {                       // 45 광창 강림
+    function drawLance(dot, cast, ft) {                       // 45 신성한 기도
         const tr = firstOf(cast, 'travel');
         if (!tr) return;
         for (const tc of tr.targetCells || []) art().RadiantLance.lance(dot, tc.gx * 16 + 8, tc.gy * 16 + 11, ft - tr.at, { fall: tr.duration, H0: 44 });
@@ -290,7 +290,7 @@ const redrawnSkillFx = (() => {
         if (j.t >= 0 && j.t < st.duration) art().RippleSwing.censer(dot, j.H, judgmentPos(j, j.t), j.t >= 300);
     }
     function drainChest(src, view) { return { x: src.gx * 16 + 8, y: feetY(src, view) - 9 }; }
-    function drawDrain(dot, cast, ft, view) {                 // 3 흡혈 타격
+    function drawDrain(dot, cast, ft, view) {                 // 3 흡혈 관통
         for (const e of eventsOf(cast, 'hit')) {
             const tc = hitCell(e);
             if (!tc || !e.sourceCell) continue;
@@ -301,13 +301,13 @@ const redrawnSkillFx = (() => {
         }
     }
     function quakeSource(cast) { const st = firstOf(cast, 'stage'); return st ? { st, src: st.sourceCell } : null; }
-    function drawQuakeGround(dot, cast, ft) {                 // 18 불멸의 진동 (ground)
+    function drawQuakeGround(dot, cast, ft) {                 // 18 대지의 함성 (ground)
         const q = quakeSource(cast);
         if (!q) return;
         const ms = SKILL_DB[cast.skillName]?.combatPattern?.waveMsPerCell || 110, radius = footprintRadius(cast, q.st, 2);
         art().GoldQuake.ground(dot, q.src.gx * 16 + 8, q.src.gy * 16 + 8, ft - q.st.at, { msPerCell: ms, maxR: radius * 16 + 8 });
     }
-    function drawQuake(dot, cast, ft, view) {                 // 18 불멸의 진동 (foreground)
+    function drawQuake(dot, cast, ft, view) {                 // 18 대지의 함성 (foreground)
         const q = quakeSource(cast);
         if (!q) return;
         art().GoldQuake.fore(dot, q.src.gx * 16 + 8, feetY(q.src, view), ft - q.st.at);
@@ -412,13 +412,13 @@ const redrawnSkillFx = (() => {
         for (const cast of casts.values()) if (cast.id === id && cast.clock === 'visual' && (!found || cast.end > found.end) && now <= cast.end + TAIL_MS) found = cast;
         return found;
     }
-    /** 흡혈 타격: crimson pulse strength (0..0.35) over the caster as the drained blood sinks in. */
+    /** 흡혈 관통: crimson pulse strength (0..0.35) over the caster as the drained blood sinks in. */
     function playerTint(now) {
         if (!fxRemake.isEnabled()) return 0;
         const cast = latestCast(3, now), hit = cast && firstOf(cast, 'hit');
         return hit ? art().BloodDrain.tint(now - hit.at) : 0;
     }
-    /** 회오리바람: the body turns with the blade wind (one facing per 90ms, clockwise) and holds its strike pose. */
+    /** 회오리: the body turns with the blade wind (one facing per 90ms, clockwise) and holds its strike pose. */
     function playerSpin(now) {
         const cast = fxRemake.isEnabled() ? latestCast(5, now) : null, hits = cast ? eventsOf(cast, 'hit') : [];
         if (!hits.length) return null;

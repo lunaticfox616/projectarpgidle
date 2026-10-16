@@ -63,7 +63,7 @@ const CLASS_SECTORS = Object.freeze([
     ] },
     { id: 'alchemist', angle: 270, startId: 'pt_start_alchemist', cat: 'int', icon: 'potion', themes: [
         ['potion', '연금 투척', ['potionPctDmg', 'aoePctDmg']],
-        ['mine', '룬 지뢰', ['minePctDmg', 'aoePctDmg']],
+        ['mine', '번개 각인', ['minePctDmg', 'aoePctDmg']],
         ['area', '확산 반응', ['aoePctDmg', 'elementalPctDmg']],
         ['elemental', '삼원 촉매', ['elementalPctDmg', 'ailmentPotencyPct']],
         ['fire', '발화 약제', ['firePctDmg', 'igniteChance']],

@@ -47,7 +47,7 @@ worldTreeSkillFx.feedback = (() => {
     function weaponSound(fx, tags) {
         if (tags.includes('potion')) return 'hitFlask';
         if (tags.includes('shield')) return 'hitShield';
-        if (tags.includes('dagger') || fx.skillName === '암살자의 일격') return 'hitThrust';
+        if (tags.includes('dagger') || fx.skillName === '기습 공격') return 'hitThrust';
         if (fx.projectile || tags.includes('projectile')) return 'hitProjectile';
         return null;
     }

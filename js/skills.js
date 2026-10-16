@@ -850,10 +850,37 @@ function hasEquippedShield() {
     return !!(shield && shield.slot === '방패');
 }
 
+/** 낀 무기의 자세(data/stage-view.js의 자세 id): 대분류 → 자세(SKILL_RUNE_STANCE_BY_CATEGORY), 방패를 함께 낀 곡도는 검방패, 무기가 없으면 맨손. */
+function getEquippedWeaponStance() {
+    const weapon = combatEquipmentStats.activeEquipment(game)['무기'];
+    const category = weapon && typeof getWeaponCategoryId === 'function' ? getWeaponCategoryId(weapon) : null;
+    if (!category) return 'unarmed';
+    if (category === 'scimitar' && hasEquippedShield()) return 'swordshield';
+    return SKILL_RUNE_STANCE_BY_CATEGORY[category] || 'unarmed';
+}
+
+/** 그 룬을 이 무기 자세로 쓸 수 있는가: 룬의 계열(SKILL_RUNE_FAMILY)이 그 자세를 허락할 때. 계열이 없는 것(기본 공격)은 언제나. */
+function isSkillRuneUsableWithStance(name, stance) {
+    const family = SKILL_RUNE_FAMILY[name];
+    return !family || SKILL_RUNE_WEAPONS[family].includes(stance);
+}
+
+/** 지금 무기로 못 쓰는 까닭(카드, 알림): '근접 무기 필요', '활 필요' 같은 한 줄. 쓸 수 있으면 ''. */
+function getSkillRuneWeaponNote(name) {
+    if (canUseSkillWithCurrentEquipment(name)) return '';
+    const skill = SKILL_DB[name], family = SKILL_RUNE_FAMILY[name];
+    if (skill && skill.requiresShield && !hasEquippedShield()) return '방패 필요';
+    return SKILL_RUNE_WEAPON_NOTES[family] || `${SKILL_RUNE_WEAPONS[family].map(stance => SKILL_RUNE_STANCE_LABELS[stance]).join(', ')} 필요`;
+}
+
 function canUseSkillWithCurrentEquipment(name) {
     let skill = SKILL_DB[name];
-    return !skill || !skill.requiresShield || hasEquippedShield();
+    if (!skill) return true;
+    if (skill.requiresShield && !hasEquippedShield()) return false;
+    return isSkillRuneUsableWithStance(name, getEquippedWeaponStance());
 }
+
+
 
 /** Add ten percent only to growth earned from reaching level 20 onward. */
 function getGemHighLevelGrowth(value, level19Value) {
@@ -880,12 +907,23 @@ function getGemSpellEarlyMultiplier(skill, level) {
     return start + (1 - start) * Math.min(1, Math.max(0, (level - 1) / (until - 1)));
 }
 
-function getActiveSkillStats(bonusLevel) {
-    let skill = SKILL_DB[game.activeSkill] || SKILL_DB['기본 공격'];
-    if (!canUseSkillWithCurrentEquipment(game.activeSkill)) {
-        game.activeSkill = '기본 공격';
-        skill = SKILL_DB['기본 공격'];
+/** 주 공격 칸의 룬을 지금 무기에 맞춘다: 못 쓰면 기본 공격으로 바꿔 두고 그 룬을 game.weaponBlockedSkill에 적어 두며, 맞는 무기를 다시
+ * 들면 그 룬으로 돌린다. 무기 자세를 보는 장비 평가가 getActiveSkillStats를 다시 부르므로 이름은 먼저 잡아 두고 확인 뒤에 쓴다. */
+function fitActiveSkillToWeapon() {
+    const blocked = game.weaponBlockedSkill;
+    if (game.activeSkill === '기본 공격' && blocked && (game.skills || []).includes(blocked) && canUseSkillWithCurrentEquipment(blocked)) {
+        game.activeSkill = blocked;
+        if (game.weaponBlockedSkill === blocked) game.weaponBlockedSkill = '';
     }
+    const worn = game.activeSkill;
+    if (canUseSkillWithCurrentEquipment(worn)) return;
+    game.weaponBlockedSkill = worn;
+    game.activeSkill = '기본 공격';
+}
+
+function getActiveSkillStats(bonusLevel) {
+    fitActiveSkillToWeapon();
+    let skill = SKILL_DB[game.activeSkill] || SKILL_DB['기본 공격'];
     if (skill && Array.isArray(skill.tags) && skill.tags.includes('summon_attack')) {
         game.activeSkill = '기본 공격';
         skill = SKILL_DB['기본 공격'];
@@ -909,9 +947,9 @@ function getActiveSkillStats(bonusLevel) {
     stats.dmg *= qualityMul * (usesGemProgression ? gemCoreForge.effects(gem).damage : 1);
     stats.spd *= qualityMul * (usesGemProgression ? gemCoreForge.effects(gem).speed : 1);
     if (usesGemProgression && gem.level >= 20) {
-        if (game.activeSkill === '연속 베기') stats.spd *= 1.2;
-        if (game.activeSkill === '흡혈 타격') stats.leech *= 2;
-        if (game.activeSkill === '암살자의 일격') stats.crit += 15;
+        if (game.activeSkill === '이중 베기') stats.spd *= 1.2;
+        if (game.activeSkill === '흡혈 관통') stats.leech *= 2;
+        if (game.activeSkill === '기습 공격') stats.crit += 15;
     }
     if (!usesGemProgression) return stats;
     getSkyEnhancementForSkill(game.activeSkill).forEach(id => {
@@ -956,7 +994,7 @@ function getActiveSkillStats(bonusLevel) {
 }
 
 safeExposeGlobals({
-    hasEquippedShield, canUseSkillWithCurrentEquipment, gainGemExperience,
+    hasEquippedShield, canUseSkillWithCurrentEquipment, getEquippedWeaponStance, isSkillRuneUsableWithStance, getSkillRuneWeaponNote, gainGemExperience,
     getGemHighLevelGrowth, getGemLevelGrowthSteps, getGemSpellBaseDamage
 });
 

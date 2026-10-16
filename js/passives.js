@@ -5314,7 +5314,7 @@ function isLoopHeroSelectOpen() {
 function buildHeroChoiceTooltipHtml(classId, experienced) {
     let def = PLAYER_CLASS_DEFS[classId];
     if (!def) return '';
-    const gem = LOOP_STARTER_GEM_BY_HERO[def.recommendedTalentHeroId] || '연속 베기';
+    const gem = LOOP_STARTER_GEM_BY_HERO[def.recommendedTalentHeroId] || '이중 베기';
     const gemLine = String((SKILL_DB[gem] || {}).desc || '').split('.')[0];
     return `<div class="tooltip-title">${escapeHTML(def.label)}${experienced ? ' <span style="color:#9fd8ff;">경험함</span>' : ''}</div>
         <div class="tooltip-line" style="color:#f6c461;">시작 스킬룬: ${escapeHTML(gem)}</div>
@@ -5385,6 +5385,7 @@ function openLoopHeroSelection(onSelect, options = {}) {
 function chooseLoopHero(classId) {
     if (!PLAYER_CLASS_DEFS[classId]) return;
     applyHeroSelection(classId, { silent: true, skipSave: true, alignTalent: true });
+    grantClassStarterWeapon(classId);
     let overlay = document.getElementById('loop-hero-select-overlay');
     if (overlay) overlay.classList.remove('active');
     let callback = loopHeroSelectionCallback;
@@ -5868,6 +5869,17 @@ function getActRewardChoices(zoneId) {
         if (choice.kind === 'item' && choice.slot === '무기') Object.assign(enriched, describeActRewardWeapon());
         return enriched;
     });
+}
+/** 루프를 시작하며 직업을 고를 때 무기 칸이 비어 있으면 그 직업의 대표 무기(직업 카드의 '대표 무기' 대분류에서 가장 낮은 바탕)를 보통 등급으로
+ * 쥐여 준다. 2026-10-17 스킬룬 무기 규칙(맨손은 주문과 투사체 룬을 못 쓴다)으로 맨손 시작의 궁수와 연금술사가 시작 룬을 쓰지 못했다(사용자 결정:
+ * "대표 무기를 들고 시작"). 봉인해 물려받은 무기가 있으면 그대로 둔다. @returns {?object} 쥐여 준 무기 */
+function grantClassStarterWeapon(classId) {
+    if (!game.equipment || game.equipment['무기']) return null;
+    const bases = keepWeaponCategoryBases(BASE_ITEM_DB.filter(base => base.slot === '무기' && !base.realmBase && !base.dropOnly), HANA_WEAPON_COMBOS.classWeapons[classId]);
+    const base = bases.reduce((best, row) => (!best || row.reqTier < best.reqTier ? row : best), null);
+    if (!base) return null;
+    const item = createItemFromBase(base, 'normal', 1);
+    return equipIntoFirstEmptySlot(item) ? item : null;
 }
 /** 액트 보상 무기는 직업 대표 무기(직업 카드의 '대표 무기')의 대분류로 나온다. 아무 무기나 나와 궁수가 대검을 받기도 했다(플레이 리뷰 2026-10-07). */
 function describeActRewardWeapon() {

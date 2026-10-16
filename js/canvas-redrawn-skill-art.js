@@ -96,7 +96,7 @@ const redrawnSkillArt = (() => {
         }
     }
 
-    // ---------------------------------------------------------------- 16 공허 베기: crescent slash
+    // ---------------------------------------------------------------- 16 공허 가르기: crescent slash
     function crescentHash(x, y) { return (((x * 73856093) ^ (y * 19349663)) >>> 0) % 997 / 997; }
     function crescentColour(s, e, near) {
         if (s.flash) return C.W;
@@ -351,7 +351,7 @@ const redrawnSkillArt = (() => {
         mistEmbers(dot, m);
     }
 
-    // ---------------------------------------------------------------- 5 회오리바람: two steel blade-wind swooshes spinning round the caster
+    // ---------------------------------------------------------------- 5 회오리: two steel blade-wind swooshes spinning round the caster
     const W5 = { D: '#353844', M: '#7f899d', L: '#c4d5df', H: '#fff3d3', W: '#ffffff' };
     function whirlState(cx, cy, age, o) {
         const T = o.T, F0 = o.F || 160, per = o.period || 360, w = Math.PI * 2 / per, a0 = o.start || 0;
@@ -528,7 +528,7 @@ const redrawnSkillArt = (() => {
     const ZIG = [[[0, 0], [1, 1], [0, 2], [1, 3]], [[0, 0], [1, -1], [2, 0], [3, -1]], [[0, 0], [1, 1], [1, 2], [2, 3]]];
     const ZPOS = [[[2, -4], [-4, 1]], [[-3, -3], [2, 2]], [[3, 0], [-2, 3]]];
 
-    // ---------------------------------------------------------------- 45 광창 강림 (simplified): one plain lance of light per target
+    // ---------------------------------------------------------------- 45 신성한 기도 (simplified): one plain lance of light per target
     const LANCE = [['.', 'W', '.'], ['L', 'W', 'L'], ['L', 'H', 'L'], ['.', 'H', '.'], ['M', 'H', 'M'], ['.', 'L', '.'], ['.', 'H', '.'], ['.', 'L', '.'], ['.', 'H', '.'], ['.', 'L', '.'], ['.', 'L', '.'], ['.', 'M', '.']];
     const LANCE_COLOURS = { W: Y.W, H: Y.H, L: Y.L, M: Y.M };
     function lancePose(y, age, fall, H0) {
@@ -598,7 +598,7 @@ const redrawnSkillArt = (() => {
         ZIG[(v + seed) % 3].forEach(([gx, gy], k) => dot(x + ox + gx, y + oy + gy, k < 2 ? Y.L : Y.M));
     }
 
-    // ---------------------------------------------------------------- 3 흡혈 타격: crimson slash, then the wound's blood is drawn into the caster
+    // ---------------------------------------------------------------- 3 흡혈 관통: crimson slash, then the wound's blood is drawn into the caster
     // t = 0 at the hit. A bowed slash crosses the target and 3 drops spray; from 130ms a blood stream arcs from the wound to
     // the caster's chest, beads run along it, the tail lets go and is pulled in; the caster pulses crimson once (tint) and
     // three motes rise. All over by 1000ms. Colours are the remake palette's reds.
@@ -703,7 +703,7 @@ const redrawnSkillArt = (() => {
         s.lay.flush(dot);
     }
 
-    // ---------------------------------------------------------------- 18 불멸의 진동: a golden slam, then a diamond tremor runs along the floor
+    // ---------------------------------------------------------------- 18 대지의 함성: a golden slam, then a diamond tremor runs along the floor
     // t = 0 at the slam (stage start). Foreground: two golden streaks fall beside the caster and hit the floor. Ground layer:
     // a bright blot, four golden cracks along the diamond's axes, and a vibrating diamond front (|dx|+|dy| = R, 16 dots per
     // msPerCell so it crosses each cell centre on that cell's hit) with one echo. Colours are the remake palette's golds.

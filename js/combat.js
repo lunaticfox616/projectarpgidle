@@ -365,7 +365,7 @@ function getPlayerHitDetailParts(summary, hit) {
     return parts.filter(Boolean);
 }
 
-/** The player's hit line: skill, target and total damage ("연속 베기로 썩은 잔뿌리에게 1,033 피해"), the counterpart of the monster's
+/** The player's hit line: skill, target and total damage ("이중 베기로 썩은 잔뿌리에게 1,033 피해"), the counterpart of the monster's
  * "○○의 공격으로 N 피해". 2026-10-06 user: "플레이어가 준 피해도 누구한테 준건지 표시됐으면 좋겠고". A critical hit keeps the line
  * colour and hands its number to the log, which colours only that ("치명타는 그냥 숫자 색만 바꿔도 충분할거같은데?"). Repeats merge
  * per target, crits apart. null when there is nothing to write (log off, or 0 damage: review 5). */
@@ -1163,7 +1163,8 @@ function getActiveSummonGemDefs() {
         return owned.includes(name) && db && Array.isArray(db.tags) && db.tags.includes('summon_attack');
     })));
     let defs = [];
-    attackNames.forEach(name => {
+    // 무기가 맞지 않는 소환 룬(위습은 맨손으로 못 쓴다)은 장착된 채 소환하지 않는다
+    attackNames.filter(name => canUseSkillWithCurrentEquipment(name)).forEach(name => {
         let count = Math.max(1, Math.floor(Number(game.summonSkillCounts[name]) || 1));
         game.summonSkillCounts[name] = count;
         for (let i = 0; i < count; i++) defs.push({ name, db: SKILL_DB[name], source: 'skill', duplicateIndex: i });
@@ -2328,7 +2329,7 @@ function getPendingSkillCollisionCells(row) {
     return path.length > 0 ? path.map(cell => ({ ...cell, mult: target.mult })) : row.targetCells;
 }
 
-/** 회오리바람: this spin's victim, chosen as it lands — the nearest enemy not yet struck around the caster's current cell,
+/** 회오리: this spin's victim, chosen as it lands — the nearest enemy not yet struck around the caster's current cell,
  * with the whirl's falloff by strike order. Nobody around: the spin whiffs. */
 function pickWhirlSpinTargets(row) {
     let struck = row.whirl.struck;
@@ -2340,7 +2341,7 @@ function pickWhirlSpinTargets(row) {
     return [{ enemy: pick.enemy, mult: getGridSkillTargetMult('whirl', struck.length - 1) }];
 }
 
-/** 서리 폭발 · 불멸의 진동 (js/combat-grid.js buildRadialBurstHitSequence): the monsters the drawn ring has touched since the last
+/** 서리 폭발 · 대지의 함성 (js/combat-grid.js buildRadialBurstHitSequence): the monsters the drawn ring has touched since the last
  * check. The ring grows one cell per msPerCell from the wave's start up to its reach; the time since the last check is sampled every
  * COMBAT_GRID_CONFIG.waveContactSampleMs against where each monster was drawn then (just after a step it glides between its cells).
  * One wave strikes a monster once, first touched first, up to the skill's targets. Stepping inside the burst no longer dodges it. */
@@ -4533,7 +4534,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
                 makeSourceLine('장비', gearBase.leech + gearExplicit.leech, '%', value => `${formatValue('leech', value)}%`),
                 makeSourceLine('패시브', passive.leech + season.leech + ascend.leech + reward.leech, '%', value => `${formatValue('leech', value)}%`),
                 makeSourceLine('보조스킬룬', support.leech, '%', value => `${formatValue('leech', value)}%`),
-                skill.instantLeech ? '흡혈 타격: 이 룬으로 준 피해의 흡혈은 인스턴스 대신 즉시 회복되며 1회 흡혈량 캡을 적용받습니다.' : `타격 시 즉시 회복 대신 흡혈 인스턴스 생성`,
+                skill.instantLeech ? '흡혈 관통: 이 룬으로 준 피해의 흡혈은 인스턴스 대신 즉시 회복되며 1회 흡혈량 캡을 적용받습니다.' : `타격 시 즉시 회복 대신 흡혈 인스턴스 생성`,
                 (hasKeystone('wlk3')) ? `금단 대가: 흡혈 ${skill.instantLeech ? '즉시 회복이 생명력 대신 에너지 보호막에 적용됩니다.' : '인스턴스가 생명력 대신 에너지 보호막에 저장/회복됩니다.'}` : null,
                 `일반 흡혈 캡: 타격당 최대 생명력 ${LEECH_BASE_INSTANCE_CAP_PCT}%, 전체 저장 ${LEECH_BASE_TOTAL_CAP_PCT}%, 인스턴스당 초당 ${LEECH_BASE_RATE_CAP_PCT}%`,
                 `일반 흡혈 추가 캡: 회복 속도 +${formatValue('leechRateCap', finalLeechRateCap)}%p, 전체 +${formatValue('leechTotalCap', finalLeechTotalCap)}%p, 타격당 +${formatValue('leechInstanceCap', finalLeechInstanceCap)}%p`,
@@ -9204,7 +9205,7 @@ function takeLoopStarterGem() {
 function loopStarterGemName() {
     const classDef = typeof PLAYER_CLASS_DEFS !== 'undefined' ? PLAYER_CLASS_DEFS[game.selectedClassId] : null;
     const heroId = classDef && HERO_SELECTION_DEFS[classDef.recommendedTalentHeroId] ? classDef.recommendedTalentHeroId : 'hero1';
-    return (typeof LOOP_STARTER_GEM_BY_HERO !== 'undefined' && LOOP_STARTER_GEM_BY_HERO[heroId]) || '연속 베기';
+    return (typeof LOOP_STARTER_GEM_BY_HERO !== 'undefined' && LOOP_STARTER_GEM_BY_HERO[heroId]) || '이중 베기';
 }
 /** The starter gem reaches the hero (picked up, or settled from a dropped map's floor): the gem, its record, the gem tab, and in a
  * first loop the pending equip guide (js/content-progression-ui.js announceStarterGem). @returns {boolean} whether it went in. */
@@ -10850,7 +10851,7 @@ function performPlayerAttack(pStats, attackOptions) {
                 game.uniqueRiderCompassConsumed = true;
             }
             if (hitCrit && hasKeystone('a7') && (game.enemies || []).filter(e => e && e.hp > 0).length === 1) hitBaseDamage *= 1 + ASCENDANCY_KEYSTONE_VALUES.a7.extraHitPct / 100;
-            if (hitCrit && skillName === '묵직한 강타' && pStats.sSkill.finalLevel >= 20) hitBaseDamage *= 2;
+            if (hitCrit && skillName === '강타' && pStats.sSkill.finalLevel >= 20) hitBaseDamage *= 2;
             let randomElementPct = pStats.randomElementDamagePct && Number(pStats.randomElementDamagePct[hitElement]) ? Number(pStats.randomElementDamagePct[hitElement]) : 0;
             if (randomElementPct) {
                 hitBaseDamage = Math.floor(hitBaseDamage * (1 + randomElementPct / 100));

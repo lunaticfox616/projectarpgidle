@@ -241,7 +241,7 @@ const devTestPanel = (() => {
             groups.get(group).append(el('option', { value: name, textContent: gemLabel(name) }));
         });
         groups.forEach(group => select.append(group));
-        select.value = SKILL_DB[game.activeSkill]?.isGem ? game.activeSkill : '연속 베기';
+        select.value = SKILL_DB[game.activeSkill]?.isGem ? game.activeSkill : '이중 베기';
         return select;
     }
     function classRow() {

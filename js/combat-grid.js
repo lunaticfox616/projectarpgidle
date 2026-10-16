@@ -952,7 +952,7 @@ function getGridUnitDistanceFromCell(origin, unit) {
         Math.hypot(cell.gx - origin.gx, cell.gy - origin.gy)), Infinity);
 }
 
-/** 서리 폭발 · 불멸의 진동: the wave hurts where its drawn ring touches a monster, in the order it spreads (js/combat.js
+/** 서리 폭발 · 대지의 함성: the wave hurts where its drawn ring touches a monster, in the order it spreads (js/combat.js
  * pickWaveFrontTargets). The ring grows one cell per msPerCell up to reach; the stages, every half cell, are only the moments it is
  * checked. One wave strikes a monster once (shared state). The hits used to be fixed on the cells the targets stood on at the cast,
  * so a monster that stepped to another cell inside the burst right after the cast was missed as if it had dodged (2026-10-02).
@@ -1067,7 +1067,7 @@ function buildConfiguredSkillHitSequence(skillName, skill, targets) {
     if (pattern.kind === 'mine') {
         let delayMs = Math.max(120, Math.floor(Number(pattern.armDelayMs) || 420));
         return [{
-            kind: 'mineDetonate', label: '룬 지뢰 폭발', delayMs,
+            kind: 'mineDetonate', label: '번개 각인 폭발', delayMs,
             damageMultiplier: 1, singleRepeat: true, impactCells, targets
         }];
     }
@@ -1110,7 +1110,7 @@ function buildPierceSkillHitSequence(profile, skill, targets) {
     }];
 }
 
-/** 회오리바람: as many spins as the skill has targets, one per interval. A spin picks its victim when it lands — the nearest
+/** 회오리: as many spins as the skill has targets, one per interval. A spin picks its victim when it lands — the nearest
  * enemy not yet struck around the cell the caster stands in then — so the blade keeps cutting while they move
  * (combat.js pickWhirlSpinTargets). The cast-time primary only anchors the stage. */
 function buildWhirlSkillHitSequence(skill, targets, intervalMs) {

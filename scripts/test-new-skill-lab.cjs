@@ -145,7 +145,7 @@ async function checkBossCenter(page, frame, mobile) {
                 const at = getCombatTime(); performPlayerAttack(getPlayerStats());
                 const pending = lab.casts.map(row => row.cast);
                 const initialHp = game.enemies.reduce((n,e)=>n+e.hp,0);
-                changeSkill('광창 강림'); game.combatTimeMs = at+4000;
+                changeSkill('신성한 기도'); game.combatTimeMs = at+4000;
                 pending.forEach(cast => cast.update(at+4000));
                 const cancelIntact = game.enemies.reduce((n,e)=>n+e.hp,0) === initialHp;
                 changeSkill('탄성 플라스크'); lab.reset();

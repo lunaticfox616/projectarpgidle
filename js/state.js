@@ -1372,7 +1372,7 @@ const P_STATS = {
     leech: { name: '생명력 흡수(%)', tiers: [2, 3], m: 0.3, k: 1.0, isPct: true },
     leechRateCap: { name: '흡혈 회복 속도 캡(%)', tiers: [2, 3], m: 0.4, k: 1.0, isPct: true },
     leechTotalCap: { name: '흡혈 총 회복량 캡(%)', tiers: [2, 3], m: 2, k: 5, isPct: true },
-    leechInstanceCap: { name: '흡혈 타격당 회복량 캡(%)', tiers: [2, 3], m: 1, k: 3, isPct: true },
+    leechInstanceCap: { name: '흡혈 관통당 회복량 캡(%)', tiers: [2, 3], m: 1, k: 3, isPct: true },
     gemLevel: { name: '스킬룬 레벨', tiers: [3], k: 1 },
     elementalGemLevel: { name: '원소 스킬룬 레벨', tiers: [3], k: 1 },
     fireGemLevel: { name: '화염 스킬룬 레벨', tiers: [3], k: 1 },
@@ -1584,7 +1584,7 @@ const MOD_DB = [
     {"id":"leech","type":"suffix","statName":"공격 피해의 생명력 흡수(%)","slots":["무기","장갑","반지"],"affixBalanceVersion":2,"tierValues":[[0.16,0.2],[0.21,0.28],[0.29,0.36],[0.37,0.44],[0.45,0.52],[0.53,0.6],[0.61,0.68],[0.69,0.76],[0.77,0.84],[0.85,0.92],[0.93,1],[1.01,1.08],[1.09,1.16],[1.17,1.24],[1.25,1.32],[1.33,1.4],[1.41,1.48],[1.49,1.56],[1.57,1.64],[1.65,1.72]],"valueStep":0.01},
     {"id":"leechRateCap","type":"suffix","statName":"흡혈 회복 속도 캡(%)","slots":["무기","장갑","목걸이"],"affixBalanceVersion":2,"tierValues":[[0.6,0.7],[0.71,0.9],[0.91,1.1],[1.11,1.3],[1.31,1.5],[1.51,1.7],[1.71,1.9],[1.91,2.1],[2.11,2.3],[2.31,2.5],[2.51,2.7],[2.71,2.9],[2.91,3.1],[3.11,3.3],[3.31,3.5],[3.51,3.7],[3.71,3.9],[3.91,4.1],[4.11,4.3],[4.31,4.5]],"valueStep":0.01},
     {"id":"leechTotalCap","type":"suffix","statName":"흡혈 총 회복량 캡(%)","slots":["갑옷","허리띠","목걸이"],"affixBalanceVersion":2,"tierValues":[[3,3],[4,4],[5,5],[6,6],[7,7],[8,8],[9,9],[10,10],[11,11],[12,12],[13,13],[14,14],[15,15],[16,16],[17,17],[18,18],[19,19],[20,20],[21,21],[22,22]],"valueStep":1},
-    {"id":"leechInstanceCap","type":"suffix","statName":"흡혈 타격당 회복량 캡(%)","slots":["무기","반지","장갑"],"affixBalanceVersion":2,"tierValues":[[1.5,1.8],[1.81,2.2],[2.21,2.7],[2.71,3.2],[3.21,3.7],[3.71,4.2],[4.21,4.7],[4.71,5.2],[5.21,5.7],[5.71,6.2],[6.21,6.8],[6.81,7.3],[7.31,7.8],[7.81,8.3],[8.31,8.8],[8.81,9.3],[9.31,9.8],[9.81,10.3],[10.31,10.8],[10.81,11.3]],"valueStep":0.01},
+    {"id":"leechInstanceCap","type":"suffix","statName":"흡혈 관통당 회복량 캡(%)","slots":["무기","반지","장갑"],"affixBalanceVersion":2,"tierValues":[[1.5,1.8],[1.81,2.2],[2.21,2.7],[2.71,3.2],[3.21,3.7],[3.71,4.2],[4.21,4.7],[4.71,5.2],[5.21,5.7],[5.71,6.2],[6.21,6.8],[6.81,7.3],[7.31,7.8],[7.81,8.3],[8.31,8.8],[8.81,9.3],[9.31,9.8],[9.81,10.3],[10.31,10.8],[10.81,11.3]],"valueStep":0.01},
     {"id":"dr","type":"suffix","statName":"물리 피해 감소(%)","slots":["갑옷","허리띠","투구"],"affixBalanceVersion":2,"tierValues":[[4,5],[6,7],[8,9],[10,11],[12,13],[14,15],[16,17],[18,19],[20,21],[22,23],[24,25],[26,27],[28,29],[30,31],[32,33],[34,35],[36,37],[38,39],[40,41],[42,43]],"valueStep":1},
     {"id":"critDmg","type":"suffix","statName":"치명타 피해 배율(%)","slots":["무기","목걸이","투구"],"affixBalanceVersion":2,"tierValues":[[16,19],[20,25],[26,31],[32,37],[38,43],[44,49],[50,55],[56,61],[62,67],[68,73],[74,79],[80,85],[86,91],[92,97],[98,103],[104,109],[110,115],[116,121],[122,127],[128,133]],"valueStep":1},
     {"id":"ds","type":"suffix","statName":"연속 타격(%)","slots":["장갑","무기"],"affixBalanceVersion":2,"tierValues":[[8,9],[10,12],[13,15],[16,18],[19,21],[22,24],[25,27],[28,30],[31,33],[34,36],[37,39],[40,42],[43,45],[46,48],[49,51],[52,54],[55,57],[58,60],[61,63],[64,66]],"valueStep":1},
@@ -2420,7 +2420,7 @@ const defaultGame = {
     passiveStarEvolution: false,
     passiveStarEvolutionSource: null,
     skills: ['기본 공격'],
-    activeSkill: '기본 공격',
+    activeSkill: '기본 공격', weaponBlockedSkill: '', // 지금 무기로 못 써 기본 공격으로 바꿔 둔 주 공격 룬(js/skills.js fitActiveSkillToWeapon)
     mobilitySkill: '', // 이동 스킬 칸 (js/mobility-skill.js): a gem tagged 'mobility', worn next to the main gem
     equippedSummonSkills: [],
     summonSkillCounts: {},

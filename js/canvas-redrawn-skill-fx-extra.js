@@ -1,5 +1,5 @@
 /** 새로 그린 스킬 이펙트 — 2026-09-30 변경분의 그리는 쪽 (js/canvas-redrawn-skill-fx.js가 이벤트를 모아 넘겨 준다).
- * 17 혈기 폭쇄 · 29 화염 폭풍핵 · 30 빙결 파열창 · 37 룬 지뢰 · 48 과냉각 혼합물, 그리고 이동 스킬 칸의 이동기 3종
+ * 17 혈기 폭쇄 · 29 화염 폭풍핵 · 30 빙결 파열창 · 37 번개 각인 · 48 과냉각 혼합물, 그리고 이동 스킬 칸의 이동기 3종
  * (54 차원찢기 · 55 향로구름 · 56 작살화살 — 원본 그림이 없어 새 그림만 있다)과 그 동안의 캐릭터 움직임.
  * Pure drawing from combat snapshots: nothing here schedules, resolves or applies damage.
  */
@@ -58,7 +58,7 @@ const redrawnSkillFxExtra = (() => {
         for (const e of eventsOf(cast, 'hit')) { const tc = hitCell(e); if (tc) extra().FrostMist.burst(dot, tc.gx * 16 + 8, tc.gy * 16 + 6, ft - e.at); }
     }
     function mineArm(cast) { return SKILL_DB[cast.skillName]?.combatPattern?.armDelayMs || 460; }
-    function mineInfo(cast) {                                 // 37 룬 지뢰: windup = throw + arming, stage = the blast
+    function mineInfo(cast) {                                 // 37 번개 각인: windup = throw + arming, stage = the blast
         const w = firstOf(cast, 'windup'), st = firstOf(cast, 'stage'), ev = st || w;
         if (!ev) return null;
         const fp = ev.footprint || {}, c = fp.center || ev.targetCells[0], arm = mineArm(cast), T = w ? w.at + w.duration : st.at;

@@ -9,7 +9,7 @@ const skillGemCasts = (() => {
     // Gems that never overlap themselves: the clock, the assassination and the three movement gems.
     const SINGLE_CAST = new Set([46,52,54,55,56]);
     // 효과 확장 +N (js/skill-effect-expansion.js): 탄성 플라스크 bounces, 폭발 혼합물·신성한 안개 radius, 파문심판 cross arms,
-    // 빈 플라스크 shard reach and 암살 reach grow by it; 광창 강림·시간 가속·과냉각 혼합물·인과 never do.
+    // 빈 플라스크 shard reach and 암살 reach grow by it; 신성한 기도·시간 가속·과냉각 혼합물·인과 never do.
     const grow = stats => skillEffectExpansion.extra(stats && stats.sSkill);
     function facing(enemy,source) {
         const center=getGridUnitCenter(enemy),x=source.gx-center.gx,y=source.gy-center.gy;

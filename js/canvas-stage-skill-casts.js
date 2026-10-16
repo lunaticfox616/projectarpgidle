@@ -1,7 +1,7 @@
 /** 스킬 이펙트의 연결 규칙 둘째 묶음 (첫째는 js/canvas-stage-skill-rules.js): 투사체의 몸, 따로 시전하는 룬, 이동기, 위습.
  * - 투사체의 몸: 날아가는 사건(travel)마다 인계의 그림(속성 장식이 붙은 창, 쌍독니, 도는 방패, 화살, 던지는 플라스크)을 그 자리에 그린다.
  *   곧게 나는 것은 손 높이로, 던지는 플라스크는 포물선으로 난다.
- * - 따로 시전하는 룬(js/skill-gem-casts.js): 사건에 적힌 단계 이름마다 인계의 클립을 튼다. 탄성 플라스크, 광창 강림, 폭발 혼합물,
+ * - 따로 시전하는 룬(js/skill-gem-casts.js): 사건에 적힌 단계 이름마다 인계의 클립을 튼다. 탄성 플라스크, 신성한 기도, 폭발 혼합물,
  *   과냉각 혼합물, 빈 플라스크, 신성한 안개, 암살, 인과, 차원찢기, 향로구름. 시간 가속과 파문심판은 인계도 게임의 옛 그림을 쓴다.
  * - 이동기: 방패 돌진의 바람과 착지 먼지, 그림자 점멸의 연기. 주인공이 사라지고 나타나는 움직임은 게임의 것 그대로다.
  * - 위습: 소환된 위습의 몸과 쏘는 구슬을 그 속성의 클립으로 그린다.
@@ -66,7 +66,7 @@ const stageSkillCasts = (() => {
         if (c.first && ref) stageSkillVfx.play(ref, K.at(spot, 0, K.onGround(ref) ? 1 : -8), { ...c.look, layer: K.onGround(ref) ? 'ground' : 'top' });
         return true;
     }
-    /** 광창 강림: 손에서 빛이 터지고, 범위 안의 자리마다 빛의 창이 차례로 내리꽂힌다. */
+    /** 신성한 기도: 손에서 빛이 터지고, 범위 안의 자리마다 빛의 창이 차례로 내리꽂힌다. */
     function castLances(c) {
         if (!c.first) return true;
         if (c.gem.map.cast) stageSkillVfx.play(c.gem.map.cast, K.at(K.heroSpot(), c.look.face * 22, -62), c.look);

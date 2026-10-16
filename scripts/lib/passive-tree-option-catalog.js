@@ -129,7 +129,7 @@ const ARCHETYPE_PROFILES = Object.freeze({
     ]),
     melee: Object.freeze([
         profile('날 선 일격', line('meleePctDmg', 5), line('flatDmg', 2)),
-        profile('연속 베기', line('meleePctDmg', 4), line('aspd', 1.5)),
+        profile('이중 베기', line('meleePctDmg', 4), line('aspd', 1.5)),
         profile('파고드는 칼끝', line('meleePctDmg', 4), line('physIgnore', 1.5)),
         profile('급소 절개', line('meleePctDmg', 4), line('crit', 0.8))
     ]),

@@ -130,6 +130,10 @@ context.addLog = () => {};
 context.checkUnlocks = () => {};
 context.updateStaticUI = () => {};
 
+// 스킬룬 무기 규칙(js/skills.js isSkillRuneUsableWithStance)은 이 시험의 엔진 판정과 상관이 없다: 무기 없이 아무 룬이나 끼워 보도록
+// 꺼 두고, 무기 규칙 구간에서만 원래 규칙으로 확인한다.
+const realSkillRuneUsable = context.isSkillRuneUsableWithStance;
+vm.runInContext('isSkillRuneUsableWithStance = () => true;', context);
 function resetGame() {
   vm.runInContext('game = JSON.parse(JSON.stringify(defaultGame)); window.game = game;', context);
   context.game.currentZoneId = 0;
@@ -838,9 +842,9 @@ Object.keys(context.SKILL_DB).forEach(name => {
   if (profile.shape) assert.ok(validShapes.has(profile.shape), `스킬 '${name}'의 shape가 유효하지 않다: ${profile.shape}`);
   if (profile.kind === 'summon') assert.strictEqual(profile.range, context.getSummonProfile(name).gridRange, `소환 룬 '${name}'의 표시 사거리는 실제 공격 사거리와 같아야 한다`);
 });
-assert.strictEqual(context.describeSkillGridProfile('서리 폭발', context.SKILL_DB['서리 폭발']), '공격 범위: 대상 지점 폭발, 사거리 5칸, 반경 2칸, 원형');
-assert.strictEqual(context.describeSkillGridProfile('연쇄 폭풍', context.SKILL_DB['연쇄 폭풍']), '공격 범위: 연쇄, 사거리 5칸, 연쇄 3칸');
-assert.strictEqual(context.describeSkillGridProfile('공허 베기', context.SKILL_DB['공허 베기']), '공격 범위: 직선 관통, 사거리 3칸');
+assert.strictEqual(context.describeSkillGridProfile('중력 붕괴', context.SKILL_DB['중력 붕괴']), '공격 범위: 대상 지점 폭발, 사거리 5칸, 반경 2칸, 원형');
+assert.strictEqual(context.describeSkillGridProfile('뇌운 낙뢰', context.SKILL_DB['뇌운 낙뢰']), '공격 범위: 연쇄, 사거리 6칸, 연쇄 3칸');
+assert.strictEqual(context.describeSkillGridProfile('공허 가르기', context.SKILL_DB['공허 가르기']), '공격 범위: 직선 관통, 사거리 3칸');
 assert.strictEqual(context.describeSkillGridProfile('심연 전염', context.SKILL_DB['심연 전염']), '공격 범위: 연쇄, 사거리 5칸, 연쇄 2칸');
 assert.strictEqual(context.describeSkillGridProfile('물리 위습 소환', context.SKILL_DB['물리 위습 소환']), '공격 범위: 소환수 공격, 사거리 3칸');
 assert.strictEqual(context.describeSkillGridProfile('연발 사격', context.SKILL_DB['연발 사격']), '발사 방식: 부채꼴 연사, 사거리 6칸, 5방향(20도 간격), 발사 방식 변경 가능');
@@ -905,18 +909,18 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   hits = context.selectGridSkillTargets('기본 공격', { targets: 1, targetMode: 'single' }, attacker, [adjacentBoss]);
   assert.strictEqual(hits[0].enemy.id, adjacentBoss.id, '보스의 가까운 가장자리에는 근접 공격이 닿아야 한다');
 
-  // 폭발(서리 폭발, 사거리 5·반경 2): 대상 주변의 적이 함께 맞고, 반경 밖은 안 맞는다
+  // 폭발(중력 붕괴, 사거리 5·반경 2): 대상 주변의 적이 함께 맞고, 반경 밖은 안 맞는다
   const inBlast = makeEnemy(3, 4, 4);
   const splash = makeEnemy(4, 6, 6);   // 대상 중심 5x5 사각형의 대각선 끝
   const outside = makeEnemy(5, 7, 0);  // 대상에서 멀리
-  hits = context.selectGridSkillTargets('서리 폭발', { targets: 99, targetMode: 'all' }, attacker, [inBlast, splash, outside]);
+  hits = context.selectGridSkillTargets('중력 붕괴', { targets: 99, targetMode: 'all' }, attacker, [inBlast, splash, outside]);
   const hitIds = hits.map(h => h.enemy.id).sort().join(',');
-  assert.strictEqual(hitIds, '3', '서리 폭발은 원 밖의 사각 모서리를 맞히지 않아야 한다');
+  assert.strictEqual(hitIds, '3', '중력 붕괴은 원 밖의 사각 모서리를 맞히지 않아야 한다');
   assert.ok(hits.every(h => h.mult === 1), 'all 모드 부가 타격 배율은 1이어야 한다');
 
   const footprintPrimary = makeEnemy(2001, 6, 6);
   const footprintSplashBoss = makeEnemy(2002, 3, 5, { isBoss: true });
-  hits = context.selectGridSkillTargets('서리 폭발', { targets: 99, targetMode: 'all' },
+  hits = context.selectGridSkillTargets('중력 붕괴', { targets: 99, targetMode: 'all' },
     { gx: 8, gy: 6 }, [footprintPrimary, footprintSplashBoss]);
   assert.ok(hits.some(hit => hit.enemy.id === footprintSplashBoss.id),
     '보스 기준 좌표가 범위 밖이어도 2x2 점유 칸이 닿으면 광역 공격에 맞아야 한다');
@@ -929,11 +933,11 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   assert.strictEqual(hits.map(h => h.enemy.id).join(','), '6,7', '직선 위의 적만 관통해야 한다');
   assert.strictEqual(hits[1].mult, 0.65, '관통 2번째 타격 배율');
 
-  // 연쇄(연쇄 폭풍, 점프 2칸): 점프 거리 밖 적으로는 튀지 않는다
+  // 연쇄(독창 투척, 점프 2칸): 점프 거리 밖 적으로는 튀지 않는다
   const chainA = makeEnemy(9, 3, 6);
   const chainB = makeEnemy(10, 5, 6);  // A에서 2칸
   const chainFar = makeEnemy(11, 5, 1); // B에서 5칸
-  hits = context.selectGridSkillTargets('연쇄 폭풍', { targets: 4, targetMode: 'chain' }, attacker, [chainA, chainB, chainFar]);
+  hits = context.selectGridSkillTargets('독창 투척', { targets: 4, targetMode: 'chain' }, attacker, [chainA, chainB, chainFar]);
   assert.strictEqual(hits.map(h => h.enemy.id).join(','), '9,10', '점프 거리 밖으로는 연쇄되지 않아야 한다');
 
   const fanAttacker = { gx: 3, gy: 3 };
@@ -957,23 +961,23 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
 
   // 대상 수 상한: targets=2면 범위 안에 3기가 있어도 2기만 맞는다
   const n1 = makeEnemy(12, 2, 6), n2 = makeEnemy(13, 2, 5), n3 = makeEnemy(14, 1, 5);
-  hits = context.selectGridSkillTargets('회오리바람', { targets: 2, targetMode: 'whirl' }, attacker, [n1, n2, n3]);
+  hits = context.selectGridSkillTargets('회오리', { targets: 2, targetMode: 'whirl' }, attacker, [n1, n2, n3]);
   assert.strictEqual(hits.length, 2, 'targets 상한을 지켜야 한다');
   const adjacentEight = [
     makeEnemy(140, 0, 5), makeEnemy(141, 1, 5), makeEnemy(142, 2, 5), makeEnemy(143, 0, 6),
     makeEnemy(144, 2, 6), makeEnemy(145, 0, 7), makeEnemy(146, 1, 7), makeEnemy(147, 2, 7),
   ];
-  hits = context.selectGridSkillTargets('회오리바람', { targets: 8, targetMode: 'whirl' }, attacker, adjacentEight);
-  assert.strictEqual(hits.length, 8, '회오리바람의 사각형 범위는 플레이어 주변 8칸을 모두 덮어야 한다');
+  hits = context.selectGridSkillTargets('회오리', { targets: 8, targetMode: 'whirl' }, attacker, adjacentEight);
+  assert.strictEqual(hits.length, 8, '회오리의 사각형 범위는 플레이어 주변 8칸을 모두 덮어야 한다');
 
   const vibrationTargets = [
     makeEnemy(148, 2, 6), makeEnemy(149, 3, 6), makeEnemy(150, 3, 4), makeEnemy(151, 1, 4),
   ];
-  hits = context.selectGridSkillTargets('불멸의 진동', context.SKILL_DB['불멸의 진동'], attacker, vibrationTargets);
-  assert.strictEqual(context.getSkillGridProfile('불멸의 진동', context.SKILL_DB['불멸의 진동']).shape, 'diamond',
-    '불멸의 진동은 인접 칸이 비는 고리 판정을 사용하면 안 된다');
+  hits = context.selectGridSkillTargets('대지의 함성', context.SKILL_DB['대지의 함성'], attacker, vibrationTargets);
+  assert.strictEqual(context.getSkillGridProfile('대지의 함성', context.SKILL_DB['대지의 함성']).shape, 'diamond',
+    '대지의 함성은 인접 칸이 비는 고리 판정을 사용하면 안 된다');
   assert.deepStrictEqual(Array.from(hits, hit => hit.enemy.id), [148, 149, 151],
-    '불멸의 진동은 마름모 안의 적을 공격하고 밖의 사각 모서리는 제외해야 한다');
+    '대지의 함성은 마름모 안의 적을 공격하고 밖의 사각 모서리는 제외해야 한다');
 
   // 전이 타격: 남는 타겟 수만큼 이미 맞은 적의 인접 1칸 적에게 번진다(근접 단일 + 타겟 수 옵션)
   const sp1 = makeEnemy(20, 2, 6);  // 공격자 인접
@@ -999,7 +1003,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
 
   const arcSideA = makeEnemy(34, 4, 3);
   const arcSideB = makeEnemy(35, 3, 4);
-  hits = context.selectGridSkillTargets('연속 베기', { targets: 3, targetMode: 'cleave', tags: ['attack', 'melee'] },
+  hits = context.selectGridSkillTargets('이중 베기', { targets: 3, targetMode: 'cleave', tags: ['attack', 'melee'] },
     diagonalAttacker, [diagonalPrimary, arcSideA, arcSideB]);
   assert.deepStrictEqual(Array.from(hits, hit => hit.enemy.id), [30, 34, 35],
     '명시된 부채꼴 스킬은 대각선 공격에서도 고유 범위를 유지해야 한다');
@@ -1264,7 +1268,9 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   assert.strictEqual(split.dmg, 72, '분산 방식의 피해 감폭은 실제 스킬 피해에 적용돼야 한다');
   assert.strictEqual(context.applyProjectilePatternMode({ ...context.SKILL_DB['얼음 창'], dmg: 100 }, 'split', '재능', null).dmg, 72, '전용 배율이 없는 효과는 null이어도 각인 기본 배율을 유지해야 한다');
   assert.ok(context.describeSkillGridProfile('얼음 창', split).includes('적용: 테스트 각인'), '변경된 발사 방식과 출처를 툴팁에 표시해야 한다');
-  const focused = context.applyProjectilePatternMode({ ...context.SKILL_DB['독니 사출'], dmg: 100 }, 'focus', '테스트 각인');
+  // 되돌아오는 투사체 룬(독니 사출, 방패 투척)은 2026-10-17 인계에서 지워졌다: 얼음 창에 귀환 궤도를 붙인 시험용 룬으로 본다.
+  const boomerangRune = { ...context.SKILL_DB['얼음 창'], targets: 3, combatPattern: { kind: 'boomerang', returnDelayMs: 160 }, projectilePattern: { mode: 'return', kind: 'line' } };
+  const focused = context.applyProjectilePatternMode({ ...boomerangRune, dmg: 100 }, 'focus', '테스트 각인');
   assert.strictEqual(focused.targets, 1, '집속 방식은 대상 하나에만 투사체를 집중해야 한다');
   assert.strictEqual(focused.combatPattern, undefined, '집속 방식은 룬의 기존 귀환 궤도를 대체해야 한다');
   assert.strictEqual(focused.dmg, 155, '집속 방식의 단일 대상 피해 증폭을 적용해야 한다');
@@ -1425,18 +1431,19 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   context.game.gridPlayer = { gx: 1, gy: 6, gridMoveTimer: 0 };
   const targets = [makeEnemy(31, 2, 6), makeEnemy(32, 2, 5), makeEnemy(33, 1, 5)]
     .map((enemy, idx) => ({ enemy, mult: idx === 0 ? 1 : 0.8 }));
-  const whirl = context.buildSkillHitSequence('회오리바람', context.SKILL_DB['회오리바람'], targets);
-  assert.strictEqual(whirl.length, context.SKILL_DB['회오리바람'].targets, '회오리바람은 대상 수만큼 회전한다 (대상은 회전이 닿을 때 고른다)');
-  assert.strictEqual(whirl.slice(0, 3).map(stage => stage.delayMs).join(','), '0,80,160', '회오리바람은 0.08초 간격으로 순차 타격해야 한다');
+  const whirl = context.buildSkillHitSequence('회오리', context.SKILL_DB['회오리'], targets);
+  assert.strictEqual(whirl.length, context.SKILL_DB['회오리'].targets, '회오리는 대상 수만큼 회전한다 (대상은 회전이 닿을 때 고른다)');
+  assert.strictEqual(whirl.slice(0, 3).map(stage => stage.delayMs).join(','), '0,80,160', '회오리는 0.08초 간격으로 순차 타격해야 한다');
   assert.ok(whirl.every(stage => stage.targets.length === 1 && stage.whirl === whirl[0].whirl),
     '회전 하나는 한 명만 베고, 한 시전의 회전들은 이미 벤 적 목록을 함께 쓴다');
 
-  const chain = context.buildSkillHitSequence('연쇄 폭풍', context.SKILL_DB['연쇄 폭풍'], targets);
+  // 점프마다 강해지는 연쇄(연쇄 폭풍)는 지워졌다: 번개 타격에 +12%를 붙인 시험용 룬으로 본다.
+  const chain = context.buildSkillHitSequence('번개 타격', { ...context.SKILL_DB['번개 타격'], chainStepDamagePct: 12 }, targets);
   assert.strictEqual(chain.map(stage => stage.kind).join(','), 'chainPrimary,chainJump,chainJump', '연쇄는 최초 공격과 후속 점프로 구분돼야 한다');
   assert.strictEqual(chain.map(stage => stage.delayMs).join(','), '0,110,220', '연쇄 피해는 각 점프 시점에 따로 발생해야 한다');
   assert.strictEqual(chain[1].chainFromEnemyId, 31, '두 번째 연쇄는 최초 대상에서 출발해야 한다');
   assert.strictEqual(chain[2].chainFromEnemyId, 32, '세 번째 연쇄는 직전 연쇄 대상에서 출발해야 한다');
-  assert.deepStrictEqual(Array.from(chain, stage => stage.damageMultiplier), [1, 1.12, 1.24], '연쇄 폭풍은 점프마다 12%씩 강해져야 한다');
+  assert.deepStrictEqual(Array.from(chain, stage => stage.damageMultiplier), [1, 1.12, 1.24], '점프마다 +12%인 연쇄는 점프마다 12%씩 강해져야 한다');
   const fallingChain = context.buildSkillHitSequence('번개 타격', context.SKILL_DB['번개 타격'], targets);
   assert.deepStrictEqual(Array.from(fallingChain, stage => stage.damageMultiplier), [1, 0.88, 0.76], '번개 타격은 점프마다 12%씩 약해져야 한다');
 
@@ -1445,13 +1452,13 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   assert.strictEqual(pierce.map(stage => stage.delayMs).join(','), '0,30,60', '관통 피해는 투사체가 직선을 통과하는 순서대로 발생해야 한다');
   assert.ok(pierce.every(stage => stage.targets.length === 1), '관통 단계마다 지나친 적 하나만 피해를 받아야 한다');
 
-  const slam = context.buildSkillHitSequence('묵직한 강타', context.SKILL_DB['묵직한 강타'], targets.slice(0, 1));
+  const slam = context.buildSkillHitSequence('강타', context.SKILL_DB['강타'], targets.slice(0, 1));
   assert.strictEqual(slam.length, 2, '강타는 본 타격과 여진으로 분리돼야 한다');
   assert.strictEqual(slam[1].kind, 'slamAftershock');
-  assert.strictEqual(slam[1].delayMs, 420, '묵직한 강타의 개별 여진 지연시간을 사용해야 한다');
+  assert.strictEqual(slam[1].delayMs, 420, '강타의 개별 여진 지연시간을 사용해야 한다');
   assert.strictEqual(slam[0].damageMultiplier, 0.62, '강타 본 타격과 여진의 합이 기존 총 피해를 유지해야 한다');
-  assert.strictEqual(slam[1].damageMultiplier, 0.38, '묵직한 강타의 여진 피해 배율을 사용해야 한다');
-  assert.strictEqual(context.getSkillHitSequenceDpsMultiplier('묵직한 강타', context.SKILL_DB['묵직한 강타']), 1, '판정 세분화만으로 표시 DPS가 증가하면 안 된다');
+  assert.strictEqual(slam[1].damageMultiplier, 0.38, '강타의 여진 피해 배율을 사용해야 한다');
+  assert.strictEqual(context.getSkillHitSequenceDpsMultiplier('강타', context.SKILL_DB['강타']), 1, '판정 세분화만으로 표시 DPS가 증가하면 안 된다');
 
   const meteor = context.buildSkillHitSequence('유성 낙화', context.SKILL_DB['유성 낙화'], targets);
   assert.strictEqual(meteor.length, 4, '유성 낙화는 충돌 뒤 짧은 불길 지대를 3회 유지해야 한다');
@@ -1482,7 +1489,8 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   context.game.gridPlayer = { gx: 0, gy: 4, gridMoveTimer: 0 };
   const frostTargets = [makeEnemy(341, 3, 4), makeEnemy(342, 4, 4), makeEnemy(343, 4, 5),
     makeEnemy(344, 5, 4), makeEnemy(345, 5, 5)].map(enemy => ({ enemy, mult: 1 }));
-  const frostBurst = context.buildSkillHitSequence('서리 폭발', context.SKILL_DB['서리 폭발'], frostTargets);
+  // 대상 둘레로 퍼지는 원형 파동(서리 폭발)은 지워졌다: 같은 판정(사거리 5, 반경 2, 원형)인 중력 붕괴에 파동을 붙여 본다.
+  const frostBurst = context.buildSkillHitSequence('중력 붕괴', { ...context.SKILL_DB['중력 붕괴'], combatPattern: { kind: 'radialBurst', waveMsPerCell: 90 } }, frostTargets);
   // 2026-10-02: 파동 앞면이 반 칸 넓어질 때마다 한 단계, 몹이 지금 서 있는 곳으로 판정한다(3-1c가 움직이는 몹으로 확인).
   assert.deepStrictEqual(Array.from(frostBurst, stage => stage.delayMs), [0, 45, 90, 135, 180, 225],
     '서리 폭발 피해는 중심에서 퍼지는 파동 앞면을 따라 반 칸마다 판정해야 한다');
@@ -1496,13 +1504,13 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
     '판정 고리는 그림 고리처럼 0.09초에 한 칸, 반경 끝(2.5칸)까지 넓어진다');
   context.game.gridPlayer = { gx: 1, gy: 6, gridMoveTimer: 0 };
 
-  const boomerang = context.buildSkillHitSequence('독니 사출', context.SKILL_DB['독니 사출'], targets);
+  const boomerang = context.buildSkillHitSequence('얼음 창', boomerangRune, targets);
   assert.strictEqual(boomerang.length, 2, '부메랑은 왕복 두 판정으로 묶어 다중 대상 처리 부하를 제한해야 한다');
   assert.strictEqual(boomerang.map(stage => stage.kind).join(','), 'boomerangOutbound,boomerangReturn');
   assert.ok(boomerang.every(stage => stage.targets.length === 3), '왕복 각 판정은 관통한 세 대상을 모두 보존해야 한다');
   assert.ok(boomerang.every(stage => stage.damageMultiplier === 0.5), '왕복 총 피해가 기존 피해를 초과하면 안 된다');
 
-  assert.strictEqual(context.getSkillHitSequenceDpsMultiplier('연속 베기', context.SKILL_DB['연속 베기']), 1.45, '연속 베기의 표시 DPS는 감쇠된 후속타를 반영해야 한다');
+  assert.strictEqual(context.getSkillHitSequenceDpsMultiplier('이중 베기', context.SKILL_DB['이중 베기']), 2, '이중 베기의 표시 DPS는 같은 피해의 두 번 베기를 반영해야 한다');
   assert.ok(Math.abs(context.getSkillHitSequenceDpsMultiplier('연발 사격', context.SKILL_DB['연발 사격']) - 2.6) < 1e-9, '연발 사격의 무리 최대 배율은 감쇠된 보조 화살 4발을 반영해야 한다');
   assert.ok(Math.abs(context.getSkillHitSequenceDpsMultiplier('화염 폭풍핵', context.SKILL_DB['화염 폭풍핵']) - 1.02) < 1e-9, '화염 폭풍핵의 표시 DPS는 장판 3회를 합산해야 한다');
   assert.strictEqual(context.getSkillHitSequenceDpsMultiplier('난타 눈보라', context.SKILL_DB['난타 눈보라']), 4, '난타 눈보라는 기존 4회 총 피해를 유지해야 한다');
@@ -1510,13 +1518,13 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
 
 // ── 3-1a. 스킬별 후속타·상태이상·조건부 피해·위치 제어 규칙 ──
 {
-  assert.strictEqual(context.getSkillRepeatDamageMultiplier(context.SKILL_DB['연속 베기'], 0, 2), 1, '첫 타격은 감쇠하지 않아야 한다');
-  assert.strictEqual(context.getSkillRepeatDamageMultiplier(context.SKILL_DB['연속 베기'], 1, 2), 0.45, '연속 베기의 두 번째 타격은 45%여야 한다');
+  assert.strictEqual(context.getSkillRepeatDamageMultiplier(context.SKILL_DB['이중 베기'], 0, 2), 1, '첫 타격은 감쇠하지 않아야 한다');
+  assert.strictEqual(context.getSkillRepeatDamageMultiplier(context.SKILL_DB['이중 베기'], 1, 2), 1, '이중 베기의 두 번째 타격은 첫 타격과 같은 피해여야 한다');
   assert.strictEqual(context.getSkillRepeatDamageMultiplier(context.SKILL_DB['연발 사격'], 1, 1), 0.4, '연발 사격의 추가 반복 투사체도 보조 탄 배율을 사용해야 한다');
 
-  const coldStats = context.getSkillAilmentStats({ sSkill: context.SKILL_DB['서리 폭발'] }, 'cold', null);
-  assert.strictEqual(coldStats.chillChance, 100, '서리 폭발의 냉각 보너스가 실제 상태이상 계산에 들어가야 한다');
-  assert.strictEqual(coldStats.freezeChance, 25, '서리 폭발의 동결 보너스가 실제 상태이상 계산에 들어가야 한다');
+  const coldStats = context.getSkillAilmentStats({ sSkill: { ...context.SKILL_DB['서리베기'], ailmentChanceBonus: { chill: 100, freeze: 25 } } }, 'cold', null);
+  assert.strictEqual(coldStats.chillChance, 100, '룬의 냉각 보너스가 실제 상태이상 계산에 들어가야 한다');
+  assert.strictEqual(coldStats.freezeChance, 25, '룬의 동결 보너스가 실제 상태이상 계산에 들어가야 한다');
   const lightningStats = context.getSkillAilmentStats({ sSkill: context.SKILL_DB['번개 창'] }, 'light', null);
   assert.strictEqual(lightningStats.shockChance, 20, '번개 창의 감전 보너스가 실제 상태이상 계산에 들어가야 한다');
 
@@ -1524,9 +1532,9 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   context.game.gridPlayer = { gx: 1, gy: 6, gridMoveTimer: 0 };
   const target = makeEnemy(34, 5, 6);
   context.game.enemies = [target];
-  assert.strictEqual(context.getSkillConditionalDamageMultiplier(context.SKILL_DB['암살자의 일격'], target), 1.35, '암살자의 일격은 생명력이 가득 찬 적에게 증폭돼야 한다');
+  assert.strictEqual(context.getSkillConditionalDamageMultiplier(context.SKILL_DB['기습 공격'], target), 1.35, '기습 공격은 생명력이 가득 찬 적에게 증폭돼야 한다');
   const openingCues = [];
-  context.getSkillConditionalDamageMultiplier(context.SKILL_DB['암살자의 일격'], target, cue => openingCues.push(cue));
+  context.getSkillConditionalDamageMultiplier(context.SKILL_DB['기습 공격'], target, cue => openingCues.push(cue));
   assert.deepStrictEqual(Array.from(openingCues, cue => cue.text), ['선제: 피해 35% 증폭'],
     '선제 피해가 적용되면 전투 화면에 실제 발동 이유를 전달해야 한다');
   assert.strictEqual(context.getSkillConditionalDamageMultiplier(context.SKILL_DB['번개 창'], target), 1.18, '번개 창은 첫 칸 이후 거리만큼 증폭돼야 한다');
@@ -1538,7 +1546,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
     '거리 상한 달성은 전투 화면에 전달해야 한다');
   context.game.enemies = Array.from({ length: 8 }, (_, idx) => makeEnemy(100 + idx, 2 + (idx % 4), 2 + Math.floor(idx / 4)));
   const crowdCues = [];
-  assert.strictEqual(context.getSkillConditionalDamageMultiplier(context.SKILL_DB['회오리바람'], context.game.enemies[0], cue => crowdCues.push(cue)), 1.28, '회오리바람의 밀집 보너스는 28% 상한을 지켜야 한다');
+  assert.strictEqual(context.getSkillConditionalDamageMultiplier(context.SKILL_DB['회오리'], context.game.enemies[0], cue => crowdCues.push(cue)), 1.28, '회오리의 밀집 보너스는 28% 상한을 지켜야 한다');
   assert.deepStrictEqual(Array.from(crowdCues, cue => cue.text), ['최대 포위: 피해 28% 증폭'],
     '포위 상한 달성은 전투 화면에 전달해야 한다');
 
@@ -1603,13 +1611,15 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
     '지혜의 도약에서 공허를 선택한 후 카오스 주력 스킬이 0 피해를 주면 안 된다');
 }
 
-// ── 3-1c. 서리 폭발: 그려진 고리가 그려진 몹에 닿으면 맞는다(퍼지며 닿는 순서 그대로) ──
+// ── 3-1c. 대상 둘레로 퍼지는 원형 파동: 그려진 고리가 그려진 몹에 닿으면 맞는다(퍼지며 닿는 순서 그대로) ──
+// 이 판정을 쓰던 서리 폭발은 2026-10-17 인계에서 지워졌다: 같은 판정(사거리 5, 반경 2, 원형)인 중력 붕괴에 파동을 붙인 시험용 룬으로 본다.
 // (2026-10-02 사용자: 쓰자마자 몹이 범위 안에서 움직이면 회피처럼 빗나가는 게 불쾌하다. 이펙트가 닿으면 맞게.)
 {
   resetGame();
-  context.game.activeSkill = '서리 폭발';
-  context.game.skills = Array.from(new Set([...(context.game.skills || []), '서리 폭발']));
-  context.game.gemData['서리 폭발'] = { level: 1, exp: 0, quality: 0 };
+  vm.runInContext("SKILL_DB['시험 원형 파동'] = { ...SKILL_DB['중력 붕괴'], combatPattern: { kind: 'radialBurst', waveMsPerCell: 90 } }; SKILL_GRID_DB['시험 원형 파동'] = { kind: 'blast', range: 5, radius: 2, shape: 'circle' };", context);
+  context.game.activeSkill = '시험 원형 파동';
+  context.game.skills = Array.from(new Set([...(context.game.skills || []), '시험 원형 파동']));
+  context.game.gemData['시험 원형 파동'] = { level: 1, exp: 0, quality: 0 };
   context.game.gridPlayer = { gx: 0, gy: 4, gridMoveTimer: 0 };
   const sturdy = { hp: 1000000, maxHp: 1000000, armor: 0, evasion: 0, evasionChance: 0, dr: 0, resF: 0, resC: 0, resL: 0, resChaos: 0 };
   // How many times this cast's wave struck a monster (its hit effects), whatever the damage.
@@ -1665,9 +1675,9 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
 // ── 3-2. 실제 피해도 첫 단계와 후속 단계의 시점에 나뉘어 적용돼야 한다 ──
 {
   resetGame();
-  context.game.activeSkill = '회오리바람';
-  context.game.skills = Array.from(new Set([...(context.game.skills || []), '회오리바람']));
-  context.game.gemData['회오리바람'] = { level: 1, exp: 0, quality: 0 };
+  context.game.activeSkill = '회오리';
+  context.game.skills = Array.from(new Set([...(context.game.skills || []), '회오리']));
+  context.game.gemData['회오리'] = { level: 1, exp: 0, quality: 0 };
   context.game.gridPlayer = { gx: 1, gy: 6, gridMoveTimer: 0 };
   const enemies = [makeEnemy(41, 2, 6), makeEnemy(42, 1, 7), makeEnemy(43, 1, 5)];
   enemies.forEach(enemy => { enemy.hp = 1000000; enemy.maxHp = 1000000; });
@@ -1678,16 +1688,16 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   stats.maxDmgRoll = 100;
   stats.accuracy = 1000000;
   context.performPlayerAttack(stats);
-  assert.ok(enemies.every(enemy => enemy.hp === enemy.maxHp), '공격 모션이 끝나기 전에 회오리바람 피해가 적용되면 안 된다');
+  assert.ok(enemies.every(enemy => enemy.hp === enemy.maxHp), '공격 모션이 끝나기 전에 회오리 피해가 적용되면 안 된다');
   vm.runInContext('pendingSkillStageHits.sort((a, b) => a.at - b.at); pendingSkillStageHits[0].at = 0; processPendingSkillStageHits();', context);
-  assert.ok(enemies[0].hp < enemies[0].maxHp, '회오리바람 첫 대상은 첫 단계에서 피해를 받아야 한다');
-  assert.strictEqual(enemies[1].hp, enemies[1].maxHp, '회오리바람 두 번째 대상 피해가 첫 단계와 동시에 들어가면 안 된다');
+  assert.ok(enemies[0].hp < enemies[0].maxHp, '회오리 첫 대상은 첫 단계에서 피해를 받아야 한다');
+  assert.strictEqual(enemies[1].hp, enemies[1].maxHp, '회오리 두 번째 대상 피해가 첫 단계와 동시에 들어가면 안 된다');
   vm.runInContext('pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();', context);
-  assert.ok(enemies[1].hp < enemies[1].maxHp && enemies[2].hp < enemies[2].maxHp, `회오리바람 후속 대상은 예약된 순차 단계에서 피해를 받아야 한다 (${enemies.map(enemy => enemy.hp).join(',')})`);
+  assert.ok(enemies[1].hp < enemies[1].maxHp && enemies[2].hp < enemies[2].maxHp, `회오리 후속 대상은 예약된 순차 단계에서 피해를 받아야 한다 (${enemies.map(enemy => enemy.hp).join(',')})`);
 
   // 09-30: 회전마다 그 순간 서 있는 칸 둘레에서 아직 안 맞은 적을 벤다 — 걷는 동안에도 칼바람이 따라간다.
   resetGame();
-  context.game.activeSkill = '회오리바람';
+  context.game.activeSkill = '회오리';
   context.game.gridPlayer = { gx: 1, gy: 6, gridMoveTimer: 0 };
   const near = makeEnemy(44, 2, 6), far = makeEnemy(45, 4, 6);
   [near, far].forEach(enemy => { enemy.hp = 1000000; enemy.maxHp = 1000000; });
@@ -1695,7 +1705,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   const walkStats = context.getPlayerStats();
   Object.assign(walkStats, { baseDmg: 1000, minDmgRoll: 100, maxDmgRoll: 100, accuracy: 1000000 });
   context.performPlayerAttack(walkStats);
-  assert.strictEqual(vm.runInContext('pendingSkillStageHits.length', context), walkStats.sSkill.targets, '회오리바람은 대상 수만큼 회전을 예약한다');
+  assert.strictEqual(vm.runInContext('pendingSkillStageHits.length', context), walkStats.sSkill.targets, '회오리는 대상 수만큼 회전을 예약한다');
   vm.runInContext('pendingSkillStageHits.sort((a, b) => a.at - b.at); pendingSkillStageHits[0].at = 0; processPendingSkillStageHits();', context);
   const nearAfterFirst = near.hp;
   assert.ok(near.hp < near.maxHp && far.hp === far.maxHp, '첫 회전은 서 있는 칸 둘레의 적을 벤다');
@@ -1749,9 +1759,9 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
     '장판·채널링처럼 시간차가 있는 한 번의 공격도 같은 연타경감 묶음을 공유해야 한다');
 
   resetGame();
-  context.game.activeSkill = '묵직한 강타';
-  context.game.skills = Array.from(new Set([...(context.game.skills || []), '묵직한 강타']));
-  context.game.gemData['묵직한 강타'] = { level: 1, exp: 0, quality: 0 };
+  context.game.activeSkill = '강타';
+  context.game.skills = Array.from(new Set([...(context.game.skills || []), '강타']));
+  context.game.gemData['강타'] = { level: 1, exp: 0, quality: 0 };
   context.game.gridPlayer = { gx: 1, gy: 6, gridMoveTimer: 0 };
   const slamTarget = makeEnemy(51, 2, 6);
   slamTarget.hp = 1000000; slamTarget.maxHp = 1000000;
@@ -1773,7 +1783,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
 {
   assert.strictEqual(context.getSkillCombatDelivery(context.SKILL_DB['관통 사격']), 'projectileCell');
   assert.strictEqual(context.getSkillCombatDelivery(context.SKILL_DB['연발 사격']), 'projectileTarget');
-  assert.strictEqual(context.getSkillCombatDelivery(context.SKILL_DB['서리 폭발']), 'magicCell');
+  assert.strictEqual(context.getSkillCombatDelivery(context.SKILL_DB['유성 낙화']), 'magicCell');
   assert.strictEqual(context.getSkillCombatDelivery(context.SKILL_DB['기본 공격']), 'instantTarget');
 
   resetGame();
@@ -2391,14 +2401,14 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
 // ── 12. 소환수 회복/재배치와 장착 소환수 룬 봉인 보호 ──
 {
   resetGame();
-  context.game.skills = ['기본 공격', '냉기 위습 소환', '연속 베기'];
+  context.game.skills = ['기본 공격', '냉기 위습 소환', '이중 베기'];
   context.game.activeSkill = '기본 공격';
   context.game.equippedSummonSkills = ['냉기 위습 소환'];
   context.game.summonSkillCounts = { '냉기 위습 소환': 1 };
   context.sealAllInactiveSkillGems();
   assert.ok(context.game.skills.includes('냉기 위습 소환'), '장착 중인 소환수 룬은 일괄 봉인에서 제외해야 한다');
   assert.ok(context.game.skills.includes('기본 공격'), '활성 스킬은 일괄 봉인에서 유지해야 한다');
-  assert.ok(!context.game.skills.includes('연속 베기'), '미사용 일반 스킬룬은 일괄 봉인해야 한다');
+  assert.ok(!context.game.skills.includes('이중 베기'), '미사용 일반 스킬룬은 일괄 봉인해야 한다');
 
   const pStats = context.getPlayerStats();
   context.ensureSummonRuntime(pStats);
@@ -2505,7 +2515,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   assert.ok(Math.abs(context.getSkillHitSequenceDpsMultiplier('용화 숨결', channelSkill) - 1.08) < 1e-9, '표시 DPS는 채널링 4회의 총 배율을 반영해야 한다');
 
   const chargeStats = { moveSpeed: 100 };
-  assert.strictEqual(context.applySkillMobilityBeforeAttack(context.SKILL_DB['방패 돌진'], target, chargeStats), true, '방패 돌진은 사거리 안 대상에게 실제로 접근해야 한다');
+  assert.strictEqual(context.applySkillMobilityBeforeAttack(context.SKILL_DB['돌진'], target, chargeStats), true, '돌진은 사거리 안 대상에게 실제로 접근해야 한다');
   assert.deepStrictEqual([context.game.gridPlayer.gx, context.game.gridPlayer.gy], [4, 6], '돌진은 한 번에 최대 세 칸까지만 이동해야 한다');
   assert.notDeepStrictEqual([context.game.gridPlayer.gx, context.game.gridPlayer.gy], [target.gx, target.gy], '돌진은 적이 점유한 칸을 침범하면 안 된다');
   context.game.gridPlayer = { gx: 1, gy: 6, gridMoveTimer: 0 };
@@ -2517,42 +2527,48 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   const channelBreakdown = context.getTaggedDamageBreakdown(supportBucket, channelSkill);
   assert.ok(channelBreakdown.parts.some(part => part.statId === 'channelingPctDmg' && part.value === 17), '집중 유지 보조의 피해는 채널링 태그에만 연결되어야 한다');
 
-  context.game.activeSkill = '방패 투척';
-  context.game.skills = ['기본 공격', '방패 투척'];
-  const unshieldedDamage = context.getPlayerStats().baseDmg;
-  context.game.equipment['방패'] = { id: 9901, slot: '방패', name: '시험 방패', rarity: 'normal', baseStats: [], stats: [] };
-  const shieldedDamage = context.getPlayerStats().baseDmg;
-  assert.ok(shieldedDamage >= Math.floor(unshieldedDamage * 1.27), '방패 투척의 방패 장착 증폭은 실제 기본 피해와 표시 DPS 계산에 반영되어야 한다');
-  context.game.equipment['방패'] = { id: 9902, slot: '무기', name: '시험 보조 무기', rarity: 'normal', baseStats: [], stats: [] };
-  assert.strictEqual(context.getPlayerStats().baseDmg, unshieldedDamage, '방패 슬롯의 보조 무기는 방패 스킬 증폭을 활성화하면 안 된다');
+  // 스킬룬 무기 규칙(2026-10-17 인계 §4): 낀 무기의 대분류 → 자세, 룬의 계열이 그 자세를 허락해야 쓴다.
+  context.isSkillRuneUsableWithStance = realSkillRuneUsable;
+  const weaponOf = (category, id) => {
+    // 그 대분류의 가장 낮은 바탕(시작하는 주인공의 능력치로 낄 수 있다)
+    const base = vm.runInContext('BASE_ITEM_DB', context).filter(row => row.slot === '무기' && context.getWeaponCategoryOfBase(row.id) === category)
+      .reduce((low, row) => (!low || row.reqTier < low.reqTier ? row : low), null);
+    return { id, slot: '무기', baseId: base.id, name: base.name, rarity: 'normal', baseStats: [], stats: [] };
+  };
+  context.game.equipment['무기'] = null;
+  context.game.equipment['방패'] = null;
+  assert.strictEqual(context.getEquippedWeaponStance(), 'unarmed', '무기가 없으면 맨손 자세다');
+  assert.strictEqual(context.canUseSkillWithCurrentEquipment('이중 베기'), true, '근접 룬은 맨손으로 쓴다');
+  assert.strictEqual(context.canUseSkillWithCurrentEquipment('대지의 함성'), true, '함성 룬은 맨손으로도 쓴다');
+  assert.strictEqual(context.canUseSkillWithCurrentEquipment('중력 붕괴'), false, '맨손은 주문을 시전할 수 없다');
+  assert.strictEqual(context.getSkillRuneWeaponNote('중력 붕괴'), '무기 필요');
+  assert.strictEqual(context.canUseSkillWithCurrentEquipment('기본 공격'), true, '기본 공격은 무기를 가리지 않는다');
+  context.game.equipment['무기'] = weaponOf('shortbow', 9911);
+  assert.strictEqual(context.getEquippedWeaponStance(), 'bow', '단궁은 활 자세다');
+  assert.strictEqual(context.canUseSkillWithCurrentEquipment('연발 사격'), true, '활 전용 룬은 활로 쓴다');
+  assert.strictEqual(context.canUseSkillWithCurrentEquipment('이중 베기'), false, '활로는 근접 룬을 쓸 수 없다');
+  assert.strictEqual(context.getSkillRuneWeaponNote('이중 베기'), '근접 무기 필요');
+  context.game.equipment['무기'] = weaponOf('scimitar', 9912);
+  assert.strictEqual(context.getEquippedWeaponStance(), 'dagger', '곡도는 단검 자세다');
+  assert.strictEqual(context.getSkillRuneWeaponNote('연발 사격'), '활 필요', '전용 룬의 이유에는 그 무기 이름이 붙는다');
+  context.game.equipment['방패'] = { id: 9913, slot: '방패', name: '시험 방패', rarity: 'normal', baseStats: [], stats: [] };
+  assert.strictEqual(context.getEquippedWeaponStance(), 'swordshield', '방패를 함께 낀 곡도는 검방패 자세다');
   context.game.equipment['방패'] = null;
 
-  context.game.activeSkill = '방패 돌진';
-  context.game.skills = ['기본 공격', '방패 돌진'];
-  assert.strictEqual(context.canUseSkillWithCurrentEquipment('방패 돌진'), false, '방패돌진은 방패 없이 사용할 수 없어야 한다');
+  // 낀 주 공격 룬을 못 쓰는 무기로 바꾸면 기본 공격으로 싸우고, 맞는 무기를 다시 들면 그 룬으로 돌아온다
+  context.game.equipment['무기'] = weaponOf('scimitar', 9914);
+  context.game.skills = ['기본 공격', '이중 베기'];
+  context.game.activeSkill = '이중 베기';
   context.getActiveSkillStats(0);
-  assert.strictEqual(context.game.activeSkill, '기본 공격', '장착 중 방패가 사라지면 방패돌진 대신 기본 공격으로 복귀해야 한다');
-
-  context.game.equipment['방패'] = {
-    id: 9903, slot: '방패', name: '방어도 방패', rarity: 'rare', quality: 20,
-    baseStats: [{ id: 'armor', val: 100 }, { id: 'evasion', val: 500 }, { id: 'energyShield', val: 500 }],
-    stats: [{ id: 'armor', val: 50 }, { id: 'armorPct', val: 20 }]
-  };
-  context.game.activeSkill = '방패 돌진';
-  assert.strictEqual(context.canUseSkillWithCurrentEquipment('방패 돌진'), true, '실제 방패를 장착하면 방패돌진을 사용할 수 있어야 한다');
-  const armoredCharge = context.getPlayerStats();
-  const armoredChargeDamage = armoredCharge.baseDmg;
-  context.game.equipment['방패'].baseStats = [{ id: 'armor', val: 100 }];
-  assert.strictEqual(context.getPlayerStats().baseDmg, armoredChargeDamage, '방패의 회피와 에너지 보호막은 방패돌진 피해에 영향을 주면 안 된다');
-  context.game.equipment['갑옷'] = { id: 9904, slot: '갑옷', name: '전신 방어 갑옷', rarity: 'normal', baseStats: [{ id: 'armor', val: 10000 }], stats: [] };
-  assert.strictEqual(context.getPlayerStats().baseDmg, armoredChargeDamage, '다른 부위의 방어도는 방패돌진 피해에 영향을 주면 안 된다');
-  context.game.equipment['갑옷'] = null;
-  context.game.equipment['방패'].quality = 0;
-  context.game.equipment['방패'].stats = [];
-  const plainShieldChargeDamage = context.getPlayerStats().baseDmg;
-  assert.ok(plainShieldChargeDamage < armoredChargeDamage, '방패 품질과 방패 자체 방어도 옵션은 방패돌진 피해를 높여야 한다');
-  context.game.equipment['방패'].baseStats = [{ id: 'armor', val: 200 }];
-  assert.ok(context.getPlayerStats().baseDmg > plainShieldChargeDamage, '방패 자체 방어도가 높아지면 방패돌진 피해가 증가해야 한다');
+  assert.strictEqual(context.game.activeSkill, '이중 베기');
+  context.game.equipment['무기'] = weaponOf('shortbow', 9915);
+  context.getActiveSkillStats(0);
+  assert.strictEqual(context.game.activeSkill, '기본 공격', '활을 들면 근접 룬 대신 기본 공격으로 싸운다');
+  context.game.equipment['무기'] = weaponOf('scimitar', 9916);
+  context.getActiveSkillStats(0);
+  assert.strictEqual(context.game.activeSkill, '이중 베기', '근접 무기를 다시 들면 끼고 있던 룬으로 돌아온다');
+  context.game.equipment['무기'] = null;
+  vm.runInContext('isSkillRuneUsableWithStance = () => true;', context);
 
   context.game.activeSkill = '용화 숨결';
   context.game.skills = ['기본 공격', '용화 숨결'];

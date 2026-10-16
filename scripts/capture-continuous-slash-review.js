@@ -31,7 +31,7 @@ async function capture(browser, variant, mobile) {
         if (activeTutorial) dismissTutorial(false);
         game.settings.pauseGameOnOverlay = false;
         grantLoopStarterGemOnFirstKill();
-        changeSkill('연속 베기');
+        changeSkill('이중 베기');
         switchTab('tab-battle');
         // Pause automatic progression only for this disposable screenshot fixture.
         game.combatHalted = true;
@@ -51,7 +51,7 @@ async function capture(browser, variant, mobile) {
         battleVisualState.lastWallNow = performance.now();
         renderBattlefield(true);
         const stats = getPlayerStats();
-        performPlayerAttack(stats, { stageReplay: true, skillName: '연속 베기', forcedCrit: false,
+        performPlayerAttack(stats, { stageReplay: true, skillName: '이중 베기', forcedCrit: false,
             forcedElement: 'phys', targetEntries: [{ enemyId: game.enemies[0].id, mult: 1 }],
             damageTextGroupId: 'comparison:0' });
         renderBattlefield(true);

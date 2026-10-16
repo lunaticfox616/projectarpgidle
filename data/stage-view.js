@@ -302,9 +302,9 @@ const STAGE_HERO_RISE = Object.freeze({ file: 'unarmed/rise.png', ms: Object.fre
 /** 휘두르는 모양: 동작 이름 → 그 동작으로 휘두르는 스킬. 그 동작이 있는 자세에서만 쓰고(지금은 전사의 검방패), 없는 자세와 여기에 없는
  * 스킬은 보통 공격 그림(공격, 공격2 …)을 돌린다. 한 대상을 노리는 찌르는 기술은 찌르기, 휘둘러 베는 기술은 베기, 도는 기술은 돌려베기. */
 const STAGE_HERO_STRIKES = Object.freeze({
-    thrust: Object.freeze(['암살자의 일격', '흡혈 타격', '혈기 폭쇄']),
-    slash: Object.freeze(['기본 공격', '연속 베기', '묵직한 강타', '번개 타격', '화염 참격', '지진 파쇄', '용암 강타', '공허 베기', '그림자 점멸']),
-    spin: Object.freeze(['회오리바람'])
+    thrust: Object.freeze(['기습 공격', '흡혈 관통']),
+    slash: Object.freeze(['기본 공격', '이중 베기', '강타', '번개 타격', '화염 참격', '공허 가르기', '그림자 점멸']),
+    spin: Object.freeze(['회오리'])
 });
 
 safeExposeData({ STAGE_HERO_MOTIONS, STAGE_HERO_RISE, STAGE_HERO_STRIKES, STAGE_VIEW, STAGE_TERRAIN, STAGE_ROOMS, STAGE_BACKDROPS, STAGE_OBJECTS, STAGE_PROPS, STAGE_SCENES, STAGE_MONSTER_SCALE, STAGE_NPC_ART, STAGE_BOSS_REVIVAL, STAGE_BOARD_ROOMS });

@@ -100,8 +100,8 @@ test('a new warrior earns and equips the first gem through visible controls', as
     await page.locator('#gem-selection').getByRole('button', { name: '장착', exact: true }).click();
     await expect(page.locator('#tutorial-action-card')).toBeHidden();
     await expect(page.locator('#game-toast-region')).toContainText('스킬룬 장착 완료');
-    expect(await page.evaluate(() => game.activeSkill)).toBe('연속 베기');
-    await expect(page.locator('#log')).toContainText('스킬룬 [연속 베기] 획득');
+    expect(await page.evaluate(() => game.activeSkill)).toBe('이중 베기');
+    await expect(page.locator('#log')).toContainText('스킬룬 [이중 베기] 획득');
     await expect(page.locator('#log')).not.toContainText('직업에 맞는 스킬룬');
     expect(await page.evaluate(() => game.starterGemTutorialPending)).toBeFalsy();
     expect(errors).toEqual([]);
@@ -129,8 +129,8 @@ test('closing the first-gem card without following equips the starter gem', asyn
         }
         return 'waiting';
     }, { timeout: 45000, intervals: [250, 500] }).toBe('closed');
-    await expect.poll(() => page.evaluate(() => game.activeSkill)).toBe('연속 베기');
-    await expect(page.locator('#game-toast-region')).toContainText('[연속 베기] 룬을 장착했습니다');
+    await expect.poll(() => page.evaluate(() => game.activeSkill)).toBe('이중 베기');
+    await expect(page.locator('#game-toast-region')).toContainText('[이중 베기] 룬을 장착했습니다');
     expect(await page.evaluate(() => game.starterGemTutorialPending)).toBeFalsy();
     expect(errors).toEqual([]);
 });

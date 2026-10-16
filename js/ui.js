@@ -3900,11 +3900,11 @@ function renderAttackGemCard(name, highlightedName, stats) {
     let active = summonEquipped || [game.activeSkill, game.mobilitySkill].includes(name);
     let equipmentReady = typeof canUseSkillWithCurrentEquipment !== 'function' || canUseSkillWithCurrentEquipment(name);
     let tutorialTarget = getStarterGemTutorialTarget() === name && !active;
-    let state = equipmentReady ? getGemTileSummary(name, def) : '방패 필요';
+    let state = equipmentReady ? getGemTileSummary(name, def) : getSkillRuneWeaponNote(name);
     let classes = ['skill-gem', 'gem-library-card', 'gem-tile', `element-${meta.className}`, active ? 'active' : '', equipmentReady ? '' : 'equipment-blocked', tutorialTarget ? 'starter-gem-tutorial-target' : ''].filter(Boolean).join(' ');
     let worn = active ? `<span class="gem-tile-worn">${summonEquipped ? `소환 ×${getSummonSkillCount(name)}` : '장착'}</span>` : '';
     let guide = tutorialTarget ? '<span class="starter-gem-equip-guide">첫 스킬룬, 눌러서 장착</span>' : '';
-    return `<article class="${classes}" ${getGemTileHandlers('active', name)} aria-label="${escapeHTML(name)} Lv.${formatValue('', gemInfo.totalLevel)}${active ? ', 장착 중' : ''}${equipmentReady ? '' : ', 방패 필요'}">
+    return `<article class="${classes}" ${getGemTileHandlers('active', name)} aria-label="${escapeHTML(name)} Lv.${formatValue('', gemInfo.totalLevel)}${active ? ', 장착 중' : ''}${equipmentReady ? '' : ', ' + escapeHTML(getSkillRuneWeaponNote(name))}">
         ${guide}${renderGemTileLevel(gemInfo)}${worn}${renderSkillGemArt(name, 'gem-card-sigil gem-card-art gem-tile-art')}
         <strong class="gem-tile-name">${highlightedName}</strong><small class="gem-usage-state">${escapeHTML(state)}</small>
     </article>`;
@@ -4379,7 +4379,7 @@ function changeSummonSkillCount(name, delta) { if (!assertBuildEditable()) retur
 function changeSkill(name) { if (!assertBuildEditable()) return;
     if (mobilitySkill.isMobilityGem(name) && game.mobilitySkill === name) return wearMobilityGem('');
     if (typeof canUseSkillWithCurrentEquipment === 'function' && !canUseSkillWithCurrentEquipment(name)) {
-        return addLog(`[${name}]은(는) 방패를 장착해야 사용할 수 있습니다.`, 'attack-monster');
+        return addLog(`[${name}]은(는) 지금 무기로 쓸 수 없습니다: ${getSkillRuneWeaponNote(name)}.`, 'attack-monster');
     }
     if ((SKILL_DB[name]?.tags || []).includes('summon_attack')) return toggleSummonAttackGem(name);
     if (mobilitySkill.isMobilityGem(name)) return wearMobilityGem(name);

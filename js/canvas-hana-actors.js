@@ -57,7 +57,7 @@ const hanaActors = (() => {
     }
     function dotSize(tile) { return Math.max(1, (Number(tile) || 48) / DOTS_PER_TILE); }
 
-    /** One-colour silhouette of one cell of a sheet: the rim colour round the hero, crimson for 흡혈 타격's drain pulse.
+    /** One-colour silhouette of one cell of a sheet: the rim colour round the hero, crimson for 흡혈 관통's drain pulse.
      * Cached per sheet, cell and colour, the most recent SILHOUETTE_CELLS of them. A copy of the whole sheet (7.5 MB per weapon
      * sheet) stayed for good and grew with every weapon swap (2026-10-07 memory review). */
     function silhouette(img, src, colour = '#ffffff') {
