@@ -859,6 +859,15 @@ function getEquippedWeaponStance() {
     return SKILL_RUNE_STANCE_BY_CATEGORY[category] || 'unarmed';
 }
 
+/** 태그 피해(getTaggedDamageBreakdown)가 보는 태그: 룬의 태그에 더해, 방패를 들고 쓰는 근접 공격은 방패 스킬로 친다(방패 공명, 방패 스킬 피해).
+ * 방패 태그 룬(방패 투척, 방패 돌진)이 2026-10-17 스킬룬 인계에서 빠져 방패 스킬 피해가 붙을 곳이 없었다. 자세가 아니라 든 방패를 본다:
+ * 대검도 검방패 자세를 쓴다. */
+function getSkillDamageTagSet(skill) {
+    const tags = new Set(skill.tags || []);
+    if (tags.has('melee') && game.equipment && hasEquippedShield()) tags.add('shield');   // 장비 칸이 없는 상태(시험용 게임)도 견딘다
+    return tags;
+}
+
 /** 그 룬을 이 무기 자세로 쓸 수 있는가: 룬의 계열(SKILL_RUNE_FAMILY)이 그 자세를 허락할 때. 계열이 없는 것(기본 공격)은 언제나. */
 function isSkillRuneUsableWithStance(name, stance) {
     const family = SKILL_RUNE_FAMILY[name];
@@ -1017,7 +1026,7 @@ function getActiveSkillStats(bonusLevel) {
 }
 
 safeExposeGlobals({
-    hasEquippedShield, canUseSkillWithCurrentEquipment, getEquippedWeaponStance, isSkillRuneUsableWithStance, pickSkillRuneReward, getSkillRuneRewardWeights,
+    hasEquippedShield, canUseSkillWithCurrentEquipment, getEquippedWeaponStance, getSkillDamageTagSet, isSkillRuneUsableWithStance, pickSkillRuneReward, getSkillRuneRewardWeights,
     getSkillRuneWeaponNote, gainGemExperience,
     getGemHighLevelGrowth, getGemLevelGrowthSteps, getGemSpellBaseDamage
 });

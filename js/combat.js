@@ -2283,7 +2283,7 @@ function processPendingSlamEchoHits() {
         let bonus = Math.max(1, Math.floor(row.damage || 0));
         enemy.hp = Math.max(0, enemy.hp - bonus);
         addBattleFx('hit', { enemyId: enemy.id, color: getElementColor(row.element || 'phys'), damage: bonus, duration: 220, syncToSwing: false });
-        if (game.settings && game.settings.showCombatLog !== false) addLog(`🌋 지진의 함성으로 ${enemy.name}에게 ${formatNumberKR(bonus)} 추가 피해`, 'attack-player', { noToast: true });
+        if (game.settings && game.settings.showCombatLog !== false) addLog(`🌋 여진으로 ${enemy.name}에게 ${formatNumberKR(bonus)} 추가 피해`, 'attack-player', { noToast: true });
         if (enemy.hp <= 0) handleEnemyDeath(enemy, getPlayerStats());
     });
     game.pendingSlamEchoHits = next;
@@ -2511,6 +2511,12 @@ function addPendingSkillTravelFxRows(rows, attackContext, now) {
     addPendingSkillTravelFx(buildLinearSkillVisualRow(queuedRows), attackContext, now);
 }
 
+/** 공격을 시작해 맞히기까지(ms): 강타는 내려찍을 준비가 길다. 뛰어올라 내려찍는 도약 강타는 착지가 곧 타격이라(landingMs) 강타 준비를 쓰지 않는다. */
+function getAttackMotionMs(tags) {
+    if (tags.includes('slam') && !tags.includes('mobility')) return 460;
+    return tags.includes('projectile') ? 400 : 360;
+}
+
 /** Schedules one attack-speed cycle. Double strikes share its time window.
  * Channel continuity follows absolute stage times, independently of visual/tick cadence.
  * @param {ReturnType<typeof getPlayerStats>} pStats
@@ -2521,7 +2527,7 @@ function addPendingSkillTravelFxRows(rows, attackContext, now) {
 function queuePlayerAttackSequence(pStats, stages, context) {
     if (pStats.sSkill.nativeCastId) return startSkillGemCombat(pStats, context);
     let tags = pStats.sSkill.tags || [], now = getCombatTime();
-    let motionMs = tags.includes('slam') ? 460 : (tags.includes('projectile') ? 400 : 360);
+    let motionMs = getAttackMotionMs(tags);
     motionMs = Math.min(motionMs, Math.max(80, 800 / Math.max(0.01, pStats.aspd)));
     // Airborne mobility hits no earlier than landing (data/skills.js airMs, shared with the stage's jump/flip pose).
     motionMs = Math.max(motionMs, context.landingMs);
@@ -2594,7 +2600,7 @@ function queuePendingSkillStageHits(stages, pStats, attackContext) {
             fieldDurationMs: patternKind === 'channel' ? baseDelay + channelDurationMs + 120
                 : (['field', 'meteor'].includes(patternKind) ? baseDelay + finalStageDelayMs + 320 : 0),
             options: {
-                sourceCell, stageReplay: true, skipSlamEcho: true, skillName: attackContext.skillName, channelId: attackContext.channelId,
+                sourceCell, stageReplay: true, skipSlamEcho: stageOffset > 0, skillName: attackContext.skillName, channelId: attackContext.channelId, // 강타 여진은 첫 타격에서만
                 forcedCrit: !!attackContext.forcedCrit, forcedElement: stage.element || attackContext.forcedElement,
                 talentAttackMultiplier: Number.isFinite(Number(attackContext.talentAttackMultiplier)) ? Math.max(0, Number(attackContext.talentAttackMultiplier)) : 1,
                 stageKind: stage.kind, stageLabel: stage.label, stageIndex: stageOffset, stageDelayMs: stageDelay, targetLimit: stage.targetLimit,

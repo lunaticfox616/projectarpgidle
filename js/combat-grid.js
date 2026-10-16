@@ -916,6 +916,17 @@ const SKILL_HIT_SEQUENCE_CONFIG = Object.freeze({
     slamAftershockDamagePct: 32
 });
 
+/** 강타 룬 가운데 여진 수치(aftershockDamagePct)를 가진 것(강타)만 본 타격 뒤 여진으로 나눠 친다. 강타 태그만 있는 룬(불사르기, 혹한의 지진,
+ * 도약 강타: 2026-10-17 강타 피해와 여진이 닿도록 붙인 태그)은 제 판정 그대로 한 번에 친다. */
+function getSlamAftershockProfile(skill) {
+    if (!(Number(skill.aftershockDamagePct) > 0)) return null;
+    return {
+        kind: 'slam',
+        delayMs: Math.max(120, Math.floor(Number(skill.aftershockDelayMs) || SKILL_HIT_SEQUENCE_CONFIG.slamAftershockDelayMs)),
+        damageMultiplier: Math.max(0, Number(skill.aftershockDamagePct)) / 100
+    };
+}
+
 function getSkillHitSequenceProfile(skillName, skill) {
     let tags = skill && Array.isArray(skill.tags) ? skill.tags : [];
     let mode = skill && skill.targetMode;
@@ -923,13 +934,7 @@ function getSkillHitSequenceProfile(skillName, skill) {
     if (mode === 'chain') return { kind: 'chain', intervalMs: SKILL_HIT_SEQUENCE_CONFIG.chainIntervalMs, fork: getSkillGridProfile(skillName, skill).fork };
     let gridProfile = getSkillGridProfile(skillName, skill || {});
     if (mode === 'pierce' || (gridProfile && gridProfile.kind === 'line')) return { kind: 'pierce', intervalMs: SKILL_HIT_SEQUENCE_CONFIG.pierceIntervalMs };
-    if (tags.includes('slam')) {
-        return {
-            kind: 'slam',
-            delayMs: Math.max(120, Math.floor(Number(skill.aftershockDelayMs) || SKILL_HIT_SEQUENCE_CONFIG.slamAftershockDelayMs)),
-            damageMultiplier: Math.max(0, Number(skill.aftershockDamagePct) || SKILL_HIT_SEQUENCE_CONFIG.slamAftershockDamagePct) / 100
-        };
-    }
+    if (tags.includes('slam')) return getSlamAftershockProfile(skill) || { kind: 'instant' };
     return { kind: 'instant' };
 }
 
