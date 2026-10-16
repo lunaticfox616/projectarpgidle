@@ -6016,12 +6016,20 @@ function markActRewardReady(zoneId) {
 // 액트 보스를 쓰러뜨리면 다음 지역으로 떠나기 전에 보상 창을 띄운다(창이 열린 동안 게임이 멈춰 출발도 기다린다). 보상이 목표
 // 서랍과 지도에만 있어, 첫 보상을 받지 않고 넘어간 판이 액트 2 첫 전투에서 죽었다(플레이 리뷰 2026-10-07). 방치 정산 중이나
 // 자리를 비운 방치(입력이 3분 넘게 없음) 중에는 띄우지 않는다(멈춘 채 기다리게 된다). 다른 창이 떠 있으면 닫힐 때까지 1분 기다린다.
-// 띄운 뒤에 자리를 비워도 3분이 지나면 나중에처럼 닫는다(watchActRewardAway).
-const ACT_REWARD_PROMPT = Object.freeze({ awayMs: 180000, retryMs: 500, tries: 120, awayCheckMs: 5000 });
-let actRewardPromptTimer = null, actRewardAwayTimer = null;
+// 띄운 뒤에 자리를 비워도 3분이 지나면 나중에처럼 닫는다(watchActRewardAway). 처치하고 afterKillMs 뒤에 띄운다: 보스가 쓰러지는
+// 그림(1.6초)이 창에 가리지 않게(2026-10-17, 창이 0.6초 만에 덮었다).
+const ACT_REWARD_PROMPT = Object.freeze({ awayMs: 180000, retryMs: 500, tries: 120, awayCheckMs: 5000, afterKillMs: 1500 });
+let actRewardPromptTimer = null, actRewardAwayTimer = null, actRewardPromptDelay = null;
 function promptActReward(zoneId) {
     clearInterval(actRewardPromptTimer);
+    clearTimeout(actRewardPromptDelay);
     actRewardPromptTimer = null;
+    if (game.isBackgroundCalculation) return;   // 방치 정산에서는 띄우지 않는다(보상은 지도와 목표 서랍에 남는다)
+    actRewardPromptDelay = setTimeout(() => startActRewardPrompt(zoneId), ACT_REWARD_PROMPT.afterKillMs);
+}
+/** 띄우고, 다른 창이 비키기를 기다려야 하면 retryMs마다 다시 묻는다(최대 tries번). */
+function startActRewardPrompt(zoneId) {
+    actRewardPromptDelay = null;
     if (tryOpenPromptedActReward(zoneId)) return;
     let triesLeft = ACT_REWARD_PROMPT.tries;
     actRewardPromptTimer = setInterval(() => {
