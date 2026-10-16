@@ -6013,8 +6013,9 @@ function markActRewardReady(zoneId) {
 // 액트 보스를 쓰러뜨리면 다음 지역으로 떠나기 전에 보상 창을 띄운다(창이 열린 동안 게임이 멈춰 출발도 기다린다). 보상이 목표
 // 서랍과 지도에만 있어, 첫 보상을 받지 않고 넘어간 판이 액트 2 첫 전투에서 죽었다(플레이 리뷰 2026-10-07). 방치 정산 중이나
 // 자리를 비운 방치(입력이 3분 넘게 없음) 중에는 띄우지 않는다(멈춘 채 기다리게 된다). 다른 창이 떠 있으면 닫힐 때까지 1분 기다린다.
-const ACT_REWARD_PROMPT = Object.freeze({ awayMs: 180000, retryMs: 500, tries: 120 });
-let actRewardPromptTimer = null;
+// 띄운 뒤에 자리를 비워도 3분이 지나면 나중에처럼 닫는다(watchActRewardAway).
+const ACT_REWARD_PROMPT = Object.freeze({ awayMs: 180000, retryMs: 500, tries: 120, awayCheckMs: 5000 });
+let actRewardPromptTimer = null, actRewardAwayTimer = null;
 function promptActReward(zoneId) {
     clearInterval(actRewardPromptTimer);
     actRewardPromptTimer = null;
@@ -6025,6 +6026,16 @@ function promptActReward(zoneId) {
         clearInterval(actRewardPromptTimer);
         actRewardPromptTimer = null;
     }, ACT_REWARD_PROMPT.retryMs);
+}
+/** 열린 액트 보상 창: 입력 없이 3분이 지나면 나중에로 닫는다. 보상은 지도와 목표 서랍에 남고, 창 뒤에서 멈춰 있던 방치 전투가 다시 돈다. */
+function watchActRewardAway() {
+    clearInterval(actRewardAwayTimer);
+    actRewardAwayTimer = setInterval(() => {
+        if (activeRewardZoneId !== null && uiDisplay.inputIdleMs <= ACT_REWARD_PROMPT.awayMs) return;
+        if (activeRewardZoneId !== null) closeRewardOverlay();
+        clearInterval(actRewardAwayTimer);
+        actRewardAwayTimer = null;
+    }, ACT_REWARD_PROMPT.awayCheckMs);
 }
 /** 띄웠거나 띄울 일이 없으면 true, 다른 창이 비키기를 기다려야 하면 false. */
 function tryOpenPromptedActReward(zoneId) {
@@ -6059,6 +6070,7 @@ function openActReward(zoneId) {
         .map((choice, index) => isActRewardChoiceAvailable(choice) ? renderActRewardChoice(zoneId, choice, index, dpsBefore) : '').join('');
     document.getElementById('reward-overlay').classList.add('active');
     lastTime = Date.now();
+    watchActRewardAway();
 }
 /** 장비 선택지의 부위 그림(빈 장착 칸과 같은 그림, 직업 대표 무기는 그 대분류 첫 바탕의 그림). 다른 보상은 그림 없이 글만. */
 function actRewardChoiceArt(choice) {
