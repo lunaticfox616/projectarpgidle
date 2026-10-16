@@ -79,15 +79,21 @@ const actExplorationView=(()=>{
         lead.gx+=(target.gx-lead.gx)*ease;lead.gy+=(target.gy-lead.gy)*ease;lead.at=now;
         return {gx:lead.gx,gy:lead.gy};
     }
+    /** Keep cached actors and hit-number anchors on the same world spots while the camera follows; text rise and lifetime stay unchanged. */
     function shiftActors(run,origin) {
         if(lastOrigin?.run===run && lastOrigin.tile===origin.tile && lastOrigin.deep===origin.deep) {
-            for(const bank of [battleVisualState.enemySmoothPos,battleVisualState.enemyGhostPos]) {
-                for(const point of Object.values(bank||{})){point.x+=origin.x-lastOrigin.x;point.y+=origin.y-lastOrigin.y;}
-            }
+            shiftCachedAnchors(origin.x-lastOrigin.x,origin.y-lastOrigin.y);
         } else {
             battleVisualState.enemySmoothPos={};battleVisualState.enemyGhostPos={};
         }
         lastOrigin={run,...origin};
+    }
+    function shiftCachedAnchors(dx,dy) {
+        if(!dx && !dy)return;
+        for(const bank of [battleVisualState.enemySmoothPos,battleVisualState.enemyGhostPos]) {
+            for(const point of Object.values(bank||{})){point.x+=dx;point.y+=dy;}
+        }
+        for(const text of battleVisualState.damageTexts||[]){text.x+=dx;text.y+=dy;}
     }
     /** The ground picture of a map: the painted top-down map, or on the side-view stage the stage terrain drawn here
      * (js/canvas-stage-terrain.js). Switching the view prepares the other picture. */
