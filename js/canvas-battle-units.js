@@ -132,9 +132,17 @@ function drawHanaPlayerBody(ctx, state, position) {
     } finally { ctx.battleActorAlpha = previous; }
 }
 
+/** 이 휘두름의 룬이 무대 주인공에게 정하는 것: 주문이면 시전, 던지는 플라스크면 던지기, 찌르기와 베기와 회전의 모양, 룬의 동작(인계의 동작 표).
+ * 휘두름에 적힌 룬을 따른다(이동 칸의 룬을 쓰는 동안에는 주 룬이 아니다). */
+function getStageHeroSwingLook(timing, stance) {
+    const name = (timing.attack && timing.attack.skillName) || game.activeSkill, skill = SKILL_DB[name] || {};
+    return { spell: (skill.tags || []).includes('spell'), throwsWeapon: stance === 'flask' && HANA_THROWN_FLASK_GEMS.has(SKILL_FX_ATLAS[name]?.id),
+        strike: stageActors.strikeFor(name), motion: stageActors.motionFor(name, getHeroAppearanceId(), stance) };
+}
+
 /** The stage hero: timing from the same battle effects as the Hana figure; spells play the cast clips, a thrown flask the throw. */
 function drawStagePlayerBody(ctx, state, position) {
-    const motion = state.motionState, stance = getStageHeroStance(), skill = SKILL_DB[game.activeSkill] || {};
+    const motion = state.motionState, stance = getStageHeroStance();
     const previous = ctx.battleActorAlpha;
     ctx.battleActorAlpha = state.actorAlpha;
     // 무대의 주인공은 휘두르는 동안에도 보는 쪽(facingDirection: 걷는 쪽, 치는 쪽. js/canvas-battlefield.js resolveStageStrikeSide)을 본다.
@@ -143,12 +151,9 @@ function drawStagePlayerBody(ctx, state, position) {
     if (timing.attack) timing.attack = { ...timing.attack, direction: facing };
     try {
         return stageActors.drawPlayer(ctx, position.x, position.y, {
-            ...timing, classId: getHeroAppearanceId(), stance, tile: state.gridProj.tileW,
+            ...timing, ...getStageHeroSwingLook(timing, stance), classId: getHeroAppearanceId(), stance, tile: state.gridProj.tileW,
             facing,
             moving: motion.advanceBlend > 0.08, moveDirection: motion.moveDirection,
-            spell: (skill.tags || []).includes('spell'),
-            throwsWeapon: stance === 'flask' && HANA_THROWN_FLASK_GEMS.has(SKILL_FX_ATLAS[game.activeSkill]?.id),
-            strike: stageActors.strikeFor(game.activeSkill),
             alpha: getBattleActorDrawAlpha(ctx, 1)
         }, state.now);
     } finally { ctx.battleActorAlpha = previous; }
@@ -174,7 +179,7 @@ function getHanaSwingTiming(swing, direction) {
     if (!swing) return null;
     let windup = Math.max(1, (Number(swing.impactAt) || swing.start) - swing.start);
     let channelUntil = swing.duration > windup + 40 ? swing.start + swing.duration : 0;
-    return { start: swing.start, impactAt: swing.start + windup, direction, channelUntil };
+    return { start: swing.start, impactAt: swing.start + windup, direction, channelUntil, skillName: swing.skillName };
 }
 
 /** A hit worth at least 6% of max life tints the body harder than chip damage from archers. */
