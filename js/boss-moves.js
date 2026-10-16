@@ -131,7 +131,7 @@ const bossMoves = (() => {
         if (!state || !state.area || !state.isSpecial || !enemy) return null;
         const style = styleOf(enemy), kind = moveKind(state.area, state.telegraphKind, style);
         if (!kind) return null;
-        const source = { gx: enemy.gx, gy: enemy.gy }, stages = stagesOf(kind, state.area, source).filter(stage => stage.cells.length);
+        const source = state.area.source || { gx: enemy.gx, gy: enemy.gy }, stages = stagesOf(kind, state.area, source).filter(stage => stage.cells.length);
         if (!stages.length) return null;
         state.move = { kind, style, source, stages, next: 0, spent: [], hits: [], releasedAt: 0 };
         return state.move;

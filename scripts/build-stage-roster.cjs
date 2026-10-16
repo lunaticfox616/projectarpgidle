@@ -362,11 +362,11 @@ for (const actor of actors.values()) {
     const walk = atlas(actor.walk.frames, box), attack = actor.attack ? atlas(actor.attack.frames, box) : null;
     save(`${actor.id}-walk.png`, walk.png);
     if (attack) save(`${actor.id}-attack.png`, attack.png);
-    const walkBoxes = actor.walk.frames.map(boxOf).filter(Boolean), stand = boxOf((actor.attack || actor.walk).frames[0]);
+    const walkBoxes = actor.walk.frames.map(boxOf).filter(Boolean), stand = boxOf((actor.attack || actor.walk).frames[0]), still = walkBoxes[0];
     rows.push(`        ['${actor.id}', '${actor.name.replace(/'/g, "\\'")}', ${box[2] - box[0] + 1}, ${box[3] - box[1] + 1}, ${-box[0]}, ${-box[1]}, ${-stand[1]}, `
         + `${middle(walkBoxes.map(b => b[2] - b[0] + 1))}, '${actor.gait}', `
         + `${clipText({ n: actor.walk.frames.length, cols: walk.cols, ms: actor.walk.ms, extra: actor.walk.pace })}, `
-        + `${attack ? clipText({ n: actor.attack.frames.length, cols: attack.cols, ms: actor.attack.ms, extra: actor.attack.hit }) : 'null'}]`);
+        + `${attack ? clipText({ n: actor.attack.frames.length, cols: attack.cols, ms: actor.attack.ms, extra: actor.attack.hit }) : 'null'}, [${-still[0]}, ${still[2]}]]`);
 }
 
 const version = stamp.digest('hex').slice(0, 10), wears = wispWears(moving, fromForge);
@@ -377,22 +377,23 @@ const text = `// 옆에서 보는 무대의 몬스터 새 그림(docs/stage-view
 // 걸음새(gait): legs 다리로 걷는다, hop 통통 뛴다, crawl 기어간다, roll 굴러간다, fly, float, swim 떠서 움직인다.
 // 걷기 [프레임 수, cols, 프레임 시간(ms, 하나면 모두 같다), 맞추는 기준]: stride 걸어온 거리(한 바퀴 = 몸 너비의 0.7배), time 시간.
 //   프레임이 하나뿐이면 걷기 그림이 없는 몬스터다: 게임이 그 한 장을 움직여 걷는 척한다.
-// 공격 [프레임 수, cols, 프레임 시간, 타격 프레임] 또는 null(공격 그림이 없다: 서 있는 그림을 앞으로 내밀어 때린다).
+// 공격 [프레임 수, cols, 프레임 시간, 타격 프레임] 또는 null(공격 그림이 없다: 서 있는 그림으로 때린다).
+// 품 [왼쪽, 오른쪽]: 서 있는 그림이 발에서 양옆으로 뻗은 도트(보스가 차지하는 칸 너비, js/combat-grid.js fitBossFootprint).
 const MONSTER_STAGE_ROSTER = Object.freeze({
     path: 'assets/enemies/roster/',
     /** 그림 묶음의 지문: 그림을 이 값과 함께 불러, 칸이 바뀐 그림을 브라우저가 예전 것으로 쓰지 않게 한다. */
     version: '${version}',
     /** 제 새 그림이 아직 없어 다른 외형의 그림을 빌려 입는 외형(위습: 같은 속성의 새 그림). */
     wears: Object.freeze({ ${wears.map(([id, other]) => `'${id}': '${other}'`).join(', ')} }),
-    // [id, 이름, 칸 가로, 칸 세로, 발 x, 발 y, 몸 높이, 몸 너비, 걸음새, 걷기, 공격]
+    // [id, 이름, 칸 가로, 칸 세로, 발 x, 발 y, 몸 높이, 몸 너비, 걸음새, 걷기, 공격, 품]
     actors: Object.freeze(Object.fromEntries([
 ${rows.join(',\n')}
-    ].map(([id, name, w, h, feetX, feetY, height, width, gait, walk, attack]) => {
+    ].map(([id, name, w, h, feetX, feetY, height, width, gait, walk, attack, reach]) => {
         const times = clip => Object.freeze(Array.isArray(clip[2]) ? clip[2] : Array(clip[0]).fill(clip[2]));
         return [id, Object.freeze({
             id, name, w, h, feet: Object.freeze([feetX, feetY]), height, width, gait, stride: Math.max(24, Math.round(width * 0.7)),
             walkMs: times(walk), walkCols: walk[1], pace: walk[3], still: walk[0] === 1,
-            attackMs: attack ? times(attack) : null, attackCols: attack ? attack[1] : 0, impactFrame: attack ? attack[3] : 0
+            attackMs: attack ? times(attack) : null, attackCols: attack ? attack[1] : 0, impactFrame: attack ? attack[3] : 0, reach: Object.freeze(reach)
         })];
     })))
 });

@@ -8252,17 +8252,24 @@ function createStageExtraPacks(zone,map,arranger,keep) {
 
 /** A boss stands on its room's centre with its footprint reaching away from the gate (2026-10-05 user request): the 2×2 body grows
  * right and down from its anchor, so on maps facing north or west it rose a tile further from the threshold than on the others,
- * at the screen's lower edge behind the HUD. A footprint that would leave the floor keeps the centre anchor. */
+ * at the screen's lower edge behind the HUD. A footprint that would leave the floor keeps the centre anchor. A boss as wide as its
+ * picture (fitBossFootprint, 2026-10-16) keeps that 2×2 core where it was and grows its extra columns evenly on both sides; where
+ * the wider body would leave the floor it goes back to 2×2. */
 function placeExplorationBoss(map,room,pack) {
-    const gate=map.gate;
     for(const enemy of pack.waiting) {
-        const size=getGridUnitFootprint(enemy);
-        const cell={gx:room.gx-(gate.gx>room.gx?size.columns-1:0),gy:room.gy-(gate.gy>room.gy?size.rows-1:0)};
-        // Checked on the map itself: the grid bounds only cover the map once this run is the current one.
-        const cells=Array.from({length:size.columns*size.rows},(_,i)=>({gx:cell.gx+i%size.columns,gy:cell.gy+Math.floor(i/size.columns)}));
-        if(cells.every(c=>actExplorationMap.walkable(map,c)))Object.assign(enemy,cell);
+        fitBossFootprint(enemy);
+        if(!placeExplorationBossAt(map,room,enemy)&&enemy.footprint){delete enemy.footprint;placeExplorationBossAt(map,room,enemy);}
     }
     return pack;
+}
+function placeExplorationBossAt(map,room,enemy) {
+    const gate=map.gate,size=getGridUnitFootprint(enemy),core=Math.min(2,size.columns);
+    const cell={gx:room.gx-(gate.gx>room.gx?core-1:0)-Math.ceil((size.columns-core)/2),gy:room.gy-(gate.gy>room.gy?size.rows-1:0)};
+    // Checked on the map itself: the grid bounds only cover the map once this run is the current one.
+    const cells=Array.from({length:size.columns*size.rows},(_,i)=>({gx:cell.gx+i%size.columns,gy:cell.gy+Math.floor(i/size.columns)}));
+    if(!cells.every(c=>actExplorationMap.walkable(map,c)))return false;
+    Object.assign(enemy,cell);
+    return true;
 }
 
 // Explicit false is retained for replaying legacy progress-based encounters in regression

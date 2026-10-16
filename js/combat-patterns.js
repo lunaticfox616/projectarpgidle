@@ -201,8 +201,9 @@
             enemy.patternTelegraphKey = key;
             enemy.patternTelegraphStartedAt = timestamp;
             if (target) {
-                let profile = COMBAT_GRID_CONFIG.bossPatternProfiles[state.telegraphKind];
-                enemy.patternArea = getSkillStageFootprint('', {}, { aimCell: target, gridProfile: profile }, enemy);
+                // Lines and fans leave from the boss's cell nearest the target (a boss as wide as its picture is up to 6 cells wide).
+                let profile = COMBAT_GRID_CONFIG.bossPatternProfiles[state.telegraphKind], from = getClosestGridUnitCell(target, enemy);
+                enemy.patternArea = { ...getSkillStageFootprint('', {}, { aimCell: target, gridProfile: profile }, from), source: from };
             }
         }
         return charge >= 1 && timestamp - Math.max(0, Number(enemy.patternTelegraphStartedAt) || 0) >= COMBAT_GRID_CONFIG.bossPatternWarningMs;
