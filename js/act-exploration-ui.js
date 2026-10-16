@@ -180,17 +180,17 @@ const actExplorationUi=(()=>{
     function mode(value) {
         const run=actExplorationState.current(game);if(!run||run.status!=='active')return;
         if(!['direct','full','manual'].includes(value))throw Error('알 수 없는 탐험 방식');
-        if(value!=='manual' && autoLocked()){showGameToast('자동 사냥은 첫 스킬 젬을 장착하면 열립니다',{tone:'warning',duration:2000});return;}
+        if(value!=='manual' && autoLocked()){showGameToast('자동 사냥은 첫 스킬룬을 장착하면 열립니다',{tone:'warning',duration:2000});return;}
         run.mode=value;run.destination=null;
         game.settings.autoMove=value!=='manual';
         if(value!=='manual')game.settings.actExplorationMode=value;
         render();
     }
-    /** 처음 시작하는 플레이어의 첫 장면 동안(js/opening-journey-ui.js) 자동 사냥은 꺼진 채 잠긴다: 시작 젬 안내까지 마치면 열린다. */
+    /** 처음 시작하는 플레이어의 첫 장면 동안(js/opening-journey-ui.js) 자동 사냥은 꺼진 채 잠긴다: 시작 룬 안내까지 마치면 열린다. */
     const autoLocked=()=>typeof openingJourney==='object' && openingJourney.autoLocked();
     /** 미니맵의 자동 이동 단추·단축키: 켜면 고른 탐험 방식(보스 직행 · 전체 탐색), 끄면 직접 이동. 걷던 이동 명령은 그대로 간다. */
     function toggleAuto() {
-        if(autoLocked()){showGameToast('자동 사냥은 첫 스킬 젬을 장착하면 열립니다',{tone:'warning',duration:2000});return false;}
+        if(autoLocked()){showGameToast('자동 사냥은 첫 스킬룬을 장착하면 열립니다',{tone:'warning',duration:2000});return false;}
         const on=game.settings.autoMove===false,run=actExplorationState.current(game);
         game.settings.autoMove=on;
         if(run&&run.status==='active')run.mode=actExplorationProgress.startMode(game.settings);

@@ -28,19 +28,19 @@
         if(currencyKey==='ouroboros' && gain>0) {
             addLog(`🌿✨ <strong>${ORB_DB.ouroboros.name} +${gain}</strong> 획득! 장비를 봉인해 루프가 지나도 지킬 수 있습니다.`,'loot-unique');
         }
-        if(unlocked.gem)addLog('☁️ 스킬 젬 강화 탭이 개방되었습니다!','loot-unique');
+        if(unlocked.gem)addLog('☁️ 스킬룬 강화 탭이 개방되었습니다!','loot-unique');
     }
     function announceGemReward(reward) {
         if(!game.settings.showLootLog)return;
-        const {gem,kind,shards,name}=reward,suffix=shards?` 젬 잔향 +${shards}`:'';
+        const {gem,kind,shards,name}=reward,suffix=shards?` 룬 잔향 +${shards}`:'';
         if(gem) {
-            if(kind==='attack')addLog(`✨ 공격 젬 <span class='loot-magic'>[${gem.name}]</span> 획득!${gem.awakened?' (각성 후보)':''}${suffix}`);
-            else addLog(`🟢 보조젬 <span class='loot-rare'>[${gem.name}]</span> 획득! (해금: ${getSupportTierLabel(gem.name,gem.tier)})${suffix}`);
+            if(kind==='attack')addLog(`✨ 공격 룬 <span class='loot-magic'>[${gem.name}]</span> 획득!${gem.awakened?' (각성 후보)':''}${suffix}`);
+            else addLog(`🟢 보조스킬룬 <span class='loot-rare'>[${gem.name}]</span> 획득! (해금: ${getSupportTierLabel(gem.name,gem.tier)})${suffix}`);
             return;
         }
         if(shards<=0)return;
-        const message=kind==='attack'?`모든 공격 젬을 보유해 드랍이 젬 잔향 +${shards}로 환원되었습니다.`
-            :`최고 등급 보조 젬 [${name}]이 젬 잔향 +${shards}로 환원되었습니다.`;
+        const message=kind==='attack'?`모든 공격 룬을 보유해 드랍이 룬 잔향 +${shards}로 환원되었습니다.`
+            :`최고 등급 보조스킬룬 [${name}]이 룬 잔향 +${shards}로 환원되었습니다.`;
         addLog('💠 '+message,kind==='attack'?'loot-magic':'loot-rare');
     }
     window.addEventListener('project-idle:currency-acquired',announce);

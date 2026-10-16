@@ -27,7 +27,7 @@
     ]);
     const WINDOW_DEFS = {
         'tab-character': { title: '캐릭터 능력치', x: 90, y: 40, width: 900, height: 940, minWidth: 520, minHeight: 480 },
-        // 2026-10-13: 스킬 젬은 장비 창 안의 화면, 해금은 루프 창 안의 화면이 됐다(js/ui.js MERGED_TAB_GROUPS: 창 머리의 탭으로 오간다).
+        // 2026-10-13: 스킬룬은 장비 창 안의 화면, 해금은 루프 창 안의 화면이 됐다(js/ui.js MERGED_TAB_GROUPS: 창 머리의 탭으로 오간다).
         // 제 창이 없으므로 여기에 줄이 없다(저장된 옛 창 자리는 쓰이지 않는다).
         'tab-items': { title: '장비 및 인벤토리', defaultMaximized: true, dock: true, x: 150, y: 54, width: 1060, height: 780, minWidth: 720, minHeight: 520 },
         'tab-char': { title: '스킬트리', x: 210, y: 70, width: 920, height: 740, minWidth: 620, minHeight: 460, defaultMaximized: true },
@@ -541,7 +541,7 @@
         label.className = 'ui-rail-label';
         label.textContent = textNodes.map(node => node.textContent.trim()).join(' ');
         button.dataset.caption = railCaption(button.id, label.textContent);
-        // 화면 여럿을 여는 단추(장비 단추는 장비와 스킬 젬)는 올렸을 때의 이름표에 그 화면들을 모두 적는다. 아래의 짧은 이름은 그대로다.
+        // 화면 여럿을 여는 단추(장비 단추는 장비와 스킬룬)는 올렸을 때의 이름표에 그 화면들을 모두 적는다. 아래의 짧은 이름은 그대로다.
         let merged = button.dataset.mergedTabLauncher && typeof MERGED_TAB_GROUPS === 'object' ? MERGED_TAB_GROUPS[button.dataset.mergedTabLauncher] : null;
         if (merged) label.textContent = merged.tabs.map(tab => tab.label).join(', ');
         if (button.dataset.hotkey) label.dataset.hotkey = button.dataset.hotkey;
@@ -690,7 +690,7 @@
         dockedHudSizes.clear();
     }
 
-    // HUD 크기가 바뀌면(미니맵이 나타나거나 젬 칸이 늘면) 날개에 싣는 단추 수와 열린 창의 아래 끝을 다시 맞춘다.
+    // HUD 크기가 바뀌면(미니맵이 나타나거나 룬 칸이 늘면) 날개에 싣는 단추 수와 열린 창의 아래 끝을 다시 맞춘다.
     // 날개 폭은 격자의 남는 자리(minmax(0, 1fr))라 단추를 옮겨도 다시 바뀌지 않는다.
     let dockedHudWatch = null;
     const dockedHudSizes = new Map();
@@ -1296,7 +1296,7 @@
     /** PC 창 단축키(js/hotkeys-ui.js가 키를 해석): 맨 위에 열려 있으면 닫고, 아니면 연다. 잠긴 메뉴는 false. */
     function toggleWindowFromHotkey(tabId) {
         if (!document.body.classList.contains('desktop-windowed-ui') || !isMenuUnlocked(tabId)) return false;
-        // 묶음 창 안의 화면(스킬 젬은 장비 창, 해금은 루프 창): 그 화면이 맨 위에 보이고 있으면 창을 닫고, 아니면 그 화면을 연다
+        // 묶음 창 안의 화면(스킬룬은 장비 창, 해금은 루프 창): 그 화면이 맨 위에 보이고 있으면 창을 닫고, 아니면 그 화면을 연다
         let merged = mergedWindowOf(tabId), windowId = merged ? merged.windowId : tabId;
         let state = layoutState.windows[windowId];
         let onTop = zOrder[zOrder.length - 1] === windowId, showing = !merged || merged.shownId === tabId;

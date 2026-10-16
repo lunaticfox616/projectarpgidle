@@ -103,7 +103,7 @@ const npcShopUi = (() => {
 
     function gemWareCardHtml(gem) {
         const support = gem.kind === 'support', def = (support ? SUPPORT_GEM_DB : SKILL_DB)[gem.name] || {};
-        const kind = support ? `보조 젬, ${getSupportTierLabel(gem.name, gem.tier)}` : '공격 젬';
+        const kind = support ? `보조스킬룬, ${getSupportTierLabel(gem.name, gem.tier)}` : '공격 룬';
         return `<div class="npc-shop-gem-card"><div class="npc-shop-gem-head">${wareArtHtml({ gem })}<div><small>${escapeHTML(kind)}</small>
             <strong>${escapeHTML(gem.name)}</strong></div></div><p>${statToneText.html(def.desc || '')}</p></div>`;
     }

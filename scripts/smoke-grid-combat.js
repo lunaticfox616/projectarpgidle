@@ -179,8 +179,8 @@ const cfg = context.COMBAT_GRID_CONFIG;
     '위습은 동급 일반 몬스터 생명력의 70%를 가져야 한다');
   assert.strictEqual(wisp.armor, Math.floor(normal.armor * 0.5), '위습은 방어도가 절반이어야 한다');
   assert.strictEqual(wisp.evasion, Math.floor(normal.evasion * 1.3), '위습은 회피가 조금(1.3배) 높아야 한다');
-  assert.strictEqual(context.getEnemyGemDropMul(wisp), 3, '위습은 스킬 젬을 3배 잘 준다');
-  assert.strictEqual(context.getEnemyGemDropMul(normal), 1, '일반 몬스터의 젬 확률은 그대로다');
+  assert.strictEqual(context.getEnemyGemDropMul(wisp), 3, '위습은 스킬룬을 3배 잘 준다');
+  assert.strictEqual(context.getEnemyGemDropMul(normal), 1, '일반 몬스터의 룬 확률은 그대로다');
   const wispShare = Array.from({ length: 997 }, (_, seed) => context.getMonsterVariantDefinition(seed, 'fire'))
     .filter(def => def.id.startsWith('wisp-')).length / 997;
   assert(wispShare > 0.19 && wispShare < 0.21, '위습은 일반 외형 뽑기의 약 20%(이전 25%)로 조금 드물게 나온다');
@@ -743,10 +743,10 @@ const cfg = context.COMBAT_GRID_CONFIG;
   assert.strictEqual(breachRewards.voidChisel, 5, '대균열 처치 수가 공허의 끌 정산량을 높여야 한다');
   assert.strictEqual(context.getColonyWaveEnemyCount(1), 12, '군락지 첫 웨이브 목표와 실제 생성 수가 같아야 한다');
   assert.strictEqual(context.getColonyWaveEnemyCount(20), 36, '군락지 적 수는 무한히 늘지 않아야 한다');
-  assert.strictEqual(context.getTrialSkillGemRewardChance(context.getZone('trial_1'), false), 0.05, '무료 1차 시련 반복은 낮은 확률로 공격 젬을 지급해야 한다');
-  assert.strictEqual(context.getTrialSkillGemRewardChance(context.getZone('trial_2'), false), 0.08, '무료 2차 시련 반복은 1차보다 높은 확률로 공격 젬을 지급해야 한다');
-  assert.strictEqual(context.getTrialSkillGemRewardChance(context.getZone('trial_3'), false), 1, '증표를 소비하는 시련 반복은 공격 젬을 확정 지급해야 한다');
-  assert.strictEqual(context.getTrialSkillGemRewardChance(context.getZone('trial_1'), true), 1, '시련 최초 클리어는 공격 젬을 확정 지급해야 한다');
+  assert.strictEqual(context.getTrialSkillGemRewardChance(context.getZone('trial_1'), false), 0.05, '무료 1차 시련 반복은 낮은 확률로 공격 룬을 지급해야 한다');
+  assert.strictEqual(context.getTrialSkillGemRewardChance(context.getZone('trial_2'), false), 0.08, '무료 2차 시련 반복은 1차보다 높은 확률로 공격 룬을 지급해야 한다');
+  assert.strictEqual(context.getTrialSkillGemRewardChance(context.getZone('trial_3'), false), 1, '증표를 소비하는 시련 반복은 공격 룬을 확정 지급해야 한다');
+  assert.strictEqual(context.getTrialSkillGemRewardChance(context.getZone('trial_1'), true), 1, '시련 최초 클리어는 공격 룬을 확정 지급해야 한다');
 
   const oceanCurrents = Array.from({ length: 18 }, (_, tier) => context.getOceanCurrentAffixes(tier)).flat();
   const oceanCurrentIds = new Set(oceanCurrents.map(current => current.id));
@@ -768,7 +768,7 @@ const cfg = context.COMBAT_GRID_CONFIG;
   resetGame();
 }
 
-// ── 1. 모든 스킬 젬에 유효한 그리드 범위 프로필이 있어야 한다 ──
+// ── 1. 모든 스킬룬에 유효한 그리드 범위 프로필이 있어야 한다 ──
 assert.strictEqual(context.COMBAT_GRID_CONFIG.columns, 9, '전장은 ACT 맵의 가로 9칸을 사용해야 한다');
 assert.strictEqual(context.COMBAT_GRID_CONFIG.rows, 8, '전장은 ACT 맵의 세로 8칸을 사용해야 한다');
 assert.strictEqual(context.isGridCellInBounds(8, 7), true, '9x8 전장의 오른쪽 아래 칸은 유효해야 한다');
@@ -836,7 +836,7 @@ Object.keys(context.SKILL_DB).forEach(name => {
   assert.ok(validKinds.has(profile.kind), `스킬 '${name}'의 kind가 유효하지 않다: ${profile.kind}`);
   assert.ok(Number.isFinite(profile.range) && profile.range >= 1, `스킬 '${name}'의 range가 유효하지 않다`);
   if (profile.shape) assert.ok(validShapes.has(profile.shape), `스킬 '${name}'의 shape가 유효하지 않다: ${profile.shape}`);
-  if (profile.kind === 'summon') assert.strictEqual(profile.range, context.getSummonProfile(name).gridRange, `소환 젬 '${name}'의 표시 사거리는 실제 공격 사거리와 같아야 한다`);
+  if (profile.kind === 'summon') assert.strictEqual(profile.range, context.getSummonProfile(name).gridRange, `소환 룬 '${name}'의 표시 사거리는 실제 공격 사거리와 같아야 한다`);
 });
 assert.strictEqual(context.describeSkillGridProfile('서리 폭발', context.SKILL_DB['서리 폭발']), '공격 범위: 대상 지점 폭발, 사거리 5칸, 반경 2칸, 원형');
 assert.strictEqual(context.describeSkillGridProfile('연쇄 폭풍', context.SKILL_DB['연쇄 폭풍']), '공격 범위: 연쇄, 사거리 5칸, 연쇄 3칸');
@@ -845,8 +845,8 @@ assert.strictEqual(context.describeSkillGridProfile('심연 전염', context.SKI
 assert.strictEqual(context.describeSkillGridProfile('물리 위습 소환', context.SKILL_DB['물리 위습 소환']), '공격 범위: 소환수 공격, 사거리 3칸');
 assert.strictEqual(context.describeSkillGridProfile('연발 사격', context.SKILL_DB['연발 사격']), '발사 방식: 부채꼴 연사, 사거리 6칸, 5방향(20도 간격), 발사 방식 변경 가능');
 const projectileGems = Object.entries(context.SKILL_DB).filter(([, skill]) => skill.isGem && skill.tags.includes('projectile'));
-assert.ok(projectileGems.every(([, skill]) => skill.projectilePattern && skill.projectilePattern.mode), '모든 투사체 젬은 툴팁에 표시할 기본 발사 방식을 가져야 한다');
-assert.ok(projectileGems.every(([name, skill]) => context.describeSkillGridProfile(name, skill).startsWith('발사 방식:')), '모든 투사체 젬 툴팁은 공격 범위 대신 발사 방식을 표시해야 한다');
+assert.ok(projectileGems.every(([, skill]) => skill.projectilePattern && skill.projectilePattern.mode), '모든 투사체 룬은 툴팁에 표시할 기본 발사 방식을 가져야 한다');
+assert.ok(projectileGems.every(([name, skill]) => context.describeSkillGridProfile(name, skill).startsWith('발사 방식:')), '모든 투사체 룬 툴팁은 공격 범위 대신 발사 방식을 표시해야 한다');
 assert.ok(Math.max(...Object.values(context.SKILL_GRID_DB).map(profile => profile.range)) <= Math.hypot(8,7), '스킬 최대 사거리는 9x8 전장의 대각선 길이를 넘지 않아야 한다');
 const radiusOneCells = context.getGridAttackAreaCells({ kind: 'blast', range: 4, radius: 1 }, { gx: 0, gy: 0 }, { gx: 3, gy: 3 });
 const radiusTwoCells = context.getGridAttackAreaCells({ kind: 'blast', range: 4, radius: 2 }, { gx: 0, gy: 0 }, { gx: 3, gy: 3 });
@@ -1259,14 +1259,14 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
 // ── 3-2. 스킬 공격 단계: 회전 순차 타격 / 최초·연쇄 분리 / 강타 여진 ──
 {
   const split = context.applyProjectilePatternMode({ ...context.SKILL_DB['얼음 창'], dmg: 100 }, 'split', '테스트 각인');
-  assert.strictEqual(context.getSkillGridProfile('얼음 창', split).kind, 'fan', '분산 방식은 기존 직선 젬을 실제 부채꼴 판정으로 바꿔야 한다');
+  assert.strictEqual(context.getSkillGridProfile('얼음 창', split).kind, 'fan', '분산 방식은 기존 직선 룬을 실제 부채꼴 판정으로 바꿔야 한다');
   assert.strictEqual(split.targets, 3, '분산 방식은 최소 세 방향의 대상을 확보해야 한다');
   assert.strictEqual(split.dmg, 72, '분산 방식의 피해 감폭은 실제 스킬 피해에 적용돼야 한다');
   assert.strictEqual(context.applyProjectilePatternMode({ ...context.SKILL_DB['얼음 창'], dmg: 100 }, 'split', '재능', null).dmg, 72, '전용 배율이 없는 효과는 null이어도 각인 기본 배율을 유지해야 한다');
   assert.ok(context.describeSkillGridProfile('얼음 창', split).includes('적용: 테스트 각인'), '변경된 발사 방식과 출처를 툴팁에 표시해야 한다');
   const focused = context.applyProjectilePatternMode({ ...context.SKILL_DB['독니 사출'], dmg: 100 }, 'focus', '테스트 각인');
   assert.strictEqual(focused.targets, 1, '집속 방식은 대상 하나에만 투사체를 집중해야 한다');
-  assert.strictEqual(focused.combatPattern, undefined, '집속 방식은 젬의 기존 귀환 궤도를 대체해야 한다');
+  assert.strictEqual(focused.combatPattern, undefined, '집속 방식은 룬의 기존 귀환 궤도를 대체해야 한다');
   assert.strictEqual(focused.dmg, 155, '집속 방식의 단일 대상 피해 증폭을 적용해야 한다');
   const returning = context.applyProjectilePatternMode({ ...context.SKILL_DB['연발 사격'], dmg: 100 }, 'return', '테스트 각인');
   assert.strictEqual(returning.combatPattern.kind, 'boomerang', '귀환 방식은 왕복 투사체 판정을 부여해야 한다');
@@ -1280,13 +1280,13 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   context.game.skyGemEnhancements = { '얼음 창': ['sky_projectile_split'] };
   context.game.contentProgression.inherited.push('engraving');
   const engravedSkill = context.getActiveSkillStats(0);
-  assert.strictEqual(engravedSkill.projectilePattern.mode, 'split', '장착한 발사 방식 각인이 실제 활성 젬에 적용돼야 한다');
-  assert.strictEqual(engravedSkill.projectilePatternSource, '창공 각인', '젬별 각인의 출처를 보존해야 한다');
+  assert.strictEqual(engravedSkill.projectilePattern.mode, 'split', '장착한 발사 방식 각인이 실제 활성 룬에 적용돼야 한다');
+  assert.strictEqual(engravedSkill.projectilePatternSource, '창공 각인', '룬별 각인의 출처를 보존해야 한다');
   context.game.season = 4;
   context.game.currencies.skyEssence = 2;
   context.game.gemData['얼음 창'].skyEnhanceCap = 1;
   assert.strictEqual(context.applySkyGemEnhancementToActive('sky_projectile_focus'), true, '가득 찬 슬롯에서도 기존 발사 방식은 새 방식으로 바로 교체돼야 한다');
-  assert.deepStrictEqual(Array.from(context.game.skyGemEnhancements['얼음 창']), ['sky_projectile_focus', null, null, null, null], '한 젬에는 주 발사 방식 하나만 남아야 한다');
+  assert.deepStrictEqual(Array.from(context.game.skyGemEnhancements['얼음 창']), ['sky_projectile_focus', null, null, null, null], '한 룬에는 주 발사 방식 하나만 남아야 한다');
   assert.strictEqual(context.game.currencies.skyEssence, 1, '발사 방식 교체는 각인 비용을 한 번만 소모해야 한다');
 
   const makeUniqueItem = (name, withEffect = true) => {
@@ -1318,12 +1318,12 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
     assert.strictEqual(weaponStats.sSkill.projectilePattern.mode, mode, `${name}은 실제 발사 방식을 ${mode}로 변경해야 한다`);
     assert.strictEqual(weaponStats.sSkill.projectilePatternSource, `${name} (고유 장비)`, `${name}의 발사 방식 출처를 표시해야 한다`);
     assert.strictEqual(weaponStats.sSkill.dmg, baseSkillDamage * damageMultiplier, `${name}은 각인보다 완화된 전용 피해 배율을 사용해야 한다`);
-    assert.strictEqual(context.getGemPresentation('얼음 창').skill.dmg, weaponStats.sSkill.dmg, `${name}의 완화된 배율을 젬 상세 화면에도 보존해야 한다`);
+    assert.strictEqual(context.getGemPresentation('얼음 창').skill.dmg, weaponStats.sSkill.dmg, `${name}의 완화된 배율을 룬 상세 화면에도 보존해야 한다`);
   });
   context.game.skyGemEnhancements = { '얼음 창': ['sky_projectile_focus'] };
   context.game.contentProgression.inherited.push('engraving');
   const engravedWeaponStats = context.getPlayerStats();
-  assert.strictEqual(engravedWeaponStats.sSkill.projectilePattern.mode, 'focus', '젬에 새긴 발사 방식은 고유 무기보다 우선해야 한다');
+  assert.strictEqual(engravedWeaponStats.sSkill.projectilePattern.mode, 'focus', '룬에 새긴 발사 방식은 고유 무기보다 우선해야 한다');
   assert.strictEqual(engravedWeaponStats.sSkill.projectilePatternSource, '창공 각인', '우선 적용된 창공 각인의 출처를 보존해야 한다');
 
   resetGame();
@@ -2388,7 +2388,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   assert.ok(context.game.inventory.includes(armor), '설정 OFF 아이템은 인벤토리에 들어가야 한다');
 }
 
-// ── 12. 소환수 회복/재배치와 장착 소환수 젬 봉인 보호 ──
+// ── 12. 소환수 회복/재배치와 장착 소환수 룬 봉인 보호 ──
 {
   resetGame();
   context.game.skills = ['기본 공격', '냉기 위습 소환', '연속 베기'];
@@ -2396,9 +2396,9 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   context.game.equippedSummonSkills = ['냉기 위습 소환'];
   context.game.summonSkillCounts = { '냉기 위습 소환': 1 };
   context.sealAllInactiveSkillGems();
-  assert.ok(context.game.skills.includes('냉기 위습 소환'), '장착 중인 소환수 젬은 일괄 봉인에서 제외해야 한다');
+  assert.ok(context.game.skills.includes('냉기 위습 소환'), '장착 중인 소환수 룬은 일괄 봉인에서 제외해야 한다');
   assert.ok(context.game.skills.includes('기본 공격'), '활성 스킬은 일괄 봉인에서 유지해야 한다');
-  assert.ok(!context.game.skills.includes('연속 베기'), '미사용 일반 스킬 젬은 일괄 봉인해야 한다');
+  assert.ok(!context.game.skills.includes('연속 베기'), '미사용 일반 스킬룬은 일괄 봉인해야 한다');
 
   const pStats = context.getPlayerStats();
   context.ensureSummonRuntime(pStats);
@@ -2411,7 +2411,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   assert.ok(context.gridChebyshevDist(summon.gx, summon.gy, context.game.gridPlayer.gx, context.game.gridPlayer.gy) <= 1, '회복 경계에서는 소환수를 플레이어 주변으로 재배치해야 한다');
 
   const preview = context.getSummonTooltipPreview('냉기 위습 소환', pStats);
-  assert.ok(preview.maxHp > 0 && preview.regenPerSec > 0, '소환수 젬 툴팁에는 체력과 자체 재생 수치가 있어야 한다');
+  assert.ok(preview.maxHp > 0 && preview.regenPerSec > 0, '소환수 룬 툴팁에는 체력과 자체 재생 수치가 있어야 한다');
   assert.strictEqual(context.getSummonProfile('냉기 위습 소환').baseHp, 58, '소환수 생명력 너프는 후처리 배율이 아닌 기초 생명력에 반영해야 한다(기존 116의 50% 수준)');
   assert.strictEqual(vm.runInContext('SUMMON_REGEN_PCT_PER_SEC', context), 0.75, '소환수 재생 너프는 기초 재생률에 반영해야 한다');
 }
@@ -2489,19 +2489,19 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
     '위습 공격은 그림이 쓸 위습 칸 → 주 대상 칸 정보를 남겨야 한다');
 }
 
-// ── 신규 전투 젬: 시간차 판정 / 기동 / 채널 취소 / 태그 보조 ──
+// ── 신규 전투 룬: 시간차 판정 / 기동 / 채널 취소 / 태그 보조 ──
 {
   resetGame();
   context.game.gridPlayer = { gx: 1, gy: 6, gridMoveTimer: 0 };
   const target = makeEnemy(301, 6, 6, { hp: 100000, maxHp: 100000 });
   context.game.enemies = [target];
-  // 채널 젬의 본보기는 용화 숨결이다(집중 광선과 공허 절삭광은 2026-10-13에 지웠다).
+  // 채널 룬의 본보기는 용화 숨결이다(집중 광선과 공허 절삭광은 2026-10-13에 지웠다).
   const channelSkill = context.SKILL_DB['용화 숨결'];
   // 숨결의 사거리는 4칸이다: 다섯 칸 떨어진 대상을 한 칸 다가선 자리에서 겨눈다
   const channelTargets = context.selectGridSkillTargets('용화 숨결', channelSkill, { gx: 2, gy: 6 }, context.game.enemies);
   const channelStages = context.buildSkillHitSequence('용화 숨결', channelSkill, channelTargets);
   assert.strictEqual(channelStages.length, 4, '용화 숨결은 네 번의 실제 시간차 타격이어야 한다');
-  assert.deepStrictEqual(Array.from(channelStages, stage => stage.delayMs), [0, 220, 440, 660], '채널링 타격 간격은 젬 정의와 일치해야 한다');
+  assert.deepStrictEqual(Array.from(channelStages, stage => stage.delayMs), [0, 220, 440, 660], '채널링 타격 간격은 룬 정의와 일치해야 한다');
   assert.ok(Math.abs(context.getSkillHitSequenceDpsMultiplier('용화 숨결', channelSkill) - 1.08) < 1e-9, '표시 DPS는 채널링 4회의 총 배율을 반영해야 한다');
 
   const chargeStats = { moveSpeed: 100 };

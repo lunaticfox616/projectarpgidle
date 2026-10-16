@@ -45,7 +45,7 @@
   /* 목표 단추는 전장 오른쪽 위 모서리에서 6px 안쪽이라(전장은 넘친 것을 자른다) 아래 · 왼쪽으로 넓힌다 */
   :root body[data-ui-skin].mobile-battle-tab #tab-battle #btn-combat-goal-toggle::after { content: ''; position: absolute; inset: -6px -6px -16px -8px; }
   :root body[data-ui-skin].mobile-battle-tab #tab-battle .combat-zone-actions button::after { content: ''; position: absolute; inset: -8px -6px; }
-  /* 휴대폰 창 안의 누르는 것(단추 · 고르기 · 접는 머리)은 44px 이상: 도트 테를 입히며 27 ~ 36px로 줄어 있던 것들(젬 필터 · 등급 칩 ·
+  /* 휴대폰 창 안의 누르는 것(단추 · 고르기 · 접는 머리)은 44px 이상: 도트 테를 입히며 27 ~ 36px로 줄어 있던 것들(룬 필터 · 등급 칩 ·
      지도 이동 · 설정 머리). 장비 가방 칸은 격자 크기가 곧 자리라 뺀다. */
   :root body[data-ui-skin].mobile-primary-navigation .tab-content:not(#tab-battle) :is(button, select, summary):not(.equipment-grid-cell, .equipment-grid-item, .stump-item) { min-height: 44px; }
   :root body[data-ui-skin].mobile-primary-navigation .tab-content:not(#tab-battle) button:not(.equipment-grid-cell, .equipment-grid-item, .stump-item) { min-width: 44px; }
@@ -179,7 +179,7 @@
      (글이 줄을 바꾸니 잘라 낼 것이 없다: 넘침을 열어 덧댄 칸이 눌리게 한다 — 검토 5차) */
   :root body[data-ui-skin].mobile-battle-tab #tab-battle .enemy-card:is(.enemy-boss, .enemy-elite) .enemy-traits { position: relative; overflow: visible; }
   :root body[data-ui-skin].mobile-battle-tab #tab-battle .enemy-card:is(.enemy-boss, .enemy-elite) .enemy-traits::after { content: ''; position: absolute; inset: -13px auto; left: 50%; width: max(100%, 44px); transform: translateX(-50%); }
-  /* 손가락 판정 44px(검토 7차): 젬 목록 이전/다음(도트 단추 재질이 높이를 35px로 눌렀다), 지도의 권장 전투력 칩
+  /* 손가락 판정 44px(검토 7차): 룬 목록 이전/다음(도트 단추 재질이 높이를 35px로 눌렀다), 지도의 권장 전투력 칩
      (누르면 설명 — 글줄 20px이라 판이 없는 위아래 여백으로 칸을 44px로 키우고, 같은 만큼 음수 여백으로 줄 간격은 그대로) */
   :root body[data-ui-skin] .gem-library-pager button { min-height: 44px; }
   :root body[data-ui-skin] #tab-map .map-power-estimate { position: relative; padding-block: 12px; margin-block: -12px; }

@@ -74,7 +74,7 @@ dialog.gem-forge-dialog.sky { background: radial-gradient(ellipse at 50% 20%, #1
 @keyframes gem-forge-impact { 0% { transform: scale(.8); } 30% { transform: scale(1.16); } 100% { transform: scale(1); } }
 @keyframes gem-forge-burst { from { transform: scale(.55); opacity: 1; border-color: var(--forge-accent); } to { transform: scale(1.65); opacity: 0; border-color: var(--forge-accent); } }
 @keyframes gem-forge-reward { 0% { transform: scale(.92); opacity: .4; } 35% { transform: scale(1.06); text-shadow: 0 0 18px var(--forge-accent); } 100% { transform: scale(1); opacity: 1; text-shadow: none; } }
-/* 젬 성장 왼쪽 레벨 구성(js/ui.js getGemGrowthSummaryHtml): 최종 레벨, 기본(금)/재료와 각성(파랑)/장비와 패시브(초록) 막대, 전투 수치 칩 */
+/* 룬 성장 왼쪽 레벨 구성(js/ui.js getGemGrowthSummaryHtml): 최종 레벨, 기본(금)/재료와 각성(파랑)/장비와 패시브(초록) 막대, 전투 수치 칩 */
 .gem-target-kicker { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
 .gem-target-kicker > i { padding: 0 6px; color: var(--gem-accent); font-style: normal; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gem-accent) 55%, transparent); }
 .gem-level { --lv-base: #d9b066; --lv-material: #6fa8d8; --lv-source: #8cc97a; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 6px 14px;

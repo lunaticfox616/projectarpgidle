@@ -1,10 +1,10 @@
-// 보조 젬 문양(2026-10-11 사용자: 보조 젬이 전부 + 라 구별이 어렵다): 효과 종류마다 그림 하나, 계열마다 색 하나.
-// 보드의 보조 젬 칸(js/skill-gem-board-ui.js), 목록 타일(js/ui.js renderSupportGemCard), 젬 칸 창(js/gem-slot-dialog-ui.js),
-// 젬 연구 카드(js/skills-ui.js)가 함께 쓴다. 그림은 js/ui.js PIXEL_ICONS, 색은 css/gem-loadout.css의 .support-sigil.is-tone-*.
+// 보조스킬룬 문양(2026-10-11 사용자: 보조스킬룬이 전부 + 라 구별이 어렵다): 효과 종류마다 그림 하나, 계열마다 색 하나.
+// 보드의 보조스킬룬 칸(js/skill-gem-board-ui.js), 목록 타일(js/ui.js renderSupportGemCard), 룬 칸 창(js/gem-slot-dialog-ui.js),
+// 룬 연구 카드(js/skills-ui.js)가 함께 쓴다. 그림은 js/ui.js PIXEL_ICONS, 색은 css/gem-loadout.css의 .support-sigil.is-tone-*.
 (function () {
     'use strict';
 
-    /** stat → [PIXEL_ICONS key, tone]. 전령(모두 flatDmg)과 공명(원소 피해와 같은 stat)은 젬 자체를 보고 고른다(below). */
+    /** stat → [PIXEL_ICONS key, tone]. 전령(모두 flatDmg)과 공명(원소 피해와 같은 stat)은 룬 자체를 보고 고른다(below). */
     const BY_STAT = Object.freeze({
         aspd: ['speed', 'speed'], move: ['boot', 'speed'], ds: ['twin', 'speed'],
         crit: ['eye', 'crit'], critDmg: ['star', 'crit'],
@@ -30,7 +30,7 @@
         const def = SUPPORT_GEM_DB[name] || {};
         if (Number.isFinite(def.heraldExplodeBase)) return ['skull', HERALD_TONES[String(def.name || '').split(' ')[0]] || 'phys'];
         const base = BY_STAT[def.stat] || FALLBACK;
-        // 공명 젬은 같은 원소의 피해 젬과 색이 같으므로 그림을 소리굽쇠로 바꾼다.
+        // 공명 룬은 같은 원소의 피해 룬과 색이 같으므로 그림을 소리굽쇠로 바꾼다.
         return def.scaleWithOwnStat ? ['fork', base[1]] : base;
     }
 

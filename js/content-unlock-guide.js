@@ -65,9 +65,9 @@
         let loop = Math.max(1, count(state.season) || 1);
         if (loop >= 4 && !state.gemEnhanceUnlocked) return guide({
             id: 'gem-enhancement', title: '창공 강화',
-            description: '군주의 핵 또는 창공의 정수를 얻으면 스킬 젬 강화가 열립니다.',
+            description: '군주의 핵 또는 창공의 정수를 얻으면 스킬룬 강화가 열립니다.',
             requirements: [requirement('루프 4', true), requirement('강화 재료 획득', false)],
-            actionLabel: '스킬 젬 보기', actionTabId: 'tab-skills', actionSubtabId: 'skill-tab-enhance'
+            actionLabel: '스킬룬 보기', actionTabId: 'tab-skills', actionSubtabId: 'skill-tab-enhance'
         });
         let meteorUnlocked = !!(state.meteorSite && state.meteorSite.unlocked);
         if (loop >= 7 && !meteorUnlocked) return guide({

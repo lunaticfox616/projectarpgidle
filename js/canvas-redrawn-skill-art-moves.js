@@ -14,7 +14,7 @@ const redrawnSkillArtMoves = (() => {
     const DIAG = [[1, 1], [-1, 1], [1, -1], [-1, -1]];
     const TAU = Math.PI * 2;
 
-    // ---------------------------------------------------------------- 위습 정령 공격 6종 (소환 젬): t = 0 when the wisp's strike frame fires
+    // ---------------------------------------------------------------- 위습 정령 공격 6종 (소환 룬): t = 0 when the wisp's strike frame fires
     // W = the wisp, T = the target. fire: lobbed fireball → burst; cold: ice shard thrown straight → shatter; light: bolts,
     // the target crackles; phys: a crack runs to the target, roots burst up and wrap it; chaos: lobbed void orb → mist left
     // on the floor (ground layer); spectral: a beam braided from fire / cold / lightning strands → tri-colour sparks.

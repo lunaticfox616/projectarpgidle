@@ -44,7 +44,7 @@ test('the unlock buy button stays visible in a small desktop window', async ({ p
     expect(hit).toBe(true);
 });
 
-// Review round 4 #2 #16: the unlock tree's step columns fit the window (6단계 '젬 각성' hid under the detail panel behind a
+// Review round 4 #2 #16: the unlock tree's step columns fit the window (6단계 '룬 각성' hid under the detail panel behind a
 // scrollbar below the fold), and phones list the steps top to bottom instead of a hidden sideways scroll.
 test('the unlock tree fits its window without hidden columns', async ({ page }, info) => {
     await page.evaluate(() => {

@@ -51,7 +51,7 @@ const worldTreeSkillFx = (() => {
     }
     /** 이 사건을 다른 그림이 맡았는지(또는 그릴 그림이 없는지). */
     function paintCastTaken(ctx,event,projection) {
-        // 옆에서 보는 무대: 따로 시전하는 젬의 단계를 인계 받은 새 연출이 맡으면 예전 그림은 그리지 않는다(js/canvas-stage-skill-casts.js).
+        // 옆에서 보는 무대: 따로 시전하는 룬의 단계를 인계 받은 새 연출이 맡으면 예전 그림은 그리지 않는다(js/canvas-stage-skill-casts.js).
         if(typeof stageSkillRules==='object' && stageSkillRules.claim(event,{ctx,projection,now:castNow}))return true;
         if(redrawnSkillFx.claim(event,redrawnSkillFx.specOf(event.skillName),'combat'))return true;
         return !SKILL_FX_ATLAS[event.skillName]; // the movement gems have no PixelLab art: only their redrawn art draws them

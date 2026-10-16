@@ -1,7 +1,7 @@
-/** 스킬 이펙트의 연결 규칙 둘째 묶음 (첫째는 js/canvas-stage-skill-rules.js): 투사체의 몸, 따로 시전하는 젬, 이동기, 위습.
+/** 스킬 이펙트의 연결 규칙 둘째 묶음 (첫째는 js/canvas-stage-skill-rules.js): 투사체의 몸, 따로 시전하는 룬, 이동기, 위습.
  * - 투사체의 몸: 날아가는 사건(travel)마다 인계의 그림(속성 장식이 붙은 창, 쌍독니, 도는 방패, 화살, 던지는 플라스크)을 그 자리에 그린다.
  *   곧게 나는 것은 손 높이로, 던지는 플라스크는 포물선으로 난다.
- * - 따로 시전하는 젬(js/skill-gem-casts.js): 사건에 적힌 단계 이름마다 인계의 클립을 튼다. 탄성 플라스크, 광창 강림, 폭발 혼합물,
+ * - 따로 시전하는 룬(js/skill-gem-casts.js): 사건에 적힌 단계 이름마다 인계의 클립을 튼다. 탄성 플라스크, 광창 강림, 폭발 혼합물,
  *   과냉각 혼합물, 빈 플라스크, 신성한 안개, 암살, 인과, 차원찢기, 향로구름. 시간 가속과 파문심판은 인계도 게임의 옛 그림을 쓴다.
  * - 이동기: 방패 돌진의 바람과 착지 먼지, 그림자 점멸의 연기. 주인공이 사라지고 나타나는 움직임은 게임의 것 그대로다.
  * - 위습: 소환된 위습의 몸과 쏘는 구슬을 그 속성의 클립으로 그린다.
@@ -10,10 +10,10 @@
 const stageSkillCasts = (() => {
     const K = stageSkillKit, WIDE = K.WIDE, DEEP = K.DEEP;
     const seen = new WeakSet();                   // 이미 클립으로 옮긴 사건
-    /** 투사체의 몸: 젬 번호 → 인계의 생김새(js/canvas-stage-skill-draws.js). */
+    /** 투사체의 몸: 룬 번호 → 인계의 생김새(js/canvas-stage-skill-draws.js). */
     const BODIES = Object.freeze({ 7: 'spear', 9: 'spear', 11: 'spear', 26: 'spear', 30: 'bigspear', 24: 'fang', 36: 'shield', 14: 'arrow', 25: 'arrow',
         38: 'flask', 44: 'flask', 47: 'flask', 48: 'flask', 49: 'flask' });
-    /** 따로 시전하는 젬의 사건에서 단계 이름이 적힌 칸. */
+    /** 따로 시전하는 룬의 사건에서 단계 이름이 적힌 칸. */
     const PHASE_KEYS = Object.freeze(['flaskPhase', 'lancePhase', 'mixturePhase', 'supercooledPhase', 'emptyFlaskPhase', 'holyMistPhase', 'assassinationPhase',
         'causalityPhase', 'riftPhase', 'smokePhase', 'harpoonPhase', 'timePhase', 'judgmentPhase']);
     /** 위습이 쏜 구슬이 맞을 때의 타격 클립(속성별). */
@@ -144,7 +144,7 @@ const stageSkillCasts = (() => {
         if (c.first && c.gem.map.muzzle) stageSkillVfx.play(c.gem.map.muzzle, K.at(move.from, face * 26, -52), { ramp: c.look.ramp, face, delay: Math.max(0, move.release - c.event.at) });
         return false;
     }
-    /** 젬 번호 → 단계 이름 → 그 단계의 연출. 여기에 없는 단계는 예전 그림이 그린다. */
+    /** 룬 번호 → 단계 이름 → 그 단계의 연출. 여기에 없는 단계는 예전 그림이 그린다. */
     const NATIVE = Object.freeze({
         44: { flight: castBody, splash: castLand },
         45: { fall: castLances, land: castTake },
@@ -182,13 +182,13 @@ const stageSkillCasts = (() => {
     // ---------------------------------------------------------------- claim
     const castPhase = event => { const key = PHASE_KEYS.find(name => event[name]); return key ? event[key] : null; };
     /** @returns {?boolean} 새 연출이 맡았으면 참, 예전 그림에 맡기면 거짓, 여기서 다루지 않는 사건이면 null */
-    /** 사건 하나를 그릴 때 쓰는 묶음: 젬, 속성, 바라보는 쪽과 색. */
+    /** 사건 하나를 그릴 때 쓰는 묶음: 룬, 속성, 바라보는 쪽과 색. */
     function castContext(gem, event, view) {
         const target = event.landingCell || (event.targetCells && event.targetCells[0]), source = event.sourceCell || K.heroSpot();
         const face = (target && Math.sign(target.gx - source.gx)) || K.heroFace(), element = event.element || gem.meta.el;
         return { gem, event, view, element, first: false, look: { face, ramp: K.ramp(gem, element) } };
     }
-    /** 따로 시전하는 젬의 단계 하나: 표에 있으면 그 연출이, 없으면 예전 그림이 맡는다. */
+    /** 따로 시전하는 룬의 단계 하나: 표에 있으면 그 연출이, 없으면 예전 그림이 맡는다. */
     function castNativePhase(c, phase) {
         const play = (NATIVE[c.gem.id] || {})[phase];
         if (!play) return false;

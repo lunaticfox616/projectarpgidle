@@ -11,7 +11,7 @@
  * - 규격 JSON(프레임 ms·타격 프레임·표시 영역·발사점·몸이동)을 data/hana-sprites.js 로 옮긴다.
  * - 위습 정령 소환수(3_결과물/Hana_소환수/위습정령, 스킬 변경분 2부터)를 assets/summon/wisp/<slug>_<idle|attack>.png 로 복사한다.
  *   시트 규격(16×16 네 칸, 프레임 ms, 타격 프레임)이 data/wisp-summons.js 표와 다르면 멈춘다(표를 먼저 고친다).
- *   젬 아이콘(assets/gems/active/summon-wisp-*-v1.png)은 대기 첫 프레임을 2배로 키운 그림이라 여기서 만들지 않는다.
+ *   룬 아이콘(assets/gems/active/summon-wisp-*-v1.png)은 대기 첫 프레임을 2배로 키운 그림이라 여기서 만들지 않는다.
  * 원본 라이선스(Hana Caraka): 게임 안 사용·수정은 가능, 원본 팩·결과물 재배포 금지. 이 저장소 밖으로 내보내지 않는다.
  */
 'use strict';

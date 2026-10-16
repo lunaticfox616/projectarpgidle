@@ -557,7 +557,7 @@ function findGridTacticalDestination(unit,target,config) {
     return gridStepToward(next,target.gx,target.gy,getGridBlockedCells(unit))?next:null;
 }
 
-/** 스킬 젬의 그리드 범위 프로필을 조회한다. 정의가 없으면 targetMode/태그 기반 기본값을 쓴다.
+/** 스킬룬의 그리드 범위 프로필을 조회한다. 정의가 없으면 targetMode/태그 기반 기본값을 쓴다.
  * The resolved active skill's 효과 확장 grows it (js/skill-effect-expansion.js); at +0 the table row itself comes back. */
 function getSkillGridProfile(skillName, skillDef) {
     let profile = getAuthoredSkillGridProfile(skillName, skillDef) || getDefaultSkillGridProfile(skillDef);

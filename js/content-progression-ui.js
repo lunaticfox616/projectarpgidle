@@ -3,8 +3,8 @@
 const CONTENT_ROUTE_PATHS = Object.freeze({
     'item-tab-equip': '장비 → 장비 창', 'item-tab-craft': '장비 → 제작실', 'item-tab-fossil': '장비 → 제작실', 'item-tab-market': '장비 → 거래소',
     'item-tab-hall': '장비 → 장비 전당',
-    'skill-tab-equip': '스킬 젬 → 장착, 보조', 'skill-tab-enhance': '스킬 젬 → 성장, 각인', 'skill-tab-research': '스킬 젬 → 젬 연구',
-    'skill-tab-condition': '스킬 젬 → 전술 규칙',
+    'skill-tab-equip': '스킬룬 → 장착, 보조', 'skill-tab-enhance': '스킬룬 → 성장, 각인', 'skill-tab-research': '스킬룬 → 룬 연구',
+    'skill-tab-condition': '스킬룬 → 전술 규칙',
     'tab-codex': '기록 → 도감', 'tab-traits': '스킬트리 → 전직', 'tab-char': '스킬트리',
     'tab-season': '루프 패시브', 'tab-stump': '그루터기 함', 'tab-talent': '재능',
     'map-tab-pvp': '지도 → 대전', 'map-explore-labyrinth': '지도 → 탐험 → 고대 미궁', 'map-explore-beehive': '지도 → 탐험 → 벌집',
@@ -27,8 +27,8 @@ const contentUnlockUi = {
         if (!name || (game.seenTutorials || []).includes('tutorial_starter_gem_equip')) return;
         game.unlocks.skills = true;
         game.noti.skills = true;
-        queueTutorialNotice('tutorial_starter_gem_equip', '첫 스킬 젬 장착',
-            `[${name}] 젬을 얻었습니다.\n‘스킬 젬’에서 빛나는 젬을 누르고 ‘장착’을 누르세요.\n장착한 젬으로 자동 전투의 공격이 바뀝니다.`, 'tab-skills');
+        queueTutorialNotice('tutorial_starter_gem_equip', '첫 스킬룬 장착',
+            `[${name}] 룬을 얻었습니다.\n‘스킬룬’에서 빛나는 룬을 누르고 ‘장착’을 누르세요.\n장착한 룬으로 자동 전투의 공격이 바뀝니다.`, 'tab-skills');
     },
     announceLoop() {
         if (game.contentProgression && contentProgression.points().complete) return;
@@ -64,7 +64,7 @@ const contentUnlockUi = {
     },
     syncSkillCopy() {
         const label = document.querySelector('#btn-skill-tab-equip strong');
-        if (label) label.textContent = contentProgression.isUnlocked('support') ? '장착과 보조' : '스킬 젬';
+        if (label) label.textContent = contentProgression.isUnlocked('support') ? '장착과 보조' : '스킬룬';
     },
     syncRoute(route, locked) {
         // A merged launcher may remain available through another purchased child.
@@ -542,7 +542,7 @@ document.addEventListener('click', event => {
 // The loop's starter gem picked up from the floor (js/combat.js receiveStarterGemRow): its log line, and in a first loop the equip
 // guide right there (checkUnlocks → announceStarterGem), with the room already cleared.
 window.addEventListener('project-idle:starter-gem-received', event => {
-    addLog(`스킬 젬 [${event.detail.gem}] 획득`, 'loot-rare');
+    addLog(`스킬룬 [${event.detail.gem}] 획득`, 'loot-rare');
     checkUnlocks();
 });
 // NPC pictures are local stage art (assets/stage-npcs): where one is missing, drop it rather than show a broken image.

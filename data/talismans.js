@@ -1,5 +1,5 @@
 // 부적(2026-09-30 개편): 그루터기 함 판에 놓는 한 칸짜리 조각(씨앗 · 수액 다음의 세 번째 계열, 색 없음).
-// 예전 부적 판 · 생장판 · 컨디션 젬을 대신한다. 부적은 일반 줄(능력치)과 조건부 줄(수호 · 함성 · 저주)을 1~3개 갖고,
+// 예전 부적 판 · 생장판 · 컨디션 룬을 대신한다. 부적은 일반 줄(능력치)과 조건부 줄(수호 · 함성 · 저주)을 1~3개 갖고,
 // 고유 부적은 고정 줄이나 판의 상하좌우 이웃 효과를 가진다. 깨어나는 성장량은 data/stump-box.js(STUMP_BOX_GROWTH).
 
 // 봉인편린으로 부적을 푼다(예전 부적 해제 그대로 미궁 편린을 쓴다). mul: 일반 · 조건부 줄 굴림 배율.
@@ -40,10 +40,10 @@ const TALISMAN_STAT_POOL = Object.freeze([
     { id: 'resAll', min: 3, max: 8, step: 1 }
 ]);
 
-// 조건부 줄(예전 컨디션 젬 자리): 수호 · 함성은 조건이 맞는 동안 효과를 더하고, 저주는 8초마다 적 하나에 6초 동안 걸린다.
-// 같은 줄(id)이 여럿이면 가장 센 하나만 쓴다(예전 젬처럼 겹치지 않는다). 두 가지 줄이 있다.
+// 조건부 줄(예전 컨디션 룬 자리): 수호 · 함성은 조건이 맞는 동안 효과를 더하고, 저주는 8초마다 적 하나에 6초 동안 걸린다.
+// 같은 줄(id)이 여럿이면 가장 센 하나만 쓴다(예전 룬처럼 겹치지 않는다). 두 가지 줄이 있다.
 //   한 가지 능력치 줄: stat(수호 · 함성) 또는 effect · form(저주)에 굴린 값 {v}가 그대로 들어간다.
-//   젬 줄: 예전 컨디션 젬의 효과표(delta)를 그대로 가지고, 굴린 값은 위력 %다(효과표 × 위력 / 100).
+//   룬 줄: 예전 컨디션 룬의 효과표(delta)를 그대로 가지고, 굴린 값은 위력 %다(효과표 × 위력 / 100).
 // when: lowLife 생명력 50% 이하 · fullLife 생명력 가득 · boss 보스와 싸우는 중 · crowd 살아 있는 적 3마리 이상.
 const TALISMAN_CONDITION_POWER = Object.freeze({ min: 60, max: 100, step: 5 });
 const TALISMAN_CONDITION_POOL = Object.freeze([
@@ -103,7 +103,7 @@ const TALISMAN_CONDITION_POOL = Object.freeze([
     { id: 'hex_festering', kind: 'curse', name: '상처 악화', ...TALISMAN_CONDITION_POWER, delta: { enemyRegenRateMul: 0.6 } },
     { id: 'hex_weak_point', kind: 'curse', name: '약점 조준', ...TALISMAN_CONDITION_POWER, delta: { enemyProjectileTakenMul: 1.1, projectileExtraHits: 2 } }
 ]);
-// 젬 줄의 효과 이름과 표시 방식. fixed: 위력과 상관없이 그대로(한도 · 추가 타격 · 대상 수 · 지연 · 면역 같은 것).
+// 룬 줄의 효과 이름과 표시 방식. fixed: 위력과 상관없이 그대로(한도 · 추가 타격 · 대상 수 · 지연 · 면역 같은 것).
 // form: pct(+v%) · fraction(+v×100%) · count(+v) · flag(이름만) · seconds(v초) · minus(−v) · mulUp(+(m−1)%) · mulDown(−(1−m)%).
 const TALISMAN_CONDITION_EFFECTS = Object.freeze({
     pctDmg: ['피해', 'pct'], aspd: ['공격 속도', 'pct'], dr: ['받는 물리 피해 감소', 'pct'], drCapBonus: ['물리 피해 감소 한도', 'pct', 'fixed'],
@@ -153,7 +153,7 @@ const TALISMAN_UNIQUE_DB = Object.freeze([
     { id: 'ut_simple', name: '단순한 부적', special: 'simpleCopy', uniqueEffect: '표식 방향으로 맞닿은 부적의 일반 줄을 한 번 더 얻습니다.' },
     { id: 'ut_temperance', name: '절제의 미덕', special: 'temperance', uniqueEffect: '일반 줄 세 개를 굴림 배율 없이 가집니다.' },
     { id: 'ut_pride', name: '오만', special: 'pride',
-        uniqueEffect: '맞닿은 그루터기 아이템이 없으면 스킬 젬 레벨과 보조 젬 한도 +1, 하나면 보조 젬 한도 +1, 둘 이상이면 피해 +15%와 공격 속도 +10%' },
+        uniqueEffect: '맞닿은 그루터기 아이템이 없으면 스킬룬 레벨과 보조스킬룬 한도 +1, 하나면 보조스킬룬 한도 +1, 둘 이상이면 피해 +15%와 공격 속도 +10%' },
     { id: 'ut_moment', name: '찰나', special: 'moment', momentMin: 5, momentMax: 15,
         uniqueEffect: '보스에게 주는 최종 피해가 늘어나고, 생명력 5% 이하인 보스를 즉시 쓰러뜨립니다.' },
     { id: 'ut_fire_focus', name: '불타는 부적', special: 'elementFocus', elem: 'fire' },
@@ -211,7 +211,7 @@ const TALISMAN_WILD_UNIQUE_DB = Object.freeze([
     { id: 'uw_dead_star', name: '죽은 별의 균사체', special: 'deadStar', weight: 0.3, lines: [['chaosPctDmg', 36], ['dotPctDmg', 36]],
         uniqueEffect: '그루터기 함의 성장 완료된 카오스 그루터기 아이템 하나마다 카오스 피해와 지속 피해 +8%(최대 5개), 생명력 −10%.' }
 ]);
-// 원소 집중 고유: 젬 레벨 1~3 · 그 원소 피해 5~15% · 그 원소 저항 5~15%.
+// 원소 집중 고유: 룬 레벨 1~3 · 그 원소 피해 5~15% · 그 원소 저항 5~15%.
 const TALISMAN_ELEMENT_FOCUS = Object.freeze({
     fire: ['fireGemLevel', 'firePctDmg', 'resF'], cold: ['coldGemLevel', 'coldPctDmg', 'resC'],
     light: ['lightGemLevel', 'lightPctDmg', 'resL'], phys: ['physGemLevel', 'physPctDmg', 'dr'],

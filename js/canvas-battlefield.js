@@ -2905,7 +2905,7 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
     // DOM은 그림을 다 그린 뒤에 만진다: 그리는 도중에 쓰면 다음 ctx.font나 ctx.filter가 문서 스타일을 다시 계산했다.
     setElementText(document.getElementById('ui-battlefield-caption'), getBattlefieldCaption());
     if (typeof actExplorationView === 'object' && actExplorationView.objects) actExplorationView.objects.flushButtons();
-    stageWarmup.afterBattleDraw(ctx); // 낀 젬의 이펙트를 미리 준비해 둔다(전투에서 처음 그릴 때 그림을 푸느라 멈추지 않게)
+    stageWarmup.afterBattleDraw(ctx); // 낀 룬의 이펙트를 미리 준비해 둔다(전투에서 처음 그릴 때 그림을 푸느라 멈추지 않게)
     return true;
 }
 
@@ -3224,15 +3224,15 @@ function resolvePlayerAttackDirection(playerPos, currentTargets, enemyPosMap) {
     return direction;
 }
 const STAGE_ATTACK_SIDE_DEAD_PX = 10;     // 대상이 이만큼(px) 안의 같은 세로줄이면 직전에 보던 쪽을 지킨다
-const STAGE_NATIVE_CAST_FACE_MS = 700;    // 따로 시전하는 젬을 쓴 뒤 그 겨냥한 쪽을 보는 동안
-let stageNativeCastFace = null;           // { side, until }: 막 쓴 따로 시전하는 젬이 겨냥한 쪽(그 젬의 기록이 치워진 뒤에도 연출이 끝날 때까지 지킨다)
+const STAGE_NATIVE_CAST_FACE_MS = 700;    // 따로 시전하는 룬을 쓴 뒤 그 겨냥한 쪽을 보는 동안
+let stageNativeCastFace = null;           // { side, until }: 막 쓴 따로 시전하는 룬이 겨냥한 쪽(그 룬의 기록이 치워진 뒤에도 연출이 끝날 때까지 지킨다)
 /** 옆에서 보는 무대: 주인공이 지금 치고 있는 쪽. 가장 늦게 시작한 공격이 겨냥한 칸(combatTravel 기록의 aimCell)이나, 그런 기록을 남기지
- * 않는 따로 시전하는 젬(js/skill-gem-casts.js)이 겨냥한 자리를 주인공이 지금 선 칸에서 본 쪽이다. 지금 선 칸에서 보므로 적 옆으로
+ * 않는 따로 시전하는 룬(js/skill-gem-casts.js)이 겨냥한 자리를 주인공이 지금 선 칸에서 본 쪽이다. 지금 선 칸에서 보므로 적 옆으로
  * 건너가 치는 이동기(그림자 점멸, 암살)는 건너간 뒤의 쪽을 답한다. 겨냥한 칸이 같은 세로줄이거나 치는 중이 아니면 null.
  * 주인공 그림과 주인공에게 붙는 스킬 이펙트(js/canvas-stage-skill-kit.js heroFace)가 이 한 값으로 같은 쪽을 본다. */
 function resolveStageStrikeSide(now) {
     const hero = game.gridPlayer, side = cell => (cell && cell.gx !== hero.gx ? (cell.gx < hero.gx ? 'west' : 'east') : null);
-    // 막 쓴 따로 시전하는 젬이 먼저다: 그 젬을 쓰는 동안에도 기본 공격은 다른 적을 겨냥해 이어질 수 있다(암살로 건너가 뒤를 베는 순간)
+    // 막 쓴 따로 시전하는 룬이 먼저다: 그 룬을 쓰는 동안에도 기본 공격은 다른 적을 겨냥해 이어질 수 있다(암살로 건너가 뒤를 베는 순간)
     const cast = resolveStageNativeCastSide(side);
     if (cast) return cast;
     for (let index = battleFx.length - 1; index >= 0; index--) {
@@ -3250,7 +3250,7 @@ function resolveStageNativeCastSide(side) {
     stageNativeCastFace = null;
     return null;
 }
-/** 막 쓴(STAGE_NATIVE_CAST_FACE_MS 안의) 따로 시전하는 젬의 기록: 주 스킬 자리의 것이 먼저, 없으면 이동기 자리의 것. */
+/** 막 쓴(STAGE_NATIVE_CAST_FACE_MS 안의) 따로 시전하는 룬의 기록: 주 스킬 자리의 것이 먼저, 없으면 이동기 자리의 것. */
 function latestStageNativeCast(clock) {
     for (const state of [skillGemCombatRuntime, mobilitySkill.castState()]) {
         const cast = state && state.casts.length ? state.casts[state.casts.length - 1] : null;

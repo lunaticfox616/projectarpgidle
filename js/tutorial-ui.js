@@ -52,13 +52,13 @@ const tutorialActionUi = {
             focus: target => (target.id === 'tree-canvas' ? passiveTreeGuide.screenRect() : null)
         },
         unlock_skills: {
-            // 젬 상세가 열려 있으면 그 '장착' 단추를, 아니면 첫 스킬 젬 카드를 가리킨다.
+            // 룬 상세가 열려 있으면 그 '장착' 단추를, 아니면 첫 스킬룬 카드를 가리킨다.
             selector: ['#gem-selection .gem-equip-primary', '#tab-skills .starter-gem-tutorial-target, #tab-skills .gem-library-card:not(.active):not(.equipment-blocked)'],
-            title: '스킬 젬 장착',
-            body: '젬을 선택해 효과를 확인하고 ‘장착’을 누르세요. 선택한 젬에 따라 자동 전투가 달라집니다.',
+            title: '스킬룬 장착',
+            body: '룬을 선택해 효과를 확인하고 ‘장착’을 누르세요. 선택한 룬에 따라 자동 전투가 달라집니다.',
             read: () => JSON.stringify([game.activeSkill, game.mobilitySkill, game.equippedSupports, game.equippedSummonSkills]),
             completed: (current, before) => current !== before,
-            // 젬 상세와 고른 젬 카드도 덮지 않는다(카드가 고른 젬 위로 올라와 설명을 가렸다).
+            // 룬 상세와 고른 룬 카드도 덮지 않는다(카드가 고른 룬 위로 올라와 설명을 가렸다).
             keepClear: ['#gem-selection:popover-open', '#tab-skills .is-gem-selected']
         },
         unlock_stump_box: {
@@ -143,7 +143,7 @@ const tutorialActionUi = {
         this.highlighted = target;
         this.placeCard(target);
     },
-    /** 카드는 가리키는 칸(트리는 찍을 수 있는 노드 무리)과 안내가 함께 지키는 곁 정보(젬 상세 · 고른 젬)를 덮지 않는다.
+    /** 카드는 가리키는 칸(트리는 찍을 수 있는 노드 무리)과 안내가 함께 지키는 곁 정보(룬 상세 · 고른 룬)를 덮지 않는다.
      * PC는 칸이 든 창 바깥의 빈 전장(칸과 같은 높이) → 칸의 왼쪽 · 오른쪽 → 아래 · 위 → 기본 자리 순, 휴대폰은 칸의 위 · 아래.
      * 한 번 둔 자리는 계속 비켜 있는 한 그대로 둔다(누르려던 자리로 카드가 옮겨 오지 않게). fresh는 화면을 연 직후 · 창 크기 변경. */
     placeCard(target, fresh) {
@@ -154,7 +154,7 @@ const tutorialActionUi = {
         const home = this.homeRect();
         const spot = tutorialCardSpots(focus, target, home).find(rect => !avoid.some(other => rectsOverlap(rect, other)));
         this.placedFor = placed;
-        // 둘 곳이 없으면(휴대폰에서 젬 상세가 화면을 채울 때) 잠시 비켜 선다. 표시는 가리키는 칸에 남는다.
+        // 둘 곳이 없으면(휴대폰에서 룬 상세가 화면을 채울 때) 잠시 비켜 선다. 표시는 가리키는 칸에 남는다.
         this.card.classList.toggle('is-covered', !spot);
         if (!spot) return;
         const factor = uiDisplay.factor || 1, style = this.card.style;
@@ -313,7 +313,7 @@ function tutorialScrollParent(node) {
     }
     return null;
 }
-/** 창 몸통의 맨 윗줄(직계 자식)이 반쯤 잘려 보이면 칸이 다 보이는 한 그 줄을 통째로 넘긴다 — 1440×900의 스킬 젬 창은 첫 젬
+/** 창 몸통의 맨 윗줄(직계 자식)이 반쯤 잘려 보이면 칸이 다 보이는 한 그 줄을 통째로 넘긴다 — 1440×900의 스킬룬 창은 첫 룬
  * 카드가 다 보이려면 44px을 내려야 해 '현재 전투 세팅' 단추가 반으로 잘렸다(검토 2026-10-01). */
 function tidyTutorialScroll(scroller, target) {
     const offset = scroller.scrollTop, top = scroller.getBoundingClientRect().top + scroller.clientTop;
@@ -334,7 +334,7 @@ const TUTORIAL_GUIDED_CONTENT_KEYS = new Set(['unlock_stump_box', 'tutorial_stum
 const TUTORIAL_KIND_LABELS = Object.freeze({ start: '시작 안내', content: '새 콘텐츠', loop: '새 루프' });
 // "…열기" 단추에 쓰는 화면 이름(메뉴 이름과 같게). 없으면 "화면 열기".
 const TUTORIAL_TAB_NAMES = Object.freeze({
-    'tab-character': '캐릭터', 'tab-char': '스킬트리', 'tab-items': '장비', 'tab-skills': '스킬 젬', 'tab-map': '지도', 'tab-unlocks': '해금',
+    'tab-character': '캐릭터', 'tab-char': '스킬트리', 'tab-items': '장비', 'tab-skills': '스킬룬', 'tab-map': '지도', 'tab-unlocks': '해금',
     'tab-season': '루프 패시브', 'tab-traits': '전직', 'tab-talent': '재능', 'tab-codex': '도감',
     'tab-stump': '그루터기 함', 'tab-settings': '설정', 'tab-journal': '기록', 'tab-records': '전적', 'tab-npcs': 'NPC'
 });
@@ -588,21 +588,21 @@ function goBackTutorialStep() {
     activeTutorialStep -= 1;
     renderTutorialStep();
 }
-/** 첫 스킬 젬 안내를 따라 하지 않고 닫으면 그 젬을 대신 장착한다 — 방치하는 플레이어는 기본 공격으로 싸우며 초반에 거듭
- * 쓰러졌다(검토 2026-10-01). 바꾸고 싶으면 '스킬 젬'에서 언제든 바꾼다. */
+/** 첫 스킬룬 안내를 따라 하지 않고 닫으면 그 룬을 대신 장착한다 — 방치하는 플레이어는 기본 공격으로 싸우며 초반에 거듭
+ * 쓰러졌다(검토 2026-10-01). 바꾸고 싶으면 '스킬룬'에서 언제든 바꾼다. */
 function equipSkippedStarterGem(key) {
     const name = game.starterGemTutorialPending;
     if (key !== 'tutorial_starter_gem_equip' || typeof name !== 'string' || game.activeSkill !== '기본 공격') return;
     changeSkill(name);
-    if (game.activeSkill === name) showGameToast(`[${name}] 젬을 장착했습니다, '스킬 젬'에서 바꿀 수 있습니다`, { tone: 'success' });
+    if (game.activeSkill === name) showGameToast(`[${name}] 룬을 장착했습니다, '스킬룬'에서 바꿀 수 있습니다`, { tone: 'success' });
 }
 
-/** 따라 하기를 하지 않고 닫은 안내의 뒷정리: 첫 스킬 젬은 장착하고, 그루터기 함 시작 선물은 판에 놓는다. */
+/** 따라 하기를 하지 않고 닫은 안내의 뒷정리: 첫 스킬룬은 장착하고, 그루터기 함 시작 선물은 판에 놓는다. */
 function applySkippedGuide(key) {
     equipSkippedStarterGem(key);
     plantSkippedStumpStarter(key);
 }
-/** 그루터기 함 시작 선물 안내를 닫으면 받은 씨앗과 수액을 판의 가운데부터 대신 놓는다(첫 스킬 젬과 같은 이유). */
+/** 그루터기 함 시작 선물 안내를 닫으면 받은 씨앗과 수액을 판의 가운데부터 대신 놓는다(첫 스킬룬과 같은 이유). */
 function plantSkippedStumpStarter(key) {
     if (!TUTORIAL_GUIDED_CONTENT_KEYS.has(key) || !game.stumpBox || !game.stumpBox.acquired) return;
     if (stumpBox.plantStored(game) > 0) showGameToast('그루터기 함: 받은 씨앗, 수액을 배치했습니다', { tone: 'success' });

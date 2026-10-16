@@ -17,7 +17,7 @@
         const summons = (game.equippedSummonSkills || []).filter(gem => (SKILL_DB[gem]?.tags || []).includes(tag));
         targets.push(...summons);
         if (targets.length) return `적용: ${targets.join(', ')}`;
-        return '현재 주 공격/소환 젬에 적용되지 않음';
+        return '현재 주 공격/소환 룬에 적용되지 않음';
     }
 
     function close() {
@@ -34,9 +34,9 @@
         root.id = 'gem-selection';
         root.setAttribute('popover', 'auto');
         root.setAttribute('role', 'dialog');
-        root.setAttribute('aria-label', '젬 상세');
+        root.setAttribute('aria-label', '룬 상세');
         root.innerHTML = '<div class="gem-selection-actions"></div><div class="gem-selection-content"></div>';
-        // 따라 하기 안내가 젬 카드와 상세의 '장착' 단추 사이로 표시를 옮긴다.
+        // 따라 하기 안내가 룬 카드와 상세의 '장착' 단추 사이로 표시를 옮긴다.
         root.addEventListener('toggle', event => {
             if (event.newState === 'closed') close();
             if (typeof tutorialActionUi === 'object') tutorialActionUi.refresh();
@@ -60,7 +60,7 @@
         if (cap <= 1) return '';
         const unlocked = Math.max(1, Math.min(cap, Math.floor((((game.supportGemData || {})[name]) || {}).unlockedTier || 1)));
         const active = getSupportActiveTier(name);
-        return '<span class="gem-selection-tiers" aria-label="보조 젬 등급">' + [1, 2, 3].slice(0, cap).map(tier =>
+        return '<span class="gem-selection-tiers" aria-label="보조스킬룬 등급">' + [1, 2, 3].slice(0, cap).map(tier =>
             `<button type="button" data-gem-action="tier" data-tier="${tier}" aria-pressed="${tier === active}" ${tier <= unlocked ? '' : 'disabled'}>${tier}등급</button>`).join('') + '</span>';
     }
 
@@ -83,7 +83,7 @@
         const worn = anchor.classList.contains('active');
         const canUnequip = support || (SKILL_DB[name].tags || []).includes('summon_attack') || mobilitySkill.isMobilityGem(name);
         const seal = !worn && name !== '기본 공격' ? '<button type="button" data-gem-action="seal" class="gem-selection-seal">봉인</button>' : '';
-        return equipButton(anchor, canUnequip) + kindControls(type, name, worn) + seal + '<button type="button" data-gem-action="close" aria-label="젬 상세 닫기">닫기</button>';
+        return equipButton(anchor, canUnequip) + kindControls(type, name, worn) + seal + '<button type="button" data-gem-action="close" aria-label="룬 상세 닫기">닫기</button>';
     }
 
     /** The loadout fields with this gem put on. replaced: the gem it takes the place of (js/gem-slot-dialog-ui.js); a summon
@@ -199,7 +199,7 @@
         else changeSkill(name);
     }
 
-    /** 상세가 머무는 사각형: 젬이 든 관리 창(PC), 창이 없으면 화면 — 둘 다 하단 메뉴 띠 위까지. */
+    /** 상세가 머무는 사각형: 룬이 든 관리 창(PC), 창이 없으면 화면 — 둘 다 하단 메뉴 띠 위까지. */
     function popoverBounds(anchor) {
         const nav = document.getElementById('tab-header-bottom');
         const floor = nav?.getClientRects().length ? nav.getBoundingClientRect().top : innerHeight;
@@ -228,7 +228,7 @@
         root.style.maxHeight = `${floor * .72 / uiDisplay.factor}px`;
     }
 
-    /** 상세는 젬이 든 창 안에 머문다 — 창 아래로 넘쳐 HUD 미니맵을 덮었다(검토 2026-10-01). */
+    /** 상세는 룬이 든 창 안에 머문다 — 창 아래로 넘쳐 HUD 미니맵을 덮었다(검토 2026-10-01). */
     function position() {
         if (!selection) return;
         const root = document.getElementById('gem-selection');

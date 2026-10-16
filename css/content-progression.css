@@ -97,7 +97,7 @@
 .unlock-milestone-group{margin-top:16px}
 #content-unlock-panel .unlock-milestone-item{display:flex;justify-content:space-between;align-items:center;gap:12px;width:100%;border:0;border-top:1px solid var(--skin-line);border-radius:0;background:none;box-shadow:none;padding:10px 0;text-align:left;font-size:12px}
 .unlock-milestone-item small{color:var(--color-text-tertiary);font-size:10px;text-align:right}
-/* 기본 창(1440 화면에서 패널 약 880px)에서도 다섯 단계 열이 오른쪽 설명에 가리지 않게 열을 줄인다(검토 4차: 6단계 '젬 각성'이
+/* 기본 창(1440 화면에서 패널 약 880px)에서도 다섯 단계 열이 오른쪽 설명에 가리지 않게 열을 줄인다(검토 4차: 6단계 '룬 각성'이
    설명 패널 밑에 숨고 가로 스크롤 막대는 창 밖에 있었다). 연결선 SVG는 경로 크기에 맞춰 늘고 준다. */
 @container(max-width:1120px){
  .unlock-map{padding:0 12px 14px}

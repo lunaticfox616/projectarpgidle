@@ -27,7 +27,7 @@ const ascendancyTreeUi = (() => {
     const percent = stat => !!(P_STATS[stat] && P_STATS[stat].isPct);
     const linesOf = node => (node && Array.isArray(node.stats) ? node.stats : (node && node.stat ? [{ stat: node.stat, val: node.val }] : []));
     function lineText(line) {
-        if (line.stat === 'suppCap') return '보조 젬 장착 한도 +1';
+        if (line.stat === 'suppCap') return '보조스킬룬 장착 한도 +1';
         return `${statName(line.stat)} +${formatValue(line.stat, line.val)}${percent(line.stat) ? '%' : ''}`;
     }
     const shortValue = line => (line.stat === 'suppCap' ? '+1' : `+${formatValue(line.stat, line.val)}${percent(line.stat) ? '%' : ''}`);

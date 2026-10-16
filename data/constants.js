@@ -31,7 +31,7 @@ const PROJECTILE_SPRITE_SCALE = 0.8;
 // 나가는 순간 업로드는 마지막으로 올린 뒤 이만큼 지나야 다시 한다(앱을 자주 오가도 매번 올리지 않게).
 const CLOUD_EXIT_UPLOAD_MIN_GAP_MS = 60 * 1000;
 // 게스트 저장을 계정으로 옮기기 전의 간단한 조작 검사(js/guest-save-check.js, 2026-10-03). 정상 플레이로는 나올 수 없는 값만
-// 잡도록 넉넉하게 둔다. 화폐는 한 번에 1~20개씩 쌓여 천만에 닿지 않는다. 젬 레벨은 경험치로 20, 숙련 가공으로 30까지, 품질은 20까지다.
+// 잡도록 넉넉하게 둔다. 화폐는 한 번에 1~20개씩 쌓여 천만에 닿지 않는다. 룬 레벨은 경험치로 20, 숙련 가공으로 30까지, 품질은 20까지다.
 // 장비 수치는 자기 굴림 범위 최댓값의 2배나 천만을 넘으면 걸린다. 패시브 포인트는 레벨 업마다 1에 일지, 액트 보상,
 // 창백한 푸른 점(공허 하나에 10)과 여유 5를 더한 만큼까지다. 저장에 남은 가장 늦은 시각이 지금보다 10분 넘게 앞서면 기기 시간이 걸린다.
 const GUEST_SAVE_CHECK = Object.freeze({
@@ -80,8 +80,8 @@ const UNDERWORLD_DIFFICULTY_CONFIG = Object.freeze({
     tierGainPerFloorAfterDeep: 1,
     gravityActionLossPerFloorAfterDeep: 0.01
 });
-// 지하계 깊은 층 보상(2026-10-09, 루프 50 이후 레벨 디자인): 룬 슬롯과 번호는 300층에서 끝난다. 그 아래로는 every층마다 룬 강화
-// 재료 한 묶음: [기본, 300층 아래로 한 층마다 더함]. 310층 룬 조각 70과 금 24, 400층 160과 60(js/combat.js grantUnderworldFloorMilestone).
+// 지하계 깊은 층 보상(2026-10-09, 루프 50 이후 레벨 디자인): 지하석 슬롯과 번호는 300층에서 끝난다. 그 아래로는 every층마다 지하석 강화
+// 재료 한 묶음: [기본, 300층 아래로 한 층마다 더함]. 310층 지하석 조각 70과 금 24, 400층 160과 60(js/combat.js grantUnderworldFloorMilestone).
 const UNDERWORLD_DEEP_FLOOR_REWARD = Object.freeze({ fromFloor: 300, every: 10, runeShard: Object.freeze([60, 1]), underGold: Object.freeze([20, 0.4]) });
 const DAMAGE_ELEMENT_LABELS = {
     phys: '물리',

@@ -1,4 +1,4 @@
-/** 새로 그린 스킬 이펙트 26종을 실제 전투 이벤트에 연결한다 (인계 ui_player.js의 젬별 draw 함수를 게임용으로 옮김).
+/** 새로 그린 스킬 이펙트 26종을 실제 전투 이벤트에 연결한다 (인계 ui_player.js의 룬별 draw 함수를 게임용으로 옮김).
  * 09-30 변경분(17·29·30·37·48)과 이동기 4종(54~57)의 그리는 쪽은 js/canvas-redrawn-skill-fx-extra.js.
  * The world-tree renderer offers every event it is about to draw to claim(). Events a redrawn gem replaces (the handoff's
  * customSkip) are collected per cast — one attack's stage/travel/hit events, keyed by its damage group or channel — and

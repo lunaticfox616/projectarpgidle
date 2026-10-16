@@ -332,7 +332,7 @@ const fxRemake = (() => {
         t.getImageData(0, 0, 1, 1);
         return filtersPaid >= filters.length;
     }
-    /** 세계수 시트를 쓰는 이펙트가 전투에서 처음 나오기 전에 해 둔다(js/canvas-stage-warmup.js가 그 시트를 쓰는 젬을 꼈을 때 부른다).
+    /** 세계수 시트를 쓰는 이펙트가 전투에서 처음 나오기 전에 해 둔다(js/canvas-stage-warmup.js가 그 시트를 쓰는 룬을 꼈을 때 부른다).
      * 놋쇠 사본은 메인 스레드 밖에서 푼 그림으로 만든다(js/canvas-stage-pictures.js): 처음 쓰는 프레임에서 시트를 풀면 그 프레임이
      * 데스크톱에서 8ms, 느린 기기에서 30ms 넘게 멈췄다. 밖에서 풀지 못하면 예전처럼 처음 쓸 때 만든다.
      * @returns {boolean} 다 됐는가. 아직이면(그림을 푸는 중) 부른 쪽이 다시 부른다. */

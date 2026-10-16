@@ -111,7 +111,7 @@ const REALM_MONSTER_VISUAL_SETS = Object.freeze({
 });
 
 // 위습형 몬스터 규칙: 일반·정예 외형 뽑기에서 다섯에 하나(다른 몬스터보다 조금 드묾), 생명력 70%,
-// 회피 조금 높음 · 방어도 낮음, 스킬 젬 드랍 확률 3배. 원소 저항·피해 감소는 getWispEnemyDefenseBonuses(js/combat.js).
+// 회피 조금 높음 · 방어도 낮음, 스킬룬 드랍 확률 3배. 원소 저항·피해 감소는 getWispEnemyDefenseBonuses(js/combat.js).
 const WISP_ENEMY_RULES = Object.freeze({ spawnOneIn: 5, hpMul: 0.7, evasionMul: 1.3, armorMul: 0.5, gemDropMul: 3 });
 const WISP_NEUTRAL_RULES = Object.freeze({ spawnOneIn: 0, hpMul: 1, evasionMul: 1, armorMul: 1, gemDropMul: 1 });
 

@@ -1,8 +1,8 @@
-/* 젬 장착 화면 보강(2026-10-11 사용자 요청): 보조 젬 문양(js/support-gem-sigil-ui.js), 젬 칸 창(js/gem-slot-dialog-ui.js),
+/* 룬 장착 화면 보강(2026-10-11 사용자 요청): 보조스킬룬 문양(js/support-gem-sigil-ui.js), 룬 칸 창(js/gem-slot-dialog-ui.js),
    각인 카드와 각인 툴팁의 색과 글자 크기(js/ui.js renderEngraveOptionFace, js/skill-gem-board-ui.js boardEngraveHint).
    보드 자체의 배치는 css/skill-gem-board.css 그대로다. 계열 색 --sigil 하나로 문양 상자, 타일 윗줄, 창의 카드 테를 함께 칠한다. */
 @layer features {
-/* ── 계열 색: 보조 젬은 효과 계열, 공격 젬은 속성(창은 #tab-skills 밖이라 속성색을 여기서 다시 정한다) ───────────── */
+/* ── 계열 색: 보조스킬룬은 효과 계열, 공격 룬은 속성(창은 #tab-skills 밖이라 속성색을 여기서 다시 정한다) ───────────── */
 :is(.support-sigil, .gem-tile, .gem-slot-card, .gem-slot-current) { --sigil: #6fd3b0; }
 :is(.support-sigil, .gem-tile, .gem-slot-card, .gem-slot-current).is-tone-phys { --sigil: #e8c79a; }
 :is(.support-sigil, .gem-tile, .gem-slot-card, .gem-slot-current).is-tone-fire { --sigil: #ff9a76; }
@@ -22,7 +22,7 @@
 :is(.gem-slot-card, .gem-slot-current).element-chaos { --sigil: #c7a6ff; }
 :is(.gem-slot-card, .gem-slot-current).element-physical { --sigil: #c9d3e2; }
 
-/* ── 보조 젬 문양: 계열 색 상자 + 효과 그림(11도트의 정수배) + 구석의 등급 점 ───────────────────────── */
+/* ── 보조스킬룬 문양: 계열 색 상자 + 효과 그림(11도트의 정수배) + 구석의 등급 점 ───────────────────────── */
 .support-sigil {
   position: relative; display: grid; place-items: center; flex: 0 0 auto;
   border: 1px solid #080508;
@@ -33,7 +33,7 @@
 .support-sigil-icon .m { fill: color-mix(in srgb, var(--sigil) 34%, #fff); }
 .support-sigil-icon .f { fill: color-mix(in srgb, var(--sigil) 78%, #17141b); }
 .support-sigil > em { position: absolute; right: 3px; bottom: 1px; color: var(--px-gold-bright, #e0c283); font: normal 9px var(--font-pixel, 'Galmuri11', sans-serif); letter-spacing: -1px; text-shadow: 1px 1px 0 #000; }
-/* 보드의 보조 젬 칸 */
+/* 보드의 보조스킬룬 칸 */
 .support-slot > .support-sigil { width: 100%; max-width: 56px; height: 48px; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--sigil) 62%, #17141b), inset 0 1px 0 color-mix(in srgb, var(--sigil) 26%, transparent), 0 0 8px color-mix(in srgb, var(--sigil) 22%, transparent); }
 .support-slot:hover > .support-sigil { filter: brightness(1.2); }
 /* 목록 타일: 예전의 청록 한 가지 대신 계열 색. 타일 윗줄과 그림 뒤 빛도 같은 색을 따른다. */
@@ -43,11 +43,11 @@
 }
 #tab-skills .gem-tile.support-gem[class*="is-tone-"] { --gem-accent: var(--sigil); }
 #tab-skills .gem-tile.sealed-gem-card .support-sigil { --sigil: #8d8794; }
-/* 지금 못 끼는 보조 젬(칸이 다 찼을 때는 거의 모든 타일): 색을 빼면 문양의 계열 색이 사라져 다시 구별이 안 된다. 어둡게만 한다. */
+/* 지금 못 끼는 보조스킬룬(칸이 다 찼을 때는 거의 모든 타일): 색을 빼면 문양의 계열 색이 사라져 다시 구별이 안 된다. 어둡게만 한다. */
 #tab-skills .gem-tile.support-gem.equipment-blocked { filter: brightness(.8); }
 /* 레벨 꼬리표가 그림 상자 모서리에 가리지 않게 위에 둔다. */
 #tab-skills .gem-tile .gem-tile-level { z-index: 1; text-shadow: 1px 1px 0 #000; }
-/* 젬 연구 카드 */
+/* 룬 연구 카드 */
 .gem-research-card-head > .gem-research-card-sigil { width: 34px; height: 34px; }
 .gem-research-card-sigil .support-sigil-icon { width: 22px; height: 22px; }
 
@@ -57,7 +57,7 @@
 .skill-board-engrave.is-group-crafted > span { color: #f3cf8d; }
 .skill-board-engrave.is-group-awakened > span { color: #dcc3f7; }
 
-/* ── 툴팁: 각인 효과, 보조 젬 등급 줄, 바꾸면 비교 ─────────────────────────────────────── */
+/* ── 툴팁: 각인 효과, 보조스킬룬 등급 줄, 바꾸면 비교 ─────────────────────────────────────── */
 #info-tooltip .tooltip-title.engrave-tone-basic { color: #cfe2fb; }
 #info-tooltip .tooltip-title.engrave-tone-crafted { color: #f3cf8d; }
 #info-tooltip .tooltip-title.engrave-tone-awakened { color: #dcc3f7; }
@@ -78,7 +78,7 @@
 #info-tooltip .gem-compare-next.is-up { color: #8fe0a8; }
 #info-tooltip .gem-compare-next.is-down { color: #ff9b92; }
 
-/* ── 젬 칸 창: 머리 띠(DPS, 한도) · 지금 낀 젬 · 바꿔 낄 젬 목록 ─────────────────────────────── */
+/* ── 룬 칸 창: 머리 띠(DPS, 한도) · 지금 낀 룬 · 바꿔 낄 룬 목록 ─────────────────────────────── */
 .selection-overlay-panel.gem-slot-panel {
   --slot-read: var(--font-pixel-read, 'Galmuri14', sans-serif);
   --slot-label: var(--font-pixel, 'Galmuri11', sans-serif);
@@ -199,7 +199,7 @@
 /* 탭 안의 small은 도트 테마(css/themes/pixel.css, overrides 층)가 12px 도트 글꼴로 묶는다. 각인 효과는 읽는 글이라 창과 같은 크기로 둔다. */
 @layer overrides {
 #tab-skills #ui-gem-enhance-options .gem-engrave-copy > small { font: 14px/1.4 var(--font-pixel-read, 'Galmuri14', sans-serif); }
-/* 선택 창 안의 단추는 공용 단추 모양(css/ui-reliquary-shell.css, 같은 층)이 테와 바탕을 한 가지로 칠한다. 젬 카드는 계열 색 테와 빛,
+/* 선택 창 안의 단추는 공용 단추 모양(css/ui-reliquary-shell.css, 같은 층)이 테와 바탕을 한 가지로 칠한다. 룬 카드는 계열 색 테와 빛,
    낀 등급은 금빛으로 다시 정한다. */
 .gem-slot-panel .gem-slot-card {
   border: 1px solid #2c2532; border-left: 3px solid color-mix(in srgb, var(--sigil) 78%, #2c2532);

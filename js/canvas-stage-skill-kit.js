@@ -1,23 +1,23 @@
 /** 무대 스킬 이펙트의 연결 규칙이 함께 쓰는 작은 도구 (js/canvas-stage-skill-rules.js, js/canvas-stage-skill-casts.js).
- * 젬 이름에서 인계의 젬 번호와 연결표를 찾고, 주인공과 적이 선 자리, 보는 쪽, 클립의 램프를 답한다. 읽기만 한다.
+ * 룬 이름에서 인계의 룬 번호와 연결표를 찾고, 주인공과 적이 선 자리, 보는 쪽, 클립의 램프를 답한다. 읽기만 한다.
  */
 const stageSkillKit = (() => {
     const WIDE = 64, DEEP = 32;                   // 한 칸의 도트
     const BODY = -50;                             // 몸 가운데 높이(발에서, 도트)
     const HAND = -58;                             // 손 높이: 투사체가 나는 높이
     let lastFace = 1;
-    let names = null;                             // 인계의 젬 이름 → 번호(게임에 그림 번호가 없는 젬: 위습 소환)
+    let names = null;                             // 인계의 룬 이름 → 번호(게임에 그림 번호가 없는 룬: 위습 소환)
 
     function kitNames() {
         if (!names) names = new Map(Object.entries(STAGE_SKILL_VFX.meta).map(([id, row]) => [row.name, Number(id)]));
         return names;
     }
-    /** 젬 이름 → 인계의 번호: 게임의 그림 번호, 따로 시전하는 젬의 번호, 그것도 없으면 이름으로 찾는다. */
+    /** 룬 이름 → 인계의 번호: 게임의 그림 번호, 따로 시전하는 룬의 번호, 그것도 없으면 이름으로 찾는다. */
     function kitGemId(skillName) {
         const spec = SKILL_FX_ATLAS[skillName], def = SKILL_DB[skillName];
         return (spec && spec.id) || (def && def.nativeCastId) || kitNames().get(skillName) || 0;
     }
-    /** @returns {?{id:number, map:object, meta:object}} 그 젬의 연결표와 갈래. 인계에 없는 젬이면 null. */
+    /** @returns {?{id:number, map:object, meta:object}} 그 룬의 연결표와 갈래. 인계에 없는 룬이면 null. */
     function kitGemOf(skillName) {
         const id = kitGemId(skillName), map = id ? STAGE_SKILL_VFX.gems[id] : null;
         return map ? { id, map, meta: STAGE_SKILL_VFX.meta[id] } : null;

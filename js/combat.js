@@ -1264,7 +1264,7 @@ function hasEmptyThroneSoloBonus() {
         && equipped.every(entry => entry && entry.jewel && entry.jewel.uniqueId === 'uj_crown_empty');
 }
 
-/** "모든 스킬 젬 레벨 +N" (uniqueGemLevelBonus) on the equipped unique items that count for stats. */
+/** "모든 스킬룬 레벨 +N" (uniqueGemLevelBonus) on the equipped unique items that count for stats. */
 function getEquippedUniqueGemLevelBonus() {
     return getPlayerStatSourceItemEntries().reduce((sum, [, item]) => sum
         + (item && item.rarity === 'unique' && item.uniqueEffectKey === 'uniqueGemLevelBonus' ? Number((item.uniqueEffectParams || {}).level || 1) : 0), 0);
@@ -1309,9 +1309,9 @@ function getSummonGemLevel(gemName, source, pStats, evaluation) {
     let sources = getTargetGemBonusSources(gemName, pStats && pStats.gemBonusSources, undefined, evaluation);
     let bonus = Math.max(0, Math.floor((sources && sources.total) || 0));
     let engraveBonus = typeof getGemSkyEnhanceGemLevelBonus === 'function' ? getGemSkyEnhanceGemLevelBonus(gemName) : 0;
-    // getGemPresentation()의 활성 스킬 젬 totalLevel/finalLevel과 동일한 materialBonus 구성
-    // (군주의핵 + 창공의힘 + 각성 + 응축창공). 이게 빠져 있으면 소환 공격 젬에 이 재료들을
-    // 투자해도 젬 자체의 "총 레벨" 표시만 오르고 실제 소환수 전투력은 그대로였다.
+    // getGemPresentation()의 활성 스킬룬 totalLevel/finalLevel과 동일한 materialBonus 구성
+    // (군주의핵 + 창공의힘 + 각성 + 응축창공). 이게 빠져 있으면 소환 공격 룬에 이 재료들을
+    // 투자해도 룬 자체의 "총 레벨" 표시만 오르고 실제 소환수 전투력은 그대로였다.
     let isGem = !isSupport && typeof SKILL_DB !== 'undefined' && SKILL_DB[gemName] && SKILL_DB[gemName].isGem;
     let permanentSkyBonus = isGem && typeof getSkyTowerGemBoostLevel === 'function' ? getSkyTowerGemBoostLevel(gemName) : 0;
     let materialBonus = isGem ? gemCoreForge.effects(record).levels + (record.awakened ? 2 : 0) + permanentSkyBonus : 0;
@@ -1741,7 +1741,7 @@ function describeSummonDpsGroup(name, g, pStats, sbShare) {
     const eleLabel = ele => typeof getDamageElementLabel === 'function' ? getDamageElementLabel(ele) : (ele || 'phys');
     let mute = (txt) => `<span style="color:var(--copy-muted);">${txt}</span>`;
     const elements = (wispSummons.elements(name) || [g.s.ele]).map(eleLabel).join('/');
-    lines.push(`<span style="color:var(--copy-bright); font-weight:600;">${name}${g.count > 1 ? ` ×${g.count}` : ''}</span>, 젬 Lv.${g.gemLv}, ${elements}`);
+    lines.push(`<span style="color:var(--copy-bright); font-weight:600;">${name}${g.count > 1 ? ` ×${g.count}` : ''}</span>, 룬 Lv.${g.gemLv}, ${elements}`);
     lines.push(mute(`&nbsp;&nbsp;공격력 ${Math.floor(g.ownAttackPower)} = 기본 피해 ${Math.floor(g.s.baseDamage)} × 피해증가 ${g.dmgMul.toFixed(2)}${sbShare > 0 ? ` + 상호보완 ${Math.floor(sbShare)}` : ''}`));
     lines.push(mute(`&nbsp;&nbsp;피해 증가 ${Math.floor((pStats.summonPctDmg || 0) + g.sharedInc)}% (소환수 피해 ${Math.floor(pStats.summonPctDmg || 0)}% + 공유 ${Math.floor(g.sharedInc)}%) × 효율 +${Math.floor(pStats.summonEfficiency || 0)}% = ×${g.dmgMul.toFixed(2)}`));
     lines.push(mute(`&nbsp;&nbsp;치명타 ${(g.critChance * 100).toFixed(1)}% × 피해 ${Math.floor(g.critMul * 100)}%, 공속 ${g.aps.toFixed(2)}/초, 저항 관통 ${Math.floor(g.penResPen)}%`));
@@ -4027,7 +4027,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         suppCap += 1;
         finalAspd = Math.max(0.1, finalAspd * 0.94);
     }
-    // 9) 무한한 권능: 확보한 보조 젬 한도 1당 공명력(ASCENDANCY_KEYSTONE_VALUES.iq9), 한도를 늘리기 전의 '획득' 한도 기준
+    // 9) 무한한 권능: 확보한 보조스킬룬 한도 1당 공명력(ASCENDANCY_KEYSTONE_VALUES.iq9), 한도를 늘리기 전의 '획득' 한도 기준
     if (hasKeystone('iq9')) inquisitorResonanceBonus += ASCENDANCY_KEYSTONE_VALUES.iq9.resonancePerSupport * Math.max(0, suppCap);
     let inquisitorResonancePower = Math.max(0, Math.floor((game.resonancePower || 0) + runeResonancePower + (reward.runeResonancePower || 0) + inquisitorResonanceBonus));
     if (cosmosTwinStarResonance) inquisitorResonancePower = Math.floor(inquisitorResonancePower * Math.max(0, cosmosTwinStarResonance.resonanceMul || 1.5));
@@ -4047,7 +4047,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         inquisitorAbsoluteDoctrinePct = Math.max(0, finalResPen) * ASCENDANCY_KEYSTONE_VALUES.iq8.penToDamagePct / 100;
         finalBaseDmg = Math.floor(finalBaseDmg * (1 + inquisitorAbsoluteDoctrinePct / 100));
     }
-    // 무한한 권능: 보조 젬 한도 증가(예전에는 무제한이었다. 보조 젬 칸이 인퀴지터 폭주의 원인)
+    // 무한한 권능: 보조스킬룬 한도 증가(예전에는 무제한이었다. 보조스킬룬 칸이 인퀴지터 폭주의 원인)
     if (hasKeystone('iq9')) suppCap += ASCENDANCY_KEYSTONE_VALUES.iq9.extraSupports;
     // 소울바인더
     if (hasKeystone('sb4')) { sbSummonAspdBonus += 25; sbSummonCapBonus += 1; }
@@ -4251,7 +4251,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
             lines: [
                 makeSourceLine('장비', (gearBase[statId] || 0) + (gearExplicit[statId] || 0), '%', value => `${value.toFixed(1)}%`),
                 makeSourceLine('패시브', (passive[statId] || 0) + (season[statId] || 0) + (ascend[statId] || 0) + (reward[statId] || 0), '%', value => `${value.toFixed(1)}%`),
-                makeSourceLine('보조 젬', support[statId] || 0, '%', value => `${value.toFixed(1)}%`),
+                makeSourceLine('보조스킬룬', support[statId] || 0, '%', value => `${value.toFixed(1)}%`),
                 makeSourceLine('성좌 각성', starBlessing[statId] || 0, '%', value => `${value.toFixed(1)}%`),
                 note || `치명타 시 해당 상태 이상 확률: ${Math.floor(critValue)}%`,
                 note ? null : '비치명타는 위 확률을 사용하며, 치명타는 해당 상태 이상 확률에 +25%가 추가됩니다.',
@@ -4394,13 +4394,13 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
             lines: [
                 formatResistanceSourceLine('장비', (gearBase[statId] || 0) + (gearExplicit[statId] || 0)),
                 formatResistanceSourceLine('패시브', (passive[statId] || 0) + (season[statId] || 0) + (ascend[statId] || 0) + (reward[statId] || 0)),
-                formatResistanceSourceLine('보조 젬', support[statId] || 0),
+                formatResistanceSourceLine('보조스킬룬', support[statId] || 0),
                 ...(extraLines || []),
                 formatResistanceSourceLine('캠페인 패널티', -resistPenalty),
                 `최대 저항: ${Math.floor(maxValue)}% (기본 75%)`,
                 formatResistanceSourceLine('최대 저항, 장비', maxGear),
                 formatResistanceSourceLine('최대 저항, 패시브', maxPassive),
-                formatResistanceSourceLine('최대 저항, 보조 젬', support[maxStatId] || 0),
+                formatResistanceSourceLine('최대 저항, 보조스킬룬', support[maxStatId] || 0),
                 ...(extraMaxLines || [])
             ].filter(Boolean),
             final: `${Math.floor(finalValue)}%`
@@ -4446,7 +4446,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
                 `기본 1.00`,
                 makeSourceLine('장비', gearAspd, '%', value => `${Math.floor(value)}%`),
                 makeSourceLine('패시브', passiveAspd, '%', value => `${Math.floor(value)}%`),
-                makeSourceLine('보조 젬', support.aspd, '%', value => `${Math.floor(value)}%`),
+                makeSourceLine('보조스킬룬', support.aspd, '%', value => `${Math.floor(value)}%`),
                 talentLine('aspd'),
                 glovePairAspdBonus > 0 ? `동형 장갑 세트 보너스 +${glovePairAspdBonus.toFixed(2)} 기본 공속` : null,
                 `스킬 속도 배율 ${formatPercentMultiplier(skill.spd || 1)}`,
@@ -4460,7 +4460,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
                 `기본 2.5%`,
                 makeSourceLine('장비', gearCrit, '%', value => `${value.toFixed(1)}%`),
                 makeSourceLine('패시브', passiveCrit, '%', value => `${value.toFixed(1)}%`),
-                makeSourceLine('보조 젬', support.crit, '%', value => `${value.toFixed(1)}%`),
+                makeSourceLine('보조스킬룬', support.crit, '%', value => `${value.toFixed(1)}%`),
                 makeSourceLine('스킬', skill.crit || 0, '%', value => `${value.toFixed(1)}%`),
                 talentLine('crit')
             ].filter(Boolean),
@@ -4472,7 +4472,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
                 `기본 ${CRIT_DAMAGE_BASE_MULTIPLIER}%`,
                 makeSourceLine('장비', gearBase.critDmg + gearExplicit.critDmg, '%', value => `${Math.floor(value)}%`),
                 makeSourceLine('패시브', passive.critDmg + season.critDmg + ascend.critDmg + reward.critDmg, '%', value => `${Math.floor(value)}%`),
-                makeSourceLine('보조 젬', support.critDmg, '%', value => `${Math.floor(value)}%`),
+                makeSourceLine('보조스킬룬', support.critDmg, '%', value => `${Math.floor(value)}%`),
                 makeSourceLine('스킬/특수 효과', (skill.critDmgBonus || 0) + (activeShadowStealth ? Math.max(0, Number(uniqueDeflectStealth.critDmg || 20)) : 0), '%', value => `${Math.floor(value)}%`),
                 ...(critDmgSoftcapReduction > 0 ? [makeSourceLine('소프트캡(200/400/800/1200)', -critDmgSoftcapReduction, '%', value => `${Math.floor(value)}%`)] : []),
                 talentLine('critDmg')
@@ -4486,7 +4486,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
                 makeSourceLine('장비', gearBase.move + gearExplicit.move, '%', value => `${Math.floor(value)}%`),
                 makeSourceLine('패시브', passive.move + season.move + ascend.move + reward.move, '%', value => `${Math.floor(value)}%`),
                 makeSourceLine('성좌 각성', starBlessing.move, '%', value => `${Math.floor(value)}%`),
-                makeSourceLine('보조 젬', support.move, '%', value => `${Math.floor(value)}%`),
+                makeSourceLine('보조스킬룬', support.move, '%', value => `${Math.floor(value)}%`),
                 talentLine('move'),
                 `전장 이동: 칸당 ${(COMBAT_GRID_CONFIG.playerMoveIntervalSec * 100 / finalMove).toFixed(2)}초, 초당 ${(finalMove / (COMBAT_GRID_CONFIG.playerMoveIntervalSec * 100)).toFixed(2)}칸`,
                 `지도 진행도: 기본 대비 ${(finalMove / 100).toFixed(2)}배 (${finalMove >= 100 ? '+' : ''}${Math.floor(finalMove - 100)}%)`,
@@ -4511,7 +4511,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
             lines: [
                 makeSourceLine('장비', gearBase.regen + gearExplicit.regen, '%', value => `${formatValue('regen', value)}%`),
                 makeSourceLine('패시브', passive.regen + season.regen + ascend.regen + reward.regen, '%', value => `${formatValue('regen', value)}%`),
-                makeSourceLine('보조 젬', support.regen, '%', value => `${formatValue('regen', value)}%`),
+                makeSourceLine('보조스킬룬', support.regen, '%', value => `${formatValue('regen', value)}%`),
                 talentLine('regen')
             ].filter(Boolean),
             final: `${formatValue('regen', finalRegen)}%`
@@ -4521,7 +4521,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
             lines: [
                 makeSourceLine('장비', gearBase.regenSuppress + gearExplicit.regenSuppress, '%', value => `${formatValue('regenSuppress', value)}%`),
                 makeSourceLine('패시브', passive.regenSuppress + season.regenSuppress + ascend.regenSuppress + reward.regenSuppress, '%', value => `${formatValue('regenSuppress', value)}%`),
-                makeSourceLine('보조 젬', support.regenSuppress, '%', value => `${formatValue('regenSuppress', value)}%`),
+                makeSourceLine('보조스킬룬', support.regenSuppress, '%', value => `${formatValue('regenSuppress', value)}%`),
                 '공격 시 적의 생명력 재생을 해당 수치(%)만큼 줄여주는 옵션입니다.'
             ].filter(Boolean),
             final: `${formatValue('regenSuppress', finalRegenSuppress)}%`
@@ -4532,8 +4532,8 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
                 makeSourceLine('스킬', skill.leech || 0, '%', value => `${formatValue('leech', value)}%`),
                 makeSourceLine('장비', gearBase.leech + gearExplicit.leech, '%', value => `${formatValue('leech', value)}%`),
                 makeSourceLine('패시브', passive.leech + season.leech + ascend.leech + reward.leech, '%', value => `${formatValue('leech', value)}%`),
-                makeSourceLine('보조 젬', support.leech, '%', value => `${formatValue('leech', value)}%`),
-                skill.instantLeech ? '흡혈 타격: 이 젬으로 준 피해의 흡혈은 인스턴스 대신 즉시 회복되며 1회 흡혈량 캡을 적용받습니다.' : `타격 시 즉시 회복 대신 흡혈 인스턴스 생성`,
+                makeSourceLine('보조스킬룬', support.leech, '%', value => `${formatValue('leech', value)}%`),
+                skill.instantLeech ? '흡혈 타격: 이 룬으로 준 피해의 흡혈은 인스턴스 대신 즉시 회복되며 1회 흡혈량 캡을 적용받습니다.' : `타격 시 즉시 회복 대신 흡혈 인스턴스 생성`,
                 (hasKeystone('wlk3')) ? `금단 대가: 흡혈 ${skill.instantLeech ? '즉시 회복이 생명력 대신 에너지 보호막에 적용됩니다.' : '인스턴스가 생명력 대신 에너지 보호막에 저장/회복됩니다.'}` : null,
                 `일반 흡혈 캡: 타격당 최대 생명력 ${LEECH_BASE_INSTANCE_CAP_PCT}%, 전체 저장 ${LEECH_BASE_TOTAL_CAP_PCT}%, 인스턴스당 초당 ${LEECH_BASE_RATE_CAP_PCT}%`,
                 `일반 흡혈 추가 캡: 회복 속도 +${formatValue('leechRateCap', finalLeechRateCap)}%p, 전체 +${formatValue('leechTotalCap', finalLeechTotalCap)}%p, 타격당 +${formatValue('leechInstanceCap', finalLeechInstanceCap)}%p`,
@@ -4554,7 +4554,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
             lines: [
                 makeSourceLine('장비', gearBase.ds + gearExplicit.ds, '%p', value => `${Math.floor(value)}%p`),
                 makeSourceLine('패시브', passive.ds + season.ds + ascend.ds + reward.ds, '%p', value => `${Math.floor(value)}%p`),
-                makeSourceLine('보조 젬', support.ds, '%p', value => `${Math.floor(value)}%p`),
+                makeSourceLine('보조스킬룬', support.ds, '%p', value => `${Math.floor(value)}%p`),
                 makeSourceLine('스킬', skillDsBonus, '%p', value => `${Math.floor(value)}%p`),
                 formatSignedPercentagePointLine('기타 효과', finalDs - baseDsFromSources - skillDsBonus),
                 '각 수치는 연속 타격 확률에 합산되는 %p입니다.'
@@ -4566,7 +4566,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
             lines: [
                 makeSourceLine('장비', gearBase.dr + gearExplicit.dr, '%', value => `${Math.floor(value)}%`),
                 makeSourceLine('패시브', passive.dr + season.dr + ascend.dr + reward.dr, '%', value => `${Math.floor(value)}%`),
-                makeSourceLine('보조 젬', support.dr, '%', value => `${Math.floor(value)}%`)
+                makeSourceLine('보조스킬룬', support.dr, '%', value => `${Math.floor(value)}%`)
             ].filter(Boolean),
             final: rawDr > finalDr ? `${Math.floor(finalDr)}% (상한 ${PLAYER_PHYSICAL_REDUCTION_CAP_PCT}% 적용, 합계 ${Math.floor(rawDr)}%)` : `${Math.floor(finalDr)}%`
         },
@@ -4658,7 +4658,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
             lines: [
                 makeSourceLine('장비', gearBase.deflectChance + gearExplicit.deflectChance, '%', value => `${value.toFixed(1)}%`),
                 makeSourceLine('패시브', passive.deflectChance + season.deflectChance + ascend.deflectChance + reward.deflectChance, '%', value => `${value.toFixed(1)}%`),
-                makeSourceLine('보조 젬', support.deflectChance, '%', value => `${value.toFixed(1)}%`),
+                makeSourceLine('보조스킬룬', support.deflectChance, '%', value => `${value.toFixed(1)}%`),
                 `비껴내기 성공 시 피해 감소: ${Math.min(85, 40 + finalDeflectDamageReduce).toFixed(1)}%`,
                 '기본 피해 감소 40%에 비껴내기 피해 감소 옵션이 더해지며, 최대 85%까지 적용됩니다.'
             ].filter(Boolean),
@@ -4669,7 +4669,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
             lines: [
                 makeSourceLine('장비', gearBase.deflectDamageReduce + gearExplicit.deflectDamageReduce, '%', value => `${value.toFixed(1)}%`),
                 makeSourceLine('패시브', passive.deflectDamageReduce + season.deflectDamageReduce + ascend.deflectDamageReduce + reward.deflectDamageReduce, '%', value => `${value.toFixed(1)}%`),
-                makeSourceLine('보조 젬', support.deflectDamageReduce, '%', value => `${value.toFixed(1)}%`),
+                makeSourceLine('보조스킬룬', support.deflectDamageReduce, '%', value => `${value.toFixed(1)}%`),
                 '실제 감소율은 기본 40% + 이 수치입니다.'
             ].filter(Boolean),
             final: `${finalDeflectDamageReduce.toFixed(1)}%`
@@ -4679,7 +4679,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
             lines: [
                 makeSourceLine('장비', gearBase.physIgnore + gearExplicit.physIgnore, '%', value => `${Math.floor(value)}%`),
                 makeSourceLine('패시브', passive.physIgnore + season.physIgnore + ascend.physIgnore + reward.physIgnore, '%', value => `${Math.floor(value)}%`),
-                makeSourceLine('보조 젬', support.physIgnore, '%', value => `${Math.floor(value)}%`),
+                makeSourceLine('보조스킬룬', support.physIgnore, '%', value => `${Math.floor(value)}%`),
                 makeSourceLine('각인', skill.physIgnoreBonus || 0, '%', value => `${Math.floor(value)}%`),
                 '적의 양수 물리 피해 감소만 0%까지 깎습니다.'
             ].filter(Boolean),
@@ -4690,7 +4690,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
             lines: [
                 makeSourceLine('장비', gearBase.resPen + gearExplicit.resPen, '%', value => `${Math.floor(value)}%`),
                 makeSourceLine('패시브', passive.resPen + season.resPen + ascend.resPen + reward.resPen, '%', value => `${Math.floor(value)}%`),
-                makeSourceLine('보조 젬', support.resPen, '%', value => `${Math.floor(value)}%`),
+                makeSourceLine('보조스킬룬', support.resPen, '%', value => `${Math.floor(value)}%`),
                 makeSourceLine('각인', skill.resPenBonus || 0, '%', value => `${Math.floor(value)}%`),
                 '원소/카오스 저항은 음수까지 떨어질 수 있으며, 음수만큼 추가 피해를 줍니다.'
             ].filter(Boolean),
@@ -4797,7 +4797,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
             final: `${Math.floor(finalPlayerSkillDps)}`
         },
         gem: {
-            title: '젬 레벨 보너스',
+            title: '룬 레벨 보너스',
             lines: [
                 makeSourceLine('패시브', gemSources.passive + gemSources.reward),
                 makeSourceLine('장비', gemSources.gear)
@@ -5159,7 +5159,7 @@ function getGemPresentation(name, isSupport, statsOverride) {
     if (isSupport) {
         let gem = normalizeGemRecord((game.supportGemData || {})[name]);
         let db = SUPPORT_GEM_DB[name];
-        if (!db) return { baseLevel: gem.level, totalLevel: gem.level, value: 0, desc: '정의되지 않은 보조젬', statName: name, statId: null, gemBonusSources: targetGemSources };
+        if (!db) return { baseLevel: gem.level, totalLevel: gem.level, value: 0, desc: '정의되지 않은 보조스킬룬', statName: name, statId: null, gemBonusSources: targetGemSources };
         let totalLevel = Math.max(1, gem.level + targetGemSources.total);
         let val = db.baseVal + (getGemLevelGrowthSteps(totalLevel) * db.scale);
         let activeTier = typeof getSupportActiveTier === 'function' ? getSupportActiveTier(name) : Math.max(1, Math.min((typeof getSupportTierCap === 'function' ? getSupportTierCap(name) : 3), Math.floor(gem.activeTier || gem.unlockedTier || 1)));
@@ -6167,7 +6167,7 @@ function getWispEnemyDefenseBonuses(monsterVariant) {
 }
 
 /** Wisps drop skill gems more often (data/bosses.js WISP_ENEMY_RULES). */
-/** Wisps drop gems more often, and so does an atlas map with the 젬의 정원 omen (enemy.gemDropMul, js/atlas-maps.js applyEnemyMods). */
+/** Wisps drop gems more often, and so does an atlas map with the 룬의 정원 omen (enemy.gemDropMul, js/atlas-maps.js applyEnemyMods). */
 function getEnemyGemDropMul(enemy) {
     const wisp = enemy && enemy.monsterArchetype === 'wisp' ? WISP_ENEMY_RULES.gemDropMul : 1;
     return wisp * (Number(enemy && enemy.gemDropMul) || 1);
@@ -8000,11 +8000,11 @@ function createExplorationPacks(zone,map,bossStages) {
     return packs.concat(createAddedExplorationPacks(zone,map,patrol,arranger,rescueRoom),createStarterRescuePack(zone,map,rescueRoom));
 }
 
-/** 액트 1의 첫 몬스터(2026-10-15 사용자: "첫 방에 몬스터가 있고 그걸 잡으면 젬이 드랍되게", "하켄이 그 몬스터에게 맞고있는걸로"):
- * 이번 루프의 시작 젬을 아직 받지 않았을 때, 방 단위 무대의 구출 방(starterRescueRoom)에서 하켄 곁에 한 마리가 선다. 그 방의 보통 무리는
- * 없다. 한 대 맞기 전까지는 하켄을 친다(strikeRescueTarget). 이 몬스터가 루프의 첫 처치라 시작 젬이 그 자리 바닥에 떨어진다.
+/** 액트 1의 첫 몬스터(2026-10-15 사용자: "첫 방에 몬스터가 있고 그걸 잡으면 룬이 드랍되게", "하켄이 그 몬스터에게 맞고있는걸로"):
+ * 이번 루프의 시작 룬을 아직 받지 않았을 때, 방 단위 무대의 구출 방(starterRescueRoom)에서 하켄 곁에 한 마리가 선다. 그 방의 보통 무리는
+ * 없다. 한 대 맞기 전까지는 하켄을 친다(strikeRescueTarget). 이 몬스터가 루프의 첫 처치라 시작 룬이 그 자리 바닥에 떨어진다.
  * @returns {object[]} 그 무리, 없으면 빈 목록. */
-/** 루프 1에만(2026-10-15 사용자: 루프 뒤에는 첫 방에 하켄이 없다). 그 뒤의 시작 젬은 그 루프의 첫 처치가 바닥에 떨어뜨린다. */
+/** 루프 1에만(2026-10-15 사용자: 루프 뒤에는 첫 방에 하켄이 없다). 그 뒤의 시작 룬은 그 루프의 첫 처치가 바닥에 떨어뜨린다. */
 const startsWithRescue=(zone,map)=>zone.type==='act' && zone.id===0 && !!map.stage && (game.season||1)===1
     && !game.loopStarterGemGranted && (game.skills||[]).length<=1;
 /** 구출 방: 입구 방 문 너머, 보스로 가는 길의 첫 전투 방(2026-10-15 사용자: "첫방에서 처음부터 하켄이 보이지 않도록 (조금 앞으로 걸어가야
@@ -8470,7 +8470,7 @@ function returnToTown() {
     updateStaticUI();
 }
 
-/** 전술 규칙의 마을 귀환(예전 귀환 젬): 규칙은 열린 지도의 마지막 포털을 쓰지 않는다(죽지 않고 지도가 닫히므로). */
+/** 전술 규칙의 마을 귀환(예전 귀환 룬): 규칙은 열린 지도의 마지막 포털을 쓰지 않는다(죽지 않고 지도가 닫히므로). */
 function returnToTownByRule() {
     if (!atlasRun.lastPortal()) returnToTown();
 }
@@ -8783,7 +8783,7 @@ function grantExpAndGem(enemy, pStats) {
     let gemExp = Math.floor(exp * 0.45);
     for (const name of grantWornGemExp(gemExp, pStats)) {
         gemLeveled = true;
-        addLog(`✨ ${SKILL_DB[name]?.isGem ? '젬' : '스킬'} [${name}] 레벨업!`, "loot-unique");
+        addLog(`✨ ${SKILL_DB[name]?.isGem ? '룬' : '스킬'} [${name}] 레벨업!`, "loot-unique");
     }
     game.equippedSummonSkills = Array.isArray(game.equippedSummonSkills) ? game.equippedSummonSkills : [];
     game.equippedSummonSkills.forEach(name => {
@@ -8794,7 +8794,7 @@ function grantExpAndGem(enemy, pStats) {
         let gem = game.gemData[name];
         if (gainGemExperience(gem, gemExp) > 0) {
             gemLeveled = true;
-            addLog(`✦ 소환수 젬 [${name}] 레벨업!`, "loot-unique");
+            addLog(`✦ 소환수 룬 [${name}] 레벨업!`, "loot-unique");
         }
     });
     (game.equippedSupports || []).forEach(name => {
@@ -8802,7 +8802,7 @@ function grantExpAndGem(enemy, pStats) {
         const levels = gem ? gainGemExperience(gem, gemExp) : 0;
         if (levels > 0) {
             gemLeveled = true;
-            addLog(`🟢 젬 [${name}] 레벨업!`, "loot-rare");
+            addLog(`🟢 룬 [${name}] 레벨업!`, "loot-rare");
         }
     });
 
@@ -9179,18 +9179,18 @@ function clearDotFxThrottleForEnemy(enemyId) {
 }
 
 // 루프 시작 시 스킬이 "기본 공격"만 남는 공백을 메우기 위해, 루프 첫 처치 때
-// 선택한 직업의 권장 전투 방식에 맞는 하위권 화력 스킬 젬을 확정 지급한다.
-// (좋은 젬을 직접 찾는 재미는 유지하도록 일부러 강한 젬은 고르지 않는다.)
-// 탐험 지도에서는 그 처치 자리 바닥에 떨어지고 주울 때 들어온다(2026-10-15 사용자 "첫 방에 몬스터가 있고 그걸 잡으면 젬이 드랍되게":
+// 선택한 직업의 권장 전투 방식에 맞는 하위권 화력 스킬룬을 확정 지급한다.
+// (좋은 룬을 직접 찾는 재미는 유지하도록 일부러 강한 룬은 고르지 않는다.)
+// 탐험 지도에서는 그 처치 자리 바닥에 떨어지고 주울 때 들어온다(2026-10-15 사용자 "첫 방에 몬스터가 있고 그걸 잡으면 룬이 드랍되게":
 // 액트 1 입구 방의 첫 몬스터, createStarterRescuePack). enemy가 없으면(스크립트) 바로 들어온다.
 function grantLoopStarterGemOnFirstKill(enemy) {
     const gemName = takeLoopStarterGem();
     if (!gemName) return;
     const run = enemy ? explorationFloorFor(enemy) : null;
     if (run) actExplorationState.groundLoot.placeGem(run, enemy, gemName);
-    else if (receiveStarterGem(game, gemName)) addLog(`스킬 젬 [${gemName}] 획득`, 'loot-rare');
+    else if (receiveStarterGem(game, gemName)) addLog(`스킬룬 [${gemName}] 획득`, 'loot-rare');
 }
-/** 이번 루프의 시작 젬 이름(한 번만): 이미 받았거나 기본 공격 밖의 스킬이 있으면 null. */
+/** 이번 루프의 시작 룬 이름(한 번만): 이미 받았거나 기본 공격 밖의 스킬이 있으면 null. */
 function takeLoopStarterGem() {
     if (game.loopStarterGemGranted) return null;
     game.loopStarterGemGranted = true;
@@ -9607,7 +9607,7 @@ function grantGuaranteedTrialSkillGem() {
     let available = Object.keys(SKILL_DB).filter(name => SKILL_DB[name] && SKILL_DB[name].isGem && !hasSkillGemOwned(name));
     if (available.length === 0) {
         let fallbackGain = grantGemResearchFragments(6, 'drop');
-        if (fallbackGain > 0) addLog(`✨ 전직 시련 보상: 모든 공격 젬을 보유해 젬 잔향 +${fallbackGain}을 획득했습니다.`, 'loot-magic');
+        if (fallbackGain > 0) addLog(`✨ 전직 시련 보상: 모든 공격 룬을 보유해 룬 잔향 +${fallbackGain}을 획득했습니다.`, 'loot-magic');
         return true;
     }
     let skill = rndChoice(available);
@@ -9615,7 +9615,7 @@ function grantGuaranteedTrialSkillGem() {
     game.gemData[skill] = { level: 1, exp: 0, awakened: false };
     game.noti.skills = true;
     let shardGain = grantGemResearchFragments(2, 'drop');
-    addLog(`✨ 전직 시련 보상: 공격 젬 <span class='loot-magic'>[${skill}]</span> 획득!${shardGain ? `, 젬 잔향 +${shardGain}` : ''}`, 'loot-magic');
+    addLog(`✨ 전직 시련 보상: 공격 룬 <span class='loot-magic'>[${skill}]</span> 획득!${shardGain ? `, 룬 잔향 +${shardGain}` : ''}`, 'loot-magic');
     return true;
 }
 
@@ -9697,7 +9697,7 @@ function grantUnderworldFloorMilestone(floor, progress) {
     runeState.unlockedSlots = Math.min(6, Math.max(prevSlots, unlockTier));
     runeState.unlockedRunesMaxNumber = Math.min(30, Math.max(prevMaxRuneNo, unlockTier));
     if (runeState.unlockedSlots > prevSlots || runeState.unlockedRunesMaxNumber > prevMaxRuneNo) {
-        dispatchRuntimeEvent('underworld-milestone', { floor, text: `🧿 지하계 ${floor}층 보상: 룬 슬롯 ${runeState.unlockedSlots}/6, 룬 번호 1~${runeState.unlockedRunesMaxNumber} 해금` });
+        dispatchRuntimeEvent('underworld-milestone', { floor, text: `🧿 지하계 ${floor}층 보상: 지하석 슬롯 ${runeState.unlockedSlots}/6, 지하석 번호 1~${runeState.unlockedRunesMaxNumber} 해금` });
     }
 }
 
@@ -9711,7 +9711,7 @@ function grantUnderworldDeepFloorReward(floor, progress) {
     const shards = Math.floor(rule.runeShard[0] + rule.runeShard[1] * depth), gold = Math.floor(rule.underGold[0] + rule.underGold[1] * depth);
     awardCurrency('runeShard', shards);
     awardCurrency('underGold', gold);
-    dispatchRuntimeEvent('underworld-milestone', { floor, text: `🧿 지하계 ${floor}층 보상: 룬 조각 ${shards}, 금 ${gold}` });
+    dispatchRuntimeEvent('underworld-milestone', { floor, text: `🧿 지하계 ${floor}층 보상: 지하석 조각 ${shards}, 금 ${gold}` });
 }
 
 function rollBeyondBoundaryRewardCount(rewardMul) {
@@ -9753,7 +9753,7 @@ function grantBeyondBoundaryGemRewards(context) {
     let amount = Math.max(1, Math.round((8 + getBeyondBoundaryPayoutTier(context.tier) / 4) * context.intensity.rewardMul));
     let gained = typeof grantGemResearchFragments === 'function'
         ? grantGemResearchFragments(amount, 'drop') : (awardCurrency('gemShard', amount), amount);
-    return `젬 잔향 ${gained}개`;
+    return `룬 잔향 ${gained}개`;
 }
 
 function grantBeyondBoundaryCurrencyRewards(context) {

@@ -762,7 +762,7 @@ function generateOrganicTree() {
             { stat: 'lightPctDmg', title: '번개 비전' },
             { stat: 'chaosPctDmg', title: '공허 비전' },
             { stat: 'dotPctDmg', title: '지속 부패' },
-            { stat: 'gemLevel', title: '젬 각성' }
+            { stat: 'gemLevel', title: '룬 각성' }
         ],
         shadow: [
             { stat: 'crit', title: '급소 조준' },
@@ -1122,18 +1122,18 @@ function generateOrganicTree() {
         });
     }
     const tagGemClusterSpecs = [
-        { stat: 'firePctDmg', endStat: 'fireGemLevel', title: '화염 젬 단련', length: 5 },
-        { stat: 'coldPctDmg', endStat: 'coldGemLevel', title: '냉기 젬 단련', length: 5 },
-        { stat: 'lightPctDmg', endStat: 'lightGemLevel', title: '번개 젬 단련', length: 5 },
-        { stat: 'chaosPctDmg', endStat: 'chaosGemLevel', title: '카오스 젬 단련', length: 5 },
-        { stat: 'physPctDmg', endStat: 'physGemLevel', title: '물리 젬 단련', length: 5 },
-        { stat: 'projectilePctDmg', endStat: 'projectileGemLevel', title: '투사체 젬 단련', length: 5 },
-        { stat: 'meleePctDmg', endStat: 'meleeGemLevel', title: '근접 젬 단련', length: 5 },
-        { stat: 'slamPctDmg', endStat: 'slamGemLevel', title: '강타 젬 단련', length: 5 },
-        { stat: 'spellFlatPct', endStat: 'spellGemLevel', title: '주문 젬 단련', length: 5 },
-        { stat: 'dotPctDmg', endStat: 'dotGemLevel', title: '지속 젬 단련', length: 5 },
-        { stat: 'aoePctDmg', endStat: 'aoeGemLevel', title: '범위 젬 단련', length: 5 },
-        { stat: 'elementalPctDmg', endStat: 'elementalGemLevel', title: '원소 젬 단련', length: 5 }
+        { stat: 'firePctDmg', endStat: 'fireGemLevel', title: '화염 룬 단련', length: 5 },
+        { stat: 'coldPctDmg', endStat: 'coldGemLevel', title: '냉기 룬 단련', length: 5 },
+        { stat: 'lightPctDmg', endStat: 'lightGemLevel', title: '번개 룬 단련', length: 5 },
+        { stat: 'chaosPctDmg', endStat: 'chaosGemLevel', title: '카오스 룬 단련', length: 5 },
+        { stat: 'physPctDmg', endStat: 'physGemLevel', title: '물리 룬 단련', length: 5 },
+        { stat: 'projectilePctDmg', endStat: 'projectileGemLevel', title: '투사체 룬 단련', length: 5 },
+        { stat: 'meleePctDmg', endStat: 'meleeGemLevel', title: '근접 룬 단련', length: 5 },
+        { stat: 'slamPctDmg', endStat: 'slamGemLevel', title: '강타 룬 단련', length: 5 },
+        { stat: 'spellFlatPct', endStat: 'spellGemLevel', title: '주문 룬 단련', length: 5 },
+        { stat: 'dotPctDmg', endStat: 'dotGemLevel', title: '지속 룬 단련', length: 5 },
+        { stat: 'aoePctDmg', endStat: 'aoeGemLevel', title: '범위 룬 단련', length: 5 },
+        { stat: 'elementalPctDmg', endStat: 'elementalGemLevel', title: '원소 룬 단련', length: 5 }
     ];
     function getTagGemClusterSpec(spoke, depth) {
         return tagGemClusterSpecs[(spoke * 5 + depth * 3) % tagGemClusterSpecs.length];
@@ -1151,8 +1151,8 @@ function generateOrganicTree() {
             { stat: 'chaosPctDmg', title: '심연 독기', length: 4 },
             { stat: 'dotPctDmg', title: '부패 지속', length: 4 },
             { stat: 'coldPctDmg', title: '빙결 한기', length: 4 },
-            { stat: 'chaosPctDmg', endStat: 'chaosGemLevel', title: '카오스 젬 독성', length: 5 },
-            { stat: 'dotPctDmg', endStat: 'dotGemLevel', title: '지속 젬 부식', length: 5 }
+            { stat: 'chaosPctDmg', endStat: 'chaosGemLevel', title: '카오스 룬 독성', length: 5 },
+            { stat: 'dotPctDmg', endStat: 'dotGemLevel', title: '지속 룬 부식', length: 5 }
         ];
         return specs[(spoke + depth) % specs.length];
     }
@@ -1196,7 +1196,7 @@ function generateOrganicTree() {
             { stat: 'critDmg', title: '치명 배율', length: 4 },
             { stat: 'ds', title: '연속 타격', length: 4 },
             { stat: 'maxDmgRoll', title: '상한 보정', length: 4 },
-            { stat: 'pctDmg', endStat: 'suppCap', title: '보조 젬 연결', length: 4 },
+            { stat: 'pctDmg', endStat: 'suppCap', title: '보조스킬룬 연결', length: 4 },
             { stat: 'minDmgRoll', title: '하한 안정', length: 4 },
             { stat: 'resAll', title: '원소 수호', length: 4 },
             { stat: 'resChaos', title: '카오스 저항', length: 4 },
@@ -1215,7 +1215,7 @@ function generateOrganicTree() {
         if (themeSpec.stat === 'gemLevel') {
             if (!retainedGlobalGemLevelCluster && depth >= maxDepth - 1) {
                 retainedGlobalGemLevelCluster = true;
-                return { stat: 'spellFlatPct', endStat: 'gemLevel', title: '외곽 젬 각성', length: 5 };
+                return { stat: 'spellFlatPct', endStat: 'gemLevel', title: '외곽 룬 각성', length: 5 };
             }
             return getTagGemClusterSpec(spoke, depth);
         }
@@ -2725,7 +2725,7 @@ const TRANSCENDENT_VOID_PASSIVE_DB = [
     // 옛 고유 별쐐기 11종(2026-10-01). 트리를 바꾸던 변성 반경은 수치 효과로 옮겼다. 다섯의 수치는 data/passives.js
     // TRANSCENDENT_VOID_VALUES(9단계에서 맞춤).
     { id: 'pluto', name: '명왕성', min: 1, max: 5, rollValue: () => rollPlutoVoidCount(), desc: v => `할당한 공허 패시브 수 +${v}로 계산 (5개 확률 1/625)` },
-    { id: 'resonantStar', name: '공명별', fixed: 1, desc: v => `보조 스킬 젬 한도 +${v}` },
+    { id: 'resonantStar', name: '공명별', fixed: 1, desc: v => `보조스킬룬 한도 +${v}` },
     { id: 'darkMatter', name: '암흑물질', desc: () => '옵션이 한 줄인 다른 공허 패시브의 효과 +100% (초월 공허 제외)' },
     { id: 'sun', name: '태양', desc: () => '초월 직전 이 공허 패시브의 옵션을 3배로 유지' },
     { id: 'blackHole', name: '블랙홀', desc: () => '이 노드가 무료 연결 거점이 됩니다. 시작점까지의 길을 되돌려도 이어진 패시브가 유지됩니다' },
@@ -5182,8 +5182,8 @@ const TUTORIAL_GUIDES = {
     tutorial_battle_basics: [
         { title: '전투 화면 읽기', body: '전투는 자동으로 진행되지만, 화면은 현재 전투가 왜 막히는지 판단할 수 있도록 구성되어 있습니다.', bullets: ['파란 칸은 내 위치, 붉은 칸은 적 위치입니다.', '노란 강조는 현재 공격 대상, 청록 강조는 스킬이 닿는 범위입니다.', '적이 사거리 밖이면 캐릭터가 먼저 이동한 뒤 공격합니다.'], tip: '처음에는 피해량보다 생명력 막대와 적의 밀집도를 먼저 보세요.' },
         { title: '공격과 피해 구분', body: '밝은 흰색/금색 숫자는 내가 준 피해, 붉은 숫자는 내가 받은 피해입니다.', bullets: ['금색 숫자는 치명타입니다.', '작게 반복되는 원소색 숫자는 지속 피해입니다.', '체력 막대 뒤에 남는 주황색은 방금 잃은 피해량입니다.'], tip: '붉은 숫자가 연속으로 크게 뜨면 장비 방어와 저항을 점검할 때입니다.' },
-        { title: '스킬 범위와 태그', body: '젬의 태그에 따라 공격 방식과 연출, 유효 범위가 달라집니다.', bullets: ['강타는 가까운 범위에 큰 충격을 줍니다.', '관통은 직선, 연쇄는 적 사이, 시체 폭발은 처치 지점을 활용합니다.', '공격 범위는 스킬 툴팁의 격자 설명에서 확인할 수 있습니다.'], tip: '넓은 범위가 늘 강하지는 않습니다. 단일 보스에는 집중형 스킬이 유리합니다.' },
-        { title: '다음 성장 순서', body: '막히면 패시브, 장비, 스킬 젬을 순서대로 확인하면 원인을 찾기 쉽습니다.', bullets: ['패시브: 부족한 생존/화력 축을 보완', '장비: 방어도/회피/보호막과 저항 점검', '스킬: 공격 태그와 보조 젬 연결 확인'], tip: '새 콘텐츠가 열릴 때마다 이와 같은 단계형 설명이 표시됩니다.' }
+        { title: '스킬 범위와 태그', body: '룬의 태그에 따라 공격 방식과 연출, 유효 범위가 달라집니다.', bullets: ['강타는 가까운 범위에 큰 충격을 줍니다.', '관통은 직선, 연쇄는 적 사이, 시체 폭발은 처치 지점을 활용합니다.', '공격 범위는 스킬 툴팁의 격자 설명에서 확인할 수 있습니다.'], tip: '넓은 범위가 늘 강하지는 않습니다. 단일 보스에는 집중형 스킬이 유리합니다.' },
+        { title: '다음 성장 순서', body: '막히면 패시브, 장비, 스킬룬을 순서대로 확인하면 원인을 찾기 쉽습니다.', bullets: ['패시브: 부족한 생존/화력 축을 보완', '장비: 방어도/회피/보호막과 저항 점검', '스킬: 공격 태그와 보조스킬룬 연결 확인'], tip: '새 콘텐츠가 열릴 때마다 이와 같은 단계형 설명이 표시됩니다.' }
     ],
     unlock_char: [
         { title: '스킬트리란?', body: '스킬트리 포인트를 사용해 루트에서 가지를 타고 성장 방향을 선택하는 장기 빌드 시스템입니다.', bullets: ['루트 주변의 시작점은 서로 다른 기초 효과를 가집니다.', '활성화한 노드와 연결된 노드만 다음에 선택할 수 있습니다.', '작은 노드는 경로, 큰 장식 노드는 핵심 효과입니다.'], tip: '처음부터 모든 방향을 섞기보다 한 가지 공격 축과 한 가지 방어 축을 정하세요.' },
@@ -5196,9 +5196,9 @@ const TUTORIAL_GUIDES = {
         { title: '드랍 연출 읽기', body: '좋은 아이템일수록 전장에서 더 강한 색과 빛기둥으로 표시됩니다.', bullets: ['파랑: 일반적인 획득', '금색/보라색 기둥: 희귀 재화 또는 희귀 장비', '굵고 긴 빛기둥: 고유 장비나 최상급 재화'], tip: '로그를 꺼도 중요한 드랍 연출은 계속 표시됩니다.' }
     ],
     unlock_skills: [
-        { title: '스킬 젬 구성', body: '공격 젬 하나를 중심으로 보조 젬을 연결해 공격 방식과 성능을 바꿉니다.', bullets: ['공격 젬은 기본 행동과 피해 태그를 정합니다.', '보조 젬은 연결 한도 안에서 효과를 추가합니다.', '젬 레벨과 강화 단계가 기본 성능을 높입니다.'], tip: '보조 젬 설명에 현재 공격 젬과 맞지 않는 태그가 없는지 확인하세요.' },
+        { title: '스킬룬 구성', body: '공격 룬 하나를 중심으로 보조스킬룬을 연결해 공격 방식과 성능을 바꿉니다.', bullets: ['공격 룬은 기본 행동과 피해 태그를 정합니다.', '보조스킬룬은 연결 한도 안에서 효과를 추가합니다.', '룬 레벨과 강화 단계가 기본 성능을 높입니다.'], tip: '보조스킬룬 설명에 현재 공격 룬과 맞지 않는 태그가 없는지 확인하세요.' },
         { title: '태그와 전투 방식', body: '강타/관통/연쇄/범위/지속 피해 같은 태그는 실제 격자 범위와 이펙트에 반영됩니다.', bullets: ['관통: 한 방향의 여러 적을 노림', '연쇄: 떨어진 적 사이를 순서대로 타격', '범위: 대상 주변 또는 자신 주변을 공격'], tip: '스킬 툴팁의 사거리와 반경을 함께 보세요.' },
-        { title: '교체 전 확인', body: '새 스킬을 장착하면 보조 젬 호환과 공격 범위도 함께 달라집니다.', bullets: ['현재 장비가 새 태그를 강화하는지 확인', '단일 대상과 다수 대상 중 필요한 역할 선택', '실전에서 대미지 숫자와 이동 빈도 비교'], tip: '사거리가 짧으면 공격 전 이동이 많아질 수 있습니다.' }
+        { title: '교체 전 확인', body: '새 스킬을 장착하면 보조스킬룬 호환과 공격 범위도 함께 달라집니다.', bullets: ['현재 장비가 새 태그를 강화하는지 확인', '단일 대상과 다수 대상 중 필요한 역할 선택', '실전에서 대미지 숫자와 이동 빈도 비교'], tip: '사거리가 짧으면 공격 전 이동이 많아질 수 있습니다.' }
     ],
     unlock_map: [
         { title: '지도는 무엇인가?', body: '현재 갈 수 있는 지역, 예상 난이도, 주요 드랍을 보고 다음 사냥터를 선택하는 콘텐츠입니다.', bullets: ['지역마다 몬스터 속성과 보상이 다릅니다.', '보스 지역은 일반 지역보다 위험하지만 보상이 큽니다.', '해금 조건이 표시된 지역은 요구 콘텐츠를 먼저 완료해야 합니다.'], tip: '막힌 지역을 반복하기보다 필요한 장비가 나오는 이전 지역을 활용하세요.' },
@@ -5262,7 +5262,7 @@ function getTutorialPanelModel(kind) {
     const models = {
         passive: { focus: '패시브', tabs: ['캐릭터', '패시브'], rows: ['생명력 가지', '공격 속도 노드', '다음 연결 노드'] },
         items: { focus: '장비', tabs: ['장비 창', '제작실'], rows: ['장착 장비 비교', '아이템 등급과 옵션', '필요 재화 확인'] },
-        'skills-panel': { focus: '스킬', tabs: ['공격 젬', '보조 젬'], rows: ['주 공격 스킬', '연결 가능한 보조', '태그, 범위 확인'] },
+        'skills-panel': { focus: '스킬', tabs: ['공격 룬', '보조스킬룬'], rows: ['주 공격 스킬', '연결 가능한 보조', '태그, 범위 확인'] },
         map: { focus: '지도', tabs: ['현재 지역', '다음 지역'], rows: ['몬스터 속성', '주요 보상', '보스 위험도'] },
         class: { focus: '전직', tabs: ['전직', '재능'], rows: ['빌드 방향 선택', '핵심 노드 경로', '개화 효과 확인'] },
         system: { focus: '안내', tabs: ['새 콘텐츠', '가이드'], rows: ['해금 조건 확인', '관련 화면 열기', '진행 목표 추적'] }
@@ -5309,7 +5309,7 @@ function isLoopHeroSelectOpen() {
     return !!overlay && overlay.classList.contains('active');
 }
 
-/** 직업 카드 툴팁: 고를 때 필요한 것만, 첫 처치 때 받는 시작 스킬 젬과 그 설명, 전직 셋(검토 2026-10-01, 대표 무기 줄은
+/** 직업 카드 툴팁: 고를 때 필요한 것만, 첫 처치 때 받는 시작 스킬룬과 그 설명, 전직 셋(검토 2026-10-01, 대표 무기 줄은
  * 사용자 요청으로 뺐다 2026-10-15). */
 function buildHeroChoiceTooltipHtml(classId, experienced) {
     let def = PLAYER_CLASS_DEFS[classId];
@@ -5317,7 +5317,7 @@ function buildHeroChoiceTooltipHtml(classId, experienced) {
     const gem = LOOP_STARTER_GEM_BY_HERO[def.recommendedTalentHeroId] || '연속 베기';
     const gemLine = String((SKILL_DB[gem] || {}).desc || '').split('.')[0];
     return `<div class="tooltip-title">${escapeHTML(def.label)}${experienced ? ' <span style="color:#9fd8ff;">경험함</span>' : ''}</div>
-        <div class="tooltip-line" style="color:#f6c461;">시작 스킬 젬: ${escapeHTML(gem)}</div>
+        <div class="tooltip-line" style="color:#f6c461;">시작 스킬룬: ${escapeHTML(gem)}</div>
         ${gemLine ? `<div class="tooltip-line">${escapeHTML(gemLine)}.</div>` : ''}
         <div class="tooltip-line" style="color:#d8b4ff;">전직: ${escapeHTML(getAscendanciesForClass(classId).map(id => CLASS_TEMPLATES[id].name).join(', '))}</div>`;
 }
@@ -5330,7 +5330,7 @@ function showHeroChoiceTooltip(event, classId, experienced) {
 }
 
 /** 직업 확인 판(index.html #loop-hero-select-overlay .hero-choice-confirm, 휴대폰 배치에서만 보인다): 고른 카드 표시, 툴팁과 같은
- * 시작 스킬 젬과 전직, "이 직업으로 시작" 단추(value = 고른 직업). 판이 커지며 카드 목록이 줄어도 고른 카드는 보이게 둔다.
+ * 시작 스킬룬과 전직, "이 직업으로 시작" 단추(value = 고른 직업). 판이 커지며 카드 목록이 줄어도 고른 카드는 보이게 둔다.
  * classId가 없으면 고르기 전(안내 문구, 단추 잠김)으로 되돌린다. 판이 없는 DOM(노드 스모크)에서는 하는 일이 없다. */
 function renderLoopHeroChoiceDetail(classId, experienced) {
     let detail = document.getElementById('loop-hero-select-detail');
@@ -5348,7 +5348,7 @@ function renderLoopHeroChoiceDetail(classId, experienced) {
 }
 
 /** 직업 카드 누름. PC는 바로 정한다. 휴대폰 배치는 툴팁이 없어 직업을 모르고 골랐다(검토 2026-10-01) — 첫 누름은 카드를 고르고
- * 판에 시작 스킬 젬과 전직을 보이며, 고른 카드를 다시 누르거나 "이 직업으로 시작"을 누르면 chooseLoopHero로 정한다. */
+ * 판에 시작 스킬룬과 전직을 보이며, 고른 카드를 다시 누르거나 "이 직업으로 시작"을 누르면 chooseLoopHero로 정한다. */
 function pressLoopHeroChoice(classId, experienced) {
     let start = document.getElementById('loop-hero-select-start');
     if (!uiDisplay.matches('(max-width: 1080px)') || start.value === classId) return chooseLoopHero(classId);
@@ -6070,7 +6070,7 @@ function actRewardItemPreview(choice, equips) {
 }
 /** 고르면 바뀌는 DPS {before, after, direct, swap}: 보상을 잠시 적용해 재고 그대로 되돌린다. 능력치는 액트 보상 능력치로, 장비는
  * 맞는 빈 칸(없으면 첫 칸과 바꿔)에 끼워 잰다(요구 능력치가 모자라면 null). direct는 실제로 바로 끼워지는지, swap은 바꿔 끼운 값인지.
- * 젬과 포인트는 재지 않는다. */
+ * 룬과 포인트는 재지 않는다. */
 function measureActRewardDps(zoneId, choice, before) {
     const twin = Array.isArray(game.cosmosTwinKeystones) ? game.cosmosTwinKeystones.slice() : game.cosmosTwinKeystones;
     const preview = applyActRewardPreview(zoneId, choice);
@@ -6119,8 +6119,8 @@ function formatActRewardDps(change, choice) {
     return `<b class="reward-choice-dps ${tone}">${lead}DPS ${format(change.before)} → ${format(change.after)}${choice.kind === 'item' ? ' (옵션 제외)' : ''}</b>`;
 }
 function getActRewardPreview(choice) {
-    if (choice.kind === 'skill') return `${choice.skill} 공격 젬을 획득합니다.`;
-    if (choice.kind === 'support') return `${choice.gem} 보조 젬을 획득합니다.`;
+    if (choice.kind === 'skill') return `${choice.skill} 공격 룬을 획득합니다.`;
+    if (choice.kind === 'support') return `${choice.gem} 보조스킬룬을 획득합니다.`;
     if (choice.kind === 'points') return `즉시 포인트 ${choice.value}점을 얻습니다.`;
     if (choice.kind === 'currency') return `${ORB_DB[choice.currency].name} ${choice.fallbackValue || choice.value || 1}개를 얻습니다.`;
     if (choice.kind === 'stat') return `${getStatName(choice.stat)} +${choice.value}${P_STATS[choice.stat] && P_STATS[choice.stat].isPct ? '%' : ''}`;
@@ -6145,11 +6145,11 @@ function grantActRewardEntry(zoneId, choice) {
             game.skills.push(choice.skill);
             game.gemData[choice.skill] = game.gemData[choice.skill] || { level: 1, exp: 0 };
             game.noti.skills = true;
-            addLog(`🎁 액트 보상 젬 [${choice.skill}] 획득!`, 'loot-rare');
+            addLog(`🎁 액트 보상 룬 [${choice.skill}] 획득!`, 'loot-rare');
         } else {
             game.passivePoints += choice.fallbackValue || 1;
             let shardGain = typeof grantGemResearchFragments === 'function' ? grantGemResearchFragments(4) : (awardCurrency('gemShard', 4), 4);
-            addLog(`🎁 이미 보유한 젬 대신 스킬트리 포인트 +${choice.fallbackValue || 1}, 젬 잔향 +${shardGain}`, 'loot-magic');
+            addLog(`🎁 이미 보유한 룬 대신 스킬트리 포인트 +${choice.fallbackValue || 1}, 룬 잔향 +${shardGain}`, 'loot-magic');
         }
         return;
     }
@@ -6157,17 +6157,17 @@ function grantActRewardEntry(zoneId, choice) {
         if (!hasSupportGemOwned(choice.gem)) {
             game.supports.push(choice.gem);
             game.supportGemData[choice.gem] = game.supportGemData[choice.gem] || { level: 1, exp: 0 };
-            // 새 보조 젬이 '장착 보조 젬만 보기'에 가려져 지급되지 않은 것처럼
-            // 보이지 않도록, 획득 직후에는 전체 보조 젬 목록을 보여 준다.
+            // 새 보조스킬룬이 '장착 보조스킬룬만 보기'에 가려져 지급되지 않은 것처럼
+            // 보이지 않도록, 획득 직후에는 전체 보조스킬룬 목록을 보여 준다.
             game.gemFoldInactiveSupport = false;
             game.noti.skills = true;
-            addLog(`🎁 액트 보상 보조 젬 [${choice.gem}] 획득!`, 'loot-rare');
+            addLog(`🎁 액트 보상 보조스킬룬 [${choice.gem}] 획득!`, 'loot-rare');
         } else {
             let fallback = getSupportActRewardFallback(choice);
             if (fallback.kind === 'points') game.passivePoints += fallback.amount;
             else awardCurrency(fallback.currency, fallback.amount);
             let shardGain = typeof grantGemResearchFragments === 'function' ? grantGemResearchFragments(3) : (awardCurrency('gemShard', 3), 3);
-            addLog(`🎁 중복 보조 젬 대신 ${fallback.label}, 젬 잔향 +${shardGain}`, 'loot-magic');
+            addLog(`🎁 중복 보조스킬룬 대신 ${fallback.label}, 룬 잔향 +${shardGain}`, 'loot-magic');
         }
         return;
     }
@@ -8303,7 +8303,7 @@ function findStoredEquipmentAffix(item, stat) {
             .every(id => extraIds.includes(id)) && (row.compound || []).length === extraIds.length);
 }
 
-/** 젬 레벨 줄(2026-10-08, 사용자 "새곡선기준으로해줘"): 예전 값(방패 주문 +1.7~15.4, 소환수 무기 +1~5, 나머지 +1 고정)을
+/** 룬 레벨 줄(2026-10-08, 사용자 "새곡선기준으로해줘"): 예전 값(방패 주문 +1.7~15.4, 소환수 무기 +1~5, 나머지 +1 고정)을
  * 그 줄의 티어에서 새 20티어 곡선(1~8 +1, 9~15 +2, 16~19 +3, 20 +4) 값으로 맞춘다. 맞춘 줄은 버전 3이라 다시 건드리지 않는다. */
 function refitGemLevelAffix(item, stat) {
     if (!stat || stat.affixBalanceVersion >= 3 || !/GemLevel$/.test(stat.id)) return;
@@ -9961,7 +9961,7 @@ function passesItemPickupFilter(item) {
 
 
 const UNIQUE_JEWEL_DB = [
-    { id:'uj_crown_empty', name:'비어 있는 왕좌', ultra:true, uniqueEffect:'다른 고유 주얼이 없으면 피해 +25%, 젬 레벨 +1 추가', stats:[{id:'pctDmg',val:25},{id:'gemLevel',val:1}] },
+    { id:'uj_crown_empty', name:'비어 있는 왕좌', ultra:true, uniqueEffect:'다른 고유 주얼이 없으면 피해 +25%, 룬 레벨 +1 추가', stats:[{id:'pctDmg',val:25},{id:'gemLevel',val:1}] },
     { id:'uj_mirror_heart', name:'거울 심장', ultra:true, uniqueEffect:'반지 소켓에 끼우면 반대쪽 반지 소켓의 주얼 복제', stats:[{id:'pctDmg',val:8},{id:'resAll',val:8}] },
     { id:'uj_old_box', name:'오래된 보석함', ultra:true, uniqueEffect:'인벤토리 등급 시너지', stats:[{id:'aspd',val:6},{id:'resAll',val:10}] },
     { id:'uj_hurried_mind', name:'다급해지는 마음', ultra:true, uniqueEffect:'적이 없으면 이동속도 +50%', stats:[{id:'move',val:12},{id:'regen',val:1.2}] },

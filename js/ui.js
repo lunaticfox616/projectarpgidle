@@ -203,7 +203,7 @@ function buildTrialMapItemHtml(trial) {
     let cls = `${isCompleted ? 'trial-completed' : 'trial-pending'}${isCurrent ? ' current' : ''}`;
     let action = (isCompleted && needsTicket) ? `enterTrialWithTicket('${trial.id}')` : `changeZone('${trial.id}')`;
     let repeatGemChance = typeof getTrialSkillGemRewardChance === 'function' ? getTrialSkillGemRewardChance(trial, false) : 0;
-    let repeatReward = repeatGemChance >= 1 ? '젬 확정' : `젬 ${Math.round(repeatGemChance * 100)}%`;
+    let repeatReward = repeatGemChance >= 1 ? '룬 확정' : `룬 ${Math.round(repeatGemChance * 100)}%`;
     let status = isCompleted ? (needsTicket ? `재도전권 ${game.currencies.trialKey3 || 0}개, 입장 시 1개` : '무료 재도전') : '첫 도전, 입장권 불필요';
     let state = isCompleted ? '완료' : '미완료';
     return `<div class="map-item encounter-card ${cls}" data-trial-id="${trial.id}"><div class="encounter-heading"><strong>${trial.name}</strong><span class="encounter-state trial-state-badge">${state}</span></div>
@@ -1309,11 +1309,11 @@ let lastActiveTabId = null;
 const TAB_HEADER_NOTI_KEYS = ['char', 'season', 'items', 'skills', 'codex', 'map', 'traits', 'talent', 'journal', 'currency', 'fossil', 'ascend', 'loop', 'social', 'stump', 'npcs'];
 const TAB_UNLOCK_BUTTON_KEYS = ['char', 'season', 'items', 'skills', 'codex', 'map', 'traits', 'talent', 'stump', 'npcs'];
 // 메뉴 단추 하나가 여는 창 하나에 화면 여럿(2026-10-13 사용자: 새 단추 그림에 맞춰 "단추 하나로 합치고 UI를 잘 만들어야겠지?").
-// 장비 단추는 장비와 스킬 젬을, 루프 단추는 루프 패시브와 해금을 연다(앞의 둘은 전부터 묶여 있었다). 창 머리의 탭으로 오가고,
+// 장비 단추는 장비와 스킬룬을, 루프 단추는 루프 패시브와 해금을 연다(앞의 둘은 전부터 묶여 있었다). 창 머리의 탭으로 오가고,
 // 단추는 마지막에 보던 화면을 연다. icon: 창 머리 탭의 그림(assets/ui/pixel/menu-icons.png의 번호), count: 탭에 적는 수(쓸 포인트).
 const MERGED_TAB_GROUPS = Object.freeze({
     growth: { launcher: 'tab-char', title: '스킬트리', tabs: [{ id: 'tab-char', label: '스킬트리', icon: 2, count: () => game.passivePoints, detail: '스킬트리 노드에 포인트를 씁니다.' }, { id: 'tab-traits', label: '전직', icon: 16, detail: '전직과 키스톤을 선택합니다.' }, { id: 'tab-talent', gate: 'talent', label: '재능', icon: 17, detail: '재능 개화 카드를 고르고 키웁니다.' }] },
-    gear: { launcher: 'tab-items', title: '장비', tabs: [{ id: 'tab-items', label: '장비', icon: 6, detail: '장비와 가방을 봅니다.' }, { id: 'tab-skills', label: '스킬 젬', icon: 9, detail: '젬을 장착하고 키웁니다.' }] },
+    gear: { launcher: 'tab-items', title: '장비', tabs: [{ id: 'tab-items', label: '장비', icon: 6, detail: '장비와 가방을 봅니다.' }, { id: 'tab-skills', label: '스킬룬', icon: 9, detail: '룬을 장착하고 키웁니다.' }] },
     loop: { launcher: 'tab-season', title: '루프', tabs: [{ id: 'tab-season', label: '루프 패시브', icon: 4, count: () => game.seasonPoints, detail: '루프 포인트로 영구 노드에 투자합니다.' }, { id: 'tab-unlocks', label: '해금', icon: 3, count: () => contentProgression.points(game).balance, detail: '해금 포인트로 다음 콘텐츠를 고릅니다.' }] },
     records: { launcher: 'tab-journal', title: '기록', tabs: [{ id: 'tab-journal', gate: 'journal', label: '저널', icon: 10, detail: '진행 기록과 안내를 확인합니다.' }, { id: 'tab-codex', gate: 'codex', label: '도감', icon: 13, detail: '발견한 항목과 수집 현황을 확인합니다.' }, { id: 'tab-records', gate: 'journal', label: '기록', icon: 20, detail: '루프 소요 시간과 최고 기록을 확인합니다.' }, { id: 'tab-npcs', gate: 'npcs', label: 'NPC', icon: 16, detail: '만난 NPC의 해금과 상점을 봅니다.' }] }
 });
@@ -1758,14 +1758,14 @@ function updateTabNotificationDots() {
     let dockDot = document.getElementById('noti-social-dock');
     if (dockDot) dockDot.style.display = (game.noti.social && isNotiEnabled('social')) ? 'block' : 'none';
     syncMergedTabLauncherState();
-    // 스킬 젬은 장비 단추로 열린다(묶음 gear): 첫 젬을 알리는 표시는 화면에 있는 그 단추에 단다
+    // 스킬룬은 장비 단추로 열린다(묶음 gear): 첫 룬을 알리는 표시는 화면에 있는 그 단추에 단다
     let skillTabButton = document.getElementById('btn-tab-items');
     if (skillTabButton) skillTabButton.classList.toggle('starter-gem-tutorial-pending', !!getStarterGemTutorialTarget());
     syncMobilePrimaryNavigationState();
 }
 
 /** 해금 단추 표시. 휴대폰 하단 메뉴의 지도는 열리기 전에도 흐린 잠금 칸으로 자리를 지킨다 — 액트 1을 마쳐 지도가 열리는 순간
- * 메뉴 칸이 넷에서 다섯으로 늘며 스킬 젬 칸이 밀리던 것을 막는다(누르면 notifyLockedTab이 여는 조건을 알린다). */
+ * 메뉴 칸이 넷에서 다섯으로 늘며 스킬룬 칸이 밀리던 것을 막는다(누르면 notifyLockedTab이 여는 조건을 알린다). */
 function syncTabUnlockButton(key) {
     let button = document.getElementById('btn-tab-' + key);
     let reserved = key === 'map' && !game.unlocks.map && isMobilePrimaryNavigationEnabled()
@@ -2313,7 +2313,7 @@ function getDefaultSkillAutoRule() {
 
 const TACTICS_RULES_LOCK_MESSAGE = '액트 3을 클리어하면 전투 전술이 무료로 해금됩니다.';
 
-/** The rules panel (예전 컨디션 젬 창의 자동 사용 규칙) opens with the tactics it drives. */
+/** The rules panel (예전 컨디션 룬 창의 자동 사용 규칙) opens with the tactics it drives. */
 function isTacticsRulesOpen() {
     return contentProgression.canOpen('skill-tab-condition');
 }
@@ -3166,7 +3166,7 @@ function renderUnderworldMapPanel() {
     let runeLine = Object.keys(runeCountMap).sort((a,b)=>Number(a)-Number(b)).map(k => {
         let runeNo = Number(k);
         let def = getUnderworldRuneDef(runeNo);
-        let label = def ? def.name : ('룬' + k);
+        let label = def ? def.name : ('지하석' + k);
         return `<button type="button" class="underworld-rune-chip" onclick="showUnderworldRuneTooltip(event,${runeNo})" data-info-tooltip-anchor="1" onmouseenter="showUnderworldRuneTooltip(event,${runeNo})" onmousemove="showUnderworldRuneTooltip(event,${runeNo})" onmouseleave="hideInfoTooltip()">${label}×${runeCountMap[k]}</button>`;
     }).join('');
     let runeShardCount = Math.max(0, Math.floor((game.currencies || {}).runeShard || 0));
@@ -3186,7 +3186,7 @@ function renderUnderworldMapPanel() {
         let no = (Array.isArray(runeState.equippedRunes) ? runeState.equippedRunes : [])[idx];
         let unlocked = idx < Math.max(0, Math.floor(runeState.unlockedSlots || 0));
         let def = no ? getUnderworldRuneDef(no) : null;
-        let label = unlocked ? (def ? def.name : (no ? `룬${no}` : '비어있음')) : '잠김';
+        let label = unlocked ? (def ? def.name : (no ? `지하석${no}` : '비어있음')) : '잠김';
         let effect = unlocked && def ? getUnderworldRuneEffectHtml(no) : (unlocked ? '클릭해 장착' : `${(idx+1)*10}층 격파`);
         let tooltip = no ? `showUnderworldRuneTooltip(event,${no})` : '';
         let attrs = unlocked ? `onclick="openUnderworldRuneOverlay(${idx})" data-info-tooltip-anchor="1" onmouseenter="${tooltip}" onmousemove="${tooltip}" onmouseleave="hideInfoTooltip()"` : 'disabled';
@@ -3195,10 +3195,10 @@ function renderUnderworldMapPanel() {
     let powerEstimate = buildMapPowerEstimateHtml(getUnderworldZone(highest));
     let currentFloorButton = floor === highest ? '' : `<button type="button" data-exploration-departure onclick="enterUnderworldFloor(${floor})" ${canEnter ? '' : 'disabled'}>${floor}층 입장</button>`;
     underworldRuneUi.updateMarkup(list, `<section class="underworld-entry-card ${game.currentZoneId === UNDERWORLD_ZONE_ID ? 'current' : ''}"><div class="underworld-entry-copy"><span>최고층 도전 기준, 현재 선택 ${floor}층</span><strong>도달 최고 ${highest}층</strong><div>${powerEstimate}</div></div><div class="underworld-entry-actions"><button type="button" class="underworld-primary-action" data-exploration-departure onclick="enterUnderworldFloor(${highest})" ${canEnter ? '' : 'disabled'}>최고층 ${highest} 입장</button>${currentFloorButton}<button type="button" data-exploration-departure onclick="enterUnderworldPrompt()" ${canEnter ? '' : 'disabled'}>다른 층…</button></div></section>`);
-    underworldRuneUi.updateMarkup(panel, `<div class="underworld-panel-head"><div><strong>룬 장착과 영구 강화</strong><span class="${canEnter ? '' : 'locked'}">${canEnter ? '입장 가능' : entryLockReason}, 15층부터 지속 피해</span></div><div class="underworld-resource-strip"><span>룬 조각 <b>${runeShardCount}</b></span><span>구리 <b>${Math.floor((game.currencies||{}).underCopper||0)}</b></span><span>은 <b>${Math.floor((game.currencies||{}).underSilver||0)}</b></span><span>금 <b>${Math.floor((game.currencies||{}).underGold||0)}</b></span></div></div>
-        <section class="underworld-rune-console"><div class="underworld-section-head"><div><strong>장착 룬</strong><span>${underworldRuneUi.progressLabel(runeState)}</span></div></div><div class="underworld-rune-slots">${slots}</div></section>
-        <div class="underworld-action-grid"><section><h4>룬 제작, 성장</h4><div><button onclick="craftUnderworldRune()" ${runeShardCount < 10 || !runeState.unlockedRunesMaxNumber || game.woodsmanBuildLock ? 'disabled' : ''}><strong>룬 가공</strong><span>조각 10</span></button><button onclick="openUnderworldRuneUpgradeOverlay()"><strong>룬 승급</strong><span>동일 룬 3개</span></button><button onclick="enhanceUnderworldRune()"><strong>룬 강화</strong><span>수치 성장</span></button><button onclick="rerollUnderworldRuneBonus()"><strong>옵션 리롤</strong><span>추가 옵션 변경</span></button></div></section><section><h4>장비 가공</h4><div><button onclick="applyUnderworldEnchant()"><strong>장비 인챈트</strong><span>지하계 제작</span></button><button onclick="attemptUnderworldLimitBreak()"><strong>한계돌파</strong><span>성공률 20%</span></button></div></section></div>
-        <div class="underworld-lower-grid">${skyStonePanel}<details class="underworld-inventory-card" data-ui-disclosure="underworld-rune-inventory"><summary>보유 룬 ${Object.values(runeCountMap).reduce((sum, count) => sum + count, 0)}개, 그림자 뿌리 입장권</summary><div class="underworld-rune-inventory">${runeLine || '<span class="core-cube-muted">없음</span>'}</div><p>그림자 뿌리 입장권: ${ticketLine}</p></details></div>`);
+    underworldRuneUi.updateMarkup(panel, `<div class="underworld-panel-head"><div><strong>지하석 장착과 영구 강화</strong><span class="${canEnter ? '' : 'locked'}">${canEnter ? '입장 가능' : entryLockReason}, 15층부터 지속 피해</span></div><div class="underworld-resource-strip"><span>룬 조각 <b>${runeShardCount}</b></span><span>구리 <b>${Math.floor((game.currencies||{}).underCopper||0)}</b></span><span>은 <b>${Math.floor((game.currencies||{}).underSilver||0)}</b></span><span>금 <b>${Math.floor((game.currencies||{}).underGold||0)}</b></span></div></div>
+        <section class="underworld-rune-console"><div class="underworld-section-head"><div><strong>장착 지하석</strong><span>${underworldRuneUi.progressLabel(runeState)}</span></div></div><div class="underworld-rune-slots">${slots}</div></section>
+        <div class="underworld-action-grid"><section><h4>지하석 제작, 성장</h4><div><button onclick="craftUnderworldRune()" ${runeShardCount < 10 || !runeState.unlockedRunesMaxNumber || game.woodsmanBuildLock ? 'disabled' : ''}><strong>룬 가공</strong><span>조각 10</span></button><button onclick="openUnderworldRuneUpgradeOverlay()"><strong>룬 승급</strong><span>동일 룬 3개</span></button><button onclick="enhanceUnderworldRune()"><strong>룬 강화</strong><span>수치 성장</span></button><button onclick="rerollUnderworldRuneBonus()"><strong>옵션 리롤</strong><span>추가 옵션 변경</span></button></div></section><section><h4>장비 가공</h4><div><button onclick="applyUnderworldEnchant()"><strong>장비 인챈트</strong><span>지하계 제작</span></button><button onclick="attemptUnderworldLimitBreak()"><strong>한계돌파</strong><span>성공률 20%</span></button></div></section></div>
+        <div class="underworld-lower-grid">${skyStonePanel}<details class="underworld-inventory-card" data-ui-disclosure="underworld-rune-inventory"><summary>보유 지하석 ${Object.values(runeCountMap).reduce((sum, count) => sum + count, 0)}개, 그림자 뿌리 입장권</summary><div class="underworld-rune-inventory">${runeLine || '<span class="core-cube-muted">없음</span>'}</div><p>그림자 뿌리 입장권: ${ticketLine}</p></details></div>`);
     restoreUiDisclosureState(panel);
 }
 function ensureUnderworldRuneState() {
@@ -3222,20 +3222,20 @@ function getUnderworldRuneCountMap(runes) {
 }
 function getUnderworldRuneEffectHtml(no) {
     let def = getUnderworldRuneDef(no);
-    if (!def) return `<span style="color:var(--copy-muted);">룬 정보 없음</span>`;
+    if (!def) return `<span style="color:var(--copy-muted);">지하석 정보 없음</span>`;
     let tone = typeof getItemStatToneColor === 'function' ? getItemStatToneColor(def.stat) : '#dce6ff';
     let level = Math.max(0, Number(game.underworldRunes?.enhanceLvByNo?.[no]) || 0);
     return `<span style="color:${tone};">${getStatName(def.stat)} +${formatValue(def.stat, def.val*(1+level*0.01))}${P_STATS[def.stat]?.isPct ? '%' : ''}${level ? `, +${level}` : ''}</span>`;
 }
 function buildUnderworldRuneTooltipHtml(no) {
     let def = getUnderworldRuneDef(no);
-    if (!def) return '<div class="tooltip-title">알 수 없는 룬</div><div class="tooltip-line">룬 효과 정보가 없습니다.</div>';
+    if (!def) return '<div class="tooltip-title">알 수 없는 지하석</div><div class="tooltip-line">지하석 효과 정보가 없습니다.</div>';
     let st = ensureUnderworldRuneState();
     let lv = Math.max(0, Math.floor(st.enhanceLvByNo[def.no] || 0));
     let boosted = Number(def.val || 0) * (1 + lv * 0.01);
     let mainLine = `${getStatName(def.stat)} +${formatValue(def.stat, boosted)}${P_STATS[def.stat]?.isPct ? '%' : ''}${lv > 0 ? ` <span style="color:var(--copy-bright);">(+${lv} 강화)</span>` : ''}`;
     let bonusLines = (st.bonusLinesByNo[def.no] || []).map(line => `<div class="tooltip-line" style="color:${getItemStatToneColor(line.stat)};">보너스, ${getStatName(line.stat)} +${formatValue(line.stat, line.val)}${P_STATS[line.stat]?.isPct ? '%' : ''}</div>`).join('');
-    return `<div class="tooltip-title">${escapeHTML(def.name)} <span style="color:var(--copy-bright);">룬${def.no}</span></div><div class="tooltip-line" style="color:${getItemStatToneColor(def.stat)};">${mainLine}</div>${bonusLines || '<div class="tooltip-line" style="color:var(--copy-muted);">강화 보너스 옵션 없음</div>'}`;
+    return `<div class="tooltip-title">${escapeHTML(def.name)} <span style="color:var(--copy-bright);">지하석${def.no}</span></div><div class="tooltip-line" style="color:${getItemStatToneColor(def.stat)};">${mainLine}</div>${bonusLines || '<div class="tooltip-line" style="color:var(--copy-muted);">강화 보너스 옵션 없음</div>'}`;
 }
 function showUnderworldRuneTooltip(event, no) {
     if (event.type !== 'click' && !window.matchMedia('(hover: hover)').matches) return;
@@ -3247,7 +3247,7 @@ function autoEquipUnderworldRune(no) {
     if (cap <= 0) return;
     for (let i = 0; i < cap; i++) {
         if (!st.equippedRunes[i]) {
-            // 인벤토리에서 해당 룬 1개 제거 후 슬롯에 장착
+            // 인벤토리에서 해당 지하석 1개 제거 후 슬롯에 장착
             let ownedIdx = st.obtainedRunes.findIndex(n => Math.floor(n || 0) === Math.floor(no || 0));
             if (ownedIdx !== -1) st.obtainedRunes.splice(ownedIdx, 1);
             st.equippedRunes[i] = no;
@@ -3263,13 +3263,13 @@ function equipUnderworldRuneToSlot(slotIndex, no) {
     let st = ensureUnderworldRuneState();
     let idx = slotIndex, runeNo = no;
     if (!underworldRuneUi.validSlot(st, idx) || !Number.isInteger(runeNo) || runeNo < 1 || !getUnderworldRuneDef(runeNo)) return;
-    // 보유 인벤토리에 해당 룬이 있는지 확인
+    // 보유 인벤토리에 해당 지하석이 있는지 확인
     let ownedIdx = st.obtainedRunes.findIndex(n => Math.floor(n || 0) === runeNo);
-    if (ownedIdx === -1) return; // 보유하지 않은 룬은 장착 불가
-    // 기존에 슬롯에 장착된 룬이 있으면 인벤토리로 반환
+    if (ownedIdx === -1) return; // 보유하지 않은 지하석은 장착 불가
+    // 기존에 슬롯에 장착된 지하석이 있으면 인벤토리로 반환
     let prevRune = st.equippedRunes[idx];
     if (prevRune) st.obtainedRunes.push(Math.floor(prevRune));
-    // 인벤토리에서 룬 1개 제거 후 슬롯에 장착
+    // 인벤토리에서 지하석 1개 제거 후 슬롯에 장착
     st.obtainedRunes.splice(ownedIdx, 1);
     st.equippedRunes[idx] = runeNo;
     closeUnderworldRuneOverlay();
@@ -3290,11 +3290,11 @@ function unequipUnderworldRuneSlot(slotIndex) {
 }
 function getUnderworldRuneOverlayOptionsHtml(slotIndex, runeCountMap) {
     let keys = Object.keys(runeCountMap).sort((a, b) => Number(a) - Number(b));
-    if (keys.length === 0) return '<div class="underworld-rune-empty">보관 중인 룬이 없습니다.</div>';
+    if (keys.length === 0) return '<div class="underworld-rune-empty">보관 중인 지하석이 없습니다.</div>';
     return keys.map(key => {
         let no = Number(key);
         let def = getUnderworldRuneDef(no);
-        let title = def ? def.name : `룬${no}`;
+        let title = def ? def.name : `지하석${no}`;
         return `<button type="button" class="underworld-rune-option" data-info-tooltip-anchor="1" onmouseenter="showUnderworldRuneTooltip(event,${no})" onmousemove="showUnderworldRuneTooltip(event,${no})" onmouseleave="hideInfoTooltip()" onclick="equipUnderworldRuneToSlot(${slotIndex},${no})"><strong>${title}</strong><span>보유 ${runeCountMap[key]}개, ${getUnderworldRuneEffectHtml(no)}</span></button>`;
     }).join('');
 }
@@ -3308,7 +3308,7 @@ function openUnderworldRuneOverlay(slotIndex) {
     let overlay = document.createElement('div');
     overlay.id = 'underworld-rune-overlay';
     overlay.className = 'underworld-rune-overlay';
-    overlay.innerHTML = `<div class="underworld-rune-overlay-panel"><div class="underworld-rune-overlay-head"><div><div class="underworld-rune-overlay-title">룬 슬롯 ${idx + 1} 선택</div><div class="underworld-rune-overlay-desc">보유한 룬을 클릭해 장착하거나 현재 슬롯을 비울 수 있습니다.</div></div><button type="button" onclick="closeUnderworldRuneOverlay()">닫기</button></div><div class="underworld-rune-current">${current}</div><div class="underworld-rune-option-grid">${getUnderworldRuneOverlayOptionsHtml(idx, runeCountMap)}</div><div class="underworld-rune-overlay-actions"><button type="button" onclick="unequipUnderworldRuneSlot(${idx})" ${st.equippedRunes[idx] ? '' : 'disabled'}>이 슬롯 해제</button></div></div>`;
+    overlay.innerHTML = `<div class="underworld-rune-overlay-panel"><div class="underworld-rune-overlay-head"><div><div class="underworld-rune-overlay-title">지하석 슬롯 ${idx + 1} 선택</div><div class="underworld-rune-overlay-desc">보유한 룬을 클릭해 장착하거나 현재 슬롯을 비울 수 있습니다.</div></div><button type="button" onclick="closeUnderworldRuneOverlay()">닫기</button></div><div class="underworld-rune-current">${current}</div><div class="underworld-rune-option-grid">${getUnderworldRuneOverlayOptionsHtml(idx, runeCountMap)}</div><div class="underworld-rune-overlay-actions"><button type="button" onclick="unequipUnderworldRuneSlot(${idx})" ${st.equippedRunes[idx] ? '' : 'disabled'}>이 슬롯 해제</button></div></div>`;
     document.body.appendChild(overlay);
     underworldRuneUi.mountOverlay(overlay, `.underworld-rune-slot:nth-child(${idx+1})`);
 }
@@ -3316,15 +3316,15 @@ function craftUnderworldRune() {
     if (!assertBuildEditable()) return;
     let st = ensureUnderworldRuneState();
     let maxNo = Math.max(0, Math.floor(st.unlockedRunesMaxNumber || 0));
-    if (maxNo <= 0) return addLog('먼저 지하계 10층 단위 보상으로 룬 번호를 해금하세요.', 'attack-monster');
+    if (maxNo <= 0) return addLog('먼저 지하계 10층 단위 보상으로 지하석 번호를 해금하세요.', 'attack-monster');
     let need = 10;
-    if ((game.currencies.runeShard || 0) < need) return addLog(`룬 조각이 부족합니다. (필요: ${need})`, 'attack-monster');
+    if ((game.currencies.runeShard || 0) < need) return addLog(`지하석 조각이 부족합니다. (필요: ${need})`, 'attack-monster');
     game.currencies.runeShard -= need;
     let roll = 1 + Math.floor(Math.random() * maxNo);
     st.obtainedRunes.push(roll);
     autoEquipUnderworldRune(roll);
     let def = getUnderworldRuneDef(roll);
-    addLog(`🧿 룬 가공 성공: ${def ? def.name : ('룬'+roll)} 획득 (${def ? `${getStatName(def.stat)} +${formatValue(def.stat, def.val)}` : ''})`, 'loot-unique');
+    addLog(`🧿 지하석 가공 성공: ${def ? def.name : ('지하석'+roll)} 획득 (${def ? `${getStatName(def.stat)} +${formatValue(def.stat, def.val)}` : ''})`, 'loot-unique');
     updateStaticUI();
     queueImportantSave(200);
 }
@@ -3335,9 +3335,9 @@ function getUnderworldRuneUpgradeOptionHtml(no, count, unlockedMax) {
     let target = no + 1;
     let def = getUnderworldRuneDef(no);
     let toDef = getUnderworldRuneDef(target);
-    let status = canUpgrade ? `룬${target}으로 승급, 룬조각 ${shardNeed}` : (no >= unlockedMax ? `룬${target} 해금 필요` : `룬조각 부족 (${shardNeed})`);
-    let title = def ? `${def.name} 룬${no}` : `룬${no}`;
-    let targetName = toDef ? `${toDef.name} 룬${target}` : `룬${target}`;
+    let status = canUpgrade ? `지하석${target}으로 승급, 지하석 조각 ${shardNeed}` : (no >= unlockedMax ? `지하석${target} 해금 필요` : `지하석 조각 부족 (${shardNeed})`);
+    let title = def ? `${def.name} 지하석${no}` : `지하석${no}`;
+    let targetName = toDef ? `${toDef.name} 지하석${target}` : `지하석${target}`;
     return `<button type="button" class="underworld-rune-option" data-info-tooltip-anchor="1" onmouseenter="showUnderworldRuneTooltip(event,${no})" onmousemove="showUnderworldRuneTooltip(event,${no})" onmouseleave="hideInfoTooltip()" onclick="upgradeUnderworldRune(${no})" ${canUpgrade ? '' : 'disabled'}><strong>${title} ×${count}</strong><span>${getUnderworldRuneEffectHtml(no)}</span><span>→ ${targetName}, ${status}</span></button>`;
 }
 function openUnderworldRuneUpgradeOverlay() {
@@ -3346,12 +3346,12 @@ function openUnderworldRuneUpgradeOverlay() {
     let count = getUnderworldRuneCountMap(st.obtainedRunes);
     let unlockedMax = Math.max(1, Math.min(30, Math.floor(st.unlockedRunesMaxNumber || 1)));
     let rows = Object.keys(count).map(Number).sort((a, b) => a - b).filter(no => count[no] >= 3 && no < 30);
-    if (rows.length === 0) return addLog('동일 번호 룬 3개가 필요합니다. (룬30은 승급 불가)', 'attack-monster');
+    if (rows.length === 0) return addLog('동일 번호 지하석 3개가 필요합니다. (지하석30은 승급 불가)', 'attack-monster');
     let overlay = document.createElement('div');
     overlay.id = 'underworld-rune-overlay';
     overlay.className = 'underworld-rune-overlay';
     let options = rows.map(no => getUnderworldRuneUpgradeOptionHtml(no, count[no], unlockedMax)).join('');
-    overlay.innerHTML = `<div class="underworld-rune-overlay-panel"><div class="underworld-rune-overlay-head"><div><div class="underworld-rune-overlay-title">룬 승급 대상 선택</div><div class="underworld-rune-overlay-desc">동일 번호 룬 3개와 룬조각을 사용해 어떤 룬을 다음 번호로 승급할지 선택하세요.</div></div><button type="button" onclick="closeUnderworldRuneOverlay()">닫기</button></div><div class="underworld-rune-option-grid">${options}</div></div>`;
+    overlay.innerHTML = `<div class="underworld-rune-overlay-panel"><div class="underworld-rune-overlay-head"><div><div class="underworld-rune-overlay-title">지하석 승급 대상 선택</div><div class="underworld-rune-overlay-desc">동일 번호 룬 3개와 룬조각을 사용해 어떤 룬을 다음 번호로 승급할지 선택하세요.</div></div><button type="button" onclick="closeUnderworldRuneOverlay()">닫기</button></div><div class="underworld-rune-option-grid">${options}</div></div>`;
     document.body.appendChild(overlay);
     underworldRuneUi.mountOverlay(overlay, '.underworld-action-grid button[onclick="openUnderworldRuneUpgradeOverlay()"]');
 }
@@ -3361,11 +3361,11 @@ function upgradeUnderworldRune(fromNo) {
     let st = ensureUnderworldRuneState();
     let count = getUnderworldRuneCountMap(st.obtainedRunes);
     let from = Number.isInteger(fromNo) ? fromNo : 0;
-    if (!(count[from] >= 3) || from >= 30) return addLog('동일 번호 룬 3개가 필요합니다. (룬30은 승급 불가)', 'attack-monster');
+    if (!(count[from] >= 3) || from >= 30) return addLog('동일 번호 지하석 3개가 필요합니다. (지하석30은 승급 불가)', 'attack-monster');
     let shardNeed = Math.max(5, from);
-    if ((game.currencies.runeShard || 0) < shardNeed) return addLog(`룬 조각이 부족합니다. (필요: ${shardNeed})`, 'attack-monster');
+    if ((game.currencies.runeShard || 0) < shardNeed) return addLog(`지하석 조각이 부족합니다. (필요: ${shardNeed})`, 'attack-monster');
     let unlockedMax = Math.max(1, Math.min(30, Math.floor(st.unlockedRunesMaxNumber || 1)));
-    if (from >= unlockedMax) return addLog(`현재는 룬${from}을 승급할 수 없습니다. (해금된 최대 번호: ${unlockedMax})`, 'attack-monster');
+    if (from >= unlockedMax) return addLog(`현재는 지하석${from}을 승급할 수 없습니다. (해금된 최대 번호: ${unlockedMax})`, 'attack-monster');
     game.currencies.runeShard -= shardNeed;
     let removed = 0;
     st.obtainedRunes = st.obtainedRunes.filter(n => Math.floor(n || 0) === from && removed++ < 3 ? false : true);
@@ -3374,7 +3374,7 @@ function upgradeUnderworldRune(fromNo) {
     autoEquipUnderworldRune(to);
     closeUnderworldRuneOverlay();
     let def = getUnderworldRuneDef(to);
-    addLog(`🧿 룬 승급 성공: 룬${from}×3 + 룬조각 ${shardNeed} → ${def ? def.name : ('룬'+to)} (${def ? `${getStatName(def.stat)} +${formatValue(def.stat, def.val)}` : ''})`, 'loot-unique');
+    addLog(`🧿 지하석 승급 성공: 지하석${from}×3 + 지하석 조각 ${shardNeed} → ${def ? def.name : ('지하석'+to)} (${def ? `${getStatName(def.stat)} +${formatValue(def.stat, def.val)}` : ''})`, 'loot-unique');
     updateStaticUI();
     queueImportantSave(200);
 }
@@ -3852,12 +3852,12 @@ function renderSkillGemArt(name, className, options) {
     let image = artPath
         ? `<img src="${escapeHTML(artPath)}" alt="" loading="${loading}" decoding="async" onerror="this.hidden=true; this.nextElementSibling.hidden=false">`
         : '';
-    return `<span class="${className || 'gem-art'}" aria-label="${escapeHTML(name)} 젬 이미지">${image}<span class="gem-art-fallback" aria-hidden="true"${fallbackHidden}>${meta.icon}</span></span>`;
+    return `<span class="${className || 'gem-art'}" aria-label="${escapeHTML(name)} 룬 이미지">${image}<span class="gem-art-fallback" aria-hidden="true"${fallbackHidden}>${meta.icon}</span></span>`;
 }
 
 function renderGemTagChips(def, maxTags) {
     let rawTags = Array.isArray(def && def.tags) ? def.tags : [];
-    // 젬 상세(getUiGemPresentation)는 이미 한글로 바꾼 꼬리표를 넘긴다: 색을 고르려면 원래 키로 되돌린다(근접 → melee).
+    // 룬 상세(getUiGemPresentation)는 이미 한글로 바꾼 꼬리표를 넘긴다: 색을 고르려면 원래 키로 되돌린다(근접 → melee).
     let tagKey = tag => SKILL_TAG_LABELS[tag] ? tag : (Object.keys(SKILL_TAG_LABELS).find(key => SKILL_TAG_LABELS[key] === tag) || tag);
     let getTone = rawTag => {
         let tag = tagKey(rawTag);
@@ -3890,7 +3890,7 @@ function renderGemTileLevel(gemInfo) {
     return `<span class="gem-tile-level ${gemInfo.totalLevel > gemInfo.baseLevel ? 'effective' : ''}">Lv.${formatValue('', gemInfo.totalLevel)}</span>`;
 }
 
-/** 2026-10-04 젬 보드: the library lists compact tiles (art · name · Lv · one line). Range numbers, tags, seal and summon
+/** 2026-10-04 룬 보드: the library lists compact tiles (art · name · Lv · one line). Range numbers, tags, seal and summon
  * count live in the detail the tile opens. */
 function renderAttackGemCard(name, highlightedName, stats) {
     let def = SKILL_DB[name] || {};
@@ -3903,7 +3903,7 @@ function renderAttackGemCard(name, highlightedName, stats) {
     let state = equipmentReady ? getGemTileSummary(name, def) : '방패 필요';
     let classes = ['skill-gem', 'gem-library-card', 'gem-tile', `element-${meta.className}`, active ? 'active' : '', equipmentReady ? '' : 'equipment-blocked', tutorialTarget ? 'starter-gem-tutorial-target' : ''].filter(Boolean).join(' ');
     let worn = active ? `<span class="gem-tile-worn">${summonEquipped ? `소환 ×${getSummonSkillCount(name)}` : '장착'}</span>` : '';
-    let guide = tutorialTarget ? '<span class="starter-gem-equip-guide">첫 스킬 젬, 눌러서 장착</span>' : '';
+    let guide = tutorialTarget ? '<span class="starter-gem-equip-guide">첫 스킬룬, 눌러서 장착</span>' : '';
     return `<article class="${classes}" ${getGemTileHandlers('active', name)} aria-label="${escapeHTML(name)} Lv.${formatValue('', gemInfo.totalLevel)}${active ? ', 장착 중' : ''}${equipmentReady ? '' : ', 방패 필요'}">
         ${guide}${renderGemTileLevel(gemInfo)}${worn}${renderSkillGemArt(name, 'gem-card-sigil gem-card-art gem-tile-art')}
         <strong class="gem-tile-name">${highlightedName}</strong><small class="gem-usage-state">${escapeHTML(state)}</small>
@@ -3939,7 +3939,7 @@ function renderSupportGemCard(name, highlightedName, stats) {
     </article>`;
 }
 
-/** Gem card hover, mouse only (a tap opens the detail instead): the full gem tooltip with its numbers (2026-10-11 사용자: 젬을
+/** Gem card hover, mouse only (a tap opens the detail instead): the full gem tooltip with its numbers (2026-10-11 사용자: 룬을
  * 고르는 곳의 툴팁에 수치가 없었다, 이름과 설명만 보였다). showGemTooltip stays quiet while the detail popover is open. */
 function showGemCardHint(event, type, name) {
     if (event.pointerType === 'mouse') showGemTooltip(event, type, name);
@@ -3951,7 +3951,7 @@ function renderSealedGemCard(name, highlightedName, isSupport) {
     return `<article class="skill-gem gem-library-card gem-tile sealed-gem-card">${art}<strong class="gem-tile-name">${highlightedName}</strong><small class="gem-usage-state">봉인됨, 공명력 1로 복원</small><button type="button" class="gem-card-utility" onclick="${releaseCall}">봉인 해제</button></article>`;
 }
 
-/** 젬 레벨 구성(2026-10-09): 최종 레벨을 크게, 기본/재료와 각성/장비와 패시브를 한 막대에 나눠 칠하고, 그 아래 전투 수치 칩. 작은 4칸 표였다. */
+/** 룬 레벨 구성(2026-10-09): 최종 레벨을 크게, 기본/재료와 각성/장비와 패시브를 한 막대에 나눠 칠하고, 그 아래 전투 수치 칩. 작은 4칸 표였다. */
 function getGemGrowthSummaryHtml(name, presentation) {
     if (!presentation || !presentation.skill) return '';
     const base = Number(presentation.baseLevel) || 1, material = Number(presentation.materialBonus) || 0;
@@ -3981,7 +3981,7 @@ function renderGemEnhanceTargetCard(name, selected, stats) {
 function renderGemResourceStrip(activeGem, condensedPower) {
     let root = document.getElementById('ui-gem-resource-strip');
     if (!root) return;
-    root.innerHTML = `<div><span>젬 잔향</span><strong>${game.currencies.gemShard || 0}</strong></div><div><span>군주의 핵</span><strong>${game.currencies.bossCore || 0}</strong></div><div><span>창공의 정수</span><strong>${game.currencies.skyEssence || 0}</strong></div><div><span>응축 창공</span><strong>${Math.floor(condensedPower || 0)}</strong></div><div><span>각성 잔향</span><strong>${game.currencies.awakenedEcho || 0}</strong></div><div><span>고른 젬</span><strong>${!activeGem ? '없음' : activeGem.awakened ? '각성' : '각성 전'}</strong></div>`;
+    root.innerHTML = `<div><span>룬 잔향</span><strong>${game.currencies.gemShard || 0}</strong></div><div><span>군주의 핵</span><strong>${game.currencies.bossCore || 0}</strong></div><div><span>창공의 정수</span><strong>${game.currencies.skyEssence || 0}</strong></div><div><span>응축 창공</span><strong>${Math.floor(condensedPower || 0)}</strong></div><div><span>각성 잔향</span><strong>${game.currencies.awakenedEcho || 0}</strong></div><div><span>고른 룬</span><strong>${!activeGem ? '없음' : activeGem.awakened ? '각성' : '각성 전'}</strong></div>`;
 }
 
 function bindGemEngraveSlotControls(root) {
@@ -4007,7 +4007,7 @@ function renderGemEngraveSlots(activeSlots, engraveCap) {
     if (typeof isEnhanceableAttackGem === 'function' && !isEnhanceableAttackGem(active)) {
         let emptySignature = `empty:${active || ''}`;
         if (root.dataset.renderSig !== emptySignature) {
-            root.innerHTML = '<div class="gem-process-empty">장착 중인 공격 젬을 선택하면 중앙 각인 장치가 활성화됩니다.</div>';
+            root.innerHTML = '<div class="gem-process-empty">장착 중인 공격 룬을 선택하면 중앙 각인 장치가 활성화됩니다.</div>';
             root.dataset.renderSig = emptySignature;
         }
         return;
@@ -4043,7 +4043,7 @@ function renderGemEngraveSlots(activeSlots, engraveCap) {
         spokes.push(`<span class="gem-orbit-spoke" aria-hidden="true" style="--orbit-angle:${orbitAngle}deg"></span>`);
         slots.push(`<button type="button" class="gem-orbit-slot slot-${index + 1} ${stateClass} ${group ? `group-${group.className}` : ''}" style="--slot-x:${orbitX.toFixed(3)}%;--slot-y:${orbitY.toFixed(3)}%" title="${escapeHTML(title)}" aria-label="${escapeHTML(title)}" aria-pressed="${enhancement ? 'true' : 'false'}" aria-disabled="${!unlocked && !nextUnlock ? 'true' : 'false'}" data-slot-index="${index}" data-slot-state="${stateClass}" ${!unlocked && !nextUnlock ? 'tabindex="-1"' : ''}><span class="gem-orbit-slot-glyph" aria-hidden="true"><b>${glyph}</b></span>${enhancement ? `<em>${escapeHTML(enhancement.name)}</em>` : nextUnlock ? `<em>${unlockReady ? '슬롯 해금' : '재화 부족'}</em>` : ''}</button>`);
     }
-    root.innerHTML = `<div class="gem-orbit-stage"><div class="gem-orbit-rings" aria-hidden="true"></div>${spokes.join('')}<div class="gem-orbit-center element-${getGemCardMeta(SKILL_DB[active] || {}).className}">${renderSkillGemArt(active, 'gem-orbit-art', { eager: true })}<span>각인 대상</span><strong>${escapeHTML(active)}</strong></div>${slots.join('')}</div><div class="gem-orbit-copy"><strong>중앙 젬과 연결된 슬롯을 선택하세요</strong><span class="gem-orbit-legend"><b class="is-empty"><i></i>빈 슬롯</b><b class="is-filled"><i></i>각인됨</b><b class="is-unlockable"><i>+</i>해금 가능</b></span></div>`;
+    root.innerHTML = `<div class="gem-orbit-stage"><div class="gem-orbit-rings" aria-hidden="true"></div>${spokes.join('')}<div class="gem-orbit-center element-${getGemCardMeta(SKILL_DB[active] || {}).className}">${renderSkillGemArt(active, 'gem-orbit-art', { eager: true })}<span>각인 대상</span><strong>${escapeHTML(active)}</strong></div>${slots.join('')}</div><div class="gem-orbit-copy"><strong>중앙 룬과 연결된 슬롯을 선택하세요</strong><span class="gem-orbit-legend"><b class="is-empty"><i></i>빈 슬롯</b><b class="is-filled"><i></i>각인됨</b><b class="is-unlockable"><i>+</i>해금 가능</b></span></div>`;
     root.dataset.renderSig = renderSignature;
 }
 
@@ -4074,7 +4074,7 @@ const PIXEL_ICONS = Object.freeze({
     gem: ['...........', '..#######..', '.#o#ooo#o#.', '#oo#ooo#oo#', '###########', '.#ooo#ooo#.', '..#oo#oo#..', '...#o#o#...', '....#o#....', '.....#.....', '...........'],
     // 기억의 잎(js/memory-leaves-ui.js 도감 카드, js/battle-ground-loot-ui.js 바닥 더미): 잎맥이 있는 비스듬한 잎.
     leaf: ['.......###.', '.....##ooo#', '....#oooo#.', '...#ooo#o#.', '..#oo#oo#..', '.#oo#ooo#..', '.#o#ooo#...', '..#oo##....', '.#.##......', '#..........', '...........'],
-    // 보조 젬 문양(js/support-gem-sigil-ui.js, 2026-10-11): 효과 종류마다 하나씩, 색은 계열(물리, 원소, 속도, 치명 …)을 따른다.
+    // 보조스킬룬 문양(js/support-gem-sigil-ui.js, 2026-10-11): 효과 종류마다 하나씩, 색은 계열(물리, 원소, 속도, 치명 …)을 따른다.
     arrow: ['......#####', '.......#oo#', '......#o#o#', '.....#o#.##', '....#o#...#', '...#o#.....', '#.#o#......', '##o#.......', '###........', '####.......', '...........'],
     burst: ['.....#.....', '.#...#...#.', '..#..#..#..', '...#.o.#...', '....ooo....', '###ooooo###', '....ooo....', '...#.o.#...', '..#..#..#..', '.#...#...#.', '.....#.....'],
     hammer: ['..#######..', '.#ooooooo#.', '.#ooooooo#.', '.#ooooooo#.', '..###o###..', '....#o#....', '....#o#....', '....#o#....', '....#o#....', '....#o#....', '....###....'],
@@ -4128,7 +4128,7 @@ function renderSkyEnhancementOption(enhancement, activeSlots, isGem) {
     let removeCost = typeof getSkyGemEnhancementRemoveCost === 'function' ? getSkyGemEnhancementRemoveCost() : 0;
     let group = getSkyEnhancementGroup(enhancement);
     let compatible = typeof isSkyEnhancementCompatibleWithSkill !== 'function' || isSkyEnhancementCompatibleWithSkill(enhancement.id, getGemEnhanceTargetSkill());
-    let actionLabel = applied ? `적용 중, 해제 창공 ${removeCost}` : !compatible ? '투사체 젬 전용' : locked ? '젬 각성 해금 필요' : '창공 1';
+    let actionLabel = applied ? `적용 중, 해제 창공 ${removeCost}` : !compatible ? '투사체 룬 전용' : locked ? '룬 각성 해금 필요' : '창공 1';
     return `<button class="gem-engrave-option group-${group.className} ${applied ? 'applied' : ''}" onclick="toggleSkyGemEnhancement('${enhancement.id}')" ${!isGem || !compatible || (locked && !applied) ? 'disabled' : ''}>${renderEngraveOptionFace(enhancement, group, actionLabel)}</button>`;
 }
 
@@ -4154,7 +4154,7 @@ function renderGemEngraveOverlayOption(enhancement, slots, slotIndex) {
     let locked = !canUseSkyEnhancement(enhancement.id);
     let group = getSkyEnhancementGroup(enhancement);
     let compatible = typeof isSkyEnhancementCompatibleWithSkill !== 'function' || isSkyEnhancementCompatibleWithSkill(enhancement.id, getGemEnhanceTargetSkill());
-    let state = current ? '현재 각인, 누르면 해제' : usedElsewhere ? '다른 슬롯에 적용 중' : !compatible ? '투사체 젬 전용' : locked ? '젬 각성 해금 필요' : '이 슬롯에 각인';
+    let state = current ? '현재 각인, 누르면 해제' : usedElsewhere ? '다른 슬롯에 적용 중' : !compatible ? '투사체 룬 전용' : locked ? '룬 각성 해금 필요' : '이 슬롯에 각인';
     return `<button type="button" class="gem-engrave-option group-${group.className} ${current ? 'applied' : ''}" data-engrave-id="${enhancement.id}" data-action="${current ? 'remove' : 'apply'}" ${usedElsewhere || !compatible || (locked && !current) ? 'disabled' : ''}>${renderEngraveOptionFace(enhancement, group, state)}</button>`;
 }
 
@@ -4207,14 +4207,14 @@ function renderSupportGemProcessList() {
     if (!root) return;
     let supports = Array.isArray(game.supports) ? game.supports : [];
     if (supports.length <= 0) {
-        root.innerHTML = '<div class="gem-process-empty">보유한 보조 젬이 없습니다.</div>';
+        root.innerHTML = '<div class="gem-process-empty">보유한 보조스킬룬이 없습니다.</div>';
         return;
     }
     root.innerHTML = supports.map(name => {
         let state = typeof getSupportGemSkyProcessState === 'function' ? getSupportGemSkyProcessState(name) : null;
         let rec = state ? state.record : normalizeGemRecord(((game.supportGemData || {})[name]) || {});
         let tierLabel = typeof getSupportTierLabel === 'function' ? getSupportTierLabel(name, rec.unlockedTier || 1) : `${rec.unlockedTier || 1}등급`;
-        let nextLabel = state && state.improvingTier ? `${state.nextTier}등급 해금` : '젬 레벨 +1';
+        let nextLabel = state && state.improvingTier ? `${state.nextTier}등급 해금` : '룬 레벨 +1';
         let disabled = !state || state.maxed || (game.currencies.skyEssence || 0) < state.need;
         let actionLabel = state && state.maxed ? '최대 성장' : `${nextLabel}, 창공 ${state ? state.need : 0}`;
         return `<div class="gem-support-process-card"><div><small>${tierLabel}, Lv.${rec.level || 1}</small><strong>${escapeHTML(name)}</strong><span>${statToneText.html((SUPPORT_GEM_DB[name] || {}).desc || '')}</span></div><button onclick="processSupportGemWithSkyEssence('${name}')" ${disabled ? 'disabled' : ''}>${actionLabel}</button></div>`;
@@ -4409,9 +4409,9 @@ function wearMobilityGem(name) {
 }
 
 function openEquippedGemManagement(name) {
-    if (!game.gemEnhanceUnlocked) return addLog('젬 강화는 군주의 핵 또는 창공의 정수를 획득하면 개방됩니다.', 'attack-monster');
+    if (!game.gemEnhanceUnlocked) return addLog('룬 강화는 군주의 핵 또는 창공의 정수를 획득하면 개방됩니다.', 'attack-monster');
     let equipped = typeof getEquippedEnhanceableGemNames === 'function' ? getEquippedEnhanceableGemNames() : [];
-    if (!equipped.includes(name)) return addLog('장착 중인 공격 젬만 강화할 수 있습니다.', 'attack-monster');
+    if (!equipped.includes(name)) return addLog('장착 중인 공격 룬만 강화할 수 있습니다.', 'attack-monster');
     game.gemEnhanceTargetSkill = name;
     game.gemEngraveSelectedSlot = 0;
     switchSkillSubtab('skill-tab-enhance');
@@ -4482,7 +4482,7 @@ function toggleSupport(name) { if (!assertBuildEditable()) return;
     else {
         let stats = getUiPlayerStats();
         if (game.equippedSupports.length >= stats.suppCap) {
-            addLog(`보조 젬 장착 한도 부족 (${game.equippedSupports.length}/${Math.max(0, Math.floor(stats.suppCap || 0))}), 다른 보조 젬을 먼저 해제하세요.`, 'attack-monster', { toast: true });
+            addLog(`보조스킬룬 장착 한도 부족 (${game.equippedSupports.length}/${Math.max(0, Math.floor(stats.suppCap || 0))}), 다른 보조스킬룬을 먼저 해제하세요.`, 'attack-monster', { toast: true });
             updateStaticUI();
             return;
         }
@@ -5431,8 +5431,8 @@ function showGemTooltip(event, type, name, target = null) {
         if (info.scaleWithOwnStat) {
             let baseText = typeof formatSupportGemEffectValue === 'function' ? formatSupportGemEffectValue(info.scaleBase) : Number(info.scaleBase || 0).toFixed(1);
             let ratioText = typeof formatSupportGemEffectValue === 'function' ? formatSupportGemEffectValue(info.scaleRatioPct) : Number(info.scaleRatioPct || 0).toFixed(1);
-            html += `<div class="tooltip-line" style="color:#9fd4ff;">계산: 보조 젬 제외 ${info.statName} ${baseText}% × 공명 계수 ${ratioText}% = +${valueText}%</div>`;
-            html += `<div class="tooltip-line" style="color:#b8a6ff;">제외: 이 보조 젬 및 다른 보조 젬으로 얻은 ${info.statName} 증가</div>`;
+            html += `<div class="tooltip-line" style="color:#9fd4ff;">계산: 보조스킬룬 제외 ${info.statName} ${baseText}% × 공명 계수 ${ratioText}% = +${valueText}%</div>`;
+            html += `<div class="tooltip-line" style="color:#b8a6ff;">제외: 이 보조스킬룬 및 다른 보조스킬룬으로 얻은 ${info.statName} 증가</div>`;
         }
         if (Number.isFinite(SUPPORT_GEM_DB[name].heraldExplodeBase)) {
             let chancePct = Math.min(85, ((SUPPORT_GEM_DB[name].heraldExplodeBase + ((info.totalLevel - 1) * (SUPPORT_GEM_DB[name].heraldExplodeScale || 0))) * 100));
@@ -5510,10 +5510,10 @@ function showGemTooltip(event, type, name, target = null) {
         if (!isSummonAttackTooltip) html += getGemTargetSummaryHtml(skill);
         if ((info.tags || []).length > 0) html += `<div class="tooltip-line">태그: <span class="gem-card-tags gem-tooltip-tags">${renderGemTagChips(info, info.tags.length)}</span></div>`;
         if (skill.crit) html += `<div class="tooltip-line">추가 치명타 +${Number(skill.crit).toFixed(Number.isInteger(skill.crit) ? 0 : 1)}%</div>`;
-        if (skill.critScale) html += `<div class="tooltip-line">치명타 성장: 젬 레벨당 +${skill.critScale}%</div>`;
+        if (skill.critScale) html += `<div class="tooltip-line">치명타 성장: 룬 레벨당 +${skill.critScale}%</div>`;
         if (skill.pierceOverkillCarry) html += `<div class="tooltip-line" style="color:#8fffe0;">특수 옵션: 각 원본 타겟의 초과 피해가 다른 적에게 연속 관통</div>`;
         if (skill.leech) html += `<div class="tooltip-line">추가 흡혈 +${skill.leech}%</div>`;
-        if (skill.instantLeech) html += `<div class="tooltip-line" style="color:#ffb3d1;">특수 옵션: 이 젬을 사용해서 주는 피해에는 흡혈 즉시 적용</div>`;
+        if (skill.instantLeech) html += `<div class="tooltip-line" style="color:#ffb3d1;">특수 옵션: 이 룬을 사용해서 주는 피해에는 흡혈 즉시 적용</div>`;
         if (rawSkillTags.includes('summon')) {
             const preview = (typeof getSummonTooltipPreview === 'function') ? getSummonTooltipPreview(name, stats) : null;
             if (preview) {
@@ -5536,7 +5536,7 @@ function showGemTooltip(event, type, name, target = null) {
             ['군주의 핵', info.bossCoreLevel === 5 ? 1 : 0], ['창공의 정수', info.skyCoreLevel === 5 ? 1 : 0],
             ['응축 창공', info.permanentSkyBonus], ['각성', info.awakened ? 2 : 0]];
         const levels = sources.filter(([, value]) => value > 0).map(([label, value]) => `${label} +${value}`);
-        levels.unshift(`젬 Lv.${type === 'support' ? info.baseLevel : Math.min(20, info.baseLevel)}`);
+        levels.unshift(`룬 Lv.${type === 'support' ? info.baseLevel : Math.min(20, info.baseLevel)}`);
         html += `<div class="tooltip-line">${levels.join(', ')}</div>`;
     }
     if (info.bossCoreLevel > 0) html += `<div class="tooltip-line gem-core-tone">군주의 핵 피해 ${info.bossCoreLevel * GEM_CORE_FORGE.tracks.bossCore.stepPct}% 증폭</div>`;
@@ -8657,7 +8657,7 @@ function updateStaticUI(forceImmediate) {
     if (game.isBackgroundCalculation) return;
     void forceImmediate;
     // 긴 정적 UI 갱신 도중 탭을 누르면 이전에는 그 탭의 후속 렌더 요청을 버렸다.
-    // 그러면 새 탭 컨테이너만 활성화되고 주얼·부적·스킬 젬 내용은 이전 탭
+    // 그러면 새 탭 컨테이너만 활성화되고 주얼·부적·스킬룬 내용은 이전 탭
     // 기준으로 남아 간헐적인 빈 화면이 됐다. 실행 중 요청은 다음 프레임에 반드시 잇는다.
     if (uiRefreshRunning) {
         uiRefreshQueued = true;
@@ -8844,10 +8844,10 @@ function performUpdateStaticUI() {
         calculateReachableNodes();
         refreshPassiveVisibility();
     }
-    // 한 번 계산한 스탯을 보조 젬 정리에 그대로 넘긴다. 정리가 실제로 젬을 내렸을 때만
+    // 한 번 계산한 스탯을 보조스킬룬 정리에 그대로 넘긴다. 정리가 실제로 룬을 내렸을 때만
     // (한도가 줄어든 드문 프레임) 다시 계산한다.
     // 폴백 스탯(아직 전투 모듈이 준비되지 않은 초기 부팅)은 suppCap이 0이라 넘기면 안 된다.
-    // 넘기면 부팅 한 프레임 만에 장착한 보조 젬이 전부 해제된다.
+    // 넘기면 부팅 한 프레임 만에 장착한 보조스킬룬이 전부 해제된다.
     let pStats = getUiPlayerStats();
     if (normalizeSupportLoadout(true, pStats.__uiFallbackStats ? null : pStats)) pStats = getUiPlayerStats();
     __mark('stats');
@@ -9563,7 +9563,7 @@ function exposeUiRenderHelpersOnce() {
         showPlayerCosmosDebuffTooltip,
         isItemRarityVisible,
         matchSearchQuery,
-        // 스킬 젬 화면(js/skills-ui.js)이 젬 목록 검색/강조에 그대로 재사용한다.
+        // 스킬룬 화면(js/skills-ui.js)이 룬 목록 검색/강조에 그대로 재사용한다.
         // 이 헬퍼들은 performUpdateStaticUI 안에 중첩 선언되어 있어 전역이 아니다.
         // 화면을 파일로 분리할 때마다 여기서 함께 열어 준다(중첩 선언을 최상위로
         // 끌어올리는 정리는 별도 변경으로 한다 — 78개가 같은 상태다).
@@ -13213,7 +13213,7 @@ function renderBattlefieldThrottled(frameNow) {
     if (renderBattlefield(false, interval)) battleFrameStats.noteBattleDraw(drawBegan, performance.now(), interval);
 }
 
-/** '안내 중 전투 일시 정지'(설정): 안내 카드가 떠 있거나, 따라 하기의 대상 화면(젬 · 스킬트리 …)이 열려 있는 동안 — 첫 젬을
+/** '안내 중 전투 일시 정지'(설정): 안내 카드가 떠 있거나, 따라 하기의 대상 화면(룬 · 스킬트리 …)이 열려 있는 동안 — 첫 룬을
  * 따라 장착하는 사이 기본 공격으로 싸우다 쓰러졌다(검토 7차). 대상 화면을 떠나면(띠가 한 줄로 접히면) 전투가 다시 돈다. */
 function isTutorialPausingCombat() {
     if (!(game.settings && game.settings.pauseGameOnOverlay)) return false;
@@ -13292,7 +13292,7 @@ function checkUnlocks() {
     let starterTutorialGem = getStarterGemTutorialTarget();
     if (typeof stumpBoxUi === 'object') stumpBoxUi.checkStumpBoxUnlock();
     if (!(game.seenTutorials || []).includes('tutorial_battle_basics')) {
-        queueTutorialNotice('tutorial_battle_basics', '첫 여정', '전투는 자동입니다. 캐릭터가 알아서 걷고 공격합니다.\n지금 할 일은 오른쪽 위 ‘목표’에 나옵니다.\n생명 구슬이 자주 비면 장비와 저항을 점검하세요.\n장비나 젬을 얻으면 그때마다 조작을 안내합니다.');
+        queueTutorialNotice('tutorial_battle_basics', '첫 여정', '전투는 자동입니다. 캐릭터가 알아서 걷고 공격합니다.\n지금 할 일은 오른쪽 위 ‘목표’에 나옵니다.\n생명 구슬이 자주 비면 장비와 저항을 점검하세요.\n장비나 룬을 얻으면 그때마다 조작을 안내합니다.');
     }
     if (game.level >= 2 && !u.char) {
         u.char = true;
@@ -13313,7 +13313,7 @@ function checkUnlocks() {
     if ((game.skills.length > 1 || game.supports.length > 0) && !u.skills && !starterTutorialGem) {
         u.skills = true;
         game.noti.skills = true;
-        queueTutorialNotice('unlock_skills', '새 스킬 젬', '새 젬을 얻었습니다.\n‘스킬 젬’에서 젬을 눌러 효과를 보고 공격 젬을 바꿔 보세요.', 'tab-skills');
+        queueTutorialNotice('unlock_skills', '새 스킬룬', '새 룬을 얻었습니다.\n‘스킬룬’에서 룬을 눌러 효과를 보고 공격 룬을 바꿔 보세요.', 'tab-skills');
     }
     // 도감이 잠겨 있을 때만 인벤토리 전체를 훑는다. (이미 해금된 뒤에도 매 드랍마다
     // O(인벤토리) 스캔을 돌면 대량 처치/드랍 시 스파이크가 생긴다.)
@@ -13822,7 +13822,7 @@ function getLockedTabMessage(tabId) {
     if (tabId === 'tab-char') return '레벨 2에 도달하면 스킬트리가 열립니다.';
     if (tabId === 'tab-season') return '루프 1을 클리어하면 루프 탭이 열립니다.';
     if (tabId === 'tab-items') return '장비나 제작 재화를 얻으면 장비/제작 탭이 열립니다.';
-    if (tabId === 'tab-skills') return '새 스킬 젬이나 보조 젬을 획득하면 스킬 젬 탭이 열립니다.';
+    if (tabId === 'tab-skills') return '새 스킬룬이나 보조스킬룬을 획득하면 스킬룬 탭이 열립니다.';
     if (tabId === 'tab-codex') return '첫 고유 아이템을 획득하면 도감 탭이 열립니다.';
     if (tabId === 'tab-map') return '액트 1을 마치면 지도가 열립니다.';
     if (tabId === 'tab-traits') return '전직 시련을 통과하면 전직 탭이 열립니다.';
@@ -13906,7 +13906,7 @@ async function enhanceUnderworldRune(){
     Object.entries(cost).forEach(([key, value]) => { game.currencies[key] -= value; });
     state.enhanceLvByNo[no] = level + 1;
     ensureUnderworldRuneBonusMilestones(no);
-    addLog(`룬 강화 성공: ${getUnderworldRuneDef(no).name} +${level+1} (보너스 옵션 ${state.bonusLinesByNo[no].length}줄)`, 'loot-unique');
+    addLog(`지하석 강화 성공: ${getUnderworldRuneDef(no).name} +${level+1} (보너스 옵션 ${state.bonusLinesByNo[no].length}줄)`, 'loot-unique');
     updateStaticUI(); queueImportantSave(200);
 }
 async function rerollUnderworldRuneBonus(){
@@ -13917,6 +13917,6 @@ async function rerollUnderworldRuneBonus(){
     Object.entries(cost).forEach(([key, value]) => { game.currencies[key] -= value; });
     state.bonusLinesByNo[no] = Array.from({length:lineCount}, () => rollUnderworldRuneBonusLine());
     const text = state.bonusLinesByNo[no].map(row => `${getStatName(row.stat)} +${formatValue(row.stat,row.val)}`).join(' / ');
-    addLog(`룬 옵션 리롤: ${getUnderworldRuneDef(no).name}, ${text}`, 'season-up');
+    addLog(`지하석 옵션 리롤: ${getUnderworldRuneDef(no).name}, ${text}`, 'season-up');
     updateStaticUI(); queueImportantSave(200);
 }

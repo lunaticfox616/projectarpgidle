@@ -2,7 +2,7 @@
 // 아틀라스 지도 한 판을 오프라인 정산(js/combat-replay-projection.js)과 같은 실제 처치 경로로 끝까지 정리한다: 무리 전원 처치
 // (handleEnemyDeath), 상자 · 항아리 · 사건 열기(actExplorationProgress.objects.settleProjected), 보스 처치와 지도 완료
 // (finishEncounterRun). 드랍 규칙은 게임 코드 그대로이고, 여기서는 받은 것을 기록만 한다. 기록하려고 감싸는 곳은 받는 끝(가방에
-// 넣기, 주얼 받기, 야생 부적 알림, 젬 보상)뿐이고, 감싼 함수도 원래 계산을 그대로 부른다(가방에 넣기만 넣지 않는다: 가방 한도와
+// 넣기, 주얼 받기, 야생 부적 알림, 룬 보상)뿐이고, 감싼 함수도 원래 계산을 그대로 부른다(가방에 넣기만 넣지 않는다: 가방 한도와
 // 습득 조건이 드랍을 가리지 않게).
 var dropSimulation = (() => {
     'use strict';

@@ -1,16 +1,16 @@
 // 스킬 이펙트 묶음 (js/canvas-stage-skill-vfx.js). scripts/build-stage-skill-vfx.cjs가 만든 표다: 손으로 고치지 않는다.
-// 2026-10-13 사용자가 준 "스킬젬 리메이크 인계"에서 이펙트만 옮겼다: 구매 팩에서 고른 이펙트 그림 한 장(assets/stage-vfx/vfx.png,
-// 저장소에 넣지 않는다)과 젬마다 어느 클립을 어느 때 쓰는지. 젬의 판정, 무기 조건, 수치는 옮기지 않았다(게임의 것 그대로).
+// 2026-10-13 사용자가 준 "스킬룬 리메이크 인계"에서 이펙트만 옮겼다: 구매 팩에서 고른 이펙트 그림 한 장(assets/stage-vfx/vfx.png,
+// 저장소에 넣지 않는다)과 룬마다 어느 클립을 어느 때 쓰는지. 룬의 판정, 무기 조건, 수치는 옮기지 않았다(게임의 것 그대로).
 //   ramps   색 램프: 어두운 쪽에서 밝은 쪽으로 여섯 단계. 클립을 '이름@램프'로 부르면 그림의 밝기를 이 여섯 색으로 다시 칠한다('@='는 원래 색).
-//   elementRamp 속성 → 램프. 젬이 램프를 정하지 않은 클립은 젬의 속성 색으로 칠한다.
+//   elementRamp 속성 → 램프. 룬이 램프를 정하지 않은 클립은 룬의 속성 색으로 칠한다.
 //   elements 속성의 세 색(c1 밝은색, c2 중간색, c3 어두운색): 코드로 그리는 연출(마법진, 바늘, 창과 독니)이 쓴다.
 //   atlas   클립 원본: w, h 한 칸의 크기, n 칸 수, p 밝기의 범위(다시 칠할 때의 기준), fx 칸마다의 자리, fb 칸마다 그림이 차지하는 상자.
 //   clips   클립: a 원본, f 쓰는 칸의 처음과 끝, an 기준점(center 가운데, bottom 바닥, left 왼쪽, right 오른쪽), sc 배율, ms 한 칸의 시간,
 //           loop 반복, one 넓은 범위에도 하나만, few 고리에 적게, small 타격 효과로 쓸 때 줄이지 않음, next 이어지는 클립, flat 바닥에 눕히는 비율.
-//   swingClips 무기 휘두름의 기본 클립(젬이 휘두름을 정하지 않았을 때).
-//   gems    젬 번호(data/skill-fx-atlas.js의 id) → 훅: 클립. swing 휘두름, chop 내려찍기, impact 내려찍은 자리, hit 맞은 적, area 범위,
+//   swingClips 무기 휘두름의 기본 클립(룬이 휘두름을 정하지 않았을 때).
+//   gems    룬 번호(data/skill-fx-atlas.js의 id) → 훅: 클립. swing 휘두름, chop 내려찍기, impact 내려찍은 자리, hit 맞은 적, area 범위,
 //           after 여진, wave 나아가는 파동, zap 연쇄 번개, fall 낙하, tick 지속 타격, muzzle 발사 섬광, blast 착탄 … (인계의 02_이펙트_연결표.md).
-//   meta    젬 번호 → 인계의 젬 갈래: el 속성, cast 시전 마법진을 띄우는 젬, melee 근접 타격 모양을 쓰는 젬, kind 인계의 판정 갈래.
+//   meta    룬 번호 → 인계의 룬 갈래: el 속성, cast 시전 마법진을 띄우는 룬, melee 근접 타격 모양을 쓰는 룬, kind 인계의 판정 갈래.
 const STAGE_SKILL_VFX = Object.freeze({
     path: 'assets/stage-vfx/',
     file: 'vfx.png',

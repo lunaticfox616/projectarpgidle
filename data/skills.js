@@ -33,11 +33,11 @@ const SKILL_DB = {
     '기본 공격': { isGem: false, levelable: true, baseDmg: 1.0, baseSpd: 1.0, dmgScale: 0.05, spdScale: 0.01, leech: 0, crit: 0, ele: 'phys', targetMode: 'single', targets: 1, desc: '가장 가까운 적 하나를 가격합니다. 레벨업당 피해 배율 +5%, 공격 속도 +1%가 적용됩니다.', tags: ['attack', 'melee', 'physical'] },
     '연속 베기': { isGem: true, baseDmg: 0.45, baseSpd: 1.8, leech: 0, crit: 0, dmgScale: 0.03, spdScale: 0.04, ele: 'phys', multiHit: 2, repeatHitDamagePct: 45, targetMode: 'cleave', targets: 2, desc: '빠르게 두 번 벱니다. 두 번째 베기는 첫 타격 피해의 45%를 줍니다.', tags: ['attack', 'melee', 'physical'] },
     '묵직한 강타': { isGem: true, baseDmg: 2.5, baseSpd: 0.5, leech: 0, crit: 5, dmgScale: 0.15, spdScale: 0, ele: 'phys', targetMode: 'single', targets: 1, aftershockDamagePct: 38, aftershockDelayMs: 420, desc: '총 피해의 62%를 본 타격으로 주고, 0.42초 후 나머지 38%를 여진으로 가합니다.', tags: ['attack', 'melee', 'physical', 'slam'] },
-    '흡혈 타격': { isGem: true, baseDmg: 1.05, baseSpd: 1.0, leech: 0.5, instantLeech: true, crit: 0, dmgScale: 0.05, spdScale: 0, ele: 'chaos', targetMode: 'single', targets: 1, desc: '카오스 피해와 흡혈이 붙은 일격입니다. 이 젬을 사용해서 주는 피해에는 흡혈이 즉시 적용됩니다.', tags: ['attack', 'melee', 'chaos'] },
+    '흡혈 타격': { isGem: true, baseDmg: 1.05, baseSpd: 1.0, leech: 0.5, instantLeech: true, crit: 0, dmgScale: 0.05, spdScale: 0, ele: 'chaos', targetMode: 'single', targets: 1, desc: '카오스 피해와 흡혈이 붙은 일격입니다. 이 룬을 사용해서 주는 피해에는 흡혈이 즉시 적용됩니다.', tags: ['attack', 'melee', 'chaos'] },
     '암살자의 일격': { isGem: true, baseDmg: 1.35, baseSpd: 0.9, leech: 0, crit: 15, dmgScale: 0.05, spdScale: 0.01, ele: 'phys', fullLifeDamageMorePct: 35, targetMode: 'single', targets: 1, desc: '생명력이 가득 찬 적에게 35% 증폭된 피해를 주는 선제 처형기입니다.', tags: ['attack', 'melee', 'physical'] },
     '회오리바람': { isGem: true, baseDmg: 0.34, baseSpd: 1.65, leech: 0, crit: 0, dmgScale: 0.014, spdScale: 0.04, ele: 'phys', crowdDamageMorePerEnemyPct: 4, crowdDamageMoreCapPct: 28, targetMode: 'whirl', targets: 8, desc: '0.08초마다 회전하며 그 순간 서 있는 칸 둘레의 아직 베지 않은 적을 하나씩 벱니다(움직이는 중에도 이어짐). 자신을 포위한 적 한 기당 피해가 4%씩 최대 28% 증폭됩니다.', tags: ['attack', 'melee', 'physical', 'aoe'] },
     '번개 타격': { isGem: true, baseDmg: 1.15, baseSpd: 1.15, leech: 0, crit: 5, dmgScale: 0.06, spdScale: 0.03, ele: 'light', chainStepDamagePct: -12, ailmentChanceBonus: { shock: 25 }, targetMode: 'chain', targets: 3, desc: '첫 대상을 강하게 타격한 뒤 연쇄됩니다. 도약마다 피해가 12% 감소하고 감전 확률이 25% 증가합니다.', tags: ['attack', 'melee', 'elemental', 'lightning', 'chain'] },
-    '얼음 창': { isGem: true, baseDmg: 1.7, baseSpd: 0.75, leech: 0, crit: 8, critScale: 0.5, dmgScale: 0.1, spdScale: 0, ele: 'cold', projectileTravelTimeMultiplier: 0.28, projectilePattern: { mode: 'pierce', kind: 'line' }, targetMode: 'pierce', targets: 2, desc: '매우 빠른 빙창이 적 둘을 꿰뚫습니다. 추가 치명타는 젬 레벨에 따라 성장합니다.', tags: ['attack', 'projectile', 'elemental', 'cold'] },
+    '얼음 창': { isGem: true, baseDmg: 1.7, baseSpd: 0.75, leech: 0, crit: 8, critScale: 0.5, dmgScale: 0.1, spdScale: 0, ele: 'cold', projectileTravelTimeMultiplier: 0.28, projectilePattern: { mode: 'pierce', kind: 'line' }, targetMode: 'pierce', targets: 2, desc: '매우 빠른 빙창이 적 둘을 꿰뚫습니다. 추가 치명타는 룬 레벨에 따라 성장합니다.', tags: ['attack', 'projectile', 'elemental', 'cold'] },
     '화염 참격': { isGem: true, baseDmg: 1.16, baseSpd: 1.05, leech: 0, crit: 5, dmgScale: 0.065, spdScale: 0.02, ele: 'fire', targetMode: 'cleave', targets: 2, ailmentChanceBonus: { ignite: 25 }, activeAilmentDamageMore: { type: 'ignite', pct: 15 }, desc: '점화 확률 +25%. 점화 중인 적에게 주는 적중 피해가 15% 증폭됩니다.', tags: ['attack', 'melee', 'elemental', 'fire'] },
     '독창 투척': { isGem: true, baseDmg: 0.92, baseSpd: 1.15, leech: 0, crit: 8, dmgScale: 0.045, spdScale: 0.03, ele: 'chaos', projectilePattern: { mode: 'chain', kind: 'chain' }, targetMode: 'chain', targets: 2, ailmentChanceBonus: { poison: 30 }, ailmentSpreadOnHit: { type: 'poison', chance: 0.65, targets: 1 }, desc: '중독 확률 +30%. 중독된 적을 적중하면 65% 확률로 다른 적 하나에게 중독을 전파합니다.', tags: ['attack', 'projectile', 'chaos'] },
     '서리 폭발': { isGem: true, baseDmg: 1.45, baseSpd: 0.8, leech: 0, crit: 12, dmgScale: 0.09, spdScale: 0.01, ele: 'cold', combatPattern: { kind: 'radialBurst', waveMsPerCell: 90 }, ailmentChanceBonus: { chill: 100, freeze: 25 }, activeAilmentDamageMore: { type: 'freeze', pct: 20 }, targetMode: 'all', targets: 99, desc: '목표 지점에서 서리 파동이 원형으로 퍼져 닿는 적부터 피해를 줍니다. 동결 확률이 25% 증가하고, 이미 동결된 적에게 주는 피해가 20% 증폭됩니다.', tags: ['attack', 'aoe', 'elemental', 'cold'] },
@@ -56,7 +56,7 @@ const SKILL_DB = {
     '심연 전염': { isGem: true, baseDmg: 0.28, baseSpd: 0.88, leech: 0, crit: 0, dmgScale: 0.018, spdScale: 0.01, ele: 'chaos', targetMode: 'chain', targets: 4, dotMultiplier: 1.42, spellFlatBase: 21, spellFlatScale: 4.9, dotTransferOnDeath: { targets: 1, remainingDamagePct: 100 }, desc: '2칸 이내의 적에게 차례로 감염이 건너갑니다. 감염된 적이 처치되면 남은 지속 피해를 다른 적 하나에게 이전합니다.', tags: ['spell', 'dot', 'chaos', 'aoe'] },
     '독니 사출': { isGem: true, baseDmg: 1.18, baseSpd: 1.18, leech: 0, crit: 7, dmgScale: 0.06, spdScale: 0.03, ele: 'chaos', projectilePattern: { mode: 'return', kind: 'line' }, targetMode: 'pierce', targets: 3, combatPattern: { kind: 'boomerang', returnDelayMs: 160 }, desc: '독니가 적을 관통한 뒤 되돌아오며, 왕복 타격이 각각 기존 피해의 50%를 줍니다.', tags: ['attack', 'projectile', 'chaos'] },
     // 2026-10-07 사용자 결정: 너무 약했다(한 대상 실제 피해가 기본 공격보다 낮았다). 가운데 화살 0.36 → 0.92(한 대상 DPS를 다른
-    // 직업 시작 젬 중앙값의 0.8배 안으로), 옆 화살 34% → 40%,
+    // 직업 시작 룬 중앙값의 0.8배 안으로), 옆 화살 34% → 40%,
     // 부채꼴은 8방향(45도, 90도)에서 대상을 겨눈 20도 간격으로 좁혔다(SKILL_GRID_DB spreadDeg; 15도는 9×8 판에서 화살 줄이 겹쳤다).
     '연발 사격': { isGem: true, baseDmg: 0.92, baseSpd: 1.18, leech: 0, crit: 5, dmgScale: 0.018, spdScale: 0.025, ele: 'phys', extraProjectileDamagePct: 40, projectilePattern: { mode: 'fan', kind: 'fan', rays: 5 }, targetMode: 'spread', targets: 5, desc: '전방 좁은 부채꼴(20도 간격)로 화살 5발을 쏩니다. 가운데 화살은 대상을 겨누고, 옆 화살은 각각 기본 타격 피해의 40%로 그 방향의 다른 적을 맞힙니다.', tags: ['attack', 'projectile', 'physical'] },
     '폭열 창탄': { isGem: true, baseDmg: 1.0, baseSpd: 1.02, leech: 0, crit: 8, dmgScale: 0.06, spdScale: 0.03, ele: 'fire', projectilePattern: { mode: 'delayedBlast', kind: 'line' }, targetMode: 'pierce', targets: 4, ailmentChanceBonus: { ignite: 25 }, periodicOnHit: { chance: 1, hits: 1, interval: 0.25, damagePct: 25, ele: 'fire' }, desc: '관통 후 0.25초 뒤 타격 피해의 25%로 폭발하며 점화 확률이 25% 증가합니다.', tags: ['attack', 'projectile', 'fire', 'elemental'] },
@@ -74,26 +74,26 @@ const SKILL_DB = {
     '그림자 점멸': { isGem: true, baseDmg: 1.68, baseSpd: 0.56, leech: 0, crit: 14, dmgScale: 0.085, spdScale: 0.008, ele: 'chaos', targetMode: 'single', targets: 1, mobilityPattern: { kind: 'blink', maxCells: 6 }, desc: '최대 6칸 안의 적 옆으로 점멸해 베어냅니다. 같은 칸을 반복 왕복하지 않으며 낮은 공격 속도로 재사용을 제한합니다.', tags: ['attack', 'melee', 'chaos', 'mobility'] },
     '용화 숨결': { isGem: true, baseDmg: 0.5, baseSpd: 0.68, leech: 0, crit: 5, dmgScale: 0.027, spdScale: 0.012, ele: 'fire', targetMode: 'spread', targets: 5, spellFlatBase: 19, spellFlatScale: 4.4, combatPattern: { kind: 'channel', hits: 4, intervalMs: 220, damagePct: 27 }, ailmentChanceBonus: { ignite: 25 }, desc: '이동을 멈추고 전방 부채꼴을 좌우로 오가는 불길로 4회 쓸어냅니다. 군중 제어에 걸리면 남은 숨결이 취소됩니다.', tags: ['spell', 'fire', 'aoe', 'channeling'] },
     // 위습 정령 소환 6종 (스킬 변경분 2, 2026-09-30): 동물 소환 8종을 대신한다. 시트·비행 시간 data/wisp-summons.js, 수치 combat.js getSummonProfile.
-    '화염 위습 소환': { isGem: true, baseDmg: 0.1, baseSpd: 1.0, leech: 0, crit: 0, dmgScale: 0, spdScale: 0, ele: 'fire', targetMode: 'single', targets: 1, desc: '공격형 소환수 젬. 상하좌우로 불꽃 꼬리가 달린 화염 위습 정령을 소환합니다. 위습이 불덩이를 포물선으로 던져 화염 피해를 줍니다.', tags: ['summon', 'summon_attack', 'fire', 'elemental'] },
-    '냉기 위습 소환': { isGem: true, baseDmg: 0.1, baseSpd: 1.0, leech: 0, crit: 0, dmgScale: 0, spdScale: 0, ele: 'cold', targetMode: 'single', targets: 1, desc: '공격형 소환수 젬. 얼음 수정 모양의 냉기 위습 정령을 소환합니다. 위습이 얼음 조각을 곧게 던져 냉기 피해를 줍니다.', tags: ['summon', 'summon_attack', 'cold', 'elemental'] },
-    '번개 위습 소환': { isGem: true, baseDmg: 0.1, baseSpd: 1.0, leech: 0, crit: 0, dmgScale: 0, spdScale: 0, ele: 'light', targetMode: 'single', targets: 1, desc: '공격형 소환수 젬. 전기 구체 모양의 번개 위습 정령을 소환합니다. 위습이 대상에게 전류를 흘려 감전시키는 번개 피해를 줍니다.', tags: ['summon', 'summon_attack', 'lightning', 'elemental'] },
-    '물리 위습 소환': { isGem: true, baseDmg: 0.1, baseSpd: 1.0, leech: 0, crit: 0, dmgScale: 0, spdScale: 0, ele: 'phys', targetMode: 'single', targets: 1, desc: '공격형 소환수 젬. 고목 씨앗 모양의 물리 위습 정령을 소환합니다. 위습이 땅속으로 뿌리를 보내 대상을 옭아매는 물리 피해를 줍니다.', tags: ['summon', 'summon_attack', 'physical'] },
-    '카오스 위습 소환': { isGem: true, baseDmg: 0.1, baseSpd: 1.0, leech: 0, crit: 0, dmgScale: 0, spdScale: 0, ele: 'chaos', targetMode: 'single', targets: 1, desc: '공격형 소환수 젬. 눈이 하나 있는 보라빛 구체의 카오스 위습 정령을 소환합니다. 위습이 공허 구슬을 포물선으로 던지고 떨어진 자리에 카오스 안개를 남깁니다.', tags: ['summon', 'summon_attack', 'chaos'] },
-    '분광 위습 소환': { isGem: true, baseDmg: 0.1, baseSpd: 1.0, leech: 0, crit: 0, dmgScale: 0, spdScale: 0, ele: 'light', elementLabel: '삼원소', targetMode: 'single', targets: 1, desc: '공격형 소환수 젬. 화염/냉기/번개 세 구체가 서로 도는 분광 위습 정령을 소환합니다. 위습이 삼원소가 꼬인 광선을 쏘아 공격마다 화염/냉기/번개 중 하나로 피해를 줍니다.', tags: ['summon', 'summon_attack', 'elemental'] }
+    '화염 위습 소환': { isGem: true, baseDmg: 0.1, baseSpd: 1.0, leech: 0, crit: 0, dmgScale: 0, spdScale: 0, ele: 'fire', targetMode: 'single', targets: 1, desc: '공격형 소환수 룬. 상하좌우로 불꽃 꼬리가 달린 화염 위습 정령을 소환합니다. 위습이 불덩이를 포물선으로 던져 화염 피해를 줍니다.', tags: ['summon', 'summon_attack', 'fire', 'elemental'] },
+    '냉기 위습 소환': { isGem: true, baseDmg: 0.1, baseSpd: 1.0, leech: 0, crit: 0, dmgScale: 0, spdScale: 0, ele: 'cold', targetMode: 'single', targets: 1, desc: '공격형 소환수 룬. 얼음 수정 모양의 냉기 위습 정령을 소환합니다. 위습이 얼음 조각을 곧게 던져 냉기 피해를 줍니다.', tags: ['summon', 'summon_attack', 'cold', 'elemental'] },
+    '번개 위습 소환': { isGem: true, baseDmg: 0.1, baseSpd: 1.0, leech: 0, crit: 0, dmgScale: 0, spdScale: 0, ele: 'light', targetMode: 'single', targets: 1, desc: '공격형 소환수 룬. 전기 구체 모양의 번개 위습 정령을 소환합니다. 위습이 대상에게 전류를 흘려 감전시키는 번개 피해를 줍니다.', tags: ['summon', 'summon_attack', 'lightning', 'elemental'] },
+    '물리 위습 소환': { isGem: true, baseDmg: 0.1, baseSpd: 1.0, leech: 0, crit: 0, dmgScale: 0, spdScale: 0, ele: 'phys', targetMode: 'single', targets: 1, desc: '공격형 소환수 룬. 고목 씨앗 모양의 물리 위습 정령을 소환합니다. 위습이 땅속으로 뿌리를 보내 대상을 옭아매는 물리 피해를 줍니다.', tags: ['summon', 'summon_attack', 'physical'] },
+    '카오스 위습 소환': { isGem: true, baseDmg: 0.1, baseSpd: 1.0, leech: 0, crit: 0, dmgScale: 0, spdScale: 0, ele: 'chaos', targetMode: 'single', targets: 1, desc: '공격형 소환수 룬. 눈이 하나 있는 보라빛 구체의 카오스 위습 정령을 소환합니다. 위습이 공허 구슬을 포물선으로 던지고 떨어진 자리에 카오스 안개를 남깁니다.', tags: ['summon', 'summon_attack', 'chaos'] },
+    '분광 위습 소환': { isGem: true, baseDmg: 0.1, baseSpd: 1.0, leech: 0, crit: 0, dmgScale: 0, spdScale: 0, ele: 'light', elementLabel: '삼원소', targetMode: 'single', targets: 1, desc: '공격형 소환수 룬. 화염/냉기/번개 세 구체가 서로 도는 분광 위습 정령을 소환합니다. 위습이 삼원소가 꼬인 광선을 쏘아 공격마다 화염/냉기/번개 중 하나로 피해를 줍니다.', tags: ['summon', 'summon_attack', 'elemental'] }
 };
 
-// 루프 시작 후 첫 처치에 재능(시작 캐릭터)별로 확정 지급되는 스킬 젬.
+// 루프 시작 후 첫 처치에 재능(시작 캐릭터)별로 확정 지급되는 스킬룬.
 // 매 루프 "기본 공격"만 들고 시작하는 공백을 메우는 용도라, 각 재능의 주력 태그 안에서
-// 일부러 하위권 화력의 젬을 골랐다(강한 젬은 그대로 드랍/보상으로 찾는 재미를 유지).
+// 일부러 하위권 화력의 룬을 골랐다(강한 룬은 그대로 드랍/보상으로 찾는 재미를 유지).
 const LOOP_STARTER_GEM_BY_HERO = {
     hero1: '연발 사격',    // 궁수 (투사체) — 투사체 태그 중 하위권 화력
     hero2: '연속 베기',    // 전사 (근접·물리) — 근접/물리 태그 중 하위권 화력
     hero3: '서리 폭발',    // 드루이드 (원소) — 원소 태그 중 하위권 화력
     hero4: '흡혈 타격',    // 블레이드 (카오스) — 카오스 태그 중 하위권 화력, 컨셉(흡혈)은 유지
     hero5: '번개 타격',    // 성기사 (물리+번개) — 전사/수호자와 겹치지 않게 번개 계열로 차별화
-    hero6: '독니 사출',    // 저격수 (투사체) — 궁수와 다른 투사체 젬
+    hero6: '독니 사출',    // 저격수 (투사체) — 궁수와 다른 투사체 룬
     hero7: '물리 위습 소환', // 소환사 (소환) — 물리 속성 소환수
-    hero8: '중력 붕괴',    // 수호자 (근접·물리) — 전사와 다른 물리 젬(주문형)
+    hero8: '중력 붕괴',    // 수호자 (근접·물리) — 전사와 다른 물리 룬(주문형)
     hero9: '서리 폭발',    // 원소술사 (원소) — 원소 태그 중 하위권 화력
     hero10: '빙결 침식'    // 연금술사 (지속피해) — 지속피해 태그 중 하위권 화력
 };
@@ -139,16 +139,16 @@ for (const name of ['탄성 플라스크','폭발 혼합물','과냉각 혼합�
 // 작살화살's harpoon flies on its own rope: one straight shot that no engraving replaces.
 Object.assign(SKILL_DB['작살화살'], { projectilePattern: { mode: 'focus', kind: 'line', fixed: true },
     rangeText: '발사 방식: ' + SKILL_DB['작살화살'].rangeText + ', 고유 궤적' });
-/** 지운 젬 → 그 젬을 가진 저장이 대신 받는 젬 (2026-10-13 사용자: "인계에 없는 젬 5개는 삭제해줘". 스킬 이펙트 인계가 뺀 다섯 젬이다).
- * 젬 기록(레벨, 강화, 품질, 각성, 각인)은 대신 받는 젬으로 옮기고, 그 젬을 이미 가졌으면 더 자란 쪽을 남긴다
- * (js/save-migration-wisp-summons.js: 예전 소환 젬을 위습 젬으로 옮긴 길을 같이 쓴다). 끼고 있던 자리도 대신 받는 젬이 잇는다.
+/** 지운 룬 → 그 룬을 가진 저장이 대신 받는 룬 (2026-10-13 사용자: "인계에 없는 룬 5개는 삭제해줘". 스킬 이펙트 인계가 뺀 다섯 룬이다).
+ * 룬 기록(레벨, 강화, 품질, 각성, 각인)은 대신 받는 룬으로 옮기고, 그 룬을 이미 가졌으면 더 자란 쪽을 남긴다
+ * (js/save-migration-wisp-summons.js: 예전 소환 룬을 위습 룬으로 옮긴 길을 같이 쓴다). 끼고 있던 자리도 대신 받는 룬이 잇는다.
  * 고른 기준은 같은 속성과 같은 갈래(근접 공격, 주문, 이동기)다. 공중강타는 인계의 결정대로 방패 돌진이 대신한다. */
 const RETIRED_GEM_SUCCESSORS = Object.freeze({
     '삼원 파동': '화염 폭풍핵', '뇌격 삼연타': '번개 타격', '집중 광선': '천뢰 분기', '공허 절삭광': '암흑 파열', '공중강타': '방패 돌진'
 });
 safeExposeData({ SKILL_DB, LOOP_STARTER_GEM_BY_HERO, PROJECTILE_PATTERN_MODE_DB, RETIRED_GEM_SUCCESSORS });
 
-// signature 스킬은 전용 이미지 프레임을 재생한다. 모든 액티브 젬을 명시하여 누락을 검사한다.
+// signature 스킬은 전용 이미지 프레임을 재생한다. 모든 액티브 룬을 명시하여 누락을 검사한다.
 const SKILL_GEM_VFX_PROFILES = Object.freeze({
     '탄성 플라스크': {family:'worldTree',scale:1,impactVfx:false},
     '광창 강림': {family:'worldTree',scale:1,impactVfx:false},
@@ -264,7 +264,7 @@ const SKILL_SIGNATURE_SPRITES = Object.freeze({
 });
 safeExposeData({ SKILL_SIGNATURE_SPRITES });
 
-// 전투 젬 카드와 각인 공방에서 사용하는 고유 젬 초상화.
+// 전투 룬 카드와 각인 공방에서 사용하는 고유 룬 초상화.
 // 경로를 한 곳에서 관리해 카드, 툴팁, 각인 오버레이가 같은 이미지를 공유한다.
 const SKILL_GEM_ART_PATHS = Object.freeze({
     "탄성 플라스크": "assets/gems/world-tree/bouncing-flask.png",
@@ -329,7 +329,7 @@ const SKILL_GEM_ART_PATHS = Object.freeze({
 
 safeExposeData({ SKILL_GEM_ART_PATHS });
 
-// 스킬 젬별 8x8 그리드 공격 범위 프로필.
+// 스킬룬별 8x8 그리드 공격 범위 프로필.
 // kind:
 //  - melee: 플레이어 인접(range) 칸의 단일 대상만 타격
 //  - arc:   플레이어 기준 대상 방향 전방 부채꼴(대상 칸 + 플레이어·대상 모두에 인접한 칸)
@@ -394,7 +394,7 @@ const SKILL_GRID_DB = {
     '차원찢기':      { kind: 'blast', range: 4, radius: 1, shape: 'square' },
     '향로구름':      { kind: 'melee', range: 5 },
     '작살화살':      { kind: 'line',  range: 5 },
-    // 소환 젬 카드에는 소환수 본체가 실제로 사용하는 공격 사거리를 표시한다.
+    // 소환 룬 카드에는 소환수 본체가 실제로 사용하는 공격 사거리를 표시한다.
     '화염 위습 소환':   { kind: 'summon', range: 4 },
     '냉기 위습 소환':   { kind: 'summon', range: 4 },
     '번개 위습 소환':   { kind: 'summon', range: 3 },
@@ -434,7 +434,7 @@ const CONDITION_PATTERN_ACTION_DB = Object.freeze([
   { id:'position_auto', label:'기본 위치 운용', valueKind:'none', tactic:{ positionMode:'auto' } },
   { id:'position_pressure', label:'근접 압박', valueKind:'none', tactic:{ positionMode:'pressure' }, unlock:{ loop:8 } },
   { id:'position_keep_range', label:'거리 유지', valueKind:'none', tactic:{ positionMode:'keepRange' }, unlock:{ loop:10 } },
-  // 예전 귀환 젬: 조건이 맞으면 마을로 돌아간다(5초에 한 번, 열린 지도의 마지막 포털은 쓰지 않는다).
+  // 예전 귀환 룬: 조건이 맞으면 마을로 돌아간다(5초에 한 번, 열린 지도의 마지막 포털은 쓰지 않는다).
   { id:'return_town', label:'마을로 귀환', valueKind:'none', cooldownMs:5000, unlock:{ act:3 } }
 ]);
 

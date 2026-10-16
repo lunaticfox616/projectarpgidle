@@ -5,7 +5,7 @@
 const AFFIX_TAG_LABELS = Object.freeze({
     damage: '피해', attack: '공격', spell: '주문', summon: '소환', physical: '물리', elemental: '원소', fire: '화염', cold: '냉기',
     light: '번개', chaos: '카오스', crit: '치명', speed: '속도', dot: '지속', projectile: '투사체', melee: '근접', aoe: '범위',
-    target: '타겟', life: '생명', defense: '방어', resistance: '저항', recovery: '회복', penetration: '관통', attribute: '능력치', gem: '젬'
+    target: '타겟', life: '생명', defense: '방어', resistance: '저항', recovery: '회복', penetration: '관통', attribute: '능력치', gem: '룬'
 });
 
 const STAT_AFFIX_TAGS = Object.freeze(Object.fromEntries(Object.entries({
@@ -101,7 +101,7 @@ const AFFIX_TAG_LISTS = Object.freeze({
         physical: { lines: 'any', any: ['physical'], none: ['defense'] },
         defense: { lines: 'any', any: ['defense', 'life'], none: ['summon', 'recovery'] },
         speed: { lines: 'any', any: ['speed'], none: ['summon'] },
-        // 기폭제(12번 루프 32)만 주는 속성: 치명 줄, 소환수 줄(젬 레벨 줄은 빼고).
+        // 기폭제(12번 루프 32)만 주는 속성: 치명 줄, 소환수 줄(룬 레벨 줄은 빼고).
         crit: { lines: 'any', any: ['crit'] },
         summon: { lines: 'any', any: ['summon'], none: ['gem'] }
     },

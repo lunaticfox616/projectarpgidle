@@ -1,15 +1,15 @@
 /** 스킬 이펙트의 연결 규칙: 게임의 스킬 사건을 인계 받은 클립과 연출로 옮긴다 (data/stage-skill-vfx.js의 gems, 재생은
- * js/canvas-stage-skill-vfx.js, 코드로 그리는 연출은 js/canvas-stage-skill-draws.js). 인계 쪽 시뮬레이터가 젬을 쓸 때 클립을 트는
+ * js/canvas-stage-skill-vfx.js, 코드로 그리는 연출은 js/canvas-stage-skill-draws.js). 인계 쪽 시뮬레이터가 룬을 쓸 때 클립을 트는
  * 자리와 때를 게임의 사건에 맞춰 옮긴 것이다. 게임이 주는 사건은 셋이다.
  * - 시전 시작(js/canvas-world-tree-fx.js swing: 주인공이 스킬을 쓰기 시작한 순간): 시전 마법진과 외곽선 오라(주문, 위습, 시전과 집중
- *   슬롯의 젬), 위습을 부르는 클립.
+ *   슬롯의 룬), 위습을 부르는 클립.
  * - 맞은 적마다(js/canvas-battlefield.js queueSkillGemVfx): 휘두름(한 번의 공격에 한 번), 바늘 찌르기, 우주 틈, 맞은 적의 타격 클립,
  *   연쇄 번개, 지속 타격, 화염 부패의 구슬과 사망 폭발, 빙결 침식의 안개가 몸으로 감겨 드는 모습.
  * - 그림 사건(js/canvas-world-tree-fx.js renderEvent와 paintCast: 예비 windup, 날아가는 travel, 닿는 stage, 이동 mobility):
- *   범위 클립, 여진, 낙하, 파동, 발사 섬광. 투사체의 몸과 따로 시전하는 젬, 이동기는 js/canvas-stage-skill-casts.js가 맡는다.
- *   그 젬의 그때를 새 연출이 맡으면 참을 돌려 예전 그림을 대신한다. 맡지 않는 것은 예전 그림이 그대로 그린다: 룬 지뢰, 시간 가속,
- *   파문심판(인계도 게임의 옛 그림을 쓴다). 인계에서 빠진 젬 다섯은 2026-10-13에 게임에서도 지웠다.
- * 젬의 판정, 대상, 피해는 게임의 것 그대로다: 여기는 사건을 읽기만 한다.
+ *   범위 클립, 여진, 낙하, 파동, 발사 섬광. 투사체의 몸과 따로 시전하는 룬, 이동기는 js/canvas-stage-skill-casts.js가 맡는다.
+ *   그 룬의 그때를 새 연출이 맡으면 참을 돌려 예전 그림을 대신한다. 맡지 않는 것은 예전 그림이 그대로 그린다: 룬 지뢰, 시간 가속,
+ *   파문심판(인계도 게임의 옛 그림을 쓴다). 인계에서 빠진 룬 다섯은 2026-10-13에 게임에서도 지웠다.
+ * 룬의 판정, 대상, 피해는 게임의 것 그대로다: 여기는 사건을 읽기만 한다.
  */
 const stageSkillRules = (() => {
     const K = stageSkillKit, WIDE = K.WIDE, DEEP = K.DEEP, BODY = K.BODY;
@@ -19,14 +19,14 @@ const stageSkillRules = (() => {
     const WAVE_DRIFT = 0.35;                      // 파동이 대상의 줄 쪽으로 따라가는 몫(0 = 쓴 줄 그대로, 1 = 대상의 줄까지)
     const WAVE_BASE = -51;                        // 파동 그림의 가운데 높이(도트): 그림의 아래 끝(거품)이 바닥에 닿는다
     const handled = new WeakSet();                // 이미 클립으로 옮긴 사건
-    const swung = new Map();                      // "젬:공격 묶음:반복" → 휘두름을 튼 시각
+    const swung = new Map();                      // "룬:공격 묶음:반복" → 휘두름을 튼 시각
     const struck = new Map();                     // 적 id → 타격 클립을 붙인 시각
     const rots = new Map();                       // 적 id → 화염 부패의 구슬
-    /** 속성별 기본 타격 클립(젬이 타격을 정하지 않았을 때). 물리는 근접이면 X 섬광, 아니면 작은 가시 고리. */
+    /** 속성별 기본 타격 클립(룬이 타격을 정하지 않았을 때). 물리는 근접이면 X 섬광, 아니면 작은 가시 고리. */
     const ELEMENT_HIT = Object.freeze({ fire: 'h_fire@fire', cold: 'h_ice@cold', light: 'h_lit@light', chaos: 'h_chaos@chaos' });
-    /** 근접 젬이 휘두름을 정하지 않았을 때 쓰는 클립. */
+    /** 근접 룬이 휘두름을 정하지 않았을 때 쓰는 클립. */
     const PLAIN_SWING = 'crescent';
-    /** 휘두름을 제 단계에서 내는 젬(암살은 도착한 뒤의 베기 단계가 낸다). */
+    /** 휘두름을 제 단계에서 내는 룬(암살은 도착한 뒤의 베기 단계가 낸다). */
     const CAST_SWING = new Set([52]);
     /** 닿는 순간(stage)을 새 클립이 맡게 하는 훅. */
     const STAGE_HOOKS = Object.freeze(['shout', 'suck', 'area', 'ring', 'area2', 'land', 'seep', 'drop', 'orb']);
@@ -68,7 +68,7 @@ const stageSkillRules = (() => {
         } else return false;
         return true;
     }
-    /** 한 번의 공격에 한 번: 그 젬의 휘두름(여러 개면 반복마다 번갈아), 회전, 내려찍기. 둘째 타격은 조금 늦게 나간다. */
+    /** 한 번의 공격에 한 번: 그 룬의 휘두름(여러 개면 반복마다 번갈아), 회전, 내려찍기. 둘째 타격은 조금 늦게 나간다. */
     function rulePlaySwing(gem, fx, look) {
         const hero = K.heroSpot(), repeat = Number(fx.repeatIndex) || 0;
         if (rulePlayDrawn(gem, fx, look)) return;
@@ -78,8 +78,8 @@ const stageSkillRules = (() => {
         const [dx, dy] = ruleSwingOffset(ref);
         stageSkillVfx.play(ref, K.at(hero, look.face * dx, dy), { face: look.face, ramp: look.ramp, delay: repeat * 110 });
     }
-    /** 휘두름을 새 연출로 그리는 젬인가: 휘두름, 회전, 우주 틈, 찌르기가 정해졌거나, 정해지지 않은 근접 젬(기본 클립). 휘두름을 끈 젬과
-     * 휘두름 없는 이동기, 제 단계에서 휘두름을 내는 젬은 아니다. */
+    /** 휘두름을 새 연출로 그리는 룬인가: 휘두름, 회전, 우주 틈, 찌르기가 정해졌거나, 정해지지 않은 근접 룬(기본 클립). 휘두름을 끈 룬과
+     * 휘두름 없는 이동기, 제 단계에서 휘두름을 내는 룬은 아니다. */
     function ruleSwings(gem) {
         const swing = gem.map.swing;
         if (CAST_SWING.has(gem.id)) return false;
@@ -195,7 +195,7 @@ const stageSkillRules = (() => {
         if (map.blast) stageSkillVfx.play(map.blast, K.at(hit.victim, 0, BODY), { face: look.face, ramp: look.ramp, scale: 0.8 });
         if (map.orb) ruleStartRot(gem, hit);
     }
-    /** 지속 타격: 둘째부터의 타격과 장판의 틱에는 그 젬의 틱 클립이 붙는다. */
+    /** 지속 타격: 둘째부터의 타격과 장판의 틱에는 그 룬의 틱 클립이 붙는다. */
     function ruleTickExtras(gem, hit) {
         const tick = gem.map.tick;
         if (tick) stageSkillVfx.play(tick, K.at(hit.victim, 0, K.onGround(tick) ? 0 : -40), { face: hit.look.face, ramp: hit.look.ramp, hit: true });
@@ -223,7 +223,7 @@ const stageSkillRules = (() => {
     }
 
     // ---------------------------------------------------------------- cast start
-    /** 시전 시작: 주문, 위습, 시전과 집중 슬롯의 젬은 손 앞에 그 속성의 마법진이 서고 몸에 외곽선 오라가 돈다(예비 동작 동안).
+    /** 시전 시작: 주문, 위습, 시전과 집중 슬롯의 룬은 손 앞에 그 속성의 마법진이 서고 몸에 외곽선 오라가 돈다(예비 동작 동안).
      * 위습 소환은 예비 동작이 끝날 때 등 뒤에서 그 속성의 소환 클립이 튄다. */
     function ruleNoteWindup(fx) {
         const gem = fx.sourceCell && !handled.has(fx) && stageSkillVfx.ready() ? K.gemOf(fx.skillName) : null;
@@ -307,7 +307,7 @@ const stageSkillRules = (() => {
     }
 
     // ---------------------------------------------------------------- picture events
-    /** 그 젬의 그 사건을 새 클립이 맡는가: 젬이 가진 훅과 인계의 갈래로 정한다. */
+    /** 그 룬의 그 사건을 새 클립이 맡는가: 룬이 가진 훅과 인계의 갈래로 정한다. */
     const TAKES = Object.freeze({
         windup: gem => ruleSwings(gem) || !!gem.map.fall || !!gem.map.drop,
         stage: gem => ruleSwings(gem) || gem.meta.kind === 'chain' || STAGE_HOOKS.some(hook => gem.map[hook]),
@@ -345,7 +345,7 @@ const stageSkillRules = (() => {
     function ruleClaimEvent(event, view) {
         const gem = stageSkillVfx.ready() ? K.gemOf(event.skillName) : null;
         if (!gem) return false;
-        const cast = stageSkillCasts.claim(gem, event, view);   // 투사체의 몸, 따로 시전하는 젬, 이동기
+        const cast = stageSkillCasts.claim(gem, event, view);   // 투사체의 몸, 따로 시전하는 룬, 이동기
         if (cast !== null) return cast;
         rulePlayEvent(gem, event, view.now);
         const mine = ruleTakes(gem, event.kind);
@@ -372,16 +372,16 @@ const stageSkillRules = (() => {
             at = clip && clip.next ? clip.next + '@' + at.split('@')[1] : null;
         }
     }
-    /** 그 젬이 한 속성으로 틀 수 있는 클립 이름: 연결표의 것, 정해지지 않은 근접 젬의 기본 휘두름, 타격 클립, 위습이면 위습의 타격. */
+    /** 그 룬이 한 속성으로 틀 수 있는 클립 이름: 연결표의 것, 정해지지 않은 근접 룬의 기본 휘두름, 타격 클립, 위습이면 위습의 타격. */
     function ruleGemClips(gem, element) {
         const names = ruleClipNames(gem.map);
         if (ruleSwings(gem) && !gem.map.swing) names.push(PLAIN_SWING);
         names.push(ruleHitRef(gem, element) || '', gem.meta.kind === 'wisp' ? stageSkillCasts.wispHit(element) : '');
         return names.filter(Boolean);
     }
-    /** 그 젬이 틀 수 있는 클립('이름@램프')을 모두 든다: 낀 젬의 띠를 미리 만들어 두려고 묻는다(js/canvas-stage-warmup.js).
-     * elements: 그 젬의 타격이 띨 수 있는 속성(젬의 속성은 언제나 넣는다). 실제로 트는 것보다 조금 넉넉하다(램프를 정하는 값이
-     * 타격마다 달라질 수 있어, 있을 수 있는 램프를 모두 든다). 인계에 없는 젬이면 빈 목록. */
+    /** 그 룬이 틀 수 있는 클립('이름@램프')을 모두 든다: 낀 룬의 띠를 미리 만들어 두려고 묻는다(js/canvas-stage-warmup.js).
+     * elements: 그 룬의 타격이 띨 수 있는 속성(룬의 속성은 언제나 넣는다). 실제로 트는 것보다 조금 넉넉하다(램프를 정하는 값이
+     * 타격마다 달라질 수 있어, 있을 수 있는 램프를 모두 든다). 인계에 없는 룬이면 빈 목록. */
     function ruleClipsOf(skillName, elements) {
         const gem = K.gemOf(skillName), refs = [];
         if (!gem) return refs;

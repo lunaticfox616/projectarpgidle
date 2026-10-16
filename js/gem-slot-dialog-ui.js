@@ -1,11 +1,11 @@
-// 젬 칸 창(2026-10-11 사용자): 보드에서 칸을 누르면 바로 뜬다. 지금 낀 젬(등급, 해제, 소환 수, 강화와 각인)과 그 칸에 바꿔 낄 젬
+// 룬 칸 창(2026-10-11 사용자): 보드에서 칸을 누르면 바로 뜬다. 지금 낀 룬(등급, 해제, 소환 수, 강화와 각인)과 그 칸에 바꿔 낄 룬
 // 목록(수치 포함)을 한곳에 둔다. 틀은 공용 선택 창(js/selection-dialog-ui.js)이고, 장착 규칙(한도, 공명력, 전투 중 잠금)은 기존
 // 함수(changeSkill, toggleSupport, setSupportActiveTier, changeSummonSkillCount)가 그대로 갖는다. 이 파일은 그 함수를 순서대로 부를 뿐이다.
 (function () {
     'use strict';
 
     const DIALOG_ID = 'gem-slot-dialog';
-    const TITLES = Object.freeze({ active: '주 공격 칸', mobility: '이동 칸', summon: '소환 칸', support: '보조 젬 칸' });
+    const TITLES = Object.freeze({ active: '주 공격 칸', mobility: '이동 칸', summon: '소환 칸', support: '보조스킬룬 칸' });
     const BORDERS = Object.freeze({ support: '#2bcbba', attack: '#ff5252' });
     /** The slot the open dialog edits. name: the gem in it ('' = empty); query: the search text; before: DPS before the last change.
      * @type {{kind: 'active'|'mobility'|'summon'|'support', name: string, query: string, before: number|null}|null} */
@@ -93,7 +93,7 @@
     }
 
     const slotToneClass = name => (isSupportSlot() ? ` is-tone-${supportGemSigil.tone(name)}` : ` element-${getGemCardMeta(SKILL_DB[name]).className}`);
-    // data-info-tooltip-anchor: 마우스가 젬 위에 있는 동안 툴팁을 지우지 않게 한다(js/ui.js의 mousemove 감시).
+    // data-info-tooltip-anchor: 마우스가 룬 위에 있는 동안 툴팁을 지우지 않게 한다(js/ui.js의 mousemove 감시).
     const HINT_HANDLERS = 'data-info-tooltip-anchor="1" onpointerenter="gemSlotDialog.hint(event,this)" onpointerleave="hideInfoTooltip()"';
 
     function slotCardHtml(name, stats, state) {
@@ -113,7 +113,7 @@
         const definitions = isSupportSlot() ? SUPPORT_GEM_DB : SKILL_DB;
         const rows = slotCandidates().filter(name => matchSearchQuery(window.getGemSearchText(name, definitions[name]), slot.query))
             .map(name => ({ name, state: slotGemState(name, stats) })).sort((a, b) => a.state.rank - b.state.rank);
-        if (!rows.length) return '<p class="gem-slot-empty">조건에 맞는 젬이 없습니다.</p>';
+        if (!rows.length) return '<p class="gem-slot-empty">조건에 맞는 룬이 없습니다.</p>';
         return rows.map(row => slotCardHtml(row.name, stats, row.state)).join('');
     }
 
@@ -123,7 +123,7 @@
         const buttons = rows.map(row => `<button type="button" class="gem-slot-tier" data-slot-action="tier" data-tier="${row.tier}" aria-pressed="${row.active}" ${row.open ? '' : 'disabled'}>
             <b>${row.label}</b><span>${supportValueText(name, row.value)}</span><small>${row.open ? `공명 ${row.cost}` : '잠김'}</small></button>`).join('');
         const note = rows.every(row => row.open) ? '' : '<small class="gem-slot-tier-note">잠긴 등급은 성장과 각인에서 엽니다.</small>';
-        return `<div class="gem-slot-tiers" role="group" aria-label="보조 젬 등급">${buttons}</div>${note}`;
+        return `<div class="gem-slot-tiers" role="group" aria-label="보조스킬룬 등급">${buttons}</div>${note}`;
     }
 
     function slotCountButtons(name) {
@@ -151,11 +151,11 @@
 
     function slotCurrentHtml(stats) {
         const name = slot.name;
-        if (!name) return '<div class="gem-slot-current is-empty"><strong>비어 있는 칸</strong><p>아래에서 낄 젬을 고르세요.</p></div>';
+        if (!name) return '<div class="gem-slot-current is-empty"><strong>비어 있는 칸</strong><p>아래에서 낄 룬을 고르세요.</p></div>';
         const info = getUiGemPresentation(name, isSupportSlot(), stats);
         return `<div class="gem-slot-current${slotToneClass(name)}">
             <div class="gem-slot-current-main" data-slot-gem="${escapeHTML(name)}" ${HINT_HANDLERS}>${slotArtHtml(name, 'gem-slot-current-art', true)}
-                <div class="gem-slot-current-copy"><small>지금 낀 젬</small><strong>${escapeHTML(name)}${info.totalLevel ? `<i>Lv.${formatValue('', info.totalLevel)}</i>` : ''}</strong>
+                <div class="gem-slot-current-copy"><small>지금 낀 룬</small><strong>${escapeHTML(name)}${info.totalLevel ? `<i>Lv.${formatValue('', info.totalLevel)}</i>` : ''}</strong>
                 <span class="gem-slot-numbers">${gemNumbersHtml(name, stats)}</span><p>${statToneText.html(info.desc || '')}</p><em>${escapeHTML(slotReachText(name, stats))}</em></div></div>
             <div class="gem-slot-controls">${CONTROLS[slot.kind](name, stats)}</div></div>`;
     }
@@ -172,7 +172,7 @@
         if (stats.summonDps > 0) parts.push(`<span>소환 DPS <b>${wholeNumber(stats.summonDps)}</b></span>`);
         if (isSupportSlot()) {
             const cap = getEffectiveResonanceCap(stats), used = game.equippedSupports.reduce((sum, gem) => sum + getSupportTierResonanceCost(gem), 0);
-            parts.push(`<span>공명력 <b>${Math.max(0, cap - used)}</b> / ${cap}</span>`, `<span>보조 젬 <b>${game.equippedSupports.length}</b> / ${Math.floor(stats.suppCap || 0)}칸</span>`);
+            parts.push(`<span>공명력 <b>${Math.max(0, cap - used)}</b> / ${cap}</span>`, `<span>보조스킬룬 <b>${game.equippedSupports.length}</b> / ${Math.floor(stats.suppCap || 0)}칸</span>`);
         }
         if (slot.kind === 'summon') parts.push(`<span>소환수 <b>${getEquippedSummonCount()}</b> / ${getSummonEquipCapFromStats(stats)}</span>`);
         return `<div class="gem-slot-head">${parts.join('')}</div>`;
@@ -183,8 +183,8 @@
         // 공용 틀은 창 전체의 스크롤만 기억한다. 이 창은 목록만 구르므로 목록의 자리를 따로 지킨다.
         const list = document.getElementById('gem-slot-grid'), scroll = list ? list.scrollTop : 0;
         const body = `${slotHeadHtml(stats)}${slotCurrentHtml(stats)}
-            <div class="gem-slot-list-head"><b>${slot.name ? '바꿔 낄 젬' : '낄 젬'}</b>
-                <input type="search" id="gem-slot-search" class="gem-slot-search" placeholder="이름, 효과 검색" aria-label="젬 검색" value="${escapeHTML(slot.query)}"></div>
+            <div class="gem-slot-list-head"><b>${slot.name ? '바꿔 낄 룬' : '낄 룬'}</b>
+                <input type="search" id="gem-slot-search" class="gem-slot-search" placeholder="이름, 효과 검색" aria-label="룬 검색" value="${escapeHTML(slot.query)}"></div>
             <div class="gem-slot-grid" id="gem-slot-grid">${slotListHtml(stats)}</div>`;
         selectionDialog.show({ id: DIALOG_ID, title: TITLES[slot.kind], panelClass: `gem-slot-panel is-kind-${slot.kind}`, body });
         document.getElementById('gem-slot-grid').scrollTop = scroll;
@@ -206,7 +206,7 @@
         if (game.equippedSupports.includes(old)) return;
         toggleSupport(name);
         if (!game.equippedSupports.includes(name)) { if (old) toggleSupport(old); return; }
-        // 누른 칸에 새 젬이 놓이도록 자리를 옮긴다(장착 순서는 보드의 칸 순서일 뿐이다).
+        // 누른 칸에 새 룬이 놓이도록 자리를 옮긴다(장착 순서는 보드의 칸 순서일 뿐이다).
         if (place >= 0) game.equippedSupports.splice(place, 0, game.equippedSupports.pop());
         slot.name = name;
     }

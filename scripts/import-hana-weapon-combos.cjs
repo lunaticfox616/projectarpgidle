@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* 직업 × 무기 36조합(Hana +6) 시트를 인계 시뮬레이터에서 꺼내 게임 자산으로 만든다.
  *
- *   node scripts/import-hana-weapon-combos.cjs <리그닌_젬_시전_시뮬레이터.html>
+ *   node scripts/import-hana-weapon-combos.cjs <리그닌_룬_시전_시뮬레이터.html>
  *
  * 시뮬레이터 HTML에는 6직업 × 6무기(대검·곡도·단궁·오브·플라스크·향로) 조합 시트가 레이어째 들어 있다
  * (인계서 "교차 무기 — 36조합 모두 생성됨(시뮬레이터 안)"). 이 명령은 그것을
@@ -61,7 +61,7 @@ function writeSheets(meta, sheets) {
 }
 function main() {
     const htmlPath = process.argv[2];
-    if (!htmlPath || !fs.existsSync(htmlPath)) fail('사용법: node scripts/import-hana-weapon-combos.cjs <리그닌_젬_시전_시뮬레이터.html>');
+    if (!htmlPath || !fs.existsSync(htmlPath)) fail('사용법: node scripts/import-hana-weapon-combos.cjs <리그닌_룬_시전_시뮬레이터.html>');
     const html = fs.readFileSync(htmlPath, 'utf8');
     const meta = grabObject(html, 'HANA_META'), sheets = grabObject(html, 'HANA_SHEETS');
     const combos = writeSheets(meta, sheets);

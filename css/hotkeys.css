@@ -22,7 +22,7 @@
   text-align: center;
   pointer-events: none;
 }
-/* 둥근 젬 칸은 바깥을 잘라 내므로 키 표시를 칸 안 아래 가운데에 둔다. */
+/* 둥근 룬 칸은 바깥을 잘라 내므로 키 표시를 칸 안 아래 가운데에 둔다. */
 .player-hud-skill-rack .player-hud-skill-slot > .combat-hud-key { top: auto; bottom: 1px; left: 50%; transform: translateX(-50%); }
 /* 자동 이동 단추는 글자 옆(등불과 겹치지 않게)에 키를 적는다. */
 #btn-act-exploration-auto > .combat-hud-key { position: static; margin-left: 1px; }

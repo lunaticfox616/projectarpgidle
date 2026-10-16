@@ -1644,7 +1644,7 @@ function renderProfileGemRow(label, gem, extra) {
         + `<strong>${socialEscape(gem.name)}</strong><span class="social-skill-level">Lv.${socialEscape(gem.level || 1)}${quality}${extra || ''}</span></div>`;
 }
 
-/** 스킬 탭(2026-10-03): 주 스킬과 연결한 보조 젬, 이동 스킬, 소환수. 예전 프로필에는 스킬 정보가 없다. */
+/** 스킬 탭(2026-10-03): 주 스킬과 연결한 보조스킬룬, 이동 스킬, 소환수. 예전 프로필에는 스킬 정보가 없다. */
 function renderProfileSkills(skills) {
     if (!skills || !skills.active) return '';
     let rows = [renderProfileGemRow('주 스킬', skills.active)]

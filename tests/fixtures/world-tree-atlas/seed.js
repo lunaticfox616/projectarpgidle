@@ -142,7 +142,7 @@
                 game.gemData[name] ||= {level:5,quality:0,exp:0,skyEnhanceCap:0};
             });
             closeAllWindows();switchTab('tab-skills');updateStaticUI();
-            parent.postMessage({type:'worldtree-lab-status',message:'이동·소환 젬만 지급 · 장착과 전투는 실제 UI에서 · 장비/능력치 유지'},origin);
+            parent.postMessage({type:'worldtree-lab-status',message:'이동·소환 룬만 지급 · 장착과 전투는 실제 UI에서 · 장비/능력치 유지'},origin);
         }
         if(event.data.type==='worldtree-rune-review') {
             Object.entries({runeShard:500,underCopper:1000,underSilver:750,underGold:300}).forEach(([key,value])=>{game.currencies[key]+=value;});

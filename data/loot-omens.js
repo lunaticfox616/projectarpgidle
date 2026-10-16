@@ -2,7 +2,7 @@
 // 기운: 아틀라스 지도석(지도 노드의 것)마다 하나가 붙어 그 지도에서 무엇이 잘 나오는지 정한다(js/loot-omens.js). 지도석 희귀도가 세기를
 // 정한다(strength, 타락이면 corrupted만큼 더). weight는 뽑힐 비중이고, 그 기운이 줄 것이 아직 하나도 열리지 않았으면 뽑히지 않는다.
 //   drops: 처치마다 chance[등급] × 세기로 목록에서 가중치로 하나를 떨어뜨린다(보스는 bossRolls번 더). '@jewel'은 재화가 아니라 주얼
-//          한 개. [키, 가중치, 개수]. gemMul: 그 지도 몬스터의 젬 보상 확률 배율(세기만큼). jewel: 그 지도의 '@jewel'이 희귀(rare),
+//          한 개. [키, 가중치, 개수]. gemMul: 그 지도 몬스터의 룬 보상 확률 배율(세기만큼). jewel: 그 지도의 '@jewel'이 희귀(rare),
 //          고유(unique)일 확률(세기를 곱한다).
 //   gear: 장비 기대 개수 배율(quantity), 부위 가중치(slots), 고유 확률 배율(unique), 드랍 변형 배율(variant: 복제, 묶음, 타락).
 //          배율은 세기만큼 커진다: 1 + (값 − 1) × 세기.
@@ -41,7 +41,7 @@ const LOOT_OMENS = Object.freeze({
             ['pollen', 10, 3], ['beeswax', 4], ['venomStinger', 2], ['hiveKey', 0.6], ['enchantedHoney', 0.3]]) },
         { id: 'sky', name: '별똥 비', note: '창공의 정수와 각성 잔향이 나옵니다', kind: 'drops', weight: 6, tone: '#8fd3ff', drops: Object.freeze([
             ['skyEssence', 10], ['condensedSkyPower', 2], ['awakenedEcho', 1.2]]) },
-        { id: 'under', name: '지하 광맥', note: '지하계 광석과 룬 조각이 나옵니다', kind: 'drops', weight: 6, tone: '#d8a060', drops: Object.freeze([
+        { id: 'under', name: '지하 광맥', note: '지하계 광석과 지하석 조각이 나옵니다', kind: 'drops', weight: 6, tone: '#d8a060', drops: Object.freeze([
             ['underCopper', 8], ['underSilver', 4], ['underGold', 2], ['runeShard', 3]]) },
         { id: 'seal', name: '봉인된 숨결', note: '봉인편린이 나옵니다', kind: 'drops', weight: 6, tone: '#c58cff', drops: Object.freeze([
             ['sealShard', 10], ['strongSealShard', 3], ['radiantSealShard', 0.25]]) },
@@ -55,8 +55,8 @@ const LOOT_OMENS = Object.freeze({
         { id: 'orbs', name: '재화 소나기', note: '제작 재화가 쏟아집니다', kind: 'drops', weight: 4, tone: '#f3d28c', drops: Object.freeze([
             ['magicBud', 10, 2], ['formlessDew', 5], ['blightSpore', 3], ['sapBud', 1.5], ['pruningShears', 1], ['goldenRule', 0.15],
             ['fairyRing', 0.01]]) },
-        // 2026-10-10 사용자: 젬의 정원, 보석 광맥, 지도 제작자가 밋밋하면 상향. 젬 보상, 좋은 주얼, 높고 희귀한 지도석이 눈에 띄게 늘었다.
-        { id: 'gems', name: '젬의 정원', note: '젬과 각성 잔향이 자주 나옵니다', kind: 'drops', weight: 5, tone: '#7fd99a', drops: Object.freeze([
+        // 2026-10-10 사용자: 룬의 정원, 보석 광맥, 지도 제작자가 밋밋하면 상향. 룬 보상, 좋은 주얼, 높고 희귀한 지도석이 눈에 띄게 늘었다.
+        { id: 'gems', name: '룬의 정원', note: '룬과 각성 잔향이 자주 나옵니다', kind: 'drops', weight: 5, tone: '#7fd99a', drops: Object.freeze([
             ['gemShard', 8], ['awakenedEcho', 3]]), gemMul: 4 },
         { id: 'jewels', name: '보석 광맥', note: '주얼이 많이, 더 좋게 나옵니다', kind: 'drops', weight: 5, tone: '#78cfff', drops: Object.freeze([
             ['jewelShard', 6], ['@jewel', 5]]), jewel: Object.freeze({ rare: 0.35, unique: 0.03 }) },

@@ -214,8 +214,8 @@ function assignActionableNodes(tree, graph, distances, report, plan) {
 
 function ensureRequiredBuildOptions(tree) {
     const requirements = [
-        { statId: 'chaosGemLevel', archetype: 'chaos', label: '카오스 스킬 젬 레벨' },
-        { statId: 'suppCap', archetype: 'spell', label: '보조 스킬 젬 한도' }
+        { statId: 'chaosGemLevel', archetype: 'chaos', label: '카오스 스킬룬 레벨' },
+        { statId: 'suppCap', archetype: 'spell', label: '보조스킬룬 한도' }
     ];
     const used = new Set();
     requirements.forEach(requirement => {

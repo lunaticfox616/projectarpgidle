@@ -165,7 +165,7 @@ const marketUi = {
     },
     offerKind(offer) {
         if (offer.featured) return '표적 고유';
-        return {exchange:'재화 교환',skillGem:'공격 젬',baseItem:'제작 베이스',unique:'고유 장비'}[offer.type];
+        return {exchange:'재화 교환',skillGem:'공격 룬',baseItem:'제작 베이스',unique:'고유 장비'}[offer.type];
     },
     offerPrice(offer) {
         return offer.type === 'exchange' ? {key:offer.from, amount:offer.need} : {key:offer.priceKey, amount:offer.price};

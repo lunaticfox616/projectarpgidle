@@ -65,7 +65,7 @@ test('a new warrior earns and equips the first gem through visible controls', as
         if (await page.locator('#tutorial-dismiss-btn').isVisible()) {
             const title = await page.locator('#tutorial-title').innerText();
             notices.push(title);
-            if (title === '첫 스킬 젬 장착') await page.locator('#tutorial-open-btn').click();
+            if (title === '첫 스킬룬 장착') await page.locator('#tutorial-open-btn').click();
             else await page.locator('#tutorial-dismiss-btn').click();
         }
         return page.locator('#tutorial-action-card').isVisible();
@@ -99,10 +99,10 @@ test('a new warrior earns and equips the first gem through visible controls', as
     }
     await page.locator('#gem-selection').getByRole('button', { name: '장착', exact: true }).click();
     await expect(page.locator('#tutorial-action-card')).toBeHidden();
-    await expect(page.locator('#game-toast-region')).toContainText('스킬 젬 장착 완료');
+    await expect(page.locator('#game-toast-region')).toContainText('스킬룬 장착 완료');
     expect(await page.evaluate(() => game.activeSkill)).toBe('연속 베기');
-    await expect(page.locator('#log')).toContainText('스킬 젬 [연속 베기] 획득');
-    await expect(page.locator('#log')).not.toContainText('직업에 맞는 스킬 젬');
+    await expect(page.locator('#log')).toContainText('스킬룬 [연속 베기] 획득');
+    await expect(page.locator('#log')).not.toContainText('직업에 맞는 스킬룬');
     expect(await page.evaluate(() => game.starterGemTutorialPending)).toBeFalsy();
     expect(errors).toEqual([]);
     await page.screenshot({ path: testInfo.outputPath('natural-first-gem.png') });
@@ -113,7 +113,7 @@ test('a new warrior earns and equips the first gem through visible controls', as
 });
 
 // Review round 3 #1: a player who closes the first-gem card instead of following it (idle play) used to fight with the
-// basic attack and die repeatedly in acts 1-2. Closing the card equips the starter gem; 스킬 젬 can still change it.
+// basic attack and die repeatedly in acts 1-2. Closing the card equips the starter gem; 스킬룬 can still change it.
 test('closing the first-gem card without following equips the starter gem', async ({ page }) => {
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
@@ -125,12 +125,12 @@ test('closing the first-gem card without following equips the starter gem', asyn
         if (await page.locator('#tutorial-dismiss-btn').isVisible()) {
             const title = await page.locator('#tutorial-title').innerText();
             await page.locator('#tutorial-dismiss-btn').click();
-            if (title === '첫 스킬 젬 장착') return 'closed';
+            if (title === '첫 스킬룬 장착') return 'closed';
         }
         return 'waiting';
     }, { timeout: 45000, intervals: [250, 500] }).toBe('closed');
     await expect.poll(() => page.evaluate(() => game.activeSkill)).toBe('연속 베기');
-    await expect(page.locator('#game-toast-region')).toContainText('[연속 베기] 젬을 장착했습니다');
+    await expect(page.locator('#game-toast-region')).toContainText('[연속 베기] 룬을 장착했습니다');
     expect(await page.evaluate(() => game.starterGemTutorialPending)).toBeFalsy();
     expect(errors).toEqual([]);
 });

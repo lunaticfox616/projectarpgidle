@@ -4,7 +4,7 @@
  * main slot for the synchronous call and swapped back — so every rule the gem already has applies unchanged, and the
  * main gem's casts in flight are never touched. Combat owns damage and movement; this only decides when to cast.
  * 예전 긴급 회피(2026-09-30): 보스 예고 범위가 영웅의 칸에 걸리면 먼저 그 범위 밖 가장 가까운 칸(3칸 이내)으로 피하고,
- * 이동 젬의 재사용 대기를 쓴다. 동결 · 기절 · 속박 중이거나 탈출로가 없으면 피하지 않고 대기도 쓰지 않는다.
+ * 이동 룬의 재사용 대기를 쓴다. 동결 · 기절 · 속박 중이거나 탈출로가 없으면 피하지 않고 대기도 쓰지 않는다.
  * 2026-10-07 사용자 요청: 저절로 피하면 보스 패턴이 의미가 없어(너무 강했다) 플레이어가 키나 HUD 칸을 눌렀을 때만 피한다.
  */
 const mobilitySkill = (() => {
@@ -48,7 +48,7 @@ const mobilitySkill = (() => {
     /** The player asked for it (key or HUD slot): '' when the next combat tick casts it, else why it cannot. */
     function request(now = getCombatTime()) {
         const name = equipped();
-        if (!name) return '이동 스킬 젬을 장착하지 않았습니다';
+        if (!name) return '이동 스킬룬을 장착하지 않았습니다';
         if (now < cooldownUntil) return `재사용 대기 ${(Math.ceil((cooldownUntil - now) / 100) / 10).toFixed(1)}초`;
         if (game.playerHp <= 0 || game.combatHalted) return '지금은 쓸 수 없습니다';
         if (!reachable(name) && !evadeRoute()) return '닿는 적이 없습니다'; // a warned hero may press it just to step out

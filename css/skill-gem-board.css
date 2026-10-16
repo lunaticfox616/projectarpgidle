@@ -1,5 +1,5 @@
-/* 스킬 젬 보드와 고르기 목록 (js/skill-gem-board-ui.js, 타일 js/ui.js renderAttackGemCard, 상세 js/gem-selection-ui.js).
-   가운데 주 공격 젬(속성색 빛 · 금빛 팔각 테) · 둘레 각인 5칸 · 이동/소환 칸, 보조 젬 칸 줄(청록 보석), 그 아래 작은 타일 목록.
+/* 스킬룬 보드와 고르기 목록 (js/skill-gem-board-ui.js, 타일 js/ui.js renderAttackGemCard, 상세 js/gem-selection-ui.js).
+   가운데 주 공격 룬(속성색 빛 · 금빛 팔각 테) · 둘레 각인 5칸 · 이동/소환 칸, 보조스킬룬 칸 줄(청록 보석), 그 아래 작은 타일 목록.
    칸 · 타일은 공용 단추 모양(components 층)을 쓰지 않으므로 features 층에서 모양을 다시 정한다(그루터기함과 같은 방식).
    속성색 --gem-accent는 #tab-skills .element-* (ui-game-overhaul.css)가 정한다. */
 @layer features {
@@ -133,7 +133,7 @@
 #skill-tab-equip[data-picking="mobility"] .skill-board-satellite[data-board-pick="mobility"] > :is(.skill-board-satellite-art, i),
 #skill-tab-equip[data-picking="summon"] .skill-board-satellite[data-board-pick="summon"] > :is(.skill-board-satellite-art, i) { opacity: 1; outline: 2px solid var(--board-gold-hi); outline-offset: 2px; }
 
-/* ── 보조 젬 칸 줄 ─────────────────────────────────────────────────────────────── */
+/* ── 보조스킬룬 칸 줄 ─────────────────────────────────────────────────────────────── */
 .support-slots { padding: 10px; }
 .support-slots-head { display: flex; align-items: baseline; gap: 7px; margin-bottom: 8px; }
 .support-slots-head > span { color: var(--board-gold-hi); font: 400 15px var(--board-read); }

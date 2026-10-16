@@ -46,7 +46,7 @@ const newSkillLab = (() => {
     const lab = {native, items, intervals, renderer, casts:[], nextCast:0, ready:false, bossMode:false,
         sequence:0, history:[], reaction:null, lastSkill:'', mist:native.WT_HOLY_MIST.createDebuffStore()};
     lab.report = extra => parent.postMessage({type:'new-skill-lab-state', ...extra}, new URL(document.baseURI).origin);
-    lab.fail = error => {console.error('신규 젬 체험 오류', error); game.combatHalted = true; lab.report({error:error.message});};
+    lab.fail = error => {console.error('신규 룬 체험 오류', error); game.combatHalted = true; lab.report({error:error.message});};
     lab.cancel = () => {
         for(const row of lab.casts) row.cast.cancel(getCombatTime());
         lab.casts.length = 0; renderer.clear(); lab.nextCast = 0;

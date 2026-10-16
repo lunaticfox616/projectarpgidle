@@ -106,7 +106,7 @@ function normalizeTabLayoutSettings(settings) {
     return layouts;
 }
 
-/** 전술 규칙만 남긴다: 예전 컨디션 젬 규칙(행동이 없거나 condition_gem)은 버린다. */
+/** 전술 규칙만 남긴다: 예전 컨디션 룬 규칙(행동이 없거나 condition_gem)은 버린다. */
 function normalizeSavedTacticRules(raw) {
     const rules = Array.isArray(raw) ? raw.filter(rule => rule && typeof rule === 'object') : [];
     return rules.filter(rule => rule.actionType && rule.actionType !== 'condition_gem').map(rule => normalizeConditionPatternRule({ ...rule }));
@@ -164,7 +164,7 @@ function stripRemovedAuxSystems(merged) {
 }
 
 /** 7단계: 전문가 레벨로 이미 쓰던 기능은 새 해금 항목으로 이어 준다(포인트 없이 계승). 옛 최소 레벨 기준 —
- * 균사학자 Lv.4 잉여 화석 정제 · 원시 화석 복원, Lv.7 부패 홀씨, 젬 각인사 Lv.12 각성 잔향 · 각성 각인. */
+ * 균사학자 Lv.4 잉여 화석 정제 · 원시 화석 복원, Lv.7 부패 홀씨, 룬 각인사 Lv.12 각성 잔향 · 각성 각인. */
 const RETIRED_EXPERT_ACCESS = Object.freeze([
     ['mycologist', 4, 'fossilRestore'], ['mycologist', 7, 'advancedSpores'], ['gemEngraver', 12, 'gemAwakening']
 ]);
@@ -902,7 +902,7 @@ function mergeDefaults(save) {
     Object.assign(merged, craftingWorkspaceState.restore(merged));
     merged.skillSubtab = ['skill-tab-equip','skill-tab-enhance','skill-tab-research','skill-tab-condition'].includes(merged.skillSubtab) ? merged.skillSubtab : 'skill-tab-equip';
     merged.skillAutoRules = normalizeSavedTacticRules(merged.skillAutoRules);
-    // 컨디션 젬 → 부적 조건부 줄(2026-09-30): 젬 · 레벨 · 가공 선택 · 전투 중 버프 · 젬 규칙은 보상 없이 지운다. 전술 규칙은 남는다.
+    // 컨디션 룬 → 부적 조건부 줄(2026-09-30): 룬 · 레벨 · 가공 선택 · 전투 중 버프 · 룬 규칙은 보상 없이 지운다. 전술 규칙은 남는다.
     ['conditionGemUnlocked', 'conditionGemPool', 'conditionGemLevels', 'pendingConditionGemChoices', 'conditionGemCooldowns', 'playerConditionBuffs',
         'lastConditionGemCast', 'playerCastDelayUntil', 'enemyCurseExpirePayloads'].forEach(key => delete merged[key]);
     merged.beyondBoundary = normalizeBeyondBoundaryState(merged.beyondBoundary, merged);

@@ -1,10 +1,10 @@
-/** NPC shops (2026-10-16 사용자: "NPC의 상점도 구현해줘. 스킬젬, 무기, 방어구, 악세사리, 고유아이템 각 담당", prices in currencies, no
+/** NPC shops (2026-10-16 사용자: "NPC의 상점도 구현해줘. 스킬룬, 무기, 방어구, 악세사리, 고유아이템 각 담당", prices in currencies, no
  * shop at Haken's first meeting, "조우 시 진행도에 맞는 아이템 랜덤 판매"). Each story NPC sells one kind. Meeting the NPC on a map
  * (js/canvas-act-title-card.js) counts in game.npcMet and rolls its stock for the zone of the meeting into game.npcShops, laid on a
  * grid like the bag's so the shop screen (js/npc-shop-ui.js) draws it as it is. A loop takes the currencies, and the stock with them.
  * firstMeetingClosed: no stock at the first meeting (Haken is met struck by a monster, the rescue). */
 const NPC_SHOPS = Object.freeze({
-    haken: Object.freeze({ kind: 'gem', label: '스킬 젬', count: 10, firstMeetingClosed: true }),
+    haken: Object.freeze({ kind: 'gem', label: '스킬룬', count: 10, firstMeetingClosed: true }),
     orga: Object.freeze({ kind: 'gear', label: '무기', slots: Object.freeze(['무기']), count: 8 }),
     bern: Object.freeze({ kind: 'gear', label: '방어구', slots: Object.freeze(['투구', '갑옷', '장갑', '신발', '방패']), count: 8 }),
     ivel: Object.freeze({ kind: 'gear', label: '장신구', slots: Object.freeze(['반지', '목걸이', '허리띠']), count: 10 }),
@@ -136,9 +136,9 @@ const npcShop = (() => {
     }
 
     function checkGemWare(gem) {
-        if (gem.kind === 'attack') return hasSkillGemOwned(gem.name) ? { ok: false, reason: '이미 가진 젬입니다.' } : { ok: true };
+        if (gem.kind === 'attack') return hasSkillGemOwned(gem.name) ? { ok: false, reason: '이미 가진 룬입니다.' } : { ok: true };
         const next = gemDropRewards.nextSupport(game, gem.name);
-        return next && next.tier === gem.tier ? { ok: true } : { ok: false, reason: '이미 가진 젬입니다.' };
+        return next && next.tier === gem.tier ? { ok: true } : { ok: false, reason: '이미 가진 룬입니다.' };
     }
 
     /** Buys offer index: pays, puts the gem in the collection or the item in the bag (at place when given) and takes it off the

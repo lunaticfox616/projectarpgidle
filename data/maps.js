@@ -96,7 +96,7 @@ const MAP_PRIMARY_CONTENTS = Object.freeze([
     { id: 'map-tab-zones', label: '탐험', initiallyUnlocked: true },
     { id: 'map-tab-chaos-realm', label: '혼돈계', noticeKey: 'unlock_chaos_realm', noticeTitle: '혼돈계', noticeBody: '루프가 바뀌어도 이어지는 혼돈계 영구 등반이 열렸습니다.\n‘지도 → 혼돈계’에서 도전하세요.' },
     { id: 'map-tab-sky', label: '창공', noticeKey: 'unlock_sky_tower', noticeTitle: '창공의 탑', noticeBody: '창공의 탑이 열렸습니다.\n‘지도 → 창공’에서 탑을 오르세요.\n이후 루프에서는 혼돈 입성부터 다시 도전할 수 있습니다.' },
-    { id: 'map-tab-underworld', label: '지하계', noticeKey: 'unlock_underworld', noticeTitle: '지하계', noticeBody: '지하계가 열렸습니다.\n‘지도 → 지하계’에서 룬을 모으세요.\n룬과 영구 강화 진행도는 루프가 바뀌어도 유지됩니다.' },
+    { id: 'map-tab-underworld', label: '지하계', noticeKey: 'unlock_underworld', noticeTitle: '지하계', noticeBody: '지하계가 열렸습니다.\n‘지도 → 지하계’에서 지하석을 모으세요.\n지하석과 영구 강화 진행도는 루프가 바뀌어도 유지됩니다.' },
     { id: 'map-tab-cosmos', label: '우주계', noticeKey: 'unlock_cosmos', noticeTitle: '우주계', noticeBody: '지하계 너머 우주계 관문이 열렸습니다.\n‘지도 → 우주계’에서 우주를 탐험하세요.' },
     { id: 'map-tab-ocean', label: '심해', noticeKey: 'unlock_ocean_fishing', noticeTitle: '심해와 낚시', noticeBody: '심해 탐사와 낚시가 열렸습니다.\n‘지도 → 심해’에서 수압에 도전하세요.\n‘지도 → 낚시’에서 어획물을 모으세요.', noticeTargetId: 'map-tab-ocean' },
     { id: 'map-tab-fishing', label: '낚시', noticeKey: 'unlock_ocean_fishing', noticeTitle: '심해와 낚시', noticeBody: '심해 탐사와 낚시가 열렸습니다.\n‘지도 → 심해’에서 수압에 도전하세요.\n‘지도 → 낚시’에서 어획물을 모으세요.', noticeTargetId: 'map-tab-ocean' },
@@ -267,7 +267,7 @@ const TIME_RIFT_EQUIVALENT_CHAOS_DEPTHS = Object.freeze([1, 6, 11, 16, 22, 29, 3
 const TIME_RIFT_FUSION_ODDS = { perfectBase: 0.03, perfectPerPressure: 0.045, unstableBase: 0.42, unstablePerPressure: 0.035, unstableMin: 0.08 };
 
 const SEASON_CONTENT_ROADMAP = {
-    1: { title: '루프 1', features: ['시작: 기본 전투/장비/지도', '액트 3 클리어: 전투 전술 무료 해금 (스킬 젬 → 전술 규칙)'] },
+    1: { title: '루프 1', features: ['시작: 기본 전투/장비/지도', '액트 3 클리어: 전투 전술 무료 해금 (스킬룬 → 전술 규칙)'] },
     2: { title: '루프 2', features: ['해금: 홀씨 제작', '그루터기 함: 루프마다 한 칸씩 열림 (9칸 → 루프 17에 25칸)'] },
     3: { title: '루프 3', features: ['해금: 고대 미궁(화석) / 대전'] },
     4: { title: '루프 4', features: ['해금: 창공 강화'] },

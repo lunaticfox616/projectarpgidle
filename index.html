@@ -183,7 +183,7 @@
         <!-- 휴대폰 배치(1080px 이하)만 보인다: 첫 누름은 고르기, 정하기는 여기서 (js/passives.js pressLoopHeroChoice) -->
         <div class="hero-choice-confirm">
             <div id="loop-hero-select-detail" class="hero-choice-detail" aria-live="polite"></div>
-            <p class="hero-choice-hint">직업을 눌러 시작 스킬 젬과 대표 무기를 확인하세요.</p>
+            <p class="hero-choice-hint">직업을 눌러 시작 스킬룬과 대표 무기를 확인하세요.</p>
             <button type="button" id="loop-hero-select-start" class="hero-choice-start" disabled onclick="chooseLoopHero(this.value)">이 직업으로 시작</button>
         </div>
     </div>
@@ -307,7 +307,7 @@
                     <canvas id="act-exploration-map" tabindex="0" aria-label="탐험 지도. 클릭, WASD 또는 방향키로 이동" onclick="actExplorationUi.choose(event)"></canvas>
                     <button id="btn-act-exploration-map" type="button" aria-label="탐험 지도 크게 보기" title="탐험 지도 크게 보기" onclick="actExplorationUi.expand()" hidden></button>
                 </section>
-                <div class="player-hud-skill-rack" aria-label="현재 장착 젬">
+                <div class="player-hud-skill-rack" aria-label="현재 장착 룬">
                     <div id="ui-combat-skill-gems" class="player-hud-skill-slots"></div>
                 </div>
                 <div id="ui-player-ailments-under" class="combat-effect-strip player-combat-effect-strip" aria-label="활성 상태이상 및 효과"></div>
@@ -384,7 +384,7 @@
         <div class="tab-btn" id="btn-tab-stump" data-button-art onclick="switchTab('tab-stump')" style="display:none;">그루터기 함 <span id="noti-stump" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-items" data-button-art data-merged-tab-launcher="gear" onclick="openMergedTabPicker(event,'gear')">장비 <span id="inventory-full-warning" class="inventory-full-warning">가득 참</span><span id="noti-items" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-map" data-button-art onclick="switchTab('tab-map')">지도 <span id="noti-map" class="noti-dot"></span></div>
-        <div class="tab-btn" id="btn-tab-skills" data-merged-tab-member="1" data-merged-tab-group="gear" onclick="switchTab('tab-skills')">스킬 젬 <span id="noti-skills" class="noti-dot"></span></div>
+        <div class="tab-btn" id="btn-tab-skills" data-merged-tab-member="1" data-merged-tab-group="gear" onclick="switchTab('tab-skills')">스킬룬 <span id="noti-skills" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-journal" data-button-art data-merged-tab-launcher="records" onclick="openMergedTabPicker(event,'records')" style="display:none;">기록 <span id="noti-journal" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-codex" data-button-art data-merged-tab-member="1" onclick="switchTab('tab-codex')">도감 <span id="noti-codex" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-records" data-button-art data-merged-tab-member="1" onclick="switchTab('tab-records')">전적</div>
@@ -612,7 +612,7 @@
                 <span class="stat-unit">마리</span>
             </div>
 <div class="stat-item tip" id="row-gemlv" onmouseenter="showStatTooltip(event,'gem')" onmouseleave="hideInfoTooltip()" style="display: none;">
-                <span class="stat-label">젬 레벨 보너스</span>
+                <span class="stat-label">룬 레벨 보너스</span>
                 <span class="stat-value" id="ui-gemlv">0</span>
                 <span class="stat-unit"></span>
             </div>
@@ -1002,22 +1002,22 @@
     <div id="tab-skills" class="tab-content">
         <div class="subtab-row skill-subtab-row">
             <button class="subtab-btn active" id="btn-skill-tab-equip" onclick="switchSkillSubtab('skill-tab-equip')"><strong>장착과 보조</strong><small>현재 전투 세팅</small></button>
-            <button class="subtab-btn" id="btn-skill-tab-enhance" onclick="switchSkillSubtab('skill-tab-enhance')"><strong>성장과 각인</strong><small>젬 강화와 특수 옵션</small></button>
-            <button class="subtab-btn" id="btn-skill-tab-research" onclick="switchSkillSubtab('skill-tab-research')"><strong>젬 연구</strong><small>미보유 젬 확정 해금</small></button>
+            <button class="subtab-btn" id="btn-skill-tab-enhance" onclick="switchSkillSubtab('skill-tab-enhance')"><strong>성장과 각인</strong><small>룬 강화와 특수 옵션</small></button>
+            <button class="subtab-btn" id="btn-skill-tab-research" onclick="switchSkillSubtab('skill-tab-research')"><strong>룬 연구</strong><small>미보유 룬 확정 해금</small></button>
             <button class="subtab-btn" id="btn-skill-tab-condition" onclick="switchSkillSubtab('skill-tab-condition')"><strong>전술 규칙</strong><small>조건과 행동 규칙</small></button>
         </div>
         <div id="skill-tab-equip" class="subtab-content active">
-            <!-- 젬 보드(js/skill-gem-board-ui.js): 가운데 주 공격 젬, 둘레 각인, 이동/소환 칸, 보조 젬 칸 줄.
-                 칸을 누르면 젬 칸 창(js/gem-slot-dialog-ui.js)이 뜨고 옆 목록도 그 칸에 낄 수 있는 젬만 보여 준다.
-                 목록의 젬을 누르면 상세가 뜬다(js/gem-selection-ui.js). -->
+            <!-- 룬 보드(js/skill-gem-board-ui.js): 가운데 주 공격 룬, 둘레 각인, 이동/소환 칸, 보조스킬룬 칸 줄.
+                 칸을 누르면 룬 칸 창(js/gem-slot-dialog-ui.js)이 뜨고 옆 목록도 그 칸에 낄 수 있는 룬만 보여 준다.
+                 목록의 룬을 누르면 상세가 뜬다(js/gem-selection-ui.js). -->
             <div class="skill-board-layout">
                 <div class="skill-board-column">
-                    <section id="ui-skill-board" class="skill-board" aria-label="장착한 공격 젬과 각인"></section>
-                    <section id="ui-support-slots" class="support-slots" aria-label="장착한 보조 젬"></section>
+                    <section id="ui-skill-board" class="skill-board" aria-label="장착한 공격 룬과 각인"></section>
+                    <section id="ui-support-slots" class="support-slots" aria-label="장착한 보조스킬룬"></section>
                 </div>
                 <section class="skill-picker" aria-labelledby="ui-skill-picker-title">
                     <div class="skill-picker-head">
-                        <h3 id="ui-skill-picker-title">주 공격 칸에 낄 젬</h3>
+                        <h3 id="ui-skill-picker-title">주 공격 칸에 낄 룬</h3>
                         <span id="ui-skill-picker-count" class="skill-picker-count"></span>
                         <button id="btn-skill-picker-fold" type="button" class="skill-picker-fold" aria-pressed="false">장착 중만</button>
                     </div>
@@ -1031,16 +1031,16 @@
         </div>
         <div id="skill-tab-enhance" class="subtab-content">
             <div id="ui-gem-enhance-header" class="gem-forge-heading" style="display:none;">
-                <div><span class="skill-panel-kicker">젬 공방</span><h2>젬 성장과 각인 공방</h2></div>
+                <div><span class="skill-panel-kicker">룬 공방</span><h2>룬 성장과 각인 공방</h2></div>
             </div>
             <div id="ui-gem-enhance-panel" class="gem-forge-workspace" style="display:none;">
                 <aside class="gem-target-rail">
-                    <div class="gem-target-rail-heading"><span>강화 대상</span><small>장착 중인 공격 젬</small></div>
+                    <div class="gem-target-rail-heading"><span>강화 대상</span><small>장착 중인 공격 룬</small></div>
                     <div id="ui-gem-enhance-target" class="gem-enhance-target"></div>
                 </aside>
                 <div class="gem-forge-detail">
                     <div id="ui-gem-resource-strip" class="gem-resource-strip"></div>
-                    <section class="gem-enhance-section gem-core-section"><h3>젬 강화</h3><div id="ui-gem-core-forge"></div></section>
+                    <section class="gem-enhance-section gem-core-section"><h3>룬 강화</h3><div id="ui-gem-core-forge"></div></section>
                     <div class="gem-enhance-section gem-upgrade-section">
                         <div class="gem-enhance-section-head">
                             <div><span class="gem-section-index">01</span><div><div class="gem-enhance-section-title">기본 성장</div></div></div>
@@ -1056,7 +1056,7 @@
                     </div>
                     <div class="gem-enhance-section gem-support-process-section">
                         <div class="gem-enhance-section-head">
-                            <div><span class="gem-section-index">03</span><div><div class="gem-enhance-section-title">보조 젬 가공</div></div></div>
+                            <div><span class="gem-section-index">03</span><div><div class="gem-enhance-section-title">보조스킬룬 가공</div></div></div>
                         </div>
                         <div id="ui-support-process-list" class="gem-support-process-list"></div>
                     </div>

@@ -9,8 +9,8 @@
  * 무엇을 언제 틀지는 js/canvas-stage-skill-rules.js가 정하고 여기는 틀고 그리기만 한다. 전투 계산에는 닿지 않는다.
  * 그림이 없는 판(저장소에는 넣지 않는다)이나 무대가 꺼진 창에서는 vfxReady가 거짓이라 예전 이펙트가 그대로 나온다.
  * 띠(원본의 칸들을 가로로 늘어놓고 램프로 다시 칠한 그림)는 그리는 도중에 만들지 않는다(2026-10-14, docs/stage-render-performance-20261013.md 7번). 원본 한 장을 푸는
- * 데만 데스크톱에서 60ms, 느린 기기에서 300ms가 걸려, 젬의 이펙트가 처음 나오는 프레임이 그만큼 멈췄다. 지금은:
- * - 낀 젬이 쓰는 띠를 미리 만든다(keepStrips: js/canvas-stage-warmup.js가 젬이 바뀔 때 부른다). 낀 젬이 쓰지 않는 띠는 놓는다.
+ * 데만 데스크톱에서 60ms, 느린 기기에서 300ms가 걸려, 룬의 이펙트가 처음 나오는 프레임이 그만큼 멈췄다. 지금은:
+ * - 낀 룬이 쓰는 띠를 미리 만든다(keepStrips: js/canvas-stage-warmup.js가 룬이 바뀔 때 부른다). 낀 룬이 쓰지 않는 띠는 놓는다.
  * - 만들기는 그리기 밖에서 조금씩 한다(vfxCutPump). 원본은 메인 스레드 밖에서 풀고(js/canvas-stage-pictures.js) 자르는 동안만 든다.
  * - 그릴 때 띠가 아직 없으면 그 클립은 그 프레임을 건너뛰고, 띠를 만들어 달라고 해 둔다(미리 짚지 못한 램프의 클립).
  */
@@ -143,8 +143,8 @@ const stageSkillVfx = (() => {
         const [name, rampName] = String(ref).split('@'), clip = STAGE_SKILL_VFX.clips[name];
         return clip ? clip.a + '|' + (rampName !== undefined ? rampName : 'phys') : '';
     }
-    /** 낀 젬이 쓰는 클립들(refs: '이름@램프')의 띠를 미리 만들어 두고, 그 밖의 띠는 놓는다(지금 재생 중인 클립의 띠는 둔다).
-     * 젬이 바뀔 때 부른다. 원본 그림이 아직 오지 않았으면 아무 일도 하지 않는다(부른 쪽이 그림이 온 뒤에 다시 부른다). */
+    /** 낀 룬이 쓰는 클립들(refs: '이름@램프')의 띠를 미리 만들어 두고, 그 밖의 띠는 놓는다(지금 재생 중인 클립의 띠는 둔다).
+     * 룬이 바뀔 때 부른다. 원본 그림이 아직 오지 않았으면 아무 일도 하지 않는다(부른 쪽이 그림이 온 뒤에 다시 부른다). */
     function vfxKeepStrips(refs) {
         if (!vfxReady()) return;
         const wanted = new Set(refs.map(vfxStripKey).filter(Boolean));

@@ -268,9 +268,9 @@ function getPassiveNodeEffectShortLabel(node) {
         leechRateCap: '흡혈속도캡', leechTotalCap: '흡혈총량캡', leechInstanceCap: '흡혈캡',
         moveEvasion: '이속 및 회피', hpArmor: '생명력 및 방어도', aspdMove: '공속 및 이속',
         summonPctDmg: '소환피해(%)', summonHpPct: '소환생명(%)', summonCritDmg: '소환치피', summonFlatDmg: '소환피해', summonCrit: '소환치명', summonAspd: '소환공속',
-        gemLevel: '젬레벨', suppCap: '보조젬한도', expGain: '경험치',
-        fireGemLevel: '화염젬레벨', coldGemLevel: '냉기젬레벨', lightGemLevel: '번개젬레벨', chaosGemLevel: '카오스젬레벨', physGemLevel: '물리젬레벨',
-        projectileGemLevel: '투사체젬레벨', meleeGemLevel: '근접젬레벨', slamGemLevel: '강타젬레벨', spellGemLevel: '주문젬레벨', dotGemLevel: '지속젬레벨', aoeGemLevel: '범위젬레벨', elementalGemLevel: '원소젬레벨'
+        gemLevel: '룬레벨', suppCap: '보조스킬룬한도', expGain: '경험치',
+        fireGemLevel: '화염룬레벨', coldGemLevel: '냉기룬레벨', lightGemLevel: '번개룬레벨', chaosGemLevel: '카오스룬레벨', physGemLevel: '물리룬레벨',
+        projectileGemLevel: '투사체룬레벨', meleeGemLevel: '근접룬레벨', slamGemLevel: '강타룬레벨', spellGemLevel: '주문룬레벨', dotGemLevel: '지속룬레벨', aoeGemLevel: '범위룬레벨', elementalGemLevel: '원소룬레벨'
     };
     // 큐레이션된 짧은 라벨은 단어 중간에서 잘리지 않도록 그대로 사용한다.
     if (shortByStat[stat]) return shortByStat[stat];

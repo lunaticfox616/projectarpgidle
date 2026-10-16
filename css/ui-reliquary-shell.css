@@ -2104,7 +2104,7 @@ body.desktop-windowed-ui .battlefield-wrap > .ui-goal-drawer :where(
 .player-hud-skill-slot.summon { border-color: #725188; }
 .player-hud-skill-slot.mobility { border-color: #56794f; }
 .player-hud-skill-slot:hover { filter: brightness(1.18); }
-/* 자동 사용 젬 재사용 대기: 남은 비율만큼 시계 방향으로 어둡게 덮고 남은 초를 가운데에 쓴다(값은 js/ui.js refreshCombatSkillCooldowns). */
+/* 자동 사용 룬 재사용 대기: 남은 비율만큼 시계 방향으로 어둡게 덮고 남은 초를 가운데에 쓴다(값은 js/ui.js refreshCombatSkillCooldowns). */
 .player-hud-skill-slot.cooling::after {
   content: '';
   position: absolute;
@@ -2823,7 +2823,7 @@ body .selection-overlay-panel {
     overflow: hidden;
   }
 
-  /* 스킬 받침: 오른쪽 날개에는 주 공격만 크게 두고, 소환·자동 사용 젬은 플라스크 받침을 좌우로 뒤집은 위쪽 받침에 놓는다.
+  /* 스킬 받침: 오른쪽 날개에는 주 공격만 크게 두고, 소환·자동 사용 룬은 플라스크 받침을 좌우로 뒤집은 위쪽 받침에 놓는다.
      cqw는 스킬 칸 틀 너비의 1%. 받침 그림과 소켓 중심은 플라스크 받침(너비 191%, 소켓 26/41.8/57.7/73.6/89.5%, 높이 54%)의 거울상이다. */
   body.desktop-windowed-ui .player-hud-skill-rack {
     container-type: inline-size;

@@ -318,7 +318,7 @@ assert(!run("contentProgression.purchase('craft').ok"));
 assert.deepEqual(json('game'),before,'completed purchases cannot replay entry rewards');
 run("game=mergeDefaults({season:4,bountyHunt:{version:5,remaining:0,pending:{id:'x',status:'reward',offerIds:[]},completed:3}})");
 assert.equal(run("'bountyHunt' in game"),false,'removed treasure-hunt state is discarded without a reward');
-// 루프 2에서 제련·보조 젬 뒤 남은 1점으로 전술을 고를 수 있다. 그 뒤 루프 패시브는 2점이 필요하다.
+// 루프 2에서 제련·보조스킬룬 뒤 남은 1점으로 전술을 고를 수 있다. 그 뒤 루프 패시브는 2점이 필요하다.
 // 목표는 고를 수 없는 선택을 재촉하지 않고 다음 해금까지 남은 점수를 센다(2026-10-04 사용자 보고).
 run('game=mergeDefaults({});game.season=2;game.contentProgression.inherited=[];contentProgression.sync()');
 assert.equal(run('contentProgression.balance()'),4);

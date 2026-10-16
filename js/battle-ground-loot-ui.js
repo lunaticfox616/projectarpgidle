@@ -32,7 +32,7 @@ const battleGroundLoot = (() => {
     const LEAF_ART = 'pixel:leaf';
     // The loop's starter gem (a floor row by name, js/exploration-ground-loot.js placeGem) shows the gem's own art and name.
     const leadArt = lead => (lead.leaf ? LEAF_ART : lead.gem ? getSkillGemArtPath(lead.gem) : getInventoryItemVisualAsset(lead.item, lead.itemKind));
-    const leadName = lead => (lead.leaf ? memoryLeaves.leaf(lead.leaf).name : lead.gem ? `[${lead.gem}] 젬` : shownName(lead));
+    const leadName = lead => (lead.leaf ? memoryLeaves.leaf(lead.leaf).name : lead.gem ? `[${lead.gem}] 룬` : shownName(lead));
     /** The name a pile shows: an unidentified unique on the floor shows only its base (the name appears when picked up). */
     const shownName = receipt => (receipt.unidentified ? `미확인 ${receipt.item.baseName || receipt.item.slot || '고유'}` : receipt.item.name);
     /** Rows per arm of the name cross. Up sits over the picture; the side arms stay short so they fit between the up and
