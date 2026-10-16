@@ -178,8 +178,10 @@
   /* 시작 선물·보관함 */
   .stump-storage-head h3 { margin: 0; font-size: 15px; }
   .stump-storage-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; }
-  /* 열 수는 화면 너비에 맞춰 stump-box-ui.js가 정한다(--stump-columns). 가진 것 + 줄 끝까지 + 빈 줄 하나만 그린다 */
-  .stump-storage-grid { display: grid; grid-template-columns: repeat(var(--stump-columns, 8), minmax(0, 1fr)); gap: 4px; margin-top: 6px; }
+  /* 장비 가방처럼 10열에 한 칸 38px(창 크기와 상관없이 같다. 그루터기 탭이 520px보다 좁은 휴대폰만 32px, 장비 가방 칸처럼 손가락 크기 44px 규칙에서 빠진다: css/themes/pixel-mobile.css). 보관함 한도만큼 칸을 깔고
+     가진 것이 앞에서부터 한 칸씩 들어간다(js/stump-box-ui.js) */
+  .stump-storage-grid { --stump-cell: 38px; display: grid; grid-template-columns: repeat(10, var(--stump-cell)); justify-content: start; gap: 4px; margin-top: 6px; }
+  @container (max-width: 520px) { .stump-storage-grid { --stump-cell: 32px; gap: 3px; } }
   .stump-storage-grid.is-target { outline: 1px dashed rgba(243, 210, 140, .6); outline-offset: 2px; }
   .stump-storage-grid > .stump-hint { grid-column: 1 / -1; }
   #tab-stump .stump-item {
