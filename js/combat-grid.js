@@ -510,9 +510,13 @@ function findGridRetreatCell(unit, target, maxRange, previousCell) {
     let footprint = getGridUnitFootprint(unit);
     let currentDist = getGridUnitDistance(unit, target);
     let best = null, bestScore = currentDist;
+    // 방 단위 무대: 주인공은 벽에 파인 문 칸(한 칸짜리 막다른 곳)으로 물러서지 않는다. 2026-10-17 사용자 "거리유지 전술에서 방 입구의
+    // 1칸 막다른길로는 안 들어가게 해줘": 몰린 채 그 칸에 갇혀 싸웠다.
+    let stage = unit === game.gridPlayer ? actExplorationDoors.stageMap(actExplorationState.current(game)) : null;
     GRID_CARDINAL_STEPS.forEach(direction => {
         let gx = unit.gx + direction.dx, gy = unit.gy + direction.dy;
         if (!canPlaceGridFootprint(blocked, gx, gy, footprint)) return;
+        if (stage && actExplorationRooms.doorAt(stage, { gx, gy })) return;
         let distance = getGridUnitDistance({ gx, gy, isBoss: unit.isBoss }, target);
         if (distance <= currentDist || distance > maxRange) return;
         let backtrack = previousCell && gx === previousCell.gx && gy === previousCell.gy;
