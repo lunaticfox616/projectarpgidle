@@ -68,6 +68,8 @@ const actExplorationProgress = (() => {
         walk(run,target,stats);
     }
     function walk(run,target,stats) {
+        // 공격 후딜(js/combat.js isPlayerAttackRecovering): 명령은 그대로 두고 멈춘 걸음으로도 세지 않는다. 후딜이 끝나는 프레임에 걷는다.
+        if(isPlayerAttackRecovering(run.motionTimeMs))return;
         const stepped=walkStep(actExplorationDoors.toward(run,target),stats);
         if(stepped || target!==run.destination){commandStalls.delete(run);return;}
         const stalls=(commandStalls.get(run)||0)+1;
@@ -106,6 +108,7 @@ const actExplorationProgress = (() => {
         const now=getCombatTime(),pile=ground.nearest(run,game.gridPlayer,now);
         if(!pile)return ground.falling(run,now);
         const memo=lootWalks.get(run)||{stalls:0,clearedAt:null};lootWalks.set(run,memo);
+        if(isPlayerAttackRecovering(run.motionTimeMs))return true;
         memo.stalls=walkStep(actExplorationDoors.toward(run,pile),stats)?0:memo.stalls+1;
         if(memo.stalls>=COMMAND_GIVE_UP_STEPS){memo.stalls=0;collectExplorationFloorLoot(ground.takeAt(run,pile));}
         return true;

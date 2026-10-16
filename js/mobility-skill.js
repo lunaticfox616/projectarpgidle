@@ -78,6 +78,7 @@ const mobilitySkill = (() => {
         actExplorationMotion.cancel(game.actExploration);
         Object.assign(game.gridPlayer, route.destination, { gridMoveTimer: 0 });
         combatTacticsRuntime.attackDelayUntil = Math.max(combatTacticsRuntime.attackDelayUntil, now + 180);
+        combatTacticsRuntime.recoverUntil = 0; // 이동기는 공격 후딜을 끊는다(js/combat.js isPlayerAttackRecovering)
         addBattleFx('playerMobility', { fromCell: from, toCell: route.destination, duration: 180 });
         cooldownUntil = now + cooldownMs(name);
         requestedAt = null;
@@ -98,6 +99,7 @@ const mobilitySkill = (() => {
             cooldownUntil = now + cooldownMs(name);
             requestedAt = null;
             actExplorationMotion.cancel(game.actExploration); // a step in progress stops: the move starts from the caster's cell
+            combatTacticsRuntime.recoverUntil = 0; // 이동기는 공격 후딜을 끊는다
             performPlayerAttack(stats, { skillName: name });
             return true;
         });

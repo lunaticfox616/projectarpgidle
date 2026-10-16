@@ -35,6 +35,8 @@ let pendingEnemyCombatAttacks = [];
 const COMBAT_TACTIC_TARGET_LOCK_MS = 750;
 const COMBAT_TACTIC_STALL_MS = 2000;
 const COMBAT_TACTIC_MAX_RETREATS = 2;
+/** 공격 후딜(getPlayerAttackRecoveryMs): 공격 간격에서 차지하는 몫, 게임 프레임 하나(걸음 시계, ms), 가장 긴 프레임 수. */
+const PLAYER_ATTACK_RECOVERY = Object.freeze({ share: 0.35, frameMs: 20, maxFrames: 20 });
 let combatTacticsRuntime = createCombatTacticsRuntime();
 let combatChannelRuntime = { id: 0, skillName: '', endAt: 0 };
 let combatChannelResumeSkillName = '';
@@ -63,7 +65,7 @@ function createCombatTacticsRuntime(now) {
     let timestamp = Number.isFinite(now) ? now : getCombatTime();
     return {
         encounterKey: '', targetId: null, targetLockedUntil: 0, approachTargetId: null,
-        attackDelayUntil: 0, nextMoveAt: 0,
+        attackDelayUntil: 0, nextMoveAt: 0, recoverUntil: 0,
         lastAttackAt: timestamp, previousCell: null, consecutiveRetreats: 0
     };
 }
@@ -165,6 +167,20 @@ function getCombatChannelGate(pStats, now) {
     let hasTargets = getSkillTargets(pStats).length > 0;
     if (ready && !hasTargets) combatChannelResumeSkillName = '';
     return { endAt: active ? combatChannelRuntime.endAt : 0, locked: active || (ready && hasTargets), hasTargets };
+}
+
+/** 공격 후딜(ms): 공격 간격의 35%를 게임 프레임(20ms)으로 반올림한 길이, 가장 길게 20프레임. 최소값은 없다: 공속이 몇이든 쏘는 동안
+ * 같은 몫이 묶인다(공속 1은 18프레임, 2는 9, 4는 4, 12는 1). 2026-10-17 사용자 "플레이어의 모든 공격에 후딜레이 넣어서 무빙샷 하기
+ * 조금 어렵게", "최소값 없는걸로해", 초가 아니라 프레임 단위로. */
+function getPlayerAttackRecoveryMs(aspd) {
+    const rule = PLAYER_ATTACK_RECOVERY, interval = 1000 / Math.max(0.01, Number(aspd) || 1);
+    return Math.min(rule.maxFrames, Math.round(interval * rule.share / rule.frameMs)) * rule.frameMs;
+}
+
+/** 공격 후딜 중인가: 그동안 주인공은 새 걸음을 시작하지 않는다(명령 걸음, 줍기 걸음, 다가가기, 거리 유지, 함정 피하기). 이미 내디딘
+ * 한 칸은 마저 걷는다. 이동기는 후딜을 끊는다(js/mobility-skill.js). now: 그 걸음의 시각(걸음 시계 또는 전투 시각). */
+function isPlayerAttackRecovering(now = getCombatTime()) {
+    return now < (Number(combatTacticsRuntime.recoverUntil) || 0);
 }
 
 function getTacticalMoveAttackDelayMs(moveSpeed) {
@@ -2164,6 +2180,7 @@ function coreLoop(nowMs) {
         while (!castBlocked && inSkillRange && pTimer >= 1.0 && game.enemies.length > 0) {
             pTimer -= 1.0;
             performPlayerAttack(pStats);
+            combatTacticsRuntime.recoverUntil = Math.max(combatTacticsRuntime.recoverUntil || 0, nowCast + getPlayerAttackRecoveryMs(pStats.aspd));
             let dsChance = Math.max(0, pStats.ds || 0);
             let guaranteedExtra = Math.floor(dsChance / 100);
             let extraRemainder = dsChance - (guaranteedExtra * 100);
@@ -5231,7 +5248,7 @@ function getPlayerTacticalMovePlan(pStats, target) {
 }
 
 function tryPlayerTacticalMove(pStats, target, plan, now) {
-    if (!plan || now < combatTacticsRuntime.nextMoveAt) return false;
+    if (!plan || now < combatTacticsRuntime.nextMoveAt || isPlayerAttackRecovering(now)) return false;
     if (plan.direction === 'away' && combatTacticsRuntime.consecutiveRetreats >= COMBAT_TACTIC_MAX_RETREATS) return false;
     let moveSpeed = Number.isFinite(pStats.moveSpeed) && pStats.moveSpeed > 0 ? pStats.moveSpeed : 100;
     let result = advanceGridTacticalMovement(game.gridPlayer, target, {
@@ -5331,6 +5348,7 @@ function updatePlayerGridEngagement(pStats, options) {
     if (config.holdPosition) return false;
     let nearest = resolvePlayerApproachTarget(alive);
     if (!nearest) return false;
+    if (isPlayerAttackRecovering()) return false;
     let moveSpeed = Number.isFinite(pStats.moveSpeed) && pStats.moveSpeed > 0 ? pStats.moveSpeed : 100;
     let interval = COMBAT_GRID_CONFIG.playerMoveIntervalSec * (100 / moveSpeed);
     advanceGridUnitMovement(game.gridPlayer, nearest, 0.1, interval);
@@ -12687,6 +12705,8 @@ function isTrialHazardPositionHeld() {
 function updateCombatHazardEscape(hazard, pStats, now, reason = '함정 회피') {
     if (!hazard.shouldAvoid || !isPlayerInsideCombatHazard(hazard)) return false;
     if (hasPlayerChannelBreakingAilment()) return true;
+    // 공격 후딜이 끝나야 피한다(2026-10-17 사용자 "자동 회피는 경직을 무시하면 안되는거 아니야?"). 그동안 공격도 쉰다.
+    if (isPlayerAttackRecovering(now)) return true;
     let moveSpeed = Number.isFinite(pStats.moveSpeed) && pStats.moveSpeed > 0 ? pStats.moveSpeed : 100;
     let interval = COMBAT_GRID_CONFIG.playerMoveIntervalSec * (100 / moveSpeed);
     let result = advanceGridHazardEscape(game.gridPlayer, hazard.cells, 0.1, interval);
