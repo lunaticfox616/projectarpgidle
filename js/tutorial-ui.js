@@ -541,8 +541,16 @@ const TUTORIAL_STARTER_GUIDES = Object.freeze([
     { key: 'tutorial_first_gear', seenAs: 'unlock_items', tabId: 'tab-items', title: '첫 장비',
         body: '장비를 얻었습니다. 빈 칸에 맞는 장비는 바로 착용합니다.\n‘장비’에서 착용한 장비의 효과를 확인하고, 보관 중인 장비와 비교하세요.\n바꿔 입으면 전투 화면의 생명 구슬 위에 DPS 변화가 뜹니다.',
         // 빈 칸에 바로 입은 장비도 첫 장비다: 초반 드랍은 가방을 거치지 않아 안내가 끝내 뜨지 않았다(검토 7차).
-        starterDue: state => (state.inventory || []).some(Boolean) || Object.values(state.equipment || {}).some(Boolean) }
+        starterDue: state => (state.inventory || []).some(Boolean) || Object.values(state.equipment || {}).some(Boolean) },
+    { key: 'tutorial_weapon_rune', seenAs: 'tutorial_weapon_rune', tabId: 'tab-skills', title: '무기와 스킬룬',
+        body: '스킬룬마다 쓸 수 있는 무기가 있습니다. 지금 무기로 쓸 수 없는 룬은 흐리게 보이고, 카드에 필요한 무기가 적혀 있습니다.\n장착한 룬을 쓸 수 없는 무기로 바꾸면 기본 공격으로 싸우다가, 맞는 무기를 들면 그 룬으로 돌아갑니다.',
+        starterDue: state => ownsWeaponBlockedRune(state) }
 ]);
+/** 지금 든 무기로 쓸 수 없는 룬을 가졌는가(무기를 바꿔 기본 공격으로 물러난 주 공격 룬 포함): 무기 규칙 안내를 띄울 때. */
+function ownsWeaponBlockedRune(state) {
+    const stance = getEquippedWeaponStance();
+    return !!state.weaponBlockedSkill || (state.skills || []).some(name => !isSkillRuneUsableWithStance(name, stance));
+}
 function queueStarterGuides(state) {
     if ((state.season || 1) > 1 || (state.loopCount || 0) > 0) return;
     const seen = state.seenTutorials || [];

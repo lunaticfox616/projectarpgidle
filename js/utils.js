@@ -155,6 +155,10 @@ const SKILL_TAG_LABELS = {
     channeling: '채널링',
     curse: '저주',
     warcry: '함성',
+    shout: '함성',
+    dagger: '단검',
+    duration: '지속시간',
+    debuff: '약화',
     guard: '수호',
     utility: '기능'
 };
