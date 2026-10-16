@@ -89,12 +89,14 @@ const bossEntranceView = (() => {
         if (o.t < burst) motes(ctx, at, { t: o.t, dot: Math.max(1, Math.round(o.dot * 2)), mote: o.color }, o.dot * 26, lit);
         else floorDust(ctx, at, { t: o.t - burst, dot: Math.max(1, Math.round(o.dot * 2)), seed: o.seed });
     }
-    /** 발밑에 고인 빛: 바닥에 누운 둥근 빛을 더해 그린다(어두워진 방에서 보스가 선 자리만 밝다). */
+    /** 발밑에 고인 빛: 바닥에 누운 둥근 빛을 더해 그린다(어두워진 방에서 보스가 선 자리만 밝다). 바깥은 검정이 아니라 같은 색의 투명으로
+     * 끝난다: 바닥에 아이템이 있으면 캐릭터를 투명한 판(js/battle-ground-loot-ui.js actorContext)에 그리는데, 그 판에서는 더한 검정이
+     * 검은 네모로 남았다(2026-10-17, 사용자 "보스 등장씬에서 보스 밑의 까만색이 네모낳게 보임"). */
     function floorLight(ctx, at, o) {
         if (!(o.strength > 0)) return;
         const rx = o.dot * STAGE.light.dots, glow = ctx.createRadialGradient(0, 0, 0, 0, 0, rx);
         glow.addColorStop(0, o.color);
-        glow.addColorStop(1, '#000000');
+        glow.addColorStop(1, /^#[0-9a-f]{6}$/i.test(o.color) ? o.color + '00' : 'rgba(0,0,0,0)');
         ctx.save();
         ctx.translate(at.x, at.y);
         ctx.scale(1, 0.3);
