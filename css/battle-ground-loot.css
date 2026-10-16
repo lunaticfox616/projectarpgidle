@@ -22,6 +22,10 @@
 .battle-loot-labels.is-right{left:26px;align-items:flex-start}
 .battle-loot-labels.is-left{left:auto;right:26px;align-items:flex-end}
 .battle-loot-labels.is-down{bottom:auto;top:24px;flex-direction:column;transform:translateX(calc(-50% + var(--down-shift,0px)))}
+/* 위쪽 공간이 부족하면 주요 이름을 그림 아래로; 기존 아래 팔은 그 밑으로 이어진다. */
+.battle-loot-drop.is-under .battle-loot-labels:not(.is-right,.is-left,.is-down){bottom:auto;top:calc(24px + var(--label-lift,0px));flex-direction:column}
+.battle-loot-drop.is-under .battle-loot-labels.is-down{top:calc(26px + var(--label-lift,0px) + var(--up-height,0px))}
+.battle-loot-drop.is-under::after{bottom:auto;top:24px;transform:scaleY(-1)}
 .battle-loot-labels[hidden]{display:none}
 .battle-loot-name{position:relative;white-space:nowrap;max-width:min(220px,calc(var(--loot-width) - 16px));overflow:hidden;text-overflow:ellipsis;box-sizing:border-box;border:1px solid color-mix(in srgb,var(--loot-color) 58%,#26231d);background:rgba(6,7,9,.94);box-shadow:0 0 0 1px rgba(0,0,0,.88),0 2px 4px rgba(0,0,0,.55);padding:2px 7px;color:var(--loot-color);font:600 12px/1.4 sans-serif;text-shadow:0 1px 1px #000;opacity:0}
 .battle-loot-drop.landed .battle-loot-name{opacity:1;animation:loot-name-in 120ms cubic-bezier(.2,.9,.3,1.3) both;animation-delay:calc(var(--row,0) * 20ms)}

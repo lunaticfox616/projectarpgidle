@@ -108,13 +108,19 @@ const battleGroundLoot = (() => {
             const down = marker.querySelector('.battle-loot-labels.is-down');
             marker.dataset.labelRow = String(row);
             marker.dataset.labelHeight = String(labels.offsetHeight || labels.children.length * (row + 2));
+            setStyle(marker, '--up-height', marker.dataset.labelHeight + 'px');
             marker.dataset.labelHalf = String(labels.offsetWidth / 2);
             marker.dataset.downHalf = String(down ? down.offsetWidth / 2 : 0);
         }
-        const width = canvasBox(canvas).width, half = Number(marker.dataset.labelHalf), shift = edgeShift(x, half, width);
+        const view = canvasBox(canvas), half = Number(marker.dataset.labelHalf), shift = edgeShift(x, half, view.width);
+        const height = Number(marker.dataset.labelHeight);
+        // A visible pile whose names cannot fit above it uses the less-clipped side, keeping its first name nearest the picture.
+        const above = EDGE_PAD - (y - 30 - height), below = y + 24 + height - (view.height - EDGE_PAD);
+        const under = y >= 0 && above > 0 && below < above;
+        marker.classList.toggle('is-under', under);
         setStyle(marker, '--label-shift', shift + 'px');
-        setStyle(marker, '--down-shift', edgeShift(x, Number(marker.dataset.downHalf), width) + 'px');
-        stackLabel(marker, { x, y, half, shift, height: Number(marker.dataset.labelHeight), row: Number(marker.dataset.labelRow) });
+        setStyle(marker, '--down-shift', edgeShift(x, Number(marker.dataset.downHalf), view.width) + 'px');
+        stackLabel(marker, { x, y, half, shift, height, under, floor: view.height - EDGE_PAD, row: Number(marker.dataset.labelRow) });
     }
 
     /** Position or dimensions changed; hidden piles wait to be measured when shown again. */
@@ -141,7 +147,7 @@ const battleGroundLoot = (() => {
         projected.forEach(({ marker, point }) => place(marker, point));
     }
 
-    // 이름표 묶음이 이미 떨어진 다른 묶음과 겹치면 한 줄씩 위로 올린다(아이템 그림 위치는 그대로).
+    // 다른 이름 묶음과 겹치면 한 줄씩 위로(뒤집힌 묶음은 아래로) 옮긴다. 아이템 그림 위치는 그대로다.
     // 표시 좌표만 바꾸며 지급과 자동 획득과는 무관하다. 올린 만큼 CSS가 연결선을 그린다.
     function stackLabel(marker, box) {
         const centre = box.x + box.shift;
@@ -151,10 +157,11 @@ const battleGroundLoot = (() => {
             return top < otherTop + Number(other.dataset.labelHeight) + 2 && otherTop < top + box.height + 2
                 && Math.abs(Number(other.dataset.labelCentre) - centre) < box.half + Number(other.dataset.labelHalf) + 4;
         });
-        const base = box.y - 30 - box.height;
+        const base = box.under ? box.y + 24 : box.y - 30 - box.height, step = box.under ? 1 : -1;
+        const fits = top => box.under ? top + box.height <= box.floor : top >= EDGE_PAD;
         let lift = 0;
-        while (lift < box.row * 5 && base - lift > 4 && overlaps(base - lift)) lift += box.row + 2;
-        marker.dataset.labelTop = String(base - lift);
+        while (lift < box.row * 5 && fits(base + step * (lift + box.row + 2)) && overlaps(base + step * lift)) lift += box.row + 2;
+        marker.dataset.labelTop = String(base + step * lift);
         marker.dataset.labelCentre = String(centre);
         setStyle(marker, '--label-lift', lift + 'px');
     }
@@ -165,14 +172,19 @@ const battleGroundLoot = (() => {
         const lift = parseFloat(marker.style.getPropertyValue('--label-lift')) || 0;
         const shift = parseFloat(marker.style.getPropertyValue('--label-shift')) || 0;
         const downShift = parseFloat(marker.style.getPropertyValue('--down-shift')) || 0;
+        const under = marker.classList.contains('is-under'), upHeight = Number(marker.dataset.labelHeight) || 0;
         return [...marker.children]
             .filter(arm => String(arm.className).startsWith('battle-loot-labels') && !arm.hidden).map(arm => {
                 const w = arm.offsetWidth, h = arm.offsetHeight || arm.children.length * 25;
                 const side = arm.className.replace('battle-loot-labels', '').trim();
                 if (side === 'is-right') return { arm, side, left: x + 26, right: x + 26 + w, top: y - 3 - h / 2, bottom: y - 3 + h / 2 };
                 if (side === 'is-left') return { arm, side, left: x - 26 - w, right: x - 26, top: y - 3 - h / 2, bottom: y - 3 + h / 2 };
-                if (side === 'is-down') return { arm, side, left: x - w / 2 + downShift, right: x + w / 2 + downShift, top: y + 24, bottom: y + 24 + h };
-                return { arm, side: 'up', left: x - w / 2 + shift, right: x + w / 2 + shift, top: y - 30 - lift - h, bottom: y - 30 - lift };
+                if (side === 'is-down') {
+                    const top = under ? y + 26 + lift + upHeight : y + 24;
+                    return { arm, side, left: x - w / 2 + downShift, right: x + w / 2 + downShift, top, bottom: top + h };
+                }
+                const top = under ? y + 24 + lift : y - 30 - lift - h;
+                return { arm, side: 'up', left: x - w / 2 + shift, right: x + w / 2 + shift, top, bottom: top + h };
             });
     }
 
