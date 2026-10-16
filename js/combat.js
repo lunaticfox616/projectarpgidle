@@ -11942,6 +11942,7 @@ function queueEnemyCombatAttack(enemy, target, bossPattern, delivery) {
     const flight = enemyAttackRules.trajectory(attack,enemy,travelMs);
     travelMs = flight.duration;
     pendingEnemyCombatAttacks.push(attack);
+    bossMoves.begin(attack, now);
     announceBossRelease(enemy, bossPattern, delivery);
     if (delivery === 'patternArea') return true;
     addBattleFx('combatTravel', {
@@ -11987,11 +11988,18 @@ function takePendingEnemyCombatAttack(enemyId, now) {
     if (attack.at > now) return null;
     if (attack.path && !enemyAttackRules.advanceFlight(attack,game,now)) return null;
     pendingEnemyCombatAttacks.splice(index, 1);
-    if (attack.delivery === 'patternArea') {
-        attack.source.attackCast = null;
-        addBattleFx('bossAreaImpact', { footprint: attack.bossPattern.area, element: attack.source.ele || 'phys', duration: 560 });
-    }
+    if (attack.delivery === 'patternArea') landBossPatternArea(attack, now);
     return attack;
+}
+
+/** A released special lands: all at once, or (a move, js/boss-moves.js) its next stage with the rest queued again. Ground bursts
+ * (and the whole of a special without a move) flash, shake and sound as a slam; shots, beams and bursts in a row show their own
+ * effects (js/canvas-boss-moves.js). */
+function landBossPatternArea(attack, now) {
+    attack.source.attackCast = null;
+    const stage = bossMoves.takeStage(attack, pendingEnemyCombatAttacks, now);
+    if (stage && !stage.burst) return;
+    addBattleFx('bossAreaImpact', { footprint: attack.bossPattern.area, element: attack.source.ele || 'phys', duration: 560 });
 }
 
 /** Resolve current occupants of the released attack, never its original victim's id. */
@@ -12126,7 +12134,7 @@ function performMonsterAttacks(pStats) {
             if (enemy.isElite) dmg = Math.floor(dmg * 1.28);
             if (enemy.isBoss) dmg = Math.floor(dmg * (1.14 + zone.tier * 0.16));
             dmg = Math.floor(dmg * getUnderworldEntryBossTuning(zone, enemy.isBoss).damage);
-            if (bossPattern && Number.isFinite(bossPattern.damageMul) && bossPattern.damageMul > 1) {
+            if (bossPattern && Number.isFinite(bossPattern.damageMul) && bossPattern.damageMul !== 1) {
                 dmg = Math.max(1, Math.floor(dmg * bossPattern.damageMul));
                 if (bossPattern.isSpecial && game.settings.showCombatLog) {
                     addLog(`⚠️ ${enemy.name}: ${bossPattern.label}`, 'attack-monster', { noToast: true });

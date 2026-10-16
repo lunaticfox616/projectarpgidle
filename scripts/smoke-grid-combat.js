@@ -51,7 +51,7 @@ const files = [
   'js/condition-patterns.js',
   'js/hidden-journal.js',
   'js/severed-wanderers.js',
-  'js/enemy-attack-rules.js', 'js/combat-patterns.js',
+  'js/enemy-attack-rules.js', 'js/combat-patterns.js', 'js/boss-moves.js',
   'js/cosmos-rules.js',
   'js/equipment-sockets.js',
   'js/combat-build-stats.js',
@@ -2067,12 +2067,13 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   boss.nextPatternState = context.getBossPatternPreview(boss);
   context.updateBossPatternTelegraph(boss, context.getCombatTime() - context.COMBAT_GRID_CONFIG.bossPatternWarningMs, context.game.gridPlayer);
   context.performMonsterAttacks(defenseStats);
-  const specialFlightMs = vm.runInContext("pendingEnemyCombatAttacks.find(attack => attack.enemyId === 65).at - getCombatTime()", context);
+  const special = vm.runInContext("(attack => ({ ms: attack.at - getCombatTime(), move: attack.bossPattern.move.kind }))(pendingEnemyCombatAttacks.find(attack => attack.enemyId === 65))", context);
 
+  // 2026-10-16: 연속 참격(부채꼴)은 갈래 사격이 되어 첫 칸이 BOSS_MOVE_RULES.volley.firstMs에 닿는다(js/boss-moves.js). 그림도 그 시각에 맞춘다.
   assert.deepStrictEqual(
-    [normalFlightMs, specialFlightMs],
-    [500, 500],
-    '보스의 일반·특수 원거리 공격은 같은 시점에 이펙트가 닿고 피해가 적용되어야 한다',
+    [normalFlightMs, special.move, special.ms],
+    [500, 'volley', context.BOSS_MOVE_RULES.volley.firstMs],
+    '보스의 일반 원거리 공격은 500ms, 부채꼴 특수기는 갈래 사격의 첫 칸 시각에 닿아야 한다',
   );
 }
 

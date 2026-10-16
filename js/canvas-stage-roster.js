@@ -23,6 +23,7 @@ const stageRoster = (() => {
     let mapLooks = new Set();        // 지금 지도의 무리가 쓰는 외형 id: 화면에 나오기 전에도 그림을 들고 있는다(keepFor)
     let sweepAt = 0;                 // 지난 지도의 그림을 놓을 때(keepFor가 건다. 0이면 걸린 것이 없다)
     const scales = new Map();        // 외형 id → 그리는 배율
+    const placements = new Map();    // 적 id → 마지막으로 그린 자리(발, 도트 크기, 방향, 공격 타격 프레임): 보스 효과가 손에서 나온다(js/canvas-boss-moves.js)
     const FRAME_PIXELS = 2 * 1024 * 1024; // Immutable composed poses: at most 8 MB of RGBA and 160 entries.
     // 세 캐시 모두 방금까지 쓰인 그림은 놓지 않는다(js/canvas-stage-cache.js): 자리가 없으면 새 그림은 들이지 않고 그 자리에서 그린다.
     const shrink = canvas => { canvas.width = canvas.height = 1; };
@@ -250,8 +251,10 @@ const stageRoster = (() => {
         const size = picture(pair, actor, pose, lookOf(enemy, p));
         shadow(ctx, actor, p, dot, hop);
         noteEnemyDrawnHeight(enemy, actor.height * dot);   // 뛰는 높이는 넣지 않는다: 체력 막대가 걸음마다 따라 튄다
+        const west = stageView.facing(enemy, p.facing) === 'west';
+        notePlacement(enemy, actor, p, dot, west);
         ctx.save();
-        if (stageView.facing(enemy, p.facing) === 'west') { ctx.translate(p.x * 2, 0); ctx.scale(-1, 1); }
+        if (west) { ctx.translate(p.x * 2, 0); ctx.scale(-1, 1); }
         const left = monsterActors.snap(p.x - (size.pad + actor.feet[0]) * dot), top = monsterActors.snap(p.y - (size.pad + actor.feet[1] + hop) * dot);
         stageDots.blit(ctx, size.canvas, { x: 0, y: 0, w: size.width, h: size.height }, { x: left, y: top, scale: dot }, size.fixed);
         ctx.restore();
@@ -260,6 +263,15 @@ const stageRoster = (() => {
     /** The looks the test panel can pick: [id, name], by name. */
     const looks = () => (table() ? Object.values(table().actors).map(actor => [actor.id, actor.name]).sort((a, b) => a[1].localeCompare(b[1], 'ko')) : []);
 
-    return Object.freeze({ draw, looks, keepFor });
+    function notePlacement(enemy, actor, p, dot, west) {
+        if (enemy.isBoss) placements.set(enemy.id, { x: p.x, y: p.y, dot, west, strikeFrame: actor.impactFrame || 0, at: tick });
+    }
+    /** Where a boss was last drawn (this second): { x, y (feet), dot, west, strikeFrame }, or null. */
+    function placementOf(id) {
+        const placed = placements.get(id);
+        return placed && performance.now() - placed.at < 1000 ? placed : null;
+    }
+
+    return Object.freeze({ draw, looks, keepFor, placementOf });
 })();
 safeExposeGlobals({ stageRoster });

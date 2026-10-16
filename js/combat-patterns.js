@@ -2,7 +2,7 @@
     'use strict';
 
     const BOSS_PATTERN_NAMES = Object.freeze({
-        intro: '지면 강타',
+        intro: '세 가지 특수기',
         burst: '연속 참격',
         slam: '파쇄 강타',
         ramp: '격앙',
@@ -11,7 +11,7 @@
         apex: '후반부 보스 고유 기믹'
     });
     const BOSS_PATTERN_DESCRIPTIONS = Object.freeze({
-        intro: '3번째 공격마다 예고한 칸을 강타합니다. 한 칸과 십자를 번갈아 칩니다. 예고가 뜨면 이동 스킬을 눌러 범위를 벗어날 수 있습니다.',
+        intro: '3번째 공격마다 예고한 칸에 특수기를 씁니다. 보스마다 세 가지(갈래 사격, 연쇄 폭발, 이중 파동 등)를 차례로 씁니다. 예고가 뜨면 이동 스킬을 눌러 범위를 벗어날 수 있습니다.',
         burst: '4번째 공격마다 연속 참격으로 피해가 30% 증가합니다.',
         slam: '3번째 공격마다 파쇄 강타로 피해가 55% 증가합니다.',
         ramp: '생명력이 낮아질수록 최대 3단계까지 격앙하여 공격 피해가 증가합니다. 3번째 공격마다 영웅 자리에 충격파를 내고, 2단계부터는 매번 냅니다.',
@@ -63,15 +63,12 @@
         return 0;
     }
 
-    // 처음 루프의 보스(2026-10-06 사용자 요청 "패턴이 너무 허접"): 한 칸 강타만 되풀이하던 것을 한 칸과 십자로 번갈아 친다.
-    // 첫 특수기는 그대로 한 칸이라 처음 배우는 공격은 같다. 피해 배율은 그대로(1.15).
-    const INTRO_SPECIALS = Object.freeze([
-        Object.freeze({ label: '지면 강타', telegraphKind: 'impact' }),
-        Object.freeze({ label: '십자 강타', telegraphKind: 'wave' })
-    ]);
-    function buildSlamPatternState(mode, attackNumber, cosmosPattern) {
+    // 처음 루프의 보스(2026-10-06 사용자 요청 "패턴이 너무 허접"): 한 칸 강타만 되풀이하던 것을 2026-10-16부터는 보스의 싸우는 방식
+    // (data/boss-fx.js kind)마다 세 모양을 차례로 쓴다(js/boss-moves.js intro: 근접은 강타, 연쇄 폭발, 이중 파동; 원거리는 강타, 갈래 사격,
+    // 관통 광선 등). 피해 배율은 그대로(1.15).
+    function buildSlamPatternState(mode, attackNumber, cosmosPattern, enemy) {
         let special = cosmosPattern || attackNumber % 3 === 0;
-        let intro = mode === 'intro' ? INTRO_SPECIALS[(Math.ceil(attackNumber / 3) + 1) % INTRO_SPECIALS.length] : null;
+        let intro = mode === 'intro' ? bossMoves.intro(enemy, Math.ceil(attackNumber / 3)) : null;
         return {
             mode,
             label: special ? (intro ? intro.label : BOSS_PATTERN_NAMES[mode]) : '무거운 일격',
@@ -111,7 +108,7 @@
             };
         }
         if (mode === 'slam' || mode === 'intro') {
-            return buildSlamPatternState(mode, attackNumber, cosmosPattern);
+            return buildSlamPatternState(mode, attackNumber, cosmosPattern, enemy);
         }
         if (mode === 'ramp') return buildRampPatternState(enemy, attackNumber, cosmosPattern);
         return null;
@@ -150,6 +147,7 @@
         let state = getBossPatternPreview(enemy);
         if (!state) return null;
         if (enemy.patternArea) state.area = enemy.patternArea;
+        bossMoves.plan(state, enemy); // the special lands over time: shots, a beam, bursts one after another (js/boss-moves.js)
         state.castStartedAt = enemy.patternTelegraphStartedAt;
         enemy.patternAttackCount = normalizeAttackCount(enemy) + 1;
         enemy.nextPatternState = getBossPatternPreview(enemy);

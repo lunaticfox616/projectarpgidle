@@ -1420,6 +1420,7 @@ function drawSkillGemVfxLayer(ctx, now, gridProj) {
     let list = battleVisualState.skillEffects || [];
     worldTreeSkillFx.drawQueued(ctx, list, now, 'foreground');
     if (typeof stageSkillVfx === 'object') { stageSkillVfx.draw(ctx, 'top', gridProj); stageSkillSigil.draw(ctx, gridProj); }
+    bossMoveView.drawAir(ctx, gridProj); // boss moves: the charge at the hand, shots, beams (js/canvas-boss-moves.js)
     const spriteRenderers = {continuousSlash:drawSwordSlashVfx};
     list.forEach(effect => {
         let image = getSkillGemVfxImage(effect.imageKey);
@@ -1516,6 +1517,7 @@ function drawBossPatternArea(ctx, area, projection, alpha = 3, outlineOnly = fal
 
 function drawEnemyAttackTelegraphs(ctx, layout, gridUnitScale, projection, pendingAttacks) {
     sideEncounterCanvas.pendingWarnings(ctx, projection, pendingAttacks);
+    bossMoveView.drawGround(ctx, projection); // boss moves: each stage's warning and the bursts out of the ground (js/canvas-boss-moves.js)
     (layout || []).forEach(entry => {
         let enemy = entry.enemy;
         if (!enemy || enemy.noAttack || enemy.hp <= 0 || !Number.isFinite(Number(enemy.attackTimer))) return;
