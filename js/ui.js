@@ -390,6 +390,8 @@ function isForegroundGameplayPausedForBackground() {
     // 사망 기록은 읽을거리일 뿐 — 열려 있어도 방치 진행은 멈추지 않는다(예전에는 닫을 때까지 전투 시간이 멈췄다).
     if (typeof isLoopHeroSelectOpen === 'function' && isLoopHeroSelectOpen()) return true;
     if (actExplorationUi.departurePending()) return true;
+    // 입구 방의 인사(js/canvas-act-title-card.js greeting): 이야기 팝업처럼 주인공이 서서 듣는다(2026-10-15 사용자 "처음에 바로 막 진행하는데").
+    if (typeof actTitleCard === 'object' && actTitleCard.greeting()) return true;
     let overlayPause = !!game?.settings?.pauseGameOnOverlay;
     // 안내 카드뿐 아니라 따라 하기의 대상 화면이 열려 있는 동안도(검토 7차) — isTutorialPausingCombat이 함께 본다.
     let tutorialOpen = isTutorialPausingCombat();
@@ -1084,9 +1086,13 @@ function setupBattlefieldMovementInteraction() {
     });
 }
 
-/** 탐험 중 전장을 누르면 그 칸으로 걸어간다(미니맵 클릭과 같은 이동 명령 · 자동 이동은 그대로). */
+/** 탐험 중 전장을 누르면 그 칸으로 걸어간다(미니맵 클릭과 같은 이동 명령 · 자동 이동은 그대로). 입구 방의 NPC를 누르면 걷지 않고
+ * 그 NPC의 창을 연다(js/canvas-act-title-card.js npcAt, js/content-progression-ui.js openNpc). */
 function commandBattlefieldMove(canvas, event) {
-    let cell = actExplorationView.cellAt(getBattlefieldClientPoint(canvas, event.clientX, event.clientY));
+    let point = getBattlefieldClientPoint(canvas, event.clientX, event.clientY);
+    let npc = actTitleCard.npcAt(point);
+    if (npc && contentUnlockUi.openNpc(npc)) return;
+    let cell = actExplorationView.cellAt(point);
     if (cell) actExplorationUi.commandMove(cell);
 }
 
@@ -1300,8 +1306,8 @@ let tabHeaderDragState = null;
 let tabHeaderSuppressClickUntil = 0;
 let lastTabHeaderUiSignature = '';
 let lastActiveTabId = null;
-const TAB_HEADER_NOTI_KEYS = ['char', 'season', 'items', 'skills', 'codex', 'map', 'traits', 'talent', 'journal', 'currency', 'fossil', 'ascend', 'loop', 'social', 'stump'];
-const TAB_UNLOCK_BUTTON_KEYS = ['char', 'season', 'items', 'skills', 'codex', 'map', 'traits', 'talent', 'stump'];
+const TAB_HEADER_NOTI_KEYS = ['char', 'season', 'items', 'skills', 'codex', 'map', 'traits', 'talent', 'journal', 'currency', 'fossil', 'ascend', 'loop', 'social', 'stump', 'npcs'];
+const TAB_UNLOCK_BUTTON_KEYS = ['char', 'season', 'items', 'skills', 'codex', 'map', 'traits', 'talent', 'stump', 'npcs'];
 // 메뉴 단추 하나가 여는 창 하나에 화면 여럿(2026-10-13 사용자: 새 단추 그림에 맞춰 "단추 하나로 합치고 UI를 잘 만들어야겠지?").
 // 장비 단추는 장비와 스킬 젬을, 루프 단추는 루프 패시브와 해금을 연다(앞의 둘은 전부터 묶여 있었다). 창 머리의 탭으로 오가고,
 // 단추는 마지막에 보던 화면을 연다. icon: 창 머리 탭의 그림(assets/ui/pixel/menu-icons.png의 번호), count: 탭에 적는 수(쓸 포인트).
@@ -1318,7 +1324,7 @@ const TAB_GROUP_FIXED_TAB_IDS = ['tab-social', 'tab-settings'];
 const TAB_GROUPS = [
     { key: 'character', label: '캐릭터', icon: '👤', tabs: ['tab-character'] },
     { key: 'growth', label: '성장', icon: '📈', tabs: ['tab-char', 'tab-traits', 'tab-talent', 'tab-unlocks', 'tab-season', 'tab-stump', 'tab-skills'] },
-    { key: 'content', label: '콘텐츠', icon: '🗺️', tabs: ['tab-map', 'tab-codex', 'tab-journal', 'tab-records'] },
+    { key: 'content', label: '콘텐츠', icon: '🗺️', tabs: ['tab-map', 'tab-codex', 'tab-journal', 'tab-records', 'tab-npcs'] },
     { key: 'gear', label: '장비', icon: '⚔️', tabs: ['tab-items'] },
     { key: 'etc', label: '기타', icon: '⚙️', tabs: ['tab-social', 'tab-settings', 'tab-battle'] }
 ];
@@ -1913,6 +1919,7 @@ function getRenderingUiTabIds() {
 function renderVisibleManagementPanels(tabIds) {
     if (tabIds.has('tab-talent')) talentUi.render();
     if (tabIds.has('tab-stump')) stumpBoxUi.renderStumpBoxTab();
+    if (tabIds.has('tab-npcs')) npcRosterUi.render();
     if (tabIds.has('tab-items') && game.itemSubtab === 'item-tab-market') renderMarketUI();
     else refreshBlackMarket(false);
 }
@@ -2239,8 +2246,7 @@ function switchTab(tabId) {
             scheduleStableResize();
         }, 40);
     } else if (tabId === 'tab-settings') {
-        syncCombatTacticsSettingsControls();
-        renderTabOrderSettings();
+        settingsUi.sync();
     }
 }
 
@@ -5046,7 +5052,7 @@ function tryUnlockMonsterSkinFromEnemy(enemy) {
     game.unlockedMonsterSkins = game.unlockedMonsterSkins || {};
     if (game.unlockedMonsterSkins[id]) return;
     game.unlockedMonsterSkins[id] = true;
-    addLog(`🎭 극희귀 발견! 몬스터 외형 [${getMonsterSkinLabel(id)}]을(를) 획득했습니다! (설정 > 몬스터 외형에서 적용)`, 'loot-unique');
+    addLog(`🎭 극희귀 발견! 몬스터 외형 [${getMonsterSkinLabel(id)}]을(를) 획득했습니다! (설정 > 화면과 소리에서 적용)`, 'loot-unique');
     if (typeof renderMonsterSkinControls === 'function') renderMonsterSkinControls();
     if (typeof saveGame === 'function') saveGame({ skipCloudSync: true });
 }
@@ -5243,76 +5249,6 @@ function applyChatMessageSize(size) {
     let normalized = ['small', 'medium', 'large'].includes(size) ? size : 'medium';
     if (document.body && document.body.dataset) document.body.dataset.chatMessageSize = normalized;
     return normalized;
-}
-
-function updateSettings() {
-    let previousSocialChatNotifications = game.settings.socialChatNotifications !== false;
-    game.settings.showCombatScene = document.getElementById('chk-combat-scene').checked;
-    let cameraShakeCheckbox = document.getElementById('chk-camera-shake');
-    game.settings.cameraShake = !cameraShakeCheckbox || cameraShakeCheckbox.checked;
-    game.settings.hitEmphasis = document.getElementById('sel-hit-emphasis')?.value === 'mild' ? 'mild' : 'normal';
-    let uiSoundsCheckbox = document.getElementById('chk-ui-sounds');
-    game.settings.uiSounds = !uiSoundsCheckbox || uiSoundsCheckbox.checked;
-    playUiFeedbackSound.syncSettings();
-    game.settings.showCombatLog = document.getElementById('chk-log-combat').checked;
-    let detailedDamageLogCheckbox = document.getElementById('chk-log-damage-detail');
-    game.settings.showDetailedDamageLog = !!(detailedDamageLogCheckbox && detailedDamageLogCheckbox.checked);
-    game.settings.combatLogAggregate = document.getElementById('chk-log-aggregate').checked;
-    game.settings.combatLogRateLimit = document.getElementById('chk-log-rate-limit').checked;
-    game.settings.showSpawnLog = document.getElementById('chk-log-spawn').checked;
-    game.settings.showExpLog = document.getElementById('chk-log-exp').checked;
-    game.settings.showLootLog = document.getElementById('chk-log-loot').checked;
-    game.settings.showCrowdPauseLog = document.getElementById('chk-log-crowd').checked;
-    game.settings.showDeathNotice = document.getElementById('chk-death-notice').checked;
-    game.settings.showMobileBattlePip = document.getElementById('chk-mobile-battle-pip').checked;
-    let tabNotiCheckbox = document.getElementById('chk-tab-noti');
-    if (tabNotiCheckbox) game.settings.tabNotiEnabled = tabNotiCheckbox.checked;
-    let socialChatNotiCheckbox = document.getElementById('chk-social-chat-noti');
-    if (socialChatNotiCheckbox) game.settings.socialChatNotifications = socialChatNotiCheckbox.checked;
-    let chatMessageSizeSelect = document.getElementById('sel-chat-message-size');
-    game.settings.chatMessageSize = applyChatMessageSize(chatMessageSizeSelect ? chatMessageSizeSelect.value : game.settings.chatMessageSize);
-    if (game.settings.socialChatNotifications === false && game.noti) game.noti.social = false;
-    if (previousSocialChatNotifications !== (game.settings.socialChatNotifications !== false)
-        && typeof syncSocialChatNotificationSetting === 'function') syncSocialChatNotificationSetting();
-    game.settings.twoRowTabs = false;
-    lastTabHeaderUiSignature = null;
-    let pauseOverlayCheckbox = document.getElementById('chk-pause-overlay');
-    game.settings.pauseGameOnOverlay = !!(pauseOverlayCheckbox && pauseOverlayCheckbox.checked);
-    let autoEquipCheckbox = document.getElementById('chk-auto-equip-empty');
-    game.settings.autoEquipEmptySlots = !autoEquipCheckbox || autoEquipCheckbox.checked;
-    if (game.combatTacticsUnlocked) {
-        let targetSelect = document.getElementById('sel-combat-target-priority');
-        let positionSelect = document.getElementById('sel-combat-position-mode');
-        let tactics = normalizeCombatTacticsSettings({
-            combatTargetPriority: targetSelect && targetSelect.value,
-            combatPositionMode: positionSelect && positionSelect.value
-        });
-        game.settings.combatTargetPriority = tactics.targetPriority;
-        game.settings.combatPositionMode = tactics.positionMode;
-    }
-    let damageFormatSelect = document.getElementById('sel-damage-number-format');
-    let damageFormat = damageFormatSelect ? damageFormatSelect.value : game.settings.damageNumberFormat;
-    game.settings.damageNumberFormat = ['comma', 'korean', 'korean_short', 'english'].includes(damageFormat) ? damageFormat : 'comma';
-    game.settings.showExpComma = document.getElementById('chk-exp-comma').checked;
-    game.settings.showHpComma = document.getElementById('chk-hp-comma').checked;
-    game.settings.showEnemyHpComma = document.getElementById('chk-enemy-hp-comma').checked;
-    game.settings.showCharacterComma = document.getElementById('chk-character-comma').checked;
-    game.settings.mapCompleteAction = getMapCompleteActionOption((document.getElementById('sel-map-complete-action') || {}).value).value;
-    let disableItemAutomationAfterLoop = document.getElementById('chk-loop-disable-item-automation');
-    let postLoopMapCompleteAction = document.getElementById('sel-loop-map-complete-action');
-    game.settings.disableItemAutomationAfterLoop = !disableItemAutomationAfterLoop || disableItemAutomationAfterLoop.checked;
-    game.settings.postLoopMapCompleteAction = getMapCompleteActionOption(postLoopMapCompleteAction ? postLoopMapCompleteAction.value : game.settings.postLoopMapCompleteAction).value;
-    let townReturnValue = (document.getElementById('sel-town-return-action') || {}).value;
-    game.settings.townReturnAction = ['retry', 'stop'].includes(townReturnValue) ? townReturnValue : 'retry';
-    let skinSelect = document.getElementById('sel-ui-skin');
-    game.settings.uiSkin = normalizeUiSkin(skinSelect ? skinSelect.value : game.settings.uiSkin);
-    let highContrastToggle = document.getElementById('chk-high-contrast');
-    game.settings.highContrast = highContrastToggle ? highContrastToggle.checked : game.settings.highContrast === true;
-    applyUiSkin(game.settings.uiSkin);
-    applyHighContrast(game.settings.highContrast);
-    toggleDeathNoticeSetting(game.settings.showDeathNotice);
-    syncMapCompleteActionQuickControl();
-    updateStaticUI();
 }
 
 function applyTooltipPosition(el, x, y) {
@@ -9063,16 +8999,7 @@ function performUpdateStaticUI() {
     cachedTooltipStats = pStats;
     updateCombatUI(pStats);
     __mark('combatUI');
-    let showCombatScene = game.settings.showCombatScene !== false;
-    let canvas = document.getElementById('battlefield-canvas');
-    let caption = document.getElementById('ui-battlefield-caption');
-    let battlefieldWrap = document.getElementById('battlefield-wrap');
-    let combatDashboard = document.querySelector('.combat-dashboard');
-    if (canvas) canvas.style.display = showCombatScene ? 'block' : 'none';
-    if (battlefieldWrap) battlefieldWrap.classList.toggle('compressed', !showCombatScene);
-    if (combatDashboard) combatDashboard.classList.toggle('combat-scene-hidden', !showCombatScene);
     applyPanelLayoutSettings();
-    if (!showCombatScene && caption) caption.innerText = '전투가 진행중입니다.';
     let loopDecisionOverlay = document.getElementById('loop-decision-overlay');
     if (loopDecisionOverlay) loopDecisionOverlay.classList.toggle('active', !!game.pendingLoopDecision);
     updateLoopDecisionOverlayUi();
@@ -10062,8 +9989,8 @@ function buildCraftActionButtons(item) {
             woodsman: '혼돈 5층 클리어',
             woodsman_echo: '혼돈 밖에서 나무꾼 완전 격파',
             meteor_fall: '운석 낙하 지점 첫 정산',
-            beehive_queen: '루프 8 벌집 여왕 격파',
-            void_grand_breach: '루프 9 큰 구멍의 지배자 격파',
+            beehive_queen: '벌집 원정에서 여왕 격파',
+            void_grand_breach: '대균열의 지배자 격파',
             labyrinth_10: '고대 미궁 10층 클리어',
             ocean_500: '심해 500m 가디언 격파',
             sky_tower_10: '창공의 탑 10층 클리어',
@@ -10137,7 +10064,7 @@ function buildCraftActionButtons(item) {
                     let isUnlocked = unlocked.has(id);
                     let availability = availabilityById.get(id);
                     let available = availability === 'available';
-                    let displayTitle = isUnlocked || available ? def.title : (def.hidden ? '히든 저널 - ???' : '미확인 기록');
+                    let displayTitle = isUnlocked || available ? def.title : (def.hidden ? '히든 저널, ???' : '미확인 기록');
                     let rewardText = isUnlocked || available ? (def.bonus ? def.bonus.label : def.displayEffect) : '';
                     let action = available ? getJournalEntryAction(id) : null;
                     let stateLabel = isUnlocked ? '해금' : '해금 필요';
@@ -12071,7 +11998,6 @@ function updateCloudSaveUI() {
     let uploadProfileEl = document.getElementById('ui-cloud-upload-profile');
     let msgEl = document.getElementById('ui-cloud-message');
     let openGateBtn = document.getElementById('btn-cloud-open-gate');
-    let switchGateBtn = document.getElementById('btn-cloud-return-startup');
     let canSync = config.enabled && !cloudState.busy && !!cloudState.user;
 
     if (pill) {
@@ -12100,7 +12026,6 @@ function updateCloudSaveUI() {
     if (pill && cloudState.lastMessage && /실패|오류/.test(cloudState.lastMessage) && !cloudState.busy) pill.classList.add('error');
 
     if (openGateBtn) openGateBtn.disabled = cloudState.busy;
-    if (switchGateBtn) switchGateBtn.disabled = cloudState.busy || (!cloudState.user && !gameplayStarted);
     ['btn-cloud-logout', 'btn-cloud-push', 'btn-cloud-pull'].forEach(id => {
         let el = document.getElementById(id);
         if (el) el.disabled = !canSync;
@@ -14047,6 +13972,7 @@ function getLockedTabMessage(tabId) {
     if (tabId === 'tab-map') return '액트 1을 마치면 지도가 열립니다.';
     if (tabId === 'tab-traits') return '전직 시련을 통과하면 전직 탭이 열립니다.';
     if (tabId === 'tab-talent') return '재능 개화 시련을 클리어하면 재능 탭이 열립니다.';
+    if (tabId === 'tab-npcs') return '맵에서 NPC를 만나면 NPC 탭이 열립니다.';
     return '아직 해금되지 않은 탭입니다.';
 }
 

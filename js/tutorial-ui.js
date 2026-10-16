@@ -15,7 +15,7 @@ const tutorialActionUi = {
         return !!notice && (TUTORIAL_START_KEYS.has(notice.key) || TUTORIAL_GUIDED_CONTENT_KEYS.has(notice.key) || String(notice.key).startsWith('story_'));
     },
     noticeBody(notice, controls) {
-        const body = tutorialBodyHtml(notice.body) + controls.trim();
+        const body = tutorialQuoteHtml(notice.quote) + tutorialBodyHtml(notice.body) + controls.trim();
         return this.requiresAttention(notice) ? body : `<details class="tutorial-notice-details"><summary>자세히</summary>${body}</details>`;
     },
     expireNotice(now) {
@@ -327,7 +327,7 @@ function tidyTutorialScroll(scroller, target) {
 window.addEventListener('resize', () => tutorialActionUi.reposition());
 
 // 안내 카드 종류: 처음 하는 조작(시작 안내), 새로 열린 콘텐츠(새 콘텐츠), 루프 도달(새 루프). 이야기 장면은 storyJournalUi가 그린다.
-const TUTORIAL_START_KEYS = new Set(['tutorial_battle_basics', 'tutorial_starter_gem_equip', 'tutorial_first_passive', 'tutorial_first_gear',
+const TUTORIAL_START_KEYS = new Set(['tutorial_battle_basics', 'tutorial_starter_gem_equip', 'opening_auto', 'tutorial_first_passive', 'tutorial_first_gear',
     'unlock_char', 'unlock_items', 'unlock_skills']);
 // 새 콘텐츠 가운데 따라 하기가 있는 카드: 시작 안내처럼 펼친 채 저절로 닫히지 않는다(그루터기 함 시작 선물을 57분 동안 놓지 않은 판이 있었다).
 const TUTORIAL_GUIDED_CONTENT_KEYS = new Set(['unlock_stump_box', 'tutorial_stump_starter']);
@@ -336,7 +336,7 @@ const TUTORIAL_KIND_LABELS = Object.freeze({ start: '시작 안내', content: '�
 const TUTORIAL_TAB_NAMES = Object.freeze({
     'tab-character': '캐릭터', 'tab-char': '스킬트리', 'tab-items': '장비', 'tab-skills': '스킬 젬', 'tab-map': '지도', 'tab-unlocks': '해금',
     'tab-season': '루프 패시브', 'tab-traits': '전직', 'tab-talent': '재능', 'tab-codex': '도감',
-    'tab-stump': '그루터기 함', 'tab-settings': '설정', 'tab-journal': '기록', 'tab-records': '전적'
+    'tab-stump': '그루터기 함', 'tab-settings': '설정', 'tab-journal': '기록', 'tab-records': '전적', 'tab-npcs': 'NPC'
 });
 function tutorialNoticeKind(notice) {
     if (TUTORIAL_START_KEYS.has(notice.key)) return 'start';
@@ -349,6 +349,12 @@ function tutorialMarkup(line) {
         .replace(/\[([^\]]+)\]/g, '<span class="tutorial-name">[$1]</span>');
 }
 /** First line = what happened; the rest = what to do, as a short list (a line of speech in “…” keeps it prose). */
+/** A story line over a notice, styled like the loop close (js/loop-ui.js storyHtml). lore: { speaker, quote } as in
+ * data/story-journal.js STORY_LOOP_MILESTONES (the stump box card: who hands the box over says it as it is given). */
+function tutorialQuoteHtml(lore) {
+    if (!lore || !lore.quote) return '';
+    return `<blockquote class="story-scene-quote"><p><strong>${escapeHTML(lore.speaker || '')}</strong> ${escapeHTML(lore.quote)}</p></blockquote>`;
+}
 function tutorialBodyHtml(body) {
     const [lead = '', ...rest] = String(body || '').split('\n').map(line => line.trim()).filter(Boolean);
     const head = `<p class="tutorial-summary">${tutorialMarkup(lead)}</p>`;
@@ -447,7 +453,7 @@ function isTutorialPresentationBlocked() {
     // 방치 전투를 되돌리는 중이거나 그 결과 창이 열려 있으면 이야기 · 안내 카드는 결과를 닫은 뒤에 뜬다(두 판이 겹쳤다).
     if (backgroundCombatRuntime.processing || document.getElementById('background-combat-result-overlay')) return true;
     if (tutorialWaitsForTitleCard() || tutorialYieldsToMenus()) return true;
-    return ['isStartupOverlayOpen', 'isLoadingOverlayOpen', 'isRewardOpen', 'isDeathOverlayOpen', 'isLoopHeroSelectOpen']
+    return ['isStartupOverlayOpen', 'isLoadingOverlayOpen', 'isRewardOpen', 'isDeathOverlayOpen', 'isLoopHeroSelectOpen', 'isOpeningIntroOpen']
         .some(name => typeof window[name] === 'function' && window[name]());
 }
 /** 방치 결과 창이 뜰 때 이미 떠 있던 이야기 · 안내 카드는 접어 줄 맨 앞에 돌려놓는다 — 다시 불러온 뒤 이야기 카드 위에

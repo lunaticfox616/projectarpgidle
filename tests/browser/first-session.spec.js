@@ -3,12 +3,40 @@
 const { test, expect } = require('@playwright/test');
 const { pickClass } = require('./helpers');
 
+/** One step of the first start's lessons after the intro (js/opening-journey-ui.js), the way a player takes them: the lying hero is
+ * pressed, the floor beside it is clicked (move), the door toward Haken's room, then the monster striking him (attack), then the gem
+ * it dropped. What is not on screen yet (a phone shows a few cells) is walked toward along the hero's row. The top-down field (no
+ * stage art, as in CI) has no lessons. Returns the lesson acted on, or null. */
+async function takeOpeningStep(page) {
+    const step = await page.evaluate(() => openingJourney.lesson());
+    if (step === 'pickup') await page.locator('.battle-loot-drop.is-floor').first().dispatchEvent('click');
+    if (!['rise', 'move', 'attack'].includes(step)) return step;
+    const point = await page.evaluate(lesson => {
+        const canvas = document.getElementById('battlefield-canvas'), rect = canvas.getBoundingClientRect(), k = rect.width / canvas.clientWidth;
+        const screen = at => ({ x: rect.left + at.x * k, y: rect.top + at.y * k }), hero = battleVisualState.playerPos;
+        if (lesson !== 'attack') return screen(lesson === 'rise' ? { x: hero.x, y: hero.y - 20 } : { x: hero.x + 70, y: hero.y });
+        const enemy = game.enemies.find(row => row && row.rescue), shown = enemy && battleVisualState.enemySmoothPos[enemy.id];
+        if (shown && shown.x > 0 && shown.x < canvas.clientWidth) return screen(shown);
+        const run = actExplorationState.current(game), map = actExplorationDoors.stageMap(run), pack = run.packs.find(row => row.rescue);
+        const here = actExplorationDoors.room(run), there = pack && map.rooms.find(room => room.id === pack.roomId);
+        const door = !enemy && here && there && here !== there ? map.hops[here.index][there.index] : null, cell = enemy || (door && door.cell);
+        for (let y = 0; door && y < canvas.clientHeight; y += 6) for (let x = 0; x < canvas.clientWidth; x += 6) {
+            const at = actExplorationView.cellAt({ x, y }), px = rect.left + (x + 3) * k, py = rect.top + (y + 3) * k;
+            if (at && at.gx === door.cell.gx && at.gy === door.cell.gy && document.elementFromPoint(px, py) === canvas) return { x: px, y: py };
+        }
+        if (!cell) return null;
+        return screen({ x: hero.x + Math.sign(cell.gx - game.gridPlayer.gx) * Math.min(120, canvas.clientWidth / 2 - 20), y: hero.y });
+    }, step);
+    if (point) await page.mouse.click(point.x, point.y);
+    return step;
+}
+
 for (const [classId, label] of [['occultist', '비술사'], ['warrior', '전사']]) {
     test(`initial ${classId} selection updates HUD before the paused prologue ends`, async ({page}) => {
         await page.route('https://**',route=>route.fulfill({status:204,body:''}));
         await page.goto('/');await page.locator('#btn-startup-guest').click();
-        await pickClass(page, classId);
-        await expect(page.locator('#tutorial-overlay')).toHaveClass(/active/);
+        await pickClass(page, classId, { opening: true });
+        await expect(page.locator('#opening-intro')).toBeVisible();
         await expect(page.locator('#ui-player-name-label')).toHaveText(label);
         const resource=await page.evaluate(()=>({hp:game.playerHp,cap:getPlayerHpCap(getPlayerStats())}));
         expect(resource.hp).toBe(resource.cap);
@@ -23,11 +51,14 @@ test('a new warrior earns and equips the first gem through visible controls', as
     await page.route('https://**', route => route.fulfill({ status: 204, body: '' }));
     await page.goto('/');
     await page.locator('#btn-startup-guest').click();
-    await pickClass(page, 'warrior');
+    await pickClass(page, 'warrior', { opening: true });
+    await page.locator('#opening-intro .opening-intro-skip').click();
+    await expect(page.locator('#opening-intro')).toHaveCount(0);
     const startedAt = Date.now();
     const notices = [];
     let firstGemMs = null;
     await expect.poll(async () => {
+        await takeOpeningStep(page);
         if (firstGemMs === null && await page.evaluate(() => !!game.starterGemTutorialPending)) {
             firstGemMs = Date.now() - startedAt;
         }
@@ -38,7 +69,7 @@ test('a new warrior earns and equips the first gem through visible controls', as
             else await page.locator('#tutorial-dismiss-btn').click();
         }
         return page.locator('#tutorial-action-card').isVisible();
-    }, { timeout: 45000, intervals: [250, 500] }).toBe(true).catch(async error => {
+    }, { timeout: 60000, intervals: [250, 500] }).toBe(true).catch(async error => {
         const state = await page.evaluate(() => ({
             seen: game.seenTutorials, pending: game.starterGemTutorialPending, skill: game.activeSkill,
             queue: tutorialQueue, active: activeTutorial, guide: tutorialActionUi.active?.notice,

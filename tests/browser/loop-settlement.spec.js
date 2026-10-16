@@ -20,7 +20,7 @@ test('loop settlement shows real progress and preserves preparation and deferral
     await expect(ready).toBeVisible();
     await expect(ready).toContainText('루프 1 달성');
     await expect(ready).toContainText('1시간 0분');
-    await expect(ready).toContainText('해금 포인트 +2');
+    await expect(ready).toContainText('해금 포인트 +4');
     await expect(ready.getByText('나중에 루프', { exact: true })).toHaveCount(0);
     await page.screenshot({ path: testInfo.outputPath('loop-earned.png'), animations: 'disabled' });
     await ready.getByRole('button', { name: '장비 정리', exact: true }).click();
@@ -43,7 +43,7 @@ test('loop settlement shows real progress and preserves preparation and deferral
     await page.locator('#game-dialog-confirm').click();
     await expect.poll(() => page.evaluate(() => game.season)).toBe(2);
     expect(await page.evaluate(() => game.seasonPoints)).toBe(1);
-    expect(await page.evaluate(() => contentProgression.balance())).toBe(2);
+    expect(await page.evaluate(() => contentProgression.balance())).toBe(4);
     await expect(ready).not.toBeVisible();
     await expect(page.locator('#loop-hero-select-overlay')).toBeVisible();
     await pickClass(page, 'warrior');

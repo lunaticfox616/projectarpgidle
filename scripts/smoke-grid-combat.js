@@ -51,7 +51,7 @@ const files = [
   'js/condition-patterns.js',
   'js/hidden-journal.js',
   'js/severed-wanderers.js',
-  'js/enemy-attack-rules.js', 'js/combat-patterns.js',
+  'js/enemy-attack-rules.js', 'js/combat-patterns.js', 'js/boss-moves.js',
   'js/cosmos-rules.js',
   'js/equipment-sockets.js',
   'js/combat-build-stats.js',
@@ -423,11 +423,13 @@ const cfg = context.COMBAT_GRID_CONFIG;
   const rivalEnemiesAtUnlock = rivalZones.map(zone => context.createEnemy(zone, { boss: true, at: 100 }, 0));
   const commonRivalHealth = rivalEnemiesAtUnlock.slice(0, -1).map(enemy => enemy.maxHp);
   // 기준 범위(35M~80M · 100M)는 예전 생명력 공식(루프 성장 0.52 × 루프 카운트 배율) 기준이다. 2026-10-06부터 생명력의 루프 몫은
-  // 지역 단계와 무관한 한 곡선(data/maps.js MONSTER_LOOP_HP_CURVE)이라, 기준 범위에 새 배율 / 예전 배율을 곱한다.
+  // 지역 단계와 무관한 한 곡선(data/maps.js MONSTER_LOOP_HP_CURVE)이라, 기준 범위에 새 배율 / 예전 배율을 곱한다. 2026-10-16부터 보스는
+  // 루프 배율의 일부만 받아(getBossHpEase) 그 값도 곱한다.
   const rivalHpScale = vm.runInContext(`(() => {
     const zone = SEASON_BOSS_ZONES.find(row => row.rivalBlade), depth = getSoftenedLoopDepth(30);
     const share = Math.min(1, Math.max(0, (levelProgression.combatZone(zone).tier - 1) / 18)), old = MONSTER_LOOP_GROWTH.fixed.hp;
-    return interpolateLoopCurve(MONSTER_LOOP_HP_CURVE, 31) / ((1 + depth * (old.base + share * old.tier)) * getLoopHpScale(30));
+    const loopMul = interpolateLoopCurve(MONSTER_LOOP_HP_CURVE, 31);
+    return loopMul * getBossHpEase(levelProgression.combatZone(zone).tier, loopMul) / ((1 + depth * (old.base + share * old.tier)) * getLoopHpScale(30));
   })()`, context);
   assert.ok(rivalHpScale > 0.05 && rivalHpScale < 1, `the loop 31 benchmark follows the shared loop life curve (${rivalHpScale.toFixed(3)})`);
   assert.ok(Math.min(...commonRivalHealth) >= 35000000 * rivalHpScale && Math.max(...commonRivalHealth) <= 80000000 * rivalHpScale,
@@ -2067,12 +2069,13 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   boss.nextPatternState = context.getBossPatternPreview(boss);
   context.updateBossPatternTelegraph(boss, context.getCombatTime() - context.COMBAT_GRID_CONFIG.bossPatternWarningMs, context.game.gridPlayer);
   context.performMonsterAttacks(defenseStats);
-  const specialFlightMs = vm.runInContext("pendingEnemyCombatAttacks.find(attack => attack.enemyId === 65).at - getCombatTime()", context);
+  const special = vm.runInContext("(attack => ({ ms: attack.at - getCombatTime(), move: attack.bossPattern.move.kind }))(pendingEnemyCombatAttacks.find(attack => attack.enemyId === 65))", context);
 
+  // 2026-10-16: 연속 참격(부채꼴)은 갈래 사격이 되어 첫 칸이 BOSS_MOVE_RULES.volley.firstMs에 닿는다(js/boss-moves.js). 그림도 그 시각에 맞춘다.
   assert.deepStrictEqual(
-    [normalFlightMs, specialFlightMs],
-    [500, 500],
-    '보스의 일반·특수 원거리 공격은 같은 시점에 이펙트가 닿고 피해가 적용되어야 한다',
+    [normalFlightMs, special.move, special.ms],
+    [500, 'volley', context.BOSS_MOVE_RULES.volley.firstMs],
+    '보스의 일반 원거리 공격은 500ms, 부채꼴 특수기는 갈래 사격의 첫 칸 시각에 닿아야 한다',
   );
 }
 

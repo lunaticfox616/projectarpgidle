@@ -31,10 +31,35 @@ function gridChebyshevDist(ax, ay, bx, by) {
 }
 
 function getGridUnitFootprint(unit) {
-    let bossSize = COMBAT_GRID_CONFIG.bossFootprint || { columns: 2, rows: 2 };
+    let bossSize = (unit && unit.footprint) || COMBAT_GRID_CONFIG.bossFootprint || { columns: 2, rows: 2 };
     return unit && unit.isBoss
         ? { columns: bossSize.columns, rows: bossSize.rows }
         : { columns: 1, rows: 1 };
+}
+
+const HERO_HALF_CELLS = 0.45;   // half the hero's drawn body with its weapon, in cells (fitBossFootprint)
+
+/** The stage picture a boss shows (data/monster-stage-roster.js, as js/canvas-stage-roster.js actorFor), or null without the table. */
+function getBossStageActor(enemy) {
+    if (typeof MONSTER_STAGE_ROSTER !== 'object') return null;
+    const roster = MONSTER_STAGE_ROSTER, look = enemy.spriteVariantId || enemy.monsterVisualId;
+    return roster.actors[roster.wears[look] || look] || roster.actors[enemy.bossAssetKey] || null;
+}
+
+/** A boss as wide as its picture on the stage (2026-10-16 사용자: "크기가 큰 보스들은 차지하는 칸을 늘리던지 해서 플레이어랑
+ * 안겹치도록"): the picture stands on the footprint's middle and reaches reach dots to either side (data/monster-stage-roster.js, the
+ * standing picture; × STAGE_MONSTER_SCALE, drawn at STAGE_VIEW.heroTile dots a cell ÷ BOSS_DRAW_SCALE). The footprint is wide enough
+ * that a hero in the next cell (its body about HERO_HALF_CELLS to each side of its middle) stands clear of the farther-reaching
+ * side, whichever way the boss faces: columns ≥ 2 × (reach − 0.5 + HERO_HALF_CELLS); 2 to 6 wide, 2 deep. A strike may still reach over.
+ * Fixed when the boss is placed (enemy.footprint, saved with it: a boss from an older save keeps 2×2). Without the stage pictures'
+ * table (tests) it stays 2×2. */
+function fitBossFootprint(enemy) {
+    const actor = enemy && enemy.isBoss && !enemy.footprint ? getBossStageActor(enemy) : null;
+    if (!actor) return;
+    const rule = typeof STAGE_MONSTER_SCALE === 'object' ? STAGE_MONSTER_SCALE : {}, prefix = Object.keys(rule).find(head => actor.id.startsWith(head));
+    const reach = Math.max(...(actor.reach || [actor.width / 2, 0])) * (prefix ? rule[prefix] : 1) / (BOSS_DRAW_SCALE * STAGE_VIEW.heroTile);
+    const columns = Math.max(2, Math.min(6, Math.ceil(2 * (reach - 0.5 + HERO_HALF_CELLS) - 0.01)));
+    if (columns > 2) enemy.footprint = { columns, rows: 2 };
 }
 
 function getGridFootprintCells(gx, gy, footprint) {
@@ -204,6 +229,7 @@ function nearestGridCell(cells, near, size) {
  * @param {Set<string>} blocked 이번 스폰 동안 누적되는 점유 집합
  */
 function assignEnemyGridSpawn(enemy, blocked) {
+    fitBossFootprint(enemy);
     let footprint = getGridUnitFootprint(enemy);
     let bossSpawnFree = canPlaceGridFootprint(blocked, COMBAT_GRID_CONFIG.bossSpawn.gx, COMBAT_GRID_CONFIG.bossSpawn.gy, footprint);
     let cell = enemy.isBoss
@@ -1296,7 +1322,7 @@ function findNearestGridEnemy(fromCell, enemies, range) {
 
 safeExposeGlobals({
     getCombatGridSize, isGridCellInBounds, gridCellKey, gridChebyshevDist, hasGridCell,
-    getGridUnitFootprint, getGridUnitCells, getGridUnitCenter, getGridUnitDistance,
+    getGridUnitFootprint, getGridUnitCells, getGridUnitCenter, getGridUnitDistance, fitBossFootprint,
     getGridDirectHitDistanceMultiplier,
     getGridBlockedCells, getHeroStepBlockedCells, swapSummonOutOfHeroTile, findFreeGridCell, assignEnemyGridSpawn, assignEnemyGridCombatProfile,
     resetPlayerGridPosition, ensureCombatGridRuntime, gridLineCells, gridProjectedLineEnd,

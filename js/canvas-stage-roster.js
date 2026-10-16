@@ -2,7 +2,7 @@
  * 몬스터마다 걷기와 공격 두 장을 쓴다. 공격은 앞서와 같은 규칙으로 타격 프레임을 때린 순간에 맞춘다(js/canvas-monster-actors.js).
  * 걸을 때는 걷기 그림을 돌린다. 프레임은 그림마다 정해진 대로 걸어온 거리(js/canvas-stage-stride.js: 걸음이 빠르면 빨리 돈다)나
  * 시간(영상에서 뽑은 그림: 만든 빠르기 그대로)으로 고른다. 떠서 움직이는 몬스터(날기, 떠다니기, 헤엄)는 걷기 그림(날갯짓)을 늘 돌린다.
- * 그림이 한 장뿐인 몬스터(외형만 고른 것: 액트 보스 여럿, 뿌리촉수)는 그 한 장으로 서고 걷고 때린다. 코드로 기울이고 내밀어 걷고 때리는
+ * 그림이 한 장뿐인 몬스터(외형만 고른 것: 액트 보스 여럿)는 그 한 장으로 서고 걷고 때린다. 코드로 기울이고 내밀어 걷고 때리는
  * 척하던 것은 뺐다(2026-10-14 사용자: "임시로 넣은 걷기, 공격 모션도 너무 구려서 사용 안하는게 나을 것 같아"). 때리는 순간은 공격 예고와
  * 타격 이펙트가 알린다. 떠 있는 한 장짜리는 제자리에서 몇 도트 오르내린다.
  * 서 있을 때는 서 있는 그림에 숨을 쉬듯 윗몸만 한 도트 오르내린다.
@@ -23,6 +23,7 @@ const stageRoster = (() => {
     let mapLooks = new Set();        // 지금 지도의 무리가 쓰는 외형 id: 화면에 나오기 전에도 그림을 들고 있는다(keepFor)
     let sweepAt = 0;                 // 지난 지도의 그림을 놓을 때(keepFor가 건다. 0이면 걸린 것이 없다)
     const scales = new Map();        // 외형 id → 그리는 배율
+    const placements = new Map();    // 적 id → 마지막으로 그린 자리(발, 도트 크기, 방향, 공격 타격 프레임): 보스 효과가 손에서 나온다(js/canvas-boss-moves.js)
     const FRAME_PIXELS = 2 * 1024 * 1024; // Immutable composed poses: at most 8 MB of RGBA and 160 entries.
     // 세 캐시 모두 방금까지 쓰인 그림은 놓지 않는다(js/canvas-stage-cache.js): 자리가 없으면 새 그림은 들이지 않고 그 자리에서 그린다.
     const shrink = canvas => { canvas.width = canvas.height = 1; };
@@ -250,8 +251,10 @@ const stageRoster = (() => {
         const size = picture(pair, actor, pose, lookOf(enemy, p));
         shadow(ctx, actor, p, dot, hop);
         noteEnemyDrawnHeight(enemy, actor.height * dot);   // 뛰는 높이는 넣지 않는다: 체력 막대가 걸음마다 따라 튄다
+        const west = stageView.facing(enemy, p.facing) === 'west';
+        notePlacement(enemy, actor, p, dot, west);
         ctx.save();
-        if (stageView.facing(enemy, p.facing) === 'west') { ctx.translate(p.x * 2, 0); ctx.scale(-1, 1); }
+        if (west) { ctx.translate(p.x * 2, 0); ctx.scale(-1, 1); }
         const left = monsterActors.snap(p.x - (size.pad + actor.feet[0]) * dot), top = monsterActors.snap(p.y - (size.pad + actor.feet[1] + hop) * dot);
         stageDots.blit(ctx, size.canvas, { x: 0, y: 0, w: size.width, h: size.height }, { x: left, y: top, scale: dot }, size.fixed);
         ctx.restore();
@@ -260,6 +263,15 @@ const stageRoster = (() => {
     /** The looks the test panel can pick: [id, name], by name. */
     const looks = () => (table() ? Object.values(table().actors).map(actor => [actor.id, actor.name]).sort((a, b) => a[1].localeCompare(b[1], 'ko')) : []);
 
-    return Object.freeze({ draw, looks, keepFor });
+    function notePlacement(enemy, actor, p, dot, west) {
+        if (enemy.isBoss) placements.set(enemy.id, { x: p.x, y: p.y, dot, west, strikeFrame: actor.impactFrame || 0, at: tick });
+    }
+    /** Where a boss was last drawn (this second): { x, y (feet), dot, west, strikeFrame }, or null. */
+    function placementOf(id) {
+        const placed = placements.get(id);
+        return placed && performance.now() - placed.at < 1000 ? placed : null;
+    }
+
+    return Object.freeze({ draw, looks, keepFor, placementOf });
 })();
 safeExposeGlobals({ stageRoster });

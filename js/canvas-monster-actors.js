@@ -92,8 +92,10 @@ const monsterActors = (() => {
      * else null. kind = { attackMs, impactFrame }: a sheet kind, or a roster actor (js/canvas-stage-roster.js). */
     function attackFrame(enemy, kind, now, moving) {
         const attackMs = sum(kind.attackMs), impactMs = sum(kind.attackMs.slice(0, kind.impactFrame));
-        const release = lastRelease(enemy, now, attackMs);
-        if (release !== null && now - release + impactMs < attackMs) return { clip: 'attack', index: frameAt(kind.attackMs, now - release + impactMs), bob: 0 };
+        // A boss holding a beam keeps its strike frame until the beam ends (js/canvas-boss-moves.js strikeHoldMs), then finishes the clip.
+        const hold = enemy.isBoss ? bossMoveView.strikeHoldMs(enemy) : 0, release = lastRelease(enemy, now, attackMs + hold);
+        const since = release === null ? null : Math.max(0, now - release - hold);
+        if (since !== null && since + impactMs < attackMs) return { clip: 'attack', index: frameAt(kind.attackMs, since + impactMs), bob: 0 };
         const wind = windUp(enemy, moving, now);
         return wind ? { clip: 'attack', index: frameAt(kind.attackMs, wind.share * impactMs), bob: wind.bob } : null;
     }

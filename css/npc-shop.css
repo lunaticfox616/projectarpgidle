@@ -1,0 +1,108 @@
+@layer features {
+/* NPC 창의 즉시 해금과 상점(js/content-progression-ui.js npcFoot, js/npc-shop-ui.js), NPC 탭(js/npc-roster-ui.js).
+   빛깔은 뜻이 있을 때만: 즉시 해금은 금빛 테두리, 상점 물건은 가방과 같은 희귀도 색, 살 수 없는 값은 붉게. */
+.npc-dialog-foot { display: grid; gap: 10px; }
+.npc-dialog-instant h4 { display: flex; align-items: baseline; gap: 10px; margin: 0 0 6px; font-size: .78rem; font-weight: 600; letter-spacing: .06em; color: var(--color-text-secondary); }
+.npc-dialog-instant h4 small { margin-left: auto; font-size: .8rem; font-weight: 400; color: var(--color-accent-gold); }
+.npc-dialog-instant ul { display: grid; gap: 6px; max-height: 196px; margin: 0; padding: 0; overflow: auto; list-style: none; }
+.npc-instant-row { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 8px 10px; border: 1px solid rgba(224, 194, 126, .5); background: linear-gradient(90deg, rgba(224, 194, 126, .09), transparent 70%); }
+.npc-instant-row > img { width: 36px; height: 36px; object-fit: contain; image-rendering: pixelated; }
+.npc-instant-row strong { font-size: 14px; color: #f1e6cc; }
+.npc-instant-row p { margin: 2px 0 0; font-size: 12.5px; line-height: 1.45; color: var(--color-text-secondary); word-break: keep-all; }
+.npc-instant-row .unlock-reward { color: #cdbb8e; }
+.npc-instant-row .content-unlock-choice { display: flex; align-items: center; gap: 6px; margin-top: 4px; font-size: 12px; }
+.npc-instant-row > button { min-height: 38px; padding: 6px 16px; border-color: var(--color-accent-gold); white-space: nowrap; }
+.npc-dialog-shop { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 8px 14px; text-align: left; font: inherit; cursor: pointer; }
+.npc-dialog-shop > span { font-weight: 700; }
+.npc-dialog-shop > b { flex: 1; font-weight: 400; color: var(--color-text-secondary); }
+.npc-dialog-shop > em { font-style: normal; font-size: .8rem; color: var(--color-text-secondary); }
+
+/* 상점: 창이 넓어지고 초상은 작은 얼굴 액자로 줄며, 아래를 진열대(왼쪽, 그 아래 물건 정보)와 가방(오른쪽)이 나눈다. */
+.npc-dialog.is-shop { width: min(820px, 96vw); height: min(760px, 94vh); max-height: min(760px, 94vh); }
+.npc-dialog.is-shop[open] { grid-template-rows: auto minmax(0, 1fr); }
+.npc-dialog.is-shop .npc-dialog-figure { grid-row: 1; width: 64px; height: 64px; margin: 14px 0 0 20px; }
+.npc-dialog.is-shop .npc-dialog-portrait { height: 330%; }
+.npc-dialog.is-shop .npc-dialog-head { padding-bottom: 12px; }
+.npc-dialog.is-shop .npc-dialog-who::after { display: none; }
+.npc-shop { grid-column: 1 / -1; grid-row: 2; display: grid; grid-template-columns: min-content min-content; justify-content: space-between; gap: 22px; min-height: 0; padding: 4px 20px 18px; border-top: 1px solid var(--skin-line); }
+.npc-shop > section { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.npc-shop-bar { display: flex; align-items: center; gap: 10px; min-height: 40px; margin: 8px 0; }
+.npc-shop-bar h3 { margin: 0; padding: 0; border: 0; background: none; font-size: 15px; color: var(--npc-tone); }
+.npc-shop-bar h3::after { display: none; }
+.npc-shop-back { min-height: 32px; padding: 4px 12px; }
+.npc-shop-wallet { display: flex; gap: 12px; margin-left: auto; font-size: 13px; color: #efe6d2; }
+.npc-shop-wallet > span { display: inline-flex; align-items: center; gap: 4px; }
+.npc-shop-coin { width: 16px; height: 16px; image-rendering: pixelated; }
+.npc-shop-room { color: var(--color-text-secondary); font-size: 12px; }
+.npc-shop-pages { display: flex; gap: 4px; margin-left: auto; }
+.npc-shop-pages button { min-width: 28px; min-height: 28px; padding: 0 6px; }
+.npc-shop-pages button[aria-pressed="true"] { border-color: var(--color-accent-gold); color: #ffe3a0; }
+
+.npc-shop-grid { --cell: 34px; position: relative; display: grid; grid-template-columns: repeat(var(--grid-columns), var(--cell)); grid-template-rows: repeat(var(--grid-rows), var(--cell)); width: max-content; border: 1px solid rgba(64, 82, 102, .78); border-radius: 4px; background: #07101a; box-shadow: inset 0 0 22px rgba(0, 0, 0, .52); }
+.npc-shop-cell { background: rgba(10, 20, 31, .5); box-shadow: inset -1px -1px rgba(89, 109, 129, .28); }
+.npc-shop-cell.is-drop-ok { background: rgba(68, 171, 103, .36); }
+.npc-shop-cell.is-drop-bad { background: rgba(188, 62, 62, .34); }
+.npc-shop-item, .npc-shop-bag-item { --item-rarity: #7d8996; position: relative; z-index: 1; display: block; box-sizing: border-box; min-width: 0; min-height: 0; margin: 0; padding: 2px; overflow: hidden; border: 1px solid color-mix(in srgb, var(--item-rarity) 70%, #182637); border-radius: 3px; background: radial-gradient(circle at 50% 42%, color-mix(in srgb, var(--item-rarity) 13%, transparent), rgba(12, 20, 30, .94) 72%); }
+.npc-shop-item.rarity-magic, .npc-shop-bag-item.rarity-magic { --item-rarity: #5fb4ec; }
+.npc-shop-item.rarity-rare, .npc-shop-bag-item.rarity-rare { --item-rarity: #e9c355; }
+.npc-shop-item.rarity-unique, .npc-shop-bag-item.rarity-unique { --item-rarity: #ff9f43; }
+.npc-shop-bag-item { pointer-events: none; opacity: .82; }
+.npc-shop-item { cursor: pointer; touch-action: none; user-select: none; }
+.npc-shop-item img, .npc-shop-bag-item img { display: block; width: 100%; height: 100%; object-fit: contain; pointer-events: none; -webkit-user-drag: none; }
+.npc-shop-item:hover, .npc-shop-item.is-chosen { box-shadow: 0 0 0 1px var(--item-rarity), 0 0 10px color-mix(in srgb, var(--item-rarity) 45%, transparent); }
+.npc-shop-item.is-dear img, .npc-shop-item.is-dear .npc-shop-gem { opacity: .42; filter: grayscale(.6); }
+.npc-shop-item.is-carried { opacity: .3; }
+.npc-shop-gem { display: grid; place-items: center; width: 100%; height: 100%; }
+.npc-shop-gem img { width: 100%; height: 100%; object-fit: contain; }
+.npc-shop-price { position: absolute; right: 1px; bottom: 1px; display: inline-flex; align-items: center; gap: 1px; padding: 0 3px; background: rgba(4, 8, 13, .84); color: #efe6d2; font-size: 11px; line-height: 14px; pointer-events: none; }
+.npc-shop-price .npc-shop-coin { width: 12px; height: 12px; }
+.npc-shop-item.is-dear .npc-shop-price { color: #e58a7f; }
+.npc-shop-ghost { position: fixed; top: 0; left: 0; z-index: 30; margin: 0; pointer-events: none; opacity: .92; }
+.npc-shop-empty { margin: 0; padding: 14px; border: 1px solid var(--skin-line); color: var(--color-text-secondary); font-size: 13px; }
+.npc-shop-info { flex: 1; min-height: 0; margin-top: 12px; padding: 10px 12px; overflow: auto; border: 1px solid var(--skin-line); background: rgba(0, 0, 0, .24); }
+.npc-shop-hint { margin: 0; color: var(--color-text-secondary); font-size: 13px; }
+.npc-shop-tooltip { font-size: 13px; }
+.npc-shop-gem-head { display: flex; align-items: center; gap: 10px; }
+.npc-shop-gem-head .npc-shop-gem { width: 40px; height: 40px; }
+.npc-shop-gem-head small { display: block; color: var(--color-text-secondary); font-size: 12px; }
+.npc-shop-gem-head strong { color: #f1e6cc; }
+.npc-shop-gem-card p { margin: 8px 0 0; font-size: 13px; line-height: 1.5; }
+.npc-shop-deal { display: flex; align-items: center; gap: 10px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--skin-line); }
+.npc-shop-deal > span { display: inline-flex; flex: 1; align-items: center; gap: 5px; color: #efe6d2; }
+.npc-shop-deal button { min-height: 36px; padding: 4px 18px; }
+.npc-shop-note { margin: 8px 0 0; color: #e58a7f; font-size: 13px; }
+
+/* NPC 탭: 만난 NPC의 카드. 초상, 이름과 칭호, 최근에 만난 곳, 지금 있는 일(즉시 해금은 금빛, 새 이야기, 상점). */
+.npc-roster-lead, .npc-roster-empty { margin: 0 0 12px; color: var(--color-text-secondary); font-size: 13px; }
+.npc-roster { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; margin: 0; padding: 0; list-style: none; }
+.npc-roster-card { --npc-tone: #e0c27e; display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 12px; width: 100%; min-height: 96px; padding: 10px; text-align: left; font: inherit; color: inherit; border: 1px solid var(--skin-line); background: linear-gradient(180deg, rgba(169, 145, 84, .06), transparent 60%), #110e0b; cursor: pointer; }
+.npc-roster-card[data-tone="violet"] { --npc-tone: #c9a4f2; }
+.npc-roster-card[data-tone="cyan"] { --npc-tone: #8fe3d6; }
+.npc-roster-card[data-tone="crimson"] { --npc-tone: #ef9a92; }
+.npc-roster-card:hover { border-color: var(--npc-tone); }
+.npc-roster-face { position: relative; width: 72px; height: 76px; overflow: hidden; border: 1px solid rgba(169, 145, 84, .45); background: linear-gradient(180deg, #1c1712, #0c0a08 88%); }
+.npc-roster-portrait { position: absolute; top: 3%; left: 50%; width: auto; max-width: none; height: 300%; transform: translateX(-50%); }
+.npc-roster-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.npc-roster-text strong { color: var(--npc-tone); font-size: 15px; }
+.npc-roster-text small, .npc-roster-where { color: var(--color-text-secondary); font-size: 12px; }
+.npc-roster-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.npc-roster-tags em { padding: 1px 6px; border: 1px solid var(--skin-line); font-style: normal; font-size: 12px; color: var(--color-text); }
+.npc-roster-tags em.is-unlock { border-color: var(--color-accent-gold); color: var(--color-accent-gold); }
+
+/* 휴대폰: 상점은 진열대, 가방, 물건 정보가 위에서 아래로 이어지고 칸은 화면 폭에 맞춘다. */
+@media (max-width: 720px) {
+  .npc-dialog.is-shop { width: 100vw; max-width: 100vw; height: 92dvh; max-height: 92dvh; margin: auto 0 0; }
+  .npc-dialog.is-shop[open] { grid-template-rows: minmax(0, 1fr); }
+  .npc-dialog.is-shop .npc-dialog-figure { display: none; }
+  .npc-shop { flex: 1; grid-template-columns: minmax(0, 1fr); grid-auto-rows: max-content; gap: 8px; padding: 0 12px 14px; overflow: auto; }
+  .npc-shop-grid { --cell: min(32px, calc((100vw - 30px) / 10)); }
+  /* 진열대 바로 아래에 가방을 두어 끌어 놓기가 한 화면에 들어오고, 물건 정보는 맨 아래로 간다. */
+  .npc-shop > .npc-shop-stock { display: contents; }
+  .npc-shop-stock > .npc-shop-bar { order: 1; }
+  .npc-shop-stock > :is(.npc-shop-grid, .npc-shop-empty) { order: 2; }
+  .npc-shop-bag { order: 3; }
+  .npc-shop-info { order: 4; flex: none; max-height: none; margin-top: 4px; }
+  .npc-instant-row { grid-template-columns: 30px minmax(0, 1fr); }
+  .npc-instant-row > button { grid-column: 1 / -1; }
+}
+}

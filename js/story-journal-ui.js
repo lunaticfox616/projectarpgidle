@@ -58,14 +58,16 @@ const storyJournalUi = (() => {
         }
     }
     /** Scenes added later (STORY_BRIDGE_SCENES) play once for a save that has not yet moved past their act;
-     * a save already beyond it, or on a later loop, gets them marked as seen instead of a replay out of order. */
+     * a save already beyond it, or on a later loop, gets them marked as seen instead of a replay out of order.
+     * v2 (2026-10-15): the ends of acts 3, 7 and 8 joined, so saves that ran v1 check again. */
     function markPassedBridges() {
-        const marker = 'story_bridges_v1';
+        const marker = 'story_bridges_v2';
         if (typeof STORY_BRIDGE_SCENES !== 'object' || game.seenTutorials.includes(marker)) return;
         game.seenTutorials.push(marker);
         const reached = Math.max(Number(game.maxZoneId) || 0, Number.isInteger(game.currentZoneId) ? game.currentZoneId : 0);
         for (const scene of STORY_BRIDGE_SCENES) {
-            if (reached > scene.act - 1 || (game.season || 1) > 1) game.seenTutorials.push('story_'+scene.id);
+            const key = 'story_'+scene.id;
+            if ((reached > scene.act - 1 || (game.season || 1) > 1) && !game.seenTutorials.includes(key)) game.seenTutorials.push(key);
         }
     }
     function sync() {
@@ -81,6 +83,13 @@ const storyJournalUi = (() => {
         if (!quote) return narration;
         const spoken = `<blockquote class="story-scene-quote">${quote.lines.map(line => `<p>${escapeHTML(line)}</p>`).join('')}</blockquote>`;
         return quote.before ? spoken + narration : narration + spoken;
+    }
+    /** A record outside the story: what happened in one line, then the record itself and who keeps it (JOURNAL_DB intro,
+     * source; 2026-10-15 Gemini review: those pages were two bare lines). */
+    function entryCopy(entry) {
+        const intro = entry.intro ? `<p>${escapeHTML(entry.intro)}</p>` : '';
+        const source = entry.source ? `<p class="story-scene-source">${escapeHTML(entry.source)}</p>` : '';
+        return `${intro}<blockquote class="story-scene-quote">${(entry.lines || []).map(line => `<p>${escapeHTML(line)}</p>`).join('')}${source}</blockquote>`;
     }
     // 머리글이 이미 "액트 N"(프롤로그)이라 제목의 같은 머리말은 뺀다: "액트 2 · 다시 추락하다" → "다시 추락하다".
     function sceneHeading(scene) {
@@ -111,7 +120,7 @@ const storyJournalUi = (() => {
         const entry = JOURNAL_DB[id];
         if (!entry || !game.journalEntries.includes(id) || document.getElementById('journal-reader')) return;
         const scenes = STORY_JOURNAL_SCENES.filter(scene => scene.journal === id);
-        const pages = scenes.length ? scenes : [{title:entry.title, lines:entry.lines || []}];
+        const pages = scenes.length ? scenes : [{ title: entry.title, entry }];
         const reader = document.createElement('dialog');
         reader.id = 'journal-reader';
         reader.classList.toggle('is-text-only', pages.every(page => !page.image));
@@ -120,7 +129,7 @@ const storyJournalUi = (() => {
             <button type="button" autofocus data-journal-close>닫기</button></header>
             <div class="journal-reader-pages">${pages.map(scene => `<section class="journal-reader-page ${scene.image ? '' : 'is-text-only'}">
                 ${scene.image ? `<img class="story-scene-art" src="${scene.image}" alt="${escapeHTML(scene.title)}" decoding="async" loading="lazy" width="1254" height="1254">` : ''}
-                <div class="story-scene-copy">${pages.length > 1 ? `<h3>${escapeHTML(scene.title)}</h3>` : ''}${sceneCopy(scene)}</div>
+                <div class="story-scene-copy">${pages.length > 1 ? `<h3>${escapeHTML(scene.title)}</h3>` : ''}${scene.entry ? entryCopy(scene.entry) : sceneCopy(scene)}</div>
             </section>`).join('')}</div>`;
         reader.addEventListener('close', () => reader.remove(), {once:true});
         reader.querySelector('[data-journal-close]').addEventListener('click', () => reader.close());

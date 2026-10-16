@@ -5,7 +5,7 @@ const loopSettlementUi = {
     unlockRewardText() {
         const points = contentProgression.points();
         // 넘치는 해금 포인트는 그루터기 함 접붙이기 점수가 된다(contentProgression.overflow, js/stump-box.js graftEarned).
-        const overflow = `넘치는 해금 포인트는 루프마다 그루터기 함 접붙이기 점수 +${CONTENT_UNLOCK_POINTS_PER_LOOP}가 됩니다.`;
+        const overflow = `넘치는 해금 포인트는 루프마다 그루터기 함 접붙이기 점수 +${CONTENT_UNLOCK_POINT_AWARDS.perLoop}가 됩니다.`;
         if (points.complete) return `전체 해금 완료. ${overflow}`;
         if (!points.nextAward) return `남은 해금에 필요한 포인트를 모두 모았습니다. ${overflow}`;
         return `해금 포인트 +${points.nextAward}. 해금 탭에서 다음 콘텐츠를 직접 선택하세요.`;
@@ -16,10 +16,16 @@ const loopSettlementUi = {
         const time = record ? formatRecordDuration(record.activeMs) : '기록 없음';
         const features = game.contentProgression ? [this.unlockRewardText(), ...this.milestoneLines(loop + 1)]
             : (SEASON_CONTENT_ROADMAP[loop + 1] || { features: ['심화 도전을 이어갑니다.'] }).features;
-        return `<p class="loop-settlement-story">발밑의 뿌리가 잠잠해집니다.<br>당신이 지나온 길 위로, 새로운 가지가 뻗어 나갑니다.</p>
+        return `${this.storyHtml()}
             <h2>루프 ${loop} 달성</h2>
             <dl class="loop-settlement-stats"><div><dt>도달 레벨</dt><dd>${game.level}</dd></div><div><dt>처치</dt><dd>${Number(game.loopKills || 0).toLocaleString()}</dd></div><div><dt>활동 시간</dt><dd>${time}</dd></div></dl>${this.barkHtml(loop)}
             <section class="loop-settlement-next"><h3>다음 루프 ${loop + 1}</h3><ul>${features.map(row => `<li>${escapeHTML(row)}</li>`).join('')}</ul><p>진행 시 루프 포인트 1점 획득</p></section>${this.explainHtml(loop)}${this.stallWarningHtml()}${loopAutomationUi.controlsHtml()}`;
+    },
+    /** The loop's close (data/story-journal.js STORY_LOOP_MILESTONES.default): the narration, then the woodsman's words. */
+    storyHtml() {
+        const lore = STORY_LOOP_MILESTONES.default;
+        return `<p class="loop-settlement-story">${lore.narration.map(escapeHTML).join('<br>')}</p>
+            <blockquote class="story-scene-quote"><p><strong>${escapeHTML(lore.speaker)}</strong> ${escapeHTML(lore.quote)}</p></blockquote>`;
     },
     /** 세계수 껍질 the hero wears at this loop (data/maps.js WORLD_TREE_BARK), nothing before loop 55. */
     barkHtml(loop) {

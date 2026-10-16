@@ -1,4 +1,4 @@
-// PC 단축키: 키 입력 처리, 메뉴·HUD 키 표시, 설정 > 전투 · 소리 > 단축키 화면.
+// PC 단축키: 키 입력 처리, 메뉴·HUD 키 표시, 설정 > 조작 > 단축키 목록.
 // 배정 해석은 js/hotkeys.js(hotkeyBindings), 창 열기/닫기는 ui-window-manager(toggleWindowFromHotkey),
 // 이동 스킬은 js/mobility-skill.js(request), 자동 이동과 키보드 걷기는
 // js/act-exploration-ui.js(toggleAuto, holdMove)가 소유한다. Esc(창 닫기)는 ui-window-manager 고정.

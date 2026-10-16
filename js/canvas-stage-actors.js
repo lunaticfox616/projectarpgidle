@@ -117,6 +117,20 @@ const stageActors = (() => {
         return pool.length ? pool[chain.index % pool.length] : null;
     }
 
+    // 처음 장면의 쓰러진 주인공과 일어나는 동작(js/opening-journey-ui.js가 정한다, data/stage-view.js STAGE_HERO_RISE): null이면 보통 자세,
+    // start가 null이면 쓰러진 채(0번 프레임), 아니면 그 시각(그림 시계)부터 한 번 일어난다. 맨손 그림이라 들고 있는 무기와 상관없이 쓴다.
+    let rise = null;
+    const riseClips = new Map();
+    function riseClip(classId) {
+        if (!riseClips.has(classId)) riseClips.set(classId, Object.freeze({ file: `${classId}/${STAGE_HERO_RISE.file}`, frames: STAGE_HERO_RISE.ms.length, ms: STAGE_HERO_RISE.ms }));
+        return riseClips.get(classId);
+    }
+    function risePose(classId, now) {
+        if (!rise) return null;
+        const clip = riseClip(classId);
+        if (!image(clip.file).ready) return null;
+        return { clip, frame: rise.start === null ? 0 : hanaActors.frameAt(clip.ms, Math.max(0, now - rise.start), false) };
+    }
     function downPose(classId, state) {
         if (!Number.isFinite(state.downProgress)) return null;
         const clip = setOf(classId, 'unarmed').death;
@@ -262,7 +276,7 @@ const stageActors = (() => {
     function drawStageHero(ctx, x, y, state, now) {
         const set = setOf(state.classId, state.stance);
         if (!set || !isReady(state.classId, state.stance)) return false;
-        const look = hitLook(state, now), pose = heldPose(look) || pickPose(set, state, now);
+        const look = hitLook(state, now), pose = risePose(state.classId, now) || heldPose(look) || pickPose(set, state, now);
         const figure = placeFigure(x, y, state, look);
         ctx.save();
         drawShadow(ctx, x, y, figure.scale, 0.28 * figure.alpha);
@@ -278,7 +292,13 @@ const stageActors = (() => {
 
     /** 주인공 그림이 지금 보는 쪽: 1 오른쪽, -1 왼쪽. */
     const facing = () => (facingLeft ? -1 : 1);
-    return { drawPlayer: drawStageHero, headY, isReady, stanceFor, strikeFor, scaleFor, available, facing };
+    /** The opening's hero pose (risePose): null, { start: null } lying, { start: visual ms } rising. */
+    const setRise = value => { rise = value; };
+    /** Starts loading a class's rise sheet (the intro plays while it decodes). */
+    const preloadRise = classId => { if (table() && classId) image(riseClip(classId).file); };
+    /** The hero lies or is getting up (the overhead bar waits: it would float over the air where a standing head would be). */
+    const down = () => !!rise;
+    return { drawPlayer: drawStageHero, headY, isReady, stanceFor, strikeFor, scaleFor, available, facing, setRise, preloadRise, down };
 })();
 
 const sides = new WeakMap();

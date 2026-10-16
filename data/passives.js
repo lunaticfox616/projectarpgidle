@@ -135,7 +135,7 @@ const PLAYER_CLASS_DEFS = Object.freeze({
     occultist: {
         id: 'occultist', label: '비술사', blindLabel: '비술사',
         portrait: 'assets/portraits/classes/occultist.png',
-        description: '주문과 공허의 힘을 다루는 지식형 직업', recommendedTalentHeroId: 'hero9',
+        recommendedTalentHeroId: 'hero9',
         attackAnimationDurationScale: 1.2,
         strips: { idle: 'playerClassOccultistIdle',
             idleDirections: { north: 'playerClassOccultistIdleNorth', east: 'playerClassOccultistIdle', south: 'playerClassOccultistIdleSouth' }, walk: 'playerClassOccultistWalk',
@@ -150,7 +150,7 @@ const PLAYER_CLASS_DEFS = Object.freeze({
     wanderer: {
         id: 'wanderer', label: '방랑자', blindLabel: '방랑자',
         portrait: 'assets/portraits/classes/wanderer.png',
-        description: '기민한 움직임과 근접 공격에 능한 유랑 전투원', recommendedTalentHeroId: 'hero4',
+        recommendedTalentHeroId: 'hero4',
         strips: { idle: 'playerClassWandererIdle',
             idleDirections: { north: 'playerClassWandererIdleNorth', east: 'playerClassWandererIdle', south: 'playerClassWandererIdleSouth' }, walk: 'playerClassWandererWalk',
             walkDirections: { north: 'playerClassWandererWalkNorth', east: 'playerClassWandererWalk', south: 'playerClassWandererWalkSouth', west: 'playerClassWandererWalkWest' }, attack: 'playerClassWandererAttack',
@@ -164,7 +164,7 @@ const PLAYER_CLASS_DEFS = Object.freeze({
     cleric: {
         id: 'cleric', label: '성직자', blindLabel: '성직자',
         portrait: 'assets/portraits/classes/cleric.png',
-        description: '신성한 힘으로 자신을 지키며 전선을 유지하는 직업', recommendedTalentHeroId: 'hero5',
+        recommendedTalentHeroId: 'hero5',
         attackAnimationDurationScale: 1.2,
         strips: { idle: 'playerClassClericIdle',
             idleDirections: { north: 'playerClassClericIdleNorth', east: 'playerClassClericIdle', south: 'playerClassClericIdleSouth' }, walk: 'playerClassClericWalk',
@@ -175,7 +175,7 @@ const PLAYER_CLASS_DEFS = Object.freeze({
     archer: {
         id: 'archer', label: '궁수', blindLabel: '궁수',
         portrait: 'assets/portraits/classes/archer.png',
-        description: '거리와 위치를 활용해 투사체를 쏟아붓는 직업', recommendedTalentHeroId: 'hero1',
+        recommendedTalentHeroId: 'hero1',
         attackAnimationDurationScale: 1.2,
         strips: { idle: 'playerClassArcherIdle',
             idleDirections: { north: 'playerClassArcherIdleNorth', east: 'playerClassArcherIdle', south: 'playerClassArcherIdleSouth' }, walk: 'playerClassArcherWalk',
@@ -190,7 +190,7 @@ const PLAYER_CLASS_DEFS = Object.freeze({
     alchemist: {
         id: 'alchemist', label: '연금술사', blindLabel: '연금술사',
         portrait: 'assets/portraits/classes/alchemist.png',
-        description: '시약과 상태 이상을 조합해 전장을 변화시키는 직업', recommendedTalentHeroId: 'hero10',
+        recommendedTalentHeroId: 'hero10',
         attackAnimationDurationScale: 1.15,
         attackVariantWeights: [49, 49, 2],
         strips: { idle: 'playerClassAlchemistIdle',
@@ -206,7 +206,7 @@ const PLAYER_CLASS_DEFS = Object.freeze({
     warrior: {
         id: 'warrior', label: '전사', blindLabel: '전사',
         portrait: 'assets/portraits/classes/warrior.png',
-        description: '튼튼한 생명력과 강한 근접 공격으로 밀어붙이는 직업', recommendedTalentHeroId: 'hero2',
+        recommendedTalentHeroId: 'hero2',
         attackAnimationDurationScale: 1.15,
         // Feet, not the sword tip: each directional sheet uses a different canvas size.
         motionAnchors: { idle: 78, walk: 80, attacks: [90, 90, 91],

@@ -15,6 +15,7 @@ body #tutorial-overlay.is-story-scene.is-story-text .tutorial-body { grid-templa
 body:has(#tutorial-overlay.is-story-scene.active) :is(#mobile-toast-root, #game-toast-region) { visibility:hidden; }
 .story-scene-quote { margin:0 0 14px; padding:2px 0 2px 12px; border-left:2px solid var(--color-accent-gold); color:var(--color-accent-gold); }
 .story-scene-quote p { margin:0 0 6px; }
+.story-scene-quote .story-scene-source { margin:8px 0 0; font-size:0.86em; color:var(--color-text-secondary); text-align:right; }
 .story-scene-copy > .story-scene-quote:last-child { margin:14px 0 0; }
 .journal-entry-open { width:100%; padding:4px 0; background:transparent; border:0; text-align:left; font:inherit; cursor:pointer; }
 .journal-entry-open:hover strong { text-decoration:underline; text-underline-offset:4px; }

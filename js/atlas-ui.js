@@ -407,11 +407,18 @@ const atlasUi = (() => {
         if (detail.kind === 'failed') return 'death';
         return detail.kind === 'complete' && (detail.first || detail.bonus || detail.seed) ? 'loot-unique' : 'season-up';
     }
+    /** 지도를 마치고 다음 지도 없이 돌아갈 때: 자동 지도가 꺼진 채 지도석이 남아 있으면 켜는 곳을 알린다(2026-10-15 점검: 지도석 4개가
+     * 남았는데 말없이 원래 자리로 걸어갔다). */
+    function returnText(detail) {
+        const left = ledger().stash.length;
+        if (detail.next || ledger().autoMap || game.settings.mapCompleteAction === 'stop' || !left) return '';
+        return ` → 원래 자리로 (자동 지도를 켜면 남은 지도석 ${left}개를 이어서 엽니다)`;
+    }
     function announce(detail) {
         const text = {
             complete: () => `🗺️ ${detail.name} ${detail.tier}등급 완료${detail.first ? ', 첫 완료' : ''}${detail.bonus ? ', 보너스 달성' : ''}${detail.drops ? `, 지도석 ${detail.drops}개` : ''}`
                 + (detail.ticket ? `, ${ORB_DB[detail.ticket].name}` : '') + (detail.seed ? `, 세계수 씨앗 ${detail.seeds}/${ATLAS.seeds.max}` : '')
-                + (detail.next ? ` → 다음 지도: ${nodeName(detail.next)}` : ''),
+                + (detail.next ? ` → 다음 지도: ${nodeName(detail.next)}` : returnText(detail)),
             portal: () => `🌀 ${REASON[detail.reason] || detail.reason}, 남은 포털 ${detail.portals}`,
             failed: () => `🗺️ ${REASON[detail.reason] || detail.reason}, 포털이 모두 닫혀 지도가 실패했습니다.`,
             drops: () => dropsText(detail),

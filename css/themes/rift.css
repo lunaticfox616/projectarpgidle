@@ -243,17 +243,5 @@ body[data-ui-skin="rift"].desktop-windowed-ui #btn-combat-log-toggle { font-size
   /* 모바일 탭 제목: 예전 보라 밑줄·주황 글자를 금빛 가는 선으로 맞춘다(색을 따로 지정한 제목은 그대로). */
   :root body[data-ui-skin="rift"] .tab-content h2:not([style*="color"]) { color: #e9cb89; }
   :root body[data-ui-skin="rift"] .tab-content h2:not([style*="border"]) { border-bottom: 1px solid rgba(201, 164, 92, .34); }
-  :root body[data-ui-skin="rift"] #settings-category {
-    border-color: rgba(201, 164, 92, .38);
-    background: linear-gradient(180deg, #1b1914, #0e0d0b);
-  }
-  /* 설정 줄: 이름 칸 너비를 맞춰 선택 상자 왼쪽 끝이 한 줄로 서게 한다. */
-  body[data-ui-skin="rift"] #tab-settings .cfg-select-row {
-    display: grid;
-    grid-template-columns: minmax(84px, 34%) minmax(0, 1fr);
-    align-items: center;
-    gap: 10px;
-  }
-  body[data-ui-skin="rift"] #tab-settings .cfg-select-row > select { width: 100%; min-width: 0; flex: none; }
 }
 }

@@ -131,8 +131,7 @@ async function prepareResetCase(page, cloud = false) {
         switchTab('tab-settings');
     }, cloud);
     await dismissVisibleTutorials(page);
-    const category = page.locator('#settings-category');
-    if (await category.isVisible()) await category.selectOption('data');
+    await page.getByRole('button', { name: '저장과 계정', exact: true }).click();
 }
 
 test('save reset clears only local progress for a guest after one confirmation', async ({ page }) => {
@@ -352,8 +351,7 @@ test('release update preserves unsaved progress until a manual save recovers sto
     await expect(page.locator('#app-update-notice')).not.toBeVisible();
     await page.evaluate(() => switchTab('tab-settings'));
     await dismissVisibleTutorials(page);
-    const category = page.locator('#settings-category');
-    if (await category.isVisible()) await category.selectOption('data');
+    await page.getByRole('button', { name: '저장과 계정', exact: true }).click();
     await page.getByRole('button', { name: '지금 저장', exact: true }).click();
     await expect(page.locator('#game-toast-region')).toContainText('저장공간이 부족합니다');
     expect(await page.evaluate(() => localStorage.getItem(LOCAL_SAVE_KEY))).toBe(before);

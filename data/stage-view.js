@@ -255,6 +255,19 @@ const STAGE_SCENES = Object.freeze({
 // 주인공이 벌 밑에 묻힌다고 짚었다). 0.6배로 전투벌 60도트, 근위벌 85도트, 여왕 111도트다.
 const STAGE_MONSTER_SCALE = Object.freeze({ 'wisp-': 0.7, 'hive-': 0.6 });
 
+/** 방 단위 무대의 입구 방에 서는 이야기 NPC(js/canvas-act-title-card.js). 이야기 액트와 시련에서 그 대사의 NPC(data/story-journal.js
+ * STORY_NPCS, 이름으로 찾는다)가 입구 방에 선다. 엔드게임 콘텐츠 지도에는 서지 않는다(2026-10-15 사용자: "콘텐츠 지도 입구 NPC도 빼줘",
+ * 지도마다 같은 NPC가 앞질러 서 있는 게 어색했다). 누르면 그 NPC의 창(대사, 즉시 해금, 상점)이 열린다(js/content-progression-ui.js openNpc).
+ * 그림은 assets/stage-npcs/<id>-idle.png(대기 6프레임 한 줄, 칸 cell, 발 feet, 머리 꼭대기 head, 프레임마다 frameMs)와
+ * <id>-portrait.png(일러스트, 480×720). scale: 몸이 89도트로 주인공(97도트)보다 작아 아이처럼 보여 늘려 그린다.
+ * 저장소 밖 그림이다(scripts/build-stage-npcs.cjs가 옮긴다). 그림이 없으면 NPC는 서지 않고 대사만 띠에 나온다.
+ * 2026-10-15 사용자: "하켄부터 세워봐", 이어서 NPC 도트와 일러스트 다섯을 만들어 줬다. 하켄은 액트 5에서 쓰러지므로 엔드게임 자리는 없다. */
+/** 쓰러진 자리에서 이야기가 다시 일으키는 보스(act bossId, js/canvas-boss-revive.js): 처치 대사가 나오는 동안 황금 수액 기둥과 다시 차오르는
+ * 체력바를 그린다(2026-10-15: 2막 부제녀의 처치 대사는 "다시 일으킨다!"인데 화면에는 아무 일도 없었다). fillMs: 막대가 다 차는 데 걸리는 시간. */
+const STAGE_BOSS_REVIVAL = Object.freeze({ bosses: Object.freeze(['gardener_immortal']), fillMs: 1400 });
+const STAGE_NPC_ART = Object.freeze({ path: 'assets/stage-npcs/', cell: 128, feet: Object.freeze([64, 112]), head: 22, scale: 1.15,
+    frameMs: Object.freeze([720, 260, 460, 280, 140, 720]) });
+
 /** 판(9×8)에서 싸우던 콘텐츠가 방 단위 무대에서 걷는 지도(2026-10-13 밤 사용자: "그거 포함해서 아틀라스도, 옮겨줘". js/content-maps.js withRooms).
  * acts 구역 종류 → 바탕으로 빌리는 액트 지도(지도 id와 어둠 색, 입구와 끝 방의 이름만 쓴다. 무대 그림은 그 구역의 지역 그림이다),
  * chainMax 한 줄 지도의 사이 방 수의 위(무리가 그보다 많으면 마지막 방들에 겹쳐 선다),
@@ -281,6 +294,10 @@ const STAGE_HERO_MOTIONS = Object.freeze({
         })
     })
 });
+/** 처음 장면의 쓰러진 주인공이 일어나는 동작(2026-10-15 사용자가 만든 6직업 그림, scripts/build-stage-hero-rise.cjs가 옮긴다): 맨손 자세의
+ * <직업>/unarmed/rise.png, 주인공 칸과 같은 규격. 0번이 쓰러진 모습(처음 850ms는 쓰러진 채 머문다), 마지막은 맨손 대기의 첫 프레임이다.
+ * 쓰는 곳은 js/canvas-stage-actors.js setRise(js/opening-journey-ui.js가 정한다). */
+const STAGE_HERO_RISE = Object.freeze({ file: 'unarmed/rise.png', ms: Object.freeze([850, 180, 220, 240, 260, 220, 220, 650]) });
 /** 휘두르는 모양: 동작 이름 → 그 동작으로 휘두르는 스킬. 그 동작이 있는 자세에서만 쓰고(지금은 전사의 검방패), 없는 자세와 여기에 없는
  * 스킬은 보통 공격 그림(공격, 공격2 …)을 돌린다. 한 대상을 노리는 찌르는 기술은 찌르기, 휘둘러 베는 기술은 베기, 도는 기술은 돌려베기. */
 const STAGE_HERO_STRIKES = Object.freeze({
@@ -289,4 +306,4 @@ const STAGE_HERO_STRIKES = Object.freeze({
     spin: Object.freeze(['회오리바람'])
 });
 
-safeExposeData({ STAGE_HERO_MOTIONS, STAGE_HERO_STRIKES, STAGE_VIEW, STAGE_TERRAIN, STAGE_ROOMS, STAGE_BACKDROPS, STAGE_OBJECTS, STAGE_PROPS, STAGE_SCENES, STAGE_MONSTER_SCALE, STAGE_BOARD_ROOMS });
+safeExposeData({ STAGE_HERO_MOTIONS, STAGE_HERO_RISE, STAGE_HERO_STRIKES, STAGE_VIEW, STAGE_TERRAIN, STAGE_ROOMS, STAGE_BACKDROPS, STAGE_OBJECTS, STAGE_PROPS, STAGE_SCENES, STAGE_MONSTER_SCALE, STAGE_NPC_ART, STAGE_BOSS_REVIVAL, STAGE_BOARD_ROOMS });

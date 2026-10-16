@@ -1420,6 +1420,7 @@ function drawSkillGemVfxLayer(ctx, now, gridProj) {
     let list = battleVisualState.skillEffects || [];
     worldTreeSkillFx.drawQueued(ctx, list, now, 'foreground');
     if (typeof stageSkillVfx === 'object') { stageSkillVfx.draw(ctx, 'top', gridProj); stageSkillSigil.draw(ctx, gridProj); }
+    bossMoveView.drawAir(ctx, gridProj); // boss moves: the charge at the hand, shots, beams (js/canvas-boss-moves.js)
     const spriteRenderers = {continuousSlash:drawSwordSlashVfx};
     list.forEach(effect => {
         let image = getSkillGemVfxImage(effect.imageKey);
@@ -1516,6 +1517,7 @@ function drawBossPatternArea(ctx, area, projection, alpha = 3, outlineOnly = fal
 
 function drawEnemyAttackTelegraphs(ctx, layout, gridUnitScale, projection, pendingAttacks) {
     sideEncounterCanvas.pendingWarnings(ctx, projection, pendingAttacks);
+    bossMoveView.drawGround(ctx, projection); // boss moves: each stage's warning and the bursts out of the ground (js/canvas-boss-moves.js)
     (layout || []).forEach(entry => {
         let enemy = entry.enemy;
         if (!enemy || enemy.noAttack || enemy.hp <= 0 || !Number.isFinite(Number(enemy.attackTimer))) return;
@@ -2184,6 +2186,9 @@ function buildEnemyAttackMotionMap(effects, enemyPosMap, playerPos, now) {
 const STAGE_SIDE_DEAD_PX = 10;
 function resolveStageEnemySide(enemyPos, playerPos) {
     if (enemyPos.heading) return enemyPos.heading;
+    // 액트 1 입구 방의 첫 몬스터는 하켄을 치는 동안 하켄 쪽을 본다(js/combat.js strikeRescueTarget).
+    const rescue = enemyPos.enemy && enemyPos.enemy.rescue;
+    if (rescue) return rescue.gx < enemyPos.enemy.gx ? 'west' : 'east';
     const dx = Number(playerPos.x) - Number(enemyPos.x);
     if (Math.abs(dx) <= STAGE_SIDE_DEAD_PX) return 'south';
     return dx < 0 ? 'west' : 'east';
@@ -2887,9 +2892,11 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
             ctx.restore();
         }
     });
-    drawBattleLightingAndBars(ctx, { width, height, light: playerPos, hpPct: playerHpPct, ghostPct: playerHpGhostPct, esPct: playerEsPct, now, layout: dynamicLayout, targets: currentTargets, tileW: gridProj.tileW, projection: gridProj, pending: pendingEnemyCombatAttacks });
+    const lightScene = { width, height, light: playerPos, hpPct: playerHpPct, ghostPct: playerHpGhostPct, esPct: playerEsPct, now, layout: dynamicLayout, targets: currentTargets, tileW: gridProj.tileW, projection: gridProj, pending: pendingEnemyCombatAttacks };
+    drawBattleLightingAndBars(ctx, lightScene);
     if (typeof stageScene === 'object' && stageView.enabled()) stageScene.drawMarks(ctx, gridProj);
     drawDamageTexts(ctx, now);
+    actTitleCard.draw(ctx, lightScene); // over the damage numbers: a speech bubble above the hero stays readable
     ctx.setTransform(renderScale, 0, 0, renderScale, 0, 0);
     drawBattleScreenGrade(ctx, width, height, now);
     worldTreeSkillFx.feedback.screen(ctx, { width, height, now });
@@ -2991,9 +2998,8 @@ function drawBattleLightingAndBars(ctx, scene) {
     drawBattleDangerEdges(ctx, scene);
     bossAttackView.drawMarks(ctx, scene);
     drawBattlePlayerFigure.readability.draw(ctx);
-    drawBattlefieldPlayerHealthBar(ctx, scene);
+    if (!stageActors.down()) drawBattlefieldPlayerHealthBar(ctx, scene); // not over the first start's lying hero (js/opening-journey-ui.js)
     drawBattlefieldEnemyHealthBars(ctx, scene.layout.filter(entry => entry.drawn), scene.targets, scene.tileW);
-    actTitleCard.draw(ctx, scene.width, scene.height, scene.now);
 }
 
 /** Only the existing cast boundary returns above foreground effects; never duplicate its opaque fill. */

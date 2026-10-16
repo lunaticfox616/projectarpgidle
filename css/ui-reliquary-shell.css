@@ -2672,23 +2672,6 @@ body #tab-skills .gem-card-utility {
   background: var(--skin-control);
 }
 
-:root body :where(.cfg-group, .cloud-panel) {
-  border-radius: 4px;
-}
-
-:root body :where(.cfg-group, .cloud-panel) {
-  border-color: var(--skin-line);
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--skin-accent), transparent 96%), transparent 40%),
-    linear-gradient(180deg, var(--skin-panel-raised), var(--skin-panel));
-  box-shadow: inset 0 1px rgba(255, 255, 255, .03);
-}
-
-:root body .cfg-group--danger {
-  border-color: #57332f;
-  background: linear-gradient(180deg, #1b1010, #0e0909);
-}
-
 :root body :where(.cfg-btn--neutral, .cloud-panel button:not(.social-login-image-btn), .patch-notes-open-btn) {
   border-color: var(--skin-line);
   color: var(--color-text-secondary);

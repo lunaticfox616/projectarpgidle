@@ -6021,6 +6021,12 @@ function getMonsterLoopHpMultiplier(zone, loopInputs, tierProgress) {
     if (loopInputs.exempt) return getMonsterLoopPowerScale(zone, 'hp');
     return interpolateLoopCurve(MONSTER_LOOP_HP_CURVE, loopInputs.seasonLoops + 1);
 }
+/** 보스 생명력에 더 곱하는 완화 배율(data/maps.js): 지역 단계(tier)의 BOSS_TIER_HP_EASE 곡선, 그리고 루프 생명력 배율(loopMul)
+ * 가운데 1을 넘는 몫은 BOSS_LOOP_HP_SHARE만 남긴다(1 이하는 그대로). 전투(createEnemy)와 권장 전투력이 같은 값을 쓴다. */
+function getBossHpEase(tier, loopMul) {
+    const loopShare = loopMul > 1 ? (1 + (loopMul - 1) * BOSS_LOOP_HP_SHARE) / loopMul : 1;
+    return loopShare * interpolateLoopCurve(BOSS_TIER_HP_EASE, Number(tier) || 1);
+}
 /** 정예 생명력 배율 1.4 + 루프 몫. 루프 몫은 +0.3까지(2026-10-06): 예전엔 상한 없이 루프 30에 2.6배까지 커져 루프 배율과 겹쳤다.
  * 우주계 사다리는 예전 그대로. 전투(createEnemy)와 아틀라스 무리 권장 전투력(getAtlasPackReadiness)이 같은 값을 쓴다. */
 function getEliteLoopHpMultiplier(zone, loopCount) {
@@ -6180,7 +6186,7 @@ function createEnemy(zone, marker, groupIndex) {
     }
     if (zone.type === 'beyondBoundary') hp = Math.floor(hp * Math.max(1, Number(zone.boundaryHpMul) || 1));
     if (isElite) hp = Math.floor(hp * getEliteLoopHpMultiplier(zone, loopInputs.loopCount));
-    if (isBoss) hp = Math.floor(hp * (1.8 + zone.tier * 0.6));
+    if (isBoss) hp = Math.floor(hp * (1.8 + zone.tier * 0.6) * getBossHpEase(zone.tier, getMonsterLoopHpMultiplier(zone, loopInputs, tierProgress)));
     if (isBoss) hp = Math.floor(hp * (1 + (tierProgress * 4)));
     const underworldEntryTuning = getUnderworldEntryBossTuning(zone, isBoss);
     hp = Math.floor(hp * underworldEntryTuning.hp * (zone.mapHpMul || 1));
@@ -6668,7 +6674,7 @@ function estimateMapZonePowerRequirements(zone) {
     let bossMods = (zone.bossMods && typeof zone.bossMods === 'object') ? zone.bossMods : {};
     if (zone.type === 'cosmos') bossMods = getCosmosEnemyModifiers(zone, false, true) || bossMods;
     let cosmosTrait = zone.type === 'cosmos' ? getCosmosExclusiveEnemyTrait(zone, false, true, hashSeed(zone.cosmosNodeId || zone.id)) : null;
-    let bossHp = hp * (1.8 + tier * 0.6) * (1 + tierProgress * 4)
+    let bossHp = hp * (1.8 + tier * 0.6) * (1 + tierProgress * 4) * getBossHpEase(tier, getMonsterLoopHpMultiplier(zone, loopInputs, tierProgress))
         * (abyssScale.hpMul || 1) * (abyssScale.bossMul || 1) * 0.92
         * contentScale.hp * (bossMods.hpMul || 1) * (zone.mapHpMul || 1)
         * (cosmosTrait && cosmosTrait.hpMul ? cosmosTrait.hpMul : 1);
@@ -7897,6 +7903,7 @@ function createActExplorationPack(zone,room,stage,encounter=null,formation=null)
     if(encounter)pack.encounter=encounter;
     if(anchor)pack.anchor={...anchor};
     if(extra)pack.extra=extra;
+    if(formation && formation.rescue)pack.rescue=true;
     markExplorationAlertPack(pack);
     atlasFinds.dressTreasurePack(zone,pack);
     return pack;
@@ -7907,7 +7914,7 @@ function createActExplorationPack(zone,room,stage,encounter=null,formation=null)
  * each run, and it draws nothing from Math.random, so the rest of the map rolls as before. */
 function markExplorationAlertPack(pack) {
     const rule=ACT_EXPLORATION_ALERT;
-    if(pack.stage!==null || pack.encounter || pack.anchor || pack.eliteIds.length || !pack.waiting.length || !(game.season>=rule.fromLoop))return;
+    if(pack.stage!==null || pack.encounter || pack.anchor || pack.rescue || pack.eliteIds.length || !pack.waiting.length || !(game.season>=rule.fromLoop))return;
     if((Math.abs(hashSeed(`alert:${pack.key}:${pack.aliveIds[0]}`))%1000)/1000>=rule.chance)return;
     pack.alert=true;
     for(const enemy of pack.waiting)Object.assign(enemy,{alert:true,name:`${rule.prefix} ${enemy.name}`,encounterOutline:rule.outline});
@@ -7946,19 +7953,65 @@ function createActExplorationEncounter(zone,exploration) {
 }
 /** A +28% ordinary-monster budget: one larger room, one quiet-road group, then small room additions.
  * One-time generation only; existing runs retain every enemy. Atlas and bespoke encounters keep their authored budgets. */
+/** Rooms without their own packs: the entry room, path rooms, and the first start's rescue room (its one monster comes apart). */
+const ownsNoPack=(room,rescueRoom)=>room.role==='entry' || room.role==='path' || room===rescueRoom;
 function createExplorationPacks(zone,map,bossStages) {
     const own=ownRoomPackBuilder(zone);
     if(own)return own(zone,map);
     const packs=[],encounters=atlasEncounters.rooms(zone,map),arranger=stageRoomArranger.forMap(map);
-    const {counts,patrol}=explorationPackFormation.plan(zone,map);
+    const {counts,patrol}=explorationPackFormation.plan(zone,map),rescueRoom=starterRescueRoom(zone,map);
     for(const room of map.rooms) {
-        if(room.role==='entry' || room.role==='path')continue;
+        if(ownsNoPack(room,rescueRoom))continue;
         const encounter=encounters[room.id]||null;
         if(room.role!=='boss'){packs.push(zone.atlasCleared?.includes(room.id) ? emptiedExplorationPack(room)
             : createActExplorationPack(zone,room,null,encounter,arrangedRoomFormation(arranger,zone,room,encounter,counts.get(room.id))));continue;}
         for(let stage=0;stage<bossStages;stage++)packs.push(createExplorationBossStage(zone,map,room,stage));
     }
-    return packs.concat(createAddedExplorationPacks(zone,map,patrol,arranger));
+    return packs.concat(createAddedExplorationPacks(zone,map,patrol,arranger,rescueRoom),createStarterRescuePack(zone,map,rescueRoom));
+}
+
+/** 액트 1의 첫 몬스터(2026-10-15 사용자: "첫 방에 몬스터가 있고 그걸 잡으면 젬이 드랍되게", "하켄이 그 몬스터에게 맞고있는걸로"):
+ * 이번 루프의 시작 젬을 아직 받지 않았을 때, 방 단위 무대의 구출 방(starterRescueRoom)에서 하켄 곁에 한 마리가 선다. 그 방의 보통 무리는
+ * 없다. 한 대 맞기 전까지는 하켄을 친다(strikeRescueTarget). 이 몬스터가 루프의 첫 처치라 시작 젬이 그 자리 바닥에 떨어진다.
+ * @returns {object[]} 그 무리, 없으면 빈 목록. */
+/** 루프 1에만(2026-10-15 사용자: 루프 뒤에는 첫 방에 하켄이 없다). 그 뒤의 시작 젬은 그 루프의 첫 처치가 바닥에 떨어뜨린다. */
+const startsWithRescue=(zone,map)=>zone.type==='act' && zone.id===0 && !!map.stage && (game.season||1)===1
+    && !game.loopStarterGemGranted && (game.skills||[]).length<=1;
+/** 구출 방: 입구 방 문 너머, 보스로 가는 길의 첫 전투 방(2026-10-15 사용자: "첫방에서 처음부터 하켄이 보이지 않도록 (조금 앞으로 걸어가야
+ * 있도록)". PC 화면은 입구 방 전체를 한 번에 보여 주므로 입구 방 안에서는 숨길 수 없다). 루프 1의 첫 시작에만, 없으면 null. */
+function starterRescueRoom(zone,map) {
+    if(!startsWithRescue(zone,map))return null;
+    return map.route.map(id=>map.rooms.find(room=>room.id===id)).find(room=>room.role==='battle')||null;
+}
+function createStarterRescuePack(zone,map,room) {
+    if(!room)return [];
+    // 하켄의 양옆에 선다(한 칸씩, 방 밖이면 그 너머 칸을 쓰지 않는다): 주인공은 앞의 한 마리부터 치게 된다.
+    const post=actExplorationRooms.npcPost(room),inside=gx=>gx>=room.x0 && gx<=room.x1;
+    const cells=[post.gx+1,post.gx-1].filter(inside).slice(0,RESCUE_STRIKE.pair).map(gx=>({gx,gy:post.gy}));
+    const pack=createActExplorationPack(zone,room,null,null,{cells,rescue:true});
+    // 게이지를 거의 채워 둔다: 첫 장면(액트 이름과 깨어나는 대사 동안 게임이 멈춘다)에서 하켄을 향해 공격을 준비하는 자세로 보인다.
+    // 처음 시작(js/opening-journey-ui.js)의 주인공이 아직 이 괴물을 치지 않았으면, 다가와 칠 때까지 하켄을 계속 친다(patient).
+    const patient=!(game.seenTutorials||[]).includes('opening_attack');
+    pack.waiting.forEach(enemy=>Object.assign(enemy,{rescue:{gx:post.gx,gy:post.gy,strikes:0,patient},attackTimer:RESCUE_STRIKE.windUp,
+        hp:Math.round(enemy.hp*RESCUE_STRIKE.share),maxHp:Math.round(enemy.maxHp*RESCUE_STRIKE.share),damageMul:enemy.damageMul*RESCUE_STRIKE.share}));
+    return [pack];
+}
+/** 하켄을 치는 첫 몬스터(createStarterRescuePack)의 한 틱: 한 대라도 맞거나 하켄을 RESCUE_STRIKE.maxStrikes번 치기 전까지는 하켄 쪽을
+ * 보고 RESCUE_STRIKE.rate의 빠르기로 공격 동작만 낸다(피해 없음, 하켄 위의 번쩍임은 js/canvas-act-title-card.js가 'npcStruck'로 그린다).
+ * 주인공은 하켄에서 두 칸 옆에서 시작해 곧 이 몬스터를 친다. 그 뒤로는 여느 몬스터처럼 주인공과 싸운다. true = 이번 틱은 하켄을 노렸다. */
+// pair: 두 마리가 하켄을 양옆에서 친다(대사는 "괴물들", "잔뿌리들"). share: 한 마리의 생명력과 피해 배율: 둘을 합쳐 한 마리였을 때와 비슷하게.
+const RESCUE_STRIKE=Object.freeze({rate:0.42,windUp:0.9,maxStrikes:4,fxMs:260,pair:2,share:0.55});
+function strikeRescueTarget(enemy) {
+    const npc=enemy.rescue;
+    if(!npc)return false;
+    if(enemy.hp<enemy.maxHp || !Number.isFinite(npc.gx) || !(npc.patient || npc.strikes<RESCUE_STRIKE.maxStrikes)){delete enemy.rescue;return false;}
+    enemy.attackTimer=(Number(enemy.attackTimer)||0)+0.1*RESCUE_STRIKE.rate;
+    if(enemy.attackTimer<1)return true;
+    enemy.attackTimer-=1;
+    npc.strikes++;
+    addBattleFx('enemyAttack',{enemyId:enemy.id,duration:220});
+    addBattleFx('npcStruck',{gx:npc.gx,gy:npc.gy,duration:RESCUE_STRIKE.fxMs});
+    return true;
 }
 
 /** 판의 진행 막대가 부를 무리(표식)의 수: generateEncounterPlan과 같은 셈이다(난수 없이). 방 단위 무대의 한 줄 지도가 이 수만큼 방을
@@ -8182,17 +8235,18 @@ function arrangedRoomFormation(arranger,zone,room,encounter,formation) {
 }
 
 /** Packs beside the one each room has: the quiet-road group, and on a room-by-room stage the packs added to every room. */
-function createAddedExplorationPacks(zone,map,patrol,arranger) {
-    const packs=patrol?[createActExplorationPack(zone,map.rooms.find(room=>room.id===patrol.roomId),null,null,patrol)]:[];
-    return map.stage?packs.concat(createStageExtraPacks(zone,map,arranger)):packs;
+/** keep: a room left to its own scene (the first start's rescue room, starterRescueRoom): no patrol and no extra packs there. */
+function createAddedExplorationPacks(zone,map,patrol,arranger,keep) {
+    const packs=patrol && patrol.roomId!==keep?.id?[createActExplorationPack(zone,map.rooms.find(room=>room.id===patrol.roomId),null,null,patrol)]:[];
+    return map.stage?packs.concat(createStageExtraPacks(zone,map,arranger,keep)):packs;
 }
 
 /** 방 단위 무대의 방마다 더 서는 무리(data/stage-view.js STAGE_ROOMS.extraPacks, 2026-10-13 사용자: "한 방에 몬스터 한무리~1.5무리
  * 정도 더"): 지역의 기본 무리 크기로(큰 방에 얹는 덧수는 원래 무리만 받는다), 방 가운데의 양옆에 선다(첫째는 보스 쪽, 둘째는 입구 쪽). 열쇠는 "방:extra1", "방:extra2".
  * 정예는 없고 생김새는 열쇠마다 다르게 뽑힌다. 방에 들어서면 방 안을 모두 보므로 원래 무리와 함께 덤빈다. */
-function createStageExtraPacks(zone,map,arranger) {
+function createStageExtraPacks(zone,map,arranger,keep) {
     const rule=STAGE_ROOMS.extraPacks,packs=[];
-    for(const room of actExplorationState.packRooms(map)) {
+    for(const room of actExplorationState.packRooms(map).filter(row=>row!==keep)) {
         const more=rule.always+(Math.random()<rule.chance?1:0);
         // 자리는 그 방의 자리 묶음에서(2026-10-13 밤부터: 전에는 늘 방 가운데의 양옆이었다)
         for(let extra=1;extra<=more;extra++) {
@@ -8204,17 +8258,24 @@ function createStageExtraPacks(zone,map,arranger) {
 
 /** A boss stands on its room's centre with its footprint reaching away from the gate (2026-10-05 user request): the 2×2 body grows
  * right and down from its anchor, so on maps facing north or west it rose a tile further from the threshold than on the others,
- * at the screen's lower edge behind the HUD. A footprint that would leave the floor keeps the centre anchor. */
+ * at the screen's lower edge behind the HUD. A footprint that would leave the floor keeps the centre anchor. A boss as wide as its
+ * picture (fitBossFootprint, 2026-10-16) keeps that 2×2 core where it was and grows its extra columns evenly on both sides; where
+ * the wider body would leave the floor it goes back to 2×2. */
 function placeExplorationBoss(map,room,pack) {
-    const gate=map.gate;
     for(const enemy of pack.waiting) {
-        const size=getGridUnitFootprint(enemy);
-        const cell={gx:room.gx-(gate.gx>room.gx?size.columns-1:0),gy:room.gy-(gate.gy>room.gy?size.rows-1:0)};
-        // Checked on the map itself: the grid bounds only cover the map once this run is the current one.
-        const cells=Array.from({length:size.columns*size.rows},(_,i)=>({gx:cell.gx+i%size.columns,gy:cell.gy+Math.floor(i/size.columns)}));
-        if(cells.every(c=>actExplorationMap.walkable(map,c)))Object.assign(enemy,cell);
+        fitBossFootprint(enemy);
+        if(!placeExplorationBossAt(map,room,enemy)&&enemy.footprint){delete enemy.footprint;placeExplorationBossAt(map,room,enemy);}
     }
     return pack;
+}
+function placeExplorationBossAt(map,room,enemy) {
+    const gate=map.gate,size=getGridUnitFootprint(enemy),core=Math.min(2,size.columns);
+    const cell={gx:room.gx-(gate.gx>room.gx?core-1:0)-Math.ceil((size.columns-core)/2),gy:room.gy-(gate.gy>room.gy?size.rows-1:0)};
+    // Checked on the map itself: the grid bounds only cover the map once this run is the current one.
+    const cells=Array.from({length:size.columns*size.rows},(_,i)=>({gx:cell.gx+i%size.columns,gy:cell.gy+Math.floor(i/size.columns)}));
+    if(!cells.every(c=>actExplorationMap.walkable(map,c)))return false;
+    Object.assign(enemy,cell);
+    return true;
 }
 
 // Explicit false is retained for replaying legacy progress-based encounters in regression
@@ -8866,8 +8927,14 @@ const receiveFloorItem = {
     jewel: row => dispatchRuntimeEvent('jewel-drop-received', receiveJewelDrop(row.item)),
     core: row => { if (coreItems.keep(row.item)) dispatchRuntimeEvent('core-item-received', row.item); },
     talisman: row => announceWildTalisman(talismans.receiveWild(game, { talisman: row.item, overflow: row.overflow })),
-    leaf: row => atlasFinds.receiveMemoryLeaf(row.leaf)
+    leaf: row => atlasFinds.receiveMemoryLeaf(row.leaf),
+    gem: receiveStarterGemRow
 };
+/** The loop's starter gem picked up from the floor: the gem goes in here; the log line and, in a first loop, the equip guide come
+ * from the UI at once (js/content-progression-ui.js, event starter-gem-received): a floor gem misses the checks a kill runs. */
+function receiveStarterGemRow(row) {
+    if (receiveStarterGem(game, row.gem)) dispatchRuntimeEvent('starter-gem-received', { gem: row.gem });
+}
 
 /** Jewels, cores and wild talismans wait on the exploration floor like equipment (2026-10-06 user request). Returns whether the
  * drop was laid there; elsewhere the caller grants it at once. */
@@ -9084,23 +9151,41 @@ function clearDotFxThrottleForEnemy(enemyId) {
 // 루프 시작 시 스킬이 "기본 공격"만 남는 공백을 메우기 위해, 루프 첫 처치 때
 // 선택한 직업의 권장 전투 방식에 맞는 하위권 화력 스킬 젬을 확정 지급한다.
 // (좋은 젬을 직접 찾는 재미는 유지하도록 일부러 강한 젬은 고르지 않는다.)
-function grantLoopStarterGemOnFirstKill() {
-    if (game.loopStarterGemGranted) return;
+// 탐험 지도에서는 그 처치 자리 바닥에 떨어지고 주울 때 들어온다(2026-10-15 사용자 "첫 방에 몬스터가 있고 그걸 잡으면 젬이 드랍되게":
+// 액트 1 입구 방의 첫 몬스터, createStarterRescuePack). enemy가 없으면(스크립트) 바로 들어온다.
+function grantLoopStarterGemOnFirstKill(enemy) {
+    const gemName = takeLoopStarterGem();
+    if (!gemName) return;
+    const run = enemy ? explorationFloorFor(enemy) : null;
+    if (run) actExplorationState.groundLoot.placeGem(run, enemy, gemName);
+    else if (receiveStarterGem(game, gemName)) addLog(`스킬 젬 [${gemName}] 획득`, 'loot-rare');
+}
+/** 이번 루프의 시작 젬 이름(한 번만): 이미 받았거나 기본 공격 밖의 스킬이 있으면 null. */
+function takeLoopStarterGem() {
+    if (game.loopStarterGemGranted) return null;
     game.loopStarterGemGranted = true;
     // 마이그레이션 가드: 기존 저장 데이터는 이 플래그가 없어 false로 채워진다.
     // 이미 기본 공격 외의 스킬을 보유한 진행 중인 루프에는 소급 지급하지 않는다.
-    if (!Array.isArray(game.skills) || game.skills.length > 1) return;
-    let classDef = typeof PLAYER_CLASS_DEFS !== 'undefined' ? PLAYER_CLASS_DEFS[game.selectedClassId] : null;
-    let heroId = classDef && HERO_SELECTION_DEFS[classDef.recommendedTalentHeroId]
-        ? classDef.recommendedTalentHeroId : 'hero1';
-    let gemName = (typeof LOOP_STARTER_GEM_BY_HERO !== 'undefined' && LOOP_STARTER_GEM_BY_HERO[heroId]) || '연속 베기';
-    if (!SKILL_DB[gemName] || hasSkillGemOwned(gemName)) return;
-    game.skills.push(gemName);
-    game.gemData[gemName] = game.gemData[gemName] || { level: 1, exp: 0 };
-    game.unlocks.skills = true;
-    game.noti.skills = true;
-    if (!(game.seenTutorials || []).includes('tutorial_starter_gem_equip')) game.starterGemTutorialPending = gemName;
-    addLog(`스킬 젬 [${gemName}] 획득`, 'loot-rare');
+    if (!Array.isArray(game.skills) || game.skills.length > 1) return null;
+    const gemName = loopStarterGemName();
+    return SKILL_DB[gemName] && !hasSkillGemOwned(gemName) ? gemName : null;
+}
+/** The chosen class's starter gem (LOOP_STARTER_GEM_BY_HERO by its recommended hero). */
+function loopStarterGemName() {
+    const classDef = typeof PLAYER_CLASS_DEFS !== 'undefined' ? PLAYER_CLASS_DEFS[game.selectedClassId] : null;
+    const heroId = classDef && HERO_SELECTION_DEFS[classDef.recommendedTalentHeroId] ? classDef.recommendedTalentHeroId : 'hero1';
+    return (typeof LOOP_STARTER_GEM_BY_HERO !== 'undefined' && LOOP_STARTER_GEM_BY_HERO[heroId]) || '연속 베기';
+}
+/** The starter gem reaches the hero (picked up, or settled from a dropped map's floor): the gem, its record, the gem tab, and in a
+ * first loop the pending equip guide (js/content-progression-ui.js announceStarterGem). @returns {boolean} whether it went in. */
+function receiveStarterGem(state, gemName) {
+    if (!SKILL_DB[gemName] || state.skills.includes(gemName)) return false;
+    state.skills.push(gemName);
+    state.gemData[gemName] = state.gemData[gemName] || { level: 1, exp: 0 };
+    state.unlocks.skills = true;
+    state.noti.skills = true;
+    if (!(state.seenTutorials || []).includes('tutorial_starter_gem_equip')) state.starterGemTutorialPending = gemName;
+    return true;
 }
 
 
@@ -9138,7 +9223,7 @@ function handleEnemyDeath(enemy, pStats) {
         let bucket = enemy.isBoss ? 'boss' : (enemy.isElite ? 'elite' : 'normal');
         mix[bucket] = Math.max(0, Math.floor(mix[bucket] || 0)) + 1;
     }
-    grantLoopStarterGemOnFirstKill();
+    grantLoopStarterGemOnFirstKill(enemy);
     // 재능 런타임: 적별 누적 상태 정리(메모리 누수 방지)
     if (game.talentInquisitorMarks) delete game.talentInquisitorMarks[enemy.id];
     // 14 콜로세움 브레이커: 처치마다 관중의 함성 1중첩, 5중첩 시 다음 공격이 투기장 일격
@@ -10143,7 +10228,7 @@ function finishEncounterRun() {
             if (shouldUnlockTrial3) {
                 game.unlockedTrials.push('trial_3');
                 game.noti.map = true;
-                addLog(zone.name === '혼돈 5' ? "✨ [여신의 헌사] 혼돈 5 보스 확정 드랍! 3차 전직 시련 개방!" : "✨ [여신의 헌사] 획득! 3차 전직 시련 개방!", "loot-unique");
+                addLog(zone.name === '혼돈 5' ? "✨ [시련의 증표] 혼돈 5 보스 확정 드랍! 3차 전직 시련 개방!" : "✨ [시련의 증표] 획득! 3차 전직 시련 개방!", "loot-unique");
             }
         }
         // 다음 지역 해금은 "지금 막 클리어한 존"을 기준으로 보정한다.
@@ -11870,6 +11955,7 @@ function queueEnemyCombatAttack(enemy, target, bossPattern, delivery) {
     const flight = enemyAttackRules.trajectory(attack,enemy,travelMs);
     travelMs = flight.duration;
     pendingEnemyCombatAttacks.push(attack);
+    bossMoves.begin(attack, now);
     announceBossRelease(enemy, bossPattern, delivery);
     if (delivery === 'patternArea') return true;
     addBattleFx('combatTravel', {
@@ -11915,11 +12001,18 @@ function takePendingEnemyCombatAttack(enemyId, now) {
     if (attack.at > now) return null;
     if (attack.path && !enemyAttackRules.advanceFlight(attack,game,now)) return null;
     pendingEnemyCombatAttacks.splice(index, 1);
-    if (attack.delivery === 'patternArea') {
-        attack.source.attackCast = null;
-        addBattleFx('bossAreaImpact', { footprint: attack.bossPattern.area, element: attack.source.ele || 'phys', duration: 560 });
-    }
+    if (attack.delivery === 'patternArea') landBossPatternArea(attack, now);
     return attack;
+}
+
+/** A released special lands: all at once, or (a move, js/boss-moves.js) its next stage with the rest queued again. Ground bursts
+ * (and the whole of a special without a move) flash, shake and sound as a slam; shots, beams and bursts in a row show their own
+ * effects (js/canvas-boss-moves.js). */
+function landBossPatternArea(attack, now) {
+    attack.source.attackCast = null;
+    const stage = bossMoves.takeStage(attack, pendingEnemyCombatAttacks, now);
+    if (stage && !stage.burst) return;
+    addBattleFx('bossAreaImpact', { footprint: attack.bossPattern.area, element: attack.source.ele || 'phys', duration: 560 });
 }
 
 /** Resolve current occupants of the released attack, never its original victim's id. */
@@ -11986,6 +12079,7 @@ function performMonsterAttacks(pStats) {
         chillSlow += Math.max(0, Math.min(0.5, Number(enemy.skillSlowPct || 0) / 100));
         chillSlow = Math.min(0.65, chillSlow + curseSlow);
         if (!pendingAttack && pendingEnemyCombatAttacks.some(row => row.enemyId === enemy.id)) continue;
+        if (!pendingAttack && strikeRescueTarget(enemy)) continue;
         let impactTargets = pendingAttack ? getEnemyCombatImpactTargets(pendingAttack) : [getEnemyPreferredGridTarget(enemy)];
         let attackTarget = impactTargets[0];
         if (!attackTarget) continue;
@@ -12053,7 +12147,7 @@ function performMonsterAttacks(pStats) {
             if (enemy.isElite) dmg = Math.floor(dmg * 1.28);
             if (enemy.isBoss) dmg = Math.floor(dmg * (1.14 + zone.tier * 0.16));
             dmg = Math.floor(dmg * getUnderworldEntryBossTuning(zone, enemy.isBoss).damage);
-            if (bossPattern && Number.isFinite(bossPattern.damageMul) && bossPattern.damageMul > 1) {
+            if (bossPattern && Number.isFinite(bossPattern.damageMul) && bossPattern.damageMul !== 1) {
                 dmg = Math.max(1, Math.floor(dmg * bossPattern.damageMul));
                 if (bossPattern.isSpecial && game.settings.showCombatLog) {
                     addLog(`⚠️ ${enemy.name}: ${bossPattern.label}`, 'attack-monster', { noToast: true });

@@ -54,27 +54,12 @@
         .enemy-card.targeted { border-color: #f39c12; box-shadow: 0 0 8px rgba(243,156,18,0.3); }
         .enemy-empty { color: #eef2f6; text-align: center; padding: 10px; background: #0d0d12; border-radius: 10px; border: 1px dashed #333; grid-column: 1 / -1; font-size: 0.8em; min-height: 92px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; }
         .battlefield-wrap { position: relative; margin-top: 10px; height: 185px; box-sizing: border-box; border: 1px solid #233346; border-radius: 14px; overflow: hidden; background: linear-gradient(180deg, #172434 0%, #0d1520 60%, #11161b 100%); box-shadow: inset 0 0 30px rgba(0,0,0,0.35); }
-        .battlefield-wrap.compressed { height: 0; min-height: 0; margin-top: 0; border-width: 0; display: flex; align-items: center; justify-content: center; background: transparent; box-shadow: none; }
-        .battlefield-wrap.compressed .battlefield-caption { display: none; }
         /* 이동 대기처럼 전할 말이 없는 동안에는 빈 알약 모양이 남지 않게 숨긴다. */
         .battlefield-caption:empty { display: none; }
         #battlefield-canvas { width: 100%; height: 100%; display: block; image-rendering: pixelated; image-rendering: crisp-edges; }
         .battlefield-caption { position: absolute; top: 8px; left: 12px; font-size: 0.78em; color: rgba(205, 228, 255, 0.82); letter-spacing: 0.03em; text-shadow: 0 1px 2px rgba(0,0,0,0.45); pointer-events: none; }
         .bulk-salvage-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; padding: 10px 12px; background: #11151c; border: 1px solid #26384a; border-radius: 10px; }
         .bulk-salvage-action { background: linear-gradient(180deg, #596b7d 0%, #44515f 100%); border-color: #7d8d9e; }
-        .cloud-panel { margin-top: 14px; padding: 14px; border-radius: 10px; border: 1px solid #29445c; background: linear-gradient(180deg, #101720 0%, #0b1118 100%); }
-        .cloud-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 10px; }
-        .cloud-title { color: #7fc9ff; font-size: 0.98em; font-weight: bold; }
-        .cloud-subtitle { color: var(--copy-muted); font-size: 0.82em; line-height: 1.45; margin-top: 4px; }
-        .cloud-status-pill { display: inline-flex; align-items: center; justify-content: center; padding: 5px 10px; border-radius: 999px; font-size: 0.78em; font-weight: bold; background: #24313f; color: #ffffff; border: 1px solid #35516a; white-space: nowrap; }
-        .cloud-status-pill.online { background: #173625; border-color: #2e8b57; color: #9ef0bf; }
-        .cloud-status-pill.syncing { background: #2d240f; border-color: #9f7b1c; color: #ffe28a; }
-        .cloud-status-pill.error { background: #351717; border-color: #8f3838; color: #ffb0b0; }
-        .cloud-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
-        .cloud-actions.secondary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-        .cloud-meta { margin-top: 12px; padding: 10px 12px; background: #0d131b; border: 1px solid #1f3346; border-radius: 8px; color: #ffffff; font-size: 0.84em; line-height: 1.55; }
-        .cloud-meta strong { color: var(--copy-bright); }
-        .cloud-note { margin-top: 10px; color: var(--copy-muted); font-size: 0.8em; line-height: 1.55; }
         .startup-overlay { display: none; position: fixed; inset: 0; z-index: 14000; padding: 28px; background:
             radial-gradient(circle at 12% 14%, rgba(86, 147, 212, 0.24), transparent 26%),
             radial-gradient(circle at 84% 16%, rgba(236, 166, 60, 0.16), transparent 24%),

@@ -30,10 +30,12 @@ const STUMP_BOX_OPENING = Object.freeze({ start: 9, everyLoops: 1 });
 // 2026-10-09 사용자 "씨앗/수액 등의 성장(거름 포함) 지금보다 훨씬 어렵게": 필요량 8배(v1Need가 그 전 값). 방치 정산 측정으로 시간당
 // 처치가 시작 무렵 약 1,200, 후반 약 2,500이고 처치 하나가 평균 약 2.7 자라게 하므로, 씨앗 하나가 처치만으로 시작 무렵 약 1시간,
 // 후반 약 30분 걸린다(전에는 7분과 4분쯤). 판 1 저장을 열면 자라던 비율은 그대로, 다 자란 것은 다 자란 채로 옮긴다(js/stump-box.js upgradeGrowth).
+// 2026-10-15 사용자 "성장 속도 지금보단 2배정도 빨라도": 처치마다 자라는 양과 거름을 2배로 했다(필요량은 그대로라 저장된 진행 비율은
+// 바뀌지 않는다). 루프 2 실제 플레이로 씨앗 하나가 약 108분에서 약 54분, 새싹까지 약 27분이다.
 const STUMP_BOX_GROWTH = Object.freeze({
     need: Object.freeze({ seed: 3200, sap: 4000, talisman: 2400, scar: 3200 }),
     v1Need: Object.freeze({ seed: 400, sap: 500, talisman: 300, scar: 400 }),
-    perKill: Object.freeze({ normal: 1, elite: 6, boss: 30 }),
+    perKill: Object.freeze({ normal: 2, elite: 12, boss: 60 }),
     sproutAt: 0.5
 });
 // 씨앗이 무엇으로 자랄지(꽃, 열매)는 생길 때 무작위로 정해진다(2026-10-09 사용자: 고르지 않고 무작위). 열매가 될 몫.
@@ -51,8 +53,9 @@ const STUMP_BOX_DROPS = Object.freeze({
 // 거름(2026-10-06): 보관함의 씨앗 · 수액 하나를 판에 뿌리면 사라지고, 판에서 자라는 것(억제되지 않은 미성숙품과 잠든 부적)
 // 모두가 growth × 품질만큼 자란다. 보관함이 가득 찬 채 떨어진 씨앗 · 수액도 버려지지 않고 거름이 된다.
 // 쓸 데 없던 다른 색 드랍이 판을 앞당기는 재료가 되고, 새 루프에 다시 키우는 시간을 플레이어가 줄일 수 있다.
-// 60은 보통 처치 60번이다(씨앗 하나 3,200, 수액 4,000). 2026-10-09에 100에서 줄였다(필요량은 8배라 거름 하나의 몫은 약 1/13).
-const STUMP_BOX_COMPOST = Object.freeze({ growth: 60 });
+// 120은 보통 처치 60번이다(씨앗 하나 3,200, 수액 4,000). 2026-10-09에 100에서 60으로 줄였고(필요량은 8배라 거름 하나의 몫은 약 1/13),
+// 2026-10-15 처치 성장과 함께 2배로 올렸다.
+const STUMP_BOX_COMPOST = Object.freeze({ growth: 120 });
 // 보관된 씨앗 · 수액의 품질 범위. 드랍은 위 roll 범위로 굴리고, 조합창 합치기만 130%까지 올린다(data/stump-cube.js).
 const STUMP_BOX_ROLL_LIMIT = Object.freeze({ min: 0.8, max: 1.3 });
 

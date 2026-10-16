@@ -16,6 +16,7 @@
 | 저장과 방치 성능 | [방치 성능](offline-performance.md) |
 | 탐험·바닥 줍기 | [현재 보상·진행 계약](act-exploration-integration.md) |
 | 옆에서 보는 무대, 방 탐색 | [무대 문서](stage-view-20261011.md), [그리기 성능](stage-render-performance-20261013.md) |
+| 이야기, 대사 | [스토리 바이블](story-bible.md), 글은 [이야기 데이터](../data/story-journal.js). 새 묶음은 `node scripts/import-story-pack.cjs <폴더> --write` |
 | 적 공격, 보스 싸움 거리 | [적 공격 계약](enemy-attack-system.md) |
 | 탐험 상자·파괴물 | [클릭 조작, 배치와 후반 사건](exploration-objects-20261005.md) |
 | 아틀라스·특수 콘텐츠 지도 | [현재 구현과 후반부 이력](atlas-pinnacles-20261002.md), [초기 아틀라스 설계 이력](atlas-endgame-20260930.md) |
@@ -26,6 +27,7 @@
 | 캐릭터·몬스터 | [Hana 연결](hana-integration-20260929.md), [액트 몬스터](act-monsters-20261002.md), [위습](wisp-monsters-20260929.md) |
 | 전직·스킬 | [전직 개편 기록](ascendancy-18-20261002.md), [이동 스킬·소환 변경](skill-delta2-20260930.md) |
 | UI·CSS | [CSS 구조와 이전 이관 기록](css-architecture-20260915.md), [도트 UI 작업 기록](pixel-ui-20260929.md) |
+| 설정·화면 배율 | [설정 구성, 저장 호환성과 화면 배율](ui-display.md) |
 | 브라우저 검사·CI | [현재 실행 방법](browser-ci.md) |
 | Android 검사 | [빌드 경로와 과거 시험판 기록](android-testing.md) |
 | 공개·비공개 자산 | [배포 경계](github-publish-20261001.md) |

@@ -6,7 +6,7 @@ const actExplorationUi=(()=>{
     //   BASE  지도 바탕이 바뀌는 것: 탐험, 지도, 무리(packDigest), 가 본 방의 수, 발견한 칸의 목록, 진행 상태, 닫힌 관문
     //   MODES 단추가 바뀌는 것: 탐험 방식과 자동 이동의 단축키
     //   MARK  표식만 바뀌는 것: 주인공의 칸, 이동 명령의 자리, 큰 지도가 열렸는가
-    const BASE=['run','map','packs','visited','discovered','status','sealed'],MODES=['run','status','mode','hotkey'],MARK=['gx','gy','goalX','goalY','large'];
+    const BASE=['run','map','packs','visited','discovered','status','sealed'],MODES=['run','status','mode','hotkey','locked'],MARK=['gx','gy','goalX','goalY','large'];
     let shown={},baseRev=0;
     /** 무리마다 살아 있는 수를 한 수로 접는다: 처치, 물건에서 나온 덧무리, 불러온 탐험이 모두 이 수를 바꾼다. */
     function packDigest(run) {
@@ -17,7 +17,7 @@ const actExplorationUi=(()=>{
     function summaryOf(run,map) {
         const hero=game.gridPlayer,goal=actExplorationState.markedDestination(run);
         return {run,map,packs:packDigest(run),visited:run.visitedRooms.length,discovered:run.discovered,status:run.status,sealed:!!run.sealed,
-            mode:run.mode,hotkey:autoKey(),gx:hero.gx,gy:hero.gy,goalX:goal?goal.gx:-1,goalY:goal?goal.gy:-1,
+            mode:run.mode,hotkey:autoKey(),locked:autoLocked(),gx:hero.gx,gy:hero.gy,goalX:goal?goal.gx:-1,goalY:goal?goal.gy:-1,
             large:document.getElementById('act-exploration-dialog').open};
     }
     const summaryDiffers=(fields,now)=>fields.some(field=>now[field]!==shown[field]);
@@ -70,11 +70,12 @@ const actExplorationUi=(()=>{
             button.setAttribute('aria-pressed',String(button.dataset.explorationMode===run.mode));
             button.disabled=run.status!=='active';
         }
-        const auto=document.getElementById('btn-act-exploration-auto'),on=run.mode!=='manual',key=autoKey();
+        const auto=document.getElementById('btn-act-exploration-auto'),on=run.mode!=='manual',key=autoKey(),locked=autoLocked();
         auto.setAttribute('aria-pressed',String(on));
         auto.disabled=run.status!=='active';
+        auto.classList.toggle('is-locked',locked);
         // 글자가 지금 상태를 말한다(예전 '자동 / 수동'은 누르면 바뀔 상태인지 헷갈렸다 — 가시성 정리 2026-10-04).
-        auto.querySelector('b').textContent=on?'자동 켬':'자동 끔';
+        auto.querySelector('b').textContent=locked?'자동 잠김':on?'자동 켬':'자동 끔';
         auto.setAttribute('aria-label',(on?'자동 이동 켜짐':'자동 이동 꺼짐(클릭한 곳으로만 이동)')+', 눌러서 바꾸기'+(key?' ('+key+')':''));
         const cap=auto.querySelector('.combat-hud-key');
         cap.textContent=key;cap.hidden=!key;
@@ -179,13 +180,17 @@ const actExplorationUi=(()=>{
     function mode(value) {
         const run=actExplorationState.current(game);if(!run||run.status!=='active')return;
         if(!['direct','full','manual'].includes(value))throw Error('알 수 없는 탐험 방식');
+        if(value!=='manual' && autoLocked()){showGameToast('자동 사냥은 첫 스킬 젬을 장착하면 열립니다',{tone:'warning',duration:2000});return;}
         run.mode=value;run.destination=null;
         game.settings.autoMove=value!=='manual';
         if(value!=='manual')game.settings.actExplorationMode=value;
         render();
     }
+    /** 처음 시작하는 플레이어의 첫 장면 동안(js/opening-journey-ui.js) 자동 사냥은 꺼진 채 잠긴다: 시작 젬 안내까지 마치면 열린다. */
+    const autoLocked=()=>typeof openingJourney==='object' && openingJourney.autoLocked();
     /** 미니맵의 자동 이동 단추·단축키: 켜면 고른 탐험 방식(보스 직행 · 전체 탐색), 끄면 직접 이동. 걷던 이동 명령은 그대로 간다. */
     function toggleAuto() {
+        if(autoLocked()){showGameToast('자동 사냥은 첫 스킬 젬을 장착하면 열립니다',{tone:'warning',duration:2000});return false;}
         const on=game.settings.autoMove===false,run=actExplorationState.current(game);
         game.settings.autoMove=on;
         if(run&&run.status==='active')run.mode=actExplorationProgress.startMode(game.settings);

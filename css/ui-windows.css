@@ -201,7 +201,7 @@
   body.desktop-windowed-ui #tab-social.ui-community-overlay { display: flex; flex-direction: column; position: fixed; top: 0; right: 0; bottom: 0; z-index: 1300; padding: 0; border-left: 1px solid rgba(90, 120, 156, 0.68); border-radius: 0; background: linear-gradient(178deg, rgba(14, 21, 33, 0.99), rgba(9, 14, 22, 0.99)); pointer-events: auto; overflow: hidden; }
 
   @container (max-width: 520px) {
-    .subtab-row, .bulk-salvage-bar, .cloud-header { flex-wrap: wrap; }
+    .subtab-row, .bulk-salvage-bar { flex-wrap: wrap; }
   }
 }
 
@@ -362,7 +362,7 @@
   body.desktop-windowed-ui .ui-window-minimized { display: none; }
 
   @container (max-width: 520px) {
-    .stat-grid, .craft-layout, .cloud-actions { grid-template-columns: 1fr; }
+    .stat-grid, .craft-layout { grid-template-columns: 1fr; }
     .inventory-grid, .currency-grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
   }
 }

@@ -105,7 +105,6 @@
         .startup-resend-confirmation:disabled { opacity: 0.5; cursor: default; }
         .startup-legal-consent a, .startup-policy-links a, .cloud-policy-links a { color: #e3c879; text-decoration: underline; text-underline-offset: 2px; }
         .startup-policy-links { display: flex; justify-content: center; gap: 7px; color: #756f63; font-size: 0.74em; }
-        .cloud-policy-links { display: flex; flex-wrap: wrap; gap: 8px 14px; margin-top: 10px; font-size: 0.8em; }
         .startup-status { min-height: 48px; padding: 12px 14px; border-radius: 12px; background: #0c1219; border: 1px solid #1b2b3b; color: #ffffff; font-size: 0.84em; line-height: 1.65; }
         .startup-status strong { color: var(--copy-bright); }
         .loading-overlay { display: none; position: fixed; inset: 0; z-index: 14500; background:
@@ -166,14 +165,11 @@
             .enemy-list { max-height: none; overflow: visible; }
             .combat-stage #enemy-area { padding-bottom: 18px; }
             .combat-feed { height: clamp(240px, 28vh, 420px); margin-top: 0; }
-            .combat-dashboard.combat-scene-hidden { grid-template-rows: auto minmax(0, 1fr); }
-            .combat-dashboard.combat-scene-hidden .combat-feed { height: 100%; max-height: none; }
         }
 
         @media (max-width: 1480px) {
             #left-pane { width: 540px; min-width: 540px; }
             .combat-dashboard { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); gap: 0; }
-            .combat-dashboard.combat-scene-hidden .combat-feed { height: 100%; max-height: none; }
             .enemy-list { grid-template-columns: 1fr; max-height: none; overflow: visible; }
             .combat-stage #enemy-area { padding-bottom: 18px; }
             .combat-feed { margin-top: 0; }
@@ -191,8 +187,6 @@
         }
 
         @media (max-width: 900px) {
-            .cloud-header { flex-direction: column; align-items: stretch; }
-            .cloud-actions { grid-template-columns: 1fr; }
             .startup-shell { grid-template-columns: 1fr; width: min(700px, calc(100vw - 28px)); gap: 18px; padding: 18px; }
             .startup-panel.hero { padding-right: 0; padding-bottom: 8px; border-right: none; border-bottom: 1px solid rgba(50, 72, 96, 0.9); }
             .startup-summary-grid { grid-template-columns: 1fr; }
@@ -215,7 +209,6 @@
             body.mobile-battle-tab #tab-battle #move-area { flex: 0 0 auto; overflow: visible; order: -1; }
             body.mobile-battle-tab #tab-battle #ui-progress-label { flex: 0 0 auto; line-height: 1.25; }
             body.mobile-battle-tab #tab-battle .battlefield-wrap { margin-top: 4px; height: clamp(96px, 18dvh, 140px); }
-            body.mobile-battle-tab #tab-battle .battlefield-wrap.compressed { height: 0; margin-top: 0; border-width: 0; }
             body.mobile-battle-tab #tab-battle #enemy-area { padding-bottom: 0; }
             body.mobile-battle-tab #tab-battle .enemy-list { max-height: none; min-height: 0; overflow: visible; }
             body.mobile-battle-tab #tab-battle .combat-feed { margin-top: 0; height: auto; max-height: none; min-height: 220px; }
@@ -279,7 +272,7 @@
             .battlefield-wrap { height: 155px; }
             .combat-feed { height: clamp(320px, 52vh, 480px); max-height: 480px; padding: 10px; }
             #log { min-height: 0; }
-            .cloud-actions, .cloud-actions.secondary, .gem-enhance-actions, .gem-engrave-grid { grid-template-columns: 1fr; }
+            .gem-enhance-actions, .gem-engrave-grid { grid-template-columns: 1fr; }
             .bulk-salvage-bar, .tutorial-actions, .deathlog-line, .map-item { flex-direction: column; align-items: stretch; }
             .bulk-salvage-bar > div:last-child { width: 100%; grid-template-columns: 1fr 1fr; }
             .settings-stack { max-width: none; }

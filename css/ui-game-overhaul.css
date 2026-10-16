@@ -87,18 +87,6 @@
   letter-spacing: 0.08em;
 }
 
-:root body .hero-choice strong small {
-  display:block;
-  margin-top:4px;
-  overflow:hidden;
-  color:#ffffff;
-  font-size:.61rem;
-  font-weight:600;
-  letter-spacing:0;
-  text-overflow:ellipsis;
-  white-space:nowrap;
-}
-
 :root body .hero-choice-badge {
   position:absolute;
   z-index:4;
@@ -1302,14 +1290,12 @@ body #tutorial-overlay .tutorial-pause-toggle > strong { color: #f0c86f; font-si
 }
 
 :root body .stat-card,:root 
-body .item-card,:root 
-body .cfg-group {
+body .item-card {
   border-radius: 2px 13px 2px 13px;
 }
 
 :root body .stat-card,:root 
-body .item-card,:root 
-body .cfg-group {
+body .item-card {
   border-color: rgba(91, 129, 168, .38);
   background: linear-gradient(155deg, rgba(22, 35, 52, .82), rgba(6, 12, 20, .9));
   box-shadow: inset 0 1px rgba(255,255,255,.035), 0 9px 22px rgba(0,0,0,.22);

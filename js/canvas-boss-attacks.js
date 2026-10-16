@@ -116,6 +116,8 @@ const bossAttackView = (() => {
         } else drawReticle(ctx, footprint, look);
         ctx.restore();
     }
+    /** A released area gets the closing ring; a move's stages show their own warnings, shots and bursts (js/canvas-boss-moves.js). */
+    const closesIn = attack => attack.delivery === 'patternArea' && !attack.bossPattern.move;
     /** Strokes over the actors for every live and released boss warning (no fill, so the actors stay readable). */
     function drawMarks(ctx, scene) {
         if (!scene || !scene.projection) return;
@@ -125,7 +127,7 @@ const bossAttackView = (() => {
             if (share !== null) drawMark(ctx, enemy.patternArea, scene.projection, { share, source: enemy, now, blink: blink(share) });
         }
         for (const attack of scene.pending || []) {
-            if (attack.delivery !== 'patternArea') continue;
+            if (!closesIn(attack)) continue;
             drawMark(ctx, attack.bossPattern.area, scene.projection, { share: 1, source: attack.source, now, blink: pendingAlpha() / 7 });
         }
     }
@@ -238,6 +240,6 @@ const bossAttackView = (() => {
         }
     }
 
-    return { groundAlpha, pendingAlpha, drawMarks, addMotions, spriteOffsetY, drawImpact, drawGround, warningShare };
+    return { groundAlpha, pendingAlpha, drawMarks, addMotions, spriteOffsetY, drawImpact, drawGround, warningShare, now: smoothCombatTime };
 })();
 safeExposeGlobals({ bossAttackView });
