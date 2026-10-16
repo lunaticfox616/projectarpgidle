@@ -1,6 +1,6 @@
 /** 방 단위 무대를 그리는 쪽 (2026-10-11 사용자: "던파처럼 방 하나마다 이동하는 방식"). 지도는 js/act-exploration-rooms.js,
  * 문을 지나는 규칙은 js/act-exploration-doors.js에 있고 여기는 그리기만 한다.
- * - 카메라는 주인공이 선 방에 고정된다: 방이 화면보다 좁으면 방을 가운데에 두고, 넓으면 방 끝에서 멈추며 주인공을 따라간다.
+ * - 방이 화면보다 좁으면 가운데에 두고, 넓으면 방 끝에서 멈추며 주인공을 따라간다. 세로는 고정하되 주인공 머리가 잘릴 때만 따라간다.
  * - 방 그림은 그리기 밖에서 준비해 둔 것을 쓴다(js/canvas-stage-room-pictures.js): 지금 방과 걸어가는 문 너머의 방.
  *   아직 준비되지 않은 방은 어둠으로 두고, 그림이 오면 그때부터 밝아진다(다른 방의 그림을 잠깐 쓰지 않는다).
  * - 문: 잠긴 문은 쇠창살, 열린 문은 나가는 쪽을 가리키며 깜빡이는 화살표. 보스 방으로 가는 문은 붉다.
@@ -18,14 +18,22 @@ const stageRoomsView = (() => {
         const map = mapOf(run);
         return map ? actExplorationRooms.roomAt(map, game.gridPlayer) : null;
     }
-    /** 카메라의 가운데 칸(소수): 가로는 방 안에서 주인공을 따라가되 방 둘레의 벽 한 칸 밖은 보이지 않게, 세로는 방에 고정. */
+    /** 카메라의 가운데 칸(소수): 가로는 방 안에서 따라가고, 세로는 방에 고정하되 작은 화면에서 주인공 머리가 잘릴 때만 따라간다. */
     function focus(run, cell, view) {
         const room = roomOf(run);
         if (!room) return null;
         const left = room.x0 - 1, right = room.x1 + 2, span = right - left;
         const gx = span <= view.columns ? (left + right) / 2
             : Math.max(left + view.columns / 2, Math.min(right - view.columns / 2, cell.gx + .5));
-        return { gx, gy: isOpen(mapOf(run)) ? openFocusRow(room, view) : focusRow(room, view) };
+        const row = isOpen(mapOf(run)) ? openFocusRow(room, view) : focusRow(room, view);
+        return { gx, gy: stageView.enabled() ? Math.min(row, heroRow(room, cell, view)) : row };
+    }
+    /** A short view keeps the minimum-sized hero's head below the top margin. In a view that fits the room this limit leaves
+     * its fixed row unchanged. Follow fractional walking positions, clamped to the room's end rows during a door crossing. */
+    function heroRow(room, cell, view) {
+        const deep = view.height / view.rows, dot = deep / STAGE_VIEW.depth / STAGE_VIEW.heroTile, head = STAGE_VIEW.headroom;
+        const gy = Math.max(room.y0, Math.min(room.y1, cell.gy));
+        return gy + .5 + (stageView.anchorY() * view.height - head.dots * dot - head.top) / deep;
     }
     /** 벽 없이 그리는 방인가: 조각 묶음(js/canvas-stage-scene.js)이나 배경 그림(js/canvas-stage-backdrop.js)이 준비된 지형. */
     const isOpen = map => stageScene.ready(map) || stageBackdrop.ready(map);
