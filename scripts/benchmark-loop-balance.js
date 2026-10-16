@@ -11,7 +11,7 @@ const seeds = value('--seeds', '5,17,29').split(',').map(Number);
 const powers = value('--powers', '10000,160000,640000').split(',').map(Number);
 const zones = value('--zones', '9,29,39').split(',').map(Number);
 const durationMs = Number(value('--duration-ms', '60000'));
-const skills = ['이중 베기', '서리 폭발'];
+const skills = ['이중 베기', '서리바람 내지르기'];
 const rows = [], curves = [];
 for (const loop of loops) for (const zone of zones) {
     const runtime = buildGameRuntime(overrides);
