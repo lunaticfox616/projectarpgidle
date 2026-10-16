@@ -671,16 +671,17 @@ const stageSkillSpells = (() => {
         }
         g.globalAlpha = 1;
     }
-    /** 섬머솔트 슬래시: 무기 궤적이 몸 둘레에 세로 원을 그리고(위에서 앞, 아래, 뒤로), 착지 뒤 0.14초 동안 앞 아래로 더 내려벤다. 몸은 돌리지 않는다. */
+    /** 섬머솔트 슬래시: 무기 궤적이 뜬 몸 둘레에 세로 원을 그리고(위에서 앞, 아래, 뒤로), 착지 뒤 0.14초 동안 앞 아래로 더 내려벤다.
+     * lift는 그때 몸이 뜬 높이(도트)를 돌려준다. */
     function spellFlipTrail(o) {
         const C = S.ramp('phys'), R0 = 46, N = 90;
         S.hang(o.at, { life: o.ms + 200, follow: o.follow, top(g, t) {
             const head = t <= o.ms ? (t / o.ms) * TAU : TAU + Math.min(1, (t - o.ms) / 140) * Math.PI * 0.55, tail = Math.max(0, head - Math.PI * 0.9);
-            const fade = t > o.ms + 60 ? Math.max(0, 1 - (t - o.ms - 60) / 140) : 1;
+            const fade = t > o.ms + 60 ? Math.max(0, 1 - (t - o.ms - 60) / 140) : 1, up = o.lift ? o.lift() : 0;
             for (let i = 0; i <= N; i++) {
                 const u = i / N, ang = -Math.PI / 2 + tail + (head - tail) * u, w = Math.max(1, Math.round(1 + 4 * u ** 1.3));
                 g.globalAlpha = fade * (0.25 + 0.7 * u); g.fillStyle = u > 0.94 ? C[5] : u > 0.6 ? C[4] : u > 0.25 ? C[3] : C[2];
-                g.fillRect(Math.round(o.face * R0 * Math.cos(ang)) - (w >> 1), Math.round(-46 + R0 * Math.sin(ang)) - (w >> 1), w, w);
+                g.fillRect(Math.round(o.face * R0 * Math.cos(ang)) - (w >> 1), Math.round(-46 - up + R0 * Math.sin(ang)) - (w >> 1), w, w);
             }
             g.globalAlpha = 1;
         } });

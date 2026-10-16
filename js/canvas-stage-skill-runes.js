@@ -7,7 +7,9 @@
  * - 그림 사건(claim): 참격파, 서리 파동, 부싯돌 베기, 피뢰침, 신성한 단두대, 혹한의 지진, 불씨의 함성, 서리바람 내지르기, 화살비.
  *   옛 그림 표(data/skill-fx-atlas.js)에 없는 새 룬의 사건도 무대에서는 여기로 온다(js/canvas-world-tree-fx.js).
  * - 시전 시작(windup): 부싯돌 베기의 불티. 이동(mobility): 돌진, 도약 강타, 섬머솔트 슬래시. 활을 들면 화살 룬은 마법 화살(bow).
- * 룬의 판정, 대상, 피해는 게임의 것 그대로다: 여기는 사건을 읽기만 한다. 주인공 그림은 움직이지 않는다(코드로 만든 동작 금지).
+ * - 몸이 뜨는 이동(heroAir): 도약 강타는 포물선으로 뛰고 섬머솔트 슬래시는 뛰며 한 바퀴 돈다. 2026-10-17 사용자가 시뮬레이터의 모습대로
+ *   이 두 룬만 주인공 그림을 띄우고 돌리게 했다(코드로 만든 동작을 쓰지 않는 규칙의 예외). 다른 룬은 주인공 그림을 움직이지 않는다.
+ * 룬의 판정, 대상, 피해는 게임의 것 그대로다: 여기는 사건을 읽기만 한다.
  */
 const stageSkillRunes = (() => {
     const K = stageSkillKit, ST = stageSkillStrokes, SP = stageSkillSpells, WIDE = K.WIDE, DEEP = K.DEEP;
@@ -242,16 +244,50 @@ const stageSkillRunes = (() => {
         const hero = K.heroSpot();
         ST.dragSpark(K.at(hero), K.heroFace(), Math.max(200, Number(fx.impactDelayMs) || 0), hero.gx * 13 + hero.gy);
     }
+    // ---------------------------------------------------------------- airborne hero (도약 강타, 섬머솔트 슬래시)
+    let airNow = null;                            // 이번 프레임의 공중 자세(heroAir가 적는다): 공중제비 궤적이 몸 높이를 따라간다
+    let airMove = null;                           // 마지막으로 본 이동 표시: 표시 목록이 차서 먼저 밀려나도 공중 시간이 끝날 때까지 쓴다
+    /** 몸이 뜨는 이동 룬의 공중 시간(ms, data/skills.js mobilityPattern.airMs), 포물선 높이(도트), 도는 각(인계의 startLeap, startFlip).
+     * 공중제비(flip)는 높이 34도트로 한 바퀴, 도약은 거리에 따라 높이가 는다. 아니면 null. */
+    function runeAir(gem, move) {
+        const ms = Number(((SKILL_DB[gem.meta.name] || {}).mobilityPattern || {}).airMs) || 0;
+        if (!ms) return null;
+        if (gem.map.flip) return { ms, arc: 34, spin: Math.PI * 2 };
+        const far = Math.hypot((move.to.gx - move.from.gx) * WIDE, (move.to.gy - move.from.gy) * DEEP * 2);
+        return { ms, arc: 38 + far * 0.12, spin: 0 };
+    }
+    /** 가장 최근의 이동(js/combat.js가 남긴 playerMobility). 목록에서 사라졌으면 마지막으로 본 것. 없으면 null. */
+    function latestMobility(now) {
+        for (let i = battleFx.length - 1; i >= 0; i--) {
+            const fx = battleFx[i];
+            if (fx && fx.type === 'playerMobility' && fx.start <= now) { airMove = fx; return fx; }
+        }
+        return airMove;
+    }
+    /** 이번 프레임 주인공의 공중 자세: 땅 위 자리(칸, 떠난 칸에서 닿는 칸으로), 높이(도트), 돈 각(라디안, 보는 쪽으로).
+     * 가장 최근의 이동이 몸이 뜨는 룬이고 아직 공중이면, 아니면 null. */
+    function runeHeroAir(now) {
+        const fx = latestMobility(now), gem = fx && fx.skillName && fx.fromCell && fx.toCell ? K.gemOf(fx.skillName) : null;
+        const move = gem ? { from: fx.fromCell, to: fx.toCell } : null, air = move ? runeAir(gem, move) : null, k = air ? (now - fx.start) / air.ms : 1;
+        airNow = k < 1 ? runeAirPose(move, air, k) : null;
+        return airNow;
+    }
+    function runeAirPose(move, air, k) {
+        const face = Math.sign(move.to.gx - move.from.gx) || K.heroFace();
+        return { gx: move.from.gx + (move.to.gx - move.from.gx) * k, gy: move.from.gy + (move.to.gy - move.from.gy) * k, lift: air.arc * 4 * k * (1 - k), rot: air.spin * k * face };
+    }
+    const airLift = () => (airNow ? airNow.lift : 0);
     /** 이 이동 룬의 연출을 여기서 그리는가(돌진, 도약 강타, 섬머솔트 슬래시). */
     const runeMoves = gem => !!(gem.map.charge || gem.map.flip || gem.map.kick || gem.map.impact) && gem.meta.kind === 'move';
     /** 이동 칸의 룬: 박차고 나가는 먼지, 달리는 동안의 공기 활(돌진)이나 무기 궤적(섬머솔트 슬래시), 착지 자리의 충격.
      * @param {{from:object, to:object, ms:?number}} move 떠난 칸, 닿는 칸, 옮겨 가는 시간 */
     function runeMobility(gem, move) {
-        const map = gem.map, face = Math.sign(move.to.gx - move.from.gx) || K.heroFace(), ms = Math.max(120, move.ms || 280);
+        // 몸이 뜨는 룬은 공중 시간 동안 날아 그 끝에 내려앉는다(착지 충격도 그때)
+        const map = gem.map, face = Math.sign(move.to.gx - move.from.gx) || K.heroFace(), air = runeAir(gem, move), ms = air ? air.ms : Math.max(120, move.ms || 280);
         const follow = followHero;
         if (map.kick) runeKick(map, move, face);
         if (map.charge) SP.charge({ at: K.at(move.from), follow, face, ms });
-        if (map.flip) SP.flipTrail({ at: K.at(move.from), follow, face, ms });
+        if (map.flip) SP.flipTrail({ at: K.at(move.from), follow, face, ms, lift: airLift });
         runeLanding(map, move.to, { face, ms });
     }
     /** 착지 자리의 충격 클립들: 도약 강타는 몸 앞 0.6칸, 섬머솔트 슬래시는 0.9칸에서 차례로(첫째는 바닥 층). */
@@ -286,6 +322,6 @@ const stageSkillRunes = (() => {
         return refs.length ? refs[Math.floor(Math.random() * refs.length)] : null;
     }
     return Object.freeze({ swing: runeSwing, drawsSwing, victim: runeVictim, claim: runeClaim, windup: runeWindup, moves: runeMoves, mobility: runeMobility, bow: runeBow, bowFlash: runeBowFlash,
-        hitRef: runeHitRef, hitRefs: runeHitRefs });
+        hitRef: runeHitRef, hitRefs: runeHitRefs, heroAir: runeHeroAir });
 })();
 safeExposeGlobals({ stageSkillRunes });

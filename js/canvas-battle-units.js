@@ -140,6 +140,18 @@ function getStageHeroSwingLook(timing, stance) {
         strike: stageActors.strikeFor(name), motion: stageActors.motionFor(name, getHeroAppearanceId(), stance) };
 }
 
+/** 몸이 뜨는 이동 룬(도약 강타, 섬머솔트 슬래시) 동안의 몸 그림: 포물선 높이만큼 띄우고, 공중제비는 몸 가운데를 축으로 돌린다
+ * (battleVisualState.playerAir, js/canvas-battlefield.js getStageHeroAirGround). 2026-10-17 사용자가 시뮬레이터처럼 이 두 룬만 그림을 움직이게 했다.
+ * drawHeroBodyAt(y)는 발의 y로 몸을 그린다. */
+function drawStageHeroAloft(ctx, position, tile, drawHeroBodyAt) {
+    const air = battleVisualState.playerAir;
+    if (!air) return drawHeroBodyAt(position.y);
+    const dot = stageActors.scaleFor(tile), y = position.y - air.lift * dot, centre = y - 46 * dot;
+    ctx.save();
+    ctx.translate(position.x, centre); ctx.rotate(air.rot); ctx.translate(-position.x, -centre);
+    try { return drawHeroBodyAt(y); } finally { ctx.restore(); }
+}
+
 /** The stage hero: timing from the same battle effects as the Hana figure; spells play the cast clips, a thrown flask the throw. */
 function drawStagePlayerBody(ctx, state, position) {
     const motion = state.motionState, stance = getStageHeroStance();
@@ -150,12 +162,12 @@ function drawStagePlayerBody(ctx, state, position) {
     const facing = motion.facingDirection || motion.attackDirection || 'east', timing = collectHanaPlayerMotion(motion, state.now);
     if (timing.attack) timing.attack = { ...timing.attack, direction: facing };
     try {
-        return stageActors.drawPlayer(ctx, position.x, position.y, {
+        return drawStageHeroAloft(ctx, position, state.gridProj.tileW, y => stageActors.drawPlayer(ctx, position.x, y, {
             ...timing, ...getStageHeroSwingLook(timing, stance), classId: getHeroAppearanceId(), stance, tile: state.gridProj.tileW,
             facing,
             moving: motion.advanceBlend > 0.08, moveDirection: motion.moveDirection,
             alpha: getBattleActorDrawAlpha(ctx, 1)
-        }, state.now);
+        }, state.now));
     } finally { ctx.battleActorAlpha = previous; }
 }
 

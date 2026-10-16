@@ -1851,6 +1851,17 @@ function getExplorationPlayerVisualMotion(projection, player) {
         progress: run.motion ? run.motion.elapsed / run.motion.duration : 1, animating: !!run.motion && !isForegroundGameplayPausedForBackground()};
 }
 
+/** 몸이 뜨는 이동 룬(도약 강타, 섬머솔트 슬래시)을 쓰는 동안 주인공의 땅 위 자리는 떠난 칸에서 닿는 칸으로 공중 시간 동안 옮겨 간다
+ * (js/canvas-stage-skill-runes.js heroAir). 발밑 고리와 주인공을 따라가는 연출이 이 자리를 쓰고, 높이와 돌기는 몸 그림에만 준다
+ * (js/canvas-battle-units.js drawStageHeroAloft). 게임의 칸은 이미 닿는 칸이다(그림만 늦게 따라간다). */
+function getStageHeroAirGround(playerPos, now, gridProj) {
+    const air = stageView.enabled() && typeof stageSkillRunes === 'object' ? stageSkillRunes.heroAir(now) : null;
+    battleVisualState.playerAir = air;
+    if (!air) return playerPos;
+    const at = gridProj.cellToScreen(air.gx, air.gy);
+    return { x: at.x, y: at.y + (Number(gridProj.actorGroundOffsetY) || 0) };
+}
+
 function getCardinalMoveDirection(fromCell, toCell) {
     let dx = Number(toCell.gx) - Number(fromCell.gx);
     let dy = Number(toCell.gy) - Number(fromCell.gy);
@@ -2563,10 +2574,10 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
     let playerMoveSpeed = Number(framePlayerStats.moveSpeed) || Number(framePlayerStats.move) || 100;
     let playerMotion = updatePlayerGridVisualMotion(gridProj, playerCell, now, playerMoveSpeed);
     let advanceBlend = playerMotion.animating ? 1 : 0;
-    let playerPos = {
+    let playerPos = getStageHeroAirGround({
         x: playerMotion.position.x,
         y: playerMotion.position.y + downBlend * 0.6
-    };
+    }, now, gridProj);
     let playerMotionState = {
         playerStats: framePlayerStats,
         advanceBlend,
