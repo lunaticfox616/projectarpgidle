@@ -69,7 +69,7 @@ const actTitleCard = (() => {
         const waited = now - (trackedAt || now);
         trackedAt = now;
         const wasCovered = covered;
-        covered = storyCovered();
+        covered = (line || queue.length) ? storyCovered() : false;
         // Both the current line and queued lines keep their unread time, including the frame that closes the window.
         if (covered || wasCovered) {
             if (line) line.startAt += waited;
@@ -571,8 +571,11 @@ const actTitleCard = (() => {
     function draw(ctx, scene) {
         const waited = scene.now - (trackedAt || scene.now);
         frameAt = Date.now();
+        const unlooked = !line && !queue.length;
         track(scene.now);
         if (stageView.enabled()) watchStory(scene.now);
+        // A first line queued after track still needs the current window state for the greeting hold and the next frame.
+        if (unlooked && (line || queue.length)) covered = storyCovered();
         holding = stageView.enabled() && holdsGreeting(waited);
         if (card) drawTitleCard(ctx, scene.width, scene.height, scene.now);
         else if (line) drawStoryLine(ctx, scene);
