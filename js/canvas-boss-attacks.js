@@ -18,6 +18,10 @@ const bossAttackView = (() => {
     const cracks = [], landed = new WeakSet();
 
     const easeOut = t => 1 - (1 - t) * (1 - t);
+    /** 옆에서 보는 무대(2026-10-16 사용자 "보스 패턴의 동그라미 강조표시가 이상하고, 좀 이상한 이펙트들도 있어"): 원근으로 납작하게 눌린 큰 타원이
+     * 범위 밖에서 조여 들고 흰 꺾쇠가 돌며, 착탄 때 흰 타원 두 겹이 퍼지고 위에서 보는 전장의 파편과 바닥 금이 남았다. 무대에서는 바닥 칸의
+     * 경고(깜빡이며 짙어진다)와 갈래와 줄의 화살표, 보스의 효과 그림(js/canvas-boss-moves.js)만 쓴다. 착탄 때 칸이 번쩍이는 빛과 소리는 둔다. */
+    const onStage = () => typeof stageView === 'object' && stageView.enabled();
     const isHeld = enemy => (enemy.ailments || []).some(ailment => ['freeze', 'stun', 'silence'].includes(ailment.type) && ailment.time > 0);
     function isLiveWarning(enemy) {
         if (!enemy || !enemy.isBoss || enemy.noAttack || !(enemy.hp > 0) || !enemy.patternArea) return false;
@@ -113,7 +117,7 @@ const bossAttackView = (() => {
         if (RAY_KINDS.has(area.kind)) {
             clipSkillFootprintTerrain(ctx, footprint); // chevrons only where the hero could stand, like the ground fill
             drawRays(ctx, footprint, { ...look, origin: originOf(look.source, projection) });
-        } else drawReticle(ctx, footprint, look);
+        } else if (!onStage()) drawReticle(ctx, footprint, look);
         ctx.restore();
     }
     /** A released area gets the closing ring; a move's stages show their own warnings, shots and bursts (js/canvas-boss-moves.js). */
@@ -222,6 +226,10 @@ const bossAttackView = (() => {
         if (!footprint) return;
         const ms = progress * (Number(fx.duration) || IMPACT_FLASH_MS);
         if (ms < IMPACT_FLASH_MS) drawBossPatternArea(ctx, fx.footprint, projection, (1 - ms / IMPACT_FLASH_MS) * 5);
+        if (onStage()) {
+            if (!landed.has(fx)) { landed.add(fx); if (typeof playUiFeedbackSound === 'function') playUiFeedbackSound('hitSlam'); }
+            return;
+        }
         drawShockwaves(ctx, footprint, progress, getEnemyTelegraphColor({ ele: fx.element }).edge);
         if (!landed.has(fx)) land(fx, footprint);
     }
