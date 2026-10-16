@@ -3255,7 +3255,8 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     if (typeof getActiveTalentCardStatBonuses === 'function') applyStatsToBucket(reward, getActiveTalentCardStatBonuses(tick));
     let talentLine = function (stat, suffix) { let v = talentStatMap[stat]; return v ? `재능 개화 +${Math.round(v * 100) / 100}${suffix || '%'} (위 합계에 포함)` : null; };
 
-    const damageSkill = authoredPassiveRules.flags.duel ? { ...skill, tags: [...skill.tags, 'spell'] } : skill;
+    const taggedSkill = authoredPassiveRules.flags.duel ? { ...skill, tags: [...skill.tags, 'spell'] } : skill;
+    const damageSkill = { ...taggedSkill, tags: [...getSkillDamageTagSet(taggedSkill)] };
     let gearTagged = getTaggedDamageBreakdown(gearBase, damageSkill);
     let gearExplicitTagged = getTaggedDamageBreakdown(gearExplicit, damageSkill);
     let passiveTagged = getTaggedDamageBreakdown(passive, damageSkill);

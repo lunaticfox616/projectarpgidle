@@ -9,11 +9,12 @@
         const def = SUPPORT_GEM_DB[name];
         const tag = Object.keys(TAGGED_DAMAGE_STAT_BY_TAG).find(key => TAGGED_DAMAGE_STAT_BY_TAG[key] === def.stat);
         if (!tag) return isSummonGuardSupport(name) ? '소환형 보조, 소환 한도 사용' : '캐릭터 효과, 상세에서 확인';
+        const applies = skill => getTaggedDamageBreakdown({ [def.stat]: 1 }, { ...skill, tags: [...getSkillDamageTagSet(skill)] }).total > 0;
         const active = getUiGemPresentation(game.activeSkill || '기본 공격', false, stats).skill;
         const targets = [];
-        if (getTaggedDamageBreakdown({ [def.stat]: 1 }, active).total > 0) targets.push('주 공격');
+        if (applies(active)) targets.push('주 공격');
         const mobility = mobilitySkill.equipped();
-        if (mobility && getTaggedDamageBreakdown({ [def.stat]: 1 }, getUiGemPresentation(mobility, false, stats).skill).total > 0) targets.push('이동 스킬');
+        if (mobility && applies(getUiGemPresentation(mobility, false, stats).skill)) targets.push('이동 스킬');
         const summons = (game.equippedSummonSkills || []).filter(gem => (SKILL_DB[gem]?.tags || []).includes(tag));
         targets.push(...summons);
         if (targets.length) return `적용: ${targets.join(', ')}`;

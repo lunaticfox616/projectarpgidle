@@ -859,12 +859,12 @@ function getEquippedWeaponStance() {
     return SKILL_RUNE_STANCE_BY_CATEGORY[category] || 'unarmed';
 }
 
-/** 태그 피해(getTaggedDamageBreakdown)가 보는 태그: 룬의 태그에 더해, 방패를 들고 쓰는 근접 공격은 방패 스킬로 친다(방패 공명, 방패 스킬 피해).
+/** 태그 피해 계산 호출부(combat.js, gem-selection-ui.js)가 쓰는 태그: 방패를 들고 쓰는 근접 공격은 방패 스킬로 친다(방패 공명, 방패 스킬 피해).
  * 방패 태그 룬(방패 투척, 방패 돌진)이 2026-10-17 스킬룬 인계에서 빠져 방패 스킬 피해가 붙을 곳이 없었다. 자세가 아니라 든 방패를 본다:
  * 대검도 검방패 자세를 쓴다. */
 function getSkillDamageTagSet(skill) {
     const tags = new Set(skill.tags || []);
-    if (tags.has('melee') && game.equipment && hasEquippedShield()) tags.add('shield');   // 장비 칸이 없는 상태(시험용 게임)도 견딘다
+    if (tags.has('melee') && hasEquippedShield()) tags.add('shield');
     return tags;
 }
 

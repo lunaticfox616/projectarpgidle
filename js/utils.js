@@ -518,7 +518,7 @@ function applyStatsToBucket(bucket, stats) {
     });
 }
 function getTaggedDamageBreakdown(bucket, skill) {
-    let tags = getSkillDamageTagSet(skill);
+    let tags = new Set(skill.tags || []);   // 장비로 붙는 태그는 호출부에서 계산한다.
     let randomElementPool = Array.isArray(skill.randomElementPool) ? skill.randomElementPool.map(ele => { let key = String(ele || '').toLowerCase(); return key === 'lightning' || key === 'thunder' ? 'light' : key; }).filter(Boolean) : [];
     let isRandomElementSkill = randomElementPool.length > 0;
     let parts = [];

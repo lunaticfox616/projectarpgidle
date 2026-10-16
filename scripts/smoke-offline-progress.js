@@ -128,7 +128,7 @@ safe.offlineProgress.safetyPolicy.stopOnNegativeExp = true;
 assert.strictEqual(getOfflineSafetyStopReason(safe, { exp: 20, expLost: 5, consecutiveDeaths: 0, elapsedSinceLastKillMs: 1000 }, 1000), null);
 assert.strictEqual(getOfflineSafetyStopReason(safe, { exp: 5, expLost: 20, consecutiveDeaths: 0, elapsedSinceLastKillMs: 1000 }, 1000), 'negative-exp');
 
-let stopSnapshot=state({heroSelectionInitialized:true,playerHp:100,moveTimer:600,moveTotalTime:600,enemies:[],encounterPlan:[],offlineProgress:{safeReturnUnlocked:true,safetyPolicy:{consecutiveDeaths:5,noKillMinutes:5,stopOnNegativeExp:false,stopWhenStorageFull:false}}});
+let stopSnapshot=mergeDefaults(state({heroSelectionInitialized:true,playerHp:100,moveTimer:600,moveTotalTime:600,enemies:[],encounterPlan:[],offlineProgress:{safeReturnUnlocked:true,safetyPolicy:{consecutiveDeaths:5,noKillMinutes:5,stopOnNegativeExp:false,stopWhenStorageFull:false}}}));
 let syncResult=simulateBackgroundCombat({elapsedMs:360000,snapshot:stopSnapshot});
 assert.strictEqual(syncResult.processedMs,300000,'real combat must stop at the configured no-kill boundary');
 assert.strictEqual(syncResult.stopReason,'no-kill');
