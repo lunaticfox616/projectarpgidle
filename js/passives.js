@@ -5523,6 +5523,9 @@ function toggleCombatLogCollapse() {
     if (uiDisplay.matches('(max-width: 1080px)')) game.settings.mobileCombatLogExpanded = !game.settings.mobileCombatLogExpanded;
     else game.settings.combatLogCollapsed = !game.settings.combatLogCollapsed;
     applyPanelLayoutSettings();
+    // 숨긴 기록은 스크롤 자리를 잃는다. 사용자가 펼칠 때만 최신 줄로 간다.
+    const log = document.getElementById('log');
+    if (log && !document.body.classList.contains('combat-log-collapsed')) log.scrollTop = log.scrollHeight;
 }
 
 
