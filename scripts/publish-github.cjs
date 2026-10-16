@@ -21,7 +21,7 @@ const PUBLIC_BASE = '98bc57a481906e8b5de697ece8eccf240a015af5';
 // Changing this list rewrites public history: the next run then stops and needs --force-public.
 const PRIVATE_PATHS = ['assets/playable/hana', 'assets/summon/hana', 'docs/skill-assets-hana/reference'];
 // Files put into the private repo by hand (never in any public commit, so never in rignin-next): kept as they are on every sync.
-const HAND_PRIVATE_PATHS = ['assets/stage-vfx/vfx.png'];
+const HAND_PRIVATE_PATHS = ['assets/stage-vfx/vfx.png', 'assets/stage-vfx/vfx2.png'];
 // Safety net for licensed art added somewhere new: any image whose path looks like it blocks the public push.
 const LICENSED_ART = /hana|caraka/i;
 const IMAGE = /\.(png|jpe?g|gif|webp|bmp|psd|aseprite)$/i;
@@ -32,7 +32,7 @@ RIGNIN(projectarpgidle)에서 **공개하면 안 되는 파일만** 모아 둔 �
 
 - \`assets/playable/hana/\` — Hana Caraka 캐릭터 스프라이트 (외부 라이선스 · 팀 내부 전용 · 재배포 금지)
 - \`docs/skill-assets-hana/reference/\` — 스킬 인계 원본 보관본
-- \`assets/stage-vfx/vfx.png\` — 구입한 무대 스킬 이펙트 묶음(상업적 이용 가능, 재배포 금지). 직접 올린 파일이라 갱신 때도 그대로 둔다
+- \`assets/stage-vfx/vfx.png\`, \`vfx2.png\` — 구입한 무대 스킬 이펙트 묶음(상업적 이용 가능, 재배포 금지). 직접 올린 파일이라 갱신 때도 그대로 둔다
 
 코드는 공개 저장소 \`lunaticfox616/projectarpgidle\`의 \`${BRANCH}\` 브랜치에 있고, 위 파일들은 그 이력 전체에서 빠져 있습니다.
 경로가 같으므로 공개 브랜치를 받은 뒤 이 저장소의 \`assets\`, \`docs\` 폴더를 그 위에 그대로 복사하면 완전한 게임이 됩니다.
