@@ -69,7 +69,8 @@ test('all unlocked mobile navigation entries open without page overflow or runti
     const ids = await page.locator('.tab-header > .tab-btn').evaluateAll(elements => elements
         .filter(el => el.id.startsWith('btn-tab-') && el.style.display !== 'none' && !el.hidden && el.dataset.mergedTabMember !== '1')
         .map(el => el.id));
-    expect(ids.length).toBeGreaterThan(10);
+    // 묶인 창의 화면(스킬 젬, 해금, 전직, 재능, 도감, 전적, NPC)은 제 단추가 없다: 2026-10-16부터 재능과 NPC도 묶여 단추가 열 개다.
+    expect(ids.length).toBeGreaterThanOrEqual(10);
     const overflows = [];
     for (const id of ids) {
         if (!await page.locator('#' + id).isVisible()) await page.locator('#btn-mobile-nav-more').tap();
