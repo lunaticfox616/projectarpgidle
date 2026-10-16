@@ -4695,28 +4695,34 @@ function decorateCombatLogMessage(message, cls, options) {
     return `${icon}${markCombatLogCritNumber(cleanMessage, options && options.critValue)}`;
 }
 
-/** null while the log sits in a hidden tab (phone, another menu open): measuring it then forced a style recalculation of
- * the page twice per flush (about 20 ms each on a 4x-throttled phone). Rows added meanwhile show from the latest. */
-/** 이전 줄을 읽는 동안의 자리(줄을 붙이고 지운 뒤 같은 줄을 보게 되돌린다). */
+/** 이전 줄을 읽는 동안의 자리: 창 맨 위에 걸친 줄과 창 윗변에서의 거리(화면 px, 위로 넘어가면 음수).
+ * 숨지 않았고 최신 줄을 따라가지 않을 때만 잰다. 줄이 없으면 null. */
 function captureCombatLogScroll(log) {
-    return { scrollTop: log.scrollTop, scrollHeight: log.scrollHeight };
+    const top = log.getBoundingClientRect().top;
+    for (const row of log.children) {
+        const box = row.getBoundingClientRect();
+        if (box.bottom > top) return { row, offset: box.top - top };
+    }
+    return null;
 }
 
-/** 최신 줄을 따라가는지(log.combatLogAtBottom)는 읽는 사람이 스크롤할 때만 잰다. 줄을 붙인 뒤 맨 아래로 내린 직후(80ms)의 스크롤은
- * 재지 않는다: 줄을 붙일 때마다 높이를 재던 일이 느린 기기에서 비쌌다(2026-10-17 측정). 로그가 60줄로 차 있으면 맨 아래로 내려도
- * 자리가 그대로라 스크롤 사건이 없으므로, 한 번 쓰고 마는 표시가 아니라 시간으로 가른다. */
+/** 코드가 옮긴 자리의 scroll 사건만 건너뛴다. 80ms 시간창은 그 사이의 실제 입력도 놓쳤다.
+ * 기대 자리는 다음 사건 하나에만 쓰고 지운다. 옮겨도 자리가 같아 사건이 없으면 첫 사용자 이동에서 지워진다. */
 function watchCombatLogScroll(log) {
     if (log.combatLogScrollWatched) return;
     log.combatLogScrollWatched = true;
     log.addEventListener('scroll', () => {
-        if (performance.now() - (log.combatLogOwnScrollAt || -Infinity) < 80) return;
-        log.combatLogAtBottom = log.scrollHeight - log.scrollTop - log.clientHeight <= 24;
+        const top = log.scrollTop, own = top === log.combatLogSetTop;
+        log.combatLogSetTop = NaN;
+        if (own) return;
+        log.combatLogAtBottom = log.scrollHeight - top - log.clientHeight <= 24;
     }, { passive: true });
 }
 
 function scrollCombatLogToLatest(log) {
-    log.combatLogOwnScrollAt = performance.now();
     log.scrollTop = log.scrollHeight;
+    log.combatLogSetTop = log.scrollTop;
+    log.combatLogAtBottom = true;
 }
 
 /** Hidden tab (phone, another menu open), a folded combat feed, or the PC message frames' stash (the other tab is showing, or the
@@ -4727,10 +4733,14 @@ function isCombatLogHidden(log) {
     return (!!pane && !pane.classList.contains('active')) || !!log.closest('.combat-feed.collapsed') || !!log.closest('.message-frame-stash');
 }
 
+/** 읽던 줄을 같은 화면 위치에 둔다. 앞에서 지워져 사라졌으면 가장 가까운 남은 줄(첫 줄)을 쓴다.
+ * 현재 위치에서 차이만 보정하므로 브라우저의 스크롤 고정이 먼저 움직였어도 중복 보정하지 않는다. */
 function restoreCombatLogScroll(log, scrollState) {
-    let heightDelta = log.scrollHeight - scrollState.scrollHeight;
-    let maxScrollTop = Math.max(0, log.scrollHeight - log.clientHeight);
-    log.scrollTop = Math.min(maxScrollTop, Math.max(0, scrollState.scrollTop + heightDelta));
+    const row = scrollState.row.parentNode === log ? scrollState.row : log.firstElementChild;
+    if (!row) return;
+    // 화면 px 차이를 scrollTop의 CSS px로 바꾼다(루트 zoom, js/ui-display.js).
+    log.scrollTop += (row.getBoundingClientRect().top - log.getBoundingClientRect().top - scrollState.offset) / uiDisplay.factor;
+    log.combatLogSetTop = log.scrollTop;
 }
 
 /** 로그 줄을 모아 붙이는 간격(ms): 매 프레임 붙이며 높이를 재던 것을 줄인다. */
