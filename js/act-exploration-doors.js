@@ -19,10 +19,38 @@ const actExplorationDoors = (() => {
         const map = run ? actExplorationMap.forRun(run) : null;
         return map && map.stage ? map : null;
     }
+    /** 그 방(roomIndex)에서 싸움이 벌어지고 있는가: 살아 있는 몬스터나 터지는 중인 물체. 방 단위 무대에서는 그 방의 것만 센다: 다른 방에
+     * 남은 것(화면에 없다)이 모든 문을 잠그고 자동 걸음을 세웠다(2026-10-17 사용자 "방치정산 하고 난 다음 ... 몹이 없는데도 맵이 닫혀있어").
+     * 이어진 지도(또는 방을 모를 때)는 예전처럼 지도 전체를 센다. */
+    function fightingIn(run, roomIndex) {
+        const map = stageMap(run), room = map && Number.isInteger(roomIndex) ? map.rooms[roomIndex] : null;
+        const here = cell => !room || actExplorationRooms.roomAt(map, cell) === room;
+        const bursting = row => (row.phase === 'warning' || row.phase === 'active') && here(row);
+        return game.enemies.some(enemy => enemy.hp > 0 && here(enemy)) || (run.objects?.entries || []).some(bursting);
+    }
+    /** 방 단위 무대: 주인공이 선 방이 아닌 다른 방에서 싸움에 든 몬스터(화면에 없다)를 그 무리의 대기 줄로 돌려보낸다. 주인공이 그 방에
+     * 들어서면 다시 알아챈다(actExplorationState.engage). 무리가 없는 것은 걷는다. 벽 칸에 선 것(방이 없다)은 그대로 둔다. 정산 뒤 다른
+     * 방에 남은 몬스터가 전투 대상으로 잡혀 주인공이 서 버렸다(2026-10-17 사용자 "몹이 없는데도 맵이 닫혀있어"). */
+    function sendStraysBack(run) {
+        const map = stageMap(run), here = room(run);
+        if (!here) return;
+        const away = enemy => { const at = enemy.hp > 0 ? actExplorationRooms.roomAt(map, enemy) : null; return !!at && at !== here; };
+        if (!game.enemies.some(away)) return;
+        for (const enemy of game.enemies.filter(away)) {
+            const pack = run.packs.find(row => row.key === enemy.explorationPack);
+            if (pack && !pack.waiting.includes(enemy)) pack.waiting.push(enemy);
+        }
+        game.enemies = game.enemies.filter(enemy => !away(enemy));
+    }
+    /** 주인공이 선 방에서 싸움이 벌어지고 있는가(js/act-exploration-progress.js: 자동 걸음이 멈춘다). */
+    function fightingHere(run) {
+        const here = room(run);
+        return fightingIn(run, here ? here.index : null);
+    }
     /** 싸우는 몬스터나 터지는 중인 물체가 있으면 방의 문이 모두 잠긴다. 보스 방 문은 정예가 남아 있어도 잠긴다. 지도나 방에 막 들어선 뒤
      * (EXPLORATION_ARRIVAL_GRACE_MS)에도 잠긴다: 2026-10-16 사용자 "그동안에 방 이동못하게막아". */
     function locked(run, door) {
-        if (game.enemies.some(enemy => enemy.hp > 0) || actExplorationState.objects.active(run)) return true;
+        if (fightingIn(run, door.room)) return true;
         if (actExplorationState.inArrivalGrace(run, getCombatTime())) return true;
         return door.gate && actExplorationState.gateSealed(run);
     }
@@ -66,6 +94,6 @@ const actExplorationDoors = (() => {
     }
     /** 방 단위 탐험에서 주인공이 걷는 빠르기의 배수(STAGE_ROOMS.pace). 이어진 지도의 탐험은 1. */
     const pace = run => (run && run.rooms ? STAGE_ROOMS.pace : 1);
-    return Object.freeze({ session, planKey, stageMap, cross, toward, room, doorsHere, pace });
+    return Object.freeze({ session, planKey, stageMap, cross, toward, room, doorsHere, pace, fightingHere, sendStraysBack });
 })();
 safeExposeGlobals({ actExplorationDoors });

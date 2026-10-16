@@ -28,6 +28,7 @@ const actExplorationProgress = (() => {
             return;
         }
         if(run.arrival)delete run.arrival; // laid out during the move; from here it is the act's live run
+        actExplorationDoors.sendStraysBack(run); // 방 단위 무대: 다른 방에서 싸움에 든 몬스터는 제 무리로 돌아간다
         if(!run.motionTimeMs)run.motionTimeMs=now;
         // Combat replay supplies fixed ticks. A restored/stalled foreground clock must not
         // turn one frame into an unbounded movement-only catch-up loop.
@@ -78,7 +79,7 @@ const actExplorationProgress = (() => {
     function holdsOrDetours(run,entrance,stats) {
         if(entrance)return true;
         if(run.destination)return false;
-        if(game.enemies.some(enemy=>enemy.hp>0)||actExplorationState.objects.active(run))return true;
+        if(actExplorationDoors.fightingHere(run))return true;
         return runMode(run)!=='manual' && walkToLoot(run,stats);
     }
     /** Floor pickups on every settled step; a cleared map only walks to its floor items. Returns whether exploration goes on. */
