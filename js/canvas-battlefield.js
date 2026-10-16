@@ -3113,26 +3113,22 @@ function drawBossAnnouncement(ctx, area, banner) {
     ctx.restore();
 }
 
-/** 이름 뒤의 판: 납작한 어둠과 위아래 2px 청동 선. 이름 너비만큼만 짙고 양 끝은 띠(BOSS_BANNER_FADE.step px)마다 옅어져 사라진다
- * (2026-10-14: 화면 끝에서 끝까지 가로지르는 검은 띠가 전장을 가렸다). 뒤의 안내 글이 이름 뒤로 비치지 않게 가운데는 거의 불투명하다. */
-const BOSS_BANNER_FADE = Object.freeze({ reach: 168, step: 4 });
+/** 이름 뒤의 그늘: 이름 둘레가 가장 짙고 위아래와 양옆 모두 둥글게 옅어져 사라지는 납작한 타원. 2026-10-16 사용자 "보스 등장씬에서
+ * 보스 밑의 까만색이 네모낳게 보임": 예전 판(높이 66px, 위아래가 딱 끊기고 청동 선이 둘린 어둠)이 등장하는 보스 발밑의 검은 네모로 읽혔다.
+ * reach: 이름 너비 바깥으로 그늘이 옅어지는 거리(px), height: 그늘의 위아래 반지름(px). */
+const BOSS_BANNER_SHADE = Object.freeze({ reach: 150, height: 44 });
 function drawBossBannerPlate(ctx, mid, cy, half) {
-    const base = ctx.globalAlpha, line = isBattleLightingEnabled() ? '#5d4a2e' : '#4a3a24';
-    const strip = (x, w, strength) => {
-        ctx.globalAlpha = base * strength;
-        ctx.fillStyle = 'rgba(6,4,4,0.9)';
-        ctx.fillRect(x, cy - 36, w, 66);
-        ctx.fillStyle = line;
-        ctx.fillRect(x, cy - 38, w, 2);
-        ctx.fillRect(x, cy + 30, w, 2);
-    };
-    strip(mid - half, half * 2, 1);
-    for (let out = 0; out < BOSS_BANNER_FADE.reach; out += BOSS_BANNER_FADE.step) {
-        const strength = Math.pow(1 - (out + BOSS_BANNER_FADE.step) / BOSS_BANNER_FADE.reach, 2);
-        strip(mid - half - out - BOSS_BANNER_FADE.step, BOSS_BANNER_FADE.step, strength);
-        strip(mid + half + out, BOSS_BANNER_FADE.step, strength);
-    }
-    ctx.globalAlpha = base;
+    const rx = half + BOSS_BANNER_SHADE.reach, ry = BOSS_BANNER_SHADE.height;
+    const shade = ctx.createRadialGradient(0, 0, 0, 0, 0, ry);
+    shade.addColorStop(0, 'rgba(6,4,4,0.84)');
+    shade.addColorStop(0.55, 'rgba(6,4,4,0.6)');
+    shade.addColorStop(1, 'rgba(6,4,4,0)');
+    ctx.save();
+    ctx.translate(mid, cy - 3);
+    ctx.scale(rx / ry, 1);
+    ctx.fillStyle = shade;
+    ctx.fillRect(-ry, -ry, ry * 2, ry * 2);
+    ctx.restore();
 }
 
 function drawBossBannerRule(ctx, left, right, y) {
