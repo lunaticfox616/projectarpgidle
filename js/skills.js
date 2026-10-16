@@ -865,6 +865,29 @@ function isSkillRuneUsableWithStance(name, stance) {
     return !family || SKILL_RUNE_WEAPONS[family].includes(stance);
 }
 
+/** 무작위로 주는 룬(몬스터 드롭, 전직 시련, 하켄의 진열대, 암시장)이 지금 무기로 쓸 수 있는 룬을 고르는 몫: 쓸 수 있는 룬은 3배로 뽑힌다.
+ * 못 쓰는 룬도 나와 무기를 바꿔 볼 거리가 남는다(2026-10-17: 무기 규칙 뒤 활은 룬의 50%, 오브와 플라스크는 45%만 쓸 수 있었다). */
+const SKILL_RUNE_FIT_WEIGHT = 3;
+const getSkillRuneRewardWeight = (name, stance) => (isSkillRuneUsableWithStance(name, stance) ? SKILL_RUNE_FIT_WEIGHT : 1);
+
+/** 룬 이름들 가운데 하나를 지금 무기에 맞는 룬 쪽으로 기울여 고른다(난수 한 번). 빈 목록이면 null. */
+function pickSkillRuneReward(names, random = Math.random) {
+    if (!names.length) return null;
+    const stance = getEquippedWeaponStance(), weights = names.map(name => getSkillRuneRewardWeight(name, stance));
+    let roll = random() * weights.reduce((sum, weight) => sum + weight, 0);
+    for (let i = 0; i < names.length; i++) {
+        roll -= weights[i];
+        if (roll < 0) return names[i];
+    }
+    return names[names.length - 1];
+}
+
+/** 진열대에 올릴 룬의 무게(pickSkillRuneReward와 같은 몫): 이름 → 무게. */
+function getSkillRuneRewardWeights(names) {
+    const stance = getEquippedWeaponStance();
+    return new Map(names.map(name => [name, getSkillRuneRewardWeight(name, stance)]));
+}
+
 /** 지금 무기로 못 쓰는 까닭(카드, 알림): '근접 무기 필요', '활 필요' 같은 한 줄. 쓸 수 있으면 ''. */
 function getSkillRuneWeaponNote(name) {
     if (canUseSkillWithCurrentEquipment(name)) return '';
@@ -994,7 +1017,8 @@ function getActiveSkillStats(bonusLevel) {
 }
 
 safeExposeGlobals({
-    hasEquippedShield, canUseSkillWithCurrentEquipment, getEquippedWeaponStance, isSkillRuneUsableWithStance, getSkillRuneWeaponNote, gainGemExperience,
+    hasEquippedShield, canUseSkillWithCurrentEquipment, getEquippedWeaponStance, isSkillRuneUsableWithStance, pickSkillRuneReward, getSkillRuneRewardWeights,
+    getSkillRuneWeaponNote, gainGemExperience,
     getGemHighLevelGrowth, getGemLevelGrowthSteps, getGemSpellBaseDamage
 });
 

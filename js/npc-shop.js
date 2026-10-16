@@ -43,6 +43,11 @@ const npcShop = (() => {
         while (pool.length && picked.length < count) picked.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
         return picked;
     }
+    /** count개를 겹치지 않게 무게대로 고른다(무게가 클수록 먼저 뽑힌다). */
+    function pickShopWeighted(list, count, weightOf) {
+        return list.map(entry => ({ entry, key: Math.pow(Math.random(), 1 / Math.max(0.001, weightOf(entry))) }))
+            .sort((a, b) => b.key - a.key).slice(0, count).map(row => row.entry);
+    }
 
     function rollGearWares(shop, zone) {
         return Array.from({ length: shop.count }, () => rollGearPiece(rndChoice(shop.slots), zone)).filter(Boolean)
@@ -75,12 +80,16 @@ const npcShop = (() => {
         }).filter(Boolean);
     }
 
-    /** Attack gems the hero lacks and, once support gems are open, the next tier of support gems (as a gem drop gives them). */
+    /** Attack gems the hero lacks and, once support gems are open, the next tier of support gems (as a gem drop gives them). Runes the
+     * worn weapon can use come up three times as often (getSkillRuneRewardWeights); a support weighs as much as an average rune. */
     function rollGemWares(count) {
-        const attacks = gemDropRewards.missingAttacks(game).map(name => ({ kind: 'attack', name, awakened: false }));
+        const missing = gemDropRewards.missingAttacks(game), weights = getSkillRuneRewardWeights(missing);
+        const attacks = missing.map(name => ({ kind: 'attack', name, awakened: false }));
         const supports = contentProgression.isUnlocked('support')
             ? Object.keys(SUPPORT_GEM_DB).map(name => gemDropRewards.nextSupport(game, name)).filter(Boolean) : [];
-        return pickShopSome([...attacks, ...supports], count).map(gem => ({ gem, priceKey: 'formlessDew',
+        const average = missing.length ? [...weights.values()].reduce((sum, weight) => sum + weight, 0) / missing.length : 1;
+        const weightOf = gem => (gem.kind === 'attack' ? weights.get(gem.name) : average);
+        return pickShopWeighted([...attacks, ...supports], count, weightOf).map(gem => ({ gem, priceKey: 'formlessDew',
             price: gem.kind === 'support' ? PRICE.supportGem + gem.tier : PRICE.attackGem }));
     }
 

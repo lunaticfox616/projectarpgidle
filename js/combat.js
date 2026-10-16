@@ -2515,13 +2515,16 @@ function addPendingSkillTravelFxRows(rows, attackContext, now) {
  * Channel continuity follows absolute stage times, independently of visual/tick cadence.
  * @param {ReturnType<typeof getPlayerStats>} pStats
  * @param {ReturnType<typeof buildSkillHitSequence>} stages
- * @param {{skillName:string,forcedCrit:boolean,forcedElement:string,stageCount:number,talentAttackMultiplier:number,attackDamageMultiplier:number,channelContinuation:boolean,repeatChannelCast:boolean}} context
+ * @param {{skillName:string,forcedCrit:boolean,forcedElement:string,stageCount:number,talentAttackMultiplier:number,attackDamageMultiplier:number,channelContinuation:boolean,repeatChannelCast:boolean,landingMs:number}} context
+ *   landingMs: actual airborne movement duration in combat milliseconds; zero when this attack did not move the hero.
  */
 function queuePlayerAttackSequence(pStats, stages, context) {
     if (pStats.sSkill.nativeCastId) return startSkillGemCombat(pStats, context);
     let tags = pStats.sSkill.tags || [], now = getCombatTime();
     let motionMs = tags.includes('slam') ? 460 : (tags.includes('projectile') ? 400 : 360);
     motionMs = Math.min(motionMs, Math.max(80, 800 / Math.max(0.01, pStats.aspd)));
+    // Airborne mobility hits no earlier than landing (data/skills.js airMs, shared with the stage's jump/flip pose).
+    motionMs = Math.max(motionMs, context.landingMs);
     let isChannel = tags.includes('channeling');
     let cycleMs = isChannel ? getCombatChannelCycleMs(pStats.aspd) : 0;
     let timing = isChannel ? beginCombatChannel(context.skillName, motionMs, cycleMs, context) : { id: 0, startAt: now + motionMs };
@@ -9165,7 +9168,7 @@ function rollEnemyGemReward(enemy,awakening) {
 function rollEnemyAttackGem(awakening) {
     const names=gemDropRewards.missingAttacks(game);
     if(!names.length)return null;
-    const name=rndChoice(names),awakened=!!awakening&&Math.random()<0.035;
+    const name=pickSkillRuneReward(names),awakened=!!awakening&&Math.random()<0.035;   // 지금 무기로 쓸 수 있는 룬 쪽으로
     return {kind:'attack',name,awakened};
 }
 
@@ -9713,7 +9716,7 @@ function grantGuaranteedTrialSkillGem() {
         if (fallbackGain > 0) addLog(`✨ 전직 시련 보상: 모든 공격 룬을 보유해 룬 잔향 +${fallbackGain}을 획득했습니다.`, 'loot-magic');
         return true;
     }
-    let skill = rndChoice(available);
+    let skill = pickSkillRuneReward(available);
     game.skills.push(skill);
     game.gemData[skill] = { level: 1, exp: 0, awakened: false };
     game.noti.skills = true;
@@ -10649,7 +10652,8 @@ function performPlayerAttack(pStats, attackOptions) {
         passiveKarmaContext = beginPassiveKarmaAttack(targets[0].enemy, getCombatTime());
     }
     if (!isStageReplay) colosseumStrikeMul *= consumeLoneEvasionCounterMultiplier(pStats, getCombatTime());
-    if (!isStageReplay) applySkillMobilityBeforeAttack(pStats.sSkill, targets[0].enemy, pStats);
+    let landingMs = !isStageReplay && applySkillMobilityBeforeAttack(pStats.sSkill, targets[0].enemy, pStats)
+        ? Math.max(0, Number(pStats.sSkill.mobilityPattern.airMs) || 0) : 0;
     let talentMoonReturn = !isStageReplay && typeof getTalentMoonReturnConfig === 'function'
         ? getTalentMoonReturnConfig(targets)
         : null;
@@ -10734,7 +10738,7 @@ function performPlayerAttack(pStats, attackOptions) {
             skillName, forcedCrit: isCrit, forcedElement: swingElement, stageCount,
             talentAttackMultiplier: talentAttackMul, attackDamageMultiplier: colosseumStrikeMul,
             talentMoonReturn, attackHitGuardCounts, passiveKarmaContext,
-            channelContinuation: channelContinuationRequested, repeatChannelCast: !!options.repeatChannelCast
+            channelContinuation: channelContinuationRequested, repeatChannelCast: !!options.repeatChannelCast, landingMs
         });
         return;
     }

@@ -1259,7 +1259,7 @@ function buildBlackMarketOffer(index) {
     }
     if (roll < 0.9) {
         let missing = Object.keys(SKILL_DB).filter(k => SKILL_DB[k].isGem && !hasSkillGemOwned(k));
-        if (missing.length>0) return { type:'skillGem', name:rndChoice(missing), priceKey:'formlessDew', price:5 };
+        if (missing.length>0) return { type:'skillGem', name:pickSkillRuneReward(missing), priceKey:'formlessDew', price:5 };
     }
     let preferredUniqueSlot = bm.preferredSlot !== 'any' && Math.random() < 0.35 ? bm.preferredSlot : 'any';
     let uniqPool = getBlackMarketUniquePool(tier, preferredUniqueSlot, { includeChase: true });
