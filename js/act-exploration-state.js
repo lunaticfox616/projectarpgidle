@@ -462,9 +462,12 @@ const actExplorationState = (() => {
     function strayInRooms(state,run) {
         return !run.rooms && actExplorationDoors.session() && (state.settings || {}).stageRooms!=='off';
     }
+    // 무대 그림이 있는지 아직 모를 때(js/canvas-stage-actors.js stageArtKnown)는 방 단위 탐험을 버리지 않는다: 그림을 묻는 답이 저장을 불러온 뒤에
+    // 와서, 방 단위 탐험이 버려지고 예전 이어진 지도가 열렸다(2026-10-16 사용자 "저장 후 로드 시 간헐적으로 ... 던전탐험 식 맵으로 로딩").
+    const stageArtSettled=()=>typeof stageActors!=='object' || stageActors.stageArtKnown();
     function retired(run) {
         if(run.source && !explorationLayouts.supports(run.source))return true;
-        return !!run.rooms && (!actExplorationRooms.supports(run.rooms) || !actExplorationDoors.session() || !actExplorationRooms.forRun(run));
+        return !!run.rooms && (!actExplorationRooms.supports(run.rooms) || (!actExplorationDoors.session() && stageArtSettled()) || !actExplorationRooms.forRun(run));
     }
     /** Saves before 2026-10-04 carry no facing: they keep walking the map as it was drawn, so their tile indices still hold.
      * The save boundary (mergeDefaults) calls this before it validates the run; a run that already has one is left alone. */

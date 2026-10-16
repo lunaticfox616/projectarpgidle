@@ -31,6 +31,14 @@ const stageActors = (() => {
         present = loaded(probe);
         return present;
     }
+    /** Whether this page knows yet if the stage art is here: the probe sheet loaded or failed, or no sheet is ever asked for. */
+    function stageArtKnown() { return present || !table() || !packed || (!!probe && probe.complete); }
+    /** Resolves once stageArtKnown() is true (the boot waits for it: js/main.js). */
+    function whenStageArtKnown() {
+        available();
+        if (stageArtKnown()) return Promise.resolve();
+        return new Promise(done => { probe.addEventListener('load', done, { once: true }); probe.addEventListener('error', done, { once: true }); });
+    }
     function setOf(classId, stance) {
         const data = table(), entry = data && data.classes[classId], base = entry ? entry.weapons[stance] || null : null;
         const extra = base && STAGE_HERO_MOTIONS[classId] && STAGE_HERO_MOTIONS[classId][stance];
@@ -298,7 +306,7 @@ const stageActors = (() => {
     const preloadRise = classId => { if (table() && classId) image(riseClip(classId).file); };
     /** The hero lies or is getting up (the overhead bar waits: it would float over the air where a standing head would be). */
     const down = () => !!rise;
-    return { drawPlayer: drawStageHero, headY, isReady, stanceFor, strikeFor, scaleFor, available, facing, setRise, preloadRise, down };
+    return { drawPlayer: drawStageHero, headY, isReady, stanceFor, strikeFor, scaleFor, available, stageArtKnown, whenStageArtKnown, facing, setRise, preloadRise, down };
 })();
 
 const sides = new WeakMap();
