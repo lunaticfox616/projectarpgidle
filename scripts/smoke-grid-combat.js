@@ -2066,6 +2066,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   vm.runInContext('pendingEnemyCombatAttacks = []; battleFx = [];', context);
   boss.attackTimer = 1;
   boss.patternAttackCount = 3;
+  boss.specialPlan = { attackNumber: 4, special: true, shape: 0 }; // 특수기를 쓰는 때는 굴린다(js/combat-patterns.js planBossSpecial): 이 공격으로 정해 둔다
   boss.nextPatternState = context.getBossPatternPreview(boss);
   context.updateBossPatternTelegraph(boss, context.getCombatTime() - context.COMBAT_GRID_CONFIG.bossPatternWarningMs, context.game.gridPlayer);
   context.performMonsterAttacks(defenseStats);

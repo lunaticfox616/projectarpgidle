@@ -62,6 +62,8 @@ const bossMoves = (() => {
         const shape = shapes[(n - 1) % shapes.length];
         return { label: specialName(shape, style), telegraphKind: shape };
     }
+    /** How many special shapes this boss takes turns with (BOSS_MOVE_INTRO by its fighting style). */
+    function introCount(enemy) { return (BOSS_MOVE_INTRO[styleOf(enemy)] || BOSS_MOVE_INTRO.none).length; }
     function specialName(shape, style) {
         const names = BOSS_MOVE_NAMES[shape];
         return typeof names === 'string' ? names : names[style] || names.other;
@@ -190,7 +192,7 @@ const bossMoves = (() => {
         return live;
     }
 
-    return Object.freeze({ rules: BOSS_MOVE_RULES, fxOf: bossFxOf, styleOf, intro: introSpecial, plan: planBossMove, begin: beginBossMove,
+    return Object.freeze({ rules: BOSS_MOVE_RULES, fxOf: bossFxOf, styleOf, intro: introSpecial, introCount, plan: planBossMove, begin: beginBossMove,
         takeStage: takeBossMoveStage, live: liveBossMoves });
 })();
 safeExposeGlobals({ BOSS_MOVE_RULES, bossMoves });
