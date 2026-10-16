@@ -960,8 +960,10 @@ function getGridUnitDistanceFromCell(origin, unit) {
 function buildRadialBurstHitSequence(skillName, skill, targets, area) {
     if (!area.attacker || !area.primary) return null;
     let gridProfile = getSkillGridProfile(skillName, skill);
-    let center = gridProfile.kind === 'nova' ? { ...area.attacker } : getClosestGridUnitCell(area.attacker, area.primary);
-    let radius = Math.max(1, Number(gridProfile && gridProfile.radius) || 1);
+    // 자신 중심(nova)과 원뿔(cone: 서리바람 내지르기)은 시전자에서 퍼지고, 그 밖은 겨눈 대상에서 퍼진다. 원뿔의 반지름은 그 길이다.
+    let fromCaster = gridProfile.kind === 'nova' || gridProfile.kind === 'cone';
+    let center = fromCaster ? { ...area.attacker } : getClosestGridUnitCell(area.attacker, area.primary);
+    let radius = Math.max(1, Number(gridProfile.kind === 'cone' ? gridProfile.range : gridProfile.radius) || 1);
     let msPerCell = Math.max(50, Math.floor(Number(skill.combatPattern.waveMsPerCell) || 90));
     let reach = gridProfile.shape === 'circle' ? radius + 0.5 : radius, waveDurationMs = Math.round(reach * msPerCell);
     let wave = { center, shape: gridProfile.shape, reach, msPerCell, struck: [], checkedAt: null,
@@ -1042,6 +1044,25 @@ function buildMeteorSkillHitSequence(pattern, impactCells, targets) {
     return [impact, ...ground];
 }
 
+/** 집중(channel): hits번의 시간차 타격. finisher가 있으면 마지막에 제 피해와 범위로 한 번 더(전도성 난격의 마무리 내려치기),
+ * advanceCells가 있으면 중간 타격 때 주인공이 겨눈 쪽으로 한 칸 걸어 나간다(js/combat.js advanceHeroForStage). */
+function buildChannelSkillHitSequence(skillName, skill, targets, area) {
+    const pattern = skill.combatPattern, { attacker, primary, impactCells, intervalMs } = area;
+    const hits = Math.max(2, Math.min(8, Math.floor(Number(pattern.hits) || 3)));
+    const damageMultiplier = Math.max(0.01, Number(pattern.damagePct) || 100) / 100, advanceAt = pattern.advanceCells ? Math.floor(hits / 2) : -1;
+    const stages = Array.from({ length: hits }, (_, idx) => ({
+        kind: idx === 0 ? 'channelStart' : 'channelTick', label: `집중 ${idx + 1}회`,
+        delayMs: idx * intervalMs, damageMultiplier, singleRepeat: true, impactCells, targets, advanceHero: idx === advanceAt
+    }));
+    const finisher = pattern.finisher;
+    if (!finisher) return stages;
+    const profile = { ...getSkillGridProfile(skillName, skill), ...(finisher.grid || {}) };
+    stages.push({ kind: 'channelFinisher', label: finisher.label || '마무리', delayMs: hits * intervalMs,
+        damageMultiplier: Math.max(0.01, Number(finisher.damagePct) || 100) / 100, singleRepeat: true, targets,
+        impactCells: attacker && primary ? getGridAttackAreaCells(profile, attacker, primary) : impactCells });
+    return stages;
+}
+
 function buildConfiguredSkillHitSequence(skillName, skill, targets) {
     let pattern = skill && skill.combatPattern;
     if (!pattern) return null;
@@ -1071,14 +1092,7 @@ function buildConfiguredSkillHitSequence(skillName, skill, targets) {
             damageMultiplier: 1, singleRepeat: true, impactCells, targets
         }];
     }
-    if (pattern.kind === 'channel') {
-        let hits = Math.max(2, Math.min(8, Math.floor(Number(pattern.hits) || 3)));
-        let damageMultiplier = Math.max(0.01, Number(pattern.damagePct) || 100) / 100;
-        return Array.from({ length: hits }, (_, idx) => ({
-            kind: idx === 0 ? 'channelStart' : 'channelTick', label: `집중 ${idx + 1}회`,
-            delayMs: idx * intervalMs, damageMultiplier, singleRepeat: true, impactCells, targets
-        }));
-    }
+    if (pattern.kind === 'channel') return buildChannelSkillHitSequence(skillName, skill, targets, { attacker, primary, impactCells, intervalMs });
     if (pattern.kind !== 'moving') return null;
     return sortSkillHitTargetsByDistance(targets).map((entry, idx, ordered) => ({
         kind: idx === 0 ? 'movingStart' : 'movingStep', label: `이동 파동 ${idx + 1}칸`,
@@ -1154,6 +1168,11 @@ function buildSkillHitSequence(skillName, skill, targetEntries) {
     return [{ kind: 'primary', label: '직격', delayMs: 0, damageMultiplier: 1, targets }];
 }
 
+/** 집중의 마무리 일격 배율(전도성 난격), 없으면 0. */
+function getChannelFinisherMultiplier(pattern) {
+    return pattern.kind === 'channel' && pattern.finisher ? Math.max(0.01, Number(pattern.finisher.damagePct) || 100) / 100 : 0;
+}
+
 function getConfiguredSkillDpsMultiplier(pattern) {
     if (!pattern) return null;
     if (pattern.kind === 'authored') return pattern.stages.reduce((sum, stage) => sum + stage.damagePct / 100, 0);
@@ -1163,7 +1182,7 @@ function getConfiguredSkillDpsMultiplier(pattern) {
     }
     if (['field', 'channel'].includes(pattern.kind)) {
         let hits = Math.max(1, Math.min(12, Math.floor(Number(pattern.hits) || 1)));
-        return hits * Math.max(0.01, Number(pattern.damagePct) || 100) / 100;
+        return hits * Math.max(0.01, Number(pattern.damagePct) || 100) / 100 + getChannelFinisherMultiplier(pattern);
     }
     return null;
 }

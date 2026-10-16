@@ -2584,7 +2584,7 @@ function queuePendingSkillStageHits(stages, pStats, attackContext) {
         let row = {
             at, launchAt,
             zoneId: game.currentZoneId, pStats, delivery: stageDelivery, patternKind, sourceCell, targetCells, targetEntries,
-            contactState: {resolved: false}, whirl: stage.whirl, wave: stage.wave,
+            contactState: {resolved: false}, whirl: stage.whirl, wave: stage.wave, advanceHero: !!stage.advanceHero,
             aimCell: copyCombatGridCell(stage.aimCell),
             waveDurationMs: Math.max(0, Number(stage.waveDurationMs) || 0),
             channelId: Math.max(0, Math.floor(Number(attackContext.channelId) || 0)),
@@ -2616,6 +2616,15 @@ function queuePendingSkillStageHits(stages, pStats, attackContext) {
     addPendingSkillTravelFxRows(queuedRows, attackContext, now);
 }
 
+/** 전도성 난격(2026-10-17 스킬룬 인계): 난격하는 동안 겨눈 쪽으로 한 칸 걸어 나간다(진짜 걸음). 막혔거나 이미 붙어 있으면 그 자리에 선다. */
+function advanceHeroForStage(row) {
+    if (!row.advanceHero) return;
+    const aim = row.aimCell || (row.targetCells && row.targetCells[0]);
+    if (!aim || !hasGridCell(game.gridPlayer) || getGridUnitDistance(game.gridPlayer, aim) <= 1) return;
+    if (actExplorationState.current(game)) beginExplorationGridStep(aim, COMBAT_GRID_CONFIG.playerMoveIntervalSec);
+    else gridStepToward(game.gridPlayer, aim.gx, aim.gy, getGridBlockedCells(game.gridPlayer));
+}
+
 function processPendingSkillStageHits() {
     if (pendingSkillStageHits.length <= 0) return;
     let now = getCombatTime();
@@ -2631,6 +2640,7 @@ function processPendingSkillStageHits() {
         if (!row || row.zoneId !== game.currentZoneId || !row.pStats) return;
         let targets = row.whirl ? pickWhirlSpinTargets(row) : (row.wave ? pickWaveFrontTargets(row) : getPendingSkillImpactTargets(row));
         actExplorationProgress.objects.stage(row);
+        advanceHeroForStage(row);
         if (targets.length <= 0) return;
         performPlayerAttack(row.pStats, {
             ...(row.options || {}),
@@ -7129,7 +7139,39 @@ function getSkillGridPullGeometry(skill, options) {
     return { cells, center };
 }
 
+/** 맞은 몬스터를 주인공 반대쪽으로 skill.pushAwayCells칸 민다(불사르기, 돌진: 2026-10-17 스킬룬 인계). 보스는 밀리지 않는다. */
+function pushEnemyAwayOnHit(enemy, skill) {
+    let cells = Math.max(0, Math.min(3, Math.floor(Number(skill && skill.pushAwayCells) || 0)));
+    if (cells <= 0 || enemy.isBoss || !hasGridCell(enemy) || !hasGridCell(game.gridPlayer)) return false;
+    let moved = false;
+    for (let step = 0; step < cells; step++) {
+        const cell = findGridRetreatCell(enemy, game.gridPlayer, 99, null);
+        if (!cell) break;
+        Object.assign(enemy, cell);
+        moved = true;
+    }
+    if (moved) addBattleFx('statusText', { enemyId: enemy.id, text: '밀려남', color: '#f0c993', duration: 300 });
+    return moved;
+}
+
+/** 맞은 몬스터를 skill.launchMs 동안 띄운다(올려 베기): 그동안 움직이지도 새 공격을 시작하지도 못한다. 보스는 뜨지 않는다. */
+function launchEnemyOnHit(enemy, skill) {
+    let ms = Math.max(0, Math.floor(Number(skill && skill.launchMs) || 0));
+    if (ms <= 0 || enemy.isBoss) return false;
+    enemy.skillHeldUntil = Math.max(Number(enemy.skillHeldUntil) || 0, getCombatTime() + ms);
+    addBattleFx('statusText', { enemyId: enemy.id, text: '띄움', color: '#f0c993', duration: 300 });
+    return true;
+}
+
+/** 맞은 몬스터를 밀고 띄운다(룬에 있을 때만). 위치 제어를 끈 단계(skipGridControl)와 죽은 몬스터는 그대로 둔다. */
+function displaceEnemyOnHit(enemy, skill, options) {
+    if (options.skipGridControl || !enemy || enemy.hp <= 0) return;
+    pushEnemyAwayOnHit(enemy, skill);
+    launchEnemyOnHit(enemy, skill);
+}
+
 function applySkillGridControlOnHit(enemy, skill, options = {}) {
+    displaceEnemyOnHit(enemy, skill, options);
     let { cells, center } = getSkillGridPullGeometry(skill, options);
     if (cells <= 0 || options.skipGridControl || !enemy || enemy.hp <= 0 || !center || !hasGridCell(enemy)) return false;
     let moved = false;
@@ -12108,6 +12150,7 @@ function performMonsterAttacks(pStats) {
         chillSlow = Math.min(0.65, chillSlow + curseSlow);
         if (!pendingAttack && pendingEnemyCombatAttacks.some(row => row.enemyId === enemy.id)) continue;
         if (!pendingAttack && strikeRescueTarget(enemy)) continue;
+        if (!pendingAttack && (Number(enemy.skillHeldUntil) || 0) > getCombatTime()) continue; // 띄워진 몬스터(launchEnemyOnHit)
         let impactTargets = pendingAttack ? getEnemyCombatImpactTargets(pendingAttack) : [getEnemyPreferredGridTarget(enemy)];
         let attackTarget = impactTargets[0];
         if (!attackTarget) continue;
