@@ -352,18 +352,19 @@ function gridProjectedLineEnd(ax, ay, tx, ty, range) {
 function gridStepToward(unit, tx, ty, blocked) {
     if (!hasGridCell(unit)) return false;
     let footprint = getGridUnitFootprint(unit);
-    let distanceFromPlacement = (gx, gy) => {
-        let nearest = getClosestGridUnitCell({ gx: tx, gy: ty }, { gx, gy, isBoss: footprint.columns > 1 || footprint.rows > 1 });
-        return gridChebyshevDist(nearest.gx, nearest.gy, tx, ty);
-    };
+    // 접근 점수는 저장된 footprint 없이 설정 보스 크기로 매기는 기존 규칙이다. 충돌·중심 거리는 실제 footprint를 쓴다.
+    let scoring = getGridUnitFootprint({ isBoss: footprint.columns > 1 || footprint.rows > 1 });
+    let distanceFromPlacement = (gx, gy) => Math.max(0,
+        gx - tx, tx - (gx + scoring.columns - 1),
+        gy - ty, ty - (gy + scoring.rows - 1));
     let start = { gx: unit.gx, gy: unit.gy, first: null };
     let best = start;
     let bestCheb = distanceFromPlacement(start.gx, start.gy);
     let bestMan = Math.abs(getGridUnitCenter(unit).gx - tx) + Math.abs(getGridUnitCenter(unit).gy - ty);
-    let queue = [start], terrain = getGridPlacementTerrain();
+    let queue = [start], head = 0, terrain = getGridPlacementTerrain();
     let visited = new Set([gridCellKey(start.gx, start.gy)]);
-    while (queue.length > 0) {
-        let current = queue.shift();
+    while (head < queue.length) {
+        let current = queue[head++];
         GRID_CARDINAL_STEPS.forEach(direction => {
             let gx = current.gx + direction.dx, gy = current.gy + direction.dy;
             let key = gridCellKey(gx, gy);

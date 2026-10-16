@@ -60,10 +60,14 @@ const fxRemake = (() => {
         surfaces.fullCtx.imageSmoothingEnabled = false;
         return surfaces;
     }
-    /** The battlefield canvas uses the size it measured once (js/canvas-battlefield.js battleCanvasBox): reading clientWidth here
-     * every frame forced a style pass over whatever the frame had changed so far (2026-10-07 frame drops). */
+    /** The battlefield and its ground-loot actor overlay share the measured box (battle-ground-loot-ui.js resize).
+     * Reading the overlay's clientWidth after placing loot labels forced another style pass mid-frame (2026-10-17). */
     function cssBox(canvas) {
-        if (canvas.id === 'battlefield-canvas' && typeof battleCanvasBox === 'object') return battleCanvasBox.read(canvas);
+        if (typeof battleCanvasBox === 'object') {
+            if (canvas.id === 'battlefield-canvas') return battleCanvasBox.read(canvas);
+            const source = canvas.classList.contains('battle-loot-foreground') && document.getElementById('battlefield-canvas');
+            if (source) return battleCanvasBox.read(source);
+        }
         return { width: canvas.clientWidth, height: canvas.clientHeight };
     }
     function boardView(target, projection) {
