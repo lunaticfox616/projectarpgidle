@@ -87,7 +87,8 @@
 - 시야(js/act-exploration-sight.js, 2026-10-13 성능 작업): 방 단위 무대의 바탕은 주인공이 선 방 전체가 보이는 방식이다. 시야 탐색, 안개,
   칸별 발견 목록을 쓰지 않고 방 소속으로만 가른다. 시야 반경과 안개가 필요한 지역만 지역 정의(STAGE_ROOM_PLANS.regions.sight)에서 켠다.
   자세한 것은 docs/stage-render-performance-20261013.md.
-- 문(js/act-exploration-doors.js): 걸음이 끝난 주인공이 열린 문 칸에 서 있으면 이어진 방의 문 안쪽으로 옮겨진다(소환수도 함께).
+- 문(js/act-exploration-doors.js): 걸음이 끝난 주인공이 열린 문 칸에 서 있으면 이어진 방의 문 안쪽에서 한 칸 더 들어간 칸으로 옮겨진다
+  (그 칸이 막혔으면 문 안쪽, 소환수도 함께).
   방에서 싸우는 몬스터가 살아 있으면 그 방의 문이 모두 잠긴다. 보스 방으로 가는 문이 관문(map.gates)이라 정예가 남아 있으면 설 수 없다.
   습격방(data ACT_EXPLORATION_AMBUSH)에 처음 들어서면 그 방의 무리가 들어온 문 쪽으로 다가와 기다리다 한꺼번에 덤빈다(springAmbush).
 - 방에 들어서면 방 전체가 보이고 방 안의 무리가 모두 알아챈다(js/act-exploration-state.js roomReach). 방 사이를 걷는 길은 없으므로

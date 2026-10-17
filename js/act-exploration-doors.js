@@ -1,7 +1,7 @@
 /** 방 단위 무대의 문 (2026-10-11 사용자: "던파처럼 방 하나마다 이동하는 방식", 지도는 js/act-exploration-rooms.js).
- * 주인공이 열린 문 칸에 서면 이어진 방의 문 안쪽으로 옮겨진다. 걷기가 아니라 자리 옮김이라 이동 기록(run.motion)을 남기지 않는다.
- * 문은 방 안에서 싸우는 몬스터가 살아 있는 동안 잠기고, 보스 방으로 가는 문은 정예가 남아 있으면 칸 자체에 설 수 없다(map.gates).
- * 문은 두 칸이고(js/act-exploration-rooms.js doorway), 습격방에 처음 들어서면 그 방의 무리가 들어온 문 둘레에 모인다(springAmbush).
+ * 주인공이 열린 문 칸에 서면 이어진 방의 문 안쪽에서 한 칸 더 들어간 칸으로 옮겨진다. 걷기가 아니라 자리 옮김이라 이동 기록(run.motion)을
+ * 남기지 않는다. 문은 방 안에서 싸우는 몬스터가 살아 있는 동안 잠기고, 보스 방으로 가는 문은 정예가 남아 있으면 칸 자체에 설 수 없다(map.gates).
+ * 문은 두 칸이고(js/act-exploration-rooms.js doorway), 습격방에 처음 들어서면 그 방의 무리가 들어온 문 쪽으로 다가온다(springAmbush).
  * 시험판: 무대 시험판으로 연 창(주소에 stage=1, js/canvas-stage-actors.js)에서만 방 단위 지도를 새로 만든다.
  */
 const actExplorationDoors = (() => {
@@ -66,18 +66,23 @@ const actExplorationDoors = (() => {
             blocked.add(gridCellKey(spot.gx, spot.gy));
         }
     }
+    /** 방을 옮긴 주인공이 설 수 있는 칸인가: 걸을 수 있고, 다른 유닛, 물건, 이야기 NPC의 둘레(getGridBlockedCells)가 아니다. */
+    const standable = (map, cell) => actExplorationMap.walkable(map, cell) && !getGridBlockedCells(game.gridPlayer).has(gridCellKey(cell.gx, cell.gy));
     /** 걸음이 끝난 주인공이 열린 문 칸에 서 있으면 이어진 방으로 옮긴다. @returns {boolean} 옮겼는지 */
     function cross(run) {
         const map = stageMap(run), hero = game.gridPlayer, door = map ? actExplorationRooms.doorAt(map, hero) : null;
         if (!door || locked(run, door)) return false;
         // 문 칸으로 가라는 명령은 여기서 끝난다: 남겨 두면 도착한 방에서 그 문으로 되돌아 걷는다.
         if (run.destination && run.destination.gx === hero.gx && run.destination.gy === hero.gy) run.destination = null;
-        // 두 칸 문: 밟은 칸과 같은 차례의 짝 문 안쪽으로 나온다(js/act-exploration-rooms.js doorway).
-        const exit = door.exits[door.cells.findIndex(cell => cell.gx === hero.gx && cell.gy === hero.gy)];
-        Object.assign(hero, { gx: exit.gx, gy: exit.gy, gridMoveTimer: 0 });
+        // 두 칸 문: 밟은 칸과 같은 차례의 짝 문 쪽으로 나온다(js/act-exploration-rooms.js doorway). 문 안쪽에서 한 칸 더 들어간 칸
+        // (arrivals)에 서고, 그 칸이 막혔으면(물건, 기다리는 무리, 이야기 NPC의 둘레) 문 안쪽(exits)에 선다(2026-10-17 사용자 "방 이동하면
+        // 정확히 출입구칸 말고 한칸 더 방 안쪽에서 나오게").
+        const index = door.cells.findIndex(cell => cell.gx === hero.gx && cell.gy === hero.gy);
+        const spot = standable(map, door.arrivals[index]) ? door.arrivals[index] : door.exits[index];
+        Object.assign(hero, { gx: spot.gx, gy: spot.gy, gridMoveTimer: 0 });
         actExplorationState.arrive(run, getCombatTime());
-        springAmbush(run, map, exit);
-        bringSummons(exit);
+        springAmbush(run, map, spot);
+        bringSummons(spot);
         return true;
     }
     /** 습격방(data ACT_EXPLORATION_AMBUSH, js/combat.js markExplorationAmbushRooms)에 처음 들어선 순간: 그 방에서 기다리던 습격 무리가

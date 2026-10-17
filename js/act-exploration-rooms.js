@@ -1,8 +1,8 @@
 /** 방 단위 무대의 지도 (2026-10-11 사용자: "던파처럼 방 하나마다 이동하는 방식"). 지도에 적힌 방들(data/act-exploration-maps.js)을
  * 따로 떨어진 넓은 방으로 놓고, 방 놓임새(js/act-exploration-room-plans.js: 액트는 프리셋 넷 가운데 하나, 그 밖의 구역은 준 랜덤)에
  * 따라 문으로 잇는다. 놓임새는 격자라 방마다 문이 벽 하나에 하나뿐이다: 오른쪽 방으로 가는 문은 오른쪽 벽, 아래 방으로 가는 문은
- * 앞쪽 벽에 난다. 문 칸에 서면 이어진 방의 문 안쪽으로 옮겨진다(js/act-exploration-doors.js). 방들은 서로 gap칸 넘게 떨어져 있어
- * 시야, 소리, 튀는 피해가 옆 방에 닿지 않는다.
+ * 앞쪽 벽에 난다. 문 칸에 서면 이어진 방의 문 안쪽에서 한 칸 더 들어간 칸으로 옮겨진다(js/act-exploration-doors.js). 방들은 서로 gap칸
+ * 넘게 떨어져 있어 시야, 소리, 튀는 피해가 옆 방에 닿지 않는다.
  * 지도 id는 바탕 지도의 id 그대로다(어둠 색과 지형 색이 그대로 붙는다). 보스 관문(map.gates, 문 그림이 서는 첫 칸은 map.gate)은 보스 방으로
  * 가는 문의 두 칸이다.
  * 탐험 기록의 열쇠(run.rooms) "판:가로 덧칸:깊이 덧칸:놓임새:지역"이 방 크기, 놓임새, 무대 그림(data/stage-regions.js)을 정한다.
@@ -11,6 +11,7 @@
 const actExplorationRooms = (() => {
     const cache = new Map(), KEEP = 16;          // 최근에 지은 지도 몇 장: 걷는 탐험, 도착, 지도 화면
     const OPPOSITE = Object.freeze({ east: 'west', west: 'east', north: 'south', south: 'north' });
+    const INWARD = Object.freeze({ east: [-1, 0], west: [1, 0], north: [0, 1], south: [0, -1] });   // 그 벽의 문 안쪽에서 방 안으로 한 칸
 
     /** 열쇠 "판:가로 덧칸:깊이 덧칸:놓임새:지역"(탐험 기록의 rooms). */
     const roomPlanKey = spec => [STAGE_ROOMS.version, spec.wide, spec.deep, spec.plan, spec.region || ''].join(':');
@@ -108,7 +109,12 @@ const actExplorationRooms = (() => {
         const doors = doorEnds(plan, rooms, spec).map((end, id) => ({ id, roomId: end.room.id, room: end.room.index, toId: end.to.id, to: end.to.index,
             side: end.side, gate: end.gate, ...doorCells(end, spec) }));
         // 문은 길마다 둘씩 차례로 들어 있다: 짝의 문 안쪽이 이 문의 도착 칸이다(exits[i]는 cells[i]를 지난 도착 칸, exit는 첫 칸의 것).
-        doors.forEach((door, id) => { const pair = doors[id ^ 1]; Object.assign(door, { exit: pair.landing, exits: pair.landings }); Object.freeze(door); });
+        // arrivals[i]는 exits[i]에서 방 안으로 한 칸 더 들어간 칸이다: 주인공은 그 칸이 비었으면 거기에 나온다(js/act-exploration-doors.js cross).
+        doors.forEach((door, id) => {
+            const pair = doors[id ^ 1], [dx, dy] = INWARD[pair.side], inward = at => Object.freeze({ gx: at.gx + dx, gy: at.gy + dy });
+            Object.assign(door, { exit: pair.landing, exits: pair.landings, arrivals: Object.freeze(pair.landings.map(inward)) });
+            Object.freeze(door);
+        });
         return doors;
     }
     function buildTiles(rooms, doors, columns, rows) {
