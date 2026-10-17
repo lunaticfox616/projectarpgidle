@@ -5715,7 +5715,8 @@ function lowResistanceDeathHint(log) {
     const row = log ? DEATH_RESIST_STATS[normalizeDamageElementKey(log.fatalElement || log.primaryElement)] : null;
     if (!row) return null;
     const value = Math.floor(Number(getPlayerStats(false)[row[0]]) || 0);
-    return value < 0 ? { text: `${row[1]} 저항 ${value}%(장비의 ${row[1]} 저항 옵션으로 올리면 받는 피해가 줄어듭니다)` } : null;
+    return value < 0 ? { text: `${row[1]} 저항 ${value}%(장비의 ${row[1]} 저항 옵션으로 올리면 받는 피해가 줄어듭니다)`,
+        action: { label: '장비', onclick: "closeDeathOverlay();switchTab('tab-items');switchItemSubtab('item-tab-equip')" } } : null;
 }
 function renderDeathHints() {
     const box = document.getElementById('deathlog-hints');
