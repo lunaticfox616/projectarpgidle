@@ -116,7 +116,13 @@ const npcShopUi = (() => {
         const support = gem.kind === 'support', def = (support ? SUPPORT_GEM_DB : SKILL_DB)[gem.name] || {};
         const kind = support ? `보조스킬룬, ${getSupportTierLabel(gem.name, gem.tier)}` : '공격 룬';
         return `<div class="npc-shop-gem-card"><div class="npc-shop-gem-head">${wareArtHtml({ gem })}<div><small>${escapeHTML(kind)}</small>
-            <strong>${escapeHTML(gem.name)}</strong></div></div><p>${statToneText.html(def.desc || '')}</p></div>`;
+            <strong>${escapeHTML(gem.name)}</strong></div></div><p>${statToneText.html(def.desc || '')}</p>${support ? '' : runeFitHtml(gem.name)}</div>`;
+    }
+
+    /** An attack rune the weapon in hand cannot use says why, as its loot line does (js/currency-acquisition-ui.js). */
+    function runeFitHtml(name) {
+        const note = getSkillRuneWeaponNote(name);
+        return note ? `<p class="npc-shop-note">지금 무기로 쓸 수 없음: ${escapeHTML(note)}</p>` : '';
     }
 
     /** Draws the shop again (after a sale or a bag page), or only its card with a note (why a sale did not go). */
