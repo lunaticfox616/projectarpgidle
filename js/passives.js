@@ -2960,6 +2960,22 @@ function getPassiveConnectionNodeIds() {
     return result;
 }
 
+/** Shown DPS and life now and with nodeIds taken: { dps: [before, after], life: [before, after] }. The nodes are taken on a copy of the
+ * game, as the bag analysis tries gear on (js/equipment-triage.js readSnapshotStats), so the live build, the fields the stat
+ * calculation writes and its kept calculation stay as they are. The bag is shared, not copied: the calculation only reads it. */
+function previewPassiveNodeStats(nodeIds) {
+    const live = game, before = getPlayerStats(false);
+    try {
+        game = JSON.parse(JSON.stringify({ ...live, inventory: undefined }));
+        game.inventory = live.inventory;
+        game.passives = [...new Set([...(game.passives || []), ...nodeIds])];
+        const after = getPlayerStats(false);
+        return { dps: [before.dps || 0, after.dps || 0], life: [before.maxHp || 0, after.maxHp || 0] };
+    } finally {
+        game = live;
+    }
+}
+
 /** 연결이 바뀔 수 있는 일(초월 공허의 블랙홀 · 안드로메다가 생기거나 사라짐) 뒤에 끊긴 투자를 돌려받고 닿는 노드를 다시 센다. */
 function refreshPassiveConnectivity() {
     passiveRouting.reconcile(game, PASSIVE_TREE, getPassiveRouting());
