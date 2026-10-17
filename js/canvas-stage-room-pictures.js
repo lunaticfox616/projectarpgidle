@@ -6,8 +6,8 @@
  *       방이다: 있으면 지금 방 다음으로 미리 준비한다. 모든 방을 미리 준비하지는 않는다.
  *   roomPictureWaiting(map, room)  그 방의 그림을 아직 준비하는 중인가(그동안은 방의 소품과 문도 그리지 않는다).
  * 준비는 그리기 밖에서 한다(pump, 타이머): 한 차례에 BUDGET_MS까지만 일하고 다음 차례로 넘긴다. 첫 걸음은 조립, 그 뒤로는 화면
- * 배율로 옮기기를 조각마다 한 걸음씩(js/canvas-stage-dots.js fitter), 그 방이 쓰는 소품과 문 조각을 한 장씩
- * (js/canvas-stage-scene.js fitJobs), 마지막은 테마의 문 그림이다.
+ * 배율로 옮기기를 조각마다 한 걸음씩(js/canvas-stage-dots.js fitter), 그 방이 쓰는 소품을 한 장씩 준비한다
+ * (js/canvas-stage-scene.js fitJobs). 공용 뿌리 봉인은 방 그림 밖에서 하나의 시트를 공유한다.
  * 열쇠에는 지도, 방, 그리는 방식(조각 묶음, 벽 없는 방, 불러와진 층의 수), 지역 그림의 판 번호, 도트 하나의 화면 크기, 캔버스의
  * 해상도 배율이 든다. 탐험이나 화면 크기가 바뀌면 열쇠가 달라지므로 준비하던 그림은 버려지고 다 된 옛 그림은 쓰이지 않는다.
  * 들고 있는 그림은 KEEP장, 넓이의 합 PIXELS까지다: 지금 방과 다음 방. 방금 나온 방의 그림은 놓는다(화면 배율 125%에서 한 장이
@@ -37,11 +37,6 @@ const stageRoomPictures = (() => {
     function assembled(map, room, box, mode) {
         if (mode.kit) return stageScene.paintRoom(map, room, box);
         return mode.open ? stageTerrain.paintOpen(map, room, box, stageBackdrop.look(map)) : stageTerrain.paint(map, box);
-    }
-    /** 테마가 있는 방의 문 그림(문 id → 잠긴 그림과 열린 그림). 없으면 쇠창살과 화살표로 그린다. */
-    function gatesOf(map, room, open) {
-        const look = open ? stageBackdrop.look(map) : null;
-        return look && look.theme === 'sanctum' ? stageSanctum.doorPictures(map, room, look) : null;
     }
     /** 그 방의 그림 한 장을 가리키는 말. */
     function specOf(map, room, dot) {
@@ -74,7 +69,7 @@ const stageRoomPictures = (() => {
     /** 준비할 다음 그림: 바라는 것 가운데 아직 없고 방금 실패하지 않은 첫 번째(지금 방이 먼저다). */
     function nextJob() {
         const spec = wanted.find(row => !kept.has(row.key) && !failedLately(row.key));
-        return spec ? { spec, stage: 0, spentMs: 0, box: null, fitter: null, pieces: null, gates: null } : null;
+        return spec ? { spec, stage: 0, spentMs: 0, box: null, fitter: null, pieces: null } : null;
     }
     /** 한 차례: BUDGET_MS 동안 준비를 한 걸음씩 나아간다. 더는 바라지 않는 그림을 준비하던 중이면 버린다. */
     function pump() {
@@ -102,10 +97,6 @@ const stageRoomPictures = (() => {
             const fit = row.pieces.pop();
             if (fit) fit();
             return !row.pieces.length;
-        },
-        row => {
-            row.gates = row.spec.mode.kit ? null : gatesOf(row.spec.map, row.spec.room, row.spec.mode.open);
-            return true;
         }
     ]);
     /** 한 걸음 나아간다. 다 되면 들여 놓고, 실패하면 적어 두고 그 그림은 놓는다. */
@@ -125,7 +116,7 @@ const stageRoomPictures = (() => {
     }
     function keepPicture(row) {
         const spec = row.spec, canvas = row.fitter.canvas;
-        kept.set(spec.key, { map: spec.map, room: spec.room, box: row.box, open: spec.mode.open, kit: spec.mode.kit, key: spec.key, canvas, gates: row.gates,
+        kept.set(spec.key, { map: spec.map, room: spec.room, box: row.box, open: spec.mode.open, kit: spec.mode.kit, key: spec.key, canvas,
             pixels: canvas.width * canvas.height });
         job = null;
         failed.delete(spec.key);

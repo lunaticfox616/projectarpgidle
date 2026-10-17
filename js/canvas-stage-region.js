@@ -3,7 +3,7 @@
  * - 방 그림: 뒤쪽 풍경과 바닥이 한 장에 있다. 늘이거나 이어 붙이지 않고, 그림의 바닥이 시작하는 줄을 방 바닥의 뒤쪽 끝에 맞춰
  *   방의 가운데에 놓는다(js/stage-region-fit.js). 방이 화면보다 넓으면 카메라와 함께 움직인다. 그림이 닿지 않는 위아래는 그림의
  *   맨 윗줄, 맨 아랫줄 색으로 메운다.
- * - 문: 문틀은 캐릭터와 같은 깊이 순서로 서고, 잠겼으면 문틀의 뚫린 자리 안에만 닫힌 문의 덧그림을 얹는다.
+ * - 문: 캐릭터와 같은 깊이 순서로 공용 뿌리 봉인을 세운다. 네 방향 같은 그림이며 잠금 해제 때 아래로 접힌다(stageDoorMarks.seal).
  * - 소품: 방 가운데는 비운다. 보통 방은 낮은 소품 두셋, 정예 방은 높은 표식 둘과 낮은 소품 하나, 보스 방은 들어온 문의 맞은편에
  *   큰 구조물 하나. 모두 걸을 수 있는 칸의 바깥(바닥의 뒤쪽 끝과 앞쪽 구석)에 선다.
  * - 보급 상자(나무 등급)와 항아리, 목재 상자는 그 재질의 그림을 쓴다(js/canvas-stage-objects.js가 먼저 여기에 묻는다).
@@ -20,7 +20,7 @@ const stageRegion = (() => {
     const tints = new Map();                    // "파일|색" → 한 색을 얹은 그림(보급 상자의 등급, 누를 수 있는 물체의 테)
     const layouts = new WeakMap();              // 지도 → Map(방 번호 → 소품 자리)
     let fitDot = 0, fitFamily = '';
-    /** 문틀의 발 자리(도트): 뒤쪽 문은 바닥선 아래로, 앞쪽 문은 바닥의 앞쪽 끝 아래로 내려 서고, 좌우 문은 문 칸의 가운데에서
+    /** 문 봉인의 발 자리(도트): 뒤쪽 문은 바닥선 아래로, 앞쪽 문은 바닥의 앞쪽 끝 아래로 내려 서고, 좌우 문은 문 칸의 가운데에서
      * 방 쪽으로 조금 들어와 선다(묶음의 조립 화면의 자리를 도트로 옮긴 값). */
     const DOOR = Object.freeze({ north: [0, 12], south: [0, 19], west: [8, 0], east: [-8, 0] });
     /** 걸을 수 있는 바닥의 바깥을 누르는 어둠의 세기와, 그 어둠이 차오르는 거리(도트). */
@@ -50,7 +50,7 @@ const stageRegion = (() => {
     const pictureLoaded = row => row.image.complete && row.image.naturalWidth > 0;
     function regionFiles(id, region) {
         const family = regionFamily(region);
-        return [id + '.png', ...Object.keys(family.pieces).concat(Object.keys(family.locks)).map(name => regionPieceFile(region, name))];
+        return [id + '.png', ...Object.keys(family.pieces).map(name => regionPieceFile(region, name))];
     }
     /** 지금 쓰는 지역을 맨 앞에 두고, KEEP장을 넘긴 오래된 방 그림은 놓아 준다. */
     function touchRegion(id) {
@@ -208,49 +208,18 @@ const stageRegion = (() => {
     }
 
     // ---------------------------------------------------------------- doors
-    /** 닫힌 문의 덧그림 이름: 무너진 지역은 돌무더기(있으면), 아니면 그 재질의 닫힌 문. */
-    function doorLockName(region, side) {
-        const locks = regionFamily(region).locks, ruin = 'door-' + side + '-ruin-lock';
-        return region.ruin && locks[ruin] ? ruin : 'door-' + side + '-lock';
-    }
-    /** 문 하나의 문틀과 자리(도트, 지도 좌표). 잠겼으면 닫힌 문의 덧그림 이름이 붙는다. */
-    function regionDoorPiece(row, room, region) {
+    /** 공용 뿌리 봉인의 발 자리(도트, 지도 좌표). 잠금 규칙은 기존 문 행을 그대로 읽는다. */
+    function regionDoorPiece(row, room) {
         const door = row.door, [dx, dy] = DOOR[door.side];
         const y = door.side === 'north' ? room.y0 * DEEP : door.side === 'south' ? (room.y1 + 1) * DEEP : (door.cell.gy + 0.5) * DEEP;
-        return { name: 'door-' + door.side + '-frame', lock: row.locked ? doorLockName(region, door.side) : null, x: (door.cell.gx + 0.5) * WIDE + dx, y: y + dy };
-    }
-    /** 문틀의 뚫린 자리(문틀 그림의 px): 꼭짓점들과 그 둘레 상자. 꼭짓점이 없는 문틀(앞쪽 문)은 그림 상자의 가운데 띠다. */
-    function frameCavity(frame) {
-        const points = [];
-        for (let i = 8; i + 1 < frame.length; i += 2) points.push([frame[i], frame[i + 1]]);
-        if (!points.length) {
-            const x = frame[4] + frame[6] * 0.18, y = frame[5] + frame[7] * 0.32, w = frame[6] * 0.64, h = frame[7] * 0.45;
-            points.push([x, y], [x + w, y], [x + w, y + h], [x, y + h]);
-        }
-        const xs = points.map(point => point[0]), ys = points.map(point => point[1]), x = Math.min(...xs), y = Math.min(...ys);
-        return { points, x, y, w: Math.max(...xs) - x, h: Math.max(...ys) - y };
-    }
-    /** 닫힌 문의 덧그림: 뚫린 자리를 덮는 가장 작은 크기로, 가로 가운데와 아래 끝을 맞춰, 뚫린 자리 안에만 그린다. */
-    function drawDoorLock(ctx, piece, at) {
-        const family = regionFamily(piece.region), frame = family.pieces[piece.name], lock = family.locks[piece.lock];
-        if (!lock) return;
-        const hole = frameCavity(frame), image = fittedRegionPiece(regionPieceFile(piece.region, piece.lock), at.dot), k = image.width / lock[0];
-        const grow = Math.max(hole.w / lock[4], hole.h / lock[5]), w = lock[4] * grow * at.dot, h = lock[5] * grow * at.dot;
-        ctx.save();
-        ctx.beginPath();
-        hole.points.forEach(([px, py], index) => (index ? ctx.lineTo(at.x + px * at.dot, at.y + py * at.dot) : ctx.moveTo(at.x + px * at.dot, at.y + py * at.dot)));
-        ctx.closePath();
-        ctx.clip();
-        ctx.drawImage(image, lock[2] * k, lock[3] * k, lock[4] * k, lock[5] * k,
-            Math.round(at.x + (hole.x + hole.w / 2) * at.dot - w / 2), Math.round(at.y + (hole.y + hole.h) * at.dot - h), Math.round(w), Math.round(h));
-        ctx.restore();
+        return { doorRow: row, x: (door.cell.gx + 0.5) * WIDE + dx, y: y + dy };
     }
 
     // ---------------------------------------------------------------- actors
     /** 전장 그리기의 배우 목록에 이 방의 소품과 문을 끼운다(깊이 순서는 발 자리의 화면 y). */
     function appendRegionPieces(actors, state, here) {
         const region = regionOfMap(here.map), p = state.gridProj, dot = p.tileW / WIDE, reach = 400 * dot;
-        const doors = actExplorationDoors.doorsHere(here.run).map(row => regionDoorPiece(row, here.room, region));
+        const doors = actExplorationDoors.doorsHere(here.run).map(row => regionDoorPiece(row, here.room));
         regionRoomPieces(here.map, here.room, region).concat(doors).forEach((piece, index) => {
             const x = p.mapX + piece.x * dot, y = p.mapY + piece.y * dot;
             if (x > -reach && x < state.width + reach) actors.push({ kind: 'scenery', id: -2000 - index, y, piece: { ...piece, region }, point: { x, y } });
@@ -270,17 +239,16 @@ const stageRegion = (() => {
         if (pieceHidesHero(actor, state, size, dot)) ctx.globalAlpha *= 0.5;
         if (piece.flip) { ctx.translate(Math.round(actor.point.x) * 2, 0); ctx.scale(-1, 1); }
         ctx.drawImage(fittedRegionPiece(regionPieceFile(piece.region, piece.name), dot), at.x, at.y, size[0] * dot, size[1] * dot);
-        if (piece.lock) drawDoorLock(ctx, piece, at);
         ctx.restore();
     }
-    /** 열린 좌우 문의 화살표: 문틀의 뚫린 자리에 세운다. 전장의 조명을 입힌 뒤에 그린다(js/canvas-battlefield.js가 부른다). */
+    /** 열린 좌우 문의 화살표: 접힌 봉인 위에 세운다. 전장의 조명을 입힌 뒤에 그린다(js/canvas-battlefield.js가 부른다). */
     function drawRegionSideMarks(ctx, p, here) {
-        const region = regionOfMap(here.map), dot = stageActors.scaleFor(p.tileW);
+        const dot = stageActors.scaleFor(p.tileW);
         for (const row of actExplorationDoors.doorsHere(here.run)) {
             if (row.locked || (row.door.side !== 'west' && row.door.side !== 'east')) continue;
-            const piece = regionDoorPiece(row, here.room, region), frame = regionFamily(region).pieces[piece.name], hole = frameCavity(frame);
-            stageDoorMarks.arrows(ctx, { cx: p.mapX + (piece.x - frame[2] + hole.x + hole.w / 2) * dot, cy: p.mapY + (piece.y - frame[3] + hole.y + hole.h / 2) * dot,
-                w: WIDE * dot }, row.door, { dot, thick: 4, upright: true });
+            const piece = regionDoorPiece(row, here.room);
+            stageDoorMarks.arrows(ctx, { cx: p.mapX + piece.x * dot, cy: p.mapY + (piece.y - 20) * dot,
+                w: WIDE * dot }, row.door, { dot, thick: 3, upright: true });
         }
     }
 
@@ -329,12 +297,11 @@ const stageRegion = (() => {
         for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) stampRegionObject(ctx, rim, piece, { x: at.x + dx * at.dot, y: at.y + dy * at.dot, dot: at.dot });
         return true;
     }
-    /** 그 방을 그릴 때 쓰는 조각 그림(소품, 문틀, 닫힌 문의 덧그림)을 화면 배율로 옮겨 두는 일들, 하나에 그림 한 장. 방 그림을 준비할
+    /** 그 방을 그릴 때 쓰는 조각 그림(소품)을 화면 배율로 옮겨 두는 일들, 하나에 그림 한 장. 방 그림을 준비할
      * 때 미리 해 둔다(js/canvas-stage-room-pictures.js): 예전에는 방을 처음 그리는 프레임에서 조각마다 옮겼다. */
     function regionFitJobs(map, room, dot) {
         const region = regionOfMap(map), family = regionFamily(region), names = regionRoomPieces(map, room, region).map(piece => piece.name);
-        for (const door of map.doors.filter(row => row.room === room.index)) names.push('door-' + door.side + '-frame', doorLockName(region, door.side));
-        return [...new Set(names)].filter(name => family.pieces[name] || family.locks[name]).map(name => () => fittedRegionPiece(regionPieceFile(region, name), dot));
+        return [...new Set(names)].filter(name => family.pieces[name]).map(name => () => fittedRegionPiece(regionPieceFile(region, name), dot));
     }
     /** 곧 쓸 지역의 방 그림을 미리 불러 둔다(그림이 없는 지역이면 아무 일도 없다). */
     function warmRegion(id) {

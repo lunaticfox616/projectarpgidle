@@ -123,6 +123,9 @@ const STAGE_ROOMS = Object.freeze({
     frontShade: Object.freeze({ colour: '#06050a', alpha: 0.6, bands: 12, bandDots: 4 }),
     /** 문을 지난 뒤 화면이 어둠에서 밝아지는 시간(ms). */
     fadeMs: 280,
+    /** 네 방향 공용 회백색 뿌리 봉인. 같은 발 기준으로 풀리고 접히며, 마지막 모습은 바닥에 남는다. */
+    rootSeal: Object.freeze({ file: 'assets/stage-scenes/root-seal-v2/opening.png', width: 192, height: 224, anchorY: 216,
+        ends: Object.freeze([90, 200, 340, 480, 630]), heights: Object.freeze([167, 145, 102, 79, 48, 36]) }),
     /** 방 단위 탐험에서 주인공이 걷는 빠르기의 배수(2026-10-11 사용자: "기본 이동속도를 지금보다 50% 정도 빠르게"): 방이 넓어져 한 칸씩
      * 걷는 시간이 길게 느껴졌다. 방 단위 탐험(run.rooms)에만 곱하므로 이어진 지도의 탐험과 그 계산은 그대로다. */
     pace: 1.5,
@@ -154,13 +157,11 @@ const STAGE_BACKDROPS = Object.freeze({
     parallax: 0.3,
     biomes: Object.freeze({
         root: Object.freeze({ file: 'root.webp', ground: 0.5996, floor: '#4d4035', kerb: '#2f2620', earth: '#1e1a17', rim: '#6f5e4c', hollow: '#0e0b09', moss: '#6e5a2a',
-            // 뿌리끝 성소(js/canvas-stage-sanctum.js): 다져진 흙, 빈터 밖의 어두운 땅, 돌, 풀(몸, 밝은 잎, 밑동), 뿌리(몸, 빛 받는 쪽, 테), 수액(몸, 빛, 테), 빛나는 버섯,
-            // 보스 방 문의 썩은 뿌리.
+            // 뿌리끝 성소(js/canvas-stage-sanctum.js): 다져진 흙, 빈터 밖의 어두운 땅, 돌, 풀(몸, 밝은 잎, 밑동), 뿌리(몸, 빛 받는 쪽, 테), 수액(몸, 빛, 테), 빛나는 버섯.
             theme: 'sanctum', objects: 'root', props: 'root',
             palette: Object.freeze({ dirt: '#5a4532', wild: '#241d16', stone: '#74665a', grass: '#56602b', grassLight: '#808a3e', grassDark: '#2c321a',
                 root: '#6d5845', rootLight: '#957a5c', rootDark: '#241a14',
-                sap: '#c58f2a', sapLight: '#f4d572', sapDark: '#7a5416', cap: '#8fe3c8',
-                rot: '#7a3f3a', rotLight: '#b3655a', rotDark: '#2c1414' }) })
+                sap: '#c58f2a', sapLight: '#f4d572', sapDark: '#7a5416', cap: '#8fe3c8' }) })
     })
 });
 // 무대의 탐험 물체 그림(js/canvas-stage-objects.js): 한 장에 물체마다 한 칸(cell 도트), 발 자리 feet. names의 순서가 그림의 칸 순서다
@@ -199,7 +200,7 @@ const STAGE_PROPS = Object.freeze({
     })
 });
 // 무대 조각 묶음 (js/canvas-stage-scene.js). 2026-10-11 사용자가 이미지 생성으로 만들어 온 "뿌리 성소 무대 조각"(root-stage-kit-20261011):
-// 먼 배경, 뒤쪽 띠, 바닥 세 가지, 작은 소품 열, 앞쪽 소품 넷, 네 방향 문의 닫힌 모습과 열린 모습. 그림 한 장이 캐릭터 도트 하나에 1px이다.
+// 먼 배경, 뒤쪽 띠, 바닥 세 가지, 작은 소품 열, 앞쪽 소품 넷(문은 공용 뿌리 봉인이 맡는다). 그림 한 장이 캐릭터 도트 하나에 1px이다.
 // 수치는 모두 도트이고 방 바닥의 뒤쪽 끝(바닥선)과 왼쪽 끝에서 잰다. 묶음의 조립 화면(화면 px, 1.5배)을 도트로 옮긴 값이다.
 //   far    먼 배경: 좌우로 이어 붙는 띠. bottom = 바닥선 아래로 내려오는 깊이, parallax = 카메라를 따라 움직이는 비율, shift = 띠를 미는 양.
 //   back   뒤쪽 띠: 낮은 뿌리와 부서진 목질. bottom = 바닥선 아래로 내려오는 깊이. 바닥 띠와 이음매가 엇갈리게 shift만큼 민다.
@@ -208,11 +209,11 @@ const STAGE_PROPS = Object.freeze({
 //   rows   줄지어 놓는 규칙: names를 차례로 돌리며 from부터 gaps 간격으로, 방 끝에서 until 앞까지. drops = 발 자리의 깊이(차례로).
 //          clear = 문 둘레에 비우는 반경. back 바닥 뒤쪽 끝, inner 바닥 앞쪽에 놓이는 낮은 조각, front 바닥 밖 앞쪽(캐릭터를 가린다).
 //          corners = 방의 왼쪽 앞, 오른쪽 앞 구석에 하나씩 [이름, 가로 자리, 깊이].
-//   doors  문: 방향 → [닫힌 그림, 열린 그림, 자리]. 뒤쪽과 앞쪽 문의 자리는 발 자리의 깊이, 좌우 문은 방 끝에서 바깥으로 나가는 거리다.
-//   sideMark 열린 좌우 문의 화살표 자리(js/canvas-stage-door-marks.js).
+//   doors  문의 뿌리 봉인(rootSeal)이 서는 자리: 방향 → 뒤쪽과 앞쪽 문은 발 자리의 깊이, 좌우 문은 방 끝에서 바깥으로 나가는 거리다.
 //   fill 그림이 닿지 않는 땅의 색, sky 먼 배경 위쪽의 색, beyond 방의 옆쪽 바깥을 누르는 어둠의 세기.
-// 물을 제거한 뿌리끝 성소 v5 시안 기준 조각. 캐릭터 원본과 별도 경로에 보관한다. 열린/닫힌 문은 같은 문틀 픽셀과 발 자리를 쓴다.
+// 물을 제거한 뿌리끝 성소 v5 시안 기준 조각. 캐릭터 원본과 별도 경로에 보관한다.
 const STAGE_SCENES = Object.freeze({
+    version: 'ashwood-20261017',
     path: 'assets/stage-scenes/',
     biomes: Object.freeze({
         root: Object.freeze({
@@ -227,11 +228,7 @@ const STAGE_SCENES = Object.freeze({
                 'root-broken': Object.freeze([96, 80, 4, 35, 88, 41]), 'mushrooms': Object.freeze([64, 48, 4, 8, 56, 36]),
                 'sanctum-slab': Object.freeze([208, 128, 4, 40, 200, 84]), 'sanctum-pillar': Object.freeze([80, 112, 7, 4, 65, 104]),
                 'front-bark': Object.freeze([256, 160, 4, 84, 248, 72]), 'front-root-low': Object.freeze([256, 160, 4, 97, 248, 59]),
-                'front-root': Object.freeze([384, 192, 4, 17, 376, 171]), 'front-root-stone': Object.freeze([384, 192, 4, 37, 376, 151]),
-                'door-rear-closed': Object.freeze([256, 240, 4, 66, 248, 170]), 'door-rear-open': Object.freeze([256, 240, 4, 66, 248, 170]),
-                'door-left-closed': Object.freeze([192, 224, 4, 8, 184, 212]), 'door-left-open': Object.freeze([192, 224, 4, 8, 184, 212]),
-                'door-right-closed': Object.freeze([192, 224, 12, 4, 168, 216]), 'door-right-open': Object.freeze([192, 224, 12, 4, 168, 216]),
-                'door-front-closed': Object.freeze([256, 160, 4, 58, 248, 98]), 'door-front-open': Object.freeze([256, 160, 4, 58, 248, 98])
+                'front-root': Object.freeze([384, 192, 4, 17, 376, 171]), 'front-root-stone': Object.freeze([384, 192, 4, 37, 376, 151])
             }),
             rows: Object.freeze({
                 back: Object.freeze({ names: Object.freeze(['root-low', 'sanctum-slab', 'root-broken', 'sanctum-pillar', 'root-stump', 'rock-low', 'mushrooms', 'rock-tall']),
@@ -240,12 +237,7 @@ const STAGE_SCENES = Object.freeze({
                 front: Object.freeze({ names: Object.freeze(['front-bark', 'front-root-low']), from: 451, until: 337, gaps: Object.freeze([653, 547]), drops: Object.freeze([332]), clear: 160 }),
                 corners: Object.freeze({ left: Object.freeze(['front-root-stone', 27, 327]), right: Object.freeze(['front-root', -64, 325]) })
             }),
-            doors: Object.freeze({
-                north: Object.freeze(['door-rear-closed', 'door-rear-open', 13]), south: Object.freeze(['door-front-closed', 'door-front-open', 293]),
-                west: Object.freeze(['door-left-closed', 'door-left-open', 1]), east: Object.freeze(['door-right-closed', 'door-right-open', -1])
-            }),
-            // 좌우 문이 열렸을 때 문틀의 뚫린 자리에 세우는 화살표: 그림 맨 아래 줄에서 올라간 높이, 빛이 퍼지는 너비, 굵기(도트).
-            sideMark: Object.freeze({ rise: 100, spread: 64, thick: 4 })
+            doors: Object.freeze({ north: 13, south: 293, west: 1, east: -1 })
         })
     })
 });
