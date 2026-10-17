@@ -5685,7 +5685,7 @@ function describeDeathAttrition(log) {
 function getDeathHints() {
     const rewards = getAvailableActRewardZoneIds(), fillable = countFillableEmptySlots();
     return [
-        rewards.length ? { text: `받지 않은 액트 보상 ${rewards.length}개`, reward: rewards[0] } : null,
+        rewards.length ? { text: `받지 않은 액트 보상 ${rewards.length}개`, action: { label: '받기', onclick: `closeDeathOverlay();openActReward(${rewards[0]})` } } : null,
         game.passivePoints > 0 ? { text: `쓰지 않은 스킬트리 포인트 ${game.passivePoints}점` } : null,
         game.equipment['무기'] ? null : { text: '무기 칸이 비어 있습니다' },
         fillable ? { text: `가방에 바로 낄 수 있는 장비 ${fillable}개(장비 창의 빈 칸 채우기)` } : null,
@@ -5705,7 +5705,8 @@ function strongerRuneDeathHint() {
     if (!(before > 0)) return null;
     const dpsOf = name => { game.activeSkill = name; try { return getPlayerStats(false).dps || 0; } finally { game.activeSkill = keep; } };
     const top = (game.skills || []).filter(name => isStrongerRuneCandidate(name, keep)).map(name => [name, dpsOf(name)]).sort((a, b) => b[1] - a[1])[0];
-    return top && top[1] > before * 1.1 ? { text: `가진 룬 「${top[0]}」의 DPS가 지금 룬의 ${(top[1] / before).toFixed(1)}배입니다(스킬룬 창에서 장착)` } : null;
+    return top && top[1] > before * 1.1 ? { text: `가진 룬 「${top[0]}」의 DPS가 지금 룬의 ${(top[1] / before).toFixed(1)}배입니다`,
+        action: { label: '장착', onclick: `changeSkill('${top[0]}');renderDeathHints()` } } : null;
 }
 /** 쓰러뜨린 속성의 저항이 0보다 낮으면 그 값을 알린다. 혼돈 1부터 캠페인 패널티로 모든 저항이 60 낮아져, 패시브를 찍은 전사와 궁수도
  * 그곳에서 화염, 냉기 피해에 거듭 쓰러졌다(자연 플레이 측정 2026-10-17). */
@@ -5719,12 +5720,10 @@ function lowResistanceDeathHint(log) {
 function renderDeathHints() {
     const box = document.getElementById('deathlog-hints');
     if (!box) return;
-    const hints = getDeathHints(), reward = hints.find(hint => hint.reward !== undefined);
+    const hints = getDeathHints();
     box.hidden = hints.length === 0;
     box.innerHTML = hints.length === 0 ? '' : '<div class="deathlog-subtitle">할 수 있는 일</div>' + hints.map(hint => `<div class="deathlog-hint">
-        <span>${escapeDeathLogText(hint.text)}</span>${hint === reward ? '<button type="button" class="deathlog-hint-action">받기</button>' : ''}</div>`).join('');
-    const action = box.querySelector('.deathlog-hint-action');
-    if (action) action.onclick = () => { closeDeathOverlay(); openActReward(reward.reward); };
+        <span>${escapeDeathLogText(hint.text)}</span>${hint.action ? `<button type="button" class="deathlog-hint-action" onclick="${escapeDeathLogText(hint.action.onclick)}">${hint.action.label}</button>` : ''}</div>`).join('');
 }
 
 /** 잃은 경험치 줄: 잃은 것이 없으면(레벨 1 첫 사망 등) "0 잃었습니다" 대신 줄을 뺀다. */
