@@ -119,10 +119,23 @@ const npcShopUi = (() => {
             <strong>${escapeHTML(gem.name)}</strong></div></div><p>${statToneText.html(def.desc || '')}</p>${support ? '' : runeFitHtml(gem.name)}</div>`;
     }
 
-    /** An attack rune the weapon in hand cannot use says why, as its loot line does (js/currency-acquisition-ui.js). */
+    /** An attack rune against the hero now: why the weapon in hand cannot use it (as its loot line says, js/currency-acquisition-ui.js),
+     * or the DPS it would bring worn. Wisp runes summon instead of striking and show no DPS line. */
     function runeFitHtml(name) {
         const note = getSkillRuneWeaponNote(name);
-        return note ? `<p class="npc-shop-note">지금 무기로 쓸 수 없음: ${escapeHTML(note)}</p>` : '';
+        if (note) return `<p class="npc-shop-note">지금 무기로 쓸 수 없음: ${escapeHTML(note)}</p>`;
+        return (SKILL_DB[name]?.tags || []).includes('summon') ? '' : runeDpsHtml(name);
+    }
+
+    /** "장착하면 DPS 61 → 78", worded and coloured as the act reward window (js/passives.js formatActRewardDps); nothing when equal.
+     * Read by wearing the rune for one stat read, as the death window does: an unowned rune reads as it will once bought. */
+    function runeDpsHtml(name) {
+        const format = COMPARE_STAT_META.dps.format, keep = game.activeSkill, before = getPlayerStats(false).dps || 0;
+        let after = 0;
+        game.activeSkill = name;
+        try { after = getPlayerStats(false).dps || 0; } finally { game.activeSkill = keep; }
+        if (format(after) === format(before)) return '';
+        return `<p class="npc-shop-gem-dps ${after > before ? 'is-up' : 'is-down'}">장착하면 DPS ${format(before)} → ${format(after)}</p>`;
     }
 
     /** Draws the shop again (after a sale or a bag page), or only its card with a note (why a sale did not go). */

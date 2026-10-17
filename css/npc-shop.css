@@ -71,6 +71,10 @@
 .npc-shop-deal > span { display: inline-flex; flex: 1; align-items: center; gap: 5px; color: #efe6d2; }
 .npc-shop-deal button { min-height: 36px; padding: 4px 18px; }
 .npc-shop-note { margin: 8px 0 0; color: #e58a7f; font-size: 13px; }
+/* 룬을 끼우면 바뀌는 DPS: 액트 보상 창(#reward-overlay .reward-choice-dps)과 같은 빛깔. */
+.npc-shop-gem-dps { color: #e5d3a2; }
+.npc-shop-gem-dps.is-up { color: #8fe0a8; }
+.npc-shop-gem-dps.is-down { color: #ff9b92; }
 
 /* NPC 탭: 만난 NPC의 카드. 초상, 이름과 칭호, 최근에 만난 곳, 지금 있는 일(즉시 해금은 금빛, 새 이야기, 상점). */
 .npc-roster-lead, .npc-roster-empty { margin: 0 0 12px; color: var(--color-text-secondary); font-size: 13px; }
