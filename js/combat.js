@@ -3670,7 +3670,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     }
     if (uniqueHpToPhysPct && skill.ele === 'phys' && !skillHasElementalConversion) finalBaseDmg = Math.floor(finalBaseDmg * (1 + (finalMaxHp / 100) / 100));
 
-    let resistPenalty = (game.maxZoneId >= 5 ? 30 : 0) + (game.maxZoneId >= 10 ? 30 : 0);
+    let resistPenalty = getCampaignResistPenalty(game.maxZoneId);
     let resistanceBlendBonus = 0;
     let resistanceBlendMaxBonus = 0;
     let crusaderLightningMaxResBonus = 0;
@@ -10409,6 +10409,7 @@ function finishEncounterRun() {
             if (clearedStoryAct && clearedStoryAct.unlockText) addLog(`🧭 ${clearedStoryAct.unlockText}`, 'season-up');
             let unlockedZone = getZone(game.maxZoneId);
             addLog(`🗺️ 신규 사냥터 [${unlockedZone ? unlockedZone.name : ('구역 ' + game.maxZoneId)}] 개방!`, "season-up");
+            noteCampaignResistPenalty(game.maxZoneId);
         }
         game.killsInZone = 0;
         game.loopProgressCurrent = game.loopProgressCurrent || { specialBosses: [], chaos20Cleared: false, bestAbyssDepth: 0, bestLabyrinthFloor: 0, bestChaosRealmFloor: 0, cosmosPlanets: [] };
@@ -11598,6 +11599,21 @@ function retreatAfterActDefeat(zone) {
     game.currentZoneId = target.id;
     game.killsInZone = 0;
     return target.name;
+}
+
+/** 지금까지 연 구역의 캠페인 패널티(모든 원소 저항과 카오스 저항에서 뺄 값). */
+function getCampaignResistPenalty(maxZoneId) {
+    return CAMPAIGN_RESIST_PENALTY.zones.filter(zoneId => maxZoneId >= zoneId).length * CAMPAIGN_RESIST_PENALTY.each;
+}
+
+/** 패널티가 붙는 구역을 처음 열면 한 번 알린다. 액트 6과 혼돈에서 갑자기 자주 쓰러지는 까닭이 캐릭터 창의 저항 상세에만 있었다
+ * (자연 플레이 측정 2026-10-17: 패시브를 찍지 않은 성직자는 혼돈 1에서 한 시간에 76번 쓰러졌다, 찍은 성직자는 0번). */
+function noteCampaignResistPenalty(zoneId) {
+    if (!CAMPAIGN_RESIST_PENALTY.zones.includes(zoneId)) return;
+    const each = CAMPAIGN_RESIST_PENALTY.each, total = getCampaignResistPenalty(zoneId);
+    const more = total > each ? ` 더 낮아졌습니다(모두 합쳐 -${total}%)` : ' 낮아졌습니다';
+    queueTutorialNotice(`notice_resist_penalty_${zoneId}`, `모든 저항 -${total}%`,
+        `캠페인 패널티로 모든 원소 저항과 카오스 저항이 ${each}%${more}.\n저항이 모자라면 받는 피해가 커집니다. 캐릭터 창의 저항에서 볼 수 있습니다.`, 'tab-character');
 }
 
 /** 받침에 맞춘 방향 조사: "성소" → "성소로", "숲" → "숲으로", "길" → "길로"(ㄹ 받침은 '로'). */

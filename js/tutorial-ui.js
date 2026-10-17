@@ -326,12 +326,13 @@ function tidyTutorialScroll(scroller, target) {
 }
 window.addEventListener('resize', () => tutorialActionUi.reposition());
 
-// 안내 카드 종류: 처음 하는 조작(시작 안내), 새로 열린 콘텐츠(새 콘텐츠), 루프 도달(새 루프). 이야기 장면은 storyJournalUi가 그린다.
+// 안내 카드 종류: 처음 하는 조작(시작 안내), 새로 열린 콘텐츠(새 콘텐츠), 루프 도달(새 루프), 규칙이 바뀐 알림(notice_ 키). 이야기 장면은
+// storyJournalUi가 그린다.
 const TUTORIAL_START_KEYS = new Set(['tutorial_battle_basics', 'tutorial_starter_gem_equip', 'opening_auto', 'tutorial_first_passive', 'tutorial_first_gear',
     'unlock_char', 'unlock_items', 'unlock_skills']);
 // 새 콘텐츠 가운데 따라 하기가 있는 카드: 시작 안내처럼 펼친 채 저절로 닫히지 않는다(그루터기 함 시작 선물을 57분 동안 놓지 않은 판이 있었다).
 const TUTORIAL_GUIDED_CONTENT_KEYS = new Set(['unlock_stump_box', 'tutorial_stump_starter']);
-const TUTORIAL_KIND_LABELS = Object.freeze({ start: '시작 안내', content: '새 콘텐츠', loop: '새 루프' });
+const TUTORIAL_KIND_LABELS = Object.freeze({ start: '시작 안내', content: '새 콘텐츠', loop: '새 루프', notice: '알림' });
 // "…열기" 단추에 쓰는 화면 이름(메뉴 이름과 같게). 없으면 "화면 열기".
 const TUTORIAL_TAB_NAMES = Object.freeze({
     'tab-character': '캐릭터', 'tab-char': '스킬트리', 'tab-items': '장비', 'tab-skills': '스킬룬', 'tab-map': '지도', 'tab-unlocks': '해금',
@@ -340,6 +341,7 @@ const TUTORIAL_TAB_NAMES = Object.freeze({
 });
 function tutorialNoticeKind(notice) {
     if (TUTORIAL_START_KEYS.has(notice.key)) return 'start';
+    if (String(notice.key).startsWith('notice_')) return 'notice';
     return String(notice.key).startsWith('unlock_content_loop_') ? 'loop' : 'content';
 }
 /** Colour in card text: ‘menu or button’ in the card's kind colour (where to go), [item name] in blue (what it is). */
