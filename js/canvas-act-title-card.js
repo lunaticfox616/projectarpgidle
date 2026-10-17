@@ -217,7 +217,8 @@ const actTitleCard = (() => {
         watch.met = true;
         const tabShown = !!game.unlocks.npcs;
         npcShop.meet(npc, zone);
-        if (contentUnlockUi.npcNews(npc) === 'unlock') game.noti.npcs = true;
+        // 해금할 것이 있거나 진열대가 새로 놓였으면(만날 때마다 새로 놓인다, 1회차 첫 만남의 하켄만 닫혀 있다) NPC 탭에 점을 켠다.
+        if (contentUnlockUi.npcNews(npc) === 'unlock' || npcShop.stock(npc.id)) game.noti.npcs = true;
         if (!tabShown) updateTabUnlockButtons();
     }
     const greets = row => !!row && GREET.keys.has(row.key) && row.zone === zone;
