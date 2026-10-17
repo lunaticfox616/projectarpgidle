@@ -10497,15 +10497,6 @@ const bindPassiveTreeMouseEvents = (canvas, handlers) => {
     });
 };
 
-/** "DPS 61 → 64, 생명력 170 → 180" for a build preview (js/passives.js previewBuildStats), used by the skill tree tooltip and the
- * ascendancy window: each part only when it changes, green up and red down as the act reward window's DPS line; '' when none does. */
-function buildStatPreviewParts(preview) {
-    const format = COMPARE_STAT_META.dps.format;
-    const part = (label, [before, after]) => (format(before) === format(after) ? ''
-        : `<span style="color:${after > before ? '#8fe0a8' : '#ff9b92'};">${label} ${format(before)} → ${format(after)}</span>`);
-    return [part('DPS', preview.dps), part('생명력', preview.life)].filter(Boolean).join(', ');
-}
-
 /** 직업 시작점은 늘 무료로 열려 있는 출발점이다(소유 목록에 넣지 않는다). */
 function describeReachablePassiveNode(node) {
     return node.kind === 'start' ? '시작점, 여기서 이어진 노드부터 포인트를 씁니다.' : '활성화하면 주변 노드가 밝혀집니다.';

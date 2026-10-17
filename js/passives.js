@@ -2981,6 +2981,15 @@ function previewPassiveNodeStats(nodeIds) {
     return previewBuildStats(copy => { copy.passives = [...new Set([...(copy.passives || []), ...nodeIds])]; });
 }
 
+/** "DPS 61 → 64, 생명력 170 → 180" for a preview ({ dps: [before, after], life: [before, after] }): each part only when it changes,
+ * green up and red down; '' when none does. The skill tree tooltip, the ascendancy window and the act reward window word it alike. */
+function buildStatPreviewParts(preview) {
+    const format = COMPARE_STAT_META.dps.format;
+    const part = (label, [before, after]) => (format(before) === format(after) ? ''
+        : `<span style="color:${after > before ? '#8fe0a8' : '#ff9b92'};">${label} ${format(before)} → ${format(after)}</span>`);
+    return [part('DPS', preview.dps), part('생명력', preview.life)].filter(Boolean).join(', ');
+}
+
 /** 연결이 바뀔 수 있는 일(초월 공허의 블랙홀 · 안드로메다가 생기거나 사라짐) 뒤에 끊긴 투자를 돌려받고 닿는 노드를 다시 센다. */
 function refreshPassiveConnectivity() {
     passiveRouting.reconcile(game, PASSIVE_TREE, getPassiveRouting());
@@ -6125,9 +6134,9 @@ function openActReward(zoneId) {
     document.getElementById('reward-kicker').innerText = storyAct ? `${formatStoryActLabel(storyAct)} 클리어 보상` : '액트 클리어 보상';
     document.getElementById('reward-title').innerText = storyAct ? storyAct.title : config.title;
     document.getElementById('reward-body').innerText = storyAct ? `${storyAct.subtitle}\n${config.body}` : config.body;
-    const dpsBefore = getPlayerStats(false).dps;
+    const now = getPlayerStats(false), before = { dps: now.dps, life: now.maxHp };
     document.getElementById('reward-grid').innerHTML = getActRewardChoices(zoneId)
-        .map((choice, index) => isActRewardChoiceAvailable(choice) ? renderActRewardChoice(zoneId, choice, index, dpsBefore) : '').join('');
+        .map((choice, index) => isActRewardChoiceAvailable(choice) ? renderActRewardChoice(zoneId, choice, index, before) : '').join('');
     document.getElementById('reward-overlay').classList.add('active');
     lastTime = Date.now();
     watchActRewardAway();
@@ -6138,9 +6147,9 @@ function actRewardChoiceArt(choice) {
     const base = choice.weaponCategory ? BASE_ITEM_DB.find(row => getWeaponCategoryOfBase(row.id) === choice.weaponCategory) : null;
     return `<img class="reward-choice-art${choice.slot === '무기' ? ' is-weapon' : ''}" src="${getEquipmentGridVisualAsset({ slot: choice.slot, baseId: base ? base.id : 'empty-' + choice.slot })}" alt="" aria-hidden="true">`;
 }
-/** 선택지 한 칸: 이름, 설명, 미리보기(장비는 등급과 바로 장착되는지), 고르면 바뀌는 DPS. */
-function renderActRewardChoice(zoneId, choice, index, dpsBefore) {
-    const change = measureActRewardDps(zoneId, choice, dpsBefore);
+/** 선택지 한 칸: 이름, 설명, 미리보기(장비는 등급과 바로 장착되는지), 고르면 바뀌는 DPS와 생명력. before: { dps, life } 지금 값. */
+function renderActRewardChoice(zoneId, choice, index, before) {
+    const change = measureActRewardDps(zoneId, choice, before);
     const preview = choice.kind === 'item' ? actRewardItemPreview(choice, !!change && change.direct) : getActRewardPreview(choice);
     return `
         <button class="reward-choice" onclick="claimActRewardChoice(${zoneId}, ${index})">
@@ -6155,15 +6164,16 @@ function actRewardItemPreview(choice, equips) {
     const rarity = ITEM_RARITY_LABELS[choice.rarity] || '';
     return `${rarity ? `${rarity} 등급, ` : ''}${equips ? '빈 칸에 바로 장착됩니다' : '가방으로 들어갑니다'}`;
 }
-/** 고르면 바뀌는 DPS {before, after, direct, swap}: 보상을 잠시 적용해 재고 그대로 되돌린다. 능력치는 액트 보상 능력치로, 장비는
- * 맞는 빈 칸(없으면 첫 칸과 바꿔)에 끼워 잰다(요구 능력치가 모자라면 null). direct는 실제로 바로 끼워지는지, swap은 바꿔 끼운 값인지.
- * 룬과 포인트는 재지 않는다. */
+/** 고르면 바뀌는 DPS와 생명력 {dps: [전, 후], life: [전, 후], direct, swap}: 보상을 잠시 적용해 재고 그대로 되돌린다. 능력치는 액트 보상
+ * 능력치로, 장비는 맞는 빈 칸(없으면 첫 칸과 바꿔)에 끼워 잰다(요구 능력치가 모자라면 null). direct는 실제로 바로 끼워지는지, swap은
+ * 바꿔 끼운 값인지. 룬과 포인트는 재지 않는다. */
 function measureActRewardDps(zoneId, choice, before) {
     const twin = Array.isArray(game.cosmosTwinKeystones) ? game.cosmosTwinKeystones.slice() : game.cosmosTwinKeystones;
     const preview = applyActRewardPreview(zoneId, choice);
     if (!preview) return null;
     try {
-        return { before, after: getPlayerStats(false).dps, direct: preview.direct, swap: preview.swap };
+        const after = getPlayerStats(false);
+        return { dps: [before.dps, after.dps], life: [before.life, after.maxHp], direct: preview.direct, swap: preview.swap };
     } finally {
         preview.undo();
         game.cosmosTwinKeystones = twin;
@@ -6197,13 +6207,13 @@ function buildActRewardPreviewItem(zoneId, choice) {
     item.baseStats = base.baseStats.map(stat => rollBaseStat(stat, 0.5));
     return item;
 }
-/** "DPS 13 → 59": 바뀌는 선택지에만. 가방으로 가는 장비는 "바꿔 끼우면"으로, 장비는 옵션 없는 기본 성능 값이라 (옵션 제외)를 붙인다. */
+/** "DPS 13 → 59, 생명력 410 → 443": 바뀌는 값만, 스킬트리와 전직 창의 미리보기와 같은 말과 빛깔(js/ui.js buildStatPreviewParts).
+ * 가방으로 가는 장비는 "바꿔 끼우면"으로, 장비는 옵션 없는 기본 성능 값이라 (옵션 제외)를 붙인다. */
 function formatActRewardDps(change, choice) {
-    const format = COMPARE_STAT_META.dps.format;
-    if (!change || format(change.after) === format(change.before)) return '';
-    const tone = change.after > change.before ? 'is-up' : 'is-down';
+    const parts = change ? buildStatPreviewParts(change) : '';
+    if (!parts) return '';
     const lead = change.direct ? '' : (change.swap ? '바꿔 끼우면 ' : '끼우면 ');
-    return `<b class="reward-choice-dps ${tone}">${lead}DPS ${format(change.before)} → ${format(change.after)}${choice.kind === 'item' ? ' (옵션 제외)' : ''}</b>`;
+    return `<b class="reward-choice-dps">${lead}${parts}${choice.kind === 'item' ? ' (옵션 제외)' : ''}</b>`;
 }
 function getActRewardPreview(choice) {
     if (choice.kind === 'skill') return `${choice.skill} 공격 룬을 획득합니다.`;
