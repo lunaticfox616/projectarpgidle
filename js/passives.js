@@ -5658,8 +5658,18 @@ function getDeathHints() {
         rewards.length ? { text: `받지 않은 액트 보상 ${rewards.length}개`, reward: rewards[0] } : null,
         game.passivePoints > 0 ? { text: `쓰지 않은 스킬트리 포인트 ${game.passivePoints}점` } : null,
         game.equipment['무기'] ? null : { text: '무기 칸이 비어 있습니다' },
-        fillable ? { text: `가방에 바로 낄 수 있는 장비 ${fillable}개(장비 창의 빈 칸 채우기)` } : null
+        fillable ? { text: `가방에 바로 낄 수 있는 장비 ${fillable}개(장비 창의 빈 칸 채우기)` } : null,
+        lowResistanceDeathHint(activeDeathLog)
     ].filter(Boolean);
+}
+/** 쓰러뜨린 속성의 저항이 0보다 낮으면 그 값을 알린다. 혼돈 1부터 캠페인 패널티로 모든 저항이 60 낮아져, 패시브를 찍은 전사와 궁수도
+ * 그곳에서 화염, 냉기 피해에 거듭 쓰러졌다(자연 플레이 측정 2026-10-17). */
+const DEATH_RESIST_STATS = Object.freeze({ fire: ['resF', '화염'], cold: ['resC', '냉기'], light: ['resL', '번개'], chaos: ['resChaos', '카오스'] });
+function lowResistanceDeathHint(log) {
+    const row = log ? DEATH_RESIST_STATS[normalizeDamageElementKey(log.fatalElement || log.primaryElement)] : null;
+    if (!row) return null;
+    const value = Math.floor(Number(getPlayerStats(false)[row[0]]) || 0);
+    return value < 0 ? { text: `${row[1]} 저항 ${value}%(장비의 ${row[1]} 저항 옵션으로 올리면 받는 피해가 줄어듭니다)` } : null;
 }
 function renderDeathHints() {
     const box = document.getElementById('deathlog-hints');
