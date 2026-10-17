@@ -2135,7 +2135,7 @@ function coreLoop(nowMs) {
         return;
     }
 
-    syncCrowdPauseState(pStats);
+    syncCrowdPauseState();
     let _nowPrune = getCombatTime();
     game._nextEnemyRuntimePruneAt = Number.isFinite(game._nextEnemyRuntimePruneAt) ? game._nextEnemyRuntimePruneAt : 0;
     if (_nowPrune >= game._nextEnemyRuntimePruneAt) {
@@ -2264,7 +2264,7 @@ function coreLoop(nowMs) {
         handlePlayerDefeat(getZone(game.currentZoneId), pStats, "☠️ 상태이상으로 쓰러졌습니다.", { fatalElement: 'other', sourceName: '상태이상' });
         return;
     }
-    syncCrowdPauseState(pStats);
+    syncCrowdPauseState();
 
     if (!holdMapProgress && actExplorationProgress.canFinish()) playerStatCache.during(finishEncounterRun);
 }
@@ -2724,8 +2724,8 @@ function getUniqueEffectImplementationReport() {
         'projectileDoubleStrikePct','projectilePatternMode','hitApplyChaosResDown','corpseExplodeOnKill','instantLeechAndDoubleDamage',
         'riderCompass','maxRollBonusHit','ceilingSmashDouble','minRollEqualsMaxRoll','hpToPhysPct','immuneIgnite',
         'rollGapDamagePct','rollGapCritAndDs','crowdEvasionMore','fewEnemyEvasionMore','evasionDanceOnEvade','loneEvasionCounter','critAdvanceEnergyShieldRecharge','energyShieldBreakRecharge','esToLightPct','underdogNonMaxRollMorePct','instakillNormalOnHitPct','projectileExtraShotChance',
-        'abyssSocketOnItem','abyssSocketAndJewelAmp','leechEfficiencyOnKill','overkillSplash','dragonVeinGuard','fateTwinRollSync','realmBleedingEnemyDamageMore','realmRiftWaveOnHit','realmChaosDamageInstantLeech','realmInvulnerableBarrierOnHit','realmPoisonDuration','realmArmorToPhysicalDamage','realmDeathWard','realmAllResDownOnHit','realmKillMoveStacks','realmCursedTakenAndRefresh','realmEnemyRegenCutAndMinRoll','realmPhysDrHalfTakenAsMore','realmArmorAppliesToDot','realmMeleeArmorAmp','realmNoCollisionBlock','realmResonanceAndSuppCap','realmRegenRateAndRegen','realmMaxHpPct','realmAllMaxRes','frostSentinelBoots','shockTracerGreaves','venomStride','bleedBlockHelm','curseCrown','guardianArmor','warcryResonanceBelt','stackingElementalResDownOnHit','conditionManual','queenBeeSummonOnHit','bleedWeightOnBleedingHit','grandBreachCrown','labyrinthShackles','meteorFootsteps'
-        ,'cosmosFinalDmg','cosmosTakenLess','cosmosSpeedBurst','cosmosPenetration','cosmosSustain','cosmosBossSlayer','cosmosStatBundle','summonCapBonus','summonDeathDamageBuff','summonCritAspdStacks','summonNonCritNoDamage','summonEfficiencyBonus','rightRingSummonCap','genericTakenDamageReducePct','uniqueBlockChance','uniqueDeflectDamageReduce','blockRecoverEnergyShieldPct','blockedDamageTakenPct','uniqueTakenReduceWhen2Enemies','uniqueMaxResAll','deflectGrantShadowStealth','chaosTakenDamageReducePct','uniqueGemLevelBonus','lifeRecoupTakenDamage','immuneBleed','uniqueTakenReduceWhen1Enemy','lifePctAsEnergyShield','dsAndTargetAnyBonus','poisonDamageMorePct','immuneFreeze','uniqueMinDmgRoll','hitShockedEnemyDamageMorePct','noCollisionBlock','projectileTargetBonus','igniteDamageMorePct','cosmosAlwaysFirstHit','cosmosEnergyShieldAmpBypass','cosmosOrbitCycle','cosmosDeepSeaLeechCaps','cosmosTideEsRegenToLife','cosmosEqualDamageSplit','cosmosBalanceMitigation','cosmosTwinStarResonance','cosmosJudgmentLightning','cosmosDeathResist','cosmosVerdictSupportDamage','cosmosGuardianConditionInstant','cosmosBossDamageMore','cosmosCometChillNoFreeze','fixedAllMaxRes','kaleidoscopeShield','stealEliteTrait','mirrorOppositeRing','astraUniqueConvergence','thousandBottles','implicitAmp','loopGrowth','familyBond','sightBeyond','chestLuck','emberHeart','amberTime','witheredEcho','nurseryBloom'
+        'abyssSocketOnItem','abyssSocketAndJewelAmp','leechEfficiencyOnKill','overkillSplash','dragonVeinGuard','fateTwinRollSync','realmBleedingEnemyDamageMore','realmRiftWaveOnHit','realmChaosDamageInstantLeech','realmInvulnerableBarrierOnHit','realmPoisonDuration','realmArmorToPhysicalDamage','realmDeathWard','realmAllResDownOnHit','realmKillMoveStacks','realmCursedTakenAndRefresh','realmEnemyRegenCutAndMinRoll','realmPhysDrHalfTakenAsMore','realmArmorAppliesToDot','realmMeleeArmorAmp','realmRepelMelee','realmResonanceAndSuppCap','realmRegenRateAndRegen','realmMaxHpPct','realmAllMaxRes','frostSentinelBoots','shockTracerGreaves','venomStride','bleedBlockHelm','curseCrown','guardianArmor','warcryResonanceBelt','stackingElementalResDownOnHit','conditionManual','queenBeeSummonOnHit','bleedWeightOnBleedingHit','grandBreachCrown','labyrinthShackles','meteorFootsteps'
+        ,'cosmosFinalDmg','cosmosTakenLess','cosmosSpeedBurst','cosmosPenetration','cosmosSustain','cosmosBossSlayer','cosmosStatBundle','summonCapBonus','summonDeathDamageBuff','summonCritAspdStacks','summonNonCritNoDamage','summonEfficiencyBonus','rightRingSummonCap','genericTakenDamageReducePct','uniqueBlockChance','uniqueDeflectDamageReduce','blockRecoverEnergyShieldPct','blockedDamageTakenPct','uniqueTakenReduceWhen2Enemies','uniqueMaxResAll','deflectGrantShadowStealth','chaosTakenDamageReducePct','uniqueGemLevelBonus','lifeRecoupTakenDamage','immuneBleed','uniqueTakenReduceWhen1Enemy','lifePctAsEnergyShield','dsAndTargetAnyBonus','poisonDamageMorePct','immuneFreeze','uniqueMinDmgRoll','hitShockedEnemyDamageMorePct','pursuitMoveSpeed','projectileTargetBonus','igniteDamageMorePct','cosmosAlwaysFirstHit','cosmosEnergyShieldAmpBypass','cosmosOrbitCycle','cosmosDeepSeaLeechCaps','cosmosTideEsRegenToLife','cosmosEqualDamageSplit','cosmosBalanceMitigation','cosmosTwinStarResonance','cosmosJudgmentLightning','cosmosDeathResist','cosmosVerdictSupportDamage','cosmosGuardianConditionInstant','cosmosBossDamageMore','cosmosCometChillNoFreeze','fixedAllMaxRes','kaleidoscopeShield','stealEliteTrait','mirrorOppositeRing','astraUniqueConvergence','thousandBottles','implicitAmp','loopGrowth','familyBond','sightBeyond','chestLuck','emberHeart','amberTime','witheredEcho','nurseryBloom'
     ]);
     return {
         total: uniqueKeys.length,
@@ -2972,7 +2972,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     let uniqueRiderCompass = false, uniqueMaxRollBonusHit = false, uniqueCeilingSmashDouble = false, uniqueMinRollEqualsMaxRoll = false, uniqueHpToPhysPct = false, uniqueImmuneIgnite = false;
     let uniqueFateTwinRollSync=false, uniqueFrostSentinel=false, uniqueShockTracer=null, uniqueVenomStride=null, uniqueBleedBlockHelm=false, uniqueImmuneBleed=false, uniqueImmuneFreeze=false, uniqueCurseCrownPerCursePct=0, uniqueWarcryResonancePct=0, uniqueConditionManual=null, uniqueStackingElementalResDownOnHit=null;
     let uniqueBleedingEnemyDamageMorePct=0, uniqueRiftWaveOnHit=null, uniqueChaosDamageInstantLeechPct=0, uniqueInvulnerableBarrierOnHit=null, uniquePoisonDurationPct=0, uniqueArmorToPhysicalDamagePctPer1000=0, uniqueDeathWard=null;
-    let uniqueAllResDownOnHit=null, uniqueKillMoveStacks=null, uniqueCursedTakenAndRefresh=null, uniqueEnemyRegenCutAndMinRoll=null, uniquePhysDrHalfTakenAsMore=null, uniqueArmorAppliesToDot=false, uniqueMeleeArmorAmp=null, uniqueNoCollisionBlock=false, uniqueResonanceAndSuppCap=null, uniqueRegenRateAndRegen=null, uniqueMaxHpPct=0, uniqueAllMaxRes=0;
+    let uniqueAllResDownOnHit=null, uniqueKillMoveStacks=null, uniqueCursedTakenAndRefresh=null, uniqueEnemyRegenCutAndMinRoll=null, uniquePhysDrHalfTakenAsMore=null, uniqueArmorAppliesToDot=false, uniqueMeleeArmorAmp=null, uniquePursuitMovePct=0, uniqueRepelMelee=null, uniqueResonanceAndSuppCap=null, uniqueRegenRateAndRegen=null, uniqueMaxHpPct=0, uniqueAllMaxRes=0;
     let uniqueLeechEfficiencyOnKill=null, uniqueOverkillSplash=false, uniqueDragonVeinGuard=null, uniqueGuardianArmor=null, uniqueStealEliteTrait=null, fixedAllMaxRes=null;
     let cosmosAlwaysFirstHit=false, cosmosEnergyShieldBypassPct=0, cosmosOrbitCycle=null, cosmosDeepSeaLeechCaps=null, cosmosTideEsRegenToLife=false, cosmosEqualDamageSplit=false, cosmosBalanceMitigation=false, cosmosTwinStarResonance=null, cosmosJudgmentLightning=null, cosmosDeathResistPct=0, cosmosVerdictSupportDamagePct=0, cosmosGuardianConditionInstant=false, cosmosBossDamageMorePct=0, cosmosCometChillNoFreeze=false;
     let uniqueQueenBeeSummon=null, uniqueBleedWeightOnBleedingHit=false, uniqueGrandBreachCrown=null, uniqueLabyrinthShackles=false, uniqueMeteorFootsteps=null;
@@ -3065,7 +3065,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         else if (effect.key === 'realmPhysDrHalfTakenAsMore') uniquePhysDrHalfTakenAsMore = { ratio: Number(ep.ratio || 0.5) };
         else if (effect.key === 'realmArmorAppliesToDot') uniqueArmorAppliesToDot = true;
         else if (effect.key === 'realmMeleeArmorAmp') uniqueMeleeArmorAmp = mergeBetterUniqueParams(uniqueMeleeArmorAmp, { ampPct: Number(ep.ampPct || 5), maxStacks: Number(ep.maxStacks || 3), duration: Number(ep.duration || 2) });
-        else if (effect.key === 'realmNoCollisionBlock') uniqueNoCollisionBlock = true;
+        else if (effect.key === 'realmRepelMelee') uniqueRepelMelee = readRepelMeleeParams(ep);
         else if (effect.key === 'realmResonanceAndSuppCap') uniqueResonanceAndSuppCap = { resonancePower: Number(ep.resonancePower || 150), suppCap: Number(ep.suppCap || 3) };
         else if (effect.key === 'realmRegenRateAndRegen') uniqueRegenRateAndRegen = mergeBetterUniqueParams(uniqueRegenRateAndRegen, { regenRatePct: Number(ep.regenRatePct || 25), regen: Number(ep.regen || 2) });
         else if (effect.key === 'realmMaxHpPct') uniqueMaxHpPct += Number(ep.pctHp || 35);
@@ -3100,7 +3100,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         else if (effect.key === 'poisonDamageMorePct') addStatToBucket(reward, 'poisonDamageMultiplierPct', Number(ep.pct || 25));
         else if (effect.key === 'uniqueMinDmgRoll') addStatToBucket(reward, 'minDmgRoll', Number(ep.pct || 5));
         else if (effect.key === 'hitShockedEnemyDamageMorePct') addStatToBucket(reward, 'shockedEnemyHitDamageMorePct', Number(ep.pct || 50));
-        else if (effect.key === 'noCollisionBlock') uniqueNoCollisionBlock = true;
+        else if (effect.key === 'pursuitMoveSpeed') uniquePursuitMovePct = Math.max(uniquePursuitMovePct, readPursuitMovePct(ep));
         else if (effect.key === 'projectileTargetBonus') {
             if (isDeferredTalentProjectileTargetEffect(effect)) return;
             addStatToBucket(reward, 'targetProjectile', Number(ep.target || 1));
@@ -5039,7 +5039,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         uniquePoisonDurationPct: uniquePoisonDurationPct,
         uniqueDeathWard: uniqueDeathWard,
         uniqueLeechEfficiencyOnKill: uniqueLeechEfficiencyOnKill,
-        uniqueKillMoveStacks: uniqueKillMoveStacks, uniqueEnemyRegenCutAndMinRoll: uniqueEnemyRegenCutAndMinRoll, uniqueAllResDownOnHit: uniqueAllResDownOnHit, uniqueCursedTakenAndRefresh: uniqueCursedTakenAndRefresh, uniquePhysDrHalfTakenAsMore: uniquePhysDrHalfTakenAsMore, uniqueMeleeArmorAmp: uniqueMeleeArmorAmp, uniqueArmorAppliesToDot: uniqueArmorAppliesToDot, uniqueNoCollisionBlock: uniqueNoCollisionBlock, ignoreEnemyCollision: !!uniqueNoCollisionBlock,
+        uniqueKillMoveStacks: uniqueKillMoveStacks, uniqueEnemyRegenCutAndMinRoll: uniqueEnemyRegenCutAndMinRoll, uniqueAllResDownOnHit: uniqueAllResDownOnHit, uniqueCursedTakenAndRefresh: uniqueCursedTakenAndRefresh, uniquePhysDrHalfTakenAsMore: uniquePhysDrHalfTakenAsMore, uniqueMeleeArmorAmp: uniqueMeleeArmorAmp, uniqueArmorAppliesToDot: uniqueArmorAppliesToDot, uniquePursuitMovePct: uniquePursuitMovePct, uniqueRepelMelee: uniqueRepelMelee,
         uniqueResonanceFloor: uniqueResonanceAndSuppCap ? Math.floor(uniqueResonanceAndSuppCap.resonancePower || 0) : 0,
         inquisitorResonanceBonus: inquisitorResonanceBonus,
         uniqueOverkillSplash: uniqueOverkillSplash,
@@ -5411,9 +5411,11 @@ function updatePlayerGridEngagement(pStats, options) {
     return false;
 }
 
-/** One hero step toward its target, in seconds (move speed 100 = playerMoveIntervalSec). */
+/** One hero step toward its target, in seconds (move speed 100 = playerMoveIntervalSec). Every caller steps toward a monster, so
+ * the 추적자 boots' pursuit speed (uniquePursuitMovePct) counts here and nowhere else. */
 function getPlayerGridStepSec(pStats) {
     let moveSpeed = Number.isFinite(pStats.moveSpeed) && pStats.moveSpeed > 0 ? pStats.moveSpeed : 100;
+    moveSpeed *= 1 + Math.max(0, Number(pStats.uniquePursuitMovePct) || 0) / 100;
     return COMBAT_GRID_CONFIG.playerMoveIntervalSec * (100 / moveSpeed);
 }
 
@@ -7063,13 +7065,11 @@ function handleTalentBloomClear(zone) {
     queueImportantSave(200);
 }
 
-function isCrowdProgressPaused(pStats) {
+function isCrowdProgressPaused() {
     if (game.moveTimer > 0) return false;
     // 방 단위 무대: 방 안의 몬스터를 다 잡아야 문이 열린다. 따로 멈출 진행이 없으니 무리가 많다는 알림도 내지 않는다.
     if (actExplorationDoors.stageMap(actExplorationState.current(game))) return false;
-    if ((game.enemies || []).filter(enemy => enemy.hp > 0).length < ENEMY_CROWD_PAUSE_LIMIT) return false;
-    // 고유 신발 추적자와 철벽 척력화는 적 한도에 막히지 않는다. 값만 계산되고 읽는 곳이 없었다(2026-10-17).
-    return !(pStats || getPlayerStats(false)).ignoreEnemyCollision;
+    return (game.enemies || []).filter(enemy => enemy.hp > 0).length >= ENEMY_CROWD_PAUSE_LIMIT;
 }
 
 function getDotStackMultiplier(stacks) {
@@ -7260,6 +7260,26 @@ function pushEnemyAwayOnHit(enemy, skill) {
     }
     if (moved) addBattleFx('statusText', { enemyId: enemy.id, text: '밀려남', color: '#f0c993', duration: 300 });
     return moved;
+}
+
+/** 철벽 척력화(uniqueRepelMelee): 근접 공격으로 주인공에게 닿은(회피되지 않은) 몬스터를 룬의 밀어내기로 밀어낸다. 막아낸 공격도
+ * 닿은 공격이다. 보스는 밀리지 않고(pushEnemyAwayOnHit), 같은 몬스터는 cooldownMs에 한 번만 밀린다. */
+function repelMeleeAttacker(enemy, pStats) {
+    const repel = pStats.uniqueRepelMelee;
+    if (!repel || enemy.attackKind !== 'melee' || !(enemy.hp > 0)) return;
+    const now = getCombatTime();
+    if (now < (Number(enemy.repelledAt) || -Infinity) + repel.cooldownMs) return;
+    if (pushEnemyAwayOnHit(enemy, { pushAwayCells: repel.cells })) enemy.repelledAt = now;
+}
+
+/** 철벽 척력화의 값(data/items.js realm effects): 밀어내는 칸과 같은 몬스터를 다시 밀기까지의 ms. */
+function readRepelMeleeParams(ep) {
+    return { cells: Math.max(1, Math.floor(Number(ep.cells) || 1)), cooldownMs: Math.max(0, Number(ep.cooldownSec ?? 1.5)) * 1000 };
+}
+
+/** 추적자의 값: 적에게 다가가는 걸음의 이동 속도 증가(%). */
+function readPursuitMovePct(ep) {
+    return Math.max(0, Number(ep.pct) || 40);
 }
 
 /** 맞은 몬스터를 skill.launchMs 동안 띄운다(올려 베기): 그동안 움직이지도 새 공격을 시작하지도 못한다. 보스는 뜨지 않는다. */
@@ -7860,8 +7880,8 @@ function tickEnemyDotEffects(pStats, dt) {
     });
 }
 
-function syncCrowdPauseState(pStats) {
-    let paused = isCrowdProgressPaused(pStats);
+function syncCrowdPauseState() {
+    let paused = isCrowdProgressPaused();
     if (paused === crowdPauseActive) return paused;
     crowdPauseActive = paused;
     if (game.settings.showCrowdPauseLog !== false) {
@@ -8769,7 +8789,7 @@ function advanceMapProgress(pStats) {
     ensureEncounterRun();
     if(actExplorationProgress.advance(pStats))return;
     if (game.runProgress >= 100) return;
-    if (isCrowdProgressPaused(pStats)) return;
+    if (isCrowdProgressPaused()) return;
     let abyssScale = getAbyssMonsterScales(zone);
     let enemyCount = (game.enemies || []).filter(enemy => enemy.hp > 0).length;
     let zoneType = zone ? zone.type : 'act';
@@ -12550,6 +12570,7 @@ function performMonsterAttacks(pStats) {
                 if (hasKeystone('ct4')) game.catalystEvadeBoostReady = true;
                 continue;
             }
+            repelMeleeAttacker(enemy, pStats);
             let blockRollCap = Math.max(0, Math.min(75, Number(pStats.blockChanceMax || 50)));
             let blockRollChance = Math.max(0, Math.min(blockRollCap, pStats.blockChance || pStats.guardianBlockChance || 0));
             // 실전 특화: 막기 판정에 행운 적용(2회 굴려 유리한 값 사용)
