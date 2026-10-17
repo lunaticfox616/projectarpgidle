@@ -6019,6 +6019,9 @@ function markActRewardReady(zoneId) {
     game.claimedActRewards = game.claimedActRewards || [];
     if (game.claimedActRewards.includes(zoneId) || game.claimableActRewards.includes(zoneId)) return;
     game.claimableActRewards.push(zoneId);
+    // 고를 것이 없는 보상은 조용히 남긴다: 1루프의 액트 2, 6 보상은 모두 보조스킬룬(루프 2부터 해금)이라 받을 것이 없는데 받을 수 있다는
+    // 줄과 지도 점이 떴다(2026-10-17). 해금하면 그때 지도와 목표에 나온다.
+    if (!getAvailableActRewardZoneIds().includes(zoneId)) return;
     game.noti.map = true;
     addLog(`🎁 [${MAP_ZONES[zoneId].name}] 클리어 보상을 받을 수 있습니다.`, 'loot-rare');
     promptActReward(zoneId);
