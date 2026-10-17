@@ -10,6 +10,10 @@ const npcShopUi = (() => {
     let press = null;     // the pointer held on a ware: { root, id, index, button, x, y, pointerId, touch, offset, ghost, place }
     let bagPage = 0;
     const WALLET_ORDER = Object.freeze(['magicBud', 'formlessDew', 'goldenRule']);
+    // Where a short currency comes from (js/passives.js getItemSalvageRewardProfile). Until 장비 제련 opens they never drop
+    // (data/items.js dropUnlocks), so in loop 1 salvage is the only way.
+    const EARN_HINTS = Object.freeze({ magicBud: '일반 장비나 마법 장비를 해체하면 마법의 새싹을 얻습니다.',
+        formlessDew: '희귀 장비나 고유 장비를 해체하면 형체 없는 이슬을 얻습니다.', goldenRule: '고유 장비를 해체하면 가끔 황금률을 얻습니다.' });
 
     const wareAt = (id, index) => npcShop.stock(id)?.offers[index] || null;
     const wareName = ware => (ware.gem ? ware.gem.name : ware.item.name || ware.item.baseName || '장비');
@@ -92,7 +96,14 @@ const npcShopUi = (() => {
         const card = ware.gem ? gemWareCardHtml(ware.gem) : itemWareCardHtml(ware.item);
         return `${card}<div class="npc-shop-deal"><span>${coinHtml(ware.priceKey)}${escapeHTML(npcShop.currencyName(ware.priceKey))} ${ware.price}</span>
             <button type="button" data-npc-buy="${chosen.index}" ${check.ok ? '' : 'disabled'}>${check.ok ? '구매' : escapeHTML(check.reason)}</button></div>
+            ${earnHintHtml(ware)}
             ${note ? `<p class="npc-shop-note" role="status">${escapeHTML(note)}</p>` : ''}`;
+    }
+
+    /** Where the currency of ware comes from, when the hero holds too little of it. */
+    function earnHintHtml(ware) {
+        const hint = held(ware.priceKey) < ware.price ? EARN_HINTS[ware.priceKey] : '';
+        return hint ? `<p class="npc-shop-hint">${hint}</p>` : '';
     }
 
     function itemWareCardHtml(item) {
