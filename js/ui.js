@@ -1092,14 +1092,18 @@ function setupBattlefieldMovementInteraction() {
         event.preventDefault();
         commandBattlefieldMove(canvas, event);
     });
+    canvas.addEventListener('pointermove', event => actExplorationUi.hover(canvas, event));
+    canvas.addEventListener('pointerleave', () => actExplorationUi.hover(canvas, null));
 }
 
 /** 탐험 중 전장을 누르면 그 칸으로 걸어간다(미니맵 클릭과 같은 이동 명령 · 자동 이동은 그대로). 입구 방의 NPC를 누르면 걷지 않고
- * 그 NPC의 창을 연다(js/canvas-act-title-card.js npcAt, js/content-progression-ui.js openNpc). */
+ * 그 NPC의 창을 연다(js/canvas-act-title-card.js npcAt, js/content-progression-ui.js openNpc). 몬스터를 누르면 그 몬스터를 락온한다
+ * (js/act-exploration-ui.js lockOnAt). 마우스를 올린 NPC는 테가 밝아진다(setupBattlefieldMovementInteraction의 hover). */
 function commandBattlefieldMove(canvas, event) {
     let point = getBattlefieldClientPoint(canvas, event.clientX, event.clientY);
     let npc = actTitleCard.npcAt(point);
     if (npc && contentUnlockUi.openNpc(npc)) return;
+    if (actExplorationUi.lockOnAt(point)) return;
     let cell = actExplorationView.cellAt(point);
     if (cell) actExplorationUi.commandMove(cell);
 }

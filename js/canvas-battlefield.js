@@ -1715,7 +1715,11 @@ function isEnemyFieldBarShown(enemy, targeted) {
     return targeted || enemy.isElite || enemy.isBoss || enemy.hp < enemy.maxHp || (enemy.energyShield || 0) < (enemy.maxEnergyShield || 0);
 }
 
+/** This frame's top of each drawn enemy bar with its elite nameplate (screen px): the lock-on arrow stands over it (drawLockOnMark). */
+const enemyFieldBarTops = new Map();
+
 function drawBattlefieldEnemyHealthBars(ctx, layout, targetIds, tileW) {
+    enemyFieldBarTops.clear();
     (layout || []).forEach(entry => {
         let enemy = entry.enemy;
         if (!isEnemyFieldBarShown(enemy, targetIds.includes(enemy.id))) return;
@@ -1725,6 +1729,7 @@ function drawBattlefieldEnemyHealthBars(ctx, layout, targetIds, tileW) {
         let baseY = Math.round(entry.y - getEnemyFieldBarLift(enemy));
         const nameHeight = enemy.isElite && !enemy.isBoss ? 24 : 6;
         const reserved = drawBattlePlayerFigure.readability.place({ x: x - 3, y: baseY - nameHeight, w: width + 6, h: nameHeight + 10 }, !enemy.isBoss);
+        enemyFieldBarTops.set(enemy, reserved.y);
         let y = reserved.y + nameHeight;
         let targeted = targetIds.includes(enemy.id);
         ctx.save();
@@ -2462,6 +2467,7 @@ function drawBattleActorLayer(ctx, enemyEntries, state) {
         if (entry.drawn) seen.push(entry);
         else if (entry.seen) battleDrawList.keepFacing(entry, state.playerPos, view.tile);
     }
+    battleDrawList.noteDrawn(seen.concat(waiting), state.gridProj.tileW); // 누른 몬스터 찾기(락온)와 락온 표시의 자리
     let actors = seen.concat(waiting).map(entry => ({
         kind: 'enemy', id: entry.enemy.id, y: entry.y, entry
     }));
@@ -3058,7 +3064,19 @@ function drawBattleLightingAndBars(ctx, scene) {
     bossAttackView.drawMarks(ctx, scene);
     drawBattlePlayerFigure.readability.draw(ctx);
     if (!stageActors.down()) drawBattlefieldPlayerHealthBar(ctx, scene); // not over the first start's lying hero (js/opening-journey-ui.js)
-    drawBattlefieldEnemyHealthBars(ctx, scene.layout.filter(entry => entry.drawn), scene.targets, scene.tileW);
+    // 락온한 몬스터(js/act-exploration-state.js lockOn)는 겨눈 적처럼 막대가 늘 보이고 금빛 테를 두른다. 그 위에 화살표가 선다.
+    const locked = actExplorationState.lockedEnemy(actExplorationState.current(game));
+    drawBattlefieldEnemyHealthBars(ctx, scene.layout.filter(entry => entry.drawn), locked ? scene.targets.concat(locked.id) : scene.targets, scene.tileW);
+    drawLockOnMark(ctx, scene, locked);
+}
+
+/** The gold arrow over the locked-on monster (js/canvas-target-marks.js): above its bar and elite nameplate, or above where the bar
+ * would stand for a monster still waiting in its pack. None for a monster not drawn this frame. */
+function drawLockOnMark(ctx, scene, locked) {
+    const entry = locked ? battleDrawList.drawnEntry(locked) : null;
+    if (!entry) return;
+    const top = enemyFieldBarTops.has(locked) ? enemyFieldBarTops.get(locked) : entry.y - getEnemyFieldBarLift(locked);
+    targetMarks.arrow(ctx, entry.x, top - 3, stageActors.scaleFor(scene.tileW));
 }
 
 /** Only the existing cast boundary returns above foreground effects; never duplicate its opaque fill. */
@@ -3391,6 +3409,8 @@ const RIFT_CELL_TONES = {
     area: { fill: 'rgba(214, 170, 92, 0.12)', line: 'rgba(233, 203, 137, 0.42)' },
     target: { fill: 'rgba(233, 180, 84, 0.2)', line: 'rgba(246, 214, 146, 0.9)' }
 };
+/** The stage ring (js/canvas-stage-rings.js) each cell tone draws as; anything else is an enemy's. */
+const RIFT_RING_LOOKS = new Map([[RIFT_CELL_TONES.summon, 'summon'], [RIFT_CELL_TONES.target, 'target']]);
 
 function drawRiftCombatOccupants(ctx, layers) {
     const proj = layers.proj;
@@ -3399,8 +3419,9 @@ function drawRiftCombatOccupants(ctx, layers) {
     (game.summons || []).forEach(summon => {
         if (summon && !summon.isGhost && summon.alive && (summon.hp || 0) > 0) drawRiftUnitRing(ctx, proj, summon, RIFT_CELL_TONES.summon);
     });
+    const locked = actExplorationState.lockedEnemy(actExplorationState.current(game));
     (game.enemies || []).forEach(enemy => {
-        if (enemy && enemy.hp > 0 && actExplorationView.inSight(enemy)) drawRiftUnitRing(ctx, proj, enemy, RIFT_CELL_TONES.enemy);
+        if (enemy && enemy.hp > 0 && actExplorationView.inSight(enemy)) drawRiftUnitRing(ctx, proj, enemy, enemy === locked ? RIFT_CELL_TONES.target : RIFT_CELL_TONES.enemy);
     });
     (layers.skillTargets || []).forEach(hit => drawRiftTargetBrackets(ctx, proj, hit && hit.enemy));
 }
@@ -3437,15 +3458,16 @@ function getRiftUnitFootprintBox(proj, unit, walking = false) {
     return { left, right, top, bottom, cx: (left + right) / 2, cy: (top + bottom) / 2 };
 }
 
+/** A unit's foot ring: an enemy's, a summon's, or the locked-on enemy's (RIFT_CELL_TONES.target: gold, turning like the hero's). */
 function drawRiftUnitRing(ctx, proj, unit, tone) {
-    const box = getRiftUnitFootprintBox(proj, unit, tone === RIFT_CELL_TONES.enemy);
+    const box = getRiftUnitFootprintBox(proj, unit, tone !== RIFT_CELL_TONES.summon);
     if (!box) return;
     const rx = (box.right - box.left) * 0.4;
     const ry = Math.max(4, rx * 0.34);
     const cy = box.bottom - proj.tileH * 0.5 + (Number(proj.actorGroundOffsetY) || 0);
     if (stageView.enabled()) {
-        const dot = stageActors.scaleFor(proj.tileW);
-        return stageRings.ring(ctx, { x: box.cx, y: cy, dot }, { tone: tone === RIFT_CELL_TONES.summon ? 'summon' : 'enemy', rx: Math.round(rx / dot * 0.86) });
+        const dot = stageActors.scaleFor(proj.tileW), look = RIFT_RING_LOOKS.get(tone) || 'enemy';
+        return stageRings.ring(ctx, { x: box.cx, y: cy, dot }, { tone: look, rx: Math.round(rx / dot * 0.86), turning: look === 'target' });
     }
     ctx.globalAlpha = 1;
     ctx.beginPath();

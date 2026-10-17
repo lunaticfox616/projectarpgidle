@@ -71,6 +71,11 @@ const stageObjects = (() => {
             stageDots.blit(ctx, rim, { x: 0, y: 0, w: cell, h: cell }, { x: box.x + dx * at.dot, y: box.y + dy * at.dot, scale: at.dot }, true);
         }
     }
-    return Object.freeze({ ready, draw, outline });
+    /** 그 물체 그림의 맨 위(화면 px): 고른 물건의 화살표가 그 위에 선다(js/canvas-target-marks.js). 공용 그림은 칸의 맨 위다. */
+    function top(look, at) {
+        const region = typeof stageRegion === 'object' ? stageRegion.objectTop(look, at) : null;
+        return region !== null ? region : at.y - STAGE_OBJECTS.feet[1] * at.dot;
+    }
+    return Object.freeze({ ready, draw, outline, top });
 })();
 safeExposeGlobals({ stageObjects });

@@ -205,9 +205,11 @@ const actExplorationProgress = (() => {
     }
     /** The hero neither chases nor sidesteps: a hazard asked for it, auto-move is off, or a move command is under way
      * (the command walks in step; the combat engagement only fights what is in reach). */
+    /** 영웅이 제자리에서 사거리 안만 치는가: 위험을 피하라는 요청, 걷는 명령, 직접 이동. 직접 이동이라도 락온한 몬스터
+     * (js/act-exploration-state.js lockOn)가 살아 있으면 그 명령으로 보고 다가가 싸운다. */
     function holdPosition(requested) {
         const run=actExplorationState.current(game);
-        return requested || !!(run && (runMode(run)==='manual' || run.destination));
+        return requested || !!(run && ((runMode(run)==='manual' && !actExplorationState.lockedEnemy(run)) || run.destination));
     }
     function waiting(state) {
         const run=actExplorationState.current(state);

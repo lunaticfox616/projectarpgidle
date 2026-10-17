@@ -317,7 +317,7 @@ const actTitleCard = (() => {
     }
     // A monster striking the NPC (act 1's first monster, js/combat.js strikeRescueTarget, battle fx 'npcStruck'): the NPC's frame
     // flashes white and a few sparks burst on it. The picture itself never moves (no code-made motion).
-    const npcFlashes = new Map();    // "id:frame" → that idle frame painted white
+    const npcFlashes = new Map();    // "id:frame:colour" → that idle frame painted one colour (the strike flash, the hover rim)
     /** 1 just after a strike on the NPC, fading to 0 over the fx's duration; 0 when none is recent. */
     function npcStruck(now) {
         let share = 0;
@@ -327,18 +327,32 @@ const actTitleCard = (() => {
         }
         return share;
     }
-    function npcFlashFrame(id, source, frame) {
-        const key = `${id}:${frame}`, cell = STAGE_NPC_ART.cell;
+    function npcFlashFrame(id, source, frame, colour = '#fff4df') {
+        const key = `${id}:${frame}:${colour}`, cell = STAGE_NPC_ART.cell;
         if (!npcFlashes.has(key)) {
             const canvas = document.createElement('canvas'), c = canvas.getContext('2d');
             canvas.width = canvas.height = cell;
             c.drawImage(source, frame * cell, 0, cell, cell, 0, 0, cell, cell);
             c.globalCompositeOperation = 'source-in';
-            c.fillStyle = '#fff4df';
+            c.fillStyle = colour;
             c.fillRect(0, 0, cell, cell);
             npcFlashes.set(key, canvas);
         }
         return npcFlashes.get(key);
+    }
+    // 마우스가 올라간 NPC(2026-10-17 사용자 "NPC위에 마우스올리면 테두리강조"): 말을 걸 수 있는 NPC의 그림 둘레에 캐릭터 도트 한 칸 굵기의
+    // 밝은 테를 두른다. 빛은 마우스를 올린 물건의 테와 같다(js/canvas-exploration-objects.js RIM_HOT). js/act-exploration-ui.js hover가 정한다.
+    const NPC_HOVER_RIM = '#fff8e6';
+    let hoveredNpc = null;
+    function hover(npc) { hoveredNpc = npc ? npc.id : null; }
+    /** 그림 뒤에 깔리는 테: 한 색으로 칠한 그 프레임을 위아래 좌우로 한 도트씩 옮겨 찍는다. at = 그림을 찍는 자리와 배율. */
+    function npcHoverRim(ctx, actor, source, frame, at) {
+        if (!actor.talkable || hoveredNpc !== actor.npc.id) return;
+        const cell = STAGE_NPC_ART.cell, rim = Math.max(1, Math.round(at.scale / STAGE_NPC_ART.scale));
+        const painted = npcFlashFrame(actor.npc.id, source, frame, NPC_HOVER_RIM);
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+            stageDots.blit(ctx, painted, { x: 0, y: 0, w: cell, h: cell }, { x: at.x + dx * rim, y: at.y + dy * rim, scale: at.scale });
+        }
     }
     function npcSparks(ctx, x, y, dot, struck) {
         const spread = (1 - struck) * 14 * dot + 4 * dot, size = Math.max(2, Math.round(dot * 2));
@@ -361,6 +375,7 @@ const actTitleCard = (() => {
         ctx.save();
         if (state.playerPos.x < actor.x) { ctx.translate(actor.x * 2, 0); ctx.scale(-1, 1); }
         const at = { x: Math.round(actor.x - art.feet[0] * dot), y: Math.round(actor.y - art.feet[1] * dot), scale: dot };
+        npcHoverRim(ctx, actor, sheet.source, frame, at);
         stageDots.blit(ctx, sheet.source, { x: frame * cell, y: 0, w: cell, h: cell }, at);
         if (struck > 0) {
             ctx.globalAlpha = 0.6 * struck;
@@ -589,6 +604,6 @@ const actTitleCard = (() => {
     /** True while a story line's bubble is on screen (the first start's lesson line steps aside for it, js/opening-journey-ui.js). */
     function speaking() { return !!line && Date.now() - frameAt < LIVE_MS; }
     if (typeof document === 'object' && document.fonts?.load) document.fonts.load("20px 'Galmuri14'").catch(() => {});
-    return Object.freeze({ draw, busy, greeting, speaking, appendNpc, drawNpc, npcAt });
+    return Object.freeze({ draw, busy, greeting, speaking, appendNpc, drawNpc, npcAt, hover });
 })();
 safeExposeGlobals({ actTitleCard });

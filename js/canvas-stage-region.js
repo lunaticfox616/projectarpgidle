@@ -289,6 +289,11 @@ const stageRegion = (() => {
         stampRegionObject(ctx, piece.grade ? tintedRegionPiece(piece.file, piece.grade, false) : regionPicture(piece.file).image, piece, at);
         return true;
     }
+    /** 그 물체를 이 지역의 재질 그림으로 그릴 때 그림이 차지하는 맨 위(화면 px). 이 지역의 그림이 아니면 null. */
+    function regionObjectTop(look, at) {
+        const piece = regionObjectPiece(look);
+        return piece ? at.y - (piece.size[3] - piece.size[5]) * at.dot : null;
+    }
     /** 누를 수 있는 물체의 밝은 테. @returns {boolean} 이 지역의 그림으로 둘렀는지 */
     function outlineRegionObject(ctx, look, at, colour) {
         const piece = regionObjectPiece(look);
@@ -308,6 +313,6 @@ const stageRegion = (() => {
         if (stageView.backdrops() && stageRegionFit.of(id)) regionPicture(id + '.png');
     }
     return Object.freeze({ warm: warmRegion, status: regionStatus, drawFar: drawRoomPicture, paintRoom: paintRoomShade, append: appendRegionPieces, draw: drawRegionPiece,
-        drawMarks: drawRegionSideMarks, drawObject: drawRegionObject, outlineObject: outlineRegionObject, fitJobs: regionFitJobs });
+        drawMarks: drawRegionSideMarks, drawObject: drawRegionObject, outlineObject: outlineRegionObject, objectTop: regionObjectTop, fitJobs: regionFitJobs });
 })();
 safeExposeGlobals({ stageRegion });

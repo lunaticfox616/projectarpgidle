@@ -5249,10 +5249,7 @@ function getSkillTargets(pStats, dormant = []) {
     }
     let now = getCombatTime();
     let tactics = game.combatTacticsUnlocked ? resolveConditionalCombatTactics(normalizeCombatTacticsSettings(game.settings), pStats, game, now) : null;
-    let options = tactics ? {
-        targetPriority: tactics.targetPriority,
-        preferredEnemyId: now < combatTacticsRuntime.targetLockedUntil ? combatTacticsRuntime.targetId : null
-    } : null;
+    let options = getSkillTargetPreference(tactics, now);
     let unseen = living.filter(enemy => !alive.includes(enemy));
     let targets = selectCombatGemTargets(game.activeSkill, skill, game.gridPlayer, alive, { ...options, dormant: dormant.concat(unseen) });
     if (tactics && targets.length > 0 && String(targets[0].enemy.id) !== String(combatTacticsRuntime.targetId)) {
@@ -5260,6 +5257,15 @@ function getSkillTargets(pStats, dormant = []) {
         combatTacticsRuntime.targetLockedUntil = now + COMBAT_TACTIC_TARGET_LOCK_MS;
     }
     return targets;
+}
+
+/** Who the gem aims at first: the monster the player locked on (js/act-exploration-state.js lockOn), else the target the tactics
+ * hold for a moment. Null when neither applies (the nearest in range). */
+function getSkillTargetPreference(tactics, now) {
+    const locked = actExplorationState.lockedEnemy(actExplorationState.current(game));
+    if (!tactics && !locked) return null;
+    const held = tactics && now < combatTacticsRuntime.targetLockedUntil ? combatTacticsRuntime.targetId : null;
+    return { targetPriority: tactics ? tactics.targetPriority : undefined, preferredEnemyId: locked ? locked.id : held };
 }
 
 /** options.dormant: monsters that have not noticed the hero, which the area may catch but the gem never aims at. */
@@ -5384,6 +5390,7 @@ function updatePlayerGridEngagement(pStats, options) {
     if (alive.length === 0) return false;
     syncCombatTacticsEncounterRuntime();
     let targets = getSkillTargets(pStats);
+    if (!config.holdPosition && approachLockedEnemy(pStats, targets)) return false;
     if (targets.length > 0) {
         combatTacticsRuntime.approachTargetId = null;
         let now = getCombatTime();
@@ -5398,10 +5405,22 @@ function updatePlayerGridEngagement(pStats, options) {
     let nearest = resolvePlayerApproachTarget(alive);
     if (!nearest) return false;
     if (isPlayerAttackRecovering()) return false;
-    let moveSpeed = Number.isFinite(pStats.moveSpeed) && pStats.moveSpeed > 0 ? pStats.moveSpeed : 100;
-    let interval = COMBAT_GRID_CONFIG.playerMoveIntervalSec * (100 / moveSpeed);
-    advanceGridUnitMovement(game.gridPlayer, nearest, 0.1, interval);
+    advanceGridUnitMovement(game.gridPlayer, nearest, 0.1, getPlayerGridStepSec(pStats));
     return false;
+}
+
+/** One hero step toward its target, in seconds (move speed 100 = playerMoveIntervalSec). */
+function getPlayerGridStepSec(pStats) {
+    let moveSpeed = Number.isFinite(pStats.moveSpeed) && pStats.moveSpeed > 0 ? pStats.moveSpeed : 100;
+    return COMBAT_GRID_CONFIG.playerMoveIntervalSec * (100 / moveSpeed);
+}
+
+/** A locked-on monster (js/act-exploration-state.js lockOn) that this attack does not reach: the hero steps toward it instead.
+ * When no step toward it is free, the hero fights whatever it reaches. @returns {boolean} whether a step began */
+function approachLockedEnemy(pStats, targets) {
+    const locked = actExplorationState.lockedEnemy(actExplorationState.current(game));
+    if (!locked || !game.enemies.includes(locked) || targets.some(hit => hit.enemy === locked) || isPlayerAttackRecovering()) return false;
+    return advanceGridUnitMovement(game.gridPlayer, locked, 0.1, getPlayerGridStepSec(pStats));
 }
 
 

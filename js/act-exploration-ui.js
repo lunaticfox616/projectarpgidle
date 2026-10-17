@@ -198,6 +198,31 @@ const actExplorationUi=(()=>{
         render();
         return on;
     }
+    /** 전장을 누른 자리에 그려진 몬스터가 있으면 그 몬스터를 락온한다(js/act-exploration-state.js lockOn, 2026-10-17 사용자 "몬스터(락온기능)").
+     * @param {?{x:number,y:number}} point 전장의 CSS px @returns {boolean} 몬스터를 눌렀는지(눌렀으면 바닥 이동 명령은 없다) */
+    function lockOnAt(point) {
+        const run=actExplorationState.current(game);if(!run||run.status!=='active')return false;
+        const enemy=battleDrawList.enemyAt(point);if(!enemy)return false;
+        if(!actExplorationState.lockOn(run,enemy))showGameToast('그곳으로는 갈 수 없습니다',{tone:'warning',duration:1400});
+        render();
+        return true;
+    }
+    // 전장 위의 마우스(2026-10-17 사용자 "NPC위에 마우스올리면 테두리강조"): 말을 걸 수 있는 NPC 위면 그 NPC에 밝은 테를 두르고
+    // (js/canvas-act-title-card.js hover), NPC나 락온할 몬스터 위면 손가락 커서. 마우스가 움직이는 동안 프레임마다 한 번만 잰다.
+    let hovering=null;
+    /** @param {HTMLCanvasElement} canvas 전장 @param {?PointerEvent} event null이면 마우스가 전장을 떠났다 */
+    function hover(canvas,event) {
+        const queued=hovering;hovering={canvas,event};
+        if(!queued)requestAnimationFrame(hoverFrame);
+    }
+    function hoverFrame() {
+        const {canvas,event}=hovering;hovering=null;
+        const point=event?getBattlefieldClientPoint(canvas,event.clientX,event.clientY):null,npc=point?actTitleCard.npcAt(point):null;
+        actTitleCard.hover(npc);
+        const run=actExplorationState.current(game),enemy=point&&run&&run.status==='active'?battleDrawList.enemyAt(point):null;
+        const cursor=npc||enemy?'pointer':'';
+        if(canvas.style.cursor!==cursor)canvas.style.cursor=cursor;
+    }
     /** An explicit move order (minimap, large map, battlefield click): walk there; auto-move stays as it was. */
     function commandMove(cell) {
         const run=actExplorationState.current(game);if(!run||run.status!=='active'||!cell)return false;
@@ -309,6 +334,6 @@ const actExplorationUi=(()=>{
         return '탐험 진행이 초기화됩니다. 이미 획득한 아이템과 재화는 유지됩니다.';
     }
     document.addEventListener('click',departureClick,true);
-    return {render,mode,toggleAuto,commandMove,choose,holdMove,expand,hint,departurePending:()=>departurePending};
+    return {render,mode,toggleAuto,commandMove,lockOnAt,hover,choose,holdMove,expand,hint,departurePending:()=>departurePending};
 })();
 safeExposeGlobals({actExplorationUi});

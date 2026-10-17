@@ -283,7 +283,31 @@ const actExplorationState = (() => {
         if(run.objects)run.objects.pendingId=null;
         run.destination={gx:cell.gx,gy:cell.gy};
         if(options.unmarked)unmarkedCommands.add(run.destination);
+        else lockOns.delete(run);
         return true;
+    }
+    // 락온(2026-10-17 사용자 "몬스터(락온기능) 클릭 시 타겟이 지정되었다는 표시"): 플레이어가 누른 몬스터. 영웅이 먼저 노리고, 공격이
+    // 닿지 않으면 그쪽으로 다가간다(js/combat.js updatePlayerGridEngagement). 그 몬스터가 쓰러지거나, 다른 몬스터나 바닥, 물건을 눌러
+    // 새 명령을 내리거나, 방을 옮기면 풀린다. 키보드로 걷는 동안은 그대로다. 저장하지 않는다.
+    const lockOns=new WeakMap();
+    /** 누른 몬스터를 락온한다. 싸우는 몬스터면 걷던 명령을 멈추고 그 자리에서 싸우고, 아직 알아채지 않은 무리의 몬스터면 그 칸
+     * 쪽으로 걸어간다(가까이 가면 무리가 알아챈다). enemy가 null이면 락온을 푼다. @returns {boolean} 락온했는지 */
+    function lockOn(run,enemy) {
+        if(!run)return false;
+        if(!enemy){lockOns.delete(run);return false;}
+        const fighting=(game.enemies||[]).includes(enemy);
+        if(!fighting && !selectDestination(run,{gx:enemy.gx,gy:enemy.gy}))return false;
+        if(fighting){run.destination=null;if(run.objects)run.objects.pendingId=null;}
+        lockOns.set(run,enemy.id);
+        return true;
+    }
+    /** 락온한 몬스터(싸우는 중이든 기다리는 무리든). 쓰러졌거나 없으면 null이고 락온도 풀린다. */
+    function lockedEnemy(run) {
+        if(!run || !lockOns.has(run))return null;
+        const id=lockOns.get(run),same=enemy=>!!enemy && enemy.id===id && enemy.hp>0;
+        const enemy=(game.enemies||[]).find(same) || run.packs.flatMap(pack=>pack.waiting).find(same) || null;
+        if(!enemy)lockOns.delete(run);
+        return enemy;
     }
     // 2026-10-13 사용자 "wasd로 움직일때 클릭한표시 안나오게해줘": 키보드로 걸을 때의 이동 명령은 누른 방향의 몇 칸 앞일 뿐 고른 자리가
     // 아니라, 걷는 내내 발 앞에 점선 고리가 따라다녔다. 그런 명령은 여기에 적어 두고 표시하지 않는다(저장하지 않는다: 불러온 명령은
@@ -514,6 +538,6 @@ const actExplorationState = (() => {
         // Older saves may be partway through the former 5.5 second presentation.
         exit.remainingMs=Math.min(exit.remainingMs,settlementMs);
     }
-    return {settlementMs,current,create,arrive,inArrivalGrace,packRooms,packPosition,sightRadius,sight,inSight,fogDistance,discover,engage,dormantNear,wake,alerted,entrance,bossRoomAt,recordDeath,retireCombat,remainingElites,gateSealed,selectDestination,markedDestination,destination,validate,restore,dropRetired,upgradeRotation};
+    return {settlementMs,current,create,arrive,inArrivalGrace,packRooms,packPosition,sightRadius,sight,inSight,fogDistance,discover,engage,dormantNear,wake,alerted,entrance,bossRoomAt,recordDeath,retireCombat,remainingElites,gateSealed,selectDestination,markedDestination,lockOn,lockedEnemy,destination,validate,restore,dropRetired,upgradeRotation};
 })();
 safeExposeGlobals({actExplorationState});

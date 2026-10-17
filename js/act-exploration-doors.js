@@ -82,6 +82,7 @@ const actExplorationDoors = (() => {
         const index = door.cells.findIndex(cell => cell.gx === hero.gx && cell.gy === hero.gy);
         const spot = standable(map, door.arrivals[index]) ? door.arrivals[index] : door.exits[index];
         Object.assign(hero, { gx: spot.gx, gy: spot.gy, gridMoveTimer: 0 });
+        actExplorationState.lockOn(run, null); // 락온은 그 방에서만: 방을 옮기면 풀린다
         actExplorationState.arrive(run, getCombatTime());
         springAmbush(run, map, spot);
         bringSummons(spot);
