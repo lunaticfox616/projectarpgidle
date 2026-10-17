@@ -140,7 +140,7 @@ function getCombatEquipmentContributions(resolvedSources, excludedSlots) {
     let result = memo?.get('combat-equipment');
     if (!result) {
         result = { gearBase: createEmptyStatBucket(), gearExplicit: createEmptyStatBucket(),
-            localDefenseTotals: { armor: 0, evasion: 0, energyShield: 0 }, shieldArmorForDamage: 0,
+            localDefenseTotals: { armor: 0, evasion: 0, energyShield: 0 }, globalDefensePct: { armor: 0, evasion: 0, energyShield: 0 }, shieldArmorForDamage: 0,
             shieldBaseBlockChance: 0, shieldBlockChancePct: 0, shieldBlockChanceFlat: 0,
             equippedUniqueEffects: [] };
         const included = [];
@@ -218,14 +218,14 @@ function accumulateCombatEquipmentItem(result, [slotKey, item, resolved]) {
     applyStatsToBucket(result.gearBase, resolved.baseStats);
     applyStatsToBucket(result.gearExplicit, resolved.explicitStats);
     accumulateCombatItemDefenses(result, slotKey, item, resolved);
-    accumulateCombatSocketJewels(result.gearExplicit, item);
+    accumulateCombatSocketJewels(result, item);
 }
 
 /** 장비 소켓의 주얼: 공허 · 타락 · 심연 소켓(황제의 심연띠는 심연 소켓을 증폭), 모두 소켓 주얼 배율을 받는다. */
-function accumulateCombatSocketJewels(bucket, item) {
+function accumulateCombatSocketJewels(result, item) {
     const socketMultiplier = getSocketJewelMultiplier();
     for (const row of equipmentSockets.jewels(item)) {
-        addSocketJewelStats(bucket, row.jewel, socketMultiplier * (row.kind === 'abyss' ? getAbyssJewelMultiplier(item) : 1));
+        addSocketJewelStats(result, row.jewel, socketMultiplier * (row.kind === 'abyss' ? getAbyssJewelMultiplier(item) : 1));
     }
 }
 
@@ -237,8 +237,20 @@ function getSocketJewelMultiplier(owner = game) {
     return 1 + lord + greed;
 }
 
-function addSocketJewelStats(bucket, jewel, multiplier) {
-    getJewelStats(jewel).forEach(stat => addStatToBucket(bucket, stat.id, Number((Number(stat.val || 0) * multiplier).toFixed(2))));
+function addSocketJewelStats(result, jewel, multiplier) {
+    getJewelStats(jewel).forEach(stat => {
+        const value = Number((Number(stat.val || 0) * multiplier).toFixed(2));
+        addStatToBucket(result.gearExplicit, stat.id, value);
+        addGlobalDefensePct(result.globalDefensePct, stat.id, value);
+    });
+}
+
+/** 방어도, 회피, 에너지 보호막(%) 줄이 주인공의 그 방어 합계를 올리는 경우: 주얼의 줄, 그리고 그 방어가 없는 장비의 줄. 장비의 줄은 그
+ * 장비의 방어에만 붙어(accumulateCombatItemDefenses), 바탕에 그 방어가 없는 고유 장비 30줄(심층 제련검, 룬 심장 목걸이 등)과 주얼의
+ * 줄은 아무것도 올리지 않았다(2026-10-17). */
+const DEFENSE_PCT_KINDS = Object.freeze({ armorPct: 'armor', evasionPct: 'evasion', energyShieldPct: 'energyShield' });
+function addGlobalDefensePct(target, statId, value) {
+    if (Object.hasOwn(DEFENSE_PCT_KINDS, statId)) target[DEFENSE_PCT_KINDS[statId]] += value;
 }
 
 function accumulateCombatItemDefenses(result, slotKey, item, resolved) {
@@ -256,6 +268,7 @@ function accumulateCombatItemDefenses(result, slotKey, item, resolved) {
         if (Array.isArray(stat.extraStats)) stat.extraStats.forEach(addExplicit);
     });
     const armor = (base.armor + flat.armor) * (1 + pct.armor / 100);
+    for (const kind of Object.keys(base)) if (base[kind] + flat[kind] <= 0) result.globalDefensePct[kind] += pct[kind];
     result.localDefenseTotals.armor += armor;
     result.localDefenseTotals.evasion += (base.evasion + flat.evasion) * (1 + pct.evasion / 100);
     result.localDefenseTotals.energyShield += (base.energyShield + flat.energyShield) * (1 + pct.energyShield / 100);

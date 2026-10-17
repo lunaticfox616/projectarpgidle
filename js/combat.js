@@ -2951,13 +2951,14 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     if (barbarismKeystone) excludedSlots.add('all:무기');
     if (findAllocatedPassiveKeystone('지식의 통로')) excludedSlots.add('all:투구');
     if (hasKeystone('cr3') && !hasKeystone('cr9')) excludedSlots.add('무기');
-    let { gearBase, gearExplicit, localDefenseTotals, shieldArmorForDamage, shieldBaseBlockChance,
+    let { gearBase, gearExplicit, localDefenseTotals, globalDefensePct, shieldArmorForDamage, shieldBaseBlockChance,
         shieldBlockChancePct, shieldBlockChanceFlat, equippedUniqueEffects } =
         getCombatEquipmentContributions(resolvedSources, excludedSlots);
     getActiveTalentUniqueEffects().forEach(effect => equippedUniqueEffects.push(effect));
     let equippedUniqueJewels = getEquippedUniqueJewels();
     let activeUniqueIds = new Set(equippedUniqueJewels.map(entry => entry.jewel.uniqueId));
-    getMirroredRingJewels().forEach(jewel => getJewelStats(jewel).forEach(stat => addStatToBucket(gearExplicit, stat.id, stat.val)));
+    globalDefensePct = { ...globalDefensePct };
+    getMirroredRingJewels().forEach(jewel => getJewelStats(jewel).forEach(stat => { addStatToBucket(gearExplicit, stat.id, stat.val); addGlobalDefensePct(globalDefensePct, stat.id, stat.val); }));
     if (activeUniqueIds.has('uj_old_box')) {
         let r = tick.get('inventoryRarity');
         addStatToBucket(reward, 'aspd', Math.min(30, r.magic * 0.5));
@@ -3533,10 +3534,10 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     let gearArmor = localDefenseTotals.armor + extraFlatArmor;
     let gearEvasion = localDefenseTotals.evasion + extraFlatEvasion;
     let gearEnergyShield = localDefenseTotals.energyShield + extraFlatEnergyShield;
-    let totalArmorPct = passive.armorPct + season.armorPct + ascend.armorPct + reward.armorPct;
-    let totalEvasionPct = passive.evasionPct + season.evasionPct + ascend.evasionPct + reward.evasionPct + (activeShadowStealth ? Math.max(0, Number(uniqueDeflectStealth.evasionPct || 20)) : 0);
+    let totalArmorPct = passive.armorPct + season.armorPct + ascend.armorPct + reward.armorPct + globalDefensePct.armor;
+    let totalEvasionPct = passive.evasionPct + season.evasionPct + ascend.evasionPct + reward.evasionPct + globalDefensePct.evasion + (activeShadowStealth ? Math.max(0, Number(uniqueDeflectStealth.evasionPct || 20)) : 0);
     totalEvasionPct += activeEvasionDanceStacks * Math.max(0, uniqueEvasionDance ? uniqueEvasionDance.evasionPctPerStack : 0);
-    let totalEnergyShieldPct = passive.energyShieldPct + season.energyShieldPct + ascend.energyShieldPct + reward.energyShieldPct;
+    let totalEnergyShieldPct = passive.energyShieldPct + season.energyShieldPct + ascend.energyShieldPct + reward.energyShieldPct + globalDefensePct.energyShield;
     let finalArmor = Math.max(0, Math.floor(gearArmor * (1 + totalArmorPct / 100)));
     let finalEvasion = Math.max(0, Math.floor(gearEvasion * (1 + totalEvasionPct / 100)));
     let finalEnergyShield = Math.max(0, Math.floor(gearEnergyShield * (1 + totalEnergyShieldPct / 100)));
