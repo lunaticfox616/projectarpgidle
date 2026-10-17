@@ -29,9 +29,9 @@ const npcShopUi = (() => {
     function shopDoorHtml(npc) {
         const shop = NPC_SHOPS[npc.id], stock = npcShop.stock(npc.id);
         if (!shop || !stock) return '';
-        const left = stock.offers.length;
+        const left = stock.offers.length, ready = npcShop.ready(npc.id);
         return `<button type="button" class="npc-dialog-shop" data-npc-topic="shop"><span>상점</span><b>${escapeHTML(shop.label)}</b>
-            <em>${left ? `${left}개` : '다 팔림'}</em></button>`;
+            <em>${left ? `${left}개${ready ? `, ${ready}개 살 수 있음` : ''}` : '다 팔림'}</em></button>`;
     }
 
     function shopBodyHtml(npc) {

@@ -173,6 +173,19 @@ const npcShop = (() => {
         return true;
     }
 
-    return Object.freeze({ grid: GRID, meet: meetShopNpc, stock: shopStock, check: checkShopWare, buy: sellShopWare, currencyName });
+    /** How many of the NPC's wares the purse buys now, cheapest first in each currency, each one buyable on its own (checkShopWare:
+     * the price, a rune not owned yet, bag room). Salvage fills the purse in loop 1, so this tells when a shelf became worth a visit. */
+    function readyShopWares(id) {
+        const spent = {}, stock = shopStock(id);
+        const fits = ware => {
+            const left = (game.currencies[ware.priceKey] || 0) - (spent[ware.priceKey] || 0);
+            if (left < ware.price) return false;
+            spent[ware.priceKey] = (spent[ware.priceKey] || 0) + ware.price;
+            return true;
+        };
+        return stock ? stock.offers.filter((ware, index) => checkShopWare(id, index, null).ok).sort((a, b) => a.price - b.price).filter(fits).length : 0;
+    }
+
+    return Object.freeze({ grid: GRID, meet: meetShopNpc, stock: shopStock, check: checkShopWare, buy: sellShopWare, ready: readyShopWares, currencyName });
 })();
 safeExposeGlobals({ NPC_SHOPS, npcShop });
