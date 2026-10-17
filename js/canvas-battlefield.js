@@ -1463,7 +1463,7 @@ function drawSkillGemVfxLayer(ctx, now, gridProj) {
     if (typeof stageSkillVfx === 'object') { stageSkillVfx.draw(ctx, 'top', gridProj); stageSkillSigil.draw(ctx, gridProj); }
     bossMoveView.drawAir(ctx, gridProj); // boss moves: the charge at the hand, shots, beams (js/canvas-boss-moves.js)
     const spriteRenderers = {continuousSlash:drawSwordSlashVfx};
-    list.forEach(effect => {
+    list.forEach(drawSkillGemVfxLayer.ground.follow(ctx, gridProj, effect => {
         let image = getSkillGemVfxImage(effect.imageKey);
         let elapsed = now - effect.startAt;
         if (elapsed < 0 || elapsed > effect.duration) return;
@@ -1508,8 +1508,32 @@ function drawSkillGemVfxLayer(ctx, now, gridProj) {
             else drawProceduralSkillImpact(ctx, effect, t);
         }
         ctx.restore();
-    });
+    }));
 }
+
+/** Common slashes and hit sparks keep their cast-time pixels and footprint. Move only the drawing context with the camera,
+ * never their shared geometry or atlas-owned effects. A changed zoom/depth keeps the existing presentation until expiry. */
+drawSkillGemVfxLayer.ground = (() => {
+    function note(list, projection) {
+        const origin = projection.cellToScreen(0, 0);
+        for (const effect of list) {
+            if (effect.spawnGround || SKILL_FX_ATLAS[effect.skillName] || (effect.family !== 'slash' && effect.family !== 'hitSpark')) continue;
+            effect.spawnGround = { x: origin.x, y: origin.y, tileW: projection.tileW, tileH: projection.tileH };
+        }
+    }
+    function follow(ctx, projection, paint) {
+        return effect => {
+            const anchor = effect.spawnGround;
+            if (!anchor || anchor.tileW !== projection.tileW || anchor.tileH !== projection.tileH) return paint(effect);
+            const now = projection.cellToScreen(0, 0);
+            if (now.x === anchor.x && now.y === anchor.y) return paint(effect);
+            ctx.save();
+            ctx.translate(now.x - anchor.x, now.y - anchor.y);
+            try { paint(effect); } finally { ctx.restore(); }
+        };
+    }
+    return Object.freeze({ note, follow });
+})();
 
 function getEnemyTelegraphColor(enemy) {
     let element = String((enemy && (enemy.attackElement || enemy.element || enemy.damageElement || enemy.ele)) || 'phys').toLowerCase();
@@ -2690,6 +2714,7 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
             if (!fx.dot && fx.skillName) {
                 const viewportSkillFxScale = Math.min(width / 960, height / 540);
                 queueSkillGemVfx({ ...fx, combatFx:fx, footprint: projectSkillFootprint(fx.attackFootprint, gridProj, fx.sourceCell) }, enemyPos, getCombatTravelScreenPos(gridProj, fx.sourceCell, playerPos), enemyPosMap, now, viewportSkillFxScale);
+                drawSkillGemVfxLayer.ground.note(battleVisualState.skillEffects || [], gridProj);
             }
             if (!fx.dot && !SKILL_FX_ATLAS[fx.skillName] && typeof attackFxSpawn === 'function') {
                 const viewportFxScale = Math.min(width / 960, height / 540);
