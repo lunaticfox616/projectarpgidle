@@ -9355,7 +9355,7 @@ function receiveStarterGem(state, gemName) {
  * equipSkippedStarterGem, 방치하면 기본 공격으로 거듭 쓰러졌다), 다음 루프부터는 안내가 없어 시작 룬을 받고도 기본 공격으로 싸웠다
  * (자연 플레이 2026-10-17). 맞지 않는 무기를 들었으면 getActiveSkillStats가 기본 공격으로 돌려 둔다. */
 function wearStarterGemWithoutGuide(state, gemName) {
-    if (state.activeSkill !== '기본 공격' || (SKILL_DB[gemName].tags || []).includes('summon')) return;
+    if (state.activeSkill !== '기본 공격' || (SKILL_DB[gemName].tags || []).includes('summon') || mobilitySkill.isMobilityGem(gemName)) return;
     state.activeSkill = gemName;
 }
 
