@@ -79,9 +79,9 @@ const SKILL_DB = {
     '전도성 난격': { isGem: true, baseDmg: 0.4, baseSpd: 0.42, leech: 0, crit: 5, dmgScale: 0.02, spdScale: 0.008, ele: 'light', targetMode: 'cleave', targets: 3, combatPattern: { kind: 'channel', hits: 8, intervalMs: 150, damagePct: 100, finisher: { label: '마무리 내려치기', damagePct: 200, grid: { kind: 'arc', range: 2 } }, advanceCells: 1 }, ailmentChanceBonus: { shock: 15 }, desc: '무기를 마구 휘두르며 천천히 앞으로 걷습니다. 0.15초마다 앞의 적 셋을 8번 베고, 끝에 크게 한 번 내리칩니다(200%). 군중 제어에 걸리면 남은 난격이 취소됩니다.', tags: ['attack', 'melee', 'elemental', 'lightning', 'channeling'] },
     '서리베기': { isGem: true, baseDmg: 1.25, baseSpd: 1.0, leech: 0, crit: 5, dmgScale: 0.065, spdScale: 0.02, ele: 'cold', targetMode: 'cleave', targets: 2, ailmentChanceBonus: { chill: 25 }, desc: '얼음 안개가 서린 칼로 정면을 넓게 벱니다. 냉각 확률 +25%.', tags: ['attack', 'melee', 'elemental', 'cold'] },
     '얼어붙은 고리': { isGem: true, baseDmg: 1.1, baseSpd: 0.95, leech: 0, crit: 5, dmgScale: 0.055, spdScale: 0.015, ele: 'cold', targetMode: 'cleave', targets: 6, combatPattern: { kind: 'authored', stages: [{ label: '얼음 칼날', delayMs: 0, damagePct: 100 }, { label: '얼음 파동', delayMs: 400, damagePct: 50, grid: { kind: 'nova', range: 2, radius: 2, shape: 'circle' } }] }, ailmentChanceBonus: { chill: 25 }, desc: '몸을 한 바퀴 돌려 둘레를 얼음 칼날 고리로 벱니다. 벤 뒤 고리가 바닥에 내려앉아 2칸까지 퍼지는 얼음 파동이 한 번 더 칩니다(50%).', tags: ['attack', 'melee', 'elemental', 'cold', 'aoe'] },
-    '혹한의 지진': { isGem: true, baseDmg: 2.1, baseSpd: 0.58, leech: 0, crit: 5, dmgScale: 0.105, spdScale: 0.008, ele: 'cold', targetMode: 'cleave', targets: 6, combatPattern: { kind: 'authored', stages: [{ label: '내리찍기', delayMs: 0, damagePct: 45, grid: { kind: 'melee', range: 1 } }, { label: '얼음 기둥', delayMs: 260, damagePct: 55, grid: { kind: 'cone', range: 3 } }] }, ailmentChanceBonus: { freeze: 15 }, desc: '바닥을 내리찍으면 0.26초 뒤 앞쪽 부채꼴을 따라 얼음 기둥이 솟아 적을 칩니다. 내리찍기 45%, 얼음 기둥 55%.', tags: ['attack', 'melee', 'elemental', 'cold', 'aoe', 'slam'] },
+    '혹한의 지진': { isGem: true, baseDmg: 2.1, baseSpd: 0.58, leech: 0, crit: 5, dmgScale: 0.105, spdScale: 0.008, ele: 'cold', targetMode: 'cleave', targets: 6, combatPattern: { kind: 'authored', stages: [{ label: '내리찍기', delayMs: 0, damagePct: 45, grid: { kind: 'melee', range: 1 } }, { label: '얼음 기둥', delayMs: 260, damagePct: 55, grid: { kind: 'cone', range: 3, band: 1 } }] }, ailmentChanceBonus: { freeze: 15 }, desc: '바닥을 내리찍으면 0.26초 뒤 앞 3칸과 그 위아래 한 줄을 따라 얼음 기둥이 솟아 적을 칩니다. 내리찍기 45%, 얼음 기둥 55%.', tags: ['attack', 'melee', 'elemental', 'cold', 'aoe', 'slam'] },
     '불씨의 함성': { isGem: true, baseDmg: 1.1, baseSpd: 0.95, leech: 0, crit: 3, dmgScale: 0.055, spdScale: 0.015, ele: 'fire', targetMode: 'cleave', targets: 6, combatPattern: { kind: 'authored', stages: [{ label: '불씨 폭발', delayMs: 0, damagePct: 60 }, { label: '타오르는 바닥', delayMs: 300, damagePct: 10 }, { label: '타오르는 바닥', delayMs: 600, damagePct: 10 }, { label: '타오르는 바닥', delayMs: 900, damagePct: 10 }, { label: '타오르는 바닥', delayMs: 1200, damagePct: 10 }] }, ailmentChanceBonus: { ignite: 20 }, desc: '외침과 함께 둘레가 터지고(60%), 2칸 안 바닥이 1.2초 동안 타오릅니다(10%씩 4번).', tags: ['attack', 'aoe', 'elemental', 'fire', 'shout'] },
-    '서리바람 내지르기': { isGem: true, baseDmg: 0.95, baseSpd: 1.0, leech: 0, crit: 3, dmgScale: 0.048, spdScale: 0.015, ele: 'cold', targetMode: 'cleave', targets: 6, combatPattern: { kind: 'radialBurst', waveMsPerCell: 100 }, ailmentChanceBonus: { chill: 25 }, desc: '앞으로 내지른 냉기 파동이 부채꼴로 4칸 퍼지며 닿는 적부터 맞습니다.', tags: ['attack', 'aoe', 'elemental', 'cold', 'shout'] },
+    '서리바람 내지르기': { isGem: true, baseDmg: 0.95, baseSpd: 1.0, leech: 0, crit: 3, dmgScale: 0.048, spdScale: 0.015, ele: 'cold', targetMode: 'cleave', targets: 6, combatPattern: { kind: 'radialBurst', waveMsPerCell: 100 }, ailmentChanceBonus: { chill: 25 }, desc: '앞으로 내지른 냉기 파동이 앞 4칸과 그 위아래 한 줄로 퍼지며 닿는 적부터 맞습니다.', tags: ['attack', 'aoe', 'elemental', 'cold', 'shout'] },
     '화살비': { isGem: true, baseDmg: 1.0, baseSpd: 0.55, leech: 0, crit: 6, dmgScale: 0.05, spdScale: 0.01, ele: 'phys', targetMode: 'all', targets: 6, projectilePattern: { mode: 'lob', kind: 'blast', fixed: true }, rangeText: '발사 방식: 하늘로 쏘아 올림, 사거리 7칸, 대상 둘레 1칸, 고유 궤적', combatPattern: { kind: 'authored', stages: [{ label: '화살비', delayMs: 380, damagePct: 100 }, { label: '화살비', delayMs: 600, damagePct: 30 }, { label: '화살비', delayMs: 820, damagePct: 30 }, { label: '화살비', delayMs: 1040, damagePct: 30 }, { label: '화살비', delayMs: 1260, damagePct: 30 }] }, desc: '하늘로 화살을 쏘아 올려 7칸 안 대상 둘레에 화살비를 내립니다. 떨어질 때 100%, 0.22초마다 30%씩 4번 더.', tags: ['attack', 'projectile', 'physical', 'aoe'] },
     // 위습 정령 소환 6종 (스킬 변경분 2, 2026-09-30): 동물 소환 8종을 대신한다. 시트·비행 시간 data/wisp-summons.js, 수치 combat.js getSummonProfile.
     '화염 위습 소환': { isGem: true, baseDmg: 0.1, baseSpd: 1.0, leech: 0, crit: 0, dmgScale: 0, spdScale: 0, ele: 'fire', targetMode: 'single', targets: 1, desc: '공격형 소환수 룬. 상하좌우로 불꽃 꼬리가 달린 화염 위습 정령을 소환합니다. 위습이 불덩이를 포물선으로 던져 화염 피해를 줍니다.', tags: ['summon', 'summon_attack', 'fire', 'elemental'] },
@@ -469,6 +469,8 @@ safeExposeData({ SKILL_GEM_ART_PATHS });
 //  - blast: range칸 이내 대상 칸 중심 radius칸 폭발(0이면 원거리 단일)
 //  - cone:  대상 방향으로 빈틈없이 채운 부채꼴 숨결(중심선 range칸)
 //  - fan:   대상 방향을 중심으로 rays개의 직선 투사체를 부채꼴로 발사
+//  band: 옆으로만 친다(무대 그림이 옆으로 나가는 룬). kind 대신 주인공 줄과 위아래 band줄 안, 대상 쪽 옆 range칸 네모를 친다
+//        (바로 위나 아래 칸 포함, js/combat-grid.js getGridBandAreaCells). 2026-10-17 사용자 "옆으로 두툼하게, 위아래 한 줄까지 맞게".
 // range/jump는 체비셰프 거리다. radius는 shape로 circle/diamond/square/cross/diagonal/ring을 선택한다.
 const SKILL_GRID_DB = {
     "탄성 플라스크": {"kind":"chain","range":9},
@@ -483,7 +485,7 @@ const SKILL_GRID_DB = {
     '기본 공격':     { kind: 'melee', range: 1 },
     '이중 베기':     { kind: 'arc',   range: 1 },
     '강타':   { kind: 'melee', range: 1 },
-    '흡혈 관통':     { kind: 'line',  range: 2 },
+    '흡혈 관통':     { kind: 'line',  range: 2, band: 1 },
     '기습 공격': { kind: 'melee', range: 1 },
     '회오리':    { kind: 'nova',  range: 1, radius: 1, shape: 'square' },
     '번개 타격':     { kind: 'chain', range: 1, jump: 3 },
@@ -492,11 +494,11 @@ const SKILL_GRID_DB = {
     '독창 투척':     { kind: 'chain', range: 5, jump: 3 },
     '번개 창':       { kind: 'line',  range: 7 },
     '관통 사격':     { kind: 'line',  range: 7 },
-    '공허 가르기':     { kind: 'line', range: 3 },
+    '공허 가르기':     { kind: 'line', range: 3, band: 1 },
     '대지의 함성':   { kind: 'nova', range: 2, radius: 2, shape: 'diamond' },
     '화염 부패':     { kind: 'blast', range: 6, radius: 1, shape: 'cross' },
     '빙결 침식':     { kind: 'blast', range: 6, radius: 2, shape: 'diamond' },
-    '서리 파동':     { kind: 'line',  range: 5 },
+    '서리 파동':     { kind: 'line',  range: 5, band: 1 },
     '뇌운 낙뢰':     { kind: 'chain', range: 6, jump: 3 },
     '심연 전염':     { kind: 'chain', range: 5, jump: 2 },
     '연발 사격':     { kind: 'fan',   range: 6, rays: 5, spreadDeg: 20 },
@@ -512,12 +514,12 @@ const SKILL_GRID_DB = {
     '원소 포션 투척': { kind: 'blast', range: 5, radius: 1, shape: 'circle' },
     '그림자 점멸':   { kind: 'melee', range: 6 },
     '용화 숨결':     { kind: 'cone',  range: 4 },
-    '참격파': { kind: 'line', range: 3 },
+    '참격파': { kind: 'line', range: 3, band: 1 },
     '올려 베기': { kind: 'arc', range: 1 },
     '돌진': { kind: 'arc', range: 3 },
     '도약 강타': { kind: 'blast', range: 4, radius: 1, shape: 'square' },
     '섬머솔트 슬래시': { kind: 'cone', range: 2 },
-    '불사르기': { kind: 'cone', range: 3 },
+    '불사르기': { kind: 'cone', range: 3, band: 1 },
     '부싯돌 베기': { kind: 'line', range: 5 },
     '폭발성 타격': { kind: 'melee', range: 1 },
     '피뢰침': { kind: 'nova', range: 2, radius: 2, shape: 'circle' },
@@ -527,7 +529,7 @@ const SKILL_GRID_DB = {
     '얼어붙은 고리': { kind: 'nova', range: 1, radius: 1, shape: 'circle' },
     '혹한의 지진': { kind: 'melee', range: 1 },
     '불씨의 함성': { kind: 'nova', range: 2, radius: 2, shape: 'circle' },
-    '서리바람 내지르기': { kind: 'cone', range: 4 },
+    '서리바람 내지르기': { kind: 'cone', range: 4, band: 1 },
     '화살비': { kind: 'blast', range: 7, radius: 1, shape: 'circle' },
     '차원찢기':      { kind: 'blast', range: 4, radius: 1, shape: 'square' },
     '향로구름':      { kind: 'melee', range: 5 },

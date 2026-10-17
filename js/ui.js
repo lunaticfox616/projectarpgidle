@@ -3889,7 +3889,7 @@ function getGemTileSummary(name, def) {
     let meta = getGemCardMeta(def);
     if ((def.tags || []).includes('summon_attack')) return `${meta.elementLabel} ${meta.typeLabel}`;
     let profile = getSkillGridProfile(name, def);
-    return `${getSkillGridProfileKindLabel(profile.kind)}, ${Math.max(1, profile.range || 1)}칸`;
+    return `${getSkillGridProfileKindLabel(profile.band ? 'band' : profile.kind)}, ${Math.max(1, profile.range || 1)}칸`;
 }
 
 /** Tiles open the detail on click / Enter / Space (js/gem-selection-ui.js); a mouse hover shows the short hint. */

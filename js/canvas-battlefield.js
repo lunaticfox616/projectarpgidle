@@ -3314,10 +3314,24 @@ function resolveStageStrikeSide(now) {
     const cast = resolveStageNativeCastSide(side);
     if (cast) return cast;
     for (let index = battleFx.length - 1; index >= 0; index--) {
-        const fx = battleFx[index];
-        if (fx && fx.type === 'combatTravel' && fx.owner === 'player' && fx.aimCell && fx.start <= now) return side(fx.aimCell);
+        const strike = stageStrikeOf(battleFx[index], now, side);
+        if (strike !== undefined) return strike;
     }
     return null;
+}
+/** 무대의 주인공이 볼 쪽을 정하는 공격 기록이면 그 쪽('west', 'east', 겨냥한 칸이 같은 세로줄이면 null), 아니면 undefined. 옆으로만 치는 룬
+ * (js/combat-grid.js band)은 대상을 고를 때 정한 쪽을 본다: 대상이 바로 위나 아래에 서 있어도 띠를 치는 쪽이다. */
+function stageStrikeOf(fx, now, side) {
+    if (!fx || fx.start > now) return undefined;
+    const band = stageBandSideOf(fx);
+    if (band) return band < 0 ? 'west' : 'east';
+    return fx.type === 'combatTravel' && fx.owner === 'player' && fx.aimCell ? side(fx.aimCell) : undefined;
+}
+/** 휘두름 기록(bandSide)이나 주인공 공격 단계 기록(attackFootprint.band)이 남긴 칠 쪽(1, -1). 없으면 0. */
+function stageBandSideOf(fx) {
+    if (fx.type === 'playerSwing') return fx.bandSide || 0;
+    const footprint = fx.type === 'combatTravel' && fx.owner === 'player' ? fx.attackFootprint : null;
+    return footprint && footprint.band ? footprint.band.side : 0;
 }
 function resolveStageNativeCastSide(side) {
     const clock = getCombatTime(), cast = latestStageNativeCast(clock), aimed = cast ? side(cast.aim) : null;

@@ -2551,7 +2551,9 @@ function queuePlayerAttackSequence(pStats, stages, context) {
         color: getElementColor(context.forcedElement), element: context.forcedElement,
         crit: context.forcedCrit, projectile: tags.includes('projectile'),
         combatTravel: getSkillCombatDelivery(pStats.sSkill) !== 'instantTarget',
-        skillName: context.skillName, sourceCell:copyCombatGridCell(game.gridPlayer), duration, impactDelayMs: Math.max(0, delayMs)
+        skillName: context.skillName, sourceCell:copyCombatGridCell(game.gridPlayer), duration, impactDelayMs: Math.max(0, delayMs),
+        // 옆으로만 치는 룬이 대상을 고를 때 정한 쪽(js/combat-grid.js band): 대상이 바로 위나 아래여도 무대의 주인공이 그 쪽을 본다
+        bandSide: getSkillBandSide(context.skillName, pStats.sSkill)
     });
     queuePendingSkillStageHits(isChannel ? createContinuousChannelStages(stages, cycleMs) : stages, pStats, {
         ...context, channelId, channelCycleMs: cycleMs, baseDelayMs: delayMs, damageTextGroupId
@@ -5307,7 +5309,8 @@ function tryPlayerTacticalMove(pStats, target, plan, now) {
         maxRange: plan.range,
         previousCell: combatTacticsRuntime.previousCell,
         dtSec: 0.1,
-        intervalSec: COMBAT_GRID_CONFIG.playerMoveIntervalSec * (100 / moveSpeed)
+        intervalSec: COMBAT_GRID_CONFIG.playerMoveIntervalSec * (100 / moveSpeed),
+        keepRows: getSkillBand(game.activeSkill, pStats.sSkill).rows
     });
     if (!result.moved) return false;
     let delayMs = Math.round(getTacticalMoveAttackDelayMs(moveSpeed) * 0.45);
@@ -5401,7 +5404,7 @@ function updatePlayerGridEngagement(pStats, options) {
     let nearest = resolvePlayerApproachTarget(alive);
     if (!nearest) return false;
     if (isPlayerAttackRecovering()) return false;
-    advanceGridUnitMovement(game.gridPlayer, nearest, 0.1, getPlayerGridStepSec(pStats));
+    advanceGridUnitMovement(game.gridPlayer, getPlayerApproachCell(pStats, nearest), 0.1, getPlayerGridStepSec(pStats));
     return false;
 }
 
@@ -5418,7 +5421,13 @@ function getPlayerGridStepSec(pStats) {
 function approachLockedEnemy(pStats, targets) {
     const locked = actExplorationState.lockedEnemy(actExplorationState.current(game));
     if (!locked || !game.enemies.includes(locked) || targets.some(hit => hit.enemy === locked) || isPlayerAttackRecovering()) return false;
-    return advanceGridUnitMovement(game.gridPlayer, locked, 0.1, getPlayerGridStepSec(pStats));
+    return advanceGridUnitMovement(game.gridPlayer, getPlayerApproachCell(pStats, locked), 0.1, getPlayerGridStepSec(pStats));
+}
+
+/** 다가갈 자리: 옆으로만 치는 룬(js/combat-grid.js getSkillBand)이면 그 적이 띠 안에 드는 가장 가까운 자리(줄을 맞춘다), 아니면 그 적. */
+function getPlayerApproachCell(pStats, enemy) {
+    const band = getSkillBand(game.activeSkill, pStats.sSkill);
+    return band.rows ? getGridBandApproachCell(game.gridPlayer, enemy, band) : enemy;
 }
 
 
