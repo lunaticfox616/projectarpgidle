@@ -309,6 +309,10 @@ PixelLab은 유료라 쓰지 않는다(2026-10-12 사용자): 몬스터 그림�
   - 스토리 보스 13종의 쓰러짐(2026-10-17, 장면 상태 그림 4장, 마지막 장에 멈춘다): `--deaths <키트>/story-state-art-20261016`,
     <id>-death.png는 제 칸과 발 자리를 따로 쓴다(걷기와 공격 시트는 그대로). 보스 쓰러짐 효과 1.6초, 사라진 보스의 자리 2초
     (js/canvas-battlefield.js drawEnemyDeathFx, js/canvas-stage-roster.js drawDeath). 쓰러짐 그림이 없는 보스는 예전 0.84초 사라짐이다.
+  - 같은 묶음의 나머지(2026-10-18): `node scripts/build-story-state-art.cjs <키트>/story-state-art-20261016 --recolor
+    <worldtree-props-20261018>/after` → assets/stage-story/, data/stage-story-art.js. 어디에 언제는 data/stage-view.js STAGE_STORY,
+    그리는 곳은 js/canvas-stage-story.js: 액트 2 부제녀가 쓰러진 뒤 다시 일어남(쓰러짐 효과 4.4초, 사라진 보스의 자리는 효과 + 0.4초),
+    보스 방 구조물(액트 2, 4 황금 수액관, 5 하켄의 뿌리 다리, 9 어머니의 고치), 목재 상자, 봉인된 보물함, 알집의 재질 그림.
   - 확인: 테스트 패널의 "몬스터 모습"으로 열 종을 하나씩 입혀 걷기와 공격을 80ms씩 넘겨 찍었고, 그림 키로 그려지는지도 보았다.
 - 아직: 인간형과 두 발 몬스터 121종은 그림이 오지 않았다. 액트 6, 7, 8의 부제 여섯은 여전히 한 장이다(액트 2의 둘만 동작이 왔다). 스토리 보스가 아닌 보스(리그, 아틀라스, 수호자)는 지금 다른 보스의 그림을
   빌려 쓰고 있어 새 그림과 이을 표가 없다(테스트 패널로만 본다). 걷기 그림 자체의 걸음걸이는 받은 그대로다.

@@ -167,13 +167,16 @@ function drawEnemyDeathFx(ctx, fx, t, at) {
     if (!(isBossDeath && drawBossDefeat(ctx, fx, t, at))) drawEnemyDeathAfterimage(ctx, fx, deathMotion, at);
     worldTreeSkillFx.feedback.death(ctx, fx, legacyT, enemy);
 }
-/** 스토리 보스의 쓰러짐 그림(js/canvas-stage-roster.js drawDeath): 서 있던 자리에서 쓰러져 누운 채 머물다 끝에서 흐려진다. 그림이 없으면 false. */
+/** 스토리 보스의 쓰러짐 그림(js/canvas-stage-roster.js drawDeath): 서 있던 자리에서 쓰러져 누운 채 머물다 끝에서 흐려진다. 다시 일어나는
+ * 보스(js/canvas-stage-story.js revive, 액트 2 부제녀)는 쓰러짐 뒤에 일어나는 그림을 잇고 선 채로 흐려진다. 그림이 없으면 false. */
 function drawBossDefeat(ctx, fx, t, at) {
-    const enemy = at.enemy, deathEnemy = enemy.enemy || {};
+    const enemy = at.enemy, deathEnemy = enemy.enemy || {}, rise = stageStory.revive(deathEnemy);
+    const fadeFrom = rise ? rise.fadeFrom / rise.total : BOSS_DEFEAT_FADE_FROM;
+    const p = { x: enemy.x, y: enemy.y, tile: at.gridProj && at.gridProj.tileW, now: at.now,
+        facing: resolveEnemyFacingDirection(enemy, at.playerPos), deathMs: t * fx.duration, spawnScale: getBossDrawScale(deathEnemy) };
     ctx.save();
-    ctx.globalAlpha = t < BOSS_DEFEAT_FADE_FROM ? 1 : Math.max(0, (1 - t) / (1 - BOSS_DEFEAT_FADE_FROM));
-    const drawn = stageRoster.drawDeath(ctx, deathEnemy, { x: enemy.x, y: enemy.y, tile: at.gridProj && at.gridProj.tileW, now: at.now,
-        facing: resolveEnemyFacingDirection(enemy, at.playerPos), deathMs: t * fx.duration, spawnScale: getBossDrawScale(deathEnemy) });
+    ctx.globalAlpha = t < fadeFrom ? 1 : Math.max(0, (1 - t) / (1 - fadeFrom));
+    const drawn = (rise && p.deathMs >= rise.start && stageStory.drawRevive(ctx, deathEnemy, p, rise)) || stageRoster.drawDeath(ctx, deathEnemy, p);
     ctx.restore();
     return drawn;
 }

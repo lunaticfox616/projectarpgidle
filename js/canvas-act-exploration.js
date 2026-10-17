@@ -219,6 +219,7 @@ const actExplorationView=(()=>{
         actExplorationView.objects.append(actors,state);
         stageProps.append(actors,state); // 방 단위 무대의 소품 층(js/canvas-stage-props.js)
         stageScene.append(actors,state); // 조각 묶음의 소품과 문(js/canvas-stage-scene.js)
+        stageStory.append(actors,state); // 이야기 액트 보스 방의 구조물(js/canvas-stage-story.js)
         actTitleCard.appendNpc(actors,state); // 입구 방의 이야기 NPC(js/canvas-act-title-card.js)
         // 방 단위 무대의 관문은 문으로 그려진다(js/canvas-stage-rooms.js): 옛 관문 그림을 세우지 않는다.
         const run=actExplorationState.current(game);if(!run || !cache?.surface || actExplorationDoors.stageMap(run))return;
@@ -266,10 +267,17 @@ const actExplorationView=(()=>{
         const x=point.x+art.offset[0]*scale,y=point.y+art.offset[1]*scale;
         return {x,y,w,h,base:y+h};
     }
+    /** The layer that draws a scenery actor (by the field its append put on it), or null for the boss gate drawn here. */
+    function sceneryLayer(actor) {
+        if(actor.kind==='object')return actExplorationView.objects;
+        if(actor.prop)return stageProps;
+        if(actor.storyPiece)return stageStory;
+        if(actor.piece)return stageScene;
+        return null;
+    }
     function drawScenery(ctx,actor,state) {
-        if(actor.kind==='object'){actExplorationView.objects.draw(ctx,actor,state);return;}
-        if(actor.prop){stageProps.draw(ctx,actor,state);return;}
-        if(actor.piece){stageScene.draw(ctx,actor,state);return;}
+        const layer=sceneryLayer(actor);
+        if(layer){layer.draw(ctx,actor,state);return;}
         if(actor.npc){actTitleCard.drawNpc(ctx,actor,state);return;}
         const p=state.gridProj,player=state.playerPos;
         ctx.save();ctx.imageSmoothingEnabled=false;

@@ -178,6 +178,32 @@ const STAGE_OBJECTS = Object.freeze({
     names: Object.freeze(['crate', 'crateBroken', 'pot', 'potBroken', 'chest', 'chestOpen', 'chestSilver', 'chestSilverOpen',
         'chestGold', 'chestGoldOpen', 'sealed', 'sealedOpen', 'nest', 'nestSpent', 'tracks'])
 });
+// 장면 상태 그림(GPT, 그림 표 data/stage-story-art.js)을 어디에 언제 그리는지(js/canvas-stage-story.js). 2026-10-18 사용자 "일단 넣고
+// 어느 장면에 넣었는지 보여줘": 이야기의 그 순간(data/story-journal.js 액트 끝 글)에 맞췄다.
+// pieces: 액트 번호 → 그 액트 보스 방의 구조물. clip 그림, after 이 단계(보스 무리의 stage)의 보스가 쓰러지면 다음 상태들로 넘어가
+//   마지막 장에 멈춘다(없으면 첫 장에 머문다), hidden 넘어가기 전에는 보이지 않는다, scale 도트 배율, depth 방 바닥의 뒤쪽 끝에서 안쪽(도트).
+// objects: 탐험 물체를 액트 재질의 그림으로 그린다(js/canvas-stage-objects.js가 먼저 묻는다). themes 액트 번호 → 재질(이야기 액트가
+//   아닌 지도는 root), names 물체 그림 이름 → [묶음 앞머리, 프레임], scale 도트 배율.
+// 다시 일어나는 보스(액트 2 부제녀: "황금 수액관이 맥동하자 상처는 순식간에 다시 붙었고")는 STAGE_STORY_ART.revives가 정한다.
+const STAGE_STORY = Object.freeze({
+    pieces: Object.freeze({
+        // 액트 2: 부제녀를 살리는 중정 바닥의 황금 수액관(정상).
+        2: Object.freeze({ clip: 'sap-conduit', scale: 1, depth: 6 }),
+        // 액트 4: "수액 운반선이 끊기자 부제녀의 상처는 더 이상 아물지 않았습니다". 첫 보스(운반자)가 쓰러지면 파손, 고갈.
+        4: Object.freeze({ clip: 'sap-conduit', after: 0, scale: 1, depth: 6 }),
+        // 액트 5: "거대한 받침뿌리들을 맞물렸고, 무너진 중정으로 직행하는 보랏빛 다리를 놓아주었습니다". 보스가 쓰러지면 뿌리가 뻗어 다리가 된다.
+        5: Object.freeze({ clip: 'haken-bridge', after: 0, hidden: true, scale: 1, depth: 4 }),
+        // 액트 9: "고치를 지키던 접목의 어머니가 쓰러지자, 고치의 외피에 금이 가며". 갈라지고 빈 고치가 된다.
+        9: Object.freeze({ clip: 'mother-cocoon', after: 0, scale: 1, depth: 2 })
+    }),
+    objects: Object.freeze({
+        themes: Object.freeze({ 1: 'root', 2: 'court', 3: 'root', 4: 'root', 5: 'root', 6: 'court', 7: 'canopy', 8: 'canopy', 9: 'canopy', 10: 'canopy' }),
+        names: Object.freeze({ crate: Object.freeze(['wood-crate', 0]), crateBroken: Object.freeze(['wood-crate', 1]),
+            sealed: Object.freeze(['sealed-chest', 0]), sealedOpen: Object.freeze(['sealed-chest', 1]),
+            nest: Object.freeze(['egg-nest', 0]), nestSpent: Object.freeze(['egg-nest', 1]) }),
+        scale: 0.6
+    })
+});
 // 무대의 소품 층(js/canvas-stage-props.js): 던파의 무대처럼 배경, 뒤쪽 띠, 바닥, 소품, 앞쪽을 겹쳐 그릴 때 방을 채우는 조각 그림.
 // 한 장에 소품마다 한 칸(cell 도트), 발 자리 feet. names의 순서가 그림의 칸 순서다(scripts/stage-monsters/props.cjs와 같아야 한다).
 // themes: 지형의 소품 묶음(STAGE_BACKDROPS.biomes의 props가 고른다). back, side, front = 바닥 뒤쪽 끝, 양옆 바깥, 앞쪽 바깥에 놓일
@@ -299,4 +325,4 @@ const STAGE_HERO_STRIKES = Object.freeze({
     spin: Object.freeze(['회오리'])
 });
 
-safeExposeData({ STAGE_HERO_MOTIONS, STAGE_HERO_RISE, STAGE_HERO_STRIKES, STAGE_VIEW, STAGE_TERRAIN, STAGE_ROOMS, STAGE_BACKDROPS, STAGE_OBJECTS, STAGE_PROPS, STAGE_SCENES, STAGE_MONSTER_SCALE, STAGE_NPC_ART, STAGE_BOSS_REVIVAL, STAGE_BOARD_ROOMS });
+safeExposeData({ STAGE_HERO_MOTIONS, STAGE_HERO_RISE, STAGE_HERO_STRIKES, STAGE_VIEW, STAGE_TERRAIN, STAGE_ROOMS, STAGE_BACKDROPS, STAGE_OBJECTS, STAGE_STORY, STAGE_PROPS, STAGE_SCENES, STAGE_MONSTER_SCALE, STAGE_NPC_ART, STAGE_BOSS_REVIVAL, STAGE_BOARD_ROOMS });

@@ -9464,7 +9464,8 @@ function handleEnemyDeath(enemy, pStats) {
         enemyId: enemy.id,
         name: enemy.name,
         color: getElementColor(enemy.ele),
-        duration: enemy.isBoss ? 1600 : (enemy.isElite ? 500 : 340),   // 보스: 쓰러짐 그림을 보여 준다(js/canvas-battlefield.js drawEnemyDeathFx)
+        // 보스: 쓰러짐 그림을 보여 준다(js/canvas-battlefield.js drawEnemyDeathFx). 다시 일어나는 보스는 일어나 선 채 흐려질 때까지.
+        duration: enemy.isBoss ? (STAGE_STORY_ART.revives[enemy.bossAssetKey]?.total || 1600) : (enemy.isElite ? 500 : 340),
         boss: !!enemy.isBoss,
         elite: !!enemy.isElite
     });
