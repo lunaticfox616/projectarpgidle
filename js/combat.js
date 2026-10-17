@@ -2339,7 +2339,7 @@ function pickWhirlSpinTargets(row) {
     return [{ enemy: pick.enemy, mult: getGridSkillTargetMult('whirl', struck.length - 1) }];
 }
 
-/** 서리 폭발 · 대지의 함성 (js/combat-grid.js buildRadialBurstHitSequence): the monsters the drawn ring has touched since the last
+/** 대지의 함성 · 서리바람 내지르기 (js/combat-grid.js buildRadialBurstHitSequence): the monsters the drawn ring has touched since the last
  * check. The ring grows one cell per msPerCell from the wave's start up to its reach; the time since the last check is sampled every
  * COMBAT_GRID_CONFIG.waveContactSampleMs against where each monster was drawn then (just after a step it glides between its cells).
  * One wave strikes a monster once, first touched first, up to the skill's targets. Stepping inside the burst no longer dodges it. */
@@ -2347,7 +2347,9 @@ function pickWaveFrontTargets(row) {
     const wave = row.wave, now = getCombatTime(), start = row.at - (Number(row.options.stageDelayMs) || 0);
     const span = { start, from: Math.min(now, Math.max(start, wave.checkedAt ?? start)), now };
     wave.checkedAt = now;
-    const reached = (game.enemies || []).filter(enemy => enemy && enemy.hp > 0 && !wave.struck.includes(enemy.id))
+    // 원뿔 파동은 시전 때의 원뿔 칸 안에 선 몬스터만 친다(js/combat-grid.js getRadialWaveShape)
+    const inside = enemy => !wave.cells || getGridUnitCells(enemy).some(cell => wave.cells.has(gridCellKey(cell.gx, cell.gy)));
+    const reached = (game.enemies || []).filter(enemy => enemy && enemy.hp > 0 && !wave.struck.includes(enemy.id) && inside(enemy))
         .map(enemy => ({ enemy, touchedAt: waveTouchTime(wave, enemy, span) }))
         .filter(entry => entry.touchedAt !== null).sort((a, b) => a.touchedAt - b.touchedAt)
         .slice(0, Math.max(0, wave.limit - wave.struck.length));
