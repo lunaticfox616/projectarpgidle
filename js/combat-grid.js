@@ -1254,7 +1254,8 @@ function getNativeGemProjectileDpsMultiplier(id, expectedShots) {
 }
 
 function getSkillHitSequenceDpsMultiplier(skillName, skill) {
-    if (skill?.nativeCastId) return ({44:4,49:3.5})[skill.nativeCastId] || 1;
+    // 탄성 플라스크(44): 네 번 떨어질 때마다 대상 100%와 둘레 1칸 폭발 30%(js/skill-gem-casts.js stepBounce, 2026-10-17 스킬룬 인계)
+    if (skill?.nativeCastId) return ({44:4*1.3,49:3.5})[skill.nativeCastId] || 1;
     let configured = getConfiguredSkillDpsMultiplier(skill && skill.combatPattern);
     if (configured !== null) return configured;
     let profile = getSkillHitSequenceProfile(skillName, skill || {});
