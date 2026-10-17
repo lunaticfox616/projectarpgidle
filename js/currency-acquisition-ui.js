@@ -38,7 +38,8 @@
         let after=0;
         game.activeSkill=name;
         try { after=getPlayerStats(false).dps||0; } finally { game.activeSkill=keep; }
-        if(before>0 && after>=before*RUNE_UPGRADE_NOTICE_GAIN)showGameToast(`더 강한 공격 룬을 얻었습니다. 「${name}」`,{tone:'reward',duration:4200});
+        const format=COMPARE_STAT_META.dps.format;
+        if(before>0 && after>=before*RUNE_UPGRADE_NOTICE_GAIN)showGameToast(`더 강한 공격 룬을 얻었습니다. 「${name}」 DPS ${format(before)} → ${format(after)}`,{tone:'reward',duration:4200});
     }
     /** 주 공격으로 쓰는 공격 룬(위습 소환 말고)을 얻었으면 전투 틱이 끝난 뒤 noticeRuneUpgrade로 잰다. 방치 정산 중에는 재지 않는다. */
     function queueRuneUpgradeNotice({gem,kind}) {
