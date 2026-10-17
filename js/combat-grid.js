@@ -155,6 +155,7 @@ function getGridBlockedCells(excludeUnit) {
 function addExplorationGridReservations(blocked,excludeUnit) {
     const run=actExplorationState.current(game);if(!run)return;
     actExplorationState.objects.solidCells(run).forEach(key=>blocked.add(key));
+    actExplorationDoors.guideCells(run).forEach(key=>blocked.add(key)); // 이야기 NPC가 선 칸과 그 앞뒤: 아무도 NPC 그림 위에 서지 않는다
     // 기다리는 무리의 자리는 비워 둔다. 다만 그 자리에 이미 서 있는 유닛(같은 자리에서 차례를 기다리는 다음 단계의 보스 위에 선 지금의
     // 보스: 액트 4)은 가두지 않는다. 가두면 어느 쪽으로 한 칸을 가도 그 자리와 겹쳐 한 걸음도 떼지 못했다(2026-10-14, 보스가 걷게 되며 드러남).
     const own=excludeUnit && hasGridCell(excludeUnit)?new Set(getGridUnitCells(excludeUnit).map(cell=>gridCellKey(cell.gx,cell.gy))):new Set();
@@ -352,18 +353,19 @@ function gridProjectedLineEnd(ax, ay, tx, ty, range) {
 function gridStepToward(unit, tx, ty, blocked) {
     if (!hasGridCell(unit)) return false;
     let footprint = getGridUnitFootprint(unit);
-    let distanceFromPlacement = (gx, gy) => {
-        let nearest = getClosestGridUnitCell({ gx: tx, gy: ty }, { gx, gy, isBoss: footprint.columns > 1 || footprint.rows > 1 });
-        return gridChebyshevDist(nearest.gx, nearest.gy, tx, ty);
-    };
+    // 접근 점수는 저장된 footprint 없이 설정 보스 크기로 매기는 기존 규칙이다. 충돌·중심 거리는 실제 footprint를 쓴다.
+    let scoring = getGridUnitFootprint({ isBoss: footprint.columns > 1 || footprint.rows > 1 });
+    let distanceFromPlacement = (gx, gy) => Math.max(0,
+        gx - tx, tx - (gx + scoring.columns - 1),
+        gy - ty, ty - (gy + scoring.rows - 1));
     let start = { gx: unit.gx, gy: unit.gy, first: null };
     let best = start;
     let bestCheb = distanceFromPlacement(start.gx, start.gy);
     let bestMan = Math.abs(getGridUnitCenter(unit).gx - tx) + Math.abs(getGridUnitCenter(unit).gy - ty);
-    let queue = [start], terrain = getGridPlacementTerrain();
+    let queue = [start], head = 0, terrain = getGridPlacementTerrain();
     let visited = new Set([gridCellKey(start.gx, start.gy)]);
-    while (queue.length > 0) {
-        let current = queue.shift();
+    while (head < queue.length) {
+        let current = queue[head++];
         GRID_CARDINAL_STEPS.forEach(direction => {
             let gx = current.gx + direction.dx, gy = current.gy + direction.dy;
             let key = gridCellKey(gx, gy);
@@ -510,9 +512,13 @@ function findGridRetreatCell(unit, target, maxRange, previousCell) {
     let footprint = getGridUnitFootprint(unit);
     let currentDist = getGridUnitDistance(unit, target);
     let best = null, bestScore = currentDist;
+    // 방 단위 무대: 주인공은 벽에 파인 문 칸(한 칸짜리 막다른 곳)으로 물러서지 않는다. 2026-10-17 사용자 "거리유지 전술에서 방 입구의
+    // 1칸 막다른길로는 안 들어가게 해줘": 몰린 채 그 칸에 갇혀 싸웠다.
+    let stage = unit === game.gridPlayer ? actExplorationDoors.stageMap(actExplorationState.current(game)) : null;
     GRID_CARDINAL_STEPS.forEach(direction => {
         let gx = unit.gx + direction.dx, gy = unit.gy + direction.dy;
         if (!canPlaceGridFootprint(blocked, gx, gy, footprint)) return;
+        if (stage && actExplorationRooms.doorAt(stage, { gx, gy })) return;
         let distance = getGridUnitDistance({ gx, gy, isBoss: unit.isBoss }, target);
         if (distance <= currentDist || distance > maxRange) return;
         let backtrack = previousCell && gx === previousCell.gx && gy === previousCell.gy;
@@ -553,7 +559,7 @@ function findGridTacticalDestination(unit,target,config) {
     return gridStepToward(next,target.gx,target.gy,getGridBlockedCells(unit))?next:null;
 }
 
-/** 스킬 젬의 그리드 범위 프로필을 조회한다. 정의가 없으면 targetMode/태그 기반 기본값을 쓴다.
+/** 스킬룬의 그리드 범위 프로필을 조회한다. 정의가 없으면 targetMode/태그 기반 기본값을 쓴다.
  * The resolved active skill's 효과 확장 grows it (js/skill-effect-expansion.js); at +0 the table row itself comes back. */
 function getSkillGridProfile(skillName, skillDef) {
     let profile = getAuthoredSkillGridProfile(skillName, skillDef) || getDefaultSkillGridProfile(skillDef);
@@ -912,6 +918,17 @@ const SKILL_HIT_SEQUENCE_CONFIG = Object.freeze({
     slamAftershockDamagePct: 32
 });
 
+/** 강타 룬 가운데 여진 수치(aftershockDamagePct)를 가진 것(강타)만 본 타격 뒤 여진으로 나눠 친다. 강타 태그만 있는 룬(불사르기, 혹한의 지진,
+ * 도약 강타: 2026-10-17 강타 피해와 여진이 닿도록 붙인 태그)은 제 판정 그대로 한 번에 친다. */
+function getSlamAftershockProfile(skill) {
+    if (!(Number(skill.aftershockDamagePct) > 0)) return null;
+    return {
+        kind: 'slam',
+        delayMs: Math.max(120, Math.floor(Number(skill.aftershockDelayMs) || SKILL_HIT_SEQUENCE_CONFIG.slamAftershockDelayMs)),
+        damageMultiplier: Math.max(0, Number(skill.aftershockDamagePct)) / 100
+    };
+}
+
 function getSkillHitSequenceProfile(skillName, skill) {
     let tags = skill && Array.isArray(skill.tags) ? skill.tags : [];
     let mode = skill && skill.targetMode;
@@ -919,13 +936,7 @@ function getSkillHitSequenceProfile(skillName, skill) {
     if (mode === 'chain') return { kind: 'chain', intervalMs: SKILL_HIT_SEQUENCE_CONFIG.chainIntervalMs, fork: getSkillGridProfile(skillName, skill).fork };
     let gridProfile = getSkillGridProfile(skillName, skill || {});
     if (mode === 'pierce' || (gridProfile && gridProfile.kind === 'line')) return { kind: 'pierce', intervalMs: SKILL_HIT_SEQUENCE_CONFIG.pierceIntervalMs };
-    if (tags.includes('slam')) {
-        return {
-            kind: 'slam',
-            delayMs: Math.max(120, Math.floor(Number(skill.aftershockDelayMs) || SKILL_HIT_SEQUENCE_CONFIG.slamAftershockDelayMs)),
-            damageMultiplier: Math.max(0, Number(skill.aftershockDamagePct) || SKILL_HIT_SEQUENCE_CONFIG.slamAftershockDamagePct) / 100
-        };
-    }
+    if (tags.includes('slam')) return getSlamAftershockProfile(skill) || { kind: 'instant' };
     return { kind: 'instant' };
 }
 
@@ -948,7 +959,7 @@ function getGridUnitDistanceFromCell(origin, unit) {
         Math.hypot(cell.gx - origin.gx, cell.gy - origin.gy)), Infinity);
 }
 
-/** 서리 폭발 · 불멸의 진동: the wave hurts where its drawn ring touches a monster, in the order it spreads (js/combat.js
+/** 서리 폭발 · 대지의 함성: the wave hurts where its drawn ring touches a monster, in the order it spreads (js/combat.js
  * pickWaveFrontTargets). The ring grows one cell per msPerCell up to reach; the stages, every half cell, are only the moments it is
  * checked. One wave strikes a monster once (shared state). The hits used to be fixed on the cells the targets stood on at the cast,
  * so a monster that stepped to another cell inside the burst right after the cast was missed as if it had dodged (2026-10-02).
@@ -956,8 +967,10 @@ function getGridUnitDistanceFromCell(origin, unit) {
 function buildRadialBurstHitSequence(skillName, skill, targets, area) {
     if (!area.attacker || !area.primary) return null;
     let gridProfile = getSkillGridProfile(skillName, skill);
-    let center = gridProfile.kind === 'nova' ? { ...area.attacker } : getClosestGridUnitCell(area.attacker, area.primary);
-    let radius = Math.max(1, Number(gridProfile && gridProfile.radius) || 1);
+    // 자신 중심(nova)과 원뿔(cone: 서리바람 내지르기)은 시전자에서 퍼지고, 그 밖은 겨눈 대상에서 퍼진다. 원뿔의 반지름은 그 길이다.
+    let fromCaster = gridProfile.kind === 'nova' || gridProfile.kind === 'cone';
+    let center = fromCaster ? { ...area.attacker } : getClosestGridUnitCell(area.attacker, area.primary);
+    let radius = Math.max(1, Number(gridProfile.kind === 'cone' ? gridProfile.range : gridProfile.radius) || 1);
     let msPerCell = Math.max(50, Math.floor(Number(skill.combatPattern.waveMsPerCell) || 90));
     let reach = gridProfile.shape === 'circle' ? radius + 0.5 : radius, waveDurationMs = Math.round(reach * msPerCell);
     let wave = { center, shape: gridProfile.shape, reach, msPerCell, struck: [], checkedAt: null,
@@ -1038,6 +1051,25 @@ function buildMeteorSkillHitSequence(pattern, impactCells, targets) {
     return [impact, ...ground];
 }
 
+/** 집중(channel): hits번의 시간차 타격. finisher가 있으면 마지막에 제 피해와 범위로 한 번 더(전도성 난격의 마무리 내려치기),
+ * advanceCells가 있으면 중간 타격 때 주인공이 겨눈 쪽으로 한 칸 걸어 나간다(js/combat.js advanceHeroForStage). */
+function buildChannelSkillHitSequence(skillName, skill, targets, area) {
+    const pattern = skill.combatPattern, { attacker, primary, impactCells, intervalMs } = area;
+    const hits = Math.max(2, Math.min(8, Math.floor(Number(pattern.hits) || 3)));
+    const damageMultiplier = Math.max(0.01, Number(pattern.damagePct) || 100) / 100, advanceAt = pattern.advanceCells ? Math.floor(hits / 2) : -1;
+    const stages = Array.from({ length: hits }, (_, idx) => ({
+        kind: idx === 0 ? 'channelStart' : 'channelTick', label: `집중 ${idx + 1}회`,
+        delayMs: idx * intervalMs, damageMultiplier, singleRepeat: true, impactCells, targets, advanceHero: idx === advanceAt
+    }));
+    const finisher = pattern.finisher;
+    if (!finisher) return stages;
+    const profile = { ...getSkillGridProfile(skillName, skill), ...(finisher.grid || {}) };
+    stages.push({ kind: 'channelFinisher', label: finisher.label || '마무리', delayMs: hits * intervalMs,
+        damageMultiplier: Math.max(0.01, Number(finisher.damagePct) || 100) / 100, singleRepeat: true, targets,
+        impactCells: attacker && primary ? getGridAttackAreaCells(profile, attacker, primary) : impactCells });
+    return stages;
+}
+
 function buildConfiguredSkillHitSequence(skillName, skill, targets) {
     let pattern = skill && skill.combatPattern;
     if (!pattern) return null;
@@ -1063,18 +1095,11 @@ function buildConfiguredSkillHitSequence(skillName, skill, targets) {
     if (pattern.kind === 'mine') {
         let delayMs = Math.max(120, Math.floor(Number(pattern.armDelayMs) || 420));
         return [{
-            kind: 'mineDetonate', label: '룬 지뢰 폭발', delayMs,
+            kind: 'mineDetonate', label: '번개 각인 폭발', delayMs,
             damageMultiplier: 1, singleRepeat: true, impactCells, targets
         }];
     }
-    if (pattern.kind === 'channel') {
-        let hits = Math.max(2, Math.min(8, Math.floor(Number(pattern.hits) || 3)));
-        let damageMultiplier = Math.max(0.01, Number(pattern.damagePct) || 100) / 100;
-        return Array.from({ length: hits }, (_, idx) => ({
-            kind: idx === 0 ? 'channelStart' : 'channelTick', label: `집중 ${idx + 1}회`,
-            delayMs: idx * intervalMs, damageMultiplier, singleRepeat: true, impactCells, targets
-        }));
-    }
+    if (pattern.kind === 'channel') return buildChannelSkillHitSequence(skillName, skill, targets, { attacker, primary, impactCells, intervalMs });
     if (pattern.kind !== 'moving') return null;
     return sortSkillHitTargetsByDistance(targets).map((entry, idx, ordered) => ({
         kind: idx === 0 ? 'movingStart' : 'movingStep', label: `이동 파동 ${idx + 1}칸`,
@@ -1106,7 +1131,7 @@ function buildPierceSkillHitSequence(profile, skill, targets) {
     }];
 }
 
-/** 회오리바람: as many spins as the skill has targets, one per interval. A spin picks its victim when it lands — the nearest
+/** 회오리: as many spins as the skill has targets, one per interval. A spin picks its victim when it lands — the nearest
  * enemy not yet struck around the cell the caster stands in then — so the blade keeps cutting while they move
  * (combat.js pickWhirlSpinTargets). The cast-time primary only anchors the stage. */
 function buildWhirlSkillHitSequence(skill, targets, intervalMs) {
@@ -1150,6 +1175,11 @@ function buildSkillHitSequence(skillName, skill, targetEntries) {
     return [{ kind: 'primary', label: '직격', delayMs: 0, damageMultiplier: 1, targets }];
 }
 
+/** 집중의 마무리 일격 배율(전도성 난격), 없으면 0. */
+function getChannelFinisherMultiplier(pattern) {
+    return pattern.kind === 'channel' && pattern.finisher ? Math.max(0.01, Number(pattern.finisher.damagePct) || 100) / 100 : 0;
+}
+
 function getConfiguredSkillDpsMultiplier(pattern) {
     if (!pattern) return null;
     if (pattern.kind === 'authored') return pattern.stages.reduce((sum, stage) => sum + stage.damagePct / 100, 0);
@@ -1159,7 +1189,7 @@ function getConfiguredSkillDpsMultiplier(pattern) {
     }
     if (['field', 'channel'].includes(pattern.kind)) {
         let hits = Math.max(1, Math.min(12, Math.floor(Number(pattern.hits) || 1)));
-        return hits * Math.max(0.01, Number(pattern.damagePct) || 100) / 100;
+        return hits * Math.max(0.01, Number(pattern.damagePct) || 100) / 100 + getChannelFinisherMultiplier(pattern);
     }
     return null;
 }
@@ -1225,7 +1255,8 @@ function getNativeGemProjectileDpsMultiplier(id, expectedShots) {
 }
 
 function getSkillHitSequenceDpsMultiplier(skillName, skill) {
-    if (skill?.nativeCastId) return ({44:4,49:3.5})[skill.nativeCastId] || 1;
+    // 탄성 플라스크(44): 네 번 떨어질 때마다 대상 100%와 둘레 1칸 폭발 30%(js/skill-gem-casts.js stepBounce, 2026-10-17 스킬룬 인계)
+    if (skill?.nativeCastId) return ({44:4*1.3,49:3.5})[skill.nativeCastId] || 1;
     let configured = getConfiguredSkillDpsMultiplier(skill && skill.combatPattern);
     if (configured !== null) return configured;
     let profile = getSkillHitSequenceProfile(skillName, skill || {});
@@ -1272,7 +1303,20 @@ function describeSkillGridProfile(skillName, skillDef) {
     if (profile.kind === 'chain') parts.push(`연쇄 ${Math.max(1, profile.jump || COMBAT_GRID_CONFIG.chainJumpRange)}칸`);
     if (profile.kind === 'fan') parts.push(describeGridFanRays(profile));
     if (tags.includes('projectile')) parts.push(skillDef.projectilePatternSource ? `적용: ${skillDef.projectilePatternSource}` : '발사 방식 변경 가능');
+    parts.push(...describeWiderStageAreas(skillDef, profile));
     return getSkillGridDescriptionText(skillDef,parts);
+}
+
+/** 여러 단계로 치는 룬(combatPattern authored)에서 첫 판정보다 넓게 치는 단계: ['얼음 기둥: 전방 부채꼴 3칸'] 같은 줄. 공격 범위가 첫 타격만
+ * 말해, 부채꼴 3칸에서 적 여섯을 치는 혹한의 지진이 인접 단일로 보였다(2026-10-17). 모양이 다르거나 반경, 사거리가 더 큰 단계만. */
+function describeWiderStageAreas(skillDef, base) {
+    const pattern = skillDef && skillDef.combatPattern;
+    const stages = pattern && pattern.kind === 'authored' ? pattern.stages : [];
+    const wider = grid => grid.kind !== base.kind || (grid.radius || 0) > (base.radius || 0) || (grid.range || 0) > (base.range || 0);
+    return stages.filter(stage => stage.grid && stage.grid.kind && wider(stage.grid)).map(stage => {
+        const grid = stage.grid, round = grid.kind === 'blast' || grid.kind === 'nova';
+        return `${stage.label}: ${getSkillGridProfileKindLabel(grid.kind)} ${round ? '반경 ' + Math.max(1, grid.radius || 1) : Math.max(1, grid.range || 1)}칸`;
+    });
 }
 
 /** '5방향', or '5방향(15도 간격)' for an aimed fan. */

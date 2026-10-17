@@ -1,10 +1,10 @@
-/** NPC shops (2026-10-16 사용자: "NPC의 상점도 구현해줘. 스킬젬, 무기, 방어구, 악세사리, 고유아이템 각 담당", prices in currencies, no
+/** NPC shops (2026-10-16 사용자: "NPC의 상점도 구현해줘. 스킬룬, 무기, 방어구, 악세사리, 고유아이템 각 담당", prices in currencies, no
  * shop at Haken's first meeting, "조우 시 진행도에 맞는 아이템 랜덤 판매"). Each story NPC sells one kind. Meeting the NPC on a map
  * (js/canvas-act-title-card.js) counts in game.npcMet and rolls its stock for the zone of the meeting into game.npcShops, laid on a
  * grid like the bag's so the shop screen (js/npc-shop-ui.js) draws it as it is. A loop takes the currencies, and the stock with them.
  * firstMeetingClosed: no stock at the first meeting (Haken is met struck by a monster, the rescue). */
 const NPC_SHOPS = Object.freeze({
-    haken: Object.freeze({ kind: 'gem', label: '스킬 젬', count: 10, firstMeetingClosed: true }),
+    haken: Object.freeze({ kind: 'gem', label: '스킬룬', count: 10, firstMeetingClosed: true }),
     orga: Object.freeze({ kind: 'gear', label: '무기', slots: Object.freeze(['무기']), count: 8 }),
     bern: Object.freeze({ kind: 'gear', label: '방어구', slots: Object.freeze(['투구', '갑옷', '장갑', '신발', '방패']), count: 8 }),
     ivel: Object.freeze({ kind: 'gear', label: '장신구', slots: Object.freeze(['반지', '목걸이', '허리띠']), count: 10 }),
@@ -43,6 +43,11 @@ const npcShop = (() => {
         while (pool.length && picked.length < count) picked.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
         return picked;
     }
+    /** count개를 겹치지 않게 무게대로 고른다(무게가 클수록 먼저 뽑힌다). */
+    function pickShopWeighted(list, count, weightOf) {
+        return list.map(entry => ({ entry, key: Math.pow(Math.random(), 1 / Math.max(0.001, weightOf(entry))) }))
+            .sort((a, b) => b.key - a.key).slice(0, count).map(row => row.entry);
+    }
 
     function rollGearWares(shop, zone) {
         return Array.from({ length: shop.count }, () => rollGearPiece(rndChoice(shop.slots), zone)).filter(Boolean)
@@ -75,12 +80,16 @@ const npcShop = (() => {
         }).filter(Boolean);
     }
 
-    /** Attack gems the hero lacks and, once support gems are open, the next tier of support gems (as a gem drop gives them). */
+    /** Attack gems the hero lacks and, once support gems are open, the next tier of support gems (as a gem drop gives them). Runes the
+     * worn weapon can use come up three times as often (getSkillRuneRewardWeights); a support weighs as much as an average rune. */
     function rollGemWares(count) {
-        const attacks = gemDropRewards.missingAttacks(game).map(name => ({ kind: 'attack', name, awakened: false }));
+        const missing = gemDropRewards.missingAttacks(game), weights = getSkillRuneRewardWeights(missing);
+        const attacks = missing.map(name => ({ kind: 'attack', name, awakened: false }));
         const supports = contentProgression.isUnlocked('support')
             ? Object.keys(SUPPORT_GEM_DB).map(name => gemDropRewards.nextSupport(game, name)).filter(Boolean) : [];
-        return pickShopSome([...attacks, ...supports], count).map(gem => ({ gem, priceKey: 'formlessDew',
+        const average = missing.length ? [...weights.values()].reduce((sum, weight) => sum + weight, 0) / missing.length : 1;
+        const weightOf = gem => (gem.kind === 'attack' ? weights.get(gem.name) : average);
+        return pickShopWeighted([...attacks, ...supports], count, weightOf).map(gem => ({ gem, priceKey: 'formlessDew',
             price: gem.kind === 'support' ? PRICE.supportGem + gem.tier : PRICE.attackGem }));
     }
 
@@ -136,9 +145,9 @@ const npcShop = (() => {
     }
 
     function checkGemWare(gem) {
-        if (gem.kind === 'attack') return hasSkillGemOwned(gem.name) ? { ok: false, reason: '이미 가진 젬입니다.' } : { ok: true };
+        if (gem.kind === 'attack') return hasSkillGemOwned(gem.name) ? { ok: false, reason: '이미 가진 룬입니다.' } : { ok: true };
         const next = gemDropRewards.nextSupport(game, gem.name);
-        return next && next.tier === gem.tier ? { ok: true } : { ok: false, reason: '이미 가진 젬입니다.' };
+        return next && next.tier === gem.tier ? { ok: true } : { ok: false, reason: '이미 가진 룬입니다.' };
     }
 
     /** Buys offer index: pays, puts the gem in the collection or the item in the bag (at place when given) and takes it off the
@@ -164,6 +173,19 @@ const npcShop = (() => {
         return true;
     }
 
-    return Object.freeze({ grid: GRID, meet: meetShopNpc, stock: shopStock, check: checkShopWare, buy: sellShopWare, currencyName });
+    /** How many of the NPC's wares the purse buys now, cheapest first in each currency, each one buyable on its own (checkShopWare:
+     * the price, a rune not owned yet, bag room). Salvage fills the purse in loop 1, so this tells when a shelf became worth a visit. */
+    function readyShopWares(id) {
+        const spent = {}, stock = shopStock(id);
+        const fits = ware => {
+            const left = (game.currencies[ware.priceKey] || 0) - (spent[ware.priceKey] || 0);
+            if (left < ware.price) return false;
+            spent[ware.priceKey] = (spent[ware.priceKey] || 0) + ware.price;
+            return true;
+        };
+        return stock ? stock.offers.filter((ware, index) => checkShopWare(id, index, null).ok).sort((a, b) => a.price - b.price).filter(fits).length : 0;
+    }
+
+    return Object.freeze({ grid: GRID, meet: meetShopNpc, stock: shopStock, check: checkShopWare, buy: sellShopWare, ready: readyShopWares, currencyName });
 })();
 safeExposeGlobals({ NPC_SHOPS, npcShop });

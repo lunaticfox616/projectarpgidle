@@ -172,7 +172,7 @@ body[data-ui-skin="rift"].desktop-windowed-ui .combat-feed-title { border-bottom
 :root body[data-ui-skin="rift"] .battlefield-caption { border-color: rgba(75, 66, 53, .5); background: rgba(8, 9, 10, .72); }
 :root body[data-ui-skin="rift"] .equipment-action-muted { border-color: var(--skin-line); }
 
-/* 전투 HUD 스킬 칸: 그림이 없는 젬(기본 공격 등)도 빈 칸처럼 보이지 않게 문양을 또렷하게. */
+/* 전투 HUD 스킬 칸: 그림이 없는 룬(기본 공격 등)도 빈 칸처럼 보이지 않게 문양을 또렷하게. */
 :root body[data-ui-skin="rift"] .player-hud-skill-slot .combat-skill-gem-art .gem-art-fallback { display: grid; color: #d8a64a; font-size: 18px; line-height: 1; text-shadow: 0 0 6px rgba(216, 166, 74, .45); }
 :root body[data-ui-skin="rift"] .player-hud-skill-slot .combat-skill-gem-art:has(img) .gem-art-fallback { display: none; }
 /* 모바일 HUD: 스킬 칸을 손가락 크기(40px)로. */

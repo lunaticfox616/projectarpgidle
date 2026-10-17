@@ -1,15 +1,17 @@
 /** 스킬 이펙트의 연결 규칙: 게임의 스킬 사건을 인계 받은 클립과 연출로 옮긴다 (data/stage-skill-vfx.js의 gems, 재생은
- * js/canvas-stage-skill-vfx.js, 코드로 그리는 연출은 js/canvas-stage-skill-draws.js). 인계 쪽 시뮬레이터가 젬을 쓸 때 클립을 트는
+ * js/canvas-stage-skill-vfx.js, 코드로 그리는 연출은 js/canvas-stage-skill-draws.js). 인계 쪽 시뮬레이터가 룬을 쓸 때 클립을 트는
  * 자리와 때를 게임의 사건에 맞춰 옮긴 것이다. 게임이 주는 사건은 셋이다.
  * - 시전 시작(js/canvas-world-tree-fx.js swing: 주인공이 스킬을 쓰기 시작한 순간): 시전 마법진과 외곽선 오라(주문, 위습, 시전과 집중
- *   슬롯의 젬), 위습을 부르는 클립.
+ *   슬롯의 룬), 위습을 부르는 클립.
  * - 맞은 적마다(js/canvas-battlefield.js queueSkillGemVfx): 휘두름(한 번의 공격에 한 번), 바늘 찌르기, 우주 틈, 맞은 적의 타격 클립,
  *   연쇄 번개, 지속 타격, 화염 부패의 구슬과 사망 폭발, 빙결 침식의 안개가 몸으로 감겨 드는 모습.
  * - 그림 사건(js/canvas-world-tree-fx.js renderEvent와 paintCast: 예비 windup, 날아가는 travel, 닿는 stage, 이동 mobility):
- *   범위 클립, 여진, 낙하, 파동, 발사 섬광. 투사체의 몸과 따로 시전하는 젬, 이동기는 js/canvas-stage-skill-casts.js가 맡는다.
- *   그 젬의 그때를 새 연출이 맡으면 참을 돌려 예전 그림을 대신한다. 맡지 않는 것은 예전 그림이 그대로 그린다: 룬 지뢰, 시간 가속,
- *   파문심판(인계도 게임의 옛 그림을 쓴다). 인계에서 빠진 젬 다섯은 2026-10-13에 게임에서도 지웠다.
- * 젬의 판정, 대상, 피해는 게임의 것 그대로다: 여기는 사건을 읽기만 한다.
+ *   범위 클립, 여진, 낙하, 파동, 발사 섬광. 투사체의 몸과 따로 시전하는 룬, 이동기는 js/canvas-stage-skill-casts.js가 맡는다.
+ *   그 룬의 그때를 새 연출이 맡으면 참을 돌려 예전 그림을 대신한다. 맡지 않는 것은 예전 그림이 그대로 그린다: 번개 각인, 시간 가속,
+ *   파문심판(인계도 게임의 옛 그림을 쓴다). 인계에서 빠진 룬 다섯은 2026-10-13에 게임에서도 지웠다.
+ * 2026-10-17 스킬룬 인계 v32가 더한 연결(코드로 그리는 휘두름, 맞은 적마다의 연출, 새 룬의 그림 사건, 속성별 타격 묶음, 활의 마법 화살)은
+ * js/canvas-stage-skill-runes.js가 맡고, 여기서 그때마다 부른다.
+ * 룬의 판정, 대상, 피해는 게임의 것 그대로다: 여기는 사건을 읽기만 한다.
  */
 const stageSkillRules = (() => {
     const K = stageSkillKit, WIDE = K.WIDE, DEEP = K.DEEP, BODY = K.BODY;
@@ -19,14 +21,13 @@ const stageSkillRules = (() => {
     const WAVE_DRIFT = 0.35;                      // 파동이 대상의 줄 쪽으로 따라가는 몫(0 = 쓴 줄 그대로, 1 = 대상의 줄까지)
     const WAVE_BASE = -51;                        // 파동 그림의 가운데 높이(도트): 그림의 아래 끝(거품)이 바닥에 닿는다
     const handled = new WeakSet();                // 이미 클립으로 옮긴 사건
-    const swung = new Map();                      // "젬:공격 묶음:반복" → 휘두름을 튼 시각
+    const swung = new Map();                      // "룬:공격 묶음:반복" → 휘두름을 튼 시각
     const struck = new Map();                     // 적 id → 타격 클립을 붙인 시각
     const rots = new Map();                       // 적 id → 화염 부패의 구슬
-    /** 속성별 기본 타격 클립(젬이 타격을 정하지 않았을 때). 물리는 근접이면 X 섬광, 아니면 작은 가시 고리. */
-    const ELEMENT_HIT = Object.freeze({ fire: 'h_fire@fire', cold: 'h_ice@cold', light: 'h_lit@light', chaos: 'h_chaos@chaos' });
-    /** 근접 젬이 휘두름을 정하지 않았을 때 쓰는 클립. */
+    const rotWatch = { on: false, seen: -1e9 };   // 구슬들을 살피는 일이 도는지, 마지막으로 돈 때(방을 옮기면 재생기가 걸어 둔 일을 걷는다)
+    /** 근접 룬이 휘두름을 정하지 않았을 때 쓰는 클립. */
     const PLAIN_SWING = 'crescent';
-    /** 휘두름을 제 단계에서 내는 젬(암살은 도착한 뒤의 베기 단계가 낸다). */
+    /** 휘두름을 제 단계에서 내는 룬(암살은 도착한 뒤의 베기 단계가 낸다). */
     const CAST_SWING = new Set([52]);
     /** 닿는 순간(stage)을 새 클립이 맡게 하는 훅. */
     const STAGE_HOOKS = Object.freeze(['shout', 'suck', 'area', 'ring', 'area2', 'land', 'seep', 'drop', 'orb']);
@@ -56,11 +57,16 @@ const stageSkillRules = (() => {
         const cells = (fx.attackFootprint && fx.attackFootprint.cells) || [], hero = game.gridPlayer;
         return Math.max(2, ...cells.map(cell => Math.abs(cell.gx - hero.gx))) * WIDE;
     }
-    /** 코드로 그리는 휘두름: 공허 베기의 우주 틈, 혈기 폭쇄의 바늘 찌르기. @returns {boolean} 그렸는지 */
+    /** 공허 가르기의 틈이 닫히는 때(ms): 끌어당겨 한 번 더 베는 둘째 단계가 늦는 만큼. */
+    function ruleRiftClose(gem) {
+        const stages = ((SKILL_DB[gem.meta.name] || {}).combatPattern || {}).stages || [];
+        return stages.length > 1 ? stages[1].delayMs - stages[0].delayMs : 560;
+    }
+    /** 코드로 그리는 휘두름: 공허 가르기의 우주 틈(열린 동안 둘레의 티끌이 빨려 든다), 흡혈 관통의 바늘 찌르기. @returns {boolean} 그렸는지 */
     function rulePlayDrawn(gem, fx, look) {
         const hero = K.heroSpot();
         if (gem.map.gash) {
-            const gash = stageSkillDraws.gash(look.face, ruleReachOf(fx), hero.gx * 31 + hero.gy);
+            const gash = stageSkillDraws.gash(look.face, ruleReachOf(fx), hero.gx * 31 + hero.gy, { at: 140, close: ruleRiftClose(gem) });
             stageSkillVfx.paint(K.at(hero), { life: gash.life }, gash.paint);
         } else if (gem.map.swing === 'pierce') {
             const pierce = stageSkillDraws.pierce(look.face, look.ramp);
@@ -68,8 +74,12 @@ const stageSkillRules = (() => {
         } else return false;
         return true;
     }
-    /** 한 번의 공격에 한 번: 그 젬의 휘두름(여러 개면 반복마다 번갈아), 회전, 내려찍기. 둘째 타격은 조금 늦게 나간다. */
+    /** 한 번의 공격에 한 번: 코드로 그리는 v32의 휘두름(js/canvas-stage-skill-runes.js)이 아니면 그 룬의 휘두름 클립. */
     function rulePlaySwing(gem, fx, look) {
+        if (!stageSkillRunes.swing(gem, fx, look)) ruleSwingClip(gem, fx, look);
+    }
+    /** 그 룬의 휘두름(여러 개면 반복마다 번갈아), 회전, 내려찍기, 코드로 그리는 틈과 찌르기. 둘째 타격은 조금 늦게 나간다. */
+    function ruleSwingClip(gem, fx, look) {
         const hero = K.heroSpot(), repeat = Number(fx.repeatIndex) || 0;
         if (rulePlayDrawn(gem, fx, look)) return;
         if (gem.map.spin) { stageSkillVfx.play(gem.map.spin, K.at(hero, 0, -42), { face: look.face, ramp: look.ramp, life: 420 }); return; }
@@ -78,36 +88,33 @@ const stageSkillRules = (() => {
         const [dx, dy] = ruleSwingOffset(ref);
         stageSkillVfx.play(ref, K.at(hero, look.face * dx, dy), { face: look.face, ramp: look.ramp, delay: repeat * 110 });
     }
-    /** 휘두름을 새 연출로 그리는 젬인가: 휘두름, 회전, 우주 틈, 찌르기가 정해졌거나, 정해지지 않은 근접 젬(기본 클립). 휘두름을 끈 젬과
-     * 휘두름 없는 이동기, 제 단계에서 휘두름을 내는 젬은 아니다. */
+    /** 휘두름을 새 연출로 그리는 룬인가: 휘두름, 회전, 우주 틈, 찌르기가 정해졌거나, 정해지지 않은 근접 룬(기본 클립). 휘두름을 끈 룬과
+     * 휘두름 없는 이동기, 제 단계에서 휘두름을 내는 룬은 아니다. */
     function ruleSwings(gem) {
         const swing = gem.map.swing;
         if (CAST_SWING.has(gem.id)) return false;
-        if (gem.map.gash || gem.map.spin) return true;
+        if (gem.map.gash || gem.map.spin || stageSkillRunes.drawsSwing(gem)) return true;
         if (swing) return swing !== 'none';
         return gem.meta.melee && gem.meta.kind !== 'move';
     }
     /** 첫 타격인가: 연쇄가 건너뛴 타격, 파동의 뒤 단계, 여진은 휘두름을 다시 내지 않는다. */
     const ruleLeadHit = fx => !fx.stageKind || fx.stageKind === 'primary' || !Number(fx.stageIndex);
+    /** @returns {boolean} 이 타격이 그 공격의 휘두름을 냈는지(묶음의 첫 타격) */
     function ruleSwingOnce(gem, fx, look, now) {
-        if (!ruleSwings(gem) || !ruleLeadHit(fx)) return;
+        if (!ruleSwings(gem) || !ruleLeadHit(fx)) return false;
         const key = `${fx.skillName}:${String(fx.damageTextGroupId).split(':')[0]}:${Number(fx.repeatIndex) || 0}`;
-        if (swung.has(key)) return;
+        if (swung.has(key)) return false;
         swung.set(key, now);
         // 휘두름은 주인공의 몸 앞에 나온다: 먼저 셈한 타격의 적이 등 뒤에 있어도(둘러싸였을 때) 주인공이 보는 쪽으로 낸다
         rulePlaySwing(gem, fx, { ...look, face: K.heroFace() });
+        return true;
     }
 
     // ---------------------------------------------------------------- per victim
-    function ruleHitRef(gem, element) {
-        const own = K.ref(gem.map.hit);
-        if (own) return own === 'none' ? null : own;
-        if (gem.map.ramp === 'blood') return 'hit_blood@blood';
-        return ELEMENT_HIT[element] || (gem.meta.melee ? 'h_x@phys' : 'h_xs@phys');
-    }
-    /** 맞은 적의 타격 클립: 같은 적에게는 간격을 두고 붙인다(연타에 화면이 덮이지 않게). */
+    /** 맞은 적의 타격 클립: 같은 적에게는 간격을 두고 붙인다(연타에 화면이 덮이지 않게). 클립은 룬이 정한 것, 없으면 속성의 묶음에서
+     * 맞을 때마다 하나, 활로 쏜 화살 룬이면 마법 화살의 터짐(js/canvas-stage-skill-runes.js hitRef). */
     function rulePlayHit(gem, hit) {
-        const ref = ruleHitRef(gem, hit.fx.element), last = struck.has(hit.fx.enemyId) ? struck.get(hit.fx.enemyId) : -1e9;
+        const ref = stageSkillRunes.hitRef(gem, hit.fx.element), last = struck.has(hit.fx.enemyId) ? struck.get(hit.fx.enemyId) : -1e9;
         if (!ref || hit.now - last < stageSkillVfx.HIT.gap) return;
         const played = stageSkillVfx.play(ref, K.at(hit.victim, -hit.look.face * 8, K.onGround(ref) ? 2 : BODY), { face: hit.look.face, ramp: hit.look.ramp, hit: true });
         if (played) struck.set(hit.fx.enemyId, hit.now);
@@ -122,6 +129,7 @@ const stageSkillRules = (() => {
     /** 연쇄: 첫 대상은 주인공에게서, 다음부터는 앞서 맞은 적에게서 번개가 건너온다. */
     function ruleChainLink(gem, hit) {
         if (!gem.map.zap || !hit.fx.chain) return;
+        if (gem.map.vcut && hit.fx.chainFromEnemyId == null) return;   // 번개 타격의 첫 대상은 세로 베기와 낙뢰가 맡는다
         const before = hit.fx.chainFromEnemyId == null ? null : K.enemy(hit.fx.chainFromEnemyId);
         const from = hit.fx.chainFromEnemyId == null ? K.heroSpot() : before ? K.enemySpot(before) : hit.fx.sourceCell;
         rulePlayLink(gem.map.zap, from, hit.victim, hit.look.ramp);
@@ -141,16 +149,45 @@ const stageSkillRules = (() => {
         if (map.boom) stageSkillVfx.play(map.boom, K.at(spot, 0, K.onGround(map.boom) ? 1 : -46), { ramp: rot.ramp, scale: 0.72, alpha: 0.9 });
         if (map.boom2) ruleFillArea(map.boom2, { centre: spot, radius: 1.5 }, { ramp: rot.ramp, life: 700, layer: 'ground' });
     }
-    /** 프레임마다: 적이 살아 있으면 구슬이 남고, 시간이 다하면 걷히고, 그 전에 죽으면 터진다. @returns {boolean} 더 볼지 */
+    /** 다시 맞혀 터뜨렸다(js/combat.js detonateFlameDecay): 그 자리의 폭발, 옮겨 붙은 적마다 불길 줄기와 새 구슬. */
+    function ruleRotDetonated(rot) {
+        ruleRotBurst(rot);
+        for (const id of rot.unit.flameDecaySpread || []) {
+            const other = K.enemy(id);
+            if (!other) continue;
+            const spot = K.enemySpot(other);
+            if (rot.gem.map.stream) rulePlayLink(rot.gem.map.stream, rot.follow() || rot.row.at, { gx: spot.gx, gy: spot.gy }, rot.ramp);
+            ruleStartRot(rot.gem, { fx: { enemyId: id }, victim: spot, look: { ramp: rot.ramp }, now: stageSkillVfx.now() });
+        }
+    }
+    /** 프레임마다 구슬 하나: 적이 살아 있으면 남고, 다시 맞혀 터뜨리면 터지고, 시간이 다하면 걷히고(흩어지는 클립), 그 전에 죽으면 터진다. */
     function ruleWatchRot(id, time) {
-        const rot = rots.get(id), enemy = rot ? K.enemy(id) : null;
-        if (!rot) return false;
-        if (enemy === rot.unit && enemy.hp > 0 && time < rot.until) return true;
+        const rot = rots.get(id), enemy = K.enemy(id), detonated = (rot.unit.flameDecayBurstAt || 0) !== rot.burstSeen && rot.unit.hp > 0;
+        if (enemy === rot.unit && enemy.hp > 0 && time < rot.until && !detonated) return;
         rot.row.life = Math.min(rot.row.life, time - rot.row.start);
-        // 터지는 것은 죽었을 때뿐이다: 구역이나 판이 바뀌어 목록에서 사라진 적(살아 있던 그대로 치워졌다)의 자리에서는 터지지 않는다
-        if (rot.unit.hp <= 0) ruleRotBurst(rot);
         rots.delete(id);
-        return false;
+        ruleEndRot(rot, enemy, detonated);
+    }
+    /** 구슬이 끝나는 모습: 다시 맞혀 터뜨렸으면 터짐과 옮겨 붙음, 죽었으면 터짐, 시간이 다했으면 흩어짐. */
+    function ruleEndRot(rot, enemy, detonated) {
+        if (detonated) ruleRotDetonated(rot);
+        // 터지는 것은 죽었을 때뿐이다: 구역이나 판이 바뀌어 목록에서 사라진 적(살아 있던 그대로 치워졌다)의 자리에서는 터지지 않는다
+        else if (rot.unit.hp <= 0) ruleRotBurst(rot);
+        else if (enemy === rot.unit && rot.gem.map.orbEnd) stageSkillVfx.play(rot.gem.map.orbEnd, K.at(rot.follow(), 0, -42), { ramp: rot.ramp });
+    }
+    /** 모든 구슬을 살피는 하나의 일(재생기가 프레임마다 부른다). @returns {boolean} 더 볼지 */
+    function ruleWatchRots(time) {
+        rotWatch.seen = time;
+        for (const id of [...rots.keys()]) ruleWatchRot(id, time);
+        rotWatch.on = rots.size > 0;
+        return rotWatch.on;
+    }
+    /** 구슬을 살피는 일이 돌게 한다(돌고 있으면 그대로). */
+    function ruleKeepRotWatch() {
+        if (rotWatch.on && stageSkillVfx.now() - rotWatch.seen < 200) return;
+        rotWatch.on = true;
+        rotWatch.seen = stageSkillVfx.now();
+        stageSkillVfx.watch(ruleWatchRots);
     }
     /** 화염 부패: 대상의 몸 가운데에 용암 구슬이 붙어 따라다닌다. 다시 걸리면 시간이 늘어난다. */
     function ruleStartRot(gem, hit) {
@@ -160,8 +197,8 @@ const stageSkillRules = (() => {
         const unit = K.enemy(id), follow = () => (unit && K.enemy(id) === unit && unit.hp > 0 ? K.enemySpot(unit) : null);
         const row = unit ? stageSkillVfx.play(gem.map.orb, K.at(hit.victim, 0, -42), { ramp: hit.look.ramp, scale: 0.8, life: ROT_MS, follow }) : null;
         if (!row) return;
-        rots.set(id, { row, until: hit.now + ROT_MS, gem, ramp: hit.look.ramp, unit });
-        stageSkillVfx.watch(time => ruleWatchRot(id, time));
+        rots.set(id, { row, until: hit.now + ROT_MS, gem, ramp: hit.look.ramp, unit, follow, burstSeen: unit.flameDecayBurstAt || 0 });
+        ruleKeepRotWatch();
     }
 
     // ---------------------------------------------------------------- frost seep (빙결 침식)
@@ -195,7 +232,7 @@ const stageSkillRules = (() => {
         if (map.blast) stageSkillVfx.play(map.blast, K.at(hit.victim, 0, BODY), { face: look.face, ramp: look.ramp, scale: 0.8 });
         if (map.orb) ruleStartRot(gem, hit);
     }
-    /** 지속 타격: 둘째부터의 타격과 장판의 틱에는 그 젬의 틱 클립이 붙는다. */
+    /** 지속 타격: 둘째부터의 타격과 장판의 틱에는 그 룬의 틱 클립이 붙는다. */
     function ruleTickExtras(gem, hit) {
         const tick = gem.map.tick;
         if (tick) stageSkillVfx.play(tick, K.at(hit.victim, 0, K.onGround(tick) ? 0 : -40), { face: hit.look.face, ramp: hit.look.ramp, hit: true });
@@ -216,19 +253,22 @@ const stageSkillRules = (() => {
         const hit = ruleHitOf(gem, fx);
         ruleForget(swung, hit.now, 4000);
         ruleForget(struck, hit.now, 2000);
-        ruleSwingOnce(gem, fx, hit.look, hit.now);
+        const lead = ruleSwingOnce(gem, fx, hit.look, hit.now);
         ruleChainLink(gem, hit);
         if (gem.map.seep) ruleSeepInto(gem, hit); else rulePlayHit(gem, hit);
         if (ruleFirstHit(fx)) ruleFirstExtras(gem, hit); else ruleTickExtras(gem, hit);
+        stageSkillRunes.victim(gem, hit, lead);
     }
 
     // ---------------------------------------------------------------- cast start
-    /** 시전 시작: 주문, 위습, 시전과 집중 슬롯의 젬은 손 앞에 그 속성의 마법진이 서고 몸에 외곽선 오라가 돈다(예비 동작 동안).
+    /** 시전 시작: 주문, 위습, 시전과 집중 슬롯의 룬은 손 앞에 그 속성의 마법진이 서고 몸에 외곽선 오라가 돈다(예비 동작 동안).
      * 위습 소환은 예비 동작이 끝날 때 등 뒤에서 그 속성의 소환 클립이 튄다. */
     function ruleNoteWindup(fx) {
         const gem = fx.sourceCell && !handled.has(fx) && stageSkillVfx.ready() ? K.gemOf(fx.skillName) : null;
-        if (!gem || !gem.meta.cast) return;
+        if (!gem) return;
         handled.add(fx);
+        stageSkillRunes.windup(gem, fx);
+        if (!gem.meta.cast) return;
         const hero = K.heroSpot(), face = K.heroFace(), wind = Math.max(200, Number(fx.impactDelayMs) || 0);
         stageSkillSigil.cast({ spot: hero, face, element: gem.meta.el, ms: wind + 60 });
         const summon = gem.meta.kind === 'wisp' ? gem.map.cast : null;
@@ -256,7 +296,7 @@ const stageSkillRules = (() => {
         ruleFillSpots(clip, area, stageSkillVfx.clipWidth(ref)).forEach(([dx, dy, delay], index) => stageSkillVfx.play(ref, K.at(area.centre, dx, dy + lift),
             { face: o.face, ramp: o.ramp, delay: (o.delay || 0) + delay, alpha: index ? 0.85 : 1, life: o.life, nextLife: o.nextLife, layer: o.layer }));
     }
-    /** 불멸의 진동: 몸에서 퍼지는 고리 셋, 바닥의 파문 둘, 좌우로 터지는 바람. */
+    /** 대지의 함성: 몸에서 퍼지는 고리 셋, 바닥의 파문 둘, 좌우로 터지는 바람. */
     function rulePlayShout(shout, look) {
         const hero = K.heroSpot();
         [0.6, 0.95, 1.3].forEach((scale, index) => stageSkillVfx.play(shout.ring, K.at(hero, 0, -48), { ramp: look.ramp, delay: index * 110, scale, alpha: 1 - index * 0.22 }));
@@ -292,8 +332,14 @@ const stageSkillRules = (() => {
     function rulePlayStage(gem, event, look) {
         const s = { map: gem.map, area: ruleAreaOf(event), look, long: Math.max(400, event.duration || 0) };
         if (gem.map.shout) { rulePlayShout(gem.map.shout, look); return; }
-        if (gem.map.after && Number(event.stageIndex) > 0) { ruleFillArea(gem.map.after, s.area, { face: look.face, ramp: look.ramp }); return; }
+        if (gem.map.after && Number(event.stageIndex) > 0) { rulePlayAfter(gem, s, look); return; }
         for (const [hook, play] of STAGE_PLAYS) if (gem.map[hook]) play(s);
+    }
+    /** 여진(뒤 단계): 그 범위에 여진 클립을 깐다. afterOne이면 가운데 하나만 afterScale 크기로(폭발성 타격의 불씨 폭발). */
+    function rulePlayAfter(gem, s, look) {
+        const ref = gem.map.after;
+        if (!gem.map.afterOne) { ruleFillArea(ref, s.area, { face: look.face, ramp: look.ramp }); return; }
+        stageSkillVfx.play(ref, K.at(s.area.centre, 0, K.onGround(ref) ? 1 : -30), { face: look.face, ramp: look.ramp, scale: gem.map.afterScale || 1 });
     }
     /** 예비 동작(windup)의 연출: 유성은 높고 먼 곳에서 범위 가운데로 떨어진다. */
     function rulePlayWindup(gem, event, look) {
@@ -307,7 +353,7 @@ const stageSkillRules = (() => {
     }
 
     // ---------------------------------------------------------------- picture events
-    /** 그 젬의 그 사건을 새 클립이 맡는가: 젬이 가진 훅과 인계의 갈래로 정한다. */
+    /** 그 룬의 그 사건을 새 클립이 맡는가: 룬이 가진 훅과 인계의 갈래로 정한다. */
     const TAKES = Object.freeze({
         windup: gem => ruleSwings(gem) || !!gem.map.fall || !!gem.map.drop,
         stage: gem => ruleSwings(gem) || gem.meta.kind === 'chain' || STAGE_HOOKS.some(hook => gem.map[hook]),
@@ -342,11 +388,15 @@ const stageSkillRules = (() => {
     }
     /** @param {object} event 그림 사건 @param {{ctx:CanvasRenderingContext2D, projection:object, now:number}} view 이번 프레임의 붓, 투영, 사건의 시계
      * @returns {boolean} 이 그림 사건을 새 연출이 맡았는가(맡았으면 예전 그림은 그리지 않는다). */
+    /** v32의 새 그림 사건이 부르는 이 묶음의 일: 부싯돌 베기는 검기가 떠날 때 그 휘두름 클립을 낸다. */
+    const RUNE_HOOKS = Object.freeze({ swing: (gem, look) => ruleSwingClip(gem, { repeatIndex: 0 }, look) });
     function ruleClaimEvent(event, view) {
         const gem = stageSkillVfx.ready() ? K.gemOf(event.skillName) : null;
         if (!gem) return false;
-        const cast = stageSkillCasts.claim(gem, event, view);   // 투사체의 몸, 따로 시전하는 젬, 이동기
+        const cast = stageSkillCasts.claim(gem, event, view);   // 투사체의 몸, 따로 시전하는 룬, 이동기
         if (cast !== null) return cast;
+        const rune = stageSkillRunes.claim(gem, event, view, RUNE_HOOKS);   // v32의 새 룬
+        if (rune !== null) return rune;
         rulePlayEvent(gem, event, view.now);
         const mine = ruleTakes(gem, event.kind);
         if (mine && event.kind === 'travel') ruleDrawWave(gem, event, view);
@@ -372,16 +422,17 @@ const stageSkillRules = (() => {
             at = clip && clip.next ? clip.next + '@' + at.split('@')[1] : null;
         }
     }
-    /** 그 젬이 한 속성으로 틀 수 있는 클립 이름: 연결표의 것, 정해지지 않은 근접 젬의 기본 휘두름, 타격 클립, 위습이면 위습의 타격. */
+    /** 그 룬이 한 속성으로 틀 수 있는 클립 이름: 연결표의 것, 정해지지 않은 근접 룬의 기본 휘두름, 타격 묶음, 활의 발사 섬광,
+     * 위습이면 위습의 타격. */
     function ruleGemClips(gem, element) {
         const names = ruleClipNames(gem.map);
         if (ruleSwings(gem) && !gem.map.swing) names.push(PLAIN_SWING);
-        names.push(ruleHitRef(gem, element) || '', gem.meta.kind === 'wisp' ? stageSkillCasts.wispHit(element) : '');
+        names.push(...stageSkillRunes.hitRefs(gem, element), gem.map.bow ? stageSkillRunes.bowFlash(gem, element) : '', gem.meta.kind === 'wisp' ? stageSkillCasts.wispHit(element) : '');
         return names.filter(Boolean);
     }
-    /** 그 젬이 틀 수 있는 클립('이름@램프')을 모두 든다: 낀 젬의 띠를 미리 만들어 두려고 묻는다(js/canvas-stage-warmup.js).
-     * elements: 그 젬의 타격이 띨 수 있는 속성(젬의 속성은 언제나 넣는다). 실제로 트는 것보다 조금 넉넉하다(램프를 정하는 값이
-     * 타격마다 달라질 수 있어, 있을 수 있는 램프를 모두 든다). 인계에 없는 젬이면 빈 목록. */
+    /** 그 룬이 틀 수 있는 클립('이름@램프')을 모두 든다: 낀 룬의 띠를 미리 만들어 두려고 묻는다(js/canvas-stage-warmup.js).
+     * elements: 그 룬의 타격이 띨 수 있는 속성(룬의 속성은 언제나 넣는다). 실제로 트는 것보다 조금 넉넉하다(램프를 정하는 값이
+     * 타격마다 달라질 수 있어, 있을 수 있는 램프를 모두 든다). 인계에 없는 룬이면 빈 목록. */
     function ruleClipsOf(skillName, elements) {
         const gem = K.gemOf(skillName), refs = [];
         if (!gem) return refs;
@@ -395,6 +446,8 @@ const stageSkillRules = (() => {
         }
         return refs;
     }
-    return Object.freeze({ claim: ruleClaimEvent, hit: ruleNoteHit, windup: ruleNoteWindup, clipsOf: ruleClipsOf });
+    /** 무대의 새 연출이 이 룬을 그리는가(옛 그림 표에 없는 새 룬의 사건을 여기로 보낼지: js/canvas-world-tree-fx.js). */
+    const ruleOwns = skillName => stageSkillVfx.ready() && !!K.gemOf(skillName);
+    return Object.freeze({ claim: ruleClaimEvent, hit: ruleNoteHit, windup: ruleNoteWindup, clipsOf: ruleClipsOf, owns: ruleOwns });
 })();
 safeExposeGlobals({ stageSkillRules });

@@ -1,5 +1,5 @@
 /** 새로 그린 스킬 이펙트 — 2026-09-30 변경분 (Hana 스킬 인계 변경분 2).
- * 37 룬 지뢰 · 17 혈기 폭쇄 · 30 빙결 파열창 · 29 화염 폭풍핵 · 48 과냉각 혼합물. (이동기 4종·위습 공격: canvas-redrawn-skill-art-moves.js)
+ * 37 번개 각인 · 17 혈기 폭쇄 · 30 빙결 파열창 · 29 화염 폭풍핵 · 48 과냉각 혼합물. (이동기 4종·위습 공격: canvas-redrawn-skill-art-moves.js)
  * Ported from the handoff's void_fx.js (kept verbatim in docs/skill-assets-hana/reference/void_fx.js.txt) with every
  * function inside this repo's size/complexity rules; the drawn dots are identical to the handoff's.
  * Coordinates are board dots (one cell = 16 dots); dot(x, y, colour) paints one dot.
@@ -28,7 +28,7 @@ const redrawnSkillArtExtra = (() => {
         }
     }
 
-    // ---------------------------------------------------------------- 37 룬 지뢰: lightning blast along the cross, a rune on every cell
+    // ---------------------------------------------------------------- 37 번개 각인: lightning blast along the cross, a rune on every cell
     // Runes are stroke lists on a 5×7 grid (x 0..4, y 0..6) drawn with the same line rasteriser, so every glyph stays crisp.
     const RUNES = {
         sowilo: [[3, 0, 1, 3], [1, 3, 3, 3], [3, 3, 1, 6]],

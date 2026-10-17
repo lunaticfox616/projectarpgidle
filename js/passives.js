@@ -762,7 +762,7 @@ function generateOrganicTree() {
             { stat: 'lightPctDmg', title: '번개 비전' },
             { stat: 'chaosPctDmg', title: '공허 비전' },
             { stat: 'dotPctDmg', title: '지속 부패' },
-            { stat: 'gemLevel', title: '젬 각성' }
+            { stat: 'gemLevel', title: '룬 각성' }
         ],
         shadow: [
             { stat: 'crit', title: '급소 조준' },
@@ -1122,18 +1122,18 @@ function generateOrganicTree() {
         });
     }
     const tagGemClusterSpecs = [
-        { stat: 'firePctDmg', endStat: 'fireGemLevel', title: '화염 젬 단련', length: 5 },
-        { stat: 'coldPctDmg', endStat: 'coldGemLevel', title: '냉기 젬 단련', length: 5 },
-        { stat: 'lightPctDmg', endStat: 'lightGemLevel', title: '번개 젬 단련', length: 5 },
-        { stat: 'chaosPctDmg', endStat: 'chaosGemLevel', title: '카오스 젬 단련', length: 5 },
-        { stat: 'physPctDmg', endStat: 'physGemLevel', title: '물리 젬 단련', length: 5 },
-        { stat: 'projectilePctDmg', endStat: 'projectileGemLevel', title: '투사체 젬 단련', length: 5 },
-        { stat: 'meleePctDmg', endStat: 'meleeGemLevel', title: '근접 젬 단련', length: 5 },
-        { stat: 'slamPctDmg', endStat: 'slamGemLevel', title: '강타 젬 단련', length: 5 },
-        { stat: 'spellFlatPct', endStat: 'spellGemLevel', title: '주문 젬 단련', length: 5 },
-        { stat: 'dotPctDmg', endStat: 'dotGemLevel', title: '지속 젬 단련', length: 5 },
-        { stat: 'aoePctDmg', endStat: 'aoeGemLevel', title: '범위 젬 단련', length: 5 },
-        { stat: 'elementalPctDmg', endStat: 'elementalGemLevel', title: '원소 젬 단련', length: 5 }
+        { stat: 'firePctDmg', endStat: 'fireGemLevel', title: '화염 룬 단련', length: 5 },
+        { stat: 'coldPctDmg', endStat: 'coldGemLevel', title: '냉기 룬 단련', length: 5 },
+        { stat: 'lightPctDmg', endStat: 'lightGemLevel', title: '번개 룬 단련', length: 5 },
+        { stat: 'chaosPctDmg', endStat: 'chaosGemLevel', title: '카오스 룬 단련', length: 5 },
+        { stat: 'physPctDmg', endStat: 'physGemLevel', title: '물리 룬 단련', length: 5 },
+        { stat: 'projectilePctDmg', endStat: 'projectileGemLevel', title: '투사체 룬 단련', length: 5 },
+        { stat: 'meleePctDmg', endStat: 'meleeGemLevel', title: '근접 룬 단련', length: 5 },
+        { stat: 'slamPctDmg', endStat: 'slamGemLevel', title: '강타 룬 단련', length: 5 },
+        { stat: 'spellFlatPct', endStat: 'spellGemLevel', title: '주문 룬 단련', length: 5 },
+        { stat: 'dotPctDmg', endStat: 'dotGemLevel', title: '지속 룬 단련', length: 5 },
+        { stat: 'aoePctDmg', endStat: 'aoeGemLevel', title: '범위 룬 단련', length: 5 },
+        { stat: 'elementalPctDmg', endStat: 'elementalGemLevel', title: '원소 룬 단련', length: 5 }
     ];
     function getTagGemClusterSpec(spoke, depth) {
         return tagGemClusterSpecs[(spoke * 5 + depth * 3) % tagGemClusterSpecs.length];
@@ -1151,8 +1151,8 @@ function generateOrganicTree() {
             { stat: 'chaosPctDmg', title: '심연 독기', length: 4 },
             { stat: 'dotPctDmg', title: '부패 지속', length: 4 },
             { stat: 'coldPctDmg', title: '빙결 한기', length: 4 },
-            { stat: 'chaosPctDmg', endStat: 'chaosGemLevel', title: '카오스 젬 독성', length: 5 },
-            { stat: 'dotPctDmg', endStat: 'dotGemLevel', title: '지속 젬 부식', length: 5 }
+            { stat: 'chaosPctDmg', endStat: 'chaosGemLevel', title: '카오스 룬 독성', length: 5 },
+            { stat: 'dotPctDmg', endStat: 'dotGemLevel', title: '지속 룬 부식', length: 5 }
         ];
         return specs[(spoke + depth) % specs.length];
     }
@@ -1196,7 +1196,7 @@ function generateOrganicTree() {
             { stat: 'critDmg', title: '치명 배율', length: 4 },
             { stat: 'ds', title: '연속 타격', length: 4 },
             { stat: 'maxDmgRoll', title: '상한 보정', length: 4 },
-            { stat: 'pctDmg', endStat: 'suppCap', title: '보조 젬 연결', length: 4 },
+            { stat: 'pctDmg', endStat: 'suppCap', title: '보조스킬룬 연결', length: 4 },
             { stat: 'minDmgRoll', title: '하한 안정', length: 4 },
             { stat: 'resAll', title: '원소 수호', length: 4 },
             { stat: 'resChaos', title: '카오스 저항', length: 4 },
@@ -1215,7 +1215,7 @@ function generateOrganicTree() {
         if (themeSpec.stat === 'gemLevel') {
             if (!retainedGlobalGemLevelCluster && depth >= maxDepth - 1) {
                 retainedGlobalGemLevelCluster = true;
-                return { stat: 'spellFlatPct', endStat: 'gemLevel', title: '외곽 젬 각성', length: 5 };
+                return { stat: 'spellFlatPct', endStat: 'gemLevel', title: '외곽 룬 각성', length: 5 };
             }
             return getTagGemClusterSpec(spoke, depth);
         }
@@ -2725,7 +2725,7 @@ const TRANSCENDENT_VOID_PASSIVE_DB = [
     // 옛 고유 별쐐기 11종(2026-10-01). 트리를 바꾸던 변성 반경은 수치 효과로 옮겼다. 다섯의 수치는 data/passives.js
     // TRANSCENDENT_VOID_VALUES(9단계에서 맞춤).
     { id: 'pluto', name: '명왕성', min: 1, max: 5, rollValue: () => rollPlutoVoidCount(), desc: v => `할당한 공허 패시브 수 +${v}로 계산 (5개 확률 1/625)` },
-    { id: 'resonantStar', name: '공명별', fixed: 1, desc: v => `보조 스킬 젬 한도 +${v}` },
+    { id: 'resonantStar', name: '공명별', fixed: 1, desc: v => `보조스킬룬 한도 +${v}` },
     { id: 'darkMatter', name: '암흑물질', desc: () => '옵션이 한 줄인 다른 공허 패시브의 효과 +100% (초월 공허 제외)' },
     { id: 'sun', name: '태양', desc: () => '초월 직전 이 공허 패시브의 옵션을 3배로 유지' },
     { id: 'blackHole', name: '블랙홀', desc: () => '이 노드가 무료 연결 거점이 됩니다. 시작점까지의 길을 되돌려도 이어진 패시브가 유지됩니다' },
@@ -2958,6 +2958,36 @@ function getPassiveConnectionNodeIds() {
     const rootId = getPassiveTreeRootNodeId();
     if (isPassiveNodeAvailable(rootId)) result.add(rootId);
     return result;
+}
+
+/** Shown DPS and life now and after edit(copy): { dps: [before, after], life: [before, after] }. The edit is made on a copy of the
+ * game, as the bag analysis tries gear on (js/equipment-triage.js readSnapshotStats), so the live build, the fields the stat
+ * calculation writes and its kept calculation stay as they are. The bag is shared, not copied: the calculation only reads it. */
+function previewBuildStats(edit) {
+    const live = game, before = getPlayerStats(false);
+    try {
+        game = JSON.parse(JSON.stringify({ ...live, inventory: undefined }));
+        game.inventory = live.inventory;
+        edit(game);
+        const after = getPlayerStats(false);
+        return { dps: [before.dps || 0, after.dps || 0], life: [before.maxHp || 0, after.maxHp || 0] };
+    } finally {
+        game = live;
+    }
+}
+
+/** previewBuildStats with the skill tree nodes nodeIds taken (the skill tree tooltip, js/ui.js). */
+function previewPassiveNodeStats(nodeIds) {
+    return previewBuildStats(copy => { copy.passives = [...new Set([...(copy.passives || []), ...nodeIds])]; });
+}
+
+/** "DPS 61 → 64, 생명력 170 → 180" for a preview ({ dps: [before, after], life: [before, after] }): each part only when it changes,
+ * green up and red down; '' when none does. The skill tree tooltip, the ascendancy window and the act reward window word it alike. */
+function buildStatPreviewParts(preview) {
+    const format = COMPARE_STAT_META.dps.format;
+    const part = (label, [before, after]) => (format(before) === format(after) ? ''
+        : `<span style="color:${after > before ? '#8fe0a8' : '#ff9b92'};">${label} ${format(before)} → ${format(after)}</span>`);
+    return [part('DPS', preview.dps), part('생명력', preview.life)].filter(Boolean).join(', ');
 }
 
 /** 연결이 바뀔 수 있는 일(초월 공허의 블랙홀 · 안드로메다가 생기거나 사라짐) 뒤에 끊긴 투자를 돌려받고 닿는 노드를 다시 센다. */
@@ -4536,6 +4566,9 @@ function getBattleSpawnStamp() {
     return Number.isFinite(visualNow) && visualNow > 0 ? visualNow : performance.now();
 }
 
+/** 사라진 몬스터의 마지막 자리를 들고 있는 시간(ms): 보스는 쓰러짐 효과(1.6초, js/combat.js)가 끝날 때까지 그 자리에 그린다. */
+const enemyGhostKeepMs = ghost => (ghost && ghost.enemy && ghost.enemy.isBoss ? 2000 : 1200);
+
 function addBattleFx(type, data) {
     if (battleFxSuppressed || (typeof document !== 'undefined' && document.hidden)) return;
     let payload = data || {};
@@ -4681,7 +4714,7 @@ function cleanupBattleVisualState(now) {
         return Number.isFinite(elapsed) && Number.isFinite(duration) && elapsed >= -80 && elapsed <= duration;
     });
     Object.keys(battleVisualState.enemyGhostPos || {}).forEach(enemyId => {
-        if (now - (battleVisualState.enemyGhostPos[enemyId].stamp || 0) > 1200) delete battleVisualState.enemyGhostPos[enemyId];
+        if (now - (battleVisualState.enemyGhostPos[enemyId].stamp || 0) > enemyGhostKeepMs(battleVisualState.enemyGhostPos[enemyId])) delete battleVisualState.enemyGhostPos[enemyId];
     });
     Object.keys(battleVisualState.enemySmoothPos || {}).forEach(enemyId => {
         // 유령 위치가 만료된(전장에서 사라진 지 오래된) 적의 보간 좌표도 함께 정리한다.
@@ -5182,8 +5215,8 @@ const TUTORIAL_GUIDES = {
     tutorial_battle_basics: [
         { title: '전투 화면 읽기', body: '전투는 자동으로 진행되지만, 화면은 현재 전투가 왜 막히는지 판단할 수 있도록 구성되어 있습니다.', bullets: ['파란 칸은 내 위치, 붉은 칸은 적 위치입니다.', '노란 강조는 현재 공격 대상, 청록 강조는 스킬이 닿는 범위입니다.', '적이 사거리 밖이면 캐릭터가 먼저 이동한 뒤 공격합니다.'], tip: '처음에는 피해량보다 생명력 막대와 적의 밀집도를 먼저 보세요.' },
         { title: '공격과 피해 구분', body: '밝은 흰색/금색 숫자는 내가 준 피해, 붉은 숫자는 내가 받은 피해입니다.', bullets: ['금색 숫자는 치명타입니다.', '작게 반복되는 원소색 숫자는 지속 피해입니다.', '체력 막대 뒤에 남는 주황색은 방금 잃은 피해량입니다.'], tip: '붉은 숫자가 연속으로 크게 뜨면 장비 방어와 저항을 점검할 때입니다.' },
-        { title: '스킬 범위와 태그', body: '젬의 태그에 따라 공격 방식과 연출, 유효 범위가 달라집니다.', bullets: ['강타는 가까운 범위에 큰 충격을 줍니다.', '관통은 직선, 연쇄는 적 사이, 시체 폭발은 처치 지점을 활용합니다.', '공격 범위는 스킬 툴팁의 격자 설명에서 확인할 수 있습니다.'], tip: '넓은 범위가 늘 강하지는 않습니다. 단일 보스에는 집중형 스킬이 유리합니다.' },
-        { title: '다음 성장 순서', body: '막히면 패시브, 장비, 스킬 젬을 순서대로 확인하면 원인을 찾기 쉽습니다.', bullets: ['패시브: 부족한 생존/화력 축을 보완', '장비: 방어도/회피/보호막과 저항 점검', '스킬: 공격 태그와 보조 젬 연결 확인'], tip: '새 콘텐츠가 열릴 때마다 이와 같은 단계형 설명이 표시됩니다.' }
+        { title: '스킬 범위와 태그', body: '룬의 태그에 따라 공격 방식과 연출, 유효 범위가 달라집니다.', bullets: ['강타는 가까운 범위에 큰 충격을 줍니다.', '관통은 직선, 연쇄는 적 사이, 시체 폭발은 처치 지점을 활용합니다.', '공격 범위는 스킬 툴팁의 격자 설명에서 확인할 수 있습니다.'], tip: '넓은 범위가 늘 강하지는 않습니다. 단일 보스에는 집중형 스킬이 유리합니다.' },
+        { title: '다음 성장 순서', body: '막히면 패시브, 장비, 스킬룬을 순서대로 확인하면 원인을 찾기 쉽습니다.', bullets: ['패시브: 부족한 생존/화력 축을 보완', '장비: 방어도/회피/보호막과 저항 점검', '스킬: 공격 태그와 보조스킬룬 연결 확인'], tip: '새 콘텐츠가 열릴 때마다 이와 같은 단계형 설명이 표시됩니다.' }
     ],
     unlock_char: [
         { title: '스킬트리란?', body: '스킬트리 포인트를 사용해 루트에서 가지를 타고 성장 방향을 선택하는 장기 빌드 시스템입니다.', bullets: ['루트 주변의 시작점은 서로 다른 기초 효과를 가집니다.', '활성화한 노드와 연결된 노드만 다음에 선택할 수 있습니다.', '작은 노드는 경로, 큰 장식 노드는 핵심 효과입니다.'], tip: '처음부터 모든 방향을 섞기보다 한 가지 공격 축과 한 가지 방어 축을 정하세요.' },
@@ -5196,9 +5229,9 @@ const TUTORIAL_GUIDES = {
         { title: '드랍 연출 읽기', body: '좋은 아이템일수록 전장에서 더 강한 색과 빛기둥으로 표시됩니다.', bullets: ['파랑: 일반적인 획득', '금색/보라색 기둥: 희귀 재화 또는 희귀 장비', '굵고 긴 빛기둥: 고유 장비나 최상급 재화'], tip: '로그를 꺼도 중요한 드랍 연출은 계속 표시됩니다.' }
     ],
     unlock_skills: [
-        { title: '스킬 젬 구성', body: '공격 젬 하나를 중심으로 보조 젬을 연결해 공격 방식과 성능을 바꿉니다.', bullets: ['공격 젬은 기본 행동과 피해 태그를 정합니다.', '보조 젬은 연결 한도 안에서 효과를 추가합니다.', '젬 레벨과 강화 단계가 기본 성능을 높입니다.'], tip: '보조 젬 설명에 현재 공격 젬과 맞지 않는 태그가 없는지 확인하세요.' },
+        { title: '스킬룬 구성', body: '공격 룬 하나를 중심으로 보조스킬룬을 연결해 공격 방식과 성능을 바꿉니다.', bullets: ['공격 룬은 기본 행동과 피해 태그를 정합니다.', '보조스킬룬은 연결 한도 안에서 효과를 추가합니다.', '룬 레벨과 강화 단계가 기본 성능을 높입니다.'], tip: '보조스킬룬 설명에 현재 공격 룬과 맞지 않는 태그가 없는지 확인하세요.' },
         { title: '태그와 전투 방식', body: '강타/관통/연쇄/범위/지속 피해 같은 태그는 실제 격자 범위와 이펙트에 반영됩니다.', bullets: ['관통: 한 방향의 여러 적을 노림', '연쇄: 떨어진 적 사이를 순서대로 타격', '범위: 대상 주변 또는 자신 주변을 공격'], tip: '스킬 툴팁의 사거리와 반경을 함께 보세요.' },
-        { title: '교체 전 확인', body: '새 스킬을 장착하면 보조 젬 호환과 공격 범위도 함께 달라집니다.', bullets: ['현재 장비가 새 태그를 강화하는지 확인', '단일 대상과 다수 대상 중 필요한 역할 선택', '실전에서 대미지 숫자와 이동 빈도 비교'], tip: '사거리가 짧으면 공격 전 이동이 많아질 수 있습니다.' }
+        { title: '교체 전 확인', body: '새 스킬을 장착하면 보조스킬룬 호환과 공격 범위도 함께 달라집니다.', bullets: ['현재 장비가 새 태그를 강화하는지 확인', '단일 대상과 다수 대상 중 필요한 역할 선택', '실전에서 대미지 숫자와 이동 빈도 비교'], tip: '사거리가 짧으면 공격 전 이동이 많아질 수 있습니다.' }
     ],
     unlock_map: [
         { title: '지도는 무엇인가?', body: '현재 갈 수 있는 지역, 예상 난이도, 주요 드랍을 보고 다음 사냥터를 선택하는 콘텐츠입니다.', bullets: ['지역마다 몬스터 속성과 보상이 다릅니다.', '보스 지역은 일반 지역보다 위험하지만 보상이 큽니다.', '해금 조건이 표시된 지역은 요구 콘텐츠를 먼저 완료해야 합니다.'], tip: '막힌 지역을 반복하기보다 필요한 장비가 나오는 이전 지역을 활용하세요.' },
@@ -5262,7 +5295,7 @@ function getTutorialPanelModel(kind) {
     const models = {
         passive: { focus: '패시브', tabs: ['캐릭터', '패시브'], rows: ['생명력 가지', '공격 속도 노드', '다음 연결 노드'] },
         items: { focus: '장비', tabs: ['장비 창', '제작실'], rows: ['장착 장비 비교', '아이템 등급과 옵션', '필요 재화 확인'] },
-        'skills-panel': { focus: '스킬', tabs: ['공격 젬', '보조 젬'], rows: ['주 공격 스킬', '연결 가능한 보조', '태그, 범위 확인'] },
+        'skills-panel': { focus: '스킬', tabs: ['공격 룬', '보조스킬룬'], rows: ['주 공격 스킬', '연결 가능한 보조', '태그, 범위 확인'] },
         map: { focus: '지도', tabs: ['현재 지역', '다음 지역'], rows: ['몬스터 속성', '주요 보상', '보스 위험도'] },
         class: { focus: '전직', tabs: ['전직', '재능'], rows: ['빌드 방향 선택', '핵심 노드 경로', '개화 효과 확인'] },
         system: { focus: '안내', tabs: ['새 콘텐츠', '가이드'], rows: ['해금 조건 확인', '관련 화면 열기', '진행 목표 추적'] }
@@ -5309,15 +5342,15 @@ function isLoopHeroSelectOpen() {
     return !!overlay && overlay.classList.contains('active');
 }
 
-/** 직업 카드 툴팁: 고를 때 필요한 것만, 첫 처치 때 받는 시작 스킬 젬과 그 설명, 전직 셋(검토 2026-10-01, 대표 무기 줄은
+/** 직업 카드 툴팁: 고를 때 필요한 것만, 첫 처치 때 받는 시작 스킬룬과 그 설명, 전직 셋(검토 2026-10-01, 대표 무기 줄은
  * 사용자 요청으로 뺐다 2026-10-15). */
 function buildHeroChoiceTooltipHtml(classId, experienced) {
     let def = PLAYER_CLASS_DEFS[classId];
     if (!def) return '';
-    const gem = LOOP_STARTER_GEM_BY_HERO[def.recommendedTalentHeroId] || '연속 베기';
+    const gem = LOOP_STARTER_GEM_BY_HERO[def.recommendedTalentHeroId] || '이중 베기';
     const gemLine = String((SKILL_DB[gem] || {}).desc || '').split('.')[0];
     return `<div class="tooltip-title">${escapeHTML(def.label)}${experienced ? ' <span style="color:#9fd8ff;">경험함</span>' : ''}</div>
-        <div class="tooltip-line" style="color:#f6c461;">시작 스킬 젬: ${escapeHTML(gem)}</div>
+        <div class="tooltip-line" style="color:#f6c461;">시작 스킬룬: ${escapeHTML(gem)}</div>
         ${gemLine ? `<div class="tooltip-line">${escapeHTML(gemLine)}.</div>` : ''}
         <div class="tooltip-line" style="color:#d8b4ff;">전직: ${escapeHTML(getAscendanciesForClass(classId).map(id => CLASS_TEMPLATES[id].name).join(', '))}</div>`;
 }
@@ -5330,7 +5363,7 @@ function showHeroChoiceTooltip(event, classId, experienced) {
 }
 
 /** 직업 확인 판(index.html #loop-hero-select-overlay .hero-choice-confirm, 휴대폰 배치에서만 보인다): 고른 카드 표시, 툴팁과 같은
- * 시작 스킬 젬과 전직, "이 직업으로 시작" 단추(value = 고른 직업). 판이 커지며 카드 목록이 줄어도 고른 카드는 보이게 둔다.
+ * 시작 스킬룬과 전직, "이 직업으로 시작" 단추(value = 고른 직업). 판이 커지며 카드 목록이 줄어도 고른 카드는 보이게 둔다.
  * classId가 없으면 고르기 전(안내 문구, 단추 잠김)으로 되돌린다. 판이 없는 DOM(노드 스모크)에서는 하는 일이 없다. */
 function renderLoopHeroChoiceDetail(classId, experienced) {
     let detail = document.getElementById('loop-hero-select-detail');
@@ -5348,7 +5381,7 @@ function renderLoopHeroChoiceDetail(classId, experienced) {
 }
 
 /** 직업 카드 누름. PC는 바로 정한다. 휴대폰 배치는 툴팁이 없어 직업을 모르고 골랐다(검토 2026-10-01) — 첫 누름은 카드를 고르고
- * 판에 시작 스킬 젬과 전직을 보이며, 고른 카드를 다시 누르거나 "이 직업으로 시작"을 누르면 chooseLoopHero로 정한다. */
+ * 판에 시작 스킬룬과 전직을 보이며, 고른 카드를 다시 누르거나 "이 직업으로 시작"을 누르면 chooseLoopHero로 정한다. */
 function pressLoopHeroChoice(classId, experienced) {
     let start = document.getElementById('loop-hero-select-start');
     if (!uiDisplay.matches('(max-width: 1080px)') || start.value === classId) return chooseLoopHero(classId);
@@ -5385,6 +5418,7 @@ function openLoopHeroSelection(onSelect, options = {}) {
 function chooseLoopHero(classId) {
     if (!PLAYER_CLASS_DEFS[classId]) return;
     applyHeroSelection(classId, { silent: true, skipSave: true, alignTalent: true });
+    grantClassStarterWeapon(classId);
     let overlay = document.getElementById('loop-hero-select-overlay');
     if (overlay) overlay.classList.remove('active');
     let callback = loopHeroSelectionCallback;
@@ -5522,6 +5556,9 @@ function toggleCombatLogCollapse() {
     if (uiDisplay.matches('(max-width: 1080px)')) game.settings.mobileCombatLogExpanded = !game.settings.mobileCombatLogExpanded;
     else game.settings.combatLogCollapsed = !game.settings.combatLogCollapsed;
     applyPanelLayoutSettings();
+    // 숨긴 기록은 스크롤 자리를 잃는다. 사용자가 펼칠 때만 최신 줄로 간다.
+    const log = document.getElementById('log');
+    if (log && !document.body.classList.contains('combat-log-collapsed')) log.scrollTop = log.scrollHeight;
 }
 
 
@@ -5648,21 +5685,53 @@ function describeDeathAttrition(log) {
 function getDeathHints() {
     const rewards = getAvailableActRewardZoneIds(), fillable = countFillableEmptySlots();
     return [
-        rewards.length ? { text: `받지 않은 액트 보상 ${rewards.length}개`, reward: rewards[0] } : null,
-        game.passivePoints > 0 ? { text: `쓰지 않은 스킬트리 포인트 ${game.passivePoints}점` } : null,
+        rewards.length ? { text: `받지 않은 액트 보상 ${rewards.length}개`, action: { label: '받기', onclick: `closeDeathOverlay();openActReward(${rewards[0]})` } } : null,
+        game.passivePoints > 0 ? { text: `쓰지 않은 스킬트리 포인트 ${game.passivePoints}점`, action: { label: '스킬트리', onclick: "closeDeathOverlay();switchTab('tab-char')" } } : null,
         game.equipment['무기'] ? null : { text: '무기 칸이 비어 있습니다' },
-        fillable ? { text: `가방에 바로 낄 수 있는 장비 ${fillable}개(장비 창의 빈 칸 채우기)` } : null
+        fillable ? { text: `가방에 바로 낄 수 있는 장비 ${fillable}개`, action: { label: '채우기', onclick: 'fillEmptyEquipmentSlots();renderDeathHints()' } } : null,
+        shopDeathHint(),
+        lowResistanceDeathHint(activeDeathLog),
+        strongerRuneDeathHint()
     ].filter(Boolean);
+}
+/** 지금 지갑으로 물건을 살 수 있는 NPC 상점 수(js/npc-shop.js ready): 해체로 모은 화폐를 쓸 곳. 상점끼리 화폐를 나눠 쓰므로 물건 수를
+ * 더하지 않고 상점을 센다. */
+function shopDeathHint() {
+    const shops = Object.keys(NPC_SHOPS).filter(id => npcShop.ready(id) > 0).length;
+    return shops ? { text: `지금 살 수 있는 물건이 있는 NPC 상점 ${shops}곳`, action: { label: 'NPC', onclick: "closeDeathOverlay();switchTab('tab-npcs')" } } : null;
+}
+/** 비교할 만한 룬: 지금 룬이 아닌 공격 룬(위습 소환 말고)으로, 지금 무기로 쓸 수 있는 룬. */
+function isStrongerRuneCandidate(name, keep) {
+    const skill = SKILL_DB[name];
+    return name !== keep && !!skill?.isGem && !(skill.tags || []).includes('summon') && canUseSkillWithCurrentEquipment(name);
+}
+/** 가진 공격 룬 가운데 DPS가 지금 룬의 1.1배를 넘는 룬(얻을 때의 "더 강한 공격 룬" 알림과 같은 기준). 알림은 4초면 지나가, 얼음 창
+ * 비술사는 주문 룬을 얻고도 모르고 지나치기 쉬웠다(2026-10-17). */
+function strongerRuneDeathHint() {
+    const keep = game.activeSkill, before = getPlayerStats(false).dps || 0;
+    if (!(before > 0)) return null;
+    const dpsOf = name => { game.activeSkill = name; try { return getPlayerStats(false).dps || 0; } finally { game.activeSkill = keep; } };
+    const top = (game.skills || []).filter(name => isStrongerRuneCandidate(name, keep)).map(name => [name, dpsOf(name)]).sort((a, b) => b[1] - a[1])[0];
+    return top && top[1] > before * 1.1 ? { text: `가진 룬 「${top[0]}」의 DPS가 지금 룬의 ${(top[1] / before).toFixed(1)}배입니다`,
+        action: { label: '장착', onclick: `changeSkill('${top[0]}');renderDeathHints()` } } : null;
+}
+/** 쓰러뜨린 속성의 저항이 0보다 낮으면 그 값을 알린다. 혼돈 1부터 캠페인 패널티로 모든 저항이 60 낮아져, 패시브를 찍은 전사와 궁수도
+ * 그곳에서 화염, 냉기 피해에 거듭 쓰러졌다(자연 플레이 측정 2026-10-17). */
+const DEATH_RESIST_STATS = Object.freeze({ fire: ['resF', '화염'], cold: ['resC', '냉기'], light: ['resL', '번개'], chaos: ['resChaos', '카오스'] });
+function lowResistanceDeathHint(log) {
+    const row = log ? DEATH_RESIST_STATS[normalizeDamageElementKey(log.fatalElement || log.primaryElement)] : null;
+    if (!row) return null;
+    const value = Math.floor(Number(getPlayerStats(false)[row[0]]) || 0);
+    return value < 0 ? { text: `${row[1]} 저항 ${value}%(장비의 ${row[1]} 저항 옵션으로 올리면 받는 피해가 줄어듭니다)`,
+        action: { label: '장비', onclick: "closeDeathOverlay();switchTab('tab-items');switchItemSubtab('item-tab-equip')" } } : null;
 }
 function renderDeathHints() {
     const box = document.getElementById('deathlog-hints');
     if (!box) return;
-    const hints = getDeathHints(), reward = hints.find(hint => hint.reward !== undefined);
+    const hints = getDeathHints();
     box.hidden = hints.length === 0;
     box.innerHTML = hints.length === 0 ? '' : '<div class="deathlog-subtitle">할 수 있는 일</div>' + hints.map(hint => `<div class="deathlog-hint">
-        <span>${escapeDeathLogText(hint.text)}</span>${hint === reward ? '<button type="button" class="deathlog-hint-action">받기</button>' : ''}</div>`).join('');
-    const action = box.querySelector('.deathlog-hint-action');
-    if (action) action.onclick = () => { closeDeathOverlay(); openActReward(reward.reward); };
+        <span>${escapeDeathLogText(hint.text)}</span>${hint.action ? `<button type="button" class="deathlog-hint-action" onclick="${escapeDeathLogText(hint.action.onclick)}">${hint.action.label}</button>` : ''}</div>`).join('');
 }
 
 /** 잃은 경험치 줄: 잃은 것이 없으면(레벨 1 첫 사망 등) "0 잃었습니다" 대신 줄을 뺀다. */
@@ -5869,6 +5938,17 @@ function getActRewardChoices(zoneId) {
         return enriched;
     });
 }
+/** 루프를 시작하며 직업을 고를 때 무기 칸이 비어 있으면 그 직업의 대표 무기(직업 카드의 '대표 무기' 대분류에서 가장 낮은 바탕)를 보통 등급으로
+ * 쥐여 준다. 2026-10-17 스킬룬 무기 규칙(맨손은 주문과 투사체 룬을 못 쓴다)으로 맨손 시작의 궁수와 연금술사가 시작 룬을 쓰지 못했다(사용자 결정:
+ * "대표 무기를 들고 시작"). 봉인해 물려받은 무기가 있으면 그대로 둔다. @returns {?object} 쥐여 준 무기 */
+function grantClassStarterWeapon(classId) {
+    if (!game.equipment || game.equipment['무기']) return null;
+    const bases = keepWeaponCategoryBases(BASE_ITEM_DB.filter(base => base.slot === '무기' && !base.realmBase && !base.dropOnly), HANA_WEAPON_COMBOS.classWeapons[classId]);
+    const base = bases.reduce((best, row) => (!best || row.reqTier < best.reqTier ? row : best), null);
+    if (!base) return null;
+    const item = createItemFromBase(base, 'normal', 1);
+    return equipIntoFirstEmptySlot(item) ? item : null;
+}
 /** 액트 보상 무기는 직업 대표 무기(직업 카드의 '대표 무기')의 대분류로 나온다. 아무 무기나 나와 궁수가 대검을 받기도 했다(플레이 리뷰 2026-10-07). */
 function describeActRewardWeapon() {
     const category = HANA_WEAPON_COMBOS.classWeapons[game.selectedClassId];
@@ -5991,6 +6071,9 @@ function markActRewardReady(zoneId) {
     game.claimedActRewards = game.claimedActRewards || [];
     if (game.claimedActRewards.includes(zoneId) || game.claimableActRewards.includes(zoneId)) return;
     game.claimableActRewards.push(zoneId);
+    // 고를 것이 없는 보상은 조용히 남긴다: 1루프의 액트 2, 6 보상은 모두 보조스킬룬(루프 2부터 해금)이라 받을 것이 없는데 받을 수 있다는
+    // 줄과 지도 점이 떴다(2026-10-17). 해금하면 그때 지도와 목표에 나온다.
+    if (!getAvailableActRewardZoneIds().includes(zoneId)) return;
     game.noti.map = true;
     addLog(`🎁 [${MAP_ZONES[zoneId].name}] 클리어 보상을 받을 수 있습니다.`, 'loot-rare');
     promptActReward(zoneId);
@@ -5998,11 +6081,20 @@ function markActRewardReady(zoneId) {
 // 액트 보스를 쓰러뜨리면 다음 지역으로 떠나기 전에 보상 창을 띄운다(창이 열린 동안 게임이 멈춰 출발도 기다린다). 보상이 목표
 // 서랍과 지도에만 있어, 첫 보상을 받지 않고 넘어간 판이 액트 2 첫 전투에서 죽었다(플레이 리뷰 2026-10-07). 방치 정산 중이나
 // 자리를 비운 방치(입력이 3분 넘게 없음) 중에는 띄우지 않는다(멈춘 채 기다리게 된다). 다른 창이 떠 있으면 닫힐 때까지 1분 기다린다.
-const ACT_REWARD_PROMPT = Object.freeze({ awayMs: 180000, retryMs: 500, tries: 120 });
-let actRewardPromptTimer = null;
+// 띄운 뒤에 자리를 비워도 3분이 지나면 나중에처럼 닫는다(watchActRewardAway). 처치하고 afterKillMs 뒤에 띄운다: 보스가 쓰러지는
+// 그림(1.6초)이 창에 가리지 않게(2026-10-17, 창이 0.6초 만에 덮었다).
+const ACT_REWARD_PROMPT = Object.freeze({ awayMs: 180000, retryMs: 500, tries: 120, awayCheckMs: 5000, afterKillMs: 1500 });
+let actRewardPromptTimer = null, actRewardAwayTimer = null, actRewardPromptDelay = null;
 function promptActReward(zoneId) {
     clearInterval(actRewardPromptTimer);
+    clearTimeout(actRewardPromptDelay);
     actRewardPromptTimer = null;
+    if (game.isBackgroundCalculation) return;   // 방치 정산에서는 띄우지 않는다(보상은 지도와 목표 서랍에 남는다)
+    actRewardPromptDelay = setTimeout(() => startActRewardPrompt(zoneId), ACT_REWARD_PROMPT.afterKillMs);
+}
+/** 띄우고, 다른 창이 비키기를 기다려야 하면 retryMs마다 다시 묻는다(최대 tries번). */
+function startActRewardPrompt(zoneId) {
+    actRewardPromptDelay = null;
     if (tryOpenPromptedActReward(zoneId)) return;
     let triesLeft = ACT_REWARD_PROMPT.tries;
     actRewardPromptTimer = setInterval(() => {
@@ -6010,6 +6102,16 @@ function promptActReward(zoneId) {
         clearInterval(actRewardPromptTimer);
         actRewardPromptTimer = null;
     }, ACT_REWARD_PROMPT.retryMs);
+}
+/** 열린 액트 보상 창: 입력 없이 3분이 지나면 나중에로 닫는다. 보상은 지도와 목표 서랍에 남고, 창 뒤에서 멈춰 있던 방치 전투가 다시 돈다. */
+function watchActRewardAway() {
+    clearInterval(actRewardAwayTimer);
+    actRewardAwayTimer = setInterval(() => {
+        if (activeRewardZoneId !== null && uiDisplay.inputIdleMs <= ACT_REWARD_PROMPT.awayMs) return;
+        if (activeRewardZoneId !== null) closeRewardOverlay();
+        clearInterval(actRewardAwayTimer);
+        actRewardAwayTimer = null;
+    }, ACT_REWARD_PROMPT.awayCheckMs);
 }
 /** 띄웠거나 띄울 일이 없으면 true, 다른 창이 비키기를 기다려야 하면 false. */
 function tryOpenPromptedActReward(zoneId) {
@@ -6039,11 +6141,12 @@ function openActReward(zoneId) {
     document.getElementById('reward-kicker').innerText = storyAct ? `${formatStoryActLabel(storyAct)} 클리어 보상` : '액트 클리어 보상';
     document.getElementById('reward-title').innerText = storyAct ? storyAct.title : config.title;
     document.getElementById('reward-body').innerText = storyAct ? `${storyAct.subtitle}\n${config.body}` : config.body;
-    const dpsBefore = getPlayerStats(false).dps;
+    const now = getPlayerStats(false), before = { dps: now.dps, life: now.maxHp };
     document.getElementById('reward-grid').innerHTML = getActRewardChoices(zoneId)
-        .map((choice, index) => isActRewardChoiceAvailable(choice) ? renderActRewardChoice(zoneId, choice, index, dpsBefore) : '').join('');
+        .map((choice, index) => isActRewardChoiceAvailable(choice) ? renderActRewardChoice(zoneId, choice, index, before) : '').join('');
     document.getElementById('reward-overlay').classList.add('active');
     lastTime = Date.now();
+    watchActRewardAway();
 }
 /** 장비 선택지의 부위 그림(빈 장착 칸과 같은 그림, 직업 대표 무기는 그 대분류 첫 바탕의 그림). 다른 보상은 그림 없이 글만. */
 function actRewardChoiceArt(choice) {
@@ -6051,9 +6154,9 @@ function actRewardChoiceArt(choice) {
     const base = choice.weaponCategory ? BASE_ITEM_DB.find(row => getWeaponCategoryOfBase(row.id) === choice.weaponCategory) : null;
     return `<img class="reward-choice-art${choice.slot === '무기' ? ' is-weapon' : ''}" src="${getEquipmentGridVisualAsset({ slot: choice.slot, baseId: base ? base.id : 'empty-' + choice.slot })}" alt="" aria-hidden="true">`;
 }
-/** 선택지 한 칸: 이름, 설명, 미리보기(장비는 등급과 바로 장착되는지), 고르면 바뀌는 DPS. */
-function renderActRewardChoice(zoneId, choice, index, dpsBefore) {
-    const change = measureActRewardDps(zoneId, choice, dpsBefore);
+/** 선택지 한 칸: 이름, 설명, 미리보기(장비는 등급과 바로 장착되는지), 고르면 바뀌는 DPS와 생명력. before: { dps, life } 지금 값. */
+function renderActRewardChoice(zoneId, choice, index, before) {
+    const change = measureActRewardDps(zoneId, choice, before);
     const preview = choice.kind === 'item' ? actRewardItemPreview(choice, !!change && change.direct) : getActRewardPreview(choice);
     return `
         <button class="reward-choice" onclick="claimActRewardChoice(${zoneId}, ${index})">
@@ -6068,15 +6171,16 @@ function actRewardItemPreview(choice, equips) {
     const rarity = ITEM_RARITY_LABELS[choice.rarity] || '';
     return `${rarity ? `${rarity} 등급, ` : ''}${equips ? '빈 칸에 바로 장착됩니다' : '가방으로 들어갑니다'}`;
 }
-/** 고르면 바뀌는 DPS {before, after, direct, swap}: 보상을 잠시 적용해 재고 그대로 되돌린다. 능력치는 액트 보상 능력치로, 장비는
- * 맞는 빈 칸(없으면 첫 칸과 바꿔)에 끼워 잰다(요구 능력치가 모자라면 null). direct는 실제로 바로 끼워지는지, swap은 바꿔 끼운 값인지.
- * 젬과 포인트는 재지 않는다. */
+/** 고르면 바뀌는 DPS와 생명력 {dps: [전, 후], life: [전, 후], direct, swap}: 보상을 잠시 적용해 재고 그대로 되돌린다. 능력치는 액트 보상
+ * 능력치로, 장비는 맞는 빈 칸(없으면 첫 칸과 바꿔)에 끼워 잰다(요구 능력치가 모자라면 null). direct는 실제로 바로 끼워지는지, swap은
+ * 바꿔 끼운 값인지. 룬과 포인트는 재지 않는다. */
 function measureActRewardDps(zoneId, choice, before) {
     const twin = Array.isArray(game.cosmosTwinKeystones) ? game.cosmosTwinKeystones.slice() : game.cosmosTwinKeystones;
     const preview = applyActRewardPreview(zoneId, choice);
     if (!preview) return null;
     try {
-        return { before, after: getPlayerStats(false).dps, direct: preview.direct, swap: preview.swap };
+        const after = getPlayerStats(false);
+        return { dps: [before.dps, after.dps], life: [before.life, after.maxHp], direct: preview.direct, swap: preview.swap };
     } finally {
         preview.undo();
         game.cosmosTwinKeystones = twin;
@@ -6110,17 +6214,17 @@ function buildActRewardPreviewItem(zoneId, choice) {
     item.baseStats = base.baseStats.map(stat => rollBaseStat(stat, 0.5));
     return item;
 }
-/** "DPS 13 → 59": 바뀌는 선택지에만. 가방으로 가는 장비는 "바꿔 끼우면"으로, 장비는 옵션 없는 기본 성능 값이라 (옵션 제외)를 붙인다. */
+/** "DPS 13 → 59, 생명력 410 → 443": 바뀌는 값만, 스킬트리와 전직 창의 미리보기와 같은 말과 빛깔(js/ui.js buildStatPreviewParts).
+ * 가방으로 가는 장비는 "바꿔 끼우면"으로, 장비는 옵션 없는 기본 성능 값이라 (옵션 제외)를 붙인다. */
 function formatActRewardDps(change, choice) {
-    const format = COMPARE_STAT_META.dps.format;
-    if (!change || format(change.after) === format(change.before)) return '';
-    const tone = change.after > change.before ? 'is-up' : 'is-down';
+    const parts = change ? buildStatPreviewParts(change) : '';
+    if (!parts) return '';
     const lead = change.direct ? '' : (change.swap ? '바꿔 끼우면 ' : '끼우면 ');
-    return `<b class="reward-choice-dps ${tone}">${lead}DPS ${format(change.before)} → ${format(change.after)}${choice.kind === 'item' ? ' (옵션 제외)' : ''}</b>`;
+    return `<b class="reward-choice-dps">${lead}${parts}${choice.kind === 'item' ? ' (옵션 제외)' : ''}</b>`;
 }
 function getActRewardPreview(choice) {
-    if (choice.kind === 'skill') return `${choice.skill} 공격 젬을 획득합니다.`;
-    if (choice.kind === 'support') return `${choice.gem} 보조 젬을 획득합니다.`;
+    if (choice.kind === 'skill') return `${choice.skill} 공격 룬을 획득합니다.`;
+    if (choice.kind === 'support') return `${choice.gem} 보조스킬룬을 획득합니다.`;
     if (choice.kind === 'points') return `즉시 포인트 ${choice.value}점을 얻습니다.`;
     if (choice.kind === 'currency') return `${ORB_DB[choice.currency].name} ${choice.fallbackValue || choice.value || 1}개를 얻습니다.`;
     if (choice.kind === 'stat') return `${getStatName(choice.stat)} +${choice.value}${P_STATS[choice.stat] && P_STATS[choice.stat].isPct ? '%' : ''}`;
@@ -6145,11 +6249,11 @@ function grantActRewardEntry(zoneId, choice) {
             game.skills.push(choice.skill);
             game.gemData[choice.skill] = game.gemData[choice.skill] || { level: 1, exp: 0 };
             game.noti.skills = true;
-            addLog(`🎁 액트 보상 젬 [${choice.skill}] 획득!`, 'loot-rare');
+            addLog(`🎁 액트 보상 룬 [${choice.skill}] 획득!`, 'loot-rare');
         } else {
             game.passivePoints += choice.fallbackValue || 1;
             let shardGain = typeof grantGemResearchFragments === 'function' ? grantGemResearchFragments(4) : (awardCurrency('gemShard', 4), 4);
-            addLog(`🎁 이미 보유한 젬 대신 스킬트리 포인트 +${choice.fallbackValue || 1}, 젬 잔향 +${shardGain}`, 'loot-magic');
+            addLog(`🎁 이미 보유한 룬 대신 스킬트리 포인트 +${choice.fallbackValue || 1}, 룬 잔향 +${shardGain}`, 'loot-magic');
         }
         return;
     }
@@ -6157,17 +6261,17 @@ function grantActRewardEntry(zoneId, choice) {
         if (!hasSupportGemOwned(choice.gem)) {
             game.supports.push(choice.gem);
             game.supportGemData[choice.gem] = game.supportGemData[choice.gem] || { level: 1, exp: 0 };
-            // 새 보조 젬이 '장착 보조 젬만 보기'에 가려져 지급되지 않은 것처럼
-            // 보이지 않도록, 획득 직후에는 전체 보조 젬 목록을 보여 준다.
+            // 새 보조스킬룬이 '장착 보조스킬룬만 보기'에 가려져 지급되지 않은 것처럼
+            // 보이지 않도록, 획득 직후에는 전체 보조스킬룬 목록을 보여 준다.
             game.gemFoldInactiveSupport = false;
             game.noti.skills = true;
-            addLog(`🎁 액트 보상 보조 젬 [${choice.gem}] 획득!`, 'loot-rare');
+            addLog(`🎁 액트 보상 보조스킬룬 [${choice.gem}] 획득!`, 'loot-rare');
         } else {
             let fallback = getSupportActRewardFallback(choice);
             if (fallback.kind === 'points') game.passivePoints += fallback.amount;
             else awardCurrency(fallback.currency, fallback.amount);
             let shardGain = typeof grantGemResearchFragments === 'function' ? grantGemResearchFragments(3) : (awardCurrency('gemShard', 3), 3);
-            addLog(`🎁 중복 보조 젬 대신 ${fallback.label}, 젬 잔향 +${shardGain}`, 'loot-magic');
+            addLog(`🎁 중복 보조스킬룬 대신 ${fallback.label}, 룬 잔향 +${shardGain}`, 'loot-magic');
         }
         return;
     }
@@ -8303,7 +8407,7 @@ function findStoredEquipmentAffix(item, stat) {
             .every(id => extraIds.includes(id)) && (row.compound || []).length === extraIds.length);
 }
 
-/** 젬 레벨 줄(2026-10-08, 사용자 "새곡선기준으로해줘"): 예전 값(방패 주문 +1.7~15.4, 소환수 무기 +1~5, 나머지 +1 고정)을
+/** 룬 레벨 줄(2026-10-08, 사용자 "새곡선기준으로해줘"): 예전 값(방패 주문 +1.7~15.4, 소환수 무기 +1~5, 나머지 +1 고정)을
  * 그 줄의 티어에서 새 20티어 곡선(1~8 +1, 9~15 +2, 16~19 +3, 20 +4) 값으로 맞춘다. 맞춘 줄은 버전 3이라 다시 건드리지 않는다. */
 function refitGemLevelAffix(item, stat) {
     if (!stat || stat.affixBalanceVersion >= 3 || !/GemLevel$/.test(stat.id)) return;
@@ -9961,7 +10065,7 @@ function passesItemPickupFilter(item) {
 
 
 const UNIQUE_JEWEL_DB = [
-    { id:'uj_crown_empty', name:'비어 있는 왕좌', ultra:true, uniqueEffect:'다른 고유 주얼이 없으면 피해 +25%, 젬 레벨 +1 추가', stats:[{id:'pctDmg',val:25},{id:'gemLevel',val:1}] },
+    { id:'uj_crown_empty', name:'비어 있는 왕좌', ultra:true, uniqueEffect:'다른 고유 주얼이 없으면 피해 +25%, 룬 레벨 +1 추가', stats:[{id:'pctDmg',val:25},{id:'gemLevel',val:1}] },
     { id:'uj_mirror_heart', name:'거울 심장', ultra:true, uniqueEffect:'반지 소켓에 끼우면 반대쪽 반지 소켓의 주얼 복제', stats:[{id:'pctDmg',val:8},{id:'resAll',val:8}] },
     { id:'uj_old_box', name:'오래된 보석함', ultra:true, uniqueEffect:'인벤토리 등급 시너지', stats:[{id:'aspd',val:6},{id:'resAll',val:10}] },
     { id:'uj_hurried_mind', name:'다급해지는 마음', ultra:true, uniqueEffect:'적이 없으면 이동속도 +50%', stats:[{id:'move',val:12},{id:'regen',val:1.2}] },

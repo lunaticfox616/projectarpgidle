@@ -391,6 +391,11 @@
         return state.results.get(String(item.id)) || null;
     }
 
+    /** A ware off an NPC's shelf (js/npc-shop-ui.js) rated as a bag item would be, against a snapshot of the build now; not kept. */
+    function rate(item) {
+        return analyzable(item) ? classifyCandidate({ item, slots: getCandidateSlots(item), key: '' }, createAnalysisWork(new Set())) : null;
+    }
+
     function equipRecommended() {
         sync(true);
         const recommendation = getRecommendedCandidate();
@@ -404,6 +409,6 @@
         return true;
     }
 
-    const equipmentTriage = Object.freeze({ sync, render, start, cancel, autoStart, onOpen, setFilter, filterRows, getResult, equipRecommended });
+    const equipmentTriage = Object.freeze({ sync, render, start, cancel, autoStart, onOpen, setFilter, filterRows, getResult, equipRecommended, rate });
     safeExposeGlobals({ equipmentTriage });
 }());

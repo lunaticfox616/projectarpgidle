@@ -41,7 +41,6 @@ const newSkillLab = (() => {
             try {
                 if(!game.combatHalted)coreLoop(getCombatTime()+100);
                 refreshCombatTickUi();quiet();
-                lab.report({count:skillGemCombatRuntime?.channel?.count||0,equipped:!!skillGemCombatRuntime?.channel});
             }catch(error){fail(error);}
         },100);
     }

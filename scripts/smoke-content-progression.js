@@ -211,14 +211,14 @@ run(`game=mergeDefaults({}); game.season=25; contentProgression.sync();
     game.currencies.bossCore=7; game.currencies.skyEssence=8; game.currencies.sporeFire=9;
     game.currencies.runeShard=10; game.currencies.underCopper=11; game.currencies.enchantedHoney=12;
     game.currencies.voidChisel=13; game.currencies.colonyShard=14;
-    game.gemData['연속 베기']=normalizeGemRecord({level:5,bossCoreLevel:3,skyCoreLevel:2});
-    game.skyGemEnhancements={'연속 베기':['sky_force']};
+    game.gemData['이중 베기']=normalizeGemRecord({level:5,bossCoreLevel:3,skyCoreLevel:2});
+    game.skyGemEnhancements={'이중 베기':['sky_force']};
     game.beehive.unlockedPermanent=true; game.beehive.cleared=true;
     game.voidRift.breachClears=3; game.voidRift.grandBreachUnlock=true;
     game.underworldRunes.obtainedRunes=[1]; game.underworldRunes.unlockedSlots=1;
     game.underworldRunes.enhanceLvByNo={1:2}; game.underworldRunes.equippedRunes[0]=1;
     game.timeRift={pressure:2,fusionCount:3,altarUnique:{id:'altar-kept'},altarRare:null};
-    game.skyTower.unlocked=true; game.skyTower.condensedPower=7; game.skyTower.gemBoosts={'연속 베기':2};
+    game.skyTower.unlocked=true; game.skyTower.condensedPower=7; game.skyTower.gemBoosts={'이중 베기':2};
     game.ocean.fishStock={[OCEAN_STATE_FISH_KEYS[0]]:4}; game.ocean.fishCaughtTotal={[OCEAN_STATE_FISH_KEYS[0]]:8}; game.ocean.reefInstalled=2;
     game.colony.wave=7; game.colony.wardInventory=[{id:'ward-reset'}];
     game.talentCards={hero1__warrior:{level:3,score:45,count:2}};
@@ -233,10 +233,10 @@ assert.equal(run('contentProgression.balance()'),pointsBefore, 'fully funded gro
 assert(run("contentProgression.isUnlocked('craft')"));
 assert.deepEqual(json('[game.beehive.cleared,game.voidRift.breachClears,game.voidRift.grandBreachUnlock,game.underworldRunes,game.talentCards,game.skillAutoRules]'),permanentBefore);
 assert.deepEqual(json("['bossCore','skyEssence','sporeFire','runeShard','underCopper','enchantedHoney','voidChisel','colonyShard'].map(key=>game.currencies[key])"),Array(8).fill(0));
-assert(!run("game.gemData['연속 베기']"));
+assert(!run("game.gemData['이중 베기']"));
 assert.deepEqual(json('game.skyGemEnhancements'),{});
 assert.deepEqual(json('[game.timeRift.pressure,game.timeRift.fusionCount,game.timeRift.altarUnique.id]'),[2,3,'altar-kept']);
-assert.deepEqual(json("[game.skyTower.condensedPower,game.skyTower.gemBoosts['연속 베기']]"),[7,2]);
+assert.deepEqual(json("[game.skyTower.condensedPower,game.skyTower.gemBoosts['이중 베기']]"),[7,2]);
 assert.equal(run('game.ocean.reefInstalled'),2);
 assert.deepEqual(json('[game.ocean.fishStock[OCEAN_STATE_FISH_KEYS[0]],game.ocean.fishCaughtTotal[OCEAN_STATE_FISH_KEYS[0]]]'),[4,8]);
 assert.equal(run('game.colony.wave'),run('defaultGame.colony.wave'));
@@ -245,21 +245,21 @@ assert.deepEqual(json('[game.bloomedClassThisLoop,game.bloomedTalentThisLoop,gam
 // New choices split meaningful access; old owners retain the former bundle for free.
 run(`game=mergeDefaults({});game.season=4;contentProgression.sync();
     ['craft','support','research','gemForge'].forEach(id=>contentProgression.purchase(id));
-    game.skills=['연속 베기'];game.activeSkill='연속 베기';game.gemEnhanceTargetSkill='연속 베기';
-    game.gemData['연속 베기']=normalizeGemRecord({});game.currencies.skyEssence=20;game.currencies.bossCore=20;
-    game.skyGemEnhancements={'연속 베기':['sky_fury']};`);
+    game.skills=['이중 베기'];game.activeSkill='이중 베기';game.gemEnhanceTargetSkill='이중 베기';
+    game.gemData['이중 베기']=normalizeGemRecord({});game.currencies.skyEssence=20;game.currencies.bossCore=20;
+    game.skyGemEnhancements={'이중 베기':['sky_fury']};`);
 assert.equal(run('contentProgression.balance()'),5);
 assert(!run("contentProgression.isUnlocked('engraving')"));
 before=json('[game.gemData,game.skyGemEnhancements,game.currencies]');
-assert.deepEqual(json("getSkyEnhancementForSkill('연속 베기')"),[]);
+assert.deepEqual(json("getSkyEnhancementForSkill('이중 베기')"),[]);
 for (const expression of ["applySkyGemEnhancementToActive('sky_swiftness')",'upgradeSkyEngraveCap()',
     'selectGemEngraveSlot(1)',"removeSkyGemEnhancementFromActive('sky_fury',0)"]) assert(!run(expression));
 assert.deepEqual(json('[game.gemData,game.skyGemEnhancements,game.currencies]'),before);
-run("gemCoreForge.attempt('연속 베기','bossCore');gemCoreForge.attempt('연속 베기','skyEssence')");
-assert.deepEqual(json("[game.gemData['연속 베기'].bossCoreLevel,game.gemData['연속 베기'].skyCoreLevel]"),[1,1]);
+run("gemCoreForge.attempt('이중 베기','bossCore');gemCoreForge.attempt('이중 베기','skyEssence')");
+assert.deepEqual(json("[game.gemData['이중 베기'].bossCoreLevel,game.gemData['이중 베기'].skyCoreLevel]"),[1,1]);
 run('game.season=5;contentProgression.sync()');
 assert(run("contentProgression.purchase('engraving').ok"));
-assert.deepEqual(json("getSkyEnhancementForSkill('연속 베기')"),['sky_fury']);
+assert.deepEqual(json("getSkyEnhancementForSkill('이중 베기')"),['sky_fury']);
 assert(run("applySkyGemEnhancementToActive('sky_swiftness',0)"));
 assert(run('upgradeSkyEngraveCap()'));
 run(`game=mergeDefaults({});game.season=4;
@@ -318,7 +318,7 @@ assert(!run("contentProgression.purchase('craft').ok"));
 assert.deepEqual(json('game'),before,'completed purchases cannot replay entry rewards');
 run("game=mergeDefaults({season:4,bountyHunt:{version:5,remaining:0,pending:{id:'x',status:'reward',offerIds:[]},completed:3}})");
 assert.equal(run("'bountyHunt' in game"),false,'removed treasure-hunt state is discarded without a reward');
-// 루프 2에서 제련·보조 젬 뒤 남은 1점으로 전술을 고를 수 있다. 그 뒤 루프 패시브는 2점이 필요하다.
+// 루프 2에서 제련·보조스킬룬 뒤 남은 1점으로 전술을 고를 수 있다. 그 뒤 루프 패시브는 2점이 필요하다.
 // 목표는 고를 수 없는 선택을 재촉하지 않고 다음 해금까지 남은 점수를 센다(2026-10-04 사용자 보고).
 run('game=mergeDefaults({});game.season=2;game.contentProgression.inherited=[];contentProgression.sync()');
 assert.equal(run('contentProgression.balance()'),4);

@@ -28,11 +28,11 @@ const GEM_SKY_ENHANCEMENTS = {
     sky_gemcraft_hybrid: { id: 'sky_gemcraft_hybrid', name: '공명 침식', desc: '스킬의 저항 관통 +10%, 피해 -3%', stat: 'resPen', val: 10, penaltyDmgPct: 3 },
     sky_gemcraft_dot: { id: 'sky_gemcraft_dot', name: '잔향 도약', desc: '지속 피해 계열 스킬의 지속 피해 배율 +30%, 타격 피해 -6%', stat: 'dotMultiplier', val: 30, penaltyDmgPct: 6 },
     sky_gemcraft_critical: { id: 'sky_gemcraft_critical', name: '정점 절개', desc: '스킬의 치명타 확률 +9%, 저항 관통 -2%', stat: 'crit', val: 9, penaltyResPen: 2 },
-    sky_awakened_force: { id: 'sky_awakened_force', name: '각성: 파쇄 문양', desc: '젬의 피해 배율 10% 증폭', stat: 'awakenedDamageMul', val: 10 },
-    sky_awakened_surge: { id: 'sky_awakened_surge', name: '각성: 초가속 문양', desc: '젬의 공격 속도 배율 8% 증폭', stat: 'awakenedAspdMul', val: 8 },
-    sky_awakened_focus: { id: 'sky_awakened_focus', name: '각성: 주문핵 문양', desc: '젬의 주문 내장 피해 15% 증폭', stat: 'awakenedSpellFlatMul', val: 15 },
-    sky_awakened_overdrive: { id: 'sky_awakened_overdrive', name: '각성: 금단 파열', desc: '치명타 불가, 젬의 피해 배율 100% 증폭', stat: 'awakenedNoCritDouble', val: 100 },
-    sky_awakened_resonance: { id: 'sky_awakened_resonance', name: '각성: 심층 초월', desc: '젬 레벨 +3', stat: 'awakenedGemLevel', gemLvVal: 3 }
+    sky_awakened_force: { id: 'sky_awakened_force', name: '각성: 파쇄 문양', desc: '룬의 피해 배율 10% 증폭', stat: 'awakenedDamageMul', val: 10 },
+    sky_awakened_surge: { id: 'sky_awakened_surge', name: '각성: 초가속 문양', desc: '룬의 공격 속도 배율 8% 증폭', stat: 'awakenedAspdMul', val: 8 },
+    sky_awakened_focus: { id: 'sky_awakened_focus', name: '각성: 주문핵 문양', desc: '룬의 주문 내장 피해 15% 증폭', stat: 'awakenedSpellFlatMul', val: 15 },
+    sky_awakened_overdrive: { id: 'sky_awakened_overdrive', name: '각성: 금단 파열', desc: '치명타 불가, 룬의 피해 배율 100% 증폭', stat: 'awakenedNoCritDouble', val: 100 },
+    sky_awakened_resonance: { id: 'sky_awakened_resonance', name: '각성: 심층 초월', desc: '룬 레벨 +3', stat: 'awakenedGemLevel', gemLvVal: 3 }
 };
 
 const HERO_SELECTION_DEFS = {
@@ -333,10 +333,10 @@ const PASSIVE_APEX_CONFIGS = [
         title: '별끝의 통찰',
         stat: 'crit',
         val: 6,
-        desc: '성좌의 흐름을 읽어 전투와 젬 운용을 정교하게 다듬습니다.',
+        desc: '성좌의 흐름을 읽어 전투와 룬 운용을 정교하게 다듬습니다.',
         outerNodes: [
-            { title: '공명의 실마리', stat: 'suppCap', val: 1, kind: 'evolved', desc: '보조 젬 배치 한도를 넓혀 줍니다.' },
-            { title: '천구의 음영', stat: 'gemLevel', val: 1, kind: 'evolved', desc: '장착한 스킬 젬의 힘을 더 끌어냅니다.' },
+            { title: '공명의 실마리', stat: 'suppCap', val: 1, kind: 'evolved', desc: '보조스킬룬 배치 한도를 넓혀 줍니다.' },
+            { title: '천구의 음영', stat: 'gemLevel', val: 1, kind: 'evolved', desc: '장착한 스킬룬의 힘을 더 끌어냅니다.' },
             { title: '초신성의 통찰', stat: 'critDmg', val: 28, kind: 'transcendent', desc: '정교함이 강력한 치명 일격으로 완성됩니다.' }
         ]
     }
@@ -352,7 +352,7 @@ const PASSIVE_SPECIAL_NODE_CONFIGS = [
     { sector: 'templar', kinds: ['deadend'], stat: 'regenSuppress', val: 0.5, title: '재생 봉인', desc: '공격이 적의 생명력 재생을 누적 억제합니다.' },
     { sector: 'witch', kinds: ['deadend'], stat: 'regenSuppress', val: 0.5, title: '부패한 상처', desc: '저주받은 흔적이 적의 재생 능력을 잠급니다.' },
     { sector: 'shadow', kinds: ['deadend'], stat: 'regenSuppress', val: 0.5, title: '그림자 상흔', desc: '은밀한 일격이 상처 재생을 가로막습니다.' },
-    { sector: 'duelist', kinds: ['deadend'], stat: 'regenSuppress', val: 0.5, title: '회복 절단', desc: '연속 베기로 적의 회복 루프를 끊어냅니다.' },
+    { sector: 'duelist', kinds: ['deadend'], stat: 'regenSuppress', val: 0.5, title: '회복 절단', desc: '이중 베기로 적의 회복 루프를 끊어냅니다.' },
     { sector: 'shadow', kinds: ['major', 'keystone'], stat: 'leechRateCap', val: 1.0, title: '혈류 가속', desc: '흡혈 인스턴스의 초당 회복 속도 한계를 높입니다.' },
     { sector: 'duelist', kinds: ['major', 'keystone'], stat: 'leechInstanceCap', val: 3, title: '깊은 상처', desc: '한 번의 타격으로 저장할 수 있는 흡혈량 한계를 높입니다.' },
     { sector: 'marauder', kinds: ['major', 'keystone'], stat: 'leechTotalCap', val: 5, title: '피의 저수지', desc: '동시에 유지할 수 있는 흡혈 총 저장량 한계를 높입니다.' },

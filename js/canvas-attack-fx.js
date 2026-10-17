@@ -805,8 +805,13 @@
         for (const fx of engine.list) drawEffect(g, fx);
     }
 
+    // 떠 있는 임팩트를 모두 걷는다(방 단위 무대에서 방을 옮길 때: 화면 좌표에 묶여 새 방에 남았다).
+    function attackFxClear() {
+        engine.list.length = 0;
+    }
+
     if (typeof safeExposeGlobals === 'function') {
-        safeExposeGlobals({ attackFxSpawn, attackFxUpdate, attackFxDraw });
+        safeExposeGlobals({ attackFxSpawn, attackFxUpdate, attackFxDraw, attackFxClear });
     } else if (typeof window !== 'undefined') {
         window.attackFxSpawn = attackFxSpawn;
         window.attackFxUpdate = attackFxUpdate;

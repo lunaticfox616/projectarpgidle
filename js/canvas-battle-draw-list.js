@@ -32,6 +32,28 @@ const battleDrawList = (() => {
         stageView.facing(entry.enemy, resolveEnemyFacingDirection(entry, playerPos));
         noteEnemySpriteSide(entry.enemy, entry, playerPos, tile);
     }
-    return Object.freeze({ REACH, touchesView, markDrawn, keepFacing });
+    // 이번 프레임에 그린 적(싸우는 적과 기다리는 무리): 누른 자리의 몬스터를 찾고(락온, js/act-exploration-ui.js lockOnAt) 락온 표시를
+    // 그 자리에 세운다(js/canvas-battlefield.js drawLockOnMark). 그린 지 오래된 목록(전장이 숨었다)으로는 찾지 않는다.
+    const DRAWN_LIVE_MS = 500;
+    let drawn = { entries: [], tile: 0, at: -Infinity };
+    function noteDrawn(entries, tile) { drawn = { entries, tile, at: performance.now() }; }
+    /** 그림이 점(전장 CSS px)을 덮는가: 발 자리에서 그린 키만큼 위로, 칸 너비의 0.45배(보스는 그 발판 너비)만큼 옆으로. */
+    function covers(entry, point) {
+        const tile = drawn.tile, half = tile * 0.45 * getGridUnitFootprint(entry.enemy).columns;
+        const tall = Math.max(tile * 0.9, enemyDrawnHeights.get(entry.enemy) || 0);
+        return Math.abs(point.x - entry.x) <= half && point.y <= entry.y + tile * 0.2 && point.y >= entry.y - tall;
+    }
+    /** 점 아래에 그려진 살아 있는 적. 여럿이면 앞에 선(발이 화면 아래인) 적. 없으면 null. */
+    function enemyAt(point) {
+        if (!point || performance.now() - drawn.at > DRAWN_LIVE_MS) return null;
+        let front = null;
+        for (const entry of drawn.entries) if (entry.enemy.hp > 0 && covers(entry, point) && (!front || entry.y > front.y)) front = entry;
+        return front ? front.enemy : null;
+    }
+    /** 이번 프레임에 그린 그 적의 자리({ x, y }: 발), 그리지 않았으면 null. */
+    function drawnEntry(enemy) {
+        return performance.now() - drawn.at > DRAWN_LIVE_MS ? null : drawn.entries.find(entry => entry.enemy === enemy) || null;
+    }
+    return Object.freeze({ REACH, touchesView, markDrawn, keepFacing, noteDrawn, enemyAt, drawnEntry });
 })();
 safeExposeGlobals({ battleDrawList });

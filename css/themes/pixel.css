@@ -113,7 +113,7 @@ body[data-ui-skin] #tree-container :is(.passive-overlay-node, .passive-reveal-bu
   :root body[data-ui-skin] #startup-overlay .startup-logo { width: min(204px, 50vw); padding: 12px; }
 }
 :root body[data-ui-skin] :is(#act-exploration-panel canvas, #act-exploration-map-large) { image-rendering: pixelated; }
-/* 도트로 다시 찍은 아이콘(assets/px/, scripts/build-pixel-icons.cjs), 32도트 세계수 젬, 처음부터 도트로 그린 장비 아이콘
+/* 도트로 다시 찍은 아이콘(assets/px/, scripts/build-pixel-icons.cjs), 32도트 세계수 룬, 처음부터 도트로 그린 장비 아이콘
    (assets/items/illustrated/pixel/)도 확대할 때 번지지 않게 */
 body[data-ui-skin] :is(img[src*="assets/px/"], img[src*="assets/gems/world-tree/"], img[src*="assets/items/illustrated/pixel/"]) { image-rendering: pixelated; }
 
@@ -153,7 +153,7 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 
 /* 스킬트리 필터(전체 · 공격 · …): 고른 필터는 탭처럼 금 테 · 금빛 글 */
 :root body[data-ui-skin] [data-passive-filter].is-active { background: var(--px-board-hot), var(--px-stone-raised); box-shadow: var(--px-gold-rim); color: var(--px-gold-bright); }
-/* 첫 스킬 젬 안내: 하늘색 번짐 대신 번짐 없는 금빛 두 겹 테가 깜빡인다 */
+/* 첫 스킬룬 안내: 하늘색 번짐 대신 번짐 없는 금빛 두 겹 테가 깜빡인다 */
 :root body[data-ui-skin] #tab-skills .gem-library-card.starter-gem-tutorial-target {
   border-color: var(--px-gold-bright);
   box-shadow: 0 0 0 2px var(--px-ink), 0 0 0 4px var(--px-gold-bright);
@@ -161,7 +161,7 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 }
 :root body[data-ui-skin] #btn-tab-skills.starter-gem-tutorial-pending { box-shadow: inset 3px 0 var(--px-gold-bright); }
 @keyframes px-target-blink { 50% { box-shadow: 0 0 0 2px var(--px-ink), 0 0 0 4px var(--px-bronze); } }
-/* 젬 카드의 공격 범위 줄: 한 줄 말줄임("인접 단일 · 사거리 1…")으로 잘려 사거리가 안 보였다 — 두 줄까지 감싼다 */
+/* 룬 카드의 공격 범위 줄: 한 줄 말줄임("인접 단일 · 사거리 1…")으로 잘려 사거리가 안 보였다 — 두 줄까지 감싼다 */
 :root body[data-ui-skin] .gem-card-range { white-space: normal; overflow: visible; text-overflow: clip; }
 /* 창마다 em 배율로 남은 소수 글씨(8.8 ~ 16.4px)를 도트 글꼴이 그려진 정수 크기로(재능 · 루프 패시브 · 전적 · 도감) */
 :root body[data-ui-skin] :is(
@@ -464,7 +464,7 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 :root body[data-ui-skin] .progression-section > h2 { padding-top: 10px; }
 :root body[data-ui-skin] .loop10-panel { padding: 12px; }
 :root body[data-ui-skin] .loop-passive-orbit { background: radial-gradient(circle, rgba(30, 28, 34, .9) 0 31%, rgba(20, 18, 22, .74) 48%, rgba(8, 5, 8, .22) 70%, transparent 72%); }
-/* 젬 카드 꼬리표(분류 꼬리표도 근접 · 투사체 · 주문 · 범위마다 제 색 — 2026-10-06 사용자 요청, 모두 흰 글씨라 구분이 안 됐다) · 바닥 줄, 오프라인 성장 줄, 클라우드 상태(기본 상태만 — 연결 · 동기화 · 오류 색은 theme.css 그대로) */
+/* 룬 카드 꼬리표(분류 꼬리표도 근접 · 투사체 · 주문 · 범위마다 제 색 — 2026-10-06 사용자 요청, 모두 흰 글씨라 구분이 안 됐다) · 바닥 줄, 오프라인 성장 줄, 클라우드 상태(기본 상태만 — 연결 · 동기화 · 오류 색은 theme.css 그대로) */
 :root body[data-ui-skin] .gem-card-tags .gem-tag--neutral { border-color: var(--px-bronze-lo); background: rgba(8, 5, 8, .5); color: var(--px-copy); }
 :root body[data-ui-skin] .gem-card-tags span { border-radius: 0; }
 :root body[data-ui-skin] #tutorial-overlay .tutorial-pause-toggle { border-color: var(--px-bronze-lo); background: rgba(8, 5, 8, .45); }
@@ -473,7 +473,7 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 :root body[data-ui-skin] .cloud-status-pill { border-radius: 0; }
 :root body[data-ui-skin] .cloud-status-pill:not(.online, .syncing, .error) { border-color: var(--px-bronze-lo); background: var(--px-stone-raised); }
 :root body[data-ui-skin] .passive-tree-planner { background: var(--px-panel); }
-/* 젬 공방(성장 · 각인)과 대전 판: 남색 유리 → 숯빛 판. 각인 등급색(기본 · 제작 · 각성)은 꼬리표 글자색이 그대로 맡는다. */
+/* 룬 공방(성장 · 각인)과 대전 판: 남색 유리 → 숯빛 판. 각인 등급색(기본 · 제작 · 각성)은 꼬리표 글자색이 그대로 맡는다. */
 :root body[data-ui-skin] :is(.gem-target-rail, .gem-forge-detail, .gem-enhance-section, .gem-engrave-orbit, .ghost-arena) {
   border: 1px solid var(--px-ink);
   border-radius: 0;
@@ -620,9 +620,9 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 :root body[data-ui-skin] .stall-visitor-count::before { content: ''; flex: none; width: 26px; height: 26px; background: var(--px-menu-icons) -26px 0 / calc(var(--px-icon-count) * 26px) 26px no-repeat; image-rendering: pixelated; }
 /* 원정 입장 단추(벌집 입장 등)는 화면의 주 동작: 금 테 · 밝은 글(작고 흐린 단추라 눈에 띄지 않았다 — 검토 4차) */
 :root body[data-ui-skin] .map-expedition-actions > [data-exploration-departure]:not(:disabled) { padding: 9px 22px; box-shadow: var(--px-gold-rim); color: var(--px-gold-bright); }
-/* 젬 설명은 어절 단위로 줄을 바꾼다 — "피해의 45%" / "를 줍니다."처럼 숫자와 조사가 갈렸다(검토 4차) */
+/* 룬 설명은 어절 단위로 줄을 바꾼다 — "피해의 45%" / "를 줍니다."처럼 숫자와 조사가 갈렸다(검토 4차) */
 :root body[data-ui-skin] .gem-selection-content { word-break: keep-all; overflow-wrap: anywhere; }
-/* 젬 타일 호버 툴팁의 '눌러서 상세' 안내 줄(js/ui.js showGemCardHint) */
+/* 룬 타일 호버 툴팁의 '눌러서 상세' 안내 줄(js/ui.js showGemCardHint) */
 :root body[data-ui-skin] .gem-card-hint { margin-top: 6px; color: var(--px-copy-muted); }
 /* 하위 탭이 하나뿐이면 줄을 숨긴다(js/ui.js syncSingleSubtabRows) */
 :root body[data-ui-skin] .tab-content .subtab-row[hidden] { display: none; }
@@ -695,7 +695,7 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 :root body[data-ui-skin] #log .death { color: #ff6b5b; font-size: inherit; }
 :root body[data-ui-skin] #log .loot-magic { color: #6cb6ff; }
 :root body[data-ui-skin] #log :is(.loot-unique, .level-up, .season-up) { text-shadow: var(--px-text-edge); }
-/* 젬 그림이 없는 기본 공격: 글자 기호(◇) 대신 메뉴 그림의 전투(칼) 아이콘(26px, menu-icons.png 0번) — HUD 주 스킬 칸 · 스킬 젬 창 */
+/* 룬 그림이 없는 기본 공격: 글자 기호(◇) 대신 메뉴 그림의 전투(칼) 아이콘(26px, menu-icons.png 0번) — HUD 주 스킬 칸 · 스킬룬 창 */
 :root body[data-ui-skin] :is(#battle-column, .tab-content) .gem-art-fallback:not([hidden]) { width: 26px; height: 26px; margin: auto; overflow: hidden; color: transparent; font-size: 0;
     background: var(--px-menu-icons) 0 0 / calc(var(--px-icon-count) * 26px) 26px no-repeat; text-shadow: none; image-rendering: pixelated; }
 /* 루프 패시브 노드 설명, 전투 미리보기 이름 */

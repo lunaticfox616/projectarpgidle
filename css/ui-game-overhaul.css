@@ -1762,7 +1762,7 @@ body .item-card {
 .condition-gem-rule-list { display: grid; gap: 7px; }
 .condition-gem-actions { display: flex; gap: 7px; margin-top: 9px; }
 
-/* 스킬 젬 탭은 축소된 정보표가 아니라 반복해서 읽는 빌드 화면이다.
+/* 스킬룬 탭은 축소된 정보표가 아니라 반복해서 읽는 빌드 화면이다.
    작은 고정 px 글꼴과 낮은 대비를 한 단계 올려 장시간 플레이에서도 판독 가능하게 한다. */
 #tab-skills .gem-library-card { color: #ffffff; }
 #tab-skills .gem-card-tags span { font-size: 9px; } /* 색은 꼬리표 종류(.gem-tag--*)가 정한다 — 흰색으로 덮으면 근접 · 투사체 · 주문이 구분되지 않았다(2026-10-06) */
@@ -1850,7 +1850,7 @@ body .item-card {
   body:not(.desktop-windowed-ui) .gem-resource-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   body:not(.desktop-windowed-ui) .gem-resource-strip > div:nth-child(4),
   body:not(.desktop-windowed-ui) .gem-resource-strip > div:nth-child(7) { border-left: 0; }
-  /* 360px에서 2열 151px씩으로 눌려 있었다. (젬 보관함·각인·가공 격자는
+  /* 360px에서 2열 151px씩으로 눌려 있었다. (룬 보관함·각인·가공 격자는
      mobile.css가 이미 1열로 덮고 있어 여기서 다시 적지 않는다) */
   body:not(.desktop-windowed-ui) .gem-research-columns { grid-template-columns: 1fr; }
   /* 장비 요약도 스킬 요약과 같은 모양의 문제다(4열 × 최소 폭 고정). */
@@ -1862,7 +1862,7 @@ body .item-card {
   body:not(.desktop-windowed-ui) .gem-resource-strip { grid-template-columns: 1fr 1fr; }
   body:not(.desktop-windowed-ui) .gem-resource-strip > div { border-left: 1px solid rgba(48, 70, 93, .52); }
   body:not(.desktop-windowed-ui) .gem-resource-strip > div:nth-child(odd) { border-left: 0; }
-  /* 젬 연구: 360px에서 요약이 3열(가장 좁은 칸 58px), 격자가 2열 65px씩이었다.
+  /* 룬 연구: 360px에서 요약이 3열(가장 좁은 칸 58px), 격자가 2열 65px씩이었다.
      한글 한 글자도 온전히 못 담는 폭이다. */
   body:not(.desktop-windowed-ui) .gem-research-summary,
   body:not(.desktop-windowed-ui) .gem-research-grid { grid-template-columns: 1fr; }

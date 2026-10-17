@@ -17,7 +17,7 @@ body[data-ui-skin] {
   --px-orb-life-shield: url('../../assets/ui/pixel/hud-orb-life-shield.png');
 }
 
-/* ─── 하단 HUD: [생명 구슬] [이름 / 경험치] [젬] ─────────────── */
+/* ─── 하단 HUD: [생명 구슬] [이름 / 경험치] [룬] ─────────────── */
 :root body[data-ui-skin] #battle-column .player-hud-shell {
   display: grid;
   grid-template-columns: var(--px-orb-size) minmax(0, 1fr) auto auto;
@@ -291,7 +291,7 @@ body[data-ui-skin] {
   transform: none;
 }
 
-/* 장착 젬: 움푹한 도트 칸 */
+/* 장착 룬: 움푹한 도트 칸 */
 :root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-rack {
   grid-column: 4;
   grid-row: 1 / -1;
@@ -315,7 +315,7 @@ body[data-ui-skin] {
   min-height: 0;
   margin: 0;
 }
-/* 주 공격은 큰 칸, 소환·자동 사용 젬은 옆에 작은 칸으로 한 줄 */
+/* 주 공격은 큰 칸, 소환·자동 사용 룬은 옆에 작은 칸으로 한 줄 */
 :root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-slot {
   position: relative;
   inset: auto;
@@ -483,7 +483,7 @@ body[data-ui-skin] {
   pointer-events: none;
 }
 
-/* ─── 하단 HUD(2026-09-30): [생명 구슬] [이름] [미니맵] [젬] [경험치 구슬] ─────────────────────
+/* ─── 하단 HUD(2026-09-30): [생명 구슬] [이름] [미니맵] [룬] [경험치 구슬] ─────────────────────
    둥근 셋(생명 · 지도 · 경험치)이 낮은 돌판 위로 솟는다. 장식은 청동 테 하나(창과 같은 테).
    구슬·미니맵 테는 scripts/build-pixel-ui.cjs가 화면 크기 그대로 찍는다(둥근 테만 한 도트 = 1 CSS px — 2px 도트 원은 계단이
    굵어 찌그러져 보였다). 메뉴는 css/themes/pixel-menu.css가 이 판 안에 싣는다. 경험치 구슬은 막대와 같은 --gauge-fill을
@@ -603,7 +603,7 @@ body[data-ui-skin] {
   height: 30px;
   padding: 0;
 }
-/* 젬(주 공격 · 소환 · 자동 사용): 돌판 위, 경험치 구슬 옆 */
+/* 룬(주 공격 · 소환 · 자동 사용): 돌판 위, 경험치 구슬 옆 */
 :root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-rack { grid-column: 4; grid-row: 1; align-self: end; justify-self: end; margin-bottom: 2px; }
 :root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-slots { flex-wrap: wrap; justify-content: flex-end; }
 /* 경험치 구슬(오른쪽): 생명 구슬과 같은 층, 호박색 그림(원본 유리 원 중심이 반 도트 아래라 위로 23도트). */
@@ -682,8 +682,8 @@ body[data-ui-skin] {
   /* 휴대폰 전투 탭은 막대 옆 퍼센트를 숨기던 규칙이 있다(ui-responsive-refine.css): 구슬 안에서는 보인다 */
   :root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame .player-exp-percent { display: block; }
   :root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-rack { align-self: center; }
-  /* 젬: 누르는 칸(주 공격 44 · 이동 스킬 40px)이 윗줄, 소환 젬(누르면 스킬 젬 창)은 24px 알로 아랫줄 — 다섯 칸이 세 줄로
-     쌓여 판이 늘어나지 않게. 젬 칸이 윗줄 두 칸 너비(88px)를 늘 갖도록 이름 칸이 양보한다. */
+  /* 룬: 누르는 칸(주 공격 44 · 이동 스킬 40px)이 윗줄, 소환 룬(누르면 스킬룬 창)은 24px 알로 아랫줄 — 다섯 칸이 세 줄로
+     쌓여 판이 늘어나지 않게. 룬 칸이 윗줄 두 칸 너비(88px)를 늘 갖도록 이름 칸이 양보한다. */
   :root body[data-ui-skin] #battle-column .player-hud-shell { grid-template-columns: var(--px-orb-size) minmax(0, 1fr) auto minmax(88px, 1fr) var(--px-orb-size); }
   :root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-slots { justify-content: center; }
   :root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-slots:has(.summon)::after { content: ''; order: 1; flex-basis: 100%; height: 0; }

@@ -341,7 +341,7 @@ const stumpBoxUi = (() => {
         paintStumpPart('stump-box-detail', stumpDetailHtml(result));
         paintStumpPart('stump-box-storage', stumpStorageHtml());
         paintStumpPart('stump-box-more', stumpMoreHtml());
-        // 따라 하기(시작 선물 놓기)는 고를 때마다 가리키는 칸을 옮긴다: 보관함의 씨앗 → 판의 빈 칸(젬 고르기 창과 같은 방식).
+        // 따라 하기(시작 선물 놓기)는 고를 때마다 가리키는 칸을 옮긴다: 보관함의 씨앗 → 판의 빈 칸(룬 고르기 창과 같은 방식).
         if (tutorialActionUi.active) tutorialActionUi.refresh();
     }
     function refreshStumpTabIfVisible() {
@@ -557,7 +557,7 @@ const stumpBoxUi = (() => {
             + '성장 완료된 같은 색 3개 이상은 공명(+10%), 화염과 냉기, 번개와 카오스가 맞닿으면 둘 다 비활성화됩니다.', 'tab-stump',
             { quote: STORY_LOOP_MILESTONES.stump });
     }
-    /** 시작 선물은 함을 얻으면 바로 준다(2026-10-07 사용자 결정): 씨앗은 지금 젬의 원소 꽃(물리면 화염 열매), 수액은 약한 저항. */
+    /** 시작 선물은 함을 얻으면 바로 준다(2026-10-07 사용자 결정): 씨앗은 지금 룬의 원소 꽃(물리면 화염 열매), 수액은 약한 저항. */
     function grantStumpStarter() {
         const given = stumpBox.grantStarter(game, getUiPlayerStats());
         if (!given.length) return given;

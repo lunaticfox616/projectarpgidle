@@ -14,16 +14,16 @@ const ACT_REWARD_DB = {
         ]
     },
     1: {
-        // 루프 첫 처치 확정 지급(LOOP_STARTER_GEM_BY_HERO)으로 이미 공격 스킬 젬 하나를
-        // 들고 있는 시점이라, 여기서 또 공격 젬을 고르게 하면 선택이 겹치거나 무의미해진다.
-        // 대신 방금 얻은 공격 스킬을 살려줄 보조 젬을 고르게 한다.
+        // 루프 첫 처치 확정 지급(LOOP_STARTER_GEM_BY_HERO)으로 이미 공격 스킬룬 하나를
+        // 들고 있는 시점이라, 여기서 또 공격 룬을 고르게 하면 선택이 겹치거나 무의미해진다.
+        // 대신 방금 얻은 공격 스킬을 살려줄 보조스킬룬을 고르게 한다.
         title: '액트 2 클리어 보상',
-        body: '떨어진 곳에서 당신이 찾아낸 젬은, 아직 이름을 부르지 못한 힘을 품고 있었다. 하나를 골라 지금 쓰는 스킬을 벼리세요.',
+        body: '떨어진 곳에서 당신이 찾아낸 룬은, 아직 이름을 부르지 못한 힘을 품고 있었다. 하나를 골라 지금 쓰는 스킬을 벼리세요.',
         choices: [
-            { kind: 'support', gem: '가벼운 발걸음', fallbackKind: 'points', fallbackValue: 1, label: '보조 젬 - 가벼운 발걸음', desc: '이동 속도를 높여 맵 진행을 빠르게 합니다.' },
-            { kind: 'support', gem: '날카로움', fallbackKind: 'points', fallbackValue: 1, label: '보조 젬 - 날카로움', desc: '치명타 확률을 높이는 보조 젬을 얻습니다.' },
-            { kind: 'support', gem: '정밀 하한', fallbackKind: 'points', fallbackValue: 1, label: '보조 젬 - 정밀 하한', desc: '피해 하한을 올려 딜 편차를 줄입니다.' },
-            { kind: 'support', gem: '방어 상승', fallbackKind: 'points', fallbackValue: 1, label: '보조 젬 - 방어 상승', desc: '물리 피해 감소를 올려 생존력을 보탭니다.' }
+            { kind: 'support', gem: '가벼운 발걸음', fallbackKind: 'points', fallbackValue: 1, label: '보조스킬룬 - 가벼운 발걸음', desc: '이동 속도를 높여 맵 진행을 빠르게 합니다.' },
+            { kind: 'support', gem: '날카로움', fallbackKind: 'points', fallbackValue: 1, label: '보조스킬룬 - 날카로움', desc: '치명타 확률을 높이는 보조스킬룬을 얻습니다.' },
+            { kind: 'support', gem: '정밀 하한', fallbackKind: 'points', fallbackValue: 1, label: '보조스킬룬 - 정밀 하한', desc: '피해 하한을 올려 딜 편차를 줄입니다.' },
+            { kind: 'support', gem: '방어 상승', fallbackKind: 'points', fallbackValue: 1, label: '보조스킬룬 - 방어 상승', desc: '물리 피해 감소를 올려 생존력을 보탭니다.' }
         ]
     },
     2: {
@@ -54,13 +54,13 @@ const ACT_REWARD_DB = {
     },
     5: {
         title: '액트 6 클리어 보상',
-        body: '가져갈 보조 스킬 젬 하나를 선택하세요.',
+        body: '가져갈 보조스킬룬 하나를 선택하세요.',
         choices: [
-            { kind: 'support', gem: '가속', fallbackKind: 'currency', currency: 'magicBud', fallbackValue: 2, label: '보조 젬 - 가속', desc: '공격 속도를 높이는 보조 젬을 얻습니다.' },
-            { kind: 'support', gem: '무자비', fallbackKind: 'currency', currency: 'magicBud', fallbackValue: 2, label: '보조 젬 - 무자비', desc: '치명타 피해를 높이는 보조 젬을 얻습니다.' },
-            { kind: 'support', gem: '활력', fallbackKind: 'currency', currency: 'magicBud', fallbackValue: 2, label: '보조 젬 - 활력', desc: '생명력 재생을 제공하는 보조 젬을 얻습니다.' },
-            { kind: 'support', gem: '갑주 파쇄', fallbackKind: 'currency', currency: 'magicBud', fallbackValue: 2, label: '보조 젬 - 갑주 파쇄', desc: '물리 빌드가 적의 물리 피해 감소를 파고들 수 있게 합니다.' },
-            { kind: 'support', gem: '저항 침식', fallbackKind: 'currency', currency: 'magicBud', fallbackValue: 2, label: '보조 젬 - 저항 침식', desc: '원소/카오스 빌드가 적 저항을 음수까지 깎아낼 수 있게 합니다.' }
+            { kind: 'support', gem: '가속', fallbackKind: 'currency', currency: 'magicBud', fallbackValue: 2, label: '보조스킬룬 - 가속', desc: '공격 속도를 높이는 보조스킬룬을 얻습니다.' },
+            { kind: 'support', gem: '무자비', fallbackKind: 'currency', currency: 'magicBud', fallbackValue: 2, label: '보조스킬룬 - 무자비', desc: '치명타 피해를 높이는 보조스킬룬을 얻습니다.' },
+            { kind: 'support', gem: '활력', fallbackKind: 'currency', currency: 'magicBud', fallbackValue: 2, label: '보조스킬룬 - 활력', desc: '생명력 재생을 제공하는 보조스킬룬을 얻습니다.' },
+            { kind: 'support', gem: '갑주 파쇄', fallbackKind: 'currency', currency: 'magicBud', fallbackValue: 2, label: '보조스킬룬 - 갑주 파쇄', desc: '물리 빌드가 적의 물리 피해 감소를 파고들 수 있게 합니다.' },
+            { kind: 'support', gem: '저항 침식', fallbackKind: 'currency', currency: 'magicBud', fallbackValue: 2, label: '보조스킬룬 - 저항 침식', desc: '원소/카오스 빌드가 적 저항을 음수까지 깎아낼 수 있게 합니다.' }
         ]
     },
     6: {
@@ -97,8 +97,8 @@ const ACT_REWARD_DB = {
         body: '액트 완료 보상입니다.',
         choices: [
             { kind: 'points', value: 3, label: '스킬트리 포인트 +3', desc: '스킬트리 포인트 3점을 바로 얻습니다.' },
-            { kind: 'stat', stat: 'gemLevel', value: 1, label: '젬 레벨 보너스 +1', desc: '모든 장착 젬의 유효 레벨을 1 올립니다.' },
-            { kind: 'stat', stat: 'suppCap', value: 1, label: '보조 젬 한도 +1', desc: '동시에 장착할 수 있는 보조 젬 수가 늘어납니다.' }
+            { kind: 'stat', stat: 'gemLevel', value: 1, label: '룬 레벨 보너스 +1', desc: '모든 장착 룬의 유효 레벨을 1 올립니다.' },
+            { kind: 'stat', stat: 'suppCap', value: 1, label: '보조스킬룬 한도 +1', desc: '동시에 장착할 수 있는 보조스킬룬 수가 늘어납니다.' }
         ]
     }
 };

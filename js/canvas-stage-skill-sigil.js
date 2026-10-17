@@ -181,6 +181,8 @@ const stageSkillSigil = (() => {
         const element = row.element === 'prism' ? PRISM[Math.floor(age / 200) % 3] : row.element, look = STAGE_SKILL_VFX.elements[element] || STAGE_SKILL_VFX.elements.phys;
         return Math.floor(age / 120) % 2 ? look.c1 : look.c2;
     }
-    return Object.freeze({ cast: castSigil, draw: drawSigils, aura: sigilAura });
+    /** 떠 있는 마법진을 모두 걷는다(방을 옮길 때). */
+    function clearSigils() { live.length = 0; }
+    return Object.freeze({ cast: castSigil, draw: drawSigils, aura: sigilAura, clear: clearSigils });
 })();
 safeExposeGlobals({ stageSkillSigil });

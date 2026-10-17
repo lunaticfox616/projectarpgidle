@@ -1259,7 +1259,7 @@ function buildBlackMarketOffer(index) {
     }
     if (roll < 0.9) {
         let missing = Object.keys(SKILL_DB).filter(k => SKILL_DB[k].isGem && !hasSkillGemOwned(k));
-        if (missing.length>0) return { type:'skillGem', name:rndChoice(missing), priceKey:'formlessDew', price:5 };
+        if (missing.length>0) return { type:'skillGem', name:pickSkillRuneReward(missing), priceKey:'formlessDew', price:5 };
     }
     let preferredUniqueSlot = bm.preferredSlot !== 'any' && Math.random() < 0.35 ? bm.preferredSlot : 'any';
     let uniqPool = getBlackMarketUniquePool(tier, preferredUniqueSlot, { includeChase: true });
@@ -1303,7 +1303,7 @@ function getBlackMarketOfferPurchaseState(offer) {
     let price = Math.max(0, Math.floor(Number(offer.price) || 0));
     let have = Math.max(0, Math.floor((game.currencies && game.currencies[priceKey]) || 0));
     if (offer.type === 'skillGem' && typeof hasSkillGemOwned === 'function' && hasSkillGemOwned(offer.name)) {
-        return { canBuy: false, reason: '이미 보유한 젬' };
+        return { canBuy: false, reason: '이미 보유한 룬' };
     }
     if ((offer.type === 'baseItem' || offer.type === 'unique') && !canStoreEquipmentItems([offer], game)) {
         return { canBuy: false, reason: `인벤토리 가득 참, ${getInventoryUsedCellCount(game)}/${getInventoryLimit(game)}칸` };
@@ -1344,7 +1344,7 @@ function getBlackMarketOfferTooltipHtml(offer) {
     }
     if (offer.type === 'skillGem') {
         let skill = SKILL_DB[offer.name] || {};
-        return `<div class="tooltip-title">젬: ${offer.name}</div><div class="tooltip-line">${skill.desc || '미보유 공격 젬을 획득합니다.'}</div>`;
+        return `<div class="tooltip-title">룬: ${offer.name}</div><div class="tooltip-line">${skill.desc || '미보유 공격 룬을 획득합니다.'}</div>`;
     }
     if (offer.type === 'baseItem') {
         let base = BASE_ITEM_DB.find(row => row && ((offer.baseId && row.id === offer.baseId) || (row.name === String(offer.name || '').replace(' 베이스','') && row.slot === offer.slot)));
@@ -1544,10 +1544,10 @@ async function buyBlackMarketOffer(idx){
         purchaseSummary = `${ORB_DB[offer.from].name} ${offer.need} → ${ORB_DB[offer.to].name} ${offer.gain}`;
     } else if (offer.type==='skillGem') {
         if ((game.currencies[offer.priceKey]||0) < offer.price) return addLog('재화가 부족합니다.', 'attack-monster');
-        if (hasSkillGemOwned(offer.name)) return addLog('이미 보유한 젬입니다.', 'attack-monster');
+        if (hasSkillGemOwned(offer.name)) return addLog('이미 보유한 룬입니다.', 'attack-monster');
         game.currencies[offer.priceKey]-=offer.price; game.skills.push(offer.name); game.gemData[offer.name]={level:1,exp:0}; purchased = true;
         game.noti = game.noti || {}; game.noti.skills = true;
-        purchaseSummary = `공격 젬 [${offer.name}]`;
+        purchaseSummary = `공격 룬 [${offer.name}]`;
     } else if (offer.type==='baseItem') {
         if ((game.currencies[offer.priceKey]||0) < offer.price) return addLog('재화가 부족합니다.', 'attack-monster');
         if (!canStoreBlackMarketEquipmentOffer(offer)) return;

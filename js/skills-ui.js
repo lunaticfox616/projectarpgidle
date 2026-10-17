@@ -1,11 +1,11 @@
-// 스킬 젬 화면 조립 — js/ui.js의 거대 렌더 함수에서 분리했다.
+// 스킬룬 화면 조립 — js/ui.js의 거대 렌더 함수에서 분리했다.
 //
 // 왜 분리하는가: performUpdateStaticUI 하나가 2,500줄이라 한 화면을 손대면 무관한
 // 화면이 깨졌다(#920, #921). 화면별 렌더러를 자기 파일로 옮겨 그 결합을 끊는다.
 // js/records-ui.js와 같은 형태다.
 //
 // 계약: 이 파일은 화면 갱신이 넘겨준 컨텍스트(pStats·검색 필터)만 받고, 그 외에는
-// 기존과 동일하게 전역 도메인 함수를 호출한다. 스킬 젬 화면 밖의 DOM은 건드리지 않는다.
+// 기존과 동일하게 전역 도메인 함수를 호출한다. 스킬룬 화면 밖의 DOM은 건드리지 않는다.
 (function () {
     'use strict';
 
@@ -58,7 +58,7 @@
     }
 
     function renderLibraryPager(kind, index, count, total) {
-        return '<nav class="gem-library-pager" aria-label="' + (kind === 'support' ? '보조' : '공격') + ' 젬 페이지">'
+        return '<nav class="gem-library-pager" aria-label="' + (kind === 'support' ? '보조' : '공격') + ' 룬 페이지">'
             + '<button type="button" data-gem-page="' + kind + '" data-step="-1"' + (index === 0 ? ' disabled' : '') + '>이전</button>'
             + '<span aria-live="polite">' + (index + 1) + ' / ' + count + '<small>총 ' + total + '개</small></span>'
             + '<button type="button" data-gem-page="' + kind + '" data-step="1"' + (index === count - 1 ? ' disabled' : '') + '>다음</button></nav>';
@@ -84,8 +84,8 @@
         }
         let art = isSupport ? supportGemSigil.html(name, 'gem-research-card-sigil', 0) : renderSkillGemArt(name, 'gem-research-card-art');
         return `<article class="gem-research-card element-${meta.className}" aria-label="${escapeHTML(name)}">
-            <div class="gem-research-card-head">${art}<div><small>${isSupport ? '보조 젬' : `${meta.elementLabel}, ${meta.typeLabel}`}</small><strong>${escapeHTML(name)}</strong></div></div>
-            <p>${statToneText.html(def.desc || '연구를 완료하면 보유 젬 목록에 추가됩니다.')}</p>
+            <div class="gem-research-card-head">${art}<div><small>${isSupport ? '보조스킬룬' : `${meta.elementLabel}, ${meta.typeLabel}`}</small><strong>${escapeHTML(name)}</strong></div></div>
+            <p>${statToneText.html(def.desc || '연구를 완료하면 보유 룬 목록에 추가됩니다.')}</p>
             ${rangeText ? `<div class="gem-card-range">${escapeHTML(rangeText)}</div>` : ''}
             <div class="gem-card-tags">${tags}</div>
             <button type="button" onclick="researchMissingGem('${kind}', decodeURIComponent('${encodedName}'))" ${affordable ? '' : 'disabled'}>
@@ -103,7 +103,7 @@
         const open = query ? true : (typeof saved === 'boolean' ? saved : defaultOpen);
         const label = kind === 'support' ? '보조' : '공격';
         const cards = matches.map(name => renderGemResearchCandidate(kind, name, cost, fragments)).join('');
-        return `<details data-gem-research-section="${kind}" ${open ? 'open' : ''}><summary>미보유 ${label} 젬 <b>${matches.length}</b></summary><div class="gem-research-grid">${cards || '<div class="gem-process-empty">수집 완료</div>'}</div></details>`;
+        return `<details data-gem-research-section="${kind}" ${open ? 'open' : ''}><summary>미보유 ${label} 룬 <b>${matches.length}</b></summary><div class="gem-research-grid">${cards || '<div class="gem-process-empty">수집 완료</div>'}</div></details>`;
     }
     function bindGemResearchSections(root, query) {
         root.querySelectorAll('details[data-gem-research-section]').forEach(details => {
@@ -126,14 +126,14 @@
         if (!root.querySelector('#ui-gem-research-results')) {
             root.innerHTML = '<div class="gem-research-summary"></div><div id="ui-gem-research-results"></div>';
         }
-        root.querySelector('.gem-research-summary').innerHTML = `<div><h3>젬 연구</h3><p>젬 잔향으로 원하는 미보유 젬을 획득합니다.</p></div>
-            <div class="gem-research-resource"><span>젬 잔향</span><strong>${fragments}</strong><small>공격 ${attackCost}, 보조 ${supportCost}</small></div>
+        root.querySelector('.gem-research-summary').innerHTML = `<div><h3>룬 연구</h3><p>룬 잔향으로 원하는 미보유 룬을 획득합니다.</p></div>
+            <div class="gem-research-resource"><span>룬 잔향</span><strong>${fragments}</strong><small>공격 ${attackCost}, 보조 ${supportCost}</small></div>
             <div class="gem-research-progress"><span>공격 <b>${state.attack.owned}/${state.attack.total}</b></span><span>보조 <b>${state.support.owned}/${state.support.total}</b></span></div>`;
         const sections = renderGemResearchSection('attack', state, {query, cost: attackCost, fragments, defaultOpen: fragments >= attackCost})
             + renderGemResearchSection('support', state, {query, cost: supportCost, fragments, defaultOpen: fragments >= supportCost && !state.attack.missing.length});
         const allComplete = !state.attack.missing.length && !state.support.missing.length;
-        const rows = allComplete ? '<div class="gem-research-complete">모든 젬 연구 완료</div>' : (sections ? `<div class="gem-research-columns">${sections}</div>` : '');
-        renderSearchSection('ui-gem-research-results', 'gemResearch', '젬 이름/효과/태그 검색', rows, '<div class="gem-process-empty">검색 결과가 없습니다.</div>', '');
+        const rows = allComplete ? '<div class="gem-research-complete">모든 룬 연구 완료</div>' : (sections ? `<div class="gem-research-columns">${sections}</div>` : '');
+        renderSearchSection('ui-gem-research-results', 'gemResearch', '룬 이름/효과/태그 검색', rows, '<div class="gem-process-empty">검색 결과가 없습니다.</div>', '');
         bindGemResearchSections(root, query);
     }
     /** The picker head: which slot it fills, how many gems it lists, and the "worn only" fold for that library. */
@@ -199,20 +199,20 @@
         let sealedSupports = Array.isArray(game.sealedSupports) ? game.sealedSupports : [];
         let skillsHtml = renderGemLibrary('skill', game.skills, sealedSkills, pStats, sf.skill);
         let skillsListEl = document.getElementById('ui-skills-list');
-        let skillActions = foldAttackInactive ? '' : '<button onclick="sealAllInactiveSkillGems()">미사용 공격 젬 일괄 봉인</button>';
+        let skillActions = foldAttackInactive ? '' : '<button onclick="sealAllInactiveSkillGems()">미사용 공격 룬 일괄 봉인</button>';
         let skillsRenderSig = `${skillsHtml}::${skillActions}`;
         if (skillsListEl && skillsListEl.dataset.renderSig !== skillsRenderSig) {
-            renderSearchSection('ui-skills-list', 'skill', '공격 젬 이름/태그 검색', skillsHtml, '', skillActions);
+            renderSearchSection('ui-skills-list', 'skill', '공격 룬 이름/태그 검색', skillsHtml, '', skillActions);
             skillsListEl = document.getElementById('ui-skills-list');
             skillsListEl.dataset.renderSig = skillsRenderSig;
         }
 
         let supportHtml = renderGemLibrary('support', game.supports, sealedSupports, pStats, sf.support);
         let supportListEl = document.getElementById('ui-support-list');
-        let supportActions = foldSupportInactive ? '' : '<button onclick="sealAllInactiveSupportGems()">미사용 보조 젬 일괄 봉인</button>';
+        let supportActions = foldSupportInactive ? '' : '<button onclick="sealAllInactiveSupportGems()">미사용 보조스킬룬 일괄 봉인</button>';
         let supportRenderSig = `${supportHtml}::${supportActions}`;
         if (supportListEl && supportListEl.dataset.renderSig !== supportRenderSig) {
-            renderSearchSection('ui-support-list', 'support', '보조 젬 이름/효과 검색', supportHtml, '', supportActions);
+            renderSearchSection('ui-support-list', 'support', '보조스킬룬 이름/효과 검색', supportHtml, '', supportActions);
             supportListEl = document.getElementById('ui-support-list');
             supportListEl.dataset.renderSig = supportRenderSig;
         }
@@ -228,7 +228,7 @@
             if (skillEnhanceBtn) {
                 skillEnhanceBtn.disabled = !gemEnhanceOpen;
                 skillEnhanceBtn.style.opacity = gemEnhanceOpen ? '1' : '0.45';
-                skillEnhanceBtn.title = gemEnhanceOpen ? '' : '해금 탭에서 젬 강화를 해금하세요.';
+                skillEnhanceBtn.title = gemEnhanceOpen ? '' : '해금 탭에서 룬 강화를 해금하세요.';
             }
             if (!gemEnhanceOpen && game.skillSubtab === 'skill-tab-enhance') game.skillSubtab = 'skill-tab-equip';
             if (gemEnhanceOpen) {
@@ -263,9 +263,9 @@
                 let activePresentation = isGem ? getUiGemPresentation(active, false, pStats) : null;
                 let growthSummary = isGem ? getGemGrowthSummaryHtml(active, activePresentation) : '';
                 let activeOptions = activeEnh.map(id => GEM_SKY_ENHANCEMENTS[id] ? GEM_SKY_ENHANCEMENTS[id].name : id).join(', ') || '적용된 각인 없음';
-                document.getElementById('ui-gem-enhance-target').innerHTML = `<div class="gem-target-list">${targetButtons || '<span class="gem-process-empty">기본 공격은 강화할 수 없습니다. 공격 젬을 장착하면 여기서 키웁니다.</span>'}</div>` + (isGem
+                document.getElementById('ui-gem-enhance-target').innerHTML = `<div class="gem-target-list">${targetButtons || '<span class="gem-process-empty">기본 공격은 강화할 수 없습니다. 공격 룬을 장착하면 여기서 키웁니다.</span>'}</div>` + (isGem
                     ? `<div class="gem-target-profile element-${activeMeta.className}">${renderSkillGemArt(active, 'gem-target-profile-icon', { eager: true })}<div><small class="gem-target-kicker">현재 선택<i>${activeMeta.elementLabel}</i><i>${activeMeta.typeLabel}</i></small><strong>${escapeHTML(active)}</strong><p>${escapeHTML(activeDef.desc || '')}</p></div></div>${growthSummary}<div class="gem-enhance-status"><span class="gem-status-chip ${coreDone ? 'done' : ''}">${coreDone ? '핵 강화 완료' : '핵 강화 진행 중'}</span><span ${contentUnlockUi.lockAttribute('engraving')} class="gem-status-chip gem-engrave-status ${slotDone ? 'done' : ''}">${slotDone ? '슬롯 최대' : `각인 슬롯 ${engraveCap}/5`}</span><span ${contentUnlockUi.lockAttribute('engraving')} class="gem-status-chip gem-engrave-status ${engraveFilled ? 'done' : ''}">${engraveFilled ? '슬롯 사용 완료' : `빈 슬롯 ${Math.max(0, engraveCap - activeEnh.length)}`}</span></div><div ${contentUnlockUi.lockAttribute('engraving')} class="gem-current-inscriptions"><span>현재 각인</span><strong>${escapeHTML(activeOptions)}</strong></div>`
-                    : '<div class="gem-process-empty">공격 젬을 선택하면 성장 정보가 표시됩니다.</div>');
+                    : '<div class="gem-process-empty">공격 룬을 선택하면 성장 정보가 표시됩니다.</div>');
                 renderGemResourceStrip(activeGem, condensedPower);
                 renderGemEngraveSlots(activeSlots, engraveCap);
                 renderSupportGemProcessList();
@@ -275,10 +275,10 @@
 
 
                     { title: '응축 창공 영구 강화', action: 'upgradeActiveGemWithCondensedSkyPower()', done: permanentSkyBoost >= permanentSkyMax, ready: game.skyTower.unlocked && condensedPower >= permanentSkyCost, details: `${game.skyTower.unlocked ? '루프 초기화 없음' : '창공의 탑 해금 필요'}, 보유 ${Math.floor(condensedPower)} / 필요 ${permanentSkyCost}`, gain: 1 },
-                    { title: '젬 퀄리티 강화', action: 'upgradeActiveGemQuality()', done: activeGem?.quality >= 20, ready: (game.currencies.bossCore || 0) >= qualityNeed, details: `군주의 핵 ${game.currencies.bossCore || 0}/${qualityNeed}, 피해/속도 배율 +0.5%` },
-                    { title: '각성 젬 변환', action: 'awakenActiveGemCandidate()', done: !!activeGem?.awakened, ready: awakenReady && (game.currencies.awakenedEcho || 0) >= 3, details: `${gemAwakening ? '' : '‘젬 각성’ 해금 필요, '}기본 Lv.20, 각성 잔향 ${game.currencies.awakenedEcho || 0}/3`, gain: 2 }
+                    { title: '룬 퀄리티 강화', action: 'upgradeActiveGemQuality()', done: activeGem?.quality >= 20, ready: (game.currencies.bossCore || 0) >= qualityNeed, details: `군주의 핵 ${game.currencies.bossCore || 0}/${qualityNeed}, 피해/속도 배율 +0.5%` },
+                    { title: '각성 룬 변환', action: 'awakenActiveGemCandidate()', done: !!activeGem?.awakened, ready: awakenReady && (game.currencies.awakenedEcho || 0) >= 3, details: `${gemAwakening ? '' : '‘룬 각성’ 해금 필요, '}기본 Lv.20, 각성 잔향 ${game.currencies.awakenedEcho || 0}/3`, gain: 2 }
                 ];
-                document.getElementById('ui-gem-upgrade-actions').innerHTML = isGem ? upgrades.map(upgrade => renderGemUpgradeButton(upgrade, currentTotalGemLevel)).join('') : '<div class="gem-process-empty">강화할 공격 젬을 먼저 장착하세요.<br><button type="button" onclick="switchSkillSubtab(\'skill-tab-equip\')">공격 젬 장착하기</button></div>';
+                document.getElementById('ui-gem-upgrade-actions').innerHTML = isGem ? upgrades.map(upgrade => renderGemUpgradeButton(upgrade, currentTotalGemLevel)).join('') : '<div class="gem-process-empty">강화할 공격 룬을 먼저 장착하세요.<br><button type="button" onclick="switchSkillSubtab(\'skill-tab-equip\')">공격 룬 장착하기</button></div>';
                 if ((game.season || 1) >= 4) {
                     document.getElementById('ui-gem-enhance-options').innerHTML = `<div class="gem-engrave-slot-guide"><strong>전체 각인</strong><span>누르면 빈 슬롯에 적용되고 다시 누르면 해제됩니다.</span></div>` + Object.values(GEM_SKY_ENHANCEMENTS).map(enh => renderSkyEnhancementOption(enh, activeSlots, isGem)).join('');
                 } else {

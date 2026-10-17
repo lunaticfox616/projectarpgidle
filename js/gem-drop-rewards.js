@@ -12,26 +12,26 @@ const gemDropRewards=(()=>{
         return {kind:'support',name,tier:before+1};
     }
     function validate(rewards) {
-        if(!Array.isArray(rewards))throw Error('잘못된 탐험 젬 목록');
+        if(!Array.isArray(rewards))throw Error('잘못된 탐험 룬 목록');
         const keys=new Set();
         for(const row of rewards) {
             validateGem(row);
             const key=row.kind+':'+row.name;
-            if(keys.has(key))throw Error('중복된 탐험 젬 저장');
+            if(keys.has(key))throw Error('중복된 탐험 룬 저장');
             keys.add(key);
         }
     }
     function validateGem(row) {
-        if(!row||typeof row.name!=='string')throw Error('잘못된 탐험 젬 저장');
+        if(!row||typeof row.name!=='string')throw Error('잘못된 탐험 룬 저장');
         if(row.kind==='attack') {
             validateAttack(row);
             return;
         }
-        if(row.kind!=='support'||!Object.hasOwn(SUPPORT_GEM_DB,row.name))throw Error('잘못된 탐험 보조 젬 저장');
-        if(!Number.isInteger(row.tier)||row.tier<1||row.tier>getSupportTierCap(row.name))throw Error('잘못된 탐험 보조 젬 등급');
+        if(row.kind!=='support'||!Object.hasOwn(SUPPORT_GEM_DB,row.name))throw Error('잘못된 탐험 보조스킬룬 저장');
+        if(!Number.isInteger(row.tier)||row.tier<1||row.tier>getSupportTierCap(row.name))throw Error('잘못된 탐험 보조스킬룬 등급');
     }
     function validateAttack(row) {
-        if(!Object.hasOwn(SKILL_DB,row.name)||!SKILL_DB[row.name].isGem||typeof row.awakened!=='boolean')throw Error('잘못된 탐험 공격 젬 저장');
+        if(!Object.hasOwn(SKILL_DB,row.name)||!SKILL_DB[row.name].isGem||typeof row.awakened!=='boolean')throw Error('잘못된 탐험 공격 룬 저장');
     }
     /** Preserve XP, quality, forging, sealing and active tiers changed while rewards were pending. */
     function prepare(state,rewards) {

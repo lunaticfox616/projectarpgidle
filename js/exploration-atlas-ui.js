@@ -99,7 +99,7 @@ const explorationAtlasUi = (() => {
         const rewards = {
             'map-explore-root-boss': [['고유 장비','고유 효과를 가진 장비입니다.'],['군주의 핵',ORB_DB.bossCore.desc,'bossCore']],
             'map-explore-beehive': [['고유 장비','고유 효과를 가진 장비입니다.'],['벌꿀',ORB_DB.enchantedHoney.desc,'enchantedHoney'],['독벌침',ORB_DB.venomStinger.desc,'venomStinger']],
-            'map-explore-trials': [['전직 포인트','전직 패시브에 투자하는 포인트입니다.'],['스킬 젬','장착하여 스킬을 사용하는 젬입니다.']],
+            'map-explore-trials': [['전직 포인트','전직 패시브에 투자하는 포인트입니다.'],['스킬룬','장착하여 스킬을 사용하는 룬입니다.']],
             'map-explore-colony': [['액막이 부적','군락지 액막이 슬롯에 장착하여 효과를 받습니다.']]
         };
         const names = (rewards[route] || []).filter(([, ,key]) => !key || contentProgression.canDropCurrency(key)).map(([name,description]) =>

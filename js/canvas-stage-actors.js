@@ -47,6 +47,13 @@ const stageActors = (() => {
         if (!mergedSets.has(key)) mergedSets.set(key, Object.freeze({ ...base, ...extra }));
         return mergedSets.get(key);
     }
+    /** 그 룬을 그 직업이 그 자세로 쓸 때의 동작(2026-10-17 스킬룬 인계 v32의 동작 표, data/stage-skill-vfx.js motions): 'attack3', 'flurry',
+     * 'cast2', 'throw' 같은 동작 이름. 표에 없으면 null(그 자세의 동작을 차례로 돈다). */
+    function motionFor(skillName, classId, stance) {
+        const gem = typeof stageSkillKit === 'object' && typeof STAGE_SKILL_VFX === 'object' ? stageSkillKit.gemOf(skillName) : null;
+        const row = gem && STAGE_SKILL_VFX.motions[gem.id];
+        return (row && row[classId] && row[classId][stance]) || null;
+    }
     /** 그 스킬을 휘두르는 모양(data/stage-view.js STAGE_HERO_STRIKES의 열쇠: 'thrust', 'slash', 'spin'), 정해지지 않았으면 null. */
     function strikeFor(skillName) {
         return Object.keys(STAGE_HERO_STRIKES).find(shape => STAGE_HERO_STRIKES[shape].includes(skillName)) || null;
@@ -121,8 +128,15 @@ const stageActors = (() => {
             const paused = !(state.attack.start - chain.start < STAGE_VIEW.comboResetMs);
             chain = { start: state.attack.start, index: paused ? 0 : chain.index + 1 };
         }
+        const own = ownMotion(set, state);
+        if (own) return own;
         const pool = swingPool(set, state);
         return pool.length ? pool[chain.index % pool.length] : null;
+    }
+    /** 그 룬에 정해진 동작(state.motion, motionFor): 그 시트가 있고, 그 자세에 사용자가 따로 준 휘두름(thrust, slash, spin)이 없을 때. */
+    function ownMotion(set, state) {
+        if (!state.motion || !set[state.motion] || !image(set[state.motion].file).ready) return null;
+        return state.strike && variants(set, state.strike).length ? null : state.motion;
     }
 
     // 처음 장면의 쓰러진 주인공과 일어나는 동작(js/opening-journey-ui.js가 정한다, data/stage-view.js STAGE_HERO_RISE): null이면 보통 자세,
@@ -277,7 +291,8 @@ const stageActors = (() => {
      * @param {number} x feet x (CSS px)
      * @param {number} y feet y (CSS px)
      * @param {{classId:string, stance:string, tile:number, facing:string, moving?:boolean, moveRate?:number, moveDirection?:string,
-     *   attack?:?object, spell?:boolean, throwsWeapon?:boolean, hurtAt?:?number, downProgress?:?number, alpha?:number}} state
+     *   attack?:?object, spell?:boolean, throwsWeapon?:boolean, strike?:?string, motion?:?string, hurtAt?:?number, downProgress?:?number,
+     *   alpha?:number}} state (motion: 그 룬의 동작 이름, motionFor)
      * @param {number} now visual clock
      * @returns {boolean} false when the set is not ready (the caller falls back to the other sprite sets)
      */
@@ -306,7 +321,7 @@ const stageActors = (() => {
     const preloadRise = classId => { if (table() && classId) image(riseClip(classId).file); };
     /** The hero lies or is getting up (the overhead bar waits: it would float over the air where a standing head would be). */
     const down = () => !!rise;
-    return { drawPlayer: drawStageHero, headY, isReady, stanceFor, strikeFor, scaleFor, available, stageArtKnown, whenStageArtKnown, facing, setRise, preloadRise, down };
+    return { drawPlayer: drawStageHero, headY, isReady, stanceFor, strikeFor, motionFor, scaleFor, available, stageArtKnown, whenStageArtKnown, facing, setRise, preloadRise, down };
 })();
 
 const sides = new WeakMap();

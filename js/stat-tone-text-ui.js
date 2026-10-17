@@ -22,7 +22,7 @@ const statToneText = (() => {
         ['방어도', 'armor'], ['피해 감소', 'dr'], ['막기', 'blockChance'], ['방패', 'armor'],
         ['회피', 'evasion'], ['비껴내기', 'deflectChance'],
         ['저항', 'resAll'], ['관통', 'resPen'],
-        ['물리', 'physPctDmg'], ['주문', 'spellPctDmg'], ['젬 레벨', 'gemLevel'], ['경험치', 'expGain'],
+        ['물리', 'physPctDmg'], ['주문', 'spellPctDmg'], ['룬 레벨', 'gemLevel'], ['경험치', 'expGain'],
         ['피해', 'pctDmg'], ['공격력', 'flatDmg'], ['증폭', 'pctDmg']
     ].sort((a, b) => b[0].length - a[0].length));
     const BY_WORD = new Map(KEYWORDS);

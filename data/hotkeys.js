@@ -6,7 +6,7 @@ const HOTKEY_ACTIONS = Object.freeze([
     { id: 'window:tab-char', kind: 'window', target: 'tab-char', label: '스킬트리', code: 'KeyP' },
     { id: 'window:tab-items', kind: 'window', target: 'tab-items', label: '장비', code: 'KeyI' },
     { id: 'window:tab-map', kind: 'window', target: 'tab-map', label: '지도', code: 'KeyM' },
-    { id: 'window:tab-skills', kind: 'window', target: 'tab-skills', label: '스킬 젬', code: 'KeyG' },
+    { id: 'window:tab-skills', kind: 'window', target: 'tab-skills', label: '스킬룬', code: 'KeyG' },
     { id: 'window:tab-journal', kind: 'window', target: 'tab-journal', label: '기록', code: 'KeyJ' },
     { id: 'combat:mobility', kind: 'combat', target: 'mobility', label: '이동 스킬 사용', code: 'KeyE' },
     // 2026-10-09: A는 걷기(WASD)가 쓰므로 자동 이동은 Q로 옮겼다(E 이동 스킬과 나란히).

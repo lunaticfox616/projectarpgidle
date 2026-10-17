@@ -11,6 +11,9 @@ const actExplorationView=(()=>{
     // During a boss's entrance and fight the camera leans toward it (half the way, at most BOSS_LEAD_TILES a side), so a boss
     // below the hero is not left at the screen's lower edge behind the HUD (2026-10-05 user request). Eased, never a jump.
     const BOSS_LEAD_TILES=3,BOSS_LEAD_PER_SEC=3;
+    // A boss's entrance on a view too narrow for hero and boss (a phone in portrait: the boss would stand less than this many tiles
+    // inside it) centres the boss; the hero may leave the view meanwhile. The whole entrance used to play off screen there (2026-10-17).
+    const ENTRANCE_MARGIN_TILES=1.5;
     let lead={run:null,gx:0,gy:0,at:0};
     /** Whole-pixel camera zoom for the 16px art: ×3 (48px tiles) on phones, ×4 once the view keeps about 16×12 tiles —
      * on a desktop window the corridor then fills the screen instead of floating in black (data ACT_EXPLORATION_CAMERA).
@@ -44,12 +47,22 @@ const actExplorationView=(()=>{
         return map?map.frame.rows:0;
     }
     /** The cell (fractional) at the camera's centre: the hero's, leaning toward a boss; on a room-by-room stage the view its room
-     * holds (js/canvas-stage-rooms.js). */
+     * holds (js/canvas-stage-rooms.js), following the hero leaned the same way across a room wider than the view. */
     function cameraCentre(run,cell,view) {
-        const held=stageRoomsView.focus(run,cell,view);
+        const focus=bossLead(run,cell,view);
+        const held=stageRoomsView.focus(run,{gx:cell.gx+focus.gx,gy:cell.gy},view);
         if(held)return held;
-        const focus=bossLead(run,cell);
         return {gx:cell.gx+focus.gx+.5,gy:cell.gy+focus.gy+.5};
+    }
+    /** Where the camera leans (cells from the hero): half the way to the boss, at most BOSS_LEAD_TILES a side. During the boss's
+     * entrance, when that leaves the boss less than ENTRANCE_MARGIN_TILES inside the view, onto the boss (story bosses are wide). */
+    function leanTarget(run,cell,view) {
+        const boss=focusBoss(run),center=boss&&hasGridCell(boss)?getGridUnitCenter(boss):null;
+        if(!center)return {gx:0,gy:0};
+        const clamp=value=>Math.max(-BOSS_LEAD_TILES,Math.min(BOSS_LEAD_TILES,value));
+        const dx=center.gx-cell.gx,half={gx:clamp(dx/2),gy:clamp((center.gy-cell.gy)/2)};
+        const reach=Math.abs(dx)-(view.columns/2-ENTRANCE_MARGIN_TILES);
+        return actExplorationState.entrance(run) && reach>Math.abs(half.gx) ? {gx:dx,gy:half.gy} : half;
     }
     /** The boss the camera leans toward: the one fighting, else the one rising in its entrance. */
     function focusBoss(run) {
@@ -58,25 +71,29 @@ const actExplorationView=(()=>{
         const entrance=actExplorationState.entrance(run);
         return entrance ? run.packs.find(pack=>pack.key===entrance.key)?.waiting.find(enemy=>enemy.isBoss) : null;
     }
-    function bossLead(run,cell) {
+    function bossLead(run,cell,view) {
         const now=performance.now(),dt=lead.run===run?Math.min(.25,Math.max(0,(now-lead.at)/1000)):Infinity;
         if(lead.run!==run)lead={run,gx:0,gy:0,at:now};
-        const boss=focusBoss(run),center=boss&&hasGridCell(boss)?getGridUnitCenter(boss):null;
-        const clamp=value=>Math.max(-BOSS_LEAD_TILES,Math.min(BOSS_LEAD_TILES,value));
-        const target=center?{gx:clamp((center.gx-cell.gx)/2),gy:clamp((center.gy-cell.gy)/2)}:{gx:0,gy:0};
+        const target=leanTarget(run,cell,view);
         const ease=1-Math.exp(-BOSS_LEAD_PER_SEC*dt);
         lead.gx+=(target.gx-lead.gx)*ease;lead.gy+=(target.gy-lead.gy)*ease;lead.at=now;
         return {gx:lead.gx,gy:lead.gy};
     }
+    /** Keep cached actors and hit-number anchors on the same world spots while the camera follows; text rise and lifetime stay unchanged. */
     function shiftActors(run,origin) {
         if(lastOrigin?.run===run && lastOrigin.tile===origin.tile && lastOrigin.deep===origin.deep) {
-            for(const bank of [battleVisualState.enemySmoothPos,battleVisualState.enemyGhostPos]) {
-                for(const point of Object.values(bank||{})){point.x+=origin.x-lastOrigin.x;point.y+=origin.y-lastOrigin.y;}
-            }
+            shiftCachedAnchors(origin.x-lastOrigin.x,origin.y-lastOrigin.y);
         } else {
             battleVisualState.enemySmoothPos={};battleVisualState.enemyGhostPos={};
         }
         lastOrigin={run,...origin};
+    }
+    function shiftCachedAnchors(dx,dy) {
+        if(!dx && !dy)return;
+        for(const bank of [battleVisualState.enemySmoothPos,battleVisualState.enemyGhostPos]) {
+            for(const point of Object.values(bank||{})){point.x+=dx;point.y+=dy;}
+        }
+        for(const text of battleVisualState.damageTexts||[]){text.x+=dx;text.y+=dy;}
     }
     /** The ground picture of a map: the painted top-down map, or on the side-view stage the stage terrain drawn here
      * (js/canvas-stage-terrain.js). Switching the view prepares the other picture. */

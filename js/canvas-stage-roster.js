@@ -7,6 +7,7 @@
  * 타격 이펙트가 알린다. 떠 있는 한 장짜리는 제자리에서 몇 도트 오르내린다.
  * 서 있을 때는 서 있는 그림에 숨을 쉬듯 윗몸만 한 도트 오르내린다.
  * 보스 입장(js/canvas-boss-entrance.js) 동안에는 검은 형체에 속성 색 테만 두른 모습으로 그린다(p.shade, p.rim).
+ * 쓰러짐 그림이 있는 스토리 보스는 쓰러질 때 그 그림을 끝까지 그리고 마지막 장에 멈춘다(drawDeath, 2026-10-17 장면 상태 그림).
  * 그림은 지금 지도의 무리와 화면에 나와 있는 몬스터 것만 들고 있는다(keepFor). 시트는 메인 스레드 밖에서 미리 풀어 둔 것이라
  * (js/canvas-stage-pictures.js) 몬스터가 처음 화면에 나올 때 그림을 푸느라 멈추지 않는다. 그리기만 하고 전투 상태는 바꾸지 않는다.
  */
@@ -52,6 +53,7 @@ const stageRoster = (() => {
     function letGo(id, pair) {
         stagePictures.closePicture(pair.walk);
         if (pair.attack) stagePictures.closePicture(pair.attack);
+        if (pair.death) stagePictures.closePicture(pair.death);
         sheets.delete(id);
     }
     /** A pair that may be let go: not a look of this map's packs and not drawn for a while. */
@@ -80,14 +82,16 @@ const stageRoster = (() => {
         sweepAt = 0;
         for (const entry of [...sheets]) if (idlePair(entry)) letGo(entry[0], entry[1]);
     }
-    /** { walk, attack } once the sheets decode (attack is null for an actor without attack art), 'loading' meanwhile, null
-     * when a file is missing (the older art draws instead). */
+    /** { walk, attack, death } once the sheets decode (attack is null for an actor without attack art), 'loading' meanwhile, null
+     * when a file is missing (the older art draws instead). The defeat sheet (death, story bosses) is not waited for: a deploy
+     * without it draws the old death (drawDeath reads its own readiness). */
     function pairOf(actor) {
         let pair = sheets.get(actor.id);
         if (!pair) {
             // 쓴 때를 적고 나서 묶음을 줄인다: 0으로 넣고 줄이면 방금 넣은 묶음이 가장 오래된 것으로 뽑혀 바로 버려졌고, 그림을 비운
             // 묶음은 '불러오지 못함'으로 읽혀 그 몬스터가 예전 그림으로 그려졌다(2026-10-13: 한 번의 플레이에서 열다섯 번째 모습부터 모두).
-            pair = { walk: load(actor.id + '-walk.png'), attack: actor.attackMs ? load(actor.id + '-attack.png') : null, at: tick };
+            pair = { walk: load(actor.id + '-walk.png'), attack: actor.attackMs ? load(actor.id + '-attack.png') : null,
+                death: actor.death ? load(actor.id + '-death.png') : null, at: tick };
             sheets.set(actor.id, pair);
             trim();
         }
@@ -260,6 +264,23 @@ const stageRoster = (() => {
         ctx.restore();
         return true;
     }
+    /** 스토리 보스가 쓰러지는 그림(data/monster-stage-roster.js 쓰러짐): 쓰러진 뒤 p.deathMs가 흐른 프레임을 마지막 장에 멈춰 그린다.
+     * 발을 (p.x, p.y)에 두고 그림자는 서 있을 때와 같다. 테두리와 흰빛은 두르지 않는다. p는 draw와 같다. 쓰러짐 그림이 없거나(무대가
+     * 꺼졌거나, 이 배포에 그림이 없거나) 아직 풀리지 않았으면 false: 부른 쪽이 예전 사라짐 연출을 그린다. */
+    function drawDeath(ctx, enemy, p) {
+        tick = performance.now();
+        const actor = stageView.enabled() ? actorFor(enemy) : null, death = actor ? actor.death : null;
+        const pair = death ? pairOf(actor) : null, sheet = pair && pair !== 'loading' ? pair.death : null;
+        if (!sheet || !sheet.ready) return false;
+        const index = monsterActors.frameAt(death.ms, Math.max(0, p.deathMs)), dot = dotFor(enemy, actor, p);
+        const from = { x: (index % death.cols) * death.w, y: Math.floor(index / death.cols) * death.h, w: death.w, h: death.h };
+        shadow(ctx, actor, p, dot, 0);
+        ctx.save();
+        if (stageView.facing(enemy, p.facing) === 'west') { ctx.translate(p.x * 2, 0); ctx.scale(-1, 1); }
+        stageDots.blit(ctx, sheet.source, from, { x: monsterActors.snap(p.x - death.feet[0] * dot), y: monsterActors.snap(p.y - death.feet[1] * dot), scale: dot }, true);
+        ctx.restore();
+        return true;
+    }
     /** The looks the test panel can pick: [id, name], by name. */
     const looks = () => (table() ? Object.values(table().actors).map(actor => [actor.id, actor.name]).sort((a, b) => a[1].localeCompare(b[1], 'ko')) : []);
 
@@ -272,6 +293,6 @@ const stageRoster = (() => {
         return placed && performance.now() - placed.at < 1000 ? placed : null;
     }
 
-    return Object.freeze({ draw, looks, keepFor, placementOf });
+    return Object.freeze({ draw, drawDeath, looks, keepFor, placementOf });
 })();
 safeExposeGlobals({ stageRoster });

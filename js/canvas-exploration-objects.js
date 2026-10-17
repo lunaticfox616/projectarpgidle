@@ -45,7 +45,16 @@ actExplorationView.objects=(()=>{
     const RIM={chest:'#ffd36b',sealed:'#e0b4ff',nest:'#ff9a6a',pot:'#f3d6a4',crate:'#f3d6a4'},RIM_HOT='#fff8e6';
     // 등급 있는 보급 상자의 테: 은은 차가운 흰빛, 금은 짙은 금빛(무대의 상자 그림에는 등급 빛깔을 옅게만 얹는다).
     const RIM_GRADE={silver:'#e4eefa',gold:'#ffbf2e'},rimColour=row=>(row.kind==='chest'&&RIM_GRADE[row.grade])||RIM[row.kind];
+    const SILVER_HALO=0.3; // 은빛 상자 테 바깥의 옅은 한 겹(무대): 테의 불투명도에 곱한다
     let hovered=null;
+    /** 누른 물건(상자의 pendingId): 주인공이 다가가 열거나 부술 때까지 테가 밝은 채로 멈추고 머리 위에 금빛 화살표가 선다
+     * (2026-10-17 사용자 "상자, 항아리(파괴하거나 열러가기 전까지) 클릭 시 타겟이 지정되었다는 표시", js/canvas-target-marks.js). */
+    function targeted(row) {
+        const run=actExplorationState.current(game);
+        return !!run?.objects && run.objects.pendingId===row.id && row.phase==='ready';
+    }
+    /** 테를 밝게 그리는가: 마우스를 올렸거나 초점이 갔거나, 누른 물건이다. */
+    const lit=row=>hovered===row.id||targeted(row);
     const cache=new Map();
     /** 18 × 18: every empty dot that touches the sprite's 16 × 16 picture on a side. */
     function rim(name,color) {
@@ -152,6 +161,14 @@ actExplorationView.objects=(()=>{
     function draw(ctx,actor,view) {
         if(stageObjects.ready())drawStaged(ctx,actor,view);
         else drawDotted(ctx,actor,view);
+        if(targeted(actor.object))targetArrow(ctx,actor,view);
+    }
+    /** 누른 물건 위의 금빛 화살표: 그림의 맨 위, 이름이 달린 물건(몬스터가 나오는 것)은 이름 위에 선다. */
+    function targetArrow(ctx,actor,view) {
+        const row=actor.object,tile=view.gridProj.tileW,dot=stageActors.scaleFor(tile);
+        const top=stageObjects.ready()?stageObjects.top(look(row),{x:actor.point.x,y:actor.y,dot}):actor.y-tile*15/16;
+        const label=actExplorationState.objects.isEvent(row)?actor.y-tile*.98-8:Infinity;   // nameLabel의 글 위 끝
+        targetMarks.arrow(ctx,actor.point.x,Math.min(top,label)-dot*2,dot);
     }
     /** The 16-dot sprite of the top-down field. */
     function drawDotted(ctx,actor,view) {
@@ -163,7 +180,7 @@ actExplorationView.objects=(()=>{
         const {name,tint}=look(row);
         if(actor.ready&&RIM[row.kind]) {
             // the breath runs on the screen's clock: the combat clock steps every 100 ms
-            const hot=hovered===row.id,breath=hot?1:.78+.22*Math.sin(performance.now()/300+row.gx+row.gy);
+            const hot=lit(row),breath=hot?1:.78+.22*Math.sin(performance.now()/300+row.gx+row.gy);
             ctx.globalAlpha=fade(row)*breath;
             ctx.drawImage(rim(name,hot?RIM_HOT:RIM[row.kind]),-scale,-scale,18*scale,18*scale);
             ctx.globalAlpha=fade(row);
@@ -177,18 +194,25 @@ actExplorationView.objects=(()=>{
         }
         ctx.restore();
     }
+    /** 무대의 숨 쉬는 테. 은빛 상자는 테로 읽힌다: 덜 꺼지는 숨(.75~1)과 그 바깥 한 도트의 옅은 테(SILVER_HALO). */
+    function drawStagedRim(ctx,row,at) {
+        const hot=lit(row),silver=row.kind==='chest'&&row.grade==='silver'&&!hot,dot=at.dot;
+        const wave=Math.sin(performance.now()/300+row.gx+row.gy),breath=hot?1:silver?.875+.125*wave:.6+.4*wave;
+        if(silver) {
+            ctx.globalAlpha=fade(row)*breath*SILVER_HALO;
+            for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]])stageObjects.outline(ctx,look(row),{x:at.x+dx*dot,y:at.y+dy*dot,dot},rimColour(row));
+        }
+        ctx.globalAlpha=fade(row)*breath;
+        stageObjects.outline(ctx,look(row),at,hot?RIM_HOT:rimColour(row));
+        ctx.globalAlpha=fade(row);
+    }
     /** 옆에서 보는 무대(js/canvas-stage-objects.js): 캐릭터와 같은 도트 크기의 그림으로, 같은 그림자와 숨 쉬는 테, 흔들림, 도화선 막대. */
     function drawStaged(ctx,actor,view) {
         const row=actor.object,dot=stageActors.scaleFor(view.gridProj.tileW),now=getCombatTime(),tile=view.gridProj.tileW;
         const shake=row.phase==='warning'?Math.round(Math.sin(now/45))*dot*2:0,at={x:actor.point.x+shake,y:actor.y,dot};
         ctx.save();ctx.imageSmoothingEnabled=false;ctx.globalAlpha=fade(row);
         ctx.fillStyle='rgba(10,6,4,.4)';ctx.beginPath();ctx.ellipse(at.x+dot*2,at.y-dot,tile*.36,tile*.085,0,0,Math.PI*2);ctx.fill();
-        if(actor.ready&&RIM[row.kind]) {
-            const hot=hovered===row.id,breath=hot?1:.6+.4*Math.sin(performance.now()/300+row.gx+row.gy);
-            ctx.globalAlpha=fade(row)*breath;
-            stageObjects.outline(ctx,look(row),at,hot?RIM_HOT:rimColour(row));
-            ctx.globalAlpha=fade(row);
-        }
+        if(actor.ready&&RIM[row.kind])drawStagedRim(ctx,row,at);
         stageObjects.draw(ctx,look(row),at);
         nameLabel(ctx,row,at.x,at.y-tile*.98);
         if(row.phase==='warning') {

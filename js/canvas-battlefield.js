@@ -149,6 +149,47 @@ function getKillHitStopMs(fx) {
     return death.boss ? KILL_HIT_STOP_MS.boss : (death.elite ? KILL_HIT_STOP_MS.elite : 0);
 }
 
+/** 쓰러짐 그림이 없는 보스의 사라짐 길이(ms). 보스의 쓰러짐 효과는 쓰러짐 그림을 보여 주려고 1.6초다(js/combat.js handleEnemyDeath). */
+const BOSS_DEATH_LEGACY_MS = 840;
+/** 쓰러진 보스가 흐려지기 시작하는 때(효과 길이의 비율): 그 앞까지는 쓰러짐 그림의 마지막 장(누운 모습)이 또렷하다. */
+const BOSS_DEFEAT_FADE_FROM = 0.78;
+/** 몬스터가 쓰러지는 연출(전투 효과 enemyDeath). 바닥 반응과 맞은 번쩍임은 모두 같다. 쓰러짐 그림이 있는 스토리 보스는 그 그림을 제자리에서
+ * 끝까지 보여 준다(drawBossDefeat). 그 밖에는 예전처럼 밀리며 바래 사라진다(쓰러짐 그림이 없는 보스는 예전 길이 BOSS_DEATH_LEGACY_MS로).
+ * at = { enemy (그 몬스터의 자리, 없으면 그리지 않는다), playerPos, gridProj, now }. */
+function drawEnemyDeathFx(ctx, fx, t, at) {
+    const enemy = at.enemy;
+    if (!enemy) return;
+    const deathEnemy = enemy.enemy || {}, isBossDeath = !!(fx.boss || deathEnemy.isBoss), elite = !!fx.elite;
+    const legacyT = isBossDeath ? Math.min(1, t * fx.duration / BOSS_DEATH_LEGACY_MS) : t;
+    const deathMotion = getEnemyDeathMotion(enemy, at.playerPos, legacyT, isBossDeath, elite);
+    drawEnemyDeathGroundReaction(ctx, enemy, deathMotion, fx.color, isBossDeath, elite);
+    drawEnemyDeathContactFlash(ctx, enemy, deathMotion, fx.color, isBossDeath, elite);
+    if (!(isBossDeath && drawBossDefeat(ctx, fx, t, at))) drawEnemyDeathAfterimage(ctx, fx, deathMotion, at);
+    worldTreeSkillFx.feedback.death(ctx, fx, legacyT, enemy);
+}
+/** 스토리 보스의 쓰러짐 그림(js/canvas-stage-roster.js drawDeath): 서 있던 자리에서 쓰러져 누운 채 머물다 끝에서 흐려진다. 그림이 없으면 false. */
+function drawBossDefeat(ctx, fx, t, at) {
+    const enemy = at.enemy, deathEnemy = enemy.enemy || {};
+    ctx.save();
+    ctx.globalAlpha = t < BOSS_DEFEAT_FADE_FROM ? 1 : Math.max(0, (1 - t) / (1 - BOSS_DEFEAT_FADE_FROM));
+    const drawn = stageRoster.drawDeath(ctx, deathEnemy, { x: enemy.x, y: enemy.y, tile: at.gridProj && at.gridProj.tileW, now: at.now,
+        facing: resolveEnemyFacingDirection(enemy, at.playerPos), deathMs: t * fx.duration, spawnScale: getBossDrawScale(deathEnemy) });
+    ctx.restore();
+    return drawn;
+}
+/** 예전 사라짐: 맞은 쪽으로 조금 밀리며 바래고 흐려지는 잔상. */
+function drawEnemyDeathAfterimage(ctx, fx, deathMotion, at) {
+    const enemy = at.enemy, deathEnemy = enemy.enemy || {}, isBossDeath = !!(fx.boss || deathEnemy.isBoss), dissolve = deathMotion.dissolve;
+    ctx.save();
+    ctx.globalAlpha = Math.pow(1 - dissolve, 1.62) * (isBossDeath ? 0.98 : (fx.elite ? 0.94 : 0.9));
+    ctx.translate(deathMotion.x, deathMotion.y);
+    ctx.scale(deathMotion.scaleX, deathMotion.scaleY);
+    ctx.filter = `grayscale(${Math.floor(dissolve * 78)}%) saturate(${1 - dissolve * 0.62}) brightness(${1 + deathMotion.impactAlpha * 0.45 + dissolve * 0.16})`;
+    drawEnemyAfterimage(ctx, deathEnemy, { x: 0, y: 0, scale: isBossDeath ? 3.65 : (fx.elite ? 2.1 : 1.9), flash: deathMotion.impactAlpha > 0.45,
+        gridProj: at.gridProj, now: at.now, facing: resolveEnemyFacingDirection(enemy, at.playerPos) });
+    ctx.restore();
+}
+
 function getEnemyDeathMotion(enemyPos, playerPos, progress, boss, elite) {
     let t = clampNumber(Number(progress) || 0, 0, 1);
     let dx = Number(enemyPos && enemyPos.x) - Number(playerPos && playerPos.x);
@@ -1422,7 +1463,7 @@ function drawSkillGemVfxLayer(ctx, now, gridProj) {
     if (typeof stageSkillVfx === 'object') { stageSkillVfx.draw(ctx, 'top', gridProj); stageSkillSigil.draw(ctx, gridProj); }
     bossMoveView.drawAir(ctx, gridProj); // boss moves: the charge at the hand, shots, beams (js/canvas-boss-moves.js)
     const spriteRenderers = {continuousSlash:drawSwordSlashVfx};
-    list.forEach(effect => {
+    list.forEach(drawSkillGemVfxLayer.ground.follow(ctx, gridProj, effect => {
         let image = getSkillGemVfxImage(effect.imageKey);
         let elapsed = now - effect.startAt;
         if (elapsed < 0 || elapsed > effect.duration) return;
@@ -1467,8 +1508,32 @@ function drawSkillGemVfxLayer(ctx, now, gridProj) {
             else drawProceduralSkillImpact(ctx, effect, t);
         }
         ctx.restore();
-    });
+    }));
 }
+
+/** Common slashes and hit sparks keep their cast-time pixels and footprint. Move only the drawing context with the camera,
+ * never their shared geometry or atlas-owned effects. A changed zoom/depth keeps the existing presentation until expiry. */
+drawSkillGemVfxLayer.ground = (() => {
+    function note(list, projection) {
+        const origin = projection.cellToScreen(0, 0);
+        for (const effect of list) {
+            if (effect.spawnGround || SKILL_FX_ATLAS[effect.skillName] || (effect.family !== 'slash' && effect.family !== 'hitSpark')) continue;
+            effect.spawnGround = { x: origin.x, y: origin.y, tileW: projection.tileW, tileH: projection.tileH };
+        }
+    }
+    function follow(ctx, projection, paint) {
+        return effect => {
+            const anchor = effect.spawnGround;
+            if (!anchor || anchor.tileW !== projection.tileW || anchor.tileH !== projection.tileH) return paint(effect);
+            const now = projection.cellToScreen(0, 0);
+            if (now.x === anchor.x && now.y === anchor.y) return paint(effect);
+            ctx.save();
+            ctx.translate(now.x - anchor.x, now.y - anchor.y);
+            try { paint(effect); } finally { ctx.restore(); }
+        };
+    }
+    return Object.freeze({ note, follow });
+})();
 
 function getEnemyTelegraphColor(enemy) {
     let element = String((enemy && (enemy.attackElement || enemy.element || enemy.damageElement || enemy.ele)) || 'phys').toLowerCase();
@@ -1650,7 +1715,11 @@ function isEnemyFieldBarShown(enemy, targeted) {
     return targeted || enemy.isElite || enemy.isBoss || enemy.hp < enemy.maxHp || (enemy.energyShield || 0) < (enemy.maxEnergyShield || 0);
 }
 
+/** This frame's top of each drawn enemy bar with its elite nameplate (screen px): the lock-on arrow stands over it (drawLockOnMark). */
+const enemyFieldBarTops = new Map();
+
 function drawBattlefieldEnemyHealthBars(ctx, layout, targetIds, tileW) {
+    enemyFieldBarTops.clear();
     (layout || []).forEach(entry => {
         let enemy = entry.enemy;
         if (!isEnemyFieldBarShown(enemy, targetIds.includes(enemy.id))) return;
@@ -1660,6 +1729,7 @@ function drawBattlefieldEnemyHealthBars(ctx, layout, targetIds, tileW) {
         let baseY = Math.round(entry.y - getEnemyFieldBarLift(enemy));
         const nameHeight = enemy.isElite && !enemy.isBoss ? 24 : 6;
         const reserved = drawBattlePlayerFigure.readability.place({ x: x - 3, y: baseY - nameHeight, w: width + 6, h: nameHeight + 10 }, !enemy.isBoss);
+        enemyFieldBarTops.set(enemy, reserved.y);
         let y = reserved.y + nameHeight;
         let targeted = targetIds.includes(enemy.id);
         ctx.save();
@@ -1849,6 +1919,17 @@ function getExplorationPlayerVisualMotion(projection, player) {
     // 걸음 도중에 게임이 멈추면(선택 창, 안내, 창 열림) 걷는 그림도 멈춘다: 멈춘 화면에서 제자리걸음을 하지 않는다.
     return {position, targetPosition: position, direction: run.motionDirection,
         progress: run.motion ? run.motion.elapsed / run.motion.duration : 1, animating: !!run.motion && !isForegroundGameplayPausedForBackground()};
+}
+
+/** 몸이 뜨는 이동 룬(도약 강타, 섬머솔트 슬래시)을 쓰는 동안 주인공의 땅 위 자리는 떠난 칸에서 닿는 칸으로 공중 시간 동안 옮겨 간다
+ * (js/canvas-stage-skill-runes.js heroAir). 발밑 고리와 주인공을 따라가는 연출이 이 자리를 쓰고, 높이와 돌기는 몸 그림에만 준다
+ * (js/canvas-battle-units.js drawStageHeroAloft). 게임의 칸은 이미 닿는 칸이다(그림만 늦게 따라간다). */
+function getStageHeroAirGround(playerPos, now, gridProj) {
+    const air = stageView.enabled() && typeof stageSkillRunes === 'object' ? stageSkillRunes.heroAir(now) : null;
+    battleVisualState.playerAir = air;
+    if (!air) return playerPos;
+    const at = gridProj.cellToScreen(air.gx, air.gy);
+    return { x: at.x, y: at.y + (Number(gridProj.actorGroundOffsetY) || 0) };
 }
 
 function getCardinalMoveDirection(fromCell, toCell) {
@@ -2386,6 +2467,7 @@ function drawBattleActorLayer(ctx, enemyEntries, state) {
         if (entry.drawn) seen.push(entry);
         else if (entry.seen) battleDrawList.keepFacing(entry, state.playerPos, view.tile);
     }
+    battleDrawList.noteDrawn(seen.concat(waiting), state.gridProj.tileW); // 누른 몬스터 찾기(락온)와 락온 표시의 자리
     let actors = seen.concat(waiting).map(entry => ({
         kind: 'enemy', id: entry.enemy.id, y: entry.y, entry
     }));
@@ -2563,10 +2645,10 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
     let playerMoveSpeed = Number(framePlayerStats.moveSpeed) || Number(framePlayerStats.move) || 100;
     let playerMotion = updatePlayerGridVisualMotion(gridProj, playerCell, now, playerMoveSpeed);
     let advanceBlend = playerMotion.animating ? 1 : 0;
-    let playerPos = {
+    let playerPos = getStageHeroAirGround({
         x: playerMotion.position.x,
         y: playerMotion.position.y + downBlend * 0.6
-    };
+    }, now, gridProj);
     let playerMotionState = {
         playerStats: framePlayerStats,
         advanceBlend,
@@ -2638,6 +2720,7 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
             if (!fx.dot && fx.skillName) {
                 const viewportSkillFxScale = Math.min(width / 960, height / 540);
                 queueSkillGemVfx({ ...fx, combatFx:fx, footprint: projectSkillFootprint(fx.attackFootprint, gridProj, fx.sourceCell) }, enemyPos, getCombatTravelScreenPos(gridProj, fx.sourceCell, playerPos), enemyPosMap, now, viewportSkillFxScale);
+                drawSkillGemVfxLayer.ground.note(battleVisualState.skillEffects || [], gridProj);
             }
             if (!fx.dot && !SKILL_FX_ATLAS[fx.skillName] && typeof attackFxSpawn === 'function') {
                 const viewportFxScale = Math.min(width / 960, height / 540);
@@ -2813,24 +2896,7 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
             }
             ctx.restore();
         } else if (fx.type === 'enemyDeath') {
-            let enemy = enemyPosMap[fx.enemyId];
-            if (!enemy) return;
-            const deathEnemy = enemy.enemy || {};
-            const isBossDeath = !!(fx.boss || deathEnemy.isBoss);
-            const deathMotion = getEnemyDeathMotion(enemy, playerPos, t, isBossDeath, !!fx.elite);
-            const dissolve = deathMotion.dissolve;
-            const dissolveFade = Math.pow(1 - dissolve, 1.62);
-            drawEnemyDeathGroundReaction(ctx, enemy, deathMotion, fx.color, isBossDeath, !!fx.elite);
-            drawEnemyDeathContactFlash(ctx, enemy, deathMotion, fx.color, isBossDeath, !!fx.elite);
-            ctx.save();
-            ctx.globalAlpha = dissolveFade * (isBossDeath ? 0.98 : (fx.elite ? 0.94 : 0.9));
-            ctx.translate(deathMotion.x, deathMotion.y);
-            ctx.scale(deathMotion.scaleX, deathMotion.scaleY);
-            ctx.filter = `grayscale(${Math.floor(dissolve * 78)}%) saturate(${1 - dissolve * 0.62}) brightness(${1 + deathMotion.impactAlpha * 0.45 + dissolve * 0.16})`;
-            drawEnemyAfterimage(ctx, deathEnemy, { x: 0, y: 0, scale: isBossDeath ? 3.65 : (fx.elite ? 2.1 : 1.9), flash: deathMotion.impactAlpha > 0.45,
-                gridProj, now, facing: resolveEnemyFacingDirection(enemy, playerPos) });
-            ctx.restore();
-            worldTreeSkillFx.feedback.death(ctx, fx, t, enemy);
+            drawEnemyDeathFx(ctx, fx, t, { enemy: enemyPosMap[fx.enemyId], playerPos, gridProj, now });
         } else if (['bossAreaImpact', 'trialTrapWarning', 'trialTrap'].includes(fx.type)) {
             drawTrialTrapGridFx(ctx, fx, t, gridProj, fx.type === 'trialTrapWarning');
         } else if (fx.type === 'lootPickup') {
@@ -2905,7 +2971,7 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
     // DOM은 그림을 다 그린 뒤에 만진다: 그리는 도중에 쓰면 다음 ctx.font나 ctx.filter가 문서 스타일을 다시 계산했다.
     setElementText(document.getElementById('ui-battlefield-caption'), getBattlefieldCaption());
     if (typeof actExplorationView === 'object' && actExplorationView.objects) actExplorationView.objects.flushButtons();
-    stageWarmup.afterBattleDraw(ctx); // 낀 젬의 이펙트를 미리 준비해 둔다(전투에서 처음 그릴 때 그림을 푸느라 멈추지 않게)
+    stageWarmup.afterBattleDraw(ctx); // 낀 룬의 이펙트를 미리 준비해 둔다(전투에서 처음 그릴 때 그림을 푸느라 멈추지 않게)
     return true;
 }
 
@@ -2998,7 +3064,19 @@ function drawBattleLightingAndBars(ctx, scene) {
     bossAttackView.drawMarks(ctx, scene);
     drawBattlePlayerFigure.readability.draw(ctx);
     if (!stageActors.down()) drawBattlefieldPlayerHealthBar(ctx, scene); // not over the first start's lying hero (js/opening-journey-ui.js)
-    drawBattlefieldEnemyHealthBars(ctx, scene.layout.filter(entry => entry.drawn), scene.targets, scene.tileW);
+    // 락온한 몬스터(js/act-exploration-state.js lockOn)는 겨눈 적처럼 막대가 늘 보이고 금빛 테를 두른다. 그 위에 화살표가 선다.
+    const locked = actExplorationState.lockedEnemy(actExplorationState.current(game));
+    drawBattlefieldEnemyHealthBars(ctx, scene.layout.filter(entry => entry.drawn), locked ? scene.targets.concat(locked.id) : scene.targets, scene.tileW);
+    drawLockOnMark(ctx, scene, locked);
+}
+
+/** The gold arrow over the locked-on monster (js/canvas-target-marks.js): above its bar and elite nameplate, or above where the bar
+ * would stand for a monster still waiting in its pack. None for a monster not drawn this frame. */
+function drawLockOnMark(ctx, scene, locked) {
+    const entry = locked ? battleDrawList.drawnEntry(locked) : null;
+    if (!entry) return;
+    const top = enemyFieldBarTops.has(locked) ? enemyFieldBarTops.get(locked) : entry.y - getEnemyFieldBarLift(locked);
+    targetMarks.arrow(ctx, entry.x, top - 3, stageActors.scaleFor(scene.tileW));
 }
 
 /** Only the existing cast boundary returns above foreground effects; never duplicate its opaque fill. */
@@ -3224,15 +3302,15 @@ function resolvePlayerAttackDirection(playerPos, currentTargets, enemyPosMap) {
     return direction;
 }
 const STAGE_ATTACK_SIDE_DEAD_PX = 10;     // 대상이 이만큼(px) 안의 같은 세로줄이면 직전에 보던 쪽을 지킨다
-const STAGE_NATIVE_CAST_FACE_MS = 700;    // 따로 시전하는 젬을 쓴 뒤 그 겨냥한 쪽을 보는 동안
-let stageNativeCastFace = null;           // { side, until }: 막 쓴 따로 시전하는 젬이 겨냥한 쪽(그 젬의 기록이 치워진 뒤에도 연출이 끝날 때까지 지킨다)
+const STAGE_NATIVE_CAST_FACE_MS = 700;    // 따로 시전하는 룬을 쓴 뒤 그 겨냥한 쪽을 보는 동안
+let stageNativeCastFace = null;           // { side, until }: 막 쓴 따로 시전하는 룬이 겨냥한 쪽(그 룬의 기록이 치워진 뒤에도 연출이 끝날 때까지 지킨다)
 /** 옆에서 보는 무대: 주인공이 지금 치고 있는 쪽. 가장 늦게 시작한 공격이 겨냥한 칸(combatTravel 기록의 aimCell)이나, 그런 기록을 남기지
- * 않는 따로 시전하는 젬(js/skill-gem-casts.js)이 겨냥한 자리를 주인공이 지금 선 칸에서 본 쪽이다. 지금 선 칸에서 보므로 적 옆으로
+ * 않는 따로 시전하는 룬(js/skill-gem-casts.js)이 겨냥한 자리를 주인공이 지금 선 칸에서 본 쪽이다. 지금 선 칸에서 보므로 적 옆으로
  * 건너가 치는 이동기(그림자 점멸, 암살)는 건너간 뒤의 쪽을 답한다. 겨냥한 칸이 같은 세로줄이거나 치는 중이 아니면 null.
  * 주인공 그림과 주인공에게 붙는 스킬 이펙트(js/canvas-stage-skill-kit.js heroFace)가 이 한 값으로 같은 쪽을 본다. */
 function resolveStageStrikeSide(now) {
     const hero = game.gridPlayer, side = cell => (cell && cell.gx !== hero.gx ? (cell.gx < hero.gx ? 'west' : 'east') : null);
-    // 막 쓴 따로 시전하는 젬이 먼저다: 그 젬을 쓰는 동안에도 기본 공격은 다른 적을 겨냥해 이어질 수 있다(암살로 건너가 뒤를 베는 순간)
+    // 막 쓴 따로 시전하는 룬이 먼저다: 그 룬을 쓰는 동안에도 기본 공격은 다른 적을 겨냥해 이어질 수 있다(암살로 건너가 뒤를 베는 순간)
     const cast = resolveStageNativeCastSide(side);
     if (cast) return cast;
     for (let index = battleFx.length - 1; index >= 0; index--) {
@@ -3250,7 +3328,7 @@ function resolveStageNativeCastSide(side) {
     stageNativeCastFace = null;
     return null;
 }
-/** 막 쓴(STAGE_NATIVE_CAST_FACE_MS 안의) 따로 시전하는 젬의 기록: 주 스킬 자리의 것이 먼저, 없으면 이동기 자리의 것. */
+/** 막 쓴(STAGE_NATIVE_CAST_FACE_MS 안의) 따로 시전하는 룬의 기록: 주 스킬 자리의 것이 먼저, 없으면 이동기 자리의 것. */
 function latestStageNativeCast(clock) {
     for (const state of [skillGemCombatRuntime, mobilitySkill.castState()]) {
         const cast = state && state.casts.length ? state.casts[state.casts.length - 1] : null;
@@ -3331,6 +3409,8 @@ const RIFT_CELL_TONES = {
     area: { fill: 'rgba(214, 170, 92, 0.12)', line: 'rgba(233, 203, 137, 0.42)' },
     target: { fill: 'rgba(233, 180, 84, 0.2)', line: 'rgba(246, 214, 146, 0.9)' }
 };
+/** The stage ring (js/canvas-stage-rings.js) each cell tone draws as; anything else is an enemy's. */
+const RIFT_RING_LOOKS = new Map([[RIFT_CELL_TONES.summon, 'summon'], [RIFT_CELL_TONES.target, 'target']]);
 
 function drawRiftCombatOccupants(ctx, layers) {
     const proj = layers.proj;
@@ -3339,8 +3419,9 @@ function drawRiftCombatOccupants(ctx, layers) {
     (game.summons || []).forEach(summon => {
         if (summon && !summon.isGhost && summon.alive && (summon.hp || 0) > 0) drawRiftUnitRing(ctx, proj, summon, RIFT_CELL_TONES.summon);
     });
+    const locked = actExplorationState.lockedEnemy(actExplorationState.current(game));
     (game.enemies || []).forEach(enemy => {
-        if (enemy && enemy.hp > 0 && actExplorationView.inSight(enemy)) drawRiftUnitRing(ctx, proj, enemy, RIFT_CELL_TONES.enemy);
+        if (enemy && enemy.hp > 0 && actExplorationView.inSight(enemy)) drawRiftUnitRing(ctx, proj, enemy, enemy === locked ? RIFT_CELL_TONES.target : RIFT_CELL_TONES.enemy);
     });
     (layers.skillTargets || []).forEach(hit => drawRiftTargetBrackets(ctx, proj, hit && hit.enemy));
 }
@@ -3377,15 +3458,16 @@ function getRiftUnitFootprintBox(proj, unit, walking = false) {
     return { left, right, top, bottom, cx: (left + right) / 2, cy: (top + bottom) / 2 };
 }
 
+/** A unit's foot ring: an enemy's, a summon's, or the locked-on enemy's (RIFT_CELL_TONES.target: gold, turning like the hero's). */
 function drawRiftUnitRing(ctx, proj, unit, tone) {
-    const box = getRiftUnitFootprintBox(proj, unit, tone === RIFT_CELL_TONES.enemy);
+    const box = getRiftUnitFootprintBox(proj, unit, tone !== RIFT_CELL_TONES.summon);
     if (!box) return;
     const rx = (box.right - box.left) * 0.4;
     const ry = Math.max(4, rx * 0.34);
     const cy = box.bottom - proj.tileH * 0.5 + (Number(proj.actorGroundOffsetY) || 0);
     if (stageView.enabled()) {
-        const dot = stageActors.scaleFor(proj.tileW);
-        return stageRings.ring(ctx, { x: box.cx, y: cy, dot }, { tone: tone === RIFT_CELL_TONES.summon ? 'summon' : 'enemy', rx: Math.round(rx / dot * 0.86) });
+        const dot = stageActors.scaleFor(proj.tileW), look = RIFT_RING_LOOKS.get(tone) || 'enemy';
+        return stageRings.ring(ctx, { x: box.cx, y: cy, dot }, { tone: look, rx: Math.round(rx / dot * 0.86), turning: look === 'target' });
     }
     ctx.globalAlpha = 1;
     ctx.beginPath();

@@ -35,6 +35,10 @@ let pendingEnemyCombatAttacks = [];
 const COMBAT_TACTIC_TARGET_LOCK_MS = 750;
 const COMBAT_TACTIC_STALL_MS = 2000;
 const COMBAT_TACTIC_MAX_RETREATS = 2;
+/** 공격 후딜(getPlayerAttackRecoveryMs): 공격 간격에서 차지하는 몫, 게임 프레임 하나(걸음 시계, ms), 가장 긴 프레임 수. */
+const PLAYER_ATTACK_RECOVERY = Object.freeze({ share: 0.35, frameMs: 20, maxFrames: 20 });
+/** 사거리 안에 적이 있는데 걷는 동안 공격 게이지가 차는 빠르기(배수, getWalkingChargeScale). */
+const PLAYER_WALKING_CHARGE = 0.5;
 let combatTacticsRuntime = createCombatTacticsRuntime();
 let combatChannelRuntime = { id: 0, skillName: '', endAt: 0 };
 let combatChannelResumeSkillName = '';
@@ -63,7 +67,7 @@ function createCombatTacticsRuntime(now) {
     let timestamp = Number.isFinite(now) ? now : getCombatTime();
     return {
         encounterKey: '', targetId: null, targetLockedUntil: 0, approachTargetId: null,
-        attackDelayUntil: 0, nextMoveAt: 0,
+        attackDelayUntil: 0, nextMoveAt: 0, recoverUntil: 0,
         lastAttackAt: timestamp, previousCell: null, consecutiveRetreats: 0
     };
 }
@@ -76,7 +80,6 @@ function resetCombatTacticsRuntime() {
 }
 
 function resetCombatChannelRuntime() {
-    if (skillGemCombatRuntime) skillGemCombatRuntime.channel = null;
     cancelCombatChannelVisuals();
     combatChannelRuntime = { id: 0, skillName: '', endAt: 0 };
     combatChannelResumeSkillName = '';
@@ -90,7 +93,6 @@ function hasPlayerChannelBreakingAilment() {
 }
 
 function cancelCombatChannel(reason) {
-    if (skillGemCombatRuntime) skillGemCombatRuntime.channel = null;
     if (!combatChannelRuntime.id) return false;
     cancelCombatChannelVisuals();
     pendingSkillStageHits = pendingSkillStageHits.filter(row => !row || !row.channelId);
@@ -165,6 +167,29 @@ function getCombatChannelGate(pStats, now) {
     let hasTargets = getSkillTargets(pStats).length > 0;
     if (ready && !hasTargets) combatChannelResumeSkillName = '';
     return { endAt: active ? combatChannelRuntime.endAt : 0, locked: active || (ready && hasTargets), hasTargets };
+}
+
+/** 공격 후딜(ms): 공격 간격의 35%를 게임 프레임(20ms)으로 반올림한 길이, 가장 길게 20프레임. 최소값은 없다: 공속이 몇이든 쏘는 동안
+ * 같은 몫이 묶인다(공속 1은 18프레임, 2는 9, 4는 4, 12는 1). 2026-10-17 사용자 "플레이어의 모든 공격에 후딜레이 넣어서 무빙샷 하기
+ * 조금 어렵게", "최소값 없는걸로해", 초가 아니라 프레임 단위로. */
+function getPlayerAttackRecoveryMs(aspd) {
+    const rule = PLAYER_ATTACK_RECOVERY, interval = 1000 / Math.max(0.01, Number(aspd) || 1);
+    return Math.min(rule.maxFrames, Math.round(interval * rule.share / rule.frameMs)) * rule.frameMs;
+}
+
+/** 공격 후딜 중인가: 그동안 주인공은 새 걸음을 시작하지 않는다(명령 걸음, 줍기 걸음, 다가가기, 거리 유지, 함정 피하기). 이미 내디딘
+ * 한 칸은 마저 걷는다. 이동기는 후딜을 끊는다(js/mobility-skill.js). now: 그 걸음의 시각(걸음 시계 또는 전투 시각). */
+function isPlayerAttackRecovering(now = getCombatTime()) {
+    return now < (Number(combatTacticsRuntime.recoverUntil) || 0);
+}
+
+/** 이번 전투 틱에 공격 게이지가 차는 배수: 걸은 몫(20ms 걸음 프레임으로 센다)만큼 PLAYER_WALKING_CHARGE(절반)로 찬다. 사거리 안에
+ * 적이 있을 때만이다(쏠 수 있는데 걸었다, 무빙샷): 적에게 다가가는 걸음은 그대로 찬다. 2026-10-17 사용자 "응 게이지 절반도 넣어줘".
+ * walkedMs: 이번 틱에 걸은 ms(actExplorationProgress.takeWalkedMs). */
+function getWalkingChargeScale(pStats, walkedMs) {
+    const share = Math.min(1, Math.max(0, Number(walkedMs) || 0) / 100);
+    if (!share || !getSkillTargets(pStats).length) return 1;
+    return 1 - (1 - PLAYER_WALKING_CHARGE) * share;
 }
 
 function getTacticalMoveAttackDelayMs(moveSpeed) {
@@ -338,7 +363,7 @@ function getPlayerHitDetailParts(summary, hit) {
     return parts.filter(Boolean);
 }
 
-/** The player's hit line: skill, target and total damage ("연속 베기로 썩은 잔뿌리에게 1,033 피해"), the counterpart of the monster's
+/** The player's hit line: skill, target and total damage ("이중 베기로 썩은 잔뿌리에게 1,033 피해"), the counterpart of the monster's
  * "○○의 공격으로 N 피해". 2026-10-06 user: "플레이어가 준 피해도 누구한테 준건지 표시됐으면 좋겠고". A critical hit keeps the line
  * colour and hands its number to the log, which colours only that ("치명타는 그냥 숫자 색만 바꿔도 충분할거같은데?"). Repeats merge
  * per target, crits apart. null when there is nothing to write (log off, or 0 damage: review 5). */
@@ -1136,7 +1161,8 @@ function getActiveSummonGemDefs() {
         return owned.includes(name) && db && Array.isArray(db.tags) && db.tags.includes('summon_attack');
     })));
     let defs = [];
-    attackNames.forEach(name => {
+    // 무기가 맞지 않는 소환 룬(위습은 맨손으로 못 쓴다)은 장착된 채 소환하지 않는다
+    attackNames.filter(name => canUseSkillWithCurrentEquipment(name)).forEach(name => {
         let count = Math.max(1, Math.floor(Number(game.summonSkillCounts[name]) || 1));
         game.summonSkillCounts[name] = count;
         for (let i = 0; i < count; i++) defs.push({ name, db: SKILL_DB[name], source: 'skill', duplicateIndex: i });
@@ -1237,7 +1263,7 @@ function hasEmptyThroneSoloBonus() {
         && equipped.every(entry => entry && entry.jewel && entry.jewel.uniqueId === 'uj_crown_empty');
 }
 
-/** "모든 스킬 젬 레벨 +N" (uniqueGemLevelBonus) on the equipped unique items that count for stats. */
+/** "모든 스킬룬 레벨 +N" (uniqueGemLevelBonus) on the equipped unique items that count for stats. */
 function getEquippedUniqueGemLevelBonus() {
     return getPlayerStatSourceItemEntries().reduce((sum, [, item]) => sum
         + (item && item.rarity === 'unique' && item.uniqueEffectKey === 'uniqueGemLevelBonus' ? Number((item.uniqueEffectParams || {}).level || 1) : 0), 0);
@@ -1282,9 +1308,9 @@ function getSummonGemLevel(gemName, source, pStats, evaluation) {
     let sources = getTargetGemBonusSources(gemName, pStats && pStats.gemBonusSources, undefined, evaluation);
     let bonus = Math.max(0, Math.floor((sources && sources.total) || 0));
     let engraveBonus = typeof getGemSkyEnhanceGemLevelBonus === 'function' ? getGemSkyEnhanceGemLevelBonus(gemName) : 0;
-    // getGemPresentation()의 활성 스킬 젬 totalLevel/finalLevel과 동일한 materialBonus 구성
-    // (군주의핵 + 창공의힘 + 각성 + 응축창공). 이게 빠져 있으면 소환 공격 젬에 이 재료들을
-    // 투자해도 젬 자체의 "총 레벨" 표시만 오르고 실제 소환수 전투력은 그대로였다.
+    // getGemPresentation()의 활성 스킬룬 totalLevel/finalLevel과 동일한 materialBonus 구성
+    // (군주의핵 + 창공의힘 + 각성 + 응축창공). 이게 빠져 있으면 소환 공격 룬에 이 재료들을
+    // 투자해도 룬 자체의 "총 레벨" 표시만 오르고 실제 소환수 전투력은 그대로였다.
     let isGem = !isSupport && typeof SKILL_DB !== 'undefined' && SKILL_DB[gemName] && SKILL_DB[gemName].isGem;
     let permanentSkyBonus = isGem && typeof getSkyTowerGemBoostLevel === 'function' ? getSkyTowerGemBoostLevel(gemName) : 0;
     let materialBonus = isGem ? gemCoreForge.effects(record).levels + (record.awakened ? 2 : 0) + permanentSkyBonus : 0;
@@ -1714,7 +1740,7 @@ function describeSummonDpsGroup(name, g, pStats, sbShare) {
     const eleLabel = ele => typeof getDamageElementLabel === 'function' ? getDamageElementLabel(ele) : (ele || 'phys');
     let mute = (txt) => `<span style="color:var(--copy-muted);">${txt}</span>`;
     const elements = (wispSummons.elements(name) || [g.s.ele]).map(eleLabel).join('/');
-    lines.push(`<span style="color:var(--copy-bright); font-weight:600;">${name}${g.count > 1 ? ` ×${g.count}` : ''}</span>, 젬 Lv.${g.gemLv}, ${elements}`);
+    lines.push(`<span style="color:var(--copy-bright); font-weight:600;">${name}${g.count > 1 ? ` ×${g.count}` : ''}</span>, 룬 Lv.${g.gemLv}, ${elements}`);
     lines.push(mute(`&nbsp;&nbsp;공격력 ${Math.floor(g.ownAttackPower)} = 기본 피해 ${Math.floor(g.s.baseDamage)} × 피해증가 ${g.dmgMul.toFixed(2)}${sbShare > 0 ? ` + 상호보완 ${Math.floor(sbShare)}` : ''}`));
     lines.push(mute(`&nbsp;&nbsp;피해 증가 ${Math.floor((pStats.summonPctDmg || 0) + g.sharedInc)}% (소환수 피해 ${Math.floor(pStats.summonPctDmg || 0)}% + 공유 ${Math.floor(g.sharedInc)}%) × 효율 +${Math.floor(pStats.summonEfficiency || 0)}% = ×${g.dmgMul.toFixed(2)}`));
     lines.push(mute(`&nbsp;&nbsp;치명타 ${(g.critChance * 100).toFixed(1)}% × 피해 ${Math.floor(g.critMul * 100)}%, 공속 ${g.aps.toFixed(2)}/초, 저항 관통 ${Math.floor(g.penResPen)}%`));
@@ -2109,7 +2135,7 @@ function coreLoop(nowMs) {
         return;
     }
 
-    syncCrowdPauseState();
+    syncCrowdPauseState(pStats);
     let _nowPrune = getCombatTime();
     game._nextEnemyRuntimePruneAt = Number.isFinite(game._nextEnemyRuntimePruneAt) ? game._nextEnemyRuntimePruneAt : 0;
     if (_nowPrune >= game._nextEnemyRuntimePruneAt) {
@@ -2144,6 +2170,7 @@ function coreLoop(nowMs) {
         progressStallTicks = 0;
     }
     let hazardEvasion = updateCombatHazardEvasion(pStats);
+    let walkedMs = actExplorationProgress.takeWalkedMs(); // 이번 틱에 걸은 시간: 적이 없어도 비운다
     if (game.playerHp <= 0) return;
     if ((game.enemies || []).length > 0) {
         tickEnemyDotEffects(pStats, 0.1);
@@ -2157,13 +2184,14 @@ function coreLoop(nowMs) {
             ? channelGate.hasTargets
             : updatePlayerGridEngagement(pStats, { holdPosition: actExplorationProgress.holdPosition(hazardEvasion.holdPosition) }));
         if (!castBlocked) {
-            pTimer += 0.1 * pStats.aspd;
+            pTimer += 0.1 * pStats.aspd * getWalkingChargeScale(pStats, walkedMs);
             // 사거리 밖이면 스윙 게이지를 1회분까지만 모아 두고, 붙는 즉시 공격한다.
             if (!inSkillRange) pTimer = Math.min(pTimer, 1.0);
         }
         while (!castBlocked && inSkillRange && pTimer >= 1.0 && game.enemies.length > 0) {
             pTimer -= 1.0;
             performPlayerAttack(pStats);
+            combatTacticsRuntime.recoverUntil = Math.max(combatTacticsRuntime.recoverUntil || 0, nowCast + getPlayerAttackRecoveryMs(pStats.aspd));
             let dsChance = Math.max(0, pStats.ds || 0);
             let guaranteedExtra = Math.floor(dsChance / 100);
             let extraRemainder = dsChance - (guaranteedExtra * 100);
@@ -2236,7 +2264,7 @@ function coreLoop(nowMs) {
         handlePlayerDefeat(getZone(game.currentZoneId), pStats, "☠️ 상태이상으로 쓰러졌습니다.", { fatalElement: 'other', sourceName: '상태이상' });
         return;
     }
-    syncCrowdPauseState();
+    syncCrowdPauseState(pStats);
 
     if (!holdMapProgress && actExplorationProgress.canFinish()) playerStatCache.during(finishEncounterRun);
 }
@@ -2253,7 +2281,7 @@ function processPendingSlamEchoHits() {
         let bonus = Math.max(1, Math.floor(row.damage || 0));
         enemy.hp = Math.max(0, enemy.hp - bonus);
         addBattleFx('hit', { enemyId: enemy.id, color: getElementColor(row.element || 'phys'), damage: bonus, duration: 220, syncToSwing: false });
-        if (game.settings && game.settings.showCombatLog !== false) addLog(`🌋 지진의 함성으로 ${enemy.name}에게 ${formatNumberKR(bonus)} 추가 피해`, 'attack-player', { noToast: true });
+        if (game.settings && game.settings.showCombatLog !== false) addLog(`🌋 여진으로 ${enemy.name}에게 ${formatNumberKR(bonus)} 추가 피해`, 'attack-player', { noToast: true });
         if (enemy.hp <= 0) handleEnemyDeath(enemy, getPlayerStats());
     });
     game.pendingSlamEchoHits = next;
@@ -2299,7 +2327,7 @@ function getPendingSkillCollisionCells(row) {
     return path.length > 0 ? path.map(cell => ({ ...cell, mult: target.mult })) : row.targetCells;
 }
 
-/** 회오리바람: this spin's victim, chosen as it lands — the nearest enemy not yet struck around the caster's current cell,
+/** 회오리: this spin's victim, chosen as it lands — the nearest enemy not yet struck around the caster's current cell,
  * with the whirl's falloff by strike order. Nobody around: the spin whiffs. */
 function pickWhirlSpinTargets(row) {
     let struck = row.whirl.struck;
@@ -2311,7 +2339,7 @@ function pickWhirlSpinTargets(row) {
     return [{ enemy: pick.enemy, mult: getGridSkillTargetMult('whirl', struck.length - 1) }];
 }
 
-/** 서리 폭발 · 불멸의 진동 (js/combat-grid.js buildRadialBurstHitSequence): the monsters the drawn ring has touched since the last
+/** 서리 폭발 · 대지의 함성 (js/combat-grid.js buildRadialBurstHitSequence): the monsters the drawn ring has touched since the last
  * check. The ring grows one cell per msPerCell from the wave's start up to its reach; the time since the last check is sampled every
  * COMBAT_GRID_CONFIG.waveContactSampleMs against where each monster was drawn then (just after a step it glides between its cells).
  * One wave strikes a monster once, first touched first, up to the skill's targets. Stepping inside the burst no longer dodges it. */
@@ -2345,13 +2373,27 @@ function getPendingSkillImpactTargets(row) {
     }
     let used = new Set();
     let maxTargets = Math.max(1, row.options?.targetLimit || (row.targetEntries || []).length);
-    return getPendingSkillCollisionCells(row).map(cell => {
+    let cells = getPendingSkillCollisionCells(row);
+    // 단두대처럼 시전 대상에게 예고하는 기술: 아직 판정 칸에 남은 대상을 먼저 치고, 빈자리는 기존 칸 순서로 채운다.
+    function keptCastTargets() {
+        if (!row.pStats?.sSkill?.combatPattern?.keepCastTargets) return [];
+        const kept = [];
+        for (let entry of row.targetEntries) {
+            let enemy = (game.enemies || []).find(candidate => candidate && candidate.id === entry.enemyId && candidate.hp > 0);
+            let cell = enemy && !used.has(enemy.id) && cells.find(c => getGridUnitCells(enemy).some(o => o.gx === c.gx && o.gy === c.gy));
+            if (!cell) continue;
+            used.add(enemy.id);
+            kept.push({ enemy, mult: cell.mult });
+        }
+        return kept;
+    }
+    return keptCastTargets().concat(cells.map(cell => {
         let enemy = (game.enemies || []).find(candidate => candidate && candidate.hp > 0
             && getGridUnitCells(candidate).some(occupied => occupied.gx === cell.gx && occupied.gy === cell.gy) && !used.has(candidate.id));
         if (!enemy) return null;
         used.add(enemy.id);
         return { enemy, mult: cell.mult };
-    }).filter(Boolean).slice(0, maxTargets);
+    }).filter(Boolean)).slice(0, maxTargets);
 }
 
 /** Visual anchors are independent of integer collision cells and contact times. */
@@ -2481,17 +2523,26 @@ function addPendingSkillTravelFxRows(rows, attackContext, now) {
     addPendingSkillTravelFx(buildLinearSkillVisualRow(queuedRows), attackContext, now);
 }
 
+/** 공격을 시작해 맞히기까지(ms): 강타는 내려찍을 준비가 길다. 뛰어올라 내려찍는 도약 강타는 착지가 곧 타격이라(landingMs) 강타 준비를 쓰지 않는다. */
+function getAttackMotionMs(tags) {
+    if (tags.includes('slam') && !tags.includes('mobility')) return 460;
+    return tags.includes('projectile') ? 400 : 360;
+}
+
 /** Schedules one attack-speed cycle. Double strikes share its time window.
  * Channel continuity follows absolute stage times, independently of visual/tick cadence.
  * @param {ReturnType<typeof getPlayerStats>} pStats
  * @param {ReturnType<typeof buildSkillHitSequence>} stages
- * @param {{skillName:string,forcedCrit:boolean,forcedElement:string,stageCount:number,talentAttackMultiplier:number,attackDamageMultiplier:number,channelContinuation:boolean,repeatChannelCast:boolean}} context
+ * @param {{skillName:string,forcedCrit:boolean,forcedElement:string,stageCount:number,talentAttackMultiplier:number,attackDamageMultiplier:number,channelContinuation:boolean,repeatChannelCast:boolean,landingMs:number}} context
+ *   landingMs: actual airborne movement duration in combat milliseconds; zero when this attack did not move the hero.
  */
 function queuePlayerAttackSequence(pStats, stages, context) {
     if (pStats.sSkill.nativeCastId) return startSkillGemCombat(pStats, context);
     let tags = pStats.sSkill.tags || [], now = getCombatTime();
-    let motionMs = tags.includes('slam') ? 460 : (tags.includes('projectile') ? 400 : 360);
+    let motionMs = getAttackMotionMs(tags);
     motionMs = Math.min(motionMs, Math.max(80, 800 / Math.max(0.01, pStats.aspd)));
+    // Airborne mobility hits no earlier than landing (data/skills.js airMs, shared with the stage's jump/flip pose).
+    motionMs = Math.max(motionMs, context.landingMs);
     let isChannel = tags.includes('channeling');
     let cycleMs = isChannel ? getCombatChannelCycleMs(pStats.aspd) : 0;
     let timing = isChannel ? beginCombatChannel(context.skillName, motionMs, cycleMs, context) : { id: 0, startAt: now + motionMs };
@@ -2554,14 +2605,14 @@ function queuePendingSkillStageHits(stages, pStats, attackContext) {
         let row = {
             at, launchAt,
             zoneId: game.currentZoneId, pStats, delivery: stageDelivery, patternKind, sourceCell, targetCells, targetEntries,
-            contactState: {resolved: false}, whirl: stage.whirl, wave: stage.wave,
+            contactState: {resolved: false}, whirl: stage.whirl, wave: stage.wave, advanceHero: !!stage.advanceHero,
             aimCell: copyCombatGridCell(stage.aimCell),
             waveDurationMs: Math.max(0, Number(stage.waveDurationMs) || 0),
             channelId: Math.max(0, Math.floor(Number(attackContext.channelId) || 0)),
             fieldDurationMs: patternKind === 'channel' ? baseDelay + channelDurationMs + 120
                 : (['field', 'meteor'].includes(patternKind) ? baseDelay + finalStageDelayMs + 320 : 0),
             options: {
-                sourceCell, stageReplay: true, skipSlamEcho: true, skillName: attackContext.skillName, channelId: attackContext.channelId,
+                sourceCell, stageReplay: true, skipSlamEcho: stageOffset > 0, skillName: attackContext.skillName, channelId: attackContext.channelId, // 강타 여진은 첫 타격에서만
                 forcedCrit: !!attackContext.forcedCrit, forcedElement: stage.element || attackContext.forcedElement,
                 talentAttackMultiplier: Number.isFinite(Number(attackContext.talentAttackMultiplier)) ? Math.max(0, Number(attackContext.talentAttackMultiplier)) : 1,
                 stageKind: stage.kind, stageLabel: stage.label, stageIndex: stageOffset, stageDelayMs: stageDelay, targetLimit: stage.targetLimit,
@@ -2586,6 +2637,15 @@ function queuePendingSkillStageHits(stages, pStats, attackContext) {
     addPendingSkillTravelFxRows(queuedRows, attackContext, now);
 }
 
+/** 전도성 난격(2026-10-17 스킬룬 인계): 난격하는 동안 겨눈 쪽으로 한 칸 걸어 나간다(진짜 걸음). 막혔거나 이미 붙어 있으면 그 자리에 선다. */
+function advanceHeroForStage(row) {
+    if (!row.advanceHero) return;
+    const aim = row.aimCell || (row.targetCells && row.targetCells[0]);
+    if (!aim || !hasGridCell(game.gridPlayer) || getGridUnitDistance(game.gridPlayer, aim) <= 1) return;
+    if (actExplorationState.current(game)) beginExplorationGridStep(aim, COMBAT_GRID_CONFIG.playerMoveIntervalSec);
+    else gridStepToward(game.gridPlayer, aim.gx, aim.gy, getGridBlockedCells(game.gridPlayer));
+}
+
 function processPendingSkillStageHits() {
     if (pendingSkillStageHits.length <= 0) return;
     let now = getCombatTime();
@@ -2601,6 +2661,7 @@ function processPendingSkillStageHits() {
         if (!row || row.zoneId !== game.currentZoneId || !row.pStats) return;
         let targets = row.whirl ? pickWhirlSpinTargets(row) : (row.wave ? pickWaveFrontTargets(row) : getPendingSkillImpactTargets(row));
         actExplorationProgress.objects.stage(row);
+        advanceHeroForStage(row);
         if (targets.length <= 0) return;
         performPlayerAttack(row.pStats, {
             ...(row.options || {}),
@@ -2888,13 +2949,14 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     if (barbarismKeystone) excludedSlots.add('all:무기');
     if (findAllocatedPassiveKeystone('지식의 통로')) excludedSlots.add('all:투구');
     if (hasKeystone('cr3') && !hasKeystone('cr9')) excludedSlots.add('무기');
-    let { gearBase, gearExplicit, localDefenseTotals, shieldArmorForDamage, shieldBaseBlockChance,
+    let { gearBase, gearExplicit, localDefenseTotals, globalDefensePct, shieldArmorForDamage, shieldBaseBlockChance,
         shieldBlockChancePct, shieldBlockChanceFlat, equippedUniqueEffects } =
         getCombatEquipmentContributions(resolvedSources, excludedSlots);
     getActiveTalentUniqueEffects().forEach(effect => equippedUniqueEffects.push(effect));
     let equippedUniqueJewels = getEquippedUniqueJewels();
     let activeUniqueIds = new Set(equippedUniqueJewels.map(entry => entry.jewel.uniqueId));
-    getMirroredRingJewels().forEach(jewel => getJewelStats(jewel).forEach(stat => addStatToBucket(gearExplicit, stat.id, stat.val)));
+    globalDefensePct = { ...globalDefensePct };
+    getMirroredRingJewels().forEach(jewel => getJewelStats(jewel).forEach(stat => { addStatToBucket(gearExplicit, stat.id, stat.val); addGlobalDefensePct(globalDefensePct, stat.id, stat.val); }));
     if (activeUniqueIds.has('uj_old_box')) {
         let r = tick.get('inventoryRarity');
         addStatToBucket(reward, 'aspd', Math.min(30, r.magic * 0.5));
@@ -3206,7 +3268,8 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     if (typeof getActiveTalentCardStatBonuses === 'function') applyStatsToBucket(reward, getActiveTalentCardStatBonuses(tick));
     let talentLine = function (stat, suffix) { let v = talentStatMap[stat]; return v ? `재능 개화 +${Math.round(v * 100) / 100}${suffix || '%'} (위 합계에 포함)` : null; };
 
-    const damageSkill = authoredPassiveRules.flags.duel ? { ...skill, tags: [...skill.tags, 'spell'] } : skill;
+    const taggedSkill = authoredPassiveRules.flags.duel ? { ...skill, tags: [...skill.tags, 'spell'] } : skill;
+    const damageSkill = { ...taggedSkill, tags: [...getSkillDamageTagSet(taggedSkill)] };
     let gearTagged = getTaggedDamageBreakdown(gearBase, damageSkill);
     let gearExplicitTagged = getTaggedDamageBreakdown(gearExplicit, damageSkill);
     let passiveTagged = getTaggedDamageBreakdown(passive, damageSkill);
@@ -3469,10 +3532,10 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     let gearArmor = localDefenseTotals.armor + extraFlatArmor;
     let gearEvasion = localDefenseTotals.evasion + extraFlatEvasion;
     let gearEnergyShield = localDefenseTotals.energyShield + extraFlatEnergyShield;
-    let totalArmorPct = passive.armorPct + season.armorPct + ascend.armorPct + reward.armorPct;
-    let totalEvasionPct = passive.evasionPct + season.evasionPct + ascend.evasionPct + reward.evasionPct + (activeShadowStealth ? Math.max(0, Number(uniqueDeflectStealth.evasionPct || 20)) : 0);
+    let totalArmorPct = passive.armorPct + season.armorPct + ascend.armorPct + reward.armorPct + globalDefensePct.armor;
+    let totalEvasionPct = passive.evasionPct + season.evasionPct + ascend.evasionPct + reward.evasionPct + globalDefensePct.evasion + (activeShadowStealth ? Math.max(0, Number(uniqueDeflectStealth.evasionPct || 20)) : 0);
     totalEvasionPct += activeEvasionDanceStacks * Math.max(0, uniqueEvasionDance ? uniqueEvasionDance.evasionPctPerStack : 0);
-    let totalEnergyShieldPct = passive.energyShieldPct + season.energyShieldPct + ascend.energyShieldPct + reward.energyShieldPct;
+    let totalEnergyShieldPct = passive.energyShieldPct + season.energyShieldPct + ascend.energyShieldPct + reward.energyShieldPct + globalDefensePct.energyShield;
     let finalArmor = Math.max(0, Math.floor(gearArmor * (1 + totalArmorPct / 100)));
     let finalEvasion = Math.max(0, Math.floor(gearEvasion * (1 + totalEvasionPct / 100)));
     let finalEnergyShield = Math.max(0, Math.floor(gearEnergyShield * (1 + totalEnergyShieldPct / 100)));
@@ -3603,7 +3666,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     }
     if (uniqueHpToPhysPct && skill.ele === 'phys' && !skillHasElementalConversion) finalBaseDmg = Math.floor(finalBaseDmg * (1 + (finalMaxHp / 100) / 100));
 
-    let resistPenalty = (game.maxZoneId >= 5 ? 30 : 0) + (game.maxZoneId >= 10 ? 30 : 0);
+    let resistPenalty = getCampaignResistPenalty(game.maxZoneId);
     let resistanceBlendBonus = 0;
     let resistanceBlendMaxBonus = 0;
     let crusaderLightningMaxResBonus = 0;
@@ -3676,6 +3739,8 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     let totalDotDamageMultiplier = dotMultiplier * dotStatMultiplier;
     let instantDamageMultiplier = 1;
     let ailmentPowerMultiplier = 1 + Math.max(0, sumStatAcrossBuckets('ailmentPotencyPct')) / 100;
+    // 상태이상 피해(%): 점화, 중독, 출혈의 피해 증가(종류별 증가와 합산). 패시브 노드와 플라스크 숙련 40레벨이 주는데 합산하는 곳이 없었다(2026-10-17).
+    let finalAilmentDamagePct = Math.max(0, sumStatAcrossBuckets('ailmentDamagePct'));
     let talismanBossFinalDmgBonusPct = 0;
     let chaosDamageMultiplier = 1;
     let dotTickIntervalMultiplier = 1;
@@ -3998,7 +4063,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         suppCap += 1;
         finalAspd = Math.max(0.1, finalAspd * 0.94);
     }
-    // 9) 무한한 권능: 확보한 보조 젬 한도 1당 공명력(ASCENDANCY_KEYSTONE_VALUES.iq9), 한도를 늘리기 전의 '획득' 한도 기준
+    // 9) 무한한 권능: 확보한 보조스킬룬 한도 1당 공명력(ASCENDANCY_KEYSTONE_VALUES.iq9), 한도를 늘리기 전의 '획득' 한도 기준
     if (hasKeystone('iq9')) inquisitorResonanceBonus += ASCENDANCY_KEYSTONE_VALUES.iq9.resonancePerSupport * Math.max(0, suppCap);
     let inquisitorResonancePower = Math.max(0, Math.floor((game.resonancePower || 0) + runeResonancePower + (reward.runeResonancePower || 0) + inquisitorResonanceBonus));
     if (cosmosTwinStarResonance) inquisitorResonancePower = Math.floor(inquisitorResonancePower * Math.max(0, cosmosTwinStarResonance.resonanceMul || 1.5));
@@ -4018,7 +4083,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         inquisitorAbsoluteDoctrinePct = Math.max(0, finalResPen) * ASCENDANCY_KEYSTONE_VALUES.iq8.penToDamagePct / 100;
         finalBaseDmg = Math.floor(finalBaseDmg * (1 + inquisitorAbsoluteDoctrinePct / 100));
     }
-    // 무한한 권능: 보조 젬 한도 증가(예전에는 무제한이었다. 보조 젬 칸이 인퀴지터 폭주의 원인)
+    // 무한한 권능: 보조스킬룬 한도 증가(예전에는 무제한이었다. 보조스킬룬 칸이 인퀴지터 폭주의 원인)
     if (hasKeystone('iq9')) suppCap += ASCENDANCY_KEYSTONE_VALUES.iq9.extraSupports;
     // 소울바인더
     if (hasKeystone('sb4')) { sbSummonAspdBonus += 25; sbSummonCapBonus += 1; }
@@ -4201,7 +4266,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     let finalPlayerSkillDps = nativeDotPattern
         ? finalBaseDmg * totalDotDamageMultiplier * nativeDotPattern.ticks
             / Math.max(nativeDotPattern.ticks * nativeDotPattern.intervalMs / 1000, 1 / finalAspd)
-        : finalDpsWithProjectileShots * skillSequenceDpsMultiplier * getReactiveBurstRateScale(skill, finalAspd) + estimatedSkillDotDps;
+        : finalDpsWithProjectileShots * skillSequenceDpsMultiplier + estimatedSkillDotDps;
     let flameDecayIgniteTakenMultiplierPreview = skill.flameDecayDebuff ? getFlameDecayIgniteTakenMultiplier({ maxHp: finalMaxHp, sSkill: skill }) : 1;
     let flameDecayDpsLines = [];
     if (includeBreakdowns && skill.flameDecayDebuff) {
@@ -4222,7 +4287,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
             lines: [
                 makeSourceLine('장비', (gearBase[statId] || 0) + (gearExplicit[statId] || 0), '%', value => `${value.toFixed(1)}%`),
                 makeSourceLine('패시브', (passive[statId] || 0) + (season[statId] || 0) + (ascend[statId] || 0) + (reward[statId] || 0), '%', value => `${value.toFixed(1)}%`),
-                makeSourceLine('보조 젬', support[statId] || 0, '%', value => `${value.toFixed(1)}%`),
+                makeSourceLine('보조스킬룬', support[statId] || 0, '%', value => `${value.toFixed(1)}%`),
                 makeSourceLine('성좌 각성', starBlessing[statId] || 0, '%', value => `${value.toFixed(1)}%`),
                 note || `치명타 시 해당 상태 이상 확률: ${Math.floor(critValue)}%`,
                 note ? null : '비치명타는 위 확률을 사용하며, 치명타는 해당 상태 이상 확률에 +25%가 추가됩니다.',
@@ -4308,13 +4373,14 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     let finalAilmentResistBleedChance = getPlayerAilmentResistChance('bleed', { ailResBleed: ailResBleedTotal, ailmentResistBonusPct }) * 100;
     let catalystAilmentSourceMultiplier = hasKeystone('ct1') ? 2 : 1;
     let makeDamageAilmentEffectLines = (specificLabel, specificPct) => {
-        let specificMultiplier = 1 + Math.max(0, Number(specificPct || 0)) / 100;
+        let specificMultiplier = 1 + (Math.max(0, Number(specificPct || 0)) + finalAilmentDamagePct) / 100;
         let totalMultiplier = catalystAilmentSourceMultiplier * totalDotDamageMultiplier * specificMultiplier;
         return [
             `지속 피해 배율 스탯: +${Math.max(0, dotPctDmg).toFixed(1)}%`,
             catalystAilmentSourceMultiplier > 1 ? `과잉 촉매 기준 피해: x${catalystAilmentSourceMultiplier.toFixed(2)}` : null,
             totalDotDamageMultiplier !== dotStatMultiplier ? `키스톤/스킬 포함 지속 피해 배율: x${totalDotDamageMultiplier.toFixed(2)}` : null,
             specificPct > 0 ? `${specificLabel}: +${Number(specificPct).toFixed(1)}%` : null,
+            finalAilmentDamagePct > 0 ? `상태이상 피해: +${finalAilmentDamagePct.toFixed(1)}%` : null,
             `해당 상태이상 피해 총 배율: x${totalMultiplier.toFixed(2)} (기본 대비 +${Math.max(0, (totalMultiplier - 1) * 100).toFixed(1)}%)`
         ].filter(Boolean);
     };
@@ -4365,13 +4431,13 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
             lines: [
                 formatResistanceSourceLine('장비', (gearBase[statId] || 0) + (gearExplicit[statId] || 0)),
                 formatResistanceSourceLine('패시브', (passive[statId] || 0) + (season[statId] || 0) + (ascend[statId] || 0) + (reward[statId] || 0)),
-                formatResistanceSourceLine('보조 젬', support[statId] || 0),
+                formatResistanceSourceLine('보조스킬룬', support[statId] || 0),
                 ...(extraLines || []),
                 formatResistanceSourceLine('캠페인 패널티', -resistPenalty),
                 `최대 저항: ${Math.floor(maxValue)}% (기본 75%)`,
                 formatResistanceSourceLine('최대 저항, 장비', maxGear),
                 formatResistanceSourceLine('최대 저항, 패시브', maxPassive),
-                formatResistanceSourceLine('최대 저항, 보조 젬', support[maxStatId] || 0),
+                formatResistanceSourceLine('최대 저항, 보조스킬룬', support[maxStatId] || 0),
                 ...(extraMaxLines || [])
             ].filter(Boolean),
             final: `${Math.floor(finalValue)}%`
@@ -4417,7 +4483,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
                 `기본 1.00`,
                 makeSourceLine('장비', gearAspd, '%', value => `${Math.floor(value)}%`),
                 makeSourceLine('패시브', passiveAspd, '%', value => `${Math.floor(value)}%`),
-                makeSourceLine('보조 젬', support.aspd, '%', value => `${Math.floor(value)}%`),
+                makeSourceLine('보조스킬룬', support.aspd, '%', value => `${Math.floor(value)}%`),
                 talentLine('aspd'),
                 glovePairAspdBonus > 0 ? `동형 장갑 세트 보너스 +${glovePairAspdBonus.toFixed(2)} 기본 공속` : null,
                 `스킬 속도 배율 ${formatPercentMultiplier(skill.spd || 1)}`,
@@ -4431,7 +4497,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
                 `기본 2.5%`,
                 makeSourceLine('장비', gearCrit, '%', value => `${value.toFixed(1)}%`),
                 makeSourceLine('패시브', passiveCrit, '%', value => `${value.toFixed(1)}%`),
-                makeSourceLine('보조 젬', support.crit, '%', value => `${value.toFixed(1)}%`),
+                makeSourceLine('보조스킬룬', support.crit, '%', value => `${value.toFixed(1)}%`),
                 makeSourceLine('스킬', skill.crit || 0, '%', value => `${value.toFixed(1)}%`),
                 talentLine('crit')
             ].filter(Boolean),
@@ -4443,7 +4509,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
                 `기본 ${CRIT_DAMAGE_BASE_MULTIPLIER}%`,
                 makeSourceLine('장비', gearBase.critDmg + gearExplicit.critDmg, '%', value => `${Math.floor(value)}%`),
                 makeSourceLine('패시브', passive.critDmg + season.critDmg + ascend.critDmg + reward.critDmg, '%', value => `${Math.floor(value)}%`),
-                makeSourceLine('보조 젬', support.critDmg, '%', value => `${Math.floor(value)}%`),
+                makeSourceLine('보조스킬룬', support.critDmg, '%', value => `${Math.floor(value)}%`),
                 makeSourceLine('스킬/특수 효과', (skill.critDmgBonus || 0) + (activeShadowStealth ? Math.max(0, Number(uniqueDeflectStealth.critDmg || 20)) : 0), '%', value => `${Math.floor(value)}%`),
                 ...(critDmgSoftcapReduction > 0 ? [makeSourceLine('소프트캡(200/400/800/1200)', -critDmgSoftcapReduction, '%', value => `${Math.floor(value)}%`)] : []),
                 talentLine('critDmg')
@@ -4457,7 +4523,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
                 makeSourceLine('장비', gearBase.move + gearExplicit.move, '%', value => `${Math.floor(value)}%`),
                 makeSourceLine('패시브', passive.move + season.move + ascend.move + reward.move, '%', value => `${Math.floor(value)}%`),
                 makeSourceLine('성좌 각성', starBlessing.move, '%', value => `${Math.floor(value)}%`),
-                makeSourceLine('보조 젬', support.move, '%', value => `${Math.floor(value)}%`),
+                makeSourceLine('보조스킬룬', support.move, '%', value => `${Math.floor(value)}%`),
                 talentLine('move'),
                 `전장 이동: 칸당 ${(COMBAT_GRID_CONFIG.playerMoveIntervalSec * 100 / finalMove).toFixed(2)}초, 초당 ${(finalMove / (COMBAT_GRID_CONFIG.playerMoveIntervalSec * 100)).toFixed(2)}칸`,
                 `지도 진행도: 기본 대비 ${(finalMove / 100).toFixed(2)}배 (${finalMove >= 100 ? '+' : ''}${Math.floor(finalMove - 100)}%)`,
@@ -4482,7 +4548,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
             lines: [
                 makeSourceLine('장비', gearBase.regen + gearExplicit.regen, '%', value => `${formatValue('regen', value)}%`),
                 makeSourceLine('패시브', passive.regen + season.regen + ascend.regen + reward.regen, '%', value => `${formatValue('regen', value)}%`),
-                makeSourceLine('보조 젬', support.regen, '%', value => `${formatValue('regen', value)}%`),
+                makeSourceLine('보조스킬룬', support.regen, '%', value => `${formatValue('regen', value)}%`),
                 talentLine('regen')
             ].filter(Boolean),
             final: `${formatValue('regen', finalRegen)}%`
@@ -4492,7 +4558,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
             lines: [
                 makeSourceLine('장비', gearBase.regenSuppress + gearExplicit.regenSuppress, '%', value => `${formatValue('regenSuppress', value)}%`),
                 makeSourceLine('패시브', passive.regenSuppress + season.regenSuppress + ascend.regenSuppress + reward.regenSuppress, '%', value => `${formatValue('regenSuppress', value)}%`),
-                makeSourceLine('보조 젬', support.regenSuppress, '%', value => `${formatValue('regenSuppress', value)}%`),
+                makeSourceLine('보조스킬룬', support.regenSuppress, '%', value => `${formatValue('regenSuppress', value)}%`),
                 '공격 시 적의 생명력 재생을 해당 수치(%)만큼 줄여주는 옵션입니다.'
             ].filter(Boolean),
             final: `${formatValue('regenSuppress', finalRegenSuppress)}%`
@@ -4503,8 +4569,8 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
                 makeSourceLine('스킬', skill.leech || 0, '%', value => `${formatValue('leech', value)}%`),
                 makeSourceLine('장비', gearBase.leech + gearExplicit.leech, '%', value => `${formatValue('leech', value)}%`),
                 makeSourceLine('패시브', passive.leech + season.leech + ascend.leech + reward.leech, '%', value => `${formatValue('leech', value)}%`),
-                makeSourceLine('보조 젬', support.leech, '%', value => `${formatValue('leech', value)}%`),
-                skill.instantLeech ? '흡혈 타격: 이 젬으로 준 피해의 흡혈은 인스턴스 대신 즉시 회복되며 1회 흡혈량 캡을 적용받습니다.' : `타격 시 즉시 회복 대신 흡혈 인스턴스 생성`,
+                makeSourceLine('보조스킬룬', support.leech, '%', value => `${formatValue('leech', value)}%`),
+                skill.instantLeech ? '흡혈 관통: 이 룬으로 준 피해의 흡혈은 인스턴스 대신 즉시 회복되며 1회 흡혈량 캡을 적용받습니다.' : `타격 시 즉시 회복 대신 흡혈 인스턴스 생성`,
                 (hasKeystone('wlk3')) ? `금단 대가: 흡혈 ${skill.instantLeech ? '즉시 회복이 생명력 대신 에너지 보호막에 적용됩니다.' : '인스턴스가 생명력 대신 에너지 보호막에 저장/회복됩니다.'}` : null,
                 `일반 흡혈 캡: 타격당 최대 생명력 ${LEECH_BASE_INSTANCE_CAP_PCT}%, 전체 저장 ${LEECH_BASE_TOTAL_CAP_PCT}%, 인스턴스당 초당 ${LEECH_BASE_RATE_CAP_PCT}%`,
                 `일반 흡혈 추가 캡: 회복 속도 +${formatValue('leechRateCap', finalLeechRateCap)}%p, 전체 +${formatValue('leechTotalCap', finalLeechTotalCap)}%p, 타격당 +${formatValue('leechInstanceCap', finalLeechInstanceCap)}%p`,
@@ -4525,7 +4591,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
             lines: [
                 makeSourceLine('장비', gearBase.ds + gearExplicit.ds, '%p', value => `${Math.floor(value)}%p`),
                 makeSourceLine('패시브', passive.ds + season.ds + ascend.ds + reward.ds, '%p', value => `${Math.floor(value)}%p`),
-                makeSourceLine('보조 젬', support.ds, '%p', value => `${Math.floor(value)}%p`),
+                makeSourceLine('보조스킬룬', support.ds, '%p', value => `${Math.floor(value)}%p`),
                 makeSourceLine('스킬', skillDsBonus, '%p', value => `${Math.floor(value)}%p`),
                 formatSignedPercentagePointLine('기타 효과', finalDs - baseDsFromSources - skillDsBonus),
                 '각 수치는 연속 타격 확률에 합산되는 %p입니다.'
@@ -4537,7 +4603,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
             lines: [
                 makeSourceLine('장비', gearBase.dr + gearExplicit.dr, '%', value => `${Math.floor(value)}%`),
                 makeSourceLine('패시브', passive.dr + season.dr + ascend.dr + reward.dr, '%', value => `${Math.floor(value)}%`),
-                makeSourceLine('보조 젬', support.dr, '%', value => `${Math.floor(value)}%`)
+                makeSourceLine('보조스킬룬', support.dr, '%', value => `${Math.floor(value)}%`)
             ].filter(Boolean),
             final: rawDr > finalDr ? `${Math.floor(finalDr)}% (상한 ${PLAYER_PHYSICAL_REDUCTION_CAP_PCT}% 적용, 합계 ${Math.floor(rawDr)}%)` : `${Math.floor(finalDr)}%`
         },
@@ -4629,7 +4695,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
             lines: [
                 makeSourceLine('장비', gearBase.deflectChance + gearExplicit.deflectChance, '%', value => `${value.toFixed(1)}%`),
                 makeSourceLine('패시브', passive.deflectChance + season.deflectChance + ascend.deflectChance + reward.deflectChance, '%', value => `${value.toFixed(1)}%`),
-                makeSourceLine('보조 젬', support.deflectChance, '%', value => `${value.toFixed(1)}%`),
+                makeSourceLine('보조스킬룬', support.deflectChance, '%', value => `${value.toFixed(1)}%`),
                 `비껴내기 성공 시 피해 감소: ${Math.min(85, 40 + finalDeflectDamageReduce).toFixed(1)}%`,
                 '기본 피해 감소 40%에 비껴내기 피해 감소 옵션이 더해지며, 최대 85%까지 적용됩니다.'
             ].filter(Boolean),
@@ -4640,7 +4706,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
             lines: [
                 makeSourceLine('장비', gearBase.deflectDamageReduce + gearExplicit.deflectDamageReduce, '%', value => `${value.toFixed(1)}%`),
                 makeSourceLine('패시브', passive.deflectDamageReduce + season.deflectDamageReduce + ascend.deflectDamageReduce + reward.deflectDamageReduce, '%', value => `${value.toFixed(1)}%`),
-                makeSourceLine('보조 젬', support.deflectDamageReduce, '%', value => `${value.toFixed(1)}%`),
+                makeSourceLine('보조스킬룬', support.deflectDamageReduce, '%', value => `${value.toFixed(1)}%`),
                 '실제 감소율은 기본 40% + 이 수치입니다.'
             ].filter(Boolean),
             final: `${finalDeflectDamageReduce.toFixed(1)}%`
@@ -4650,7 +4716,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
             lines: [
                 makeSourceLine('장비', gearBase.physIgnore + gearExplicit.physIgnore, '%', value => `${Math.floor(value)}%`),
                 makeSourceLine('패시브', passive.physIgnore + season.physIgnore + ascend.physIgnore + reward.physIgnore, '%', value => `${Math.floor(value)}%`),
-                makeSourceLine('보조 젬', support.physIgnore, '%', value => `${Math.floor(value)}%`),
+                makeSourceLine('보조스킬룬', support.physIgnore, '%', value => `${Math.floor(value)}%`),
                 makeSourceLine('각인', skill.physIgnoreBonus || 0, '%', value => `${Math.floor(value)}%`),
                 '적의 양수 물리 피해 감소만 0%까지 깎습니다.'
             ].filter(Boolean),
@@ -4661,7 +4727,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
             lines: [
                 makeSourceLine('장비', gearBase.resPen + gearExplicit.resPen, '%', value => `${Math.floor(value)}%`),
                 makeSourceLine('패시브', passive.resPen + season.resPen + ascend.resPen + reward.resPen, '%', value => `${Math.floor(value)}%`),
-                makeSourceLine('보조 젬', support.resPen, '%', value => `${Math.floor(value)}%`),
+                makeSourceLine('보조스킬룬', support.resPen, '%', value => `${Math.floor(value)}%`),
                 makeSourceLine('각인', skill.resPenBonus || 0, '%', value => `${Math.floor(value)}%`),
                 '원소/카오스 저항은 음수까지 떨어질 수 있으며, 음수만큼 추가 피해를 줍니다.'
             ].filter(Boolean),
@@ -4768,7 +4834,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
             final: `${Math.floor(finalPlayerSkillDps)}`
         },
         gem: {
-            title: '젬 레벨 보너스',
+            title: '룬 레벨 보너스',
             lines: [
                 makeSourceLine('패시브', gemSources.passive + gemSources.reward),
                 makeSourceLine('장비', gemSources.gear)
@@ -4888,7 +4954,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         dotCritBonusScale: dotMultiplier,
         instantDamageMultiplier: instantDamageMultiplier,
         finalDamageMultiplier: finalDamageMultiplier,
-        ailmentPowerMultiplier: ailmentPowerMultiplier,
+        ailmentPowerMultiplier: ailmentPowerMultiplier, ailmentDamagePct: finalAilmentDamagePct,
         mystique: Math.max(0, passive.mystique),
         devotion: authoredPassiveRules.devotion,
         cycle: authoredPassiveRules.cycle,
@@ -5130,7 +5196,7 @@ function getGemPresentation(name, isSupport, statsOverride) {
     if (isSupport) {
         let gem = normalizeGemRecord((game.supportGemData || {})[name]);
         let db = SUPPORT_GEM_DB[name];
-        if (!db) return { baseLevel: gem.level, totalLevel: gem.level, value: 0, desc: '정의되지 않은 보조젬', statName: name, statId: null, gemBonusSources: targetGemSources };
+        if (!db) return { baseLevel: gem.level, totalLevel: gem.level, value: 0, desc: '정의되지 않은 보조스킬룬', statName: name, statId: null, gemBonusSources: targetGemSources };
         let totalLevel = Math.max(1, gem.level + targetGemSources.total);
         let val = db.baseVal + (getGemLevelGrowthSteps(totalLevel) * db.scale);
         let activeTier = typeof getSupportActiveTier === 'function' ? getSupportActiveTier(name) : Math.max(1, Math.min((typeof getSupportTierCap === 'function' ? getSupportTierCap(name) : 3), Math.floor(gem.activeTier || gem.unlockedTier || 1)));
@@ -5183,10 +5249,7 @@ function getSkillTargets(pStats, dormant = []) {
     }
     let now = getCombatTime();
     let tactics = game.combatTacticsUnlocked ? resolveConditionalCombatTactics(normalizeCombatTacticsSettings(game.settings), pStats, game, now) : null;
-    let options = tactics ? {
-        targetPriority: tactics.targetPriority,
-        preferredEnemyId: now < combatTacticsRuntime.targetLockedUntil ? combatTacticsRuntime.targetId : null
-    } : null;
+    let options = getSkillTargetPreference(tactics, now);
     let unseen = living.filter(enemy => !alive.includes(enemy));
     let targets = selectCombatGemTargets(game.activeSkill, skill, game.gridPlayer, alive, { ...options, dormant: dormant.concat(unseen) });
     if (tactics && targets.length > 0 && String(targets[0].enemy.id) !== String(combatTacticsRuntime.targetId)) {
@@ -5194,6 +5257,15 @@ function getSkillTargets(pStats, dormant = []) {
         combatTacticsRuntime.targetLockedUntil = now + COMBAT_TACTIC_TARGET_LOCK_MS;
     }
     return targets;
+}
+
+/** Who the gem aims at first: the monster the player locked on (js/act-exploration-state.js lockOn), else the target the tactics
+ * hold for a moment. Null when neither applies (the nearest in range). */
+function getSkillTargetPreference(tactics, now) {
+    const locked = actExplorationState.lockedEnemy(actExplorationState.current(game));
+    if (!tactics && !locked) return null;
+    const held = tactics && now < combatTacticsRuntime.targetLockedUntil ? combatTacticsRuntime.targetId : null;
+    return { targetPriority: tactics ? tactics.targetPriority : undefined, preferredEnemyId: locked ? locked.id : held };
 }
 
 /** options.dormant: monsters that have not noticed the hero, which the area may catch but the gem never aims at. */
@@ -5231,7 +5303,7 @@ function getPlayerTacticalMovePlan(pStats, target) {
 }
 
 function tryPlayerTacticalMove(pStats, target, plan, now) {
-    if (!plan || now < combatTacticsRuntime.nextMoveAt) return false;
+    if (!plan || now < combatTacticsRuntime.nextMoveAt || isPlayerAttackRecovering(now)) return false;
     if (plan.direction === 'away' && combatTacticsRuntime.consecutiveRetreats >= COMBAT_TACTIC_MAX_RETREATS) return false;
     let moveSpeed = Number.isFinite(pStats.moveSpeed) && pStats.moveSpeed > 0 ? pStats.moveSpeed : 100;
     let result = advanceGridTacticalMovement(game.gridPlayer, target, {
@@ -5318,6 +5390,7 @@ function updatePlayerGridEngagement(pStats, options) {
     if (alive.length === 0) return false;
     syncCombatTacticsEncounterRuntime();
     let targets = getSkillTargets(pStats);
+    if (!config.holdPosition && approachLockedEnemy(pStats, targets)) return false;
     if (targets.length > 0) {
         combatTacticsRuntime.approachTargetId = null;
         let now = getCombatTime();
@@ -5331,10 +5404,23 @@ function updatePlayerGridEngagement(pStats, options) {
     if (config.holdPosition) return false;
     let nearest = resolvePlayerApproachTarget(alive);
     if (!nearest) return false;
-    let moveSpeed = Number.isFinite(pStats.moveSpeed) && pStats.moveSpeed > 0 ? pStats.moveSpeed : 100;
-    let interval = COMBAT_GRID_CONFIG.playerMoveIntervalSec * (100 / moveSpeed);
-    advanceGridUnitMovement(game.gridPlayer, nearest, 0.1, interval);
+    if (isPlayerAttackRecovering()) return false;
+    advanceGridUnitMovement(game.gridPlayer, nearest, 0.1, getPlayerGridStepSec(pStats));
     return false;
+}
+
+/** One hero step toward its target, in seconds (move speed 100 = playerMoveIntervalSec). */
+function getPlayerGridStepSec(pStats) {
+    let moveSpeed = Number.isFinite(pStats.moveSpeed) && pStats.moveSpeed > 0 ? pStats.moveSpeed : 100;
+    return COMBAT_GRID_CONFIG.playerMoveIntervalSec * (100 / moveSpeed);
+}
+
+/** A locked-on monster (js/act-exploration-state.js lockOn) that this attack does not reach: the hero steps toward it instead.
+ * When no step toward it is free, the hero fights whatever it reaches. @returns {boolean} whether a step began */
+function approachLockedEnemy(pStats, targets) {
+    const locked = actExplorationState.lockedEnemy(actExplorationState.current(game));
+    if (!locked || !game.enemies.includes(locked) || targets.some(hit => hit.enemy === locked) || isPlayerAttackRecovering()) return false;
+    return advanceGridUnitMovement(game.gridPlayer, locked, 0.1, getPlayerGridStepSec(pStats));
 }
 
 
@@ -6137,7 +6223,7 @@ function getWispEnemyDefenseBonuses(monsterVariant) {
 }
 
 /** Wisps drop skill gems more often (data/bosses.js WISP_ENEMY_RULES). */
-/** Wisps drop gems more often, and so does an atlas map with the 젬의 정원 omen (enemy.gemDropMul, js/atlas-maps.js applyEnemyMods). */
+/** Wisps drop gems more often, and so does an atlas map with the 룬의 정원 omen (enemy.gemDropMul, js/atlas-maps.js applyEnemyMods). */
 function getEnemyGemDropMul(enemy) {
     const wisp = enemy && enemy.monsterArchetype === 'wisp' ? WISP_ENEMY_RULES.gemDropMul : 1;
     return wisp * (Number(enemy && enemy.gemDropMul) || 1);
@@ -6975,11 +7061,13 @@ function handleTalentBloomClear(zone) {
     queueImportantSave(200);
 }
 
-function isCrowdProgressPaused() {
+function isCrowdProgressPaused(pStats) {
     if (game.moveTimer > 0) return false;
     // 방 단위 무대: 방 안의 몬스터를 다 잡아야 문이 열린다. 따로 멈출 진행이 없으니 무리가 많다는 알림도 내지 않는다.
     if (actExplorationDoors.stageMap(actExplorationState.current(game))) return false;
-    return (game.enemies || []).filter(enemy => enemy.hp > 0).length >= ENEMY_CROWD_PAUSE_LIMIT;
+    if ((game.enemies || []).filter(enemy => enemy.hp > 0).length < ENEMY_CROWD_PAUSE_LIMIT) return false;
+    // 고유 신발 추적자와 철벽 척력화는 적 한도에 막히지 않는다. 값만 계산되고 읽는 곳이 없었다(2026-10-17).
+    return !(pStats || getPlayerStats(false)).ignoreEnemyCollision;
 }
 
 function getDotStackMultiplier(stacks) {
@@ -7012,6 +7100,65 @@ function applyEnemyDotFromHit(enemy, hitDamage, pStats) {
     enemy.skillSlowPct = Math.min(95, Math.max(0, Number(pStats && pStats.sSkill && pStats.sSkill.dotStackSlowPct) || 0) * nextStacks);
     if (pStats && pStats.sSkill && pStats.sSkill.flameDecayDebuff) syncEnemyFlameDecayAilment(enemy, enemy.dotState, pStats);
     enemy.dotStacks = nextStacks;
+}
+
+/** 화염 부패(2026-10-17 스킬룬 인계 v32): 이미 걸린 적에게 다시 맞히면 남은 틱 피해를 한 번에 주고 둘레 마름모 2칸에 그 타격의 70%로 터지며,
+ * 폭발에 휘말린 가까운 적 가운데 아직 타지 않는 셋에게 새로 옮겨 붙는다. 걸린 채 죽어도 같은 폭발이 터진다(옮겨 붙지는 않는다).
+ * 같은 시전이 막 붙인 불은 그 시전 안에서 다시 터지지 않는다(settleMs). 수치는 인계의 제안 값이다. */
+const FLAME_DECAY_BURST = Object.freeze({ radius: 2, pct: 70, spread: 3, settleMs: 100 });
+function isFlameDecayLit(enemy) {
+    const dot = enemy && enemy.dotState;
+    return !!dot && dot.skillName === '화염 부패' && dot.timeLeft > 0;
+}
+/** 지속 피해 룬의 타격: 화염 부패가 터지면 새로 걸지 않고, 아니면 지속 피해를 건다(걸린 때를 적어 둔다). */
+function applySkillDotFromHit(enemy, hitDamage, pStats) {
+    if (pStats.sSkill && pStats.sSkill.flameDecayDebuff && detonateFlameDecay(enemy, hitDamage, pStats)) return;
+    applyEnemyDotFromHit(enemy, hitDamage, pStats);
+    markFlameDecayLit(enemy, hitDamage);
+}
+/** 막 붙인 불에 붙인 때와 터질 때의 피해를 적어 둔다(이미 적힌 불은 그대로). */
+function markFlameDecayLit(enemy, hitDamage) {
+    if (enemy.dotState && !enemy.dotState.appliedAt) Object.assign(enemy.dotState, { appliedAt: getCombatTime(), burstDamage: Math.floor(hitDamage * FLAME_DECAY_BURST.pct / 100) });
+}
+/** 그 적의 불을 끈다(지속 피해, 느려짐, 화염 부패 표시). */
+function clearFlameDecay(enemy) {
+    enemy.dotState = null;
+    enemy.dotStacks = 0;
+    enemy.skillSlowPct = 0;
+    enemy.ailments = Array.isArray(enemy.ailments) ? enemy.ailments.filter(ail => ail && ail.type !== 'flameDecay') : [];
+}
+const flameDecayMitigated = (enemy, damage, pStats) => Math.max(1, Math.floor(damage * (1 - getEffectiveEnemyMitigation('fire', (getZone(game.currentZoneId) || {}).tier || 1, enemy, pStats) / 100)));
+/** 터짐: 그 적 둘레(마름모 radius칸)의 다른 적에게 burst 피해를 준다. @returns {object[]} 휘말린 적(가까운 차례) */
+function burstFlameDecay(enemy, burstDamage, pStats) {
+    const reach = cell => Math.abs(cell.gx - enemy.gx) + Math.abs(cell.gy - enemy.gy) <= FLAME_DECAY_BURST.radius;
+    const near = (game.enemies || []).filter(other => other && other !== enemy && other.hp > 0 && hasGridCell(other) && getGridUnitCells(other).some(reach))
+        .sort((a, b) => getGridUnitDistance(enemy, a) - getGridUnitDistance(enemy, b));
+    for (const other of near) {
+        const damage = applyDamageToEnemyResource(other, flameDecayMitigated(other, burstDamage, pStats));
+        addBattleFx('hit', { enemyId: other.id, damage, element: 'fire', color: getElementColor('fire'), duration: 240, noLine: true });
+    }
+    enemy.flameDecayBurstAt = getCombatTime(); // 무대 연출이 그 자리에서 폭발을 그린다(js/canvas-stage-skill-rules.js)
+    return near;
+}
+/** 이미 걸린 적에게 다시 맞혔다. @returns {boolean} 터뜨렸는지 */
+function detonateFlameDecay(enemy, hitDamage, pStats) {
+    if (!hasGridCell(enemy) || !isFlameDecayLit(enemy) || getCombatTime() - (enemy.dotState.appliedAt || 0) < FLAME_DECAY_BURST.settleMs) return false;
+    const dot = enemy.dotState, burst = Math.max(1, Math.floor(hitDamage * FLAME_DECAY_BURST.pct / 100));
+    const ticks = Math.floor(dot.timeLeft / Math.max(0.02, Number(dot.tickInterval) || DOT_TICK_INTERVAL));
+    clearFlameDecay(enemy);
+    const damage = applyDamageToEnemyResource(enemy, flameDecayMitigated(enemy, ticks * (dot.rawTickDamage || 0) + burst, pStats));
+    addBattleFx('hit', { enemyId: enemy.id, damage, element: 'fire', color: getElementColor('fire'), duration: 240, noLine: true });
+    const spread = burstFlameDecay(enemy, burst, pStats).filter(other => other.hp > 0 && !isFlameDecayLit(other)).slice(0, FLAME_DECAY_BURST.spread);
+    for (const other of spread) { applyEnemyDotFromHit(other, hitDamage, pStats); markFlameDecayLit(other, hitDamage); }
+    enemy.flameDecaySpread = spread.map(other => other.id); // 불길 줄기를 그릴 대상
+    return true;
+}
+/** 화염 부패가 걸린 채 죽은 적: 둘레가 터진다(옮겨 붙지는 않는다). 터짐에 죽은 적은 다음 전투 틱의 정리(coreLoop sanitizeCombatRuntimeState)가 거둔다. */
+function burstFlameDecayOnDeath(enemy, pStats) {
+    if (!isFlameDecayLit(enemy) || !hasGridCell(enemy)) return;
+    const burst = Math.max(1, Math.floor((enemy.dotState.burstDamage || 0)));
+    clearFlameDecay(enemy);
+    if (burst > 1) burstFlameDecay(enemy, burst, pStats);
 }
 
 function getSkillAilmentStats(pStats, hitElement, curseFx) {
@@ -7098,7 +7245,39 @@ function getSkillGridPullGeometry(skill, options) {
     return { cells, center };
 }
 
+/** 맞은 몬스터를 주인공 반대쪽으로 skill.pushAwayCells칸 민다(불사르기, 돌진: 2026-10-17 스킬룬 인계). 보스는 밀리지 않는다. */
+function pushEnemyAwayOnHit(enemy, skill) {
+    let cells = Math.max(0, Math.min(3, Math.floor(Number(skill && skill.pushAwayCells) || 0)));
+    if (cells <= 0 || enemy.isBoss || !hasGridCell(enemy) || !hasGridCell(game.gridPlayer)) return false;
+    let moved = false;
+    for (let step = 0; step < cells; step++) {
+        const cell = findGridRetreatCell(enemy, game.gridPlayer, 99, null);
+        if (!cell) break;
+        Object.assign(enemy, cell);
+        moved = true;
+    }
+    if (moved) addBattleFx('statusText', { enemyId: enemy.id, text: '밀려남', color: '#f0c993', duration: 300 });
+    return moved;
+}
+
+/** 맞은 몬스터를 skill.launchMs 동안 띄운다(올려 베기): 그동안 움직이지도 새 공격을 시작하지도 못한다. 보스는 뜨지 않는다. */
+function launchEnemyOnHit(enemy, skill) {
+    let ms = Math.max(0, Math.floor(Number(skill && skill.launchMs) || 0));
+    if (ms <= 0 || enemy.isBoss) return false;
+    enemy.skillHeldUntil = Math.max(Number(enemy.skillHeldUntil) || 0, getCombatTime() + ms);
+    addBattleFx('statusText', { enemyId: enemy.id, text: '띄움', color: '#f0c993', duration: 300 });
+    return true;
+}
+
+/** 맞은 몬스터를 밀고 띄운다(룬에 있을 때만). 위치 제어를 끈 단계(skipGridControl)와 죽은 몬스터는 그대로 둔다. */
+function displaceEnemyOnHit(enemy, skill, options) {
+    if (options.skipGridControl || !enemy || enemy.hp <= 0) return;
+    pushEnemyAwayOnHit(enemy, skill);
+    launchEnemyOnHit(enemy, skill);
+}
+
 function applySkillGridControlOnHit(enemy, skill, options = {}) {
+    displaceEnemyOnHit(enemy, skill, options);
     let { cells, center } = getSkillGridPullGeometry(skill, options);
     if (cells <= 0 || options.skipGridControl || !enemy || enemy.hp <= 0 || !center || !hasGridCell(enemy)) return false;
     let moved = false;
@@ -7285,7 +7464,7 @@ function getEnemyDamageAilmentDps(ail, pStats) {
     let dotDamageScale = Math.max(0.01, (pStats && Number.isFinite(pStats.dotDamageScale)) ? pStats.dotDamageScale : 1);
     let dps = getDamageAilmentBaseDpsFromHit(getStoredAilmentHitDamage(ail), ail ? ail.power : 0, dotDamageScale, ail ? ail.critDotBonusPct : 0, pStats ? pStats.dotCritBonusScale : 1);
     const damageStat = { ignite: 'igniteDamageMultiplierPct', poison: 'poisonDamageMultiplierPct' }[ail?.type];
-    dps = Math.floor(dps * (1 + Math.max(0, Number(pStats?.[damageStat]) || 0) / 100));
+    dps = Math.floor(dps * (1 + (Math.max(0, Number(pStats?.[damageStat]) || 0) + Math.max(0, Number(pStats?.ailmentDamagePct) || 0)) / 100));
     if (ail && pStats && ail.type === pStats.mystiqueAilmentType) {
         dps = Math.floor(dps * (1 + Math.max(0, Number(pStats.mystiqueAilmentDamagePct) || 0) / 100));
     }
@@ -7366,6 +7545,7 @@ function applyAccountRewardStats(reward) {
 
 /** What a death passes on: the ct3 keystone spread and the region lines (poison, shock and ignite spread, ice shards). */
 function applyAilmentEffectsOnDeath(enemy, pStats) {
+    burstFlameDecayOnDeath(enemy, pStats);
     spreadCatalystAilmentsOnDeath(enemy, pStats);
     regionAffixEffects.onEnemyDeath(enemy, pStats);
 }
@@ -7678,8 +7858,8 @@ function tickEnemyDotEffects(pStats, dt) {
     });
 }
 
-function syncCrowdPauseState() {
-    let paused = isCrowdProgressPaused();
+function syncCrowdPauseState(pStats) {
+    let paused = isCrowdProgressPaused(pStats);
     if (paused === crowdPauseActive) return paused;
     crowdPauseActive = paused;
     if (game.settings.showCrowdPauseLog !== false) {
@@ -7920,6 +8100,29 @@ function markExplorationAlertPack(pack) {
     for(const enemy of pack.waiting)Object.assign(enemy,{alert:true,name:`${rule.prefix} ${enemy.name}`,encounterOutline:rule.outline});
 }
 
+/** 습격방 (data ACT_EXPLORATION_AMBUSH): on a room-by-room stage each battle or side room becomes one with this chance. Its ordinary
+ * packs (the room's own and the added ones; not listening or treasure packs) get ambush and their members the outline;
+ * js/act-exploration-doors.js springAmbush gathers them at the door the hero comes in by. The roll hashes the room's own pack key with its
+ * first enemy id (as the listening roll does): fixed per run, no random draw. Loop 1's act 1, elite-led, encounter and rescue rooms never
+ * become one. @returns {object[]} the same packs */
+function markExplorationAmbushRooms(zone,map,packs) {
+    if(!map.stage || (zone.type==='act' && zone.id===0 && (game.season||1)===1))return packs;
+    for(const room of map.rooms.filter(row=>row.role==='battle' || row.role==='optional')) {
+        for(const pack of ambushRoomPacks(room,packs)) {
+            pack.ambush=true;
+            pack.waiting.forEach(enemy=>{enemy.encounterOutline=ACT_EXPLORATION_AMBUSH.outline;});
+        }
+    }
+    return packs;
+}
+/** The packs a room's 습격 takes when its own pack's roll falls under the chance, else none. */
+function ambushRoomPacks(room,packs) {
+    const own=packs.filter(pack=>pack.roomId===room.id && pack.stage===null && !pack.anchor && !pack.rescue && !pack.alert && !pack.treasure);
+    const main=own.find(pack=>pack.key===room.id+':pack');
+    if(!main || main.encounter || !main.aliveIds.length || own.some(pack=>pack.eliteIds.length))return [];
+    return (Math.abs(hashSeed(`ambush:${main.key}:${main.aliveIds[0]}`))%1000)/1000<ACT_EXPLORATION_AMBUSH.chance ? own : [];
+}
+
 /** An atlas map's extra-elite mod leads some ordinary rooms with an elite (fixed per map and room). */
 function isAtlasExtraEliteRoom(zone,room) {
     if(!zone.atlasExtraElite || room.role==='boss')return false;
@@ -7967,14 +8170,15 @@ function createExplorationPacks(zone,map,bossStages) {
             : createActExplorationPack(zone,room,null,encounter,arrangedRoomFormation(arranger,zone,room,encounter,counts.get(room.id))));continue;}
         for(let stage=0;stage<bossStages;stage++)packs.push(createExplorationBossStage(zone,map,room,stage));
     }
-    return packs.concat(createAddedExplorationPacks(zone,map,patrol,arranger,rescueRoom),createStarterRescuePack(zone,map,rescueRoom));
+    return markExplorationAmbushRooms(zone,map,packs.concat(createAddedExplorationPacks(zone,map,patrol,arranger,rescueRoom),
+        createStarterRescuePack(zone,map,rescueRoom)));
 }
 
-/** 액트 1의 첫 몬스터(2026-10-15 사용자: "첫 방에 몬스터가 있고 그걸 잡으면 젬이 드랍되게", "하켄이 그 몬스터에게 맞고있는걸로"):
- * 이번 루프의 시작 젬을 아직 받지 않았을 때, 방 단위 무대의 구출 방(starterRescueRoom)에서 하켄 곁에 한 마리가 선다. 그 방의 보통 무리는
- * 없다. 한 대 맞기 전까지는 하켄을 친다(strikeRescueTarget). 이 몬스터가 루프의 첫 처치라 시작 젬이 그 자리 바닥에 떨어진다.
+/** 액트 1의 첫 몬스터(2026-10-15 사용자: "첫 방에 몬스터가 있고 그걸 잡으면 룬이 드랍되게", "하켄이 그 몬스터에게 맞고있는걸로"):
+ * 이번 루프의 시작 룬을 아직 받지 않았을 때, 방 단위 무대의 구출 방(starterRescueRoom)에서 하켄 곁에 한 마리가 선다. 그 방의 보통 무리는
+ * 없다. 한 대 맞기 전까지는 하켄을 친다(strikeRescueTarget). 이 몬스터가 루프의 첫 처치라 시작 룬이 그 자리 바닥에 떨어진다.
  * @returns {object[]} 그 무리, 없으면 빈 목록. */
-/** 루프 1에만(2026-10-15 사용자: 루프 뒤에는 첫 방에 하켄이 없다). 그 뒤의 시작 젬은 그 루프의 첫 처치가 바닥에 떨어뜨린다. */
+/** 루프 1에만(2026-10-15 사용자: 루프 뒤에는 첫 방에 하켄이 없다). 그 뒤의 시작 룬은 그 루프의 첫 처치가 바닥에 떨어뜨린다. */
 const startsWithRescue=(zone,map)=>zone.type==='act' && zone.id===0 && !!map.stage && (game.season||1)===1
     && !game.loopStarterGemGranted && (game.skills||[]).length<=1;
 /** 구출 방: 입구 방 문 너머, 보스로 가는 길의 첫 전투 방(2026-10-15 사용자: "첫방에서 처음부터 하켄이 보이지 않도록 (조금 앞으로 걸어가야
@@ -7985,9 +8189,9 @@ function starterRescueRoom(zone,map) {
 }
 function createStarterRescuePack(zone,map,room) {
     if(!room)return [];
-    // 하켄의 양옆에 선다(한 칸씩, 방 밖이면 그 너머 칸을 쓰지 않는다): 주인공은 앞의 한 마리부터 치게 된다.
+    // 하켄의 양옆에 RESCUE_STRIKE.gap칸씩 떨어져 선다(방 밖이면 그 너머 칸을 쓰지 않는다): 주인공은 앞의 한 마리부터 치게 된다.
     const post=actExplorationRooms.npcPost(room),inside=gx=>gx>=room.x0 && gx<=room.x1;
-    const cells=[post.gx+1,post.gx-1].filter(inside).slice(0,RESCUE_STRIKE.pair).map(gx=>({gx,gy:post.gy}));
+    const cells=[post.gx+RESCUE_STRIKE.gap,post.gx-RESCUE_STRIKE.gap].filter(inside).slice(0,RESCUE_STRIKE.pair).map(gx=>({gx,gy:post.gy}));
     const pack=createActExplorationPack(zone,room,null,null,{cells,rescue:true});
     // 게이지를 거의 채워 둔다: 첫 장면(액트 이름과 깨어나는 대사 동안 게임이 멈춘다)에서 하켄을 향해 공격을 준비하는 자세로 보인다.
     // 처음 시작(js/opening-journey-ui.js)의 주인공이 아직 이 괴물을 치지 않았으면, 다가와 칠 때까지 하켄을 계속 친다(patient).
@@ -8000,7 +8204,8 @@ function createStarterRescuePack(zone,map,room) {
  * 보고 RESCUE_STRIKE.rate의 빠르기로 공격 동작만 낸다(피해 없음, 하켄 위의 번쩍임은 js/canvas-act-title-card.js가 'npcStruck'로 그린다).
  * 주인공은 하켄에서 두 칸 옆에서 시작해 곧 이 몬스터를 친다. 그 뒤로는 여느 몬스터처럼 주인공과 싸운다. true = 이번 틱은 하켄을 노렸다. */
 // pair: 두 마리가 하켄을 양옆에서 친다(대사는 "괴물들", "잔뿌리들"). share: 한 마리의 생명력과 피해 배율: 둘을 합쳐 한 마리였을 때와 비슷하게.
-const RESCUE_STRIKE=Object.freeze({rate:0.42,windUp:0.9,maxStrikes:4,fxMs:260,pair:2,share:0.55});
+// gap: 하켄에서 떨어져 서는 칸 수. 바로 옆 칸에 서면 몬스터 그림이 하켄과 겹쳤다(2026-10-17 사용자 "NPC와 겹치지 않도록", 1에서 2로).
+const RESCUE_STRIKE=Object.freeze({rate:0.42,windUp:0.9,maxStrikes:4,fxMs:260,pair:2,share:0.55,gap:2});
 function strikeRescueTarget(enemy) {
     const npc=enemy.rescue;
     if(!npc)return false;
@@ -8440,7 +8645,7 @@ function returnToTown() {
     updateStaticUI();
 }
 
-/** 전술 규칙의 마을 귀환(예전 귀환 젬): 규칙은 열린 지도의 마지막 포털을 쓰지 않는다(죽지 않고 지도가 닫히므로). */
+/** 전술 규칙의 마을 귀환(예전 귀환 룬): 규칙은 열린 지도의 마지막 포털을 쓰지 않는다(죽지 않고 지도가 닫히므로). */
 function returnToTownByRule() {
     if (!atlasRun.lastPortal()) returnToTown();
 }
@@ -8562,7 +8767,7 @@ function advanceMapProgress(pStats) {
     ensureEncounterRun();
     if(actExplorationProgress.advance(pStats))return;
     if (game.runProgress >= 100) return;
-    if (isCrowdProgressPaused()) return;
+    if (isCrowdProgressPaused(pStats)) return;
     let abyssScale = getAbyssMonsterScales(zone);
     let enemyCount = (game.enemies || []).filter(enemy => enemy.hp > 0).length;
     let zoneType = zone ? zone.type : 'act';
@@ -8753,7 +8958,7 @@ function grantExpAndGem(enemy, pStats) {
     let gemExp = Math.floor(exp * 0.45);
     for (const name of grantWornGemExp(gemExp, pStats)) {
         gemLeveled = true;
-        addLog(`✨ ${SKILL_DB[name]?.isGem ? '젬' : '스킬'} [${name}] 레벨업!`, "loot-unique");
+        addLog(`✨ ${SKILL_DB[name]?.isGem ? '룬' : '스킬'} [${name}] 레벨업!`, "loot-unique");
     }
     game.equippedSummonSkills = Array.isArray(game.equippedSummonSkills) ? game.equippedSummonSkills : [];
     game.equippedSummonSkills.forEach(name => {
@@ -8764,7 +8969,7 @@ function grantExpAndGem(enemy, pStats) {
         let gem = game.gemData[name];
         if (gainGemExperience(gem, gemExp) > 0) {
             gemLeveled = true;
-            addLog(`✦ 소환수 젬 [${name}] 레벨업!`, "loot-unique");
+            addLog(`✦ 소환수 룬 [${name}] 레벨업!`, "loot-unique");
         }
     });
     (game.equippedSupports || []).forEach(name => {
@@ -8772,7 +8977,7 @@ function grantExpAndGem(enemy, pStats) {
         const levels = gem ? gainGemExperience(gem, gemExp) : 0;
         if (levels > 0) {
             gemLeveled = true;
-            addLog(`🟢 젬 [${name}] 레벨업!`, "loot-rare");
+            addLog(`🟢 룬 [${name}] 레벨업!`, "loot-rare");
         }
     });
 
@@ -9032,7 +9237,7 @@ function rollEnemyGemReward(enemy,awakening) {
 function rollEnemyAttackGem(awakening) {
     const names=gemDropRewards.missingAttacks(game);
     if(!names.length)return null;
-    const name=rndChoice(names),awakened=!!awakening&&Math.random()<0.035;
+    const name=pickSkillRuneReward(names),awakened=!!awakening&&Math.random()<0.035;   // 지금 무기로 쓸 수 있는 룬 쪽으로
     return {kind:'attack',name,awakened};
 }
 
@@ -9149,18 +9354,18 @@ function clearDotFxThrottleForEnemy(enemyId) {
 }
 
 // 루프 시작 시 스킬이 "기본 공격"만 남는 공백을 메우기 위해, 루프 첫 처치 때
-// 선택한 직업의 권장 전투 방식에 맞는 하위권 화력 스킬 젬을 확정 지급한다.
-// (좋은 젬을 직접 찾는 재미는 유지하도록 일부러 강한 젬은 고르지 않는다.)
-// 탐험 지도에서는 그 처치 자리 바닥에 떨어지고 주울 때 들어온다(2026-10-15 사용자 "첫 방에 몬스터가 있고 그걸 잡으면 젬이 드랍되게":
+// 선택한 직업의 권장 전투 방식에 맞는 하위권 화력 스킬룬을 확정 지급한다.
+// (좋은 룬을 직접 찾는 재미는 유지하도록 일부러 강한 룬은 고르지 않는다.)
+// 탐험 지도에서는 그 처치 자리 바닥에 떨어지고 주울 때 들어온다(2026-10-15 사용자 "첫 방에 몬스터가 있고 그걸 잡으면 룬이 드랍되게":
 // 액트 1 입구 방의 첫 몬스터, createStarterRescuePack). enemy가 없으면(스크립트) 바로 들어온다.
 function grantLoopStarterGemOnFirstKill(enemy) {
     const gemName = takeLoopStarterGem();
     if (!gemName) return;
     const run = enemy ? explorationFloorFor(enemy) : null;
     if (run) actExplorationState.groundLoot.placeGem(run, enemy, gemName);
-    else if (receiveStarterGem(game, gemName)) addLog(`스킬 젬 [${gemName}] 획득`, 'loot-rare');
+    else if (receiveStarterGem(game, gemName)) addLog(`스킬룬 [${gemName}] 획득`, 'loot-rare');
 }
-/** 이번 루프의 시작 젬 이름(한 번만): 이미 받았거나 기본 공격 밖의 스킬이 있으면 null. */
+/** 이번 루프의 시작 룬 이름(한 번만): 이미 받았거나 기본 공격 밖의 스킬이 있으면 null. */
 function takeLoopStarterGem() {
     if (game.loopStarterGemGranted) return null;
     game.loopStarterGemGranted = true;
@@ -9174,7 +9379,7 @@ function takeLoopStarterGem() {
 function loopStarterGemName() {
     const classDef = typeof PLAYER_CLASS_DEFS !== 'undefined' ? PLAYER_CLASS_DEFS[game.selectedClassId] : null;
     const heroId = classDef && HERO_SELECTION_DEFS[classDef.recommendedTalentHeroId] ? classDef.recommendedTalentHeroId : 'hero1';
-    return (typeof LOOP_STARTER_GEM_BY_HERO !== 'undefined' && LOOP_STARTER_GEM_BY_HERO[heroId]) || '연속 베기';
+    return (typeof LOOP_STARTER_GEM_BY_HERO !== 'undefined' && LOOP_STARTER_GEM_BY_HERO[heroId]) || '이중 베기';
 }
 /** The starter gem reaches the hero (picked up, or settled from a dropped map's floor): the gem, its record, the gem tab, and in a
  * first loop the pending equip guide (js/content-progression-ui.js announceStarterGem). @returns {boolean} whether it went in. */
@@ -9185,7 +9390,15 @@ function receiveStarterGem(state, gemName) {
     state.unlocks.skills = true;
     state.noti.skills = true;
     if (!(state.seenTutorials || []).includes('tutorial_starter_gem_equip')) state.starterGemTutorialPending = gemName;
+    else wearStarterGemWithoutGuide(state, gemName);
     return true;
+}
+/** 장착 안내를 이미 본 루프(루프 2부터)는 받은 시작 룬을 바로 장착한다. 첫 루프는 안내를 닫을 때 장착하는데(js/tutorial-ui.js
+ * equipSkippedStarterGem, 방치하면 기본 공격으로 거듭 쓰러졌다), 다음 루프부터는 안내가 없어 시작 룬을 받고도 기본 공격으로 싸웠다
+ * (자연 플레이 2026-10-17). 맞지 않는 무기를 들었으면 getActiveSkillStats가 기본 공격으로 돌려 둔다. */
+function wearStarterGemWithoutGuide(state, gemName) {
+    if (state.activeSkill !== '기본 공격' || (SKILL_DB[gemName].tags || []).includes('summon') || mobilitySkill.isMobilityGem(gemName)) return;
+    state.activeSkill = gemName;
 }
 
 
@@ -9236,7 +9449,7 @@ function handleEnemyDeath(enemy, pStats) {
         enemyId: enemy.id,
         name: enemy.name,
         color: getElementColor(enemy.ele),
-        duration: enemy.isBoss ? 840 : (enemy.isElite ? 500 : 340),
+        duration: enemy.isBoss ? 1600 : (enemy.isElite ? 500 : 340),   // 보스: 쓰러짐 그림을 보여 준다(js/canvas-battlefield.js drawEnemyDeathFx)
         boss: !!enemy.isBoss,
         elite: !!enemy.isElite
     });
@@ -9413,16 +9626,6 @@ function getRangerWeakpointBonus(enemy, hitDamage) {
     return enemy.isBoss ? Math.max(1, Math.min(lifeShare, Math.floor(hitDamage || 0))) : lifeShare;
 }
 
-// A reactive gem (인과) bursts once per hitsTakenPerBurst hits the hero takes while channelling, not once per attack. Its estimate
-// assumes this many hits taken per second (2026-10-04: it used the attack speed and showed 10-100× what it really dealt).
-const REACTIVE_BURST_ASSUMED_HITS_TAKEN_PER_SEC = 1;
-/** Scale from an attack-speed DPS to the bursts a reactive gem actually makes; 1 for every other skill. */
-function getReactiveBurstRateScale(skill, attacksPerSec) {
-    const hitsPerBurst = Number(skill && skill.combatPattern && skill.combatPattern.hitsTakenPerBurst) || 0;
-    if (hitsPerBurst <= 0) return 1;
-    return (REACTIVE_BURST_ASSUMED_HITS_TAKEN_PER_SEC / hitsPerBurst) / Math.max(0.01, attacksPerSec);
-}
-
 // Monster regeneration (0.1 s step) tires while the monster keeps losing life (2026-10-04): it falls in a straight line to nothing over
 // ENEMY_REGEN_FATIGUE_MS of fighting and comes back once nothing has hurt it for ENEMY_REGEN_COMBAT_WINDOW_MS. A chaos 20 boss
 // healed 0.48% of its life a second (about 21,000) and a build dealing less never finished it, an idle run standing still for
@@ -9577,15 +9780,15 @@ function grantGuaranteedTrialSkillGem() {
     let available = Object.keys(SKILL_DB).filter(name => SKILL_DB[name] && SKILL_DB[name].isGem && !hasSkillGemOwned(name));
     if (available.length === 0) {
         let fallbackGain = grantGemResearchFragments(6, 'drop');
-        if (fallbackGain > 0) addLog(`✨ 전직 시련 보상: 모든 공격 젬을 보유해 젬 잔향 +${fallbackGain}을 획득했습니다.`, 'loot-magic');
+        if (fallbackGain > 0) addLog(`✨ 전직 시련 보상: 모든 공격 룬을 보유해 룬 잔향 +${fallbackGain}을 획득했습니다.`, 'loot-magic');
         return true;
     }
-    let skill = rndChoice(available);
+    let skill = pickSkillRuneReward(available);
     game.skills.push(skill);
     game.gemData[skill] = { level: 1, exp: 0, awakened: false };
     game.noti.skills = true;
     let shardGain = grantGemResearchFragments(2, 'drop');
-    addLog(`✨ 전직 시련 보상: 공격 젬 <span class='loot-magic'>[${skill}]</span> 획득!${shardGain ? `, 젬 잔향 +${shardGain}` : ''}`, 'loot-magic');
+    addLog(`✨ 전직 시련 보상: 공격 룬 <span class='loot-magic'>[${skill}]</span> 획득!${shardGain ? `, 룬 잔향 +${shardGain}` : ''}`, 'loot-magic');
     return true;
 }
 
@@ -9667,7 +9870,7 @@ function grantUnderworldFloorMilestone(floor, progress) {
     runeState.unlockedSlots = Math.min(6, Math.max(prevSlots, unlockTier));
     runeState.unlockedRunesMaxNumber = Math.min(30, Math.max(prevMaxRuneNo, unlockTier));
     if (runeState.unlockedSlots > prevSlots || runeState.unlockedRunesMaxNumber > prevMaxRuneNo) {
-        dispatchRuntimeEvent('underworld-milestone', { floor, text: `🧿 지하계 ${floor}층 보상: 룬 슬롯 ${runeState.unlockedSlots}/6, 룬 번호 1~${runeState.unlockedRunesMaxNumber} 해금` });
+        dispatchRuntimeEvent('underworld-milestone', { floor, text: `🧿 지하계 ${floor}층 보상: 지하석 슬롯 ${runeState.unlockedSlots}/6, 지하석 번호 1~${runeState.unlockedRunesMaxNumber} 해금` });
     }
 }
 
@@ -9681,7 +9884,7 @@ function grantUnderworldDeepFloorReward(floor, progress) {
     const shards = Math.floor(rule.runeShard[0] + rule.runeShard[1] * depth), gold = Math.floor(rule.underGold[0] + rule.underGold[1] * depth);
     awardCurrency('runeShard', shards);
     awardCurrency('underGold', gold);
-    dispatchRuntimeEvent('underworld-milestone', { floor, text: `🧿 지하계 ${floor}층 보상: 룬 조각 ${shards}, 금 ${gold}` });
+    dispatchRuntimeEvent('underworld-milestone', { floor, text: `🧿 지하계 ${floor}층 보상: 지하석 조각 ${shards}, 금 ${gold}` });
 }
 
 function rollBeyondBoundaryRewardCount(rewardMul) {
@@ -9723,7 +9926,7 @@ function grantBeyondBoundaryGemRewards(context) {
     let amount = Math.max(1, Math.round((8 + getBeyondBoundaryPayoutTier(context.tier) / 4) * context.intensity.rewardMul));
     let gained = typeof grantGemResearchFragments === 'function'
         ? grantGemResearchFragments(amount, 'drop') : (awardCurrency('gemShard', amount), amount);
-    return `젬 잔향 ${gained}개`;
+    return `룬 잔향 ${gained}개`;
 }
 
 function grantBeyondBoundaryCurrencyRewards(context) {
@@ -10243,6 +10446,7 @@ function finishEncounterRun() {
             if (clearedStoryAct && clearedStoryAct.unlockText) addLog(`🧭 ${clearedStoryAct.unlockText}`, 'season-up');
             let unlockedZone = getZone(game.maxZoneId);
             addLog(`🗺️ 신규 사냥터 [${unlockedZone ? unlockedZone.name : ('구역 ' + game.maxZoneId)}] 개방!`, "season-up");
+            noteCampaignResistPenalty(game.maxZoneId);
         }
         game.killsInZone = 0;
         game.loopProgressCurrent = game.loopProgressCurrent || { specialBosses: [], chaos20Cleared: false, bestAbyssDepth: 0, bestLabyrinthFloor: 0, bestChaosRealmFloor: 0, cosmosPlanets: [] };
@@ -10353,7 +10557,6 @@ function startSkillGemCombat(stats, options) {
     const name=options.skillName || game.activeSkill;
     initializeSkillGemFacing();
     if (skillGemRuntimeChanged(name)) skillGemCombatRuntime=skillGemCasts.createState();
-    if (name==='인과' && skillGemCombatRuntime.channel) return;
     const started=skillGemCasts.start(skillGemCombatRuntime,{id:stats.sSkill.nativeCastId,name,stats,
         source:game.gridPlayer,enemies:game.enemies,now:getCombatTime(),visuals:!game.isBackgroundCalculation,
         attackOptions:{forcedCrit:options.forcedCrit,forcedElement:options.forcedElement,
@@ -10362,7 +10565,6 @@ function startSkillGemCombat(stats, options) {
     if (!started) return;
     noteNativeGemSwing(name, stats);
     noteCombatTacticAttack(300);
-    if (name==='인과') beginCombatChannel(name,0,5000,{repeatChannelCast:false,channelContinuation:false});
 }
 
 /** 이동기 4종 swing their weapon once at the move's key moment (the tear, the puff, the release, the slam). */
@@ -10377,7 +10579,6 @@ function shouldDeferNativeGemCast(stats,options) {
     if (options.stageReplay || !stats.sSkill.nativeCastId) return false;
     if (hasPlayerChannelBreakingAilment() || game.combatHalted) return true;
     if (!skillGemCombatRuntime) return false;
-    if (stats.sSkill.nativeCastId===53) return !!skillGemCombatRuntime.channel;
     return skillGemCasts.singleCast.has(stats.sSkill.nativeCastId) && skillGemCombatRuntime.casts.some(c=>c.id===stats.sSkill.nativeCastId);
 }
 
@@ -10391,7 +10592,6 @@ function updateSkillGemCombat(stats) {
     if (game.combatHalted || game.playerHp<=0 || skillGemRuntimeChanged(game.activeSkill)) {
         skillGemCombatRuntime=null;cancelCombatChannel();return;
     }
-    syncSkillGemChannel(runtime);
     const commands=skillGemCasts.update(runtime,{source:game.gridPlayer,enemies:game.enemies.concat(getSplashDormantEnemies()),now:getCombatTime()});
     for (const command of commands) applySkillGemCommand(command,stats);
 }
@@ -10408,14 +10608,6 @@ function skillGemRuntimeChanged(name) {
 
 function initializeSkillGemFacing() {
     for (const enemy of game.enemies) if (!enemy.facingDirection) enemy.facingDirection=skillGemCasts.facing(enemy,game.gridPlayer);
-}
-
-function syncSkillGemChannel(runtime) {
-    if (!runtime.channel) return;
-    const c=runtime.channel.source,p=game.gridPlayer;
-    const valid=game.activeSkill==='인과' && c.gx===p.gx && c.gy===p.gy && !hasPlayerChannelBreakingAilment();
-    if (!valid || !combatChannelRuntime.id) cancelCombatChannel();
-    else combatChannelRuntime.endAt=getCombatTime()+5000;
 }
 
 function applySkillGemCommand(command,stats) {
@@ -10455,20 +10647,13 @@ function applySkillGemContact(command,targets) {
     performPlayerAttack({...stats,projectileExtraShots:0},{...command.attackOptions,stageReplay:true,skillName:command.name,
         sourceCell:command.sourceCell,targetEntries:targets.map(e=>({enemyId:e.id,mult:1})),stageRepeatOnce:true,
         restrictRandomTargets:true,skipSlamEcho:true,skipGridControl:true,
-        hitDamageMultiplier:command.bonus?PROJECTILE_BONUS_SHOT_DAMAGE_PCT/100:1,damageTextGroupId:command.key});
+        hitDamageMultiplier:(command.bonus?PROJECTILE_BONUS_SHOT_DAMAGE_PCT/100:1)*(command.damagePct??100)/100,damageTextGroupId:command.key});
     if (!command.ailment) return;
     targets.forEach((enemy,i)=>{
         if (enemy.hp<=0 || enemy.hp+(enemy.energyShield||0)>=before[i]) return;
         const ele=command.ailment==='poison'?'chaos':'phys';
         applyEnemyAilmentFromHit(enemy,{...stats,sSkill:{...stats.sSkill,ele}},stats.baseDmg,false,{primaryAilmentChance:1});
     });
-}
-
-function receiveSkillGemPlayerHit(damage,stats) {
-    if (!skillGemCombatRuntime?.channel || hasPlayerChannelBreakingAilment()) return;
-    const commands=skillGemCasts.receiveHit(skillGemCombatRuntime,{damage,alive:game.playerHp>0,
-        source:game.gridPlayer,enemies:game.enemies,stats,now:getCombatTime()});
-    for (const command of commands) applySkillGemCommand(command,stats);
 }
 
 function performPlayerAttack(pStats, attackOptions) {
@@ -10516,7 +10701,8 @@ function performPlayerAttack(pStats, attackOptions) {
         passiveKarmaContext = beginPassiveKarmaAttack(targets[0].enemy, getCombatTime());
     }
     if (!isStageReplay) colosseumStrikeMul *= consumeLoneEvasionCounterMultiplier(pStats, getCombatTime());
-    if (!isStageReplay) applySkillMobilityBeforeAttack(pStats.sSkill, targets[0].enemy, pStats);
+    let landingMs = !isStageReplay && applySkillMobilityBeforeAttack(pStats.sSkill, targets[0].enemy, pStats)
+        ? Math.max(0, Number(pStats.sSkill.mobilityPattern.airMs) || 0) : 0;
     let talentMoonReturn = !isStageReplay && typeof getTalentMoonReturnConfig === 'function'
         ? getTalentMoonReturnConfig(targets)
         : null;
@@ -10601,7 +10787,7 @@ function performPlayerAttack(pStats, attackOptions) {
             skillName, forcedCrit: isCrit, forcedElement: swingElement, stageCount,
             talentAttackMultiplier: talentAttackMul, attackDamageMultiplier: colosseumStrikeMul,
             talentMoonReturn, attackHitGuardCounts, passiveKarmaContext,
-            channelContinuation: channelContinuationRequested, repeatChannelCast: !!options.repeatChannelCast
+            channelContinuation: channelContinuationRequested, repeatChannelCast: !!options.repeatChannelCast, landingMs
         });
         return;
     }
@@ -10820,7 +11006,7 @@ function performPlayerAttack(pStats, attackOptions) {
                 game.uniqueRiderCompassConsumed = true;
             }
             if (hitCrit && hasKeystone('a7') && (game.enemies || []).filter(e => e && e.hp > 0).length === 1) hitBaseDamage *= 1 + ASCENDANCY_KEYSTONE_VALUES.a7.extraHitPct / 100;
-            if (hitCrit && skillName === '묵직한 강타' && pStats.sSkill.finalLevel >= 20) hitBaseDamage *= 2;
+            if (hitCrit && skillName === '강타' && pStats.sSkill.finalLevel >= 20) hitBaseDamage *= 2;
             let randomElementPct = pStats.randomElementDamagePct && Number(pStats.randomElementDamagePct[hitElement]) ? Number(pStats.randomElementDamagePct[hitElement]) : 0;
             if (randomElementPct) {
                 hitBaseDamage = Math.floor(hitBaseDamage * (1 + randomElementPct / 100));
@@ -11359,7 +11545,7 @@ function performPlayerAttack(pStats, attackOptions) {
                 if (mark) { mark.time = 5; mark.power = stacks; }
                 else targetEnemy.ailments.push({ type: 'assassinWeakness', time: 5, power: stacks });
             }
-            if (isDotSkill) applyEnemyDotFromHit(targetEnemy, damageBeforeMitigation, pStats);
+            if (isDotSkill) applySkillDotFromHit(targetEnemy, damageBeforeMitigation, pStats);
             let ailmentType = getAilmentTypeFromElement(hitElement);
             let conditionAilmentTakenMul = curseFx && curseFx.ailmentTakenMul ? (curseFx.ailmentTakenMul[ailmentType] || 1) : 1;
             let ailmentStats = getSkillAilmentStats(pStats, hitElement, curseFx);
@@ -11431,6 +11617,21 @@ function retreatAfterActDefeat(zone) {
     game.currentZoneId = target.id;
     game.killsInZone = 0;
     return target.name;
+}
+
+/** 지금까지 연 구역의 캠페인 패널티(모든 원소 저항과 카오스 저항에서 뺄 값). */
+function getCampaignResistPenalty(maxZoneId) {
+    return CAMPAIGN_RESIST_PENALTY.zones.filter(zoneId => maxZoneId >= zoneId).length * CAMPAIGN_RESIST_PENALTY.each;
+}
+
+/** 패널티가 붙는 구역을 처음 열면 한 번 알린다. 액트 6과 혼돈에서 갑자기 자주 쓰러지는 까닭이 캐릭터 창의 저항 상세에만 있었다
+ * (자연 플레이 측정 2026-10-17: 패시브를 찍지 않은 성직자는 혼돈 1에서 한 시간에 76번 쓰러졌다, 찍은 성직자는 0번). */
+function noteCampaignResistPenalty(zoneId) {
+    if (!CAMPAIGN_RESIST_PENALTY.zones.includes(zoneId)) return;
+    const each = CAMPAIGN_RESIST_PENALTY.each, total = getCampaignResistPenalty(zoneId);
+    const more = total > each ? ` 더 낮아졌습니다(모두 합쳐 -${total}%)` : ' 낮아졌습니다';
+    queueTutorialNotice(`notice_resist_penalty_${zoneId}`, `모든 저항 -${total}%`,
+        `캠페인 패널티로 모든 원소 저항과 카오스 저항이 ${each}%${more}.\n저항이 모자라면 받는 피해가 커집니다. 캐릭터 창의 저항에서 볼 수 있습니다.`, 'tab-character');
 }
 
 /** 받침에 맞춘 방향 조사: "성소" → "성소로", "숲" → "숲으로", "길" → "길로"(ㄹ 받침은 '로'). */
@@ -12077,6 +12278,7 @@ function performMonsterAttacks(pStats) {
         chillSlow = Math.min(0.65, chillSlow + curseSlow);
         if (!pendingAttack && pendingEnemyCombatAttacks.some(row => row.enemyId === enemy.id)) continue;
         if (!pendingAttack && strikeRescueTarget(enemy)) continue;
+        if (!pendingAttack && (Number(enemy.skillHeldUntil) || 0) > getCombatTime()) continue; // 띄워진 몬스터(launchEnemyOnHit)
         let impactTargets = pendingAttack ? getEnemyCombatImpactTargets(pendingAttack) : [getEnemyPreferredGridTarget(enemy)];
         let attackTarget = impactTargets[0];
         if (!attackTarget) continue;
@@ -12559,7 +12761,6 @@ function performMonsterAttacks(pStats) {
             }));
             addBattleFx('playerHit', { enemyId: enemy.id, color: getElementColor(topDamageEntry.ele), damage: dmg, duration: 220, deflected: deflected,
                 targetMaxHp: getPlayerHpCap(pStats) });
-            receiveSkillGemPlayerHit(dmg,pStats);
             if (game.settings.showCombatLog && dmg > 0) {
                 let damageLog = `${getDamageElementIcon(topDamageEntry.ele)} ${enemy.name}의 공격으로 ${formatNumberKR(dmg)} 피해`;
                 if (game.settings.showDetailedDamageLog === true) {
@@ -12687,6 +12888,8 @@ function isTrialHazardPositionHeld() {
 function updateCombatHazardEscape(hazard, pStats, now, reason = '함정 회피') {
     if (!hazard.shouldAvoid || !isPlayerInsideCombatHazard(hazard)) return false;
     if (hasPlayerChannelBreakingAilment()) return true;
+    // 공격 후딜이 끝나야 피한다(2026-10-17 사용자 "자동 회피는 경직을 무시하면 안되는거 아니야?"). 그동안 공격도 쉰다.
+    if (isPlayerAttackRecovering(now)) return true;
     let moveSpeed = Number.isFinite(pStats.moveSpeed) && pStats.moveSpeed > 0 ? pStats.moveSpeed : 100;
     let interval = COMBAT_GRID_CONFIG.playerMoveIntervalSec * (100 / moveSpeed);
     let result = advanceGridHazardEscape(game.gridPlayer, hazard.cells, 0.1, interval);
@@ -13070,6 +13273,7 @@ function triggerSeasonReset(options) {
     game.voidPassives = {};
     game.skills = ['기본 공격'];
     game.activeSkill = '기본 공격';
+    game.weaponBlockedSkill = '';
     game.mobilitySkill = '';
     game.loopStarterGemGranted = false;
     game.gemData = { '기본 공격': { level: 1, exp: 0 } };

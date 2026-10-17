@@ -1620,7 +1620,7 @@
                 <div><span>탐사 완료</span><strong>${cleared}<small> / ${ATLAS.nodes.length}</small></strong></div>
                 <div><span>개별 탐사 가능</span><strong>${unlocked ? available : 0}<small>개</small></strong></div>
                 <div><span>성도술</span><strong>${getCosmosMasteryFreePoints()}<small> / ${getCosmosMasteryTotalPoints()}</small></strong></div>
-                <div title="창공의 정수는 우주계 탐사, 은하 보스에서 얻고 젬 각인, 창공 가공에 씁니다."><span>창공의 정수</span><strong>${getSkyPowerBalance()}</strong></div>
+                <div title="창공의 정수는 우주계 탐사, 은하 보스에서 얻고 룬 각인, 창공 가공에 씁니다."><span>창공의 정수</span><strong>${getSkyPowerBalance()}</strong></div>
             </div>
             <div class="cosmos-progress-overview"><div class="cosmos-galaxy-progress">${galaxyProgress}</div>
                 <div class="cosmos-resource-line"><span>행성 ${planetsCleared}/50, 소행성 ${asteroidsCleared}/75</span><span>보스 유물 ${(state.bossRelics || []).length}, 우주석 ${getEquippedCosmosStoneCount(state)}/${hasSixthCosmosStoneUnlock() ? 6 : 5}</span></div></div>

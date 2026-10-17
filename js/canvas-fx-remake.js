@@ -12,7 +12,7 @@ const fxRemake = (() => {
     const BLOCK = 3;
     const DROP_BELOW = 0.3;
     const DIM_BELOW = 0.7;
-    // 17 혈기 폭쇄 and 37 룬 지뢰 bring their own shock ring (js/canvas-redrawn-skill-fx.js owns their stages).
+    // 17 혈기 폭쇄 and 37 번개 각인 bring their own shock ring (js/canvas-redrawn-skill-fx.js owns their stages).
     const RING_IDS = new Set([2, 12, 13, 26, 27, 34, 47]);
     const QUIET_ASSASSIN = new Set(['vanish', 'arrive', 'dagger']);
     const ELEMENT_RAMPS = {
@@ -60,10 +60,14 @@ const fxRemake = (() => {
         surfaces.fullCtx.imageSmoothingEnabled = false;
         return surfaces;
     }
-    /** The battlefield canvas uses the size it measured once (js/canvas-battlefield.js battleCanvasBox): reading clientWidth here
-     * every frame forced a style pass over whatever the frame had changed so far (2026-10-07 frame drops). */
+    /** The battlefield and its ground-loot actor overlay share the measured box (battle-ground-loot-ui.js resize).
+     * Reading the overlay's clientWidth after placing loot labels forced another style pass mid-frame (2026-10-17). */
     function cssBox(canvas) {
-        if (canvas.id === 'battlefield-canvas' && typeof battleCanvasBox === 'object') return battleCanvasBox.read(canvas);
+        if (typeof battleCanvasBox === 'object') {
+            if (canvas.id === 'battlefield-canvas') return battleCanvasBox.read(canvas);
+            const source = canvas.classList.contains('battle-loot-foreground') && document.getElementById('battlefield-canvas');
+            if (source) return battleCanvasBox.read(source);
+        }
         return { width: canvas.clientWidth, height: canvas.clientHeight };
     }
     function boardView(target, projection) {
@@ -105,7 +109,7 @@ const fxRemake = (() => {
     // ------------------------------------------------------------------ atlas samples
     function isQuiet(e) {
         return !!(e.holyMistPhase || e.judgmentPhase === 'censer' || e.timePhase || e.effectRole === 'clock'
-            || e.causalityPhase === 'sigil' || QUIET_ASSASSIN.has(e.assassinationPhase));
+            || QUIET_ASSASSIN.has(e.assassinationPhase));
     }
     function isStruck(e, age) {
         return (e.kind === 'hit' || e.kind === 'stage') && age >= 0 && age < 50 && !isQuiet(e);
@@ -332,7 +336,7 @@ const fxRemake = (() => {
         t.getImageData(0, 0, 1, 1);
         return filtersPaid >= filters.length;
     }
-    /** 세계수 시트를 쓰는 이펙트가 전투에서 처음 나오기 전에 해 둔다(js/canvas-stage-warmup.js가 그 시트를 쓰는 젬을 꼈을 때 부른다).
+    /** 세계수 시트를 쓰는 이펙트가 전투에서 처음 나오기 전에 해 둔다(js/canvas-stage-warmup.js가 그 시트를 쓰는 룬을 꼈을 때 부른다).
      * 놋쇠 사본은 메인 스레드 밖에서 푼 그림으로 만든다(js/canvas-stage-pictures.js): 처음 쓰는 프레임에서 시트를 풀면 그 프레임이
      * 데스크톱에서 8ms, 느린 기기에서 30ms 넘게 멈췄다. 밖에서 풀지 못하면 예전처럼 처음 쓸 때 만든다.
      * @returns {boolean} 다 됐는가. 아직이면(그림을 푸는 중) 부른 쪽이 다시 부른다. */

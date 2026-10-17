@@ -3,8 +3,8 @@
  * data/stage-view.js STAGE_SCENES에 있고, 그 묶음을 만든 쪽의 조립 화면(묶음의 index.html)을 따른다.
  * - 먼 배경: 좌우로 이어 붙는 띠. 카메라보다 느리게 움직인다.
  * - 바닥과 뒤쪽 띠: 지도 왼쪽 끝에서 센 자리에 이어 붙는 띠(방마다 한 번 그려 둔다). 뒤쪽 띠가 바닥과 배경이 만나는 줄을 덮는다.
- * - 소품과 문: 캐릭터와 같은 깊이 순서로 그리는 배우. 뒤쪽 줄은 캐릭터 뒤에, 앞쪽 조각은 캐릭터 앞에 선다. 문은 잠겼으면 닫힌 그림,
- *   열렸으면 열린 그림이다. 주인공이 조각 뒤에 서면 그 조각이 비쳐 보인다.
+ * - 소품과 문: 캐릭터와 같은 깊이 순서로 그리는 배우. 뒤쪽 줄은 캐릭터 뒤에, 앞쪽 조각은 캐릭터 앞에 선다. 문은 공용 뿌리 봉인으로
+ *   막고 풀릴 때 아래로 접힌다. 주인공이 조각 뒤에 서면 그 조각이 비쳐 보인다.
  * 그림은 한 장이 캐릭터 도트 하나에 1px이라 캐릭터와 같은 배율로 찍는다(js/canvas-stage-dots.js). 그림 폴더가 없는 판에서는 ready가
  * 거짓이라 코드로 그린 임시 무대(js/canvas-stage-sanctum.js)가 그대로 나온다. 그리기만 하고 전투와 길 찾기에는 닿지 않는다.
  * 지도에 지역 무대 그림(js/canvas-stage-region.js: 방 그림 한 장과 문, 소품)이 정해져 있고 그 그림이 준비됐으면 그쪽이 방을 그린다:
@@ -23,7 +23,7 @@ const stageScene = (() => {
         return (map && stageView.backdrops() && STAGE_SCENES.biomes[map.biome]) || null;
     }
     function picture(kit, file) {
-        const path = STAGE_SCENES.path + kit.dir + file;
+        const path = STAGE_SCENES.path + kit.dir + file + '?v=' + STAGE_SCENES.version;
         if (!images.has(path)) {
             const image = new Image();
             image.decoding = 'async';
@@ -48,6 +48,7 @@ const stageScene = (() => {
     /** @returns {(string|boolean)} 이 지도의 방을 그릴 묶음: 'region' 지역 무대 그림, 'scene' 지형의 조각 묶음, 없으면 false.
      * 지역 그림을 불러오는 동안은 false다(그동안 다른 지형의 그림이 잠깐 보이지 않게 pending이 화면을 가린다). */
     function ready(map) {
+        stageDoorMarks.seal.ready();
         const region = regionState(map);
         if (region === 'ready') return 'region';
         return region !== 'pending' && sceneReady(map) ? 'scene' : false;
@@ -158,20 +159,20 @@ const stageScene = (() => {
         if (!rooms.has(room.index)) rooms.set(room.index, layoutOf(map, room, kit));
         return rooms.get(room.index);
     }
-    /** 문 하나의 그림과 자리: 뒤쪽과 앞쪽 문은 문 칸의 가로 가운데에, 좌우 문은 방의 그쪽 끝에 그 줄의 아래에 맞춰 선다. */
+    /** 문 하나의 뿌리 봉인 자리: 뒤쪽과 앞쪽 문은 문 칸의 가로 가운데에, 좌우 문은 방의 그쪽 끝에 그 줄의 아래에 맞춰 선다. */
     function doorPiece(room, row, kit) {
-        const door = row.door, rule = kit.doors[door.side], name = rule[row.locked ? 0 : 1], top = room.y0 * DEEP;
-        if (door.side === 'north' || door.side === 'south') return { name, x: (door.cell.gx + 0.5) * WIDE, y: top + rule[2] };
-        return { name, x: (door.side === 'west' ? room.x0 * WIDE : (room.x1 + 1) * WIDE) + rule[2], y: (door.cell.gy + 1) * DEEP };
+        const door = row.door, at = kit.doors[door.side], top = room.y0 * DEEP;
+        if (door.side === 'north' || door.side === 'south') return { doorRow: row, x: (door.cell.gx + 0.5) * WIDE, y: top + at };
+        return { doorRow: row, x: (door.side === 'west' ? room.x0 * WIDE : (room.x1 + 1) * WIDE) + at, y: (door.cell.gy + 1) * DEEP };
     }
-    /** 그 방을 그릴 때 화면 배율로 옮겨 쓰는 그림(먼 배경, 소품, 잠긴 문과 열린 문)을 미리 옮겨 두는 일들, 하나에 그림 한 장
+    /** 그 방을 그릴 때 화면 배율로 옮겨 쓰는 그림(먼 배경, 소품)을 미리 옮겨 두는 일들, 하나에 그림 한 장
      * (js/canvas-stage-room-pictures.js가 방 그림을 준비할 때 한 걸음씩 한다). 지역 그림으로 그리는 지도는 그쪽의 조각이다. */
     function sceneFitJobs(map, room, dot) {
         const mode = ready(map);
         if (mode === 'region') return stageRegion.fitJobs(map, room, dot);
         if (mode !== 'scene') return [];
-        const kit = kitOf(map), doors = map.doors.filter(door => door.room === room.index).flatMap(door => kit.doors[door.side].slice(0, 2));
-        const names = [...new Set(piecesOf(map, room, kit).map(piece => piece.name).concat(doors))].filter(name => kit.pieces[name]);
+        const kit = kitOf(map);
+        const names = [...new Set(piecesOf(map, room, kit).map(piece => piece.name))].filter(name => kit.pieces[name]);
         return [kit.far.file].concat(names.map(name => name + '.png')).map(file => () => fitted(kit, file, dot));
     }
     /** 전장 그리기의 배우 목록에 이 방의 소품과 문을 끼운다(깊이 순서는 그림 맨 아래 줄의 화면 y). */
@@ -190,7 +191,7 @@ const stageScene = (() => {
         const doors = actExplorationDoors.doorsHere(run).map(row => doorPiece(room, row, kit));
         piecesOf(map, room, kit).concat(doors).forEach((piece, index) => {
             const x = p.mapX + piece.x * dot, y = p.mapY + piece.y * dot;
-            if (x > -reach && x < state.width + reach) actors.push({ kind: 'scenery', id: -2000 - index, y, piece: { name: piece.name, kit }, point: { x, y } });
+            if (x > -reach && x < state.width + reach) actors.push({ kind: 'scenery', id: -2000 - index, y, piece: { ...piece, kit }, point: { x, y } });
         });
     }
     /** 주인공이 이 조각 바로 뒤에 서 있는가(조각이 주인공을 가린다). box = 그림에서 조각이 차지하는 상자. */
@@ -200,6 +201,11 @@ const stageScene = (() => {
     }
     /** 조각 하나: 가로 가운데를 point.x에, 그림의 맨 아래 줄을 actor.y에 맞춘다. */
     function draw(ctx, actor, state) {
+        if (actor.piece.doorRow) {
+            stageDoorMarks.seal.draw(ctx, actExplorationState.current(game), actor.piece.doorRow,
+                { x: actor.point.x, y: actor.y, dot: stageActors.scaleFor(state.gridProj.tileW), hero: state.playerPos });
+            return;
+        }
         if (actor.piece.region) { stageRegion.draw(ctx, actor, state); return; }
         const { name, kit } = actor.piece, size = kit.pieces[name];
         if (!size || !picture(kit, name + '.png')) return;
@@ -210,21 +216,21 @@ const stageScene = (() => {
         ctx.drawImage(fitted(kit, name + '.png', dot), Math.round(actor.point.x - size[0] / 2 * dot), Math.round(actor.y - (size[3] + size[5]) * dot), size[0] * dot, size[1] * dot);
         ctx.restore();
     }
-    /** 열린 좌우 문의 화살표: 문틀의 뚫린 자리에 세운다(문틀 그림이 문 칸을 덮어 바닥의 화살표가 보이지 않는다). 좌우 문은 화면
+    /** 열린 좌우 문의 화살표: 뿌리가 접힌 자리에 세운다. 좌우 문은 화면
      * 가장자리에 서서 전장의 조명(주인공에서 멀수록 어둡다)에 묻히므로, 조명을 입힌 뒤에 그린다(js/canvas-battlefield.js가 부른다). */
     function drawMarks(ctx, p) {
         const here = standingRoom();
-        if (here.mode === 'region') stageRegion.drawMarks(ctx, p, here);
         const kit = here.mode === 'scene' ? kitOf(here.map) : null;
-        if (kit && kit.sideMark) sceneSideMarks(ctx, p, here, kit);
+        if (here.mode === 'region') stageRegion.drawMarks(ctx, p, here);
+        else if (kit) sceneSideMarks(ctx, p, here, kit);
         if (here.room) stageDoorMarks.edges(ctx, p, actExplorationDoors.doorsHere(here.run), lastBattlefieldCanvasSize.width);
     }
     function sceneSideMarks(ctx, p, here, kit) {
-        const dot = stageActors.scaleFor(p.tileW), rule = kit.sideMark;
+        const dot = stageActors.scaleFor(p.tileW);
         for (const row of actExplorationDoors.doorsHere(here.run)) {
             if (row.locked || (row.door.side !== 'west' && row.door.side !== 'east')) continue;
             const piece = doorPiece(here.room, row, kit);
-            stageDoorMarks.arrows(ctx, { cx: p.mapX + piece.x * dot, cy: p.mapY + (piece.y - rule.rise) * dot, w: rule.spread * dot }, row.door, { dot, thick: rule.thick, upright: true });
+            stageDoorMarks.arrows(ctx, { cx: p.mapX + piece.x * dot, cy: p.mapY + (piece.y - 20) * dot, w: WIDE * dot }, row.door, { dot, thick: 3, upright: true });
         }
     }
     return Object.freeze({ ready, pending, drawFar, paintRoom, append, draw, drawMarks, fitJobs: sceneFitJobs });

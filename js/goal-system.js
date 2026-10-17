@@ -146,7 +146,7 @@
             build(g) {
                 return buildTabAction({
                     id: 'first-skill-choice', type: 'progression', categoryLabel: '첫 빌드 선택',
-                    title: `${g.starterGemTutorialPending} 젬을 장착해 보세요`,
+                    title: `${g.starterGemTutorialPending} 룬을 장착해 보세요`,
                     description: '기본 공격과 범위/발동 방식을 비교하세요. 장착하면 예상 능력치 변화도 표시됩니다.'
                 }, '스킬 비교하기', 'tab-skills');
             }
@@ -269,7 +269,7 @@
                     return buildTabAction({
                         id: 'cosmos-unlock-underworld', type: 'progression', categoryLabel: '엔드게임',
                         title: '지하계 30층에서 우주계를 여세요',
-                        description: '나무꾼 이후의 주 진행은 지하계 하강입니다. 룬과 방어 장비를 모으며 30층 관문에 도달하세요.',
+                        description: '나무꾼 이후의 주 진행은 지하계 하강입니다. 지하석과 방어 장비를 모으며 30층 관문에 도달하세요.',
                         current: journey.highestFloor, target: 30, progressText: `현재 최고 ${journey.highestFloor}층`
                     }, '지하계 열기', 'tab-map', 'map-tab-underworld');
                 }
@@ -436,7 +436,7 @@
         {
             id: 'gem-upgrade',
             matches(g) { return !!(g.unlocks && g.unlocks.skills) && hasAffordableGemUpgrade(g); },
-            build() { return buildNotice('강화 가능한 스킬 젬이 있습니다', 'tab-skills', 'skill-tab-enhance'); }
+            build() { return buildNotice('강화 가능한 스킬룬이 있습니다', 'tab-skills', 'skill-tab-enhance'); }
         },
         {
             id: 'season-points',

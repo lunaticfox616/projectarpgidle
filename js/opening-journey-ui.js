@@ -1,10 +1,10 @@
 /** 처음 시작하는 플레이어의 첫 장면과 조작 배우기(2026-10-15 사용자: "처음 시작하면 자동사냥 OFF로 무조건 하고, 기능이 잠겨있었으면",
  * "인트로 삽화를 ... 멋지게, 단, 단순하게 연출하고 장면전환과 함께 캐릭터가 쓰러져있는거야. 그 캐릭터를 클릭하면 일어나는 모션과 함께
  * 일어나고, ... 이동하는 방법 (클릭 or wasd)학습, 몬스터에게 맞고있는 하켄 ... 가까이 가서 자동공격학습, 몬스터를 물리치면 하켄이
- * 고맙다는 말과 함께 ... 스킬 젬 사용법 튜토리얼까지", "루프 하고 난 다음에는 시작연출, 쓰러져있는 캐릭터, 첫번째 방에 하켄까지 없는게").
+ * 고맙다는 말과 함께 ... 스킬룬 사용법 튜토리얼까지", "루프 하고 난 다음에는 시작연출, 쓰러져있는 캐릭터, 첫번째 방에 하켄까지 없는게").
  *
  * 인트로(프롤로그 삽화와 판결문) → 어둠에서 밝아지면 액트 1 입구 방에 쓰러진 주인공(누르면 일어난다) → 이동(바닥 클릭, WASD) →
- * 하켄을 치는 괴물에게 다가가 자동 공격(js/combat.js createStarterRescuePack) → 하켄의 감사와 바닥에 떨어진 시작 젬 → 젬 장착 안내
+ * 하켄을 치는 괴물에게 다가가 자동 공격(js/combat.js createStarterRescuePack) → 하켄의 감사와 바닥에 떨어진 시작 룬 → 룬 장착 안내
  * (js/content-progression-ui.js announceStarterGem) → 자동 사냥이 열린다. 새 게임의 첫 루프에서 한 번만 돈다.
  * 진행은 seenTutorials의 열쇠로 남는다(KEY). 그 사이 자동 사냥은 꺼진 채 잠기고(autoLocked, js/act-exploration-ui.js), 쓰러진 동안과
  * 일어나는 동안 게임이 멈춘다(holds, js/canvas-act-title-card.js greeting이 함께 읽는다). 주인공 그림은 받은 그림이다
@@ -205,7 +205,7 @@ const openingJourney = (() => {
         move: () => (coarse() ? '바닥을 눌러 움직이세요' : '바닥을 클릭하거나 <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 키로 움직이세요'),
         attack: side => `${side ? `${SIDES[side]}으로 가서 하켄을 구하세요` : '하켄을 치는 괴물에게 다가가세요'}. 가까이 가면 자동으로 공격합니다`,
         go: side => `${SIDES[side] || '앞쪽'} 문으로 나아가세요`,
-        pickup: () => '떨어진 젬을 누르거나 그 위로 걸어가 주우세요',
+        pickup: () => '떨어진 룬을 누르거나 그 위로 걸어가 주우세요',
         auto: () => '오른쪽 위 자동 단추를 눌러 자동 사냥을 켜세요'
     };
     function hintFor(now) {
@@ -275,8 +275,10 @@ const openingJourney = (() => {
     }
     if (typeof document === 'object' && document.readyState !== 'loading') init();
     else if (typeof document === 'object') document.addEventListener('DOMContentLoaded', init, { once: true });
-    return Object.freeze({ holds, hushes, lying, autoLocked: active, lesson, introOpen: () => !!intro });
+    // 인트로가 떠 있거나 곧 뜰 때(직업을 고른 뒤 첫 확인 주기까지, fresh): 2026-10-16 사용자 "인트로 연출 나올때 예전에 뜨는 창이 잠깐 나왔다가
+    // 사라져": 그 틈에 예전 프롤로그 창(story_prologue, 인트로가 대신하는 안내)이 먼저 떴다가 인트로가 닫았다.
+    return Object.freeze({ holds, hushes, lying, autoLocked: active, lesson, introOpen: () => !!intro || fresh() });
 })();
-/** Guide cards wait for the intro (js/tutorial-ui.js isTutorialPresentationBlocked asks window functions by name). */
+/** Guide cards wait for the intro, also while it is about to start (js/tutorial-ui.js isTutorialPresentationBlocked asks window functions by name). */
 const isOpeningIntroOpen = () => openingJourney.introOpen();
 safeExposeGlobals({ openingJourney, isOpeningIntroOpen });

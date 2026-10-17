@@ -38,11 +38,11 @@ const stageProps = (() => {
         for (const [name, weight] of table) { edge += weight / total; if (roll < edge) return name; }
         return table[table.length - 1][0];
     }
-    /** 문 앞에는 놓지 않는다: 그 방의 문이 벽을 따라 놓인 자리(도트)를 벽마다 모은다. */
+    /** 문 앞에는 놓지 않는다: 그 방의 문 칸(문마다 두 칸)이 벽을 따라 놓인 자리(도트)를 벽마다 모은다. */
     function doorSpots(map, room) {
         const spots = { north: [], south: [], west: [], east: [] };
         for (const door of map.doors.filter(row => row.room === room.index)) {
-            spots[door.side].push(door.side === 'north' || door.side === 'south' ? (door.cell.gx + 0.5) * WIDE : (door.cell.gy + 0.5) * DEEP);
+            for (const cell of door.cells) spots[door.side].push(door.side === 'north' || door.side === 'south' ? (cell.gx + 0.5) * WIDE : (cell.gy + 0.5) * DEEP);
         }
         return spots;
     }

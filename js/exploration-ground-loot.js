@@ -29,12 +29,12 @@ actExplorationState.groundLoot = (() => {
     /** The kind of a row: 'equipment', 'currency', 'jewel', 'core', 'talisman', 'leaf' or 'gem'. */
     const kindOf = row => row.kind || (typeof row.currency === 'string' ? 'currency' : 'equipment');
 
-    // 방 단위 무대의 문틀은 캐릭터와 함께 바닥 전리품 위에 그려진다(js/battle-ground-loot-ui.js actorContext): 문틀이 서는 자리에 떨어진 것은
-    // 가려졌다(2026-10-16 사용자 "출입구(문)이 아이템을 가리는 것도 수정"). 뒷문은 뒷줄, 앞문은 앞의 네 줄을 문 칸 좌우 두 칸 안에서
-    // (앞뒤 문틀 그림은 네 칸쯤 넓다), 옆문은 문 칸 좌우 한 칸 안에서 위로 세 줄과 아래로 한 줄을 덮는다고 보고, 거기 떨어질 것은
-    // 같은 방의 가장 가까운 빈 칸(FRAME_REACH 안)으로 옮긴다.
-    const FRAME_REACH = 4;
-    function underDoorFrame(map, cell) {
+    // 방 단위 무대의 문 봉인은 캐릭터와 함께 바닥 전리품 위에 그려진다(js/battle-ground-loot-ui.js actorContext): 봉인이 서는 자리에 떨어진 것은
+    // 가려진다(2026-10-16 사용자 "출입구(문)이 아이템을 가리는 것도 수정"). 닫힌 봉인(세 칸 너비, 다섯 줄 높이)은 뒷문에서 뒷줄, 앞문에서 앞의
+    // 네 줄을 문 칸 좌우 한 칸 안에서, 옆문에서 방의 첫 칸을 위로 두 줄과 아래로 한 줄까지 덮는다. 그보다 조금 넓게(앞뒤는 좌우 두 칸,
+    // 옆문은 위로 세 줄) 잡고, 거기 떨어질 것은 같은 방의 가장 가까운 빈 칸(SEAL_REACH 안)으로 옮긴다.
+    const SEAL_REACH = 4;
+    function underDoorSeal(map, cell) {
         return map.doors.some(door => {
             const dx = Math.abs(cell.gx - door.cell.gx), dy = cell.gy - door.cell.gy;
             if (door.side === 'north') return dx <= 2 && dy <= 1;
@@ -42,12 +42,12 @@ actExplorationState.groundLoot = (() => {
             return dx <= 1 && dy >= -3 && dy <= 1;
         });
     }
-    /** The cell a drop lies on: the given one, or on a room stage the nearest walkable cell of its room that no door frame covers. */
+    /** The cell a drop lies on: the given one, or on a room stage the nearest walkable cell of its room that no door seal covers. */
     function clearOfDoors(run, cell) {
         const map = actExplorationDoors.stageMap(run), room = map ? actExplorationRooms.roomAt(map, cell) : null;
-        if (!room || !underDoorFrame(map, cell)) return cell;
-        const free = next => actExplorationRooms.roomAt(map, next) === room && actExplorationMap.walkable(map, next) && !underDoorFrame(map, next);
-        for (let reach = 1; reach <= FRAME_REACH; reach++) {
+        if (!room || !underDoorSeal(map, cell)) return cell;
+        const free = next => actExplorationRooms.roomAt(map, next) === room && actExplorationMap.walkable(map, next) && !underDoorSeal(map, next);
+        for (let reach = 1; reach <= SEAL_REACH; reach++) {
             const found = ringCells(cell, reach).find(free);
             if (found) return found;
         }

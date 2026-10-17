@@ -1,5 +1,5 @@
 /** 로컬 테스트 패널. 127.0.0.1/localhost 에서 주소 끝에 ?dev=1 을 붙여 열 때만 나타난다(배포판·앱에서는 없음).
- * 직업·스킬 젬·캐릭터 스프라이트·이펙트 스타일·무적·배속·레벨·액트를 바로 바꿔
+ * 직업·스킬룬·캐릭터 스프라이트·이펙트 스타일·무적·배속·레벨·액트를 바로 바꿔
  * 새 캐릭터와 스킬 이펙트, 스토리 장면을 확인한다. 저장 데이터를 바꾸므로 테스트용 세이브에서 쓴다.
  */
 const devTestPanel = (() => {
@@ -44,7 +44,7 @@ const devTestPanel = (() => {
         game.skills = Array.isArray(game.skills) ? game.skills : [];
         if (!game.skills.includes(name)) game.skills.push(name);
         changeSkill(name);
-        note(`젬 장착: ${name}`);
+        note(`룬 장착: ${name}`);
     }
     function setSetting(key, value, label) {
         game.settings[key] = value;
@@ -229,7 +229,7 @@ const devTestPanel = (() => {
         const tags = SKILL_DB[name].tags || [];
         if (tags.includes('summon_attack')) return '소환';
         if (tags.includes('mobility')) return '이동 스킬(따로 장착)';
-        if (SKILL_DB[name].nativeCastId) return '전용 시전(44~53)';
+        if (SKILL_DB[name].nativeCastId) return '전용 시전(44~51)';
         return tags.includes('spell') ? '주문' : '공격';
     }
     function gemSelect() {
@@ -241,7 +241,7 @@ const devTestPanel = (() => {
             groups.get(group).append(el('option', { value: name, textContent: gemLabel(name) }));
         });
         groups.forEach(group => select.append(group));
-        select.value = SKILL_DB[game.activeSkill]?.isGem ? game.activeSkill : '연속 베기';
+        select.value = SKILL_DB[game.activeSkill]?.isGem ? game.activeSkill : '이중 베기';
         return select;
     }
     function classRow() {

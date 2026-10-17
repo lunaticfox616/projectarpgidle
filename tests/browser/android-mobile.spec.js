@@ -69,7 +69,7 @@ test('all unlocked mobile navigation entries open without page overflow or runti
     const ids = await page.locator('.tab-header > .tab-btn').evaluateAll(elements => elements
         .filter(el => el.id.startsWith('btn-tab-') && el.style.display !== 'none' && !el.hidden && el.dataset.mergedTabMember !== '1')
         .map(el => el.id));
-    // 묶인 창의 화면(스킬 젬, 해금, 전직, 재능, 도감, 전적, NPC)은 제 단추가 없다: 2026-10-16부터 재능과 NPC도 묶여 단추가 열 개다.
+    // 묶인 창의 화면(스킬룬, 해금, 전직, 재능, 도감, 전적, NPC)은 제 단추가 없다: 2026-10-16부터 재능과 NPC도 묶여 단추가 열 개다.
     expect(ids.length).toBeGreaterThanOrEqual(10);
     const overflows = [];
     for (const id of ids) {
@@ -96,8 +96,8 @@ test('all unlocked mobile navigation entries open without page overflow or runti
 test('the phone dock keeps its cells when the map unlocks', async ({ page }, info) => {
     test.skip(!info.project.use.isMobile, 'Phone bottom dock');
     await openMobile(page);
-    // Review 2026-10-01 #24: the dock grew from 4 to 5 cells after act 1 and 스킬 젬 moved under the thumb.
-    // 2026-10-13: 스킬 젬 opens from the 장비 button (one window, two tabs); the dock's third shortcut is 스킬트리.
+    // Review 2026-10-01 #24: the dock grew from 4 to 5 cells after act 1 and 스킬룬 moved under the thumb.
+    // 2026-10-13: 스킬룬 opens from the 장비 button (one window, two tabs); the dock's third shortcut is 스킬트리.
     const cells = () => page.locator('#tab-header-bottom > :is(.tab-btn, .mobile-nav-more):visible').evaluateAll(elements =>
         elements.map(el => el.id + '@' + Math.round(el.getBoundingClientRect().left)));
     const before = await cells();
@@ -131,7 +131,7 @@ test('a class card shows its start gem before the pick and leaves no class toolt
     const overlay = page.locator('#loop-hero-select-overlay');
     const detail = overlay.locator('#loop-hero-select-detail');
     const start = overlay.locator('#loop-hero-select-start');
-    const gemLine = classId => page.evaluate(id => `시작 스킬 젬: ${LOOP_STARTER_GEM_BY_HERO[PLAYER_CLASS_DEFS[id].recommendedTalentHeroId]}`, classId);
+    const gemLine = classId => page.evaluate(id => `시작 스킬룬: ${LOOP_STARTER_GEM_BY_HERO[PLAYER_CLASS_DEFS[id].recommendedTalentHeroId]}`, classId);
     const started = () => page.evaluate(() => game.heroSelectionInitialized);
     if (mobile) {
         await expect(start).toBeDisabled();

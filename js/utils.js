@@ -155,6 +155,10 @@ const SKILL_TAG_LABELS = {
     channeling: '채널링',
     curse: '저주',
     warcry: '함성',
+    shout: '함성',
+    dagger: '단검',
+    duration: '지속시간',
+    debuff: '약화',
     guard: '수호',
     utility: '기능'
 };
@@ -208,9 +212,9 @@ const COMPARE_STAT_META = {
     spellLeech: { label: '주문 피해 흡수', format: value => `${formatValue('spellLeech', value)}%` },
     leechRateCap: { label: '흡혈 회복 속도', format: value => `+${formatValue('leechRateCap', value)}%p` },
     leechTotalCap: { label: '흡혈 총 회복량', format: value => `+${formatValue('leechTotalCap', value)}%p` },
-    leechInstanceCap: { label: '흡혈 타격당 회복량', format: value => `+${formatValue('leechInstanceCap', value)}%p` },
+    leechInstanceCap: { label: '흡혈 관통당 회복량', format: value => `+${formatValue('leechInstanceCap', value)}%p` },
     ds: { label: '연속 타격', format: value => `${Math.floor(value)}%` },
-    gemLv: { label: '젬 레벨', format: value => `${Math.floor(value)}` },
+    gemLv: { label: '룬 레벨', format: value => `${Math.floor(value)}` },
     suppCap: { label: '보조 한도', format: value => `${Math.floor(value)}` },
     minDmgRoll: { label: '최소피해 보정', format: value => `${Math.floor(value)}%` },
     maxDmgRoll: { label: '최대피해 보정', format: value => `${Math.floor(value)}%` }
@@ -346,25 +350,25 @@ const STAT_DISPLAY_NAMES = {
         leech: '공격 피해의 생명력 흡수(%)',
         leechRateCap: '흡혈 회복 속도 캡(최대 생명력 %/초)',
         leechTotalCap: '흡혈 총 회복량 캡(최대 생명력 %)',
-        leechInstanceCap: '흡혈 타격당 회복량 캡(최대 생명력 %)',
-        gemLevel: '모든 스킬 젬 레벨',
-        elementalGemLevel: '원소 스킬 젬 레벨',
-        fireGemLevel: '화염 스킬 젬 레벨',
-        coldGemLevel: '냉기 스킬 젬 레벨',
-        lightGemLevel: '번개 스킬 젬 레벨',
-        chaosGemLevel: '카오스 스킬 젬 레벨',
-        physGemLevel: '물리 스킬 젬 레벨',
-        projectileGemLevel: '투사체 스킬 젬 레벨',
-        meleeGemLevel: '근접 스킬 젬 레벨',
-        slamGemLevel: '강타 스킬 젬 레벨',
-        spellGemLevel: '주문 스킬 젬 레벨',
-        dotGemLevel: '지속 스킬 젬 레벨',
-        aoeGemLevel: '범위 스킬 젬 레벨',
-        summonGemLevel: '소환수 공격 스킬 젬 레벨',
+        leechInstanceCap: '흡혈 관통당 회복량 캡(최대 생명력 %)',
+        gemLevel: '모든 스킬룬 레벨',
+        elementalGemLevel: '원소 스킬룬 레벨',
+        fireGemLevel: '화염 스킬룬 레벨',
+        coldGemLevel: '냉기 스킬룬 레벨',
+        lightGemLevel: '번개 스킬룬 레벨',
+        chaosGemLevel: '카오스 스킬룬 레벨',
+        physGemLevel: '물리 스킬룬 레벨',
+        projectileGemLevel: '투사체 스킬룬 레벨',
+        meleeGemLevel: '근접 스킬룬 레벨',
+        slamGemLevel: '강타 스킬룬 레벨',
+        spellGemLevel: '주문 스킬룬 레벨',
+        dotGemLevel: '지속 스킬룬 레벨',
+        aoeGemLevel: '범위 스킬룬 레벨',
+        summonGemLevel: '소환수 공격 스킬룬 레벨',
         dr: '물리 피해 감소(%)',
         physIgnore: '물리 피해 감소 무시(%)',
         ds: '연속 타격(%)',
-        suppCap: '보조 스킬 젬 한도',
+        suppCap: '보조스킬룬 한도',
         minDmgRoll: '최소 피해 보정(%)',
         maxDmgRoll: '최대 피해 보정(%)',
         resPen: '저항 관통(%)',
@@ -514,7 +518,7 @@ function applyStatsToBucket(bucket, stats) {
     });
 }
 function getTaggedDamageBreakdown(bucket, skill) {
-    let tags = new Set(skill.tags || []);
+    let tags = new Set(skill.tags || []);   // 장비로 붙는 태그는 호출부에서 계산한다.
     let randomElementPool = Array.isArray(skill.randomElementPool) ? skill.randomElementPool.map(ele => { let key = String(ele || '').toLowerCase(); return key === 'lightning' || key === 'thunder' ? 'light' : key; }).filter(Boolean) : [];
     let isRandomElementSkill = randomElementPool.length > 0;
     let parts = [];

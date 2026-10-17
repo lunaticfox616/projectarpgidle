@@ -32,12 +32,23 @@ const battleGroundLoot = (() => {
     const LEAF_ART = 'pixel:leaf';
     // The loop's starter gem (a floor row by name, js/exploration-ground-loot.js placeGem) shows the gem's own art and name.
     const leadArt = lead => (lead.leaf ? LEAF_ART : lead.gem ? getSkillGemArtPath(lead.gem) : getInventoryItemVisualAsset(lead.item, lead.itemKind));
-    const leadName = lead => (lead.leaf ? memoryLeaves.leaf(lead.leaf).name : lead.gem ? `[${lead.gem}] 젬` : shownName(lead));
+    const leadName = lead => (lead.leaf ? memoryLeaves.leaf(lead.leaf).name : lead.gem ? `[${lead.gem}] 룬` : shownName(lead));
     /** The name a pile shows: an unidentified unique on the floor shows only its base (the name appears when picked up). */
     const shownName = receipt => (receipt.unidentified ? `미확인 ${receipt.item.baseName || receipt.item.slot || '고유'}` : receipt.item.name);
     /** Rows per arm of the name cross. Up sits over the picture; the side arms stay short so they fit between the up and
      * down arms. Drops beyond every arm stay unnamed: never a "외 N개" row (user, 2026-10-03). */
     const ARM_ROWS = Object.freeze({ wide: { up: 6, right: 2, left: 2, down: 3 }, narrow: { up: 3, right: 1, left: 1, down: 2 } });
+    // Keep the pile beneath its name even when the centred name arm slides away from a screen edge.
+    const EDGE_PAD = 4, EDGE_GRIP = 12;
+    function edgeShift(x, half, width) {
+        const reach = Math.max(0, half - EDGE_GRIP), left = x - half, right = x + half;
+        const want = left < EDGE_PAD ? EDGE_PAD - left : right > width - EDGE_PAD ? width - EDGE_PAD - right : 0;
+        return Math.round(Math.max(-reach, Math.min(reach, want)));
+    }
+    /** Camera movement re-places piles: only write inline styles that actually changed. */
+    function setStyle(marker, name, value) {
+        if (marker.style.getPropertyValue(name) !== value) marker.style.setProperty(name, value);
+    }
 
     function later(entry, action, delay) {
         const timer = setTimeout(() => { entry.timers.delete(timer); action(); }, delay);
@@ -89,62 +100,91 @@ const battleGroundLoot = (() => {
     function place(marker, point) {
         const labels = marker.querySelector('.battle-loot-labels');
         if (!labels) return; // a marker whose labels failed to build is rebuilt on the next frame (syncFloor)
+        const x = Math.round(point.x), y = Math.round(point.y);
+        setStyle(marker, 'left', x + 'px'); setStyle(marker, 'top', y + 'px');
+        if (marker.hidden) return; // Measure when shown again, not as a zero-width hidden element.
         if (!marker.dataset.labelRow) {
             const row = labels.firstElementChild?.offsetHeight || 20;
+            const down = marker.querySelector('.battle-loot-labels.is-down');
             marker.dataset.labelRow = String(row);
             marker.dataset.labelHeight = String(labels.offsetHeight || labels.children.length * (row + 2));
+            setStyle(marker, '--up-height', marker.dataset.labelHeight + 'px');
             marker.dataset.labelHalf = String(labels.offsetWidth / 2);
+            marker.dataset.downHalf = String(down ? down.offsetWidth / 2 : 0);
         }
-        const x = Math.round(point.x), y = Math.round(point.y);
-        marker.style.left = x + 'px'; marker.style.top = y + 'px';
-        stackLabel(marker, { x, y, half: Number(marker.dataset.labelHalf), height: Number(marker.dataset.labelHeight), row: Number(marker.dataset.labelRow) });
+        const view = canvasBox(canvas), half = Number(marker.dataset.labelHalf), shift = edgeShift(x, half, view.width);
+        const height = Number(marker.dataset.labelHeight);
+        // A visible pile whose names cannot fit above it uses the less-clipped side, keeping its first name nearest the picture.
+        const above = EDGE_PAD - (y - 30 - height), below = y + 24 + height - (view.height - EDGE_PAD);
+        const under = y >= 0 && above > 0 && below < above;
+        marker.classList.toggle('is-under', under);
+        setStyle(marker, '--label-shift', shift + 'px');
+        setStyle(marker, '--down-shift', edgeShift(x, Number(marker.dataset.downHalf), view.width) + 'px');
+        stackLabel(marker, { x, y, half, shift, height, under, floor: view.height - EDGE_PAD, row: Number(marker.dataset.labelRow) });
     }
 
+    /** Position or dimensions changed; hidden piles wait to be measured when shown again. */
+    function needsPlacement(marker, point) {
+        return marker.style.left !== Math.round(point.x) + 'px' || marker.style.top !== Math.round(point.y) + 'px'
+            || (!marker.hidden && !marker.dataset.labelRow);
+    }
     /** A receipt is already owned. Only its short-lived picture is anchored to a map cell (never to viewport percentages). */
     function projectEntries(projection) {
         const projected = [], box = canvasBox(canvas);
         let changed = false;
         for (const entry of entries.values()) {
             const point = originFor(entry.cell, projection), marker = entry.marker;
-            marker.hidden = point.x < -64 || point.y < -64 || point.x > box.width + 64 || point.y > box.height + 64;
+            const off = point.x < -64 || point.y < -64 || point.x > box.width + 64 || point.y > box.height + 64;
+            if (marker.hidden !== off) {
+                marker.hidden = off; changed = true;
+                if (!off) delete marker.dataset.labelRow;
+            }
             projected.push({ marker, point });
-            if (marker.style.left !== Math.round(point.x) + 'px' || marker.style.top !== Math.round(point.y) + 'px' || !marker.dataset.labelRow) changed = true;
+            if (needsPlacement(marker, point)) changed = true;
         }
         if (!changed) return;
         entries.forEach(entry => { delete entry.marker.dataset.labelTop; });
         projected.forEach(({ marker, point }) => place(marker, point));
     }
 
-    // 이름표 묶음이 이미 떨어진 다른 묶음과 겹치면 한 줄씩 위로 올린다(아이템 그림 위치는 그대로).
+    // 다른 이름 묶음과 겹치면 한 줄씩 위로(뒤집힌 묶음은 아래로) 옮긴다. 아이템 그림 위치는 그대로다.
     // 표시 좌표만 바꾸며 지급과 자동 획득과는 무관하다. 올린 만큼 CSS가 연결선을 그린다.
     function stackLabel(marker, box) {
+        const centre = box.x + box.shift;
         const others = [...entries.keys()].filter(other => other !== marker && other.dataset.labelTop);
         const overlaps = top => others.some(other => {
             const otherTop = Number(other.dataset.labelTop);
             return top < otherTop + Number(other.dataset.labelHeight) + 2 && otherTop < top + box.height + 2
-                && Math.abs(parseFloat(other.style.left) - box.x) < box.half + Number(other.dataset.labelHalf) + 4;
+                && Math.abs(Number(other.dataset.labelCentre) - centre) < box.half + Number(other.dataset.labelHalf) + 4;
         });
-        const base = box.y - 30 - box.height;
+        const base = box.under ? box.y + 24 : box.y - 30 - box.height, step = box.under ? 1 : -1;
+        const fits = top => box.under ? top + box.height <= box.floor : top >= EDGE_PAD;
         let lift = 0;
-        while (lift < box.row * 5 && base - lift > 4 && overlaps(base - lift)) lift += box.row + 2;
-        marker.dataset.labelTop = String(base - lift);
-        marker.dataset.labelHeight = String(box.height);
-        marker.dataset.labelHalf = String(box.half);
-        marker.style.setProperty('--label-lift', lift + 'px');
+        while (lift < box.row * 5 && fits(base + step * (lift + box.row + 2)) && overlaps(base + step * lift)) lift += box.row + 2;
+        marker.dataset.labelTop = String(base + step * lift);
+        marker.dataset.labelCentre = String(centre);
+        setStyle(marker, '--label-lift', lift + 'px');
     }
 
     /** Canvas boxes of a pile's shown name arms, from its placed spot (the up arm includes its lift). */
     function armBoxes(marker) {
         const x = parseFloat(marker.style.left), y = parseFloat(marker.style.top);
         const lift = parseFloat(marker.style.getPropertyValue('--label-lift')) || 0;
+        const shift = parseFloat(marker.style.getPropertyValue('--label-shift')) || 0;
+        const downShift = parseFloat(marker.style.getPropertyValue('--down-shift')) || 0;
+        const under = marker.classList.contains('is-under'), upHeight = Number(marker.dataset.labelHeight) || 0;
         return [...marker.children]
             .filter(arm => String(arm.className).startsWith('battle-loot-labels') && !arm.hidden).map(arm => {
                 const w = arm.offsetWidth, h = arm.offsetHeight || arm.children.length * 25;
                 const side = arm.className.replace('battle-loot-labels', '').trim();
                 if (side === 'is-right') return { arm, side, left: x + 26, right: x + 26 + w, top: y - 3 - h / 2, bottom: y - 3 + h / 2 };
                 if (side === 'is-left') return { arm, side, left: x - 26 - w, right: x - 26, top: y - 3 - h / 2, bottom: y - 3 + h / 2 };
-                if (side === 'is-down') return { arm, side, left: x - w / 2, right: x + w / 2, top: y + 24, bottom: y + 24 + h };
-                return { arm, side: 'up', left: x - w / 2, right: x + w / 2, top: y - 30 - lift - h, bottom: y - 30 - lift };
+                if (side === 'is-down') {
+                    const top = under ? y + 26 + lift + upHeight : y + 24;
+                    return { arm, side, left: x - w / 2 + downShift, right: x + w / 2 + downShift, top, bottom: top + h };
+                }
+                const top = under ? y + 24 + lift : y - 30 - lift - h;
+                return { arm, side: 'up', left: x - w / 2 + shift, right: x + w / 2 + shift, top, bottom: top + h };
             });
     }
 
@@ -418,11 +458,13 @@ const battleGroundLoot = (() => {
     function floorMarker(entry, pile, projection, fresh) {
         const marker = entry.marker, receipts = floorReceipts(pile);
         marker.replaceChildren();
+        delete marker.dataset.labelRow; // Changed contents need their new width, even on the same floor cell.
         const flight = appearance(marker, receipts); beam(marker, receipts[0]);
         const names = receipts.map(receipt => (receipt.currency ? `${ORB_DB[receipt.currency]?.name || receipt.currency} ×${receipt.count}` : leadName(receipt)));
         marker.setAttribute('aria-label', `줍기: ${names.slice(0, 3).join(', ')}${names.length > 3 ? ` 외 ${names.length - 3}개` : ''}`);
-        place(marker, originFor(entry.cell, projection)); yieldCrowdedArms(marker);
-        if (fresh) launch(entry, flight, originFor(entry.cell, projection));
+        const point = originFor(entry.cell, projection);
+        place(marker, point); yieldCrowdedArms(marker);
+        if (fresh) launch(entry, flight, point);
         else marker.classList.add('landed');
     }
     function addFloorPile(key, pile) {

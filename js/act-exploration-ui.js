@@ -180,23 +180,48 @@ const actExplorationUi=(()=>{
     function mode(value) {
         const run=actExplorationState.current(game);if(!run||run.status!=='active')return;
         if(!['direct','full','manual'].includes(value))throw Error('알 수 없는 탐험 방식');
-        if(value!=='manual' && autoLocked()){showGameToast('자동 사냥은 첫 스킬 젬을 장착하면 열립니다',{tone:'warning',duration:2000});return;}
+        if(value!=='manual' && autoLocked()){showGameToast('자동 사냥은 첫 스킬룬을 장착하면 열립니다',{tone:'warning',duration:2000});return;}
         run.mode=value;run.destination=null;
         game.settings.autoMove=value!=='manual';
         if(value!=='manual')game.settings.actExplorationMode=value;
         render();
     }
-    /** 처음 시작하는 플레이어의 첫 장면 동안(js/opening-journey-ui.js) 자동 사냥은 꺼진 채 잠긴다: 시작 젬 안내까지 마치면 열린다. */
+    /** 처음 시작하는 플레이어의 첫 장면 동안(js/opening-journey-ui.js) 자동 사냥은 꺼진 채 잠긴다: 시작 룬 안내까지 마치면 열린다. */
     const autoLocked=()=>typeof openingJourney==='object' && openingJourney.autoLocked();
     /** 미니맵의 자동 이동 단추·단축키: 켜면 고른 탐험 방식(보스 직행 · 전체 탐색), 끄면 직접 이동. 걷던 이동 명령은 그대로 간다. */
     function toggleAuto() {
-        if(autoLocked()){showGameToast('자동 사냥은 첫 스킬 젬을 장착하면 열립니다',{tone:'warning',duration:2000});return false;}
+        if(autoLocked()){showGameToast('자동 사냥은 첫 스킬룬을 장착하면 열립니다',{tone:'warning',duration:2000});return false;}
         const on=game.settings.autoMove===false,run=actExplorationState.current(game);
         game.settings.autoMove=on;
         if(run&&run.status==='active')run.mode=actExplorationProgress.startMode(game.settings);
         showGameToast(on?'자동 이동을 켰습니다':'자동 이동을 껐습니다. 클릭한 곳으로만 움직입니다',{duration:1800});
         render();
         return on;
+    }
+    /** 전장을 누른 자리에 그려진 몬스터가 있으면 그 몬스터를 락온한다(js/act-exploration-state.js lockOn, 2026-10-17 사용자 "몬스터(락온기능)").
+     * @param {?{x:number,y:number}} point 전장의 CSS px @returns {boolean} 몬스터를 눌렀는지(눌렀으면 바닥 이동 명령은 없다) */
+    function lockOnAt(point) {
+        const run=actExplorationState.current(game);if(!run||run.status!=='active')return false;
+        const enemy=battleDrawList.enemyAt(point);if(!enemy)return false;
+        if(!actExplorationState.lockOn(run,enemy))showGameToast('그곳으로는 갈 수 없습니다',{tone:'warning',duration:1400});
+        render();
+        return true;
+    }
+    // 전장 위의 마우스(2026-10-17 사용자 "NPC위에 마우스올리면 테두리강조"): 말을 걸 수 있는 NPC 위면 그 NPC에 밝은 테를 두르고
+    // (js/canvas-act-title-card.js hover), NPC나 락온할 몬스터 위면 손가락 커서. 마우스가 움직이는 동안 프레임마다 한 번만 잰다.
+    let hovering=null;
+    /** @param {HTMLCanvasElement} canvas 전장 @param {?PointerEvent} event null이면 마우스가 전장을 떠났다 */
+    function hover(canvas,event) {
+        const queued=hovering;hovering={canvas,event};
+        if(!queued)requestAnimationFrame(hoverFrame);
+    }
+    function hoverFrame() {
+        const {canvas,event}=hovering;hovering=null;
+        const point=event?getBattlefieldClientPoint(canvas,event.clientX,event.clientY):null,npc=point?actTitleCard.npcAt(point):null;
+        actTitleCard.hover(npc);
+        const run=actExplorationState.current(game),enemy=point&&run&&run.status==='active'?battleDrawList.enemyAt(point):null;
+        const cursor=npc||enemy?'pointer':'';
+        if(canvas.style.cursor!==cursor)canvas.style.cursor=cursor;
     }
     /** An explicit move order (minimap, large map, battlefield click): walk there; auto-move stays as it was. */
     function commandMove(cell) {
@@ -309,6 +334,6 @@ const actExplorationUi=(()=>{
         return '탐험 진행이 초기화됩니다. 이미 획득한 아이템과 재화는 유지됩니다.';
     }
     document.addEventListener('click',departureClick,true);
-    return {render,mode,toggleAuto,commandMove,choose,holdMove,expand,hint,departurePending:()=>departurePending};
+    return {render,mode,toggleAuto,commandMove,lockOnAt,hover,choose,holdMove,expand,hint,departurePending:()=>departurePending};
 })();
 safeExposeGlobals({actExplorationUi});

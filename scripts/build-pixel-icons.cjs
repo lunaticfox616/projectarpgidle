@@ -1,12 +1,12 @@
 #!/usr/bin/env node
-/* 원화 아이콘(장비·젬·재화)을 도트 사본으로 다시 찍는다. 원본은 그대로 두고 assets/px/ 아래에 같은 경로로 쓴다.
+/* 원화 아이콘(장비·룬·재화)을 도트 사본으로 다시 찍는다. 원본은 그대로 두고 assets/px/ 아래에 같은 경로로 쓴다.
  *
  *   node scripts/build-pixel-icons.cjs
  *
  * 1. 게임 데이터(ITEM_VISUAL_ASSET_DB · SKILL_GEM_ART_PATHS · CURRENCY_ICON_PATHS)가 가리키는 그림을 모은다.
  * 2. 브라우저(Playwright Chromium)로 짧은 변 32도트·긴 변 48도트를 넘지 않게 줄이고(정사각 32×32, 1×3칸 무기 16×48 —
  *    인벤토리 한 칸에 16도트 꼴), 반투명 가장자리를 끊고, 색을 단계로 묶고, 실루엣 둘레에 1도트 검은 윤곽을 두른다.
- *    이미 그보다 작은 그림(32도트 세계수 젬 등)은 건너뛴다.
+ *    이미 그보다 작은 그림(32도트 세계수 룬 등)은 건너뛴다.
  * 3. 사본 목록을 data/pixel-icons.js(PIXEL_ICON_SOURCES)로 쓴다. 현재 게임은 원화로 고정되어 이 사본 목록을 로드하지 않는다.
  */
 'use strict';

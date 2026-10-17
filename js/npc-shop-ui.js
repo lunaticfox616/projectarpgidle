@@ -10,6 +10,10 @@ const npcShopUi = (() => {
     let press = null;     // the pointer held on a ware: { root, id, index, button, x, y, pointerId, touch, offset, ghost, place }
     let bagPage = 0;
     const WALLET_ORDER = Object.freeze(['magicBud', 'formlessDew', 'goldenRule']);
+    // Where a short currency comes from (js/passives.js getItemSalvageRewardProfile). Until 장비 제련 opens they never drop
+    // (data/items.js dropUnlocks), so in loop 1 salvage is the only way.
+    const EARN_HINTS = Object.freeze({ magicBud: '일반 장비나 마법 장비를 해체하면 마법의 새싹을 얻습니다.',
+        formlessDew: '희귀 장비나 고유 장비를 해체하면 형체 없는 이슬을 얻습니다.', goldenRule: '고유 장비를 해체하면 가끔 황금률을 얻습니다.' });
 
     const wareAt = (id, index) => npcShop.stock(id)?.offers[index] || null;
     const wareName = ware => (ware.gem ? ware.gem.name : ware.item.name || ware.item.baseName || '장비');
@@ -25,9 +29,9 @@ const npcShopUi = (() => {
     function shopDoorHtml(npc) {
         const shop = NPC_SHOPS[npc.id], stock = npcShop.stock(npc.id);
         if (!shop || !stock) return '';
-        const left = stock.offers.length;
+        const left = stock.offers.length, ready = npcShop.ready(npc.id);
         return `<button type="button" class="npc-dialog-shop" data-npc-topic="shop"><span>상점</span><b>${escapeHTML(shop.label)}</b>
-            <em>${left ? `${left}개` : '다 팔림'}</em></button>`;
+            <em>${left ? `${left}개${ready ? `, ${ready}개 살 수 있음` : ''}` : '다 팔림'}</em></button>`;
     }
 
     function shopBodyHtml(npc) {
@@ -92,20 +96,77 @@ const npcShopUi = (() => {
         const card = ware.gem ? gemWareCardHtml(ware.gem) : itemWareCardHtml(ware.item);
         return `${card}<div class="npc-shop-deal"><span>${coinHtml(ware.priceKey)}${escapeHTML(npcShop.currencyName(ware.priceKey))} ${ware.price}</span>
             <button type="button" data-npc-buy="${chosen.index}" ${check.ok ? '' : 'disabled'}>${check.ok ? '구매' : escapeHTML(check.reason)}</button></div>
+            ${earnHintHtml(ware)}
             ${note ? `<p class="npc-shop-note" role="status">${escapeHTML(note)}</p>` : ''}`;
+    }
+
+    /** Where the currency of ware comes from, when the hero holds too little of it. */
+    function earnHintHtml(ware) {
+        const hint = held(ware.priceKey) < ware.price ? EARN_HINTS[ware.priceKey] : '';
+        return hint ? `<p class="npc-shop-hint">${hint}</p>` : '';
     }
 
     function itemWareCardHtml(item) {
         const box = document.createElement('div');
         showItemTooltip(null, null, false, item, { target: box });
-        return `<div class="npc-shop-tooltip">${box.innerHTML}</div>`;
+        return `<div class="npc-shop-tooltip">${box.innerHTML}</div>${gearRatingHtml(item)}`;
+    }
+
+    /** The bag analysis' verdict on a ware (js/equipment-triage.js rate) in the bag card's words: 공격 +8.3%, 생존 +12%, or 현 세팅 유지.
+     * Nothing while the hero cannot wear it: the card above shows the requirement. */
+    function gearRatingHtml(item) {
+        const wearable = getEquipCandidateSlots(item).some(slot => combatEquipmentStats.inspect(item, slot).ok);
+        const rating = wearable ? equipmentTriage.rate(item) : null;
+        if (!rating) return '';
+        const chips = [rating.dpsGainPct >= 1 ? `<span class="is-damage">공격 +${rating.dpsGainPct}%</span>` : '',
+            rating.ehpGainPct >= 1 ? `<span class="is-defense">생존 +${rating.ehpGainPct}%</span>` : ''].join('');
+        return `<p class="npc-shop-rating">${chips || '<span>현 세팅 유지</span>'}</p>`;
     }
 
     function gemWareCardHtml(gem) {
         const support = gem.kind === 'support', def = (support ? SUPPORT_GEM_DB : SKILL_DB)[gem.name] || {};
-        const kind = support ? `보조 젬, ${getSupportTierLabel(gem.name, gem.tier)}` : '공격 젬';
+        const kind = support ? `보조스킬룬, ${getSupportTierLabel(gem.name, gem.tier)}` : '공격 룬';
         return `<div class="npc-shop-gem-card"><div class="npc-shop-gem-head">${wareArtHtml({ gem })}<div><small>${escapeHTML(kind)}</small>
-            <strong>${escapeHTML(gem.name)}</strong></div></div><p>${statToneText.html(def.desc || '')}</p></div>`;
+            <strong>${escapeHTML(gem.name)}</strong></div></div><p>${statToneText.html(def.desc || '')}</p>${support ? supportFitHtml(gem) : runeFitHtml(gem.name)}</div>`;
+    }
+
+    /** An attack rune against the hero now: why the weapon in hand cannot use it (as its loot line says, js/currency-acquisition-ui.js),
+     * or what wearing it brings. Wisp runes summon instead of striking and show no line. */
+    function runeFitHtml(name) {
+        const note = getSkillRuneWeaponNote(name);
+        if (note) return `<p class="npc-shop-note">지금 무기로 쓸 수 없음: ${escapeHTML(note)}</p>`;
+        return (SKILL_DB[name]?.tags || []).includes('summon') ? '' : wearPreviewHtml(copy => { copy.activeSkill = name; });
+    }
+
+    /** A support rune the hero could wear at its shelf tier now: what wearing it brings (buying only grants it). */
+    function supportFitHtml(gem) {
+        return supportFits(gem) ? wearPreviewHtml(copy => wearSupportOnCopy(copy, gem)) : '';
+    }
+
+    /** A free support place and enough 공명력 for the shelf tier, as toggleSupport checks (a worn one frees its own cost first).
+     * Summon guards also need room under the summon cap: left out. */
+    function supportFits(gem) {
+        if (isSummonGuardSupport(gem.name)) return false;
+        const worn = Array.isArray(game.equippedSupports) ? game.equippedSupports : [], wearing = worn.includes(gem.name);
+        const stats = getUiPlayerStats(), used = worn.reduce((sum, name) => sum + getSupportTierResonanceCost(name), 0);
+        if (!wearing && worn.length >= Math.floor(stats.suppCap || 0)) return false;
+        const freed = wearing ? getSupportTierResonanceCost(gem.name) : 0;
+        return getEffectiveResonanceCap(stats) - used + freed >= getSupportResonanceCostAtTier(gem.name, gem.tier);
+    }
+
+    /** The support owned at the shelf tier, that tier active, and worn: on the game copy only. */
+    function wearSupportOnCopy(copy, gem) {
+        const record = (copy.supportGemData || {})[gem.name] || { level: 1, exp: 0 };
+        copy.supports = [...new Set([...(copy.supports || []), gem.name])];
+        copy.supportGemData = { ...copy.supportGemData, [gem.name]: { ...record, unlockedTier: gem.tier, activeTier: gem.tier } };
+        copy.equippedSupports = [...new Set([...(copy.equippedSupports || []), gem.name])];
+    }
+
+    /** "장착하면 DPS 60 → 64, 생명력 …" with edit made on a copy of the game (js/passives.js previewBuildStats), in the words and colours of
+     * the skill tree and act reward previews; nothing when nothing changes. */
+    function wearPreviewHtml(edit) {
+        const parts = buildStatPreviewParts(previewBuildStats(edit));
+        return parts ? `<p class="npc-shop-gem-dps">장착하면 ${parts}</p>` : '';
     }
 
     /** Draws the shop again (after a sale or a bag page), or only its card with a note (why a sale did not go). */

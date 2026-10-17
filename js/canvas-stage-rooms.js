@@ -1,9 +1,9 @@
 /** 방 단위 무대를 그리는 쪽 (2026-10-11 사용자: "던파처럼 방 하나마다 이동하는 방식"). 지도는 js/act-exploration-rooms.js,
  * 문을 지나는 규칙은 js/act-exploration-doors.js에 있고 여기는 그리기만 한다.
- * - 카메라는 주인공이 선 방에 고정된다: 방이 화면보다 좁으면 방을 가운데에 두고, 넓으면 방 끝에서 멈추며 주인공을 따라간다.
+ * - 방이 화면보다 좁으면 가운데에 두고, 넓으면 방 끝에서 멈추며 주인공을 따라간다. 세로는 고정하되 주인공 머리가 잘릴 때만 따라간다.
  * - 방 그림은 그리기 밖에서 준비해 둔 것을 쓴다(js/canvas-stage-room-pictures.js): 지금 방과 걸어가는 문 너머의 방.
  *   아직 준비되지 않은 방은 어둠으로 두고, 그림이 오면 그때부터 밝아진다(다른 방의 그림을 잠깐 쓰지 않는다).
- * - 문: 잠긴 문은 쇠창살, 열린 문은 나가는 쪽을 가리키며 깜빡이는 화살표. 보스 방으로 가는 문은 붉다.
+ * - 문: 잠긴 문은 회백색 뿌리 봉인, 풀릴 때 아래로 접히며 열린 문에는 방향 화살표가 선다. 보스 방의 표시는 붉다.
  * - 방을 옮기면 화면이 어둠에서 밝아진다(STAGE_ROOMS.fadeMs).
  */
 const stageRoomsView = (() => {
@@ -18,14 +18,22 @@ const stageRoomsView = (() => {
         const map = mapOf(run);
         return map ? actExplorationRooms.roomAt(map, game.gridPlayer) : null;
     }
-    /** 카메라의 가운데 칸(소수): 가로는 방 안에서 주인공을 따라가되 방 둘레의 벽 한 칸 밖은 보이지 않게, 세로는 방에 고정. */
+    /** 카메라의 가운데 칸(소수): 가로는 방 안에서 따라가고, 세로는 방에 고정하되 작은 화면에서 주인공 머리가 잘릴 때만 따라간다. */
     function focus(run, cell, view) {
         const room = roomOf(run);
         if (!room) return null;
         const left = room.x0 - 1, right = room.x1 + 2, span = right - left;
         const gx = span <= view.columns ? (left + right) / 2
             : Math.max(left + view.columns / 2, Math.min(right - view.columns / 2, cell.gx + .5));
-        return { gx, gy: isOpen(mapOf(run)) ? openFocusRow(room, view) : focusRow(room, view) };
+        const row = isOpen(mapOf(run)) ? openFocusRow(room, view) : focusRow(room, view);
+        return { gx, gy: stageView.enabled() ? Math.min(row, heroRow(room, cell, view)) : row };
+    }
+    /** A short view keeps the minimum-sized hero's head below the top margin. In a view that fits the room this limit leaves
+     * its fixed row unchanged. Follow fractional walking positions, clamped to the room's end rows during a door crossing. */
+    function heroRow(room, cell, view) {
+        const deep = view.height / view.rows, dot = deep / STAGE_VIEW.depth / STAGE_VIEW.heroTile, head = STAGE_VIEW.headroom;
+        const gy = Math.max(room.y0, Math.min(room.y1, cell.gy));
+        return gy + .5 + (stageView.anchorY() * view.height - head.dots * dot - head.top) / deep;
     }
     /** 벽 없이 그리는 방인가: 조각 묶음(js/canvas-stage-scene.js)이나 배경 그림(js/canvas-stage-backdrop.js)이 준비된 지형. */
     const isOpen = map => stageScene.ready(map) || stageBackdrop.ready(map);
@@ -70,8 +78,20 @@ const stageRoomsView = (() => {
             if (waiting) shown.at = now;
             return;
         }
+        if (shown.run === run) clearLeftRoom();
         shown = { run, room, at: shown.run === run || waiting ? now : -Infinity };
         warmNextAct(mapOf(run), room);
+    }
+    /** 방을 옮기면 앞 방에서 떠 있던 연출을 걷는다: 대미지 숫자, 투사체, 스킬 효과, 무대 클립, 마법진, 임팩트. 2026-10-17 사용자 "방을
+     * 이동했는데 vfx, 대미지폰트 등이 남아있는데 없어지게 해줘": 화면 좌표에 묶인 것(대미지 숫자 등)은 카메라가 새 방으로 넘어가도
+     * 그 자리에 남았다. */
+    function clearLeftRoom() {
+        Object.assign(battleVisualState, { damageTexts: [], projectiles: [], skillProjectiles: [], skillEffects: [] });
+        if (battleVisualState.enemyHitPulses) battleVisualState.enemyHitPulses.clear();
+        stageSkillVfx.clear();
+        stageSkillSigil.clear();
+        if (typeof redrawnSkillFx === 'object') redrawnSkillFx.reset();
+        if (typeof attackFxClear === 'function') attackFxClear();
     }
     /** 보스 방에 들어서면 다음 액트의 방 그림을 미리 불러 둔다: 액트가 넘어갈 때 그림을 기다리는 어둠이 짧아진다. */
     function warmNextAct(map, room) {
@@ -94,7 +114,7 @@ const stageRoomsView = (() => {
         else drawWallDark(ctx, map, area);
         ctx.imageSmoothingEnabled = false;
         ctx.drawImage(view.canvas, p.mapX + box.x * p.tileW, p.mapY + box.y * p.tileH, box.columns * p.tileW, box.rows * p.tileH);
-        for (const row of actExplorationDoors.doorsHere(run)) drawDoor(ctx, row, p, { gate: view.gates && view.gates.get(row.door.id), kit: view.kit });
+        for (const row of actExplorationDoors.doorsHere(run)) drawDoor(ctx, row, p, { run, kit: view.kit });
         drawFrontShade(ctx, view, p, area);
         return true;
     }
@@ -115,42 +135,20 @@ const stageRoomsView = (() => {
     }
 
     // ---------------------------------------------------------------- doors
-    const INK = Object.freeze({ bar: '#1b171c', barLight: '#6d6470' });
     /** 한 칸짜리 문 자리의 화면 상자. */
     function cellBox(door, p) {
         const centre = p.cellToScreen(door.cell.gx, door.cell.gy);
         return { x: centre.x - p.tileW / 2, y: centre.y - p.tileH / 2, w: p.tileW, h: p.tileH, cx: centre.x, cy: centre.y };
     }
-    /** 잠긴 문: 문 자리를 어둡게 덮고 쇠창살을 세운다. */
-    function drawBars(ctx, box, dot) {
-        ctx.fillStyle = 'rgba(8,6,12,0.62)';
-        ctx.fillRect(box.x, box.y, box.w, box.h);
-        const count = 5, gap = box.w / (count + 1), height = box.h + dot * 10;
-        for (let i = 1; i <= count; i++) {
-            const x = Math.round(box.x + gap * i - dot);
-            ctx.fillStyle = INK.bar;
-            ctx.fillRect(x, box.y + box.h - height, dot * 3, height);
-            ctx.fillStyle = INK.barLight;
-            ctx.fillRect(x, box.y + box.h - height, dot, height);
-        }
-        ctx.fillStyle = INK.bar;
-        ctx.fillRect(box.x, box.y + box.h - height + dot * 3, box.w, dot * 2);
-    }
-    /** look.gate: 테마의 문 그림(잠긴 것과 열린 것). 있으면 그 그림을 문 칸에 세우고, 없으면 쇠창살을 친다. 열린 문에는 화살표가 깜빡인다. */
+    /** 공용 뿌리 봉인. 조각 묶음에서는 배우로 깊이 정렬하고, 그 밖의 방은 이 자리에서 그린다. */
     function drawDoor(ctx, row, p, look) {
-        const box = cellBox(row.door, p), dot = Math.max(1, Math.round(p.tileW / WIDE)), gate = look.gate;
+        stageDoorMarks.seal.note(look.run, row);
+        const box = cellBox(row.door, p), dot = p.tileW / WIDE;
         const sideways = row.door.side === 'west' || row.door.side === 'east';
         ctx.save();
-        // 조각 묶음의 문은 캐릭터와 함께 깊이 순서로 그려진다(js/canvas-stage-scene.js): 여기서는 열린 문의 화살표만 바닥에 얹는다.
-        // 묶음의 좌우 문은 문틀이 문 칸을 덮으므로 화살표도 문틀과 함께 그쪽에서 그린다.
-        if (gate) drawGate(ctx, row.locked ? gate.locked : gate.open, box, p.tileW / WIDE);
-        else if (row.locked && !look.kit) drawBars(ctx, box, dot);
-        if (!row.locked && !(look.kit && sideways)) stageDoorMarks.arrows(ctx, box, row.door, { dot: p.tileW / WIDE });
+        if (!look.kit) stageDoorMarks.seal.draw(ctx, look.run, row, { x: box.cx, y: box.cy + box.h / 2, dot });
+        if (!row.locked && !(look.kit && sideways)) stageDoorMarks.arrows(ctx, box, row.door, { dot });
         ctx.restore();
-    }
-    function drawGate(ctx, image, box, scale) {
-        const frame = stageSanctum.DOOR;
-        stageDots.blit(ctx, image, { x: 0, y: 0, w: frame.w, h: frame.h }, { x: Math.round(box.cx - frame.ax * scale), y: Math.round(box.cy - frame.ay * scale), scale });
     }
 
     // ---------------------------------------------------------------- fade

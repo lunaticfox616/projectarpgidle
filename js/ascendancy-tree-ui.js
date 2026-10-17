@@ -27,7 +27,7 @@ const ascendancyTreeUi = (() => {
     const percent = stat => !!(P_STATS[stat] && P_STATS[stat].isPct);
     const linesOf = node => (node && Array.isArray(node.stats) ? node.stats : (node && node.stat ? [{ stat: node.stat, val: node.val }] : []));
     function lineText(line) {
-        if (line.stat === 'suppCap') return '보조 젬 장착 한도 +1';
+        if (line.stat === 'suppCap') return '보조스킬룬 장착 한도 +1';
         return `${statName(line.stat)} +${formatValue(line.stat, line.val)}${percent(line.stat) ? '%' : ''}`;
     }
     const shortValue = line => (line.stat === 'suppCap' ? '+1' : `+${formatValue(line.stat, line.val)}${percent(line.stat) ? '%' : ''}`);
@@ -157,7 +157,14 @@ const ascendancyTreeUi = (() => {
         if (!node) return '';
         const state = nodeState(node, id), lines = linesOf(node);
         const body = lines.length ? lines.map(line => `<span style="color:${getItemStatToneColor(line.stat)}">${esc(lineText(line))}</span>`).join(', ') : '개화한 재능에 따라 정해집니다.';
-        return `<strong>${esc(RANK[id] || '전직 노드')}</strong> ${body}<br><small>${esc(nodeAdvice(tree, node, id, state))}</small>`;
+        return `<strong>${esc(RANK[id] || '전직 노드')}</strong> ${body}${canTake(state) ? previewHtml('ascendNodes', id, '찍으면') : ''}<br><small>${esc(nodeAdvice(tree, node, id, state))}</small>`;
+    }
+    /** A node or keystone the hero can take now or once a point comes. */
+    const canTake = state => state === 'open' || state === 'nopoint';
+    /** "찍으면 DPS 61 → 64, 생명력 186 → 196": the stats with id added to game[field], read on a copy (js/passives.js previewBuildStats). */
+    function previewHtml(field, id, verb) {
+        const parts = buildStatPreviewParts(previewBuildStats(copy => { copy[field] = [...(copy[field] || []), id]; }));
+        return parts ? `<br><span class="ascend-preview">${verb} ${parts}</span>` : '';
     }
     function nodeAdvice(tree, node, id, state) {
         if (state === 'future') return node.future;
@@ -179,7 +186,7 @@ const ascendancyTreeUi = (() => {
             nopoint: '키스톤 포인트가 없습니다. 전직 시련을 처음 통과할 때마다 1점씩 받습니다.',
             open: `${touchOnly() ? '한 번 더 누르면' : '누르면'} 고릅니다.`
         }[state];
-        return `<strong>${esc(k.name)}</strong> ${statToneText.html(k.desc)}<br><small>${esc(advice)}</small>`;
+        return `<strong>${esc(k.name)}</strong> ${statToneText.html(k.desc)}${canTake(state) ? previewHtml('ascendKeystones', id, '고르면') : ''}<br><small>${esc(advice)}</small>`;
     }
     function noteHtml(tree, defs) {
         const body = focus ? (focus.kind === 'node' ? nodeNote(tree, focus.id) : keystoneNote(defs, focus.id)) : '';

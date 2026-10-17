@@ -34,7 +34,8 @@
 .npc-shop-wallet > span { display: inline-flex; align-items: center; gap: 4px; }
 .npc-shop-coin { width: 16px; height: 16px; image-rendering: pixelated; }
 .npc-shop-room { color: var(--color-text-secondary); font-size: 12px; }
-.npc-shop-pages { display: flex; gap: 4px; margin-left: auto; }
+/* 쪽 단추는 줄을 바꿔 가방 너비 안에 둔다(가방이 열두 쪽이면 한 줄로는 창 밖까지 나갔다). */
+.npc-shop-pages { display: flex; flex: 1 1 0; flex-wrap: wrap; justify-content: flex-end; gap: 4px; min-width: 0; margin-left: auto; }
 .npc-shop-pages button { min-width: 28px; min-height: 28px; padding: 0 6px; }
 .npc-shop-pages button[aria-pressed="true"] { border-color: var(--color-accent-gold); color: #ffe3a0; }
 
@@ -71,6 +72,13 @@
 .npc-shop-deal > span { display: inline-flex; flex: 1; align-items: center; gap: 5px; color: #efe6d2; }
 .npc-shop-deal button { min-height: 36px; padding: 4px 18px; }
 .npc-shop-note { margin: 8px 0 0; color: #e58a7f; font-size: 13px; }
+/* 룬을 끼우면 바뀌는 DPS와 생명력: 바뀌는 값마다 오르면 초록, 내리면 빨강(js/passives.js buildStatPreviewParts). */
+.npc-shop-gem-dps { color: #e5d3a2; }
+/* 진열대 장비의 장비 분석: 가방 카드의 공격, 생존 칩(.equipment-triage-chip)과 같은 빛깔. */
+.npc-shop-rating { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 0; font-size: 13px; }
+.npc-shop-rating > span { padding: 1px 7px; border: 1px solid var(--skin-line); border-left-width: 3px; color: var(--color-text-secondary); }
+.npc-shop-rating > .is-damage { border-color: #b96b3f; color: #ffc596; background: rgba(92, 44, 24, .56); }
+.npc-shop-rating > .is-defense { border-color: #3f9a7a; color: #a9e6cf; background: rgba(24, 75, 61, .56); }
 
 /* NPC 탭: 만난 NPC의 카드. 초상, 이름과 칭호, 최근에 만난 곳, 지금 있는 일(즉시 해금은 금빛, 새 이야기, 상점). */
 .npc-roster-lead, .npc-roster-empty { margin: 0 0 12px; color: var(--color-text-secondary); font-size: 13px; }

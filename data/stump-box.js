@@ -4,7 +4,7 @@
 // 씨앗은 꽃 또는 열매로, 수액은 호박석으로 자란다. 판(5×5)에 놓인 것만 처치로 자라고, 다 자란 것만 능력치를 준다.
 // 같은 색 3개 이상이 다 자라 억제되지 않으면 그 색 능력치가 10% 오르고(공명), 상극색이 상하좌우로 맞닿으면
 // 둘 다 멈춘다(억제: 능력치·성장 0, 공명 개수에서 빠짐). 위치·줄·모양 규칙은 없다(생장판과 다른 점).
-// 부적(2026-09-30, 예전 부적 판 · 생장판 · 컨디션 젬 자리)은 색 없는 세 번째 계열이다. 판에서 처치로 깨어나고,
+// 부적(2026-09-30, 예전 부적 판 · 생장판 · 컨디션 룬 자리)은 색 없는 세 번째 계열이다. 판에서 처치로 깨어나고,
 // 공명 · 억제에 끼지 않는다. 줄과 이웃 효과는 data/talismans.js.
 
 const STUMP_BOX_SIZE = 5;
@@ -173,7 +173,7 @@ const STUMP_BOX_GRAFT = Object.freeze({ startLoop: 18, pointsPerLoop: 3, maxRank
         rival_overheat: 2, rival_dull: 2, rival_glutton: 2, rival_afterimage: 2, rival_backedge: 2, rival_masterwork: 2 }) });
 
 // 다 자란 아이템의 능력치(품질 100% 기준, 실제 = 값 × 품질). stat은 createEmptyStatBucket의 키.
-// 꽃 = 그 원소 스킬에만 붙는 피해(현재 공격 젬 태그 조건), 열매 = 전투 상황 조건, 호박석 = 고정 저항.
+// 꽃 = 그 원소 스킬에만 붙는 피해(현재 공격 룬 태그 조건), 열매 = 전투 상황 조건, 호박석 = 고정 저항.
 const STUMP_BOX_YIELDS = Object.freeze({
     flower: Object.freeze({
         fire: Object.freeze({ stat: 'firePctDmg', value: 6, text: '화염 피해 +{v}%' }),

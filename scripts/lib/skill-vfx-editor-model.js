@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 
 const VFX_LABELS = Object.freeze({
-    skillFxWhirlwind: ['회오리바람', '회오리바람'],
+    skillFxWhirlwind: ['회오리', '회오리'],
     skillFxChainPrimary: ['연쇄 주 타격', '번개 타격·연쇄 폭풍·천뢰 분기'],
     skillFxChainJump: ['연쇄 연결', '연쇄 공격의 적 사이 점프'],
     skillFxSlamPrimary: ['강타 주 충돌', '강타·지진·용암 계열'],
@@ -12,9 +12,9 @@ const VFX_LABELS = Object.freeze({
     skillFxMeteorProjectile: ['유성 낙하체', '유성 낙화 비행 구간'],
     skillFxMeteorImpact: ['유성 충돌', '유성 낙화 착탄 순간'],
     skillFxMeteorGround: ['유성 잔류 지면', '유성 낙화의 불타는 지면'],
-    skillFxContinuousSlash: ['속성 베기', '번개 타격·흡혈 타격 등 공용 속성 궤적'],
+    skillFxContinuousSlash: ['속성 베기', '번개 타격·흡혈 관통 등 공용 속성 궤적'],
     skillFxBasicSlash: ['기본 공격', '기본 검격 2×2 프레임 시트'],
-    skillFxDoubleSlash: ['연속 베기', '교차 검격 2×2 프레임 시트'],
+    skillFxDoubleSlash: ['이중 베기', '교차 검격 2×2 프레임 시트'],
     skillFxProjectile: ['공용 투사체', '얼음 창·관통 사격·연발 사격 등'],
     skillFxVenomFang: ['독니 사출', '독니 사출 전용 투사체'],
     skillFxFrostField: ['서리 장판', '냉기 범위·장판 이동 효과'],
@@ -28,7 +28,7 @@ const VFX_LABELS = Object.freeze({
     skillFxImpactFlare: ['적중 섬광', '투사체·개별 피격'],
     skillFxEarthSpike: ['지진 쐐기', '지진 파쇄 여진'],
     skillFxEarthCrack: ['지진 지면 균열', '지진 파쇄의 연결된 균열'],
-    skillFxRadialWave: ['원형 충격파', '불멸의 진동·지뢰 폭발'],
+    skillFxRadialWave: ['원형 충격파', '대지의 함성·지뢰 폭발'],
     skillFxDotField: ['지속 피해 장판', '화염 부패·빙결 침식·저주'],
     skillFxSummonStrike: ['소환수 타격', '소환수 공격 공통'],
     skillFxDragonBreath: ['용화 숨결', '용화 숨결 채널링']

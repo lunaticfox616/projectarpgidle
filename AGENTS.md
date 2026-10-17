@@ -54,7 +54,7 @@ CSS 전역 기본값은 `css/tokens.css`만 소유한다. 레이어 순서는
 | `scripts/` | Node 기반 회귀·스모크 검사; 프로덕션에서 로드하지 않음 |
 | `tests/browser/` | Playwright 기반 실제 브라우저 행동 검사 |
 | `artifacts/` | 시안·비교 화면·측정 결과; 실제 게임 반영 여부를 구분 |
-| 저장소 밖 그림 | Hana 그림과 구입한 무대 이펙트 그림(`assets/stage-vfx/vfx.png`)은 커밋하거나 공개하지 않는다(`.gitignore`, 비공개 저장소에서 배포에 들어간다). 나머지 무대 그림은 저장소에 있다 |
+| 저장소 밖 그림 | Hana 그림과 구입한 무대 이펙트 그림(`assets/stage-vfx/vfx.png`, `vfx2.png`)은 커밋하거나 공개하지 않는다(`.gitignore`, 비공개 저장소에서 배포에 들어간다). 나머지 무대 그림은 저장소에 있다 |
 
 허용하는 기본 의존 방향은 다음과 같다.
 
@@ -122,6 +122,8 @@ data -> utils -> state/save -> domain(items/skills/passives/core-cube)
   플레이어 입력, 처치, 지도 완료 밖에서 빌드나 계산이 읽는 모듈 상태를 바꾸는 코드는 `playerStatCache.invalidate()`를 부른다.
   받은 능력치의 안쪽 객체(`sSkill`, `breakdowns` 말고)는 복사한 뒤 고친다. `scripts/smoke-player-stat-cache.js`가 이 규칙을
   검사하고, 실패 메시지가 고칠 곳을 알려 준다.
+  찍거나 장착하기 전에 보여 줄 값(스킬트리, 전직, 상점 미리보기)은 `previewBuildStats(edit)`(`js/passives.js`)로 게임 사본에서 잰다.
+  살아 있는 `game`의 빌드를 잠시 바꿨다 되돌리면 계산이 쓴 칸(`PLAYER_STAT_DERIVED_WRITES`)이 남을 수 있다.
 
 새 함수는 원칙적으로 60줄, 중첩 깊이 3, 순환 복잡도 10, 매개변수 5개를 넘지 않는다. 새 소스 파일은
 500줄 이하를 권장한다. 기존 거대 파일을 수정할 때는 작업과 무관한 대규모 분리를 섞지 않되, 수정한

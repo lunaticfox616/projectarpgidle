@@ -4,7 +4,7 @@ const BUILD_STAT_FIELDS = [
     'selectedHeroId', 'selectedClassId', 'ascendClass', 'ascendNodes', 'ascendKeystones', 'cosmosTwinKeystones',
     'passives', 'voidPassives', 'passiveAttributePreference', 'passiveAttributeChoices',
     'passiveStarEvolution', 'seasonNodes', 'seasonNodeLevels', 'loop10BonusStats', 'loopDeepStats',
-    'actRewardBonuses', 'journalBonuses', 'journalEntries', 'activeSkill', 'mobilitySkill', 'skills', 'supports',
+    'actRewardBonuses', 'journalBonuses', 'journalEntries', 'activeSkill', 'weaponBlockedSkill', 'mobilitySkill', 'skills', 'supports',
     'equippedSupports', 'equippedSummonSkills', 'summonSkillCounts', 'gemData', 'supportGemData',
     'skillAutoRules',
     'sealedSkills', 'sealedSupports', 'resonancePower', 'skyGemEnhancements',
@@ -29,7 +29,7 @@ const PLAYER_STAT_CONTEXT_FIELDS = Object.freeze({
 });
 // game fields the stat calculation may write: shape normalization, or a value made from the build that is the same on every call
 // for the same build. A kept calculation skips these writes; anything that must happen on every call belongs in finishPlayerStats.
-const PLAYER_STAT_DERIVED_WRITES = Object.freeze(['activeSkill', 'chaosRealm', 'cosmosTwinKeystones', 'equippedSummonSkills', 'gemData',
+const PLAYER_STAT_DERIVED_WRITES = Object.freeze(['activeSkill', 'weaponBlockedSkill', 'chaosRealm', 'cosmosTwinKeystones', 'equippedSummonSkills', 'gemData',
     'ocean', 'oceanOxygenDrainReductionPct', 'oceanOxygenMaxBonus', 'passiveSpecialization', 'skyGemEnhancements', 'skyTower',
     'summonSkillCounts', 'supportGemData', 'timeRift', 'voidPassives']);
 // Every this many kept answers, a calculation is compared with a fresh one; a difference is repaired at once and reported.

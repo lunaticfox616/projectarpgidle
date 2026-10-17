@@ -48,15 +48,17 @@ test('a kill drops one floor pile that a click picks up exactly once', async ({ 
     // Nothing is owned before the pickup.
     expect(await page.evaluate(({ currency }) => game.currencies[currency] || 0, drop)).toBe(drop.wallet);
     expect(await page.evaluate(() => game.inventory.length)).toBe(drop.inventory);
-    // One kill, one pile: one picture with every name over it, under the actors and above the floor.
+    // One kill, one pile: one picture with every name over it. The picture lies under the actors, the names stand over them (a chest
+    // or a door frame covered them, 2026-10-17) and under the flying motes.
     const pile = page.locator('.battle-loot-drop.is-floor');
     await expect(pile).toHaveCount(1);
     await expect(page.locator('.battle-loot-drop.is-floor.landed')).toHaveCount(1);
     await expect(pile.locator('.battle-loot-name')).toHaveCount(drop.rows);
     await expect(pile.locator(`.battle-loot-name[data-currency="${drop.currency}"]`)).toContainText('×2');
-    const depths = await page.evaluate(() => ['.battle-loot-layer', '.battle-loot-foreground', '.battle-loot-air']
+    const depths = await page.evaluate(() => ['.battle-loot-flight', '.battle-loot-foreground', '.battle-loot-labels', '.battle-loot-air']
         .map(selector => Number(getComputedStyle(document.querySelector(selector)).zIndex)));
-    expect(depths[0]).toBeLessThan(depths[1]); expect(depths[1]).toBeLessThan(depths[2]);
+    expect(depths[0]).toBeLessThan(depths[1]); expect(depths[1]).toBeLessThan(depths[2]); expect(depths[2]).toBeLessThanOrEqual(depths[3]);
+    expect(await page.evaluate(() => getComputedStyle(document.querySelector('.battle-loot-layer')).zIndex)).toBe('auto');
     // A click picks the whole pile up wherever the hero stands; the pile flies to the hero and leaves no layer behind.
     await pile.locator('.battle-loot-name').first().click();
     await expect(pile).toHaveCount(0);

@@ -4,8 +4,7 @@
  * - 바닥: 밟아 다져진 흙바닥의 빈터. 반듯한 판석이나 턱은 없다: 빈터의 가장자리는 들쭉날쭉하고 그 밖은 풀과 이끼가 덮은 어두운 땅이다.
  *   흙에는 얼룩과 잔돌이 있고, 가장자리를 따라 풀 포기와 돌, 고사리가 난다. 뿌리는 드물게(방에 두셋) 뒤쪽이나 옆에서 기어든다.
  *   뒤쪽에 수액이 조금 고여 있고, 빈터 밖 어둠에 빛나는 버섯이 몇 있다.
- * - 문: 잠긴 문은 가시 돋은 뿌리가 얽혀 막고, 열리면 뿌리가 걷힌다. 좌우 문은 뿌리 아치, 앞쪽 문은 낮은 뿌리 울타리,
- *   뒷문은 굴(뿌리 창살). 보스 방으로 가는 문은 썩은 붉은 뿌리다.
+ * - 문: 문 칸에서 이어지는 흙길과 뒷문의 굴만 그린다. 문을 막는 그림은 공용 뿌리 봉인이다(js/canvas-stage-door-marks.js).
  * 그림 파일 없이 그리며(같은 방은 언제나 같은 그림), 색은 data/stage-view.js STAGE_BACKDROPS의 그 지형 palette에 있다. 그리기만 한다.
  */
 const stageSanctum = (() => {
@@ -131,14 +130,6 @@ const stageSanctum = (() => {
         pass(tone(palette.rootDark, dim), { k: 1, add: 1 }, 0, 0, 0);
         pass(tone(palette.root, dim), { k: 1, add: 0 }, 0, 0, 0);
         pass(tone(palette.rootLight, dim), { k: 0.42, add: 0 }, -0.25, -0.4, 2);
-    }
-    /** Thorns along a way: a short dark spike on alternate sides every few points. */
-    function thorns(ctx, points, palette) {
-        ctx.fillStyle = tone(palette.rootDark, 1);
-        for (let i = 3; i < points.length - 2; i += 6) {
-            const p = points[i], q = points[i + 1], side = (i / 6) % 2 ? 1 : -1, nx = -(q.y - p.y), ny = q.x - p.x, n = Math.hypot(nx, ny) || 1;
-            for (let step = 1; step <= 3; step++) ctx.fillRect(Math.round(p.x + nx / n * side * (p.r + step)), Math.round(p.y + ny / n * side * (p.r + step)), step < 3 ? 2 : 1, 1);
-        }
     }
     /** Roots are rare: one or two down from the backdrop's foot onto the back of the floor, one in from a side, one along the front outside. */
     function roomRoots(room) {
@@ -351,50 +342,6 @@ const stageSanctum = (() => {
         }
     }
 
-    // ---------------------------------------------------------------- doors
-    const DOOR = Object.freeze({ w: 128, h: 144, ax: 64, ay: 104 });   // 문 그림 한 장의 크기와 문 칸 가운데가 놓이는 자리(도트)
-    /** The ways of a door's roots by side: frame (always there) and weave (only while it is locked). */
-    const GATES = Object.freeze({
-        north(seed) {
-            const foot = DOOR.ay + 16, bars = [-2, -1, 0, 1, 2].map(i => vine(seed + i, { x: DOOR.ax + i * 14, y: foot - 96 + Math.abs(i) * Math.abs(i) * 7 }, { x: DOOR.ax + i * 15, y: foot }, 3.2));
-            return { frame: [], weave: [...bars, vine(seed + 7, { x: DOOR.ax - 34, y: foot - 44 }, { x: DOOR.ax + 34, y: foot - 62 }, 2.4), vine(seed + 8, { x: DOOR.ax - 32, y: foot - 74 }, { x: DOOR.ax + 33, y: foot - 28 }, 2.2)] };
-        },
-        side(seed) {
-            const back = { x: DOOR.ax + 10, y: DOOR.ay - 13 }, front = { x: DOOR.ax - 10, y: DOOR.ay + 13 }, tall = 66;
-            const frame = [vine(seed, back, { x: back.x + 2, y: back.y - tall }, 4), vine(seed + 3, { x: back.x + 3, y: back.y - tall + 2 }, { x: front.x - 2, y: front.y - tall - 4 }, 4.2),
-                vine(seed + 1, front, { x: front.x - 2, y: front.y - tall }, 4.8)];
-            const weave = [[0.16, 0.86], [0.42, 0.52], [0.7, 0.2], [0.9, 0.62]].map(([a, b], i) => vine(seed + 10 + i, { x: back.x + 1, y: back.y - tall * a }, { x: front.x - 1, y: front.y - tall * b }, 2.6));
-            return { frame, weave };
-        },
-        south(seed) {
-            const line = DOOR.ay - 16, frame = [vine(seed, { x: DOOR.ax - 36, y: line + 2 }, { x: DOOR.ax - 38, y: line - 24 }, 4.6), vine(seed + 1, { x: DOOR.ax + 36, y: line + 2 }, { x: DOOR.ax + 38, y: line - 22 }, 4.6)];
-            const weave = [vine(seed + 4, { x: DOOR.ax - 36, y: line - 6 }, { x: DOOR.ax + 36, y: line - 14 }, 2.8), vine(seed + 5, { x: DOOR.ax - 36, y: line - 17 }, { x: DOOR.ax + 36, y: line - 5 }, 2.6),
-                ...[-18, 0, 18].map((dx, i) => vine(seed + 6 + i, { x: DOOR.ax + dx, y: line + 2 }, { x: DOOR.ax + dx + 2, y: line - 20 }, 2.4))];
-            return { frame, weave };
-        }
-    });
-    /** One picture of a door: its frame, and its weave of thorned roots while locked. Left-side doors are the mirror of right-side ones. */
-    function gatePicture(door, palette, locked) {
-        const canvas = document.createElement('canvas'), ctx = canvas.getContext('2d'), kind = door.side === 'east' || door.side === 'west' ? 'side' : door.side;
-        canvas.width = DOOR.w;
-        canvas.height = DOOR.h;
-        if (door.side === 'west') { ctx.translate(DOOR.w, 0); ctx.scale(-1, 1); }
-        const ways = GATES[kind](door.id * 17 + 3);
-        for (const way of ways.frame) strokeRoot(ctx, way, palette);
-        if (!locked) return canvas;
-        for (const way of ways.weave) { strokeRoot(ctx, way, palette); thorns(ctx, way, palette); }
-        return canvas;
-    }
-    /** @returns {Map<number,{locked:HTMLCanvasElement,open:HTMLCanvasElement}>} door id → its two pictures (js/canvas-stage-rooms.js draws them) */
-    function doorPictures(map, room, look) {
-        const pictures = new Map(), plain = Object.fromEntries(Object.entries(look.palette).map(([name, hex]) => [name, K.rgbOf(hex)]));
-        const rotten = { ...plain, root: K.rgbOf(look.palette.rot), rootLight: K.rgbOf(look.palette.rotLight), rootDark: K.rgbOf(look.palette.rotDark) };
-        for (const door of map.doors.filter(row => row.room === room.index)) {
-            const palette = door.gate ? rotten : plain;
-            pictures.set(door.id, { locked: gatePicture(door, palette, true), open: gatePicture(door, palette, false) });
-        }
-        return pictures;
-    }
-    return Object.freeze({ paint, doorPictures, DOOR });
+    return Object.freeze({ paint });
 })();
 safeExposeGlobals({ stageSanctum });

@@ -9,6 +9,7 @@ const actExplorationProgress = (() => {
     // hero cannot reach is collected from where it stands, and leaving the map settles anything left (js/exploration-ground-loot.js).
     const LOOT_WALK_MAX_MS=12000;
     const lootWalks=new WeakMap(); // run → {stalls, clearedAt} (transient, like the discovery memos)
+    const walkedMs=new WeakMap(); // run → ms the hero walked since the last combat tick took it (takeWalkedMs, transient)
     const ground=actExplorationState.groundLoot;
     function advance(stats) {
         const run=actExplorationState.current(game);
@@ -28,16 +29,22 @@ const actExplorationProgress = (() => {
             return;
         }
         if(run.arrival)delete run.arrival; // laid out during the move; from here it is the act's live run
+        actExplorationDoors.sendStraysBack(run); // 방 단위 무대: 다른 방에서 싸움에 든 몬스터는 제 무리로 돌아간다
         if(!run.motionTimeMs)run.motionTimeMs=now;
         // Combat replay supplies fixed ticks. A restored/stalled foreground clock must not
         // turn one frame into an unbounded movement-only catch-up loop.
         if(now-run.motionTimeMs>1000)actExplorationMotion.rebase(run,now-100);
         while(run.motionTimeMs+20<=now) {
             run.motionTimeMs+=20;
-            const walking=run.motion;
-            step(run,stats);
-            continueApproachAfterStep(run,walking,stats);
+            stepFrame(run,stats);
         }
+    }
+    /** One 20 ms movement frame: the step, the approach after a finished step, and the walked time (takeWalkedMs). */
+    function stepFrame(run,stats) {
+        const walking=run.motion;
+        step(run,stats);
+        continueApproachAfterStep(run,walking,stats);
+        if(walking)walkedMs.set(run,(walkedMs.get(run)||0)+20);
     }
     /** A step that ends goes on toward the fight at once, on a foreground frame and inside a combat tick alike. Waiting for
      * the next 100 ms tick (offline replay) locked the hero and an enemy across a blocked cell into mirrored steps: no kill
@@ -67,6 +74,8 @@ const actExplorationProgress = (() => {
         walk(run,target,stats);
     }
     function walk(run,target,stats) {
+        // 공격 후딜(js/combat.js isPlayerAttackRecovering): 명령은 그대로 두고 멈춘 걸음으로도 세지 않는다. 후딜이 끝나는 프레임에 걷는다.
+        if(isPlayerAttackRecovering(run.motionTimeMs))return;
         const stepped=walkStep(actExplorationDoors.toward(run,target),stats);
         if(stepped || target!==run.destination){commandStalls.delete(run);return;}
         const stalls=(commandStalls.get(run)||0)+1;
@@ -78,7 +87,7 @@ const actExplorationProgress = (() => {
     function holdsOrDetours(run,entrance,stats) {
         if(entrance)return true;
         if(run.destination)return false;
-        if(game.enemies.some(enemy=>enemy.hp>0)||actExplorationState.objects.active(run))return true;
+        if(actExplorationDoors.fightingHere(run))return true;
         return runMode(run)!=='manual' && walkToLoot(run,stats);
     }
     /** Floor pickups on every settled step; a cleared map only walks to its floor items. Returns whether exploration goes on. */
@@ -105,6 +114,7 @@ const actExplorationProgress = (() => {
         const now=getCombatTime(),pile=ground.nearest(run,game.gridPlayer,now);
         if(!pile)return ground.falling(run,now);
         const memo=lootWalks.get(run)||{stalls:0,clearedAt:null};lootWalks.set(run,memo);
+        if(isPlayerAttackRecovering(run.motionTimeMs))return true;
         memo.stalls=walkStep(actExplorationDoors.toward(run,pile),stats)?0:memo.stalls+1;
         if(memo.stalls>=COMMAND_GIVE_UP_STEPS){memo.stalls=0;collectExplorationFloorLoot(ground.takeAt(run,pile));}
         return true;
@@ -146,6 +156,13 @@ const actExplorationProgress = (() => {
         return canPlaceGridFootprint(getHeroStepBlockedCells(),motion.to.gx,motion.to.gy,{columns:1,rows:1});
     }
     function moving() {return !!actExplorationState.current(game)?.motion;}
+    /** The ms the hero walked (20 ms movement frames) since the last call, then 0: each combat tick takes it (js/combat.js
+     * getWalkingChargeScale). */
+    function takeWalkedMs() {
+        const run=actExplorationState.current(game),ms=run?walkedMs.get(run)||0:0;
+        if(run)walkedMs.delete(run);
+        return ms;
+    }
     /** A click on a floor pile (js/battle-ground-loot-ui.js) picks it up at once, wherever the hero stands. */
     function collectPile(cell) {
         const run=actExplorationState.current(game);
@@ -188,9 +205,11 @@ const actExplorationProgress = (() => {
     }
     /** The hero neither chases nor sidesteps: a hazard asked for it, auto-move is off, or a move command is under way
      * (the command walks in step; the combat engagement only fights what is in reach). */
+    /** 영웅이 제자리에서 사거리 안만 치는가: 위험을 피하라는 요청, 걷는 명령, 직접 이동. 직접 이동이라도 락온한 몬스터
+     * (js/act-exploration-state.js lockOn)가 살아 있으면 그 명령으로 보고 다가가 싸운다. */
     function holdPosition(requested) {
         const run=actExplorationState.current(game);
-        return requested || !!(run && (runMode(run)==='manual' || run.destination));
+        return requested || !!(run && ((runMode(run)==='manual' && !actExplorationState.lockedEnemy(run)) || run.destination));
     }
     function waiting(state) {
         const run=actExplorationState.current(state);
@@ -224,6 +243,6 @@ const actExplorationProgress = (() => {
         const run=actExplorationState.current(state);
         if(run && !run.completionApplied){actExplorationMotion.cancel(run);run.status='failed';}
     }
-    return {advance,tick,moving,collectPile,canFinish,beginCompletion,shouldTrackStall,holdPosition,runMode,startMode,waiting,deferDeparture,stopAfterCompletion,depart,reconcileDeparture,defeat};
+    return {advance,tick,moving,takeWalkedMs,collectPile,canFinish,beginCompletion,shouldTrackStall,holdPosition,runMode,startMode,waiting,deferDeparture,stopAfterCompletion,depart,reconcileDeparture,defeat};
 })();
 safeExposeGlobals({actExplorationProgress});

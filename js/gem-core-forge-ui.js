@@ -18,7 +18,7 @@ const gemCoreForgeUi = (() => {
         return `<button type="button" class="gem-forge-track ${state.track.tone}" data-forge-material="${key}">
             <span class="gem-forge-track-head"><strong>${state.track.name}</strong><b>+${state.level}</b></span>
             ${steps(state.level)}<span class="gem-forge-track-effect">${effectLine(state.track, state.level)}</span>
-            <span class="gem-forge-cap ${state.done ? 'complete' : ''}">5강 보너스 <b>젬 레벨 +1</b></span>
+            <span class="gem-forge-cap ${state.done ? 'complete' : ''}">5강 보너스 <b>룬 레벨 +1</b></span>
             <span class="gem-forge-track-foot"><span>보유 ${state.owned.toLocaleString()}</span><b>${state.done ? '강화 완료' : '강화하기'}</b></span>
         </button>`;
     }
@@ -26,7 +26,7 @@ const gemCoreForgeUi = (() => {
     function renderSection(name) {
         const container = document.getElementById('ui-gem-core-forge');
         if (!container) return;
-        container.innerHTML = name ? Object.keys(GEM_CORE_FORGE.tracks).map(key => trackCard(name, key)).join('') : '<p class="gem-process-empty">장착한 공격 젬을 선택하세요.</p>';
+        container.innerHTML = name ? Object.keys(GEM_CORE_FORGE.tracks).map(key => trackCard(name, key)).join('') : '<p class="gem-process-empty">장착한 공격 룬을 선택하세요.</p>';
         container.onclick = event => {
             const button = event.target.closest('[data-forge-material]');
             if (button && name) open(name, button.dataset.forgeMaterial);
@@ -35,7 +35,7 @@ const gemCoreForgeUi = (() => {
 
     function resultMarkup(state) {
         if (busy) return '<strong>강화 중</strong>';
-        if (state.done) return `<strong>최대 강화 달성</strong><span class="gem-forge-level-bonus">젬 레벨 +1 ${result?.status === 'success' ? '획득' : '적용 중'}</span>`;
+        if (state.done) return `<strong>최대 강화 달성</strong><span class="gem-forge-level-bonus">룬 레벨 +1 ${result?.status === 'success' ? '획득' : '적용 중'}</span>`;
         if (!result) return `<span>${state.nextPityGain ? `실패 시 성공률 +${formatValue('', state.nextPityGain)}%p` : '성공 확정'}</span><span>강화 단계 유지</span>`;
         if (result.status === 'blocked') return `<strong>${escapeHTML(result.error)}</strong>`;
         if (result.status === 'failure') return `<strong>강화 실패</strong><span>다음 성공률 <b>${formatValue('', state.chance)}%</b> <em>+${formatValue('', state.chance - result.chance)}%p</em></span>`;
@@ -50,11 +50,11 @@ const gemCoreForgeUi = (() => {
 
     function contents(state) {
         const nextLevel = Math.min(5, state.level + 1);
-        return `<header class="gem-forge-header"><div><small>젬 강화</small><h2 id="gem-forge-title">${state.track.name}</h2></div><button type="button" data-forge-close aria-label="젬 강화 닫기" ${busy ? 'disabled' : ''}>닫기</button></header>
+        return `<header class="gem-forge-header"><div><small>룬 강화</small><h2 id="gem-forge-title">${state.track.name}</h2></div><button type="button" data-forge-close aria-label="룬 강화 닫기" ${busy ? 'disabled' : ''}>닫기</button></header>
             <nav class="gem-forge-materials" aria-label="강화 재료">${Object.entries(GEM_CORE_FORGE.tracks).map(([key, track]) => `<button type="button" class="${track.tone}" data-forge-track="${key}" aria-pressed="${key === material}" ${busy ? 'disabled' : ''}>${track.name}</button>`).join('')}</nav>
             <div class="gem-forge-stage"><div class="gem-forge-halo"></div>${renderSkillGemArt(target, 'gem-forge-art', { eager: true })}<strong>${escapeHTML(target)}</strong><b class="gem-forge-level">+${state.level}</b>${steps(state.level)}</div>
             <div class="gem-forge-effects"><div><small>현재</small><strong>${effectLine(state.track, state.level)}</strong></div><div><small>${state.done ? '최대 강화' : `다음 +${nextLevel}`}</small><strong>${effectLine(state.track, nextLevel)}</strong></div></div>
-            <div class="gem-forge-cap ${state.done ? 'complete' : ''}">5강 보너스 <b>젬 레벨 +1</b><span>${state.done ? '적용 중' : ''}</span></div>
+            <div class="gem-forge-cap ${state.done ? 'complete' : ''}">5강 보너스 <b>룬 레벨 +1</b><span>${state.done ? '적용 중' : ''}</span></div>
             <div class="gem-forge-result" role="status" aria-live="polite">${resultMarkup(state)}</div>
             ${footer(state)}`;
     }

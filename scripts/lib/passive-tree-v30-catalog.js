@@ -63,7 +63,7 @@ const CLASS_SECTORS = Object.freeze([
     ] },
     { id: 'alchemist', angle: 270, startId: 'pt_start_alchemist', cat: 'int', icon: 'potion', themes: [
         ['potion', '연금 투척', ['potionPctDmg', 'aoePctDmg']],
-        ['mine', '룬 지뢰', ['minePctDmg', 'aoePctDmg']],
+        ['mine', '번개 각인', ['minePctDmg', 'aoePctDmg']],
         ['area', '확산 반응', ['aoePctDmg', 'elementalPctDmg']],
         ['elemental', '삼원 촉매', ['elementalPctDmg', 'ailmentPotencyPct']],
         ['fire', '발화 약제', ['firePctDmg', 'igniteChance']],
@@ -125,7 +125,7 @@ const SPECIAL_THEMES = Object.freeze([
     { id: 'universal_summon', angle: 30, cat: 'none', icon: 'summon', label: '응축된 사역', stats: ['summonPctDmg', 'summonHpPct', 'summonEfficiency'] },
     { id: 'cycle_reverse', angle: 90, cat: 'cycle', icon: 'cycle', label: '거꾸로 흐르는 시간', stats: ['cycle', 'aspd', 'move', 'regen'] },
     { id: 'universal_flask', angle: 90, tangent: 300, cat: 'none', icon: 'potion', label: '고농도 투약', stats: ['potionPctDmg', 'regen'] },
-    { id: 'universal_gem', angle: 150, cat: 'none', icon: 'constellation', label: '젬 공명', stats: ['pctDmg', 'suppCap', 'aspd'] },
+    { id: 'universal_gem', angle: 150, cat: 'none', icon: 'constellation', label: '룬 공명', stats: ['pctDmg', 'suppCap', 'aspd'] },
     { id: 'mystique_single', angle: 180, cat: 'mystique', icon: 'mystique', label: '단일 관측', stats: ['mystique', 'ailmentPotencyPct', 'crit', 'resPen'] },
     { id: 'universal_defense', angle: 210, cat: 'none', icon: 'shield', label: '혼합 방어', stats: ['pctHp', 'resAll', 'evasionPct'] },
     { id: 'cycle_element', angle: 240, cat: 'cycle', icon: 'cycle', label: '원소 순환', stats: ['cycle', 'elementalPctDmg', 'aspd', 'resPen'] },

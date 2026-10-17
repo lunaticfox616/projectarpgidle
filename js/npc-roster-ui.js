@@ -4,6 +4,7 @@
  * (js/content-progression-ui.js openNpc). NPCs not met yet stay out, as their names would tell the story ahead. */
 const npcRosterUi = (() => {
     let renderedKey = '';
+    const NPC_SHOP_CURRENCIES = Object.freeze(['magicBud', 'formlessDew', 'goldenRule']);
 
     const metRosterNpcs = () => Object.values(STORY_NPCS).filter(npc => game.npcMet[npc.id]);
 
@@ -11,7 +12,8 @@ const npcRosterUi = (() => {
         const news = contentUnlockUi.npcNews(npc), stock = npcShop.stock(npc.id), shop = NPC_SHOPS[npc.id];
         const unlock = news === 'unlock' ? '<em class="is-unlock">즉시 해금</em>' : '';
         const talk = contentUnlockUi.npcTopics(npc).open.some(row => !contentUnlockUi.npcHeard(npc, row.topic)) ? '<em class="is-talk">새 이야기</em>' : '';
-        const wares = stock && stock.offers.length ? `<em class="is-shop">${escapeHTML(shop.label)} ${stock.offers.length}개</em>` : '';
+        const ready = npcShop.ready(npc.id);
+        const wares = stock && stock.offers.length ? `<em class="is-shop">${escapeHTML(shop.label)} ${stock.offers.length}개${ready ? `, ${ready}개 살 수 있음` : ''}</em>` : '';
         return unlock + talk + wares;
     }
 
@@ -29,7 +31,8 @@ const npcRosterUi = (() => {
         const root = document.getElementById('npc-roster-panel');
         if (!root) return;
         const list = metRosterNpcs();
-        const key = JSON.stringify([game.season, contentProgression.balance(), game.npcHeard.length,
+        const key = JSON.stringify([game.season, contentProgression.balance(), game.npcHeard.length, NPC_SHOP_CURRENCIES.map(id => game.currencies[id] || 0),
+            (game.skills || []).length, (game.supports || []).length,
             list.map(npc => [npc.id, game.npcMet[npc.id], contentUnlockUi.npcNews(npc), npcShop.stock(npc.id)?.offers.length || 0])]);
         if (key === renderedKey && root.childNodes.length) return;
         renderedKey = key;

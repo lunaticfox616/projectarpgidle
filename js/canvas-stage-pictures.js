@@ -4,7 +4,7 @@
  * 멈추지 않는다. 대신 풀린 화소를 계속 들고 있다(가로 × 세로 × 4바이트). 그래서 쓰는 쪽이 지금 쓰는 것만 열고, 쓰지 않게 되면 닫는다:
  *   주인공      지금 직업과 무기 자세의 그림(js/canvas-stage-actors.js)
  *   몬스터      지금 지도의 무리와 화면에 나와 있는 것(js/canvas-stage-roster.js)
- *   스킬 이펙트  낀 젬이 쓰는 클립을 자르는 동안의 원본(js/canvas-stage-skill-vfx.js)
+ *   스킬 이펙트  낀 룬이 쓰는 클립을 자르는 동안의 원본(js/canvas-stage-skill-vfx.js)
  * 밖에서 풀 수 없는 곳(file: 주소, createImageBitmap이나 fetch가 없는 브라우저, 받기에 실패한 때)에서는 예전처럼 Image로 불러온다:
  * 그림은 같고, 처음 그릴 때 풀린다. 게임 상태를 읽지 않는다.
  */

@@ -119,9 +119,11 @@ const actExplorationMap = (() => {
         if(!Number.isInteger(cell.gx)||!Number.isInteger(cell.gy))return false;
         return cell.gx>=0&&cell.gy>=0&&cell.gx<map.columns&&cell.gy<map.rows;
     }
+    /** A sealed gate holds every cell of the boss door: one on a continuous map, two on a room-by-room stage (js/act-exploration-rooms.js gates). */
+    const onGate=(map,cell)=>(map.gates||[map.gate]).some(gate=>gate.gx===cell.gx&&gate.gy===cell.gy);
     function walkable(map,cell,sealed=false) {
         if(!inBounds(map,cell))return false;
-        return map.tiles[index(map,cell)]===1&&!(sealed&&cell.gx===map.gate.gx&&cell.gy===map.gate.gy);
+        return map.tiles[index(map,cell)]===1&&!(sealed&&onGate(map,cell));
     }
     function neighbors(map,cell) {
         const around=[{gx:cell.gx-1,gy:cell.gy},{gx:cell.gx+1,gy:cell.gy},

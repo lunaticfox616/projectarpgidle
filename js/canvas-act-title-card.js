@@ -69,7 +69,7 @@ const actTitleCard = (() => {
         const waited = now - (trackedAt || now);
         trackedAt = now;
         const wasCovered = covered;
-        covered = storyCovered();
+        covered = (line || queue.length) ? storyCovered() : false;
         // Both the current line and queued lines keep their unread time, including the frame that closes the window.
         if (covered || wasCovered) {
             if (line) line.startAt += waited;
@@ -164,13 +164,12 @@ const actTitleCard = (() => {
         if (loop === 1) return npc.bark;
         return loop % 2 === 0 ? byClass || npc.loopBark || npc.bark : npc.loopBark || byClass || npc.bark;
     }
-    /** The guide of the entry room's lines: act 1's guide stands there only in loop 1 (2026-10-15 사용자: after a loop the first room has no
-     * Haken, as there is no fall to wake from). */
-    const guideHere = story => (story.npc && !(actOf(zone)?.order === 1 && (game.season || 1) > 1) ? story.npc : null);
+    /** The guide standing on this map (js/act-exploration-doors.js storyGuide): act 1's guide stands there only in loop 1. */
+    const guideHere = () => actExplorationDoors.storyGuide(zone);
     /** ...so from loop 2 act 1's entry lines (loopBark, classBarks) are the hero's own, said on getting up in the empty first room
-     * (docs/story-bible.md 5.2 and 5.3). */
+     * (docs/story-bible.md 5.2 and 5.3): the lines name a guide who does not stand there this loop. */
     function queueHeroMuse(story, lore, now) {
-        if (lore && story.npc && actOf(zone)?.order === 1 && (game.season || 1) > 1) queueStoryLine({ key: 'npc', who: 'hero', speaker: lore.label, text: npcLine(story.npc), tone: 'gold' }, now);
+        if (lore && story.npc && !guideHere()) queueStoryLine({ key: 'npc', who: 'hero', speaker: lore.label, text: npcLine(story.npc), tone: 'gold' }, now);
     }
     /** The hero's first words, in loop 1's act 1 entry room. */
     /** The first start's hero lies in the entry room until pressed (js/opening-journey-ui.js): no lines meanwhile, nor under the intro
@@ -188,19 +187,14 @@ const actTitleCard = (() => {
     }
     /** The monster striking the guide in act 1 still stands (js/combat.js createStarterRescuePack). */
     const rescuing = run => run.packs.some(pack => pack.rescue && pack.aliveIds.length > 0);
-    /** The room where the map's guide stands and its first lines are said: the entry room, or in loop 1's first start the room behind
-     * it where the guide is struck (js/combat.js starterRescueRoom; saves from before kept it in the entry room). */
-    function guideRoom(run, map) {
-        const pack = run.packs.find(row => row.rescue);
-        return (pack && map.rooms.find(room => room.id === pack.roomId)) || map.entry;
-    }
-    const inGuideRoom = run => { const map = actExplorationDoors.stageMap(run), room = actExplorationDoors.room(run); return !!map && !!room && room === guideRoom(run, map); };
+    /** The hero is in the room where the map's guide stands and its first lines are said (js/act-exploration-doors.js guideRoom). */
+    const inGuideRoom = run => { const map = actExplorationDoors.stageMap(run), room = actExplorationDoors.room(run); return !!map && !!room && room === actExplorationDoors.guideRoom(run, map); };
     /** The guide's room (guideRoom): the guide speaks and, after its first-meeting line (loop 1), the hero answers in its class's
      * words (classReplies are written to that line; from loop 2 the guide speaks other lines, 2026-10-15). While monsters strike
      * the guide (rescue) only the hero speaks: the guide's turn comes once they fall. */
     function watchEntryRoom(story, now, run) {
         if (hushed()) return;
-        const lore = storyClassLore(), npc = guideHere(story);
+        const lore = storyClassLore(), npc = guideHere();
         queueSpotLine(lore, run, now);
         queueHeroMuse(story, lore, now);
         if (!npc || rescuing(run)) return;
@@ -217,7 +211,8 @@ const actTitleCard = (() => {
         watch.met = true;
         const tabShown = !!game.unlocks.npcs;
         npcShop.meet(npc, zone);
-        if (contentUnlockUi.npcNews(npc) === 'unlock') game.noti.npcs = true;
+        // 해금할 것이 있거나 진열대가 새로 놓였으면(만날 때마다 새로 놓인다, 1회차 첫 만남의 하켄만 닫혀 있다) NPC 탭에 점을 켠다.
+        if (contentUnlockUi.npcNews(npc) === 'unlock' || npcShop.stock(npc.id)) game.noti.npcs = true;
         if (!tabShown) updateTabUnlockButtons();
     }
     const greets = row => !!row && GREET.keys.has(row.key) && row.zone === zone;
@@ -265,18 +260,19 @@ const actTitleCard = (() => {
     /** The run's NPC, found once: { id, name, title, tone, line } or null. */
     function runNpc(watch) {
         if (watch.npc !== undefined) return watch.npc;
-        const said = watch.story && guideHere(watch.story), row = said ? npcRows().find(npc => npc.name === said.name) : null;
+        const said = guideHere(), row = said ? npcRows().find(npc => npc.name === said.name) : null;
         watch.npc = row ? { id: row.id, name: row.name, title: row.title, tone: npcTone(row.name), line: npcLine(said) } : null;
         return watch.npc;
     }
     /** Adds the NPC to the battlefield's actors while the hero is in the entry room (js/canvas-act-exploration.js appendScenery),
      * so it stands in depth with the hero and the monsters. It stands on the entry room's post (js/act-exploration-rooms.js npcPost:
-     * the back row, two cells from where the hero starts), where act 1's first monster strikes it. */
+     * the back row, two cells from where the hero starts), where act 1's first monsters strike it from two cells away. Nobody
+     * stands on it or within two cells in front of or behind it (js/act-exploration-doors.js guideCells). */
     function appendNpc(actors, state) {
         const run = stageView.enabled() ? actExplorationState.current(game) : null, watch = run ? runs.get(run) : null;
         const npc = watch ? runNpc(watch) : null, map = npc ? actExplorationDoors.stageMap(run) : null;
         if (!map || !inGuideRoom(run)) return;
-        watch.npcCell = watch.npcCell || actExplorationRooms.npcPost(guideRoom(run, map));
+        watch.npcCell = watch.npcCell || actExplorationRooms.npcPost(actExplorationDoors.guideRoom(run, map));
         const point = state.gridProj.cellToScreen(watch.npcCell.gx, watch.npcCell.gy);
         actors.push({ kind: 'scenery', id: -3, x: point.x, y: point.y + state.gridProj.actorGroundOffsetY, npc, talkable: !rescuing(run) });
     }
@@ -321,7 +317,7 @@ const actTitleCard = (() => {
     }
     // A monster striking the NPC (act 1's first monster, js/combat.js strikeRescueTarget, battle fx 'npcStruck'): the NPC's frame
     // flashes white and a few sparks burst on it. The picture itself never moves (no code-made motion).
-    const npcFlashes = new Map();    // "id:frame" → that idle frame painted white
+    const npcFlashes = new Map();    // "id:frame:colour" → that idle frame painted one colour (the strike flash, the hover rim)
     /** 1 just after a strike on the NPC, fading to 0 over the fx's duration; 0 when none is recent. */
     function npcStruck(now) {
         let share = 0;
@@ -331,18 +327,32 @@ const actTitleCard = (() => {
         }
         return share;
     }
-    function npcFlashFrame(id, source, frame) {
-        const key = `${id}:${frame}`, cell = STAGE_NPC_ART.cell;
+    function npcFlashFrame(id, source, frame, colour = '#fff4df') {
+        const key = `${id}:${frame}:${colour}`, cell = STAGE_NPC_ART.cell;
         if (!npcFlashes.has(key)) {
             const canvas = document.createElement('canvas'), c = canvas.getContext('2d');
             canvas.width = canvas.height = cell;
             c.drawImage(source, frame * cell, 0, cell, cell, 0, 0, cell, cell);
             c.globalCompositeOperation = 'source-in';
-            c.fillStyle = '#fff4df';
+            c.fillStyle = colour;
             c.fillRect(0, 0, cell, cell);
             npcFlashes.set(key, canvas);
         }
         return npcFlashes.get(key);
+    }
+    // 마우스가 올라간 NPC(2026-10-17 사용자 "NPC위에 마우스올리면 테두리강조"): 말을 걸 수 있는 NPC의 그림 둘레에 캐릭터 도트 한 칸 굵기의
+    // 밝은 테를 두른다. 빛은 마우스를 올린 물건의 테와 같다(js/canvas-exploration-objects.js RIM_HOT). js/act-exploration-ui.js hover가 정한다.
+    const NPC_HOVER_RIM = '#fff8e6';
+    let hoveredNpc = null;
+    function hover(npc) { hoveredNpc = npc ? npc.id : null; }
+    /** 그림 뒤에 깔리는 테: 한 색으로 칠한 그 프레임을 위아래 좌우로 한 도트씩 옮겨 찍는다. at = 그림을 찍는 자리와 배율. */
+    function npcHoverRim(ctx, actor, source, frame, at) {
+        if (!actor.talkable || hoveredNpc !== actor.npc.id) return;
+        const cell = STAGE_NPC_ART.cell, rim = Math.max(1, Math.round(at.scale / STAGE_NPC_ART.scale));
+        const painted = npcFlashFrame(actor.npc.id, source, frame, NPC_HOVER_RIM);
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+            stageDots.blit(ctx, painted, { x: 0, y: 0, w: cell, h: cell }, { x: at.x + dx * rim, y: at.y + dy * rim, scale: at.scale });
+        }
     }
     function npcSparks(ctx, x, y, dot, struck) {
         const spread = (1 - struck) * 14 * dot + 4 * dot, size = Math.max(2, Math.round(dot * 2));
@@ -365,6 +375,7 @@ const actTitleCard = (() => {
         ctx.save();
         if (state.playerPos.x < actor.x) { ctx.translate(actor.x * 2, 0); ctx.scale(-1, 1); }
         const at = { x: Math.round(actor.x - art.feet[0] * dot), y: Math.round(actor.y - art.feet[1] * dot), scale: dot };
+        npcHoverRim(ctx, actor, sheet.source, frame, at);
         stageDots.blit(ctx, sheet.source, { x: frame * cell, y: 0, w: cell, h: cell }, at);
         if (struck > 0) {
             ctx.globalAlpha = 0.6 * struck;
@@ -571,8 +582,11 @@ const actTitleCard = (() => {
     function draw(ctx, scene) {
         const waited = scene.now - (trackedAt || scene.now);
         frameAt = Date.now();
+        const unlooked = !line && !queue.length;
         track(scene.now);
         if (stageView.enabled()) watchStory(scene.now);
+        // A first line queued after track still needs the current window state for the greeting hold and the next frame.
+        if (unlooked && (line || queue.length)) covered = storyCovered();
         holding = stageView.enabled() && holdsGreeting(waited);
         if (card) drawTitleCard(ctx, scene.width, scene.height, scene.now);
         else if (line) drawStoryLine(ctx, scene);
@@ -590,6 +604,6 @@ const actTitleCard = (() => {
     /** True while a story line's bubble is on screen (the first start's lesson line steps aside for it, js/opening-journey-ui.js). */
     function speaking() { return !!line && Date.now() - frameAt < LIVE_MS; }
     if (typeof document === 'object' && document.fonts?.load) document.fonts.load("20px 'Galmuri14'").catch(() => {});
-    return Object.freeze({ draw, busy, greeting, speaking, appendNpc, drawNpc, npcAt });
+    return Object.freeze({ draw, busy, greeting, speaking, appendNpc, drawNpc, npcAt, hover });
 })();
 safeExposeGlobals({ actTitleCard });

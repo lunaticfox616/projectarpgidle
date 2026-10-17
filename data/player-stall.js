@@ -46,7 +46,7 @@ const PLAYER_STALL_APPRAISAL = Object.freeze({
         { key: 'spell', label: '주문', anchors: ['spellFlatDmg','spellFlatPct'], requires: [['spellFlatDmg','spellFlatPct','spellPctDmg','spellGemLevel']], stats: ['spellFlatDmg','spellFlatPct','spellPctDmg','spellGemLevel','gemLevel','suppCap','pctDmg','resPen','spellLeech','aspd','crit','critDmg'] },
         { key: 'projectile', label: '투사체', anchors: ['projectilePctDmg','projectileExtraChance'], requires: [['projectilePctDmg','projectileExtraChance','targetProjectile']], stats: ['projectilePctDmg','projectileExtraChance','targetProjectile','aspd','crit','critDmg'] },
         // A generic gem bonus may support either build; spell and summon levels never reinforce one another.
-        { key: 'gems', label: '젬 특화', anchors: ['gemLevel','suppCap'], requires: [['gemLevel','suppCap']], stats: ['gemLevel','suppCap','pctDmg','resPen'] },
+        { key: 'gems', label: '룬 특화', anchors: ['gemLevel','suppCap'], requires: [['gemLevel','suppCap']], stats: ['gemLevel','suppCap','pctDmg','resPen'] },
         { key: 'armor', label: '방어도', anchors: ['armor'], requires: [['armor','armorPct']], stats: ['armor','armorPct','flatHp','pctHp','dr','blockChance','blockChancePct','resAll','resChaos'] },
         { key: 'evasion', label: '회피', anchors: ['evasion'], requires: [['evasion','evasionPct','deflectChance']], stats: ['evasion','evasionPct','deflectChance','flatHp','pctHp','resAll','resChaos','move'] },
         { key: 'energyShield', label: '보호막', anchors: ['energyShield'], requires: [['energyShield','energyShieldPct']], stats: ['energyShield','energyShieldPct','intelligence','resAll','resChaos','blockChance','blockChancePct'] },

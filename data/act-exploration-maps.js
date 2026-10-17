@@ -231,6 +231,12 @@ const ACT_EXPLORATION_VISION = Object.freeze({radius:6,engageRadius:5,splashReac
 // alerted). Members wear the outline colour and the name prefix, and a '!' rises over each as it starts to run. Elite-led, boss,
 // content-room and patrol packs never listen. A pack that runs in hurts its own members, so a nearby listening pack may follow.
 const ACT_EXPLORATION_ALERT = Object.freeze({fromLoop:2,chance:0.2,hearReach:12,outline:'#ff6f59',prefix:'경계하는',markMs:1200});
+// 습격방 (2026-10-17 사용자: 낮은 확률로, 들어서자마자 몬스터들이 기다리다 여럿이 한꺼번에 치는 방): 방 단위 무대의 전투 방과 들르는 방이
+// chance의 확률로 습격방이 된다(그 방 무리의 첫 몬스터 번호로 굴려 다른 난수를 밀지 않는다, js/combat.js markExplorationAmbushRooms). 1루프의
+// 액트 1, 정예와 조우와 구출의 방은 빠진다. 처음 들어서면 그 방의 보통 무리가 모두 들어온 문 쪽으로 다가와(문까지의 거리를 pull의 몫으로, 막혔으면
+// search칸 안의 빈 칸, 주인공의 keep칸 안은 비운다) 공격 게이지를 windUp까지 채운다(js/act-exploration-doors.js springAmbush): 들어선 뒤의 유예가
+// 끝나면 한꺼번에 덤비고, 문은 싸우는 동안 잠긴다. 테두리는 outline.
+const ACT_EXPLORATION_AMBUSH = Object.freeze({chance:0.05,pull:0.4,keep:2,search:3,windUp:0.9,outline:'#ff3d5a'});
 // Whole-pixel camera zoom for the 16px art (js/canvas-act-exploration.js tileSize). 2026-10-02: at most ×4 (was ×5): on a 125%
 // desktop display the ×5 tiles (80px) made the hero feel too big and the view cramped.
 const ACT_EXPLORATION_CAMERA = Object.freeze({minZoom:3,maxZoom:4});
@@ -240,4 +246,4 @@ const ACT_EXPLORATION_CAMERA = Object.freeze({minZoom:3,maxZoom:4});
 // 시간)가 지난 것만 줍고 주우러 간다(js/exploration-ground-loot.js landed): 가장 늦게 닿는 그림에 이름이 다 뜬 뒤다. 전에는 580~679ms를
 // 날고 이름이 240ms에 걸쳐 떴으며, 주인공은 떨어지는 중에도 줍거나 주우러 갔다.
 const GROUND_LOOT_DROP = Object.freeze({flightMs:300,flightSpreadMs:60,nameMs:120,readyMs:520});
-safeExposeData({ACT_EXPLORATION_MAPS,CONTENT_EXPLORATION_MAPS,ACT_EXPLORATION_BACKDROPS,ACT_EXPLORATION_ART_VERSION,ACT_EXPLORATION_VISION,ACT_EXPLORATION_ALERT,ACT_EXPLORATION_CAMERA,GROUND_LOOT_DROP});
+safeExposeData({ACT_EXPLORATION_MAPS,CONTENT_EXPLORATION_MAPS,ACT_EXPLORATION_BACKDROPS,ACT_EXPLORATION_ART_VERSION,ACT_EXPLORATION_VISION,ACT_EXPLORATION_ALERT,ACT_EXPLORATION_AMBUSH,ACT_EXPLORATION_CAMERA,GROUND_LOOT_DROP});

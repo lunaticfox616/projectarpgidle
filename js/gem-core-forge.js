@@ -11,8 +11,8 @@ const gemCoreForge = (() => {
     function forSkill(name) { return effects(game.gemData[name]); }
 
     function unavailable(name, done, owned, cost) {
-        if (game.season < 2 || !contentProgression.isUnlocked('gemForge')) return '젬 강화를 먼저 해금하세요.';
-        if (!getEquippedEnhanceableGemNames().includes(name) || !game.gemData[name]) return '강화할 공격 젬을 먼저 장착하세요.';
+        if (game.season < 2 || !contentProgression.isUnlocked('gemForge')) return '룬 강화를 먼저 해금하세요.';
+        if (!getEquippedEnhanceableGemNames().includes(name) || !game.gemData[name]) return '강화할 공격 룬을 먼저 장착하세요.';
         if (done) return '최대 강화';
         return owned < cost ? '재료 부족' : '';
     }

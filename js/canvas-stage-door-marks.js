@@ -1,12 +1,69 @@
-/** 열린 문의 표시 (방 단위 무대): 문 자리에 깔리는 빛과, 나가는 쪽을 가리키며 차례로 밝아지는 갈매기 표시 셋.
- * 뒤쪽과 앞쪽 문은 문 칸의 바닥에 그린다(js/canvas-stage-rooms.js). 조각 묶음의 좌우 문은 문틀 그림이 문 칸을 덮어 바닥의 표시가
- * 보이지 않았다(2026-10-11 사용자: "왼쪽이랑 오른쪽 문에서 화살표가 잘 안보여. 위아래는 멋지게 잘 보임"): 문틀의 뚫린 자리에 세워서
- * 더 굵게 그린다(js/canvas-stage-scene.js drawMarks: 화면 가장자리는 전장의 조명에 어두워지므로 조명을 입힌 뒤에 그린다). 그리기만 한다.
+/** 방 입구의 공용 뿌리 봉인과 열린 문의 방향 표시. 봉인은 네 방향에서 같은 6프레임 시트를 쓰며, 잠금 해제 때 아래로 접힌다.
+ * 뒤쪽과 앞쪽 표시는 문 칸의 바닥, 좌우 표시는 뿌리가 접힌 자리에 선다. 좌우는 화면 가장자리 조명에 묻히지 않게 조명 뒤에 그린다.
+ * 저장·잠금·통행 규칙은 바꾸지 않고 그림과 연출 시각만 관리한다.
  */
 const stageDoorMarks = (() => {
     const ARROW = Object.freeze({ east: [1, 0], west: [-1, 0], north: [0, -1], south: [0, 1] });
     const INK = Object.freeze({ open: '#f3e5b4', gate: '#ff7a66', shade: '#1b171c' });
-    /** 문 자리의 빛: 바닥에 깔리면 납작한 타원, 문틀 안에 서면 세로로 긴 타원. */
+    const seals = new WeakMap(); // 탐험마다 현재 방의 연출만 기억한다. 저장·통행 상태에는 쓰지 않는다.
+    const opened = new WeakMap(); // 탐험마다 한 번이라도 열린 채로 본 문(id). 저장하지 않는다.
+    let sealImage = null;
+    function sealReady() {
+        if (!sealImage) {
+            sealImage = new Image();
+            sealImage.decoding = 'async';
+            sealImage.onerror = () => console.warn('Root seal image failed to load:', STAGE_ROOMS.rootSeal.file);
+            sealImage.src = STAGE_ROOMS.rootSeal.file;
+        }
+        return sealImage.complete && sealImage.naturalWidth > 0;
+    }
+    function sealRoom(run, id) {
+        let room = seals.get(run);
+        if (!room || room.id !== id) {
+            room = { id, doors: new Map() };
+            seals.set(run, room);
+        }
+        return room;
+    }
+    /** 봉인이 닫힌 모습인가: 잠긴 문. 다만 방에 막 들어선 유예로만 잠긴 문(row.arrival)은 한 번이라도 열린 채로 봤으면 접힌 채로 둔다
+     * (2026-10-17 사용자 "입장 유예 동안에도 이미 연 문은 봉인을 접힌 모습으로": 방에 들어설 때마다 닫혔다 다시 열렸다). */
+    function sealShut(run, row) {
+        if (!opened.has(run)) opened.set(run, new Set());
+        const seen = opened.get(run);
+        if (!row.locked) seen.add(row.door.id);
+        return row.locked && !(row.arrival && seen.has(row.door.id));
+    }
+    /** 모든 문을 화면 밖에서도 관찰한다. 처음 보는 열린 문·재진입은 마지막 모습, 잠금 해제만 1회 재생한다. */
+    function noteSeal(run, row, now = performance.now()) {
+        const last = STAGE_ROOMS.rootSeal.ends.length;
+        if (!run) return row.locked ? 0 : last;
+        const shut = sealShut(run, row), room = sealRoom(run, row.door.room);
+        let entry = room.doors.get(row.door.id);
+        if (!entry) {
+            entry = { locked: shut, at: -Infinity };
+            room.doors.set(row.door.id, entry);
+        } else if (entry.locked !== shut) {
+            entry.at = shut ? -Infinity : now;
+            entry.locked = shut;
+        }
+        if (shut) return 0;
+        const frame = STAGE_ROOMS.rootSeal.ends.findIndex(end => now - entry.at < end);
+        return frame < 0 ? last : frame;
+    }
+    /** at는 발 자리와 도트 배율. 네 방향 모두 회전·뒤집기·눌러 그리기 없이 같은 시트를 쓴다. */
+    function drawSeal(ctx, run, row, at) {
+        const frame = noteSeal(run, row), spec = STAGE_ROOMS.rootSeal;
+        if (!sealReady()) return false;
+        const w = spec.width * at.dot, h = spec.height * at.dot, hero = at.hero;
+        ctx.save();
+        ctx.imageSmoothingEnabled = false;
+        if (hero && hero.y < at.y && hero.y > at.y - spec.heights[frame] * at.dot && Math.abs(hero.x - at.x) < w * .45) ctx.globalAlpha *= .5;
+        ctx.drawImage(sealImage, frame * spec.width, 0, spec.width, spec.height,
+            Math.round(at.x - w / 2), Math.round(at.y - spec.anchorY * at.dot), w, h);
+        ctx.restore();
+        return true;
+    }
+    /** 문 자리의 빛: 바닥에 깔리면 납작한 타원, 좌우 문에 세우면 세로로 긴 타원. */
     function glow(ctx, box, colour, upright) {
         const light = ctx.createRadialGradient(box.cx, box.cy, 0, box.cx, box.cy, box.w * .75);
         light.addColorStop(0, colour + (upright ? '80' : '66'));
@@ -86,6 +143,6 @@ const stageDoorMarks = (() => {
     }
     /** 그 높이에서 전장이 오른쪽으로 어디까지 보이는가(전장의 px): 창에 가려지지 않았으면 전장의 너비. */
     const shownUntil = (y, width) => (typeof messageFrames === 'object' ? messageFrames.coveredFrom(y, width) : width);
-    return Object.freeze({ arrows, edges: edgeMarks });
+    return Object.freeze({ arrows, edges: edgeMarks, seal: Object.freeze({ ready: sealReady, note: noteSeal, draw: drawSeal }) });
 })();
 safeExposeGlobals({ stageDoorMarks });
