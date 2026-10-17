@@ -1301,7 +1301,20 @@ function describeSkillGridProfile(skillName, skillDef) {
     if (profile.kind === 'chain') parts.push(`연쇄 ${Math.max(1, profile.jump || COMBAT_GRID_CONFIG.chainJumpRange)}칸`);
     if (profile.kind === 'fan') parts.push(describeGridFanRays(profile));
     if (tags.includes('projectile')) parts.push(skillDef.projectilePatternSource ? `적용: ${skillDef.projectilePatternSource}` : '발사 방식 변경 가능');
+    parts.push(...describeWiderStageAreas(skillDef, profile));
     return getSkillGridDescriptionText(skillDef,parts);
+}
+
+/** 여러 단계로 치는 룬(combatPattern authored)에서 첫 판정보다 넓게 치는 단계: ['얼음 기둥: 전방 부채꼴 3칸'] 같은 줄. 공격 범위가 첫 타격만
+ * 말해, 부채꼴 3칸에서 적 여섯을 치는 혹한의 지진이 인접 단일로 보였다(2026-10-17). 모양이 다르거나 반경, 사거리가 더 큰 단계만. */
+function describeWiderStageAreas(skillDef, base) {
+    const pattern = skillDef && skillDef.combatPattern;
+    const stages = pattern && pattern.kind === 'authored' ? pattern.stages : [];
+    const wider = grid => grid.kind !== base.kind || (grid.radius || 0) > (base.radius || 0) || (grid.range || 0) > (base.range || 0);
+    return stages.filter(stage => stage.grid && stage.grid.kind && wider(stage.grid)).map(stage => {
+        const grid = stage.grid, round = grid.kind === 'blast' || grid.kind === 'nova';
+        return `${stage.label}: ${getSkillGridProfileKindLabel(grid.kind)} ${round ? '반경 ' + Math.max(1, grid.radius || 1) : Math.max(1, grid.range || 1)}칸`;
+    });
 }
 
 /** '5방향', or '5방향(15도 간격)' for an aimed fan. */
