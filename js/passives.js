@@ -4566,8 +4566,10 @@ function getBattleSpawnStamp() {
     return Number.isFinite(visualNow) && visualNow > 0 ? visualNow : performance.now();
 }
 
-/** 사라진 몬스터의 마지막 자리를 들고 있는 시간(ms): 보스는 쓰러짐 효과(1.6초, js/combat.js)가 끝날 때까지 그 자리에 그린다. */
-const enemyGhostKeepMs = ghost => (ghost && ghost.enemy && ghost.enemy.isBoss ? 2000 : 1200);
+/** 사라진 몬스터의 마지막 자리를 들고 있는 시간(ms): 보스는 쓰러짐 효과(1.6초, 다시 일어나는 보스는 data/stage-story-art.js revives의
+ * total, js/combat.js)가 끝날 때까지 그 자리에 그린다. */
+const enemyGhostKeepMs = ghost => (ghost && ghost.enemy && ghost.enemy.isBoss
+    ? (STAGE_STORY_ART.revives[ghost.enemy.bossAssetKey]?.total || 1600) + 400 : 1200);
 
 function addBattleFx(type, data) {
     if (battleFxSuppressed || (typeof document !== 'undefined' && document.hidden)) return;

@@ -47,6 +47,9 @@ const LEVEL_PROGRESSION = Object.freeze({
     gemExperienceRequired: Object.freeze([100, 130, 169, 219, 285, 371, 482, 627, 815, 1060, 1378, 1792, 2329, 10000, 28000, 75000, 190000, 480000, 1200000, 0]),
     loopExperienceBase: 1, loopExperiencePerLoop: 0.05, loopExperienceBonusCap: 2,
     experienceGap: 5, experienceDecay: 0.10,
+    // 룬(스킬룬, 보조스킬룬, 이동, 소환수 룬)이 받는 처치 경험치만 15레벨 차이부터 같은 비율로 준다. 새 룬은 약한 지역에서 키우는데
+    // 주인공의 5레벨 기준을 그대로 받아 거의 크지 않았다(2026-10-18 사용자: 없애지 말고 약하게만).
+    gemExperienceGap: 15,
     lootGap: 10, lootDecay: 0.085,
     // Item level of an elite's or boss's equipment over the area level, a whole number in [min, max] rolled per item
     // (2026-10-05 user decision). Item level only: monster level, experience and reward penalties keep +1 / +2.

@@ -8931,7 +8931,9 @@ function tickGrandBreachRun(zone) {
     }
 }
 
-function getEnemyExperienceReward(enemy, pStats) {
+/** A kill's experience at the hero's level. kind 'gemExperience' is the runes' share before their 45%: a softer level gap
+ * (LEVEL_PROGRESSION.gemExperienceGap) so a new rune can grow in weaker areas. */
+function getEnemyExperienceReward(enemy, pStats, kind = 'experience') {
     let zone = getZone(game.currentZoneId);
     let abyssScale = getAbyssMonsterScales(zone);
     let abyssDepth = zone.type === 'abyss' ? Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1)) : 0;
@@ -8946,7 +8948,7 @@ function getEnemyExperienceReward(enemy, pStats) {
         let depthExpDampen = Math.max(0.68, 1 - (abyssDepth - 1) * 0.012);
         exp = Math.floor(exp * depthExpDampen);
     }
-    return Math.max(0, Math.floor(exp * levelProgression.rewardMultiplier(zone, enemy, game.level, 'experience')));
+    return Math.max(0, Math.floor(exp * levelProgression.rewardMultiplier(zone, enemy, game.level, kind)));
 }
 
 /** The main gem (or a levelable skill) and the worn 이동 스킬 gem gain experience; returns the ones that leveled up.
@@ -8968,7 +8970,7 @@ function grantExpAndGem(enemy, pStats) {
     // 낮은 지역에서 처치마다 쌓이던 '경험치 +0' 줄은 남기지 않는다(검토 4차).
     if (game.settings.showExpLog && exp > 0) addLog(`✨ 경험치 +${exp}`, "exp-txt");
 
-    let gemExp = Math.floor(exp * 0.45);
+    let gemExp = Math.floor(getEnemyExperienceReward(enemy, pStats, 'gemExperience') * 0.45);
     for (const name of grantWornGemExp(gemExp, pStats)) {
         gemLeveled = true;
         addLog(`✨ ${SKILL_DB[name]?.isGem ? '룬' : '스킬'} [${name}] 레벨업!`, "loot-unique");
@@ -9462,7 +9464,8 @@ function handleEnemyDeath(enemy, pStats) {
         enemyId: enemy.id,
         name: enemy.name,
         color: getElementColor(enemy.ele),
-        duration: enemy.isBoss ? 1600 : (enemy.isElite ? 500 : 340),   // 보스: 쓰러짐 그림을 보여 준다(js/canvas-battlefield.js drawEnemyDeathFx)
+        // 보스: 쓰러짐 그림을 보여 준다(js/canvas-battlefield.js drawEnemyDeathFx). 다시 일어나는 보스는 일어나 선 채 흐려질 때까지.
+        duration: enemy.isBoss ? (STAGE_STORY_ART.revives[enemy.bossAssetKey]?.total || 1600) : (enemy.isElite ? 500 : 340),
         boss: !!enemy.isBoss,
         elite: !!enemy.isElite
     });

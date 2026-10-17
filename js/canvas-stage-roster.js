@@ -272,14 +272,27 @@ const stageRoster = (() => {
         const actor = stageView.enabled() ? actorFor(enemy) : null, death = actor ? actor.death : null;
         const pair = death ? pairOf(actor) : null, sheet = pair && pair !== 'loading' ? pair.death : null;
         if (!sheet || !sheet.ready) return false;
-        const index = monsterActors.frameAt(death.ms, Math.max(0, p.deathMs)), dot = dotFor(enemy, actor, p);
-        const from = { x: (index % death.cols) * death.w, y: Math.floor(index / death.cols) * death.h, w: death.w, h: death.h };
+        blitClip(ctx, enemy, actor, p, { source: sheet.source, clip: death, index: monsterActors.frameAt(death.ms, Math.max(0, p.deathMs)) });
+        return true;
+    }
+    /** 보스가 서 있던 자리에 쓰러짐처럼 그리는 다른 그림의 한 장(다시 일어나는 보스, js/canvas-stage-story.js). art = { source 그림,
+     * clip 칸 w, h, 발 자리 feet, 한 줄의 칸 수 cols(없으면 frames), index 프레임 }. 무대가 꺼졌거나 그 보스의 무대 외형이 없으면 false. */
+    function drawClip(ctx, enemy, p, art) {
+        tick = performance.now();
+        const actor = stageView.enabled() ? actorFor(enemy) : null;
+        if (!actor) return false;
+        blitClip(ctx, enemy, actor, p, art);
+        return true;
+    }
+    /** 그림 한 장(art, drawClip과 같다)을 그 보스의 배율, 그림자, 바라보는 쪽으로 발 자리에 찍는다(테두리와 흰빛은 두르지 않는다). */
+    function blitClip(ctx, enemy, actor, p, art) {
+        const { source, clip, index } = art, dot = dotFor(enemy, actor, p), cols = clip.cols || clip.frames;
+        const from = { x: (index % cols) * clip.w, y: Math.floor(index / cols) * clip.h, w: clip.w, h: clip.h };
         shadow(ctx, actor, p, dot, 0);
         ctx.save();
         if (stageView.facing(enemy, p.facing) === 'west') { ctx.translate(p.x * 2, 0); ctx.scale(-1, 1); }
-        stageDots.blit(ctx, sheet.source, from, { x: monsterActors.snap(p.x - death.feet[0] * dot), y: monsterActors.snap(p.y - death.feet[1] * dot), scale: dot }, true);
+        stageDots.blit(ctx, source, from, { x: monsterActors.snap(p.x - clip.feet[0] * dot), y: monsterActors.snap(p.y - clip.feet[1] * dot), scale: dot }, true);
         ctx.restore();
-        return true;
     }
     /** The looks the test panel can pick: [id, name], by name. */
     const looks = () => (table() ? Object.values(table().actors).map(actor => [actor.id, actor.name]).sort((a, b) => a[1].localeCompare(b[1], 'ko')) : []);
@@ -293,6 +306,6 @@ const stageRoster = (() => {
         return placed && performance.now() - placed.at < 1000 ? placed : null;
     }
 
-    return Object.freeze({ draw, drawDeath, looks, keepFor, placementOf });
+    return Object.freeze({ draw, drawDeath, drawClip, looks, keepFor, placementOf });
 })();
 safeExposeGlobals({ stageRoster });

@@ -21,11 +21,11 @@ const levelProgressionUi = (() => {
     function area(zone) {
         return `Lv.${levelProgression.areaLevel(zone)}`;
     }
-    /** Area level and the experience / ordinary drop percentages an ordinary enemy of the zone gives at the hero's level. */
+    /** Area level and the experience / rune experience / ordinary drop percentages an ordinary enemy of the zone gives at the hero's level. */
     function rewardRates(zone) {
         const enemy = { level: levelProgression.areaLevel(zone) };
-        return { level: enemy.level, xp: Math.round(levelProgression.rewardMultiplier(zone, enemy, game.level, 'experience') * 100),
-            loot: Math.round(levelProgression.rewardMultiplier(zone, enemy, game.level) * 100) };
+        const rate = kind => Math.round(levelProgression.rewardMultiplier(zone, enemy, game.level, kind) * 100);
+        return { level: enemy.level, xp: rate('experience'), rune: rate('gemExperience'), loot: rate('loot') };
     }
     /** The map card badge: '보상 감소' when an ordinary enemy gives under 100% experience or drops, else ''. */
     function rewardHint(zone) {
@@ -34,8 +34,8 @@ const levelProgressionUi = (() => {
     }
     /** data-* attributes the 권장 전투력 tooltip reads (js/ui.js buildMapRewardRow). */
     function rewardData(zone) {
-        const { level, xp, loot } = rewardRates(zone);
-        return `data-area-level="${level}" data-reward-xp="${xp}" data-reward-loot="${loot}"`;
+        const { level, xp, rune, loot } = rewardRates(zone);
+        return `data-area-level="${level}" data-reward-xp="${xp}" data-reward-rune="${rune}" data-reward-loot="${loot}"`;
     }
     function decorateSlots(root) {
         const disabled = combatEquipmentStats.evaluate(game).disabled;
