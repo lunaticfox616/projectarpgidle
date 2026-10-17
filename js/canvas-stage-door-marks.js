@@ -6,6 +6,7 @@ const stageDoorMarks = (() => {
     const ARROW = Object.freeze({ east: [1, 0], west: [-1, 0], north: [0, -1], south: [0, 1] });
     const INK = Object.freeze({ open: '#f3e5b4', gate: '#ff7a66', shade: '#1b171c' });
     const seals = new WeakMap(); // 탐험마다 현재 방의 연출만 기억한다. 저장·통행 상태에는 쓰지 않는다.
+    const opened = new WeakMap(); // 탐험마다 한 번이라도 열린 채로 본 문(id). 저장하지 않는다.
     let sealImage = null;
     function sealReady() {
         if (!sealImage) {
@@ -24,20 +25,28 @@ const stageDoorMarks = (() => {
         }
         return room;
     }
+    /** 봉인이 닫힌 모습인가: 잠긴 문. 다만 방에 막 들어선 유예로만 잠긴 문(row.arrival)은 한 번이라도 열린 채로 봤으면 접힌 채로 둔다
+     * (2026-10-17 사용자 "입장 유예 동안에도 이미 연 문은 봉인을 접힌 모습으로": 방에 들어설 때마다 닫혔다 다시 열렸다). */
+    function sealShut(run, row) {
+        if (!opened.has(run)) opened.set(run, new Set());
+        const seen = opened.get(run);
+        if (!row.locked) seen.add(row.door.id);
+        return row.locked && !(row.arrival && seen.has(row.door.id));
+    }
     /** 모든 문을 화면 밖에서도 관찰한다. 처음 보는 열린 문·재진입은 마지막 모습, 잠금 해제만 1회 재생한다. */
     function noteSeal(run, row, now = performance.now()) {
         const last = STAGE_ROOMS.rootSeal.ends.length;
         if (!run) return row.locked ? 0 : last;
-        const room = sealRoom(run, row.door.room);
+        const shut = sealShut(run, row), room = sealRoom(run, row.door.room);
         let entry = room.doors.get(row.door.id);
         if (!entry) {
-            entry = { locked: row.locked, at: -Infinity };
+            entry = { locked: shut, at: -Infinity };
             room.doors.set(row.door.id, entry);
-        } else if (entry.locked !== row.locked) {
-            entry.at = row.locked ? -Infinity : now;
-            entry.locked = row.locked;
+        } else if (entry.locked !== shut) {
+            entry.at = shut ? -Infinity : now;
+            entry.locked = shut;
         }
-        if (row.locked) return 0;
+        if (shut) return 0;
         const frame = STAGE_ROOMS.rootSeal.ends.findIndex(end => now - entry.at < end);
         return frame < 0 ? last : frame;
     }

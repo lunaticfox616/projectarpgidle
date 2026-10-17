@@ -49,12 +49,14 @@ const actExplorationDoors = (() => {
         return fightingIn(run, here ? here.index : null);
     }
     /** 싸우는 몬스터나 터지는 중인 물체가 있으면 방의 문이 모두 잠긴다. 보스 방 문은 정예가 남아 있어도 잠긴다. 지도나 방에 막 들어선 뒤
-     * (EXPLORATION_ARRIVAL_GRACE_MS)에도 잠긴다: 2026-10-16 사용자 "그동안에 방 이동못하게막아". */
-    function locked(run, door) {
-        if (fightingIn(run, door.room)) return true;
-        if (actExplorationState.inArrivalGrace(run, getCombatTime())) return true;
-        return door.gate && actExplorationState.gateSealed(run);
+     * (EXPLORATION_ARRIVAL_GRACE_MS)에도 잠긴다: 2026-10-16 사용자 "그동안에 방 이동못하게막아".
+     * @returns {?string} 잠긴 까닭: 'fight', 'gate', 'arrival'(들어선 뒤의 유예), 열렸으면 null */
+    function lockOf(run, door) {
+        if (fightingIn(run, door.room)) return 'fight';
+        if (door.gate && actExplorationState.gateSealed(run)) return 'gate';
+        return actExplorationState.inArrivalGrace(run, getCombatTime()) ? 'arrival' : null;
     }
+    const locked = (run, door) => lockOf(run, door) !== null;
     /** 살아 있는 소환수를 주인공이 도착한 칸 둘레로 데려온다: 방이 떨어져 있어 걸어서는 따라올 수 없다. */
     function bringSummons(cell) {
         const blocked = getGridBlockedCells();
@@ -127,11 +129,15 @@ const actExplorationDoors = (() => {
         const map = stageMap(run);
         return map ? actExplorationRooms.roomAt(map, game.gridPlayer) : null;
     }
-    /** 주인공이 선 방의 문들과 지금 잠겼는지: 그림(js/canvas-stage-rooms.js)과 미니맵이 읽는다. */
+    /** 주인공이 선 방의 문들과 지금 잠겼는지: 그림(js/canvas-stage-rooms.js)과 미니맵이 읽는다. arrival은 들어선 뒤의 유예로만 잠긴 문이다
+     * (봉인 그림은 한 번 열린 채로 본 문이면 그동안에도 접힌 모습이다, js/canvas-stage-door-marks.js). */
     function doorsHere(run) {
         const map = stageMap(run), here = room(run);
         if (!map || !here) return [];
-        return map.doors.filter(door => door.room === here.index).map(door => ({ door, locked: locked(run, door) }));
+        return map.doors.filter(door => door.room === here.index).map(door => {
+            const lock = lockOf(run, door);
+            return { door, locked: lock !== null, arrival: lock === 'arrival' };
+        });
     }
     /** 방 단위 탐험에서 주인공이 걷는 빠르기의 배수(STAGE_ROOMS.pace). 이어진 지도의 탐험은 1. */
     const pace = run => (run && run.rooms ? STAGE_ROOMS.pace : 1);
