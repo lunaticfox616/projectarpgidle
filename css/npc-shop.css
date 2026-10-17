@@ -75,6 +75,11 @@
 .npc-shop-gem-dps { color: #e5d3a2; }
 .npc-shop-gem-dps.is-up { color: #8fe0a8; }
 .npc-shop-gem-dps.is-down { color: #ff9b92; }
+/* 진열대 장비의 장비 분석: 가방 카드의 공격, 생존 칩(.equipment-triage-chip)과 같은 빛깔. */
+.npc-shop-rating { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 0; font-size: 13px; }
+.npc-shop-rating > span { padding: 1px 7px; border: 1px solid var(--skin-line); border-left-width: 3px; color: var(--color-text-secondary); }
+.npc-shop-rating > .is-damage { border-color: #b96b3f; color: #ffc596; background: rgba(92, 44, 24, .56); }
+.npc-shop-rating > .is-defense { border-color: #3f9a7a; color: #a9e6cf; background: rgba(24, 75, 61, .56); }
 
 /* NPC 탭: 만난 NPC의 카드. 초상, 이름과 칭호, 최근에 만난 곳, 지금 있는 일(즉시 해금은 금빛, 새 이야기, 상점). */
 .npc-roster-lead, .npc-roster-empty { margin: 0 0 12px; color: var(--color-text-secondary); font-size: 13px; }

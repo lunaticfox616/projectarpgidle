@@ -109,7 +109,18 @@ const npcShopUi = (() => {
     function itemWareCardHtml(item) {
         const box = document.createElement('div');
         showItemTooltip(null, null, false, item, { target: box });
-        return `<div class="npc-shop-tooltip">${box.innerHTML}</div>`;
+        return `<div class="npc-shop-tooltip">${box.innerHTML}</div>${gearRatingHtml(item)}`;
+    }
+
+    /** The bag analysis' verdict on a ware (js/equipment-triage.js rate) in the bag card's words: 공격 +8.3%, 생존 +12%, or 현 세팅 유지.
+     * Nothing while the hero cannot wear it: the card above shows the requirement. */
+    function gearRatingHtml(item) {
+        const wearable = getEquipCandidateSlots(item).some(slot => combatEquipmentStats.inspect(item, slot).ok);
+        const rating = wearable ? equipmentTriage.rate(item) : null;
+        if (!rating) return '';
+        const chips = [rating.dpsGainPct >= 1 ? `<span class="is-damage">공격 +${rating.dpsGainPct}%</span>` : '',
+            rating.ehpGainPct >= 1 ? `<span class="is-defense">생존 +${rating.ehpGainPct}%</span>` : ''].join('');
+        return `<p class="npc-shop-rating">${chips || '<span>현 세팅 유지</span>'}</p>`;
     }
 
     function gemWareCardHtml(gem) {
