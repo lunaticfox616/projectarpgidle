@@ -35,15 +35,18 @@ const playerStall = (() => {
         return { slot, currency, negotiate: settings.negotiate === true,
             available: validCurrency(currency) && validSlot(slot) && !occupied.has(slot) };
     }
-    function restricted(item) {
-        return ['locked','tradeLocked','hallReplica','hallRelistBlocked','loopSealed'].some(key => item[key])
-            || equipmentSockets.jewels(item).length > 0;
+    /** Why item cannot go on the stall, or '' (the stall's bag dims it with this as its title). */
+    const FLAG_REASONS = [['locked', '잠근 장비입니다.'], ['loopSealed', '봉인한 장비입니다.'], ['tradeLocked', '거래할 수 없는 장비입니다.'],
+        ['hallReplica', '거래할 수 없는 장비입니다.'], ['hallRelistBlocked', '거래할 수 없는 장비입니다.']];
+    function listBlockReason(item, owner) {
+        if (!item || bagItems.isSpecial(item) || !Number.isSafeInteger(item.id) || !itemAppraisal.quote(item)) return '가판대에 올릴 수 없는 물건입니다.';
+        const flag = FLAG_REASONS.find(([key]) => item[key]);
+        if (flag) return flag[1];
+        if (equipmentSockets.jewels(item).length > 0) return '주얼을 빼야 올릴 수 있습니다.';
+        if (Object.values(owner.equipment).some(equipped => equipped?.id === item.id)) return '장착한 장비입니다.';
+        return equipmentLoadoutRuntime.isReferenced(item, owner) ? '프리셋에 쓰이는 장비입니다.' : '';
     }
-    function eligible(item, owner) {
-        if (!item || bagItems.isSpecial(item) || !Number.isSafeInteger(item.id) || !itemAppraisal.quote(item)) return false;
-        return !restricted(item) && !Object.values(owner.equipment).some(equipped => equipped?.id === item.id)
-            && !equipmentLoadoutRuntime.isReferenced(item, owner);
-    }
+    function eligible(item, owner) { return !listBlockReason(item, owner); }
     function random(stall) {
         stall.rng = (Math.imul(stall.rng, 1664525) + 1013904223) >>> 0;
         return stall.rng / 4294967296;
@@ -215,13 +218,15 @@ const playerStall = (() => {
         finishVisits(stall, now, end);
         return paid;
     }
-    function list(owner, itemId, price, now, negotiate = false) {
+    /** Lists bag item itemId at price. options: { slot, currency, negotiate } (a bare boolean is the old negotiate flag). */
+    function list(owner, itemId, price, now, options = false) {
         if (!unlocked(owner) || !canManage(owner)) return { ok: false, reason: '지금은 가판대를 이용할 수 없습니다.' };
         if (!validPrice(price)) return { ok: false, reason: '가격은 1~1,000,000 사이의 정수로 입력하세요.' };
         const item = owner.inventory.find(entry => entry.id === itemId), stall = owner.playerStall;
-        if (!eligible(item, owner)) return { ok: false, reason: '잠금, 장착, 프리셋, 주얼, 거래 제한이 없는 장비를 선택하세요.' };
+        const blocked = listBlockReason(item, owner);
+        if (blocked) return { ok: false, reason: blocked };
         if (stall.listings.length >= rules.slots) return { ok: false, reason: '가판대가 가득 찼습니다.' };
-        const placement = listingPlacement(stall, negotiate);
+        const placement = listingPlacement(stall, options);
         if (!placement.available) return { ok: false, reason: '판매 재화와 진열할 빈칸을 확인해 주세요.' };
         if (!validClock(stall, now)) return { ok: false, reason: '기기의 시간을 확인해 주세요.' };
         // Visits only remove listings, so a validated empty position stays empty during this synchronous settlement.
@@ -244,14 +249,18 @@ const playerStall = (() => {
         row.slot = targetSlot;
         return { ok: true, reason: '진열 위치를 바꿨습니다.' };
     }
-    function withdraw(owner, listingId) {
+    /** Takes the listing back into the bag, at place (a bag cell { column, row }, row over all pages) when given: dragged off the
+     * shelf onto the bag (js/player-stall-ui.js). */
+    function withdraw(owner, listingId, place = null) {
         if (!canManage(owner)) return { ok: false, reason: '지금은 회수할 수 없습니다.' };
         const stall = owner.playerStall, row = stall.listings.find(entry => entry.id === listingId);
         if (!row) return { ok: false, reason: '이미 판매되었거나 회수된 물건입니다.' };
-        if (!canStoreEquipmentItems([row.item], owner)) return { ok: false, reason: '장비 보관함에 공간이 필요합니다. 물건은 가판대에 보관됩니다.' };
+        const fit = place ? equipmentInventoryGridRuntime.canAdd(row.item, place.column, place.row, owner) : { ok: canStoreEquipmentItems([row.item], owner) };
+        if (!fit.ok) return { ok: false, reason: place ? fit.reason : '장비 보관함에 공간이 필요합니다. 물건은 가판대에 보관됩니다.' };
         releaseOffer(stall, row, stall.lastAt);
         owner.inventory.push(row.item);
         stall.listings.splice(stall.listings.indexOf(row), 1);
+        if (place) equipmentInventoryGridRuntime.placeInventoryItem(equipmentInventoryGridRuntime.getItemKey(row.item), place.column, place.row, owner);
         return { ok: true };
     }
     function reprice(owner, listingId, price, now, currency) {
@@ -361,6 +370,24 @@ const playerStall = (() => {
         }
         owner.currencyDropVersion = (owner.currencyDropVersion || 0) + 1;
         return rules.currencies.reduce((sum, currency) => sum + amounts[currency] * itemAppraisal.unitValue(currency), 0);
+    }
+    /** The unclaimed proceeds, per currency with any: [{ key, amount }]. */
+    function payouts(stall) {
+        return rules.currencies.map(key => ({ key, amount: stall[bankKey(key)] })).filter(row => row.amount > 0);
+    }
+    /** Settles the visits up to now (advance) and says what changed, for the notices (js/player-stall-ui.js): { paid (dew worth),
+     * sold (the sale events since the last settlement), gains [{ key, amount }] (new proceeds per currency), offers (listings with a
+     * new price offer), changed (an offer came, went or was replaced) }. */
+    function settle(owner, now) {
+        const stall = owner.playerStall, since = stall.lastAt, before = payouts(stall), sequence = stall.offerSequence;
+        const offerIds = stall.listings.map(row => row.offer?.id).filter(Boolean);
+        const paid = advance(owner, now);
+        const gains = payouts(stall).map(row => ({ key: row.key, amount: row.amount - (before.find(old => old.key === row.key)?.amount || 0) }))
+            .filter(row => row.amount > 0);
+        const withOffer = stall.listings.filter(row => row.offer);
+        return { paid, sold: paid > 0 ? stall.history.filter(event => event.sold && event.at > since) : [], gains,
+            offers: withOffer.filter(row => !offerIds.includes(row.offer.id)),
+            changed: sequence !== stall.offerSequence || offerIds.join(',') !== withOffer.map(row => row.offer.id).join(',') };
     }
     function validListing(row, seen) {
         return Number.isSafeInteger(row.id) && row.id > 0 && !seen.listings.has(row.id)
@@ -480,7 +507,7 @@ const playerStall = (() => {
         const offerIds = new Set();
         stall.listings.forEach(row => restoreOffer(stall, row, offerIds));
     }
-    return Object.freeze({ unlocked, eligible, chance, advance, list, moveListing, withdraw, reprice, collect, loopBlockReason, restore,
-        acceptOffer, rejectOffer, counterOffer, setNegotiation });
+    return Object.freeze({ unlocked, eligible, listBlockReason, chance, advance, settle, payouts, list, moveListing, withdraw, reprice, collect, loopBlockReason,
+        restore, acceptOffer, rejectOffer, counterOffer, setNegotiation });
 })();
 safeExposeGlobals({ playerStall });

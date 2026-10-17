@@ -1,0 +1,122 @@
+@layer features {
+/* 상점 화면(js/shop-view-ui.js): NPC 상점, 암거래상, 나의 가판대가 같이 쓴다. 진열대(왼쪽, 그 아래 물건 정보)와 가방(오른쪽).
+   빛깔은 뜻이 있을 때만: 물건은 가방과 같은 희귀도 색, 살 수 없는 값은 붉게, 놓을 수 있는 칸은 초록, 놓을 수 없는 칸은 붉게. */
+.shop-view { --cell: 34px; --shop-tone: var(--color-accent-gold); display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 18px 22px; }
+.shop-view > section { display: flex; flex-direction: column; width: min-content; min-width: 0; min-height: 0; }
+.shop-bar { display: flex; align-items: center; gap: 10px; min-height: 40px; margin: 8px 0; }
+.shop-bar h3 { margin: 0; padding: 0; border: 0; background: none; font-size: 15px; color: var(--shop-tone); white-space: nowrap; }
+.shop-bar h3::after { display: none; }
+.shop-back { min-height: 32px; padding: 4px 12px; }
+.shop-wallet { display: flex; gap: 12px; margin-left: auto; font-size: 13px; color: #efe6d2; }
+.shop-wallet > span { display: inline-flex; align-items: center; gap: 4px; }
+.shop-coin { width: 16px; height: 16px; image-rendering: pixelated; }
+.shop-room { color: var(--color-text-secondary); font-size: 12px; white-space: nowrap; }
+/* 가방 쪽 번호: 남은 폭을 다 쓰고, 좁으면 두 줄로 내려간다. */
+.shop-pages { display: flex; flex: 1 1 0; flex-wrap: wrap; justify-content: flex-end; gap: 4px; min-width: 0; margin-left: auto; }
+.shop-pages button { min-width: 28px; min-height: 28px; padding: 0 6px; }
+.shop-pages button[aria-pressed="true"] { border-color: var(--color-accent-gold); color: #ffe3a0; }
+
+.shop-grid { position: relative; display: grid; grid-template-columns: repeat(var(--grid-columns), var(--cell)); grid-template-rows: repeat(var(--grid-rows), var(--cell)); width: max-content; border: 1px solid rgba(64, 82, 102, .78); border-radius: 4px; background: #07101a; box-shadow: inset 0 0 22px rgba(0, 0, 0, .52); }
+.shop-cell { background: rgba(10, 20, 31, .5); box-shadow: inset -1px -1px rgba(89, 109, 129, .28); }
+.shop-cell.is-drop-ok { background: rgba(68, 171, 103, .36); }
+.shop-cell.is-drop-bad { background: rgba(188, 62, 62, .34); }
+.shop-item, .shop-bag-item { --item-rarity: #7d8996; position: relative; z-index: 1; display: block; box-sizing: border-box; min-width: 0; min-height: 0; margin: 0; padding: 2px; overflow: hidden; border: 1px solid color-mix(in srgb, var(--item-rarity) 70%, #182637); border-radius: 3px; background: radial-gradient(circle at 50% 42%, color-mix(in srgb, var(--item-rarity) 13%, transparent), rgba(12, 20, 30, .94) 72%); }
+:is(.shop-item, .shop-bag-item, .shop-stand).rarity-magic { --item-rarity: #5fb4ec; }
+:is(.shop-item, .shop-bag-item, .shop-stand).rarity-rare { --item-rarity: #e9c355; }
+:is(.shop-item, .shop-bag-item, .shop-stand).rarity-unique { --item-rarity: #ff9f43; }
+.shop-bag-item { pointer-events: none; opacity: .82; }
+/* 가판대의 가방: 올릴 수 있는 장비는 끌 수 있고, 올릴 수 없는 장비는 흐리게(마우스를 올리면 이유). */
+.shop-bag-item.is-pick { pointer-events: auto; opacity: 1; cursor: grab; touch-action: none; user-select: none; }
+.shop-bag-item.is-dim { pointer-events: auto; opacity: .32; }
+.shop-item { cursor: pointer; touch-action: none; user-select: none; }
+.shop-item img, .shop-bag-item img { display: block; width: 100%; height: 100%; object-fit: contain; pointer-events: none; -webkit-user-drag: none; }
+:is(.shop-item, .shop-bag-item.is-pick):is(:hover, .is-chosen) { box-shadow: 0 0 0 1px var(--item-rarity), 0 0 10px color-mix(in srgb, var(--item-rarity) 45%, transparent); }
+.shop-item.is-dear img, .shop-item.is-dear .shop-gem, .shop-item.is-dear .shop-ware-coin { opacity: .42; filter: grayscale(.6); }
+.shop-item.is-featured { box-shadow: 0 0 0 1px var(--color-accent-gold), 0 0 8px rgba(224, 194, 126, .45); }
+.shop-view .is-carried { opacity: .3; }
+.shop-gem { display: grid; place-items: center; width: 100%; height: 100%; }
+.shop-gem img { width: 100%; height: 100%; object-fit: contain; }
+.shop-price { position: absolute; right: 1px; bottom: 1px; display: inline-flex; align-items: center; gap: 1px; padding: 0 3px; background: rgba(4, 8, 13, .84); color: #efe6d2; font-size: 11px; line-height: 14px; pointer-events: none; }
+.shop-price .shop-coin { width: 12px; height: 12px; }
+.shop-item.is-dear .shop-price { color: #e58a7f; }
+/* 단추와 진열대 값표 안의 값은 제자리에 쓴다(물건 칸의 값만 오른쪽 아래에 얹힌다). */
+:is(.shop-tools button, .shop-more, .shop-stand-tag) .shop-price { position: static; padding: 0; background: none; font-size: 12px; }
+.shop-ware-coin { display: block; box-sizing: border-box; width: 100%; height: 100%; padding: 3px; object-fit: contain; image-rendering: pixelated; }
+.shop-count { position: absolute; top: 0; left: 2px; color: #efe6d2; font-size: 11px; line-height: 14px; text-shadow: 0 1px 0 #000; pointer-events: none; }
+/* 잠근 물건: 오른쪽 위의 작은 자물쇠. */
+.shop-lock { position: absolute; top: 6px; right: 3px; width: 9px; height: 7px; border-radius: 1px; background: #e0c27e; pointer-events: none; }
+.shop-lock::before { content: ''; position: absolute; top: -5px; left: 2px; width: 5px; height: 6px; box-sizing: border-box; border: 2px solid #e0c27e; border-bottom: 0; border-radius: 3px 3px 0 0; }
+.shop-ghost { position: fixed; top: 0; left: 0; z-index: 30; margin: 0; pointer-events: none; opacity: .92; }
+.shop-empty { margin: 0; padding: 14px; border: 1px solid var(--skin-line); color: var(--color-text-secondary); font-size: 13px; }
+.shop-info { flex: 1; min-height: 120px; margin-top: 12px; padding: 10px 12px; overflow: auto; border: 1px solid var(--skin-line); background: rgba(0, 0, 0, .24); }
+.shop-hint { margin: 0; color: var(--color-text-secondary); font-size: 13px; }
+.shop-tooltip { font-size: 13px; }
+.shop-gem-head { display: flex; align-items: center; gap: 10px; }
+.shop-gem-head :is(.shop-gem, .shop-card-art) { flex: 0 0 40px; width: 40px; height: 40px; }
+.shop-card-art { position: relative; display: block; }
+.shop-card-art img { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; }
+.shop-gem-head small { display: block; color: var(--color-text-secondary); font-size: 12px; }
+.shop-gem-head strong { color: #f1e6cc; }
+.shop-gem-card p { margin: 8px 0 0; font-size: 13px; line-height: 1.5; }
+.shop-deal { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--skin-line); }
+.shop-deal > span { display: inline-flex; flex: 1; align-items: center; gap: 5px; color: #efe6d2; white-space: nowrap; }
+.shop-deal button { min-height: 36px; padding: 4px 18px; }
+.shop-deal button[aria-pressed="true"] { border-color: var(--color-accent-gold); color: var(--color-accent-gold); }
+.shop-note { margin: 8px 0 0; color: #e58a7f; font-size: 13px; }
+.shop-gem-dps { color: #e5d3a2; }
+/* 착용 판정: 가방 카드와 같은 말과 빛깔(공격은 주황, 생존은 청록). */
+.shop-rating { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 0; font-size: 13px; }
+.shop-rating > span { padding: 1px 7px; border: 1px solid var(--skin-line); border-left-width: 3px; color: var(--color-text-secondary); }
+.shop-rating > .is-damage { border-color: #b96b3f; color: #ffc596; background: rgba(92, 44, 24, .56); }
+.shop-rating > .is-defense { border-color: #3f9a7a; color: #a9e6cf; background: rgba(24, 75, 61, .56); }
+
+/* 암거래상(js/black-market-ui.js): 진열대 위에 갱신 시각, 추적 부위, 즉시 갱신과 잠금 수, 아래에 진열 늘리기. */
+.shop-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 0 0 6px; font-size: 13px; color: var(--color-text-secondary); }
+.shop-tools strong { color: #efe6d2; font-weight: 500; }
+.shop-tools label { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.shop-tools select { width: auto; min-height: 32px; margin: 0; }
+:is(.shop-tools button, .shop-more) { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; margin: 0; padding: 4px 10px; white-space: nowrap; }
+.shop-more { align-self: flex-start; margin-top: 8px; }
+.shop-tools-note { margin: 0 0 8px; color: var(--color-text-secondary); font-size: 12px; line-height: 1.5; }
+.shop-tools-note strong { color: var(--color-accent-gold); font-weight: 500; }
+
+/* 나의 가판대(js/player-stall-ui.js): 네 칸의 진열대. 물건은 가방에서와 같은 크기로 서고, 아래에 값표. */
+.shop-stands { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; width: calc(var(--cell) * 10 + 2px); margin-top: 8px; }
+.shop-stand { --item-rarity: #7d8996; position: relative; display: grid; grid-template-rows: minmax(0, 1fr) auto; justify-items: center; align-items: center; gap: 4px; min-width: 0; height: calc(var(--cell) * 3 + 40px); margin: 0; padding: 14px 3px 5px; border: 1px solid color-mix(in srgb, var(--item-rarity) 55%, #2a3442); border-radius: 3px; background: #07101a; box-shadow: inset 0 0 18px rgba(0, 0, 0, .5); color: var(--color-text-secondary); font-size: 11px; }
+.shop-stand.is-filled { cursor: grab; touch-action: none; user-select: none; }
+.shop-stand.is-empty { border-style: dashed; border-color: #3d4b5c; }
+.shop-stand.is-preview { border-style: dashed; border-color: var(--color-accent-gold); }
+.shop-stand.is-chosen, .shop-stand:hover { box-shadow: 0 0 0 1px var(--item-rarity), 0 0 10px color-mix(in srgb, var(--item-rarity) 40%, transparent); }
+.shop-stand.is-drop-ok { border-color: #44ab67; background: rgba(68, 171, 103, .2); }
+.shop-stand.is-drop-bad { border-color: #bc3e3e; background: rgba(188, 62, 62, .2); }
+.shop-stand > small { position: absolute; top: 2px; left: 5px; color: #7d8996; font-size: 11px; }
+.shop-stand > em { position: absolute; top: 2px; right: 3px; padding: 0 4px; border: 1px solid #af9155; background: #4e3c1f; color: #f0d899; font-size: 10px; font-style: normal; }
+.shop-stand-art { display: block; width: calc(var(--cols) * var(--cell)); max-width: 100%; height: calc(var(--rows) * var(--cell)); pointer-events: none; }
+.shop-stand-art img { display: block; width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; }
+.shop-stand-art.is-empty { width: 30px; height: 40px; border: 1px dashed #3d4b5c; opacity: .7; }
+.shop-stand-tag { display: inline-flex; align-items: center; gap: 2px; color: #d4bf8b; white-space: nowrap; }
+.shop-stand.is-empty .shop-stand-tag { color: #7d8996; }
+.stall-terms-box { margin-top: 10px; padding-top: 6px; border-top: 1px solid var(--skin-line); }
+
+/* 특수 서비스(js/market-ui.js renderServices): 고른 장비의 카드와 서비스 셋, 오른쪽에 장착한 장비 한 줄과 가방. */
+.shop-view.is-services > .shop-shelf { width: calc(var(--cell) * 10 + 2px); }
+.market-service-target { max-height: 220px; padding: 10px 12px; overflow: auto; border: 1px solid var(--skin-line); background: rgba(0, 0, 0, .24); }
+.shop-view.is-services .market-service-card { margin-top: 10px; }
+.market-service-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.shop-worn { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin: 0 0 8px; }
+.shop-worn > span { margin-right: 4px; color: var(--color-text-secondary); font-size: 12px; }
+.shop-worn > .shop-bag-item { width: var(--cell); height: var(--cell); }
+
+/* 휴대폰: 진열대, 가방, 물건 정보가 위에서 아래로 이어지고 칸은 화면 폭에 맞춘다. 진열대 바로 아래에 가방을 두어
+   끌어 놓기가 한 화면에 들어오고, 물건 정보는 맨 아래로 간다. */
+@media (max-width: 720px) {
+  .shop-view { --cell: min(32px, calc((100vw - 30px) / 10)); flex-direction: column; flex-wrap: nowrap; gap: 8px; }
+  .shop-view > .shop-shelf { display: contents; }
+  .shop-view > section { width: auto; }
+  /* 창 높이가 정해진 NPC 창에서도 줄지 않고 스크롤한다(줄면 가방 칸 위에 물건 정보가 겹친다). */
+  .shop-view > *, .shop-view > .shop-shelf > * { flex-shrink: 0; }
+  .shop-shelf > :is(.shop-grid, .shop-empty, .shop-stands, .shop-more) { order: 2; }
+  .shop-bag { order: 3; }
+  .shop-shelf > .shop-info { order: 4; flex: none; max-height: none; margin-top: 4px; }
+}
+}

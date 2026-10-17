@@ -9984,6 +9984,16 @@ function addItemToInventory(item, options) {
     return result.accepted;
 }
 
+/** A bought item into the bag (the NPC shops js/npc-shop.js, the black market js/black-market.js): kept whatever the pickup filter
+ * and auto-salvage say, never worn on its own, then moved to place (a bag cell { column, row }, row over all pages) when given.
+ * The shop checked the room first: a full bag would salvage it. */
+function stowBoughtItem(item, place = null) {
+    if (!addItemToInventory(item, { ignoreFilter: true, ignoreAutoSalvage: true, skipAutoEquip: true })) return false;
+    equipmentInventoryGridRuntime.ensureState(game);
+    if (place) equipmentInventoryGridRuntime.placeInventoryItem(equipmentInventoryGridRuntime.getItemKey(item), place.column, place.row, game);
+    return true;
+}
+
 /** Resolve capacity and auto-salvage at pickup time. */
 function storeEquipmentPickup(item, { guaranteedKeep, ignoreAutoSalvage }) {
     const fits = canStoreEquipmentItems([item], game);

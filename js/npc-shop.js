@@ -167,10 +167,7 @@ const npcShop = (() => {
     function stowShopItem(item, place) {
         item.id = ++itemIdCounter;
         delete item.instanceId;
-        if (!addItemToInventory(item, { ignoreFilter: true, ignoreAutoSalvage: true, skipAutoEquip: true })) return false;
-        equipmentInventoryGridRuntime.ensureState(game);
-        if (place) equipmentInventoryGridRuntime.placeInventoryItem(equipmentInventoryGridRuntime.getItemKey(item), place.column, place.row, game);
-        return true;
+        return stowBoughtItem(item, place);
     }
 
     /** How many of the NPC's wares the purse buys now, cheapest first in each currency, each one buyable on its own (checkShopWare:
