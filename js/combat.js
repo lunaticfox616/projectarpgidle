@@ -8081,6 +8081,29 @@ function markExplorationAlertPack(pack) {
     for(const enemy of pack.waiting)Object.assign(enemy,{alert:true,name:`${rule.prefix} ${enemy.name}`,encounterOutline:rule.outline});
 }
 
+/** 습격방 (data ACT_EXPLORATION_AMBUSH): on a room-by-room stage each battle or side room becomes one with this chance. Its ordinary
+ * packs (the room's own and the added ones; not listening or treasure packs) get ambush and their members the outline;
+ * js/act-exploration-doors.js springAmbush gathers them at the door the hero comes in by. The roll hashes the room's own pack key with its
+ * first enemy id (as the listening roll does): fixed per run, no random draw. Loop 1's act 1, elite-led, encounter and rescue rooms never
+ * become one. @returns {object[]} the same packs */
+function markExplorationAmbushRooms(zone,map,packs) {
+    if(!map.stage || (zone.type==='act' && zone.id===0 && (game.season||1)===1))return packs;
+    for(const room of map.rooms.filter(row=>row.role==='battle' || row.role==='optional')) {
+        for(const pack of ambushRoomPacks(room,packs)) {
+            pack.ambush=true;
+            pack.waiting.forEach(enemy=>{enemy.encounterOutline=ACT_EXPLORATION_AMBUSH.outline;});
+        }
+    }
+    return packs;
+}
+/** The packs a room's 습격 takes when its own pack's roll falls under the chance, else none. */
+function ambushRoomPacks(room,packs) {
+    const own=packs.filter(pack=>pack.roomId===room.id && pack.stage===null && !pack.anchor && !pack.rescue && !pack.alert && !pack.treasure);
+    const main=own.find(pack=>pack.key===room.id+':pack');
+    if(!main || main.encounter || !main.aliveIds.length || own.some(pack=>pack.eliteIds.length))return [];
+    return (Math.abs(hashSeed(`ambush:${main.key}:${main.aliveIds[0]}`))%1000)/1000<ACT_EXPLORATION_AMBUSH.chance ? own : [];
+}
+
 /** An atlas map's extra-elite mod leads some ordinary rooms with an elite (fixed per map and room). */
 function isAtlasExtraEliteRoom(zone,room) {
     if(!zone.atlasExtraElite || room.role==='boss')return false;
@@ -8128,7 +8151,8 @@ function createExplorationPacks(zone,map,bossStages) {
             : createActExplorationPack(zone,room,null,encounter,arrangedRoomFormation(arranger,zone,room,encounter,counts.get(room.id))));continue;}
         for(let stage=0;stage<bossStages;stage++)packs.push(createExplorationBossStage(zone,map,room,stage));
     }
-    return packs.concat(createAddedExplorationPacks(zone,map,patrol,arranger,rescueRoom),createStarterRescuePack(zone,map,rescueRoom));
+    return markExplorationAmbushRooms(zone,map,packs.concat(createAddedExplorationPacks(zone,map,patrol,arranger,rescueRoom),
+        createStarterRescuePack(zone,map,rescueRoom)));
 }
 
 /** 액트 1의 첫 몬스터(2026-10-15 사용자: "첫 방에 몬스터가 있고 그걸 잡으면 룬이 드랍되게", "하켄이 그 몬스터에게 맞고있는걸로"):

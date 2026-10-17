@@ -202,11 +202,12 @@ const stageTerrain = (() => {
         return canvas;
     }
     // ---------------------------------------------------------------- open stage: a backdrop picture stands where the walls were
-    /** Path cells beyond the room, each with its distance from the door: a side or front door's path runs on to the picture's edge. */
+    /** Path cells beyond the room, each with its distance from the door: a side or front door's path (one per door cell, two wide)
+     * runs on to the picture's edge. */
     function pathCells(map, room, box) {
-        const cells = new Map();
-        for (const door of map.doors.filter(row => row.room === room.index)) {
-            const { gx, gy } = door.cell;
+        const cells = new Map(), doorCells = map.doors.filter(row => row.room === room.index).flatMap(door => door.cells.map(cell => ({ door, cell })));
+        for (const { door, cell } of doorCells) {
+            const { gx, gy } = cell;
             if (door.side === 'west') for (let x = box.x; x < gx; x++) cells.set(x + ',' + gy, gx - x);
             if (door.side === 'east') for (let x = gx + 1; x < box.x + box.columns; x++) cells.set(x + ',' + gy, x - gx);
             if (door.side === 'south') for (let y = gy + 1; y < box.y + box.rows; y++) cells.set(gx + ',' + y, y - gy);
@@ -236,9 +237,10 @@ const stageTerrain = (() => {
             ctx.fillRect(arch.cx - left, arch.foot - row, left + right, 1);
         }
     }
-    /** A back door: a dark hollow standing on the ground line behind the door cell, rimmed by roots like the hollows of the trunks. */
+    /** A back door: a dark hollow standing on the ground line behind its two door cells, rimmed by roots like the hollows of the trunks. */
     function paintHollow(ctx, door, room, colours) {
-        const cx = Math.round((door.cell.gx + 0.5) * WIDE), foot = room.y0 * DEEP, rx = Math.round(WIDE * 0.58), ry = Math.round(DEEP * 3.2);
+        const [first, last] = door.cells, cx = Math.round((first.gx + last.gx + 1) / 2 * WIDE), foot = room.y0 * DEEP;
+        const rx = Math.round(WIDE * (0.58 + (last.gx - first.gx) / 2)), ry = Math.round(DEEP * 3.2);
         const layers = [[12, 6, 0.9, tone(colours.rim, 0.42)], [8, 5, 0.7, tone(colours.rim, 0.78)], [5, 3, 0.4, tone(colours.rim, 1.12)],
             [2, 1, 0.2, tone(colours.rim, 0.5)], [0, 0, 0, tone(colours.hollow, 1)]];
         for (const [grow, lumps, flare, colour] of layers) {
@@ -266,11 +268,12 @@ const stageTerrain = (() => {
             ctx.fillStyle = `rgba(8,6,5,${Math.min(0.72, 0.18 + distance * 0.11).toFixed(3)})`;
             ctx.fillRect(x * WIDE, y * DEEP, WIDE, DEEP);
         }
-        // 뒷문 자리의 바닥은 굴 속이라 안쪽으로 갈수록 어둡다
+        // 뒷문 자리(두 칸)의 바닥은 굴 속이라 안쪽으로 갈수록 어둡다
         for (const door of scene.map.doors.filter(row => row.room === room.index && row.side === 'north')) {
+            const [first, last] = door.cells, width = (last.gx - first.gx + 1) * WIDE;
             for (let i = 0; i < DEEP; i++) {
                 ctx.fillStyle = `rgba(8,6,5,${(0.8 - 0.55 * i / DEEP).toFixed(3)})`;
-                ctx.fillRect(door.cell.gx * WIDE - 5, door.cell.gy * DEEP + i, WIDE + 10, 1);
+                ctx.fillRect(first.gx * WIDE - 5, first.gy * DEEP + i, width + 10, 1);
             }
         }
     }

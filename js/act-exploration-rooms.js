@@ -3,7 +3,8 @@
  * 따라 문으로 잇는다. 놓임새는 격자라 방마다 문이 벽 하나에 하나뿐이다: 오른쪽 방으로 가는 문은 오른쪽 벽, 아래 방으로 가는 문은
  * 앞쪽 벽에 난다. 문 칸에 서면 이어진 방의 문 안쪽으로 옮겨진다(js/act-exploration-doors.js). 방들은 서로 gap칸 넘게 떨어져 있어
  * 시야, 소리, 튀는 피해가 옆 방에 닿지 않는다.
- * 지도 id는 바탕 지도의 id 그대로다(어둠 색과 지형 색이 그대로 붙는다). 보스 관문(map.gate)은 보스 방으로 가는 문 칸이다.
+ * 지도 id는 바탕 지도의 id 그대로다(어둠 색과 지형 색이 그대로 붙는다). 보스 관문(map.gates, 문 그림이 서는 첫 칸은 map.gate)은 보스 방으로
+ * 가는 문의 두 칸이다.
  * 탐험 기록의 열쇠(run.rooms) "판:가로 덧칸:깊이 덧칸:놓임새:지역"이 방 크기, 놓임새, 무대 그림(data/stage-regions.js)을 정한다.
  * 순수 함수: 게임 상태, 난수, DOM을 쓰지 않는다. 같은 열쇠와 씨앗은 언제나 같은 지도다.
  */
@@ -83,26 +84,31 @@ const actExplorationRooms = (() => {
     }
     /** 기준 방의 크기(칸): 그 지도의 가장 큰 방. 무대 그림의 배율과 화면의 칸 크기가 이 크기에 맞춰진다. */
     const frameOf = spec => ({ columns: STAGE_ROOMS.slot + spec.wide, rows: STAGE_ROOMS.depth + spec.deep });
-    /** 문 칸은 벽에 한 칸 파인 자리이고, 문 안쪽(landing)은 그 앞의 방 바닥이다. 좌우 문과 앞쪽 문은 벽을 따라 end.along의 자리에 선다
-     * (가운데가 0.5. 구석 칸은 피한다). 뒤쪽 문은 무대 그림의 문 자리다. */
+    /** 문은 벽에 파인 두 칸이고 문 안쪽(landings)은 그 앞의 방 바닥 두 칸이다(2026-10-17 사용자 "들어가는 입구에 대한 넓이 편의성(2칸
+     * 정도로)": 한 칸 문은 키보드로 걸어 들어가기 빠듯했다). 좌우 문과 앞쪽 문은 벽을 따라 end.along의 자리에 선다(가운데가 0.5. 구석 칸은
+     * 피한다). 뒤쪽 문은 무대 그림의 문 자리다. 그 자리가 첫 칸(cell, landing: 문 그림이 서는 칸)이고, 둘째 칸은 좌우 문이면 한 줄 뒤(문
+     * 그림이 덮는 쪽), 뒤쪽과 앞쪽 문이면 방 가운데 쪽 옆이다. */
     function doorCells(end, spec) {
         const { room, side } = end, rows = room.y1 - room.y0 + 1, columns = room.x1 - room.x0 + 1;
         const row = room.y0 + Math.max(1, Math.min(rows - 2, Math.round(end.along * (rows - 1))));
         const column = room.x0 + Math.max(2, Math.min(columns - 3, Math.round(end.along * (columns - 1))));
-        if (side === 'east') return [{ gx: room.x1 + 1, gy: row }, { gx: room.x1, gy: row }];
-        if (side === 'west') return [{ gx: room.x0 - 1, gy: row }, { gx: room.x0, gy: row }];
-        if (side === 'south') return [{ gx: column, gy: room.y1 + 1 }, { gx: column, gy: room.y1 }];
-        const back = room.x0 + backDoorColumn(room, spec);
-        return [{ gx: back, gy: room.y0 - 1 }, { gx: back, gy: room.y0 }];
+        if (side === 'east') return doorway({ gx: room.x1 + 1, gy: row }, { gx: room.x1, gy: row }, 0, -1);
+        if (side === 'west') return doorway({ gx: room.x0 - 1, gy: row }, { gx: room.x0, gy: row }, 0, -1);
+        const at = side === 'south' ? column : room.x0 + backDoorColumn(room, spec), toward = at < room.gx ? 1 : -1;
+        if (side === 'south') return doorway({ gx: at, gy: room.y1 + 1 }, { gx: at, gy: room.y1 }, toward, 0);
+        return doorway({ gx: at, gy: room.y0 - 1 }, { gx: at, gy: room.y0 }, toward, 0);
+    }
+    /** 첫 칸과 (dx, dy)만큼 옆의 둘째 칸. cells와 landings는 벽을 따라 작은 쪽부터 적는다: 짝의 문과 같은 차례로 잇는다(buildDoors). */
+    function doorway(cell, landing, dx, dy) {
+        const next = at => Object.freeze({ gx: at.gx + dx, gy: at.gy + dy }), order = (a, b) => (a.gx - b.gx) || (a.gy - b.gy);
+        Object.freeze(cell); Object.freeze(landing);
+        return { cell, landing, cells: Object.freeze([cell, next(cell)].sort(order)), landings: Object.freeze([landing, next(landing)].sort(order)) };
     }
     function buildDoors(plan, rooms, spec) {
-        const doors = doorEnds(plan, rooms, spec).map((end, id) => {
-            const [cell, landing] = doorCells(end, spec);
-            return { id, roomId: end.room.id, room: end.room.index, toId: end.to.id, to: end.to.index, side: end.side, gate: end.gate,
-                cell: Object.freeze(cell), landing: Object.freeze(landing) };
-        });
-        // 문은 길마다 둘씩 차례로 들어 있다: 짝의 문 안쪽이 이 문의 도착 칸이다.
-        doors.forEach((door, id) => { door.exit = doors[id ^ 1].landing; Object.freeze(door); });
+        const doors = doorEnds(plan, rooms, spec).map((end, id) => ({ id, roomId: end.room.id, room: end.room.index, toId: end.to.id, to: end.to.index,
+            side: end.side, gate: end.gate, ...doorCells(end, spec) }));
+        // 문은 길마다 둘씩 차례로 들어 있다: 짝의 문 안쪽이 이 문의 도착 칸이다(exits[i]는 cells[i]를 지난 도착 칸, exit는 첫 칸의 것).
+        doors.forEach((door, id) => { const pair = doors[id ^ 1]; Object.assign(door, { exit: pair.landing, exits: pair.landings }); Object.freeze(door); });
         return doors;
     }
     function buildTiles(rooms, doors, columns, rows) {
@@ -111,7 +117,7 @@ const actExplorationRooms = (() => {
         for (const room of rooms) {
             for (let gy = room.y0; gy <= room.y1; gy++) for (let gx = room.x0; gx <= room.x1; gx++) carveFloor(gx, gy, room.index);
         }
-        for (const door of doors) carveFloor(door.cell.gx, door.cell.gy, door.room);
+        for (const door of doors) for (const cell of door.cells) carveFloor(cell.gx, cell.gy, door.room);
         return { tiles, owner };
     }
     /** 방 a에서 방 b로 가려면 지날 문(hops[a][b])과 지나는 문의 수(far[a][b]). */
@@ -157,9 +163,9 @@ const actExplorationRooms = (() => {
         const at = cell => cell.gy * columns + cell.gx;
         return Object.freeze({ id: base.id, act: spec.act, biome: base.biome, region: spec.region, columns, rows, tiles: Object.freeze(tiles), frame: Object.freeze(frameOf(spec)),
             rooms: Object.freeze(rooms), entry: rooms.find(room => room.role === 'entry'), gate: doors.find(door => door.gate).cell,
-            rotation: 0, stage: true, doors: Object.freeze(doors), owner, ...ways, route: routeIds(rooms, ways.hops),
-            portals: new Map(doors.map(door => [at(door.cell), door.exit])), doorAt: new Map(doors.map(door => [at(door.cell), door])),
-            plan: buildPlan(plan, byCell) });
+            gates: doors.find(door => door.gate).cells, rotation: 0, stage: true, doors: Object.freeze(doors), owner, ...ways, route: routeIds(rooms, ways.hops),
+            portals: new Map(doors.flatMap(door => door.cells.map((cell, index) => [at(cell), door.exits[index]]))),
+            doorAt: new Map(doors.flatMap(door => door.cells.map(cell => [at(cell), door]))), plan: buildPlan(plan, byCell) });
     }
     /** 탐험이 걷는 바탕 지도: 다른 구역은 그 명세의 지도(투기장이면 구실이 바뀐 것), 액트는 그 액트의 지도. */
     function baseMapOf(run) {
@@ -189,12 +195,12 @@ const actExplorationRooms = (() => {
         return index >= 0 ? map.rooms[index] : null;
     }
     const doorAt = (map, cell) => map.doorAt.get(cell.gy * map.columns + cell.gx) || null;
-    /** Where to walk now to reach target: the target itself in the same room, else the door toward its room. */
+    /** Where to walk now to reach target: the target itself in the same room, else the nearer cell of the door toward its room. */
     function waypoint(map, from, target) {
         const here = roomAt(map, from), there = roomAt(map, target);
         if (!here || !there || here === there) return target;
-        const door = map.hops[here.index][there.index];
-        return door ? door.cell : target;
+        const door = map.hops[here.index][there.index], far = cell => Math.abs(cell.gx - from.gx) + Math.abs(cell.gy - from.gy);
+        return door ? door.cells.reduce((near, cell) => (far(cell) < far(near) ? cell : near)) : target;
     }
     /** A walking distance for choosing the nearest of several targets: doors to pass first, then cells. */
     function steps(map, from, target) {

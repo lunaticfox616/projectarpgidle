@@ -1,6 +1,7 @@
 /** 방 단위 무대의 문 (2026-10-11 사용자: "던파처럼 방 하나마다 이동하는 방식", 지도는 js/act-exploration-rooms.js).
  * 주인공이 열린 문 칸에 서면 이어진 방의 문 안쪽으로 옮겨진다. 걷기가 아니라 자리 옮김이라 이동 기록(run.motion)을 남기지 않는다.
- * 문은 방 안에서 싸우는 몬스터가 살아 있는 동안 잠기고, 보스 방으로 가는 문은 정예가 남아 있으면 칸 자체에 설 수 없다(map.gate).
+ * 문은 방 안에서 싸우는 몬스터가 살아 있는 동안 잠기고, 보스 방으로 가는 문은 정예가 남아 있으면 칸 자체에 설 수 없다(map.gates).
+ * 문은 두 칸이고(js/act-exploration-rooms.js doorway), 습격방에 처음 들어서면 그 방의 무리가 들어온 문 둘레에 모인다(springAmbush).
  * 시험판: 무대 시험판으로 연 창(주소에 stage=1, js/canvas-stage-actors.js)에서만 방 단위 지도를 새로 만든다.
  */
 const actExplorationDoors = (() => {
@@ -71,10 +72,45 @@ const actExplorationDoors = (() => {
         if (!door || locked(run, door)) return false;
         // 문 칸으로 가라는 명령은 여기서 끝난다: 남겨 두면 도착한 방에서 그 문으로 되돌아 걷는다.
         if (run.destination && run.destination.gx === hero.gx && run.destination.gy === hero.gy) run.destination = null;
-        Object.assign(hero, { gx: door.exit.gx, gy: door.exit.gy, gridMoveTimer: 0 });
-        bringSummons(door.exit);
+        // 두 칸 문: 밟은 칸과 같은 차례의 짝 문 안쪽으로 나온다(js/act-exploration-rooms.js doorway).
+        const exit = door.exits[door.cells.findIndex(cell => cell.gx === hero.gx && cell.gy === hero.gy)];
+        Object.assign(hero, { gx: exit.gx, gy: exit.gy, gridMoveTimer: 0 });
         actExplorationState.arrive(run, getCombatTime());
+        springAmbush(run, map, exit);
+        bringSummons(exit);
         return true;
+    }
+    /** 습격방(data ACT_EXPLORATION_AMBUSH, js/combat.js markExplorationAmbushRooms)에 처음 들어선 순간: 그 방에서 기다리던 습격 무리가
+     * 저마다 들어온 문(주인공이 선 칸) 쪽으로 다가와 서서(문까지의 거리를 pull의 몫으로 줄인 자리, 막혔으면 search칸 안의 가까운 빈 칸)
+     * 공격 게이지를 windUp까지 채운다. 무리의 모양은 줄어든 채 남고, 주인공의 keep칸 안에는 서지 않는다. 들어선 뒤의 유예
+     * (EXPLORATION_ARRIVAL_GRACE_MS)가 끝나면 한꺼번에 덤빈다. 설 칸이 없으면 제자리에서 덤빈다. 한 방에 한 번만 일어난다. */
+    function springAmbush(run, map, cell) {
+        const room = actExplorationRooms.roomAt(map, cell), packs = room ? run.packs.filter(pack => pack.ambush && pack.roomId === room.id) : [];
+        if (!packs.length) return;
+        const rule = ACT_EXPLORATION_AMBUSH, lying = packs.flatMap(pack => pack.waiting);
+        packs.forEach(pack => { delete pack.ambush; });
+        const blocked = ambushBlockedCells(map, room, lying), far = at => Math.max(Math.abs(at.gx - cell.gx), Math.abs(at.gy - cell.gy));
+        for (const enemy of lying) {
+            const size = getGridUnitFootprint(enemy), toward = axis => Math.round(cell[axis] + (enemy[axis] - cell[axis]) * rule.pull);
+            const spot = ambushSpots({ gx: toward('gx'), gy: toward('gy') }, rule.search)
+                .find(at => far(at) >= rule.keep && canPlaceGridFootprint(blocked, at.gx, at.gy, size));
+            if (spot) Object.assign(enemy, spot, { gridMoveTimer: 0 });
+            getGridUnitCells(enemy).forEach(at => blocked.add(gridCellKey(at.gx, at.gy)));
+            enemy.attackTimer = Math.max(Number(enemy.attackTimer) || 0, rule.windUp);
+        }
+    }
+    /** 습격 무리가 서지 않는 칸: 다른 유닛, 상자, 이야기 NPC의 칸(getGridBlockedCells)과 그 방의 문 칸과 문 안쪽 칸. 습격 무리의 지금 자리는 빈다. */
+    function ambushBlockedCells(map, room, lying) {
+        const blocked = getGridBlockedCells(), key = at => gridCellKey(at.gx, at.gy);
+        lying.forEach(enemy => getGridUnitCells(enemy).forEach(at => blocked.delete(key(at))));
+        map.doors.filter(door => door.room === room.index).forEach(door => door.cells.concat(door.landings).forEach(at => blocked.add(key(at))));
+        return blocked;
+    }
+    /** 칸 cell과 그 둘레 reach칸 안의 칸들, 가까운 쪽부터: 체비쇼프 거리, 같으면 곧은 거리. */
+    function ambushSpots(cell, reach) {
+        const spots = [], ring = at => Math.max(Math.abs(at.gx - cell.gx), Math.abs(at.gy - cell.gy)), line = at => Math.hypot(at.gx - cell.gx, at.gy - cell.gy);
+        for (let dy = -reach; dy <= reach; dy++) for (let dx = -reach; dx <= reach; dx++) spots.push({ gx: cell.gx + dx, gy: cell.gy + dy });
+        return spots.sort((a, b) => ring(a) - ring(b) || line(a) - line(b));
     }
     /** 지금 걸어갈 칸: 같은 방이면 목표 그대로, 다른 방이면 그 방으로 가는 문 칸. 이어진 지도에서는 언제나 목표 그대로다. */
     function toward(run, target) {
@@ -124,7 +160,7 @@ const actExplorationDoors = (() => {
         const map = stageMap(run);
         if (!map || !storyGuide(run.zoneId)) return [];
         const room = guideRoom(run, map), post = actExplorationRooms.npcPost(room);
-        const doorways = new Set(map.doors.flatMap(door => [door.cell, door.landing]).map(cell => gridCellKey(cell.gx, cell.gy)));
+        const doorways = new Set(map.doors.flatMap(door => door.cells.concat(door.landings)).map(cell => gridCellKey(cell.gx, cell.gy)));
         const rows = Array.from({ length: GUIDE_KEEP_ROWS * 2 + 1 }, (_, index) => post.gy - GUIDE_KEEP_ROWS + index);
         return rows.filter(gy => gy >= room.y0 && gy <= room.y1).map(gy => gridCellKey(post.gx, gy)).filter(key => !doorways.has(key));
     }
