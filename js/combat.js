@@ -3354,8 +3354,6 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         + passive.weaponFlatDmgPct + season.weaponFlatDmgPct + ascend.weaponFlatDmgPct + reward.weaponFlatDmgPct);
     let gearFlatDmg = (gearBase.flatDmg * (1 + weaponBaseDmgPct / 100)) + gearExplicit.flatDmg;
     let passiveFlatDmg = passive.flatDmg + season.flatDmg + ascend.flatDmg + reward.flatDmg;
-    // 보조스킬룬의 기본 피해(전령 다섯). 보조 칸은 여기서 합산하지 않아 전령의 피해가 타격에 들어가지 않았다(2026-10-17).
-    let supportFlatDmg = support.flatDmg;
     let generalPctDmg = gearBase.pctDmg + gearExplicit.pctDmg + passive.pctDmg + season.pctDmg + ascend.pctDmg + support.pctDmg + reward.pctDmg + starBlessing.pctDmg;
     let summonSharedGeneralPctDmg = Math.max(0, generalPctDmg);
     let dotPctDmg = gearBase.dotPctDmg + gearExplicit.dotPctDmg + passive.dotPctDmg + season.dotPctDmg + ascend.dotPctDmg + support.dotPctDmg + reward.dotPctDmg;
@@ -3386,7 +3384,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         if (hasKeystone('wlk2')) spellFlatDmg *= 1.20;
     }
     // 속성별 기본 피해(flat)는 일반 피해 풀에 섞지 않고, 아래에서 속성 타입을 유지한 별도 타격으로 적용한다.
-    let totalFlatDmg = (isSpellSkill ? spellFlatDmg : (baseDmg + gearFlatDmg + passiveFlatDmg + supportFlatDmg));
+    let totalFlatDmg = (isSpellSkill ? spellFlatDmg : (baseDmg + gearFlatDmg + passiveFlatDmg));
     let codexBonusRatio = 1 + (getCodexBonusPct() / 100);
 
     // 속성별 기본 피해(flat): 무기/반지/장갑의 속성 flat 옵션 + 코어 큐브 속성 flat을 합산하여,
@@ -4456,7 +4454,6 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
                 isSpellSkill ? `주문 내장 피해 ${Math.floor(spellFlatDmg)}` : `기본 공격력 ${Math.floor(baseDmg)}`,
                 isSpellSkill ? null : makeSourceLine('장비', gearFlatDmg),
                 isSpellSkill ? null : makeSourceLine('패시브', passiveFlatDmg),
-                isSpellSkill ? null : makeSourceLine('보조스킬룬', supportFlatDmg),
                 makeSourceLine('성좌 각성', starBlessing.pctDmg, '%', value => `${Math.floor(value)}%`),
                 makeSourceLine('총 피해 증가', generalPctDmg, '%', value => `${Math.floor(value)}%`),
                 makeSourceLine('태그 보너스', baseTaggedTotal, '%', value => `${Math.floor(value)}%`),

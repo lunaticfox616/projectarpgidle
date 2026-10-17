@@ -4,7 +4,7 @@
 (function () {
     'use strict';
 
-    /** stat → [PIXEL_ICONS key, tone]. 전령(모두 flatDmg)과 공명(원소 피해와 같은 stat)은 룬 자체를 보고 고른다(below). */
+    /** stat → [PIXEL_ICONS key, tone]. 전령(속성별 기본 피해)과 공명(원소 피해와 같은 stat)은 룬 자체를 보고 고른다(below). */
     const BY_STAT = Object.freeze({
         aspd: ['speed', 'speed'], move: ['boot', 'speed'], ds: ['twin', 'speed'],
         crit: ['eye', 'crit'], critDmg: ['star', 'crit'],
