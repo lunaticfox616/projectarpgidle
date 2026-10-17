@@ -5659,8 +5659,23 @@ function getDeathHints() {
         game.passivePoints > 0 ? { text: `쓰지 않은 스킬트리 포인트 ${game.passivePoints}점` } : null,
         game.equipment['무기'] ? null : { text: '무기 칸이 비어 있습니다' },
         fillable ? { text: `가방에 바로 낄 수 있는 장비 ${fillable}개(장비 창의 빈 칸 채우기)` } : null,
-        lowResistanceDeathHint(activeDeathLog)
+        lowResistanceDeathHint(activeDeathLog),
+        strongerRuneDeathHint()
     ].filter(Boolean);
+}
+/** 비교할 만한 룬: 지금 룬이 아닌 공격 룬(위습 소환 말고)으로, 지금 무기로 쓸 수 있는 룬. */
+function isStrongerRuneCandidate(name, keep) {
+    const skill = SKILL_DB[name];
+    return name !== keep && !!skill?.isGem && !(skill.tags || []).includes('summon') && canUseSkillWithCurrentEquipment(name);
+}
+/** 가진 공격 룬 가운데 DPS가 지금 룬의 1.1배를 넘는 룬(얻을 때의 "더 강한 공격 룬" 알림과 같은 기준). 알림은 4초면 지나가, 얼음 창
+ * 비술사는 주문 룬을 얻고도 모르고 지나치기 쉬웠다(2026-10-17). */
+function strongerRuneDeathHint() {
+    const keep = game.activeSkill, before = getPlayerStats(false).dps || 0;
+    if (!(before > 0)) return null;
+    const dpsOf = name => { game.activeSkill = name; try { return getPlayerStats(false).dps || 0; } finally { game.activeSkill = keep; } };
+    const top = (game.skills || []).filter(name => isStrongerRuneCandidate(name, keep)).map(name => [name, dpsOf(name)]).sort((a, b) => b[1] - a[1])[0];
+    return top && top[1] > before * 1.1 ? { text: `가진 룬 「${top[0]}」의 DPS가 지금 룬의 ${(top[1] / before).toFixed(1)}배입니다(스킬룬 창에서 장착)` } : null;
 }
 /** 쓰러뜨린 속성의 저항이 0보다 낮으면 그 값을 알린다. 혼돈 1부터 캠페인 패널티로 모든 저항이 60 낮아져, 패시브를 찍은 전사와 궁수도
  * 그곳에서 화염, 냉기 피해에 거듭 쓰러졌다(자연 플레이 측정 2026-10-17). */
