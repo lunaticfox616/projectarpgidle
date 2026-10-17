@@ -5689,9 +5689,16 @@ function getDeathHints() {
         game.passivePoints > 0 ? { text: `쓰지 않은 스킬트리 포인트 ${game.passivePoints}점`, action: { label: '스킬트리', onclick: "closeDeathOverlay();switchTab('tab-char')" } } : null,
         game.equipment['무기'] ? null : { text: '무기 칸이 비어 있습니다' },
         fillable ? { text: `가방에 바로 낄 수 있는 장비 ${fillable}개`, action: { label: '채우기', onclick: 'fillEmptyEquipmentSlots();renderDeathHints()' } } : null,
+        shopDeathHint(),
         lowResistanceDeathHint(activeDeathLog),
         strongerRuneDeathHint()
     ].filter(Boolean);
+}
+/** 지금 지갑으로 물건을 살 수 있는 NPC 상점 수(js/npc-shop.js ready): 해체로 모은 화폐를 쓸 곳. 상점끼리 화폐를 나눠 쓰므로 물건 수를
+ * 더하지 않고 상점을 센다. */
+function shopDeathHint() {
+    const shops = Object.keys(NPC_SHOPS).filter(id => npcShop.ready(id) > 0).length;
+    return shops ? { text: `지금 살 수 있는 물건이 있는 NPC 상점 ${shops}곳`, action: { label: 'NPC', onclick: "closeDeathOverlay();switchTab('tab-npcs')" } } : null;
 }
 /** 비교할 만한 룬: 지금 룬이 아닌 공격 룬(위습 소환 말고)으로, 지금 무기로 쓸 수 있는 룬. */
 function isStrongerRuneCandidate(name, keep) {
