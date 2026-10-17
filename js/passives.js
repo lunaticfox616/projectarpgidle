@@ -5686,9 +5686,9 @@ function getDeathHints() {
     const rewards = getAvailableActRewardZoneIds(), fillable = countFillableEmptySlots();
     return [
         rewards.length ? { text: `받지 않은 액트 보상 ${rewards.length}개`, action: { label: '받기', onclick: `closeDeathOverlay();openActReward(${rewards[0]})` } } : null,
-        game.passivePoints > 0 ? { text: `쓰지 않은 스킬트리 포인트 ${game.passivePoints}점` } : null,
+        game.passivePoints > 0 ? { text: `쓰지 않은 스킬트리 포인트 ${game.passivePoints}점`, action: { label: '스킬트리', onclick: "closeDeathOverlay();switchTab('tab-char')" } } : null,
         game.equipment['무기'] ? null : { text: '무기 칸이 비어 있습니다' },
-        fillable ? { text: `가방에 바로 낄 수 있는 장비 ${fillable}개(장비 창의 빈 칸 채우기)` } : null,
+        fillable ? { text: `가방에 바로 낄 수 있는 장비 ${fillable}개`, action: { label: '채우기', onclick: 'fillEmptyEquipmentSlots();renderDeathHints()' } } : null,
         lowResistanceDeathHint(activeDeathLog),
         strongerRuneDeathHint()
     ].filter(Boolean);
