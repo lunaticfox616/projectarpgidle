@@ -1,7 +1,9 @@
 const levelProgression = (() => {
     const ordinaryCurrencies = new Set(LEVEL_PROGRESSION.ordinaryCurrencies);
-    const penaltyDecays = Object.freeze({ experience: LEVEL_PROGRESSION.experienceDecay,
+    const penaltyDecays = Object.freeze({ experience: LEVEL_PROGRESSION.experienceDecay, gemExperience: LEVEL_PROGRESSION.experienceDecay,
         equipment: LEVEL_PROGRESSION.equipmentLootDecay, loot: LEVEL_PROGRESSION.lootDecay });
+    // Level gap without any penalty; equipment and loot share lootGap.
+    const penaltyGaps = Object.freeze({ experience: LEVEL_PROGRESSION.experienceGap, gemExperience: LEVEL_PROGRESSION.gemExperienceGap });
     function interpolate(value, reverse = false) {
         const points = LEVEL_PROGRESSION.tierAnchors;
         const x = Number(reverse), y = 1 - x;
@@ -38,8 +40,9 @@ const levelProgression = (() => {
         if (index < rewards.length) return rewards[index];
         return rewards[rewards.length - 1] + (index - rewards.length + 1) * LEVEL_PROGRESSION.monsterExperienceOverflowStep;
     }
+    /** @param {'experience'|'gemExperience'|'equipment'|'loot'} kind gemExperience: what runes gain from a kill */
     function penalty(playerLevel, enemyLevel, kind) {
-        const free = kind === 'experience' ? LEVEL_PROGRESSION.experienceGap : LEVEL_PROGRESSION.lootGap;
+        const free = penaltyGaps[kind] ?? LEVEL_PROGRESSION.lootGap;
         const decay = penaltyDecays[kind] ?? penaltyDecays.loot;
         return Math.exp(-Math.max(0, playerLevel - enemyLevel - free) * decay);
     }

@@ -128,10 +128,12 @@ function buildMapPowerCompareRow(label, mine, recommended) {
     return `<div class="map-power-tip-row ${ratio >= 1 ? 'is-met' : 'is-short'}"><span>${label}</span><b>${formatApproximateMapPower(mine)}</b><em>권장 ${formatApproximateMapPower(recommended)}, ${Math.round(ratio * 100)}%</em></div>`;
 }
 
-/** 보상 줄: 지역 레벨과 경험치 · 드랍 배율, 100% 미만이면 붉게(levelProgressionUi.rewardData의 data 속성). */
+/** 보상 줄: 지역 레벨과 경험치 · 드랍 배율, 100% 미만이면 붉게(levelProgressionUi.rewardData의 data 속성).
+ * 룬 경험치는 감소가 늦게 붙으므로(LEVEL_PROGRESSION.gemExperienceGap) 경험치와 다를 때만 따로 적는다. */
 function buildMapRewardRow(data) {
-    const xp = Number(data.rewardXp), loot = Number(data.rewardLoot);
-    return `<div class="map-power-tip-row ${xp < 100 || loot < 100 ? 'is-short' : 'is-met'}"><span>보상</span><b>Lv.${escapeHTML(data.areaLevel)}</b><em>경험치 ${xp}%, 드랍 ${loot}%</em></div>`;
+    const xp = Number(data.rewardXp), rune = Number(data.rewardRune), loot = Number(data.rewardLoot);
+    const runeText = Number.isFinite(rune) && rune !== xp ? `, 룬 ${rune}%` : '';
+    return `<div class="map-power-tip-row ${xp < 100 || loot < 100 ? 'is-short' : 'is-met'}"><span>보상</span><b>Lv.${escapeHTML(data.areaLevel)}</b><em>경험치 ${xp}%${runeText}, 드랍 ${loot}%</em></div>`;
 }
 
 function showMapPowerEstimateTooltip(event) {
