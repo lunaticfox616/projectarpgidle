@@ -72,10 +72,8 @@
 .npc-shop-deal > span { display: inline-flex; flex: 1; align-items: center; gap: 5px; color: #efe6d2; }
 .npc-shop-deal button { min-height: 36px; padding: 4px 18px; }
 .npc-shop-note { margin: 8px 0 0; color: #e58a7f; font-size: 13px; }
-/* 룬을 끼우면 바뀌는 DPS: 액트 보상 창(#reward-overlay .reward-choice-dps)과 같은 빛깔. */
+/* 룬을 끼우면 바뀌는 DPS와 생명력: 바뀌는 값마다 오르면 초록, 내리면 빨강(js/passives.js buildStatPreviewParts). */
 .npc-shop-gem-dps { color: #e5d3a2; }
-.npc-shop-gem-dps.is-up { color: #8fe0a8; }
-.npc-shop-gem-dps.is-down { color: #ff9b92; }
 /* 진열대 장비의 장비 분석: 가방 카드의 공격, 생존 칩(.equipment-triage-chip)과 같은 빛깔. */
 .npc-shop-rating { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 0; font-size: 13px; }
 .npc-shop-rating > span { padding: 1px 7px; border: 1px solid var(--skin-line); border-left-width: 3px; color: var(--color-text-secondary); }

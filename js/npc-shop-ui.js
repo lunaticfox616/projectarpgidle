@@ -127,26 +127,46 @@ const npcShopUi = (() => {
         const support = gem.kind === 'support', def = (support ? SUPPORT_GEM_DB : SKILL_DB)[gem.name] || {};
         const kind = support ? `보조스킬룬, ${getSupportTierLabel(gem.name, gem.tier)}` : '공격 룬';
         return `<div class="npc-shop-gem-card"><div class="npc-shop-gem-head">${wareArtHtml({ gem })}<div><small>${escapeHTML(kind)}</small>
-            <strong>${escapeHTML(gem.name)}</strong></div></div><p>${statToneText.html(def.desc || '')}</p>${support ? '' : runeFitHtml(gem.name)}</div>`;
+            <strong>${escapeHTML(gem.name)}</strong></div></div><p>${statToneText.html(def.desc || '')}</p>${support ? supportFitHtml(gem) : runeFitHtml(gem.name)}</div>`;
     }
 
     /** An attack rune against the hero now: why the weapon in hand cannot use it (as its loot line says, js/currency-acquisition-ui.js),
-     * or the DPS it would bring worn. Wisp runes summon instead of striking and show no DPS line. */
+     * or what wearing it brings. Wisp runes summon instead of striking and show no line. */
     function runeFitHtml(name) {
         const note = getSkillRuneWeaponNote(name);
         if (note) return `<p class="npc-shop-note">지금 무기로 쓸 수 없음: ${escapeHTML(note)}</p>`;
-        return (SKILL_DB[name]?.tags || []).includes('summon') ? '' : runeDpsHtml(name);
+        return (SKILL_DB[name]?.tags || []).includes('summon') ? '' : wearPreviewHtml(copy => { copy.activeSkill = name; });
     }
 
-    /** "장착하면 DPS 61 → 78", worded and coloured as the act reward window (js/passives.js formatActRewardDps); nothing when equal.
-     * Read by wearing the rune for one stat read, as the death window does: an unowned rune reads as it will once bought. */
-    function runeDpsHtml(name) {
-        const format = COMPARE_STAT_META.dps.format, keep = game.activeSkill, before = getPlayerStats(false).dps || 0;
-        let after = 0;
-        game.activeSkill = name;
-        try { after = getPlayerStats(false).dps || 0; } finally { game.activeSkill = keep; }
-        if (format(after) === format(before)) return '';
-        return `<p class="npc-shop-gem-dps ${after > before ? 'is-up' : 'is-down'}">장착하면 DPS ${format(before)} → ${format(after)}</p>`;
+    /** A support rune the hero could wear at its shelf tier now: what wearing it brings (buying only grants it). */
+    function supportFitHtml(gem) {
+        return supportFits(gem) ? wearPreviewHtml(copy => wearSupportOnCopy(copy, gem)) : '';
+    }
+
+    /** A free support place and enough 공명력 for the shelf tier, as toggleSupport checks (a worn one frees its own cost first).
+     * Summon guards also need room under the summon cap: left out. */
+    function supportFits(gem) {
+        if (isSummonGuardSupport(gem.name)) return false;
+        const worn = Array.isArray(game.equippedSupports) ? game.equippedSupports : [], wearing = worn.includes(gem.name);
+        const stats = getUiPlayerStats(), used = worn.reduce((sum, name) => sum + getSupportTierResonanceCost(name), 0);
+        if (!wearing && worn.length >= Math.floor(stats.suppCap || 0)) return false;
+        const freed = wearing ? getSupportTierResonanceCost(gem.name) : 0;
+        return getEffectiveResonanceCap(stats) - used + freed >= getSupportResonanceCostAtTier(gem.name, gem.tier);
+    }
+
+    /** The support owned at the shelf tier, that tier active, and worn: on the game copy only. */
+    function wearSupportOnCopy(copy, gem) {
+        const record = (copy.supportGemData || {})[gem.name] || { level: 1, exp: 0 };
+        copy.supports = [...new Set([...(copy.supports || []), gem.name])];
+        copy.supportGemData = { ...copy.supportGemData, [gem.name]: { ...record, unlockedTier: gem.tier, activeTier: gem.tier } };
+        copy.equippedSupports = [...new Set([...(copy.equippedSupports || []), gem.name])];
+    }
+
+    /** "장착하면 DPS 60 → 64, 생명력 …" with edit made on a copy of the game (js/passives.js previewBuildStats), in the words and colours of
+     * the skill tree and act reward previews; nothing when nothing changes. */
+    function wearPreviewHtml(edit) {
+        const parts = buildStatPreviewParts(previewBuildStats(edit));
+        return parts ? `<p class="npc-shop-gem-dps">장착하면 ${parts}</p>` : '';
     }
 
     /** Draws the shop again (after a sale or a bag page), or only its card with a note (why a sale did not go). */
