@@ -10497,6 +10497,15 @@ const bindPassiveTreeMouseEvents = (canvas, handlers) => {
     });
 };
 
+/** "DPS 61 → 64, 생명력 170 → 180" for a build preview (js/passives.js previewBuildStats), used by the skill tree tooltip and the
+ * ascendancy window: each part only when it changes, green up and red down as the act reward window's DPS line; '' when none does. */
+function buildStatPreviewParts(preview) {
+    const format = COMPARE_STAT_META.dps.format;
+    const part = (label, [before, after]) => (format(before) === format(after) ? ''
+        : `<span style="color:${after > before ? '#8fe0a8' : '#ff9b92'};">${label} ${format(before)} → ${format(after)}</span>`);
+    return [part('DPS', preview.dps), part('생명력', preview.life)].filter(Boolean).join(', ');
+}
+
 /** 직업 시작점은 늘 무료로 열려 있는 출발점이다(소유 목록에 넣지 않는다). */
 function describeReachablePassiveNode(node) {
     return node.kind === 'start' ? '시작점, 여기서 이어진 노드부터 포인트를 씁니다.' : '활성화하면 주변 노드가 밝혀집니다.';
@@ -10578,17 +10587,12 @@ function setupCanvasEvents() {
         return `<div class="tooltip-line" style="margin-top:6px;color:#f2d88f;">현재 경로 기준 ${cost}포인트 필요, 연결 경로가 트리에 강조됩니다.</div>`;
     }
 
-    /** "찍으면 DPS 61 → 64, 생명력 186 → 196": the path's untaken nodes taken (js/passives.js previewPassiveNodeStats), each part only
-     * when it changes, green up and red down as the act reward window's DPS line. */
+    /** "찍으면 DPS 61 → 64, 생명력 170 → 180": the path's untaken nodes taken (js/passives.js previewPassiveNodeStats). */
     function renderPassiveStatPreview(route) {
         const taken = new Set(game.passives || []);
         const ids = Array.from(route).filter(id => !taken.has(id) && PASSIVE_TREE.nodes[id] && PASSIVE_TREE.nodes[id].kind !== 'start');
-        if (!ids.length) return '';
-        const preview = previewPassiveNodeStats(ids), format = COMPARE_STAT_META.dps.format;
-        const part = (label, [before, after]) => (format(before) === format(after) ? ''
-            : `<span style="color:${after > before ? '#8fe0a8' : '#ff9b92'};">${label} ${format(before)} → ${format(after)}</span>`);
-        const parts = [part('DPS', preview.dps), part('생명력', preview.life)].filter(Boolean);
-        return parts.length ? `<div class="tooltip-line" style="margin-top:6px;">찍으면 ${parts.join(', ')}</div>` : '';
+        const parts = ids.length ? buildStatPreviewParts(previewPassiveNodeStats(ids)) : '';
+        return parts ? `<div class="tooltip-line" style="margin-top:6px;">찍으면 ${parts}</div>` : '';
     }
 
     /** The node's effect text in the option colours (2026-10-06): each effect line in its own stat's colour (a node with several
