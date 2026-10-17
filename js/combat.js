@@ -8146,9 +8146,9 @@ function starterRescueRoom(zone,map) {
 }
 function createStarterRescuePack(zone,map,room) {
     if(!room)return [];
-    // 하켄의 양옆에 선다(한 칸씩, 방 밖이면 그 너머 칸을 쓰지 않는다): 주인공은 앞의 한 마리부터 치게 된다.
+    // 하켄의 양옆에 RESCUE_STRIKE.gap칸씩 떨어져 선다(방 밖이면 그 너머 칸을 쓰지 않는다): 주인공은 앞의 한 마리부터 치게 된다.
     const post=actExplorationRooms.npcPost(room),inside=gx=>gx>=room.x0 && gx<=room.x1;
-    const cells=[post.gx+1,post.gx-1].filter(inside).slice(0,RESCUE_STRIKE.pair).map(gx=>({gx,gy:post.gy}));
+    const cells=[post.gx+RESCUE_STRIKE.gap,post.gx-RESCUE_STRIKE.gap].filter(inside).slice(0,RESCUE_STRIKE.pair).map(gx=>({gx,gy:post.gy}));
     const pack=createActExplorationPack(zone,room,null,null,{cells,rescue:true});
     // 게이지를 거의 채워 둔다: 첫 장면(액트 이름과 깨어나는 대사 동안 게임이 멈춘다)에서 하켄을 향해 공격을 준비하는 자세로 보인다.
     // 처음 시작(js/opening-journey-ui.js)의 주인공이 아직 이 괴물을 치지 않았으면, 다가와 칠 때까지 하켄을 계속 친다(patient).
@@ -8161,7 +8161,8 @@ function createStarterRescuePack(zone,map,room) {
  * 보고 RESCUE_STRIKE.rate의 빠르기로 공격 동작만 낸다(피해 없음, 하켄 위의 번쩍임은 js/canvas-act-title-card.js가 'npcStruck'로 그린다).
  * 주인공은 하켄에서 두 칸 옆에서 시작해 곧 이 몬스터를 친다. 그 뒤로는 여느 몬스터처럼 주인공과 싸운다. true = 이번 틱은 하켄을 노렸다. */
 // pair: 두 마리가 하켄을 양옆에서 친다(대사는 "괴물들", "잔뿌리들"). share: 한 마리의 생명력과 피해 배율: 둘을 합쳐 한 마리였을 때와 비슷하게.
-const RESCUE_STRIKE=Object.freeze({rate:0.42,windUp:0.9,maxStrikes:4,fxMs:260,pair:2,share:0.55});
+// gap: 하켄에서 떨어져 서는 칸 수. 바로 옆 칸에 서면 몬스터 그림이 하켄과 겹쳤다(2026-10-17 사용자 "NPC와 겹치지 않도록", 1에서 2로).
+const RESCUE_STRIKE=Object.freeze({rate:0.42,windUp:0.9,maxStrikes:4,fxMs:260,pair:2,share:0.55,gap:2});
 function strikeRescueTarget(enemy) {
     const npc=enemy.rescue;
     if(!npc)return false;

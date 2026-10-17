@@ -94,6 +94,41 @@ const actExplorationDoors = (() => {
     }
     /** 방 단위 탐험에서 주인공이 걷는 빠르기의 배수(STAGE_ROOMS.pace). 이어진 지도의 탐험은 1. */
     const pace = run => (run && run.rooms ? STAGE_ROOMS.pace : 1);
-    return Object.freeze({ session, planKey, stageMap, cross, toward, room, doorsHere, pace, fightingHere, sendStraysBack });
+    /** 그 구역의 지도에 서는 이야기 NPC: 액트나 전직 시련 대사(data/story-journal.js)의 npc. 액트 1의 안내자는 루프 1에만 선다(2026-10-15
+     * 사용자: 루프 뒤에는 첫 방에 하켄이 없다). 무대의 그림과 대사(js/canvas-act-title-card.js)와 서는 칸(guideCells)이 함께 읽는다.
+     * @returns {?object} 그 npc 대사 줄(이름, 대사), 없으면 null */
+    function storyGuide(zoneId) {
+        const act = Number.isInteger(zoneId) ? getStoryActByZoneId(zoneId) : null;
+        const lines = act ? STORY_ACT_ENCOUNTERS[act.order] : (typeof zoneId === 'string' ? STORY_TRIAL_ENCOUNTERS[zoneId] : null);
+        return lines && lines.npc && !(act && act.order === 1 && (game.season || 1) > 1) ? lines.npc : null;
+    }
+    /** The room where the map's guide stands and its first lines are said: the entry room, or in loop 1's first start the room behind
+     * it where the guide is struck (js/combat.js starterRescueRoom; saves from before kept it in the entry room). */
+    function guideRoom(run, map) {
+        const pack = run.packs.find(row => row.rescue);
+        return (pack && map.rooms.find(row => row.id === pack.roomId)) || map.entry;
+    }
+    /** 이야기 NPC가 선 칸(actExplorationRooms.npcPost)과 같은 세로줄의 앞뒤 GUIDE_KEEP_ROWS칸: 주인공도 몬스터도 서지 않고 돌아간다
+     * (js/combat-grid.js addExplorationGridReservations, 2026-10-17 사용자 "NPC와 겹치지 않도록"). 사람 그림의 키가 세 줄 가까이라 한 줄만
+     * 비우면 두 줄 뒤에 선 주인공이 NPC의 머리와 이름 뒤로 반쯤 가렸다. 옆 칸은 그림이 맞닿기만 해서 비우지 않는다. 문 칸과 문 안쪽 칸은
+     * 막지 않는다: 막으면 그 문으로 드나들 수 없다. 방은 다섯 줄 넘게 깊어 맨 앞줄로는 언제나 지나간다. NPC가 서지 않는 지도는 빈 목록이다.
+     * 탐험마다 한 번 센다. @returns {string[]} 칸 열쇠(gridCellKey) */
+    const GUIDE_KEEP_ROWS = 2;
+    const guideKeys = new WeakMap();
+    function guideCells(run) {
+        if (!run) return [];
+        if (!guideKeys.has(run)) guideKeys.set(run, findGuideCells(run));
+        return guideKeys.get(run);
+    }
+    function findGuideCells(run) {
+        const map = stageMap(run);
+        if (!map || !storyGuide(run.zoneId)) return [];
+        const room = guideRoom(run, map), post = actExplorationRooms.npcPost(room);
+        const doorways = new Set(map.doors.flatMap(door => [door.cell, door.landing]).map(cell => gridCellKey(cell.gx, cell.gy)));
+        const rows = Array.from({ length: GUIDE_KEEP_ROWS * 2 + 1 }, (_, index) => post.gy - GUIDE_KEEP_ROWS + index);
+        return rows.filter(gy => gy >= room.y0 && gy <= room.y1).map(gy => gridCellKey(post.gx, gy)).filter(key => !doorways.has(key));
+    }
+    return Object.freeze({ session, planKey, stageMap, cross, toward, room, doorsHere, pace, fightingHere, sendStraysBack, storyGuide, guideRoom,
+        guideCells });
 })();
 safeExposeGlobals({ actExplorationDoors });

@@ -263,6 +263,12 @@ const actExplorationState = (() => {
         }
         state.enemies=[];
     }
+    /** A cell nobody walks to: a solid object's (unless walking up to that object) or the story guide's (js/act-exploration-doors.js
+     * guideCells: where it stands and two cells in front of and behind it). */
+    function standsTaken(run,cell,options) {
+        const key=`${cell.gx},${cell.gy}`;
+        return (!options.object && actExplorationState.objects.solidCells(run).has(key)) || actExplorationDoors.guideCells(run).includes(key);
+    }
     /** The player's move command (minimap, map or battlefield click). It never changes the mode: with auto-move on the
      * hero walks there and then goes on exploring. Unknown cells stay unavailable; a sealed gate blocks every route. */
     /** A move command. options.object: walking up to an object (exploration-object-combat request), whose own cell is taken.
@@ -271,7 +277,7 @@ const actExplorationState = (() => {
         const map=actExplorationMap.forRun(run);
         const sealed=gateSealed(run);
         if(!actExplorationMap.walkable(map,cell,sealed))return false;
-        if(!options.object && actExplorationState.objects.solidCells(run).has(`${cell.gx},${cell.gy}`))return false;
+        if(standsTaken(run,cell,options))return false;
         if(!actExplorationSight.knownCell(run,cell))return false;
         if(sealed && !reachableBeforeBoss(map,cell))return false;
         if(run.objects)run.objects.pendingId=null;

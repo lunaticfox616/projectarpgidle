@@ -155,6 +155,7 @@ function getGridBlockedCells(excludeUnit) {
 function addExplorationGridReservations(blocked,excludeUnit) {
     const run=actExplorationState.current(game);if(!run)return;
     actExplorationState.objects.solidCells(run).forEach(key=>blocked.add(key));
+    actExplorationDoors.guideCells(run).forEach(key=>blocked.add(key)); // 이야기 NPC가 선 칸과 그 앞뒤: 아무도 NPC 그림 위에 서지 않는다
     // 기다리는 무리의 자리는 비워 둔다. 다만 그 자리에 이미 서 있는 유닛(같은 자리에서 차례를 기다리는 다음 단계의 보스 위에 선 지금의
     // 보스: 액트 4)은 가두지 않는다. 가두면 어느 쪽으로 한 칸을 가도 그 자리와 겹쳐 한 걸음도 떼지 못했다(2026-10-14, 보스가 걷게 되며 드러남).
     const own=excludeUnit && hasGridCell(excludeUnit)?new Set(getGridUnitCells(excludeUnit).map(cell=>gridCellKey(cell.gx,cell.gy))):new Set();

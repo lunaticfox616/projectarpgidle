@@ -164,13 +164,12 @@ const actTitleCard = (() => {
         if (loop === 1) return npc.bark;
         return loop % 2 === 0 ? byClass || npc.loopBark || npc.bark : npc.loopBark || byClass || npc.bark;
     }
-    /** The guide of the entry room's lines: act 1's guide stands there only in loop 1 (2026-10-15 사용자: after a loop the first room has no
-     * Haken, as there is no fall to wake from). */
-    const guideHere = story => (story.npc && !(actOf(zone)?.order === 1 && (game.season || 1) > 1) ? story.npc : null);
+    /** The guide standing on this map (js/act-exploration-doors.js storyGuide): act 1's guide stands there only in loop 1. */
+    const guideHere = () => actExplorationDoors.storyGuide(zone);
     /** ...so from loop 2 act 1's entry lines (loopBark, classBarks) are the hero's own, said on getting up in the empty first room
-     * (docs/story-bible.md 5.2 and 5.3). */
+     * (docs/story-bible.md 5.2 and 5.3): the lines name a guide who does not stand there this loop. */
     function queueHeroMuse(story, lore, now) {
-        if (lore && story.npc && actOf(zone)?.order === 1 && (game.season || 1) > 1) queueStoryLine({ key: 'npc', who: 'hero', speaker: lore.label, text: npcLine(story.npc), tone: 'gold' }, now);
+        if (lore && story.npc && !guideHere()) queueStoryLine({ key: 'npc', who: 'hero', speaker: lore.label, text: npcLine(story.npc), tone: 'gold' }, now);
     }
     /** The hero's first words, in loop 1's act 1 entry room. */
     /** The first start's hero lies in the entry room until pressed (js/opening-journey-ui.js): no lines meanwhile, nor under the intro
@@ -188,19 +187,14 @@ const actTitleCard = (() => {
     }
     /** The monster striking the guide in act 1 still stands (js/combat.js createStarterRescuePack). */
     const rescuing = run => run.packs.some(pack => pack.rescue && pack.aliveIds.length > 0);
-    /** The room where the map's guide stands and its first lines are said: the entry room, or in loop 1's first start the room behind
-     * it where the guide is struck (js/combat.js starterRescueRoom; saves from before kept it in the entry room). */
-    function guideRoom(run, map) {
-        const pack = run.packs.find(row => row.rescue);
-        return (pack && map.rooms.find(room => room.id === pack.roomId)) || map.entry;
-    }
-    const inGuideRoom = run => { const map = actExplorationDoors.stageMap(run), room = actExplorationDoors.room(run); return !!map && !!room && room === guideRoom(run, map); };
+    /** The hero is in the room where the map's guide stands and its first lines are said (js/act-exploration-doors.js guideRoom). */
+    const inGuideRoom = run => { const map = actExplorationDoors.stageMap(run), room = actExplorationDoors.room(run); return !!map && !!room && room === actExplorationDoors.guideRoom(run, map); };
     /** The guide's room (guideRoom): the guide speaks and, after its first-meeting line (loop 1), the hero answers in its class's
      * words (classReplies are written to that line; from loop 2 the guide speaks other lines, 2026-10-15). While monsters strike
      * the guide (rescue) only the hero speaks: the guide's turn comes once they fall. */
     function watchEntryRoom(story, now, run) {
         if (hushed()) return;
-        const lore = storyClassLore(), npc = guideHere(story);
+        const lore = storyClassLore(), npc = guideHere();
         queueSpotLine(lore, run, now);
         queueHeroMuse(story, lore, now);
         if (!npc || rescuing(run)) return;
@@ -266,18 +260,19 @@ const actTitleCard = (() => {
     /** The run's NPC, found once: { id, name, title, tone, line } or null. */
     function runNpc(watch) {
         if (watch.npc !== undefined) return watch.npc;
-        const said = watch.story && guideHere(watch.story), row = said ? npcRows().find(npc => npc.name === said.name) : null;
+        const said = guideHere(), row = said ? npcRows().find(npc => npc.name === said.name) : null;
         watch.npc = row ? { id: row.id, name: row.name, title: row.title, tone: npcTone(row.name), line: npcLine(said) } : null;
         return watch.npc;
     }
     /** Adds the NPC to the battlefield's actors while the hero is in the entry room (js/canvas-act-exploration.js appendScenery),
      * so it stands in depth with the hero and the monsters. It stands on the entry room's post (js/act-exploration-rooms.js npcPost:
-     * the back row, two cells from where the hero starts), where act 1's first monster strikes it. */
+     * the back row, two cells from where the hero starts), where act 1's first monsters strike it from two cells away. Nobody
+     * stands on it or within two cells in front of or behind it (js/act-exploration-doors.js guideCells). */
     function appendNpc(actors, state) {
         const run = stageView.enabled() ? actExplorationState.current(game) : null, watch = run ? runs.get(run) : null;
         const npc = watch ? runNpc(watch) : null, map = npc ? actExplorationDoors.stageMap(run) : null;
         if (!map || !inGuideRoom(run)) return;
-        watch.npcCell = watch.npcCell || actExplorationRooms.npcPost(guideRoom(run, map));
+        watch.npcCell = watch.npcCell || actExplorationRooms.npcPost(actExplorationDoors.guideRoom(run, map));
         const point = state.gridProj.cellToScreen(watch.npcCell.gx, watch.npcCell.gy);
         actors.push({ kind: 'scenery', id: -3, x: point.x, y: point.y + state.gridProj.actorGroundOffsetY, npc, talkable: !rescuing(run) });
     }

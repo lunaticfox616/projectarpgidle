@@ -24,9 +24,11 @@ const skillGemCasts = (() => {
         if(direction===2)destination.gy--;
         return destination;
     }
-    /** A landing cell: on the board, walkable (walls and sealed gates block) and not under a living enemy. */
+    /** A landing cell: on the board, walkable (walls and sealed gates block), not under a living enemy and not where the story guide
+     * stands (js/act-exploration-doors.js guideCells). */
     function free(destination,enemies) {
         const taken=new Set(enemies.flatMap(e=>getGridUnitCells(e).map(c=>gridCellKey(c.gx,c.gy))));
+        actExplorationDoors.guideCells(actExplorationState.current(game)).forEach(key=>taken.add(key));
         return canPlaceGridFootprint(taken,destination.gx,destination.gy,{columns:1,rows:1});
     }
     const nearness=(c,source)=>Math.max(Math.abs(c.gx-source.gx),Math.abs(c.gy-source.gy))*100+(c.gx-source.gx)**2+(c.gy-source.gy)**2;
