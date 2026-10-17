@@ -34,7 +34,8 @@
 .npc-shop-wallet > span { display: inline-flex; align-items: center; gap: 4px; }
 .npc-shop-coin { width: 16px; height: 16px; image-rendering: pixelated; }
 .npc-shop-room { color: var(--color-text-secondary); font-size: 12px; }
-.npc-shop-pages { display: flex; gap: 4px; margin-left: auto; }
+/* 쪽 단추는 줄을 바꿔 가방 너비 안에 둔다(가방이 열두 쪽이면 한 줄로는 창 밖까지 나갔다). */
+.npc-shop-pages { display: flex; flex: 1 1 0; flex-wrap: wrap; justify-content: flex-end; gap: 4px; min-width: 0; margin-left: auto; }
 .npc-shop-pages button { min-width: 28px; min-height: 28px; padding: 0 6px; }
 .npc-shop-pages button[aria-pressed="true"] { border-color: var(--color-accent-gold); color: #ffe3a0; }
 
