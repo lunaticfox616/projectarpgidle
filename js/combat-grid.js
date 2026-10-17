@@ -507,7 +507,9 @@ function advanceGridHazardEscape(unit, hazardCells, dtSec, intervalSec) {
     };
 }
 
-function findGridRetreatCell(unit, target, maxRange, previousCell) {
+/** keepRows: 옆으로만 치는 룬(getSkillBand)이면 대상을 위아래 그 줄 수 안에 둔 채 물러선다. 띠 밖으로 물러서면 칠 대상이 없어져
+ * 다시 다가가기를 되풀이했다. */
+function findGridRetreatCell(unit, target, maxRange, previousCell, keepRows) {
     let blocked = getGridBlockedCells(unit);
     let footprint = getGridUnitFootprint(unit);
     let currentDist = getGridUnitDistance(unit, target);
@@ -515,10 +517,11 @@ function findGridRetreatCell(unit, target, maxRange, previousCell) {
     // 방 단위 무대: 주인공은 벽에 파인 문 칸(한 칸짜리 막다른 곳)으로 물러서지 않는다. 2026-10-17 사용자 "거리유지 전술에서 방 입구의
     // 1칸 막다른길로는 안 들어가게 해줘": 몰린 채 그 칸에 갇혀 싸웠다.
     let stage = unit === game.gridPlayer ? actExplorationDoors.stageMap(actExplorationState.current(game)) : null;
+    let open = cell => canPlaceGridFootprint(blocked, cell.gx, cell.gy, footprint) && !(stage && actExplorationRooms.doorAt(stage, cell))
+        && (!keepRows || getGridUnitCells(target).some(row => Math.abs(row.gy - cell.gy) <= keepRows));
     GRID_CARDINAL_STEPS.forEach(direction => {
         let gx = unit.gx + direction.dx, gy = unit.gy + direction.dy;
-        if (!canPlaceGridFootprint(blocked, gx, gy, footprint)) return;
-        if (stage && actExplorationRooms.doorAt(stage, { gx, gy })) return;
+        if (!open({ gx, gy })) return;
         let distance = getGridUnitDistance({ gx, gy, isBoss: unit.isBoss }, target);
         if (distance <= currentDist || distance > maxRange) return;
         let backtrack = previousCell && gx === previousCell.gx && gy === previousCell.gy;
@@ -554,7 +557,7 @@ function beginExplorationTacticalStep(target,config,interval) {
 }
 
 function findGridTacticalDestination(unit,target,config) {
-    if(config.direction==='away')return findGridRetreatCell(unit,target,Math.max(1,Number(config.maxRange)||1),config.previousCell);
+    if(config.direction==='away')return findGridRetreatCell(unit,target,Math.max(1,Number(config.maxRange)||1),config.previousCell,config.keepRows);
     const next={gx:unit.gx,gy:unit.gy};
     return gridStepToward(next,target.gx,target.gy,getGridBlockedCells(unit))?next:null;
 }
@@ -730,6 +733,87 @@ function isGridUnitOnDiagonalRay(attacker, unit, direction) {
     });
 }
 
+/** 옆으로만 치는 룬(SKILL_GRID_DB band, 2026-10-17 사용자 "넓히기로 고쳐줘. 옆으로 두툼하게, 위아래 한 줄까지 맞게"): 무대의 그림은
+ * 주인공 높이에서 옆으로만 나가는데 판정은 위아래로 3칸 떨어진 적도 쳐서 허공을 치는 것처럼 보였다. 이 룬은 주인공 줄과 위아래
+ * band줄 안에서 한쪽 옆으로 range칸까지 친다(바로 위나 아래 칸도 든다). 칠 쪽은 대상이 선 쪽이고, 대상이 바로 위나 아래면 대상을
+ * 고를 때 정해 둔 쪽(noteGridBandSide)이다. 같은 공격의 판정 칸, 그림이 읽는 겨냥, 주인공이 보는 쪽이 모두 이 값을 쓴다. */
+let gridBandSide = 1;
+const getGridBandOf = profile => ({ rows: profile.band || 0, reach: Math.max(1, profile.range || 1) });
+const getGridBandSide = (attacker, target) => Math.sign(target.gx - attacker.gx) || gridBandSide;
+
+/** 그 룬의 띠({rows, reach}): 판정 표의 것이나, 없으면 band가 있는 단계 판정(혹한의 지진의 얼음 기둥)의 것. 옆으로 치지 않으면 rows 0. */
+function getSkillBand(skillName, skill) {
+    const base = getSkillGridProfile(skillName, skill);
+    if (base.band) return getGridBandOf(base);
+    const stage = ((skill.combatPattern || {}).stages || []).find(row => row.grid && row.grid.band);
+    return stage ? getGridBandOf({ ...base, ...skillEffectExpansion.stageGrid(stage.grid, skill) }) : { rows: 0, reach: 0 };
+}
+
+/** 이번 공격의 칠 쪽(1 오른쪽, -1 왼쪽). 옆으로 치지 않는 룬이면 0. 무대의 주인공이 휘두르는 동안 이 쪽을 본다. */
+function getSkillBandSide(skillName, skill) {
+    return getSkillBand(skillName, skill).rows ? gridBandSide : 0;
+}
+
+/** 적의 칸 가운데 하나가 띠 안에 있는가. side가 있으면 그 쪽 옆 칸만(바로 위나 아래는 빼고), 없으면 양쪽과 바로 위나 아래. */
+function isGridUnitInBand(attacker, unit, band, side) {
+    return getGridUnitCells(unit).some(cell => {
+        const dx = cell.gx - attacker.gx, dy = Math.abs(cell.gy - attacker.gy), ahead = side ? dx * side : Math.abs(dx);
+        return dy <= band.rows && ahead <= band.reach && (side ? ahead > 0 : ahead + dy > 0);
+    });
+}
+
+/** 대상을 고르며 칠 쪽을 정해 둔다: 대상이 선 쪽, 대상이 바로 위나 아래면 띠 안의 적이 더 많은 쪽(같으면 지난번 쪽). */
+function noteGridBandSide(skillName, skill, attackerCell, primaryEnemy, candidates) {
+    const band = getSkillBand(skillName, skill);
+    if (!band.rows) return;
+    const dx = getClosestGridUnitCell(attackerCell, primaryEnemy).gx - attackerCell.gx;
+    const lead = dx || candidates.reduce((sum, row) => sum + isGridUnitInBand(attackerCell, row.enemy, band, 1) - isGridUnitInBand(attackerCell, row.enemy, band, -1), 0);
+    if (lead) gridBandSide = Math.sign(lead);
+}
+
+/** 띠의 칸: 칠 쪽으로 0..reach칸, 주인공 줄이 먼저이고 위아래 줄이 뒤다(가장 먼 칸을 고르는 그림이 주인공 줄의 끝을 잡는다). */
+function getGridBandAreaCells(profile, attacker, target) {
+    const side = getGridBandSide(attacker, target), band = getGridBandOf(profile), rows = [0], cells = [];
+    for (let dy = 1; dy <= band.rows; dy++) rows.push(-dy, dy);
+    for (let d = 0; d <= band.reach; d++) {
+        rows.forEach(dy => {
+            const gx = attacker.gx + side * d, gy = attacker.gy + dy;
+            if ((d || dy) && isGridCellInBounds(gx, gy)) cells.push({ gx, gy });
+        });
+    }
+    return cells;
+}
+
+/** 그 적이 띠 안에 드는, 걸어서 닿는 가장 가까운 칸(걸음 수로). 붙으러 가면 옆으로 먼저 걸어 줄을 늦게 맞췄다. 이미 띠 안에 섰거나
+ * 그런 칸이 없으면 적 자신(예전처럼 붙으러 간다): 막힌 자리를 겨누면 그 앞에서 멈춘 채 치지도 걷지도 못했다. */
+function getGridBandApproachCell(hero, enemy, band) {
+    if (isGridUnitInBand(hero, enemy, band, 0)) return enemy;
+    const blocked = getHeroStepBlockedCells(), terrain = getGridPlacementTerrain(), footprint = getGridUnitFootprint(hero);
+    const seen = new Set([gridCellKey(hero.gx, hero.gy)]), queue = [{ gx: hero.gx, gy: hero.gy }];
+    for (let head = 0; head < queue.length; head++) {
+        const at = queue[head];
+        if (head && isGridUnitInBand(at, enemy, band, 0)) return at;
+        for (const step of GRID_CARDINAL_STEPS) {
+            const gx = at.gx + step.dx, gy = at.gy + step.dy, key = gridCellKey(gx, gy);
+            if (seen.has(key) || !canPlaceGridFootprint(blocked, gx, gy, footprint, terrain)) continue;
+            seen.add(key);
+            queue.push({ gx, gy });
+        }
+    }
+    return enemy;
+}
+
+/** 모양이 따로 정해진 범위: 옆으로 치는 띠, 부채꼴 숨결. 아니면 null. */
+function getGridShapedAreaCells(profile, attacker, targetCell) {
+    if (profile.band) return getGridBandAreaCells(profile, attacker, targetCell);
+    return profile.kind === 'cone' ? getGridConeAreaCells(profile, attacker, targetCell) : null;
+}
+
+/** 1차 대상이 될 수 있는 거리: 띠가 있으면 띠 안, 아니면 사거리 안. */
+function isGridPrimaryInReach(row, profile, attackerCell) {
+    return profile.band ? isGridUnitInBand(attackerCell, row.enemy, getGridBandOf(profile), 0) : row.dist <= Math.max(1, profile.range || 1);
+}
+
 /**
  * 범위 프로필이 실제로 덮는 칸 목록을 계산한다(chain 제외 — 연쇄는 칸이 아니라 유닛 간 점프).
  * @param {{kind:string, range:number, radius?:number, shape?:string}} profile
@@ -739,7 +823,8 @@ function isGridUnitOnDiagonalRay(attacker, unit, direction) {
  */
 function getGridAttackAreaCells(profile, attacker, target) {
     let targetCell = getClosestGridUnitCell(attacker, target);
-    if (profile.kind === 'cone') return getGridConeAreaCells(profile, attacker, targetCell);
+    let shaped = getGridShapedAreaCells(profile, attacker, targetCell);
+    if (shaped) return shaped;
     let cells = ['nova', 'fan'].includes(profile.kind) ? [] : [{ gx: targetCell.gx, gy: targetCell.gy }];
     let pushArea = (center, radius, excludeSelf, shape) => {
         for (let dx = -radius; dx <= radius; dx++) {
@@ -776,7 +861,7 @@ function getGridAttackAreaCells(profile, attacker, target) {
  * @param {(typeof SKILL_DB)[string]} skill Resolved skill, including range modifiers.
  * @param {{targets:Array<{enemy:{gx:number,gy:number}}>,impactCells?:Array<{gx:number,gy:number}>}} stage Nonempty confirmed stage.
  * @param {{gx:number,gy:number}} source Cast-time origin.
- * @returns {{kind:string,cells:Array<{gx:number,gy:number}>,shape:string|undefined,radius:number|undefined,cone:ReturnType<typeof getGridConeGeometry>|null,center:{gx:number,gy:number}}}
+ * @returns {{kind:string,cells:Array<{gx:number,gy:number}>,shape:string|undefined,radius:number|undefined,cone:ReturnType<typeof getGridConeGeometry>|null,band:{side:number,rows:number,reach:number}|null,center:{gx:number,gy:number}}}
  */
 function getSkillStageFootprint(skillName, skill, stage, source) {
     let primary = stage.aimCell || stage.targets[0].enemy;
@@ -789,11 +874,19 @@ function getSkillStageFootprint(skillName, skill, stage, source) {
     }
     return { cells: Array.from(new Map(cells.map(cell => [`${cell.gx},${cell.gy}`, { gx: cell.gx, gy: cell.gy }])).values()),
         kind: profile.kind, shape: profile.shape, radius: profile.radius,
-        cone: profile.kind === 'cone' ? getGridConeGeometry(profile, source, getClosestGridUnitCell(source, primary)) : null,
+        ...getGridFootprintAim(profile, source, getClosestGridUnitCell(source, primary)),
         // 부채꼴은 화살마다 끝 칸(그림이 화살 하나씩 그린다: js/canvas-world-tree-fx.js fanRays)
         rays: profile.kind === 'fan' ? getGridFanRayTips(source, getClosestGridUnitCell(source, primary), profile) : undefined,
         // 중심은 칸 좌표만: 보스 예고에서는 source가 보스 자신이라 { ...source }가 보스 전체(이전 예고 포함)를 겹겹이 복사했다(검토 5차).
         center: profile.kind === 'nova' ? { gx: source.gx, gy: source.gy } : { ...getClosestGridUnitCell(source, primary) } };
+}
+
+/** 그림이 읽는 겨냥: 부채꼴 숨결의 모양(cone), 옆으로 치는 룬의 칠 쪽과 띠(band: {side, rows, reach}). 옆으로 치는 부채꼴은
+ * 칠 쪽으로 곧게 그린다. */
+function getGridFootprintAim(profile, source, aim) {
+    const band = profile.band ? { side: getGridBandSide(source, aim), ...getGridBandOf(profile) } : null;
+    const toward = band ? { gx: source.gx + band.side, gy: source.gy } : aim;
+    return { band, cone: profile.kind === 'cone' ? getGridConeGeometry(profile, source, toward) : null };
 }
 
 /** 연쇄 스킬: 1차 대상에서 jump칸 이내 가장 가까운 적으로 targetCount까지 튄다. */
@@ -835,7 +928,7 @@ function getGridDensityScore(candidate, candidates, profile, attackerCell) {
 }
 
 function selectGridPrimaryCandidate(candidates, profile, attackerCell, options) {
-    let inRange = candidates.filter(row => row.dist <= Math.max(1, profile.range || 1));
+    let inRange = candidates.filter(row => isGridPrimaryInReach(row, profile, attackerCell));
     if (inRange.length === 0) return null;
     let preferredId = options && options.preferredEnemyId;
     let preferred = inRange.find(row => String(row.enemy.id) === String(preferredId));
@@ -883,6 +976,7 @@ function selectGridSkillTargets(skillName, skill, attackerCell, enemies, options
         .sort(compareGridCandidateTie);
     let primary = selectGridPrimaryCandidate(getGridPrimaryPool(candidates, options), profile, attackerCell, options);
     if (!primary) return [];
+    noteGridBandSide(skillName, skill, attackerCell, primary.enemy, candidates);
     let orderedCandidates = [primary].concat(candidates.filter(row => row !== primary));
     let targetCount = Math.max(1, Math.floor(skill.targets || 1));
     let mode = skill.targetMode || 'single';
@@ -959,27 +1053,41 @@ function getGridUnitDistanceFromCell(origin, unit) {
         Math.hypot(cell.gx - origin.gx, cell.gy - origin.gy)), Infinity);
 }
 
-/** 서리 폭발 · 대지의 함성: the wave hurts where its drawn ring touches a monster, in the order it spreads (js/combat.js
+/** 대지의 함성 · 서리바람 내지르기: the wave hurts where its drawn ring touches a monster, in the order it spreads (js/combat.js
  * pickWaveFrontTargets). The ring grows one cell per msPerCell up to reach; the stages, every half cell, are only the moments it is
  * checked. One wave strikes a monster once (shared state). The hits used to be fixed on the cells the targets stood on at the cast,
  * so a monster that stepped to another cell inside the burst right after the cast was missed as if it had dodged (2026-10-02).
  * @param {{attacker:object, primary:object, impactCells:Array<{gx:number,gy:number}>}} area */
 function buildRadialBurstHitSequence(skillName, skill, targets, area) {
     if (!area.attacker || !area.primary) return null;
-    let gridProfile = getSkillGridProfile(skillName, skill);
-    // 자신 중심(nova)과 원뿔(cone: 서리바람 내지르기)은 시전자에서 퍼지고, 그 밖은 겨눈 대상에서 퍼진다. 원뿔의 반지름은 그 길이다.
-    let fromCaster = gridProfile.kind === 'nova' || gridProfile.kind === 'cone';
-    let center = fromCaster ? { ...area.attacker } : getClosestGridUnitCell(area.attacker, area.primary);
-    let radius = Math.max(1, Number(gridProfile.kind === 'cone' ? gridProfile.range : gridProfile.radius) || 1);
-    let msPerCell = Math.max(50, Math.floor(Number(skill.combatPattern.waveMsPerCell) || 90));
-    let reach = gridProfile.shape === 'circle' ? radius + 0.5 : radius, waveDurationMs = Math.round(reach * msPerCell);
-    let wave = { center, shape: gridProfile.shape, reach, msPerCell, struck: [], checkedAt: null,
+    let gridProfile = getSkillGridProfile(skillName, skill), { center, reach, cells } = getRadialWaveShape(gridProfile, area);
+    let msPerCell = Math.max(50, Math.floor(Number(skill.combatPattern.waveMsPerCell) || 90)), waveDurationMs = Math.round(reach * msPerCell);
+    let wave = { center, shape: gridProfile.shape, reach, msPerCell, struck: [], checkedAt: null, cells,
         limit: Math.max(1, Number(skill.targets) || targets.length), mults: Object.fromEntries(targets.map(entry => [entry.enemy.id, entry.mult])) };
     let checks = Array.from({ length: Math.round(reach * 2) + 1 }, (_, step) => step / 2);
     return checks.map((front, index) => ({
         kind: 'radialBurstWave', label: `서리 파동 ${index + 1}단계`, delayMs: Math.round(front * msPerCell), damageMultiplier: 1,
         singleRepeat: true, aimCell: center, waveDurationMs, targets, wave, impactCells: area.impactCells
     }));
+}
+
+/** Where a round wave starts, how far it spreads (cells) and, for a cone, the only cells it strikes (null: everything it reaches).
+ * 자신 중심(nova)과 원뿔(cone: 서리바람 내지르기)은 시전자에서 퍼지고, 그 밖은 겨눈 대상에서 퍼진다. 둥근 파동의 거리는 반지름이다
+ * (원은 그려지는 고리처럼 반 칸 더). 원뿔 파동은 시전 때 대상을 고른 칸(지금은 옆으로 치는 띠, getGridBandAreaCells) 안만 치고 그 가장 먼
+ * 칸까지 퍼진다: 원뿔 길이만큼
+ * 시전자 둘레를 모두 치면서 원뿔의 먼 귀퉁이(앞 네 칸, 옆 세 줄)는 닿지 않아, 그곳의 몬스터를 고른 주인공이 맞히지 못한 채 거듭
+ * 휘둘렀다(2026-10-17 사용자 "범위 안에 몬스터가 없는데 계속 공격함").
+ * @returns {{center:{gx:number,gy:number}, reach:number, cells:?Set<string>}} */
+function getRadialWaveShape(gridProfile, area) {
+    const fromCaster = gridProfile.kind === 'nova' || gridProfile.kind === 'cone';
+    const center = fromCaster ? { ...area.attacker } : getClosestGridUnitCell(area.attacker, area.primary);
+    if (gridProfile.kind === 'cone') {
+        const cells = area.impactCells || [];
+        return { center, cells: new Set(cells.map(cell => gridCellKey(cell.gx, cell.gy))),
+            reach: Math.max(1, ...cells.map(cell => Math.hypot(cell.gx - center.gx, cell.gy - center.gy))) };
+    }
+    const radius = Math.max(1, Number(gridProfile.radius) || 1);
+    return { center, cells: null, reach: gridProfile.shape === 'circle' ? radius + 0.5 : radius };
 }
 
 /** Targeted impact followed by a fixed ground eruption, even if the first victim dies or moves. */
@@ -1025,7 +1133,8 @@ function buildAuthoredSkillHitSequence(skillName, skill, targets) {
     let aimCell = getClosestGridUnitCell(source, targets[0].enemy);
     let base = getSkillGridProfile(skillName, skill);
     return skill.combatPattern.stages.map(phase => {
-        let gridProfile = { ...base, ...skillEffectExpansion.stageGrid(phase.grid, skill) };
+        // 제 판정을 가진 단계는 판정 표의 띠를 물려받지 않는다(공허 가르기의 틈 닫힘은 둘레 2칸 원)
+        let gridProfile = { ...base, ...(phase.grid && { band: 0 }), ...skillEffectExpansion.stageGrid(phase.grid, skill) };
         return { kind: 'authored', label: phase.label, delayMs: phase.delayMs,
             damageMultiplier: phase.damagePct / 100, singleRepeat: true, delivery: 'magicCell',
             targetLimit: skill.targets, targets, aimCell: { ...aimCell }, gridProfile,
@@ -1273,29 +1382,19 @@ function getSkillHitSequenceDpsMultiplier(skillName, skill) {
 }
 
 
+const GRID_PROFILE_KIND_LABELS = Object.freeze({ melee: '인접 단일', arc: '전방 부채꼴', nova: '자신 중심 광역', line: '직선 관통', chain: '연쇄',
+    blast: '대상 지점 폭발', fan: '부채꼴 투사체', cone: '전방 부채꼴', summon: '소환수 공격', band: '옆으로 곧게' });
+/** 범위 종류의 이름. 'band'는 옆으로만 치는 룬(SKILL_GRID_DB band)이다: 호출부가 profile.band면 'band'를 넘긴다. */
 function getSkillGridProfileKindLabel(kind) {
-    if (kind === 'melee') return '인접 단일';
-    if (kind === 'arc') return '전방 부채꼴';
-    if (kind === 'nova') return '자신 중심 광역';
-    if (kind === 'line') return '직선 관통';
-    if (kind === 'chain') return '연쇄';
-    if (kind === 'blast') return '대상 지점 폭발';
-    if (kind === 'fan') return '부채꼴 투사체';
-    if (kind === 'cone') return '전방 부채꼴';
-    if (kind === 'summon') return '소환수 공격';
-    return '그리드 공격';
+    return Object.hasOwn(GRID_PROFILE_KIND_LABELS, kind) ? GRID_PROFILE_KIND_LABELS[kind] : '그리드 공격';
 }
 
 function describeSkillGridProfile(skillName, skillDef) {
     let profile = getSkillGridProfile(skillName, skillDef || {});
     let tags = Array.isArray(skillDef && skillDef.tags) ? skillDef.tags : [];
-    let projectileMode = skillDef && skillDef.projectilePattern && skillDef.projectilePattern.mode;
-    let projectileModeDef = typeof PROJECTILE_PATTERN_MODE_DB !== 'undefined' && PROJECTILE_PATTERN_MODE_DB[projectileMode];
-    let title = tags.includes('projectile')
-        ? `발사 방식: ${projectileModeDef ? projectileModeDef.label : getSkillGridProfileKindLabel(profile.kind)}`
-        : `공격 범위: ${getSkillGridProfileKindLabel(profile.kind)}`;
-    let parts = [title];
+    let parts = [describeGridAreaTitle(profile, tags, skillDef)];
     parts.push(`사거리 ${Math.max(1, profile.range || 1)}칸`);
+    if (profile.band) parts.push(`위아래 ${profile.band}줄까지`);
     if (profile.kind === 'blast' && (profile.radius || 0) > 0) parts.push(`반경 ${profile.radius}칸`);
     if (profile.kind === 'nova') parts.push(`반경 ${Math.max(1, profile.radius || 1)}칸`);
     let shapeLabels = { circle: '원형', diamond: '마름모형', square: '사각형', cross: '십자형', diagonal: 'X자형', ring: '고리형' };
@@ -1307,6 +1406,15 @@ function describeSkillGridProfile(skillName, skillDef) {
     return getSkillGridDescriptionText(skillDef,parts);
 }
 
+/** 첫 줄: 투사체는 발사 방식, 그 밖은 공격 범위의 이름(옆으로만 치는 룬은 '옆으로 곧게'). */
+function describeGridAreaTitle(profile, tags, skillDef) {
+    const kind = getSkillGridProfileKindLabel(profile.band ? 'band' : profile.kind);
+    if (!tags.includes('projectile')) return `공격 범위: ${kind}`;
+    const mode = skillDef.projectilePattern && skillDef.projectilePattern.mode;
+    const modeDef = typeof PROJECTILE_PATTERN_MODE_DB !== 'undefined' && PROJECTILE_PATTERN_MODE_DB[mode];
+    return `발사 방식: ${modeDef ? modeDef.label : kind}`;
+}
+
 /** 여러 단계로 치는 룬(combatPattern authored)에서 첫 판정보다 넓게 치는 단계: ['얼음 기둥: 전방 부채꼴 3칸'] 같은 줄. 공격 범위가 첫 타격만
  * 말해, 부채꼴 3칸에서 적 여섯을 치는 혹한의 지진이 인접 단일로 보였다(2026-10-17). 모양이 다르거나 반경, 사거리가 더 큰 단계만. */
 function describeWiderStageAreas(skillDef, base) {
@@ -1315,7 +1423,8 @@ function describeWiderStageAreas(skillDef, base) {
     const wider = grid => grid.kind !== base.kind || (grid.radius || 0) > (base.radius || 0) || (grid.range || 0) > (base.range || 0);
     return stages.filter(stage => stage.grid && stage.grid.kind && wider(stage.grid)).map(stage => {
         const grid = stage.grid, round = grid.kind === 'blast' || grid.kind === 'nova';
-        return `${stage.label}: ${getSkillGridProfileKindLabel(grid.kind)} ${round ? '반경 ' + Math.max(1, grid.radius || 1) : Math.max(1, grid.range || 1)}칸`;
+        const size = `${round ? '반경 ' + Math.max(1, grid.radius || 1) : Math.max(1, grid.range || 1)}칸${grid.band ? `, 위아래 ${grid.band}줄까지` : ''}`;
+        return `${stage.label}: ${getSkillGridProfileKindLabel(grid.band ? 'band' : grid.kind)} ${size}`;
     });
 }
 

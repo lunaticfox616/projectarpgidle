@@ -152,14 +152,21 @@ const stageSkillStrokes = (() => {
     }
 
     // ---------------------------------------------------------------- sword wave (참격파)
-    /** 참격파: 처음 0.08초 몸 앞 세로 큰 베기 선, 세운 칼바람(높이 70, 앞으로 볼록, 앞으로 기욺)이 바닥을 긁으며 나아간다. 지나간 바닥에 긁힌 자국 두 줄과 먼지. */
-    function strokeSlashWave(at, face, L, dur) {
-        const C = strokeRamp('phys');
+    /** 참격파: 처음 0.08초 몸 앞 세로 큰 베기 선, 세운 칼바람(높이 70, 앞으로 볼록, 앞으로 기욺)이 바닥을 긁으며 나아간다. 지나간 바닥에 긁힌 자국 두 줄과 먼지.
+     * rows: 옆으로 치는 띠의 위아래 줄 수(2026-10-17). 칼바람이 그 줄들의 몸까지 덮게 위아래로 한 줄(32도트)씩 높아지고, 줄마다 바닥을 긁는다. */
+    function strokeSlashWave(at, face, L, dur, rows) {
+        const C = strokeRamp('phys'), o = { face, L, dur, rows: rows || 0 };
         strokeHang(at, { life: dur + 260,
-            ground: (g, t) => strokeSlashScratches(g, t, { face, L, dur }, C),
-            top: (g, t) => strokeSlashBlade(g, t, { face, L, dur }, C) });
+            ground: (g, t) => strokeSlashScratches(g, t, o, C),
+            top: (g, t) => strokeSlashBlade(g, t, o, C) });
     }
     function strokeSlashScratches(g, t, o, C) {
+        for (let lane = -o.rows; lane <= o.rows; lane++) {
+            g.save(); g.translate(0, lane * DEEP); strokeSlashScratchLane(g, t, o, C); g.restore();
+        }
+    }
+    /** 한 줄의 긁힌 자국 두 줄과 먼지(붓의 자리가 그 줄의 바닥). */
+    function strokeSlashScratchLane(g, t, o, C) {
         const front = Math.min(o.L, o.L * t / o.dur);
         for (let d = 18; d < front; d += 2) {
             const a = Math.max(0, 1 - (t - (d / o.L) * o.dur) / 420) * 0.7;
@@ -178,17 +185,19 @@ const stageSkillStrokes = (() => {
         const front = Math.min(o.L, o.L * t / o.dur), fade = t > o.dur ? Math.max(0, 1 - (t - o.dur) / 260) : 1;
         g.save(); g.scale(o.face, 1);
         if (t < 170) strokeLens(g, [30, -50], { ang: -Math.PI / 2 + 0.3, len: 116, wMax: 4, ext: Math.min(1, t / 60), fade: t < 90 ? 1 : 1 - (t - 90) / 80 }, C);
-        if (fade > 0) { g.translate(Math.round(front + 18), -38); strokeSlashFront(g, t, fade, C); }
+        if (fade > 0) { g.translate(Math.round(front + 18), -38); strokeSlashFront(g, t, fade, C, 36 + o.rows * DEEP); }
         g.restore();
     }
-    /** 세운 칼바람: 가운데가 앞으로 볼록, 위쪽이 앞으로 기욺, 폭 가운데 7도트. 뒤로 끌리는 바람줄기 세 가닥. */
-    function strokeSlashFront(g, t, fade, C) {
-        for (let yy = -36; yy <= 36; yy++) {
-            const k = yy / 36, bow = (1 - k * k) * 9 - k * 7, w = 1 + 6 * (1 - k * k) ** 1.2;
+    /** 세운 칼바람: 가운데가 앞으로 볼록, 위쪽이 앞으로 기욺, 폭 가운데 7도트. 뒤로 끌리는 바람줄기 세 가닥. H: 위아래 반 높이(기본 36도트).
+     * 높아지면 볼록함과 폭도 조금(높이 비의 제곱근만큼) 커진다. */
+    function strokeSlashFront(g, t, fade, C, H) {
+        const grow = Math.sqrt(H / 36);
+        for (let yy = -H; yy <= H; yy++) {
+            const k = yy / H, bow = ((1 - k * k) * 9 - k * 7) * grow, w = 1 + 6 * grow * (1 - k * k) ** 1.2;
             for (let xx = -Math.ceil(w); xx <= 0; xx++) { const a = -xx / w; g.fillStyle = xx === 0 ? C[5] : a < 0.35 ? C[4] : a < 0.75 ? C[3] : C[2]; g.globalAlpha = fade * (a < 0.75 ? 1 : 0.6); g.fillRect(Math.round(bow + xx), yy, 1, 1); }
         }
         g.globalAlpha = fade * 0.55; g.fillStyle = C[4];
-        for (const [yy, len] of [[-22, 34], [-2, 48], [18, 30]]) { const l = Math.round(len * (0.7 + 0.3 * Math.sin(t / 50 + yy))); g.fillRect(-l - 4, yy, l, 1); }
+        for (const [yy, len] of [[-22, 34], [-2, 48], [18, 30]]) { const y = Math.round(yy * H / 36), l = Math.round(len * (0.7 + 0.3 * Math.sin(t / 50 + yy))); g.fillRect(-l - 4, y, l, 1); }
     }
 
     // ---------------------------------------------------------------- frost mist (서리베기)
@@ -210,11 +219,13 @@ const stageSkillStrokes = (() => {
     }
 
     // ---------------------------------------------------------------- fire (불사르기, 부싯돌 베기, 폭발성 타격)
-    /** 불사르기: 칠 자리에서 부채꼴(쐐기) 끝까지 0.24초에 번지는 불길 앞면(바닥)과 앞면을 따라 솟는 불혀. 지나간 자리는 붉은 불씨로 식는다. */
-    function strokeFlameFan(at, face, cells, seed) {
+    /** 불사르기: 칠 자리에서 부채꼴(쐐기) 끝까지 0.24초에 번지는 불길 앞면(바닥)과 앞면을 따라 솟는 불혀. 지나간 자리는 붉은 불씨로 식는다.
+     * rows: 옆으로 치는 띠의 위아래 줄 수(2026-10-17). 있으면 불길이 몸 앞에서 이미 그 줄들의 가운데까지 덮고(바로 위나 아래의 적도
+     * 맞는다) 반 칸 안에 다 번져 끝까지 같은 폭으로 나아간다. */
+    function strokeFlameFan(at, face, cells, seed, rows) {
         const C = strokeRamp('fire'), Lp = cells * WIDE, dur = 240, r0 = strokeRandom(901 + seed);
         const tongues = [...Array(14)].map((_, i) => [i / 13 * 2 - 1, r0() * 6.28, 0.7 + r0() * 0.6]);
-        const half = x => (0.5 + Math.min(1, x / Lp) * (cells / 2 - 0.5)) * DEEP;
+        const half = rows ? x => (0.5 + Math.min(1, (x + WIDE / 2) / WIDE) * rows) * DEEP : x => (0.5 + Math.min(1, x / Lp) * (cells / 2 - 0.5)) * DEEP;
         const reachAt = t => Math.min(Lp, 12 + (Lp - 12) * Math.min(1, t / dur)), fadeAt = t => (t > dur ? Math.max(0, 1 - (t - dur) / 260) : 1);
         strokeHang(at, { life: dur + 260,
             ground(g, t) {

@@ -184,21 +184,26 @@ const stageSkillSpells = (() => {
 
     // ---------------------------------------------------------------- ice columns (혹한의 지진)
     const COLUMN = Object.freeze({ RISE: 90, HOLD: 330, BRK: 220 });
-    /** 앞 쐐기를 따라 50도트 간격의 기둥 열. 실제 피격 대상의 큰 기둥은 spellIceColumn이 그린다. */
+    /** 앞 쐐기를 따라 50도트 간격의 기둥 열. 실제 피격 대상의 큰 기둥은 spellIceColumn이 그린다. o.rows(옆으로 치는 띠의 위아래 줄 수)가 있으면
+     * 쐐기 대신 그 줄마다 한 열씩 서고, 바닥의 금도 줄마다 하나씩 간다. */
     function columnPlan(o) {
-        const r = S.random(8117), Lp = o.L * WIDE, cols = [];
-        const hd = x => (0.5 + Math.min(1, Math.max(0, x / Lp)) * (o.L / 2 - 0.5)) * DEEP;
+        const r = S.random(8117), Lp = o.L * WIDE, cols = [], rows = o.rows || 0;
         for (let x = 30; x <= Lp - 6; x += 50) {
-            const h = hd(x), n = Math.max(1, Math.round(h * 2 / 42));
-            for (let i = 0; i < n; i++) {
-                const k = n === 1 ? 0 : i / (n - 1) * 2 - 1, dx = x + (r() - 0.5) * 10;
-                cols.push({ x: o.face * dx, y: k * h * 0.8 + (r() - 0.5) * 5, H: 46 + r() * 18 + dx / Lp * 18, W: 20 + Math.round(r() * 6), lean: (r() - 0.5) * 0.14, t0: dx / WIDE * o.rowMs + r() * 16 });
+            for (const y0 of columnRows(o, x)) {
+                const dx = x + (r() - 0.5) * 10;
+                cols.push({ x: o.face * dx, y: y0 + (r() - 0.5) * 5, H: 46 + r() * 18 + dx / Lp * 18, W: 20 + Math.round(r() * 6), lean: (r() - 0.5) * 0.14, t0: dx / WIDE * o.rowMs + r() * 16 });
             }
         }
         for (const c of cols) c.sh = [...Array(8)].map(() => [r() * 0.9, (r() - 0.5) * 80, -20 - r() * 50, r() < 0.5 ? 3 : 4]);
         cols.sort((a, b) => a.y - b.y);
-        const cracks = [0, 1, 2].map(i => { const pts = [[0, 0]]; let x = 0, y = 0; while (x < Lp) { x += 10 + r() * 12; y += (r() - 0.5) * 8 + (i - 1) * 2.2; pts.push([x, y]); } return pts; });
+        const cracks = [0, 1, 2].map(i => { const pts = [[0, (i - 1) * rows * DEEP * 0.9]]; let x = 0, y = pts[0][1]; while (x < Lp) { x += 10 + r() * 12; y += (r() - 0.5) * 8 + (rows ? 0 : (i - 1) * 2.2); pts.push([x, y]); } return pts; });
         return { cols, cracks, Lp, last: Math.max(...cols.map(c => c.t0)) + COLUMN.RISE + COLUMN.HOLD + COLUMN.BRK };
+    }
+    /** 앞으로 x도트인 곳에 설 기둥들의 높이 자리(y, 도트): 옆으로 치는 띠면 줄마다 하나(줄 가운데 조금 안쪽), 아니면 쐐기 폭에 고르게. */
+    function columnRows(o, x) {
+        if (o.rows) return Array.from({ length: o.rows * 2 + 1 }, (_, i) => (i - o.rows) * DEEP * 0.9);
+        const h = (0.5 + Math.min(1, Math.max(0, x / (o.L * WIDE))) * (o.L / 2 - 0.5)) * DEEP, n = Math.max(1, Math.round(h * 2 / 42));
+        return Array.from({ length: n }, (_, i) => (n === 1 ? 0 : i / (n - 1) * 2 - 1) * h * 0.8);
     }
     /** 서 있는 기둥 한 개: 왼쪽 밝은 면, 정면, 오른쪽 어두운 면, 가운데 능선, 양 끝 테두리, 위는 뾰족. */
     function columnBody(g, C, c, h) {
@@ -240,7 +245,8 @@ const stageSkillSpells = (() => {
         else if (lt < COLUMN.RISE + COLUMN.HOLD + COLUMN.BRK) columnBreaking(g, o.C, c, { lt, face: o.face });
     }
     /** 혹한의 지진의 얼음 기둥: 친 자리에서 앞 쐐기를 따라 가까운 줄부터 솟아 0.33초 버틴 뒤 부서진다. 바닥에는 앞으로 뻗는 금 세 줄.
-     * 바닥 층에 그려 적이 기둥 앞에 선다(인계도 바닥 쪽에 그린다). @param {{at:object, face:number, L:number, rowMs:number}} o */
+     * 바닥 층에 그려 적이 기둥 앞에 선다(인계도 바닥 쪽에 그린다). rows: 옆으로 치는 띠의 위아래 줄 수(columnPlan).
+     * @param {{at:object, face:number, L:number, rowMs:number, rows?:number}} o */
     function spellIceColumns(o) {
         const plan = columnPlan(o), C = S.ramp('frost');
         S.hang(o.at, { life: plan.last + 60, ground(g, t) {
@@ -348,15 +354,19 @@ const stageSkillSpells = (() => {
         g.globalAlpha = 1;
     }
     /** 서리바람 내지르기: 입에서 앞으로 내지른 바람 줄기와 눈송이가 부채꼴을 따라 퍼지고, 바닥에는 서리 앞면이 나아가며 지나간 자리에 서리가
-     * 끼었다 녹는다. 연기 물결 두 줄(smwave)이 따라간다. @param {{at:object, face:number, L:number, wave:number, smwave:?string}} o */
+     * 끼었다 녹는다. 연기 물결 두 줄(smwave)이 따라간다. o.rows(옆으로 치는 띠의 위아래 줄 수, 2026-10-17)가 있으면 몸 앞에서 이미 그 줄들의
+     * 가운데까지 덮고 반 칸 안에 다 퍼져 끝까지 같은 폭으로 나아가며, 연기 물결도 그 줄들로 벌어진다.
+     * @param {{at:object, face:number, L:number, wave:number, smwave:?string, rows?:number}} o */
     function spellFrostCone(o) {
-        const Lp = o.L * WIDE, dur = o.L * o.wave, r = S.random(6203);
-        const c = { C: S.ramp('frost'), face: o.face, Lp, dur, hd: x => (0.5 + Math.min(1, Math.max(0, x / Lp)) * (o.L / 2 - 0.5)) * DEEP,
+        const Lp = o.L * WIDE, dur = o.L * o.wave, r = S.random(6203), rows = o.rows || 0;
+        const hd = rows ? x => (0.5 + Math.min(1, Math.max(0, (x + WIDE / 2) / WIDE)) * rows) * DEEP : x => (0.5 + Math.min(1, Math.max(0, x / Lp)) * (o.L / 2 - 0.5)) * DEEP;
+        const c = { C: S.ramp('frost'), face: o.face, Lp, dur, hd,
             streaks: [...Array(22)].map((_, i) => ({ k: i / 21 * 2 - 1, t0: r() * dur * 0.45, len: 14 + r() * 16, sp: 1.1 + r() * 0.35, lift: 8 + r() * 30 })),
             snow: [...Array(34)].map(() => ({ k: r() * 2 - 1, t0: r() * dur * 0.7, sp: 0.6 + r() * 0.45, lift: 4 + r() * 44, ph: r() * TAU, sz: r() < 0.3 ? 2 : 1 })),
             frost: [...Array(90)].map(() => [r(), r() * 2 - 1, r()]) };
+        const spread = rows ? 2 : 1;
         if (o.smwave) [[-0.25, 0], [0.3, 70]].forEach(([k, delay]) => stageSkillVfx.play(o.smwave, { ...o.at, dx: o.face * 50, dy: -24 + k * DEEP },
-            { face: o.face, delay, alpha: 0.75, move: { dx: o.face * (Lp * 0.8 - 50), dy: k * DEEP * 2, ms: dur + 160 } }));
+            { face: o.face, delay, alpha: 0.75, move: { dx: o.face * (Lp * 0.8 - 50), dy: k * spread * DEEP * 2, ms: dur + 160 } }));
         S.hang(o.at, { life: dur + 700, ground: (g, t) => frostGround(g, c, t), top: (g, t) => frostTop(g, c, t) });
     }
 

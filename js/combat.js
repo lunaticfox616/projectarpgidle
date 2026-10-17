@@ -2135,7 +2135,7 @@ function coreLoop(nowMs) {
         return;
     }
 
-    syncCrowdPauseState(pStats);
+    syncCrowdPauseState();
     let _nowPrune = getCombatTime();
     game._nextEnemyRuntimePruneAt = Number.isFinite(game._nextEnemyRuntimePruneAt) ? game._nextEnemyRuntimePruneAt : 0;
     if (_nowPrune >= game._nextEnemyRuntimePruneAt) {
@@ -2254,17 +2254,11 @@ function coreLoop(nowMs) {
             }
         }
     }
-    let currentZone = getZone(game.currentZoneId);
-    if (currentZone && currentZone.type === 'act' && game.runProgress >= 100) {
-        let currentStoryAct = getStoryActByZoneId(currentZone.id);
-        let hasBossAlive = (game.enemies || []).some(enemy => enemy.isBoss && enemy.hp > 0);
-        if (hasBossAlive && currentStoryAct && currentStoryAct.specialType === 'loop_gate' && handleStoryActSpecialDefeat(currentZone, pStats)) return;
-    }
     if (game.playerHp <= 0) {
         handlePlayerDefeat(getZone(game.currentZoneId), pStats, "☠️ 상태이상으로 쓰러졌습니다.", { fatalElement: 'other', sourceName: '상태이상' });
         return;
     }
-    syncCrowdPauseState(pStats);
+    syncCrowdPauseState();
 
     if (!holdMapProgress && actExplorationProgress.canFinish()) playerStatCache.during(finishEncounterRun);
 }
@@ -2339,7 +2333,7 @@ function pickWhirlSpinTargets(row) {
     return [{ enemy: pick.enemy, mult: getGridSkillTargetMult('whirl', struck.length - 1) }];
 }
 
-/** 서리 폭발 · 대지의 함성 (js/combat-grid.js buildRadialBurstHitSequence): the monsters the drawn ring has touched since the last
+/** 대지의 함성 · 서리바람 내지르기 (js/combat-grid.js buildRadialBurstHitSequence): the monsters the drawn ring has touched since the last
  * check. The ring grows one cell per msPerCell from the wave's start up to its reach; the time since the last check is sampled every
  * COMBAT_GRID_CONFIG.waveContactSampleMs against where each monster was drawn then (just after a step it glides between its cells).
  * One wave strikes a monster once, first touched first, up to the skill's targets. Stepping inside the burst no longer dodges it. */
@@ -2347,7 +2341,9 @@ function pickWaveFrontTargets(row) {
     const wave = row.wave, now = getCombatTime(), start = row.at - (Number(row.options.stageDelayMs) || 0);
     const span = { start, from: Math.min(now, Math.max(start, wave.checkedAt ?? start)), now };
     wave.checkedAt = now;
-    const reached = (game.enemies || []).filter(enemy => enemy && enemy.hp > 0 && !wave.struck.includes(enemy.id))
+    // 원뿔 파동은 시전 때의 원뿔 칸 안에 선 몬스터만 친다(js/combat-grid.js getRadialWaveShape)
+    const inside = enemy => !wave.cells || getGridUnitCells(enemy).some(cell => wave.cells.has(gridCellKey(cell.gx, cell.gy)));
+    const reached = (game.enemies || []).filter(enemy => enemy && enemy.hp > 0 && !wave.struck.includes(enemy.id) && inside(enemy))
         .map(enemy => ({ enemy, touchedAt: waveTouchTime(wave, enemy, span) }))
         .filter(entry => entry.touchedAt !== null).sort((a, b) => a.touchedAt - b.touchedAt)
         .slice(0, Math.max(0, wave.limit - wave.struck.length));
@@ -2555,7 +2551,9 @@ function queuePlayerAttackSequence(pStats, stages, context) {
         color: getElementColor(context.forcedElement), element: context.forcedElement,
         crit: context.forcedCrit, projectile: tags.includes('projectile'),
         combatTravel: getSkillCombatDelivery(pStats.sSkill) !== 'instantTarget',
-        skillName: context.skillName, sourceCell:copyCombatGridCell(game.gridPlayer), duration, impactDelayMs: Math.max(0, delayMs)
+        skillName: context.skillName, sourceCell:copyCombatGridCell(game.gridPlayer), duration, impactDelayMs: Math.max(0, delayMs),
+        // 옆으로만 치는 룬이 대상을 고를 때 정한 쪽(js/combat-grid.js band): 대상이 바로 위나 아래여도 무대의 주인공이 그 쪽을 본다
+        bandSide: getSkillBandSide(context.skillName, pStats.sSkill)
     });
     queuePendingSkillStageHits(isChannel ? createContinuousChannelStages(stages, cycleMs) : stages, pStats, {
         ...context, channelId, channelCycleMs: cycleMs, baseDelayMs: delayMs, damageTextGroupId
@@ -2722,8 +2720,8 @@ function getUniqueEffectImplementationReport() {
         'projectileDoubleStrikePct','projectilePatternMode','hitApplyChaosResDown','corpseExplodeOnKill','instantLeechAndDoubleDamage',
         'riderCompass','maxRollBonusHit','ceilingSmashDouble','minRollEqualsMaxRoll','hpToPhysPct','immuneIgnite',
         'rollGapDamagePct','rollGapCritAndDs','crowdEvasionMore','fewEnemyEvasionMore','evasionDanceOnEvade','loneEvasionCounter','critAdvanceEnergyShieldRecharge','energyShieldBreakRecharge','esToLightPct','underdogNonMaxRollMorePct','instakillNormalOnHitPct','projectileExtraShotChance',
-        'abyssSocketOnItem','abyssSocketAndJewelAmp','leechEfficiencyOnKill','overkillSplash','dragonVeinGuard','fateTwinRollSync','realmBleedingEnemyDamageMore','realmRiftWaveOnHit','realmChaosDamageInstantLeech','realmInvulnerableBarrierOnHit','realmPoisonDuration','realmArmorToPhysicalDamage','realmDeathWard','realmAllResDownOnHit','realmKillMoveStacks','realmCursedTakenAndRefresh','realmEnemyRegenCutAndMinRoll','realmPhysDrHalfTakenAsMore','realmArmorAppliesToDot','realmMeleeArmorAmp','realmNoCollisionBlock','realmResonanceAndSuppCap','realmRegenRateAndRegen','realmMaxHpPct','realmAllMaxRes','frostSentinelBoots','shockTracerGreaves','venomStride','bleedBlockHelm','curseCrown','guardianArmor','warcryResonanceBelt','stackingElementalResDownOnHit','conditionManual','queenBeeSummonOnHit','bleedWeightOnBleedingHit','grandBreachCrown','labyrinthShackles','meteorFootsteps'
-        ,'cosmosFinalDmg','cosmosTakenLess','cosmosSpeedBurst','cosmosPenetration','cosmosSustain','cosmosBossSlayer','cosmosStatBundle','summonCapBonus','summonDeathDamageBuff','summonCritAspdStacks','summonNonCritNoDamage','summonEfficiencyBonus','rightRingSummonCap','genericTakenDamageReducePct','uniqueBlockChance','uniqueDeflectDamageReduce','blockRecoverEnergyShieldPct','blockedDamageTakenPct','uniqueTakenReduceWhen2Enemies','uniqueMaxResAll','deflectGrantShadowStealth','chaosTakenDamageReducePct','uniqueGemLevelBonus','lifeRecoupTakenDamage','immuneBleed','uniqueTakenReduceWhen1Enemy','lifePctAsEnergyShield','dsAndTargetAnyBonus','poisonDamageMorePct','immuneFreeze','uniqueMinDmgRoll','hitShockedEnemyDamageMorePct','noCollisionBlock','projectileTargetBonus','igniteDamageMorePct','cosmosAlwaysFirstHit','cosmosEnergyShieldAmpBypass','cosmosOrbitCycle','cosmosDeepSeaLeechCaps','cosmosTideEsRegenToLife','cosmosEqualDamageSplit','cosmosBalanceMitigation','cosmosTwinStarResonance','cosmosJudgmentLightning','cosmosDeathResist','cosmosVerdictSupportDamage','cosmosGuardianConditionInstant','cosmosBossDamageMore','cosmosCometChillNoFreeze','fixedAllMaxRes','kaleidoscopeShield','stealEliteTrait','mirrorOppositeRing','astraUniqueConvergence','thousandBottles','implicitAmp','loopGrowth','familyBond','sightBeyond','chestLuck','emberHeart','amberTime','witheredEcho','nurseryBloom'
+        'abyssSocketOnItem','abyssSocketAndJewelAmp','leechEfficiencyOnKill','overkillSplash','dragonVeinGuard','fateTwinRollSync','realmBleedingEnemyDamageMore','realmRiftWaveOnHit','realmChaosDamageInstantLeech','realmInvulnerableBarrierOnHit','realmPoisonDuration','realmArmorToPhysicalDamage','realmDeathWard','realmAllResDownOnHit','realmKillMoveStacks','realmCursedTakenAndRefresh','realmEnemyRegenCutAndMinRoll','realmPhysDrHalfTakenAsMore','realmArmorAppliesToDot','realmMeleeArmorAmp','realmRepelMelee','realmResonanceAndSuppCap','realmRegenRateAndRegen','realmMaxHpPct','realmAllMaxRes','frostSentinelBoots','shockTracerGreaves','venomStride','bleedBlockHelm','curseCrown','guardianArmor','warcryResonanceBelt','stackingElementalResDownOnHit','conditionManual','queenBeeSummonOnHit','bleedWeightOnBleedingHit','grandBreachCrown','labyrinthShackles','meteorFootsteps'
+        ,'cosmosFinalDmg','cosmosTakenLess','cosmosSpeedBurst','cosmosPenetration','cosmosSustain','cosmosBossSlayer','cosmosStatBundle','summonCapBonus','summonDeathDamageBuff','summonCritAspdStacks','summonNonCritNoDamage','summonEfficiencyBonus','rightRingSummonCap','genericTakenDamageReducePct','uniqueBlockChance','uniqueDeflectDamageReduce','blockRecoverEnergyShieldPct','blockedDamageTakenPct','uniqueTakenReduceWhen2Enemies','uniqueMaxResAll','deflectGrantShadowStealth','chaosTakenDamageReducePct','uniqueGemLevelBonus','lifeRecoupTakenDamage','immuneBleed','uniqueTakenReduceWhen1Enemy','lifePctAsEnergyShield','dsAndTargetAnyBonus','poisonDamageMorePct','immuneFreeze','uniqueMinDmgRoll','hitShockedEnemyDamageMorePct','pursuitMoveSpeed','projectileTargetBonus','igniteDamageMorePct','cosmosAlwaysFirstHit','cosmosEnergyShieldAmpBypass','cosmosOrbitCycle','cosmosDeepSeaLeechCaps','cosmosTideEsRegenToLife','cosmosEqualDamageSplit','cosmosBalanceMitigation','cosmosTwinStarResonance','cosmosJudgmentLightning','cosmosDeathResist','cosmosVerdictSupportDamage','cosmosGuardianConditionInstant','cosmosBossDamageMore','cosmosCometChillNoFreeze','fixedAllMaxRes','kaleidoscopeShield','stealEliteTrait','mirrorOppositeRing','astraUniqueConvergence','thousandBottles','implicitAmp','loopGrowth','familyBond','sightBeyond','chestLuck','emberHeart','amberTime','witheredEcho','nurseryBloom'
     ]);
     return {
         total: uniqueKeys.length,
@@ -2970,7 +2968,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     let uniqueRiderCompass = false, uniqueMaxRollBonusHit = false, uniqueCeilingSmashDouble = false, uniqueMinRollEqualsMaxRoll = false, uniqueHpToPhysPct = false, uniqueImmuneIgnite = false;
     let uniqueFateTwinRollSync=false, uniqueFrostSentinel=false, uniqueShockTracer=null, uniqueVenomStride=null, uniqueBleedBlockHelm=false, uniqueImmuneBleed=false, uniqueImmuneFreeze=false, uniqueCurseCrownPerCursePct=0, uniqueWarcryResonancePct=0, uniqueConditionManual=null, uniqueStackingElementalResDownOnHit=null;
     let uniqueBleedingEnemyDamageMorePct=0, uniqueRiftWaveOnHit=null, uniqueChaosDamageInstantLeechPct=0, uniqueInvulnerableBarrierOnHit=null, uniquePoisonDurationPct=0, uniqueArmorToPhysicalDamagePctPer1000=0, uniqueDeathWard=null;
-    let uniqueAllResDownOnHit=null, uniqueKillMoveStacks=null, uniqueCursedTakenAndRefresh=null, uniqueEnemyRegenCutAndMinRoll=null, uniquePhysDrHalfTakenAsMore=null, uniqueArmorAppliesToDot=false, uniqueMeleeArmorAmp=null, uniqueNoCollisionBlock=false, uniqueResonanceAndSuppCap=null, uniqueRegenRateAndRegen=null, uniqueMaxHpPct=0, uniqueAllMaxRes=0;
+    let uniqueAllResDownOnHit=null, uniqueKillMoveStacks=null, uniqueCursedTakenAndRefresh=null, uniqueEnemyRegenCutAndMinRoll=null, uniquePhysDrHalfTakenAsMore=null, uniqueArmorAppliesToDot=false, uniqueMeleeArmorAmp=null, uniquePursuitMovePct=0, uniqueRepelMelee=null, uniqueResonanceAndSuppCap=null, uniqueRegenRateAndRegen=null, uniqueMaxHpPct=0, uniqueAllMaxRes=0;
     let uniqueLeechEfficiencyOnKill=null, uniqueOverkillSplash=false, uniqueDragonVeinGuard=null, uniqueGuardianArmor=null, uniqueStealEliteTrait=null, fixedAllMaxRes=null;
     let cosmosAlwaysFirstHit=false, cosmosEnergyShieldBypassPct=0, cosmosOrbitCycle=null, cosmosDeepSeaLeechCaps=null, cosmosTideEsRegenToLife=false, cosmosEqualDamageSplit=false, cosmosBalanceMitigation=false, cosmosTwinStarResonance=null, cosmosJudgmentLightning=null, cosmosDeathResistPct=0, cosmosVerdictSupportDamagePct=0, cosmosGuardianConditionInstant=false, cosmosBossDamageMorePct=0, cosmosCometChillNoFreeze=false;
     let uniqueQueenBeeSummon=null, uniqueBleedWeightOnBleedingHit=false, uniqueGrandBreachCrown=null, uniqueLabyrinthShackles=false, uniqueMeteorFootsteps=null;
@@ -3063,7 +3061,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         else if (effect.key === 'realmPhysDrHalfTakenAsMore') uniquePhysDrHalfTakenAsMore = { ratio: Number(ep.ratio || 0.5) };
         else if (effect.key === 'realmArmorAppliesToDot') uniqueArmorAppliesToDot = true;
         else if (effect.key === 'realmMeleeArmorAmp') uniqueMeleeArmorAmp = mergeBetterUniqueParams(uniqueMeleeArmorAmp, { ampPct: Number(ep.ampPct || 5), maxStacks: Number(ep.maxStacks || 3), duration: Number(ep.duration || 2) });
-        else if (effect.key === 'realmNoCollisionBlock') uniqueNoCollisionBlock = true;
+        else if (effect.key === 'realmRepelMelee') uniqueRepelMelee = readRepelMeleeParams(ep);
         else if (effect.key === 'realmResonanceAndSuppCap') uniqueResonanceAndSuppCap = { resonancePower: Number(ep.resonancePower || 150), suppCap: Number(ep.suppCap || 3) };
         else if (effect.key === 'realmRegenRateAndRegen') uniqueRegenRateAndRegen = mergeBetterUniqueParams(uniqueRegenRateAndRegen, { regenRatePct: Number(ep.regenRatePct || 25), regen: Number(ep.regen || 2) });
         else if (effect.key === 'realmMaxHpPct') uniqueMaxHpPct += Number(ep.pctHp || 35);
@@ -3098,7 +3096,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         else if (effect.key === 'poisonDamageMorePct') addStatToBucket(reward, 'poisonDamageMultiplierPct', Number(ep.pct || 25));
         else if (effect.key === 'uniqueMinDmgRoll') addStatToBucket(reward, 'minDmgRoll', Number(ep.pct || 5));
         else if (effect.key === 'hitShockedEnemyDamageMorePct') addStatToBucket(reward, 'shockedEnemyHitDamageMorePct', Number(ep.pct || 50));
-        else if (effect.key === 'noCollisionBlock') uniqueNoCollisionBlock = true;
+        else if (effect.key === 'pursuitMoveSpeed') uniquePursuitMovePct = Math.max(uniquePursuitMovePct, readPursuitMovePct(ep));
         else if (effect.key === 'projectileTargetBonus') {
             if (isDeferredTalentProjectileTargetEffect(effect)) return;
             addStatToBucket(reward, 'targetProjectile', Number(ep.target || 1));
@@ -5037,7 +5035,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         uniquePoisonDurationPct: uniquePoisonDurationPct,
         uniqueDeathWard: uniqueDeathWard,
         uniqueLeechEfficiencyOnKill: uniqueLeechEfficiencyOnKill,
-        uniqueKillMoveStacks: uniqueKillMoveStacks, uniqueEnemyRegenCutAndMinRoll: uniqueEnemyRegenCutAndMinRoll, uniqueAllResDownOnHit: uniqueAllResDownOnHit, uniqueCursedTakenAndRefresh: uniqueCursedTakenAndRefresh, uniquePhysDrHalfTakenAsMore: uniquePhysDrHalfTakenAsMore, uniqueMeleeArmorAmp: uniqueMeleeArmorAmp, uniqueArmorAppliesToDot: uniqueArmorAppliesToDot, uniqueNoCollisionBlock: uniqueNoCollisionBlock, ignoreEnemyCollision: !!uniqueNoCollisionBlock,
+        uniqueKillMoveStacks: uniqueKillMoveStacks, uniqueEnemyRegenCutAndMinRoll: uniqueEnemyRegenCutAndMinRoll, uniqueAllResDownOnHit: uniqueAllResDownOnHit, uniqueCursedTakenAndRefresh: uniqueCursedTakenAndRefresh, uniquePhysDrHalfTakenAsMore: uniquePhysDrHalfTakenAsMore, uniqueMeleeArmorAmp: uniqueMeleeArmorAmp, uniqueArmorAppliesToDot: uniqueArmorAppliesToDot, uniquePursuitMovePct: uniquePursuitMovePct, uniqueRepelMelee: uniqueRepelMelee,
         uniqueResonanceFloor: uniqueResonanceAndSuppCap ? Math.floor(uniqueResonanceAndSuppCap.resonancePower || 0) : 0,
         inquisitorResonanceBonus: inquisitorResonanceBonus,
         uniqueOverkillSplash: uniqueOverkillSplash,
@@ -5311,7 +5309,8 @@ function tryPlayerTacticalMove(pStats, target, plan, now) {
         maxRange: plan.range,
         previousCell: combatTacticsRuntime.previousCell,
         dtSec: 0.1,
-        intervalSec: COMBAT_GRID_CONFIG.playerMoveIntervalSec * (100 / moveSpeed)
+        intervalSec: COMBAT_GRID_CONFIG.playerMoveIntervalSec * (100 / moveSpeed),
+        keepRows: getSkillBand(game.activeSkill, pStats.sSkill).rows
     });
     if (!result.moved) return false;
     let delayMs = Math.round(getTacticalMoveAttackDelayMs(moveSpeed) * 0.45);
@@ -5405,13 +5404,15 @@ function updatePlayerGridEngagement(pStats, options) {
     let nearest = resolvePlayerApproachTarget(alive);
     if (!nearest) return false;
     if (isPlayerAttackRecovering()) return false;
-    advanceGridUnitMovement(game.gridPlayer, nearest, 0.1, getPlayerGridStepSec(pStats));
+    advanceGridUnitMovement(game.gridPlayer, getPlayerApproachCell(pStats, nearest), 0.1, getPlayerGridStepSec(pStats));
     return false;
 }
 
-/** One hero step toward its target, in seconds (move speed 100 = playerMoveIntervalSec). */
+/** One hero step toward its target, in seconds (move speed 100 = playerMoveIntervalSec). Every caller steps toward a monster, so
+ * the 추적자 boots' pursuit speed (uniquePursuitMovePct) counts here and nowhere else. */
 function getPlayerGridStepSec(pStats) {
     let moveSpeed = Number.isFinite(pStats.moveSpeed) && pStats.moveSpeed > 0 ? pStats.moveSpeed : 100;
+    moveSpeed *= 1 + Math.max(0, Number(pStats.uniquePursuitMovePct) || 0) / 100;
     return COMBAT_GRID_CONFIG.playerMoveIntervalSec * (100 / moveSpeed);
 }
 
@@ -5420,7 +5421,13 @@ function getPlayerGridStepSec(pStats) {
 function approachLockedEnemy(pStats, targets) {
     const locked = actExplorationState.lockedEnemy(actExplorationState.current(game));
     if (!locked || !game.enemies.includes(locked) || targets.some(hit => hit.enemy === locked) || isPlayerAttackRecovering()) return false;
-    return advanceGridUnitMovement(game.gridPlayer, locked, 0.1, getPlayerGridStepSec(pStats));
+    return advanceGridUnitMovement(game.gridPlayer, getPlayerApproachCell(pStats, locked), 0.1, getPlayerGridStepSec(pStats));
+}
+
+/** 다가갈 자리: 옆으로만 치는 룬(js/combat-grid.js getSkillBand)이면 그 적이 띠 안에 드는 가장 가까운 자리(줄을 맞춘다), 아니면 그 적. */
+function getPlayerApproachCell(pStats, enemy) {
+    const band = getSkillBand(game.activeSkill, pStats.sSkill);
+    return band.rows ? getGridBandApproachCell(game.gridPlayer, enemy, band) : enemy;
 }
 
 
@@ -5445,7 +5452,7 @@ function rollEnemyTrait(zone, isElite, isBoss, seed) {
 }
 
 
-function applyDamageToEnemyResource(enemy, damage, options) {
+function applyDamageToEnemyResource(enemy, damage) {
     let remaining = Math.max(0, Math.floor(Number(damage) || 0));
     if (!enemy || remaining <= 0) return 0;
     let dealt = 0;
@@ -5457,8 +5464,7 @@ function applyDamageToEnemyResource(enemy, damage, options) {
     }
     if (remaining > 0) {
         let beforeHp = Math.max(0, Math.floor(enemy.hp || 0));
-        let minimumHp = Math.max(0, Math.floor((options && Number.isFinite(options.minimumHp)) ? options.minimumHp : 0));
-        enemy.hp = Math.max(minimumHp, beforeHp - remaining);
+        enemy.hp = Math.max(0, beforeHp - remaining);
         dealt += Math.max(0, beforeHp - enemy.hp);
     }
     return dealt;
@@ -7061,13 +7067,11 @@ function handleTalentBloomClear(zone) {
     queueImportantSave(200);
 }
 
-function isCrowdProgressPaused(pStats) {
+function isCrowdProgressPaused() {
     if (game.moveTimer > 0) return false;
     // 방 단위 무대: 방 안의 몬스터를 다 잡아야 문이 열린다. 따로 멈출 진행이 없으니 무리가 많다는 알림도 내지 않는다.
     if (actExplorationDoors.stageMap(actExplorationState.current(game))) return false;
-    if ((game.enemies || []).filter(enemy => enemy.hp > 0).length < ENEMY_CROWD_PAUSE_LIMIT) return false;
-    // 고유 신발 추적자와 철벽 척력화는 적 한도에 막히지 않는다. 값만 계산되고 읽는 곳이 없었다(2026-10-17).
-    return !(pStats || getPlayerStats(false)).ignoreEnemyCollision;
+    return (game.enemies || []).filter(enemy => enemy.hp > 0).length >= ENEMY_CROWD_PAUSE_LIMIT;
 }
 
 function getDotStackMultiplier(stacks) {
@@ -7258,6 +7262,26 @@ function pushEnemyAwayOnHit(enemy, skill) {
     }
     if (moved) addBattleFx('statusText', { enemyId: enemy.id, text: '밀려남', color: '#f0c993', duration: 300 });
     return moved;
+}
+
+/** 철벽 척력화(uniqueRepelMelee): 근접 공격으로 주인공에게 닿은(회피되지 않은) 몬스터를 룬의 밀어내기로 밀어낸다. 막아낸 공격도
+ * 닿은 공격이다. 보스는 밀리지 않고(pushEnemyAwayOnHit), 같은 몬스터는 cooldownMs에 한 번만 밀린다. */
+function repelMeleeAttacker(enemy, pStats) {
+    const repel = pStats.uniqueRepelMelee;
+    if (!repel || enemy.attackKind !== 'melee' || !(enemy.hp > 0)) return;
+    const now = getCombatTime();
+    if (now < (Number(enemy.repelledAt) || -Infinity) + repel.cooldownMs) return;
+    if (pushEnemyAwayOnHit(enemy, { pushAwayCells: repel.cells })) enemy.repelledAt = now;
+}
+
+/** 철벽 척력화의 값(data/items.js realm effects): 밀어내는 칸과 같은 몬스터를 다시 밀기까지의 ms. */
+function readRepelMeleeParams(ep) {
+    return { cells: Math.max(1, Math.floor(Number(ep.cells) || 1)), cooldownMs: Math.max(0, Number(ep.cooldownSec ?? 1.5)) * 1000 };
+}
+
+/** 추적자의 값: 적에게 다가가는 걸음의 이동 속도 증가(%). */
+function readPursuitMovePct(ep) {
+    return Math.max(0, Number(ep.pct) || 40);
 }
 
 /** 맞은 몬스터를 skill.launchMs 동안 띄운다(올려 베기): 그동안 움직이지도 새 공격을 시작하지도 못한다. 보스는 뜨지 않는다. */
@@ -7754,7 +7778,6 @@ function tickEnemyAilments(pStats, dt) {
     let zone = getZone(game.currentZoneId);
     let zoneTier = (zone && zone.tier) || 1;
     let abyssPlayerMul = (getAbyssMonsterScales(zone).playerDamageMul || 1);
-    let storyAct = zone && zone.type === 'act' ? getStoryActByZoneId(zone.id) : null;
     (game.enemies || []).forEach(enemy => {
         if (!enemy || enemy.hp <= 0) return;
         enemy.ailments = Array.isArray(enemy.ailments) ? enemy.ailments : [];
@@ -7773,8 +7796,7 @@ function tickEnemyAilments(pStats, dt) {
                 let igniteMul = (type === 'ignite' && (enemy.ailments || []).some(row => row && row.type === 'flameDecay' && (row.time || 0) > 0)) ? getFlameDecayIgniteTakenMultiplier(pStats) : 1;
                 let stackMul = Math.max(1, Math.floor(ail.stacks || 1));
                 let dotDmg = dps > 0 ? Math.max(1, Math.floor(dps * stackMul * dt * (1 - enemyRes / 100) * abyssPlayerMul * igniteMul)) : 0;
-                let minimumHp = (enemy.isBoss && storyAct && (storyAct.specialType === 'forced_defeat' || (storyAct.specialType === 'loop_gate' && !canBreakWoodsmanLoop()))) ? 1 : 0;
-                let dealt = applyDamageToEnemyResource(enemy, dotDmg, { minimumHp: minimumHp });
+                let dealt = applyDamageToEnemyResource(enemy, dotDmg);
                 // 출혈/점화/중독 도트는 0.1초마다 틱이 들어와 모바일에서 히트 FX가 과도하게 누적될 수 있다.
                 // 특히 출혈 빌드는 틱 빈도/대상 수가 높아 화면이 하얗게 번쩍이며 프레임이 급락하는 증상이 보고됨.
                 let fxState = game.dotFxThrottle || (game.dotFxThrottle = {});
@@ -7825,7 +7847,6 @@ function tickEnemyDotEffects(pStats, dt) {
     let zone = getZone(game.currentZoneId);
     let zoneTier = (zone && zone.tier) || 1;
     let abyssPlayerMul = (getAbyssMonsterScales(zone).playerDamageMul || 1);
-    let storyAct = zone && zone.type === 'act' ? getStoryActByZoneId(zone.id) : null;
     (game.enemies || []).forEach(enemy => {
         if (!enemy || enemy.hp <= 0) return;
         let dotState = (enemy.dotState && typeof enemy.dotState === 'object') ? enemy.dotState : null;
@@ -7840,8 +7861,7 @@ function tickEnemyDotEffects(pStats, dt) {
             let enemyRes = getEffectiveEnemyMitigation(dotEle, zoneTier, enemy, pStats);
             let dotDmg = Math.max(1, Math.floor((dotState.rawTickDamage || 1) * (1 - (enemyRes / 100))));
             dotDmg = Math.max(1, Math.floor(dotDmg * abyssPlayerMul));
-            let minimumHp = (enemy.isBoss && storyAct && (storyAct.specialType === 'forced_defeat' || (storyAct.specialType === 'loop_gate' && !canBreakWoodsmanLoop()))) ? 1 : 0;
-            let dealt = applyDamageToEnemyResource(enemy, dotDmg, { minimumHp: minimumHp });
+            let dealt = applyDamageToEnemyResource(enemy, dotDmg);
             addBattleFx('hit', { enemyId: enemy.id, color: getElementColor(dotEle), damage: dealt, duration: 240, element: dotEle, noLine: true, dot: true });
             if (enemy.hp <= 0) {
                 if (dotEle === 'chaos') enemy.lastHitElement = 'chaos';
@@ -7858,8 +7878,8 @@ function tickEnemyDotEffects(pStats, dt) {
     });
 }
 
-function syncCrowdPauseState(pStats) {
-    let paused = isCrowdProgressPaused(pStats);
+function syncCrowdPauseState() {
+    let paused = isCrowdProgressPaused();
     if (paused === crowdPauseActive) return paused;
     crowdPauseActive = paused;
     if (game.settings.showCrowdPauseLog !== false) {
@@ -8719,13 +8739,6 @@ function spawnEncounterMarker(marker) {
             addBattleFx('enemySpawn', { enemyId: enemy.id, color: getElementColor(enemy.ele), duration: 360, boss: false });
         }
         let bossEnemy = createEnemy(zone, { ...marker, count: 1, storyStage: game.killsInZone }, count);
-        let storyAct = zone && zone.type === 'act' ? getStoryActByZoneId(zone.id) : null;
-        if (storyAct && storyAct.specialType === 'forced_defeat') {
-            let now = performance.now();
-            bossEnemy.forcedDefeatBoss = true;
-            bossEnemy.nextForcedRegenAt = now + 5000;
-            bossEnemy.forcedDoomAt = now + 10000;
-        }
         assignEnemyGridSpawn(bossEnemy, blockedCells);
         bossEnemy.spawnStamp = getBattleSpawnStamp();
         game.enemies.push(bossEnemy);
@@ -8767,7 +8780,7 @@ function advanceMapProgress(pStats) {
     ensureEncounterRun();
     if(actExplorationProgress.advance(pStats))return;
     if (game.runProgress >= 100) return;
-    if (isCrowdProgressPaused(pStats)) return;
+    if (isCrowdProgressPaused()) return;
     let abyssScale = getAbyssMonsterScales(zone);
     let enemyCount = (game.enemies || []).filter(enemy => enemy.hp > 0).length;
     let zoneType = zone ? zone.type : 'act';
@@ -9672,29 +9685,6 @@ function takeEnemyRegenAmount(enemy, rawRegen) {
     return wholeRegen;
 }
 
-function canBreakWoodsmanLoop() {
-    return Math.max(0, Math.floor(game.woodsmanDefeatAttempts || 0)) >= WOODSMAN_BREAK_LOOP_REQUIRED;
-}
-
-function handleStoryActSpecialDefeat(zone, pStats) {
-    let storyAct = getStoryActByZoneId(zone && zone.id);
-    if (!storyAct) return false;
-    if (storyAct.specialType === 'loop_gate') {
-        if (canBreakWoodsmanLoop()) return false;
-        game.woodsmanDefeatAttempts = Math.max(0, Math.floor(game.woodsmanDefeatAttempts || 0)) + 1;
-        addLog(`🪓 ${storyAct.clearText}`, 'death');
-        addLog(`❄️ 나무꾼의 창조 권능이 세계를 되감았습니다. (루프 ${game.woodsmanDefeatAttempts}/${WOODSMAN_BREAK_LOOP_REQUIRED})`, 'attack-monster');
-        game.currentZoneId = 0;
-        game.maxZoneId = 0;
-        game.killsInZone = 0;
-        game.playerHp = getPlayerHpCap(pStats);
-        startMoving(false);
-        updateStaticUI();
-        return true;
-    }
-    return false;
-}
-
 function ensureNextEndlessChaosDepthUnlocked(depth) {
     let clearedDepth = Math.max(1, Math.floor(depth || 1));
     if ((game.season || 1) < 10 || clearedDepth < 20) return 0;
@@ -10360,11 +10350,6 @@ function finishEncounterRun() {
             if (zone.id === 8) unlockJournalEntry('act_9');
             if (zone.id === 9) unlockJournalEntry('act_10');
             if (zone.id === 9 && Math.max(0, Math.floor(game.loopDeaths || 0)) <= 0) unlockJournalEntry('immortal');
-            if (storyAct && storyAct.specialType === 'loop_gate') {
-                addLog('🗡️ 창조 권능 절단이 완성되었다. 나무꾼을 베어낸 루프가 새 루프의 문을 연다.', 'loot-unique');
-                handleSeasonLoopConditionMet();
-                return;
-            }
         }
         let clearedAbyssDepth = zone.type === 'abyss' ? Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1)) : 0;
         let clearedSeasonFinalZone = zone.id === getCurrentSeasonFinalZoneId() || (zone.type === 'abyss' && clearedAbyssDepth >= getSeasonAbyssDepthCap(game.season || 1));
@@ -10864,16 +10849,11 @@ function performPlayerAttack(pStats, attackOptions) {
             if (!chainTarget) return;
             visited.add(chainTarget.id);
             let zone = getZone(game.currentZoneId);
-            let storyAct = zone && zone.type === 'act' ? getStoryActByZoneId(zone.id) : null;
-            let beforeHpForForced = chainTarget.hp;
             let chainRes = getEffectiveEnemyMitigation(hitElement, zone.tier, chainTarget, pStats);
             let chainDamage = Math.floor(remainingDamage * (1 - chainRes / 100));
             if ((pStats.sSkill.tags || []).includes('projectile')) chainDamage = Math.floor(chainDamage * (chainTarget.projectileDamageTakenMul || 1));
             if (hitElement === 'phys') chainDamage = Math.floor(chainDamage * (chainTarget.physicalDamageTakenMul || 1));
             let dealtToChain = applyDamageToEnemyResource(chainTarget, Math.max(1, chainDamage));
-            if (chainTarget.isBoss && storyAct && (storyAct.specialType === 'forced_defeat' || (storyAct.specialType === 'loop_gate' && !canBreakWoodsmanLoop())) && chainTarget.hp <= 0) {
-                chainTarget.hp = Math.max(1, Math.min(beforeHpForForced, chainTarget.maxHp || 1));
-            }
             maybeUnlockChaosRealmFromWoodsman(chainTarget);
             chainTarget.recentHitsTaken = (chainTarget.recentHitsTaken || 0) + 1;
             chainTarget.recentHitsTimer = 1.8;
@@ -11310,10 +11290,7 @@ function performPlayerAttack(pStats, attackOptions) {
                     });
                 }
             }
-            let zone = getZone(game.currentZoneId);
-            let storyAct = zone && zone.type === 'act' ? getStoryActByZoneId(zone.id) : null;
-            let beforeHpForForced = targetEnemy.hp;
-            let talentWasFull = beforeHpForForced >= (targetEnemy.maxHp || beforeHpForForced || 1);
+            let talentWasFull = targetEnemy.hp >= (targetEnemy.maxHp || targetEnemy.hp || 1);
             // 선제 타격: 생명력이 가득 찬 적에게 가하는 첫 타에 추가 피해
             if (talentWasFull && (pStats.firstStrikeDamagePct || 0) > 0) {
                 let firstStrikeMul = 1 + Math.max(0, Number(pStats.firstStrikeDamagePct) || 0) / 100;
@@ -11424,9 +11401,6 @@ function performPlayerAttack(pStats, attackOptions) {
                     addBattleFx('hit', { enemyId: targetEnemy.id, color: getElementColor('phys'), damage: bonus, duration: 280, element: 'phys', syncToSwing: true });
                 }
                 game.rangerWeakpointMarks[targetEnemy.id] = mark;
-            }
-            if (targetEnemy.isBoss && storyAct && (storyAct.specialType === 'forced_defeat' || (storyAct.specialType === 'loop_gate' && !canBreakWoodsmanLoop())) && targetEnemy.hp <= 0) {
-                targetEnemy.hp = Math.max(1, Math.min(beforeHpForForced, targetEnemy.maxHp || 1));
             }
             maybeUnlockChaosRealmFromWoodsman(targetEnemy);
             if (targetEnemy.hp <= 0 && dmg > dealtToEnemy) {
@@ -11679,26 +11653,8 @@ function applyActRestRecovery(pStats, hpCap) {
 function handlePlayerDefeat(zone, pStats, message, options) {
     actExplorationProgress.defeat(game);
     let opts = options || {};
-    let storyAct = zone && zone.type === 'act' ? getStoryActByZoneId(zone.id) : null;
     recordPlayerDefeatStart(zone, opts);
     let expLost = 0;
-    if (storyAct && storyAct.specialType === 'forced_defeat') {
-        addLog(`🩸 ${storyAct.clearText}`, 'death');
-        addLog('🧊 이 패배는 담금질로 기록된다.', 'season-up');
-        unlockJournalEntry('act_2');
-        if (zone && zone.type === 'act' && zone.id <= 9) markActRewardReady(zone.id);
-        if (game.maxZoneId <= zone.id) {
-            game.maxZoneId = Math.min(getCurrentSeasonFinalZoneId(), game.maxZoneId + 1);
-            triggerMapUnlockReveal(game.maxZoneId);
-        }
-        game.currentZoneId = getDefeatRecoveryZoneId();
-        game.killsInZone = 0;
-        game.playerHp = getPlayerHpCap(pStats);
-        startMoving(false);
-        updateStaticUI();
-        queueImportantSave(160);
-        return;
-    }
     game.loopDeaths = Math.max(0, Math.floor(game.loopDeaths || 0)) + 1;
     if (typeof recordImmortalHeroDeathPenalty === 'function') recordImmortalHeroDeathPenalty();
     if (zone && zone.id === OUTSIDE_CHAOS_ZONE_ID) {
@@ -12246,21 +12202,6 @@ function performMonsterAttacks(pStats) {
         let ailMap = {};
         (enemy.ailments || []).forEach(ail => { if ((ail.time || 0) > 0) ailMap[ail.type] = Math.max(ailMap[ail.type] || 0, ail.power || 0); });
         if (!pendingAttack && enemyAttackRules.interrupt(enemy,getCombatTime())) continue;
-        if (enemy.forcedDefeatBoss) {
-            let now = performance.now();
-            if (now >= (enemy.nextForcedRegenAt || 0)) {
-                enemy.hp = enemy.maxHp;
-                enemy.nextForcedRegenAt = now + 5000;
-                if (game.settings.showCombatLog) addLog('✂️ 정원사의 불멸성이 상처를 되감아 풀피로 회복했다.', 'attack-monster');
-            }
-            if (now >= (enemy.forcedDoomAt || 0)) {
-                enemy.forcedDoomAt = now + 10000;
-                game.playerHp = 0;
-                recordIncomingDamage('chaos', pStats.maxHp, '정원사의 가지치기');
-                handlePlayerDefeat(zone, pStats, '☠️ 정원사의 가지치기가 당신의 생명력을 절단했습니다.', { fatalElement: 'chaos', sourceName: '정원사' });
-                return;
-            }
-        }
         applyEnemyRegen(enemy, pStats);
         enemy.recentHitsTimer = Math.max(0, (enemy.recentHitsTimer || 0) - 0.1);
         if (enemy.recentHitsTimer <= 0) enemy.recentHitsTaken = Math.max(0, (enemy.recentHitsTaken || 0) - 1);
@@ -12548,6 +12489,7 @@ function performMonsterAttacks(pStats) {
                 if (hasKeystone('ct4')) game.catalystEvadeBoostReady = true;
                 continue;
             }
+            repelMeleeAttacker(enemy, pStats);
             let blockRollCap = Math.max(0, Math.min(75, Number(pStats.blockChanceMax || 50)));
             let blockRollChance = Math.max(0, Math.min(blockRollCap, pStats.blockChance || pStats.guardianBlockChance || 0));
             // 실전 특화: 막기 판정에 행운 적용(2회 굴려 유리한 값 사용)

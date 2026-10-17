@@ -62,17 +62,26 @@ const stageSkillRules = (() => {
         const stages = ((SKILL_DB[gem.meta.name] || {}).combatPattern || {}).stages || [];
         return stages.length > 1 ? stages[1].delayMs - stages[0].delayMs : 560;
     }
-    /** 코드로 그리는 휘두름: 공허 가르기의 우주 틈(열린 동안 둘레의 티끌이 빨려 든다), 흡혈 관통의 바늘 찌르기. @returns {boolean} 그렸는지 */
+    /** 코드로 그리는 휘두름: 공허 가르기의 우주 틈(열린 동안 둘레의 티끌이 빨려 든다), 흡혈 관통의 바늘 찌르기. 옆으로 치는 띠(js/combat-grid.js band)면
+     * 틈이 위아래 줄까지 벌어지고, 바늘은 줄마다 하나씩 찌른다. @returns {boolean} 그렸는지 */
     function rulePlayDrawn(gem, fx, look) {
-        const hero = K.heroSpot();
+        const hero = K.heroSpot(), rows = ruleBandRows(fx);
         if (gem.map.gash) {
-            const gash = stageSkillDraws.gash(look.face, ruleReachOf(fx), hero.gx * 31 + hero.gy, { at: 140, close: ruleRiftClose(gem) });
+            const gash = stageSkillDraws.gash(look.face, ruleReachOf(fx), hero.gx * 31 + hero.gy, { at: 140, close: ruleRiftClose(gem), rows });
             stageSkillVfx.paint(K.at(hero), { life: gash.life }, gash.paint);
         } else if (gem.map.swing === 'pierce') {
-            const pierce = stageSkillDraws.pierce(look.face, look.ramp);
-            stageSkillVfx.paint(K.at(hero, look.face * 14, -42), { life: pierce.life }, pierce.paint);
+            rulePlayNeedles(look, rows);
         } else return false;
         return true;
+    }
+    const ruleBandRows = fx => (fx.attackFootprint && fx.attackFootprint.band ? fx.attackFootprint.band.rows : 0);
+    /** 흡혈 관통의 바늘: 손 앞에서 하나, 옆으로 치는 띠면 위아래 줄에도 하나씩(조금 늦고 옅게). */
+    function rulePlayNeedles(look, rows) {
+        for (let lane = -rows; lane <= rows; lane++) {
+            const pierce = stageSkillDraws.pierce(look.face, look.ramp), alpha = lane ? 0.8 : 1;
+            stageSkillVfx.paint(K.at(K.heroSpot(), look.face * 14, -42 + lane * DEEP), { life: pierce.life, delay: Math.abs(lane) * 40 },
+                (ctx, t, dot) => { ctx.globalAlpha = alpha; pierce.paint(ctx, t, dot); });
+        }
     }
     /** 한 번의 공격에 한 번: 코드로 그리는 v32의 휘두름(js/canvas-stage-skill-runes.js)이 아니면 그 룬의 휘두름 클립. */
     function rulePlaySwing(gem, fx, look) {

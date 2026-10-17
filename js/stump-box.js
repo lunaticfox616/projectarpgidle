@@ -435,16 +435,26 @@ const stumpBox = (() => {
     function bulkCompostOpen(state) { return openUnlocks(state).some(row => row.bulkCompost); }
     /** The colours a storage filter covers: one colour, or all four ('all'); none for the talisman filter. */
     function filterColors(filter) { return COLORS.includes(filter) ? [filter] : filter === 'all' ? COLORS : []; }
-    /** What a bulk action (일괄 거름 사용, 일괄 버리기) takes of a storage filter: its stored seeds and saps but the best
-     * STUMP_BOX_BULK_COMPOST.keep of each colour and kind (merging material) and golden or ancient ones. */
+    /** The stored seeds and saps a storage filter covers. */
+    function storedSeedsAndSaps(state, filter) {
+        const colors = filterColors(filter);
+        return storage(state).filter(item => FAMILIES.includes(item.family) && colors.includes(item.color));
+    }
+    /** What 일괄 거름 사용 takes of a storage filter: its stored seeds and saps but the best STUMP_BOX_BULK_COMPOST.keep of each
+     * colour and kind (merging material) and golden or ancient ones. */
     function bulkItems(state, filter) {
-        const colors = filterColors(filter), groups = new Map();
-        storage(state).filter(item => FAMILIES.includes(item.family) && colors.includes(item.color)).forEach(item => {
+        const groups = new Map();
+        storedSeedsAndSaps(state, filter).forEach(item => {
             const key = `${item.color}-${item.family}-${item.path || ''}`;
             groups.set(key, (groups.get(key) || []).concat(item));
         });
         return [...groups.values()].flatMap(list => list.sort((a, b) => b.roll - a.roll || a.id - b.id).slice(STUMP_BOX_BULK_COMPOST.keep))
             .filter(item => !item.golden && !item.ancient);
+    }
+    /** What 일괄 버리기 takes of a storage filter: every stored seed and sap but golden, ancient and grown ones (any growth, cube
+     * material). It used to keep the best three of each kind as compost does: 12 kinds kept up to 36 (2026-10-17 사용자: 75개 중 25개만). */
+    function bulkDiscardItems(state, filter) {
+        return storedSeedsAndSaps(state, filter).filter(item => !item.golden && !item.ancient && !item.xp && !isMature(item));
     }
     /** The bulk-compost items in use order (lowest quality first), cut where everything growing has ripened as pressing them one by
      * one would stop: each compost feeds every growing item alike, so the item furthest from ripe decides. */
@@ -478,15 +488,15 @@ const stumpBox = (() => {
         }
         return out;
     }
-    /** '' when the filter's bulk items can be thrown away now (일괄 버리기), otherwise why not. */
+    /** '' when the filter's bulkDiscardItems can be thrown away now (일괄 버리기), otherwise why not. */
     function bulkDiscardReason(state, filter) {
         if (!editable(state)) return '나무꾼 전투 중에는 그루터기 함을 바꿀 수 없습니다.';
-        return bulkItems(state, filter).length ? '' : '버릴 씨앗이나 수액이 없습니다.';
+        return bulkDiscardItems(state, filter).length ? '' : '버릴 씨앗이나 수액이 없습니다.';
     }
-    /** 일괄 버리기: throws the filter's bulk items away. @returns {?object[]} what went, null when not allowed. */
+    /** 일괄 버리기: throws the filter's bulkDiscardItems away. @returns {?object[]} what went, null when not allowed. */
     function discardMany(state, filter) {
         if (bulkDiscardReason(state, filter)) return null;
-        const box = of(state), gone = bulkItems(state, filter), ids = new Set(gone.map(item => item.id));
+        const box = of(state), gone = bulkDiscardItems(state, filter), ids = new Set(gone.map(item => item.id));
         box.items = box.items.filter(item => !ids.has(item.id));
         return gone;
     }
@@ -946,7 +956,7 @@ const stumpBox = (() => {
         graftRank, graftMultiplier, graftOpen, graftPoints, graftJournalPoints, graftOverflowPoints, graftRaiseReason, graftRaise, graftLowerReason, graftLower,
         harvestKey, harvestRows, hasHarvested, pendingGifts, claimHarvestGift, openUnlocks, storageLimit, storageFull, rootMemoryPct,
         rollCap, graftMaxRank, qualityOf, goldenMul, sealLimit, isSealed, sealReason, toggleSeal, devourOpen, addScar, grantScar, rollScarDrop, scarCaps: () => SCAR_CAPS,
-        breedingOpen, bulkCompostOpen, bulkItems, bulkCompostPlan, bulkCompostReason, compostMany, bulkDiscardReason, discardMany, pendingPouches, pouchOffers, choosePouch,
+        breedingOpen, bulkCompostOpen, bulkItems, bulkCompostPlan, bulkCompostReason, compostMany, bulkDiscardItems, bulkDiscardReason, discardMany, pendingPouches, pouchOffers, choosePouch,
         codexIds: () => CODEX_IDS,
         itemById: (state, id) => findItem(of(state), id)
     };

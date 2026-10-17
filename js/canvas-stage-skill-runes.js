@@ -44,7 +44,16 @@ const stageSkillRunes = (() => {
         return null;
     }
     const ringRadius = fx => Math.max(1, Number(fx.attackFootprint && fx.attackFootprint.radius) || 1);
-    const faceOf = event => { const target = event.targetCells && event.targetCells[0], source = event.sourceCell; return (target && source && Math.sign(target.gx - source.gx)) || K.heroFace(); };
+    /** 그 사건이 나가는 쪽: 옆으로 치는 룬(js/combat-grid.js band)은 대상을 고를 때 정한 쪽, 아니면 대상이 선 쪽, 같은 세로줄이면 주인공이 보는 쪽. */
+    const faceOf = event => {
+        const band = event.footprint && event.footprint.band, target = event.targetCells && event.targetCells[0], source = event.sourceCell;
+        return (band && band.side) || (target && source && Math.sign(target.gx - source.gx)) || K.heroFace();
+    };
+    /** 옆으로 치는 룬이 덮는 위아래 줄 수(그림을 그만큼 두툼하게 그린다). 아니면 0. */
+    const rowsOf = footprint => (footprint && footprint.band ? footprint.band.rows : 0);
+    /** 앞으로 그릴 칸 수: 옆으로 치는 룬은 띠의 길이, 아니면 부채꼴 중심선의 길이(모르면 fallback). */
+    const reachCellsOf = (footprint, fallback) => (footprint && footprint.band ? footprint.band.reach
+        : Math.max(1, Math.round(((footprint && footprint.cone && footprint.cone.length) || fallback) - 0.5)));
     const relative = (spot, from) => ({ dx: (spot.gx - from.gx) * WIDE, dy: (spot.gy - from.gy) * DEEP });
 
     // ---------------------------------------------------------------- swings
@@ -61,14 +70,15 @@ const stageSkillRunes = (() => {
     }
     /** 이 룬의 휘두름을 여기서 그리는가. */
     const drawsSwing = gem => !!(gem.map.xcut || gem.map.vcut || gem.map.fan || gem.map.icering || gem.map.swing === 'rise');
-    /** 불사르기: 쐐기 끝까지 번지는 불길 앞면과, 무기 앞에서 쐐기 끝 다섯 방향으로 뿜어지는 불길 클립(가운데가 크고 멀리). */
+    /** 불사르기: 쐐기 끝까지 번지는 불길 앞면과, 무기 앞에서 쐐기 끝 다섯 방향으로 뿜어지는 불길 클립(가운데가 크고 멀리). 옆으로 치는 띠면
+     * 불길이 첫 칸 안에 위아래 줄까지 번지고 클립도 그 줄들의 몸 높이로 뿜어진다. */
     function runeFan(gem, fx, look) {
-        const hero = K.heroSpot(), cone = fx.attackFootprint && fx.attackFootprint.cone, cells = Math.max(1, Math.round(((cone && cone.length) || 3.5) - 0.5)), Lp = cells * WIDE;
-        ST.flameFan(K.at(hero), look.face, cells, hero.gx * 31 + hero.gy);
+        const hero = K.heroSpot(), rows = rowsOf(fx.attackFootprint), cells = reachCellsOf(fx.attackFootprint, 3.5), Lp = cells * WIDE;
+        ST.flameFan(K.at(hero), look.face, cells, hero.gx * 31 + hero.gy, rows);
         if (!gem.map.fanFlame) return;
-        const sx = look.face * 30, sy = -44;
+        const sx = look.face * 30, sy = -44, spread = rows ? rows + 0.5 : cells / 2;
         [-1, -0.5, 0, 0.5, 1].forEach(k => {
-            const ex = look.face * Lp * (0.78 - Math.abs(k) * 0.12), ey = k * (cells / 2) * DEEP * 0.75 - 30, rot = Math.atan2(ey - sy, Math.abs(ex - sx));
+            const ex = look.face * Lp * (0.78 - Math.abs(k) * 0.12), ey = k * spread * DEEP * 0.75 - 30, rot = Math.atan2(ey - sy, Math.abs(ex - sx));
             stageSkillVfx.play(gem.map.fanFlame, K.at(hero, sx + look.face * 20, sy), { face: look.face, ramp: look.ramp, delay: Math.abs(k) * 40, scale: 1.25 - Math.abs(k) * 0.3, alpha: 0.9, rot,
                 move: { dx: ex - sx - look.face * 20, dy: ey - sy, ms: 300 } });
         });
@@ -148,17 +158,26 @@ const stageSkillRunes = (() => {
     }
 
     // ---------------------------------------------------------------- picture events
-    /** 참격파: 큰 베기 선, 바닥을 긁으며 나아가는 칼바람과 그것을 따라가는 연기 물결. */
+    /** 참격파: 큰 베기 선, 바닥을 긁으며 나아가는 칼바람과 그것을 따라가는 연기 물결. 옆으로 치는 띠면 칼바람이 위아래 줄까지 덮게 높아지고
+     * 줄마다 긁힌 자국과 연기 물결이 간다. */
     function runeSlashWave(gem, event) {
-        const from = event.sourceCell, face = faceOf(event), L = Math.max(1, Math.abs(event.targetCells[0].gx - from.gx)) * WIDE, ms = Math.max(120, event.duration);
-        ST.slashWave(K.at(from), face, L, ms);
-        if (gem.map.smwave) stageSkillVfx.play(gem.map.smwave, K.at(from, face * 40, -26), { face, delay: 40, alpha: 0.7, move: { dx: face * (L - 70), dy: 0, ms: ms + 120 } });
+        const from = event.sourceCell, face = faceOf(event), rows = rowsOf(event.footprint), ms = Math.max(120, event.duration), L = cellsAhead(event) * WIDE;
+        ST.slashWave(K.at(from), face, L, ms, rows);
+        if (!gem.map.smwave) return;
+        for (let lane = -rows; lane <= rows; lane++) stageSkillVfx.play(gem.map.smwave, K.at(from, face * 40, -26 + lane * DEEP),
+            { face, delay: 40 + Math.abs(lane) * 30, alpha: lane ? 0.5 : 0.7, move: { dx: face * (L - 70), dy: 0, ms: ms + 120 } });
     }
-    /** 서리 파동: 파동이 지나는 칸마다 얼음 결정 둘(바닥 앞뒤로). */
+    /** 서리 파동: 파동이 지나는 칸마다 얼음 결정(바닥 앞뒤로 둘, 옆으로 치는 띠면 줄마다 하나). */
     function runeIceTrail(gem, event) {
-        const from = event.sourceCell, face = faceOf(event), cells = Math.max(1, Math.round(Math.abs(event.targetCells[0].gx - from.gx))), cellMs = event.duration / cells;
-        for (let i = 0; i < cells; i++) [-0.45, 0.4].forEach((k, j) => stageSkillVfx.play(gem.map.iceTrail, K.at(from, face * (i + 0.55 + j * 0.25) * WIDE, k * 0.75 * DEEP),
+        const from = event.sourceCell, face = faceOf(event), rows = rowsOf(event.footprint), cells = cellsAhead(event), cellMs = event.duration / cells;
+        const lanes = rows ? Array.from({ length: rows * 2 + 1 }, (_, i) => (i - rows) * 0.9) : [-0.45 * 0.75, 0.4 * 0.75];
+        for (let i = 0; i < cells; i++) lanes.forEach((k, j) => stageSkillVfx.play(gem.map.iceTrail, K.at(from, face * (i + 0.55 + (j % 2) * 0.25) * WIDE, k * DEEP),
             { face: (i + j) % 2 ? -face : face, delay: i * cellMs + j * 50, layer: k < 0 ? 'ground' : 'top' }));
+    }
+    /** 나아가는 그림이 지나는 칸 수: 띠의 길이, 아니면 대상 칸까지의 가로 칸 수. */
+    function cellsAhead(event) {
+        const band = event.footprint && event.footprint.band;
+        return band ? band.reach : Math.max(1, Math.round(Math.abs(event.targetCells[0].gx - event.sourceCell.gx)));
     }
     /** 부싯돌 베기: 떠나는 순간 휘두르고, 지나간 바닥이 그을리고, 나는 동안 바닥에 선 초승달 불길이 손 높이보다 낮게 달린다. */
     function runeFlint(gem, event, view, hooks) {
@@ -200,11 +219,10 @@ const stageSkillRunes = (() => {
         stageSkillVfx.play(map.bolt, K.at(hit.victim, 0, 1), { face });
         if (map.boltGround) stageSkillVfx.play(map.boltGround, K.at(hit.victim, 0, 1), { face, layer: 'ground', delay: 30 });
     }
-    /** 혹한의 지진의 둘째 단계: 친 자리(몸 앞 반 칸)에서 앞 쐐기를 따라 얼음 기둥이 솟는다. */
+    /** 혹한의 지진의 둘째 단계: 친 자리(몸 앞 반 칸)에서 앞 쐐기를 따라 얼음 기둥이 솟는다(옆으로 치는 띠면 줄마다). */
     function runePillars(gem, event) {
         const face = faceOf(event), from = event.sourceCell, origin = { gx: from.gx + face * 0.5, gy: from.gy };
-        const cone = event.footprint && event.footprint.cone, L = Math.max(1, Math.round(((cone && cone.length) || 3.5) - 0.5));
-        SP.iceColumns({ at: K.at(origin), face, L, rowMs: gem.map.pillars });
+        SP.iceColumns({ at: K.at(origin), face, L: reachCellsOf(event.footprint, 3.5), rowMs: gem.map.pillars, rows: rowsOf(event.footprint) });
     }
     /** 실제 피격 대상의 큰 기둥. 전투 틱 때문에 늦게 온 타격은 기본 기둥 열의 시각으로 보정하고, 이미 지났으면 지금부터 온전히 그린다. */
     function runePillarHit(gem, hit) {
@@ -218,8 +236,8 @@ const stageSkillRunes = (() => {
         SP.emberShout({ at: K.at(event.sourceCell), radius: Number(event.footprint && event.footprint.radius) || 2, wave: 90, total, clips: gem.map.ember });
     }
     function runeFrostCone(gem, event) {
-        const cone = event.footprint && event.footprint.cone, L = Math.max(1, Math.round(((cone && cone.length) || 4.5) - 0.5));
-        SP.frostCone({ at: K.at(event.sourceCell), face: faceOf(event), L, wave: Number(patternOf(gem).waveMsPerCell) || 100, smwave: gem.map.smwave });
+        SP.frostCone({ at: K.at(event.sourceCell), face: faceOf(event), L: reachCellsOf(event.footprint, 4.5), wave: Number(patternOf(gem).waveMsPerCell) || 100,
+            smwave: gem.map.smwave, rows: rowsOf(event.footprint) });
     }
     /** 화살비: 첫 단계의 시전에 화살 다섯 발을 쏘아 올리고(떠나는 때에), 첫 단계가 닿을 때 범위에 화살비가 내린다(남은 단계 동안). */
     function runeRainStart(gem, event, now) {

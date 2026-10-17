@@ -844,7 +844,7 @@ Object.keys(context.SKILL_DB).forEach(name => {
 });
 assert.strictEqual(context.describeSkillGridProfile('중력 붕괴', context.SKILL_DB['중력 붕괴']), '공격 범위: 대상 지점 폭발, 사거리 5칸, 반경 2칸, 원형');
 assert.strictEqual(context.describeSkillGridProfile('뇌운 낙뢰', context.SKILL_DB['뇌운 낙뢰']), '공격 범위: 연쇄, 사거리 6칸, 연쇄 3칸');
-assert.strictEqual(context.describeSkillGridProfile('공허 가르기', context.SKILL_DB['공허 가르기']), '공격 범위: 직선 관통, 사거리 3칸, 틈 닫힘: 대상 지점 폭발 반경 2칸');
+assert.strictEqual(context.describeSkillGridProfile('공허 가르기', context.SKILL_DB['공허 가르기']), '공격 범위: 옆으로 곧게, 사거리 3칸, 위아래 1줄까지, 틈 닫힘: 대상 지점 폭발 반경 2칸');
 assert.strictEqual(context.describeSkillGridProfile('심연 전염', context.SKILL_DB['심연 전염']), '공격 범위: 연쇄, 사거리 5칸, 연쇄 2칸');
 assert.strictEqual(context.describeSkillGridProfile('물리 위습 소환', context.SKILL_DB['물리 위습 소환']), '공격 범위: 소환수 공격, 사거리 3칸');
 assert.strictEqual(context.describeSkillGridProfile('연발 사격', context.SKILL_DB['연발 사격']), '발사 방식: 부채꼴 연사, 사거리 6칸, 5방향(20도 간격), 발사 방식 변경 가능');

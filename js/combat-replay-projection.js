@@ -10,7 +10,6 @@ const replayProjection = (() => {
     const RULES = OFFLINE_PROJECTION;
     const PACK_KINDS = ['boss', 'encounter', 'elite', 'ordinary'];
     const NO_KILLS = Object.freeze({ full: 0, partial: 0, share: 0 });
-    const SCRIPTED_ACTS = Object.freeze(['forced_defeat', 'loop_gate']);
 
     function projectionZoneKey(state) {
         const zone = getZone(state.currentZoneId);
@@ -18,18 +17,11 @@ const replayProjection = (() => {
         if (zone.type === 'atlasMap') return `atlas|${state.atlas && state.atlas.run ? state.atlas.run.map.tier : 'closed'}`;
         return `${zone.id}|${zone.name}|${zone.tier}`;
     }
-    /** A fight or rule the projection does not model: an entry-ticket boss, the woodsman, a void rift, a hunt that stops, a
-     * scripted story boss. */
+    /** A fight or rule the projection does not model: an entry-ticket boss, the woodsman, a void rift, a hunt that stops. */
     function isProjectionHeldBack(state) {
         const rift = !!(state.voidRift && state.voidRift.active);
         return !!(state.inTicketBossFight || state.woodsmanBuildLock || rift || state.offlineHuntMode === 'stopBeforeBoss'
-            || state.settings.mapCompleteAction === 'stop' || isScriptedStoryAct(state));
-    }
-    /** A story act whose boss stops at 1 life (forced defeat, loop gate): only real combat resolves it. Every other act is
-     * 'normal' and projects (a truthy check here held all ten acts in real combat). */
-    function isScriptedStoryAct(state) {
-        const zone = getZone(state.currentZoneId), act = zone && zone.type === 'act' ? getStoryActByZoneId(zone.id) : null;
-        return !!(act && SCRIPTED_ACTS.includes(act.specialType));
+            || state.settings.mapCompleteAction === 'stop');
     }
     function isProjectionStopped(state) {
         return !!(shouldStopBackgroundReplay(state) || state.backgroundStopReason);
