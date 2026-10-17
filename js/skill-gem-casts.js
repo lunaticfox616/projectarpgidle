@@ -9,7 +9,7 @@ const skillGemCasts = (() => {
     // Gems that never overlap themselves: the clock, the assassination and the three movement gems.
     const SINGLE_CAST = new Set([46,52,54,55,56]);
     // 효과 확장 +N (js/skill-effect-expansion.js): 탄성 플라스크 bounces, 폭발 혼합물·신성한 안개 radius, 파문심판 cross arms,
-    // 빈 플라스크 shard reach and 암살 reach grow by it; 신성한 기도·시간 가속·과냉각 혼합물·인과 never do.
+    // 빈 플라스크 shard reach and 암살 reach grow by it; 신성한 기도·시간 가속·과냉각 혼합물 never do.
     const grow = stats => skillEffectExpansion.extra(stats && stats.sSkill);
     function facing(enemy,source) {
         const center=getGridUnitCenter(enemy),x=source.gx-center.gx,y=source.gy-center.gy;
@@ -58,7 +58,7 @@ const skillGemCasts = (() => {
         if(MOVES[id])return moveTargets(id,source,live,extra);
         if(id===51)return live.filter(e=>cross(source,e,1+extra));
         if(id===52)return live.filter(e=>getGridUnitDistance(source,e)<=4+extra && landing(e,source,live));
-        const range=({44:9,45:3,46:3,47:4,48:4,49:4,50:1+extra,53:4})[id];
+        const range=({44:9,45:3,46:3,47:4,48:4,49:4,50:1+extra})[id];
         return live.filter(e=>getGridUnitCells(e).some(c=>inArea(id,source,c,range)));
     }
     function inArea(id,source,c,range) {
@@ -85,13 +85,13 @@ const skillGemCasts = (() => {
         }
         return area(board,center,shape,radius).map(cell);
     }
-    function createState() {return {casts:[],events:[],sequence:0,channel:null,lastSkill:''};}
+    function createState() {return {casts:[],events:[],sequence:0,lastSkill:''};}
     function event(cast,phase,at,duration,extra={}) {
         const keys={44:'flaskPhase',45:'lancePhase',46:'timePhase',47:'mixturePhase',48:'supercooledPhase',
-            49:'emptyFlaskPhase',50:'holyMistPhase',51:'judgmentPhase',52:'assassinationPhase',53:'causalityPhase',
+            49:'emptyFlaskPhase',50:'holyMistPhase',51:'judgmentPhase',52:'assassinationPhase',
             54:'riftPhase',55:'smokePhase',56:'harpoonPhase'};
         const travel=['flight','flask','shard','fall'].includes(phase);
-        const ground=['clock','wave','mist','sigil'].includes(phase);
+        const ground=['clock','wave','mist'].includes(phase);
         return {skillName:cast.name,kind:travel?'travel':'stage',[keys[cast.id]]:phase,at,duration,
             sourceCell:cell(cast.source),targetCells:[cell(cast.aim)],landingCell:cell(cast.aim),
             stageIndex:cast.index||0,element:cast.stats.sSkill.ele,channelId:cast.key,
@@ -114,7 +114,7 @@ const skillGemCasts = (() => {
     const contactAreas={45:c=>c.points,46:c=>cells(c.source,'circle',3),47:c=>cells(c.aim,'square',1+grow(c.stats)),
         48:c=>cells(c.aim,'ring',c.index+1).concat(c.index?[]:cells(c.aim,'square',.5)),
         50:c=>cells(c.source,'square',1+grow(c.stats)).filter(p=>!same(p,c.source)),51:c=>cells(c.aim,'cross',c.geometry.crossRadius),
-        53:c=>cells(c.source,'circle',4),54:c=>cells(c.move.to,'square',moveRadius(c))};
+        54:c=>cells(c.move.to,'square',moveRadius(c))};
     function flight(cast,base,perCell) {
         return Math.max(1,Math.round((base+distance(cast.source,cast.aim)*perCell)/cast.speed/1.8));
     }
@@ -128,7 +128,6 @@ const skillGemCasts = (() => {
         const cast={id,name,stats,attackOptions:input.attackOptions,source:cell(source),aim:getGridUnitCenter(target),targetId:target.id,
             speed:Math.max(.5,Math.min(2.5,stats.aspd)),key:'gem-'+(++state.sequence),at:now,index:0,nextAt:now};
         state.lastSkill=name;
-        if(id===53) {state.channel={source:cell(source),count:0,attackOptions:input.attackOptions};return true;}
         if(id===44)cast.targetId=null;
         launch[id](state,cast,enemies);
         state.casts.push(cast);
@@ -430,16 +429,6 @@ const skillGemCasts = (() => {
         if(state.events.length>128)state.events.splice(0,state.events.length-128);
         return commands;
     }
-    function receiveHit(state,input) {
-        if(!state.channel || !(input.damage>0) || !input.alive)return [];
-        if(++state.channel.count<SKILL_DB['인과'].combatPattern.hitsTakenPerBurst)return [];
-        state.channel.count=0;
-        const c={id:53,name:'인과',source:cell(input.source),aim:cell(input.source),stats:input.stats,
-            attackOptions:{...state.channel.attackOptions,forcedCrit:undefined},key:'gem-'+(++state.sequence)};
-        for(const phase of ['sigil','wave'])visual(state,c,phase,input.now,phase==='sigil'?1000:580,
-            {footprint:{cells:cells(input.source,'circle',4)}});
-        return [contact(c,area(input.enemies,input.source,'circle',4),input.now)];
-    }
-    return {createState,start,update,receiveHit,targets,facing,free,behind,blindSpots,cross,singleCast:SINGLE_CAST};
+    return {createState,start,update,targets,facing,free,behind,blindSpots,cross,singleCast:SINGLE_CAST};
 })();
 safeExposeGlobals({skillGemCasts});

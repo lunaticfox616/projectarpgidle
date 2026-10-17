@@ -109,7 +109,7 @@ const fxRemake = (() => {
     // ------------------------------------------------------------------ atlas samples
     function isQuiet(e) {
         return !!(e.holyMistPhase || e.judgmentPhase === 'censer' || e.timePhase || e.effectRole === 'clock'
-            || e.causalityPhase === 'sigil' || QUIET_ASSASSIN.has(e.assassinationPhase));
+            || QUIET_ASSASSIN.has(e.assassinationPhase));
     }
     function isStruck(e, age) {
         return (e.kind === 'hit' || e.kind === 'stage') && age >= 0 && age < 50 && !isQuiet(e);

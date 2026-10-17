@@ -229,7 +229,7 @@ const devTestPanel = (() => {
         const tags = SKILL_DB[name].tags || [];
         if (tags.includes('summon_attack')) return '소환';
         if (tags.includes('mobility')) return '이동 스킬(따로 장착)';
-        if (SKILL_DB[name].nativeCastId) return '전용 시전(44~53)';
+        if (SKILL_DB[name].nativeCastId) return '전용 시전(44~51)';
         return tags.includes('spell') ? '주문' : '공격';
     }
     function gemSelect() {

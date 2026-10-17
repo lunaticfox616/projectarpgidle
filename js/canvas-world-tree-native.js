@@ -337,12 +337,7 @@ function prepareEventStyle5(e){if(e._moving&&e.travelPath?.length>1){e._segments
    }}
 function prepareEventStyle6(e){if(G.WT_DESCRIPTION10?.ids.has(e.id))G.WT_DESCRIPTION10.prepare(e,this.effects);
    else if(G.WT_REMAKE15?.ids.has(e.id))G.WT_REMAKE15.prepare(e,this.effects);}
-const preparation={p0(e) {
-
-    const sheet=G.WT_ATLAS.skills[52],offset=e.causalityPhase==='wave'?4:0;e._causalityParts=sheet.frames.slice(offset,offset+4).map((frame,i)=>({frame,x:(i%2)*64-32,y:Math.floor(i/2)*64-32}));
-
-},
-p1(e) {
+const preparation={p1(e) {
 
     const sheet=G.WT_ATLAS.skills[51];e._assassinParts={};for(const role of ['smoke','dagger','slash','poison','bleed']){const c=sheet.assassination[role],f=sheet.frames[c.frame];e._assassinParts[role]={x:f.x+c.x,y:f.y+c.y,w:c.w,h:c.h};}
     e._assassinAngle=facingAngles[e.facingDirection]??0;e._assassinBlink=e.blinkCell?point(e.blinkCell):null;e._assassinLanding=e.landingCell?point(e.landingCell):null;
@@ -501,8 +496,7 @@ p20(e,s) {
 p21(e) {
 e._points=[point(e.targetCells[0])];
 }};
-const prepareRoutes=[{matches:(e)=>e.id===53,run:preparation.p0},
-{matches:(e)=>e.id===52,run:preparation.p1},
+const prepareRoutes=[{matches:(e)=>e.id===52,run:preparation.p1},
 {matches:(e)=>e.id===51,run:preparation.p2},
 {matches:(e)=>e.id===50,run:preparation.p3},
 {matches:(e)=>e.id===49,run:preparation.p4},
@@ -661,12 +655,6 @@ const drawing={d0(e,t,now,submit) {
      }else if(e.assassinationPhase==='confirmation'){
       submit(e,e._target[0]+(e.ailmentType==='poison'?-8:8),e._target[1]-24,1,0,0,p[e.ailmentType],1,.9*Math.min(1,age/60,(e.duration-age)/160));
      }
-
-},
-d1(e,t,now,submit) {
-
-     const age=now-e.at,art=G.WT_ATLAS.skills[52].causality,wave=e.causalityPhase==='wave',ease=1-(1-t)*(1-t),scale=wave?Math.round((.3+(art.waveScale-.3)*ease)*64)/64:3,alpha=wave?.5*Math.min(1,age/75,(e.duration-age)/210):.56*Math.min(1,age/100,(e.duration-age)/420);
-     for(const part of e._causalityParts)submit(e,e._source[0]+part.x*scale,e._source[1]+part.y*scale,scale,0,0,part.frame,1,Math.max(0,alpha));
 
 },
 d2(e,t,now,submit) {
@@ -870,7 +858,6 @@ const frame=Math.floor(t*9);
 for(const p of e._points)submit(e,p[0],p[1],e._scale,frame,rot);
 }};
 const drawRoutes=[{matches:(e)=>e.id===52,run:drawing.d0},
-{matches:(e)=>e.id===53,run:drawing.d1},
 {matches:(e)=>e.id===51,run:drawing.d2},
 {matches:(e)=>e.id===50,run:drawing.d3},
 {matches:(e)=>e.id===49,run:drawing.d4},

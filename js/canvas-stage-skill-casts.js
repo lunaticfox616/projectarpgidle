@@ -17,7 +17,7 @@ const stageSkillCasts = (() => {
         38: 'flask', 44: 'flask', 47: 'flask', 48: 'flask', 49: 'flask' });
     /** 따로 시전하는 룬의 사건에서 단계 이름이 적힌 칸. */
     const PHASE_KEYS = Object.freeze(['flaskPhase', 'lancePhase', 'mixturePhase', 'supercooledPhase', 'emptyFlaskPhase', 'holyMistPhase', 'assassinationPhase',
-        'causalityPhase', 'riftPhase', 'smokePhase', 'harpoonPhase', 'timePhase', 'judgmentPhase']);
+        'riftPhase', 'smokePhase', 'harpoonPhase', 'timePhase', 'judgmentPhase']);
     /** 위습이 쏜 구슬이 맞을 때의 타격 클립(속성별). */
     const WISP_HIT = Object.freeze({ fire: 'h_fire@fire', cold: 'h_ice@cold', light: 'h_lit@light', chaos: 'h_chaos@chaos', phys: 'h_xs@phys' });
     /** 제 때가 된 사건을 처음 보는가(때가 되기 전에 알려진 사건은 아직 틀지 않는다). */

@@ -80,7 +80,6 @@ function resetCombatTacticsRuntime() {
 }
 
 function resetCombatChannelRuntime() {
-    if (skillGemCombatRuntime) skillGemCombatRuntime.channel = null;
     cancelCombatChannelVisuals();
     combatChannelRuntime = { id: 0, skillName: '', endAt: 0 };
     combatChannelResumeSkillName = '';
@@ -94,7 +93,6 @@ function hasPlayerChannelBreakingAilment() {
 }
 
 function cancelCombatChannel(reason) {
-    if (skillGemCombatRuntime) skillGemCombatRuntime.channel = null;
     if (!combatChannelRuntime.id) return false;
     cancelCombatChannelVisuals();
     pendingSkillStageHits = pendingSkillStageHits.filter(row => !row || !row.channelId);
@@ -4268,7 +4266,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     let finalPlayerSkillDps = nativeDotPattern
         ? finalBaseDmg * totalDotDamageMultiplier * nativeDotPattern.ticks
             / Math.max(nativeDotPattern.ticks * nativeDotPattern.intervalMs / 1000, 1 / finalAspd)
-        : finalDpsWithProjectileShots * skillSequenceDpsMultiplier * getReactiveBurstRateScale(skill, finalAspd) + estimatedSkillDotDps;
+        : finalDpsWithProjectileShots * skillSequenceDpsMultiplier + estimatedSkillDotDps;
     let flameDecayIgniteTakenMultiplierPreview = skill.flameDecayDebuff ? getFlameDecayIgniteTakenMultiplier({ maxHp: finalMaxHp, sSkill: skill }) : 1;
     let flameDecayDpsLines = [];
     if (includeBreakdowns && skill.flameDecayDebuff) {
@@ -9584,16 +9582,6 @@ function getRangerWeakpointBonus(enemy, hitDamage) {
     return enemy.isBoss ? Math.max(1, Math.min(lifeShare, Math.floor(hitDamage || 0))) : lifeShare;
 }
 
-// A reactive gem (인과) bursts once per hitsTakenPerBurst hits the hero takes while channelling, not once per attack. Its estimate
-// assumes this many hits taken per second (2026-10-04: it used the attack speed and showed 10-100× what it really dealt).
-const REACTIVE_BURST_ASSUMED_HITS_TAKEN_PER_SEC = 1;
-/** Scale from an attack-speed DPS to the bursts a reactive gem actually makes; 1 for every other skill. */
-function getReactiveBurstRateScale(skill, attacksPerSec) {
-    const hitsPerBurst = Number(skill && skill.combatPattern && skill.combatPattern.hitsTakenPerBurst) || 0;
-    if (hitsPerBurst <= 0) return 1;
-    return (REACTIVE_BURST_ASSUMED_HITS_TAKEN_PER_SEC / hitsPerBurst) / Math.max(0.01, attacksPerSec);
-}
-
 // Monster regeneration (0.1 s step) tires while the monster keeps losing life (2026-10-04): it falls in a straight line to nothing over
 // ENEMY_REGEN_FATIGUE_MS of fighting and comes back once nothing has hurt it for ENEMY_REGEN_COMBAT_WINDOW_MS. A chaos 20 boss
 // healed 0.48% of its life a second (about 21,000) and a build dealing less never finished it, an idle run standing still for
@@ -10525,7 +10513,6 @@ function startSkillGemCombat(stats, options) {
     const name=options.skillName || game.activeSkill;
     initializeSkillGemFacing();
     if (skillGemRuntimeChanged(name)) skillGemCombatRuntime=skillGemCasts.createState();
-    if (name==='인과' && skillGemCombatRuntime.channel) return;
     const started=skillGemCasts.start(skillGemCombatRuntime,{id:stats.sSkill.nativeCastId,name,stats,
         source:game.gridPlayer,enemies:game.enemies,now:getCombatTime(),visuals:!game.isBackgroundCalculation,
         attackOptions:{forcedCrit:options.forcedCrit,forcedElement:options.forcedElement,
@@ -10534,7 +10521,6 @@ function startSkillGemCombat(stats, options) {
     if (!started) return;
     noteNativeGemSwing(name, stats);
     noteCombatTacticAttack(300);
-    if (name==='인과') beginCombatChannel(name,0,5000,{repeatChannelCast:false,channelContinuation:false});
 }
 
 /** 이동기 4종 swing their weapon once at the move's key moment (the tear, the puff, the release, the slam). */
@@ -10549,7 +10535,6 @@ function shouldDeferNativeGemCast(stats,options) {
     if (options.stageReplay || !stats.sSkill.nativeCastId) return false;
     if (hasPlayerChannelBreakingAilment() || game.combatHalted) return true;
     if (!skillGemCombatRuntime) return false;
-    if (stats.sSkill.nativeCastId===53) return !!skillGemCombatRuntime.channel;
     return skillGemCasts.singleCast.has(stats.sSkill.nativeCastId) && skillGemCombatRuntime.casts.some(c=>c.id===stats.sSkill.nativeCastId);
 }
 
@@ -10563,7 +10548,6 @@ function updateSkillGemCombat(stats) {
     if (game.combatHalted || game.playerHp<=0 || skillGemRuntimeChanged(game.activeSkill)) {
         skillGemCombatRuntime=null;cancelCombatChannel();return;
     }
-    syncSkillGemChannel(runtime);
     const commands=skillGemCasts.update(runtime,{source:game.gridPlayer,enemies:game.enemies.concat(getSplashDormantEnemies()),now:getCombatTime()});
     for (const command of commands) applySkillGemCommand(command,stats);
 }
@@ -10580,14 +10564,6 @@ function skillGemRuntimeChanged(name) {
 
 function initializeSkillGemFacing() {
     for (const enemy of game.enemies) if (!enemy.facingDirection) enemy.facingDirection=skillGemCasts.facing(enemy,game.gridPlayer);
-}
-
-function syncSkillGemChannel(runtime) {
-    if (!runtime.channel) return;
-    const c=runtime.channel.source,p=game.gridPlayer;
-    const valid=game.activeSkill==='인과' && c.gx===p.gx && c.gy===p.gy && !hasPlayerChannelBreakingAilment();
-    if (!valid || !combatChannelRuntime.id) cancelCombatChannel();
-    else combatChannelRuntime.endAt=getCombatTime()+5000;
 }
 
 function applySkillGemCommand(command,stats) {
@@ -10634,13 +10610,6 @@ function applySkillGemContact(command,targets) {
         const ele=command.ailment==='poison'?'chaos':'phys';
         applyEnemyAilmentFromHit(enemy,{...stats,sSkill:{...stats.sSkill,ele}},stats.baseDmg,false,{primaryAilmentChance:1});
     });
-}
-
-function receiveSkillGemPlayerHit(damage,stats) {
-    if (!skillGemCombatRuntime?.channel || hasPlayerChannelBreakingAilment()) return;
-    const commands=skillGemCasts.receiveHit(skillGemCombatRuntime,{damage,alive:game.playerHp>0,
-        source:game.gridPlayer,enemies:game.enemies,stats,now:getCombatTime()});
-    for (const command of commands) applySkillGemCommand(command,stats);
 }
 
 function performPlayerAttack(pStats, attackOptions) {
@@ -12748,7 +12717,6 @@ function performMonsterAttacks(pStats) {
             }));
             addBattleFx('playerHit', { enemyId: enemy.id, color: getElementColor(topDamageEntry.ele), damage: dmg, duration: 220, deflected: deflected,
                 targetMaxHp: getPlayerHpCap(pStats) });
-            receiveSkillGemPlayerHit(dmg,pStats);
             if (game.settings.showCombatLog && dmg > 0) {
                 let damageLog = `${getDamageElementIcon(topDamageEntry.ele)} ${enemy.name}의 공격으로 ${formatNumberKR(dmg)} 피해`;
                 if (game.settings.showDetailedDamageLog === true) {
