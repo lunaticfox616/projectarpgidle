@@ -2137,7 +2137,7 @@ function coreLoop(nowMs) {
         return;
     }
 
-    syncCrowdPauseState();
+    syncCrowdPauseState(pStats);
     let _nowPrune = getCombatTime();
     game._nextEnemyRuntimePruneAt = Number.isFinite(game._nextEnemyRuntimePruneAt) ? game._nextEnemyRuntimePruneAt : 0;
     if (_nowPrune >= game._nextEnemyRuntimePruneAt) {
@@ -2266,7 +2266,7 @@ function coreLoop(nowMs) {
         handlePlayerDefeat(getZone(game.currentZoneId), pStats, "☠️ 상태이상으로 쓰러졌습니다.", { fatalElement: 'other', sourceName: '상태이상' });
         return;
     }
-    syncCrowdPauseState();
+    syncCrowdPauseState(pStats);
 
     if (!holdMapProgress && actExplorationProgress.canFinish()) playerStatCache.during(finishEncounterRun);
 }
@@ -7040,11 +7040,13 @@ function handleTalentBloomClear(zone) {
     queueImportantSave(200);
 }
 
-function isCrowdProgressPaused() {
+function isCrowdProgressPaused(pStats) {
     if (game.moveTimer > 0) return false;
     // 방 단위 무대: 방 안의 몬스터를 다 잡아야 문이 열린다. 따로 멈출 진행이 없으니 무리가 많다는 알림도 내지 않는다.
     if (actExplorationDoors.stageMap(actExplorationState.current(game))) return false;
-    return (game.enemies || []).filter(enemy => enemy.hp > 0).length >= ENEMY_CROWD_PAUSE_LIMIT;
+    if ((game.enemies || []).filter(enemy => enemy.hp > 0).length < ENEMY_CROWD_PAUSE_LIMIT) return false;
+    // 고유 신발 추적자와 철벽 척력화는 적 한도에 막히지 않는다. 값만 계산되고 읽는 곳이 없었다(2026-10-17).
+    return !(pStats || getPlayerStats(false)).ignoreEnemyCollision;
 }
 
 function getDotStackMultiplier(stacks) {
@@ -7835,8 +7837,8 @@ function tickEnemyDotEffects(pStats, dt) {
     });
 }
 
-function syncCrowdPauseState() {
-    let paused = isCrowdProgressPaused();
+function syncCrowdPauseState(pStats) {
+    let paused = isCrowdProgressPaused(pStats);
     if (paused === crowdPauseActive) return paused;
     crowdPauseActive = paused;
     if (game.settings.showCrowdPauseLog !== false) {
@@ -8719,7 +8721,7 @@ function advanceMapProgress(pStats) {
     ensureEncounterRun();
     if(actExplorationProgress.advance(pStats))return;
     if (game.runProgress >= 100) return;
-    if (isCrowdProgressPaused()) return;
+    if (isCrowdProgressPaused(pStats)) return;
     let abyssScale = getAbyssMonsterScales(zone);
     let enemyCount = (game.enemies || []).filter(enemy => enemy.hp > 0).length;
     let zoneType = zone ? zone.type : 'act';
