@@ -2254,12 +2254,6 @@ function coreLoop(nowMs) {
             }
         }
     }
-    let currentZone = getZone(game.currentZoneId);
-    if (currentZone && currentZone.type === 'act' && game.runProgress >= 100) {
-        let currentStoryAct = getStoryActByZoneId(currentZone.id);
-        let hasBossAlive = (game.enemies || []).some(enemy => enemy.isBoss && enemy.hp > 0);
-        if (hasBossAlive && currentStoryAct && currentStoryAct.specialType === 'loop_gate' && handleStoryActSpecialDefeat(currentZone, pStats)) return;
-    }
     if (game.playerHp <= 0) {
         handlePlayerDefeat(getZone(game.currentZoneId), pStats, "☠️ 상태이상으로 쓰러졌습니다.", { fatalElement: 'other', sourceName: '상태이상' });
         return;
@@ -5449,7 +5443,7 @@ function rollEnemyTrait(zone, isElite, isBoss, seed) {
 }
 
 
-function applyDamageToEnemyResource(enemy, damage, options) {
+function applyDamageToEnemyResource(enemy, damage) {
     let remaining = Math.max(0, Math.floor(Number(damage) || 0));
     if (!enemy || remaining <= 0) return 0;
     let dealt = 0;
@@ -5461,8 +5455,7 @@ function applyDamageToEnemyResource(enemy, damage, options) {
     }
     if (remaining > 0) {
         let beforeHp = Math.max(0, Math.floor(enemy.hp || 0));
-        let minimumHp = Math.max(0, Math.floor((options && Number.isFinite(options.minimumHp)) ? options.minimumHp : 0));
-        enemy.hp = Math.max(minimumHp, beforeHp - remaining);
+        enemy.hp = Math.max(0, beforeHp - remaining);
         dealt += Math.max(0, beforeHp - enemy.hp);
     }
     return dealt;
@@ -7776,7 +7769,6 @@ function tickEnemyAilments(pStats, dt) {
     let zone = getZone(game.currentZoneId);
     let zoneTier = (zone && zone.tier) || 1;
     let abyssPlayerMul = (getAbyssMonsterScales(zone).playerDamageMul || 1);
-    let storyAct = zone && zone.type === 'act' ? getStoryActByZoneId(zone.id) : null;
     (game.enemies || []).forEach(enemy => {
         if (!enemy || enemy.hp <= 0) return;
         enemy.ailments = Array.isArray(enemy.ailments) ? enemy.ailments : [];
@@ -7795,8 +7787,7 @@ function tickEnemyAilments(pStats, dt) {
                 let igniteMul = (type === 'ignite' && (enemy.ailments || []).some(row => row && row.type === 'flameDecay' && (row.time || 0) > 0)) ? getFlameDecayIgniteTakenMultiplier(pStats) : 1;
                 let stackMul = Math.max(1, Math.floor(ail.stacks || 1));
                 let dotDmg = dps > 0 ? Math.max(1, Math.floor(dps * stackMul * dt * (1 - enemyRes / 100) * abyssPlayerMul * igniteMul)) : 0;
-                let minimumHp = (enemy.isBoss && storyAct && (storyAct.specialType === 'forced_defeat' || (storyAct.specialType === 'loop_gate' && !canBreakWoodsmanLoop()))) ? 1 : 0;
-                let dealt = applyDamageToEnemyResource(enemy, dotDmg, { minimumHp: minimumHp });
+                let dealt = applyDamageToEnemyResource(enemy, dotDmg);
                 // 출혈/점화/중독 도트는 0.1초마다 틱이 들어와 모바일에서 히트 FX가 과도하게 누적될 수 있다.
                 // 특히 출혈 빌드는 틱 빈도/대상 수가 높아 화면이 하얗게 번쩍이며 프레임이 급락하는 증상이 보고됨.
                 let fxState = game.dotFxThrottle || (game.dotFxThrottle = {});
@@ -7847,7 +7838,6 @@ function tickEnemyDotEffects(pStats, dt) {
     let zone = getZone(game.currentZoneId);
     let zoneTier = (zone && zone.tier) || 1;
     let abyssPlayerMul = (getAbyssMonsterScales(zone).playerDamageMul || 1);
-    let storyAct = zone && zone.type === 'act' ? getStoryActByZoneId(zone.id) : null;
     (game.enemies || []).forEach(enemy => {
         if (!enemy || enemy.hp <= 0) return;
         let dotState = (enemy.dotState && typeof enemy.dotState === 'object') ? enemy.dotState : null;
@@ -7862,8 +7852,7 @@ function tickEnemyDotEffects(pStats, dt) {
             let enemyRes = getEffectiveEnemyMitigation(dotEle, zoneTier, enemy, pStats);
             let dotDmg = Math.max(1, Math.floor((dotState.rawTickDamage || 1) * (1 - (enemyRes / 100))));
             dotDmg = Math.max(1, Math.floor(dotDmg * abyssPlayerMul));
-            let minimumHp = (enemy.isBoss && storyAct && (storyAct.specialType === 'forced_defeat' || (storyAct.specialType === 'loop_gate' && !canBreakWoodsmanLoop()))) ? 1 : 0;
-            let dealt = applyDamageToEnemyResource(enemy, dotDmg, { minimumHp: minimumHp });
+            let dealt = applyDamageToEnemyResource(enemy, dotDmg);
             addBattleFx('hit', { enemyId: enemy.id, color: getElementColor(dotEle), damage: dealt, duration: 240, element: dotEle, noLine: true, dot: true });
             if (enemy.hp <= 0) {
                 if (dotEle === 'chaos') enemy.lastHitElement = 'chaos';
@@ -8741,13 +8730,6 @@ function spawnEncounterMarker(marker) {
             addBattleFx('enemySpawn', { enemyId: enemy.id, color: getElementColor(enemy.ele), duration: 360, boss: false });
         }
         let bossEnemy = createEnemy(zone, { ...marker, count: 1, storyStage: game.killsInZone }, count);
-        let storyAct = zone && zone.type === 'act' ? getStoryActByZoneId(zone.id) : null;
-        if (storyAct && storyAct.specialType === 'forced_defeat') {
-            let now = performance.now();
-            bossEnemy.forcedDefeatBoss = true;
-            bossEnemy.nextForcedRegenAt = now + 5000;
-            bossEnemy.forcedDoomAt = now + 10000;
-        }
         assignEnemyGridSpawn(bossEnemy, blockedCells);
         bossEnemy.spawnStamp = getBattleSpawnStamp();
         game.enemies.push(bossEnemy);
@@ -9694,29 +9676,6 @@ function takeEnemyRegenAmount(enemy, rawRegen) {
     return wholeRegen;
 }
 
-function canBreakWoodsmanLoop() {
-    return Math.max(0, Math.floor(game.woodsmanDefeatAttempts || 0)) >= WOODSMAN_BREAK_LOOP_REQUIRED;
-}
-
-function handleStoryActSpecialDefeat(zone, pStats) {
-    let storyAct = getStoryActByZoneId(zone && zone.id);
-    if (!storyAct) return false;
-    if (storyAct.specialType === 'loop_gate') {
-        if (canBreakWoodsmanLoop()) return false;
-        game.woodsmanDefeatAttempts = Math.max(0, Math.floor(game.woodsmanDefeatAttempts || 0)) + 1;
-        addLog(`🪓 ${storyAct.clearText}`, 'death');
-        addLog(`❄️ 나무꾼의 창조 권능이 세계를 되감았습니다. (루프 ${game.woodsmanDefeatAttempts}/${WOODSMAN_BREAK_LOOP_REQUIRED})`, 'attack-monster');
-        game.currentZoneId = 0;
-        game.maxZoneId = 0;
-        game.killsInZone = 0;
-        game.playerHp = getPlayerHpCap(pStats);
-        startMoving(false);
-        updateStaticUI();
-        return true;
-    }
-    return false;
-}
-
 function ensureNextEndlessChaosDepthUnlocked(depth) {
     let clearedDepth = Math.max(1, Math.floor(depth || 1));
     if ((game.season || 1) < 10 || clearedDepth < 20) return 0;
@@ -10382,11 +10341,6 @@ function finishEncounterRun() {
             if (zone.id === 8) unlockJournalEntry('act_9');
             if (zone.id === 9) unlockJournalEntry('act_10');
             if (zone.id === 9 && Math.max(0, Math.floor(game.loopDeaths || 0)) <= 0) unlockJournalEntry('immortal');
-            if (storyAct && storyAct.specialType === 'loop_gate') {
-                addLog('🗡️ 창조 권능 절단이 완성되었다. 나무꾼을 베어낸 루프가 새 루프의 문을 연다.', 'loot-unique');
-                handleSeasonLoopConditionMet();
-                return;
-            }
         }
         let clearedAbyssDepth = zone.type === 'abyss' ? Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1)) : 0;
         let clearedSeasonFinalZone = zone.id === getCurrentSeasonFinalZoneId() || (zone.type === 'abyss' && clearedAbyssDepth >= getSeasonAbyssDepthCap(game.season || 1));
@@ -10886,16 +10840,11 @@ function performPlayerAttack(pStats, attackOptions) {
             if (!chainTarget) return;
             visited.add(chainTarget.id);
             let zone = getZone(game.currentZoneId);
-            let storyAct = zone && zone.type === 'act' ? getStoryActByZoneId(zone.id) : null;
-            let beforeHpForForced = chainTarget.hp;
             let chainRes = getEffectiveEnemyMitigation(hitElement, zone.tier, chainTarget, pStats);
             let chainDamage = Math.floor(remainingDamage * (1 - chainRes / 100));
             if ((pStats.sSkill.tags || []).includes('projectile')) chainDamage = Math.floor(chainDamage * (chainTarget.projectileDamageTakenMul || 1));
             if (hitElement === 'phys') chainDamage = Math.floor(chainDamage * (chainTarget.physicalDamageTakenMul || 1));
             let dealtToChain = applyDamageToEnemyResource(chainTarget, Math.max(1, chainDamage));
-            if (chainTarget.isBoss && storyAct && (storyAct.specialType === 'forced_defeat' || (storyAct.specialType === 'loop_gate' && !canBreakWoodsmanLoop())) && chainTarget.hp <= 0) {
-                chainTarget.hp = Math.max(1, Math.min(beforeHpForForced, chainTarget.maxHp || 1));
-            }
             maybeUnlockChaosRealmFromWoodsman(chainTarget);
             chainTarget.recentHitsTaken = (chainTarget.recentHitsTaken || 0) + 1;
             chainTarget.recentHitsTimer = 1.8;
@@ -11332,10 +11281,7 @@ function performPlayerAttack(pStats, attackOptions) {
                     });
                 }
             }
-            let zone = getZone(game.currentZoneId);
-            let storyAct = zone && zone.type === 'act' ? getStoryActByZoneId(zone.id) : null;
-            let beforeHpForForced = targetEnemy.hp;
-            let talentWasFull = beforeHpForForced >= (targetEnemy.maxHp || beforeHpForForced || 1);
+            let talentWasFull = targetEnemy.hp >= (targetEnemy.maxHp || targetEnemy.hp || 1);
             // 선제 타격: 생명력이 가득 찬 적에게 가하는 첫 타에 추가 피해
             if (talentWasFull && (pStats.firstStrikeDamagePct || 0) > 0) {
                 let firstStrikeMul = 1 + Math.max(0, Number(pStats.firstStrikeDamagePct) || 0) / 100;
@@ -11446,9 +11392,6 @@ function performPlayerAttack(pStats, attackOptions) {
                     addBattleFx('hit', { enemyId: targetEnemy.id, color: getElementColor('phys'), damage: bonus, duration: 280, element: 'phys', syncToSwing: true });
                 }
                 game.rangerWeakpointMarks[targetEnemy.id] = mark;
-            }
-            if (targetEnemy.isBoss && storyAct && (storyAct.specialType === 'forced_defeat' || (storyAct.specialType === 'loop_gate' && !canBreakWoodsmanLoop())) && targetEnemy.hp <= 0) {
-                targetEnemy.hp = Math.max(1, Math.min(beforeHpForForced, targetEnemy.maxHp || 1));
             }
             maybeUnlockChaosRealmFromWoodsman(targetEnemy);
             if (targetEnemy.hp <= 0 && dmg > dealtToEnemy) {
@@ -11701,26 +11644,8 @@ function applyActRestRecovery(pStats, hpCap) {
 function handlePlayerDefeat(zone, pStats, message, options) {
     actExplorationProgress.defeat(game);
     let opts = options || {};
-    let storyAct = zone && zone.type === 'act' ? getStoryActByZoneId(zone.id) : null;
     recordPlayerDefeatStart(zone, opts);
     let expLost = 0;
-    if (storyAct && storyAct.specialType === 'forced_defeat') {
-        addLog(`🩸 ${storyAct.clearText}`, 'death');
-        addLog('🧊 이 패배는 담금질로 기록된다.', 'season-up');
-        unlockJournalEntry('act_2');
-        if (zone && zone.type === 'act' && zone.id <= 9) markActRewardReady(zone.id);
-        if (game.maxZoneId <= zone.id) {
-            game.maxZoneId = Math.min(getCurrentSeasonFinalZoneId(), game.maxZoneId + 1);
-            triggerMapUnlockReveal(game.maxZoneId);
-        }
-        game.currentZoneId = getDefeatRecoveryZoneId();
-        game.killsInZone = 0;
-        game.playerHp = getPlayerHpCap(pStats);
-        startMoving(false);
-        updateStaticUI();
-        queueImportantSave(160);
-        return;
-    }
     game.loopDeaths = Math.max(0, Math.floor(game.loopDeaths || 0)) + 1;
     if (typeof recordImmortalHeroDeathPenalty === 'function') recordImmortalHeroDeathPenalty();
     if (zone && zone.id === OUTSIDE_CHAOS_ZONE_ID) {
@@ -12268,21 +12193,6 @@ function performMonsterAttacks(pStats) {
         let ailMap = {};
         (enemy.ailments || []).forEach(ail => { if ((ail.time || 0) > 0) ailMap[ail.type] = Math.max(ailMap[ail.type] || 0, ail.power || 0); });
         if (!pendingAttack && enemyAttackRules.interrupt(enemy,getCombatTime())) continue;
-        if (enemy.forcedDefeatBoss) {
-            let now = performance.now();
-            if (now >= (enemy.nextForcedRegenAt || 0)) {
-                enemy.hp = enemy.maxHp;
-                enemy.nextForcedRegenAt = now + 5000;
-                if (game.settings.showCombatLog) addLog('✂️ 정원사의 불멸성이 상처를 되감아 풀피로 회복했다.', 'attack-monster');
-            }
-            if (now >= (enemy.forcedDoomAt || 0)) {
-                enemy.forcedDoomAt = now + 10000;
-                game.playerHp = 0;
-                recordIncomingDamage('chaos', pStats.maxHp, '정원사의 가지치기');
-                handlePlayerDefeat(zone, pStats, '☠️ 정원사의 가지치기가 당신의 생명력을 절단했습니다.', { fatalElement: 'chaos', sourceName: '정원사' });
-                return;
-            }
-        }
         applyEnemyRegen(enemy, pStats);
         enemy.recentHitsTimer = Math.max(0, (enemy.recentHitsTimer || 0) - 0.1);
         if (enemy.recentHitsTimer <= 0) enemy.recentHitsTaken = Math.max(0, (enemy.recentHitsTaken || 0) - 1);

@@ -1,4 +1,3 @@
-const WOODSMAN_BREAK_LOOP_REQUIRED = 5;
 const foregroundCombatClock = { lastAtMs: null, remainderMs: 0 };
 
 function runForegroundCombat(nowMs) {
