@@ -86,7 +86,7 @@ const stumpRipeningUi = (() => {
         if (filter === 'talisman') return '';
         const compostReason = stumpBox.bulkCompostReason(game, filter), discardReason = stumpBox.bulkDiscardReason(game, filter);
         const compost = stumpBox.bulkCompostOpen(game) ? bulkButton('compost', '일괄 거름 사용', compostReason, compostReason ? 0 : stumpBox.bulkCompostPlan(game, filter).length) : '';
-        return `<div class="stump-bulk">${compost}${bulkButton('discard', '일괄 버리기', discardReason, discardReason ? 0 : stumpBox.bulkItems(game, filter).length)}</div>`;
+        return `<div class="stump-bulk">${compost}${bulkButton('discard', '일괄 버리기', discardReason, discardReason ? 0 : stumpBox.bulkDiscardItems(game, filter).length)}</div>`;
     }
     function rollRange(rolls) {
         const low = Math.min(...rolls), high = Math.max(...rolls);
@@ -106,6 +106,22 @@ const stumpRipeningUi = (() => {
         const growth = plan.reduce((sum, item) => sum + stumpBox.compostGrowth(item), 0);
         return `그루터기 함에서 성장 중인 그루터기 아이템 ${stumpBox.growingItems(game).length}개의 경험치가 ${growth}만큼 증가합니다.`;
     }
+    const DISCARD_KEEPS = ['황금', '고대 씨앗', '성장 완료', '성장 중', '부적', STUMP_BOX_SCAR.name];
+    function discardKeep(item) {
+        if (item.family === 'talisman') return '부적';
+        if (item.family === 'scar') return STUMP_BOX_SCAR.name;
+        if (item.golden) return '황금';
+        if (item.ancient) return '고대 씨앗';
+        return stumpBox.isMature(item) ? '성장 완료' : '성장 중';
+    }
+    /** '남는 아이템: 황금 2개, 부적 12개' for what of the filter 일괄 버리기 leaves in storage, '' when nothing stays. */
+    function discardKeptLine(filter, gone) {
+        const ids = new Set(gone.map(item => item.id)), counts = new Map();
+        stumpBox.storage(game).filter(item => !ids.has(item.id) && (filter === 'all' || item.color === filter))
+            .forEach(item => counts.set(discardKeep(item), (counts.get(discardKeep(item)) || 0) + 1));
+        const parts = DISCARD_KEEPS.filter(why => counts.has(why)).map(why => `${why} ${counts.get(why)}개`);
+        return parts.length ? `남는 아이템: ${parts.join(', ')}` : '';
+    }
     /** Asks before a bulk action, naming what it will use; a refusal is a toast. @returns {Promise<boolean>} */
     async function confirmBulk(kind, filter) {
         const compost = kind === 'compost', reason = compost ? stumpBox.bulkCompostReason(game, filter) : stumpBox.bulkDiscardReason(game, filter);
@@ -113,8 +129,8 @@ const stumpRipeningUi = (() => {
             showGameToast(reason, { tone: 'warning' });
             return false;
         }
-        const items = compost ? stumpBox.bulkCompostPlan(game, filter) : stumpBox.bulkItems(game, filter);
-        const tail = compost ? compostOutcome(items) : '되돌릴 수 없습니다.';
+        const items = compost ? stumpBox.bulkCompostPlan(game, filter) : stumpBox.bulkDiscardItems(game, filter);
+        const tail = compost ? compostOutcome(items) : [discardKeptLine(filter, items), '되돌릴 수 없습니다.'].filter(Boolean).join('\n');
         const options = { title: compost ? '일괄 거름 사용' : '일괄 버리기', tone: compost ? 'info' : 'danger',
             confirmLabel: `${items.length}개 ${compost ? '사용' : '버리기'}`, cancelLabel: '취소' };
         return requestGameConfirmation(`${bulkLines(items).join('\n')}\n\n${tail}`, options);

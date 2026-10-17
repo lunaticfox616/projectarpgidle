@@ -203,7 +203,8 @@ run('while (stumpBox.createItem(game, { family: "sap", color: "chaos" })) {}');
 assert.deepStrictEqual(json(`stumpBox.rollDrop(game, { isBoss: true }, ${sequence([0, 0.9, 0, 0])}).compost`),
     { family: 'seed', color: 'fire', growth: 96, fed: 0, ripened: [] }, 'with nothing growing the full-storage drop is lost (and said so)');
 
-// ── 일괄 거름 사용 · 일괄 버리기(2026-10-09): 색과 종류마다 좋은 것 셋, 황금, 고대는 남기고, 거름은 다 자랄 만큼만 ─────────
+// ── 일괄 거름 사용 · 일괄 버리기(2026-10-09): 거름은 색과 종류마다 좋은 것 셋, 황금, 고대를 남기고 다 자랄 만큼만.
+// 버리기는 황금, 고대, 자란 것만 남긴다(2026-10-17) ─────────
 fresh({ journalEntries: ['prologue', 'act_10'] });
 run(`game.stumpBox.harvest.grown = ['flower-fire', 'flower-cold', 'flower-lightning', 'flower-chaos'];
     [0.8, 0.85, 0.9, 0.95, 1, 1.05].forEach(roll => stumpBox.createItem(game, { family: 'seed', color: 'fire', roll, path: 'flower' }));
@@ -215,8 +216,10 @@ assert.strictEqual(run('stumpBox.bulkCompostReason(game, "fire")'), '그루터�
 run("{ const sap = stumpBox.createItem(game, { family: 'sap', color: 'lightning', roll: 1 }); stumpBox.place(game, sap.id, 12); sap.xp = stumpBox.need(sap) - 120; }");
 assert.deepStrictEqual(json('stumpBox.bulkCompostPlan(game, "fire").map(item => item.roll)'), [0.8, 0.85], 'the plan stops once the growing sap would ripen (96 + 102 ≥ 120)');
 assert.deepStrictEqual(json('(() => { const result = stumpBox.compostMany(game, "fire"); return [result.count, result.growth, result.ripened.length]; })()'), [2, 198, 1]);
-assert.deepStrictEqual(json('stumpBox.discardMany(game, "fire").map(item => item.roll)'), [0.9], 'bulk discard throws the remaining spares away');
-assert.ok(run('stumpBox.itemById(game, bulkGold) !== null'), 'golden seeds stay');
+run("globalThis.bulkGrown = stumpBox.createItem(game, { family: 'seed', color: 'fire', roll: 1, path: 'fruit' }).id; stumpBox.itemById(game, bulkGrown).xp = 10;");
+assert.deepStrictEqual(json('stumpBox.discardMany(game, "fire").map(item => item.roll).sort()'), [0.9, 0.95, 1, 1.05],
+    'bulk discard throws every spare away, not only those past the best three of a kind');
+assert.ok(run('stumpBox.itemById(game, bulkGold) !== null && stumpBox.itemById(game, bulkGrown) !== null'), 'golden and grown seeds stay');
 assert.strictEqual(run('stumpBox.discardMany(game, "fire")'), null, 'nothing left to throw away');
 
 // ── 판 1 저장(2026-10-09 전 필요량): 자라던 비율은 그대로, 다 자란 것은 다 자란 채로, 고르지 않은 씨앗은 id로 길이 정해진다 ─────

@@ -156,8 +156,9 @@ const STUMP_BOX_SCAR = Object.freeze({ name: '불씨의 흉터', absorb: Object.
 const STUMP_BOX_BREEDING = Object.freeze({ mutation: Object.freeze({ color: 0.05, golden: 0.005, scar: 0.003 }) });
 // 씨앗 주머니(16번): 해금 줄의 저널마다 한 번. 열면 무작위 씨앗 offers개 가운데 하나를 고른다(고르기 전에는 저장해 두어 다시 굴리지 않는다).
 const STUMP_BOX_SEED_POUCH = Object.freeze({ offers: 3, roll: Object.freeze({ min: 0.9, max: 1.2 }) });
-// 일괄 거름 사용과 일괄 버리기(16번, 2026-10-09 이름과 버리기): 보관함 분류(전체나 한 색)의 씨앗과 수액을 한 번에. 색과 종류마다
-// 품질이 가장 좋은 keep개, 황금, 고대 씨앗은 남긴다(합치기 재료). 누르면 무엇을 쓰는지 먼저 보여 준다.
+// 일괄 거름 사용과 일괄 버리기(16번, 2026-10-09 이름과 버리기): 보관함 분류(전체나 한 색)의 씨앗과 수액을 한 번에. 누르면 무엇을
+// 쓰는지 먼저 보여 준다. 거름은 색과 종류마다 품질이 가장 좋은 keep개, 황금, 고대 씨앗을 남긴다(합치기 재료). 버리기는 황금, 고대
+// 씨앗과 자란(경험치가 있는) 씨앗, 수액만 남긴다(2026-10-17 사용자: 셋씩 남기니 75개 가운데 25개만 버려졌다).
 const STUMP_BOX_BULK_COMPOST = Object.freeze({ keep: 3 });
 // 부적 도감(16번): 고유 부적과 야생 고유 부적의 첫 획득. every종마다 보관함 +storage.
 const STUMP_BOX_TALISMAN_CODEX = Object.freeze({ every: 5, storage: 2 });
