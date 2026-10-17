@@ -3740,6 +3740,8 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     let totalDotDamageMultiplier = dotMultiplier * dotStatMultiplier;
     let instantDamageMultiplier = 1;
     let ailmentPowerMultiplier = 1 + Math.max(0, sumStatAcrossBuckets('ailmentPotencyPct')) / 100;
+    // 상태이상 피해(%): 점화, 중독, 출혈의 피해 증가(종류별 증가와 합산). 패시브 노드와 플라스크 숙련 40레벨이 주는데 합산하는 곳이 없었다(2026-10-17).
+    let finalAilmentDamagePct = Math.max(0, sumStatAcrossBuckets('ailmentDamagePct'));
     let talismanBossFinalDmgBonusPct = 0;
     let chaosDamageMultiplier = 1;
     let dotTickIntervalMultiplier = 1;
@@ -4372,13 +4374,14 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     let finalAilmentResistBleedChance = getPlayerAilmentResistChance('bleed', { ailResBleed: ailResBleedTotal, ailmentResistBonusPct }) * 100;
     let catalystAilmentSourceMultiplier = hasKeystone('ct1') ? 2 : 1;
     let makeDamageAilmentEffectLines = (specificLabel, specificPct) => {
-        let specificMultiplier = 1 + Math.max(0, Number(specificPct || 0)) / 100;
+        let specificMultiplier = 1 + (Math.max(0, Number(specificPct || 0)) + finalAilmentDamagePct) / 100;
         let totalMultiplier = catalystAilmentSourceMultiplier * totalDotDamageMultiplier * specificMultiplier;
         return [
             `지속 피해 배율 스탯: +${Math.max(0, dotPctDmg).toFixed(1)}%`,
             catalystAilmentSourceMultiplier > 1 ? `과잉 촉매 기준 피해: x${catalystAilmentSourceMultiplier.toFixed(2)}` : null,
             totalDotDamageMultiplier !== dotStatMultiplier ? `키스톤/스킬 포함 지속 피해 배율: x${totalDotDamageMultiplier.toFixed(2)}` : null,
             specificPct > 0 ? `${specificLabel}: +${Number(specificPct).toFixed(1)}%` : null,
+            finalAilmentDamagePct > 0 ? `상태이상 피해: +${finalAilmentDamagePct.toFixed(1)}%` : null,
             `해당 상태이상 피해 총 배율: x${totalMultiplier.toFixed(2)} (기본 대비 +${Math.max(0, (totalMultiplier - 1) * 100).toFixed(1)}%)`
         ].filter(Boolean);
     };
@@ -4952,7 +4955,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         dotCritBonusScale: dotMultiplier,
         instantDamageMultiplier: instantDamageMultiplier,
         finalDamageMultiplier: finalDamageMultiplier,
-        ailmentPowerMultiplier: ailmentPowerMultiplier,
+        ailmentPowerMultiplier: ailmentPowerMultiplier, ailmentDamagePct: finalAilmentDamagePct,
         mystique: Math.max(0, passive.mystique),
         devotion: authoredPassiveRules.devotion,
         cycle: authoredPassiveRules.cycle,
@@ -7443,7 +7446,7 @@ function getEnemyDamageAilmentDps(ail, pStats) {
     let dotDamageScale = Math.max(0.01, (pStats && Number.isFinite(pStats.dotDamageScale)) ? pStats.dotDamageScale : 1);
     let dps = getDamageAilmentBaseDpsFromHit(getStoredAilmentHitDamage(ail), ail ? ail.power : 0, dotDamageScale, ail ? ail.critDotBonusPct : 0, pStats ? pStats.dotCritBonusScale : 1);
     const damageStat = { ignite: 'igniteDamageMultiplierPct', poison: 'poisonDamageMultiplierPct' }[ail?.type];
-    dps = Math.floor(dps * (1 + Math.max(0, Number(pStats?.[damageStat]) || 0) / 100));
+    dps = Math.floor(dps * (1 + (Math.max(0, Number(pStats?.[damageStat]) || 0) + Math.max(0, Number(pStats?.ailmentDamagePct) || 0)) / 100));
     if (ail && pStats && ail.type === pStats.mystiqueAilmentType) {
         dps = Math.floor(dps * (1 + Math.max(0, Number(pStats.mystiqueAilmentDamagePct) || 0) / 100));
     }
