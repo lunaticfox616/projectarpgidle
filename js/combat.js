@@ -13261,6 +13261,7 @@ function triggerSeasonReset(options) {
     game.voidPassives = {};
     game.skills = ['기본 공격'];
     game.activeSkill = '기본 공격';
+    game.weaponBlockedSkill = '';
     game.mobilitySkill = '';
     game.loopStarterGemGranted = false;
     game.gemData = { '기본 공격': { level: 1, exp: 0 } };
