@@ -136,7 +136,7 @@ const CHAOS_REALM_AFFIX_POOL = [
     { id: 'spell_dampening', name: '주문 왜곡', desc: '주문 피해 반감' },
     { id: 'blood_drinker', name: '흡혈', desc: '적 공격 시 생명력 흡수' },
     { id: 'bloodless', name: '무혈', desc: '플레이어 흡혈 효율 대폭 감소' },
-    { id: 'curse_blade', name: '저주를 검', desc: '저주를 공격력/관통으로 전환' },
+    { id: 'curse_blade', name: '저주의 검', desc: '공격력과 관통 증가' },
     { id: 'curse_immune', name: '저주 면역', desc: '저주 적용 불가' },
     { id: 'phys_dampening', name: '물리 반감', desc: '물리 최종 피해 반감' },
     { id: 'deadly_crit', name: '치명적 본능', desc: '치명타 확률/피해 증가' },

@@ -2197,7 +2197,8 @@ function coreLoop(nowMs) {
             let extraRemainder = dsChance - (guaranteedExtra * 100);
             let extraHits = guaranteedExtra + ((Math.random() * 100 < extraRemainder) ? 1 : 0);
             for (let chain = 0; chain < extraHits && game.enemies.length > 0; chain++) {
-                if (game.settings.showCombatLog) addLog(`⚔️ [연속 타격] ${chain + 2}연속 공격!`, "loot-rare", { rateKey: 'combat:double-strike', minIntervalMs: 220, aggregateKey: 'combat:double-strike', aggregateWindowMs: 500 });
+                // 연속 타격은 줄을 남기지 않는다(2026-10-18): 후반에는 보이는 전투 기록 60줄 가운데 열 줄 남짓을 차지했고, 희귀 전리품 색이라
+                // 전리품 줄처럼 보였다. 추가 타격마다 피해 줄은 그대로 남는다.
                 performPlayerAttack(pStats, { repeatChannelCast: true });
                 if (hasKeystone('g2')) {
                     let now = getCombatTime();
@@ -9969,7 +9970,10 @@ function finishEncounterRun() {
             let seal = BEYOND_BOUNDARY_SEAL_DB.find(row => row.id === result.sealId);
             let levelText = result.sealResult.levelsGained > 0 ? `, 인장 ${result.sealResult.level}레벨` : '';
             let focusedReward = grantBeyondBoundaryFocusedReward(result);
-            addLog(`경계 너머 ${result.tier}단계 돌파, ${seal ? seal.name : '경계 인장'} 경험치 +${result.rewardXp}${levelText}, ${focusedReward.summary}`, 'loot-unique');
+            // 최대 레벨 인장은 경험치를 받지 못한다: "경험치 +N" 대신 그렇다고 적는다(2026-10-18).
+            let sealMaxed = !!seal && result.sealResult.levelsGained === 0 && result.sealResult.level >= seal.maxLevel;
+            let sealText = sealMaxed ? `${seal.name} 최대 레벨(경험치 없음)` : `${seal ? seal.name : '경계 인장'} 경험치 +${result.rewardXp}${levelText}`;
+            addLog(`경계 너머 ${result.tier}단계 돌파, ${sealText}, ${focusedReward.summary}`, 'loot-unique');
             game.currentZoneId = result.returnZoneId !== null && result.returnZoneId !== undefined
                 ? result.returnZoneId : getAutoProgressZoneId(game.maxZoneId);
             startMoving(false);
@@ -13170,6 +13174,7 @@ function triggerSeasonReset(options) {
     let preservedSealedInventory = collectLoopSealedBagItems(game);
     let preservedWoodsmanTouch = Math.max(0, Math.floor((game.currencies && game.currencies.ouroboros) || 0));
     let preservedTimeRemnant = Math.max(0, Math.floor((game.currencies && game.currencies.timeRemnant) || 0));
+    let preservedAltarMaterials = atlasEndgame.loopKeptCurrencies(game);
     let preservedOfflineProgress = typeof ensureOfflineProgressState === 'function' ? JSON.parse(JSON.stringify(ensureOfflineProgressState(game))) : null;
     let preservedWoodsmanTouchSeen = !!game.woodsmanTouchSeen;
     let loopDeepBeforeReset = Math.max(0, Math.floor(game.loopDeepPoints || 0));
@@ -13255,6 +13260,7 @@ function triggerSeasonReset(options) {
     craftingWorkspaceState.capture(game);
     game.currencies = { ...defaultGame.currencies };
     game.currencies.timeRemnant = preservedTimeRemnant;
+    preservedAltarMaterials.forEach(([key, value]) => { game.currencies[key] = value; });
     if (preservedOfflineProgress && typeof ensureOfflineProgressState === 'function') game.offlineProgress = preservedOfflineProgress;
     if (typeof resetOfflineStashForLoop === 'function') resetOfflineStashForLoop(game);
     if (typeof syncOfflineProgressEntitlement === 'function') syncOfflineProgressEntitlement(game);

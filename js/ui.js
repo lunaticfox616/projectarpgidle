@@ -3195,7 +3195,7 @@ function renderUnderworldMapPanel() {
     let skyStonePct = typeof getSkyStoneReductionPct === 'function' ? getSkyStoneReductionPct() : 0;
     let skyStoneCost = typeof getSkyStoneNextCost === 'function' ? getSkyStoneNextCost() : 20;
     let skyStoneMaxed = skyStoneLevel >= (typeof getSkyStoneMaxLevel === 'function' ? getSkyStoneMaxLevel() : 15);
-    let skyStonePanel = `<section class="underworld-upgrade-card"><div><strong>창공석 ${skyStoneLevel > 0 ? `+${skyStoneLevel}` : '미제작'}</strong><span>중력 패널티 감소 ${skyStonePct}% / 75%</span></div><div><span>응축된 창공의 정수 ${Math.floor(skyTower.condensedPower || 0)}</span><button onclick="upgradeSkyStone()" ${skyStoneMaxed ? 'disabled' : ''}>${skyStoneLevel > 0 ? '강화' : '제작'}, ${skyStoneMaxed ? '최대' : skyStoneCost}</button></div></section>`;
+    let skyStonePanel = `<section class="underworld-upgrade-card"><div><strong>창공석 ${skyStoneLevel > 0 ? `+${skyStoneLevel}` : '미제작'}</strong><span>지하계 중력 패널티 감소 ${skyStonePct}% / 75%</span></div><div><span>응축된 창공의 정수 ${Math.floor(skyTower.condensedPower || 0)}</span><button onclick="upgradeSkyStone()" ${skyStoneMaxed ? 'disabled' : ''}>${skyStoneLevel > 0 ? '강화' : '제작'}, ${skyStoneMaxed ? '최대' : skyStoneCost}</button></div></section>`;
     let slots = Array.from({ length: 6 }).map((_, idx) => {
         let no = (Array.isArray(runeState.equippedRunes) ? runeState.equippedRunes : [])[idx];
         let unlocked = idx < Math.max(0, Math.floor(runeState.unlockedSlots || 0));
@@ -3661,7 +3661,7 @@ function upgradeSkyStone() {
     st.skyStone = st.skyStone || { crafted: false, level: 0 };
     st.skyStone.crafted = true;
     st.skyStone.level = lv + 1;
-    addLog(`창공석 ${lv === 0 ? '제작' : '강화'} 완료: 지하계 패널티 감소 ${getSkyStoneReductionPct()}%`, 'loot-unique');
+    addLog(`창공석 ${lv === 0 ? '제작' : '강화'} 완료: 지하계 중력 패널티 감소 ${getSkyStoneReductionPct()}%`, 'loot-unique');
     queueImportantSave(200);
     updateStaticUI();
 }

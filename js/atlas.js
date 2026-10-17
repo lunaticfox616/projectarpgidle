@@ -249,9 +249,11 @@ const atlas = (() => {
     function complete(state) {
         const run = state.atlas.run;
         if (!run) return null;
-        const id = run.map.node, first = !completed(state, id);
+        // 기억 싸움은 노드를 끝낸 것으로 치지 않는다: 시대 재생 뒤 기억으로 길을 건너뛰어 노드를 열거나, 정점의 기억이 아틀라스를 깨우거나,
+        // 머리줄 완료가 51을 넘던 문제(2026-10-18).
+        const id = run.map.node, recalled = !!run.map.memory, first = !recalled && !completed(state, id);
         if (first) state.atlas.completed.push(id);
-        const bonus = run.map.rarity === 'rare' && !state.atlas.bonus.includes(id);
+        const bonus = !recalled && run.map.rarity === 'rare' && !state.atlas.bonus.includes(id);
         if (bonus) state.atlas.bonus.push(id);
         const stored = store(state, run.drops);
         addFragments(state, run.found);
@@ -260,7 +262,7 @@ const atlas = (() => {
         state.atlas.lastResult = { nodeId: id, tier: run.map.tier, outcome: 'complete', first, bonus, drops: stored,
             lost: run.drops.length - stored, fragments: run.found.length };
         // 기억 싸움은 그 보스의 기억 보상만(입장권, 씨앗, 후반부 보상과 처치 수는 원래 싸움의 몫), 다른 싸움은 기억을 남길 수 있다.
-        const node = BY_ID.get(id), memory = memoryDungeon.settle(state, node, run.map), recalled = !!run.map.memory;
+        const node = BY_ID.get(id), memory = memoryDungeon.settle(state, node, run.map);
         const endgame = recalled ? null : atlasEndgame.onComplete(state, node, run);
         return { ...state.atlas.lastResult, ...(recalled ? {} : bossSpoils(state, node)), endgame, memory, returnZoneId: run.returnZoneId };
     }

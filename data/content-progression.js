@@ -44,6 +44,6 @@ const CONTENT_UNLOCK_CATALOG = Object.freeze([
     {"id":"deepTree","art":"gems/active/abyss-contagion-v1.png","after":"loopTree","name":"심화 패시브","group":"영구 성장","minLoop":10,"cost":2,"description":"심화 포인트로 영구 능력치를 강화합니다. 해금 전에도 등반 보상 포인트는 누적됩니다.","sections":["#loop-deep-growth"],"action":{"tab":"tab-season","section":"loop-deep-growth"},"lifecycle":{"label":"성장 영구 유지","kept":"심화 포인트와 투자한 능력치","reset":""}},
     {"id":"battleTrials","name":"전직 시련","group":"전투","minLoop":3,"after":"trials","cost":0,"progress":"trials","description":"직업 전직 해금 후 액트 3부터 시련에 도전합니다. 후속 시련의 조건은 유지됩니다.","routes":["map-explore-trials"]},
     {"id":"meteorSite","name":"운석 낙하 지점","group":"전투","minLoop":7,"cost":0,"progress":"meteor","description":"사냥으로 하늘 균열 게이지를 채우면 한 번 들어가 희귀 이상 장비를 얻습니다. 운석 고유 장비도 이곳에서만 떨어집니다.","routes":["map-explore-meteor"]},
-    {"id":"deepChaos","name":"심화 혼돈","group":"전투","minLoop":10,"cost":0,"progress":"deepChaos","description":"혼돈 20층 이후의 심화 등반이 열립니다.","routes":["map-explore-deep-chaos"]}
+    {"id":"deepChaos","name":"심화 혼돈","group":"전투","minLoop":10,"cost":0,"progress":"deepChaos","description":"혼돈 20층 이후의 심화 등반이 열립니다.","routes":["map-explore-chaos"]}
 ]);
 safeExposeData({ CONTENT_UNLOCK_CATALOG, CONTENT_UNLOCK_POINT_AWARDS });

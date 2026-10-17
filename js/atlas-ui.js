@@ -94,8 +94,8 @@ const atlasUi = (() => {
         const run = ledger().run;
         if (!run) return;
         const held = run.drops.length + run.found.length, kind = atlas.node(run.map.node)?.kind;
-        // 지도석 없이 연 싸움은 바친 것을 잃는다(정점은 입장권, 최종 보스와 리그 우두머리는 재료).
-        const offering = kind === 'pinnacle' ? '바친 입장권' : (RUN_KIND[kind] ? '바친 재료' : '지도석');
+        // 지도석 없이 연 싸움은 바친 것을 잃는다(정점은 입장권, 최종 보스와 리그 우두머리는 재료, 기억 싸움은 그 기억).
+        const offering = run.map.memory ? `보스의 기억 ${run.map.memory}단계` : kind === 'pinnacle' ? '바친 입장권' : (RUN_KIND[kind] ? '바친 재료' : '지도석');
         const lost = [offering, held ? `맵에서 얻은 지도석과 각인 ${held}개` : '', heldLate(run), '맵 안의 임시 전리품'].filter(Boolean).join(', ');
         const message = `${nodeName(run.map.node)} 지도를 닫을까요?\n손실: ${lost}`;
         const ok = await requestGameConfirmation(message, { title: '지도 닫기', tone: 'danger', confirmLabel: '지도 닫기', cancelLabel: '취소', dismissOnBackdrop: false });
@@ -285,7 +285,7 @@ const atlasUi = (() => {
         const tickets = ATLAS.pinnacle.tickets.map(key => `<span class="${(game.currencies[key] || 0) >= 1 ? 'is-on' : ''}">${TICKET(key)} ${Math.floor(game.currencies[key] || 0)}</span>`).join('');
         return `<section class="atlas-node-detail atlas-pinnacle-detail"><small>정점, 세계수 씨앗 ${ledger().seeds}/${ATLAS.seeds.max}</small><h3>${escapeHTML(node.name)}</h3>
             <p>${tier}등급, 투기장, 보스 ${ATLAS.pinnacle.stages}단계</p><div class="atlas-tickets">${tickets}</div>
-            <p class="atlas-muted">처치하면 세계수 씨앗 하나(최대 ${ATLAS.seeds.max}). 씨앗마다 모든 노드 등급 +${ATLAS.seeds.tierStep}. 씨앗 ${BEYOND_BOUNDARY_UNLOCK_SEEDS}개면 경계 너머가 루프 50 전에 열립니다(관측자 처치 필요).</p>
+            <p class="atlas-muted">${ledger().seeds >= ATLAS.seeds.max ? `세계수 씨앗 ${ATLAS.seeds.max}개를 다 모아 더는 나오지 않습니다(시대 재생 뒤 다시).` : `처치하면 세계수 씨앗 하나(최대 ${ATLAS.seeds.max}).`} 씨앗마다 모든 노드 등급 +${ATLAS.seeds.tierStep}. 씨앗 ${BEYOND_BOUNDARY_UNLOCK_SEEDS}개면 경계 너머가 루프 50 전에 열립니다(관측자 처치 필요).</p>
             ${atlasEndgame.awakened(game) ? '' : '<p class="atlas-muted">처음 쓰러뜨리면 아틀라스가 깨어나 최종 보스가 열립니다.</p>'}
             ${reason && !busy ? `<p class="atlas-lock">${reason}</p>` : ''}<div class="atlas-actions"><button class="atlas-primary" data-exploration-departure
             onclick="atlasUi.openPinnacle()" ${reason ? 'disabled' : ''}>정점 열기</button></div></section>`;
@@ -343,7 +343,7 @@ const atlasUi = (() => {
     }
     function headerHtml() {
         // 깨어난 아틀라스는 최종 보스와 리그 우두머리만큼 넓어진다(그 처치도 완료이자 아틀라스 포인트).
-        const st = ledger(), total = atlas.nodes.length + (atlasEndgame.awakened(game) ? atlas.lateNodes.length : 0), free = atlasPassives.available(game);
+        const st = ledger(), total = atlas.nodes.length + (atlasEndgame.awakened(game) ? atlas.lateNodes.length : 0), free = atlasPassives.spendable(game);
         const tab = (id, label) => `<button class="atlas-view${view === id ? ' is-on' : ''}" aria-pressed="${view === id}" onclick="atlasUi.setView('${id}')">${label}</button>`;
         return `<header class="atlas-head"><div><h2>세계수 아틀라스</h2><span>완료 ${st.completed.length}/${total}, 보너스 ${st.bonus.length}, 씨앗 ${st.seeds}/${ATLAS.seeds.max}, 아틀라스 포인트 ${atlas.points(game)}${free ? ` (남음 ${free})` : ''}</span></div>
             <nav class="atlas-views" aria-label="아틀라스 보기">${tab('maps', '지도')}${tab('passives', `패시브${free ? ` +${free}` : ''}`)}${tab('late', '최종')}${tab('memory', `기억${memoryDungeon.total(game) ? ` ${memoryDungeon.total(game)}` : ''}`)}${tab('epoch', '시대')}</nav>
@@ -377,7 +377,8 @@ const atlasUi = (() => {
     const RUN_KIND = { pinnacle: '정점', apex: '최종 보스', league: '리그 우두머리' };
     function hudTags(run) {
         const rooms = run.encounters.length ? `, ${encounterNames(run.encounters, run.golden || [])}` : '';
-        return `${run.map.tier}등급, ${RUN_KIND[atlas.node(run.map.node)?.kind] || ATLAS.rarities[run.map.rarity].name}${rooms}`;
+        const kind = run.map.memory ? `기억 ${run.map.memory}단계` : RUN_KIND[atlas.node(run.map.node)?.kind] || ATLAS.rarities[run.map.rarity].name;
+        return `${run.map.tier}등급, ${kind}${rooms}`;
     }
     function updateHud(zone) {
         const host = document.getElementById('ui-atlas-combat');

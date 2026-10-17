@@ -265,8 +265,16 @@ const atlasEndgame = (() => {
             witness: Math.max(0, Math.min(1e6, Math.floor(Number(source.witness) || 0))),
             witnessed: (Array.isArray(source.witnessed) ? source.witnessed : []).filter(validEcho).slice(-E.witness.keep) };
     }
-    /** 시대 재생: 후반부 진행(깨어남, 처치, 재료, 마름, 목격)도 되돌린다. */
-    function reset(state) { state.atlas.endgame = defaults(); }
+    /** 시대 재생: 후반부 진행(깨어남, 처치, 재료, 마름, 목격)도 되돌린다. 지갑에 있는 제단 재료도 함께. */
+    function reset(state) {
+        state.atlas.endgame = defaults();
+        Object.values(WALLET).forEach(key => { state.currencies[key] = 0; });
+    }
+    /** 루프가 바뀌어도 남는 지갑의 제단 재료(성화 잉걸, 허기의 즙): 루프 정산이 지갑을 비운 뒤 되돌린다(js/combat.js).
+     * 2026-10-10 지갑으로 옮긴 뒤 루프마다 사라지고 있었다. @returns {Array<[string, number]>} [재화, 수] */
+    function loopKeptCurrencies(state) {
+        return Object.values(WALLET).map(key => [key, Math.max(0, Math.floor(Number(state.currencies[key]) || 0))]);
+    }
     /** Everything the late-atlas view shows. */
     /** lock: the unlock condition a card shows once the atlas is awake and the fight is still closed (asleep, the view's head says it). */
     const lockOf = (state, row) => (awakened(state) && !unlocked(state, row) ? lockText(state, row) : '');
@@ -278,7 +286,7 @@ const atlasEndgame = (() => {
             blight: ATLAS.regions.map(region => ({ region, level: book.blight[region.id] || 0 })), witness: book.witness, witnessPer: E.witness.per,
             gardenerDown: kills(state, 'apex_gardener') > 0 };
     }
-    return Object.freeze({ defaults, normalize, normalizeRun, moveAltarMaterials, reset, awakened, kills, count, def, entryReason, spend, refund, runExtra,
+    return Object.freeze({ defaults, normalize, normalizeRun, moveAltarMaterials, reset, loopKeptCurrencies, awakened, kills, count, def, entryReason, spend, refund, runExtra,
         bossBoost, zoneExtras, tuneStage, patternState, roomItems, onComplete, overview, isFight: id => DEFS.has(id),
         itemName: id => (E.items[id] ? E.items[id].name : id) });
 })();

@@ -9,7 +9,7 @@ const CONTENT_ROUTE_PATHS = Object.freeze({
     'tab-season': '루프 패시브', 'tab-stump': '그루터기 함', 'tab-talent': '재능',
     'map-tab-pvp': '지도 → 대전', 'map-explore-labyrinth': '지도 → 탐험 → 고대 미궁', 'map-explore-beehive': '지도 → 탐험 → 벌집',
     'map-explore-voidrift': '지도 → 탐험 → 공허 균열, 대균열', 'map-explore-colony': '지도 → 탐험 → 군락지',
-    'map-explore-trials': '지도 → 탐험 → 전직 시련', 'map-explore-deep-chaos': '지도 → 탐험 → 혼돈 심화층', 'map-explore-meteor': '지도 → 탐험 → 운석 낙하'
+    'map-explore-trials': '지도 → 탐험 → 전직 시련', 'map-explore-chaos': '지도 → 탐험 → 혼돈(혼돈 심화층)', 'map-explore-meteor': '지도 → 탐험 → 운석 낙하'
 });
 // 자기 안내 카드가 따로 있는 콘텐츠(카드 키). 해금 카드는 띄우지 않는다.
 const CONTENT_CARD_DEDICATED = Object.freeze({

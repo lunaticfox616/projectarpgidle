@@ -35,7 +35,7 @@ const atlasEpochUi = (() => {
     function html() {
         const epoch = game.atlas.epoch, why = atlasEpoch.reason(game);
         return `<div class="atlas-epoch"><section class="atlas-epoch-head"><div><h3>시대 재생 <span>${epoch.count}회</span></h3>
-            <p class="atlas-muted">세계수 씨앗 ${game.atlas.seeds}/${ATLAS.seeds.max}, 지금 재생하면 세계수 정수 ${atlasEpoch.essenceFor(game)}개 (기본 ${ATLAS.epoch.essence.base} + 완료, 보너스, 씨앗)</p>
+            <p class="atlas-muted">세계수 씨앗 ${game.atlas.seeds}/${ATLAS.seeds.max}, 지금 재생하면 세계수 정수 ${atlasEpoch.essenceFor(game)}개 (기본 ${ATLAS.epoch.essence.base}, 지도 노드 완료 ${ATLAS.epoch.essence.perCompleted}개마다 1, 보너스 ${ATLAS.epoch.essence.perBonus}개마다 1, 씨앗마다 ${ATLAS.epoch.essence.perSeed})</p>
             <p class="atlas-muted">초기화: 완료, 보너스, 패시브, 씨앗, 후반부 진행, 이번 루프의 지도석과 각인. 유지: 특전, 해금, 자동 지도, 각인 홈 설정.</p></div>
             <div class="atlas-epoch-action"><strong>세계수 정수 ${epoch.essence}</strong>${why ? `<p class="atlas-lock">${why}</p>` : ''}
             <button class="atlas-primary" onclick="atlasEpochUi.rebirth()" ${why ? 'disabled' : ''}>시대 재생</button></div></section>

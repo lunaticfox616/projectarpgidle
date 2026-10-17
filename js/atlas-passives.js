@@ -17,6 +17,12 @@ const atlasPassives = (() => {
     const waits = (state, id) => (Number(state.season) || 1) < loopOf(id);
 
     function available(state) { return atlas.points(state) - taken(state).length; }
+    /** Points that can be spent now: no more than the nodes still open to take this loop (the tab badge; a point beyond them stays
+     * banked for a later loop's nodes instead of a "+N" that never clears, 2026-10-18). */
+    function spendable(state) {
+        const list = taken(state), open = [...NODES.keys()].filter(id => !list.includes(id) && !waits(state, id)).length;
+        return Math.max(0, Math.min(available(state), open));
+    }
     function reason(state, id) {
         const node = NODES.get(id), list = taken(state);
         if (!node) return '없는 패시브입니다.';
@@ -71,6 +77,6 @@ const atlasPassives = (() => {
         }
         return list;
     }
-    return Object.freeze({ nodes: NODES, effectKeys: EFFECT_KEYS, loopOf, waits, available, reason, allocate, refundReason, refund, status, sum, effects, has, normalize });
+    return Object.freeze({ nodes: NODES, effectKeys: EFFECT_KEYS, loopOf, waits, available, spendable, reason, allocate, refundReason, refund, status, sum, effects, has, normalize });
 })();
 safeExposeGlobals({ atlasPassives });

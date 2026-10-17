@@ -333,7 +333,7 @@ const sideEncounterUi = (() => {
         const cost = getSkyStoneNextCost();
         const gemUnlocked = contentProgression.isUnlocked('gemForge');
         return `<div class="map-expedition-intro"><div class="map-expedition-heading"><strong>영구 강화</strong><span>응축된 창공의 정수 ${tower.condensedPower}개</span></div>
-            <dl><div><dt>창공석, ${level}/${max}</dt><dd>지하계 패널티 감소 ${getSkyStoneReductionPct()}%<small>${level>=max?'최대 강화':`다음 단계 ${getSkyStoneReductionPct()+5}%, 필요 ${cost}개`}</small></dd></div>
+            <dl><div><dt>창공석, ${level}/${max}</dt><dd>지하계 중력 패널티 감소 ${getSkyStoneReductionPct()}%<small>${level>=max?'최대 강화':`다음 단계 ${getSkyStoneReductionPct()+5}%, 필요 ${cost}개`}</small></dd></div>
             <div><dt>공격 룬 영구 강화</dt><dd>룬 레벨 최대 +${getSkyTowerGemBoostMaxLevel()}<small>${gemUnlocked?'룬별 60 → 120 → 240개':'룬 강화 해금 필요'}</small></dd></div></dl>
             <div class="map-expedition-actions"><button onclick="upgradeSkyStone()" ${level>=max||tower.condensedPower<cost?'disabled':''}>창공석 ${level?'강화':'제작'}</button>
             <button onclick="switchTab('tab-skills'); switchSkillSubtab('skill-tab-enhance')" ${gemUnlocked?'':'disabled'}>룬 강화로 이동</button></div></div>`;
