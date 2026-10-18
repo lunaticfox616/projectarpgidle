@@ -182,7 +182,7 @@
     },
     "changeZone|max-lines-per-function|Function 'changeZone' has too many lines (#). Maximum allowed is #.": {
       "count": 1,
-      "max": 64
+      "max": 63
     },
     "changeZone|complexity|Function 'changeZone' has a complexity of #. Maximum allowed is #.": {
       "count": 1,
@@ -5458,15 +5458,14 @@
     "dependency:changeZone->ensureMeteorSiteState",
     "dependency:changeZone->ensureTimeRiftState",
     "dependency:changeZone->getAbyssDepthFromZoneId",
+    "dependency:changeZone->getHeldRunBlockReason",
     "dependency:changeZone->getSeasonBossProgressGate",
     "dependency:changeZone->getTimeRiftFusionMismatchReason",
     "dependency:changeZone->getZone",
     "dependency:changeZone->getZoneTravelBlockReason",
-    "dependency:changeZone->isBeehiveRunLockedForMapTravel",
     "dependency:changeZone->prepareMeteorEncounterEntry",
     "dependency:changeZone->runItemStartMoving",
     "dependency:changeZone->updateStaticUI",
-    "dependency:changeZone->warnBeehiveMapTravelBlocked",
     "dependency:changed->applyTabHeaderOrder",
     "dependency:changed->queueImportantSave",
     "dependency:changedIds->String",
