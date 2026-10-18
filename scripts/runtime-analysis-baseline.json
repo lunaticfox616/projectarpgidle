@@ -796,17 +796,9 @@
       "count": 1,
       "max": 17
     },
-    "applySkyGemEnhancementToActive|max-lines-per-function|Function 'applySkyGemEnhancementToActive' has too many lines (#). Maximum allowed is #.": {
-      "count": 1,
-      "max": 67
-    },
     "applySkyGemEnhancementToActive|complexity|Function 'applySkyGemEnhancementToActive' has a complexity of #. Maximum allowed is #.": {
       "count": 1,
-      "max": 24
-    },
-    "removeSkyGemEnhancementFromActive|complexity|Function 'removeSkyGemEnhancementFromActive' has a complexity of #. Maximum allowed is #.": {
-      "count": 1,
-      "max": 11
+      "max": 19
     },
     "getSupportGemSkyProcessState|complexity|Function 'getSupportGemSkyProcessState' has a complexity of #. Maximum allowed is #.": {
       "count": 1,
@@ -3813,9 +3805,9 @@
     "dependency:applySkippedGuide->plantSkippedStumpStarter",
     "dependency:applySkyGemEnhancementToActive->Number",
     "dependency:applySkyGemEnhancementToActive->addLog",
-    "dependency:applySkyGemEnhancementToActive->canUseSkyEnhancement",
     "dependency:applySkyGemEnhancementToActive->getFirstEmptyGemEngraveSlot",
     "dependency:applySkyGemEnhancementToActive->getGemEnhanceTargetSkill",
+    "dependency:applySkyGemEnhancementToActive->getSkyEngraveApplyRefusal",
     "dependency:applySkyGemEnhancementToActive->getSkyEnhancementSlotsForSkill",
     "dependency:applySkyGemEnhancementToActive->isAwakenedSkyEnhancement",
     "dependency:applySkyGemEnhancementToActive->isEnhanceableAttackGem",
@@ -8798,6 +8790,8 @@
     "dependency:findPlayerDirectEhp->calculatePlayerRawHitTaken",
     "dependency:findPlayerDirectEhp->getPlayerEhpResourcePool",
     "dependency:findRank->Number",
+    "dependency:findSkyEngraveSlot->Number",
+    "dependency:findSkyEngraveSlot->getSelectedGemEngraveSlot",
     "dependency:findStoredEquipmentAffix->getExplicitModStatIds",
     "dependency:findStoredEquipmentAffix->makeDualDefenseAffixMod",
     "dependency:fineLines->Number",
@@ -10958,6 +10952,7 @@
     "dependency:getSkillTargets->selectCombatGemTargets",
     "dependency:getSkillTravelVisualEndpoints->getGridUnitCenter",
     "dependency:getSkillTravelVisualEndpoints->hasGridCell",
+    "dependency:getSkyEngraveApplyRefusal->canUseSkyEnhancement",
     "dependency:getSkyEnhancementForSkill->getSkyEnhancementSlotsForSkill",
     "dependency:getSkyEnhancementGroup->String",
     "dependency:getSkyEnhancementSlotsForSkill->normalizeSkyGemEnhancementSlots",
@@ -16810,10 +16805,9 @@
     "dependency:removePendingChatItem->updateChatCounter",
     "dependency:removeRule->renderTargets",
     "dependency:removeRule->saveAndPreview",
-    "dependency:removeSkyGemEnhancementFromActive->Number",
     "dependency:removeSkyGemEnhancementFromActive->addLog",
+    "dependency:removeSkyGemEnhancementFromActive->findSkyEngraveSlot",
     "dependency:removeSkyGemEnhancementFromActive->getGemEnhanceTargetSkill",
-    "dependency:removeSkyGemEnhancementFromActive->getSelectedGemEngraveSlot",
     "dependency:removeSkyGemEnhancementFromActive->getSkyEnhancementSlotsForSkill",
     "dependency:removeSkyGemEnhancementFromActive->getSkyGemEnhancementRemoveCost",
     "dependency:removeSkyGemEnhancementFromActive->updateStaticUI",
