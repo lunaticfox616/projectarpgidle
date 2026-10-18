@@ -396,15 +396,14 @@ function gridStepToward(unit, tx, ty, blocked) {
  * @param {number} intervalSec 1칸 이동 주기(초)
  * @returns {boolean} 실제로 이동했는지
  */
-function advanceGridUnitMovement(unit, target, dtSec, intervalSec, avoidCells) {
+function advanceGridUnitMovement(unit, target, dtSec, intervalSec, avoid) {
     if (!hasGridCell(unit) || !target) return false;
     let interval = Number.isFinite(intervalSec) && intervalSec > 0 ? intervalSec : COMBAT_GRID_CONFIG.enemyMoveIntervalSec;
-    if (actExplorationState.current(game) && unit===game.gridPlayer) return beginExplorationGridStep(target,interval,avoidCells);
+    if (actExplorationState.current(game) && unit===game.gridPlayer) return beginExplorationGridStep(target,interval,avoid);
     unit.gridMoveTimer = (Number(unit.gridMoveTimer) || 0) + dtSec;
     if (unit.gridMoveTimer < interval) return false;
     let from = { gx: unit.gx, gy: unit.gy };
-    const blocked = withAvoidedGridCells(getGridBlockedCells(unit), avoidCells);
-    let moved = gridStepToward(unit, target.gx, target.gy, blocked);
+    let moved = stepAroundDanger(getGridBlockedCells(unit), avoid, blocked => gridStepToward(unit, target.gx, target.gy, blocked));
     unit.gridMoveTimer = moved ? 0 : interval;
     markGridStep(unit, from, moved);
     return moved;
@@ -425,11 +424,17 @@ function withAvoidedGridCells(blocked, cells) {
     for (const cell of cells || []) blocked.add(gridCellKey(cell.gx, cell.gy));
     return blocked;
 }
-function beginExplorationGridStep(target,interval,avoidCells) {
+/** One step (step(blocked) → moved) around danger. avoid: { hard, soft } (an array is hard). Hard cells (a telegraphed attack) are never
+ * stepped into; soft ones (lasting ground) only when no other step leads on (2026-10-18: as walls they kept a melee hero from its boss). */
+function stepAroundDanger(blocked, avoid, stepThrough) {
+    const { hard = [], soft = [] } = Array.isArray(avoid) ? { hard: avoid } : (avoid || {});
+    withAvoidedGridCells(blocked, hard);
+    return (soft.length > 0 && stepThrough(withAvoidedGridCells(new Set(blocked), soft))) || stepThrough(blocked);
+}
+function beginExplorationGridStep(target,interval,avoid) {
     const run=actExplorationState.current(game);if(!run || run.motion)return false;
     const next={gx:game.gridPlayer.gx,gy:game.gridPlayer.gy};
-    const blocked=withAvoidedGridCells(getExplorationPlanningBlockedCells(run),avoidCells);
-    if(!gridStepToward(next,target.gx,target.gy,blocked))return false;
+    if(!stepAroundDanger(getExplorationPlanningBlockedCells(run),avoid,blocked=>gridStepToward(next,target.gx,target.gy,blocked)))return false;
     return actExplorationMotion.start(run,game.gridPlayer,next,interval/actExplorationDoors.pace(run),run.motionTimeMs);
 }
 

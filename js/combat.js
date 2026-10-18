@@ -5395,7 +5395,7 @@ function updatePlayerGridEngagement(pStats, options) {
         combatTacticsRuntime.approachTargetId = null;
         let now = getCombatTime();
         let stalled = now - combatTacticsRuntime.lastAttackAt >= COMBAT_TACTIC_STALL_MS;
-        let plan = !config.holdPosition && !config.avoidCells?.length && game.combatTacticsUnlocked && !stalled
+        let plan = !config.holdPosition && !hasHardDanger(config.avoidCells) && game.combatTacticsUnlocked && !stalled
             ? getPlayerTacticalMovePlan(pStats, targets[0].enemy)
             : null;
         if (tryPlayerTacticalMove(pStats, targets[0].enemy, plan, now)) return false;
@@ -5409,6 +5409,8 @@ function updatePlayerGridEngagement(pStats, options) {
     return false;
 }
 
+/** Danger the hero must not step into (avoid: { hard, soft }, js/combat.js updateCombatHazardEvasion): tactical moves wait for it. */
+const hasHardDanger = avoid => Boolean(avoid && avoid.hard && avoid.hard.length);
 /** One hero step toward its target, in seconds (move speed 100 = playerMoveIntervalSec). Every caller steps toward a monster, so
  * the 추적자 boots' pursuit speed (uniquePursuitMovePct) counts here and nowhere else. */
 function getPlayerGridStepSec(pStats) {
@@ -9662,11 +9664,15 @@ function applyEnemyRegen(enemy, pStats) {
     enemy.regenHpMark = enemy.hp;
 }
 /** One step of fighting tires the regeneration; the life mark set after each step tells a loss from any source. */
+/** How long a monster must go unhurt before its regeneration comes back. A final boss's combos make the hero step out and back in
+ * (data/atlas-endgame.js combo): its window spans one dodge, or dodging well handed it full regeneration (2026-10-18: a T15 hero
+ * dodging the archbishop never dented it). */
+const regenCalmWindowMs = enemy => ENEMY_REGEN_COMBAT_WINDOW_MS + (enemy.patternMode === 'apex' ? ATLAS_ENDGAME.combo.finisherWarningMs : 0);
 function tireEnemyRegen(enemy, now) {
     if (enemy.isWoodsman) return 1;
     const mark = Number(enemy.regenHpMark);
     if (Number.isFinite(mark) && enemy.hp < mark) enemy.regenLastLossAt = now;
-    const fighting = now - (Number(enemy.regenLastLossAt) || -Infinity) < ENEMY_REGEN_COMBAT_WINDOW_MS;
+    const fighting = now - (Number(enemy.regenLastLossAt) || -Infinity) < regenCalmWindowMs(enemy);
     enemy.regenFatigueMs = fighting ? Math.min(ENEMY_REGEN_FATIGUE_MS, (Number(enemy.regenFatigueMs) || 0) + ENEMY_REGEN_STEP_MS) : 0;
     return getEnemyRegenFatigueFactor(enemy.regenFatigueMs);
 }
@@ -12856,24 +12862,27 @@ function updateCombatHazardEscape(hazard, pStats, now, reason = '함정 회피')
     return true;
 }
 
-/** Boss warnings are escaped by the mobility slot (js/mobility-skill.js); trial traps retain their movement policy. */
-function walkingHazardCells() {
+/** The cells auto battle walks out of now: a trap about to go off that the hero should not take, and a final boss's telegraphed combo.
+ * (Other boss warnings are escaped by the mobility slot, js/mobility-skill.js.) */
+function hardHazardCells() {
     let cells = [];
     if (trialHazardRuntime.active && trialHazardRuntime.active.shouldAvoid) cells.push(...trialHazardRuntime.active.cells);
-    for (const ground of trialHazardRuntime.ground || []) cells.push(...ground.cells);
     // 최종 보스의 연계는 이동 룬이 없어도 걸어서 대응한다. 기존 공격 후딜과 실제 이동 속도는 지킨다.
     if (game.enemies.some(enemy => enemy.hp > 0 && enemy.patternMode === 'apex')) cells.push(...getBossWarningCells(game, pendingEnemyCombatAttacks));
     return cells;
 }
+/** Lasting ground (lava, frost, corrosion, shock): a soft danger. The hero walks around it when it can and fights in it when it must
+ * (2026-10-18: as a hard danger a melee hero kept 0-16% of its damage against the final bosses). */
+const groundHazardCells = () => (trialHazardRuntime.ground || []).flatMap(ground => ground.cells);
 function updateCombatHazardEvasion(pStats) {
     if (game.playerHp <= 0) return { avoiding: false, holdPosition: false };
     applyTrialTrapTick(pStats, true);
     if (game.playerHp <= 0) return { avoiding: false, holdPosition: false };
-    const cells = walkingHazardCells();
+    const cells = hardHazardCells();
     let holdPosition = getBossWarningCells(game, pendingEnemyCombatAttacks).length > 0 || isTrialHazardPositionHeld();
     let avoiding = updateCombatHazardEscape({ cells, shouldAvoid: true }, pStats, getCombatTime(), '위험 범위 회피');
     let frozen = game.playerAilments.some(ail => ail.type === 'freeze' && ail.time > 0);
-    return { avoiding: avoiding || frozen, holdPosition, avoidCells: cells };
+    return { avoiding: avoiding || frozen, holdPosition, avoidCells: { hard: cells, soft: groundHazardCells() } };
 }
 
 /** The trap's name in the log and the defeat line: a trial's '시련 함정', or the zone's own (the atlas late arenas' '바닥 함정'). */

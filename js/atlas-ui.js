@@ -394,7 +394,7 @@ const atlasUi = (() => {
         if (key === hudSignature) return;
         hudSignature = key;
         host.innerHTML = `<div class="atlas-hud-copy"><strong>${escapeHTML(zone.name)} <span>${hudTags(run)}</span>${omenChipHtml(run.map)}</strong>
-            <span>${run.board ? '심재의 나이테, 패배·귀환 시 지도 종료' : `포털 ${run.portals}/${ATLAS.portals + run.bonus.portals}, 지도석 ${run.drops.length}, 각인 ${run.found.length} 보관 중`}</span></div>
+            <span>${run.board ? '심재의 나이테, 지거나 귀환하면 지도가 끝납니다' : `포털 ${run.portals}/${ATLAS.portals + run.bonus.portals}, 지도석 ${run.drops.length}, 각인 ${run.found.length} 보관 중`}</span></div>
             <div class="atlas-hud-actions"><button onclick="atlasUi.openPanel()">아틀라스</button></div>`;
     }
     const REASON = { defeat: '쓰러졌습니다', travel: '지도를 떠났습니다', '마을 귀환': '마을로 귀환했습니다' };
