@@ -5421,33 +5421,49 @@ function getClaimedJournalPassivePointTotal(state) {
         return sum + Math.max(0, Math.floor(entry.bonus.value || 0));
     }, 0);
 }
+/** The journal entries a save's progress proves (prologue, the acts from loop 2, then JOURNAL_PROGRESS_RULES and cleared root bosses),
+ * kept with the save's own valid entries; stored on state and returned. Rules as a table on 2026-10-18, in their old order. */
 function repairJournalEntriesFromProgress(state) {
     let runtimeState = state && typeof state === 'object' ? state : {};
     let recovered = new Set(Array.isArray(runtimeState.journalEntries) ? runtimeState.journalEntries.filter(id => JOURNAL_DB[id]) : []);
     recovered.add('prologue');
     let loopStage = Math.max(Math.floor(runtimeState.season || 1), Math.floor(runtimeState.loopCount || 0));
     if (loopStage >= 2) Object.keys(JOURNAL_DB).filter(id => /^act_/.test(id)).forEach(id => recovered.add(id));
-    if (runtimeState.passiveStarEvolution) recovered.add('passive_star_evolution');
-    if (Math.floor((runtimeState.meteorSite || {}).entriesCleared || 0) > 0) recovered.add('meteor_fall');
-    if (runtimeState.chaosInfuserUnlocked || runtimeState.woodsmanSimulatorSeenLoop || Math.floor(runtimeState.woodsmanDefeatAttempts || 0) > 0) recovered.add('woodsman');
-    if (runtimeState.beehive && runtimeState.beehive.cleared) recovered.add('beehive_queen');
-    if (runtimeState.voidRift && runtimeState.voidRift.grandBreachCleared) recovered.add('void_grand_breach');
-    if (Math.max(Math.floor(runtimeState.labyrinthUnlockedMaxFloor || 1), Math.floor(runtimeState.labyrinthFloor || 1)) >= 11) recovered.add('labyrinth_10');
-    if (runtimeState.ocean && Math.floor(runtimeState.ocean.bossClearM || 0) >= 500) recovered.add('ocean_500');
-    if (runtimeState.skyTower && (Math.floor(runtimeState.skyTower.highestFloor || 1) >= 11 || (Array.isArray(runtimeState.skyTower.clearedFloors) ? runtimeState.skyTower.clearedFloors : []).some(floor => Math.floor(floor || 0) >= 10))) recovered.add('sky_tower_10');
-    let hasFusedRelic = (runtimeState.inventory || []).some(item => item && item.fusedRelic)
-        || Object.values(runtimeState.equipment || {}).some(item => item && item.fusedRelic);
-    if ((runtimeState.timeRift && Math.floor(runtimeState.timeRift.fusionCount || 0) > 0) || hasFusedRelic) recovered.add('time_rift_fusion');
-    let colony = runtimeState.colony || {};
-    if (Math.max(Math.floor(colony.highestWave || 0), Math.floor(colony.wave || 0)) >= 11) recovered.add('colony_wave_10');
-    let rootBossIds = new Set(Array.isArray(runtimeState.clearedRootBosses) ? runtimeState.clearedRootBosses : []);
-    if (typeof SEASON_BOSS_ZONES !== 'undefined' && Array.isArray(SEASON_BOSS_ZONES)) {
-        SEASON_BOSS_ZONES.forEach(zone => {
-            if (zone && zone.journalId && rootBossIds.has(zone.id) && JOURNAL_DB[zone.journalId]) recovered.add(zone.journalId);
-        });
-    }
+    JOURNAL_PROGRESS_RULES.forEach(([id, reached]) => { if (reached(runtimeState)) recovered.add(id); });
+    addRootBossJournalEntries(runtimeState, recovered);
     runtimeState.journalEntries = Array.from(recovered).filter(id => JOURNAL_DB[id]);
     return runtimeState.journalEntries;
+}
+const reachedSkyTowerFloor10 = s => !!(s.skyTower && (Math.floor(s.skyTower.highestFloor || 1) >= 11
+    || (Array.isArray(s.skyTower.clearedFloors) ? s.skyTower.clearedFloors : []).some(floor => Math.floor(floor || 0) >= 10)));
+const holdsFusedRelic = s => (s.inventory || []).some(item => item && item.fusedRelic)
+    || Object.values(s.equipment || {}).some(item => item && item.fusedRelic);
+/** A time rift fusion done, or a fused relic held (the relic scan first, as before). */
+function reachedTimeRiftFusion(s) {
+    const fused = holdsFusedRelic(s);
+    return (s.timeRift && Math.floor(s.timeRift.fusionCount || 0) > 0) || fused;
+}
+const reachedColonyWave10 = s => Math.max(Math.floor((s.colony || {}).highestWave || 0), Math.floor((s.colony || {}).wave || 0)) >= 11;
+/** Journal entries a save's progress proves, in the order they are added: [entry, whether the progress shows it]. */
+const JOURNAL_PROGRESS_RULES = Object.freeze([
+    ['passive_star_evolution', s => !!s.passiveStarEvolution],
+    ['meteor_fall', s => Math.floor((s.meteorSite || {}).entriesCleared || 0) > 0],
+    ['woodsman', s => !!(s.chaosInfuserUnlocked || s.woodsmanSimulatorSeenLoop || Math.floor(s.woodsmanDefeatAttempts || 0) > 0)],
+    ['beehive_queen', s => !!(s.beehive && s.beehive.cleared)],
+    ['void_grand_breach', s => !!(s.voidRift && s.voidRift.grandBreachCleared)],
+    ['labyrinth_10', s => Math.max(Math.floor(s.labyrinthUnlockedMaxFloor || 1), Math.floor(s.labyrinthFloor || 1)) >= 11],
+    ['ocean_500', s => !!(s.ocean && Math.floor(s.ocean.bossClearM || 0) >= 500)],
+    ['sky_tower_10', reachedSkyTowerFloor10],
+    ['time_rift_fusion', reachedTimeRiftFusion],
+    ['colony_wave_10', reachedColonyWave10]
+]);
+/** Each cleared root boss's own journal entry. */
+function addRootBossJournalEntries(runtimeState, recovered) {
+    let rootBossIds = new Set(Array.isArray(runtimeState.clearedRootBosses) ? runtimeState.clearedRootBosses : []);
+    if (typeof SEASON_BOSS_ZONES === 'undefined' || !Array.isArray(SEASON_BOSS_ZONES)) return;
+    SEASON_BOSS_ZONES.forEach(zone => {
+        if (zone && zone.journalId && rootBossIds.has(zone.id) && JOURNAL_DB[zone.journalId]) recovered.add(zone.journalId);
+    });
 }
 function rebuildJournalBonusStateForLoad(state) {
     let runtimeState = state && typeof state === 'object' ? state : {};
