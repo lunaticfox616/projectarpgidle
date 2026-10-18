@@ -447,6 +447,7 @@ function getBlackMarketOfferPrice(offer) {
 
 /** Whether offer index can be bought now: { ok, reason }. place: the bag cell { column, row } (row over all pages) gear goes to. */
 function checkBlackMarketOffer(index, place = null) {
+    if (game.woodsmanBuildLock) return { ok: false, reason: '☠️ 나무꾼 전투 중에는 살 수 없습니다.' };
     const offer = normalizeBlackMarketState().offers[index];
     if (!offer) return { ok: false, reason: '이미 팔린 물건입니다.' };
     const price = getBlackMarketOfferPrice(offer), have = Math.floor(Number(game.currencies[price.key]) || 0);

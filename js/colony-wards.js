@@ -96,6 +96,7 @@ const colonyWards = (() => {
     /** 군락지 편린으로 만들기: craftCost개를 내고 새 액막이 하나를 가방에. '' when done, otherwise why not. */
     function craft(state = game, random = Math.random) {
         if (!unlocked(state)) return '군락지가 열리면 만들 수 있습니다.';
+        if (state.woodsmanBuildLock) return '☠️ 나무꾼 전투 중에는 만들 수 없습니다.';
         if ((Number(state.currencies.colonyShard) || 0) < R.craftCost) return `군락지 편린이 부족합니다(${R.craftCost}개 필요).`;
         const item = create(random, 1);
         if (!addItemToInventory(item, { ignoreFilter: true, ignoreAutoSalvage: true })) return '가방에 자리가 없습니다.';

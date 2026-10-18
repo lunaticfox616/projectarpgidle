@@ -148,6 +148,7 @@ async function createPlayerHallListing() {
 }
 
 async function buyPlayerHallReplica(listingId) {
+    if (game.woodsmanBuildLock) return setPlayerExchangeMessage('☠️ 나무꾼 전투 중에는 살 수 없습니다.');
     let listing = getPlayerHallListings().find(row => Number(row.id) === Number(listingId));
     if (!listing) return setPlayerExchangeMessage('전시 항목을 다시 불러와주세요.');
     let accepted = typeof requestGameConfirmation !== 'function' || await requestGameConfirmation(

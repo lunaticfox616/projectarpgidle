@@ -971,9 +971,15 @@ function closeBaseUpgradeOverlay() {
     if (overlay) overlay.close();
 }
 
+/** What the wallet lacks for a base upgrade's cost, or ''. */
+function getBaseUpgradeShortfall(cost) {
+    if ((game.currencies.formlessDew || 0) < cost.formlessDew) return `형체 없는 이슬이 부족합니다. (필요: ${cost.formlessDew})`;
+    return (game.currencies.goldenRule || 0) < cost.goldenRule ? `황금률이 부족합니다. (필요: ${cost.goldenRule})` : '';
+}
 function confirmSelectedItemBaseUpgrade() {
     let pending = game.pendingBaseUpgrade;
     if (!pending) return;
+    if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 장비 옵션을 변경할 수 없습니다.', 'attack-monster');
     let item = (game.inventory || []).find(v => v && v.id === pending.itemId);
     if (!item) {
         let equipMatch = Object.entries(game.equipment || {}).find(([, equipped]) => equipped && equipped.id === pending.itemId);
@@ -984,8 +990,8 @@ function confirmSelectedItemBaseUpgrade() {
     let nextBase = BASE_ITEM_DB.find(base => base && base.id === pending.nextBaseId);
     if (!nextBase) return closeBaseUpgradeOverlay();
     let cost = getBaseUpgradeCost(nextBase);
-    if ((game.currencies.formlessDew || 0) < cost.formlessDew) return addLog(`형체 없는 이슬이 부족합니다. (필요: ${cost.formlessDew})`, 'attack-monster');
-    if ((game.currencies.goldenRule || 0) < cost.goldenRule) return addLog(`황금률이 부족합니다. (필요: ${cost.goldenRule})`, 'attack-monster');
+    const shortfall = getBaseUpgradeShortfall(cost);
+    if (shortfall) return addLog(shortfall, 'attack-monster');
     game.currencies.formlessDew -= cost.formlessDew;
     game.currencies.goldenRule = Math.max(0, (game.currencies.goldenRule || 0) - cost.goldenRule);
     item.baseId = nextBase.id;

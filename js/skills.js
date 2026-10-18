@@ -159,6 +159,7 @@ function upgradeActiveGemWithCondensedSkyPower() {
 }
 
 function upgradeSkyEngraveCap() {
+    if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     if (!contentProgression.isUnlocked('engraving') || (game.season || 1) < 4) {
         addLog('창공 각인 확장은 루프4부터 가능합니다.', 'attack-monster');
         return false;
@@ -407,6 +408,7 @@ function removeSkyGemEnhancementFromActive(enhanceId, slotIndex) {
 
 
 function upgradeActiveGemQuality() {
+    if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     let active = getGemEnhanceTargetSkill();
     game.gemData[active] = normalizeGemRecord(game.gemData[active]);
     let gem = game.gemData[active];
@@ -464,16 +466,23 @@ function processSupportGemWithSkyEssence(name) {
 }
 
 
+/** Why the equipped attack rune cannot become an awakening candidate now, or '': no such rune, already awakened, below Lv.20, or
+ * too few 각성 잔향. */
+function getGemAwakenRefusal(active, gem, echoNeed) {
+    if (!gem || !isEnhanceableAttackGem(active)) return '각성할 공격 룬을 먼저 장착하세요.';
+    if (gem.awakened) return '이미 각성 후보로 변환된 룬입니다.';
+    if ((gem.level || 1) < 20) return 'Lv.20 이상의 공격 룬만 각성 후보로 변환할 수 있습니다.';
+    return (game.currencies.awakenedEcho || 0) < echoNeed ? `각성 잔향이 부족합니다. (필요: ${echoNeed})` : '';
+}
 function awakenActiveGemCandidate() {
+    if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     if (!contentProgression.isUnlocked('gemAwakening')) return addLog('각성 후보 변환은 ‘해금’의 룬 각성을 열어야 쓸 수 있습니다.', 'attack-monster');
     let active = getGemEnhanceTargetSkill();
     game.gemData[active] = normalizeGemRecord(game.gemData[active]);
     let gem = game.gemData[active];
-    if (!gem || !isEnhanceableAttackGem(active)) return addLog('각성할 공격 룬을 먼저 장착하세요.', 'attack-monster');
-    if (gem.awakened) return addLog('이미 각성 후보로 변환된 룬입니다.', 'attack-monster');
-    if ((gem.level || 1) < 20) return addLog('Lv.20 이상의 공격 룬만 각성 후보로 변환할 수 있습니다.', 'attack-monster');
     let echoNeed = 3;
-    if ((game.currencies.awakenedEcho || 0) < echoNeed) return addLog(`각성 잔향이 부족합니다. (필요: ${echoNeed})`, 'attack-monster');
+    const refusal = getGemAwakenRefusal(active, gem, echoNeed);
+    if (refusal) return addLog(refusal, 'attack-monster');
     game.currencies.awakenedEcho -= echoNeed;
     gem.awakened = true;
     gem.skyEnhanceCap = Math.min(5, Math.max(gem.skyEnhanceCap || 1, 2));
