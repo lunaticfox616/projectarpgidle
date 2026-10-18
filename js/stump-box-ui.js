@@ -605,8 +605,8 @@ const stumpBoxUi = (() => {
     }
     function stumpCompostDropText(compost) {
         const name = `${STUMP_BOX_COLORS[compost.color].label} ${STUMP_BOX_STAGES[compost.family].label}`;
-        return compost.fed ? `🌱 그루터기 함 보관함이 가득 차 ${name}이 거름이 됐습니다(성장 중인 ${compost.fed}개 경험치 +${compost.growth}).`
-            : `🌱 그루터기 함 보관함이 가득 찼고 그루터기 함에 성장 중인 그루터기 아이템도 없어 ${name}을 놓쳤습니다.`;
+        return compost.fed ? `🌱 그루터기 함 보관함이 가득 차 ${withSubjectParticle(name)} 거름이 됐습니다(성장 중인 ${compost.fed}개 경험치 +${compost.growth}).`
+            : `🌱 그루터기 함 보관함이 가득 찼고 그루터기 함에 성장 중인 그루터기 아이템도 없어 ${withObjectParticle(name)} 놓쳤습니다.`;
     }
     /** What a ripened item now gives (resonance and graft included), for the toast. */
     function stumpRipeGain(item) {

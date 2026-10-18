@@ -9841,7 +9841,7 @@ function drawJewelRefine() { if (game.woodsmanBuildLock) return addLog('☠️ �
 async function salvageJewel(jewelId) {
     let jewel = bagItems.jewels().find(row => row.id === jewelId);
     if (!jewel) return false;
-    if (jewel.rarity === 'unique' && !await requestGameConfirmation(`[${jewel.name || '고유 주얼'}]을 해체합니다.\n주얼 결정 ${getJewelSalvageShardGain(jewel)}개를 획득하며 되돌릴 수 없습니다.`, {
+    if (jewel.rarity === 'unique' && !await requestGameConfirmation(`[${jewel.name || '고유 주얼'}]${pickParticle(jewel.name || '고유 주얼', '을', '를')} 해체합니다.\n주얼 결정 ${getJewelSalvageShardGain(jewel)}개를 획득하며 되돌릴 수 없습니다.`, {
         title: '고유 주얼 해체',
         tone: 'danger',
         confirmLabel: '해체'

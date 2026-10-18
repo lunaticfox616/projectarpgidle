@@ -466,7 +466,7 @@ function checkBlackMarketRoom(offer, place) {
 function getBlackMarketConfirmText(offer) {
     if (!(offer.chase || offer.featured || (offer.priceKey === 'goldenRule' && Number(offer.price) >= 5))) return '';
     const price = getBlackMarketOfferPrice(offer);
-    return `[${offer.name || '암거래 상품'}]을 삽니다.\n${ORB_DB[price.key].name} ${price.amount}개를 쓰며 되돌릴 수 없습니다.`;
+    return `[${offer.name || '암거래 상품'}]${pickParticle(offer.name || '암거래 상품', '을', '를')} 삽니다.\n${ORB_DB[price.key].name} ${price.amount}개를 쓰며 되돌릴 수 없습니다.`;
 }
 
 /** Buys offer index into place (a bag cell) or the first free bag place: pays, grants and empties the slot. offer: the offer the

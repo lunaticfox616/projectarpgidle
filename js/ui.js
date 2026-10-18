@@ -3313,7 +3313,7 @@ function getUnderworldRuneUpgradeOptionHtml(no, count, unlockedMax) {
     let target = no + 1;
     let def = getUnderworldRuneDef(no);
     let toDef = getUnderworldRuneDef(target);
-    let status = canUpgrade ? `지하석${target}으로 승급, 지하석 조각 ${shardNeed}` : (no >= unlockedMax ? `지하석${target} 해금 필요` : `지하석 조각 부족 (${shardNeed})`);
+    let status = canUpgrade ? `${withDirectionParticle(`지하석${target}`)} 승급, 지하석 조각 ${shardNeed}` : (no >= unlockedMax ? `지하석${target} 해금 필요` : `지하석 조각 부족 (${shardNeed})`);
     let title = def ? `${def.name} 지하석${no}` : `지하석${no}`;
     let targetName = toDef ? `${toDef.name} 지하석${target}` : `지하석${target}`;
     return `<button type="button" class="underworld-rune-option" data-info-tooltip-anchor="1" onmouseenter="showUnderworldRuneTooltip(event,${no})" onmousemove="showUnderworldRuneTooltip(event,${no})" onmouseleave="hideInfoTooltip()" onclick="upgradeUnderworldRune(${no})" ${canUpgrade ? '' : 'disabled'}><strong>${title} ×${count}</strong><span>${getUnderworldRuneEffectHtml(no)}</span><span>→ ${targetName}, ${status}</span></button>`;
@@ -3343,7 +3343,7 @@ function upgradeUnderworldRune(fromNo) {
     let shardNeed = Math.max(5, from);
     if ((game.currencies.runeShard || 0) < shardNeed) return addLog(`지하석 조각이 부족합니다. (필요: ${shardNeed})`, 'attack-monster');
     let unlockedMax = Math.max(1, Math.min(30, Math.floor(st.unlockedRunesMaxNumber || 1)));
-    if (from >= unlockedMax) return addLog(`현재는 지하석${from}을 승급할 수 없습니다. (해금된 최대 번호: ${unlockedMax})`, 'attack-monster');
+    if (from >= unlockedMax) return addLog(`현재는 ${withObjectParticle(`지하석${from}`)} 승급할 수 없습니다. (해금된 최대 번호: ${unlockedMax})`, 'attack-monster');
     game.currencies.runeShard -= shardNeed;
     let removed = 0;
     st.obtainedRunes = st.obtainedRunes.filter(n => Math.floor(n || 0) === from && removed++ < 3 ? false : true);
@@ -10078,7 +10078,7 @@ function importPassiveTreePresetFromUi() {
     let input = document.getElementById('passive-preset-code');
     try {
         let preset = importPassiveTreePreset(planner.activeSlot, input ? input.value : '');
-        addLog(`🧭 공유 프리셋 [${preset.name}]을 불러왔습니다.`, 'season-up');
+        addLog(`🧭 공유 프리셋 [${preset.name}]${pickParticle(preset.name, '을', '를')} 불러왔습니다.`, 'season-up');
         renderPassiveTreePlannerPanel();
     } catch (error) {
         addLog(`프리셋을 불러오지 못했습니다: ${error.message}`, 'attack-monster');
@@ -12937,7 +12937,7 @@ async function resetGame() {
     cloudState.busy = true;
     updateCloudSaveUI();
     try {
-        if (!await requestGameConfirmation(`${target}를 초기화합니다.\n처음부터 다시 시작하며 되돌릴 수 없습니다.`, {
+        if (!await requestGameConfirmation(`${withObjectParticle(target)} 초기화합니다.\n처음부터 다시 시작하며 되돌릴 수 없습니다.`, {
             title: userId ? '계정 진행 초기화' : '기기 진행 초기화', tone: 'danger', confirmLabel: '진행 초기화'
         })) return;
         if (getActiveCloudUserId() !== userId) throw new Error('로그인 계정이 변경되었습니다. 초기화 대상을 다시 확인해주세요.');

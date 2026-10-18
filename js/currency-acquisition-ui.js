@@ -64,7 +64,7 @@
         }
         if(shards<=0)return;
         const message=kind==='attack'?`모든 공격 룬을 보유해 드랍이 룬 잔향 +${shards}로 환원되었습니다.`
-            :`최고 등급 보조스킬룬 [${name}]이 룬 잔향 +${shards}로 환원되었습니다.`;
+            :`최고 등급 보조스킬룬 [${name}]${pickParticle(name, '이', '가')} 룬 잔향 +${shards}로 환원되었습니다.`;
         addLog('💠 '+message,kind==='attack'?'loot-magic':'loot-rare');
     }
     window.addEventListener('project-idle:currency-acquired',announce);

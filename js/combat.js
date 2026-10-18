@@ -10250,7 +10250,7 @@ function grantGuaranteedTrialSkillGem() {
     let available = Object.keys(SKILL_DB).filter(name => SKILL_DB[name] && SKILL_DB[name].isGem && !hasSkillGemOwned(name));
     if (available.length === 0) {
         let fallbackGain = grantGemResearchFragments(6, 'drop');
-        if (fallbackGain > 0) addLog(`✨ 전직 시련 보상: 모든 공격 룬을 보유해 룬 잔향 +${fallbackGain}을 획득했습니다.`, 'loot-magic');
+        if (fallbackGain > 0) addLog(`✨ 전직 시련 보상: 모든 공격 룬을 보유해 룬 잔향 +${withObjectParticle(fallbackGain)} 획득했습니다.`, 'loot-magic');
         return true;
     }
     let skill = pickSkillRuneReward(available);
