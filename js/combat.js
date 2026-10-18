@@ -13620,6 +13620,8 @@ function clearLoopItemStorage(owner) {
     owner.equipmentTemporaryStorage = [];
 }
 
+/** The loop goes on (by chaos unless the cosmos path is chosen): its record closed, points settled, then the game reset for the next
+ * loop with what it keeps. Split into its phases on 2026-10-18; the phases run the same lines in the same order. */
 function triggerSeasonReset(options) {
     let loopPath = resolveLoopAdvancePath(typeof options === 'string' ? options : (options && options.path));
     let blockedReason = getSeasonResetBlockReason(loopPath);
@@ -13629,21 +13631,69 @@ function triggerSeasonReset(options) {
     }
     if (!loopPath) loopPath = 'chaos';
     if (isRewardOpen()) closeRewardOverlay();
-    if (game.woodsmanBuildLock) {
-        clearWoodsmanBuildLock();
-        addLog('☠️ 혼돈 밖 전투를 중단하고 루프를 진행합니다. 세팅 잠금이 해제되었습니다.', 'season-up');
-    }
+    endWoodsmanFightForLoop(addLog);
     clearLoopGate();
     game.pendingLoopHeroSelection = true;
+    let codexReveal = getLoopCodexReveal();
+    // 전적: 상태를 초기화하기 전에 이번 루프 기록(소요 시간·도달 액트·액트별 돌파 시간)을 닫는다.
+    if (typeof closeLoopRecord === 'function') closeLoopRecord(loopPath);
+    dispatchRuntimeEvent('loop-rewrite-started');
+    const kept = captureLoopKeptState();
+    let loopDeepBeforeReset = loopDeepPointsNow();
+    let loopReward = awardLoopProgressPoints();
+    let loopDeepExpectedAfterSettle = loopDeepPointsNow();
+    advanceLoopCounters(loopPath, addLog);
+    queueLoopArrivalNotices();
+    addLog(...getLoopSettleLogLine(loopReward));
+    resetLoopProgress();
+    resetLoopBuild();
+    resetLoopItems(kept, codexReveal);
+    resetLoopContents(kept);
+    applyLoopSettings();
+    game.loopDeepPoints = Math.max(loopDeepBeforeReset, loopDeepExpectedAfterSettle);
+    grantCodexLegacyStarterUniques();
+    game.enemies = [];
+    game.encounterPlan = [];
+    game.encounterIndex = 0;
+    game.runProgress = 0;
+    progressStallTicks = 0;
+    clearCraftSelection();
+    applySeasonContentProgression({ silent: false });
+    calculateReachableNodes();
+    refreshPassiveVisibility();
+    let presetInvest = typeof runPassiveTreeAutoInvest === 'function' ? runPassiveTreeAutoInvest() : { nodes: 0 };
+    if (presetInvest.nodes > 0) addLog(`🧭 새 루프 프리셋 자동 투자: ${presetInvest.nodes}개 노드 활성화`, 'season-up');
+    game.playerHp = getPlayerHpCap(getPlayerStats());
+    ensureActJournalCompletionForLoop({ silent: false });
+    addLog("🌟 [루프 포인트 1점] 획득. 밝혀낸 성좌 지형은 유지됩니다.", "season-up");
+    checkUnlocks();
+    saveGame({ skipCloudSync: true });
+    if (typeof requestImmediateCloudSave === 'function') requestImmediateCloudSave('루프 진행');
+    requestLoopHeroSelection();
+}
+/** A woodsman fight still on when the loop goes on ends, its build lock lifted. */
+function endWoodsmanFightForLoop(say) {
+    if (game.woodsmanBuildLock) {
+        clearWoodsmanBuildLock();
+        say('☠️ 혼돈 밖 전투를 중단하고 루프를 진행합니다. 세팅 잠금이 해제되었습니다.', 'season-up');
+    }
+}
+/** The unique codex for the next loop: each found entry only revealed (its slot and name), the items not kept. */
+function getLoopCodexReveal() {
     let codexReveal = {};
     Object.keys(game.uniqueCodex || {}).forEach(key => {
         if (!key || !game.uniqueCodex[key]) return;
         let parts = key.split('|');
         codexReveal[key] = { revealed: true, slot: parts[0] || '', name: parts[1] || '' };
     });
-    // 전적: 상태를 초기화하기 전에 이번 루프 기록(소요 시간·도달 액트·액트별 돌파 시간)을 닫는다.
-    if (typeof closeLoopRecord === 'function') closeLoopRecord(loopPath);
-    dispatchRuntimeEvent('loop-rewrite-started');
+    return codexReveal;
+}
+/** What the loop keeps, read before the reset: its content states, then its gear and currencies. */
+function captureLoopKeptState() {
+    return { ...captureLoopKeptContents(), ...captureLoopKeptItems() };
+}
+/** The constellation buff, labyrinth floor, chaos realm, time rift altar, sky tower, ocean and rune enhancement the loop keeps. */
+function captureLoopKeptContents() {
     let prevMeteorSite = ensureMeteorSiteState();
     let preservedConstellationBuff = (prevMeteorSite.constellationBuff && prevMeteorSite.constellationBuff.permanent)
         ? JSON.parse(JSON.stringify(prevMeteorSite.constellationBuff))
@@ -13655,6 +13705,10 @@ function triggerSeasonReset(options) {
     let preservedSkyTower = JSON.parse(JSON.stringify(ensureSkyTowerState()));
     let preservedOcean = JSON.parse(JSON.stringify(ensureOceanState()));
     let preservedGemEnhanceUnlocked = !!game.gemEnhanceUnlocked;
+    return { preservedConstellationBuff, prevLabMax, preservedChaosRealm, preservedTimeRift, preservedSkyTower, preservedOcean, preservedGemEnhanceUnlocked };
+}
+/** Loop-sealed gear and bag items, 나무꾼의 손길, time remnants, altar materials and offline progress the loop keeps. */
+function captureLoopKeptItems() {
     // 나무꾼의 손길로 봉인된 장비(장착/인벤)와 나무꾼의 손길 보유분은 루프가 지나도 유지한다.
     let preservedSealedEquipment = {};
     Object.keys(game.equipment || {}).forEach(slot => {
@@ -13667,15 +13721,20 @@ function triggerSeasonReset(options) {
     let preservedAltarMaterials = atlasEndgame.loopKeptCurrencies(game);
     let preservedOfflineProgress = typeof ensureOfflineProgressState === 'function' ? JSON.parse(JSON.stringify(ensureOfflineProgressState(game))) : null;
     let preservedWoodsmanTouchSeen = !!game.woodsmanTouchSeen;
-    let loopDeepBeforeReset = Math.max(0, Math.floor(game.loopDeepPoints || 0));
-    let loopReward = awardLoopProgressPoints();
-    let loopDeepExpectedAfterSettle = Math.max(0, Math.floor(game.loopDeepPoints || 0));
+    return { preservedSealedEquipment, preservedSealedInventory, preservedWoodsmanTouch, preservedTimeRemnant, preservedAltarMaterials, preservedOfflineProgress, preservedWoodsmanTouchSeen };
+}
+const loopDeepPointsNow = () => Math.max(0, Math.floor(game.loopDeepPoints || 0));
+/** The loop counters: the cosmos path count, the path, the season, the loop count and the loop point, with the arrival line. */
+function advanceLoopCounters(loopPath, say) {
     if (loopPath === 'cosmos') game.cosmosLoopCount = Math.max(0, Math.floor(game.cosmosLoopCount || 0)) + 1;
     game.lastLoopAdvancePath = loopPath;
     game.season++;
     game.loopCount = Math.max(0, Math.floor(game.loopCount || 0)) + 1;
     game.seasonPoints++;
-    addLog(`🔁 ${getLoopAdvancePathLabel(loopPath)}로 다음 루프에 진입합니다.${loopPath === 'cosmos' ? ` (우주계 난이도 +${Math.max(0, Math.floor(game.cosmosLoopCount || 0))}단계)` : ''}`, 'season-up');
+    say(`🔁 ${getLoopAdvancePathLabel(loopPath)}로 다음 루프에 진입합니다.${loopPath === 'cosmos' ? ` (우주계 난이도 +${Math.max(0, Math.floor(game.cosmosLoopCount || 0))}단계)` : ''}`, 'season-up');
+}
+/** The one-time notices of the loop the hero arrives at (spores, exploration events, time rift, rival blades). */
+function queueLoopArrivalNotices() {
     if (game.season === 2 && typeof queueTutorialNotice === 'function') {
         queueTutorialNotice('unlock_spore_crafting', '속성 홀씨', '사냥에서 속성 홀씨가 나오기 시작합니다.\n루프 3부터 ‘해금’에서 화석 제작을 열면 홀씨로 제작 태그를 정할 수 있습니다.\n화염/냉기/번개 홀씨 보유량은 루프마다 초기화됩니다.', 'tab-unlocks');
     }
@@ -13688,7 +13747,13 @@ function triggerSeasonReset(options) {
     if (game.season === 31 && typeof queueTutorialNotice === 'function') {
         queueTutorialNotice('unlock_rival_blades', '버려진 날붙이들', '나무꾼이 벼리다 버린 다른 날들이 당신을 찾아옵니다.\n‘지도 → 탐험 → 강대한 적’에서 결투에 도전하세요.\n도전권 [표식: 버려진 날]은 심층 보스가 떨어뜨립니다.\n한 루프 안에 다섯 날을 모두 꺾으면 「완성작」이 모습을 드러냅니다.', 'tab-map');
     }
-    addLog(`🧬 심화 루프 정산: +${loopReward.bonus}pt (혼돈 심화 +${loopReward.depthGain}, 미궁 +${loopReward.labGain}, 특수보스 +${loopReward.bossGain}, 나무꾼 +${loopReward.woodsmanGain || 0})`, loopReward.bonus > 0 ? 'season-up' : 'attack-monster');
+}
+/** The deep loop settlement line: its points and their sources, as a log line and its tone. */
+function getLoopSettleLogLine(loopReward) {
+    return [`🧬 심화 루프 정산: +${loopReward.bonus}pt (혼돈 심화 +${loopReward.depthGain}, 미궁 +${loopReward.labGain}, 특수보스 +${loopReward.bossGain}, 나무꾼 +${loopReward.woodsmanGain || 0})`, loopReward.bonus > 0 ? 'season-up' : 'attack-monster'];
+}
+/** Level, experience, kills, deaths, the zone and frontier back to the start; cosmos boss stones cleared; fighting resumes. */
+function resetLoopProgress() {
     game.level = 1;
     game.exp = 0;
     game.killsInZone = 0;
@@ -13707,6 +13772,9 @@ function triggerSeasonReset(options) {
         game.cosmosAtlas.equippedStones = {};
     }
     game.combatHalted = false;
+}
+/** The build back to its start: passive points from the journal, passives, runes and supports, trials and ascendancy. */
+function resetLoopBuild() {
     game.passivePoints = typeof getClaimedJournalPassivePointTotal === 'function' ? getClaimedJournalPassivePointTotal(game) : 0;
     game.passives = [];
     game.passiveAttributeChoices = {};
@@ -13745,6 +13813,11 @@ function triggerSeasonReset(options) {
     game.bloomedClassThisLoop = null;
     game.bloomedTalentThisLoop = null;
     game.pendingTalentBloomHeroId = null;
+}
+/** Items and rewards: loop storage, gear and currencies emptied, then what the loop keeps restored; act rewards, chase uniques and
+ * the codex for the new loop. */
+function resetLoopItems(kept, codexReveal) {
+    const { preservedTimeRemnant, preservedAltarMaterials, preservedOfflineProgress, preservedSealedEquipment, preservedSealedInventory, preservedWoodsmanTouch, preservedWoodsmanTouchSeen, prevLabMax } = kept;
     clearLoopItemStorage(game);
     game.equipment = { ...defaultGame.equipment };
     craftingWorkspaceState.capture(game);
@@ -13770,6 +13843,11 @@ function triggerSeasonReset(options) {
     game.seasonChaseUniqueDrops = [];
     game.uniqueCodex = codexReveal;
     game.codexNewlyRegistered = {};
+}
+/** Contents back to their loop start with what they keep: colony, hive, void rift, meteor site (its permanent constellation), unlocks,
+ * notices, cores and the stump box, the open sub tabs, the chaos realm, atlas, time rift, sky tower, ocean. */
+function resetLoopContents(kept) {
+    const { preservedConstellationBuff, preservedChaosRealm, preservedTimeRift, preservedSkyTower, preservedOcean, preservedGemEnhanceUnlocked } = kept;
     // 군락지 액막이 부적(보유/장착/슬롯)도 루프 시 초기화한다.
     game.colony = JSON.parse(JSON.stringify(defaultGame.colony));
     clearBeehiveRuntimeState(game.beehive);
@@ -13794,6 +13872,10 @@ function triggerSeasonReset(options) {
     game.skyTower.clearedThisLoop = 0;
     game.gemEnhanceUnlocked = preservedGemEnhanceUnlocked;
     game.inTicketBossFight = false;
+}
+/** After a loop the item automation can switch off and the map action becomes the post-loop choice; a chosen hero keeps the
+ * character tab. */
+function applyLoopSettings() {
     if (game.settings) {
         if (game.settings.disableItemAutomationAfterLoop !== false) {
             game.settings.autoSalvageEnabled = false;
@@ -13802,26 +13884,6 @@ function triggerSeasonReset(options) {
         game.settings.mapCompleteAction = game.settings.postLoopMapCompleteAction || 'nextLoopBestPlusOne';
     }
     if (game.heroSelectionInitialized && game.unlocks) game.unlocks.char = true;
-    game.loopDeepPoints = Math.max(loopDeepBeforeReset, loopDeepExpectedAfterSettle);
-    grantCodexLegacyStarterUniques();
-    game.enemies = [];
-    game.encounterPlan = [];
-    game.encounterIndex = 0;
-    game.runProgress = 0;
-    progressStallTicks = 0;
-    clearCraftSelection();
-    applySeasonContentProgression({ silent: false });
-    calculateReachableNodes();
-    refreshPassiveVisibility();
-    let presetInvest = typeof runPassiveTreeAutoInvest === 'function' ? runPassiveTreeAutoInvest() : { nodes: 0 };
-    if (presetInvest.nodes > 0) addLog(`🧭 새 루프 프리셋 자동 투자: ${presetInvest.nodes}개 노드 활성화`, 'season-up');
-    game.playerHp = getPlayerHpCap(getPlayerStats());
-    ensureActJournalCompletionForLoop({ silent: false });
-    addLog("🌟 [루프 포인트 1점] 획득. 밝혀낸 성좌 지형은 유지됩니다.", "season-up");
-    checkUnlocks();
-    saveGame({ skipCloudSync: true });
-    if (typeof requestImmediateCloudSave === 'function') requestImmediateCloudSave('루프 진행');
-    requestLoopHeroSelection();
 }
 
 /**
