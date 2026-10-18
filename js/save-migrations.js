@@ -753,17 +753,9 @@ function mergeDefaults(save) {
     let passiveAllocationNormalization = normalizeAllocatedPassiveTreeNodes(merged.passives, !!merged.passiveStarEvolution, merged);
     merged.passives = passiveAllocationNormalization.passives;
     merged.autoRefundedPassivePoints = Math.max(0, Math.floor(passiveAllocationNormalization.refunded || 0));
-    function getPassiveTierValueForLoad(statKey, tier) {
-        let statDef = P_STATS[statKey];
-        if (!statDef) return tier === 3 ? 8 : (tier === 2 ? 4 : 2);
-        if (tier === 0) return 10;
-        if (tier === 1) return statDef.s !== undefined ? statDef.s : (statDef.m !== undefined ? statDef.m : (statDef.k !== undefined ? statDef.k : 2));
-        if (tier === 2) return statDef.m !== undefined ? statDef.m : (statDef.s !== undefined ? statDef.s : (statDef.k !== undefined ? statDef.k : 4));
-        return statDef.k !== undefined ? statDef.k : (statDef.m !== undefined ? statDef.m : (statDef.s !== undefined ? statDef.s : 8));
-    }
     Object.values(PASSIVE_TREE.nodes || {}).forEach(node => {
         if (!node || node.stat !== 'critDmg') return;
-        node.val = getPassiveTierValueForLoad('critDmg', Math.max(0, Math.floor(node.tier || 1)));
+        node.val = getPassiveStatTierValue('critDmg', Math.max(0, Math.floor(node.tier || 1)));
     });
     merged.discoveredPassives = Array.from(new Set((merged.discoveredPassives || []).map(normalizePassiveNodeId).filter(Boolean)));
     const passiveAttributeStats = new Set(['strength', 'dexterity', 'intelligence']);

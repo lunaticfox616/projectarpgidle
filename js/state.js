@@ -1487,6 +1487,20 @@ const P_STATS = {
     shockedEnemyHitDamageMorePct: { name: '감전된 적 명중 피해 증폭(%)', isPct: true },
     energyShieldRechargeFaster: { name: '에너지 보호막 재충전 대기시간 감소(초)' }
 };
+/** A passive stat's value at a node tier: 10 at tier 0, else its own size for the tier (1 s, 2 m, any other k), falling back to the
+ * nearest size it has, then 2, 4 or 8; for a stat P_STATS lacks, 8 at tier 3, 4 at tier 2, else 2. The one rule for the tree, its layout
+ * and loading. */
+function getPassiveStatTierValue(statKey, tier) {
+    const statDef = P_STATS[statKey];
+    if (!statDef) return tier === 3 ? 8 : (tier === 2 ? 4 : 2);
+    if (tier === 0) return 10;
+    const size = tier === 1 || tier === 2 ? tier : 3;
+    const key = PASSIVE_TIER_SIZE_ORDER[size].find(name => statDef[name] !== undefined);
+    return key ? statDef[key] : PASSIVE_TIER_FALLBACK[size];
+}
+/** The sizes a tier reads, nearest first, and its value when the stat has none. */
+const PASSIVE_TIER_SIZE_ORDER = Object.freeze({ 1: ['s', 'm', 'k'], 2: ['m', 's', 'k'], 3: ['k', 'm', 's'] });
+const PASSIVE_TIER_FALLBACK = Object.freeze({ 1: 2, 2: 4, 3: 8 });
 
 Object.keys(SKILL_DB).forEach(name => {
     let skill = SKILL_DB[name];

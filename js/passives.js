@@ -706,14 +706,6 @@ function generateOrganicTree() {
         if (pool.length === 0) return 'flatHp';
         return pool[Math.abs(seedIndex) % pool.length];
     }
-    function getTierValue(statKey, tier) {
-        let statDef = P_STATS[statKey];
-        if (!statDef) return tier === 3 ? 8 : (tier === 2 ? 4 : 2);
-        if (tier === 0) return 10;
-        if (tier === 1) return statDef.s !== undefined ? statDef.s : (statDef.m !== undefined ? statDef.m : (statDef.k !== undefined ? statDef.k : 2));
-        if (tier === 2) return statDef.m !== undefined ? statDef.m : (statDef.s !== undefined ? statDef.s : (statDef.k !== undefined ? statDef.k : 4));
-        return statDef.k !== undefined ? statDef.k : (statDef.m !== undefined ? statDef.m : (statDef.s !== undefined ? statDef.s : 8));
-    }
     const genericPathStats = ['aspd', 'move', 'flatHp', 'crit', 'pctDmg', 'flatDmg', 'regen'];
     const regionalPathDefenseStats = {
         templar: ['energyShield', 'energyShieldPct'],
@@ -816,7 +808,7 @@ function generateOrganicTree() {
             let spec = specs[(Math.abs(lane) + sectorIndex) % specs.length];
             if (spec && P_STATS[spec.stat]) {
                 node.stat = spec.stat;
-                node.val = getTierValue(node.stat, node.tier);
+                node.val = getPassiveStatTierValue(node.stat, node.tier);
                 node.title = spec.title;
                 node.desc = `${getCoreDirectionLabel(sectorIndex)} 시작축: ${spec.desc}`;
             }
@@ -825,8 +817,8 @@ function generateOrganicTree() {
         if (['path', 'major', 'keystone', 'hub'].includes(shape.kind)) {
             let stat = getGenericPathStat(theme, depth, lane, sectorIndex);
             node.stat = stat;
-            node.val = getTierValue(stat, node.tier);
-            if (shape.kind === 'major' || shape.kind === 'keystone') node.val = Math.max(node.val, getTierValue(stat, 2));
+            node.val = getPassiveStatTierValue(stat, node.tier);
+            if (shape.kind === 'major' || shape.kind === 'keystone') node.val = Math.max(node.val, getPassiveStatTierValue(stat, 2));
             if (shape.kind === 'hub') {
                 node.title = '교차 거점';
                 node.desc = '여러 갈래의 길이 만나는 거점입니다.';
@@ -843,7 +835,7 @@ function generateOrganicTree() {
             y: y * PASSIVE_WORLD_SCALE,
             tier: tier,
             stat: statKey,
-            val: getTierValue(statKey, tier),
+            val: getPassiveStatTierValue(statKey, tier),
             depth: Infinity,
             layoutDepth: meta && Number.isFinite(meta.depth) ? meta.depth : null,
             lane: meta && Number.isFinite(meta.lane) ? meta.lane : null,
@@ -1265,7 +1257,7 @@ function generateOrganicTree() {
             node.clusterEndStat = themeSpec.endStat || null;
             node.webCellSpoke = spoke;
             node.webCellRing = depth;
-            node.val = getTierValue(statForStep, tier);
+            node.val = getPassiveStatTierValue(statForStep, tier);
             if (statForStep === 'slamPctDmg') node.val *= 2;
             if (statForStep === 'critDmg') {
                 if (chainLength === 4) node.val = [8, 8, 12, 20][i - 1];
@@ -1543,15 +1535,6 @@ function polishPassiveLayout() {
     });
 }
 
-function getPassiveTierValueForLayout(statKey, tier) {
-    const statDef = P_STATS[statKey];
-    if (!statDef) return tier >= 3 ? 8 : (tier === 2 ? 4 : 2);
-    if (tier === 0) return 10;
-    if (tier === 1) return statDef.s !== undefined ? statDef.s : (statDef.m !== undefined ? statDef.m : (statDef.k !== undefined ? statDef.k : 2));
-    if (tier === 2) return statDef.m !== undefined ? statDef.m : (statDef.s !== undefined ? statDef.s : (statDef.k !== undefined ? statDef.k : 4));
-    return statDef.k !== undefined ? statDef.k : (statDef.m !== undefined ? statDef.m : (statDef.s !== undefined ? statDef.s : 8));
-}
-
 function rebalancePassiveStartingStats() {
     const root = PASSIVE_TREE.nodes.n0;
     if (!root) return;
@@ -1576,7 +1559,7 @@ function rebalancePassiveStartingStats() {
     function setStat(node, statKey) {
         if (!node || !P_STATS[statKey]) return;
         node.stat = statKey;
-        node.val = getPassiveTierValueForLayout(statKey, node.tier);
+        node.val = getPassiveStatTierValue(statKey, node.tier);
         node.effectLabel = null;
     }
 
