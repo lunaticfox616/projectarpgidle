@@ -194,6 +194,8 @@ function getContentBossCurrencyDrops(zone, enemy, abyssScale) {
     return drops;
 }
 
+/** A kill's currency drops in order: basic orbs, rare orbs, map tickets, cosmos drops, LOOP_CURRENCY_DROP_RULES, the chaos realm key,
+ * the underworld drops, content kills; then the level and content filters. Split on 2026-10-18, same draws in the same order. */
 function getCurrencyDrops(enemy) {
     let zone = getZone(game.currentZoneId) || getZone(0);
     let abyssScale = getAbyssMonsterScales(zone);
@@ -201,59 +203,101 @@ function getCurrencyDrops(enemy) {
     let dropMultiplier = getEnemyLootDropMultiplier(zone, enemy);
     let bonusRoll = chance => Math.random() < Math.min(0.95, chance * dropMultiplier);
     let drops = getBasicCurrencyDrops(enemy, bonusRoll);
-    // 황금률: 일반 0.007% / 정예 0.04% / 보스 0.6%. 수액눈은 황금률의 2배다.
-    let divineChance = enemy.isBoss ? 0.006 : (enemy.isElite ? 0.0004 : 0.00007);
-    if (bonusRoll(divineChance)) drops.push(['goldenRule', 1]);
-    if (bonusRoll(divineChance / 20)) drops.push(['fairyRing', 1]);
-    if (bonusRoll(divineChance * 2)) drops.push(['sapBud', 1]);
-    let isRepeatMasterwork = enemy.isBoss && zone.id === 'rival_masterwork'
-        && Array.isArray(game.clearedRootBosses) && game.clearedRootBosses.includes(zone.id);
-    let ouroborosChance = (divineChance / 1200) * (isRepeatMasterwork ? 2.5 : 1);
-    if (bonusRoll(ouroborosChance)) drops.push(['ouroboros', 1]);
+    drops.push(...getRareOrbDrops(enemy, zone, bonusRoll));
     let mappingOpened = (game.maxZoneId || 0) >= ABYSS_START_ZONE_ID;
     drops.push(...getMappingTicketDrops(enemy, zone, mappingOpened));
-    if (zone.type === 'cosmos' && bonusRoll(enemy.isBoss ? 0.025 : (enemy.isElite ? 0.006 : 0.0015))) drops.push(['pruningShears', 1]);
-    if (zone.type === 'cosmos' && enemy.isBoss && bonusRoll(0.012)) drops.push(['abyssCatalyst', 1]);
-    if ((game.season || 1) >= 4 && enemy.isSky && Math.random() < 0.35) drops.push(['skyEssence', 1]);
-    if ((game.season || 1) >= 5 && enemy.isBoss && Math.random() < 0.16 * contentDropMul) drops.push(['emberBranch', 1]);
-    if ((game.season || 1) >= 5 && enemy.isBoss && Math.random() < 0.03 * contentDropMul) drops.push(['jewelShard', 3]);
-    if ((game.season || 1) >= 5 && enemy.isElite && Math.random() < 0.008 * contentDropMul) drops.push(['jewelShard', 1]);
-    if ((game.season || 1) >= 6 && zone.type === 'labyrinth' && Math.random() < 0.018) drops.push(['sealShard', 1]);
-    if ((game.season || 1) >= 6 && zone.type === 'labyrinth' && Math.random() < 0.005) drops.push(['strongSealShard', 1]);
-    if ((game.season || 1) >= 6 && zone.type === 'labyrinth' && Math.floor(zone.floor || 0) >= 30 && Math.random() < 0.00052) drops.push(['radiantSealShard', 1]);
-    if ((game.season || 1) >= 6 && enemy.isBoss && Math.random() < 0.018 * contentDropMul) drops.push(['blessing', 1]);
-    if ((game.season || 1) >= 6 && enemy.isElite && Math.random() < 0.004 * contentDropMul) drops.push(['blessing', 1]);
-    if ((game.season || 1) >= 6 && enemy.isBoss && zone.type === 'abyss' && Number(zone.id) >= 19 && Math.random() < 0.0125) drops.push(['beastKeyCerberus', 1]);
-    // 버려진 날붙이 도전권 (루프 31+): 심층 콘텐츠 보스가 드랍한다. 루프당 결투 6회(다섯 날 + 완성작)를 노린 넉넉한 확률.
-    if ((game.season || 1) >= 31 && enemy.isBoss
-        && (zone.type === 'chaosRealm' || zone.type === 'underworld' || zone.type === 'skyTower' || (zone.type === 'abyss' && Math.floor(getAbyssDepthFromZoneId(Number(zone.id)) || 0) >= 21))
-        && Math.random() < 0.10 * contentDropMul) drops.push(['rivalKey', 1]);
-    // 잔향체 아스트라 도전권 (루프 31+): 우주계 은하 보스(planet-45~49)가 드랍한다.
-    if ((game.season || 1) >= 31 && enemy.isBoss && zone.type === 'cosmos' && Math.random() < 0.15) drops.push(['cosmosSovereignKey', 1]);
+    drops.push(...getCosmosCurrencyDrops(enemy, zone, bonusRoll));
+    drops.push(...getLoopCurrencyDrops(enemy, zone, contentDropMul));
     if (zone.type === 'chaosRealm') {
         let chaosKeyChance = enemy.isBoss ? 0.012 : (enemy.isElite ? 0.003 : 0.0006);
         if (Math.random() < chaosKeyChance) drops.push(['chaosKey', 1]);
     }
-    if (zone.type === 'underworld') {
-        let underFloor = Math.max(1, Math.floor(zone.floor || 1));
-        let resourceChance = getUnderworldResourceDropChances(enemy);
-        // Core keys and shadow root tickets are exempt from the underworld loot reduction.
-        let coreKeyChance = enemy.isBoss ? 0.015 : (enemy.isElite ? 0.003 : 0.0006);
-        if (Math.random() < coreKeyChance) drops.push(['coreKey', 1]);
-        if (Math.random() < resourceChance.fossil) drops.push(['fossil', 1]);
-        if (Math.random() < resourceChance.typedFossil) drops.push([rndChoice(['fossilBulwark', 'fossilWedge', 'fossilOld', 'fossilRift']), 1]);
-        if (Math.random() < resourceChance.tool) drops.push([rndChoice(['deepWhetstone', 'rootIron', 'jewelPolish']), 1]);
-        if (underFloor >= 10 && Math.random() < resourceChance.rune) drops.push(['runeShard', enemy.isBoss ? 2 : 1]);
-        if (coreItems.canDrop() && Math.random() < resourceChance.core) drops.push(['core', 1]);
-        if (Math.random() < resourceChance.copper) drops.push(['underCopper', 1]);
-        if (Math.random() < resourceChance.silver) drops.push(['underSilver', 1]);
-        if (Math.random() < resourceChance.gold) drops.push(['underGold', 1]);
-        if (enemy.isBoss && Math.random() < 0.0025) drops.push([rndChoice(['uberRootTicketFlame', 'uberRootTicketFrost', 'uberRootTicketStorm', 'uberRootTicketChaos']), 1]);
-    }
+    if (zone.type === 'underworld') drops.push(...getUnderworldCurrencyDrops(enemy, zone));
     drops.push(...getContentKillCurrencyDrops(zone, enemy, abyssScale));
     return levelProgression.filterCurrencyDrops(drops, levelProgression.rewardMultiplier(zone, enemy, game.level))
         .filter(([key]) => contentProgression.canDropCurrency(key));
 }
+
+/** 황금률: 일반 0.007% / 정예 0.04% / 보스 0.6%. 수액눈은 황금률의 2배다. Then the fairy ring and the ouroboros (x2.5 from a cleared
+ * masterwork). */
+function getRareOrbDrops(enemy, zone, bonusRoll) {
+    const drops = [];
+    let divineChance = enemy.isBoss ? 0.006 : (enemy.isElite ? 0.0004 : 0.00007);
+    if (bonusRoll(divineChance)) drops.push(['goldenRule', 1]);
+    if (bonusRoll(divineChance / 20)) drops.push(['fairyRing', 1]);
+    if (bonusRoll(divineChance * 2)) drops.push(['sapBud', 1]);
+    let ouroborosChance = (divineChance / 1200) * (isRepeatMasterworkBoss(enemy, zone) ? 2.5 : 1);
+    if (bonusRoll(ouroborosChance)) drops.push(['ouroboros', 1]);
+    return drops;
+}
+function isRepeatMasterworkBoss(enemy, zone) {
+    return enemy.isBoss && zone.id === 'rival_masterwork'
+        && Array.isArray(game.clearedRootBosses) && game.clearedRootBosses.includes(zone.id);
+}
+
+/** A cosmos kill's pruning shears and a cosmos boss's catalyst. */
+function getCosmosCurrencyDrops(enemy, zone, bonusRoll) {
+    const drops = [];
+    if (zone.type === 'cosmos' && bonusRoll(enemy.isBoss ? 0.025 : (enemy.isElite ? 0.006 : 0.0015))) drops.push(['pruningShears', 1]);
+    if (zone.type === 'cosmos' && enemy.isBoss && bonusRoll(0.012)) drops.push(['abyssCatalyst', 1]);
+    return drops;
+}
+
+/** The drops that open with the loop, each rolled when its loop and kill match. */
+function getLoopCurrencyDrops(enemy, zone, contentDropMul) {
+    const loop = game.season || 1, drops = [];
+    LOOP_CURRENCY_DROP_RULES.forEach(([fromLoop, when, chance, key, amount]) => {
+        if (loop >= fromLoop && when(enemy, zone) && Math.random() < chance(contentDropMul)) drops.push([key, amount]);
+    });
+    return drops;
+}
+/** Deep content for the 버려진 날붙이 key: chaos realm, underworld, sky tower, chaos depth 21 and below. */
+function isDeepRivalKeyZone(zone) {
+    return zone.type === 'chaosRealm' || zone.type === 'underworld' || zone.type === 'skyTower'
+        || (zone.type === 'abyss' && Math.floor(getAbyssDepthFromZoneId(Number(zone.id)) || 0) >= 21);
+}
+/** Loop-gated drops in their order: [from loop, when (enemy, zone), chance (the content drop multiplier), currency, amount]. */
+const LOOP_CURRENCY_DROP_RULES = Object.freeze([
+    [4, enemy => enemy.isSky, () => 0.35, 'skyEssence', 1],
+    [5, enemy => enemy.isBoss, mul => 0.16 * mul, 'emberBranch', 1],
+    [5, enemy => enemy.isBoss, mul => 0.03 * mul, 'jewelShard', 3],
+    [5, enemy => enemy.isElite, mul => 0.008 * mul, 'jewelShard', 1],
+    [6, (enemy, zone) => zone.type === 'labyrinth', () => 0.018, 'sealShard', 1],
+    [6, (enemy, zone) => zone.type === 'labyrinth', () => 0.005, 'strongSealShard', 1],
+    [6, (enemy, zone) => zone.type === 'labyrinth' && Math.floor(zone.floor || 0) >= 30, () => 0.00052, 'radiantSealShard', 1],
+    [6, enemy => enemy.isBoss, mul => 0.018 * mul, 'blessing', 1],
+    [6, enemy => enemy.isElite, mul => 0.004 * mul, 'blessing', 1],
+    [6, (enemy, zone) => enemy.isBoss && zone.type === 'abyss' && Number(zone.id) >= 19, () => 0.0125, 'beastKeyCerberus', 1],
+    // 버려진 날붙이 도전권 (루프 31+): 심층 콘텐츠 보스가 드랍한다. 루프당 결투 6회(다섯 날 + 완성작)를 노린 넉넉한 확률.
+    [31, (enemy, zone) => enemy.isBoss && isDeepRivalKeyZone(zone), mul => 0.10 * mul, 'rivalKey', 1],
+    // 잔향체 아스트라 도전권 (루프 31+): 우주계 은하 보스(planet-45~49)가 드랍한다.
+    [31, (enemy, zone) => enemy.isBoss && zone.type === 'cosmos', () => 0.15, 'cosmosSovereignKey', 1]
+]);
+
+/** An underworld kill's drops, each rolled in UNDERWORLD_CURRENCY_DROP_RULES order. */
+function getUnderworldCurrencyDrops(enemy, zone) {
+    let underFloor = Math.max(1, Math.floor(zone.floor || 1));
+    let resourceChance = getUnderworldResourceDropChances(enemy);
+    const drops = [];
+    UNDERWORLD_CURRENCY_DROP_RULES.forEach(rule => {
+        if ((!rule.when || rule.when(enemy, underFloor)) && Math.random() < rule.chance(resourceChance, enemy)) drops.push(rule.drop(enemy));
+    });
+    return drops;
+}
+/** Underworld drops in their order: when (enemy, floor), chance (the resource chances, enemy), the drop. Core keys and shadow root
+ * tickets are exempt from the underworld loot reduction. */
+const UNDERWORLD_CURRENCY_DROP_RULES = Object.freeze([
+    { chance: (rc, enemy) => (enemy.isBoss ? 0.015 : (enemy.isElite ? 0.003 : 0.0006)), drop: () => ['coreKey', 1] },
+    { chance: rc => rc.fossil, drop: () => ['fossil', 1] },
+    { chance: rc => rc.typedFossil, drop: () => [rndChoice(['fossilBulwark', 'fossilWedge', 'fossilOld', 'fossilRift']), 1] },
+    { chance: rc => rc.tool, drop: () => [rndChoice(['deepWhetstone', 'rootIron', 'jewelPolish']), 1] },
+    { when: (enemy, floor) => floor >= 10, chance: rc => rc.rune, drop: enemy => ['runeShard', enemy.isBoss ? 2 : 1] },
+    { when: () => coreItems.canDrop(), chance: rc => rc.core, drop: () => ['core', 1] },
+    { chance: rc => rc.copper, drop: () => ['underCopper', 1] },
+    { chance: rc => rc.silver, drop: () => ['underSilver', 1] },
+    { chance: rc => rc.gold, drop: () => ['underGold', 1] },
+    { when: enemy => enemy.isBoss, chance: () => 0.0025, drop: () => [rndChoice(['uberRootTicketFlame', 'uberRootTicketFrost', 'uberRootTicketStorm', 'uberRootTicketChaos']), 1] }
+]);
 
 safeExposeGlobals({ getCurrencyDrops });
 })();
