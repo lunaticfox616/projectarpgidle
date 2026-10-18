@@ -9492,13 +9492,19 @@ function passesItemPickupFilter(item) {
 
 
 
+/** A unique jewel's effect text from UNIQUE_JEWEL_DB by its uniqueId (each jewel keeps the text it dropped with, which can be older),
+ * else the stored text. */
+function getJewelUniqueEffectText(jewel) {
+    const row = jewel && jewel.uniqueId ? UNIQUE_JEWEL_DB.find(entry => entry.id === jewel.uniqueId) : null;
+    return (row && row.uniqueEffect) || (jewel && jewel.uniqueEffect) || '';
+}
 const UNIQUE_JEWEL_DB = [
     { id:'uj_crown_empty', name:'비어 있는 왕좌', ultra:true, uniqueEffect:'다른 고유 주얼이 없으면 피해 +25%, 룬 레벨 +1 추가', stats:[{id:'pctDmg',val:25},{id:'gemLevel',val:1}] },
     { id:'uj_mirror_heart', name:'거울 심장', ultra:true, uniqueEffect:'반지 소켓에 끼우면 반대쪽 반지 소켓의 주얼 복제', stats:[{id:'pctDmg',val:8},{id:'resAll',val:8}] },
-    { id:'uj_old_box', name:'오래된 보석함', ultra:true, uniqueEffect:'인벤토리 등급 시너지', stats:[{id:'aspd',val:6},{id:'resAll',val:10}] },
+    { id:'uj_old_box', name:'오래된 보석함', ultra:true, uniqueEffect:'가방의 마법 아이템 하나마다 공격 속도 +0.5%(최대 30%), 희귀 하나마다 피해 +1.2%(최대 60%), 고유 하나마다 물리 피해 감소 +1.5%(최대 12%)', stats:[{id:'aspd',val:6},{id:'resAll',val:10}] },
     { id:'uj_hurried_mind', name:'다급해지는 마음', ultra:true, uniqueEffect:'적이 없으면 이동속도 +50%', stats:[{id:'move',val:12},{id:'regen',val:1.2}] },
     { id:'uj_condensed_curse', name:'응축된 저주', ultra:true, uniqueEffect:'저주 최대치 +1, 대상 저주당 최종 피해 +10%', stats:[{id:'dotPctDmg',val:14},{id:'resPen',val:6}] },
-    { id:'uj_burning_will', name:'불같은 의지', ultra:true, uniqueEffect:'화염 최대저항/저항 연계 보너스', stats:[{id:'maxResF',val:2},{id:'firePctDmg',val:12}] },
+    { id:'uj_burning_will', name:'불같은 의지', ultra:true, uniqueEffect:'최대치를 넘는 화염 저항 1%마다 기본 피해 +0.5%(최대 35%)', stats:[{id:'maxResF',val:2},{id:'firePctDmg',val:12}] },
     { id:'uj_closed_eyes', name:'질끈 감은 눈', ultra:true, uniqueEffect:'플레이어 상태이상 면역, 부적의 수호, 함성, 저주 줄 비활성', stats:[{id:'dr',val:6},{id:'resAll',val:12}] },
     { id:'uj_spark_ember', name:'불씨의 파편', stats:[{id:'firePctDmg',val:14},{id:'igniteChance',val:10}] },
     { id:'uj_frost_nail', name:'서리 못', stats:[{id:'coldPctDmg',val:14},{id:'chillChance',val:10}] },

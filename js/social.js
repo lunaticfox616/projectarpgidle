@@ -265,7 +265,7 @@ function buildJewelSnapshot(jewel) {
         if (typeof getJewelStats === 'function') getJewelStats(jewel).forEach(st => stats.push(snapStat(st)));
     } catch (e) { /* 무시 */ }
     return { kind: 'jewel', name: jewel.name || '주얼', rarity: jewel.rarity || 'normal', stats: stats.slice(0, 8),
-        uniqueEffect: jewel.uniqueEffect || undefined, keystone: buildJewelKeystoneSnapshot(jewel) };
+        uniqueEffect: getJewelUniqueEffectText(jewel) || undefined, keystone: buildJewelKeystoneSnapshot(jewel) };
 }
 /** 부적(게임 그루터기 함의 부적 설명과 같은 구성): 줄은 게임과 같은 문장, 고유 효과, 순간 부적의 보스 처형, 판 위 상태. */
 function buildTalismanSnapshot(t) {
