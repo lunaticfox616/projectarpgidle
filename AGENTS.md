@@ -126,7 +126,7 @@ data -> utils -> state/save -> domain(items/skills/passives/core-cube)
   살아 있는 `game`의 빌드를 잠시 바꿨다 되돌리면 계산이 쓴 칸(`PLAYER_STAT_DERIVED_WRITES`)이 남을 수 있다.
 - 나무꾼 전투 중(`game.woodsmanBuildLock`)에는 장비, 가방, 룬 기록, 패시브가 매 틱 전투 전으로 돌아가고 재화는 그대로다
   (`enforceWoodsmanBuildLock`). 값을 치르고 이것들을 바꾸는 동작은 잠금 중에 거절한다(제작은 `equipmentCrafting.buildLockReason`).
-  혼돈 밖을 떠나면 다음 틱에 잠금이 풀린다(`holdWoodsmanBuildLock`).
+  혼돈 밖, 군락지, 대균열을 떠나면 다음 틱에 그 도전이 끝난다(`holdZoneBoundRuns`, 나무꾼 잠금도 이때 풀린다).
 - 현재 지역을 직접 바꾸는 콘텐츠 시작(군락지, 벌집, 혼돈 밖, 심해, 잔상, 대균열 같은)은 값을 치르기 전에 `getContentStartBlockReason`(`js/items.js`)을 묻는다.
   벌집 원정과 경계 너머 안에서, 그리고 아틀라스 지도 안에서는 거절한다(지도를 포털 없이 빠져나가지 않게). `changeZone`을 거치는 입장은 `getHeldRunBlockReason`만 묻는다.
 
