@@ -6318,215 +6318,337 @@ function getEnemyGemDropMul(enemy) {
     return wisp * (Number(enemy && enemy.gemDropMul) || 1);
 }
 
+/** A new monster for zone at marker (its spawn record) in group groupIndex. Split into its steps on 2026-10-18 (it was one function
+ * of complexity 254): the same steps and random rolls in the same order, the record's fields in the same order. */
 function createEnemy(zone, marker, groupIndex) {
     const level = levelProgression.monsterLevel(zone, marker);
     zone = levelProgression.combatZone(zone);
-    let loopInputs = getLoopDifficultyInputs(zone);
-    let loopScaleExempt = loopInputs.exempt;
-    let tierProgress = clampNumber(((zone.tier || 1) - 1) / 18, 0, 1);
-    let lateGameHpScale = 1 + (tierProgress * 9);
+    const loopInputs = getLoopDifficultyInputs(zone);
+    const tierProgress = clampNumber(((zone.tier || 1) - 1) / 18, 0, 1);
+    const abyssScale = getAbyssMonsterScales(zone);
+    const markedBoss = !!marker.boss;
+    const isElite = !!marker.elite && !markedBoss;
+    let hp = getEnemyBaseHp(zone, { loopInputs, tierProgress, abyssScale, isBoss: markedBoss, isElite });
+    const enemyEle = cosmosRouteRuntime.enemyElement(zone, markedBoss, pickEnemyElement(zone, getEnemyElementPool(zone), markedBoss));
+    // 혼돈 밖의 나무꾼 is always a boss, with 120 times the life
+    const woodsman = zone.type === 'outsideChaos';
+    const isBoss = markedBoss || woodsman;
+    if (woodsman) hp = Math.floor(hp * 120);
+    let name = isBoss ? `👿 ${getBossNameForZone(zone, marker.storyStage ?? 0)}` : `${zone.name.split(':')[0]} 추종자`;
+    const { zoneSeed, variantSeed } = getEnemySeeds(zone, marker, groupIndex);
+    const look = getEnemyLook(zone, marker, { isBoss, isElite, enemyEle, variantSeed });
+    hp = Math.floor(hp * look.wispDefense.hpMul);
+    name = getEnemyLookName(name, isBoss, isElite, look);
+    const cosmosMods = getCosmosEnemyModifiers(zone, isElite, isBoss) || getZoneStaticBossMods(zone, isBoss);
+    const mods = { trait: look.trait, cosmosMods, cosmosExclusiveTrait: getCosmosExclusiveEnemyTrait(zone, isElite, isBoss, variantSeed) };
+    hp = applyEnemyTraitHp(hp, mods);
+    const isSky = rollEnemySky(zone, isBoss);
+    if (isSky) name = `부유하는 ${name}`;
+    const defence = getEnemyDefence(zone, { enemyEle, isBoss, isElite, loopInputs, wispDefense: look.wispDefense });
+    const rolled = { hybridElement: rollEnemyHybridElement(zone, isBoss), patternMode: rollEnemyPatternMode(cosmosMods, isBoss) };
+    const spawn = { level, hp, name, isElite, isBoss, groupIndex, zoneSeed, variantSeed, enemyEle, abyssScale, look, mods, defence, rolled, isSky };
+    const enemy = buildEnemyRecord(zone, marker, spawn);
+    finishEnemySpawn(enemy, zone, spawn);
+    if (typeof primeEnemyHpDamageGhost === 'function') primeEnemyHpDamageGhost(enemy.id, 100);
+    return enemy;
+}
+
+/** The pool a monster's element is picked from: a chaos zone's four, else physical, the zone's own and the four. */
+const getEnemyElementPool = zone => (zone.ele === 'chaos' ? ['fire','cold','light','chaos'] : ['phys', zone.ele || 'phys', 'fire', 'cold', 'light', 'chaos']);
+/** The zone's seed and the monster's variant seed (its look, trait and swing rhythm). */
+function getEnemySeeds(zone, marker, groupIndex) {
+    const zoneSeed = Number.isFinite(zone.id) ? zone.id : hashSeed(zone.id || zone.name || 'zone');
+    return { zoneSeed, variantSeed: ((zoneSeed + 1) * 37 + (marker.at || 0) * 13 + groupIndex * 17) % 997 };
+}
+
+/** A monster's life before its look and traits: the tier and loop curves, each content's own scale, elites and bosses. */
+function getEnemyBaseHp(zone, ctx) {
+    const { loopInputs, tierProgress, isBoss, isElite } = ctx;
+    const lateGameHpScale = 1 + (tierProgress * 9);
     let hp = Math.floor(((56 + zone.tier * 30) * 1.15) * lateGameHpScale * getMonsterLoopHpMultiplier(zone, loopInputs, tierProgress));
-    if (loopScaleExempt) hp = Math.floor(hp * (Number(zone.fixedDifficultyMul) || 1));
-    let abyssScale = getAbyssMonsterScales(zone);
-    let isBoss = !!marker.boss;
-    let isElite = !!marker.elite && !isBoss;
-    let abyssDepth = zone.type === 'abyss' ? Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1)) : 0;
-    if (zone.type === 'abyss' && !isElite && !isBoss) {
-        let hpRamp = Math.min(0.20, Math.max(0, abyssDepth - 1) * 0.015);
-        let deepNormalHpMul = abyssDepth >= 21 && abyssDepth <= 30 ? 1.2 : 1;
-        hp = Math.floor(hp * (1 + hpRamp) * deepNormalHpMul);
-    }
-    if (zone.type === 'chaosRealm') {
-        let realmFloor = Math.max(1, Math.floor(zone.floor || 1));
-        // 혼돈계 1층 기준 난이도를 심화 혼돈 30급으로 맞추고, 층이 오를수록 완만히 추가 상승.
-        let realmBaseMul = 5;
-        let realmFloorMul = 1 + Math.max(0, realmFloor - 1) * 0.06;
-        hp = Math.floor(hp * realmBaseMul * realmFloorMul);
-    }
-    const benchmarkProfile = getDifficultyBenchmarkProfile(zone);
-    if (benchmarkProfile) {
-        hp = Math.floor(hp * benchmarkProfile.hp);
-    } else if (zone.type === 'skyTower') {
-        let towerFloor = Math.max(1, Math.floor(zone.floor || 1));
-        hp = Math.floor(hp * 4.2 * (1 + Math.max(0, towerFloor - 1) * 0.035));
-    } else if (zone.type === 'underworld') {
-        let underFloor = Math.max(1, Math.floor(zone.floor || 1));
-        hp = Math.floor(hp * 5 * (1 + Math.max(0, underFloor - 1) * 0.045));
-    } else if (zone.type === 'oceanDepth') {
-        let depthTier = Math.max(0, Math.floor(zone.depthTier || 0));
-        // 수심 0m 진입 시점 난이도를 혼돈심화 21층 부근(혼돈계 floor1 hp배율 5와 유사한 강도)에 맞추고, 100m(depthTier 1)마다 완만히 추가 상승.
-        let oceanBaseMul = 5;
-        let oceanTierMul = 1 + depthTier * 0.05;
-        hp = Math.floor(hp * oceanBaseMul * oceanTierMul);
-    }
-    if (zone.type === 'beyondBoundary') hp = Math.floor(hp * Math.max(1, Number(zone.boundaryHpMul) || 1));
+    if (loopInputs.exempt) hp = Math.floor(hp * (Number(zone.fixedDifficultyMul) || 1));
+    hp = applyContentEnemyHp(zone, hp, isBoss, isElite);
     if (isElite) hp = Math.floor(hp * getEliteLoopHpMultiplier(zone, loopInputs.loopCount));
     if (isBoss) hp = Math.floor(hp * (1.8 + zone.tier * 0.6) * getBossHpEase(zone.tier, getMonsterLoopHpMultiplier(zone, loopInputs, tierProgress)));
     if (isBoss) hp = Math.floor(hp * (1 + (tierProgress * 4)));
+    return applyEnemyHpScales(zone, hp, isBoss, ctx.abyssScale);
+}
+/** Deep chaos's normal monsters, the chaos realm, a benchmark profile or the sky tower, underworld and ocean, the boundary. */
+function applyContentEnemyHp(zone, hp, isBoss, isElite) {
+    if (zone.type === 'abyss' && !isElite && !isBoss) hp = applyDeepChaosNormalHp(zone, hp);
+    if (zone.type === 'chaosRealm') {
+        const realmFloor = Math.max(1, Math.floor(zone.floor || 1));
+        // 혼돈계 1층 기준 난이도를 심화 혼돈 30급으로 맞추고, 층이 오를수록 완만히 추가 상승.
+        const realmBaseMul = 5;
+        const realmFloorMul = 1 + Math.max(0, realmFloor - 1) * 0.06;
+        hp = Math.floor(hp * realmBaseMul * realmFloorMul);
+    }
+    hp = applyFloorContentEnemyHp(zone, hp);
+    if (zone.type === 'beyondBoundary') hp = Math.floor(hp * Math.max(1, Number(zone.boundaryHpMul) || 1));
+    return hp;
+}
+function applyDeepChaosNormalHp(zone, hp) {
+    const abyssDepth = Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1));
+    const hpRamp = Math.min(0.20, Math.max(0, abyssDepth - 1) * 0.015);
+    const deepNormalHpMul = abyssDepth >= 21 && abyssDepth <= 30 ? 1.2 : 1;
+    return Math.floor(hp * (1 + hpRamp) * deepNormalHpMul);
+}
+/** A benchmark profile's life scale, else the sky tower's, underworld's or ocean's by floor. */
+function applyFloorContentEnemyHp(zone, hp) {
+    const benchmarkProfile = getDifficultyBenchmarkProfile(zone);
+    if (benchmarkProfile) return Math.floor(hp * benchmarkProfile.hp);
+    if (zone.type === 'skyTower') {
+        const towerFloor = Math.max(1, Math.floor(zone.floor || 1));
+        return Math.floor(hp * 4.2 * (1 + Math.max(0, towerFloor - 1) * 0.035));
+    }
+    if (zone.type === 'underworld') {
+        const underFloor = Math.max(1, Math.floor(zone.floor || 1));
+        return Math.floor(hp * 5 * (1 + Math.max(0, underFloor - 1) * 0.045));
+    }
+    if (zone.type !== 'oceanDepth') return hp;
+    const depthTier = Math.max(0, Math.floor(zone.depthTier || 0));
+    // 수심 0m 진입 시점 난이도를 혼돈심화 21층 부근(혼돈계 floor1 hp배율 5와 유사한 강도)에 맞추고, 100m(depthTier 1)마다 완만히 추가 상승.
+    const oceanBaseMul = 5;
+    const oceanTierMul = 1 + depthTier * 0.05;
+    return Math.floor(hp * oceanBaseMul * oceanTierMul);
+}
+/** The underworld entry boss, the map's and the abyss's life scales, the flat 0.92, at least 1, and trial 3's boss at 85%. */
+function applyEnemyHpScales(zone, hp, isBoss, abyssScale) {
     const underworldEntryTuning = getUnderworldEntryBossTuning(zone, isBoss);
     hp = Math.floor(hp * underworldEntryTuning.hp * (zone.mapHpMul || 1));
     hp = Math.floor(hp * (abyssScale.hpMul || 1) * (isBoss ? (abyssScale.bossMul || 1) : 1));
-    hp = Math.floor(hp * 0.92);
-    hp = Math.max(1, hp);
+    hp = Math.max(1, Math.floor(hp * 0.92));
     if (isBoss && zone.type === 'trial' && zone.id === 'trial_3') hp = Math.floor(hp * 0.85);
-    let enemyElePool = zone.ele === 'chaos' ? ['fire','cold','light','chaos'] : ['phys', zone.ele || 'phys', 'fire', 'cold', 'light', 'chaos'];
-    let enemyEle = pickEnemyElement(zone, enemyElePool, isBoss);
-    enemyEle = cosmosRouteRuntime.enemyElement(zone, isBoss, enemyEle);
-    let name = `${zone.name.split(':')[0]} 추종자`;
-    if (zone.type === 'outsideChaos') {
-        isBoss = true;
-        name = '🪓 혼돈 밖의 나무꾼';
-        hp = Math.floor(hp * 120);
-    }
-    if (isBoss) {
-        let bossName = getBossNameForZone(zone, marker.storyStage ?? 0);
-        name = `👿 ${bossName}`;
-    }
-    let zoneSeed = Number.isFinite(zone.id) ? zone.id : hashSeed(zone.id || zone.name || 'zone');
-    let variantSeed = ((zoneSeed + 1) * 37 + (marker.at || 0) * 13 + groupIndex * 17) % 997;
-    let chaosBossVisual = isBoss ? getChaosBossVisual(zone, variantSeed) : null;
-    let bossAssetKey = chaosBossVisual ? chaosBossVisual.assetKey : (isBoss && typeof getBossAssetKeyForZone === 'function' ? getBossAssetKeyForZone(zone, variantSeed, marker.storyStage ?? 0) : null);
-    let trait = rollEnemyTrait(zone, isElite, isBoss, variantSeed);
+    return hp;
+}
+
+/** What the monster looks like and is: a boss's art, its trait, a realm visual or a monster variant, wisp defenses. */
+function getEnemyLook(zone, marker, ctx) {
+    const { isBoss, isElite, enemyEle, variantSeed } = ctx;
+    const art = getEnemyBossArt(zone, marker, isBoss, variantSeed);
+    const trait = rollEnemyTrait(zone, isElite, isBoss, variantSeed);
     const realmVisualSet = typeof getRealmMonsterVisualSet === 'function' ? getRealmMonsterVisualSet(zone) : null;
-    const realmVisualRole = isBoss ? 'boss' : (isElite ? 'elite' : 'normal');
-    const realmVisual = typeof getRealmMonsterVisualDefinition === 'function'
-        ? getRealmMonsterVisualDefinition(realmVisualSet, realmVisualRole, variantSeed)
-        : null;
-    let monsterVariant = !realmVisual && !isBoss && typeof getMonsterVariantDefinition === 'function'
+    const realmVisual = getRealmVisualFor(realmVisualSet, isBoss, isElite, variantSeed);
+    const monsterVariant = !realmVisual && !isBoss && typeof getMonsterVariantDefinition === 'function'
         ? getMonsterVariantDefinition(variantSeed, enemyEle, zone, marker)
         : null;
     const wispDefense = getWispEnemyDefenseBonuses(monsterVariant);
-    const wispVisual = wispDefense.isWisp ? monsterVariant : null;
-    hp = Math.floor(hp * wispDefense.hpMul);
-    if (!isBoss && realmVisual) {
-        name = isElite && trait ? `${trait.name} ${realmVisual.name}` : realmVisual.name;
-    } else if (!isBoss && monsterVariant) {
-        name = isElite && trait ? `${trait.name} ${monsterVariant.name}` : monsterVariant.name;
-    } else if (!isBoss && isElite && trait) {
-        name = `${trait.name} ${name}`;
-    }
-    const cosmosMods = getCosmosEnemyModifiers(zone, isElite, isBoss) || getZoneStaticBossMods(zone, isBoss);
-    const cosmosExclusiveTrait = getCosmosExclusiveEnemyTrait(zone, isElite, isBoss, variantSeed);
-    const woodsmanRegenMul = 0.1;
-    const regenMul = ((zone.type === 'outsideChaos' && isBoss) ? woodsmanRegenMul : 1) * (cosmosMods && cosmosMods.regenMul ? cosmosMods.regenMul : 1);
-    if (trait && trait.hpMul) hp = Math.floor(hp * trait.hpMul);
-    if (cosmosMods && cosmosMods.hpMul) hp = Math.floor(hp * cosmosMods.hpMul);
-    if (cosmosExclusiveTrait && cosmosExclusiveTrait.hpMul) hp = Math.floor(hp * cosmosExclusiveTrait.hpMul);
-    let isSky = (game.season || 1) >= 4 && zone.type === 'abyss' && !isBoss && Math.random() < 0.08;
-    if (isSky) name = `부유하는 ${name}`;
-    let zoneProgress = clampNumber(((zone.tier || 1) - 1) / 19, 0, 1);
-    let curved = zoneProgress * zoneProgress;
-    let variance = getZoneDefenseVariance(zone);
-    // Every defense climbs the tier curve to its tier-20 value; bosses specialise in one or two (getBossDefenseTargets).
+    return { ...art, trait, realmVisualSet, realmVisual, monsterVariant, wispDefense, wispVisual: wispDefense.isWisp ? monsterVariant : null };
+}
+/** A boss's art: a chaos boss visual (its art and tint), else the zone's boss art. */
+function getEnemyBossArt(zone, marker, isBoss, variantSeed) {
+    const chaosBossVisual = isBoss ? getChaosBossVisual(zone, variantSeed) : null;
+    const bossAssetKey = chaosBossVisual ? chaosBossVisual.assetKey : (isBoss && typeof getBossAssetKeyForZone === 'function' ? getBossAssetKeyForZone(zone, variantSeed, marker.storyStage ?? 0) : null);
+    return { chaosBossVisual, bossAssetKey };
+}
+function getRealmVisualFor(realmVisualSet, isBoss, isElite, variantSeed) {
+    const realmVisualRole = isBoss ? 'boss' : (isElite ? 'elite' : 'normal');
+    return typeof getRealmMonsterVisualDefinition === 'function' ? getRealmMonsterVisualDefinition(realmVisualSet, realmVisualRole, variantSeed) : null;
+}
+/** A realm visual's or monster variant's name, else name; an elite's trait name goes before it. A boss keeps name. */
+function getEnemyLookName(name, isBoss, isElite, look) {
+    if (isBoss) return name;
+    const shown = look.realmVisual || look.monsterVariant;
+    if (shown) return isElite && look.trait ? `${look.trait.name} ${shown.name}` : shown.name;
+    return isElite && look.trait ? `${look.trait.name} ${name}` : name;
+}
+/** Life scaled by the trait, the cosmos modifiers and the cosmos exclusive trait, in that order. */
+function applyEnemyTraitHp(hp, mods) {
+    for (const source of [mods.trait, mods.cosmosMods, mods.cosmosExclusiveTrait]) if (source && source.hpMul) hp = Math.floor(hp * source.hpMul);
+    return hp;
+}
+/** From loop 4 a deep chaos monster that is not a boss floats 8% of the time. */
+const rollEnemySky = (zone, isBoss) => (game.season || 1) >= 4 && zone.type === 'abyss' && !isBoss && Math.random() < 0.08;
+
+/** Damage reduction and resistances climb the tier curve to their tier-20 value (bosses specialise in one or two,
+ * getBossDefenseTargets); armour and evasion follow the tier and loop. */
+function getEnemyDefence(zone, ctx) {
+    const { enemyEle, isBoss, isElite, wispDefense } = ctx;
+    const zoneProgress = clampNumber(((zone.tier || 1) - 1) / 19, 0, 1);
+    const curved = zoneProgress * zoneProgress;
+    const variance = getZoneDefenseVariance(zone);
     const defenseRamp = clampNumber(curved + variance, 0, 1);
     const bossTargets = isBoss ? getBossDefenseTargets(zone, enemyEle) : null;
     const rankDefense = ENEMY_DEFENSE_TIER20[isElite ? 'elite' : 'normal'];
     const rampTo = (floor, target) => floor + Math.floor(Math.max(0, target - floor) * defenseRamp);
-    let drBase = isBoss ? rampTo(10, bossTargets.dr) : rampTo(0, rankDefense.dr);
-    let resistBase = rampTo(5, rankDefense.res);
+    const drBase = isBoss ? rampTo(10, bossTargets.dr) : rampTo(0, rankDefense.dr);
+    const resistBase = rampTo(5, rankDefense.res);
     const resistBases = isBoss ? { resF: rampTo(15, bossTargets.resF), resC: rampTo(15, bossTargets.resC), resL: rampTo(15, bossTargets.resL) }
         : { resF: resistBase, resC: resistBase, resL: resistBase };
-    let chaosResBase = isBoss ? rampTo(15, bossTargets.resChaos) : resistBase;
+    const chaosResBase = isBoss ? rampTo(15, bossTargets.resChaos) : resistBase;
+    return { drBase, resistBases, chaosResBase, ...getEnemyArmourAndEvasion(zone, ctx.loopInputs, { isBoss, isElite, wispDefense }) };
+}
+function getEnemyArmourAndEvasion(zone, loopInputs, rank) {
+    const defenseTierScale = Math.min(1.9, 0.6 + zone.tier * 0.08);
+    const defenseLoopScale = getLoopDefenseScale(loopInputs.loopCount);
+    const baseArmor = Math.floor((18 + zone.tier * 26) * defenseTierScale * defenseLoopScale * byEnemyRank(rank, [2.2, 1.6, 1]) * rank.wispDefense.armorMul);
+    const baseEvasion = Math.floor((16 + zone.tier * 24) * defenseTierScale * defenseLoopScale * byEnemyRank(rank, [2.1, 1.5, 1]));
+    return { baseArmor, baseEvasion: Math.floor(baseEvasion * rank.wispDefense.evasionMul) };
+}
+/** From loop 3 the second element a monster mixes in: a boss's own pair's second, else a random chaos boss element. */
+function rollEnemyHybridElement(zone, isBoss) {
+    return (game.season || 1) >= 3 ? ((isBoss && getChaosBossElements(zone)) || [null, rndChoice(CHAOS_BOSS_ELEMENTS)])[1] : null;
+}
+/** The cosmos encounter's pattern, else a boss's random one of this loop's modes. */
+function rollEnemyPatternMode(cosmosMods, isBoss) {
+    return (cosmosMods && cosmosMods.patternMode) || (isBoss
+        ? (rndChoice(getBossPatternModesForLoop(game.season || 1)) || null)
+        : null);
+}
 
-    let defenseTierScale = Math.min(1.9, 0.6 + zone.tier * 0.08);
-    let defenseLoopScale = getLoopDefenseScale(loopInputs.loopCount);
-    let baseArmor = Math.floor((18 + zone.tier * 26) * defenseTierScale * defenseLoopScale * (isBoss ? 2.2 : (isElite ? 1.6 : 1)) * wispDefense.armorMul);
-    let baseEvasion = Math.floor((16 + zone.tier * 24) * defenseTierScale * defenseLoopScale * (isBoss ? 2.1 : (isElite ? 1.5 : 1)));
-    baseEvasion = Math.floor(baseEvasion * wispDefense.evasionMul);
-    let baselineResistancePressure = (game.season || 1) >= 4 ? (isBoss ? 14 : (isElite ? 8 : 3)) : 0;
-    let isDeepChaos = zone.type === 'abyss';
-    let enemy = {
-        id: game.nextEnemyId++,
-        level,
-        hp: hp,
-        maxHp: hp,
-        name,
-        isElite: isElite,
-        isBoss: isBoss,
-        bossAssetKey: bossAssetKey,
-        bossVisualTint: chaosBossVisual ? chaosBossVisual.tint : null,
-        attackTimer: (((zoneSeed + 1) * 13 + (marker.at || 0) * 3 + groupIndex * 7) % 10) / 20,
-        spawnAt: marker.at,
-        groupIndex: groupIndex,
-        variantSeed: variantSeed,
-        spriteVariantId: monsterVariant ? monsterVariant.id : null,
-        monsterArchetype: wispVisual ? 'wisp' : null,
-        monsterVisualSetId: realmVisualSet ? realmVisualSet.id : null,
-        monsterVisualId: realmVisual ? realmVisual.id : null,
-        baseMonsterName: realmVisual ? realmVisual.name : (monsterVariant ? monsterVariant.name : null),
-        ele: enemyEle,
-        dr: Math.min(90, Math.max(0, drBase + (trait && trait.dr ? trait.dr : 0) + wispDefense.dr)),
-        resF: Math.min(95, resistBases.resF + (trait && trait.resF ? trait.resF : 0) + (abyssScale.resistBonus || 0) + wispDefense.resF),
-        resC: Math.min(95, resistBases.resC + (trait && trait.resC ? trait.resC : 0) + (abyssScale.resistBonus || 0) + wispDefense.resC),
-        resL: Math.min(95, resistBases.resL + (trait && trait.resL ? trait.resL : 0) + (abyssScale.resistBonus || 0) + wispDefense.resL),
-        resChaos: Math.min(95, chaosResBase + (trait && trait.resChaos ? trait.resChaos : 0) + (abyssScale.resistBonus || 0) + wispDefense.resChaos),
-        armor: baseArmor,
-        evasion: baseEvasion,
-        atkMul: (trait && trait.atkMul ? trait.atkMul : 1) * (cosmosMods && cosmosMods.atkMul ? cosmosMods.atkMul : 1) * (cosmosExclusiveTrait && cosmosExclusiveTrait.atkMul ? cosmosExclusiveTrait.atkMul : 1),
-        damageMul: (zone.mapDamageMul || 1) * (zone.type === 'outsideChaos' ? 2 : 1) * (cosmosMods && cosmosMods.damageMul ? cosmosMods.damageMul : 1) * (cosmosExclusiveTrait && cosmosExclusiveTrait.damageMul ? cosmosExclusiveTrait.damageMul : 1) * (zone.type === 'beyondBoundary' ? Math.max(1, Number(zone.boundaryDamageMul) || 1) : 1),
-        attackSpeedVar: (0.85 + (((variantSeed % 11) / 10) * 0.5)) * (trait && trait.attackSpeedVarMul ? trait.attackSpeedVarMul : 1) * (zone.type === 'outsideChaos' ? 1.5 : 1) * (cosmosMods && cosmosMods.attackSpeedMul ? cosmosMods.attackSpeedMul : 1) * (cosmosExclusiveTrait && cosmosExclusiveTrait.attackSpeedVarMul ? cosmosExclusiveTrait.attackSpeedVarMul : 1) * (zone.type === 'beyondBoundary' ? Math.max(1, Number(zone.boundaryAttackSpeedMul) || 1) : 1),
-        critChance: ((game.season || 1) >= 2 ? (isBoss ? 16 : isElite ? 10 : 4) : 0) + (trait && trait.critChanceBonus ? trait.critChanceBonus : 0) + (cosmosMods && cosmosMods.critChanceBonus ? cosmosMods.critChanceBonus : 0) + (cosmosExclusiveTrait && cosmosExclusiveTrait.critChanceBonus ? cosmosExclusiveTrait.critChanceBonus : 0),
-        regenRate: Math.max(((game.season || 1) >= 3 ? (isBoss ? 0.004 : (isElite ? 0.0022 : 0.0012)) : 0) * 0.12 * regenMul, Number(zone.boundaryRegenRate) || 0),
+/** values[0] for a boss, [1] for an elite, [2] for a normal monster (rank: its isBoss and isElite). */
+const byEnemyRank = (rank, values) => (rank.isBoss ? values[0] : (rank.isElite ? values[1] : values[2]));
+/** value from loop n on, else 0. */
+const fromLoopOn = (n, value) => ((game.season || 1) >= n ? value : 0);
+/** source[key] when it is set, else fallback: a trait's or modifier's bonus on a new monster. */
+const enemyBonus = (source, key, fallback = 0) => (source && source[key] ? source[key] : fallback);
+/** A finite reward scale of at least 1 from source (a trait's exp or drop scale), else 1. */
+const enemyRewardMul = (source, key) => (source && Number.isFinite(source[key]) ? Math.max(1, source[key]) : 1);
+/** The boundary's scale of key (at least 1) beyond the boundary, else 1. */
+const boundaryMul = (zone, key) => (zone.type === 'beyondBoundary' ? Math.max(1, Number(zone[key]) || 1) : 1);
+/** The new monster's record, its fields in their fixed order. */
+function buildEnemyRecord(zone, marker, spawn) {
+    const { look, mods, defence, rolled } = spawn;
+    const pressure = getEnemyPressureRecord(zone, mods.cosmosMods, spawn);
+    const guards = getEnemyGuardRecord(look.trait, mods.cosmosMods, spawn.isBoss);
+    return {
+        ...getEnemyIdentityRecord(marker, spawn),
+        ele: spawn.enemyEle,
+        ...getEnemyResistRecord(defence, look.trait, spawn.abyssScale, look.wispDefense),
+        armor: defence.baseArmor,
+        evasion: defence.baseEvasion,
+        ...getEnemyOffenceRecord(zone, mods, spawn),
+        regenRate: pressure.regenRate,
         regenSuppressPct: 0,
-        penetration: (isDeepChaos ? 0 : baselineResistancePressure) + (cosmosMods && cosmosMods.penetration ? cosmosMods.penetration : 0),
-        resistanceReduction: isDeepChaos ? baselineResistancePressure : 0,
-        hybridElement: (game.season || 1) >= 3 ? ((isBoss && getChaosBossElements(zone)) || [null, rndChoice(CHAOS_BOSS_ELEMENTS)])[1] : null,
-        ailmentChance: ((game.season || 1) >= 4 ? (isBoss ? 0.14 : (isElite ? 0.08 : 0.03)) : 0) + (cosmosMods && cosmosMods.ailmentChanceBonus ? cosmosMods.ailmentChanceBonus : 0),
-        firstHitGuard: Math.max((game.season || 1) >= 5 ? (isBoss ? 0.75 : ((trait && trait.firstHitGuard) || 0)) : 0, cosmosMods && cosmosMods.firstHitGuard ? cosmosMods.firstHitGuard : 0),
-        hitRateGuard: (game.season || 1) >= 5 ? ((trait && trait.hitRateGuard) || (isBoss ? 0.06 : 0)) : 0,
+        penetration: pressure.penetration,
+        resistanceReduction: pressure.resistanceReduction,
+        hybridElement: rolled.hybridElement,
+        ailmentChance: pressure.ailmentChance,
+        firstHitGuard: guards.firstHitGuard,
+        hitRateGuard: guards.hitRateGuard,
         recentHitsTaken: 0,
         recentHitsTimer: 0,
-        patternMode: (cosmosMods && cosmosMods.patternMode) || (isBoss
-            ? (rndChoice(getBossPatternModesForLoop(game.season || 1)) || null)
-            : null),
+        patternMode: rolled.patternMode,
         patternAttackCount: 0,
         nextPatternState: null,
         patternTelegraphKey: null,
         patternTelegraphStartedAt: 0,
-        disableExecute: zone.type === 'outsideChaos' || zone.id === 'cosmos_astra' || !!zone.milestonePinnacle,
-        disableHpScaleDamage: zone.type === 'outsideChaos' || zone.id === 'cosmos_astra' || !!zone.milestonePinnacle,
+        ...getEnemyCapRecord(zone),
+        ...getEnemyTraitRecord(look.trait, spawn.isElite),
+        ...getEnemyRewardRecord(zone, mods),
+        isSky: spawn.isSky
+    };
+}
+/** The record's head: the next id, level, life, name, rank, boss art, spawn place, swing rhythm and look. */
+function getEnemyIdentityRecord(marker, spawn) {
+    const { look } = spawn;
+    return {
+        id: game.nextEnemyId++,
+        level: spawn.level,
+        hp: spawn.hp,
+        maxHp: spawn.hp,
+        name: spawn.name,
+        isElite: spawn.isElite,
+        isBoss: spawn.isBoss,
+        bossAssetKey: look.bossAssetKey,
+        bossVisualTint: look.chaosBossVisual ? look.chaosBossVisual.tint : null,
+        attackTimer: (((spawn.zoneSeed + 1) * 13 + (marker.at || 0) * 3 + spawn.groupIndex * 7) % 10) / 20,
+        spawnAt: marker.at,
+        groupIndex: spawn.groupIndex,
+        variantSeed: spawn.variantSeed,
+        spriteVariantId: look.monsterVariant ? look.monsterVariant.id : null,
+        monsterArchetype: look.wispVisual ? 'wisp' : null,
+        monsterVisualSetId: look.realmVisualSet ? look.realmVisualSet.id : null,
+        monsterVisualId: look.realmVisual ? look.realmVisual.id : null,
+        baseMonsterName: look.realmVisual ? look.realmVisual.name : (look.monsterVariant ? look.monsterVariant.name : null)
+    };
+}
+/** Damage reduction and the four resistances: the defence bases, the trait's, the abyss bonus (resistances) and wisp defenses,
+ * capped at 90 and 95. */
+function getEnemyResistRecord(defence, trait, abyssScale, wispDefense) {
+    const res = (base, key) => Math.min(95, base + enemyBonus(trait, key) + (abyssScale.resistBonus || 0) + wispDefense[key]);
+    return {
+        dr: Math.min(90, Math.max(0, defence.drBase + enemyBonus(trait, 'dr') + wispDefense.dr)),
+        resF: res(defence.resistBases.resF, 'resF'),
+        resC: res(defence.resistBases.resC, 'resC'),
+        resL: res(defence.resistBases.resL, 'resL'),
+        resChaos: res(defence.chaosResBase, 'resChaos')
+    };
+}
+/** Attack and damage scales, swing rhythm and crit chance (from loop 2 a base by rank) from the trait, the cosmos modifiers,
+ * the exclusive trait, the woodsman, the map and the boundary. */
+function getEnemyOffenceRecord(zone, mods, spawn) {
+    const { trait, cosmosMods, cosmosExclusiveTrait } = mods;
+    const woodsman = zone.type === 'outsideChaos';
+    return {
+        atkMul: enemyBonus(trait, 'atkMul', 1) * enemyBonus(cosmosMods, 'atkMul', 1) * enemyBonus(cosmosExclusiveTrait, 'atkMul', 1),
+        damageMul: (zone.mapDamageMul || 1) * (woodsman ? 2 : 1) * enemyBonus(cosmosMods, 'damageMul', 1) * enemyBonus(cosmosExclusiveTrait, 'damageMul', 1) * boundaryMul(zone, 'boundaryDamageMul'),
+        attackSpeedVar: (0.85 + (((spawn.variantSeed % 11) / 10) * 0.5)) * enemyBonus(trait, 'attackSpeedVarMul', 1) * (woodsman ? 1.5 : 1) * enemyBonus(cosmosMods, 'attackSpeedMul', 1) * enemyBonus(cosmosExclusiveTrait, 'attackSpeedVarMul', 1) * boundaryMul(zone, 'boundaryAttackSpeedMul'),
+        critChance: fromLoopOn(2, byEnemyRank(spawn, [16, 10, 4])) + enemyBonus(trait, 'critChanceBonus') + enemyBonus(cosmosMods, 'critChanceBonus') + enemyBonus(cosmosExclusiveTrait, 'critChanceBonus')
+    };
+}
+/** Regeneration (from loop 3; the woodsman's a tenth), resistance pressure (from loop 4; deep chaos lowers resistance instead of
+ * piercing it) and the ailment chance (from loop 4). */
+function getEnemyPressureRecord(zone, cosmosMods, rank) {
+    const regenMul = ((zone.type === 'outsideChaos' && rank.isBoss) ? 0.1 : 1) * enemyBonus(cosmosMods, 'regenMul', 1);
+    const baselineResistancePressure = fromLoopOn(4, byEnemyRank(rank, [14, 8, 3]));
+    const isDeepChaos = zone.type === 'abyss';
+    return {
+        regenRate: Math.max(fromLoopOn(3, byEnemyRank(rank, [0.004, 0.0022, 0.0012])) * 0.12 * regenMul, Number(zone.boundaryRegenRate) || 0),
+        penetration: (isDeepChaos ? 0 : baselineResistancePressure) + enemyBonus(cosmosMods, 'penetration'),
+        resistanceReduction: isDeepChaos ? baselineResistancePressure : 0,
+        ailmentChance: fromLoopOn(4, byEnemyRank(rank, [0.14, 0.08, 0.03])) + enemyBonus(cosmosMods, 'ailmentChanceBonus')
+    };
+}
+/** From loop 5 the first-hit guard (a boss's 0.75, else the trait's) and the hit rate guard. */
+function getEnemyGuardRecord(trait, cosmosMods, isBoss) {
+    return {
+        firstHitGuard: Math.max(fromLoopOn(5, isBoss ? 0.75 : ((trait && trait.firstHitGuard) || 0)), enemyBonus(cosmosMods, 'firstHitGuard')),
+        hitRateGuard: fromLoopOn(5, (trait && trait.hitRateGuard) || (isBoss ? 0.06 : 0))
+    };
+}
+/** The woodsman, 아스트라 and milestone pinnacles take no execute and no life-scaled damage. */
+function getEnemyCapRecord(zone) {
+    const capped = zone.type === 'outsideChaos' || zone.id === 'cosmos_astra' || !!zone.milestonePinnacle;
+    return { disableExecute: capped, disableHpScaleDamage: capped };
+}
+function getEnemyTraitRecord(trait, isElite) {
+    return {
         trait: trait ? { ...trait } : null,
         traitName: trait ? trait.name : null,
         traitOutlineColor: isElite && trait ? trait.outlineColor || '#e2b94f' : null,
-        leechEffMul: trait && Number.isFinite(trait.leechEffMul) ? Math.max(0, trait.leechEffMul) : 1,
-        expMul: (trait && Number.isFinite(trait.expMul) ? Math.max(1, trait.expMul) : 1) * (cosmosExclusiveTrait && Number.isFinite(cosmosExclusiveTrait.expMul) ? Math.max(1, cosmosExclusiveTrait.expMul) : 1) * (zone.type === 'beyondBoundary' ? Math.max(1, Number(zone.boundaryRewardMul) || 1) : 1),
-        dropMul: (trait && Number.isFinite(trait.dropMul) ? Math.max(1, trait.dropMul) : 1) * (cosmosExclusiveTrait && Number.isFinite(cosmosExclusiveTrait.dropMul) ? Math.max(1, cosmosExclusiveTrait.dropMul) : 1) * getTierDropMulWithCaps(zone.tier, zone) * (zone.type === 'beyondBoundary' ? Math.max(1, Number(zone.boundaryRewardMul) || 1) : 1),
-        isSky: isSky
+        leechEffMul: trait && Number.isFinite(trait.leechEffMul) ? Math.max(0, trait.leechEffMul) : 1
     };
-    if (zone.type === 'beyondBoundary') {
-        enemy.dr = Math.min(90, enemy.dr + Math.max(0, Number(zone.boundaryDrBonus) || 0));
-        enemy.penetration += Math.max(0, Number(zone.boundaryPenetrationBonus) || 0);
-    }
-    let zoneWard = getZoneElementWardProfile(zone);
-    if (zoneWard) {
-        if (zoneWard.elem === 'fire') enemy.resF = Math.min(95, enemy.resF + zoneWard.strength);
-        else if (zoneWard.elem === 'cold') enemy.resC = Math.min(95, enemy.resC + zoneWard.strength);
-        else if (zoneWard.elem === 'light') enemy.resL = Math.min(95, enemy.resL + zoneWard.strength);
-    }
+}
+function getEnemyRewardRecord(zone, mods) {
+    const reward = boundaryMul(zone, 'boundaryRewardMul');
+    return {
+        expMul: enemyRewardMul(mods.trait, 'expMul') * enemyRewardMul(mods.cosmosExclusiveTrait, 'expMul') * reward,
+        dropMul: enemyRewardMul(mods.trait, 'dropMul') * enemyRewardMul(mods.cosmosExclusiveTrait, 'dropMul') * getTierDropMulWithCaps(zone.tier, zone) * reward
+    };
+}
+
+/** The new monster's last steps: its defences, zone mods, the grand breach tuning, the grid profile, the severed wanderer, a boss's
+ * last steps, the board carrier and root bearer marks. */
+function finishEnemySpawn(enemy, zone, spawn) {
+    applySpawnDefences(enemy, zone, spawn);
+    applyZoneEnemyMods(enemy, zone);
+    applyGrandBreachMobTuning(zone, enemy);
+    assignEnemyGridCombatProfile(enemy);
+    if (typeof maybeApplySeveredWanderer === 'function') maybeApplySeveredWanderer(enemy, zone, spawn.isElite, spawn.isBoss);
+    finishBossSpawn(enemy, zone);
+    atlasBoard.markCarrier(game, enemy, zone);
+    atlasEndgame.markOmenBearer(game, enemy, zone);
+}
+/** The boundary's bonuses, the zone's element ward, the pattern preview, cosmos modifiers, 아스트라's base, the exclusive trait
+ * and the woodsman. */
+function applySpawnDefences(enemy, zone, spawn) {
+    const { cosmosMods, cosmosExclusiveTrait } = spawn.mods;
+    applyBoundaryDefenceToEnemy(enemy, zone);
+    applyZoneElementWard(enemy, zone);
     if (typeof refreshBossPatternPreview === 'function') refreshBossPatternPreview(enemy);
-    if (cosmosMods) {
-        enemy.dr = Math.min(90, Math.max(0, enemy.dr + (cosmosMods.dr || 0)));
-        enemy.resF = Math.min(95, enemy.resF + (cosmosMods.resAll || 0) + (cosmosMods.resF || 0));
-        enemy.resC = Math.min(95, enemy.resC + (cosmosMods.resAll || 0) + (cosmosMods.resC || 0));
-        enemy.resL = Math.min(95, enemy.resL + (cosmosMods.resAll || 0) + (cosmosMods.resL || 0));
-        enemy.resChaos = Math.min(95, enemy.resChaos + (cosmosMods.resAll || 0) + (cosmosMods.resChaos || 0));
-        enemy.armor = Math.floor(enemy.armor * (cosmosMods.armorMul || 1));
-        enemy.evasion = Math.floor(enemy.evasion * (cosmosMods.evasionMul || 1));
-        enemy.dropMul *= cosmosMods.dropMul || 1;
-        enemy.cosmosTag = zone.cosmosTag || '';
-        enemy.cosmosSizeClass = Math.max(1, Math.floor(zone.sizeClass || 1));
-        enemy.cosmosGravity = Math.max(1, Number(zone.gravity || 1));
-        enemy.cosmosBossId = isBoss ? zone.cosmosNodeId || null : null;
-        enemy.cosmosBaseElement = zone.ele || enemy.ele || 'phys';
-        if (cosmosMods.hybridElement) enemy.hybridElement = cosmosMods.hybridElement;
-        if (cosmosMods.energyShieldPct) {
-            enemy.maxEnergyShield = Math.max(enemy.maxEnergyShield || 0, Math.floor(enemy.maxHp * cosmosMods.energyShieldPct / 100));
-            enemy.energyShield = Math.max(enemy.energyShield || 0, enemy.maxEnergyShield);
-        }
-        // Shared encounter modifiers can adjust stats without adding a named trait.
-        enemy.traitName = [enemy.traitName, cosmosMods.traitName].filter(Boolean).join(', ');
-    }
-    if (zone.id === 'cosmos_astra' && isBoss) {
+    if (cosmosMods) applyCosmosModsToEnemy(enemy, zone, cosmosMods, spawn.isBoss);
+    if (zone.id === 'cosmos_astra' && spawn.isBoss) {
         enemy.astraBase = {
             dr: enemy.dr, armor: enemy.armor, evasion: enemy.evasion,
             resF: enemy.resF, resC: enemy.resC, resL: enemy.resL, resChaos: enemy.resChaos,
@@ -6536,29 +6658,60 @@ function createEnemy(zone, marker, groupIndex) {
     }
     applyCosmosExclusiveTraitToEnemy(enemy, cosmosExclusiveTrait);
     if (enemy.cosmosBossId && typeof refreshBossPatternPreview === 'function') refreshBossPatternPreview(enemy);
-    if (zone.type === 'outsideChaos') enemy.ailResFreeze = Math.max(Number(enemy.ailResFreeze || 0), 50);
-    if (zone.type === 'outsideChaos') {
-        enemy.isWoodsman = true;
-        enemy.dr = Math.max(50, enemy.dr + 8);
-        enemy.maxResCap = 85;
-        enemy.baseResF = enemy.resF;
-        enemy.baseResC = enemy.resC;
-        enemy.baseResL = enemy.resL;
-        enemy.baseResChaos = enemy.resChaos;
-        enemy.armor = Math.floor(enemy.armor * 1.35);
-        enemy.evasion = Math.floor(enemy.evasion * 1.3);
-        enemy.armorGuard = Math.max(Number(enemy.armorGuard || 0), 0.12);
-        enemy.evasionChance = Math.max(Number(enemy.evasionChance || 0), 12);
-    }
-    applyZoneEnemyMods(enemy, zone);
-    applyGrandBreachMobTuning(zone, enemy);
-    assignEnemyGridCombatProfile(enemy);
-    if (typeof maybeApplySeveredWanderer === 'function') maybeApplySeveredWanderer(enemy, zone, isElite, isBoss);
-    finishBossSpawn(enemy, zone);
-    atlasBoard.markCarrier(game, enemy, zone);
-    atlasEndgame.markOmenBearer(game, enemy, zone);
-    if (typeof primeEnemyHpDamageGhost === 'function') primeEnemyHpDamageGhost(enemy.id, 100);
-    return enemy;
+    if (zone.type === 'outsideChaos') applyWoodsmanToEnemy(enemy);
+}
+function applyBoundaryDefenceToEnemy(enemy, zone) {
+    if (zone.type !== 'beyondBoundary') return;
+    enemy.dr = Math.min(90, enemy.dr + Math.max(0, Number(zone.boundaryDrBonus) || 0));
+    enemy.penetration += Math.max(0, Number(zone.boundaryPenetrationBonus) || 0);
+}
+function applyZoneElementWard(enemy, zone) {
+    const zoneWard = getZoneElementWardProfile(zone);
+    if (!zoneWard) return;
+    if (zoneWard.elem === 'fire') enemy.resF = Math.min(95, enemy.resF + zoneWard.strength);
+    else if (zoneWard.elem === 'cold') enemy.resC = Math.min(95, enemy.resC + zoneWard.strength);
+    else if (zoneWard.elem === 'light') enemy.resL = Math.min(95, enemy.resL + zoneWard.strength);
+}
+/** A cosmos encounter's modifiers: defences, armour and evasion, drops, its cosmos marks, a hybrid element, an energy shield and
+ * the trait name. Shared encounter modifiers can adjust stats without adding a named trait. */
+function applyCosmosModsToEnemy(enemy, zone, cosmosMods, isBoss) {
+    const resAll = cosmosMods.resAll || 0;
+    enemy.dr = Math.min(90, Math.max(0, enemy.dr + (cosmosMods.dr || 0)));
+    for (const key of ['resF', 'resC', 'resL', 'resChaos']) enemy[key] = Math.min(95, enemy[key] + resAll + (cosmosMods[key] || 0));
+    enemy.armor = Math.floor(enemy.armor * (cosmosMods.armorMul || 1));
+    enemy.evasion = Math.floor(enemy.evasion * (cosmosMods.evasionMul || 1));
+    enemy.dropMul *= cosmosMods.dropMul || 1;
+    markCosmosEnemy(enemy, zone, isBoss);
+    if (cosmosMods.hybridElement) enemy.hybridElement = cosmosMods.hybridElement;
+    if (cosmosMods.energyShieldPct) giveEnemyEnergyShield(enemy, cosmosMods.energyShieldPct);
+    enemy.traitName = [enemy.traitName, cosmosMods.traitName].filter(Boolean).join(', ');
+}
+function markCosmosEnemy(enemy, zone, isBoss) {
+    enemy.cosmosTag = zone.cosmosTag || '';
+    enemy.cosmosSizeClass = Math.max(1, Math.floor(zone.sizeClass || 1));
+    enemy.cosmosGravity = Math.max(1, Number(zone.gravity || 1));
+    enemy.cosmosBossId = isBoss ? zone.cosmosNodeId || null : null;
+    enemy.cosmosBaseElement = zone.ele || enemy.ele || 'phys';
+}
+/** An energy shield of pct% of the monster's life, kept when it already has a larger one, and full. */
+function giveEnemyEnergyShield(enemy, pct) {
+    enemy.maxEnergyShield = Math.max(enemy.maxEnergyShield || 0, Math.floor(enemy.maxHp * pct / 100));
+    enemy.energyShield = Math.max(enemy.energyShield || 0, enemy.maxEnergyShield);
+}
+/** 혼돈 밖의 나무꾼: freeze resistance, heavier defences with its resistance bases kept, the armour guard and an evasion chance. */
+function applyWoodsmanToEnemy(enemy) {
+    enemy.ailResFreeze = Math.max(Number(enemy.ailResFreeze || 0), 50);
+    enemy.isWoodsman = true;
+    enemy.dr = Math.max(50, enemy.dr + 8);
+    enemy.maxResCap = 85;
+    enemy.baseResF = enemy.resF;
+    enemy.baseResC = enemy.resC;
+    enemy.baseResL = enemy.resL;
+    enemy.baseResChaos = enemy.resChaos;
+    enemy.armor = Math.floor(enemy.armor * 1.35);
+    enemy.evasion = Math.floor(enemy.evasion * 1.3);
+    enemy.armorGuard = Math.max(Number(enemy.armorGuard || 0), 0.12);
+    enemy.evasionChance = Math.max(Number(enemy.evasionChance || 0), 12);
 }
 
 /** A boss's last spawn steps: the hidden journal run and, from loop 33, a rare variant (js/boss-variants.js). */
