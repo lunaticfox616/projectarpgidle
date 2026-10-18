@@ -245,7 +245,7 @@ const stageRegion = (() => {
     function drawRegionSideMarks(ctx, p, here) {
         const dot = stageActors.scaleFor(p.tileW);
         for (const row of actExplorationDoors.doorsHere(here.run)) {
-            if (row.locked || (row.door.side !== 'west' && row.door.side !== 'east')) continue;
+            if (row.locked || (row.door.side !== 'west' && row.door.side !== 'east') || stageDoorMarks.underFrame(p, row)) continue;
             const piece = regionDoorPiece(row, here.room);
             stageDoorMarks.arrows(ctx, { cx: p.mapX + piece.x * dot, cy: p.mapY + (piece.y - 20) * dot,
                 w: WIDE * dot }, row.door, { dot, thick: 3, upright: true });

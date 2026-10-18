@@ -136,13 +136,23 @@ const stageDoorMarks = (() => {
             if (!at) continue;
             // 오른쪽은 전투 기록이나 채팅 창이 가리는 데까지만 보인다: 창 밑에 깔린 문도 창 왼쪽에 표시를 세운다
             const limit = shownUntil(at.y, width);
-            if (at.x >= 0 && at.x <= limit - inset) continue;
+            if (at.x >= 0 && !beyond(at.x, limit, p)) continue;
             const side = at.x < 0 ? 'west' : 'east';
             arrows(ctx, { cx: side === 'west' ? inset : limit - inset, cy: at.y, w: p.tileW * 0.7 }, { ...row.door, side }, { dot, thick: 3, upright: true });
         }
     }
     /** 그 높이에서 전장이 오른쪽으로 어디까지 보이는가(전장의 px): 창에 가려지지 않았으면 전장의 너비. */
     const shownUntil = (y, width) => (typeof messageFrames === 'object' ? messageFrames.coveredFrom(y, width) : width);
-    return Object.freeze({ arrows, edges: edgeMarks, seal: Object.freeze({ ready: sealReady, note: noteSeal, draw: drawSeal }) });
+    /** Past the visible part on the right (half a cell short of limit): edgeMarks stands the door's mark at the edge instead. */
+    const beyond = (x, limit, p) => x > limit - Math.round(p.tileW * 0.5);
+    /** Whether an open door's own mark would sit under the log or chat window. Its mark then stands at the window's edge
+     * (edgeMarks), so the door's own one is not drawn: it showed through the window, its 다음 방 label over the window's head
+     * (2026-10-18 first minutes at 1536x864). */
+    function underFrame(p, row) {
+        const width = typeof lastBattlefieldCanvasSize === 'object' && lastBattlefieldCanvasSize ? lastBattlefieldCanvasSize.width : 0;
+        const at = width > 0 && !row.locked ? p.cellToScreen(row.door.cell.gx, row.door.cell.gy) : null;
+        return !!at && at.x >= 0 && beyond(at.x, shownUntil(at.y, width), p);
+    }
+    return Object.freeze({ arrows, edges: edgeMarks, underFrame, seal: Object.freeze({ ready: sealReady, note: noteSeal, draw: drawSeal }) });
 })();
 safeExposeGlobals({ stageDoorMarks });

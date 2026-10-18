@@ -147,7 +147,7 @@ const stageRoomsView = (() => {
         const sideways = row.door.side === 'west' || row.door.side === 'east';
         ctx.save();
         if (!look.kit) stageDoorMarks.seal.draw(ctx, look.run, row, { x: box.cx, y: box.cy + box.h / 2, dot });
-        if (!row.locked && !(look.kit && sideways)) stageDoorMarks.arrows(ctx, box, row.door, { dot });
+        if (!row.locked && !(look.kit && sideways) && !stageDoorMarks.underFrame(p, row)) stageDoorMarks.arrows(ctx, box, row.door, { dot });
         ctx.restore();
     }
 
