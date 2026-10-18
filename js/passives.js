@@ -2918,7 +2918,7 @@ function applyVoidPassiveCurrency(nodeId, currencyKey) {
     if (!node || node.kind !== 'void') return addLog('공허 패시브에만 사용할 수 있습니다.', 'attack-monster');
     if (!(game.passives || []).includes(node.id)) return addLog('먼저 공허 패시브를 활성화해야 합니다.', 'attack-monster');
     if (!['magicBud', 'fairyRing', 'goldenRule'].includes(currencyKey)) return addLog('공허 패시브에는 마법의 새싹, 요정의 고리, 황금률만 사용할 수 있습니다.', 'attack-monster');
-    if ((game.currencies[currencyKey] || 0) <= 0) return addLog('오브가 부족합니다.', 'attack-monster');
+    if ((game.currencies[currencyKey] || 0) <= 0) return addLog('재화가 부족합니다.', 'attack-monster');
     let entry = getVoidPassiveCraft(node.id);
     if (currencyKey === 'fairyRing') {
         const outcome = rollFairyRingOnCraftedVoid(entry, node.id);
@@ -3432,11 +3432,11 @@ const SEA_GIFT_RECIPES = [
     { id: 'purifyingOffering', desc: '【장비 강화: 계열 재굴림 1줄】 발광 송어를 바쳐 원하는 계열의 기존 옵션 한 줄만 다시 굴립니다(다른 줄 보존, 등급 보정 없음).', requires: { glowfinTrout: 4, shallowSilverfin: 3 }, effect: { type: 'taggedReroll' } },
     { id: 'abyssalGift', desc: '【장비 강화: 확정 옵션 부여】 심연 등불고기를 제물로 바쳐 장비에 옵션 한 줄을 확정으로 부여합니다.', requires: { abyssAngler: 4, tidalEel: 3 }, effect: { type: 'guaranteedMod' } },
     // --- 무작위 제작 재화 레시피 (SEA_GIFT_RANDOM_ORB_KEYS: 마법의 새싹, 수액 봉오리, 형체 없는 이슬, 황금률, 축복의 꽃잎, 잿불가지, 전정 가위 중 1개) ---
-    { id: 'tidalFortune', desc: '【재화 획득: 무작위 제작 오브 ×1】 조류 장어와 은빛 비늘치 더미에서 흘러나온 마력을 정제해 무작위 제작 오브 1개를 얻습니다.', requires: { tidalEel: 3, shallowSilverfin: 3 }, effect: { type: 'randomCurrency', amount: 1 } },
-    { id: 'glowingFortune', desc: '【재화 획득: 무작위 제작 오브 ×1】 발광 송어의 빛을 응축해 무작위 제작 오브 1개를 얻습니다.', requires: { glowfinTrout: 3, tidalEel: 2 }, effect: { type: 'randomCurrency', amount: 1 } },
-    { id: 'abyssalCache', desc: '【재화 획득: 무작위 제작 오브 ×2】 심연 등불고기와 발광 송어로 봉인된 보물함을 열어 무작위 제작 오브 2개를 얻습니다.', requires: { abyssAngler: 2, glowfinTrout: 2 }, effect: { type: 'randomCurrency', amount: 2 } },
-    { id: 'tidelordCache', desc: '【재화 획득: 무작위 제작 오브 ×2】 해류군주 비단잉어의 비늘로 만든 함에서 무작위 제작 오브 2개를 얻습니다.', requires: { tidelordKoi: 1, abyssAngler: 2, shallowSilverfin: 4 }, effect: { type: 'randomCurrency', amount: 2 } },
-    { id: 'leviathanCache', desc: '【재화 획득: 무작위 제작 오브 ×3】 리바이어던 본체와 무지갯빛 공포의 잔재로 채워진 최상급 보물함에서 무작위 제작 오브 3개를 얻습니다.', requires: { kingLeviathan: 1, prismaticHorror: 1, abyssAngler: 2 }, effect: { type: 'randomCurrency', amount: 3 } },
+    { id: 'tidalFortune', desc: '【재화 획득: 무작위 제작 재화 ×1】 조류 장어와 은빛 비늘치 더미에서 흘러나온 마력을 정제해 무작위 제작 재화 1개를 얻습니다.', requires: { tidalEel: 3, shallowSilverfin: 3 }, effect: { type: 'randomCurrency', amount: 1 } },
+    { id: 'glowingFortune', desc: '【재화 획득: 무작위 제작 재화 ×1】 발광 송어의 빛을 응축해 무작위 제작 재화 1개를 얻습니다.', requires: { glowfinTrout: 3, tidalEel: 2 }, effect: { type: 'randomCurrency', amount: 1 } },
+    { id: 'abyssalCache', desc: '【재화 획득: 무작위 제작 재화 ×2】 심연 등불고기와 발광 송어로 봉인된 보물함을 열어 무작위 제작 재화 2개를 얻습니다.', requires: { abyssAngler: 2, glowfinTrout: 2 }, effect: { type: 'randomCurrency', amount: 2 } },
+    { id: 'tidelordCache', desc: '【재화 획득: 무작위 제작 재화 ×2】 해류군주 비단잉어의 비늘로 만든 함에서 무작위 제작 재화 2개를 얻습니다.', requires: { tidelordKoi: 1, abyssAngler: 2, shallowSilverfin: 4 }, effect: { type: 'randomCurrency', amount: 2 } },
+    { id: 'leviathanCache', desc: '【재화 획득: 무작위 제작 재화 ×3】 리바이어던 본체와 무지갯빛 공포의 잔재로 채워진 최상급 보물함에서 무작위 제작 재화 3개를 얻습니다.', requires: { kingLeviathan: 1, prismaticHorror: 1, abyssAngler: 2 }, effect: { type: 'randomCurrency', amount: 3 } },
     // --- 장비 옵션 가공 효과 (제련/옵션 조작 계열) ---
     { id: 'safeReroll', desc: '【장비 강화: 하락 없는 안전 재굴림】 발광 송어와 은빛 비늘치로 옵션 1줄을 다시 굴립니다. 결과가 기존보다 낮으면 적용되지 않고 원래 값이 유지됩니다.', requires: { glowfinTrout: 3, shallowSilverfin: 4 }, effect: { type: 'safeReroll' } },
     { id: 'twinCurrentReroll', desc: '【장비 강화: 무작위 옵션 2줄만 재굴림】 심연 등불고기와 조류 장어로 무작위로 고른 옵션 두 줄만 다시 굴립니다(나머지 줄은 보존, 형체 없는 이슬과 달리 전체 재굴림이 아닙니다).', requires: { abyssAngler: 3, tidalEel: 4 }, effect: { type: 'twinReroll' } },
@@ -3633,7 +3633,7 @@ function craftSeaGift(recipeId, targetItem, options) {
         for (let i = 0; i < count; i++) {
             let key = SEA_GIFT_RANDOM_ORB_KEYS[Math.floor(Math.random() * SEA_GIFT_RANDOM_ORB_KEYS.length)];
             awardCurrency(key, 1);
-            addLog(`🎲 무작위 제작 오브: ${(ORB_DB[key] || {}).name || key} +1`, 'loot-rare');
+            addLog(`🎲 무작위 제작 재화: ${(ORB_DB[key] || {}).name || key} +1`, 'loot-rare');
         }
     } else if (effect.type === 'safeReroll') {
         let rows = getSeaGiftRerollRows(item);
@@ -5227,7 +5227,7 @@ const TUTORIAL_GUIDES = {
     ],
     unlock_items: [
         { title: '장비와 제작', body: '획득한 장비를 비교/장착하고, 제작 재화로 옵션을 단계적으로 다듬는 콘텐츠입니다.', bullets: ['장비 등급: 일반 → 마법 → 희귀 → 고유', '기본 옵션과 추가 옵션은 서로 다른 역할을 합니다.', '아이템 필터와 자동 해체는 원치 않는 드랍을 정리합니다.'], tip: '처음에는 공격력 한 줄보다 생명력/방어/저항의 균형이 중요합니다.' },
-        { title: '오브 사용 순서', body: '오브마다 사용할 수 있는 장비 등급과 역할이 다릅니다.', bullets: ['진화/확장 계열로 일반/마법 장비를 성장시킵니다.', '변화 계열은 옵션을 다시 굴립니다.', '희귀 장비는 빈 옵션과 현재 티어를 확인한 뒤 투자합니다.'], tip: '좋은 베이스가 아닌 장비에 희귀 재화를 너무 일찍 쓰지 마세요.' },
+        { title: '제작 재화 사용 순서', body: '제작 재화마다 쓸 수 있는 장비 등급과 하는 일이 다릅니다.', bullets: ['마법의 새싹: 일반을 마법으로, 마법 옵션 다시 굴림', '수액 봉오리: 마법을 희귀로, 희귀에 옵션 1줄 추가', '형체 없는 이슬: 희귀 옵션을 모두 다시 굴림'], tip: '좋은 베이스가 아닌 장비에 희귀 재화를 너무 일찍 쓰지 마세요.' },
         { title: '드랍 연출 읽기', body: '좋은 아이템일수록 전장에서 더 강한 색과 빛기둥으로 표시됩니다.', bullets: ['파랑: 일반적인 획득', '금색/보라색 기둥: 희귀 재화 또는 희귀 장비', '굵고 긴 빛기둥: 고유 장비나 최상급 재화'], tip: '로그를 꺼도 중요한 드랍 연출은 계속 표시됩니다.' }
     ],
     unlock_skills: [
@@ -10511,7 +10511,6 @@ function getItemSalvagePreviewText(item, compact) {
         .filter(([, amount]) => amount > 0)
         .map(([key, amount]) => {
             let label = (ORB_DB[key] && ORB_DB[key].name) || key;
-            if (compact) label = label.replace('의 오브', '');
             return `${label} ${amount}`;
         });
     let chances = profile.chances
