@@ -124,6 +124,8 @@ data -> utils -> state/save -> domain(items/skills/passives/core-cube)
   검사하고, 실패 메시지가 고칠 곳을 알려 준다.
   찍거나 장착하기 전에 보여 줄 값(스킬트리, 전직, 상점 미리보기)은 `previewBuildStats(edit)`(`js/passives.js`)로 게임 사본에서 잰다.
   살아 있는 `game`의 빌드를 잠시 바꿨다 되돌리면 계산이 쓴 칸(`PLAYER_STAT_DERIVED_WRITES`)이 남을 수 있다.
+- 나무꾼 전투 중(`game.woodsmanBuildLock`)에는 장비, 가방, 룬 기록, 패시브가 매 틱 전투 전으로 돌아가고 재화는 그대로다
+  (`enforceWoodsmanBuildLock`). 값을 치르고 이것들을 바꾸는 동작은 잠금 중에 거절한다(제작은 `equipmentCrafting.buildLockReason`).
 
 새 함수는 원칙적으로 60줄, 중첩 깊이 3, 순환 복잡도 10, 매개변수 5개를 넘지 않는다. 새 소스 파일은
 500줄 이하를 권장한다. 기존 거대 파일을 수정할 때는 작업과 무관한 대규모 분리를 섞지 않되, 수정한
