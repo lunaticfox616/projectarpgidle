@@ -10212,6 +10212,9 @@ function grantBeyondBoundaryFocusedReward(result) {
     return { focusId: context.focus.id, intensityId: context.intensity.id, summary };
 }
 
+/** An encounter's end: the zone kind's own finish, else the zone clear once its kills are done, else the next encounter. Split by
+ * zone kind on 2026-10-18 (it was one function of complexity 258): the same steps, rolls and UI calls in the same order. The UI
+ * calls reach the parts through ui (addLog, updateStaticUI, checkUnlocks, the map reveal). */
 function finishEncounterRun() {
     let zone = getZone(game.currentZoneId);
     // 나무꾼의 잔상은 30초가 끝나야 끝난다. 방 단위 지도에서 허수아비가 먼저 쓰러져 지도가 비면 그 자리에서 기록하고 끝낸다.
@@ -10226,525 +10229,574 @@ function finishEncounterRun() {
     let mapAction = game.settings.mapCompleteAction;
     game.killsInZone++;
     if (zone.type === 'atlasMap') return atlasRun.finish(zone);
-
-    if (zone.type === 'beyondBoundary') {
-        let result = completeBeyondBoundaryEncounter(game);
-        if (!result.ok) return;
-        game.killsInZone = 0;
-        if (!result.completed) {
-            addLog(`경계 너머 ${result.tier}단계, ${result.wave}/${BEYOND_BOUNDARY_ENCOUNTERS_PER_TIER} 조우로 전진합니다.`, 'season-up');
-            startMoving(false);
-        } else {
-            let seal = BEYOND_BOUNDARY_SEAL_DB.find(row => row.id === result.sealId);
-            let levelText = result.sealResult.levelsGained > 0 ? `, 인장 ${result.sealResult.level}레벨` : '';
-            let focusedReward = grantBeyondBoundaryFocusedReward(result);
-            // 최대 레벨 인장은 경험치를 받지 못한다: "경험치 +N" 대신 그렇다고 적는다(2026-10-18).
-            let sealMaxed = !!seal && result.sealResult.levelsGained === 0 && result.sealResult.level >= seal.maxLevel;
-            let sealText = sealMaxed ? `${seal.name} 최대 레벨(경험치 없음)` : `${seal ? seal.name : '경계 인장'} 경험치 +${result.rewardXp}${levelText}`;
-            addLog(`경계 너머 ${result.tier}단계 돌파, ${sealText}, ${focusedReward.summary}`, 'loot-unique');
-            game.currentZoneId = result.returnZoneId !== null && result.returnZoneId !== undefined
-                ? result.returnZoneId : getAutoProgressZoneId(game.maxZoneId);
-            startMoving(false);
-        }
-        checkUnlocks();
-        updateStaticUI();
-        queueImportantSave(180);
-        return;
-    }
-
-    if (zone.type === 'meteor') {
-        grantMeteorEncounterRewards();
-        let st = ensureMeteorSiteState();
-        st.entriesCleared = (st.entriesCleared || 0) + 1;
-        st.activeMeteorTier = null;
-        clearWoodsmanBuildLock();
-        let returnZoneId = st.meteorReturnZoneId;
-        st.meteorReturnZoneId = null;
-        game.currentZoneId = returnZoneId !== undefined && returnZoneId !== null ? returnZoneId : getAutoProgressZoneId(game.maxZoneId);
-        game.killsInZone = 0;
-        startMoving(false);
-        updateStaticUI();
-        queueImportantSave(200);
-        return;
-    }
-
-    if (zone.type === 'outsideChaos') {
-        // outsideChaos는 현재 단일 보스(나무꾼) 클리어 전투이므로
-        // 완료 시점이면 보스 처치로 간주한다.
-        addWoodsmanPendingScore(1000000);
-        let realm = ensureChaosRealmState();
-        realm.woodsmanBestDamagePct = 100;
-        unlockJournalEntry('woodsman_echo');
-        maybeUnlockChaosRealmFromWoodsman({ isBoss: true, hp: 0, maxHp: 1 }, { finalize: true });
-        markLoopSpecialBossKill('woodsman_true');
-        addLog('🪓 나무꾼을 쓰러뜨렸습니다. 다음 경계가 열립니다.', 'loot-unique');
-        clearWoodsmanBuildLock();
-        game.currentZoneId = getAutoProgressZoneId(game.maxZoneId);
-        game.killsInZone = 0;
-        enterAutomaticMapInterruptionAfterClear(zone);
-        startMoving(false);
-        updateStaticUI();
-        queueImportantSave(220);
-        return;
-    }
-
-    if (zone.type === 'oceanDepth') {
-        // 잠수 중이 아니면(예: 강제 귀환 후 호출) 진행을 변경하지 않는다.
-        let oceanSt = ensureOceanState();
-        if (oceanSt.unlocked && oceanSt.diving) {
-            if (game.oceanBossRunPending) {
-                // 방금 클리어한 런은 500m 경계의 심해 가디언 전투였다 → 경계 통과 처리.
-                let pendingBoundary = getOceanPendingBossBoundary(oceanSt);
-                if (pendingBoundary > 0) {
-                    oceanSt.bossClearM = pendingBoundary;
-                    oceanSt.pressureLevel = getOceanDepthTier(oceanSt.depthM);
-                    awardCurrency('reefFragment', 3);
-                    addLog(`🌊 수심 ${pendingBoundary}m의 심해 가디언을 처치했습니다! 더 깊은 곳으로 길이 열립니다. (암초 조각 +3)`, 'loot-unique');
-                    if (pendingBoundary >= 500) unlockJournalEntry('ocean_500');
-                }
-                game.oceanBossRunPending = false;
-            } else {
-                advanceOceanDiveFromKill(zone);
-            }
-        }
-        game.currentZoneId = OCEAN_ZONE_ID;
-        game.killsInZone = 0;
-        startMoving(false);
-        updateStaticUI();
-        queueImportantSave(200);
-        return;
-    }
-
-    if (zone.type === 'chaosRealm') {
-        let st = ensureChaosRealmState();
-        let floor = Math.max(1, Math.floor(zone.floor || st.currentFloor || 1));
-        st.clearedFloors = Array.isArray(st.clearedFloors) ? st.clearedFloors : [];
-        let firstClear = !st.clearedFloors.includes(floor);
-        if (firstClear) {
-            st.clearedFloors.push(floor);
-            st.clearedFloors.sort((a, b) => a - b);
-            grantChaosRealmFloorBonus(floor);
-        }
-        st.highestFloor = Math.max(Math.floor(st.highestFloor || 1), floor + 1);
-        st.currentFloor = ['repeatZone', 'stop'].includes(mapAction) ? floor : Math.min(st.highestFloor, floor + 1);
-        addLog(`🌌 혼돈계 ${floor}층 돌파!`, 'season-up');
-        if (mapAction === 'nextLoopBestPlusOne') {
-            let nextZone = resolveNextLoopBestPlusOneZone(zone);
-            game.currentZoneId = nextZone !== null ? nextZone : CHAOS_REALM_ZONE_ID;
-        } else game.currentZoneId = CHAOS_REALM_ZONE_ID;
-        game.killsInZone = 0;
-        continueMapAfterClear(zone);
-        updateStaticUI();
-        queueImportantSave(220);
-        return;
-    }
-    if (zone.type === 'skyTower') {
-        let st = ensureSkyTowerState();
-        let floor = Math.max(1, Math.floor(zone.floor || st.currentFloor || 1));
-        game.loopProgressCurrent.bestSkyFloor = Math.max(game.loopProgressCurrent.bestSkyFloor || 0, floor);
-        let remainingBefore = getSkyTowerRemainingClears();
-        if (remainingBefore > 0) {
-            st.clearedFloors = Array.isArray(st.clearedFloors) ? st.clearedFloors : [];
-            let firstClear = !st.clearedFloors.includes(floor);
-            let reward = 0;
-            if (firstClear) {
-                reward = getSkyTowerRewardAmount(floor);
-                st.clearedFloors.push(floor);
-                st.clearedFloors = Array.from(new Set(st.clearedFloors.map(v => Math.floor(v || 0)).filter(v => v >= 1))).sort((a, b) => a - b);
-                st.highestFloor = Math.max(Math.floor(st.highestFloor || 1), floor + 1);
-                st.currentFloor = ['repeatZone', 'stop'].includes(mapAction) ? floor : Math.min(st.highestFloor, floor + 1);
-                if (floor >= 10) unlockJournalEntry('sky_tower_10');
-            } else {
-                if (Math.random() < 0.16) reward = Math.max(1, Math.floor(getSkyTowerRewardAmount(floor) * 0.35));
-                st.currentFloor = Math.max(1, Math.min(Math.floor(st.highestFloor || 1), floor));
-            }
-            if (reward > 0) st.condensedPower = Math.max(0, Math.floor(st.condensedPower || 0)) + reward;
-            st.clearedThisLoop = Math.min(getSkyTowerLoopClearLimit(), Math.max(0, Math.floor(st.clearedThisLoop || 0)) + 1);
-            let rewardText = firstClear
-                ? `최초 클리어 보상: 응축된 창공의 정수 +${reward}`
-                : (reward > 0 ? `반복 클리어 보상: 응축된 창공의 정수 +${reward}` : '반복 클리어: 응축된 창공의 정수 미발견');
-            addLog(`☁️ 창공의 탑 ${floor}층 돌파! ${rewardText}, 이번 루프 잔여 클리어 ${getSkyTowerRemainingClears()}/${getSkyTowerLoopClearLimit()}`, reward > 0 ? 'loot-unique' : 'season-up');
-        } else {
-            addLog(`☁️ 창공의 탑 ${floor}층 도전 완료. 이번 루프의 클리어 보상/진행 한도는 모두 사용했습니다.`, 'attack-monster');
-        }
-        game.killsInZone = 0;
-        game.currentZoneId = SKY_TOWER_ZONE_ID;
-        continueMapAfterClear(zone);
-        updateStaticUI();
-        queueImportantSave(220);
-        return;
-    }
-    if (zone.type === 'timeRift') {
-        let rift = ensureTimeRiftState();
-        if (zone.riftPhase === 'past') {
-            rift.altarOpen = true;
-            addLog(`⏳ 과거의 제단이 열렸습니다. (시간압 ${zone.pressure}) 시간의 균열에서 장비를 골라 같은 부위의 고유 1개/희귀 1개를 올리세요.`, 'loot-unique');
-        } else {
-            let fusion = typeof resolveTimeRiftFusion === 'function' ? resolveTimeRiftFusion() : null;
-            if (fusion) {
-                rift.fusionCount = Math.max(0, Math.floor(rift.fusionCount || 0)) + 1;
-                unlockJournalEntry('time_rift_fusion');
-                let gradeLabel = fusion.grade === 'perfect' ? '완벽한 융합' : (fusion.grade === 'normal' ? '보통 융합' : '불안정한 융합');
-                addLog(`⌛ ${gradeLabel}! [${fusion.fused.name}]이(가) 억겁의 시간을 건너 돌아왔습니다. (계승한 추가 옵션 ${fusion.inherited}개${fusion.lost > 0 ? `, ${fusion.lost}개 유실` : ', 유실 없음'})`, 'loot-unique');
-            }
-        }
-        rift.activePressure = null;
-        game.currentZoneId = getAutoProgressZoneId(game.maxZoneId);
-        game.killsInZone = 0;
-        continueMapAfterClear(zone);
-        updateStaticUI();
-        queueImportantSave(220);
-        return;
-    }
-    if (zone.type === 'trial' && zone.bloomTrial) {
-        // 보스를 실제로 처치하지 않았는데 런이 완료 처리된 경우(예: 보스 미스폰/즉시 제거 등)에는
-        // 개화를 인정하지 않고 전투를 다시 구성한다. 보스를 잡아야만 재능 개화가 완료된다.
-        if (!game.bloomBossDefeated) {
-            addLog('❄️ 개화 미궁의 수호자를 아직 쓰러뜨리지 못했습니다. 전투를 다시 구성합니다.', 'attack-monster', { noToast: true });
-            startEncounterRun();
-            return;
-        }
-        handleTalentBloomClear(zone);
-        return;
-    }
-    if (zone.type === 'trial') {
-        let isFirstClear = !game.completedTrials.includes(zone.id);
-        if (isFirstClear) game.completedTrials.push(zone.id);
-        if (Math.random() < getTrialSkillGemRewardChance(zone, isFirstClear)) grantGuaranteedTrialSkillGem();
-        if (isFirstClear) {
-            game.ascendKeystonePoints = Math.max(0, Math.floor(game.ascendKeystonePoints || 0)) + 1;
-            addLog(`💠 키스톤 포인트 +1 (현재 ${game.ascendKeystonePoints})`, 'loot-unique');
-        }
-        if (zone.id === 'trial_4') {
-            game.ascendPoints += isFirstClear ? 1 : 0;
-            if (isFirstClear) {
-                game.ascendRank = Math.max(game.ascendRank || 0, 4);
-                addLog(`👑 [${zone.name}] 통과! 4차 전직 핵심 노드 선택권 +1 획득!`, "loot-unique");
-            }
-        } else {
-            if (isFirstClear) game.ascendPoints += 2;
-            game.ascendRank = Math.max(game.ascendRank || 0, zone.id === 'trial_3' ? 3 : (zone.id === 'trial_2' ? 2 : 1));
-        }
-        if (!game.unlocks.traits) game.unlocks.traits = true;
-        game.noti.traits = true;
-        if (zone.id === 'trial_1' && isFirstClear) {
-            queueTutorialNotice('unlock_first_ascend', '1차 전직', '1차 전직 시련을 통과했습니다.\n‘스킬트리 → 전직’에서 전직을 고르고 전직 노드를 활성화하세요.', 'tab-traits');
-        }
-        checkUnlocks();
-        if (zone.id !== 'trial_4') {
-            if (isFirstClear) addLog(`👑 [${zone.name}] 통과! 전직 포인트 2점 획득!`, "loot-unique");
-            else addLog(`🔁 [${zone.name}] 재도전 완료 (전직 포인트 보상 없음)`, "attack-monster", { noToast: true });
-        }
-        game.currentZoneId = getAutoProgressZoneId(game.maxZoneId);
-        game.killsInZone = 0;
-        game.inTicketBossFight = false;
-        enterAutomaticMapInterruptionAfterClear(zone);
-        startMoving(false);
-        updateStaticUI();
-        queueImportantSave(200);
-        return;
-    }
-    if (zone.type === 'seasonBoss') {
-        let firstRootBossClear = !(game.clearedRootBosses || []).includes(zone.id);
-        game.clearedRootBosses = Array.isArray(game.clearedRootBosses) ? game.clearedRootBosses : [];
-        if (firstRootBossClear) game.clearedRootBosses.push(zone.id);
-        if (zone.rivalBlade) {
-            markLoopSpecialBossKill(zone.id);
-            if (zone.journalId && firstRootBossClear && typeof unlockJournalEntry === 'function') unlockJournalEntry(zone.journalId);
-            if (zone.capstoneRival) addLog('🗡️ 완성작이 무릎 꿇었습니다. 버려진 날이 벼려진 날을 이겼습니다.', 'loot-unique');
-            else {
-                let killedRivals = (game.loopProgressCurrent && Array.isArray(game.loopProgressCurrent.specialBosses)) ? game.loopProgressCurrent.specialBosses : [];
-                let remaining = SEASON_BOSS_ZONES.filter(rival => rival.rivalBlade && !rival.capstoneRival && !killedRivals.includes(rival.id)).length;
-                if (remaining > 0) addLog(`🗡️ 버려진 날 격파! 이번 루프에 남은 날: ${remaining}개 (모두 꺾으면 「완성작」이 나타납니다)`, 'season-up');
-                else addLog('🗡️ 다섯 날이 모두 꺾였습니다. 「일곱 번째 날 - 완성작」이 결투를 기다립니다.', 'loot-unique');
-            }
-        }
-        if (zone.milestonePinnacle) {
-            grantMilestonePinnacleClearRewards(zone, firstRootBossClear);
-        } else if (zone.cosmosCapstone) {
-            if (zone.journalId && firstRootBossClear && typeof unlockJournalEntry === 'function') unlockJournalEntry(zone.journalId);
-            addLog('🌌 잔향체가 흩어졌습니다. 다섯 별의 메아리가 마침내 잠잠해집니다.', 'loot-unique');
-            awardCurrency(zone.reward || 'goldenRule', 2, 'drop');
-            rollCosmosAstraUniqueDrop(zone);
-        } else {
-            let grantsClearCurrency = zone.capstoneRival ? firstRootBossClear : Math.random() < 0.5;
-            if (grantsClearCurrency) awardCurrency(zone.reward || 'bossCore', 1, 'drop');
-            if (Math.random() < 0.4) {
-                let bossUnique = generateUniqueItem(zone.tier || 12);
-                addItemToInventory(bossUnique);
-                addLog(`👑 [${bossUnique.name}] 획득!`, 'loot-unique', { item:bossUnique });
-            }
-        }
-        addLog(`🗝️ [${zone.name}] 토벌 완료!`, 'loot-unique');
-        let shouldRepeat = !!game.autoRepeatSeasonBoss && !zone.milestonePinnacle;
-        let keyLeft = zone.key ? game.currencies[zone.key] || 0 : 0;
-        if (shouldRepeat && keyLeft > 0) {
-            game.currencies[zone.key]--;
-            game.currentZoneId = zone.id;
-            game.killsInZone = 0;
-            game.inTicketBossFight = true;
-            addLog(`🔁 입장권 1개 소모, [${zone.name}] 자동 재도전 시작! (남은 열쇠 ${game.currencies[zone.key] || 0})`, 'season-up');
-            startMoving(true);
-        } else {
-            if (shouldRepeat && keyLeft <= 0) addLog('🔁 반복 도전이 켜져 있지만 입장권이 없어 자동 재도전을 중단합니다.', 'attack-monster');
-            game.currentZoneId = getAutoProgressZoneId(game.maxZoneId);
-            game.killsInZone = 0;
-            game.inTicketBossFight = false;
-            enterAutomaticMapInterruptionAfterClear(zone);
-            startMoving(false);
-        }
-        checkUnlocks();
-        updateStaticUI();
-        queueImportantSave(200);
-        return;
-    }
-    if (zone.type === 'labyrinth') {
-        let clearedFloor = Math.max(1, Math.floor(game.labyrinthFloor || zone.floor || 1));
-        if (clearedFloor >= 10) unlockJournalEntry('labyrinth_10');
-        game.labyrinthUnlockedMaxFloor = Math.max(game.labyrinthUnlockedMaxFloor || 1, clearedFloor + 1);
-        game.labyrinthFloor = ['repeatZone', 'stop'].includes(mapAction) ? clearedFloor : clearedFloor + 1;
-        let fossilDropMul = contentProgression.isUnlocked('fossil') ? 1 : 0;
-        let fossilRareMul = fossilDropMul;
-        let fossilChances = getLabyrinthFossilDropChances(clearedFloor, fossilDropMul, fossilRareMul);
-        let gotBaseFossil = Math.random() < fossilChances.base;
-        if (gotBaseFossil) awardCurrency('fossil', 1);
-        let fossilDropPool = FOSSIL_DB.filter(fossil => !fossil.ancientPrimalOnly);
-        let rolledFossil = rndChoice(fossilDropPool);
-        let gotTypedFossil = Math.random() < fossilChances.typed;
-        if (gotTypedFossil) awardCurrency(rolledFossil.key, 1);
-        let primalFossils = contentProgression.isUnlocked('fossilRestore');
-        let gotPrimalFossil = primalFossils && Math.random() < fossilChances.primal;
-        let gotAncientPrimalFossil = primalFossils && Math.random() < fossilChances.ancient;
-        if (gotPrimalFossil) awardCurrency('fossilPrimal', 1);
-        if (gotAncientPrimalFossil) awardCurrency('fossilAncientPrimal', 1);
-        if (Math.random() < fossilChances.abyssal) {
-            awardCurrency('fossilAbyssal', 1);
-            addLog('🌌 희귀 화석 [심연 화석]을 발견했습니다!', 'loot-unique');
-        }
-        if ((game.season || 1) >= 6 && Math.random() < 0.025) awardCurrency('sealShard', 1, 'drop');
-        if ((game.season || 1) >= 6 && Math.random() < 0.0075) awardCurrency('strongSealShard', 1, 'drop');
-        if ((game.season || 1) >= 6 && clearedFloor >= 30 && Math.random() < 0.0016) awardCurrency('radiantSealShard', 1, 'drop');
-        let fossilSummary = [];
-        if (gotBaseFossil) fossilSummary.push('기본 화석 +1');
-        if (gotTypedFossil) fossilSummary.push(`${rolledFossil.name} +1`);
-        if (gotPrimalFossil) fossilSummary.push('원시 화석 +1');
-        if (gotAncientPrimalFossil) fossilSummary.push('원시 고대 화석 +1');
-        addLog(`🏛️ 미궁 ${clearedFloor}층 돌파! [${fossilSummary.join(' / ') || '화석 없음'}]`, 'season-up');
-        if (mapAction === 'nextLoopBestPlusOne') {
-            let nextZone = resolveNextLoopBestPlusOneZone(zone);
-            if (nextZone !== null) game.currentZoneId = nextZone;
-        }
-        game.killsInZone = 0;
-        continueMapAfterClear(zone);
-        updateStaticUI();
-        queueImportantSave(200);
-        return;
-    }
-    if (zone.type === 'underworld') {
-        let uw = (game.underworldProgress && typeof game.underworldProgress === 'object') ? game.underworldProgress : { highestFloor: 1, currentFloor: 1 };
-        game.underworldProgress = uw;
-        let floor = Math.max(1, Math.floor(zone.floor || uw.currentFloor || 1));
-        game.loopProgressCurrent.bestUnderworldFloor = Math.max(game.loopProgressCurrent.bestUnderworldFloor || 0, floor);
-        uw.highestFloor = Math.max(Math.floor(uw.highestFloor || 1), floor + 1);
-        uw.currentFloor = ['repeatZone', 'stop'].includes(mapAction) ? floor : Math.min(uw.highestFloor, floor + 1);
-        if (floor >= 10) uw.floor10Cleared = true;
-        if (!game.underworldRunes || typeof game.underworldRunes !== 'object') game.underworldRunes = { unlockedSlots: 0, unlockedRunesMaxNumber: 0, obtainedRunes: [] };
-        grantUnderworldFloorMilestone(floor, uw);
-        addLog(`🕳️ 지하계 ${floor}층 돌파! ${uw.highestFloor}층까지 하강 가능합니다.`, 'season-up');
-        game.killsInZone = 0;
-        if (mapAction === 'repeatZone') game.currentZoneId = UNDERWORLD_ZONE_ID;
-        else if (mapAction === 'nextLoopBestPlusOne') {
-            let nextZone = resolveNextLoopBestPlusOneZone(zone);
-            game.currentZoneId = nextZone !== null ? nextZone : UNDERWORLD_ZONE_ID;
-        } else game.currentZoneId = UNDERWORLD_ZONE_ID;
-        continueMapAfterClear(zone);
-        updateStaticUI();
-        queueImportantSave(220);
-        return;
-    }
-    if (zone.type === 'cosmos') {
-        if (typeof window.exploreSelectedCosmosNode === 'function') {
-            window.exploreSelectedCosmosNode(zone.cosmosNodeId || null);
-        }
-        if (typeof window.continueCosmosChallengeAfterClear === 'function'
-            && window.continueCosmosChallengeAfterClear(mapAction)) {
-            updateStaticUI();
-            queueImportantSave(200);
-            return;
-        }
-        if (game.cosmosAtlas && typeof game.cosmosAtlas === 'object') game.cosmosAtlas.activeChallenge = null;
-        game.currentZoneId = getAutoProgressZoneId(game.maxZoneId);
-        game.killsInZone = 0;
-        if (mapAction === 'stop') game.combatHalted = true;
-        enterAutomaticMapInterruptionAfterClear(zone);
-        if (mapAction !== 'stop') startMoving(false);
-        updateStaticUI();
-        queueImportantSave(200);
-        return;
-    }
-
-    if (game.killsInZone >= zone.maxKills) {
-        if (zone.type === 'abyss') {
-            let depth = Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1));
-            if (depth === 5 && !game.woodsmanSimulatorSeenLoop) {
-                game.woodsmanSimulatorSeenLoop = true;
-                game.chaosInfuserUnlocked = true;
-                unlockJournalEntry('woodsman');
-                queueTutorialNotice('woodsman_simulator_loop', '나무꾼의 시뮬레이터', '“다음은 더 나은 세계를 바라지.”\n정체를 드러낸 존재는 진짜 나무꾼이 아닌 시뮬레이터였다.\n더 깊은 혼돈을 돌파해야 루프가 열린다.', 'tab-season');
-            }
-            let capDepth = 20;
-            game.abyssClearedDepths = Array.isArray(game.abyssClearedDepths) ? game.abyssClearedDepths : [];
-            if (depth <= capDepth && !game.abyssClearedDepths.includes(depth)) {
-                game.abyssClearedDepths.push(depth);
-            }
-            ensureNextEndlessChaosDepthUnlocked(depth);
-            if (depth >= 20) {
-                game.loopProgressCurrent = game.loopProgressCurrent || { specialBosses: [], chaos20Cleared: false, bestAbyssDepth: 0, bestLabyrinthFloor: 0, bestChaosRealmFloor: 0, cosmosPlanets: [] };
-                game.loopProgressCurrent.chaos20Cleared = true;
-                onChaos20Cleared();
-            }
-        }
-        if (zone.type === 'act' && zone.id <= 9) markActRewardReady(zone.id);
-        // 전적: 이번 루프 시작 기준 액트 돌파 경과 시간(루프당 첫 돌파만).
-        if (zone.type === 'act' && typeof recordActClear === 'function') recordActClear(zone.id);
-        if (zone.type === 'act') {
-            let storyAct = getStoryActByZoneId(zone.id);
-            if (storyAct && storyAct.clearText) addLog(`📜 ${storyAct.clearText}`, 'season-up');
-            if (zone.id === 0) unlockJournalEntry('act_1');
-            if (zone.id === 1) unlockJournalEntry('act_2');
-            if (zone.id === 2) {
-                unlockJournalEntry('act_3');
-                // 클리어 후 정지·방치 정산에서도 다음 화면 갱신을 기다리지 않고 전술을 연다.
-                contentUnlockUi.syncOpened();
-            }
-            if (zone.id === 3) unlockJournalEntry('act_4');
-            if (zone.id === 4) unlockJournalEntry('act_5');
-            if (zone.id === 5) unlockJournalEntry('act_6');
-            if (zone.id === 6) unlockJournalEntry('act_7');
-            if (zone.id === 7) unlockJournalEntry('act_8');
-            if (zone.id === 8) unlockJournalEntry('act_9');
-            if (zone.id === 9) unlockJournalEntry('act_10');
-            if (zone.id === 9 && Math.max(0, Math.floor(game.loopDeaths || 0)) <= 0) unlockJournalEntry('immortal');
-        }
-        let clearedAbyssDepth = zone.type === 'abyss' ? Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1)) : 0;
-        let clearedSeasonFinalZone = zone.id === getCurrentSeasonFinalZoneId() || (zone.type === 'abyss' && clearedAbyssDepth >= getSeasonAbyssDepthCap(game.season || 1));
-        if (clearedSeasonFinalZone) {
-            if ((game.season || 1) >= 10 && zone.type === 'abyss') {
-                let depth = Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1));
-                game.abyssUnlockedDepths = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths : [20];
-                // 깬 층이 곧 지금 층이다(2026-10-11): 예전에는 21층부터 지난 루프의 기록(game.abyssEndlessDepth)과 견줘 더 큰 쪽을
-                // 써서, 루프 조건 층을 깨면 다음 층이 아니라 기록한 최고 층의 다음으로 뛰었다.
-                let nowEndless = Math.max(20, depth);
-                ensureNextEndlessChaosDepthUnlocked(nowEndless);
-                // Chaos 20 is the entrance to deep chaos, so continuing after that clear must start at 21
-                // even if the save has a higher recorded deep-chaos floor from a previous loop.
-                // Setting this to the unlocked next depth would double-advance and skip a floor (e.g. 20 -> 22).
-                game.abyssEndlessDepth = nowEndless;
-                game.loopProgressCurrent = game.loopProgressCurrent || { specialBosses: [], chaos20Cleared: false, bestAbyssDepth: 0, bestLabyrinthFloor: 0, bestChaosRealmFloor: 0, cosmosPlanets: [] };
-                let seasonAbyssCap = getSeasonAbyssDepthCap(game.season || 1);
-                let bestAbyssDepthBeforeClear = Math.max(0, Math.floor(game.loopProgressCurrent.bestAbyssDepth || 0));
-                let hadCurrentSeasonLoopRequirementBeforeClear = seasonAbyssCap <= 20
-                    ? (typeof hasCurrentLoopChaos20Clear === 'function' ? hasCurrentLoopChaos20Clear() : !!game.loopProgressCurrent.chaos20Cleared)
-                    : bestAbyssDepthBeforeClear >= seasonAbyssCap;
-                if (depth >= 20) game.loopProgressCurrent.bestAbyssDepth = Math.max(bestAbyssDepthBeforeClear, depth);
-                game.loopProgressCurrent.chaos20Cleared = true;
-                onChaos20Cleared();
-                if (mapAction === 'repeatZone') {
-                    game.currentZoneId = zone.id;
-                    game.killsInZone = 0;
-                    enterAutomaticMapInterruptionAfterClear(zone);
-                    checkUnlocks();
-                    if ((game.settings.townReturnAction || 'retry') === 'stop') {
-                        game.combatHalted = true;
-                        game.enemies = [];
-                        game.encounterPlan = [];
-                        game.encounterIndex = 0;
-                        game.runProgress = 0;
-                    } else startMoving(false);
-                    updateStaticUI();
-                    queueImportantSave(220);
-                    return;
-                }
-                if (mapAction === 'nextLoopBestPlusOne' || (depth >= 21 && hadCurrentSeasonLoopRequirementBeforeClear)) {
-                    enterNextEndlessChaosDepth();
-                    return;
-                }
-                if (mapAction === 'repeatZone') {
-                    game.currentZoneId = zone.id;
-                    game.killsInZone = 0;
-                    startMoving(false);
-                    updateStaticUI();
-                    queueImportantSave(220);
-                    return;
-                }
-                handleSeasonLoopConditionMet();
-                return;
-            }
-            handleSeasonLoopConditionMet();
-            return;
-        }
-        if (zone.type === 'abyss' && !game.unlockedTrials.includes('trial_3')) {
-            let shouldUnlockTrial3 = zone.name === '혼돈 5' || Math.random() < 0.15;
-            if (shouldUnlockTrial3) {
-                game.unlockedTrials.push('trial_3');
-                game.noti.map = true;
-                addLog(zone.name === '혼돈 5' ? "✨ [시련의 증표] 혼돈 5 보스 확정 드랍! 3차 전직 시련 개방!" : "✨ [시련의 증표] 획득! 3차 전직 시련 개방!", "loot-unique");
-            }
-        }
-        // 다음 지역 해금은 "지금 막 클리어한 존"을 기준으로 보정한다.
-        // 특히 혼돈 구간은 반복/자동화 상태와 무관하게 N 클리어 시 N+1이 열려야 하므로
-        // targetUnlockZone을 직접 계산해 누락을 방지한다.
-        let targetUnlockZone = Math.min(getCurrentSeasonFinalZoneId(), zone.id + 1);
-        // 이미 열려 있는 이전 구역 반복 클리어로 프론티어를 우회 해금하지 않도록
-        // "현재 프론티어(=maxZoneId) 이상 구역을 클리어했을 때만" 다음 구역을 연다.
-        let clearedAtFrontier = zone.id >= game.maxZoneId;
-        if (clearedAtFrontier && game.maxZoneId < targetUnlockZone) {
-            game.maxZoneId = targetUnlockZone;
-            game.noti.map = true;
-            triggerMapUnlockReveal(game.maxZoneId);
-            let clearedStoryAct = getStoryActByZoneId(zone.id);
-            if (clearedStoryAct && clearedStoryAct.unlockText) addLog(`🧭 ${clearedStoryAct.unlockText}`, 'season-up');
-            let unlockedZone = getZone(game.maxZoneId);
-            addLog(`🗺️ 신규 사냥터 [${unlockedZone ? unlockedZone.name : ('구역 ' + game.maxZoneId)}] 개방!`, "season-up");
-            noteCampaignResistPenalty(game.maxZoneId);
-        }
-        game.killsInZone = 0;
-        game.loopProgressCurrent = game.loopProgressCurrent || { specialBosses: [], chaos20Cleared: false, bestAbyssDepth: 0, bestLabyrinthFloor: 0, bestChaosRealmFloor: 0, cosmosPlanets: [] };
-        if (zone.type === 'abyss') {
-            let d = Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1));
-            if (d >= 20) game.loopProgressCurrent.bestAbyssDepth = Math.max(Math.floor(game.loopProgressCurrent.bestAbyssDepth || 0), d);
-        }
-        if (zone.type === 'labyrinth') game.loopProgressCurrent.bestLabyrinthFloor = Math.max(Math.floor(game.loopProgressCurrent.bestLabyrinthFloor || 0), Math.max(1, Math.floor(game.labyrinthFloor || zone.floor || 1)));
-        if (zone.type === 'chaosRealm') game.loopProgressCurrent.bestChaosRealmFloor = Math.max(Math.floor(game.loopProgressCurrent.bestChaosRealmFloor || 0), Math.max(1, Math.floor(zone.floor || (ensureChaosRealmState().currentFloor || 1))));
-        if (game.beehive && game.beehive.inRun) mapAction = 'repeatZone';
-        if (mapAction === 'repeatZone') game.currentZoneId = zone.id;
-        else if (mapAction === 'nextLoopBestPlusOne') {
-            let nextZone = resolveNextLoopBestPlusOneZone(zone);
-            game.currentZoneId = nextZone !== null ? nextZone : getAutoProgressZoneId(Math.max(game.currentZoneId, game.maxZoneId));
-        }
-        else if (mapAction === 'stop') {
-            actExplorationProgress.stopAfterCompletion(game);
-            updateStaticUI();
-            queueImportantSave(180);
-            return;
-        } else if (!holdActRetreat(zone)) game.currentZoneId = getAutoProgressZoneId(Math.max(game.currentZoneId, game.maxZoneId));
-        if(actExplorationProgress.deferDeparture(game)) {
-            checkUnlocks();updateStaticUI();queueImportantSave(220);return;
-        }
-        actExplorationProgress.reconcileDeparture(game);
-        enterAutomaticMapInterruptionAfterClear(zone);
-        checkUnlocks();
-        if ((game.settings.townReturnAction || 'retry') === 'stop') {
-            actExplorationProgress.stopAfterCompletion(game);
-        } else startMoving(false);
-        updateStaticUI();
-        queueImportantSave(220);
-        return;
-    }
+    // The map reveal is looked up only when a zone opens (it lives in the passive tree canvas script, which some runs lack).
+    const ui = { say: addLog, redraw: updateStaticUI, unlocks: checkUnlocks, get reveal() { return triggerMapUnlockReveal; } };
+    const finishKind = ENCOUNTER_FINISH_BY_KIND[zone.type];
+    if (finishKind) return finishKind(zone, mapAction, ui);
+    if (game.killsInZone >= zone.maxKills) return finishZoneClear(zone, mapAction, ui);
     // 구역 maxKills 미달성 시 — 다음 encounter 진행
     checkUnlocks();
     startMoving(false);
     updateStaticUI();
+}
+
+/** This loop's progress record, made when missing. */
+function ensureLoopProgressCurrent() {
+    game.loopProgressCurrent = game.loopProgressCurrent || { specialBosses: [], chaos20Cleared: false, bestAbyssDepth: 0, bestLabyrinthFloor: 0, bestChaosRealmFloor: 0, cosmosPlanets: [] };
+    return game.loopProgressCurrent;
+}
+/** With the next-best-floor map action: the zone it resolves to, else fallback. */
+function nextBestZoneOr(zone, fallback) {
+    let nextZone = resolveNextLoopBestPlusOneZone(zone);
+    return nextZone !== null ? nextZone : fallback;
+}
+
+function finishBeyondBoundaryEncounter(zone, mapAction, ui) {
+    let result = completeBeyondBoundaryEncounter(game);
+    if (!result.ok) return;
+    game.killsInZone = 0;
+    if (!result.completed) {
+        ui.say(`경계 너머 ${result.tier}단계, ${result.wave}/${BEYOND_BOUNDARY_ENCOUNTERS_PER_TIER} 조우로 전진합니다.`, 'season-up');
+        startMoving(false);
+    } else finishBeyondBoundaryTier(result, ui);
+    ui.unlocks();
+    ui.redraw();
+    queueImportantSave(180);
+}
+/** A boundary tier broken: the seal's experience (or that it is at its max level), the focused reward, back to the zone it left. */
+function finishBeyondBoundaryTier(result, ui) {
+    let seal = BEYOND_BOUNDARY_SEAL_DB.find(row => row.id === result.sealId);
+    let levelText = result.sealResult.levelsGained > 0 ? `, 인장 ${result.sealResult.level}레벨` : '';
+    let focusedReward = grantBeyondBoundaryFocusedReward(result);
+    // 최대 레벨 인장은 경험치를 받지 못한다: "경험치 +N" 대신 그렇다고 적는다(2026-10-18).
+    let sealMaxed = !!seal && result.sealResult.levelsGained === 0 && result.sealResult.level >= seal.maxLevel;
+    let sealText = sealMaxed ? `${seal.name} 최대 레벨(경험치 없음)` : `${seal ? seal.name : '경계 인장'} 경험치 +${result.rewardXp}${levelText}`;
+    ui.say(`경계 너머 ${result.tier}단계 돌파, ${sealText}, ${focusedReward.summary}`, 'loot-unique');
+    game.currentZoneId = result.returnZoneId !== null && result.returnZoneId !== undefined
+        ? result.returnZoneId : getAutoProgressZoneId(game.maxZoneId);
+    startMoving(false);
+}
+
+function finishMeteorEncounter(zone, mapAction, ui) {
+    grantMeteorEncounterRewards();
+    let st = ensureMeteorSiteState();
+    st.entriesCleared = (st.entriesCleared || 0) + 1;
+    st.activeMeteorTier = null;
+    clearWoodsmanBuildLock();
+    let returnZoneId = st.meteorReturnZoneId;
+    st.meteorReturnZoneId = null;
+    game.currentZoneId = returnZoneId !== undefined && returnZoneId !== null ? returnZoneId : getAutoProgressZoneId(game.maxZoneId);
+    game.killsInZone = 0;
+    startMoving(false);
+    ui.redraw();
+    queueImportantSave(200);
+}
+
+function finishOutsideChaosEncounter(zone, mapAction, ui) {
+    // outsideChaos는 현재 단일 보스(나무꾼) 클리어 전투이므로
+    // 완료 시점이면 보스 처치로 간주한다.
+    addWoodsmanPendingScore(1000000);
+    let realm = ensureChaosRealmState();
+    realm.woodsmanBestDamagePct = 100;
+    unlockJournalEntry('woodsman_echo');
+    maybeUnlockChaosRealmFromWoodsman({ isBoss: true, hp: 0, maxHp: 1 }, { finalize: true });
+    markLoopSpecialBossKill('woodsman_true');
+    ui.say('🪓 나무꾼을 쓰러뜨렸습니다. 다음 경계가 열립니다.', 'loot-unique');
+    clearWoodsmanBuildLock();
+    game.currentZoneId = getAutoProgressZoneId(game.maxZoneId);
+    game.killsInZone = 0;
+    enterAutomaticMapInterruptionAfterClear(zone);
+    startMoving(false);
+    ui.redraw();
+    queueImportantSave(220);
+}
+
+function finishOceanEncounter(zone, mapAction, ui) {
+    // 잠수 중이 아니면(예: 강제 귀환 후 호출) 진행을 변경하지 않는다.
+    let oceanSt = ensureOceanState();
+    if (oceanSt.unlocked && oceanSt.diving) advanceOceanAfterClear(zone, oceanSt, ui);
+    game.currentZoneId = OCEAN_ZONE_ID;
+    game.killsInZone = 0;
+    startMoving(false);
+    ui.redraw();
+    queueImportantSave(200);
+}
+function advanceOceanAfterClear(zone, oceanSt, ui) {
+    if (!game.oceanBossRunPending) return advanceOceanDiveFromKill(zone);
+    // 방금 클리어한 런은 500m 경계의 심해 가디언 전투였다 → 경계 통과 처리.
+    let pendingBoundary = getOceanPendingBossBoundary(oceanSt);
+    if (pendingBoundary > 0) {
+        oceanSt.bossClearM = pendingBoundary;
+        oceanSt.pressureLevel = getOceanDepthTier(oceanSt.depthM);
+        awardCurrency('reefFragment', 3);
+        ui.say(`🌊 수심 ${pendingBoundary}m의 심해 가디언을 처치했습니다! 더 깊은 곳으로 길이 열립니다. (암초 조각 +3)`, 'loot-unique');
+        if (pendingBoundary >= 500) unlockJournalEntry('ocean_500');
+    }
+    game.oceanBossRunPending = false;
+}
+
+function finishChaosRealmEncounter(zone, mapAction, ui) {
+    let st = ensureChaosRealmState();
+    let floor = Math.max(1, Math.floor(zone.floor || st.currentFloor || 1));
+    st.clearedFloors = Array.isArray(st.clearedFloors) ? st.clearedFloors : [];
+    let firstClear = !st.clearedFloors.includes(floor);
+    if (firstClear) {
+        st.clearedFloors.push(floor);
+        st.clearedFloors.sort((a, b) => a - b);
+        grantChaosRealmFloorBonus(floor);
+    }
+    st.highestFloor = Math.max(Math.floor(st.highestFloor || 1), floor + 1);
+    st.currentFloor = ['repeatZone', 'stop'].includes(mapAction) ? floor : Math.min(st.highestFloor, floor + 1);
+    ui.say(`🌌 혼돈계 ${floor}층 돌파!`, 'season-up');
+    game.currentZoneId = mapAction === 'nextLoopBestPlusOne' ? nextBestZoneOr(zone, CHAOS_REALM_ZONE_ID) : CHAOS_REALM_ZONE_ID;
+    game.killsInZone = 0;
+    continueMapAfterClear(zone);
+    ui.redraw();
+    queueImportantSave(220);
+}
+
+function finishSkyTowerEncounter(zone, mapAction, ui) {
+    let st = ensureSkyTowerState();
+    let floor = Math.max(1, Math.floor(zone.floor || st.currentFloor || 1));
+    game.loopProgressCurrent.bestSkyFloor = Math.max(game.loopProgressCurrent.bestSkyFloor || 0, floor);
+    let remainingBefore = getSkyTowerRemainingClears();
+    if (remainingBefore > 0) clearSkyTowerFloor(st, floor, mapAction, ui);
+    else ui.say(`☁️ 창공의 탑 ${floor}층 도전 완료. 이번 루프의 클리어 보상/진행 한도는 모두 사용했습니다.`, 'attack-monster');
+    game.killsInZone = 0;
+    game.currentZoneId = SKY_TOWER_ZONE_ID;
+    continueMapAfterClear(zone);
+    ui.redraw();
+    queueImportantSave(220);
+}
+/** A sky tower floor within this loop's clear limit: a first clear's reward and the next floor, else a 16% repeat reward. */
+function clearSkyTowerFloor(st, floor, mapAction, ui) {
+    st.clearedFloors = Array.isArray(st.clearedFloors) ? st.clearedFloors : [];
+    let firstClear = !st.clearedFloors.includes(floor);
+    let reward = firstClear ? firstSkyTowerClear(st, floor, mapAction) : repeatSkyTowerClear(st, floor);
+    if (reward > 0) st.condensedPower = Math.max(0, Math.floor(st.condensedPower || 0)) + reward;
+    st.clearedThisLoop = Math.min(getSkyTowerLoopClearLimit(), Math.max(0, Math.floor(st.clearedThisLoop || 0)) + 1);
+    let rewardText = firstClear
+        ? `최초 클리어 보상: 응축된 창공의 정수 +${reward}`
+        : (reward > 0 ? `반복 클리어 보상: 응축된 창공의 정수 +${reward}` : '반복 클리어: 응축된 창공의 정수 미발견');
+    ui.say(`☁️ 창공의 탑 ${floor}층 돌파! ${rewardText}, 이번 루프 잔여 클리어 ${getSkyTowerRemainingClears()}/${getSkyTowerLoopClearLimit()}`, reward > 0 ? 'loot-unique' : 'season-up');
+}
+function firstSkyTowerClear(st, floor, mapAction) {
+    let reward = getSkyTowerRewardAmount(floor);
+    st.clearedFloors.push(floor);
+    st.clearedFloors = Array.from(new Set(st.clearedFloors.map(v => Math.floor(v || 0)).filter(v => v >= 1))).sort((a, b) => a - b);
+    st.highestFloor = Math.max(Math.floor(st.highestFloor || 1), floor + 1);
+    st.currentFloor = ['repeatZone', 'stop'].includes(mapAction) ? floor : Math.min(st.highestFloor, floor + 1);
+    if (floor >= 10) unlockJournalEntry('sky_tower_10');
+    return reward;
+}
+function repeatSkyTowerClear(st, floor) {
+    let reward = 0;
+    if (Math.random() < 0.16) reward = Math.max(1, Math.floor(getSkyTowerRewardAmount(floor) * 0.35));
+    st.currentFloor = Math.max(1, Math.min(Math.floor(st.highestFloor || 1), floor));
+    return reward;
+}
+
+function finishTimeRiftEncounter(zone, mapAction, ui) {
+    let rift = ensureTimeRiftState();
+    if (zone.riftPhase === 'past') {
+        rift.altarOpen = true;
+        ui.say(`⏳ 과거의 제단이 열렸습니다. (시간압 ${zone.pressure}) 시간의 균열에서 장비를 골라 같은 부위의 고유 1개/희귀 1개를 올리세요.`, 'loot-unique');
+    } else finishTimeRiftFusion(rift, ui);
+    rift.activePressure = null;
+    game.currentZoneId = getAutoProgressZoneId(game.maxZoneId);
+    game.killsInZone = 0;
+    continueMapAfterClear(zone);
+    ui.redraw();
+    queueImportantSave(220);
+}
+function finishTimeRiftFusion(rift, ui) {
+    let fusion = typeof resolveTimeRiftFusion === 'function' ? resolveTimeRiftFusion() : null;
+    if (!fusion) return;
+    rift.fusionCount = Math.max(0, Math.floor(rift.fusionCount || 0)) + 1;
+    unlockJournalEntry('time_rift_fusion');
+    let gradeLabel = fusion.grade === 'perfect' ? '완벽한 융합' : (fusion.grade === 'normal' ? '보통 융합' : '불안정한 융합');
+    ui.say(`⌛ ${gradeLabel}! [${fusion.fused.name}]이(가) 억겁의 시간을 건너 돌아왔습니다. (계승한 추가 옵션 ${fusion.inherited}개${fusion.lost > 0 ? `, ${fusion.lost}개 유실` : ', 유실 없음'})`, 'loot-unique');
+}
+
+function finishTrialEncounter(zone, mapAction, ui) {
+    if (zone.bloomTrial) return finishBloomTrial(zone, ui);
+    let isFirstClear = !game.completedTrials.includes(zone.id);
+    if (isFirstClear) game.completedTrials.push(zone.id);
+    if (Math.random() < getTrialSkillGemRewardChance(zone, isFirstClear)) grantGuaranteedTrialSkillGem();
+    if (isFirstClear) grantTrialKeystonePoint(ui);
+    grantTrialAscendPoints(zone, isFirstClear, ui);
+    if (!game.unlocks.traits) game.unlocks.traits = true;
+    game.noti.traits = true;
+    if (zone.id === 'trial_1' && isFirstClear) {
+        queueTutorialNotice('unlock_first_ascend', '1차 전직', '1차 전직 시련을 통과했습니다.\n‘스킬트리 → 전직’에서 전직을 고르고 전직 노드를 활성화하세요.', 'tab-traits');
+    }
+    ui.unlocks();
+    if (zone.id !== 'trial_4') {
+        if (isFirstClear) ui.say(`👑 [${zone.name}] 통과! 전직 포인트 2점 획득!`, "loot-unique");
+        else ui.say(`🔁 [${zone.name}] 재도전 완료 (전직 포인트 보상 없음)`, "attack-monster", { noToast: true });
+    }
+    game.currentZoneId = getAutoProgressZoneId(game.maxZoneId);
+    game.killsInZone = 0;
+    game.inTicketBossFight = false;
+    enterAutomaticMapInterruptionAfterClear(zone);
+    startMoving(false);
+    ui.redraw();
+    queueImportantSave(200);
+}
+function finishBloomTrial(zone, ui) {
+    // 보스를 실제로 처치하지 않았는데 런이 완료 처리된 경우(예: 보스 미스폰/즉시 제거 등)에는
+    // 개화를 인정하지 않고 전투를 다시 구성한다. 보스를 잡아야만 재능 개화가 완료된다.
+    if (!game.bloomBossDefeated) {
+        ui.say('❄️ 개화 미궁의 수호자를 아직 쓰러뜨리지 못했습니다. 전투를 다시 구성합니다.', 'attack-monster', { noToast: true });
+        startEncounterRun();
+        return;
+    }
+    handleTalentBloomClear(zone);
+}
+function grantTrialKeystonePoint(ui) {
+    game.ascendKeystonePoints = Math.max(0, Math.floor(game.ascendKeystonePoints || 0)) + 1;
+    ui.say(`💠 키스톤 포인트 +1 (현재 ${game.ascendKeystonePoints})`, 'loot-unique');
+}
+/** A trial's ascendancy points and rank: the fourth gives a core node pick on its first clear, the others 2 points. */
+function grantTrialAscendPoints(zone, isFirstClear, ui) {
+    if (zone.id === 'trial_4') {
+        game.ascendPoints += isFirstClear ? 1 : 0;
+        if (isFirstClear) {
+            game.ascendRank = Math.max(game.ascendRank || 0, 4);
+            ui.say(`👑 [${zone.name}] 통과! 4차 전직 핵심 노드 선택권 +1 획득!`, "loot-unique");
+        }
+        return;
+    }
+    if (isFirstClear) game.ascendPoints += 2;
+    game.ascendRank = Math.max(game.ascendRank || 0, zone.id === 'trial_3' ? 3 : (zone.id === 'trial_2' ? 2 : 1));
+}
+
+function finishSeasonBossEncounter(zone, mapAction, ui) {
+    let firstRootBossClear = !(game.clearedRootBosses || []).includes(zone.id);
+    game.clearedRootBosses = Array.isArray(game.clearedRootBosses) ? game.clearedRootBosses : [];
+    if (firstRootBossClear) game.clearedRootBosses.push(zone.id);
+    if (zone.rivalBlade) noteRivalBladeKill(zone, firstRootBossClear, ui);
+    grantSeasonBossRewards(zone, firstRootBossClear, ui);
+    ui.say(`🗝️ [${zone.name}] 토벌 완료!`, 'loot-unique');
+    departSeasonBoss(zone, ui);
+    ui.unlocks();
+    ui.redraw();
+    queueImportantSave(200);
+}
+function noteRivalBladeKill(zone, firstRootBossClear, ui) {
+    markLoopSpecialBossKill(zone.id);
+    if (zone.journalId && firstRootBossClear && typeof unlockJournalEntry === 'function') unlockJournalEntry(zone.journalId);
+    if (zone.capstoneRival) return ui.say('🗡️ 완성작이 무릎 꿇었습니다. 버려진 날이 벼려진 날을 이겼습니다.', 'loot-unique');
+    let killedRivals = (game.loopProgressCurrent && Array.isArray(game.loopProgressCurrent.specialBosses)) ? game.loopProgressCurrent.specialBosses : [];
+    let remaining = SEASON_BOSS_ZONES.filter(rival => rival.rivalBlade && !rival.capstoneRival && !killedRivals.includes(rival.id)).length;
+    if (remaining > 0) ui.say(`🗡️ 버려진 날 격파! 이번 루프에 남은 날: ${remaining}개 (모두 꺾으면 「완성작」이 나타납니다)`, 'season-up');
+    else ui.say('🗡️ 다섯 날이 모두 꺾였습니다. 「일곱 번째 날 - 완성작」이 결투를 기다립니다.', 'loot-unique');
+}
+/** A root boss's rewards: a milestone pinnacle's, 아스트라's, else its currency (half the time; a capstone rival's on its first
+ * clear) and a 40% unique. */
+function grantSeasonBossRewards(zone, firstRootBossClear, ui) {
+    if (zone.milestonePinnacle) return grantMilestonePinnacleClearRewards(zone, firstRootBossClear);
+    if (zone.cosmosCapstone) return grantCosmosCapstoneRewards(zone, firstRootBossClear, ui);
+    let grantsClearCurrency = zone.capstoneRival ? firstRootBossClear : Math.random() < 0.5;
+    if (grantsClearCurrency) awardCurrency(zone.reward || 'bossCore', 1, 'drop');
+    if (Math.random() < 0.4) {
+        let bossUnique = generateUniqueItem(zone.tier || 12);
+        addItemToInventory(bossUnique);
+        ui.say(`👑 [${bossUnique.name}] 획득!`, 'loot-unique', { item:bossUnique });
+    }
+}
+function grantCosmosCapstoneRewards(zone, firstRootBossClear, ui) {
+    if (zone.journalId && firstRootBossClear && typeof unlockJournalEntry === 'function') unlockJournalEntry(zone.journalId);
+    ui.say('🌌 잔향체가 흩어졌습니다. 다섯 별의 메아리가 마침내 잠잠해집니다.', 'loot-unique');
+    awardCurrency(zone.reward || 'goldenRule', 2, 'drop');
+    rollCosmosAstraUniqueDrop(zone);
+}
+/** After a root boss: with repeat on and a key left, spend it and fight again; else back to the auto progress zone. */
+function departSeasonBoss(zone, ui) {
+    let shouldRepeat = !!game.autoRepeatSeasonBoss && !zone.milestonePinnacle;
+    let keyLeft = zone.key ? game.currencies[zone.key] || 0 : 0;
+    if (shouldRepeat && keyLeft > 0) {
+        game.currencies[zone.key]--;
+        game.currentZoneId = zone.id;
+        game.killsInZone = 0;
+        game.inTicketBossFight = true;
+        ui.say(`🔁 입장권 1개 소모, [${zone.name}] 자동 재도전 시작! (남은 열쇠 ${game.currencies[zone.key] || 0})`, 'season-up');
+        startMoving(true);
+        return;
+    }
+    if (shouldRepeat && keyLeft <= 0) ui.say('🔁 반복 도전이 켜져 있지만 입장권이 없어 자동 재도전을 중단합니다.', 'attack-monster');
+    game.currentZoneId = getAutoProgressZoneId(game.maxZoneId);
+    game.killsInZone = 0;
+    game.inTicketBossFight = false;
+    enterAutomaticMapInterruptionAfterClear(zone);
+    startMoving(false);
+}
+
+function finishLabyrinthEncounter(zone, mapAction, ui) {
+    let clearedFloor = Math.max(1, Math.floor(game.labyrinthFloor || zone.floor || 1));
+    if (clearedFloor >= 10) unlockJournalEntry('labyrinth_10');
+    game.labyrinthUnlockedMaxFloor = Math.max(game.labyrinthUnlockedMaxFloor || 1, clearedFloor + 1);
+    game.labyrinthFloor = ['repeatZone', 'stop'].includes(mapAction) ? clearedFloor : clearedFloor + 1;
+    let fossilSummary = rollLabyrinthFossils(clearedFloor, ui);
+    rollLabyrinthSealShards(clearedFloor);
+    ui.say(`🏛️ 미궁 ${clearedFloor}층 돌파! [${fossilSummary.join(' / ') || '화석 없음'}]`, 'season-up');
+    if (mapAction === 'nextLoopBestPlusOne') {
+        let nextZone = resolveNextLoopBestPlusOneZone(zone);
+        if (nextZone !== null) game.currentZoneId = nextZone;
+    }
+    game.killsInZone = 0;
+    continueMapAfterClear(zone);
+    ui.redraw();
+    queueImportantSave(200);
+}
+/** A labyrinth floor's fossils in their fixed roll order (base, typed, primal, ancient, abyssal); returns the first four's summary
+ * for the clear's log line. */
+function rollLabyrinthFossils(clearedFloor, ui) {
+    let fossilDropMul = contentProgression.isUnlocked('fossil') ? 1 : 0;
+    let fossilRareMul = fossilDropMul;
+    let fossilChances = getLabyrinthFossilDropChances(clearedFloor, fossilDropMul, fossilRareMul);
+    let gotBaseFossil = Math.random() < fossilChances.base;
+    if (gotBaseFossil) awardCurrency('fossil', 1);
+    let fossilDropPool = FOSSIL_DB.filter(fossil => !fossil.ancientPrimalOnly);
+    let rolledFossil = rndChoice(fossilDropPool);
+    let gotTypedFossil = Math.random() < fossilChances.typed;
+    if (gotTypedFossil) awardCurrency(rolledFossil.key, 1);
+    let primalFossils = contentProgression.isUnlocked('fossilRestore');
+    let gotPrimalFossil = primalFossils && Math.random() < fossilChances.primal;
+    let gotAncientPrimalFossil = primalFossils && Math.random() < fossilChances.ancient;
+    if (gotPrimalFossil) awardCurrency('fossilPrimal', 1);
+    if (gotAncientPrimalFossil) awardCurrency('fossilAncientPrimal', 1);
+    if (Math.random() < fossilChances.abyssal) {
+        awardCurrency('fossilAbyssal', 1);
+        ui.say('🌌 희귀 화석 [심연 화석]을 발견했습니다!', 'loot-unique');
+    }
+    return labyrinthFossilSummary({ base: gotBaseFossil, typed: gotTypedFossil, primal: gotPrimalFossil, ancient: gotAncientPrimalFossil }, rolledFossil);
+}
+function labyrinthFossilSummary(got, rolledFossil) {
+    let fossilSummary = [];
+    if (got.base) fossilSummary.push('기본 화석 +1');
+    if (got.typed) fossilSummary.push(`${rolledFossil.name} +1`);
+    if (got.primal) fossilSummary.push('원시 화석 +1');
+    if (got.ancient) fossilSummary.push('원시 고대 화석 +1');
+    return fossilSummary;
+}
+/** From loop 6 a labyrinth floor may give seal shards: 2.5%, strong 0.75%, radiant 0.16% from floor 30. */
+function rollLabyrinthSealShards(clearedFloor) {
+    if ((game.season || 1) < 6) return;
+    if (Math.random() < 0.025) awardCurrency('sealShard', 1, 'drop');
+    if (Math.random() < 0.0075) awardCurrency('strongSealShard', 1, 'drop');
+    if (clearedFloor >= 30 && Math.random() < 0.0016) awardCurrency('radiantSealShard', 1, 'drop');
+}
+
+function finishUnderworldEncounter(zone, mapAction, ui) {
+    let { uw, floor } = advanceUnderworldFloor(zone, mapAction);
+    if (!game.underworldRunes || typeof game.underworldRunes !== 'object') game.underworldRunes = { unlockedSlots: 0, unlockedRunesMaxNumber: 0, obtainedRunes: [] };
+    grantUnderworldFloorMilestone(floor, uw);
+    ui.say(`🕳️ 지하계 ${floor}층 돌파! ${uw.highestFloor}층까지 하강 가능합니다.`, 'season-up');
+    game.killsInZone = 0;
+    game.currentZoneId = mapAction === 'nextLoopBestPlusOne' ? nextBestZoneOr(zone, UNDERWORLD_ZONE_ID) : UNDERWORLD_ZONE_ID;
+    continueMapAfterClear(zone);
+    ui.redraw();
+    queueImportantSave(220);
+}
+/** The underworld progress after a floor clear: this loop's best, the next floor open, where the next descent starts. */
+function advanceUnderworldFloor(zone, mapAction) {
+    let uw = (game.underworldProgress && typeof game.underworldProgress === 'object') ? game.underworldProgress : { highestFloor: 1, currentFloor: 1 };
+    game.underworldProgress = uw;
+    let floor = Math.max(1, Math.floor(zone.floor || uw.currentFloor || 1));
+    game.loopProgressCurrent.bestUnderworldFloor = Math.max(game.loopProgressCurrent.bestUnderworldFloor || 0, floor);
+    uw.highestFloor = Math.max(Math.floor(uw.highestFloor || 1), floor + 1);
+    uw.currentFloor = ['repeatZone', 'stop'].includes(mapAction) ? floor : Math.min(uw.highestFloor, floor + 1);
+    if (floor >= 10) uw.floor10Cleared = true;
+    return { uw, floor };
+}
+
+function finishCosmosEncounter(zone, mapAction, ui) {
+    if (typeof window.exploreSelectedCosmosNode === 'function') {
+        window.exploreSelectedCosmosNode(zone.cosmosNodeId || null);
+    }
+    if (typeof window.continueCosmosChallengeAfterClear === 'function'
+        && window.continueCosmosChallengeAfterClear(mapAction)) {
+        ui.redraw();
+        queueImportantSave(200);
+        return;
+    }
+    if (game.cosmosAtlas && typeof game.cosmosAtlas === 'object') game.cosmosAtlas.activeChallenge = null;
+    game.currentZoneId = getAutoProgressZoneId(game.maxZoneId);
+    game.killsInZone = 0;
+    if (mapAction === 'stop') game.combatHalted = true;
+    enterAutomaticMapInterruptionAfterClear(zone);
+    if (mapAction !== 'stop') startMoving(false);
+    ui.redraw();
+    queueImportantSave(200);
+}
+
+/** Zone kinds that finish their own way (an atlas map finishes in atlasRun; the rest clear by kills, finishZoneClear). */
+const ENCOUNTER_FINISH_BY_KIND = Object.freeze({
+    beyondBoundary: finishBeyondBoundaryEncounter, meteor: finishMeteorEncounter, outsideChaos: finishOutsideChaosEncounter,
+    oceanDepth: finishOceanEncounter, chaosRealm: finishChaosRealmEncounter, skyTower: finishSkyTowerEncounter,
+    timeRift: finishTimeRiftEncounter, trial: finishTrialEncounter, seasonBoss: finishSeasonBossEncounter,
+    labyrinth: finishLabyrinthEncounter, underworld: finishUnderworldEncounter, cosmos: finishCosmosEncounter
+});
+
+/** A hunting zone or chaos depth with its kills done: its marks, the loop's final zone, trial 3, the next zone, this loop's best
+ * depth, then where the hero goes. */
+function finishZoneClear(zone, mapAction, ui) {
+    if (zone.type === 'abyss') markChaosDepthClear(zone);
+    if (zone.type === 'act') markActZoneClear(zone, ui);
+    if (isSeasonFinalZoneClear(zone)) return finishSeasonFinalZone(zone, mapAction, ui);
+    if (zone.type === 'abyss' && !game.unlockedTrials.includes('trial_3')) unlockTrial3FromChaos(zone, ui);
+    unlockNextZoneAfterClear(zone, ui);
+    game.killsInZone = 0;
+    noteBestChaosDepth(zone, ensureLoopProgressCurrent());
+    if (game.beehive && game.beehive.inRun) mapAction = 'repeatZone';
+    departAfterZoneClear(zone, mapAction, ui);
+}
+function noteBestChaosDepth(zone, progress) {
+    if (zone.type !== 'abyss') return;
+    let d = Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1));
+    if (d >= 20) progress.bestAbyssDepth = Math.max(Math.floor(progress.bestAbyssDepth || 0), d);
+}
+function markChaosDepthClear(zone) {
+    let depth = Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1));
+    if (depth === 5 && !game.woodsmanSimulatorSeenLoop) {
+        game.woodsmanSimulatorSeenLoop = true;
+        game.chaosInfuserUnlocked = true;
+        unlockJournalEntry('woodsman');
+        queueTutorialNotice('woodsman_simulator_loop', '나무꾼의 시뮬레이터', '“다음은 더 나은 세계를 바라지.”\n정체를 드러낸 존재는 진짜 나무꾼이 아닌 시뮬레이터였다.\n더 깊은 혼돈을 돌파해야 루프가 열린다.', 'tab-season');
+    }
+    let capDepth = 20;
+    game.abyssClearedDepths = Array.isArray(game.abyssClearedDepths) ? game.abyssClearedDepths : [];
+    if (depth <= capDepth && !game.abyssClearedDepths.includes(depth)) {
+        game.abyssClearedDepths.push(depth);
+    }
+    ensureNextEndlessChaosDepthUnlocked(depth);
+    if (depth >= 20) {
+        ensureLoopProgressCurrent().chaos20Cleared = true;
+        onChaos20Cleared();
+    }
+}
+/** The journal entry each of the first ten act zones (ids 0 to 9) opens when cleared. */
+const ACT_CLEAR_JOURNAL_ENTRIES = new Map(['act_1', 'act_2', 'act_3', 'act_4', 'act_5', 'act_6', 'act_7', 'act_8', 'act_9', 'act_10'].map((entry, id) => [id, entry]));
+function markActZoneClear(zone, ui) {
+    if (zone.id <= 9) markActRewardReady(zone.id);
+    // 전적: 이번 루프 시작 기준 액트 돌파 경과 시간(루프당 첫 돌파만).
+    if (typeof recordActClear === 'function') recordActClear(zone.id);
+    let storyAct = getStoryActByZoneId(zone.id);
+    if (storyAct && storyAct.clearText) ui.say(`📜 ${storyAct.clearText}`, 'season-up');
+    const journalEntry = ACT_CLEAR_JOURNAL_ENTRIES.get(zone.id);
+    if (journalEntry) unlockJournalEntry(journalEntry);
+    // 클리어 후 정지·방치 정산에서도 다음 화면 갱신을 기다리지 않고 전술을 연다.
+    if (zone.id === 2) contentUnlockUi.syncOpened();
+    if (zone.id === 9 && Math.max(0, Math.floor(game.loopDeaths || 0)) <= 0) unlockJournalEntry('immortal');
+}
+/** Whether this clear is the loop's final zone: the season's final zone, or a chaos depth at the season's cap or deeper. */
+function isSeasonFinalZoneClear(zone) {
+    let clearedAbyssDepth = zone.type === 'abyss' ? Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1)) : 0;
+    return zone.id === getCurrentSeasonFinalZoneId() || (zone.type === 'abyss' && clearedAbyssDepth >= getSeasonAbyssDepthCap(game.season || 1));
+}
+function finishSeasonFinalZone(zone, mapAction, ui) {
+    if ((game.season || 1) >= 10 && zone.type === 'abyss') return finishEndlessChaosClear(zone, mapAction, ui);
+    handleSeasonLoopConditionMet();
+}
+/** From loop 10 the cleared final chaos depth: deep chaos opens past it, this loop's record, then the map action: stay, go one
+ * deeper (or deeper anyway past 21 when the loop condition was met before), or the loop condition. */
+function finishEndlessChaosClear(zone, mapAction, ui) {
+    let depth = Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1));
+    game.abyssUnlockedDepths = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths : [20];
+    // 깬 층이 곧 지금 층이다(2026-10-11): 예전에는 21층부터 지난 루프의 기록(game.abyssEndlessDepth)과 견줘 더 큰 쪽을
+    // 써서, 루프 조건 층을 깨면 다음 층이 아니라 기록한 최고 층의 다음으로 뛰었다.
+    let nowEndless = Math.max(20, depth);
+    ensureNextEndlessChaosDepthUnlocked(nowEndless);
+    // Chaos 20 is the entrance to deep chaos, so continuing after that clear must start at 21
+    // even if the save has a higher recorded deep-chaos floor from a previous loop.
+    // Setting this to the unlocked next depth would double-advance and skip a floor (e.g. 20 -> 22).
+    game.abyssEndlessDepth = nowEndless;
+    let hadCurrentSeasonLoopRequirementBeforeClear = recordEndlessChaosClear(depth);
+    if (mapAction === 'repeatZone') return repeatEndlessChaosDepth(zone, ui);
+    if (mapAction === 'nextLoopBestPlusOne' || (depth >= 21 && hadCurrentSeasonLoopRequirementBeforeClear)) {
+        enterNextEndlessChaosDepth();
+        return;
+    }
+    handleSeasonLoopConditionMet();
+}
+/** This loop's chaos record for a cleared final depth; returns whether the loop condition was met before this clear. */
+function recordEndlessChaosClear(depth) {
+    const progress = ensureLoopProgressCurrent();
+    let seasonAbyssCap = getSeasonAbyssDepthCap(game.season || 1);
+    let bestAbyssDepthBeforeClear = Math.max(0, Math.floor(progress.bestAbyssDepth || 0));
+    let hadCurrentSeasonLoopRequirementBeforeClear = seasonAbyssCap <= 20
+        ? (typeof hasCurrentLoopChaos20Clear === 'function' ? hasCurrentLoopChaos20Clear() : !!progress.chaos20Cleared)
+        : bestAbyssDepthBeforeClear >= seasonAbyssCap;
+    if (depth >= 20) progress.bestAbyssDepth = Math.max(bestAbyssDepthBeforeClear, depth);
+    progress.chaos20Cleared = true;
+    onChaos20Cleared();
+    return hadCurrentSeasonLoopRequirementBeforeClear;
+}
+function repeatEndlessChaosDepth(zone, ui) {
+    game.currentZoneId = zone.id;
+    game.killsInZone = 0;
+    enterAutomaticMapInterruptionAfterClear(zone);
+    ui.unlocks();
+    if ((game.settings.townReturnAction || 'retry') === 'stop') {
+        game.combatHalted = true;
+        game.enemies = [];
+        game.encounterPlan = [];
+        game.encounterIndex = 0;
+        game.runProgress = 0;
+    } else startMoving(false);
+    ui.redraw();
+    queueImportantSave(220);
+}
+function unlockTrial3FromChaos(zone, ui) {
+    let shouldUnlockTrial3 = zone.name === '혼돈 5' || Math.random() < 0.15;
+    if (!shouldUnlockTrial3) return;
+    game.unlockedTrials.push('trial_3');
+    game.noti.map = true;
+    ui.say(zone.name === '혼돈 5' ? "✨ [시련의 증표] 혼돈 5 보스 확정 드랍! 3차 전직 시련 개방!" : "✨ [시련의 증표] 획득! 3차 전직 시련 개방!", "loot-unique");
+}
+function unlockNextZoneAfterClear(zone, ui) {
+    // 다음 지역 해금은 "지금 막 클리어한 존"을 기준으로 보정한다.
+    // 특히 혼돈 구간은 반복/자동화 상태와 무관하게 N 클리어 시 N+1이 열려야 하므로
+    // targetUnlockZone을 직접 계산해 누락을 방지한다.
+    let targetUnlockZone = Math.min(getCurrentSeasonFinalZoneId(), zone.id + 1);
+    // 이미 열려 있는 이전 구역 반복 클리어로 프론티어를 우회 해금하지 않도록
+    // "현재 프론티어(=maxZoneId) 이상 구역을 클리어했을 때만" 다음 구역을 연다.
+    let clearedAtFrontier = zone.id >= game.maxZoneId;
+    if (!(clearedAtFrontier && game.maxZoneId < targetUnlockZone)) return;
+    game.maxZoneId = targetUnlockZone;
+    game.noti.map = true;
+    ui.reveal(game.maxZoneId);
+    let clearedStoryAct = getStoryActByZoneId(zone.id);
+    if (clearedStoryAct && clearedStoryAct.unlockText) ui.say(`🧭 ${clearedStoryAct.unlockText}`, 'season-up');
+    let unlockedZone = getZone(game.maxZoneId);
+    ui.say(`🗺️ 신규 사냥터 [${unlockedZone ? unlockedZone.name : ('구역 ' + game.maxZoneId)}] 개방!`, "season-up");
+    noteCampaignResistPenalty(game.maxZoneId);
+}
+/** Where the hero goes after a zone clear: the map action's zone (or a stop), the act retreat hold, a deferred departure. */
+function departAfterZoneClear(zone, mapAction, ui) {
+    if (mapAction === 'repeatZone') game.currentZoneId = zone.id;
+    else if (mapAction === 'nextLoopBestPlusOne') {
+        let nextZone = resolveNextLoopBestPlusOneZone(zone);
+        game.currentZoneId = nextZone !== null ? nextZone : getAutoProgressZoneId(Math.max(game.currentZoneId, game.maxZoneId));
+    }
+    else if (mapAction === 'stop') {
+        actExplorationProgress.stopAfterCompletion(game);
+        ui.redraw();
+        queueImportantSave(180);
+        return;
+    } else if (!holdActRetreat(zone)) game.currentZoneId = getAutoProgressZoneId(Math.max(game.currentZoneId, game.maxZoneId));
+    if(actExplorationProgress.deferDeparture(game)) {
+        ui.unlocks();ui.redraw();queueImportantSave(220);return;
+    }
+    actExplorationProgress.reconcileDeparture(game);
+    enterAutomaticMapInterruptionAfterClear(zone);
+    ui.unlocks();
+    if ((game.settings.townReturnAction || 'retry') === 'stop') {
+        actExplorationProgress.stopAfterCompletion(game);
+    } else startMoving(false);
+    ui.redraw();
+    queueImportantSave(220);
 }
 
 /** 포션 스킬 키스톤의 명중 피해 배율: 폭발성 증류 ×0.75, 과잉 투여 ×1.5. */
