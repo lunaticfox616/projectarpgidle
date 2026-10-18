@@ -5797,7 +5797,7 @@ openDeathOverlay.flushPending = function flushPendingDeathNotice() {
     const body = document.body.classList;
     const managing = body.contains('desktop-windowed-ui')
         ? body.contains('ui-management-mode')
-        : !document.getElementById('tab-battle').classList.contains('active');
+        : !document.getElementById('tab-battle')?.classList.contains('active'); // no battle tab shown: hold the notice
     if (managing) return;
     if (document.querySelector('dialog[open], .tutorial-overlay.active, .selection-overlay, #background-combat-result-overlay, #startup-overlay.active, #loading-overlay.active')) return;
     openDeathOverlay(pending.log);
