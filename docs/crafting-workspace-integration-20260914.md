@@ -15,9 +15,9 @@
 - 얻는 곳: 최종 보스 보상(`data/atlas-endgame.js`), 뿌리를 품은 몬스터(`js/atlas-endgame.js` markOmenBearer, 처치 보상은 `js/atlas-run.js`), 지도 기운 뿌리의 메아리(`data/loot-omens.js`). 모두 쓰러뜨린 최종 보스의 뿌리만 준다. 암거래상은 팔지 않는다(사용자 결정).
 - 성화의 뿌리: `craftBasic`이 결과 셋을 `game.craftChoice { itemId, options }`에 두고 아이템은 첫 결과를 받는다. `pickChoice`는 같은 아이템의 제작 칸(`CRAFT_FIELDS`: 등급, 이름, 추가 옵션, 혼돈 주입, 지키기)만 바꾸고, 그사이 아이템이 바뀌었거나 없으면 기다림을 버린다(`pendingChoice`). 기다리는 동안 제작실은 제작을 막고 고르기 창은 닫히지 않는다.
 
-## 기억 새김 (2026-10-18)
+## 기억 조각칼 (2026-10-18)
 
-- `item.imprint`는 제작 칸(`CRAFT_FIELDS`)의 사본이다. `engrave`는 1개를 쓰고 이전 새김을 덮고, `restoreImprint`는 한 번 되돌린 뒤 새김을 지운다. 타락, 고유, 융합 유물, 전당 소장품은 둘 다 막는다. 같은 아이템의 칸만 바꾸므로 아이템이 늘지 않는다(`scripts/smoke-crafting-economy.js`).
+- 화면 이름은 기억 조각칼(재화)과 기억 새겨짐(새긴 장비, `craftingWorkspaceUi.imprintMark`), 코드 이름은 memoryImprint, imprint다. 체이싱 티어 재화다(`data/loot-omens.js` moments). `item.imprint`는 제작 칸(`CRAFT_FIELDS`)의 사본이다. `engrave`는 1개를 쓰고 이전 새김을 덮고, `restoreImprint`는 한 번 되돌린 뒤 새김을 지운다. 타락, 고유, 융합 유물, 전당 소장품은 둘 다 막는다. 같은 아이템의 칸만 바꾸므로 아이템이 늘지 않는다(`scripts/smoke-crafting-economy.js`).
 - 불러올 때 `normalizeItem`이 깨진 새김을 지운다. 얻는 곳은 기억 싸움 보상(`data/memory-dungeon.js` rewards).
 
 ## 2026-09-14 통합 이력

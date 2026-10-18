@@ -147,20 +147,20 @@ const craftingWorkspaceUi = (() => {
     function workspaceItemHtml() {
         const item=selected(), sources=new Set(item.stats.map(stat=>equipmentCrafting.getSource(stat)));
         return `<section id="forge-item-display" class="cl-item ${matches(item)?'goal-hit':''}"><div class="cl-item-head"><div class="cl-art"><img src="${esc(getEquipmentGridVisualAsset(item))}" alt="${esc(item.slot)}"></div>
-            <div><small>제작 중인 장비 &ensp; T${getItemCraftTier(item)}</small><h2>${esc(item.name)}</h2>${itemInfluencesUi.tagsHtml(item)}<span>${esc(item.baseName)} &ensp; 추가 옵션 ${getItemExplicitOptionCount(item)}/6</span></div></div>
+            <div><small>제작 중인 장비 &ensp; T${getItemCraftTier(item)}</small><h2>${esc(item.name)}${craftingWorkspaceUi.imprintMark(item)}</h2>${itemInfluencesUi.tagsHtml(item)}<span>${esc(item.baseName)} &ensp; 추가 옵션 ${getItemExplicitOptionCount(item)}/6</span></div></div>
             <div class="cl-sources"><span class="${sources.has('spore')?'filled':''}">홀씨 ${sources.has('spore')?'1':'0'}/1</span><span class="${sources.has('fossil')?'filled':''}">화석 ${sources.has('fossil')?'1':'0'}/1</span></div>
             <div class="cl-section-title">추가 옵션</div><ul class="cl-affixes">${item.stats.map(workspaceAffixHtml).join('')}${item.chaosInfusion?`<li class="cl-affix">혼돈 주입 ${esc(getStatName(item.chaosInfusion.id))} +${esc(workspaceAffixValue(item.chaosInfusion,item.chaosInfusion.val))}</li>`:''}</ul>
             <div class="cl-base">기본 옵션 &ensp; ${[workspaceWardSlotsText(item),...(item.baseStats||[]).map(stat=>`${esc(stat.statName||getStatName(stat.id))} +${esc(formatValue(stat.id,stat.val))} ${esc(workspaceAffixRange(stat))}${itemInfluencesUi.lineBadgeHtml(item,stat)}`)].filter(Boolean).join(' / ')}</div>${workspaceImprintHtml(item)}${workspaceEncroachmentHtml(item)}${emberCorruptionUi.cardHtml(item)}
             ${extras}</section>`;
     }
 
-    /** 기억 새김: shown when the hero holds one or the item has an imprint. Engrave, restore, and the engraved lines. */
+    /** 기억 조각칼: shown when the hero holds one or the item is engraved (기억 새겨짐). Engrave, restore, and the engraved lines. */
     function workspaceImprintHtml(item) {
         const have=game.currencies.memoryImprint||0, imprint=equipmentCrafting.normalizeImprint(item.imprint);
         if(!have&&!imprint)return '';
-        return `<div class="cl-imprint" data-theme="special"><div class="cl-section-title">기억 새김 <small>보유 ${have}</small></div>
+        return `<div class="cl-imprint" data-theme="special"><div class="cl-section-title">기억 조각칼 <small>보유 ${have}</small></div>
             <div class="cl-imprint-actions">${workspaceImprintButton('engrave',imprint?'다시 새기기':'지금 옵션 새기기',equipmentCrafting.engraveReason(game,item))}${imprint?workspaceImprintButton('restore','새긴 옵션으로 되돌리기',equipmentCrafting.restoreReason(item)):''}</div>
-            ${imprint?`<details><summary>새긴 옵션 ${imprint.stats.length}줄</summary><ul>${imprint.stats.map(stat=>`<li>${esc(stat.statName||getStatName(stat.id))} +${esc(workspaceAffixValue(stat,stat.val))}${getItemAffixTierHtml(stat)}</li>`).join('')}</ul></details>`:''}</div>`;
+            ${imprint?`<details><summary>기억 새겨짐, 새긴 옵션 ${imprint.stats.length}줄</summary><ul>${imprint.stats.map(stat=>`<li>${esc(stat.statName||getStatName(stat.id))} +${esc(workspaceAffixValue(stat,stat.val))}${getItemAffixTierHtml(stat)}</li>`).join('')}</ul></details>`:''}</div>`;
     }
     const workspaceImprintButton=(command,label,reason)=>`<button type="button" data-command="${command}" ${reason?`disabled title="${esc(reason)}"`:''}>${label}</button>`;
 
@@ -578,13 +578,14 @@ const craftingWorkspaceUi = (() => {
         workspaceRender(!!item);
     }
 
-    /** 기억 새김: engrave (asking first when it replaces an older imprint). */
+    /** 기억 조각칼: engrave, always asking first (a 체이싱 티어 currency; an older imprint is replaced). */
     async function workspaceEngrave() {
         const item=selected();if(!item)return;
-        if(item.imprint&&!await requestGameConfirmation('전에 새긴 옵션이 지금 옵션으로 바뀝니다.',{title:ORB_DB.memoryImprint.name,confirmLabel:'새기기'}))return;
+        const question=`${ORB_DB.memoryImprint.name} 1개로 지금 추가 옵션을 새깁니다.${item.imprint?'\n전에 새긴 옵션은 지워집니다.':''}`;
+        if(!await requestGameConfirmation(question,{title:ORB_DB.memoryImprint.name,confirmLabel:'새기기'}))return;
         if(selected()===item)workspaceImprintDone(equipmentCrafting.engrave(game,item),'지금 옵션을 새겼습니다.');
     }
-    /** 기억 새김: go back to the engraved lines (asking first; the imprint is used up). */
+    /** 기억 조각칼: go back to the engraved lines (asking first; the imprint is used up). */
     async function workspaceRestore() {
         const item=selected();if(!item)return;
         if(!await requestGameConfirmation('지금 추가 옵션이 새긴 옵션으로 바뀌고, 새긴 기억은 사라집니다.',{title:ORB_DB.memoryImprint.name,confirmLabel:'되돌리기'})||selected()!==item)return;
@@ -632,6 +633,9 @@ const craftingWorkspaceUi = (() => {
         if(document.hidden&&auto){workspaceStopAuto('화면을 벗어나 자동 사용을 중지했어요.');workspaceRender();}
     }
 
-    return { render:workspaceRender, openInventory:workspaceOpenInventory, stopAuto:workspaceStopAuto };
+    /** After an item's name, where (타락) goes: (기억 새겨짐) when a 기억 조각칼 engraved it (item card, tooltip, this title). */
+    const imprintMark=item=>(item&&item.imprint?' <span class="item-imprint-mark">(기억 새겨짐)</span>':'');
+
+    return { render:workspaceRender, openInventory:workspaceOpenInventory, stopAuto:workspaceStopAuto, imprintMark };
 })();
 safeExposeGlobals({ craftingWorkspaceUi });

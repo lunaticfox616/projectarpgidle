@@ -1070,8 +1070,9 @@ const ORB_DB = {
     omenWeave: { name: '엮음의 뿌리', desc: '다음 제작이 아이템에 이미 있는 옵션과 태그가 같은 옵션을 네 배 더 잘 고릅니다. 나이테를 엮는 자가 지니고 있습니다.' },
     omenPyre: { name: '성화의 뿌리', desc: '다음 제작을 세 번 굴려 세 결과 가운데 하나를 고릅니다. 검은 태양의 대사제가 지니고 있습니다.' },
     omenHunger: { name: '허기의 뿌리', desc: '다음 수액 봉오리가 붙이는 옵션을 접두나 접미 중 고른 쪽에서만 고릅니다. 세계수를 갉는 자가 지니고 있습니다.' },
-    // 기억 새김(2026-10-18, PoE 야수 제작의 Imprint에서): 장비의 제작 칸을 새겨 두고 한 번 되돌린다(js/equipment-crafting.js engrave).
-    memoryImprint: { name: '기억 새김', desc: '제작실에서 장비의 지금 추가 옵션을 새겨 둡니다. 뒤에 제작이 마음에 들지 않으면 새긴 때의 추가 옵션과 등급으로 한 번 되돌립니다. 베이스 옵션, 퀄리티, 소켓은 그대로이고, 타락한 장비와 융합 유물에는 쓸 수 없습니다. 기억 싸움에서 얻습니다.' }
+    // 기억 조각칼(2026-10-18, PoE 야수 제작의 Imprint에서, 사용자: 초고급 재화): 장비의 제작 칸을 새겨 두고(그 장비는 '기억 새겨짐') 한 번
+    // 되돌린다(js/equipment-crafting.js engrave). 체이싱 티어(data/loot-omens.js moments).
+    memoryImprint: { name: '기억 조각칼', desc: '제작실에서 장비의 지금 추가 옵션을 새겨 둡니다(기억 새겨짐). 뒤에 제작이 마음에 들지 않으면 새긴 때의 추가 옵션과 등급으로 한 번 되돌립니다. 베이스 옵션, 퀄리티, 소켓은 그대로이고, 타락한 장비, 고유, 융합 유물에는 쓸 수 없습니다. 기억 싸움에서 드물게 얻습니다.' }
 };
 
 /** 제작 뿌리: 걸어 둔 하나(game.craftOmen { key, side })가 actions에 드는 다음 제작 한 번을 바꾸고 하나 줄어든다(js/equipment-crafting.js).
@@ -1128,7 +1129,8 @@ function getStyledOrbName(orbKey) {
         formlessDew: '--orb-tone:#ffbc8a;', pruningShears: '--orb-tone:#ffbc8a;',
         goldenRule: '--orb-tone:#ffffff; border:1px solid #7a1f1f; border-radius:4px; padding:0 4px; background:#0f1116;',
         emberBranch: '--orb-tone:#8a2f3f;', burningEmberBranch: '--orb-tone:#ff8a3d; text-shadow:0 0 7px rgba(255,138,61,.45);',
-        fairyRing: '--orb-tone:#82dc8b; text-shadow:0 0 7px rgba(105,238,143,.35);', voidChisel: '--orb-tone:#d7a6ff; text-shadow:0 0 7px rgba(192,125,255,.4);'
+        fairyRing: '--orb-tone:#82dc8b; text-shadow:0 0 7px rgba(105,238,143,.35);', voidChisel: '--orb-tone:#d7a6ff; text-shadow:0 0 7px rgba(192,125,255,.4);',
+        memoryImprint: '--orb-tone:#ece0ff; border:1px solid #6b4fa0; border-radius:4px; padding:0 4px; background:#120f1a; text-shadow:0 0 7px rgba(201,178,240,.5);'
     };
     const tone = Object.hasOwn(tones, orbKey) ? tones[orbKey] : '';
     return tone ? `<span class="orb-tone" style="${tone}">${name}</span>` : name;

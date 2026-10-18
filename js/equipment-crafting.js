@@ -330,7 +330,7 @@ const equipmentCrafting = (() => {
         return pending.item;
     }
 
-    // ---------------------------------------------------------------- 기억 새김 (item.imprint)
+    // ---------------------------------------------------------------- 기억 조각칼 (item.imprint, 화면 이름 기억 새겨짐)
     // 2026-10-18 사용자가 고른 제작 방법(PoE 야수 제작의 Imprint에서): 장비의 제작 칸(CRAFT_FIELDS)을 새겨 두고 한 번 되돌린다. 같은
     // 장비의 칸만 바꾸므로 장비가 늘지 않는다. 타락한 장비, 고유, 융합 유물, 전당 소장품은 새기지도 되돌리지도 않는다.
     const IMPRINT_KEY = 'memoryImprint';
@@ -343,14 +343,14 @@ const equipmentCrafting = (() => {
         if (item.corrupted) return '타락한 장비는 새기거나 되돌릴 수 없습니다.';
         return item.fusedRelic || item.rarity === 'unique' || item.hallReplica ? '고유 장비, 융합 유물, 전당 소장품에는 쓸 수 없습니다.' : '';
     }
-    /** Why item cannot be engraved now, or '': a magic or rare piece, and a 기억 새김 in the wallet. */
+    /** Why item cannot be engraved now, or '': a magic or rare piece, and a 기억 조각칼 in the wallet. */
     function engraveReason(state, item) {
         const reason = imprintBlock(item);
         if (reason) return reason;
         if (!['magic', 'rare'].includes(item.rarity)) return '마법이나 희귀 장비에 새깁니다.';
         return (state.currencies[IMPRINT_KEY] || 0) > 0 ? '' : `${ORB_DB[IMPRINT_KEY].name}이 없습니다.`;
     }
-    /** Engraves item's craft fields for one 기억 새김 (an older imprint is replaced). { ok, reason }. */
+    /** Engraves item's craft fields for one 기억 조각칼 (an older imprint is replaced). { ok, reason }. */
     function engrave(state, item) {
         const reason = engraveReason(state, item);
         if (reason) return { ok: false, reason };

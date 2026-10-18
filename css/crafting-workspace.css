@@ -30,7 +30,8 @@ body .cl-goal-dialog:focus-visible{outline:none}.cl-goal-dialog::backdrop{backgr
 /* 성화의 뿌리: 결과 셋을 나란히(휴대폰은 위아래로), 고를 때까지 닫히지 않는다. */
 .cl-goal-dialog.cl-choice-dialog{width:min(920px,94vw)}.cl-choice-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.cl-choice{display:flex;flex-direction:column;padding:12px;border:1px solid #484233;border-radius:8px;background:#23251d}.cl-choice h3{margin:0 0 6px;font-size:14px;color:#e0c185}.cl-choice ul{flex:1;margin:0;padding:0;list-style:none;font-size:13px;line-height:1.55}.cl-choice small{color:var(--cl-muted)}.cl-goal-dialog .cl-choice button{margin-top:12px}
 @media(max-width:700px){.cl-choice-list{grid-template-columns:1fr}}
-/* 기억 새김: 추가 옵션 아래의 한 줄(새기기, 되돌리기)과 접힌 새긴 옵션. */
+/* 기억 조각칼: 추가 옵션 아래의 한 줄(새기기, 되돌리기)과 접힌 새긴 옵션(기억 새겨짐). 이름 뒤 (기억 새겨짐)은 장비 카드와 툴팁에도 나온다. */
+.item-imprint-mark{color:#c9b2f0;font-weight:400}
 .cl-imprint{margin-top:10px;padding-top:8px;border-top:1px solid #484233}.cl-imprint .cl-section-title small{margin-left:6px;color:var(--cl-muted);font-weight:400}.cl-imprint-actions{display:flex;flex-wrap:wrap;gap:8px}#crafting-workspace .cl-imprint-actions button{min-height:34px;padding:5px 12px;font-size:13px}.cl-imprint details{margin-top:6px;font-size:12px;color:#c6c1b4}.cl-imprint ul{margin:4px 0 0;padding:0;list-style:none}.cl-imprint li small{color:var(--cl-muted)}
 :is(.cl-catalog,#crafting-workspace) [data-theme="fire"]{--resource-tone:#f4a077}
 :is(.cl-catalog,#crafting-workspace) [data-theme="cold"]{--resource-tone:#8ccedd}

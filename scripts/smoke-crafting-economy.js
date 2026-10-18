@@ -161,12 +161,12 @@ vm.runInContext(annulBlock, annulContext, { filename: 'market-annul.js' });
         useCurrency('formlessDew');const spent=game.currencies.omenCompost===1&&game.craftOmen===null;useCurrency('formlessDew');
         return practiced&&kept&&spent&&game.currencies.omenCompost===1&&game.currencies.formlessDew===1;})()`), true,
         'a craft omen is spent once by the craft it changes, never by another craft or by practice');
-    // 성화의 뿌리 pick and 기억 새김 only rewrite the same item: the bag keeps its count and no item id is taken (2026-10-18).
+    // 성화의 뿌리 pick and 기억 조각칼 only rewrite the same item: the bag keeps its count and no item id is taken (2026-10-18).
     assert.strictEqual(runGame(`(()=>{const bag=game.inventory.length,id=itemIdCounter;game.currencies.formlessDew=2;game.currencies.omenPyre=1;game.currencies.memoryImprint=1;
         equipmentCrafting.engrave(game,__item);equipmentCrafting.armOmen(game,'omenPyre');useCurrency('formlessDew');
         const picked=equipmentCrafting.pickChoice(game,1)===__item,restored=equipmentCrafting.restoreImprint(__item).ok;
         return picked&&restored&&game.inventory.length===bag&&itemIdCounter===id&&game.currencies.omenPyre===0&&game.currencies.memoryImprint===0;})()`), true,
-        'a 성화의 뿌리 pick and a 기억 새김 restore change the same item and cost one each');
+        'a 성화의 뿌리 pick and a 기억 조각칼 restore change the same item and cost one each');
     console.log('smoke-crafting-economy passed');
 })().catch(error => {
     console.error(error);

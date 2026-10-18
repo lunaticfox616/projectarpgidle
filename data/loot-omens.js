@@ -101,7 +101,7 @@ const LOOT_OMENS = Object.freeze({
     // 장비는 체이싱 고유 jackpot, 고유와 모든 줄이 특출한 베이스 great, 특출 줄과 타락과 소켓 good. 주얼은 고유 great, 희귀 good.
     // 야생 고유 부적 great. 보물 무리의 보물은 great, 황금 보물은 jackpot.
     moments: Object.freeze({
-        jackpot: Object.freeze(['fairyRing', 'ouroboros']),
+        jackpot: Object.freeze(['fairyRing', 'ouroboros', 'memoryImprint']),
         great: Object.freeze(['goldenRule', 'burningEmberBranch', 'enchantedHoney', 'abyssCatalyst', 'beastKeyCerberus', 'rivalKey', 'radiantSealShard',
             'omenPruning', 'omenCompost', 'omenWeave', 'omenPyre', 'omenHunger']),
         good: Object.freeze(['sapBud', 'fossilPrimal', 'fossilAncientPrimal', 'fossilPrimordial', 'fossilAbyssal', 'awakenedEcho', 'condensedSkyPower',

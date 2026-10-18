@@ -26,8 +26,8 @@ const MEMORY_DUNGEON = Object.freeze({
     // 더 준다: × 등급 / rewardTier(0.5 ~ 2배), 낮은 노드의 기억이 높은 노드의 기억과 같은 값을 주지 않게.
     rewardTier: 12,
     rewardScale: Object.freeze({ min: 0.5, max: 2 }),
-    // 기억 새김(2026-10-18): 기억 싸움의 몫. 1단계 0.4, 5단계 0.8개에 지도 등급 배율.
-    rewards: Object.freeze([['formlessDew', 2, 2], ['sapBud', 0.5, 0.5], ['goldenRule', 0, 0.2], ['emberBranch', 0, 1], ['memoryImprint', 0.3, 0.1]].map(Object.freeze)),
+    // 기억 조각칼(2026-10-18, 사용자: 초고급 재화, 드랍률 낮게): 기억 싸움의 몫. 이긴 단계에 따라 5% ~ 13%에 지도 등급 배율.
+    rewards: Object.freeze([['formlessDew', 2, 2], ['sapBud', 0.5, 0.5], ['goldenRule', 0, 0.2], ['emberBranch', 0, 1], ['memoryImprint', 0.03, 0.02]].map(Object.freeze)),
     burning: Object.freeze([0, 0, 0.5, 1, 1.5]),
     // 고유 장비: 자기 고유가 있는 보스(최종 보스, 리그 우두머리)는 그 고유, 나머지는 그 지도 등급의 아무 고유. 단계별 확률.
     uniqueChance: Object.freeze({ own: Object.freeze([0.2, 0.3, 0.4, 0.55, 0.75]), other: Object.freeze([0.08, 0.12, 0.18, 0.25, 0.35]) }),

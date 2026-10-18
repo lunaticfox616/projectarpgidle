@@ -8595,7 +8595,7 @@ function normalizeItem(item) {
         else delete item.corruptionSocket;
     }
     item.chaosInfusion = item.chaosInfusion ? normalizeStatRecord(item.chaosInfusion) : null;
-    if ('imprint' in item && !equipmentCrafting.normalizeImprint(item.imprint)) delete item.imprint; // 기억 새김(js/equipment-crafting.js)
+    if ('imprint' in item && !equipmentCrafting.normalizeImprint(item.imprint)) delete item.imprint; // 기억 조각칼(js/equipment-crafting.js)
     if (item.encroached && typeof item.encroached === 'object') {
         let pendingOptions = Array.isArray(item.encroached.pendingOptions) ? item.encroached.pendingOptions.map(normalizeStatRecord).filter(Boolean).slice(0, 3) : [];
         let chosen = item.encroached.chosen ? normalizeStatRecord({ ...item.encroached.chosen, encroachedFinal: true }) : null;
