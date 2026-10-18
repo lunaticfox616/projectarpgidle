@@ -842,11 +842,11 @@
     },
     "getActiveSkillStats|max-lines-per-function|Function 'getActiveSkillStats' has too many lines (#). Maximum allowed is #.": {
       "count": 1,
-      "max": 69
+      "max": 65
     },
     "getActiveSkillStats|complexity|Function 'getActiveSkillStats' has a complexity of #. Maximum allowed is #.": {
       "count": 1,
-      "max": 24
+      "max": 21
     },
     "getActiveSkillStats|complexity|Arrow function has a complexity of #. Maximum allowed is #.": {
       "count": 1,
@@ -9526,6 +9526,7 @@
     "dependency:getActivePassiveCycleBuffEffects->getCombatTime",
     "dependency:getActiveRarityFilterSet->getInventoryRarityFilter",
     "dependency:getActiveRecoupInstances->Number",
+    "dependency:getActiveSkillStats->applyGemLevel20Perk",
     "dependency:getActiveSkillStats->applyProjectilePatternMode",
     "dependency:getActiveSkillStats->fitActiveSkillToWeapon",
     "dependency:getActiveSkillStats->getGemLevelGrowthSteps",
@@ -19765,6 +19766,7 @@
     "dependency:showGemTooltip->formatPercentMultiplier",
     "dependency:showGemTooltip->formatSupportGemEffectValue",
     "dependency:showGemTooltip->getAilmentDisplayLabel",
+    "dependency:showGemTooltip->getGemLevel20PerkLine",
     "dependency:showGemTooltip->getGemSpellBaseDamage",
     "dependency:showGemTooltip->getGemTargetSummaryHtml",
     "dependency:showGemTooltip->getItemStatToneColor",
