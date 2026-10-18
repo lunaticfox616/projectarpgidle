@@ -4208,31 +4208,37 @@ let battleFx = [];
 let battleFxId = 0;
 let battleFxSuppressed = false;
 const BATTLE_FX_QUEUE_CAP = 160;
-let battleVisualState = {
-    projectiles: [],
-    damageTexts: [],
-    skillEffects: [],
-    skillPlayback: null,
-    lastAutoSwingId: 0,
-    lastAutoSkillAt: 0,
-    processedFxIds: new Set(),
-    enemyGhostPos: {},
-    playerPos: null,
-    playerGridMotion: null,
-    playerAttackBlend: 0,
-    playerAttackMotionSeed: 0,
-    playerHurtBlend: 0,
-    playerDownBlend: 0,
-    lastNow: 0,
-    visualNow: 0,
-    lastWallNow: 0,
-    frameTimeEma: 16.7,
-    vfxDensity: 1,
-    hitStopRemainingMs: 0,
-    nextHitStopAt: 0,
-    enemyHitPulses: new Map(), // Last accepted body flash per enemy, visual ms; never saved.
-    lastHitStopFxId: 0
-};
+/** The battle canvas's visual state as it starts (never saved); resetBattleRuntimeVisuals (js/combat.js) starts it over. */
+function createBattleVisualState() {
+    return {
+        projectiles: [],
+        damageTexts: [],
+        skillEffects: [],
+        skillPlayback: null,
+        lastAutoSwingId: 0,
+        lastAutoSkillAt: 0,
+        processedFxIds: new Set(),
+        enemyGhostPos: {},
+        enemySmoothPos: {},
+        playerFacingDirection: 'east',
+        playerPos: null,
+        playerGridMotion: null,
+        playerAttackBlend: 0,
+        playerAttackMotionSeed: 0,
+        playerHurtBlend: 0,
+        playerDownBlend: 0,
+        lastNow: 0,
+        visualNow: 0,
+        lastWallNow: 0,
+        frameTimeEma: 16.7,
+        vfxDensity: 1,
+        hitStopRemainingMs: 0,
+        nextHitStopAt: 0,
+        enemyHitPulses: new Map(), // Last accepted body flash per enemy, visual ms; never saved.
+        lastHitStopFxId: 0
+    };
+}
+let battleVisualState = createBattleVisualState();
 const DEBUG_BATTLE_ANCHORS = false;
 const HERO_SPRITE_CONFIG = { cols: 6, rows: 5, drawHeight: 58, anchorX: 0.5, anchorY: 0.92 };
 const HERO_MOTIONS = {

@@ -7181,33 +7181,7 @@ function resetBattleRuntimeVisuals() {
     pendingEnemyCombatAttacks = [];
     latestPlayerSwingImpactAt = 0;
     nextPlayerDamageTextGroupId = 1;
-    battleVisualState = {
-        projectiles: [],
-        damageTexts: [],
-        skillEffects: [],
-        skillPlayback: null,
-        lastAutoSwingId: 0,
-        lastAutoSkillAt: 0,
-        processedFxIds: new Set(),
-        enemyGhostPos: {},
-        enemySmoothPos: {},
-        playerFacingLeft: false,
-        playerFacingDirection: 'east',
-        playerPos: null,
-        playerGridMotion: null,
-        playerAttackBlend: 0,
-        playerHurtBlend: 0,
-        playerDownBlend: 0,
-        lastNow: 0,
-        visualNow: 0,
-        lastWallNow: 0,
-        frameTimeEma: 16.7,
-        vfxDensity: 1,
-        hitStopRemainingMs: 0,
-        nextHitStopAt: 0,
-        enemyHitPulses: new Map(),
-        lastHitStopFxId: 0
-    };
+    battleVisualState = createBattleVisualState();
     crowdPauseActive = false;
     trialHazardRuntime = { nextAt: 0, active: null };
 }
