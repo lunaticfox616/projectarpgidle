@@ -1081,6 +1081,19 @@ function holdWoodsmanBuildLock(say) {
     clearWoodsmanBuildLock();
     say('☠️ 혼돈 밖을 떠나 나무꾼 전투를 중단했습니다. 세팅 잠금이 해제되었습니다.', 'season-up');
 }
+/** A colony run goes on only in 군락지: a hero who left it (travel, a map, the deep sea) ended the run there, rewards kept, and the next
+ * entry starts at wave 1. Unlike 철수 it moves nobody. */
+function endColonyRunLeftBehind(say) {
+    const c = game.colony;
+    c.inRun = false;
+    c.returnZoneId = null;
+    say(`🪲 군락지를 떠나 원정을 마쳤습니다(완료 ${Math.max(0, Math.floor(c.wave || 1) - 1)}웨이브). 획득 보상은 유지됩니다.`, 'season-up');
+}
+/** Runs that live in one zone, checked each tick: the woodsman fight (혼돈 밖) and the colony (군락지). */
+function holdZoneBoundRuns(say) {
+    if (game.woodsmanBuildLock) holdWoodsmanBuildLock(say);
+    if (game.colony?.inRun && game.currentZoneId !== 'colony_run') endColonyRunLeftBehind(say);
+}
 
 
 function sanitizeCombatRuntimeState() {
@@ -1976,7 +1989,7 @@ function markPlayerMovementCompleted() {
 function prepareCombatTick(nowMs) {
     game.combatTimeMs = Number.isFinite(nowMs) ? nowMs : getCombatTime() + 100;
     tickOceanOxygen(game.combatTimeMs);
-    if (game.woodsmanBuildLock) holdWoodsmanBuildLock(addLog);
+    holdZoneBoundRuns(addLog);
     tickWoodsmanCurse();
     if (typeof trackRecordBests === 'function') trackRecordBests();
     const pStats = getPlayerStats(false);
