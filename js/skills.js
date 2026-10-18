@@ -304,17 +304,18 @@ function getSkillRuneBonusLevels(name, record) {
 /** The extra levels of a rune that is not a skill rune. */
 const NO_RUNE_BONUS_LEVELS = Object.freeze({ permanentSkyBonus: 0, materialBonus: 0, engraveLevel: 0 });
 
+/** Why an engraving cannot go on now, or '': the woodsman fight's build lock, the engraving unlock (loop 4), sky essence, and the
+ * awakening unlock for awakened engravings. */
+function getSkyEngraveApplyRefusal(enhanceId) {
+    if (game.woodsmanBuildLock) return '☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.';
+    if (!contentProgression.isUnlocked('engraving') || (game.season || 1) < 4) return '창공의 정수는 루프4부터 사용할 수 있습니다.';
+    if ((game.currencies.skyEssence || 0) <= 0) return '창공의 정수가 부족합니다.';
+    return canUseSkyEnhancement(enhanceId) ? '' : '각성 각인은 ‘해금’의 룬 각성을 열어야 쓸 수 있습니다.';
+}
 function applySkyGemEnhancementToActive(enhanceId, requestedSlotIndex) {
-    if (!contentProgression.isUnlocked('engraving') || (game.season || 1) < 4) {
-        addLog('창공의 정수는 루프4부터 사용할 수 있습니다.', 'attack-monster');
-        return false;
-    }
-    if ((game.currencies.skyEssence || 0) <= 0) {
-        addLog('창공의 정수가 부족합니다.', 'attack-monster');
-        return false;
-    }
-    if (!canUseSkyEnhancement(enhanceId)) {
-        addLog('각성 각인은 ‘해금’의 룬 각성을 열어야 쓸 수 있습니다.', 'attack-monster');
+    const refusal = getSkyEngraveApplyRefusal(enhanceId);
+    if (refusal) {
+        addLog(refusal, 'attack-monster');
         return false;
     }
     let active = getGemEnhanceTargetSkill();
@@ -385,12 +386,17 @@ function getSkyGemEnhancementRemoveCost() {
     return 2;
 }
 
+/** The slot holding enhanceId: the asked slot (or the selected one) when it holds it, else wherever it is; -1 when nowhere. */
+function findSkyEngraveSlot(slots, enhanceId, slotIndex) {
+    let selectedSlot = Number.isFinite(Number(slotIndex)) ? Math.max(0, Math.min(4, Math.floor(Number(slotIndex)))) : getSelectedGemEngraveSlot();
+    return slots[selectedSlot] === enhanceId ? selectedSlot : slots.indexOf(enhanceId);
+}
 function removeSkyGemEnhancementFromActive(enhanceId, slotIndex) {
     if (!contentProgression.isUnlocked('engraving')) return false;
+    if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     let active = getGemEnhanceTargetSkill();
     let slots = getSkyEnhancementSlotsForSkill(active);
-    let selectedSlot = Number.isFinite(Number(slotIndex)) ? Math.max(0, Math.min(4, Math.floor(Number(slotIndex)))) : getSelectedGemEngraveSlot();
-    if (slots[selectedSlot] !== enhanceId) selectedSlot = slots.indexOf(enhanceId);
+    let selectedSlot = findSkyEngraveSlot(slots, enhanceId, slotIndex);
     if (selectedSlot < 0) return false;
     let cost = getSkyGemEnhancementRemoveCost();
     if (cost > 0 && (game.currencies.skyEssence || 0) < cost) {
