@@ -1,6 +1,6 @@
 const craftingWorkspaceUi = (() => {
     const recipes = [
-        ...['magicBud','sapBud','formlessDew','goldenRule','blightSpore','blessing','pruningShears','fairyRing','emberBranch','burningEmberBranch','deepWhetstone','rootIron','jewelPolish','abyssCatalyst','catalystFire','catalystCold','catalystLight','catalystChaos','catalystCrit','catalystSummon','enchantedHoney','venomStinger','voidChisel','ouroboros','oceanRerollShard','altarEmber','altarIchor'].map(key=>({key,kind:({magicBud:'reroll',sapBud:'add',formlessDew:'reroll',goldenRule:'value',blightSpore:'reset'})[key]||'special',label:ORB_DB[key].name})),
+        ...['magicBud','sapBud','formlessDew','goldenRule','blightSpore','blessing','pruningShears','fairyRing','emberBranch','burningEmberBranch','deepWhetstone','rootIron','jewelPolish','abyssCatalyst','catalystFire','catalystCold','catalystLight','catalystChaos','catalystCrit','catalystSummon','enchantedHoney','venomStinger','voidChisel','ouroboros','oceanRerollShard','altarEmber','altarIchor'].map(key=>({key,kind:equipmentCrafting.basicRule(equipmentCrafting.resolveAction(key,'normal'))?.kind||({goldenRule:'value',blightSpore:'reset'})[key]||'special',label:ORB_DB[key].name})),
         ...FOSSIL_DB.map(row=>({key:row.key,kind:'fossil',label:row.name}))
     ];
     let root, current=null, owner=null, goal, recipe=recipes[0], mode='none', extras='';
@@ -539,23 +539,40 @@ const craftingWorkspaceUi = (() => {
             studyDialog.setAttribute('aria-labelledby','cl-study-title');document.body.append(studyDialog);
             studyDialog.addEventListener('close',()=>studyRun++);
         }
-        const item=JSON.parse(JSON.stringify(selected())), method={...recipe}, spore=mode;
-        const rules=JSON.parse(JSON.stringify(goal)), rows=craftingGoalOptions.catalogue(item,method,spore);
-        const reason=craftingGoalOptions.rehearsalReason(item,method,spore);
-        studyDialog.innerHTML=`<header><div><h2 id="cl-study-title">제작 연구</h2><p>${esc(item.name)}, ${esc(method.label)}, 옵션 상한 T${getItemCraftTier(item)}</p></div><button data-study-close aria-label="제작 연구 닫기">닫기</button></header>
+        const context={item:JSON.parse(JSON.stringify(selected())),recipe:{...recipe},mode,rules:JSON.parse(JSON.stringify(goal)),omen:null};
+        studyDialog.innerHTML=`<header><div><h2 id="cl-study-title">제작 연구</h2><p>${esc(context.item.name)}, ${esc(context.recipe.label)}, 옵션 상한 T${getItemCraftTier(context.item)}</p></div><button data-study-close aria-label="제작 연구 닫기">닫기</button></header>
             <section class="cl-study-simulator"><h3>재화 없이 연습</h3><p>현재 장비에서 각각 새로 시작하는 독립 시도입니다. 실제 제작과 같은 굴림을 쓰며 장비와 재화는 변하지 않습니다.</p>
-            ${workspaceStudyOmenHtml(item,method)}<div class="cl-study-controls"><button data-study-sample="1" ${reason?'disabled':''}>1회 연습</button><button data-study-sample="2000" ${reason||!rules.rules.length?'disabled':''}>목표 확률 2,000회 측정</button></div>
-            <small>${esc(reason||('실제 제작 시: '+workspaceCostText()))}</small><div data-study-result aria-live="polite">표본 결과는 실제 획득 보장이 아닙니다.</div></section>
-            <details open><summary>출현 후보와 차단된 옵션, ${rows.filter(row=>row.allowed).length}종 가능</summary>
+            ${workspaceStudyOmenHtml(context.item,context.recipe)}<div class="cl-study-controls"><button data-study-sample="1">1회 연습</button><button data-study-sample="2000">목표 확률 2,000회 측정</button></div>
+            <small data-study-reason aria-live="polite"></small><div data-study-result aria-live="polite"></div></section>
+            <details open><summary data-study-summary></summary>
             <label class="cl-study-search">이름이나 태그 검색 <input type="search" data-study-search></label><p>가중치가 큰 옵션일수록 선택되기 쉽습니다. 화석 보장 줄과 일반 줄은 따로 굴립니다. T가 높을수록 상위 옵션입니다.</p>
-            <div class="cl-pool-scroll"><table><thead><tr><th>옵션</th><th>종류</th><th>티어</th><th>가중치 / 차단 이유</th></tr></thead><tbody>${workspaceStudyRows(rows)}</tbody></table></div></details>`;
+            <div class="cl-pool-scroll"><table><thead><tr><th>옵션</th><th>종류</th><th>티어</th><th>첫 선택 가중치 / 차단 이유</th></tr></thead><tbody></tbody></table></div></details>`;
         studyDialog.querySelector('[data-study-close]').onclick=()=>studyDialog.close();
-        studyDialog.querySelector('[data-study-search]').oninput=event=>{
-            const query=event.target.value.trim().toLowerCase();
-            studyDialog.querySelectorAll('tr[data-search]').forEach(row=>row.hidden=!row.dataset.search.toLowerCase().includes(query));
-        };
-        studyDialog.querySelectorAll('[data-study-sample]').forEach(button=>button.onclick=()=>workspaceSampleStudy(item,method,spore,rules,Number(button.dataset.studySample)));
+        studyDialog.querySelector('[data-study-search]').oninput=workspaceFilterStudy;
+        studyDialog.onchange=event=>{if(event.target.matches('[data-study-omen]'))workspaceRefreshStudy(context);};
+        studyDialog.querySelectorAll('[data-study-sample]').forEach(button=>button.onclick=()=>workspaceSampleStudy({...context},Number(button.dataset.studySample)));
+        workspaceRefreshStudy(context);
         studyDialog.showModal();
+    }
+
+    function workspaceFilterStudy() {
+        const query=studyDialog.querySelector('[data-study-search]').value.trim().toLowerCase();
+        studyDialog.querySelectorAll('tr[data-search]').forEach(row=>row.hidden=!row.dataset.search.toLowerCase().includes(query));
+    }
+    function workspaceStudyButtons(context,reason) {
+        studyDialog.querySelectorAll('[data-study-sample]').forEach(button=>button.disabled=!!reason||(button.dataset.studySample!=='1'&&!context.rules.rules.length));
+    }
+    /** Any research selection invalidates earlier results and refreshes every consumer of the same context. */
+    function workspaceRefreshStudy(context) {
+        studyRun++;
+        context.omen=workspaceStudyOmen();
+        const {rows,reason}=craftingGoalOptions.study(context);
+        studyDialog.querySelector('tbody').innerHTML=workspaceStudyRows(rows);
+        studyDialog.querySelector('[data-study-summary]').textContent=`출현 후보와 차단된 옵션, ${rows.filter(row=>row.allowed).length}종 가능`;
+        studyDialog.querySelector('[data-study-reason]').textContent=reason;
+        studyDialog.querySelector('[data-study-result]').textContent='';
+        workspaceStudyButtons(context,reason);
+        workspaceFilterStudy();
     }
 
     /** 연습에 걸 뿌리(깨어난 아틀라스에서): 이 재화를 바꾸는 뿌리라면 가지지 않아도 고른다. 처음에는 걸어 둔 뿌리. */
@@ -573,9 +590,10 @@ const craftingWorkspaceUi = (() => {
     }
 
     /** One practice: a result, or with 성화의 뿌리 (where the live craft would use it) as many as it lets the player pick from. */
-    function workspaceRehearse(item,method,spore,omen) {
-        const picks=omen&&omen.effect==='choice'&&equipmentCrafting.omenFits(item,equipmentCrafting.resolveAction(method.key,item.rarity),omen,spore)?CRAFT_OMENS.choices:1;
-        return Array.from({length:picks},()=>craftingGoalOptions.rehearse(item,method,spore,omen));
+    function workspaceRehearse(context) {
+        const {item,recipe,mode,omen}=context;
+        const picks=omen&&omen.effect==='choice'&&equipmentCrafting.omenFits(item,equipmentCrafting.resolveAction(recipe.key,item.rarity),omen,mode)?CRAFT_OMENS.choices:1;
+        return Array.from({length:picks},()=>craftingGoalOptions.rehearseStudy(context));
     }
     const workspacePracticeHtml=results=>`<strong>연습 결과${results.length>1?`, ${results.length}개 가운데 고르기`:''}</strong>${results.map(result=>`<ul>${result.stats.map(stat=>`<li>${esc(stat.statName||getStatName(stat.id))} +${esc(formatValue(stat.id,stat.val))} (T${stat.tier||0})</li>`).join('')}</ul>`).join('')}`;
 
@@ -586,22 +604,23 @@ const craftingWorkspaceUi = (() => {
         return `<strong>목표 달성 ${hits}/${count}회${picks>1?`(${picks}개 가운데 하나라도)`:''}, ${(p*100).toFixed(2)}%</strong><p>95% 추정 범위 ${(Math.max(0,centre-delta)*100).toFixed(2)}~${(Math.min(1,centre+delta)*100).toFixed(2)}%, ${hits>=5?`평균 약 ${Math.round(1/p)}회 / 주 재화 ${Math.round(1/p)}개`:'관측이 적어 평균 비용 추정 보류'}</p>`;
     }
 
-    async function workspaceSampleStudy(item, method, spore, rules, count) {
+    const workspaceStudyActive=run=>run===studyRun&&studyDialog.open;
+    async function workspaceSampleStudy(context, count) {
         const run=++studyRun, out=studyDialog.querySelector('[data-study-result]'), buttons=[...studyDialog.querySelectorAll('[data-study-sample]')];
         buttons.forEach(button=>button.disabled=true);
         let hits=0, results=[];
-        const omen=workspaceStudyOmen();
         try{
             for(let i=0;i<count;i++){
-                if(run!==studyRun||!studyDialog.open)return;
-                results=workspaceRehearse(item,method,spore,omen);
-                if(results.some(result=>equipmentLootPolicy.matches(result,{settings:{equipmentTargets:rules}})))hits++;
+                if(!workspaceStudyActive(run))return;
+                results=workspaceRehearse(context);
+                if(results.some(result=>equipmentLootPolicy.matches(result,{settings:{equipmentTargets:context.rules}})))hits++;
                 if(i%50===49){out.textContent=`측정 중 ${i+1}/${count}`;await new Promise(resolve=>setTimeout(resolve,0));}
             }
+            if(!workspaceStudyActive(run))return;
             if(count===1)out.innerHTML=workspacePracticeHtml(results);
             else out.innerHTML=workspaceSampleHtml(hits,count,results.length);
         }catch(error){console.error('Craft rehearsal failed',error);out.textContent=`연습 실패: ${error.message}`;}
-        finally{if(run===studyRun)buttons.forEach(button=>button.disabled=button.dataset.studySample!=='1'&&!rules.rules.length);}
+        finally{if(run===studyRun)workspaceStudyButtons(context,craftingGoalOptions.study(context).reason);}
     }
 
     /** 성화의 뿌리: the results side by side. The dialog stays until one is picked (no close button, Escape does nothing). */

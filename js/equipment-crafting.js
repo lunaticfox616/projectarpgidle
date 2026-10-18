@@ -170,17 +170,27 @@ const equipmentCrafting = (() => {
             over: used.prefix > rule.prefix || used.suffix > rule.suffix };
     }
 
-    const basicActions = Object.freeze(['transmute', 'alteration', 'alchemy', 'chaos', 'regal', 'exalted']);
-    const rerollActions = Object.freeze(['transmute', 'alteration', 'alchemy', 'chaos']);
+    /** Register a basic action once: live admission, output rarity and research read this same rule. */
+    const basicRules = Object.freeze(Object.fromEntries([
+        ['transmute','normal','magic','reroll'],['alteration','magic','magic','reroll'],
+        ['alchemy','normal','rare','reroll'],['chaos','rare','rare','reroll'],
+        ['regal','magic','rare','add'],['exalted','rare','rare','add']
+    ].map(([action,source,rarity,kind])=>[action,Object.freeze({source,rarity,kind})])));
+    const basicRule = action => basicRules[action];
+    const basicActions = Object.freeze(Object.keys(basicRules));
+    const rerollActions = Object.freeze(basicActions.filter(action=>basicRules[action].kind==='reroll'));
+    function basicFits(item, action) {
+        const rule=basicRule(action);
+        return !!rule && item.rarity===rule.source && (rule.kind!=='add'||getItemExplicitOptionCount(item)<EXPLICIT_AFFIX_LINE_CAP);
+    }
     /** The affix a spore mode guarantees for action on item, or null (spore mode off, or nothing of its family is open): picked by
      * weight among the open affixes in the spore's family, counted against the result's rarity (새싹 transmute and alteration: magic,
      * one and one; the rest: rare, three and three). A reroll counts only the lines it keeps (keptOnReroll, as rerollExplicitMods).
      * The live craft (js/passives.js useCurrency) and the bench's rehearsal (js/crafting-goal-options.js rehearse) both pick here. */
     function sporePool(item, action, mode, omen = null) {
-        if (mode === 'none') return [];
+        if (mode === 'none' || !basicRule(action)) return [];
         const base = rerollActions.includes(action) ? { ...item, stats: (item.stats || []).filter(stat => keptOnReroll(item, stat) || !onOmenSide(item, stat, omen)) } : item;
-        return filterSporeMods(getOpenAffixMods(base, ['transmute', 'alteration'].includes(action) ? 'magic' : 'rare'), mode)
-            .filter(mod => !omen || omen.effect !== 'side' || affixKind(mod) === omen.side);
+        return filterOmenMods(filterSporeMods(getOpenAffixMods(base, basicRule(action).rarity), mode), omen);
     }
     function pickSporeMod(item, action, mode, omen = null) {
         const pool = sporePool(item, action, mode, omen);
@@ -210,6 +220,8 @@ const equipmentCrafting = (() => {
     }
     /** Side membership is shared by rolling, value changes, removal and pre-payment admission. Special lines stay untouched. */
     const onOmenSide = (item, stat, omen) => !omen || omen.effect !== 'side' || storedAffixKind(item, stat) === omen.side;
+    /** Candidate restrictions shared by actual rolls, guaranteed spores and every research view. */
+    const filterOmenMods = (pool, omen) => !omen || omen.effect !== 'side' ? pool : pool.filter(mod => affixKind(mod) === omen.side);
     function sideReason(item, action, omen, sporeMode) {
         const label = omen.side === 'prefix' ? '접두어' : '접미어';
         if (basicActions.includes(action)) return sideRollReason(item, action, omen, sporeMode);
@@ -221,7 +233,7 @@ const equipmentCrafting = (() => {
         const label = omen.side === 'prefix' ? '접두어' : '접미어';
         const kept = rerollActions.includes(action) ? item.stats.filter(stat => keptOnReroll(item, stat) || !onOmenSide(item, stat, omen)) : item.stats;
         if (sporeMode !== 'none' && kept.some(stat => getSource(stat) === 'spore')) return '보존되는 홀씨 옵션이 있어 홀씨를 함께 사용할 수 없습니다.';
-        const pool = getOpenAffixMods({ ...item, stats: kept }, 'rare').filter(mod => affixKind(mod) === omen.side);
+        const pool = filterOmenMods(getOpenAffixMods({ ...item, stats: kept }, 'rare'), omen);
         if (!pool.length) return `${label}에 새로 부여할 수 있는 옵션이나 빈자리가 없습니다.`;
         return sporeMode !== 'none' && !filterSporeMods(pool, sporeMode).length ? `${label}에 선택한 홀씨 계열 옵션을 부여할 수 없습니다.` : '';
     }
@@ -260,17 +272,15 @@ const equipmentCrafting = (() => {
     }
     /** 엮음: (pool, picked) → pool where a mod sharing a tag with a line on item (or a mod picked before it this craft) weighs
      * weaveMul times more, as fossils weigh their tags (js/skills.js). */
-    function weaveWeigh(item) {
-        return (pool, picked) => {
-            const held = new Set([...(item.stats || []), ...picked].flatMap(getAffixTags));
-            return pool.map(mod => getAffixTags(mod).some(tag => held.has(tag)) ? { ...mod, weight: (Number(mod.weight) || 1) * CRAFT_OMENS.weaveMul } : mod);
-        };
+    function weighOmenPool(item, pool, omen, picked = []) {
+        const candidates = filterOmenMods(pool, omen);
+        if (!omen || omen.effect !== 'weave') return candidates;
+        const held = new Set([...(item.stats || []), ...picked].flatMap(getAffixTags));
+        return candidates.map(mod => getAffixTags(mod).some(tag => held.has(tag)) ? { ...mod, weight: (Number(mod.weight) || 1) * CRAFT_OMENS.weaveMul } : mod);
     }
     /** The line an added craft (regal, exalted) picks: an open mod of item, on 허기's side, weighed by 엮음. */
     function pickAddMod(item, omen) {
-        const effect = omen && omen.effect;
-        const pool = getOpenAffixMods(item, 'rare').filter(mod => effect !== 'side' || affixKind(mod) === omen.side);
-        return pickWeightedMod(effect === 'weave' ? weaveWeigh(item)(pool, []) : pool);
+        return pickWeightedMod(weighOmenPool(item, getOpenAffixMods(item, 'rare'), omen));
     }
     /** The row 전정 가위 cuts among removable rows ({ index, stat }): with 가지치기 the lowest tier among tiered lines (a fixed line,
      * shown as T0 whatever tier it stores, is not low: it has no better roll), else any. */
@@ -282,7 +292,10 @@ const equipmentCrafting = (() => {
     }
     /** What an omen changes in a reroll (js/passives.js rerollExplicitMods): each new line's roll, and 엮음's weights. */
     function omenRerollOptions(item, tier, omen) {
-        return omen ? { side: omen.effect === 'side' ? omen.side : '', rollLine: mod => rollOmenLine(mod, tier, omen), weigh: omen.effect === 'weave' ? weaveWeigh(item) : null } : {};
+        if (!omen) return {};
+        const before = { ...item, stats: item.stats.slice() };
+        return { side: omen.effect === 'side' ? omen.side : '', rollLine: mod => rollOmenLine(mod, tier, omen),
+            weigh: (pool, picked) => weighOmenPool(before, pool, omen, picked) };
     }
     function addedLine(item, options) {
         if (options.guaranteedStat) return options.guaranteedStat;
@@ -294,14 +307,14 @@ const equipmentCrafting = (() => {
     function applyBasic(item, action, options = {}) {
         if (!basicActions.includes(action)) throw Error('지원하지 않는 기본 제작');
         const tier = getItemCraftTier(item), guaranteed = options.guaranteedStat || null;
-        if (['regal', 'exalted'].includes(action)) {
+        if (basicRule(action).kind === 'add') {
             const line = addedLine(item, options);
             if (line) item.stats.push(line);
-            if (action === 'regal') item.rarity = 'rare';
+            item.rarity = basicRule(action).rarity;
             updateItemName(item);
             return;
         }
-        item.rarity = ['transmute', 'alteration'].includes(action) ? 'magic' : 'rare';
+        item.rarity = basicRule(action).rarity;
         rerollExplicitMods(item, item.rarity, tier, { guaranteedStat: guaranteed, rerollChaosInfusion: item.rarity === 'rare', ...omenRerollOptions(item, tier, options.omen) });
     }
 
@@ -403,9 +416,9 @@ const equipmentCrafting = (() => {
         return { ok: true };
     }
 
-    return Object.freeze({ basicActions, rerollActions, applyBasic, sporePool, pickSporeMod, rollSporeLine, getSource, getLabel, filterSporeMods, resolveAction, getBlockReason, getSporeBlockReason, getFossilBlockReason, getFossilUseReason,
+    return Object.freeze({ basicActions, rerollActions, basicRule, basicFits, applyBasic, sporePool, pickSporeMod, rollSporeLine, getSource, getLabel, filterSporeMods, resolveAction, getBlockReason, getSporeBlockReason, getFossilBlockReason, getFossilUseReason,
         affixKind, storedAffixKind, keptKind, keptOnReroll, getAffixKeepReason, affixCounts, affixRoom, fitsRoom, pickReplacement, affixHeader,
-        omenSpec, armOmen, omenFits, omenReason, armedSideReason, onOmenSide, omenFor, spendOmen, pickAddMod, pickPruneLine, craftBasic, pendingChoice, pickChoice,
+        omenSpec, armOmen, omenFits, omenReason, armedSideReason, onOmenSide, filterOmenMods, weighOmenPool, omenFor, spendOmen, pickAddMod, pickPruneLine, craftBasic, pendingChoice, pickChoice,
         normalizeImprint, engraveReason, engrave, restoreReason, restoreImprint, buildLockReason });
 })();
 safeExposeGlobals({ equipmentCrafting });

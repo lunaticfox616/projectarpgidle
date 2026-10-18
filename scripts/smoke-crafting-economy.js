@@ -178,6 +178,41 @@ vm.runInContext(annulBlock, annulContext, { filename: 'market-annul.js' });
         equipmentCrafting.armOmen(game,'omenHunger','prefix');game.currencies.pruningShears=2;
         const before=JSON.stringify([item,game.currencies,game.craftOmen]);const result=craftCurrencyUse.use('pruningShears');
         return !!result.reason&&JSON.stringify([item,game.currencies,game.craftOmen])===before;})()`),true,'empty side refuses crafting without spending either currency');
+    // Discover registered basic currencies/omens from data: additions inherit the same research/actual-roll contract.
+    const studyFailures=runGame(`(()=>{const failures=[];
+        for(const rarity of ['normal','magic','rare'])for(const key of Object.keys(ORB_DB)){
+            const action=equipmentCrafting.resolveAction(key,rarity);
+            if(!equipmentCrafting.basicActions.includes(action))continue;
+            const item=createItemFromBase(BASE_ITEM_DB.find(b=>b.slot==='무기'&&!b.dropOnly),rarity,12);
+            const pool=getAvailableMods({...item,stats:[]});
+            item.stats=rarity==='normal'?[]:['prefix','suffix'].map(kind=>rollAffixValue(pool.find(m=>equipmentCrafting.affixKind(m)===kind),12));
+            if(craftCurrencyUse.blockReason(item,action))continue;
+            const recipe={key,kind:equipmentCrafting.rerollActions.includes(action)?'reroll':'add'};
+            const omens=[null,...CRAFT_OMENS.keys.filter(k=>CRAFT_OMENS.effects[k].actions.includes(action)).flatMap(k=>
+                (CRAFT_OMENS.effects[k].effect==='side'?['prefix','suffix']:['prefix']).map(side=>equipmentCrafting.omenSpec(k,side)))];
+            for(const omen of omens)for(const mode of ['none','fire']){
+                const context={item,recipe,mode,omen}, label=[key,rarity,omen?.key,omen?.side,mode].join('/');
+                const before=JSON.stringify([game,item]), id=itemIdCounter, study=craftingGoalOptions.study(context);
+                const allowed=study.rows.filter(row=>row.allowed);
+                if(omen?.effect==='side'&&allowed.some(row=>row.kind!==omen.side))failures.push(label+': opposite side advertised');
+                if(!study.reason)for(let n=0;n<3;n++){
+                    const result=craftingGoalOptions.rehearseStudy(context);
+                    for(const stat of result.stats){
+                        if(item.stats.some(old=>JSON.stringify(old)===JSON.stringify(stat)))continue;
+                        const mod=findStoredEquipmentAffix(result,stat);
+                        if(!mod||!allowed.some(row=>row.id===mod.id))failures.push(label+': rolled an unadvertised option');
+                    }
+                }
+                else {let refused=false;try{craftingGoalOptions.rehearseStudy(context);}catch(error){refused=error.message===study.reason;}
+                    if(!refused)failures.push(label+': blocked study accepted');}
+                if(JSON.stringify([game,item])!==before||itemIdCounter!==id)failures.push(label+': research changed live state');
+            }
+        }
+        const unsupported={item:__item,recipe:{key:'unregisteredFutureCurrency',kind:'reroll'},mode:'none',omen:null};
+        const preview=craftingGoalOptions.study(unsupported);
+        if(preview.rows.length||!preview.reason)failures.push('unregistered currency advertised a fallback pool');
+        return failures;})()`);
+    assert.deepStrictEqual(Array.from(studyFailures),[],'research candidates and rehearsal must agree for every registered basic currency/root');
     console.log('smoke-crafting-economy passed');
 })().catch(error => {
     console.error(error);

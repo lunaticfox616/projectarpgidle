@@ -10305,12 +10305,10 @@ function corruptCraftedItem(item) {
 // 2026-10-18 정리: 한 함수(복잡도 145, 288줄)를 책임별로 나눴다. 기본 제작의 굴림은 js/equipment-crafting.js가 맡는다.
 const craftCurrencyUse = (() => {
     const qualityFits = slots => item => slots.includes(String(item.slot || '')) && Math.max(0, Math.floor(item.quality || 0)) < 20 && !item.qualityLockedByLimitBreak;
-    const roomLeft = item => getItemExplicitOptionCount(item) < EXPLICIT_AFFIX_LINE_CAP;
     /** Whether each action fits the item now (rarity, room, slot, quality). An action missing here never fits. */
     const FITS = Object.freeze({
-        transmute: item => item.rarity === 'normal', alteration: item => item.rarity === 'magic', alchemy: item => item.rarity === 'normal',
-        exalted: item => item.rarity === 'rare' && roomLeft(item), regal: item => item.rarity === 'magic' && roomLeft(item),
-        chaos: item => item.rarity === 'rare', divine: item => item.rarity !== 'normal', chance: item => item.rarity === 'normal',
+        ...Object.fromEntries(equipmentCrafting.basicActions.map(action=>[action,item=>equipmentCrafting.basicFits(item,action)])),
+        divine: item => item.rarity !== 'normal', chance: item => item.rarity === 'normal',
         scour: item => item.rarity !== 'normal' && item.rarity !== 'unique',
         tainted: item => !item.corrupted || (isKaleidoscopeShieldItem(item) && getItemExplicitOptionCount(item) <= EXPLICIT_AFFIX_LINE_CAP),
         blessing: item => Array.isArray(item.baseStats) && item.baseStats.length > 0,

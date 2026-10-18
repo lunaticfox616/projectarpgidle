@@ -1,5 +1,6 @@
 // Read-only candidates from the same pools used by currency/fossil crafting. No RNG or payment.
 const craftingGoalOptions = (() => {
+    const resultRarity = (item, recipe) => equipmentCrafting.basicRule(equipmentCrafting.resolveAction(recipe.key,item.rarity))?.rarity || 'rare';
     function keptStats(item, recipe, omen = null) {
         if (recipe.kind === 'add') return item.stats || [];
         return (item.stats || []).filter(stat => equipmentCrafting.keptOnReroll(item, stat) || stat.unremovable || stat.encroachedFinal || !equipmentCrafting.onOmenSide(item, stat, omen));
@@ -8,10 +9,10 @@ const craftingGoalOptions = (() => {
     function rollPool(item, recipe, mode, omen) {
         const kept = keptStats(item, recipe, omen);
         const occupied = kept.length + (item.chaosInfusion ? 1 : 0);
-        const magic = recipe.key === 'magicBud', cap = magic ? EXPLICIT_AFFIX_RULES.magic.prefix + EXPLICIT_AFFIX_RULES.magic.suffix : EXPLICIT_AFFIX_LINE_CAP;
+        const magic = resultRarity(item,recipe) === 'magic', cap = magic ? EXPLICIT_AFFIX_RULES.magic.prefix + EXPLICIT_AFFIX_RULES.magic.suffix : EXPLICIT_AFFIX_LINE_CAP;
         if (occupied >= cap) return [];
         // Prefix 3 and suffix 3 (magic 1 and 1): only kinds with room after the kept lines can appear.
-        let pool = getOpenAffixMods({ ...item, stats: kept }, magic ? 'magic' : 'rare').filter(mod => !omen || omen.effect !== 'side' || equipmentCrafting.affixKind(mod) === omen.side);
+        let pool = equipmentCrafting.filterOmenMods(getOpenAffixMods({ ...item, stats: kept }, magic ? 'magic' : 'rare'), omen);
         // Rerolls fill at most 2 (magic) / 5 (rare) lines. A guaranteed line can replace the last random one.
         const maxRolled = Math.max(kept.length, cap === 2 ? 2 : 5) - occupied;
         if (recipe.kind === 'reroll' && maxRolled <= 0 && mode === 'none') return [];
@@ -42,8 +43,10 @@ const craftingGoalOptions = (() => {
     function eligible(item,recipe) {
         if(!item||!['add','reroll','fossil','value'].includes(recipe.kind))return false;
         if(item.rarity==='unique'||item.corrupted||item.fusedRelic)return false;
-        const rarities={magicBud:['normal','magic'],sapBud:['magic','rare'],formlessDew:['normal','rare']};
-        return !rarities[recipe.key]||rarities[recipe.key].includes(item.rarity);
+        if(recipe.kind==='fossil')return FOSSIL_DB.some(row=>row.key===recipe.key);
+        if(!Object.hasOwn(ORB_DB,recipe.key))return false;
+        const action=equipmentCrafting.resolveAction(recipe.key,item.rarity);
+        return equipmentCrafting.basicFits(item,action);
     }
 
     function get(item, recipe, mode, omen = null) {
@@ -71,33 +74,44 @@ const craftingGoalOptions = (() => {
     }
     /** The live pool, including blocked groups, using the same base, influence and prefix/suffix admission as actual rolls. */
     const maxTierFor = (item, mod) => mod.fixedValue ? 0 : Math.min(getItemCraftTier(item), mod.tierValues?.length || 20);
-    function catalogue(item, recipe, mode) {
+    function catalogue(item, recipe, mode, omen = null) {
         if (!eligible(item, recipe) || recipe.kind === 'value') return [];
-        const pool = rollPool(item, recipe, mode), ids = new Set(pool.map(mod => mod.id));
+        const pool = rollPool(item, recipe, mode, omen), ids = new Set(pool.map(mod => mod.id));
         const candidates = buildAvailableModPool(item).map(row => row.mod);
         const all = [...new Map([...candidates, ...pool].map(mod => [mod.id, mod])).values()];
-        const kept = keptStats(item, recipe), occupied = new Set(kept.flatMap(getExplicitModStatIds));
-        const room = equipmentCrafting.affixRoom({ ...item, stats: kept }, recipe.key === 'magicBud' ? 'magic' : 'rare');
-        const weights = recipe.kind === 'fossil' ? weighFossilTagMods(pool, recipe.key) : pool;
+        const kept = keptStats(item, recipe, omen), occupied = new Set(kept.flatMap(getExplicitModStatIds));
+        const room = equipmentCrafting.affixRoom({ ...item, stats: kept }, resultRarity(item,recipe));
+        const weights = recipe.kind === 'fossil' ? weighFossilTagMods(pool, recipe.key) : equipmentCrafting.weighOmenPool(item, pool, omen);
         const weightOf = mod => Math.max(0.01, Number(mod.weight) || 1), total = weights.reduce((sum, mod) => sum + weightOf(mod), 0);
         return all.map(mod => {
             const allowed = ids.has(mod.id), maxTier = maxTierFor(item, mod);
-            const reason = getExplicitModStatIds(mod).some(id => occupied.has(id)) ? '보존 옵션과 중복'
-                : !equipmentCrafting.fitsRoom(room, mod) ? '접두나 접미 자리 부족' : '선택한 제작의 후보 아님';
+            const reason = catalogueBlockReason(mod, { occupied, room, omen });
             const weighted = weights.find(row => row.id === mod.id), weight = weighted ? weightOf(weighted) : 0;
             return { id: mod.id, name: mod.statName || getStatName(mod.statId || mod.id), kind: equipmentCrafting.affixKind(mod),
                 tags: getAffixTags(mod), maxTier, weight, share: total ? weight / total : 0, allowed, reason: allowed ? '' : reason };
         }).sort((a, b) => Number(b.allowed) - Number(a.allowed) || a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name, 'ko'));
     }
 
+    function catalogueBlockReason(mod, { occupied, room, omen }) {
+        if (!equipmentCrafting.filterOmenMods([mod], omen).length) return '선택한 뿌리의 대상 아님';
+        if (getExplicitModStatIds(mod).some(id => occupied.has(id))) return '보존 옵션과 중복';
+        return !equipmentCrafting.fitsRoom(room, mod) ? '접두나 접미 자리 부족' : '선택한 제작의 후보 아님';
+    }
+
+    /** The study's one input: keep candidate admission, button admission and rehearsal on the same selection. */
+    function study(context) {
+        const { item, recipe, mode, omen } = context;
+        return { rows: catalogue(item, recipe, mode, omen), reason: rehearsalReason(item, recipe, mode, omen) };
+    }
+
     function rehearsalSideReason(item, action, mode, omen) {
         return equipmentCrafting.omenReason(item, action, omen, mode) || equipmentCrafting.getSporeBlockReason(item, action, mode);
     }
     function rehearsalReason(item, recipe, mode = 'none', omen = null) {
-        if (!eligible(item, recipe) || !equipmentCrafting.basicActions.includes(equipmentCrafting.resolveAction(recipe.key, item.rarity))) return '모의 제작은 마법의 새싹, 수액 봉오리, 형체 없는 이슬만 됩니다.';
+        if (!eligible(item, recipe) || !equipmentCrafting.basicActions.includes(equipmentCrafting.resolveAction(recipe.key, item.rarity))) return '이 재화의 제작 연습은 아직 지원하지 않습니다.';
         const action = equipmentCrafting.resolveAction(recipe.key, item.rarity);
         if (omen && omen.effect === 'side') return rehearsalSideReason(item, action, mode, omen);
-        return equipmentCrafting.getSporeBlockReason(item, action, mode) || (!rollPool(item, recipe, mode).length ? '부여 가능한 옵션이 없습니다.' : '')
+        return equipmentCrafting.getSporeBlockReason(item, action, mode) || (!rollPool(item, recipe, mode, omen).length ? '부여 가능한 옵션이 없습니다.' : '')
             || sporeGapReason(item, action, mode);
     }
     /** The live craft refuses a spore mode with nothing of its family left to give (js/passives.js useCurrency): so does practice. */
@@ -123,6 +137,10 @@ const craftingGoalOptions = (() => {
         equipmentCrafting.applyBasic(result, action, { guaranteedStat, omen: equipmentCrafting.omenFits(item, action, omen, mode) ? omen : null });
         return result;
     }
-    return Object.freeze({ get, tags, catalogue, rehearsalReason, rehearse });
+    function rehearseStudy(context) {
+        const { item, recipe, mode, omen } = context;
+        return rehearse(item, recipe, mode, omen);
+    }
+    return Object.freeze({ get, tags, catalogue, rehearsalReason, rehearse, study, rehearseStudy });
 })();
 safeExposeGlobals({ craftingGoalOptions });
