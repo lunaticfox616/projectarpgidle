@@ -371,6 +371,20 @@ function normalizeVoidRiftSave(state) {
     run.rewardVoidChisel = Number.isFinite(paid) && paid >= 0 ? Math.floor(paid) : null;
 }
 
+/** A saved currency that is text other than a number, negative or not a number counts as none: such a value stayed and showed as
+ * NaN, -7 or [object Object] (only the legacy-merged keys were cleaned). Numeric text becomes a number. */
+function normalizeSavedCurrencies(currencies) {
+    for (const key of Object.keys(currencies)) {
+        const raw = currencies[key], amount = Number(raw);
+        currencies[key] = (typeof raw === 'number' || typeof raw === 'string') && Number.isFinite(amount) && amount > 0 ? amount : 0;
+    }
+}
+/** Talisman curse rows per enemy (transient combat state): each a list, else dropped (coreLoop's expiry threw on every tick). */
+function normalizeConditionDebuffMap(map) {
+    const rows = map && typeof map === 'object' && !Array.isArray(map) ? map : {};
+    return Object.fromEntries(Object.entries(rows).filter(([, list]) => Array.isArray(list)));
+}
+
 function mergeDefaults(save) {
     function clampFiniteNumber(value, fallback, min, max) {
         let num = Number(value);
@@ -668,6 +682,7 @@ function mergeDefaults(save) {
     migratePassiveSaveNodeReferences(merged);
     migrateLegacySummonGemSave(merged);
     dropRuntimeOnlySaveFields(merged);
+    normalizeSavedCurrencies(merged.currencies);
     Object.entries(typeof CURRENCY_LEGACY_MERGE === 'object' ? CURRENCY_LEGACY_MERGE : {}).forEach(([currentKey, legacyKeys]) => {
         let legacyAmount = (legacyKeys || []).reduce((sum, legacyKey) => sum + Math.max(0, Math.floor(Number(merged.currencies[legacyKey]) || 0)), 0);
         merged.currencies[currentKey] = Math.max(0, Math.floor(Number(merged.currencies[currentKey]) || 0)) + legacyAmount;
@@ -1110,10 +1125,8 @@ function mergeDefaults(save) {
         }
         return out;
     }
-    merged.enemyKeystoneDebuffs = pruneEnemyRuntimeMap(merged.enemyKeystoneDebuffs, { maxKeys: 120 });
-    merged.rangerWeakpointMarks = pruneEnemyRuntimeMap(merged.rangerWeakpointMarks, { maxKeys: 120 });
-    merged.enemyUniqueChaosResDown = pruneEnemyRuntimeMap(merged.enemyUniqueChaosResDown, { maxKeys: 120 });
-    merged.enemyUniqueElementalResDown = pruneEnemyRuntimeMap(merged.enemyUniqueElementalResDown, { maxKeys: 120 });
+    ['enemyKeystoneDebuffs', 'rangerWeakpointMarks', 'enemyUniqueChaosResDown', 'enemyUniqueElementalResDown'].forEach(key => { merged[key] = pruneEnemyRuntimeMap(merged[key], { maxKeys: 120 }); });
+    merged.enemyConditionDebuffs = normalizeConditionDebuffMap(merged.enemyConditionDebuffs);
     merged.encounterPlan = Array.isArray(merged.encounterPlan) ? merged.encounterPlan.map(normalizeEncounterMarker).filter(Boolean).sort((a, b) => a.at - b.at) : [];
     merged.level = Math.max(1, Math.floor(clampFiniteNumber(merged.level, defaultGame.level, 1, MAX_PLAYER_LEVEL)));
     merged.exp = Math.max(0, Math.floor(clampFiniteNumber(merged.exp, defaultGame.exp, 0)));

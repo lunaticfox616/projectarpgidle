@@ -5434,7 +5434,7 @@ function repairJournalEntriesFromProgress(state) {
     if (runtimeState.voidRift && runtimeState.voidRift.grandBreachCleared) recovered.add('void_grand_breach');
     if (Math.max(Math.floor(runtimeState.labyrinthUnlockedMaxFloor || 1), Math.floor(runtimeState.labyrinthFloor || 1)) >= 11) recovered.add('labyrinth_10');
     if (runtimeState.ocean && Math.floor(runtimeState.ocean.bossClearM || 0) >= 500) recovered.add('ocean_500');
-    if (runtimeState.skyTower && (Math.floor(runtimeState.skyTower.highestFloor || 1) >= 11 || (runtimeState.skyTower.clearedFloors || []).some(floor => Math.floor(floor || 0) >= 10))) recovered.add('sky_tower_10');
+    if (runtimeState.skyTower && (Math.floor(runtimeState.skyTower.highestFloor || 1) >= 11 || (Array.isArray(runtimeState.skyTower.clearedFloors) ? runtimeState.skyTower.clearedFloors : []).some(floor => Math.floor(floor || 0) >= 10))) recovered.add('sky_tower_10');
     let hasFusedRelic = (runtimeState.inventory || []).some(item => item && item.fusedRelic)
         || Object.values(runtimeState.equipment || {}).some(item => item && item.fusedRelic);
     if ((runtimeState.timeRift && Math.floor(runtimeState.timeRift.fusionCount || 0) > 0) || hasFusedRelic) recovered.add('time_rift_fusion');
