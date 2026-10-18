@@ -570,7 +570,7 @@ function dedupeList(values) {
 function makeSourceLine(label, value, suffix, formatter) {
     if (!value) return null;
     let rendered = formatter ? formatter(value) : `${Math.floor(value)}${suffix || ''}`;
-    return `${label} +${rendered}`;
+    return `${label} ${value < 0 ? '' : '+'}${rendered}`;
 }
 
 /**

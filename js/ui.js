@@ -5223,7 +5223,7 @@ window.addEventListener('resize', function() {
 
 function renderBreakdownHtml(data) {
     let html = `<div class="tooltip-title">${data.title}</div>`;
-    (data.lines || []).forEach(line => { html += `<div class="tooltip-line">${line}</div>`; });
+    (data.lines || []).filter(Boolean).forEach(line => { html += `<div class="tooltip-line">${line}</div>`; });
     if (data.final !== undefined) html += `<div class="tooltip-final">최종 수치: ${data.final}</div>`;
     return html;
 }
