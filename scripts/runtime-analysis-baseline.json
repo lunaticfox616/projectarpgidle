@@ -854,11 +854,11 @@
     },
     "getActiveSkillStats|max-lines-per-function|Function 'getActiveSkillStats' has too many lines (#). Maximum allowed is #.": {
       "count": 1,
-      "max": 71
+      "max": 69
     },
     "getActiveSkillStats|complexity|Function 'getActiveSkillStats' has a complexity of #. Maximum allowed is #.": {
       "count": 1,
-      "max": 28
+      "max": 24
     },
     "getActiveSkillStats|complexity|Arrow function has a complexity of #. Maximum allowed is #.": {
       "count": 1,
@@ -1002,7 +1002,7 @@
     },
     "getSummonGemLevel|complexity|Function 'getSummonGemLevel' has a complexity of #. Maximum allowed is #.": {
       "count": 1,
-      "max": 17
+      "max": 14
     },
     "getSummonMaxHp|complexity|Function 'getSummonMaxHp' has a complexity of #. Maximum allowed is #.": {
       "count": 1,
@@ -9538,10 +9538,9 @@
     "dependency:getActiveSkillStats->applyProjectilePatternMode",
     "dependency:getActiveSkillStats->fitActiveSkillToWeapon",
     "dependency:getActiveSkillStats->getGemLevelGrowthSteps",
-    "dependency:getActiveSkillStats->getGemSkyEnhanceGemLevelBonus",
+    "dependency:getActiveSkillStats->getSkillRuneBonusLevels",
     "dependency:getActiveSkillStats->getSkyEnhancementForSkill",
     "dependency:getActiveSkillStats->getSkyProjectilePatternMode",
-    "dependency:getActiveSkillStats->getSkyTowerGemBoostLevel",
     "dependency:getActiveSkillStats->normalizeGemRecord",
     "dependency:getActiveSummonGemDefs->Number",
     "dependency:getActiveSummonGemDefs->canUseSkillWithCurrentEquipment",
@@ -10913,8 +10912,7 @@
     "dependency:getSkillConditionalDamageMultiplier->hasGridCell",
     "dependency:getSkillConditionalDamageMultiplier->onCue",
     "dependency:getSkillDamageTagSet->hasEquippedShield",
-    "dependency:getSkillGemLevels->getGemSkyEnhanceGemLevelBonus",
-    "dependency:getSkillGemLevels->getSkyTowerGemBoostLevel",
+    "dependency:getSkillGemLevels->getSkillRuneBonusLevels",
     "dependency:getSkillGemPresentation->applyGemPresentationPattern",
     "dependency:getSkillGemPresentation->getLeveledGemSkill",
     "dependency:getSkillGemPresentation->getSkillGemCoreFields",
@@ -10934,6 +10932,8 @@
     "dependency:getSkillProjectileVfxStyle->getSkillGemVfxProfile",
     "dependency:getSkillProjectileVfxStyle->normalizeSkillGemVfxElement",
     "dependency:getSkillRepeatDamageMultiplier->Number",
+    "dependency:getSkillRuneBonusLevels->getGemSkyEnhanceGemLevelBonus",
+    "dependency:getSkillRuneBonusLevels->getSkyTowerGemBoostLevel",
     "dependency:getSkillRuneRewardWeight->isSkillRuneUsableWithStance",
     "dependency:getSkillRuneRewardWeights->getEquippedWeaponStance",
     "dependency:getSkillRuneRewardWeights->getSkillRuneRewardWeight",
@@ -11026,7 +11026,7 @@
     "dependency:getSummonEvasionRating->getSummonEvasionGrowthSteps",
     "dependency:getSummonExpectedHit->getSummonHitDamageInfo",
     "dependency:getSummonGemLevel->getGemSkyEnhanceGemLevelBonus",
-    "dependency:getSummonGemLevel->getSkyTowerGemBoostLevel",
+    "dependency:getSummonGemLevel->getSkillRuneBonusLevels",
     "dependency:getSummonGemLevel->getTargetGemBonusSources",
     "dependency:getSummonHitDamageInfo->applySummonHitCrit",
     "dependency:getSummonHitDamageInfo->applySummonHitTargetScales",
