@@ -5292,33 +5292,59 @@ function appendPlayerDpsBreakdowns(stats, summonEstimate) {
     };
 }
 
+/** A rune's shown numbers: a support rune's value at its level and active tier, else the skill at its final level (cores, quality,
+ * the sky tower boost, a projectile pattern). Split by kind on 2026-10-18, same calls in the same order. */
 function getGemPresentation(name, isSupport, statsOverride) {
     let stats = statsOverride || getPlayerStats();
     let targetGemSources = getTargetGemBonusSources(name, stats.gemBonusSources);
-    if (isSupport) {
-        let gem = normalizeGemRecord((game.supportGemData || {})[name]);
-        let db = SUPPORT_GEM_DB[name];
-        if (!db) return { baseLevel: gem.level, totalLevel: gem.level, value: 0, desc: '정의되지 않은 보조스킬룬', statName: name, statId: null, gemBonusSources: targetGemSources };
-        let totalLevel = Math.max(1, gem.level + targetGemSources.total);
-        let val = db.baseVal + (getGemLevelGrowthSteps(totalLevel) * db.scale);
-        let activeTier = typeof getSupportActiveTier === 'function' ? getSupportActiveTier(name) : Math.max(1, Math.min((typeof getSupportTierCap === 'function' ? getSupportTierCap(name) : 3), Math.floor(gem.activeTier || gem.unlockedTier || 1)));
-        let tierMul = typeof getSupportTierMultiplier === 'function' ? getSupportTierMultiplier(name, activeTier) : (activeTier === 1 ? 1 : activeTier === 2 ? 1.55 : 2.2);
-        let ratioPct = val * tierMul;
-        let scaleBase = db.scaleWithOwnStat ? Math.max(0, Number(stats.supportScaleBases && stats.supportScaleBases[db.scaleWithOwnStat]) || 0) : 0;
-        let value = db.scaleWithOwnStat ? scaleBase * (ratioPct / 100) : ratioPct;
-        return { baseLevel: gem.level, totalLevel: totalLevel, value: value, desc: db.desc, statName: db.name, statId: db.stat, activeTier: activeTier, gemBonusSources: targetGemSources, scaleWithOwnStat: db.scaleWithOwnStat || null, scaleBase: scaleBase, scaleRatioPct: ratioPct };
-    }
+    if (isSupport) return getSupportGemPresentation(name, stats, targetGemSources, typeof getSupportActiveTier === 'function' ? getSupportActiveTier : null);
+    return getSkillGemPresentation(name, stats, targetGemSources);
+}
+/** A support rune's value at its level and tier (activeTierOf: ui.js's reader of the chosen tier, null in runs without it). */
+function getSupportGemPresentation(name, stats, targetGemSources, activeTierOf) {
+    let gem = normalizeGemRecord((game.supportGemData || {})[name]);
+    let db = SUPPORT_GEM_DB[name];
+    if (!db) return { baseLevel: gem.level, totalLevel: gem.level, value: 0, desc: '정의되지 않은 보조스킬룬', statName: name, statId: null, gemBonusSources: targetGemSources };
+    let totalLevel = Math.max(1, gem.level + targetGemSources.total);
+    let val = db.baseVal + (getGemLevelGrowthSteps(totalLevel) * db.scale);
+    const { activeTier, tierMul } = getSupportGemTier(name, gem, activeTierOf);
+    let ratioPct = val * tierMul;
+    let scaleBase = db.scaleWithOwnStat ? Math.max(0, Number(stats.supportScaleBases && stats.supportScaleBases[db.scaleWithOwnStat]) || 0) : 0;
+    let value = db.scaleWithOwnStat ? scaleBase * (ratioPct / 100) : ratioPct;
+    return { baseLevel: gem.level, totalLevel: totalLevel, value: value, desc: db.desc, statName: db.name, statId: db.stat, activeTier: activeTier, gemBonusSources: targetGemSources, scaleWithOwnStat: db.scaleWithOwnStat || null, scaleBase: scaleBase, scaleRatioPct: ratioPct };
+}
+/** A support rune's active tier and its multiplier (fallbacks for runs without the tier helpers). */
+function getSupportGemTier(name, gem, activeTierOf) {
+    let activeTier = activeTierOf ? activeTierOf(name) : Math.max(1, Math.min((typeof getSupportTierCap === 'function' ? getSupportTierCap(name) : 3), Math.floor(gem.activeTier || gem.unlockedTier || 1)));
+    let tierMul = typeof getSupportTierMultiplier === 'function' ? getSupportTierMultiplier(name, activeTier) : (activeTier === 1 ? 1 : activeTier === 2 ? 1.55 : 2.2);
+    return { activeTier, tierMul };
+}
+/** A skill rune's levels, its leveled skill with a projectile pattern, and its core fields. */
+function getSkillGemPresentation(name, stats, targetGemSources) {
     let db = SKILL_DB[name];
     if (!db) return { baseLevel: 0, totalLevel: 0, finalLevel: 0, desc: '정의되지 않은 스킬', skill: SKILL_DB['기본 공격'], tags: ['attack'] };
     if (!db.isGem && !db.levelable) return { baseLevel: 0, totalLevel: 0, finalLevel: 0, desc: db.desc, statName: name, skill: db, tags: getSkillTagList(db) };
     game.gemData = game.gemData || {};
     let gem = normalizeGemRecord((game.gemData || {})[name]);
     if (db.levelable) game.gemData[name] = gem;
+    const levels = getSkillGemLevels(name, db, gem, targetGemSources);
+    let skill = applyGemPresentationPattern(name, getLeveledGemSkill(db, gem, levels.finalLevel), stats);
+    return {
+        baseLevel: gem.level, totalLevel: levels.totalLevel, finalLevel: levels.finalLevel, materialBonus: levels.materialBonus, permanentSkyBonus: levels.permanentSkyBonus,
+        ...getSkillGemCoreFields(gem), desc: db.desc, skill: skill, tags: getSkillTagList(skill), gemBonusSources: targetGemSources
+    };
+}
+/** The sky tower boost, the core and awakening levels, the gear levels, and the total and final (base capped at 20) levels. */
+function getSkillGemLevels(name, db, gem, targetGemSources) {
     let permanentSkyBonus = db.isGem && typeof getSkyTowerGemBoostLevel === 'function' ? getSkyTowerGemBoostLevel(name) : 0;
     let materialBonus = db.isGem ? gemCoreForge.effects(gem).levels + (gem.awakened ? 2 : 0) + permanentSkyBonus : 0;
     let levelBonus = db.isGem ? targetGemSources.total : 0;
     let totalLevel = gem.level + levelBonus + materialBonus;
     let finalLevel = Math.min(20, gem.level) + levelBonus + materialBonus;
+    return { permanentSkyBonus, materialBonus, totalLevel, finalLevel };
+}
+/** The skill's damage, speed and crit at the final level, with quality and the core forge's damage and speed. */
+function getLeveledGemSkill(db, gem, finalLevel) {
     let skill = { ...db };
     skill.dmg = skill.baseDmg + (getGemLevelGrowthSteps(finalLevel) * skill.dmgScale);
     skill.spd = skill.baseSpd + (getGemLevelGrowthSteps(finalLevel) * skill.spdScale);
@@ -5326,12 +5352,19 @@ function getGemPresentation(name, isSupport, statsOverride) {
     let qualityMul = 1 + Math.max(0, Math.min(20, gem.quality || 0)) / 200;
     skill.dmg *= qualityMul * (db.isGem ? gemCoreForge.effects(gem).damage : 1);
     skill.spd *= qualityMul * (db.isGem ? gemCoreForge.effects(gem).speed : 1);
+    return skill;
+}
+/** The active skill's projectile pattern from the stats, else the sky tower's for this skill. */
+function applyGemPresentationPattern(name, skill, stats) {
     let activePattern = name === game.activeSkill && stats.sSkill && stats.sSkill.projectilePatternSource
         ? stats.sSkill : null;
     let patternMode = activePattern && activePattern.projectilePattern
         ? activePattern.projectilePattern.mode : getSkyProjectilePatternMode(name);
     if (patternMode) skill = applyProjectilePatternMode(skill, patternMode, activePattern ? activePattern.projectilePatternSource : '창공 각인', activePattern ? activePattern.projectilePatternDamageMultiplier : null);
-    return { baseLevel: gem.level, totalLevel: totalLevel, finalLevel: finalLevel, materialBonus: materialBonus, permanentSkyBonus: permanentSkyBonus, bossCoreLevel: gem.bossCoreLevel || 0, skyCoreLevel: gem.skyCoreLevel || 0, skyEnhanceCap: gem.skyEnhanceCap || 1, quality: gem.quality || 0, awakened: !!gem.awakened, desc: db.desc, skill: skill, tags: getSkillTagList(skill), gemBonusSources: targetGemSources };
+    return skill;
+}
+function getSkillGemCoreFields(gem) {
+    return { bossCoreLevel: gem.bossCoreLevel || 0, skyCoreLevel: gem.skyCoreLevel || 0, skyEnhanceCap: gem.skyEnhanceCap || 1, quality: gem.quality || 0, awakened: !!gem.awakened };
 }
 
 /** Targets of the active gem in range now. dormant: monsters that have not noticed the hero yet, which only the attack itself
