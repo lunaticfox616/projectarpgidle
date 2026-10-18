@@ -1798,7 +1798,7 @@ function getSummonTooltipPreview(gemName, pStats) {
     let hitRange = getSummonTooltipHitRange(hitProfile, stats);
     let maxHp = getSummonMaxHp(profile, gemLv, stats);
     let evasion = getSummonEvasionRating(profile, gemLv, stats);
-    let critChance = Math.max(0, Math.min(0.95, ((profile.baseCrit || 0) + (stats.summonCrit || 0)) / 100));
+    const crit = getSummonCritProfile(hitProfile, stats);
     return {
         roleLabel: profile.role === 'guard' ? '방어 소환수' : '공격 소환수',
         trait: profile.trait || '',
@@ -1810,8 +1810,8 @@ function getSummonTooltipPreview(gemName, pStats) {
         hitDamageMin: Math.max(1, Math.floor(hitRange.min)),
         hitDamageMax: Math.max(1, Math.floor(hitRange.max)),
         attackPerSecond: profile.role === 'guard' ? 0 : (Math.round((1000 / getSummonAttackIntervalMs(stats, hitProfile)) * 100) / 100),
-        critChancePct: Math.round(critChance * 1000) / 10,
-        critDmgPct: Math.max(100, (profile.baseCritDmg || 140) + (stats.summonCritDmg || 0)),
+        critChancePct: Math.round(crit.critChance * 1000) / 10,
+        critDmgPct: Math.round(crit.critMul * 100),
         resPenBonus: Math.max(0, Number(profile.resPenBonus || 0)),
         physIgnoreBonus: Math.max(0, Number(profile.physIgnoreBonus || 0)),
         redirectPct: profile.role === 'guard' || hasKeystone('sb2') ? getSummonRedirectPct(stats) : 0
