@@ -5668,51 +5668,73 @@ function getHitEnemyResistance(element, zoneTier, enemy, pStats, curseFx) {
         - regionAffixEffects.resistanceShred(pStats, enemy, element);
 }
 
+/** The enemy's mitigation against a hit of skillEle: its resistance (the woodsman's climbs as it loses life), less the shreds on
+ * it, then the physical or elemental rules. Split into its steps on 2026-10-18 with the same reads in the same order. */
 function getEffectiveEnemyMitigation(skillEle, zoneTier, enemy, pStats) {
     let rawMitigation = getEnemyElementResistance(skillEle, zoneTier, enemy);
-    if (enemy && enemy.isWoodsman && enemy.maxHp > 0) {
-        let missingHpRatio = Math.max(0, Math.min(1, 1 - ((enemy.hp || 0) / enemy.maxHp)));
-        let bonusRes = Math.floor(missingHpRatio * 28);
-        if (skillEle === 'fire') rawMitigation = (enemy.baseResF || rawMitigation) + bonusRes;
-        else if (skillEle === 'cold') rawMitigation = (enemy.baseResC || rawMitigation) + bonusRes;
-        else if (skillEle === 'light') rawMitigation = (enemy.baseResL || rawMitigation) + bonusRes;
-        else if (skillEle === 'chaos') rawMitigation = (enemy.baseResChaos || rawMitigation) + bonusRes;
-    }
-    if (skillEle !== 'chaos' && ['fire','cold','light'].includes(skillEle) && enemy && enemy.id && game.enemyUniqueElementalResDown && game.enemyUniqueElementalResDown[enemy.id]) {
-        let deb = game.enemyUniqueElementalResDown[enemy.id];
-        let shred = Math.min(Math.max(0, Number(deb.max || 20)), Math.max(0, Number(deb.stacks || 0)) * Math.max(0, Number(deb.perHit || 2)));
-        rawMitigation -= shred;
-    }
-    if (skillEle === 'chaos' && enemy && enemy.id && game.enemyUniqueChaosResDown && game.enemyUniqueChaosResDown[enemy.id]) {
-        let deb = game.enemyUniqueChaosResDown[enemy.id];
-        rawMitigation -= Math.max(0, (deb.perHit || 0) * (deb.stacks || 0));
-    }
-    if (skillEle === 'chaos' && enemy && enemy.chaosErosionShred) {
-        rawMitigation -= enemy.chaosErosionShred;
-    }
-    if (skillEle === 'phys') {
-        let cappedReduction = Math.max(0, Math.min(80, rawMitigation));
-        let ignoreAmount = Math.max(0, Number(pStats.physIgnore) || 0);
-        if (cappedReduction > 0) {
-            cappedReduction = (pStats && pStats.allowNegativePhysIgnore)
-                ? (cappedReduction - ignoreAmount)
-                : Math.max(0, cappedReduction - ignoreAmount);
-        }
-        if (rawMitigation < 0) return rawMitigation;
-        return cappedReduction;
-    }
-    if (skillEle === 'fire' || skillEle === 'cold' || skillEle === 'light' || skillEle === 'chaos') {
-        if ((skillEle === 'fire' || skillEle === 'cold' || skillEle === 'light') && hasKeystone('iq4')) rawMitigation = Math.max(0, rawMitigation) * ASCENDANCY_KEYSTONE_VALUES.iq4.resistanceKeptPct / 100 + Math.min(0, rawMitigation);
-        if (skillEle === 'light' && pStats && pStats.crusaderLightningIgnoreRes) rawMitigation = 0;
-        let effective = rawMitigation - ((skillEle === 'light' && pStats && pStats.crusaderNoResPenOnLightning) ? 0 : Math.max(0, pStats.resPen || 0));
-        let cap = Math.max(0, Number(enemy && enemy.maxResCap) || 80);
-        if (effective > 0) effective = Math.min(cap, effective);
-        // 절대 관통(엘리멘탈리스트 e9): 원소 저항 관통 하한을 -300%까지 확장
-        let minPen = ((skillEle === 'fire' || skillEle === 'cold' || skillEle === 'light') && hasKeystone('e9')) ? -300 : MIN_PENETRATED_RESISTANCE;
-        const resistance = Math.max(minPen, effective);
-        return applyHolyMistMitigation(skillEle,enemy,resistance);
-    }
+    if (enemy && enemy.isWoodsman && enemy.maxHp > 0) rawMitigation = getWoodsmanResistance(skillEle, enemy, rawMitigation);
+    rawMitigation = applyEnemyResistanceShred(skillEle, enemy, rawMitigation);
+    if (skillEle === 'phys') return getPhysicalMitigation(rawMitigation, pStats);
+    if (skillEle === 'fire' || skillEle === 'cold' || skillEle === 'light' || skillEle === 'chaos') return getElementalMitigation(skillEle, enemy, pStats, rawMitigation);
     return Math.min(80, rawMitigation);
+}
+const WOODSMAN_BASE_RESIST = Object.freeze({ fire: 'baseResF', cold: 'baseResC', light: 'baseResL', chaos: 'baseResChaos' });
+/** 혼돈 밖의 나무꾼: its base resistance of the element plus up to 28 as it loses life. */
+function getWoodsmanResistance(skillEle, enemy, rawMitigation) {
+    let missingHpRatio = Math.max(0, Math.min(1, 1 - ((enemy.hp || 0) / enemy.maxHp)));
+    let bonusRes = Math.floor(missingHpRatio * 28);
+    const key = Object.hasOwn(WOODSMAN_BASE_RESIST, skillEle) ? WOODSMAN_BASE_RESIST[skillEle] : null;
+    return key ? (enemy[key] || rawMitigation) + bonusRes : rawMitigation;
+}
+/** The shreds on the enemy: a unique's elemental resistance down (fire, cold, lightning), a unique's chaos resistance down and chaos
+ * erosion (chaos). */
+function applyEnemyResistanceShred(skillEle, enemy, rawMitigation) {
+    if (!enemy) return rawMitigation;
+    if (['fire', 'cold', 'light'].includes(skillEle)) return rawMitigation - getUniqueElementalShred(enemy);
+    if (skillEle !== 'chaos') return rawMitigation;
+    rawMitigation -= getUniqueChaosShred(enemy);
+    if (enemy.chaosErosionShred) rawMitigation -= enemy.chaosErosionShred;
+    return rawMitigation;
+}
+function getUniqueElementalShred(enemy) {
+    const deb = enemy.id && game.enemyUniqueElementalResDown && game.enemyUniqueElementalResDown[enemy.id];
+    if (!deb) return 0;
+    return Math.min(Math.max(0, Number(deb.max || 20)), Math.max(0, Number(deb.stacks || 0)) * Math.max(0, Number(deb.perHit || 2)));
+}
+function getUniqueChaosShred(enemy) {
+    const deb = enemy.id && game.enemyUniqueChaosResDown && game.enemyUniqueChaosResDown[enemy.id];
+    return deb ? Math.max(0, (deb.perHit || 0) * (deb.stacks || 0)) : 0;
+}
+/** Physical: damage reduction capped at 80, less the hero's physical ignore (below 0 only with allowNegativePhysIgnore); a negative
+ * reduction counts as it is. */
+function getPhysicalMitigation(rawMitigation, pStats) {
+    let cappedReduction = Math.max(0, Math.min(80, rawMitigation));
+    let ignoreAmount = Math.max(0, Number(pStats.physIgnore) || 0);
+    if (cappedReduction > 0) {
+        cappedReduction = (pStats && pStats.allowNegativePhysIgnore)
+            ? (cappedReduction - ignoreAmount)
+            : Math.max(0, cappedReduction - ignoreAmount);
+    }
+    if (rawMitigation < 0) return rawMitigation;
+    return cappedReduction;
+}
+/** Fire, cold, lightning and chaos: keystone iq4 keeps part of a positive elemental resistance, the hero's penetration, the enemy's
+ * resistance cap, the penetration floor (keystone e9: -300 for the elements), then 성수 안개. */
+function getElementalMitigation(skillEle, enemy, pStats, rawMitigation) {
+    const elemental = skillEle !== 'chaos';
+    if (elemental && hasKeystone('iq4')) rawMitigation = Math.max(0, rawMitigation) * ASCENDANCY_KEYSTONE_VALUES.iq4.resistanceKeptPct / 100 + Math.min(0, rawMitigation);
+    let effective = getPiercedResistance(skillEle, pStats, rawMitigation);
+    let cap = Math.max(0, Number(enemy && enemy.maxResCap) || 80);
+    if (effective > 0) effective = Math.min(cap, effective);
+    // 절대 관통(엘리멘탈리스트 e9): 원소 저항 관통 하한을 -300%까지 확장
+    let minPen = (elemental && hasKeystone('e9')) ? -300 : MIN_PENETRATED_RESISTANCE;
+    const resistance = Math.max(minPen, effective);
+    return applyHolyMistMitigation(skillEle,enemy,resistance);
+}
+/** Resistance less the hero's penetration; 성전사 lightning may ignore resistance or take no penetration. */
+function getPiercedResistance(skillEle, pStats, rawMitigation) {
+    if (skillEle === 'light' && pStats && pStats.crusaderLightningIgnoreRes) rawMitigation = 0;
+    return rawMitigation - ((skillEle === 'light' && pStats && pStats.crusaderNoResPenOnLightning) ? 0 : Math.max(0, pStats.resPen || 0));
 }
 
 
