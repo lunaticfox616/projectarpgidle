@@ -3287,6 +3287,8 @@ function getSelectedSeaGiftEquipmentTarget() {
     return isSeaGiftEquipmentTarget(item) ? item : null;
 }
 
+/** Makes a sea gift recipe: its effect from SEA_GIFT_EFFECTS on the item (a refusal logs why and keeps the fish), then the fish are
+ * taken. Effects as a table on 2026-10-18, each in its old order. */
 function craftSeaGift(recipeId, targetItem, options) {
     const status = getSeaGiftRecipeStatus(recipeId, targetItem);
     if (!status) return false;
@@ -3295,107 +3297,136 @@ function craftSeaGift(recipeId, targetItem, options) {
     let st = ensureOceanState();
     let effect = recipe.effect;
     let item = status.item;
-    let category = options && options.category;
-    if (effect.type === 'guaranteedMod' || effect.type === 'guaranteedTaggedMod') {
-        const refusal = applySeaGiftGuaranteedMod(item, effect, category);
-        if (refusal) { addLog(refusal, 'attack-monster'); return false; }
-    } else if (effect.type === 'removeMod') {
-        if (!removeOneModFromItem(item)) { addLog('제거할 수 있는 옵션 줄이 없습니다.', 'attack-monster'); return false; }
-        updateItemName(item);
-    } else if (effect.type === 'upgradeRarity') {
-        if (item.rarity === 'rare' || item.rarity === 'unique') {
-            addLog('이미 희귀 이상인 장비는 더 승급할 수 없습니다.', 'attack-monster');
-            return false;
-        }
-        if (effect.force) item.rarity = 'rare';
-        else if (item.rarity === 'normal') item.rarity = 'magic';
-        else if (item.rarity === 'magic') item.rarity = 'rare';
-        updateItemName(item);
-    } else if (effect.type === 'lockMod') {
-        if (!applySeaGiftLockEffect(item, effect, category)) return false;
-    } else if (effect.type === 'taggedReroll') {
-        let rows = getSeaGiftRerollRows(item, category);
-        if (rows.length === 0) { addLog('해당 계열의 재굴림 가능한 옵션 줄이 없습니다.', 'attack-monster'); return false; }
-        let targets = effect.allMatching ? rows : [rows[Math.floor(Math.random() * rows.length)]];
-        targets.forEach(row => { item.stats[row.index] = rollSeaGiftExistingAffix(row, effect.tierBoost); });
-        updateItemName(item);
-    } else if (effect.type === 'fixedBenchOption') {
-        let option = getOceanWorkbenchOption(options && options.optionId, !!effect.topTier);
-        if (!option) { addLog('적용할 수 있는 고정 옵션이 없습니다.', 'attack-monster'); return false; }
-        let minInt = Math.floor(option.min);
-        let maxInt = Math.floor(option.max);
-        let val = minInt + Math.floor(Math.random() * (maxInt - minInt + 1));
-        let rolled = { id: option.statId, val: val, valMin: minInt, valMax: maxInt, tier: 5, statName: getStatName(option.statId), oceanBenchOptionId: option.id };
-        let idx = (item.stats || []).findIndex(stat => stat && (stat.oceanBenchOptionId === option.id));
-        if (idx < 0) idx = (item.stats || []).findIndex(stat => stat && !stat.lockedByHoney && !stat.lockedByRift);
-        if (idx < 0) item.stats.push(rolled); else item.stats[idx] = rolled;
-        updateItemName(item);
-    } else if (effect.type === 'currency') {
-        awardCurrency(effect.key, effect.amount || 1);
-    } else if (effect.type === 'randomCurrency') {
-        let count = Math.max(1, Math.floor(effect.amount || 1));
-        for (let i = 0; i < count; i++) {
-            let key = SEA_GIFT_RANDOM_ORB_KEYS[Math.floor(Math.random() * SEA_GIFT_RANDOM_ORB_KEYS.length)];
-            awardCurrency(key, 1);
-            addLog(`🎲 무작위 제작 재화: ${(ORB_DB[key] || {}).name || key} +1`, 'loot-rare');
-        }
-    } else if (effect.type === 'safeReroll') {
-        let rows = getSeaGiftRerollRows(item);
-        if (rows.length === 0) { addLog('재굴림할 수 있는 옵션 줄이 없습니다.', 'attack-monster'); return false; }
-        let row = rows[Math.floor(Math.random() * rows.length)];
-        let rolled = rollSeaGiftExistingAffix(row, 0);
-        if ((Number(rolled.val) || 0) >= (Number(row.stat.val) || 0)) item.stats[row.index] = rolled;
-        else addLog('🌊 재굴림 결과가 기존보다 낮아 적용을 취소했습니다.', 'loot-magic');
-        updateItemName(item);
-    } else if (effect.type === 'twinReroll') {
-        let rows = getSeaGiftRerollRows(item);
-        if (rows.length === 0) { addLog('재굴림할 수 있는 옵션 줄이 없습니다.', 'attack-monster'); return false; }
-        rows.sort(() => Math.random() - 0.5).slice(0, 2)
-            .forEach(row => { item.stats[row.index] = rollSeaGiftExistingAffix(row, 0); });
-        updateItemName(item);
-    } else if (effect.type === 'tierStepUp') {
-        let rows = getSeaGiftRerollRows(item).filter(row => {
-            let cap = Array.isArray(row.mod.tierValues) ? row.mod.tierValues.length : 20;
-            return Math.max(1, Math.floor(Number(row.stat.tier) || 1)) < cap;
-        });
-        if (rows.length === 0) { addLog('등급을 올릴 수 있는 옵션 줄이 없습니다.', 'attack-monster'); return false; }
-        let row = rows[Math.floor(Math.random() * rows.length)];
-        item.stats[row.index] = rollSeaGiftExistingAffix(row, 1);
-        updateItemName(item);
-    } else if (effect.type === 'echoMod') {
-        if ((item.stats || []).some(s => s && s.isEchoMod)) { addLog('이미 메아리 옵션을 가진 장비에는 다시 사용할 수 없습니다.', 'attack-monster'); return false; }
-        let editableIdx = (item.stats || []).map((s, i) => (s && !s.lockedByHoney && !s.lockedByRift) ? i : -1).filter(i => i >= 0);
-        if (editableIdx.length < 2) { addLog('메아리에는 봉인되지 않은 옵션이 2줄 이상 필요합니다.', 'attack-monster'); return false; }
-        let maxTier = editableIdx.reduce((m, i) => Math.max(m, Number(item.stats[i].tier) || 0), 0);
-        let topIdx = editableIdx.filter(i => (Number(item.stats[i].tier) || 0) === maxTier);
-        let srcIdx = topIdx[Math.floor(Math.random() * topIdx.length)];
-        let targetPool = getSeaGiftEchoTargets(item, editableIdx, srcIdx);
-        if (targetPool.length === 0) { addLog('메아리 줄을 넣을 같은 종류 자리가 없습니다(접두 3, 접미 3).', 'attack-monster'); return false; }
-        let dstIdx = targetPool[Math.floor(Math.random() * targetPool.length)];
-        let src = item.stats[srcIdx];
-        let echo = JSON.parse(JSON.stringify(src));
-        echo.val = Math.floor((Number(src.val) || 0) * 0.5);
-        if (Number.isFinite(echo.valMin)) echo.valMin = Math.floor(echo.valMin * 0.5);
-        if (Number.isFinite(echo.valMax)) echo.valMax = Math.floor(echo.valMax * 0.5);
-        echo.echoOf = src.statName || getStatName(src.id);
-        echo.isEchoMod = true;
-        item.stats[dstIdx] = echo;
-        addLog(`🔊 ${echo.echoOf} 옵션이 50% 효과로 메아리쳤습니다.`, 'loot-rare');
-        updateItemName(item);
-    } else if (effect.type === 'convertCategoryMod') {
-        let editableIdx = (item.stats || []).map((s, i) => (s && !s.lockedByHoney && !s.lockedByRift) ? i : -1).filter(i => i >= 0);
-        if (editableIdx.length === 0) { addLog('변환할 수 있는 옵션 줄이 없습니다.', 'attack-monster'); return false; }
-        let pool = getAvailableMods(item).filter(mod => !category || getModCategory(mod) === category);
-        let choice = equipmentCrafting.pickReplacement(item, pool, editableIdx, pickWeightedMod);
-        if (!choice) { addLog('해당 계열로 변환할 수 있는 옵션이 없습니다.', 'attack-monster'); return false; }
-        item.stats[choice.index] = rollAffixValue(choice.mod, getItemCraftTier(item));
-        updateItemName(item);
-    }
+    const craft = { category: options && options.category, options, say: addLog };
+    const apply = Object.hasOwn(SEA_GIFT_EFFECTS, effect.type) ? SEA_GIFT_EFFECTS[effect.type] : null;
+    if (apply && apply(item, effect, craft) === false) return false;
     Object.keys(recipe.requires).forEach(key => { st.fishStock[key] = Math.max(0, Math.floor(st.fishStock[key] || 0) - recipe.requires[key]); });
     addLog(`🎁 [바다의 선물] 제작이 완료되었습니다.`, 'loot-rare');
     if (item && typeof normalizeItem === 'function') normalizeItem(item);
     queueImportantSave(200);
     return true;
+}
+/** Logs why a sea gift was refused; false for the handler to return. */
+function refuseSeaGift(craft, message) {
+    craft.say(message, 'attack-monster');
+    return false;
+}
+/** The indexes of the item's lines that no seal holds. */
+function getSeaGiftEditableIndexes(item) {
+    return (item.stats || []).map((s, i) => (s && !s.lockedByHoney && !s.lockedByRift) ? i : -1).filter(i => i >= 0);
+}
+/** Each sea gift effect on the item (craft: the chosen category, the options, the log); false refuses. */
+const SEA_GIFT_EFFECTS = Object.freeze({
+    guaranteedMod: applySeaGiftGuaranteedEffect,
+    guaranteedTaggedMod: applySeaGiftGuaranteedEffect,
+    removeMod: (item, effect, craft) => {
+        if (!removeOneModFromItem(item)) return refuseSeaGift(craft, '제거할 수 있는 옵션 줄이 없습니다.');
+        updateItemName(item);
+    },
+    upgradeRarity: (item, effect, craft) => {
+        if (item.rarity === 'rare' || item.rarity === 'unique') return refuseSeaGift(craft, '이미 희귀 이상인 장비는 더 승급할 수 없습니다.');
+        if (effect.force) item.rarity = 'rare';
+        else if (item.rarity === 'normal') item.rarity = 'magic';
+        else if (item.rarity === 'magic') item.rarity = 'rare';
+        updateItemName(item);
+    },
+    lockMod: (item, effect, craft) => !!applySeaGiftLockEffect(item, effect, craft.category),
+    taggedReroll: (item, effect, craft) => {
+        let rows = getSeaGiftRerollRows(item, craft.category);
+        if (rows.length === 0) return refuseSeaGift(craft, '해당 계열의 재굴림 가능한 옵션 줄이 없습니다.');
+        let targets = effect.allMatching ? rows : [rows[Math.floor(Math.random() * rows.length)]];
+        targets.forEach(row => { item.stats[row.index] = rollSeaGiftExistingAffix(row, effect.tierBoost); });
+        updateItemName(item);
+    },
+    fixedBenchOption: applySeaGiftBenchOption,
+    currency: (item, effect) => { awardCurrency(effect.key, effect.amount || 1); },
+    randomCurrency: (item, effect, craft) => {
+        let count = Math.max(1, Math.floor(effect.amount || 1));
+        for (let i = 0; i < count; i++) {
+            let key = SEA_GIFT_RANDOM_ORB_KEYS[Math.floor(Math.random() * SEA_GIFT_RANDOM_ORB_KEYS.length)];
+            awardCurrency(key, 1);
+            craft.say(`🎲 무작위 제작 재화: ${(ORB_DB[key] || {}).name || key} +1`, 'loot-rare');
+        }
+    },
+    safeReroll: (item, effect, craft) => {
+        let rows = getSeaGiftRerollRows(item);
+        if (rows.length === 0) return refuseSeaGift(craft, '재굴림할 수 있는 옵션 줄이 없습니다.');
+        let row = rows[Math.floor(Math.random() * rows.length)];
+        let rolled = rollSeaGiftExistingAffix(row, 0);
+        if ((Number(rolled.val) || 0) >= (Number(row.stat.val) || 0)) item.stats[row.index] = rolled;
+        else craft.say('🌊 재굴림 결과가 기존보다 낮아 적용을 취소했습니다.', 'loot-magic');
+        updateItemName(item);
+    },
+    twinReroll: (item, effect, craft) => {
+        let rows = getSeaGiftRerollRows(item);
+        if (rows.length === 0) return refuseSeaGift(craft, '재굴림할 수 있는 옵션 줄이 없습니다.');
+        rows.sort(() => Math.random() - 0.5).slice(0, 2)
+            .forEach(row => { item.stats[row.index] = rollSeaGiftExistingAffix(row, 0); });
+        updateItemName(item);
+    },
+    tierStepUp: (item, effect, craft) => {
+        let rows = getSeaGiftRerollRows(item).filter(row => {
+            let cap = Array.isArray(row.mod.tierValues) ? row.mod.tierValues.length : 20;
+            return Math.max(1, Math.floor(Number(row.stat.tier) || 1)) < cap;
+        });
+        if (rows.length === 0) return refuseSeaGift(craft, '등급을 올릴 수 있는 옵션 줄이 없습니다.');
+        let row = rows[Math.floor(Math.random() * rows.length)];
+        item.stats[row.index] = rollSeaGiftExistingAffix(row, 1);
+        updateItemName(item);
+    },
+    echoMod: applySeaGiftEcho,
+    convertCategoryMod: (item, effect, craft) => {
+        let editableIdx = getSeaGiftEditableIndexes(item);
+        if (editableIdx.length === 0) return refuseSeaGift(craft, '변환할 수 있는 옵션 줄이 없습니다.');
+        let pool = getAvailableMods(item).filter(mod => !craft.category || getModCategory(mod) === craft.category);
+        let choice = equipmentCrafting.pickReplacement(item, pool, editableIdx, pickWeightedMod);
+        if (!choice) return refuseSeaGift(craft, '해당 계열로 변환할 수 있는 옵션이 없습니다.');
+        item.stats[choice.index] = rollAffixValue(choice.mod, getItemCraftTier(item));
+        updateItemName(item);
+    }
+});
+/** A guaranteed line (a tagged one in the chosen category); a refusal logs why. */
+function applySeaGiftGuaranteedEffect(item, effect, craft) {
+    const refusal = applySeaGiftGuaranteedMod(item, effect, craft.category);
+    if (refusal) return refuseSeaGift(craft, refusal);
+}
+/** The ocean workbench's fixed line, rolled whole, over the same option's old line or the first unsealed one (else added). */
+function applySeaGiftBenchOption(item, effect, craft) {
+    let option = getOceanWorkbenchOption(craft.options && craft.options.optionId, !!effect.topTier);
+    if (!option) return refuseSeaGift(craft, '적용할 수 있는 고정 옵션이 없습니다.');
+    let minInt = Math.floor(option.min);
+    let maxInt = Math.floor(option.max);
+    let val = minInt + Math.floor(Math.random() * (maxInt - minInt + 1));
+    let rolled = { id: option.statId, val: val, valMin: minInt, valMax: maxInt, tier: 5, statName: getStatName(option.statId), oceanBenchOptionId: option.id };
+    let idx = (item.stats || []).findIndex(stat => stat && (stat.oceanBenchOptionId === option.id));
+    if (idx < 0) idx = (item.stats || []).findIndex(stat => stat && !stat.lockedByHoney && !stat.lockedByRift);
+    if (idx < 0) item.stats.push(rolled); else item.stats[idx] = rolled;
+    updateItemName(item);
+}
+/** One of the highest tier lines echoed at half its values onto another unsealed line of the same kind. */
+function applySeaGiftEcho(item, effect, craft) {
+    if ((item.stats || []).some(s => s && s.isEchoMod)) return refuseSeaGift(craft, '이미 메아리 옵션을 가진 장비에는 다시 사용할 수 없습니다.');
+    let editableIdx = getSeaGiftEditableIndexes(item);
+    if (editableIdx.length < 2) return refuseSeaGift(craft, '메아리에는 봉인되지 않은 옵션이 2줄 이상 필요합니다.');
+    let maxTier = editableIdx.reduce((m, i) => Math.max(m, Number(item.stats[i].tier) || 0), 0);
+    let topIdx = editableIdx.filter(i => (Number(item.stats[i].tier) || 0) === maxTier);
+    let srcIdx = topIdx[Math.floor(Math.random() * topIdx.length)];
+    let targetPool = getSeaGiftEchoTargets(item, editableIdx, srcIdx);
+    if (targetPool.length === 0) return refuseSeaGift(craft, '메아리 줄을 넣을 같은 종류 자리가 없습니다(접두 3, 접미 3).');
+    let dstIdx = targetPool[Math.floor(Math.random() * targetPool.length)];
+    let echo = makeSeaGiftEchoLine(item.stats[srcIdx]);
+    item.stats[dstIdx] = echo;
+    craft.say(`🔊 ${echo.echoOf} 옵션이 50% 효과로 메아리쳤습니다.`, 'loot-rare');
+    updateItemName(item);
+}
+function makeSeaGiftEchoLine(src) {
+    let echo = JSON.parse(JSON.stringify(src));
+    echo.val = Math.floor((Number(src.val) || 0) * 0.5);
+    if (Number.isFinite(echo.valMin)) echo.valMin = Math.floor(echo.valMin * 0.5);
+    if (Number.isFinite(echo.valMax)) echo.valMax = Math.floor(echo.valMax * 0.5);
+    echo.echoOf = src.statName || getStatName(src.id);
+    echo.isEchoMod = true;
+    return echo;
 }
 
 safeExposeGlobals({ isSeaGiftEquipmentTarget, getSelectedSeaGiftEquipmentTarget });
