@@ -56,8 +56,7 @@ const atlasEndgameUi = (() => {
     }
     /** Why no late fight can depart right now (said once): the atlas's own lock, an open map, or another content's run. */
     function departBlock() {
-        if (game.atlas.run) return '열린 지도를 마치거나 닫으면 도전할 수 있습니다.';
-        return atlas.lockReason(game) || atlasRun.blockReason();
+        return atlas.runOpenReason(game) || atlas.lockReason(game) || atlasRun.blockReason();
     }
     function headHtml(view, block) {
         if (!view.awakened) return `<section class="atlas-late-head"><h3>잠든 아틀라스</h3>

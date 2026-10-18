@@ -69,6 +69,8 @@ const atlas = (() => {
         if (!hasCurrentLoopChaos20Clear(state)) return '이번 루프에서 혼돈 20을 클리어해야 지도를 열 수 있습니다.';
         return '';
     }
+    /** 열린 지도가 있으면 다른 지도, 정점, 보드, 시대 재생, 최종 보스, 기억 싸움을 열지 않는다(거절 문구는 여기 하나). */
+    const runOpenReason = state => (state.atlas.run ? '열린 지도를 먼저 마치거나 닫으세요.' : '');
     const completed = (state, id) => state.atlas.completed.includes(id);
     function status(state, id) {
         if (state.atlas.bonus.includes(id)) return 'bonus';
@@ -146,7 +148,7 @@ const atlas = (() => {
     function beginReason(state, uid) {
         const reason = lockReason(state);
         if (reason) return reason;
-        if (state.atlas.run) return '이미 열린 지도가 있습니다. 먼저 마치거나 닫으세요.';
+        if (state.atlas.run) return runOpenReason(state);
         return state.atlas.stash.some(map => map.uid === uid) ? '' : '보관함에 없는 지도석입니다.';
     }
     /** The loadout's first `slots` fragments in stock. Encounter fragments only while the map has ordinary rooms left for
@@ -197,7 +199,7 @@ const atlas = (() => {
     function beginBoard(state, returnZoneId) {
         const board = atlasBoard.plan(state), reason = lockReason(state);
         if (reason) return reason;
-        if (state.atlas.run) return '열린 지도를 먼저 마치거나 닫으세요.';
+        if (state.atlas.run) return runOpenReason(state);
         if (!board) return '주사위를 굴려 지도 칸에 도착하세요.';
         const map = atlasMaps.create(board.node, board.tier);
         map.uid = state.atlas.nextUid++;
@@ -209,7 +211,7 @@ const atlas = (() => {
     function pinnacleReason(state) {
         const reason = lockReason(state);
         if (reason) return reason;
-        if (state.atlas.run) return '이미 열린 지도가 있습니다. 먼저 마치거나 닫으세요.';
+        if (state.atlas.run) return runOpenReason(state);
         return hasTickets(state) ? '' : '뿌리 입장권 4종(화염, 냉기, 번개, 카오스)이 하나씩 필요합니다. 지역 수호자가 떨어뜨립니다.';
     }
     /** 정점: 뿌리 입장권 4종을 하나씩 바치고 세계수의 그림자에 들어간다(씨앗마다 2등급 높다). */
@@ -592,7 +594,7 @@ const atlas = (() => {
         return id === ATLAS.zoneId && !state.atlas.run ? '지도 장치에서 지도석을 열어야 들어갈 수 있습니다.' : '';
     }
     return Object.freeze({ nodes: NODES, links: LINKS, renameSavedIds, node: id => BY_ID.get(id) || null, neighbours: id => NEIGHBOURS.get(id) || [],
-        fragment: id => FRAGMENTS.get(id) || null, pinnacle: PINNACLE, position, polar, defaults, lockReason, status, reachable, points, bestTier, sync,
+        fragment: id => FRAGMENTS.get(id) || null, pinnacle: PINNACLE, position, polar, defaults, lockReason, runOpenReason, status, reachable, points, bestTier, sync,
         effectiveTier, hasTickets, pinnacleReason, beginPinnacle, beginSpecial, beginMemory, beginBoard, lateNodes: LATE_NODES,
         slots, setLoadout, beginReason, begin, cancel, complete, markCleared, keepLoot, usePortal, close, nextAuto, dropFromKill, extraMap, fragmentFromKill, fragmentOpen,
         zone, preview, lootTier, equivalentDepth, normalize, onLoopReset, travelReason, rewardMaps, rewardZone,

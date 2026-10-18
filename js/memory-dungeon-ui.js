@@ -12,8 +12,7 @@ const memoryDungeonUi = (() => {
     }
     /** Why no memory fight can depart right now (said once above the list). */
     function departBlock() {
-        if (game.atlas.run) return '열린 지도를 마치거나 닫으면 도전할 수 있습니다.';
-        return atlas.lockReason(game) || atlasRun.blockReason();
+        return atlas.runOpenReason(game) || atlas.lockReason(game) || atlasRun.blockReason();
     }
     function tierButton(row, step, block) {
         if (!step.have) return `<span class="memory-tier is-empty">${step.tier}단계</span>`;

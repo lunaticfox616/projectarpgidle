@@ -135,7 +135,7 @@ assert.equal(opened.stash, ATLAS_STARTER() - 1, 'opening consumes the map');
 assert.equal(opened.portals, 3);
 assert.equal(opened.returnZone, 29, 'the map remembers where it was opened');
 assert.equal(opened.exploration.seed, 'atlas:' + first.uid, 'the layout is the map item: the same map keeps its layout');
-assert.match(run(`atlasRun.open(${copy('game.atlas.stash[0].uid')})`), /이미 열린 지도/, 'one map at a time');
+assert.match(run(`atlasRun.open(${copy('game.atlas.stash[0].uid')})`), /열린 지도를 먼저/, 'one map at a time');
 
 while (tick < 4000 && run('!!game.atlas.run')) advance();
 const cleared = copy('{result:game.atlas.lastResult,completed:game.atlas.completed,zone:game.currentZoneId,stash:game.atlas.stash.length}');

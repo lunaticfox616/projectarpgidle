@@ -64,7 +64,7 @@ const atlasEndgame = (() => {
         if (!row) return '없는 보스입니다.';
         const lock = atlas.lockReason(state);
         if (lock) return lock;
-        if (state.atlas.run) return '이미 열린 지도가 있습니다. 먼저 마치거나 닫으세요.';
+        if (state.atlas.run) return atlas.runOpenReason(state);
         if (!unlocked(state, row)) return lockText(state, row);
         const missing = missingOf(state, row);
         return missing.length ? `재료가 부족합니다: ${missing.map(([item, need]) => `${E.items[item].name} ${count(state, item)}/${need}`).join(', ')}` : '';

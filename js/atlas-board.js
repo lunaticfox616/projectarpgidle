@@ -37,7 +37,7 @@ const atlasBoard = (() => {
     function reason(state) {
         if (!unlocked(state)) return `루프 ${C.minLoop}에 열립니다.`;
         const b = ledger(state);
-        if (state.atlas.run) return '열린 지도를 먼저 마치거나 닫으세요.';
+        if (state.atlas.run) return atlas.runOpenReason(state);
         if (b.pending) return '도착한 지도를 클리어하면 다시 굴릴 수 있습니다.';
         if (b.choice) return '갈림길에서 먼저 선택하세요.';
         return b.dice > 0 ? '' : '주사위가 없습니다. 혼돈 20 이상 또는 8등급 이상 지도에서 길잡이를 처치하세요.';
