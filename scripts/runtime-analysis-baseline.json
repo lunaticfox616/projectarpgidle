@@ -504,66 +504,6 @@
       "count": 1,
       "max": 14
     },
-    "mapEffectIndexByGemTags|complexity|Function 'mapEffectIndexByGemTags' has a complexity of #. Maximum allowed is #.": {
-      "count": 1,
-      "max": 18
-    },
-    "updateSkillPlayback|complexity|Function 'updateSkillPlayback' has a complexity of #. Maximum allowed is #.": {
-      "count": 1,
-      "max": 20
-    },
-    "drawWeapon|max-params|Function 'drawWeapon' has too many parameters (#). Maximum allowed is #.": {
-      "count": 1,
-      "max": 8
-    },
-    "drawWeapon|no-unused-vars|'ctx' is defined but never used.": {
-      "count": 1,
-      "max": 0
-    },
-    "drawWeapon|no-unused-vars|'heroX' is defined but never used.": {
-      "count": 1,
-      "max": 0
-    },
-    "drawWeapon|no-unused-vars|'heroY' is defined but never used.": {
-      "count": 1,
-      "max": 0
-    },
-    "drawWeapon|no-unused-vars|'motion' is defined but never used.": {
-      "count": 1,
-      "max": 0
-    },
-    "drawWeapon|no-unused-vars|'frameLocalIndex' is defined but never used.": {
-      "count": 1,
-      "max": 0
-    },
-    "drawWeapon|no-unused-vars|'weaponName' is defined but never used.": {
-      "count": 1,
-      "max": 0
-    },
-    "drawWeapon|no-unused-vars|'layerFilter' is defined but never used.": {
-      "count": 1,
-      "max": 0
-    },
-    "drawWeapon|no-unused-vars|'skillId' is defined but never used.": {
-      "count": 1,
-      "max": 0
-    },
-    "drawProjectile|no-unused-vars|'ctx' is defined but never used.": {
-      "count": 1,
-      "max": 0
-    },
-    "drawProjectile|no-unused-vars|'now' is defined but never used.": {
-      "count": 1,
-      "max": 0
-    },
-    "drawEffect|no-unused-vars|'ctx' is defined but never used.": {
-      "count": 1,
-      "max": 0
-    },
-    "drawEffect|no-unused-vars|'now' is defined but never used.": {
-      "count": 1,
-      "max": 0
-    },
     "getHeroAppearanceId|complexity|Function 'getHeroAppearanceId' has a complexity of #. Maximum allowed is #.": {
       "count": 1,
       "max": 11
@@ -1522,7 +1462,7 @@
     },
     "performPlayerAttack|max-lines-per-function|Function 'performPlayerAttack' has too many lines (#). Maximum allowed is #.": {
       "count": 1,
-      "max": 920
+      "max": 919
     },
     "performPlayerAttack|complexity|Function 'performPlayerAttack' has a complexity of #. Maximum allowed is #.": {
       "count": 1,
@@ -1782,7 +1722,7 @@
     },
     "renderBattlefield|max-lines-per-function|Function 'renderBattlefield' has too many lines (#). Maximum allowed is #.": {
       "count": 1,
-      "max": 419
+      "max": 418
     },
     "renderBattlefield|complexity|Function 'renderBattlefield' has a complexity of #. Maximum allowed is #.": {
       "count": 1,
@@ -3006,7 +2946,7 @@
     },
     "mergeDefaults|max-lines-per-function|Function 'mergeDefaults' has too many lines (#). Maximum allowed is #.": {
       "count": 1,
-      "max": 973
+      "max": 972
     },
     "mergeDefaults|complexity|Function 'mergeDefaults' has a complexity of #. Maximum allowed is #.": {
       "count": 1,
@@ -5873,7 +5813,7 @@
     "dependency:chooseLoopAdvance->enterNextEndlessChaosDepth",
     "dependency:chooseLoopAdvance->triggerSeasonReset",
     "dependency:chooseLoopAdvancePath->addLog",
-    "dependency:chooseLoopAdvancePath->getLoopAbyssRequirementText",
+    "dependency:chooseLoopAdvancePath->getLoopAbyssRequirementPrompt",
     "dependency:chooseLoopAdvancePath->resolveLoopAdvancePath",
     "dependency:chooseLoopAdvancePath->triggerSeasonReset",
     "dependency:chooseLoopHero->applyHeroSelection",
@@ -6727,7 +6667,9 @@
     "dependency:createCloudSavePayload->createCloudSaveState",
     "dependency:createCloudSavePayload->createSaveSnapshot",
     "dependency:createCloudSaveRequestBody->createCloudSaveState",
+    "dependency:createCloudSaveRequestBody->dropRuntimeOnlySaveFields",
     "dependency:createCloudSaveState->Number",
+    "dependency:createCloudSaveState->dropRuntimeOnlySaveFields",
     "dependency:createCombatReplay->captureCombatRuntime",
     "dependency:createCombatReplay->cloneBackgroundCombatState",
     "dependency:createCombatReplay->createBackgroundCombatMetrics",
@@ -6832,6 +6774,7 @@
     "dependency:createPlayerHallListing->setPlayerExchangeMessage",
     "dependency:createRoomPackOf->explorationPackKey",
     "dependency:createRoomPackOf->fillRoomPack",
+    "dependency:createSaveSnapshot->dropRuntimeOnlySaveFields",
     "dependency:createSeededRng->hashSeed",
     "dependency:createStageExtraPacks->createActExplorationPack",
     "dependency:createStarterRescuePack->createActExplorationPack",
@@ -7322,7 +7265,6 @@
     "dependency:drawBattlePlayerActor->drawPlayerReturnDepartureEffect",
     "dependency:drawBattlePlayerActor->drawPlayerReturnWarpEffect",
     "dependency:drawBattlePlayerActor->drawPlayerReturnWhiteShroud",
-    "dependency:drawBattlePlayerActor->drawSkillWeaponLayer",
     "dependency:drawBattlePlayerActor->drawTintedBattlePlayerFigure",
     "dependency:drawBattlePlayerActor->getPlayerHurtPosition",
     "dependency:drawBattlePlayerActor->isBattlePlayerMirrored",
@@ -7961,7 +7903,6 @@
     "dependency:drawShots->pointAt",
     "dependency:drawSigil->sigilDots",
     "dependency:drawSigils->drawSigil",
-    "dependency:drawSkillEffectLayer->drawEffect",
     "dependency:drawSkillFootprintGround->clipSkillFootprintTerrain",
     "dependency:drawSkillFootprintGround->drawSmoothSkillGround",
     "dependency:drawSkillGemVfxLayer->clampNumber",
@@ -7977,14 +7918,11 @@
     "dependency:drawSkillImpactImage->drawSwordSlashVfx",
     "dependency:drawSkillPotionFlight->drawSkillSpriteFrame",
     "dependency:drawSkillPotionFlight->getSkillGemVfxImage",
-    "dependency:drawSkillProjectileLayer->drawProjectile",
     "dependency:drawSkillSignatureImpact->cacheSkillSpriteGeometry",
     "dependency:drawSkillSignatureImpact->paintSkillSprite",
     "dependency:drawSkillSignatureTravel->getSkillSignaturePhase",
     "dependency:drawSkillSignatureTravel->getSkillSpriteTravelGeometry",
     "dependency:drawSkillSignatureTravel->renderSkillSpriteTravel",
-    "dependency:drawSkillWeaponLayer->drawWeapon",
-    "dependency:drawSkillWeaponLayer->getSkillPlaybackState",
     "dependency:drawSlamAccent->rgba",
     "dependency:drawSmoke->footAt",
     "dependency:drawSmoke->moveOf",
@@ -8454,7 +8392,7 @@
     "dependency:enterOceanDive->isBeehiveRunLockedForMapTravel",
     "dependency:enterOceanDive->warnBeehiveMapTravelBlocked",
     "dependency:enterOutsideChaos->addLog",
-    "dependency:enterOutsideChaos->getLoopAbyssRequirementText",
+    "dependency:enterOutsideChaos->getLoopAbyssRequirementPrompt",
     "dependency:enterOutsideChaos->getSeasonAbyssDepthCap",
     "dependency:enterOutsideChaos->hasCurrentLoopAbyssRequirementClear",
     "dependency:enterOutsideChaos->hasCurrentLoopChaos20Clear",
@@ -10476,7 +10414,12 @@
     "dependency:getLocalCloudRevision->Number",
     "dependency:getLocalCloudRevision->ensureSaveMeta",
     "dependency:getLocalSaveStamp->ensureSaveMeta",
+    "dependency:getLoopAbyssRequirementPrompt->getSeasonAbyssDepthCap",
+    "dependency:getLoopAbyssRequirementPrompt->hasLoopGateCosmosPath",
+    "dependency:getLoopAbyssRequirementPrompt->loopGateDepthName",
     "dependency:getLoopAbyssRequirementText->getSeasonAbyssDepthCap",
+    "dependency:getLoopAbyssRequirementText->hasLoopGateCosmosPath",
+    "dependency:getLoopAbyssRequirementText->loopGateDepthName",
     "dependency:getLoopCompareSummary->getSaveLoopNumber",
     "dependency:getLoopCompareSummary->updateRemoteLoopFromRecord",
     "dependency:getLoopDeepMorePct->Number",
@@ -10973,7 +10916,7 @@
     "dependency:getSeasonFinalZoneId->getSeasonAbyssDepthCap",
     "dependency:getSeasonNodeCap->isSeasonTreeEvolved",
     "dependency:getSeasonResetBlockReason->getAvailableLoopAdvancePaths",
-    "dependency:getSeasonResetBlockReason->getLoopAbyssRequirementText",
+    "dependency:getSeasonResetBlockReason->getLoopAbyssRequirementPrompt",
     "dependency:getSelectedCosmosDirective->getCosmosDirectiveChoicesForNode",
     "dependency:getSelectedCosmosDirective->getState",
     "dependency:getSelectedGemEngraveSlot->Number",
@@ -13451,9 +13394,6 @@
     "dependency:mapCardHtml->escapeHTML",
     "dependency:mapCardHtml->nodeName",
     "dependency:mapCardHtml->omenHtml",
-    "dependency:mapEffectIndexByElement->normalizeDamageElementKey",
-    "dependency:mapEffectIndexByGemTags->String",
-    "dependency:mapEffectIndexByGemTags->mapEffectIndexByElement",
     "dependency:mapOf->generated",
     "dependency:mapOf->layout",
     "dependency:mapSkillSlotByGemTags->String",
@@ -13609,6 +13549,7 @@
     "dependency:mergeDefaults->createDefaultChaosRealmState",
     "dependency:mergeDefaults->createDefaultSkyTowerState",
     "dependency:mergeDefaults->dedupeList",
+    "dependency:mergeDefaults->dropRuntimeOnlySaveFields",
     "dependency:mergeDefaults->enforcePassiveEquipmentRestrictions",
     "dependency:mergeDefaults->ensureOfflineProgressState",
     "dependency:mergeDefaults->ensureRecordsState",
@@ -15620,7 +15561,6 @@
     "dependency:playSample->sampleChoice",
     "dependency:playSample->throttled",
     "dependency:playSkill->Number",
-    "dependency:playSkillFromActiveGem->mapEffectIndexByGemTags",
     "dependency:playSkillFromActiveGem->mapSkillSlotByGemTags",
     "dependency:playSkillFromActiveGem->playSkill",
     "dependency:playTone->attach",
@@ -17087,7 +17027,6 @@
     "dependency:renderBattlefield->updateBattleVfxDensity",
     "dependency:renderBattlefield->updateBossAnnouncement",
     "dependency:renderBattlefield->updatePlayerGridVisualMotion",
-    "dependency:renderBattlefield->updateSkillPlayback",
     "dependency:renderBattlefieldThrottled->renderBattlefield",
     "dependency:renderBattlefieldThrottled->updateMobileBattlePipVisibility",
     "dependency:renderBestSection->Number",
@@ -19403,6 +19342,7 @@
     "dependency:sendStraysBack->away",
     "dependency:sendStraysBack->room",
     "dependency:sendStraysBack->stageMap",
+    "dependency:serializeSaveState->dropRuntimeOnlySaveFields",
     "dependency:set->Number",
     "dependency:setActivePassiveTreePreset->Number",
     "dependency:setActivePassiveTreePreset->ensurePassiveTreePlannerState",
@@ -22129,10 +22069,6 @@
     "dependency:updateSkillGemCombat->getCombatTime",
     "dependency:updateSkillGemCombat->getSplashDormantEnemies",
     "dependency:updateSkillGemCombat->skillGemRuntimeChanged",
-    "dependency:updateSkillPlayback->getCanvasPlayerStats",
-    "dependency:updateSkillPlayback->getPlayerStats",
-    "dependency:updateSkillPlayback->getSkillPlaybackState",
-    "dependency:updateSkillPlayback->getSkillTargets",
     "dependency:updateStartupScreenUI->getCloudConfig",
     "dependency:updateStartupScreenUI->getCurrentZoneLabel",
     "dependency:updateStartupScreenUI->getStartupStatusText",
@@ -23230,7 +23166,6 @@
     "layer:unsealSupportGem->updateStaticUI",
     "layer:updateBattleAssetLoadProgress->advanceLoadingOverlay",
     "layer:updatePastChatNicknames->cloudJsonRequest",
-    "layer:updateSkillPlayback->getCanvasPlayerStats",
     "layer:upgradeActiveGemQuality->addLog",
     "layer:upgradeActiveGemQuality->updateStaticUI",
     "layer:upgradeActiveGemWithCondensedSkyPower->addLog",
