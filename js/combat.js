@@ -1089,10 +1089,18 @@ function endColonyRunLeftBehind(say) {
     c.returnZoneId = null;
     say(`🪲 군락지를 떠나 원정을 마쳤습니다(완료 ${Math.max(0, Math.floor(c.wave || 1) - 1)}웨이브). 획득 보상은 유지됩니다.`, 'season-up');
 }
-/** Runs that live in one zone, checked each tick: the woodsman fight (혼돈 밖) and the colony (군락지). */
+/** A grand breach run goes on only in its own zone: a hero who left it lost the run, as a defeat does (nobody moved). Left on, the
+ * panel showed no entry for the next breach and auto entry (breach and meteor) waited for the loop to end. */
+function endGrandBreachLeftBehind(grand, say) {
+    Object.assign(grand, { inRun: false, phase: 'failed', timeLeft: 0 });
+    say('🌌 대균열을 떠나 도전이 실패로 끝났습니다.', 'season-up');
+}
+/** Runs that live in one zone, checked each tick: the woodsman fight (혼돈 밖), the colony (군락지) and the grand breach. */
 function holdZoneBoundRuns(say) {
     if (game.woodsmanBuildLock) holdWoodsmanBuildLock(say);
     if (game.colony?.inRun && game.currentZoneId !== 'colony_run') endColonyRunLeftBehind(say);
+    const grand = game.voidRift?.grandRun;
+    if (grand?.inRun && game.currentZoneId !== 'grand_breach_run') endGrandBreachLeftBehind(grand, say);
 }
 
 
