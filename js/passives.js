@@ -3169,7 +3169,7 @@ function getSeaGiftRecipeStatus(recipeId, targetItem) {
     let reason = '';
     if (!st.unlocked) reason = '심해 해금 필요';
     else if (!materialReady) reason = '재료 부족';
-    else if (needsItem) reason = getSeaGiftTargetBlockReason(item);
+    else if (needsItem) reason = getSeaGiftTargetBlockReason(item) || getSeaGiftEffectBlockReason(item, recipe.effect);
     return { recipe, ready: !reason, materialReady, reason, item, owned: st.fishStock };
 }
 
@@ -3179,6 +3179,41 @@ function getSeaGiftTargetBlockReason(item) {
     if (game.woodsmanBuildLock) return '세팅 변경 잠김';
     if (item.hallReplica) return '전당 소장품 가공 불가';
     return item.corrupted ? '타락 장비 가공 불가' : '';
+}
+/** Why the effect cannot work on this item, as a short button label ('' when it can): the checks that need no roll. */
+function getSeaGiftEffectBlockReason(item, effect) {
+    return Object.hasOwn(SEA_GIFT_EFFECT_BLOCKERS, effect.type) ? SEA_GIFT_EFFECT_BLOCKERS[effect.type](item, effect) : '';
+}
+const getSeaGiftEchoBlockReason = item => {
+    if ((item.stats || []).some(s => s && s.isEchoMod)) return '메아리 줄 있음';
+    return getSeaGiftEditableIndexes(item).length < 2 ? '봉인 안 된 2줄 필요' : '';
+};
+const getSeaGiftLockBlockReason = (item, effect) => {
+    const editable = getSeaGiftEditableIndexes(item).length;
+    const required = Math.max(1, Math.floor(effect.count || 1)) + (effect.bonusTaggedReroll ? 1 : 0);
+    if (editable >= required) return '';
+    return editable === 0 ? '봉인할 줄 없음' : `봉인 안 된 ${required}줄 필요`;
+};
+const getSeaGiftGuaranteedBlockReason = (item, effect) => (effect.bonusRemoveMod && getSeaGiftEditableIndexes(item).length < 2 ? '봉인 안 된 2줄 필요' : '');
+/** Each effect's blocker on an item (the refusals that come before any roll). */
+const SEA_GIFT_EFFECT_BLOCKERS = Object.freeze({
+    guaranteedMod: getSeaGiftGuaranteedBlockReason,
+    guaranteedTaggedMod: getSeaGiftGuaranteedBlockReason,
+    removeMod: item => (getSeaGiftEditableIndexes(item).length ? '' : '지울 줄 없음'),
+    upgradeRarity: item => (item.rarity === 'rare' || item.rarity === 'unique' ? '이미 희귀 이상' : ''),
+    lockMod: getSeaGiftLockBlockReason,
+    safeReroll: item => (getSeaGiftRerollRows(item).length ? '' : '굴릴 줄 없음'),
+    twinReroll: item => (getSeaGiftRerollRows(item).length ? '' : '굴릴 줄 없음'),
+    tierStepUp: item => (getSeaGiftTierStepRows(item).length ? '' : '올릴 줄 없음'),
+    echoMod: getSeaGiftEchoBlockReason,
+    convertCategoryMod: item => (getSeaGiftEditableIndexes(item).length ? '' : '바꿀 줄 없음')
+});
+/** The rerollable lines still below their top tier. */
+function getSeaGiftTierStepRows(item) {
+    return getSeaGiftRerollRows(item).filter(row => {
+        let cap = Array.isArray(row.mod.tierValues) ? row.mod.tierValues.length : 20;
+        return Math.max(1, Math.floor(Number(row.stat.tier) || 1)) < cap;
+    });
 }
 
 function removeOneModFromItem(item) {
@@ -3216,7 +3251,6 @@ function getSeaGiftRerollRows(item, category) {
 function applySeaGiftGuaranteedMod(item, effect, category) {
     const editable = (item.stats || []).map((stat, index) => ({ stat, index }))
         .filter(row => row.stat && !row.stat.lockedByHoney && !row.stat.lockedByRift);
-    if (effect.bonusRemoveMod && editable.length < 2) return '최상급 옵션을 부여하고 다른 옵션을 제거하려면 봉인되지 않은 옵션이 2줄 이상 필요합니다.';
     const pool = getAvailableMods(item).filter(mod => effect.type !== 'guaranteedTaggedMod' || !category || getModCategory(mod) === category);
     const choice = chooseSeaGiftGuaranteedLine(item, pool, editable);
     if (!choice) return '이 장비에 추가로 부여할 수 있는 옵션이 없습니다.';
@@ -3254,14 +3288,6 @@ function removeWorstSeaGiftMod(item, excludedIndex) {
 const applySeaGiftLockEffect = function (item, effect, category) {
     let editable = (item.stats || []).filter(stat => stat && !stat.lockedByHoney && !stat.lockedByRift);
     let count = Math.max(1, Math.floor(effect.count || 1));
-    let requiredEditable = count + (effect.bonusTaggedReroll ? 1 : 0);
-    if (editable.length < requiredEditable) {
-        let message = editable.length === 0
-            ? '봉인할 수 있는 옵션 줄이 없습니다.'
-            : `이 제작에는 봉인되지 않은 옵션이 ${requiredEditable}줄 이상 필요합니다.`;
-        addLog(message, 'attack-monster');
-        return false;
-    }
     let rerollMod = null;
     if (effect.bonusTaggedReroll) {
         // 재단되는 줄은 봉인하고 남은 첫 줄(editable[count]). 새 줄은 그 줄을 뺀 접두 3, 접미 3 자리가 남는 종류에서.
@@ -3319,12 +3345,11 @@ function getSeaGiftEditableIndexes(item) {
 const SEA_GIFT_EFFECTS = Object.freeze({
     guaranteedMod: applySeaGiftGuaranteedEffect,
     guaranteedTaggedMod: applySeaGiftGuaranteedEffect,
-    removeMod: (item, effect, craft) => {
-        if (!removeOneModFromItem(item)) return refuseSeaGift(craft, '제거할 수 있는 옵션 줄이 없습니다.');
+    removeMod: item => {
+        removeOneModFromItem(item);
         updateItemName(item);
     },
-    upgradeRarity: (item, effect, craft) => {
-        if (item.rarity === 'rare' || item.rarity === 'unique') return refuseSeaGift(craft, '이미 희귀 이상인 장비는 더 승급할 수 없습니다.');
+    upgradeRarity: (item, effect) => {
         if (effect.force) item.rarity = 'rare';
         else if (item.rarity === 'normal') item.rarity = 'magic';
         else if (item.rarity === 'magic') item.rarity = 'rare';
@@ -3350,26 +3375,20 @@ const SEA_GIFT_EFFECTS = Object.freeze({
     },
     safeReroll: (item, effect, craft) => {
         let rows = getSeaGiftRerollRows(item);
-        if (rows.length === 0) return refuseSeaGift(craft, '재굴림할 수 있는 옵션 줄이 없습니다.');
         let row = rows[Math.floor(Math.random() * rows.length)];
         let rolled = rollSeaGiftExistingAffix(row, 0);
         if ((Number(rolled.val) || 0) >= (Number(row.stat.val) || 0)) item.stats[row.index] = rolled;
         else craft.say('🌊 재굴림 결과가 기존보다 낮아 적용을 취소했습니다.', 'loot-magic');
         updateItemName(item);
     },
-    twinReroll: (item, effect, craft) => {
+    twinReroll: item => {
         let rows = getSeaGiftRerollRows(item);
-        if (rows.length === 0) return refuseSeaGift(craft, '재굴림할 수 있는 옵션 줄이 없습니다.');
         rows.sort(() => Math.random() - 0.5).slice(0, 2)
             .forEach(row => { item.stats[row.index] = rollSeaGiftExistingAffix(row, 0); });
         updateItemName(item);
     },
-    tierStepUp: (item, effect, craft) => {
-        let rows = getSeaGiftRerollRows(item).filter(row => {
-            let cap = Array.isArray(row.mod.tierValues) ? row.mod.tierValues.length : 20;
-            return Math.max(1, Math.floor(Number(row.stat.tier) || 1)) < cap;
-        });
-        if (rows.length === 0) return refuseSeaGift(craft, '등급을 올릴 수 있는 옵션 줄이 없습니다.');
+    tierStepUp: item => {
+        let rows = getSeaGiftTierStepRows(item);
         let row = rows[Math.floor(Math.random() * rows.length)];
         item.stats[row.index] = rollSeaGiftExistingAffix(row, 1);
         updateItemName(item);
@@ -3377,7 +3396,6 @@ const SEA_GIFT_EFFECTS = Object.freeze({
     echoMod: applySeaGiftEcho,
     convertCategoryMod: (item, effect, craft) => {
         let editableIdx = getSeaGiftEditableIndexes(item);
-        if (editableIdx.length === 0) return refuseSeaGift(craft, '변환할 수 있는 옵션 줄이 없습니다.');
         let pool = getAvailableMods(item).filter(mod => !craft.category || getModCategory(mod) === craft.category);
         let choice = equipmentCrafting.pickReplacement(item, pool, editableIdx, pickWeightedMod);
         if (!choice) return refuseSeaGift(craft, '해당 계열로 변환할 수 있는 옵션이 없습니다.');
@@ -3405,9 +3423,7 @@ function applySeaGiftBenchOption(item, effect, craft) {
 }
 /** One of the highest tier lines echoed at half its values onto another unsealed line of the same kind. */
 function applySeaGiftEcho(item, effect, craft) {
-    if ((item.stats || []).some(s => s && s.isEchoMod)) return refuseSeaGift(craft, '이미 메아리 옵션을 가진 장비에는 다시 사용할 수 없습니다.');
     let editableIdx = getSeaGiftEditableIndexes(item);
-    if (editableIdx.length < 2) return refuseSeaGift(craft, '메아리에는 봉인되지 않은 옵션이 2줄 이상 필요합니다.');
     let maxTier = editableIdx.reduce((m, i) => Math.max(m, Number(item.stats[i].tier) || 0), 0);
     let topIdx = editableIdx.filter(i => (Number(item.stats[i].tier) || 0) === maxTier);
     let srcIdx = topIdx[Math.floor(Math.random() * topIdx.length)];
