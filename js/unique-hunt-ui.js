@@ -9,6 +9,8 @@ const UNIQUE_HUNT_SOURCE_TYPES = Object.freeze({
     labyrinth: { label: '고대 미궁', mapSubtab: 'map-tab-zones', exploreSubtab: 'map-explore-labyrinth' },
     meteor: { label: '운석 낙하 지점', mapSubtab: 'map-tab-zones', exploreSubtab: 'map-explore-meteor' },
     seasonBoss: { label: '강대한 적', mapSubtab: 'map-tab-zones', exploreSubtab: 'map-explore-root-boss' },
+    skyTower: { label: '창공의 탑 보스', mapSubtab: 'map-tab-sky' },
+    colony: { label: '군락지 지배체', mapSubtab: 'map-tab-zones', exploreSubtab: 'map-explore-colony' },
     // 깨어난 아틀라스의 최종 보스와 리그 우두머리만 주는 고유(data/atlas-endgame.js, 아틀라스의 최종 보기).
     atlasLate: { label: '깨어난 아틀라스 보스', mapSubtab: 'map-tab-zones', exploreSubtab: 'map-explore-worldtree', atlasView: 'late' }
 });
@@ -21,11 +23,14 @@ const UNIQUE_HUNT_COSMOS_BOSSES = Object.freeze({
     'planet-48': '주베누비아', 'planet-49': '주벤샤말'
 });
 
-/** 깨어난 아틀라스의 리그 우두머리도 주는 고유(data/atlas-endgame.js leagues): 원래 자리에 더해 그 우두머리를 적는다. */
+/** 깨어난 아틀라스의 리그 우두머리도 주는 고유(data/atlas-endgame.js leagues)와 보스의 대표 고유(data/maps.js signatureUnique):
+ * 원래 자리에 더해 그 우두머리나 보스를 적는다. */
 function describeUniqueHuntSource(entry) {
     let source = getUniqueHuntSource(entry);
     let league = ATLAS_ENDGAME.leagues.find(row => row.unique === (entry && entry.name));
     if (league && source.exploreSubtab !== 'map-explore-worldtree') source.label += `, 아틀라스 ${league.boss}`;
+    let boss = SEASON_BOSS_ZONES.find(row => row.signatureUnique === (entry && entry.name));
+    if (boss) source.label += `, ${boss.name}`;
     return source;
 }
 

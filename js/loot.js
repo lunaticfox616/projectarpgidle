@@ -100,10 +100,13 @@ function getEquipmentDropRarity(enemy, roll) {
     return ['rare', 'magic'].find(rarity => scaled < thresholds[rarity]) || 'normal';
 }
 
-/** Extra realm-boss reward. Generate only; combat commits pickup, codex and visual feedback. */
+/** Extra content-boss reward: a boss of a realm (혼돈계, 지하계, 우주계) or of 창공의 탑, 벌집 or 군락지 can drop a unique only that
+ * content has (dropOnly.type), at the content's chance (data/items.js REALM_BOSS_UNIQUE_DROP_RULES). Generate only; combat commits
+ * pickup, codex and visual feedback. */
 function generateRealmBossUniqueDrop(zone, enemy) {
-    if (!enemy.isBoss || !['chaosRealm', 'underworld', 'cosmos'].includes(zone.type)) return null;
-    const chance = REALM_BOSS_UNIQUE_DROP_RULES.chance * levelProgression.rewardMultiplier(zone, enemy, game.level);
+    const baseChance = enemy.isBoss ? REALM_BOSS_UNIQUE_DROP_RULES.chance[zone.type] : 0;
+    if (!baseChance) return null;
+    const chance = baseChance * levelProgression.rewardMultiplier(zone, enemy, game.level);
     if (Math.random() >= chance) return null;
     const itemLevel = levelProgression.itemLevel(zone, enemy);
     const cap = Math.min(getRealmEquipmentHiddenTierCap(zone), levelProgression.maxDropTier(itemLevel));

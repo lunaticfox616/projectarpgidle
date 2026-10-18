@@ -10305,9 +10305,19 @@ function getGrandBreachRewardSummary(kills) {
     };
 }
 
-function grantMilestonePinnacleClearRewards(zone, firstClear) {
+/** A pinnacle's own unique (data/maps.js signatureUnique): sure on the first clear, then its dropOnly.bossDropChance per clear. */
+function grantPinnacleSignatureUnique(zone, firstClear, say) {
+    const definition = UNIQUE_DB.find(unique => unique.name === zone.signatureUnique);
+    const repeatChance = definition && definition.dropOnly ? Number(definition.dropOnly.bossDropChance) || 0 : 0;
+    if (!definition || Math.random() >= (firstClear ? 1 : repeatChance)) return null;
+    const item = generateUniqueItem(definition.reqTier, null, definition.name);
+    if (addItemToInventory(item, { guaranteedKeep: true })) say(`👑 [${item.name}] 획득!`, 'loot-unique', { item });
+    return item;
+}
+function grantMilestonePinnacleClearRewards(zone, firstClear, say) {
     if (!zone || !zone.milestonePinnacle) return;
     if (zone.journalId && firstClear && typeof unlockJournalEntry === 'function') unlockJournalEntry(zone.journalId);
+    grantPinnacleSignatureUnique(zone, firstClear, say);
     if (!firstClear) {
         addLog(`♜ [${zone.name}] 재도전 완료, 최초 격파 보상은 이미 획득했습니다.`, 'season-up');
         return;
@@ -10731,17 +10741,21 @@ function noteRivalBladeKill(zone, firstRootBossClear, ui) {
     else ui.say('🗡️ 다섯 날이 모두 꺾였습니다. 「일곱 번째 날 - 완성작」이 결투를 기다립니다.', 'loot-unique');
 }
 /** A root boss's rewards: a milestone pinnacle's, 아스트라's, else its currency (half the time; a capstone rival's on its first
- * clear) and a 40% unique. */
+ * clear) and a 40% unique, half of them its own (data/items.js ROOT_BOSS_UNIQUE_RULES, data/maps.js signatureUnique). */
 function grantSeasonBossRewards(zone, firstRootBossClear, ui) {
-    if (zone.milestonePinnacle) return grantMilestonePinnacleClearRewards(zone, firstRootBossClear);
+    if (zone.milestonePinnacle) return grantMilestonePinnacleClearRewards(zone, firstRootBossClear, ui.say);
     if (zone.cosmosCapstone) return grantCosmosCapstoneRewards(zone, firstRootBossClear, ui);
     let grantsClearCurrency = zone.capstoneRival ? firstRootBossClear : Math.random() < 0.5;
     if (grantsClearCurrency) awardCurrency(zone.reward || 'bossCore', 1, 'drop');
-    if (Math.random() < 0.4) {
-        let bossUnique = generateUniqueItem(zone.tier || 12);
+    if (Math.random() < ROOT_BOSS_UNIQUE_RULES.chance) {
+        let bossUnique = generateUniqueItem(zone.tier || 12, null, pickRootBossUniqueName(zone));
         addItemToInventory(bossUnique);
         ui.say(`👑 [${bossUnique.name}] 획득!`, 'loot-unique', { item:bossUnique });
     }
+}
+/** The boss's own unique (its signatureUnique) for ROOT_BOSS_UNIQUE_RULES.signatureShare of the unique rolls, else null (any unique). */
+function pickRootBossUniqueName(zone) {
+    return zone.signatureUnique && Math.random() < ROOT_BOSS_UNIQUE_RULES.signatureShare ? zone.signatureUnique : null;
 }
 function grantCosmosCapstoneRewards(zone, firstRootBossClear, ui) {
     if (zone.journalId && firstRootBossClear && typeof unlockJournalEntry === 'function') unlockJournalEntry(zone.journalId);

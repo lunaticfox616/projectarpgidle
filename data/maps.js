@@ -332,12 +332,12 @@ const SEASON_CONTENT_ROADMAP = {
 })();
 
 const SEASON_BOSS_ZONES = [
-    { id: 's2_boss_flame', name: '화염 군주 이그니스', type: 'seasonBoss', tier: 12, key: 'bossKeyFlame', reqSeason: 2, ele: 'fire', reward: 'bossCore' },
-    { id: 's2_boss_frost', name: '서리 여제 글라시아', type: 'seasonBoss', tier: 12, key: 'bossKeyFrost', reqSeason: 2, ele: 'cold', reward: 'bossCore' },
-    { id: 's2_boss_storm', name: '폭풍 군단장 볼타', type: 'seasonBoss', tier: 13, key: 'bossKeyStorm', reqSeason: 2, ele: 'light', reward: 'bossCore' },
+    { id: 's2_boss_flame', name: '화염 군주 이그니스', signatureUnique: '화염 군주의 숨결', type: 'seasonBoss', tier: 12, key: 'bossKeyFlame', reqSeason: 2, ele: 'fire', reward: 'bossCore' },
+    { id: 's2_boss_frost', name: '서리 여제 글라시아', signatureUnique: '서리 여제의 인장', type: 'seasonBoss', tier: 12, key: 'bossKeyFrost', reqSeason: 2, ele: 'cold', reward: 'bossCore' },
+    { id: 's2_boss_storm', name: '폭풍 군단장 볼타', signatureUnique: '폭풍 군단장의 창끝', type: 'seasonBoss', tier: 13, key: 'bossKeyStorm', reqSeason: 2, ele: 'light', reward: 'bossCore' },
     // bossStages: the arena's boss rises three times (js/combat.js CERBERUS_STAGES: three heads, two heads, the body). Until 2026-10-13 it
     // was the one boss kept on the 9×8 board (user: "보스전은 방 두개 해서 다음 방에 바로 보스만 나오게 해").
-    { id: 's6_beast_cerberus', name: '야수왕 케르베로스', type: 'seasonBoss', tier: 18, key: 'beastKeyCerberus', reqSeason: 6, ele: 'chaos', reward: 'bossCore', bossStages: 3 },
+    { id: 's6_beast_cerberus', name: '야수왕 케르베로스', signatureUnique: '야수왕의 세 목줄', type: 'seasonBoss', tier: 18, key: 'beastKeyCerberus', reqSeason: 6, ele: 'chaos', reward: 'bossCore', bossStages: 3 },
     // 버려진 날붙이들 (루프 31+): 나무꾼이 벼리다 버린 다른 날들. 플레이어(첫 번째 날붙이)를 시험하러 온다.
     //  - 매 루프 다시 도전하는 고정 난이도 결투 — 루프 31 진입 시점의 성장 배율에 고정하고 bossMods로 개성을 조절한다.
     //  - bossMods shape는 createEnemy의 cosmosMods와 동일: *Mul(hp/damage/attackSpeed/armor/evasion/regen)은 배율, 나머지는 가산.
@@ -362,16 +362,16 @@ const SEASON_BOSS_ZONES = [
       bossMods: { hpMul: 2.8, damageMul: 2.75, attackSpeedMul: 1.1, dr: 12, resAll: 14, armorMul: 1.45, evasionMul: 1.35, regenMul: 2, penetration: 12, critChanceBonus: 14, firstHitGuard: 0.3, patternMode: 'ramp', traitName: '잔향: 다섯 별의 마지막 메아리' } },
     // 아틀라스 최종 관문: 기존 무한 콘텐츠의 명확한 종착 목표다. 진행 이정표로 영구 해금되며
     // 입장권은 요구하지 않는다. 무료 반복 파밍을 막기 위해 보상은 최초 격파에만 지급한다.
-    { id: 'pinnacle_underking', name: '지핵군주 모르그란', type: 'seasonBoss', tier: 60, reqSeason: 31, ele: 'phys', journalId: 'pinnacle_underking', milestonePinnacle: true, pinnacleTrack: 'underworld', difficultyBenchmark: 'underworld30', underworldPenaltyFloor: 30,
+    { id: 'pinnacle_underking', name: '지핵군주 모르그란', signatureUnique: '모르그란의 용광로 흉갑', type: 'seasonBoss', tier: 60, reqSeason: 31, ele: 'phys', journalId: 'pinnacle_underking', milestonePinnacle: true, pinnacleTrack: 'underworld', difficultyBenchmark: 'underworld30', underworldPenaltyFloor: 30,
       pinnacleRequirement: { kind: 'underworldFloor', target: 30 }, firstClearReward: { key: 'goldenRule', amount: 2 },
       bossMods: { hpMul: 1.35, damageMul: 1.18, attackSpeedMul: 0.82, dr: 14, resAll: 10, armorMul: 1.8, penetration: 14, firstHitGuard: 0.32, patternMode: 'slam', traitName: '지핵 붕괴: 느리지만 방어를 파쇄하는 강타' } },
-    { id: 'pinnacle_leviathan', name: '무광해의 포식자 탈라사', type: 'seasonBoss', tier: 60, reqSeason: 31, ele: 'cold', journalId: 'pinnacle_leviathan', milestonePinnacle: true, pinnacleTrack: 'ocean', difficultyBenchmark: 'ocean1000', oceanPressureDepthTier: 10,
+    { id: 'pinnacle_leviathan', name: '무광해의 포식자 탈라사', signatureUnique: '탈라사의 해구 이빨', type: 'seasonBoss', tier: 60, reqSeason: 31, ele: 'cold', journalId: 'pinnacle_leviathan', milestonePinnacle: true, pinnacleTrack: 'ocean', difficultyBenchmark: 'ocean1000', oceanPressureDepthTier: 10,
       pinnacleRequirement: { kind: 'oceanDepth', target: 1000 }, firstClearReward: { key: 'goldenRule', amount: 2 },
       bossMods: { hpMul: 1.3, damageMul: 1.22, attackSpeedMul: 1.04, energyShieldPct: 35, regenMul: 2.4, resC: 18, resChaos: 12, penetration: 10, ailmentChanceBonus: 0.12, patternMode: 'ramp', traitName: '무광해 역류: 보호막과 냉각으로 장기전을 강요' } },
-    { id: 'pinnacle_sky', name: '빈 왕좌의 집행자 카엘룸', type: 'seasonBoss', tier: 61, reqSeason: 31, ele: 'light', journalId: 'pinnacle_sky', milestonePinnacle: true, pinnacleTrack: 'sky', difficultyBenchmark: 'sky30',
+    { id: 'pinnacle_sky', name: '빈 왕좌의 집행자 카엘룸', signatureUnique: '빈 왕좌의 관', type: 'seasonBoss', tier: 61, reqSeason: 31, ele: 'light', journalId: 'pinnacle_sky', milestonePinnacle: true, pinnacleTrack: 'sky', difficultyBenchmark: 'sky30',
       pinnacleRequirement: { kind: 'skyFloor', target: 30 }, firstClearReward: { key: 'goldenRule', amount: 2 },
       bossMods: { hpMul: 1.25, damageMul: 1.32, attackSpeedMul: 1.24, evasionMul: 1.75, critChanceBonus: 18, penetration: 12, firstHitGuard: 0.18, patternMode: 'burst', traitName: '천정 집행: 빠른 연격과 치명타로 빈틈을 추적' } },
-    { id: 'pinnacle_observer', name: '경계의 관측자 베일라', type: 'seasonBoss', tier: 86, reqSeason: 31, ele: 'chaos', journalId: 'pinnacle_observer', milestonePinnacle: true, pinnacleTrack: 'convergence', pinnacleCapstone: true, difficultyBenchmark: 'cosmosFinal',
+    { id: 'pinnacle_observer', name: '경계의 관측자 베일라', signatureUnique: '관측자의 마지막 기록', type: 'seasonBoss', tier: 86, reqSeason: 31, ele: 'chaos', journalId: 'pinnacle_observer', milestonePinnacle: true, pinnacleTrack: 'convergence', pinnacleCapstone: true, difficultyBenchmark: 'cosmosFinal',
       requiresPinnacles: ['pinnacle_underking', 'pinnacle_leviathan', 'pinnacle_sky', 'cosmos_astra'], firstClearReward: { key: 'goldenRule', amount: 5 },
       bossMods: { hpMul: 11, damageMul: 3, attackSpeedMul: 1.12, dr: 15, resAll: 16, armorMul: 1.55, evasionMul: 1.4, energyShieldPct: 25, regenMul: 2.5, penetration: 16, critChanceBonus: 16, firstHitGuard: 0.35, patternMode: 'cosmos', traitName: '경계 관측: 강습, 강타, 격앙을 순환하며 모든 성장축을 검증' } }
 ];
