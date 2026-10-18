@@ -9423,6 +9423,9 @@ function wearStarterGemWithoutGuide(state, gemName) {
 }
 
 
+/** A monster's death, once: it leaves the field, the kill is counted, rewards are given, kill effects and content runs advance, and
+ * monsters a kill effect brought to 0 die in turn. 2026-10-18 split into the steps below (it was one function of complexity 151);
+ * the order of every random roll is kept. */
 function handleEnemyDeath(enemy, pStats) {
     if (!enemy || !Number.isFinite(enemy.id)) return;
     let liveRef = (game.enemies || []).find(entry => entry && entry.id === enemy.id);
@@ -9439,33 +9442,10 @@ function handleEnemyDeath(enemy, pStats) {
         if (inheritedErosion > 0) game.passiveChaosErosionTransfer = inheritedErosion;
     }
     transferSkillDotOnDeath(enemy);
-    let zone = getZone(game.currentZoneId);
-    if (enemy.isBoss) completeHiddenJournalBossRun(enemy, zone, pStats);
-    // 재능 개화 미궁의 보스를 실제로 처치한 경우에만 개화 완료를 허용하기 위해 기록한다.
-    if (enemy.isBoss && zone && zone.type === 'trial' && zone.bloomTrial) game.bloomBossDefeated = true;
-    let grand = game.voidRift.grandRun;
-    if (zone && zone.id === 'grand_breach_run' && grand && grand.inRun && grand.phase === 'survival' && !enemy.isBoss) {
-        grand.kills = Math.max(0, Math.floor(grand.kills || 0)) + 1;
-    }
-    game.loopKills = Math.max(0, Math.floor(game.loopKills || 0)) + 1;
-    // 백그라운드 정산이 남은 구간을 예상할 때 쓸 처치 구성. 재화 드랍 확률은 일반/정예/보스가
-    // 자릿수 단위로 다르므로(황금률: 보스 0.6% vs 일반 0.007%), 총 처치 수만으로는
-    // 남은 구간의 재화를 제대로 다시 굴릴 수 없다. 시뮬레이션 중에만 센다.
-    if (game.isBackgroundCalculation) {
-        let mix = game.backgroundKillMix && typeof game.backgroundKillMix === 'object'
-            ? game.backgroundKillMix : (game.backgroundKillMix = { normal: 0, elite: 0, boss: 0 });
-        let bucket = enemy.isBoss ? 'boss' : (enemy.isElite ? 'elite' : 'normal');
-        mix[bucket] = Math.max(0, Math.floor(mix[bucket] || 0)) + 1;
-    }
+    const zone = getZone(game.currentZoneId);
+    countKillForContent(enemy, zone, pStats);
     grantLoopStarterGemOnFirstKill(enemy);
-    // 재능 런타임: 적별 누적 상태 정리(메모리 누수 방지)
-    if (game.talentInquisitorMarks) delete game.talentInquisitorMarks[enemy.id];
-    // 14 콜로세움 브레이커: 처치마다 관중의 함성 1중첩, 5중첩 시 다음 공격이 투기장 일격
-    if (typeof isTalentCardActive === 'function' && isTalentCardActive('hero2__gladiator')) {
-        game.talentRuntime = (game.talentRuntime && typeof game.talentRuntime === 'object') ? game.talentRuntime : {};
-        game.talentRuntime.colosseumKills = (game.talentRuntime.colosseumKills || 0) + 1;
-        if (game.talentRuntime.colosseumKills >= 5) { game.talentRuntime.colosseumKills = 0; game.talentRuntime.colosseumReady = true; }
-    }
+    tickTalentKillRuntime(enemy);
     addBattleFx('enemyDeath', {
         enemyId: enemy.id,
         name: enemy.name,
@@ -9476,148 +9456,221 @@ function handleEnemyDeath(enemy, pStats) {
         elite: !!enemy.isElite
     });
     grantEliteTraitBuffFromEnemy(enemy, pStats);
-    let gemLeveled = grantExpAndGem(enemy, pStats);
-    let currencyDropVersionBefore = Math.max(0, Math.floor(game.currencyDropVersion || 0));
+    const gemLeveled = grantExpAndGem(enemy, pStats);
+    const currencyDropVersionBefore = Math.max(0, Math.floor(game.currencyDropVersion || 0));
     grantEnemyLoot(enemy);
     recordKillProgress(enemy);
     if(actExplorationState.recordDeath(game,enemy))actExplorationProgress.objects.afterDeath(actExplorationState.current(game));
-    // 0.002% 확률로 처치한 몬스터의 외형을 플레이어 외형으로 수집한다.
     gainSkyRiftGaugeFromCombat(zone, enemy);
     applyAilmentEffectsOnDeath(enemy, pStats);
-    // 루프 특수 보스 집계에는 일반 액트/혼돈 보스를 포함하지 않음.
-    if ((game.season || 1) >= 9 && isVoidRiftCombatZone(zone)) {
-        let v = game.voidRift || (game.voidRift = { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0 });
-        if (v.active && enemy.fromVoidRift) v.defeatedCount = Math.max(0, Math.floor(v.defeatedCount || 0)) + 1;
-        if (!v.active && Math.random() < (enemy.isElite ? 0.0003335 : 0.000075)) {
-            v.active = true;
-            v.activeKills = 0;
-            v.requiredKills = 0;
-            v.pendingWave = true;
-            v.totalToSpawn = 6 + Math.floor(Math.random() * 4);
-            v.spawnedCount = 0;
-            v.defeatedCount = 0;
-            v.spawnTick = 0;
-            addLog('🕳️ 공허의 구멍이 랜덤으로 열렸습니다!', 'attack-monster', { noToast: true });
-        }
-    }
-    let equippedHeralds = (game.equippedSupports || []).map(name => {
-        let db = SUPPORT_GEM_DB[name];
-        if (!db || !Number.isFinite(db.heraldExplodeBase)) return null;
-        let gem = normalizeGemRecord((game.supportGemData || {})[name]);
-        let lvl = Math.max(1, gem.level + (pStats.gemLv || 0));
-        return db.heraldExplodeBase + ((lvl - 1) * (db.heraldExplodeScale || 0));
-    }).filter(Boolean);
-    if (equippedHeralds.length > 0) {
-        let explodeChance = clampNumber(equippedHeralds.reduce((a, b) => a + b, 0), 0, 0.85);
-        if (Math.random() < explodeChance) {
-            let splash = Math.floor((enemy.maxHp || enemy.hp || 0) * 0.10);
-            let line = explodeCorpse(enemy, splash, '전령 시체 폭발', target => handleEnemyDeath(target, pStats));
-            if (line && game.settings.showCombatLog) addLog(line, 'attack-player');
-        }
-    }
-    if (pStats && (pStats.runeCorpseExplodeChance || 0) > 0 && Math.random() < Math.max(0, Math.min(1, Number(pStats.runeCorpseExplodeChance || 0) / 100))) {
-        let lifePct = Math.max(0, Number(pStats.runeCorpseExplodeLifePct || 0));
-        let splash = Math.max(1, Math.floor((enemy.maxHp || 0) * (lifePct / 100)));
-        let line = explodeCorpse(enemy, splash, '룬 시체 폭발', target => handleEnemyDeath(target, pStats));
-        if (line && game.settings.showCombatLog) addLog(line, 'attack-player');
-    }
-    if (pStats && pStats.uniqueCorpseExplode && Math.random() < Math.max(0, Math.min(1, (pStats.uniqueCorpseExplode.chance || 0) / 100))) {
-        let lifePct = Math.max(0, Number(pStats.uniqueCorpseExplode.lifePct || 0));
-        let splash = Math.max(1, Math.floor((enemy.maxHp || 0) * (lifePct / 100)));
-        let line = explodeCorpse(enemy, splash, '종말의 논리 시체 폭발', target => handleEnemyDeath(target, pStats));
-        addBattleFx('hit', { enemyId: enemy.id, color: '#c56cff', damage: splash, duration: 360, element: 'chaos', syncToSwing: true });
-        if (line && game.settings.showCombatLog) addLog(line, 'attack-player');
-    }
-    // 시체 역병(워록 wlk9): 카오스 피해로 처치 시 50% 확률로 시체 폭발(적 최대 생명력의 20%를 주변에 카오스 피해)
-    // 심연 각인(wlk1)으로 모든 피해가 카오스인 경우 처치 원소와 무관하게 카오스 처치로 간주
-    if (hasKeystone('wlk9') && (enemy.lastHitElement === 'chaos' || hasKeystone('wlk1')) && Math.random() < 0.5) {
-        let splash = Math.max(1, Math.floor((enemy.maxHp || enemy.hp || 0) * 0.20));
-        let line = explodeCorpse(enemy, splash, '시체 역병', target => handleEnemyDeath(target, pStats), '카오스 피해');
-        addBattleFx('hit', { enemyId: enemy.id, color: '#9b59ff', damage: splash, duration: 360, element: 'chaos', syncToSwing: true });
-        if (line && game.settings.showCombatLog) addLog(line, 'attack-player');
-    }
-    if (pStats && pStats.uniqueKillMoveStacks) {
-        let now = getCombatTime();
-        let state = game.uniqueKillMoveStacksState || { stacks: 0, expiresAt: 0, lastProcAt: 0 };
-        if ((state.lastProcAt || 0) + Math.floor((pStats.uniqueKillMoveStacks.cooldownSec || 1) * 1000) <= now) {
-            state.stacks = Math.min(Math.max(1, Math.floor(pStats.uniqueKillMoveStacks.maxStacks || 20)), Math.max(0, Math.floor(state.stacks || 0)) + 1);
-            state.lastProcAt = now;
-        }
-        state.expiresAt = now + Math.floor((pStats.uniqueKillMoveStacks.duration || 20) * 1000);
-        game.uniqueKillMoveStacksState = state;
-    }
-    if (pStats && pStats.uniqueLeechEfficiencyOnKill) {
-        let durationMs = Math.max(1000, Math.floor((pStats.uniqueLeechEfficiencyOnKill.duration || 8) * 1000));
-        game.uniqueLeechEfficiencyUntil = getCombatTime() + durationMs;
-    }
-    if (pStats && pStats.uniqueOverkillSplash && enemy && Number.isFinite(enemy.lastOverkillDamage) && enemy.lastOverkillDamage > 0) {
-        let splash = Math.max(1, Math.floor(enemy.lastOverkillDamage));
-        (game.enemies || []).forEach(target => {
-            if (!target || target.id === enemy.id || target.hp <= 0) return;
-            target.hp = Math.max(0, target.hp - splash);
-            if (target.hp <= 0) handleEnemyDeath(target, pStats);
-        });
-    }
+    // The steps below log through say (addLog, passed from here): they stay free of the UI themselves.
+    rollRandomVoidRiftOnKill(enemy, zone, addLog);
+    explodeCorpsesOnKill(enemy, pStats, addLog);
+    applyUniqueKillEffects(pStats);
+    // 남은 피해 튀기기: the rest of the killing blow hits every other monster, each death handled at once (in this order).
+    const overkill = getOverkillSplash(enemy, pStats);
+    if (overkill > 0) (game.enemies || []).forEach(target => {
+        if (!target || target.id === enemy.id || target.hp <= 0) return;
+        target.hp = Math.max(0, target.hp - overkill);
+        if (target.hp <= 0) handleEnemyDeath(target, pStats);
+    });
     if (game.enemyWitherStacks && typeof game.enemyWitherStacks === 'object') delete game.enemyWitherStacks[enemy.id];
     clearDotFxThrottleForEnemy(enemy.id);
     if (zone && zone.id === 'beehive_run' && game.beehive && game.beehive.inRun && countBeehiveWaveAlive() === 0) {
         if (typeof onBeehiveWaveCleared === 'function') onBeehiveWaveCleared();
     }
-    if (zone && zone.id === 'colony_run' && game.colony && game.colony.inRun) {
-        game.colony.kills = Math.max(0, Math.floor((game.colony.kills || 0) + 1));
-        if ((game.colony.kills || 0) >= Math.max(1, Math.floor(game.colony.requiredKills || 1))) {
-            let completedWave = Math.max(1, Math.floor(game.colony.wave || 1));
-            let shardReward = 1 + Math.floor(completedWave / 3);
-            awardCurrency('colonyShard', shardReward);
-            if (Math.random() < 0.35) awardCurrency('formlessDew', 1, 'drop');
-            if (completedWave % 10 === 0) awardCurrency('colonyTrace', 1);
-            // 액막이는 가방으로(5웨이브마다 반드시, 나머지 웨이브 28%, js/colony-wards.js rollColonyWave).
-            let ward = colonyWards.rollColonyWave(completedWave, zone);
-            if (ward) addLog(`🛡️ 군락지 액막이 부적 획득: ${colonyWardsUi.statName(ward.baseStats[0].id)} +${formatValue(ward.baseStats[0].id, ward.baseStats[0].val)}`, 'loot-rare', { item:ward, itemKind:'talisman' });
-            game.colony.wave = Math.max(1, Math.floor((game.colony.wave || 1) + 1));
-            game.colony.highestWave = Math.max(Math.floor(game.colony.highestWave || 1), game.colony.wave);
-            if (game.colony.highestWave >= 11) unlockJournalEntry('colony_wave_10');
-            game.colony.kills = 0;
-            game.colony.requiredKills = getColonyWaveEnemyCount(game.colony.wave);
-            // 방 단위 지도에서는 다음 틱이 부른다(tickColonyRun: 끝 방을 비운 뒤에는 떨어진 것을 줍고 나서 새 지도를 연다)
-            if (!getColonyRoomRun()) spawnColonyWave();
-            addLog(`🪲 군락지 ${completedWave}웨이브 완료! 군락지 편린 +${shardReward}${completedWave % 10 === 0 ? ', 군락지 흔적 +1' : ''}, 다음 웨이브 ${game.colony.wave} 시작.`, 'loot-magic');
-            queueImportantSave(200);
-        }
-    }
-    if (zone && zone.id === 'grand_breach_run' && enemy.isBoss && grand && grand.inRun) {
-        let v = game.voidRift || (game.voidRift = { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0 });
-        let rewards = getGrandBreachRewardSummary(grand.kills);
-        rewards.voidChisel = awardCurrency('voidChisel', rewards.voidChisel, 'drop');
-        grand.rewardVoidChisel = rewards.voidChisel;
-        grand.inRun = false;
-        grand.phase = 'done';
-        grand.timeLeft = 0;
-        v.grandBreachCleared = true;
-        game.enemies = [];
-        game.encounterPlan = [];
-        game.encounterIndex = 0;
-        game.runProgress = 0;
-        actExplorationProgress.depart(game); // 방 단위 지도: 군주가 떨어뜨린 것을 거두고 지도를 닫는다
-        game.currentZoneId = grand.returnZoneId !== undefined ? grand.returnZoneId : getAutoProgressZoneId(game.maxZoneId);
-        markLoopSpecialBossKill('void_grand_breach');
-        unlockJournalEntry('void_grand_breach');
-        addLog(`🌌 대균열 보스를 격파했습니다! 생존 구간 ${rewards.kills}처치 정산${rewards.voidChisel ? `, 공허의 끌 +${rewards.voidChisel}` : ''}`, 'level-up');
-        queueImportantSave(200);
-    }
+    advanceColonyWaveOnKill(zone, addLog);
+    finishGrandBreachOnBossKill(enemy, zone, addLog);
     // 시체폭발/연쇄 피해 등으로 동시에 0 이하가 된 적은
     // 일반 타격 루프를 통하지 않으면 사망 처리(handleEnemyDeath)가 누락될 수 있다.
     // 누락 시 enemies 배열에 hp<=0 엔트리가 남아 100% 진행 후에도 클리어가 멈춘다.
-    let chainedDefeats = (game.enemies || []).filter(entry => entry && entry.hp <= 0);
-    if (chainedDefeats.length > 0) {
-        chainedDefeats.forEach(defeated => handleEnemyDeath(defeated, pStats));
-    }
-    let currencyChanged = Math.max(0, Math.floor(game.currencyDropVersion || 0)) !== currencyDropVersionBefore;
-    let colonyStateChanged = zone && zone.id === 'colony_run' && game.colony && game.colony.inRun;
-    if (enemy.isBoss || enemy.isElite || currencyChanged || gemLeveled || colonyStateChanged || game.noti.char || game.noti.skills || game.noti.items || game.noti.map) {
-        pendingHeavyUiRefresh = true;
-    }
+    (game.enemies || []).filter(entry => entry && entry.hp <= 0).forEach(defeated => handleEnemyDeath(defeated, pStats));
+    flagHeavyUiAfterKill(enemy, zone, gemLeveled, currencyDropVersionBefore);
     playerStatCache.endEvent();
+}
+
+/** The kill in the counters: a boss's content records, the grand breach's survival count, the loop's kills, and during an offline
+ * settlement the normal/elite/boss mix it projects the rest with. */
+function countKillForContent(enemy, zone, pStats) {
+    if (enemy.isBoss) markBossKillForContent(enemy, zone, pStats);
+    countGrandBreachSurvivalKill(enemy, zone);
+    game.loopKills = Math.max(0, Math.floor(game.loopKills || 0)) + 1;
+    if (game.isBackgroundCalculation) countBackgroundKillMix(enemy);
+}
+function markBossKillForContent(enemy, zone, pStats) {
+    completeHiddenJournalBossRun(enemy, zone, pStats);
+    // 재능 개화 미궁의 보스를 실제로 처치한 경우에만 개화 완료를 허용하기 위해 기록한다.
+    if (zone && zone.type === 'trial' && zone.bloomTrial) game.bloomBossDefeated = true;
+}
+function countGrandBreachSurvivalKill(enemy, zone) {
+    const grand = game.voidRift.grandRun;
+    if (zone && zone.id === 'grand_breach_run' && grand && grand.inRun && grand.phase === 'survival' && !enemy.isBoss) {
+        grand.kills = Math.max(0, Math.floor(grand.kills || 0)) + 1;
+    }
+}
+/** 백그라운드 정산이 남은 구간을 예상할 때 쓸 처치 구성. 재화 드랍 확률은 일반/정예/보스가 자릿수 단위로 다르므로(황금률: 보스 0.6% vs
+ * 일반 0.007%), 총 처치 수만으로는 남은 구간의 재화를 제대로 다시 굴릴 수 없다. 시뮬레이션 중에만 센다. */
+function countBackgroundKillMix(enemy) {
+    const mix = game.backgroundKillMix && typeof game.backgroundKillMix === 'object'
+        ? game.backgroundKillMix : (game.backgroundKillMix = { normal: 0, elite: 0, boss: 0 });
+    const bucket = enemy.isBoss ? 'boss' : (enemy.isElite ? 'elite' : 'normal');
+    mix[bucket] = Math.max(0, Math.floor(mix[bucket] || 0)) + 1;
+}
+
+/** Talent state kept per kill: the inquisitor's marks on this monster go, 콜로세움 브레이커 counts the crowd's roar (5 = next strike). */
+function tickTalentKillRuntime(enemy) {
+    // 재능 런타임: 적별 누적 상태 정리(메모리 누수 방지)
+    if (game.talentInquisitorMarks) delete game.talentInquisitorMarks[enemy.id];
+    if (typeof isTalentCardActive !== 'function' || !isTalentCardActive('hero2__gladiator')) return;
+    game.talentRuntime = (game.talentRuntime && typeof game.talentRuntime === 'object') ? game.talentRuntime : {};
+    game.talentRuntime.colosseumKills = (game.talentRuntime.colosseumKills || 0) + 1;
+    if (game.talentRuntime.colosseumKills >= 5) { game.talentRuntime.colosseumKills = 0; game.talentRuntime.colosseumReady = true; }
+}
+
+/** From loop 9 in void rift zones: a kill counts toward an open rift's wave, and with no rift open may open one at random. */
+function rollRandomVoidRiftOnKill(enemy, zone, say) {
+    // 루프 특수 보스 집계에는 일반 액트/혼돈 보스를 포함하지 않음.
+    if ((game.season || 1) < 9 || !isVoidRiftCombatZone(zone)) return;
+    const v = game.voidRift || (game.voidRift = { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0 });
+    if (v.active) {
+        if (enemy.fromVoidRift) v.defeatedCount = Math.max(0, Math.floor(v.defeatedCount || 0)) + 1;
+        return;
+    }
+    if (Math.random() >= (enemy.isElite ? 0.0003335 : 0.000075)) return;
+    Object.assign(v, { active: true, activeKills: 0, requiredKills: 0, pendingWave: true, totalToSpawn: 6 + Math.floor(Math.random() * 4), spawnedCount: 0, defeatedCount: 0, spawnTick: 0 });
+    say('🕳️ 공허의 구멍이 랜덤으로 열렸습니다!', 'attack-monster', { noToast: true });
+}
+
+/** The equipped herald supports' summed chance to explode a corpse (each by its gem level), capped at 85%; 0 without one. */
+function getHeraldExplodeChance(pStats) {
+    const chances = (game.equippedSupports || []).map(name => {
+        const db = SUPPORT_GEM_DB[name];
+        if (!db || !Number.isFinite(db.heraldExplodeBase)) return null;
+        const gem = normalizeGemRecord((game.supportGemData || {})[name]);
+        const lvl = Math.max(1, gem.level + ((pStats && pStats.gemLv) || 0));
+        return db.heraldExplodeBase + ((lvl - 1) * (db.heraldExplodeScale || 0));
+    }).filter(Boolean);
+    return chances.length ? clampNumber(chances.reduce((a, b) => a + b, 0), 0, 0.85) : 0;
+}
+const corpseExplosionSplash = (enemy, lifePct) => Math.max(1, Math.floor((enemy.maxHp || 0) * (Math.max(0, Number(lifePct || 0)) / 100)));
+const corpseExplosionChance = pct => Math.max(0, Math.min(1, Number(pct || 0) / 100));
+/** Corpse explosions a kill may set off, each rolled in turn: heralds, rune corpses, 종말의 논리, 시체 역병. chain kills what a blast
+ * brings to 0, log writes a blast's line. */
+function explodeCorpsesOnKill(enemy, pStats, say) {
+    const chain = target => handleEnemyDeath(target, pStats);
+    const log = line => { if (line && game.settings.showCombatLog) say(line, 'attack-player'); };
+    explodeHeraldCorpse(enemy, pStats, chain, log);
+    explodeRuneCorpse(enemy, pStats, chain, log);
+    explodeUniqueCorpse(enemy, pStats, chain, log);
+    explodePlagueCorpse(enemy, chain, log);
+}
+function explodeHeraldCorpse(enemy, pStats, chain, log) {
+    const chance = getHeraldExplodeChance(pStats);
+    if (chance > 0 && Math.random() < chance) log(explodeCorpse(enemy, Math.floor((enemy.maxHp || enemy.hp || 0) * 0.10), '전령 시체 폭발', chain));
+}
+function explodeRuneCorpse(enemy, pStats, chain, log) {
+    if (!pStats || !((pStats.runeCorpseExplodeChance || 0) > 0) || Math.random() >= corpseExplosionChance(pStats.runeCorpseExplodeChance)) return;
+    log(explodeCorpse(enemy, corpseExplosionSplash(enemy, pStats.runeCorpseExplodeLifePct), '룬 시체 폭발', chain));
+}
+/** 종말의 논리: rolled whenever the unique is worn (even at 0%), as it always was. */
+function explodeUniqueCorpse(enemy, pStats, chain, log) {
+    if (!pStats || !pStats.uniqueCorpseExplode || Math.random() >= corpseExplosionChance(pStats.uniqueCorpseExplode.chance)) return;
+    const splash = corpseExplosionSplash(enemy, pStats.uniqueCorpseExplode.lifePct);
+    const line = explodeCorpse(enemy, splash, '종말의 논리 시체 폭발', chain);
+    addBattleFx('hit', { enemyId: enemy.id, color: '#c56cff', damage: splash, duration: 360, element: 'chaos', syncToSwing: true });
+    log(line);
+}
+/** 시체 역병(워록 wlk9): 카오스 피해로 처치 시 50% 확률로 시체 폭발(적 최대 생명력의 20%를 주변에 카오스 피해). 심연 각인(wlk1)으로 모든
+ * 피해가 카오스인 경우 처치 원소와 무관하게 카오스 처치로 간주. */
+function explodePlagueCorpse(enemy, chain, log) {
+    if (!hasKeystone('wlk9') || !(enemy.lastHitElement === 'chaos' || hasKeystone('wlk1')) || Math.random() >= 0.5) return;
+    const splash = Math.max(1, Math.floor((enemy.maxHp || enemy.hp || 0) * 0.20));
+    const line = explodeCorpse(enemy, splash, '시체 역병', chain, '카오스 피해');
+    addBattleFx('hit', { enemyId: enemy.id, color: '#9b59ff', damage: splash, duration: 360, element: 'chaos', syncToSwing: true });
+    log(line);
+}
+
+/** Unique on-kill effects: movement stacks (with their cooldown) and the leech efficiency window. */
+function applyUniqueKillEffects(pStats) {
+    if (!pStats) return;
+    if (pStats.uniqueKillMoveStacks) stackUniqueKillMove(pStats.uniqueKillMoveStacks);
+    if (pStats.uniqueLeechEfficiencyOnKill) {
+        game.uniqueLeechEfficiencyUntil = getCombatTime() + Math.max(1000, Math.floor((pStats.uniqueLeechEfficiencyOnKill.duration || 8) * 1000));
+    }
+}
+function stackUniqueKillMove(rule) {
+    const now = getCombatTime();
+    const state = game.uniqueKillMoveStacksState || { stacks: 0, expiresAt: 0, lastProcAt: 0 };
+    if ((state.lastProcAt || 0) + Math.floor((rule.cooldownSec || 1) * 1000) <= now) {
+        state.stacks = Math.min(Math.max(1, Math.floor(rule.maxStacks || 20)), Math.max(0, Math.floor(state.stacks || 0)) + 1);
+        state.lastProcAt = now;
+    }
+    state.expiresAt = now + Math.floor((rule.duration || 20) * 1000);
+    game.uniqueKillMoveStacksState = state;
+}
+/** The overkill a unique splashes onto the other monsters after a kill, or 0. */
+function getOverkillSplash(enemy, pStats) {
+    const left = Number(enemy.lastOverkillDamage);
+    return pStats && pStats.uniqueOverkillSplash && Number.isFinite(left) && left > 0 ? Math.max(1, Math.floor(left)) : 0;
+}
+
+/** A kill in the colony run, and when the wave's kills are in, the wave's end. */
+function advanceColonyWaveOnKill(zone, say) {
+    if (!zone || zone.id !== 'colony_run' || !game.colony || !game.colony.inRun) return;
+    game.colony.kills = Math.max(0, Math.floor((game.colony.kills || 0) + 1));
+    if ((game.colony.kills || 0) >= Math.max(1, Math.floor(game.colony.requiredKills || 1))) completeColonyWave(zone, say);
+}
+/** A colony wave's rewards (shards, a chance of dew, a trace every 10th wave, a ward) and the next wave. */
+function completeColonyWave(zone, say) {
+    const completedWave = Math.max(1, Math.floor(game.colony.wave || 1));
+    const shardReward = 1 + Math.floor(completedWave / 3);
+    awardCurrency('colonyShard', shardReward);
+    if (Math.random() < 0.35) awardCurrency('formlessDew', 1, 'drop');
+    if (completedWave % 10 === 0) awardCurrency('colonyTrace', 1);
+    // 액막이는 가방으로(5웨이브마다 반드시, 나머지 웨이브 28%, js/colony-wards.js rollColonyWave).
+    const ward = colonyWards.rollColonyWave(completedWave, zone);
+    if (ward) say(`🛡️ 군락지 액막이 부적 획득: ${colonyWardsUi.statName(ward.baseStats[0].id)} +${formatValue(ward.baseStats[0].id, ward.baseStats[0].val)}`, 'loot-rare', { item:ward, itemKind:'talisman' });
+    game.colony.wave = Math.max(1, Math.floor((game.colony.wave || 1) + 1));
+    game.colony.highestWave = Math.max(Math.floor(game.colony.highestWave || 1), game.colony.wave);
+    if (game.colony.highestWave >= 11) unlockJournalEntry('colony_wave_10');
+    game.colony.kills = 0;
+    game.colony.requiredKills = getColonyWaveEnemyCount(game.colony.wave);
+    // 방 단위 지도에서는 다음 틱이 부른다(tickColonyRun: 끝 방을 비운 뒤에는 떨어진 것을 줍고 나서 새 지도를 연다)
+    if (!getColonyRoomRun()) spawnColonyWave();
+    say(`🪲 군락지 ${completedWave}웨이브 완료! 군락지 편린 +${shardReward}${completedWave % 10 === 0 ? ', 군락지 흔적 +1' : ''}, 다음 웨이브 ${game.colony.wave} 시작.`, 'loot-magic');
+    queueImportantSave(200);
+}
+
+/** The grand breach's lord down: the survival kills are settled into 공허의 끌, the run closes and the hero goes back. */
+function finishGrandBreachOnBossKill(enemy, zone, say) {
+    const grand = game.voidRift.grandRun;
+    if (!zone || zone.id !== 'grand_breach_run' || !enemy.isBoss || !grand || !grand.inRun) return;
+    const v = game.voidRift || (game.voidRift = { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0 });
+    const rewards = getGrandBreachRewardSummary(grand.kills);
+    rewards.voidChisel = awardCurrency('voidChisel', rewards.voidChisel, 'drop');
+    grand.rewardVoidChisel = rewards.voidChisel;
+    grand.inRun = false;
+    grand.phase = 'done';
+    grand.timeLeft = 0;
+    v.grandBreachCleared = true;
+    game.enemies = [];
+    game.encounterPlan = [];
+    game.encounterIndex = 0;
+    game.runProgress = 0;
+    actExplorationProgress.depart(game); // 방 단위 지도: 군주가 떨어뜨린 것을 거두고 지도를 닫는다
+    game.currentZoneId = grand.returnZoneId !== undefined ? grand.returnZoneId : getAutoProgressZoneId(game.maxZoneId);
+    markLoopSpecialBossKill('void_grand_breach');
+    unlockJournalEntry('void_grand_breach');
+    say(`🌌 대균열 보스를 격파했습니다! 생존 구간 ${rewards.kills}처치 정산${rewards.voidChisel ? `, 공허의 끌 +${rewards.voidChisel}` : ''}`, 'level-up');
+    queueImportantSave(200);
+}
+
+/** The full UI redraw after a kill that changed more than the fight: a boss or elite, new currency, a gem level, the colony, a badge. */
+function flagHeavyUiAfterKill(enemy, zone, gemLeveled, currencyDropVersionBefore) {
+    const currencyChanged = Math.max(0, Math.floor(game.currencyDropVersion || 0)) !== currencyDropVersionBefore;
+    const colonyStateChanged = Boolean(zone && zone.id === 'colony_run' && game.colony && game.colony.inRun);
+    const badge = ['char', 'skills', 'items', 'map'].some(key => game.noti[key]);
+    if ([enemy.isBoss, enemy.isElite, currencyChanged, gemLeveled, colonyStateChanged, badge].some(Boolean)) pendingHeavyUiRefresh = true;
 }
 
 function transferSkillDotOnDeath(enemy) {
