@@ -9055,24 +9055,9 @@ function getCraftOrbUseState(key, item) {
     if (!item) return { enabled: false, reason: '아이템 미선택' };
     if ((game.currencies[key] || 0) <= 0) return { enabled: false, reason: '재화 부족' };
     let actionKey = equipmentCrafting.resolveAction(key, item.rarity);
-    if (item.corrupted && actionKey !== 'tainted') return { enabled: false, reason: '타락 아이템은 일반 제작 불가' };
-    if (item.fusedRelic && !['divine', 'tainted', 'blessing'].includes(actionKey)) return { enabled: false, reason: '융합 유물: 황금률/잿불가지/축복만 사용 가능' };
-    let ok = false;
-    if (actionKey === 'transmute') ok = item.rarity === 'normal';
-    else if (actionKey === 'augment') ok = item.rarity === 'magic' && getItemExplicitOptionCount(item) < 2;
-    else if (actionKey === 'alteration') ok = item.rarity === 'magic';
-    else if (actionKey === 'alchemy') ok = item.rarity === 'normal';
-    else if (actionKey === 'exalted') ok = item.rarity === 'rare' && getItemExplicitOptionCount(item) < EXPLICIT_AFFIX_LINE_CAP;
-    else if (actionKey === 'regal') ok = item.rarity === 'magic' && getItemExplicitOptionCount(item) < EXPLICIT_AFFIX_LINE_CAP;
-    else if (actionKey === 'chaos') ok = item.rarity === 'rare';
-    else if (actionKey === 'divine') ok = item.rarity !== 'normal';
-    else if (actionKey === 'chance') ok = item.rarity === 'normal';
-    else if (actionKey === 'annulment') ok = Array.isArray(item.stats) && item.stats.some(stat => stat && !stat.lockedByHoney && !stat.lockedByRift && !stat.encroachedFinal && !stat.unremovable);
-    else if (actionKey === 'scour') ok = item.rarity !== 'normal' && item.rarity !== 'unique';
-    else if (actionKey === 'tainted') ok = !item.corrupted || (typeof isKaleidoscopeShieldItem === 'function' && isKaleidoscopeShieldItem(item) && getItemExplicitOptionCount(item) <= EXPLICIT_AFFIX_LINE_CAP);
-    else if (key === 'blessing') ok = Array.isArray(item.baseStats) && item.baseStats.length > 0;
-    else if (key === 'abyssCatalyst') ok = Math.max(0, Math.floor(item.quality || 0)) > 0 && Array.isArray(item.stats) && item.stats.length > 0;
-    if (!ok) return { enabled: false, reason: '현재 아이템 조건 불일치' };
+    // 막는 까닭은 제작이 스스로 쓰는 규칙 그대로다(craftCurrencyUse.blockReason: 성화의 뿌리 선택 대기, 타락, 융합 유물, 등급과 자리).
+    const block = craftCurrencyUse.blockReason(item, actionKey);
+    if (block) return { enabled: false, reason: block };
     let sporeMode = isSporeCraftEquipment(item) ? (game.sporeCraftModes[key] || 'none') : 'none';
     const sporeBlock = getSporeCraftBlockReason(item, actionKey, sporeMode);
     if (sporeBlock) return { enabled: false, reason: sporeBlock };
@@ -9088,7 +9073,7 @@ function getCraftOrbUseState(key, item) {
             : `${({ fire: '화염', cold: '냉기', light: '번개' })[sporeMode] || '선택'} 홀씨 ${cost}개 필요`;
         return { enabled: false, reason: `홀씨 부족, ${costText}` };
     }
-    return { enabled: ok, reason: ok ? '사용 가능' : '현재 아이템 조건 불일치' };
+    return { enabled: true, reason: '사용 가능' };
 }
 
 // 시간의 균열 패널: 시간압 선택 → 과거 진입 → 제단 배치 → 미래 진입.
