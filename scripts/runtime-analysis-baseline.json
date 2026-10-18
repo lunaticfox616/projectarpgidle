@@ -1426,7 +1426,7 @@
     },
     "performMonsterAttacks|complexity|Arrow function has a complexity of #. Maximum allowed is #.": {
       "count": 2,
-      "max": 27
+      "max": 25
     },
     "buildTrialHazardCells|complexity|Function 'buildTrialHazardCells' has a complexity of #. Maximum allowed is #.": {
       "count": 1,
@@ -15109,6 +15109,7 @@
     "dependency:performMonsterAttacks->getPreciseTalentLevel",
     "dependency:performMonsterAttacks->getPreciseTalentRatio",
     "dependency:performMonsterAttacks->getSoftenedLoopDepth",
+    "dependency:performMonsterAttacks->getSummonEvadeChance",
     "dependency:performMonsterAttacks->getSummonRedirectPct",
     "dependency:performMonsterAttacks->getSummonRespawnAt",
     "dependency:performMonsterAttacks->getUnderworldEntryBossTuning",
