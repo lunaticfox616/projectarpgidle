@@ -7047,6 +7047,8 @@ function getMapEstimateZonePenalties(zone) {
  * @param {{type:string,tier:number,id:(number|string),ele?:string}} zone
  * @returns {{dps:number,ehp:number,element:string,clearTimeSec:number,basis:string}|null}
  */
+/** The power a zone asks for (its boss's life against the clear time, the boss threat window, peak hit, resistance pressure), for
+ * the map and atlas readiness; null for kinds it cannot estimate. Split into its parts on 2026-10-18; the products keep their order. */
 function estimateMapZonePowerRequirements(zone) {
     const supportedTypes = ['act', 'abyss', 'labyrinth', 'underworld', 'chaosRealm', 'oceanDepth', 'skyTower', 'seasonBoss', 'timeRift', 'meteor', 'beehive', 'colony', 'grandBreach', 'trial', 'cosmos', 'beyondBoundary', 'atlasMap'];
     if (!zone || !supportedTypes.includes(zone.type)) return null;
@@ -7054,40 +7056,15 @@ function estimateMapZonePowerRequirements(zone) {
     let loopInputs = getLoopDifficultyInputs(zone);
     let seasonDepth = getSoftenedLoopDepth(loopInputs.seasonLoops);
     let tierProgress = clampNumber((tier - 1) / 18, 0, 1);
-    let hp = ((56 + tier * 30) * 1.15)
-        * (1 + tierProgress * 9)
-        * getMonsterLoopHpMultiplier(zone, loopInputs, tierProgress);
-    if (loopInputs.exempt) hp *= Number(zone.fixedDifficultyMul) || 1;
+    let hp = getMapEstimateMonsterHp(zone, tier, loopInputs, tierProgress);
     let abyssScale = getAbyssMonsterScales(zone);
     let contentScale = resolveMapEstimateContentScale(zone);
-    let bossMods = (zone.bossMods && typeof zone.bossMods === 'object') ? zone.bossMods : {};
-    if (zone.type === 'cosmos') bossMods = getCosmosEnemyModifiers(zone, false, true) || bossMods;
-    let cosmosTrait = zone.type === 'cosmos' ? getCosmosExclusiveEnemyTrait(zone, false, true, hashSeed(zone.cosmosNodeId || zone.id)) : null;
-    let bossHp = hp * (1.8 + tier * 0.6) * (1 + tierProgress * 4) * getBossHpEase(tier, getMonsterLoopHpMultiplier(zone, loopInputs, tierProgress))
-        * (abyssScale.hpMul || 1) * (abyssScale.bossMul || 1) * 0.92
-        * contentScale.hp * (bossMods.hpMul || 1) * (zone.mapHpMul || 1)
-        * (cosmosTrait && cosmosTrait.hpMul ? cosmosTrait.hpMul : 1);
-    let estimateEnergyShieldPct = Math.max(Number(bossMods.energyShieldPct || 0), Number(cosmosTrait && cosmosTrait.energyShieldPct || 0));
-    if (estimateEnergyShieldPct > 0) bossHp *= 1 + estimateEnergyShieldPct / 100;
+    const { bossMods, cosmosTrait } = getMapEstimateBossMods(zone);
     const underworldEntryTuning = getUnderworldEntryBossTuning(zone, true);
-    bossHp *= underworldEntryTuning.hp;
-    if (zone.type === 'trial' && zone.id === 'trial_3') bossHp *= 0.85;
-    let tierPressure = clampNumber((tier - 1) / 10, 0, 1);
-    let bossHit = (2.4 + tier * 3.35) * 1.15
-        * getMonsterLoopGrowthScale(zone, 'damage', seasonDepth, tierPressure)
-        * (1.14 + tier * 0.16) * 1.34
-        * (abyssScale.dmgMul || 1) * (abyssScale.playerTakenMul || 1) * (abyssScale.bossMul || 1)
-        * contentScale.damage * (bossMods.damageMul || 1) * (zone.mapDamageMul || 1)
-        * (cosmosTrait && cosmosTrait.damageMul ? cosmosTrait.damageMul : 1);
-    if (zone.type === 'act' && Number(zone.id) <= 1 && (game.season || 1) >= 3) bossHit *= 0.58;
-    bossHit *= underworldEntryTuning.damage * getMonsterLoopPowerScale(zone, 'damage');
-    const threatMods = cosmosTrait ? {
-        ...bossMods,
-        penetration: Number(bossMods.penetration || 0) + Number(cosmosTrait.penetration || 0),
-        atkMul: Number(bossMods.atkMul || 1) * Number(cosmosTrait.atkMul || 1),
-        attackSpeedMul: Number(bossMods.attackSpeedMul || 1) * Number(cosmosTrait.attackSpeedVarMul || 1)
-    } : bossMods;
-    const threat = getMapEstimateThreatProfile(zone, threatMods, bossHit, seasonDepth, tier);
+    const parts = { hp, tier, tierProgress, loopInputs, seasonDepth, abyssScale, contentScale, bossMods, cosmosTrait, underworldEntryTuning };
+    let bossHp = getMapEstimateBossHp(zone, parts);
+    let bossHit = getMapEstimateBossHit(zone, parts);
+    const threat = getMapEstimateThreatProfile(zone, getMapEstimateThreatMods(bossMods, cosmosTrait), bossHit, seasonDepth, tier);
     return getAtlasPackReadiness(zone, hp, {
         dps: Math.max(1, Math.round(getMapBossRequiredDps(bossHp, contentScale.clearTimeSec, zone.boundaryRegenRate))),
         ehp: Math.max(1, Math.round(threat.threatWindow)),
@@ -7101,6 +7078,73 @@ function estimateMapZonePowerRequirements(zone) {
         clearTimeSec: contentScale.clearTimeSec,
         basis: 'bossThreatWindow'
     });
+}
+/** A normal monster's life at the zone's tier and loop (a fixed-difficulty zone by its scale). */
+function getMapEstimateMonsterHp(zone, tier, loopInputs, tierProgress) {
+    let hp = ((56 + tier * 30) * 1.15)
+        * (1 + tierProgress * 9)
+        * getMonsterLoopHpMultiplier(zone, loopInputs, tierProgress);
+    if (loopInputs.exempt) hp *= Number(zone.fixedDifficultyMul) || 1;
+    return hp;
+}
+/** The zone's boss modifiers (a cosmos encounter's, else the zone's own) and a cosmos boss's exclusive trait. */
+function getMapEstimateBossMods(zone) {
+    let bossMods = (zone.bossMods && typeof zone.bossMods === 'object') ? zone.bossMods : {};
+    if (zone.type === 'cosmos') bossMods = getCosmosEnemyModifiers(zone, false, true) || bossMods;
+    let cosmosTrait = zone.type === 'cosmos' ? getCosmosExclusiveEnemyTrait(zone, false, true, hashSeed(zone.cosmosNodeId || zone.id)) : null;
+    return { bossMods, cosmosTrait };
+}
+/** The boss's life with its energy shield, the underworld entry tuning and trial 3's 85%. */
+function getMapEstimateBossHp(zone, p) {
+    const { hp, tier, tierProgress, loopInputs, contentScale, bossMods, cosmosTrait } = p;
+    const k = getMapEstimateBossHpFactors(zone, p);
+    let bossHp = hp * (1.8 + tier * 0.6) * (1 + tierProgress * 4) * getBossHpEase(tier, getMonsterLoopHpMultiplier(zone, loopInputs, tierProgress))
+        * k.abyssHp * k.abyssBoss * 0.92
+        * contentScale.hp * k.modHp * k.mapHp
+        * k.traitHp;
+    let estimateEnergyShieldPct = Math.max(Number(bossMods.energyShieldPct || 0), Number(cosmosTrait && cosmosTrait.energyShieldPct || 0));
+    if (estimateEnergyShieldPct > 0) bossHp *= 1 + estimateEnergyShieldPct / 100;
+    bossHp *= p.underworldEntryTuning.hp;
+    if (zone.type === 'trial' && zone.id === 'trial_3') bossHp *= 0.85;
+    return bossHp;
+}
+/** The boss's hit: tier and loop growth, the abyss, content, modifier and map scales, the early-act ease from loop 3, the underworld
+ * entry tuning and the loop power scale. */
+function getMapEstimateBossHit(zone, p) {
+    const { tier, seasonDepth, contentScale } = p;
+    let tierPressure = clampNumber((tier - 1) / 10, 0, 1);
+    const k = getMapEstimateBossHitFactors(zone, p);
+    let bossHit = (2.4 + tier * 3.35) * 1.15
+        * getMonsterLoopGrowthScale(zone, 'damage', seasonDepth, tierPressure)
+        * (1.14 + tier * 0.16) * 1.34
+        * k.abyssDmg * k.abyssTaken * k.abyssBoss
+        * contentScale.damage * k.modDmg * k.mapDmg
+        * k.traitDmg;
+    if (zone.type === 'act' && Number(zone.id) <= 1 && (game.season || 1) >= 3) bossHit *= 0.58;
+    bossHit *= p.underworldEntryTuning.damage * getMonsterLoopPowerScale(zone, 'damage');
+    return bossHit;
+}
+/** The boss life's scales that default to 1: the abyss life and boss scales, the modifiers' and map's life, a cosmos trait's life. */
+function getMapEstimateBossHpFactors(zone, p) {
+    const { abyssScale, bossMods, cosmosTrait } = p;
+    return { abyssHp: abyssScale.hpMul || 1, abyssBoss: abyssScale.bossMul || 1, modHp: bossMods.hpMul || 1, mapHp: zone.mapHpMul || 1,
+        traitHp: cosmosTrait && cosmosTrait.hpMul ? cosmosTrait.hpMul : 1 };
+}
+/** The boss hit's scales that default to 1: the abyss damage, taken and boss scales, the modifiers' and map's damage, a cosmos trait's
+ * damage. */
+function getMapEstimateBossHitFactors(zone, p) {
+    const { abyssScale, bossMods, cosmosTrait } = p;
+    return { abyssDmg: abyssScale.dmgMul || 1, abyssTaken: abyssScale.playerTakenMul || 1, abyssBoss: abyssScale.bossMul || 1, modDmg: bossMods.damageMul || 1,
+        mapDmg: zone.mapDamageMul || 1, traitDmg: cosmosTrait && cosmosTrait.damageMul ? cosmosTrait.damageMul : 1 };
+}
+/** The boss modifiers the threat reads, with a cosmos trait's penetration, attack and speed added. */
+function getMapEstimateThreatMods(bossMods, cosmosTrait) {
+    return cosmosTrait ? {
+        ...bossMods,
+        penetration: Number(bossMods.penetration || 0) + Number(cosmosTrait.penetration || 0),
+        atkMul: Number(bossMods.atkMul || 1) * Number(cosmosTrait.atkMul || 1),
+        attackSpeedMul: Number(bossMods.attackSpeedMul || 1) * Number(cosmosTrait.attackSpeedVarMul || 1)
+    } : bossMods;
 }
 
 /** Atlas map readiness covers both an elite-led room pack (3 + the pack-size mod) and the node boss. */
