@@ -343,9 +343,14 @@ const equipmentCrafting = (() => {
         if (item.corrupted) return '타락한 장비는 새기거나 되돌릴 수 없습니다.';
         return item.fusedRelic || item.rarity === 'unique' || item.hallReplica ? '고유 장비, 융합 유물, 전당 소장품에는 쓸 수 없습니다.' : '';
     }
-    /** Why item cannot be engraved now, or '': a magic or rare piece, and a 기억 조각칼 in the wallet. */
+    /** Why the build may not change now, or '': the woodsman fight puts gear and bag back to its snapshot every tick (not the wallet),
+     * so a craft paid then would be lost. */
+    function buildLockReason(state) {
+        return state && state.woodsmanBuildLock ? '☠️ 나무꾼 전투 중에는 장비 옵션을 변경할 수 없습니다.' : '';
+    }
+    /** Why item cannot be engraved now, or '': the build lock, a magic or rare piece, and a 기억 조각칼 in the wallet. */
     function engraveReason(state, item) {
-        const reason = imprintBlock(item);
+        const reason = buildLockReason(state) || imprintBlock(item);
         if (reason) return reason;
         if (!['magic', 'rare'].includes(item.rarity)) return '마법이나 희귀 장비에 새깁니다.';
         return (state.currencies[IMPRINT_KEY] || 0) > 0 ? '' : `${ORB_DB[IMPRINT_KEY].name}이 없습니다.`;
@@ -374,6 +379,6 @@ const equipmentCrafting = (() => {
     return Object.freeze({ basicActions, rerollActions, applyBasic, sporePool, pickSporeMod, rollSporeLine, getSource, getLabel, filterSporeMods, resolveAction, getBlockReason, getSporeBlockReason, getFossilBlockReason, getFossilUseReason,
         affixKind, storedAffixKind, keptKind, keptOnReroll, getAffixKeepReason, affixCounts, affixRoom, fitsRoom, pickReplacement, affixHeader,
         omenSpec, armOmen, omenFits, omenFor, spendOmen, pickAddMod, pickPruneLine, craftBasic, pendingChoice, pickChoice,
-        normalizeImprint, engraveReason, engrave, restoreReason, restoreImprint });
+        normalizeImprint, engraveReason, engrave, restoreReason, restoreImprint, buildLockReason });
 })();
 safeExposeGlobals({ equipmentCrafting });

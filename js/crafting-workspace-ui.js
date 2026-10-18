@@ -60,14 +60,17 @@ const craftingWorkspaceUi = (() => {
 
     function workspaceResourceState(key) {
         if(!contentProgression.canOpen('item-tab-craft')||!contentProgression.canDropCurrency(key))return {enabled:false,reason:'아직 해금되지 않았습니다.'};
+        const locked=equipmentCrafting.buildLockReason(game);if(locked)return {enabled:false,reason:locked};
         const row=recipes.find(entry=>entry.key===key);if(!row)return null;
-        if(row.kind==='fossil') {
-            const reason=equipmentCrafting.getFossilUseReason(selected(),FOSSIL_DB.find(entry=>entry.key===key),game.season,game.currencies)||workspaceFossilSlotReason(key);
-            return {enabled:!reason,reason};
-        }
+        if(row.kind==='fossil')return workspaceFossilState(key);
         const special=workspaceSpecialState(key);if(special)return special;
         if(['ouroboros','oceanRerollShard'].includes(key))return {enabled:!!selected()&&game.currencies[key]>0,reason:!selected()?'아이템을 선택하세요.':'재화 부족'};
         return adapter.useState(key,selected());
+    }
+
+    function workspaceFossilState(key) {
+        const reason=equipmentCrafting.getFossilUseReason(selected(),FOSSIL_DB.find(entry=>entry.key===key),game.season,game.currencies)||workspaceFossilSlotReason(key);
+        return {enabled:!reason,reason};
     }
 
     /** Currencies with their own rules: the burning branch (loop 30) and the catalysts (loop 32). null for the rest. */

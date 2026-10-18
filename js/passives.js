@@ -10296,8 +10296,11 @@ const craftCurrencyUse = (() => {
         deepWhetstone: qualityFits(['무기']), rootIron: qualityFits(['투구', '갑옷', '장갑', '신발', '허리띠']), jewelPolish: qualityFits(['목걸이', '반지'])
     });
     const RELIC_ACTIONS = Object.freeze(['divine', 'tainted', 'blessing']);
-    /** Why action cannot be used on item now, or '': a 성화의 뿌리 pick waits, corruption, a fused relic, or the action does not fit. */
+    /** Why action cannot be used on item now, or '': the build lock, a 성화의 뿌리 pick waits, corruption, a fused relic, or the action does
+     * not fit. */
     function blockReason(item, action) {
+        const locked = equipmentCrafting.buildLockReason(game);
+        if (locked) return locked;
         if (equipmentCrafting.pendingChoice(game)) return '성화의 뿌리로 굴린 결과 가운데 하나를 먼저 고르세요.';
         if (item.corrupted && action !== 'tainted') return '타락한 아이템은 더 이상 제작할 수 없습니다.';
         if (item.fusedRelic && !RELIC_ACTIONS.includes(action)) return '융합 유물은 황금률, 잿불가지, 축복의 꽃잎만 사용할 수 있습니다.';
