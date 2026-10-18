@@ -180,7 +180,8 @@ const craftingWorkspaceUi = (() => {
 
     function workspaceExtraGoalsHtml() {
         const rows=goal.rules.slice(1).map((rule,index)=>`<li>${esc(rule.tag?AFFIX_TAG_LABELS[rule.tag]+' '+rule.minCount+'줄':getStatName(rule.statId))}, ${rule.minTier?'T'+rule.minTier+' 이상':'티어 무관'} <button data-command="remove-goal:${index+1}" aria-label="목표 조건 제거">제거</button></li>`).join('');
-        return `<ul class="cl-extra-goals">${rows}</ul><div class="cl-study-controls"><button data-command="add-goal" ${goal.rules.length>=3||!goal.rules.length?'disabled':''}>조건 추가</button><label>목표 조합 <select id="cl-goal-match"><option value="all" ${goalMatch==='all'?'selected':''}>모두 충족</option><option value="any" ${goalMatch==='any'?'selected':''}>하나 이상</option></select></label><button data-command="study">옵션과 확률 살펴보기</button></div>`;
+        const simulator=contentProgression.status('craftSimulator');
+        return `<ul class="cl-extra-goals">${rows}</ul><div class="cl-study-controls"><button data-command="add-goal" ${goal.rules.length>=3||!goal.rules.length?'disabled':''}>조건 추가</button><label>목표 조합 <select id="cl-goal-match"><option value="all" ${goalMatch==='all'?'selected':''}>모두 충족</option><option value="any" ${goalMatch==='any'?'selected':''}>하나 이상</option></select></label><button data-command="study" ${simulator.unlocked?'':`disabled title="${esc(simulator.reason)}"`}>제작 시뮬레이터${simulator.unlocked?'':' (잠김)'}</button></div>`;
     }
 
     /** Tags the craft can roll first, then single options; a goal it can no longer reach stays listed as the current one. */
@@ -532,7 +533,7 @@ const craftingWorkspaceUi = (() => {
     }
 
     function workspaceShowStudy() {
-        if(!selected())return;
+        if(!selected()||!contentProgression.isUnlocked('craftSimulator'))return;
         studyRun++;
         if(!studyDialog){
             studyDialog=document.createElement('dialog');studyDialog.className='cl-study-dialog';
@@ -540,12 +541,12 @@ const craftingWorkspaceUi = (() => {
             studyDialog.addEventListener('close',()=>studyRun++);
         }
         const context={item:JSON.parse(JSON.stringify(selected())),recipe:{...recipe},mode,rules:JSON.parse(JSON.stringify(goal)),omen:null};
-        studyDialog.innerHTML=`<header><div><h2 id="cl-study-title">제작 연구</h2><p>${esc(context.item.name)}, ${esc(context.recipe.label)}, 옵션 상한 T${getItemCraftTier(context.item)}</p></div><button data-study-close aria-label="제작 연구 닫기">닫기</button></header>
-            <section class="cl-study-simulator"><h3>재화 없이 연습</h3><p>현재 장비에서 각각 새로 시작하는 독립 시도입니다. 실제 제작과 같은 굴림을 쓰며 장비와 재화는 변하지 않습니다.</p>
-            ${workspaceStudyOmenHtml(context.item,context.recipe)}<div class="cl-study-controls"><button data-study-sample="1">1회 연습</button><button data-study-sample="2000">목표 확률 2,000회 측정</button></div>
+        studyDialog.innerHTML=`<header><div><h2 id="cl-study-title">제작 시뮬레이터</h2><p>${esc(context.item.name)}, ${esc(context.recipe.label)}, 옵션 상한 T${getItemCraftTier(context.item)}</p></div><button data-study-close aria-label="제작 시뮬레이터 닫기">닫기</button></header>
+            <section class="cl-study-simulator">
+            ${workspaceStudyOmenHtml(context.item,context.recipe)}<div class="cl-study-controls"><button data-study-sample="1">1회 시뮬레이션</button><button data-study-sample="2000">목표 확률 2,000회 측정</button></div>
             <small data-study-reason aria-live="polite"></small><div data-study-result aria-live="polite"></div></section>
             <details open><summary data-study-summary></summary>
-            <label class="cl-study-search">이름이나 태그 검색 <input type="search" data-study-search></label><p>가중치가 큰 옵션일수록 선택되기 쉽습니다. 화석 보장 줄과 일반 줄은 따로 굴립니다. T가 높을수록 상위 옵션입니다.</p>
+            <label class="cl-study-search">이름이나 태그 검색 <input type="search" data-study-search></label>
             <div class="cl-pool-scroll"><table><thead><tr><th>옵션</th><th>종류</th><th>티어</th><th>첫 선택 가중치 / 차단 이유</th></tr></thead><tbody></tbody></table></div></details>`;
         studyDialog.querySelector('[data-study-close]').onclick=()=>studyDialog.close();
         studyDialog.querySelector('[data-study-search]').oninput=workspaceFilterStudy;
@@ -581,7 +582,7 @@ const craftingWorkspaceUi = (() => {
         const keys=atlasEndgame.awakened(game)?CRAFT_OMENS.keys.filter(key=>CRAFT_OMENS.effects[key].actions.includes(action)):[];
         if(!keys.length)return '';
         const value=armed?`${armed.key}:${armed.side}`:'';
-        return `<label class="cl-study-omen">뿌리와 함께 연습 <select data-study-omen>${[['','뿌리 없이'],...workspaceOmenOptions(keys)].map(([key,label])=>`<option value="${key}" ${key===value?'selected':''}>${esc(label)}</option>`).join('')}</select></label>`;
+        return `<label class="cl-study-omen">뿌리 <select data-study-omen>${[['','뿌리 없이'],...workspaceOmenOptions(keys)].map(([key,label])=>`<option value="${key}" ${key===value?'selected':''}>${esc(label)}</option>`).join('')}</select></label>`;
     }
     /** The practice omen the study dialog shows ({ key, side, effect }), or null. */
     function workspaceStudyOmen() {
@@ -595,7 +596,7 @@ const craftingWorkspaceUi = (() => {
         const picks=omen&&omen.effect==='choice'&&equipmentCrafting.omenFits(item,equipmentCrafting.resolveAction(recipe.key,item.rarity),omen,mode)?CRAFT_OMENS.choices:1;
         return Array.from({length:picks},()=>craftingGoalOptions.rehearseStudy(context));
     }
-    const workspacePracticeHtml=results=>`<strong>연습 결과${results.length>1?`, ${results.length}개 가운데 고르기`:''}</strong>${results.map(result=>`<ul>${result.stats.map(stat=>`<li>${esc(stat.statName||getStatName(stat.id))} +${esc(formatValue(stat.id,stat.val))} (T${stat.tier||0})</li>`).join('')}</ul>`).join('')}`;
+    const workspacePracticeHtml=results=>`<strong>시뮬레이션 결과${results.length>1?`, ${results.length}개 가운데 고르기`:''}</strong>${results.map(result=>`<ul>${result.stats.map(stat=>`<li>${esc(stat.statName||getStatName(stat.id))} +${esc(formatValue(stat.id,stat.val))} (T${stat.tier||0})</li>`).join('')}</ul>`).join('')}`;
 
     /** The measurement: hits out of count (picks: results to pick from in each practice), its 95% range and the mean cost. */
     function workspaceSampleHtml(hits,count,picks) {
@@ -604,8 +605,9 @@ const craftingWorkspaceUi = (() => {
         return `<strong>목표 달성 ${hits}/${count}회${picks>1?`(${picks}개 가운데 하나라도)`:''}, ${(p*100).toFixed(2)}%</strong><p>95% 추정 범위 ${(Math.max(0,centre-delta)*100).toFixed(2)}~${(Math.min(1,centre+delta)*100).toFixed(2)}%, ${hits>=5?`평균 약 ${Math.round(1/p)}회 / 주 재화 ${Math.round(1/p)}개`:'관측이 적어 평균 비용 추정 보류'}</p>`;
     }
 
-    const workspaceStudyActive=run=>run===studyRun&&studyDialog.open;
+    const workspaceStudyActive=run=>run===studyRun&&studyDialog.open&&contentProgression.isUnlocked('craftSimulator');
     async function workspaceSampleStudy(context, count) {
+        if(!workspaceStudyActive(studyRun))return;
         const run=++studyRun, out=studyDialog.querySelector('[data-study-result]'), buttons=[...studyDialog.querySelectorAll('[data-study-sample]')];
         buttons.forEach(button=>button.disabled=true);
         let hits=0, results=[];
@@ -619,7 +621,7 @@ const craftingWorkspaceUi = (() => {
             if(!workspaceStudyActive(run))return;
             if(count===1)out.innerHTML=workspacePracticeHtml(results);
             else out.innerHTML=workspaceSampleHtml(hits,count,results.length);
-        }catch(error){console.error('Craft rehearsal failed',error);out.textContent=`연습 실패: ${error.message}`;}
+        }catch(error){console.error('Craft rehearsal failed',error);out.textContent=`시뮬레이션 실패: ${error.message}`;}
         finally{if(run===studyRun)workspaceStudyButtons(context,craftingGoalOptions.study(context).reason);}
     }
 

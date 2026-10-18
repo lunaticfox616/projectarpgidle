@@ -338,4 +338,32 @@ run('game.season=5');
 assert.equal(run('hasSpendableSeasonPoint()'),true);
 run("game.contentProgression.inherited=['craft'];contentProgression.sync()");
 assert.equal(run('hasSpendableSeasonPoint()'),false,'points saved before the loop passive opens are not a goal');
+// The simulator is a separate permanent purchase; reaching a loop or loading an old save never grants it.
+run('game=mergeDefaults({});contentProgression.sync()');
+assert(!run("contentProgression.isUnlocked('craftSimulator')"));
+run("game.season=5;contentProgression.sync();contentProgression.purchase('craft')");
+before=json('game');
+assert(!run("contentProgression.purchase('craftSimulator').ok"));
+assert.deepEqual(json('game'),before,'early simulator purchase spends nothing');
+run('game.season=6;contentProgression.sync()');
+assert(run("contentProgression.status('craftSimulator').available"));
+assert(!run("contentProgression.isUnlocked('craftSimulator')"),'loop six offers a choice, not automatic access');
+const simulatorPoints=run('contentProgression.balance()');
+assert(run("contentProgression.purchase('craftSimulator').ok"));
+assert.equal(run('contentProgression.balance()'),simulatorPoints-1);
+before=json('game');
+assert(!run("contentProgression.purchase('craftSimulator').ok"));
+assert.deepEqual(json('game'),before,'duplicate unlock spends nothing');
+run('game.season=7;game=mergeDefaults(JSON.parse(JSON.stringify(game)));contentProgression.sync()');
+assert(run("contentProgression.isUnlocked('craftSimulator')"),'purchase survives a new loop and reload');
+assert.equal(run('game.contentProgression.paidCosts.craftSimulator'),1);
+run('game=mergeDefaults({});game.season=6;contentProgression.sync()');
+before=json('game');
+assert(!run("contentProgression.purchase('craftSimulator').ok"),'crafting must be unlocked first');
+assert.deepEqual(json('game'),before);
+for(const saved of [{season:20},{season:20,contentProgression:{version:8,highestLoop:20,unlocked:['craft'],paidCosts:{craft:1}}}]){
+    run(`game=mergeDefaults(${JSON.stringify(saved)});contentProgression.sync()`);
+    assert(run("contentProgression.isUnlocked('craft')"));
+    assert(!run("contentProgression.isUnlocked('craftSimulator')"),'old crafting access does not inherit the new simulator purchase');
+}
 console.log('smoke-content-progression passed');
