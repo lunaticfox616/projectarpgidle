@@ -13146,8 +13146,8 @@ function performMonsterAttacks(pStats) {
                         let share = idx === (aliveGuards.length - 1) ? Math.max(0, redirect - redirectedTotal) : each;
                         let local = soulbinderShare ? 100 : Math.max(0, Math.min(100, Number(guard.redirectPct || 0)));
                         if (local > 0) share = Math.floor(share * (local / 100));
-                        let evade = Math.max(0, Math.min(85, (guard.evasion || 0) / ((guard.evasion || 0) + 300) * 100));
-                        if (Math.random() * 100 < evade) share = 0;
+                        // 직접 맞을 때와 같은 회피(명중 기반, 고르게 피하는 굴림). 2026-10-18 사용자 결정, 전에는 회피/(회피+300) 따로 굴렸다.
+                        if (resolveEntropyEvasion(guard, getSummonEvadeChance(guard, enemy), getCombatTime())) share = 0;
                         let guardRes = 0;
                         if (enemy.ele === 'fire') guardRes = guard.resFire || 0;
                         else if (enemy.ele === 'cold') guardRes = guard.resCold || 0;
