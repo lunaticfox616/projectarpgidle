@@ -7916,6 +7916,110 @@ function getAilmentDurationMultiplier(type, damageAilment, pStats) {
     return durationMul * regionAffixEffects.ailmentDurationMultiplier(pStats, type);
 }
 
+/** One ailment from a hit (hit: the target, the hero's stats, crit, options, the hit's ratio and power, its ailment source damage
+ * and crit DoT bonus): the gates, then its power and duration, then a new row or the stronger existing row. Returns whether it took.
+ * Out of applyEnemyAilmentFromHit on 2026-10-18 with the same rolls in the same order. */
+function applyHitAilment(hit, sourceType, forceChance, manifestation) {
+    const gate = passHitAilmentGates(hit, sourceType, forceChance, manifestation);
+    if (!gate) return false;
+    const { enemy, pStats } = hit;
+    let type = gate.appliedType;
+    let damageAilment = isDamageAilmentType(type);
+    let power = getHitAilmentPower(hit, type, damageAilment, gate);
+    let row = enemy.ailments.find(a => a.type === type);
+    let durationMul = getAilmentDurationMultiplier(type, damageAilment, pStats);
+    let dur = (damageAilment ? 3 : (type === 'freeze' ? (0.8 + hit.hitRatio * 4) : (2 + hit.hitRatio * 10))) * durationMul;
+    let payload = { type: type, time: dur, duration: dur, power: power, stacks: 1 };
+    if (damageAilment) fillDamageAilmentPayload(hit, payload, { type, gate });
+    if (typeof decorateTalentAilmentPayload === 'function') decorateTalentAilmentPayload(type, payload, pStats);
+    if (row && typeof enhanceTalentAilmentReapplication === 'function') enhanceTalentAilmentReapplication(enemy, row, type, pStats);
+    if (row) refreshAilmentRow(row, payload, { type, dur, power, damageAilment, critDotBonusPct: hit.critDotBonusPct, pStats });
+    else enemy.ailments.push(payload);
+    trackHiddenJournalAilment(type, enemy);
+    if (typeof afterTalentAilmentApplied === 'function') afterTalentAilmentApplied(enemy, sourceType);
+    return true;
+}
+/** Whether the ailment gets through: the talent replacing it, keystones that forbid it, the talent card rule, the proc chance, the
+ * enemy's ailment resistance (less the hero's penetration), and for freeze the hit's freeze roll. Null when it does not. */
+function passHitAilmentGates(hit, sourceType, forceChance, manifestation) {
+    const { pStats } = hit;
+    let appliedType = typeof getTalentAilmentReplacement === 'function' ? getTalentAilmentReplacement(sourceType) : sourceType;
+    if (hitAilmentForbidden(pStats, appliedType)) return null;
+    if (!rollHitAilmentProc(hit, sourceType, forceChance)) return null;
+    let mystiquePotency = sourceType === pStats.mystiqueAilmentType
+        ? 1 + Math.max(0, Number(pStats.mystiqueAilmentPotencyPct) || 0) / 100 : 1;
+    let manifestationPotency = manifestation ? 0.5 : 1;
+    let effectiveHitRatio = hit.hitRatio * mystiquePotency * manifestationPotency;
+    if (sourceType === 'freeze' && Math.random() >= getFreezeApplyChanceFromHitRatio(effectiveHitRatio, hit.enemy.maxHp || 1)) return null;
+    return { appliedType, mystiquePotency, manifestationPotency };
+}
+/** The proc roll, then the enemy's ailment resistance roll (less the hero's penetration, at most 95%). */
+function rollHitAilmentProc(hit, sourceType, forceChance) {
+    const { enemy, pStats, isCrit } = hit;
+    let tryProc = getPlayerAilmentProcChance(pStats, sourceType, isCrit, forceChance);
+    if (Math.random() >= tryProc) return false;
+    let resKey = 'ailRes' + sourceType.charAt(0).toUpperCase() + sourceType.slice(1);
+    let ailResPen = (pStats && pStats.ailmentResistPenPct) || 0;
+    let resistChance = Math.max(0, Math.min(0.95, ((enemy[resKey] || 0) - ailResPen) / 100));
+    return !(Math.random() < resistChance);
+}
+/** Keystones and talent cards that forbid the ailment: 신비 (one ailment only), 검은 증류 (no ignite, chill, freeze or shock). */
+function hitAilmentForbidden(pStats, appliedType) {
+    let passiveFlags = (pStats && pStats.passiveKeystoneFlags) || {};
+    if (passiveFlags.singleMystique && appliedType !== pStats.mystiqueAilmentType) return true;
+    if (passiveFlags.blackDistill && ['ignite', 'chill', 'freeze', 'shock'].includes(appliedType)) return true;
+    return typeof canTalentCardApplyEnemyAilment === 'function' && !canTalentCardApplyEnemyAilment(appliedType);
+}
+/** A damage ailment's power is 0.9; another's follows the hit's power and ratio (chill raised by its effect bonus), 0.05 to 1.5. */
+function getHitAilmentPower(hit, type, damageAilment, gate) {
+    const { pStats } = hit;
+    let power = damageAilment
+        ? 0.90
+        : Math.max(0.05, Math.min(1.5, (hit.hitPower + (hit.hitRatio * 1.8)) * gate.mystiquePotency * gate.manifestationPotency));
+    if (type === 'chill') {
+        let chillEfficiency = 1 + Math.max(0, Number(pStats && pStats.chillEffectBonusPct) || 0) / 100;
+        power = Math.min(1.5, power * chillEfficiency);
+    }
+    return power;
+}
+/** A damage ailment's source hit, crit DoT bonus, DoT score and its more damage (the hit's, 폭발성 증류 +75, 오염된 탄두 +50). */
+function fillDamageAilmentPayload(hit, payload, at) {
+    const { pStats } = hit;
+    let damageMorePct = getHitAilmentDamageMorePct(hit, at.type, at.gate.appliedType);
+    payload.sourceHitDamage = Math.floor(hit.ailmentPowerSourceDamage * at.gate.mystiquePotency * at.gate.manifestationPotency);
+    payload.critDotBonusPct = hit.critDotBonusPct;
+    payload.ailmentDotScore = getDamageAilmentScore(payload.sourceHitDamage, hit.critDotBonusPct,
+        pStats && Number.isFinite(pStats.dotDamageScale) ? pStats.dotDamageScale : 1,
+        pStats && Number.isFinite(pStats.dotCritBonusScale) ? pStats.dotCritBonusScale : 1) * (1 + damageMorePct / 100);
+    payload.talentDamageMorePct = damageMorePct;
+}
+function getHitAilmentDamageMorePct(hit, type, appliedType) {
+    const { pStats, opts } = hit;
+    let damageMorePct = Math.max(0, Number(opts.ailmentDamageMorePct && opts.ailmentDamageMorePct[type]) || 0);
+    let passiveFlags = (pStats && pStats.passiveKeystoneFlags) || {};
+    if (passiveFlags.explosiveDistill && isDamageAilmentType(appliedType)) damageMorePct += 75;
+    if (passiveFlags.taintedWarhead && ['ignite', 'poison', 'bleed'].includes(appliedType)) damageMorePct += 50;
+    return damageMorePct;
+}
+/** The ailment again on a row: the longer time and the stronger power (as rolled, before talents decorate the payload); a damage
+ * ailment keeps the stronger hit and gains a stack. */
+function refreshAilmentRow(row, payload, at) {
+    row.time = Math.max(row.time || 0, at.dur);
+    row.duration = row.time;
+    row.power = Math.max(row.power || 0, at.power);
+    if (!at.damageAilment) return;
+    let rowScore = Math.max(0, Number(row.ailmentDotScore) || getStoredAilmentHitDamage(row));
+    let incomingScore = payload.ailmentDotScore;
+    if (incomingScore >= rowScore) {
+        row.sourceHitDamage = payload.sourceHitDamage;
+        row.critDotBonusPct = at.critDotBonusPct;
+        row.ailmentDotScore = incomingScore;
+        row.talentDamageMorePct = Math.max(0, Number(payload.talentDamageMorePct) || 0);
+        row.talentNitroAmplified = !!payload.talentNitroAmplified;
+    }
+    let maxStacks = getEnemyDamageAilmentMaxStacks(at.type, at.pStats);
+    row.stacks = Math.max(1, Math.min(maxStacks, Math.floor((row.stacks || 1) + 1)));
+}
 function applyEnemyAilmentFromHit(enemy, pStats, hitDamage, isCrit, options) {
     if (!enemy || enemy.hp <= 0) return;
     let ele = (pStats.sSkill && pStats.sSkill.ele) || 'phys';
@@ -7928,74 +8032,8 @@ function applyEnemyAilmentFromHit(enemy, pStats, hitDamage, isCrit, options) {
     let hitRatio = Math.max(0.001, Math.min(0.35, ailmentPowerSourceDamage / Math.max(1, enemy.maxHp || 1)));
     let hitPower = Math.sqrt(Math.max(1, ailmentPowerSourceDamage)) * 0.01;
     enemy.ailments = Array.isArray(enemy.ailments) ? enemy.ailments : [];
-    function applyAilmentType(type, forceChance, manifestation) {
-        let sourceType = type;
-        let appliedType = typeof getTalentAilmentReplacement === 'function' ? getTalentAilmentReplacement(sourceType) : sourceType;
-        let passiveFlags = (pStats && pStats.passiveKeystoneFlags) || {};
-        if (passiveFlags.singleMystique && appliedType !== pStats.mystiqueAilmentType) return false;
-        if (passiveFlags.blackDistill && ['ignite', 'chill', 'freeze', 'shock'].includes(appliedType)) return false;
-        if (typeof canTalentCardApplyEnemyAilment === 'function' && !canTalentCardApplyEnemyAilment(appliedType)) return false;
-        let tryProc = getPlayerAilmentProcChance(pStats, sourceType, isCrit, forceChance);
-        if (Math.random() >= tryProc) return false;
-        let resKey = 'ailRes' + sourceType.charAt(0).toUpperCase() + sourceType.slice(1);
-        let ailResPen = (pStats && pStats.ailmentResistPenPct) || 0;
-        let resistChance = Math.max(0, Math.min(0.95, ((enemy[resKey] || 0) - ailResPen) / 100));
-        if (Math.random() < resistChance) return false;
-        let mystiquePotency = sourceType === pStats.mystiqueAilmentType
-            ? 1 + Math.max(0, Number(pStats.mystiqueAilmentPotencyPct) || 0) / 100 : 1;
-        let manifestationPotency = manifestation ? 0.5 : 1;
-        let effectiveHitRatio = hitRatio * mystiquePotency * manifestationPotency;
-        if (sourceType === 'freeze' && Math.random() >= getFreezeApplyChanceFromHitRatio(effectiveHitRatio, enemy.maxHp || 1)) return false;
-        type = appliedType;
-        let damageAilment = isDamageAilmentType(type);
-        let power = damageAilment
-            ? 0.90
-            : Math.max(0.05, Math.min(1.5, (hitPower + (hitRatio * 1.8)) * mystiquePotency * manifestationPotency));
-        if (type === 'chill') {
-            let chillEfficiency = 1 + Math.max(0, Number(pStats && pStats.chillEffectBonusPct) || 0) / 100;
-            power = Math.min(1.5, power * chillEfficiency);
-        }
-        let row = enemy.ailments.find(a => a.type === type);
-        let durationMul = getAilmentDurationMultiplier(type, damageAilment, pStats);
-        let dur = (damageAilment ? 3 : (type === 'freeze' ? (0.8 + hitRatio * 4) : (2 + hitRatio * 10))) * durationMul;
-        let damageMorePct = Math.max(0, Number(opts.ailmentDamageMorePct && opts.ailmentDamageMorePct[type]) || 0);
-        if (passiveFlags.explosiveDistill && isDamageAilmentType(appliedType)) damageMorePct += 75;
-        if (passiveFlags.taintedWarhead && ['ignite', 'poison', 'bleed'].includes(appliedType)) damageMorePct += 50;
-        let payload = { type: type, time: dur, duration: dur, power: power, stacks: 1 };
-        if (damageAilment) {
-            payload.sourceHitDamage = Math.floor(ailmentPowerSourceDamage * mystiquePotency * manifestationPotency);
-            payload.critDotBonusPct = critDotBonusPct;
-            payload.ailmentDotScore = getDamageAilmentScore(payload.sourceHitDamage, critDotBonusPct,
-                pStats && Number.isFinite(pStats.dotDamageScale) ? pStats.dotDamageScale : 1,
-                pStats && Number.isFinite(pStats.dotCritBonusScale) ? pStats.dotCritBonusScale : 1) * (1 + damageMorePct / 100);
-            payload.talentDamageMorePct = damageMorePct;
-        }
-        if (typeof decorateTalentAilmentPayload === 'function') decorateTalentAilmentPayload(type, payload, pStats);
-        if (row && typeof enhanceTalentAilmentReapplication === 'function') enhanceTalentAilmentReapplication(enemy, row, type, pStats);
-        if (row) {
-            row.time = Math.max(row.time || 0, dur);
-            row.duration = row.time;
-            row.power = Math.max(row.power || 0, power);
-            if (damageAilment) {
-                let rowScore = Math.max(0, Number(row.ailmentDotScore) || getStoredAilmentHitDamage(row));
-                let incomingScore = payload.ailmentDotScore;
-                if (incomingScore >= rowScore) {
-                    row.sourceHitDamage = payload.sourceHitDamage;
-                    row.critDotBonusPct = critDotBonusPct;
-                    row.ailmentDotScore = incomingScore;
-                    row.talentDamageMorePct = Math.max(0, Number(payload.talentDamageMorePct) || 0);
-                    row.talentNitroAmplified = !!payload.talentNitroAmplified;
-                }
-            }
-            if (damageAilment) {
-                let maxStacks = getEnemyDamageAilmentMaxStacks(type, pStats);
-                row.stacks = Math.max(1, Math.min(maxStacks, Math.floor((row.stacks || 1) + 1)));
-            }
-        } else enemy.ailments.push(payload);
-        trackHiddenJournalAilment(type, enemy);
-        if (typeof afterTalentAilmentApplied === 'function') afterTalentAilmentApplied(enemy, sourceType);
-        return true;
-    }
+    const hit = { enemy, pStats, isCrit, opts, hitRatio, hitPower, ailmentPowerSourceDamage, critDotBonusPct };
+    const applyAilmentType = (type, forceChance, manifestation) => applyHitAilment(hit, type, forceChance, manifestation);
     applyAilmentType(primaryType, opts.primaryAilmentChance);
     if (ele === 'cold' && !(typeof shouldTalentSkipColdFreeze === 'function' && shouldTalentSkipColdFreeze())) applyAilmentType('freeze');
     if (pStats.passiveForbiddenManifestation) {
