@@ -1074,6 +1074,13 @@ function clearWoodsmanBuildLock() {
     game.woodsmanBuildLock = false;
     game.woodsmanBuildSnapshot = null;
 }
+/** The woodsman fight lives in 혼돈 밖: in it the entry build is held each tick. A hero who left (town, a hunting zone, the deep sea)
+ * ended the fight, so the lock lifts as a reload lifts it (save-migrations); held there, loot picked up would vanish each tick. */
+function holdWoodsmanBuildLock(say) {
+    if (game.currentZoneId === OUTSIDE_CHAOS_ZONE_ID) return enforceWoodsmanBuildLock();
+    clearWoodsmanBuildLock();
+    say('☠️ 혼돈 밖을 떠나 나무꾼 전투를 중단했습니다. 세팅 잠금이 해제되었습니다.', 'season-up');
+}
 
 
 function sanitizeCombatRuntimeState() {
@@ -1969,7 +1976,7 @@ function markPlayerMovementCompleted() {
 function prepareCombatTick(nowMs) {
     game.combatTimeMs = Number.isFinite(nowMs) ? nowMs : getCombatTime() + 100;
     tickOceanOxygen(game.combatTimeMs);
-    if (game.woodsmanBuildLock) enforceWoodsmanBuildLock();
+    if (game.woodsmanBuildLock) holdWoodsmanBuildLock(addLog);
     tickWoodsmanCurse();
     if (typeof trackRecordBests === 'function') trackRecordBests();
     const pStats = getPlayerStats(false);
