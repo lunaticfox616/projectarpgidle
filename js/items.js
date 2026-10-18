@@ -968,8 +968,8 @@ function upgradeSelectedItemBase() {
     let bodyEl = document.getElementById('base-upgrade-body');
     if (titleEl) titleEl.innerText = `${currentBase.name} → ${nextBase.name}`;
     if (bodyEl) {
-        let curStats = (currentBase.baseStats || []).map(stat => `${getStatName(stat.id)} +${formatValue(stat.id, stat.baseMin || stat.base)}~${formatValue(stat.id, stat.baseMax || stat.base)}`).join(' / ');
-        let nextStats = (nextBase.baseStats || []).map(stat => `${getStatName(stat.id)} +${formatValue(stat.id, stat.baseMin || stat.base)}~${formatValue(stat.id, stat.baseMax || stat.base)}`).join(' / ');
+        let curStats = (currentBase.baseStats || []).map(stat => `${getStatName(stat.id)} ${formatSignedValue(stat.id, stat.baseMin || stat.base)}~${formatValue(stat.id, stat.baseMax || stat.base)}`).join(' / ');
+        let nextStats = (nextBase.baseStats || []).map(stat => `${getStatName(stat.id)} ${formatSignedValue(stat.id, stat.baseMin || stat.base)}~${formatValue(stat.id, stat.baseMax || stat.base)}`).join(' / ');
         bodyEl.innerHTML = `현재 베이스: <strong>${currentBase.name}</strong><br><span style="color:var(--copy-muted);">${curStats || '없음'}</span><br><br>업그레이드 베이스: <strong>${nextBase.name}</strong><br><span style="color:#ffd08a;">${nextStats || '없음'}</span><br><br>비용: 형체 없는 이슬 ${cost.formlessDew}${cost.goldenRule > 0 ? ` + 황금률 ${cost.goldenRule}` : ''}<br><span style="color:var(--copy-muted);">총 이슬 가치 ${cost.totalDewValue}</span>`;
     }
     let overlay = document.getElementById('base-upgrade-overlay');

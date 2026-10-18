@@ -5961,7 +5961,7 @@ function showItemTooltip(event, idx, isEquip, itemOverride, options = {}) {
             let label = stat.statName || getStatName(statKey) || statKey;
             let valueColor = stat.exceptional ? '#ffb454' : resolveItemStatTone(statKey);
             let exMark = (stat.exceptional ? ' <span style="color:#ffb454; font-weight:700;">✦+20%</span>' : '') + itemInfluencesUi.lineBadgeHtml(item, stat);
-            html += `<div class="tooltip-line"><span${affixClass(statKey)}><span style="color:${resolveItemStatTone(statKey)};">${label} </span><span style="color:${valueColor};">+${formatValue(statKey, cur)}</span></span>${rangeText}${exMark}</div>`;
+            html += `<div class="tooltip-line"><span${affixClass(statKey)}><span style="color:${resolveItemStatTone(statKey)};">${label} </span><span style="color:${valueColor};">${formatSignedValue(statKey, cur)}</span></span>${rangeText}${exMark}</div>`;
         });
         ['armor','evasion','energyShield'].forEach(id => {
             let label = getStatName(id);

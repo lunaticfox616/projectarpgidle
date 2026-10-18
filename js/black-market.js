@@ -108,7 +108,7 @@ function getBlackMarketBaseTooltipOptionLines(baseStats) {
     return rows.map(stat => {
         let range = getBlackMarketBaseRollRange(stat);
         let label = stat.statName || getStatName(stat.id);
-        return `<div class="tooltip-line" style="color:#9fd6ff;">베이스 옵션, ${escapeHTML(label)} +${formatValue(stat.id, range.min)}~+${formatValue(stat.id, range.max)}</div>`;
+        return `<div class="tooltip-line" style="color:#9fd6ff;">베이스 옵션, ${escapeHTML(label)} ${formatSignedValue(stat.id, range.min)}~${formatSignedValue(stat.id, range.max)}</div>`;
     }).join('');
 }
 

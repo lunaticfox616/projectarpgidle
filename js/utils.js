@@ -273,6 +273,10 @@ function formatValue(statId, value) {
     const rounded = Math.round(numeric * 100) / 100;
     return Number.isInteger(rounded) ? rounded : String(rounded);
 }
+/** A stat value with its sign, '+12' or '-40' (a drawback line such as 균열유리 로브's 최대 생명력). */
+function formatSignedValue(statId, value) {
+    return `${Number(value) < 0 ? '' : '+'}${formatValue(statId, value)}`;
+}
 function formatPercentMultiplier(value) {
     return `${Math.round(value * 100)}%`;
 }
