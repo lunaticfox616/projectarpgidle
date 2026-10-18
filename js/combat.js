@@ -1814,10 +1814,16 @@ function getSummonTooltipPreview(gemName, pStats) {
         critDmgPct: Math.max(100, (profile.baseCritDmg || 140) + (stats.summonCritDmg || 0)),
         resPenBonus: Math.max(0, Number(profile.resPenBonus || 0)),
         physIgnoreBonus: Math.max(0, Number(profile.physIgnoreBonus || 0)),
-        redirectPct: Math.max(0, Math.min(100, Math.max(profile.redirectPct || 0, (stats.summonGuardRedirectPct || 0))))
+        redirectPct: profile.role === 'guard' || hasKeystone('sb2') ? getSummonRedirectPct(stats) : 0
     };
 }
 
+/** The share of a hit the summons take for the hero: the guard redirect stat rounded down, at least 50 with 나눠갖기 (sb2, the closest
+ * summon of any role takes it then; otherwise the living guards). */
+function getSummonRedirectPct(pStats) {
+    const pct = Math.max(0, Math.min(100, Math.floor(pStats.summonGuardRedirectPct || 0)));
+    return hasKeystone('sb2') ? Math.max(pct, 50) : pct;
+}
 function ensureSummonRuntime(pStats) {
     if (!Array.isArray(game.summons)) game.summons = [];
     game.summonSeq = Math.max(1, Math.floor(game.summonSeq || 1));
@@ -13124,9 +13130,8 @@ function performMonsterAttacks(pStats) {
                 }
             }
             let remaining = dmg;
-            let guardRedirectPct = Math.max(0, Math.min(100, Math.floor(pStats.summonGuardRedirectPct || 0)));
+            let guardRedirectPct = getSummonRedirectPct(pStats);
             let soulbinderShare = hasKeystone('sb2');
-            if (soulbinderShare) guardRedirectPct = Math.max(guardRedirectPct, 50);
             let closestSummon = soulbinderShare ? getClosestLivingSummonToPlayer() : null;
             let aliveGuards = soulbinderShare
                 ? (closestSummon ? [closestSummon] : [])

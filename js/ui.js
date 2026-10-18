@@ -5432,7 +5432,7 @@ function showGemTooltip(event, type, name, target = null) {
                 html += `<div class="tooltip-line" style="margin-top:6px;color:#9fd4ff;">소환수 유형: ${preview.roleLabel}${preview.trait ? `, 특징: ${preview.trait}` : ''}</div>`;
                 html += `<div class="tooltip-line">소환수 레벨: ${preview.gemLevel}</div>`;
                 if (preview.maxHp > 0) html += `<div class="tooltip-line">수액 골렘 생명력: 약 ${Math.floor(preview.maxHp).toLocaleString()}</div>`;
-                if (preview.redirectPct > 0) html += `<div class="tooltip-line">피해 대리: 히트 피해 ${preview.redirectPct.toFixed ? preview.redirectPct.toFixed(1) : preview.redirectPct}%</div>`;
+                if (preview.redirectPct > 0) html += `<div class="tooltip-line">피해 대리: 히트 피해 ${preview.redirectPct}%</div>`;
             }
         }
     } else {
