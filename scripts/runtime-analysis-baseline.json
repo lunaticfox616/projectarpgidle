@@ -1418,11 +1418,11 @@
     },
     "performMonsterAttacks|max-lines-per-function|Function 'performMonsterAttacks' has too many lines (#). Maximum allowed is #.": {
       "count": 1,
-      "max": 540
+      "max": 539
     },
     "performMonsterAttacks|complexity|Function 'performMonsterAttacks' has a complexity of #. Maximum allowed is #.": {
       "count": 1,
-      "max": 307
+      "max": 305
     },
     "performMonsterAttacks|complexity|Arrow function has a complexity of #. Maximum allowed is #.": {
       "count": 2,
@@ -2054,7 +2054,7 @@
     },
     "showGemTooltip|complexity|Function 'showGemTooltip' has a complexity of #. Maximum allowed is #.": {
       "count": 1,
-      "max": 122
+      "max": 121
     },
     "showGemTooltip|max-depth|Blocks are nested too deeply (#). Maximum allowed is #.": {
       "count": 6,
@@ -11036,6 +11036,7 @@
     "dependency:getSummonMaxHp->getSummonLevelGrowthSteps",
     "dependency:getSummonPierceTargets->getGridUnitDistance",
     "dependency:getSummonPierceTargets->hasGridCell",
+    "dependency:getSummonRedirectPct->hasKeystone",
     "dependency:getSummonRespawnAt->getCombatTime",
     "dependency:getSummonRuntimeCap->getSummonCapMaximum",
     "dependency:getSummonScaledBaseDamage->getGemHighLevelGrowth",
@@ -11057,9 +11058,11 @@
     "dependency:getSummonTooltipPreview->getSummonGemLevel",
     "dependency:getSummonTooltipPreview->getSummonMaxHp",
     "dependency:getSummonTooltipPreview->getSummonProfile",
+    "dependency:getSummonTooltipPreview->getSummonRedirectPct",
     "dependency:getSummonTooltipPreview->getSummonRegenPerSec",
     "dependency:getSummonTooltipPreview->getSummonScaledBaseDamage",
     "dependency:getSummonTooltipPreview->getSummonTooltipHitRange",
+    "dependency:getSummonTooltipPreview->hasKeystone",
     "dependency:getSupabaseClient->getCloudConfig",
     "dependency:getSupportActRewardFallback->Number",
     "dependency:getSupportActiveTier->getSupportTierCap",
@@ -15099,6 +15102,7 @@
     "dependency:performMonsterAttacks->getPreciseTalentLevel",
     "dependency:performMonsterAttacks->getPreciseTalentRatio",
     "dependency:performMonsterAttacks->getSoftenedLoopDepth",
+    "dependency:performMonsterAttacks->getSummonRedirectPct",
     "dependency:performMonsterAttacks->getSummonRespawnAt",
     "dependency:performMonsterAttacks->getUnderworldEntryBossTuning",
     "dependency:performMonsterAttacks->getWoodsmanCurseDamageTakenMul",
