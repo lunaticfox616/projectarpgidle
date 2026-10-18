@@ -9,6 +9,8 @@ const craftingWorkspaceUi = (() => {
     let auto=false, timer=0, runId=0, runCount=0, limit=20;
     let goalDialog, studyDialog, choiceDialog, studyRun=0, goalMatch='all';
     const esc = value => escapeHTML(String(value));
+    /** A currency picture before its name in a heading (ORB_DB icon), or nothing. */
+    const workspaceCoin=key=>(ORB_DB[key]&&ORB_DB[key].icon?`<img class="cl-inline-icon" src="${esc(ORB_DB[key].icon)}" alt="">`:'');
     const selected = () => getSelectedCraftItem();
     const signature = () => JSON.stringify([current,goal,selected()?.stats]);
     const targetGame = () => ({settings:{equipmentTargets:goal}});
@@ -158,7 +160,7 @@ const craftingWorkspaceUi = (() => {
     function workspaceImprintHtml(item) {
         const have=game.currencies.memoryImprint||0, imprint=equipmentCrafting.normalizeImprint(item.imprint);
         if(!have&&!imprint)return '';
-        return `<div class="cl-imprint" data-theme="special"><div class="cl-section-title">기억 조각칼 <small>보유 ${have}</small></div>
+        return `<div class="cl-imprint" data-theme="special"><div class="cl-section-title"><span>${workspaceCoin('memoryImprint')}기억 조각칼</span><small>보유 ${have}</small></div>
             <div class="cl-imprint-actions">${workspaceImprintButton('engrave',imprint?'다시 새기기':'지금 옵션 새기기',equipmentCrafting.engraveReason(game,item))}${imprint?workspaceImprintButton('restore','새긴 옵션으로 되돌리기',equipmentCrafting.restoreReason(item)):''}</div>
             ${imprint?`<details><summary>기억 새겨짐, 새긴 옵션 ${imprint.stats.length}줄</summary><ul>${imprint.stats.map(stat=>`<li>${esc(stat.statName||getStatName(stat.id))} +${esc(workspaceAffixValue(stat,stat.val))}${getItemAffixTierHtml(stat)}</li>`).join('')}</ul></details>`:''}</div>`;
     }
@@ -561,7 +563,7 @@ const craftingWorkspaceUi = (() => {
             choiceDialog.addEventListener('click',workspaceChoiceClick);
         }
         if(choiceDialog.open)return;
-        choiceDialog.innerHTML=`<header><small>${esc(ORB_DB.omenPyre.name)}</small><h2 id="cl-choice-title" tabindex="-1">결과 하나를 고르세요</h2><p>${esc(pending.item.baseName)}</p></header>
+        choiceDialog.innerHTML=`<header><small>${workspaceCoin('omenPyre')}${esc(ORB_DB.omenPyre.name)}</small><h2 id="cl-choice-title" tabindex="-1">결과 하나를 고르세요</h2><p>${esc(pending.item.baseName)}</p></header>
             <div class="cl-choice-list">${pending.options.map(workspaceChoiceHtml).join('')}</div>`;
         choiceDialog.showModal();choiceDialog.querySelector('h2').focus({preventScroll:true});
     }

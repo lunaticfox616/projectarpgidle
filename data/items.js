@@ -1157,7 +1157,14 @@ const CURRENCY_ICON_PATHS = Object.freeze({
     blightSpore: 'assets/ui/currency/blight-spore.png',
     pruningShears: 'assets/ui/currency/pruning-shears.png',
     fairyRing: 'assets/ui/currency/fairy-ring.png',
-    blessing: 'assets/ui/currency/blessing-petal.png'
+    blessing: 'assets/ui/currency/blessing-petal.png',
+    // 제작 뿌리와 기억 조각칼(2026-10-18, GPT 그림 artifacts/crafting-currency-20261018 handoff.json: 뿌리 v3, 조각칼 v2)
+    omenPruning: 'assets/ui/currency/omen-pruning-v3.png',
+    omenCompost: 'assets/ui/currency/omen-compost-v3.png',
+    omenWeave: 'assets/ui/currency/omen-weave-v3.png',
+    omenPyre: 'assets/ui/currency/omen-pyre-v3.png',
+    omenHunger: 'assets/ui/currency/omen-hunger-v3.png',
+    memoryImprint: 'assets/ui/currency/memory-imprint-v2.png'
 });
 Object.entries(CURRENCY_ICON_PATHS).forEach(([key, icon]) => {
     if (ORB_DB[key]) ORB_DB[key].icon = icon;
