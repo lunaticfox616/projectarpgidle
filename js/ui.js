@@ -5394,13 +5394,12 @@ function getGemTargetSummaryHtml(skill) {
     return `<div class="tooltip-line">타겟 방식: ${label}</div><div class="tooltip-line">최대 타겟 수: ${maxTargets}</div>`;
 }
 
-/** The rune's Lv.20 perk line (GEM_LEVEL_20_PERKS) from level 15 on (a new rune's card stays short), marked until it reaches 20; ''
- * for the others. 강타 counts its total level. */
-function getGemLevel20PerkLine(name, type, info) {
-    const perk = type !== 'support' && Object.hasOwn(GEM_LEVEL_20_PERKS, name) ? GEM_LEVEL_20_PERKS[name] : null;
-    const level = perk && (perk.byFinalLevel ? info.finalLevel : info.baseLevel);
-    if (!perk || level < 15) return '';
-    return `<div class="tooltip-line" style="color:#9fd6ff;">룬 Lv.20 특전: ${perk.label}${level >= 20 ? '' : (perk.byFinalLevel ? ' (총 레벨 20부터)' : ' (룬 Lv.20부터)')}</div>`;
+/** The rune's awakened effect line (GEM_AWAKENED_PERKS) once awakened, or from rune level 15 marked as waiting for the awakening (a new
+ * rune's card stays short); '' for the others. */
+function getGemAwakenedPerkLine(name, type, info) {
+    const perk = type !== 'support' && Object.hasOwn(GEM_AWAKENED_PERKS, name) ? GEM_AWAKENED_PERKS[name] : null;
+    if (!perk || (!info.awakened && info.baseLevel < 15)) return '';
+    return `<div class="tooltip-line" style="color:#9fd6ff;">각성 효과: ${perk.label}${info.awakened ? '' : ' (각성 룬 변환 뒤)'}</div>`;
 }
 function showGemTooltip(event, type, name, target = null) {
     if (!target && document.getElementById('gem-selection')?.matches(':popover-open')) return;
@@ -5528,7 +5527,7 @@ function showGemTooltip(event, type, name, target = null) {
             ['응축 창공', info.permanentSkyBonus], ['각성', info.awakened ? 2 : 0], ['창공 각인', info.engraveLevel]];
         const levels = sources.filter(([, value]) => value > 0).map(([label, value]) => `${label} +${value}`);
         levels.unshift(`룬 Lv.${type === 'support' ? info.baseLevel : Math.min(20, info.baseLevel)}`);
-        html += `<div class="tooltip-line">${levels.join(', ')}</div>` + getGemLevel20PerkLine(name, type, info);
+        html += `<div class="tooltip-line">${levels.join(', ')}</div>` + getGemAwakenedPerkLine(name, type, info);
     }
     if (info.bossCoreLevel > 0) html += `<div class="tooltip-line gem-core-tone">군주의 핵 피해 ${info.bossCoreLevel * GEM_CORE_FORGE.tracks.bossCore.stepPct}% 증폭</div>`;
     if (info.skyCoreLevel > 0) html += `<div class="tooltip-line gem-sky-tone">창공의 정수 공격/시전 속도 ${info.skyCoreLevel * GEM_CORE_FORGE.tracks.skyEssence.stepPct}% 증폭</div>`;

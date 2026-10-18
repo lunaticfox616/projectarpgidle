@@ -162,15 +162,15 @@ const RETIRED_GEM_SUCCESSORS = Object.freeze({
 });
 safeExposeData({ SKILL_DB, LOOP_STARTER_GEM_BY_HERO, PROJECTILE_PATTERN_MODE_DB, RETIRED_GEM_SUCCESSORS });
 
-// 룬 Lv.20 특전. 앞의 셋은 룬 자체 레벨(보너스 제외)로 능력치에(getActiveSkillStats), 강타는 최종 레벨로 치명타 적중에
-// (getGemCritHitPerkMul) 붙는다. 룬 툴팁도 이 표를 읽는다.
-const GEM_LEVEL_20_PERKS = Object.freeze({
+// 각성 룬 효과(각성 룬 변환 뒤, 2026-10-18 사용자 결정으로 룬 Lv.20 특전을 옮김). 앞의 셋은 능력치에(getActiveSkillStats), 강타는
+// 치명타 적중에(getGemCritHitPerkMul) 붙는다. 룬 툴팁과 각성 룬 변환 칸도 이 표를 읽는다.
+const GEM_AWAKENED_PERKS = Object.freeze({
     '이중 베기': Object.freeze({ stat: 'spd', mul: 1.2, label: '공격 속도 ×1.2' }),
     '흡혈 관통': Object.freeze({ stat: 'leech', mul: 2, label: '흡혈 ×2' }),
     '기습 공격': Object.freeze({ stat: 'crit', add: 15, label: '치명타 확률 +15%' }),
-    '강타': Object.freeze({ critHitMul: 2, byFinalLevel: true, label: '치명타 적중 피해 ×2' })
+    '강타': Object.freeze({ critHitMul: 1.3, label: '치명타 적중 피해 30% 증폭' })
 });
-safeExposeData({ GEM_LEVEL_20_PERKS });
+safeExposeData({ GEM_AWAKENED_PERKS });
 
 /** 스킬룬 계열 → 쓸 수 있는 무기 자세(data/stage-view.js STAGE_VIEW.stances). 2026-10-17 스킬룬 인계(v32) §4의 사용자 결정: 근접 = 맨손, 검방패,
  * 단검, 향로 / 투사체 = 활, 오브, 단검 / 주문, 위습 = 맨손 제외 / 함성 = 일곱 무기 모두 / 전용 = 그 무기만. 이동기는 전용 무기로만 쓰되

@@ -474,6 +474,10 @@ function getGemAwakenRefusal(active, gem, echoNeed) {
     if ((gem.level || 1) < 20) return 'Lv.20 이상의 공격 룬만 각성 후보로 변환할 수 있습니다.';
     return (game.currencies.awakenedEcho || 0) < echoNeed ? `각성 잔향이 부족합니다. (필요: ${echoNeed})` : '';
 }
+/** ' 각성 효과: …' for a rune with its own awakened effect (GEM_AWAKENED_PERKS), else ''. */
+function getGemAwakenedPerkNote(name) {
+    return Object.hasOwn(GEM_AWAKENED_PERKS, name) ? ` 각성 효과: ${GEM_AWAKENED_PERKS[name].label}.` : '';
+}
 function awakenActiveGemCandidate() {
     if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     if (!contentProgression.isUnlocked('gemAwakening')) return addLog('각성 후보 변환은 ‘해금’의 룬 각성을 열어야 쓸 수 있습니다.', 'attack-monster');
@@ -486,7 +490,7 @@ function awakenActiveGemCandidate() {
     game.currencies.awakenedEcho -= echoNeed;
     gem.awakened = true;
     gem.skyEnhanceCap = Math.min(5, Math.max(gem.skyEnhanceCap || 1, 2));
-    addLog(`🌌 [${active}] 각성 룬 변환 완료! 총 룬 레벨 +2 및 각인 슬롯 보정이 적용됩니다. 각성 각인은 각성 룬이 아니어도 부여할 수 있습니다.`, 'loot-unique');
+    addLog(`🌌 [${active}] 각성 룬 변환 완료! 총 룬 레벨 +2 및 각인 슬롯 보정이 적용됩니다.${getGemAwakenedPerkNote(active)} 각성 각인은 각성 룬이 아니어도 부여할 수 있습니다.`, 'loot-unique');
     updateStaticUI();
 }
 
@@ -963,16 +967,16 @@ function fitActiveSkillToWeapon() {
     game.activeSkill = '기본 공격';
 }
 
-/** A rune's Lv.20 stat perk (GEM_LEVEL_20_PERKS) on its stats, when it has one. */
-function applyGemLevel20Perk(stats, perk) {
+/** An awakened rune's stat effect (GEM_AWAKENED_PERKS) on its stats, when it has one. */
+function applyGemAwakenedPerk(stats, perk) {
     if (!perk || !perk.stat) return;
     if (perk.mul) stats[perk.stat] *= perk.mul;
     else stats[perk.stat] += perk.add;
 }
-/** A crit hit's damage multiplier from the rune's Lv.20 perk (강타: x2 from final level 20), else 1. */
+/** A crit hit's damage multiplier from the awakened active rune's effect (강타: x1.3), else 1. */
 function getGemCritHitPerkMul(skillName, pStats) {
-    const perk = Object.hasOwn(GEM_LEVEL_20_PERKS, skillName) ? GEM_LEVEL_20_PERKS[skillName] : null;
-    return perk && perk.critHitMul && pStats.sSkill.finalLevel >= 20 ? perk.critHitMul : 1;
+    const perk = Object.hasOwn(GEM_AWAKENED_PERKS, skillName) ? GEM_AWAKENED_PERKS[skillName] : null;
+    return perk && perk.critHitMul && pStats.sSkill.awakened ? perk.critHitMul : 1;
 }
 function getActiveSkillStats(bonusLevel) {
     fitActiveSkillToWeapon();
@@ -990,14 +994,14 @@ function getActiveSkillStats(bonusLevel) {
     let levelBonus = usesGemProgression ? bonusLevel : 0;
     let finalLevel = Math.min(20, gem.level) + levelBonus + materialBonus + awakenedGemLevelBonus;
     let totalLevel = gem.level + levelBonus + materialBonus + awakenedGemLevelBonus;
-    let stats = { ...skill, baseLevel: gem.level, finalLevel: finalLevel, totalLevel: totalLevel, bonusLevel: bonusLevel, materialBonusLevel: materialBonus, permanentSkyBonusLevel: permanentSkyBonus };
+    let stats = { ...skill, baseLevel: gem.level, finalLevel: finalLevel, totalLevel: totalLevel, bonusLevel: bonusLevel, materialBonusLevel: materialBonus, permanentSkyBonusLevel: permanentSkyBonus, awakened: !!gem.awakened };
     stats.dmg = stats.baseDmg + (getGemLevelGrowthSteps(finalLevel) * stats.dmgScale);
     stats.spd = stats.baseSpd + (getGemLevelGrowthSteps(finalLevel) * stats.spdScale);
     if (stats.critScale) stats.crit = (stats.crit || 0) + (getGemLevelGrowthSteps(finalLevel, 0) * stats.critScale);
     let qualityMul = 1 + Math.max(0, Math.min(20, gem.quality || 0)) / 200;
     stats.dmg *= qualityMul * (usesGemProgression ? gemCoreForge.effects(gem).damage : 1);
     stats.spd *= qualityMul * (usesGemProgression ? gemCoreForge.effects(gem).speed : 1);
-    if (usesGemProgression && gem.level >= 20) applyGemLevel20Perk(stats, GEM_LEVEL_20_PERKS[game.activeSkill]);
+    if (usesGemProgression && gem.awakened) applyGemAwakenedPerk(stats, GEM_AWAKENED_PERKS[game.activeSkill]);
     if (!usesGemProgression) return stats;
     getSkyEnhancementForSkill(game.activeSkill).forEach(id => {
         let enh = GEM_SKY_ENHANCEMENTS[id];
