@@ -5786,6 +5786,15 @@ openDeathOverlay.request = function requestDeathNotice(log) {
     openDeathOverlay.flushPending();
 };
 
+/** Whether a management view is up, so the death notice waits: the windowed UI's management mode, or any tab but battle shown
+ * (no battle tab at all counts too). */
+openDeathOverlay.heldByView = function isDeathNoticeHeldByView() {
+    const body = document.body.classList;
+    if (body.contains('desktop-windowed-ui')) return body.contains('ui-management-mode');
+    const battle = document.getElementById('tab-battle');
+    return !battle || !battle.classList.contains('active');
+};
+
 openDeathOverlay.flushPending = function flushPendingDeathNotice() {
     const pending = openDeathOverlay.pending;
     if (!pending) return;
@@ -5793,12 +5802,7 @@ openDeathOverlay.flushPending = function flushPendingDeathNotice() {
         openDeathOverlay.pending = null;
         return;
     }
-    if (game.isBackgroundCalculation || document.hidden) return;
-    const body = document.body.classList;
-    const managing = body.contains('desktop-windowed-ui')
-        ? body.contains('ui-management-mode')
-        : !document.getElementById('tab-battle')?.classList.contains('active'); // no battle tab shown: hold the notice
-    if (managing) return;
+    if (game.isBackgroundCalculation || document.hidden || openDeathOverlay.heldByView()) return;
     if (document.querySelector('dialog[open], .tutorial-overlay.active, .selection-overlay, #background-combat-result-overlay, #startup-overlay.active, #loading-overlay.active')) return;
     openDeathOverlay(pending.log);
 };
@@ -10907,194 +10911,200 @@ function corruptCraftedItem(item) {
  * @param {string} currencyKey Crafting action; pays one of that currency.
  * @returns {Promise<true|undefined>} True only after the item and payment are committed.
  */
-async function useCurrency(currencyKey) {
-    let item = getSelectedCraftItem();
-    if (!item) return addLog("먼저 아이템을 선택하세요.", "attack-monster");
-    const payment = getCraftPayment(currencyKey);
-    if (!payment?.affordable) return addLog("제작 재화가 부족하거나 사용할 수 없는 제작 방식입니다.", "attack-monster");
-    let actionKey = equipmentCrafting.resolveAction(currencyKey, item.rarity);
-    if (item.corrupted && actionKey !== 'tainted') return addLog("타락한 아이템은 더 이상 제작할 수 없습니다.", "attack-monster");
-    if (item.fusedRelic && !['divine', 'tainted', 'blessing'].includes(actionKey)) return addLog("융합 유물은 황금률/잿불가지/축복의 꽃잎만 사용할 수 있습니다.", "attack-monster");
-
-    let explicitCap = EXPLICIT_AFFIX_LINE_CAP;
-    let ok = false;
-    if (actionKey === 'transmute') ok = item.rarity === 'normal';
-    else if (actionKey === 'alteration') ok = item.rarity === 'magic';
-    else if (actionKey === 'alchemy') ok = item.rarity === 'normal';
-    else if (actionKey === 'exalted') ok = item.rarity === 'rare' && getItemExplicitOptionCount(item) < explicitCap;
-    else if (actionKey === 'regal') ok = item.rarity === 'magic' && getItemExplicitOptionCount(item) < explicitCap;
-    else if (actionKey === 'chaos') ok = item.rarity === 'rare';
-    else if (actionKey === 'divine') ok = item.rarity !== 'normal';
-    else if (actionKey === 'chance') ok = item.rarity === 'normal';
-    else if (actionKey === 'scour') ok = item.rarity !== 'normal' && item.rarity !== 'unique';
-    else if (actionKey === 'tainted') ok = !item.corrupted || (isKaleidoscopeShieldItem(item) && getItemExplicitOptionCount(item) <= EXPLICIT_AFFIX_LINE_CAP);
-    else if (currencyKey === 'blessing') ok = Array.isArray(item.baseStats) && item.baseStats.length > 0;
-    else if (actionKey === 'annulment') ok = getAnnulmentRemovableStats(item).length > 0;
-    else if (currencyKey === 'abyssCatalyst') ok = Math.max(0, Math.floor(item.quality || 0)) > 0 && Array.isArray(item.stats) && item.stats.length > 0;
-    else if (['deepWhetstone', 'rootIron', 'jewelPolish'].includes(currencyKey)) {
-        let slot = String(item.slot || '');
-        let isWeapon = slot === '무기';
-        let isArmor = ['투구', '갑옷', '장갑', '신발', '허리띠'].includes(slot);
-        let isAccessory = ['목걸이', '반지'].includes(slot);
-        if (currencyKey === 'deepWhetstone') ok = isWeapon;
-        if (currencyKey === 'rootIron') ok = isArmor;
-        if (currencyKey === 'jewelPolish') ok = isAccessory;
-        ok = ok && Math.max(0, Math.floor(item.quality || 0)) < 20 && !item.qualityLockedByLimitBreak;
+// 제작실의 재화 한 번(js/crafting-workspace-ui.js workspaceExecuteCraft): 막는 까닭, 홀씨와 뿌리 준비, 값 치르기, 효과, 기록.
+// 2026-10-18 정리: 한 함수(복잡도 145, 288줄)를 책임별로 나눴다. 기본 제작의 굴림은 js/equipment-crafting.js가 맡는다.
+const craftCurrencyUse = (() => {
+    const qualityFits = slots => item => slots.includes(String(item.slot || '')) && Math.max(0, Math.floor(item.quality || 0)) < 20 && !item.qualityLockedByLimitBreak;
+    const roomLeft = item => getItemExplicitOptionCount(item) < EXPLICIT_AFFIX_LINE_CAP;
+    /** Whether each action fits the item now (rarity, room, slot, quality). An action missing here never fits. */
+    const FITS = Object.freeze({
+        transmute: item => item.rarity === 'normal', alteration: item => item.rarity === 'magic', alchemy: item => item.rarity === 'normal',
+        exalted: item => item.rarity === 'rare' && roomLeft(item), regal: item => item.rarity === 'magic' && roomLeft(item),
+        chaos: item => item.rarity === 'rare', divine: item => item.rarity !== 'normal', chance: item => item.rarity === 'normal',
+        scour: item => item.rarity !== 'normal' && item.rarity !== 'unique',
+        tainted: item => !item.corrupted || (isKaleidoscopeShieldItem(item) && getItemExplicitOptionCount(item) <= EXPLICIT_AFFIX_LINE_CAP),
+        blessing: item => Array.isArray(item.baseStats) && item.baseStats.length > 0,
+        annulment: item => getAnnulmentRemovableStats(item).length > 0,
+        abyssCatalyst: item => Math.max(0, Math.floor(item.quality || 0)) > 0 && Array.isArray(item.stats) && item.stats.length > 0,
+        deepWhetstone: qualityFits(['무기']), rootIron: qualityFits(['투구', '갑옷', '장갑', '신발', '허리띠']), jewelPolish: qualityFits(['목걸이', '반지'])
+    });
+    const RELIC_ACTIONS = Object.freeze(['divine', 'tainted', 'blessing']);
+    /** Why action cannot be used on item now, or '': a 성화의 뿌리 pick waits, corruption, a fused relic, or the action does not fit. */
+    function blockReason(item, action) {
+        if (equipmentCrafting.pendingChoice(game)) return '성화의 뿌리로 굴린 결과 가운데 하나를 먼저 고르세요.';
+        if (item.corrupted && action !== 'tainted') return '타락한 아이템은 더 이상 제작할 수 없습니다.';
+        if (item.fusedRelic && !RELIC_ACTIONS.includes(action)) return '융합 유물은 황금률, 잿불가지, 축복의 꽃잎만 사용할 수 있습니다.';
+        return Object.hasOwn(FITS, action) && FITS[action](item) ? '' : '지금 선택한 아이템에는 사용할 수 없습니다.';
     }
-    if (!ok) return addLog("지금 선택한 아이템에는 사용할 수 없습니다.", "attack-monster");
-    if (currencyKey === 'divine' && !await requestGameConfirmation('선택한 장비에 황금률을 사용합니다.', {
-        title: '희귀 재화 사용',
-        tone: 'danger',
-        confirmLabel: '사용'
-    })) return;
-    // 확인창이 열린 동안 제작 대상을 바꾸거나 장비를 이동한 경우, 이전 객체에 오브가
-    // 적용되는 것을 막는다. 확인 전의 잔여 수량·제작 가능 상태도 다시 검증한다.
-    if (getSelectedCraftItem() !== item || !getCraftPayment(currencyKey)?.affordable) {
-        return addLog('확인 중 제작 대상 또는 재화가 변경되어 사용을 취소했습니다.', 'attack-monster');
-    }
-    if (item.corrupted && actionKey !== 'tainted') return addLog('확인 중 장비 상태가 변경되어 사용을 취소했습니다.', 'attack-monster');
-    if (item.fusedRelic && !['divine', 'tainted', 'blessing'].includes(actionKey)) return addLog('확인 중 장비 상태가 변경되어 사용을 취소했습니다.', 'attack-monster');
 
-    game.sporeCraftModes = game.sporeCraftModes || {};
-    // 홀씨 태그 보장은 장비 제작 전용이다.
-    let sporeMode = isSporeCraftEquipment(item) ? (game.sporeCraftModes[currencyKey] || 'none') : 'none';
-    const sporeBlock = getSporeCraftBlockReason(item, actionKey, sporeMode);
-    if (sporeBlock) return addLog(sporeBlock, 'attack-monster');
-    function consumeSpore(mode) {
-        if (mode === 'none') return true;
-        if (!hasSporeCraftCost(mode)) return false;
-        const all = ['sporeFire', 'sporeCold', 'sporeLight'];
-        const keys = {fire: ['sporeFire'], cold: ['sporeCold'], light: ['sporeLight'], chaos: all, damage: all}[mode] || [];
+    /** The spore mode set for this currency; spores guarantee lines on gear only. */
+    function sporeMode(item, currencyKey) {
+        game.sporeCraftModes = game.sporeCraftModes || {};
+        return isSporeCraftEquipment(item) ? (game.sporeCraftModes[currencyKey] || 'none') : 'none';
+    }
+    /** Why the spore guarantee stops a basic craft, or '': the mode's unlock, no line of the family to give, or too few spores. */
+    function sporeReason(item, action, mode, guaranteedMod) {
+        const blocked = getSporeCraftBlockReason(item, action, mode);
+        if (blocked || mode === 'none' || !equipmentCrafting.basicActions.includes(action)) return blocked;
+        if (!guaranteedMod) return equipmentCrafting.rerollActions.includes(action) ? '이 장비에는 선택한 홀씨로 출현 가능한 옵션이 없어 제작할 수 없습니다.'
+            : '선택한 홀씨 계열에서 새로 부여할 수 있는 옵션이 없습니다. 홀씨 모드를 미사용으로 바꾸거나 해당 계열의 기존 옵션을 제거하세요.';
+        return hasSporeCraftCost(mode) ? '' : '홀씨가 부족해 제작을 시작하지 않았습니다.';
+    }
+    const ALL_SPORES = Object.freeze(['sporeFire', 'sporeCold', 'sporeLight']);
+    const SPORE_KEYS = Object.freeze({ fire: ['sporeFire'], cold: ['sporeCold'], light: ['sporeLight'], chaos: ALL_SPORES, damage: ALL_SPORES });
+    function spendSpores(mode) {
+        if (mode === 'none') return;
         const cost = getSporeCraftCost();
-        keys.forEach(key => { game.currencies[key] -= cost; });
+        (SPORE_KEYS[mode] || []).forEach(key => { game.currencies[key] -= cost; });
+    }
+    /** Everything decided before payment: { reason }, or { spore, guaranteedMod, omen, addedMod } (the spore mode a basic craft uses,
+     * its guaranteed mod, the 제작 뿌리 it uses and the line a 수액 봉오리 on a rare adds). */
+    function plan(item, currencyKey, action) {
+        const mode = sporeMode(item, currencyKey), spore = equipmentCrafting.basicActions.includes(action) ? mode : 'none';
+        const guaranteedMod = spore === 'none' ? null : equipmentCrafting.pickSporeMod(item, action, spore);
+        const reason = sporeReason(item, action, mode, guaranteedMod);
+        if (reason) return { reason };
+        const omen = equipmentCrafting.omenFor(game, action, item, mode);
+        const addedMod = action === 'exalted' ? guaranteedMod || equipmentCrafting.pickAddMod(item, omen) : null;
+        return action === 'exalted' && !addedMod ? { reason: '이 장비에 추가로 부여할 수 있는 옵션이 없습니다.' } : { spore, guaranteedMod, omen, addedMod };
+    }
+
+    // ---------------------------------------------------------------- effects after payment (basic crafts: equipmentCrafting.craftBasic)
+    function raiseQuality(item, run) {
+        item.quality = Math.max(0, Math.min(20, Math.floor(item.quality || 0) + 1));
+        run.logs.push([`🛠️ 장비 퀄리티 +1% (현재 ${item.quality}%)`, 'loot-magic']);
+    }
+    /** 황금률: every value rolled again inside its tier (locked lines kept), the infusion, and a socket amp unique's amp. */
+    function rerollValues(item) {
+        item.stats.forEach(stat => { if (!stat.lockedByHoney && !stat.lockedByRift) rerollStoredAffixValue(stat); });
+        const infusion = item.chaosInfusion;
+        if (infusion && Number.isFinite(Number(infusion.valMin)) && Number.isFinite(Number(infusion.valMax))) rerollStoredAffixValue(infusion);
+        if (item.uniqueEffectKey === 'abyssSocketAndJewelAmp' && item.uniqueEffectParams) rerollAbyssAmp(item);
+    }
+    function rerollAbyssAmp(item) {
+        const p = item.uniqueEffectParams;
+        const ampMin = Math.max(1, Math.floor(Number(p.ampMin || 1)));
+        const ampMax = Math.max(ampMin, Math.floor(Number(p.ampMax || 100)));
+        p.ampPct = ampMin + Math.floor(Math.random() * (ampMax - ampMin + 1));
+        item.uniqueEffectParams = p;
+        const socketCount = Array.isArray(item.abyssSockets) ? item.abyssSockets.length : Math.max(1, Math.floor(Number(p.socketsMin || 1)));
+        item.uniqueEffect = `심연 주얼 슬롯 (${socketCount})개, 장착 심연 주얼 효과 +${p.ampPct}%`;
+    }
+    const jewelsBack = jewels => (jewels ? ` 끼운 주얼 ${jewels}개는 가방으로 돌아왔습니다.` : '');
+    /** 요정의 고리: a quarter of the time the item breaks, else it becomes a unique of its slot and tier (same id). false when no
+     * unique exists for it. */
+    function fairyRing(item, run) {
+        if (Math.random() < 0.25) {
+            run.logs.push([`💥 요정의 고리: 아이템이 파괴되었습니다.${jewelsBack(destroySelectedCraftItem(item))}`, 'attack-monster']);
+            return true;
+        }
+        const unique = generateUniqueItem(Math.max(1, Math.floor(item.hiddenTier || item.itemTier || 1)), item.slot);
+        if (!unique) { run.logs.push(['승급할 수 있는 고유가 없습니다.', 'attack-monster']); return false; }
+        const previousId = item.id;
+        // The unique is a fresh item: socketed jewels go back to storage before the old keys are cleared.
+        const jewels = equipmentSockets.returnJewels(item);
+        Object.keys(item).forEach(key => delete item[key]);
+        Object.assign(item, unique);
+        item.id = previousId; // 배치 참조가 끊기지 않도록 원래 id를 유지한다.
+        run.logs.push([`🌟 요정의 고리: [${item.name}] 고유로 진화했습니다.${jewelsBack(jewels)}`, 'loot-unique']);
         return true;
     }
-    // 홀씨 보장 옵션: 고르는 규칙과 굴림은 제작실의 모의 제작과 같은 함수다(js/equipment-crafting.js pickSporeMod, rollSporeLine).
-    const getSporeGuaranteedMod = () => equipmentCrafting.pickSporeMod(item, actionKey, sporeMode);
-    const rollSporeGuaranteedValue = mod => equipmentCrafting.rollSporeLine(item, mod);
-    let guaranteedMod = getSporeGuaranteedMod();
-    let consumedSpore = false;
-    // alteration은 transmute처럼 옵션을 통째로 다시 굴린다. 마법의 새싹이 마법
-    // 아이템에서 이 경로를 타게 되면서, 두 목록에 함께 넣지 않으면 홀씨 모드를
-    // 켜도 아무 일 없이 지나가 버린다(소모도 보장도 없음).
-    let sporeAffixCurrencies = ['transmute', 'augment', 'alteration', 'alchemy', 'exalted', 'regal', 'chaos'];
-    let usesSporeAffix = sporeAffixCurrencies.includes(actionKey);
-    let isRerollSporeCurrency = equipmentCrafting.rerollActions.includes(actionKey);
-    let needsPrecheck = usesSporeAffix && !isRerollSporeCurrency;
-    if (sporeMode !== 'none' && needsPrecheck && !guaranteedMod) {
-        return addLog('선택한 홀씨 계열에서 새로 부여할 수 있는 옵션이 없습니다. 홀씨 모드를 미사용으로 바꾸거나 해당 계열의 기존 옵션을 제거하세요.', 'attack-monster');
-    }
-    if (sporeMode !== 'none' && usesSporeAffix && isRerollSporeCurrency) {
-        if (!guaranteedMod) return addLog('이 장비에는 선택한 홀씨로 출현 가능한 옵션이 없어 제작할 수 없습니다.', 'attack-monster');
-        if (!consumeSpore(sporeMode)) return addLog('홀씨가 부족해 제작을 시작하지 않았습니다.', 'attack-monster');
-            consumedSpore = true;
-    }
-    let exaltedMod = null, omen = equipmentCrafting.omenFor(game, actionKey, item, sporeMode); // 제작 뿌리(data/items.js CRAFT_OMENS)
-    if (actionKey === 'exalted') {
-        exaltedMod = guaranteedMod || equipmentCrafting.pickAddMod(item, omen);
-        if (!exaltedMod) return addLog('이 장비에 추가로 부여할 수 있는 옵션이 없습니다.', 'attack-monster');
-    }
-    if (sporeMode !== 'none' && usesSporeAffix && !isRerollSporeCurrency) {
-        if (!consumeSpore(sporeMode)) return addLog('홀씨가 부족합니다.', 'attack-monster');
-        consumedSpore = true;
-    }
-    let craftResultToken = craftingResultLedger.begin(item, { currencyKey, actionKey });
-    game.currencies[payment.key] -= payment.cost;
-    if (['deepWhetstone', 'rootIron', 'jewelPolish'].includes(currencyKey)) {
-        item.quality = Math.max(0, Math.min(20, Math.floor(item.quality || 0) + 1));
-        addLog(`🛠️ 장비 퀄리티 +1% (현재 ${item.quality}%)`, 'loot-magic');
-    } else if (equipmentCrafting.basicActions.includes(actionKey)) {
-        equipmentCrafting.craftBasic(game, item, actionKey, { addedMod: exaltedMod, guaranteedStat: rollSporeGuaranteedValue(guaranteedMod), omen });
-    } else if (actionKey === 'divine') {
-        item.stats.forEach(stat => {
-            if (stat.lockedByHoney || stat.lockedByRift) return;
-            rerollStoredAffixValue(stat);
-        });
-        if (item.chaosInfusion && Number.isFinite(Number(item.chaosInfusion.valMin)) && Number.isFinite(Number(item.chaosInfusion.valMax))) {
-            rerollStoredAffixValue(item.chaosInfusion);
-        }
-        if (item.uniqueEffectKey === 'abyssSocketAndJewelAmp' && item.uniqueEffectParams) {
-            let p = item.uniqueEffectParams;
-            let ampMin = Math.max(1, Math.floor(Number(p.ampMin || 1)));
-            let ampMax = Math.max(ampMin, Math.floor(Number(p.ampMax || 100)));
-            p.ampPct = ampMin + Math.floor(Math.random() * (ampMax - ampMin + 1));
-            item.uniqueEffectParams = p;
-            let socketCount = Array.isArray(item.abyssSockets) ? item.abyssSockets.length : Math.max(1, Math.floor(Number(p.socketsMin || 1)));
-            item.uniqueEffect = `심연 주얼 슬롯 (${socketCount})개, 장착 심연 주얼 효과 +${p.ampPct}%`;
-        }
-    } else if (actionKey === 'chance') {
-        if (Math.random() < 0.25) {
-            const jewels = destroySelectedCraftItem(item);
-            addLog(`💥 요정의 고리: 아이템이 파괴되었습니다.${jewels ? ` 끼운 주얼 ${jewels}개는 가방으로 돌아왔습니다.` : ''}`, 'attack-monster');
-        } else {
-            let tier = Math.max(1, Math.floor(item.hiddenTier || item.itemTier || 1));
-            let unique = generateUniqueItem(tier, item.slot);
-            if (!unique) return addLog('승급할 수 있는 고유가 없습니다.', 'attack-monster');
-            let previousId = item.id;
-            // The unique is a fresh item: socketed jewels go back to storage before the old keys are cleared.
-            const jewels = equipmentSockets.returnJewels(item);
-            Object.keys(item).forEach(key => delete item[key]);
-            Object.assign(item, unique);
-            // 배치 참조가 끊기지 않도록 원래 id를 유지한다.
-            item.id = previousId;
-            addLog(`🌟 요정의 고리: [${item.name}] 고유로 진화했습니다.${jewels ? ` 끼운 주얼 ${jewels}개는 가방으로 돌아왔습니다.` : ''}`, 'loot-unique');
-        }
-    } else if (actionKey === 'annulment') {
-        let removable = getAnnulmentRemovableStats(item);
-        if (removable.length <= 0) return addLog('제거할 수 있는 추가 옵션이 없습니다.', 'attack-monster');
-        let picked = equipmentCrafting.pickPruneLine(removable, omen);
-        let removed = item.stats.splice(picked.index, 1)[0];
+    function annul(item, run) {
+        const picked = equipmentCrafting.pickPruneLine(getAnnulmentRemovableStats(item), run.omen);
+        const removed = item.stats.splice(picked.index, 1)[0];
         updateItemName(item);
-        addLog(`🕳️ 전정 가위: ${removed.statName || getStatName(removed.id)} 옵션 제거`, 'loot-unique');
-    } else if (actionKey === 'scour') {
+        run.logs.push([`🕳️ 전정 가위: ${removed.statName || getStatName(removed.id)} 옵션 제거`, 'loot-unique']);
+    }
+    function scour(item) {
         item.stats = (item.stats || []).filter(stat => stat && (stat.lockedByHoney || stat.lockedByRift));
         item.chaosInfusion = null;
         delete item.affixKeep;
         item.rarity = item.stats.length > 0 ? 'magic' : 'normal';
         updateItemName(item);
-    } else if (actionKey === 'tainted') {
+    }
+    function taint(item, run) {
         const outcome = corruptCraftedItem(item);
-        craftResultToken.meta.outcome = outcome.text; // the craft result card leads with it (js/crafting-result-ui.js)
-        addLog(`🩸 타락: ${outcome.text}`, outcome.kind === 'nothing' ? 'attack-monster' : 'loot-unique', { toast: true });
-    } else if (currencyKey === 'abyssCatalyst') {
-        let qualityLabel = applyAbyssCatalystToItemQuality(item);
-        addLog(`🧪 심연 촉매: [${item.name}] 퀄리티 속성 → ${qualityLabel}`, 'loot-unique');
-    } else if (currencyKey === 'blessing') {
-        (item.baseStats || []).forEach(stat => {
-            let baseMin = Number.isFinite(Number(stat.baseRollMin)) ? Number(stat.baseRollMin) : Number(stat.valMin);
-            let baseMax = Number.isFinite(Number(stat.baseRollMax)) ? Number(stat.baseRollMax) : Number(stat.valMax);
-            if (!Number.isFinite(baseMin) || !Number.isFinite(baseMax)) {
-                let fallback = Number.isFinite(Number(stat.val)) ? Number(stat.val) : Number(stat.base || 0);
-                baseMin = fallback;
-                baseMax = fallback;
-            }
-            if (baseMax < baseMin) {
-                let tmp = baseMin;
-                baseMin = baseMax;
-                baseMax = tmp;
-            }
-            if (['leech', 'spellLeech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id)) {
-                let minStep = Math.round(baseMin * 10);
-                let maxStep = Math.round(baseMax * 10);
-                stat.val = (minStep + Math.floor(Math.random() * (maxStep - minStep + 1))) / 10;
-                baseMin = minStep / 10;
-                baseMax = maxStep / 10;
-            } else {
-                baseMin = Math.floor(baseMin);
-                baseMax = Math.floor(baseMax);
-                if (baseMax > 0) baseMin = Math.max(1, baseMin);
-                stat.val = baseMin + Math.floor(Math.random() * (baseMax - baseMin + 1));
-            }
-            stat.baseRollMin = baseMin;
-            stat.baseRollMax = baseMax;
-            stat.valMin = baseMin;
-            stat.valMax = baseMax;
-        });
+        run.token.meta.outcome = outcome.text; // 제작 경과가 그 줄로 시작한다(js/crafting-workspace-ui.js)
+        run.logs.push([`🩸 타락: ${outcome.text}`, outcome.kind === 'nothing' ? 'attack-monster' : 'loot-unique', { toast: true }]);
+    }
+    function catalyse(item, run) {
+        const label = applyAbyssCatalystToItemQuality(item);
+        run.logs.push([`🧪 심연 촉매: [${item.name}] 퀄리티 속성 → ${label}`, 'loot-unique']);
+    }
+    const TENTH_STATS = Object.freeze(['leech', 'spellLeech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap']);
+    /** A base line's roll range [low, high]: its base roll, else its range, else its value. */
+    function blessRange(stat) {
+        let low = Number.isFinite(Number(stat.baseRollMin)) ? Number(stat.baseRollMin) : Number(stat.valMin);
+        let high = Number.isFinite(Number(stat.baseRollMax)) ? Number(stat.baseRollMax) : Number(stat.valMax);
+        if (!Number.isFinite(low) || !Number.isFinite(high)) {
+            const fallback = Number.isFinite(Number(stat.val)) ? Number(stat.val) : Number(stat.base || 0);
+            low = fallback;
+            high = fallback;
+        }
+        return high < low ? [high, low] : [low, high];
+    }
+    /** 축복의 꽃잎: one base line rolled again inside its base range (in tenths for the leech and regen lines). */
+    function blessBaseStat(stat) {
+        let [low, high] = blessRange(stat);
+        if (TENTH_STATS.includes(stat.id)) {
+            const minStep = Math.round(low * 10), maxStep = Math.round(high * 10);
+            stat.val = (minStep + Math.floor(Math.random() * (maxStep - minStep + 1))) / 10;
+            low = minStep / 10;
+            high = maxStep / 10;
+        } else {
+            low = Math.floor(low);
+            high = Math.floor(high);
+            if (high > 0) low = Math.max(1, low);
+            stat.val = low + Math.floor(Math.random() * (high - low + 1));
+        }
+        Object.assign(stat, { baseRollMin: low, baseRollMax: high, valMin: low, valMax: high });
+    }
+    function bless(item) {
+        (item.baseStats || []).forEach(blessBaseStat);
         if (typeof colonyWards === 'object') colonyWards.rerollBelt(item); // 허리띠는 액막이 칸 수(1~3)도 다시 굴린다
     }
-    let craftNote = ((sporeMode !== 'none' && usesSporeAffix && consumedSpore && guaranteedMod) ? `, 홀씨 보장: ${guaranteedMod.statName}` : '') + equipmentCrafting.spendOmen(game, omen);
-    craftingResultLedger.commit(craftResultToken, item);
-    addLog(`⚒️ ${ORB_DB[payment.key].name} 사용${craftNote}`, currencyKey === 'exalted' || currencyKey === 'divine' ? 'loot-unique' : 'loot-magic');
+    const EFFECTS = Object.freeze({ deepWhetstone: raiseQuality, rootIron: raiseQuality, jewelPolish: raiseQuality, divine: rerollValues,
+        chance: fairyRing, annulment: annul, scour, tainted: taint, abyssCatalyst: catalyse, blessing: bless });
+    /** The action's effect on item; false when it could not happen after all (a fairy ring with no unique for the slot). */
+    function apply(item, action, run) {
+        if (!equipmentCrafting.basicActions.includes(action)) return EFFECTS[action](item, run);
+        equipmentCrafting.craftBasic(game, item, action, { addedMod: run.addedMod, guaranteedStat: equipmentCrafting.rollSporeLine(item, run.guaranteedMod), omen: run.omen });
+        return true;
+    }
+
+    /** One use of currencyKey on the selected item, nothing logged or drawn here: { reason } when nothing happened, else { ok, logs }
+     * (ok false: paid but no change, a fairy ring with no unique). logs are addLog arguments in order. */
+    function use(currencyKey) {
+        const item = getSelectedCraftItem();
+        if (!item) return { reason: '먼저 아이템을 선택하세요.' };
+        const payment = getCraftPayment(currencyKey);
+        // A key that is no craft currency (the old 'divine', merged into 황금률) is refused like a missing one.
+        if (!Object.hasOwn(ORB_DB, currencyKey) || !payment || !payment.affordable) return { reason: '제작 재화가 부족하거나 사용할 수 없는 제작 방식입니다.' };
+        const action = equipmentCrafting.resolveAction(currencyKey, item.rarity);
+        const block = blockReason(item, action);
+        if (block) return { reason: block };
+        const run = plan(item, currencyKey, action);
+        if (run.reason) return { reason: run.reason };
+        run.token = craftingResultLedger.begin(item, { currencyKey, actionKey: action });
+        run.logs = [];
+        spendSpores(run.spore);
+        game.currencies[payment.key] -= payment.cost;
+        if (apply(item, action, run) === false) return { ok: false, logs: run.logs };
+        const note = (run.spore !== 'none' && run.guaranteedMod ? `, 홀씨 보장: ${run.guaranteedMod.statName}` : '') + equipmentCrafting.spendOmen(game, run.omen);
+        craftingResultLedger.commit(run.token, item);
+        run.logs.push([`⚒️ ${ORB_DB[payment.key].name} 사용${note}`, 'loot-magic']);
+        return { ok: true, logs: run.logs };
+    }
+    return Object.freeze({ use, blockReason });
+})();
+
+/** The crafting workspace's currency use (js/crafting-workspace-ui.js): craftCurrencyUse.use, its log lines, a redraw. true when it
+ * crafted. Kept async for its callers. */
+async function useCurrency(currencyKey) {
+    const result = craftCurrencyUse.use(currencyKey);
+    if (result.reason) return addLog(result.reason, 'attack-monster');
+    result.logs.forEach(args => addLog(...args));
+    if (!result.ok) return undefined;
     updateStaticUI();
     return true;
 }

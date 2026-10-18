@@ -91,17 +91,13 @@ vm.runInContext(annulBlock, annulContext, { filename: 'market-annul.js' });
 (async () => {
     const runtime = require('./lib/game-runtime').buildGameRuntime();
     const run = code => vm.runInContext(code, runtime);
+    // A key that is no craft currency (the old 'divine', merged into 황금률) is refused before anything is paid or changed; useCurrency
+    // has no confirmation left, so nothing can change between its checks and its effect (2026-10-18).
     run(`game.inventory=[1,2].map(id=>({id,slot:'신발',rarity:'rare',name:'확인 검증',itemTier:10,hiddenTier:10,baseStats:[],stats:[{id:'flatHp',val:10,tier:3}]}));game.currencies.divine=1;selectForCrafting(1,false);`);
     const equipmentBefore = run('JSON.stringify(game.inventory)');
-    runtime.requestGameConfirmation = async () => { run('selectForCrafting(2,false)'); return true; };
     await run("useCurrency('divine')");
-    assert.strictEqual(run('JSON.stringify(game.inventory)'), equipmentBefore, '확인 중 바뀐 대상에는 제작을 적용하지 않는다');
-    assert.strictEqual(run('game.currencies.divine'), 1, '대상 변경으로 취소하면 재화를 보존한다');
-    run('selectForCrafting(1,false)');
-    runtime.requestGameConfirmation = async () => { run('game.currencies.divine=0'); return true; };
-    await run("useCurrency('divine')");
-    assert.strictEqual(run('JSON.stringify(game.inventory)'), equipmentBefore, '확인 중 재화가 부족해지면 제작을 취소한다');
-    assert.strictEqual(run('game.currencies.divine'), 0, '잔액이 음수가 되면 안 된다');
+    assert.strictEqual(run('JSON.stringify(game.inventory)'), equipmentBefore, 'a key that is no craft currency changes nothing');
+    assert.strictEqual(run('game.currencies.divine'), 1, 'a key that is no craft currency spends nothing');
     await annulContext.marketAnnulSelectedStat(0);
     assert.strictEqual(protectedItem.stats.length, 2, 'market service must preserve a honey-locked affix');
     assert.strictEqual(annulContext.game.currencies.goldenRule, 2, 'rejected protected removal must not spend currency');
