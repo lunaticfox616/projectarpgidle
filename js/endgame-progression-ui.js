@@ -106,6 +106,8 @@ function chooseBeyondBoundaryIntensity(intensityId) {
 }
 
 function enterBeyondBoundaryRun() {
+    const held = getHeldRunBlockReason();
+    if (held) return addLog(held, 'attack-monster');
     let state = ensureBeyondBoundaryState(game);
     let result = startBeyondBoundaryRun(state.selectedTier, game);
     if (!result.ok) {

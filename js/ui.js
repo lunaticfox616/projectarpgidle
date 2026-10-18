@@ -2615,6 +2615,8 @@ function renderLoop15ColonyPanel() {
 function startColonyRun(){
     let c = game.colony || (game.colony = {});
     if ((game.currencies.colonyTrace||0)<=0 || c.inRun) return;
+    const held = getHeldRunBlockReason();
+    if (held) return addLog(held, 'attack-monster');
     game.currencies.colonyTrace--;
     c.entryDeepChaosDepth = getZone('colony_run').entryDeepChaosDepth;
     c.inRun = true; c.wave = 1; c.kills = 0; c.requiredKills = getColonyWaveEnemyCount(1);
@@ -2860,10 +2862,15 @@ function applyBeehiveChoiceReward(pick) {
     }
     return '';
 }
+/** Why a hive run cannot start now: a held run (getHeldRunBlockReason), or an open atlas map (the hive waits for the map to end). */
+function getBeehiveEntryBlockReason() {
+    return getHeldRunBlockReason() || (atlas.inMap(game) ? '진행 중인 지도를 마친 후 벌집에 입장하세요.' : '');
+}
 function startBeehiveRun(){
     let b = game.beehive || (game.beehive = {});
     if ((game.currencies.hiveKey || 0) <= 0 || b.inRun) return;
-    if (atlas.inMap(game)) return addLog('진행 중인 지도를 마친 후 벌집에 입장하세요.', 'attack-monster');
+    const block = getBeehiveEntryBlockReason();
+    if (block) return addLog(block, 'attack-monster');
     let lastDeepChaosDepth = Math.max(21, Math.min(game.abyssEndlessDepth || 21, game.loopProgressCurrent.bestAbyssDepth || 21));
     resetBeehiveRunModifiers(b);
     game.currencies.hiveKey--;
@@ -3051,7 +3058,8 @@ function autoEnterGrandBreachIfReady(){
     return true;
 }
 function enterGrandBreach(options){
-    if (typeof isBeehiveRunLockedForMapTravel === 'function' && isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked();
+    const held = getHeldRunBlockReason();
+    if (held) return addLog(held, 'attack-monster');
     let v = game.voidRift;
     if (!v.grandBreachUnlock) return;
     if (v.grandRun && v.grandRun.inRun && game.currentZoneId !== 'grand_breach_run') {
@@ -3686,7 +3694,8 @@ safeExposeGlobals({ enterUnderworldFloor, enterUnderworldPrompt });
 
 function enterTrialWithTicket(trialId) {
     if (!contentProgression.isUnlocked('battleTrials')) return addLog('루프 3부터 전직을 해금한 뒤 시련에 도전할 수 있습니다.', 'attack-monster');
-    if (typeof isBeehiveRunLockedForMapTravel === 'function' && isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked();
+    const block = getHeldRunBlockReason() || getZoneTravelBlockReason(trialId);
+    if (block) return addLog(block, 'attack-monster');
     if (!['trial_3','trial_4'].includes(trialId)) return changeZone(trialId);
     if ((game.currencies.trialKey3 || 0) <= 0) return addLog('시련의 증표가 부족합니다.', 'attack-monster');
     game.currencies.trialKey3 -= 1;

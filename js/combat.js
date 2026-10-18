@@ -13611,7 +13611,8 @@ function finishWoodsmanEntrance() {
 
 
 function enterOutsideChaos() {
-    if (typeof isBeehiveRunLockedForMapTravel === 'function' && isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked();
+    const held = getHeldRunBlockReason();
+    if (held) return addLog(held, 'attack-monster');
     if ((game.season || 1) < 10) return addLog('혼돈 밖은 루프 10 이후 개방됩니다.', 'attack-monster');
     let outsideChaosRequirementMet = typeof hasCurrentLoopAbyssRequirementClear === 'function'
         ? hasCurrentLoopAbyssRequirementClear(game.season || 1)
@@ -13651,6 +13652,8 @@ function dressWoodsmanEchoDummy(dummy) {
 }
 
 function enterWoodsmanEchoChallenge() {
+    const held = getHeldRunBlockReason();
+    if (held) return addLog(held, 'attack-monster');
     let st = ensureChaosRealmState();
     if (!st.unlocked) return addLog('혼돈계 해금 이후 이용 가능합니다.', 'attack-monster');
     if (!(Array.isArray(game.journalEntries) && game.journalEntries.includes('woodsman_echo'))) return addLog('나무꾼 완전 격파 이후에만 도전할 수 있습니다.', 'attack-monster');

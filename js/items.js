@@ -487,6 +487,12 @@ function warnBeehiveMapTravelBlocked() {
     if (typeof addLog === 'function') addLog('벌집 원정 중에는 [던전 포기] 전까지 다른 지역으로 이동할 수 없습니다.', 'attack-monster');
     return true;
 }
+/** Runs that keep the hero until they end or are given up (벌집 원정, 경계 너머). changeZone and the deep sea refuse from inside one,
+ * and so does every content start (군락, 벌집, 경계 너머, 혼돈 밖, 나무꾼의 잔상, 대균열, 증표 시련). Returns the refusal, or ''. */
+function getHeldRunBlockReason() {
+    if (isBeehiveRunLockedForMapTravel()) return '벌집 원정 중에는 [던전 포기] 전까지 다른 지역으로 이동할 수 없습니다.';
+    return ensureBeyondBoundaryState(game).activeRun ? '경계 너머 도전을 먼저 마치거나 포기하세요.' : '';
+}
 
 // ── 시간의 균열: 제단 배치/회수 + 융합 정산 ──────────────────────────────
 // 흐름: 과거 클리어(altarOpen) → 같은 부위 고유 1개·희귀 1개 배치 → 미래 클리어 → resolveTimeRiftFusion.
