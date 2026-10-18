@@ -10682,13 +10682,19 @@ function markActZoneClear(zone, ui) {
     if (zone.id <= 9) markActRewardReady(zone.id);
     // 전적: 이번 루프 시작 기준 액트 돌파 경과 시간(루프당 첫 돌파만).
     if (typeof recordActClear === 'function') recordActClear(zone.id);
-    let storyAct = getStoryActByZoneId(zone.id);
-    if (storyAct && storyAct.clearText) ui.say(`📜 ${storyAct.clearText}`, 'season-up');
+    sayActClearStory(zone, ui);
     const journalEntry = ACT_CLEAR_JOURNAL_ENTRIES.get(zone.id);
     if (journalEntry) unlockJournalEntry(journalEntry);
     // 클리어 후 정지·방치 정산에서도 다음 화면 갱신을 기다리지 않고 전술을 연다.
     if (zone.id === 2) contentUnlockUi.syncOpened();
     if (zone.id === 9 && Math.max(0, Math.floor(game.loopDeaths || 0)) <= 0) unlockJournalEntry('immortal');
+}
+/** An act's clear story, once a loop: on the clear at the frontier (the one that opens the next zone, like its unlock line), not
+ * on each repeat clear (a new hero who fell back to level up read act 1's five times in its first 15 minutes, 2026-10-18). */
+function sayActClearStory(zone, ui) {
+    if (zone.id < game.maxZoneId) return;
+    let storyAct = getStoryActByZoneId(zone.id);
+    if (storyAct && storyAct.clearText) ui.say(`📜 ${storyAct.clearText}`, 'season-up');
 }
 /** Whether this clear is the loop's final zone: the season's final zone, or a chaos depth at the season's cap or deeper. */
 function isSeasonFinalZoneClear(zone) {
