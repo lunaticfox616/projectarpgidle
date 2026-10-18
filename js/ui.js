@@ -5038,6 +5038,12 @@ function playLoopRewriteEffect() {
     }, 1950);
 }
 
+window.addEventListener('project-idle:ground-damage', event => {
+    const { name, element, damage, persistent } = event.detail;
+    const text = persistent ? `${name} [${getDamageElementLabel(element)}] 지속 피해 ${damage}`
+        : `${name} 발동 [${getDamageElementLabel(element)}] (${damage} 피해)`;
+    addLog(text, 'attack-monster', { noToast: true, element });
+});
 window.addEventListener('project-idle:loop-hero-selection-requested', event => {
     let detail = event && event.detail;
     if (!detail || typeof detail.select !== 'function') return;

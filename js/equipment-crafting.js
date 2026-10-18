@@ -170,7 +170,48 @@ const equipmentCrafting = (() => {
             over: used.prefix > rule.prefix || used.suffix > rule.suffix };
     }
 
-    return Object.freeze({ getSource, getLabel, filterSporeMods, resolveAction, getBlockReason, getSporeBlockReason, getFossilBlockReason, getFossilUseReason,
+    const basicActions = Object.freeze(['transmute', 'alteration', 'alchemy', 'chaos', 'regal', 'exalted']);
+    const rerollActions = Object.freeze(['transmute', 'alteration', 'alchemy', 'chaos']);
+    /** The affix a spore mode guarantees for action on item, or null (spore mode off, or nothing of its family is open): picked by
+     * weight among the open affixes in the spore's family, counted against the result's rarity (새싹 transmute and alteration: magic,
+     * one and one; the rest: rare, three and three). A reroll counts only the lines it keeps (keptOnReroll, as rerollExplicitMods).
+     * The live craft (js/passives.js useCurrency) and the bench's rehearsal (js/crafting-goal-options.js rehearse) both pick here. */
+    function sporePool(item, action, mode) {
+        if (mode === 'none') return [];
+        const base = rerollActions.includes(action) ? { ...item, stats: (item.stats || []).filter(stat => keptOnReroll(item, stat)) } : item;
+        return filterSporeMods(getOpenAffixMods(base, ['transmute', 'alteration'].includes(action) ? 'magic' : 'rare'), mode);
+    }
+    function pickSporeMod(item, action, mode) {
+        const pool = sporePool(item, action, mode);
+        return pool.length ? pickWeightedMod(pool) : null;
+    }
+    /** mod's guaranteed line, rolled over the whole spore tier range of item (the family is promised, the top two tiers are not). */
+    function rollSporeLine(item, mod) {
+        if (!mod) return null;
+        const range = getCraftTierRangeForItem(item, 'spore');
+        return { ...rollAffixValueInTierRange(mod, range.min, range.max), craftSource: 'spore' };
+    }
+    function addedLine(item, options) {
+        if (options.guaranteedStat) return options.guaranteedStat;
+        const mod = options.addedMod || pickWeightedMod(getOpenAffixMods(item, 'rare'));
+        return mod ? rollAffixValue(mod, getItemCraftTier(item)) : null;
+    }
+    /** Shared item-only roll for live currency use and the crafting bench's rehearsal. Payment and saves stay with the caller. */
+    function applyBasic(item, action, options = {}) {
+        if (!basicActions.includes(action)) throw Error('지원하지 않는 기본 제작');
+        const tier = getItemCraftTier(item), guaranteed = options.guaranteedStat || null;
+        if (['regal', 'exalted'].includes(action)) {
+            const line = addedLine(item, options);
+            if (line) item.stats.push(line);
+            if (action === 'regal') item.rarity = 'rare';
+            updateItemName(item);
+            return;
+        }
+        item.rarity = ['transmute', 'alteration'].includes(action) ? 'magic' : 'rare';
+        rerollExplicitMods(item, item.rarity, tier, { guaranteedStat: guaranteed, rerollChaosInfusion: item.rarity === 'rare' });
+    }
+
+    return Object.freeze({ basicActions, rerollActions, applyBasic, sporePool, pickSporeMod, rollSporeLine, getSource, getLabel, filterSporeMods, resolveAction, getBlockReason, getSporeBlockReason, getFossilBlockReason, getFossilUseReason,
         affixKind, storedAffixKind, keptKind, keptOnReroll, getAffixKeepReason, affixCounts, affixRoom, fitsRoom, pickReplacement, affixHeader });
 })();
 safeExposeGlobals({ equipmentCrafting });

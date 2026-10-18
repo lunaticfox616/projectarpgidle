@@ -9,7 +9,7 @@ const atlasEndgame = (() => {
     const DEFS = new Map([...E.apexes.map(row => [row.id, { ...row, kind: 'apex' }]), ...E.leagues.map(row => [row.id, { ...row, kind: 'league' }])]);
     const LEAGUE_BY_ROOM = new Map(E.leagues.map(row => [row.room, row]));
     // 자기 그림이 있는 리그 보스(벌집 여왕): 메아리로 다시 나와도 그 그림을 쓴다(목격 기록은 [이름, 액트]뿐이다).
-    const BODY_BY_BOSS = new Map(E.leagues.filter(row => row.bodyVisual).map(row => [row.boss, row]));
+    const BODY_BY_BOSS = new Map([...E.leagues, ...E.apexes].filter(row => row.bodyVisual).map(row => [row.boss || row.stages[0].name, row]));
     const APOSTLES = new Map(E.apostles.map(row => [row.id, row]));
     const ITEM_IDS = Object.freeze(Object.keys(E.items));
     const LATE_BOSSES = new Set(['guardian', 'pinnacle', 'apex', 'league']);
@@ -126,20 +126,25 @@ const atlasEndgame = (() => {
         if (!row) return {};
         const echoes = extra.echoes || [], names = row.stages.map(stage => stageName(row, stage, echoes));
         const out = { bossName: names[0], bossStageNames: names, atlasStages: row.id, atlasEchoes: echoes };
-        // 바닥 위험은 시련 함정 양식이지만 그 보스의 원소로 터지고 기록에도 제 이름으로 남는다(js/combat.js dealTrialTrapDamage).
-        if (row.hazard) Object.assign(out, { trialHazard: { ...row.hazard }, trapElements: [row.ele], trapName: E.hazardName });
+        // 투기장의 장판: 시련 함정 양식으로 예고한 뒤 그 원소의 지대로 남는다(js/combat.js resolveTrialHazardImpact, COMBAT_GRID_CONFIG.ground).
+        const arena = E.arenas[node.id];
+        if (arena) Object.assign(out, { trialHazard: { ...E.arenaHazard, persistent: true },
+            trapElements: [arena.element], trapName: COMBAT_GRID_CONFIG.ground[arena.element].name });
         return out;
     }
     /** The stage's picture: a league boss with its own sheet (the beehive queen) draws it, the rest an act boss's art. */
     function applyStageBody(enemy, row, art) {
-        if (row.bodyVisual) return Object.assign(enemy, { monsterVisualId: row.bodyVisual, spriteVariantId: null, monsterArchetype: null, bossAssetKey: null });
+        if (row.bodyVisual) return Object.assign(enemy, { monsterVisualId: row.bodyVisual, spriteVariantId: null, monsterArchetype: null, bossAssetKey: ACT_BOSS_ASSET_KEYS[art] || null });
+        enemy.monsterVisualId = null;
         enemy.bossAssetKey = ACT_BOSS_ASSET_KEYS[art] || enemy.bossAssetKey;
         return enemy;
     }
-    /** Whose picture a stage draws: an echo of a league boss with its own sheet draws that sheet, not its act boss's art
-     * (2026-10-07 review: the weaver's echo of the beehive queen came out as the act 9 boss). */
-    function stageBodyRow(row, echo) {
-        return (echo && BODY_BY_BOSS.get(echo[0])) || row;
+    /** Whose picture a stage draws: an echo draws the witnessed boss's own sheet when it has one (2026-10-07 review: the weaver's echo
+     * of the beehive queen came out as the act 9 boss), else that boss's act art. A stage of another act's boss (the apostles, the
+     * deacon choir) draws that act's art (2026-10-18: they came out as the elder and the archbishop); the boss's own stages its sheet. */
+    function stageBodyRow(row, echo, body) {
+        if (echo) return BODY_BY_BOSS.get(echo[0]) || {};
+        return Number.isInteger(body.bossAct) && body.bossAct !== row.bossAct ? {} : row;
     }
     /** A late fight's stage body (js/combat.js createActExplorationPack): its own name, art and special attack; echoes are weaker copies. */
     function tuneStage(enemy, zone, stage) {
@@ -149,7 +154,7 @@ const atlasEndgame = (() => {
         const isEcho = Number.isInteger(body.echo), echo = isEcho ? (zone.atlasEchoes || [])[body.echo] : null;
         const art = echo ? echo[1] : (Number.isInteger(body.bossAct) ? body.bossAct : row.bossAct);
         enemy.name = `👿 ${zone.bossStageNames[stage]}`;
-        applyStageBody(enemy, stageBodyRow(row, echo), art);
+        applyStageBody(enemy, body.bodyVisual ? body : stageBodyRow(row, echo, body), art);
         enemy.bossVisualTint = isEcho ? 200 : null;
         enemy.patternMode = 'apex';
         enemy.apexMechanic = body.mechanic;
@@ -161,8 +166,17 @@ const atlasEndgame = (() => {
         const rule = E.mechanics[mechanicId];
         if (!rule) return null;
         const n = Math.max(1, Math.floor(Number(attackNumber) || 1)), special = n % rule.every === 0;
-        return { mode: mechanicId, patternMode: 'apex', label: special ? rule.name : `${rule.name} 전조`, damageMul: special ? rule.damageMul : 1,
-            isSpecial: special, telegraphKind: rule.telegraph, attackNumber: n };
+        return { mode: mechanicId, patternMode: 'apex', label: rule.name,
+            damageMul: special ? rule.damageMul : 1, isSpecial: special, attackNumber: n,
+            telegraphKind: rule.telegraph, warningMs: COMBAT_GRID_CONFIG.bossPatternWarningMs, recoveryMs: 0,
+            ...comboState(mechanicId, rule, n, special) };
+    }
+    function comboState(id, rule, n, special) {
+        const sequence = E.sequences[id];
+        if (!sequence || !special) return {};
+        const step = (Math.floor(n / rule.every) - 1 + 3) % 3, finisher = step === 2, combo = E.combo;
+        return { label: `${rule.name}, ${['첫 수', '연계', '마무리'][step]}`, telegraphKind: sequence[step],
+            warningMs: finisher ? combo.finisherWarningMs : combo.warningMs, recoveryMs: finisher ? combo.finisherRecoveryMs : combo.recoveryMs };
     }
 
     // ---------------------------------------------------------------- rooms in a map

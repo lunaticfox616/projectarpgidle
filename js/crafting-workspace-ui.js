@@ -7,7 +7,7 @@ const craftingWorkspaceUi = (() => {
     let renderKey='', adapter;
     let busy=false, acknowledged='', count=0, spent={}, last=null, notice='';
     let auto=false, timer=0, runId=0, runCount=0, limit=20;
-    let goalDialog;
+    let goalDialog, studyDialog, studyRun=0, goalMatch='all';
     const esc = value => escapeHTML(String(value));
     const selected = () => getSelectedCraftItem();
     const signature = () => JSON.stringify([current,goal,selected()?.stats]);
@@ -18,16 +18,22 @@ const craftingWorkspaceUi = (() => {
     /** target: an option id, 'tag:<tag>' (count lines carrying the tag) or '' to clear. */
     function workspaceSetGoal(target,tier,count=2) {
         const rule=String(target).startsWith('tag:')?{tag:target.slice(4),minCount:Number(count),minTier:Number(tier)}:{statId:target,minTier:Number(tier),minValue:0};
-        goal=equipmentLootPolicy.normalizeTargets({enabled:true,scope:'explicit',slot:'any',minMatches:1,rules:[rule]});
+        const rules=[rule,...(goal?.rules||[]).slice(1)];
+        goal=equipmentLootPolicy.normalizeTargets({enabled:true,scope:'explicit',slot:'any',minMatches:goalMatch==='all'?rules.length:1,rules});
         acknowledged='';
-        game.craftingWorkspace.goal=craftingWorkspaceState.normalizeGoal(goal.rules[0]);
+        workspaceSaveGoals();
+    }
+
+    function workspaceSaveGoals() {
+        game.craftingWorkspace.goal=craftingWorkspaceState.normalizeGoal({...goal.rules[0],match:goalMatch,extra:goal.rules.slice(1)});
         queueImportantSave(180);
     }
 
     function workspaceRestoreGoal() {
         const saved=game.craftingWorkspace.goal;
-        if(saved.tag)workspaceSetGoal('tag:'+saved.tag,saved.minTier,saved.minCount);
-        else if(saved.statId)workspaceSetGoal(saved.statId,saved.minTier);
+        goalMatch=saved.match||'all';
+        const rules=[saved,...(saved.extra||[])].map(rule=>rule.tag?{tag:rule.tag,minCount:rule.minCount,minTier:rule.minTier}:{statId:rule.statId,minTier:rule.minTier,minValue:0});
+        goal=equipmentLootPolicy.normalizeTargets({enabled:true,scope:'explicit',slot:'any',minMatches:goalMatch==='all'?rules.length:1,rules});
     }
 
     function workspaceGoalOptions() { return craftingGoalOptions.get(selected(),recipe,mode); }
@@ -40,15 +46,11 @@ const craftingWorkspaceUi = (() => {
     }
 
     function workspaceGoalReachable(rule) {
+        if(equipmentLootPolicy.matches(selected(),{settings:{equipmentTargets:{...goal,rules:[rule],minMatches:1}}}))return true;
         const choice=workspaceGoalChoice(rule);
         return !!choice&&rule.minTier<=choice.maxTier&&(!rule.tag||rule.minCount<=choice.maxCount);
     }
 
-    function workspaceRefreshGoals() {
-        if(!['add','reroll','fossil'].includes(recipe.kind))return;
-        const rule=goal.rules[0];if(!rule)return;
-        if(!workspaceGoalReachable(rule))workspaceSetGoal('',0);
-    }
 
     function workspaceUseState() { return workspaceResourceState(recipe.key); }
 
@@ -93,7 +95,7 @@ const craftingWorkspaceUi = (() => {
         }
         if(key.startsWith('spore')){recipe=recipes.find(row=>row.key==='formlessDew');mode=({sporeFire:'fire',sporeCold:'cold',sporeLight:'light'})[key];game.sporeCraftModes[recipe.key]=mode;}
         else {recipe=recipes.find(row=>row.key===key);mode=game.sporeCraftModes[key]||'none';}
-        workspaceRefreshGoals();workspaceRender();
+        workspaceRender();
     }
 
     function workspaceAffixValue(stat,value,exactRange=false) {
@@ -126,7 +128,7 @@ const craftingWorkspaceUi = (() => {
     function workspaceAffixHtml(stat,index) {
         const prior=last?.before.stats.find(row=>row.id===stat.id);
         const changed=last && JSON.stringify(prior)!==JSON.stringify(copyCraftResultStat(stat));
-        const rule=goal.rules[0], hit=rule?.tag?equipmentLootPolicy.lineMatchesRule(stat,rule):matches({slot:selected().slot,stats:[stat]});
+        const hit=goal.rules.some(rule=>equipmentLootPolicy.lineMatchesRule(stat,rule));
         const quality=workspaceAffixQuality(stat,changed);
         return `<li class="cl-affix ${hit?'is-target':''} ${changed?'is-changed':''} ${quality}" data-affix="${index}">
             <div><span style="--cl-affix-tone:${getItemStatToneColor(stat.id)}">${esc(stat.statName||getStatName(stat.id))} <span class="cl-affix-value"><b>+${esc(workspaceAffixValue(stat,stat.val))}</b> <span class="cl-affix-range">${esc(workspaceAffixRange(stat))}</span></span></span>
@@ -156,7 +158,12 @@ const craftingWorkspaceUi = (() => {
         const tiers=Array.from({length:(choice?.maxTier||0)+1},(_,i)=>i);
         return `<section class="cl-goal"><div class="cl-section-title"><span class="cl-goal-help"><button type="button" id="cl-goal-help" aria-describedby="cl-goal-tooltip">목표 옵션</button><span role="tooltip" id="cl-goal-tooltip">확률은 변경되지 않으며, 목표 옵션 출현 시 강조됩니다. 태그는 그 태그가 붙은 줄 수를 셉니다.</span></span></div><div class="cl-goal-fields ${rule.tag?'has-count':''}">
             <label>옵션<select id="cl-goal-stat">${workspaceGoalTargetOptions(rule,choice)}</select></label>${workspaceGoalCountHtml(rule,choice)}
-            <label>최소 티어<select id="cl-goal-tier" ${!choice?'disabled':''}>${tiers.map(tier=>`<option value="${tier}" ${tier===rule.minTier?'selected':''}>${tier===0?'티어 무관':`T${tier} 이상`}</option>`).join('')}</select></label></div></section>`;
+            <label>최소 티어<select id="cl-goal-tier" ${!choice?'disabled':''}>${tiers.map(tier=>`<option value="${tier}" ${tier===rule.minTier?'selected':''}>${tier===0?'티어 무관':`T${tier} 이상`}</option>`).join('')}</select></label></div>${workspaceExtraGoalsHtml()}</section>`;
+    }
+
+    function workspaceExtraGoalsHtml() {
+        const rows=goal.rules.slice(1).map((rule,index)=>`<li>${esc(rule.tag?AFFIX_TAG_LABELS[rule.tag]+' '+rule.minCount+'줄':getStatName(rule.statId))}, ${rule.minTier?'T'+rule.minTier+' 이상':'티어 무관'} <button data-command="remove-goal:${index+1}" aria-label="목표 조건 제거">제거</button></li>`).join('');
+        return `<ul class="cl-extra-goals">${rows}</ul><div class="cl-study-controls"><button data-command="add-goal" ${goal.rules.length>=3||!goal.rules.length?'disabled':''}>조건 추가</button><label>목표 조합 <select id="cl-goal-match"><option value="all" ${goalMatch==='all'?'selected':''}>모두 충족</option><option value="any" ${goalMatch==='any'?'selected':''}>하나 이상</option></select></label><button data-command="study">옵션과 확률 살펴보기</button></div>`;
     }
 
     /** Tags the craft can roll first, then single options; a goal it can no longer reach stays listed as the current one. */
@@ -214,7 +221,8 @@ const craftingWorkspaceUi = (() => {
         if(!['reroll','add','fossil'].includes(recipe.kind))return '이 재화는 한 번씩 사용합니다.';
         if(!goal.rules.length)return '목표 미설정';
         if(matches(selected()))return '이미 목표를 달성했어요.';
-        if(!workspaceGoalReachable(goal.rules[0]))return '현재 재화로 나올 수 없는 목표입니다.';
+        const reachable=goal.rules.map(workspaceGoalReachable);
+        if(goalMatch==='all'?!reachable.every(Boolean):!reachable.some(Boolean))return '현재 재화로 나올 수 없는 목표입니다.';
         return '';
     }
 
@@ -248,7 +256,7 @@ const craftingWorkspaceUi = (() => {
         if(current!==item){workspaceStopAuto('');current=item;last=null;acknowledged='';count=0;spent={};
             if(goalDialog?.open)goalDialog.close();
             if(item){recipe=recipes.find(row=>row.key===(item.rarity==='normal'?'magicBud':'formlessDew'));mode=game.sporeCraftModes[recipe.key]||'none';}
-            workspaceRefreshGoals();}
+            }
         if(item)last=craftingResultLedger.getForItem(item)||last;
         return item;
     }
@@ -388,14 +396,81 @@ const craftingWorkspaceUi = (() => {
         if(auto)workspaceStopAuto('설정 변경으로 자동 사용을 멈췄어요.');
         if(event.target.id==='cl-limit'){limit=clampNumber(Math.floor(Number(event.target.value)||1),1,100);workspaceRender();return;}
         if(event.target.id==='cl-mode'){mode=event.target.value;game.sporeCraftModes[recipe.key]=mode;}
+        else if(event.target.id==='cl-goal-match'){goalMatch=event.target.value;goal.minMatches=goalMatch==='all'?goal.rules.length:1;workspaceSaveGoals();}
         else if(event.target.id==='cl-goal-stat')workspaceChooseGoal(event.target.value);
         else if(event.target.id==='cl-goal-tier')workspaceSetGoal(equipmentLootPolicy.ruleKey(goal.rules[0]),event.target.value,goal.rules[0].minCount);
         else if(event.target.id==='cl-goal-count')workspaceSetGoal(equipmentLootPolicy.ruleKey(goal.rules[0]),goal.rules[0].minTier,event.target.value);
         else return;
-        workspaceRefreshGoals();workspaceRender();
+        workspaceRender();
+    }
+
+    function workspaceEditGoals(action) {
+        if(action==='add-goal'){
+            if(goal.rules.length>=3)return;
+            const keys=new Set(goal.rules.map(equipmentLootPolicy.ruleKey));
+            const next=workspaceGoalOptions().find(row=>!keys.has(row.id));
+            if(!next)return;
+            goal.rules.unshift({statId:next.id,minTier:0,minValue:0});
+        }else goal.rules.splice(Number(action.split(':')[1]),1);
+        goal.minMatches=goalMatch==='all'?goal.rules.length:1;
+        acknowledged='';workspaceSaveGoals();workspaceRender();
+    }
+
+    function workspaceStudyRows(rows) {
+        return rows.map(row=>`<tr class="${row.allowed?'':'cl-pool-blocked'}" data-search="${esc(row.name+' '+row.tags.map(tag=>AFFIX_TAG_LABELS[tag]).join(' '))}"><td>${esc(row.name)}<small>${esc(row.tags.map(tag=>AFFIX_TAG_LABELS[tag]).join(', '))}</small></td><td>${{prefix:'접두',suffix:'접미',special:'특수'}[row.kind]}</td><td>${row.maxTier?'T1~'+row.maxTier:'고정'}</td><td>${row.allowed?row.weight:esc(row.reason)}</td></tr>`).join('');
+    }
+
+    function workspaceShowStudy() {
+        if(!selected())return;
+        studyRun++;
+        if(!studyDialog){
+            studyDialog=document.createElement('dialog');studyDialog.className='cl-study-dialog';
+            studyDialog.setAttribute('aria-labelledby','cl-study-title');document.body.append(studyDialog);
+            studyDialog.addEventListener('close',()=>studyRun++);
+        }
+        const item=JSON.parse(JSON.stringify(selected())), method={...recipe}, spore=mode;
+        const rules=JSON.parse(JSON.stringify(goal)), rows=craftingGoalOptions.catalogue(item,method,spore);
+        const reason=craftingGoalOptions.rehearsalReason(item,method,spore);
+        studyDialog.innerHTML=`<header><div><h2 id="cl-study-title">제작 연구</h2><p>${esc(item.name)}, ${esc(method.label)}, 옵션 상한 T${getItemCraftTier(item)}</p></div><button data-study-close aria-label="제작 연구 닫기">닫기</button></header>
+            <section class="cl-study-simulator"><h3>재화 없이 연습</h3><p>현재 장비에서 각각 새로 시작하는 독립 시도입니다. 실제 제작과 같은 굴림을 쓰며 장비와 재화는 변하지 않습니다.</p>
+            <div class="cl-study-controls"><button data-study-sample="1" ${reason?'disabled':''}>1회 연습</button><button data-study-sample="2000" ${reason||!rules.rules.length?'disabled':''}>목표 확률 2,000회 측정</button></div>
+            <small>${esc(reason||('실제 제작 시: '+workspaceCostText()))}</small><div data-study-result aria-live="polite">표본 결과는 실제 획득 보장이 아닙니다.</div></section>
+            <details open><summary>출현 후보와 차단된 옵션, ${rows.filter(row=>row.allowed).length}종 가능</summary>
+            <label class="cl-study-search">이름이나 태그 검색 <input type="search" data-study-search></label><p>가중치가 큰 옵션일수록 선택되기 쉽습니다. 화석 보장 줄과 일반 줄은 따로 굴립니다. T가 높을수록 상위 옵션입니다.</p>
+            <div class="cl-pool-scroll"><table><thead><tr><th>옵션</th><th>종류</th><th>티어</th><th>가중치 / 차단 이유</th></tr></thead><tbody>${workspaceStudyRows(rows)}</tbody></table></div></details>`;
+        studyDialog.querySelector('[data-study-close]').onclick=()=>studyDialog.close();
+        studyDialog.querySelector('[data-study-search]').oninput=event=>{
+            const query=event.target.value.trim().toLowerCase();
+            studyDialog.querySelectorAll('tr[data-search]').forEach(row=>row.hidden=!row.dataset.search.toLowerCase().includes(query));
+        };
+        studyDialog.querySelectorAll('[data-study-sample]').forEach(button=>button.onclick=()=>workspaceSampleStudy(item,method,spore,rules,Number(button.dataset.studySample)));
+        studyDialog.showModal();
+    }
+
+    async function workspaceSampleStudy(item, method, spore, rules, count) {
+        const run=++studyRun, out=studyDialog.querySelector('[data-study-result]'), buttons=[...studyDialog.querySelectorAll('[data-study-sample]')];
+        buttons.forEach(button=>button.disabled=true);
+        let hits=0, result;
+        try{
+            for(let i=0;i<count;i++){
+                if(run!==studyRun||!studyDialog.open)return;
+                result=craftingGoalOptions.rehearse(item,method,spore);
+                if(equipmentLootPolicy.matches(result,{settings:{equipmentTargets:rules}}))hits++;
+                if(i%50===49){out.textContent=`측정 중 ${i+1}/${count}`;await new Promise(resolve=>setTimeout(resolve,0));}
+            }
+            if(count===1)out.innerHTML=`<strong>연습 결과</strong><ul>${result.stats.map(stat=>`<li>${esc(stat.statName||getStatName(stat.id))} +${esc(formatValue(stat.id,stat.val))} (T${stat.tier||0})</li>`).join('')}</ul>`;
+            else{
+                const p=hits/count,z=1.96,den=1+z*z/count,centre=(p+z*z/(2*count))/den;
+                const delta=z*Math.sqrt(p*(1-p)/count+z*z/(4*count*count))/den;
+                out.innerHTML=`<strong>목표 달성 ${hits}/${count}회, ${(p*100).toFixed(2)}%</strong><p>95% 추정 범위 ${(Math.max(0,centre-delta)*100).toFixed(2)}~${(Math.min(1,centre+delta)*100).toFixed(2)}%, ${hits>=5?`평균 약 ${Math.round(1/p)}회 / 주 재화 ${Math.round(1/p)}개`:'관측이 적어 평균 비용 추정 보류'}</p>`;
+            }
+        }catch(error){console.error('Craft rehearsal failed',error);out.textContent=`연습 실패: ${error.message}`;}
+        finally{if(run===studyRun)buttons.forEach(button=>button.disabled=button.dataset.studySample!=='1'&&!rules.rules.length);}
     }
 
     async function workspaceCommand(action) {
+        if(action==='study')return workspaceShowStudy();
+        if(action==='add-goal'||action?.startsWith('remove-goal:'))return workspaceEditGoals(action);
         if(action==='catalog')return workspaceOpenInventory(false,'',true);
         if(action==='inventory')return workspaceOpenInventory();
         if(action==='pins')return workspaceOpenInventory(true);

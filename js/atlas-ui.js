@@ -27,7 +27,7 @@ const atlasUi = (() => {
     }
     function setView(next) {
         const keyboard = document.activeElement && document.activeElement.closest ? document.activeElement.closest('#ui-atlas') : null;
-        view = ['passives', 'epoch', 'late', 'memory'].includes(next) ? next : 'maps';
+        view = ['passives', 'epoch', 'late', 'memory', 'board'].includes(next) ? next : 'maps';
         refresh();
         // The panel is rebuilt: a tab pressed from inside it keeps the focus on the (new) pressed tab.
         if (keyboard) document.querySelector('#ui-atlas .atlas-view.is-on')?.focus();
@@ -93,16 +93,18 @@ const atlasUi = (() => {
     async function abandon() {
         const run = ledger().run;
         if (!run) return;
-        const held = run.drops.length + run.found.length, kind = atlas.node(run.map.node)?.kind;
-        // 지도석 없이 연 싸움은 바친 것을 잃는다(정점은 입장권, 최종 보스와 리그 우두머리는 재료).
-        const offering = kind === 'pinnacle' ? '바친 입장권' : (RUN_KIND[kind] ? '바친 재료' : '지도석');
-        const lost = [offering, held ? `맵에서 얻은 지도석과 각인 ${held}개` : '', heldLate(run), '맵 안의 임시 전리품'].filter(Boolean).join(', ');
-        const message = `${nodeName(run.map.node)} 지도를 닫을까요?\n손실: ${lost}`;
-        const ok = await requestGameConfirmation(message, { title: '지도 닫기', tone: 'danger', confirmLabel: '지도 닫기', cancelLabel: '취소', dismissOnBackdrop: false });
+        const ok = await requestGameConfirmation(abandonMessage(run), { title: '지도 닫기', tone: 'danger', confirmLabel: '지도 닫기', cancelLabel: '취소', dismissOnBackdrop: false });
         if (!ok || ledger().run !== run) return;
         if (atlasRun.abandon()) addLog('🗺️ 지도를 닫았습니다.', 'attack-monster');
         queueImportantSave(200);
         refresh();
+    }
+    function abandonMessage(run) {
+        const held = run.drops.length + run.found.length, kind = atlas.node(run.map.node)?.kind;
+        // 지도석 없이 연 싸움은 바친 것을 잃는다(정점은 입장권, 최종 보스와 리그 우두머리는 재료).
+        const offering = run.board ? `보관 재화 ${atlasBoard.lossPctFor(ledger().board, run.board.boss)}%` : kind === 'pinnacle' ? '바친 입장권' : (RUN_KIND[kind] ? '바친 재료' : '지도석');
+        const lost = [offering, held ? `맵에서 얻은 지도석과 각인 ${held}개` : '', heldLate(run), '맵 안의 임시 전리품'].filter(Boolean).join(', ');
+        return `${run.board ? run.board.name : nodeName(run.map.node)} 지도를 닫을까요?\n손실: ${lost}${run.board ? '\n다음 진입에는 심재 주사위 1개가 필요합니다.' : ''}`;
     }
     function toggleAuto(on) {
         ledger().autoMap = !!on;
@@ -143,7 +145,7 @@ const atlasUi = (() => {
         atlasChartArt.paint(canvas, Math.max(120, Math.round(box.clientWidth / 2)), chartModel());
     }
     /** The dot drawings of the current view: the chart, the passive wheels (the epoch and late views have none). */
-    const PAINT = { maps: () => paintChart(), passives: () => atlasPassivesUi.paint(), epoch: () => {}, late: () => {}, memory: () => {} };
+    const PAINT = { maps: () => paintChart(), passives: () => atlasPassivesUi.paint(), epoch: () => {}, late: () => {}, memory: () => {}, board: () => {} };
     /** Drawings follow the panel's width: repaint the current view whenever the panel resizes. */
     function watchPanel(panel) {
         if (panelObserver || typeof ResizeObserver !== 'function') return;
@@ -208,7 +210,7 @@ const atlasUi = (() => {
     /** Late materials the open map holds until its boss falls (js/atlas-endgame.js roomItems), as "성화 잉걸 8, 공허 조각 3". */
     const heldLate = run => Object.entries((run.endgame && run.endgame.items) || {}).map(([id, n]) => `${atlasEndgame.itemName(id)} ${n}`).join(', ');
     function runHtml(run) {
-        const total = ATLAS.portals + run.bonus.portals, late = heldLate(run);
+        const total = run.board ? 1 : ATLAS.portals + run.bonus.portals, late = heldLate(run);
         const portals = Array.from({ length: total }, (_, i) => `<i class="${i < run.portals ? 'is-on' : ''}"></i>`).join('');
         const inside = atlas.inMap(game), rooms = run.encounters.length ? `<p class="atlas-encounters">콘텐츠 방: ${encounterNames(run.encounters, run.golden || [])}</p>` : '';
         return `<section class="atlas-device is-running" aria-label="열린 지도"><h3>열린 지도</h3>
@@ -346,7 +348,7 @@ const atlasUi = (() => {
         const st = ledger(), total = atlas.nodes.length + (atlasEndgame.awakened(game) ? atlas.lateNodes.length : 0), free = atlasPassives.available(game);
         const tab = (id, label) => `<button class="atlas-view${view === id ? ' is-on' : ''}" aria-pressed="${view === id}" onclick="atlasUi.setView('${id}')">${label}</button>`;
         return `<header class="atlas-head"><div><h2>세계수 아틀라스</h2><span>완료 ${st.completed.length}/${total}, 보너스 ${st.bonus.length}, 씨앗 ${st.seeds}/${ATLAS.seeds.max}, 아틀라스 포인트 ${atlas.points(game)}${free ? ` (남음 ${free})` : ''}</span></div>
-            <nav class="atlas-views" aria-label="아틀라스 보기">${tab('maps', '지도')}${tab('passives', `패시브${free ? ` +${free}` : ''}`)}${tab('late', '최종')}${tab('memory', `기억${memoryDungeon.total(game) ? ` ${memoryDungeon.total(game)}` : ''}`)}${tab('epoch', '시대')}</nav>
+            <nav class="atlas-views" aria-label="아틀라스 보기">${tab('maps', '지도')}${tab('passives', `패시브${free ? ` +${free}` : ''}`)}${tab('late', '최종')}${tab('memory', `기억${memoryDungeon.total(game) ? ` ${memoryDungeon.total(game)}` : ''}`)}${tab('epoch', '시대')}${tab('board', '나이테 원정')}</nav>
             <label class="atlas-auto" title="완료하면 같은 등급 이하에서 다음 지도석을 연다"><input type="checkbox" ${st.autoMap ? 'checked' : ''} onchange="atlasUi.toggleAuto(this.checked)"><span>자동 지도</span>
             <small>완료하면 같은 등급 이하에서 다음 지도석을 연다</small></label></header>`;
     }
@@ -355,12 +357,13 @@ const atlasUi = (() => {
             ${resultHtml()}${stashHtml()}`;
     }
     const VIEWS = { maps: () => mapsViewHtml(), passives: () => atlasPassivesUi.html(), epoch: () => atlasEpochUi.html(), late: () => atlasEndgameUi.html(),
-        memory: () => memoryDungeonUi.html() };
+        memory: () => memoryDungeonUi.html(), board: () => atlasBoardUi.html() };
     function render() {
         atlasEndgameUi.noticeAwakened(); // every static refresh, panel open or not (the card follows the state)
         const panel = document.getElementById('ui-atlas');
         if (!panel || !panelOpen()) return;
         atlas.sync(game);
+        atlasBoard.sync(game);
         const wallet = [...CRAFT_ORDER, ...ATLAS.pinnacle.tickets].map(key => game.currencies[key] || 0);
         const key = JSON.stringify([view, ledger(), selectedNode, selectedUid, wallet, atlasRun.blockReason(), game.currentZoneId, getPersistentBuildSignature(game)]);
         if (key === signature && panel.innerHTML) return;
@@ -390,7 +393,7 @@ const atlasUi = (() => {
         if (key === hudSignature) return;
         hudSignature = key;
         host.innerHTML = `<div class="atlas-hud-copy"><strong>${escapeHTML(zone.name)} <span>${hudTags(run)}</span>${omenChipHtml(run.map)}</strong>
-            <span>포털 ${run.portals}/${ATLAS.portals + run.bonus.portals}, 지도석 ${run.drops.length}, 각인 ${run.found.length} 보관 중</span></div>
+            <span>${run.board ? '심재의 나이테, 패배·귀환 시 지도 종료' : `포털 ${run.portals}/${ATLAS.portals + run.bonus.portals}, 지도석 ${run.drops.length}, 각인 ${run.found.length} 보관 중`}</span></div>
             <div class="atlas-hud-actions"><button onclick="atlasUi.openPanel()">아틀라스</button></div>`;
     }
     const REASON = { defeat: '쓰러졌습니다', travel: '지도를 떠났습니다', '마을 귀환': '마을로 귀환했습니다' };
@@ -410,12 +413,15 @@ const atlasUi = (() => {
     /** 지도를 마치고 다음 지도 없이 돌아갈 때: 자동 지도가 꺼진 채 지도석이 남아 있으면 켜는 곳을 알린다(2026-10-15 점검: 지도석 4개가
      * 남았는데 말없이 원래 자리로 걸어갔다). */
     function returnText(detail) {
+        if (detail.board) return ' → 심재의 나이테에서 다음 길을 고르세요.';
         const left = ledger().stash.length;
         if (detail.next || ledger().autoMap || game.settings.mapCompleteAction === 'stop' || !left) return '';
         return ` → 원래 자리로 (자동 지도를 켜면 남은 지도석 ${left}개를 이어서 엽니다)`;
     }
     function announce(detail) {
         const text = {
+            board: () => detail.message,
+            dice: () => '나이테 길잡이에게서 심재 주사위 1개를 얻었습니다.',
             complete: () => `🗺️ ${detail.name} ${detail.tier}등급 완료${detail.first ? ', 첫 완료' : ''}${detail.bonus ? ', 보너스 달성' : ''}${detail.drops ? `, 지도석 ${detail.drops}개` : ''}`
                 + (detail.ticket ? `, ${ORB_DB[detail.ticket].name}` : '') + (detail.seed ? `, 세계수 씨앗 ${detail.seeds}/${ATLAS.seeds.max}` : '')
                 + (detail.next ? ` → 다음 지도: ${nodeName(detail.next)}` : returnText(detail)),

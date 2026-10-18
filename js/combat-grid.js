@@ -396,14 +396,15 @@ function gridStepToward(unit, tx, ty, blocked) {
  * @param {number} intervalSec 1칸 이동 주기(초)
  * @returns {boolean} 실제로 이동했는지
  */
-function advanceGridUnitMovement(unit, target, dtSec, intervalSec) {
+function advanceGridUnitMovement(unit, target, dtSec, intervalSec, avoidCells) {
     if (!hasGridCell(unit) || !target) return false;
     let interval = Number.isFinite(intervalSec) && intervalSec > 0 ? intervalSec : COMBAT_GRID_CONFIG.enemyMoveIntervalSec;
-    if (actExplorationState.current(game) && unit===game.gridPlayer) return beginExplorationGridStep(target,interval);
+    if (actExplorationState.current(game) && unit===game.gridPlayer) return beginExplorationGridStep(target,interval,avoidCells);
     unit.gridMoveTimer = (Number(unit.gridMoveTimer) || 0) + dtSec;
     if (unit.gridMoveTimer < interval) return false;
     let from = { gx: unit.gx, gy: unit.gy };
-    let moved = gridStepToward(unit, target.gx, target.gy, getGridBlockedCells(unit));
+    const blocked = withAvoidedGridCells(getGridBlockedCells(unit), avoidCells);
+    let moved = gridStepToward(unit, target.gx, target.gy, blocked);
     unit.gridMoveTimer = moved ? 0 : interval;
     markGridStep(unit, from, moved);
     return moved;
@@ -420,10 +421,15 @@ function markGridStep(unit, from, moved) {
     if (moved) Object.assign(unit, { gridStepFrom: from, gridStepAt: getCombatTime() });
 }
 
-function beginExplorationGridStep(target,interval) {
+function withAvoidedGridCells(blocked, cells) {
+    for (const cell of cells || []) blocked.add(gridCellKey(cell.gx, cell.gy));
+    return blocked;
+}
+function beginExplorationGridStep(target,interval,avoidCells) {
     const run=actExplorationState.current(game);if(!run || run.motion)return false;
     const next={gx:game.gridPlayer.gx,gy:game.gridPlayer.gy};
-    if(!gridStepToward(next,target.gx,target.gy,getExplorationPlanningBlockedCells(run)))return false;
+    const blocked=withAvoidedGridCells(getExplorationPlanningBlockedCells(run),avoidCells);
+    if(!gridStepToward(next,target.gx,target.gy,blocked))return false;
     return actExplorationMotion.start(run,game.gridPlayer,next,interval/actExplorationDoors.pace(run),run.motionTimeMs);
 }
 

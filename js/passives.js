@@ -10949,42 +10949,22 @@ async function useCurrency(currencyKey) {
         keys.forEach(key => { game.currencies[key] -= cost; });
         return true;
     }
-    function getSporeGuaranteedMod(allowReplacement) {
-        if (sporeMode === 'none') return null;
-        let rerollItem = allowReplacement ? {
-            ...item,
-            stats: (item.stats || []).filter(stat => equipmentCrafting.keptOnReroll(item, stat))
-        } : item;
-        // 결과 희귀도의 한도로 센다: 새싹(변환, 변경)은 마법 1과 1, 나머지는 희귀 3과 3.
-        let source = getOpenAffixMods(rerollItem, ['transmute', 'alteration'].includes(actionKey) ? 'magic' : 'rare');
-        let avail = equipmentCrafting.filterSporeMods(source, sporeMode);
-        return pickWeightedMod(avail);
-    }
-    function rollSporeGuaranteedValue(mod) {
-        if (!mod) return null;
-        let range = getCraftTierRangeForItem(item, 'spore');
-        // 계열을 보장하되 최상위 두 티어를 확정하지 않는다. 정의된 홀씨 티어 범위 전체에서 굴린다.
-        return { ...rollAffixValueInTierRange(mod, range.min, range.max), craftSource: 'spore' };
-    }
-    function sporeReroll(extra) {
-        let guaranteedStat = sporeMode !== 'none' && usesSporeAffix ? rollSporeGuaranteedValue(guaranteedMod) : null;
-        return { ...extra, guaranteedStat };
-    }
+    // 홀씨 보장 옵션: 고르는 규칙과 굴림은 제작실의 모의 제작과 같은 함수다(js/equipment-crafting.js pickSporeMod, rollSporeLine).
+    const getSporeGuaranteedMod = () => equipmentCrafting.pickSporeMod(item, actionKey, sporeMode);
+    const rollSporeGuaranteedValue = mod => equipmentCrafting.rollSporeLine(item, mod);
     let guaranteedMod = getSporeGuaranteedMod();
     let consumedSpore = false;
     // alteration은 transmute처럼 옵션을 통째로 다시 굴린다. 마법의 새싹이 마법
     // 아이템에서 이 경로를 타게 되면서, 두 목록에 함께 넣지 않으면 홀씨 모드를
     // 켜도 아무 일 없이 지나가 버린다(소모도 보장도 없음).
     let sporeAffixCurrencies = ['transmute', 'augment', 'alteration', 'alchemy', 'exalted', 'regal', 'chaos'];
-    let rerollSporeCurrencies = ['transmute', 'alteration', 'alchemy', 'chaos'];
     let usesSporeAffix = sporeAffixCurrencies.includes(actionKey);
-    let isRerollSporeCurrency = rerollSporeCurrencies.includes(actionKey);
+    let isRerollSporeCurrency = equipmentCrafting.rerollActions.includes(actionKey);
     let needsPrecheck = usesSporeAffix && !isRerollSporeCurrency;
     if (sporeMode !== 'none' && needsPrecheck && !guaranteedMod) {
         return addLog('선택한 홀씨 계열에서 새로 부여할 수 있는 옵션이 없습니다. 홀씨 모드를 미사용으로 바꾸거나 해당 계열의 기존 옵션을 제거하세요.', 'attack-monster');
     }
     if (sporeMode !== 'none' && usesSporeAffix && isRerollSporeCurrency) {
-        guaranteedMod = getSporeGuaranteedMod(true);
         if (!guaranteedMod) return addLog('이 장비에는 선택한 홀씨로 출현 가능한 옵션이 없어 제작할 수 없습니다.', 'attack-monster');
         if (!consumeSpore(sporeMode)) return addLog('홀씨가 부족해 제작을 시작하지 않았습니다.', 'attack-monster');
             consumedSpore = true;
@@ -11003,24 +10983,8 @@ async function useCurrency(currencyKey) {
     if (['deepWhetstone', 'rootIron', 'jewelPolish'].includes(currencyKey)) {
         item.quality = Math.max(0, Math.min(20, Math.floor(item.quality || 0) + 1));
         addLog(`🛠️ 장비 퀄리티 +1% (현재 ${item.quality}%)`, 'loot-magic');
-    } else if (actionKey === 'transmute') {
-        item.rarity = 'magic';
-        rerollExplicitMods(item, 'magic', getItemCraftTier(item), sporeReroll());
-    } else if (actionKey === 'alteration') {
-        rerollExplicitMods(item, 'magic', getItemCraftTier(item), sporeReroll());
-    } else if (actionKey === 'alchemy') {
-        item.rarity = 'rare';
-        rerollExplicitMods(item, 'rare', getItemCraftTier(item), sporeReroll({ rerollChaosInfusion: true }));
-    } else if (actionKey === 'exalted') {
-        item.stats.push((exaltedMod === guaranteedMod) ? rollSporeGuaranteedValue(exaltedMod) : rollAffixValue(exaltedMod, getItemCraftTier(item)));
-        updateItemName(item);
-    } else if (actionKey === 'regal') {
-        let mod = guaranteedMod || pickWeightedMod(getOpenAffixMods(item, 'rare'));
-        if (mod) item.stats.push((mod === guaranteedMod) ? rollSporeGuaranteedValue(mod) : rollAffixValue(mod, getItemCraftTier(item)));
-        item.rarity = 'rare';
-        updateItemName(item);
-    } else if (actionKey === 'chaos') {
-        rerollExplicitMods(item, 'rare', getItemCraftTier(item), sporeReroll({ rerollChaosInfusion: true }));
+    } else if (equipmentCrafting.basicActions.includes(actionKey)) {
+        equipmentCrafting.applyBasic(item, actionKey, { addedMod: exaltedMod, guaranteedStat: rollSporeGuaranteedValue(guaranteedMod) });
     } else if (actionKey === 'divine') {
         item.stats.forEach(stat => {
             if (stat.lockedByHoney || stat.lockedByRift) return;

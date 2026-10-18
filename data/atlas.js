@@ -90,7 +90,10 @@ const ATLAS = Object.freeze({
         { id: 'doubleStrike', kind: 'suffix', text: '몬스터 연속 타격 확률 +{v}%', min: 12, max: 20, quantity: [6, 9], rarity: [3, 5] },
         { id: 'energyShield', kind: 'suffix', text: '몬스터가 생명력의 {v}%만큼 에너지 보호막 보유', min: 25, max: 40, quantity: [6, 10], rarity: [4, 6] },
         { id: 'curseImmune', kind: 'suffix', text: '몬스터 저주 면역', min: 0, max: 0, quantity: [4, 6], rarity: [2, 3] },
-        { id: 'burningGround', kind: 'suffix', text: '바닥에 불길 웅덩이가 예고 후 번진다', min: 0, max: 0, quantity: [8, 12], rarity: [5, 7] },
+        { id: 'burningGround', kind: 'suffix', text: '예고 후 용암 지대가 5초 지속, 화염 지속 피해', min: 0, max: 0, quantity: [8, 12], rarity: [5, 7] },
+        { id: 'frozenGround', kind: 'suffix', text: '예고 후 빙결 지대가 5초 지속, 냉각', min: 0, max: 0, quantity: [6, 9], rarity: [4, 6] },
+        { id: 'corrosiveGround', kind: 'suffix', text: '예고 후 부식 지대가 5초 지속, 카오스 지속 피해', min: 0, max: 0, quantity: [8, 12], rarity: [5, 7] },
+        { id: 'shockedGround', kind: 'suffix', text: '예고 후 감전 지대가 5초 지속, 받는 피해 증가', min: 0, max: 0, quantity: [7, 10], rarity: [5, 7] },
         { id: 'monsterEvasion', kind: 'suffix', text: '몬스터 회피 확률 +{v}%', min: 10, max: 20, quantity: [5, 8], rarity: [3, 4] }
     ].map(Object.freeze)),
     // 각인: 지도 장치 홈(기본 2)에 끼워 두면 지도를 열 때 1개씩 쓴다. 지도 안 정예 · 보스가 떨어뜨리고 루프마다 비운다.

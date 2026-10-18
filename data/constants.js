@@ -113,6 +113,14 @@ const DEATH_REASON_TEXT = {
 // 9x8 직교 전장 그리드 설정. 첨부된 ACT 맵의 중앙 9x8 타일과 좌표·판정을 공유한다.
 // 좌표계: gx(0~8)는 오른쪽, gy(0~7)는 아래쪽. 이동은 상하좌우 4방향만 허용한다.
 const COMBAT_GRID_CONFIG = {
+    // 지속 장판: 시간은 전투 시계 ms. 같은 원소가 겹쳐도 한 번만 적용하며 최대 세 영역만 유지한다.
+    ground: {
+        durationMs: 5000, tickMs: 500, maxAreas: 3,
+        fire: { name: '용암 지대', color: '#e59355', damageShare: 0.22 },
+        cold: { name: '빙결 지대', color: '#9cc8d2', ailment: 'chill' },
+        chaos: { name: '부식 지대', color: '#a7aa6c', damageShare: 0.18 },
+        light: { name: '감전 지대', color: '#c9b9ec', ailment: 'shock' }
+    },
     columns: 9,
     rows: 8,
     playerSpawn: { gx: 1, gy: 4 },

@@ -229,3 +229,42 @@ assert.equal(outside.length, 1, 'a deep chaos boss can drop a map straight to th
 assert.ok(outside[0] >= 1 && outside[0] <= 3);
 assert.equal(copy(`atlas.dropFromKill(game, getZone(getAbyssZoneIdForDepth(12)), { isBoss: true }).length`), 0, 'shallow chaos never does');
 console.log('atlas: 45-node graph, map rarity/crafting rules, tier = chaos depth at its loop, real map clear, auto-map, portals, save/migration, loop reset: OK');
+
+// Board rewards survive reload and cannot be settled twice. Independent game fixture.
+for (const action of ['stop', 'nextZone']) {
+    const {run: boardRun}=fixture(731);
+    boardRun(`game.season=34;game.maxZoneId=29;game.currentZoneId=29;game.chaosRealm.unlocked=true;
+        game.loopProgressCurrent.chaos20Cleared=true;game.settings.mapCompleteAction='${action}';
+        game.equipment['무기']={id:90001,slot:'무기',name:'진행 검사',rarity:'rare',baseStats:[{id:'flatDmg',val:100000000},{id:'flatHp',val:100000000}],stats:[]};
+        playerStatCache.invalidate();game.playerHp=getPlayerStats().maxHp;
+        atlas.sync(game);atlasBoard.sync(game);atlasBoard.roll(game,()=>0);`);
+    assert.equal(boardRun('atlasRun.openBoard()'),'');
+    let ticks=0;
+    while(ticks<6000 && boardRun('!!game.atlas.run'))boardRun(`coreLoop(${1800000000000+(++ticks)*100})`);
+    assert.equal(boardRun('game.atlas.run'),null);
+    assert.equal(boardRun('game.currentZoneId'),29);
+    assert.equal(boardRun('game.atlas.board.gear'),1);
+    assert.ok(boardRun('actExplorationState.current(game)'), 'completed board returns to exploration, never the legacy 9x8 arena');
+    assert.ok(boardRun('getCombatGridSize().columns>9'));
+    assert.equal(boardRun('game.combatHalted'),action==='stop');
+    boardRun('game=mergeDefaults(JSON.parse(serializeSaveState(game)));');
+    assert.ok(boardRun('actExplorationState.current(game)'), 'return room survives save/reload');
+}
+{
+    const {run: boardRun}=fixture(730);
+    boardRun("game.season=34;game.maxZoneId=29;game.currentZoneId=29;game.chaosRealm.unlocked=true;game.loopProgressCurrent.chaos20Cleared=true;atlas.sync(game);atlasBoard.sync(game);game.atlas.board.position=22;atlasBoard.roll(game,()=>0);");
+    assert.equal(boardRun("atlas.beginBoard(game,29)"),'');
+    boardRun("game=mergeDefaults(JSON.parse(JSON.stringify(game)));");
+    assert.ok(boardRun("game.atlas.run.board && game.atlas.board.pending"));
+    const dice=boardRun("game.atlas.board.dice");
+    boardRun("atlas.usePortal(game);atlas.usePortal(game);");
+    assert.equal(boardRun("game.atlas.board.dice"),dice);
+    assert.equal(boardRun("game.atlas.board.pending"),null);
+    assert.notEqual(boardRun("atlas.beginBoard(game,29)"),'','failed attempt cannot reopen for free');
+    boardRun("atlasBoard.roll(game,()=>.5);atlas.beginBoard(game,29);");
+    assert.equal(boardRun("game.atlas.board.dice"),dice-1);
+    assert.ok(boardRun("atlas.complete(game).board.boss"));
+    assert.equal(boardRun("atlas.complete(game)"),null);
+    assert.equal(boardRun("game.atlas.board.lap"),1);
+    assert.equal(boardRun("game.atlas.seeds"),0);
+}

@@ -24,7 +24,7 @@ const craftingWorkspaceState = (() => {
     }
 
     /** One option ({statId}) or a tag count ({tag, minCount}, data/affix-tags.js), with a minimum tier. */
-    function normalizeGoal(value) {
+    function normalizeSingleGoal(value) {
         const goal = value && typeof value === 'object' ? value : {};
         const tag = typeof goal.tag === 'string' && AFFIX_TAG_LABELS[goal.tag] ? goal.tag : '';
         return {
@@ -32,6 +32,11 @@ const craftingWorkspaceState = (() => {
             minCount: Number.isFinite(goal.minCount) ? Math.max(1, Math.min(6, Math.floor(goal.minCount))) : 1,
             minTier: Number.isFinite(goal.minTier) ? Math.max(0, Math.min(20, Math.floor(goal.minTier))) : 0
         };
+    }
+    function normalizeGoal(value) {
+        const source = value && typeof value === 'object' ? value : {};
+        return { ...normalizeSingleGoal(source), match: source.match === 'any' ? 'any' : 'all',
+            extra: (Array.isArray(source.extra) ? source.extra : []).slice(0, 2).map(normalizeSingleGoal) };
     }
 
     function capture(state) {

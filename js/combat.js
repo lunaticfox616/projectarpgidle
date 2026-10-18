@@ -2182,7 +2182,7 @@ function coreLoop(nowMs) {
         let castBlocked = nowCast < castUntil || hazardEvasion.avoiding;
         let inSkillRange = hazardEvasion.avoiding ? false : (channelGate.locked
             ? channelGate.hasTargets
-            : updatePlayerGridEngagement(pStats, { holdPosition: actExplorationProgress.holdPosition(hazardEvasion.holdPosition) }));
+            : updatePlayerGridEngagement(pStats, { holdPosition: actExplorationProgress.holdPosition(hazardEvasion.holdPosition), avoidCells: hazardEvasion.avoidCells }));
         if (!castBlocked) {
             pTimer += 0.1 * pStats.aspd * getWalkingChargeScale(pStats, walkedMs);
             // 사거리 밖이면 스윙 게이지를 1회분까지만 모아 두고, 붙는 즉시 공격한다.
@@ -5389,12 +5389,12 @@ function updatePlayerGridEngagement(pStats, options) {
     if (alive.length === 0) return false;
     syncCombatTacticsEncounterRuntime();
     let targets = getSkillTargets(pStats);
-    if (!config.holdPosition && approachLockedEnemy(pStats, targets)) return false;
+    if (!config.holdPosition && approachLockedEnemy(pStats, targets, config.avoidCells)) return false;
     if (targets.length > 0) {
         combatTacticsRuntime.approachTargetId = null;
         let now = getCombatTime();
         let stalled = now - combatTacticsRuntime.lastAttackAt >= COMBAT_TACTIC_STALL_MS;
-        let plan = !config.holdPosition && game.combatTacticsUnlocked && !stalled
+        let plan = !config.holdPosition && !config.avoidCells?.length && game.combatTacticsUnlocked && !stalled
             ? getPlayerTacticalMovePlan(pStats, targets[0].enemy)
             : null;
         if (tryPlayerTacticalMove(pStats, targets[0].enemy, plan, now)) return false;
@@ -5404,7 +5404,7 @@ function updatePlayerGridEngagement(pStats, options) {
     let nearest = resolvePlayerApproachTarget(alive);
     if (!nearest) return false;
     if (isPlayerAttackRecovering()) return false;
-    advanceGridUnitMovement(game.gridPlayer, getPlayerApproachCell(pStats, nearest), 0.1, getPlayerGridStepSec(pStats));
+    advanceGridUnitMovement(game.gridPlayer, getPlayerApproachCell(pStats, nearest), 0.1, getPlayerGridStepSec(pStats), config.avoidCells);
     return false;
 }
 
@@ -5418,10 +5418,10 @@ function getPlayerGridStepSec(pStats) {
 
 /** A locked-on monster (js/act-exploration-state.js lockOn) that this attack does not reach: the hero steps toward it instead.
  * When no step toward it is free, the hero fights whatever it reaches. @returns {boolean} whether a step began */
-function approachLockedEnemy(pStats, targets) {
+function approachLockedEnemy(pStats, targets, avoidCells) {
     const locked = actExplorationState.lockedEnemy(actExplorationState.current(game));
     if (!locked || !game.enemies.includes(locked) || targets.some(hit => hit.enemy === locked) || isPlayerAttackRecovering()) return false;
-    return advanceGridUnitMovement(game.gridPlayer, getPlayerApproachCell(pStats, locked), 0.1, getPlayerGridStepSec(pStats));
+    return advanceGridUnitMovement(game.gridPlayer, getPlayerApproachCell(pStats, locked), 0.1, getPlayerGridStepSec(pStats), avoidCells);
 }
 
 /** 다가갈 자리: 옆으로만 치는 룬(js/combat-grid.js getSkillBand)이면 그 적이 띠 안에 드는 가장 가까운 자리(줄을 맞춘다), 아니면 그 적. */
@@ -6472,6 +6472,7 @@ function createEnemy(zone, marker, groupIndex) {
     assignEnemyGridCombatProfile(enemy);
     if (typeof maybeApplySeveredWanderer === 'function') maybeApplySeveredWanderer(enemy, zone, isElite, isBoss);
     finishBossSpawn(enemy, zone);
+    atlasBoard.markCarrier(game, enemy, zone);
     if (typeof primeEnemyHpDamageGhost === 'function') primeEnemyHpDamageGhost(enemy.id, 100);
     return enemy;
 }
@@ -6982,7 +6983,8 @@ function getTrialHazardProfile(zone) {
         warningMs: Math.max(800, Math.min(3000, Number(source.warningMs) || 1700)),
         intervalMs: Math.max(2400, Math.min(12000, Number(source.intervalMs) || 6000)),
         initialDelayMs: Math.max(1000, Math.min(6000, Number(source.initialDelayMs) || 2200)),
-        avoidThresholdMul: Math.max(0.5, Math.min(1.5, Number(source.avoidThresholdMul) || 1))
+        avoidThresholdMul: Math.max(0.5, Math.min(1.5, Number(source.avoidThresholdMul) || 1)),
+        persistent: source.persistent === true
     };
 }
 
@@ -12223,6 +12225,7 @@ function performMonsterAttacks(pStats) {
         if (!pendingAttack && pendingEnemyCombatAttacks.some(row => row.enemyId === enemy.id)) continue;
         if (!pendingAttack && strikeRescueTarget(enemy)) continue;
         if (!pendingAttack && (Number(enemy.skillHeldUntil) || 0) > getCombatTime()) continue; // 띄워진 몬스터(launchEnemyOnHit)
+        if (!pendingAttack && (enemy.apexRecoveryUntil || 0) > getCombatTime()) continue;
         let impactTargets = pendingAttack ? getEnemyCombatImpactTargets(pendingAttack) : [getEnemyPreferredGridTarget(enemy)];
         let attackTarget = impactTargets[0];
         if (!attackTarget) continue;
@@ -12801,7 +12804,9 @@ function createTrialHazard(zone, pStats, now) {
     let elements = Array.isArray(zone.trapElements) && zone.trapElements.length > 0 ? zone.trapElements : ['phys'];
     let element = elements[index % elements.length];
     let profile = getTrialHazardProfile(zone);
-    let cells = buildTrialHazardCells(zone, game.gridPlayer, index);
+    const terrain = getGridPlacementTerrain();
+    let cells = buildTrialHazardCells(zone, game.gridPlayer, index)
+        .filter(cell => canPlaceGridFootprint(new Set(), cell.gx, cell.gy, { columns: 1, rows: 1 }, terrain));
     game.trialHazardIndex = index + 1;
     let color = { phys: '#ffd36b', fire: '#ff754f', cold: '#86dcff', light: '#e5d35b', chaos: '#c47cff' }[element] || '#ffd36b';
     addBattleFx('trialTrapWarning', { targetCells: cells, color, element, duration: profile.warningMs });
@@ -12812,9 +12817,10 @@ function createTrialHazard(zone, pStats, now) {
         impactAt: now + profile.warningMs,
         intervalMs: profile.intervalMs,
         avoidThreshold: getTrialHazardAvoidThreshold(profile),
-        shouldAvoid: false
+        shouldAvoid: false,
+        persistent: profile.persistent && !!COMBAT_GRID_CONFIG.ground[element]
     };
-    hazard.shouldAvoid = shouldAvoidTrialHazard(zone, pStats, hazard);
+    hazard.shouldAvoid = hazard.persistent || shouldAvoidTrialHazard(zone, pStats, hazard);
     return hazard;
 }
 
@@ -12847,15 +12853,23 @@ function updateCombatHazardEscape(hazard, pStats, now, reason = '함정 회피')
 }
 
 /** Boss warnings are escaped by the mobility slot (js/mobility-skill.js); trial traps retain their movement policy. */
+function walkingHazardCells() {
+    let cells = [];
+    if (trialHazardRuntime.active && trialHazardRuntime.active.shouldAvoid) cells.push(...trialHazardRuntime.active.cells);
+    for (const ground of trialHazardRuntime.ground || []) cells.push(...ground.cells);
+    // 최종 보스의 연계는 이동 룬이 없어도 걸어서 대응한다. 기존 공격 후딜과 실제 이동 속도는 지킨다.
+    if (game.enemies.some(enemy => enemy.hp > 0 && enemy.patternMode === 'apex')) cells.push(...getBossWarningCells(game, pendingEnemyCombatAttacks));
+    return cells;
+}
 function updateCombatHazardEvasion(pStats) {
     if (game.playerHp <= 0) return { avoiding: false, holdPosition: false };
     applyTrialTrapTick(pStats, true);
+    if (game.playerHp <= 0) return { avoiding: false, holdPosition: false };
+    const cells = walkingHazardCells();
     let holdPosition = getBossWarningCells(game, pendingEnemyCombatAttacks).length > 0 || isTrialHazardPositionHeld();
-    let cells = [];
-    if (trialHazardRuntime.active && trialHazardRuntime.active.shouldAvoid) cells.push(...trialHazardRuntime.active.cells);
     let avoiding = updateCombatHazardEscape({ cells, shouldAvoid: true }, pStats, getCombatTime(), '위험 범위 회피');
     let frozen = game.playerAilments.some(ail => ail.type === 'freeze' && ail.time > 0);
-    return { avoiding: avoiding || frozen, holdPosition };
+    return { avoiding: avoiding || frozen, holdPosition, avoidCells: cells };
 }
 
 /** The trap's name in the log and the defeat line: a trial's '시련 함정', or the zone's own (the atlas late arenas' '바닥 함정'). */
@@ -12880,13 +12894,29 @@ function dealTrialTrapDamage(zone, pStats, hazard, trapDamage) {
         game.bloomTrialRegenSuppress = getBloomTrialRegenSuppressNext(zone, game.bloomTrialRegenSuppress);
         addLog(`혹독한 한기: 생명력 재생 억제 ${Math.round((game.bloomTrialRegenSuppress || 0) * 100)}%`, 'attack-monster', { noToast: true });
     }
-    addLog(`${trapName} 발동 [${getDamageElementLabel(hazard.element)}] (${trapDamage} 피해)`, 'attack-monster', { noToast:true, element:hazard.element });
+    logTrialDamage(trapName, hazard, trapDamage);
     if (game.playerHp <= 0) {
         handlePlayerDefeat(zone, pStats, `${trapName}에 쓰러졌습니다. 마을로 귀환합니다.`, { fatalElement: hazard.element, sourceName: trapName, noToast: true });
     }
 }
+function logTrialDamage(name, hazard, damage) {
+    if (!hazard.persistent) {
+        dispatchRuntimeEvent('ground-damage', { name, element: hazard.element, damage, persistent: false });
+        return;
+    }
+    hazard.logDamage = (hazard.logDamage || 0) + damage;
+    if (getCombatTime() < (hazard.nextLogAt || 0)) return;
+    dispatchRuntimeEvent('ground-damage', { name, element: hazard.element, damage: hazard.logDamage, persistent: true });
+    hazard.logDamage = 0; hazard.nextLogAt = getCombatTime() + 2000;
+}
 
 function resolveTrialHazardImpact(zone, pStats, hazard, now) {
+    if (hazard.persistent) {
+        const rules = COMBAT_GRID_CONFIG.ground;
+        const ground = [...(trialHazardRuntime.ground || []), { ...hazard, start: now, endsAt: now + rules.durationMs }];
+        trialHazardRuntime = { nextAt: now + hazard.intervalMs, active: null, ground: ground.slice(-rules.maxAreas), nextGroundTick: now };
+        return;
+    }
     let playerHit = isPlayerInsideCombatHazard(hazard);
     let barrierActive = playerHit && now < Math.max(0, Number(game.realmInvulnerableBarrierUntil) || 0);
     addBattleFx('trialTrap', {
@@ -12902,7 +12932,32 @@ function resolveTrialHazardImpact(zone, pStats, hazard, now) {
     } else {
         dealTrialTrapDamage(zone, pStats, hazard, calculateTrialTrapDamage(zone, pStats, hazard.element));
     }
-    trialHazardRuntime = { nextAt: now + hazard.intervalMs, active: null };
+    trialHazardRuntime = { ...trialHazardRuntime, nextAt: now + hazard.intervalMs, active: null };
+}
+
+/** Ground is a DoT, not a hit/ignite/poison: resistance, DoT protection and the armour-to-DoT unique apply; block/leech do not. */
+function tickPersistentGround(zone, pStats, now) {
+    const runtime = trialHazardRuntime, rules = COMBAT_GRID_CONFIG.ground;
+    runtime.ground = (runtime.ground || []).filter(area => now < area.endsAt);
+    if (now < (runtime.nextGroundTick || 0) || !runtime.ground.length) return;
+    runtime.nextGroundTick = now + rules.tickMs;
+    const elements = new Set();
+    for (const area of runtime.ground) {
+        if (elements.has(area.element) || !isPlayerInsideCombatHazard(area)) continue;
+        elements.add(area.element);
+        applyGroundContact(zone, pStats, area, now);
+        if (game.playerHp <= 0) return;
+    }
+}
+function applyGroundContact(zone, stats, area, now) {
+    const rule = COMBAT_GRID_CONFIG.ground[area.element];
+    if (rule.ailment) applyPlayerAilment(rule.ailment, 0.75, 0.5, stats);
+    if (!rule.damageShare || now < (game.realmInvulnerableBarrierUntil || 0)) return;
+    let damage = calculateTrialTrapDamage(zone, stats, area.element) * rule.damageShare;
+    damage *= 1 - clampNumber(stats.dotTakenDamageReducePct || 0, 0, 90) / 100;
+    if (stats.uniqueArmorAppliesToDot) damage *= 1 - Math.min(0.8, stats.armor / (stats.armor + 1200));
+    if (game.playerAilments.some(ail => ail.type === 'shock' && ail.time > 0)) damage *= 1 + getPlayerShockTakenDamageIncreasePct(stats) / 100;
+    dealTrialTrapDamage({ ...zone, trapName: rule.name }, stats, area, Math.max(0, Math.floor(damage)));
 }
 
 function hasGroundHazard(zone) {
@@ -12914,9 +12969,12 @@ function applyTrialTrapTick(pStats, deferEscape) {
     let now = getCombatTime();
     if (!(game.enemies || []).some(enemy => enemy && enemy.hp > 0)) {
         trialHazardRuntime.active = null;
+        trialHazardRuntime.ground = [];
         trialHazardRuntime.nextAt = Math.max(trialHazardRuntime.nextAt, now + 500);
         return false;
     }
+    tickPersistentGround(zone, pStats, now);
+    if (game.playerHp <= 0) return false;
     if (!trialHazardRuntime.nextAt) trialHazardRuntime.nextAt = now + getTrialHazardProfile(zone).initialDelayMs;
     if (!trialHazardRuntime.active && now >= trialHazardRuntime.nextAt) {
         trialHazardRuntime.active = createTrialHazard(zone, pStats, now);

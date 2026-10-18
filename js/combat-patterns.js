@@ -185,6 +185,10 @@
         if (enemy.patternArea) state.area = enemy.patternArea;
         noteBossSpecial(enemy, state);
         bossMoves.plan(state, enemy); // the special lands over time: shots, a beam, bursts one after another (js/boss-moves.js)
+        if (state.recoveryMs) {
+            const impactDelay = state.move ? state.move.stages.at(-1).ms : BOSS_ATTACK_IMPACT_DELAY_MS;
+            enemy.apexRecoveryUntil = getCombatTime() + impactDelay + state.recoveryMs;
+        }
         state.castStartedAt = enemy.patternTelegraphStartedAt;
         enemy.patternAttackCount = normalizeAttackCount(enemy) + 1;
         enemy.nextPatternState = getBossPatternPreview(enemy);
@@ -207,6 +211,9 @@
     function getBossPatternDescription(mode) {
         return BOSS_PATTERN_DESCRIPTIONS[String(mode || '')] || '';
     }
+
+    /** How long a special warns (ms): its own (a final boss combo, js/atlas-endgame.js comboState) or the shared default. */
+    const warningDuration = state => state.warningMs || COMBAT_GRID_CONFIG.bossPatternWarningMs;
 
     /** Lock the special's cells at warning time; moving the victim never retargets them.
      * @param {ReturnType<typeof createEnemy>} enemy
@@ -243,7 +250,7 @@
                 enemy.patternArea = { ...getSkillStageFootprint('', {}, { aimCell: target, gridProfile: profile }, from), source: from };
             }
         }
-        return charge >= 1 && timestamp - Math.max(0, Number(enemy.patternTelegraphStartedAt) || 0) >= COMBAT_GRID_CONFIG.bossPatternWarningMs;
+        return charge >= 1 && timestamp - Math.max(0, Number(enemy.patternTelegraphStartedAt) || 0) >= warningDuration(state);
     }
 
     /** Live warnings, including attacks already released but not yet resolved. */
