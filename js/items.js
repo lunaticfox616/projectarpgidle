@@ -488,10 +488,15 @@ function warnBeehiveMapTravelBlocked() {
     return true;
 }
 /** Runs that keep the hero until they end or are given up (벌집 원정, 경계 너머). changeZone and the deep sea refuse from inside one,
- * and so does every content start (군락, 벌집, 경계 너머, 혼돈 밖, 나무꾼의 잔상, 대균열, 증표 시련). Returns the refusal, or ''. */
+ * and so does every content start (getContentStartBlockReason, and 경계 너머 itself). Returns the refusal, or ''. */
 function getHeldRunBlockReason() {
     if (isBeehiveRunLockedForMapTravel()) return '벌집 원정 중에는 [던전 포기] 전까지 다른 지역으로 이동할 수 없습니다.';
     return ensureBeyondBoundaryState(game).activeRun ? '경계 너머 도전을 먼저 마치거나 포기하세요.' : '';
+}
+/** Content starts (군락지, 벌집, 혼돈 밖, 심해, 나무꾼의 잔상, 대균열, 증표 시련) refuse from a held run and from inside an atlas map:
+ * they set the zone themselves, so leaving the map that way skipped the portal changeZone spends. Returns the refusal, or ''. */
+function getContentStartBlockReason() {
+    return getHeldRunBlockReason() || (atlas.inMap(game) ? atlas.runOpenReason(game) : '');
 }
 
 // ── 시간의 균열: 제단 배치/회수 + 융합 정산 ──────────────────────────────

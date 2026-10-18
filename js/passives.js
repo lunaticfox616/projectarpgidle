@@ -2966,12 +2966,8 @@ function getPassiveRouting(owner = game) {
 }
 
 function enterOceanDive() {
-    const reason = getZoneTravelBlockReason(OCEAN_ZONE_ID);
+    const reason = getZoneTravelBlockReason(OCEAN_ZONE_ID) || getContentStartBlockReason();
     if (reason) { addLog(reason, 'attack-monster'); return false; }
-    if (isBeehiveRunLockedForMapTravel()) { warnBeehiveMapTravelBlocked(); return false; }
-    if (ensureBeyondBoundaryState(game).activeRun) {
-        addLog('경계 너머 도전을 먼저 마치거나 포기하세요.', 'attack-monster'); return false;
-    }
     let st = ensureOceanState();
     if (!st.unlocked) { addLog('아직 심해로 진입할 수 없습니다.', 'attack-monster'); return false; }
     if (st.diving) return false;

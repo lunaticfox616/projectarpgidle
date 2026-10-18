@@ -13611,7 +13611,7 @@ function finishWoodsmanEntrance() {
 
 
 function enterOutsideChaos() {
-    const held = getHeldRunBlockReason();
+    const held = getContentStartBlockReason();
     if (held) return addLog(held, 'attack-monster');
     if ((game.season || 1) < 10) return addLog('혼돈 밖은 루프 10 이후 개방됩니다.', 'attack-monster');
     let outsideChaosRequirementMet = typeof hasCurrentLoopAbyssRequirementClear === 'function'
@@ -13652,7 +13652,7 @@ function dressWoodsmanEchoDummy(dummy) {
 }
 
 function enterWoodsmanEchoChallenge() {
-    const held = getHeldRunBlockReason();
+    const held = getContentStartBlockReason();
     if (held) return addLog(held, 'attack-monster');
     let st = ensureChaosRealmState();
     if (!st.unlocked) return addLog('혼돈계 해금 이후 이용 가능합니다.', 'attack-monster');
