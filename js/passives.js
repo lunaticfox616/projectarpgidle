@@ -8230,7 +8230,7 @@ function getBaseStatRollRange(stat) {
     let scale = (stat.id === 'energyShield') ? 1.5 : 1;
     let scaledMin = minBase * scale;
     let scaledMax = maxBase * scale;
-    let usesDecimalRoll = ['leech', 'spellLeech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id);
+    let usesDecimalRoll = isTenthStat(stat.id);
     if (scaledMax > 0) {
         let positiveMinimum = usesDecimalRoll ? 0.1 : 1;
         scaledMin = Math.max(positiveMinimum, scaledMin);
@@ -8290,7 +8290,7 @@ function getAffixTierRange(mod, statId, tier, roundInteger = false) {
     if (Array.isArray(mod.tierValues)) return getListedAffixTierRange(mod, tier);
     const min = mod.base + (tier * mod.step);
     const max = min + mod.step * 1.6;
-    if (['leech', 'spellLeech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(statId)) {
+    if (isTenthStat(statId)) {
         return { min: Math.round(min * 10) / 10, max: Math.round(max * 10) / 10, step: 0.1, tier };
     }
     const toInt = roundInteger ? Math.round : Math.floor;
@@ -8334,7 +8334,7 @@ function rerollStoredAffixValue(stat) {
         stat.val = Number((min + Math.floor(Math.random() * (Math.round((max - min) / stat.valueStep) + 1)) * stat.valueStep).toFixed(2));
         return;
     }
-    if (['leech', 'spellLeech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id)) {
+    if (isTenthStat(stat.id)) {
         let minStep = Math.round(min * 10);
         let maxStep = Math.round(max * 10);
         stat.val = (minStep + Math.floor(Math.random() * (maxStep - minStep + 1))) / 10;
@@ -8863,7 +8863,7 @@ function rollChaosInfusionOption(option) {
     if (!Number.isFinite(max)) max = min;
     if (max < min) { let tmp = min; min = max; max = tmp; }
     let val;
-    if (['leech', 'spellLeech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(option.id)) {
+    if (isTenthStat(option.id)) {
         let minStep = Math.round(min * 10);
         let maxStep = Math.round(max * 10);
         val = (minStep + Math.floor(Math.random() * (maxStep - minStep + 1))) / 10;
@@ -9097,7 +9097,7 @@ function rollUniqueStatValue(stat) {
     let max = stat.max !== undefined ? stat.max : stat.base;
     if (max < min) max = min;
     let val;
-    if (['leech', 'spellLeech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id)) {
+    if (isTenthStat(stat.id)) {
         let minStep = Math.round(min * 10);
         let maxStep = Math.round(max * 10);
         let roll = minStep + Math.floor(Math.random() * (maxStep - minStep + 1));
@@ -9178,9 +9178,9 @@ function generateUniqueItem(zoneTier, preferredSlot, forcedUniqueName, zone = ge
     unique.stats.forEach(stat => {
         let rolled = rollUniqueStatValue(stat);
         let boost = 1;
-        let val = ['leech', 'spellLeech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id) ? Math.round(rolled.val * boost * 10) / 10 : Math.floor(rolled.val * boost);
-        let min = ['leech', 'spellLeech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id) ? Math.round(rolled.min * boost * 10) / 10 : Math.floor(rolled.min * boost);
-        let max = ['leech', 'spellLeech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id) ? Math.round(rolled.max * boost * 10) / 10 : Math.floor(rolled.max * boost);
+        let val = isTenthStat(stat.id) ? Math.round(rolled.val * boost * 10) / 10 : Math.floor(rolled.val * boost);
+        let min = isTenthStat(stat.id) ? Math.round(rolled.min * boost * 10) / 10 : Math.floor(rolled.min * boost);
+        let max = isTenthStat(stat.id) ? Math.round(rolled.max * boost * 10) / 10 : Math.floor(rolled.max * boost);
         item.stats.push({ id: stat.id, val: val, valMin: min, valMax: max, tier: 0, statName: getStatName(stat.id) });
     });
     if (unique.ultraRare && canRollChase) {
@@ -9252,7 +9252,7 @@ function generateEquipmentDrop(enemy, options) {
 
 /** A base stat value scaled by factor, kept on its own grid: 0.1 steps for leech/regen lines, whole numbers (at least 1) otherwise. */
 function boostItemStatValue(statId, value, factor) {
-    if (['leech', 'spellLeech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(statId)) return Math.round(value * factor * 10) / 10;
+    if (isTenthStat(statId)) return Math.round(value * factor * 10) / 10;
     return Math.max(1, Math.floor(value * factor));
 }
 
@@ -9740,9 +9740,8 @@ function generateJewelDrop(zoneOrTier, odds = null) {
         let row = (canRollUltra && Math.random() < 0.08) ? rndChoice(ultraPool) : baseRow;
         // 고유 주얼: 구성은 그대로 두고 파워만 약간(+10%) 상승
         let uniquePower = 1.1;
-        let decimalIds = new Set(['leech', 'spellLeech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap']);
         let stats = (row.stats || []).map(st => {
-            let boosted = decimalIds.has(st.id) ? Math.round(st.val * uniquePower * 10) / 10 : Math.round(st.val * uniquePower);
+            let boosted = isTenthStat(st.id) ? Math.round(st.val * uniquePower * 10) / 10 : Math.round(st.val * uniquePower);
             return makeFixedJewelStat(st.id, boosted);
         });
         let petite = rollJewelPetiteStat('rare', stats.map(st => st.id));
@@ -10400,7 +10399,6 @@ const craftCurrencyUse = (() => {
         const label = applyAbyssCatalystToItemQuality(item);
         run.logs.push([`🧪 심연 촉매: [${item.name}] 퀄리티 속성 → ${label}`, 'loot-unique']);
     }
-    const TENTH_STATS = Object.freeze(['leech', 'spellLeech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap']);
     /** A base line's roll range [low, high]: its base roll, else its range, else its value. */
     function blessRange(stat) {
         let low = Number.isFinite(Number(stat.baseRollMin)) ? Number(stat.baseRollMin) : Number(stat.valMin);
@@ -10415,7 +10413,7 @@ const craftCurrencyUse = (() => {
     /** 축복의 꽃잎: one base line rolled again inside its base range (in tenths for the leech and regen lines). */
     function blessBaseStat(stat) {
         let [low, high] = blessRange(stat);
-        if (TENTH_STATS.includes(stat.id)) {
+        if (isTenthStat(stat.id)) {
             const minStep = Math.round(low * 10), maxStep = Math.round(high * 10);
             stat.val = (minStep + Math.floor(Math.random() * (maxStep - minStep + 1))) / 10;
             low = minStep / 10;

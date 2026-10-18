@@ -259,10 +259,15 @@ function formatSupportGemEffectValue(value) {
     return num.toFixed(1);
 }
 
+/** The stats rolled and shown in tenths (leech, regen and their caps); every other stat is whole. */
+const TENTH_STAT_IDS = Object.freeze(['leech', 'spellLeech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap']);
+function isTenthStat(statId) {
+    return TENTH_STAT_IDS.includes(statId);
+}
 function formatValue(statId, value) {
     const numeric = Number(value);
     if (!Number.isFinite(numeric)) return '0';
-    if (['leech', 'spellLeech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(statId)) {
+    if (isTenthStat(statId)) {
         return numeric.toFixed(2).replace(/0$/, '');
     }
     const rounded = Math.round(numeric * 100) / 100;

@@ -57,7 +57,7 @@ function maybeApplyBlackMarketExceptionalBaseStats(baseStats) {
         let max = Number.isFinite(Number(stat.baseRollMax)) ? Number(stat.baseRollMax)
             : (Number.isFinite(Number(stat.valMax)) ? Number(stat.valMax) : Number(stat.val || stat.base || 0));
         let boosted = max * 1.2;
-        let usesDecimal = ['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id);
+        let usesDecimal = isTenthStat(stat.id);
         stat.val = usesDecimal ? Math.round(boosted * 10) / 10 : Math.max(1, Math.floor(boosted));
         stat.exceptional = true;
         names.push(stat.statName || getStatName(stat.id));
@@ -95,7 +95,7 @@ function getBlackMarketBaseRollRange(stat) {
     let min = minBase * scale;
     let max = maxBase * scale;
     if (max > 0) {
-        let decimal = ['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id);
+        let decimal = isTenthStat(stat.id);
         min = Math.max(decimal ? 0.1 : 1, min);
         max = Math.max(min, max);
     }
