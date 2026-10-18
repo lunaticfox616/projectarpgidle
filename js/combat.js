@@ -3304,8 +3304,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         let gem = normalizeGemRecord((game.supportGemData || {})[name]);
         let db = SUPPORT_GEM_DB[name];
         if (!db) return;
-        let activeTier = typeof getSupportActiveTier === 'function' ? getSupportActiveTier(name) : Math.max(1, Math.min((typeof getSupportTierCap === 'function' ? getSupportTierCap(name) : 3), Math.floor(gem.activeTier || gem.unlockedTier || 1)));
-        let tierMul = typeof getSupportTierMultiplier === 'function' ? getSupportTierMultiplier(name, activeTier) : (activeTier === 1 ? 1 : activeTier === 2 ? 1.55 : 2.2);
+        const { tierMul } = getSupportGemTier(name, gem, typeof getSupportActiveTier === 'function' ? getSupportActiveTier : null);
         let supportGemSources = getTargetGemBonusSources(name, undefined, resolvedStats, gemEvaluation);
         let effectiveLevel = Math.max(1, gem.level + supportGemSources.total);
         let val;
