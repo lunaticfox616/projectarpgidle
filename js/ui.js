@@ -9079,7 +9079,7 @@ function getCraftOrbUseState(key, item) {
     const block = craftCurrencyUse.blockReason(item, actionKey);
     if (block) return { enabled: false, reason: block };
     let sporeMode = isSporeCraftEquipment(item) ? (game.sporeCraftModes[key] || 'none') : 'none';
-    const sporeBlock = getSporeCraftBlockReason(item, actionKey, sporeMode);
+    const sporeBlock = craftCurrencyUse.addonReason(item, actionKey, sporeMode);
     if (sporeBlock) return { enabled: false, reason: sporeBlock };
     if (['magicBud','sapBud','formlessDew'].includes(key)
         && typeof isSporeCraftEquipment === 'function'
@@ -9087,11 +9087,7 @@ function getCraftOrbUseState(key, item) {
         && sporeMode !== 'none'
         && typeof hasSporeCraftCost === 'function'
         && !hasSporeCraftCost(sporeMode)) {
-        let cost = typeof getSporeCraftCost === 'function' ? getSporeCraftCost() : 10;
-        let costText = (sporeMode === 'chaos' || sporeMode === 'damage')
-            ? `화염/냉기/번개 홀씨 각 ${cost}개 필요`
-            : `${({ fire: '화염', cold: '냉기', light: '번개' })[sporeMode] || '선택'} 홀씨 ${cost}개 필요`;
-        return { enabled: false, reason: `홀씨 부족, ${costText}` };
+        return { enabled: false, reason: craftingCatalogUi.sporeShortage(sporeMode) };
     }
     return { enabled: true, reason: '사용 가능' };
 }

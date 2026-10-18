@@ -1,17 +1,17 @@
 // Read-only candidates from the same pools used by currency/fossil crafting. No RNG or payment.
 const craftingGoalOptions = (() => {
-    function keptStats(item, recipe) {
+    function keptStats(item, recipe, omen = null) {
         if (recipe.kind === 'add') return item.stats || [];
-        return (item.stats || []).filter(stat => equipmentCrafting.keptOnReroll(item, stat) || stat.unremovable || stat.encroachedFinal);
+        return (item.stats || []).filter(stat => equipmentCrafting.keptOnReroll(item, stat) || stat.unremovable || stat.encroachedFinal || !equipmentCrafting.onOmenSide(item, stat, omen));
     }
 
-    function rollPool(item, recipe, mode) {
-        const kept = keptStats(item, recipe);
+    function rollPool(item, recipe, mode, omen) {
+        const kept = keptStats(item, recipe, omen);
         const occupied = kept.length + (item.chaosInfusion ? 1 : 0);
         const magic = recipe.key === 'magicBud', cap = magic ? EXPLICIT_AFFIX_RULES.magic.prefix + EXPLICIT_AFFIX_RULES.magic.suffix : EXPLICIT_AFFIX_LINE_CAP;
         if (occupied >= cap) return [];
         // Prefix 3 and suffix 3 (magic 1 and 1): only kinds with room after the kept lines can appear.
-        let pool = getOpenAffixMods({ ...item, stats: kept }, magic ? 'magic' : 'rare');
+        let pool = getOpenAffixMods({ ...item, stats: kept }, magic ? 'magic' : 'rare').filter(mod => !omen || omen.effect !== 'side' || equipmentCrafting.affixKind(mod) === omen.side);
         // Rerolls fill at most 2 (magic) / 5 (rare) lines. A guaranteed line can replace the last random one.
         const maxRolled = Math.max(kept.length, cap === 2 ? 2 : 5) - occupied;
         if (recipe.kind === 'reroll' && maxRolled <= 0 && mode === 'none') return [];
@@ -46,10 +46,10 @@ const craftingGoalOptions = (() => {
         return !rarities[recipe.key]||rarities[recipe.key].includes(item.rarity);
     }
 
-    function get(item, recipe, mode) {
+    function get(item, recipe, mode, omen = null) {
         if(!eligible(item,recipe))return [];
         if (recipe.kind === 'value') return [];
-        const pool = rollPool(item, recipe, mode), cap = getItemCraftTier(item);
+        const pool = rollPool(item, recipe, mode, omen), cap = getItemCraftTier(item);
         const rows = pool.flatMap(mod => [mod,...(mod.compound || [])].map(stat => ({
             id: stat.statId || stat.id, name: getStatName(stat.statId || stat.id),
             maxTier: stat.fixedValue ? 0 : Math.min(cap, stat.tierValues?.length || 20)
@@ -59,9 +59,9 @@ const craftingGoalOptions = (() => {
         return [...unique.values()].sort((a,b) => a.name.localeCompare(b.name,'ko'));
     }
     /** Tags this craft can still roll, with how many lines can carry one (kept lines plus distinct rollable stats) and the best tier. */
-    function tags(item, recipe, mode) {
+    function tags(item, recipe, mode, omen = null) {
         if (!eligible(item, recipe) || recipe.kind === 'value') return [];
-        const pool = rollPool(item, recipe, mode), kept = keptStats(item, recipe), cap = getItemCraftTier(item);
+        const pool = rollPool(item, recipe, mode, omen), kept = keptStats(item, recipe, omen), cap = getItemCraftTier(item);
         return Object.keys(AFFIX_TAG_LABELS).map(tag => {
             const rows = pool.filter(mod => getAffixTags(mod).includes(tag)), held = kept.filter(stat => getAffixTags(stat).includes(tag));
             const tiers = [...rows.map(mod => mod.fixedValue ? 0 : Math.min(cap, mod.tierValues?.length || 20)), ...held.map(stat => Number(stat.tier) || 0)];
@@ -90,9 +90,13 @@ const craftingGoalOptions = (() => {
         }).sort((a, b) => Number(b.allowed) - Number(a.allowed) || a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name, 'ko'));
     }
 
-    function rehearsalReason(item, recipe, mode = 'none') {
+    function rehearsalSideReason(item, action, mode, omen) {
+        return equipmentCrafting.omenReason(item, action, omen, mode) || equipmentCrafting.getSporeBlockReason(item, action, mode);
+    }
+    function rehearsalReason(item, recipe, mode = 'none', omen = null) {
         if (!eligible(item, recipe) || !equipmentCrafting.basicActions.includes(equipmentCrafting.resolveAction(recipe.key, item.rarity))) return '모의 제작은 마법의 새싹, 수액 봉오리, 형체 없는 이슬만 됩니다.';
         const action = equipmentCrafting.resolveAction(recipe.key, item.rarity);
+        if (omen && omen.effect === 'side') return rehearsalSideReason(item, action, mode, omen);
         return equipmentCrafting.getSporeBlockReason(item, action, mode) || (!rollPool(item, recipe, mode).length ? '부여 가능한 옵션이 없습니다.' : '')
             || sporeGapReason(item, action, mode);
     }
@@ -106,13 +110,13 @@ const craftingGoalOptions = (() => {
      * item's id: it is shown, never put in the bag (a second item with that id would be a duplicate). omen: a 제작 뿌리 to practise
      * with ({ key, side, effect }, equipmentCrafting.omenSpec, owned or not): it changes the roll only where the live craft would use it. */
     function rehearse(item, recipe, mode = 'none', omen = null) {
-        const reason = rehearsalReason(item, recipe, mode);
+        const reason = rehearsalReason(item, recipe, mode, omen);
         if (reason) throw Error(reason);
         const result = JSON.parse(JSON.stringify(item)), action = equipmentCrafting.resolveAction(recipe.key, item.rarity);
         // 홀씨 보장은 실제 제작과 같은 함수로 고르고 굴린다(js/passives.js useCurrency와 같은 규칙).
         let guaranteedStat = null;
         if (mode !== 'none' && isSporeCraftEquipment(item)) {
-            const mod = equipmentCrafting.pickSporeMod(item, action, mode);
+            const mod = equipmentCrafting.pickSporeMod(item, action, mode, omen);
             if (!mod) throw Error('보장할 홀씨 옵션이 없습니다.');
             guaranteedStat = equipmentCrafting.rollSporeLine(item, mod);
         }

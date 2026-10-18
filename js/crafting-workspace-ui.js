@@ -38,8 +38,8 @@ const craftingWorkspaceUi = (() => {
         goal=equipmentLootPolicy.normalizeTargets({enabled:true,scope:'explicit',slot:'any',minMatches:goalMatch==='all'?rules.length:1,rules});
     }
 
-    function workspaceGoalOptions() { return craftingGoalOptions.get(selected(),recipe,mode); }
-    function workspaceGoalTags() { return craftingGoalOptions.tags(selected(),recipe,mode); }
+    function workspaceGoalOptions() { return craftingGoalOptions.get(selected(),recipe,mode,workspaceUsedOmen()); }
+    function workspaceGoalTags() { return craftingGoalOptions.tags(selected(),recipe,mode,workspaceUsedOmen()); }
 
     /** The option or tag row the current craft can reach for this rule (undefined when it cannot). */
     function workspaceGoalChoice(rule) {
@@ -206,10 +206,42 @@ const craftingWorkspaceUi = (() => {
     }
 
     function workspaceMethodsHtml() {
-        const spore=isSporeCraftEquipment(selected())&&(recipe.kind==='add'||recipe.kind==='reroll');
         return `<section class="cl-methods"><div class="cl-section-title">주 재화<div><button data-command="pins">변경</button><button id="cl-catalog-open" data-command="catalog">기타 재화</button></div></div><div class="cl-recipes">${craftingCatalogUi.pinned().map(workspaceFavoriteHtml).join('')}</div>
-            <p class="cl-method-note" data-theme="${craftingCatalogUi.theme(recipe.key)}"><span class="cl-method-heading"><strong>선택 중 &ensp; ${craftingCatalogUi.styledName(recipe.key)}</strong><small>보유 ${game.currencies[recipe.key]}</small></span>${craftingCatalogUi.description(recipe.key)}</p>${spore?`<label class="cl-spore">홀씨 함께 사용<select id="cl-mode">${[['none','사용 안 함'],['fire','화염'],['cold','냉기'],['light','번개'],...(contentProgression.isUnlocked('advancedSpores')?[['chaos','카오스'],['damage','피해']]:[])].map(([key,label])=>`<option value="${key}" ${mode===key?'selected':''}>${label}</option>`).join('')}</select></label>`:''}${workspaceOmenHtml()}
+            <p class="cl-method-note" data-theme="${craftingCatalogUi.theme(recipe.key)}"><span class="cl-method-heading"><strong>선택 중 &ensp; ${craftingCatalogUi.styledName(recipe.key)}</strong><small>보유 ${game.currencies[recipe.key]}</small></span>${craftingCatalogUi.description(recipe.key)}</p>${workspaceSporeHtml()}${workspaceOmenHtml()}
             </section>`;
+    }
+
+
+    const SPORE_LABELS={fire:'화염',cold:'냉기',light:'번개',chaos:'카오스',damage:'피해'};
+    function workspaceSporeReason(value) {
+        if(!hasSporeCraftCost(value))return craftingCatalogUi.sporeShortage(value);
+        const item=selected(), action=equipmentCrafting.resolveAction(recipe.key,item.rarity);
+        const omen=workspaceArmedOmen(), spec=omen?equipmentCrafting.omenSpec(omen.key,omen.side):null;
+        const side=spec?.effect==='side'&&CRAFT_OMENS.effects[spec.key].actions.includes(action)?spec:null;
+        return getSporeCraftBlockReason(item,action,value,side)||(side?equipmentCrafting.omenReason(item,action,side,value):'');
+    }
+    function workspaceAddonNote(reason,effect,clear='',shortage=false) {
+        return `<p class="cl-addon-note ${shortage?'is-shortage':''}" aria-live="polite">${esc(effect)}${reason?`<br>${esc(reason)}`:''}${clear}</p>`;
+    }
+    function workspaceSporeOption(value) {
+        const label=value==='none'?'사용 안 함':SPORE_LABELS[value]+(!hasSporeCraftCost(value)?' (부족)':'');
+        return `<option value="${value}" ${mode===value?'selected':''}>${esc(label)}</option>`;
+    }
+    function workspaceSporeNote() {
+        if(mode==='none')return '';
+        const reason=workspaceSporeReason(mode);
+        const effect=`${SPORE_LABELS[mode]} 계열 옵션 1줄 보장`;
+        return workspaceAddonNote(reason,effect,reason?' <button data-command="clear-spore">홀씨 사용 해제</button>':'',!hasSporeCraftCost(mode));
+    }
+    /** Only affordable spores appear; a depleted selection keeps a warning and an explicit off button. */
+    function workspaceSporeHtml() {
+        if(!isSporeCraftEquipment(selected())||!['add','reroll'].includes(recipe.kind))return '';
+        const available=getAvailableSporeCraftModes().filter(value=>value!=='none'&&hasSporeCraftCost(value));
+        const note=workspaceSporeNote();
+        if(!available.length)return note;
+        const values=['none',...available];
+        if(!values.includes(mode))values.push(mode);
+        return `<label class="cl-spore">홀씨 함께 사용<select id="cl-mode">${values.map(workspaceSporeOption).join('')}</select></label>${note}`;
     }
 
     /** [value, label] for omen keys in a select: 허기 twice (접두, 접미). count(key) adds the held number. */
@@ -227,10 +259,25 @@ const craftingWorkspaceUi = (() => {
     function workspaceOmenHtml() {
         const owned=CRAFT_OMENS.keys.filter(key=>(game.currencies[key]||0)>0), armed=workspaceArmedOmen();
         if(!owned.length)return '';
-        const value=armed?`${armed.key}:${armed.side}`:'', name=ORB_DB[recipe.key].name;
+        const value=armed?`${armed.key}:${armed.side}`:'';
         const options=[['','사용 안 함'],...workspaceOmenOptions(owned,key=>` (${game.currencies[key]})`)];
-        const note=!armed?'':workspaceUsedOmen()?`다음 ${name} 사용에 쓰입니다.`:`${name}에는 쓰이지 않고 걸어 둔 채 남습니다.`;
-        return `<label class="cl-spore" data-theme="omen">뿌리 함께 사용<select id="cl-omen">${options.map(([key,label])=>`<option value="${key}" ${key===value?'selected':''}>${esc(label)}</option>`).join('')}</select></label>${note?`<small class="cl-block">${esc(note)}</small>`:''}`;
+        const note=workspaceOmenNote(armed);
+        return `<label class="cl-spore" data-theme="omen"><span>${armed?workspaceCoin(armed.key):''}뿌리 함께 사용</span><select id="cl-omen">${options.map(([key,label])=>`<option value="${key}" ${key===value?'selected':''}>${esc(label)}</option>`).join('')}</select></label>${note}`;
+    }
+
+    function workspaceOmenNote(armed) {
+        if(!armed)return '';
+        const spec=equipmentCrafting.omenSpec(armed.key,armed.side);
+        const action=equipmentCrafting.resolveAction(recipe.key,selected().rarity);
+        const reason=equipmentCrafting.omenReason(selected(),action,spec,mode);
+        const effect=spec.effect==='side'?workspaceSideEffect(spec):ORB_DB[armed.key].desc;
+        return workspaceAddonNote(reason,effect);
+    }
+
+    function workspaceSideEffect(omen) {
+        const side=omen.side==='prefix'?'접두어':'접미어';
+        const verbs={formlessDew:'재련',sapBud:'1줄 추가',goldenRule:'옵션 수치만 재설정',blightSpore:'모두 제거',pruningShears:'무작위 1줄 제거'};
+        return `${side}만 ${verbs[recipe.key]||'변경'}`;
     }
 
     function workspaceFavoriteHtml(key,index) {
@@ -321,7 +368,7 @@ const craftingWorkspaceUi = (() => {
         const state=workspaceUseState(), stopped=held();
         const html=`<div class="cl-heading">${adapter.targetControls()}<button id="cl-inventory-open" data-command="inventory">재화 인벤토리</button></div>
             <div class="cl-workspace">${workspaceItemHtml()}<div class="cl-controls">${workspaceMethodsHtml()}${workspaceGoalHtml()}<div class="cl-action"><small>${esc(workspaceCostText())}</small>
-            ${workspaceActionHtml(state,stopped)}<span class="cl-block">${!state.enabled?esc(state.reason):''}</span></div></div></div>${workspaceResultHtml()}`;
+            ${workspaceActionHtml(state,stopped)}<span class="cl-block cl-error" role="status">${!state.enabled?esc(state.reason):''}</span></div></div></div>${workspaceResultHtml()}`;
         workspaceReplaceMarkup(html,reveal);
         if(reveal)root.querySelector('.cl-item').classList.add('just-crafted');
         workspaceShowDialogs(reveal,stopped);
@@ -603,7 +650,10 @@ const craftingWorkspaceUi = (() => {
         if(result.ok){addLog(`🍃 ${ORB_DB.memoryImprint.name}: ${done}`,'loot-magic');queueImportantSave(180);}
         workspaceRender(result.ok);
     }
-    const WORKSPACE_COMMANDS={study:()=>workspaceShowStudy(),catalog:()=>workspaceOpenInventory(false,'',true),inventory:()=>workspaceOpenInventory(),
+    function workspaceClearSpore() {
+        mode='none';game.sporeCraftModes[recipe.key]='none';queueImportantSave(180);workspaceRender();
+    }
+    const WORKSPACE_COMMANDS={'clear-spore':()=>workspaceClearSpore(),study:()=>workspaceShowStudy(),catalog:()=>workspaceOpenInventory(false,'',true),inventory:()=>workspaceOpenInventory(),
         pins:()=>workspaceOpenInventory(true),craft:()=>workspaceCraft(),ack:()=>workspaceShowGoalDialog(),engrave:()=>workspaceEngrave(),restore:()=>workspaceRestore()};
 
     async function workspaceCommand(action) {

@@ -176,13 +176,14 @@ const equipmentCrafting = (() => {
      * weight among the open affixes in the spore's family, counted against the result's rarity (새싹 transmute and alteration: magic,
      * one and one; the rest: rare, three and three). A reroll counts only the lines it keeps (keptOnReroll, as rerollExplicitMods).
      * The live craft (js/passives.js useCurrency) and the bench's rehearsal (js/crafting-goal-options.js rehearse) both pick here. */
-    function sporePool(item, action, mode) {
+    function sporePool(item, action, mode, omen = null) {
         if (mode === 'none') return [];
-        const base = rerollActions.includes(action) ? { ...item, stats: (item.stats || []).filter(stat => keptOnReroll(item, stat)) } : item;
-        return filterSporeMods(getOpenAffixMods(base, ['transmute', 'alteration'].includes(action) ? 'magic' : 'rare'), mode);
+        const base = rerollActions.includes(action) ? { ...item, stats: (item.stats || []).filter(stat => keptOnReroll(item, stat) || !onOmenSide(item, stat, omen)) } : item;
+        return filterSporeMods(getOpenAffixMods(base, ['transmute', 'alteration'].includes(action) ? 'magic' : 'rare'), mode)
+            .filter(mod => !omen || omen.effect !== 'side' || affixKind(mod) === omen.side);
     }
-    function pickSporeMod(item, action, mode) {
-        const pool = sporePool(item, action, mode);
+    function pickSporeMod(item, action, mode, omen = null) {
+        const pool = sporePool(item, action, mode, omen);
         return pool.length ? pickWeightedMod(pool) : null;
     }
     /** mod's guaranteed line, rolled over the whole spore tier range of item (the family is promised, the top two tiers are not). */
@@ -207,12 +208,38 @@ const equipmentCrafting = (() => {
         state.craftOmen = normalizeCraftOmen({ key, side });
         return { ok: true };
     }
-    /** Whether omen changes action on item: its action, and for an added line no spore guarantee (that line is the spore's) and an
-     * open mod on the omen's side. */
+    /** Side membership is shared by rolling, value changes, removal and pre-payment admission. Special lines stay untouched. */
+    const onOmenSide = (item, stat, omen) => !omen || omen.effect !== 'side' || storedAffixKind(item, stat) === omen.side;
+    function sideReason(item, action, omen, sporeMode) {
+        const label = omen.side === 'prefix' ? '접두어' : '접미어';
+        if (basicActions.includes(action)) return sideRollReason(item, action, omen, sporeMode);
+        const lines = action === 'annulment' ? getAnnulmentRemovableStats(item).map(row => row.stat)
+            : [...item.stats, ...(item.chaosInfusion ? [item.chaosInfusion] : [])].filter(stat => !stat.lockedByHoney && !stat.lockedByRift);
+        return lines.some(stat => onOmenSide(item, stat, omen)) ? '' : `변경 가능한 ${label} 옵션이 없습니다.`;
+    }
+    function sideRollReason(item, action, omen, sporeMode) {
+        const label = omen.side === 'prefix' ? '접두어' : '접미어';
+        const kept = rerollActions.includes(action) ? item.stats.filter(stat => keptOnReroll(item, stat) || !onOmenSide(item, stat, omen)) : item.stats;
+        if (sporeMode !== 'none' && kept.some(stat => getSource(stat) === 'spore')) return '보존되는 홀씨 옵션이 있어 홀씨를 함께 사용할 수 없습니다.';
+        const pool = getOpenAffixMods({ ...item, stats: kept }, 'rare').filter(mod => affixKind(mod) === omen.side);
+        if (!pool.length) return `${label}에 새로 부여할 수 있는 옵션이나 빈자리가 없습니다.`;
+        return sporeMode !== 'none' && !filterSporeMods(pool, sporeMode).length ? `${label}에 선택한 홀씨 계열 옵션을 부여할 수 없습니다.` : '';
+    }
+    /** A short reason for an unavailable combination; this is also used before paying, never silently falling back to both sides. */
+    function omenReason(item, action, omen, sporeMode = 'none') {
+        if (!omen || !CRAFT_OMENS.effects[omen.key].actions.includes(action)) return '이 재화에는 적용되지 않습니다.';
+        if (!item) return '장비를 선택하세요.';
+        if (omen.effect === 'side') return sideReason(item, action, omen, sporeMode);
+        if (['regal', 'exalted'].includes(action) && sporeMode !== 'none') return '옵션 추가 시 홀씨와 함께 사용할 수 없습니다.';
+        return '';
+    }
     function omenFits(item, action, omen, sporeMode = 'none') {
-        if (!omen || !CRAFT_OMENS.effects[omen.key].actions.includes(action)) return false;
-        if (!['regal', 'exalted'].includes(action)) return true;
-        return sporeMode === 'none' && (omen.effect !== 'side' || getOpenAffixMods(item, 'rare').some(mod => affixKind(mod) === omen.side));
+        return !omenReason(item, action, omen, sporeMode);
+    }
+    function armedSideReason(state, item, action, sporeMode = 'none') {
+        const armed = normalizeCraftOmen(state.craftOmen), omen = armed && omenSpec(armed.key, armed.side);
+        if (!omen || omen.effect !== 'side' || !CRAFT_OMENS.effects[omen.key].actions.includes(action) || !(state.currencies[omen.key] > 0)) return '';
+        return omenReason(item, action, omen, sporeMode);
     }
     /** The armed omen that changes this craft ({ key, side, effect }), or null: none armed, none left, or it does not fit. */
     function omenFor(state, action, item, sporeMode = 'none') {
@@ -255,7 +282,7 @@ const equipmentCrafting = (() => {
     }
     /** What an omen changes in a reroll (js/passives.js rerollExplicitMods): each new line's roll, and 엮음's weights. */
     function omenRerollOptions(item, tier, omen) {
-        return omen ? { rollLine: mod => rollOmenLine(mod, tier, omen), weigh: omen.effect === 'weave' ? weaveWeigh(item) : null } : {};
+        return omen ? { side: omen.effect === 'side' ? omen.side : '', rollLine: mod => rollOmenLine(mod, tier, omen), weigh: omen.effect === 'weave' ? weaveWeigh(item) : null } : {};
     }
     function addedLine(item, options) {
         if (options.guaranteedStat) return options.guaranteedStat;
@@ -378,7 +405,7 @@ const equipmentCrafting = (() => {
 
     return Object.freeze({ basicActions, rerollActions, applyBasic, sporePool, pickSporeMod, rollSporeLine, getSource, getLabel, filterSporeMods, resolveAction, getBlockReason, getSporeBlockReason, getFossilBlockReason, getFossilUseReason,
         affixKind, storedAffixKind, keptKind, keptOnReroll, getAffixKeepReason, affixCounts, affixRoom, fitsRoom, pickReplacement, affixHeader,
-        omenSpec, armOmen, omenFits, omenFor, spendOmen, pickAddMod, pickPruneLine, craftBasic, pendingChoice, pickChoice,
+        omenSpec, armOmen, omenFits, omenReason, armedSideReason, onOmenSide, omenFor, spendOmen, pickAddMod, pickPruneLine, craftBasic, pendingChoice, pickChoice,
         normalizeImprint, engraveReason, engrave, restoreReason, restoreImprint, buildLockReason });
 })();
 safeExposeGlobals({ equipmentCrafting });

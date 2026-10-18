@@ -8768,9 +8768,9 @@ function updateItemName(item) {
     else if (item.rarity === 'rare') item.name = `희귀한 ${item.baseName}`;
 }
 
-function rerollChaosInfusionForItem(item, previousInfusion) {
+function rerollChaosInfusionForItem(item, previousInfusion, side = '') {
     if (!item || !previousInfusion) return null;
-    let pool = getChaosInfuserOptionsForItem(item);
+    let pool = getChaosInfuserOptionsForItem(item).filter(option => !side || equipmentCrafting.storedAffixKind(item, option) === side);
     if (pool.length === 0) {
         item.chaosInfusion = null;
         return null;
@@ -8791,23 +8791,29 @@ function rerollLineRoll(options, maxTier) {
         : mod => rollAffixValue(mod, maxTier);
 }
 
+/** Prepare retained rows and infusion before rolling; a side-only craft preserves every other kind. */
+function prepareExplicitReroll(item, options) {
+    const side = options.side || '', onSide = stat => !side || equipmentCrafting.storedAffixKind(item, stat) === side;
+    let rerollChaosInfusion = !!options.rerollChaosInfusion && (!item.chaosInfusion || onSide(item.chaosInfusion));
+    const previousInfusion = item.chaosInfusion;
+    if (rerollChaosInfusion) item.chaosInfusion = null;
+    let locked = (item.stats || []).filter(stat => equipmentCrafting.keptOnReroll(item, stat) || !onSide(stat));
+    item.stats = locked.concat(options.guaranteedStat ? [options.guaranteedStat] : []);
+    if (!side || equipmentCrafting.keptKind(item) === side) delete item.affixKeep;
+    // 주입을 먼저 다시 굴려 그 종류 자리를 차지하게 한다(접두 3, 접미 3).
+    if (rerollChaosInfusion) rerollChaosInfusionForItem(item, previousInfusion, side);
+    return side;
+}
+
 /** options.weigh(pool, picked) → pool reweighs the mods each pick (제작 뿌리 엮음). */
 function rerollExplicitMods(item, rarity, zoneTier, options = {}) {
-    let maxTier = Math.max(1, zoneTier);
-    const rollLine = rerollLineRoll(options, maxTier);
-    let rerollChaosInfusion = !!options.rerollChaosInfusion;
-    let previousInfusion = rerollChaosInfusion ? item.chaosInfusion : null;
-    if (rerollChaosInfusion) item.chaosInfusion = null;
-    let locked = (item.stats || []).filter(stat => equipmentCrafting.keptOnReroll(item, stat));
-    item.stats = locked.concat(options.guaranteedStat ? [options.guaranteedStat] : []);
-    delete item.affixKeep;
-    // 주입을 먼저 다시 굴려 그 종류 자리를 차지하게 한다(접두 3, 접미 3).
-    if (rerollChaosInfusion) rerollChaosInfusionForItem(item, previousInfusion);
+    const maxTier = Math.max(1, zoneTier), rollLine = rerollLineRoll(options, maxTier);
+    const side = prepareExplicitReroll(item, options);
     let count = 0;
     if (rarity === 'magic') count = Math.random() < 0.5 ? 1 : 2;
     if (rarity === 'rare') count = 4 + Math.floor(Math.random() * 2);
     count = Math.max(0, count - getItemExplicitOptionCount(item));
-    let mods = pickRandomMods(getAvailableMods(item), count, equipmentCrafting.affixRoom(item, rarity), options.weigh);
+    let mods = pickRandomMods(getAvailableMods(item).filter(mod => !side || equipmentCrafting.affixKind(mod) === side), count, equipmentCrafting.affixRoom(item, rarity), options.weigh);
     mods.forEach(mod => item.stats.push(rollLine(mod)));
     updateItemName(item);
 }
@@ -10081,9 +10087,11 @@ function getAvailableSporeCraftModes() {
 }
 
 /** 혼돈 · 피해 홀씨는 고급 홀씨 해금 뒤에만 쓴다. 저장된 선택도 쓰는 순간 다시 본다(제작 · 미리보기 · 다시 사용 공통). */
-function getSporeCraftBlockReason(item, actionKey, mode) {
+function getSporeCraftBlockReason(item, actionKey, mode, omen = null) {
     if (['chaos', 'damage'].includes(mode) && !getAvailableSporeCraftModes().includes(mode)) return '혼돈, 피해 홀씨 제작은 ‘해금’의 고급 홀씨를 열어야 쓸 수 있습니다.';
-    return equipmentCrafting.getSporeBlockReason(item, actionKey, mode);
+    const reason = equipmentCrafting.getSporeBlockReason(item, actionKey, mode);
+    if (reason || mode === 'none' || !equipmentCrafting.basicActions.includes(actionKey)) return reason;
+    return equipmentCrafting.sporePool(item, actionKey, mode, omen).length ? '' : '선택한 홀씨 계열에서 새로 부여할 수 있는 옵션이 없습니다.';
 }
 
 function isSporeCraftEquipment(item) {
@@ -10346,12 +10354,18 @@ const craftCurrencyUse = (() => {
      * its guaranteed mod, the 제작 뿌리 it uses and the line a 수액 봉오리 on a rare adds). */
     function plan(item, currencyKey, action) {
         const mode = sporeMode(item, currencyKey), spore = equipmentCrafting.basicActions.includes(action) ? mode : 'none';
-        const guaranteedMod = spore === 'none' ? null : equipmentCrafting.pickSporeMod(item, action, spore);
+        const sideBlock = equipmentCrafting.armedSideReason(game, item, action, spore);
+        if (sideBlock) return { reason: sideBlock };
+        const omen = equipmentCrafting.omenFor(game, action, item, mode);
+        const guaranteedMod = spore === 'none' ? null : equipmentCrafting.pickSporeMod(item, action, spore, omen);
         const reason = sporeReason(item, action, mode, guaranteedMod);
         if (reason) return { reason };
-        const omen = equipmentCrafting.omenFor(game, action, item, mode);
         const addedMod = action === 'exalted' ? guaranteedMod || equipmentCrafting.pickAddMod(item, omen) : null;
         return action === 'exalted' && !addedMod ? { reason: '이 장비에 추가로 부여할 수 있는 옵션이 없습니다.' } : { spore, guaranteedMod, omen, addedMod };
+    }
+    function addonReason(item, action, mode) {
+        return equipmentCrafting.armedSideReason(game, item, action, mode)
+            || getSporeCraftBlockReason(item, action, mode, equipmentCrafting.omenFor(game, action, item, mode));
     }
 
     // ---------------------------------------------------------------- effects after payment (basic crafts: equipmentCrafting.craftBasic)
@@ -10360,11 +10374,12 @@ const craftCurrencyUse = (() => {
         run.logs.push([`🛠️ 장비 퀄리티 +1% (현재 ${item.quality}%)`, 'loot-magic']);
     }
     /** 황금률: every value rolled again inside its tier (locked lines kept), the infusion, and a socket amp unique's amp. */
-    function rerollValues(item) {
-        item.stats.forEach(stat => { if (!stat.lockedByHoney && !stat.lockedByRift) rerollStoredAffixValue(stat); });
+    function rerollValues(item, run) {
+        const onSide = stat => equipmentCrafting.onOmenSide(item, stat, run.omen);
+        item.stats.forEach(stat => { if (!stat.lockedByHoney && !stat.lockedByRift && onSide(stat)) rerollStoredAffixValue(stat); });
         const infusion = item.chaosInfusion;
-        if (infusion && Number.isFinite(Number(infusion.valMin)) && Number.isFinite(Number(infusion.valMax))) rerollStoredAffixValue(infusion);
-        if (item.uniqueEffectKey === 'abyssSocketAndJewelAmp' && item.uniqueEffectParams) rerollAbyssAmp(item);
+        if (infusion && onSide(infusion) && Number.isFinite(Number(infusion.valMin)) && Number.isFinite(Number(infusion.valMax))) rerollStoredAffixValue(infusion);
+        if (!run.omen && item.uniqueEffectKey === 'abyssSocketAndJewelAmp' && item.uniqueEffectParams) rerollAbyssAmp(item);
     }
     function rerollAbyssAmp(item) {
         const p = item.uniqueEffectParams;
@@ -10395,16 +10410,19 @@ const craftCurrencyUse = (() => {
         return true;
     }
     function annul(item, run) {
-        const picked = equipmentCrafting.pickPruneLine(getAnnulmentRemovableStats(item), run.omen);
+        const candidates = getAnnulmentRemovableStats(item).filter(row => equipmentCrafting.onOmenSide(item, row.stat, run.omen));
+        const picked = equipmentCrafting.pickPruneLine(candidates, run.omen);
         const removed = item.stats.splice(picked.index, 1)[0];
         updateItemName(item);
         run.logs.push([`🕳️ 전정 가위: ${removed.statName || getStatName(removed.id)} 옵션 제거`, 'loot-unique']);
     }
-    function scour(item) {
-        item.stats = (item.stats || []).filter(stat => stat && (stat.lockedByHoney || stat.lockedByRift));
-        item.chaosInfusion = null;
-        delete item.affixKeep;
-        item.rarity = item.stats.length > 0 ? 'magic' : 'normal';
+    function scour(item, run) {
+        const sideOnly = run.omen && run.omen.effect === 'side', onSide = stat => equipmentCrafting.onOmenSide(item, stat, run.omen);
+        item.stats = (item.stats || []).filter(stat => stat && (stat.lockedByHoney || stat.lockedByRift || !onSide(stat)));
+        if (item.chaosInfusion && onSide(item.chaosInfusion)) item.chaosInfusion = null;
+        if (!sideOnly || equipmentCrafting.keptKind(item) === run.omen.side) delete item.affixKeep;
+        const remaining = getItemExplicitOptionCount(item) > 0;
+        item.rarity = remaining ? (sideOnly ? item.rarity : 'magic') : 'normal';
         updateItemName(item);
     }
     function taint(item, run) {
@@ -10479,7 +10497,7 @@ const craftCurrencyUse = (() => {
         run.logs.push([`⚒️ ${ORB_DB[payment.key].name} 사용${note}`, 'loot-magic']);
         return { ok: true, logs: run.logs };
     }
-    return Object.freeze({ use, blockReason });
+    return Object.freeze({ use, blockReason, addonReason });
 })();
 
 /** The crafting workspace's currency use (js/crafting-workspace-ui.js): craftCurrencyUse.use, its log lines, a redraw. true when it

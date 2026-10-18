@@ -1065,11 +1065,11 @@ const ORB_DB = {
     altarIchor: { name: '허기의 즙', desc: '푸른 제단에서 얻습니다. 투구, 갑옷, 장갑, 신발, 방패, 허리띠의 베이스 옵션 한 줄을 허기 줄로 바꿉니다(수호자, 마름 아이템 제외). 10개를 모으면 세계수를 갉는 자에게 도전합니다.' },
     // 제작 뿌리(2026-10-18, Craft of Exile에 나오는 PoE의 Omen 제작에서, 이름은 사용자 결정. 코드 이름은 omen): 제작실에서 하나를 걸어 두면
     // 그 뿌리가 바꾸는 다음 제작 한 번에 쓰인다(CRAFT_OMENS).
-    omenPruning: { name: '가지치기의 뿌리', desc: '제작실에서 걸어 두면 다음 전정 가위가 무작위 대신 등급이 가장 낮은 옵션을 자릅니다(등급 없는 고정 옵션은 빼고). 정원사의 메아리가 지니고 있습니다.' },
-    omenCompost: { name: '거름의 뿌리', desc: '다음 다시 굴림(마법의 새싹, 형체 없는 이슬)에서 새 옵션의 등급이 아이템 등급의 절반 아래로 내려가지 않습니다. 밑거름의 장로가 지니고 있습니다.' },
-    omenWeave: { name: '엮음의 뿌리', desc: '다음 제작이 아이템에 이미 있는 옵션과 태그가 같은 옵션을 네 배 더 잘 고릅니다. 나이테를 엮는 자가 지니고 있습니다.' },
-    omenPyre: { name: '성화의 뿌리', desc: '다음 제작을 세 번 굴려 세 결과 가운데 하나를 고릅니다. 검은 태양의 대사제가 지니고 있습니다.' },
-    omenHunger: { name: '허기의 뿌리', desc: '다음 수액 봉오리가 붙이는 옵션을 접두나 접미 중 고른 쪽에서만 고릅니다. 세계수를 갉는 자가 지니고 있습니다.' },
+    omenPruning: { name: '가지치기의 뿌리', desc: '다음 전정 가위 사용 시 가장 낮은 등급의 옵션을 제거' },
+    omenCompost: { name: '거름의 뿌리', desc: '다음 재련의 새 옵션 등급이 아이템 등급의 절반보다 낮아질 수 없음' },
+    omenWeave: { name: '엮음의 뿌리', desc: '다음 제작 시 이미 가지고 있는 옵션들과 비슷한 옵션이 나올 확률이 4배' },
+    omenPyre: { name: '성화의 뿌리', desc: '다음 제작 시 세 개의 결과 중 하나를 선택' },
+    omenHunger: { name: '허기의 뿌리', desc: '다음 기본 재화 제작 시 결과가 접두어나 접미어에만 적용' },
     // 기억 조각칼(2026-10-18, PoE 야수 제작의 Imprint에서, 사용자: 초고급 재화): 장비의 제작 칸을 새겨 두고(그 장비는 '기억 새겨짐') 한 번
     // 되돌린다(js/equipment-crafting.js engrave). 체이싱 티어(data/loot-omens.js moments).
     memoryImprint: { name: '기억 조각칼', desc: '제작실에서 장비의 지금 추가 옵션을 새겨 둡니다(기억 새겨짐). 뒤에 제작이 마음에 들지 않으면 새긴 때의 추가 옵션과 등급으로 한 번 되돌립니다. 베이스 옵션, 퀄리티, 소켓은 그대로이고, 타락한 장비, 고유, 융합 유물에는 쓸 수 없습니다. 기억 싸움에서 드물게 얻습니다.' }
@@ -1077,7 +1077,7 @@ const ORB_DB = {
 
 /** 제작 뿌리: 걸어 둔 하나(game.craftOmen { key, side })가 actions에 드는 다음 제작 한 번을 바꾸고 하나 줄어든다(js/equipment-crafting.js).
  * effect: prune 가장 낮은 등급 줄을 자름, floor 새 줄 등급 하한 = 아이템 등급 × floorShare, weave 이미 있는 태그를 weaveMul배,
- * choice 제작을 choices번 굴려 하나를 고름(game.craftChoice), side 추가 줄을 접두나 접미에서만. boss: 처치마다 그 뿌리 하나(data/atlas-endgame.js rewards).
+ * choice 제작을 choices번 굴려 하나를 고름(game.craftChoice), side 고른 접두/접미만 재련·추가·수치 변경·제거. boss: 처치마다 그 뿌리 하나(data/atlas-endgame.js rewards).
  * bearer: 늦은 지도(아틀라스 minAtlasTier 등급 이상, 혼돈 minChaosDepth층 이상)의 몬스터가 드물게 뿌리를 품는다(정예 elite, 그 밖 normal 확률).
  * 깨어난 아틀라스에서, 쓰러뜨린 최종 보스의 뿌리만(js/atlas-endgame.js markOmenBearer). 지도 기운 뿌리의 메아리가 늘린다(data/loot-omens.js). */
 const CRAFT_OMENS = Object.freeze({
@@ -1087,7 +1087,7 @@ const CRAFT_OMENS = Object.freeze({
         omenCompost: Object.freeze({ effect: 'floor', actions: Object.freeze(['transmute', 'alteration', 'alchemy', 'chaos']), boss: 'apex_compost' }),
         omenWeave: Object.freeze({ effect: 'weave', actions: Object.freeze(['transmute', 'alteration', 'alchemy', 'chaos', 'regal', 'exalted']), boss: 'apex_weaver' }),
         omenPyre: Object.freeze({ effect: 'choice', actions: Object.freeze(['transmute', 'alteration', 'alchemy', 'chaos', 'regal', 'exalted']), boss: 'apex_archbishop' }),
-        omenHunger: Object.freeze({ effect: 'side', actions: Object.freeze(['regal', 'exalted']), boss: 'apex_devourer' })
+        omenHunger: Object.freeze({ effect: 'side', actions: Object.freeze(['alchemy', 'chaos', 'regal', 'exalted', 'divine', 'scour', 'annulment']), boss: 'apex_devourer' })
     }),
     floorShare: 0.5, weaveMul: 4, choices: 3,
     // 지도 한 장에 보통 22~25, 정예 2.5~3마리(2026-10-18 실측, 드랍 시뮬레이터 16등급): 지도 20~25장에 하나.
@@ -1158,13 +1158,13 @@ const CURRENCY_ICON_PATHS = Object.freeze({
     pruningShears: 'assets/ui/currency/pruning-shears.png',
     fairyRing: 'assets/ui/currency/fairy-ring.png',
     blessing: 'assets/ui/currency/blessing-petal.png',
-    // 제작 뿌리와 기억 조각칼(2026-10-18, GPT 그림 artifacts/crafting-currency-20261018 handoff.json: 뿌리 v3, 조각칼 v2)
-    omenPruning: 'assets/ui/currency/omen-pruning-v3.png',
-    omenCompost: 'assets/ui/currency/omen-compost-v3.png',
-    omenWeave: 'assets/ui/currency/omen-weave-v3.png',
-    omenPyre: 'assets/ui/currency/omen-pyre-v3.png',
-    omenHunger: 'assets/ui/currency/omen-hunger-v3.png',
-    memoryImprint: 'assets/ui/currency/memory-imprint-v2.png'
+    // 제작 재화 v4: 보스별 색상, 작은 표시 크기에 맞춘 형태와 명암. 제작 원본·검수: artifacts/crafting-currency-20261018.
+    omenPruning: 'assets/ui/currency/omen-pruning-v4.png',
+    omenCompost: 'assets/ui/currency/omen-compost-v4.png',
+    omenWeave: 'assets/ui/currency/omen-weave-v4.png',
+    omenPyre: 'assets/ui/currency/omen-pyre-v4.png',
+    omenHunger: 'assets/ui/currency/omen-hunger-v4.png',
+    memoryImprint: 'assets/ui/currency/memory-imprint-v4.png'
 });
 Object.entries(CURRENCY_ICON_PATHS).forEach(([key, icon]) => {
     if (ORB_DB[key]) ORB_DB[key].icon = icon;

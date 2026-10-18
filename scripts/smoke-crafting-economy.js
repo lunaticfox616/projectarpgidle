@@ -134,7 +134,6 @@ vm.runInContext(annulBlock, annulContext, { filename: 'market-annul.js' });
     assert.deepStrictEqual(salvaged, [8]);
     assert.deepStrictEqual(Array.from(jewelSalvageContext.game.inventory), []);
 
-    assert(uiSource.includes("return { enabled: false, reason: `홀씨 부족"), 'crafting UI should explain insufficient spore cost');
     // Enabled/disabled controls and payment are exercised in crafting-workspace.spec.js.
     assert(uiSource.includes('confirmedSalvageTargets(targetItems)'), 'search-based equipment salvage should keep a confirmation-time target snapshot');
     assert(!cardSource.includes('getItemSalvagePreviewText(item, true)'), 'compact inventory cards should not spend metadata space on salvage materials');
@@ -164,6 +163,21 @@ vm.runInContext(annulBlock, annulContext, { filename: 'market-annul.js' });
         const picked=equipmentCrafting.pickChoice(game,1)===__item,restored=equipmentCrafting.restoreImprint(__item).ok;
         return picked&&restored&&game.inventory.length===bag&&itemIdCounter===id&&game.currencies.omenPyre===0&&game.currencies.memoryImprint===0;})()`), true,
         'a 성화의 뿌리 pick and a 기억 조각칼 restore change the same item and cost one each');
+    // 허기의 뿌리: each supported currency changes only the chosen side, pays once, and refuses an empty target before payment.
+    for (const side of ['prefix','suffix']) for (const key of ['formlessDew','sapBud','goldenRule','blightSpore','pruningShears']) {
+        assert.strictEqual(runGame(`(()=>{const item=createItemFromBase(BASE_ITEM_DB.find(b=>b.slot==='무기'&&!b.dropOnly),'rare',12);
+            const pool=getAvailableMods({...item,stats:[]});item.stats=['prefix','suffix'].map(kind=>rollAffixValue(pool.find(m=>equipmentCrafting.affixKind(m)===kind),12));
+            game.inventory=[item];selectForCrafting(item.id,false);game.sporeCraftModes={};game.currencies['${key}']=2;game.currencies.omenHunger=2;
+            equipmentCrafting.armOmen(game,'omenHunger','${side}');const other=()=>JSON.stringify(item.stats.filter(s=>equipmentCrafting.storedAffixKind(item,s)!=='${side}'));
+            const before=other(),result=craftCurrencyUse.use('${key}');
+            const count=item.stats.filter(s=>equipmentCrafting.storedAffixKind(item,s)==='${side}').length;
+            return result.ok&&other()===before&&game.currencies['${key}']===1&&game.currencies.omenHunger===1&&!game.craftOmen
+                && (!['blightSpore','pruningShears'].includes('${key}')||count===0);})()`),true,`${key}/${side}: preserve the opposite side and pay once`);
+    }
+    assert.strictEqual(runGame(`(()=>{const item=game.inventory[0];item.stats=item.stats.filter(s=>equipmentCrafting.storedAffixKind(item,s)!=='prefix');
+        equipmentCrafting.armOmen(game,'omenHunger','prefix');game.currencies.pruningShears=2;
+        const before=JSON.stringify([item,game.currencies,game.craftOmen]);const result=craftCurrencyUse.use('pruningShears');
+        return !!result.reason&&JSON.stringify([item,game.currencies,game.craftOmen])===before;})()`),true,'empty side refuses crafting without spending either currency');
     console.log('smoke-crafting-economy passed');
 })().catch(error => {
     console.error(error);

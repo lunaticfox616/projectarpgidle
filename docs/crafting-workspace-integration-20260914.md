@@ -10,7 +10,11 @@
 
 ## 제작 뿌리 (2026-10-18)
 
+- 재화 이미지 v4: 보스별 색을 유지하고 작은 표시 크기에 맞춰 형태·명암을 단순화했다. 엮음은 길고 가는 고리, 허기는 열린 굵은 갈고리, 기억 조각칼은 연보라 칼날로 구분한다. `data/items.js`의 `CURRENCY_ICON_PATHS`에서 64px 투명 PNG를 공통으로 연결하며, 모바일 재화 목록에서도 아이콘을 표시한다. 원본·프롬프트·비교 자료는 `artifacts/crafting-currency-20261018/`에 둔다.
+
 - 화면 이름은 뿌리, 코드 이름은 omen이다. 정의와 수치는 `data/items.js` `CRAFT_OMENS`(효과, 쓰이는 제작, 보스, 몬스터 확률). 걸어 둔 뿌리는 `game.craftOmen { key, side }`이고 저장 경계는 `normalizeCraftOmen`이다.
+- 허기의 뿌리는 고른 접두어/접미어에만 적용된다. 형체 없는 이슬은 그쪽만 재련, 수액 봉오리는 그쪽 1줄 추가, 황금률은 그쪽 수치만 재설정, 마름병 포자는 그쪽 모두 제거, 전정 가위는 그쪽 무작위 1줄 제거다. 반대쪽·특수 옵션·기존 잠금은 보존하고, 바꿀 줄이나 빈자리가 없으면 기본 재화와 뿌리 모두 소모하지 않는다. 부분 제거 후 남는 옵션이 있으면 장비 등급은 유지한다. 홀씨를 함께 쓰면 보장 옵션도 같은 쪽에서 고르며 맞는 후보가 없으면 제작을 막는다.
+- 함께 사용 선택창은 보유한 뿌리 1개 이상, 홀씨는 해당 모드의 필요 수량(단일 10개, 카오스/피해는 3종 각 10개)이 있을 때 표시한다. 선택한 재료 아래에는 효과를 표시하고 '사용 가능/불가' 문구는 붙이지 않는다. 부족해진 홀씨는 `홀씨 부족 (보유수 / 사용수)`와 해제 버튼을 남기고 붉게 표시한다. 효과 적용 조건이 맞지 않는 이유는 일반 색으로 안내하며, 제작 불가 이유는 사용 버튼 아래의 붉은 안내로 표시한다.
 - 규칙은 `js/equipment-crafting.js` 한 곳(omenFor, spendOmen, rollOmenLine, pickAddMod, pickPruneLine, craftBasic)이다. 실제 제작(`js/passives.js` useCurrency)과 제작 연구의 연습(`rehearse`)이 같은 함수를 쓴다. 뿌리는 자기가 바꾼 제작이 끝난 뒤 `spendOmen`으로 한 번만 줄고, 연습은 쓰지 않는다(`scripts/smoke-crafting-economy.js`).
 - 얻는 곳: 최종 보스 보상(`data/atlas-endgame.js`), 뿌리를 품은 몬스터(`js/atlas-endgame.js` markOmenBearer, 처치 보상은 `js/atlas-run.js`), 지도 기운 뿌리의 메아리(`data/loot-omens.js`). 모두 쓰러뜨린 최종 보스의 뿌리만 준다. 암거래상은 팔지 않는다(사용자 결정).
 - 성화의 뿌리: `craftBasic`이 결과 셋을 `game.craftChoice { itemId, options }`에 두고 아이템은 첫 결과를 받는다. `pickChoice`는 같은 아이템의 제작 칸(`CRAFT_FIELDS`: 등급, 이름, 추가 옵션, 혼돈 주입, 지키기)만 바꾸고, 그사이 아이템이 바뀌었거나 없으면 기다림을 버린다(`pendingChoice`). 기다리는 동안 제작실은 제작을 막고 고르기 창은 닫히지 않는다.
