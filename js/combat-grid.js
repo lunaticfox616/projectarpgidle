@@ -437,6 +437,15 @@ function beginExplorationGridStep(target,interval,avoid) {
     if(!stepAroundDanger(getExplorationPlanningBlockedCells(run),avoid,blocked=>gridStepToward(next,target.gx,target.gy,blocked)))return false;
     return actExplorationMotion.start(run,game.gridPlayer,next,interval/actExplorationDoors.pace(run),run.motionTimeMs);
 }
+/** Whether a step toward target is free for unit now, by the rule advanceGridUnitMovement steps by, without moving it. */
+function canGridUnitStepToward(unit, target, avoid) {
+    if (!hasGridCell(unit) || !target) return false;
+    const run = actExplorationState.current(game);
+    const exploring = !!run && unit === game.gridPlayer;
+    const probe = exploring ? { gx: unit.gx, gy: unit.gy } : { ...unit };
+    const blocked = exploring ? getExplorationPlanningBlockedCells(run) : getGridBlockedCells(unit);
+    return stepAroundDanger(blocked, avoid, cells => gridStepToward(probe, target.gx, target.gy, cells));
+}
 
 /** The hero plans its exploration step around fighters and its own reserved tile, but not around dormant packs: they wake
  * as soon as they are seen, so a narrow passage (a maze chamber) they stand in must not look like a dead end. Stepping into a
@@ -1484,7 +1493,7 @@ safeExposeGlobals({
     getGridDirectHitDistanceMultiplier,
     getGridBlockedCells, getHeroStepBlockedCells, swapSummonOutOfHeroTile, findFreeGridCell, assignEnemyGridSpawn, assignEnemyGridCombatProfile,
     resetPlayerGridPosition, ensureCombatGridRuntime, gridLineCells, gridProjectedLineEnd,
-    gridStepToward, advanceGridUnitMovement, findNearestSafeGridRoute, advanceGridHazardEscape, advanceGridTacticalMovement, getSkillGridProfile, getSkillGridProfileKindLabel,
+    gridStepToward, advanceGridUnitMovement, canGridUnitStepToward, findNearestSafeGridRoute, advanceGridHazardEscape, advanceGridTacticalMovement, getSkillGridProfile, getSkillGridProfileKindLabel,
     describeSkillGridProfile, getGridSkillTargetMult, getGridAttackAreaCells,
     selectGridSkillTargets, findNearestGridEnemy, extendGridTargetsBySpill,
     getSkillHitSequenceProfile, buildSkillHitSequence, getSkillHitSequenceDpsMultiplier, splitFanSpreadDps, getFanSpreadDpsLines

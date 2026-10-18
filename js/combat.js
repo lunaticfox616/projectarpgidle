@@ -5571,8 +5571,22 @@ function updatePlayerGridEngagement(pStats, options) {
     let nearest = resolvePlayerApproachTarget(alive);
     if (!nearest) return false;
     if (isPlayerAttackRecovering()) return false;
-    advanceGridUnitMovement(game.gridPlayer, getPlayerApproachCell(pStats, nearest), 0.1, getPlayerGridStepSec(pStats), config.avoidCells);
+    approachPlayerTarget(pStats, alive, nearest, config.avoidCells);
     return false;
+}
+
+/** One hero step toward its approach target. When no step leads toward it (its way shut by other monsters: 2026-10-19 a melee hero
+ * stood still in a one-tile passage while the ranged harpy holding it shot at it), the nearest monster a step leads toward becomes
+ * the target. @returns {boolean} whether a step began */
+function approachPlayerTarget(pStats, alive, target, avoidCells) {
+    const stepSec = getPlayerGridStepSec(pStats);
+    if (advanceGridUnitMovement(game.gridPlayer, getPlayerApproachCell(pStats, target), 0.1, stepSec, avoidCells)) return true;
+    const canStep = enemy => canGridUnitStepToward(game.gridPlayer, getPlayerApproachCell(pStats, enemy), avoidCells);
+    if (canStep(target)) return false;
+    const open = findNearestGridEnemy(game.gridPlayer, alive.filter(enemy => enemy !== target && canStep(enemy)));
+    if (!open) return false;
+    combatTacticsRuntime.approachTargetId = open.id;
+    return advanceGridUnitMovement(game.gridPlayer, getPlayerApproachCell(pStats, open), 0, stepSec, avoidCells);
 }
 
 /** Danger the hero must not step into (avoid: { hard, soft }, js/combat.js updateCombatHazardEvasion): tactical moves wait for it. */
