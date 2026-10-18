@@ -15,9 +15,19 @@
         if(game.settings.lootFx?.notices?.[chase?'chase':'goldenRule']===false)return;
         showGameToast(`${name}${objectParticle(name)} 획득했습니다.`,{tone:chase?'chase':'reward',duration:chase?6000:3600});
     }
+    /** 처음 얻은 제작 뿌리와 기억 조각칼: 어디서 어떻게 쓰는지 한 번(2026-10-18, 둘 다 늦은 콘텐츠의 드문 재화라 처음 보면 쓸 곳을 모른다). */
+    const FIRST_USE={
+        roots:['craft_roots','제작 뿌리','제작 뿌리를 얻었습니다.\n‘장비 → 제작실’의 ‘뿌리 함께 사용’에서 걸어 두면 그 뿌리가 바꾸는 다음 제작 한 번에 쓰입니다.\n제작 연구에서는 뿌리를 걸고 미리 연습할 수 있습니다.'],
+        memoryImprint:['memory_chisel','기억 조각칼','기억 조각칼을 얻었습니다.\n‘장비 → 제작실’에서 장비의 지금 추가 옵션을 새겨 두면, 뒤에 제작이 마음에 들지 않을 때 그 옵션으로 한 번 되돌릴 수 있습니다.']
+    };
+    function noticeFirstUse(currencyKey,gain) {
+        const row=FIRST_USE[CRAFT_OMENS.keys.includes(currencyKey)?'roots':currencyKey];
+        if(gain>0&&row)queueTutorialNotice(row[0],row[1],row[2],'tab-items','item-tab-craft');
+    }
     function announce(event) {
         const {currencyKey,gain,unlocked}=event.detail;
         noticeCurrency(currencyKey,gain);
+        noticeFirstUse(currencyKey,gain);
         if(currencyKey==='goldenRule' && gain>0) {
             addLog(`✨✨ <strong>${ORB_DB.goldenRule.name} +${gain}</strong> 획득!`,'loot-unique');
         }
