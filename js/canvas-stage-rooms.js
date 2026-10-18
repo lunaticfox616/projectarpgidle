@@ -86,7 +86,7 @@ const stageRoomsView = (() => {
      * 이동했는데 vfx, 대미지폰트 등이 남아있는데 없어지게 해줘": 화면 좌표에 묶인 것(대미지 숫자 등)은 카메라가 새 방으로 넘어가도
      * 그 자리에 남았다. */
     function clearLeftRoom() {
-        Object.assign(battleVisualState, { damageTexts: [], projectiles: [], skillProjectiles: [], skillEffects: [] });
+        Object.assign(battleVisualState, { damageTexts: [], projectiles: [], skillEffects: [] });
         if (battleVisualState.enemyHitPulses) battleVisualState.enemyHitPulses.clear();
         stageSkillVfx.clear();
         stageSkillSigil.clear();

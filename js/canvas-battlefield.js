@@ -2134,9 +2134,7 @@ function drawBattlePlayerActor(ctx, state) {
         ctx.translate(position.x * 2, 0);
         ctx.scale(-1, 1);
     }
-    drawSkillWeaponLayer(ctx, position, state.now, 'back');
     drawTintedBattlePlayerFigure(ctx, state, position);
-    drawSkillWeaponLayer(ctx, position, state.now, 'front');
     ctx.restore();
     drawPlayerReturnWhiteShroud(ctx, transitionPosition, transition && transition.whiteShroud, true);
     drawPlayerReturnWarpEffect(ctx, warpPosition, returnWarp, true);
@@ -2692,7 +2690,6 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
         const viewportProjectileFxScale = Math.min(width / 960, height / 540);
         queueSkillGemProjectileLaunch(latestSwingFx, currentTargets, playerPos, enemyPosMap, viewportProjectileFxScale);
     }
-    updateSkillPlayback(now, playerPos, width, enemyPosMap);
     let gridUnitScale = clampNumber(gridProj.tileW / 46, 0.48, Math.max(1.3, gridProj.unitScaleCap || 0));
     drawBattleGroundLayer(ctx, battleFx, { now, gridProj, playerPos, enemyPosMap });
     bossAttackView.drawGround(ctx, gridProj);

@@ -661,9 +661,8 @@ function mergeDefaults(save) {
         equipment: { ...defaultGame.equipment, ...(save.equipment || {}) },
         saveMeta: { ...defaultGame.saveMeta, ...(save.saveMeta || {}) }
     };
-    delete merged.hideout;
-    delete merged.abyssPassivePoints;
-    delete merged.abyssPassives;
+    // Fields of removed systems (lastSkillHitElement: the old skill playback, 2026-10-18).
+    ['hideout', 'abyssPassivePoints', 'abyssPassives', 'lastSkillHitElement'].forEach(key => delete merged[key]);
     delete merged.unlocks.hideout;
     delete merged.noti.hideout;
     migratePassiveSaveNodeReferences(merged);

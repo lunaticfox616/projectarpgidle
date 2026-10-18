@@ -7184,7 +7184,6 @@ function resetBattleRuntimeVisuals() {
     battleVisualState = {
         projectiles: [],
         damageTexts: [],
-        skillProjectiles: [],
         skillEffects: [],
         skillPlayback: null,
         lastAutoSwingId: 0,
@@ -11065,7 +11064,6 @@ function performPlayerAttack(pStats, attackOptions) {
     let swingElement = options.forcedElement || getHitElement();
     if (!['phys','fire','cold','light','chaos'].includes(swingElement)) swingElement = (pStats.sSkill && pStats.sSkill.ele) || 'phys';
     if (typeof getTalentDamageConversion === 'function') swingElement = getTalentDamageConversion(swingElement).element;
-    game.lastSkillHitElement = swingElement;
     let talentAttackMul = Number.isFinite(Number(options.talentAttackMultiplier))
         ? Math.max(0, Number(options.talentAttackMultiplier))
         : getTalentPlayerAttackDamageMultiplier();

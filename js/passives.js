@@ -4211,7 +4211,6 @@ const BATTLE_FX_QUEUE_CAP = 160;
 let battleVisualState = {
     projectiles: [],
     damageTexts: [],
-    skillProjectiles: [],
     skillEffects: [],
     skillPlayback: null,
     lastAutoSwingId: 0,
@@ -4279,40 +4278,14 @@ const HERO_FRAME_META = {
     29: { motion: 'bow', local: 3, pivot: { x: 150, y: 260 }, hand: { x: 138, y: 130 }, drawOffset: { x: 0, y: 0 } }
 };
 const SKILL_CONFIG = {
-    1: { id: 'basic_slash', motion: 'slash', weapon: 'sword', projectile: null, effectIndex: 1 },
-    2: { id: 'heavy_smash', motion: 'slash', weapon: 'greatsword', projectile: null, effectIndex: 2 },
-    3: { id: 'dagger_throw', motion: 'throw', weapon: 'dagger', projectile: 'dagger_projectile', effectIndex: 0 },
-    4: { id: 'bow_shot', motion: 'bow', weapon: 'bow', projectile: 'arrow_projectile', effectIndex: 0 },
-    5: { id: 'spear_thrust', motion: 'throw', weapon: 'spear', projectile: null, effectIndex: 11 },
-    6: { id: 'staff_cast', motion: 'cast', weapon: 'staff', projectile: 'magic_projectile_blue', effectIndex: 26 },
-    7: { id: 'scythe_swing', motion: 'slash', weapon: 'scythe', projectile: null, effectIndex: 16 },
-    8: { id: 'magic_cast', motion: 'cast', weapon: 'magic_orb', projectile: 'magic_projectile_dark', effectIndex: 28 }
-};
-const WEAPON_CONFIG = {
-    sword: { atlasIndex: 0, grip: { x: 105, y: 250 }, scale: 0.18, rotation: -0.65, layer: 'front' },
-    greatsword: { atlasIndex: 1, grip: { x: 100, y: 265 }, scale: 0.22, rotation: -0.65, layer: 'front' },
-    dagger: { atlasIndex: 2, grip: { x: 130, y: 265 }, scale: 0.16, rotation: -0.65, layer: 'front' },
-    bow: { atlasIndex: 4, grip: { x: 205, y: 200 }, scale: 0.2, rotation: 0, layer: 'front' },
-    spear: { atlasIndex: 6, grip: { x: 75, y: 270 }, scale: 0.24, rotation: -0.55, layer: 'front' },
-    staff: { atlasIndex: 7, grip: { x: 72, y: 265 }, scale: 0.22, rotation: -0.35, layer: 'front' },
-    scythe: { atlasIndex: 9, grip: { x: 95, y: 185 }, scale: 0.24, rotation: -0.55, layer: 'front' },
-    magic_orb: { atlasIndex: 10, grip: { x: 165, y: 195 }, scale: 0.14, rotation: 0, layer: 'front' }
-};
-const PROJECTILE_CONFIG = {
-    dagger_projectile: { atlasIndex: 3, speed: 650, scale: 0.35 },
-    arrow_projectile: { atlasIndex: 5, speed: 750, scale: 0.45 },
-    magic_projectile_blue: { atlasIndex: 8, speed: 520, scale: 0.45 },
-    magic_projectile_dark: { atlasIndex: 11, speed: 520, scale: 0.45 }
-};
-const SKILL_WEAPON_OFFSETS = {
-    basic_slash: [{ x: -8, y: 6, rotation: -1.1, scale: 1 }, { x: 2, y: -4, rotation: -0.4, scale: 1.1 }, { x: 18, y: -8, rotation: 0.7, scale: 1.1 }, { x: 8, y: 4, rotation: 1.3, scale: 1 }],
-    heavy_smash: [{ x: -10, y: 8, rotation: -1.3, scale: 1 }, { x: 0, y: -6, rotation: -0.5, scale: 1.1 }, { x: 22, y: -10, rotation: 0.8, scale: 1.15 }, { x: 10, y: 6, rotation: 1.5, scale: 1 }],
-    dagger_throw: [{ x: -6, y: 4, rotation: -0.9, scale: 1 }, { x: 2, y: -2, rotation: -0.3, scale: 1.05 }, { x: 14, y: -6, rotation: 0.5, scale: 1.05 }, { x: 6, y: 2, rotation: 0.9, scale: 1 }],
-    bow_shot: [{ x: -4, y: 2, rotation: -0.15, scale: 1 }, { x: 0, y: -2, rotation: -0.05, scale: 1 }, { x: 6, y: -2, rotation: 0.08, scale: 1 }, { x: 2, y: 1, rotation: 0.12, scale: 1 }],
-    spear_thrust: [{ x: -12, y: 4, rotation: -0.5, scale: 1 }, { x: 4, y: -2, rotation: -0.15, scale: 1.1 }, { x: 28, y: -4, rotation: 0.1, scale: 1.1 }, { x: 10, y: 2, rotation: 0.3, scale: 1 }],
-    staff_cast: [{ x: -6, y: 6, rotation: -0.9, scale: 1 }, { x: 4, y: -6, rotation: -0.3, scale: 1.1 }, { x: 16, y: -8, rotation: 0.4, scale: 1.1 }, { x: 6, y: 2, rotation: 0.7, scale: 1 }],
-    scythe_swing: [{ x: -14, y: 8, rotation: -1.4, scale: 1 }, { x: 2, y: -6, rotation: -0.6, scale: 1.15 }, { x: 24, y: -10, rotation: 0.9, scale: 1.15 }, { x: 12, y: 4, rotation: 1.6, scale: 1 }],
-    magic_cast: [{ x: -4, y: 4, rotation: -0.2, scale: 1 }, { x: 2, y: -4, rotation: 0.0, scale: 1.05 }, { x: 8, y: -4, rotation: 0.15, scale: 1.1 }, { x: 4, y: 2, rotation: 0.1, scale: 1 }]
+    1: { id: 'basic_slash', motion: 'slash' },
+    2: { id: 'heavy_smash', motion: 'slash' },
+    3: { id: 'dagger_throw', motion: 'throw' },
+    4: { id: 'bow_shot', motion: 'bow' },
+    5: { id: 'spear_thrust', motion: 'throw' },
+    6: { id: 'staff_cast', motion: 'cast' },
+    7: { id: 'scythe_swing', motion: 'slash' },
+    8: { id: 'magic_cast', motion: 'cast' }
 };
 let crowdPauseActive = false;
 let activeTutorial = null;
@@ -4619,7 +4592,6 @@ function clearBattleVisualBacklog() {
     latestPlayerSwingImpactAt = 0;
     battleVisualState.projectiles = [];
     battleVisualState.damageTexts = [];
-    battleVisualState.skillProjectiles = [];
     battleVisualState.skillEffects = [];
     battleVisualState.skillPlayback = null;
     battleVisualState.processedFxIds = new Set();
@@ -5099,9 +5071,7 @@ function playSkill(skillId) {
         skillId: normalized,
         startAt: now,
         endAt: now + duration,
-        duration: duration,
-        projectileSpawned: false,
-        effectSpawned: false
+        duration: duration
     };
     return true;
 }
@@ -5117,98 +5087,11 @@ function mapSkillSlotByGemTags(skillName) {
     if (tags.includes('chain')) return 6;
     return 1;
 }
-function mapEffectIndexByElement(element, fallbackIndex) {
-    let ele = normalizeDamageElementKey(element);
-    if (ele === 'chaos') return 28;
-    if (ele === 'cold') return 3;
-    if (ele === 'fire' || ele === 'light') return 26;
-    return Number.isFinite(fallbackIndex) ? fallbackIndex : 1;
-}
-function mapEffectIndexByGemTags(skillName, fallbackIndex) {
-    let skill = SKILL_DB[skillName] || {};
-    if (Array.isArray(skill.randomElementPool) && skill.randomElementPool.length > 0 && game.lastSkillHitElement) {
-        return mapEffectIndexByElement(game.lastSkillHitElement, fallbackIndex);
-    }
-    let tags = ((skill && skill.tags) || []).map(tag => String(tag).toLowerCase());
-    if (tags.includes('chaos')) return 28;
-    if (tags.includes('cold')) return 3;
-    if (tags.includes('fire') || tags.includes('light') || tags.includes('lightning') || tags.includes('thunder') || tags.includes('elemental')) return 26;
-    if (tags.includes('projectile')) return 0;
-    if (tags.includes('slam')) return 2;
-    if (tags.includes('aoe')) return 16;
-    return Number.isFinite(fallbackIndex) ? fallbackIndex : 1;
-}
 function playSkillFromActiveGem(skillName) {
     // World-tree gems draw their own art (the movement gems of the 이동 스킬 slot swing without the generic effect).
     if (SKILL_GEM_VFX_PROFILES[skillName]?.family === 'worldTree') return false;
-    let slot = mapSkillSlotByGemTags(skillName);
-    if (!playSkill(slot)) return false;
-    let state = battleVisualState.skillPlayback;
-    if (!state) return false;
-    let base = SKILL_CONFIG[slot];
-    state.overrideEffectIndex = mapEffectIndexByGemTags(skillName, base.effectIndex);
-    return true;
+    return playSkill(mapSkillSlotByGemTags(skillName));
 }
-function updateSkillPlayback(now, playerPos, width, enemyPosMap) {
-    let state = getSkillPlaybackState(now);
-    if (!state) return;
-    let skillCfg = state.skillCfg;
-    let targetEnemy = null;
-    // 이 함수는 스킬 재생 중 매 프레임 호출된다. getPlayerStats()는 장비/패시브
-    // 전체를 재계산하는 무거운 함수이므로, 렌더 전용 단기 캐시를 사용해 공격 중
-    // 매 프레임 전체 스탯을 재계산하던 렉(특히 상시 공격하는 물리)을 제거한다.
-    let playbackStats = (typeof getCanvasPlayerStats === 'function') ? getCanvasPlayerStats() : getPlayerStats();
-    let targetIds = getSkillTargets(playbackStats).map(hit => hit.enemy && hit.enemy.id).filter(Boolean);
-    if (targetIds.length > 0 && enemyPosMap) {
-        targetEnemy = enemyPosMap[targetIds[0]] || null;
-    }
-    if (!targetEnemy && enemyPosMap) {
-        let firstKey = Object.keys(enemyPosMap)[0];
-        if (firstKey !== undefined) targetEnemy = enemyPosMap[firstKey];
-    }
-    let targetX = targetEnemy ? targetEnemy.x : Math.max(playerPos.x + 50, width - 22);
-    let targetY = targetEnemy ? (targetEnemy.y - 12) : (playerPos.y - 18);
-    let hitFrame = Math.max(1, Math.floor((HERO_MOTIONS[skillCfg.motion] || []).length * 0.5));
-    if (!state.projectileSpawned && skillCfg.projectile && state.frameLocalIndex >= hitFrame) {
-        let pCfg = PROJECTILE_CONFIG[skillCfg.projectile];
-        if (pCfg) {
-            battleVisualState.skillProjectiles.push({
-                projectileName: skillCfg.projectile,
-                skillId: state.skillId,
-                startAt: now,
-                lifetime: 1000,
-                speed: pCfg.speed,
-                x: playerPos.x + 20,
-                y: playerPos.y - 18,
-                targetX: targetX,
-                targetY: targetY
-            });
-        }
-        battleVisualState.skillPlayback.projectileSpawned = true;
-    }
-    let chosenEffectIndex = Number.isFinite(state.overrideEffectIndex) ? state.overrideEffectIndex : skillCfg.effectIndex;
-    if (!state.effectSpawned && Number.isFinite(chosenEffectIndex) && state.frameLocalIndex >= hitFrame) {
-        // 실제 피해 이벤트가 이미지 VFX를 생성한다. 애니메이션 예상 프레임에서 별도
-        // 효과를 쌓으면 빗나간 공격에도 효과가 나오고 동일 배열이 중복 사용된다.
-        battleVisualState.skillPlayback.effectSpawned = true;
-    }
-}
-function drawWeapon(ctx, heroX, heroY, motion, frameLocalIndex, weaponName, layerFilter, skillId) {
-    return;
-}
-function drawProjectile(ctx, now) {
-    battleVisualState.skillProjectiles = [];
-}
-function drawEffect(ctx, now) {
-    battleVisualState.skillEffects = [];
-}
-function drawSkillWeaponLayer(ctx, playerPos, now, layer) {
-    let state = getSkillPlaybackState(now);
-    if (!state) return;
-    drawWeapon(ctx, playerPos.x, playerPos.y, state.skillCfg.motion, state.frameLocalIndex, state.skillCfg.weapon, layer, state.skillId);
-}
-function drawSkillProjectileLayer(ctx, now) { drawProjectile(ctx, now); }
-function drawSkillEffectLayer(ctx, now) { drawEffect(ctx, now); }
 function isTutorialOpen() {
     let overlay = document.getElementById('tutorial-overlay');
     return !!activeTutorial && !!overlay && overlay.classList.contains('active');
