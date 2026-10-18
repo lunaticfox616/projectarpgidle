@@ -483,14 +483,15 @@ function isBeehiveRunLockedForMapTravel() {
     return reconcileBeehiveRunState() && game.currentZoneId === 'beehive_run';
 }
 
+const BEEHIVE_TRAVEL_REFUSAL = '벌집 원정 중에는 [원정 포기] 전까지 다른 지역으로 이동할 수 없습니다.';
 function warnBeehiveMapTravelBlocked() {
-    if (typeof addLog === 'function') addLog('벌집 원정 중에는 [던전 포기] 전까지 다른 지역으로 이동할 수 없습니다.', 'attack-monster');
+    if (typeof addLog === 'function') addLog(BEEHIVE_TRAVEL_REFUSAL, 'attack-monster');
     return true;
 }
 /** Runs that keep the hero until they end or are given up (벌집 원정, 경계 너머). changeZone and the deep sea refuse from inside one,
  * and so does every content start (getContentStartBlockReason, and 경계 너머 itself). Returns the refusal, or ''. */
 function getHeldRunBlockReason() {
-    if (isBeehiveRunLockedForMapTravel()) return '벌집 원정 중에는 [던전 포기] 전까지 다른 지역으로 이동할 수 없습니다.';
+    if (isBeehiveRunLockedForMapTravel()) return BEEHIVE_TRAVEL_REFUSAL;
     return ensureBeyondBoundaryState(game).activeRun ? '경계 너머 도전을 먼저 마치거나 포기하세요.' : '';
 }
 /** Content starts (군락지, 벌집, 혼돈 밖, 심해, 나무꾼의 잔상, 대균열, 증표 시련) refuse from a held run and from inside an atlas map:
@@ -637,10 +638,9 @@ function getZoneTravelBlockReason(id) {
 function changeZone(id) {
     const blockReason = getZoneTravelBlockReason(id);
     if (blockReason) return addLog(blockReason, 'attack-monster');
-    if (isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked();
     let boundary = ensureBeyondBoundaryState(game);
-    if (boundary.activeRun && id !== BEYOND_BOUNDARY_ZONE_ID)
-        return addLog('경계 너머 도전 중에는 다른 지역으로 이동할 수 없습니다. 먼저 도전을 포기하세요.', 'attack-monster');
+    const held = id === BEYOND_BOUNDARY_ZONE_ID && boundary.activeRun ? '' : getHeldRunBlockReason();
+    if (held) return addLog(held, 'attack-monster');
     if (id === BEYOND_BOUNDARY_ZONE_ID && !boundary.activeRun)
         return addLog('경계 너머 화면에서 단계와 성장시킬 인장을 선택해 도전을 시작하세요.', 'attack-monster');
     game.inTicketBossFight = false;
