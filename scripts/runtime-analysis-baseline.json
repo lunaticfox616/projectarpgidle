@@ -1058,11 +1058,11 @@
     },
     "getPlayerStats|max-lines-per-function|Function 'getPlayerStats' has too many lines (#). Maximum allowed is #.": {
       "count": 1,
-      "max": 2199
+      "max": 2198
     },
     "getPlayerStats|complexity|Function 'getPlayerStats' has a complexity of #. Maximum allowed is #.": {
       "count": 1,
-      "max": 757
+      "max": 756
     },
     "getPlayerStats|max-lines-per-function|Arrow function has too many lines (#). Maximum allowed is #.": {
       "count": 1,
@@ -14071,6 +14071,7 @@
     "dependency:normalizeItem->normalizeBelt",
     "dependency:normalizeItem->normalizeItemOrigin",
     "dependency:normalizeItem->normalizeStatRecord",
+    "dependency:normalizeItem->renameRetiredItemStatIds",
     "dependency:normalizeItem->syncStoredUniqueEffect",
     "dependency:normalizeItemOrigin->normalizeDropRegion",
     "dependency:normalizeJewelRecord->getJewelStats",
@@ -16821,6 +16822,7 @@
     "dependency:renameLegacySummonGemCounts->fold",
     "dependency:renameLegacySummonGemCounts->renameLegacySummonGem",
     "dependency:renameLegacySummonGemLoot->renameLegacySummonGem",
+    "dependency:renameRetiredItemStatIds->getStatName",
     "dependency:renameRetiredUniques->rename",
     "dependency:renameSavedEntry->renamedId",
     "dependency:renameSavedIds->renameSavedEntry",
