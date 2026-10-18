@@ -293,6 +293,15 @@ function getGemSkyEnhanceGemLevelBonus(skillName) {
     });
     return Math.max(0, Math.floor(bonus));
 }
+/** A skill rune's levels beyond its own: the sky tower boost (응축 창공), the material levels (the core forge, +2 awakened, the boost)
+ * and the sky engraving's rune levels. The one source for the active skill, the rune presentation and the summon level. */
+function getSkillRuneBonusLevels(name, record) {
+    const permanentSkyBonus = typeof getSkyTowerGemBoostLevel === 'function' ? getSkyTowerGemBoostLevel(name) : 0;
+    const materialBonus = gemCoreForge.effects(record).levels + (record.awakened ? 2 : 0) + permanentSkyBonus;
+    return { permanentSkyBonus, materialBonus, engraveLevel: getGemSkyEnhanceGemLevelBonus(name) };
+}
+/** The extra levels of a rune that is not a skill rune. */
+const NO_RUNE_BONUS_LEVELS = Object.freeze({ permanentSkyBonus: 0, materialBonus: 0, engraveLevel: 0 });
 
 function applySkyGemEnhancementToActive(enhanceId, requestedSlotIndex) {
     if (!contentProgression.isUnlocked('engraving') || (game.season || 1) < 4) {
@@ -957,9 +966,7 @@ function getActiveSkillStats(bonusLevel) {
     game.gemData = game.gemData || {};
     let gem = normalizeGemRecord((game.gemData || {})[game.activeSkill]);
     if (skill.levelable) game.gemData[game.activeSkill] = gem;
-    let permanentSkyBonus = usesGemProgression && typeof getSkyTowerGemBoostLevel === 'function' ? getSkyTowerGemBoostLevel(game.activeSkill) : 0;
-    let materialBonus = usesGemProgression ? gemCoreForge.effects(gem).levels + (gem.awakened ? 2 : 0) + permanentSkyBonus : 0;
-    let awakenedGemLevelBonus = usesGemProgression ? getGemSkyEnhanceGemLevelBonus(game.activeSkill) : 0;
+    const { permanentSkyBonus, materialBonus, engraveLevel: awakenedGemLevelBonus } = usesGemProgression ? getSkillRuneBonusLevels(game.activeSkill, gem) : NO_RUNE_BONUS_LEVELS;
     let levelBonus = usesGemProgression ? bonusLevel : 0;
     let finalLevel = Math.min(20, gem.level) + levelBonus + materialBonus + awakenedGemLevelBonus;
     let totalLevel = gem.level + levelBonus + materialBonus + awakenedGemLevelBonus;

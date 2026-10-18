@@ -1308,12 +1308,10 @@ function getSummonGemLevel(gemName, source, pStats, evaluation) {
     let sources = getTargetGemBonusSources(gemName, pStats && pStats.gemBonusSources, undefined, evaluation);
     let bonus = Math.max(0, Math.floor((sources && sources.total) || 0));
     let engraveBonus = typeof getGemSkyEnhanceGemLevelBonus === 'function' ? getGemSkyEnhanceGemLevelBonus(gemName) : 0;
-    // getGemPresentation()의 활성 스킬룬 totalLevel/finalLevel과 동일한 materialBonus 구성
-    // (군주의핵 + 창공의힘 + 각성 + 응축창공). 이게 빠져 있으면 소환 공격 룬에 이 재료들을
-    // 투자해도 룬 자체의 "총 레벨" 표시만 오르고 실제 소환수 전투력은 그대로였다.
+    // 활성 스킬룬, 룬 표시와 같은 재료 레벨(getSkillRuneBonusLevels: 군주의핵 + 창공의힘 + 각성 + 응축창공). 이게 빠져 있으면 소환 공격 룬에
+    // 이 재료들을 투자해도 룬 자체의 "총 레벨" 표시만 오르고 실제 소환수 전투력은 그대로였다.
     let isGem = !isSupport && typeof SKILL_DB !== 'undefined' && SKILL_DB[gemName] && SKILL_DB[gemName].isGem;
-    let permanentSkyBonus = isGem && typeof getSkyTowerGemBoostLevel === 'function' ? getSkyTowerGemBoostLevel(gemName) : 0;
-    let materialBonus = isGem ? gemCoreForge.effects(record).levels + (record.awakened ? 2 : 0) + permanentSkyBonus : 0;
+    let materialBonus = isGem ? getSkillRuneBonusLevels(gemName, record).materialBonus : 0;
     return Math.max(1, baseLevel + bonus + engraveBonus + materialBonus);
 }
 
@@ -5337,10 +5335,8 @@ function getSkillGemPresentation(name, stats, targetGemSources) {
 /** The sky tower boost, the core and awakening levels, the gear levels, the sky engraving's rune levels (as getActiveSkillStats), and
  * the total and final (base capped at 20) levels. */
 function getSkillGemLevels(name, db, gem, targetGemSources) {
-    let permanentSkyBonus = db.isGem && typeof getSkyTowerGemBoostLevel === 'function' ? getSkyTowerGemBoostLevel(name) : 0;
-    let materialBonus = db.isGem ? gemCoreForge.effects(gem).levels + (gem.awakened ? 2 : 0) + permanentSkyBonus : 0;
+    const { permanentSkyBonus, materialBonus, engraveLevel } = db.isGem ? getSkillRuneBonusLevels(name, gem) : NO_RUNE_BONUS_LEVELS;
     let levelBonus = db.isGem ? targetGemSources.total : 0;
-    let engraveLevel = db.isGem && typeof getGemSkyEnhanceGemLevelBonus === 'function' ? getGemSkyEnhanceGemLevelBonus(name) : 0;
     let totalLevel = gem.level + levelBonus + materialBonus + engraveLevel;
     let finalLevel = Math.min(20, gem.level) + levelBonus + materialBonus + engraveLevel;
     return { permanentSkyBonus, materialBonus, engraveLevel, totalLevel, finalLevel };
