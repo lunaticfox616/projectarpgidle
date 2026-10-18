@@ -1509,13 +1509,47 @@ function getSummonAverageSharedIncreasePct(summon, pStats) {
     return elements.reduce((sum, ele) => sum + getSummonSharedDamageIncreasePct({ ...summon, ele }, pStats), 0) / elements.length;
 }
 
+/** One summon hit on target (none for an estimate): the base hit, its crit, then the target's scales. options.expected averages the
+ * roll and the crit; rollOverridePct and forceCrit fix them. Split into its stages on 2026-10-18; the damage and the ailment source
+ * damage change in the same order. */
 function getSummonHitDamageInfo(s, pStats, target, options) {
     let expected = !!(options && options.expected);
     let ele = s.ele || 'phys';
     let zone = getZone(game.currentZoneId) || getZone(0);
     let zoneTier = (zone && zone.tier) || 1;
+    const hit = getSummonBaseHit(s, pStats, options, expected);
+    applySummonHitCrit(hit, pStats, options, expected);
+    applySummonHitTargetScales(hit, { s, pStats, target, ele, zone, zoneTier, expected });
+    return { damage: Math.max(0, Math.floor(hit.dmg)), ailmentSourceDamage: Math.max(0, Math.floor(hit.ailmentSourceDmg)), crit: hit.crit, critChance: hit.critChance, element: ele };
+}
+/** The hit before crits: base damage (keystone sb1 more), increases and efficiency, the summon's roll and keystone sb7's share of the
+ * hero's attack power. */
+function getSummonBaseHit(s, pStats, options, expected) {
     let base = Math.max(1, Math.floor(s.baseDamage || 20));
     if (hasKeystone('sb1')) base = Math.max(1, Math.floor(base * (1 + ASCENDANCY_KEYSTONE_VALUES.sb1.summonBaseMorePct / 100)));
+    let dmgMul = getSummonHitDamageMultiplier(s, pStats);
+    const { critChance, critMul } = getSummonCritProfile(s, pStats);
+    const hit = { dmg: Math.max(1, base * dmgMul), ailmentSourceDmg: Math.max(1, base * dmgMul), crit: false, critChance, critMul };
+    let rollPct = getSummonHitRollPct(s, options, expected);
+    hit.dmg *= rollPct / 100;
+    hit.ailmentSourceDmg *= rollPct / 100;
+    // 상호 보완(sb7): 플레이어 공격력(타격당 기본 피해)의 일부(ASCENDANCY_KEYSTONE_VALUES.sb7)를 소환수 타격에 가산(치명타 적용 전).
+    if (hasKeystone('sb7')) {
+        let sbPlayerShare = ASCENDANCY_KEYSTONE_VALUES.sb7.sharePct / 100 * Math.max(0, Number((pStats && pStats.sbPlayerAttackPower) || 0));
+        if (sbPlayerShare > 0) {
+            hit.dmg += sbPlayerShare;
+            hit.ailmentSourceDmg += sbPlayerShare;
+        }
+    }
+    return hit;
+}
+/** Crit chance 5% to 95% and crit damage at least 120%: the summon's own plus the hero's summon crit stats. */
+function getSummonCritProfile(s, pStats) {
+    let critChance = Math.max(0.05, Math.min(0.95, ((s.crit || 0) + (pStats.summonCrit || 0)) / 100));
+    let critMul = Math.max(1.2, ((s.critDmg || 140) + (pStats.summonCritDmg || 0)) / 100);
+    return { critChance, critMul };
+}
+function getSummonHitDamageMultiplier(s, pStats) {
     let sharedIncreasePct = getSummonSharedDamageIncreasePct(s, pStats);
     // 소환수 효율은 피해 증가(소환수 피해/공유)와 합산이 아니라 별도 곱연산으로 적용합니다.
     let dmgMul = (1 + ((pStats.summonPctDmg || 0) + sharedIncreasePct) / 100)
@@ -1523,97 +1557,86 @@ function getSummonHitDamageInfo(s, pStats, target, options) {
     if (s.role === 'attack' && pStats.passiveKeystoneFlags && pStats.passiveKeystoneFlags.soleMinion) {
         dmgMul *= 1 + Math.max(0, Number(pStats.passiveSoleMinionLostCap) || 0) * 0.75;
     }
-    let critChance = Math.max(0.05, Math.min(0.95, ((s.crit || 0) + (pStats.summonCrit || 0)) / 100));
-    let critMul = Math.max(1.2, ((s.critDmg || 140) + (pStats.summonCritDmg || 0)) / 100);
-    let crit = false;
-    let dmg = Math.max(1, base * dmgMul);
-    let ailmentSourceDmg = Math.max(1, base * dmgMul);
-    // 소환수마다 다른 일격 편차(dmgRollMinPct~100%)를 적용. 버스트형(화염 위습 등)은 편차가 크고
-    // 연사형(냉기 위습 등)은 편차가 작아, "최소 피해"가 최대 피해 대비 지나치게 미미해지지 않게 함.
+    return dmgMul;
+}
+/** 소환수마다 다른 일격 편차(dmgRollMinPct~100%): 버스트형(화염 위습 등)은 편차가 크고 연사형(냉기 위습 등)은 작아, "최소 피해"가
+ * 최대 피해 대비 지나치게 미미해지지 않게 한다. An estimate takes the middle; rollOverridePct fixes it. */
+function getSummonHitRollPct(s, options, expected) {
     let rollMinPct = Math.max(1, Math.min(100, Math.floor(s.dmgRollMinPct || 40)));
-    let rollPct = Number.isFinite(options && options.rollOverridePct)
-        ? Math.max(1, Math.min(100, options.rollOverridePct))
-        : (expected ? ((rollMinPct + 100) / 2) : (rollMinPct + Math.random() * (100 - rollMinPct)));
-    dmg *= rollPct / 100;
-    ailmentSourceDmg *= rollPct / 100;
-    // 상호 보완(sb7): 플레이어 공격력(타격당 기본 피해)의 일부(ASCENDANCY_KEYSTONE_VALUES.sb7)를 소환수 타격에 가산(치명타 적용 전).
-    if (hasKeystone('sb7')) {
-        let sbPlayerShare = ASCENDANCY_KEYSTONE_VALUES.sb7.sharePct / 100 * Math.max(0, Number((pStats && pStats.sbPlayerAttackPower) || 0));
-        if (sbPlayerShare > 0) {
-            dmg += sbPlayerShare;
-            ailmentSourceDmg += sbPlayerShare;
-        }
-    }
+    if (Number.isFinite(options && options.rollOverridePct)) return Math.max(1, Math.min(100, options.rollOverridePct));
+    return expected ? ((rollMinPct + 100) / 2) : (rollMinPct + Math.random() * (100 - rollMinPct));
+}
+/** The crit: an estimate averages it; forceCrit decides it; else a roll. A unique can make a hit that does not crit deal nothing. */
+function applySummonHitCrit(hit, pStats, options, expected) {
     if (expected) {
-        dmg *= pStats.uniqueSummonNonCritNoDamage ? (critChance * critMul) : ((1 - critChance) + (critChance * critMul));
-    } else if (typeof (options && options.forceCrit) === 'boolean') {
-        if (options.forceCrit) {
-            dmg *= critMul;
-            crit = true;
-        } else if (pStats.uniqueSummonNonCritNoDamage) {
-            dmg = 0;
-            ailmentSourceDmg = 0;
-        }
-    } else if (Math.random() < critChance) {
-        dmg *= critMul;
-        crit = true;
-    } else if (pStats.uniqueSummonNonCritNoDamage) {
-        dmg = 0;
-        ailmentSourceDmg = 0;
+        hit.dmg *= pStats.uniqueSummonNonCritNoDamage ? (hit.critChance * hit.critMul) : ((1 - hit.critChance) + (hit.critChance * hit.critMul));
+        return;
     }
+    const forced = typeof (options && options.forceCrit) === 'boolean';
+    const crits = forced ? options.forceCrit : Math.random() < hit.critChance;
+    if (crits) {
+        hit.dmg *= hit.critMul;
+        hit.crit = true;
+    } else if (pStats.uniqueSummonNonCritNoDamage) {
+        hit.dmg = 0;
+        hit.ailmentSourceDmg = 0;
+    }
+}
+/** Scales both parts of the hit by mul and floors them (each step floors). */
+function scaleSummonHit(hit, mul) {
+    hit.dmg = Math.floor(hit.dmg * mul);
+    hit.ailmentSourceDmg = Math.floor(hit.ailmentSourceDmg * mul);
+}
+/** The target's side: the boss limit, talisman curses, its resistance after the hero's (limited) penetration, an entropy dodge, the
+ * element it takes more of, keystone and abyss scales, the talisman boss bonus, then the summon's final limit. */
+function applySummonHitTargetScales(hit, ctx) {
+    const { s, pStats, target, ele, zoneTier, expected } = ctx;
     if (target && target.isBoss) {
         let bossMul = getLimitedSummonBossDamageMultiplier(pStats, target);
-        dmg *= bossMul;
-        ailmentSourceDmg *= bossMul;
+        hit.dmg *= bossMul;
+        hit.ailmentSourceDmg *= bossMul;
     }
     let curseFx = target ? getEnemyConditionDebuffFactor(target, pStats) : { mul: 1, resShred: 0, resFShred: 0, resCShred: 0, resLShred: 0, resChaosShred: 0, physDrShred: 0, lightTakenMul: 1, chaosTakenMul: 1, critDmgTakenMul: 1 };
-    let limitedStats = getLimitedSummonPenetrationStats(pStats, s);
-    let enemyRes = getEffectiveEnemyMitigation(ele, zoneTier, target, limitedStats) - (curseFx.resShred || 0);
-    if (ele === 'fire') enemyRes -= (curseFx.resFShred || 0);
-    if (ele === 'cold') enemyRes -= (curseFx.resCShred || 0);
-    if (ele === 'light') enemyRes -= (curseFx.resLShred || 0);
-    if (ele === 'chaos') enemyRes -= (curseFx.resChaosShred || 0);
-    if (ele === 'phys') enemyRes -= (curseFx.physDrShred || 0);
-    if (!expected && target && resolveEntropyEvasion(target, target.evasionChance || 0, getCombatTime())) {
-        dmg = 0;
-        ailmentSourceDmg = 0;
-        addBattleFx('enemyEvade', { enemyId: target.id, text: '회피!', color: '#c4e2ff', duration: 260 });
-        addEvasionCombatLog(target, false);
-    }
-    dmg = Math.floor(dmg * (1 - (enemyRes / 100)));
-    ailmentSourceDmg = Math.floor(ailmentSourceDmg * (1 - (enemyRes / 100)));
-    dmg = Math.floor(dmg * (curseFx.mul || 1));
-    ailmentSourceDmg = Math.floor(ailmentSourceDmg * (curseFx.mul || 1));
-    if (ele === 'phys' && target) {
-        dmg = Math.floor(dmg * (target.physicalDamageTakenMul || 1));
-        ailmentSourceDmg = Math.floor(ailmentSourceDmg * (target.physicalDamageTakenMul || 1));
-    }
-    if (ele === 'light') {
-        dmg = Math.floor(dmg * (curseFx.lightTakenMul || 1));
-        ailmentSourceDmg = Math.floor(ailmentSourceDmg * (curseFx.lightTakenMul || 1));
-    }
-    if (ele === 'chaos') {
-        dmg = Math.floor(dmg * (curseFx.chaosTakenMul || 1));
-        ailmentSourceDmg = Math.floor(ailmentSourceDmg * (curseFx.chaosTakenMul || 1));
-    }
-    if (crit) dmg = Math.floor(dmg * (curseFx.critDmgTakenMul || 1));
-    if (target) {
-        let keystoneMul = getKeystoneEnemyTakenMultiplier(target, ele);
-        dmg = Math.floor(dmg * keystoneMul);
-        ailmentSourceDmg = Math.floor(ailmentSourceDmg * keystoneMul);
-    }
-    let abyssMul = getAbyssMonsterScales(zone).playerDamageMul || 1;
-    dmg = Math.floor(dmg * abyssMul);
-    ailmentSourceDmg = Math.floor(ailmentSourceDmg * abyssMul);
+    let enemyRes = getSummonTargetResistance(ele, zoneTier, target, { pStats, s, curseFx });
+    if (!expected && target) dodgeSummonHitByEntropy(hit, target);
+    scaleSummonHit(hit, 1 - (enemyRes / 100));
+    scaleSummonHit(hit, curseFx.mul || 1);
+    applySummonElementTaken(hit, ele, target, curseFx);
+    applySummonLateScales(hit, ctx, curseFx);
+}
+/** An entropy dodge: the hit does nothing, with its dodge mark and log line. */
+function dodgeSummonHitByEntropy(hit, target) {
+    if (!resolveEntropyEvasion(target, target.evasionChance || 0, getCombatTime())) return;
+    hit.dmg = 0;
+    hit.ailmentSourceDmg = 0;
+    addBattleFx('enemyEvade', { enemyId: target.id, text: '회피!', color: '#c4e2ff', duration: 260 });
+    addEvasionCombatLog(target, false);
+}
+/** The curses' crit damage taken, the keystones' taken scale, the abyss scale, the talisman boss bonus and the summon's final limit. */
+function applySummonLateScales(hit, ctx, curseFx) {
+    const { s, pStats, target, ele, zone } = ctx;
+    if (hit.crit) hit.dmg = Math.floor(hit.dmg * (curseFx.critDmgTakenMul || 1));
+    if (target) scaleSummonHit(hit, getKeystoneEnemyTakenMultiplier(target, ele));
+    scaleSummonHit(hit, getAbyssMonsterScales(zone).playerDamageMul || 1);
     if (target && target.isBoss && (pStats.damageScales || {}).talismanBossFinalDmgBonusPct) {
-        let talismanMul = 1 + ((pStats.damageScales.talismanBossFinalDmgBonusPct || 0) / 100);
-        dmg = Math.floor(dmg * talismanMul);
-        ailmentSourceDmg = Math.floor(ailmentSourceDmg * talismanMul);
+        scaleSummonHit(hit, 1 + ((pStats.damageScales.talismanBossFinalDmgBonusPct || 0) / 100));
     }
-    let finalMul = getLimitedSummonFinalDamageMultiplier(pStats, s);
-    dmg = Math.floor(dmg * finalMul);
-    ailmentSourceDmg = Math.floor(ailmentSourceDmg * finalMul);
-    return { damage: Math.max(0, Math.floor(dmg)), ailmentSourceDamage: Math.max(0, Math.floor(ailmentSourceDmg)), crit: crit, critChance: critChance, element: ele };
+    scaleSummonHit(hit, getLimitedSummonFinalDamageMultiplier(pStats, s));
+}
+const SUMMON_CURSE_SHRED_BY_ELEMENT = Object.freeze({ fire: 'resFShred', cold: 'resCShred', light: 'resLShred', chaos: 'resChaosShred', phys: 'physDrShred' });
+/** The target's mitigation against the summon (with the summon's limited penetration), less the curses' shreds. */
+function getSummonTargetResistance(ele, zoneTier, target, from) {
+    let limitedStats = getLimitedSummonPenetrationStats(from.pStats, from.s);
+    let enemyRes = getEffectiveEnemyMitigation(ele, zoneTier, target, limitedStats) - (from.curseFx.resShred || 0);
+    const shredKey = Object.hasOwn(SUMMON_CURSE_SHRED_BY_ELEMENT, ele) ? SUMMON_CURSE_SHRED_BY_ELEMENT[ele] : null;
+    if (shredKey) enemyRes -= (from.curseFx[shredKey] || 0);
+    return enemyRes;
+}
+/** Physical hits by what the target takes more of physical damage; lightning and chaos by the curses' taken scales. */
+function applySummonElementTaken(hit, ele, target, curseFx) {
+    if (ele === 'phys' && target) scaleSummonHit(hit, target.physicalDamageTakenMul || 1);
+    if (ele === 'light') scaleSummonHit(hit, curseFx.lightTakenMul || 1);
+    if (ele === 'chaos') scaleSummonHit(hit, curseFx.chaosTakenMul || 1);
 }
 
 function getSummonAilmentStats(pStats, element) {
