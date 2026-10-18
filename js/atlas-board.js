@@ -78,7 +78,7 @@ const atlasBoard = (() => {
             if (b.risk >= C.maxRisk) { b.message = T.messages.riskCap; return []; }
             const added = Math.min(15, C.maxBoost - b.boost);
             b.risk += 1; b.boost += added;
-            b.message = `강행 돌파, 위험 +1, 보상 증폭 +${added}%.`;
+            b.message = `강행 돌파, 위험 +1, ${added ? `보상 증폭 +${added}%` : T.boostFull}.`;
         }
         if (kind === 'rest') b.risk = Math.max(0, b.risk - 1);
         if (kind === 'claim') {
