@@ -1164,13 +1164,9 @@
       "count": 1,
       "max": 17
     },
-    "getCosmosExclusiveEnemyTrait|max-lines-per-function|Function 'getCosmosExclusiveEnemyTrait' has too many lines (#). Maximum allowed is #.": {
-      "count": 1,
-      "max": 71
-    },
     "getCosmosExclusiveEnemyTrait|complexity|Function 'getCosmosExclusiveEnemyTrait' has a complexity of #. Maximum allowed is #.": {
       "count": 1,
-      "max": 44
+      "max": 15
     },
     "applyCosmosExclusiveTraitToEnemy|complexity|Function 'applyCosmosExclusiveTraitToEnemy' has a complexity of #. Maximum allowed is #.": {
       "count": 1,
