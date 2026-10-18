@@ -10919,6 +10919,7 @@
     "dependency:getSkillConditionalDamageMultiplier->hasGridCell",
     "dependency:getSkillConditionalDamageMultiplier->onCue",
     "dependency:getSkillDamageTagSet->hasEquippedShield",
+    "dependency:getSkillGemLevels->getGemSkyEnhanceGemLevelBonus",
     "dependency:getSkillGemLevels->getSkyTowerGemBoostLevel",
     "dependency:getSkillGemPresentation->applyGemPresentationPattern",
     "dependency:getSkillGemPresentation->getLeveledGemSkill",
