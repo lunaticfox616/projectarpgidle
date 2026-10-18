@@ -3053,7 +3053,6 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     let excludedSlots = new Set();
     let barbarismKeystone = findAllocatedPassiveKeystone('야만');
     if (barbarismKeystone) excludedSlots.add('all:무기');
-    if (findAllocatedPassiveKeystone('지식의 통로')) excludedSlots.add('all:투구');
     if (hasKeystone('cr3') && !hasKeystone('cr9')) excludedSlots.add('무기');
     let { gearBase, gearExplicit, localDefenseTotals, globalDefensePct, shieldArmorForDamage, shieldBaseBlockChance,
         shieldBlockChancePct, shieldBlockChanceFlat, equippedUniqueEffects } =
