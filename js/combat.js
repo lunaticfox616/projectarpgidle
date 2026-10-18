@@ -10926,7 +10926,6 @@ function performPlayerAttack(pStats, attackOptions) {
     if (!isStageReplay && typeof isTalentPlayerAttackDisabled === 'function' && isTalentPlayerAttackDisabled()) return;
     let skillName = options.skillName || game.activeSkill;
     let channelContinuationRequested = !isStageReplay && consumeCombatChannelContinuation(skillName);
-    if (!isStageReplay && typeof consumeOceanOxygenOnAttack === 'function') consumeOceanOxygenOnAttack();
     if (!isStageReplay && Array.isArray(game.queenBees) && game.queenBees.length > 0) {
         let now = getCombatTime();
         game.queenBees = game.queenBees.filter(bee => bee && (bee.expiresAt || 0) > now && (bee.attacksLeft || 0) > 0);

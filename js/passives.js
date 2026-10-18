@@ -2853,14 +2853,6 @@ function advanceOceanDiveFromKill(zone) {
     gainOceanFishingGaugeFromCombat(zone);
 }
 
-function consumeOceanOxygenOnAttack() {
-    let st = ensureOceanState();
-    if (!st.unlocked || !st.diving || !isInOceanZone()) return 0;
-    // 호환용 공개 진입점은 유지하되 공격 속도에 따른 산소 페널티는 적용하지 않는다.
-    // 실제 소모는 tickOceanOxygen의 시간 기반 배수 한 곳에서만 처리한다.
-    return 0;
-}
-
 function gainOceanFishingGaugeFromCombat(zone) {
     let st = ensureOceanState();
     if (!st.unlocked || !st.diving) return;
