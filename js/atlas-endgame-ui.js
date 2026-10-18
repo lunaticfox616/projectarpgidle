@@ -43,14 +43,12 @@ const atlasEndgameUi = (() => {
         return arena ? `<details><summary>전투 준비</summary><p>${escapeHTML(arena.hint)}</p><p>큰 공격은 ${sec(combo.warningMs)}~${sec(combo.finisherWarningMs)}초 먼저 예고합니다.
             마무리 뒤 ${sec(combo.finisherRecoveryMs)}초 동안 새 공격이 없습니다. 자동전투는 위험 칸을 걸어서 벗어납니다.</p></details>` : '';
     }
-    /** The boss's picture (its attack sheet's first pose) and its story with the line it says as the fight opens. */
+    /** The boss's story and the line it says as the fight opens. No picture: the boss is first seen in its arena (2026-10-18 사용자:
+     * "보스 도전 창에서 보스 몬스터의 외형을 미리 보여주지 않게"). */
     function storyHtml(row) {
         const story = E.stories[row.id];
-        if (!story) return '';
-        const art = ATLAS_BOSS_ART[row.bodyVisual] || MONSTER_STAGE_ROSTER.actors[row.bodyVisual];
-        const portrait = art ? `<div class="atlas-boss-portrait" style="width:${Math.min(240,170*art.w/art.h)}px;aspect-ratio:${art.w}/${art.h}"><img class="atlas-boss-image" loading="lazy" src="assets/enemies/roster/${art.id}-attack.png" alt="${escapeHTML(row.name)}" style="width:${art.attackCols * 100}%"></div>` : '';
-        return portrait + `<details><summary>이야기</summary><p class="atlas-muted">${escapeHTML(story.story)}</p>
-            <blockquote>${escapeHTML(story.entry)}</blockquote></details>`;
+        return story ? `<details><summary>이야기</summary><p class="atlas-muted">${escapeHTML(story.story)}</p>
+            <blockquote>${escapeHTML(story.entry)}</blockquote></details>` : '';
     }
     /** Why no late fight can depart right now (said once): the atlas's own lock, an open map, or another content's run. */
     function departBlock() {
