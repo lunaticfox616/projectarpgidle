@@ -10656,7 +10656,7 @@ function finishLabyrinthEncounter(zone, mapAction, ui) {
     game.labyrinthFloor = ['repeatZone', 'stop'].includes(mapAction) ? clearedFloor : clearedFloor + 1;
     let fossilSummary = rollLabyrinthFossils(clearedFloor, ui);
     rollLabyrinthSealShards(clearedFloor);
-    ui.say(`🏛️ 미궁 ${clearedFloor}층 돌파! [${fossilSummary.join(' / ') || '화석 없음'}]`, 'season-up');
+    ui.say(`🏛️ 미궁 ${clearedFloor}층 돌파!${labyrinthFossilNote(fossilSummary)}`, 'season-up');
     if (mapAction === 'nextLoopBestPlusOne') {
         let nextZone = resolveNextLoopBestPlusOneZone(zone);
         if (nextZone !== null) game.currentZoneId = nextZone;
@@ -10688,6 +10688,12 @@ function rollLabyrinthFossils(clearedFloor, ui) {
         ui.say('🌌 희귀 화석 [심연 화석]을 발견했습니다!', 'loot-unique');
     }
     return labyrinthFossilSummary({ base: gotBaseFossil, typed: gotTypedFossil, primal: gotPrimalFossil, ancient: gotAncientPrimalFossil }, rolledFossil);
+}
+/** The fossils found, or that none were, once fossils can drop at all (before that the clear says nothing of them: '[화석 없음]'
+ * after every floor read as a missed drop, 2026-10-18). */
+function labyrinthFossilNote(fossilSummary) {
+    if (!fossilSummary.length && !contentProgression.isUnlocked('fossil')) return '';
+    return ` [${fossilSummary.join(' / ') || '화석 없음'}]`;
 }
 function labyrinthFossilSummary(got, rolledFossil) {
     let fossilSummary = [];
