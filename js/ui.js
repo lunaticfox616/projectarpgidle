@@ -5394,11 +5394,12 @@ function getGemTargetSummaryHtml(skill) {
     return `<div class="tooltip-line">타겟 방식: ${label}</div><div class="tooltip-line">최대 타겟 수: ${maxTargets}</div>`;
 }
 
-/** The rune's Lv.20 perk line (GEM_LEVEL_20_PERKS), marked until the rune's own level reaches 20; '' for the others. */
+/** The rune's Lv.20 perk line (GEM_LEVEL_20_PERKS) from level 15 on (a new rune's card stays short), marked until it reaches 20; ''
+ * for the others. 강타 counts its total level. */
 function getGemLevel20PerkLine(name, type, info) {
     const perk = type !== 'support' && Object.hasOwn(GEM_LEVEL_20_PERKS, name) ? GEM_LEVEL_20_PERKS[name] : null;
-    if (!perk) return '';
-    const level = perk.byFinalLevel ? info.finalLevel : info.baseLevel;
+    const level = perk && (perk.byFinalLevel ? info.finalLevel : info.baseLevel);
+    if (!perk || level < 15) return '';
     return `<div class="tooltip-line" style="color:#9fd6ff;">룬 Lv.20 특전: ${perk.label}${level >= 20 ? '' : (perk.byFinalLevel ? ' (총 레벨 20부터)' : ' (룬 Lv.20부터)')}</div>`;
 }
 function showGemTooltip(event, type, name, target = null) {
