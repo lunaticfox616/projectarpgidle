@@ -4812,9 +4812,6 @@ function isTutorialOpen() {
     return !!activeTutorial && !!overlay && overlay.classList.contains('active');
 }
 
-function escapeTutorialText(value) {
-    return String(value == null ? '' : value).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
-}
 
 function isRewardOpen() {
     let overlay = document.getElementById('reward-overlay');
@@ -5076,9 +5073,7 @@ function closeDeathOverlay() {
 
 function escapeDeathLogText(value) {
     // 보스 이름의 장식 이모지(👿 …)는 도트 판에서 컬러 그림으로 튀어 뺀다.
-    value = stripDecorativeEmoji(value);
-    if (typeof escapeHTML === 'function') return escapeHTML(String(value || ''));
-    return String(value || '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+    return escapeHTML(stripDecorativeEmoji(value));
 }
 
 function renderDeathDamageRows(rows) {

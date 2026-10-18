@@ -608,6 +608,15 @@ function withObjectParticle(word) {
 function withSubjectParticle(word) {
     return String(word || '') + pickParticle(word, '이', '가');
 }
+/** Text made safe for HTML: & < > " and ' as entities; null and undefined as an empty string. */
+function escapeHTML(value) {
+    return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
 function stripDecorativeEmoji(value) {
     return String(value == null ? '' : value)
         .replace(/[\p{Extended_Pictographic}\p{Emoji_Presentation}\u{1F000}-\u{1FAFF}\uFE0F\u200D]/gu, '')

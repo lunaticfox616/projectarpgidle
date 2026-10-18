@@ -32,9 +32,6 @@
         { key: 'colonyWave', label: '군락지 방어', unit: '파도', tone: TONE.colony }
     ];
 
-    function escape(value) {
-        return typeof escapeHTML === 'function' ? escapeHTML(String(value == null ? '' : value)) : String(value == null ? '' : value);
-    }
 
     function formatCount(value) {
         return Math.floor(Number(value) || 0).toLocaleString();
@@ -70,9 +67,9 @@
         let icon = ['attack', 'phys', 'fire', 'cold', 'light', 'chaos'].includes(iconKind)
             ? `<span class="records-stat-icon combat-log-icon combat-log-icon--${iconKind}" aria-hidden="true"></span>` : '';
         return `<div class="records-stat"${tone ? ` style="--record-tone:${tone}"` : ''}>${icon}`
-            + `<span class="records-stat-label">${escape(label)}</span>`
-            + `<strong class="records-stat-value">${escape(value)}</strong>`
-            + (sub ? `<small class="records-stat-sub">${escape(sub)}</small>` : '')
+            + `<span class="records-stat-label">${escapeHTML(label)}</span>`
+            + `<strong class="records-stat-value">${escapeHTML(value)}</strong>`
+            + (sub ? `<small class="records-stat-sub">${escapeHTML(sub)}</small>` : '')
             + '</div>';
     }
 
@@ -85,7 +82,7 @@
                 ${statCard('', '이번 루프 진행', formatDuration(view.currentLoop.activeMs), `실제 경과 ${formatDuration(view.currentLoop.elapsedMs)}`, TONE.time)}
             </div>
             <details class="records-time-note"><summary>시간 기록 안내</summary>
-            <p class="records-note">기록 시작 ${escape(formatDate(view.startedAt))}, ${escape(formatDuration(view.trackedForMs))} 동안 기록<br>
+            <p class="records-note">기록 시작 ${escapeHTML(formatDate(view.startedAt))}, ${escapeHTML(formatDuration(view.trackedForMs))} 동안 기록<br>
             시간 기록은 이 기능이 추가된 시점부터 쌓입니다. 진행 시간은 실제 게임 계산 시간이며, 실제 경과는 자리를 비운 시간도 포함합니다.</p></details>
         </section>`;
     }
@@ -107,9 +104,9 @@
 
         let rows = view.loops.map(row => `<tr>
             <td class="records-loop">${formatCount(row.loop)}</td>
-            <td class="records-num${summary.fastestMs && row.activeMs === summary.fastestMs ? ' is-best' : ''}">${escape(formatDuration(row.activeMs))}</td>
-            <td class="records-num">${escape(formatDuration(row.durationMs))}</td>
-            <td>${escape(getZoneLabel(row.maxZoneId))}</td>
+            <td class="records-num${summary.fastestMs && row.activeMs === summary.fastestMs ? ' is-best' : ''}">${escapeHTML(formatDuration(row.activeMs))}</td>
+            <td class="records-num">${escapeHTML(formatDuration(row.durationMs))}</td>
+            <td>${escapeHTML(getZoneLabel(row.maxZoneId))}</td>
             <td class="records-num records-chaos">${row.bestAbyssDepth ? `${formatCount(row.bestAbyssDepth)}층` : '—'}</td>
             <td class="records-num records-level">Lv.${formatCount(row.level)}</td>
             <td class="records-num${row.deaths > 0 ? ' is-deaths' : ''}">${formatCount(row.deaths)}</td>
@@ -144,9 +141,9 @@
             let best = view.actBest[id];
             let isBestThisLoop = current !== undefined && best !== undefined && current <= best;
             return `<tr>
-                <td>${escape(getZoneLabel(id))}</td>
-                <td class="records-num">${current === undefined ? '—' : escape(formatDuration(current))}</td>
-                <td class="records-num${isBestThisLoop ? ' is-best' : ''}">${best === undefined ? '—' : escape(formatDuration(best))}</td>
+                <td>${escapeHTML(getZoneLabel(id))}</td>
+                <td class="records-num">${current === undefined ? '—' : escapeHTML(formatDuration(current))}</td>
+                <td class="records-num${isBestThisLoop ? ' is-best' : ''}">${best === undefined ? '—' : escapeHTML(formatDuration(best))}</td>
             </tr>`;
         }).join('');
         return `<section class="records-section">

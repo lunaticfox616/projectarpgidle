@@ -189,9 +189,6 @@ function getTalentRuntimeAppliedText(runtime, level) {
     return '';
 }
 
-function escapeTalentHtml(s) {
-    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
 
 /** The level's applied effects as { text, stat } (stat = the stat id for a plain stat line, null for a unique or runtime one). */
 function getTalentPreciseAppliedParts(comboKey, surface, level) {

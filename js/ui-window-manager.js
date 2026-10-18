@@ -969,7 +969,7 @@
     }
 
     function escapeGoalText(value) {
-        return stripDecorativeEmoji(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+        return escapeHTML(stripDecorativeEmoji(value));
     }
 
     /** 같은 알림이면 다시 그리지 않는다 — 1~10초마다 같은 두 단추를 새로 만들었다(검토 4차). */

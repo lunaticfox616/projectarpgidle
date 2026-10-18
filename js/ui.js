@@ -11145,15 +11145,6 @@ function keepKoreanUnitParticles(text) {
     return String(text).replace(/%(?=[가-힣])/g, '%\u2060');
 }
 
-function escapeHTML(value) {
-    return String(value == null ? '' : value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-}
-
 let __patchNotesCache = null;
 
 // changelog.md 파싱: "## 버전 — 날짜" 헤더와 "- 항목" 불릿을 엔트리로 변환합니다.

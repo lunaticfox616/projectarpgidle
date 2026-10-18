@@ -346,7 +346,7 @@ function tutorialNoticeKind(notice) {
 }
 /** Colour in card text: ‘menu or button’ in the card's kind colour (where to go), [item name] in blue (what it is). */
 function tutorialMarkup(line) {
-    return escapeTutorialText(line)
+    return escapeHTML(line)
         .replace(/‘([^’]+)’/g, '<span class="tutorial-ui">$1</span>')
         .replace(/\[([^\]]+)\]/g, '<span class="tutorial-name">[$1]</span>');
 }

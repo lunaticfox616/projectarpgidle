@@ -12,7 +12,7 @@ const talentUi = (() => {
     ]);
     let dialogKey = null, lastHtml = '', lastSheet = '', bound = false;
 
-    const esc = value => escapeTalentHtml(String(value ?? ''));
+    const esc = value => escapeHTML(value);
     const owned = () => (game.talentCards && typeof game.talentCards === 'object' ? game.talentCards : {});
     const levelOf = card => Math.max(1, Math.floor(Number(card && card.level) || 1));
     const scoreLevel = () => getTalentCardLevel(getTalentBloomScore());
