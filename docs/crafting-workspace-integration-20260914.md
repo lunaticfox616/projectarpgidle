@@ -8,11 +8,17 @@
 - 표본 결과에 성공률·95% 구간을 표시하고 성공이 5회 미만이면 평균 비용 추정을 제시하지 않는다. 50회씩 나눠 계산하며 창을 닫으면 중단한다. 표시 비용은 실제 제작 시 비용이고 연습 소모가 아니다. 표본은 보장 확률이나 전체 최적 제작 경로 계산기가 아니다.
 - 책임: `equipment-crafting.js` 공통 제작, `crafting-goal-options.js` 옵션/모의실험, `crafting-workspace-state.js` 목표 저장, `crafting-workspace-ui.js` 화면. 브라우저에서 2,000회 실험 완료와 결과·신뢰 구간 표시를 확인했다.
 
-## 제작 징조 (2026-10-18)
+## 제작 뿌리 (2026-10-18)
 
-- 정의와 수치는 `data/items.js` `CRAFT_OMENS`(효과, 쓰이는 제작, 보스, 몬스터 확률, 암거래상 몫). 걸어 둔 징조는 `game.craftOmen { key, side }`이고 저장 경계는 `normalizeCraftOmen`이다.
-- 규칙은 `js/equipment-crafting.js` 한 곳(omenFor, spendOmen, rollOmenLine, pickAddMod, pickPruneLine)이다. 실제 제작(`js/passives.js` useCurrency)과 제작 연구의 연습(`rehearse`)이 같은 함수를 쓴다. 징조는 자기가 바꾼 제작이 끝난 뒤 `spendOmen`으로 한 번만 줄고, 연습은 쓰지 않는다(`scripts/smoke-crafting-economy.js`).
-- 얻는 곳: 최종 보스 보상(`data/atlas-endgame.js`), 징조를 품은 몬스터(`js/atlas-endgame.js` markOmenBearer, 처치 보상은 `js/atlas-run.js`), 지도 기운 징조의 메아리(`data/loot-omens.js`), 암거래상 교환(`js/black-market.js` pickBlackMarketExchange). 모두 쓰러뜨린 최종 보스의 징조만 준다. 징조 그림은 아직 없다(암거래상 칸은 이름 앞 두 글자).
+- 화면 이름은 뿌리, 코드 이름은 omen이다. 정의와 수치는 `data/items.js` `CRAFT_OMENS`(효과, 쓰이는 제작, 보스, 몬스터 확률). 걸어 둔 뿌리는 `game.craftOmen { key, side }`이고 저장 경계는 `normalizeCraftOmen`이다.
+- 규칙은 `js/equipment-crafting.js` 한 곳(omenFor, spendOmen, rollOmenLine, pickAddMod, pickPruneLine, craftBasic)이다. 실제 제작(`js/passives.js` useCurrency)과 제작 연구의 연습(`rehearse`)이 같은 함수를 쓴다. 뿌리는 자기가 바꾼 제작이 끝난 뒤 `spendOmen`으로 한 번만 줄고, 연습은 쓰지 않는다(`scripts/smoke-crafting-economy.js`).
+- 얻는 곳: 최종 보스 보상(`data/atlas-endgame.js`), 뿌리를 품은 몬스터(`js/atlas-endgame.js` markOmenBearer, 처치 보상은 `js/atlas-run.js`), 지도 기운 뿌리의 메아리(`data/loot-omens.js`). 모두 쓰러뜨린 최종 보스의 뿌리만 준다. 암거래상은 팔지 않는다(사용자 결정).
+- 성화의 뿌리: `craftBasic`이 결과 셋을 `game.craftChoice { itemId, options }`에 두고 아이템은 첫 결과를 받는다. `pickChoice`는 같은 아이템의 제작 칸(`CRAFT_FIELDS`: 등급, 이름, 추가 옵션, 혼돈 주입, 지키기)만 바꾸고, 그사이 아이템이 바뀌었거나 없으면 기다림을 버린다(`pendingChoice`). 기다리는 동안 제작실은 제작을 막고 고르기 창은 닫히지 않는다.
+
+## 기억 새김 (2026-10-18)
+
+- `item.imprint`는 제작 칸(`CRAFT_FIELDS`)의 사본이다. `engrave`는 1개를 쓰고 이전 새김을 덮고, `restoreImprint`는 한 번 되돌린 뒤 새김을 지운다. 타락, 고유, 융합 유물, 전당 소장품은 둘 다 막는다. 같은 아이템의 칸만 바꾸므로 아이템이 늘지 않는다(`scripts/smoke-crafting-economy.js`).
+- 불러올 때 `normalizeItem`이 깨진 새김을 지운다. 얻는 곳은 기억 싸움 보상(`data/memory-dungeon.js` rewards).
 
 ## 2026-09-14 통합 이력
 

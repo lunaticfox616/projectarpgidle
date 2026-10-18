@@ -202,9 +202,17 @@ const craftingResultLedger = (() => {
         return JSON.stringify(snapshotCraftResultItem(item)) === latest.afterKey ? latest : null;
     }
 
+    /** The latest result's item changed again within the same craft (성화의 뿌리 pick): its after becomes the item now. */
+    function amend(item) {
+        if (!latest || latest.itemRef !== item) return null;
+        const after = snapshotCraftResultItem(item);
+        latest = { ...latest, after, afterKey: JSON.stringify(after) };
+        return latest;
+    }
+
     function clear() { latest = null; }
 
-    return { begin, commit, getForItem, clear };
+    return { begin, commit, amend, getForItem, clear };
 })();
 
 function getEquipCandidateSlots(item, targetGame = game) {

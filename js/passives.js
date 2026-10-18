@@ -8595,6 +8595,7 @@ function normalizeItem(item) {
         else delete item.corruptionSocket;
     }
     item.chaosInfusion = item.chaosInfusion ? normalizeStatRecord(item.chaosInfusion) : null;
+    if ('imprint' in item && !equipmentCrafting.normalizeImprint(item.imprint)) delete item.imprint; // 기억 새김(js/equipment-crafting.js)
     if (item.encroached && typeof item.encroached === 'object') {
         let pendingOptions = Array.isArray(item.encroached.pendingOptions) ? item.encroached.pendingOptions.map(normalizeStatRecord).filter(Boolean).slice(0, 3) : [];
         let chosen = item.encroached.chosen ? normalizeStatRecord({ ...item.encroached.chosen, encroachedFinal: true }) : null;
@@ -9364,7 +9365,7 @@ function rerollChaosInfusionForItem(item, previousInfusion) {
     return item.chaosInfusion;
 }
 
-/** How rerollExplicitMods rolls each new line: options.rollLine (제작 징조), else between options.minTier and maxTier with
+/** How rerollExplicitMods rolls each new line: options.rollLine (제작 뿌리), else between options.minTier and maxTier with
  * options.tierWeightFalloff, else up to maxTier. */
 function rerollLineRoll(options, maxTier) {
     if (options.rollLine) return options.rollLine;
@@ -9375,7 +9376,7 @@ function rerollLineRoll(options, maxTier) {
         : mod => rollAffixValue(mod, maxTier);
 }
 
-/** options.weigh(pool, picked) → pool reweighs the mods each pick (제작 징조 엮음). */
+/** options.weigh(pool, picked) → pool reweighs the mods each pick (제작 뿌리 엮음). */
 function rerollExplicitMods(item, rarity, zoneTier, options = {}) {
     let maxTier = Math.max(1, zoneTier);
     const rollLine = rerollLineRoll(options, maxTier);
@@ -9666,7 +9667,7 @@ function pickWeightedMod(mods) {
 }
 
 /** room({prefix, suffix} 남은 자리, 없으면 제한 없음): 고를 때마다 자리가 남은 종류에서만 고른다.
- * weigh(pool, picks) → pool(없어도 됨): 고를 때마다 가중치를 다시 매긴다(제작 징조 엮음, js/equipment-crafting.js). */
+ * weigh(pool, picks) → pool(없어도 됨): 고를 때마다 가중치를 다시 매긴다(제작 뿌리 엮음, js/equipment-crafting.js). */
 function pickRandomMods(mods, count, room, weigh) {
     let pool = Array.isArray(mods) ? mods.slice() : [];
     const left = room && { ...room };
@@ -10988,7 +10989,7 @@ async function useCurrency(currencyKey) {
         if (!consumeSpore(sporeMode)) return addLog('홀씨가 부족해 제작을 시작하지 않았습니다.', 'attack-monster');
             consumedSpore = true;
     }
-    let exaltedMod = null, omen = equipmentCrafting.omenFor(game, actionKey, item, sporeMode); // 제작 징조(data/items.js CRAFT_OMENS)
+    let exaltedMod = null, omen = equipmentCrafting.omenFor(game, actionKey, item, sporeMode); // 제작 뿌리(data/items.js CRAFT_OMENS)
     if (actionKey === 'exalted') {
         exaltedMod = guaranteedMod || equipmentCrafting.pickAddMod(item, omen);
         if (!exaltedMod) return addLog('이 장비에 추가로 부여할 수 있는 옵션이 없습니다.', 'attack-monster');
@@ -11003,7 +11004,7 @@ async function useCurrency(currencyKey) {
         item.quality = Math.max(0, Math.min(20, Math.floor(item.quality || 0) + 1));
         addLog(`🛠️ 장비 퀄리티 +1% (현재 ${item.quality}%)`, 'loot-magic');
     } else if (equipmentCrafting.basicActions.includes(actionKey)) {
-        equipmentCrafting.applyBasic(item, actionKey, { addedMod: exaltedMod, guaranteedStat: rollSporeGuaranteedValue(guaranteedMod), omen });
+        equipmentCrafting.craftBasic(game, item, actionKey, { addedMod: exaltedMod, guaranteedStat: rollSporeGuaranteedValue(guaranteedMod), omen });
     } else if (actionKey === 'divine') {
         item.stats.forEach(stat => {
             if (stat.lockedByHoney || stat.lockedByRift) return;

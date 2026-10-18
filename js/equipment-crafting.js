@@ -191,8 +191,8 @@ const equipmentCrafting = (() => {
         const range = getCraftTierRangeForItem(item, 'spore');
         return { ...rollAffixValueInTierRange(mod, range.min, range.max), craftSource: 'spore' };
     }
-    // ---------------------------------------------------------------- 제작 징조 (data/items.js CRAFT_OMENS)
-    // 2026-10-18 사용자: "craft of exile 사이트를 참고해서 ... 가중치 메커니즘, 크래프팅 방법 및 컨텐츠와 연계성". 걸어 둔 징조 하나가 자기가
+    // ---------------------------------------------------------------- 제작 뿌리 (data/items.js CRAFT_OMENS)
+    // 2026-10-18 사용자: "craft of exile 사이트를 참고해서 ... 가중치 메커니즘, 크래프팅 방법 및 컨텐츠와 연계성". 걸어 둔 뿌리 하나가 자기가
     // 바꾸는 다음 제작 한 번에 쓰이고 하나 줄어든다. 실제 제작(js/passives.js useCurrency)과 제작 연구의 연습(rehearse)이 같은 규칙을 쓴다.
     /** omen key with side as the rolls read it: { key, side, effect } (practice uses it without owning one), or null. */
     function omenSpec(key, side) {
@@ -202,7 +202,7 @@ const equipmentCrafting = (() => {
     /** Arms omen key (side for 허기) for the next craft it fits; an empty key disarms. { ok, reason }. */
     function armOmen(state, key, side) {
         if (!key) { state.craftOmen = null; return { ok: true }; }
-        if (!CRAFT_OMENS.keys.includes(key)) return { ok: false, reason: '알 수 없는 징조입니다.' };
+        if (!CRAFT_OMENS.keys.includes(key)) return { ok: false, reason: '알 수 없는 뿌리입니다.' };
         if ((state.currencies[key] || 0) < 1) return { ok: false, reason: `${ORB_DB[key].name}가 없습니다.` };
         state.craftOmen = normalizeCraftOmen({ key, side });
         return { ok: true };
@@ -227,14 +227,9 @@ const equipmentCrafting = (() => {
         return `, ${ORB_DB[omen.key].name}`;
     }
     const floorTier = tier => Math.max(1, Math.ceil(tier * CRAFT_OMENS.floorShare));
-    /** One new line of mod at item tier: 성화 rolls the tier twice and keeps the higher, 거름 rolls above a tier floor. */
+    /** One new line of mod at item tier: 거름 rolls above a tier floor. */
     function rollOmenLine(mod, tier, omen) {
-        const effect = omen && omen.effect;
-        if (effect === 'floor') return rollAffixValueInTierRange(mod, floorTier(tier), tier);
-        const first = rollAffixValue(mod, tier);
-        if (effect !== 'lucky') return first;
-        const second = rollAffixValue(mod, tier);
-        return (second.tier || 0) > (first.tier || 0) ? second : first;
+        return omen && omen.effect === 'floor' ? rollAffixValueInTierRange(mod, floorTier(tier), tier) : rollAffixValue(mod, tier);
     }
     /** 엮음: (pool, picked) → pool where a mod sharing a tag with a line on item (or a mod picked before it this craft) weighs
      * weaveMul times more, as fossils weigh their tags (js/skills.js). */
@@ -251,9 +246,9 @@ const equipmentCrafting = (() => {
         return pickWeightedMod(effect === 'weave' ? weaveWeigh(item)(pool, []) : pool);
     }
     /** The row 전정 가위 cuts among removable rows ({ index, stat }): with 가지치기 the lowest tier among tiered lines (a fixed line,
-     * tier 0, is not low: it has no better roll), else any. */
+     * shown as T0 whatever tier it stores, is not low: it has no better roll), else any. */
     function pickPruneLine(removable, omen) {
-        const tiered = removable.filter(row => Number(row.stat.tier) > 0);
+        const tiered = removable.filter(row => !isFixedEquipmentAffix(row.stat) && Number(row.stat.tier) > 0);
         if (!omen || omen.effect !== 'prune' || !tiered.length) return rndChoice(removable);
         const low = Math.min(...tiered.map(row => Number(row.stat.tier)));
         return rndChoice(tiered.filter(row => Number(row.stat.tier) === low));
@@ -268,7 +263,7 @@ const equipmentCrafting = (() => {
         return mod ? rollOmenLine(mod, getItemCraftTier(item), options.omen) : null;
     }
     /** Shared item-only roll for live currency use and the crafting bench's rehearsal. Payment and saves stay with the caller.
-     * options.omen: the 제작 징조 that changes this craft ({ key, side, effect }, omenFor or omenSpec). */
+     * options.omen: the 제작 뿌리 that changes this craft ({ key, side, effect }, omenFor or omenSpec). */
     function applyBasic(item, action, options = {}) {
         if (!basicActions.includes(action)) throw Error('지원하지 않는 기본 제작');
         const tier = getItemCraftTier(item), guaranteed = options.guaranteedStat || null;
@@ -283,8 +278,102 @@ const equipmentCrafting = (() => {
         rerollExplicitMods(item, item.rarity, tier, { guaranteedStat: guaranteed, rerollChaosInfusion: item.rarity === 'rare', ...omenRerollOptions(item, tier, options.omen) });
     }
 
+    // ---------------------------------------------------------------- 성화의 뿌리: 세 결과 가운데 고르기 (game.craftChoice)
+    // 2026-10-18 사용자: "다음 제작에 세번 굴려서 세 결과 중에 선택". 아이템은 첫 결과를 바로 받고, 세 결과는 고를 때까지 저장에 남는다
+    // (다시 불러와도 다시 묻는다). 고르기는 같은 아이템의 제작 칸만 바꾼다: 새 아이템을 만들지 않는다.
+    /** The fields a craft writes (applyBasic, fossils, annul, scour, spores, honey): explicit lines, rarity, name, chaos infusion,
+     * the kept side. Base lines, quality, sockets and corruption are not among them. */
+    const CRAFT_FIELDS = Object.freeze(['rarity', 'name', 'stats', 'chaosInfusion', 'affixKeep']);
+    /** A deep copy of item's craft fields (a missing one as null). */
+    function craftFields(item) {
+        return JSON.parse(JSON.stringify(Object.fromEntries(CRAFT_FIELDS.map(key => [key, item[key] === undefined ? null : item[key]]))));
+    }
+    /** Puts saved craft fields back on item, as a copy (a null kept side is no kept side). */
+    function putCraftFields(item, fields) {
+        Object.assign(item, JSON.parse(JSON.stringify(fields)));
+        if (item.affixKeep == null) delete item.affixKeep;
+    }
+    const sameCraftFields = (item, fields) => JSON.stringify(craftFields(item)) === JSON.stringify(fields);
+    /** The bag or worn item with id, or null. */
+    function findCraftItem(state, id) {
+        return (state.inventory || []).find(row => row && row.id === id) || Object.values(state.equipment || {}).find(row => row && row.id === id) || null;
+    }
+    /** A live basic craft (js/passives.js useCurrency): applyBasic, and with 성화의 뿌리 more rolls on copies of the item as it was. The
+     * item keeps the first result; all of them wait in state.craftChoice for the player's pick (pickChoice). */
+    function craftBasic(state, item, action, options) {
+        const before = options.omen && options.omen.effect === 'choice' ? JSON.parse(JSON.stringify(item)) : null;
+        applyBasic(item, action, options);
+        if (!before) return;
+        const others = Array.from({ length: CRAFT_OMENS.choices - 1 }, () => {
+            const copy = JSON.parse(JSON.stringify(before));
+            applyBasic(copy, action, { ...options, addedMod: null });
+            return craftFields(copy);
+        });
+        state.craftChoice = { itemId: item.id, options: [craftFields(item), ...others] };
+    }
+    /** The 성화의 뿌리 pick waiting ({ item, options }), or null. One whose item is gone or changed since (sold, crafted another way)
+     * is dropped here. */
+    function pendingChoice(state) {
+        const choice = state.craftChoice;
+        if (!choice) return null;
+        const item = findCraftItem(state, choice.itemId);
+        if (item && sameCraftFields(item, choice.options[0])) return { item, options: choice.options };
+        state.craftChoice = null;
+        return null;
+    }
+    /** Puts result index of the waiting pick on its item and ends the pick. Returns the item, or null when nothing waits. */
+    function pickChoice(state, index) {
+        const pending = pendingChoice(state);
+        if (!pending || !pending.options[index]) return null;
+        putCraftFields(pending.item, pending.options[index]);
+        state.craftChoice = null;
+        return pending.item;
+    }
+
+    // ---------------------------------------------------------------- 기억 새김 (item.imprint)
+    // 2026-10-18 사용자가 고른 제작 방법(PoE 야수 제작의 Imprint에서): 장비의 제작 칸(CRAFT_FIELDS)을 새겨 두고 한 번 되돌린다. 같은
+    // 장비의 칸만 바꾸므로 장비가 늘지 않는다. 타락한 장비, 고유, 융합 유물, 전당 소장품은 새기지도 되돌리지도 않는다.
+    const IMPRINT_KEY = 'memoryImprint';
+    /** A saved imprint (craft fields of a magic or rare item), or null: the load boundary (js/passives.js normalizeItem). */
+    function normalizeImprint(value) {
+        return value && typeof value === 'object' && ['magic', 'rare'].includes(value.rarity) && Array.isArray(value.stats) ? value : null;
+    }
+    function imprintBlock(item) {
+        if (!item) return '아이템을 선택하세요.';
+        if (item.corrupted) return '타락한 장비는 새기거나 되돌릴 수 없습니다.';
+        return item.fusedRelic || item.rarity === 'unique' || item.hallReplica ? '고유 장비, 융합 유물, 전당 소장품에는 쓸 수 없습니다.' : '';
+    }
+    /** Why item cannot be engraved now, or '': a magic or rare piece, and a 기억 새김 in the wallet. */
+    function engraveReason(state, item) {
+        const reason = imprintBlock(item);
+        if (reason) return reason;
+        if (!['magic', 'rare'].includes(item.rarity)) return '마법이나 희귀 장비에 새깁니다.';
+        return (state.currencies[IMPRINT_KEY] || 0) > 0 ? '' : `${ORB_DB[IMPRINT_KEY].name}이 없습니다.`;
+    }
+    /** Engraves item's craft fields for one 기억 새김 (an older imprint is replaced). { ok, reason }. */
+    function engrave(state, item) {
+        const reason = engraveReason(state, item);
+        if (reason) return { ok: false, reason };
+        state.currencies[IMPRINT_KEY] -= 1;
+        item.imprint = craftFields(item);
+        return { ok: true };
+    }
+    /** Why item cannot go back to its imprint now, or ''. Its rarity may have changed since (a scour makes it normal). */
+    function restoreReason(item) {
+        return imprintBlock(item) || (normalizeImprint(item.imprint) ? '' : '새긴 기억이 없습니다.');
+    }
+    /** Puts item back to its imprint; the imprint is used up. { ok, reason }. */
+    function restoreImprint(item) {
+        const reason = restoreReason(item);
+        if (reason) return { ok: false, reason };
+        putCraftFields(item, item.imprint);
+        delete item.imprint;
+        return { ok: true };
+    }
+
     return Object.freeze({ basicActions, rerollActions, applyBasic, sporePool, pickSporeMod, rollSporeLine, getSource, getLabel, filterSporeMods, resolveAction, getBlockReason, getSporeBlockReason, getFossilBlockReason, getFossilUseReason,
         affixKind, storedAffixKind, keptKind, keptOnReroll, getAffixKeepReason, affixCounts, affixRoom, fitsRoom, pickReplacement, affixHeader,
-        omenSpec, armOmen, omenFits, omenFor, spendOmen, pickAddMod, pickPruneLine });
+        omenSpec, armOmen, omenFits, omenFor, spendOmen, pickAddMod, pickPruneLine, craftBasic, pendingChoice, pickChoice,
+        normalizeImprint, engraveReason, engrave, restoreReason, restoreImprint });
 })();
 safeExposeGlobals({ equipmentCrafting });

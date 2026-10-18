@@ -103,7 +103,7 @@ const craftingGoalOptions = (() => {
     }
 
     /** Roll on an isolated item only. Never swaps game, spends currency, allocates inventory ids, logs or saves. The result keeps the
-     * item's id: it is shown, never put in the bag (a second item with that id would be a duplicate). omen: a 제작 징조 to practise
+     * item's id: it is shown, never put in the bag (a second item with that id would be a duplicate). omen: a 제작 뿌리 to practise
      * with ({ key, side, effect }, equipmentCrafting.omenSpec, owned or not): it changes the roll only where the live craft would use it. */
     function rehearse(item, recipe, mode = 'none', omen = null) {
         const reason = rehearsalReason(item, recipe, mode);

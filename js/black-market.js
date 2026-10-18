@@ -40,15 +40,6 @@ function rollBlackMarketExchangeOffer(recipe, index) {
     return { type:'exchange', name:`암거래 교환 #${index+1}`, from:recipe.from, to:recipe.to, need, gain, bulkMultiplier, dealPct };
 }
 
-/** The trade a new exchange offer rolls: now and then (CRAFT_OMENS.blackMarket.share of the trades) the craft omen of a final boss
- * already felled, for golden rules (data/items.js). */
-function pickBlackMarketExchange() {
-    const omens = atlasEndgame.bearableOmens(game), sale = CRAFT_OMENS.blackMarket;
-    if (!omens.length || Math.random() >= sale.share) return rndChoice(MARKET_EXCHANGES);
-    const [low, high] = sale.price;
-    return { id: 'omen', from: 'goldenRule', to: rndChoice(omens), need: low + Math.floor(Math.random() * (high - low + 1)), gain: 1 };
-}
-
 function getBlackMarketBaseChainInfo(base) {
     return typeof getBaseChainInfo === 'function' ? getBaseChainInfo(base) : null;
 }
@@ -266,7 +257,7 @@ function buildBlackMarketOffer(index) {
     let bm = normalizeBlackMarketState();
     let roll = Math.random();
     if (roll < 0.45) {
-        return rollBlackMarketExchangeOffer(pickBlackMarketExchange(), index);
+        return rollBlackMarketExchangeOffer(rndChoice(MARKET_EXCHANGES), index);
     }
     if (roll < 0.75) {
         let preferred = bm.preferredSlot;

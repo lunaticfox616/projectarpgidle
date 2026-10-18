@@ -152,7 +152,7 @@ vm.runInContext(annulBlock, annulContext, { filename: 'market-annul.js' });
     assert.strictEqual(runGame(`(()=>{const before=JSON.stringify(game),id=itemIdCounter,recipe={key:'formlessDew',kind:'reroll',label:''};
         for(let i=0;i<200;i++)['none','fire'].forEach(mode=>craftingGoalOptions.rehearse(__item,recipe,mode));
         return JSON.stringify(game)===before&&itemIdCounter===id;})()`), true, 'crafting practice must leave the save and item ids untouched');
-    // 제작 징조(data/items.js CRAFT_OMENS): the craft the armed omen changes spends exactly one and disarms it; another craft leaves it
+    // 제작 뿌리(data/items.js CRAFT_OMENS): the craft the armed omen changes spends exactly one and disarms it; another craft leaves it
     // armed; practice with it spends nothing (2026-10-18).
     assert.strictEqual(runGame(`(()=>{selectForCrafting(__item.id,false);game.currencies.formlessDew=3;game.currencies.pruningShears=2;game.currencies.omenCompost=2;
         equipmentCrafting.armOmen(game,'omenCompost');const before=JSON.stringify(game);
@@ -161,6 +161,12 @@ vm.runInContext(annulBlock, annulContext, { filename: 'market-annul.js' });
         useCurrency('formlessDew');const spent=game.currencies.omenCompost===1&&game.craftOmen===null;useCurrency('formlessDew');
         return practiced&&kept&&spent&&game.currencies.omenCompost===1&&game.currencies.formlessDew===1;})()`), true,
         'a craft omen is spent once by the craft it changes, never by another craft or by practice');
+    // 성화의 뿌리 pick and 기억 새김 only rewrite the same item: the bag keeps its count and no item id is taken (2026-10-18).
+    assert.strictEqual(runGame(`(()=>{const bag=game.inventory.length,id=itemIdCounter;game.currencies.formlessDew=2;game.currencies.omenPyre=1;game.currencies.memoryImprint=1;
+        equipmentCrafting.engrave(game,__item);equipmentCrafting.armOmen(game,'omenPyre');useCurrency('formlessDew');
+        const picked=equipmentCrafting.pickChoice(game,1)===__item,restored=equipmentCrafting.restoreImprint(__item).ok;
+        return picked&&restored&&game.inventory.length===bag&&itemIdCounter===id&&game.currencies.omenPyre===0&&game.currencies.memoryImprint===0;})()`), true,
+        'a 성화의 뿌리 pick and a 기억 새김 restore change the same item and cost one each');
     console.log('smoke-crafting-economy passed');
 })().catch(error => {
     console.error(error);

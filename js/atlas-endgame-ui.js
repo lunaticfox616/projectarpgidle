@@ -38,7 +38,7 @@ const atlasEndgameUi = (() => {
         const effect = (UNIQUE_DB.find(entry => entry.name === row.unique) || {}).uniqueEffect;
         const omen = CRAFT_OMENS.keys.find(key => CRAFT_OMENS.effects[key].boss === row.id);
         return `<p class="atlas-late-unique">고유 장비 ${escapeHTML(row.unique)}${effect ? `: ${escapeHTML(effect)}` : ''}</p>`
-            + (omen ? `<p class="atlas-late-unique">제작 징조 ${escapeHTML(ORB_DB[omen].name)}: ${craftingCatalogUi.description(omen, true)}</p>` : '');
+            + (omen ? `<p class="atlas-late-unique">${escapeHTML(ORB_DB[omen].name)}: ${craftingCatalogUi.description(omen, true)}</p>` : '');
     }
     /** A final boss arena: how its fight goes, and the warning and rest times of its combos (data/atlas-endgame.js combo). */
     function arenaHtml(row) {
