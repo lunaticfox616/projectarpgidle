@@ -13359,7 +13359,7 @@ function enterOutsideChaos() {
         : ((getSeasonAbyssDepthCap(game.season || 1) <= 20)
             ? (typeof hasCurrentLoopChaos20Clear === 'function' ? hasCurrentLoopChaos20Clear() : !!(game.loopProgressCurrent && game.loopProgressCurrent.chaos20Cleared))
             : Math.max(0, Math.floor((game.loopProgressCurrent && game.loopProgressCurrent.bestAbyssDepth) || 0)) >= getSeasonAbyssDepthCap(game.season || 1));
-    if (!outsideChaosRequirementMet) return addLog(`${getLoopAbyssRequirementText(game.season || 1)} 조건을 먼저 달성해야 합니다.`, 'attack-monster');
+    if (!outsideChaosRequirementMet) return addLog(getLoopAbyssRequirementPrompt(game.season || 1), 'attack-monster');
     game.woodsmanBuildSnapshot = snapshotWoodsmanBuildState();
     game.woodsmanBuildLock = true;
     actExplorationProgress.depart(game);
@@ -13468,7 +13468,7 @@ function getSeasonResetBlockReason(loopPath) {
     let available = typeof getAvailableLoopAdvancePaths === 'function' ? getAvailableLoopAdvancePaths(game.season || 1) : [];
     return available.length > 1
         ? '혼돈 루프와 우주계 루프 조건을 모두 달성했습니다. 진행할 루프 경로를 선택하세요.'
-        : getLoopAbyssRequirementText(game.season || 1) + ' 조건을 먼저 달성해야 합니다.';
+        : getLoopAbyssRequirementPrompt(game.season || 1);
 }
 
 /** Sealed gear survives the loop wherever it waits: in the bag or in the temporary storage. */
@@ -13729,7 +13729,7 @@ function confirmLoopReady() {
 
 function chooseLoopAdvancePath(path) {
     let loopPath = resolveLoopAdvancePath(path);
-    if (!loopPath) return addLog(getLoopAbyssRequirementText(game.season || 1) + ' 조건을 먼저 달성해야 합니다.', 'attack-monster');
+    if (!loopPath) return addLog(getLoopAbyssRequirementPrompt(game.season || 1), 'attack-monster');
     triggerSeasonReset({ path: loopPath });
 }
 

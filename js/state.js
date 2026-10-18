@@ -945,11 +945,18 @@ function getSeasonAbyssDepthCap(seasonValue) {
     return Math.min(LOOP_GATE_ABYSS_DEPTH_CAP, uncapped);
 }
 
+const loopGateDepthName = cap => `${cap > 20 ? '혼돈 심화' : '혼돈'} ${cap}`;
+const hasLoopGateCosmosPath = seasonValue => Math.max(1, Math.floor(seasonValue || 1)) >= LOOP_GATE_ALT_START_SEASON;
+/** The loop condition as a label (the unlock list, the loop milestones): from loop 31 each path and the loop it opens. */
 function getLoopAbyssRequirementText(seasonValue) {
-    let cap = getSeasonAbyssDepthCap(seasonValue);
-    let base = `루프 조건: ${cap > 20 ? '혼돈 심화' : '혼돈'} ${cap} 클리어`;
-    if (Math.max(1, Math.floor(seasonValue || 1)) < LOOP_GATE_ALT_START_SEASON) return base;
-    return `${base}, 선택 루프: 혼돈 루프 또는 우주계 ${LOOP_GATE_ALT_COSMOS_PLANET_NAME} 행성 돌파 후 우주계 루프 (이번 루프 기준)`;
+    let depth = loopGateDepthName(getSeasonAbyssDepthCap(seasonValue));
+    if (!hasLoopGateCosmosPath(seasonValue)) return `루프 조건: ${depth} 클리어`;
+    return `루프 조건(이번 루프 안): ${depth} 클리어는 혼돈 루프, 우주계 ${LOOP_GATE_ALT_COSMOS_PLANET_NAME} 행성 돌파는 우주계 루프`;
+}
+/** The sentence when the loop condition is not met yet (혼돈 밖, going on to the next loop). */
+function getLoopAbyssRequirementPrompt(seasonValue) {
+    let cosmos = hasLoopGateCosmosPath(seasonValue) ? `나 우주계 ${LOOP_GATE_ALT_COSMOS_PLANET_NAME} 행성 돌파` : '';
+    return `이번 루프에 ${loopGateDepthName(getSeasonAbyssDepthCap(seasonValue))} 클리어${cosmos}가 먼저 필요합니다.`;
 }
 
 function hasCurrentLoopChaosRequirementClear(seasonValue) {
