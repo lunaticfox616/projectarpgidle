@@ -117,11 +117,18 @@ function refreshItemIdCounter() {
     itemIdCounter = Math.max(0, ...items.concat(jewels).map(item => item.id || 0));
 }
 
+/** Fields of game that live only while the game runs: the talent card runtime and the last combat tick's stat sheet and time
+ * (about a tenth of a save, and stale after a load). Never saved or uploaded; old saves drop them on load (mergeDefaults). */
+const RUNTIME_ONLY_SAVE_KEYS = Object.freeze(['talentCardRuntime', 'lastCombatStats', 'lastCombatStatsAt']);
+function dropRuntimeOnlySaveFields(target) {
+    RUNTIME_ONLY_SAVE_KEYS.forEach(key => delete target[key]);
+}
+
 function createSaveSnapshot(sourceGame) {
     let snapshot = JSON.parse(JSON.stringify(sourceGame || game || {}));
     snapshot.craftingWorkspace = craftingWorkspaceState.normalize(snapshot.craftingWorkspace, snapshot.currencies);
     snapshot.actExploration = actExplorationRooms.seal(snapshot.actExploration);
-    delete snapshot.talentCardRuntime;
+    dropRuntimeOnlySaveFields(snapshot);
     if (!snapshot.saveMeta || typeof snapshot.saveMeta !== 'object') snapshot.saveMeta = {};
     return snapshot;
 }
@@ -133,7 +140,7 @@ function serializeSaveState(sourceGame) {
     let serializable = root && typeof root === 'object' ? { ...root } : {};
     serializable.craftingWorkspace = craftingWorkspaceState.normalize(root.craftingWorkspace, root.currencies);
     serializable.actExploration = actExplorationRooms.seal(root.actExploration);   // 방 단위 탐험: 앞선 판이 탐험만 버리고 읽는 모양으로
-    delete serializable.talentCardRuntime;
+    dropRuntimeOnlySaveFields(serializable);
     return JSON.stringify(serializable);
 }
 
@@ -169,13 +176,13 @@ function createCloudSaveState(root) {
         realmDeathWard: null,
         realmInvulnerableBarrierUntil: 0
     };
-    delete payload.talentCardRuntime;
+    dropRuntimeOnlySaveFields(payload);
     return payload;
 }
 
 function createCloudSaveRequestBody(userId, sourceGame) {
     const payload=createCloudSaveState(sourceGame || game || {});
-    delete payload.talentCardRuntime;
+    dropRuntimeOnlySaveFields(payload);
     return JSON.stringify({ user_id: userId, save_data: payload });
 }
 
