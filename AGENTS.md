@@ -129,6 +129,7 @@ data -> utils -> state/save -> domain(items/skills/passives/core-cube)
   혼돈 밖, 군락지, 대균열을 떠나면 다음 틱에 그 도전이 끝난다(`holdZoneBoundRuns`, 나무꾼 잠금도 이때 풀린다).
 - 현재 지역을 직접 바꾸는 콘텐츠 시작(군락지, 벌집, 혼돈 밖, 심해, 잔상, 대균열 같은)은 값을 치르기 전에 `getContentStartBlockReason`(`js/items.js`)을 묻는다.
   벌집 원정과 경계 너머 안에서, 그리고 아틀라스 지도 안에서는 거절한다(지도를 포털 없이 빠져나가지 않게). `changeZone`을 거치는 입장은 `getHeldRunBlockReason`만 묻는다.
+- 콘텐츠 전용 고유(dropOnly.type)는 그 지역에서 고유를 굴릴 때만 나온다. 장비가 드문 콘텐츠는 `REALM_BOSS_UNIQUE_DROP_RULES.chance`(data/items.js)에 그 지역 종류를 넣어 보스 처치 때 굴리게 한다.
 
 새 함수는 원칙적으로 60줄, 중첩 깊이 3, 순환 복잡도 10, 매개변수 5개를 넘지 않는다. 새 소스 파일은
 500줄 이하를 권장한다. 기존 거대 파일을 수정할 때는 작업과 무관한 대규모 분리를 섞지 않되, 수정한
