@@ -3600,7 +3600,8 @@ function skyEntryStillCurrent(tower, season, zoneId) {
         game.currentZoneId === zoneId && canEnterSkyTower();
 }
 async function enterSkyTowerPrompt(selectedFloor) {
-    if (isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked();
+    const held = getHeldRunBlockReason();
+    if (held) return addLog(held, 'attack-monster');
     const st = ensureSkyTowerState();
     if (!st.unlocked) return addLog('창공의 탑은 루프 15 이후 이번 루프 혼돈 20층 클리어 시 해금됩니다.', 'attack-monster');
     if (!canEnterSkyTower()) return addLog('창공의 탑은 영구 해금 후 해당 루프에서 혼돈에 입성하면 입장할 수 있습니다.', 'attack-monster');
@@ -3610,7 +3611,8 @@ async function enterSkyTowerPrompt(selectedFloor) {
     const floor = await selectSkyTowerFloor(st, selectedFloor);
     if (floor === null) return;
     if (!skyEntryStillCurrent(st, season, zoneId)) return;
-    if (isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked();
+    const stillHeld = getHeldRunBlockReason();
+    if (stillHeld) return addLog(stillHeld, 'attack-monster');
     if (floor > st.highestFloor) return;
     st.currentFloor = floor;
     changeZone(SKY_TOWER_ZONE_ID);
@@ -3635,7 +3637,8 @@ function upgradeSkyStone() {
 }
 
 async function enterChaosRealmPrompt(){
-    if (typeof isBeehiveRunLockedForMapTravel === 'function' && isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked();
+    const held = getHeldRunBlockReason();
+    if (held) return addLog(held, 'attack-monster');
     let st = ensureChaosRealmState();
     if (!st.unlocked) return addLog('혼돈계는 혼돈 밖 나무꾼에게 최대 생명력 10% 이상의 피해를 준 전투 종료 시 해금됩니다.', 'attack-monster');
     if (!canEnterChaosRealm()) return addLog('혼돈계 입장은 이번 루프에서 혼돈 20을 클리어해야 가능합니다.', 'attack-monster');
@@ -3656,7 +3659,8 @@ async function enterChaosRealmPrompt(){
     updateStaticUI();
 }
 function enterUnderworldFloor(requestedFloor) {
-    if (typeof isBeehiveRunLockedForMapTravel === 'function' && isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked();
+    const held = getHeldRunBlockReason();
+    if (held) return addLog(held, 'attack-monster');
     if (!(typeof canEnterUnderworld === 'function' && canEnterUnderworld())) return addLog('지하계 입장 조건: 야수왕 케르베로스 클리어 + 혼돈 심화 30층 + 고대 미궁 100층 + 이번 루프 혼돈20 클리어', 'attack-monster');
     let uw = (game.underworldProgress && typeof game.underworldProgress === 'object') ? game.underworldProgress : { highestFloor: 1, currentFloor: 1 };
     game.underworldProgress = uw;
@@ -3669,7 +3673,8 @@ function enterUnderworldFloor(requestedFloor) {
 }
 
 async function enterUnderworldPrompt(){
-    if (typeof isBeehiveRunLockedForMapTravel === 'function' && isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked();
+    const held = getHeldRunBlockReason();
+    if (held) return addLog(held, 'attack-monster');
     if (!(typeof canEnterUnderworld === 'function' && canEnterUnderworld())) return enterUnderworldFloor(1);
     let uw = (game.underworldProgress && typeof game.underworldProgress === 'object') ? game.underworldProgress : { highestFloor: 1, currentFloor: 1 };
     game.underworldProgress = uw;
@@ -3719,7 +3724,8 @@ async function chooseTalentBloomHeroId() {
 }
 
 async function enterTalentBloomTrial() {
-    if (typeof isBeehiveRunLockedForMapTravel === 'function' && isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked();
+    const held = getHeldRunBlockReason();
+    if (held) return addLog(held, 'attack-monster');
     if (!isWoodsmanEchoUnlocked()) return addLog('🔒 나무꾼의 잔상이 아직 열리지 않았습니다. 혼돈 밖 나무꾼을 100% 처치하세요.', 'attack-monster');
     if (!game.ascendClass) return addLog('🔒 재능 개화는 전직을 고른 뒤 도전할 수 있습니다.', 'attack-monster');
     if ((game.currencies.chaosKey || 0) < 1 || (game.currencies.coreKey || 0) < 1) return addLog('🔒 카오스 키와 코어 키가 각각 1개씩 필요합니다.', 'attack-monster');
@@ -3732,7 +3738,8 @@ async function enterTalentBloomTrial() {
 }
 
 async function enterDeepChaosPrompt(){
-    if (typeof isBeehiveRunLockedForMapTravel === 'function' && isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked();
+    const held = getHeldRunBlockReason();
+    if (held) return addLog(held, 'attack-monster');
     let unlocked = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths.map(v => Math.floor(v || 0)).filter(v => v >= 21) : [];
     let max = Math.max(20, unlocked.length ? Math.max(...unlocked) : Math.floor(game.abyssEndlessDepth || 20));
     let depth = await requestGameNumber({
@@ -3768,7 +3775,8 @@ function getDeepChaosMapEntryHtml() {
     </div>`;
 }
 async function enterLabyrinthPrompt(){
-    if (typeof isBeehiveRunLockedForMapTravel === 'function' && isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked();
+    const held = getHeldRunBlockReason();
+    if (held) return addLog(held, 'attack-monster');
     let max = Math.max(1, Math.floor(game.labyrinthUnlockedMaxFloor || game.labyrinthFloor || 1));
     let floor = await requestGameNumber({
         title: '고대 미궁 층 선택',
