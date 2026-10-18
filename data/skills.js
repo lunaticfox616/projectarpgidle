@@ -162,6 +162,14 @@ const RETIRED_GEM_SUCCESSORS = Object.freeze({
 });
 safeExposeData({ SKILL_DB, LOOP_STARTER_GEM_BY_HERO, PROJECTILE_PATTERN_MODE_DB, RETIRED_GEM_SUCCESSORS });
 
+// 룬 자체 레벨 20(보너스 레벨 제외)에서 켜지는 세 룬의 특전. 전투(getActiveSkillStats)와 룬 툴팁이 이 표를 읽는다.
+const GEM_LEVEL_20_PERKS = Object.freeze({
+    '이중 베기': Object.freeze({ stat: 'spd', mul: 1.2, label: '공격 속도 ×1.2' }),
+    '흡혈 관통': Object.freeze({ stat: 'leech', mul: 2, label: '흡혈 ×2' }),
+    '기습 공격': Object.freeze({ stat: 'crit', add: 15, label: '치명타 확률 +15%' })
+});
+safeExposeData({ GEM_LEVEL_20_PERKS });
+
 /** 스킬룬 계열 → 쓸 수 있는 무기 자세(data/stage-view.js STAGE_VIEW.stances). 2026-10-17 스킬룬 인계(v32) §4의 사용자 결정: 근접 = 맨손, 검방패,
  * 단검, 향로 / 투사체 = 활, 오브, 단검 / 주문, 위습 = 맨손 제외 / 함성 = 일곱 무기 모두 / 전용 = 그 무기만. 이동기는 전용 무기로만 쓰되
  * 근접 물리 이동기 셋(돌진, 도약 강타, 섬머솔트 슬래시)은 근접 계열이라 근접 무기 넷이 함께 쓴다. 기본 공격은 어느 무기로나 쓴다. */

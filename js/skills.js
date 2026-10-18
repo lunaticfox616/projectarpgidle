@@ -963,6 +963,12 @@ function fitActiveSkillToWeapon() {
     game.activeSkill = '기본 공격';
 }
 
+/** A rune's Lv.20 perk (GEM_LEVEL_20_PERKS) on its stats, when it has one. */
+function applyGemLevel20Perk(stats, perk) {
+    if (!perk) return;
+    if (perk.mul) stats[perk.stat] *= perk.mul;
+    else stats[perk.stat] += perk.add;
+}
 function getActiveSkillStats(bonusLevel) {
     fitActiveSkillToWeapon();
     let skill = SKILL_DB[game.activeSkill] || SKILL_DB['기본 공격'];
@@ -986,11 +992,7 @@ function getActiveSkillStats(bonusLevel) {
     let qualityMul = 1 + Math.max(0, Math.min(20, gem.quality || 0)) / 200;
     stats.dmg *= qualityMul * (usesGemProgression ? gemCoreForge.effects(gem).damage : 1);
     stats.spd *= qualityMul * (usesGemProgression ? gemCoreForge.effects(gem).speed : 1);
-    if (usesGemProgression && gem.level >= 20) {
-        if (game.activeSkill === '이중 베기') stats.spd *= 1.2;
-        if (game.activeSkill === '흡혈 관통') stats.leech *= 2;
-        if (game.activeSkill === '기습 공격') stats.crit += 15;
-    }
+    if (usesGemProgression && gem.level >= 20) applyGemLevel20Perk(stats, GEM_LEVEL_20_PERKS[game.activeSkill]);
     if (!usesGemProgression) return stats;
     getSkyEnhancementForSkill(game.activeSkill).forEach(id => {
         let enh = GEM_SKY_ENHANCEMENTS[id];
