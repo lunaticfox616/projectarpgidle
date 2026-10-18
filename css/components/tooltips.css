@@ -66,21 +66,16 @@ body #info-tooltip {
 .tooltip-line .gem-tooltip-tags { display: inline-flex; min-height: 0; margin-left: 4px; overflow: visible; vertical-align: middle; flex-wrap: wrap; }
 }
 
-
-@layer overrides { }
-
 @layer components {
 :is(.item-title, .tooltip-title, .equipment-slot-name, .equipment-card-name) {
   font-family: var(--font-body);
 }
 
 :where(
-  .equipment-panel-hint,
   .player-exchange-card,
   .player-trade-item,
   .hall-summary,
   .selection-overlay-panel,
-  .item-description,
   .tooltip-line
 ) {
   min-width: 0;

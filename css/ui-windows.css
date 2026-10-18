@@ -58,7 +58,6 @@
   }
   body.desktop-windowed-ui .combat-zone-row-title { display: flex; align-items: center; gap: 6px; min-width: 0; color: #ffffff; font-weight: 800; font-size: 15px; }
   body.desktop-windowed-ui #ui-combat-zone-inline { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  body.desktop-windowed-ui .combat-zone-row-title .combat-contract-status { flex: 0 0 auto; }
   body.desktop-windowed-ui .combat-zone-actions { display: flex; justify-content: flex-end; gap: 6px; pointer-events: auto; }
   body.desktop-windowed-ui .combat-zone-actions .combat-action-btn { min-height: 26px; padding: 4px 9px; font-size: 11px; }
   body.desktop-windowed-ui .map-progress-row { display: grid; grid-template-columns: auto minmax(150px, 1fr); align-items: center; gap: 8px; pointer-events: none; }
@@ -84,9 +83,6 @@
   body.desktop-windowed-ui .combat-hud-label { margin: 0; font-size: 10px; line-height: 1; font-weight: 800; text-align: right; text-shadow: 0 1px 2px #000; }
   /* 경험치 줄: [Lv.레벨 직업] [진행 바] [퍼센트 · 남은 경험치] */
   body.desktop-windowed-ui .combat-hud-row-exp { grid-template-columns: auto minmax(0, 1fr) auto; }
-  body.desktop-windowed-ui .combat-hud-label-exp { font-size: 11px; color: #d9c2ff; white-space: nowrap; }
-  body.desktop-windowed-ui .combat-hud-note { font-size: 10px; font-weight: 800; color: #bda9e0; white-space: nowrap; text-shadow: 0 1px 2px #000; }
-  body.desktop-windowed-ui .combat-hud-label-hp { color: #71e6a0; }
   body.desktop-windowed-ui .combat-hud-label-oxygen { color: #73ddff; }
   body.desktop-windowed-ui #ui-hp-bar.player-danger { animation: uiHpDangerPulse 1.1s ease-in-out infinite; }
 
@@ -199,7 +195,7 @@
   body.desktop-windowed-ui #tab-social.ui-community-overlay { display: flex; flex-direction: column; position: fixed; top: 0; right: 0; bottom: 0; z-index: 1300; padding: 0; border-left: 1px solid rgba(90, 120, 156, 0.68); border-radius: 0; background: linear-gradient(178deg, rgba(14, 21, 33, 0.99), rgba(9, 14, 22, 0.99)); pointer-events: auto; overflow: hidden; }
 
   @container (max-width: 520px) {
-    .subtab-row, .bulk-salvage-bar { flex-wrap: wrap; }
+    .subtab-row { flex-wrap: wrap; }
   }
 }
 
@@ -360,8 +356,8 @@
   body.desktop-windowed-ui .ui-window-minimized { display: none; }
 
   @container (max-width: 520px) {
-    .stat-grid, .craft-layout { grid-template-columns: 1fr; }
-    .inventory-grid, .currency-grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+    .stat-grid { grid-template-columns: 1fr; }
+    .inventory-grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
   }
 }
 

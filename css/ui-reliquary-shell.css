@@ -992,11 +992,6 @@ body #death-overlay .deathlog-bar { background: var(--color-control); border-col
   background: linear-gradient(155deg, #181713, #0c0d0b);
 }
 
-:root body #item-tab-equip .equipment-slot-icon {
-  border-color: #5a4a34;
-  color: #d7c9b2;
-}
-
 :root body #item-tab-equip .equipment-slot-action {
   border-radius: 2px;
 }
@@ -1274,8 +1269,6 @@ body #tab-map .map-state-badge.recommended {
   body.mobile-primary-navigation #tab-header-bottom .mobile-nav-more::before {
     display: none;
   }
-
-  body.mobile-primary-navigation .mobile-nav-more-icon { display: none; }
 
   body.mobile-primary-navigation.mobile-tab-drawer-open #tab-header-main {
     position: fixed;
@@ -1572,11 +1565,6 @@ body #tab-map .map-state-badge.recommended {
   #tab-social.active .social-toolbar button {
     min-height: 34px;
     padding: 4px 7px;
-    font-size: 10px;
-  }
-
-  #tab-social.active .social-mynick {
-    flex-basis: 100%;
     font-size: 10px;
   }
 
@@ -2225,7 +2213,7 @@ body.desktop-windowed-ui .battlefield-wrap > .ui-goal-drawer :where(
 
 @layer overrides {
 
-:root body :where(#background-combat-progress-bar-fill, .equipment-capacity-track > span) {
+:root body :where(#background-combat-progress-bar-fill) {
   background: linear-gradient(90deg, var(--skin-accent-strong), var(--skin-accent));
 }
 
@@ -2247,8 +2235,6 @@ body .hero-choice {
   background: linear-gradient(180deg, var(--skin-control), var(--skin-panel));
 }
 :root body :where(
-  .craft-selected-summary,
-  .craft-actions .craft-orb-card,
   .market-shell,
   .market-locked,
   .market-service-card,
@@ -2610,12 +2596,9 @@ body #tab-skills .gem-card-utility {
 }
 :root body :where(
   .cfg-select,
-  .cfg-number,
   .equipment-grid-inspector-actions button,
   .equipment-triage-controls button,
   .equipment-triage-controls select,
-  .bulk-manager button,
-  .inventory-expand-shortcut,
   .selection-overlay-panel button,
   .player-exchange-card button
 ) {
@@ -2623,12 +2606,9 @@ body #tab-skills .gem-card-utility {
 }
 :root body :where(
   .cfg-select,
-  .cfg-number,
   .equipment-grid-inspector-actions button,
   .equipment-triage-controls button,
   .equipment-triage-controls select,
-  .bulk-manager button,
-  .inventory-expand-shortcut,
   .selection-overlay-panel button,
   .player-exchange-card button
 ) {
@@ -2666,7 +2646,7 @@ body #tab-skills .gem-card-utility {
   background: linear-gradient(180deg, var(--skin-control), var(--skin-panel));
 }
 
-:root body :is(.bulk-manager, .equipment-grid-inspector-actions) button[aria-pressed="true"] {
+:root body :is( .equipment-grid-inspector-actions) button[aria-pressed="true"] {
   border-color: var(--skin-line-strong);
   color: var(--skin-accent);
   background: var(--skin-control);

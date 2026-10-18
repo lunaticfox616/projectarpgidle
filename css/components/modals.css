@@ -120,15 +120,10 @@ body textarea:focus {
 
 :is(
   .tutorial-body,
-  .trait-desc,
   .gem-enhance-section-desc,
   .journal-card-body,
-  .cosmos-desc,
   .cosmos-detail,
-  .cloud-note,
-  .currency-desc,
   .craft-picker-desc,
-  .colony-ward-desc,
   .underworld-rune-overlay-desc,
   .patch-note-body,
   .ui-goal-desc,

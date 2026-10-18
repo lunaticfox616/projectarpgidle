@@ -12,7 +12,7 @@
         .tab-btn.active { background: #121216; color: #e8c26a; }
         .tab-btn.dragging { opacity: 0.34; transform: scale(0.96); z-index: 45; box-shadow: 0 0 0 1px #e8c26a, 0 8px 22px rgba(0,0,0,0.45); }
         body.tab-drag-active, body.tab-drag-active .tab-header { cursor: grabbing; user-select: none; }
-        button, .tab-btn, .subtab-btn, .item-card, .slot-box, .class-card, .map-item, .skill-gem, .trait-card { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+        button, .tab-btn, .subtab-btn, .item-card, .slot-box, .class-card, .map-item, .skill-gem { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
         .map-primary-tabs .subtab-btn.map-primary-tab--entry-locked { flex-direction: column; gap: 2px; border-color: rgba(230, 169, 107, .62); }
         .map-primary-tabs .subtab-btn.map-primary-tab--entry-locked::after { content: attr(data-entry-condition); display: block; color: #ffcf8a; font-size: .66em; font-weight: 800; line-height: 1.1; letter-spacing: 0; text-transform: none; }
         .map-primary-tabs .subtab-btn.map-primary-tab-unlock-reveal { animation: mapPrimaryTabUnlockReveal .6s ease-out 1; }
@@ -254,7 +254,7 @@
   filter: brightness(.9);
   box-shadow: 0 0 2px rgba(0,0,0,0.4), inset 0 2px 4px rgba(0,0,0,0.25);
 }
-:root body button.use-btn,:root 
+:root 
 body .item-actions button:not(.market-shell button):not(:disabled),:root 
 body button[onclick*="use"]:not(.subtab-btn),:root 
 body button[onclick*="equip"]:not(.subtab-btn),:root 
@@ -264,7 +264,7 @@ body button[onclick*="salvage"]:not(.subtab-btn) {
   color: #e8c26a;
   box-shadow: 0 1px 4px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,220,120,0.08);
 }
-:root body button.use-btn:hover:not(:disabled),:root 
+:root 
 body .item-actions button:hover:not(:disabled),:root 
 body button[onclick*="use"]:not(.subtab-btn):hover:not(:disabled),:root 
 body button[onclick*="equip"]:not(.subtab-btn):hover:not(:disabled),:root 

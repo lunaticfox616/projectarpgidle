@@ -2,9 +2,6 @@
         .startup-hero-grid { position: relative; z-index: 1; display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; align-items: start; }
         .startup-hero-copy { min-width: 0; }
         .startup-brand-wrap { display: grid; gap: 8px; margin-bottom: 4px; }
-        .startup-wordmark { display: inline-block; font-size: clamp(1.85rem, 3.8vw, 2.8rem); line-height: 0.95; font-weight: 900; letter-spacing: 0.14em; text-transform: uppercase; color: var(--copy-bright); text-shadow: 0 0 18px rgba(111, 191, 255, 0.12); }
-        .startup-wordmark-accent { background: linear-gradient(90deg, #f5f8fb 0%, #9fd4ff 46%, #f1c46b 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
-        .startup-wordmark-bar { width: 112px; height: 3px; border-radius: 999px; background: linear-gradient(90deg, rgba(127,201,255,0.95), rgba(241,196,108,0.82)); box-shadow: 0 0 16px rgba(127,201,255,0.18); }
         .startup-summary-card { margin-top: 8px; padding: 13px 14px; border-radius: 16px; border: 1px solid #233649; background: rgba(9, 14, 21, 0.76); display: grid; gap: 10px; }
         .startup-summary-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
         .startup-summary-title { color: #f1c46b; font-weight: bold; font-size: 0.88em; }
@@ -254,13 +251,11 @@
             body.has-bottom-tabs .tab-content:not(#tab-social):not(#tab-battle):not(#tab-char) { scroll-padding-bottom: calc(24px + var(--bottom-tab-height, 52px) + env(safe-area-inset-bottom)); }
             .combat-top-status { margin: 4px 0 8px; }
             #tab-char > div { min-height: 0; }
-            .craft-layout { grid-template-columns: 1fr; }
         }
 
         @media (max-width: 720px) {
             body { gap: 12px; padding: 12px; padding-top: max(12px, env(safe-area-inset-top)); padding-right: max(12px, env(safe-area-inset-right)); padding-bottom: max(12px, env(safe-area-inset-bottom)); padding-left: max(12px, env(safe-area-inset-left)); }
             .panel, .tab-content { padding: 12px; }
-            .summary-actions { flex-direction: column; }
             .stat-grid { grid-template-columns: 1fr; gap: 6px 12px; }
             .stat-item.full { grid-column: auto; }
             .inventory-grid, .map-grid { grid-template-columns: 1fr; }
@@ -273,13 +268,9 @@
             .combat-feed { height: clamp(320px, 52vh, 480px); max-height: 480px; padding: 10px; }
             #log { min-height: 0; }
             .gem-enhance-actions, .gem-engrave-grid { grid-template-columns: 1fr; }
-            .bulk-salvage-bar, .tutorial-actions, .deathlog-line, .map-item { flex-direction: column; align-items: stretch; }
-            .bulk-salvage-bar > div:last-child { width: 100%; grid-template-columns: 1fr 1fr; }
-            .settings-stack { max-width: none; }
+            .tutorial-actions, .deathlog-line, .map-item { flex-direction: column; align-items: stretch; }
             .subtab-row { overflow-x: auto; padding-bottom: 8px; scrollbar-width: none; -ms-overflow-style: none; }
             .subtab-row::-webkit-scrollbar { display: none; height: 0; }
-            .trait-tree .trait-row { width: 100%; justify-content: flex-start; gap: 8px; padding: 8px; border: 1px dashed #34495e; border-radius: 10px; background: rgba(10, 16, 24, 0.45); }
-            .trait-tree .trait-card { flex: 1 1 calc(50% - 8px); min-width: 132px; }
             .tutorial-card, .deathlog-card { border-radius: 16px; }
         }
 
@@ -299,17 +290,7 @@
 
 
 .craft-actions { display:grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap:6px; }
-.craft-orb-card { padding:6px 4px; min-height:44px; font-size:0.74em; display:flex; flex-direction:column; gap:3px; align-items:flex-start; }
-.craft-orb-card .craft-orb-name { font-weight:700; line-height:1.15; }
-.craft-orb-card .craft-orb-count { color:var(--copy-bright); font-size:0.95em; }
-.craft-orb-card.disabled { opacity:0.45; cursor:not-allowed; }
-
-
-.craft-selected-summary { position: sticky; top: 0; z-index: 4; margin: 0 0 6px; padding: 6px 8px; border: 1px solid var(--color-line); border-radius: 8px; background: var(--color-surface); font-size: 12px; }
 .craft-section-title { margin-top: 10px; color: var(--copy-bright); font-size: 0.78em; letter-spacing: .03em; text-transform: uppercase; }
-
-.craft-orb-header { margin: 6px 0 4px; font-size: 0.76em; color:var(--copy-bright); letter-spacing:.04em; text-transform: uppercase; }
-.craft-actions .craft-orb-card { border:1px solid #35506a; border-radius:8px; background:#152233; }
 
 
 .ominous-entry-btn {
@@ -437,59 +418,11 @@
 .item-card.item-source-tone--realm-cosmos,.slot-box.item-source-tone--realm-cosmos{border-color:#3e8ec9;background:linear-gradient(160deg,rgba(16,38,69,.34),rgba(8,22,44,.34));box-shadow:0 0 0 1px rgba(89,182,255,.34),inset 0 0 14px rgba(112,201,255,.12),0 0 18px rgba(62,142,201,.18)}
 .item-card.item-source-tone--realm-chaos::after,.item-card.item-source-tone--realm-underworld::after,.item-card.item-source-tone--realm-cosmos::after,.slot-box.item-source-tone--realm-chaos::after,.slot-box.item-source-tone--realm-underworld::after,.slot-box.item-source-tone--realm-cosmos::after{content:'';position:absolute;inset:1px;border-radius:inherit;pointer-events:none;background:linear-gradient(145deg,rgba(255,255,255,.14),rgba(255,255,255,0) 42%)}
 
-.mobile-craft-currency-picker,
-.craft-selected-summary-mobile {
-  display: none;
-}
-
-.mobile-craft-currency-card {
-  border: 1px solid var(--color-line);
-  border-radius: 12px;
-  padding: 9px;
-  margin: 8px 0;
-  background: var(--color-surface-raised);
-  box-shadow: inset 0 1px 0 rgba(201, 226, 255, 0.05), 0 8px 18px rgba(0,0,0,0.22);
-}
-
-.mobile-craft-currency-head,
-.mobile-craft-currency-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
 .mobile-craft-currency-title {
   color: var(--copy-bright);
   font-size: 0.82em;
   font-weight: 800;
   letter-spacing: 0.03em;
-}
-
-.mobile-craft-currency-selected {
-  color: var(--color-accent-gold);
-  font-weight: 800;
-  min-width: 0;
-}
-
-.mobile-craft-currency-meta {
-  color: var(--copy-muted);
-  font-size: 0.78em;
-  margin-top: 4px;
-}
-
-.mobile-craft-currency-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 6px;
-  margin-top: 8px;
-}
-
-.mobile-craft-currency-actions button,
-.mobile-craft-currency-head button {
-  min-height: 30px;
-  padding: 4px 9px;
-  font-size: 0.82em;
 }
 
 .mobile-craft-currency-overlay {
@@ -502,52 +435,6 @@
   padding: 14px;
   background: rgba(3, 7, 13, 0.72);
   box-sizing: border-box;
-}
-
-.mobile-craft-currency-panel {
-  width: min(560px, 100%);
-  max-height: min(72dvh, 620px);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  border: 1px solid var(--color-line-strong);
-  border-radius: 18px 18px 12px 12px;
-  background: var(--color-surface);
-  box-shadow: 0 -12px 34px rgba(0,0,0,0.48), inset 0 1px 0 rgba(220,238,255,0.06);
-  padding: 12px;
-}
-
-.mobile-craft-currency-list {
-  display: grid;
-  grid-auto-rows: max-content;
-  align-content: start;
-  min-height: 0;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 8px;
-}
-
-.mobile-craft-currency-option {
-  min-height: 54px;
-  padding: 8px;
-  border-radius: 12px;
-  border: 1px solid #304964;
-  background: linear-gradient(180deg, #1b2a3d 0%, #132033 100%);
-  color: #ffffff;
-  text-align: left;
-}
-.mobile-craft-currency-option > span { float: right; color: var(--copy-muted); font-size: 12px; }
-.mobile-craft-currency-option p { margin: 6px 0; font-size: 13px; line-height: 1.5; color: var(--copy-bright); }
-.mobile-craft-currency-option small { display: block; font-size: 12px; color: var(--copy-muted); }
-.mobile-craft-unavailable > summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; color: var(--copy-muted); }
-.mobile-craft-currency-empty { margin: 8px 0; color: var(--copy-muted); font-size: 13px; }
-.mobile-craft-currency-panel > .mobile-craft-currency-head { flex-shrink: 0; }
-
-.mobile-craft-currency-option.selected {
-  border-color: #d9b85d;
-  color: #ffe6a3;
-  box-shadow: 0 0 0 1px rgba(217,184,93,0.22), 0 0 16px rgba(217,184,93,0.12);
 }
 
 /* Rarity view filter chips (inventory + craft picker)
@@ -714,10 +601,6 @@
 }
 
 @media (max-width: 1080px) {
-  #item-tab-craft .mobile-craft-currency-picker,
-  #item-tab-craft .craft-selected-summary-mobile {
-    display: block;
-  }
 
   #item-tab-craft #ui-spore-summary {
     display: none;
@@ -1104,18 +987,11 @@
   font-size: 14px;
   line-height: 1.4;
 }
-.underworld-rune-inventory,
-.underworld-equipped-list {
+.underworld-rune-inventory {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
   margin-top: 5px;
-}
-.underworld-equipped-row {
-  padding: 4px 7px;
-  border: 1px solid var(--color-line);
-  border-radius: 6px;
-  background: var(--color-surface-raised);
 }
 .underworld-rune-chip {
   border: 1px solid var(--color-line);
@@ -1231,18 +1107,6 @@
   .underworld-rune-overlay-actions > button { min-height: 44px; min-width: 64px; }
   .underworld-rune-overlay-actions > button { width: 100%; }
 }
-.craft-selected-body {
-  padding-right: 18px;
-  max-width: 100%;
-}
-.craft-option-line {
-  overflow-wrap: normal;
-  word-break: keep-all;
-  white-space: normal;
-}
-.craft-option-line .tier-badge {
-  white-space: nowrap;
-}
 @media (max-width: 760px) {
   .underworld-entry-card,
   .underworld-panel-head { align-items: stretch; flex-direction: column; }
@@ -1252,7 +1116,6 @@
   .underworld-action-grid { grid-template-columns: 1fr; }
   .underworld-lower-grid { grid-template-columns: 1fr; }
   .underworld-rune-slots { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .craft-selected-body { padding-right: 0; }
 }
 @media (max-width: 460px) {
   .underworld-action-grid { grid-template-columns: 1fr; }
@@ -1547,20 +1410,6 @@
   font-size: 0.75em;
   line-height: 1.35;
 }
-.trait-card-state {
-  display: block;
-  margin-top: 7px;
-  padding-top: 6px;
-  border-top: 1px solid rgba(133, 151, 180, 0.18);
-  color: var(--copy-muted);
-  font-size: 0.92em;
-}
-.trait-card.active .trait-card-state {
-  color: #efc888;
-}
-.trait-card.locked .trait-card-state {
-  color: #d39ca7;
-}
 @media (max-width: 560px) {
   .trait-progress-summary { grid-template-columns: 1fr; }
 }
@@ -1690,7 +1539,6 @@ html, body { overflow: hidden; }
                         /* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */ margin-bottom: 4px !important; }
             body.mobile-battle-tab #tab-battle .combat-panel > h2 {
                         /* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */ display: none !important; }
-            body.mobile-battle-tab .summary-actions { display:none; }
             #ui-combat-zone {
                         /* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */ flex: 1 0 100% !important; /* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */ text-align: left !important; }
             body.has-bottom-tabs .tab-content:not(#tab-social):not(#tab-battle):not(#tab-char) { padding-bottom: calc(24px + var(--bottom-tab-height, 52px) + env(safe-area-inset-bottom)); }
@@ -1706,7 +1554,6 @@ html, body { overflow: hidden; }
             #ui-inventory-list,
             #ui-craft-inventory-list,
             #ui-fossil-inventory-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-            .bulk-salvage-bar > div:last-child { display: grid; }
             .responsive-split-grid,
             #ui-class-grid {
                         /* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */ grid-template-columns: 1fr !important; }

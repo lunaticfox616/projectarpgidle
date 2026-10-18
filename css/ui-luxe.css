@@ -75,16 +75,6 @@
   pointer-events: none;
 }
 
-:root body .startup-wordmark {
-  filter: drop-shadow(0 6px 18px rgba(52, 136, 202, 0.14));
-}
-
-:root body .startup-wordmark-bar {
-  height: 2px;
-  width: 128px;
-  box-shadow: 0 0 16px rgba(103, 185, 245, 0.48);
-}
-
 :root body .startup-summary-card,:root 
 body .startup-status {
   border-color: rgba(89, 126, 165, 0.34);

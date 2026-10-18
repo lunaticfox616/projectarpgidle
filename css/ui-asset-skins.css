@@ -194,17 +194,6 @@
 
 .player-exp-values { display: none; }
 
-.player-health-frame-art {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  width: 100%;
-  height: 100%;
-  object-fit: fill;
-  pointer-events: none;
-  user-select: none;
-}
-
 .enemy-card.targeted {
   --health-frame-width: 420px;
   --health-frame-ratio: 153 / 23;
