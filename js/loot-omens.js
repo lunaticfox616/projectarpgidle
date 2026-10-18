@@ -14,6 +14,7 @@ const lootOmens = (() => {
     /** An omen can land on a map when its loop has come and, for a drops omen, one of its drops can reach the hero. */
     function available(omen, state) {
         if ((omen.minLoop || 0) > (Number(state.season) || 1)) return false;
+        if (omen.needsFallenApex && !atlasEndgame.bearableOmens(state).length) return false;
         return omen.kind !== 'drops' || omen.drops.some(([key]) => openKey(key, state));
     }
     function pickWeighted(rows, weightOf, random) {

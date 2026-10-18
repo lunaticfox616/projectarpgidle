@@ -268,6 +268,33 @@ const atlasEndgame = (() => {
         return { region, level: 0, cleansed: true };
     }
 
+    // ---------------------------------------------------------------- 징조를 품은 몬스터 (data/items.js CRAFT_OMENS bearer)
+    /** The omens late maps carry: those of the final bosses already felled (each boss's echo spreads its omen). */
+    const bearableOmens = state => CRAFT_OMENS.keys.filter(key => kills(state, CRAFT_OMENS.effects[key].boss) > 0);
+    function bearerZone(zone) {
+        const B = CRAFT_OMENS.bearer;
+        return Boolean(zone && ((zone.type === 'atlasMap' && zone.atlasTier >= B.minAtlasTier) || (zone.type === 'abyss' && zone.depth >= B.minChaosDepth)));
+    }
+    /** An elite's or another monster's chance, raised by the map's 징조의 메아리 (data/loot-omens.js, run bonus omenBearer %). */
+    function bearerChance(state, enemy) {
+        const run = state.atlas.run, bonus = Number(run && run.bonus && run.bonus.omenBearer) || 0;
+        return (enemy.isElite ? CRAFT_OMENS.bearer.elite : CRAFT_OMENS.bearer.normal) * (1 + bonus / 100);
+    }
+    /** A new monster in a late map or deep chaos sometimes carries the omen of a final boss already felled, and its name says so. */
+    function markOmenBearer(state, enemy, zone, random = Math.random) {
+        if (enemy.isBoss || enemy.isSummon || enemy.craftOmen || !awakened(state) || !bearerZone(zone)) return;
+        const omens = bearableOmens(state);
+        if (!omens.length || random() >= bearerChance(state, enemy)) return;
+        enemy.craftOmen = omens[Math.floor(random() * omens.length)];
+        enemy.name = `징조를 품은 ${enemy.name}`;
+    }
+    /** The omen key a slain bearer leaves, once ('' for any other monster). */
+    function takeOmen(enemy) {
+        if (!enemy.craftOmen || enemy.craftOmenTaken) return '';
+        enemy.craftOmenTaken = true;
+        return enemy.craftOmen;
+    }
+
     // ---------------------------------------------------------------- save boundary, epoch, view
     const KILL_IDS = Object.freeze([...DEFS.keys(), ...APOSTLES.keys(), 'pinnacle', ...ATLAS.regions.map(region => `${region.id}_g`)]);
     /** @param {boolean} pinnacleDone the shadow is a completed node: a save from before the late atlas (or one that lost it) wakes. */
@@ -301,7 +328,7 @@ const atlasEndgame = (() => {
             gardenerDown: kills(state, 'apex_gardener') > 0 };
     }
     return Object.freeze({ defaults, normalize, normalizeRun, moveAltarMaterials, reset, loopKeptCurrencies, awakened, kills, count, def, entryReason, spend, refund, runExtra,
-        bossBoost, zoneExtras, tuneStage, patternState, roomItems, onComplete, overview, isFight: id => DEFS.has(id),
+        bossBoost, zoneExtras, tuneStage, patternState, roomItems, onComplete, overview, bearableOmens, markOmenBearer, takeOmen, isFight: id => DEFS.has(id),
         itemName: id => (E.items[id] ? E.items[id].name : id) });
 })();
 safeExposeGlobals({ atlasEndgame });

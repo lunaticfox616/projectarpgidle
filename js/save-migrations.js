@@ -1341,6 +1341,7 @@ function mergeDefaults(save) {
     const normalized = normalizeContentProgressionSave(normalizeSavedCombatRuntime(merged), save);
     // Escrow identity checks need the migrated exploration loot containers first.
     playerStall.restore(normalized);
+    normalized.craftOmen = normalizeCraftOmen(normalized.craftOmen);
     return normalized;
 }
 

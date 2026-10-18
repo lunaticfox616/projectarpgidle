@@ -1062,8 +1062,41 @@ const ORB_DB = {
     oceanRerollShard: { name: '심해의 파편', desc: '장비의 베이스 옵션 한 줄을 다시 굴리는 데 사용하는 심해 전용 재화입니다.' },
     // 붉은 제단, 푸른 제단의 재료(2026-10-10 지갑 재화로): 최종 보스 입장 10개, 제작실에서 하나로 영향 줄 새기기(data/item-influences.js).
     altarEmber: { name: '성화 잉걸', desc: '붉은 제단에서 얻습니다. 투구, 갑옷, 장갑, 신발, 방패, 허리띠의 베이스 옵션 한 줄을 태양 줄로 바꿉니다(수호자, 마름 아이템 제외). 10개를 모으면 검은 태양의 대사제에게 도전합니다.' },
-    altarIchor: { name: '허기의 즙', desc: '푸른 제단에서 얻습니다. 투구, 갑옷, 장갑, 신발, 방패, 허리띠의 베이스 옵션 한 줄을 허기 줄로 바꿉니다(수호자, 마름 아이템 제외). 10개를 모으면 세계수를 갉는 자에게 도전합니다.' }
+    altarIchor: { name: '허기의 즙', desc: '푸른 제단에서 얻습니다. 투구, 갑옷, 장갑, 신발, 방패, 허리띠의 베이스 옵션 한 줄을 허기 줄로 바꿉니다(수호자, 마름 아이템 제외). 10개를 모으면 세계수를 갉는 자에게 도전합니다.' },
+    // 제작 징조(2026-10-18, Craft of Exile의 징조 제작에서): 제작실에서 하나를 걸어 두면 그 징조가 바꾸는 다음 제작 한 번에 쓰인다(CRAFT_OMENS).
+    omenPruning: { name: '가지치기의 징조', desc: '제작실에서 걸어 두면 다음 전정 가위가 무작위 대신 등급이 가장 낮은 옵션을 자릅니다(등급 없는 고정 옵션은 빼고). 정원사의 메아리가 지니고 있습니다.' },
+    omenCompost: { name: '거름의 징조', desc: '다음 다시 굴림(마법의 새싹, 형체 없는 이슬)에서 새 옵션의 등급이 아이템 등급의 절반 아래로 내려가지 않습니다. 밑거름의 장로가 지니고 있습니다.' },
+    omenWeave: { name: '엮음의 징조', desc: '다음 제작이 아이템에 이미 있는 옵션과 태그가 같은 옵션을 네 배 더 잘 고릅니다. 나이테를 엮는 자가 지니고 있습니다.' },
+    omenPyre: { name: '성화의 징조', desc: '다음 제작에서 새 옵션마다 등급을 두 번 굴려 높은 쪽을 씁니다. 검은 태양의 대사제가 지니고 있습니다.' },
+    omenHunger: { name: '허기의 징조', desc: '다음 수액 봉오리가 붙이는 옵션을 접두나 접미 중 고른 쪽에서만 고릅니다. 세계수를 갉는 자가 지니고 있습니다.' }
 };
+
+/** 제작 징조: 걸어 둔 하나(game.craftOmen { key, side })가 actions에 드는 다음 제작 한 번을 바꾸고 하나 줄어든다(js/equipment-crafting.js).
+ * effect: prune 가장 낮은 등급 줄을 자름, floor 새 줄 등급 하한 = 아이템 등급 × floorShare, weave 이미 있는 태그를 weaveMul배,
+ * lucky 등급을 두 번 굴려 높은 쪽, side 추가 줄을 접두나 접미에서만. boss: 처치마다 그 징조 하나(data/atlas-endgame.js rewards).
+ * bearer: 늦은 지도(아틀라스 minAtlasTier 등급 이상, 혼돈 minChaosDepth층 이상)의 몬스터가 드물게 징조를 품는다(정예 elite, 그 밖 normal 확률).
+ * 깨어난 아틀라스에서, 쓰러뜨린 최종 보스의 징조만(js/atlas-endgame.js markOmenBearer). 지도 기운 징조의 메아리가 늘린다(data/loot-omens.js). */
+const CRAFT_OMENS = Object.freeze({
+    keys: Object.freeze(['omenPruning', 'omenCompost', 'omenWeave', 'omenPyre', 'omenHunger']),
+    effects: Object.freeze({
+        omenPruning: Object.freeze({ effect: 'prune', actions: Object.freeze(['annulment']), boss: 'apex_gardener' }),
+        omenCompost: Object.freeze({ effect: 'floor', actions: Object.freeze(['transmute', 'alteration', 'alchemy', 'chaos']), boss: 'apex_compost' }),
+        omenWeave: Object.freeze({ effect: 'weave', actions: Object.freeze(['transmute', 'alteration', 'alchemy', 'chaos', 'regal', 'exalted']), boss: 'apex_weaver' }),
+        omenPyre: Object.freeze({ effect: 'lucky', actions: Object.freeze(['transmute', 'alteration', 'alchemy', 'chaos', 'regal', 'exalted']), boss: 'apex_archbishop' }),
+        omenHunger: Object.freeze({ effect: 'side', actions: Object.freeze(['regal', 'exalted']), boss: 'apex_devourer' })
+    }),
+    floorShare: 0.5, weaveMul: 4,
+    // 지도 한 장에 보통 22~25, 정예 2.5~3마리(2026-10-18 실측, 드랍 시뮬레이터 16등급): 지도 20~25장에 하나.
+    bearer: Object.freeze({ minAtlasTier: 10, minChaosDepth: 15, elite: 0.012, normal: 0.0005 }),
+    // 암거래상 교환 품목 가운데 share가 쓰러뜨린 최종 보스의 징조 하나(황금률 price, 교환의 흥정으로 0.8배 안팎).
+    blackMarket: Object.freeze({ share: 0.12, price: Object.freeze([3, 6]) })
+});
+/** The armed omen as saved (game.craftOmen): a known key with its side (허기 only, prefix by default), or null. */
+function normalizeCraftOmen(value) {
+    const key = value && CRAFT_OMENS.keys.includes(value.key) ? value.key : '';
+    if (!key) return null;
+    return { key, side: CRAFT_OMENS.effects[key].effect === 'side' && ['prefix', 'suffix'].includes(value.side) ? value.side : 'prefix' };
+}
 
 // Wallet counters that are not ORB_DB items (no crafting use): the wide-map escrow can hold them, so loot lists name them too.
 const WALLET_CURRENCY_INFO = Object.freeze({
@@ -1094,7 +1127,7 @@ function getStyledOrbName(orbKey) {
 }
 // Natural drops require at least one usable content branch. Exchanges, refunds and entry rewards keep their own contracts.
 for (const [unlock, keys] of [
-    ['craft', ['magicBud','sapBud','formlessDew','goldenRule','fairyRing','pruningShears','blightSpore','ouroboros','blessing','emberBranch','burningEmberBranch','deepWhetstone','rootIron','jewelPolish','abyssCatalyst','catalystFire','catalystCold','catalystLight','catalystChaos','catalystCrit','catalystSummon','oilFire','oilCold','oilLight','oilChaos','enchantedHoney','venomStinger','oceanRerollShard']],
+    ['craft', ['omenPruning','omenCompost','omenWeave','omenPyre','omenHunger','magicBud','sapBud','formlessDew','goldenRule','fairyRing','pruningShears','blightSpore','ouroboros','blessing','emberBranch','burningEmberBranch','deepWhetstone','rootIron','jewelPolish','abyssCatalyst','catalystFire','catalystCold','catalystLight','catalystChaos','catalystCrit','catalystSummon','oilFire','oilCold','oilLight','oilChaos','enchantedHoney','venomStinger','oceanRerollShard']],
     ['fossil', ['fossil','fossilPrimal','fossilAncientPrimal','fossilPrimordial','fossilJagged','fossilBound','fossilGale','fossilPrismatic','fossilAbyssal','fossilBulwark','fossilWedge','fossilOld','fossilRift','sporeFire','sporeCold','sporeLight']],
     ['research', ['gemShard']],
     ['gemForge', ['bossCore','skyEssence','awakenedEcho']],
@@ -1159,4 +1192,4 @@ const MARKET_EXCHANGES = [
     { id: 'm8', from: 'blessing', to: 'formlessDew', need: 3, gain: 1 }
 ];
 
-safeExposeData({ UNIQUE_DB, RENAMED_UNIQUES, CURRENCY_LEGACY_MERGE, getCanonicalCurrencyKey, ORB_DB, WALLET_CURRENCY_INFO, getCurrencyInfo, getStyledOrbName, MARKET_EXCHANGES, OCEAN_FISH_DB, OCEAN_FISH_RARITY_META, OCEAN_FISHING_STRATEGIES, OCEAN_FISH_COLLECTION_MILESTONES, COSMOS_BOSS_REWARD_DB, COSMOS_BOSS_RELIC_DB, COSMOS_BOSS_STONE_OPTION_POOLS, COSMOS_BOSS_UNIQUE_EQUIPMENT, ITEM_VISUAL_ASSET_DB });
+safeExposeData({ UNIQUE_DB, RENAMED_UNIQUES, CURRENCY_LEGACY_MERGE, getCanonicalCurrencyKey, ORB_DB, CRAFT_OMENS, normalizeCraftOmen, WALLET_CURRENCY_INFO, getCurrencyInfo, getStyledOrbName, MARKET_EXCHANGES, OCEAN_FISH_DB, OCEAN_FISH_RARITY_META, OCEAN_FISHING_STRATEGIES, OCEAN_FISH_COLLECTION_MILESTONES, COSMOS_BOSS_REWARD_DB, COSMOS_BOSS_RELIC_DB, COSMOS_BOSS_STONE_OPTION_POOLS, COSMOS_BOSS_UNIQUE_EQUIPMENT, ITEM_VISUAL_ASSET_DB });

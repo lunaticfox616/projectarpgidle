@@ -26,6 +26,7 @@ body .cl-goal-dialog:focus-visible{outline:none}.cl-goal-dialog::backdrop{backgr
 :is(.cl-catalog,#crafting-workspace) [data-theme="spore"]{--resource-tone:#a6c688}
 :is(.cl-catalog,#crafting-workspace) [data-theme="fossil"]{--resource-tone:#bcb1d4}
 :is(.cl-catalog,#crafting-workspace) [data-theme="special"]{--resource-tone:#d8a2bf}
+:is(.cl-catalog,#crafting-workspace) [data-theme="omen"]{--resource-tone:#b8a1df}
 :is(.cl-catalog,#crafting-workspace) [data-theme="fire"]{--resource-tone:#f4a077}
 :is(.cl-catalog,#crafting-workspace) [data-theme="cold"]{--resource-tone:#8ccedd}
 :is(.cl-catalog,#crafting-workspace) [data-theme="light"]{--resource-tone:#ddd77d}

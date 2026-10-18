@@ -423,6 +423,7 @@ const atlasUi = (() => {
         const text = {
             board: () => detail.message,
             dice: () => '나이테 길잡이에게서 심재 주사위 1개를 얻었습니다.',
+            omen: () => `🔮 징조를 품은 몬스터에게서 ${ORB_DB[detail.key].name}를 얻었습니다.`,
             complete: () => `🗺️ ${detail.name} ${detail.tier}등급 완료${detail.first ? ', 첫 완료' : ''}${detail.bonus ? ', 보너스 달성' : ''}${detail.drops ? `, 지도석 ${detail.drops}개` : ''}`
                 + (detail.ticket ? `, ${ORB_DB[detail.ticket].name}` : '') + (detail.seed ? `, 세계수 씨앗 ${detail.seeds}/${ATLAS.seeds.max}` : '')
                 + (detail.next ? ` → 다음 지도: ${nodeName(detail.next)}` : returnText(detail)),

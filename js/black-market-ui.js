@@ -22,7 +22,7 @@ const blackMarketUi = (() => {
     const rarityOf = offer => ({ exchange: 'normal', skillGem: 'magic', baseItem: offer.exceptionalBase ? 'rare' : 'normal', unique: 'unique' })[offer.type];
 
     function blackArtHtml(offer) {
-        if (offer.type === 'exchange') return `${shopView.coinHtml(offer.to).replace('shop-coin', 'shop-ware-coin')}${offer.gain > 1 ? `<span class="shop-count">${offer.gain}</span>` : ''}`;
+        if (offer.type === 'exchange') return `${shopView.coinHtml(offer.to).replace('shop-coin', 'shop-ware-coin') || `<span class="shop-ware-name">${escapeHTML(ORB_DB[offer.to].name.slice(0, 2))}</span>`}${offer.gain > 1 ? `<span class="shop-count">${offer.gain}</span>` : ''}`;
         if (offer.type === 'skillGem') return shopView.gemArtHtml({ kind: 'attack', name: offer.name });
         return `<img src="${getEquipmentGridVisualAsset({ slot: offer.slot, baseId: offer.baseId, baseName: offer.baseName, name: offer.name, rarity: rarityOf(offer) })}" alt="" draggable="false">`;
     }

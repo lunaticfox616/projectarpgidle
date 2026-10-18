@@ -103,8 +103,9 @@ const craftingGoalOptions = (() => {
     }
 
     /** Roll on an isolated item only. Never swaps game, spends currency, allocates inventory ids, logs or saves. The result keeps the
-     * item's id: it is shown, never put in the bag (a second item with that id would be a duplicate). */
-    function rehearse(item, recipe, mode = 'none') {
+     * item's id: it is shown, never put in the bag (a second item with that id would be a duplicate). omen: a 제작 징조 to practise
+     * with ({ key, side, effect }, equipmentCrafting.omenSpec, owned or not): it changes the roll only where the live craft would use it. */
+    function rehearse(item, recipe, mode = 'none', omen = null) {
         const reason = rehearsalReason(item, recipe, mode);
         if (reason) throw Error(reason);
         const result = JSON.parse(JSON.stringify(item)), action = equipmentCrafting.resolveAction(recipe.key, item.rarity);
@@ -115,7 +116,7 @@ const craftingGoalOptions = (() => {
             if (!mod) throw Error('보장할 홀씨 옵션이 없습니다.');
             guaranteedStat = equipmentCrafting.rollSporeLine(item, mod);
         }
-        equipmentCrafting.applyBasic(result, action, { guaranteedStat });
+        equipmentCrafting.applyBasic(result, action, { guaranteedStat, omen: equipmentCrafting.omenFits(item, action, omen, mode) ? omen : null });
         return result;
     }
     return Object.freeze({ get, tags, catalogue, rehearsalReason, rehearse });

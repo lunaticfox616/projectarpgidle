@@ -191,8 +191,29 @@ const craftingWorkspaceUi = (() => {
     function workspaceMethodsHtml() {
         const spore=isSporeCraftEquipment(selected())&&(recipe.kind==='add'||recipe.kind==='reroll');
         return `<section class="cl-methods"><div class="cl-section-title">주 재화<div><button data-command="pins">변경</button><button id="cl-catalog-open" data-command="catalog">기타 재화</button></div></div><div class="cl-recipes">${craftingCatalogUi.pinned().map(workspaceFavoriteHtml).join('')}</div>
-            <p class="cl-method-note" data-theme="${craftingCatalogUi.theme(recipe.key)}"><span class="cl-method-heading"><strong>선택 중 &ensp; ${craftingCatalogUi.styledName(recipe.key)}</strong><small>보유 ${game.currencies[recipe.key]}</small></span>${craftingCatalogUi.description(recipe.key)}</p>${spore?`<label class="cl-spore">홀씨 함께 사용<select id="cl-mode">${[['none','사용 안 함'],['fire','화염'],['cold','냉기'],['light','번개'],...(contentProgression.isUnlocked('advancedSpores')?[['chaos','카오스'],['damage','피해']]:[])].map(([key,label])=>`<option value="${key}" ${mode===key?'selected':''}>${label}</option>`).join('')}</select></label>`:''}
+            <p class="cl-method-note" data-theme="${craftingCatalogUi.theme(recipe.key)}"><span class="cl-method-heading"><strong>선택 중 &ensp; ${craftingCatalogUi.styledName(recipe.key)}</strong><small>보유 ${game.currencies[recipe.key]}</small></span>${craftingCatalogUi.description(recipe.key)}</p>${spore?`<label class="cl-spore">홀씨 함께 사용<select id="cl-mode">${[['none','사용 안 함'],['fire','화염'],['cold','냉기'],['light','번개'],...(contentProgression.isUnlocked('advancedSpores')?[['chaos','카오스'],['damage','피해']]:[])].map(([key,label])=>`<option value="${key}" ${mode===key?'selected':''}>${label}</option>`).join('')}</select></label>`:''}${workspaceOmenHtml()}
             </section>`;
+    }
+
+    /** [value, label] for omen keys in a select: 허기 twice (접두, 접미). count(key) adds the held number. */
+    function workspaceOmenOptions(keys,count=()=>'') {
+        return keys.flatMap(key=>{const name=ORB_DB[key].name+count(key);
+            return CRAFT_OMENS.effects[key].effect==='side'?[[`${key}:prefix`,`${name}, 접두`],[`${key}:suffix`,`${name}, 접미`]]:[[`${key}:prefix`,name]];});
+    }
+    const workspaceArmedOmen=()=>(game.craftOmen&&(game.currencies[game.craftOmen.key]||0)>0?game.craftOmen:null);
+    /** The armed omen if it changes the selected craft (the live rule, equipmentCrafting.omenFor), or null. */
+    function workspaceUsedOmen() {
+        const item=selected();
+        return item?equipmentCrafting.omenFor(game,equipmentCrafting.resolveAction(recipe.key,item.rarity),item,isSporeCraftEquipment(item)?mode:'none'):null;
+    }
+    /** 제작 징조 칸(data/items.js CRAFT_OMENS): 징조를 가졌을 때만. 아래 줄은 지금 고른 재화에 쓰이는지. */
+    function workspaceOmenHtml() {
+        const owned=CRAFT_OMENS.keys.filter(key=>(game.currencies[key]||0)>0), armed=workspaceArmedOmen();
+        if(!owned.length)return '';
+        const value=armed?`${armed.key}:${armed.side}`:'', name=ORB_DB[recipe.key].name;
+        const options=[['','걸지 않음'],...workspaceOmenOptions(owned,key=>` (${game.currencies[key]})`)];
+        const note=!armed?'':workspaceUsedOmen()?`다음 ${name} 사용에 쓰입니다.`:`${name}에는 쓰이지 않고 걸어 둔 채 남습니다.`;
+        return `<label class="cl-spore" data-theme="omen">제작 징조<select id="cl-omen">${options.map(([key,label])=>`<option value="${key}" ${key===value?'selected':''}>${esc(label)}</option>`).join('')}</select></label>${note?`<small class="cl-block">${esc(note)}</small>`:''}`;
     }
 
     function workspaceFavoriteHtml(key,index) {
@@ -208,6 +229,8 @@ const craftingWorkspaceUi = (() => {
             const amount=getSporeCraftCost();
             pieces.push(['damage','chaos'].includes(mode)?`홀씨 3종 각 ${amount}`:`${({fire:'화염',cold:'냉기',light:'번개'})[mode]} 홀씨 ${amount}`);
         }
+        const omen=workspaceUsedOmen();
+        if(omen)pieces.push(`${ORB_DB[omen.key].name} 1`);
         if(['enchantedHoney','venomStinger','voidChisel','ouroboros','oceanRerollShard'].includes(recipe.key))return '';
         return pieces.join(' + ');
     }
@@ -395,13 +418,30 @@ const craftingWorkspaceUi = (() => {
     function workspaceChange(event) {
         if(auto)workspaceStopAuto('설정 변경으로 자동 사용을 멈췄어요.');
         if(event.target.id==='cl-limit'){limit=clampNumber(Math.floor(Number(event.target.value)||1),1,100);workspaceRender();return;}
-        if(event.target.id==='cl-mode'){mode=event.target.value;game.sporeCraftModes[recipe.key]=mode;}
-        else if(event.target.id==='cl-goal-match'){goalMatch=event.target.value;goal.minMatches=goalMatch==='all'?goal.rules.length:1;workspaceSaveGoals();}
-        else if(event.target.id==='cl-goal-stat')workspaceChooseGoal(event.target.value);
-        else if(event.target.id==='cl-goal-tier')workspaceSetGoal(equipmentLootPolicy.ruleKey(goal.rules[0]),event.target.value,goal.rules[0].minCount);
-        else if(event.target.id==='cl-goal-count')workspaceSetGoal(equipmentLootPolicy.ruleKey(goal.rules[0]),goal.rules[0].minTier,event.target.value);
-        else return;
+        if(!workspaceSetMethodOption(event.target)&&!workspaceSetGoalOption(event.target))return;
         workspaceRender();
+    }
+    /** The spore and omen selects; false for any other control. */
+    function workspaceSetMethodOption(target) {
+        if(target.id==='cl-mode'){mode=target.value;game.sporeCraftModes[recipe.key]=mode;return true;}
+        if(target.id==='cl-omen'){workspaceArmOmen(target.value);return true;}
+        return false;
+    }
+    /** The goal controls; false for any other control. */
+    function workspaceSetGoalOption(target) {
+        if(target.id==='cl-goal-match'){goalMatch=target.value;goal.minMatches=goalMatch==='all'?goal.rules.length:1;workspaceSaveGoals();}
+        else if(target.id==='cl-goal-stat')workspaceChooseGoal(target.value);
+        else if(target.id==='cl-goal-tier')workspaceSetGoal(equipmentLootPolicy.ruleKey(goal.rules[0]),target.value,goal.rules[0].minCount);
+        else if(target.id==='cl-goal-count')workspaceSetGoal(equipmentLootPolicy.ruleKey(goal.rules[0]),goal.rules[0].minTier,target.value);
+        else return false;
+        return true;
+    }
+
+    /** value 'key:side' from the omen select ('' disarms). */
+    function workspaceArmOmen(value) {
+        const [key,side]=value.split(':');
+        notice=equipmentCrafting.armOmen(game,key,side).reason||'';
+        queueImportantSave(180);
     }
 
     function workspaceEditGoals(action) {
@@ -433,7 +473,7 @@ const craftingWorkspaceUi = (() => {
         const reason=craftingGoalOptions.rehearsalReason(item,method,spore);
         studyDialog.innerHTML=`<header><div><h2 id="cl-study-title">제작 연구</h2><p>${esc(item.name)}, ${esc(method.label)}, 옵션 상한 T${getItemCraftTier(item)}</p></div><button data-study-close aria-label="제작 연구 닫기">닫기</button></header>
             <section class="cl-study-simulator"><h3>재화 없이 연습</h3><p>현재 장비에서 각각 새로 시작하는 독립 시도입니다. 실제 제작과 같은 굴림을 쓰며 장비와 재화는 변하지 않습니다.</p>
-            <div class="cl-study-controls"><button data-study-sample="1" ${reason?'disabled':''}>1회 연습</button><button data-study-sample="2000" ${reason||!rules.rules.length?'disabled':''}>목표 확률 2,000회 측정</button></div>
+            ${workspaceStudyOmenHtml(item,method)}<div class="cl-study-controls"><button data-study-sample="1" ${reason?'disabled':''}>1회 연습</button><button data-study-sample="2000" ${reason||!rules.rules.length?'disabled':''}>목표 확률 2,000회 측정</button></div>
             <small>${esc(reason||('실제 제작 시: '+workspaceCostText()))}</small><div data-study-result aria-live="polite">표본 결과는 실제 획득 보장이 아닙니다.</div></section>
             <details open><summary>출현 후보와 차단된 옵션, ${rows.filter(row=>row.allowed).length}종 가능</summary>
             <label class="cl-study-search">이름이나 태그 검색 <input type="search" data-study-search></label><p>가중치가 큰 옵션일수록 선택되기 쉽습니다. 화석 보장 줄과 일반 줄은 따로 굴립니다. T가 높을수록 상위 옵션입니다.</p>
@@ -447,14 +487,29 @@ const craftingWorkspaceUi = (() => {
         studyDialog.showModal();
     }
 
+    /** 연습에 걸 징조(깨어난 아틀라스에서): 이 재화를 바꾸는 징조라면 가지지 않아도 고른다. 처음에는 걸어 둔 징조. */
+    function workspaceStudyOmenHtml(item,method) {
+        const action=equipmentCrafting.resolveAction(method.key,item.rarity), armed=workspaceArmedOmen();
+        const keys=atlasEndgame.awakened(game)?CRAFT_OMENS.keys.filter(key=>CRAFT_OMENS.effects[key].actions.includes(action)):[];
+        if(!keys.length)return '';
+        const value=armed?`${armed.key}:${armed.side}`:'';
+        return `<label class="cl-study-omen">징조와 함께 연습 <select data-study-omen>${[['','징조 없이'],...workspaceOmenOptions(keys)].map(([key,label])=>`<option value="${key}" ${key===value?'selected':''}>${esc(label)}</option>`).join('')}</select></label>`;
+    }
+    /** The practice omen the study dialog shows ({ key, side, effect }), or null. */
+    function workspaceStudyOmen() {
+        const [key,side]=(studyDialog.querySelector('[data-study-omen]')?.value||'').split(':');
+        return key?equipmentCrafting.omenSpec(key,side):null;
+    }
+
     async function workspaceSampleStudy(item, method, spore, rules, count) {
         const run=++studyRun, out=studyDialog.querySelector('[data-study-result]'), buttons=[...studyDialog.querySelectorAll('[data-study-sample]')];
         buttons.forEach(button=>button.disabled=true);
         let hits=0, result;
+        const omen=workspaceStudyOmen();
         try{
             for(let i=0;i<count;i++){
                 if(run!==studyRun||!studyDialog.open)return;
-                result=craftingGoalOptions.rehearse(item,method,spore);
+                result=craftingGoalOptions.rehearse(item,method,spore,omen);
                 if(equipmentLootPolicy.matches(result,{settings:{equipmentTargets:rules}}))hits++;
                 if(i%50===49){out.textContent=`측정 중 ${i+1}/${count}`;await new Promise(resolve=>setTimeout(resolve,0));}
             }

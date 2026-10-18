@@ -191,12 +191,84 @@ const equipmentCrafting = (() => {
         const range = getCraftTierRangeForItem(item, 'spore');
         return { ...rollAffixValueInTierRange(mod, range.min, range.max), craftSource: 'spore' };
     }
+    // ---------------------------------------------------------------- 제작 징조 (data/items.js CRAFT_OMENS)
+    // 2026-10-18 사용자: "craft of exile 사이트를 참고해서 ... 가중치 메커니즘, 크래프팅 방법 및 컨텐츠와 연계성". 걸어 둔 징조 하나가 자기가
+    // 바꾸는 다음 제작 한 번에 쓰이고 하나 줄어든다. 실제 제작(js/passives.js useCurrency)과 제작 연구의 연습(rehearse)이 같은 규칙을 쓴다.
+    /** omen key with side as the rolls read it: { key, side, effect } (practice uses it without owning one), or null. */
+    function omenSpec(key, side) {
+        const armed = normalizeCraftOmen({ key, side });
+        return armed && { ...armed, effect: CRAFT_OMENS.effects[armed.key].effect };
+    }
+    /** Arms omen key (side for 허기) for the next craft it fits; an empty key disarms. { ok, reason }. */
+    function armOmen(state, key, side) {
+        if (!key) { state.craftOmen = null; return { ok: true }; }
+        if (!CRAFT_OMENS.keys.includes(key)) return { ok: false, reason: '알 수 없는 징조입니다.' };
+        if ((state.currencies[key] || 0) < 1) return { ok: false, reason: `${ORB_DB[key].name}가 없습니다.` };
+        state.craftOmen = normalizeCraftOmen({ key, side });
+        return { ok: true };
+    }
+    /** Whether omen changes action on item: its action, and for an added line no spore guarantee (that line is the spore's) and an
+     * open mod on the omen's side. */
+    function omenFits(item, action, omen, sporeMode = 'none') {
+        if (!omen || !CRAFT_OMENS.effects[omen.key].actions.includes(action)) return false;
+        if (!['regal', 'exalted'].includes(action)) return true;
+        return sporeMode === 'none' && (omen.effect !== 'side' || getOpenAffixMods(item, 'rare').some(mod => affixKind(mod) === omen.side));
+    }
+    /** The armed omen that changes this craft ({ key, side, effect }), or null: none armed, none left, or it does not fit. */
+    function omenFor(state, action, item, sporeMode = 'none') {
+        const armed = normalizeCraftOmen(state.craftOmen), omen = armed && (state.currencies[armed.key] || 0) > 0 ? omenSpec(armed.key, armed.side) : null;
+        return omenFits(item, action, omen, sporeMode) ? omen : null;
+    }
+    /** After the craft omen changed: one fewer, disarmed. The log's words for it ('' without one). */
+    function spendOmen(state, omen) {
+        if (!omen) return '';
+        state.currencies[omen.key] = Math.max(0, (state.currencies[omen.key] || 0) - 1);
+        state.craftOmen = null;
+        return `, ${ORB_DB[omen.key].name}`;
+    }
+    const floorTier = tier => Math.max(1, Math.ceil(tier * CRAFT_OMENS.floorShare));
+    /** One new line of mod at item tier: 성화 rolls the tier twice and keeps the higher, 거름 rolls above a tier floor. */
+    function rollOmenLine(mod, tier, omen) {
+        const effect = omen && omen.effect;
+        if (effect === 'floor') return rollAffixValueInTierRange(mod, floorTier(tier), tier);
+        const first = rollAffixValue(mod, tier);
+        if (effect !== 'lucky') return first;
+        const second = rollAffixValue(mod, tier);
+        return (second.tier || 0) > (first.tier || 0) ? second : first;
+    }
+    /** 엮음: (pool, picked) → pool where a mod sharing a tag with a line on item (or a mod picked before it this craft) weighs
+     * weaveMul times more, as fossils weigh their tags (js/skills.js). */
+    function weaveWeigh(item) {
+        return (pool, picked) => {
+            const held = new Set([...(item.stats || []), ...picked].flatMap(getAffixTags));
+            return pool.map(mod => getAffixTags(mod).some(tag => held.has(tag)) ? { ...mod, weight: (Number(mod.weight) || 1) * CRAFT_OMENS.weaveMul } : mod);
+        };
+    }
+    /** The line an added craft (regal, exalted) picks: an open mod of item, on 허기's side, weighed by 엮음. */
+    function pickAddMod(item, omen) {
+        const effect = omen && omen.effect;
+        const pool = getOpenAffixMods(item, 'rare').filter(mod => effect !== 'side' || affixKind(mod) === omen.side);
+        return pickWeightedMod(effect === 'weave' ? weaveWeigh(item)(pool, []) : pool);
+    }
+    /** The row 전정 가위 cuts among removable rows ({ index, stat }): with 가지치기 the lowest tier among tiered lines (a fixed line,
+     * tier 0, is not low: it has no better roll), else any. */
+    function pickPruneLine(removable, omen) {
+        const tiered = removable.filter(row => Number(row.stat.tier) > 0);
+        if (!omen || omen.effect !== 'prune' || !tiered.length) return rndChoice(removable);
+        const low = Math.min(...tiered.map(row => Number(row.stat.tier)));
+        return rndChoice(tiered.filter(row => Number(row.stat.tier) === low));
+    }
+    /** What an omen changes in a reroll (js/passives.js rerollExplicitMods): each new line's roll, and 엮음's weights. */
+    function omenRerollOptions(item, tier, omen) {
+        return omen ? { rollLine: mod => rollOmenLine(mod, tier, omen), weigh: omen.effect === 'weave' ? weaveWeigh(item) : null } : {};
+    }
     function addedLine(item, options) {
         if (options.guaranteedStat) return options.guaranteedStat;
-        const mod = options.addedMod || pickWeightedMod(getOpenAffixMods(item, 'rare'));
-        return mod ? rollAffixValue(mod, getItemCraftTier(item)) : null;
+        const mod = options.addedMod || pickAddMod(item, options.omen);
+        return mod ? rollOmenLine(mod, getItemCraftTier(item), options.omen) : null;
     }
-    /** Shared item-only roll for live currency use and the crafting bench's rehearsal. Payment and saves stay with the caller. */
+    /** Shared item-only roll for live currency use and the crafting bench's rehearsal. Payment and saves stay with the caller.
+     * options.omen: the 제작 징조 that changes this craft ({ key, side, effect }, omenFor or omenSpec). */
     function applyBasic(item, action, options = {}) {
         if (!basicActions.includes(action)) throw Error('지원하지 않는 기본 제작');
         const tier = getItemCraftTier(item), guaranteed = options.guaranteedStat || null;
@@ -208,10 +280,11 @@ const equipmentCrafting = (() => {
             return;
         }
         item.rarity = ['transmute', 'alteration'].includes(action) ? 'magic' : 'rare';
-        rerollExplicitMods(item, item.rarity, tier, { guaranteedStat: guaranteed, rerollChaosInfusion: item.rarity === 'rare' });
+        rerollExplicitMods(item, item.rarity, tier, { guaranteedStat: guaranteed, rerollChaosInfusion: item.rarity === 'rare', ...omenRerollOptions(item, tier, options.omen) });
     }
 
     return Object.freeze({ basicActions, rerollActions, applyBasic, sporePool, pickSporeMod, rollSporeLine, getSource, getLabel, filterSporeMods, resolveAction, getBlockReason, getSporeBlockReason, getFossilBlockReason, getFossilUseReason,
-        affixKind, storedAffixKind, keptKind, keptOnReroll, getAffixKeepReason, affixCounts, affixRoom, fitsRoom, pickReplacement, affixHeader });
+        affixKind, storedAffixKind, keptKind, keptOnReroll, getAffixKeepReason, affixCounts, affixRoom, fitsRoom, pickReplacement, affixHeader,
+        omenSpec, armOmen, omenFits, omenFor, spendOmen, pickAddMod, pickPruneLine });
 })();
 safeExposeGlobals({ equipmentCrafting });

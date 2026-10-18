@@ -32,10 +32,13 @@ const atlasEndgameUi = (() => {
             <button class="atlas-primary" data-exploration-departure onclick="atlasEndgameUi.challenge('${row.id}')" aria-label="${escapeHTML(who)} 도전"
                 ${fight.lock ? `aria-describedby="${lockId}"` : ''} ${why ? `disabled title="${escapeHTML(why)}"` : ''}>도전</button></div>`;
     }
-    /** The fight's unique and what it does, from its definition (data/items.js), so the card cannot promise another effect. */
+    /** The fight's unique and what it does, from its definition (data/items.js), so the card cannot promise another effect. A final
+     * boss also names its craft omen, one each kill (data/items.js CRAFT_OMENS), with the catalog's line for it. */
     function uniqueHtml(row) {
         const effect = (UNIQUE_DB.find(entry => entry.name === row.unique) || {}).uniqueEffect;
-        return `<p class="atlas-late-unique">고유 장비 ${escapeHTML(row.unique)}${effect ? `: ${escapeHTML(effect)}` : ''}</p>`;
+        const omen = CRAFT_OMENS.keys.find(key => CRAFT_OMENS.effects[key].boss === row.id);
+        return `<p class="atlas-late-unique">고유 장비 ${escapeHTML(row.unique)}${effect ? `: ${escapeHTML(effect)}` : ''}</p>`
+            + (omen ? `<p class="atlas-late-unique">제작 징조 ${escapeHTML(ORB_DB[omen].name)}: ${craftingCatalogUi.description(omen, true)}</p>` : '');
     }
     /** A final boss arena: how its fight goes, and the warning and rest times of its combos (data/atlas-endgame.js combo). */
     function arenaHtml(row) {

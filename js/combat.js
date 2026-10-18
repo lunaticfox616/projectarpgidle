@@ -6476,6 +6476,7 @@ function createEnemy(zone, marker, groupIndex) {
     if (typeof maybeApplySeveredWanderer === 'function') maybeApplySeveredWanderer(enemy, zone, isElite, isBoss);
     finishBossSpawn(enemy, zone);
     atlasBoard.markCarrier(game, enemy, zone);
+    atlasEndgame.markOmenBearer(game, enemy, zone);
     if (typeof primeEnemyHpDamageGhost === 'function') primeEnemyHpDamageGhost(enemy.id, 100);
     return enemy;
 }

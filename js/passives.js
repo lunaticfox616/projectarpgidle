@@ -9364,12 +9364,22 @@ function rerollChaosInfusionForItem(item, previousInfusion) {
     return item.chaosInfusion;
 }
 
+/** How rerollExplicitMods rolls each new line: options.rollLine (제작 징조), else between options.minTier and maxTier with
+ * options.tierWeightFalloff, else up to maxTier. */
+function rerollLineRoll(options, maxTier) {
+    if (options.rollLine) return options.rollLine;
+    let minTier = clampNumber(Math.floor(Number(options.minTier) || 1), 1, maxTier);
+    let falloff = Number(options.tierWeightFalloff);
+    return minTier > 1 || Number.isFinite(falloff)
+        ? mod => rollAffixValueInTierRange(mod, minTier, maxTier, falloff)
+        : mod => rollAffixValue(mod, maxTier);
+}
+
+/** options.weigh(pool, picked) → pool reweighs the mods each pick (제작 징조 엮음). */
 function rerollExplicitMods(item, rarity, zoneTier, options = {}) {
     let maxTier = Math.max(1, zoneTier);
-    let minTier = clampNumber(Math.floor(Number(options && options.minTier) || 1), 1, maxTier);
-    let requestedFalloff = Number(options && options.tierWeightFalloff);
-    let hasTierWeightOverride = Number.isFinite(requestedFalloff);
-    let rerollChaosInfusion = !!(options && options.rerollChaosInfusion);
+    const rollLine = rerollLineRoll(options, maxTier);
+    let rerollChaosInfusion = !!options.rerollChaosInfusion;
     let previousInfusion = rerollChaosInfusion ? item.chaosInfusion : null;
     if (rerollChaosInfusion) item.chaosInfusion = null;
     let locked = (item.stats || []).filter(stat => equipmentCrafting.keptOnReroll(item, stat));
@@ -9381,10 +9391,8 @@ function rerollExplicitMods(item, rarity, zoneTier, options = {}) {
     if (rarity === 'magic') count = Math.random() < 0.5 ? 1 : 2;
     if (rarity === 'rare') count = 4 + Math.floor(Math.random() * 2);
     count = Math.max(0, count - getItemExplicitOptionCount(item));
-    let mods = pickRandomMods(getAvailableMods(item), count, equipmentCrafting.affixRoom(item, rarity));
-    mods.forEach(mod => item.stats.push(minTier > 1 || hasTierWeightOverride
-        ? rollAffixValueInTierRange(mod, minTier, maxTier, requestedFalloff)
-        : rollAffixValue(mod, maxTier)));
+    let mods = pickRandomMods(getAvailableMods(item), count, equipmentCrafting.affixRoom(item, rarity), options.weigh);
+    mods.forEach(mod => item.stats.push(rollLine(mod)));
     updateItemName(item);
 }
 
@@ -9657,15 +9665,16 @@ function pickWeightedMod(mods) {
     return mods[mods.length - 1];
 }
 
-/** room({prefix, suffix} 남은 자리, null이면 제한 없음): 고를 때마다 자리가 남은 종류에서만 고른다. */
-function pickRandomMods(mods, count, room = null) {
+/** room({prefix, suffix} 남은 자리, 없으면 제한 없음): 고를 때마다 자리가 남은 종류에서만 고른다.
+ * weigh(pool, picks) → pool(없어도 됨): 고를 때마다 가중치를 다시 매긴다(제작 징조 엮음, js/equipment-crafting.js). */
+function pickRandomMods(mods, count, room, weigh) {
     let pool = Array.isArray(mods) ? mods.slice() : [];
     const left = room && { ...room };
     let picks = [];
     let wanted = Math.max(0, Math.floor(count || 0));
     while (picks.length < wanted) {
         if (left) pool = pool.filter(mod => equipmentCrafting.fitsRoom(left, mod));
-        let picked = pickWeightedMod(pool);
+        let picked = pickWeightedMod(weigh ? weigh(pool, picks) : pool);
         if (!picked) break;
         picks.push(picked);
         if (left && equipmentCrafting.affixKind(picked) !== 'special') left[equipmentCrafting.affixKind(picked)]--;
@@ -10979,9 +10988,9 @@ async function useCurrency(currencyKey) {
         if (!consumeSpore(sporeMode)) return addLog('홀씨가 부족해 제작을 시작하지 않았습니다.', 'attack-monster');
             consumedSpore = true;
     }
-    let exaltedMod = null;
+    let exaltedMod = null, omen = equipmentCrafting.omenFor(game, actionKey, item, sporeMode); // 제작 징조(data/items.js CRAFT_OMENS)
     if (actionKey === 'exalted') {
-        exaltedMod = guaranteedMod || pickWeightedMod(getOpenAffixMods(item));
+        exaltedMod = guaranteedMod || equipmentCrafting.pickAddMod(item, omen);
         if (!exaltedMod) return addLog('이 장비에 추가로 부여할 수 있는 옵션이 없습니다.', 'attack-monster');
     }
     if (sporeMode !== 'none' && usesSporeAffix && !isRerollSporeCurrency) {
@@ -10994,7 +11003,7 @@ async function useCurrency(currencyKey) {
         item.quality = Math.max(0, Math.min(20, Math.floor(item.quality || 0) + 1));
         addLog(`🛠️ 장비 퀄리티 +1% (현재 ${item.quality}%)`, 'loot-magic');
     } else if (equipmentCrafting.basicActions.includes(actionKey)) {
-        equipmentCrafting.applyBasic(item, actionKey, { addedMod: exaltedMod, guaranteedStat: rollSporeGuaranteedValue(guaranteedMod) });
+        equipmentCrafting.applyBasic(item, actionKey, { addedMod: exaltedMod, guaranteedStat: rollSporeGuaranteedValue(guaranteedMod), omen });
     } else if (actionKey === 'divine') {
         item.stats.forEach(stat => {
             if (stat.lockedByHoney || stat.lockedByRift) return;
@@ -11032,7 +11041,7 @@ async function useCurrency(currencyKey) {
     } else if (actionKey === 'annulment') {
         let removable = getAnnulmentRemovableStats(item);
         if (removable.length <= 0) return addLog('제거할 수 있는 추가 옵션이 없습니다.', 'attack-monster');
-        let picked = rndChoice(removable);
+        let picked = equipmentCrafting.pickPruneLine(removable, omen);
         let removed = item.stats.splice(picked.index, 1)[0];
         updateItemName(item);
         addLog(`🕳️ 전정 가위: ${removed.statName || getStatName(removed.id)} 옵션 제거`, 'loot-unique');
@@ -11082,9 +11091,9 @@ async function useCurrency(currencyKey) {
         });
         if (typeof colonyWards === 'object') colonyWards.rerollBelt(item); // 허리띠는 액막이 칸 수(1~3)도 다시 굴린다
     }
-    let guaranteedTagNote = (sporeMode !== 'none' && usesSporeAffix && consumedSpore && guaranteedMod) ? `, 홀씨 보장: ${guaranteedMod.statName}` : '';
+    let craftNote = ((sporeMode !== 'none' && usesSporeAffix && consumedSpore && guaranteedMod) ? `, 홀씨 보장: ${guaranteedMod.statName}` : '') + equipmentCrafting.spendOmen(game, omen);
     craftingResultLedger.commit(craftResultToken, item);
-    addLog(`⚒️ ${ORB_DB[payment.key].name} 사용${guaranteedTagNote}`, currencyKey === 'exalted' || currencyKey === 'divine' ? 'loot-unique' : 'loot-magic');
+    addLog(`⚒️ ${ORB_DB[payment.key].name} 사용${craftNote}`, currencyKey === 'exalted' || currencyKey === 'divine' ? 'loot-unique' : 'loot-magic');
     updateStaticUI();
     return true;
 }

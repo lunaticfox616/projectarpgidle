@@ -124,7 +124,7 @@ const ATLAS_ENDGAME = Object.freeze({
                 Object.freeze({ name: '접붙이는 정원사', bossAct: 5, mechanic: 'graft' }),
                 Object.freeze({ name: '판결하는 정원사', bossAct: 5, mechanic: 'verdict' })
             ]),
-            rewards: Object.freeze([['goldenRule', 3], ['sapBud', 4], ['formlessDew', 10]]), unique: '정원사의 가지 왕관'
+            rewards: Object.freeze([['goldenRule', 3], ['sapBud', 4], ['formlessDew', 10], ['omenPruning', 1]]), unique: '정원사의 가지 왕관'
         }),
         Object.freeze({
             id: 'apex_compost', name: '밑거름의 장로', domain: '밑거름의 우물', act: 5, bossAct: 0, bodyVisual: 'apex_compost', ele: 'chaos', tier: 20,
@@ -136,7 +136,7 @@ const ATLAS_ENDGAME = Object.freeze({
                 Object.freeze({ name: '마름의 사도들', bossAct: 6, mechanic: 'swarm' }),
                 Object.freeze({ name: '깨어난 장로', bossAct: 0, bodyVisual: 'apex_compost-stage3', mechanic: 'compost' })
             ]),
-            rewards: Object.freeze([['goldenRule', 3], ['blightSpore', 6], ['emberBranch', 3]]), unique: '장로의 썩은 심장'
+            rewards: Object.freeze([['goldenRule', 3], ['blightSpore', 6], ['emberBranch', 3], ['omenCompost', 1]]), unique: '장로의 썩은 심장'
         }),
         Object.freeze({
             id: 'apex_weaver', name: '나이테를 엮는 자', domain: '나이테의 방', act: 10, bossAct: 8, bodyVisual: 'apex_weaver', ele: 'chaos', tier: 22,
@@ -149,7 +149,7 @@ const ATLAS_ENDGAME = Object.freeze({
                 Object.freeze({ echo: 1, mechanic: 'echo' }),
                 Object.freeze({ name: '나이테를 엮는 자', bossAct: 8, mechanic: 'memory' })
             ]),
-            rewards: Object.freeze([['goldenRule', 5], ['sapBud', 6], ['emberBranch', 4]]), unique: '엮인 나이테'
+            rewards: Object.freeze([['goldenRule', 5], ['sapBud', 6], ['emberBranch', 4], ['omenWeave', 1]]), unique: '엮인 나이테'
         }),
         Object.freeze({
             id: 'apex_archbishop', name: '검은 태양의 대사제', domain: '황금 길의 끝', act: 2, bossAct: 1, bodyVisual: 'apex_archbishop', ele: 'fire', tier: 20,
@@ -161,7 +161,7 @@ const ATLAS_ENDGAME = Object.freeze({
                 Object.freeze({ name: '부제들의 성가대', bossAct: 7, mechanic: 'hymn' }),
                 Object.freeze({ name: '검은 태양의 대사제', bossAct: 1, mechanic: 'blackSun' })
             ]),
-            rewards: Object.freeze([['goldenRule', 3], ['emberBranch', 6], ['magicBud', 30]]), unique: '대사제의 성화 장갑'
+            rewards: Object.freeze([['goldenRule', 3], ['emberBranch', 6], ['magicBud', 30], ['omenPyre', 1]]), unique: '대사제의 성화 장갑'
         }),
         Object.freeze({
             id: 'apex_devourer', name: '세계수를 갉는 자', domain: '허기의 둥지', act: 3, bossAct: 2, bodyVisual: 'apex_devourer', ele: 'chaos', tier: 20,
@@ -173,7 +173,7 @@ const ATLAS_ENDGAME = Object.freeze({
                 Object.freeze({ name: '뿌리 촉수 무리', bossAct: 6, bodyVisual: 'apex_devourer-stage2', mechanic: 'tendril' }),
                 Object.freeze({ name: '끝없는 허기', bossAct: 2, bodyVisual: 'apex_devourer-stage3', mechanic: 'hunger' })
             ]),
-            rewards: Object.freeze([['goldenRule', 3], ['formlessDew', 16], ['sapBud', 4]]), unique: '갉는 자의 이빨띠'
+            rewards: Object.freeze([['goldenRule', 3], ['formlessDew', 16], ['sapBud', 4], ['omenHunger', 1]]), unique: '갉는 자의 이빨띠'
         })
     ]),
     // 리그 우두머리: 지도 속 콘텐츠 방(data/atlas.js encounters)이 깨어난 뒤 그 리그의 조각도 준다. 조각 need개로 우두머리와 싸운다.

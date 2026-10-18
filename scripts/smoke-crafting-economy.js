@@ -152,6 +152,15 @@ vm.runInContext(annulBlock, annulContext, { filename: 'market-annul.js' });
     assert.strictEqual(runGame(`(()=>{const before=JSON.stringify(game),id=itemIdCounter,recipe={key:'formlessDew',kind:'reroll',label:''};
         for(let i=0;i<200;i++)['none','fire'].forEach(mode=>craftingGoalOptions.rehearse(__item,recipe,mode));
         return JSON.stringify(game)===before&&itemIdCounter===id;})()`), true, 'crafting practice must leave the save and item ids untouched');
+    // 제작 징조(data/items.js CRAFT_OMENS): the craft the armed omen changes spends exactly one and disarms it; another craft leaves it
+    // armed; practice with it spends nothing (2026-10-18).
+    assert.strictEqual(runGame(`(()=>{selectForCrafting(__item.id,false);game.currencies.formlessDew=3;game.currencies.pruningShears=2;game.currencies.omenCompost=2;
+        equipmentCrafting.armOmen(game,'omenCompost');const before=JSON.stringify(game);
+        craftingGoalOptions.rehearse(__item,{key:'formlessDew',kind:'reroll',label:''},'none',equipmentCrafting.omenSpec('omenCompost'));
+        const practiced=JSON.stringify(game)===before;useCurrency('pruningShears');const kept=game.currencies.omenCompost===2&&!!game.craftOmen;
+        useCurrency('formlessDew');const spent=game.currencies.omenCompost===1&&game.craftOmen===null;useCurrency('formlessDew');
+        return practiced&&kept&&spent&&game.currencies.omenCompost===1&&game.currencies.formlessDew===1;})()`), true,
+        'a craft omen is spent once by the craft it changes, never by another craft or by practice');
     console.log('smoke-crafting-economy passed');
 })().catch(error => {
     console.error(error);

@@ -83,7 +83,10 @@ const LOOT_OMENS = Object.freeze({
         { id: 'elites', name: '정예 행렬', note: '정예가 늘고 희귀도가 오릅니다', kind: 'bonus', weight: 5, tone: '#ff9a76',
             bonus: Object.freeze({ extraElite: 40, rarity: 20 }) },
         { id: 'dreams', name: '보스의 꿈', note: '보스의 기억과 변이체가 잘 나옵니다', kind: 'bonus', weight: 3, tone: '#a8c0ff', minLoop: 33,
-            bonus: Object.freeze({ memoryDrop: 150, variantChance: 15 }) }
+            bonus: Object.freeze({ memoryDrop: 150, variantChance: 15 }) },
+        // 제작 징조(2026-10-18, data/items.js CRAFT_OMENS): 최종 보스를 하나라도 쓰러뜨린 뒤에 붙는다(needsFallenApex).
+        { id: 'craftOmens', name: '징조의 메아리', note: '10등급 이상 지도에서 징조를 품은 몬스터가 자주 나옵니다', kind: 'bonus', weight: 3, tone: '#b98cff',
+            needsFallenApex: true, bonus: Object.freeze({ omenBearer: 400 }) }
     ].map(Object.freeze)),
     treasure: Object.freeze({ packChance: 0.035, rolls: 8, rareGear: 1, uniqueChance: 0.1, prefix: '보물을 품은', outline: '#ffd75e',
         sparks: '#fff1a8',
@@ -99,7 +102,8 @@ const LOOT_OMENS = Object.freeze({
     // 야생 고유 부적 great. 보물 무리의 보물은 great, 황금 보물은 jackpot.
     moments: Object.freeze({
         jackpot: Object.freeze(['fairyRing', 'ouroboros']),
-        great: Object.freeze(['goldenRule', 'burningEmberBranch', 'enchantedHoney', 'abyssCatalyst', 'beastKeyCerberus', 'rivalKey', 'radiantSealShard']),
+        great: Object.freeze(['goldenRule', 'burningEmberBranch', 'enchantedHoney', 'abyssCatalyst', 'beastKeyCerberus', 'rivalKey', 'radiantSealShard',
+            'omenPruning', 'omenCompost', 'omenWeave', 'omenPyre', 'omenHunger']),
         good: Object.freeze(['sapBud', 'fossilPrimal', 'fossilAncientPrimal', 'fossilPrimordial', 'fossilAbyssal', 'awakenedEcho', 'condensedSkyPower',
             'chaosKey', 'coreKey', 'strongSealShard', 'underGold', 'venomStinger', 'hiveKey', 'pruningShears', 'trialKey3', 'bossKeyFlame', 'bossKeyFrost',
             'bossKeyStorm'])

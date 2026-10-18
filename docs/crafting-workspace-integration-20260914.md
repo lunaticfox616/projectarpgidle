@@ -8,6 +8,12 @@
 - 표본 결과에 성공률·95% 구간을 표시하고 성공이 5회 미만이면 평균 비용 추정을 제시하지 않는다. 50회씩 나눠 계산하며 창을 닫으면 중단한다. 표시 비용은 실제 제작 시 비용이고 연습 소모가 아니다. 표본은 보장 확률이나 전체 최적 제작 경로 계산기가 아니다.
 - 책임: `equipment-crafting.js` 공통 제작, `crafting-goal-options.js` 옵션/모의실험, `crafting-workspace-state.js` 목표 저장, `crafting-workspace-ui.js` 화면. 브라우저에서 2,000회 실험 완료와 결과·신뢰 구간 표시를 확인했다.
 
+## 제작 징조 (2026-10-18)
+
+- 정의와 수치는 `data/items.js` `CRAFT_OMENS`(효과, 쓰이는 제작, 보스, 몬스터 확률, 암거래상 몫). 걸어 둔 징조는 `game.craftOmen { key, side }`이고 저장 경계는 `normalizeCraftOmen`이다.
+- 규칙은 `js/equipment-crafting.js` 한 곳(omenFor, spendOmen, rollOmenLine, pickAddMod, pickPruneLine)이다. 실제 제작(`js/passives.js` useCurrency)과 제작 연구의 연습(`rehearse`)이 같은 함수를 쓴다. 징조는 자기가 바꾼 제작이 끝난 뒤 `spendOmen`으로 한 번만 줄고, 연습은 쓰지 않는다(`scripts/smoke-crafting-economy.js`).
+- 얻는 곳: 최종 보스 보상(`data/atlas-endgame.js`), 징조를 품은 몬스터(`js/atlas-endgame.js` markOmenBearer, 처치 보상은 `js/atlas-run.js`), 지도 기운 징조의 메아리(`data/loot-omens.js`), 암거래상 교환(`js/black-market.js` pickBlackMarketExchange). 모두 쓰러뜨린 최종 보스의 징조만 준다. 징조 그림은 아직 없다(암거래상 칸은 이름 앞 두 글자).
+
 ## 2026-09-14 통합 이력
 
 누락 감사에서 `artifacts/crafting-flow`에만 남아 있던 제작 UI를 본편 `index.html`의 장비 → 제작실에 연결했다. 이 작업은 제작실 통합 범위다. 이식 제작의 실제 기능, 융합 규칙 변경, 벌집 전용 배경, 플레이어 기절·침묵 공급원은 별도 미완료 항목으로 남는다.

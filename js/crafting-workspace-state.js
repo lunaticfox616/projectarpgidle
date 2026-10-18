@@ -4,9 +4,12 @@ const craftingWorkspaceState = (() => {
     const basic = ['magicBud', 'sapBud', 'formlessDew', 'goldenRule', 'blessing', 'blightSpore', 'pruningShears', 'fairyRing'];
     const special = ['emberBranch', 'burningEmberBranch', 'ouroboros', 'deepWhetstone', 'rootIron', 'jewelPolish', 'abyssCatalyst', 'catalystFire', 'catalystCold', 'catalystLight', 'catalystChaos', 'catalystCrit', 'catalystSummon', 'enchantedHoney', 'venomStinger', 'voidChisel', 'oceanRerollShard', 'altarEmber', 'altarIchor'];
     const materials = ['fossil', 'fossilPrimal', 'fossilAncientPrimal', 'sporeFire', 'sporeCold', 'sporeLight'];
+    // 주 재화 칸에 둘 수 없고 제작 재화로 고르지 않는 재화: 함께 쓰는 재료와 제작 징조(제작실의 징조 칸에서 건다).
+    const separate = Object.freeze([...materials, ...CRAFT_OMENS.keys]);
 
     function group(key) {
         if (basic.includes(key)) return 'basic';
+        if (CRAFT_OMENS.keys.includes(key)) return 'omen';
         if (materials.slice(3).includes(key)) return 'spore';
         if (materials.slice(0, 3).includes(key) || FOSSIL_DB.some(row => row.key === key)) return 'fossil';
         return special.includes(key) ? 'special' : '';
@@ -17,7 +20,7 @@ const craftingWorkspaceState = (() => {
         const source = value && typeof value === 'object' ? value : {};
         const seen = Array.isArray(source.discovered) ? source.discovered : [];
         const discovered = [...new Set([...seen, ...Object.keys(currencies).filter(key => currencies[key] > 0)].filter(key => group(key)))];
-        const pins = Array.isArray(source.pins) ? source.pins.filter(key => group(key) && !materials.includes(key)) : defaults;
+        const pins = Array.isArray(source.pins) ? source.pins.filter(key => group(key) && !separate.includes(key)) : defaults;
         const unique = [...new Set(pins)].slice(0, 4);
         defaults.forEach(key => { if (unique.length < 4 && !unique.includes(key)) unique.push(key); });
         return { discovered, pins: unique, goal: normalizeGoal(source.goal) };
@@ -55,6 +58,6 @@ const craftingWorkspaceState = (() => {
         return {craftingWorkspace:normalize(state.craftingWorkspace,state.currencies),itemSubtab:allowed.includes(tab)?tab:'item-tab-equip'};
     }
 
-    return Object.freeze({ normalize, normalizeGoal, capture, group, materials, restore });
+    return Object.freeze({ normalize, normalizeGoal, capture, group, separate, restore });
 })();
 safeExposeGlobals({ craftingWorkspaceState });

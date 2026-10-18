@@ -2494,6 +2494,7 @@ const defaultGame = {
     // null before settlement or for legacy receipts; retained until the next entry/loop reset.
     voidRift: { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, grandBreachCleared: false, activeKills: 0, requiredKills: 0 },
     sporeCraftModes: {},
+    craftOmen: null, // 걸어 둔 제작 징조 { key, side }(data/items.js CRAFT_OMENS): 다음 맞는 제작 한 번에 쓰인다
     salvageRecovery: { entries: [], sequence: 0 },
     blackMarket: { nextRefreshAt: 0, extraSlots: 0, offers: [], lockedOffers: {}, preferredSlot: 'any', insight: 0, manualRefreshes: 0 },
     // NPC escrow: UTC millisecond clocks and independent visitors, with integer proceeds per currency.

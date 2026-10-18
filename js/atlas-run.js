@@ -176,6 +176,7 @@ const atlasRun = (() => {
         const zone = getZone(game.currentZoneId);
         const dice = atlasBoard.onKill(game, enemy, zone);
         if (dice) { notify({ kind: 'dice' }); queueImportantSave(220); }
+        giveBearerOmen(enemy);
         atlasFinds.onAtlasKill(zone, enemy);
         const maps = atlas.dropFromKill(game, zone, enemy), fragments = atlas.fragmentFromKill(game, zone, enemy);
         const room = zone && zone.type === 'atlasMap' && game.atlas.run ? emptyRoom(enemy) : null;
@@ -185,6 +186,13 @@ const atlasRun = (() => {
         if (!maps.length && !fragments.length && !room) return;
         notify({ kind: 'drops', maps: maps.map(map => ({ node: map.node, tier: map.tier, rarity: map.rarity })), fragments, room, rewards, late,
             golden: atlasEncounters.isGolden(zone, room) });
+    }
+    /** A slain omen bearer's omen (js/atlas-endgame.js markOmenBearer): into the kill's spoils, with a notice. */
+    function giveBearerOmen(enemy) {
+        const omen = atlasEndgame.takeOmen(enemy);
+        if (!omen || !awardEnemyLootCurrency(omen, 1)) return;
+        notify({ kind: 'omen', key: omen });
+        queueImportantSave(220);
     }
     /** A kill that empties an ordinary room: the room stays empty for the rest of the map; a content room names its reward. */
     function emptyRoom(enemy) {

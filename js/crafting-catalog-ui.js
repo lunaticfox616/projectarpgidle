@@ -1,8 +1,8 @@
 // Resource inventory. Persistent discovery and pins belong to craftingWorkspaceState.
 const craftingCatalogUi = (() => {
-    const groups=[['all','전체'],['basic','기본 재화'],['spore','홀씨'],['fossil','화석'],['special','특수 제작']];
+    const groups=[['all','전체'],['basic','기본 재화'],['spore','홀씨'],['fossil','화석'],['special','특수 제작'],['omen','징조']];
 
-    const separateMaterials=new Set(craftingWorkspaceState.materials);
+    const separateMaterials=new Set(craftingWorkspaceState.separate);
     let craftingOnly=false;
     let useState;
     let dialog, onSelect, onPin, recipes, category='all', query='', ownedOnly=true, active='', inspected='', editing=false, pinSlot=0, openerId='';
@@ -36,6 +36,8 @@ const craftingCatalogUi = (() => {
         venomStinger:'무기 공격 옵션 추가/재설정',voidChisel:'장신구 소켓, 공허 주얼 제작',
         oceanRerollShard:'베이스 옵션 1줄 재설정',
         altarEmber:'베이스 옵션 1줄을 태양 줄로',altarIchor:'베이스 옵션 1줄을 허기 줄로',
+        omenPruning:'다음 전정 가위가 가장 낮은 등급을 자름',omenCompost:'다음 재련의 새 옵션 등급 하한',omenWeave:'다음 제작이 같은 태그를 4배 선호',
+        omenPyre:'다음 제작의 새 옵션 등급을 두 번 굴림',omenHunger:'다음 수액 봉오리를 접두나 접미로',
         sporeFire:'화염 홀씨, 함께 사용',sporeCold:'냉기 홀씨, 함께 사용',sporeLight:'번개 홀씨, 함께 사용',
         fossil:'타입별 화석으로 정제',fossilPrimal:'복원, 화석과 재화 획득',fossilAncientPrimal:'복원, 전용 화석과 고급 재화',
         fossilJagged:'물리/근접 1줄 확정, 희귀 재련',fossilBound:'생명/방어 1줄 확정, 희귀 재련',
@@ -106,9 +108,9 @@ const craftingCatalogUi = (() => {
 
     function catalogRenderNavigation() {
         dialog.querySelector('#cl-catalog-title').textContent=craftingOnly?'제작 재화 선택':'재화 인벤토리';
-        if(craftingOnly&&category==='spore')category='all';
+        if(craftingOnly&&['spore','omen'].includes(category))category='all';
         dialog.querySelectorAll('[data-category]').forEach(tab=>{
-            tab.hidden=craftingOnly&&tab.dataset.category==='spore';
+            tab.hidden=craftingOnly&&['spore','omen'].includes(tab.dataset.category);
             tab.setAttribute('aria-pressed',String(tab.dataset.category===category));
         });
     }
