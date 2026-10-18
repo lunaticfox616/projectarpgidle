@@ -13576,7 +13576,7 @@ function notifyLockedTab(tabId) {
 function getLockedTabMessage(tabId) {
     if (tabId === 'tab-char') return '레벨 2에 도달하면 스킬트리가 열립니다.';
     if (tabId === 'tab-season') return '루프 1을 클리어하면 루프 탭이 열립니다.';
-    if (tabId === 'tab-items') return '장비나 제작 재화를 얻으면 장비/제작 탭이 열립니다.';
+    if (tabId === 'tab-items') return '장비나 제작 재화를 얻으면 장비 탭이 열립니다.';
     if (tabId === 'tab-skills') return '새 스킬룬이나 보조스킬룬을 획득하면 스킬룬 탭이 열립니다.';
     if (tabId === 'tab-codex') return '첫 고유 아이템을 획득하면 도감 탭이 열립니다.';
     if (tabId === 'tab-map') return '액트 1을 마치면 지도가 열립니다.';

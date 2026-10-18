@@ -33,7 +33,7 @@
         if(currencyKey==='ouroboros' && gain>0) {
             addLog(`🌿✨ <strong>${ORB_DB.ouroboros.name} +${gain}</strong> 획득! 장비를 봉인해 루프가 지나도 지킬 수 있습니다.`,'loot-unique');
         }
-        if(unlocked.gem)addLog('☁️ 스킬룬 강화 탭이 개방되었습니다!','loot-unique');
+        if(unlocked.gem)addLog('☁️ 스킬룬 탭의 성장과 각인이 열렸습니다!','loot-unique');
     }
     /** 새 공격 룬이 지금 주 공격 룬보다 보이는 DPS가 10% 넘게 높으면 알림창에 알린다. 주 공격 칸을 잠시 그 룬으로 바꿔 한 번 잰다. */
     const RUNE_UPGRADE_NOTICE_GAIN=1.1;
