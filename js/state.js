@@ -818,11 +818,27 @@ function createColonyZone(state) {
 function getUnderworldZone(floor) {
     return { id: UNDERWORLD_ZONE_ID, name: `지하계 ${floor}층`, type: 'underworld', tier: getUnderworldTier(floor), maxKills: 1, ele: 'chaos', floor, ...contentMaps.underworld(floor) };
 }
+/** The zone of id: a run zone, a floor zone (at its current floor or depth), a trial or root boss, a chaos depth, else a map zone.
+ * Split into these groups on 2026-10-18. */
 function getZone(id) {
+    let zone = getRunZone(id);
+    if (zone === undefined) zone = getFloorZone(id);
+    if (zone !== undefined) return zone;
+    if (typeof id === 'string') {
+        if (id.startsWith('trial_')) return contentMaps.trialCorridor(TRIAL_ZONES.find(t => t.id === id));
+        let seasonBossZone = SEASON_BOSS_ZONES.find(t => t.id === id);
+        if (seasonBossZone) return contentMaps.withArena(seasonBossZone, contentMaps.bossBiome(seasonBossZone));
+    }
+    if (Number.isFinite(id) && id >= ABYSS_START_ZONE_ID) return getChaosDepthZone(id);
+    return MAP_ZONES[id];
+}
+/** The zones of runs that leave the map: atlas map, cosmos challenge (undefined when none is set up), boundary, hive, colony, grand
+ * breach, outside chaos, woodsman echo. Undefined for any other id. */
+function getRunZone(id) {
     if (id === ATLAS.zoneId) return atlas.zone(game);
     if (id === 'cosmos_challenge') {
         const challengeZone = createCosmosChallengeZone(game);
-        if (challengeZone) return contentMaps.withRooms(challengeZone);
+        return challengeZone ? contentMaps.withRooms(challengeZone) : undefined;
     }
     if (id === BEYOND_BOUNDARY_ZONE_ID) return contentMaps.withRooms(createBeyondBoundaryZone(game));
     if (id === 'beehive_run') return createBeehiveZone(game);
@@ -835,85 +851,92 @@ function getZone(id) {
         });
     }
     if (id === OUTSIDE_CHAOS_ZONE_ID) return contentMaps.withRooms({ id: OUTSIDE_CHAOS_ZONE_ID, name: '혼돈 밖', type: 'outsideChaos', tier: 25, maxKills: 1, ele: 'chaos', fixedDifficultyMul: 1 });
-    if (id === CHAOS_REALM_ZONE_ID) {
-        let realm = ensureChaosRealmState();
-        let floor = Math.max(1, Math.floor(realm.currentFloor || 1));
-        return { id: CHAOS_REALM_ZONE_ID, name: `혼돈계 ${floor}층`, type: 'chaosRealm', tier: getChaosRealmTier(floor), maxKills: 1, ele: 'chaos', floor: floor, affixes: getChaosRealmAffixes(floor), ...contentMaps.chaosRealm(floor) };
-    }
-    if (id === SKY_TOWER_ZONE_ID) {
-        let st = ensureSkyTowerState();
-        let floor = Math.max(1, Math.floor(st.currentFloor || 1));
-        return { id: SKY_TOWER_ZONE_ID, name: `창공의 탑 ${floor}층`, type: 'skyTower', tier: getSkyTowerTier(floor), maxKills: 1, ele: 'chaos', floor: floor, ...contentMaps.skyTower(floor) };
-    }
     if (id === WOODSMAN_ECHO_ZONE_ID) return contentMaps.withRooms({ id: WOODSMAN_ECHO_ZONE_ID, name: '나무꾼의 잔상', type: 'woodsmanEcho', tier: getChaosRealmTier(30), maxKills: 1, ele: 'chaos' });
-    if (id === TIME_RIFT_PAST_ZONE_ID || id === TIME_RIFT_FUTURE_ZONE_ID) {
-        let rift = ensureTimeRiftState();
-        let phase = id === TIME_RIFT_PAST_ZONE_ID ? 'past' : 'future';
-        // 시간압이 유일한 난이도 손잡이 — 루프 인플레이션 대신 fixedDifficultyMul로만 세진다.
-        let activePressure = game.currentZoneId === id && rift.activePressure ? rift.activePressure : rift.pressure;
-        let equivalentChaosDepth = getTimeRiftEquivalentChaosDepth(activePressure);
-        let difficultyTier = getTimeRiftDifficultyTier(activePressure);
-        // 과거 시간압 1은 혼돈 1과 같은 기준이며, 미래는 같은 시간압에서도 조금 더 어렵다.
-        let pressureMul = phase === 'past' ? 1 : 1.18;
-        return { id: id, name: `시간의 균열, ${phase === 'past' ? '과거' : '미래'} (시간압 ${activePressure})`, type: 'timeRift', riftPhase: phase, tier: difficultyTier, maxKills: 1, ele: 'chaos', loopScaleExempt: true, fixedDifficultyMul: pressureMul, pressure: activePressure, equivalentChaosDepth: equivalentChaosDepth, ...contentMaps.timeRift(phase, activePressure) };
-    }
-    if (id === UNDERWORLD_ZONE_ID) {
-        let uw = (game && game.underworldProgress) || {};
-        let floor = Math.max(1, Math.floor(uw.currentFloor || 1));
-        return getUnderworldZone(floor);
-    }
-    if (typeof id === 'string') {
-        if (id.startsWith('trial_')) return contentMaps.trialCorridor(TRIAL_ZONES.find(t => t.id === id));
-        let seasonBossZone = SEASON_BOSS_ZONES.find(t => t.id === id);
-        if (seasonBossZone) return contentMaps.withArena(seasonBossZone, contentMaps.bossBiome(seasonBossZone));
-    }
-    if (id === METEOR_FALL_ZONE_ID) {
-        let star = (game && game.meteorSite) || {};
-        let allowBeyond20 = !!star.skyRiftAllCosmos;
-        let tierCap = allowBeyond20 ? 40 : 20;
-        let tier = star.activeMeteorTier || Math.max(8, Math.min(tierCap, Math.floor(star.skyRiftMinTier || 13)));
-        return {
-            id: METEOR_FALL_ZONE_ID,
-            name: '운석 낙하 지점',
-            type: 'meteor',
-            tier: tier,
-            maxKills: 1,
-            ele: 'chaos',
-            bossMods: { hpMul: 2.2, atkMul: 1.1, damageMul: 1.4, patternMode: 'slam' }, exploration: contentMaps.arena('meteor', 'ruins')
-        };
-    }
-    if (id === OCEAN_ZONE_ID) {
-        let ocean = ensureOceanState();
-        let depthM = Math.max(0, Math.floor(ocean.depthM || 0));
-        let depthTier = getOceanDepthTier(depthM);
-        return contentMaps.withRooms({ id: OCEAN_ZONE_ID, name: `심해 ${depthM}m`, type: 'oceanDepth', tier: getChaosRealmTier(21) + depthTier, maxKills: 1, ele: 'chaos', depthM: depthM, depthTier: depthTier, currents: getOceanCurrentAffixes(depthTier) });
-    }
-    if (id === LABYRINTH_ZONE_ID) {
-        let floor = Math.max(1, game.labyrinthFloor || 1);
-        let baseTier = Math.min(20, 7 + Math.floor(floor / 3));
-        let over50 = Math.max(0, floor - 50);
-        let over100 = Math.max(0, floor - 100);
-        let extraTier = Math.floor(over50 / 5) + Math.floor(over100 / 3);
-        return { id: LABYRINTH_ZONE_ID, name: `고대 미궁 ${floor}층`, type: 'labyrinth', tier: baseTier + extraTier, maxKills: 1, ele: 'chaos', floor: floor, exploration: contentMaps.labyrinth(floor) };
-    }
-    if (Number.isFinite(id) && id >= ABYSS_START_ZONE_ID) {
-        let depth = getAbyssDepthFromZoneId(id);
-        let displayDepth = depth;
-        let baseZone = MAP_ZONES[Math.min(id, getAbyssZoneIdForDepth(20))];
-        return {
-            ...(baseZone || {}),
-            id: id,
-            name: displayDepth > 20 ? `혼돈 심화 ${displayDepth}` : `혼돈 ${displayDepth}`,
-            type: 'abyss',
-            tier: getAbyssZoneTier(displayDepth),
-            maxKills: 1,
-            ele: 'chaos',
-            depth: displayDepth,
-            baseDepth: Math.min(20, depth),
-            isEndlessDepth: displayDepth > 20, ...contentMaps.chaos(displayDepth)
-        };
-    }
-    return MAP_ZONES[id];
+    return undefined;
+}
+/** The zones with floors or depths, at the current one: chaos realm, sky tower, time rift (past or future), underworld, meteor site,
+ * ocean, labyrinth. Undefined for any other id. */
+function getFloorZone(id) {
+    if (id === CHAOS_REALM_ZONE_ID) return getChaosRealmZoneNow();
+    if (id === SKY_TOWER_ZONE_ID) return getSkyTowerZoneNow();
+    if (id === TIME_RIFT_PAST_ZONE_ID || id === TIME_RIFT_FUTURE_ZONE_ID) return getTimeRiftZone(id);
+    if (id === UNDERWORLD_ZONE_ID) return getUnderworldZoneNow();
+    if (id === METEOR_FALL_ZONE_ID) return getMeteorSiteZone();
+    if (id === OCEAN_ZONE_ID) return getOceanZoneNow();
+    if (id === LABYRINTH_ZONE_ID) return getLabyrinthZoneNow();
+    return undefined;
+}
+function getUnderworldZoneNow() {
+    let uw = (game && game.underworldProgress) || {};
+    let floor = Math.max(1, Math.floor(uw.currentFloor || 1));
+    return getUnderworldZone(floor);
+}
+function getChaosRealmZoneNow() {
+    let realm = ensureChaosRealmState();
+    let floor = Math.max(1, Math.floor(realm.currentFloor || 1));
+    return { id: CHAOS_REALM_ZONE_ID, name: `혼돈계 ${floor}층`, type: 'chaosRealm', tier: getChaosRealmTier(floor), maxKills: 1, ele: 'chaos', floor: floor, affixes: getChaosRealmAffixes(floor), ...contentMaps.chaosRealm(floor) };
+}
+function getSkyTowerZoneNow() {
+    let st = ensureSkyTowerState();
+    let floor = Math.max(1, Math.floor(st.currentFloor || 1));
+    return { id: SKY_TOWER_ZONE_ID, name: `창공의 탑 ${floor}층`, type: 'skyTower', tier: getSkyTowerTier(floor), maxKills: 1, ele: 'chaos', floor: floor, ...contentMaps.skyTower(floor) };
+}
+function getTimeRiftZone(id) {
+    let rift = ensureTimeRiftState();
+    let phase = id === TIME_RIFT_PAST_ZONE_ID ? 'past' : 'future';
+    // 시간압이 유일한 난이도 손잡이 — 루프 인플레이션 대신 fixedDifficultyMul로만 세진다.
+    let activePressure = game.currentZoneId === id && rift.activePressure ? rift.activePressure : rift.pressure;
+    let equivalentChaosDepth = getTimeRiftEquivalentChaosDepth(activePressure);
+    let difficultyTier = getTimeRiftDifficultyTier(activePressure);
+    // 과거 시간압 1은 혼돈 1과 같은 기준이며, 미래는 같은 시간압에서도 조금 더 어렵다.
+    let pressureMul = phase === 'past' ? 1 : 1.18;
+    return { id: id, name: `시간의 균열, ${phase === 'past' ? '과거' : '미래'} (시간압 ${activePressure})`, type: 'timeRift', riftPhase: phase, tier: difficultyTier, maxKills: 1, ele: 'chaos', loopScaleExempt: true, fixedDifficultyMul: pressureMul, pressure: activePressure, equivalentChaosDepth: equivalentChaosDepth, ...contentMaps.timeRift(phase, activePressure) };
+}
+function getMeteorSiteZone() {
+    let star = (game && game.meteorSite) || {};
+    let allowBeyond20 = !!star.skyRiftAllCosmos;
+    let tierCap = allowBeyond20 ? 40 : 20;
+    let tier = star.activeMeteorTier || Math.max(8, Math.min(tierCap, Math.floor(star.skyRiftMinTier || 13)));
+    return {
+        id: METEOR_FALL_ZONE_ID,
+        name: '운석 낙하 지점',
+        type: 'meteor',
+        tier: tier,
+        maxKills: 1,
+        ele: 'chaos',
+        bossMods: { hpMul: 2.2, atkMul: 1.1, damageMul: 1.4, patternMode: 'slam' }, exploration: contentMaps.arena('meteor', 'ruins')
+    };
+}
+function getOceanZoneNow() {
+    let ocean = ensureOceanState();
+    let depthM = Math.max(0, Math.floor(ocean.depthM || 0));
+    let depthTier = getOceanDepthTier(depthM);
+    return contentMaps.withRooms({ id: OCEAN_ZONE_ID, name: `심해 ${depthM}m`, type: 'oceanDepth', tier: getChaosRealmTier(21) + depthTier, maxKills: 1, ele: 'chaos', depthM: depthM, depthTier: depthTier, currents: getOceanCurrentAffixes(depthTier) });
+}
+function getLabyrinthZoneNow() {
+    let floor = Math.max(1, game.labyrinthFloor || 1);
+    let baseTier = Math.min(20, 7 + Math.floor(floor / 3));
+    let over50 = Math.max(0, floor - 50);
+    let over100 = Math.max(0, floor - 100);
+    let extraTier = Math.floor(over50 / 5) + Math.floor(over100 / 3);
+    return { id: LABYRINTH_ZONE_ID, name: `고대 미궁 ${floor}층`, type: 'labyrinth', tier: baseTier + extraTier, maxKills: 1, ele: 'chaos', floor: floor, exploration: contentMaps.labyrinth(floor) };
+}
+function getChaosDepthZone(id) {
+    let depth = getAbyssDepthFromZoneId(id);
+    let displayDepth = depth;
+    let baseZone = MAP_ZONES[Math.min(id, getAbyssZoneIdForDepth(20))];
+    return {
+        ...(baseZone || {}),
+        id: id,
+        name: displayDepth > 20 ? `혼돈 심화 ${displayDepth}` : `혼돈 ${displayDepth}`,
+        type: 'abyss',
+        tier: getAbyssZoneTier(displayDepth),
+        maxKills: 1,
+        ele: 'chaos',
+        depth: displayDepth,
+        baseDepth: Math.min(20, depth),
+        isEndlessDepth: displayDepth > 20, ...contentMaps.chaos(displayDepth)
+    };
 }
 
 // 시간의 균열 런타임 상태(shape 소유자). 제단 아이템은 인벤토리에서 빠져 이곳에 보관된다.
