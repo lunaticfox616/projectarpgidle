@@ -504,10 +504,6 @@
       "count": 1,
       "max": 13
     },
-    "repairJournalEntriesFromProgress|complexity|Function 'repairJournalEntriesFromProgress' has a complexity of #. Maximum allowed is #.": {
-      "count": 1,
-      "max": 44
-    },
     "grantJournalBonus|complexity|Function 'grantJournalBonus' has a complexity of #. Maximum allowed is #.": {
       "count": 1,
       "max": 12
@@ -8905,6 +8901,7 @@
     "dependency:finishHaltedTravel->markPlayerMovementCompleted",
     "dependency:finishHaltedTravel->startEncounterRun",
     "dependency:finishLabyrinthEncounter->continueMapAfterClear",
+    "dependency:finishLabyrinthEncounter->labyrinthFossilNote",
     "dependency:finishLabyrinthEncounter->queueImportantSave",
     "dependency:finishLabyrinthEncounter->resolveNextLoopBestPlusOneZone",
     "dependency:finishLabyrinthEncounter->rollLabyrinthFossils",
@@ -16259,6 +16256,7 @@
     "dependency:reachable->cellKey",
     "dependency:reachable->selectCombatGemTargets",
     "dependency:reachable->status",
+    "dependency:reachedTimeRiftFusion->holdsFusedRelic",
     "dependency:read->Number",
     "dependency:read->String",
     "dependency:read->answer",
@@ -17738,6 +17736,8 @@
     "dependency:repairEquipmentLoadoutDuplicateIdentities->getEquipmentLoadoutItemIdentity",
     "dependency:repairEquipmentLoadoutDuplicateIdentities->getEquipmentLoadoutOwnedItems",
     "dependency:repairEquipmentLoadoutDuplicateIdentities->getEquipmentLoadoutSavedIdentity",
+    "dependency:repairJournalEntriesFromProgress->addRootBossJournalEntries",
+    "dependency:repairJournalEntriesFromProgress->reached",
     "dependency:repeatCosmosChallenge->canChallengeNode",
     "dependency:repeatCosmosChallenge->getState",
     "dependency:repeatCosmosChallenge->startCosmosBattle",
