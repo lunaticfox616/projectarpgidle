@@ -1078,7 +1078,7 @@
     },
     "getPlayerStats|max-lines-per-function|Function 'getPlayerStats' has too many lines (#). Maximum allowed is #.": {
       "count": 1,
-      "max": 2200
+      "max": 2199
     },
     "getPlayerStats|complexity|Function 'getPlayerStats' has a complexity of #. Maximum allowed is #.": {
       "count": 1,
@@ -1089,7 +1089,7 @@
       "max": 159
     },
     "getPlayerStats|complexity|Arrow function has a complexity of #. Maximum allowed is #.": {
-      "count": 2,
+      "count": 1,
       "max": 295
     },
     "getPlayerStats|no-unused-vars|'coreCubeFlatElementDamageTotal' is assigned a value but never used.": {
@@ -10771,9 +10771,7 @@
     "dependency:getPlayerStats->getSkyStoneReductionPct",
     "dependency:getPlayerStats->getSolitaryHuntDoubleStrikeBonus",
     "dependency:getPlayerStats->getSummonCapMaximum",
-    "dependency:getPlayerStats->getSupportActiveTier",
-    "dependency:getPlayerStats->getSupportTierCap",
-    "dependency:getPlayerStats->getSupportTierMultiplier",
+    "dependency:getPlayerStats->getSupportGemTier",
     "dependency:getPlayerStats->getTaggedDamageBreakdown",
     "dependency:getPlayerStats->getTalentAttackSpeedSoftcapKnee",
     "dependency:getPlayerStats->getTalentDamageConversion",
@@ -23045,7 +23043,6 @@
     "layer:gainSkyRiftGaugeFromCombat->addLog",
     "layer:generateOrganicTree->markPassiveRenderCacheDirty",
     "layer:generateUniqueItem->addLog",
-    "layer:getPlayerStats->getSupportActiveTier",
     "layer:getTalentCardName->getHeroSelectionDef",
     "layer:getTalentRemainingResonance->getSupportTierResonanceCost",
     "layer:grantActRewardEntry->addLog",
