@@ -5824,6 +5824,8 @@ function getZoneElementWardProfile(zone) {
     return { elem: elem, strength: strength };
 }
 
+/** A cosmos zone's own enemy trait from its mechanic (scaled by rank, planet size and gravity), with a boss's debuffs; null elsewhere.
+ * Each mechanic's fields in COSMOS_TRAIT_ARCHETYPES (2026-10-18, same fields in the same order). */
 function getCosmosExclusiveEnemyTrait(zone, isElite, isBoss, seed) {
     if (!zone || zone.type !== 'cosmos') return null;
     const sizeClass = Math.max(1, Math.min(5, Math.floor(zone.sizeClass || 1)));
@@ -5840,61 +5842,73 @@ function getCosmosExclusiveEnemyTrait(zone, isElite, isBoss, seed) {
         dropMul: 1 + (isBoss ? 0.12 : (isElite ? 0.06 : 0.02)),
         bossDebuffs: []
     };
-    if (archetype === 'critResist') {
-        trait.name = `우주계: ${mechanic.name}`;
-        trait.critResistPct = Math.floor((isBoss ? 42 : 26) * power);
-        trait.critDamageResistPct = Math.floor((isBoss ? 38 : 22) * power);
-    } else if (archetype === 'critDamageResist') {
-        trait.name = `우주계: ${mechanic.name}`;
-        trait.critDamageResistPct = Math.floor((isBoss ? 58 : 36) * power);
-        trait.dr = Math.floor((isBoss ? 10 : 6) * power);
-        trait.armorMul = 1 + (isBoss ? 0.85 : 0.55) * power;
-    } else if (archetype === 'comboGuard') {
-        trait.name = `우주계: ${mechanic.name}`;
-        trait.hitRateGuard = Math.min(0.28, (isBoss ? 0.12 : 0.08) * power);
-        trait.comboTakenLessPct = Math.min(70, Math.floor((isBoss ? 38 : 24) * power));
-    } else if (archetype === 'heavySlow') {
-        trait.name = `우주계: ${mechanic.name}`;
-        trait.atkMul = 1 + (isBoss ? 0.62 : 0.38) * power;
-        trait.damageMul = 1 + (isBoss ? 0.28 : 0.16) * power;
-        trait.attackSpeedVarMul = Math.max(0.42, 1 - (isBoss ? 0.32 : 0.22) * power);
-        trait.penetration = Math.floor((isBoss ? 8 : 4) * power);
-    } else if (archetype === 'fast') {
-        trait.name = `우주계: ${mechanic.name}`;
-        trait.attackSpeedVarMul = 1 + (isBoss ? 0.55 : 0.34) * power;
-        trait.critChanceBonus = Math.floor((isBoss ? 12 : 7) * power);
-        trait.evasionChance = Math.floor((isBoss ? 18 : 10) * power);
-    } else if (archetype === 'energyShield') {
-        const esPct = Math.min(100, Math.max(50, Math.floor(50 + ((Math.abs(seed || 0) % 51)) + (isBoss ? 18 : 0))));
-        trait.name = `우주계: ${mechanic.name} ${esPct}%`;
-        trait.energyShieldPct = esPct;
-        trait.resAll = Math.floor((isBoss ? 8 : 4) * power);
-    } else if (archetype === 'evasion') {
-        trait.name = `우주계: ${mechanic.name}`;
-        trait.evasionMul = 1 + (isBoss ? 1.65 : 1.05) * power;
-        trait.evasionChance = Math.min(72, Math.floor((isBoss ? 42 : 28) * power));
-    } else if (archetype === 'armor') {
-        trait.name = `우주계: ${mechanic.name}`;
-        trait.armorMul = 1 + (isBoss ? 2.2 : 1.35) * power;
-        trait.armorGuard = Math.min(0.72, (isBoss ? 0.36 : 0.24) * power);
-        trait.dr = Math.floor((isBoss ? 14 : 8) * power);
-    }
+    if (Object.hasOwn(COSMOS_TRAIT_ARCHETYPES, archetype)) COSMOS_TRAIT_ARCHETYPES[archetype](trait, { name: `우주계: ${mechanic.name}`, isBoss, power, seed });
     if (isBoss) {
-        const debuffSets = {
-            critResist: ['cosmos_res_down', 'cosmos_aspd_down'],
-            critDamageResist: ['cosmos_regen_down', 'cosmos_res_down'],
-            comboGuard: ['cosmos_aspd_down', 'cosmos_leech_down'],
-            heavySlow: ['cosmos_res_down', 'cosmos_regen_down'],
-            fast: ['cosmos_aspd_down', 'cosmos_leech_down'],
-            energyShield: ['cosmos_regen_down', 'cosmos_leech_down'],
-            evasion: ['cosmos_aspd_down', 'cosmos_res_down'],
-            armor: ['cosmos_leech_down', 'cosmos_regen_down']
-        };
-        trait.bossDebuffs = debuffSets[archetype] || ['cosmos_res_down'];
+        trait.bossDebuffs = (Object.hasOwn(COSMOS_BOSS_DEBUFF_SETS, archetype) ? COSMOS_BOSS_DEBUFF_SETS[archetype] : ['cosmos_res_down']).slice();
         trait.debuffPower = Math.min(1.7, power);
     }
     return trait;
 }
+/** Each cosmos mechanic's trait fields (c: the trait name, boss or not, the power, the seed). */
+const COSMOS_TRAIT_ARCHETYPES = Object.freeze({
+    critResist: (trait, c) => {
+        trait.name = c.name;
+        trait.critResistPct = Math.floor((c.isBoss ? 42 : 26) * c.power);
+        trait.critDamageResistPct = Math.floor((c.isBoss ? 38 : 22) * c.power);
+    },
+    critDamageResist: (trait, c) => {
+        trait.name = c.name;
+        trait.critDamageResistPct = Math.floor((c.isBoss ? 58 : 36) * c.power);
+        trait.dr = Math.floor((c.isBoss ? 10 : 6) * c.power);
+        trait.armorMul = 1 + (c.isBoss ? 0.85 : 0.55) * c.power;
+    },
+    comboGuard: (trait, c) => {
+        trait.name = c.name;
+        trait.hitRateGuard = Math.min(0.28, (c.isBoss ? 0.12 : 0.08) * c.power);
+        trait.comboTakenLessPct = Math.min(70, Math.floor((c.isBoss ? 38 : 24) * c.power));
+    },
+    heavySlow: (trait, c) => {
+        trait.name = c.name;
+        trait.atkMul = 1 + (c.isBoss ? 0.62 : 0.38) * c.power;
+        trait.damageMul = 1 + (c.isBoss ? 0.28 : 0.16) * c.power;
+        trait.attackSpeedVarMul = Math.max(0.42, 1 - (c.isBoss ? 0.32 : 0.22) * c.power);
+        trait.penetration = Math.floor((c.isBoss ? 8 : 4) * c.power);
+    },
+    fast: (trait, c) => {
+        trait.name = c.name;
+        trait.attackSpeedVarMul = 1 + (c.isBoss ? 0.55 : 0.34) * c.power;
+        trait.critChanceBonus = Math.floor((c.isBoss ? 12 : 7) * c.power);
+        trait.evasionChance = Math.floor((c.isBoss ? 18 : 10) * c.power);
+    },
+    energyShield: (trait, c) => {
+        const esPct = Math.min(100, Math.max(50, Math.floor(50 + ((Math.abs(c.seed || 0) % 51)) + (c.isBoss ? 18 : 0))));
+        trait.name = `${c.name} ${esPct}%`;
+        trait.energyShieldPct = esPct;
+        trait.resAll = Math.floor((c.isBoss ? 8 : 4) * c.power);
+    },
+    evasion: (trait, c) => {
+        trait.name = c.name;
+        trait.evasionMul = 1 + (c.isBoss ? 1.65 : 1.05) * c.power;
+        trait.evasionChance = Math.min(72, Math.floor((c.isBoss ? 42 : 28) * c.power));
+    },
+    armor: (trait, c) => {
+        trait.name = c.name;
+        trait.armorMul = 1 + (c.isBoss ? 2.2 : 1.35) * c.power;
+        trait.armorGuard = Math.min(0.72, (c.isBoss ? 0.36 : 0.24) * c.power);
+        trait.dr = Math.floor((c.isBoss ? 14 : 8) * c.power);
+    }
+});
+/** The two debuffs a cosmos boss of each mechanic lays on the hero. */
+const COSMOS_BOSS_DEBUFF_SETS = Object.freeze({
+    critResist: ['cosmos_res_down', 'cosmos_aspd_down'],
+    critDamageResist: ['cosmos_regen_down', 'cosmos_res_down'],
+    comboGuard: ['cosmos_aspd_down', 'cosmos_leech_down'],
+    heavySlow: ['cosmos_res_down', 'cosmos_regen_down'],
+    fast: ['cosmos_aspd_down', 'cosmos_leech_down'],
+    energyShield: ['cosmos_regen_down', 'cosmos_leech_down'],
+    evasion: ['cosmos_aspd_down', 'cosmos_res_down'],
+    armor: ['cosmos_leech_down', 'cosmos_regen_down']
+});
 
 function applyCosmosExclusiveTraitToEnemy(enemy, trait) {
     if (!enemy || !trait) return;
