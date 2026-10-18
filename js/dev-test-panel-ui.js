@@ -217,7 +217,7 @@ const devTestPanel = (() => {
         game.maxZoneId = Math.max(game.maxZoneId || 0, zoneId);
         changeZone(zoneId);
         refresh();
-        note(`액트 ${order}(으)로 이동`);
+        note(`${withDirectionParticle(`액트 ${order}`)} 이동`);
     }
 
     // ------------------------------------------------------------------ markup

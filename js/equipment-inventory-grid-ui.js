@@ -222,7 +222,7 @@
         }
         if (typeof saveGame === 'function') saveGame({ skipCloudSync: true });
         if (typeof updateStaticUI === 'function') updateStaticUI();
-        notify(`${result.item.name || '장비'}을(를) 인벤토리로 회수했습니다.`, 'success');
+        notify(`${withObjectParticle(result.item.name || '장비')} 인벤토리로 회수했습니다.`, 'success');
         return true;
     }
 

@@ -151,7 +151,7 @@ const stumpTalismanUi = (() => {
     async function discard(id) {
         const item = stumpBox.itemById(game, id);
         if (!item || item.family !== 'talisman') return false;
-        const message = `[${item.name}]을(를) 버립니다. 되돌릴 수 없습니다.`;
+        const message = `[${item.name}]${pickParticle(item.name, '을', '를')} 버립니다. 되돌릴 수 없습니다.`;
         const options = { title: '부적 버리기', tone: 'danger', confirmLabel: '버리기', cancelLabel: '취소' };
         if (item.rarity === 'unique' && !await requestGameConfirmation(message, options)) return false;
         return stumpBox.discard(game, id);

@@ -10623,7 +10623,7 @@ function finishTimeRiftFusion(rift, ui) {
     rift.fusionCount = Math.max(0, Math.floor(rift.fusionCount || 0)) + 1;
     unlockJournalEntry('time_rift_fusion');
     let gradeLabel = fusion.grade === 'perfect' ? '완벽한 융합' : (fusion.grade === 'normal' ? '보통 융합' : '불안정한 융합');
-    ui.say(`⌛ ${gradeLabel}! [${fusion.fused.name}]이(가) 억겁의 시간을 건너 돌아왔습니다. (계승한 추가 옵션 ${fusion.inherited}개${fusion.lost > 0 ? `, ${fusion.lost}개 유실` : ', 유실 없음'})`, 'loot-unique');
+    ui.say(`⌛ ${gradeLabel}! [${fusion.fused.name}]${pickParticle(fusion.fused.name, '이', '가')} 억겁의 시간을 건너 돌아왔습니다. (계승한 추가 옵션 ${fusion.inherited}개${fusion.lost > 0 ? `, ${fusion.lost}개 유실` : ', 유실 없음'})`, 'loot-unique');
 }
 
 function finishTrialEncounter(zone, mapAction, ui) {
@@ -12153,26 +12153,6 @@ function noteCampaignResistPenalty(zoneId) {
         `캠페인 패널티로 모든 원소 저항과 카오스 저항이 ${each}%${more}.\n저항이 모자라면 받는 피해가 커집니다. 캐릭터 창의 저항에서 볼 수 있습니다.`, 'tab-character');
 }
 
-/** 받침에 맞춘 방향 조사: "성소" → "성소로", "숲" → "숲으로", "길" → "길로"(ㄹ 받침은 '로'). */
-function withDirectionParticle(word) {
-    const text = String(word || ''), code = text.charCodeAt(text.length - 1) - 0xAC00;
-    const batchim = code >= 0 && code < 11172 ? code % 28 : 0;
-    return text + (batchim === 0 || batchim === 8 ? '로' : '으로');
-}
-
-/** 받침이 있는 한글로 끝나는지(조사 고르기). 한글이 아니면 받침 없음으로 본다. */
-function endsWithBatchim(word) {
-    const text = String(word || ''), code = text.charCodeAt(text.length - 1) - 0xAC00;
-    return code >= 0 && code < 11172 && code % 28 !== 0;
-}
-/** 받침에 맞춘 목적격 조사: "줄기의 전령" → "줄기의 전령을", "부제녀" → "부제녀를". */
-function withObjectParticle(word) {
-    return String(word || '') + (endsWithBatchim(word) ? '을' : '를');
-}
-/** 받침에 맞춘 주격 조사: "힘" → "힘이", "계시" → "계시가". */
-function withSubjectParticle(word) {
-    return String(word || '') + (endsWithBatchim(word) ? '이' : '가');
-}
 
 /** 물러난 뒤 탐험을 마치면: 덜 올랐으면 지금 액트를 한 번 더, 충분히 올랐으면 기록을 지우고 평소처럼 앞으로 간다. */
 function holdActRetreat(zone) {

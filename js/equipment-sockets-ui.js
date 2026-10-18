@@ -104,7 +104,7 @@ const equipmentSocketsUi = (() => {
         const item = getSelectedCraftItem();
         if (!item) return;
         const result = equipmentSockets.remove(item, kind, index);
-        report(result, result.ok ? `💠 [${item.name}]에서 [${result.jewel.name}]을(를) 뺐습니다.` : '');
+        report(result, result.ok ? `💠 [${item.name}]에서 [${result.jewel.name}]${pickParticle(result.jewel.name, '을', '를')} 뺐습니다.` : '');
     }
 
     function chisel() {

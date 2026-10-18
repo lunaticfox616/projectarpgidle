@@ -2822,7 +2822,7 @@ function setOceanFishingStrategy(strategyId) {
     if (st.diving) { addLog('낚시 전략은 수면에서만 변경할 수 있습니다.', 'attack-monster'); return false; }
     if (st.fishingStrategy === strategyId) return true;
     st.fishingStrategy = strategyId;
-    addLog(`${strategy.icon} 낚시 전략을 '${strategy.name}'(으)로 변경했습니다.`, 'loot-magic');
+    addLog(`${strategy.icon} 낚시 전략을 ${withDirectionParticle(`'${strategy.name}'`)} 변경했습니다.`, 'loot-magic');
     if (typeof queueImportantSave === 'function') queueImportantSave(200);
     if (typeof updateStaticUI === 'function') updateStaticUI();
     return true;
@@ -2906,7 +2906,7 @@ function catchOceanFish(depthTier) {
     st.rareFishPity = rarityRank >= 2 ? 0 : Math.min(100, st.rareFishPity + Math.max(1, Number(strategy.pityGain) || 8));
     st.lastCatch = { key: picked, at: Date.now(), guaranteed };
     let logType = rarityRank >= 4 ? 'loot-unique' : (rarityRank >= 2 ? 'loot-rare' : 'loot-magic');
-    addLog(`${guaranteed ? '✨ 희귀 조짐 적중! ' : '🐟 '}${OCEAN_FISH_DB[picked].name}을(를) 낚았습니다!`, logType);
+    addLog(`${guaranteed ? '✨ 희귀 조짐 적중! ' : '🐟 '}${withObjectParticle(OCEAN_FISH_DB[picked].name)} 낚았습니다!`, logType);
     let discoveredCount = getOceanFishCollectionProgress(st).discoveredCount;
     if (!wasDiscovered && OCEAN_FISH_COLLECTION_MILESTONES.some(row => row.required === discoveredCount)) {
         addLog(`📘 심해 도감 ${discoveredCount}/${Object.keys(OCEAN_FISH_DB).length}, 받을 보상이 있습니다.`, 'loot-rare');
@@ -9012,7 +9012,7 @@ function applyWoodsmanTouchToSelectedItem() { if (game.woodsmanBuildLock) return
     if (item.loopSealed) return addLog('이미 봉인된 장비입니다.', 'attack-monster');
     game.currencies.ouroboros--;
     item.loopSealed = true;
-    addLog(`🌿 [${item.name}]을(를) 나무꾼의 손길로 봉인했습니다. 루프가 진행되어도 사라지지 않습니다.`, 'loot-unique');
+    addLog(`🌿 [${item.name}]${pickParticle(item.name, '을', '를')} 나무꾼의 손길로 봉인했습니다. 루프가 진행되어도 사라지지 않습니다.`, 'loot-unique');
     updateStaticUI();
     queueImportantSave(200);
 }
@@ -9398,7 +9398,7 @@ function addItemToInventory(item, options) {
     }
     const result = storeEquipmentPickup(item, { guaranteedKeep, ignoreAutoSalvage });
     if (result.accepted) { recordEquipmentAcquisition(item); checkUnlocks(); }
-    if (result.kind === 'protected') addLog(`🎒 인벤토리가 가득 찼지만 [${item.name}]은(는) 유실 방지를 위해 초과 보관됩니다.`, 'attack-monster');
+    if (result.kind === 'protected') addLog(`🎒 인벤토리가 가득 찼지만 [${item.name}]${pickParticle(item.name, '은', '는')} 유실 방지를 위해 초과 보관됩니다.`, 'attack-monster');
     else if (logLoot && result.rewards && result.log) {
         const label = result.kind === 'overflow' ? '공간 부족 자동해체' : '자동해체';
         addLog(`${label}: <span class='loot-${item.rarity}'>[${item.name}]</span>, ${formatSalvageRewardSummary(result.rewards)}`, 'loot-normal');

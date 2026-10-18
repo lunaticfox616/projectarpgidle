@@ -20,7 +20,7 @@ const bagItemsUi = (() => {
     function socket(item, slot) {
         const reason = bagItems.socketFromBag(item, slot);
         if (reason) return addLog(reason, 'attack-monster', { toast: true });
-        addLog(`💠 [${escapeHTML(item.name || '주얼')}]을(를) 소켓에 끼웠습니다.`, 'loot-magic');
+        addLog(`💠 [${escapeHTML(item.name || '주얼')}]${pickParticle(item.name || '주얼', '을', '를')} 소켓에 끼웠습니다.`, 'loot-magic');
         hideItemTooltip();
         updateStaticUI();
     }

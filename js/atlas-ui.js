@@ -51,7 +51,7 @@ const atlasUi = (() => {
         const map = selectedMap();
         if (!map) return;
         const cost = [{ key, amount: 1 }];
-        const reason = atlasMaps.craftReason(map, key) || (canPayCurrencyCosts(cost) ? '' : `${ORB_DB[key].name}이(가) 없습니다.`);
+        const reason = atlasMaps.craftReason(map, key) || (canPayCurrencyCosts(cost) ? '' : `${withSubjectParticle(ORB_DB[key].name)} 없습니다.`);
         if (reason) return addLog(reason, 'attack-monster');
         payCurrencyCosts(cost);
         atlasMaps.craft(map, key);

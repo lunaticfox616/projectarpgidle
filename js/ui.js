@@ -4297,7 +4297,7 @@ function changeSummonSkillCount(name, delta) { if (!assertBuildEditable()) retur
     let current = getSummonSkillCount(name);
     if (delta > 0) {
         let cap = getSummonEquipCapFromStats(getUiPlayerStats(null));
-        if (getEquippedSummonCount() >= cap) return addLog(`소환수 한도(${cap})로 인해 [${name}]을(를) 추가 소환할 수 없습니다.`, 'attack-monster');
+        if (getEquippedSummonCount() >= cap) return addLog(`소환수 한도(${cap})로 인해 [${name}]${pickParticle(name, '을', '를')} 추가 소환할 수 없습니다.`, 'attack-monster');
         if (!game.equippedSummonSkills.includes(name)) game.equippedSummonSkills.push(name);
         game.summonSkillCounts[name] = current + 1;
         completeStarterGemTutorial(name);
@@ -4319,7 +4319,7 @@ function changeSummonSkillCount(name, delta) { if (!assertBuildEditable()) retur
 function changeSkill(name) { if (!assertBuildEditable()) return;
     if (mobilitySkill.isMobilityGem(name) && game.mobilitySkill === name) return wearMobilityGem('');
     if (typeof canUseSkillWithCurrentEquipment === 'function' && !canUseSkillWithCurrentEquipment(name)) {
-        return addLog(`[${name}]은(는) 지금 무기로 쓸 수 없습니다: ${getSkillRuneWeaponNote(name)}.`, 'attack-monster');
+        return addLog(`[${name}]${pickParticle(name, '은', '는')} 지금 무기로 쓸 수 없습니다: ${getSkillRuneWeaponNote(name)}.`, 'attack-monster');
     }
     if ((SKILL_DB[name]?.tags || []).includes('summon_attack')) return toggleSummonAttackGem(name);
     if (mobilitySkill.isMobilityGem(name)) return wearMobilityGem(name);
@@ -4428,7 +4428,7 @@ function toggleSupport(name) { if (!assertBuildEditable()) return;
         }
         if (isSummonGuardSupport(name)) {
             let cap = getSummonEquipCapFromStats(stats);
-            if (getEquippedSummonCount() >= cap) return addLog(`소환수 한도(${cap})로 인해 [${name}]은(는) 장착할 수 없습니다.`, 'attack-monster', { toast: true });
+            if (getEquippedSummonCount() >= cap) return addLog(`소환수 한도(${cap})로 인해 [${name}]${pickParticle(name, '은', '는')} 장착할 수 없습니다.`, 'attack-monster', { toast: true });
         }
         let used = game.equippedSupports.reduce((sum, n) => sum + getSupportTierResonanceCost(n), 0);
         let remain = Math.max(0, getEffectiveResonanceCap(stats) - used);

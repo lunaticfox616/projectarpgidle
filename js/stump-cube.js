@@ -219,7 +219,7 @@ const stumpCube = (() => {
         if (state.woodsmanBuildLock) return LOCK_REASON;
         if (!found) return '맞는 조합법이 없습니다.';
         const lacking = missingCost(found.recipe, state);
-        return lacking.length ? `${ORB_DB[lacking[0]].name}이(가) 부족합니다.` : '';
+        return lacking.length ? `${withSubjectParticle(ORB_DB[lacking[0]].name)} 부족합니다.` : '';
     }
 
     /** Runs the matching recipe: consumes its inputs, pays its cost, stores the results and shows them in the cube. */

@@ -1,10 +1,5 @@
 // Currency state is committed in the domain; notices and logs cannot grant it again.
 (() => {
-    /** 을/를: the object particle after a Korean name (a final consonant or not). */
-    function objectParticle(name) {
-        const text=String(name),code=text.charCodeAt(text.length-1)-0xAC00;
-        return code>=0 && code<11172 && code%28 ? '을' : '를';
-    }
     /** 알림창(js/ui-feedback.js): 황금률은 금빛, 체이싱 티어 재화(js/loot.js lootMoments jackpot: 요정의 고리, 우로보로스)는 붉은 금빛. */
     function noticeCurrency(currencyKey,gain) {
         if(!(gain>0))return;
@@ -13,7 +8,7 @@
         const name=ORB_DB[currencyKey].name;
         // 장비 드랍 필터 창의 발견 연출에서 끈 알림은 띄우지 않는다(game.settings.lootFx.notices).
         if(game.settings.lootFx?.notices?.[chase?'chase':'goldenRule']===false)return;
-        showGameToast(`${name}${objectParticle(name)} 획득했습니다.`,{tone:chase?'chase':'reward',duration:chase?6000:3600});
+        showGameToast(`${withObjectParticle(name)} 획득했습니다.`,{tone:chase?'chase':'reward',duration:chase?6000:3600});
     }
     /** 처음 얻은 제작 뿌리와 기억 조각칼: 어디서 어떻게 쓰는지 한 번(2026-10-18, 둘 다 늦은 콘텐츠의 드문 재화라 처음 보면 쓸 곳을 모른다). */
     const FIRST_USE={

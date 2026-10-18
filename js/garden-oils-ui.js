@@ -71,12 +71,12 @@ const gardenOilsUi = (() => {
         const item = getSelectedCraftItem(), node = gardenOils.offers(game, bowl).find(row => row.id === nodeId);
         if (!item || !node) return;
         if (game.woodsmanBuildLock) return addLog('나무꾼 전투 중에는 바를 수 없습니다.', 'attack-monster');
-        const was = gardenOils.nodesOf(item)[slot], message = `[${item.name}]에 ${node.title}을(를) 새깁니다(기름 ${GARDEN_OILS.perAnoint}개).${was ? `\n지금 새겨진 ${was.title}은(는) 사라집니다.` : ''}`;
+        const was = gardenOils.nodesOf(item)[slot], message = `[${item.name}]에 ${withObjectParticle(node.title)} 새깁니다(기름 ${GARDEN_OILS.perAnoint}개).${was ? `\n지금 새겨진 ${was.title}${pickParticle(was.title, '은', '는')} 사라집니다.` : ''}`;
         if (!await requestGameConfirmation(message, { title: '기름 바르기', confirmLabel: '바르기' })) return;
         if (getSelectedCraftItem() !== item) return addLog('확인 중 대상 장비가 바뀌어 바르지 않았습니다.', 'attack-monster');
         const result = gardenOils.anoint(game, item, bowl, nodeId, slot);
         if (!result.ok) return addLog(result.reason, 'attack-monster');
-        addLog(`🌿 [${esc(item.name)}]에 기름을 발라 ${esc(node.title)}이(가) 새겨졌습니다: ${esc(effectText(node))}`, 'loot-unique', { toast: true });
+        addLog(`🌿 [${esc(item.name)}]에 기름을 발라 ${esc(withSubjectParticle(node.title))} 새겨졌습니다: ${esc(effectText(node))}`, 'loot-unique', { toast: true });
         bowl = [];
         updateStaticUI();
         queueImportantSave(200);

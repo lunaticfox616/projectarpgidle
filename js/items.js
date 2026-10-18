@@ -536,7 +536,7 @@ function placeItemOnTimeAltar() {
     game.inventory = (game.inventory || []).filter(row => row && row.id !== item.id);
     rift[slotKey] = item;
     clearCraftSelection();
-    addLog(`⏳ [${item.name}]을(를) 과거의 제단에 올렸습니다.${rift.altarUnique && rift.altarRare ? ' 두 자리가 모두 찼습니다. 미래로 건너가세요.' : ''}`, 'season-up');
+    addLog(`⏳ [${item.name}]${pickParticle(item.name, '을', '를')} 과거의 제단에 올렸습니다.${rift.altarUnique && rift.altarRare ? ' 두 자리가 모두 찼습니다. 미래로 건너가세요.' : ''}`, 'season-up');
     updateStaticUI();
     queueImportantSave(200);
 }

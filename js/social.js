@@ -578,7 +578,7 @@ async function promptAndSetNickname() {
     try {
         await uploadPlayerProfile({ fromNicknameChange: true });
         await updatePastChatNicknames(name);     // 과거 채팅도 새 닉네임으로
-        if (typeof addLog === 'function') addLog(`🪪 닉네임이 "${name}"(으)로 설정되었습니다.`, 'season-up');
+        if (typeof addLog === 'function') addLog(`🪪 닉네임이 ${withDirectionParticle(`"${name}"`)} 설정되었습니다.`, 'season-up');
         socialState.chatInitialized = false;
         socialState.chatMessages = [];
         socialState.lastChatRenderKey = '';

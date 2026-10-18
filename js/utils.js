@@ -578,6 +578,36 @@ function getAdditiveDropBonusMultiplier(codexBonusPct, challengeBonusPct) {
 }
 
 /** 도트 UI에 섞이면 안 되는 컬러 그림 글자를 뺀다. 이모지 속성이 없는 그림 기호(U+1F56E 책 등)도 U+1F000 ~ 1FAFF 묶음으로 함께 뺀다. */
+/** The final consonant (batchim) index of the word's last syllable for picking a particle: 0 for none, 8 for ㄹ, -1 when the word
+ * ends in something else (the caller keeps a dual form). Closing brackets and quotes are skipped; a digit reads as its name (일, 삼). */
+function getLastBatchim(word) {
+    const text = String(word || '').replace(/[\s)\]}」』'"]+$/u, '');
+    const last = text.charAt(text.length - 1);
+    if (last >= '0' && last <= '9') return KOREAN_DIGIT_BATCHIM[Number(last)];
+    const code = text.charCodeAt(text.length - 1) - 0xAC00;
+    return code >= 0 && code < 11172 ? code % 28 : -1;
+}
+/** 영(십, 백) 일 이 삼 사 오 육 칠 팔 구: the batchim each digit is read with. */
+const KOREAN_DIGIT_BATCHIM = Object.freeze([21, 8, 0, 16, 0, 0, 1, 8, 8, 0]);
+/** 받침에 맞춘 조사: pickParticle('검', '을', '를') → '을'. 받침을 알 수 없는 끝(영문 따위)은 '을(를)'. */
+function pickParticle(word, afterConsonant, afterVowel) {
+    const batchim = getLastBatchim(word);
+    if (batchim < 0) return `${afterConsonant}(${afterVowel})`;
+    return batchim ? afterConsonant : afterVowel;
+}
+/** 받침에 맞춘 방향 조사: "성소" → "성소로", "숲" → "숲으로", "길" → "길로"(ㄹ 받침은 '로'). 알 수 없는 끝은 '(으)로'. */
+function withDirectionParticle(word) {
+    const batchim = getLastBatchim(word);
+    return String(word || '') + (batchim < 0 ? '(으)로' : (batchim === 0 || batchim === 8 ? '로' : '으로'));
+}
+/** 받침에 맞춘 목적격 조사: "줄기의 전령" → "줄기의 전령을", "부제녀" → "부제녀를". */
+function withObjectParticle(word) {
+    return String(word || '') + pickParticle(word, '을', '를');
+}
+/** 받침에 맞춘 주격 조사: "힘" → "힘이", "계시" → "계시가". */
+function withSubjectParticle(word) {
+    return String(word || '') + pickParticle(word, '이', '가');
+}
 function stripDecorativeEmoji(value) {
     return String(value == null ? '' : value)
         .replace(/[\p{Extended_Pictographic}\p{Emoji_Presentation}\u{1F000}-\u{1FAFF}\uFE0F\u200D]/gu, '')
