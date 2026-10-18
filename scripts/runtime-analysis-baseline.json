@@ -278,15 +278,11 @@
     },
     "generateOrganicTree|max-lines-per-function|Function 'generateOrganicTree' has too many lines (#). Maximum allowed is #.": {
       "count": 1,
-      "max": 808
+      "max": 800
     },
     "generateOrganicTree|complexity|Function 'generateOrganicTree' has a complexity of #. Maximum allowed is #.": {
       "count": 1,
       "max": 50
-    },
-    "getTierValue|complexity|Function 'getTierValue' has a complexity of #. Maximum allowed is #.": {
-      "count": 1,
-      "max": 16
     },
     "specializePathNode|max-params|Function 'specializePathNode' has too many parameters (#). Maximum allowed is #.": {
       "count": 1,
@@ -355,10 +351,6 @@
     "generateOrganicTree|complexity|Arrow function has a complexity of #. Maximum allowed is #.": {
       "count": 1,
       "max": 12
-    },
-    "getPassiveTierValueForLayout|complexity|Function 'getPassiveTierValueForLayout' has a complexity of #. Maximum allowed is #.": {
-      "count": 1,
-      "max": 16
     },
     "rebalancePassiveStartingStats|max-lines-per-function|Function 'rebalancePassiveStartingStats' has too many lines (#). Maximum allowed is #.": {
       "count": 1,
@@ -2786,7 +2778,7 @@
     },
     "mergeDefaults|max-lines-per-function|Function 'mergeDefaults' has too many lines (#). Maximum allowed is #.": {
       "count": 1,
-      "max": 971
+      "max": 963
     },
     "mergeDefaults|complexity|Function 'mergeDefaults' has a complexity of #. Maximum allowed is #.": {
       "count": 1,
@@ -2799,10 +2791,6 @@
     "estimateSummonEquipCapForMergedSave|complexity|Arrow function has a complexity of #. Maximum allowed is #.": {
       "count": 1,
       "max": 12
-    },
-    "getPassiveTierValueForLoad|complexity|Function 'getPassiveTierValueForLoad' has a complexity of #. Maximum allowed is #.": {
-      "count": 1,
-      "max": 16
     },
     "normalizeJewelRecord|complexity|Function 'normalizeJewelRecord' has a complexity of #. Maximum allowed is #.": {
       "count": 1,
@@ -3045,7 +3033,7 @@
     "dependency:addMotions->releaseMotion",
     "dependency:addMotions->towards",
     "dependency:addMotions->windUpMotion",
-    "dependency:addNode->getTierValue",
+    "dependency:addNode->getPassiveStatTierValue",
     "dependency:addNode->pickValidStat",
     "dependency:addOuterPathRelay->addNode",
     "dependency:addOuterPathRelay->getGenericPathStat",
@@ -4964,7 +4952,7 @@
     "dependency:buildWebCellCluster->connect",
     "dependency:buildWebCellCluster->getClusterStatForStep",
     "dependency:buildWebCellCluster->getFinalClusterSpec",
-    "dependency:buildWebCellCluster->getTierValue",
+    "dependency:buildWebCellCluster->getPassiveStatTierValue",
     "dependency:buildWebCellCluster->getWebAngle",
     "dependency:buildWebCellCluster->getWebCellClusterPoint",
     "dependency:buildWebCellCluster->getWebLane",
@@ -13572,7 +13560,7 @@
     "dependency:mergeDefaults->getClassKeystoneDefs",
     "dependency:mergeDefaults->getCodexSlotOrder",
     "dependency:mergeDefaults->getPassiveRouting",
-    "dependency:mergeDefaults->getPassiveTierValueForLoad",
+    "dependency:mergeDefaults->getPassiveStatTierValue",
     "dependency:mergeDefaults->getPassiveTreeRootNodeId",
     "dependency:mergeDefaults->getSavedZoneForValidation",
     "dependency:mergeDefaults->getSeasonFinalZoneId",
@@ -19509,7 +19497,7 @@
     "dependency:setStartupOverlayActive->setTimeout",
     "dependency:setStartupOverlayActive->startMobilePipRefreshLoop",
     "dependency:setStartupRegistrationMode->String",
-    "dependency:setStat->getPassiveTierValueForLayout",
+    "dependency:setStat->getPassiveStatTierValue",
     "dependency:setSubtab->render",
     "dependency:setSupportActiveTier->addLog",
     "dependency:setSupportActiveTier->assertBuildEditable",
@@ -20175,7 +20163,7 @@
     "dependency:specialOdds->Number",
     "dependency:specializePathNode->getCoreDirectionLabel",
     "dependency:specializePathNode->getGenericPathStat",
-    "dependency:specializePathNode->getTierValue",
+    "dependency:specializePathNode->getPassiveStatTierValue",
     "dependency:spectralBeam->braidStrands",
     "dependency:spellArrowRain->Array",
     "dependency:spellArrowRain->r",
