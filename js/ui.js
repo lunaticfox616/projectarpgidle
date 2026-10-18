@@ -23,7 +23,6 @@ let mapZoneGroupCollapseState = { availableBosses: false, rootBosses: null, riva
 let pendingMapPrimaryTabReveals = new Set();
 
 let mobilePipCanvas = null;
-var lod = 1; // fallback for any legacy FX paths
 let mobilePipCtx = null;
 let mobilePipRefreshHandle = null;
 let mobilePipRefreshErrorReported = false;
@@ -1334,7 +1333,6 @@ const MERGED_TAB_GROUPS = Object.freeze({
 
 // 탭 2단 그룹핑: 상단 카테고리 바에서 그룹을 고르면 해당 그룹의 탭만 보인다.
 // 넓은 화면(데스크톱)에서만 활성화되고, 좁은 화면에서는 기존 방식(전체 탭 + 스와이프)을 유지한다.
-const TAB_GROUP_FIXED_TAB_IDS = ['tab-social', 'tab-settings'];
 const TAB_GROUPS = [
     { key: 'character', label: '캐릭터', icon: '👤', tabs: ['tab-character'] },
     { key: 'growth', label: '성장', icon: '📈', tabs: ['tab-char', 'tab-traits', 'tab-talent', 'tab-unlocks', 'tab-season', 'tab-stump', 'tab-skills'] },
@@ -1350,24 +1348,6 @@ function getOrderedTabGroups() {
     return order.concat(TAB_GROUPS.map(group => group.key))
         .filter((key, idx, arr) => byKey[key] && arr.indexOf(key) === idx)
         .map(key => byKey[key]);
-}
-function moveTabGroup(groupKey, dir) {
-    let groups = getOrderedTabGroups();
-    let idx = groups.findIndex(group => group.key === groupKey);
-    if (idx < 0) return;
-    let nextIdx = Math.max(0, Math.min(groups.length - 1, idx + dir));
-    if (nextIdx === idx) return;
-    let moved = groups.slice();
-    let tmp = moved[idx];
-    moved[idx] = moved[nextIdx];
-    moved[nextIdx] = tmp;
-    game.settings = game.settings || {};
-    tabLayoutUi.current().tabGroupOrder = moved.map(group => group.key);
-    lastTabHeaderUiSignature = null;
-    renderTabCategoryBar();
-    if (typeof syncDesktopRailGroups === 'function' && document.body.classList.contains('desktop-windowed-ui')) syncDesktopRailGroups();
-    renderTabOrderSettings();
-    queueImportantSave(300);
 }
 function moveTabGroupBefore(sourceKey, targetKey) {
     if (!sourceKey || !targetKey || sourceKey === targetKey) return;
@@ -1396,9 +1376,6 @@ function onTabGroupDrop(event, targetKey) {
     if (!event || !event.dataTransfer) return;
     event.preventDefault();
     moveTabGroupBefore(event.dataTransfer.getData('text/plain'), targetKey);
-}
-function isFixedTabGroupButton() {
-    return false;
 }
 function getTabGroupForId(tabId) {
     // 버튼 id('btn-tab-x')와 탭 id('tab-x')를 모두 허용한다.
@@ -1734,12 +1711,6 @@ if (typeof window !== 'undefined') {
     window.addEventListener('resize', scheduleTabHeaderViewportSync);
     window.addEventListener('orientationchange', scheduleTabHeaderViewportSync);
 }
-function setTabPlacement(tabId, placement) {
-    tabLayoutUi.place(tabId, placement);
-}
-function moveTabButton(tabId, dir) {
-    tabLayoutUi.move(tabId, dir);
-}
 
 function getTabHeaderUiSignature() {
     let unlocks = game.unlocks || {};
@@ -1863,7 +1834,6 @@ function refreshTabHeaderUiIfNeeded() {
 }
 
 function isNotiEnabled(key){ game.settings=game.settings||{}; if (game.settings.tabNotiEnabled === false) return false; game.settings.notiFilters=game.settings.notiFilters||{}; return game.settings.notiFilters[key] !== false; }
-function toggleNotiFilter(key){ game.settings=game.settings||{}; game.settings.notiFilters=game.settings.notiFilters||{}; game.settings.notiFilters[key]=!(game.settings.notiFilters[key] !== false); updateStaticUI(); }
 
 function isMergedTabAvailable(tab) {
     let tabId = typeof tab === 'string' ? tab : tab.id;
@@ -2914,12 +2884,6 @@ function startBeehiveRun(){
     game.combatHalted = true;
     prepareBeehiveBranchChoices(b);
     addLog(`🐝 벌집 원정 시작! 기준 난이도: 혼돈 심화 ${Math.max(21, Math.floor(b.entryDeepChaosDepth || 21))}, 갈림길을 선택하면 즉시 벌떼 웨이브가 시작됩니다.`, 'season-up');
-    updateStaticUI();
-}
-function advanceBeehivePath(){
-    let b = game.beehive;
-    if (!b || !b.inRun || b.awaitingClear || b.pendingChoice || b.queenActive) return;
-    prepareBeehiveBranchChoices(b);
     updateStaticUI();
 }
 function canResolveBeehiveChoice(b) {
@@ -4243,44 +4207,6 @@ function tryGrantCodexCompletionReward() {
     game.uniqueCodexCompletedRewardClaimed = true;
     addLog('📚 도감 완성! 다음 루프부터 루프마다 액트 1 고유 하나를 무작위로 받습니다.', 'loot-unique');
 }
-
-function storeUniqueToCodexByItemId(itemId) {
-    let idx = (game.inventory || []).findIndex(item => item && item.id === itemId);
-    if (idx < 0) return addLog('도감에 등록할 아이템을 찾지 못했습니다.', 'attack-monster');
-    let item = game.inventory[idx];
-    let key = getUniqueCodexKeyByItem(item);
-    if (!key) return addLog('고유 아이템만 도감에 등록할 수 있습니다.', 'attack-monster');
-    game.uniqueCodex = game.uniqueCodex || {};
-    let existing = game.uniqueCodex[key];
-    game.uniqueCodex[key] = JSON.parse(JSON.stringify(item));
-    if (existing && existing.baseName) {
-        let swapped = normalizeItem(JSON.parse(JSON.stringify(existing)));
-        swapped.id = ++itemIdCounter;
-        game.inventory[idx] = swapped;
-        addLog(`🔁 도감 교체: [${item.name}] 등록, [${swapped.name}] 인벤토리로 반환`, 'season-up');
-    } else {
-        game.inventory.splice(idx, 1);
-        addLog(`📚 도감 등록: [${item.name}]`, 'season-up');
-    }
-    tryGrantCodexCompletionReward();
-    updateStaticUI();
-}
-
-function withdrawUniqueFromCodex(key) {
-    game.uniqueCodex = game.uniqueCodex || {};
-    let stored = game.uniqueCodex[key];
-    if (!stored) return addLog('해당 도감 아이템은 비어 있습니다.', 'attack-monster');
-    if (stored.revealed && !stored.baseName) return addLog('이번 루프에는 도감 정보만 남아 있어 꺼낼 수 없습니다.', 'attack-monster');
-    if (!canStoreEquipmentItems([stored], game)) return addLog('인벤토리가 가득 차서 꺼낼 수 없습니다.', 'attack-monster');
-    let clone = normalizeItem(JSON.parse(JSON.stringify(stored)));
-    clone.id = ++itemIdCounter;
-    game.inventory.push(clone);
-    let parts = String(key).split('|');
-    game.uniqueCodex[key] = { revealed: true, slot: parts[0] || clone.slot || '', name: parts[1] || clone.name || '' };
-    addLog(`📦 도감에서 [${clone.name}] 꺼냈습니다.`, 'loot-rare');
-    updateStaticUI();
-}
-
 
 function grantCodexLegacyStarterUniques() {
     if (!game.uniqueCodexCompletedRewardClaimed) return;
@@ -6365,18 +6291,6 @@ function getBattleSkillVisual(skillName, skillData) {
     return visual;
 }
 
-function getBattleGroundFrames(zone) {
-    if (!battleAssets.ready || !battleAssets.atlas || !battleAssets.atlas.tiles) return null;
-    let frames = battleAssets.atlas.tiles.frames;
-    if (zone.type === 'trial') return { floor: frames.stone, path: frames.temple, pathAlt: frames.templeAlt, prop: frames.templeAlt };
-    if (zone.type === 'abyss') return { floor: frames.abyss, path: frames.ruin, pathAlt: frames.abyss, prop: frames.roots };
-    if (zone.ele === 'fire') return { floor: frames.dirt, path: frames.dirtWarm, pathAlt: frames.lava, prop: frames.dirtWarm };
-    if (zone.ele === 'cold') return { floor: frames.frost, path: frames.stone, pathAlt: frames.frost, prop: frames.stone };
-    if (zone.ele === 'light') return { floor: frames.stone, path: frames.temple, pathAlt: frames.templeAlt, prop: frames.stone };
-    if (zone.ele === 'chaos') return { floor: frames.abyss, path: frames.roots, pathAlt: frames.ruin, prop: frames.abyss };
-    return { floor: frames.grass, path: frames.stone, pathAlt: frames.moss, prop: frames.grassDeep };
-}
-
 function getBattleBackdropForZone(zone) {
     let list = (battleAssets.backdrops || {});
     let key = getBattleBackdropKeyForZone(zone);
@@ -7048,155 +6962,7 @@ function drawEnemySprite(ctx, enemy, x, y, scale, flash, now, moving, attackMoti
     ctx.restore();
 }
 
-function drawBattleZigZag(ctx, x1, y1, x2, y2, amplitude, segments) {
-    ctx.beginPath();
-    ctx.moveTo(x1, y1);
-    for (let i = 1; i < segments; i++) {
-        let t = i / segments;
-        let px = x1 + (x2 - x1) * t;
-        let py = y1 + (y2 - y1) * t + (i % 2 === 0 ? amplitude : -amplitude);
-        ctx.lineTo(px, py);
-    }
-    ctx.lineTo(x2, y2);
-}
-
-const GEM_IMPACT_THEME = {
-    phys: { primary: '#f5d7a1', secondary: '#ffffff' }, fire: { primary: '#ff7a42', secondary: '#ffd36b' }, cold: { primary: '#8fd6ff', secondary: '#dff7ff' },
-    light: { primary: '#f7e36a', secondary: '#fff8bf' }, chaos: { primary: '#b56bff', secondary: '#e9d2ff' }
-};
 window.BATTLE_EFFECT_OVERRIDES = window.BATTLE_EFFECT_OVERRIDES || {};
-function getImpactThemeByElement(ele){ return (window.BATTLE_EFFECT_OVERRIDES[ele] || GEM_IMPACT_THEME[ele] || GEM_IMPACT_THEME.phys); }
-
-function normalizeBattleElement(ele) {
-    let id = String(ele || 'phys').toLowerCase();
-    if (id === 'physical') return 'phys';
-    if (id === 'lightning' || id === 'thunder') return 'light';
-    if (id === 'ice') return 'cold';
-    return id;
-}
-
-function drawBattleImpactBurst(ctx, x, y, primary, secondary, t) {
-    const fxLoad = Math.max(0, Math.floor((Array.isArray(battleFx) ? battleFx.length : 0)));
-    const lod = fxLoad >= 40 ? 0.45 : (fxLoad >= 22 ? 0.65 : 1);
-    ctx.save();
-    ctx.globalAlpha = 1 - t;
-    ctx.strokeStyle = primary;
-    ctx.lineWidth = 3;
-    for (let i = 0; i < Math.max(3, Math.floor(6 * lod)); i++) {
-        let angle = (Math.PI * 2 * i) / 6;
-        ctx.beginPath();
-        ctx.moveTo(x, y);
-        ctx.lineTo(x + Math.cos(angle) * (6 + t * 16), y + Math.sin(angle) * (6 + t * 16));
-        ctx.stroke();
-    }
-    ctx.fillStyle = secondary;
-    ctx.beginPath();
-    ctx.arc(x, y, 3 + t * 4, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-}
-
-function drawGemAttackTrail(ctx, element, sx, sy, tx, ty, t) {
-    const e = normalizeBattleElement(element);
-    if (e === 'fire') {
-        ctx.globalAlpha = (1 - t) * 0.35;
-        ctx.strokeStyle = 'rgba(255,120,60,0.9)';
-        ctx.lineWidth = 5;
-        ctx.beginPath();
-        ctx.moveTo(sx, sy);
-        ctx.quadraticCurveTo((sx + tx) * 0.5, Math.min(sy, ty) - 16, tx, ty);
-        ctx.stroke();
-    } else if (e === 'cold') {
-        ctx.globalAlpha = (1 - t) * 0.3;
-        ctx.strokeStyle = 'rgba(184,238,255,0.9)';
-        ctx.lineWidth = 3;
-        ctx.setLineDash([4, 5]);
-        ctx.beginPath();
-        ctx.moveTo(sx, sy);
-        ctx.lineTo(tx, ty);
-        ctx.stroke();
-        ctx.setLineDash([]);
-    } else if (e === 'light') {
-        ctx.globalAlpha = (1 - t) * 0.55;
-        ctx.strokeStyle = 'rgba(255,238,150,0.95)';
-        ctx.lineWidth = 2.4;
-        drawBattleZigZag(ctx, sx, sy, tx, ty, 7, 9);
-        ctx.stroke();
-    } else if (e === 'chaos') {
-        ctx.globalAlpha = (1 - t) * 0.38;
-        ctx.strokeStyle = 'rgba(214,120,255,0.92)';
-        ctx.lineWidth = 2.4;
-        ctx.beginPath();
-        ctx.moveTo(sx, sy);
-        ctx.bezierCurveTo(sx + 18, sy - 18, tx - 24, ty + 14, tx, ty);
-        ctx.stroke();
-    } else {
-        ctx.globalAlpha = (1 - t) * 0.25;
-        ctx.strokeStyle = 'rgba(245,225,190,0.8)';
-        ctx.lineWidth = 2.6;
-        ctx.beginPath();
-        ctx.moveTo(sx, sy);
-        ctx.lineTo(tx, ty);
-        ctx.stroke();
-    }
-}
-
-function drawBattleSwingFx(ctx, fx, t, playerPos) {
-    // Keep playerSwing events for attack animation timing, but do not draw the
-    // extra slash/arc strokes around the player sprite.
-    return;
-}
-
-function drawElementalHitAccent(ctx, element, tx, ty, t, crit) {
-    const e = normalizeBattleElement(element || 'phys');
-    const boost = crit ? 1.2 : 1;
-    if (e === 'fire') {
-        ctx.globalAlpha = (1 - t) * 0.62;
-        ctx.fillStyle = 'rgba(255,120,64,0.65)';
-        for (let i = 0; i < Math.max(2, Math.floor(3 * lod)); i++) {
-            let spread = (i - 1) * 5;
-            ctx.beginPath();
-            ctx.ellipse(tx + spread, ty + 2 - t * 9, (3 + t * 5) * boost, (6 + t * 10) * boost, spread * 0.03, 0, Math.PI * 2);
-            ctx.fill();
-        }
-    } else if (e === 'cold') {
-        ctx.globalAlpha = (1 - t) * 0.7;
-        ctx.strokeStyle = 'rgba(187,236,255,0.95)';
-        ctx.lineWidth = 1.6;
-        for (let i = 0; i < Math.max(2, Math.floor(3 * lod)); i++) {
-            let a = (Math.PI * 2 * i) / 3 + t * 0.2;
-            ctx.beginPath();
-            ctx.moveTo(tx, ty);
-            ctx.lineTo(tx + Math.cos(a) * (8 + t * 14), ty + Math.sin(a) * (8 + t * 14));
-            ctx.stroke();
-        }
-    } else if (e === 'light') {
-        ctx.globalAlpha = (1 - t) * 0.82;
-        ctx.strokeStyle = 'rgba(255,244,150,0.95)';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(tx - 6, ty - 7);
-        ctx.lineTo(tx + 1, ty - 1);
-        ctx.lineTo(tx - 2, ty + 5);
-        ctx.lineTo(tx + 7, ty + 1);
-        ctx.stroke();
-    } else if (e === 'chaos') {
-        ctx.globalAlpha = (1 - t) * 0.58;
-        ctx.strokeStyle = 'rgba(220,128,255,0.86)';
-        ctx.lineWidth = 1.8;
-        ctx.beginPath();
-        ctx.arc(tx, ty, 7 + t * 11, t * 4.4, t * 4.4 + Math.PI * 1.2);
-        ctx.stroke();
-    } else {
-        ctx.globalAlpha = (1 - t) * 0.44;
-        ctx.strokeStyle = 'rgba(255,235,205,0.72)';
-        ctx.lineWidth = 1.4;
-        ctx.beginPath();
-        ctx.arc(tx, ty + 2, 6 + t * 8, 0, Math.PI * 2);
-        ctx.stroke();
-    }
-}
-
 
 function drawBattleHitFx(ctx, fx, t, playerPos, enemyPosMap) {
     // The elemental impact body/particles are owned by the attack-fx engine
@@ -12079,10 +11845,6 @@ function applyExternalSave(snapshot, sourceStamp) {
     updateCloudSaveUI();
 }
 
-async function fetchCloudUser() {
-    return await cloudJsonRequest('/auth/v1/user');
-}
-
 async function restoreCloudSession() {
     let stored = loadStoredCloudSession();
     if (!stored || !stored.access_token) return false;
@@ -12231,12 +11993,6 @@ function getLoopCompareSummary(record, localSnapshot = game) {
     let remoteLoop = updateRemoteLoopFromRecord(record);
     return { localLoop, remoteLoop, safeToPush: localLoop >= remoteLoop };
 }
-
-function countSavedStumpItems(snapshot) {
-    const items = snapshot.stumpBox && snapshot.stumpBox.items;
-    return Array.isArray(items) ? items.length : 0;
-}
-
 
 function isLikelyBootstrapLocalSave(snapshot) {
     let s = snapshot || game || {};
@@ -13008,65 +12764,6 @@ function pushCloudSaveOnPageExit(reason) {
     } catch (error) {
         console.warn(`cloud save on ${reason || 'page exit'} setup failed:`, error);
         return false;
-    }
-}
-
-async function cloudPushNow() {
-    if (!cloudState.user) return setCloudMessage('먼저 로그인해주세요.');
-    try {
-        await syncCloudSave({ automatic: false });
-    } catch (error) {
-        setCloudMessage('업로드 실패: ' + (error.message || error));
-    }
-}
-
-async function cloudCompactAndPushNow() {
-    if (!cloudState.user || !cloudState.user.id) return setCloudMessage('먼저 로그인해주세요.');
-    if (!await requestGameConfirmation('임시 전투 데이터를 제거한 경량 저장으로 클라우드를 덮어씁니다.\n장비, 인벤토리, 패시브와 재화는 유지됩니다.', {
-        title: '클라우드 저장 경량화',
-        tone: 'danger',
-        confirmLabel: '경량화 후 덮어쓰기'
-    })) return;
-    cloudState.busy = true;
-    setCloudMessage('클라우드 저장 경량화 업로드 중...');
-    updateCloudSaveUI();
-    try {
-        ensureSaveMeta();
-        markCurrentSaveCloudOwner();
-        game.saveMeta.lastModifiedAt = Date.now();
-        persistLocalSave({ touchModifiedAt: false });
-        let t0 = Date.now();
-        let payload = typeof createCloudSavePayload === 'function' ? createCloudSavePayload(game) : JSON.parse(JSON.stringify(game));
-        let payloadBytes = JSON.stringify(payload).length;
-        let tSerialize = Date.now();
-        await fetchCloudSaveRecord();
-        let row = await commitCloudSavePayload(payload, { user_id: cloudState.user.id, save_data: payload });
-        let tUpload = Date.now();
-        let syncedAt = row && row.updated_at ? (new Date(row.updated_at).getTime() || Date.now()) : Date.now();
-        if (row && Number.isFinite(Number(row.revision))) {
-            game.saveMeta.cloudRevision = Math.max(0, Math.floor(Number(row.revision)));
-            cloudState.lastRemoteRevision = getLocalCloudRevision();
-        }
-        game.saveMeta.lastCloudSyncAt = syncedAt;
-        cloudState.lastRemoteUpdatedAt = syncedAt;
-        cloudState.lastSyncAttemptAt = Date.now();
-        cloudState.lastSyncedLocalModifiedAt = Math.max(0, Number(game.saveMeta.lastModifiedAt || 0));
-        rememberCloudUploadProfile({
-            at: syncedAt,
-            fetchMs: 0,
-            serializeMs: Math.max(0, tSerialize - t0),
-            uploadMs: Math.max(0, tUpload - tSerialize),
-            totalMs: Math.max(0, tUpload - t0),
-            payloadBytes
-        });
-        persistLocalSave({ touchModifiedAt: false });
-        setCloudMessage(`경량화 업로드 완료 (${(payloadBytes / 1024).toFixed(1)}KB)`);
-        addLog(`☁️ 경량화 클라우드 저장 완료 (${(payloadBytes / 1024).toFixed(1)}KB)`, 'loot-magic');
-    } catch (error) {
-        setCloudMessage('경량화 업로드 실패: ' + (error.message || error));
-    } finally {
-        cloudState.busy = false;
-        updateCloudSaveUI();
     }
 }
 

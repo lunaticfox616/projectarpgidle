@@ -1058,12 +1058,6 @@ function getSkillChainDamageMultiplier(skill, jumpIndex) {
     return Math.max(0.1, 1 + Math.max(0, jumpIndex) * stepPct / 100);
 }
 
-function getGridUnitDistanceFromCell(origin, unit) {
-    if (!origin || !unit) return 0;
-    return getGridUnitCells(unit).reduce((closest, cell) => Math.min(closest,
-        Math.hypot(cell.gx - origin.gx, cell.gy - origin.gy)), Infinity);
-}
-
 /** 대지의 함성 · 서리바람 내지르기: the wave hurts where its drawn ring touches a monster, in the order it spreads (js/combat.js
  * pickWaveFrontTargets). The ring grows one cell per msPerCell up to reach; the stages, every half cell, are only the moments it is
  * checked. One wave strikes a monster once (shared state). The hits used to be fixed on the cells the targets stood on at the cast,

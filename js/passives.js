@@ -1543,289 +1543,6 @@ function polishPassiveLayout() {
     });
 }
 
-function shapePassiveTreeAsLifeTree() {
-    const nodes = Object.values(PASSIVE_TREE.nodes || {});
-    const root = PASSIVE_TREE.nodes.n0;
-    if (!root || nodes.length < 2) return;
-    const finiteDepths = nodes.map(node => Number(node.depth)).filter(Number.isFinite);
-    const maxDepth = Math.max(1, ...finiteDepths);
-    const sectorOrder = {
-        marauder: 0,
-        duelist: 1,
-        block: 1.35,
-        ranger: 2,
-        deflect: 2.35,
-        center: 2.5,
-        shadow: 3,
-        witch: 4,
-        templar: 5
-    };
-    const originalPosition = new Map(nodes.map(node => [node.id, { x: node.x, y: node.y }]));
-    const adjacency = new Map(nodes.map(node => [node.id, []]));
-    PASSIVE_TREE.edges.forEach(edge => {
-        if (adjacency.has(edge.from) && adjacency.has(edge.to)) {
-            adjacency.get(edge.from).push(edge.to);
-            adjacency.get(edge.to).push(edge.from);
-        }
-    });
-
-    function getTreeSectorOrder(node) {
-        if (Number.isFinite(sectorOrder[node.sector])) return sectorOrder[node.sector];
-        if (String(node.sector || '').startsWith('star_')) {
-            const starIndex = Number(String(node.sector).split('_')[1]);
-            return Number.isFinite(starIndex) ? starIndex * (5 / Math.max(1, PASSIVE_APEX_CONFIGS.length - 1)) : 2.5;
-        }
-        return 2.5;
-    }
-    function getTreeSpoke(node) {
-        if (Number.isFinite(node.webSpoke)) return node.webSpoke;
-        if (Number.isFinite(node.webCellSpoke)) return node.webCellSpoke;
-        return Number.isFinite(node.lane) ? node.lane : 0;
-    }
-
-    const starters = nodes.filter(node => node.id !== root.id && node.depth === 1)
-        .sort((a, b) => String(a.id).localeCompare(String(b.id), undefined, { numeric: true }));
-    const canopyPriority = { ranger: 0, shadow: 1, witch: 2, templar: 3, duelist: 4 };
-    const branches = starters.map(starter => ({
-        id: starter.id,
-        sector: starter.sector,
-        direction: starter.sector === 'marauder' ? 'root' : 'canopy',
-        order: 0,
-        targetX: 0,
-        maxBlockWidth: 0
-    }));
-    const directionBranches = {
-        canopy: branches.filter(branch => branch.direction === 'canopy')
-            .sort((a, b) => (canopyPriority[a.sector] ?? 99) - (canopyPriority[b.sector] ?? 99)),
-        root: branches.filter(branch => branch.direction === 'root')
-            .sort((a, b) => String(a.id).localeCompare(String(b.id), undefined, { numeric: true }))
-    };
-    directionBranches.canopy.forEach((branch, index) => { branch.order = index; });
-    directionBranches.root.forEach((branch, index) => { branch.order = index; });
-
-    const branchByNodeId = new Map();
-    branches.forEach(branch => branchByNodeId.set(branch.id, branch));
-
-    for (let depth = 2; depth <= maxDepth; depth++) {
-        nodes.filter(node => node.depth === depth).forEach(node => {
-            const candidates = (adjacency.get(node.id) || [])
-                .map(id => PASSIVE_TREE.nodes[id])
-                .filter(parent => parent && parent.depth === depth - 1 && branchByNodeId.has(parent.id))
-                .sort((a, b) => {
-                    const branchA = branchByNodeId.get(a.id);
-                    const branchB = branchByNodeId.get(b.id);
-                    const sectorMatchA = branchA.sector === node.sector ? 0 : 1;
-                    const sectorMatchB = branchB.sector === node.sector ? 0 : 1;
-                    if (sectorMatchA !== sectorMatchB) return sectorMatchA - sectorMatchB;
-                    const sectorDeltaA = Math.abs(getTreeSectorOrder(node) - getTreeSectorOrder(a));
-                    const sectorDeltaB = Math.abs(getTreeSectorOrder(node) - getTreeSectorOrder(b));
-                    if (sectorDeltaA !== sectorDeltaB) return sectorDeltaA - sectorDeltaB;
-                    const originalA = originalPosition.get(a.id) || { x: 0, y: 0 };
-                    const originalB = originalPosition.get(b.id) || { x: 0, y: 0 };
-                    const nodeOriginal = originalPosition.get(node.id) || { x: 0, y: 0 };
-                    const distanceA = Math.hypot(originalA.x - nodeOriginal.x, originalA.y - nodeOriginal.y);
-                    const distanceB = Math.hypot(originalB.x - nodeOriginal.x, originalB.y - nodeOriginal.y);
-                    if (distanceA !== distanceB) return distanceA - distanceB;
-                    return branchA.order - branchB.order;
-                });
-            if (candidates.length) branchByNodeId.set(node.id, branchByNodeId.get(candidates[0].id));
-        });
-    }
-
-    const rows = new Map();
-    nodes.forEach(node => {
-        if (node.id === root.id) return;
-        const depth = Number.isFinite(node.depth) ? Math.max(1, Math.floor(node.depth)) : maxDepth;
-        let branch = branchByNodeId.get(node.id);
-        if (!branch) {
-            const direction = node.sector === 'marauder' ? 'root' : 'canopy';
-            const candidates = directionBranches[direction];
-            branch = candidates[Math.abs(Math.floor(getTreeSectorOrder(node))) % Math.max(1, candidates.length)] || branches[0];
-            branchByNodeId.set(node.id, branch);
-        }
-        const rowKey = `${branch.id}:${depth}`;
-        if (!rows.has(rowKey)) rows.set(rowKey, []);
-        rows.get(rowKey).push(node);
-    });
-
-    function sortBranchRow(row) {
-        row.sort((a, b) => {
-            const spokeDelta = getTreeSpoke(a) - getTreeSpoke(b);
-            if (spokeDelta !== 0) return spokeDelta;
-            const clusterDelta = String(a.clusterId || '').localeCompare(String(b.clusterId || ''));
-            if (clusterDelta !== 0) return clusterDelta;
-            const originalDelta = (originalPosition.get(a.id).x || 0) - (originalPosition.get(b.id).x || 0);
-            if (originalDelta !== 0) return originalDelta;
-            return String(a.id).localeCompare(String(b.id), undefined, { numeric: true });
-        });
-        return row;
-    }
-
-    function buildRowBlock(row, direction) {
-        const ordered = sortBranchRow(row.slice());
-        const maxColumns = direction === 'canopy' ? 11 : 5;
-        const horizontalGap = direction === 'canopy' ? 28 : 30;
-        const verticalGap = direction === 'canopy' ? 28 : 34;
-        const lines = [];
-        for (let index = 0; index < ordered.length; index += maxColumns) {
-            let line = ordered.slice(index, index + maxColumns);
-            if (lines.length % 2 === 1) line = line.reverse();
-            let cursor = 0;
-            let maxRadius = 0;
-            const entries = line.map((node, nodeIndex) => {
-                const radius = getPassiveNodeVisualRadius(node);
-                if (nodeIndex > 0) cursor += horizontalGap;
-                cursor += radius;
-                const entry = { node, x: cursor, radius };
-                cursor += radius;
-                maxRadius = Math.max(maxRadius, radius);
-                return entry;
-            });
-            lines.push({ entries, width: cursor, height: maxRadius * 2 });
-        }
-
-        let heightCursor = 0;
-        const placements = [];
-        let blockWidth = 0;
-        lines.forEach((line, lineIndex) => {
-            if (lineIndex > 0) heightCursor += verticalGap;
-            const centerY = heightCursor + line.height * 0.5;
-            const stagger = lines.length > 1
-                ? (lineIndex % 2 === 0 ? -1 : 1) * horizontalGap * 0.38
-                : 0;
-            line.entries.forEach(entry => {
-                const localX = entry.x - line.width * 0.5 + stagger;
-                const normalizedX = line.width > 0 ? Math.min(1, Math.abs(localX) / (line.width * 0.5)) : 0;
-                const arc = Math.pow(normalizedX, 1.45) * (direction === 'canopy' ? 12 : -8);
-                placements.push({
-                    node: entry.node,
-                    x: localX,
-                    y: centerY + arc
-                });
-            });
-            heightCursor += line.height;
-            blockWidth = Math.max(blockWidth, line.width + Math.abs(stagger) * 2);
-        });
-        const blockHeight = Math.max(1, heightCursor);
-        placements.forEach(placement => { placement.y -= blockHeight * 0.5; });
-        return { width: Math.max(1, blockWidth), height: blockHeight, placements };
-    }
-
-    const blocks = new Map();
-    rows.forEach((row, key) => {
-        const branchId = key.split(':')[0];
-        const branch = branchByNodeId.get(branchId) || branches.find(item => item.id === branchId);
-        if (!branch) return;
-        const block = buildRowBlock(row, branch.direction);
-        blocks.set(key, block);
-        branch.maxBlockWidth = Math.max(branch.maxBlockWidth, block.width);
-    });
-
-    function assignBranchTargets(direction) {
-        const list = directionBranches[direction];
-        const branchGap = direction === 'canopy' ? 72 : 88;
-        let cursor = 0;
-        list.forEach((branch, index) => {
-            if (index > 0) cursor += branchGap;
-            cursor += branch.maxBlockWidth * 0.5;
-            branch.targetX = cursor;
-            cursor += branch.maxBlockWidth * 0.5;
-        });
-        const center = cursor * 0.5;
-        list.forEach(branch => { branch.targetX -= center; });
-    }
-    assignBranchTargets('canopy');
-    assignBranchTargets('root');
-
-    function smoothStep(value) {
-        const t = Math.max(0, Math.min(1, value));
-        return t * t * (3 - 2 * t);
-    }
-
-    function layoutDirection(direction) {
-        const list = directionBranches[direction];
-        const verticalBandGap = direction === 'canopy' ? 72 : 82;
-        const liveBranchGap = direction === 'canopy' ? 42 : 50;
-        let verticalCursor = getPassiveNodeVisualRadius(root) + 58;
-
-        for (let depth = 1; depth <= maxDepth; depth++) {
-            const depthBlocks = list
-                .map(branch => ({ branch, block: blocks.get(`${branch.id}:${depth}`) }))
-                .filter(entry => entry.block);
-            if (!depthBlocks.length) continue;
-            const bandHeight = Math.max(...depthBlocks.map(entry => entry.block.height));
-            verticalCursor += bandHeight * 0.5;
-            const bandCenter = direction === 'canopy' ? -verticalCursor : verticalCursor;
-            const progress = depth / maxDepth;
-            const canopyFan = 0.16 + 0.84 * smoothStep(progress);
-            const rootOutward = 0.18 + 0.82 * smoothStep(Math.min(1, progress / 0.58));
-            const rootReturn = 1 - 0.5 * smoothStep((progress - 0.58) / 0.42);
-            const fan = direction === 'canopy' ? canopyFan : rootOutward * rootReturn;
-            const placedBlocks = depthBlocks.map(({ branch, block }) => {
-                const waveAmplitude = direction === 'canopy'
-                    ? 32 + 68 * progress
-                    : 60 + 110 * progress;
-                const wave = Math.sin(depth * (direction === 'canopy' ? 0.64 : 0.82) + branch.order * 1.9)
-                    * waveAmplitude * Math.pow(progress, 0.72);
-                return { branch, block, centerX: branch.targetX * fan + wave };
-            });
-
-            for (let index = 1; index < placedBlocks.length; index++) {
-                const previous = placedBlocks[index - 1];
-                const current = placedBlocks[index];
-                const minimumCenter = previous.centerX + previous.block.width * 0.5 + current.block.width * 0.5 + liveBranchGap;
-                current.centerX = Math.max(current.centerX, minimumCenter);
-            }
-            if (placedBlocks.length) {
-                const leftEdge = placedBlocks[0].centerX - placedBlocks[0].block.width * 0.5;
-                const last = placedBlocks[placedBlocks.length - 1];
-                const rightEdge = last.centerX + last.block.width * 0.5;
-                const centerShift = (leftEdge + rightEdge) * 0.5;
-                placedBlocks.forEach(entry => { entry.centerX -= centerShift; });
-            }
-
-            placedBlocks.forEach(({ branch, block, centerX }) => {
-                const halfSlots = Math.max(1, (list.length - 1) * 0.5);
-                const slotDistance = Math.abs(branch.order - (list.length - 1) * 0.5) / halfSlots;
-                const crownCurve = Math.pow(slotDistance, 1.55) * (direction === 'canopy' ? 88 : 64) * Math.pow(progress, 1.2);
-                const verticalCoil = direction === 'root'
-                    ? Math.cos(depth * 0.78 + branch.order * 2.15) * 14 * progress
-                    : Math.sin(depth * 0.42 + branch.order * 1.35) * 6 * progress;
-                const centerY = direction === 'canopy'
-                    ? bandCenter + crownCurve + verticalCoil
-                    : bandCenter - crownCurve * 0.72 + verticalCoil;
-
-                block.placements.forEach(placement => {
-                    const node = placement.node;
-                    node.x = centerX + placement.x;
-                    node.y = centerY + placement.y;
-                    node.treeDepth = depth;
-                    node.treeDirection = direction;
-                    node.treeBranchRoot = branch.id;
-                    node.treeBranchOrder = branch.order;
-                });
-            });
-            verticalCursor += bandHeight * 0.5 + verticalBandGap;
-        }
-    }
-
-    layoutDirection('canopy');
-    layoutDirection('root');
-
-    root.x = 0;
-    root.y = 0;
-    root.treeDepth = 0;
-    root.treeDirection = 'trunk';
-    root.treeBranchRoot = root.id;
-    root.treeBranchOrder = 0;
-
-    PASSIVE_BOUNDS.minX = Math.min(...nodes.map(node => node.x));
-    PASSIVE_BOUNDS.maxX = Math.max(...nodes.map(node => node.x));
-    PASSIVE_BOUNDS.minY = Math.min(...nodes.map(node => node.y));
-    PASSIVE_BOUNDS.maxY = Math.max(...nodes.map(node => node.y));
-    if (typeof markPassiveRenderCacheDirty === 'function') markPassiveRenderCacheDirty('life-tree-layout');
-}
-
 function getPassiveTierValueForLayout(statKey, tier) {
     const statDef = P_STATS[statKey];
     if (!statDef) return tier >= 3 ? 8 : (tier === 2 ? 4 : 2);
@@ -2854,11 +2571,6 @@ function rerollTranscendentVoidPassive(entry) {
 function getTranscendentVoidPassiveCount(id, owner = game) {
     let state = owner === game ? ensureVoidPassiveState() : (owner.voidPassives || {});
     return (owner.passives || []).filter(nodeId => state[nodeId]?.transcendent?.id === id).length;
-}
-
-function getTranscendentVoidPassiveBonusValue(id) {
-    let state = ensureVoidPassiveState();
-    return (game.passives || []).reduce((sum, nodeId) => sum + (state[nodeId]?.transcendent?.id === id ? Number(state[nodeId].transcendent.value || 0) : 0), 0);
 }
 
 function recordImmortalHeroDeathPenalty() {
@@ -4710,19 +4422,6 @@ function cleanupBattleVisualState(now) {
         battleVisualState.processedFxIds = new Set([...battleVisualState.processedFxIds].filter(id => activeFxIds.has(id)));
     }
 }
-function spawnVisualProjectile(config) {
-    battleVisualState.projectiles.push({
-        start: performance.now(),
-        duration: config.duration || 220,
-        fromX: config.fromX || 0,
-        fromY: config.fromY || 0,
-        toX: config.toX || 0,
-        toY: config.toY || 0,
-        color: config.color || '#f8f1c8',
-        radius: config.radius || 3.8,
-        enemyShot: !!config.enemyShot
-    });
-}
 const DAMAGE_NUMBER_FORMATS = ['comma', 'korean', 'korean_short', 'english'];
 
 function normalizeDamageNumberFormat(format) {
@@ -5017,19 +4716,6 @@ function getSpriteFrameRectByIndex(image, frameIndex, config) {
     let row = Math.floor(safeIndex / cols);
     return { sx: col * frameW, sy: row * frameH, sw: frameW, sh: frameH };
 }
-function getWeaponAtlasRect(atlasIndex) {
-    if (!battleAssets.images.weapons) return null;
-    const cellW = Math.floor(battleAssets.images.weapons.width / 4);
-    const cellH = Math.floor(battleAssets.images.weapons.height / 3);
-    let col = atlasIndex % 4;
-    let row = Math.floor(atlasIndex / 4);
-    return { sx: col * cellW, sy: row * cellH, sw: cellW, sh: cellH, cellW, cellH };
-}
-function getEffectAtlasRect(effectIndex, image) {
-    if (!image) return null;
-    let frame = getSpriteFrameRectByIndex(image, effectIndex, { cols: 6, rows: 5 });
-    return frame;
-}
 function getHeroFrameMeta(frameIndex) {
     return HERO_FRAME_META[frameIndex] || {
         motion: 'idle',
@@ -5102,112 +4788,9 @@ function isTutorialOpen() {
     let overlay = document.getElementById('tutorial-overlay');
     return !!activeTutorial && !!overlay && overlay.classList.contains('active');
 }
-const TUTORIAL_GUIDES = {
-    tutorial_battle_basics: [
-        { title: '전투 화면 읽기', body: '전투는 자동으로 진행되지만, 화면은 현재 전투가 왜 막히는지 판단할 수 있도록 구성되어 있습니다.', bullets: ['파란 칸은 내 위치, 붉은 칸은 적 위치입니다.', '노란 강조는 현재 공격 대상, 청록 강조는 스킬이 닿는 범위입니다.', '적이 사거리 밖이면 캐릭터가 먼저 이동한 뒤 공격합니다.'], tip: '처음에는 피해량보다 생명력 막대와 적의 밀집도를 먼저 보세요.' },
-        { title: '공격과 피해 구분', body: '밝은 흰색/금색 숫자는 내가 준 피해, 붉은 숫자는 내가 받은 피해입니다.', bullets: ['금색 숫자는 치명타입니다.', '작게 반복되는 원소색 숫자는 지속 피해입니다.', '체력 막대 뒤에 남는 주황색은 방금 잃은 피해량입니다.'], tip: '붉은 숫자가 연속으로 크게 뜨면 장비 방어와 저항을 점검할 때입니다.' },
-        { title: '스킬 범위와 태그', body: '룬의 태그에 따라 공격 방식과 연출, 유효 범위가 달라집니다.', bullets: ['강타는 가까운 범위에 큰 충격을 줍니다.', '관통은 직선, 연쇄는 적 사이, 시체 폭발은 처치 지점을 활용합니다.', '공격 범위는 스킬 툴팁의 격자 설명에서 확인할 수 있습니다.'], tip: '넓은 범위가 늘 강하지는 않습니다. 단일 보스에는 집중형 스킬이 유리합니다.' },
-        { title: '다음 성장 순서', body: '막히면 패시브, 장비, 스킬룬을 순서대로 확인하면 원인을 찾기 쉽습니다.', bullets: ['패시브: 부족한 생존/화력 축을 보완', '장비: 방어도/회피/보호막과 저항 점검', '스킬: 공격 태그와 보조스킬룬 연결 확인'], tip: '새 콘텐츠가 열릴 때마다 이와 같은 단계형 설명이 표시됩니다.' }
-    ],
-    unlock_char: [
-        { title: '스킬트리란?', body: '스킬트리 포인트를 사용해 루트에서 가지를 타고 성장 방향을 선택하는 장기 빌드 시스템입니다.', bullets: ['루트 주변의 시작점은 서로 다른 기초 효과를 가집니다.', '활성화한 노드와 연결된 노드만 다음에 선택할 수 있습니다.', '작은 노드는 경로, 큰 장식 노드는 핵심 효과입니다.'], tip: '처음부터 모든 방향을 섞기보다 한 가지 공격 축과 한 가지 방어 축을 정하세요.' },
-        { title: '나무 구조 읽기', body: '아래의 루트에서 위쪽 수관으로 갈수록 전문 효과와 큰 보상이 등장합니다.', bullets: ['가지별 색과 배치는 테마를 구분합니다.', '노드에 마우스를 올리면 현재 경로가 강조됩니다.', '검색을 사용하면 원하는 스탯이 있는 가지를 찾을 수 있습니다.'], tip: '화면을 확대하면 선택 가능한 노드의 짧은 효과만 표시되어 글이 겹치지 않습니다.' },
-        { title: '첫 포인트 사용', body: '원하는 시작점을 고르고 연결된 경로 노드를 차례로 활성화하세요.', bullets: ['현재 부족한 생존 수단을 먼저 확인합니다.', '사용 중인 스킬 태그와 맞는 공격 효과를 고릅니다.', '큰 노드까지 필요한 포인트 수를 경로로 계산합니다.'], tip: '마지막 단계에서 패시브 화면을 바로 열 수 있습니다.' }
-    ],
-    unlock_items: [
-        { title: '장비와 제작', body: '획득한 장비를 비교/장착하고, 제작 재화로 옵션을 단계적으로 다듬는 콘텐츠입니다.', bullets: ['장비 등급: 일반 → 마법 → 희귀 → 고유', '기본 옵션과 추가 옵션은 서로 다른 역할을 합니다.', '아이템 필터와 자동 해체는 원치 않는 드랍을 정리합니다.'], tip: '처음에는 공격력 한 줄보다 생명력/방어/저항의 균형이 중요합니다.' },
-        { title: '제작 재화 사용 순서', body: '제작 재화마다 쓸 수 있는 장비 등급과 하는 일이 다릅니다.', bullets: ['마법의 새싹: 일반을 마법으로, 마법 옵션 다시 굴림', '수액 봉오리: 마법을 희귀로, 희귀에 옵션 1줄 추가', '형체 없는 이슬: 희귀 옵션을 모두 다시 굴림'], tip: '좋은 베이스가 아닌 장비에 희귀 재화를 너무 일찍 쓰지 마세요.' },
-        { title: '드랍 연출 읽기', body: '좋은 아이템일수록 전장에서 더 강한 색과 빛기둥으로 표시됩니다.', bullets: ['파랑: 일반적인 획득', '금색/보라색 기둥: 희귀 재화 또는 희귀 장비', '굵고 긴 빛기둥: 고유 장비나 최상급 재화'], tip: '로그를 꺼도 중요한 드랍 연출은 계속 표시됩니다.' }
-    ],
-    unlock_skills: [
-        { title: '스킬룬 구성', body: '공격 룬 하나를 중심으로 보조스킬룬을 연결해 공격 방식과 성능을 바꿉니다.', bullets: ['공격 룬은 기본 행동과 피해 태그를 정합니다.', '보조스킬룬은 연결 한도 안에서 효과를 추가합니다.', '룬 레벨과 강화 단계가 기본 성능을 높입니다.'], tip: '보조스킬룬 설명에 현재 공격 룬과 맞지 않는 태그가 없는지 확인하세요.' },
-        { title: '태그와 전투 방식', body: '강타/관통/연쇄/범위/지속 피해 같은 태그는 실제 격자 범위와 이펙트에 반영됩니다.', bullets: ['관통: 한 방향의 여러 적을 노림', '연쇄: 떨어진 적 사이를 순서대로 타격', '범위: 대상 주변 또는 자신 주변을 공격'], tip: '스킬 툴팁의 사거리와 반경을 함께 보세요.' },
-        { title: '교체 전 확인', body: '새 스킬을 장착하면 보조스킬룬 호환과 공격 범위도 함께 달라집니다.', bullets: ['현재 장비가 새 태그를 강화하는지 확인', '단일 대상과 다수 대상 중 필요한 역할 선택', '실전에서 대미지 숫자와 이동 빈도 비교'], tip: '사거리가 짧으면 공격 전 이동이 많아질 수 있습니다.' }
-    ],
-    unlock_map: [
-        { title: '지도는 무엇인가?', body: '현재 갈 수 있는 지역, 예상 난이도, 주요 드랍을 보고 다음 사냥터를 선택하는 콘텐츠입니다.', bullets: ['지역마다 몬스터 속성과 보상이 다릅니다.', '보스 지역은 일반 지역보다 위험하지만 보상이 큽니다.', '해금 조건이 표시된 지역은 요구 콘텐츠를 먼저 완료해야 합니다.'], tip: '막힌 지역을 반복하기보다 필요한 장비가 나오는 이전 지역을 활용하세요.' },
-        { title: '지역 선택 기준', body: '내 빌드가 버틸 수 있는 난이도와 필요한 보상을 함께 비교합니다.', bullets: ['받는 피해가 급증하면 한 단계 낮춤', '원하는 재화/장비/열쇠의 드랍 지역 확인', '보스 전에 저항과 회복 수단 점검'], tip: '클리어 속도가 너무 느리면 높은 지역이 오히려 비효율적입니다.' },
-        { title: '후반 지도 콘텐츠', body: '루프가 진행되면 균열, 혼돈계, 심층 보스 같은 별도 등반 콘텐츠가 지도에 추가됩니다.', bullets: ['각 콘텐츠는 고유 입장 조건과 진행도를 가집니다.', '루프에 귀속되는 보상과 영구 보상을 구분하세요.', '특수 열쇠는 해당 보스 목록에서 사용합니다.'], tip: '새 콘텐츠가 열리면 지도 탭의 알림 표시를 먼저 확인하세요.' }
-    ],
-    unlock_jewel: [
-        { title: '주얼의 역할', body: '주얼은 장비 소켓에 끼워 세밀한 스탯을 보완하는 성장 수단입니다.', bullets: ['반지, 목걸이, 허리띠에는 소켓이 처음부터 있습니다.', '다른 장비는 공허의 끌로 소켓을 한 칸 뚫습니다.'] },
-        { title: '끼우기와 빼기', body: '장비를 선택해 [소켓]을 누르면 보관함의 주얼을 끼우고 뺄 수 있습니다.', bullets: ['뺀 주얼은 보관함으로 돌아갑니다.', '쓰지 않는 주얼은 해체해 주얼 결정을 얻고, 결정 12개로 새 주얼을 뽑습니다.'] }
-    ],
-    unlock_codex: [
-        { title: '고유 아이템 도감', body: '획득한 고유 아이템을 기록하고 수집 진행도에 따른 보너스를 받는 콘텐츠입니다.', bullets: ['새 고유는 처음 획득할 때 도감에 등록됩니다.', '등록 여부와 보유 여부는 서로 다를 수 있습니다.', '수집 보너스는 전체 성장에 누적됩니다.'], tip: '새 도감 전용 필터를 켜면 이미 등록한 고유를 걸러낼 수 있습니다.' },
-        { title: '무엇을 확인하나?', body: '도감에서 미등록 항목, 고유 효과, 획득 경로를 확인하세요.', bullets: ['빌드 핵심 고유의 획득 지역 확인', '중복 고유의 보관/해체 판단', '도감 보너스 달성 구간 확인'], tip: '고유 등급이 늘 현재 빌드에 강하지는 않습니다.' }
-    ],
-    unlock_market: [
-        { title: '거래소의 역할', body: '남는 재화를 필요한 재화로 교환하거나 특수 서비스를 이용하는 보조 성장 콘텐츠입니다.', bullets: ['교환 비율과 보유량을 먼저 확인합니다.', '제작 계획에 필요한 수량만 교환합니다.', '시장 기능은 장비/제작 탭의 하위 메뉴에 있습니다.'], tip: '주력 제작 재화를 전부 다른 재화로 바꾸지 마세요.' },
-        { title: '안전한 사용 순서', body: '목표 장비와 필요한 제작 단계를 정한 뒤 부족한 재화만 보충하세요.', bullets: ['목표 옵션과 베이스 결정', '현재 재고 확인', '부족분만 교환 후 제작'], tip: '마지막 버튼으로 거래소 화면을 바로 엽니다.' }
-    ],
-    unlock_season_tab: [
-        { title: '루프와 영구 성장', body: '루프는 일부 진행을 다시 시작하는 대신 새로운 보너스와 콘텐츠를 여는 장기 진행 시스템입니다.', bullets: ['초기화되는 요소와 유지되는 요소가 다릅니다.', '루프 이정표에서 다음 해금 조건을 확인합니다.', '영구 노드는 이후 모든 루프에 영향을 줍니다.'], tip: '루프 직전에는 유지되는 장비/재화를 반드시 확인하세요.' },
-        { title: '다음 루프 준비', body: '현재 루프의 핵심 보상을 챙긴 뒤 전환하세요.', bullets: ['미완료 시련과 보스 확인', '보존 가능한 장비와 자원 정리', '다음 루프 목표 빌드 결정'], tip: '무조건 빠른 루프보다 필요한 영구 보상을 챙기는 편이 유리할 수 있습니다.' }
-    ],
-    unlock_traits: [
-        { title: '전직 화면 안내', body: '전직 화면에서는 전직을 고르고 두 종류의 전직 포인트를 씁니다.', bullets: ['전직 선택: 직업의 전직 셋 중 하나', '전직 패시브 포인트: 연결된 전직 노드 활성화', '키스톤 포인트: 빌드 규칙을 바꾸는 키스톤 활성화'], tip: '전직 패시브 포인트와 키스톤 포인트는 서로 다른 자원입니다.' }
-    ],
-};
 
 function escapeTutorialText(value) {
     return String(value == null ? '' : value).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
-}
-
-function getTutorialGuide(notice) {
-    if (!notice) return [];
-    if (TUTORIAL_GUIDES[notice.key]) return TUTORIAL_GUIDES[notice.key];
-    if (String(notice.key).startsWith('unlock_talent')) return TUTORIAL_GUIDES.unlock_traits;
-    return [{ title: notice.title, body: notice.body, bullets: [], tip: '마지막 단계에서 관련 화면을 바로 열 수 있습니다.' }];
-}
-
-function getTutorialVisualKind(key, stepIndex) {
-    if (key === 'tutorial_battle_basics') return ['battle', 'damage', 'skills', 'growth'][stepIndex] || 'battle';
-    if (key === 'unlock_char') return 'passive';
-    if (['unlock_items', 'unlock_jewel', 'unlock_codex', 'unlock_market'].includes(key)) return 'items';
-    if (key === 'unlock_skills') return 'skills-panel';
-    if (['unlock_map', 'unlock_season_tab'].includes(key)) return 'map';
-    if (key === 'unlock_traits') return 'class';
-    if (String(key).startsWith('unlock_talent')) return 'class';
-    return 'system';
-}
-
-function buildTutorialBattlePreview(kind) {
-    let grid = new Array(18).fill('<i></i>').join('');
-    let status = kind === 'growth' ? '방어가 부족합니다' : (kind === 'skills' ? '스킬 범위 확인' : '교전 중, 3기');
-    return `<div class="tutorial-game-preview is-${kind}">
-        <div class="tutorial-mini-status"><span>${status}</span><span class="tutorial-mini-hp"><i></i></span></div>
-        <div class="tutorial-mini-field"><div class="tutorial-mini-grid">${grid}</div><div class="tutorial-mini-hero">아군</div><div class="tutorial-mini-enemy">적</div><div class="tutorial-mini-target"></div><div class="tutorial-mini-damage">12,480</div></div>
-        <div class="tutorial-mini-skillbar"><span>사용 중</span><i class="tutorial-mini-skill">1</i><i class="tutorial-mini-skill">2</i><i class="tutorial-mini-skill">3</i><span>${kind === 'skills' ? '청록 칸 = 유효 범위' : '자동 공격'}</span></div>
-    </div>`;
-}
-
-function getTutorialPanelModel(kind) {
-    const models = {
-        passive: { focus: '패시브', tabs: ['캐릭터', '패시브'], rows: ['생명력 가지', '공격 속도 노드', '다음 연결 노드'] },
-        items: { focus: '장비', tabs: ['장비 창', '제작실'], rows: ['장착 장비 비교', '아이템 등급과 옵션', '필요 재화 확인'] },
-        'skills-panel': { focus: '스킬', tabs: ['공격 룬', '보조스킬룬'], rows: ['주 공격 스킬', '연결 가능한 보조', '태그, 범위 확인'] },
-        map: { focus: '지도', tabs: ['현재 지역', '다음 지역'], rows: ['몬스터 속성', '주요 보상', '보스 위험도'] },
-        class: { focus: '전직', tabs: ['전직', '재능'], rows: ['빌드 방향 선택', '핵심 노드 경로', '개화 효과 확인'] },
-        system: { focus: '안내', tabs: ['새 콘텐츠', '가이드'], rows: ['해금 조건 확인', '관련 화면 열기', '진행 목표 추적'] }
-    };
-    return models[kind] || models.system;
-}
-
-function buildTutorialPanelPreview(kind, stepIndex) {
-    let model = getTutorialPanelModel(kind);
-    let tabs = model.tabs.map((label, index) => `<span class="${index === Math.min(1, stepIndex) ? 'active' : ''}">${label}</span>`).join('');
-    let rows = model.rows.map((label, index) => `<div class="tutorial-panel-row ${index === Math.min(2, stepIndex) ? 'active' : ''}"><span>${label}</span><b>${index === Math.min(2, stepIndex) ? '◀ 지금 확인' : '/'}</b></div>`).join('');
-    return `<div class="tutorial-panel-preview"><div class="tutorial-panel-tabs">${tabs}</div><div class="tutorial-panel-body"><div class="tutorial-panel-focus">${model.focus}</div><div class="tutorial-panel-list">${rows}</div></div></div>`;
-}
-
-function renderTutorialVisual() {
-    let visual = document.getElementById('tutorial-visual');
-    if (!visual || !activeTutorial) return;
-    let kind = getTutorialVisualKind(activeTutorial.key, activeTutorialStep);
-    visual.innerHTML = ['battle', 'damage', 'skills', 'growth'].includes(kind)
-        ? buildTutorialBattlePreview(kind)
-        : buildTutorialPanelPreview(kind, activeTutorialStep);
 }
 
 function isRewardOpen() {
@@ -5318,13 +4901,6 @@ function chooseLoopHero(classId) {
     lastTime = Date.now();
 }
 
-function openRingSlotOverlay(invIdx) {
-    let item = game.inventory[invIdx];
-    pendingRingEquipItemId = item && item.id ? item.id : null;
-    let overlay = document.getElementById('ring-slot-overlay');
-    if (overlay && !overlay.open) overlay.showModal();
-}
-
 function openRingSlotOverlayByItemId(itemId) {
     pendingRingEquipItemId = Number.isFinite(itemId) ? itemId : null;
     let overlay = document.getElementById('ring-slot-overlay');
@@ -5342,13 +4918,6 @@ function selectRingSlotFromOverlay(slot) {
     closeRingSlotOverlay();
     if (!Number.isInteger(itemId)) return;
     equipItemById(itemId, slot);
-}
-
-function openGloveSlotOverlay(invIdx) {
-    let item = game.inventory[invIdx];
-    pendingGloveEquipItemId = item && item.id ? item.id : null;
-    let overlay = document.getElementById('glove-slot-overlay');
-    if (overlay && !overlay.open) overlay.showModal();
 }
 
 function openGloveSlotOverlayByItemId(itemId) {
@@ -6238,68 +5807,6 @@ function getCustomHeroSheetDataUrl() {
     }
 }
 
-function saveCustomHeroSheetDataUrl(dataUrl) {
-    try {
-        if (!dataUrl) localStorage.removeItem(CUSTOM_HERO_SHEET_STORAGE_KEY);
-        else localStorage.setItem(CUSTOM_HERO_SHEET_STORAGE_KEY, dataUrl);
-    } catch (error) {
-        addLog('⚠️ 브라우저 저장공간 문제로 커스텀 시트를 저장하지 못했습니다.', 'attack-monster');
-    }
-}
-
-function reloadBattleAssets() {
-    battleAssets.loading = false;
-    battleAssets.ready = false;
-    battleAssets.failed = false;
-    battleAssets.failedKeys = [];
-    battleAssets.images = {};
-    battleAssets.backdrops = {};
-    battleAssets.atlas = null;
-    battleAssets.loadPromise = null;
-    battleVisualState.weaponAtlasResolved = null;
-    battleVisualState.effectAtlasResolved = null;
-    battleVisualState.gridOccupancyCache = new WeakMap();
-    initBattleAssets();
-}
-
-function openHeroSheetPicker() {
-    let input = document.getElementById('hero-sheet-input');
-    if (!input) return;
-    input.value = '';
-    input.click();
-}
-
-function onHeroSheetSelected(event) {
-    let file = event && event.target && event.target.files ? event.target.files[0] : null;
-    if (!file) return;
-    if (!/^image\//.test(file.type || '')) {
-        addLog('⚠️ 이미지 파일만 업로드할 수 있습니다.', 'attack-monster');
-        return;
-    }
-    let reader = new FileReader();
-    reader.onload = function(loadEvent) {
-        let dataUrl = String(loadEvent.target && loadEvent.target.result || '');
-        if (!dataUrl.startsWith('data:image/')) {
-            addLog('⚠️ 이미지 데이터 인식에 실패했습니다.', 'attack-monster');
-            return;
-        }
-        saveCustomHeroSheetDataUrl(dataUrl);
-        addLog('🎨 플레이어 커스텀 시트를 적용했습니다.', 'loot-magic');
-        reloadBattleAssets();
-    };
-    reader.onerror = function() {
-        addLog('⚠️ 파일 읽기에 실패했습니다.', 'attack-monster');
-    };
-    reader.readAsDataURL(file);
-}
-
-function resetHeroSheetToDefault() {
-    saveCustomHeroSheetDataUrl(null);
-    addLog('🎨 플레이어 시트를 기본 이미지로 복원했습니다.', 'loot-normal');
-    reloadBattleAssets();
-}
-
-
 function isLocalFileProtocol() {
     return typeof window !== 'undefined' && window.location && window.location.protocol === 'file:';
 }
@@ -6338,17 +5845,6 @@ function shouldPreserveOriginalBattleSheet(key) {
         || key.startsWith('passiveTree');
 }
 
-function fileExists(path) {
-    if (isLocalFileProtocol()) return true;
-    try {
-        const xhr = new XMLHttpRequest();
-        xhr.open('HEAD', path, false);
-        xhr.send();
-        return xhr.status >= 200 && xhr.status < 400;
-    } catch (error) {
-        return false;
-    }
-}
 function initBattleAssets() {
     if (battleAssets.ready) return Promise.resolve(true);
     if (battleAssets.loading && battleAssets.loadPromise) return battleAssets.loadPromise;
@@ -8251,22 +7747,6 @@ function drawBattleSprite(ctx, image, rect, x, y, desiredHeight, options) {
     ctx.restore();
 }
 
-function drawBattleTile(ctx, image, rect, x, y, size, options) {
-    if (!image || !rect) return;
-    options = options || {};
-    let crop = options.crop === undefined ? 0 : options.crop;
-    let overlap = options.overlap === undefined ? 1 : options.overlap;
-    let sx = rect.x + crop;
-    let sy = rect.y + crop;
-    let sw = Math.max(1, rect.width - crop * 2);
-    let sh = Math.max(1, rect.height - crop * 2);
-    let dx = Math.floor(x) - overlap;
-    let dy = Math.floor(y) - overlap;
-    let dw = Math.ceil(size + overlap * 2);
-    let dh = Math.ceil(size + overlap * 2);
-    ctx.drawImage(image, sx, sy, sw, sh, dx, dy, dw, dh);
-}
-
 /** Save boundary: convert old projectile counts once; stat id records the new percent unit. */
 function migrateEquipmentProjectileOption(stat) {
     if (!stat) return;
@@ -10114,10 +9594,6 @@ function isJewelPetiteStat(stat) {
     return !!(stat && stat.petite && !stat.waxBonus);
 }
 
-function getJewelCoreStats(jewel) {
-    return getJewelStats(jewel).filter(stat => !isJewelPetiteStat(stat));
-}
-
 function formatJewelStatValue(statId, value) {
     let option = getJewelOptionDef(statId);
     if (option && Number.isFinite(option.step) && option.step < 1) return Number(value || 0).toFixed(2);
@@ -10452,14 +9928,6 @@ function salvageItem(idx) {
     updateStaticUI();
 }
 
-function updateSalvageSettingsFromUI() {
-    game.settings.autoSalvageRarities = game.settings.autoSalvageRarities || { normal: true, magic: true, rare: false, unique: false };
-    ['normal', 'magic', 'rare', 'unique'].forEach(rarity => {
-        let el = document.getElementById(`chk-salvage-${rarity}`);
-        if (el) game.settings.autoSalvageRarities[rarity] = !!el.checked;
-    });
-}
-
 function syncSalvageControlsFromSettings() {
     game.settings.autoSalvageRarities = game.settings.autoSalvageRarities || { normal: true, magic: true, rare: false, unique: false };
     ['normal', 'magic', 'rare', 'unique'].forEach(rarity => {
@@ -10509,14 +9977,6 @@ function confirmedSalvageTargets(items) {
     return items.filter(item => game.inventory.includes(item) && !isBulkSalvageProtectedItem(item));
 }
 
-function bulkSalvage(maxRarity) {
-    let targetRank = maxRarity === 'normal' ? 0 : 1;
-    const targets = game.inventory.filter(item => !isBulkSalvageProtectedItem(item) && getRarityRank(item.rarity) <= targetRank);
-    const rewards = salvageBagItems(targets);
-    ensureCraftSelectionValid();
-    if (targets.length > 0) addLog(`🧪 장비 ${targets.length}개 해체, ${formatSalvageRewardSummary(rewards)}`, 'loot-normal');
-    updateStaticUI();
-}
 function getActiveRarityFilterSet() {
     let f = (typeof getInventoryRarityFilter === 'function')
         ? getInventoryRarityFilter()
@@ -10566,19 +10026,6 @@ async function bulkSalvageAllInventory() {
     addLog(`🧪 인벤토리 전체해체 완료 (${targets.length}개), ${formatSalvageRewardSummary(rewards)}${lockedCount > 0 ? `, 잠금/배치/세팅 ${lockedCount}개 보호` : ''}`, 'loot-normal');
     updateStaticUI();
 }
-
-function cycleSporeCraftMode(currencyKey) {
-    let allowed = ['transmute','augment','alteration','alchemy','regal','chaos','exalted'];
-    if (!allowed.includes(currencyKey)) return;
-    game.sporeCraftModes = game.sporeCraftModes || {};
-    let modes = getAvailableSporeCraftModes();
-    let cur = game.sporeCraftModes[currencyKey] || 'none';
-    let curIndex = modes.indexOf(cur);
-    let next = modes[((curIndex >= 0 ? curIndex : 0) + 1) % modes.length];
-    game.sporeCraftModes[currencyKey] = next;
-    updateStaticUI();
-}
-
 
 function getAvailableSporeCraftModes() {
     let modes = ['none', 'fire', 'cold', 'light'];

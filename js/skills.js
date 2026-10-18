@@ -692,14 +692,6 @@ function restorePrimalFossil(kind) {
 }
 
 
-function getItemTotalStats(item) {
-    let bucket = createEmptyStatBucket();
-    applyStatsToBucket(bucket, item.baseStats || []);
-    applyStatsToBucket(bucket, item.stats || []);
-    if (typeof getImmutableItemSpecialStats === 'function') applyStatsToBucket(bucket, getImmutableItemSpecialStats(item));
-    return bucket;
-}
-
 // knownStats: 이미 계산해 둔 스탯이 있으면 넘긴다. getPlayerStats는 한 번에 2.7ms가
 // 드는데, 화면 갱신마다 여기서 한 번, 바로 뒤에서 또 한 번 부르고 있었다.
 function normalizeSupportLoadout(logChange, knownStats) {

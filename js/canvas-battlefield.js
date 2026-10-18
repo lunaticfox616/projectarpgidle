@@ -3220,11 +3220,6 @@ function drawBossBannerRule(ctx, left, right, y) {
     }
 }
 
-function getBattleMarkerLabel(marker) {
-    if (marker.boss) return '보';
-    if (marker.elite) return `정${marker.count || 1}`;
-    return `${marker.count || 1}기`;
-}
 function getElementLabel(ele) {
     if (ele === 'fire') return '화염';
     if (ele === 'cold') return '냉기';
@@ -3265,16 +3260,6 @@ function getEnemyTraitSummary(enemy) {
     if ((enemy.leechEffMul || 1) <= 0) tags.push('흡혈불가');
     else if ((enemy.leechEffMul || 1) < 1) tags.push(`흡혈저항 ${Math.floor((enemy.leechEffMul || 1) * 100)}%`);
     return Array.from(new Set(tags.filter(Boolean)));
-}
-function getEnemyShortLabel(enemy) {
-    if (enemy.isSeveredWanderer) return '방랑자';
-    if (enemy.isBoss) return '보스';
-    if (enemy.isElite) return '정예';
-    if (enemy.ele === 'fire') return '화염';
-    if (enemy.ele === 'cold') return '냉기';
-    if (enemy.ele === 'light') return '번개';
-    if (enemy.ele === 'chaos') return '공허';
-    return '추종자';
 }
 
 

@@ -593,11 +593,6 @@ function advanceTutorial() {
     if (!activeTutorial) return;
     dismissTutorial(true);
 }
-function goBackTutorialStep() {
-    if (!activeTutorial || activeTutorialStep <= 0) return;
-    activeTutorialStep -= 1;
-    renderTutorialStep();
-}
 /** 첫 스킬룬 안내를 따라 하지 않고 닫으면 그 룬을 대신 장착한다 — 방치하는 플레이어는 기본 공격으로 싸우며 초반에 거듭
  * 쓰러졌다(검토 2026-10-01). 바꾸고 싶으면 '스킬룬'에서 언제든 바꾼다. */
 function equipSkippedStarterGem(key) {
