@@ -1014,7 +1014,7 @@
     },
     "getSummonTooltipPreview|complexity|Function 'getSummonTooltipPreview' has a complexity of #. Maximum allowed is #.": {
       "count": 1,
-      "max": 23
+      "max": 19
     },
     "resolveSummonHit|complexity|Function 'resolveSummonHit' has a complexity of #. Maximum allowed is #.": {
       "count": 1,
@@ -11053,6 +11053,7 @@
     "dependency:getSummonTooltipPreview->Number",
     "dependency:getSummonTooltipPreview->getPlayerStats",
     "dependency:getSummonTooltipPreview->getSummonAttackIntervalMs",
+    "dependency:getSummonTooltipPreview->getSummonCritProfile",
     "dependency:getSummonTooltipPreview->getSummonEvadeChance",
     "dependency:getSummonTooltipPreview->getSummonEvasionRating",
     "dependency:getSummonTooltipPreview->getSummonGemLevel",
