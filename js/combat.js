@@ -12060,6 +12060,9 @@ function applyActRestRecovery(pStats, hpCap) {
     game.playerHp = Math.min(hpCap, game.playerHp + pStats.maxHp * ACT_REST_RECOVERY_PCT_PER_SEC / 100 * 0.1);
 }
 
+/** The hero fell in zone: this loop's death count, the content's own defeat (back to where it came from, its run closed) or else the
+ * experience penalty, then the death log and notice, full life and the walk on. Split by content on 2026-10-18 with the same steps
+ * in the same order; log lines reach the content parts as say. */
 function handlePlayerDefeat(zone, pStats, message, options) {
     actExplorationProgress.defeat(game);
     let opts = options || {};
@@ -12067,104 +12070,11 @@ function handlePlayerDefeat(zone, pStats, message, options) {
     let expLost = 0;
     game.loopDeaths = Math.max(0, Math.floor(game.loopDeaths || 0)) + 1;
     if (typeof recordImmortalHeroDeathPenalty === 'function') recordImmortalHeroDeathPenalty();
-    if (zone && zone.id === OUTSIDE_CHAOS_ZONE_ID) {
-        let woodsman = (game.enemies || []).find(e => e && e.isBoss);
-        if (woodsman && woodsman.maxHp > 0) {
-            let dealtRatio = Math.max(0, Math.min(0.999, 1 - (woodsman.hp / woodsman.maxHp)));
-            let score = Math.floor(dealtRatio * 1000000);
-            addWoodsmanPendingScore(score);
-            maybeUnlockChaosRealmFromWoodsman(woodsman, { log: true, finalize: true });
-            addLog(`🪓 나무꾼 전투 정산 대기 점수 +${score} (루프 정산 시 반영)`, 'season-up');
-        }
-        clearWoodsmanBuildLock();
-        game.currentZoneId = getDefeatRecoveryZoneId();
-        game.killsInZone = 0;
-    } else if (zone && zone.id === 'colony_run' && game.colony && game.colony.inRun) {
-        addLog(message || "☠️ 군락지 방어전에서 패배했습니다.", "death", { noToast: !!opts.noToast });
-        game.colony.inRun = false;
-        game.currentZoneId = game.colony.returnZoneId !== undefined && game.colony.returnZoneId !== null ? game.colony.returnZoneId : getDefeatRecoveryZoneId();
-        game.colony.returnZoneId = null;
-        game.enemies = [];
-        game.encounterPlan = [];
-        game.encounterIndex = 0;
-        game.runProgress = 0;
-        game.killsInZone = 0;
-    } else if (zone && zone.id === 'beehive_run' && game.beehive && game.beehive.inRun) {
-        addLog(message || "☠️ 벌집 전투에서 패배했습니다. 원정이 즉시 종료됩니다.", "death", { noToast: !!opts.noToast });
-        if (typeof exitBeehiveRun === 'function') exitBeehiveRun('', 'death');
-        else {
-            game.beehive.inRun = false;
-            game.beehive.awaitingClear = false;
-            game.beehive.pendingChoice = null;
-            game.currentZoneId = game.beehive.returnZoneId !== undefined && game.beehive.returnZoneId !== null ? game.beehive.returnZoneId : getDefeatRecoveryZoneId();
-            game.beehive.returnZoneId = null;
-            game.enemies = [];
-            game.encounterPlan = [];
-            game.encounterIndex = 0;
-            game.runProgress = 0;
-            game.killsInZone = 0;
-        }
-    } else if (zone && zone.id === 'grand_breach_run') {
-        let v = game.voidRift || (game.voidRift = { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0 });
-        let grand = v.grandRun || {};
-        addLog(message || "☠️ 대균열에서 패배했습니다. 균열이 닫히며 추방됩니다.", "death", { noToast: !!opts.noToast });
-        v.grandRun = { ...grand, inRun: false, phase: 'failed', timeLeft: 0 };
-        game.enemies = [];
-        game.encounterPlan = [];
-        game.encounterIndex = 0;
-        game.runProgress = 0;
-        game.currentZoneId = grand.returnZoneId !== undefined ? grand.returnZoneId : getDefeatRecoveryZoneId();
-        game.killsInZone = 0;
-    } else if (zone && zone.type === 'beyondBoundary') {
-        let returnZoneId = abandonBeyondBoundaryRun(game);
-        addLog(message || '경계 너머 도전에 실패했습니다. 진행 중이던 단계가 종료됩니다.', 'death', { noToast: !!opts.noToast });
-        game.currentZoneId = returnZoneId !== null && returnZoneId !== undefined ? returnZoneId : getDefeatRecoveryZoneId();
-        game.killsInZone = 0;
-        game.enemies = [];
-        game.encounterPlan = [];
-        game.encounterIndex = 0;
-        game.runProgress = 0;
-    } else if (zone && zone.type === 'meteor') {
-        addLog(message || "☠️ 운석 낙하 지점에서 패배했습니다. 운석 지점이 닫힙니다.", "death", { noToast: !!opts.noToast });
-        let st = ensureMeteorSiteState();
-        st.activeMeteorTier = null;
-        let returnZoneId = st.meteorReturnZoneId;
-        st.meteorReturnZoneId = null;
-        game.currentZoneId = returnZoneId !== undefined && returnZoneId !== null ? returnZoneId : getDefeatRecoveryZoneId();
-        game.killsInZone = 0;
-        game.enemies = [];
-        game.encounterPlan = [];
-        game.encounterIndex = 0;
-        game.runProgress = 0;
-    } else if (zone && zone.type === 'timeRift') {
-        let rift = ensureTimeRiftState();
-        rift.activePressure = null;
-        addLog(message || `☠️ 시간의 균열(${zone.riftPhase === 'past' ? '과거' : '미래'})에서 밀려났습니다. 제단에 맡긴 아이템은 보존됩니다.`, 'death', { noToast: !!opts.noToast });
-        game.currentZoneId = getDefeatRecoveryZoneId();
-        game.killsInZone = 0;
-        game.enemies = [];
-        game.encounterPlan = [];
-        game.encounterIndex = 0;
-        game.runProgress = 0;
-    } else if (zone && zone.type === 'seasonBoss' && game.inTicketBossFight) {
-        let fallbackMessage = zone.milestonePinnacle
-            ? '☠️ 최종 관문 도전에 실패했습니다. 장비와 방어를 정비해 다시 도전하세요.'
-            : '☠️ 뿌리 보스 도전에 실패했습니다. 액트 1로 되돌아갑니다.';
-        addLog(message || fallbackMessage, "death", { noToast: !!opts.noToast });
-        game.currentZoneId = 0;
-        game.killsInZone = 0;
-        game.inTicketBossFight = false;
-    } else if (zone && zone.type === 'trial') {
-        addLog(message || "☠️ 시련 실패! 마을로 귀환합니다.", "death", { noToast: !!opts.noToast });
-        game.currentZoneId = getDefeatRecoveryZoneId();
-        game.killsInZone = 0;
-    } else {
-        let expPenalty = Math.floor(getExpReq(game.level) * 0.1);
-        addLog(message || "☠️ 사망! 경험치 페널티 적용", "death", { noToast: !!opts.noToast });
-        let expBeforePenalty = Math.max(0, Math.floor(Number(game.exp) || 0));
-        game.exp = Math.max(0, expBeforePenalty - expPenalty);
-        expLost = expBeforePenalty - game.exp;
-    }
+    // The hive run's exit is read only for a hive defeat (the hive screen script owns it).
+    const defeatUi = { say: addLog, get exitBeehiveRun() { return typeof exitBeehiveRun === 'function' ? exitBeehiveRun : null; } };
+    const contentDefeat = getContentDefeat(zone);
+    if (contentDefeat) contentDefeat(zone, message, opts, defeatUi);
+    else expLost = applyDeathExpPenalty(message, opts, defeatUi);
     game.lastDeathLog = buildPlayerDeathLog(zone, opts, expLost, pStats);
     if (game.lastDeathLog.retreatZoneName) addLog(`🛡️ ${withDirectionParticle(game.lastDeathLog.retreatZoneName)} 물러나 레벨을 ${ACT_RETREAT_LEVELS} 올린 뒤 다시 도전합니다.`, 'season-up');
     if (game.settings.showDeathNotice !== false) openDeathOverlay.request(game.lastDeathLog);
@@ -12173,6 +12083,124 @@ function handlePlayerDefeat(zone, pStats, message, options) {
     startMoving(false);
     updateStaticUI();
     queueImportantSave(160);
+}
+/** The content whose own rules a defeat in zone follows (a run by its id, else by its kind), or null for the experience penalty. */
+function getContentDefeat(zone) {
+    if (!zone) return null;
+    return getRunDefeat(zone) || getContentKindDefeat(zone);
+}
+function getRunDefeat(zone) {
+    if (zone.id === OUTSIDE_CHAOS_ZONE_ID) return defeatAgainstWoodsman;
+    if (zone.id === 'colony_run' && game.colony && game.colony.inRun) return defeatInColony;
+    if (zone.id === 'beehive_run' && game.beehive && game.beehive.inRun) return defeatInBeehive;
+    return zone.id === 'grand_breach_run' ? defeatInGrandBreach : null;
+}
+function getContentKindDefeat(zone) {
+    if (zone.type === 'seasonBoss') return game.inTicketBossFight ? defeatInRootBossFight : null;
+    return Object.hasOwn(CONTENT_DEFEAT_BY_KIND, zone.type) ? CONTENT_DEFEAT_BY_KIND[zone.type] : null;
+}
+/** Leaves the encounter: no enemies, plan or progress left. */
+function clearDefeatedEncounter() {
+    game.enemies = [];
+    game.encounterPlan = [];
+    game.encounterIndex = 0;
+    game.runProgress = 0;
+}
+/** Back where the run started, else the defeat recovery zone. */
+const defeatReturnZone = returnZoneId => (returnZoneId !== undefined && returnZoneId !== null ? returnZoneId : getDefeatRecoveryZoneId());
+function defeatAgainstWoodsman(zone, message, opts, ui) {
+    let woodsman = (game.enemies || []).find(e => e && e.isBoss);
+    if (woodsman && woodsman.maxHp > 0) {
+        let dealtRatio = Math.max(0, Math.min(0.999, 1 - (woodsman.hp / woodsman.maxHp)));
+        let score = Math.floor(dealtRatio * 1000000);
+        addWoodsmanPendingScore(score);
+        maybeUnlockChaosRealmFromWoodsman(woodsman, { log: true, finalize: true });
+        ui.say(`🪓 나무꾼 전투 정산 대기 점수 +${score} (루프 정산 시 반영)`, 'season-up');
+    }
+    clearWoodsmanBuildLock();
+    game.currentZoneId = getDefeatRecoveryZoneId();
+    game.killsInZone = 0;
+}
+function defeatInColony(zone, message, opts, ui) {
+    ui.say(message || "☠️ 군락지 방어전에서 패배했습니다.", "death", { noToast: !!opts.noToast });
+    game.colony.inRun = false;
+    game.currentZoneId = defeatReturnZone(game.colony.returnZoneId);
+    game.colony.returnZoneId = null;
+    clearDefeatedEncounter();
+    game.killsInZone = 0;
+}
+function defeatInBeehive(zone, message, opts, ui) {
+    ui.say(message || "☠️ 벌집 전투에서 패배했습니다. 원정이 즉시 종료됩니다.", "death", { noToast: !!opts.noToast });
+    const exitRun = ui.exitBeehiveRun;
+    if (exitRun) {
+        exitRun('', 'death');
+        return;
+    }
+    game.beehive.inRun = false;
+    game.beehive.awaitingClear = false;
+    game.beehive.pendingChoice = null;
+    game.currentZoneId = defeatReturnZone(game.beehive.returnZoneId);
+    game.beehive.returnZoneId = null;
+    clearDefeatedEncounter();
+    game.killsInZone = 0;
+}
+function defeatInGrandBreach(zone, message, opts, ui) {
+    let v = game.voidRift || (game.voidRift = { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0 });
+    let grand = v.grandRun || {};
+    ui.say(message || "☠️ 대균열에서 패배했습니다. 균열이 닫히며 추방됩니다.", "death", { noToast: !!opts.noToast });
+    v.grandRun = { ...grand, inRun: false, phase: 'failed', timeLeft: 0 };
+    clearDefeatedEncounter();
+    game.currentZoneId = grand.returnZoneId !== undefined ? grand.returnZoneId : getDefeatRecoveryZoneId();
+    game.killsInZone = 0;
+}
+function defeatBeyondBoundary(zone, message, opts, ui) {
+    let returnZoneId = abandonBeyondBoundaryRun(game);
+    ui.say(message || '경계 너머 도전에 실패했습니다. 진행 중이던 단계가 종료됩니다.', 'death', { noToast: !!opts.noToast });
+    game.currentZoneId = defeatReturnZone(returnZoneId);
+    game.killsInZone = 0;
+    clearDefeatedEncounter();
+}
+function defeatAtMeteor(zone, message, opts, ui) {
+    ui.say(message || "☠️ 운석 낙하 지점에서 패배했습니다. 운석 지점이 닫힙니다.", "death", { noToast: !!opts.noToast });
+    let st = ensureMeteorSiteState();
+    st.activeMeteorTier = null;
+    let returnZoneId = st.meteorReturnZoneId;
+    st.meteorReturnZoneId = null;
+    game.currentZoneId = defeatReturnZone(returnZoneId);
+    game.killsInZone = 0;
+    clearDefeatedEncounter();
+}
+function defeatInTimeRift(zone, message, opts, ui) {
+    let rift = ensureTimeRiftState();
+    rift.activePressure = null;
+    ui.say(message || `☠️ 시간의 균열(${zone.riftPhase === 'past' ? '과거' : '미래'})에서 밀려났습니다. 제단에 맡긴 아이템은 보존됩니다.`, 'death', { noToast: !!opts.noToast });
+    game.currentZoneId = getDefeatRecoveryZoneId();
+    game.killsInZone = 0;
+    clearDefeatedEncounter();
+}
+function defeatInRootBossFight(zone, message, opts, ui) {
+    let fallbackMessage = zone.milestonePinnacle
+        ? '☠️ 최종 관문 도전에 실패했습니다. 장비와 방어를 정비해 다시 도전하세요.'
+        : '☠️ 뿌리 보스 도전에 실패했습니다. 액트 1로 되돌아갑니다.';
+    ui.say(message || fallbackMessage, "death", { noToast: !!opts.noToast });
+    game.currentZoneId = 0;
+    game.killsInZone = 0;
+    game.inTicketBossFight = false;
+}
+function defeatInTrial(zone, message, opts, ui) {
+    ui.say(message || "☠️ 시련 실패! 마을로 귀환합니다.", "death", { noToast: !!opts.noToast });
+    game.currentZoneId = getDefeatRecoveryZoneId();
+    game.killsInZone = 0;
+}
+/** Content kinds whose defeat closes their run (a root boss fight is chosen in getContentKindDefeat). */
+const CONTENT_DEFEAT_BY_KIND = Object.freeze({ beyondBoundary: defeatBeyondBoundary, meteor: defeatAtMeteor, timeRift: defeatInTimeRift, trial: defeatInTrial });
+/** Anywhere else: a tenth of this level's experience is lost (never below 0). Returns the experience lost. */
+function applyDeathExpPenalty(message, opts, ui) {
+    let expPenalty = Math.floor(getExpReq(game.level) * 0.1);
+    ui.say(message || "☠️ 사망! 경험치 페널티 적용", "death", { noToast: !!opts.noToast });
+    let expBeforePenalty = Math.max(0, Math.floor(Number(game.exp) || 0));
+    game.exp = Math.max(0, expBeforePenalty - expPenalty);
+    return expBeforePenalty - game.exp;
 }
 
 /** 사망 기록: 마지막 3초(속성별, 상태이상, 몬스터별)와 그 전투 전체의 피해(takeDeathFightSummary), 최대 생명. */
