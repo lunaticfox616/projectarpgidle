@@ -7948,8 +7948,21 @@ function normalizeBelt(item) {
     if (typeof colonyWards === 'object') colonyWards.stampBelt(item);
 }
 
-function normalizeItem(item) {
+/** Stat ids older data put on item lines, and what they are now: venomStingerBonus (벌집 장비, never a stat) is 중독 피해 증가 since
+ * 2026-10-18. The 독벌침 craft's own marker (stat.venomStingerBonus = true) is a property, not an id, and stays. Returns the item
+ * (null for none). */
+const RETIRED_ITEM_STAT_IDS = Object.freeze({ venomStingerBonus: 'poisonDamageMultiplierPct' });
+function renameRetiredItemStatIds(item) {
     if (!item) return null;
+    [item.baseStats, item.stats].forEach(list => (Array.isArray(list) ? list : []).forEach(stat => {
+        if (!stat || !Object.hasOwn(RETIRED_ITEM_STAT_IDS, stat.id)) return;
+        stat.id = RETIRED_ITEM_STAT_IDS[stat.id];
+        stat.statName = getStatName(stat.id);
+    }));
+    return item;
+}
+function normalizeItem(item) {
+    if (!renameRetiredItemStatIds(item)) return null;
     if (typeof bagItems === 'object' && bagItems.ownShape(item)) return bagItems.normalize(item); // 가방의 주얼과 코어는 제 모양(js/bag-items.js)
     function coerceFiniteNumber(value, fallback) {
         let num = Number(value);

@@ -65,8 +65,8 @@ const PLAYER_STALL_APPRAISAL = Object.freeze({
     ],
     slotBase: { 무기: 0.9, 방패: 0.8, 갑옷: 0.85, 투구: 0.7, 장갑: 0.65, 신발: 0.7, 허리띠: 0.65, 반지: 0.65, 목걸이: 0.75 },
     // Non-affix implicits have no MOD_DB T10 range; these are explicit comparison units.
-    implicitUnits: { baseBlockChance: 18, flaskUtilSlots: 1, venomStingerBonus: 1 },
-    implicitWeights: { baseBlockChance: 1.4, flaskUtilSlots: 2.1, venomStingerBonus: 1.4 },
+    implicitUnits: { baseBlockChance: 18, flaskUtilSlots: 1, poisonDamageMultiplierPct: 1 },
+    implicitWeights: { baseBlockChance: 1.4, flaskUtilSlots: 2.1, poisonDamageMultiplierPct: 1.4 },
     rarity: { normal: 0, magic: 0.3, rare: 0.7, unique: 12 },
     unknownWeight: 0.25, resaleFraction: 0.6,
     synergy: { rates: [0, 0, 0.08, 0.16, 0.25, 0.35, 0.45], alignment: 0.08, cap: 0.5 },
