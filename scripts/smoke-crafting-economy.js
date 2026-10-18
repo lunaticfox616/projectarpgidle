@@ -142,6 +142,16 @@ vm.runInContext(annulBlock, annulContext, { filename: 'market-annul.js' });
     assert(uiSource.includes('confirmedSalvageTargets(targetItems)'), 'search-based equipment salvage should keep a confirmation-time target snapshot');
     assert(!cardSource.includes('getItemSalvagePreviewText(item, true)'), 'compact inventory cards should not spend metadata space on salvage materials');
     assert(cardSource.includes('getItemSalvagePreviewText(item, false)'), 'the destructive action should retain a detailed salvage preview in its own hint');
+
+    // 제작 연구(js/crafting-goal-options.js rehearse): practice rolls a copy only. Nothing in the save changes and no item id is taken,
+    // so a practice result can never become a second item or cost anything (2026-10-18 check).
+    const { run: runGame } = require('./lib/replay-fixture')(41);
+    runGame(`game=mergeDefaults({heroSelectionInitialized:true,selectedHeroId:'hero1',selectedClassId:'warrior',level:90,season:12});game.inventory=[];
+        globalThis.__item=createItemFromBase(BASE_ITEM_DB.find(base=>base.slot==='투구'&&(base.reqTier||1)<=15&&!base.dropOnly),'rare',15);
+        addItemToInventory(__item,{ignoreFilter:true,ignoreAutoSalvage:true,skipAutoEquip:true});`);
+    assert.strictEqual(runGame(`(()=>{const before=JSON.stringify(game),id=itemIdCounter,recipe={key:'formlessDew',kind:'reroll',label:''};
+        for(let i=0;i<200;i++)['none','fire'].forEach(mode=>craftingGoalOptions.rehearse(__item,recipe,mode));
+        return JSON.stringify(game)===before&&itemIdCounter===id;})()`), true, 'crafting practice must leave the save and item ids untouched');
     console.log('smoke-crafting-economy passed');
 })().catch(error => {
     console.error(error);

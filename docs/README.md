@@ -19,7 +19,8 @@
 | 이야기, 대사 | [스토리 바이블](story-bible.md), 글은 [이야기 데이터](../data/story-journal.js). 새 묶음은 `node scripts/import-story-pack.cjs <폴더> --write` |
 | 적 공격, 보스 싸움 거리 | [적 공격 계약](enemy-attack-system.md) |
 | 탐험 상자·파괴물 | [클릭 조작, 배치와 후반 사건](exploration-objects-20261005.md) |
-| 아틀라스·특수 콘텐츠 지도 | [현재 구현과 후반부 이력](atlas-pinnacles-20261002.md), [초기 아틀라스 설계 이력](atlas-endgame-20260930.md) |
+| 아틀라스·특수 콘텐츠 지도 | [현재 구현·후반 보스·루프 34 원정 보드](atlas-pinnacles-20261002.md), [초기 아틀라스 설계 이력](atlas-endgame-20260930.md) |
+| 제작실·제작 연구 | [제작 통합·다중 목표·옵션 목록·소모 없는 확률 실험](crafting-workspace-integration-20260914.md) |
 | 전투·보상 피드백 | [타격·처치·개봉 표현과 검토 방법](game-feel-20261005.md) |
 | 엔드게임 드랍 | [지도 기운, 보물 무리, 기억의 잎, 발견 등급, 드랍 시뮬레이터](endgame-loot-20261009.md) |
 | 생성 효과음 | [게임용 52개 효과음·보스 등장·클리어·희귀 드롭 무음과 제작·재생 계약](game-audio-20261006.md) |

@@ -69,6 +69,55 @@ const craftingGoalOptions = (() => {
             return { id: tag, name: AFFIX_TAG_LABELS[tag], rollable, maxTier: Math.max(0, ...tiers), maxCount: Math.min(EXPLICIT_AFFIX_LINE_CAP, held.length + rollable) };
         }).filter(row => row.rollable > 0);
     }
-    return Object.freeze({ get, tags });
+    /** The live pool, including blocked groups, using the same base, influence and prefix/suffix admission as actual rolls. */
+    const maxTierFor = (item, mod) => mod.fixedValue ? 0 : Math.min(getItemCraftTier(item), mod.tierValues?.length || 20);
+    function catalogue(item, recipe, mode) {
+        if (!eligible(item, recipe) || recipe.kind === 'value') return [];
+        const pool = rollPool(item, recipe, mode), ids = new Set(pool.map(mod => mod.id));
+        const candidates = buildAvailableModPool(item).map(row => row.mod);
+        const all = [...new Map([...candidates, ...pool].map(mod => [mod.id, mod])).values()];
+        const kept = keptStats(item, recipe), occupied = new Set(kept.flatMap(getExplicitModStatIds));
+        const room = equipmentCrafting.affixRoom({ ...item, stats: kept }, recipe.key === 'magicBud' ? 'magic' : 'rare');
+        const weights = recipe.kind === 'fossil' ? weighFossilTagMods(pool, recipe.key) : pool;
+        const weightOf = mod => Math.max(0.01, Number(mod.weight) || 1), total = weights.reduce((sum, mod) => sum + weightOf(mod), 0);
+        return all.map(mod => {
+            const allowed = ids.has(mod.id), maxTier = maxTierFor(item, mod);
+            const reason = getExplicitModStatIds(mod).some(id => occupied.has(id)) ? '보존 옵션과 중복'
+                : !equipmentCrafting.fitsRoom(room, mod) ? '접두나 접미 자리 부족' : '선택한 제작의 후보 아님';
+            const weighted = weights.find(row => row.id === mod.id), weight = weighted ? weightOf(weighted) : 0;
+            return { id: mod.id, name: mod.statName || getStatName(mod.statId || mod.id), kind: equipmentCrafting.affixKind(mod),
+                tags: getAffixTags(mod), maxTier, weight, share: total ? weight / total : 0, allowed, reason: allowed ? '' : reason };
+        }).sort((a, b) => Number(b.allowed) - Number(a.allowed) || a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name, 'ko'));
+    }
+
+    function rehearsalReason(item, recipe, mode = 'none') {
+        if (!eligible(item, recipe) || !equipmentCrafting.basicActions.includes(equipmentCrafting.resolveAction(recipe.key, item.rarity))) return '모의 제작은 마법의 새싹, 수액 봉오리, 형체 없는 이슬만 됩니다.';
+        const action = equipmentCrafting.resolveAction(recipe.key, item.rarity);
+        return equipmentCrafting.getSporeBlockReason(item, action, mode) || (!rollPool(item, recipe, mode).length ? '부여 가능한 옵션이 없습니다.' : '')
+            || sporeGapReason(item, action, mode);
+    }
+    /** The live craft refuses a spore mode with nothing of its family left to give (js/passives.js useCurrency): so does practice. */
+    function sporeGapReason(item, action, mode) {
+        const spore = mode !== 'none' && isSporeCraftEquipment(item);
+        return spore && !equipmentCrafting.sporePool(item, action, mode).length ? '선택한 홀씨 계열에서 새로 붙을 수 있는 옵션이 없습니다.' : '';
+    }
+
+    /** Roll on an isolated item only. Never swaps game, spends currency, allocates inventory ids, logs or saves. The result keeps the
+     * item's id: it is shown, never put in the bag (a second item with that id would be a duplicate). */
+    function rehearse(item, recipe, mode = 'none') {
+        const reason = rehearsalReason(item, recipe, mode);
+        if (reason) throw Error(reason);
+        const result = JSON.parse(JSON.stringify(item)), action = equipmentCrafting.resolveAction(recipe.key, item.rarity);
+        // 홀씨 보장은 실제 제작과 같은 함수로 고르고 굴린다(js/passives.js useCurrency와 같은 규칙).
+        let guaranteedStat = null;
+        if (mode !== 'none' && isSporeCraftEquipment(item)) {
+            const mod = equipmentCrafting.pickSporeMod(item, action, mode);
+            if (!mod) throw Error('보장할 홀씨 옵션이 없습니다.');
+            guaranteedStat = equipmentCrafting.rollSporeLine(item, mod);
+        }
+        equipmentCrafting.applyBasic(result, action, { guaranteedStat });
+        return result;
+    }
+    return Object.freeze({ get, tags, catalogue, rehearsalReason, rehearse });
 })();
 safeExposeGlobals({ craftingGoalOptions });

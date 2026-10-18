@@ -333,10 +333,11 @@ const trialTrapArt = (() => {
         const tile = gridProj.tileW;
         ctx.save();
         ctx.imageSmoothingEnabled = false;
-        ctx.globalAlpha = fx.type === 'trialTrapWarning' ? Math.min(1, progress * 5) : 1;
+        ctx.globalAlpha *= fx.type === 'trialTrapWarning' ? Math.min(1, progress * 5) : 1;
         fx.targetCells.forEach((cell, index) => {
             const image = frameOf(fx, progress, index, cell)[part], pos = gridProj.cellToScreen(cell.gx, cell.gy);
-            const height = tile * image.height / ART, left = pos.x - tile / 2, top = pos.y + tile / 2 - height;
+            const floorH = gridProj.tileH || tile, height = (part === 'ground' ? floorH : tile) * image.height / ART;
+            const left = pos.x - tile / 2, top = pos.y + floorH / 2 - height;
             if (!flipped(cell)) return ctx.drawImage(image, left, top, tile, height);
             ctx.save();
             ctx.translate(left + tile, top);
@@ -348,16 +349,16 @@ const trialTrapArt = (() => {
     }
     /** The warned cells keep a thin dotted edge in the element's colour, so the exact area reads at a glance. */
     function outline(ctx, fx, progress, gridProj) {
-        const tile = gridProj.tileW, dot = tile / ART, pulse = 0.5 + Math.sin(progress * Math.PI * 8) * 0.5;
+        const tile = gridProj.tileW, floorH = gridProj.tileH || tile, dot = tile / ART, pulse = 0.5 + Math.sin(progress * Math.PI * 8) * 0.5;
         ctx.save();
-        ctx.globalAlpha = 0.3 + pulse * 0.35;
+        ctx.globalAlpha *= 0.3 + pulse * 0.35;
         ctx.strokeStyle = fx.color || RAMPS[fx.element][2];
         ctx.lineWidth = Math.max(1, dot);
         ctx.setLineDash([dot * 2, dot * 2]);
         ctx.beginPath();
         fx.targetCells.forEach(cell => {
             const pos = gridProj.cellToScreen(cell.gx, cell.gy);
-            ctx.rect(pos.x - tile / 2 + dot / 2, pos.y - tile / 2 + dot / 2, tile - dot, tile - dot);
+            ctx.rect(pos.x - tile / 2 + dot / 2, pos.y - floorH / 2 + dot / 2, tile - dot, floorH - dot);
         });
         ctx.stroke();
         ctx.restore();
@@ -365,6 +366,17 @@ const trialTrapArt = (() => {
     /** Under the actors: cracks, glow, frost, rune, puddle and scorch of every live trap effect. */
     function drawGround(ctx, effects, now, gridProj) {
         if (!gridProj || !Array.isArray(effects)) return;
+        // Read-only combat state, including offline snapshot restoration. Reuse cached element textures.
+        for (const area of trialHazardRuntime.ground || []) {
+            if (now < area.start || now >= area.endsAt) continue;
+            const fx = { type: 'trialTrap', element: area.element, color: COMBAT_GRID_CONFIG.ground[area.element].color,
+                targetCells: area.cells, duration: area.endsAt - area.start };
+            ctx.save();
+            ctx.globalAlpha = Math.min(0.8, (area.endsAt - now) / 700);
+            drawPart(ctx, fx, 0.35 + Math.sin((now - area.start) / 450) * 0.06, gridProj, 'ground');
+            outline(ctx, fx, 0.15, gridProj);
+            ctx.restore();
+        }
         for (const fx of effects) {
             if (!isTrap(fx) || now < fx.start) continue;
             drawPart(ctx, fx, Math.max(0, Math.min(1, (now - fx.start) / fx.duration)), gridProj, 'ground');

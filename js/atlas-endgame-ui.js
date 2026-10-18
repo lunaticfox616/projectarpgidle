@@ -7,6 +7,7 @@ const atlasEndgameUi = (() => {
     function challenge(id) {
         const reason = atlasRun.openEndgame(id);
         if (reason) return addLog(reason, 'attack-monster');
+        if (E.stories[id]) addLog(escapeHTML(E.stories[id].entry), 'season-up');
         queueImportantSave(200);
         atlasUi.refresh();
         switchTab('tab-battle');
@@ -25,11 +26,31 @@ const atlasEndgameUi = (() => {
         const row = fight.row, tier = atlas.effectiveTier(game, atlas.node(row.id)), why = fight.reason || block, [who, where] = titleOf(row);
         const lockId = `atlas-late-lock-${row.id}`;
         return `<div class="atlas-late-card${why ? '' : ' is-ready'}${fight.unlocked ? '' : ' is-locked'}">
-            <strong>${escapeHTML(who)}</strong><small>${escapeHTML(where)}, ${tier}등급, ${row.stages.length}단계${fight.kills ? `, 처치 ${fight.kills}회` : ''}</small>
+            <strong>${escapeHTML(who)}</strong><small>${escapeHTML(where)}, ${tier}등급, ${row.stages.length}단계${fight.kills ? `, 처치 ${fight.kills}회` : ''}</small>${storyHtml(row)}
             ${powerHtml(row, tier)}<div class="atlas-late-entry">${entryHtml(fight.entry)}</div><p class="atlas-muted">${escapeHTML(row.how)}</p>${itemInfluencesUi.fightSourceHtml(row.id)}
-            <p class="atlas-late-unique">고유 장비 ${escapeHTML(row.unique)}</p>${fight.lock ? `<p class="atlas-lock" id="${lockId}">${escapeHTML(fight.lock)}</p>` : ''}
+            ${uniqueHtml(row)}${arenaHtml(row)}${fight.lock ? `<p class="atlas-lock" id="${lockId}">${escapeHTML(fight.lock)}</p>` : ''}
             <button class="atlas-primary" data-exploration-departure onclick="atlasEndgameUi.challenge('${row.id}')" aria-label="${escapeHTML(who)} 도전"
                 ${fight.lock ? `aria-describedby="${lockId}"` : ''} ${why ? `disabled title="${escapeHTML(why)}"` : ''}>도전</button></div>`;
+    }
+    /** The fight's unique and what it does, from its definition (data/items.js), so the card cannot promise another effect. */
+    function uniqueHtml(row) {
+        const effect = (UNIQUE_DB.find(entry => entry.name === row.unique) || {}).uniqueEffect;
+        return `<p class="atlas-late-unique">고유 장비 ${escapeHTML(row.unique)}${effect ? `: ${escapeHTML(effect)}` : ''}</p>`;
+    }
+    /** A final boss arena: how its fight goes, and the warning and rest times of its combos (data/atlas-endgame.js combo). */
+    function arenaHtml(row) {
+        const arena = E.arenas[row.id], combo = E.combo, sec = ms => ms / 1000;
+        return arena ? `<details><summary>전투 준비</summary><p>${escapeHTML(arena.hint)}</p><p>큰 공격은 ${sec(combo.warningMs)}~${sec(combo.finisherWarningMs)}초 먼저 예고합니다.
+            마무리 뒤 ${sec(combo.finisherRecoveryMs)}초 동안 새 공격이 없습니다. 자동전투는 위험 칸을 걸어서 벗어납니다.</p></details>` : '';
+    }
+    /** The boss's picture (its attack sheet's first pose) and its story with the line it says as the fight opens. */
+    function storyHtml(row) {
+        const story = E.stories[row.id];
+        if (!story) return '';
+        const art = ATLAS_BOSS_ART[row.bodyVisual] || MONSTER_STAGE_ROSTER.actors[row.bodyVisual];
+        const portrait = art ? `<div class="atlas-boss-portrait" style="width:${Math.min(240,170*art.w/art.h)}px;aspect-ratio:${art.w}/${art.h}"><img class="atlas-boss-image" loading="lazy" src="assets/enemies/roster/${art.id}-attack.png" alt="${escapeHTML(row.name)}" style="width:${art.attackCols * 100}%"></div>` : '';
+        return portrait + `<details><summary>이야기</summary><p class="atlas-muted">${escapeHTML(story.story)}</p>
+            <blockquote>${escapeHTML(story.entry)}</blockquote></details>`;
     }
     /** Why no late fight can depart right now (said once): the atlas's own lock, an open map, or another content's run. */
     function departBlock() {
@@ -79,6 +100,8 @@ const atlasEndgameUi = (() => {
     function announce(detail) {
         const spoils = detail.kind === 'complete' ? detail.endgame : null;
         if (!spoils) return;
+        const story = E.stories[detail.nodeId];
+        if (story) addLog(escapeHTML(story.fall), 'season-up');
         if (spoils.awakened) addLog('🌳 세계수의 그림자가 쓰러져 아틀라스가 깨어났습니다.', 'loot-unique');
         noticeAwakened();
         const text = spoilsText(spoils);

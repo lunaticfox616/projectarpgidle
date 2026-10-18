@@ -16,15 +16,18 @@ const atlasMaps = (() => {
         bossEmpowered: { zone: (fx, v) => { fx.bossHp *= 1 + v / 100; fx.bossDamage *= 1 + v / 100; } },
         extraElites: { zone: (fx, v) => { fx.extraElite = v / 100; } },
         packSize: { zone: (fx, v) => { fx.packExtra = v; } },
-        burningGround: { zone: fx => { fx.hazard = true; } },
+        burningGround: { zone: fx => { fx.hazard = true; fx.groundElements.push('fire'); } },
+        frozenGround: { zone: fx => { fx.hazard = true; fx.groundElements.push('cold'); } },
+        corrosiveGround: { zone: fx => { fx.hazard = true; fx.groundElements.push('chaos'); } },
+        shockedGround: { zone: fx => { fx.hazard = true; fx.groundElements.push('light'); } },
         monsterSpeed: { enemy: (enemy, v) => { enemy.attackSpeedVar *= 1 + v / 100; } },
         monsterResist: { enemy: (enemy, v) => { for (const key of ['resF', 'resC', 'resL']) enemy[key] = Math.min(95, enemy[key] + v); } },
         monsterArmour: { enemy: (enemy, v) => { enemy.dr = Math.min(90, enemy.dr + v); } },
         monsterCrit: { enemy: (enemy, v) => { enemy.critChance += v; } },
-        monsterEvasion: { enemy: (enemy, v) => { enemy.evasionChance = Math.max(Number(enemy.evasionChance) || 0, v); } },
+        monsterEvasion: { enemy: (enemy, v) => { enemy.evasionChance = Math.min(95, (Number(enemy.evasionChance) || 0) + v); } },
         lessLeech: { enemy: (enemy, v) => { enemy.leechEffMul = (Number.isFinite(enemy.leechEffMul) ? enemy.leechEffMul : 1) * (1 - v / 100); } },
         penetration: { enemy: (enemy, v) => { enemy.penetration = (Number(enemy.penetration) || 0) + v; } },
-        doubleStrike: { enemy: (enemy, v) => { enemy.doubleStrikeChance = Math.max(Number(enemy.doubleStrikeChance) || 0, v); } },
+        doubleStrike: { enemy: (enemy, v) => { enemy.doubleStrikeChance = Math.min(100, (Number(enemy.doubleStrikeChance) || 0) + v); } },
         energyShield: { enemy: (enemy, v) => {
             enemy.maxEnergyShield = (Number(enemy.maxEnergyShield) || 0) + Math.floor(enemy.maxHp * v / 100);
             enemy.energyShield = enemy.maxEnergyShield;
@@ -103,7 +106,7 @@ const atlasMaps = (() => {
     const chaseMul = zone => 1 + (zone && zone.type === 'atlasMap' ? overTiers(zone.atlasTier) * ATLAS.overTier.chase / 100 : 0);
     function effects(map) {
         const over = overTiers(map.tier);
-        const fx = { hp: 1, damage: 1, bossHp: 1, bossDamage: 1, packExtra: 0, extraElite: 0, hazard: false, enemy: [],
+        const fx = { hp: 1, damage: 1, bossHp: 1, bossDamage: 1, packExtra: 0, extraElite: 0, hazard: false, groundElements: [], enemy: [],
             quantity: map.quality + (map.corrupted ? ATLAS.corruption.bonusQuantity : 0) + over * ATLAS.overTier.quantity,
             rarity: over * ATLAS.overTier.rarity, overTiers: over };
         for (const entry of map.mods) {

@@ -45,6 +45,11 @@ const atlasRun = (() => {
         atlas.beginMemory(game, nodeId, tier, game.currentZoneId);
         return depart();
     }
+    function openBoard() {
+        const reason = departureBlock() || atlas.beginBoard(game, game.currentZoneId);
+        if (reason) return reason;
+        return depart();
+    }
     function depart() {
         combatLootReceipts.reset(game);
         changeZone(ATLAS.zoneId);
@@ -87,7 +92,7 @@ const atlasRun = (() => {
         grantSpoils(result, zone);
         game.killsInZone = 0;
         const stop = game.settings.mapCompleteAction === 'stop';
-        const next = stop ? null : atlas.nextAuto(game, result.tier);
+        const next = nextMapForResult(stop, result);
         const opened = !!next && !atlas.begin(game, next.uid, result.returnZoneId);
         if (opened) combatLootReceipts.reset(game);
         notify({ kind: 'complete', name: zone.name, ...result, next: opened ? game.atlas.run.map.node : null });
@@ -101,11 +106,21 @@ const atlasRun = (() => {
         startMoving(false);
     }
     /** 수호자의 뿌리 입장권, 정점의 보상은 지도가 끝난 뒤라 바로 지갑으로 간다. */
+    const nextMapForResult = (stop, result) => stop || result.board ? null : atlas.nextAuto(game, result.tier);
     function grantSpoils(result, zone) {
+        if (result.board) grantBoardSpoils(result.board, zone);
         if (result.ticket) awardCurrency(result.ticket, 1);
         for (const [key, amount] of result.rewards || []) awardCurrency(key, amount);
         if (result.endgame) grantEndgameSpoils(result.endgame, result.tier);
         if (result.memory && result.memory.spoils) grantMemorySpoils(result.memory.spoils, result.tier, zone);
+    }
+    function grantBoardSpoils(spoils, zone) {
+        for (const [key, amount] of spoils.rewards) awardCurrency(key, amount);
+        for (let i = 0; i < spoils.gear; i++) {
+            const item = generateEquipmentDrop({ isBoss: true }, { zone, minimumRarity: 'rare' });
+            if (item) addItemToInventory(item, { guaranteedKeep: true });
+        }
+        notify({ kind: 'board', message: game.atlas.board.message });
     }
     /** 기억 싸움의 보상: 재화는 지갑으로, 고유와 희귀 장비 하나는 가방으로(가득 차도 남긴다). 장비는 그 투기장의 지역을 기억한다
      * (루프 27부터 세계수 기운). 받은 장비는 기록이 이름을 쓰도록 spoils.items에 남긴다. */
@@ -128,6 +143,8 @@ const atlasRun = (() => {
     function halt() {
         actExplorationProgress.depart(game);
         actExplorationProgress.stopAfterCompletion(game);
+        // A stopped return still needs its destination room; without it the renderer falls back to the legacy 9×8 arena.
+        prepareActExplorationArrival();
     }
 
     /** 쓰러짐(handlePlayerDefeat 끝): 포털 하나. 남아 있으면 같은 지도에 다시 들어가고, 마지막 포털이면 지도가 닫힌다. */
@@ -157,6 +174,8 @@ const atlasRun = (() => {
      * 맵 안의 지도석 · 각인은 보스를 잡을 때까지 런이, 방 보상 재화는 넓은 맵 전리품 보관이 들고 있다. */
     function onKill(enemy) {
         const zone = getZone(game.currentZoneId);
+        const dice = atlasBoard.onKill(game, enemy, zone);
+        if (dice) { notify({ kind: 'dice' }); queueImportantSave(220); }
         atlasFinds.onAtlasKill(zone, enemy);
         const maps = atlas.dropFromKill(game, zone, enemy), fragments = atlas.fragmentFromKill(game, zone, enemy);
         const room = zone && zone.type === 'atlasMap' && game.atlas.run ? emptyRoom(enemy) : null;
@@ -193,7 +212,7 @@ const atlasRun = (() => {
         const maps = atlas.sync(game);
         if (opened || maps.length) notify({ kind: 'starter', opened, count: maps.length });
     }
-    return Object.freeze({ open, openPinnacle, openEndgame, openMemory, reenter, abandon, finish, defeat, leave, travel, onKill, onChaos20, recoverClosedMap, lastPortal,
+    return Object.freeze({ open, openPinnacle, openEndgame, openMemory, openBoard, reenter, abandon, finish, defeat, leave, travel, onKill, onChaos20, recoverClosedMap, lastPortal,
         blockReason: departureBlock });
 })();
 safeExposeGlobals({ atlasRun });

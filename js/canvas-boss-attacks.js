@@ -41,7 +41,7 @@ const bossAttackView = (() => {
     function warningShare(enemy) {
         const started = Number(enemy && enemy.patternTelegraphStartedAt) || 0;
         if (!enemy || !enemy.patternTelegraphKey || !started) return null;
-        return clampNumber((smoothCombatTime() - started) / COMBAT_GRID_CONFIG.bossPatternWarningMs, 0, 1);
+        return clampNumber((smoothCombatTime() - started) / (enemy.nextPatternState?.warningMs || COMBAT_GRID_CONFIG.bossPatternWarningMs), 0, 1);
     }
     /** 1, then a blink that quickens towards the release. The phase is the rate integrated over the warning; clock × rate made the
      * phase jump at random as soon as the rate moved. */

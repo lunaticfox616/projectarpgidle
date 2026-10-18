@@ -29,8 +29,51 @@ const ATLAS_ENDGAME = Object.freeze({
         saplingBud: Object.freeze({ name: '어린 눈', from: '지도 속 묘목장' })
     }),
     itemCap: 99,
-    // 투기장 바닥 위험(시련 함정 양식, apexes[].hazard)이 기록과 쓰러짐 문구에 남는 이름. 원소는 그 보스의 ele.
-    hazardName: '바닥 함정',
+    stories: Object.freeze({
+    "apex_gardener": {
+        "story": "버려진 가지를 잘라 내던 정원사의 판결이, 주인 없는 왕관 안에서 아직 되풀이된다.",
+        "entry": "뿌리가 없는 가지여. 이번에는 어디까지 살아남겠느냐.",
+        "fall": "닫힌 가위 사이로 작은 새눈이 돋는다. 판결의 목소리는 더는 들리지 않는다."
+    },
+    "apex_compost": {
+        "story": "우물에 버려진 생명들이 하나의 장로를 이루었다. 썩음은 끝이 아니라, 새로운 입이 자라는 자리였다.",
+        "entry": "너도 이곳에서 먹고 자랐다. 이제 돌려다오.",
+        "fall": "겹겹의 껍질이 무너지자, 썩은 심장만 천천히 고동친다."
+    },
+    "apex_weaver": {
+        "story": "세계수가 기억한 싸움을 나이테에 엮는 자. 오래된 승리도 그 손에 닿으면 다시 넘어야 할 문이 된다.",
+        "entry": "네가 베어 낸 이름들을, 아직 기억하느냐.",
+        "fall": "팽팽하던 실이 풀린다. 남은 반지 하나에는 다른 반지의 무늬가 떠오른다."
+    },
+    "apex_archbishop": {
+        "story": "빛을 잃은 태양을 등에 업고, 대사제는 식은 성화를 제단에 다시 바친다. 구원이라는 이름 아래 바닥마저 타오른다.",
+        "entry": "빛이 사라져도, 불은 복종한다.",
+        "fall": "검은 원반이 식어 간다. 벗겨진 장갑 안쪽에는 마지막 불씨가 남아 있다."
+    },
+    "apex_devourer": {
+        "story": "세계수의 속을 파먹던 허기는 마침내 스스로의 몸을 얻었다. 상처마다 입이 열리고, 먹은 가지마다 이빨이 자란다.",
+        "entry": "공허한 뱃속에서 수많은 가지가 부딪치는 소리가 난다.",
+        "fall": "허기의 입이 닫힌다. 떨어진 이빨은 아직 무언가를 물고 있다."
+    }
+}),
+    // 단계마다 다른 연계: 특수기 세 번이 첫 수, 연계, 마무리(sequences의 모양 셋). 예고와 공격 뒤 쉬는 시간(ms)은 combo, 마무리는 더 길다.
+    combo: Object.freeze({ warningMs: 1900, recoveryMs: 1100, finisherWarningMs: 2200, finisherRecoveryMs: 2600 }),
+    // 투기장 장판(arenas[].element의 지대)이 예고되는 간격과 예고 시간(ms). 지대가 남는 시간과 피해는 COMBAT_GRID_CONFIG.ground.
+    arenaHazard: Object.freeze({ pattern: 'pool', warningMs: 1900, intervalMs: 6800 }),
+    sequences: Object.freeze({
+        prune: ['lane', 'fan', 'wave'], graft: ['split', 'lane', 'pulse'], verdict: ['wave', 'beam', 'pulse'],
+        decay: ['ring', 'lane', 'pulse'], swarm: ['fan', 'wave', 'split'], compost: ['pulse', 'lane', 'wave'],
+        weave: ['fan', 'beam', 'wave'], echo: ['impact', 'split', 'pulse'], memory: ['beam', 'wave', 'pulse'],
+        pyre: ['ring', 'fan', 'wave'], hymn: ['split', 'wave', 'beam'], blackSun: ['beam', 'fan', 'pulse'],
+        gnaw: ['charge', 'wave', 'lane'], tendril: ['lane', 'split', 'wave'], hunger: ['pulse', 'charge', 'wave']
+    }),
+    arenas: Object.freeze({
+        apex_gardener: { element: 'cold', hint: '가지치기의 연쇄 균열 → 갈래 베기 → 십자 강타. 빙결 지대를 벗어난 뒤 마무리의 빈틈을 노립니다.' },
+        apex_compost: { element: 'chaos', hint: '썩음 웅덩이와 사도의 갈래 공격이 겹칩니다. 부식 지대 밖에서 삼키기가 끝난 뒤 반격합니다.' },
+        apex_weaver: { element: 'cold', hint: '갈래 사격과 광선, 목격한 보스의 메아리가 이어집니다. 마지막 파동 뒤 공격이 멎습니다.' },
+        apex_archbishop: { element: 'fire', hint: '성화가 남은 바닥을 피하며 갈래 사격과 광선을 견딥니다. 검은 태양이 꺼지면 반격합니다.' },
+        apex_devourer: { element: 'chaos', hint: '돌진 경로와 뿌리 촉수가 번갈아 열립니다. 부식 지대를 벗어나 삼키기 뒤의 긴 빈틈을 노립니다.' }
+    }),
     // 지역 수호자 → 깨어난 뒤 처치마다 주는 가위 조각(지역 id).
     guardianShears: Object.freeze({ roots: 'shearRoots', trunk: 'shearTrunk', canopy: 'shearCanopy', garden: 'shearGarden', sanctum: 'shearSanctum' }),
     // 특수기: every 번째 공격마다 telegraph 모양(data/constants.js bossPatternProfiles)으로 피해 × damageMul. 나머지 공격은 전조.
@@ -68,14 +111,14 @@ const ATLAS_ENDGAME = Object.freeze({
     // 최종 보스. tier = 기본 등급(씨앗마다 2씩 오른다, 24까지). act = 투기장 액트 지도(보스 방 앞에서 시작), bossAct = 그림(액트 보스 0~9).
     // how: 최종 보기 카드의 한 줄(바칠 재료를 얻는 곳).
     // unlock: 'awakened'(그림자 첫 처치) 또는 { kill: 노드 id }. entry: 바칠 재료. stages: 차례로 나오는 몸(4까지) — name, bossAct, mechanic,
-    // echo(나이테: 목격한 보스의 메아리, 번호는 최근 순). hazard: 바닥 위험(시련 함정 양식).
+    // echo(나이테: 목격한 보스의 메아리, 번호는 최근 순). 투기장의 장판은 arenas.
     apexes: Object.freeze([
         Object.freeze({
-            id: 'apex_gardener', name: '정원사의 메아리', domain: '정원사의 정원', act: 6, bossAct: 5, ele: 'phys', tier: 18,
+            id: 'apex_gardener', name: '정원사의 메아리', domain: '정원사의 정원', act: 6, bossAct: 5, bodyVisual: 'apex_gardener', ele: 'phys', tier: 18,
             how: '깨어난 뒤 지역 수호자를 쓰러뜨리면 그 지역의 가위 조각을 줍니다.',
             unlock: 'awakened', entry: Object.freeze([['shearRoots', 1], ['shearTrunk', 1], ['shearCanopy', 1], ['shearGarden', 1], ['shearSanctum', 1]]),
             // 피해 1.6이면 초당 받는 피해가 T20 장로, 갉는 자보다 컸다(2026-10-10 실측). 첫 최종 보스라 정점과 T20 사이로 내렸다.
-            hpMul: 5, damageMul: 1.4, hazard: Object.freeze({ pattern: 'line', warningMs: 1700, intervalMs: 6200 }),
+            hpMul: 5, damageMul: 1.4,
             stages: Object.freeze([
                 Object.freeze({ name: '정원사의 메아리', bossAct: 5, mechanic: 'prune' }),
                 Object.freeze({ name: '접붙이는 정원사', bossAct: 5, mechanic: 'graft' }),
@@ -84,22 +127,22 @@ const ATLAS_ENDGAME = Object.freeze({
             rewards: Object.freeze([['goldenRule', 3], ['sapBud', 4], ['formlessDew', 10]]), unique: '정원사의 가지 왕관'
         }),
         Object.freeze({
-            id: 'apex_compost', name: '밑거름의 장로', domain: '밑거름의 우물', act: 5, bossAct: 0, ele: 'chaos', tier: 20,
+            id: 'apex_compost', name: '밑거름의 장로', domain: '밑거름의 우물', act: 5, bossAct: 0, bodyVisual: 'apex_compost', ele: 'chaos', tier: 20,
             how: '마름이 번진 지도의 사도를 쓰러뜨리면 마름 조각을 줍니다.',
             unlock: Object.freeze({ kill: 'apex_gardener' }), entry: Object.freeze([['rotHusk', 1], ['rotSap', 1], ['rotRoot', 1], ['rotSeed', 1]]),
-            hpMul: 5.5, damageMul: 1.7, hazard: Object.freeze({ pattern: 'pool', warningMs: 1650, intervalMs: 5600 }),
+            hpMul: 5.5, damageMul: 1.7,
             stages: Object.freeze([
                 Object.freeze({ name: '밑거름의 장로', bossAct: 0, mechanic: 'decay' }),
                 Object.freeze({ name: '마름의 사도들', bossAct: 6, mechanic: 'swarm' }),
-                Object.freeze({ name: '깨어난 장로', bossAct: 0, mechanic: 'compost' })
+                Object.freeze({ name: '깨어난 장로', bossAct: 0, bodyVisual: 'apex_compost-stage3', mechanic: 'compost' })
             ]),
             rewards: Object.freeze([['goldenRule', 3], ['blightSpore', 6], ['emberBranch', 3]]), unique: '장로의 썩은 심장'
         }),
         Object.freeze({
-            id: 'apex_weaver', name: '나이테를 엮는 자', domain: '나이테의 방', act: 10, bossAct: 8, ele: 'chaos', tier: 22,
+            id: 'apex_weaver', name: '나이테를 엮는 자', domain: '나이테의 방', act: 10, bossAct: 8, bodyVisual: 'apex_weaver', ele: 'chaos', tier: 22,
             how: '후반부 보스를 다섯 번 쓰러뜨릴 때마다 초대장을 받습니다.',
             unlock: 'awakened', entry: Object.freeze([['ringInvite', 1]]),
-            hpMul: 6, damageMul: 1.75, hazard: null,
+            hpMul: 6, damageMul: 1.75,
             stages: Object.freeze([
                 Object.freeze({ name: '나이테를 엮는 자', bossAct: 8, mechanic: 'weave' }),
                 Object.freeze({ echo: 0, mechanic: 'echo' }),
@@ -109,10 +152,10 @@ const ATLAS_ENDGAME = Object.freeze({
             rewards: Object.freeze([['goldenRule', 5], ['sapBud', 6], ['emberBranch', 4]]), unique: '엮인 나이테'
         }),
         Object.freeze({
-            id: 'apex_archbishop', name: '검은 태양의 대사제', domain: '황금 길의 끝', act: 2, bossAct: 1, ele: 'fire', tier: 20,
+            id: 'apex_archbishop', name: '검은 태양의 대사제', domain: '황금 길의 끝', act: 2, bossAct: 1, bodyVisual: 'apex_archbishop', ele: 'fire', tier: 20,
             how: '지도 속 붉은 제단을 비우면 성화 잉걸을 줍니다.',
             unlock: 'awakened', entry: Object.freeze([['ember', 10]]),
-            hpMul: 6, damageMul: 1.7, hazard: Object.freeze({ pattern: 'cross', warningMs: 1550, intervalMs: 5000 }),
+            hpMul: 6, damageMul: 1.7,
             stages: Object.freeze([
                 Object.freeze({ name: '성화를 든 대사제', bossAct: 1, mechanic: 'pyre' }),
                 Object.freeze({ name: '부제들의 성가대', bossAct: 7, mechanic: 'hymn' }),
@@ -121,14 +164,14 @@ const ATLAS_ENDGAME = Object.freeze({
             rewards: Object.freeze([['goldenRule', 3], ['emberBranch', 6], ['magicBud', 30]]), unique: '대사제의 성화 장갑'
         }),
         Object.freeze({
-            id: 'apex_devourer', name: '세계수를 갉는 자', domain: '허기의 둥지', act: 3, bossAct: 2, ele: 'chaos', tier: 20,
+            id: 'apex_devourer', name: '세계수를 갉는 자', domain: '허기의 둥지', act: 3, bossAct: 2, bodyVisual: 'apex_devourer', ele: 'chaos', tier: 20,
             how: '지도 속 푸른 제단을 비우면 허기의 즙을 줍니다.',
             unlock: 'awakened', entry: Object.freeze([['ichor', 10]]),
-            hpMul: 6, damageMul: 1.7, hazard: Object.freeze({ pattern: 'block', warningMs: 1550, intervalMs: 4800 }),
+            hpMul: 6, damageMul: 1.7,
             stages: Object.freeze([
-                Object.freeze({ name: '갉는 자', bossAct: 2, mechanic: 'gnaw' }),
-                Object.freeze({ name: '뿌리 촉수 무리', bossAct: 6, mechanic: 'tendril' }),
-                Object.freeze({ name: '끝없는 허기', bossAct: 2, mechanic: 'hunger' })
+                Object.freeze({ name: '갉는 자', bossAct: 2, bodyVisual: 'apex_devourer-stage1', mechanic: 'gnaw' }),
+                Object.freeze({ name: '뿌리 촉수 무리', bossAct: 6, bodyVisual: 'apex_devourer-stage2', mechanic: 'tendril' }),
+                Object.freeze({ name: '끝없는 허기', bossAct: 2, bodyVisual: 'apex_devourer-stage3', mechanic: 'hunger' })
             ]),
             rewards: Object.freeze([['goldenRule', 3], ['formlessDew', 16], ['sapBud', 4]]), unique: '갉는 자의 이빨띠'
         })
