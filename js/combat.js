@@ -1965,18 +1965,57 @@ function isCombatDecisionPending(state) {
         || cosmosRouteRuntime.waiting(state);
 }
 
+/** One combat tick (100 ms). 2026-10-18 split into the steps below (it was one function of complexity 153); the order of every
+ * step and random roll is kept. */
 function coreLoop(nowMs) {
     if(advanceActExplorationDeparture())return;
     if (isCombatDecisionPending(game)) return;
     const pStats = prepareCombatTick(nowMs);
-    // Guard against malformed stat payloads from legacy saves/runtime merges.
-    // If ASPD becomes NaN/<=0, pTimer never advances and combat appears frozen.
+    sanitizeTickRuntime(pStats);
+    applyTickConditions(pStats);
+    if (stopTickBeforeCombat(pStats)) return;
+    recoverPlayerTick(pStats);
+    if (advanceTravelTick()) return;
+    syncCrowdPauseState();
+    pruneEnemyRuntimeOnSchedule();
+    if (beehiveHoldsTick()) return;
+    const progressBefore = game.runProgress;
+    const zoneNow = getZone(game.currentZoneId);
+    tickZoneHazards(zoneNow, pStats);
+    const vRift = game.voidRift || (game.voidRift = { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0, pendingWave: false, totalToSpawn: 0, spawnedCount: 0, spawnTick: 0 });
+    const holdMapProgress = isMapProgressHeld(zoneNow, vRift);
+    if (!holdMapProgress) advanceMapProgress(pStats);
+    trackProgressStall(progressBefore);
+    const hazardEvasion = updateCombatHazardEvasion(pStats);
+    const walkedMs = actExplorationProgress.takeWalkedMs(); // 이번 틱에 걸은 시간: 적이 없어도 비운다
+    if (game.playerHp <= 0) return;
+    if ((game.enemies || []).length > 0) runFightTick(pStats, hazardEvasion, walkedMs);
+    settleLastEnemyAttacks(pStats);
+    // The void rift step logs and may enter the grand breach through the screen's own calls, handed over here.
+    tickVoidRiftWave(getZone(game.currentZoneId), { say: addLog, enterGrand: typeof autoEnterGrandBreachIfReady === 'function' ? autoEnterGrandBreachIfReady : () => false });
+    if (game.playerHp <= 0) {
+        handlePlayerDefeat(getZone(game.currentZoneId), pStats, "☠️ 상태이상으로 쓰러졌습니다.", { fatalElement: 'other', sourceName: '상태이상' });
+        return;
+    }
+    syncCrowdPauseState();
+
+    if (!holdMapProgress && actExplorationProgress.canFinish()) playerStatCache.during(finishEncounterRun);
+}
+
+/** Guard against malformed stat payloads from legacy saves/runtime merges. If ASPD becomes NaN/<=0, pTimer never advances and
+ * combat appears frozen. Then the runtime state is made sane and the map progress reconciled. */
+function sanitizeTickRuntime(pStats) {
     if (!Number.isFinite(pStats.aspd) || pStats.aspd <= 0) pStats.aspd = 1;
     if (!Number.isFinite(pStats.moveSpeed) || pStats.moveSpeed <= 0) pStats.moveSpeed = 100;
     if (!Number.isFinite(pStats.maxHp) || pStats.maxHp <= 0) pStats.maxHp = 1;
     if (!Number.isFinite(pTimer) || pTimer < 0) pTimer = 0;
     sanitizeCombatRuntimeState();
     reconcileMapProgressRuntimeState();
+}
+
+/** The tick's conditions on the hero's stats: condition debuffs and hexes, casts and channels, pending hits, ailments, talisman
+ * condition effects and the cosmos debuffs. */
+function applyTickConditions(pStats) {
     if (pStats.uniqueClosedEyes) {
         game.enemyConditionDebuffs = {};
     } else {
@@ -1988,280 +2027,321 @@ function coreLoop(nowMs) {
     processPendingSlamEchoHits();
     processTalentInquisitorMarks();
     tickAilments(pStats, 0.1);
-    let ailmentMap = {};
+    applyPlayerAilmentsToTick(pStats);
+    const activeConditionEffects = talismanCombat.effects(pStats);
+    applyConditionPhysicalReductionEffects(pStats, activeConditionEffects);
+    activeConditionEffects.forEach(({ delta }) => applyConditionDelta(pStats, delta));
+    applyCosmosPlayerDebuffsToStats(pStats);
+}
+const isStrongerShock = (ail, current) => Boolean(ail && ail.type === 'shock' && (ail.time || 0) > 0 && (!current || (ail.power || 0) > (current.power || 0)));
+/** Chill slows the swing; the strongest shock raises the damage the hero takes. */
+function applyPlayerAilmentsToTick(pStats) {
+    const ailmentMap = {};
     let activePlayerShock = null;
     (game.playerAilments || []).forEach(ail => {
         ailmentMap[ail.type] = Math.max(ailmentMap[ail.type] || 0, ail.time || 0);
-        if (ail && ail.type === 'shock' && (ail.time || 0) > 0 && (!activePlayerShock || (ail.power || 0) > (activePlayerShock.power || 0))) activePlayerShock = ail;
+        if (isStrongerShock(ail, activePlayerShock)) activePlayerShock = ail;
     });
     if (ailmentMap.chill) pStats.aspd *= 1 - 0.32 * (1 - clampNumber(pStats.chillEffectReducePct || 0, 0, 100) / 100);
     pStats.playerShockTakenDamageIncreasePct = activePlayerShock ? getPlayerShockTakenDamageIncreasePct(pStats, activePlayerShock.power) : 0;
-    let activeConditionEffects = talismanCombat.effects(pStats);
-    applyConditionPhysicalReductionEffects(pStats, activeConditionEffects);
-    activeConditionEffects.forEach(({ delta }) => {
-        if (delta.pctDmg) pStats.baseDmg = Math.floor(pStats.baseDmg * (1 + delta.pctDmg / 100));
-        if (delta.aspd) pStats.aspd *= (1 + delta.aspd / 100);
-        if (delta.regen) pStats.regen += delta.regen;
-        if (delta.crit) pStats.crit += delta.crit;
-        if (delta.critDmg) pStats.critDmg += delta.critDmg;
-        if (delta.resPen) pStats.resPen += delta.resPen;
-        if (delta.targetAny) pStats.sSkill.targets = Math.min(12, (pStats.sSkill.targets || 1) + delta.targetAny);
-        if (delta.leech) pStats.leech += delta.leech;
-        if (delta.move) pStats.move += delta.move;
-        if (delta.resAll) {
-            pStats.resF += delta.resAll;
-            pStats.resC += delta.resAll;
-            pStats.resL += delta.resAll;
-        }
-        if (delta.maxResAll) {
-            pStats.resF += delta.maxResAll;
-            pStats.resC += delta.maxResAll;
-            pStats.resL += delta.maxResAll;
-        }
-        if (delta.resChaos) pStats.resChaos += delta.resChaos;
-        if (delta.energyShieldRegen) pStats.energyShieldRegenRate = Math.max(0, (pStats.energyShieldRegenRate || 0) + delta.energyShieldRegen);
-        if (delta.fireBonus && (pStats.sSkill.ele === 'fire')) pStats.baseDmg = Math.floor(pStats.baseDmg * (1 + delta.fireBonus));
-        if (delta.coldBonus && (pStats.sSkill.ele === 'cold')) pStats.baseDmg = Math.floor(pStats.baseDmg * (1 + delta.coldBonus));
-        if (delta.chaosBonus && (pStats.sSkill.ele === 'chaos')) pStats.baseDmg = Math.floor(pStats.baseDmg * (1 + delta.chaosBonus));
-        if (delta.physBonus && (pStats.sSkill.ele === 'phys')) pStats.baseDmg = Math.floor(pStats.baseDmg * (1 + delta.physBonus));
-        if (delta.energyShieldRechargeDelayDelta) pStats.energyShieldRechargeDelay = Math.max(0, (pStats.energyShieldRechargeDelay || 3) + delta.energyShieldRechargeDelayDelta);
-        if (delta.poisonToHeal) pStats.poisonToHeal = true;
-        if (delta.disableEnemyLeech) pStats.disableEnemyLeech = true;
-        if (delta.delayedRegenFromTakenDamage) pStats.delayedRegenFromTakenDamage = Math.max(pStats.delayedRegenFromTakenDamage || 0, delta.delayedRegenFromTakenDamage);
-        if (delta.immuneIgnite) pStats.immuneIgnite = true;
-        if (delta.immuneChill) pStats.immuneChill = true;
-        if (delta.immuneFreeze) pStats.immuneFreeze = true;
-        if (delta.immuneShock) pStats.immuneShock = true;
-        if (delta.immuneBleed) pStats.immuneBleed = true;
-        if (delta.cleanseIgnite || delta.cleanseChill || delta.cleanseFreeze || delta.cleanseShock || delta.cleanseBleed) {
-            game.playerAilments = (game.playerAilments || []).filter(ail => {
-                if (!ail) return false;
-                let cleansed = (delta.cleanseIgnite && ail.type === 'ignite') || (delta.cleanseChill && ail.type === 'chill')
-                    || (delta.cleanseFreeze && ail.type === 'freeze') || (delta.cleanseShock && ail.type === 'shock')
-                    || (delta.cleanseBleed && ail.type === 'bleed');
-                if (cleansed && typeof recordPassiveCycleAilmentEnd === 'function') {
-                    recordPassiveCycleAilmentEnd(ail.type, pStats.cycle, getCombatTime());
-                }
-                if (cleansed) return false;
-                return true;
-            });
-        }
+}
+/** One talisman condition effect's delta on the tick's stats, in its fixed order (damage first, the element bonuses after it). */
+function applyConditionDelta(pStats, delta) {
+    applyConditionOffence(pStats, delta);
+    applyConditionDefence(pStats, delta);
+    applyConditionElement(pStats, delta);
+    applyConditionFlags(pStats, delta);
+    applyConditionCleanse(pStats, delta);
+}
+function applyConditionOffence(pStats, delta) {
+    if (delta.pctDmg) pStats.baseDmg = Math.floor(pStats.baseDmg * (1 + delta.pctDmg / 100));
+    if (delta.aspd) pStats.aspd *= (1 + delta.aspd / 100);
+    for (const key of ['regen', 'crit', 'critDmg', 'resPen']) if (delta[key]) pStats[key] += delta[key];
+    if (delta.targetAny) pStats.sSkill.targets = Math.min(12, (pStats.sSkill.targets || 1) + delta.targetAny);
+    for (const key of ['leech', 'move']) if (delta[key]) pStats[key] += delta[key];
+}
+function applyConditionDefence(pStats, delta) {
+    for (const key of ['resAll', 'maxResAll']) {
+        if (!delta[key]) continue;
+        pStats.resF += delta[key];
+        pStats.resC += delta[key];
+        pStats.resL += delta[key];
+    }
+    if (delta.resChaos) pStats.resChaos += delta.resChaos;
+    if (delta.energyShieldRegen) pStats.energyShieldRegenRate = Math.max(0, (pStats.energyShieldRegenRate || 0) + delta.energyShieldRegen);
+}
+const CONDITION_ELEMENT_BONUS = Object.freeze([['fireBonus', 'fire'], ['coldBonus', 'cold'], ['chaosBonus', 'chaos'], ['physBonus', 'phys']]);
+function applyConditionElement(pStats, delta) {
+    for (const [key, ele] of CONDITION_ELEMENT_BONUS) if (delta[key] && (pStats.sSkill.ele === ele)) pStats.baseDmg = Math.floor(pStats.baseDmg * (1 + delta[key]));
+    if (delta.energyShieldRechargeDelayDelta) pStats.energyShieldRechargeDelay = Math.max(0, (pStats.energyShieldRechargeDelay || 3) + delta.energyShieldRechargeDelayDelta);
+}
+const CONDITION_FLAG_KEYS = Object.freeze(['poisonToHeal', 'disableEnemyLeech']);
+const CONDITION_IMMUNITIES = Object.freeze(['immuneIgnite', 'immuneChill', 'immuneFreeze', 'immuneShock', 'immuneBleed']);
+function applyConditionFlags(pStats, delta) {
+    for (const key of CONDITION_FLAG_KEYS) if (delta[key]) pStats[key] = true;
+    if (delta.delayedRegenFromTakenDamage) pStats.delayedRegenFromTakenDamage = Math.max(pStats.delayedRegenFromTakenDamage || 0, delta.delayedRegenFromTakenDamage);
+    for (const key of CONDITION_IMMUNITIES) if (delta[key]) pStats[key] = true;
+}
+const CONDITION_CLEANSES = Object.freeze({ cleanseIgnite: 'ignite', cleanseChill: 'chill', cleanseFreeze: 'freeze', cleanseShock: 'shock', cleanseBleed: 'bleed' });
+/** The ailments a condition cleanses end now (the passive cycle records each end). */
+function applyConditionCleanse(pStats, delta) {
+    const types = Object.entries(CONDITION_CLEANSES).filter(([key]) => delta[key]).map(([, type]) => type);
+    if (!types.length) return;
+    game.playerAilments = (game.playerAilments || []).filter(ail => {
+        if (!ail) return false;
+        if (!types.includes(ail.type)) return true;
+        if (typeof recordPassiveCycleAilmentEnd === 'function') recordPassiveCycleAilmentEnd(ail.type, pStats.cycle, getCombatTime());
+        return false;
     });
-    applyCosmosPlayerDebuffsToStats(pStats);
-    if (!Number.isFinite(game.runProgress) || game.runProgress < 0) game.runProgress = 0;
-    if (!Number.isFinite(game.moveTimer)) game.moveTimer = 0;
+}
+
+/** Whether the tick stops before any fighting: the hero fell, the woodsman's entrance finishes, a halted fight still walks, or a
+ * halted fight stays halted (true = stop). */
+function stopTickBeforeCombat(pStats) {
+    sanitizeRunTimers();
     if ((Number(game.playerHp) || 0) <= 0) {
         handlePlayerDefeat(getZone(game.currentZoneId) || getZone(0), pStats, "☠️ 치명상을 입어 쓰러졌습니다.", { fatalElement: 'other', sourceName: '치명상' });
-        return;
+        return true;
     }
     if (game.woodsmanEntrancePending && game.moveTimer <= 0) {
         finishWoodsmanEntrance();
-        return;
+        return true;
     }
-    if (game.combatHalted && game.moveTimer > 0) {
-        game.moveTimer -= 0.1;
-        if (game.moveTimer <= 0) {
-            markPlayerMovementCompleted();
-            if (!finishWoodsmanEntrance()) startEncounterRun();
-        }
-        return;
+    return stopHaltedTick();
+}
+function sanitizeRunTimers() {
+    if (!Number.isFinite(game.runProgress) || game.runProgress < 0) game.runProgress = 0;
+    if (!Number.isFinite(game.moveTimer)) game.moveTimer = 0;
+}
+/** A halted fight: it still walks (true), stays halted (true) or resumes (false). */
+function stopHaltedTick() {
+    if (!game.combatHalted) return false;
+    if (game.moveTimer > 0) {
+        finishHaltedTravel();
+        return true;
     }
-    if (game.combatHalted) {
-        let beehive = game.beehive || {};
-        let beehiveLocked = typeof isBeehiveRunLockedForMapTravel === 'function'
-            ? isBeehiveRunLockedForMapTravel()
-            : (!!beehive.inRun && game.currentZoneId === 'beehive_run');
-        // stale beehive flags from older saves can keep combatHalted forever on normal zones.
-        // only an active beehive expedition should block halt recovery.
-        let beehivePause = !!(beehiveLocked && game.currentZoneId === 'beehive_run' && !beehive.awaitingClear);
-        let stopByMapSetting = (game.settings.mapCompleteAction || 'nextZone') === 'stop';
-        let stopByTownSetting = (game.settings.townReturnAction || 'retry') === 'stop';
-        let manualStopState = stopByMapSetting || stopByTownSetting || !!game.pendingLoopDecision || !!game.pendingLoopReady;
-        if (beehivePause || game.inTicketBossFight || manualStopState) return;
-        game.combatHalted = false;
-    }
-    let recoveryHpCap = getPlayerRecoveryHpCap(pStats);
+    return !resumeHaltedCombat();
+}
+function finishHaltedTravel() {
+    game.moveTimer -= 0.1;
+    if (game.moveTimer > 0) return;
+    markPlayerMovementCompleted();
+    if (!finishWoodsmanEntrance()) startEncounterRun();
+}
+/** A halted fight resumes unless something still holds it: an active beehive expedition (stale beehive flags from older saves could
+ * keep combatHalted forever on normal zones, so only an active one blocks), a ticket boss fight, or a stop the player chose. true
+ * when it resumed. */
+function resumeHaltedCombat() {
+    const beehive = game.beehive || {};
+    const beehiveLocked = typeof isBeehiveRunLockedForMapTravel === 'function'
+        ? isBeehiveRunLockedForMapTravel()
+        : (!!beehive.inRun && game.currentZoneId === 'beehive_run');
+    const beehivePause = !!(beehiveLocked && game.currentZoneId === 'beehive_run' && !beehive.awaitingClear);
+    if (beehivePause || game.inTicketBossFight || isManualCombatStop()) return false;
+    game.combatHalted = false;
+    return true;
+}
+const isManualCombatStop = () => (game.settings.mapCompleteAction || 'nextZone') === 'stop' || (game.settings.townReturnAction || 'retry') === 'stop'
+    || !!game.pendingLoopDecision || !!game.pendingLoopReady;
+
+/** The tick's recovery: life regen (under a bloom trial's suppression), act rest, the delayed guard heal, leech, recoup, and the
+ * energy shield. */
+function recoverPlayerTick(pStats) {
+    const recoveryHpCap = getPlayerRecoveryHpCap(pStats);
     if (game.playerHp > 0 && game.playerHp < recoveryHpCap) {
-        let hpCap = recoveryHpCap;
-        let bloomRegenMul = Math.max(0.05, 1 - Math.max(0, Math.min(0.95, game.bloomTrialRegenSuppress || 0)));
-        game.playerHp = Math.min(hpCap, game.playerHp + (pStats.maxHp * (pStats.regen / 100)) * 0.1 * bloomRegenMul);
+        const bloomRegenMul = Math.max(0.05, 1 - Math.max(0, Math.min(0.95, game.bloomTrialRegenSuppress || 0)));
+        game.playerHp = Math.min(recoveryHpCap, game.playerHp + (pStats.maxHp * (pStats.regen / 100)) * 0.1 * bloomRegenMul);
     }
     applyActRestRecovery(pStats, recoveryHpCap);
     if ((game.delayedGuardHealPool || 0) > 0) {
-        let tickHeal = Math.max(0, (game.delayedGuardHealPool / 4) * 0.1);
-        let hpCap = recoveryHpCap;
-        game.playerHp = Math.min(hpCap, game.playerHp + tickHeal);
+        const tickHeal = Math.max(0, (game.delayedGuardHealPool / 4) * 0.1);
+        game.playerHp = Math.min(recoveryHpCap, game.playerHp + tickHeal);
         game.delayedGuardHealPool = Math.max(0, game.delayedGuardHealPool - tickHeal);
     }
     tickPlayerLeech(pStats, 0.1);
     tickPlayerRecoup(pStats, 0.1);
-    let energyShieldRecoveryCap = getPlayerEnergyShieldRecoveryCap(pStats);
+    rechargeEnergyShieldTick(pStats);
+}
+function rechargeEnergyShieldTick(pStats) {
+    const cap = getPlayerEnergyShieldRecoveryCap(pStats);
+    sanitizeEnergyShieldTick(pStats, cap);
+    if ((pStats.energyShield || 0) > 0 && game.playerEnergyShield < cap) refillEnergyShieldTick(pStats, cap);
+}
+function sanitizeEnergyShieldTick(pStats, cap) {
     if (!Number.isFinite(game.playerEnergyShield)) game.playerEnergyShield = Math.floor(pStats.energyShield || 0);
-    game.playerEnergyShield = Math.max(0, Math.min(game.playerEnergyShield, energyShieldRecoveryCap));
+    game.playerEnergyShield = Math.max(0, Math.min(game.playerEnergyShield, cap));
     if (!Number.isFinite(game.playerEsLastHitAt)) game.playerEsLastHitAt = 0;
-    if ((pStats.energyShield || 0) > 0 && game.playerEnergyShield < energyShieldRecoveryCap) {
-        if (hasKeystone('cr5')) {
-            let lifeRegenToEs = (pStats.maxHp || 0) * ((pStats.regen || 0) / 100);
-            game.playerEnergyShield = Math.min(energyShieldRecoveryCap, game.playerEnergyShield + lifeRegenToEs * 0.1);
-        }
-        if ((game.crusaderEsRegenUntil || 0) > getCombatTime()) {
-            let regenPerSec = (pStats.energyShield || 0) * 0.25;
-            game.playerEnergyShield = Math.min(energyShieldRecoveryCap, game.playerEnergyShield + regenPerSec * 0.1);
-        }
-        let sinceHit = (getCombatTime() - (game.playerEsLastHitAt || 0)) / 1000;
-        let uniqueBreakRecharge = pStats.uniqueEnergyShieldBreakRecharge && (game.uniqueEnergyShieldBreakRechargeUntil || 0) > getCombatTime();
-        let noInterruptEsRegen = (hasKeystone('e3')) || uniqueBreakRecharge;
-        let allowRechargeWhileMoving = (game.moveTimer || 0) > 0 && (pStats.energyShieldRechargeDelay || 0) <= 0;
-        if (noInterruptEsRegen || allowRechargeWhileMoving || sinceHit >= (pStats.energyShieldRechargeDelay || 3)) {
-            let regenPerSec = (pStats.energyShield || 0) * ((pStats.energyShieldRegenRate || 12.5) / 100);
-            game.playerEnergyShield = Math.min(energyShieldRecoveryCap, game.playerEnergyShield + regenPerSec * 0.1);
-        }
-    }
+}
+/** cr5 turns life regen into shield, the crusader window adds 25% a second, and the shield's own recharge when it runs now. */
+function refillEnergyShieldTick(pStats, cap) {
+    const add = perSec => { game.playerEnergyShield = Math.min(cap, game.playerEnergyShield + perSec * 0.1); };
+    if (hasKeystone('cr5')) add((pStats.maxHp || 0) * ((pStats.regen || 0) / 100));
+    if ((game.crusaderEsRegenUntil || 0) > getCombatTime()) add((pStats.energyShield || 0) * 0.25);
+    if (energyShieldRechargesNow(pStats)) add((pStats.energyShield || 0) * ((pStats.energyShieldRegenRate || 12.5) / 100));
+}
+const uniqueShieldWindowOpen = pStats => Boolean(pStats.uniqueEnergyShieldBreakRecharge && (game.uniqueEnergyShieldBreakRechargeUntil || 0) > getCombatTime());
+/** Whether the energy shield refills this tick: no interruption (e3, a broken-shield unique window), moving with no delay, or the
+ * recharge delay passed since the last hit. */
+function energyShieldRechargesNow(pStats) {
+    const sinceHit = (getCombatTime() - (game.playerEsLastHitAt || 0)) / 1000;
+    const noInterruptEsRegen = (hasKeystone('e3')) || uniqueShieldWindowOpen(pStats);
+    const allowRechargeWhileMoving = (game.moveTimer || 0) > 0 && (pStats.energyShieldRechargeDelay || 0) <= 0;
+    return Boolean(noInterruptEsRegen || allowRechargeWhileMoving || sinceHit >= (pStats.energyShieldRechargeDelay || 3));
+}
 
+/** The hero walks (or the woodsman's entrance waits): the tick only moves. true when it did. */
+function advanceTravelTick() {
     if (game.moveTimer > 0) {
         game.moveTimer -= 0.1;
-        if (game.moveTimer <= 0) {
-            markPlayerMovementCompleted();
-            if (game.isTownReturning) {
-                game.isTownReturning = false;
-                if (finishTownReturnAction()) return;
-            }
-            if (!finishWoodsmanEntrance()) startEncounterRun();
-        }
-        return;
+        if (game.moveTimer <= 0) finishTravelMove();
+        return true;
     }
-    if (game.woodsmanEntrancePending) {
-        finishWoodsmanEntrance();
-        return;
+    if (!game.woodsmanEntrancePending) return false;
+    finishWoodsmanEntrance();
+    return true;
+}
+function finishTravelMove() {
+    markPlayerMovementCompleted();
+    if (game.isTownReturning) {
+        game.isTownReturning = false;
+        if (finishTownReturnAction()) return;
     }
-
-    syncCrowdPauseState();
-    let _nowPrune = getCombatTime();
+    if (!finishWoodsmanEntrance()) startEncounterRun();
+}
+/** Every 2 s the per-monster debuff maps lose monsters that are gone. */
+function pruneEnemyRuntimeOnSchedule() {
+    const now = getCombatTime();
     game._nextEnemyRuntimePruneAt = Number.isFinite(game._nextEnemyRuntimePruneAt) ? game._nextEnemyRuntimePruneAt : 0;
-    if (_nowPrune >= game._nextEnemyRuntimePruneAt) {
-        pruneEnemyRuntimeDebuffMaps();
-        game._nextEnemyRuntimePruneAt = _nowPrune + 2000;
-    }
-    if ((typeof isBeehiveRunLockedForMapTravel === 'function' ? isBeehiveRunLockedForMapTravel() : !!(game.beehive && game.beehive.inRun)) && !(game.beehive && game.beehive.awaitingClear)) return;
-    let progressBefore = game.runProgress;
-    let zoneNow = getZone(game.currentZoneId);
-    if (zoneNow?.type === 'colony' && game.colony.inRun) tickColonyRun(pStats);
-    if (zoneNow && zoneNow.type === 'underworld' && game.playerHp > 0) {
-        let floor = Math.max(1, Math.floor(zoneNow.floor || 1));
-        if (floor >= 15) {
-            let tickDmg = getUnderworldLifeDrainPerTick(pStats.maxHp, floor, getSkyStoneReductionPct());
-            tickDmg = floorIncomingDamage(tickDmg);
-            tickDmg = absorbDamageWithTalentStoneShield(tickDmg);
-            game.playerHp = Math.max(0, Math.floor(game.playerHp - tickDmg));
-        }
-    }
-    let vRift = game.voidRift || (game.voidRift = { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0, pendingWave: false, totalToSpawn: 0, spawnedCount: 0, spawnTick: 0 });
-    let holdMapProgress = isMapProgressHeld(zoneNow, vRift);
-    if (!holdMapProgress) advanceMapProgress(pStats);
-    if (actExplorationProgress.shouldTrackStall()) {
-        if (game.runProgress <= progressBefore + 0.0001) progressStallTicks++;
-        else progressStallTicks = 0;
-        if (progressStallTicks >= 20) {
-            ensureEncounterRun();
-            game.runProgress = Math.min(99.9, progressBefore + 0.4);
-            progressStallTicks = 0;
-        }
-    } else {
-        progressStallTicks = 0;
-    }
-    let hazardEvasion = updateCombatHazardEvasion(pStats);
-    let walkedMs = actExplorationProgress.takeWalkedMs(); // 이번 틱에 걸은 시간: 적이 없어도 비운다
-    if (game.playerHp <= 0) return;
-    if ((game.enemies || []).length > 0) {
-        tickEnemyDotEffects(pStats, 0.1);
-        tickEnemyAilments(pStats, 0.1);
-        let nowCast = getCombatTime();
-        let channelGate = getCombatChannelGate(pStats, nowCast);
-        let castUntil = Math.max(0, Number(combatTacticsRuntime.attackDelayUntil) || 0);
-        if (castUntil > nowCast + 5000) castUntil = nowCast + 500;
-        let castBlocked = nowCast < castUntil || hazardEvasion.avoiding;
-        let inSkillRange = hazardEvasion.avoiding ? false : (channelGate.locked
-            ? channelGate.hasTargets
-            : updatePlayerGridEngagement(pStats, { holdPosition: actExplorationProgress.holdPosition(hazardEvasion.holdPosition), avoidCells: hazardEvasion.avoidCells }));
-        if (!castBlocked) {
-            pTimer += 0.1 * pStats.aspd * getWalkingChargeScale(pStats, walkedMs);
-            // 사거리 밖이면 스윙 게이지를 1회분까지만 모아 두고, 붙는 즉시 공격한다.
-            if (!inSkillRange) pTimer = Math.min(pTimer, 1.0);
-        }
-        while (!castBlocked && inSkillRange && pTimer >= 1.0 && game.enemies.length > 0) {
-            pTimer -= 1.0;
-            performPlayerAttack(pStats);
-            combatTacticsRuntime.recoverUntil = Math.max(combatTacticsRuntime.recoverUntil || 0, nowCast + getPlayerAttackRecoveryMs(pStats.aspd));
-            let dsChance = Math.max(0, pStats.ds || 0);
-            let guaranteedExtra = Math.floor(dsChance / 100);
-            let extraRemainder = dsChance - (guaranteedExtra * 100);
-            let extraHits = guaranteedExtra + ((Math.random() * 100 < extraRemainder) ? 1 : 0);
-            for (let chain = 0; chain < extraHits && game.enemies.length > 0; chain++) {
-                // 연속 타격은 줄을 남기지 않는다(2026-10-18): 후반에는 보이는 전투 기록 60줄 가운데 열 줄 남짓을 차지했고, 희귀 전리품 색이라
-                // 전리품 줄처럼 보였다. 추가 타격마다 피해 줄은 그대로 남는다.
-                performPlayerAttack(pStats, { repeatChannelCast: true });
-                if (hasKeystone('g2')) {
-                    let now = getCombatTime();
-                    let active = (game.gladiatorFlurryExpiresAt || 0) > now;
-                    let stacks = active ? Math.max(0, Math.min(12, Math.floor(game.gladiatorFlurryStacks || 0))) : 0;
-                    game.gladiatorFlurryStacks = Math.min(12, stacks + 1);
-                    game.gladiatorFlurryExpiresAt = now + 3000;
-                }
-                if (hasKeystone('w2')) {
-                    let now = getCombatTime();
-                    let active = (game.warriorRhythmDoubleExpiresAt || 0) > now;
-                    let stacks = active ? Math.max(0, Math.min(5, Math.floor(game.warriorRhythmDoubleStacks || 0))) : 0;
-                    game.warriorRhythmDoubleStacks = Math.min(5, stacks + 1);
-                    game.warriorRhythmDoubleExpiresAt = now + 2000;
-                }
-            }
-        }
-        mobilitySkill.cast({ blocked: castBlocked, inRange: inSkillRange, auto: !actExplorationProgress.holdPosition(hazardEvasion.holdPosition) }); // 이동 스킬: the player's key, or (auto-move on) closing the gap the main gem can't reach
-        runSummonAttackTick(pStats);
-        performMonsterAttacks(pStats);
-    }
-    settleLastEnemyAttacks(pStats);
-    zoneNow = getZone(game.currentZoneId);
-    if ((game.season || 1) >= 9 && isVoidRiftCombatZone(zoneNow)) {
-        let v = game.voidRift || (game.voidRift = { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0 });
-        if (v.active) {
-            v.pendingWave = v.pendingWave !== false;
-            v.totalToSpawn = Math.max(3, Math.floor(v.totalToSpawn || (6 + Math.floor(Math.random() * 4))));
-            v.spawnedCount = Math.max(0, Math.floor(v.spawnedCount || 0));
-            v.spawnTick = Math.max(0, Math.floor(v.spawnTick || 0));
-            if (spawnVoidBreachReinforcement(zoneNow, v) && game.settings.showSpawnLog !== false) {
-                addLog(`🕳️ 균열 출현 ${v.spawnedCount}/${v.totalToSpawn}`, 'attack-monster', { noToast: true });
-            }
-            if (v.spawnedCount >= v.totalToSpawn && (v.defeatedCount || 0) >= v.totalToSpawn && (game.enemies || []).filter(e => e.hp > 0 && e.fromVoidRift).length === 0) {
-                v.active = false;
-                v.pendingWave = false;
-                v.breachClears = (v.breachClears || 0) + 1;
-                let reward = 1 + (Math.random() < 0.2 ? 1 : 0);
-                reward = combatLootReceipts.capture(game,()=>awardCurrency('voidChisel', reward, 'drop'));
-                let unlockedGrand = false;
-                if (Math.random() < GRAND_BREACH_ENCOUNTER.unlockChance) {
-                    v.grandBreachUnlock = true;
-                    unlockedGrand = true;
-                }
-                addLog(`🕳️ 공허의 구멍 정리 완료!${reward ? ` 공허의 끌 +${reward}` : ''}`, 'loot-magic', { noToast: true });
-                if (unlockedGrand) {
-                    let enteredGrand = typeof autoEnterGrandBreachIfReady === 'function' && autoEnterGrandBreachIfReady();
-                    if (!enteredGrand) addLog('🚨 대균열이 열렸습니다! [대균열 입장] 버튼을 확인하세요.', 'loot-unique');
-                    if (!enteredGrand && !v.grandNoticeShown && typeof queueTutorialNotice === 'function') {
-                        v.grandNoticeShown = true;
-                        queueTutorialNotice('void_grand_breach_ready_once', '대균열', '대균열이 열렸습니다.\n‘지도 → 탐험 → 공허 균열, 대균열’에서 ‘대균열 입장’을 누르세요.', 'tab-map');
-                    }
-                }
-            }
-        }
-    }
-    if (game.playerHp <= 0) {
-        handlePlayerDefeat(getZone(game.currentZoneId), pStats, "☠️ 상태이상으로 쓰러졌습니다.", { fatalElement: 'other', sourceName: '상태이상' });
-        return;
-    }
-    syncCrowdPauseState();
+    if (now < game._nextEnemyRuntimePruneAt) return;
+    pruneEnemyRuntimeDebuffMaps();
+    game._nextEnemyRuntimePruneAt = now + 2000;
+}
+/** A beehive expedition that is not waiting to be cleared holds the tick here. */
+function beehiveHoldsTick() {
+    const locked = typeof isBeehiveRunLockedForMapTravel === 'function' ? isBeehiveRunLockedForMapTravel() : !!(game.beehive && game.beehive.inRun);
+    return locked && !(game.beehive && game.beehive.awaitingClear);
+}
+/** The zone's own tick: the colony run, and from underworld floor 15 the life drain. */
+function tickZoneHazards(zone, pStats) {
+    if (zone?.type === 'colony' && game.colony.inRun) tickColonyRun(pStats);
+    if (!zone || zone.type !== 'underworld' || game.playerHp <= 0) return;
+    const floor = Math.max(1, Math.floor(zone.floor || 1));
+    if (floor < 15) return;
+    let tickDmg = getUnderworldLifeDrainPerTick(pStats.maxHp, floor, getSkyStoneReductionPct());
+    tickDmg = floorIncomingDamage(tickDmg);
+    tickDmg = absorbDamageWithTalentStoneShield(tickDmg);
+    game.playerHp = Math.max(0, Math.floor(game.playerHp - tickDmg));
+}
+/** 20 ticks with no map progress where progress is tracked: the run is rebuilt and nudged forward. */
+function trackProgressStall(progressBefore) {
+    if (!actExplorationProgress.shouldTrackStall()) { progressStallTicks = 0; return; }
+    if (game.runProgress <= progressBefore + 0.0001) progressStallTicks++;
+    else progressStallTicks = 0;
+    if (progressStallTicks < 20) return;
+    ensureEncounterRun();
+    game.runProgress = Math.min(99.9, progressBefore + 0.4);
+    progressStallTicks = 0;
+}
 
-    if (!holdMapProgress && actExplorationProgress.canFinish()) playerStatCache.during(finishEncounterRun);
+/** The fight's tick: monster dots and ailments, the hero's swings (held while a cast delays them or a danger is walked out of; out
+ * of range the swing charge stops at one), double strikes, the mobility skill, summons, the monsters' attacks. */
+function runFightTick(pStats, hazardEvasion, walkedMs) {
+    tickEnemyDotEffects(pStats, 0.1);
+    tickEnemyAilments(pStats, 0.1);
+    const nowCast = getCombatTime();
+    const channelGate = getCombatChannelGate(pStats, nowCast);
+    const castBlocked = nowCast < getAttackDelayUntil(nowCast) || hazardEvasion.avoiding;
+    const inSkillRange = resolveSkillRange(pStats, channelGate, hazardEvasion);
+    if (!castBlocked) {
+        pTimer += 0.1 * pStats.aspd * getWalkingChargeScale(pStats, walkedMs);
+        // 사거리 밖이면 스윙 게이지를 1회분까지만 모아 두고, 붙는 즉시 공격한다.
+        if (!inSkillRange) pTimer = Math.min(pTimer, 1.0);
+    }
+    while (!castBlocked && inSkillRange && pTimer >= 1.0 && game.enemies.length > 0) {
+        pTimer -= 1.0;
+        performPlayerAttack(pStats);
+        combatTacticsRuntime.recoverUntil = Math.max(combatTacticsRuntime.recoverUntil || 0, nowCast + getPlayerAttackRecoveryMs(pStats.aspd));
+        performDoubleStrikes(pStats);
+    }
+    mobilitySkill.cast({ blocked: castBlocked, inRange: inSkillRange, auto: !actExplorationProgress.holdPosition(hazardEvasion.holdPosition) }); // 이동 스킬: the player's key, or (auto-move on) closing the gap the main gem can't reach
+    runSummonAttackTick(pStats);
+    performMonsterAttacks(pStats);
+}
+/** Whether the main gem reaches a target: never while walking out of danger; a locked channel by its targets; else the grid
+ * engagement (which also steps the hero in). */
+function resolveSkillRange(pStats, channelGate, hazardEvasion) {
+    if (hazardEvasion.avoiding) return false;
+    if (channelGate.locked) return channelGate.hasTargets;
+    return updatePlayerGridEngagement(pStats, { holdPosition: actExplorationProgress.holdPosition(hazardEvasion.holdPosition), avoidCells: hazardEvasion.avoidCells });
+}
+/** When the cast delay ends (a delay over 5 s away is a stale one: 0.5 s). */
+function getAttackDelayUntil(nowCast) {
+    const castUntil = Math.max(0, Number(combatTacticsRuntime.attackDelayUntil) || 0);
+    return castUntil > nowCast + 5000 ? nowCast + 500 : castUntil;
+}
+/** 연속 타격: every full 100% is an extra swing, the rest a chance of one more (rolled every swing). g2 and w2 count each. */
+function performDoubleStrikes(pStats) {
+    const dsChance = Math.max(0, pStats.ds || 0);
+    const guaranteedExtra = Math.floor(dsChance / 100);
+    const extraRemainder = dsChance - (guaranteedExtra * 100);
+    const extraHits = guaranteedExtra + ((Math.random() * 100 < extraRemainder) ? 1 : 0);
+    for (let chain = 0; chain < extraHits && game.enemies.length > 0; chain++) {
+        // 연속 타격은 줄을 남기지 않는다(2026-10-18): 후반에는 보이는 전투 기록 60줄 가운데 열 줄 남짓을 차지했고, 희귀 전리품 색이라
+        // 전리품 줄처럼 보였다. 추가 타격마다 피해 줄은 그대로 남는다.
+        performPlayerAttack(pStats, { repeatChannelCast: true });
+        if (hasKeystone('g2')) stackKeystoneRhythm('gladiatorFlurry', 12, 3000);
+        if (hasKeystone('w2')) stackKeystoneRhythm('warriorRhythmDouble', 5, 2000);
+    }
+}
+/** A keystone's short stack (game[prefix + 'Stacks'], game[prefix + 'ExpiresAt']): +1 up to cap, its timer restarted. */
+function stackKeystoneRhythm(prefix, cap, durationMs) {
+    const now = getCombatTime(), countKey = prefix + 'Stacks', untilKey = prefix + 'ExpiresAt';
+    const stacks = (game[untilKey] || 0) > now ? Math.max(0, Math.min(cap, Math.floor(game[countKey] || 0))) : 0;
+    game[countKey] = Math.min(cap, stacks + 1);
+    game[untilKey] = now + durationMs;
+}
+
+/** From loop 9 in void rift zones, an open rift's wave: reinforcements arrive, and when all came and fell the rift closes with its
+ * rewards and maybe opens the grand breach. ui: { say (addLog), enterGrand (the grand breach auto entry) } from the tick. */
+function tickVoidRiftWave(zone, ui) {
+    if ((game.season || 1) < 9 || !isVoidRiftCombatZone(zone)) return;
+    const v = game.voidRift || (game.voidRift = { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0 });
+    if (!v.active) return;
+    sanitizeVoidRiftWave(v);
+    if (spawnVoidBreachReinforcement(zone, v) && game.settings.showSpawnLog !== false) {
+        ui.say(`🕳️ 균열 출현 ${v.spawnedCount}/${v.totalToSpawn}`, 'attack-monster', { noToast: true });
+    }
+    if (voidRiftWaveCleared(v)) closeVoidRiftWave(v, ui);
+}
+function sanitizeVoidRiftWave(v) {
+    v.pendingWave = v.pendingWave !== false;
+    v.totalToSpawn = Math.max(3, Math.floor(v.totalToSpawn || (6 + Math.floor(Math.random() * 4))));
+    v.spawnedCount = Math.max(0, Math.floor(v.spawnedCount || 0));
+    v.spawnTick = Math.max(0, Math.floor(v.spawnTick || 0));
+}
+const voidRiftWaveCleared = v => v.spawnedCount >= v.totalToSpawn && (v.defeatedCount || 0) >= v.totalToSpawn
+    && (game.enemies || []).filter(e => e.hp > 0 && e.fromVoidRift).length === 0;
+function closeVoidRiftWave(v, ui) {
+    v.active = false;
+    v.pendingWave = false;
+    v.breachClears = (v.breachClears || 0) + 1;
+    let reward = 1 + (Math.random() < 0.2 ? 1 : 0);
+    reward = combatLootReceipts.capture(game,()=>awardCurrency('voidChisel', reward, 'drop'));
+    let unlockedGrand = false;
+    if (Math.random() < GRAND_BREACH_ENCOUNTER.unlockChance) {
+        v.grandBreachUnlock = true;
+        unlockedGrand = true;
+    }
+    ui.say(`🕳️ 공허의 구멍 정리 완료!${reward ? ` 공허의 끌 +${reward}` : ''}`, 'loot-magic', { noToast: true });
+    if (unlockedGrand) announceGrandBreachOpen(v, ui);
+}
+function announceGrandBreachOpen(v, ui) {
+    const enteredGrand = ui.enterGrand();
+    if (!enteredGrand) ui.say('🚨 대균열이 열렸습니다! [대균열 입장] 버튼을 확인하세요.', 'loot-unique');
+    if (!enteredGrand && !v.grandNoticeShown && typeof queueTutorialNotice === 'function') {
+        v.grandNoticeShown = true;
+        queueTutorialNotice('void_grand_breach_ready_once', '대균열', '대균열이 열렸습니다.\n‘지도 → 탐험 → 공허 균열, 대균열’에서 ‘대균열 입장’을 누르세요.', 'tab-map');
+    }
 }
 
 function processPendingSlamEchoHits() {
