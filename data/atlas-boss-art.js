@@ -1,7 +1,8 @@
-/** Generated key poses, packed at game display scale. Sources/prompts: artifacts/endgame-expansion. */
+/** Pixel-redrawn key poses: shared 16-entry palettes, binary alpha, 2px clusters. Sources: artifacts/endgame-expansion/pixel-style. */
 const ATLAS_BOSS_ART = Object.freeze({
   "apex_gardener": {
     "id": "apex_gardener",
+    "version": "20261018-pixel1",
     "name": "정원사의 메아리",
     "w": 448,
     "h": 304,
@@ -38,6 +39,7 @@ const ATLAS_BOSS_ART = Object.freeze({
   },
   "apex_weaver": {
     "id": "apex_weaver",
+    "version": "20261018-pixel1",
     "name": "나이테를 엮는 자",
     "w": 352,
     "h": 288,
@@ -72,6 +74,7 @@ const ATLAS_BOSS_ART = Object.freeze({
   },
   "apex_archbishop": {
     "id": "apex_archbishop",
+    "version": "20261018-pixel1",
     "name": "검은 태양의 대사제",
     "w": 256,
     "h": 288,

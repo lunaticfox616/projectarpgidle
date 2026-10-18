@@ -49,7 +49,7 @@ const stageRoster = (() => {
         return data.actors[settings().stageMonsterLook] || own || null;
     }
     /** A sheet, decoded off the main thread (js/canvas-stage-pictures.js). */
-    const load = file => stagePictures.openPicture(`${table().path}${file}?v=${table().version}`);
+    const load = (file, version = table().version) => stagePictures.openPicture(`${table().path}${file}?v=${version}`);
     function letGo(id, pair) {
         stagePictures.closePicture(pair.walk);
         if (pair.attack) stagePictures.closePicture(pair.attack);
@@ -90,8 +90,8 @@ const stageRoster = (() => {
         if (!pair) {
             // 쓴 때를 적고 나서 묶음을 줄인다: 0으로 넣고 줄이면 방금 넣은 묶음이 가장 오래된 것으로 뽑혀 바로 버려졌고, 그림을 비운
             // 묶음은 '불러오지 못함'으로 읽혀 그 몬스터가 예전 그림으로 그려졌다(2026-10-13: 한 번의 플레이에서 열다섯 번째 모습부터 모두).
-            pair = { walk: load(actor.id + '-walk.png'), attack: actor.attackMs ? load(actor.id + '-attack.png') : null,
-                death: actor.death ? load(actor.id + '-death.png') : null, at: tick };
+            pair = { walk: load(actor.id + '-walk.png', actor.version), attack: actor.attackMs ? load(actor.id + '-attack.png', actor.version) : null,
+                death: actor.death ? load(actor.id + '-death.png', actor.version) : null, at: tick };
             sheets.set(actor.id, pair);
             trim();
         }
