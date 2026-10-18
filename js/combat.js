@@ -12837,7 +12837,7 @@ function performMonsterAttacks(pStats) {
                 // 다 막으면 '막아냄!'(피해 없음), 일부만 막으면 받는 몫을 적는다.
                 let blockText = blockedTakenPct <= 0 ? '막아냄!' : `막아냄, 피해 ${blockedTakenPct}%`;
                 addBattleFx('statusText', { text: blockText, color: '#ebdfc2', duration: 260, bodyCue: true });
-                if (game.settings.showCombatLog) addLog(`🛡️ ${blockText}`, "loot-magic");
+                if (game.settings.showCombatLog) addLog(`🛡️ ${blockText}`, "loot-magic", { noToast: true, aggregateKey: `combat:block:${blockText}`, aggregateWindowMs: 450 });
                 if (blockedTakenPct <= 0) continue;
                 dmg = scaleBreakdownToTotal(Math.max(1, Math.floor(dmg * blockedTakenPct / 100)));
                 ailmentSourceDamageBeforeCrit = Math.max(1, Math.floor(ailmentSourceDamageBeforeCrit * blockedTakenPct / 100));
@@ -12845,7 +12845,7 @@ function performMonsterAttacks(pStats) {
             let guardianNullifyChance = Math.max(0, Math.min(100, Number(pStats.guardianDamageNullifyChance) || 0));
             if (guardianNullifyChance > 0 && Math.random() * 100 < guardianNullifyChance) {
                 addBattleFx('statusText', { text: '무효!', color: '#bdf7ff', duration: 300 });
-                if (game.settings.showCombatLog) addLog('🛡️ 절대 수호: 피해 무효!', 'loot-magic');
+                if (game.settings.showCombatLog) addLog('🛡️ 절대 수호: 피해 무효!', 'loot-magic', { noToast: true, aggregateKey: 'combat:block:nullify', aggregateWindowMs: 450 });
                 continue;
             }
             let deflected = false;
