@@ -9490,105 +9490,139 @@ function rollEnemyAttackGem(awakening) {
     return {kind:'attack',name,awakened};
 }
 
+/** One kill's loot, in its fixed roll order: awakened echoes, a rune, currencies, gear and talismans, a jewel, hive loot, a hive
+ * key, a colony trace, a spore. Split into its steps on 2026-10-18 with the same rolls in the same order; log lines and the unlock
+ * check reach the steps through ui. */
 function rollLootForEnemy(enemy) {
     let zone = getZone(game.currentZoneId) || getZone(0);
     let contentDropMul = getContentDropRateMultiplier(zone);
     let gemAwakening = contentProgression.isUnlocked('gemAwakening');
-    if (contentProgression.canDropCurrency('awakenedEcho') && gemAwakening && (enemy.isBoss || enemy.isElite)) {
-        let echoChance = enemy.isBoss ? 0.045 : 0.004;
-        if (Math.random() < echoChance * contentDropMul) {
-            awardEnemyLootCurrency('awakenedEcho', 1);
-            if (game.settings.showLootLog) addLog('🌌 각성 잔향 +1', 'loot-unique');
-        }
-    }
-    if (Math.random() < (enemy.isBoss ? 0.09 : enemy.isElite ? 0.018 : 0.003) * contentDropMul * getEnemyGemDropMul(enemy)) {
-        const reward=rollEnemyGemReward(enemy,gemAwakening);
-        if(reward.gem) {
-            gemDropRewards.grant(game,reward.gem,reward.kind==='support'?getEffectiveResonanceCap():0);
-            checkUnlocks();
-        }
-        dispatchRuntimeEvent('gem-loot-received',reward);
-    }
-
-    getCurrencyDrops(enemy).forEach(drop => {
-        if (!drop || !drop[0]) return;
-        if (drop[0] === 'core') {
-            const core = coreItems.roll();
-            if (placeFloorItem(enemy, 'core', core)) return;
-            coreItems.keep(core);
-            queueEnemyGroundLoot(enemy, { item: core, itemKind: 'core' });
-            dispatchRuntimeEvent('core-item-received', core);
-            return;
-        }
-        const { gain, floor } = keepCurrencyDrop(enemy, drop[0], drop[1]);
-        if (gain <= 0 || floor) return; // a floor drop logs when picked up (js/battle-ground-loot-ui.js)
-        let currencyName = typeof getStyledOrbName === 'function' ? getStyledOrbName(drop[0]) : ((ORB_DB[drop[0]] && ORB_DB[drop[0]].name) || drop[0]);
-        if (game.settings.showLootLog) addLog(`🪙 ${currencyName} +${gain}`, drop[0] === 'goldenRule' || drop[0] === 'sapBud' ? 'loot-unique' : 'loot-magic');
-    });
-
+    // The resonance cap is read only for a support rune drop (the skill screen script owns it, some runs lack it).
+    const ui = { say: addLog, unlocks: checkUnlocks, get resonanceCap() { return getEffectiveResonanceCap; } };
+    rollAwakenedEchoDrop(enemy, contentDropMul, gemAwakening, ui);
+    rollEnemyRuneDrop(enemy, contentDropMul, gemAwakening, ui);
+    getCurrencyDrops(enemy).forEach(drop => keepEnemyCurrencyDrop(enemy, drop, ui));
     let { equipment: itemChance, talisman: talismanChance } = getEquipmentDropChances(zone, enemy);
     const keptItem = rollEquipmentLoot(enemy, zone, itemChance);
     grantRealmBossUniqueLoot(enemy, zone);
     if (keptItem && game.settings.showLootLog) addLog(`🛡️ <span class='loot-${keptItem.rarity}'>[${keptItem.name}]</span> 획득!`, '', { item: keptItem });
     rollWildTalismanDrop(enemy, talismanChance);
-    if (contentProgression.isUnlocked('jewel') && (game.season || 1) >= 5 && (enemy.isElite || enemy.isBoss) && Math.random() < 0.0056 * contentDropMul) {
-        let jewel = generateJewelDrop(getZone(game.currentZoneId) || { type: 'act', storyOrder: 1 });
-        if (!placeFloorItem(enemy, 'jewel', jewel)) {
-            const receipt=receiveJewelDrop(jewel);
-            if (receipt.stored) queueEnemyGroundLoot(enemy, { item: jewel, itemKind: 'jewel', color: getJewelLootColor(jewel) });
-            dispatchRuntimeEvent('jewel-drop-received',receipt);
-        }
-    }
-    let beeUnlocked = !!(game.beehive && game.beehive.unlockedPermanent);
+    rollEnemyJewelDrop(enemy, contentDropMul);
     let mappingZone = isBeeMappingZone(zone);
-    if (beeUnlocked && mappingZone && !enemy.isBoss) {
-        let beeLootLogs = [];
-        if (Math.random() < 0.05) {
-            let pollenAmount = enemy.isElite ? 2 : 1;
-            awardEnemyLootCurrency('pollen', pollenAmount);
-            beeLootLogs.push(`꽃가루 +${pollenAmount}`);
-        }
-        if (enemy.isElite && Math.random() < 0.0048) {
-            awardEnemyLootCurrency('venomStinger', 1);
-            beeLootLogs.push('독벌침 +1');
-        }
-        if (enemy.isElite && Math.random() < 0.00064) {
-            awardEnemyLootCurrency('enchantedHoney', 1);
-            beeLootLogs.push('마력 깃든 벌꿀 +1');
-        }
-        if (enemy.isElite && Math.random() < 0.0032) {
-            awardEnemyLootCurrency('beeswax', 1);
-            beeLootLogs.push('밀랍 +1');
-        }
-        if (game.settings.showLootLog && beeLootLogs.length > 0) beeLootLogs.forEach(msg => addLog(`🐝 ${msg}`, 'loot-normal'));
-    }
+    rollBeeLoot(enemy, mappingZone, ui);
     if (zone && zone.type === 'atlasMap' && atlasPassives.has(game, 'beeEvents')) maybeTriggerBeeMappingEvent(enemy);
-    if ((game.season || 1) >= 8 && mappingZone && Math.random() < (enemy.isBoss ? 0.005 : enemy.isElite ? 0.0015 : 0.0002)) {
-        awardEnemyLootCurrency('hiveKey', 1);
-        if (game.settings.showLootLog) addLog('🗝️ 벌집 입장권 열쇠를 발견했습니다.', 'loot-rare');
+    rollHiveKeyDrop(enemy, mappingZone, ui);
+    rollColonyTraceDrop(zone, ui);
+    rollSporeDrop(enemy, zone, ui);
+}
+function rollAwakenedEchoDrop(enemy, contentDropMul, gemAwakening, ui) {
+    if (!(contentProgression.canDropCurrency('awakenedEcho') && gemAwakening && (enemy.isBoss || enemy.isElite))) return;
+    let echoChance = enemy.isBoss ? 0.045 : 0.004;
+    if (Math.random() < echoChance * contentDropMul) {
+        awardEnemyLootCurrency('awakenedEcho', 1);
+        if (game.settings.showLootLog) ui.say('🌌 각성 잔향 +1', 'loot-unique');
     }
+}
+function rollEnemyRuneDrop(enemy, contentDropMul, gemAwakening, ui) {
+    if (!(Math.random() < (enemy.isBoss ? 0.09 : enemy.isElite ? 0.018 : 0.003) * contentDropMul * getEnemyGemDropMul(enemy))) return;
+    const reward=rollEnemyGemReward(enemy,gemAwakening);
+    if(reward.gem) {
+        gemDropRewards.grant(game,reward.gem,reward.kind==='support'?ui.resonanceCap():0);
+        ui.unlocks();
+    }
+    dispatchRuntimeEvent('gem-loot-received',reward);
+}
+/** One currency drop: a core goes to the floor or the core box; a currency is kept (a floor pile logs when picked up). */
+function keepEnemyCurrencyDrop(enemy, drop, ui) {
+    if (!drop || !drop[0]) return;
+    if (drop[0] === 'core') {
+        const core = coreItems.roll();
+        if (placeFloorItem(enemy, 'core', core)) return;
+        coreItems.keep(core);
+        queueEnemyGroundLoot(enemy, { item: core, itemKind: 'core' });
+        dispatchRuntimeEvent('core-item-received', core);
+        return;
+    }
+    const { gain, floor } = keepCurrencyDrop(enemy, drop[0], drop[1]);
+    if (gain <= 0 || floor) return; // a floor drop logs when picked up (js/battle-ground-loot-ui.js)
+    logEnemyCurrencyGain(drop[0], gain, ui);
+}
+function logEnemyCurrencyGain(key, gain, ui) {
+    let currencyName = typeof getStyledOrbName === 'function' ? getStyledOrbName(key) : ((ORB_DB[key] && ORB_DB[key].name) || key);
+    if (game.settings.showLootLog) ui.say(`🪙 ${currencyName} +${gain}`, key === 'goldenRule' || key === 'sapBud' ? 'loot-unique' : 'loot-magic');
+}
+function rollEnemyJewelDrop(enemy, contentDropMul) {
+    if (!(contentProgression.isUnlocked('jewel') && (game.season || 1) >= 5 && (enemy.isElite || enemy.isBoss) && Math.random() < 0.0056 * contentDropMul)) return;
+    let jewel = generateJewelDrop(getZone(game.currentZoneId) || { type: 'act', storyOrder: 1 });
+    if (placeFloorItem(enemy, 'jewel', jewel)) return;
+    const receipt=receiveJewelDrop(jewel);
+    if (receipt.stored) queueEnemyGroundLoot(enemy, { item: jewel, itemKind: 'jewel', color: getJewelLootColor(jewel) });
+    dispatchRuntimeEvent('jewel-drop-received',receipt);
+}
+/** Hive loot once the hive is open for good, in hunting zones, not from bosses: pollen, and from elites venom stingers, enchanted honey
+ * and beeswax. */
+function rollBeeLoot(enemy, mappingZone, ui) {
+    let beeUnlocked = !!(game.beehive && game.beehive.unlockedPermanent);
+    if (!(beeUnlocked && mappingZone && !enemy.isBoss)) return;
+    let beeLootLogs = [];
+    if (Math.random() < 0.05) {
+        let pollenAmount = enemy.isElite ? 2 : 1;
+        awardEnemyLootCurrency('pollen', pollenAmount);
+        beeLootLogs.push(`꽃가루 +${pollenAmount}`);
+    }
+    if (enemy.isElite) rollEliteBeeLoot(beeLootLogs);
+    if (game.settings.showLootLog && beeLootLogs.length > 0) beeLootLogs.forEach(msg => ui.say(`🐝 ${msg}`, 'loot-normal'));
+}
+function rollEliteBeeLoot(beeLootLogs) {
+    if (Math.random() < 0.0048) {
+        awardEnemyLootCurrency('venomStinger', 1);
+        beeLootLogs.push('독벌침 +1');
+    }
+    if (Math.random() < 0.00064) {
+        awardEnemyLootCurrency('enchantedHoney', 1);
+        beeLootLogs.push('마력 깃든 벌꿀 +1');
+    }
+    if (Math.random() < 0.0032) {
+        awardEnemyLootCurrency('beeswax', 1);
+        beeLootLogs.push('밀랍 +1');
+    }
+}
+function rollHiveKeyDrop(enemy, mappingZone, ui) {
+    if (!((game.season || 1) >= 8 && mappingZone && Math.random() < (enemy.isBoss ? 0.005 : enemy.isElite ? 0.0015 : 0.0002))) return;
+    awardEnemyLootCurrency('hiveKey', 1);
+    if (game.settings.showLootLog) ui.say('🗝️ 벌집 입장권 열쇠를 발견했습니다.', 'loot-rare');
+}
+/** From loop 15 deep chaos (21+), hive runs and grand breach runs may give a colony trace. */
+const isDeepChaosLootZone = zone => !!zone && zone.type === 'abyss' && Math.max(0, Math.floor(zone.depth || 0)) >= 21;
+function rollColonyTraceDrop(zone, ui) {
+    let isDeepChaosZone = isDeepChaosLootZone(zone);
+    if (!((game.season || 1) >= 15 && (isDeepChaosZone || game.currentZoneId === 'beehive_run' || game.currentZoneId === 'grand_breach_run'))) return;
+    let traceChance = isDeepChaosZone ? 0.00075 : (game.currentZoneId === 'grand_breach_run' ? 0.001125 : 0.0005);
+    if (Math.random() < traceChance) {
+        awardEnemyLootCurrency('colonyTrace', 1);
+        ui.say('🧭 군락지 흔적을 발견했습니다.', 'loot-magic', { noToast: true });
+    }
+}
+/** From the third loop acts and chaos give spores, leaning to the enemy's element. */
+function rollSporeDrop(enemy, zone, ui) {
     let sporeUnlocked = contentProgression.canDropCurrency('sporeFire') && Math.max(0, Math.floor(game.loopCount || 0)) >= 2;
-    let isDeepChaosZone = zone && zone.type === 'abyss' && Math.max(0, Math.floor(zone.depth || 0)) >= 21;
-    if ((game.season || 1) >= 15 && (isDeepChaosZone || game.currentZoneId === 'beehive_run' || game.currentZoneId === 'grand_breach_run')) {
-        let traceChance = isDeepChaosZone ? 0.00075 : (game.currentZoneId === 'grand_breach_run' ? 0.001125 : 0.0005);
-        if (Math.random() < traceChance) {
-            awardEnemyLootCurrency('colonyTrace', 1);
-            addLog('🧭 군락지 흔적을 발견했습니다.', 'loot-magic', { noToast: true });
-        }
-    }
-
-    if (sporeUnlocked && zone && (zone.type === 'act' || zone.type === 'abyss')) {
-        let sporeChance = (enemy.isBoss ? 0.32 : (enemy.isElite ? 0.2 : 0.11));
-        if (Math.random() < sporeChance) {
-            let pool = ['sporeFire', 'sporeCold', 'sporeLight'];
-            if (enemy.ele === 'fire') pool.push('sporeFire');
-            if (enemy.ele === 'cold') pool.push('sporeCold');
-            if (enemy.ele === 'light') pool.push('sporeLight');
-            let key = rndChoice(pool);
-            awardEnemyLootCurrency(key, 1);
-            if (game.settings.showLootLog) addLog(`🌱 ${typeof getStyledOrbName === 'function' ? getStyledOrbName(key) : ORB_DB[key].name} +1`, 'loot-magic');
-        }
-    }
+    if (!(sporeUnlocked && zone && (zone.type === 'act' || zone.type === 'abyss'))) return;
+    let sporeChance = (enemy.isBoss ? 0.32 : (enemy.isElite ? 0.2 : 0.11));
+    if (!(Math.random() < sporeChance)) return;
+    let key = rndChoice(sporePoolFor(enemy));
+    awardEnemyLootCurrency(key, 1);
+    logSporeGain(key, ui);
+}
+function logSporeGain(key, ui) {
+    if (game.settings.showLootLog) ui.say(`🌱 ${typeof getStyledOrbName === 'function' ? getStyledOrbName(key) : ORB_DB[key].name} +1`, 'loot-magic');
+}
+/** The three spores, the enemy's element once more. */
+function sporePoolFor(enemy) {
+    let pool = ['sporeFire', 'sporeCold', 'sporeLight'];
+    if (enemy.ele === 'fire') pool.push('sporeFire');
+    if (enemy.ele === 'cold') pool.push('sporeCold');
+    if (enemy.ele === 'light') pool.push('sporeLight');
+    return pool;
 }
 
 
