@@ -126,6 +126,7 @@ vm.runInContext(annulBlock, annulContext, { filename: 'market-annul.js' });
         updateStaticUI() {}
     };
     vm.createContext(jewelSalvageContext);
+    vm.runInContext(extract(fs.readFileSync('js/utils.js', 'utf8'), 'function getLastBatchim(word)', 'function stripDecorativeEmoji'), jewelSalvageContext, { filename: 'utils-particles.js' });
     vm.runInContext(jewelSalvageBlock, jewelSalvageContext, { filename: 'jewel-salvage.js' });
     assert.strictEqual(await jewelSalvageContext.salvageJewel(7), false, 'a jewel that left the store during confirmation is not salvaged');
     assert.deepStrictEqual(salvaged, []);
