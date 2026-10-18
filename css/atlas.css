@@ -111,8 +111,9 @@
 @container (max-width:720px){#ui-atlas .atlas-main{grid-template-columns:minmax(0,1fr)}#ui-atlas .atlas-side{border-left:0;border-top:1px solid var(--atlas-line)}}
 @container (max-width:420px){#ui-atlas .atlas-node i{min-width:8px;width:8px;height:8px;padding:0;right:-2px;top:-2px;font-size:0}#ui-atlas .atlas-node{font-size:10px}}
 @container (max-width:480px){#ui-atlas .atlas-head,#ui-atlas .atlas-stash{padding:10px}#ui-atlas .atlas-head h2{font-size:17px}#ui-atlas .atlas-chart-column{padding:8px 4px 10px}#ui-atlas .atlas-stash-list{grid-template-columns:minmax(0,1fr)}}
-#ui-atlas .atlas-views{display:flex;gap:4px}
-#ui-atlas .atlas-view{min-height:32px;padding:5px 14px}
+/* 보기 단추: 글자는 한 줄로 두고, 좁은 화면에서는 단추째 다음 줄로(2026-10-18: 휴대폰에서 "지/도"처럼 한 자씩 끊겼다). */
+#ui-atlas .atlas-views{display:flex;flex-wrap:wrap;gap:4px}
+#ui-atlas .atlas-view{min-height:32px;padding:5px 14px;white-space:nowrap}
 #ui-atlas .atlas-view.is-on{border-color:var(--atlas-gold-hi);background:#2a2217;color:var(--atlas-gold-hi)}
 #ui-atlas .atlas-fragments{display:flex;flex-wrap:wrap;gap:4px;margin-top:10px}
 #ui-atlas .atlas-fragments>p{flex-basis:100%;margin:0 0 2px}
