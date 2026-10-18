@@ -1366,7 +1366,7 @@
     },
     "performPlayerAttack|complexity|Arrow function has a complexity of #. Maximum allowed is #.": {
       "count": 3,
-      "max": 434
+      "max": 432
     },
     "performPlayerAttack|no-unused-vars|'now' is assigned a value but never used.": {
       "count": 1,
@@ -15171,6 +15171,7 @@
     "dependency:performPlayerAttack->getElementalistOverloadStacks",
     "dependency:performPlayerAttack->getEnemyConditionDebuffFactor",
     "dependency:performPlayerAttack->getEnemyTotalEvadeChance",
+    "dependency:performPlayerAttack->getGemCritHitPerkMul",
     "dependency:performPlayerAttack->getGridDirectHitDistanceMultiplier",
     "dependency:performPlayerAttack->getHitElement",
     "dependency:performPlayerAttack->getHitEnemyResistance",
