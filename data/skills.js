@@ -162,11 +162,13 @@ const RETIRED_GEM_SUCCESSORS = Object.freeze({
 });
 safeExposeData({ SKILL_DB, LOOP_STARTER_GEM_BY_HERO, PROJECTILE_PATTERN_MODE_DB, RETIRED_GEM_SUCCESSORS });
 
-// 룬 자체 레벨 20(보너스 레벨 제외)에서 켜지는 세 룬의 특전. 전투(getActiveSkillStats)와 룬 툴팁이 이 표를 읽는다.
+// 룬 Lv.20 특전. 앞의 셋은 룬 자체 레벨(보너스 제외)로 능력치에(getActiveSkillStats), 강타는 최종 레벨로 치명타 적중에
+// (getGemCritHitPerkMul) 붙는다. 룬 툴팁도 이 표를 읽는다.
 const GEM_LEVEL_20_PERKS = Object.freeze({
     '이중 베기': Object.freeze({ stat: 'spd', mul: 1.2, label: '공격 속도 ×1.2' }),
     '흡혈 관통': Object.freeze({ stat: 'leech', mul: 2, label: '흡혈 ×2' }),
-    '기습 공격': Object.freeze({ stat: 'crit', add: 15, label: '치명타 확률 +15%' })
+    '기습 공격': Object.freeze({ stat: 'crit', add: 15, label: '치명타 확률 +15%' }),
+    '강타': Object.freeze({ critHitMul: 2, byFinalLevel: true, label: '치명타 적중 피해 ×2' })
 });
 safeExposeData({ GEM_LEVEL_20_PERKS });
 

@@ -5398,7 +5398,8 @@ function getGemTargetSummaryHtml(skill) {
 function getGemLevel20PerkLine(name, type, info) {
     const perk = type !== 'support' && Object.hasOwn(GEM_LEVEL_20_PERKS, name) ? GEM_LEVEL_20_PERKS[name] : null;
     if (!perk) return '';
-    return `<div class="tooltip-line" style="color:#9fd6ff;">룬 Lv.20 특전: ${perk.label}${info.baseLevel >= 20 ? '' : ' (룬 Lv.20부터)'}</div>`;
+    const level = perk.byFinalLevel ? info.finalLevel : info.baseLevel;
+    return `<div class="tooltip-line" style="color:#9fd6ff;">룬 Lv.20 특전: ${perk.label}${level >= 20 ? '' : (perk.byFinalLevel ? ' (총 레벨 20부터)' : ' (룬 Lv.20부터)')}</div>`;
 }
 function showGemTooltip(event, type, name, target = null) {
     if (!target && document.getElementById('gem-selection')?.matches(':popover-open')) return;

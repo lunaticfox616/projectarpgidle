@@ -963,11 +963,16 @@ function fitActiveSkillToWeapon() {
     game.activeSkill = '기본 공격';
 }
 
-/** A rune's Lv.20 perk (GEM_LEVEL_20_PERKS) on its stats, when it has one. */
+/** A rune's Lv.20 stat perk (GEM_LEVEL_20_PERKS) on its stats, when it has one. */
 function applyGemLevel20Perk(stats, perk) {
-    if (!perk) return;
+    if (!perk || !perk.stat) return;
     if (perk.mul) stats[perk.stat] *= perk.mul;
     else stats[perk.stat] += perk.add;
+}
+/** A crit hit's damage multiplier from the rune's Lv.20 perk (강타: x2 from final level 20), else 1. */
+function getGemCritHitPerkMul(skillName, pStats) {
+    const perk = Object.hasOwn(GEM_LEVEL_20_PERKS, skillName) ? GEM_LEVEL_20_PERKS[skillName] : null;
+    return perk && perk.critHitMul && pStats.sSkill.finalLevel >= 20 ? perk.critHitMul : 1;
 }
 function getActiveSkillStats(bonusLevel) {
     fitActiveSkillToWeapon();
