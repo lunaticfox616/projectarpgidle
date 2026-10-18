@@ -5330,18 +5330,20 @@ function getSkillGemPresentation(name, stats, targetGemSources) {
     const levels = getSkillGemLevels(name, db, gem, targetGemSources);
     let skill = applyGemPresentationPattern(name, getLeveledGemSkill(db, gem, levels.finalLevel), stats);
     return {
-        baseLevel: gem.level, totalLevel: levels.totalLevel, finalLevel: levels.finalLevel, materialBonus: levels.materialBonus, permanentSkyBonus: levels.permanentSkyBonus,
+        baseLevel: gem.level, totalLevel: levels.totalLevel, finalLevel: levels.finalLevel, materialBonus: levels.materialBonus, permanentSkyBonus: levels.permanentSkyBonus, engraveLevel: levels.engraveLevel,
         ...getSkillGemCoreFields(gem), desc: db.desc, skill: skill, tags: getSkillTagList(skill), gemBonusSources: targetGemSources
     };
 }
-/** The sky tower boost, the core and awakening levels, the gear levels, and the total and final (base capped at 20) levels. */
+/** The sky tower boost, the core and awakening levels, the gear levels, the sky engraving's rune levels (as getActiveSkillStats), and
+ * the total and final (base capped at 20) levels. */
 function getSkillGemLevels(name, db, gem, targetGemSources) {
     let permanentSkyBonus = db.isGem && typeof getSkyTowerGemBoostLevel === 'function' ? getSkyTowerGemBoostLevel(name) : 0;
     let materialBonus = db.isGem ? gemCoreForge.effects(gem).levels + (gem.awakened ? 2 : 0) + permanentSkyBonus : 0;
     let levelBonus = db.isGem ? targetGemSources.total : 0;
-    let totalLevel = gem.level + levelBonus + materialBonus;
-    let finalLevel = Math.min(20, gem.level) + levelBonus + materialBonus;
-    return { permanentSkyBonus, materialBonus, totalLevel, finalLevel };
+    let engraveLevel = db.isGem && typeof getGemSkyEnhanceGemLevelBonus === 'function' ? getGemSkyEnhanceGemLevelBonus(name) : 0;
+    let totalLevel = gem.level + levelBonus + materialBonus + engraveLevel;
+    let finalLevel = Math.min(20, gem.level) + levelBonus + materialBonus + engraveLevel;
+    return { permanentSkyBonus, materialBonus, engraveLevel, totalLevel, finalLevel };
 }
 /** The skill's damage, speed and crit at the final level, with quality and the core forge's damage and speed. */
 function getLeveledGemSkill(db, gem, finalLevel) {

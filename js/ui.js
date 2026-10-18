@@ -5517,7 +5517,7 @@ function showGemTooltip(event, type, name, target = null) {
         html += `<div class="tooltip-line" style="margin-top:8px; color:#2ecc71;">총 레벨 ${type === 'support' ? info.totalLevel : info.finalLevel}</div>`;
         const sources = [['패시브', gemBonusSources.passive], ['장비', gemBonusSources.gear], ['보상', gemBonusSources.reward],
             ['군주의 핵', info.bossCoreLevel === 5 ? 1 : 0], ['창공의 정수', info.skyCoreLevel === 5 ? 1 : 0],
-            ['응축 창공', info.permanentSkyBonus], ['각성', info.awakened ? 2 : 0]];
+            ['응축 창공', info.permanentSkyBonus], ['각성', info.awakened ? 2 : 0], ['창공 각인', info.engraveLevel]];
         const levels = sources.filter(([, value]) => value > 0).map(([label, value]) => `${label} +${value}`);
         levels.unshift(`룬 Lv.${type === 'support' ? info.baseLevel : Math.min(20, info.baseLevel)}`);
         html += `<div class="tooltip-line">${levels.join(', ')}</div>`;
