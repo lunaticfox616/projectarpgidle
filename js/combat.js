@@ -2011,6 +2011,7 @@ function prepareCombatTick(nowMs) {
     tickOceanOxygen(game.combatTimeMs);
     holdZoneBoundRuns(addLog);
     callOceanGuardianAtBoundary();
+    callOceanGuardianAdds(addLog);
     tickWoodsmanCurse();
     if (typeof trackRecordBests === 'function') trackRecordBests();
     const pStats = getPlayerStats(false);
@@ -3621,12 +3622,15 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     if (killMoveStacks !== null) finalMove += killMoveStacks * Math.max(0, Number(uniqueKillMoveStacks.movePerStack || 10));
     finalMove += tick.get('regionMoveBonus');
     let zonePenalty = getZone(game.currentZoneId) || getZone(0);
+    // The attack speed this zone takes away (gravity, pressure): other zones' map cards put it back (js/combat-ehp.js).
+    let zoneSpeedMultiplier = 1;
     if (zonePenalty && (zonePenalty.type === 'underworld' || (zonePenalty.milestonePinnacle && zonePenalty.underworldPenaltyFloor))) {
         let uf = Math.max(1, Math.floor(zonePenalty.underworldPenaltyFloor || zonePenalty.floor || 1));
         let skyStoneReduction = typeof getSkyStoneReductionPct === 'function' ? getSkyStoneReductionPct() : 0;
         let gravityActionMultiplier = getUnderworldGravityActionMultiplier(uf, skyStoneReduction);
         finalAspd *= gravityActionMultiplier;
         finalMove *= gravityActionMultiplier;
+        zoneSpeedMultiplier *= gravityActionMultiplier;
     }
     let oceanPressureDamageMul = 1;
     let oceanCurrentResPenaltyF = 0;
@@ -3636,6 +3640,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         let pressureResistPct = Math.max(0, Math.min(80, sumStatAcrossBuckets('oceanPressureResist') + (typeof getOceanPressureResistUpgradePct === 'function' ? getOceanPressureResistUpgradePct() : 0)));
         let pressureSlow = Math.min(0.65, depthTier * 0.05) * (1 - pressureResistPct / 100);
         finalAspd *= (1 - pressureSlow);
+        zoneSpeedMultiplier *= (1 - pressureSlow);
         oceanPressureDamageMul *= (1 - pressureSlow * 0.6);
         // 이동속도는 수압의 영향을 압축해서 받아 100%에 가깝게 유지(체감 페널티 완만화)
         finalMove *= (1 - pressureSlow * 0.2);
@@ -3651,6 +3656,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         let gravityActionMultiplier = getUnderworldGravityActionMultiplier(uf, skyStoneReduction);
         finalAspd *= gravityActionMultiplier;
         finalMove *= gravityActionMultiplier;
+        zoneSpeedMultiplier *= gravityActionMultiplier;
     }
     let currentStatsZone = getZone(game.currentZoneId);
     let activeCosmosMastery = currentStatsZone && currentStatsZone.type === 'cosmos' && typeof window.getCosmosMasteryValue === 'function';
@@ -4993,6 +4999,8 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     let enemy = {
         activeZoneId: game.currentZoneId,
         activeUnderworldFloor: currentStatsZone && currentStatsZone.type === 'underworld' ? currentStatsZone.floor : 0,
+        zoneSpeedMultiplier,
+        zoneDamageMultiplier: oceanPressureDamageMul,
         underworldGravityReductionPct: Math.max(0, Math.min(75,
             typeof getSkyStoneReductionPct === 'function' ? getSkyStoneReductionPct() : 0)),
         baseDmg: finalBaseDmg,
@@ -9981,6 +9989,7 @@ function handleEnemyDeath(enemy, pStats) {
 function countKillForContent(enemy, zone, pStats) {
     if (enemy.isBoss) markBossKillForContent(enemy, zone, pStats);
     countGrandBreachSurvivalKill(enemy, zone);
+    noteOceanKill(enemy, zone);
     game.loopKills = Math.max(0, Math.floor(game.loopKills || 0)) + 1;
     if (game.isBackgroundCalculation) countBackgroundKillMix(enemy);
 }
@@ -10304,6 +10313,47 @@ function callOceanGuardianAtBoundary() {
     if (game.moveTimer > 0) relayOceanArrivalToGuardian();
     else if (isOceanSectionRunning()) startMoving(false);
 }
+/** 심해에서 쓰러뜨린 몬스터: 수심을 내리고(A안) 공기 방울을 남기면 영웅 머리 위에 채운 산소를 초로 띄운다(B안, js/passives.js
+ * applyOceanKill. 산소 막대도 "약 N초 남음"으로 읽는다). */
+function noteOceanKill(enemy, zone) {
+    if (!zone || zone.type !== 'oceanDepth') return;
+    const seconds = applyOceanKill(enemy);
+    if (seconds > 0) addBattleFx('statusText', { text: `🫧 산소 +${seconds}초`, color: '#8fd8ff', duration: 620 });
+}
+/** 심해 가디언이 졸개를 부른다(B안, OCEAN_COMBAT_DIVE.guardianAdds): 가디언이 선 뒤 everyMs마다(다음 시각은 가디언이 들고 있다),
+ * 살아 있는 졸개가 max보다 적으면. 졸개는 쓰러지며 공기 방울을 남긴다(js/passives.js getOceanKillAirSec). say: 전투 기록(addLog). */
+function callOceanGuardianAdds(say) {
+    const guardian = getOceanGuardianInFight();
+    if (!guardian) return;
+    const rule = OCEAN_COMBAT_DIVE.guardianAdds, now = getCombatTime();
+    if (!(guardian.oceanAddsAt > 0)) guardian.oceanAddsAt = now + rule.everyMs;
+    if (now < guardian.oceanAddsAt) return;
+    guardian.oceanAddsAt = now + rule.everyMs;
+    const alive = game.enemies.filter(enemy => enemy && enemy.hp > 0 && enemy.oceanAirAdd).length;
+    const called = spawnOceanGuardianAdds(guardian, Math.min(rule.count, rule.max - alive));
+    if (called > 0 && game.settings.showSpawnLog !== false) say(`🫧 심해 가디언이 졸개 ${called}마리를 불렀습니다. 쓰러뜨리면 공기 방울이 나옵니다.`, 'attack-monster', { noToast: true });
+}
+/** 심해 가디언 판에서 싸우고 있는 가디언(칸에 선 살아 있는 보스), 아니면 null. */
+function getOceanGuardianInFight() {
+    if (game.currentZoneId !== OCEAN_ZONE_ID || !game.oceanBossRunPending || game.combatHalted || !(game.playerHp > 0)) return null;
+    const guardian = (game.enemies || []).find(enemy => enemy && enemy.isBoss && enemy.hp > 0);
+    return guardian && hasGridCell(guardian) ? guardian : null;
+}
+/** 가디언 곁 빈칸에 졸개를 세운다. @returns {number} 세운 수 */
+function spawnOceanGuardianAdds(guardian, count) {
+    const zone = getZone(OCEAN_ZONE_ID), blocked = getGridBlockedCells();
+    let called = 0;
+    for (; called < count; called++) {
+        const cell = findFreeGridCell(blocked, guardian);
+        if (!cell) break;
+        const enemy = createEnemy(zone, { at: 90, elite: false, boss: false }, 40 + called);
+        Object.assign(enemy, cell, { gridMoveTimer: 0.25, attackTimer: 0, oceanAirAdd: true, spawnStamp: getBattleSpawnStamp() });
+        blocked.add(gridCellKey(cell.gx, cell.gy));
+        game.enemies.push(enemy);
+        addBattleFx('enemySpawn', { enemyId: enemy.id, color: getElementColor(enemy.ele), duration: 320, boss: false });
+    }
+    return called;
+}
 /** 이동하는 동안 지어 둔 도착 지도가 무리 구간이면 가디언 투기장으로 다시 짓는다(도착한 뒤 한 번 더 이동하지 않게). */
 function relayOceanArrivalToGuardian() {
     const run = actExplorationState.current(game);
@@ -10317,21 +10367,22 @@ function isOceanSectionRunning() {
     if (!plan.length || plan.some(marker => marker && marker.boss)) return false;
     return game.encounterIndex < plan.length || (game.enemies || []).some(enemy => enemy && enemy.hp > 0);
 }
-/** 자동 재잠수(설정 autoRediveOcean, 2026-10-19 사용자: "떠오른 뒤 자동 재잠수 설정"): 산소가 떨어져 떠오른 뒤 사냥터 하나를 깨면
- * 체크포인트부터 다시 잠수한다. 부른 쪽(지역 클리어 뒤 출발)이 걸어 들어간다. 소득 없이 떠오른 잠수가 이어지거나 방치 정산에서
- * 여러 번 잠수하면 멈춘다(OCEAN_AUTO_REDIVE, data/maps.js). @returns {boolean} 잠수를 시작했는지 */
+/** 자동 재잠수(설정 autoRediveOcean, 2026-10-19 사용자: "떠오른 뒤 자동 재잠수 설정"): 산소가 떨어지거나 가디언에게 쓰러져 떠오른 뒤
+ * 사냥터 하나를 깨면 다시 잠수한다. 가장 깊은 리프트가 넘지 못한 가디언 앞이면 얕은 리프트부터 내려가 물고기를 모은다
+ * (getOceanShallowLiftM, 2026-10-19 사용자 결정 "얕게 돌기"). 부른 쪽(지역 클리어 뒤 출발)이 걸어 들어간다. 소득 없이 떠오른 잠수가
+ * 이어지거나 무리에게 쓰러지면 멈춘다(OCEAN_AUTO_REDIVE, data/maps.js). @returns {boolean} 잠수를 시작했는지 */
 function autoRediveOceanAfterClear(clearedZone) {
     if (!canAutoRediveOcean(ensureOceanState()) || !isOceanRediveMoment(clearedZone)) return false;
-    if (!enterOceanDive({ auto: true })) return false;
+    if (!enterOceanDive({ auto: true, shallow: true })) return false;
     game.killsInZone = 0;
     return true;
 }
-/** 설정과 잠수 기록이 다시 잠수를 허락하는가: 켜져 있고, 산소가 떨어져 떠올랐고, 멈추지 않았다(isOceanAutoRediveHalted). 방치 정산
+/** 설정과 잠수 기록이 다시 잠수를 허락하는가: 켜져 있고, 산소가 떨어지거나 가디언에게 쓰러져 떠올랐고, 멈추지 않았다(isOceanAutoRediveHalted). 방치 정산
  * 에서는 잠수하지 않는다: 심해는 투영하지 않아 잠수가 정산의 실제 전투 한도(OFFLINE_PROJECTION.realCapMs)를 써 버리고, 가디언에게
  * 거듭 쓰러지면 정산의 연속 사망 멈춤에 걸린다. */
 function canAutoRediveOcean(st) {
     if (!game.settings.autoRediveOcean || game.isBackgroundCalculation || !st.unlocked || st.diving) return false;
-    return st.lastSurfaceReason === 'oxygen' && !isOceanAutoRediveHalted(st);
+    return ['oxygen', 'guardian'].includes(st.lastSurfaceReason) && !isOceanAutoRediveHalted(st);
 }
 /** 지금 다시 잠수해도 되는 때: 사냥터(액트, 혼돈)를 막 깼고, 귀환 뒤 멈춤이 아니고, 다른 도전 중이 아니고, 생명력이 거의 찼고,
  * 심해로 가는 길이 막히지 않았다(거절 사유는 알리지 않는다: 다음 클리어에 다시 묻는다). */
@@ -12338,7 +12389,7 @@ function handlePlayerDefeat(zone, pStats, message, options) {
     // The hive run's exit is read only for a hive defeat (the hive screen script owns it).
     const defeatUi = { say: addLog, get exitBeehiveRun() { return typeof exitBeehiveRun === 'function' ? exitBeehiveRun : null; } };
     const contentDefeat = getContentDefeat(zone);
-    if (contentDefeat) contentDefeat(zone, message, opts, defeatUi);
+    if (contentDefeat) expLost = contentDefeat(zone, message, opts, defeatUi) || 0;
     else expLost = applyDeathExpPenalty(message, opts, defeatUi);
     game.lastDeathLog = buildPlayerDeathLog(zone, opts, expLost, pStats);
     if (game.lastDeathLog.retreatZoneName) addLog(`🛡️ ${withDirectionParticle(game.lastDeathLog.retreatZoneName)} 물러나 레벨을 ${ACT_RETREAT_LEVELS} 올린 뒤 다시 도전합니다.`, 'season-up');
@@ -12364,15 +12415,17 @@ function getContentKindDefeat(zone) {
     if (zone.type === 'seasonBoss') return game.inTicketBossFight ? defeatInRootBossFight : null;
     return Object.hasOwn(CONTENT_DEFEAT_BY_KIND, zone.type) ? CONTENT_DEFEAT_BY_KIND[zone.type] : null;
 }
-/** 자동 재잠수로 들어간 잠수에서, 또는 가디언에게 쓰러지면 그 잠수를 끝낸다(자동 재잠수도 멈춘다). 2026-10-19 검토: 넘지 못하는
- * 가디언 앞에서 거듭 쓰러지며 쓰러질 때마다 경험치를 잃고(한 번 잠수에 2~8번), 가디언은 생명력이 다 찬 채로 다시 나왔다. 손으로 시작한
- * 잠수에서 무리에게 쓰러지면 예전처럼 심해에서 다시 일어선다. */
+/** 자동 재잠수로 들어간 잠수에서, 또는 가디언에게 쓰러지면 그 잠수를 끝낸다. 2026-10-19 검토: 넘지 못하는 가디언 앞에서 거듭
+ * 쓰러지며 쓰러질 때마다 경험치를 잃고(한 번 잠수에 2~8번), 가디언은 생명력이 다 찬 채로 다시 나왔다. 손으로 시작한 잠수에서 무리에게
+ * 쓰러지면 예전처럼 심해에서 다시 일어선다. 자동 잠수가 무리에게 쓰러지면 자동 재잠수도 멈추고, 가디언에게 쓰러지면 자동 재잠수가
+ * 지난 가디언 자리부터 잇는다(recordOceanSurface). */
 const getOceanDiveDefeat = zone => (zone.id === OCEAN_ZONE_ID && (isAutoOceanDive(ensureOceanState()) || game.oceanBossRunPending) ? defeatInOceanDive : null);
 function defeatInOceanDive(zone, message, opts, ui) {
-    const fallback = isAutoOceanDive(ensureOceanState()) ? '☠️ 자동 재잠수로 들어간 잠수에서 쓰러졌습니다.' : '☠️ 심해 가디언에게 쓰러져 수면으로 올라왔습니다.';
+    const guardian = !!game.oceanBossRunPending;
+    const fallback = guardian ? '☠️ 심해 가디언에게 쓰러져 수면으로 올라왔습니다.' : '☠️ 자동 재잠수로 들어간 잠수에서 쓰러졌습니다.';
     ui.say(message || fallback, 'death', { noToast: !!opts.noToast });
     clearDefeatedEncounter();
-    forceSurfaceOcean('defeat');
+    forceSurfaceOcean(guardian ? 'guardian' : 'defeat');
 }
 /** Leaves the encounter: no enemies, plan or progress left. */
 function clearDefeatedEncounter() {
@@ -12467,8 +12520,20 @@ function defeatInTrial(zone, message, opts, ui) {
     game.currentZoneId = getDefeatRecoveryZoneId();
     game.killsInZone = 0;
 }
-/** Content kinds whose defeat closes their run (a root boss fight is chosen in getContentKindDefeat). */
-const CONTENT_DEFEAT_BY_KIND = Object.freeze({ beyondBoundary: defeatBeyondBoundary, meteor: defeatAtMeteor, timeRift: defeatInTimeRift, trial: defeatInTrial });
+/** 지하계에서 쓰러지면 경험치를 잃고, 다음 층으로 나아가는 설정이면 한 층 얕은 곳부터 다시 내려간다(액트의 물러나기와 같은 뜻,
+ * 2026-10-19 사용자 결정). 막힌 층에서 거듭 쓰러지는 쪽이 층을 깨는 쪽보다 경험치를 더 벌었다. 최고층 기록은 그대로다.
+ * @returns {number} 잃은 경험치 */
+function defeatOnUnderworldFloor(zone, message, opts, ui) {
+    const lost = applyDeathExpPenalty(message, opts, ui);
+    const uw = game.underworldProgress, floor = Math.floor(Number(zone.floor) || 0);
+    if (!uw || floor <= 1 || !['nextZone', 'nextLoopBestPlusOne'].includes(game.settings.mapCompleteAction || 'nextZone')) return lost;
+    uw.currentFloor = floor - 1;
+    ui.say(`🛡️ 지하계 ${floor - 1}층으로 물러나 다시 내려갑니다.`, 'season-up');
+    return lost;
+}
+/** Content kinds whose defeat closes their run or moves it (a root boss fight is chosen in getContentKindDefeat). */
+const CONTENT_DEFEAT_BY_KIND = Object.freeze({ beyondBoundary: defeatBeyondBoundary, meteor: defeatAtMeteor, timeRift: defeatInTimeRift, trial: defeatInTrial,
+    underworld: defeatOnUnderworldFloor });
 /** Anywhere else: a tenth of this level's experience is lost (never below 0). Returns the experience lost. */
 function applyDeathExpPenalty(message, opts, ui) {
     let expPenalty = Math.floor(getExpReq(game.level) * 0.1);

@@ -8110,7 +8110,7 @@ function updateCombatUI(pStats) {
         setTextById('ui-move-time-text', `${Math.max(0, game.moveTimer).toFixed(1)}초`);
         setCombatProgressGaugePercent(readyPct);
     } else if (zone && zone.type === 'oceanDepth') {
-        // 심해는 전투 진행도 대신 현재 수심(m)만 표기한다. 수심은 시간에 따라 1m 단위로 꾸준히 증가한다.
+        // 심해는 전투 진행도 대신 현재 수심(m)만 표기한다. 수심은 쓰러뜨린 몬스터만큼 조금씩 내려간다(js/passives.js tickOceanDepth).
         let oceanSt = (typeof ensureOceanState === 'function') ? ensureOceanState() : null;
         let depthM = oceanSt ? Math.floor(oceanSt.depthM || 0) : 0;
         // 진행 바는 현재 100m 구간 내 진행도를 표시해 수심 1m마다 약 1%씩 차오른다.

@@ -89,8 +89,18 @@ const METEOR_CONSTELLATION_POOL = Object.freeze([
 ]);
 
 const OCEAN_UNLOCK_LOOP = 11;
-/** 심해 자동 재잠수(설정 autoRediveOcean): 새 리프트도 가디언 처치도 없이 산소가 떨어진 잠수가 missLimit번 이어지면 멈춘다. */
+/** 심해 자동 재잠수(설정 autoRediveOcean): 리프트도 가디언 처치도 물고기도 없이 떠오른 잠수가 missLimit번 이어지면 멈춘다. */
 const OCEAN_AUTO_REDIVE = Object.freeze({ missLimit: 3 });
+/** 심해 전투(2026-10-19 사용자 결정 A+B, js/passives.js applyOceanKill). A: 수심은 시간이 아니라 쓰러뜨린 몬스터만큼 내려간다(정예는
+ * eliteKillMul배, 가디언과 졸개는 빼고). 한 번에 뛰지 않게 쌓인 거리를 descentPerSec씩 내려가고, 산소는 그대로 시간으로 줄어 남은
+ * 시간을 알려 준다. B: 철갑 패각충(air.carrier)과 정예, 가디언이 부르는 졸개가 쓰러지며 공기 방울을 남겨 산소를 채운다. 공기는 그
+ * 수심에서 산소가 줄어드는 초 수로 잰다(산소 강화를 해도 졸개 공기가 부른 사이 줄어든 산소를 넘지 않아 가디언 싸움이 끝없이 늘지 않는다).
+ * 가디언은 판이 열리고 everyMs마다 졸개를 count마리 부른다(살아 있는 졸개는 max까지). */
+const OCEAN_COMBAT_DIVE = Object.freeze({
+    metersPerKill: 8, eliteKillMul: 2, descentPerSec: 12,
+    air: Object.freeze({ carrier: 'ocean-shell', carrierSec: 2, eliteSec: 6, guardianAddSec: 5 }),
+    guardianAdds: Object.freeze({ everyMs: 20000, count: 2, max: 2 })
+});
 
 const OCEAN_ZONE_ID = 'ocean_depth';
 

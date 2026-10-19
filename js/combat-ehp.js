@@ -184,6 +184,16 @@ function getMapEnvironmentReadiness(stats, estimate) {
     return { lossPct, regenPct, deficitPct: Math.max(0, lossPct - regenPct) };
 }
 
+/** Another zone's card starts from the DPS without what the current zone takes away (underworld gravity, ocean pressure: js/combat.js
+ * getPlayerStats zoneSpeedMultiplier), then applies its own. There the hero's attacks lose speed and damage, summons only the damage. */
+function getMapEstimateBaseDps(stats, playerDps, alreadyInZone) {
+    if (alreadyInZone || !stats) return playerDps;
+    const speed = Math.max(0.01, Number(stats.zoneSpeedMultiplier) || 1);
+    const damage = Math.max(0.01, Number(stats.zoneDamageMultiplier) || 1);
+    const summon = Math.min(playerDps, Math.max(0, Number(stats.summonDps) || 0));
+    return (playerDps - summon) / (speed * damage) + summon / damage;
+}
+
 function getMapUnderworldFloorDpsRatio(stats, estimate) {
     const activeFloor = Number(stats.activeUnderworldFloor) || 0;
     const targetFloor = Number(estimate.underworldLifeDrainFloor) || 0;
@@ -215,7 +225,7 @@ function getMapPowerReadiness(stats, estimate) {
     const alreadyInZone = activeZoneId != null && estimateZoneId != null
         && String(activeZoneId) === String(estimateZoneId);
     const zoneDpsMultiplier = getMapEstimateDpsMultiplier(stats || {}, estimate || {}, alreadyInZone);
-    const effectivePlayerDps = playerDps * zoneDpsMultiplier;
+    const effectivePlayerDps = getMapEstimateBaseDps(stats, playerDps, alreadyInZone) * zoneDpsMultiplier;
     const recommendedDps = Math.max(1, Number(estimate && estimate.dps) || 1);
     const dpsRatio = effectivePlayerDps / recommendedDps;
     const environment = getMapEnvironmentReadiness(stats, estimate);

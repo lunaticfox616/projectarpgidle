@@ -2831,8 +2831,7 @@ function advanceOceanDiveFromKill(zone) {
     let st = ensureOceanState();
     if (!st.unlocked || !st.diving) return;
     if (Math.random() < 0.06) awardCurrency('reefFragment', 1);
-    // 수심은 한 지역 안에서 실제 잠수 시간만큼 연속 진행한다. 웨이브 종료 때
-    // 수십 m를 순간 가산하면 다시 구역 단위 진행처럼 보이므로 보상은 낚시만 준다.
+    // 수심은 몬스터를 쓰러뜨릴 때마다 쌓여 조금씩 내려간다(applyOceanKill, tickOceanDepth). 구간을 끝내면 낚시만 준다.
     gainOceanFishingGaugeFromCombat(zone);
 }
 
@@ -2984,6 +2983,7 @@ function enterOceanDive({ auto = false, shallow = false } = {}) {
     st.depthM = getOceanDiveStartM(st, shallow);
     st.oxygenMax = Math.max(1, Math.floor(getOceanOxygenMax()));
     st.oxygenCur = st.oxygenMax;
+    st.descentPendingM = 0;
     st.diving = true;
     st.lastTickAt = getCombatTime();
     game.currentZoneId = OCEAN_ZONE_ID;
@@ -3008,6 +3008,7 @@ function forceSurfaceOcean(reason) {
     const returnZoneId = takeOceanReturnZone(st);
     st.diving = false;
     st.depthM = Math.max(0, Math.floor(st.checkpointM || 0));
+    st.descentPendingM = 0;
     st.oxygenCur = st.oxygenMax;
     st.drowning = false;
     st.drownSec = 0;
@@ -3030,16 +3031,23 @@ function moveAfterSurfacing(returnZoneId) {
     changeZone(returnZoneId);
     if (game.currentZoneId === OCEAN_ZONE_ID) changeZone(Math.max(0, game.maxZoneId || 0));
 }
-/** 떠오른 까닭을 적고, 산소가 떨어진 잠수면 새 리프트나 가디언 처치가 있었는지 센다(자동 재잠수가 읽는다).
- * @returns {string} 이번에 자동 재잠수가 멈췄으면 그 알림, 아니면 빈 글 */
+/** 떠오른 까닭을 적고, 산소가 떨어지거나 가디언에게 쓰러진 잠수면 소득(새 리프트, 가디언 처치, 물고기)이 있었는지 센다(자동 재잠수가
+ * 읽는다). 'defeat'는 자동 재잠수로 들어간 잠수에서 무리에게 쓰러진 경우다(가디언에게 쓰러지면 'guardian').
+ * @returns {string} 자동 재잠수가 멈췄거나 얕게 이어지면 그 알림, 아니면 빈 글 */
 function recordOceanSurface(st, reason) {
-    st.lastSurfaceReason = ['oxygen', 'defeat'].includes(reason) ? reason : 'manual';
-    if (reason === 'defeat') return game.settings.autoRediveOcean ? `🌊 ${st.autoDive ? '자동 재잠수로 들어간 잠수' : '가디언과의 싸움'}에서 쓰러져 자동 재잠수를 멈춥니다. 잠수 시작을 누르면 다시 이어집니다.` : '';
-    if (reason !== 'oxygen') return '';
+    st.lastSurfaceReason = ['oxygen', 'guardian', 'defeat'].includes(reason) ? reason : 'manual';
+    if (reason === 'defeat') return game.settings.autoRediveOcean ? '🌊 자동 재잠수로 들어간 잠수에서 무리에게 쓰러져 자동 재잠수를 멈춥니다. 잠수 시작을 누르면 다시 이어집니다.' : '';
+    if (reason !== 'oxygen' && reason !== 'guardian') return '';
     const limit = OCEAN_AUTO_REDIVE.missLimit;
     st.fruitlessDives = getOceanDiveRecord(st) > st.diveStartProgress ? 0 : Math.min(limit, st.fruitlessDives + 1);
-    if (!game.settings.autoRediveOcean || st.fruitlessDives !== limit) return '';
-    return `🌊 새 리프트도 가디언 처치도 없이 ${limit}번 떠올라 자동 재잠수를 멈춥니다. 잠수 시작을 누르면 다시 이어집니다.`;
+    return game.settings.autoRediveOcean ? getOceanAutoRediveNote(st, reason) : '';
+}
+/** 자동 재잠수 알림: 소득 없이 한도만큼 떠올라 멈췄거나, 넘지 못한 가디언 때문에 다음 잠수가 지난 가디언 자리부터 내려간다. */
+function getOceanAutoRediveNote(st, reason) {
+    const limit = OCEAN_AUTO_REDIVE.missLimit;
+    if (st.fruitlessDives >= limit) return `🌊 리프트도 가디언 처치도 물고기도 없이 ${limit}번 떠올라 자동 재잠수를 멈춥니다. 잠수 시작을 누르면 다시 이어집니다.`;
+    const lift = reason === 'guardian' ? getOceanShallowLiftM(st) : null;
+    return lift === null ? '' : `🌊 자동 재잠수는 ${lift}m부터 내려가 물고기를 모읍니다.`;
 }
 /** 떠오를 곳: 잠수를 시작한 사냥터(액트나 혼돈 구역이 남아 있으면), 아니면 예전처럼 가장 먼 사냥터. 기록은 비운다. changeZone은
  * maxZoneId를 넘는 번호(혼돈 심화의 더 깊은 층)를 받지 않으므로 그런 층에서 시작한 잠수도 가장 먼 사냥터로 올라온다. */
@@ -3050,7 +3058,7 @@ function takeOceanReturnZone(st) {
 }
 /** 자동 재잠수로 들어간 잠수가 이어지고 있는가(쓰러지면 그 잠수가 끝난다: js/combat.js defeatInOceanDive). */
 const isAutoOceanDive = st => !!st.diving && st.autoDive === true;
-/** 자동 재잠수가 멈췄는가: 자동 잠수에서 쓰러졌거나 소득 없이 떠오른 잠수가 한도에 닿았다(손으로 잠수하면 풀린다). */
+/** 자동 재잠수가 멈췄는가: 자동 잠수에서 무리에게 쓰러졌거나 소득 없이 떠오른 잠수가 한도에 닿았다(손으로 잠수하면 풀린다). */
 const isOceanAutoRediveHalted = st => st.lastSurfaceReason === 'defeat' || st.fruitlessDives >= OCEAN_AUTO_REDIVE.missLimit;
 /** 새 루프: 자동 재잠수는 이 루프에서 직접 시작한 잠수가 떠오른 뒤부터 잇는다(낮은 레벨의 새 영웅을 지난 루프의 깊은 리프트로 보내지 않게). */
 function forgetOceanAutoDive(st) {
@@ -3140,16 +3148,40 @@ function applyOceanDepthGain(st, meters) {
     }
 }
 
-// 수심을 시간에 따라 꾸준히 증가시킨다(방치 진행의 바닥값).
+// 쓰러뜨린 몬스터가 쌓은 하강 거리(st.descentPendingM, applyOceanKill)를 한 번에 뛰지 않고 조금씩 내려간다(A안, OCEAN_COMBAT_DIVE).
+// 가디언 경계에 닿으면 남은 거리는 버린다(applyOceanDepthGain이 경계에서 멈춘다).
 function tickOceanDepth(st, dtSec) {
-    if (!st || !(dtSec > 0)) return;
-    let speedBonus = typeof getOceanMoveSpeedDepthBonus === 'function' ? getOceanMoveSpeedDepthBonus() : 1;
-    let gearDepthGainPct = 0;
-    try { if (typeof getPlayerStats === 'function') gearDepthGainPct = Math.max(0, Number(getPlayerStats().oceanDepthGainPct) || 0); } catch (e) { console.warn('failed to read ocean depth gain stat:', e); }
-    // 기본 장비로 약 2분 안에 첫 500m 경계에 닿고 산소가 남도록 잡았다.
-    // 이후에는 수압·해류와 영구 업그레이드가 장기 잠수의 성장축이 된다.
-    let depthPerSec = 4 * speedBonus * (1 + gearDepthGainPct / 100);
-    applyOceanDepthGain(st, depthPerSec * dtSec);
+    const pending = Math.max(0, Number(st && st.descentPendingM) || 0);
+    if (!(dtSec > 0) || pending <= 0) return;
+    const step = Math.min(pending, OCEAN_COMBAT_DIVE.descentPerSec * dtSec);
+    st.descentPendingM = pending - step;
+    applyOceanDepthGain(st, step);
+}
+
+/** 심해에서 쓰러뜨린 몬스터(js/combat.js countKillForContent): 잠수 중이면 하강 거리를 쌓고(A안), 공기 방울을 남기는 몬스터면 산소를
+ * 채운다(B안). 가디언과 그 졸개는 하강 거리를 쌓지 않는다(경계에서 멈춘다).
+ * @returns {number} 채운 산소가 버티는 초(반올림, 가득 차 있었으면 0) */
+function applyOceanKill(enemy) {
+    const st = ensureOceanState();
+    if (!st.unlocked || !st.diving || !enemy || enemy.isBoss) return 0;
+    if (!enemy.oceanAirAdd) st.descentPendingM = Math.max(0, Number(st.descentPendingM) || 0) + getOceanKillDescentM(enemy);
+    const seconds = getOceanKillAirSec(enemy), before = st.oxygenCur;
+    if (seconds <= 0) return 0;
+    const drainPerSec = getOceanOxygenDrainPerSec() * Math.max(0.1, Number(getOceanFishingStrategyDef(st).oxygenDrainMul) || 1);
+    st.oxygenCur = Math.min(st.oxygenMax, st.oxygenCur + drainPerSec * seconds);
+    return Math.round((st.oxygenCur - before) / drainPerSec);
+}
+/** 몬스터 하나가 쌓는 하강 거리(m): 정예는 배로, 장비의 심해 수심 전진 속도(%)만큼 더. */
+function getOceanKillDescentM(enemy) {
+    const rule = OCEAN_COMBAT_DIVE, gearPct = Math.max(0, Number(getPlayerStats().oceanDepthGainPct) || 0);
+    return rule.metersPerKill * (enemy.isElite ? rule.eliteKillMul : 1) * (1 + gearPct / 100);
+}
+/** 쓰러지며 남기는 공기(그 수심에서 산소가 줄어드는 초 수): 가디언의 졸개, 정예, 철갑 패각충. */
+function getOceanKillAirSec(enemy) {
+    const air = OCEAN_COMBAT_DIVE.air;
+    if (enemy.oceanAirAdd) return air.guardianAddSec;
+    if (enemy.isElite) return air.eliteSec;
+    return enemy.monsterVisualId === air.carrier ? air.carrierSec : 0;
 }
 
 // The stats of each category come from its tag rule (data/affix-tags.js AFFIX_TAG_LISTS.sea).

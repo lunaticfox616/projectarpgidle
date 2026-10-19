@@ -1184,14 +1184,9 @@ function mergeDefaults(save) {
     merged.chaosRealm.unlocked = !!merged.chaosRealm.unlocked;
     merged.chaosRealm.highestFloor = Math.max(0, Math.floor(clampFiniteNumber(merged.chaosRealm.highestFloor, 0, 0)));
     merged.chaosRealm.currentFloor = Math.max(1, Math.floor(clampFiniteNumber(merged.chaosRealm.currentFloor, 1, 1)));
-    let hasSavedUnderworldProgress = !!(save && typeof save === 'object' && save.underworldProgress && typeof save.underworldProgress === 'object');
-    let legacyUnderworldProgress = {};
-    if (!hasSavedUnderworldProgress) {
-        let legacyHighest = Math.max(1, Math.floor(clampFiniteNumber(((save && save.chaosRealm) || {}).highestFloor, 1, 1)));
-        let legacyCurrent = Math.max(1, Math.floor(clampFiniteNumber(((save && save.chaosRealm) || {}).currentFloor, 1, 1)));
-        legacyUnderworldProgress = { highestFloor: legacyHighest, currentFloor: legacyCurrent, floor10Cleared: legacyHighest >= 11 };
-    }
-    merged.underworldProgress = { ...(defaultGame.underworldProgress || { highestFloor: 1, currentFloor: 1 }), ...legacyUnderworldProgress, ...(merged.underworldProgress || {}) };
+    // A save from before the underworld starts it like a new one (2026-10-19 user: the old copy from chaos realm floors kept only
+    // the floor 10 credit, which opened the underworld without its entry conditions).
+    merged.underworldProgress = { ...(defaultGame.underworldProgress || { highestFloor: 1, currentFloor: 1 }), ...(merged.underworldProgress || {}) };
     merged.underworldProgress.highestFloor = Math.max(1, Math.floor(clampFiniteNumber(merged.underworldProgress.highestFloor, 1, 1)));
     merged.underworldProgress.currentFloor = Math.max(1, Math.floor(clampFiniteNumber(merged.underworldProgress.currentFloor, 1, 1)));
     let savedRunes = (merged.underworldRunes && typeof merged.underworldRunes === 'object') ? merged.underworldRunes : {};

@@ -364,8 +364,10 @@ function createDefaultOceanState() {
         diving: false,
         lastTickAt: 0,
         bossClearM: 0,
-        // 자동 재잠수(js/combat.js autoRediveOceanAfterClear): 마지막으로 떠오른 까닭('oxygen' | 'defeat' | 'manual' | ''), 잠수를 시작할
-        // 때의 리프트와 가디언 기록의 합, 새 리프트도 가디언 처치도 없이 산소가 떨어진 잠수가 이어진 수. 떠오르면 돌아갈 사냥터(잠수를
+        // 쓰러뜨린 몬스터가 쌓았지만 아직 내려가지 않은 거리(m, js/passives.js tickOceanDepth)
+        descentPendingM: 0,
+        // 자동 재잠수(js/combat.js autoRediveOceanAfterClear): 마지막으로 떠오른 까닭('oxygen' | 'guardian' | 'defeat' | 'manual' | ''),
+        // 잠수를 시작할 때의 소득 기록(getOceanDiveRecord), 소득 없이 떠오른 잠수가 이어진 수. 떠오르면 돌아갈 사냥터(잠수를
         // 시작한 액트나 혼돈 구역 id, 없으면 null)와 이 잠수가 자동 재잠수로 들어왔는지
         lastSurfaceReason: '',
         diveStartProgress: 0,
@@ -453,9 +455,12 @@ function ensureOceanState() {
     if (!st.unlocked && (game.season || 1) >= OCEAN_UNLOCK_LOOP) st.unlocked = true;
     return st;
 }
-/** 자동 재잠수가 읽는 잠수 기록(createDefaultOceanState): 떠오른 까닭, 시작할 때의 리프트와 가디언 기록, 소득 없이 떠오른 수. */
+/** 잠수 기록(createDefaultOceanState): 아직 내려가지 않은 하강 거리(잠수 중에만), 그리고 자동 재잠수가 읽는 떠오른 까닭, 시작할 때의
+ * 소득 기록, 소득 없이 떠오른 수. */
 function normalizeOceanDiveRecord(st) {
-    st.lastSurfaceReason = ['oxygen', 'defeat', 'manual'].includes(st.lastSurfaceReason) ? st.lastSurfaceReason : '';
+    const pending = Number(st.descentPendingM);
+    st.descentPendingM = st.diving && Number.isFinite(pending) ? Math.max(0, pending) : 0;
+    st.lastSurfaceReason = ['oxygen', 'guardian', 'defeat', 'manual'].includes(st.lastSurfaceReason) ? st.lastSurfaceReason : '';
     st.diveStartProgress = Math.max(0, Math.floor(Number(st.diveStartProgress) || 0));
     st.fruitlessDives = Math.max(0, Math.min(OCEAN_AUTO_REDIVE.missLimit, Math.floor(Number(st.fruitlessDives) || 0)));
     const back = st.returnZoneId;
@@ -506,16 +511,11 @@ function getOceanPendingBossBoundary(st) {
     let nextBoundary = Math.floor(cleared / interval) * interval + interval;
     return (Math.floor(Math.max(0, Number(st.depthM) || 0)) >= nextBoundary) ? nextBoundary : 0;
 }
-/** 잠수의 소득을 재는 기록: 열린 리프트와 쓰러뜨린 가디언의 수심 합(둘 다 줄지 않는다). 잠수를 시작할 때와 떠오를 때를 견준다. */
+/** 잠수의 소득을 재는 기록: 열린 리프트와 쓰러뜨린 가디언의 수심 합에 낚은 물고기 수를 더한다(모두 줄지 않는다). 잠수를 시작할 때와
+ * 떠오를 때를 견준다. 막힌 가디언 앞에서 얕게 도는 자동 재잠수는 물고기로 소득을 낸다. */
 function getOceanDiveRecord(st) {
-    return Math.max(0, Math.floor(st.checkpointM || 0)) + Math.max(0, Math.floor(st.bossClearM || 0));
-}
-function getOceanMoveSpeedDepthBonus() {
-    // 이동 속도가 빠를수록 한 번에 더 깊이 전진합니다(산소 소모와는 무관, 최대 +50%).
-    let moveSpeed = 100;
-    try { if (typeof getPlayerStats === 'function') moveSpeed = Number(getPlayerStats().moveSpeed) || 100; } catch (e) { console.warn('failed to read movement speed for map progress:', e); }
-    let bonusRatio = Math.max(0, (moveSpeed - 100) / 100);
-    return 1 + Math.min(1, bonusRatio * 0.5);
+    const caught = Object.values(st.fishCaughtTotal || {}).reduce((sum, count) => sum + Math.max(0, Math.floor(Number(count) || 0)), 0);
+    return Math.max(0, Math.floor(st.checkpointM || 0)) + Math.max(0, Math.floor(st.bossClearM || 0)) + caught;
 }
 function getOceanFishingGaugeGainMul() {
     let st = ensureOceanState();

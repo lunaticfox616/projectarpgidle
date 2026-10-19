@@ -17,6 +17,8 @@ const RECORDS_LOOP_HISTORY_LIMIT = 30;
 // 한 틱에서 이 이상 벌어진 간격은 "게임이 굴러간 시간"이 아니라 자리를 비운 구간으로 본다.
 // 포그라운드 틱은 100ms, 백그라운드 정산도 100ms 스텝으로 시뮬레이션 시계를 밀어 준다.
 const RECORDS_ACTIVE_TICK_MAX_MS = 5000;
+// 층 기록은 돌파한 층을 남긴다(2026-10-19 사용자 결정). 전에는 다음에 열린 층이라 한 층 높았다.
+const RECORD_CLEARED_FLOOR_KEYS = Object.freeze(['labyrinthFloor', 'chaosRealmFloor', 'skyFloor', 'underworldFloor']);
 
 function createDefaultRecordsState(now) {
     return {
@@ -26,8 +28,18 @@ function createDefaultRecordsState(now) {
         loops: [],
         actBest: {},
         echo: { bestDps: 0, bestDamage: 0, runs: 0, lastAt: 0 },
-        best: {}
+        best: {},
+        clearedFloorBests: true
     };
+}
+
+/** 층 기록이 다음에 열린 층이던 저장을 한 번 낮춘다. 표식(clearedFloorBests)은 예전 판이 지우지 않아, 판을 오가도 두 번 낮추지 않는다. */
+function keepClearedFloorBests(records) {
+    if (records.clearedFloorBests === true) return;
+    RECORD_CLEARED_FLOOR_KEYS.forEach(key => {
+        if (records.best[key] !== undefined) records.best[key] = Math.max(0, toPositiveInt(records.best[key]) - 1);
+    });
+    records.clearedFloorBests = true;
 }
 
 function toPositiveInt(value) {
@@ -46,6 +58,7 @@ function ensureRecordsState(state) {
     r.loops = Array.isArray(r.loops) ? r.loops.filter(row => row && typeof row === 'object') : [];
     r.actBest = (r.actBest && typeof r.actBest === 'object') ? r.actBest : {};
     r.best = (r.best && typeof r.best === 'object') ? r.best : {};
+    keepClearedFloorBests(r);
     r.echo = (r.echo && typeof r.echo === 'object') ? r.echo : { bestDps: 0, bestDamage: 0, runs: 0, lastAt: 0 };
     r.echo.bestDps = Math.max(0, Number(r.echo.bestDps) || 0);
     r.echo.bestDamage = Math.max(0, Number(r.echo.bestDamage) || 0);
@@ -68,10 +81,10 @@ function ensureRecordsState(state) {
 }
 
 // ── 최고 기록 적립 ──────────────────────────────────────────────────
-// Starting floors represent unopened progress, including in pre-fix saved records.
+// The chaos depth starts at 20, so 20 is no progress (floor records keep the floor cleared: 0 is none).
 // Filter a copy so reading a legacy record never rewrites the save.
 function getAchievedRecordBests(best) {
-    const baselines = { abyssDepth: 20, labyrinthFloor: 1, skyFloor: 1, underworldFloor: 1 };
+    const baselines = { abyssDepth: 20 };
     return Object.fromEntries(Object.entries(best).filter(([key, value]) => toPositiveInt(value) > (baselines[key] || 0)));
 }
 
@@ -79,7 +92,6 @@ function getAchievedRecordBests(best) {
 // 역대 최고를 단조 증가로 남긴다. 값을 읽기만 하고 원본은 건드리지 않는다.
 function getRecordBestSources(g) {
     let chaosRealm = (g.chaosRealm && typeof g.chaosRealm === 'object') ? g.chaosRealm : {};
-    let skyTower = (g.skyTower && typeof g.skyTower === 'object') ? g.skyTower : {};
     let underworld = (g.underworldProgress && typeof g.underworldProgress === 'object') ? g.underworldProgress : {};
     let ocean = (g.ocean && typeof g.ocean === 'object') ? g.ocean : {};
     let colony = (g.colony && typeof g.colony === 'object') ? g.colony : {};
@@ -88,10 +100,11 @@ function getRecordBestSources(g) {
         level: toPositiveInt(g.level),
         loop: Math.max(1, Math.floor(g.season || 1)),
         abyssDepth: toPositiveInt(g.abyssEndlessDepth),
-        labyrinthFloor: toPositiveInt(g.labyrinthUnlockedMaxFloor || g.labyrinthFloor),
-        chaosRealmFloor: toPositiveInt(chaosRealm.highestFloor),
-        skyFloor: toPositiveInt(skyTower.highestFloor),
-        underworldFloor: toPositiveInt(underworld.highestFloor),
+        // 층 콘텐츠는 다음에 열린 층을 들고 있어(돌파 층 + 1) 하나 뺀다.
+        labyrinthFloor: Math.max(0, toPositiveInt(g.labyrinthUnlockedMaxFloor || g.labyrinthFloor) - 1),
+        chaosRealmFloor: Math.max(0, toPositiveInt(chaosRealm.highestFloor) - 1),
+        skyFloor: getClearedSkyTowerFloor(g),
+        underworldFloor: Math.max(0, toPositiveInt(underworld.highestFloor) - 1),
         oceanBoundary: Math.max(toPositiveInt(ocean.depthM), toPositiveInt(ocean.checkpointM)),
         colonyWave: Math.max(toPositiveInt(colony.highestWave), toPositiveInt(colony.wave))
     });
