@@ -16,8 +16,8 @@ body[data-ui-skin] {
   --px-key-frame-on: url('../../assets/ui/pixel/hud-key-on.png');
   /* 새 단추 그림(틀까지 든 한 장)의 한 변: 공용 틀(40)보다 크게, 한 칸의 폭(48)을 다 쓴다. 원본이 73~91px이라 40px에서는 무늬가 뭉개졌다. */
   --px-key-art: 48px;
-  /* 올린 그림과 잠긴 그림의 사방 여백: 보통 그림 한 변에 대한 몫(scripts/build-hud-buttons.cjs의 STATE_BLEED와 같다). 그 그림을 그리는 칸을
-     이만큼 넓혀 틀은 제자리에 두고, 틀 밖으로 번지는 빛과 삐져나온 자물쇠만 바깥에 그린다. */
+  /* 올린 그림의 사방 여백: 보통 그림 한 변에 대한 몫(scripts/build-hud-buttons.cjs의 STATE_BLEED와 같다). 그 그림을 그리는 칸을
+     이만큼 넓혀 틀은 제자리에 두고, 틀 밖으로 번지는 빛만 바깥에 그린다. */
   --px-button-art-bleed: 0.055;
 }
 body[data-ui-skin] #btn-tab-battle { --px-icon: 0; }
@@ -40,17 +40,17 @@ body[data-ui-skin] #btn-tab-settings { --px-icon: 19; }
 body[data-ui-skin] #btn-map-complete-action-picker { --px-icon: 20; }
 /* 새 단추 그림(2026-10-13 사용자가 만들어 온 여덟 개: 틀과 아이콘이 한 장에 있고 눌린 그림이 따로 있다. scripts/build-hud-buttons.cjs →
    assets/ui/pixel/buttons/). 그림이 있는 메뉴(index.html의 data-button-art)는 공용 틀(hud-key)과 13도트 아이콘 대신 이 그림 한 장을 쓴다.
-   누르는 동안과 창이 열려 있는 동안은 눌린 그림이다. 2026-10-19 묶음부터 올린 그림(빛나는 틀)이 있고, 그루터기 함과 루프는 잠긴 그림
-   (자물쇠)도 있다. 그림은 도트 하나가 화면 한 점보다 작게 줄어들어 부드럽게 그린다(image-rendering: auto).
+   누르는 동안과 창이 열려 있는 동안은 눌린 그림이다. 2026-10-19 묶음부터 올린 그림(빛나는 틀)이 있다. 그림은 도트 하나가 화면 한 점보다
+   작게 줄어들어 부드럽게 그린다(image-rendering: auto).
    같은 아이콘을 나눠 쓰던 메뉴(전직은 스킬트리, 도감과 전적은 기록)는 그림도 나눠 쓴다. */
 body[data-ui-skin] #btn-tab-character { --px-button-art: url('../../assets/ui/pixel/buttons/character.png'); --px-button-art-down: url('../../assets/ui/pixel/buttons/character-down.png');
   --px-button-art-hover: url('../../assets/ui/pixel/buttons/character-hover.png'); }
 body[data-ui-skin] :is(#btn-tab-char, #btn-tab-traits, #btn-tab-talent) { --px-button-art: url('../../assets/ui/pixel/buttons/passive.png'); --px-button-art-down: url('../../assets/ui/pixel/buttons/passive-down.png');
   --px-button-art-hover: url('../../assets/ui/pixel/buttons/passive-hover.png'); }
 body[data-ui-skin] #btn-tab-season { --px-button-art: url('../../assets/ui/pixel/buttons/loop.png'); --px-button-art-down: url('../../assets/ui/pixel/buttons/loop-down.png');
-  --px-button-art-hover: url('../../assets/ui/pixel/buttons/loop-hover.png'); --px-button-art-locked: url('../../assets/ui/pixel/buttons/loop-locked.png'); }
+  --px-button-art-hover: url('../../assets/ui/pixel/buttons/loop-hover.png'); }
 body[data-ui-skin] #btn-tab-stump { --px-button-art: url('../../assets/ui/pixel/buttons/stump.png'); --px-button-art-down: url('../../assets/ui/pixel/buttons/stump-down.png');
-  --px-button-art-hover: url('../../assets/ui/pixel/buttons/stump-hover.png'); --px-button-art-locked: url('../../assets/ui/pixel/buttons/stump-locked.png'); }
+  --px-button-art-hover: url('../../assets/ui/pixel/buttons/stump-hover.png'); }
 body[data-ui-skin] #btn-tab-items { --px-button-art: url('../../assets/ui/pixel/buttons/bag.png'); --px-button-art-down: url('../../assets/ui/pixel/buttons/bag-down.png');
   --px-button-art-hover: url('../../assets/ui/pixel/buttons/bag-hover.png'); }
 body[data-ui-skin] #btn-tab-map { --px-button-art: url('../../assets/ui/pixel/buttons/map.png'); --px-button-art-down: url('../../assets/ui/pixel/buttons/map-down.png');
@@ -389,16 +389,6 @@ body[data-ui-skin] .window-tab-strip > .window-tab { display: flex; align-items:
     background-size: var(--px-key-art) var(--px-key-art);
     filter: none;
   }
-  /* 아직 잠긴 메뉴(nav-locked, js/ui.js PC_LOCKED_MENU_BUTTONS): 자물쇠가 틀 밖으로 나온 어두운 그림이다. 올려도 누르는 동안에도 그대로이고,
-     누르면 여는 조건을 알린다(notifyLockedTab). 이름도 흐리다. */
-  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-tab-layer > .tab-btn[data-button-art].nav-locked { color: #6c6258; }
-  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-tab-layer > .tab-btn[data-button-art].nav-locked::after {
-    margin: calc(var(--px-key-art) * var(--px-button-art-bleed) * -1);
-    height: calc(var(--px-key-art) * (1 + 2 * var(--px-button-art-bleed)));
-    background-image: var(--px-button-art-locked, var(--px-button-art));
-    background-size: 100% 100%;
-    filter: none;
-  }
   /* 알림 점, 가득 참, 이름표는 커진 그림의 위 끝을 따라 올라간다 */
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-tab-layer > .tab-btn[data-button-art] > .noti-dot { top: calc(var(--px-key) - var(--px-key-art)); right: 0; }
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-tab-layer > .tab-btn[data-button-art] > .inventory-full-warning { top: calc(var(--px-key) - var(--px-key-art) - 10px); }
@@ -547,16 +537,6 @@ body[data-ui-skin] .window-tab-strip > .window-tab { display: flex; align-items:
     height: 28px;
     background: var(--px-button-art) center / 28px 28px no-repeat;
     image-rendering: auto;
-  }
-  /* 기타 목록에 둔 잠긴 메뉴: 자물쇠 그림(그리는 칸을 여백만큼 넓히고 바깥 여백을 그만큼 줄여 줄의 크기는 그대로다) */
-  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-misc-panel .tab-btn[data-button-art].nav-locked { color: #6c6258; }
-  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-misc-panel .tab-btn[data-button-art].nav-locked::after {
-    flex-basis: calc(28px * (1 + 2 * var(--px-button-art-bleed)));
-    width: calc(28px * (1 + 2 * var(--px-button-art-bleed)));
-    height: calc(28px * (1 + 2 * var(--px-button-art-bleed)));
-    margin: calc(28px * var(--px-button-art-bleed) * -1);
-    background-image: var(--px-button-art-locked, var(--px-button-art));
-    background-size: 100% 100%;
   }
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-misc-panel .tab-btn .ui-rail-label { position: static; display: inline; overflow: visible; color: inherit; font-size: 12px; }
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-misc-panel .tab-btn > .noti-dot { position: absolute; top: 4px; right: 4px; width: 8px; height: 8px; border: 2px solid #000; border-radius: 0; background: #e4a44b; box-shadow: none; }

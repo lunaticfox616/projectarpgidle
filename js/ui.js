@@ -1337,8 +1337,6 @@ let lastTabHeaderUiSignature = '';
 let lastActiveTabId = null;
 const TAB_HEADER_NOTI_KEYS = ['char', 'season', 'items', 'skills', 'codex', 'map', 'traits', 'talent', 'journal', 'currency', 'fossil', 'ascend', 'loop', 'social', 'stump', 'npcs'];
 const TAB_UNLOCK_BUTTON_KEYS = ['char', 'season', 'items', 'skills', 'codex', 'map', 'traits', 'talent', 'stump', 'npcs'];
-// 열리기 전에도 PC 하단 HUD에 잠긴 그림(자물쇠)으로 자리를 지키는 메뉴 단추: 2026-10-19 사용자가 보낸 단추 그림에 잠긴 그림이 있는 둘.
-const PC_LOCKED_MENU_BUTTONS = Object.freeze(['btn-tab-stump', 'btn-tab-season']);
 // 메뉴 단추 하나가 여는 창 하나에 화면 여럿(2026-10-13 사용자: 새 단추 그림에 맞춰 "단추 하나로 합치고 UI를 잘 만들어야겠지?").
 // 장비 단추는 장비와 스킬룬을, 루프 단추는 루프 패시브와 해금을 연다(앞의 둘은 전부터 묶여 있었다). 창 머리의 탭으로 오가고,
 // 단추는 마지막에 보던 화면을 연다. icon: 창 머리 탭의 그림(assets/ui/pixel/menu-icons.png의 번호), count: 탭에 적는 수(쓸 포인트).
@@ -1767,25 +1765,16 @@ function updateTabNotificationDots() {
     syncMobilePrimaryNavigationState();
 }
 
-/** 아직 잠긴 메뉴 단추가 잠긴 칸으로 자리를 지키는가. PC에서는 잠긴 그림이 있는 단추(PC_LOCKED_MENU_BUTTONS), 휴대폰에서는 하단 메뉴의
- * 지도 칸이다: 액트 1을 마쳐 지도가 열리는 순간 메뉴 칸이 넷에서 다섯으로 늘며 스킬룬 칸이 밀리던 것을 막는다. */
-function keepsLockedMenuCell(buttonId) {
-    if (!isMobilePrimaryNavigationEnabled()) return PC_LOCKED_MENU_BUTTONS.includes(buttonId);
-    return buttonId === 'btn-tab-map' && game.settings.tabLayouts.mobile.tabPlacement['btn-tab-map'] !== 'bottom';
-}
-
-/** 메뉴 단추를 열린 단추로, 잠긴 칸(nav-locked: 누르면 notifyLockedTab이 여는 조건을 알린다)으로, 또는 숨겨서 보인다. */
-function showMenuButton(button, open) {
-    let locked = !open && keepsLockedMenuCell(button.id);
-    button.classList.toggle('nav-locked', locked);
-    if (locked) button.setAttribute('aria-disabled', 'true');
-    else button.removeAttribute('aria-disabled');
-    button.style.display = open || locked ? 'flex' : 'none';
-}
-
-/** 해금 단추 표시(잠긴 칸은 showMenuButton). */
+/** 해금 단추 표시. 휴대폰 하단 메뉴의 지도는 열리기 전에도 흐린 잠금 칸으로 자리를 지킨다 — 액트 1을 마쳐 지도가 열리는 순간
+ * 메뉴 칸이 넷에서 다섯으로 늘며 스킬룬 칸이 밀리던 것을 막는다(누르면 notifyLockedTab이 여는 조건을 알린다). */
 function syncTabUnlockButton(key) {
-    showMenuButton(document.getElementById('btn-tab-' + key), !!game.unlocks[key]);
+    let button = document.getElementById('btn-tab-' + key);
+    let reserved = key === 'map' && !game.unlocks.map && isMobilePrimaryNavigationEnabled()
+        && game.settings.tabLayouts.mobile.tabPlacement['btn-tab-map'] !== 'bottom';
+    button.classList.toggle('nav-locked', reserved);
+    if (reserved) button.setAttribute('aria-disabled', 'true');
+    else button.removeAttribute('aria-disabled');
+    button.style.display = game.unlocks[key] || reserved ? 'flex' : 'none';
 }
 
 function updateTabUnlockButtons() {
@@ -2120,7 +2109,7 @@ function syncMergedTabLauncherVisibility() {
     contentUnlockUi.sync();
     Object.values(MERGED_TAB_GROUPS).forEach(group => {
         let launcher = document.getElementById('btn-' + group.launcher);
-        if (launcher) showMenuButton(launcher, group.tabs.some(isMergedTabAvailable));
+        if (launcher) launcher.style.display = group.tabs.some(isMergedTabAvailable) ? 'flex' : 'none';
     });
 }
 
@@ -2143,7 +2132,7 @@ function openMergedTabPicker(event, groupKey) {
     let group = MERGED_TAB_GROUPS[groupKey];
     if (!group) return;
     let selectedTabId = getSelectedMergedTabId(groupKey);
-    if (!selectedTabId) return notifyLockedTab(group.launcher); // 아직 잠긴 묶음(잠긴 칸으로 보이는 루프 단추): 여는 조건을 알린다
+    if (!selectedTabId) return;
     switchMergedTabSubtab(groupKey, selectedTabId, { keepWindowOpen: false });
 }
 
@@ -13556,22 +13545,17 @@ function notifyLockedTab(tabId) {
     addLog(getLockedTabMessage(tabId), 'attack-monster', { toast: reservedCell });
 }
 
-/** 잠긴 화면이 열리는 조건(notifyLockedTab). */
-const LOCKED_TAB_MESSAGES = Object.freeze({
-    'tab-char': '레벨 2에 도달하면 스킬트리가 열립니다.',
-    'tab-season': '루프 1을 클리어하면 루프 탭이 열립니다.',
-    'tab-items': '장비나 제작 재화를 얻으면 장비 탭이 열립니다.',
-    'tab-skills': '새 스킬룬이나 보조스킬룬을 획득하면 스킬룬 탭이 열립니다.',
-    'tab-codex': '첫 고유 아이템을 획득하면 도감 탭이 열립니다.',
-    'tab-map': '액트 1을 마치면 지도가 열립니다.',
-    'tab-traits': '전직 시련을 통과하면 전직 탭이 열립니다.',
-    'tab-talent': '재능 개화 시련을 클리어하면 재능 탭이 열립니다.',
-    'tab-npcs': '맵에서 NPC를 만나면 NPC 탭이 열립니다.',
-    'tab-stump': '액트 10을 마치면 그루터기 함이 열립니다.'
-});
-
 function getLockedTabMessage(tabId) {
-    return Object.hasOwn(LOCKED_TAB_MESSAGES, tabId) ? LOCKED_TAB_MESSAGES[tabId] : '아직 해금되지 않은 탭입니다.';
+    if (tabId === 'tab-char') return '레벨 2에 도달하면 스킬트리가 열립니다.';
+    if (tabId === 'tab-season') return '루프 1을 클리어하면 루프 탭이 열립니다.';
+    if (tabId === 'tab-items') return '장비나 제작 재화를 얻으면 장비 탭이 열립니다.';
+    if (tabId === 'tab-skills') return '새 스킬룬이나 보조스킬룬을 획득하면 스킬룬 탭이 열립니다.';
+    if (tabId === 'tab-codex') return '첫 고유 아이템을 획득하면 도감 탭이 열립니다.';
+    if (tabId === 'tab-map') return '액트 1을 마치면 지도가 열립니다.';
+    if (tabId === 'tab-traits') return '전직 시련을 통과하면 전직 탭이 열립니다.';
+    if (tabId === 'tab-talent') return '재능 개화 시련을 클리어하면 재능 탭이 열립니다.';
+    if (tabId === 'tab-npcs') return '맵에서 NPC를 만나면 NPC 탭이 열립니다.';
+    return '아직 해금되지 않은 탭입니다.';
 }
 
 async function pickEquippedSlotByPrompt(validSlots){

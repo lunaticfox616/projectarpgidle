@@ -5,9 +5,9 @@
  * <메뉴>.png, <메뉴>-down.png으로 적는다. 보통 그림은 둘레의 빈 테를 잘라 내기만 하고(도트를 건드리지 않는다), 눌린 그림은 묶음마다
  * 크기가 조금씩 달라 보통 그림과 같은 크기로 맞춘다(누를 때 단추가 커지거나 밀리지 않게). 화면에서는 CSS가 틀 크기로 줄여 그린다
  * (css/themes/pixel-menu.css의 --px-button-art). 받은 파일은 자료로만 읽는다.
- * 2026-10-19 묶음부터 올린 그림(hover.png, 틀 밖으로 빛이 번진다)과 잠긴 그림(locked.png, 자물쇠가 틀 밖으로 나온다)도 있다:
- * <메뉴>-hover.png, <메뉴>-locked.png으로 적되 보통 그림의 틀에 맞춰(밝기가 달라도 맞도록 밝기의 상관으로 자리를 찾는다) 사방에
- * STATE_BLEED만큼 여백을 둔 판에 옮긴다. CSS는 그리는 칸을 그만큼 넓혀 틀을 제자리에 둔다(--px-button-art-bleed).
+ * 2026-10-19 묶음부터 올린 그림(hover.png, 틀 밖으로 빛이 번진다)도 있다: <메뉴>-hover.png으로 적되 보통 그림의 틀에 맞춰(밝기가
+ * 달라도 맞도록 밝기의 상관으로 자리를 찾는다) 사방에 STATE_BLEED만큼 여백을 둔 판에 옮긴다. CSS는 그리는 칸을 그만큼 넓혀 틀을
+ * 제자리에 둔다(--px-button-art-bleed). 같은 묶음의 잠긴 그림(locked.png)은 쓰지 않는다: 잠긴 메뉴는 열릴 때까지 숨긴다(사용자 결정).
  */
 const fs = require('node:fs'), path = require('node:path');
 const { decodePng, encodePng } = require('./lib/png.cjs');
@@ -15,10 +15,10 @@ const { decodePng, encodePng } = require('./lib/png.cjs');
 const MENUS = Object.freeze({ charater_status: 'character', Celtic_Tree_of_Life: 'passive', bagpack: 'bag', setting: 'settings',
     map: 'map', tree_growth_ring: 'stump', old_book: 'journal', Uroboros: 'loop' });
 const OUT = path.join(__dirname, '..', 'assets', 'ui', 'pixel', 'buttons');
-/** 올린 그림과 잠긴 그림의 판: 보통 그림 한 변의 이 몫을 사방 여백으로 둔다. css/themes/pixel-menu.css의 --px-button-art-bleed와 같은 값. */
+/** 올린 그림의 판: 보통 그림 한 변의 이 몫을 사방 여백으로 둔다. css/themes/pixel-menu.css의 --px-button-art-bleed와 같은 값. */
 const STATE_BLEED = 0.055;
 /** 받은 상태 그림의 파일 이름 → 게임 파일의 뒤붙임. */
-const EXTRA_STATES = Object.freeze({ 'hover.png': 'hover', 'locked.png': 'locked' });
+const EXTRA_STATES = Object.freeze({ 'hover.png': 'hover' });
 
 /** 투명하지 않은 픽셀의 상자. */
 function contentBox(png) {
@@ -76,7 +76,7 @@ function correlation(normal, state, dx, dy) {
     }
     return (sab - sa * sb / n) / Math.sqrt((saa - sa * sa / n) * (sbb - sb * sb / n) || 1);
 }
-/** 상태 그림 안에서 보통 그림의 틀이 놓인 자리(크기는 같고 둘레에 빛이나 자물쇠가 더 있다). */
+/** 상태 그림 안에서 보통 그림의 틀이 놓인 자리(크기는 같고 둘레에 빛이 더 있다). */
 function frameOffset(normal, state) {
     let best = { score: -Infinity, dx: 0, dy: 0 };
     for (let dy = -2; dy <= state.height - normal.height + 2; dy++) for (let dx = -2; dx <= state.width - normal.width + 2; dx++) {
@@ -97,7 +97,7 @@ function placeOnBleed(normal, state) {
     }
     return { png: { width, height, data }, cut, at };
 }
-/** 폴더의 올린 그림과 잠긴 그림(있는 것만)을 <메뉴>-hover.png, <메뉴>-locked.png으로 적는다. */
+/** 폴더의 올린 그림(있으면)을 <메뉴>-hover.png으로 적는다. */
 function writeExtraStates(folder, menu, normal) {
     for (const [file, suffix] of Object.entries(EXTRA_STATES)) {
         const stateFile = path.join(folder, file);
