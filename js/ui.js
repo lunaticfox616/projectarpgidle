@@ -11813,6 +11813,7 @@ function applyExternalSave(snapshot, sourceStamp) {
         throw new Error('클라우드 저장을 로컬에 기록하지 못했습니다.');
     }
     recoverRuntimeState();
+    resetCombatRuntimesForLoadedSave();
     resetHeroSelectionForSave();
     refreshPassiveVisibility();
     refreshTabHeaderUiIfNeeded();
