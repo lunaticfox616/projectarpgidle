@@ -15,6 +15,7 @@ const loopAutomationUi = (() => {
         if (game.settings.autoLoopClass === 'keep' && PLAYER_CLASS_DEFS[classId]) {
             if (selectionOpen()) return chooseLoopHero(classId);
             applyHeroSelection(classId, { silent: true, skipSave: true, alignTalent: true });
+            grantClassStarterWeapon(classId); // as chooseLoopHero does: the loop emptied the gear
             return applyLoopHeroSelection(classId, classId);
         }
         if (selectionOpen() || now - reopenedAt < REOPEN_MS) return;

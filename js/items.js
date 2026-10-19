@@ -495,8 +495,10 @@ function getHeldRunBlockReason() {
     return ensureBeyondBoundaryState(game).activeRun ? '경계 너머 도전을 먼저 마치거나 포기하세요.' : '';
 }
 /** Content starts (군락지, 벌집, 혼돈 밖, 심해, 나무꾼의 잔상, 대균열, 증표 시련) refuse from a held run and from inside an atlas map:
- * they set the zone themselves, so leaving the map that way skipped the portal changeZone spends. Returns the refusal, or ''. */
+ * they set the zone themselves, so leaving the map that way skipped the portal changeZone spends. They refuse at the loop gate too
+ * (time stands still there, as for hunting-ground travel; the loop then ended the run unplayed). Returns the refusal, or ''. */
 function getContentStartBlockReason() {
+    if (game.pendingLoopReady) return '⏸️ 루프 진행 대기 중에는 콘텐츠를 시작할 수 없습니다. [루프 진행] 버튼으로 다음 루프를 시작하세요.';
     return getHeldRunBlockReason() || (atlas.inMap(game) ? atlas.runOpenReason(game) : '');
 }
 
