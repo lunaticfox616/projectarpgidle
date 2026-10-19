@@ -29,8 +29,15 @@ function createDefaultRecordsState(now) {
         actBest: {},
         echo: { bestDps: 0, bestDamage: 0, runs: 0, lastAt: 0 },
         best: {},
-        clearedFloorBests: true
+        clearedFloorBests: true,
+        incidents: {}
     };
+}
+
+/** 잔잔한 사건을 겪은 횟수(js/combat-incidents.js가 recordIncident로 센다): 아는 열쇠(ACT_EXPLORATION_INCIDENTS.records)만, 0 이상의 정수로. */
+function normalizeIncidentCounts(counts) {
+    const source = counts && typeof counts === 'object' ? counts : {};
+    return Object.fromEntries(ACT_EXPLORATION_INCIDENTS.records.map(([key]) => [key, toPositiveInt(source[key])]).filter(([, count]) => count > 0));
 }
 
 /** 층 기록이 다음에 열린 층이던 저장을 한 번 낮춘다. 표식(clearedFloorBests)은 예전 판이 지우지 않아, 판을 오가도 두 번 낮추지 않는다. */
@@ -58,6 +65,7 @@ function ensureRecordsState(state) {
     r.loops = Array.isArray(r.loops) ? r.loops.filter(row => row && typeof row === 'object') : [];
     r.actBest = (r.actBest && typeof r.actBest === 'object') ? r.actBest : {};
     r.best = (r.best && typeof r.best === 'object') ? r.best : {};
+    r.incidents = normalizeIncidentCounts(r.incidents);
     keepClearedFloorBests(r);
     r.echo = (r.echo && typeof r.echo === 'object') ? r.echo : { bestDps: 0, bestDamage: 0, runs: 0, lastAt: 0 };
     r.echo.bestDps = Math.max(0, Number(r.echo.bestDps) || 0);
@@ -169,6 +177,15 @@ function recordWoodsmanEchoRun(totalDamage, dps, state) {
     r.echo.bestDamage = Math.max(r.echo.bestDamage, Math.max(0, Number(totalDamage) || 0));
 }
 
+// ── 잔잔한 사건 ─────────────────────────────────────────────────────
+// 금빛 수액 슬라임을 잡았다, 별똥별이 떨어졌다 같은 사건마다 한 번. 루프를 넘겨도 남는다.
+function recordIncident(kind, state) {
+    let g = state || (typeof game !== 'undefined' ? game : null);
+    if (!g || !ACT_EXPLORATION_INCIDENTS.records.some(([key]) => key === kind)) return;
+    let r = ensureRecordsState(g);
+    r.incidents[kind] = toPositiveInt(r.incidents[kind]) + 1;
+}
+
 // ── 루프 경계 ───────────────────────────────────────────────────────
 // 루프 정산이 상태를 초기화하기 "전에" 호출해야 한다. 그래야 이번 루프의 도달
 // 기록(액트·혼돈 깊이)을 그대로 남길 수 있다.
@@ -233,7 +250,8 @@ function getRecordsView(state) {
         },
         actBest: { ...r.actBest },
         echo: { ...r.echo },
-        best: getAchievedRecordBests(r.best)
+        best: getAchievedRecordBests(r.best),
+        incidents: ACT_EXPLORATION_INCIDENTS.records.map(([key, name, hidden]) => ({ key, name, hidden, count: toPositiveInt(r.incidents[key]) }))
     };
 }
 
@@ -242,6 +260,7 @@ safeExposeGlobals({
     trackRecordBests,
     recordActClear,
     recordWoodsmanEchoRun,
+    recordIncident,
     closeLoopRecord,
     getRecordsView,
     createDefaultRecordsState,

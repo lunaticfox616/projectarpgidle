@@ -16,6 +16,9 @@
     // 그리고 콘텐츠마다 그 세계의 색. 카드는 값과 왼쪽 테가 그 색이다(statCard).
     const TONE = Object.freeze({ loop: '#e8c27a', time: '#8fd8ff', level: '#8fe07a', chaos: '#b78bff', labyrinth: '#d9b066', sky: '#9fd0ff',
         underworld: '#54b8a4', ocean: '#5ab8f0', colony: '#9fd46a', zone: '#eee7dc', damage: '#ff8a5c' });
+    // 잔잔한 사건마다 그 사건의 빛깔(data/act-exploration-maps.js의 테와 같은 결), 숨은 사건은 겪기 전에는 잿빛.
+    const INCIDENT_TONE = Object.freeze({ critter: '#ffcf4a', stray: '#9be0a4', sleep: '#a9b8ff', star: '#ffe9a0', rainbow: '#c79bff',
+        feast: '#ffcf4a', yawn: '#9fd46a', lucky: '#8fd8ff', luckyKill: '#c79bff', unknown: '#8b8478' });
 
     // 최고 도달 지점 표. 값이 0이면 아직 가보지 않은 콘텐츠라 행 자체를 숨긴다
     // (해보지 않은 콘텐츠를 "0층"으로 보여주면 스포일러이자 소음이다).
@@ -177,6 +180,17 @@
         </section>`;
     }
 
+    // 잔잔한 사건(js/combat-incidents.js): 겪은 횟수. 숨은 사건은 한 번 겪기 전까지 이름 대신 ???로 둔다(있다는 것만 보인다).
+    function renderIncidentSection(view) {
+        let cards = view.incidents.map(row => (row.hidden && !row.count
+            ? statCard('', '???', '-', '숨은 사건', INCIDENT_TONE.unknown)
+            : statCard('', row.name, `${formatCount(row.count)}회`, row.hidden ? '숨은 사건' : '', INCIDENT_TONE[row.key]))).join('');
+        return `<section class="records-section">
+            <div class="records-section-title">잔잔한 사건<span>사냥 중에 드물게 일어나는 일, 루프를 넘겨도 유지됩니다</span></div>
+            <div class="records-stat-row">${cards}</div>
+        </section>`;
+    }
+
     function renderEchoSection(view) {
         let echo = view.echo;
         if (!echo.runs) return '';
@@ -198,6 +212,7 @@
             + (typeof weaponMasteryUi === 'object' ? weaponMasteryUi.sectionHtml() : '')
             + renderActSection(view)
             + renderBestSection(view)
+            + renderIncidentSection(view)
             + renderLoopSection(view)
             + `<details class="records-offline"><summary>영구 방치 성장<span>강화, 방치 지시, 보관함</span></summary>${offlineHtml}</details>`
             + renderEchoSection(view);

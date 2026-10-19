@@ -258,6 +258,7 @@ const ACT_EXPLORATION_AMBUSH = Object.freeze({chance:0.05,pull:0.4,keep:2,search
 // lucky 행운의 숫자: 한 번에 준 피해가 7로만 된 수(777 이상)면 그 자릿수의 재화를 준다([재화, 개수], 그보다 긴 수는 맨 끝 줄). 한 번 나오면
 //   gapMs 동안은 다시 나오지 않는다(지속 피해도 같은 길로 들어온다). 체이싱 고유 일곱 번째 행운의 병은 같은 숫자로만 된 수(111 이상)도 센다.
 //   kill: 이번 루프의 그 번째 처치(방치 정산 말고, 방 단위 무대의 무리에서)는 그 자리에서 무지갯빛 수액 슬라임으로 일어난다.
+// records 전적 화면의 사건 기록(js/records.js recordIncident, js/records-ui.js): [열쇠, 이름, 숨은 사건이면 true(겪기 전에는 ???)].
 const ACT_EXPLORATION_INCIDENTS = Object.freeze({
     critter: Object.freeze({ chance: 0.012, look: 'act1-slime', name: '금빛 수액 슬라임', glaze: Object.freeze({ color: '#ffcf4a', alpha: 0.36 }), outline: '#fff0a8',
         hpMul: 2.5, expMul: 3, fleeMs: 13000, stepSec: 0.42,
@@ -271,7 +272,10 @@ const ACT_EXPLORATION_INCIDENTS = Object.freeze({
     star: Object.freeze({ chance: 0.015, fallMs: 520, burstMs: 680,
         rewards: Object.freeze([['magicBud', 3], ['sapBud', 1], ['formlessDew', 1], ['blessing', 1]]) }),
     yawn: Object.freeze({ chance: 0.0004, sleepMs: 6000 }),
-    lucky: Object.freeze({ min: 777, gapMs: 30000, kill: 7777, rewards: Object.freeze([['magicBud', 3], ['sapBud', 1], ['formlessDew', 2], ['goldenRule', 1], ['fairyRing', 1]]) })
+    lucky: Object.freeze({ min: 777, gapMs: 30000, kill: 7777, rewards: Object.freeze([['magicBud', 3], ['sapBud', 1], ['formlessDew', 2], ['goldenRule', 1], ['fairyRing', 1]]) }),
+    records: Object.freeze([['critter', '금빛 수액 슬라임', false], ['stray', '길 잃은 몬스터', false], ['sleep', '잠든 무리', false], ['star', '별똥별', false],
+        ['rainbow', '무지갯빛 수액 슬라임', true], ['feast', '황금 수액 잔치', true], ['yawn', '세계수의 하품', true], ['lucky', '행운의 숫자', true],
+        ['luckyKill', '루프의 7,777번째 처치', true]].map(row => Object.freeze(row)))
 });
 // Whole-pixel camera zoom for the 16px art (js/canvas-act-exploration.js tileSize). 2026-10-02: at most ×4 (was ×5): on a 125%
 // desktop display the ×5 tiles (80px) made the hero feel too big and the view cramped.

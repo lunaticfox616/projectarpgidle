@@ -25,6 +25,7 @@ const combatIncidents = (() => {
     const quiet = zone => !!game.isBackgroundCalculation || !zone || (zone.type === 'act' && zone.id === 0 && (game.season || 1) === 1);
     const tell = (text, tone, chase = false) => dispatchRuntimeEvent('incident', { text, tone, chase });
     const receipt = work => combatLootReceipts.capture(game, work);
+    const note = kind => recordIncident(kind, game); // 전적 화면의 사건 기록(js/records.js)
     let luckyAt = -Infinity;            // 마지막 행운의 숫자(전투 시각)
     const stars = [];                   // 떨어지는 중인 별똥별 { run, cell, key, at(닿는 전투 시각) }
     /** 착용한(요구 능력치를 채워 켜진) 고유 장비의 그 효과의 값(uniqueEffectParams), 없으면 null. */
@@ -190,6 +191,7 @@ const combatIncidents = (() => {
         const S = rule().sleep, hero = game.gridPlayer;
         const near = enemy => !!hero && hasGridCell(enemy) && gridChebyshevDist(enemy.gx, enemy.gy, hero.gx, hero.gy) <= S.wakeCells;
         const woken = new Set(sleepers.filter(enemy => enemy.hp < enemy.maxHp || near(enemy)).map(enemy => enemy.explorationPack));
+        woken.forEach(() => note('sleep'));
         for (const enemy of sleepers) {
             if (woken.has(enemy.explorationPack)) wake(enemy, now);
             else doze(enemy, now);
@@ -229,6 +231,7 @@ const combatIncidents = (() => {
             Object.assign(dressCritter(enemy, rainbow), { asleep: false, feast: true, critterSeenAt: rainbow ? 0 : getCombatTime() });
         });
         tell('황금 수액 잔치가 열렸습니다. 이 방의 몬스터가 모두 금빛 수액 슬라임이 되었습니다.', 'chase', true);
+        note('feast');
         return true;
     }
     /** 잔치에 드는 몬스터: 정예도 슬라임도 아니고, 방 단위 무대의 무리이되 조우, 구출, 보물, 붙박이 무리가 아니다. */
@@ -269,6 +272,7 @@ const combatIncidents = (() => {
         const incense = worn('drowsyIncense'), sleepMs = incense ? incense.sleepMs : rule().yawn.sleepMs;
         enemies.forEach(enemy => { enemy.skillHeldUntil = Math.max(Number(enemy.skillHeldUntil) || 0, now + sleepMs); });
         tell('세계수가 하품을 했습니다. 이 방의 몬스터가 잠시 잠들었습니다.', 'reward');
+        note('yawn');
     }
     /** 시험 패널: 지금 싸우는 몬스터에게 하품. */
     function testYawn() {
@@ -306,7 +310,9 @@ const combatIncidents = (() => {
             const [star] = stars.splice(i, 1), rows = starRewards();
             if (star.run !== run || !rows.length) continue;
             const [currency, count] = rows[Math.floor(draw('starLoot', star.key) * rows.length)];
-            if (receipt(() => keepCurrencyDrop(star.cell, currency, count)).gain > 0) tell('별똥별이 떨어졌습니다.', 'reward');
+            if (!(receipt(() => keepCurrencyDrop(star.cell, currency, count)).gain > 0)) continue;
+            tell('별똥별이 떨어졌습니다.', 'reward');
+            note('star');
         }
     }
     /** 시험 패널: 지금 방에 별똥별 하나. 떨어뜨렸는지. */
@@ -340,12 +346,13 @@ const combatIncidents = (() => {
     function onKill(enemy, zone) {
         if (!enemy || quiet(zone)) return;
         if (!enemy.critter) {
-            if (enemy.stray) receipt(() => grantEquipmentPick(enemy, zone, rule().stray.gear, null));
+            if (enemy.stray) { receipt(() => grantEquipmentPick(enemy, zone, rule().stray.gear, null)); note('stray'); }
             rise(enemy, zone);
             return;
         }
         const rainbow = enemy.critter === 'rainbow';
         receipt(() => { grantCritterRewards(enemy, zone); if (rainbow) grantRainbowRewards(enemy, zone); });
+        note(rainbow ? 'rainbow' : 'critter');
         if (rainbow || !enemy.feast) tell(rainbow ? '무지갯빛 수액 슬라임을 잡았습니다.' : '금빛 수액 슬라임을 잡았습니다.', rainbow ? 'chase' : 'reward', rainbow);
     }
     /** 쓰러뜨린 몬스터(방 단위 무대의 보통 무리, 보스와 보스 단계의 호위, 오브젝트 웨이브 말고)가 그 자리에서 수액 슬라임으로 일어난다:
@@ -358,7 +365,9 @@ const combatIncidents = (() => {
         const host = run ? run.packs.find(row => row.key === enemy.explorationPack && row.stage === null && !row.objectId) : null;
         if (!host) return;
         joinFight(host, makeCritter(zone, { gx: enemy.gx, gy: enemy.gy }, kind !== 'gold'));
-        if (kind === 'lucky') tell(`이번 루프의 ${rule().lucky.kill.toLocaleString('ko-KR')}번째 처치입니다.`, 'chase', true);
+        if (kind !== 'lucky') return;
+        tell(`이번 루프의 ${rule().lucky.kill.toLocaleString('ko-KR')}번째 처치입니다.`, 'chase', true);
+        note('luckyKill');
     }
     /** 이 처치가 일어나는 슬라임: 'lucky'(이번 루프의 lucky.kill번째, 무지갯빛), 'rainbow', 'gold', 아니면 ''. countKillForContent가 이
      * 처치를 game.loopKills에 더하는 것은 이 뒤라 지금 수에 1을 더해 센다. */
@@ -406,6 +415,7 @@ const combatIncidents = (() => {
         const rows = rule().lucky.rewards, [key, count] = rows[Math.min(rows.length - 1, hit.length - 3)];
         receipt(() => keepCurrencyDrop(enemy, key, count * hit.mul));
         tell(`행운의 숫자 ${dealt.toLocaleString('ko-KR')}${'2459'.includes(hit.digit) ? '가' : '이'} 나왔습니다.`, 'reward');
+        note('lucky');
     }
     return Object.freeze({ dressPacks, glazeOf, tick, onKill, noteDamage, testSpawn, testYawn, testSleep, testFeast, testStray, testStar });
 })();
