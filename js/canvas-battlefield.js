@@ -3159,7 +3159,8 @@ function getBossBannerY(area, banner) {
     if (held && held.start === battleVisualState.bossAnnounceStart) return held.y;
     const spans = bossEntranceView.enteringSpans(banner.boss).concat(drawnBossSpans(banner.boss));
     const y = bossEntranceView.bannerLine(area, spans, { up: 38, down: 32 });
-    battleVisualState.bossBannerY = { start: battleVisualState.bossAnnounceStart, y };
+    // Held once the boss's place is known: on the board a revealed boss is drawn a few frames after its name comes up.
+    if (spans.length) battleVisualState.bossBannerY = { start: battleVisualState.bossAnnounceStart, y };
     return y;
 }
 
