@@ -20914,7 +20914,6 @@
     "dependency:starLoot->rule",
     "dependency:starRewards->rule",
     "dependency:starShower->addBattleFx",
-    "dependency:starShower->note",
     "dependency:starShower->rule",
     "dependency:starShower->starCell",
     "dependency:starShower->starRewards",
