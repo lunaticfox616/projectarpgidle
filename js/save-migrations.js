@@ -395,6 +395,18 @@ function normalizeConditionDebuffMap(map) {
     return Object.fromEntries(Object.entries(rows).filter(([, list]) => Array.isArray(list)));
 }
 
+/** A saved ailment on the hero: its clock and power, and for a damage ailment its source (the hit, a crit's DoT bonus, the score that
+ * picks the stronger one, the monster that dealt it). Load kept only the first four and dropped the rest (2026-10-20 hunt: a crit
+ * ignite lost its bonus for its last seconds). */
+function normalizePlayerAilmentRow(row, clampFiniteNumber) { // clampFiniteNumber: mergeDefaults's own clamp
+    const time = Math.max(0, clampFiniteNumber(row.time, 0, 0, 30));
+    const out = { type: row.type, time, duration: Math.max(time, clampFiniteNumber(row.duration, time, 0, 30)),
+        power: Math.max(0, clampFiniteNumber(row.power, 0.1, 0, 1.5)), sourceHitDamage: Math.max(0, Math.floor(clampFiniteNumber(row.sourceHitDamage || row.hitDamage, 0, 0))) };
+    if (Number.isFinite(Number(row.critDotBonusPct))) out.critDotBonusPct = Math.max(0, Number(row.critDotBonusPct));
+    if (Number.isFinite(Number(row.ailmentDotScore))) out.ailmentDotScore = Math.max(0, Number(row.ailmentDotScore));
+    if (row.sourceEnemyName) Object.assign(out, { sourceEnemyId: row.sourceEnemyId === undefined ? null : row.sourceEnemyId, sourceEnemyName: String(row.sourceEnemyName) });
+    return out;
+}
 function mergeDefaults(save) {
     function clampFiniteNumber(value, fallback, min, max) {
         let num = Number(value);
@@ -1100,7 +1112,7 @@ function mergeDefaults(save) {
     delete merged.heroFreeSwitchUnlocked;
     merged.pendingLoopHeroSelection = !!merged.pendingLoopHeroSelection;
     merged.abyssClearedDepths = Array.isArray(merged.abyssClearedDepths) ? merged.abyssClearedDepths.map(v => Math.max(1, Math.floor(v || 1))).filter(v => v <= 20) : [];
-    merged.playerAilments = Array.isArray(merged.playerAilments) ? merged.playerAilments.map(row => ({ type: row.type, time: Math.max(0, clampFiniteNumber(row.time, 0, 0, 30)), power: Math.max(0, clampFiniteNumber(row.power, 0.1, 0, 1.5)), sourceHitDamage: Math.max(0, Math.floor(clampFiniteNumber(row.sourceHitDamage || row.hitDamage, 0, 0))) })).filter(row => row.type) : [];
+    merged.playerAilments = Array.isArray(merged.playerAilments) ? merged.playerAilments.map(row => normalizePlayerAilmentRow(row, clampFiniteNumber)).filter(row => row.type) : [];
     merged.playerLeechInstances = Array.isArray(merged.playerLeechInstances) ? merged.playerLeechInstances.map(row => ({ remaining: Math.max(0, clampFiniteNumber(row.remaining, 0, 0)), rate: Math.max(0, clampFiniteNumber(row.rate, 0, 0)), target: row.target === 'energyShield' ? 'energyShield' : 'life' })).filter(row => row.remaining > 0 && row.rate > 0).slice(0, 80) : [];
     merged.recentDamageEvents = Array.isArray(merged.recentDamageEvents) ? merged.recentDamageEvents.map(normalizeRecentDamageEvent).filter(Boolean) : [];
     merged.lastDeathLog = normalizeDeathLog(merged.lastDeathLog);
