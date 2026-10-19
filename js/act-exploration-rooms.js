@@ -159,7 +159,7 @@ const actExplorationRooms = (() => {
             return Object.freeze({ gate: rooms.get(link.from).role === 'boss' || rooms.get(link.to).role === 'boss', from: from.index, to: to.index,
                 points: Object.freeze([Object.freeze([from.x, from.y]), Object.freeze([to.x, to.y])]) });
         });
-        return Object.freeze({ boxes: Object.freeze(boxes), lines: Object.freeze(lines),
+        return Object.freeze({ boxes: Object.freeze(boxes), lines: Object.freeze(lines), cell: Object.freeze({ w: 1, h: PITCH }),
             width: Math.max(...boxes.map(box => box.x)) + 0.5, height: Math.max(...boxes.map(box => box.y)) + PITCH / 2 });
     }
     function compileRooms(base, plan, spec) {
