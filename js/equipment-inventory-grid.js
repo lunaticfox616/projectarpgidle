@@ -140,7 +140,8 @@
 
     /** Placements laid out while a page had another row count (ROWS_STAMP_KEY; 12 before 2026-10-19) keep their page and row. Every
      * kept spot is taken before the items that lost theirs look for a cell, so no kept item is pushed; items with no cell left go last
-     * and buildLayout sends them to the temporary storage. buildLayout stamps the new count, so this runs once per save.
+     * and ensureState packs the bag again or sends them to the temporary storage. buildLayout stamps the new count, so this runs once
+     * per save.
      * @returns {{items:EquipmentInventoryItem[], placements:Record<string, EquipmentInventoryPlacement>}} */
     function adoptPageRows(state, placements) {
         const stamped = Math.floor(Number(placements[ROWS_STAMP_KEY]));
@@ -175,6 +176,34 @@
         return normalized;
     }
 
+    /** Gapless layouts of `items` (inventory order, the newest last) tried in the given orders: 'recent' the newest first, 'size' the
+     * biggest first, 'stored' inventory order (the one canStoreItems checks). @returns {?{order:string, layout:EquipmentInventoryGridLayout}} */
+    function findPackedLayout(items, targetGame, orderNames) {
+        let recent = items.slice().reverse();
+        let area = item => getFootprint(item).columns * getFootprint(item).rows;
+        let orders = {
+            recent: () => recent,
+            size: () => recent.slice().sort((a, b) => area(b) - area(a) || getFootprint(b).rows - getFootprint(a).rows),
+            stored: () => items
+        };
+        for (let order of orderNames) {
+            let layout = buildLayout(orders[order](), {}, targetGame, 'reject');
+            if (layout) return { order, layout };
+        }
+        return null;
+    }
+
+    /** Items with no free cell (a pickup into scattered free cells, spots lost to a page change) while the whole bag still fits packed
+     * again: the bag is packed like 빈칸 정리 instead of sending them to the temporary storage, which empties at the next loop reset.
+     * canStoreItems lets a pickup in when a full repack fits, so the stored order always fits then. Inventory order is kept.
+     * @returns {?EquipmentInventoryGridLayout} null when the bag is full (the items go to the temporary storage) */
+    function repackForHomeless(items, homelessCount, state) {
+        let packed = findPackedLayout(items, state, ['recent', 'size', 'stored']);
+        if (!packed) return null;
+        if (state === game) dispatchRuntimeEvent('bag-repacked', { count: homelessCount });
+        return buildLayout(items, packed.layout.placements, state, 'collect');
+    }
+
     /** @returns {EquipmentInventoryGridLayout} */
     function ensureState(targetGame) {
         let state = targetGame || game;
@@ -185,6 +214,7 @@
         if (!placements || typeof placements !== 'object' || Array.isArray(placements)) placements = {};
         let adopted = adoptPageRows(state, placements);
         let layout = buildLayout(adopted.items, adopted.placements, state, 'collect');
+        if (layout.temporaryItems.length) layout = repackForHomeless(adopted.items, layout.temporaryItems.length, state) || layout;
         state.inventory = layout.entries.map(entry => entry.item);
         state.equipmentTemporaryStorage = normalizeTemporaryItems(state, layout.entries, layout.temporaryItems);
         state.equipmentInventoryPlacements = layout.placements;
@@ -316,17 +346,11 @@
     function autoArrange(targetGame) {
         let state = targetGame || game;
         ensureState(state);
-        let recent = (Array.isArray(state.inventory) ? state.inventory : []).slice().reverse();
-        let area = item => getFootprint(item).columns * getFootprint(item).rows;
-        let orders = { recent, size: recent.slice().sort((a, b) => area(b) - area(a) || getFootprint(b).rows - getFootprint(a).rows) };
-        for (let [order, items] of Object.entries(orders)) {
-            let layout = buildLayout(items, {}, state, 'reject');
-            if (!layout) continue;
-            state.equipmentInventoryPlacements = layout.placements;
-            ensureState(state);
-            return order;
-        }
-        return null;
+        let packed = findPackedLayout(state.inventory, state, ['recent', 'size']);
+        if (!packed) return null;
+        state.equipmentInventoryPlacements = packed.layout.placements;
+        ensureState(state);
+        return packed.order;
     }
 
     const equipmentInventoryGridRuntime = Object.freeze({

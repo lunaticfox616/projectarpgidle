@@ -618,6 +618,12 @@
         notify(order === 'recent' ? '최근 장비부터 빈칸 없이 배치했습니다.' : '최근 장비부터는 다 들어가지 않아 큰 장비부터 빈칸 없이 배치했습니다.', 'success');
     }
 
+    /** equipmentInventoryGridRuntime packed the bag again so an item with no free cell fits instead of going to the temporary storage. */
+    function notifyBagRepacked() {
+        cancelCarry();
+        notify('빈칸이 흩어져 새 장비가 들어가도록 가방 빈칸 정리를 했습니다.', 'info');
+    }
+
     function startPointer(event) {
         if (event.pointerType === 'touch' && !touchArrange) return;
         if (!event.target.closest) return;
@@ -762,6 +768,7 @@
     });
 
     safeExposeGlobals({ equipmentInventoryInteraction });
+    window.addEventListener('project-idle:bag-repacked', notifyBagRepacked);
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bindPointerEvents, { once: true });
     else bindPointerEvents();
 }());
