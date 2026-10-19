@@ -10,6 +10,7 @@
  *   가까이 오면 무리째 깨어 잠시 멍하다(tickSleep).
  * - 황금 수액 잔치: 처음 들어선 전투 방에서 아주 드물게 그 방의 보통 몬스터가 모두 금빛 수액 슬라임이 된다(feast, 아틀라스 지도 말고).
  * - 별똥별: 처음 들어선 전투 방에 드물게 별 하나가 떨어져 그 칸에 재화 하나를 남긴다(dropStar, 그림은 js/canvas-stage-incidents.js).
+ * - 세계수의 숨결: 처음 들어선 전투 방에서 드물게 영웅에게 seconds초짜리 숨결 하나(breathe, 능력치는 breathStats).
  * - 사냥 도전: 처음 들어선 전투 방에서 드물게 seconds초 안에 그 방을 비우라는 도전이 열리고, 해내면 재화 몇 개(openChallenge).
  * - 세계수의 하품: 처음 들어선 전투 방에서 아주 드물게 그 방의 몬스터가 잠든다(skillHeldUntil: 움직이지도 공격하지도 않는다).
  * - 행운의 숫자: 한 번에 준 피해가 7로만 된 수면 그 자릿수의 재화(noteDamage, js/combat.js applyDamageToEnemyResource).
@@ -283,6 +284,7 @@ const combatIncidents = (() => {
         if (draw('feast', key) < rule().feast.chance * often() && feast(run, here, key)) return;
         dropStar(run, room, key, now);
         if (openChallenge(run, room, key, now)) return;
+        breathe(key, now);
         if (draw('yawn', key) < yawnChance()) yawn(here, now);
     }
     /** 하품의 확률: 꿈결의 향로를 끼면 그 확률(chance). */
@@ -343,6 +345,29 @@ const combatIncidents = (() => {
         return !!room && dropStar(run, room, `test:${getCombatTime()}`, getCombatTime(), true);
     }
 
+    // ---------------------------------------------------------------- 세계수의 숨결
+    /** 처음 들어선 방에 chance의 확률로(forced면 반드시) 숨결 하나가 seconds초 동안 영웅에게(game.incidentBreath: 전투 시각까지).
+     * 깃든 숨결이 있으면 새것으로 바뀐다. 능력치는 js/player-stat-cache.js incidentBreath가 읽어 js/combat.js가 더한다(breathStats). */
+    function breathe(key, now, forced = false) {
+        const B = rule().breath;
+        if (!forced && draw('breath', key) >= B.chance * often()) return false;
+        const kind = B.kinds[Math.floor(draw('breath-kind', key) * B.kinds.length)];
+        game.incidentBreath = { kind: kind.key, until: now + B.seconds * 1000 };
+        addBattleFx('statusText', { text: kind.name, color: '#b8f0c8', duration: 700, bodyCue: true });
+        tell(`세계수의 숨결: ${B.seconds}초 동안 ${kind.text}.`, 'reward');
+        note('breath');
+        return true;
+    }
+    /** 깃든 숨결(js/player-stat-cache.js incidentBreath가 읽은 값)의 종류(rule().breath.kinds), 없으면 null. */
+    const breathKind = breath => (breath ? rule().breath.kinds.find(kind => kind.key === breath.kind) || null : null);
+    /** 깃든 숨결의 능력치 줄 [[stat, value]], 없으면 []. */
+    const breathStats = breath => (breathKind(breath) || { stats: [] }).stats;
+    /** 시험 패널: 지금 영웅에게 숨결 하나. */
+    function testBreath() {
+        const now = getCombatTime();
+        return breathe(`test:${now}`, now, true);
+    }
+
     // ---------------------------------------------------------------- 사냥 도전
     /** 처음 들어선 방에 chance의 확률로(forced면 반드시) 사냥 도전: seconds초 안에 그 방의 무리를 모두 쓰러뜨리면 재화(tickChallenge).
      * 하나씩만, 몬스터가 남은 방에서만 열린다. 열었는지. */
@@ -362,7 +387,7 @@ const combatIncidents = (() => {
         if (run.packs.filter(pack => pack.roomId === challenge.roomId).every(pack => !pack.aliveIds.length)) return finishChallenge(true);
         if (now >= challenge.until) return finishChallenge(false);
         const left = Math.ceil((challenge.until - now) / 1000);
-        if (challenge.marks.length && left <= challenge.marks[0]) addBattleFx('statusText', { text: `${challenge.marks.shift()}초`, color: '#ffe9a0', duration: 600 });
+        if (challenge.marks.length && left <= challenge.marks[0]) addBattleFx('statusText', { text: `${challenge.marks.shift()}초`, color: '#ffe9a0', duration: 600, bodyCue: true });
     }
     /** 도전의 끝: 해냈으면 영웅의 칸에 picks번 고른 재화와 알림, 아니면 알림만. */
     function finishChallenge(won) {
@@ -485,6 +510,6 @@ const combatIncidents = (() => {
         tell(`행운의 숫자 ${dealt.toLocaleString('ko-KR')}${'2459'.includes(hit.digit) ? '가' : '이'} 나왔습니다.`, 'reward');
         note('lucky');
     }
-    return Object.freeze({ dressPacks, glazeOf, tick, onKill, noteDamage, testSpawn, testYawn, testSleep, testFeast, testStray, testStar, testChallenge });
+    return Object.freeze({ dressPacks, glazeOf, tick, onKill, noteDamage, testSpawn, testYawn, testSleep, testFeast, testStray, testStar, testChallenge, testBreath, breathKind, breathStats });
 })();
 safeExposeGlobals({ combatIncidents });

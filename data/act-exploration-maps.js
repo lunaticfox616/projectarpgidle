@@ -254,6 +254,8 @@ const ACT_EXPLORATION_AMBUSH = Object.freeze({chance:0.05,pull:0.4,keep:2,search
 //   슬라임이 된다(무지갯빛은 critter.rainbow.chance대로). 열리면 그 방에는 하품이 없다.
 // star 별똥별: 처음 들어서는 전투 방마다 chance의 확률로 별 하나가 방의 빈 칸(영웅에게서 두 칸 넘게)에 떨어진다. fallMs 동안 떨어지고
 //   burstMs 동안 빛이 퍼지며(js/canvas-stage-incidents.js), 닿으면 그 칸에 rewards에서 하나([재화, 개수]).
+// breath 세계수의 숨결: 처음 들어서는 전투 방마다 chance의 확률로(도전이 열린 방 말고) kinds 가운데 하나가 seconds초 동안 영웅에게
+//   깃든다(game.incidentBreath, 능력치는 js/player-stat-cache.js incidentBreath로 읽는다). text는 알림과 아이콘 설명.
 // challenge 사냥 도전: 처음 들어서는 전투 방마다 chance의 확률로(잔치가 열리지 않은 방, 도전이 열리면 하품은 없다) 도전이 열린다. seconds초
 //   안에 그 방의 무리를 모두 쓰러뜨리면 영웅의 칸에 rewards에서 picks번 고른 재화(열리지 않은 재화는 빠진다). 남은 시간은 marks초에 영웅 머리 위에.
 // yawn 세계수의 하품: 처음 들어서는 전투 방마다 chance의 확률로 그 방의 몬스터가 sleepMs 동안 움직이지도 공격하지도 않는다.
@@ -273,12 +275,17 @@ const ACT_EXPLORATION_INCIDENTS = Object.freeze({
     feast: Object.freeze({ chance: 0.0004 }),
     star: Object.freeze({ chance: 0.015, fallMs: 520, burstMs: 680,
         rewards: Object.freeze([['magicBud', 3], ['sapBud', 1], ['formlessDew', 1], ['blessing', 1]]) }),
+    breath: Object.freeze({ chance: 0.012, seconds: 30, kinds: Object.freeze([
+        Object.freeze({ key: 'wind', name: '바람의 숨결', text: '이동 속도 +30%, 공격 속도 +15%', stats: Object.freeze([['move', 30], ['aspd', 15]]) }),
+        Object.freeze({ key: 'ember', name: '불씨의 숨결', text: '피해 +40%', stats: Object.freeze([['pctDmg', 40]]) }),
+        Object.freeze({ key: 'ring', name: '나이테의 숨결', text: '받는 물리 피해 감소 +10%, 모든 원소 저항 +15%', stats: Object.freeze([['dr', 10], ['resAll', 15]]) })
+    ]) }),
     challenge: Object.freeze({ chance: 0.012, seconds: 20, marks: Object.freeze([10, 5, 3]), picks: 3,
         rewards: Object.freeze([['magicBud', 2], ['sapBud', 1], ['formlessDew', 1], ['blessing', 1]]) }),
     yawn: Object.freeze({ chance: 0.0004, sleepMs: 6000 }),
     lucky: Object.freeze({ min: 777, gapMs: 30000, kill: 7777, rewards: Object.freeze([['magicBud', 3], ['sapBud', 1], ['formlessDew', 2], ['goldenRule', 1], ['fairyRing', 1]]) }),
     records: Object.freeze([['critter', '금빛 수액 슬라임', false], ['stray', '길 잃은 몬스터', false], ['sleep', '잠든 무리', false], ['star', '별똥별', false],
-        ['challenge', '사냥 도전', false],
+        ['challenge', '사냥 도전', false], ['breath', '세계수의 숨결', false],
         ['rainbow', '무지갯빛 수액 슬라임', true], ['feast', '황금 수액 잔치', true], ['yawn', '세계수의 하품', true], ['lucky', '행운의 숫자', true],
         ['luckyKill', '루프의 7,777번째 처치', true]].map(row => Object.freeze(row)))
 });

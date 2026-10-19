@@ -7316,6 +7316,7 @@ const UI_COMBAT_EFFECT_PRESENTATION = Object.freeze({
     summonDeathDamageBuff: { sprite: 42, label: '소환수 사망 피해 강화', color: '#b7d8e5' },
     summonCritAspd: { sprite: 43, label: '소환수 치명타 공속', color: '#c4a7e8' },
     eliteTraitBuff: { sprite: 45, label: '무한한 허기', color: '#d98f88' },
+    incidentBreath: { sprite: 18, label: '세계수의 숨결', color: '#b8f0c8' },
     enemyWither: { sprite: 46, label: '위축', color: '#b58be0' },
     talentInquisitorMark: { sprite: 9, label: '심판 표식', color: '#efb16e' },
     talentButcherMark: { sprite: 47, label: '도살자 표식', color: '#e58a7d' },
@@ -7549,11 +7550,18 @@ function buildPlayerUniqueEffectIcons(pStats, now) {
     if (pStats.uniqueRiderCompass && Number(game.lastMoveEndedAt) > 0 && !game.uniqueRiderCompassConsumed) {
         icons.push(renderUiRuntimeEffectIcon({ key: 'riderCompassReady' }, now));
     }
+    icons.push(renderIncidentBreathIcon(now));
     let elite = game.uniqueEliteTraitBuff;
     if (elite && Number(elite.expiresAt) > now) {
         icons.push(renderUiNamedEffectIcon({ key: 'eliteTraitBuff', name: (elite.trait || {}).name || '무한한 허기', detail: getUiEliteTraitBuffDetail(elite.trait), expiresAt: elite.expiresAt }, now));
     }
     return icons.join('');
+}
+
+/** 세계수의 숨결(js/combat-incidents.js breathe)이 깃든 동안의 전투 효과 아이콘, 아니면 ''. */
+function renderIncidentBreathIcon(now) {
+    const breath = game.incidentBreath, kind = Number(breath && breath.until) > now ? combatIncidents.breathKind(breath) : null;
+    return kind ? renderUiNamedEffectIcon({ key: 'incidentBreath', name: kind.name, detail: kind.text, expiresAt: breath.until, durationSec: ACT_EXPLORATION_INCIDENTS.breath.seconds }, now) : '';
 }
 
 function getUiLeechEffectDetail(summary, pStats, target) {

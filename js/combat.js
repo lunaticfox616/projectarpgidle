@@ -3003,6 +3003,12 @@ function isDeferredTalentProjectileTargetEffect(effect) {
 
 
 /** @param {object|null} buff The active stolen trait; the stat calculator's tick drops it once it expires. */
+/** Timed buffs on the reward bucket, each through its tick reader (js/player-stat-cache.js): the elite trait buff and 세계수의 숨결
+ * (js/combat-incidents.js breathe). */
+function applyTimedRewardStats(tick, bucket) {
+    applyEliteTraitBuffStats(tick.get('eliteTraitBuff'), bucket);
+    combatIncidents.breathStats(tick.get('incidentBreath')).forEach(([stat, value]) => addStatToBucket(bucket, stat, value));
+}
 function applyEliteTraitBuffStats(buff, bucket) {
     if (!buff) return;
     let trait = buff.trait || {};
@@ -3333,7 +3339,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     Object.keys(chaosRealmBonus).forEach(statKey => addStatToBucket(reward, statKey, chaosRealmBonus[statKey] || 0));
     const { runeCorpseExplodeChance, runeCorpseExplodeLifePct, runeResonancePower } =
         accumulateCombatRuneStats(reward, game.underworldRunes);
-    applyEliteTraitBuffStats(tick.get('eliteTraitBuff'), reward);
+    applyTimedRewardStats(tick, reward);
     applyAccountRewardStats(reward);
     if (typeof getCosmosBossRelicStatTotals === 'function') {
         let relicStats = getCosmosBossRelicStatTotals();
