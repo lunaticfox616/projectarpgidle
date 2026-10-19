@@ -2505,14 +2505,18 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   context.game.gridPlayer = { gx: 1, gy: 6, gridMoveTimer: 0 };
   const target = makeEnemy(301, 6, 6, { hp: 100000, maxHp: 100000 });
   context.game.enemies = [target];
-  // 채널 룬의 본보기는 용화 숨결이다(집중 광선과 공허 절삭광은 2026-10-13에 지웠다).
-  const channelSkill = context.SKILL_DB['용화 숨결'];
-  // 숨결의 사거리는 4칸이다: 다섯 칸 떨어진 대상을 한 칸 다가선 자리에서 겨눈다
-  const channelTargets = context.selectGridSkillTargets('용화 숨결', channelSkill, { gx: 2, gy: 6 }, context.game.enemies);
-  const channelStages = context.buildSkillHitSequence('용화 숨결', channelSkill, channelTargets);
-  assert.strictEqual(channelStages.length, 4, '용화 숨결은 네 번의 실제 시간차 타격이어야 한다');
+  // 채널 엔진을 쓰는 룬은 2026-10-19 인계(v36)로 없어졌다(용화 숨결 삭제, 전도성 난격은 이동기): 지운 용화 숨결의 정의로 엔진을 검사한다.
+  const channelName = '시험 채널 룬';
+  context.SKILL_DB[channelName] = { isGem: true, baseDmg: 0.5, baseSpd: 0.68, leech: 0, crit: 5, dmgScale: 0.027, spdScale: 0.012, ele: 'fire',
+    targetMode: 'spread', targets: 5, combatPattern: { kind: 'channel', hits: 4, intervalMs: 220, damagePct: 27 }, tags: ['spell', 'fire', 'aoe', 'channeling'] };
+  context.SKILL_GRID_DB[channelName] = { kind: 'cone', range: 4 };
+  const channelSkill = context.SKILL_DB[channelName];
+  // 사거리 4칸: 다섯 칸 떨어진 대상을 한 칸 다가선 자리에서 겨눈다
+  const channelTargets = context.selectGridSkillTargets(channelName, channelSkill, { gx: 2, gy: 6 }, context.game.enemies);
+  const channelStages = context.buildSkillHitSequence(channelName, channelSkill, channelTargets);
+  assert.strictEqual(channelStages.length, 4, '채널 룬은 네 번의 실제 시간차 타격이어야 한다');
   assert.deepStrictEqual(Array.from(channelStages, stage => stage.delayMs), [0, 220, 440, 660], '채널링 타격 간격은 룬 정의와 일치해야 한다');
-  assert.ok(Math.abs(context.getSkillHitSequenceDpsMultiplier('용화 숨결', channelSkill) - 1.08) < 1e-9, '표시 DPS는 채널링 4회의 총 배율을 반영해야 한다');
+  assert.ok(Math.abs(context.getSkillHitSequenceDpsMultiplier(channelName, channelSkill) - 1.08) < 1e-9, '표시 DPS는 채널링 4회의 총 배율을 반영해야 한다');
 
   const chargeStats = { moveSpeed: 100 };
   assert.strictEqual(context.applySkillMobilityBeforeAttack(context.SKILL_DB['돌진'], target, chargeStats), true, '돌진은 사거리 안 대상에게 실제로 접근해야 한다');
@@ -2570,13 +2574,13 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   context.game.equipment['무기'] = null;
   vm.runInContext('isSkillRuneUsableWithStance = () => true;', context);
 
-  context.game.activeSkill = '용화 숨결';
-  context.game.skills = ['기본 공격', '용화 숨결'];
+  context.game.activeSkill = channelName;
+  context.game.skills = ['기본 공격', channelName];
   context.game.gridPlayer = { gx: 1, gy: 6, gridMoveTimer: 0 };
   target.gx = 5; target.gy = 6; target.hp = target.maxHp;
   const pStats = context.getPlayerStats();
   context.performPlayerAttack(pStats);
-  const channelTravel = vm.runInContext(`battleFx.find(fx => fx.type === 'combatTravel' && fx.skillName === '용화 숨결')`, context);
+  const channelTravel = vm.runInContext(`battleFx.find(fx => fx.type === 'combatTravel' && fx.skillName === ${JSON.stringify(channelName)})`, context);
   assert.deepStrictEqual([channelTravel.aimCell.gx, channelTravel.aimCell.gy], [5, 6],
     '채널 이미지는 범위 중앙이 아니라 실제로 조준한 1차 대상 방향을 보존해야 한다');
   context.game.playerAilments = [{ type: 'freeze', time: 1, duration: 1, power: 1 }];
@@ -2585,8 +2589,8 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   assert.strictEqual(target.hp, target.maxHp, '채널링 중 동결되면 예약된 후속 타격이 남아 피해를 주면 안 된다');
 
   resetGame();
-  context.game.activeSkill = '용화 숨결';
-  context.game.skills = ['기본 공격', '용화 숨결'];
+  context.game.activeSkill = channelName;
+  context.game.skills = ['기본 공격', channelName];
   context.game.playerAilments = [];
   context.game.gridPlayer = { gx: 1, gy: 6, gridMoveTimer: 0 };
   const sustainedTarget = makeEnemy(302, 5, 6, { hp: 100000, maxHp: 100000 });

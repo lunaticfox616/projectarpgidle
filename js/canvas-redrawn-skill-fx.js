@@ -151,36 +151,6 @@ const redrawnSkillFx = (() => {
             if (t.gx !== ctr.gx || t.gy !== ctr.gy) art().FrostRing.flake(dot, t.gx * 16 + 8, t.gy * 16 + 6, ft - e.at);
         }
     }
-    function breathFlames(dot, b, t0, i) {
-        const dir = i % 2 ? -1 : 1;
-        for (const cl of b.cells) {
-            const cx = cl.gx * 16 + 8, cy = cl.gy * 16 + 8;
-            let phi = Math.atan2(cy - b.O.y, cx - b.O.x) - b.base;
-            phi = Math.atan2(Math.sin(phi), Math.cos(phi));
-            const f = Math.min(1, Math.max(0, (phi * dir + 1.4) / (2 * 1.4))), at = t0 + 200 * (1 - Math.sqrt(1 - f)), sd = (cl.gx * 7 + cl.gy * 13) % 5;
-            art().DragonSweep.flame(dot, cx + (sd % 3) - 1, cy + 5, b.ft - at, { life: 560, big: 1, seed: sd + i });
-            art().DragonSweep.flame(dot, cx + (sd % 2 ? 4 : -4), cy + 7, b.ft - at - 40, { life: 440, big: 0, seed: sd + i + 2 });
-        }
-    }
-    function breathDirection(st) {
-        const cone = st.footprint?.cone;
-        return cone ? { x: cone.dx, y: cone.dy } : unitToward(cellDot(st.sourceCell), cellDot(st.targetCells[0]));
-    }
-    function breathMouth(dot, O, hot) {                       // a small steady knot at the hand while channelling
-        const x = Math.round(O.x), y = Math.round(O.y);
-        dot(x, y, hot ? '#ffffff' : '#fff1b8');
-        for (const [ox, oy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) dot(x + ox, y + oy, hot ? '#fff1b8' : '#ff963e');
-    }
-    function drawBreath(dot, cast, ft) {                      // 42 용화 숨결
-        const st = firstOf(cast, 'stage');
-        if (!st) return;
-        const src = st.sourceCell, d = breathDirection(st), O = { x: src.gx * 16 + 8 + d.x * 3, y: src.gy * 16 + 8 + d.y * 3 - 2 };
-        const b = { O, base: Math.atan2(d.y, d.x), cells: st.footprint?.cells || [], ft };
-        const ticks = [...new Set(eventsOf(cast, 'hit').map(e => e.at))].sort((p, q) => p - q);
-        ticks.forEach((t0, i) => breathFlames(dot, b, t0, i));
-        ticks.forEach((t0, i) => art().DragonSweep.swing(dot, O, d, ft - t0, { T: 200, life: 170, sweep: 1.4, dir: i % 2 ? -1 : 1, R: 28 }));
-        if (ft >= st.at && ft < st.at + st.duration) breathMouth(dot, O, ticks.some(t => ft >= t && ft < t + 50));
-    }
     function drawMist(dot, cast, ft) {                        // 50 신성한 안개 (ground)
         for (const st of cast.events) {
             if (st.kind !== 'stage' || st.holyMistPhase !== 'mist') continue;
@@ -354,7 +324,7 @@ const redrawnSkillFx = (() => {
     const DRAWERS = {
         3: { fore: drawDrain }, 5: { fore: drawWhirl }, 10: { fore: drawFrost }, 16: { fore: drawCrescent },
         18: { ground: drawQuakeGround, fore: drawQuake }, 21: { fore: drawFrostWave }, 28: { fore: drawCollapse },
-        38: { ground: drawPotionGround, fore: drawPotion }, 42: { fore: drawBreath }, 45: { fore: drawLance },
+        38: { ground: drawPotionGround, fore: drawPotion }, 45: { fore: drawLance },
         46: { ground: drawTimeClock, fore: drawTimeMarks }, 50: { ground: drawMist }, 51: { fore: drawJudgment }
     };
     /** js/canvas-redrawn-skill-fx-extra.js adds its drawers (17·29·30·37·48, 54~56) here. */

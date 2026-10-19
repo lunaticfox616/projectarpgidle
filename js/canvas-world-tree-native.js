@@ -394,14 +394,6 @@ p8(e) {
     if(e.kind==='stage'){const cone=e.footprint?.cone,reach=cone?.length??(e.stageIndex+1.5);e.renderLayer='ground';e._triOriginalDuration=e.duration;e.duration=Math.max(340,e.duration);e._triReach=reach*48;e._triScale=clamp(Math.round(reach-.5),1,4);e._angle=cone?Math.atan2(cone.dy,cone.dx):e._angle;e._triCos=Math.cos(e._angle);e._triSin=Math.sin(e._angle);const sheet=G.WT_ATLAS.skills[31],f=(sheet.variants[e.element]||sheet.frames)[0],c=sheet.quiet.crop;e._triFrame={x:f.x+c.x,y:f.y+c.y,w:c.w,h:c.h};}
 
 },
-p9(e,s) {
-
-    const cone=e.dragonBreathCone||G.WT_DRAGON_BREATH?.cone(e.sourceCell,e.targetCells.at(-1),{range:s.grid.range});e._breathParts=[];
-    if(e.kind==='stage'&&cone?.cells?.length){const sheet=G.WT_ATLAS.skills[41],art=sheet.dragonBreath;e.dragonBreathCone=cone;e._angle=cone.direction.angle;e._breathScale=art.scale*(cone.range+.5)/3.5;e._breathOrigin=point(cone.sourceCell);e._breathAnchor=art.anchor;
-     for(const i of art.tiles)e._breathParts.push({left:i%2*64,top:Math.floor(i/2)*64,frame:{...sheet.frames[i],w:64,h:64}});
-    }
-
-},
 p10(e) {
     const ray=e.focusBeamRay;
     e._beamParts=[];
@@ -504,7 +496,6 @@ const prepareRoutes=[{matches:(e)=>e.id===52,run:preparation.p1},
 {matches:(e)=>e.id===28,run:preparation.p6},
 {matches:(e)=>e.id===17,run:preparation.p7},
 {matches:(e)=>e.id===32,run:preparation.p8},
-{matches:(e)=>e.id===42,run:preparation.p9},
 {matches:(e)=>e.id===41,run:preparation.p10},
 {matches:(e)=>e.id===10||e.id===29,run:preparation.p11},
 {matches:(e)=>e.id===1||e.id===2||e.id===6||e.id===8,run:preparation.p12},
@@ -718,15 +709,6 @@ d8(e,t,now,submit) {
      submit(e,e._source[0]+e._triCos*reach-(a.x*co-a.y*si)*scale,e._source[1]+e._triSin*reach-(a.x*si+a.y*co)*scale,scale,0,an,e._triFrame,1,alpha);
 
 },
-d9(e,t,now,submit) {
-
-     if(e.kind!=='stage'||now>=(e.dragonBreathCancelledAt??Infinity))return;
-     const age=now-e.at,alpha=.84*Math.min(1,age/120,Math.max(0,(e.duration-age)/180)),scale=e._breathScale,co=Math.cos(e._angle),si=Math.sin(e._angle),reveal=Math.max(1,Math.ceil(84*Math.min(1,age/180)));
-     for(const part of e._breathParts){const w=Math.min(64,reveal-part.left);if(w<=0)continue;const localX=(part.left+w/2-e._breathAnchor.x)*scale,localY=(part.top+32-e._breathAnchor.y)*scale;
-      part.frame.w=w;submit(e,e._breathOrigin[0]+localX*co-localY*si,e._breathOrigin[1]+localX*si+localY*co,scale,0,e._angle,part.frame,1,alpha);
-     }
-
-},
 d10(e,t,now,submit) {
 
      if(e.kind!=='stage'||now>=(e.focusBeamCancelledAt??Infinity))return;
@@ -865,7 +847,6 @@ const drawRoutes=[{matches:(e)=>e.id===52,run:drawing.d0},
 {matches:(e)=>e.id===28,run:drawing.d6},
 {matches:(e)=>e.id===17,run:drawing.d7},
 {matches:(e)=>e.id===32,run:drawing.d8},
-{matches:(e)=>e.id===42,run:drawing.d9},
 {matches:(e)=>e.id===41,run:drawing.d10},
 {matches:(e)=>e.id===10,run:drawing.d11},
 {matches:(e)=>e.id===29,run:drawing.d12},

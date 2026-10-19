@@ -203,48 +203,6 @@ const redrawnSkillArt = (() => {
         flame(dot, x, y + 4, age * 260 / 150, { life: 260, big: 0, seed });
     }
 
-    // ---------------------------------------------------------------- 42 용화 숨결: half-moon fire swing that sets the cone alight
-    function swingState(O, d, age, o) {
-        const T = o.T || 200, life = o.life || 170, sweep = o.sweep || 1.4, dir = o.dir || 1, Ro = o.R || 28;
-        const base = Math.atan2(d.y, d.x), head = -dir * sweep + dir * 2 * sweep * Math.min(1, 1 - (1 - age / T) * (1 - age / T));
-        return { lay: layer(), O, age, T, life, sweep, dir, Ro, Ri: Ro - 2, base, head, bx: O.x - d.x * 5, by: O.y - d.y * 5 };
-    }
-    function swingPassAt(s, phi) {
-        const f = (phi * s.dir + s.sweep) / (2 * s.sweep);
-        if (f < 0 || f > 1) return null;
-        return s.T * (1 - Math.sqrt(1 - f));
-    }
-    function swingColour(ap, e) {
-        if (ap < 40) return e < 1.2 ? R.W : e < 3 ? R.H : R.L;
-        if (ap < 100) return e < 1.2 ? R.H : e < 3 ? R.L : R.M;
-        return e < 1.2 ? R.L : e < 3 ? R.M : R.D;
-    }
-    function swingDot(s, px, py) {
-        const qx = px + .5 - s.O.x, qy = py + .5 - s.O.y, dist = Math.hypot(qx, qy);
-        if (dist > s.Ro || Math.hypot(px + .5 - s.bx, py + .5 - s.by) <= s.Ri) return;
-        const phi = wrapAngle(Math.atan2(qy, qx) - s.base), pa = (phi - s.head) * s.dir > 0 ? null : swingPassAt(s, phi);
-        if (pa == null) return;
-        const ap = s.age - pa, e = s.Ro - dist;
-        if (ap >= s.life || (ap > s.life * .7 && e > 1.2 + (s.life - ap) / (s.life * .3) * 3)) return;
-        s.lay.put(px, py, swingColour(ap, e), 3);
-    }
-    function swingHead(s) {
-        const hx = s.O.x + Math.cos(s.base + s.head) * (s.Ro - 2), hy = s.O.y + Math.sin(s.base + s.head) * (s.Ro - 2);
-        s.lay.put(Math.round(hx), Math.round(hy), R.W, 5);
-        for (const [ox, oy] of PLUS) s.lay.put(Math.round(hx) + ox, Math.round(hy) + oy, R.H, 4);
-        for (let k = 1; k <= 2; k++) {
-            const a = s.base + s.head - s.dir * .12 * k;
-            s.lay.put(Math.round(s.O.x + Math.cos(a) * (s.Ro + 2 + k * 2)), Math.round(s.O.y + Math.sin(a) * (s.Ro + 2 + k * 2)), k === 1 ? R.L : R.M, 2);
-        }
-    }
-    function swing(dot, O, d, age, o) {
-        const s = swingState(O, d, age, o);
-        if (age < 0 || age >= s.T + s.life) return;
-        const X = Math.round(O.x), Y0 = Math.round(O.y);
-        eachDot(-s.Ro - 1, -s.Ro - 1, s.Ro + 1, s.Ro + 1, (x, y) => swingDot(s, X + x, Y0 + y));
-        if (age < s.T) swingHead(s);
-        s.lay.flush(dot);
-    }
     // pixel flame: half-widths from the base up; 3 lean variants switch every 90ms (a steady flicker, not noise)
     const FLAME_W = [2, 2, 2, 2, 1, 1, 1, 0, 0];
     const LEAN = [[0, 0, 0, 0, 0, 1, 1, 1, 1], [0, 0, 0, 0, 0, 0, -1, -1, 0], [0, 0, 0, 0, 1, 1, 1, 2, 2]];
@@ -985,7 +943,7 @@ const redrawnSkillArt = (() => {
         VoidCrescent: { crescent, slashMark },
         FrostRing: { ring: frostRing, flake, colors: F },
         TriWave: { spark: elemSpark, colors: EL },
-        DragonSweep: { swing, flame, colors: R },
+        DragonSweep: { flame, colors: R },
         HolyMist: { mist, colors: S },
         Whirlwind: { whirl, cut, colors: W5 },
         FrostWave: { front: frostFront, pulse: frostPulse },

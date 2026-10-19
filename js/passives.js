@@ -6186,7 +6186,6 @@ function initBattleAssets() {
         skillFxEarthSpike: 'assets/effects/pixel-earth-spike-v1.png',
         skillFxDotField: 'assets/effects/skill-dot-field-v2.png',
         skillFxSummonStrike: 'assets/effects/skill-summon-strike-v1.png',
-        skillFxDragonBreath: 'assets/effects/skill-dragon-breath-v3.png',
         passiveTreeIcons: 'assets/ui/passive-tree-icons-v3.webp',
         passiveTreeKeystoneIcons: 'assets/ui/passive-tree-keystone-icons-v1.webp',
         passiveTreeNotableIcons: 'assets/ui/passive-tree-notable-icons-v4.webp',

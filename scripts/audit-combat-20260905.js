@@ -78,8 +78,8 @@ function scalingCase(season) {
 
 function queuePressureCase() {
     const {runtime:r,run,state}=prepare();
-    state.skills=['기본 공격','용화 숨결'];state.activeSkill='용화 숨결';
-    state.gemData['용화 숨결']={level:1,exp:0,quality:0};
+    state.skills=['기본 공격','화염 폭풍핵'];state.activeSkill='화염 폭풍핵';
+    state.gemData['화염 폭풍핵']={level:1,exp:0,quality:0};
     const stats=r.getPlayerStats();
     r.performPlayerAttack(stats,{forcedCrit:false});
     const stagesPerCast=run('pendingSkillStageHits.length');
@@ -92,7 +92,7 @@ const report={damage:['', 'phys','fire'].flatMap(element=>[1,0.5].map(mul=>damag
     chill:[0,50,95].map(chilledEnemyCase),
     flatDps:[0,100].map(flatDpsCase),scaling:[1,6,20,40].flatMap(scalingCase),
     queuePressure:queuePressureCase(),
-    cadence:['기본 공격','용화 숨결'].flatMap(name=>[0,500,5000].map(bonus=>cadenceCase(name,bonus)))};
+    cadence:['기본 공격','화염 폭풍핵'].flatMap(name=>[0,500,5000].map(bonus=>cadenceCase(name,bonus)))};
 fs.writeFileSync('artifacts/combat-audit-20260905.json',JSON.stringify(report,null,2));
 console.log(JSON.stringify(report,null,2));
 }

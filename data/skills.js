@@ -64,7 +64,6 @@ const SKILL_DB = {
     '번개 각인': { isGem: true, baseDmg: 1.46, baseSpd: 0.72, leech: 0, crit: 8, dmgScale: 0.075, spdScale: 0.012, ele: 'light', targetMode: 'cleave', targets: 4, spellFlatBase: 28, spellFlatScale: 5.4, combatPattern: { kind: 'mine', armDelayMs: 460 }, ailmentChanceBonus: { shock: 20 }, desc: '가장 밀집된 목표 지역에 번개 각인을 설치합니다. 0.46초 뒤 십자 범위가 폭발하며 감전 확률이 20% 증가합니다.', tags: ['spell', 'lightning', 'aoe', 'mine'] },
     '원소 포션 투척': { isGem: true, baseDmg: 0.84, baseSpd: 1.04, leech: 0, crit: 6, dmgScale: 0.045, spdScale: 0.025, ele: 'light', targetMode: 'cleave', targets: 4, spellFlatBase: 22, spellFlatScale: 4.8, projectileTravelTimeMultiplier: 0.5556, projectilePattern: { mode: 'lob', kind: 'blast' }, combatPattern: { kind: 'field', hits: 3, intervalMs: 240, damagePct: 34 }, desc: '포션을 포물선으로 던져 반경 1칸의 원소 웅덩이를 남깁니다. 연금술 포션을 투척해 화염/냉기/번개 중 하나의 웅덩이를 만듭니다. 0.24초 간격으로 3회 타격합니다.', tags: ['spell', 'projectile', 'elemental', 'aoe', 'potion'] },
     '그림자 점멸': { isGem: true, baseDmg: 1.68, baseSpd: 0.56, leech: 0, crit: 14, dmgScale: 0.085, spdScale: 0.008, ele: 'chaos', targetMode: 'single', targets: 1, mobilityPattern: { kind: 'blink', maxCells: 6 }, desc: '최대 6칸 안의 적 옆으로 점멸해 베어냅니다. 같은 칸을 반복 왕복하지 않으며 낮은 공격 속도로 재사용을 제한합니다.', tags: ['attack', 'melee', 'chaos', 'mobility'] },
-    '용화 숨결': { isGem: true, baseDmg: 0.5, baseSpd: 0.68, leech: 0, crit: 5, dmgScale: 0.027, spdScale: 0.012, ele: 'fire', targetMode: 'spread', targets: 5, spellFlatBase: 19, spellFlatScale: 4.4, combatPattern: { kind: 'channel', hits: 4, intervalMs: 220, damagePct: 27 }, ailmentChanceBonus: { ignite: 25 }, desc: '이동을 멈추고 전방 부채꼴을 좌우로 오가는 불길로 4회 쓸어냅니다. 군중 제어에 걸리면 남은 숨결이 취소됩니다.', tags: ['spell', 'fire', 'aoe', 'channeling'] },
     // 2026-10-17 스킬룬 인계(v32)의 새 룬 17종(60~76번). 피해 = 인계의 피해 / 100, 공격 속도는 같은 슬롯의 룬과 초당 피해가 비슷하게.
     '참격파': { isGem: true, baseDmg: 1.4, baseSpd: 0.85, leech: 0, crit: 5, dmgScale: 0.07, spdScale: 0.015, ele: 'phys', targetMode: 'cleave', targets: 3, combatPattern: { kind: 'moving', intervalMs: 80 }, desc: '크게 베어 바닥을 긁으며 나아가는 칼바람을 3칸 보냅니다.', tags: ['attack', 'melee', 'physical', 'aoe'] },
     '올려 베기': { isGem: true, baseDmg: 1.2, baseSpd: 0.95, leech: 0, crit: 5, dmgScale: 0.06, spdScale: 0.015, ele: 'phys', targetMode: 'cleave', targets: 2, launchMs: 420, desc: '아래에서 위로 베어 올려 맞은 적을 0.42초 띄웁니다. 떠 있는 동안 적은 움직이지도 공격하지도 못합니다.', tags: ['attack', 'melee', 'physical'] },
@@ -158,7 +157,9 @@ const RETIRED_GEM_SUCCESSORS = Object.freeze({
     '공허 베기': '공허 가르기', '불멸의 진동': '대지의 함성', '룬 지뢰': '번개 각인', '광창 강림': '신성한 기도',
     // 같은 인계가 지운 9종: 같은 속성, 같은 갈래(무기 무관 공격 → 함성, 근접, 투사체, 이동기)에서 고른 대신 받는 룬
     '서리 폭발': '서리바람 내지르기', '연쇄 폭풍': '신성한 기도', '인과': '대지의 함성', '지진 파쇄': '강타', '용암 강타': '폭발성 타격',
-    '혈기 폭쇄': '흡혈 관통', '독니 사출': '독창 투척', '방패 투척': '참격파', '방패 돌진': '돌진'
+    '혈기 폭쇄': '흡혈 관통', '독니 사출': '독창 투척', '방패 투척': '참격파', '방패 돌진': '돌진',
+    // 2026-10-19 스킬룬 인계(v36)가 지운 용화 숨결: 같은 속성에서 여러 번 치는 범위 주문
+    '용화 숨결': '화염 폭풍핵'
 });
 safeExposeData({ SKILL_DB, LOOP_STARTER_GEM_BY_HERO, PROJECTILE_PATTERN_MODE_DB, RETIRED_GEM_SUCCESSORS });
 
@@ -232,7 +233,6 @@ const SKILL_RUNE_FAMILY = Object.freeze({
     '유성 낙화': 'spell',
     '난타 눈보라': 'spell',
     '번개 각인': 'spell',
-    '용화 숨결': 'spell',
     '시간 가속': 'spell',
     // wisp
     '화염 위습 소환': 'wisp',
@@ -316,7 +316,6 @@ const SKILL_GEM_VFX_PROFILES = Object.freeze({
     '번개 각인': { signature: 'mine', family: 'mine', scale: 0.98, impactVfx: false, sigil: 43 },
     '원소 포션 투척': { signature: 'potion', impactVfx: false, family: 'projectile', projectileStyle: 'potion', scale: 0.86, sigil: 44 },
     '그림자 점멸': { signature: 'blink', family: 'iai', scale: 1.0, accent: 'chaos', sigil: 46 },
-    '용화 숨결': { family: 'breath', channelAsset: 'dragonBreath', scale: 1.02, impactVfx: false, sigilVfx: false, sigil: 48 },
     '참격파': { family: 'slash', scale: 0.96 },
     '올려 베기': { family: 'slash', scale: 0.9 },
     '돌진': { signature: 'charge', family: 'charge', scale: 1.0, sigilVfx: false, impactAccentVfx: false },
@@ -437,7 +436,6 @@ const SKILL_GEM_ART_PATHS = Object.freeze({
     '번개 각인': 'assets/gems/world-tree/rune-mine.png',
     '원소 포션 투척': 'assets/gems/world-tree/elemental-potion-throw.png',
     '그림자 점멸': 'assets/gems/world-tree/shadow-blink.png',
-    '용화 숨결': 'assets/gems/world-tree/dragon-breath.png',
     // 새 룬 17종은 제 그림이 오기 전까지 가까운 룬의 그림을 빌린다(지운 룬의 그림 포함).
     '참격파': 'assets/gems/world-tree/shield-throw.png',
     '올려 베기': 'assets/gems/world-tree/continuous-slash.png',
@@ -523,7 +521,6 @@ const SKILL_GRID_DB = {
     '번개 각인':       { kind: 'blast', range: 5, radius: 2, shape: 'cross' },
     '원소 포션 투척': { kind: 'blast', range: 5, radius: 1, shape: 'circle' },
     '그림자 점멸':   { kind: 'melee', range: 6 },
-    '용화 숨결':     { kind: 'cone',  range: 4 },
     '참격파': { kind: 'line', range: 3, band: 1 },
     '올려 베기': { kind: 'arc', range: 1 },
     '돌진': { kind: 'arc', range: 3 },

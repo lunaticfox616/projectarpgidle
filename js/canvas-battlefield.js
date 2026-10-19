@@ -284,8 +284,7 @@ const SKILL_GEM_VFX_IMAGE_KEYS = Object.freeze({
     radialWave: 'skillFxRadialWave',
     rune: 'skillFxBurst',
     dot: 'skillFxDotField',
-    summon: 'skillFxSummonStrike',
-    dragonBreath: 'skillFxDragonBreath'
+    summon: 'skillFxSummonStrike'
 });
 
 function getSkillGemVfxProfile(skillName) {
@@ -561,11 +560,11 @@ function queueSkillGemVfx(fx, enemyPos, playerPos, enemyPosMap, now, viewportSca
             stageKind: stageKind,
             imageKey: imageKey,
             startAt: now + repeat * 44,
-            duration: family === 'dot' ? 720 : (family === 'breath' ? 380 : (family === 'whirlwind' ? 260 : (connector ? 170 : 300))),
+            duration: family === 'dot' ? 720 : (family === 'whirlwind' ? 260 : (connector ? 170 : 300)),
             x: family === 'whirlwind' ? source.x : target.x + (connector ? 0 : repeatOffset * 5),
             y: family === 'whirlwind' ? source.y - 3 : target.y - (connector ? 8 : 5) + Math.abs(repeatOffset) * 2,
-            fromX: source.x + (family === 'breath' ? Math.cos(baseRotation) * 14 : (family === 'projectile' ? 15 : 0)),
-            fromY: source.y - (family === 'breath' ? 18 : (family === 'projectile' ? 18 : 7)) + (family === 'breath' ? Math.sin(baseRotation) * 10 : 0),
+            fromX: source.x + (family === 'projectile' ? 15 : 0),
+            fromY: source.y - (family === 'projectile' ? 18 : 7),
             toX: target.x,
             toY: target.y - 8,
             connector: connector,
@@ -835,22 +834,6 @@ function getChannelEffectGeometry(source, aim, targets) {
     };
 }
 
-/** One filled breath sprite follows the cast triangle, never the victim count. */
-function drawChannelBreathImage(ctx, image, fx, geometry, fadeOut) {
-    let source = fx.screenSource;
-    geometry = fx.screenFootprint?.cone || geometry;
-    ctx.save();
-    ctx.translate(source.x, source.y);
-    ctx.rotate(geometry.angle);
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.globalAlpha = 0.48 * fadeOut;
-    ctx.filter = 'none';
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(image, 0, -geometry.width / 2, geometry.length, geometry.width);
-    ctx.restore();
-    return true;
-}
-
 function drawChannelCombatFx(ctx, fx, now, targets) {
     let source = fx.screenSource;
     if (!source || targets.length <= 0) return;
@@ -861,13 +844,11 @@ function drawChannelCombatFx(ctx, fx, now, targets) {
     let image = getSkillGemVfxImage(imageKey);
     let fadeOut = clampNumber((fx.start + fx.duration - now) / 160, 0, 1)
         * (0.88 + Math.sin((now - fx.start) / 48) * 0.12);
-    let isBreath = !!(profile && profile.family === 'breath');
-    if (isBreath && image && drawChannelBreathImage(ctx, image, fx, geometry, fadeOut)) return;
     ctx.save();
     ctx.translate(geometry.x, geometry.y);
     ctx.rotate(geometry.angle);
     ctx.globalCompositeOperation = 'source-over';
-    ctx.globalAlpha = (isBreath ? 0.42 : 0.68) * fadeOut;
+    ctx.globalAlpha = 0.68 * fadeOut;
     ctx.filter = 'none';
     ctx.imageSmoothingEnabled = false;
     if (image) ctx.drawImage(image, -geometry.length / 2, -geometry.width / 2, geometry.length, geometry.width);
@@ -1307,53 +1288,10 @@ function drawShieldChargeImpactVfx(ctx, effect, progress) {
     ctx.fill();
 }
 
-function drawBreathSkillVfx(ctx, effect, progress) {
-    let dx = effect.toX - effect.fromX;
-    let dy = effect.toY - effect.fromY;
-    let length = Math.max(76, Math.hypot(dx, dy));
-    let reach = length * (0.36 + Math.min(1, progress * 2.5) * 0.64);
-    let baseAlpha = ctx.globalAlpha;
-    let colors = ['#c52c18', '#ff5b1f', '#ff9b24', '#ffe37a'];
-    ctx.translate(effect.fromX, effect.fromY);
-    ctx.rotate(Math.atan2(dy, dx));
-    ctx.filter = 'none';
-    ctx.shadowColor = '#ff6a24';
-    ctx.shadowBlur = Math.max(5, effect.size * 0.09);
-    for (let index = 0; index < 16; index++) {
-        let random = Math.abs(Math.sin((effect.seed + 1) * 12.9898 + index * 78.233) * 43758.5453) % 1;
-        let lane = Math.abs(Math.sin((effect.seed + 7) * 39.346 + index * 21.719) * 24634.6345) % 1;
-        let phase = (progress * 1.45 + random + index / 23) % 1;
-        let spread = effect.size * (0.035 + phase * 0.28);
-        let x = reach * (0.08 + phase * 0.92);
-        let y = (lane * 2 - 1) * spread + Math.sin(progress * 13 + index) * spread * 0.16;
-        let radius = effect.size * (0.045 + phase * 0.07) * (0.72 + Math.sin(phase * Math.PI) * 0.42);
-        let tail = radius * (1.65 + phase * 0.85);
-        ctx.globalAlpha = baseAlpha * (0.3 + Math.sin(phase * Math.PI) * 0.58);
-        ctx.fillStyle = colors[index % colors.length];
-        ctx.beginPath();
-        ctx.moveTo(x + radius, y);
-        ctx.bezierCurveTo(x + radius * 0.25, y - radius, x - tail * 0.35, y - radius * 0.72, x - tail, y);
-        ctx.bezierCurveTo(x - tail * 0.28, y + radius * 0.78, x + radius * 0.32, y + radius, x + radius, y);
-        ctx.closePath();
-        ctx.fill();
-    }
-    ctx.shadowBlur = 4;
-    for (let ember = 0; ember < 6; ember++) {
-        let phase = (progress * 1.8 + ember * 0.173 + effect.seed * 0.011) % 1;
-        let x = reach * (0.45 + phase * 0.58);
-        let y = Math.sin(effect.seed + ember * 2.4) * effect.size * (0.08 + phase * 0.25);
-        ctx.globalAlpha = baseAlpha * (1 - phase) * 0.75;
-        ctx.fillStyle = ember % 2 ? '#fff0a0' : '#ff8b28';
-        ctx.beginPath(); ctx.arc(x, y, Math.max(1, effect.size * 0.018), 0, Math.PI * 2); ctx.fill();
-    }
-    ctx.globalAlpha = baseAlpha;
-}
-
 function drawProceduralSkillImpact(ctx, effect, progress) {
     if (effect.family === 'iai') drawIaiSkillVfx(ctx, effect, progress);
     else if (effect.family === 'stormStrike') drawStormStrikeVfx(ctx, effect, progress);
     else if (effect.family === 'fireCore' || effect.family === 'mine') drawCoreSkillVfx(ctx, effect, progress);
-    else if (effect.family === 'breath') drawBreathSkillVfx(ctx, effect, progress);
     else if (effect.family === 'charge') drawShieldChargeImpactVfx(ctx, effect, progress);
     else return false;
     return true;

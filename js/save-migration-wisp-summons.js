@@ -86,13 +86,23 @@ function migrateLegacySummonGemLoadout(state) {
     }
 }
 
-/** Outside the loadout: sky tower gem boosts, black market gem offers, pending exploration loot. */
+/** NPC rune shop stock (js/npc-shop.js rollGemWares): a ware of a retired rune sells its successor. */
+function renameLegacySummonGemWares(npcShops) {
+    Object.values(npcShops && typeof npcShops === 'object' ? npcShops : {}).forEach(shop => {
+        (Array.isArray(shop?.offers) ? shop.offers : []).forEach(ware => {
+            if (ware?.gem?.kind === 'attack' && typeof ware.gem.name === 'string') ware.gem.name = renameLegacySummonGem(ware.gem.name);
+        });
+    });
+}
+
+/** Outside the loadout: sky tower gem boosts, black market gem offers, NPC rune shop stock, pending exploration loot. */
 function migrateLegacySummonGemHoldings(merged) {
     const boosts = merged.skyTower?.gemBoosts;
     if (boosts && typeof boosts === 'object') merged.skyTower.gemBoosts = renameLegacySummonGemCounts(boosts, Math.max);
     (Array.isArray(merged.blackMarket?.offers) ? merged.blackMarket.offers : []).forEach(offer => {
         if (offer && offer.type === 'skillGem') offer.name = renameLegacySummonGem(offer.name);
     });
+    renameLegacySummonGemWares(merged.npcShops);
     const loot = merged.actExploration?.loot;
     if (loot && Array.isArray(loot.gems)) loot.gems = renameLegacySummonGemLoot(loot.gems);
 }

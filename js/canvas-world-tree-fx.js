@@ -75,21 +75,8 @@ const worldTreeSkillFx = (() => {
         fxRemake.ring(native,at,SKILL_FX_ATLAS[event.skillName]);
     }
 
-    function coneGeometry(input,cells,angle) {
-        const reach=input.footprint.cone?.length;
-        input.dragonBreathCone={sourceCell:input.sourceCell,cells,direction:{angle},
-            range:reach ? reach-.5 : SKILL_GRID_DB[input.skillName].range};
-    }
-
-    function adaptFootprint(input) {
-        const source=input.sourceCell,target=input.targetCells.at(-1),cells=input.footprint?.cells;
-        const dx=target.gx-source.gx,dy=target.gy-source.gy,angle=Math.atan2(dy,dx);
-        if(input.skillName==='용화 숨결' && cells?.length)coneGeometry(input,cells,angle);
-    }
-
     function nativeEvent(event) {
         const input={...event};
-        adaptFootprint(input);
         // Native lightning's first contact owns the melee blow. It is an immediate
         // visual event, not a second damage callback or a delayed duplicate.
         if(event.skillName==='번개 타격' && event.kind==='stage' && !event.stageIndex)input.kind='hit';
