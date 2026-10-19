@@ -384,7 +384,10 @@ function unequipItemToGrid(slot, column, row) {
     let placementResult = hasTargetCell
         ? equipmentInventoryGridRuntime.canAdd(item, column, row, game)
         : equipmentInventoryGridRuntime.findAddPlacement(item, game);
-    if (!placementResult.ok) {
+    // No single free cell but the bag fits packed with it: in it goes and the next ensureState packs the bag, as for a pickup
+    // (2026-10-19). A drop onto a chosen cell still needs that cell.
+    let packs = !placementResult.ok && !hasTargetCell && equipmentInventoryGridRuntime.canStoreItems([item], game);
+    if (!placementResult.ok && !packs) {
         addLog(placementResult.reason || '인벤토리 공간이 부족해 장착 해제할 수 없습니다.', 'attack-monster');
         return false;
     }
@@ -392,10 +395,7 @@ function unequipItemToGrid(slot, column, row) {
     delete item.legacyRequirementGrace;
     game.inventory.push(item);
     game.equipment[slot] = null;
-    game.equipmentInventoryPlacements = {
-        ...(game.equipmentInventoryPlacements || {}),
-        [itemKey]: placementResult.placement
-    };
+    if (placementResult.ok) game.equipmentInventoryPlacements = { ...(game.equipmentInventoryPlacements || {}), [itemKey]: placementResult.placement };
     if (isCraftSelectionEquip() && getCraftSelectionRef() === slot) {
         craftingSelectionState.ref = item.id;
         craftingSelectionState.isEquip = false;
