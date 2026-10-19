@@ -377,17 +377,20 @@ function equipSelectedCraftInventoryItem() {
     return equipItemById(itemId);
 }
 
+/** Where an unequipped item goes: the chosen cell, else the first free cell, else (no cell chosen) a packed bag: placement null, and
+ * the next ensureState packs the bag as for a pickup (2026-10-19). @returns {{ok:boolean, placement?:?object, reason?:string}} */
+function findUnequipPlacement(item, column, row) {
+    if (Number.isFinite(Number(column)) && Number.isFinite(Number(row))) return equipmentInventoryGridRuntime.canAdd(item, column, row, game);
+    let result = equipmentInventoryGridRuntime.findAddPlacement(item, game);
+    if (!result.ok && equipmentInventoryGridRuntime.canStoreItems([item], game)) return { ok: true, placement: null };
+    return result;
+}
+
 function unequipItemToGrid(slot, column, row) {
     let item = game.equipment[slot];
     if (!item) return false;
-    let hasTargetCell = Number.isFinite(Number(column)) && Number.isFinite(Number(row));
-    let placementResult = hasTargetCell
-        ? equipmentInventoryGridRuntime.canAdd(item, column, row, game)
-        : equipmentInventoryGridRuntime.findAddPlacement(item, game);
-    // No single free cell but the bag fits packed with it: in it goes and the next ensureState packs the bag, as for a pickup
-    // (2026-10-19). A drop onto a chosen cell still needs that cell.
-    let packs = !placementResult.ok && !hasTargetCell && equipmentInventoryGridRuntime.canStoreItems([item], game);
-    if (!placementResult.ok && !packs) {
+    let placementResult = findUnequipPlacement(item, column, row);
+    if (!placementResult.ok) {
         addLog(placementResult.reason || '인벤토리 공간이 부족해 장착 해제할 수 없습니다.', 'attack-monster');
         return false;
     }
@@ -395,7 +398,7 @@ function unequipItemToGrid(slot, column, row) {
     delete item.legacyRequirementGrace;
     game.inventory.push(item);
     game.equipment[slot] = null;
-    if (placementResult.ok) game.equipmentInventoryPlacements = { ...(game.equipmentInventoryPlacements || {}), [itemKey]: placementResult.placement };
+    if (placementResult.placement) game.equipmentInventoryPlacements = { ...(game.equipmentInventoryPlacements || {}), [itemKey]: placementResult.placement };
     if (isCraftSelectionEquip() && getCraftSelectionRef() === slot) {
         craftingSelectionState.ref = item.id;
         craftingSelectionState.isEquip = false;
