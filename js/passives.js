@@ -8335,6 +8335,7 @@ function getTierBadgeHtml(tierValue, labelPrefix) {
 
 function getUniqueCodexKeyByItem(item) {
     if (!item || item.rarity !== 'unique') return null;
+    if (typeof bagItems === 'object' && bagItems.isSpecial(item)) return null; // 고유 주얼과 고유 액막이는 도감에 없다
     return `${item.slot}|${item.name}`;
 }
 

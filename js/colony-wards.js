@@ -6,6 +6,7 @@
 const colonyWards = (() => {
     const R = COLONY_WARD_RULES;
     const POOL = new Map(COLONY_WARD_POOL.map(row => [row.id, row]));
+    const U = COLONY_WARD_UNIQUES;
     const isWard = item => !!item && item.slot === R.slot;
     /** 줍기 필터의 항상 줍기 '액막이'(기본 켬)가 켜져 있으면 줍기 필터와 등급 자동 해체를 건너뛴다(마법 등급은 이름뿐이라). */
     const keptOnPickup = item => isWard(item) && !!game.settings && (game.settings.itemFilterAlways || {}).ward !== false;
@@ -65,18 +66,25 @@ const colonyWards = (() => {
         const open = openSlots(state);
         return open.find(slot => !(state.equipment || {})[slot]) || open[0];
     }
-    /** Lines of the wards in the open slots, as js/combat.js colonyWardBonus adds them: [{ stat, val }] ('편린을 꿴 허리띠' doubles them). */
+    const openWards = (state = game) => openSlots(state).map(slot => (state.equipment || {})[slot]).filter(isWard);
+    /** A 고유 액막이's (U.rows) param `name` when `item` is that one, else 0. */
+    const uniqueParam = (item, key, name) => (item.rarity === 'unique' && item.uniqueEffectKey === key ? Number((item.uniqueEffectParams || {})[name]) || 0 : 0);
+    /** Lines of the wards in the open slots, as js/combat.js colonyWardBonus adds them: [{ stat, val }] ('편린을 꿴 허리띠' doubles them,
+     * each 메아리 매듭 adds its pct: it has no line of its own, so only the other wards grow). */
     function equippedLines(state = game) {
-        const mul = wardString(state.equipment).mul;
-        return openSlots(state).map(slot => (state.equipment || {})[slot]).filter(isWard)
-            .flatMap(item => (item.baseStats || []).map(line => ({ stat: line.id, val: (Number(line.val) || 0) * mul })));
+        const wards = openWards(state);
+        const mul = wardString(state.equipment).mul * (1 + wards.reduce((sum, item) => sum + uniqueParam(item, 'wardEcho', 'pct'), 0) / 100);
+        return wards.flatMap(item => (item.baseStats || []).map(line => ({ stat: line.id, val: (Number(line.val) || 0) * mul })));
     }
+    /** 잔잔한 사건의 확률 배수(js/combat-incidents.js often): 열린 칸에 '사건을 부르는 방울'이 있으면 그 mul(겹치지 않는다), 아니면 1. */
+    const incidentMul = (state = game) => Math.max(1, ...openWards(state).map(item => uniqueParam(item, 'incidentBell', 'mul')));
 
-    function makeItem(row, val, tier, locked) {
+    /** A ward item with one line (row) or none (a 고유 액막이 without a line); `unique` holds a 고유 액막이's name and effect. */
+    function makeItem(row, val, tier, locked, unique = null) {
         itemIdCounter += 1;
         const item = { id: itemIdCounter, slot: R.slot, baseId: R.baseId, baseName: R.name, name: R.name, rarity: 'magic',
             itemTier: Math.max(1, Math.min(20, Math.floor(Number(tier) || 1))), locked: !!locked,
-            baseStats: [{ id: row.id, val, statName: row.name, valMin: row.min, valMax: row.max }], stats: [] };
+            baseStats: row ? [{ id: row.id, val, statName: row.name, valMin: row.min, valMax: row.max }] : [], stats: [], ...unique };
         if (typeof normalizeItem === 'function') normalizeItem(item);
         return item;
     }
@@ -86,19 +94,31 @@ const colonyWards = (() => {
         return makeItem(row, row.min + Math.floor(random() * (row.max - row.min + 1)), tier);
     }
 
+    /** A 고유 액막이 (U.rows, `key` or one at random): a chase unique; 두 번 맨 매듭 rolls one pool line past the usual range. */
+    function createUnique(random = Math.random, tier = 1, key = '') {
+        const row = U.rows.find(entry => entry.key === key) || U.rows[Math.floor(random() * U.rows.length)];
+        const unique = { name: row.name, rarity: 'unique', chaseUnique: true, uniqueEffect: row.text, uniqueEffectKey: row.key, uniqueEffectParams: { ...row.params } };
+        if (row.key !== 'doubleKnot') return makeItem(null, 0, tier, false, unique);
+        const line = COLONY_WARD_POOL[Math.floor(random() * COLONY_WARD_POOL.length)];
+        const min = Math.round(line.max * row.params.min), max = Math.round(line.max * row.params.max);
+        return makeItem({ ...line, min, max }, min + Math.floor(random() * (max - min + 1)), tier, false, unique);
+    }
+    /** A ward that drops (colony waves, kills): now and then (U.chance) a 고유 액막이 instead. Crafting makes plain ones only. */
+    const createDrop = (random, tier) => (random() < U.chance ? createUnique(random, tier) : create(random, tier));
+
     // ---------------------------------------------------------------- where wards come from
     /** A kill anywhere but the colony (once the colony is open): now and then a ward, through the normal floor and pickup. */
     function rollFieldDrop(enemy, zone, random = Math.random) {
         if (!enemy || !zone || zone.id === R.colonyZoneId || !unlocked()) return [];
         const chance = enemy.isBoss ? R.field.boss : enemy.isElite ? R.field.elite : R.field.normal;
         if (random() >= chance) return [];
-        const item = create(random, zone.tier);
+        const item = createDrop(random, zone.tier);
         return keepEquipmentDrop(enemy, item) === 'kept' ? [item] : [];
     }
     /** A cleared colony wave: every fifth wave, and the others now and then, a ward straight into the bag. */
     function rollColonyWave(wave, zone, random = Math.random) {
         if (wave % R.colonyWave.every !== 0 && random() >= R.colonyWave.chance) return null;
-        const item = create(random, zone && zone.tier);
+        const item = createDrop(random, zone && zone.tier);
         return addItemToInventory(item, { ignoreFilter: true }) ? item : null;
     }
     /** 군락지 편린으로 만들기: craftCost개를 내고 새 액막이 하나를 가방에. '' when done, otherwise why not. */
@@ -112,6 +132,7 @@ const colonyWards = (() => {
         return '';
     }
     const salvageShards = item => {
+        if (item && item.rarity === 'unique') return R.shards.max; // 고유 액막이
         const value = Math.abs(Number(((item && item.baseStats) || [])[0]?.val) || 0);
         return Math.max(R.shards.base, Math.min(R.shards.max, R.shards.base + Math.floor(value / R.shards.per)));
     };
@@ -149,7 +170,7 @@ const colonyWards = (() => {
         Object.assign(colony, { wardInventory: [], wardEquipped: [null, null, null, null], wardSlots: 1 });
     }
 
-    return Object.freeze({ isWard, keptOnPickup, unlocked, beltSlots, stampBelt, rerollBelt, beltRoll, slotCount, slotChange, openSlots, pickSlot, equippedLines, create,
+    return Object.freeze({ isWard, keptOnPickup, unlocked, beltSlots, stampBelt, rerollBelt, beltRoll, slotCount, slotChange, openSlots, pickSlot, equippedLines, incidentMul, create, createUnique,
         rollFieldDrop, rollColonyWave, craft, salvageShards, salvageProfile, migrate });
 })();
 safeExposeGlobals({ colonyWards });

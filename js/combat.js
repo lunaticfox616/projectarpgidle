@@ -10141,6 +10141,16 @@ function advanceColonyWaveOnKill(zone, say) {
     game.colony.kills = Math.max(0, Math.floor((game.colony.kills || 0) + 1));
     if ((game.colony.kills || 0) >= Math.max(1, Math.floor(game.colony.requiredKills || 1))) completeColonyWave(zone, say);
 }
+/** A ward from a colony wave (straight into the bag): a log line with its line, or a 고유 액막이 (js/colony-wards.js createUnique) by name
+ * with the chase notice the floor pickups give (js/battle-ground-loot-ui.js revealUnique). */
+function announceColonyWard(ward, say) {
+    if (!ward) return;
+    const line = ward.baseStats[0];
+    if (ward.rarity !== 'unique') return say(`🛡️ 군락지 액막이 부적 획득: ${colonyWardsUi.statName(line.id)} +${formatValue(line.id, line.val)}`, 'loot-rare', { item: ward, itemKind: 'talisman' });
+    say(`🛡️ 군락지 고유 액막이 획득: [${ward.name}]`, 'loot-unique', { item: ward, itemKind: 'talisman' });
+    dispatchRuntimeEvent('incident', { text: `체이싱 고유 장비를 획득했습니다. 「${ward.name}」`, tone: 'chase', chase: true });
+}
+
 /** A colony wave's rewards (shards, a chance of dew, a trace every 10th wave, a ward) and the next wave. */
 function completeColonyWave(zone, say) {
     const completedWave = Math.max(1, Math.floor(game.colony.wave || 1));
@@ -10149,8 +10159,7 @@ function completeColonyWave(zone, say) {
     if (Math.random() < 0.35) awardCurrency('formlessDew', 1, 'drop');
     if (completedWave % 10 === 0) awardCurrency('colonyTrace', 1);
     // 액막이는 가방으로(5웨이브마다 반드시, 나머지 웨이브 28%, js/colony-wards.js rollColonyWave).
-    const ward = colonyWards.rollColonyWave(completedWave, zone);
-    if (ward) say(`🛡️ 군락지 액막이 부적 획득: ${colonyWardsUi.statName(ward.baseStats[0].id)} +${formatValue(ward.baseStats[0].id, ward.baseStats[0].val)}`, 'loot-rare', { item:ward, itemKind:'talisman' });
+    announceColonyWard(colonyWards.rollColonyWave(completedWave, zone), say);
     game.colony.wave = Math.max(1, Math.floor((game.colony.wave || 1) + 1));
     game.colony.highestWave = Math.max(Math.floor(game.colony.highestWave || 1), game.colony.wave);
     if (game.colony.highestWave >= 11) unlockJournalEntry('colony_wave_10');

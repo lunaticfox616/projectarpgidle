@@ -39,3 +39,17 @@ const COLONY_WARD_POOL = Object.freeze([
     ['takenDamageReduceWhen1EnemyPct', 1, 5, '받는 피해 감소(1마리)'], ['igniteDamageReducePct', 3, 10, '받는 점화 피해 감소'],
     ['bleedDamageReducePct', 3, 10, '받는 출혈 피해 감소'], ['poisonDamageReducePct', 3, 10, '받는 중독 피해 감소']
 ].map(([id, min, max, name]) => Object.freeze({ id, min, max, name })));
+
+// 고유 액막이(체이싱, 2026-10-20 사용자: "체이싱 아이템들을 지금 그런 컨텐츠가 없는 장비 종류들 위주로 ... 약간만 밸런스 파괴급이라도
+// 괜찮아"): 군락지 웨이브와 처치에서 액막이가 나올 때 chance의 확률로 셋 가운데 하나가 대신 나온다(편린으로 만들 때는 아니다). 군락지 한
+// 판에 액막이가 여덟 개 안팎이라 군락지 스무 판 남짓에 하나 꼴. 효과는 js/colony-wards.js: wardEcho는 줄 없이 열린 칸의 다른 액막이 줄을
+// pct% 더(둘이면 두 번), incidentBell은 줄 없이 잔잔한 사건(js/combat-incidents.js often)을 mul배 자주(겹치지 않는다), doubleKnot은 풀의
+// 줄 하나를 그 줄 최대치의 min~max배로 굴린다.
+const COLONY_WARD_UNIQUES = Object.freeze({
+    chance: 0.005,
+    rows: Object.freeze([
+        Object.freeze({ key: 'wardEcho', name: '메아리 매듭', text: '끼운 다른 액막이의 줄이 50% 강해집니다', params: Object.freeze({ pct: 50 }) }),
+        Object.freeze({ key: 'incidentBell', name: '사건을 부르는 방울', text: '잔잔한 사건을 두 배 자주 만납니다', params: Object.freeze({ mul: 2 }) }),
+        Object.freeze({ key: 'doubleKnot', name: '두 번 맨 매듭', text: '줄 하나가 보통 액막이 최대치의 1.5~2배입니다', params: Object.freeze({ min: 1.5, max: 2 }) })
+    ])
+});

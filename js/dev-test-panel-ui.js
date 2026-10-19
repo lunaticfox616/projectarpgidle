@@ -87,6 +87,12 @@ const devTestPanel = (() => {
         refresh();
         note(`씨앗/수액 ${made.filter(Boolean).length}개`);
     }
+    /** 고유 액막이 셋(js/colony-wards.js createUnique)을 가방에. */
+    function giveUniqueWards() {
+        const made = COLONY_WARD_UNIQUES.rows.filter(row => addItemToInventory(colonyWards.createUnique(Math.random, 16, row.key), { ignoreFilter: true }));
+        refresh();
+        note(`고유 액막이 ${made.length}개`);
+    }
     function growStumpBox() {
         for (let i = 0; i < 100; i++) stumpBox.grow(game, {});
         refresh();
@@ -337,7 +343,8 @@ const devTestPanel = (() => {
             row([button('레벨 +1', () => addLevels(1)), button('레벨 +5', () => addLevels(5)), button('레벨 +20', () => addLevels(20))]),
             row([acts, button('이동', () => travelToAct(Number(acts.value)))]),
             row([zones, button('시험 입장', () => enterTestZone(Number(zones.value)))]),
-            row([button('그루터기 함 받기', grantStumpBox), button('씨앗/수액 +8', giveStumpItems), button('함 성장 +100', growStumpBox)])
+            row([button('그루터기 함 받기', grantStumpBox), button('씨앗/수액 +8', giveStumpItems), button('함 성장 +100', growStumpBox)]),
+            row([button('고유 액막이 셋', giveUniqueWards)])
         ]);
     }
     function status() {

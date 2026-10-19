@@ -14,7 +14,8 @@
  * - 세계수의 하품: 처음 들어선 전투 방에서 아주 드물게 그 방의 몬스터가 잠든다(skillHeldUntil: 움직이지도 공격하지도 않는다).
  * - 행운의 숫자: 한 번에 준 피해가 7로만 된 수면 그 자릿수의 재화(noteDamage, js/combat.js applyDamageToEnemyResource).
  * 체이싱 고유 넷이 사건을 바꾼다(worn): 수액 냄새 밴 장화(슬라임 확률과 재화), 황금을 빚는 손(쓰러뜨린 몬스터가 슬라임으로 일어난다),
- * 일곱 번째 행운의 병(같은 숫자로만 된 피해도 행운의 숫자), 꿈결의 향로(하품 확률과 잠드는 시간).
+ * 일곱 번째 행운의 병(같은 숫자로만 된 피해도 행운의 숫자), 꿈결의 향로(하품 확률과 잠드는 시간). 고유 액막이 '사건을 부르는 방울'은
+ * 모든 사건의 확률을 두 배로 한다(often).
  * 굴림은 다른 난수를 밀지 않는다: 무리의 굴림은 무리 열쇠와 첫 몬스터 번호로, 방의 굴림은 탐험마다 정한 값(run.incidentSeed)과 방
  * 번호로 정하고, 굴린 방은 탐험 기록에 남겨(run.incidentRooms) 다시 불러와도 다시 굴리지 않는다. 알림은 'incident' 이벤트로 보내고 알림
  * 창이 띄운다(js/battle-ground-loot-ui.js). 보상은 아틀라스 지도의 결과에도 적힌다(combatLootReceipts.capture).
@@ -27,6 +28,7 @@ const combatIncidents = (() => {
     const tell = (text, tone, chase = false) => dispatchRuntimeEvent('incident', { text, tone, chase });
     const receipt = work => combatLootReceipts.capture(game, work);
     const note = kind => recordIncident(kind, game); // 전적 화면의 사건 기록(js/records.js)
+    const often = () => colonyWards.incidentMul(game); // 사건 확률 배수: 고유 액막이 '사건을 부르는 방울'(js/colony-wards.js)
     let luckyAt = -Infinity;            // 마지막 행운의 숫자(전투 시각)
     const stars = [];                   // 떨어지는 중인 별똥별 { run, cell, key, at(닿는 전투 시각) }
     let challenge = null;               // 열린 사냥 도전 { run, roomId, until(전투 시각), marks(남은 알림 초) }
@@ -77,10 +79,10 @@ const combatIncidents = (() => {
     }
     /** 금빛 수액 슬라임 하나를 무리 곁에(수액 냄새 밴 장화를 끼면 chanceMul배 자주). 세웠는지. */
     function addCritter(zone, map, pack, taken) {
-        const C = rule().critter, lure = worn('critterLure'), chance = C.chance * (lure ? lure.chanceMul : 1), key = `${pack.key}:${pack.aliveIds[0]}`;
+        const C = rule().critter, lure = worn('critterLure'), chance = C.chance * (lure ? lure.chanceMul : 1) * often(), key = `${pack.key}:${pack.aliveIds[0]}`;
         const cell = draw('critter', key) < chance ? besidePack(map, pack, taken) : null;
         if (!cell) return false;
-        const critter = Object.assign(makeCritter(zone, cell, draw('rainbow', key) < C.rainbow.chance), { explorationPack: pack.key });
+        const critter = Object.assign(makeCritter(zone, cell, draw('rainbow', key) < C.rainbow.chance * often()), { explorationPack: pack.key });
         taken.add(gridCellKey(cell.gx, cell.gy));
         pack.waiting.push(critter);
         pack.aliveIds.push(critter.id);
@@ -160,7 +162,7 @@ const combatIncidents = (() => {
      * 방식(js/combat-grid.js assignEnemyGridCombatProfile), 경험치 expMul배. */
     function addStray(zone, pack) {
         const key = `${pack.key}:${pack.aliveIds[0]}`;
-        const enemy = draw('stray', key) < rule().stray.chance ? pack.waiting.find(strayable) : null;
+        const enemy = draw('stray', key) < rule().stray.chance * often() ? pack.waiting.find(strayable) : null;
         const look = enemy ? strayLook(zone, key) : null;
         if (look) dressStray(enemy, look);
     }
@@ -194,7 +196,7 @@ const combatIncidents = (() => {
         name: `${rule().sleep.prefix} ${enemy.name}`, encounterOutline: rule().sleep.outline });
     /** 드물게 무리가 잠들어 있다(pack.sleep, 습격방에 모이지 않는다): 이름 앞에 prefix와 테. 깨기 전에는 움직이지도 공격하지도 않는다. */
     function lullPack(pack) {
-        if (draw('sleep', `${pack.key}:${pack.aliveIds[0]}`) >= rule().sleep.chance) return;
+        if (draw('sleep', `${pack.key}:${pack.aliveIds[0]}`) >= rule().sleep.chance * often()) return;
         pack.sleep = true;
         pack.waiting.forEach(lull);
     }
@@ -243,7 +245,7 @@ const combatIncidents = (() => {
         const C = rule().critter, guests = (getZone(game.currentZoneId) || {}).type === 'atlasMap' ? [] : enemies.filter(enemy => feastable(run, enemy));
         if (!guests.length) return false;
         guests.forEach((enemy, index) => {
-            const rainbow = draw('rainbow', `feast:${key}:${index}`) < C.rainbow.chance;
+            const rainbow = draw('rainbow', `feast:${key}:${index}`) < C.rainbow.chance * often();
             Object.assign(dressCritter(enemy, rainbow), { asleep: false, feast: true, critterSeenAt: rainbow ? 0 : getCombatTime() });
         });
         tell('황금 수액 잔치가 열렸습니다. 이 방의 몬스터가 모두 금빛 수액 슬라임이 되었습니다.', 'chase', true);
@@ -278,7 +280,7 @@ const combatIncidents = (() => {
     }
     /** 처음 들어선 전투 방의 굴림: 잔치가 열리면 그것뿐, 아니면 별똥별과 사냥 도전, 도전이 열리지 않았으면 하품. */
     function rollRoom(run, room, here, key, now) {
-        if (draw('feast', key) < rule().feast.chance && feast(run, here, key)) return;
+        if (draw('feast', key) < rule().feast.chance * often() && feast(run, here, key)) return;
         dropStar(run, room, key, now);
         if (openChallenge(run, room, key, now)) return;
         if (draw('yawn', key) < yawnChance()) yawn(here, now);
@@ -286,7 +288,7 @@ const combatIncidents = (() => {
     /** 하품의 확률: 꿈결의 향로를 끼면 그 확률(chance). */
     function yawnChance() {
         const incense = worn('drowsyIncense');
-        return Math.max(rule().yawn.chance, incense ? Number(incense.chance) || 0 : 0);
+        return Math.max(rule().yawn.chance * often(), incense ? Number(incense.chance) || 0 : 0);
     }
     function yawn(enemies, now) {
         const incense = worn('drowsyIncense'), sleepMs = incense ? incense.sleepMs : rule().yawn.sleepMs;
@@ -305,7 +307,7 @@ const combatIncidents = (() => {
     /** 처음 들어선 방에 chance의 확률로(forced면 반드시) 별 하나: 그림(battleFx 'fallingStar')을 띄우고 fallMs 뒤에 닿는다(landStars).
      * 떨어뜨렸는지. */
     function dropStar(run, room, key, now, forced = false) {
-        const S = rule().star, roll = forced || draw('star', key) < S.chance;
+        const S = rule().star, roll = forced || draw('star', key) < S.chance * often();
         const map = roll && starRewards().length ? actExplorationDoors.stageMap(run) : null, cell = map ? starCell(map, room, key) : null;
         if (!cell) return false;
         addBattleFx('fallingStar', { cell, duration: S.fallMs + S.burstMs });
@@ -346,7 +348,7 @@ const combatIncidents = (() => {
      * 하나씩만, 몬스터가 남은 방에서만 열린다. 열었는지. */
     function openChallenge(run, room, key, now, forced = false) {
         const C = rule().challenge;
-        if (challenge || (!forced && draw('challenge', key) >= C.chance) || !challengeRewards().length) return false;
+        if (challenge || (!forced && draw('challenge', key) >= C.chance * often()) || !challengeRewards().length) return false;
         if (!run.packs.some(pack => pack.roomId === room.id && pack.aliveIds.length)) return false;
         challenge = { run, roomId: room.id, until: now + C.seconds * 1000, marks: C.marks.slice() };
         tell(`사냥 도전: ${C.seconds}초 안에 이 방의 몬스터를 모두 쓰러뜨리세요.`, 'reward');
@@ -441,7 +443,7 @@ const combatIncidents = (() => {
         if (Math.floor(Number(game.loopKills) || 0) + 1 === rule().lucky.kill) return 'lucky';
         const touch = worn('goldenTouch');
         if (!touch || Math.random() >= touch.chance) return '';
-        return Math.random() < rule().critter.rainbow.chance ? 'rainbow' : 'gold';
+        return Math.random() < rule().critter.rainbow.chance * often() ? 'rainbow' : 'gold';
     }
     /** 금빛: 재화를 picks번 무게로 뽑고(열리지 않은 재화는 떨어지지 않는다), gear 등급 이상의 장비 하나. */
     function grantCritterRewards(enemy, zone) {

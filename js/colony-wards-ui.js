@@ -20,7 +20,7 @@ const colonyWardsUi = (() => {
             ondblclick="event.stopPropagation(); equipmentInventoryInteraction.cancelCarry(); handleEquipmentSlotDoubleClick('${slot}', false)"
             onmouseenter="${hover}" onmousemove="${hover}" onmouseleave="hideItemTooltip(event)"${open ? '' : ' title="비활성화: 칸이 모자랍니다"'}>
             <img src="${getEquipmentGridVisualAsset(item)}" alt="" aria-hidden="true" draggable="false">
-            <span class="ward-slot-line">${line ? escapeHTML(lineText(line.id, line.val)) : ''}</span></div>`;
+            <span class="ward-slot-line">${escapeHTML(line ? lineText(line.id, line.val) : item.rarity === 'unique' ? item.name : '')}</span></div>`;
     }
     const emptyCell = slot => `<div class="slot-box equipment-slot equipment-slot-empty ward-slot" data-slot="${slot}"
         onclick="equipmentInventoryInteraction.handleEquippedItemClick(event,'${slot}')"><span class="ward-slot-plus">＋</span></div>`;
