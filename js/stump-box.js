@@ -101,11 +101,12 @@ const stumpBox = (() => {
     /** Highest stored quality: 130%, raised by the box's unlocks (qualityCap, loops 35 and 45). */
     function rollCap(state) { return Math.max(STUMP_BOX_ROLL_LIMIT.max, ...openUnlocks(state).map(row => row.qualityCap || 0)); }
     /** Adds a new item to storage; null when storage is full or the input is invalid. spec.golden makes a golden seed or sap.
-     * A seed grows into spec.path (꽃, 열매) when given, otherwise into one rolled now. */
-    function createItem(state, spec) {
+     * A seed grows into spec.path (꽃, 열매) when given, otherwise into one rolled now. force: a result or reward that must not be
+     * lost to a full storage (a cube merge, an ancient seed), as addTalisman and addScar take it. */
+    function createItem(state, spec, force) {
         const box = of(state);
         if (!FAMILIES.includes(spec.family) || !COLORS.includes(spec.color)) return null;
-        if (storageFull(state)) return null;
+        if (!force && storageFull(state)) return null;
         const path = spec.family === 'seed' ? (PATHS.includes(spec.path) ? spec.path : seedPath()) : null;
         const item = { id: box.nextId++, family: spec.family, color: spec.color, path, xp: 0, ripe: false, roll: clampRoll(spec.roll, rollCap(state)) };
         if (spec.golden === true) item.golden = true;
@@ -521,8 +522,13 @@ const stumpBox = (() => {
         if (family === 'seed') spec.path = seedPath(random);
         const item = createItem(state, spec);
         if (item) return { item, compost: null };
+        return { item: null, compost: compostOverflow(state, spec, random) };
+    }
+    /** A seed or sap a full storage could not take feeds the growing items as compost instead (drops, breeding, nursery gifts).
+     * @returns {{family:string, color:string, growth:number, fed:number, ripened:object[]}} fed: growing items that got it */
+    function compostOverflow(state, spec, random = Math.random) {
         const growth = compostGrowth(spec), fed = growingItems(state).length;
-        return { item: null, compost: { family, color, growth, fed, ripened: growBy(state, growth, random) } };
+        return { family: spec.family, color: spec.color, growth, fed, ripened: growBy(state, growth, random) };
     }
     const NO_DROP = Object.freeze({ item: null, compost: null });
     function dropsHere(state) { return !(typeof actExplorationState === 'object' && actExplorationState.current(state)?.act != null); }
@@ -699,8 +705,7 @@ const stumpBox = (() => {
             if (spec.scar) return { spec, item: addScar(state, true), compost: null };
             const item = createItem(state, spec);
             if (item) return { spec, item, compost: null };
-            const growth = compostGrowth(spec);
-            return { spec, item: null, compost: { growth, fed: growingItems(state).length, ripened: growBy(state, growth, random) } };
+            return { spec, item: null, compost: compostOverflow(state, spec, random) };
         });
     }
 
@@ -951,7 +956,7 @@ const stumpBox = (() => {
 
     return {
         empty, of, restore, sync, eligible, claimStarter, starterChoice, grantStarter, plantStored, createItem, addTalisman, discard, storage, place, move, unplace,
-        evaluate, applyStats, onEnemyKilled, grow, ancientRanks, rollDrop, regress, compost, compostReason, compostGrowth, feedAsh, growingItems, openCount, isOpen, opensAt, nextOpening, neighbors,
+        evaluate, applyStats, onEnemyKilled, grow, ancientRanks, rollDrop, regress, compost, compostReason, compostGrowth, compostOverflow, feedAsh, growingItems, openCount, isOpen, opensAt, nextOpening, neighbors,
         stageOf, isMature, need, yieldOf, targetStage, label, shortName, lineText, extraLinesOf, iconPath, cellOf, editable, highestLoop,
         graftRank, graftMultiplier, graftOpen, graftPoints, graftJournalPoints, graftOverflowPoints, graftRaiseReason, graftRaise, graftLowerReason, graftLower,
         harvestKey, harvestRows, hasHarvested, pendingGifts, claimHarvestGift, openUnlocks, storageLimit, storageFull, rootMemoryPct,

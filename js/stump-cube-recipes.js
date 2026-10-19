@@ -72,11 +72,13 @@ const stumpCubeRecipes = (() => {
         return { ok: true, consumed: [], outputs: [{ kind: 'equipment', existing: equipment.item }] };
     }
 
-    /** Best quality + a step, up to the box's quality cap (130%, 140% and 150% with the loop 35 and 45 unlocks); golden if any was golden. */
+    /** Best quality + a step, up to the box's quality cap (130%, 140% and 150% with the loop 35 and 45 unlocks); golden if any was
+     * golden, ancient (고대 씨앗) if any was ancient. */
     function stumpMerge([group], state) {
         const list = items(group);
         const roll = Math.min(stumpBox.rollCap(state), Math.max(...list.map(item => Number(item.roll) || 1)) + STUMP_CUBE_STUMP_ROLL_STEP);
-        const spec = { family: list[0].family, color: list[0].color, path: list[0].path, roll, golden: list.some(item => item.golden === true) };
+        const spec = { family: list[0].family, color: list[0].color, path: list[0].path, roll, golden: list.some(item => item.golden === true),
+            ancient: list.some(item => item.ancient === true) };
         return { ok: true, consumed: group, outputs: [{ kind: 'stump', spec }] };
     }
 

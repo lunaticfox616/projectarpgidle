@@ -202,8 +202,9 @@ const stumpCube = (() => {
         core: (state, item) => { bagItems.take(item, state); }
     });
 
+    /** Forced in: a cube result takes the place of the items it used, and storage can be over its limit (boss scars, talismans). */
     function storeStump(state, output) {
-        return output.talisman ? stumpBox.addTalisman(state, output.talisman, true) : stumpBox.createItem(state, output.spec);
+        return output.talisman ? stumpBox.addTalisman(state, output.talisman, true) : stumpBox.createItem(state, output.spec, true);
     }
 
     const STORERS = Object.freeze({
