@@ -160,7 +160,7 @@ function completeBeyondBoundaryEncounter(ownerState) {
     }
     let rewardXp = 10 + run.tier * 2;
     let sealResult = grantBeyondBoundarySealExperience(run.sealId, rewardXp, source);
-    let returnZoneId = run.returnZoneId;
+    let returnZoneId = getBeyondBoundaryReturnZoneId(run.returnZoneId, source);
     state.completions++;
     state.bestTier = Math.max(state.bestTier, run.tier);
     state.highestTier = Math.min(BEYOND_BOUNDARY_TIER_CAP, Math.max(state.highestTier, run.tier + 1));
@@ -173,10 +173,21 @@ function completeBeyondBoundaryEncounter(ownerState) {
     };
 }
 
+/** The zone a run sends the hero back to: where it started, or the frontier when this loop has not reached that hunting ground (a save
+ * from before 2026-10-19 could carry a run over the loop reset, and leaving it sent a level 1 hero to last loop's chaos depth). Deep
+ * chaos past the loop's cap sits above maxZoneId by design (js/state.js keeps the hero there) and counts as reached once this loop
+ * cleared chaos 20. */
+function getBeyondBoundaryReturnZoneId(returnZoneId, source) {
+    const frontier = Math.max(0, Math.floor(Number(source.maxZoneId) || 0));
+    if (typeof returnZoneId !== 'number' || returnZoneId <= frontier) return returnZoneId;
+    const openDeepChaos = (source.season || 1) >= 10 && getAbyssDepthFromZoneId(returnZoneId) > 20 && hasCurrentLoopChaos20Clear(source);
+    return openDeepChaos ? returnZoneId : frontier;
+}
+
 function abandonBeyondBoundaryRun(ownerState) {
     let state = ensureBeyondBoundaryState(ownerState || game);
     if (!state.activeRun) return null;
-    let returnZoneId = state.activeRun.returnZoneId;
+    let returnZoneId = getBeyondBoundaryReturnZoneId(state.activeRun.returnZoneId, ownerState || game);
     state.activeRun = null;
     return returnZoneId;
 }

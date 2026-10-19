@@ -95,20 +95,20 @@ function init() {
             handleBackgroundVisibilityChange();
             if (document.hidden) {
                 if (window.__skipUnloadSaveOnce) return;
-                saveGame({ skipCloudSync: true });
+                saveGame({ skipCloudSync: true, touchModifiedAt: gameplayStarted });
                 pushCloudSaveOnPageExit('visibilitychange');
             }
         });
         window.addEventListener('pagehide', function() {
-            recordBackgroundCombatEntry(Date.now());
+            notePageExit();
             if (window.__skipUnloadSaveOnce) return;
-            saveGame({ skipCloudSync: true });
+            saveGame({ skipCloudSync: true, touchModifiedAt: gameplayStarted });
             pushCloudSaveOnPageExit('pagehide');
         });
         window.addEventListener('beforeunload', function() {
-            recordBackgroundCombatEntry(Date.now());
+            notePageExit();
             if (window.__skipUnloadSaveOnce) return;
-            saveGame({ skipCloudSync: true });
+            saveGame({ skipCloudSync: true, touchModifiedAt: gameplayStarted });
             pushCloudSaveOnPageExit('beforeunload');
         });
     }
@@ -212,6 +212,12 @@ function refreshCombatTickUi() {
     cosmosRouteUi.updateVitals();
     let recentStats = game.lastCombatStats && (getCombatTime() - (game.lastCombatStatsAt || 0) < 250) ? game.lastCombatStats : getUiPlayerStats();
     updateCombatUI(recentStats);
+}
+
+/** Closing or leaving the page. A page already hidden keeps the time it was hidden: closing a hidden tab restamped it, and the next
+ * launch's offline settlement lost the hidden hours. Saves before the game starts (the title screen) keep the loaded save's time. */
+function notePageExit() {
+    if (!(document.hidden && backgroundCombatRuntime.hiddenAtMs)) recordBackgroundCombatEntry(Date.now());
 }
 
 function syncGameplayTimers() {

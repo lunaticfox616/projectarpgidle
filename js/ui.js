@@ -433,8 +433,10 @@ function isOfflineCombatEligible(state) {
     return state.currentZoneId !== undefined && state.currentZoneId !== null;
 }
 
+/** The page went away (hidden, closing, the app paused): play stops here, and the return or the next launch settles from this time.
+ * Nothing plays before the game starts (the title screen); the launch's offline settlement covers that time. */
 function recordBackgroundCombatEntry(nowMs) {
-    if (backgroundCombatRuntime.processing || backgroundCombatRuntime.failed) return;
+    if (backgroundCombatRuntime.processing || backgroundCombatRuntime.failed || !gameplayStarted) return;
     let now = Number.isFinite(nowMs) ? nowMs : Date.now();
     backgroundCombatRuntime.hiddenAtMs = now;
     backgroundCombatRuntime.signature = getBackgroundCombatSignature(game);
@@ -446,9 +448,11 @@ function recordOfflineCombatEntry(nowMs) {
     let now = Number.isFinite(nowMs) ? nowMs : Date.now();
     if (backgroundCombatRuntime.offlineConsumed || savedAt <= 0 || now <= savedAt) return false;
     backgroundCombatRuntime.offlineConsumed = true;
-    backgroundCombatRuntime.hiddenAtMs = savedAt;
     backgroundCombatRuntime.signature = getBackgroundCombatSignature(game);
     backgroundCombatRuntime.snapshot = isOfflineCombatEligible(game) ? cloneBackgroundCombatState(game) : null;
+    // Nothing to settle keeps no away span: a stale one would be stamped by a save made while the app is paused (js/save.js
+    // getSaveModifiedAt).
+    backgroundCombatRuntime.hiddenAtMs = backgroundCombatRuntime.snapshot ? savedAt : 0;
     return !!backgroundCombatRuntime.snapshot;
 }
 
@@ -790,20 +794,29 @@ function commitBackgroundCombat(result, expectedGame) {
     delete candidate.offlineHuntMode;
     game = candidate;
     backgroundCombatRuntime.processing = false;
+    // The settled state is stamped now: a save made while hidden keeps hiddenAtMs (js/save.js getSaveModifiedAt), which would settle
+    // the same time again at the next launch.
+    const awaySince = backgroundCombatRuntime.hiddenAtMs;
+    backgroundCombatRuntime.hiddenAtMs = 0;
     try {
         if (!persistLocalSave({allowRecoveryWrite: getLocalSaveStatus().status === 'write-failed'})) throw new Error('방치 보상 저장에 실패했습니다. 이전 진행은 유지됩니다.');
         restoreCombatRuntime(result.runtime);
         backgroundCombatRuntime.snapshot = null;
         backgroundCombatRuntime.signature = '';
-        backgroundCombatRuntime.hiddenAtMs = 0;
     } catch (error) {
         game = expectedGame;
+        backgroundCombatRuntime.hiddenAtMs = awaySince;
         throw error;
     }
+    if (document.hidden || backgroundCombatRuntime.appInactive) recordBackgroundCombatEntry(Date.now());
 }
 
+const backgroundReturnWaits = () => backgroundCombatRuntime.processing || backgroundCombatRuntime.appInactive || document.hidden;
+
+/** Settles the time away from backgroundCombatRuntime.hiddenAtMs to nowMs. While the page is hidden or the app paused it waits: the
+ * span and snapshot stay, and the visible return (js/main.js visibilitychange, js/android-app-ui.js resume) settles the whole time. */
 async function startBackgroundCombatReturn(nowMs) {
-    if (backgroundCombatRuntime.processing || backgroundCombatRuntime.appInactive) return false;
+    if (backgroundReturnWaits()) return false;
     let snapshot = backgroundCombatRuntime.snapshot;
     let original = game;
     let startedAtMs = backgroundCombatRuntime.hiddenAtMs;
@@ -827,11 +840,14 @@ async function startBackgroundCombatReturn(nowMs) {
         updateBackgroundProgressOverlay(0, effectiveProgressMs, actualElapsedMs);
         await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0)));
         let result = await simulateBackgroundCombatChunked({
-            elapsedMs: effectiveProgressMs, snapshot, startNowMs: startedAtMs, project: true,
+            elapsedMs: effectiveProgressMs, snapshot, startNowMs: startedAtMs, project: true, abandonWhenPaused: true,
             isPaused: () => document.hidden || backgroundCombatRuntime.appInactive,
             getControl: () => ({tier: backgroundCombatRuntime.accelerationTier, finish: backgroundCombatRuntime.finishRequested}),
             onProgress: (done, total, skipped, phase) => updateBackgroundProgressOverlay(done, total, actualElapsedMs, skipped, phase)
         });
+        // Left again mid-settlement: hiddenAtMs and the snapshot stay, so the next return settles the whole time away (the time
+        // spent away during a settlement used to count nowhere).
+        if (!result) return false;
         if (!shouldApplyBackgroundCombatResult(backgroundCombatRuntime.signature)) throw new Error('정산 중 사냥 상태가 변경되었습니다.');
         let summary = getBackgroundRewardSummary(snapshot, result.game, result.metrics, result.overflowSalvaged);
         commitBackgroundCombat(result, original);

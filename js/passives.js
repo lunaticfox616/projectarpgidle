@@ -9528,23 +9528,10 @@ function addItemToInventory(item, options) {
         return false;
     }
     if (offlineStashEnabled) {
-        let route = routeOfflineItem(item, game, { protected: (typeof isChaseUniqueItem === 'function' && isChaseUniqueItem(item)) || item.locked || guaranteedKeep });
-        if (route.action === 'salvage') {
-            salvageItemObject(item, true, { noDivine: true });
-            game.backgroundOverflowSalvageCount = Math.max(0, Math.floor(Number(game.backgroundOverflowSalvageCount) || 0)) + 1;
-            return false;
-        }
-        if (route.action === 'stored') {
-            if (route.replacedItem) salvageItemObject(route.replacedItem, true, { noDivine: true });
-            recordEquipmentAcquisition(item);
-            checkUnlocks();
-            return true;
-        }
-        if (route.action === 'normal' && route.protected) {
-            ignoreAutoSalvage = true;
-            guaranteedKeep = true;
-            if (!canStoreEquipmentItems([item], game)) game.backgroundStopReason = 'protected-storage-full';
-        }
+        const routed = routeOfflineStashPickup(item, guaranteedKeep);
+        if (routed.stored) { recordEquipmentAcquisition(item); checkUnlocks(); }
+        if (routed.done) return !!routed.stored;
+        if (routed.protect) { ignoreAutoSalvage = true; guaranteedKeep = true; }
     }
     const result = storeEquipmentPickup(item, { guaranteedKeep, ignoreAutoSalvage });
     if (result.accepted) { recordEquipmentAcquisition(item); checkUnlocks(); }
@@ -9567,6 +9554,29 @@ function stowBoughtItem(item, place = null) {
 }
 
 /** Resolve capacity and auto-salvage at pickup time. */
+/** Offline with the stash bought (js/offline-progress.js routeOfflineItem): gear the bag can take goes to the bag, only the rest
+ * goes through the stash (it took every pickup first and salvaged past its few cells, so buying it left a near-empty bag). Protected
+ * gear (locked, unique, chase, a kept target) skips auto-salvage either way. @returns {{done?:boolean, stored?:boolean, protect?:boolean}}
+ * done: settled here (stored in the stash, or salvaged); protect: store it whatever auto-salvage says */
+const isOfflineKeptPickup = (item, guaranteedKeep) => !!((typeof isChaseUniqueItem === 'function' && isChaseUniqueItem(item)) || item.locked || guaranteedKeep);
+
+function routeOfflineStashPickup(item, guaranteedKeep) {
+    const isProtected = isOfflineKeptPickup(item, guaranteedKeep);
+    if (canStoreEquipmentItems([item], game)) return { protect: isProtected || isOfflineProtectedItem(item) };
+    const route = routeOfflineItem(item, game, { protected: isProtected });
+    if (route.action === 'salvage') {
+        salvageItemObject(item, true, { noDivine: true });
+        game.backgroundOverflowSalvageCount = Math.max(0, Math.floor(Number(game.backgroundOverflowSalvageCount) || 0)) + 1;
+        return { done: true, stored: false };
+    }
+    if (route.action === 'stored') {
+        if (route.replacedItem) salvageItemObject(route.replacedItem, true, { noDivine: true });
+        return { done: true, stored: true };
+    }
+    if (route.protected) game.backgroundStopReason = 'protected-storage-full';
+    return { protect: !!route.protected };
+}
+
 function storeEquipmentPickup(item, { guaranteedKeep, ignoreAutoSalvage }) {
     const fits = canStoreEquipmentItems([item], game);
     if (!fits && !guaranteedKeep) return salvageEquipmentPickup(item, true);

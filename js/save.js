@@ -224,11 +224,22 @@ function noteSaveClock(meta) {
     meta.maxSeenAt = Math.max(Number(meta.maxSeenAt) || 0, Date.now());
 }
 
+/** A save's modified time: now, or while a hidden page or a paused app holds the game still (js/main.js runForegroundCombat) the time
+ * play stopped (backgroundCombatRuntime.hiddenAtMs), so a tab closed while hidden (or dropped by the browser) settles its hidden
+ * hours at the next launch instead of losing them. */
+function getSaveModifiedAt() {
+    const now = Date.now();
+    if (typeof backgroundCombatRuntime === 'undefined' || typeof document === 'undefined') return now;
+    const still = document.hidden || backgroundCombatRuntime.appInactive;
+    const at = Math.floor(Number(backgroundCombatRuntime.hiddenAtMs) || 0);
+    return still && at > 0 ? Math.min(at, now) : now;
+}
+
 function persistLocalSave(options = {}) {
     if (!canPersistLocalSave(options)) return false;
     ensureSaveMeta();
     noteSaveClock(game.saveMeta);
-    if (options.touchModifiedAt !== false) game.saveMeta.lastModifiedAt = Date.now();
+    if (options.touchModifiedAt !== false) game.saveMeta.lastModifiedAt = getSaveModifiedAt();
     try {
         localStorage.setItem(LOCAL_SAVE_KEY, serializeSaveState(game));
     } catch (error) {
