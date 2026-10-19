@@ -5352,10 +5352,10 @@ function shopDeathHint() {
     const shops = Object.keys(NPC_SHOPS).filter(id => npcShop.ready(id) > 0).length;
     return shops ? { text: `지금 살 수 있는 물건이 있는 NPC 상점 ${shops}곳`, action: { label: 'NPC', onclick: "closeDeathOverlay();switchTab('tab-npcs')" } } : null;
 }
-/** 비교할 만한 룬: 지금 룬이 아닌 공격 룬(위습 소환 말고)으로, 지금 무기로 쓸 수 있는 룬. */
+/** 비교할 만한 룬: 지금 룬이 아닌 공격 룬(위습 소환과 이동 룬 말고: 이동 룬은 이동 칸에 낀다)으로, 지금 무기로 쓸 수 있는 룬. */
 function isStrongerRuneCandidate(name, keep) {
     const skill = SKILL_DB[name];
-    return name !== keep && !!skill?.isGem && !(skill.tags || []).includes('summon') && canUseSkillWithCurrentEquipment(name);
+    return name !== keep && !!skill?.isGem && !(skill.tags || []).includes('summon') && !isMobilityRuneName(name) && canUseSkillWithCurrentEquipment(name);
 }
 /** 가진 공격 룬 가운데 DPS가 지금 룬의 1.1배를 넘는 룬(얻을 때의 "더 강한 공격 룬" 알림과 같은 기준). 알림은 4초면 지나가, 얼음 창
  * 비술사는 주문 룬을 얻고도 모르고 지나치기 쉬웠다(2026-10-17). */

@@ -106,11 +106,12 @@ const shopView = (() => {
     }
 
     /** An attack rune against the hero now: why the weapon in hand cannot use it (as its loot line says, js/currency-acquisition-ui.js),
-     * or what wearing it brings. Wisp runes summon instead of striking and show no line. */
+     * or what wearing it brings. Wisp runes summon instead of striking, and mobility runes go to their own slot (not the main attack's):
+     * neither shows a line. */
     function runeFitHtml(name) {
         const note = getSkillRuneWeaponNote(name);
         if (note) return `<p class="shop-note">지금 무기로 쓸 수 없음: ${escapeHTML(note)}</p>`;
-        return (SKILL_DB[name]?.tags || []).includes('summon') ? '' : wearPreviewHtml(copy => { copy.activeSkill = name; });
+        return (SKILL_DB[name]?.tags || []).includes('summon') || isMobilityRuneName(name) ? '' : wearPreviewHtml(copy => { copy.activeSkill = name; });
     }
 
     /** A support rune the hero could wear at its shelf tier now: what wearing it brings (buying only grants it). */

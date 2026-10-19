@@ -35,10 +35,11 @@
         }
         if(unlocked.gem)addLog('☁️ 스킬룬 탭의 성장과 각인이 열렸습니다!','loot-unique');
     }
-    /** 새 공격 룬이 지금 주 공격 룬보다 보이는 DPS가 10% 넘게 높으면 알림창에 알린다. 주 공격 칸을 잠시 그 룬으로 바꿔 한 번 잰다. */
+    /** 새 공격 룬이 지금 주 공격 룬보다 보이는 DPS가 10% 넘게 높으면 알림창에 알린다. 주 공격 칸을 잠시 그 룬으로 바꿔 한 번 잰다.
+     * 이동 룬은 이동 칸에 끼므로 재지 않는다. */
     const RUNE_UPGRADE_NOTICE_GAIN=1.1;
     function noticeRuneUpgrade(name) {
-        if(game.activeSkill===name || !(game.skills||[]).includes(name) || !canUseSkillWithCurrentEquipment(name))return;
+        if(game.activeSkill===name || isMobilityRuneName(name) || !(game.skills||[]).includes(name) || !canUseSkillWithCurrentEquipment(name))return;
         const keep=game.activeSkill,before=getPlayerStats(false).dps||0;
         let after=0;
         game.activeSkill=name;
