@@ -8996,6 +8996,7 @@
     "dependency:finishBloomTrial->handleTalentBloomClear",
     "dependency:finishBloomTrial->startEncounterRun",
     "dependency:finishBossSpawn->startHiddenJournalBossRun",
+    "dependency:finishChallenge->addBattleFx",
     "dependency:finishChallenge->challengeRewards",
     "dependency:finishChallenge->keepCurrencyDrop",
     "dependency:finishChallenge->note",
