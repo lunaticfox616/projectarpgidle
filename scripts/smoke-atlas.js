@@ -138,10 +138,6 @@ assert.equal(opened.exploration.seed, 'atlas:' + first.uid, 'the layout is the m
 assert.match(run(`atlasRun.open(${copy('game.atlas.stash[0].uid')})`), /열린 지도를 먼저/, 'one map at a time');
 
 while (tick < 4000 && run('!!game.atlas.run')) advance();
-// The boss's drops lay on the floor, so the cleared map stays through the settlement pause, its zone still there, before the return.
-assert.deepEqual(copy('{pause:!!game.actExploration?.departure,zone:game.currentZoneId,type:getZone(game.currentZoneId)?.type}'),
-    { pause: true, zone: 'atlas_map', type: 'atlasMap' }, 'a map whose end left floor items stays through the settlement pause');
-while (tick < 4000 && run('!!game.actExploration?.departure')) advance();
 const cleared = copy('{result:game.atlas.lastResult,completed:game.atlas.completed,zone:game.currentZoneId,stash:game.atlas.stash.length}');
 assert.equal(cleared.result.outcome, 'complete', 'the node boss falls in the real combat loop');
 assert.ok(cleared.result.first);
@@ -245,7 +241,6 @@ for (const action of ['stop', 'nextZone']) {
     assert.equal(boardRun('atlasRun.openBoard()'),'');
     let ticks=0;
     while(ticks<6000 && boardRun('!!game.atlas.run'))boardRun(`coreLoop(${1800000000000+(++ticks)*100})`);
-    while(ticks<6000 && boardRun('!!game.actExploration?.departure'))boardRun(`coreLoop(${1800000000000+(++ticks)*100})`); // floor-loot pause
     assert.equal(boardRun('game.atlas.run'),null);
     assert.equal(boardRun('game.currentZoneId'),29);
     assert.equal(boardRun('game.atlas.board.gear'),1);

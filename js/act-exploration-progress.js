@@ -119,12 +119,6 @@ const actExplorationProgress = (() => {
         if(memo.stalls>=COMMAND_GIVE_UP_STEPS){memo.stalls=0;collectExplorationFloorLoot(ground.takeAt(run,pile));}
         return true;
     }
-    /** Whether the finished map's end left items on its floor: some still lie there, or auto-move walked to pick them up. Reads the
-     * run itself (like deferDeparture): the finish has already pointed the zone at the exit. */
-    function leftLoot(state) {
-        const run=state.actExploration;
-        return !!run?.completionApplied && (ground.piles(run).length>0 || lootWalks.has(run));
-    }
     /** A cleared map waits for auto-move to pick up its floor items, at most LOOT_WALK_MAX_MS of combat time. */
     function collectingLoot(run) {
         if(run.status!=='cleared' || run.completionApplied || game.isBackgroundCalculation || runMode(run)==='manual'
@@ -249,6 +243,6 @@ const actExplorationProgress = (() => {
         const run=actExplorationState.current(state);
         if(run && !run.completionApplied){actExplorationMotion.cancel(run);run.status='failed';}
     }
-    return {advance,tick,moving,takeWalkedMs,collectPile,canFinish,beginCompletion,leftLoot,shouldTrackStall,holdPosition,runMode,startMode,waiting,deferDeparture,stopAfterCompletion,depart,reconcileDeparture,defeat};
+    return {advance,tick,moving,takeWalkedMs,collectPile,canFinish,beginCompletion,shouldTrackStall,holdPosition,runMode,startMode,waiting,deferDeparture,stopAfterCompletion,depart,reconcileDeparture,defeat};
 })();
 safeExposeGlobals({actExplorationProgress});

@@ -24,8 +24,7 @@ const MODULE_STATE = {
     'combatEquipmentStats.tickResults': 'equipment evaluations shared within one tick',
     'stumpBox.memo': 'memo keyed by the stump board and its signature',
     'talismanEffects.memo': 'memo keyed by the stump board and its signature',
-    'skillEffectExpansion.testLevel': 'test panel level; setTestLevel drops kept stat calculations',
-    'atlas.linger': 'the finished map keeps its own zone through the settlement pause; lingerZone drops kept stat calculations'
+    'skillEffectExpansion.testLevel': 'test panel level; setTestLevel drops kept stat calculations'
 };
 // 매 호출 끝(finishPlayerStats), 틱 자체, 틱 없이 부르는 다른 호출자를 위한 실시간 읽기, 공개 경로.
 const STOP = new Set(['finishPlayerStats', 'estimateSummonDps', 'appendPlayerDpsBreakdowns', 'playerStatTick.create',
