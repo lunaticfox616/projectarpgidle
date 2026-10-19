@@ -187,8 +187,32 @@ const bossAttackView = (() => {
             // wide boss the axis leant off the ray's row.
             const origin = hasGridCell(area.source) ? projection.cellToScreen(area.source.gx, area.source.gy) : originOf(look.source, projection);
             drawRays(ctx, footprint, { ...look, origin });
-        } else if (!onStage()) drawReticle(ctx, footprint, look);
+        } else if (onStage()) {
+            clipSkillFootprintTerrain(ctx, footprint);
+            drawAreaCharge(ctx, footprint, look);
+        } else drawReticle(ctx, footprint, look);
         ctx.restore();
+    }
+    /** Areas around a point (blasts, crosses) on the stage charge the same way as lines and fans: a fill and a bright front spread from
+     * the centre with the warning time, full means it lands (2026-10-19: they only darkened and blinked, so their timing did not read). */
+    function drawAreaCharge(ctx, footprint, look) {
+        const centre = footprint.centerPoint, unit = footprint.tileW, squash = footprint.tileH / footprint.tileW, shown = shownPoints(footprint);
+        if (!shown.length) return;
+        const reach = Math.max(...shown.map(p => Math.hypot((p.x - centre.x) / unit, (p.y - centre.y) / squash / unit))) + 0.62;
+        const radius = reach * look.share * unit;
+        if (radius < 1) return;
+        clipSkillFootprint(ctx, footprint);
+        ctx.beginPath();
+        ctx.ellipse(centre.x, centre.y, radius, radius * squash, 0, 0, Math.PI * 2);
+        ctx.globalAlpha = (0.18 + 0.2 * look.share) * look.blink;
+        ctx.fillStyle = '#ff8a5c';
+        ctx.fill();
+        for (const [width, colour, alpha] of [[0.14, '#ff6a40', 0.35], [0.05, '#fff1e2', 0.6 + 0.4 * look.share]]) {
+            ctx.globalAlpha = Math.min(1, alpha) * look.blink;
+            ctx.strokeStyle = colour;
+            ctx.lineWidth = Math.max(2, unit * width);
+            ctx.stroke();
+        }
     }
     /** A released area gets the closing ring; a move's stages show their own warnings, shots and bursts (js/canvas-boss-moves.js). */
     const closesIn = attack => attack.delivery === 'patternArea' && !attack.bossPattern.move;
