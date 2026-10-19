@@ -64,7 +64,7 @@ const colonyWardsUi = (() => {
                 <div class="colony-ward-currency"><span>편린 <b>${shards}</b></span><span>흔적 <b>${traces}</b></span></div></header>
             <section class="colony-ward-section"><h4>적용 효과 <span>액막이 칸 ${colonyWards.slotCount()}/${R.maxSlots}</span></h4>
                 <ul class="colony-ward-total">${totalsHtml()}</ul></section>
-            <p class="colony-ward-note">군락지에서 5웨이브마다 하나, 다른 웨이브에서도 자주 나옵니다. 다른 지도에서는 아주 드물게 나옵니다.</p>
+            <p class="colony-ward-note">군락지에서 5웨이브마다 하나, 다른 웨이브에서도 자주 나옵니다. 다른 지도에서는 아주 드물게 나옵니다. 아주 드물게 고유 액막이가 나옵니다.</p>
             <div class="colony-ward-actions"><button type="button" onclick="colonyWardsUi.craft()" ${shards < R.craftCost ? 'disabled' : ''}>액막이 만들기, 편린 ${R.craftCost}</button>
                 <button type="button" onclick="colonyWardsUi.openEquipment()">장비창 열기</button></div></section>`;
     }
