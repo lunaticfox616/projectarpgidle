@@ -20,12 +20,14 @@
  * 굴림은 다른 난수를 밀지 않는다: 무리의 굴림은 무리 열쇠와 첫 몬스터 번호로, 방의 굴림은 탐험마다 정한 값(run.incidentSeed)과 방
  * 번호로 정하고, 굴린 방은 탐험 기록에 남겨(run.incidentRooms) 다시 불러와도 다시 굴리지 않는다. 알림은 'incident' 이벤트로 보내고 알림
  * 창이 띄운다(js/battle-ground-loot-ui.js). 보상은 아틀라스 지도의 결과에도 적힌다(combatLootReceipts.capture).
- * 방치 정산과 1루프의 액트 1에서는 일어나지 않는다.
+ * 사냥터(액트, 혼돈 구역, 아틀라스 지도)에서만 일어나고, 방치 정산과 1루프의 액트 1에서는 일어나지 않는다(HUNTING_ZONES).
  */
 const combatIncidents = (() => {
     const rule = () => ACT_EXPLORATION_INCIDENTS;
     const draw = (tag, key) => (Math.abs(hashSeed(`${tag}:${key}`)) % 100000) / 100000;
-    const quiet = zone => !!game.isBackgroundCalculation || !zone || (zone.type === 'act' && zone.id === 0 && (game.season || 1) === 1);
+    // 사냥터에서만: 나무꾼 전투와 잔상(숨결이 30초 측정 기록을 부풀렸다), 보스 투기장, 시련, 군락지, 대균열, 벌집, 경계 너머, 층 콘텐츠에는 끼지 않는다.
+    const HUNTING_ZONES = new Set(['act', 'abyss', 'atlasMap']);
+    const quiet = zone => !!game.isBackgroundCalculation || !zone || !HUNTING_ZONES.has(zone.type) || (zone.type === 'act' && zone.id === 0 && (game.season || 1) === 1);
     const tell = (text, tone, chase = false) => dispatchRuntimeEvent('incident', { text, tone, chase });
     const receipt = work => combatLootReceipts.capture(game, work);
     /** 전적 화면의 사건 기록(js/records.js). 처음 겪은 사건은 알림 하나를 더 띄운다: 숨은 사건은 찾았다고(체이싱 티어 빛깔로). */
@@ -509,7 +511,7 @@ const combatIncidents = (() => {
     function noteDamage(enemy, dealt) {
         if (!(dealt >= 111) || game.isBackgroundCalculation) return;
         const hit = luckyHit(dealt), now = getCombatTime();
-        if (!hit || now - luckyAt < rule().lucky.gapMs) return;
+        if (!hit || now - luckyAt < rule().lucky.gapMs || quiet(getZone(game.currentZoneId))) return;
         luckyAt = now;
         const rows = rule().lucky.rewards, [key, count] = rows[Math.min(rows.length - 1, hit.length - 3)];
         receipt(() => keepCurrencyDrop(enemy, key, count * hit.mul));
