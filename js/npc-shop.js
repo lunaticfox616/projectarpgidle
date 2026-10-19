@@ -19,7 +19,8 @@ const npcShop = (() => {
     // 황금률 as at the black market (js/items.js createBlackMarketUniqueOffer). tierStep: one more per this many item tiers.
     const PRICE = Object.freeze({ normal: 1, magic: 2, rare: 1, tierStep: 4, rareTierStep: 6, attackGem: 3, supportGem: 1 });
 
-    /** One meeting with npc ({ id, tone }) in zoneId: counted (kept across loops), and the stock rolled anew. */
+    /** One meeting with npc ({ id, tone }) in zoneId: counted (kept across loops), and the stock rolled anew ('npc-shop-stocked'
+     * tells an open shop window). */
     function meetShopNpc(npc, zoneId) {
         const shop = NPC_SHOPS[npc.id];
         if (!shop) return null;
@@ -28,7 +29,10 @@ const npcShop = (() => {
         game.unlocks.npcs = true;
         // Saves from before the count met Haken in loop 1 already: only loop 1 has a first meeting.
         const first = before.count === 0 && (game.season || 1) === 1;
-        if (!(shop.firstMeetingClosed && first)) game.npcShops[npc.id] = rollShopStock(npc.id, zoneId);
+        if (!(shop.firstMeetingClosed && first)) {
+            game.npcShops[npc.id] = rollShopStock(npc.id, zoneId);
+            dispatchRuntimeEvent('npc-shop-stocked', { id: npc.id });
+        }
         return game.npcMet[npc.id];
     }
 
@@ -129,6 +133,7 @@ const npcShop = (() => {
     }
 
     const currencyName = key => (ORB_DB[key] ? ORB_DB[key].name : key);
+    const SHELF_CHANGED = '진열이 바뀌었습니다. 새 물건을 다시 확인하세요.';
 
     /** Whether offer index of the NPC's stock can be bought now: { ok, reason }. place: a bag cell { column, row } (row over all pages). */
     function checkShopWare(id, index, place) {
@@ -151,9 +156,17 @@ const npcShop = (() => {
         return next && next.tier === gem.tier ? { ok: true } : { ok: false, reason: '이미 가진 룬입니다.' };
     }
 
+    /** Why seen (the ware the window showed at index) cannot be bought there now, or ''. */
+    function shelfChangedReason(id, index, seen) {
+        return seen && shopStock(id)?.offers[index] !== seen ? SHELF_CHANGED : '';
+    }
+
     /** Buys offer index: pays, puts the gem in the collection or the item in the bag (at place when given) and takes it off the
-     * shelf. resonanceCap: the support gems' resonance cap (js/ui.js getEffectiveResonanceCap), as a gem drop uses it. */
-    function sellShopWare(id, index, { place = null, resonanceCap = 0 } = {}) {
+     * shelf. resonanceCap: the support gems' resonance cap (js/ui.js getEffectiveResonanceCap), as a gem drop uses it. seen: the
+     * ware the player saw; when a new meeting laid out a new shelf meanwhile, nothing is bought. */
+    function sellShopWare(id, index, { place = null, resonanceCap = 0, seen } = {}) {
+        const moved = shelfChangedReason(id, index, seen);
+        if (moved) return { ok: false, reason: moved };
         const result = checkShopWare(id, index, place);
         if (!result.ok) return result;
         const shop = shopStock(id), offer = shop.offers[index];
@@ -184,6 +197,7 @@ const npcShop = (() => {
         return stock ? stock.offers.filter((ware, index) => checkShopWare(id, index, null).ok).sort((a, b) => a.price - b.price).filter(fits).length : 0;
     }
 
-    return Object.freeze({ grid: GRID, meet: meetShopNpc, stock: shopStock, check: checkShopWare, buy: sellShopWare, ready: readyShopWares, currencyName });
+    return Object.freeze({ grid: GRID, meet: meetShopNpc, stock: shopStock, check: checkShopWare, buy: sellShopWare, ready: readyShopWares, currencyName,
+        shelfChanged: SHELF_CHANGED });
 })();
 safeExposeGlobals({ NPC_SHOPS, npcShop });

@@ -9177,24 +9177,25 @@ function pickRandomMods(mods, count, room, weigh) {
     return picks;
 }
 
-function rollUniqueStatValue(stat) {
+/** The values a unique's stat line (data min~max, or base) can roll: tenths for tenth stats, otherwise whole numbers rounded down
+ * (data 30.7~34.9 rolls 30~34). Cards that show a unique before it exists (black market, unique codex) show this range.
+ * @returns {{min:number, max:number}} */
+function getUniqueStatRollRange(stat) {
     let min = stat.min !== undefined ? stat.min : stat.base;
     let max = stat.max !== undefined ? stat.max : stat.base;
     if (max < min) max = min;
-    let val;
+    if (isTenthStat(stat.id)) return { min: Math.round(min * 10) / 10, max: Math.round(max * 10) / 10 };
+    return { min: Math.floor(min), max: Math.floor(max) };
+}
+
+function rollUniqueStatValue(stat) {
+    let { min, max } = getUniqueStatRollRange(stat);
     if (isTenthStat(stat.id)) {
         let minStep = Math.round(min * 10);
         let maxStep = Math.round(max * 10);
-        let roll = minStep + Math.floor(Math.random() * (maxStep - minStep + 1));
-        val = Math.round(roll) / 10;
-        min = minStep / 10;
-        max = maxStep / 10;
-    } else {
-        min = Math.floor(min);
-        max = Math.floor(max);
-        val = min + Math.floor(Math.random() * (max - min + 1));
+        return { min, max, val: (minStep + Math.floor(Math.random() * (maxStep - minStep + 1))) / 10 };
     }
-    return { min: min, max: max, val: val };
+    return { min, max, val: min + Math.floor(Math.random() * (max - min + 1)) };
 }
 
 

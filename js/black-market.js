@@ -296,8 +296,7 @@ function getBlackMarketUniqueTooltipOptionLines(offer, uniq) {
     let effectLine = effect ? `<div class="tooltip-line" style="color:#d7b8ff;">고유 효과: ${escapeHTML(effect)}</div>` : '';
     let statLines = (Array.isArray(sourceStats) ? sourceStats : []).map(stat => {
         let statId = stat.id;
-        let min = Number.isFinite(Number(stat.min)) ? Number(stat.min) : Number(stat.base || stat.val || 0);
-        let max = Number.isFinite(Number(stat.max)) ? Number(stat.max) : min;
+        let { min, max } = getUniqueStatRollRange(stat);
         let label = stat.statName || getStatName(statId);
         return `<div class="tooltip-line" style="color:#ffd98a;">고유 옵션, ${escapeHTML(label)} +${formatValue(statId, min)}~+${formatValue(statId, max)}</div>`;
     });
@@ -463,10 +462,10 @@ function checkBlackMarketRoom(offer, place) {
     return fit.ok ? { ok: true } : { ok: false, reason: fit.reason };
 }
 
-/** The question to ask before buying offer, or '': chase and target uniques and prices of 5 황금률 or more. */
+/** The question to ask before buying offer, or '': chase and target uniques and prices of 5 황금률 or more (a bulk trade too). */
 function getBlackMarketConfirmText(offer) {
-    if (!(offer.chase || offer.featured || (offer.priceKey === 'goldenRule' && Number(offer.price) >= 5))) return '';
     const price = getBlackMarketOfferPrice(offer);
+    if (!(offer.chase || offer.featured || (price.key === 'goldenRule' && Number(price.amount) >= 5))) return '';
     return `[${offer.name || '암거래 상품'}]${pickParticle(offer.name || '암거래 상품', '을', '를')} 삽니다.\n${ORB_DB[price.key].name} ${price.amount}개를 쓰며 되돌릴 수 없습니다.`;
 }
 
