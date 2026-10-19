@@ -2323,7 +2323,6 @@ function sortSkillAutoRules() {
 function setEquipmentInventoryView(key, value) {
     game.settings = game.settings || {};
     if (key === 'slot') game.settings.equipmentSlotFilter = String(value || 'all');
-    if (key === 'sort') game.settings.equipmentSort = ['recent', 'rarity', 'tier', 'slot'].includes(value) ? value : 'recent';
     updateStaticUI();
 }
 
@@ -2358,16 +2357,11 @@ safeExposeGlobals({ setEquipmentMobilePane });
 function getSortedEquipmentInventoryRows(query) {
     game.settings = game.settings || {};
     let slotValue = game.settings.equipmentSlotFilter || 'all';
-    let sortValue = game.settings.equipmentSort || 'recent';
-    if (!['recent', 'rarity', 'tier', 'slot'].includes(sortValue)) sortValue = 'recent';
     let slots = Array.from(new Set(game.inventory.map(item => item && item.slot).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'ko'));
     if (!slots.includes(slotValue)) slotValue = 'all';
     let slotSelect = document.getElementById('ui-equipment-slot-filter');
-    let sortSelect = document.getElementById('ui-equipment-sort');
     syncEquipmentSlotFilterOptions(slotSelect, slots);
     if (slotSelect) slotSelect.value = slotValue;
-    if (sortSelect) sortSelect.value = sortValue;
-    let ranks = { unique: 4, rare: 3, magic: 2, normal: 1 };
     let visualFilterActive = [slotValue !== 'all', String(query || '').trim().length > 0,
         game.inventory.some(item => item && !isItemRarityVisible(item))].some(Boolean);
     let rows = game.inventory.map((item, idx) => ({ item, idx })).map(row => {
@@ -2375,12 +2369,7 @@ function getSortedEquipmentInventoryRows(query) {
         let searchMatched = matchSearchQuery(getEquipmentSearchText(item), query);
         return { ...row, filterActive: visualFilterActive,
             filterMatched: ['all', item.slot].includes(slotValue) && isItemRarityVisible(item) && searchMatched };
-    }).sort((a, b) => {
-        if (sortValue === 'rarity') return (ranks[b.item.rarity] || 0) - (ranks[a.item.rarity] || 0) || b.idx - a.idx;
-        if (sortValue === 'tier') return Number(b.item.hiddenTier || b.item.itemTier || 0) - Number(a.item.hiddenTier || a.item.itemTier || 0) || b.idx - a.idx;
-        if (sortValue === 'slot') return String(a.item.slot || '').localeCompare(String(b.item.slot || ''), 'ko') || b.idx - a.idx;
-        return b.idx - a.idx;
-    });
+    }).sort((a, b) => b.idx - a.idx);
     return window.equipmentTriage ? window.equipmentTriage.filterRows(rows) : rows;
 }
 
@@ -8910,7 +8899,7 @@ function toggleAutoSalvageRarity(rarity) {
     if (!getInventoryRarityFilterKeys().includes(rarity)) return;
     let f = getAutoSalvageRarities();
     f[rarity] = !f[rarity];
-    refreshAutoSalvageConfigOverlay();
+    refreshAutoSalvagePanel();
     if (typeof syncSalvageControlsFromSettings === 'function') syncSalvageControlsFromSettings();
     if (typeof queueImportantSave === 'function') queueImportantSave(400);
 }
@@ -8922,33 +8911,10 @@ function renderAutoSalvageRarityChips() {
         return `<button type="button" class="rarity-filter-chip rarity-${key}${active ? ' active' : ''}" aria-pressed="${active}" onclick="toggleAutoSalvageRarity('${key}')">${labels[key]}</button>`;
     }).join('');
 }
-function renderAutoSalvageConfigPanel() {
-    return equipmentLootUi.renderPanel(renderAutoSalvageRarityChips());
-}
-
-function refreshAutoSalvageConfigOverlay() {
-    let overlay = document.getElementById('auto-salvage-config-overlay');
-    if (!overlay) return;
-    let chipHost = overlay.querySelector('#auto-salvage-rarity-chips');
-    if (chipHost) chipHost.innerHTML = renderAutoSalvageRarityChips();
-    let enabled = !!game.settings.autoSalvageEnabled;
-    let toggleBtn = overlay.querySelector('#auto-salvage-toggle-btn');
-    if (toggleBtn) toggleBtn.innerText = enabled ? '자동해체 끄기' : '자동해체 켜기';
-    let statusEl = overlay.querySelector('#auto-salvage-status');
-    if (statusEl) { statusEl.innerText = `현재: ${enabled ? '켜짐' : '꺼짐'}`; statusEl.style.color = enabled ? '#2ecc71' : 'var(--copy-bright)'; }
-}
-function closeAutoSalvageConfigOverlay() {
-    let overlay = document.getElementById('auto-salvage-config-overlay');
-    if (overlay) overlay.remove();
-}
-function openAutoSalvageConfigOverlay() {
-    closeAutoSalvageConfigOverlay();
-    let overlay = document.createElement('div');
-    overlay.id = 'auto-salvage-config-overlay';
-    overlay.className = 'craft-picker-overlay';
-    overlay.onclick = event => { if (event.target === overlay) closeAutoSalvageConfigOverlay(); };
-    overlay.innerHTML = renderAutoSalvageConfigPanel();
-    document.body.appendChild(overlay);
+/** 장비창 해체 단추 창의 자동해체(js/equipment-loot-ui.js renderAutoSalvage)를 다시 그린다. 창이 닫혀 있으면 할 일이 없다. */
+function refreshAutoSalvagePanel() {
+    let host = document.getElementById('ui-equipment-auto-salvage');
+    if (host) host.innerHTML = equipmentLootUi.renderAutoSalvage(renderAutoSalvageRarityChips());
 }
 
 function resetSearchFilter(key) { updateSearchFilter(key, ''); }
@@ -9360,9 +9326,7 @@ function exposeUiRenderHelpersOnce() {
         toggleInventoryRarityFilter,
         toggleAllInventoryRarityFilter,
         renderRarityFilterChips,
-        openAutoSalvageConfigOverlay,
-        closeAutoSalvageConfigOverlay,
-        refreshAutoSalvageConfigOverlay,
+        refreshAutoSalvagePanel,
         toggleAutoSalvageRarity,
         bulkSalvageEquipBySearch,
         openCraftItemPickerOverlay,
@@ -11134,14 +11098,6 @@ async function tryRestoreSupabaseOAuthSession() {
 
 /** "45%를"이 "45%" / "를 줍니다."로 갈리지 않게: %와 뒤 한글 사이는 유니코드 줄바꿈 규칙상 끊어도 되는 자리라 keep-all로도
  * 막히지 않는다(검토 5차) — 사이에 줄바꿈 금지 문자(U+2060)를 넣는다. 화면에 보이는 글에만 쓴다(속성 · 비교 키에는 쓰지 않는다). */
-/** 휴대폰 장비창 가방 머리의 '필터' 단추(index.html .eqw-filter-toggle): 등급, 칸, 정렬 줄을 펼친다.
- * 펼침 상태는 인벤토리 판의 class(filters-open)가 기준이다(css/equipment-window.css). */
-function toggleInventoryFilters(button) {
-    const open = button.closest('.equipment-inventory-panel').classList.toggle('filters-open');
-    button.setAttribute('aria-expanded', String(open));
-}
-safeExposeGlobals({ toggleInventoryFilters });
-
 function keepKoreanUnitParticles(text) {
     return String(text).replace(/%(?=[가-힣])/g, '%\u2060');
 }

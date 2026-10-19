@@ -47,7 +47,11 @@ function refreshSalvageRecoveryShortcut() {
     let button = document.getElementById('btn-salvage-recovery');
     if (!button) return;
     let count = salvageRecoveryRuntime.getEntries().length;
-    button.innerHTML = count > 0 ? `해체 복구 <strong>${count}</strong>` : '해체 복구';
+    // 장비창 도구 줄의 복구 단추(아이콘과 이름은 그대로): 되살릴 장비 수만 배지로 단다.
+    let badge = button.querySelector('small');
+    if (count > 0 && !badge) badge = button.appendChild(document.createElement('small'));
+    if (badge) badge.textContent = String(count);
+    if (count <= 0 && badge) badge.remove();
     button.classList.toggle('has-items', count > 0);
     button.setAttribute('aria-label', count > 0 ? `해체 복구함, 복구 가능 장비 ${count}개` : '해체 복구함, 비어 있음');
 }

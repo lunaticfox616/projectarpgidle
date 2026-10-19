@@ -24,7 +24,7 @@ const battleGroundLoot = (() => {
         if (rank === 2) return 'major';
         return (rank === 1 && fxOn('beams', 'good')) || getRarityRank(rarity) >= 2 ? 'rare' : 'plain';
     }
-    /** 발견 연출(장비 드랍 필터 창, game.settings.lootFx): beams and notices the player switched off. */
+    /** 발견 연출(설정 > 아이템 필터, game.settings.lootFx): beams and notices the player switched off. */
     const fxOn = (group, key) => !(game.settings.lootFx && game.settings.lootFx[group] && game.settings.lootFx[group][key] === false);
     const notice = (kind, text, tone, duration) => { if (fxOn('notices', kind)) showGameToast(text, { tone, duration }); };
     const pileKind = (lead, currency) => (currency ? 'currency' : lead.leaf ? 'leaf' : 'equipment');

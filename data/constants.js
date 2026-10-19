@@ -70,7 +70,9 @@ const ACT_RETREAT_LEVELS = 2;
 /** 캠페인 패널티: 이 구역(액트 6, 혼돈 1)을 열 때마다 모든 원소 저항과 카오스 저항이 each만큼 낮아진다. */
 const CAMPAIGN_RESIST_PENALTY = Object.freeze({ zones: Object.freeze([5, 10]), each: 30 });
 const EQUIPMENT_INVENTORY_COLUMNS = 10;
-const EQUIPMENT_INVENTORY_ROWS_PER_PAGE = 12;
+/** 쪽마다 10x10(2026-10-19 사용자: "인벤토리 칸수 10x10으로 줄이고"). 전에는 12줄이었고, 그때 저장된 칸 위치는
+ * js/equipment-inventory-grid.js가 한 번 옮긴다(adoptPageRows). */
+const EQUIPMENT_INVENTORY_ROWS_PER_PAGE = 10;
 const EQUIPMENT_INVENTORY_MAX_PAGES = 12;
 const EQUIPMENT_INVENTORY_CELLS_PER_PAGE = EQUIPMENT_INVENTORY_COLUMNS * EQUIPMENT_INVENTORY_ROWS_PER_PAGE;
 const UNDERWORLD_DIFFICULTY_CONFIG = Object.freeze({

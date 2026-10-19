@@ -1,24 +1,4 @@
 @layer components {
-#btn-salvage-recovery {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-}
-
-#btn-salvage-recovery strong {
-    min-width: 18px;
-    padding: 1px 5px;
-    border-radius: 999px;
-    background: rgba(112, 214, 165, .16);
-    color: #9ff0c6;
-    text-align: center;
-}
-
-#btn-salvage-recovery.has-items {
-    border-color: rgba(105, 213, 159, .72);
-    box-shadow: inset 0 0 14px rgba(77, 193, 135, .08);
-}
-
 .salvage-recovery-panel { width: min(760px, 100%); }
 
 .salvage-recovery-grid {

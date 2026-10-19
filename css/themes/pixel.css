@@ -398,7 +398,6 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 :root body[data-ui-skin] :is(.records-stat-sub, .records-table, .records-offline > summary span, .records-fold > summary span, .records-fold-hint),
 :root body[data-ui-skin] :is(.records-offline, .records-fold) > summary::after,
 :root body[data-ui-skin] :is(.mastery-card small, .mastery-card-head em, .chronicle-chapter span, .chronicle-chapter small) { font-size: 12px; }
-:root body[data-ui-skin] #btn-auto-salvage::after { font-size: 11px; }
 :root body[data-ui-skin] #ui-passive-points { font-size: 20px; }
 :root body[data-ui-skin] :is(#tab-character, #tab-stump) h2,
 :root body[data-ui-skin] #tab-char h2 :is(span, .h2-right) { font-size: 16px; }

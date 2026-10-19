@@ -4,12 +4,17 @@
     const GRID_COLUMNS = EQUIPMENT_INVENTORY_COLUMNS;
     const GRID_ROWS_PER_PAGE = EQUIPMENT_INVENTORY_ROWS_PER_PAGE;
     const GRID_MAX_SAVED_ROW = 199;
+    /** Entry of game.equipmentInventoryPlacements (not an item key) holding the rows a page its spots were laid out with. Clients older
+     * than 2026-10-19 rebuild the map from item keys only and drop it, so a map without it was laid out with 12 rows a page. */
+    const ROWS_STAMP_KEY = '#rowsPerPage';
+    const LEGACY_ROWS_PER_PAGE = 12;
 
     /**
      * @typedef {{column:number, row:number}} EquipmentInventoryPlacement
      * @typedef {{id:number, instanceId?:string, slot:string, baseId?:string, baseName?:string, name?:string}} EquipmentInventoryItem
      * @typedef {{key:string, item:EquipmentInventoryItem, column:number, row:number, columns:number, rows:number}} EquipmentInventoryGridEntry
-     * @typedef {{columns:number, rows:number, entries:EquipmentInventoryGridEntry[], placements:Record<string, EquipmentInventoryPlacement>}} EquipmentInventoryGridLayout
+     * @typedef {{columns:number, rows:number, entries:EquipmentInventoryGridEntry[], placements:Record<string, EquipmentInventoryPlacement|number>}} EquipmentInventoryGridLayout
+     *   placements: item key -> spot, plus ROWS_STAMP_KEY -> rows a page
      */
 
     function getItemKey(item) {
@@ -100,6 +105,7 @@
             entries.push({ key, item, column: placement.column, row: placement.row, columns: footprint.columns, rows: footprint.rows });
         }
         let normalized = Object.fromEntries(entries.map(entry => [entry.key, { column: entry.column, row: entry.row }]));
+        normalized[ROWS_STAMP_KEY] = GRID_ROWS_PER_PAGE;
         return {
             columns: GRID_COLUMNS,
             rows: rowCount,
@@ -110,6 +116,49 @@
             placements: normalized,
             temporaryItems
         };
+    }
+
+    /** A placement saved at `saved` rows a page, on the same page and row now; null when that row is past the new page. */
+    function convertPageRow(value, saved) {
+        const placement = normalizePlacement(value);
+        if (!placement || placement.row % saved >= GRID_ROWS_PER_PAGE) return null;
+        return { column: placement.column, row: Math.floor(placement.row / saved) * GRID_ROWS_PER_PAGE + placement.row % saved };
+    }
+
+    /** Items that lost their spot take the first free cell from their own page on, then from the first page. @returns the items with no
+     * free cell left */
+    function placeDisplaced(displaced, occupied, rowCount, adopted) {
+        return displaced.filter(({ key, footprint, page }) => {
+            const placement = findFirstFitInRows(occupied, footprint, rowCount, page * GRID_ROWS_PER_PAGE, rowCount)
+                || findFirstFit(occupied, footprint, rowCount);
+            if (!placement) return true;
+            occupy(occupied, placement, footprint);
+            adopted[key] = placement;
+            return false;
+        }).map(entry => entry.item);
+    }
+
+    /** Placements laid out while a page had another row count (ROWS_STAMP_KEY; 12 before 2026-10-19) keep their page and row. Every
+     * kept spot is taken before the items that lost theirs look for a cell, so no kept item is pushed; items with no cell left go last
+     * and buildLayout sends them to the temporary storage. buildLayout stamps the new count, so this runs once per save.
+     * @returns {{items:EquipmentInventoryItem[], placements:Record<string, EquipmentInventoryPlacement>}} */
+    function adoptPageRows(state, placements) {
+        const stamped = Math.floor(Number(placements[ROWS_STAMP_KEY]));
+        const saved = stamped > 0 ? stamped : LEGACY_ROWS_PER_PAGE;
+        if (saved === GRID_ROWS_PER_PAGE) return { items: state.inventory, placements };
+        const rowCount = getUnlockedRowCount(state), occupied = new Set(), adopted = {}, displaced = [];
+        state.inventory.forEach(item => {
+            const key = getItemKey(item), footprint = getFootprint(item), placement = convertPageRow(placements[key], saved);
+            if (!canFit(occupied, placement, footprint, rowCount)) {
+                const old = normalizePlacement(placements[key]);
+                displaced.push({ item, key, footprint, page: old ? Math.floor(old.row / saved) : 0 });
+                return;
+            }
+            occupy(occupied, placement, footprint);
+            adopted[key] = placement;
+        });
+        const homeless = placeDisplaced(displaced, occupied, rowCount, adopted);
+        return { items: state.inventory.filter(item => !homeless.includes(item)).concat(homeless), placements: adopted };
     }
 
     function normalizeTemporaryItems(state, inventoryEntries, recoveredItems) {
@@ -134,7 +183,8 @@
         state.inventory.forEach(ensureItemKey);
         let placements = state.equipmentInventoryPlacements;
         if (!placements || typeof placements !== 'object' || Array.isArray(placements)) placements = {};
-        let layout = buildLayout(state.inventory, placements, state, 'collect');
+        let adopted = adoptPageRows(state, placements);
+        let layout = buildLayout(adopted.items, adopted.placements, state, 'collect');
         state.inventory = layout.entries.map(entry => entry.item);
         state.equipmentTemporaryStorage = normalizeTemporaryItems(state, layout.entries, layout.temporaryItems);
         state.equipmentInventoryPlacements = layout.placements;
@@ -261,24 +311,22 @@
         };
     }
 
-    function compareArrangeRows(left, right, mode) {
-        let rarity = { unique: 4, rare: 3, magic: 2, normal: 1 };
-        if (mode === 'rarity') return (rarity[right.item.rarity] || 0) - (rarity[left.item.rarity] || 0) || right.index - left.index;
-        if (mode === 'tier') return Number(right.item.hiddenTier || right.item.itemTier || 0) - Number(left.item.hiddenTier || left.item.itemTier || 0) || right.index - left.index;
-        if (mode === 'slot') return String(left.item.slot || '').localeCompare(String(right.item.slot || ''), 'ko') || right.index - left.index;
-        return right.index - left.index;
-    }
-
-    function autoArrange(targetGame, sortMode) {
+    /** 빈칸 정리: the newest item first, no gaps (the sort select is gone since 2026-10-19). A nearly full bag that does not fit in that
+     * order puts the biggest items first. @returns {'recent'|'size'|null} the order used; null when neither fits (the bag stays as it was) */
+    function autoArrange(targetGame) {
         let state = targetGame || game;
         ensureState(state);
-        let rows = (Array.isArray(state.inventory) ? state.inventory : [])
-            .map((item, index) => ({ item, index }))
-            .sort((left, right) => compareArrangeRows(left, right, sortMode));
-        let layout = buildLayout(rows.map(row => row.item), {}, state, 'reject');
-        if (!layout) throw new Error('인벤토리 자동 배치 한도를 초과했습니다.');
-        state.equipmentInventoryPlacements = layout.placements;
-        return ensureState(state);
+        let recent = (Array.isArray(state.inventory) ? state.inventory : []).slice().reverse();
+        let area = item => getFootprint(item).columns * getFootprint(item).rows;
+        let orders = { recent, size: recent.slice().sort((a, b) => area(b) - area(a) || getFootprint(b).rows - getFootprint(a).rows) };
+        for (let [order, items] of Object.entries(orders)) {
+            let layout = buildLayout(items, {}, state, 'reject');
+            if (!layout) continue;
+            state.equipmentInventoryPlacements = layout.placements;
+            ensureState(state);
+            return order;
+        }
+        return null;
     }
 
     const equipmentInventoryGridRuntime = Object.freeze({

@@ -1,5 +1,4 @@
 @layer components {
-.equipment-loot-panel { width: min(760px, 96vw); max-height: 88vh; display: flex; flex-direction: column; }
 .equipment-loot-body { overflow-y: auto; padding: 12px 16px; }
 .loot-filter-section { padding: 14px 0; border-bottom: 1px solid #544735; }
 .loot-filter-section h3 { margin: 0 0 10px; color: #e3ca91; font-size: 1rem; }
@@ -33,7 +32,6 @@
 .loot-highlight-card small { color: var(--color-text-tertiary); font-size: 11px; }
 .loot-highlight-reason { flex: 0 0 auto; color: var(--loot-reason, var(--color-text-secondary)); font-size: 11px; }
 @media (max-width: 600px) {
-    .equipment-loot-panel { max-height: 94dvh; }
     .equipment-loot-body { padding: 8px 12px; }
     .loot-filter-fields { grid-template-columns: 1fr; }
     .loot-target-rule { grid-template-columns: 1fr 1fr auto; }

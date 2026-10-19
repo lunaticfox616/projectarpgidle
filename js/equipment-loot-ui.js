@@ -106,19 +106,30 @@
             <p id="loot-target-preview" role="status"></p></div>`;
     }
 
-    function renderPanel(rarityChips) {
+    /** 장비창 해체 단추의 자동해체(2026-10-19 사용자: 드랍 필터에서 "해체에 관련된 부분만 딱 떼내서 해체버튼에다가"): 등급 칩과 켜고 끄기. */
+    function renderAutoSalvage(rarityChips) {
         const enabled = !!game.settings.autoSalvageEnabled;
-        return `<div class="craft-picker-panel equipment-loot-panel" role="dialog" aria-modal="true" aria-label="장비 드랍 필터 및 해체 설정">
-            <div class="craft-picker-head"><div><div class="craft-picker-title">장비 드랍 필터, 해체</div><div class="craft-picker-desc">목표 장비를 남기고, 필요 없는 장비를 정리합니다.</div></div><button type="button" onclick="closeAutoSalvageConfigOverlay()">닫기</button></div>
-            <div class="equipment-loot-body"><div id="loot-target-config">${renderTargets()}</div>
-            <section class="loot-filter-section"><h3>자동해체</h3><p class="loot-filter-note">우선 보관 대상은 제외하고, 습득 조건을 통과한 장비 중 아래 등급을 해체합니다. 떨어진 주얼도 같은 등급을 따릅니다.</p>
+        return `<section class="eqw-auto-salvage"><p class="eqw-rail-title">자동해체 <b class="${enabled ? 'is-on' : ''}">${enabled ? '켜짐' : '꺼짐'}</b></p>
+            <p class="loot-filter-note">우선 보관 대상은 빼고, 습득 조건을 통과한 장비 가운데 고른 등급을 해체합니다. 떨어진 주얼도 같은 등급을 따릅니다.</p>
             <div id="auto-salvage-rarity-chips" class="loot-filter-grades">${rarityChips}</div>
-            <div class="loot-filter-actions"><button type="button" id="auto-salvage-toggle-btn" onclick="toggleAutoSalvage();refreshAutoSalvageConfigOverlay();">${enabled ? '자동해체 끄기' : '자동해체 켜기'}</button><span id="auto-salvage-status">현재: ${enabled ? '켜짐' : '꺼짐'}</span></div></section>
-            ${renderPickup()}${renderFx()}<p class="loot-filter-note">설정은 자동 저장됩니다. 기존 인벤토리 표시 필터는 목록 표시만 바꿉니다.</p></div></div>`;
+            <button type="button" id="auto-salvage-toggle-btn" onclick="toggleAutoSalvage();refreshAutoSalvagePanel();">${enabled ? '자동해체 끄기' : '자동해체 켜기'}</button></section>`;
+    }
+
+    /** 설정의 아이템 필터(2026-10-19, 장비창 드랍 필터 창에서 옮김): 우선 보관, 습득 조건, 발견 연출. */
+    function renderSettings() {
+        const host = document.getElementById('ui-settings-item-filter');
+        if (!host) return;
+        host.innerHTML = `<div id="loot-target-config">${renderTargets()}</div>${renderPickup()}${renderFx()}`;
+        previewTargets();
     }
 
     function saveAndPreview() {
         queueImportantSave(200);
+        previewTargets();
+    }
+
+    /** 우선 보관 줄: how many bag items the target filter protects now (opening the page only reads, it does not save). */
+    function previewTargets() {
         const label = document.getElementById('loot-target-preview');
         if (!label) return;
         const filter = game.settings.equipmentTargets;
@@ -127,7 +138,7 @@
     }
 
     function updatePickup() {
-        const root = document.getElementById('auto-salvage-config-overlay');
+        const root = document.getElementById('ui-settings-item-filter');
         if ([...root.querySelectorAll('.loot-filter-section input[type="number"]')].some(input => !input.reportValidity())) return;
         const settings = game.settings;
         settings.itemFilterEnabled = root.querySelector('#chk-item-filter-enabled').checked;
@@ -221,7 +232,7 @@
         showCombatLogItemTooltip(pointer,token);
     }
 
-    const equipmentLootUi = Object.freeze({ renderPanel, updatePickup, togglePick, applyPreset, updateTargets, addRule, addTagRule, removeRule, saveAndPreview,
+    const equipmentLootUi = Object.freeze({ renderAutoSalvage, renderSettings, updatePickup, togglePick, applyPreset, updateTargets, addRule, addTagRule, removeRule, saveAndPreview,
         renderHighlights, showHighlight });
     safeExposeGlobals({ equipmentLootUi });
 })();

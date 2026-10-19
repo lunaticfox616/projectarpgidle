@@ -10058,12 +10058,12 @@ function syncSalvageControlsFromSettings() {
         let el = document.getElementById(`chk-salvage-${rarity}`);
         if (el) el.checked = !!game.settings.autoSalvageRarities[rarity];
     });
-    let btn = document.getElementById('btn-auto-salvage');
+    // 장비창 도구 줄의 해체 단추: 자동해체가 켜져 있으면 초록 점(css/equipment-window.css)
+    let btn = document.getElementById('eqw-rail-salvage');
     if (btn) {
         let enabled = !!game.settings.autoSalvageEnabled;
-        btn.textContent = '드랍 필터';
         btn.dataset.enabled = String(enabled);
-        btn.setAttribute('aria-label', `드랍 필터, 자동해체 ${enabled ? '켜짐' : '꺼짐'}`);
+        btn.setAttribute('aria-label', `해체, 자동해체 ${enabled ? '켜짐' : '꺼짐'}`);
     }
 }
 

@@ -18,7 +18,8 @@
         touchArrange = !touchArrange;
         document.getElementById('item-tab-equip').classList.toggle('touch-arrange', touchArrange);
         button.setAttribute('aria-pressed', String(touchArrange));
-        button.textContent = touchArrange ? '배치 완료' : '배치 모드';
+        button.setAttribute('aria-label', touchArrange ? '배치 완료' : '배치 모드');
+        button.querySelector('span').textContent = touchArrange ? '완료' : '배치';
     }
 
     function getFocusedKey() {
@@ -607,12 +608,15 @@
 
     function autoArrange() {
         cancelCarry();
+        let order = equipmentInventoryGridRuntime.autoArrange(game);
+        if (!order) {
+            notify('가방이 거의 차서 빈칸 없이 다시 놓을 수 없습니다. 그대로 두었습니다.', 'warning');
+            return;
+        }
         activePage = 0;
-        let mode = game.settings && game.settings.equipmentSort;
-        equipmentInventoryGridRuntime.autoArrange(game, mode);
         if (typeof saveGame === 'function') saveGame({ skipCloudSync: true });
         if (typeof updateStaticUI === 'function') updateStaticUI();
-        notify('장비를 정렬 기준에 맞춰 빈칸 없이 배치했습니다.', 'success');
+        notify(order === 'recent' ? '최근 장비부터 빈칸 없이 배치했습니다.' : '최근 장비부터는 다 들어가지 않아 큰 장비부터 빈칸 없이 배치했습니다.', 'success');
     }
 
     function startPointer(event) {
