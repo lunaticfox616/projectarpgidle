@@ -1368,7 +1368,7 @@ function drawTrialTrapGridFx(ctx, fx, progress, gridProj, warning) {
     if (fx.type === 'bossAreaImpact') return bossAttackView.drawImpact(ctx, fx, progress, gridProj);
     if (!gridProj || !Array.isArray(fx.targetCells)) return;
     // 원소마다 바닥에서 솟는 실체(js/canvas-trial-traps.js; 바닥 부분은 drawBattleGroundLayer가 인물 아래에 그렸다).
-    if (trialTrapArt.drawRise(ctx, fx, progress, gridProj, warning)) return;
+    if (trialTrapArt.drawRise(ctx, fx, progress, gridProj)) return;
     let halfW = gridProj.tileW / 2;
     let halfH = gridProj.tileH / 2;
     let pulse = 0.5 + Math.sin(progress * Math.PI * 8) * 0.5;
@@ -1619,6 +1619,7 @@ function drawEnemyAttackTelegraphs(ctx, layout, gridUnitScale, projection, pendi
         ctx.stroke();
         ctx.restore();
     });
+    bossAttackView.drawMarks(ctx, { layout, projection, pending: pendingAttacks }); // lines and fans, landings: on the floor, under the actors
 }
 
 /** The player's bar floats just above the drawn head — Hana sprites scale with the tile (×3~×5), so a fixed offset
@@ -3060,8 +3061,6 @@ function drawBattleLightingAndBars(ctx, scene) {
     wispSummonFx.drawLayer('fore', scene.now);
     fxRemake.end(); // foreground skill effects opened in drawSkillGemVfxLayer, re-dotted below the lighting
     drawBattleLightingPass(ctx, scene);
-    drawBattleDangerEdges(ctx, scene);
-    bossAttackView.drawMarks(ctx, scene);
     drawBattlePlayerFigure.readability.draw(ctx);
     if (!stageActors.down()) drawBattlefieldPlayerHealthBar(ctx, scene); // not over the first start's lying hero (js/opening-journey-ui.js)
     // 락온한 몬스터(js/act-exploration-state.js lockOn)는 겨눈 적처럼 막대가 늘 보이고 금빛 테를 두른다. 그 위에 화살표가 선다.
@@ -3080,15 +3079,6 @@ function drawLockOnMark(ctx, scene, locked) {
 }
 
 /** Only the existing cast boundary returns above foreground effects; never duplicate its opaque fill. */
-function drawBattleDangerEdges(ctx, scene) {
-    const areas = scene.layout.filter(({ enemy }) => enemy.isBoss && !enemy.noAttack && enemy.hp > 0 && Number.isFinite(Number(enemy.attackTimer)))
-        .filter(({ enemy }) => !(enemy.ailments || []).some(ailment => ['freeze', 'stun', 'silence'].includes(ailment.type) && ailment.time > 0))
-        .map(({ enemy }) => enemy.patternArea);
-    // Once released the pending snapshot owns the warning, even when the source no longer has a preview.
-    (scene.pending || []).filter(attack => attack.delivery === 'patternArea').forEach(attack => areas.push(attack.bossPattern.area));
-    new Set(areas).forEach(area => drawBossPatternArea(ctx, area, scene.projection, 0.92, true));
-}
-
 /** Where the dark vignette opens: around the hero, or over the whole boss room while the hero stands in it. */
 function getBattleLightFocus(scene) {
     const { width, height, light } = scene;

@@ -329,12 +329,17 @@ const trialTrapArt = (() => {
         return sheet.impact[cellHash(cell) % sheet.impact.length][Math.min(IMPACT_FRAMES - 1, Math.floor(delayed * IMPACT_FRAMES))];
     }
     const flipped = cell => (cellHash(cell) >>> 1) % 2 === 1;
+    /** The trap's cells without the standing obstacles' (js/canvas-skill-footprint.js getGroundTakenCellKeys): nothing rises out of a chest. */
+    function shownCells(cells) {
+        const taken = getGroundTakenCellKeys(actExplorationState.current(game));
+        return taken.size ? cells.filter(cell => !taken.has(gridCellKey(cell.gx, cell.gy))) : cells;
+    }
     function drawPart(ctx, fx, progress, gridProj, part) {
         const tile = gridProj.tileW;
         ctx.save();
         ctx.imageSmoothingEnabled = false;
         ctx.globalAlpha *= fx.type === 'trialTrapWarning' ? Math.min(1, progress * 5) : 1;
-        fx.targetCells.forEach((cell, index) => {
+        shownCells(fx.targetCells).forEach((cell, index) => {
             const image = frameOf(fx, progress, index, cell)[part], pos = gridProj.cellToScreen(cell.gx, cell.gy);
             const floorH = gridProj.tileH || tile, height = (part === 'ground' ? floorH : tile) * image.height / ART;
             const left = pos.x - tile / 2, top = pos.y + floorH / 2 - height;
@@ -356,37 +361,44 @@ const trialTrapArt = (() => {
         ctx.lineWidth = Math.max(1, dot);
         ctx.setLineDash([dot * 2, dot * 2]);
         ctx.beginPath();
-        fx.targetCells.forEach(cell => {
+        shownCells(fx.targetCells).forEach(cell => {
             const pos = gridProj.cellToScreen(cell.gx, cell.gy);
             ctx.rect(pos.x - tile / 2 + dot / 2, pos.y - floorH / 2 + dot / 2, tile - dot, floorH - dot);
         });
         ctx.stroke();
         ctx.restore();
     }
-    /** Under the actors: cracks, glow, frost, rune, puddle and scorch of every live trap effect. */
+    /** Under the actors: cracks, glow, frost, rune, puddle and scorch of every live trap effect, and all of a warning (its dotted edge and
+     * the first tips that rise, so the actors cover it like the boss warnings, 2026-10-19 user: "캐릭터에 가려지도록"). */
     function drawGround(ctx, effects, now, gridProj) {
         if (!gridProj || !Array.isArray(effects)) return;
         // Read-only combat state, including offline snapshot restoration. Reuse cached element textures.
-        for (const area of trialHazardRuntime.ground || []) {
-            if (now < area.start || now >= area.endsAt) continue;
-            const fx = { type: 'trialTrap', element: area.element, color: COMBAT_GRID_CONFIG.ground[area.element].color,
-                targetCells: area.cells, duration: area.endsAt - area.start };
-            ctx.save();
-            ctx.globalAlpha = Math.min(0.8, (area.endsAt - now) / 700);
-            drawPart(ctx, fx, 0.35 + Math.sin((now - area.start) / 450) * 0.06, gridProj, 'ground');
-            outline(ctx, fx, 0.15, gridProj);
-            ctx.restore();
-        }
-        for (const fx of effects) {
-            if (!isTrap(fx) || now < fx.start) continue;
-            drawPart(ctx, fx, Math.max(0, Math.min(1, (now - fx.start) / fx.duration)), gridProj, 'ground');
-        }
+        for (const area of trialHazardRuntime.ground || []) drawLastingGround(ctx, area, now, gridProj);
+        for (const fx of effects) if (isTrap(fx) && now >= fx.start) drawTrapFloor(ctx, fx, now, gridProj);
     }
-    /** Over the actors: what rises from the floor. @returns {boolean} false when this effect has no art (old element, boss areas). */
-    function drawRise(ctx, fx, progress, gridProj, warning) {
+    /** Lasting ground (lava, frost, corrosion, shock) while it lasts: its floor and a dotted edge, fading over its last 0.7 s. */
+    function drawLastingGround(ctx, area, now, gridProj) {
+        if (now < area.start || now >= area.endsAt) return;
+        const fx = { type: 'trialTrap', element: area.element, color: COMBAT_GRID_CONFIG.ground[area.element].color,
+            targetCells: area.cells, duration: area.endsAt - area.start };
+        ctx.save();
+        ctx.globalAlpha = Math.min(0.8, (area.endsAt - now) / 700);
+        drawPart(ctx, fx, 0.35 + Math.sin((now - area.start) / 450) * 0.06, gridProj, 'ground');
+        outline(ctx, fx, 0.15, gridProj);
+        ctx.restore();
+    }
+    /** One trap effect's floor; a warning also gets its dotted edge and the first tips that rise. */
+    function drawTrapFloor(ctx, fx, now, gridProj) {
+        const progress = Math.max(0, Math.min(1, (now - fx.start) / fx.duration)), warning = fx.type === 'trialTrapWarning';
+        if (warning && progress < 1) outline(ctx, fx, progress, gridProj);
+        drawPart(ctx, fx, progress, gridProj, 'ground');
+        if (warning) drawPart(ctx, fx, progress, gridProj, 'rise');
+    }
+    /** Over the actors: what rises out of the floor when the trap goes off (a warning is all on the floor, drawGround).
+     * @returns {boolean} false when this effect has no art (old element, boss areas). */
+    function drawRise(ctx, fx, progress, gridProj) {
         if (!gridProj || !isTrap(fx)) return false;
-        if (warning) outline(ctx, fx, progress, gridProj);
-        drawPart(ctx, fx, progress, gridProj, 'rise');
+        if (fx.type !== 'trialTrapWarning') drawPart(ctx, fx, progress, gridProj, 'rise');
         return true;
     }
     return Object.freeze({ drawGround, drawRise, elements: Object.keys(STYLES), sheetOf });
