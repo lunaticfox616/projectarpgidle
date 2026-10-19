@@ -14279,6 +14279,7 @@ function resetLoopContents(kept) {
     clearBeehiveRuntimeState(game.beehive);
     abandonBeyondBoundaryRun(game); // a 경계 너머 run held over would refuse every move and content start of the new loop
     Object.assign(game.voidRift, {active:false, activeKills:0, requiredKills:0, pendingWave:false, totalToSpawn:0, spawnedCount:0, spawnTick:0, grandRun:null});
+    if (game.woodsmanEchoRun) Object.assign(game.woodsmanEchoRun, { active: false, timeLeft: 0, returnZoneId: null }); // 잔상도 끝낸다
     game.meteorSite = JSON.parse(JSON.stringify(defaultGame.meteorSite));
     game.meteorSite.constellationBuff = preservedConstellationBuff;
     game.unlocks = { ...defaultGame.unlocks };
