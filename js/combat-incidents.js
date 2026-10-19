@@ -5,7 +5,8 @@
  *   아주 드물게 무지갯빛(체이싱 티어): 빛깔이 돌고, 황금률 하나와 고유 장비 하나(반은 체이싱 고유)를 더 준다.
  * - 세계수의 하품: 처음 들어선 전투 방에서 아주 드물게 그 방의 몬스터가 잠든다(skillHeldUntil: 움직이지도 공격하지도 않는다).
  * - 행운의 숫자: 한 번에 준 피해가 7로만 된 수면 그 자릿수의 재화(noteDamage, js/combat.js applyDamageToEnemyResource).
- * 굴림은 무리 열쇠와 방 번호로 정해 다른 난수를 밀지 않는다. 알림은 'incident' 이벤트로 보내고 알림 창이 띄운다(js/battle-ground-loot-ui.js).
+ * 체이싱 고유 셋이 사건을 바꾼다(worn): 수액 냄새 밴 장화(슬라임 확률과 재화), 일곱 번째 행운의 병(같은 숫자로만 된 피해도 행운의 숫자),
+ * 꿈결의 향로(하품 확률과 잠드는 시간). 굴림은 무리 열쇠와 방 번호로 정해 다른 난수를 밀지 않는다. 알림은 'incident' 이벤트로 보내고 알림 창이 띄운다(js/battle-ground-loot-ui.js).
  * 방치 정산과 1루프의 액트 1에서는 일어나지 않는다.
  */
 const combatIncidents = (() => {
@@ -14,6 +15,14 @@ const combatIncidents = (() => {
     const quiet = zone => !!game.isBackgroundCalculation || !zone || (zone.type === 'act' && zone.id === 0 && (game.season || 1) === 1);
     const tell = (text, tone, chase = false) => dispatchRuntimeEvent('incident', { text, tone, chase });
     const sleptRooms = new WeakMap();   // 탐험 → 하품을 굴려 본 방(처음 들어설 때 한 번)
+    let luckyAt = -Infinity;            // 마지막 행운의 숫자(전투 시각)
+    /** 착용한(요구 능력치를 채워 켜진) 고유 장비의 그 효과의 값(uniqueEffectParams), 없으면 null. */
+    function worn(key) {
+        for (const item of Object.values(combatEquipmentStats.activeEquipment(game) || {})) {
+            if (item && item.rarity === 'unique' && item.uniqueEffectKey === key) return item.uniqueEffectParams || {};
+        }
+        return null;
+    }
 
     // ---------------------------------------------------------------- 금빛 수액 슬라임
     /** 금빛 슬라임이 서도 되는 무리: 방 단위 무대의 보통 무리. */
@@ -33,7 +42,8 @@ const combatIncidents = (() => {
     /** 무리를 지을 때(js/combat.js createActExplorationPack): 드물게 금빛 수액 슬라임 하나를 무리 곁에 더한다. */
     function dressPack(zone, pack) {
         const C = rule().critter;
-        if (quiet(zone) || !hostsCritter(pack) || draw('critter', `${pack.key}:${pack.aliveIds[0]}`) >= C.chance) return pack;
+        const lure = worn('critterLure'), chance = C.chance * (lure ? lure.chanceMul : 1);
+        if (quiet(zone) || !hostsCritter(pack) || draw('critter', `${pack.key}:${pack.aliveIds[0]}`) >= chance) return pack;
         const cell = besidePack(pack);
         if (!cell) return pack;
         const critter = makeCritter(zone, pack, cell, draw('rainbow', `${pack.key}:${pack.aliveIds[0]}`) < C.rainbow.chance);
@@ -108,10 +118,16 @@ const combatIncidents = (() => {
         if (!room || (room.role !== 'battle' && room.role !== 'optional')) return;
         const here = (game.enemies || []).filter(enemy => enemy && enemy.hp > 0 && !enemy.isBoss);
         if (!here.length || !firstLook(run, room)) return;
-        if (draw('yawn', `${run.layoutId || ''}:${run.seed || ''}:${room.id}`) < rule().yawn.chance) yawn(here, now);
+        if (draw('yawn', `${run.layoutId || ''}:${run.seed || ''}:${room.id}`) < yawnChance()) yawn(here, now);
+    }
+    /** 하품의 확률: 꿈결의 향로를 끼면 그 확률(chance). */
+    function yawnChance() {
+        const incense = worn('drowsyIncense');
+        return Math.max(rule().yawn.chance, incense ? Number(incense.chance) || 0 : 0);
     }
     function yawn(enemies, now) {
-        enemies.forEach(enemy => { enemy.skillHeldUntil = Math.max(Number(enemy.skillHeldUntil) || 0, now + rule().yawn.sleepMs); });
+        const incense = worn('drowsyIncense'), sleepMs = incense ? incense.sleepMs : rule().yawn.sleepMs;
+        enemies.forEach(enemy => { enemy.skillHeldUntil = Math.max(Number(enemy.skillHeldUntil) || 0, now + sleepMs); });
         tell('세계수가 하품을 했습니다. 이 방의 몬스터가 잠시 잠들었습니다.', 'reward');
     }
     /** 시험 패널: 지금 싸우는 몬스터에게 하품. */
@@ -147,11 +163,11 @@ const combatIncidents = (() => {
     }
     /** 금빛: 재화를 picks번 무게로 뽑고(열리지 않은 재화는 떨어지지 않는다), gear 등급 이상의 장비 하나. */
     function grantCritterRewards(enemy, zone) {
-        const R = rule().critter.rewards, total = R.currencies.reduce((sum, row) => sum + row[2], 0);
+        const R = rule().critter.rewards, total = R.currencies.reduce((sum, row) => sum + row[2], 0), lure = worn('critterLure'), mul = lure ? lure.rewardMul : 1;
         for (let i = 0; i < R.picks; i++) {
             let edge = Math.random() * total;
             const row = R.currencies.find(([, , weight]) => (edge -= weight) < 0) || R.currencies[0];
-            keepCurrencyDrop(enemy, row[0], row[1]);
+            keepCurrencyDrop(enemy, row[0], row[1] * mul);
         }
         grantEquipmentPick(enemy, zone, R.gear, null);
     }
@@ -166,12 +182,23 @@ const combatIncidents = (() => {
     }
 
     // ---------------------------------------------------------------- 행운의 숫자
-    /** 한 번에 준 피해(js/combat.js applyDamageToEnemyResource)가 7로만 된 수면 그 자릿수의 재화. */
+    /** 이 피해가 행운의 숫자인가: 같은 숫자로만 된 수의 { digit, length, mul }. 일곱 번째 행운의 병이 없으면 7로만 된 수(777 이상)만,
+     * 병이 있으면 그 재화를 rewardMul배. 첫자리와 끝자리가 다르면 바로 그만 본다(거의 모든 피해). 아니면 null. */
+    function luckyHit(dealt) {
+        const text = String(dealt), digit = text[0];
+        if (text[text.length - 1] !== digit || ![...text].every(ch => ch === digit)) return null;
+        const luck = worn('repdigitLuck');
+        return luck || (digit === '7' && dealt >= rule().lucky.min) ? { digit, length: text.length, mul: luck ? luck.rewardMul : 1 } : null;
+    }
+    /** 한 번에 준 피해(js/combat.js applyDamageToEnemyResource)가 행운의 숫자(111 이상)면 그 자릿수의 재화. 한 번 나오면 gapMs 동안 쉰다. */
     function noteDamage(enemy, dealt) {
-        if (!(dealt >= rule().lucky.min) || dealt % 10 !== 7 || game.isBackgroundCalculation || !/^7+$/.test(String(dealt))) return;
-        const rows = rule().lucky.rewards, [key, count] = rows[Math.min(rows.length - 1, String(dealt).length - 3)];
-        keepCurrencyDrop(enemy, key, count);
-        tell(`행운의 숫자 ${dealt.toLocaleString('ko-KR')}이 나왔습니다.`, 'reward');
+        if (!(dealt >= 111) || game.isBackgroundCalculation) return;
+        const hit = luckyHit(dealt), now = getCombatTime();
+        if (!hit || now - luckyAt < rule().lucky.gapMs) return;
+        luckyAt = now;
+        const rows = rule().lucky.rewards, [key, count] = rows[Math.min(rows.length - 1, hit.length - 3)];
+        keepCurrencyDrop(enemy, key, count * hit.mul);
+        tell(`행운의 숫자 ${dealt.toLocaleString('ko-KR')}${'2459'.includes(hit.digit) ? '가' : '이'} 나왔습니다.`, 'reward');
     }
     return Object.freeze({ dressPack, glazeOf, tick, onKill, noteDamage, testSpawn, testYawn });
 })();

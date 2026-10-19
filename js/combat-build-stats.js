@@ -176,7 +176,11 @@ const UNIQUE_EFFECT_STAT_LINES = Object.freeze({
     emberHeart: (p, context) => perCountLines(context.corrupted, p.max, [['pctDmg', p.dmgPer], ['resF', p.resPer]]),
     amberTime: (p, context) => perCountLines(Math.floor(context.quality / (Number(p.qualityStep) || 10)), p.max, [['pctDmg', p.dmgPer], ['pctHp', p.hpPer]]),
     witheredEcho: (p, context) => perCountLines(context.anoints, p.max, [['pctDmg', p.dmgPer], ['resChaos', p.resPer]]),
-    nurseryBloom: (p, context) => perCountLines(context.stumpMature, p.max, [['pctHp', p.hpPer], ['pctDmg', p.dmgPer]])
+    nurseryBloom: (p, context) => perCountLines(context.stumpMature, p.max, [['pctHp', p.hpPer], ['pctDmg', p.dmgPer]]),
+    // 체이싱 고유(2026-10-20): 착용한 고유 장비(달을 벤 초승달), 희귀 장비(세계수의 첫 껍질), 장착한 액막이(고요한 맹세)의 수만큼.
+    uniqueChorus: (p, context) => perCountLines(context.uniques, p.max, [['pctDmg', p.dmgPer], ['aspd', p.aspdPer]]),
+    rareBark: (p, context) => perCountLines(context.rares, p.max, [['pctHp', p.hpPer], ['resAll', p.resPer]]),
+    wardVow: (p, context) => perCountLines(context.wards, p.max, [['blockChance', p.blockPer], ['dr', p.drPer]])
 });
 
 /** Ripe seeds and saps on the stump box board (the board is a build field). */
@@ -187,12 +191,16 @@ function countRipeStumpGrowth(owner) {
     return box.items.filter(item => onBoard.has(item.id) && item.ripe === true && (item.family === 'seed' || item.family === 'sap')).length;
 }
 
-/** What the stat-only unique effects count, from build values only: the loop, the stat-giving items, the stump board. */
+/** What the stat-only unique effects count, from build values only: the loop, the stat-giving items (and among them the unique and the
+ * rare ones), the wards worn in the 액막이 slots, the stump board. */
 function uniqueEffectContext(items, owner) {
     const anointNodes = item => (item.anoint ? [item.anoint.nodeId, item.anoint.second].filter(Boolean).length : 0);
     return {
         loop: Math.max(1, Math.floor(Number(owner.season) || 1)),
         horizontal: items.filter(item => BASE_ITEM_DB.some(base => base.id === item.baseId && base.family)).length,
+        uniques: items.filter(item => item.rarity === 'unique').length,
+        rares: items.filter(item => item.rarity === 'rare').length,
+        wards: typeof colonyWards === 'object' ? colonyWards.openSlots(owner).filter(slot => colonyWards.isWard((owner.equipment || {})[slot])).length : 0,
         corrupted: items.filter(item => item.corrupted === true).length,
         quality: items.reduce((sum, item) => sum + Math.max(0, Math.floor(Number(item.quality) || 0)), 0),
         anoints: items.reduce((sum, item) => sum + anointNodes(item), 0),
@@ -205,7 +213,13 @@ function accumulateUniqueEffectStatLines(result, items) {
     const effects = result.equippedUniqueEffects.filter(effect => Object.hasOwn(UNIQUE_EFFECT_STAT_LINES, effect.key));
     if (!effects.length) return;
     const context = uniqueEffectContext(items, game);
-    for (const effect of effects) applyStatsToBucket(result.gearExplicit, UNIQUE_EFFECT_STAT_LINES[effect.key](effect.params || {}, context));
+    for (const effect of effects) {
+        for (const line of UNIQUE_EFFECT_STAT_LINES[effect.key](effect.params || {}, context)) {
+            // 막기 확률 +%p는 방패 줄처럼 더한다(장비 버킷의 blockChance는 막기 공식이 읽지 않는다).
+            if (line.id === 'blockChance') result.shieldBlockChanceFlat += line.val;
+            else addStatToBucket(result.gearExplicit, line.id, line.val);
+        }
+    }
 }
 
 function accumulateCombatEquipmentItem(result, [slotKey, item, resolved]) {

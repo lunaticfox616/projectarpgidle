@@ -245,7 +245,8 @@ const ACT_EXPLORATION_AMBUSH = Object.freeze({chance:0.05,pull:0.4,keep:2,search
 //   glaze 몸에 얹는 빛깔과 진하기, outline 테. rainbow: 금빛 슬라임 가운데 chance로 무지갯빛(체이싱 티어), 빛깔이 glazes를 everyMs마다 돈다.
 //   금빛 보상에 더해 currency 하나와 고유 장비 하나(chaseShare의 확률로 체이싱 고유).
 // yawn 세계수의 하품: 처음 들어서는 전투 방마다 chance의 확률로 그 방의 몬스터가 sleepMs 동안 움직이지도 공격하지도 않는다.
-// lucky 행운의 숫자: 한 번에 준 피해가 7로만 된 수(777 이상)면 그 자릿수의 재화를 준다([재화, 개수], 그보다 긴 수는 맨 끝 줄).
+// lucky 행운의 숫자: 한 번에 준 피해가 7로만 된 수(777 이상)면 그 자릿수의 재화를 준다([재화, 개수], 그보다 긴 수는 맨 끝 줄). 한 번 나오면
+//   gapMs 동안은 다시 나오지 않는다(지속 피해도 같은 길로 들어온다). 체이싱 고유 일곱 번째 행운의 병은 같은 숫자로만 된 수(111 이상)도 센다.
 const ACT_EXPLORATION_INCIDENTS = Object.freeze({
     critter: Object.freeze({ chance: 0.012, look: 'act1-slime', name: '금빛 수액 슬라임', glaze: Object.freeze({ color: '#ffcf4a', alpha: 0.36 }), outline: '#fff0a8',
         hpMul: 2.5, expMul: 3, fleeMs: 13000, stepSec: 0.42,
@@ -254,7 +255,7 @@ const ACT_EXPLORATION_INCIDENTS = Object.freeze({
         rainbow: Object.freeze({ chance: 0.02, name: '무지갯빛 수액 슬라임', glazes: Object.freeze(['#ff8f8f', '#ffc46b', '#fff27a', '#8af08a', '#7ad0ff', '#c79bff']),
             everyMs: 220, alpha: 0.42, currency: 'goldenRule', chaseShare: 0.5 }) }),
     yawn: Object.freeze({ chance: 0.0004, sleepMs: 6000 }),
-    lucky: Object.freeze({ min: 777, rewards: Object.freeze([['magicBud', 3], ['sapBud', 1], ['formlessDew', 2], ['goldenRule', 1], ['fairyRing', 1]]) })
+    lucky: Object.freeze({ min: 777, gapMs: 30000, rewards: Object.freeze([['magicBud', 3], ['sapBud', 1], ['formlessDew', 2], ['goldenRule', 1], ['fairyRing', 1]]) })
 });
 // Whole-pixel camera zoom for the 16px art (js/canvas-act-exploration.js tileSize). 2026-10-02: at most ×4 (was ×5): on a 125%
 // desktop display the ×5 tiles (80px) made the hero feel too big and the view cramped.

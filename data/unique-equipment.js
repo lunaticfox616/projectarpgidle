@@ -261,7 +261,14 @@ const UNIQUE_EQUIPMENT_RULES = Object.freeze(Object.fromEntries([
     ['끓어넘치는 밀랍병','alchemist_retort',49,0,55,55],
     ['액막이 향로','ember_censer',29,30,0,30],
     ['군락을 사르는 향','coal_censer',41,45,0,45],
-    ['마지막 수호의 향로','chapel_censer',49,55,0,55]
+    ['마지막 수호의 향로','chapel_censer',49,55,0,55],
+    // 체이싱 고유 여섯(2026-10-20, data/items.js)
+    ['달을 벤 초승달','crescent_scimitar',53,60,60,0],
+    ['세계수의 첫 껍질','dread_plate',53,110,0,0],
+    ['고요한 맹세','bastion_aegis',57,80,0,40],
+    ['수액 냄새 밴 장화','hawkstride_boots',45,0,60,0],
+    ['일곱 번째 행운의 병','alchemist_retort',53,0,60,60],
+    ['꿈결의 향로','chapel_censer',53,60,0,60]
 ].map(([name, baseId, level, strength, dexterity, intelligence, slot]) => [name, Object.freeze({
     baseId, level, slot, attributes: Object.freeze(Object.fromEntries(Object.entries({strength, dexterity, intelligence}).filter(([,value]) => value > 0)))
 })])));
