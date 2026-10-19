@@ -135,6 +135,7 @@
         const filter = game.settings.equipmentTargets;
         const count = game.inventory.filter(item => equipmentLootPolicy.matches(item)).length;
         label.textContent = filter.enabled ? `현재 인벤토리에서 ${count}개 보호, ${filter.minMatches}개 조건 충족 시 보관` : '목표 옵션 보호 꺼짐';
+        label.dataset.state = filter.enabled ? 'on' : 'off';
     }
 
     function updatePickup() {
@@ -172,7 +173,9 @@
         if ([...root.querySelectorAll('input[type="number"]')].some(input => !input.reportValidity())) return;
         const rows = [...root.querySelectorAll('[data-target-rule]')], rules = rows.map(readRule);
         if (new Set(rules.map(equipmentLootPolicy.ruleKey)).size !== rules.length) {
-            document.getElementById('loot-target-preview').textContent = '같은 옵션이나 태그는 한 번만 선택해 주세요. 중복 설정은 저장하지 않았습니다.';
+            const preview = document.getElementById('loot-target-preview');
+            preview.textContent = '같은 옵션이나 태그는 한 번만 선택해 주세요. 중복 설정은 저장하지 않았습니다.';
+            preview.dataset.state = 'error';
             return;
         }
         game.settings.equipmentTargets = equipmentLootPolicy.normalizeTargets({

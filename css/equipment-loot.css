@@ -11,7 +11,10 @@
 .loot-target-rule { display: grid; grid-template-columns: minmax(0, 2fr) 1fr 1fr auto; align-items: end; gap: 8px; margin-bottom: 10px; }
 .loot-target-rule button { min-height: 38px; }
 .loot-filter-grades, .loot-filter-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin: 10px 0; }
+/* 켜짐은 초록, 꺼짐은 흐린 글, 중복 경고는 경고색(전에는 꺼짐과 경고도 초록이라 켜진 것처럼 읽혔다). */
 #loot-target-preview { color: #9edac3; font-size: .85rem; }
+#loot-target-preview[data-state="off"] { color: var(--copy-muted); }
+#loot-target-preview[data-state="error"] { color: var(--color-warning-soft); }
 /* 줍기 필터 세분화와 발견 연출(2026-10-10): 줄마다 이름표와 칩(자동해체 칩과 같은 모양), 희귀도 칩 옆에 최소 티어 칸. */
 .loot-pick-row { display: grid; grid-template-columns: 116px minmax(0, 1fr); align-items: center; gap: 8px; margin: 10px 0; }
 .loot-pick-label { color: #c9bfa8; font-size: .84rem; }
