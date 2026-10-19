@@ -1578,7 +1578,7 @@
     },
     "renderBattlefield|max-lines-per-function|Function 'renderBattlefield' has too many lines (#). Maximum allowed is #.": {
       "count": 1,
-      "max": 408
+      "max": 406
     },
     "renderBattlefield|complexity|Function 'renderBattlefield' has a complexity of #. Maximum allowed is #.": {
       "count": 1,
@@ -10073,6 +10073,7 @@
     "dependency:getEnemyBaseHp->getBossHpEase",
     "dependency:getEnemyBaseHp->getEliteLoopHpMultiplier",
     "dependency:getEnemyBaseHp->getMonsterLoopHpMultiplier",
+    "dependency:getEnemyBodyHeight->getEnemyFieldBarLift",
     "dependency:getEnemyBossArt->getBossAssetKeyForZone",
     "dependency:getEnemyBossArt->getChaosBossVisual",
     "dependency:getEnemyConditionDebuffFactor->Number",
@@ -10340,6 +10341,7 @@
     "dependency:getHeldRunBlockReason->isBeehiveRunLockedForMapTravel",
     "dependency:getHeraldExplodeChance->clampNumber",
     "dependency:getHeraldExplodeChance->normalizeGemRecord",
+    "dependency:getHeroBodyHeight->getHeroHeadY",
     "dependency:getHeroHitTintStrength->isHeavyPlayerHit",
     "dependency:getHeroRunRate->clampNumber",
     "dependency:getHeroStepBlockedCells->getGridBlockedCells",
@@ -17127,9 +17129,9 @@
     "dependency:renderBattlefield->getCanvasSkillTargets",
     "dependency:renderBattlefield->getCombatTravelScreenPos",
     "dependency:renderBattlefield->getDamageTextBodyY",
-    "dependency:renderBattlefield->getEnemyFieldBarLift",
+    "dependency:renderBattlefield->getEnemyBodyHeight",
     "dependency:renderBattlefield->getHeroAppearanceId",
-    "dependency:renderBattlefield->getHeroHeadY",
+    "dependency:renderBattlefield->getHeroBodyHeight",
     "dependency:renderBattlefield->getPlayableHeroAttackDurationScale",
     "dependency:renderBattlefield->getPlayerReturnDeparturePresentation",
     "dependency:renderBattlefield->getPlayerReturnWarpPresentation",
@@ -20278,7 +20280,7 @@
     "dependency:spawnGrandBreachEnemy->findFreeGridCell",
     "dependency:spawnGrandBreachEnemy->gridCellKey",
     "dependency:spawnHeroHurtText->getDamageTextBodyY",
-    "dependency:spawnHeroHurtText->getHeroHeadY",
+    "dependency:spawnHeroHurtText->getHeroBodyHeight",
     "dependency:spawnHeroHurtText->spawnDamageText",
     "dependency:spawnPassiveRevealBurstOverlay->updatePassiveTreeOverlayTransform",
     "dependency:spawnVoidBreachReinforcement->applyVoidRiftMobTuning",
