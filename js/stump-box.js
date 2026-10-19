@@ -405,8 +405,8 @@ const stumpBox = (() => {
     function grow(state, enemy) { return growBy(state, STUMP_BOX_GROWTH.perKill[killKind(enemy)]); }
 
     // ── 거름 ───────────────────────────────────────────────
-    /** The growth a seed or sap gives as compost (its quality scales it). */
-    function compostGrowth(item) { return Math.round(STUMP_BOX_COMPOST.growth * clampRoll(item.roll)); }
+    /** The growth a seed or sap gives as compost (its quality scales it, up to the box's cap: past 130% from loop 35, 2026-10-20). */
+    function compostGrowth(item, state = game) { return Math.round(STUMP_BOX_COMPOST.growth * clampRoll(item.roll, rollCap(state))); }
     /** '' when the stored seed or sap can go on the board as compost, otherwise why not. */
     function compostReason(state, id) {
         const box = of(state), item = findItem(box, id);
@@ -418,7 +418,7 @@ const stumpBox = (() => {
      * @returns {?{growth: number, fed: number, ripened: object[]}} null when not allowed. */
     function compost(state, id) {
         if (compostReason(state, id)) return null;
-        const box = of(state), item = findItem(box, id), growth = compostGrowth(item), fed = growingItems(state).length;
+        const box = of(state), item = findItem(box, id), growth = compostGrowth(item, state), fed = growingItems(state).length;
         box.items = box.items.filter(other => other.id !== id);
         return { growth, fed, ripened: growBy(state, growth) };
     }
@@ -465,7 +465,7 @@ const stumpBox = (() => {
         for (const item of bulkItems(state, filter).sort((a, b) => a.roll - b.roll || a.id - b.id)) {
             if (left <= 0) break;
             plan.push(item);
-            left -= compostGrowth(item);
+            left -= compostGrowth(item, state);
         }
         return plan;
     }
@@ -527,7 +527,7 @@ const stumpBox = (() => {
     /** A seed or sap a full storage could not take feeds the growing items as compost instead (drops, breeding, nursery gifts).
      * @returns {{family:string, color:string, growth:number, fed:number, ripened:object[]}} fed: growing items that got it */
     function compostOverflow(state, spec, random = Math.random) {
-        const growth = compostGrowth(spec), fed = growingItems(state).length;
+        const growth = compostGrowth(spec, state), fed = growingItems(state).length;
         return { family: spec.family, color: spec.color, growth, fed, ripened: growBy(state, growth, random) };
     }
     const NO_DROP = Object.freeze({ item: null, compost: null });

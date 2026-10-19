@@ -489,6 +489,8 @@ function createEmptyStatBucket() {
         curseCap: 0, oxygenMax: 0, oxygenRegen: 0,
         oceanPressureResist: 0, oceanDepthGainPct: 0, oceanRareFishChancePct: 0,
         bossDamagePct: 0, eliteDamagePct: 0, firstStrikeDamagePct: 0, cullStrikePct: 0, echoPower: 0, chaosErosion: 0, chaosErosionCap: 0,
+        // 우주계 보스 유물석과 보스 부적의 줄(js/combat.js가 reward에서 읽는다): 통에 없어 addStatToBucket이 버렸다(2026-10-20).
+        firstHitDamageMorePct: 0, cosmosAlwaysFirstHitChancePct: 0, uniqueInstantLeechPct: 0, cosmosLightningVariance: 0, cosmosBossDamageMorePct: 0,
         regionPoisonSpread: 0, regionChaosShred: 0, regionPoisonedLeech: 0, regionChaosOvercap: 0, regionBlockEmpower: 0, regionArmorToPhys: 0,
         regionBleedingDamage: 0, regionLowLifeDR: 0, regionShockChain: 0, regionCritMove: 0, regionShockSpread: 0, regionShockedLightPen: 0,
         regionIgniteSpread: 0, regionFullLifeFire: 0, regionIgniteDuration: 0, regionIgnitedDamage: 0, regionFrozenCritDamage: 0, regionShatter: 0,

@@ -176,8 +176,10 @@ const talismanEffects = (() => {
         return box.board.map((id, cell) => {
             const item = id === null ? null : box.items.find(row => row.id === id);
             if (!item) return '-';
+            // 씨앗, 수액, 흉터는 번호로 센다(색, 갈래, 고대가 번호에 딸려 있다): 머리글자로 세면 씨앗, 수액, 흉터가 같았고 고대가 빠져,
+            // 한 칸의 것을 바꿔 놓아도 예전 합계가 남았다(2026-10-20).
             return item.family === 'talisman' ? `${item.id}${item.ripe ? 'R' : ''}${item.dir ?? ''}${item.lines.length}g${box.graft[cell]}`
-                : `${item.family[0]}${item.color}${item.ripe ? 'R' : ''}`;
+                : `${item.id}${item.ripe ? 'R' : ''}`;
         }).join('|');
     }
 
