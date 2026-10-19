@@ -274,7 +274,9 @@ const ACT_EXPLORATION_INCIDENTS = Object.freeze({
     sleep: Object.freeze({ chance: 0.03, prefix: '잠든', outline: '#a9b8ff', zColor: '#d4dcff', zEveryMs: 1700, wakeCells: 2, groggyMs: 1500 }),
     feast: Object.freeze({ chance: 0.0004 }),
     star: Object.freeze({ chance: 0.015, fallMs: 520, burstMs: 680,
-        rewards: Object.freeze([['magicBud', 3], ['sapBud', 1], ['formlessDew', 1], ['blessing', 1]]) }),
+        rewards: Object.freeze([['magicBud', 3], ['sapBud', 1], ['formlessDew', 1], ['blessing', 1]]),
+        // 유성우(숨은 사건): 별 하나 대신 count개가 한꺼번에, 그 가운데 하나는 황금률(golden, 떨어질 수 있을 때).
+        shower: Object.freeze({ chance: 0.0006, count: 7, golden: Object.freeze(['goldenRule', 1]) }) }),
     breath: Object.freeze({ chance: 0.012, seconds: 30, kinds: Object.freeze([
         Object.freeze({ key: 'wind', name: '바람의 숨결', text: '이동 속도 +30%, 공격 속도 +15%', stats: Object.freeze([['move', 30], ['aspd', 15]]) }),
         Object.freeze({ key: 'ember', name: '불씨의 숨결', text: '피해 +40%', stats: Object.freeze([['pctDmg', 40]]) }),
@@ -286,7 +288,7 @@ const ACT_EXPLORATION_INCIDENTS = Object.freeze({
     lucky: Object.freeze({ min: 777, gapMs: 30000, kill: 7777, rewards: Object.freeze([['magicBud', 3], ['sapBud', 1], ['formlessDew', 2], ['goldenRule', 1], ['fairyRing', 1]]) }),
     records: Object.freeze([['critter', '금빛 수액 슬라임', false], ['stray', '길 잃은 몬스터', false], ['sleep', '잠든 무리', false], ['star', '별똥별', false],
         ['challenge', '사냥 도전', false], ['breath', '세계수의 숨결', false],
-        ['rainbow', '무지갯빛 수액 슬라임', true], ['feast', '황금 수액 잔치', true], ['yawn', '세계수의 하품', true], ['lucky', '행운의 숫자', true],
+        ['rainbow', '무지갯빛 수액 슬라임', true], ['feast', '황금 수액 잔치', true], ['yawn', '세계수의 하품', true], ['lucky', '행운의 숫자', true], ['shower', '유성우', true],
         ['luckyKill', '루프의 7,777번째 처치', true]].map(row => Object.freeze(row)))
 });
 // Whole-pixel camera zoom for the 16px art (js/canvas-act-exploration.js tileSize). 2026-10-02: at most ×4 (was ×5): on a 125%

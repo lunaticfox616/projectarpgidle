@@ -331,6 +331,7 @@ const devTestPanel = (() => {
                 button('별똥별', () => note(combatIncidents.testStar() ? '별똥별을 떨어뜨렸습니다' : '방 단위 지도의 방에서만 됩니다')),
                 button('사냥 도전', () => note(combatIncidents.testChallenge() ? '사냥 도전을 열었습니다' : '방 단위 지도의 방에서만, 하나씩 됩니다')),
                 button('세계수의 숨결', () => note(combatIncidents.testBreath() ? '세계수의 숨결이 깃들었습니다' : '숨결을 부르지 못했습니다')),
+                button('유성우', () => note(combatIncidents.testShower() ? '유성우를 떨어뜨렸습니다' : '방 단위 지도의 방에서만 됩니다')),
                 button('수액 잔치', () => note(combatIncidents.testFeast() ? '황금 수액 잔치를 열었습니다' : '지금 방에 보통 몬스터가 없습니다'))])
         ]);
     }

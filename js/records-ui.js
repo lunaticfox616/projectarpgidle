@@ -17,7 +17,7 @@
     const TONE = Object.freeze({ loop: '#e8c27a', time: '#8fd8ff', level: '#8fe07a', chaos: '#b78bff', labyrinth: '#d9b066', sky: '#9fd0ff',
         underworld: '#54b8a4', ocean: '#5ab8f0', colony: '#9fd46a', zone: '#eee7dc', damage: '#ff8a5c' });
     // 잔잔한 사건마다 그 사건의 빛깔(data/act-exploration-maps.js의 테와 같은 결), 숨은 사건은 겪기 전에는 잿빛.
-    const INCIDENT_TONE = Object.freeze({ critter: '#ffcf4a', stray: '#9be0a4', sleep: '#a9b8ff', star: '#ffe9a0', challenge: '#ff9f6b', breath: '#b8f0c8', rainbow: '#c79bff',
+    const INCIDENT_TONE = Object.freeze({ critter: '#ffcf4a', stray: '#9be0a4', sleep: '#a9b8ff', star: '#ffe9a0', challenge: '#ff9f6b', breath: '#b8f0c8', shower: '#ffd36e', rainbow: '#c79bff',
         feast: '#ffcf4a', yawn: '#9fd46a', lucky: '#8fd8ff', luckyKill: '#c79bff', unknown: '#8b8478' });
 
     // 최고 도달 지점 표. 값이 0이면 아직 가보지 않은 콘텐츠라 행 자체를 숨긴다

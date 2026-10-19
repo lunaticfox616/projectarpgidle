@@ -10,6 +10,7 @@
  *   가까이 오면 무리째 깨어 잠시 멍하다(tickSleep).
  * - 황금 수액 잔치: 처음 들어선 전투 방에서 아주 드물게 그 방의 보통 몬스터가 모두 금빛 수액 슬라임이 된다(feast, 아틀라스 지도 말고).
  * - 별똥별: 처음 들어선 전투 방에 드물게 별 하나가 떨어져 그 칸에 재화 하나를 남긴다(dropStar, 그림은 js/canvas-stage-incidents.js).
+ *   아주 드물게 유성우(숨은 사건): 별 일곱이 한꺼번에, 하나는 황금률(starShower).
  * - 세계수의 숨결: 처음 들어선 전투 방에서 드물게 영웅에게 seconds초짜리 숨결 하나(breathe, 능력치는 breathStats).
  * - 사냥 도전: 처음 들어선 전투 방에서 드물게 seconds초 안에 그 방을 비우라는 도전이 열리고, 해내면 재화 몇 개(openChallenge).
  * - 세계수의 하품: 처음 들어선 전투 방에서 아주 드물게 그 방의 몬스터가 잠든다(skillHeldUntil: 움직이지도 공격하지도 않는다).
@@ -316,12 +317,40 @@ const combatIncidents = (() => {
     /** 처음 들어선 방에 chance의 확률로(forced면 반드시) 별 하나: 그림(battleFx 'fallingStar')을 띄우고 fallMs 뒤에 닿는다(landStars).
      * 떨어뜨렸는지. */
     function dropStar(run, room, key, now, forced = false) {
-        const S = rule().star, roll = forced || draw('star', key) < S.chance * often();
+        const S = rule().star;
+        if (!forced && draw('shower', key) < S.shower.chance * often()) return starShower(run, room, key, now);
+        const roll = forced || draw('star', key) < S.chance * often();
         const map = roll && starRewards().length ? actExplorationDoors.stageMap(run) : null, cell = map ? starCell(map, room, key) : null;
         if (!cell) return false;
         addBattleFx('fallingStar', { cell, duration: S.fallMs + S.burstMs });
         stars.push({ run, cell, key, at: now + S.fallMs });
         return true;
+    }
+    /** 유성우: 별 count개가 방의 서로 다른 칸에 한꺼번에(마지막 하나는 황금률), 알림은 한 번. 떨어뜨렸는지. */
+    function starShower(run, room, key, now) {
+        const S = rule().star, map = starRewards().length ? actExplorationDoors.stageMap(run) : null, cells = [];
+        for (let i = 0; map && i < S.shower.count; i++) {
+            const cell = starCell(map, room, `${key}:shower${i}`);
+            if (cell && !cells.some(other => other.gx === cell.gx && other.gy === cell.gy)) cells.push(cell);
+        }
+        if (!cells.length) return false;
+        cells.forEach((cell, index) => {
+            addBattleFx('fallingStar', { cell, duration: S.fallMs + S.burstMs });
+            stars.push({ run, cell, key: `${key}:shower${index}`, at: now + S.fallMs, shower: true, golden: index === cells.length - 1 });
+        });
+        tell('유성우가 쏟아집니다.', 'chase', true);
+        note('shower');
+        return true;
+    }
+    /** 별 하나의 보상 [currency, count]: 유성우의 황금 별은 황금률(떨어질 수 있을 때), 그 밖에는 별똥별 보상에서 하나. */
+    function starLoot(star, rows) {
+        const golden = rule().star.shower.golden;
+        return star.golden && contentProgression.canDropCurrency(golden[0]) ? golden : rows[Math.floor(draw('starLoot', star.key) * rows.length)];
+    }
+    /** 시험 패널: 지금 방에 유성우. */
+    function testShower() {
+        const run = actExplorationState.current(game), room = run && actExplorationDoors.stageMap(run) ? actExplorationDoors.room(run) : null;
+        return !!room && starShower(run, room, `test:${getCombatTime()}`, getCombatTime());
     }
     /** 방 안쪽의 걸을 수 있는 칸 가운데 영웅에게서 두 칸 넘게 떨어진 곳(열두 번 굴려 처음 맞는 칸). 없으면 null. */
     function starCell(map, room, key) {
@@ -340,8 +369,8 @@ const combatIncidents = (() => {
             if (stars[i].at > now) continue;
             const [star] = stars.splice(i, 1), rows = starRewards();
             if (star.run !== run || !rows.length) continue;
-            const [currency, count] = rows[Math.floor(draw('starLoot', star.key) * rows.length)];
-            if (!(receipt(() => keepCurrencyDrop(star.cell, currency, count)).gain > 0)) continue;
+            const [currency, count] = starLoot(star, rows);
+            if (!(receipt(() => keepCurrencyDrop(star.cell, currency, count)).gain > 0) || star.shower) continue; // 유성우는 한 번 알렸다
             tell('별똥별이 떨어졌습니다.', 'reward');
             note('star');
         }
@@ -518,6 +547,6 @@ const combatIncidents = (() => {
         tell(`행운의 숫자 ${dealt.toLocaleString('ko-KR')}${'2459'.includes(hit.digit) ? '가' : '이'} 나왔습니다.`, 'reward');
         note('lucky');
     }
-    return Object.freeze({ dressPacks, glazeOf, tick, onKill, noteDamage, testSpawn, testYawn, testSleep, testFeast, testStray, testStar, testChallenge, testBreath, breathKind, breathStats });
+    return Object.freeze({ dressPacks, glazeOf, tick, onKill, noteDamage, testSpawn, testYawn, testSleep, testFeast, testStray, testStar, testChallenge, testBreath, testShower, breathKind, breathStats });
 })();
 safeExposeGlobals({ combatIncidents });
