@@ -2784,18 +2784,14 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
                 value: fx.text || '회피!', miss: true, bodyCue: true, color: fx.color || '#c4e2ff' });
             handled = true;
         } else if (fx.type === 'statusText') {
-            let bodyCue = fx.bodyCue === true;
             let enemyPos = fx.enemyId ? (enemyPosMap[fx.enemyId] || battleVisualState.enemyGhostPos[fx.enemyId]) : null;
             let anchorPos = enemyPos || playerPos;
-            if (bodyCue) {
-                // 회피 · 막아냄 · 성채화: 맞은 쪽 머리 위 가운데, 대미지 숫자와 같은 크기 결(2026-10-06 사용자 요청 — 몸 옆에 11px로 작게 떴다).
-                const bodyHeight = enemyPos ? getEnemyBodyHeight(enemyPos) : getHeroBodyHeight(playerPos, now);
-                spawnDamageText({ start: now, ...getBodyCueAnchor(anchorPos, bodyHeight), value: fx.text || '회피!', miss: true, bodyCue: true,
-                    color: fx.color || '#c4e2ff' });
-            } else {
-                spawnDamageText({ start: now, x: anchorPos.x + 14, y: anchorPos.y - 40, value: fx.text || '회피!', miss: true,
-                    color: fx.color || '#c4e2ff' });
-            }
+            // 짧은 글씨는 모두 그 몸의 머리 위 가운데에 뜬다. 회피, 막아냄, 성채화(bodyCue)는 대미지 숫자와 같은 크기 결이다(2026-10-06
+            // 사용자 요청: 몸 옆에 11px로 작게 떴다). 2026-10-19: 나머지(무효, 죽음 저항, 밀려남, 경계하는 무리의 "!")도 발에서 40px 위
+            // 몸 오른쪽을 떠나 머리 위로 왔다. "!"는 달려오는 몬스터의 머리 위에 서야 했다.
+            const bodyHeight = enemyPos ? getEnemyBodyHeight(enemyPos) : getHeroBodyHeight(playerPos, now);
+            spawnDamageText({ start: now, ...getBodyCueAnchor(anchorPos, bodyHeight), value: fx.text || '회피!', miss: true,
+                bodyCue: fx.bodyCue === true, color: fx.color || '#c4e2ff' });
             handled = true;
         } else if (fx.type === 'enemyDeath') {
             if (now - fx.start < 500 && typeof playUiFeedbackSound === 'function') {
