@@ -26,8 +26,10 @@ const WARCRY_PHYSICAL_REDUCTION_CAP_BONUS_PCT = 3;
 const COMBAT_PROJECTILE_MIN_TRAVEL_MS = 120;
 const COMBAT_PROJECTILE_MS_PER_CELL = 55;
 const BOSS_ATTACK_IMPACT_DELAY_MS = 500;
-const UNDERWORLD_FIRST_FLOOR_BOSS_HP_MULTIPLIER = 0.81;
-const UNDERWORLD_FIRST_FLOOR_BOSS_DAMAGE_MULTIPLIER = 0.74;
+/** Floor 1's boss of the underworld and the sky tower: life and damage eased so the first floor is no wall. The sky tower took the
+ * underworld's values on 2026-10-19 (user: "창공의 탑 1층 보스를 지하계 1층처럼 낮춰줘"; its floor-1 boss felled a T15 build in 8 s). */
+const FIRST_FLOOR_BOSS_TUNING = Object.freeze({ hp: 0.81, damage: 0.74 });
+const FIRST_FLOOR_EASED_ZONE_TYPES = Object.freeze(['underworld', 'skyTower']);
 const UNDERWORLD_ENTRY_BENCHMARK_HP_MULTIPLIER = 0.85;
 const UNDERWORLD_ENTRY_BENCHMARK_DAMAGE_MULTIPLIER = 0.82;
 let pendingSkillStageHits = [];
@@ -6405,16 +6407,16 @@ function getDifficultyBenchmarkProfile(zone) {
     return null;
 }
 
-function getUnderworldEntryBossTuning(zone, isBoss) {
+/** A boss's entry easing: the underworld entry benchmark's own, floor 1's of the underworld and the sky tower (FIRST_FLOOR_BOSS_TUNING),
+ * else none. Boss life, boss hits and the panel's recommended power all read it. */
+function getEntryBossTuning(zone, isBoss) {
     if (!isBoss || !zone) return { hp: 1, damage: 1 };
     if (isUnderworldEntryBenchmark(zone)) {
         return { hp: UNDERWORLD_ENTRY_BENCHMARK_HP_MULTIPLIER, damage: UNDERWORLD_ENTRY_BENCHMARK_DAMAGE_MULTIPLIER };
     }
-    const firstFloor = zone.type === 'underworld'
+    const firstFloor = FIRST_FLOOR_EASED_ZONE_TYPES.includes(zone.type)
         && Math.max(1, Math.floor(Number(zone.floor) || 1)) === 1;
-    return firstFloor
-        ? { hp: UNDERWORLD_FIRST_FLOOR_BOSS_HP_MULTIPLIER, damage: UNDERWORLD_FIRST_FLOOR_BOSS_DAMAGE_MULTIPLIER }
-        : { hp: 1, damage: 1 };
+    return firstFloor ? FIRST_FLOOR_BOSS_TUNING : { hp: 1, damage: 1 };
 }
 
 function getUnderworldEnemyDamageMultiplier(zone) {
@@ -6550,8 +6552,8 @@ function applyFloorContentEnemyHp(zone, hp) {
 }
 /** The underworld entry boss, the map's and the abyss's life scales, the flat 0.92, at least 1, and trial 3's boss at 85%. */
 function applyEnemyHpScales(zone, hp, isBoss, abyssScale) {
-    const underworldEntryTuning = getUnderworldEntryBossTuning(zone, isBoss);
-    hp = Math.floor(hp * underworldEntryTuning.hp * (zone.mapHpMul || 1));
+    const entryTuning = getEntryBossTuning(zone, isBoss);
+    hp = Math.floor(hp * entryTuning.hp * (zone.mapHpMul || 1));
     hp = Math.floor(hp * (abyssScale.hpMul || 1) * (isBoss ? (abyssScale.bossMul || 1) : 1));
     hp = Math.max(1, Math.floor(hp * 0.92));
     if (isBoss && zone.type === 'trial' && zone.id === 'trial_3') hp = Math.floor(hp * 0.85);
@@ -7137,8 +7139,8 @@ function estimateMapZonePowerRequirements(zone) {
     let abyssScale = getAbyssMonsterScales(zone);
     let contentScale = resolveMapEstimateContentScale(zone);
     const { bossMods, cosmosTrait } = getMapEstimateBossMods(zone);
-    const underworldEntryTuning = getUnderworldEntryBossTuning(zone, true);
-    const parts = { hp, tier, tierProgress, loopInputs, seasonDepth, abyssScale, contentScale, bossMods, cosmosTrait, underworldEntryTuning };
+    const entryTuning = getEntryBossTuning(zone, true);
+    const parts = { hp, tier, tierProgress, loopInputs, seasonDepth, abyssScale, contentScale, bossMods, cosmosTrait, entryTuning };
     let bossHp = getMapEstimateBossHp(zone, parts);
     let bossHit = getMapEstimateBossHit(zone, parts);
     const threat = getMapEstimateThreatProfile(zone, getMapEstimateThreatMods(bossMods, cosmosTrait), bossHit, seasonDepth, tier);
@@ -7181,7 +7183,7 @@ function getMapEstimateBossHp(zone, p) {
         * k.traitHp;
     let estimateEnergyShieldPct = Math.max(Number(bossMods.energyShieldPct || 0), Number(cosmosTrait && cosmosTrait.energyShieldPct || 0));
     if (estimateEnergyShieldPct > 0) bossHp *= 1 + estimateEnergyShieldPct / 100;
-    bossHp *= p.underworldEntryTuning.hp;
+    bossHp *= p.entryTuning.hp;
     if (zone.type === 'trial' && zone.id === 'trial_3') bossHp *= 0.85;
     return bossHp;
 }
@@ -7198,7 +7200,7 @@ function getMapEstimateBossHit(zone, p) {
         * contentScale.damage * k.modDmg * k.mapDmg
         * k.traitDmg;
     if (zone.type === 'act' && Number(zone.id) <= 1 && (game.season || 1) >= 3) bossHit *= 0.58;
-    bossHit *= p.underworldEntryTuning.damage * getMonsterLoopPowerScale(zone, 'damage');
+    bossHit *= p.entryTuning.damage * getMonsterLoopPowerScale(zone, 'damage');
     return bossHit;
 }
 /** The boss life's scales that default to 1: the abyss life and boss scales, the modifiers' and map's life, a cosmos trait's life. */
@@ -12898,7 +12900,7 @@ function performMonsterAttacks(pStats) {
             if (zone.type === 'act' && zone.id <= 1 && (game.season || 1) >= 3) dmg = Math.floor(dmg * 0.58);
             if (enemy.isElite) dmg = Math.floor(dmg * 1.28);
             if (enemy.isBoss) dmg = Math.floor(dmg * (1.14 + zone.tier * 0.16));
-            dmg = Math.floor(dmg * getUnderworldEntryBossTuning(zone, enemy.isBoss).damage);
+            dmg = Math.floor(dmg * getEntryBossTuning(zone, enemy.isBoss).damage);
             if (bossPattern && Number.isFinite(bossPattern.damageMul) && bossPattern.damageMul !== 1) {
                 dmg = Math.max(1, Math.floor(dmg * bossPattern.damageMul));
                 if (bossPattern.isSpecial && game.settings.showCombatLog) {
