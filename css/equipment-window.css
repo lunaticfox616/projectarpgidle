@@ -313,6 +313,9 @@
   :root body #item-tab-equip .eqw-rail { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
   :root body #item-tab-equip .eqw-rail-menu { display: flex; flex: 1 1 0; }
   :root body #item-tab-equip .eqw-rail > .eqw-rail-tool, :root body #item-tab-equip .eqw-rail-menu > .eqw-rail-tool { flex: 1 1 0; flex-direction: row; height: 40px; }
+  /* 가로 단추에서는 안쪽 모서리의 개수 표시가 "복구" 글자를 덮었다(글자 뒤에 두면 그림이 밀려났다): 바깥 모서리에 얹는다. */
+  :root body #item-tab-equip .eqw-rail-tool { overflow: visible; }
+  :root body #item-tab-equip .eqw-rail-tool small { z-index: 1; top: -6px; right: -4px; box-shadow: 0 0 0 2px #0d0a07; }
   :root body #item-tab-equip .eqw-rail-panel { left: 0; right: 0; top: auto; bottom: calc(100% + 6px); width: auto; max-height: 60vh; overflow: auto; }
 }
 }
