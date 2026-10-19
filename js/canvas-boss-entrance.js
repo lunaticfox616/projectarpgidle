@@ -181,12 +181,13 @@ const bossEntranceView = (() => {
         }
     }
 
-    /** Centre line for the boss name band (band = { up, down } px around it) that keeps the rising boss and the hero in
-     * view: the usual spot when it is clear, else below both (the top holds the HUD and the minimap), else above both.
-     * null when this boss is not entering. */
-    function bannerY(area, boss, band) {
-        if (!spot || !boss || spot.id !== boss.id) return null;
-        const spans = [[spot.top, spot.feet + 8], heroSpan(area.now)].filter(Boolean);
+    /** Where the entering boss will stand ([[top, bottom]] screen y, BOSS_TILES tall), for the name band to keep clear; none when this
+     * boss is not entering. */
+    const enteringSpans = boss => (spot && boss && spot.id === boss.id ? [[spot.top, spot.feet + 8]] : []);
+    /** Centre line for the band clear of the given drawn spans ([top, bottom] screen y) and the hero: the usual spot when it is clear,
+     * else below them all (the top holds the HUD and the minimap), else above them. */
+    function bannerLine(area, drawnSpans, band) {
+        const spans = drawnSpans.concat([heroSpan(area.now)]).filter(Boolean);
         const clear = y => spans.every(([top, bottom]) => y + band.down < top || y - band.up > bottom);
         const usual = Math.round(area.height * 0.3), below = Math.max(...spans.map(s => s[1])) + band.up + 8;
         const above = Math.min(...spans.map(s => s[0])) - band.down - 8;
@@ -211,6 +212,6 @@ const bossEntranceView = (() => {
         ctx.restore();
     }
 
-    return { enemyAge, stageLook, revealedBoss, shake, drawGround, drawScreen, bannerY };
+    return { enemyAge, stageLook, revealedBoss, shake, drawGround, drawScreen, enteringSpans, bannerLine };
 })();
 safeExposeGlobals({ bossEntranceView });

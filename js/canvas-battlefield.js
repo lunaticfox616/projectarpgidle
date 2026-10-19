@@ -3148,13 +3148,22 @@ function getBossBannerAlpha(age) {
     return Math.min(1, Math.max(0, (BOSS_BANNER_MS - age) / 640));
 }
 
-/** The band's centre line, chosen once per banner: out of the way of a boss rising through its entrance, else 30% down. */
+/** The band's centre line, chosen once per banner: out of the way of the boss (where it rises through its entrance and where it was
+ * drawn this frame; 2026-10-19: the entrance alone guessed 2.6 tiles, and the band lay across a taller boss's head for its first
+ * 2.6 s) and of the hero. */
 function getBossBannerY(area, banner) {
     const held = battleVisualState.bossBannerY;
     if (held && held.start === battleVisualState.bossAnnounceStart) return held.y;
-    const y = bossEntranceView.bannerY(area, banner.boss, { up: 38, down: 32 }) ?? Math.round(area.height * 0.3);
+    const spans = bossEntranceView.enteringSpans(banner.boss).concat(drawnBossSpans(banner.boss));
+    const y = bossEntranceView.bannerLine(area, spans, { up: 38, down: 32 });
     battleVisualState.bossBannerY = { start: battleVisualState.bossAnnounceStart, y };
     return y;
+}
+
+/** A standing boss's drawn span, from its overhead bar to its feet, as this frame drew it; none while it is not drawn. */
+function drawnBossSpans(boss) {
+    const entry = typeof battleDrawList === 'object' ? battleDrawList.drawnEntry(boss) : null;
+    return entry ? [[entry.y - getEnemyFieldBarLift(boss) - 14, entry.y + 8]] : [];
 }
 
 function drawBossAnnouncement(ctx, area, banner) {
