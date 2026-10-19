@@ -636,9 +636,10 @@ function resolveTimeRiftFusion() {
     return { fused: fused, grade: grade, lost: lost, inherited: rareStats.length };
 }
 
-// Manual and automatic entries return by the content start rule (js/state.js getContentReturnZoneId): an act, a chaos zone or a floor
-// content, never another run's zone (a ticket encounter is not resumable for free).
-function prepareMeteorEncounterEntry(returnZoneId = getContentReturnZoneId()) {
+// Manual entry returns to the chosen act/abyss. Ticket encounters are not resumable for free, and a floor content is entered again
+// through its own checks (the time rift's future asks for bag room). Automatic interruptions pass their own explicit return
+// destination (an atlas map's chain goes on after the meteor).
+function prepareMeteorEncounterEntry(returnZoneId = Number.isInteger(game.currentZoneId) ? game.currentZoneId : null) {
     let st = ensureMeteorSiteState();
     st.activeMeteorTier = Math.max(8, getSkyRiftGaugeEffectiveTier({tier:st.skyRiftMinTier || 13}, st));
     st.meteorReturnZoneId = returnZoneId !== undefined && returnZoneId !== null ? returnZoneId : null;

@@ -267,7 +267,7 @@ const sideEncounterUi = (() => {
 
     function timeFuture(rift) {
         const current = game.currentZoneId === TIME_RIFT_FUTURE_ZONE_ID;
-        const issue = getTimeRiftFusionMismatchReason(rift.altarUnique,rift.altarRare);
+        const issue = getTimeRiftFutureEntryReason(rift); // 입장과 같은 까닭(가방 자리도)
         const action = current ? '<button type="button" onclick="switchTab(\'tab-battle\')">전투 보기</button>' :
             `<button type="button" data-exploration-departure onclick="changeZone('${TIME_RIFT_FUTURE_ZONE_ID}')" ${issue?'disabled':''}>미래 입장</button>`;
         return `<div class="map-expedition-intro"><h3>3. 미래</h3><strong>희귀 옵션을 고유에 계승</strong>

@@ -10336,7 +10336,7 @@ function resolveNextLoopBestPlusOneZone(zone) {
 }
 
 function enterAutomaticMeteorEncounter() {
-    prepareMeteorEncounterEntry(getContentReturnZoneId());
+    prepareMeteorEncounterEntry(game.currentZoneId);
     game.currentZoneId = METEOR_FALL_ZONE_ID;
 }
 
@@ -13950,7 +13950,9 @@ function enterWoodsmanEchoChallenge() {
     run.timeLeft = 30;
     run.lastTickAt = getCombatTime();
     run.totalDamage = 0;
-    run.returnZoneId = getContentReturnZoneId();
+    // 잔상 안에서 다시 시작하면 처음 시작한 곳을 지킨다. 측정이므로 미리 받은 숨결(js/combat-incidents.js breathe)은 지운다.
+    if (game.currentZoneId !== WOODSMAN_ECHO_ZONE_ID || run.returnZoneId === undefined || run.returnZoneId === null) run.returnZoneId = getContentReturnZoneId();
+    game.incidentBreath = null;
     actExplorationProgress.depart(game);
     game.currentZoneId = WOODSMAN_ECHO_ZONE_ID;
     game.killsInZone = 0;
