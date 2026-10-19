@@ -3161,11 +3161,11 @@ function getBossBannerAlpha(age) {
 /** The band's centre line, chosen once per banner: out of the way of the boss (where it rises through its entrance and where it was
  * drawn this frame; 2026-10-19: the entrance alone guessed 2.6 tiles, and the band lay across a taller boss's head for its first
  * 2.6 s) and of the hero. */
-function getBossBannerY(area, banner) {
+function getBossBannerY(area, banner, down) {
     const held = battleVisualState.bossBannerY;
     if (held && held.start === battleVisualState.bossAnnounceStart) return held.y;
     const spans = bossEntranceView.enteringSpans(banner.boss).concat(drawnBossSpans(banner.boss));
-    const y = bossEntranceView.bannerLine(area, spans, { up: 38, down: 32 });
+    const y = bossEntranceView.bannerLine(area, spans, { up: 38, down });
     // Held once the boss's place is known: on the board a revealed boss is drawn a few frames after its name comes up.
     if (spans.length) battleVisualState.bossBannerY = { start: battleVisualState.bossAnnounceStart, y };
     return y;
@@ -3181,7 +3181,8 @@ function drawBossAnnouncement(ctx, area, banner) {
     bossEntranceView.drawScreen(ctx, area);
     if (!banner) return;
     const { width } = area;
-    const cy = getBossBannerY(area, banner);
+    const lines = getBossBannerSubLines(ctx, banner.boss, width);
+    const cy = getBossBannerY(area, banner, 32 + (lines.length - 1) * 14);
     ctx.save();
     ctx.globalAlpha = getBossBannerAlpha(banner.age);
     ctx.textAlign = 'center';
@@ -3199,8 +3200,17 @@ function drawBossAnnouncement(ctx, area, banner) {
     ctx.fillStyle = '#f0c46a';
     ctx.fillText(name, mid, cy);
     ctx.font = `12px ${BATTLE_PIXEL_FONT}`;
-    fillPixelToneText(ctx, [`${getElementLabel(banner.boss.ele)} 속성 보스`, getBossReach(banner.boss).label, ...getEnemyDefenseHighlights(banner.boss)].join(', '), mid, cy + 25, '#d98a6a');
+    lines.forEach((line, index) => fillPixelToneText(ctx, line, mid, cy + 25 + index * 14, '#d98a6a'));
     ctx.restore();
+}
+
+/** The band's small lines: element, reach and standout defenses, the defenses on a line of their own when the screen is too narrow
+ * for one (2026-10-19: with two of them the line was 371 px wide, wider than a 360 px phone). */
+function getBossBannerSubLines(ctx, boss, width) {
+    const head = [`${getElementLabel(boss.ele)} 속성 보스`, getBossReach(boss).label], defenses = getEnemyDefenseHighlights(boss);
+    ctx.font = `12px ${BATTLE_PIXEL_FONT}`;
+    const one = [...head, ...defenses].join(', ');
+    return !defenses.length || ctx.measureText(one).width <= width - 24 ? [one] : [head.join(', '), defenses.join(', ')];
 }
 
 /** 이름 뒤의 그늘: 이름 둘레가 가장 짙고 위아래와 양옆 모두 둥글게 옅어져 사라지는 납작한 타원. 2026-10-16 사용자 "보스 등장씬에서
