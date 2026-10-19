@@ -323,7 +323,16 @@ function normalizeSkillSlotsSave(merged) {
         if (!worn(merged.mobilitySkill)) merged.mobilitySkill = merged.activeSkill;
         merged.activeSkill = '기본 공격';
     }
+    keepBlockedMobilityGem(merged, worn);
     merged.mobilitySkill = worn(merged.mobilitySkill) ? merged.mobilitySkill : '';
+}
+
+/** A main gem held back for the weapon (js/skills.js fitActiveSkillToWeapon) that is a mobility gem now (전도성 난격 of 0.3.8) goes to
+ * the empty mobility slot, never back to the main attack. Idempotent. */
+function keepBlockedMobilityGem(merged, worn) {
+    if (!mobilitySkill.isMobilityGem(merged.weaponBlockedSkill)) return;
+    if (!worn(merged.mobilitySkill) && worn(merged.weaponBlockedSkill)) merged.mobilitySkill = merged.weaponBlockedSkill;
+    merged.weaponBlockedSkill = '';
 }
 
 /** The gem the enhance screen opens on: one that is worn — the main gem, the mobility gem or a summon gem. */

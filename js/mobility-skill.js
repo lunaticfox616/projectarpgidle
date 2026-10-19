@@ -51,6 +51,7 @@ const mobilitySkill = (() => {
         if (!name) return '이동 스킬룬을 장착하지 않았습니다';
         if (now < cooldownUntil) return `재사용 대기 ${(Math.ceil((cooldownUntil - now) / 100) / 10).toFixed(1)}초`;
         if (game.playerHp <= 0 || game.combatHalted) return '지금은 쓸 수 없습니다';
+        if (!canUseSkillWithCurrentEquipment(name)) return '지금 무기로는 쓸 수 없는 이동 스킬룬입니다'; // ready() refuses it too
         if (!reachable(name) && !evadeRoute()) return '닿는 적이 없습니다'; // a warned hero may press it just to step out
         requestedAt = now;
         return '';

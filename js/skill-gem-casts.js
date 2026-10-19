@@ -24,11 +24,12 @@ const skillGemCasts = (() => {
         if(direction===2)destination.gy--;
         return destination;
     }
-    /** A landing cell: on the board, walkable (walls and sealed gates block), not under a living enemy and not where the story guide
-     * stands (js/act-exploration-doors.js guideCells). */
+    /** A landing cell: on the board, walkable (walls and sealed gates block), not under a living enemy, not where the story guide
+     * stands (js/act-exploration-doors.js guideCells) and not on a map object (a chest, a jar, a nest: like grid blinks, 2026-10-20). */
     function free(destination,enemies) {
-        const taken=new Set(enemies.flatMap(e=>getGridUnitCells(e).map(c=>gridCellKey(c.gx,c.gy))));
-        actExplorationDoors.guideCells(actExplorationState.current(game)).forEach(key=>taken.add(key));
+        const taken=new Set(enemies.flatMap(e=>getGridUnitCells(e).map(c=>gridCellKey(c.gx,c.gy)))),run=actExplorationState.current(game);
+        actExplorationDoors.guideCells(run).forEach(key=>taken.add(key));
+        actExplorationState.objects.solidCells(run).forEach(key=>taken.add(key));
         return canPlaceGridFootprint(taken,destination.gx,destination.gy,{columns:1,rows:1});
     }
     const nearness=(c,source)=>Math.max(Math.abs(c.gx-source.gx),Math.abs(c.gy-source.gy))*100+(c.gx-source.gx)**2+(c.gy-source.gy)**2;

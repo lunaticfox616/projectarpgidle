@@ -959,9 +959,13 @@ function getGemSpellEarlyMultiplier(skill, level) {
     return start + (1 - start) * Math.min(1, Math.max(0, (level - 1) / (until - 1)));
 }
 
+/** 이동 스킬룬(태그 mobility, js/mobility-skill.js isMobilityGem과 같은 판정)인가. */
+const isMobilityRuneName = name => (SKILL_DB[name]?.tags || []).includes('mobility');
 /** 주 공격 칸의 룬을 지금 무기에 맞춘다: 못 쓰면 기본 공격으로 바꿔 두고 그 룬을 game.weaponBlockedSkill에 적어 두며, 맞는 무기를 다시
  * 들면 그 룬으로 돌린다. 무기 자세를 보는 장비 평가가 getActiveSkillStats를 다시 부르므로 이름은 먼저 잡아 두고 확인 뒤에 쓴다. */
 function fitActiveSkillToWeapon() {
+    // 이동 룬은 주 공격 칸으로 돌아오지 않는다(불러올 때 이동 칸으로, js/save-migrations.js keepBlockedMobilityGem).
+    if (isMobilityRuneName(game.weaponBlockedSkill)) game.weaponBlockedSkill = '';
     const blocked = game.weaponBlockedSkill;
     if (game.activeSkill === '기본 공격' && blocked && (game.skills || []).includes(blocked) && canUseSkillWithCurrentEquipment(blocked)) {
         game.activeSkill = blocked;
