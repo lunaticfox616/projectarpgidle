@@ -8560,7 +8560,6 @@ function createActExplorationPack(zone,room,stage,encounter=null,formation=null)
     if(formation && formation.rescue)pack.rescue=true;
     markExplorationAlertPack(pack);
     atlasFinds.dressTreasurePack(zone,pack);
-    combatIncidents.dressPack(zone,pack); // 잔잔한 사건: 드물게 금빛 수액 슬라임 하나가 곁에 선다
     return pack;
 }
 
@@ -8594,7 +8593,7 @@ function markExplorationAmbushRooms(zone,map,packs) {
 function ambushRoomPacks(room,packs) {
     const own=packs.filter(pack=>pack.roomId===room.id && pack.stage===null && !pack.anchor && !pack.rescue && !pack.alert && !pack.sleep && !pack.treasure);
     const main=own.find(pack=>pack.key===room.id+':pack');
-    if(!main || main.encounter || !main.aliveIds.length || own.some(pack=>pack.eliteIds.length))return [];
+    if(!main || main.encounter || !main.aliveIds.length || own.some(pack=>pack.eliteIds.length || pack.waiting.some(enemy=>enemy.critter)))return [];
     return (Math.abs(hashSeed(`ambush:${main.key}:${main.aliveIds[0]}`))%1000)/1000<ACT_EXPLORATION_AMBUSH.chance ? own : [];
 }
 
@@ -8645,8 +8644,10 @@ function createExplorationPacks(zone,map,bossStages) {
             : createActExplorationPack(zone,room,null,encounter,arrangedRoomFormation(arranger,zone,room,encounter,counts.get(room.id))));continue;}
         for(let stage=0;stage<bossStages;stage++)packs.push(createExplorationBossStage(zone,map,room,stage));
     }
-    return markExplorationAmbushRooms(zone,map,packs.concat(createAddedExplorationPacks(zone,map,patrol,arranger,rescueRoom),
+    // 잔잔한 사건(js/combat-incidents.js): 새 지도와 모든 무리의 칸을 보고 드물게 금빛 수액 슬라임, 길 잃은 몬스터, 잠든 무리
+    const dressed=combatIncidents.dressPacks(zone,map,packs.concat(createAddedExplorationPacks(zone,map,patrol,arranger,rescueRoom),
         createStarterRescuePack(zone,map,rescueRoom)));
+    return markExplorationAmbushRooms(zone,map,dressed);
 }
 
 /** 액트 1의 첫 몬스터(2026-10-15 사용자: "첫 방에 몬스터가 있고 그걸 잡으면 룬이 드랍되게", "하켄이 그 몬스터에게 맞고있는걸로"):

@@ -238,7 +238,8 @@ const ACT_EXPLORATION_ALERT = Object.freeze({fromLoop:2,chance:0.2,hearReach:12,
 // 끝나면 한꺼번에 덤비고, 문은 싸우는 동안 잠긴다. 테두리는 outline.
 const ACT_EXPLORATION_AMBUSH = Object.freeze({chance:0.05,pull:0.4,keep:2,search:3,windUp:0.9,outline:'#ff3d5a'});
 // 잔잔한 사건 (2026-10-20 사용자: "계속 같은 게임이라고 느껴지지 않도록 낮은 확률로 나올만한 잔잔한 이벤트", js/combat-incidents.js).
-// 굴림은 무리 열쇠나 방 번호로 정해 다른 난수를 밀지 않는다. 1루프의 액트 1과 방치 정산에서는 일어나지 않는다.
+// 굴림은 다른 난수를 밀지 않는다: 무리는 무리 열쇠와 첫 몬스터 번호로, 방은 탐험마다 정한 값과 방 번호로 굴리고, 굴린 방은 탐험 기록에
+// 남겨 다시 불러와도 다시 굴리지 않는다. 1루프의 액트 1과 방치 정산에서는 일어나지 않는다.
 // critter 금빛 수액 슬라임: 방 단위 무대의 보통 무리(보스, 조우, 구출, 경계, 습격, 보물 무리 말고) 곁에 chance의 확률로 하나가 더 선다. 덤비지
 //   않고 영웅에게서 먼 방 구석으로 달아나다가(자동 사냥이면 영웅이 잠가 쫓는다), 영웅과 같은 방에 든 뒤 fleeMs가 지나면 사라진다. 생명력 hpMul배,
 //   경험치 expMul배. 쓰러뜨리면 rewards: currencies [재화, 개수, 무게]에서 picks번 뽑고, gear 등급 이상의 장비 하나. look 그림(수액 슬라임),

@@ -95,12 +95,15 @@ const atlasEncounters = (() => {
     function hasOwnLook(type) {
         return !!(type && ATLAS.encounters[type] && ATLAS.encounters[type].visuals);
     }
-    /** The pack a kill empties (checked before the engine removes the enemy from its pack), or null. */
+    /** The pack a kill empties (checked before the engine removes the enemy from its pack), or null. A golden sap slime
+     * (js/combat-incidents.js) is in its pack but not counted: its death empties nothing, and the last other monster's does. */
     function emptiedPack(state, enemy) {
         const run = actExplorationState.current(state);
-        const pack = run && run.packs.find(row => row.key === enemy.explorationPack);
-        if (!pack || pack.waiting.length) return null;
-        return pack.aliveIds.length === 1 && pack.aliveIds[0] === enemy.id ? pack : null;
+        const pack = !enemy.critter && run && run.packs.find(row => row.key === enemy.explorationPack);
+        if (!pack || pack.waiting.some(row => !row.critter)) return null;
+        const slimes = new Set((state.enemies || []).filter(row => row && row.critter).map(row => row.id).concat(pack.waiting.map(row => row.id)));
+        const others = pack.aliveIds.filter(id => !slimes.has(id));
+        return others.length === 1 && others[0] === enemy.id ? pack : null;
     }
     /** One key of a list reward (수액 상처's catalysts, 시든 정원's oils): the map region's own (regionKeys) for encounterRegionShare
      * of the picks, else any key at random. */
