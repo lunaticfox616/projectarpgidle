@@ -298,7 +298,7 @@ const replayProjection = (() => {
      * real at realCapMs (a zone type it does not model, a map that never ends) stops there and the result says so. */
     function limitLongRealCombat(replay) {
         const log = replay.projection, realMs = replay.processedMs - log.projectedMs, settings = replay.game.settings;
-        if (realMs >= RULES.realHoldMs && !log.held && !['repeatZone', 'stop'].includes(settings.mapCompleteAction)) {
+        if (realMs >= RULES.realHoldMs && !log.held && !['repeatZone', 'stop'].includes(settings.mapCompleteAction) && isHoldUseful(replay.game)) {
             settings.mapCompleteAction = 'repeatZone';
             log.held = true;
         }
@@ -306,6 +306,12 @@ const replayProjection = (() => {
         log.cutMs += replay.elapsedMs - replay.processedMs;
         replay.skippedMs += replay.elapsedMs - replay.processedMs;
         replay.elapsedMs = replay.processedMs;
+    }
+    /** The hold only helps in a zone the projection models (or before any zone): the labyrinth, the underworld and the other floor
+     * contents are never projected, so holding them only stopped their climb at realHoldMs. */
+    function isHoldUseful(state) {
+        const type = (getZone(state.currentZoneId) || {}).type;
+        return !type || RULES.zoneTypes.includes(type);
     }
     /** One slice: projected maps while a measured zone holds, else real combat (which keeps measuring). */
     function advanceProjectedReplay(replay, budgetMs) {

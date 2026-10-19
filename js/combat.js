@@ -2056,7 +2056,9 @@ function coreLoop(nowMs) {
     trackProgressStall(progressBefore);
     const hazardEvasion = updateCombatHazardEvasion(pStats);
     const walkedMs = actExplorationProgress.takeWalkedMs(); // 이번 틱에 걸은 시간: 적이 없어도 비운다
-    if (game.playerHp <= 0) return;
+    // 지역 위험(지하계 생명력 흡수 등)이나 지도 진행으로 이 틱에 쓰러졌으면 여기서 처리한다. 2026-10-19 전에는 다음 틱으로 미뤄,
+    // 방치 정산이 쓰러진 채로 멈췄다.
+    if (game.playerHp <= 0) { handlePlayerDefeat(getZone(game.currentZoneId), pStats, "☠️ 치명상을 입어 쓰러졌습니다.", { fatalElement: 'other', sourceName: '치명상' }); return; }
     if ((game.enemies || []).length > 0) runFightTick(pStats, hazardEvasion, walkedMs);
     settleLastEnemyAttacks(pStats);
     // The void rift step logs and may enter the grand breach through the screen's own calls, handed over here.
@@ -10674,9 +10676,16 @@ function advanceOceanAfterClear(zone, oceanSt, ui) {
     game.oceanBossRunPending = false;
 }
 
+/** This loop's best floor of a content, which the map action 최고층 returns to (resolveNextLoopBestPlusOneZone; the loop settlement
+ * clears it). The labyrinth and the chaos realm stopped writing theirs when finishEncounterRun was split (b4d1a2af). */
+function recordLoopBestFloor(key, floor) {
+    const progress = ensureLoopProgressCurrent();
+    progress[key] = Math.max(Math.floor(progress[key] || 0), floor);
+}
 function finishChaosRealmEncounter(zone, mapAction, ui) {
     let st = ensureChaosRealmState();
     let floor = Math.max(1, Math.floor(zone.floor || st.currentFloor || 1));
+    recordLoopBestFloor('bestChaosRealmFloor', floor);
     st.clearedFloors = Array.isArray(st.clearedFloors) ? st.clearedFloors : [];
     let firstClear = !st.clearedFloors.includes(floor);
     if (firstClear) {
@@ -10878,6 +10887,7 @@ function departSeasonBoss(zone, ui) {
 function finishLabyrinthEncounter(zone, mapAction, ui) {
     let clearedFloor = Math.max(1, Math.floor(game.labyrinthFloor || zone.floor || 1));
     if (clearedFloor >= 10) unlockJournalEntry('labyrinth_10');
+    recordLoopBestFloor('bestLabyrinthFloor', clearedFloor);
     game.labyrinthUnlockedMaxFloor = Math.max(game.labyrinthUnlockedMaxFloor || 1, clearedFloor + 1);
     game.labyrinthFloor = ['repeatZone', 'stop'].includes(mapAction) ? clearedFloor : clearedFloor + 1;
     let fossilSummary = rollLabyrinthFossils(clearedFloor, ui);
@@ -13842,7 +13852,8 @@ function awardLoopProgressPoints() {
     let woodsmanGain = Math.floor(Math.sqrt(woodsmanDelta) / 25);
     bonus += woodsmanGain;
     if (bonus > 0) game.loopDeepPoints = Math.max(0, Math.floor(game.loopDeepPoints || 0)) + bonus;
-    game.loopProgressBase = { abyssEndlessDepth: nowDepth, labyrinthUnlockedMaxFloor: nowLab, specialBosses: Array.from(new Set([...(Array.isArray(game.loopProgressBase.specialBosses) ? game.loopProgressBase.specialBosses : []), ...newBosses])) };
+    // 미궁은 5층마다 1점: 남은 층은 다음 루프로 넘긴다(2026-10-19 전에는 루프마다 버려 4층씩 오르면 점수가 없었다)
+    game.loopProgressBase = { abyssEndlessDepth: nowDepth, labyrinthUnlockedMaxFloor: Math.min(nowLab, baseLab + Math.floor(labGain / 5) * 5), specialBosses: Array.from(new Set([...(Array.isArray(game.loopProgressBase.specialBosses) ? game.loopProgressBase.specialBosses : []), ...newBosses])) };
     game.loopProgressCurrent = { specialBosses: [], chaos20Cleared: false, bestAbyssDepth: 0, bestLabyrinthFloor: 0, bestChaosRealmFloor: 0, bestSkyFloor: 0, bestUnderworldFloor: 0, cosmosPlanets: [] };
     game.woodsmanSettledScore = Math.max(woodsmanSettled, woodsmanScore);
     game.woodsmanPendingScore = game.woodsmanSettledScore;

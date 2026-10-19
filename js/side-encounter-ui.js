@@ -203,11 +203,16 @@ const sideEncounterUi = (() => {
         const fossils = contentProgression.isUnlocked('fossil');
         const reward = fossils ? '미궁 화석, 속성 화석' : '화석 제작 해금 후 전리품 획득';
         const owned = fossils ? `<small>미궁 화석 ${game.currencies.fossil||0}개 보유</small>` : '';
-        const action = current ? '<button type="button" onclick="switchTab(\'tab-battle\')">전투 보기</button>' : `<button type="button" data-exploration-departure onclick="enterLabyrinthFloor(${floor})">${floor}층 입장</button>`;
+        const lock = labyrinthLock();
+        const action = current ? '<button type="button" onclick="switchTab(\'tab-battle\')">전투 보기</button>' : `<button type="button" data-exploration-departure onclick="enterLabyrinthFloor(${floor})"${lock.attr}>${floor}층 입장</button>`;
         return `<div class="map-expedition-intro"><div class="map-expedition-heading"><strong>${floor}층 ${current?'탐험 중':'입장 준비'}</strong>${power}</div>
             <dl><div><dt>층 돌파</dt><dd>다음 층 개방<small>입장 가능 1 ~ ${max}층</small></dd></div>
             <div><dt>층 완료 시 확률 획득</dt><dd>${reward}${owned}</dd></div></dl>
-            <div class="map-expedition-actions">${action}${max>1?'<button type="button" data-exploration-departure onclick="enterLabyrinthPrompt()">층 선택</button>':''}</div></div>`;
+            <div class="map-expedition-actions">${action}${max>1?`<button type="button" data-exploration-departure onclick="enterLabyrinthPrompt()"${lock.attr}>층 선택</button>`:''}${lock.note}</div></div>`;
+    }
+    /** 액트 5를 깨기 전에는 미궁에 들어갈 수 없다(js/items.js가 이동을 거절한다): 단추를 끄고 까닭을 적는다. 루프가 바뀌면 다시 잠긴다. */
+    function labyrinthLock() {
+        return (game.maxZoneId||0) < 5 ? {attr:' disabled',note:'<span>액트 5를 클리어하면 입장할 수 있습니다.</span>'} : {attr:'',note:''};
     }
 
     function timePressure(rift) {
