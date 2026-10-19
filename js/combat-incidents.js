@@ -329,7 +329,7 @@ const combatIncidents = (() => {
     /** 유성우: 별 count개가 방의 서로 다른 칸에 한꺼번에(마지막 하나는 황금률), 알림은 한 번. 떨어뜨렸는지. */
     function starShower(run, room, key, now) {
         const S = rule().star, map = starRewards().length ? actExplorationDoors.stageMap(run) : null, cells = [];
-        for (let i = 0; map && i < S.shower.count; i++) {
+        for (let i = 0; map && cells.length < S.shower.count && i < S.shower.count * 3; i++) { // 겹친 칸은 다시 굴린다
             const cell = starCell(map, room, `${key}:shower${i}`);
             if (cell && !cells.some(other => other.gx === cell.gx && other.gy === cell.gy)) cells.push(cell);
         }
