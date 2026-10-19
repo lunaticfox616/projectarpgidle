@@ -93,7 +93,8 @@
 :root body #item-tab-equip .equipment-preset-row .equipment-preset-slot.applied { border-color: #e3bd72; color: #fff3d6; background: linear-gradient(180deg, #4a3618, #2c2010); }
 :root body #item-tab-equip .equipment-preset-row .equipment-preset-slot.missing { border-color: #a5523f; }
 :root body #item-tab-equip .equipment-preset-row .equipment-preset-slot.selected:not(.applied) { box-shadow: inset 0 0 0 1px rgba(227, 189, 114, .55); }
-:root body #item-tab-equip .equipment-preset-more > summary { min-height: 0; height: 100%; padding: 5px 8px; border: 1px solid #4a3a22; background: transparent; color: var(--eqw-muted);
+/* height 100%는 테두리와 여백까지 줄 높이에 넣어야 한다(content-box면 ⋯ 칸이 줄 아래로 12px 삐져나왔다). */
+:root body #item-tab-equip .equipment-preset-more > summary { box-sizing: border-box; display: grid; place-items: center; min-height: 0; height: 100%; padding: 5px 8px; border: 1px solid #4a3a22; background: transparent; color: var(--eqw-muted);
   font-size: 12px; list-style: none; cursor: pointer; }
 :root body #item-tab-equip .equipment-preset-more > summary::-webkit-details-marker { display: none; }
 :root body #item-tab-equip .equipment-preset-more .eqw-more-panel { width: 150px; }
