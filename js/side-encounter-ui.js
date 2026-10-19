@@ -199,7 +199,8 @@ const sideEncounterUi = (() => {
     function labyrinthPanel(power) {
         const floor = Math.max(1,Math.floor(game.labyrinthFloor||1));
         const max = Math.max(floor,Math.floor(game.labyrinthUnlockedMaxFloor||1));
-        const current = game.currentZoneId === LABYRINTH_ZONE_ID;
+        // 지도 완료 행동 '중단'으로 멈춘 미궁은 탐험 중이 아니다: 그 층에 다시 들어가는 단추를 보인다
+        const current = game.currentZoneId === LABYRINTH_ZONE_ID && !game.combatHalted;
         const fossils = contentProgression.isUnlocked('fossil');
         const reward = fossils ? '미궁 화석, 속성 화석' : '화석 제작 해금 후 전리품 획득';
         const owned = fossils ? `<small>미궁 화석 ${game.currencies.fossil||0}개 보유</small>` : '';

@@ -3610,7 +3610,7 @@ async function enterSkyTowerPrompt(selectedFloor) {
 function upgradeSkyStone() {
     if (!assertBuildEditable()) return;
     let st = ensureSkyTowerState();
-    if (!st.unlocked) return;
+    if (!st.unlocked) return addLog('창공의 탑이 열린 뒤 창공석을 만들 수 있습니다.', 'attack-monster', { toast: true });
     let max = getSkyStoneMaxLevel();
     let lv = Math.max(0, Math.floor(((st.skyStone || {}).level) || 0));
     if (lv >= max) return addLog('창공석은 이미 최종 강화 상태입니다.', 'attack-monster');
