@@ -313,9 +313,8 @@ const actExplorationUi=(()=>{
         departurePending=true;
         const origin={state:game,run,zoneId:game.currentZoneId,season:game.season};
         try {
-            const accepted=await requestGameConfirmation(departureMessage(run),{
-                title:'탐험을 포기하고 이동할까요?',tone:'danger',confirmLabel:'포기하고 이동',cancelLabel:'계속 탐험'
-            });
+            const copy=departureCopy(button);
+            const accepted=await requestGameConfirmation(copy.message,{title:copy.title,tone:'danger',confirmLabel:copy.confirm,cancelLabel:copy.cancel});
             if(!accepted || !departureStillCurrent(origin))return;
             if(!button.isConnected || button.disabled) {
                 showGameToast('이동할 화면이 변경되었습니다. 목적지를 다시 선택하세요.',{tone:'warning'});return;
@@ -332,6 +331,11 @@ const actExplorationUi=(()=>{
     }
     function departureMessage() {
         return '탐험 진행이 초기화됩니다. 이미 획득한 아이템과 재화는 유지됩니다.';
+    }
+    /** The dialog's words; a button may name its own (data-departure-title, -message, -confirm, -cancel), as the ocean's surfacing does. */
+    function departureCopy(button) {
+        const own=button.dataset;
+        return {title:own.departureTitle||'탐험을 포기하고 이동할까요?',message:own.departureMessage||departureMessage(),confirm:own.departureConfirm||'포기하고 이동',cancel:own.departureCancel||'계속 탐험'};
     }
     document.addEventListener('click',departureClick,true);
     return {render,mode,toggleAuto,commandMove,lockOnAt,hover,choose,holdMove,expand,hint,departurePending:()=>departurePending};

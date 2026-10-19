@@ -20,7 +20,12 @@ const oceanDiveUi = (() => {
         const fishing = `<button type="button" onclick="switchMapSubtab('map-tab-fishing')">낚시와 제작</button>`;
         if (!st.diving) return `<button type="button" class="dive-go" data-exploration-departure onclick="oceanDiveUi.startDive()">잠수 시작<small>${st.checkpointM}m부터</small></button>${shallowHtml(st)}${autoHtml(st)}${fishing}`;
         const back = game.currentZoneId === OCEAN_ZONE_ID ? '' : `<button type="button" class="dive-go" data-exploration-departure onclick="changeZone(OCEAN_ZONE_ID)">심해로 돌아가기</button>`;
-        return `${back}<button type="button" data-exploration-departure onclick="oceanDiveUi.surfaceDive()">수면으로 복귀</button>${autoHtml(st)}${fishing}`;
+        return `${back}<button type="button"${back ? '' : surfaceGuard(st)} onclick="oceanDiveUi.surfaceDive()">수면으로 복귀</button>${autoHtml(st)}${fishing}`;
+    }
+    /** 심해에서 떠오르기 전 확인(방 탐험 중일 때, js/act-exploration-ui.js departureCopy). 다른 곳에 있으면 떠올라도 그 자리에 머물러 묻지 않는다. */
+    function surfaceGuard(st) {
+        return ` data-exploration-departure data-departure-title="수면으로 올라갈까요?" data-departure-message="${st.checkpointM}m 체크포인트 뒤의 진행은 사라집니다. 이미 얻은 물고기와 재화는 유지됩니다."`
+            + ' data-departure-confirm="올라가기" data-departure-cancel="계속 잠수"';
     }
     /** 얕게 잠수: 가장 깊은 리프트가 넘지 못한 가디언 앞이면 지난 가디언 자리부터 내려가 무리와 낚시를 다시 한다. */
     function shallowHtml(st) {
@@ -34,9 +39,11 @@ const oceanDiveUi = (() => {
         return `<button type="button" class="dive-auto${stopped ? ' is-stopped' : ''}" aria-pressed="${on}" onclick="oceanDiveUi.toggleAutoRedive()">`
             + `자동 재잠수<small>${stopped ? '멈춤' : (on ? '켜짐' : '꺼짐')}</small></button>`;
     }
+    /** has-four: four dive buttons go 2x2 on a narrow panel (css/ocean-dive.css). */
     function headHtml(st) {
-        return `<div class="dive-head"><span class="dive-emblem">${renderPixelIcon('drop', 'dive-emblem-icon')}</span>`
-            + `<div class="dive-title"><h3>심해 잠수</h3>${buildMapPowerEstimateHtml(getZone(OCEAN_ZONE_ID))}</div><div class="dive-actions">${actionsHtml(st)}</div></div>`;
+        const actions = actionsHtml(st), four = (actions.match(/<button/g) || []).length >= 4;
+        return `<div class="dive-head${four ? ' has-four' : ''}"><span class="dive-emblem">${renderPixelIcon('drop', 'dive-emblem-icon')}</span>`
+            + `<div class="dive-title"><h3>심해 잠수</h3>${buildMapPowerEstimateHtml(getZone(OCEAN_ZONE_ID))}</div><div class="dive-actions">${actions}</div></div>`;
     }
     /** This guardian stretch (the last cleared guardian to the next), lifts every 100m as ticks, the depth as fill and the checkpoint as a pin. */
     function depthHtml(st) {

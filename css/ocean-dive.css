@@ -104,8 +104,13 @@
     .dive-head { flex-wrap: wrap; }
     .dive-actions { justify-content: stretch; width: 100%; }
     .dive-actions > button { flex: 1 1 0; }
-    .dive-actions > button:first-child:nth-last-child(4), .dive-actions > button:first-child:nth-last-child(4) ~ button { flex-basis: calc(50% - 3px); }
     .dive-depth-nums b { font-size: 16px; }
     .dive-oxygen > div:first-child { flex-wrap: wrap; }
+  }
+  /* 단추가 넷이면(얕게 잠수, 다른 곳에서 잠수 중) 조금 넓은 창에서도 제목 아래 2x2로 놓는다(한 줄에 셋과 하나로 갈라지지 않게) */
+  @container (max-width: 640px) {
+    .dive-head.has-four { flex-wrap: wrap; }
+    .dive-head.has-four .dive-actions { justify-content: stretch; width: 100%; }
+    .dive-head.has-four .dive-actions > button { flex: 1 1 calc(50% - 3px); }
   }
 }

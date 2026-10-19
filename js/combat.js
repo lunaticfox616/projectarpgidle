@@ -2895,13 +2895,12 @@ function recordPlayerEvadeUniqueEffects(pStats, aliveEnemyCount, now) {
     game.uniqueLoneEvasionCounterUntil = at + Math.max(0.1, Number(counter.duration || 3)) * 1000;
 }
 
-/** Ocean stats of one stat evaluation (sum = getPlayerStats' bucket sum): pressure resistance (with its upgrades), depth gain, oxygen saving, rare fish. */
+/** Ocean stats of one stat evaluation (sum = getPlayerStats' bucket sum): pressure resistance (with its upgrades), depth gain, rare fish. */
 function collectOceanStats(sum) {
     const pressureUpgrade = typeof getOceanPressureResistUpgradePct === 'function' ? getOceanPressureResistUpgradePct() : 0;
     return {
         oceanPressureResist: Math.max(0, Math.min(80, sum('oceanPressureResist') + pressureUpgrade)),
         oceanDepthGainPct: Math.max(0, sum('oceanDepthGainPct')),
-        oceanOxygenAttackSavingPct: Math.max(0, Math.min(90, sum('oceanOxygenAttackSavingPct'))),
         oceanRareFishChancePct: Math.max(0, sum('oceanRareFishChancePct'))
     };
 }
