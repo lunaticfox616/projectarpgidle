@@ -526,6 +526,13 @@ function setTimeRiftPressure(delta) {
     updateStaticUI();
 }
 
+/** 미래에 들어갈 수 없는 까닭: 제단의 두 장비가 맞지 않거나, 융합 결과가 들어갈 가방 자리가 없다(전에는 싸움을 끝낸 뒤에야 융합을
+ * 미뤄 미래를 다시 깨야 했다, 2026-10-20). 들어갈 수 있으면 null. */
+function getTimeRiftFutureEntryReason(rift) {
+    return getTimeRiftFusionMismatchReason(rift.altarUnique, rift.altarRare)
+        || (rift.altarUnique && !canStoreEquipmentItems([rift.altarUnique], game) ? '⌛ 가방에 융합 결과가 들어갈 자리가 없습니다. 자리를 비우고 미래에 들어가세요.' : null);
+}
+
 /** @returns {string|null} 시간의 균열 장비 융합 불가 사유. 가능하면 null. */
 function getTimeRiftFusionMismatchReason(altarItem, candidate) {
     if (!altarItem || !candidate) return '제단에 고유 1개/희귀 1개가 필요합니다.';
@@ -627,9 +634,9 @@ function resolveTimeRiftFusion() {
     return { fused: fused, grade: grade, lost: lost, inherited: rareStats.length };
 }
 
-// Manual entry returns to the chosen act/abyss. Ticket encounters are not resumable for free.
-// Automatic interruptions pass their own explicit return destination.
-function prepareMeteorEncounterEntry(returnZoneId = Number.isInteger(game.currentZoneId) ? game.currentZoneId : null) {
+// Manual and automatic entries return by the content start rule (js/state.js getContentReturnZoneId): an act, a chaos zone or a floor
+// content, never another run's zone (a ticket encounter is not resumable for free).
+function prepareMeteorEncounterEntry(returnZoneId = getContentReturnZoneId()) {
     let st = ensureMeteorSiteState();
     st.activeMeteorTier = Math.max(8, getSkyRiftGaugeEffectiveTier({tier:st.skyRiftMinTier || 13}, st));
     st.meteorReturnZoneId = returnZoneId !== undefined && returnZoneId !== null ? returnZoneId : null;
@@ -686,7 +693,7 @@ function changeZone(id) {
     if (zone.type === 'timeRift') {
         let rift = ensureTimeRiftState();
         if ((game.season || 1) < TIME_RIFT_UNLOCK_LOOP) return addLog(`시간의 균열은 루프 ${TIME_RIFT_UNLOCK_LOOP}부터 열립니다.`, 'attack-monster');
-        const mismatch = zone.riftPhase === 'future' ? getTimeRiftFusionMismatchReason(rift.altarUnique, rift.altarRare) : null;
+        const mismatch = zone.riftPhase === 'future' ? getTimeRiftFutureEntryReason(rift) : null;
         if (mismatch) return addLog(mismatch, 'attack-monster');
         rift.activePressure = rift.pressure;
     }

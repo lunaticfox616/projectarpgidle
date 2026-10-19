@@ -312,7 +312,8 @@ const sideEncounterUi = (() => {
         const remaining = getSkyTowerRemainingClears();
         const first = !tower.clearedFloors.includes(floor);
         const reward = getSkyTowerRewardAmount(floor);
-        const current = game.currentZoneId === SKY_TOWER_ZONE_ID;
+        // 지도 완료 행동 '중단'으로 멈춘 탑은 탐험 중이 아니다: 그 층에 다시 들어가는 단추를 보인다(미궁과 같다)
+        const current = game.currentZoneId === SKY_TOWER_ZONE_ID && !game.combatHalted;
         const ready = canEnterSkyTower();
         const rewardText = first ? `${reward}개 확정` : `${Math.max(1,Math.floor(reward*.35))}개, 16% 확률`;
         return `<div class="map-expedition-intro"><div class="map-expedition-heading"><strong>${floor}층 ${current?'탐험 중':'입장 준비'}</strong>${buildMapPowerEstimateHtml(getZone(SKY_TOWER_ZONE_ID))}</div>
@@ -328,7 +329,7 @@ const sideEncounterUi = (() => {
 
     function skyEntryActions(tower,remaining) {
         const disabled = canEnterSkyTower() ? '' : 'disabled';
-        const action = game.currentZoneId === SKY_TOWER_ZONE_ID ? '<button onclick="switchTab(\'tab-battle\')">전투 보기</button>' :
+        const action = game.currentZoneId === SKY_TOWER_ZONE_ID && !game.combatHalted ? '<button onclick="switchTab(\'tab-battle\')">전투 보기</button>' :
             `<button data-exploration-departure onclick="enterSkyTowerPrompt(${tower.currentFloor})" ${disabled}>${tower.currentFloor}층 ${remaining?'입장':'연습 입장'}</button>`;
         return action + (tower.highestFloor>1?`<button data-exploration-departure onclick="enterSkyTowerPrompt()" ${disabled}>다른 층 선택</button>`:'');
     }

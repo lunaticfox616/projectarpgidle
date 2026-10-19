@@ -9307,6 +9307,14 @@ function ensureWoodsmanEchoRunState() {
     run.bestDps = Math.max(0, Number(run.bestDps || 0));
     return run;
 }
+/** Where the echo sends the hero back: where it was started (js/state.js getContentReturnZoneId), or the auto progress zone for a run
+ * saved before 2026-10-20. It went to the chaos realm every time and never asked the realm's entry (this loop's chaos 20): a new
+ * loop's level 1 hero fought the realm's floor 6 there. */
+function takeWoodsmanEchoReturnZone(run) {
+    const back = run.returnZoneId;
+    run.returnZoneId = null;
+    return back !== undefined && back !== null ? back : getAutoProgressZoneId(game.maxZoneId);
+}
 function finishWoodsmanEchoRun() {
     let run = ensureWoodsmanEchoRunState();
     let elapsed = Math.max(0.001, run.duration - Math.max(0, run.timeLeft || 0));
@@ -9315,9 +9323,9 @@ function finishWoodsmanEchoRun() {
     run.active = false;
     run.timeLeft = 0;
     game.enemies = [];
-    game.combatHalted = true;
+    game.combatHalted = false;
     actExplorationProgress.depart(game);
-    game.currentZoneId = CHAOS_REALM_ZONE_ID;
+    game.currentZoneId = takeWoodsmanEchoReturnZone(run);
     if (typeof recordWoodsmanEchoRun === 'function') recordWoodsmanEchoRun(run.totalDamage, dps);
     addLog(`🪵 나무꾼의 잔상: 총 피해 ${Math.floor(run.totalDamage).toLocaleString()}, 최종 DPS ${Math.floor(dps).toLocaleString()} (최고 ${Math.floor(run.bestDps).toLocaleString()})`, 'season-up');
     updateStaticUI();
@@ -10319,7 +10327,7 @@ function resolveNextLoopBestPlusOneZone(zone) {
 }
 
 function enterAutomaticMeteorEncounter() {
-    prepareMeteorEncounterEntry(game.currentZoneId);
+    prepareMeteorEncounterEntry(getContentReturnZoneId());
     game.currentZoneId = METEOR_FALL_ZONE_ID;
 }
 
@@ -10814,7 +10822,7 @@ function finishSkyTowerEncounter(zone, mapAction, ui) {
 function clearSkyTowerFloor(st, floor, mapAction, ui) {
     st.clearedFloors = Array.isArray(st.clearedFloors) ? st.clearedFloors : [];
     let firstClear = !st.clearedFloors.includes(floor);
-    let reward = firstClear ? firstSkyTowerClear(st, floor, mapAction) : repeatSkyTowerClear(st, floor);
+    let reward = firstClear ? firstSkyTowerClear(st, floor, mapAction) : repeatSkyTowerClear(st, floor, mapAction);
     if (reward > 0) st.condensedPower = Math.max(0, Math.floor(st.condensedPower || 0)) + reward;
     st.clearedThisLoop = Math.min(getSkyTowerLoopClearLimit(), Math.max(0, Math.floor(st.clearedThisLoop || 0)) + 1);
     let rewardText = firstClear
@@ -10831,10 +10839,13 @@ function firstSkyTowerClear(st, floor, mapAction) {
     if (floor >= 10) unlockJournalEntry('sky_tower_10');
     return reward;
 }
-function repeatSkyTowerClear(st, floor) {
+/** A floor cleared before: 16% of the time a part of the reward, and the next floor as the map complete action says, as a first clear
+ * (it stayed on the floor, so a low floor picked early spent the loop's clears there, 2026-10-20). */
+function repeatSkyTowerClear(st, floor, mapAction) {
     let reward = 0;
     if (Math.random() < 0.16) reward = Math.max(1, Math.floor(getSkyTowerRewardAmount(floor) * 0.35));
-    st.currentFloor = Math.max(1, Math.min(Math.floor(st.highestFloor || 1), floor));
+    const highest = Math.max(1, Math.floor(st.highestFloor || 1));
+    st.currentFloor = Math.max(1, Math.min(highest, ['repeatZone', 'stop'].includes(mapAction) ? floor : floor + 1));
     return reward;
 }
 
@@ -13930,6 +13941,7 @@ function enterWoodsmanEchoChallenge() {
     run.timeLeft = 30;
     run.lastTickAt = getCombatTime();
     run.totalDamage = 0;
+    run.returnZoneId = getContentReturnZoneId();
     actExplorationProgress.depart(game);
     game.currentZoneId = WOODSMAN_ECHO_ZONE_ID;
     game.killsInZone = 0;
