@@ -34,11 +34,6 @@ function createDefaultRecordsState(now) {
     };
 }
 
-/** 잔잔한 사건을 겪은 횟수(js/combat-incidents.js가 recordIncident로 센다): 아는 열쇠(ACT_EXPLORATION_INCIDENTS.records)만, 0 이상의 정수로. */
-function normalizeIncidentCounts(counts) {
-    const source = counts && typeof counts === 'object' ? counts : {};
-    return Object.fromEntries(ACT_EXPLORATION_INCIDENTS.records.map(([key]) => [key, toPositiveInt(source[key])]).filter(([, count]) => count > 0));
-}
 
 /** 층 기록이 다음에 열린 층이던 저장을 한 번 낮춘다. 표식(clearedFloorBests)은 예전 판이 지우지 않아, 판을 오가도 두 번 낮추지 않는다. */
 function keepClearedFloorBests(records) {
@@ -48,6 +43,9 @@ function keepClearedFloorBests(records) {
     });
     records.clearedFloorBests = true;
 }
+
+/** 잔잔한 사건을 겪은 횟수의 모양(열쇠마다 수인 객체), 아니면 빈 객체. */
+const keepIncidentCounts = value => (value && typeof value === 'object' && !Array.isArray(value) ? value : {});
 
 function toPositiveInt(value) {
     let num = Math.floor(Number(value) || 0);
@@ -65,7 +63,8 @@ function ensureRecordsState(state) {
     r.loops = Array.isArray(r.loops) ? r.loops.filter(row => row && typeof row === 'object') : [];
     r.actBest = (r.actBest && typeof r.actBest === 'object') ? r.actBest : {};
     r.best = (r.best && typeof r.best === 'object') ? r.best : {};
-    r.incidents = normalizeIncidentCounts(r.incidents);
+    // 잔잔한 사건을 겪은 횟수(recordIncident): 매 틱 부르므로 모양만 지킨다. 값은 셀 때와 읽을 때(getRecordsView) 0 이상의 정수로 읽는다.
+    r.incidents = keepIncidentCounts(r.incidents);
     keepClearedFloorBests(r);
     r.echo = (r.echo && typeof r.echo === 'object') ? r.echo : { bestDps: 0, bestDamage: 0, runs: 0, lastAt: 0 };
     r.echo.bestDps = Math.max(0, Number(r.echo.bestDps) || 0);

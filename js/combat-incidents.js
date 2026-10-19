@@ -58,13 +58,20 @@ const combatIncidents = (() => {
      * 몬스터도 함께 잔다). @returns {object[]} 그 무리 목록 */
     function dressPacks(zone, map, packs) {
         if (quiet(zone)) return packs;
-        const taken = new Set(packs.flatMap(pack => pack.waiting.flatMap(enemy => getGridUnitCells(enemy).map(cell => gridCellKey(cell.gx, cell.gy)))));
+        const taken = new Set(packs.flatMap(pack => pack.waiting.flatMap(bodyKeys)));
         for (const pack of packs.filter(plainPack)) {
             if (map.stage && map.owner && addCritter(zone, map, pack, taken)) continue;
             addStray(zone, pack);
             lullPack(pack);
         }
         return packs;
+    }
+    /** 몬스터가 차지한 칸들의 열쇠: 발 칸과 몸 크기로, 판의 범위는 보지 않는다(getGridUnitCells는 지금 탐험의 판 크기를 보는데, 지도를
+     * 짓는 동안은 기본 9×8 판이라 목록이 비어 슬라임이 다른 몬스터와 같은 칸에 섰다, 2026-10-20 검토). */
+    function bodyKeys(enemy) {
+        const size = getGridUnitFootprint(enemy), keys = [];
+        for (let dy = 0; dy < size.rows; dy++) for (let dx = 0; dx < size.columns; dx++) keys.push(gridCellKey(enemy.gx + dx, enemy.gy + dy));
+        return keys;
     }
     /** 금빛 수액 슬라임 하나를 무리 곁에(수액 냄새 밴 장화를 끼면 chanceMul배 자주). 세웠는지. */
     function addCritter(zone, map, pack, taken) {
@@ -151,11 +158,13 @@ const combatIncidents = (() => {
      * 방식(js/combat-grid.js assignEnemyGridCombatProfile), 경험치 expMul배. */
     function addStray(zone, pack) {
         const key = `${pack.key}:${pack.aliveIds[0]}`;
-        const enemy = draw('stray', key) < rule().stray.chance ? pack.waiting.find(member => !member.isElite && plainLook(member)) : null;
+        const enemy = draw('stray', key) < rule().stray.chance ? pack.waiting.find(strayable) : null;
         const look = enemy ? strayLook(zone, key) : null;
         if (look) dressStray(enemy, look);
     }
     const plainLook = enemy => { const def = ACT_MONSTER_VISUAL_BY_ID[enemy.spriteVariantId]; return !!def && !def.weapon && !enemy.monsterVisualId; };
+    /** 길 잃은 몬스터가 될 수 있는 몬스터: 정예도, 이름표를 단 몬스터(나이테 길잡이 boardCarrier, 뿌리를 품은 craftOmen)도 아니고 액트 그림을 쓴다. */
+    const strayable = enemy => !enemy.isElite && !enemy.isBoss && !enemy.boardCarrier && !enemy.craftOmen && plainLook(enemy);
     /** 영웅이 가 본 액트(game.maxZoneId까지)의 몬스터 그림 가운데 이 지역 목록에 없는 것 하나. 없으면(1액트만 가 봤으면) null. */
     function strayLook(zone, key) {
         const here = new Set(getActMonsterPool(zone)), reached = Math.min(Math.floor(Number(game.maxZoneId) || 0), MAP_ZONES.length - 1);
@@ -173,34 +182,39 @@ const combatIncidents = (() => {
     }
     /** 시험 패널: 지금 방의 첫 보통 몬스터를 길 잃은 몬스터로. 바꿨는지. */
     function testStray() {
-        const enemy = (game.enemies || []).find(row => row && row.hp > 0 && !row.isBoss && !row.isElite && !row.critter && !row.stray && plainLook(row));
+        const enemy = (game.enemies || []).find(row => row && row.hp > 0 && !row.critter && !row.stray && strayable(row));
         const look = enemy ? strayLook(getZone(game.currentZoneId), `test:${enemy.id}`) : null;
         return look ? dressStray(enemy, look) : false;
     }
 
     // ---------------------------------------------------------------- 잠든 무리
-    const lull = enemy => Object.assign(enemy, { asleep: true, awakeName: enemy.name, name: `${rule().sleep.prefix} ${enemy.name}`, encounterOutline: rule().sleep.outline });
+    const lull = enemy => Object.assign(enemy, { asleep: true, awakeName: enemy.name, awakeOutline: enemy.encounterOutline || null,
+        name: `${rule().sleep.prefix} ${enemy.name}`, encounterOutline: rule().sleep.outline });
     /** 드물게 무리가 잠들어 있다(pack.sleep, 습격방에 모이지 않는다): 이름 앞에 prefix와 테. 깨기 전에는 움직이지도 공격하지도 않는다. */
     function lullPack(pack) {
         if (draw('sleep', `${pack.key}:${pack.aliveIds[0]}`) >= rule().sleep.chance) return;
         pack.sleep = true;
         pack.waiting.forEach(lull);
     }
-    /** 잠든 몬스터들: 무리의 누가 다쳤거나 영웅이 wakeCells 안에 든 무리는 모두 깨고, 나머지는 붙잡아 둔 채 z를 띄운다. */
-    function tickSleep(sleepers, now) {
+    /** 잠든 몬스터들: 무리의 누가 다쳤거나 영웅이 wakeCells 안에 든 무리는 무리째 깨고(wakePack), 나머지는 붙잡아 둔 채 z를 띄운다. */
+    function tickSleep(run, sleepers, now) {
         const S = rule().sleep, hero = game.gridPlayer;
         const near = enemy => !!hero && hasGridCell(enemy) && gridChebyshevDist(enemy.gx, enemy.gy, hero.gx, hero.gy) <= S.wakeCells;
         const woken = new Set(sleepers.filter(enemy => enemy.hp < enemy.maxHp || near(enemy)).map(enemy => enemy.explorationPack));
-        woken.forEach(() => note('sleep'));
-        for (const enemy of sleepers) {
-            if (woken.has(enemy.explorationPack)) wake(enemy, now);
-            else doze(enemy, now);
-        }
+        for (const enemy of sleepers) if (!woken.has(enemy.explorationPack)) doze(enemy, now);
+        woken.forEach(key => wakePack(run, key, sleepers, now));
     }
-    /** 깬 몬스터: 이름과 테가 돌아오고 groggyMs 동안 멍하다(머리 위에 !). */
+    /** 무리째 깬다: 싸움에 든 잠든 몬스터와 아직 영웅을 못 알아챈 몬스터 모두(안개 지도에서는 무리가 나뉘어 싸움에 들어 두 번 셌다). 사건
+     * 기록은 무리마다 한 번. */
+    function wakePack(run, key, sleepers, now) {
+        const pack = run.packs.find(row => row.key === key), waiting = pack ? pack.waiting.filter(enemy => enemy.asleep) : [];
+        sleepers.filter(enemy => enemy.explorationPack === key).concat(waiting).forEach(enemy => wake(enemy, now));
+        note('sleep');
+    }
+    /** 깬 몬스터: 이름과 테(잠들기 전의 테, 길 잃은 몬스터의 초록 테 같은)가 돌아오고 groggyMs 동안 멍하다(머리 위에 !). */
     function wake(enemy, now) {
         const S = rule().sleep;
-        Object.assign(enemy, { asleep: false, name: enemy.awakeName || enemy.name, encounterOutline: null });
+        Object.assign(enemy, { asleep: false, name: enemy.awakeName || enemy.name, encounterOutline: enemy.awakeOutline || null });
         enemy.skillHeldUntil = Math.max(Number(enemy.skillHeldUntil) || 0, now + S.groggyMs);
         addBattleFx('statusText', { enemyId: enemy.id, text: '!', color: S.outline, duration: 420 });
     }
@@ -337,7 +351,7 @@ const combatIncidents = (() => {
         const live = game.enemies.filter(enemy => enemy && enemy.hp > 0);
         for (const enemy of live) if (enemy.critter) tickCritter(run, enemy, room, now);
         const sleepers = live.filter(enemy => enemy.asleep);
-        if (sleepers.length) tickSleep(sleepers, now);
+        if (sleepers.length) tickSleep(run, sleepers, now);
         if (stars.length) landStars(run, now);
         if (map) tickRoom(run, room, now);
     }
