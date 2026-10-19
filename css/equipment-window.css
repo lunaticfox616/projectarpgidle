@@ -173,6 +173,8 @@
 :root body #item-tab-equip .eqw-auto-salvage { display: grid; gap: 6px; padding-bottom: 8px; border-bottom: 1px solid rgba(227, 189, 114, .25); }
 :root body #item-tab-equip .eqw-auto-salvage .loot-filter-grades { display: flex; flex-wrap: wrap; gap: 4px; }
 :root body #item-tab-equip .eqw-auto-salvage #auto-salvage-toggle-btn { justify-self: start; }
+/* 꺼져 있으면 등급 칩은 아무 일도 하지 않는다: 설정 아이템 필터의 꺼진 조건처럼 흐리게(고를 수는 있다). */
+:root body #item-tab-equip .eqw-auto-salvage:has(.eqw-rail-title b:not(.is-on)) #auto-salvage-rarity-chips { opacity: .5; }
 :root body #item-tab-equip .eqw-rail-panel .loot-filter-note { margin: 0; color: var(--eqw-muted); font-size: 11px; line-height: 1.5; }
 :root body #item-tab-equip .eqw-rail-panel .eqw-rail-link { min-height: 0; padding: 0 2px; border: 0; background: none; color: var(--eqw-gold); text-decoration: underline; }
 
