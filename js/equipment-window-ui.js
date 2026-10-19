@@ -88,6 +88,14 @@ const equipmentWindowUi = (() => {
         const gradeHidden = Object.values(settings.inventoryViewRarities || {}).some(shown => shown === false);
         summary.dataset.active = String(slotPicked || gradeHidden);
     }
+    /** 검색 항목 해체 and 미검색 항목 해체 wait for a search word: with none, the first took the whole bag and the second nothing. */
+    function markSearchSalvage() {
+        const empty = !getSearchFilterState().equip.trim();
+        document.querySelectorAll('#item-tab-equip [data-search-salvage]').forEach(button => {
+            button.disabled = empty;
+            button.title = empty ? '가방 검색어를 먼저 입력하세요.' : '';
+        });
+    }
     /** Opening one panel closes the others (the toggle event does not bubble, so the document listens in the capture phase). */
     function keepOnePanel(event) {
         const menu = event.target;
@@ -145,6 +153,7 @@ const equipmentWindowUi = (() => {
         renderHead();
         fillRailIcons();
         markFilter();
+        markSearchSalvage();
         watchBag();
     }
 

@@ -187,12 +187,11 @@
         renderTemporaryStorage();
         if (!root) return page;
         root.innerHTML = Array.from({ length: layout.pageCount }, (_, index) => {
-            let overflow = index >= layout.unlockedPageCount ? ', 초과 보관' : '';
             let matchCount = search.counts[index];
             let searchClass = search.active ? (matchCount > 0 ? ' search-match' : ' search-miss') : '';
             let searchText = search.active ? `, 검색 결과 ${matchCount}개` : '';
             let badge = matchCount > 0 ? `<small>${matchCount}</small>` : '';
-            return `<button type="button" class="${index === page ? 'active' : ''}${searchClass}" onclick="equipmentInventoryInteraction.setPage(${index})" aria-pressed="${index === page ? 'true' : 'false'}" aria-label="${index + 1}페이지${searchText}${overflow}" title="${index + 1}페이지${searchText}${overflow}"><span>${index + 1}</span>${badge}</button>`;
+            return `<button type="button" class="${index === page ? 'active' : ''}${searchClass}" onclick="equipmentInventoryInteraction.setPage(${index})" aria-pressed="${index === page ? 'true' : 'false'}" aria-label="${index + 1}페이지${searchText}" title="${index + 1}페이지${searchText}"><span>${index + 1}</span>${badge}</button>`;
         }).join('');
         return page;
     }
