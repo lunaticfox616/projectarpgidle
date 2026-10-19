@@ -64,9 +64,10 @@ const atlasRun = (() => {
         if (!inMap()) changeZone(ATLAS.zoneId);
         return inMap() ? '' : '지도로 이동할 수 없습니다.';
     }
-    /** A content's return or a finished departure left the hero in a map that has closed since: back to the frontier. */
+    /** A content's return or a finished departure left the hero in a map that has closed since: back to the frontier. Not while the
+     * finished map still stands through its settlement pause (its zone lingers, finish). */
     function recoverClosedMap() {
-        if (inMap() && !game.atlas.run) travelBack(null);
+        if (inMap() && !game.atlas.run && !atlas.zone(game)) travelBack(null);
     }
     /** The open map has one entry left: spending it would close the map. */
     const lastPortal = () => insideMap() && !!game.atlas.run && game.atlas.run.portals <= 1;
@@ -100,8 +101,15 @@ const atlasRun = (() => {
         pendingHeavyUiRefresh = true;
         queueImportantSave(220);
         if (stop) return halt();
-        // The cleared map stays on screen through the settlement pause only when the next map is ready to take its place.
-        if (opened && actExplorationProgress.deferDeparture(game)) return;
+        leaveFinishedMap(zone, opened);
+    }
+    /** The cleared map stays on screen through the settlement pause when the next map is ready to take its place, or when its end
+     * left items on the floor (2026-10-19 사용자: "지도 끝내고 아이템이 바닥에 떨어져 있으면 유예시간을 줘"; it used to leave about
+     * 0.5 s after the boss fell); else the hero leaves now. Leaving picks up whatever is still there. */
+    function leaveFinishedMap(zone, opened) {
+        const linger = !opened && actExplorationProgress.leftLoot(game);
+        if (linger) atlas.lingerZone(game, zone);
+        if ((opened || linger) && actExplorationProgress.deferDeparture(game)) return;
         actExplorationProgress.reconcileDeparture(game);
         startMoving(false);
     }

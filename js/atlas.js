@@ -397,12 +397,24 @@ const atlas = (() => {
 
     // ---------------------------------------------------------------- the combat zone of the open map
     const equivalentDepth = tier => ATLAS.difficulty.baseDepth + (tier - 1) * ATLAS.difficulty.depthPerTier;
-    /** The zone getZone(ATLAS.zoneId) returns while a map is open (memoized per run: its map and bonus never change). */
+    /** The zone getZone(ATLAS.zoneId) returns while a map is open (memoized per run: its map and bonus never change), and the
+     * finished map's zone through its settlement pause (lingerZone). */
     function zone(state) {
         const run = state.atlas && state.atlas.run;
-        if (!run) return null;
+        if (!run) return lingering(state);
         if (!zones.has(run)) zones.set(run, buildZone(run));
         return zones.get(run);
+    }
+    // A map finished with no next map keeps its zone while the cleared map stays on screen (js/atlas-run.js finish). Not saved: a
+    // reload during the pause finds no zone and returns the hero (js/atlas-run.js recoverClosedMap).
+    let linger = null;
+    function lingerZone(state, closed) {
+        linger = { state, zone: closed };
+        playerStatCache.invalidate(); // the zone feeds the stats (smoke-player-stat-cache MODULE_STATE)
+    }
+    function lingering(state) {
+        const pause = state.actExploration && state.actExploration.departure && state.actExploration.zoneId === ATLAS.zoneId;
+        return pause && linger && linger.state === state ? linger.zone : null;
     }
     const BOSS_RULES = { map: { hpMul: 1, damageMul: 1, stages: 1 }, guardian: { ...ATLAS.guardianRules, stages: 1 }, pinnacle: ATLAS.pinnacle };
     /** A node's boss rules: late fights carry their own (stages, life, damage). */
@@ -597,7 +609,7 @@ const atlas = (() => {
         fragment: id => FRAGMENTS.get(id) || null, pinnacle: PINNACLE, position, polar, defaults, lockReason, runOpenReason, status, reachable, points, bestTier, sync,
         effectiveTier, hasTickets, pinnacleReason, beginPinnacle, beginSpecial, beginMemory, beginBoard, lateNodes: LATE_NODES,
         slots, setLoadout, beginReason, begin, cancel, complete, markCleared, keepLoot, usePortal, close, nextAuto, dropFromKill, extraMap, fragmentFromKill, fragmentOpen,
-        zone, preview, lootTier, equivalentDepth, normalize, onLoopReset, travelReason, rewardMaps, rewardZone,
+        zone, lingerZone, preview, lootTier, equivalentDepth, normalize, onLoopReset, travelReason, rewardMaps, rewardZone,
         inMap: state => state.currentZoneId === ATLAS.zoneId });
 })();
 safeExposeGlobals({ atlas });
