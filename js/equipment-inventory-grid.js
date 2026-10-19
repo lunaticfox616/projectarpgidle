@@ -306,13 +306,13 @@
         if (index < 0) return { ok: false, reason: '임시 보관함에서 장비를 찾을 수 없습니다.' };
         let item = state.equipmentTemporaryStorage[index];
         let placementResult = findAddPlacement(item, state);
-        if (!placementResult.ok) return placementResult;
+        // No single free cell but the bag fits packed with it: in it goes and ensureState packs the bag, as for a pickup (2026-10-19).
+        if (!placementResult.ok && !canStoreItems([item], state)) return placementResult;
         state.equipmentTemporaryStorage.splice(index, 1);
         state.inventory.push(item);
-        state.equipmentInventoryPlacements = {
-            ...state.equipmentInventoryPlacements,
-            [itemKey]: placementResult.placement
-        };
+        if (placementResult.ok) {
+            state.equipmentInventoryPlacements = { ...state.equipmentInventoryPlacements, [itemKey]: placementResult.placement };
+        }
         return { ok: true, item, layout: ensureState(state) };
     }
 
