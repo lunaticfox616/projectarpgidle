@@ -381,6 +381,7 @@ const combatIncidents = (() => {
         if (challenge || (!forced && draw('challenge', key) >= C.chance * often()) || !challengeRewards().length) return false;
         if (!run.packs.some(pack => pack.roomId === room.id && pack.aliveIds.length)) return false;
         challenge = { run, roomId: room.id, until: now + C.seconds * 1000, marks: C.marks.slice() };
+        addBattleFx('statusText', { text: `사냥 도전 ${C.seconds}초`, color: '#ff9f6b', duration: 900, bodyCue: true });
         tell(`사냥 도전: ${C.seconds}초 안에 이 방의 몬스터를 모두 쓰러뜨리세요.`, 'reward');
         return true;
     }
