@@ -129,12 +129,13 @@ const craftingGoalOptions = (() => {
         const result = JSON.parse(JSON.stringify(item)), action = equipmentCrafting.resolveAction(recipe.key, item.rarity);
         // 홀씨 보장은 실제 제작과 같은 함수로 고르고 굴린다(js/passives.js useCurrency와 같은 규칙).
         let guaranteedStat = null;
+        const used = equipmentCrafting.omenFits(item, action, omen, mode) ? omen : null;
         if (mode !== 'none' && isSporeCraftEquipment(item)) {
             const mod = equipmentCrafting.pickSporeMod(item, action, mode, omen);
             if (!mod) throw Error('보장할 홀씨 옵션이 없습니다.');
-            guaranteedStat = equipmentCrafting.rollSporeLine(item, mod);
+            guaranteedStat = equipmentCrafting.rollSporeLine(item, mod, used);
         }
-        equipmentCrafting.applyBasic(result, action, { guaranteedStat, omen: equipmentCrafting.omenFits(item, action, omen, mode) ? omen : null });
+        equipmentCrafting.applyBasic(result, action, { guaranteedStat, omen: used });
         return result;
     }
     function rehearseStudy(context) {

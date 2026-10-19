@@ -10682,7 +10682,11 @@ const craftCurrencyUse = (() => {
     /** The action's effect on item; false when it could not happen after all (a fairy ring with no unique for the slot). */
     function apply(item, action, run) {
         if (!equipmentCrafting.basicActions.includes(action)) return EFFECTS[action](item, run);
-        equipmentCrafting.craftBasic(game, item, action, { addedMod: run.addedMod, guaranteedStat: equipmentCrafting.rollSporeLine(item, run.guaranteedMod), omen: run.omen });
+        // 홀씨 보장 줄: 첫 결과는 값을 치르기 전에 고른 종류로, 성화의 뿌리의 나머지 결과는 저마다 같은 풀에서 다시 골라 굴린다.
+        const guaranteedFor = copy => (run.guaranteedMod ? equipmentCrafting.rollSporeLine(copy,
+            equipmentCrafting.pickSporeMod(copy, action, run.spore, run.omen) || run.guaranteedMod, run.omen) : null);
+        equipmentCrafting.craftBasic(game, item, action, { addedMod: run.addedMod, guaranteedStat: equipmentCrafting.rollSporeLine(item, run.guaranteedMod, run.omen),
+            guaranteedFor, omen: run.omen });
         return true;
     }
 

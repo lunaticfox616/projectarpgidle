@@ -201,11 +201,13 @@ const equipmentCrafting = (() => {
         const pool = sporePool(item, action, mode, omen);
         return pool.length ? pickWeightedMod(pool) : null;
     }
-    /** mod's guaranteed line, rolled over the whole spore tier range of item (the family is promised, the top two tiers are not). */
-    function rollSporeLine(item, mod) {
+    /** mod's guaranteed line, rolled over the whole spore tier range of item (the family is promised, the top two tiers are not). With
+     * 거름의 뿌리 (omen effect 'floor') it rolls above the floor too, as every new line does (2026-10-20 hunt: only this line ignored it). */
+    function rollSporeLine(item, mod, omen = null) {
         if (!mod) return null;
         const range = getCraftTierRangeForItem(item, 'spore');
-        return { ...rollAffixValueInTierRange(mod, range.min, range.max), craftSource: 'spore' };
+        const min = omen && omen.effect === 'floor' ? Math.min(range.max, Math.max(range.min, floorTier(range.max))) : range.min;
+        return { ...rollAffixValueInTierRange(mod, min, range.max), craftSource: 'spore' };
     }
     // ---------------------------------------------------------------- 제작 뿌리 (data/items.js CRAFT_OMENS)
     // 2026-10-18 사용자: "craft of exile 사이트를 참고해서 ... 가중치 메커니즘, 크래프팅 방법 및 컨텐츠와 연계성". 걸어 둔 뿌리 하나가 자기가
@@ -350,14 +352,16 @@ const equipmentCrafting = (() => {
         return (state.inventory || []).find(row => row && row.id === id) || Object.values(state.equipment || {}).find(row => row && row.id === id) || null;
     }
     /** A live basic craft (js/passives.js useCurrency): applyBasic, and with 성화의 뿌리 more rolls on copies of the item as it was. The
-     * item keeps the first result; all of them wait in state.craftChoice for the player's pick (pickChoice). */
+     * item keeps the first result; all of them wait in state.craftChoice for the player's pick (pickChoice). options.guaranteedFor(copy)
+     * gives each other result its own spore line (as the research simulator rolls them), else they share options.guaranteedStat. */
     function craftBasic(state, item, action, options) {
         const before = options.omen && options.omen.effect === 'choice' ? JSON.parse(JSON.stringify(item)) : null;
         applyBasic(item, action, options);
         if (!before) return;
         const others = Array.from({ length: CRAFT_OMENS.choices - 1 }, () => {
             const copy = JSON.parse(JSON.stringify(before));
-            applyBasic(copy, action, { ...options, addedMod: null });
+            const guaranteedStat = options.guaranteedFor ? options.guaranteedFor(copy) : options.guaranteedStat;
+            applyBasic(copy, action, { ...options, addedMod: null, guaranteedStat });
             return craftFields(copy);
         });
         state.craftChoice = { itemId: item.id, options: [craftFields(item), ...others] };
