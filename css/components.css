@@ -1594,7 +1594,8 @@ html, body { overflow: hidden; }
 }
 .craft-picker-grid .craft-picker-card .item-title { font-size: 14px; }
 .craft-picker-grid .craft-picker-card .item-base-line { font-size: 12px; }
-.craft-picker-card .craft-picker-stat { font-size: 13px; white-space: normal; }
+/* 옵션 줄은 줄바꿈한다: 휴대폰의 116px 카드에서 한 줄로 자르면 "번개 기본 피…"처럼 수치가 사라졌다(전에는 인라인 nowrap이 이 규칙을 이겼다). */
+.craft-picker-card .craft-picker-stat { margin-top: 1px; color: var(--copy-bright); font-size: 12px; white-space: normal; word-break: keep-all; }
 .colony-ward-panel .search-action-row{flex-wrap:wrap;overflow:visible}.colony-ward-panel .search-action-row button{font-size:14px}
 @media (max-width: 1080px) {
     #ui-season-tree .loop-passive-node { transform: none; }
