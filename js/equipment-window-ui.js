@@ -314,7 +314,7 @@ const equipmentWindowUi = (() => {
         document.addEventListener('toggle', keepOnePanel, true);
         document.addEventListener('keydown', closePanelOnEscape, true);
     }
-    return Object.freeze({ COLOR, render, toggleLoadout, newDotHtml, isNew, inspectorDock, inspectorHtml, emptyHtml, fillDeltas, wornSlots, compareNode, showPane, toggleDeltas,
+    return Object.freeze({ render, toggleLoadout, newDotHtml, inspectorDock, inspectorHtml, emptyHtml, fillDeltas, wornSlots, compareNode, showPane, toggleDeltas,
         openSalvage, openItemFilter });
 })();
 safeExposeGlobals({ equipmentWindowUi });

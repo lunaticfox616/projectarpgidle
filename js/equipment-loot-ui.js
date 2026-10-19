@@ -232,7 +232,7 @@
         showCombatLogItemTooltip(pointer,token);
     }
 
-    const equipmentLootUi = Object.freeze({ renderAutoSalvage, renderSettings, updatePickup, togglePick, applyPreset, updateTargets, addRule, addTagRule, removeRule, saveAndPreview,
+    const equipmentLootUi = Object.freeze({ renderAutoSalvage, renderSettings, updatePickup, togglePick, applyPreset, updateTargets, addRule, addTagRule, removeRule,
         renderHighlights, showHighlight });
     safeExposeGlobals({ equipmentLootUi });
 })();

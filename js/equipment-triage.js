@@ -410,6 +410,6 @@
         return true;
     }
 
-    const equipmentTriage = Object.freeze({ sync, render, start, cancel, autoStart, onOpen, setFilter, filterRows, getResult, equipRecommended, rate });
+    const equipmentTriage = Object.freeze({ render, start, cancel, autoStart, onOpen, setFilter, filterRows, getResult, equipRecommended, rate });
     safeExposeGlobals({ equipmentTriage });
 }());

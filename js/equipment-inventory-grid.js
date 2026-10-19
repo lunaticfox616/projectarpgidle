@@ -267,10 +267,6 @@
         return { ok: false, reason: '그 위치에는 장비를 놓을 수 없습니다.', entry, layout };
     }
 
-    function evaluateMove(itemKey, column, row, targetGame) {
-        return evaluateMoveInLayout(itemKey, column, row, ensureState(targetGame));
-    }
-
     function placeInventoryItem(itemKey, column, row, targetGame) {
         let state = targetGame || game;
         let result = evaluateMoveInLayout(itemKey, column, row, ensureState(state));
@@ -327,20 +323,6 @@
         return { ...layout, rows: GRID_ROWS_PER_PAGE, page, entries };
     }
 
-    /** @returns {{ok:boolean, reason?:string, entry?:EquipmentInventoryGridEntry, swappedKey?:string|null, layout?:EquipmentInventoryGridLayout}} */
-    function move(itemKey, column, row, targetGame) {
-        let state = targetGame || game;
-        let result = evaluateMove(itemKey, column, row, state);
-        if (!result.ok) return result;
-        state.equipmentInventoryPlacements = { ...result.layout.placements, [itemKey]: result.placement };
-        let layout = ensureState(state);
-        return {
-            ok: true,
-            entry: layout.entries.find(candidate => candidate.key === itemKey),
-            layout
-        };
-    }
-
     /** 빈칸 정리: the newest item first, no gaps (the sort select is gone since 2026-10-19). A nearly full bag that does not fit in that
      * order puts the biggest items first. @returns {'recent'|'size'|null} the order used; null when neither fits (the bag stays as it was) */
     function autoArrange(targetGame) {
@@ -366,11 +348,8 @@
         canAdd: evaluateAdd,
         canAddInLayout: evaluateAddInLayout,
         findAddPlacement,
-        canMove: evaluateMove,
-        canMoveInLayout: evaluateMoveInLayout,
         canPlaceInventoryItemInLayout: evaluateMoveInLayout,
         placeInventoryItem,
-        move,
         autoArrange
     });
 

@@ -113,7 +113,6 @@ const salvageRecoveryUi = Object.freeze({
     open: openSalvageRecoveryOverlay,
     close: closeSalvageRecoveryOverlay,
     restore: restoreSalvageRecoveryEntry,
-    refresh: refreshSalvageRecoveryOverlay,
     refreshShortcut: refreshSalvageRecoveryShortcut,
     showTooltip: showSalvageRecoveryTooltip,
     hideTooltip: hideSalvageRecoveryTooltip
