@@ -419,6 +419,6 @@ const trialTrapArt = (() => {
     function drawRise(ctx, fx, progress, gridProj) {
         return !!gridProj && isTrap(fx);
     }
-    return Object.freeze({ drawGround, drawRise, riseActors, elements: Object.keys(STYLES), sheetOf });
+    return Object.freeze({ drawGround, drawRise, riseActors });
 })();
 safeExposeGlobals({ trialTrapArt });
