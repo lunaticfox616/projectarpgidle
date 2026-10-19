@@ -244,6 +244,11 @@ const ACT_EXPLORATION_AMBUSH = Object.freeze({chance:0.05,pull:0.4,keep:2,search
 //   경험치 expMul배. 쓰러뜨리면 rewards: currencies [재화, 개수, 무게]에서 picks번 뽑고, gear 등급 이상의 장비 하나. look 그림(수액 슬라임),
 //   glaze 몸에 얹는 빛깔과 진하기, outline 테. rainbow: 금빛 슬라임 가운데 chance로 무지갯빛(체이싱 티어), 빛깔이 glazes를 everyMs마다 돈다.
 //   금빛 보상에 더해 currency 하나와 고유 장비 하나(chaseShare의 확률로 체이싱 고유).
+// sleep 잠든 무리: 금빛 슬라임이 서지 않은 보통 무리가 chance의 확률로 잠들어 있다. 이름 앞에 prefix, 테 outline, zEveryMs마다 머리 위에
+//   zColor의 z. 깨기 전에는 움직이지도 공격하지도 않고, 무리의 누가 다치거나 영웅이 wakeCells칸 안에 들면 무리째 깨어 groggyMs 동안 멍하다.
+//   습격방에 모이지 않는다.
+// feast 황금 수액 잔치: 처음 들어서는 전투 방마다 chance의 확률로 그 방의 보통 몬스터(정예와 조우, 구출, 보물 무리 말고)가 모두 금빛 수액
+//   슬라임이 된다(무지갯빛은 critter.rainbow.chance대로). 열리면 그 방에는 하품이 없다.
 // yawn 세계수의 하품: 처음 들어서는 전투 방마다 chance의 확률로 그 방의 몬스터가 sleepMs 동안 움직이지도 공격하지도 않는다.
 // lucky 행운의 숫자: 한 번에 준 피해가 7로만 된 수(777 이상)면 그 자릿수의 재화를 준다([재화, 개수], 그보다 긴 수는 맨 끝 줄). 한 번 나오면
 //   gapMs 동안은 다시 나오지 않는다(지속 피해도 같은 길로 들어온다). 체이싱 고유 일곱 번째 행운의 병은 같은 숫자로만 된 수(111 이상)도 센다.
@@ -254,6 +259,8 @@ const ACT_EXPLORATION_INCIDENTS = Object.freeze({
             ['deepWhetstone', 1, 1], ['rootIron', 1, 1], ['jewelPolish', 1, 1]]) }),
         rainbow: Object.freeze({ chance: 0.02, name: '무지갯빛 수액 슬라임', glazes: Object.freeze(['#ff8f8f', '#ffc46b', '#fff27a', '#8af08a', '#7ad0ff', '#c79bff']),
             everyMs: 220, alpha: 0.42, currency: 'goldenRule', chaseShare: 0.5 }) }),
+    sleep: Object.freeze({ chance: 0.03, prefix: '잠든', outline: '#a9b8ff', zColor: '#d4dcff', zEveryMs: 1700, wakeCells: 2, groggyMs: 1500 }),
+    feast: Object.freeze({ chance: 0.0004 }),
     yawn: Object.freeze({ chance: 0.0004, sleepMs: 6000 }),
     lucky: Object.freeze({ min: 777, gapMs: 30000, rewards: Object.freeze([['magicBud', 3], ['sapBud', 1], ['formlessDew', 2], ['goldenRule', 1], ['fairyRing', 1]]) })
 });

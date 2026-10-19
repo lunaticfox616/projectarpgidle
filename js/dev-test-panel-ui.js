@@ -319,7 +319,9 @@ const devTestPanel = (() => {
             row(SPEEDS.map(value => button(`×${value}`, () => setSpeed(value), { dataset: { speed: String(value) } }))),
             // 잔잔한 사건(js/combat-incidents.js): 지금 싸우는 무리 곁에 슬라임을 바로 세운다
             row([el('label', { textContent: '사건' }), button('금빛 슬라임', () => spawnCritter(false)), button('무지갯빛 슬라임', () => spawnCritter(true)),
-                button('하품', () => note(combatIncidents.testYawn() ? '세계수가 하품을 했습니다' : '지금 싸우는 몬스터가 없습니다'))])
+                button('하품', () => note(combatIncidents.testYawn() ? '세계수가 하품을 했습니다' : '지금 싸우는 몬스터가 없습니다')),
+                button('잠든 무리', () => note(combatIncidents.testSleep() ? '지금 방의 몬스터가 잠들었습니다' : '지금 싸우는 몬스터가 없습니다')),
+                button('수액 잔치', () => note(combatIncidents.testFeast() ? '황금 수액 잔치를 열었습니다' : '지금 방에 보통 몬스터가 없습니다'))])
         ]);
     }
     function spawnCritter(rainbow) {

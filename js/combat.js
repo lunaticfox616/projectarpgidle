@@ -8576,7 +8576,7 @@ function markExplorationAlertPack(pack) {
 }
 
 /** 습격방 (data ACT_EXPLORATION_AMBUSH): on a room-by-room stage each battle or side room becomes one with this chance. Its ordinary
- * packs (the room's own and the added ones; not listening or treasure packs) get ambush and their members the outline;
+ * packs (the room's own and the added ones; not listening, sleeping or treasure packs) get ambush and their members the outline;
  * js/act-exploration-doors.js springAmbush gathers them at the door the hero comes in by. The roll hashes the room's own pack key with its
  * first enemy id (as the listening roll does): fixed per run, no random draw. Loop 1's act 1, elite-led, encounter and rescue rooms never
  * become one. @returns {object[]} the same packs */
@@ -8592,7 +8592,7 @@ function markExplorationAmbushRooms(zone,map,packs) {
 }
 /** The packs a room's 습격 takes when its own pack's roll falls under the chance, else none. */
 function ambushRoomPacks(room,packs) {
-    const own=packs.filter(pack=>pack.roomId===room.id && pack.stage===null && !pack.anchor && !pack.rescue && !pack.alert && !pack.treasure);
+    const own=packs.filter(pack=>pack.roomId===room.id && pack.stage===null && !pack.anchor && !pack.rescue && !pack.alert && !pack.sleep && !pack.treasure);
     const main=own.find(pack=>pack.key===room.id+':pack');
     if(!main || main.encounter || !main.aliveIds.length || own.some(pack=>pack.eliteIds.length))return [];
     return (Math.abs(hashSeed(`ambush:${main.key}:${main.aliveIds[0]}`))%1000)/1000<ACT_EXPLORATION_AMBUSH.chance ? own : [];
