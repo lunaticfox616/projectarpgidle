@@ -145,7 +145,8 @@
         rows = Array.isArray(rows) ? rows : [];
         if (!normalizedQuery && !rows.some(row => row && row.filterActive)) return { active: false, query: '', key: '', counts, totalMatches: 0, matchingPages: 0 };
         let settings = game.settings || {};
-        let key = JSON.stringify([normalizedQuery, settings.equipmentSlotFilter || 'all', settings.inventoryViewRarities || {}]);
+        let judged = typeof equipmentTriage === 'object' ? equipmentTriage.currentFilter() : 'all';
+        let key = JSON.stringify([normalizedQuery, settings.equipmentSlotFilter || 'all', settings.inventoryViewRarities || {}, judged]);
         let matchedKeys = new Set(rows
             .filter(row => row && row.filterMatched)
             .map(row => equipmentInventoryGridRuntime.getItemKey(row.item)));

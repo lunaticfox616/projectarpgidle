@@ -78,7 +78,8 @@ const equipmentWindowUi = (() => {
             if (!tool.querySelector('svg')) tool.insertAdjacentHTML('afterbegin', renderPixelIcon(tool.dataset.icon, 'eqw-rail-icon'));
         });
     }
-    /** 필터 has a dot while a grade is hidden or one kind of slot is picked (a picked slot the bag no longer holds shows everything). */
+    /** 필터 has a dot while a grade is hidden or one kind of slot is picked (a picked slot the bag no longer holds shows everything);
+     * 판단 has one while its filter dims the bag, so a closed panel still says why items are dimmed. */
     function markFilter() {
         const summary = document.querySelector('#eqw-filter-menu > summary');
         if (!summary) return;
@@ -87,6 +88,8 @@ const equipmentWindowUi = (() => {
         const slotPicked = slot !== 'all' && (game.inventory || []).some(item => item && item.slot === slot);
         const gradeHidden = Object.values(settings.inventoryViewRarities || {}).some(shown => shown === false);
         summary.dataset.active = String(slotPicked || gradeHidden);
+        const judge = document.querySelector('#eqw-judge-menu > summary');
+        if (judge) judge.dataset.active = String(equipmentTriage.currentFilter() !== 'all');
     }
     /** 검색 항목 해체 and 미검색 항목 해체 wait for a search word: with none, the first took the whole bag and the second nothing. */
     function markSearchSalvage() {

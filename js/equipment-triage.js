@@ -410,6 +410,11 @@
         return true;
     }
 
-    const equipmentTriage = Object.freeze({ render, start, cancel, autoStart, onOpen, setFilter, filterRows, getResult, equipRecommended, rate });
+    /** The 판단 filter the bag dims by now ('all' when none or while the analysis is not ready). */
+    function currentFilter() {
+        return state.status === 'ready' ? state.filter : 'all';
+    }
+
+    const equipmentTriage = Object.freeze({ render, start, cancel, autoStart, onOpen, setFilter, filterRows, currentFilter, getResult, equipRecommended, rate });
     safeExposeGlobals({ equipmentTriage });
 }());
