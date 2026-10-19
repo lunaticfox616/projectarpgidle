@@ -1578,7 +1578,7 @@
     },
     "renderBattlefield|max-lines-per-function|Function 'renderBattlefield' has too many lines (#). Maximum allowed is #.": {
       "count": 1,
-      "max": 406
+      "max": 402
     },
     "renderBattlefield|complexity|Function 'renderBattlefield' has a complexity of #. Maximum allowed is #.": {
       "count": 1,
