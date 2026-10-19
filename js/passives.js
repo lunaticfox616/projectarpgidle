@@ -3196,11 +3196,11 @@ const SEA_GIFT_RECIPES = [
     { id: 'sealOffering', desc: '【장비 강화: 옵션 1줄 영구 봉인】 해류군주 비단잉어와 발광 송어로 옵션 한 줄을 영구히 봉인합니다.', requires: { tidelordKoi: 1, glowfinTrout: 3 }, effect: { type: 'lockMod', count: 1 } },
     { id: 'leviathanBoon', desc: '【장비 강화: 최상급 태그 옵션 확정(등급 +2)】 전설의 새끼 괴어와 심연 등불고기, 조류 장어로 최상급 태그 옵션을 확정 부여합니다.', requires: { voidLeviathanSpawn: 2, abyssAngler: 2, tidalEel: 3 }, effect: { type: 'guaranteedTaggedMod', tierBoost: 2 } },
     { id: 'tidelordRefine', desc: '【장비 강화: 계열 재굴림(등급 +1)】 해류군주 비단잉어와 발광 송어로 원하는 계열의 기존 옵션만 다시 굴립니다(다른 줄 보존).', requires: { tidelordKoi: 2, glowfinTrout: 3 }, effect: { type: 'taggedReroll', tierBoost: 1, allMatching: true } },
-    { id: 'crushDepthScar', desc: '【장비 강화: 심해 전용 고정 옵션 부착】 무지갯빛 공포와 해류군주 비단잉어, 심연 등불고기로 심해 전용 고정 옵션을 부착합니다(옵션이 6줄이면 가장 낮은 줄을 바꿉니다).', requires: { prismaticHorror: 2, tidelordKoi: 1, abyssAngler: 2 }, effect: { type: 'fixedBenchOption' } },
+    { id: 'crushDepthScar', desc: '【장비 강화: 심해 전용 고정 옵션 부착】 무지갯빛 공포와 해류군주 비단잉어, 심연 등불고기로 심해 전용 고정 옵션을 부착합니다(자리가 없으면 가장 낮은 줄을 바꿉니다).', requires: { prismaticHorror: 2, tidelordKoi: 1, abyssAngler: 2 }, effect: { type: 'fixedBenchOption' } },
     { id: 'doubleSealForge', desc: '【장비 강화: 옵션 2줄 동시 영구 봉인 + 나머지 1줄 즉시 재단】 무지갯빛 공포와 발광 송어로 옵션 두 줄을 동시에 봉인하고, 남은 줄은 즉시 재단합니다.', requires: { prismaticHorror: 3, glowfinTrout: 4 }, effect: { type: 'lockMod', count: 2, bonusTaggedReroll: true } },
     { id: 'voidPureRefine', desc: '【장비 강화: 강제 희귀 등급 승급】 무지갯빛 공포와 공허 리바이어던 새끼, 은빛 비늘치로 장비를 강제로 희귀 등급으로 승급시킵니다.', requires: { prismaticHorror: 2, voidLeviathanSpawn: 1, shallowSilverfin: 5 }, effect: { type: 'upgradeRarity', force: true } },
     { id: 'leviathanRemnant', desc: '【장비 강화: 최상급 태그 옵션 확정(등급 +3) + 나쁜 옵션 1줄 무료 제거】 리바이어던 본체와 심연 등불고기로 최상급 태그 옵션을 확정 부여하며, 동시에 나쁜 줄 하나를 무료로 제거합니다.', requires: { kingLeviathan: 1, abyssAngler: 3 }, effect: { type: 'guaranteedTaggedMod', tierBoost: 3, bonusRemoveMod: true } },
-    { id: 'leviathanSigil', desc: '【장비 강화: 이 레시피 전용 최상위 고정 옵션 부착】 리바이어던 본체와 해류군주 비단잉어, 공허 리바이어던 새끼로 오직 이 레시피로만 얻는 최상위 고정 옵션을 부착합니다(옵션이 6줄이면 가장 낮은 줄을 바꿉니다).', requires: { kingLeviathan: 2, tidelordKoi: 2, voidLeviathanSpawn: 1 }, effect: { type: 'fixedBenchOption', topTier: true } }
+    { id: 'leviathanSigil', desc: '【장비 강화: 이 레시피 전용 최상위 고정 옵션 부착】 리바이어던 본체와 해류군주 비단잉어, 공허 리바이어던 새끼로 오직 이 레시피로만 얻는 최상위 고정 옵션을 부착합니다(자리가 없으면 가장 낮은 줄을 바꿉니다).', requires: { kingLeviathan: 2, tidelordKoi: 2, voidLeviathanSpawn: 1 }, effect: { type: 'fixedBenchOption', topTier: true } }
 ];
 const SEA_GIFT_ITEM_EFFECT_TYPES = new Set(['guaranteedMod', 'guaranteedTaggedMod', 'removeMod', 'upgradeRarity', 'lockMod', 'taggedReroll', 'fixedBenchOption', 'safeReroll', 'twinReroll', 'tierStepUp', 'convertCategoryMod', 'echoMod']);
 
@@ -3244,7 +3244,13 @@ const getSeaGiftLockBlockReason = (item, effect) => {
     if (editable >= required) return '';
     return editable === 0 ? '봉인할 줄 없음' : `봉인 안 된 ${required}줄 필요`;
 };
-const getSeaGiftGuaranteedBlockReason = (item, effect) => (effect.bonusRemoveMod && getSeaGiftEditableIndexes(item).length < 2 ? '봉인 안 된 2줄 필요' : '');
+/** A guaranteed line needs a place (room to add it, else an unsealed line to swap) and, with the free removal, a line to remove
+ * besides the one it swaps. */
+const getSeaGiftGuaranteedBlockReason = (item, effect) => {
+    const editable = getSeaGiftEditableIndexes(item).length, adds = canAddSeaGiftLine(item, editable);
+    if (!adds && editable === 0) return '바꿀 줄 없음';
+    return effect.bonusRemoveMod && getSeaGiftRemovableIndexes(item).length < (adds ? 1 : 2) ? '지울 줄 없음' : '';
+};
 /** Each effect's blocker on an item (the refusals that come before any roll; category: the one picked on the card). */
 const SEA_GIFT_EFFECT_BLOCKERS = Object.freeze({
     guaranteedMod: getSeaGiftGuaranteedBlockReason,
@@ -3257,6 +3263,7 @@ const SEA_GIFT_EFFECT_BLOCKERS = Object.freeze({
     twinReroll: item => (getSeaGiftRerollRows(item).length ? '' : '굴릴 줄 없음'),
     tierStepUp: item => (getSeaGiftTierStepRows(item).length ? '' : '올릴 줄 없음'),
     echoMod: getSeaGiftEchoBlockReason,
+    fixedBenchOption: item => (getSeaGiftBenchSlot(item) === null ? '바꿀 줄 없음' : ''),
     convertCategoryMod: (item, effect, category) => (getSeaGiftEditableIndexes(item).length ? getSeaGiftCategoryBlockReason(item, category) : '바꿀 줄 없음')
 });
 /** The rerollable lines still below their top tier. */
@@ -3318,10 +3325,19 @@ function rollSeaGiftGuaranteedValue(item, mod, effect) {
     const tier = Math.max(1, Math.floor(getItemCraftTier(item) || 1)), boost = Math.max(0, Math.floor(effect.tierBoost || 0));
     return boost ? rollAffixValueInTierRange(mod, tier, tier + boost) : rollAffixValue(mod, tier);
 }
+/** The most lines a sea gift adds up to: magic 2 and rare 6 (their prefix and suffix rule), else the 6-line cap. */
+function getSeaGiftLineCap(item) {
+    const rule = EXPLICIT_AFFIX_RULES[item.rarity];
+    return rule ? Math.min(EXPLICIT_AFFIX_LINE_CAP, rule.prefix + rule.suffix) : EXPLICIT_AFFIX_LINE_CAP;
+}
+/** Whether a guaranteed line is added rather than swapped in: a magic or rare item below its cap, and normal gear (no prefix and suffix
+ * rule) only while it has no unsealed line, as before 2026-10-19 (adding there gathered six lines on a white item). */
+const canAddSeaGiftLine = (item, editableCount) => (EXPLICIT_AFFIX_RULES[item.rarity] ? getItemExplicitOptionCount(item) < getSeaGiftLineCap(item) : editableCount === 0);
 /** 자리가 남으면(접두 3, 접미 3, 모두 6줄) 덧붙이고(index -1), 꽉 찼으면 같은 종류의 가장 낮은 단계 줄을 바꾼다. 2026-10-19 전에는
  * 자리가 있어도 줄을 바꿔 '부여'가 좋은 줄을 지웠다. */
 function chooseSeaGiftGuaranteedLine(item, pool, editable) {
-    const mod = getItemExplicitOptionCount(item) < EXPLICIT_AFFIX_LINE_CAP ? pickWeightedMod(pool.filter(row => equipmentCrafting.fitsRoom(equipmentCrafting.affixRoom(item), row))) : null;
+    const room = equipmentCrafting.affixRoom(item);
+    const mod = canAddSeaGiftLine(item, editable.length) ? pickWeightedMod(pool.filter(row => equipmentCrafting.fitsRoom(room, row))) : null;
     if (mod) return { mod, index: -1 };
     return editable.length > 0 ? equipmentCrafting.pickReplacement(item, pool, editable.map(row => row.index), pickWeightedMod, 'lowest') : null;
 }
@@ -3334,12 +3350,16 @@ function getSeaGiftEchoTargets(item, editableIdx, srcIdx) {
     return others.filter(index => equipmentCrafting.storedAffixKind(item, item.stats[index]) === kind);
 }
 
+/** Lines the free bad-line removal may take: unsealed, not fixed (fossil and unique lines) and not an ocean bench line, which is stored as
+ * T5 and cost the rarest fish (the removal always took it before 2026-10-19). */
+function getSeaGiftRemovableIndexes(item) {
+    return getSeaGiftEditableIndexes(item).filter(index => !item.stats[index].oceanBenchOptionId && !isFixedEquipmentAffix(item.stats[index]));
+}
 function removeWorstSeaGiftMod(item, excludedIndex) {
-    let candidates = (item.stats || []).map((stat, index) => ({ stat, index }))
-        .filter(row => row.index !== excludedIndex && row.stat && !row.stat.lockedByHoney && !row.stat.lockedByRift)
-        .sort((left, right) => (Number(left.stat.tier) || 0) - (Number(right.stat.tier) || 0));
+    const tierOf = index => Number(item.stats[index].tier) || 0;
+    const candidates = getSeaGiftRemovableIndexes(item).filter(index => index !== excludedIndex).sort((left, right) => tierOf(left) - tierOf(right));
     if (candidates.length === 0) return false;
-    item.stats.splice(candidates[0].index, 1);
+    item.stats.splice(candidates[0], 1);
     return true;
 }
 
@@ -3479,8 +3499,8 @@ function applySeaGiftGuaranteedEffect(item, effect, craft) {
     const refusal = applySeaGiftGuaranteedMod(item, effect, craft.category);
     if (refusal) return refuseSeaGift(craft, refusal);
 }
-/** The ocean workbench's fixed line, rolled whole: over the item's ocean bench line, else added, and on a full item (6 lines) over the
- * lowest line (before 2026-10-19 it took the first unsealed line even with room). */
+/** The ocean workbench's fixed line, rolled whole, at getSeaGiftBenchSlot (before 2026-10-19 it took the first unsealed line even with
+ * room). */
 function applySeaGiftBenchOption(item, effect, craft) {
     let option = getOceanWorkbenchOption(craft.options && craft.options.optionId, !!effect.topTier);
     if (!option) return refuseSeaGift(craft, '적용할 수 있는 고정 옵션이 없습니다.');
@@ -3488,10 +3508,19 @@ function applySeaGiftBenchOption(item, effect, craft) {
     let maxInt = Math.floor(option.max);
     let val = minInt + Math.floor(Math.random() * (maxInt - minInt + 1));
     let rolled = { id: option.statId, val: val, valMin: minInt, valMax: maxInt, tier: 5, statName: getStatName(option.statId), oceanBenchOptionId: option.id };
-    let idx = (item.stats || []).findIndex(stat => stat && stat.oceanBenchOptionId);
-    if (idx < 0 && getItemExplicitOptionCount(item) >= EXPLICIT_AFFIX_LINE_CAP) idx = getSeaGiftLowestLineIndex(item);
+    const idx = getSeaGiftBenchSlot(item);
+    if (idx === null) return refuseSeaGift(craft, '바꿀 수 있는 줄이 없습니다.');
     if (idx < 0) item.stats.push(rolled); else item.stats[idx] = rolled;
     updateItemName(item);
+}
+/** Where the bench line goes: over the item's unsealed bench line, else added (-1) below the line cap, else over the lowest line; null
+ * when the item is full and every line is sealed or fixed. A sealed bench line stays. */
+function getSeaGiftBenchSlot(item) {
+    const own = (item.stats || []).findIndex(stat => stat && stat.oceanBenchOptionId && !stat.lockedByHoney && !stat.lockedByRift);
+    if (own >= 0) return own;
+    if (getItemExplicitOptionCount(item) < getSeaGiftLineCap(item)) return -1;
+    const low = getSeaGiftLowestLineIndex(item);
+    return low < 0 ? null : low;
 }
 /** The line a full item gives up: the lowest tier unsealed line that is not fixed (the later one on a tie), else -1. */
 function getSeaGiftLowestLineIndex(item) {
