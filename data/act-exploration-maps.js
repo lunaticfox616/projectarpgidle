@@ -254,6 +254,8 @@ const ACT_EXPLORATION_AMBUSH = Object.freeze({chance:0.05,pull:0.4,keep:2,search
 //   슬라임이 된다(무지갯빛은 critter.rainbow.chance대로). 열리면 그 방에는 하품이 없다.
 // star 별똥별: 처음 들어서는 전투 방마다 chance의 확률로 별 하나가 방의 빈 칸(영웅에게서 두 칸 넘게)에 떨어진다. fallMs 동안 떨어지고
 //   burstMs 동안 빛이 퍼지며(js/canvas-stage-incidents.js), 닿으면 그 칸에 rewards에서 하나([재화, 개수]).
+// challenge 사냥 도전: 처음 들어서는 전투 방마다 chance의 확률로(잔치가 열리지 않은 방, 도전이 열리면 하품은 없다) 도전이 열린다. seconds초
+//   안에 그 방의 무리를 모두 쓰러뜨리면 영웅의 칸에 rewards에서 picks번 고른 재화(열리지 않은 재화는 빠진다). 남은 시간은 marks초에 영웅 머리 위에.
 // yawn 세계수의 하품: 처음 들어서는 전투 방마다 chance의 확률로 그 방의 몬스터가 sleepMs 동안 움직이지도 공격하지도 않는다.
 // lucky 행운의 숫자: 한 번에 준 피해가 7로만 된 수(777 이상)면 그 자릿수의 재화를 준다([재화, 개수], 그보다 긴 수는 맨 끝 줄). 한 번 나오면
 //   gapMs 동안은 다시 나오지 않는다(지속 피해도 같은 길로 들어온다). 체이싱 고유 일곱 번째 행운의 병은 같은 숫자로만 된 수(111 이상)도 센다.
@@ -271,9 +273,12 @@ const ACT_EXPLORATION_INCIDENTS = Object.freeze({
     feast: Object.freeze({ chance: 0.0004 }),
     star: Object.freeze({ chance: 0.015, fallMs: 520, burstMs: 680,
         rewards: Object.freeze([['magicBud', 3], ['sapBud', 1], ['formlessDew', 1], ['blessing', 1]]) }),
+    challenge: Object.freeze({ chance: 0.012, seconds: 20, marks: Object.freeze([10, 5, 3]), picks: 3,
+        rewards: Object.freeze([['magicBud', 2], ['sapBud', 1], ['formlessDew', 1], ['blessing', 1]]) }),
     yawn: Object.freeze({ chance: 0.0004, sleepMs: 6000 }),
     lucky: Object.freeze({ min: 777, gapMs: 30000, kill: 7777, rewards: Object.freeze([['magicBud', 3], ['sapBud', 1], ['formlessDew', 2], ['goldenRule', 1], ['fairyRing', 1]]) }),
     records: Object.freeze([['critter', '금빛 수액 슬라임', false], ['stray', '길 잃은 몬스터', false], ['sleep', '잠든 무리', false], ['star', '별똥별', false],
+        ['challenge', '사냥 도전', false],
         ['rainbow', '무지갯빛 수액 슬라임', true], ['feast', '황금 수액 잔치', true], ['yawn', '세계수의 하품', true], ['lucky', '행운의 숫자', true],
         ['luckyKill', '루프의 7,777번째 처치', true]].map(row => Object.freeze(row)))
 });

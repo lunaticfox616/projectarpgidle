@@ -10,6 +10,7 @@
  *   가까이 오면 무리째 깨어 잠시 멍하다(tickSleep).
  * - 황금 수액 잔치: 처음 들어선 전투 방에서 아주 드물게 그 방의 보통 몬스터가 모두 금빛 수액 슬라임이 된다(feast, 아틀라스 지도 말고).
  * - 별똥별: 처음 들어선 전투 방에 드물게 별 하나가 떨어져 그 칸에 재화 하나를 남긴다(dropStar, 그림은 js/canvas-stage-incidents.js).
+ * - 사냥 도전: 처음 들어선 전투 방에서 드물게 seconds초 안에 그 방을 비우라는 도전이 열리고, 해내면 재화 몇 개(openChallenge).
  * - 세계수의 하품: 처음 들어선 전투 방에서 아주 드물게 그 방의 몬스터가 잠든다(skillHeldUntil: 움직이지도 공격하지도 않는다).
  * - 행운의 숫자: 한 번에 준 피해가 7로만 된 수면 그 자릿수의 재화(noteDamage, js/combat.js applyDamageToEnemyResource).
  * 체이싱 고유 넷이 사건을 바꾼다(worn): 수액 냄새 밴 장화(슬라임 확률과 재화), 황금을 빚는 손(쓰러뜨린 몬스터가 슬라임으로 일어난다),
@@ -28,6 +29,7 @@ const combatIncidents = (() => {
     const note = kind => recordIncident(kind, game); // 전적 화면의 사건 기록(js/records.js)
     let luckyAt = -Infinity;            // 마지막 행운의 숫자(전투 시각)
     const stars = [];                   // 떨어지는 중인 별똥별 { run, cell, key, at(닿는 전투 시각) }
+    let challenge = null;               // 열린 사냥 도전 { run, roomId, until(전투 시각), marks(남은 알림 초) }
     /** 착용한(요구 능력치를 채워 켜진) 고유 장비의 그 효과의 값(uniqueEffectParams), 없으면 null. */
     function worn(key) {
         for (const item of Object.values(combatEquipmentStats.activeEquipment(game) || {})) {
@@ -272,9 +274,13 @@ const combatIncidents = (() => {
         if (!room || (room.role !== 'battle' && room.role !== 'optional')) return;
         const here = (game.enemies || []).filter(enemy => enemy && enemy.hp > 0 && !enemy.isBoss);
         if (!here.length || !firstLook(run, room)) return;
-        const key = roomKey(run, room);
+        rollRoom(run, room, here, roomKey(run, room), now);
+    }
+    /** 처음 들어선 전투 방의 굴림: 잔치가 열리면 그것뿐, 아니면 별똥별과 사냥 도전, 도전이 열리지 않았으면 하품. */
+    function rollRoom(run, room, here, key, now) {
         if (draw('feast', key) < rule().feast.chance && feast(run, here, key)) return;
         dropStar(run, room, key, now);
+        if (openChallenge(run, room, key, now)) return;
         if (draw('yawn', key) < yawnChance()) yawn(here, now);
     }
     /** 하품의 확률: 꿈결의 향로를 끼면 그 확률(chance). */
@@ -335,6 +341,52 @@ const combatIncidents = (() => {
         return !!room && dropStar(run, room, `test:${getCombatTime()}`, getCombatTime(), true);
     }
 
+    // ---------------------------------------------------------------- 사냥 도전
+    /** 처음 들어선 방에 chance의 확률로(forced면 반드시) 사냥 도전: seconds초 안에 그 방의 무리를 모두 쓰러뜨리면 재화(tickChallenge).
+     * 하나씩만, 몬스터가 남은 방에서만 열린다. 열었는지. */
+    function openChallenge(run, room, key, now, forced = false) {
+        const C = rule().challenge;
+        if (challenge || (!forced && draw('challenge', key) >= C.chance) || !challengeRewards().length) return false;
+        if (!run.packs.some(pack => pack.roomId === room.id && pack.aliveIds.length)) return false;
+        challenge = { run, roomId: room.id, until: now + C.seconds * 1000, marks: C.marks.slice() };
+        tell(`사냥 도전: ${C.seconds}초 안에 이 방의 몬스터를 모두 쓰러뜨리세요.`, 'reward');
+        return true;
+    }
+    const challengeRewards = () => rule().challenge.rewards.filter(([currency]) => contentProgression.canDropCurrency(currency));
+    /** 열린 도전: 그 방의 무리가 모두 쓰러졌으면 보상, 시간이 지났으면 끝, 남은 시간이 marks에 닿으면 영웅 머리 위에 초. 지도를
+     * 떠나면 없어진다. */
+    function tickChallenge(run, now) {
+        if (challenge.run !== run) { challenge = null; return; }
+        if (run.packs.filter(pack => pack.roomId === challenge.roomId).every(pack => !pack.aliveIds.length)) return finishChallenge(true);
+        if (now >= challenge.until) return finishChallenge(false);
+        const left = Math.ceil((challenge.until - now) / 1000);
+        if (challenge.marks.length && left <= challenge.marks[0]) addBattleFx('statusText', { text: `${challenge.marks.shift()}초`, color: '#ffe9a0', duration: 600 });
+    }
+    /** 도전의 끝: 해냈으면 영웅의 칸에 picks번 고른 재화와 알림, 아니면 알림만. */
+    function finishChallenge(won) {
+        const C = rule().challenge, hero = game.gridPlayer, rows = challengeRewards();
+        challenge = null;
+        if (!won) return tell('사냥 도전의 시간이 지났습니다.', 'warning');
+        receipt(() => {
+            for (let i = 0; i < C.picks && rows.length; i++) {
+                const [currency, count] = rndChoice(rows);
+                keepCurrencyDrop({ gx: hero.gx, gy: hero.gy }, currency, count);
+            }
+        });
+        tell('사냥 도전을 해냈습니다.', 'reward');
+        note('challenge');
+    }
+    /** 시험 패널: 지금 방에 사냥 도전. 열었는지. */
+    function testChallenge() {
+        const run = actExplorationState.current(game), room = run && actExplorationDoors.stageMap(run) ? actExplorationDoors.room(run) : null;
+        return !!room && openChallenge(run, room, `test:${getCombatTime()}`, getCombatTime(), true);
+    }
+
+    /** 시간이 걸리는 사건: 떨어지는 별똥별과 열린 사냥 도전. */
+    function tickTimed(run, now) {
+        if (stars.length) landStars(run, now);
+        if (challenge) tickChallenge(run, now);
+    }
     /** 이 방을 처음 보는가(몬스터가 선 방에 처음 들어선 때 한 번). 본 방은 탐험 기록에 남아(run.incidentRooms, 방 번호) 다시 불러와도
      * 다시 굴리지 않는다. */
     function firstLook(run, room) {
@@ -352,7 +404,7 @@ const combatIncidents = (() => {
         for (const enemy of live) if (enemy.critter) tickCritter(run, enemy, room, now);
         const sleepers = live.filter(enemy => enemy.asleep);
         if (sleepers.length) tickSleep(run, sleepers, now);
-        if (stars.length) landStars(run, now);
+        tickTimed(run, now);
         if (map) tickRoom(run, room, now);
     }
     /** 처치(js/combat.js countKillForContent): 길 잃은 몬스터의 장비, 잡은 슬라임의 보상과 알림. 슬라임이 아니면 황금을 빚는 손(rise).
@@ -431,6 +483,6 @@ const combatIncidents = (() => {
         tell(`행운의 숫자 ${dealt.toLocaleString('ko-KR')}${'2459'.includes(hit.digit) ? '가' : '이'} 나왔습니다.`, 'reward');
         note('lucky');
     }
-    return Object.freeze({ dressPacks, glazeOf, tick, onKill, noteDamage, testSpawn, testYawn, testSleep, testFeast, testStray, testStar });
+    return Object.freeze({ dressPacks, glazeOf, tick, onKill, noteDamage, testSpawn, testYawn, testSleep, testFeast, testStray, testStar, testChallenge });
 })();
 safeExposeGlobals({ combatIncidents });
