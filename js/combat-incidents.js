@@ -278,17 +278,26 @@ const combatIncidents = (() => {
         if (rainbow) grantRainbowRewards(enemy, zone);
         if (rainbow || !enemy.feast) tell(rainbow ? '무지갯빛 수액 슬라임을 잡았습니다.' : '금빛 수액 슬라임을 잡았습니다.', rainbow ? 'chase' : 'reward', rainbow);
     }
-    /** 황금을 빚는 손(goldenTouch): 방 단위 무대의 무리에서 쓰러뜨린 몬스터(보스 말고)가 chance의 확률로 그 자리에서 금빛 수액 슬라임으로
-     * 일어난다(무지갯빛은 critter.rainbow.chance대로). 슬라임은 그 무리에 들어 방이 끝나기 전에 선다(js/combat.js handleEnemyDeath가
-     * 죽은 몬스터를 무리에서 빼는 것은 이 뒤다). */
+    /** 쓰러뜨린 몬스터(방 단위 무대의 무리, 보스 말고)가 그 자리에서 수액 슬라임으로 일어난다: 이번 루프의 lucky.kill번째 처치는
+     * 무지갯빛으로, 황금을 빚는 손(goldenTouch)을 끼면 chance의 확률로 금빛(무지갯빛은 critter.rainbow.chance대로). 슬라임은 그 무리에 들어
+     * 방이 끝나기 전에 선다(js/combat.js handleEnemyDeath가 죽은 몬스터를 무리에서 빼는 것은 이 뒤다). */
     function rise(enemy, zone) {
         if (quiet(zone) || enemy.isBoss || !enemy.explorationPack || !hasGridCell(enemy)) return;
-        const touch = worn('goldenTouch'), run = touch && Math.random() < touch.chance ? actExplorationState.current(game) : null;
+        const kind = riseKind(), run = kind ? actExplorationState.current(game) : null;
         const pack = run ? run.packs.find(row => row.key === enemy.explorationPack) : null;
         if (!pack) return;
-        const critter = makeCritter(zone, pack, { gx: enemy.gx, gy: enemy.gy }, Math.random() < rule().critter.rainbow.chance);
+        const critter = makeCritter(zone, pack, { gx: enemy.gx, gy: enemy.gy }, kind !== 'gold');
+        if (kind === 'lucky') tell(`이번 루프의 ${rule().lucky.kill.toLocaleString('ko-KR')}번째 처치입니다.`, 'chase', true);
         pack.aliveIds.push(critter.id);
         game.enemies.push(critter);
+    }
+    /** 이 처치가 일어나는 슬라임: 'lucky'(이번 루프의 lucky.kill번째, 무지갯빛), 'rainbow', 'gold', 아니면 ''. countKillForContent가 이
+     * 처치를 game.loopKills에 더하는 것은 이 뒤라 지금 수에 1을 더해 센다. */
+    function riseKind() {
+        if (Math.floor(Number(game.loopKills) || 0) + 1 === rule().lucky.kill) return 'lucky';
+        const touch = worn('goldenTouch');
+        if (!touch || Math.random() >= touch.chance) return '';
+        return Math.random() < rule().critter.rainbow.chance ? 'rainbow' : 'gold';
     }
     /** 금빛: 재화를 picks번 무게로 뽑고(열리지 않은 재화는 떨어지지 않는다), gear 등급 이상의 장비 하나. */
     function grantCritterRewards(enemy, zone) {
