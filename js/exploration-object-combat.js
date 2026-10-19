@@ -6,9 +6,17 @@ actExplorationProgress.objects = (() => {
     function initialize(run,zone) {
         if(!['act','abyss','atlasMap'].includes(zone.type)||actExplorationState.packRooms(actExplorationMap.forRun(run)).length<2)return;
         const atlasMap=zone.type==='atlasMap',saved=atlasMap&&game.atlas.run?.objects;
-        if(saved){run.objects=JSON.parse(JSON.stringify(saved));run.objects.pendingId=null;state.validate(run);return;}
+        if(saved&&restoreSaved(run,saved))return;
         run.objects=state.create(run,configuration(run,zone));
         remember(run);
+    }
+    /** A re-entered atlas map takes its saved objects when their cells fit this map (checked here: the load checks the copy's shape
+     * only, js/exploration-objects.js restoreAtlas). A copy placed on another layout (a room stage setting changed since) is left
+     * behind with a warning, and the map gets new objects. */
+    function restoreSaved(run,saved) {
+        run.objects=JSON.parse(JSON.stringify(saved));run.objects.pendingId=null;
+        try{state.validate(run);return true;}
+        catch(error){console.warn('atlas map objects left behind:',error.message);run.objects=undefined;return false;}
     }
     /** The facing a re-entered atlas map must keep so its saved object cells still fit; null for a fresh facing. */
     function savedFacing(zone) {

@@ -177,15 +177,20 @@ actExplorationState.objects = (() => {
     function active(run) {return (run.objects?.entries||[]).some(e=>e.phase==='warning'||e.phase==='active');}
     /** The player knows the object's cell (js/act-exploration-sight.js: a visited room, or in fog mode a discovered cell). */
     function visible(run,row) {return actExplorationSight.knownCell(run,row);}
+    /** A row's own shape: id, kind, chest grade, phase (no map needed). */
+    function validateRowShape(row,ids) {
+        if(!row || !kinds.includes(row.kind) || typeof row.id!=='string' || ids.has(row.id))throw Error('잘못된 탐험 오브젝트 식별자');
+        if(row.kind==='chest'?!grade(row):row.grade!==undefined)throw Error('잘못된 보급 상자 등급');
+        validatePhase(row);
+        ids.add(row.id);
+    }
     function validateRow(run,row,ids,cells) {
         const map=actExplorationMap.forRun(run);
-        if(!row || !kinds.includes(row.kind) || typeof row.id!=='string' || ids.has(row.id))throw Error('잘못된 탐험 오브젝트 식별자');
+        validateRowShape(row,ids);
         if(!actExplorationMap.walkable(map,row,true)||cells.has(cellKey(row)))throw Error('잘못된 탐험 오브젝트 위치');
         if(!map.rooms.some(r=>r.id===row.roomId&&['battle','optional'].includes(r.role)
             &&Math.abs(row.gx-r.gx)<=r.radiusX&&Math.abs(row.gy-r.gy)<=r.radiusY))throw Error('잘못된 탐험 오브젝트 방');
-        if(row.kind==='chest'?!grade(row):row.grade!==undefined)throw Error('잘못된 보급 상자 등급');
-        validatePhase(row);
-        ids.add(row.id);cells.add(cellKey(row));
+        cells.add(cellKey(row));
     }
     function validatePhase(row) {
         if(!['ready','warning','active','spent'].includes(row.phase))throw Error('잘못된 탐험 오브젝트 상태');
@@ -239,12 +244,17 @@ actExplorationState.objects = (() => {
         if(packs.length!==row.wave)throw Error('탐험 사건 무리 기록이 누락되었습니다.');
         if(row.phase==='active'&&!packs.some(p=>p.aliveIds.length))throw Error('전투 중 사건에 몬스터가 없습니다.');
     }
-    function restoreAtlas(raw,source) {
+    /** The atlas run's copy of its map's objects (js/exploration-object-combat.js remember) at load: its shape only. The copy does not
+     * know the room stage layout it was placed on, and checking its cells on the joined generated map threw for every save made in an
+     * atlas map on the room stage (2026-10-20 hunt: the save loaded as corrupt). The cells are checked on the real map when it is
+     * entered again (actExplorationProgress.objects initialize). */
+    function restoreAtlas(raw) {
         if(raw===undefined)return undefined;
-        const run={source,rotation:raw?.rotation,packs:[],objects:JSON.parse(JSON.stringify(raw))};
-        validate(run);
-        if(run.objects.entries.some(isEvent))throw Error('아틀라스 오브젝트에 중복 전투 사건이 있습니다.');
-        run.objects.pendingId=null;return run.objects;
+        const objects=JSON.parse(JSON.stringify(raw)),ids=new Set();
+        validateHeader(objects);validateReward(objects);
+        objects.entries.forEach(row=>{if(row?.kind==='chest'&&row.grade===undefined)row.grade='wood';validateRowShape(row,ids);});
+        if(objects.entries.some(isEvent))throw Error('아틀라스 오브젝트에 중복 전투 사건이 있습니다.');
+        objects.pendingId=null;return objects;
     }
     return {create,validate,restoreAtlas,random,eventKind,isEvent,active,visible,warningMs,labels,grade,name,solid,solidCells,autoTarget};
 })();

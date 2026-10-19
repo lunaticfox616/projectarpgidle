@@ -490,7 +490,7 @@ const atlas = (() => {
             encounters: roomTypes(raw.encounters), golden: roomTypes(raw.golden),
             returnZoneId: Number.isInteger(raw.returnZoneId) && raw.returnZoneId >= 0 ? raw.returnZoneId : null,
             endgame: atlasEndgame.normalizeRun(raw.endgame),
-            objects: actExplorationState.objects.restoreAtlas(raw.objects,explorationSpec(map)) };
+            objects: actExplorationState.objects.restoreAtlas(raw.objects) };
     }
     function normalizeResult(raw) {
         if (!raw || !BY_ID.has(raw.nodeId) || !['complete', 'failed'].includes(raw.outcome)) return null;
