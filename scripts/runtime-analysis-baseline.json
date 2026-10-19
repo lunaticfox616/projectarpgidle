@@ -19010,6 +19010,7 @@
     "dependency:rollSporeDrop->logSporeGain",
     "dependency:rollSporeDrop->rndChoice",
     "dependency:rollSporeDrop->sporePoolFor",
+    "dependency:rollSporeLine->floorTier",
     "dependency:rollSporeLine->getCraftTierRangeForItem",
     "dependency:rollSporeLine->rollAffixValueInTierRange",
     "dependency:rollTalentPlayerCrit->Number",
