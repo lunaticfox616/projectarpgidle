@@ -15,6 +15,9 @@
 #loot-target-preview { color: #9edac3; font-size: .85rem; }
 #loot-target-preview[data-state="off"] { color: var(--copy-muted); }
 #loot-target-preview[data-state="error"] { color: var(--color-warning-soft); }
+/* 사용 칸이 꺼져 있으면 아래 조건은 아무 일도 하지 않는다: 고칠 수는 있게 두고 흐리게 보인다. */
+.loot-target-section:has(#loot-target-enabled:not(:checked)) :is(.loot-filter-fields, #loot-target-rules, .loot-filter-actions),
+#loot-pickup-config:has(#chk-item-filter-enabled:not(:checked)) :is(.loot-pick-row, .loot-filter-fields, .loot-pick-codex) { opacity: .5; }
 /* 줍기 필터 세분화와 발견 연출(2026-10-10): 줄마다 이름표와 칩(자동해체 칩과 같은 모양), 희귀도 칩 옆에 최소 티어 칸. */
 .loot-pick-row { display: grid; grid-template-columns: 116px minmax(0, 1fr); align-items: center; gap: 8px; margin: 10px 0; }
 .loot-pick-label { color: #c9bfa8; font-size: .84rem; }

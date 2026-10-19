@@ -48,7 +48,7 @@
             <div class="loot-filter-fields">
             <label>추가 옵션 티어 기준<input id="inp-item-filter-tier-threshold" type="number" min="1" max="20" value="${settings.itemFilterTierThreshold}" onchange="equipmentLootUi.updatePickup()"></label>
             <label>기준 이상 옵션 최소 개수<input id="inp-item-filter-tier-count" type="number" min="0" max="6" value="${settings.itemFilterMinTierCount}" onchange="equipmentLootUi.updatePickup()"></label></div>
-            <label><input id="chk-item-filter-unique-new-codex" type="checkbox" ${settings.itemFilterOnlyNewCodexUnique ? 'checked' : ''} onchange="equipmentLootUi.updatePickup()">고유는 도감 미등록만 습득</label></details>`;
+            <label class="loot-pick-codex"><input id="chk-item-filter-unique-new-codex" type="checkbox" ${settings.itemFilterOnlyNewCodexUnique ? 'checked' : ''} onchange="equipmentLootUi.updatePickup()">고유는 도감 미등록만 습득</label></details>`;
     }
 
     /** 발견 연출: the floor's beams and the loot notices, each on or off. */
