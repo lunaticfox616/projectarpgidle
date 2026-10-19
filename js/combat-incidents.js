@@ -339,7 +339,6 @@ const combatIncidents = (() => {
             stars.push({ run, cell, key: `${key}:shower${index}`, at: now + S.fallMs, shower: true, golden: index === cells.length - 1 });
         });
         tell('유성우가 쏟아집니다.', 'chase', true);
-        note('shower');
         return true;
     }
     /** 별 하나의 보상 [currency, count]: 유성우의 황금 별은 황금률(떨어질 수 있을 때), 그 밖에는 별똥별 보상에서 하나. */
@@ -370,7 +369,9 @@ const combatIncidents = (() => {
             const [star] = stars.splice(i, 1), rows = starRewards();
             if (star.run !== run || !rows.length) continue;
             const [currency, count] = starLoot(star, rows);
-            if (!(receipt(() => keepCurrencyDrop(star.cell, currency, count)).gain > 0) || star.shower) continue; // 유성우는 한 번 알렸다
+            const gained = receipt(() => keepCurrencyDrop(star.cell, currency, count)).gain > 0;
+            if (star.shower) { if (star.golden) note('shower'); continue; } // 유성우는 시작에 한 번 알렸고, 마지막 별이 닿을 때 센다
+            if (!gained) continue;
             tell('별똥별이 떨어졌습니다.', 'reward');
             note('star');
         }
