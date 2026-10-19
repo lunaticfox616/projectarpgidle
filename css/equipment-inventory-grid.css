@@ -85,10 +85,14 @@
     font-size: 9px;
 }
 
+/* 쪽 단추가 가로 한 줄(34px)이 된 뒤로 모서리의 개수 표시가 쪽 번호를 덮었다: 표시가 있는 단추만 넓혀 번호 오른쪽에 둔다. */
+.equipment-inventory-pages button:has(small) { padding-right: 25px; }
+
 .equipment-inventory-pages button small {
     position: absolute;
-    top: 2px;
-    right: 2px;
+    top: 50%;
+    right: 4px;
+    transform: translateY(-50%);
     display: inline-grid;
     place-items: center;
     min-width: 12px;

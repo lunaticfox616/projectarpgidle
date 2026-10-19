@@ -137,11 +137,16 @@
         return true;
     }
 
+    /** Page badges count what the bag shows: the search word and also the 필터 panel's grades and kind (2026-10-19; before, only a
+     * search word lit the pages, so a kind picked in a 12-page bag had to be found page by page). */
     function getPageSearchSummary(layout, rows, query) {
         let normalizedQuery = String(query || '').trim();
         let counts = Array.from({ length: layout.pageCount }, () => 0);
-        if (!normalizedQuery) return { active: false, query: '', counts, totalMatches: 0, matchingPages: 0 };
-        let matchedKeys = new Set((Array.isArray(rows) ? rows : [])
+        rows = Array.isArray(rows) ? rows : [];
+        if (!normalizedQuery && !rows.some(row => row && row.filterActive)) return { active: false, query: '', key: '', counts, totalMatches: 0, matchingPages: 0 };
+        let settings = game.settings || {};
+        let key = JSON.stringify([normalizedQuery, settings.equipmentSlotFilter || 'all', settings.inventoryViewRarities || {}]);
+        let matchedKeys = new Set(rows
             .filter(row => row && row.filterMatched)
             .map(row => equipmentInventoryGridRuntime.getItemKey(row.item)));
         layout.entries.forEach(entry => {
@@ -152,6 +157,7 @@
         return {
             active: true,
             query: normalizedQuery,
+            key,
             counts,
             totalMatches: counts.reduce((sum, count) => sum + count, 0),
             matchingPages: counts.filter(count => count > 0).length
@@ -159,8 +165,8 @@
     }
 
     function selectFirstSearchPage(search) {
-        if (!search.active || search.query === lastPageSearchQuery) return;
-        lastPageSearchQuery = search.query;
+        if (!search.active || search.key === lastPageSearchQuery) return;
+        lastPageSearchQuery = search.key;
         let firstMatchPage = search.counts.findIndex(count => count > 0);
         if (firstMatchPage < 0 || firstMatchPage === activePage) return;
         cancelCarry();
@@ -179,7 +185,8 @@
         let pageLabel = layout.unlockedPageCount >= maxPages
             ? `${layout.unlockedPageCount}페이지, 최대 확장`
             : `${layout.unlockedPageCount}페이지, 루프 진행으로 확장`;
-        if (search.active) pageLabel = `검색 결과 ${search.totalMatches}개, ${search.matchingPages}페이지`;
+        let found = search.query ? '검색 결과' : '필터에 맞는 장비';
+        if (search.active) pageLabel = `${found} ${search.totalMatches}개, ${search.matchingPages}페이지`;
         if (label) {
             label.textContent = pageLabel;
             label.hidden = !search.active;
@@ -189,7 +196,7 @@
         root.innerHTML = Array.from({ length: layout.pageCount }, (_, index) => {
             let matchCount = search.counts[index];
             let searchClass = search.active ? (matchCount > 0 ? ' search-match' : ' search-miss') : '';
-            let searchText = search.active ? `, 검색 결과 ${matchCount}개` : '';
+            let searchText = search.active ? `, ${found} ${matchCount}개` : '';
             let badge = matchCount > 0 ? `<small>${matchCount}</small>` : '';
             return `<button type="button" class="${index === page ? 'active' : ''}${searchClass}" onclick="equipmentInventoryInteraction.setPage(${index})" aria-pressed="${index === page ? 'true' : 'false'}" aria-label="${index + 1}페이지${searchText}" title="${index + 1}페이지${searchText}"><span>${index + 1}</span>${badge}</button>`;
         }).join('');
