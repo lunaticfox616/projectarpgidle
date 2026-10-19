@@ -28,7 +28,12 @@ const combatIncidents = (() => {
     const quiet = zone => !!game.isBackgroundCalculation || !zone || (zone.type === 'act' && zone.id === 0 && (game.season || 1) === 1);
     const tell = (text, tone, chase = false) => dispatchRuntimeEvent('incident', { text, tone, chase });
     const receipt = work => combatLootReceipts.capture(game, work);
-    const note = kind => recordIncident(kind, game); // 전적 화면의 사건 기록(js/records.js)
+    /** 전적 화면의 사건 기록(js/records.js). 처음 겪은 사건은 알림 하나를 더 띄운다: 숨은 사건은 찾았다고(체이싱 티어 빛깔로). */
+    function note(kind) {
+        const row = rule().records.find(([key]) => key === kind), first = !(((game.records || {}).incidents || {})[kind] > 0);
+        recordIncident(kind, game);
+        if (first && row) tell(row[2] ? `숨은 사건을 찾았습니다. 「${row[1]}」` : `처음 만난 사건입니다. 「${row[1]}」`, row[2] ? 'chase' : 'reward', row[2]);
+    }
     const often = () => colonyWards.incidentMul(game); // 사건 확률 배수: 고유 액막이 '사건을 부르는 방울'(js/colony-wards.js)
     let luckyAt = -Infinity;            // 마지막 행운의 숫자(전투 시각)
     const stars = [];                   // 떨어지는 중인 별똥별 { run, cell, key, at(닿는 전투 시각) }
