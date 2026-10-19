@@ -64,8 +64,14 @@ const craftingWorkspaceUi = (() => {
         const row=recipes.find(entry=>entry.key===key);if(!row)return null;
         if(row.kind==='fossil')return workspaceFossilState(key);
         const special=workspaceSpecialState(key);if(special)return special;
-        if(['ouroboros','oceanRerollShard'].includes(key))return {enabled:!!selected()&&game.currencies[key]>0,reason:!selected()?'아이템을 선택하세요.':'재화 부족'};
+        if(['ouroboros','oceanRerollShard'].includes(key))return workspaceSelectedState(key);
         return adapter.useState(key,selected());
+    }
+
+    /** 우로보로스 and 심해의 파편: a selected item and the balance; the shard also leaves corrupted gear, fused relics and uniques alone. */
+    function workspaceSelectedState(key) {
+        const reason=key==='oceanRerollShard'?getOceanShardBlockReason(selected()):(selected()?'':'아이템을 선택하세요.');
+        return {enabled:!reason&&game.currencies[key]>0,reason:reason||'재화 부족'};
     }
 
     function workspaceFossilState(key) {

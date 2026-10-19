@@ -92,7 +92,7 @@ function getRecordBestSources(g) {
         chaosRealmFloor: toPositiveInt(chaosRealm.highestFloor),
         skyFloor: toPositiveInt(skyTower.highestFloor),
         underworldFloor: toPositiveInt(underworld.highestFloor),
-        oceanBoundary: toPositiveInt(ocean.highestBoundary || ocean.bestBoundary || ocean.highestDepth),
+        oceanBoundary: Math.max(toPositiveInt(ocean.depthM), toPositiveInt(ocean.checkpointM)),
         colonyWave: Math.max(toPositiveInt(colony.highestWave), toPositiveInt(colony.wave))
     });
 }

@@ -8,6 +8,7 @@ const fishingUi = (() => {
     const CHASE_FISH = new Set(['tidelordKoi', 'prismaticHorror', 'kingLeviathan']);
     const CATEGORY_EFFECTS = new Set(['guaranteedTaggedMod', 'taggedReroll', 'convertCategoryMod']);
     const GROUPS = Object.freeze([['supply', '재화 정제', true], ['forge', '장비 가공', true], ['chase', '심연의 비전', false]]);
+    const chosen = {}; // the category picked on each recipe card, kept across redraws
 
     const esc = value => escapeHTML(String(value ?? ''));
     const clamp = value => Math.max(0, Math.min(100, Number(value) || 0));
@@ -81,6 +82,8 @@ const fishingUi = (() => {
     function needsCategory(recipe) {
         return CATEGORY_EFFECTS.has(recipe.effect.type) || (recipe.effect.type === 'lockMod' && !!recipe.effect.bonusTaggedReroll);
     }
+    const categoryOf = recipe => (needsCategory(recipe) ? chosen[recipe.id] || CATEGORY_OPTIONS[0] : undefined);
+    const statusOf = recipe => getSeaGiftRecipeStatus(recipe.id, null, categoryOf(recipe));
     function costHtml(recipe, st) {
         return Object.keys(recipe.requires).map(key => {
             const have = Math.floor(st.fishStock[key] || 0), need = recipe.requires[key];
@@ -88,9 +91,10 @@ const fishingUi = (() => {
         }).join('');
     }
     function recipeHtml(recipe, st, group) {
-        const status = getSeaGiftRecipeStatus(recipe.id), parsed = recipe.desc.match(/^【([^】]+)】\s*(.*)$/);
+        const status = statusOf(recipe), parsed = recipe.desc.match(/^【([^】]+)】\s*(.*)$/), category = categoryOf(recipe);
         const title = parsed ? parsed[1] : recipe.desc, note = parsed && group !== 'supply' ? parsed[2] : '';
-        const select = needsCategory(recipe) ? `<select class="fishing-category" aria-label="옵션 계열">${CATEGORY_OPTIONS.map(cat => `<option value="${cat}">${cat}</option>`).join('')}</select>` : '';
+        const select = category ? `<select class="fishing-category" aria-label="옵션 계열" onchange="fishingUi.pick('${recipe.id}', this.value)">`
+            + `${CATEGORY_OPTIONS.map(cat => `<option value="${cat}"${cat === category ? ' selected' : ''}>${cat}</option>`).join('')}</select>` : '';
         return `<article data-sea-recipe="${recipe.id}" class="fishing-recipe${status.ready ? ' is-ready' : ''}"><div class="fishing-recipe-copy"><strong>${esc(title)}</strong>`
             + `${note ? `<small>${esc(note)}</small>` : ''}<span class="fishing-costs">${costHtml(recipe, st)}</span></div>`
             + `<div class="fishing-recipe-actions">${select}<button type="button" onclick="fishingUi.craft('${recipe.id}')"${status.ready ? '' : ' disabled'}>${status.reason || '제작'}</button></div></article>`;
@@ -109,7 +113,7 @@ const fishingUi = (() => {
     function giftsHtml(st) {
         const groups = GROUPS.map(([key, title, open]) => {
             const recipes = SEA_GIFT_RECIPES.filter(recipe => groupOf(recipe) === key);
-            const ready = recipes.filter(recipe => getSeaGiftRecipeStatus(recipe.id).ready).length;
+            const ready = recipes.filter(recipe => statusOf(recipe).ready).length;
             return `<details class="fishing-group" data-ui-disclosure="sea-gift-${key}"${open ? ' open' : ''}><summary><strong>${title}</strong>`
                 + `${ready ? `<em>제작 가능 ${ready}</em>` : ''}<b>${recipes.length}</b></summary><div class="fishing-recipes">${recipes.map(recipe => recipeHtml(recipe, st, key)).join('')}</div></details>`;
         }).join('');
@@ -136,9 +140,13 @@ const fishingUi = (() => {
     function craft(recipeId) {
         const recipe = SEA_GIFT_RECIPES.find(row => row.id === recipeId);
         if (!recipe) return;
-        const select = document.querySelector(`[data-sea-recipe="${recipeId}"] .fishing-category`);
-        if (needsCategory(recipe)) craftSeaGift(recipeId, null, { category: select ? select.value : CATEGORY_OPTIONS[0] });
+        if (needsCategory(recipe)) craftSeaGift(recipeId, null, { category: categoryOf(recipe) });
         else craftSeaGift(recipeId);
+        render();
+    }
+    /** A category picked on a card: the card's ready state and button follow it. */
+    function pick(recipeId, category) {
+        if (CATEGORY_OPTIONS.includes(category)) chosen[recipeId] = category;
         render();
     }
 
@@ -162,7 +170,7 @@ const fishingUi = (() => {
         paintGifts(gifts, giftsHtml(st));
         if (initialize) restoreUiDisclosureState(gifts);
     }
-    return Object.freeze({ render, craft });
+    return Object.freeze({ render, craft, pick });
 })();
 
 safeExposeGlobals({ fishingUi });

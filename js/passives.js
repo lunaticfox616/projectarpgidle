@@ -3190,7 +3190,7 @@ const SEA_GIFT_RECIPES = [
 ];
 const SEA_GIFT_ITEM_EFFECT_TYPES = new Set(['guaranteedMod', 'guaranteedTaggedMod', 'removeMod', 'upgradeRarity', 'lockMod', 'taggedReroll', 'fixedBenchOption', 'safeReroll', 'twinReroll', 'tierStepUp', 'convertCategoryMod', 'echoMod']);
 
-function getSeaGiftRecipeStatus(recipeId, targetItem) {
+function getSeaGiftRecipeStatus(recipeId, targetItem, category) {
     let recipe = SEA_GIFT_RECIPES.find(r => r.id === recipeId);
     if (!recipe) return null;
     let st = ensureOceanState();
@@ -3200,7 +3200,7 @@ function getSeaGiftRecipeStatus(recipeId, targetItem) {
     let reason = '';
     if (!st.unlocked) reason = '심해 해금 필요';
     else if (!materialReady) reason = '재료 부족';
-    else if (needsItem) reason = getSeaGiftTargetBlockReason(item) || getSeaGiftEffectBlockReason(item, recipe.effect);
+    else if (needsItem) reason = getSeaGiftTargetBlockReason(item) || getSeaGiftEffectBlockReason(item, recipe.effect, category);
     return { recipe, ready: !reason, materialReady, reason, item, owned: st.fishStock };
 }
 
@@ -3209,12 +3209,17 @@ function getSeaGiftTargetBlockReason(item) {
     if (!isSeaGiftEquipmentTarget(item)) return '일반 장비만 가공 가능';
     if (game.woodsmanBuildLock) return '세팅 변경 잠김';
     if (item.hallReplica) return '전당 소장품 가공 불가';
+    if (item.fusedRelic) return '융합 유물 가공 불가';
     return item.corrupted ? '타락 장비 가공 불가' : '';
 }
-/** Why the effect cannot work on this item, as a short button label ('' when it can): the checks that need no roll. */
-function getSeaGiftEffectBlockReason(item, effect) {
-    return Object.hasOwn(SEA_GIFT_EFFECT_BLOCKERS, effect.type) ? SEA_GIFT_EFFECT_BLOCKERS[effect.type](item, effect) : '';
+/** Why the effect cannot work on this item, as a short button label ('' when it can): the checks that need no roll. A unique keeps
+ * its fixed lines (they would reroll from the normal tables at a low tier), so only a plain seal works on one, as the honey does. */
+function getSeaGiftEffectBlockReason(item, effect, category) {
+    if (item.rarity === 'unique' && !(effect.type === 'lockMod' && !effect.bonusTaggedReroll)) return '고유 장비 가공 불가';
+    return Object.hasOwn(SEA_GIFT_EFFECT_BLOCKERS, effect.type) ? SEA_GIFT_EFFECT_BLOCKERS[effect.type](item, effect, category) : '';
 }
+/** '' when the item can take a line of the category picked on the card (none picked: any), else a short label. */
+const getSeaGiftCategoryBlockReason = (item, category) => (!category || getAvailableMods(item).some(mod => getModCategory(mod) === category) ? '' : `${category} 옵션 없음`);
 const getSeaGiftEchoBlockReason = item => {
     if ((item.stats || []).some(s => s && s.isEchoMod)) return '메아리 줄 있음';
     return getSeaGiftEditableIndexes(item).length < 2 ? '봉인 안 된 2줄 필요' : '';
@@ -3226,18 +3231,19 @@ const getSeaGiftLockBlockReason = (item, effect) => {
     return editable === 0 ? '봉인할 줄 없음' : `봉인 안 된 ${required}줄 필요`;
 };
 const getSeaGiftGuaranteedBlockReason = (item, effect) => (effect.bonusRemoveMod && getSeaGiftEditableIndexes(item).length < 2 ? '봉인 안 된 2줄 필요' : '');
-/** Each effect's blocker on an item (the refusals that come before any roll). */
+/** Each effect's blocker on an item (the refusals that come before any roll; category: the one picked on the card). */
 const SEA_GIFT_EFFECT_BLOCKERS = Object.freeze({
     guaranteedMod: getSeaGiftGuaranteedBlockReason,
-    guaranteedTaggedMod: getSeaGiftGuaranteedBlockReason,
+    guaranteedTaggedMod: (item, effect, category) => getSeaGiftGuaranteedBlockReason(item, effect) || getSeaGiftCategoryBlockReason(item, category),
     removeMod: item => (getSeaGiftEditableIndexes(item).length ? '' : '지울 줄 없음'),
     upgradeRarity: item => (item.rarity === 'rare' || item.rarity === 'unique' ? '이미 희귀 이상' : ''),
-    lockMod: getSeaGiftLockBlockReason,
+    lockMod: (item, effect, category) => getSeaGiftLockBlockReason(item, effect) || (effect.bonusTaggedReroll ? getSeaGiftCategoryBlockReason(item, category) : ''),
+    taggedReroll: (item, effect, category) => (getSeaGiftRerollRows(item, category).length ? '' : `${category || '굴릴'} 줄 없음`),
     safeReroll: item => (getSeaGiftRerollRows(item).length ? '' : '굴릴 줄 없음'),
     twinReroll: item => (getSeaGiftRerollRows(item).length ? '' : '굴릴 줄 없음'),
     tierStepUp: item => (getSeaGiftTierStepRows(item).length ? '' : '올릴 줄 없음'),
     echoMod: getSeaGiftEchoBlockReason,
-    convertCategoryMod: item => (getSeaGiftEditableIndexes(item).length ? '' : '바꿀 줄 없음')
+    convertCategoryMod: (item, effect, category) => (getSeaGiftEditableIndexes(item).length ? getSeaGiftCategoryBlockReason(item, category) : '바꿀 줄 없음')
 });
 /** The rerollable lines still below their top tier. */
 function getSeaGiftTierStepRows(item) {
@@ -3347,14 +3353,15 @@ function getSelectedSeaGiftEquipmentTarget() {
 /** Makes a sea gift recipe: its effect from SEA_GIFT_EFFECTS on the item (a refusal logs why and keeps the fish), then the fish are
  * taken. Effects as a table on 2026-10-18, each in its old order. */
 function craftSeaGift(recipeId, targetItem, options) {
-    const status = getSeaGiftRecipeStatus(recipeId, targetItem);
+    const category = options && options.category;
+    const status = getSeaGiftRecipeStatus(recipeId, targetItem, category);
     if (!status) return false;
     if (!status.ready) { addLog(`바다의 선물: ${status.reason}`, 'attack-monster'); return false; }
     let recipe = status.recipe;
     let st = ensureOceanState();
     let effect = recipe.effect;
     let item = status.item;
-    const craft = { category: options && options.category, options, say: addLog };
+    const craft = { category, options, say: addLog };
     const apply = Object.hasOwn(SEA_GIFT_EFFECTS, effect.type) ? SEA_GIFT_EFFECTS[effect.type] : null;
     if (apply && apply(item, effect, craft) === false) return false;
     Object.keys(recipe.requires).forEach(key => { st.fishStock[key] = Math.max(0, Math.floor(st.fishStock[key] || 0) - recipe.requires[key]); });
@@ -3478,8 +3485,20 @@ function makeSeaGiftEchoLine(src) {
 
 safeExposeGlobals({ isSeaGiftEquipmentTarget, getSelectedSeaGiftEquipmentTarget });
 
+/** Why 심해의 파편 cannot reroll a line of the item, or '': the build lock, and corrupted gear, fused relics and uniques keep their
+ * lines as every other craft does. */
+function getOceanShardBlockReason(item) {
+    if (!item) return '아이템을 선택하세요.';
+    if (!Array.isArray(item.stats) || item.stats.length === 0) return '재굴림할 수 있는 옵션 줄이 없습니다.';
+    const locked = equipmentCrafting.buildLockReason(game);
+    if (locked) return locked;
+    if (item.corrupted) return '타락한 아이템은 더 이상 제작할 수 없습니다.';
+    if (item.fusedRelic) return '융합 유물은 황금률, 잿불가지, 축복의 꽃잎만 사용할 수 있습니다.';
+    return item.rarity === 'unique' ? '고유 장비에는 쓸 수 없습니다.' : '';
+}
 function rerollSingleBaseOption(item, costCurrency, costAmount) {
-    if (!item || !Array.isArray(item.stats) || item.stats.length === 0) return false;
+    const blocked = getOceanShardBlockReason(item);
+    if (blocked) { addLog(blocked, 'attack-monster'); return false; }
     let key = costCurrency || 'oceanRerollShard';
     let cost = Math.max(0, Math.floor(costAmount || 1));
     if ((game.currencies[key] || 0) < cost) { addLog('재화가 부족합니다.', 'attack-monster'); return false; }
