@@ -601,7 +601,7 @@ function weighFossilTagMods(pool, fossilKey) {
 function applyFossilChaosCraft(fossilKey) {
     let fossil = FOSSIL_DB.find(entry => entry.key === fossilKey);
     let item = getSelectedCraftItem();
-    const craftBlock = equipmentCrafting.getFossilUseReason(item, fossil, game.season, game.currencies);
+    const craftBlock = equipmentCrafting.fossilCraftReason(game, item, fossil);
     if (craftBlock) return addLog(craftBlock, 'attack-monster');
     let immutableIds = new Set(typeof getImmutableItemSpecialStats === 'function' ? getImmutableItemSpecialStats(item).map(stat => stat && stat.id).filter(Boolean) : []);
     let lockedStats = (item.stats || []).filter(stat => equipmentCrafting.keptOnReroll(item, stat));

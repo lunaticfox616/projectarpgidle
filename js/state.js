@@ -1185,6 +1185,8 @@ function getLoop10StatCost(statKey) {
 
 function allocateLoop10BonusStat(statKey) {
     if ((game.season || 1) < 10) return;
+    // 나무꾼 전투 중에는 루프 포인트가 매 틱 돌아가 강화만 남았다(js/combat.js enforceWoodsmanBuildLock).
+    if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     let cost = getLoop10StatCost(statKey);
     if ((game.seasonPoints || 0) < cost) return addLog(`루프 포인트가 부족합니다. (필요: ${cost})`, 'attack-monster');
     game.loop10BonusStats = game.loop10BonusStats || { flatHp: 0, flatDmg: 0, aspd: 0, move: 0 };

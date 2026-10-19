@@ -412,6 +412,17 @@ function unequipItem(slot) {
     return unequipItemToGrid(slot);
 }
 
+/** 반지3의 반지(초월 공허 '세 번째 손가락'이 연 칸)가 그 초월이 사라진 뒤 남아 있으면 가방에 자리가 날 때 가방으로 돌려보낸다
+ * (전투 틱마다, js/combat.js prepareCombatTick). 장비창에 반지3 칸이 없어 보지도 빼지도 못했다(2026-10-20 검토). 꺼지는 것은
+ * js/combat-equipment-stats.js missing이 맡는다. 방치 정산과 나무꾼 잠금 중에는 그대로 둔다. say: 기록(전투 틱이 넘긴다). */
+function releaseClosedThirdRing(say) {
+    const ring = game.equipment && game.equipment['반지3'];
+    if (!ring || game.isBackgroundCalculation || game.woodsmanBuildLock || getTranscendentVoidPassiveCount('thirdFinger', game) > 0) return false;
+    if (!findUnequipPlacement(ring).ok || !unequipItemToGrid('반지3')) return false;
+    say(`세 번째 손가락이 사라져 [${ring.name}]${pickParticle(ring.name, '을', '를')} 가방에 넣었습니다.`, 'loot-normal');
+    return true;
+}
+
 function salvageItemById(itemId) {
     let idx = findInventoryIndexById(itemId);
     if (idx < 0) return false;
@@ -741,7 +752,7 @@ async function marketAnnulSelectedStat(statIdx) {
     if (!isMarketUnlocked()) return addLog('장비 제련을 해금하면 거래소를 이용할 수 있습니다.', 'attack-monster');
     let item = getSelectedCraftItem();
     if (!item) return addLog('먼저 제작 대상 장비를 선택하세요.', 'attack-monster');
-    let removable = getAnnulmentRemovableStats(item);
+    let removable = getMarketAnnulRows(item);
     if (item.rarity === 'normal' || removable.length <= 0) return addLog('소멸시킬 수 있는 옵션이 없습니다. 보호된 옵션은 제거할 수 없습니다.', 'attack-monster');
     if ((game.currencies.goldenRule || 0) < 2) return addLog('황금률이 부족합니다. (필요: 2)', 'attack-monster');
     let idx = Math.floor(Number(statIdx));
@@ -754,7 +765,7 @@ async function marketAnnulSelectedStat(statIdx) {
         tone: 'danger',
         confirmLabel: '옵션 제거'
     })) return;
-    if (!isMarketUnlocked() || game.woodsmanBuildLock || getSelectedCraftItem() !== item || !getAnnulmentRemovableStats(item).some(row => row.stat === target) || item.stats[idx] !== target || (game.currencies.goldenRule || 0) < 2) {
+    if (!isMarketUnlocked() || game.woodsmanBuildLock || getSelectedCraftItem() !== item || !getMarketAnnulRows(item).some(row => row.stat === target) || item.stats[idx] !== target || (game.currencies.goldenRule || 0) < 2) {
         return addLog('확인 중 장비 또는 재화 상태가 변경되어 옵션 소멸을 취소했습니다.', 'attack-monster');
     }
     game.currencies.goldenRule -= 2;
@@ -776,6 +787,12 @@ function getAffixKeepServiceReason(item, kind) {
 function buildGoldenRuleSpendPrompt(message) {
     let owned = Math.max(0, Math.floor((game.currencies && game.currencies.goldenRule) || 0));
     return `${message}\n\n현재 보유: 황금률 ${owned}개`;
+}
+
+/** 거래소 '장비 옵션 제거'가 고를 수 있는 줄. 타락한 장비, 융합 유물, 전당 소장품은 옵션을 바꾸지 않는다(옵션 보존과 같다,
+ * js/equipment-crafting.js getAffixKeepReason; 전에는 전정 가위가 거절하는 타락 장비의 줄도 지웠다). */
+function getMarketAnnulRows(item) {
+    return !item || item.corrupted || item.fusedRelic || item.hallReplica ? [] : getAnnulmentRemovableStats(item);
 }
 
 function getBaseDefenseProfile(base) {

@@ -1049,9 +1049,20 @@ function snapshotWoodsmanBuildState() {
     }));
 }
 
+/** Points earned during the woodsman fight stay (a level-up, the woodsman's journal reward): spending and refunds are refused while
+ * locked (assertBuildEditable, activatePassivePath), so a pool above the snapshot can only be earned, and the snapshot follows it. The
+ * lock used to put the entry pool back every tick (2026-10-20 hunt: a level-up point vanished on the next tick). */
+function keepEarnedWoodsmanPoints(snap) {
+    for (const key of ['passivePoints', 'seasonPoints', 'ascendPoints', 'ascendKeystonePoints']) {
+        const now = Math.floor(Number(game[key]) || 0);
+        if (now > Math.floor(Number(snap[key]) || 0)) snap[key] = now;
+    }
+}
+
 function enforceWoodsmanBuildLock() {
     if (!game.woodsmanBuildLock || !game.woodsmanBuildSnapshot) return;
     let snap = game.woodsmanBuildSnapshot;
+    keepEarnedWoodsmanPoints(snap);
     game.passives = JSON.parse(JSON.stringify(snap.passives));
     game.passiveAttributePreference = snap.passiveAttributePreference || 'strength';
     game.passiveAttributeChoices = JSON.parse(JSON.stringify(snap.passiveAttributeChoices || {}));
@@ -2013,6 +2024,7 @@ function prepareCombatTick(nowMs) {
     callOceanGuardianAtBoundary();
     callOceanGuardianAdds(addLog);
     combatIncidents.tick(); // 잔잔한 사건: 달아나는 금빛 수액 슬라임, 세계수의 하품
+    releaseClosedThirdRing(addLog); // 세 번째 손가락이 사라진 반지3의 반지는 가방으로
     tickWoodsmanCurse();
     if (typeof trackRecordBests === 'function') trackRecordBests();
     const pStats = getPlayerStats(false);

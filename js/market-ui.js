@@ -113,7 +113,7 @@ const marketUi = {
         return worn ? `<div class="shop-worn"><span>장착</span>${worn}</div>` : '';
     },
     annulHtml(item) {
-        const rows = item ? getAnnulmentRemovableStats(item) : [];
+        const rows = getMarketAnnulRows(item);
         const options = rows.map(row => `<option value="${row.index}">${escapeHTML(row.stat.statName || getStatName(row.stat.id))} +${formatValue(row.stat.id, row.stat.val)}</option>`).join('');
         const ready = rows.length && (game.currencies.goldenRule || 0) >= 2 && !game.woodsmanBuildLock;
         return `<div class="market-service-card"><div class="market-service-top"><h3>장비 옵션 제거</h3><span>황금률 2개</span></div>

@@ -59,7 +59,12 @@ const equipmentCrafting = (() => {
         return getRerollSpaceReason(item, 1, ['transmute', 'alteration'].includes(action) ? magicLineCap() : EXPLICIT_AFFIX_LINE_CAP);
     }
 
+    /** Uniques, fused relics and hall pieces keep what they are: no reroll (fossils), no imprint. */
+    const KEEPS_KIND = '고유 장비, 융합 유물, 전당 소장품에는 쓸 수 없습니다.';
+    const keepsKind = item => item.rarity === 'unique' || !!item.fusedRelic || !!item.hallReplica;
     function getFossilBlockReason(item, fossilKey) {
+        // A fossil rerolls the item as a rare one (js/skills.js applyFossilChaosCraft): a unique lost its line and effect (2026-10-20).
+        if (keepsKind(item)) return KEEPS_KIND;
         // The blank + amplifier are one fossil effect with a two-affix cost, not two fossil crafts.
         const marker = fossilKey === 'fossilRift' ? 'fossilRiftBlank' : '';
         return getBlockReason(item, 'fossil', true, marker) || getRerollSpaceReason(item, marker ? 2 : 1, EXPLICIT_AFFIX_LINE_CAP, marker);
@@ -333,7 +338,13 @@ const equipmentCrafting = (() => {
         Object.assign(item, JSON.parse(JSON.stringify(fields)));
         if (item.affixKeep == null) delete item.affixKeep;
     }
-    const sameCraftFields = (item, fields) => JSON.stringify(craftFields(item)) === JSON.stringify(fields);
+    /** What tells whether an item still holds a craft result: rarity, name, the kept side, the chaos infusion's line and each line's id,
+     * value and tier. A load (js/passives.js normalizeItem) fills other line fields (originalVal, valMin, statName, craftSource), so the
+     * whole-field JSON of a loaded item never matched the saved pick, and a reload dropped a waiting 성화 pick (2026-10-20). */
+    const lineMark = stat => (stat ? [stat.id, Number(stat.val), Math.floor(Number(stat.tier) || 0)] : null);
+    const craftMark = fields => JSON.stringify([fields.rarity || null, fields.name || null, fields.affixKeep || null, lineMark(fields.chaosInfusion),
+        (fields.stats || []).map(lineMark)]);
+    const sameCraftFields = (item, fields) => craftMark(craftFields(item)) === craftMark(fields);
     /** The bag or worn item with id, or null. */
     function findCraftItem(state, id) {
         return (state.inventory || []).find(row => row && row.id === id) || Object.values(state.equipment || {}).find(row => row && row.id === id) || null;
@@ -361,6 +372,12 @@ const equipmentCrafting = (() => {
         state.craftChoice = null;
         return null;
     }
+    /** Why another craft must wait now, or '': a 성화의 뿌리 pick is waiting. */
+    const choiceWaitReason = state => (pendingChoice(state) ? '성화의 뿌리로 굴린 결과 가운데 하나를 먼저 고르세요.' : '');
+    /** Why the fossil craft (js/skills.js applyFossilChaosCraft) cannot run now, or '': the build lock, a waiting pick, then the fossil's
+     * own rules (the crafting room checked the first two for it before). */
+    const fossilCraftReason = (state, item, fossil) => buildLockReason(state) || choiceWaitReason(state)
+        || getFossilUseReason(item, fossil, state.season, state.currencies);
     /** Puts result index of the waiting pick on its item and ends the pick. Returns the item, or null when nothing waits. */
     function pickChoice(state, index) {
         const pending = pendingChoice(state);
@@ -381,7 +398,7 @@ const equipmentCrafting = (() => {
     function imprintBlock(item) {
         if (!item) return '아이템을 선택하세요.';
         if (item.corrupted) return '타락한 장비는 새기거나 되돌릴 수 없습니다.';
-        return item.fusedRelic || item.rarity === 'unique' || item.hallReplica ? '고유 장비, 융합 유물, 전당 소장품에는 쓸 수 없습니다.' : '';
+        return keepsKind(item) ? KEEPS_KIND : '';
     }
     /** Why the build may not change now, or '': the woodsman fight puts gear and bag back to its snapshot every tick (not the wallet),
      * so a craft paid then would be lost. */
@@ -418,7 +435,7 @@ const equipmentCrafting = (() => {
 
     return Object.freeze({ basicActions, rerollActions, basicRule, basicFits, applyBasic, sporePool, pickSporeMod, rollSporeLine, getSource, getLabel, filterSporeMods, resolveAction, getBlockReason, getSporeBlockReason, getFossilBlockReason, getFossilUseReason,
         affixKind, storedAffixKind, keptKind, keptOnReroll, getAffixKeepReason, affixCounts, affixRoom, fitsRoom, pickReplacement, affixHeader,
-        omenSpec, armOmen, omenFits, omenReason, armedSideReason, onOmenSide, filterOmenMods, weighOmenPool, omenFor, spendOmen, pickAddMod, pickPruneLine, craftBasic, pendingChoice, pickChoice,
+        omenSpec, armOmen, omenFits, omenReason, armedSideReason, onOmenSide, filterOmenMods, weighOmenPool, omenFor, spendOmen, pickAddMod, pickPruneLine, craftBasic, pendingChoice, choiceWaitReason, fossilCraftReason, pickChoice,
         normalizeImprint, engraveReason, engrave, restoreReason, restoreImprint, buildLockReason });
 })();
 safeExposeGlobals({ equipmentCrafting });

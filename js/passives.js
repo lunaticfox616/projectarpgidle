@@ -3681,7 +3681,14 @@ function getPassiveKeystoneConflict(path) {
     return '';
 }
 
+/** 노드 하나까지의 길을 찍는다. 나무꾼 전투 중에는 빌드가 매 틱 들어갈 때로 돌아가므로(js/combat.js enforceWoodsmanBuildLock) 반환처럼
+ * 거절한다(2026-10-20 검토: "활성화!"가 뜬 뒤 다음 틱에 되돌아갔다). */
 function activatePassivePath(targetNodeId, options) {
+    if (game.woodsmanBuildLock) return { activated: false, cost: 0, path: [], reason: 'locked', message: '☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.' };
+    return allocatePassivePath(targetNodeId, options);
+}
+
+function allocatePassivePath(targetNodeId, options) {
     let path = getPassiveActivationPath(targetNodeId);
     const expected = options && options.expectedPath;
     if (expected && (path.length !== expected.length || path.some((id, index) => id !== expected[index]))) {
@@ -9304,17 +9311,29 @@ function getChaseUniqueChance(zone) {
     return 0.0016 * (typeof atlasMaps === 'object' ? atlasMaps.chaseMul(zone) : 1);
 }
 
+/** Whether unique can be rolled in zone: a content unique (dropOnly) only in its own content (type, id, floor). */
+function uniqueDropsInZone(unique, zone) {
+    if (!unique) return false;
+    if (!unique.dropOnly) return true;
+    let dropOnly = unique.dropOnly;
+    if (dropOnly.type && zone.type !== dropOnly.type) return false;
+    if (dropOnly.id && zone.id !== dropOnly.id) return false;
+    if (dropOnly.minFloor && Math.floor(zone.floor || 0) < dropOnly.minFloor) return false;
+    return true;
+}
+/** Whether unique rolls at tier (a content unique's own minimum tier first). */
+const uniqueMeetsTier = (unique, tier) => !!unique && tier >= ((unique.dropOnly && unique.dropOnly.minTier) || unique.reqTier || 1);
+/** 요정의 고리가 바꿀 수 있는 고유: 그 장비의 부위에 그 등급까지 이 지역에서 나오는 것 { chase, normal }. 다른 부위의 고유로 바뀌면
+ * 장비 칸과 가방 칸이 어긋났다(2026-10-20 검토: 착용한 허리띠가 방패가 됐다). */
+function getFairyRingUniquePools(item, zone = getZone(game.currentZoneId) || {}) {
+    const tier = Math.max(1, Math.floor(item.hiddenTier || item.itemTier || 1));
+    const fits = unique => unique.slots.includes(item.slot) && uniqueDropsInZone(unique, zone) && uniqueMeetsTier(unique, tier);
+    return { tier, chase: UNIQUE_DB.filter(unique => unique.ultraRare && fits(unique)), normal: UNIQUE_DB.filter(unique => !unique.ultraRare && fits(unique)) };
+}
+
 function generateUniqueItem(zoneTier, preferredSlot, forcedUniqueName, zone = getZone(game.currentZoneId) || {}) {
-    let canDropUniqueInZone = (unique) => {
-        if (!unique) return false;
-        if (!unique.dropOnly) return true;
-        let dropOnly = unique.dropOnly;
-        if (dropOnly.type && zone.type !== dropOnly.type) return false;
-        if (dropOnly.id && zone.id !== dropOnly.id) return false;
-        if (dropOnly.minFloor && Math.floor(zone.floor || 0) < dropOnly.minFloor) return false;
-        return true;
-    };
-    let meetsUniqueTier = unique => !!unique && zoneTier >= ((unique.dropOnly && unique.dropOnly.minTier) || unique.reqTier || 1);
+    let canDropUniqueInZone = unique => uniqueDropsInZone(unique, zone);
+    let meetsUniqueTier = unique => uniqueMeetsTier(unique, zoneTier);
     let forcedUnique = forcedUniqueName ? UNIQUE_DB.find(unique => unique && unique.name === forcedUniqueName) : null;
     let slot = (forcedUnique && forcedUnique.slots && forcedUnique.slots[0]) || preferredSlot || rndChoice(EQUIPMENT_DROP_SLOTS);
     let normalOptions = UNIQUE_DB.filter(unique => !unique.ultraRare && canDropUniqueInZone(unique));
@@ -10501,7 +10520,7 @@ const craftCurrencyUse = (() => {
     /** Whether each action fits the item now (rarity, room, slot, quality). An action missing here never fits. */
     const FITS = Object.freeze({
         ...Object.fromEntries(equipmentCrafting.basicActions.map(action=>[action,item=>equipmentCrafting.basicFits(item,action)])),
-        divine: item => item.rarity !== 'normal', chance: item => item.rarity === 'normal',
+        divine: item => item.rarity !== 'normal', chance: item => item.rarity === 'normal' && getFairyRingUniquePools(item).normal.length > 0,
         scour: item => item.rarity !== 'normal' && item.rarity !== 'unique',
         tainted: item => !item.corrupted || (isKaleidoscopeShieldItem(item) && getItemExplicitOptionCount(item) <= EXPLICIT_AFFIX_LINE_CAP),
         blessing: item => Array.isArray(item.baseStats) && item.baseStats.length > 0,
@@ -10515,7 +10534,8 @@ const craftCurrencyUse = (() => {
     function blockReason(item, action) {
         const locked = equipmentCrafting.buildLockReason(game);
         if (locked) return locked;
-        if (equipmentCrafting.pendingChoice(game)) return '성화의 뿌리로 굴린 결과 가운데 하나를 먼저 고르세요.';
+        const waiting = equipmentCrafting.choiceWaitReason(game);
+        if (waiting) return waiting;
         if (item.corrupted && action !== 'tainted') return '타락한 아이템은 더 이상 제작할 수 없습니다.';
         if (item.fusedRelic && !RELIC_ACTIONS.includes(action)) return '융합 유물은 황금률, 잿불가지, 축복의 꽃잎만 사용할 수 있습니다.';
         return Object.hasOwn(FITS, action) && FITS[action](item) ? '' : '지금 선택한 아이템에는 사용할 수 없습니다.';
@@ -10582,14 +10602,15 @@ const craftCurrencyUse = (() => {
         item.uniqueEffect = `심연 주얼 슬롯 (${socketCount})개, 장착 심연 주얼 효과 +${p.ampPct}%`;
     }
     const jewelsBack = jewels => (jewels ? ` 끼운 주얼 ${jewels}개는 가방으로 돌아왔습니다.` : '');
-    /** 요정의 고리: a quarter of the time the item breaks, else it becomes a unique of its slot and tier (same id). false when no
-     * unique exists for it. */
+    /** 요정의 고리: a quarter of the time the item breaks, else it becomes a unique of its slot and tier (same id), a chase one at the
+     * drop's chase chance. false when no unique exists for it (FITS.chance refuses that before the payment). */
     function fairyRing(item, run) {
         if (Math.random() < 0.25) {
             run.logs.push([`💥 요정의 고리: 아이템이 파괴되었습니다.${jewelsBack(destroySelectedCraftItem(item))}`, 'attack-monster']);
             return true;
         }
-        const unique = generateUniqueItem(Math.max(1, Math.floor(item.hiddenTier || item.itemTier || 1)), item.slot);
+        const pools = getFairyRingUniquePools(item), pool = pools.chase.length && Math.random() < getChaseUniqueChance(getZone(game.currentZoneId) || {}) ? pools.chase : pools.normal;
+        const unique = pool.length ? generateUniqueItem(pools.tier, item.slot, rndChoice(pool).name) : null;
         if (!unique) { run.logs.push(['승급할 수 있는 고유가 없습니다.', 'attack-monster']); return false; }
         const previousId = item.id;
         // The unique is a fresh item: socketed jewels go back to storage before the old keys are cleared.
