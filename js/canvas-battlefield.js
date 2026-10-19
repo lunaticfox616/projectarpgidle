@@ -2168,6 +2168,23 @@ function getEnemyAttackMotion(fx, enemyPos, playerPos, now, distance) {
 const ENEMY_HIT_RECOIL = Object.freeze({ ms: 170, normal: 0.085, crit: 0.14, heavy: 0.17 });
 // 피격감(2026-10-04): the hero is knocked back from the attacker, further the more life the hit took (tiles).
 const PLAYER_HURT_RECOIL = Object.freeze({ ms: 170, min: 0.035, perLife: 0.5, max: 0.13 });
+// The hero's incoming damage numbers add up per this many ms of combat (dealt hits: 250 per skill and target).
+const HURT_TEXT_MERGE_MS = 400;
+
+/** The damage a hit took, on the hero's body. Hits landing together add up into one number ("-60 2타"), like dealt hits: in a
+ * crowd up to ten stacked over the hero and hid it (2026-10-19). Blocked hits keep their own number. */
+function spawnHeroHurtText(fx, playerPos, now) {
+    const head = getHeroHeadY(now);
+    spawnDamageText({
+        start: now,
+        x: playerPos.x,
+        y: getDamageTextBodyY(playerPos.y, head === null ? 82 * HERO_SIZE_SCALE : playerPos.y - head),
+        value: fx.damage,
+        enemyHit: true,
+        deflected: !!fx.deflected,
+        aggregateKey: `hurt:${fx.deflected ? 'block' : 'hit'}:${Math.floor(fx.start / HURT_TEXT_MERGE_MS)}`
+    });
+}
 
 /** Out fast, back slowly: 0 to 1 over the first fifth of the flinch, then eases home. */
 function getHitRecoilCurve(t) {
@@ -2734,17 +2751,7 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
         } else if (fx.type === 'playerHit') {
             requestBattleHitStop(fx);
             let enemyPos = enemyPosMap[fx.enemyId] || battleVisualState.enemyGhostPos[fx.enemyId];
-            if (typeof fx.damage === 'number') {
-                const head = getHeroHeadY(now);
-                spawnDamageText({
-                    start: now,
-                    x: playerPos.x,
-                    y: getDamageTextBodyY(playerPos.y, head === null ? 82 * HERO_SIZE_SCALE : playerPos.y - head),
-                    value: fx.damage,
-                    enemyHit: true,
-                    deflected: !!fx.deflected
-                });
-            }
+            if (typeof fx.damage === 'number') spawnHeroHurtText(fx, playerPos, now);
             handled = true;
         } else if (fx.type === 'summonHit') {
             let summon = (game.summons || []).find(row => row && row.id === fx.summonId);
