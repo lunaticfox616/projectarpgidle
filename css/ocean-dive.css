@@ -15,10 +15,11 @@
   .dive-title { display: grid; justify-items: start; gap: 4px; min-width: 0; margin-right: auto; }
   #ui-ocean-panel .dive-title h3 { margin: 0; color: var(--px-gold-bright, #e0c283); }
   .dive-title small { color: var(--dive-muted); }
+  #ui-ocean-panel .dive-title .map-power-estimate { font-size: 12px; }
   .dive-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
-  #ui-ocean-panel .dive-go { display: grid; justify-items: center; gap: 1px; border-color: #4f8fb0; color: var(--dive-water); }
+  #ui-ocean-panel .dive-go { display: grid; align-content: center; justify-items: center; gap: 1px; border-color: #4f8fb0; color: var(--dive-water); }
   .dive-go small { color: var(--dive-muted); }
-  #ui-ocean-panel .dive-auto { display: grid; justify-items: center; gap: 1px; }
+  #ui-ocean-panel .dive-auto { display: grid; align-content: center; justify-items: center; gap: 1px; }
   .dive-auto small { color: var(--dive-muted); }
   .dive-auto[aria-pressed="true"] small { color: var(--dive-water); }
   .dive-auto.is-stopped small { color: var(--dive-guard); }
@@ -103,6 +104,7 @@
     .dive-head { flex-wrap: wrap; }
     .dive-actions { justify-content: stretch; width: 100%; }
     .dive-actions > button { flex: 1 1 0; }
+    .dive-actions > button:first-child:nth-last-child(4), .dive-actions > button:first-child:nth-last-child(4) ~ button { flex-basis: calc(50% - 3px); }
     .dive-depth-nums b { font-size: 16px; }
     .dive-oxygen > div:first-child { flex-wrap: wrap; }
   }

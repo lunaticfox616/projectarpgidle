@@ -12343,7 +12343,7 @@ function handlePlayerDefeat(zone, pStats, message, options) {
 /** The content whose own rules a defeat in zone follows (a run by its id, else by its kind), or null for the experience penalty. */
 function getContentDefeat(zone) {
     if (!zone) return null;
-    return getRunDefeat(zone) || getAutoDiveDefeat(zone) || getContentKindDefeat(zone);
+    return getRunDefeat(zone) || getOceanDiveDefeat(zone) || getContentKindDefeat(zone);
 }
 function getRunDefeat(zone) {
     if (zone.id === OUTSIDE_CHAOS_ZONE_ID) return defeatAgainstWoodsman;
@@ -12355,11 +12355,13 @@ function getContentKindDefeat(zone) {
     if (zone.type === 'seasonBoss') return game.inTicketBossFight ? defeatInRootBossFight : null;
     return Object.hasOwn(CONTENT_DEFEAT_BY_KIND, zone.type) ? CONTENT_DEFEAT_BY_KIND[zone.type] : null;
 }
-/** 자동 재잠수로 들어간 잠수에서 쓰러지면 그 잠수를 끝내고 자동 재잠수를 멈춘다(2026-10-19 검토: 넘지 못하는 가디언 앞에서 거듭
- * 쓰러지며 경험치를 잃고 정산의 연속 사망 멈춤에 걸렸다). 손으로 시작한 잠수는 예전처럼 심해에서 다시 일어선다. */
-const getAutoDiveDefeat = zone => (zone.id === OCEAN_ZONE_ID && isAutoOceanDive(ensureOceanState()) ? defeatInAutoDive : null);
-function defeatInAutoDive(zone, message, opts, ui) {
-    ui.say(message || '☠️ 자동 재잠수로 들어간 잠수에서 쓰러졌습니다.', 'death', { noToast: !!opts.noToast });
+/** 자동 재잠수로 들어간 잠수에서, 또는 가디언에게 쓰러지면 그 잠수를 끝낸다(자동 재잠수도 멈춘다). 2026-10-19 검토: 넘지 못하는
+ * 가디언 앞에서 거듭 쓰러지며 쓰러질 때마다 경험치를 잃고(한 번 잠수에 2~8번), 가디언은 생명력이 다 찬 채로 다시 나왔다. 손으로 시작한
+ * 잠수에서 무리에게 쓰러지면 예전처럼 심해에서 다시 일어선다. */
+const getOceanDiveDefeat = zone => (zone.id === OCEAN_ZONE_ID && (isAutoOceanDive(ensureOceanState()) || game.oceanBossRunPending) ? defeatInOceanDive : null);
+function defeatInOceanDive(zone, message, opts, ui) {
+    const fallback = isAutoOceanDive(ensureOceanState()) ? '☠️ 자동 재잠수로 들어간 잠수에서 쓰러졌습니다.' : '☠️ 심해 가디언에게 쓰러져 수면으로 올라왔습니다.';
+    ui.say(message || fallback, 'death', { noToast: !!opts.noToast });
     clearDefeatedEncounter();
     forceSurfaceOcean('defeat');
 }

@@ -38,7 +38,7 @@
   .fishing-strategy > header { display: flex; align-items: baseline; gap: 10px; }
   #map-tab-fishing .fishing-strategy > header strong { color: var(--px-gold-bright, #e0c283); font-size: 15px; font-weight: 400; }
   .fishing-strategy > header span { color: var(--px-copy-muted, #a39883); font-size: 12px; }
-  .fishing-strategy-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 6px; }
+  .fishing-strategy-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 6px; }
   #map-tab-fishing .fishing-strategy-card { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; grid-template-areas: 'icon name on' 'chips chips chips'; align-items: center;
     gap: 6px 8px; min-height: 0; padding: 8px 10px; border: 1px solid #2a2218; border-radius: 0; background: rgba(10, 8, 6, .5); box-shadow: none; text-align: left; }
   #map-tab-fishing .fishing-strategy-card.is-on { border-color: #4f8fb0; background: linear-gradient(180deg, rgba(143, 211, 255, .1), rgba(10, 8, 6, .5)); }
@@ -64,7 +64,7 @@
   .fishing-fish-tile strong { grid-area: name; color: var(--px-copy, #e8dcc0); font-size: 12px; font-weight: 400; overflow-wrap: anywhere; }
   .fishing-fish-tile small { grid-area: rarity; color: var(--px-copy-muted, #a39883); font-size: 11px; }
   .fishing-fish-tile b { grid-area: count; color: #8fd3ff; font-size: 11px; font-weight: 400; }
-  .fishing-fish-tile.is-unknown strong, .fishing-fish-tile.is-unknown b { color: #5f574a; }
+  .fishing-fish-tile.is-unknown strong, .fishing-fish-tile.is-unknown b { color: #8a7f6c; }
   .fishing-fish-tile[data-last] { border-color: #4f8fb0; }
   .fishing-milestones { display: grid; gap: 4px; margin-top: 10px; }
   .fishing-milestone { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 6px 10px; border: 1px solid #241d14; background: rgba(10, 8, 6, .45); }
@@ -89,6 +89,9 @@
   .fishing-group { border: 1px solid #2a2218; background: rgba(10, 8, 6, .35); }
   .fishing-group > summary { display: flex; align-items: center; gap: 8px; padding: 8px 10px; cursor: pointer; list-style: none; }
   .fishing-group > summary::-webkit-details-marker { display: none; }
+  .fishing-group > summary::before { content: ''; flex: none; width: 6px; height: 6px; margin: 0 2px; border-right: 2px solid var(--px-copy-muted, #a39883);
+    border-bottom: 2px solid var(--px-copy-muted, #a39883); transform: rotate(-45deg); }
+  .fishing-group[open] > summary::before { transform: rotate(45deg); }
   #map-tab-fishing .fishing-group > summary strong { color: var(--px-gold-bright, #e0c283); font-size: 13px; font-weight: 400; }
   .fishing-group > summary em { padding: 0 5px; border: 1px solid #8a6a2e; color: #f3d28c; font-size: 11px; font-style: normal; }
   .fishing-group > summary b { margin-left: auto; color: var(--px-copy-muted, #a39883); font-weight: 400; }
@@ -109,6 +112,11 @@
   .fishing-recipe-actions { display: flex; align-items: center; gap: 6px; }
   .fishing-recipe-actions button { min-width: 84px; }
   .fishing-recipe.is-ready .fishing-recipe-actions button { color: #f3d28c; box-shadow: inset 0 0 0 1px #8a6a2e; }
+
+  /* 휴대폰의 재화 정제 보기에는 장비 가공 대상이 없다(css/mobile.css의 갈래 숨김과 같은 줄에 있던 규칙은 이 층의 display에 졌다) */
+  @media (max-width: 1080px) {
+    #fishing-workshop[data-recipe-group="supply"] .fishing-target { display: none; }
+  }
 
   @container (max-width: 560px) {
     .fishing-head { flex-direction: column; align-items: stretch; }

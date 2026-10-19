@@ -2843,8 +2843,9 @@ function gainOceanFishingGaugeFromCombat(zone) {
     let depthTier = Math.max(0, Math.floor(zone?.depthTier ?? getOceanDepthTier(st.depthM)));
     let strategy = getOceanFishingStrategyDef(st);
     let collectionGainPct = getOceanFishCollectionBonus('gaugeGainPct', st);
-    // Five shallow clears introduce the first catch; deeper water improves pace up to tier20.
-    let gain = (20 + Math.min(depthTier, 20) * 2) * getOceanFishingGaugeGainMul();
+    // A first dive clears only three shallow sections before the 500m guardian, so each gives at least 35 and the first fish comes in
+    // that dive (it came in the third, eight minutes in); deeper water improves pace up to tier20.
+    let gain = Math.max(35, 20 + Math.min(depthTier, 20) * 2) * getOceanFishingGaugeGainMul();
     gain *= Math.max(0.1, Number(strategy.gaugeGainMul) || 1) * (1 + collectionGainPct / 100);
     if (hasOceanCurrent(zone, 'school_of_fish')) gain *= 1.5;
     gain = Math.min(100, gain); // At most one catch per completed encounter, including all bonuses.
@@ -2967,8 +2968,9 @@ function getPassiveRouting(owner = game) {
 
 /** 체크포인트부터 잠수를 시작한다. 떠오르면 지금 있던 사냥터로 돌아온다(takeOceanReturnZone). auto: 자동 재잠수(js/combat.js
  * autoRediveOceanAfterClear)가 불렀는지. 손으로 시작한 잠수는 소득 없이 떠오른 잠수의 수를 비워 멈춘 자동 재잠수를 다시 잇는다.
+ * shallow: 얕은 리프트(getOceanShallowLiftM)가 있으면 거기서 시작한다.
  * @returns {boolean} 잠수를 시작했는지 */
-function enterOceanDive({ auto = false } = {}) {
+function enterOceanDive({ auto = false, shallow = false } = {}) {
     const reason = getZoneTravelBlockReason(OCEAN_ZONE_ID) || getContentStartBlockReason();
     if (reason) { addLog(reason, 'attack-monster'); return false; }
     let st = ensureOceanState();
@@ -2979,7 +2981,7 @@ function enterOceanDive({ auto = false } = {}) {
     st.autoDive = !!auto;
     st.diveStartProgress = getOceanDiveRecord(st);
     st.lastSurfaceReason = '';
-    st.depthM = Math.max(0, Math.floor(st.checkpointM || 0));
+    st.depthM = getOceanDiveStartM(st, shallow);
     st.oxygenMax = Math.max(1, Math.floor(getOceanOxygenMax()));
     st.oxygenCur = st.oxygenMax;
     st.diving = true;
@@ -2987,6 +2989,18 @@ function enterOceanDive({ auto = false } = {}) {
     game.currentZoneId = OCEAN_ZONE_ID;
     addLog(`🌊 심해 ${st.depthM}m 지점부터 잠수를 시작합니다.`, 'loot-rare');
     return true;
+}
+
+/** 얕은 리프트: 가장 깊은 리프트가 아직 못 넘은 가디언 경계에 있으면 마지막으로 넘은 가디언 자리(그 아래 구간의 무리와 낚시를 다시
+ * 한다). 리프트는 경계에 닿을 때 열려서, 넘지 못한 가디언 앞의 잠수는 가디언 싸움뿐이었다. 그런 리프트가 아니면 null. */
+function getOceanShallowLiftM(st) {
+    const interval = getOceanBossBoundaryInterval(), from = Math.floor(Math.max(0, st.bossClearM || 0) / interval) * interval;
+    return Math.floor(st.checkpointM || 0) >= from + interval ? from : null;
+}
+/** 잠수를 시작할 수심: 가장 깊은 리프트, shallow면 얕은 리프트(없으면 가장 깊은 리프트). */
+function getOceanDiveStartM(st, shallow) {
+    const lift = shallow ? getOceanShallowLiftM(st) : null;
+    return lift === null ? Math.max(0, Math.floor(st.checkpointM || 0)) : lift;
 }
 
 function forceSurfaceOcean(reason) {
@@ -3020,7 +3034,7 @@ function moveAfterSurfacing(returnZoneId) {
  * @returns {string} 이번에 자동 재잠수가 멈췄으면 그 알림, 아니면 빈 글 */
 function recordOceanSurface(st, reason) {
     st.lastSurfaceReason = ['oxygen', 'defeat'].includes(reason) ? reason : 'manual';
-    if (reason === 'defeat') return game.settings.autoRediveOcean ? '🌊 자동 재잠수로 들어간 잠수에서 쓰러져 자동 재잠수를 멈춥니다. 잠수 시작을 누르면 다시 이어집니다.' : '';
+    if (reason === 'defeat') return game.settings.autoRediveOcean ? `🌊 ${st.autoDive ? '자동 재잠수로 들어간 잠수' : '가디언과의 싸움'}에서 쓰러져 자동 재잠수를 멈춥니다. 잠수 시작을 누르면 다시 이어집니다.` : '';
     if (reason !== 'oxygen') return '';
     const limit = OCEAN_AUTO_REDIVE.missLimit;
     st.fruitlessDives = getOceanDiveRecord(st) > st.diveStartProgress ? 0 : Math.min(limit, st.fruitlessDives + 1);
@@ -3034,7 +3048,7 @@ function takeOceanReturnZone(st) {
     st.returnZoneId = null;
     return back && ['act', 'abyss'].includes(back.type) && !(back.id > farthest) ? back.id : farthest;
 }
-/** 자동 재잠수로 들어간 잠수가 이어지고 있는가(쓰러지면 그 잠수가 끝난다: js/combat.js defeatInAutoDive). */
+/** 자동 재잠수로 들어간 잠수가 이어지고 있는가(쓰러지면 그 잠수가 끝난다: js/combat.js defeatInOceanDive). */
 const isAutoOceanDive = st => !!st.diving && st.autoDive === true;
 /** 자동 재잠수가 멈췄는가: 자동 잠수에서 쓰러졌거나 소득 없이 떠오른 잠수가 한도에 닿았다(손으로 잠수하면 풀린다). */
 const isOceanAutoRediveHalted = st => st.lastSurfaceReason === 'defeat' || st.fruitlessDives >= OCEAN_AUTO_REDIVE.missLimit;
@@ -3174,7 +3188,7 @@ const SEA_GIFT_RECIPES = [
     { id: 'leviathanCache', desc: '【재화 획득: 무작위 제작 재화 ×3】 리바이어던 본체와 무지갯빛 공포의 잔재로 채워진 최상급 보물함에서 무작위 제작 재화 3개를 얻습니다.', requires: { kingLeviathan: 1, prismaticHorror: 1, abyssAngler: 2 }, effect: { type: 'randomCurrency', amount: 3 } },
     // --- 장비 옵션 가공 효과 (제련/옵션 조작 계열) ---
     { id: 'safeReroll', desc: '【장비 강화: 하락 없는 안전 재굴림】 발광 송어와 은빛 비늘치로 옵션 1줄을 다시 굴립니다. 결과가 기존보다 낮으면 적용되지 않고 원래 값이 유지됩니다.', requires: { glowfinTrout: 3, shallowSilverfin: 4 }, effect: { type: 'safeReroll' } },
-    { id: 'twinCurrentReroll', desc: '【장비 강화: 무작위 옵션 2줄만 재굴림】 심연 등불고기와 조류 장어로 무작위로 고른 옵션 두 줄만 다시 굴립니다(나머지 줄은 보존, 형체 없는 이슬과 달리 전체 재굴림이 아닙니다).', requires: { abyssAngler: 3, tidalEel: 4 }, effect: { type: 'twinReroll' } },
+    { id: 'twinCurrentReroll', desc: '【장비 강화: 무작위 옵션 2줄 수치 재굴림】 심연 등불고기와 조류 장어로 무작위로 고른 옵션 두 줄의 수치만 같은 등급 안에서 다시 굴립니다(옵션 종류와 나머지 줄은 그대로).', requires: { abyssAngler: 3, tidalEel: 4 }, effect: { type: 'twinReroll' } },
     { id: 'tierStepUp', desc: '【장비 강화: 옵션 1줄 등급 +1 영구 재굴림】 심연 등불고기와 발광 송어로 무작위 옵션 1줄을 한 단계 높은 등급으로 다시 굴립니다(영구 적용).', requires: { abyssAngler: 3, glowfinTrout: 3 }, effect: { type: 'tierStepUp' } },
     { id: 'categoryShift', desc: '【장비 강화: 무작위 옵션 1줄을 원하는 계열로 변환】 발광 송어와 조류 장어로 무작위 옵션 한 줄을 선택한 계열의 옵션으로 바꿉니다.', requires: { glowfinTrout: 3, tidalEel: 3 }, effect: { type: 'convertCategoryMod' } },
     { id: 'echoMod', desc: '【장비 강화: 최고 티어 옵션을 50% 효과로 메아리】 전설의 새끼 괴어와 심연 등불고기로 가장 높은 티어의 옵션 중 한 줄을 무작위로 골라, 나머지 옵션 중 무작위 한 줄을 그 옵션의 50% 효과로 덮어씁니다.', requires: { voidLeviathanSpawn: 1, abyssAngler: 3 }, effect: { type: 'echoMod' } },
@@ -3182,11 +3196,11 @@ const SEA_GIFT_RECIPES = [
     { id: 'sealOffering', desc: '【장비 강화: 옵션 1줄 영구 봉인】 해류군주 비단잉어와 발광 송어로 옵션 한 줄을 영구히 봉인합니다.', requires: { tidelordKoi: 1, glowfinTrout: 3 }, effect: { type: 'lockMod', count: 1 } },
     { id: 'leviathanBoon', desc: '【장비 강화: 최상급 태그 옵션 확정(등급 +2)】 전설의 새끼 괴어와 심연 등불고기, 조류 장어로 최상급 태그 옵션을 확정 부여합니다.', requires: { voidLeviathanSpawn: 2, abyssAngler: 2, tidalEel: 3 }, effect: { type: 'guaranteedTaggedMod', tierBoost: 2 } },
     { id: 'tidelordRefine', desc: '【장비 강화: 계열 재굴림(등급 +1)】 해류군주 비단잉어와 발광 송어로 원하는 계열의 기존 옵션만 다시 굴립니다(다른 줄 보존).', requires: { tidelordKoi: 2, glowfinTrout: 3 }, effect: { type: 'taggedReroll', tierBoost: 1, allMatching: true } },
-    { id: 'crushDepthScar', desc: '【장비 강화: 심해 전용 고정 옵션 부착】 무지갯빛 공포와 해류군주 비단잉어, 심연 등불고기로 심해 전용 고정 옵션을 부착합니다.', requires: { prismaticHorror: 2, tidelordKoi: 1, abyssAngler: 2 }, effect: { type: 'fixedBenchOption' } },
+    { id: 'crushDepthScar', desc: '【장비 강화: 심해 전용 고정 옵션 부착】 무지갯빛 공포와 해류군주 비단잉어, 심연 등불고기로 심해 전용 고정 옵션을 부착합니다(옵션이 6줄이면 가장 낮은 줄을 바꿉니다).', requires: { prismaticHorror: 2, tidelordKoi: 1, abyssAngler: 2 }, effect: { type: 'fixedBenchOption' } },
     { id: 'doubleSealForge', desc: '【장비 강화: 옵션 2줄 동시 영구 봉인 + 나머지 1줄 즉시 재단】 무지갯빛 공포와 발광 송어로 옵션 두 줄을 동시에 봉인하고, 남은 줄은 즉시 재단합니다.', requires: { prismaticHorror: 3, glowfinTrout: 4 }, effect: { type: 'lockMod', count: 2, bonusTaggedReroll: true } },
     { id: 'voidPureRefine', desc: '【장비 강화: 강제 희귀 등급 승급】 무지갯빛 공포와 공허 리바이어던 새끼, 은빛 비늘치로 장비를 강제로 희귀 등급으로 승급시킵니다.', requires: { prismaticHorror: 2, voidLeviathanSpawn: 1, shallowSilverfin: 5 }, effect: { type: 'upgradeRarity', force: true } },
     { id: 'leviathanRemnant', desc: '【장비 강화: 최상급 태그 옵션 확정(등급 +3) + 나쁜 옵션 1줄 무료 제거】 리바이어던 본체와 심연 등불고기로 최상급 태그 옵션을 확정 부여하며, 동시에 나쁜 줄 하나를 무료로 제거합니다.', requires: { kingLeviathan: 1, abyssAngler: 3 }, effect: { type: 'guaranteedTaggedMod', tierBoost: 3, bonusRemoveMod: true } },
-    { id: 'leviathanSigil', desc: '【장비 강화: 이 레시피 전용 최상위 고정 옵션 부착】 리바이어던 본체와 해류군주 비단잉어, 공허 리바이어던 새끼로 오직 이 레시피로만 얻는 최상위 고정 옵션을 부착합니다.', requires: { kingLeviathan: 2, tidelordKoi: 2, voidLeviathanSpawn: 1 }, effect: { type: 'fixedBenchOption', topTier: true } }
+    { id: 'leviathanSigil', desc: '【장비 강화: 이 레시피 전용 최상위 고정 옵션 부착】 리바이어던 본체와 해류군주 비단잉어, 공허 리바이어던 새끼로 오직 이 레시피로만 얻는 최상위 고정 옵션을 부착합니다(옵션이 6줄이면 가장 낮은 줄을 바꿉니다).', requires: { kingLeviathan: 2, tidelordKoi: 2, voidLeviathanSpawn: 1 }, effect: { type: 'fixedBenchOption', topTier: true } }
 ];
 const SEA_GIFT_ITEM_EFFECT_TYPES = new Set(['guaranteedMod', 'guaranteedTaggedMod', 'removeMod', 'upgradeRarity', 'lockMod', 'taggedReroll', 'fixedBenchOption', 'safeReroll', 'twinReroll', 'tierStepUp', 'convertCategoryMod', 'echoMod']);
 
@@ -3291,18 +3305,25 @@ function applySeaGiftGuaranteedMod(item, effect, category) {
     const pool = getAvailableMods(item).filter(mod => effect.type !== 'guaranteedTaggedMod' || !category || getModCategory(mod) === category);
     const choice = chooseSeaGiftGuaranteedLine(item, pool, editable);
     if (!choice) return '이 장비에 추가로 부여할 수 있는 옵션이 없습니다.';
-    const maxTier = Math.max(1, Math.floor(getItemCraftTier(item) || 1)) + Math.max(0, Math.floor(effect.tierBoost || 0));
-    const rolled = rollAffixValue(choice.mod, maxTier);
-    if (choice.index < 0) item.stats.push(rolled); else item.stats[choice.index] = rolled;
-    if (effect.bonusRemoveMod) removeWorstSeaGiftMod(item, choice.index);
+    const rolled = rollSeaGiftGuaranteedValue(item, choice.mod, effect);
+    const index = choice.index < 0 ? item.stats.push(rolled) - 1 : choice.index;
+    item.stats[index] = rolled;
+    if (effect.bonusRemoveMod) removeWorstSeaGiftMod(item, index);
     updateItemName(item);
     return '';
 }
-/** 바뀔 줄은 같은 종류의 가장 낮은 단계 줄(예전에는 첫 줄). 봉인 안 된 줄이 없으면 자리가 남는 종류로 덧붙인다(index -1). */
+/** 확정 부여한 줄의 단계: 등급 보정이 있으면(최상급 태그 옵션) 장비 제작 단계부터 그만큼 위까지, 없으면 수액 봉오리처럼 제작 단계까지 굴린다.
+ * 2026-10-19 전에는 등급 보정도 1단계부터 굴러 '등급 +2'가 평균 T2.4였다. */
+function rollSeaGiftGuaranteedValue(item, mod, effect) {
+    const tier = Math.max(1, Math.floor(getItemCraftTier(item) || 1)), boost = Math.max(0, Math.floor(effect.tierBoost || 0));
+    return boost ? rollAffixValueInTierRange(mod, tier, tier + boost) : rollAffixValue(mod, tier);
+}
+/** 자리가 남으면(접두 3, 접미 3, 모두 6줄) 덧붙이고(index -1), 꽉 찼으면 같은 종류의 가장 낮은 단계 줄을 바꾼다. 2026-10-19 전에는
+ * 자리가 있어도 줄을 바꿔 '부여'가 좋은 줄을 지웠다. */
 function chooseSeaGiftGuaranteedLine(item, pool, editable) {
-    if (editable.length > 0) return equipmentCrafting.pickReplacement(item, pool, editable.map(row => row.index), pickWeightedMod, 'lowest');
-    const mod = pickWeightedMod(pool.filter(row => equipmentCrafting.fitsRoom(equipmentCrafting.affixRoom(item), row)));
-    return mod ? { mod, index: -1 } : null;
+    const mod = getItemExplicitOptionCount(item) < EXPLICIT_AFFIX_LINE_CAP ? pickWeightedMod(pool.filter(row => equipmentCrafting.fitsRoom(equipmentCrafting.affixRoom(item), row))) : null;
+    if (mod) return { mod, index: -1 };
+    return editable.length > 0 ? equipmentCrafting.pickReplacement(item, pool, editable.map(row => row.index), pickWeightedMod, 'lowest') : null;
 }
 
 /** 메아리 줄은 원본과 같은 종류다. 그 종류에 자리가 없으면 같은 종류의 줄만 바꿔 끼울 수 있다. */
@@ -3388,7 +3409,10 @@ const SEA_GIFT_EFFECTS = Object.freeze({
         updateItemName(item);
     },
     upgradeRarity: (item, effect) => {
-        if (effect.force) item.rarity = 'rare';
+        if (effect.force) {
+            item.rarity = 'rare';
+            fillSeaGiftRareLines(item);
+        }
         else if (item.rarity === 'normal') item.rarity = 'magic';
         else if (item.rarity === 'magic') item.rarity = 'rare';
         updateItemName(item);
@@ -3441,12 +3465,22 @@ const SEA_GIFT_EFFECTS = Object.freeze({
         updateItemName(item);
     }
 });
+/** 강제 희귀 승급: 옵션이 4줄이 될 때까지 수액 봉오리처럼 새 줄을 붙인다(2026-10-19 전에는 이름만 희귀가 되어 0줄 희귀가 나왔다). */
+function fillSeaGiftRareLines(item) {
+    const tier = getItemCraftTier(item);
+    while (getItemExplicitOptionCount(item) < 4) {
+        const mod = equipmentCrafting.pickAddMod(item, null);
+        if (!mod) return;
+        item.stats.push(rollAffixValue(mod, tier));
+    }
+}
 /** A guaranteed line (a tagged one in the chosen category); a refusal logs why. */
 function applySeaGiftGuaranteedEffect(item, effect, craft) {
     const refusal = applySeaGiftGuaranteedMod(item, effect, craft.category);
     if (refusal) return refuseSeaGift(craft, refusal);
 }
-/** The ocean workbench's fixed line, rolled whole, over the same option's old line or the first unsealed one (else added). */
+/** The ocean workbench's fixed line, rolled whole: over the item's ocean bench line, else added, and on a full item (6 lines) over the
+ * lowest line (before 2026-10-19 it took the first unsealed line even with room). */
 function applySeaGiftBenchOption(item, effect, craft) {
     let option = getOceanWorkbenchOption(craft.options && craft.options.optionId, !!effect.topTier);
     if (!option) return refuseSeaGift(craft, '적용할 수 있는 고정 옵션이 없습니다.');
@@ -3454,10 +3488,16 @@ function applySeaGiftBenchOption(item, effect, craft) {
     let maxInt = Math.floor(option.max);
     let val = minInt + Math.floor(Math.random() * (maxInt - minInt + 1));
     let rolled = { id: option.statId, val: val, valMin: minInt, valMax: maxInt, tier: 5, statName: getStatName(option.statId), oceanBenchOptionId: option.id };
-    let idx = (item.stats || []).findIndex(stat => stat && (stat.oceanBenchOptionId === option.id));
-    if (idx < 0) idx = (item.stats || []).findIndex(stat => stat && !stat.lockedByHoney && !stat.lockedByRift);
+    let idx = (item.stats || []).findIndex(stat => stat && stat.oceanBenchOptionId);
+    if (idx < 0 && getItemExplicitOptionCount(item) >= EXPLICIT_AFFIX_LINE_CAP) idx = getSeaGiftLowestLineIndex(item);
     if (idx < 0) item.stats.push(rolled); else item.stats[idx] = rolled;
     updateItemName(item);
+}
+/** The line a full item gives up: the lowest tier unsealed line that is not fixed (the later one on a tie), else -1. */
+function getSeaGiftLowestLineIndex(item) {
+    const tierOf = index => Number(item.stats[index].tier) || 0;
+    return getSeaGiftEditableIndexes(item).filter(index => !isFixedEquipmentAffix(item.stats[index]))
+        .reduce((low, index) => (low < 0 || tierOf(index) <= tierOf(low) ? index : low), -1);
 }
 /** One of the highest tier lines echoed at half its values onto another unsealed line of the same kind. */
 function applySeaGiftEcho(item, effect, craft) {
@@ -3483,7 +3523,7 @@ function makeSeaGiftEchoLine(src) {
     return echo;
 }
 
-safeExposeGlobals({ isSeaGiftEquipmentTarget, getSelectedSeaGiftEquipmentTarget });
+safeExposeGlobals({ isSeaGiftEquipmentTarget, getSelectedSeaGiftEquipmentTarget, getOceanShallowLiftM });
 
 /** Why 심해의 파편 cannot reroll a line of the item, or '': the build lock, and corrupted gear, fused relics and uniques keep their
  * lines as every other craft does. */
