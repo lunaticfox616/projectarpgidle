@@ -3423,7 +3423,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     if (Array.isArray(skill.tags) && skill.tags.includes('slam')) targetBonus += (gearBase.targetSlam + gearExplicit.targetSlam + passive.targetSlam + season.targetSlam + ascend.targetSlam + reward.targetSlam);
     if (targetBonus > 0) skill.targets = Math.min(Array.isArray(skill.tags) && skill.tags.includes('projectile') ? 12 : 6, Math.max(1, (skill.targets || 1) + Math.floor(targetBonus)));
     else skill.targets = Math.min(6, Math.max(1, skill.targets || 1));
-    skillEffectExpansion.applyToSkill(skill, game.activeSkill); // 효과 확장 +N: more targets for target gems, the keystone's cost
+    addUncappedSkillTargets(skill, game.activeSkill); // 각인의 대상 수, 효과 확장 +N: more targets for target gems, the keystone's cost
     // 재능 개화 카드(장착) 효과를 보상 버킷에 합산 → 이후 모든 최종 스탯/태그 피해에 반영
     let talentStatMap = (typeof getActiveTalentStatMap === 'function') ? getActiveTalentStatMap() : {};
     if (typeof getActiveTalentCardStatBonuses === 'function') applyStatsToBucket(reward, getActiveTalentCardStatBonuses(tick));
@@ -5458,6 +5458,13 @@ function getSkillTargets(pStats, dormant = []) {
         combatTacticsRuntime.targetLockedUntil = now + COMBAT_TACTIC_TARGET_LOCK_MS;
     }
     return targets;
+}
+
+/** Targets that go past the cap of 6 (projectiles 12): a target engraving (js/skills.js engraveTargets, 파동 분산 +2) and effect
+ * expansion (js/skill-effect-expansion.js applyToSkill). The cap took the engraving away (2026-10-20 hunt: 6 → 6, only its -5% damage). */
+function addUncappedSkillTargets(skill, name) {
+    skill.targets = Math.max(1, (skill.targets || 1) + Math.max(0, Math.floor(Number(skill.engraveTargets) || 0)));
+    skillEffectExpansion.applyToSkill(skill, name);
 }
 
 /** Who the gem aims at first: the monster the player locked on (js/act-exploration-state.js lockOn), else the target the tactics

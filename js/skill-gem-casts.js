@@ -128,7 +128,9 @@ const skillGemCasts = (() => {
         const options=targets(id,source,enemies,grow(stats));
         if(!options.length)return false;
         if(SINGLE_CAST.has(id) && state.casts.some(c=>c.id===id))return false;
-        const target=findNearestGridEnemy(source,options);
+        // 잠근 몬스터(js/act-exploration-state.js lockOn)가 닿으면 그 몬스터를, 아니면 가장 가까운 몬스터를 노린다(다른 룬과 같다).
+        const locked=actExplorationState.lockedEnemy(actExplorationState.current(game));
+        const target=(locked && options.find(enemy=>enemy.id===locked.id)) || findNearestGridEnemy(source,options);
         const cast={id,name,stats,attackOptions:input.attackOptions,source:cell(source),aim:getGridUnitCenter(target),targetId:target.id,
             speed:Math.max(.5,Math.min(2.5,stats.aspd)),key:'gem-'+(++state.sequence),at:now,index:0,nextAt:now};
         state.lastSkill=name;
