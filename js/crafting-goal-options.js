@@ -87,7 +87,7 @@ const craftingGoalOptions = (() => {
             const allowed = ids.has(mod.id), maxTier = maxTierFor(item, mod);
             const reason = catalogueBlockReason(mod, { occupied, room, omen });
             const weighted = weights.find(row => row.id === mod.id), weight = weighted ? weightOf(weighted) : 0;
-            return { id: mod.id, name: mod.statName || getStatName(mod.statId || mod.id), kind: equipmentCrafting.affixKind(mod),
+            return { id: mod.id, statId: mod.statId || mod.id, statIds: getExplicitModStatIds(mod), name: mod.statName || getStatName(mod.statId || mod.id), kind: equipmentCrafting.affixKind(mod),
                 tags: getAffixTags(mod), maxTier, weight, share: total ? weight / total : 0, allowed, reason: allowed ? '' : reason };
         }).sort((a, b) => Number(b.allowed) - Number(a.allowed) || a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name, 'ko'));
     }

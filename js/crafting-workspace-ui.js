@@ -528,8 +528,33 @@ const craftingWorkspaceUi = (() => {
         acknowledged='';workspaceSaveGoals();workspaceRender();
     }
 
-    function workspaceStudyRows(rows) {
-        return rows.map(row=>`<tr class="${row.allowed?'':'cl-pool-blocked'}" data-search="${esc(row.name+' '+row.tags.map(tag=>AFFIX_TAG_LABELS[tag]).join(' '))}"><td>${esc(row.name)}<small>${esc(row.tags.map(tag=>AFFIX_TAG_LABELS[tag]).join(', '))}</small></td><td>${{prefix:'접두',suffix:'접미',special:'특수'}[row.kind]}</td><td>${row.maxTier?'T1~'+row.maxTier:'고정'}</td><td>${row.allowed?row.weight:esc(row.reason)}</td></tr>`).join('');
+    // 시뮬레이터의 색(2026-10-19 사용자: "제작시뮬레이터에도 색넣어봐 단색이라서"): 옵션 이름과 결과 줄은 장비 옵션 줄과 같은 능력치 색과
+    // 티어 색, 접두와 접미는 칩, 태그는 그 계열의 색, 가중치는 이 표 안의 비중 막대, 차단 이유는 제작 목록과 같은 이유색, 목표에 드는 옵션과
+    // 줄은 작업대와 같은 초록 표시. 목표 판정은 장비 목표(equipmentLootPolicy)와 같다: 옵션 목표는 복합 옵션의 둘째 능력치도 센다.
+    const STUDY_KINDS={prefix:['접두','is-prefix'],suffix:['접미','is-suffix'],special:['특수','is-special']};
+    const STUDY_TAG_TONES={physical:'physPctDmg',elemental:'elementalPctDmg',fire:'firePctDmg',cold:'coldPctDmg',light:'lightPctDmg',chaos:'chaosPctDmg',
+        crit:'crit',speed:'aspd',life:'pctHp',defense:'armor',resistance:'resAll',recovery:'regen'};
+    const studyTagHtml=tag=>`<span class="cl-study-tag"${STUDY_TAG_TONES[tag]?` style="--tone:${getItemStatToneColor(STUDY_TAG_TONES[tag])}"`:''}>${esc(AFFIX_TAG_LABELS[tag])}</span>`;
+    const studyTierHtml=tier=>`<span class="tier-badge ${getTierClassName(tier)}">T${tier}</span>`;
+    /** Whether a goal rule names this option: one of the stats it rolls (compound parts included), or a tag it carries. */
+    const studyGoalRow=(row,rules)=>rules.some(rule=>(rule.statId?row.statIds.includes(rule.statId):!!rule.tag&&row.tags.includes(rule.tag)));
+    /** Whether a rolled line meets a goal rule as the goal check counts it: an option rule looks at the line and its compound extras
+     * (each at the line's tier), a tag rule at the whole line (js/loot.js ruleMet). */
+    const studyGoalLine=(stat,rules)=>rules.some(rule=>(rule.tag?[stat]:[stat,...(stat.extraStats||[]).map(extra=>({...extra,tier:stat.tier}))]).some(line=>equipmentLootPolicy.lineMatchesRule(line,rule)));
+    function studyWeightHtml(row,top) {
+        if(!row.allowed)return `<span class="cl-study-blocked">${esc(row.reason)}</span>`;
+        return `<span class="cl-study-weight" style="--share:${(row.share/top*100).toFixed(1)}%"><b>${row.weight}</b><small>${(row.share*100).toFixed(1)}%</small></span>`;
+    }
+    function workspaceStudyRow(row,rules,top) {
+        const [kind,kindClass]=STUDY_KINDS[row.kind]||STUDY_KINDS.special, isGoal=studyGoalRow(row,rules);
+        const name=`<span class="cl-study-name">${statToneText.statLine(row.statId,row.name)}${isGoal?'<span class="cl-study-goal">목표</span>':''}</span>`;
+        // 범위의 끝은 거의 언제나 장비의 옵션 상한이라 줄마다 같다: 색은 머리말의 상한에만 둔다.
+        const tier=row.maxTier?`T1~${row.maxTier}`:'고정';
+        return `<tr class="${row.allowed?'':'cl-pool-blocked'}${isGoal?' is-goal':''}" data-search="${esc(row.name+' '+row.tags.map(tag=>AFFIX_TAG_LABELS[tag]).join(' '))}"><td>${name}<small>${row.tags.map(studyTagHtml).join('')}</small></td><td><span class="cl-study-kind ${kindClass}">${kind}</span></td><td>${tier}</td><td>${studyWeightHtml(row,top)}</td></tr>`;
+    }
+    function workspaceStudyRows(rows,rules=[]) {
+        const top=Math.max(0,...rows.map(row=>Number(row.share)||0))||1;
+        return rows.map(row=>workspaceStudyRow(row,rules,top)).join('');
     }
 
     function workspaceShowStudy() {
@@ -541,7 +566,7 @@ const craftingWorkspaceUi = (() => {
             studyDialog.addEventListener('close',()=>studyRun++);
         }
         const context={item:JSON.parse(JSON.stringify(selected())),recipe:{...recipe},mode,rules:JSON.parse(JSON.stringify(goal)),omen:null};
-        studyDialog.innerHTML=`<header><div><h2 id="cl-study-title">제작 시뮬레이터</h2><p>${esc(context.item.name)}, ${esc(context.recipe.label)}, 옵션 상한 T${getItemCraftTier(context.item)}</p></div><button data-study-close aria-label="제작 시뮬레이터 닫기">닫기</button></header>
+        studyDialog.innerHTML=`<header><div><h2 id="cl-study-title">제작 시뮬레이터</h2><p><span class="cl-study-item" style="color:${getRarityColor(context.item.rarity)}">${esc(context.item.name)}</span>, ${workspaceCoin(context.recipe.key)}${esc(context.recipe.label)}, 옵션 상한 ${studyTierHtml(getItemCraftTier(context.item))}</p></div><button data-study-close aria-label="제작 시뮬레이터 닫기">닫기</button></header>
             <section class="cl-study-simulator">
             ${workspaceStudyOmenHtml(context.item,context.recipe)}<div class="cl-study-controls"><button data-study-sample="1">1회 시뮬레이션</button><button data-study-sample="2000">목표 확률 2,000회 측정</button></div>
             <small data-study-reason aria-live="polite"></small><div data-study-result aria-live="polite"></div></section>
@@ -568,7 +593,7 @@ const craftingWorkspaceUi = (() => {
         studyRun++;
         context.omen=workspaceStudyOmen();
         const {rows,reason}=craftingGoalOptions.study(context);
-        studyDialog.querySelector('tbody').innerHTML=workspaceStudyRows(rows);
+        studyDialog.querySelector('tbody').innerHTML=workspaceStudyRows(rows,context.rules.rules);
         studyDialog.querySelector('[data-study-summary]').textContent=`출현 후보와 차단된 옵션, ${rows.filter(row=>row.allowed).length}종 가능`;
         studyDialog.querySelector('[data-study-reason]').textContent=reason;
         studyDialog.querySelector('[data-study-result]').textContent='';
@@ -596,13 +621,22 @@ const craftingWorkspaceUi = (() => {
         const picks=omen&&omen.effect==='choice'&&equipmentCrafting.omenFits(item,equipmentCrafting.resolveAction(recipe.key,item.rarity),omen,mode)?CRAFT_OMENS.choices:1;
         return Array.from({length:picks},()=>craftingGoalOptions.rehearseStudy(context));
     }
-    const workspacePracticeHtml=results=>`<strong>시뮬레이션 결과${results.length>1?`, ${results.length}개 가운데 고르기`:''}</strong>${results.map(result=>`<ul>${result.stats.map(stat=>`<li>${esc(stat.statName||getStatName(stat.id))} +${esc(formatValue(stat.id,stat.val))} (T${stat.tier||0})</li>`).join('')}</ul>`).join('')}`;
+    /** A practice line in the item tooltip's look: the stat's colour, its tier badge; a line that meets a goal is marked. */
+    const workspaceStudyLineHtml=(stat,rules)=>`<li${studyGoalLine(stat,rules)?' class="is-goal"':''}>${statToneText.statLine(stat.id,`${stat.statName||getStatName(stat.id)} +${formatValue(stat.id,stat.val)}`)}${getItemAffixTierHtml(stat)}</li>`;
+    /** Whether this practice result meets the goal (shown only when a goal is set). */
+    const workspaceStudyVerdict=(result,rules)=>(!rules.rules.length?'':equipmentLootPolicy.matches(result,{settings:{equipmentTargets:rules}})?'<span class="cl-study-verdict is-hit">목표 달성</span>':'<span class="cl-study-verdict">목표 미달</span>');
+    /** One practice, or with 성화의 뿌리 each result numbered with its own verdict. */
+    const workspacePracticeHtml=(results,rules)=>{
+        const many=results.length>1, lines=result=>`<ul>${result.stats.map(stat=>workspaceStudyLineHtml(stat,rules.rules)).join('')}</ul>`;
+        return `<strong>시뮬레이션 결과${many?`, ${results.length}개 가운데 고르기`:''}</strong>${many?'':workspaceStudyVerdict(results[0],rules)}`
+            +results.map((result,index)=>`${many?`<div class="cl-study-pick">${index+1}번 결과${workspaceStudyVerdict(result,rules)}</div>`:''}${lines(result)}`).join('');
+    };
 
     /** The measurement: hits out of count (picks: results to pick from in each practice), its 95% range and the mean cost. */
     function workspaceSampleHtml(hits,count,picks) {
         const p=hits/count,z=1.96,den=1+z*z/count,centre=(p+z*z/(2*count))/den;
         const delta=z*Math.sqrt(p*(1-p)/count+z*z/(4*count*count))/den;
-        return `<strong>목표 달성 ${hits}/${count}회${picks>1?`(${picks}개 가운데 하나라도)`:''}, ${(p*100).toFixed(2)}%</strong><p>95% 추정 범위 ${(Math.max(0,centre-delta)*100).toFixed(2)}~${(Math.min(1,centre+delta)*100).toFixed(2)}%, ${hits>=5?`평균 약 ${Math.round(1/p)}회 / 주 재화 ${Math.round(1/p)}개`:'관측이 적어 평균 비용 추정 보류'}</p>`;
+        return `<strong>목표 달성 ${hits}/${count}회${picks>1?`(${picks}개 가운데 하나라도)`:''}, <span class="cl-study-rate">${(p*100).toFixed(2)}%</span></strong><p>95% 추정 범위 ${(Math.max(0,centre-delta)*100).toFixed(2)}~${(Math.min(1,centre+delta)*100).toFixed(2)}%, ${hits>=5?`평균 약 ${Math.round(1/p)}회 / 주 재화 ${Math.round(1/p)}개`:'관측이 적어 평균 비용 추정 보류'}</p>`;
     }
 
     const workspaceStudyActive=run=>run===studyRun&&studyDialog.open&&contentProgression.isUnlocked('craftSimulator');
@@ -619,7 +653,7 @@ const craftingWorkspaceUi = (() => {
                 if(i%50===49){out.textContent=`측정 중 ${i+1}/${count}`;await new Promise(resolve=>setTimeout(resolve,0));}
             }
             if(!workspaceStudyActive(run))return;
-            if(count===1)out.innerHTML=workspacePracticeHtml(results);
+            if(count===1)out.innerHTML=workspacePracticeHtml(results,context.rules);
             else out.innerHTML=workspaceSampleHtml(hits,count,results.length);
         }catch(error){console.error('Craft rehearsal failed',error);out.textContent=`시뮬레이션 실패: ${error.message}`;}
         finally{if(run===studyRun)workspaceStudyButtons(context,craftingGoalOptions.study(context).reason);}
@@ -639,7 +673,7 @@ const craftingWorkspaceUi = (() => {
         choiceDialog.showModal();choiceDialog.querySelector('h2').focus({preventScroll:true});
     }
     function workspaceChoiceHtml(option,index) {
-        const lines=[...option.stats.map(stat=>`${esc(stat.statName||getStatName(stat.id))} +${esc(workspaceAffixValue(stat,stat.val))}${getItemAffixTierHtml(stat)}`),
+        const lines=[...option.stats.map(stat=>`${statToneText.statLine(stat.id,`${stat.statName||getStatName(stat.id)} +${workspaceAffixValue(stat,stat.val)}`)}${getItemAffixTierHtml(stat)}`),
             ...(option.chaosInfusion?[`혼돈 주입 ${esc(getStatName(option.chaosInfusion.id))} +${esc(workspaceAffixValue(option.chaosInfusion,option.chaosInfusion.val))}`]:[])];
         return `<section class="cl-choice"><h3>${index+1}번 결과</h3><ul>${lines.map(line=>`<li>${line}</li>`).join('')}</ul><button type="button" data-choice="${index}">이 결과로</button></section>`;
     }
