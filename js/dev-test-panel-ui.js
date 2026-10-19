@@ -322,6 +322,7 @@ const devTestPanel = (() => {
                 button('하품', () => note(combatIncidents.testYawn() ? '세계수가 하품을 했습니다' : '지금 싸우는 몬스터가 없습니다')),
                 button('잠든 무리', () => note(combatIncidents.testSleep() ? '지금 방의 몬스터가 잠들었습니다' : '지금 싸우는 몬스터가 없습니다')),
                 button('길 잃은 몬스터', () => note(combatIncidents.testStray() ? '길 잃은 몬스터를 세웠습니다' : '바꿀 몬스터나 가 본 다른 액트가 없습니다')),
+                button('별똥별', () => note(combatIncidents.testStar() ? '별똥별을 떨어뜨렸습니다' : '방 단위 지도의 방에서만 됩니다')),
                 button('수액 잔치', () => note(combatIncidents.testFeast() ? '황금 수액 잔치를 열었습니다' : '지금 방에 보통 몬스터가 없습니다'))])
         ]);
     }

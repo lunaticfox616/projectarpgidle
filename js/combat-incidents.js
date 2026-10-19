@@ -8,6 +8,7 @@
  * - 잠든 무리: 슬라임이 서지 않은 보통 무리가 드물게 잠들어 있다(lullPack, 이름 앞에 '잠든', 머리 위에 z). 무리의 누가 다치거나 영웅이
  *   가까이 오면 무리째 깨어 잠시 멍하다(tickSleep).
  * - 황금 수액 잔치: 처음 들어선 전투 방에서 아주 드물게 그 방의 보통 몬스터가 모두 금빛 수액 슬라임이 된다(feast).
+ * - 별똥별: 처음 들어선 전투 방에 드물게 별 하나가 떨어져 그 칸에 재화 하나를 남긴다(dropStar, 그림은 js/canvas-stage-incidents.js).
  * - 세계수의 하품: 처음 들어선 전투 방에서 아주 드물게 그 방의 몬스터가 잠든다(skillHeldUntil: 움직이지도 공격하지도 않는다).
  * - 행운의 숫자: 한 번에 준 피해가 7로만 된 수면 그 자릿수의 재화(noteDamage, js/combat.js applyDamageToEnemyResource).
  * 체이싱 고유 넷이 사건을 바꾼다(worn): 수액 냄새 밴 장화(슬라임 확률과 재화), 황금을 빚는 손(쓰러뜨린 몬스터가 슬라임으로 일어난다),
@@ -21,6 +22,7 @@ const combatIncidents = (() => {
     const tell = (text, tone, chase = false) => dispatchRuntimeEvent('incident', { text, tone, chase });
     const sleptRooms = new WeakMap();   // 탐험 → 하품을 굴려 본 방(처음 들어설 때 한 번)
     let luckyAt = -Infinity;            // 마지막 행운의 숫자(전투 시각)
+    const stars = [];                   // 떨어지는 중인 별똥별 { run, cell, key, at(닿는 전투 시각) }
     /** 착용한(요구 능력치를 채워 켜진) 고유 장비의 그 효과의 값(uniqueEffectParams), 없으면 null. */
     function worn(key) {
         for (const item of Object.values(combatEquipmentStats.activeEquipment(game) || {})) {
@@ -230,6 +232,7 @@ const combatIncidents = (() => {
         if (!here.length || !firstLook(run, room)) return;
         const key = roomKey(run, room);
         if (draw('feast', key) < rule().feast.chance && feast(run, here, key)) return;
+        dropStar(run, room, key, now);
         if (draw('yawn', key) < yawnChance()) yawn(here, now);
     }
     /** 하품의 확률: 꿈결의 향로를 끼면 그 확률(chance). */
@@ -249,6 +252,44 @@ const combatIncidents = (() => {
         return here.length > 0;
     }
 
+    // ---------------------------------------------------------------- 별똥별
+    /** 처음 들어선 방에 chance의 확률로(forced면 반드시) 별 하나: 그림(battleFx 'fallingStar')을 띄우고 fallMs 뒤에 닿는다(landStars).
+     * 떨어뜨렸는지. */
+    function dropStar(run, room, key, now, forced = false) {
+        const S = rule().star, roll = forced || draw('star', key) < S.chance;
+        const map = roll && starRewards().length ? actExplorationDoors.stageMap(run) : null, cell = map ? starCell(map, room, key) : null;
+        if (!cell) return false;
+        addBattleFx('fallingStar', { cell, duration: S.fallMs + S.burstMs });
+        stars.push({ run, cell, key, at: now + S.fallMs });
+        return true;
+    }
+    /** 방 안쪽의 걸을 수 있는 칸 가운데 영웅에게서 두 칸 넘게 떨어진 곳(열두 번 굴려 처음 맞는 칸). 없으면 null. */
+    function starCell(map, room, key) {
+        const hero = game.gridPlayer, w = Math.max(1, room.x1 - room.x0 - 1), h = Math.max(1, room.y1 - room.y0 - 1);
+        for (let i = 0; i < 12; i++) {
+            const cell = { gx: room.x0 + 1 + Math.floor(draw('starX', key + i) * w), gy: room.y0 + 1 + Math.floor(draw('starY', key + i) * h) };
+            if (actExplorationMap.walkable(map, cell) && (!hero || gridChebyshevDist(cell.gx, cell.gy, hero.gx, hero.gy) > 2)) return cell;
+        }
+        return null;
+    }
+    /** 지금 떨어질 수 있는 별똥별 보상(아직 열리지 않은 재화는 빠진다). */
+    const starRewards = () => rule().star.rewards.filter(([currency]) => contentProgression.canDropCurrency(currency));
+    /** 닿은 별똥별: 그 칸에 떨어질 수 있는 보상에서 하나와 알림. 그 사이 지도를 떠났으면 사라진다. */
+    function landStars(run, now) {
+        for (let i = stars.length - 1; i >= 0; i--) {
+            if (stars[i].at > now) continue;
+            const [star] = stars.splice(i, 1), rows = starRewards();
+            if (star.run !== run || !rows.length) continue;
+            const [currency, count] = rows[Math.floor(draw('starLoot', star.key) * rows.length)];
+            if (keepCurrencyDrop(star.cell, currency, count).gain > 0) tell('별똥별이 떨어졌습니다.', 'reward');
+        }
+    }
+    /** 시험 패널: 지금 방에 별똥별 하나. 떨어뜨렸는지. */
+    function testStar() {
+        const run = actExplorationState.current(game), room = run && actExplorationDoors.stageMap(run) ? actExplorationDoors.room(run) : null;
+        return !!room && dropStar(run, room, `test:${getCombatTime()}`, getCombatTime(), true);
+    }
+
     /** 이 방을 처음 보는가(몬스터가 선 방에 처음 들어선 때 한 번). */
     function firstLook(run, room) {
         let seen = sleptRooms.get(run);
@@ -266,6 +307,7 @@ const combatIncidents = (() => {
         for (const enemy of live) if (enemy.critter) tickCritter(run, enemy, room, now);
         const sleepers = live.filter(enemy => enemy.asleep);
         if (sleepers.length) tickSleep(sleepers, now);
+        if (stars.length) landStars(run, now);
         if (map) tickRoom(run, room, now);
     }
     /** 처치(js/combat.js countKillForContent): 길 잃은 몬스터의 장비, 잡은 슬라임의 보상과 알림. 슬라임이 아니면 황금을 빚는 손(rise). */
@@ -338,6 +380,6 @@ const combatIncidents = (() => {
         keepCurrencyDrop(enemy, key, count * hit.mul);
         tell(`행운의 숫자 ${dealt.toLocaleString('ko-KR')}${'2459'.includes(hit.digit) ? '가' : '이'} 나왔습니다.`, 'reward');
     }
-    return Object.freeze({ dressPack, glazeOf, tick, onKill, noteDamage, testSpawn, testYawn, testSleep, testFeast, testStray });
+    return Object.freeze({ dressPack, glazeOf, tick, onKill, noteDamage, testSpawn, testYawn, testSleep, testFeast, testStray, testStar });
 })();
 safeExposeGlobals({ combatIncidents });

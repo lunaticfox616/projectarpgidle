@@ -1187,6 +1187,7 @@ function drawBattleGroundLayer(ctx, effects, view) {
     fxRemake.end();
     if (typeof stageSkillVfx === 'object') stageSkillVfx.draw(ctx, 'ground', view.gridProj);
     if (typeof stageOcean === 'object') stageOcean.ground(ctx, view); // 심해: 발밑 먼지와 공기 기둥
+    if (typeof stageIncidents === 'object') stageIncidents.ground(ctx, view); // 잔잔한 사건: 별똥별
     drawActiveSummons(ctx, view.playerPos, view.now, view.gridProj);
 }
 

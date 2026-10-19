@@ -251,6 +251,8 @@ const ACT_EXPLORATION_AMBUSH = Object.freeze({chance:0.05,pull:0.4,keep:2,search
 //   습격방에 모이지 않는다.
 // feast 황금 수액 잔치: 처음 들어서는 전투 방마다 chance의 확률로 그 방의 보통 몬스터(정예와 조우, 구출, 보물 무리 말고)가 모두 금빛 수액
 //   슬라임이 된다(무지갯빛은 critter.rainbow.chance대로). 열리면 그 방에는 하품이 없다.
+// star 별똥별: 처음 들어서는 전투 방마다 chance의 확률로 별 하나가 방의 빈 칸(영웅에게서 두 칸 넘게)에 떨어진다. fallMs 동안 떨어지고
+//   burstMs 동안 빛이 퍼지며(js/canvas-stage-incidents.js), 닿으면 그 칸에 rewards에서 하나([재화, 개수]).
 // yawn 세계수의 하품: 처음 들어서는 전투 방마다 chance의 확률로 그 방의 몬스터가 sleepMs 동안 움직이지도 공격하지도 않는다.
 // lucky 행운의 숫자: 한 번에 준 피해가 7로만 된 수(777 이상)면 그 자릿수의 재화를 준다([재화, 개수], 그보다 긴 수는 맨 끝 줄). 한 번 나오면
 //   gapMs 동안은 다시 나오지 않는다(지속 피해도 같은 길로 들어온다). 체이싱 고유 일곱 번째 행운의 병은 같은 숫자로만 된 수(111 이상)도 센다.
@@ -265,6 +267,8 @@ const ACT_EXPLORATION_INCIDENTS = Object.freeze({
     stray: Object.freeze({ chance: 0.02, prefix: '길 잃은', outline: '#9be0a4', expMul: 2, gear: 'magic' }),
     sleep: Object.freeze({ chance: 0.03, prefix: '잠든', outline: '#a9b8ff', zColor: '#d4dcff', zEveryMs: 1700, wakeCells: 2, groggyMs: 1500 }),
     feast: Object.freeze({ chance: 0.0004 }),
+    star: Object.freeze({ chance: 0.015, fallMs: 520, burstMs: 680,
+        rewards: Object.freeze([['magicBud', 3], ['sapBud', 1], ['formlessDew', 1], ['blessing', 1]]) }),
     yawn: Object.freeze({ chance: 0.0004, sleepMs: 6000 }),
     lucky: Object.freeze({ min: 777, gapMs: 30000, kill: 7777, rewards: Object.freeze([['magicBud', 3], ['sapBud', 1], ['formlessDew', 2], ['goldenRule', 1], ['fairyRing', 1]]) })
 });
