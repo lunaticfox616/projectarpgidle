@@ -364,6 +364,13 @@ function createDefaultOceanState() {
         diving: false,
         lastTickAt: 0,
         bossClearM: 0,
+        // 자동 재잠수(js/combat.js autoRediveOceanAfterClear): 마지막으로 떠오른 까닭('oxygen' | 'defeat' | 'manual' | ''), 잠수를 시작할
+        // 때의 리프트와 가디언 기록의 합, 새 리프트도 가디언 처치도 없이 산소가 떨어진 잠수가 이어진 수, 자동 재잠수로 들어간 잠수가
+        // 떠오르면 돌아갈 사냥터(구역 id, 자동 재잠수가 아니면 null)
+        lastSurfaceReason: '',
+        diveStartProgress: 0,
+        fruitlessDives: 0,
+        autoReturnZoneId: null,
         permanentUpgrades: { oxygenMax: 0, oxygenSaving: 0, pressureResist: 0 }
     };
 }
@@ -441,8 +448,17 @@ function ensureOceanState() {
     st.diving = !!st.diving;
     st.drowning = !!st.drowning;
     st.drownSec = Math.max(0, Number(st.drownSec) || 0);
+    normalizeOceanDiveRecord(st);
     if (!st.unlocked && (game.season || 1) >= OCEAN_UNLOCK_LOOP) st.unlocked = true;
     return st;
+}
+/** 자동 재잠수가 읽는 잠수 기록(createDefaultOceanState): 떠오른 까닭, 시작할 때의 리프트와 가디언 기록, 소득 없이 떠오른 수. */
+function normalizeOceanDiveRecord(st) {
+    st.lastSurfaceReason = ['oxygen', 'defeat', 'manual'].includes(st.lastSurfaceReason) ? st.lastSurfaceReason : '';
+    st.diveStartProgress = Math.max(0, Math.floor(Number(st.diveStartProgress) || 0));
+    st.fruitlessDives = Math.max(0, Math.min(OCEAN_AUTO_REDIVE.missLimit, Math.floor(Number(st.fruitlessDives) || 0)));
+    const back = st.autoReturnZoneId;
+    st.autoReturnZoneId = Number.isInteger(back) || (typeof back === 'string' && back !== '') ? back : null;
 }
 function canEnterOceanDepth() {
     return !!ensureOceanState().unlocked;
@@ -487,6 +503,10 @@ function getOceanPendingBossBoundary(st) {
     let cleared = Math.max(0, Math.floor(st.bossClearM || 0));
     let nextBoundary = Math.floor(cleared / interval) * interval + interval;
     return (Math.floor(Math.max(0, Number(st.depthM) || 0)) >= nextBoundary) ? nextBoundary : 0;
+}
+/** 잠수의 소득을 재는 기록: 열린 리프트와 쓰러뜨린 가디언의 수심 합(둘 다 줄지 않는다). 잠수를 시작할 때와 떠오를 때를 견준다. */
+function getOceanDiveRecord(st) {
+    return Math.max(0, Math.floor(st.checkpointM || 0)) + Math.max(0, Math.floor(st.bossClearM || 0));
 }
 function getOceanMoveSpeedDepthBonus() {
     // 이동 속도가 빠를수록 한 번에 더 깊이 전진합니다(산소 소모와는 무관, 최대 +50%).
@@ -1172,7 +1192,8 @@ function allocateLoop10BonusStat(statKey) {
     updateStaticUI();
 }
 
-function enterNextEndlessChaosDepth() {
+/** 혼돈 심화의 다음 층으로. clearedZone: 방금 깬 층(지역 클리어에서 넘어올 때, 자동 입장이 사냥터 클리어로 읽는다), 손으로 누르면 없다. */
+function enterNextEndlessChaosDepth(clearedZone) {
     if (typeof isBeehiveRunLockedForMapTravel === 'function' ? isBeehiveRunLockedForMapTravel() : !!(game.beehive && game.beehive.inRun)) {
         if (typeof warnBeehiveMapTravelBlocked === 'function') return warnBeehiveMapTravelBlocked();
         return;
@@ -1186,7 +1207,7 @@ function enterNextEndlessChaosDepth() {
     game.combatHalted = false;
     game.runProgress = 0;
     addLog(`♾️ 혼돈 심화 ${game.abyssEndlessDepth}층 진입`, 'season-up');
-    enterAutomaticMapInterruptionAfterClear(null); // a ready grand breach or meteor postponed by the map's loot goes first
+    enterAutomaticMapInterruptionAfterClear(clearedZone); // a ready grand breach or meteor postponed by the map's loot goes first
     startMoving(true);
     updateStaticUI();
 }
@@ -2386,6 +2407,7 @@ const defaultGame = {
         equipmentTargets: { enabled: false, slot: 'any', scope: 'explicit', minMatches: 1, rules: [] },
         autoEnterMeteor: false,
         autoEnterGrandBreach: false,
+        autoRediveOcean: false,
         // 자동 환생(js/loop-automation-ui.js): 관문을 채우면 몇 초 뒤 다음 루프로, 다음 직업은 'ask' | 'keep'.
         autoLoop: false, autoLoopClass: 'ask',
         mapCompleteAction: 'nextZone',

@@ -9,6 +9,7 @@ function normalizeLoopGateFlags(state) {
 function normalizeAutomationSettings(settings) {
     settings.autoMove = settings.autoMove !== false;
     settings.autoLoop = settings.autoLoop === true;
+    settings.autoRediveOcean = settings.autoRediveOcean === true; // 심해 자동 재잠수(기본 끔)
     settings.autoLoopClass = settings.autoLoopClass === 'keep' ? 'keep' : 'ask';
 }
 

@@ -18,9 +18,16 @@ const oceanDiveUi = (() => {
     }
     function actionsHtml(st) {
         const fishing = `<button type="button" onclick="switchMapSubtab('map-tab-fishing')">낚시와 제작</button>`;
-        if (!st.diving) return `<button type="button" class="dive-go" data-exploration-departure onclick="oceanDiveUi.startDive()">잠수 시작<small>${st.checkpointM}m부터</small></button>${fishing}`;
+        if (!st.diving) return `<button type="button" class="dive-go" data-exploration-departure onclick="oceanDiveUi.startDive()">잠수 시작<small>${st.checkpointM}m부터</small></button>${autoHtml(st)}${fishing}`;
         const back = game.currentZoneId === OCEAN_ZONE_ID ? '' : `<button type="button" class="dive-go" data-exploration-departure onclick="changeZone(OCEAN_ZONE_ID)">심해로 돌아가기</button>`;
-        return `${back}<button type="button" data-exploration-departure onclick="oceanDiveUi.surfaceDive()">수면으로 복귀</button>${fishing}`;
+        return `${back}<button type="button" data-exploration-departure onclick="oceanDiveUi.surfaceDive()">수면으로 복귀</button>${autoHtml(st)}${fishing}`;
+    }
+    /** 자동 재잠수 단추: 켜짐, 꺼짐, 멈춤(소득 없이 떠오른 잠수가 한도에 닿음). 체크박스가 아니라 aria-pressed 단추다: 이 창은 속성만
+     * 맞춰 다시 그려서(updateGamePanelMarkup), 한 번 누른 체크박스는 값이 바뀌어도 화면이 따라가지 않는다. */
+    function autoHtml(st) {
+        const on = game.settings.autoRediveOcean === true, stopped = on && isOceanAutoRediveHalted(st);
+        return `<button type="button" class="dive-auto${stopped ? ' is-stopped' : ''}" aria-pressed="${on}" onclick="oceanDiveUi.toggleAutoRedive()">`
+            + `자동 재잠수<small>${stopped ? '멈춤' : (on ? '켜짐' : '꺼짐')}</small></button>`;
     }
     function headHtml(st) {
         return `<div class="dive-head"><span class="dive-emblem">${renderPixelIcon('drop', 'dive-emblem-icon')}</span>`
@@ -62,9 +69,10 @@ const oceanDiveUi = (() => {
     }
     function rulesHtml(st) {
         const rows = [['check', '체크포인트', '100m마다 열리고, 다음 잠수는 여기서 시작합니다.'],
-            ['guard', '가디언', `${getOceanBossBoundaryInterval()}m마다 길을 막습니다. 쓰러뜨려야 더 내려갑니다.`],
+            ['guard', '가디언', `${getOceanBossBoundaryInterval()}m마다 길을 막고, 닿으면 남은 무리를 두고 바로 가디언 방으로 갑니다. 쓰러뜨려야 더 내려갑니다.`],
             ['oxygen', '산소', `초당 ${drainPerSec(st).toFixed(2)} 줄어듭니다. 다 떨어지면 익사 피해를 받다가 수면으로 올라오고, 체크포인트 뒤 진행은 사라집니다.`],
-            ['pressure', '수압', '100m마다 1단계 오릅니다. 공격 속도, 피해, 이동 속도가 줄고 산소가 더 빨리 줄어듭니다.']];
+            ['pressure', '수압', '100m마다 1단계 오릅니다. 공격 속도, 피해, 이동 속도가 줄고 산소가 더 빨리 줄어듭니다.'],
+            ['auto', '자동 재잠수', `켜 두면 산소가 떨어져 떠오른 뒤 사냥터 하나를 깨고 체크포인트부터 다시 잠수하고, 떠오르면 그 사냥터로 돌아옵니다. 그 잠수에서 쓰러지거나, 새 리프트도 가디언 처치도 없이 ${OCEAN_AUTO_REDIVE.missLimit}번 떠오르면 멈춥니다. 새 루프의 첫 잠수와 자리를 비운 동안의 정산에서는 다시 잠수하지 않습니다.`]];
         return `<details class="dive-rules"><summary>잠수 규칙</summary><ul>${rows.map(([key, label, text]) => `<li class="is-${key}"><b>${label}</b>${text}</li>`).join('')}</ul></details>`;
     }
     function render() {
@@ -88,12 +96,19 @@ const oceanDiveUi = (() => {
         changeZone(Math.max(0, game.maxZoneId || 0));
         updateStaticUI();
     }
+    function toggleAutoRedive() {
+        const on = game.settings.autoRediveOcean !== true;
+        setOceanAutoRedive(on);
+        addLog(`🌊 심해 자동 재잠수 ${on ? '켜짐' : '꺼짐'}`, 'season-up');
+        queueImportantSave(200);
+        render();
+    }
     function buyDiveUpgrade(key) {
         upgradeOceanPermanent(key);
         render();
         fishingUi.render();
     }
-    return Object.freeze({ render, startDive, surfaceDive, buyDiveUpgrade });
+    return Object.freeze({ render, startDive, surfaceDive, toggleAutoRedive, buyDiveUpgrade });
 })();
 
 safeExposeGlobals({ oceanDiveUi });

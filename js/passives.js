@@ -2898,7 +2898,7 @@ function catchOceanFish(depthTier) {
     return picked;
 }
 
-safeExposeGlobals({ getOceanFishingStrategyDef, getOceanFishCollectionProgress, getOceanFishCollectionBonus, setOceanFishingStrategy, claimOceanFishCollectionMilestone });
+safeExposeGlobals({ getOceanFishingStrategyDef, getOceanFishCollectionProgress, getOceanFishCollectionBonus, setOceanFishingStrategy, setOceanAutoRedive, claimOceanFishCollectionMilestone });
 
 
 function getOceanPermanentUpgradeCost(key) {
@@ -2965,12 +2965,18 @@ function getPassiveRouting(owner = game) {
         free: passiveRouting.freeNodes(PASSIVE_TREE, owner), edges: PASSIVE_TREE.edges.filter(edge => isPassiveTreePathEdge(edge, allocated)) };
 }
 
-function enterOceanDive() {
+/** 체크포인트부터 잠수를 시작한다. auto: 자동 재잠수(js/combat.js autoRediveOceanAfterClear)가 불렀는지: 그 잠수는 떠오르면 지금
+ * 사냥터로 돌아온다. 손으로 시작한 잠수는 소득 없이 떠오른 잠수의 수를 비워 멈춘 자동 재잠수를 다시 잇는다. @returns {boolean} 잠수를 시작했는지 */
+function enterOceanDive({ auto = false } = {}) {
     const reason = getZoneTravelBlockReason(OCEAN_ZONE_ID) || getContentStartBlockReason();
     if (reason) { addLog(reason, 'attack-monster'); return false; }
     let st = ensureOceanState();
     if (!st.unlocked) { addLog('아직 심해로 진입할 수 없습니다.', 'attack-monster'); return false; }
     if (st.diving) return false;
+    if (!auto) st.fruitlessDives = 0;
+    st.autoReturnZoneId = auto ? game.currentZoneId : null;
+    st.diveStartProgress = getOceanDiveRecord(st);
+    st.lastSurfaceReason = '';
     st.depthM = Math.max(0, Math.floor(st.checkpointM || 0));
     st.oxygenMax = Math.max(1, Math.floor(getOceanOxygenMax()));
     st.oxygenCur = st.oxygenMax;
@@ -2983,19 +2989,53 @@ function enterOceanDive() {
 
 function forceSurfaceOcean(reason) {
     let st = ensureOceanState();
+    const returnZoneId = takeOceanReturnZone(st);
     st.diving = false;
     st.depthM = Math.max(0, Math.floor(st.checkpointM || 0));
     st.oxygenCur = st.oxygenMax;
     st.drowning = false;
     st.drownSec = 0;
+    const stopNote = recordOceanSurface(st, reason);
     addLog(reason === 'oxygen' ? '🫧 산소가 모두 소진되어 익사 직전에 수면으로 끌어올려졌습니다. 체크포인트 이후의 진행이 사라졌습니다.' : '🌊 잠수를 종료하고 수면으로 복귀했습니다.', 'attack-monster');
+    if (stopNote) addLog(stopNote, 'attack-monster');
     // 실패(산소 고갈) 시에도 '수면으로 복귀' 버튼과 동일하게 심해 맵을 벗어나 수면(일반 맵)으로 이동한다.
     if (reason !== 'manual') {
         try {
-            if (typeof changeZone === 'function') changeZone(Math.max(0, game.maxZoneId || 0));
+            if (typeof changeZone === 'function') changeZone(returnZoneId);
             if (typeof updateStaticUI === 'function') updateStaticUI();
         } catch (e) { console.warn('failed to auto-surface from ocean:', e); }
     }
+}
+/** 떠오른 까닭을 적고, 산소가 떨어진 잠수면 새 리프트나 가디언 처치가 있었는지 센다(자동 재잠수가 읽는다).
+ * @returns {string} 이번에 자동 재잠수가 멈췄으면 그 알림, 아니면 빈 글 */
+function recordOceanSurface(st, reason) {
+    st.lastSurfaceReason = ['oxygen', 'defeat'].includes(reason) ? reason : 'manual';
+    if (reason === 'defeat') return game.settings.autoRediveOcean ? '🌊 자동 재잠수로 들어간 잠수에서 쓰러져 자동 재잠수를 멈춥니다. 잠수 시작을 누르면 다시 이어집니다.' : '';
+    if (reason !== 'oxygen') return '';
+    const limit = OCEAN_AUTO_REDIVE.missLimit;
+    st.fruitlessDives = getOceanDiveRecord(st) > st.diveStartProgress ? 0 : Math.min(limit, st.fruitlessDives + 1);
+    if (!game.settings.autoRediveOcean || st.fruitlessDives !== limit) return '';
+    return `🌊 새 리프트도 가디언 처치도 없이 ${limit}번 떠올라 자동 재잠수를 멈춥니다. 잠수 시작을 누르면 다시 이어집니다.`;
+}
+/** 떠오를 곳: 자동 재잠수가 잠수를 시작한 사냥터(그 구역이 있으면), 아니면 가장 먼 사냥터. 기록은 비운다. */
+function takeOceanReturnZone(st) {
+    const back = st.autoReturnZoneId;
+    st.autoReturnZoneId = null;
+    return back !== null && back !== OCEAN_ZONE_ID && getZone(back) ? back : Math.max(0, game.maxZoneId || 0);
+}
+/** 자동 재잠수로 들어간 잠수가 이어지고 있는가(쓰러지면 그 잠수가 끝난다: js/combat.js defeatInAutoDive). */
+const isAutoOceanDive = st => !!st.diving && st.autoReturnZoneId !== null;
+/** 자동 재잠수가 멈췄는가: 자동 잠수에서 쓰러졌거나 소득 없이 떠오른 잠수가 한도에 닿았다(손으로 잠수하면 풀린다). */
+const isOceanAutoRediveHalted = st => st.lastSurfaceReason === 'defeat' || st.fruitlessDives >= OCEAN_AUTO_REDIVE.missLimit;
+/** 새 루프: 자동 재잠수는 이 루프에서 직접 시작한 잠수가 떠오른 뒤부터 잇는다(낮은 레벨의 새 영웅을 지난 루프의 깊은 리프트로 보내지 않게). */
+function forgetOceanAutoDive(st) {
+    st.lastSurfaceReason = '';
+    st.autoReturnZoneId = null;
+}
+/** 자동 재잠수 설정(심해 잠수 창의 단추). 켤 때 소득 없이 떠오른 잠수의 수를 비운다. */
+function setOceanAutoRedive(on) {
+    game.settings.autoRediveOcean = !!on;
+    if (on) ensureOceanState().fruitlessDives = 0;
 }
 
 // 산소가 0이 된 뒤에는 시간이 지날수록 점점 큰 익사 피해를 입는다. 쓰러지기 직전이 되면 사망이 아니라 수면으로 복귀한다.

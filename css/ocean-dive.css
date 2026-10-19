@@ -18,6 +18,10 @@
   .dive-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
   #ui-ocean-panel .dive-go { display: grid; justify-items: center; gap: 1px; border-color: #4f8fb0; color: var(--dive-water); }
   .dive-go small { color: var(--dive-muted); }
+  #ui-ocean-panel .dive-auto { display: grid; justify-items: center; gap: 1px; }
+  .dive-auto small { color: var(--dive-muted); }
+  .dive-auto[aria-pressed="true"] small { color: var(--dive-water); }
+  .dive-auto.is-stopped small { color: var(--dive-guard); }
 
   /* 수심 게이지: 이번 가디언 구간, 눈금 하나가 리프트 하나(100m) */
   .dive-depth { display: grid; gap: 6px; margin-top: 12px; padding: 10px 12px; border: 1px solid var(--dive-line); background: var(--dive-bg); }

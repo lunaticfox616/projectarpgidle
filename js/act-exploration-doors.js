@@ -88,6 +88,22 @@ const actExplorationDoors = (() => {
         bringSummons(spot);
         return true;
     }
+    /** 주인공을 보스 방 문을 막 지난 자리에 세운다: 보스만 서는 싸움을 빈 입구 방을 걷지 않고 시작할 때(심해 가디언 판, js/combat.js
+     * beginOceanRunRules). 문을 지날 때(cross)처럼 문 안쪽에서 한 칸 더 들어간 칸(막혔으면 문 안쪽)에 서고, 소환수가 따라오고, 방에
+     * 들어선 시각이 적힌다. 두 칸 문 가운데 보스 방 한가운데 줄에 가까운 칸으로 들어선다. @returns {boolean} 옮겼는지 */
+    function startAtGate(run) {
+        const map = stageMap(run), door = map ? map.doors.find(row => row.gate) : null;
+        if (!door) return false;
+        const room = map.rooms[door.to], off = cell => Math.abs(cell.gy - room.gy) + Math.abs(cell.gx - room.gx) / 100;
+        const index = off(door.arrivals[0]) <= off(door.arrivals[1]) ? 0 : 1;
+        const spot = standable(map, door.arrivals[index]) ? door.arrivals[index] : door.exits[index];
+        Object.assign(game.gridPlayer, { gx: spot.gx, gy: spot.gy, gridMoveTimer: 0 });
+        run.destination = null; // 입구 방에서 받은 걷기 명령은 여기서 끝난다: 남기면 보스 방에서 입구 쪽으로 되돌아 걷는다
+        actExplorationState.lockOn(run, null);
+        actExplorationState.arrive(run, getCombatTime());
+        bringSummons(spot);
+        return true;
+    }
     /** 습격방(data ACT_EXPLORATION_AMBUSH, js/combat.js markExplorationAmbushRooms)에 처음 들어선 순간: 그 방에서 기다리던 습격 무리가
      * 저마다 들어온 문(주인공이 선 칸) 쪽으로 다가와 서서(문까지의 거리를 pull의 몫으로 줄인 자리, 막혔으면 search칸 안의 가까운 빈 칸)
      * 공격 게이지를 windUp까지 채운다. 무리의 모양은 줄어든 채 남고, 주인공의 keep칸 안에는 서지 않는다. 들어선 뒤의 유예
@@ -176,7 +192,7 @@ const actExplorationDoors = (() => {
         const rows = Array.from({ length: GUIDE_KEEP_ROWS * 2 + 1 }, (_, index) => post.gy - GUIDE_KEEP_ROWS + index);
         return rows.filter(gy => gy >= room.y0 && gy <= room.y1).map(gy => gridCellKey(post.gx, gy)).filter(key => !doorways.has(key));
     }
-    return Object.freeze({ session, planKey, stageMap, cross, toward, room, doorsHere, pace, fightingHere, sendStraysBack, storyGuide, guideRoom,
+    return Object.freeze({ session, planKey, stageMap, cross, startAtGate, toward, room, doorsHere, pace, fightingHere, sendStraysBack, storyGuide, guideRoom,
         guideCells });
 })();
 safeExposeGlobals({ actExplorationDoors });

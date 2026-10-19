@@ -39,6 +39,9 @@ const ENTRY_BOSS_EASING = Object.freeze({
 });
 const UNDERWORLD_ENTRY_BENCHMARK_HP_MULTIPLIER = 0.85;
 const UNDERWORLD_ENTRY_BENCHMARK_DAMAGE_MULTIPLIER = 0.82;
+/** 판(위에서 보는 전장)의 심해 가디언 판이 시작하는 진행도: 막대 끝 바로 앞이라 다음 틱에 가디언이 선다(beginOceanRunRules).
+ * 정확히 100이면 advanceMapProgress가 무리를 부르기 전에 돌아가 가디언이 서지 않는다. */
+const OCEAN_GUARDIAN_BOARD_START_PROGRESS = 99.9;
 let pendingSkillStageHits = [];
 let pendingEnemyCombatAttacks = [];
 const COMBAT_TACTIC_TARGET_LOCK_MS = 750;
@@ -2007,6 +2010,7 @@ function prepareCombatTick(nowMs) {
     game.combatTimeMs = Number.isFinite(nowMs) ? nowMs : getCombatTime() + 100;
     tickOceanOxygen(game.combatTimeMs);
     holdZoneBoundRuns(addLog);
+    callOceanGuardianAtBoundary();
     tickWoodsmanCurse();
     if (typeof trackRecordBests === 'function') trackRecordBests();
     const pStats = getPlayerStats(false);
@@ -8979,7 +8983,22 @@ function startEncounterRun(exploration) {
 function beginEncounterZoneRules(zone, explorationRun) {
     if (zone && zone.type === 'outsideChaos' && !explorationRun) startWoodsmanCurse();
     else resetWoodsmanCurse();
-    if (zone && zone.type === 'oceanDepth' && explorationRun) game.oceanBossRunPending = !!explorationRun.source.arena;
+    if (zone && zone.type === 'oceanDepth') beginOceanRunRules(zone, explorationRun);
+}
+/** 심해 판이 열릴 때. 방 단위 지도: 이번 지도가 가디언의 투기장인지로 정산이 갈리고, 투기장은 영웅을 보스 방 문 안쪽에 세운다
+ * (2026-10-19 사용자: "가디언 리프트에서 가디언 방으로 시작"). 판: generateEncounterPlan이 방금 적은 가디언 판은 진행 막대 끝 바로
+ * 앞에서 시작해 다음 틱에 가디언이 선다(OCEAN_GUARDIAN_BOARD_START_PROGRESS). */
+function beginOceanRunRules(zone, explorationRun) {
+    if (!explorationRun) {
+        if (game.oceanBossRunPending) game.runProgress = OCEAN_GUARDIAN_BOARD_START_PROGRESS;
+        return;
+    }
+    game.oceanBossRunPending = !!explorationRun.source.arena;
+    seatOceanGuardianArena(zone, explorationRun);
+}
+/** 심해 가디언 투기장은 영웅을 보스 방 문 안쪽에 세운다: 지도를 지을 때(이동하는 동안 빈 입구 방이 보이지 않게)와 판이 열릴 때. */
+function seatOceanGuardianArena(zone, run) {
+    if (zone && zone.type === 'oceanDepth' && run && run.source && run.source.arena) actExplorationDoors.startAtGate(run);
 }
 
 function startMoving(isTown) {
@@ -9044,6 +9063,7 @@ function prepareActExplorationArrival() {
     game.actExploration = run;
     resetPlayerGridPosition();
     restoreAndRecallSummons(getPlayerStats());
+    seatOceanGuardianArena(zone, run);
 }
 /** The act's exploration for a new encounter: the one laid out while moving here, else a new one (null outside acts).
  * returning: the character comes back from elsewhere on the board (the return warp plays), not already standing in it. */
@@ -10269,8 +10289,58 @@ function enterAutomaticMapInterruptionAfterClear(clearedZone) {
         return true;
     }
     if (typeof autoEnterGrandBreachIfReady === 'function' && autoEnterGrandBreachIfReady()) return true;
-    return false;
+    return autoRediveOceanAfterClear(clearedZone);
 }
+
+/** 잠수가 가디언 경계(500m마다)에 닿았는데 무리 구간을 돌고 있으면 그 구간을 접고 가디언 판을 연다(2026-10-19 사용자: "경계에
+ * 닿으면 가디언 바로 등장"). 남은 무리는 처치 보상 없이 사라지고, 이미 다 깬 구간은 끝나는 대로(낚시 게이지를 받고) 가디언 판으로
+ * 넘어간다. 이동하는 동안 넘었으면 걸어 들어갈 무리 지도를 투기장으로 바꿔 짓는다. 멈춤과 쓰러짐에는 손대지 않는다(이 틱의
+ * 산소가 영웅을 수면으로 올렸으면 지역이 이미 바뀌어 있다). */
+function callOceanGuardianAtBoundary() {
+    if (game.currentZoneId !== OCEAN_ZONE_ID || game.combatHalted || !(game.playerHp > 0)) return;
+    const st = ensureOceanState();
+    if (!st.diving || getOceanPendingBossBoundary(st) <= 0) return;
+    if (game.moveTimer > 0) relayOceanArrivalToGuardian();
+    else if (isOceanSectionRunning()) startMoving(false);
+}
+/** 이동하는 동안 지어 둔 도착 지도가 무리 구간이면 가디언 투기장으로 다시 짓는다(도착한 뒤 한 번 더 이동하지 않게). */
+function relayOceanArrivalToGuardian() {
+    const run = actExplorationState.current(game);
+    if (run && run.arrival && !(run.source && run.source.arena)) prepareActExplorationArrival();
+}
+/** 무리 구간이 돌고 있는가: 가디언 판이 아니고 아직 다 깨지 않았다(방 단위 지도는 탐험의 상태, 판은 남은 무리와 살아 있는 몬스터). */
+function isOceanSectionRunning() {
+    const run = actExplorationState.current(game);
+    if (run) return !(run.source && run.source.arena) && run.status === 'active';
+    const plan = game.encounterPlan || [];
+    if (!plan.length || plan.some(marker => marker && marker.boss)) return false;
+    return game.encounterIndex < plan.length || (game.enemies || []).some(enemy => enemy && enemy.hp > 0);
+}
+/** 자동 재잠수(설정 autoRediveOcean, 2026-10-19 사용자: "떠오른 뒤 자동 재잠수 설정"): 산소가 떨어져 떠오른 뒤 사냥터 하나를 깨면
+ * 체크포인트부터 다시 잠수한다. 부른 쪽(지역 클리어 뒤 출발)이 걸어 들어간다. 소득 없이 떠오른 잠수가 이어지거나 방치 정산에서
+ * 여러 번 잠수하면 멈춘다(OCEAN_AUTO_REDIVE, data/maps.js). @returns {boolean} 잠수를 시작했는지 */
+function autoRediveOceanAfterClear(clearedZone) {
+    if (!canAutoRediveOcean(ensureOceanState()) || !isOceanRediveMoment(clearedZone)) return false;
+    if (!enterOceanDive({ auto: true })) return false;
+    game.killsInZone = 0;
+    return true;
+}
+/** 설정과 잠수 기록이 다시 잠수를 허락하는가: 켜져 있고, 산소가 떨어져 떠올랐고, 멈추지 않았다(isOceanAutoRediveHalted). 방치 정산
+ * 에서는 잠수하지 않는다: 심해는 투영하지 않아 잠수가 정산의 실제 전투 한도(OFFLINE_PROJECTION.realCapMs)를 써 버리고, 가디언에게
+ * 거듭 쓰러지면 정산의 연속 사망 멈춤에 걸린다. */
+function canAutoRediveOcean(st) {
+    if (!game.settings.autoRediveOcean || game.isBackgroundCalculation || !st.unlocked || st.diving) return false;
+    return st.lastSurfaceReason === 'oxygen' && !isOceanAutoRediveHalted(st);
+}
+/** 지금 다시 잠수해도 되는 때: 사냥터(액트, 혼돈)를 막 깼고, 귀환 뒤 멈춤이 아니고, 다른 도전 중이 아니고, 생명력이 거의 찼고,
+ * 심해로 가는 길이 막히지 않았다(거절 사유는 알리지 않는다: 다음 클리어에 다시 묻는다). */
+function isOceanRediveMoment(clearedZone) {
+    if (!clearedZone || !['act', 'abyss'].includes(clearedZone.type) || game.settings.townReturnAction === 'stop') return false;
+    if (isColonyOrGrandBreachRunning() || game.playerHp < getPlayerHpCap(getPlayerStats()) * 0.9) return false;
+    return !getZoneTravelBlockReason(OCEAN_ZONE_ID) && !getContentStartBlockReason();
+}
+/** 군락지 원정이나 대균열 도전 중인가: 그 지역을 떠나면 도전이 끝나므로(holdZoneBoundRuns) 자동 입장이 끊지 않는다. */
+const isColonyOrGrandBreachRunning = () => !!(game.colony && game.colony.inRun) || !!(game.voidRift && game.voidRift.grandRun && game.voidRift.grandRun.inRun);
 
 // Keep the destination stable through a pathfinding detour. Re-picking the nearest enemy
 // at every cell can reverse that detour forever; attackable enemies still take precedence.
@@ -11001,7 +11071,7 @@ function finishEndlessChaosClear(zone, mapAction, ui) {
     let hadCurrentSeasonLoopRequirementBeforeClear = recordEndlessChaosClear(depth);
     if (mapAction === 'repeatZone') return repeatEndlessChaosDepth(zone, ui);
     if (mapAction === 'nextLoopBestPlusOne' || (depth >= 21 && hadCurrentSeasonLoopRequirementBeforeClear)) {
-        enterNextEndlessChaosDepth();
+        enterNextEndlessChaosDepth(zone);
         return;
     }
     handleSeasonLoopConditionMet();
@@ -12268,7 +12338,7 @@ function handlePlayerDefeat(zone, pStats, message, options) {
 /** The content whose own rules a defeat in zone follows (a run by its id, else by its kind), or null for the experience penalty. */
 function getContentDefeat(zone) {
     if (!zone) return null;
-    return getRunDefeat(zone) || getContentKindDefeat(zone);
+    return getRunDefeat(zone) || getAutoDiveDefeat(zone) || getContentKindDefeat(zone);
 }
 function getRunDefeat(zone) {
     if (zone.id === OUTSIDE_CHAOS_ZONE_ID) return defeatAgainstWoodsman;
@@ -12279,6 +12349,14 @@ function getRunDefeat(zone) {
 function getContentKindDefeat(zone) {
     if (zone.type === 'seasonBoss') return game.inTicketBossFight ? defeatInRootBossFight : null;
     return Object.hasOwn(CONTENT_DEFEAT_BY_KIND, zone.type) ? CONTENT_DEFEAT_BY_KIND[zone.type] : null;
+}
+/** 자동 재잠수로 들어간 잠수에서 쓰러지면 그 잠수를 끝내고 자동 재잠수를 멈춘다(2026-10-19 검토: 넘지 못하는 가디언 앞에서 거듭
+ * 쓰러지며 경험치를 잃고 정산의 연속 사망 멈춤에 걸렸다). 손으로 시작한 잠수는 예전처럼 심해에서 다시 일어선다. */
+const getAutoDiveDefeat = zone => (zone.id === OCEAN_ZONE_ID && isAutoOceanDive(ensureOceanState()) ? defeatInAutoDive : null);
+function defeatInAutoDive(zone, message, opts, ui) {
+    ui.say(message || '☠️ 자동 재잠수로 들어간 잠수에서 쓰러졌습니다.', 'death', { noToast: !!opts.noToast });
+    clearDefeatedEncounter();
+    forceSurfaceOcean('defeat');
 }
 /** Leaves the encounter: no enemies, plan or progress left. */
 function clearDefeatedEncounter() {
@@ -14051,6 +14129,7 @@ function resetLoopContents(kept) {
     game.timeRift = preservedTimeRift;
     game.skyTower = preservedSkyTower;
     game.ocean = preservedOcean;
+    forgetOceanAutoDive(game.ocean);
     game.skyTower.loopSeason = Math.max(1, Math.floor(game.season || 1));
     game.skyTower.clearedThisLoop = 0;
     game.gemEnhanceUnlocked = preservedGemEnhanceUnlocked;
