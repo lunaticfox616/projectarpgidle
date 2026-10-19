@@ -182,6 +182,9 @@ function createCloudSaveState(root) {
 
 function createCloudSaveRequestBody(userId, sourceGame) {
     const payload=createCloudSaveState(sourceGame || game || {});
+    // 로컬 저장과 나갈 때 업로드와 같은 모양(serializeSaveState): 작업대 정리와 방 단위 탐험의 봉인. 이 본문만 빠뜨렸다(2026-10-20).
+    payload.craftingWorkspace = craftingWorkspaceState.normalize(payload.craftingWorkspace, payload.currencies);
+    payload.actExploration = actExplorationRooms.seal(payload.actExploration);
     dropRuntimeOnlySaveFields(payload);
     return JSON.stringify({ user_id: userId, save_data: payload });
 }
