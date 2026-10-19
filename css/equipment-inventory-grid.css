@@ -392,8 +392,10 @@
 .equipment-grid-item-badges .is-def { color: #8fe0a0; }
 .equipment-grid-item-badges .is-special { color: #ffd36b; }
 /* 한 칸 폭이 좁으면(휴대폰 35px, PC 기본 창 48px) 위에서 15px 내려온 증감 표시가 칸 이름("목걸이")을 덮었고 휴대폰에서는 칸을 넘었다:
-   칸 이름 자리에 작게 쓰고 이름은 뺀다. 52px 칸(안쪽 46px)부터는 둘 다 들어간다. */
+   칸 이름 자리에 작게 쓰고 이름은 뺀다. 52px 칸(안쪽 46px)부터는 둘 다 들어간다. 고르거나 올렸을 때 뜨는 아이템 이름도 이 폭에서는
+   "희…"처럼 한 글자만 남아 칸 이름을 가렸다: 이름은 선택한 장비 칸에 나오므로 뺀다. */
 @container eqw-cell (max-width: 44px) {
+    .equipment-grid-item-name { display: none; }
     .equipment-grid-item-badges { top: auto; right: 0; bottom: 2px; left: 0; justify-items: center; }
     .equipment-grid-item-badges span { padding: 0 1px; font-size: 10px; letter-spacing: -.5px; }
     .equipment-grid-item:has(.equipment-grid-item-badges span) .equipment-grid-slot-label { display: none; }
