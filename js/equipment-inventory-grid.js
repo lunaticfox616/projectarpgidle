@@ -304,6 +304,7 @@
         ensureState(state);
         let index = state.equipmentTemporaryStorage.findIndex(item => getItemKey(item) === itemKey);
         if (index < 0) return { ok: false, reason: '임시 보관함에서 장비를 찾을 수 없습니다.' };
+        if (state.woodsmanBuildLock) return { ok: false, reason: '☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.' }; // 잠금이 가방을 되돌려 꺼낸 장비가 사라졌다
         let item = state.equipmentTemporaryStorage[index];
         let placementResult = findAddPlacement(item, state);
         // No single free cell but the bag fits packed with it: in it goes and ensureState packs the bag, as for a pickup (2026-10-19).

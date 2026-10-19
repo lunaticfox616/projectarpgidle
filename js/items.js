@@ -544,6 +544,7 @@ function getTimeRiftFusionMismatchReason(altarItem, candidate) {
 
 /** Shared admission for inventory candidates and the final altar action; null means eligible. */
 function getTimeAltarItemIssue(item, rift = ensureTimeRiftState()) {
+    if (game.woodsmanBuildLock) return '☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.'; // 잠금이 가방을 되돌려 제단의 장비가 가방에도 남았다
     if (!rift.altarOpen) return '먼저 과거를 클리어해 제단을 열어야 합니다.';
     if (!item) return '제단에 올릴 장비를 고르세요.';
     if (item.hallReplica) return '전당 소장품은 제단에 올릴 수 없습니다.';
@@ -577,6 +578,7 @@ function placeItemOnTimeAltar() {
 }
 
 function retrieveTimeAltarItems() {
+    if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster'); // 잠금이 가방을 되돌려 회수한 장비가 사라졌다
     let rift = ensureTimeRiftState();
     if (!rift.altarUnique && !rift.altarRare) {
         if (!rift.altarOpen) return addLog('제단이 비어 있습니다.', 'attack-monster');

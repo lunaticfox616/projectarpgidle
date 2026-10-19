@@ -71,6 +71,7 @@
         let state = getOfflineState(), stash = state && state.offlineProgress && state.offlineProgress.stash;
         if (!Array.isArray(stash) || !stash[index]) return false;
         let item = stash[index];
+        if (state.woodsmanBuildLock) { addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster'); return false; } // 잠금이 가방을 되돌려 꺼낸 장비가 사라졌다
         if (!canStoreEquipmentItems([item], state)) { if (typeof addLog === 'function') addLog('인벤토리 공간이 부족합니다.', 'attack-monster'); return false; }
         state.inventory.push(stash.splice(index, 1)[0]);
         ensureOfflineProgressState(state);
