@@ -553,6 +553,8 @@ const battleGroundLoot = (() => {
         return next;
     }
 
+    // 잔잔한 사건(js/combat-incidents.js): 금빛 수액 슬라임, 세계수의 하품, 행운의 숫자. 무지갯빛 슬라임은 체이싱 티어의 알림이다.
+    addEventListener('project-idle:incident', ({ detail }) => notice(detail.chase ? 'chase' : 'treasure', detail.text, detail.tone, detail.chase ? 6000 : 3200));
     // A treasure carrier fell (js/atlas-finds.js burstTreasure): a notice (golden treasure in the chase tier's colours) and one log line.
     addEventListener('project-idle:atlas-find', ({ detail }) => {
         if (detail.kind !== 'treasure') return;

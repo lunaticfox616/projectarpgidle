@@ -188,6 +188,11 @@ const stageRoster = (() => {
             ctx.globalAlpha = 1;
         }
         stamp(ctx, pair[pose.clip].source, frame, RIM_NONE);
+        if (look.glaze) {
+            ctx.globalAlpha = look.glaze.alpha;
+            stamp(ctx, tintedFrame(pair, actor, pose, look.glaze.color), own, RIM_NONE);
+            ctx.globalAlpha = 1;
+        }
         if (look.shade > 0) {
             ctx.globalAlpha = Math.min(1, look.shade);
             stamp(ctx, tintedFrame(pair, actor, pose, SHADE), own, RIM_NONE);
@@ -203,8 +208,8 @@ const stageRoster = (() => {
     function frameKey(actor, pose, look) {
         const flash = look.flash > 0 ? Math.min(1, Number(look.flash)) : 0;
         if (look.shade > 0 || (flash > 0 && flash < 1)) return '';
-        const rim = look.outline ? look.outline.color + '@' + look.outline.alpha : '';
-        return `${actor.id}|${pose.clip}|${pose.index}|${pose.breath ? 1 : 0}|${rim}|${flash}`;
+        const rim = look.outline ? look.outline.color + '@' + look.outline.alpha : '', glaze = look.glaze ? look.glaze.color + '@' + look.glaze.alpha : '';
+        return `${actor.id}|${pose.clip}|${pose.index}|${pose.breath ? 1 : 0}|${rim}|${flash}|${glaze}`;
     }
     /** Keep an immutable copy, never cache the shared mutable work canvas. Position, mirroring, alpha and scaling remain live.
      * When every kept pose is on screen the new one is drawn from the work canvas and not kept. */
@@ -240,7 +245,8 @@ const stageRoster = (() => {
         stageRings.shadow(ctx, { x: p.x, y: p.y, dot }, Math.max(6, rx), air ? 0.2 : 0.34);
     }
     /** How the figure is dressed this frame: its rim (an entrance's, else the monster's own), the flash of a hit, the dark of an entrance. */
-    const lookOf = (enemy, p) => ({ outline: p.rim || getEnemyOutlineStyle(enemy), flash: p.flash, shade: p.shade || 0 });
+    const lookOf = (enemy, p) => ({ outline: p.rim || getEnemyOutlineStyle(enemy), flash: p.flash, shade: p.shade || 0,
+        glaze: typeof combatIncidents === 'object' ? combatIncidents.glazeOf(enemy) : null }); // 금빛 수액 슬라임의 빛깔(js/combat-incidents.js)
     /** Draws a roster monster with its feet on (p.x, p.y). p as in monsterActors.draw, plus (a boss entrance) p.shade: how dark
      * the figure is (0 to 1) and p.rim: { color, alpha } its rim meanwhile. False → not in the roster, the stage is off, or its
      * pictures are missing here. */

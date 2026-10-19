@@ -316,8 +316,14 @@ const devTestPanel = (() => {
         const god = el('input', { type: 'checkbox', id: 'dtp-god', onchange: () => toggleGodMode(god.checked) });
         return section('전투', [
             row([el('label', { htmlFor: 'dtp-god' }, [god, ' 무적(생명력 유지)'])]),
-            row(SPEEDS.map(value => button(`×${value}`, () => setSpeed(value), { dataset: { speed: String(value) } })))
+            row(SPEEDS.map(value => button(`×${value}`, () => setSpeed(value), { dataset: { speed: String(value) } }))),
+            // 잔잔한 사건(js/combat-incidents.js): 지금 싸우는 무리 곁에 슬라임을 바로 세운다
+            row([el('label', { textContent: '사건' }), button('금빛 슬라임', () => spawnCritter(false)), button('무지갯빛 슬라임', () => spawnCritter(true)),
+                button('하품', () => note(combatIncidents.testYawn() ? '세계수가 하품을 했습니다' : '지금 싸우는 몬스터가 없습니다'))])
         ]);
+    }
+    function spawnCritter(rainbow) {
+        note(combatIncidents.testSpawn(rainbow) ? '수액 슬라임을 세웠습니다' : '지금 방에서 싸우는 무리가 없습니다');
     }
     function progressSection() {
         const acts = el('select', { id: 'dtp-act' }, STORY_ACTS.map(act => el('option', { value: String(act.order), textContent: `액트 ${act.displayAct}, ${act.title}` })));

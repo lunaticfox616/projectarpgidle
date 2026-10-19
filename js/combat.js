@@ -2012,6 +2012,7 @@ function prepareCombatTick(nowMs) {
     holdZoneBoundRuns(addLog);
     callOceanGuardianAtBoundary();
     callOceanGuardianAdds(addLog);
+    combatIncidents.tick(); // 잔잔한 사건: 달아나는 금빛 수액 슬라임, 세계수의 하품
     tickWoodsmanCurse();
     if (typeof trackRecordBests === 'function') trackRecordBests();
     const pStats = getPlayerStats(false);
@@ -5673,6 +5674,7 @@ function applyDamageToEnemyResource(enemy, damage) {
         enemy.hp = Math.max(0, beforeHp - remaining);
         dealt += Math.max(0, beforeHp - enemy.hp);
     }
+    combatIncidents.noteDamage(enemy, dealt); // 행운의 숫자
     return dealt;
 }
 function getEnemyLifeDamagePct(enemy) {
@@ -8558,6 +8560,7 @@ function createActExplorationPack(zone,room,stage,encounter=null,formation=null)
     if(formation && formation.rescue)pack.rescue=true;
     markExplorationAlertPack(pack);
     atlasFinds.dressTreasurePack(zone,pack);
+    combatIncidents.dressPack(zone,pack); // 잔잔한 사건: 드물게 금빛 수액 슬라임 하나가 곁에 선다
     return pack;
 }
 
@@ -9991,6 +9994,7 @@ function countKillForContent(enemy, zone, pStats) {
     if (enemy.isBoss) markBossKillForContent(enemy, zone, pStats);
     countGrandBreachSurvivalKill(enemy, zone);
     noteOceanKill(enemy, zone);
+    combatIncidents.onKill(enemy, zone);
     game.loopKills = Math.max(0, Math.floor(game.loopKills || 0)) + 1;
     if (game.isBackgroundCalculation) countBackgroundKillMix(enemy);
 }

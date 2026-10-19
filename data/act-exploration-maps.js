@@ -237,6 +237,25 @@ const ACT_EXPLORATION_ALERT = Object.freeze({fromLoop:2,chance:0.2,hearReach:12,
 // search칸 안의 빈 칸, 주인공의 keep칸 안은 비운다) 공격 게이지를 windUp까지 채운다(js/act-exploration-doors.js springAmbush): 들어선 뒤의 유예가
 // 끝나면 한꺼번에 덤비고, 문은 싸우는 동안 잠긴다. 테두리는 outline.
 const ACT_EXPLORATION_AMBUSH = Object.freeze({chance:0.05,pull:0.4,keep:2,search:3,windUp:0.9,outline:'#ff3d5a'});
+// 잔잔한 사건 (2026-10-20 사용자: "계속 같은 게임이라고 느껴지지 않도록 낮은 확률로 나올만한 잔잔한 이벤트", js/combat-incidents.js).
+// 굴림은 무리 열쇠나 방 번호로 정해 다른 난수를 밀지 않는다. 1루프의 액트 1과 방치 정산에서는 일어나지 않는다.
+// critter 금빛 수액 슬라임: 방 단위 무대의 보통 무리(보스, 조우, 구출, 경계, 습격, 보물 무리 말고) 곁에 chance의 확률로 하나가 더 선다. 덤비지
+//   않고 영웅에게서 먼 방 구석으로 달아나다가(자동 사냥이면 영웅이 잠가 쫓는다), 영웅과 같은 방에 든 뒤 fleeMs가 지나면 사라진다. 생명력 hpMul배,
+//   경험치 expMul배. 쓰러뜨리면 rewards: currencies [재화, 개수, 무게]에서 picks번 뽑고, gear 등급 이상의 장비 하나. look 그림(수액 슬라임),
+//   glaze 몸에 얹는 빛깔과 진하기, outline 테. rainbow: 금빛 슬라임 가운데 chance로 무지갯빛(체이싱 티어), 빛깔이 glazes를 everyMs마다 돈다.
+//   금빛 보상에 더해 currency 하나와 고유 장비 하나(chaseShare의 확률로 체이싱 고유).
+// yawn 세계수의 하품: 처음 들어서는 전투 방마다 chance의 확률로 그 방의 몬스터가 sleepMs 동안 움직이지도 공격하지도 않는다.
+// lucky 행운의 숫자: 한 번에 준 피해가 7로만 된 수(777 이상)면 그 자릿수의 재화를 준다([재화, 개수], 그보다 긴 수는 맨 끝 줄).
+const ACT_EXPLORATION_INCIDENTS = Object.freeze({
+    critter: Object.freeze({ chance: 0.012, look: 'act1-slime', name: '금빛 수액 슬라임', glaze: Object.freeze({ color: '#ffcf4a', alpha: 0.36 }), outline: '#fff0a8',
+        hpMul: 2.5, expMul: 3, fleeMs: 13000, stepSec: 0.42,
+        rewards: Object.freeze({ picks: 4, gear: 'rare', currencies: Object.freeze([['magicBud', 3, 5], ['sapBud', 1, 3], ['formlessDew', 1, 2], ['blessing', 1, 1],
+            ['deepWhetstone', 1, 1], ['rootIron', 1, 1], ['jewelPolish', 1, 1]]) }),
+        rainbow: Object.freeze({ chance: 0.02, name: '무지갯빛 수액 슬라임', glazes: Object.freeze(['#ff8f8f', '#ffc46b', '#fff27a', '#8af08a', '#7ad0ff', '#c79bff']),
+            everyMs: 220, alpha: 0.42, currency: 'goldenRule', chaseShare: 0.5 }) }),
+    yawn: Object.freeze({ chance: 0.0004, sleepMs: 6000 }),
+    lucky: Object.freeze({ min: 777, rewards: Object.freeze([['magicBud', 3], ['sapBud', 1], ['formlessDew', 2], ['goldenRule', 1], ['fairyRing', 1]]) })
+});
 // Whole-pixel camera zoom for the 16px art (js/canvas-act-exploration.js tileSize). 2026-10-02: at most ×4 (was ×5): on a 125%
 // desktop display the ×5 tiles (80px) made the hero feel too big and the view cramped.
 const ACT_EXPLORATION_CAMERA = Object.freeze({minZoom:3,maxZoom:4});
@@ -246,4 +265,4 @@ const ACT_EXPLORATION_CAMERA = Object.freeze({minZoom:3,maxZoom:4});
 // 시간)가 지난 것만 줍고 주우러 간다(js/exploration-ground-loot.js landed): 가장 늦게 닿는 그림에 이름이 다 뜬 뒤다. 전에는 580~679ms를
 // 날고 이름이 240ms에 걸쳐 떴으며, 주인공은 떨어지는 중에도 줍거나 주우러 갔다.
 const GROUND_LOOT_DROP = Object.freeze({flightMs:300,flightSpreadMs:60,nameMs:120,readyMs:520});
-safeExposeData({ACT_EXPLORATION_MAPS,CONTENT_EXPLORATION_MAPS,ACT_EXPLORATION_BACKDROPS,ACT_EXPLORATION_ART_VERSION,ACT_EXPLORATION_VISION,ACT_EXPLORATION_ALERT,ACT_EXPLORATION_AMBUSH,ACT_EXPLORATION_CAMERA,GROUND_LOOT_DROP});
+safeExposeData({ACT_EXPLORATION_MAPS,CONTENT_EXPLORATION_MAPS,ACT_EXPLORATION_BACKDROPS,ACT_EXPLORATION_ART_VERSION,ACT_EXPLORATION_VISION,ACT_EXPLORATION_ALERT,ACT_EXPLORATION_AMBUSH,ACT_EXPLORATION_INCIDENTS,ACT_EXPLORATION_CAMERA,GROUND_LOOT_DROP});
