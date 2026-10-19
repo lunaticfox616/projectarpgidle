@@ -2787,7 +2787,8 @@ function queuePendingSkillStageHits(stages, pStats, attackContext) {
     addPendingSkillTravelFxRows(queuedRows, attackContext, now);
 }
 
-/** 전도성 난격(2026-10-17 스킬룬 인계): 난격하는 동안 겨눈 쪽으로 한 칸 걸어 나간다(진짜 걸음). 막혔거나 이미 붙어 있으면 그 자리에 선다. */
+/** 집중 룬의 advanceCells(2026-10-17 인계의 전도성 난격이 썼다. 2026-10-19 v36부터 쓰는 룬 없음): 난격하는 동안 겨눈 쪽으로 한 칸 걸어
+ * 나간다(진짜 걸음). 막혔거나 이미 붙어 있으면 그 자리에 선다. */
 function advanceHeroForStage(row) {
     if (!row.advanceHero) return;
     const aim = row.aimCell || (row.targetCells && row.targetCells[0]);
@@ -11303,6 +11304,13 @@ function noteNativeGemSwing(name, stats) {
         sourceCell: copyCombatGridCell(game.gridPlayer), impactDelayMs: swing.impact - cast.at, duration: Math.max(80, swing.until - cast.at) });
 }
 
+/** 전도성 난격: each arrival strikes at once, so the hero shows the rune's 단타 pose beside the foe (js/skill-gem-casts.js 70). */
+function noteNativeGemArrivalSwing(command) {
+    if (game.isBackgroundCalculation) return;
+    addBattleFx('playerSwing', { skillName: command.name, element: command.element, color: getElementColor(command.element),
+        sourceCell: copyCombatGridCell(game.gridPlayer), impactDelayMs: command.swing.impactDelayMs, duration: command.swing.duration });
+}
+
 function shouldDeferNativeGemCast(stats,options) {
     if (options.stageReplay || !stats.sSkill.nativeCastId) return false;
     if (hasPlayerChannelBreakingAilment() || game.combatHalted) return true;
@@ -11344,6 +11352,7 @@ function applySkillGemCommand(command,stats) {
         actExplorationMotion.cancel(game.actExploration);
         Object.assign(game.gridPlayer,command.to);
         addBattleFx('playerMobility',{skillName:command.name,fromCell:command.from,toCell:command.to,instant:true,duration:180});
+        if (command.swing) noteNativeGemArrivalSwing(command);
         return;
     }
     actExplorationProgress.objects.area(command.splashCells);

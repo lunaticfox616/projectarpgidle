@@ -2,7 +2,7 @@
  * js/canvas-stage-skill-casts.js): v32가 더한 연결 이름(data/stage-skill-vfx.js gems)을 게임의 사건에 건다. 인계 쪽 시뮬레이터가 그 룬을
  * 쓸 때 연출을 트는 자리와 때를 옮긴 것이고, 그리는 일은 js/canvas-stage-skill-strokes.js와 js/canvas-stage-skill-spells.js가 한다.
  * - 휘두름(swing): 이중 베기의 X자(xcut), 번개 타격의 세로 베기(vcut), 올려 베기(rise), 불사르기의 불길(fan), 얼어붙은 고리(icering).
- * - 맞은 적마다(victim): 올려 베기의 베임 선, 폭발성 타격의 불씨, 서리베기의 안개, 전도성 난격의 휘두름과 번개, 피뢰침의 첫 틱,
+ * - 맞은 적마다(victim): 올려 베기의 베임 선, 폭발성 타격의 불씨, 서리베기의 안개, 피뢰침의 첫 틱,
  *   공허 가르기에 끌려온 적의 꼬리, 단두대의 벼락, 고리의 큰 가시, 지진의 큰 기둥(실제로 맞은 적마다 따로).
  * - 그림 사건(claim): 참격파, 서리 파동, 부싯돌 베기, 피뢰침, 신성한 단두대, 혹한의 지진, 불씨의 함성, 서리바람 내지르기, 화살비.
  *   옛 그림 표(data/skill-fx-atlas.js)에 없는 새 룬의 사건도 무대에서는 여기로 온다(js/canvas-world-tree-fx.js).
@@ -14,7 +14,6 @@
 const stageSkillRunes = (() => {
     const K = stageSkillKit, ST = stageSkillStrokes, SP = stageSkillSpells, WIDE = K.WIDE, DEEP = K.DEEP;
     const seen = new WeakSet();                   // 이미 연출을 건 그림 사건
-    const ticks = new Map();                      // "룬:공격 묶음:단계" → { at: 연출을 건 시각, last: 그 단계에서 마지막으로 맞은 적의 자리 }
     const pulled = new Map();                     // 적 id → 공허 가르기가 열릴 때 서 있던 자리
     /** 속성별 타격 묶음(인계의 HIT_POOL): 룬이 타격을 정하지 않았으면 맞을 때마다 그 속성의 것 가운데 하나. */
     const POOL_OF = Object.freeze({ fire: 'fire', cold: 'cold', light: 'light', chaos: 'chaos', prism: 'prism' });
@@ -105,7 +104,6 @@ const stageSkillRunes = (() => {
         (gem, hit, o) => gem.map.fuse && o.lead && ST.fuse(K.at(hit.victim), Math.max(120, stageGapMs(gem, 0)), followEnemy(hit.fx.enemyId)),
         (gem, hit, o) => gem.map.frostmist && o.lead && ST.frostMist(K.at(K.heroSpot()), K.heroFace(), runeReach(hit.fx), Number(hit.fx.enemyId) || 0),
         (gem, hit, o) => gem.map.strike && o.lead && stageSkillVfx.play(gem.map.strike, K.at(hit.victim, 0, K.onGround(gem.map.strike) ? 1 : -46), { face: hit.look.face, ramp: hit.look.ramp, delay: 50 }),
-        (gem, hit) => gem.map.wild && runeWildTick(gem, hit),
         (gem, hit) => gem.map.rod && hit.fx.stageKind === 'fieldStart' && gem.map.tick && runeRodTick(gem.map.tick, hit),
         (gem, hit) => gem.map.gash && runeGashPull(hit.fx, hit),
         (gem, hit) => gem.map.icering && !Number(hit.fx.stageIndex) && !Number(hit.fx.repeatIndex) && runeRingHit(hit),
@@ -115,32 +113,6 @@ const stageSkillRunes = (() => {
     /** 피뢰침의 첫 틱(장판이 서는 순간)에도 그 적에게 번개 금이 튄다(뒤 틱은 지속 타격의 규칙이 튼다). */
     function runeRodTick(ref, hit) {
         stageSkillVfx.play(ref, K.at(hit.victim, 0, K.onGround(ref) ? 0 : -40), { face: hit.look.face, ramp: hit.look.ramp, hit: true });
-    }
-    /** 전도성 난격: 틱마다 한 번 번갈아 휘두르고, 같은 틱에 맞은 적끼리 번개가 잇고, 앞의 세 적에게 번개가 튄다. 마무리는 크게 내려베고 바닥 방전. */
-    function runeWildTick(gem, hit) {
-        const fx = hit.fx, index = Number(fx.stageIndex) || 0, key = `${fx.skillName}:${String(fx.damageTextGroupId).split(':')[0]}:${index}`, row = ticks.get(key);
-        const count = row ? row.count : 0;
-        if (row) runeZap(row.last, hit.victim); else runeWildSwing(gem, hit, index);
-        ticks.set(key, { at: hit.now, last: hit.victim, count: count + 1 });
-        const refs = gem.map.tickHit || [];
-        if (refs.length && count < 3) stageSkillVfx.play(refs[(index + count) % refs.length], K.at(hit.victim, 0, -46), { face: K.heroFace(), ramp: hit.look.ramp, hit: true });
-    }
-    /** 그 틱의 첫 타격: 휘두름 하나(마무리면 큰 내려베기와 바닥 방전). */
-    function runeWildSwing(gem, hit, index) {
-        const fin = hit.fx.stageKind === 'channelFinisher', face = K.heroFace(), hero = K.heroSpot(), every = Number(patternOf(gem).intervalMs) || 150;
-        for (const [old, value] of ticks) if (hit.now - value.at > 3000 || value.at > hit.now) ticks.delete(old);
-        SP.wildSwing({ at: K.at(hero), follow: followHero, k: index, face, reach: fin ? 80 : 62, life: fin ? 300 : every + 40, fin });
-        if (fin) SP.discharge(K.at(hero, face * 1.05 * WIDE, 0), 70);
-    }
-    /** 맞은 적끼리 잇는 짧은 번개(몸 높이, 0.14초, 60ms마다 꺾임이 바뀐다). */
-    function runeZap(from, to) {
-        const ink = ST.ink('light'), dx = (to.gx - from.gx) * WIDE, dy = (to.gy - from.gy) * DEEP, seed = Math.random() * 1000;
-        stageSkillVfx.paint(K.at(from, 0, -50), { life: 140 }, (ctx, t, dot) => {
-            ctx.scale(dot, dot); ctx.globalAlpha = 1 - (t / 140) * 0.7; ctx.strokeStyle = ink.c1; ctx.lineWidth = 1;
-            ctx.beginPath(); ctx.moveTo(0, 0);
-            for (let i = 1; i < 6; i++) { const k = i / 6, j = Math.sin(seed + i * 3.1 + Math.floor(t / 60)) * 6; ctx.lineTo(dx * k + j * 0.4, dy * k + j); }
-            ctx.lineTo(dx, dy); ctx.stroke();
-        });
     }
     /** 공허 가르기: 틈이 열릴 때 선 자리를 적어 두고, 닫히며 벨 때 끌려온 적이 있으면 그 길에 보라 꼬리 세 줄을 남긴다. */
     function runeGashPull(fx, hit) {

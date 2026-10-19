@@ -1,5 +1,5 @@
 /** 스킬룬 이펙트 가운데 코드로 그리는 범위와 이동 연출 (2026-10-17 "스킬룬 디렉터 전달" v32의 그리기 코드를 옮긴 것이다. 근접 베기 연출은
- * js/canvas-stage-skill-strokes.js). 얼어붙은 고리, 혹한의 지진의 얼음 기둥, 불씨의 함성, 서리바람 내지르기, 전도성 난격의 휘두름과 바닥 방전,
+ * js/canvas-stage-skill-strokes.js). 얼어붙은 고리, 혹한의 지진의 얼음 기둥, 불씨의 함성, 서리바람 내지르기, 전도성 난격의 바닥 방전,
  * 신성한 단두대, 신성한 기도의 빛의 창, 화살비, 차원찢기의 우주 구체, 빈 플라스크의 유리, 돌진의 공기 활과 먼지, 섬머솔트 슬래시의 궤적.
  * 자리는 그 연출을 건 곳(발 자리)에서의 도트이고, 칸으로 잰 범위는 게임의 칸(64×32도트)으로 옮긴다. 인계는 캐릭터와 연출을 깊이 순서로
  * 섞어 그리지만 게임의 무대는 바닥 층과 캐릭터 위 층뿐이라, 건 자리보다 뒤쪽(화면 위)의 조각은 바닥 층에, 앞쪽은 위 층에 그린다.
@@ -371,44 +371,7 @@ const stageSkillSpells = (() => {
     }
 
     // ---------------------------------------------------------------- 전도성 난격
-    /** 호 위의 한 점(난격의 휘두름): 기울인 타원. */
-    function wildPoint(w, a) { const x = Math.cos(a) * w.rx, y = Math.sin(a) * w.ry; return [w.cx + w.face * (x * Math.cos(w.tilt) - y * Math.sin(w.tilt)), w.cy + x * Math.sin(w.tilt) + y * Math.cos(w.tilt)]; }
-    function wildArc(g, w, head, fade) {
-        const C = w.C, N = 110;
-        for (let i = 0; i <= N; i++) {
-            const q = i / N, a = head - w.dir * w.span * q;
-            if ((a - w.a0) * w.dir < 0) break;
-            const [x, y] = wildPoint(w, a), size = Math.max(1, Math.round((w.fin ? 9 : 7) * (1 - q * 0.9))), inner = Math.max(1, Math.round(size * 0.55));
-            g.globalAlpha = fade * (1 - q * 0.8) * 0.35; g.fillStyle = C[2]; g.fillRect(Math.round(x) - (size >> 1) - 2, Math.round(y) - (size >> 1) - 2, size + 4, size + 4);   // 옅은 바깥 띠
-            g.globalAlpha = fade * (1 - q * 0.85); g.fillStyle = q < 0.08 ? C[5] : q < 0.3 ? C[4] : q < 0.65 ? C[3] : C[2]; g.fillRect(Math.round(x) - (inner >> 1), Math.round(y) - (inner >> 1), inner, inner);
-        }
-    }
-    /** 호 바깥으로 튀는 번개 가지. */
-    function wildBolts(g, w, head, o) {
-        const rj = S.random(31 + w.k * 7 + Math.floor(o.t / 40));
-        for (let b = 0; b < (w.fin ? 5 : 3); b++) {
-            const q = 0.1 + rj() * 0.6, a = head - w.dir * w.span * q;
-            if ((a - w.a0) * w.dir < 0) continue;
-            let [x, y] = wildPoint(w, a);
-            const L = Math.hypot(x - w.cx, y - w.cy) || 1, nx = (x - w.cx) / L, ny = (y - w.cy) / L, len = 8 + rj() * (w.fin ? 18 : 12);
-            g.globalAlpha = o.fade * 0.85; g.fillStyle = b ? w.C[3] : w.C[4];
-            for (let s = 0; s < 3; s++) { const x2 = x + nx * len / 3 + (rj() - 0.5) * 6, y2 = y + ny * len / 3 + (rj() - 0.5) * 6; S.line(x, y, x2, y2, dot(g)); x = x2; y = y2; }
-        }
-    }
-    /** 전도성 난격의 한 번 휘두름: k 홀수는 머리 위 뒤에서 앞 아래로 크게 내려베는 호, 짝수는 뒤 아래에서 앞 위로 낮게 도는 기울어진 호.
-     * fin은 마무리 큰 내려베기. 주인공을 따라간다. @param {{at:object, follow:Function, k:number, face:number, reach:number, life:number, fin:boolean}} o */
-    function spellWildSwing(o) {
-        const down = o.fin || o.k % 2 === 1, R = o.reach * 1.12, a0 = down ? -2.3 : 2.75, a1 = down ? 0.62 : -0.35, sw = Math.min(140, o.life * 0.6);
-        const w = { C: S.ramp('light'), k: o.k, fin: o.fin, face: o.face, a0, dir: Math.sign(a1 - a0), span: 1.9, rx: R * (o.fin ? 1.15 : 1), ry: down ? R * 0.85 : R * 0.42,
-            tilt: down ? 0 : -0.42, cx: o.face * R * 0.28, cy: -(down ? 58 : 50) };
-        S.hang(o.at, { life: o.life, follow: o.follow, top(g, t) {
-            const u = Math.min(1, t / sw), head = a0 + (a1 - a0) * (1 - (1 - u) * (1 - u)), fade = t < sw ? 1 : Math.max(0, 1 - (t - sw) / (o.life - sw));
-            wildArc(g, w, head, fade);
-            wildBolts(g, w, head, { t, fade });
-            g.globalAlpha = 1;
-        } });
-    }
-    /** 마무리 내려베기 자리의 바닥 방전: 바닥을 따라 여섯 갈래로 기는 짧은 번개와 가운데 작은 빛. delay 뒤에 일어난다. */
+    /** 전도성 난격이 마지막으로 벤 자리의 바닥 방전: 바닥을 따라 여섯 갈래로 기는 짧은 번개와 가운데 작은 빛. delay 뒤에 일어난다. */
     function spellDischarge(at, delay) {
         const C = S.ramp('light');
         S.hang(at, { life: 320, delay, ground(g, t) {
@@ -714,7 +677,7 @@ const stageSkillSpells = (() => {
         } });
     }
 
-    return Object.freeze({ iceRing: spellIceRing, iceRingSpikes: spellIceRingSpikes, iceColumns: spellIceColumns, iceColumn: spellIceColumn, emberShout: spellEmberShout, frostCone: spellFrostCone, wildSwing: spellWildSwing,
+    return Object.freeze({ iceRing: spellIceRing, iceRingSpikes: spellIceRingSpikes, iceColumns: spellIceColumns, iceColumn: spellIceColumn, emberShout: spellEmberShout, frostCone: spellFrostCone,
         discharge: spellDischarge, guillotine: spellGuillotine, fallSpear: spellFallSpear, volleyUp: spellVolleyUp, arrowRain: spellArrowRain, cosmos: spellCosmos,
         glassBreak: spellGlassBreak, glassShard: spellGlassShard, charge: spellCharge, flipTrail: spellFlipTrail });
 })();

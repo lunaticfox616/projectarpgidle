@@ -307,11 +307,25 @@ const stageActors = (() => {
         ctx.globalAlpha = figure.alpha;
         drawBody(ctx, image(pose.clip.file), { pose, look, dest: figure.dest });
         ctx.restore();
-        body = { now, pose, headY: y - headroom(set) * figure.scale };
+        body = { now, pose, sheet: image(pose.clip.file), left: figure.left, headY: y - headroom(set) * figure.scale };
         return true;
     }
     /** CSS y of the top of the head drawn this frame (overhead bars sit above it), or null when the stage hero was not drawn. */
     function headY(now) { return body && body.now === now ? body.headY : null; }
+    /** 지난 프레임에 그린 자세를 한 색으로(전도성 난격이 떠난 자리의 잔상, js/canvas-stage-skill-casts.js). 아직 그린 적이 없으면 null.
+     * 돌려준 함수(ctx, dot, alpha)는 붓의 원점에 발을 두고 그때 보던 쪽을 보며 빛을 더해 그린다. */
+    function afterimage(colour) {
+        if (!body || !body.sheet || !body.sheet.ready) return null;
+        const rim = silhouette(body.sheet, body.pose.frame, colour), data = table(), left = body.left;
+        return (ctx, dot, alpha) => {
+            ctx.save();
+            if (left) ctx.scale(-1, 1);
+            ctx.globalCompositeOperation = 'lighter';
+            ctx.globalAlpha *= Math.max(0, alpha);
+            blit(ctx, rim, 0, { x: -(data.centerX + 0.5) * dot, y: -data.feetY * dot, scale: dot });
+            ctx.restore();
+        };
+    }
 
     /** 주인공 그림이 지금 보는 쪽: 1 오른쪽, -1 왼쪽. */
     const facing = () => (facingLeft ? -1 : 1);
@@ -321,7 +335,7 @@ const stageActors = (() => {
     const preloadRise = classId => { if (table() && classId) image(riseClip(classId).file); };
     /** The hero lies or is getting up (the overhead bar waits: it would float over the air where a standing head would be). */
     const down = () => !!rise;
-    return { drawPlayer: drawStageHero, headY, isReady, stanceFor, strikeFor, motionFor, scaleFor, available, stageArtKnown, whenStageArtKnown, facing, setRise, preloadRise, down };
+    return { drawPlayer: drawStageHero, headY, afterimage, isReady, stanceFor, strikeFor, motionFor, scaleFor, available, stageArtKnown, whenStageArtKnown, facing, setRise, preloadRise, down };
 })();
 
 const sides = new WeakMap();

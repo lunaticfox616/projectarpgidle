@@ -2,7 +2,7 @@
  *  radius  — area gems grow their radius (cross gems: their arms); an area around the caster also reaches N further
  *  cone    — cones grow N cells longer
  *  range   — lines, projectiles and movement reach N cells further (빈 플라스크: its shards)
- *  targets — single-target, arc and chain gems strike N more targets (탄성 플라스크: N more bounces)
+ *  targets — single-target, arc and chain gems strike N more targets (탄성 플라스크: N more bounces, 전도성 난격: N more cuts)
  * Gems not listed are never expanded: 신성한 기도·시간 가속·과냉각 혼합물 (a radius of 3+ already covers most of the
  * 9×8 board) and summons. +1 comes from items and inner growth and does not stack; +2 only from a keystone and costs that
  * skill 30% of its damage (proposed value, handoff §8-1). Rules: js/skill-effect-expansion.js.

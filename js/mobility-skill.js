@@ -104,8 +104,8 @@ const mobilitySkill = (() => {
             return true;
         });
     }
-    /** True while a movement gem is mid-move (a tear, smoke, rope or leap): the caster neither walks nor attacks. */
-    function moving() { return !!runtime && runtime.casts.some(c => c.move && !c.done); }
+    /** True while a movement gem is mid-move (a tear, smoke, rope or leap, 전도성 난격's cuts): the caster neither walks nor attacks. */
+    function moving() { return !!runtime && runtime.casts.some(c => (c.move || c.holds) && !c.done); }
     /** Remaining cooldown for the HUD (0 when ready). */
     function cooldownLeft(now = getCombatTime()) { return Math.max(0, cooldownUntil - now); }
     function reset() { runtime = null; cooldownUntil = 0; lastStats = null; requestedAt = null; }

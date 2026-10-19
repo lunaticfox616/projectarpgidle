@@ -3,7 +3,7 @@
  *   곧게 나는 것은 손 높이로, 던지는 플라스크는 포물선으로 난다.
  * - 따로 시전하는 룬(js/skill-gem-casts.js): 사건에 적힌 단계 이름마다 인계의 클립과 연출을 튼다. 탄성 플라스크(튕길 때마다 중독 폭발),
  *   신성한 기도(빛의 창), 폭발 혼합물, 과냉각 혼합물, 빈 플라스크(깨지는 병과 날아가는 유리 조각), 신성한 안개, 암살, 차원찢기(우주 구체),
- *   향로구름. 시간 가속과 파문심판은 인계도 게임의 옛 그림을 쓴다.
+ *   향로구름, 전도성 난격(v36: 떠난 자리 잔상과 번개 줄기, 점멸 베기, 끝의 바닥 방전). 시간 가속과 파문심판은 인계도 게임의 옛 그림을 쓴다.
  * - 이동기: 그림자 점멸의 연기, v32의 돌진, 도약 강타, 섬머솔트 슬래시(js/canvas-stage-skill-runes.js). 주인공이 사라지고 나타나는
  *   움직임은 게임의 것 그대로다. 활을 들고 쏘는 화살 룬은 몸 대신 마법 화살 클립이 난다.
  * - 위습: 소환된 위습의 몸과 쏘는 구슬을 그 속성의 클립으로 그린다.
@@ -17,7 +17,7 @@ const stageSkillCasts = (() => {
         38: 'flask', 44: 'flask', 47: 'flask', 48: 'flask', 49: 'flask' });
     /** 따로 시전하는 룬의 사건에서 단계 이름이 적힌 칸. */
     const PHASE_KEYS = Object.freeze(['flaskPhase', 'lancePhase', 'mixturePhase', 'supercooledPhase', 'emptyFlaskPhase', 'holyMistPhase', 'assassinationPhase',
-        'riftPhase', 'smokePhase', 'harpoonPhase', 'timePhase', 'judgmentPhase']);
+        'riftPhase', 'smokePhase', 'harpoonPhase', 'timePhase', 'judgmentPhase', 'flickerPhase']);
     /** 위습이 쏜 구슬이 맞을 때의 타격 클립(속성별). */
     const WISP_HIT = Object.freeze({ fire: 'h_fire@fire', cold: 'h_ice@cold', light: 'h_lit@light', chaos: 'h_chaos@chaos', phys: 'h_xs@phys' });
     /** 제 때가 된 사건을 처음 보는가(때가 되기 전에 알려진 사건은 아직 틀지 않는다). */
@@ -172,6 +172,24 @@ const stageSkillCasts = (() => {
         if (c.first && c.gem.map.muzzle) stageSkillVfx.play(c.gem.map.muzzle, K.at(move.from, face * 26, -52), { ramp: c.look.ramp, face, delay: Math.max(0, move.release - c.event.at) });
         return false;
     }
+    /** 전도성 난격의 건너가기: 떠난 자리에 노란 잔상(0.22초, 빛을 더한다)과 몸 높이의 번개 줄기 두 가닥, 닿는 자리에 작은 번개 튐. */
+    function castFlickerJump(c) {
+        if (!c.first) return true;
+        const from = c.event.sourceCell, to = c.event.landingCell, face = Number(c.event.flickerFace) || c.look.face;
+        const ghost = stageActors.afterimage(stageSkillStrokes.ramp('light')[4]);
+        if (ghost) stageSkillVfx.paint(K.at(from), { life: 220 }, (ctx, t, dot) => ghost(ctx, dot, 0.62 * (1 - t / 220)));
+        stageSkillStrokes.flickerTrail(K.at(from), { dx: (to.gx - from.gx) * WIDE, dy: (to.gy - from.gy) * DEEP }, Math.floor(from.gx * 7 + to.gx * 3));
+        if (c.gem.map.spark) stageSkillVfx.play(c.gem.map.spark, K.at(to, -face * 4, -48), { ramp: c.look.ramp, face, delay: 40, scale: 0.6 });
+        return true;
+    }
+    function castFlickerCut(c) {
+        if (c.first) stageSkillStrokes.flickerCut(K.at(c.event.landingCell), c.look.face, Number(c.event.flickerIndex) || 0);
+        return true;
+    }
+    function castFlickerDischarge(c) {
+        if (c.first) stageSkillSpells.discharge(K.at(c.event.landingCell), 0);
+        return true;
+    }
     /** 룬 번호 → 단계 이름 → 그 단계의 연출. 여기에 없는 단계는 예전 그림이 그린다. */
     const NATIVE = Object.freeze({
         44: { flight: castBody, splash: castSplash },
@@ -183,7 +201,8 @@ const stageSkillCasts = (() => {
         52: { vanish: castVanish, arrive: castArrive, slash: castSlash },
         54: { move: castRift },
         55: { move: castSmoke },
-        56: { move: castHarpoon }
+        56: { move: castHarpoon },
+        70: { jump: castFlickerJump, cut: castFlickerCut, discharge: castFlickerDischarge }
     });
 
     // ---------------------------------------------------------------- movement gems

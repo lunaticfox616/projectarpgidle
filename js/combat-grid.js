@@ -1174,7 +1174,7 @@ function buildMeteorSkillHitSequence(pattern, impactCells, targets) {
     return [impact, ...ground];
 }
 
-/** 집중(channel): hits번의 시간차 타격. finisher가 있으면 마지막에 제 피해와 범위로 한 번 더(전도성 난격의 마무리 내려치기),
+/** 집중(channel): hits번의 시간차 타격. finisher가 있으면 마지막에 제 피해와 범위로 한 번 더(2026-10-17 인계의 전도성 난격이 썼다),
  * advanceCells가 있으면 중간 타격 때 주인공이 겨눈 쪽으로 한 칸 걸어 나간다(js/combat.js advanceHeroForStage). */
 function buildChannelSkillHitSequence(skillName, skill, targets, area) {
     const pattern = skill.combatPattern, { attacker, primary, impactCells, intervalMs } = area;
@@ -1298,7 +1298,7 @@ function buildSkillHitSequence(skillName, skill, targetEntries) {
     return [{ kind: 'primary', label: '직격', delayMs: 0, damageMultiplier: 1, targets }];
 }
 
-/** 집중의 마무리 일격 배율(전도성 난격), 없으면 0. */
+/** 집중의 마무리 일격 배율, 없으면 0. */
 function getChannelFinisherMultiplier(pattern) {
     return pattern.kind === 'channel' && pattern.finisher ? Math.max(0.01, Number(pattern.finisher.damagePct) || 100) / 100 : 0;
 }

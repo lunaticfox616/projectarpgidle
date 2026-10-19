@@ -1,7 +1,7 @@
 /** 스킬룬 이펙트 가운데 코드로 그리는 근접 연출 (2026-10-17 사용자가 준 "스킬룬 디렉터 전달" v32의 그리기 코드를 옮긴 것이다. 모양과 수치는
  * 인계 그대로이고, 게임의 붓과 시계에 맞게 나눠 적었다). 이중 베기의 X자, 번개 타격의 세로 베기, 올려 베기의 휘두름과 베임 선,
  * 참격파의 칼바람, 서리베기의 얼음 안개, 불사르기의 불길 앞면, 부싯돌 베기의 불티와 화염 검기, 폭발성 타격의 불씨, 피뢰침의 정전기,
- * 얼어붙은 고리, 혹한의 지진의 얼음 기둥, 전도성 난격의 휘두름과 방전, 돌진의 공기 활, 섬머솔트 슬래시의 궤적.
+ * 얼어붙은 고리, 혹한의 지진의 얼음 기둥, 돌진의 공기 활, 섬머솔트 슬래시의 궤적, 그리고 v36(2026-10-19) 전도성 난격의 번개 줄기와 점멸 베기.
  * 도트 하나가 캐릭터 도트 하나이고, 자리는 그 연출을 건 곳(주인공이나 적의 발 자리)에서의 도트다. 인계의 한 칸은 72×36px이고 게임의 한
  * 칸은 64×32도트라, 칸으로 잰 길이는 게임의 칸(stageSkillKit.WIDE, DEEP)으로 옮긴다. 그리기만 한다: 언제 어디에 걸지는
  * js/canvas-stage-skill-rules.js와 js/canvas-stage-skill-casts.js가 정한다. 주인공 그림을 기울이거나 띄우지 않는다(코드로 만든 동작 금지).
@@ -89,6 +89,49 @@ const stageSkillStrokes = (() => {
             g.fillStyle = b ? C[3] : C[4];
             const dir = r() < 0.5 ? -1 : 1;
             for (let s = 0; s < 3; s++) { const x2 = x + dir * (4 + r() * 8), y2 = y + (r() - 0.5) * 10; strokeLine(x, y, x2, y2, dotAt(g)); x = x2; y = y2; }
+        }
+    }
+    /** 전도성 난격의 건너가기: 떠난 자리 몸 높이에서 닿는 자리까지 들쭉날쭉한 번개 줄기 두 가닥(0.16초, 40ms마다 꺾임이 바뀐다). 굵은
+     * 줄기는 옅은 노란 테를 두른다. to: 닿는 자리까지의 도트(발 기준). */
+    function strokeFlickerTrail(at, to, seed) {
+        const C = strokeRamp('light');
+        strokeHang(at, { life: 170, top(g, t) {
+            if (t >= 160) return;
+            const fade = 1 - t / 160, r = strokeRandom(seed + Math.floor(t / 40) * 13);
+            for (let s = 0; s < 2; s++) strokeFlickerBolt(g, { to, lift: s ? 6 : -4, thin: !!s, fade, r }, C);
+            g.globalAlpha = 1;
+        } });
+    }
+    function strokeFlickerBolt(g, o, C) {
+        let x = 0, y = -50 + o.lift;
+        for (let i = 1; i <= 7; i++) {
+            const u = i / 7, x2 = o.to.dx * u + (i < 7 ? (o.r() - 0.5) * 6 : 0), y2 = -50 + o.to.dy * u + o.lift + (i < 7 ? (o.r() - 0.5) * 16 : 0);
+            if (!o.thin) { g.globalAlpha = o.fade * 0.35; g.fillStyle = C[3]; strokeLine(x, y, x2, y2, (px, py) => g.fillRect(px - 1, py - 1, 4, 4)); }
+            g.globalAlpha = o.fade * (o.thin ? 0.55 : 0.95); g.fillStyle = o.thin ? C[3] : C[5];
+            strokeLine(x, y, x2, y2, (px, py) => g.fillRect(px, py, o.thin ? 1 : 2, o.thin ? 1 : 2));
+            x = x2; y = y2;
+        }
+    }
+    /** 전도성 난격의 점멸 베기: 맞는 적 몸에 번개 두른 사선 베기 하나(번갈아 아래로, 위로)와 짧은 번개 가지 셋. 0.05초에 그어지고 0.26초에
+     * 걷힌다. at은 그 적의 발 자리, k는 몇 번째 베기인지. */
+    function strokeFlickerCut(at, face, k) {
+        const C = strokeRamp('light'), ang = (k % 2 ? -1 : 1) * 0.62;
+        strokeHang(at, { life: 260, top(g, t) {
+            const ext = Math.min(1, t / 50), fade = t < 110 ? 1 : Math.max(0, 1 - (t - 110) / 150);
+            g.save(); g.scale(face, 1);
+            strokeLens(g, [0, -50], { ang, len: 104, wMax: 4, ext, fade }, C);
+            if (t > 20 && t < 200) strokeFlickerBranches(g, { t, k, ang, ext, fade }, C);
+            g.restore();
+        } });
+    }
+    function strokeFlickerBranches(g, o, C) {
+        const r = strokeRandom(o.k * 31 + 7 + Math.floor(o.t / 40));
+        g.globalAlpha = o.fade * 0.9;
+        for (let b = 0; b < 3; b++) {
+            const u = (r() - 0.5) * 0.9 * o.ext;
+            let x = Math.cos(o.ang) * 104 * u, y = -50 + Math.sin(o.ang) * 104 * u;
+            g.fillStyle = b ? C[3] : C[4];
+            for (let s = 0; s < 3; s++) { const x2 = x + (r() - 0.5) * 14, y2 = y + (r() - 0.5) * 14; strokeLine(x, y, x2, y2, dotAt(g)); x = x2; y = y2; }
         }
     }
     /** 올려 베기: 맞은 적 몸을 따라 아래에서 위로 그어지는 세로 베임 선(발에서 머리 위로). at은 그 적의 발 자리. */
@@ -306,6 +349,7 @@ const stageSkillStrokes = (() => {
 
     return Object.freeze({ hang: strokeHang, random: strokeRandom, line: strokeLine, lens: strokeLens, ramp: strokeRamp, ink: strokeInk,
         crossCut: strokeCrossCut, vCut: strokeVCut, upCut: strokeUpCut, riseSwing: strokeRiseSwing, slashWave: strokeSlashWave, frostMist: strokeFrostMist,
-        flameFan: strokeFlameFan, dragSpark: strokeDragSpark, flameWave: strokeFlameWave, scorch: strokeScorch, fuse: strokeFuse });
+        flameFan: strokeFlameFan, dragSpark: strokeDragSpark, flameWave: strokeFlameWave, scorch: strokeScorch, fuse: strokeFuse,
+        flickerTrail: strokeFlickerTrail, flickerCut: strokeFlickerCut });
 })();
 safeExposeGlobals({ stageSkillStrokes });
