@@ -5682,7 +5682,17 @@ function getUniqueEffectApplicationHint(item, isEquipped, equipSlotKey) {
         emberHeart: '장착한 타락 장비 수만큼 적용',
         amberTime: '장착한 장비의 품질 합만큼 적용',
         witheredEcho: '목걸이에 새긴 노드 수만큼 적용',
-        nurseryBloom: '그루터기 함의 성장 완료된 씨앗과 수액 수만큼 적용'
+        nurseryBloom: '그루터기 함의 성장 완료된 씨앗과 수액 수만큼 적용',
+        // 체이싱 고유(2026-10-20, data/items.js): 수만큼 자라는 넷과 잔잔한 사건(js/combat-incidents.js)을 바꾸는 넷, 액막이 허리띠.
+        uniqueChorus: '장착한 고유 장비 수만큼 적용',
+        rareBark: '장착한 희귀 장비 수만큼 적용',
+        wardVow: '끼운 액막이 수만큼 적용',
+        emptyPlaces: '비어 있는 장비 칸 수만큼 적용',
+        critterLure: '금빛 수액 슬라임을 만날 때 적용',
+        goldenTouch: '적 처치 시 확률 발동',
+        repdigitLuck: '행운의 숫자에 적용',
+        drowsyIncense: '처음 들어선 전투 방에서 확률 발동',
+        wardString: '액막이 칸과 끼운 액막이에 적용'
     };
     if (triggerLabels[key]) return triggerLabels[key];
     if (key === 'uniqueTakenReduceWhen1Enemy') return '생존한 적이 1명일 때만 적용';
