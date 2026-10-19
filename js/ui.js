@@ -9164,9 +9164,9 @@ function buildSporeSummaryHtml() {
     return `<div class="craft-spores">
             <div class="craft-spores-title">홀씨 보유량</div>
             <div style="display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:6px;">
-                <div class="orb-tone" style="padding:5px; border:1px solid #6b3a3a; border-radius:8px; --orb-tone:#ff9f9f; font-size:12px;">화염 홀씨<br><strong>x ${game.currencies.sporeFire || 0}</strong></div>
-                <div class="orb-tone" style="padding:5px; border:1px solid #3a5a7a; border-radius:8px; --orb-tone:#9fd6ff; font-size:12px;">냉기 홀씨<br><strong>x ${game.currencies.sporeCold || 0}</strong></div>
-                <div class="orb-tone" style="padding:5px; border:1px solid #7a6a2a; border-radius:8px; --orb-tone:#ffe08a; font-size:12px;">번개 홀씨<br><strong>x ${game.currencies.sporeLight || 0}</strong></div>
+                <div class="orb-tone" style="padding:5px; border-width:1px; border-style:solid; --orb-tone:#ff9f9f; font-size:12px;">화염 홀씨<br><strong>x ${game.currencies.sporeFire || 0}</strong></div>
+                <div class="orb-tone" style="padding:5px; border-width:1px; border-style:solid; --orb-tone:#9fd6ff; font-size:12px;">냉기 홀씨<br><strong>x ${game.currencies.sporeCold || 0}</strong></div>
+                <div class="orb-tone" style="padding:5px; border-width:1px; border-style:solid; --orb-tone:#ffe08a; font-size:12px;">번개 홀씨<br><strong>x ${game.currencies.sporeLight || 0}</strong></div>
             </div>
             <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;">
                 <button data-info-tooltip-anchor="1" onmouseenter="showSporeCraftTooltip(event,'corrupt')" onmousemove="showSporeCraftTooltip(event,'corrupt')" onmouseleave="hideInfoTooltip()" onclick="applyCorruptSporeToSelectedItem()" ${targetDisabled || !advanced ? 'disabled' : ''}>부패 홀씨 (각 8)</button>
