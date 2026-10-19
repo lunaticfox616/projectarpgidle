@@ -9945,7 +9945,7 @@ function renderPassiveInvestmentSummary() {
     const summary = getAllocatedPassiveStatSummary();
     const rows = summary.totals.length
         ? summary.totals.map(([stat, value]) => `<span>${getStatName(stat)}</span><strong style="color:${getItemStatToneColor(stat)}">+${formatValue(stat, value)}${P_STATS[stat] && P_STATS[stat].isPct ? '%' : ''}</strong>`).join('')
-        : '<span>아직 투자한 효과가 없습니다.</span><strong>—</strong>';
+        : '<span>아직 투자한 효과가 없습니다.</span><strong>-</strong>';
     const specials = summary.specialEffects.length
         ? `<div class="passive-summary-specials">조건부 효과, ${summary.specialEffects.join(', ')}</div>`
         : '';
