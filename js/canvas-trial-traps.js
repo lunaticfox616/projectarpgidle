@@ -335,22 +335,42 @@ const trialTrapArt = (() => {
         return taken.size ? cells.filter(cell => !taken.has(gridCellKey(cell.gx, cell.gy))) : cells;
     }
     function drawPart(ctx, fx, progress, gridProj, part) {
-        const tile = gridProj.tileW;
         ctx.save();
         ctx.imageSmoothingEnabled = false;
         ctx.globalAlpha *= fx.type === 'trialTrapWarning' ? Math.min(1, progress * 5) : 1;
-        shownCells(fx.targetCells).forEach((cell, index) => {
-            const image = frameOf(fx, progress, index, cell)[part], pos = gridProj.cellToScreen(cell.gx, cell.gy);
-            const floorH = gridProj.tileH || tile, height = (part === 'ground' ? floorH : tile) * image.height / ART;
-            const left = pos.x - tile / 2, top = pos.y + floorH / 2 - height;
-            if (!flipped(cell)) return ctx.drawImage(image, left, top, tile, height);
-            ctx.save();
-            ctx.translate(left + tile, top);
-            ctx.scale(-1, 1);
-            ctx.drawImage(image, 0, 0, tile, height);
-            ctx.restore();
-        });
+        const look = { fx, progress, gridProj, part };
+        shownCells(fx.targetCells).forEach((cell, index) => drawCell(ctx, look, cell, index));
         ctx.restore();
+    }
+    /** One cell of a part, standing on the cell's floor line; every other cell is mirrored so a row never repeats one picture. */
+    function drawCell(ctx, look, cell, index) {
+        const { fx, progress, gridProj, part } = look, tile = gridProj.tileW;
+        const image = frameOf(fx, progress, index, cell)[part], pos = gridProj.cellToScreen(cell.gx, cell.gy);
+        const floorH = gridProj.tileH || tile, height = (part === 'ground' ? floorH : tile) * image.height / ART;
+        const left = pos.x - tile / 2, top = pos.y + floorH / 2 - height;
+        if (!flipped(cell)) return ctx.drawImage(image, left, top, tile, height);
+        ctx.save();
+        ctx.translate(left + tile, top);
+        ctx.scale(-1, 1);
+        ctx.drawImage(image, 0, 0, tile, height);
+        ctx.restore();
+    }
+    /** What rises out of the floor when a trap goes off, one actor per cell on that cell's floor line: the actors' depth order
+     * (js/canvas-battlefield.js drawBattleActorLayer) puts a monster in front of the blades behind it and behind the ones in front of it
+     * (2026-10-19: drawn over every actor, a blade behind a monster cut across its body). */
+    function riseActors(effects, now, gridProj) {
+        const actors = [];
+        if (!gridProj || !Array.isArray(effects)) return actors;
+        const floorH = gridProj.tileH || gridProj.tileW;
+        for (const fx of effects) {
+            if (!isTrap(fx) || fx.type === 'trialTrapWarning' || now < fx.start || now >= fx.start + fx.duration) continue;
+            const look = { fx, progress: (now - fx.start) / fx.duration, gridProj, part: 'rise' };
+            shownCells(fx.targetCells).forEach((cell, index) => actors.push({
+                kind: 'trapRise', id: -3000 - actors.length, y: gridProj.cellToScreen(cell.gx, cell.gy).y + floorH / 2,
+                draw: ctx => { ctx.save(); ctx.imageSmoothingEnabled = false; drawCell(ctx, look, cell, index); ctx.restore(); }
+            }));
+        }
+        return actors;
     }
     /** The warned cells keep a thin dotted edge in the element's colour, so the exact area reads at a glance. */
     function outline(ctx, fx, progress, gridProj) {
@@ -394,13 +414,11 @@ const trialTrapArt = (() => {
         drawPart(ctx, fx, progress, gridProj, 'ground');
         if (warning) drawPart(ctx, fx, progress, gridProj, 'rise');
     }
-    /** Over the actors: what rises out of the floor when the trap goes off (a warning is all on the floor, drawGround).
-     * @returns {boolean} false when this effect has no art (old element, boss areas). */
+    /** The over-actor pass draws nothing for a trap with art: its warning lies on the floor (drawGround) and its impact rises in the
+     * actors' depth order (riseActors). @returns {boolean} false when this effect has no art (old element, boss areas): the plain flash. */
     function drawRise(ctx, fx, progress, gridProj) {
-        if (!gridProj || !isTrap(fx)) return false;
-        if (fx.type !== 'trialTrapWarning') drawPart(ctx, fx, progress, gridProj, 'rise');
-        return true;
+        return !!gridProj && isTrap(fx);
     }
-    return Object.freeze({ drawGround, drawRise, elements: Object.keys(STYLES), sheetOf });
+    return Object.freeze({ drawGround, drawRise, riseActors, elements: Object.keys(STYLES), sheetOf });
 })();
 safeExposeGlobals({ trialTrapArt });

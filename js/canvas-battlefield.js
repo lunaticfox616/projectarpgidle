@@ -2475,9 +2475,11 @@ function drawBattleActorLayer(ctx, enemyEntries, state) {
     }));
     actors.push({ kind: 'player', id: -1, y: state.playerPos.y });
     actExplorationView.appendScenery(actors,state);
+    actors.push(...trialTrapArt.riseActors(battleFx, state.now, state.gridProj)); // trap blades, flames, frost: in depth order
     bossEntranceView.drawGround(ctx, state);
     sortBattleActorsByDepth(actors).forEach(actor => {
         if (actor.kind === 'player') drawBattlePlayerActor(ctx, state);
+        else if (actor.kind === 'trapRise') actor.draw(ctx);
         else if (actor.kind === 'gate' || actor.kind === 'scenery' || actor.kind === 'object') actExplorationView.drawScenery(ctx,actor,state);
         else drawBattleEnemyActor(ctx, actor.entry, state);
     });
