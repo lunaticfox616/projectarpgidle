@@ -10148,13 +10148,13 @@ function advanceColonyWaveOnKill(zone, say) {
     if ((game.colony.kills || 0) >= Math.max(1, Math.floor(game.colony.requiredKills || 1))) completeColonyWave(zone, say);
 }
 /** A ward from a colony wave (straight into the bag): a log line with its line, or a 고유 액막이 (js/colony-wards.js createUnique) by name
- * with the chase notice the floor pickups give (js/battle-ground-loot-ui.js revealUnique). */
+ * with the chase notice the floor pickups give (js/battle-ground-loot-ui.js revealUnique), not during an away settlement. */
 function announceColonyWard(ward, say) {
     if (!ward) return;
     const line = ward.baseStats[0];
     if (ward.rarity !== 'unique') return say(`🛡️ 군락지 액막이 부적 획득: ${colonyWardsUi.statName(line.id)} +${formatValue(line.id, line.val)}`, 'loot-rare', { item: ward, itemKind: 'talisman' });
     say(`🛡️ 군락지 고유 액막이 획득: [${ward.name}]`, 'loot-unique', { item: ward, itemKind: 'talisman' });
-    dispatchRuntimeEvent('incident', { text: `체이싱 고유 장비를 획득했습니다. 「${ward.name}」`, tone: 'chase', chase: true });
+    if (!game.isBackgroundCalculation) dispatchRuntimeEvent('incident', { text: `체이싱 고유 장비를 획득했습니다. 「${ward.name}」`, tone: 'chase', chase: true });
 }
 
 /** A colony wave's rewards (shards, a chance of dew, a trace every 10th wave, a ward) and the next wave. */
