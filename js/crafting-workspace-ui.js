@@ -607,10 +607,12 @@ const craftingWorkspaceUi = (() => {
         workspaceFilterStudy();
     }
 
-    /** 연습에 걸 뿌리(깨어난 아틀라스에서): 이 재화를 바꾸는 뿌리라면 가지지 않아도 고른다. 처음에는 걸어 둔 뿌리. */
+    /** 연습에 걸 뿌리(깨어난 아틀라스에서, 또는 뿌리를 가졌거나 걸어 두었으면: 시대 재생 뒤에도 지갑의 뿌리는 남고 걸어 둔 뿌리는 실제
+     * 제작에 쓰인다): 이 재화를 바꾸는 뿌리라면 가지지 않아도 고른다. 처음에는 걸어 둔 뿌리. */
     function workspaceStudyOmenHtml(item,method) {
         const action=equipmentCrafting.resolveAction(method.key,item.rarity), armed=workspaceArmedOmen();
-        const keys=atlasEndgame.awakened(game)?CRAFT_OMENS.keys.filter(key=>CRAFT_OMENS.effects[key].actions.includes(action)):[];
+        const offered=atlasEndgame.awakened(game) || !!armed || CRAFT_OMENS.keys.some(key=>(game.currencies[key]||0)>0);
+        const keys=offered?CRAFT_OMENS.keys.filter(key=>CRAFT_OMENS.effects[key].actions.includes(action)):[];
         if(!keys.length)return '';
         const value=armed?`${armed.key}:${armed.side}`:'';
         return `<label class="cl-study-omen">뿌리 <select data-study-omen>${[['','뿌리 없이'],...workspaceOmenOptions(keys)].map(([key,label])=>`<option value="${key}" ${key===value?'selected':''}>${esc(label)}</option>`).join('')}</select></label>`;
