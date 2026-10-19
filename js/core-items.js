@@ -23,9 +23,12 @@ const coreItems = (() => {
         return line;
     }
 
-    function nameFor(lines) {
-        return `${CORE_ITEM_RULES.groupNames[pool.get(lines[0].id).group]}의 코어`;
+    function nameFor(lines, perfect = false) {
+        const name = `${CORE_ITEM_RULES.groupNames[pool.get(lines[0].id).group]}의 코어`;
+        return perfect ? `${CORE_ITEM_RULES.perfect.prefix} ${name}` : name;
     }
+    /** 완전한 코어(CORE_ITEM_RULES.perfect)의 표식: 고유 빛깔과 체이싱 티어(js/loot.js, 알림). */
+    const PERFECT = Object.freeze({ perfect: true, rarity: 'unique', chaseUnique: true });
 
     function isCoreShape(raw) {
         return !!raw && typeof raw === 'object' && Number.isSafeInteger(raw.id) && raw.id > 0 && Array.isArray(raw.lines);
@@ -39,7 +42,8 @@ const coreItems = (() => {
             if (def && !lines.some(line => line.id === def.id)) lines.push(makeLine(def, row.value, row.extraValue));
         }
         const kept = lines.slice(0, CORE_ITEM_RULES.lines);
-        return kept.length ? { id: raw.id, name: nameFor(kept), lines: kept } : null;
+        if (!kept.length) return null;
+        return raw.perfect === true ? { id: raw.id, name: nameFor(kept, true), lines: kept, ...PERFECT } : { id: raw.id, name: nameFor(kept), lines: kept };
     }
 
     /** The store of saves from before 2026-10-10 (bagItems.migrate empties it): unknown lines drop, values clamp to the pool, ids
@@ -59,8 +63,22 @@ const coreItems = (() => {
         return decimals ? min + random() * (max - min) : min + Math.floor(random() * (max - min + 1));
     }
 
-    /** Four distinct lines from the whole pool, each value rolled inside its own range. */
+    /** 완전한 코어: a group with four lines or more, four distinct lines of it, each at its max. */
+    function rollPerfect(random = Math.random) {
+        const groups = Object.keys(CORE_ITEM_RULES.groupNames).filter(group => CORE_OPTION_POOL.filter(def => def.group === group).length >= CORE_ITEM_RULES.lines);
+        const group = groups[Math.floor(random() * groups.length)];
+        const defs = CORE_OPTION_POOL.filter(def => def.group === group), lines = [];
+        while (lines.length < CORE_ITEM_RULES.lines) {
+            const def = defs.splice(Math.floor(random() * defs.length), 1)[0];
+            lines.push(makeLine(def, def.max, def.extraMax));
+        }
+        itemIdCounter += 1;
+        return { id: itemIdCounter, name: nameFor(lines, true), lines, ...PERFECT };
+    }
+    /** Four distinct lines from the whole pool, each value rolled inside its own range; now and then (CORE_ITEM_RULES.perfect) a
+     * 완전한 코어 instead. */
     function roll(random = Math.random) {
+        if (random() < CORE_ITEM_RULES.perfect.chance) return rollPerfect(random);
         const defs = [...CORE_OPTION_POOL];
         const lines = [];
         while (lines.length < CORE_ITEM_RULES.lines && defs.length) {
@@ -118,6 +136,6 @@ const coreItems = (() => {
         return [store.equipped, ...(Array.isArray(store.owned) ? store.owned : [])].filter(Boolean);
     }
 
-    return Object.freeze({ defaultState, normalize, normalizeCore, roll, describe, stats, canDrop, keep, resetForLoop, ownedItems, icon });
+    return Object.freeze({ defaultState, normalize, normalizeCore, roll, rollPerfect, describe, stats, canDrop, keep, resetForLoop, ownedItems, icon });
 })();
 safeExposeGlobals({ coreItems });

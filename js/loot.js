@@ -592,7 +592,7 @@ safeExposeGlobals({ getCurrencyDrops });
         equipment: ofEquipment,
         jewel: item => (item.rarity === 'unique' ? 'great' : item.rarity === 'rare' ? 'good' : null),
         talisman: item => (item.rarity === 'unique' ? 'great' : null),
-        core: () => 'good'
+        core: item => (item.perfect ? 'jackpot' : 'good') // 완전한 코어는 체이싱 티어(js/core-items.js)
     });
     /** @param {string} key a currency key @returns {'jackpot'|'great'|'good'|null} */
     const ofCurrency = key => BY_CURRENCY.get(getCanonicalCurrencyKey(key)) || null;

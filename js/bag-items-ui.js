@@ -6,7 +6,8 @@ const bagItemsUi = (() => {
     const hint = text => `<div class="tooltip-line" style="margin-top:6px; color:var(--copy-muted);">${text}</div>`;
     const jewelHtml = jewel => window.createJewelRangeTooltipHtml(jewel) + hint('장비의 빈 소켓에 끼웁니다(두 번 누르거나 장착 칸에 끌어 놓기).');
     function coreHtml(core) {
-        const lines = (core.lines || []).map(line => `<div class="tooltip-line">${escapeHTML(coreItems.describe(line))}</div>`).join('');
+        const lines = (core.lines || []).map(line => `<div class="tooltip-line">${escapeHTML(coreItems.describe(line))}</div>`).join('')
+            + (core.perfect ? hint('한 계열의 네 줄이 모두 최대치입니다') : '');
         const worn = (game.equipment || {})[bagItems.CORE] === core;
         return `<div class="tooltip-title" style="color:${getRarityColor(core.rarity || 'rare')}">[코어] ${escapeHTML(core.name)}</div>${lines}${worn ? '' : hint('장비창의 코어 칸에 끼웁니다(두 번 누르거나 코어 칸에 끌어 놓기).')}`;
     }

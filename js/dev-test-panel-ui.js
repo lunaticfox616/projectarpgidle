@@ -344,7 +344,7 @@ const devTestPanel = (() => {
             row([acts, button('이동', () => travelToAct(Number(acts.value)))]),
             row([zones, button('시험 입장', () => enterTestZone(Number(zones.value)))]),
             row([button('그루터기 함 받기', grantStumpBox), button('씨앗/수액 +8', giveStumpItems), button('함 성장 +100', growStumpBox)]),
-            row([button('고유 액막이 셋', giveUniqueWards)])
+            row([button('고유 액막이 셋', giveUniqueWards), button('완전한 코어', () => { coreItems.keep(coreItems.rollPerfect()); refresh(); note('완전한 코어 1개'); })])
         ]);
     }
     function status() {

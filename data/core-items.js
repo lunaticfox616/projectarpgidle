@@ -70,8 +70,11 @@ const CORE_OPTION_POOL = Object.freeze([
 ]);
 
 // lines: 코어 한 개의 줄 수. savedLimit: 예전 코어 보관함(2026-10-10 전 저장)을 불러올 때 자르는 상한. 코어는 이제 가방에 들어간다.
+// perfect: 완전한 코어(체이싱, 2026-10-20 사용자: "체이싱 아이템들을 지금 그런 컨텐츠가 없는 장비 종류들 위주로"): 굴린 코어의 chance가
+// 한 계열의 줄 넷을 모두 최대치로 갖는다(드랍과 그루터기 큐브의 코어 다시 빚기, 큐브는 완전한 코어를 재료로 받지 않는다).
 const CORE_ITEM_RULES = Object.freeze({
     lines: 4,
+    perfect: Object.freeze({ chance: 0.04, prefix: '완전한' }),
     savedLimit: 60,
     underworldFloor: 11,
     groupNames: Object.freeze({ defense: '수호', resist: '저항', mitigation: '완화', offense: '파괴', utility: '기교' })

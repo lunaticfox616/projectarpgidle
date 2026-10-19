@@ -82,6 +82,8 @@
     }
     window.addEventListener('project-idle:jewel-drop-received',event=>announceJewelReward(event.detail));
     function announceCore(core) {
+        // 완전한 코어(js/core-items.js rollPerfect): 체이싱 티어 알림(설정과 무관하게, 방치 정산 중에는 말고).
+        if(core.perfect && !game.isBackgroundCalculation)dispatchRuntimeEvent('incident',{text:`체이싱 코어를 획득했습니다. 「${core.name}」`,tone:'chase',chase:true});
         if(game.settings.showLootLog && !game.isBackgroundCalculation)addLog(`🧊 코어 [${core.name}] 획득! (${core.lines.map(coreItems.describe).join(', ')})`,'loot-unique',{item:core,itemKind:'core'});
     }
     window.addEventListener('project-idle:core-item-received',event=>announceCore(event.detail));
