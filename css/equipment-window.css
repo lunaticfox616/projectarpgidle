@@ -83,11 +83,12 @@
 
 /* 세팅 한 줄: 누르면 그 세팅으로 바꾼다(빈 세팅은 고르기만), 저장, ⋯(이름 바꾸기, 비우기) */
 :root body #item-tab-equip .equipment-preset-panel { display: block; margin: 0; padding: 0; border: 0; background: none; box-shadow: none; }
-:root body #item-tab-equip .equipment-preset-row { display: flex; gap: 5px; align-items: stretch; }
-:root body #item-tab-equip .equipment-preset-row .equipment-preset-slot { flex: 1; display: block; min-width: 0; min-height: 0; padding: 5px 4px; overflow: hidden;
+/* 기본 창(왼쪽 칸 262px)에서 "1 빈 칸"이 "1 빈…"으로 잘리지 않게 틈과 여백을 1px씩 줄였다. 긴 세팅 이름만 말줄임이 된다. */
+:root body #item-tab-equip .equipment-preset-row { display: flex; gap: 4px; align-items: stretch; }
+:root body #item-tab-equip .equipment-preset-row .equipment-preset-slot { flex: 1; display: block; min-width: 0; min-height: 0; padding: 5px 3px; overflow: hidden;
   border: 1px solid #6b5431; border-radius: 0; background: linear-gradient(180deg, #241c14, #17120d); color: var(--eqw-ink); font-size: 12px; text-align: center;
   white-space: nowrap; text-overflow: ellipsis; }
-:root body #item-tab-equip .equipment-preset-row .equipment-preset-slot span { display: inline; margin-right: 4px; color: var(--eqw-muted); }
+:root body #item-tab-equip .equipment-preset-row .equipment-preset-slot span { display: inline; margin-right: 3px; color: var(--eqw-muted); }
 :root body #item-tab-equip .equipment-preset-row .equipment-preset-slot.empty { color: var(--eqw-muted); }
 :root body #item-tab-equip .equipment-preset-row .equipment-preset-slot.applied { border-color: #e3bd72; color: #fff3d6; background: linear-gradient(180deg, #4a3618, #2c2010); }
 :root body #item-tab-equip .equipment-preset-row .equipment-preset-slot.missing { border-color: #a5523f; }
