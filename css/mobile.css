@@ -232,7 +232,8 @@
 
 @media (pointer: coarse) {
   .item-card, .skill-gem, .slot-box, .map-item { touch-action: manipulation; }
-  button:not(.combat-flask-mini) { min-height: 42px; }
+  /* 가방 칸과 아이템은 줄 높이(휴대폰 약 35px)를 따른다: 42px이면 한 줄짜리 아이템이 아래 칸을 덮었다(css/themes/pixel-mobile.css와 같은 제외). */
+  button:not(.combat-flask-mini, .equipment-grid-cell, .equipment-grid-item) { min-height: 42px; }
 } }
 @layer overrides {
 @media (max-width: 1080px) {
