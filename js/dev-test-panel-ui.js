@@ -51,6 +51,7 @@ const devTestPanel = (() => {
         note(label);
     }
     function toggleGodMode(on) {
+        setCombatTestImmortal(on);
         clearInterval(godTimer);
         godTimer = on ? setInterval(() => {
             if (game.playerHp > 0) game.playerHp = getPlayerHpCap(getUiPlayerStats());

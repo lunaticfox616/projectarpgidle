@@ -12314,7 +12314,12 @@ function applyActRestRecovery(pStats, hpCap) {
 /** The hero fell in zone: this loop's death count, the content's own defeat (back to where it came from, its run closed) or else the
  * experience penalty, then the death log and notice, full life and the walk on. Split by content on 2026-10-18 with the same steps
  * in the same order; log lines reach the content parts as say. */
+/** The local test panel's god mode (js/dev-test-panel-ui.js, ?dev=1 on localhost only): a defeat refills life instead of happening.
+ * The panel's 200 ms life top-up alone let one big hit through (2026-10-19: the hero fell to the 500 m guardian with god mode on). */
+let combatTestImmortal = false;
+function setCombatTestImmortal(on) { combatTestImmortal = !!on; }
 function handlePlayerDefeat(zone, pStats, message, options) {
+    if (combatTestImmortal) { game.playerHp = getPlayerHpCap(pStats || getPlayerStats()); return; }
     actExplorationProgress.defeat(game);
     let opts = options || {};
     recordPlayerDefeatStart(zone, opts);
