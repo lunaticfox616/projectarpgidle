@@ -9609,6 +9609,8 @@ function stowBoughtItem(item, place = null) {
  * goes through the stash (it took every pickup first and salvaged past its few cells, so buying it left a near-empty bag). Protected
  * gear (locked, unique, chase, a kept target) skips auto-salvage either way. @returns {{done?:boolean, stored?:boolean, protect?:boolean}}
  * done: settled here (stored in the stash, or salvaged); protect: store it whatever auto-salvage says */
+/** One more gear salvaged for room during an away settlement (the result's 자동해체 count, js/combat-replay.js finishCombatReplay). */
+const countBackgroundOverflowSalvage = () => { game.backgroundOverflowSalvageCount = Math.max(0, Math.floor(Number(game.backgroundOverflowSalvageCount) || 0)) + 1; };
 const isOfflineKeptPickup = (item, guaranteedKeep) => !!((typeof isChaseUniqueItem === 'function' && isChaseUniqueItem(item)) || item.locked || guaranteedKeep);
 
 function routeOfflineStashPickup(item, guaranteedKeep) {
@@ -9617,11 +9619,11 @@ function routeOfflineStashPickup(item, guaranteedKeep) {
     const route = routeOfflineItem(item, game, { protected: isProtected });
     if (route.action === 'salvage') {
         salvageItemObject(item, true, { noDivine: true });
-        game.backgroundOverflowSalvageCount = Math.max(0, Math.floor(Number(game.backgroundOverflowSalvageCount) || 0)) + 1;
+        countBackgroundOverflowSalvage();
         return { done: true, stored: false };
     }
     if (route.action === 'stored') {
-        if (route.replacedItem) salvageItemObject(route.replacedItem, true, { noDivine: true });
+        if (route.replacedItem) { salvageItemObject(route.replacedItem, true, { noDivine: true }); countBackgroundOverflowSalvage(); } // 밀려난 장비도 센다
         return { done: true, stored: true };
     }
     if (route.protected) game.backgroundStopReason = 'protected-storage-full';
@@ -9639,8 +9641,7 @@ function storeEquipmentPickup(item, { guaranteedKeep, ignoreAutoSalvage }) {
 
 function salvageEquipmentPickup(item, overflow) {
     const rewards = salvageItemObject(item, true, { noDivine: overflow });
-    if (overflow && game.isBackgroundCalculation)
-        game.backgroundOverflowSalvageCount = Math.max(0, Math.floor(Number(game.backgroundOverflowSalvageCount) || 0)) + 1;
+    if (overflow && game.isBackgroundCalculation) countBackgroundOverflowSalvage();
     return { accepted: false, kind: overflow ? 'overflow' : 'salvaged', rewards, log: !overflow || !game.isBackgroundCalculation };
 }
 
