@@ -1578,29 +1578,21 @@
     },
     "renderBattlefield|max-lines-per-function|Function 'renderBattlefield' has too many lines (#). Maximum allowed is #.": {
       "count": 1,
-      "max": 390
+      "max": 311
     },
     "renderBattlefield|complexity|Function 'renderBattlefield' has a complexity of #. Maximum allowed is #.": {
       "count": 1,
       "max": 91
     },
     "renderBattlefield|max-lines-per-function|Arrow function has too many lines (#). Maximum allowed is #.": {
-      "count": 2,
-      "max": 112
+      "count": 1,
+      "max": 67
     },
     "renderBattlefield|complexity|Arrow function has a complexity of #. Maximum allowed is #.": {
       "count": 2,
-      "max": 56
+      "max": 42
     },
     "renderBattlefield|no-unused-vars|'enemyPos' is assigned a value but never used.": {
-      "count": 1,
-      "max": 0
-    },
-    "renderBattlefield|no-unused-vars|'x' is assigned a value but never used.": {
-      "count": 1,
-      "max": 0
-    },
-    "renderBattlefield|no-unused-vars|'y' is assigned a value but never used.": {
       "count": 1,
       "max": 0
     },
@@ -7402,6 +7394,7 @@
     "dependency:drawEnemyDeathFx->drawEnemyDeathContactFlash",
     "dependency:drawEnemyDeathFx->drawEnemyDeathGroundReaction",
     "dependency:drawEnemyDeathFx->getEnemyDeathMotion",
+    "dependency:drawEnemySpawnFx->drawEnemySpawnRays",
     "dependency:drawEnemySprite->drawBattleSprite",
     "dependency:drawEnemySprite->drawPixelShadow",
     "dependency:drawEnemySprite->getBossAssetVariantEntry",
@@ -7570,7 +7563,10 @@
     "dependency:drawLightningBolt->rand",
     "dependency:drawLightningBolt->strokePath",
     "dependency:drawLockOnMark->getEnemyFieldBarLift",
+    "dependency:drawLootCelebrationFx->drawLootCelebrationSparks",
+    "dependency:drawLootCelebrationFx->drawLootHighlightLabel",
     "dependency:drawLootHighlightLabel->String",
+    "dependency:drawLootPickupFx->clampNumber",
     "dependency:drawLowHealthEdge->Number",
     "dependency:drawMark->clipSkillFootprintTerrain",
     "dependency:drawMark->drawAreaCharge",
@@ -17131,9 +17127,11 @@
     "dependency:renderBattlefield->drawEnemyAfterimage",
     "dependency:renderBattlefield->drawEnemyAttackTelegraphs",
     "dependency:renderBattlefield->drawEnemyDeathFx",
+    "dependency:renderBattlefield->drawEnemySpawnFx",
     "dependency:renderBattlefield->drawLegacyHitFeedback",
     "dependency:renderBattlefield->drawLevelUpFx",
-    "dependency:renderBattlefield->drawLootHighlightLabel",
+    "dependency:renderBattlefield->drawLootCelebrationFx",
+    "dependency:renderBattlefield->drawLootPickupFx",
     "dependency:renderBattlefield->drawPlayerMobilityFx",
     "dependency:renderBattlefield->drawSkillGemVfxLayer",
     "dependency:renderBattlefield->drawTrialTrapGridFx",
