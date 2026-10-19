@@ -8,8 +8,8 @@
  * - 황금 수액 잔치: 처음 들어선 전투 방에서 아주 드물게 그 방의 보통 몬스터가 모두 금빛 수액 슬라임이 된다(feast).
  * - 세계수의 하품: 처음 들어선 전투 방에서 아주 드물게 그 방의 몬스터가 잠든다(skillHeldUntil: 움직이지도 공격하지도 않는다).
  * - 행운의 숫자: 한 번에 준 피해가 7로만 된 수면 그 자릿수의 재화(noteDamage, js/combat.js applyDamageToEnemyResource).
- * 체이싱 고유 셋이 사건을 바꾼다(worn): 수액 냄새 밴 장화(슬라임 확률과 재화), 일곱 번째 행운의 병(같은 숫자로만 된 피해도 행운의 숫자),
- * 꿈결의 향로(하품 확률과 잠드는 시간). 굴림은 무리 열쇠와 방 번호로 정해 다른 난수를 밀지 않는다. 알림은 'incident' 이벤트로 보내고 알림 창이 띄운다(js/battle-ground-loot-ui.js).
+ * 체이싱 고유 넷이 사건을 바꾼다(worn): 수액 냄새 밴 장화(슬라임 확률과 재화), 황금을 빚는 손(쓰러뜨린 몬스터가 슬라임으로 일어난다),
+ * 일곱 번째 행운의 병(같은 숫자로만 된 피해도 행운의 숫자), 꿈결의 향로(하품 확률과 잠드는 시간). 굴림은 무리 열쇠와 방 번호로 정해 다른 난수를 밀지 않는다. 알림은 'incident' 이벤트로 보내고 알림 창이 띄운다(js/battle-ground-loot-ui.js).
  * 방치 정산과 1루프의 액트 1에서는 일어나지 않는다.
  */
 const combatIncidents = (() => {
@@ -233,13 +233,26 @@ const combatIncidents = (() => {
         if (sleepers.length) tickSleep(sleepers, now);
         if (map) tickRoom(run, room, now);
     }
-    /** 처치(js/combat.js countKillForContent): 잡은 슬라임의 보상과 알림. */
+    /** 처치(js/combat.js countKillForContent): 잡은 슬라임의 보상과 알림. 슬라임이 아니면 황금을 빚는 손(rise). */
     function onKill(enemy, zone) {
-        if (!enemy || !enemy.critter) return;
+        if (!enemy) return;
+        if (!enemy.critter) return rise(enemy, zone);
         const rainbow = enemy.critter === 'rainbow';
         grantCritterRewards(enemy, zone);
         if (rainbow) grantRainbowRewards(enemy, zone);
         if (rainbow || !enemy.feast) tell(rainbow ? '무지갯빛 수액 슬라임을 잡았습니다.' : '금빛 수액 슬라임을 잡았습니다.', rainbow ? 'chase' : 'reward', rainbow);
+    }
+    /** 황금을 빚는 손(goldenTouch): 방 단위 무대의 무리에서 쓰러뜨린 몬스터(보스 말고)가 chance의 확률로 그 자리에서 금빛 수액 슬라임으로
+     * 일어난다(무지갯빛은 critter.rainbow.chance대로). 슬라임은 그 무리에 들어 방이 끝나기 전에 선다(js/combat.js handleEnemyDeath가
+     * 죽은 몬스터를 무리에서 빼는 것은 이 뒤다). */
+    function rise(enemy, zone) {
+        if (quiet(zone) || enemy.isBoss || !enemy.explorationPack || !hasGridCell(enemy)) return;
+        const touch = worn('goldenTouch'), run = touch && Math.random() < touch.chance ? actExplorationState.current(game) : null;
+        const pack = run ? run.packs.find(row => row.key === enemy.explorationPack) : null;
+        if (!pack) return;
+        const critter = makeCritter(zone, pack, { gx: enemy.gx, gy: enemy.gy }, Math.random() < rule().critter.rainbow.chance);
+        pack.aliveIds.push(critter.id);
+        game.enemies.push(critter);
     }
     /** 금빛: 재화를 picks번 무게로 뽑고(열리지 않은 재화는 떨어지지 않는다), gear 등급 이상의 장비 하나. */
     function grantCritterRewards(enemy, zone) {

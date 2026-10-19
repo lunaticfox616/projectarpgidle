@@ -36,13 +36,20 @@ const colonyWards = (() => {
     /** 허리띠 카드에 적는 칸 수(게임 툴팁과 프로필 카드): 허리띠가 아니거나 군락지가 아직 안 열렸으면 undefined. */
     const beltRoll = (item, state = game) => isBelt(item) && unlocked(state) ? beltSlots(item) : undefined;
 
-    /** 액막이 칸 수: 기본 0, 낀 허리띠의 칸 수(1~3), 초월 공허 '액막이 매듭' 하나마다 +1, 가디언 '수호 재생' +1, 고유 '천 개의 유리병' +1. 5칸까지. */
+    /** 체이싱 고유 허리띠 '편린을 꿴 허리띠'(R.stringEffectKey): 더하는 칸 수와 끼운 액막이 줄의 배수. 안 꼈으면 { slots: 0, mul: 1 }. */
+    function wardString(equipment) {
+        const item = Object.values(equipment || {}).find(entry => entry && entry.rarity === 'unique' && entry.uniqueEffectKey === R.stringEffectKey);
+        const p = item ? item.uniqueEffectParams || {} : {};
+        return { slots: Math.max(0, Math.floor(Number(p.slots) || 0)), mul: Math.max(1, Number(p.mul) || 1) };
+    }
+    /** 액막이 칸 수: 기본 0, 낀 허리띠의 칸 수(1~3), 초월 공허 '액막이 매듭' 하나마다 +1, 가디언 '수호 재생' +1, 고유 '천 개의 유리병' +1,
+     * '편린을 꿴 허리띠' +2. 5칸까지. */
     function slotCount(state = game) {
         const equipment = state.equipment || {};
         const extra = [beltSlots(equipment['허리띠']),
             typeof getTranscendentVoidPassiveCount === 'function' ? getTranscendentVoidPassiveCount(R.voidPassive, state) : 0,
             typeof hasKeystone === 'function' && hasKeystone(R.ascendNode, state) ? 1 : 0,
-            Object.values(equipment).some(item => item && item.uniqueEffectKey === R.uniqueEffectKey) ? 1 : 0];
+            Object.values(equipment).some(item => item && item.uniqueEffectKey === R.uniqueEffectKey) ? 1 : 0, wardString(equipment).slots];
         return Math.max(0, Math.min(R.maxSlots, R.baseSlots + extra.reduce((sum, value) => sum + value, 0)));
     }
     /** 장비창의 바꾸면 표(js/equipment-window-ui.js wardRows): `item`을 `slot`에 끼우면 달라지는 액막이 칸 수. 그대로면 null.
@@ -58,10 +65,11 @@ const colonyWards = (() => {
         const open = openSlots(state);
         return open.find(slot => !(state.equipment || {})[slot]) || open[0];
     }
-    /** Lines of the wards in the open slots, as js/combat.js colonyWardBonus adds them: [{ stat, val }]. */
+    /** Lines of the wards in the open slots, as js/combat.js colonyWardBonus adds them: [{ stat, val }] ('편린을 꿴 허리띠' doubles them). */
     function equippedLines(state = game) {
+        const mul = wardString(state.equipment).mul;
         return openSlots(state).map(slot => (state.equipment || {})[slot]).filter(isWard)
-            .flatMap(item => (item.baseStats || []).map(line => ({ stat: line.id, val: Number(line.val) || 0 })));
+            .flatMap(item => (item.baseStats || []).map(line => ({ stat: line.id, val: (Number(line.val) || 0) * mul })));
     }
 
     function makeItem(row, val, tier, locked) {

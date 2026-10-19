@@ -177,11 +177,15 @@ const UNIQUE_EFFECT_STAT_LINES = Object.freeze({
     amberTime: (p, context) => perCountLines(Math.floor(context.quality / (Number(p.qualityStep) || 10)), p.max, [['pctDmg', p.dmgPer], ['pctHp', p.hpPer]]),
     witheredEcho: (p, context) => perCountLines(context.anoints, p.max, [['pctDmg', p.dmgPer], ['resChaos', p.resPer]]),
     nurseryBloom: (p, context) => perCountLines(context.stumpMature, p.max, [['pctHp', p.hpPer], ['pctDmg', p.dmgPer]]),
-    // 체이싱 고유(2026-10-20): 착용한 고유 장비(달을 벤 초승달), 희귀 장비(세계수의 첫 껍질), 장착한 액막이(고요한 맹세)의 수만큼.
+    // 체이싱 고유(2026-10-20): 착용한 고유 장비(달을 벤 초승달), 희귀 장비(세계수의 첫 껍질), 장착한 액막이(고요한 맹세), 빈 장비
+    // 칸(비워 둔 자리)의 수만큼.
     uniqueChorus: (p, context) => perCountLines(context.uniques, p.max, [['pctDmg', p.dmgPer], ['aspd', p.aspdPer]]),
     rareBark: (p, context) => perCountLines(context.rares, p.max, [['pctHp', p.hpPer], ['resAll', p.resPer]]),
-    wardVow: (p, context) => perCountLines(context.wards, p.max, [['blockChance', p.blockPer], ['dr', p.drPer]])
+    wardVow: (p, context) => perCountLines(context.wards, p.max, [['blockChance', p.blockPer], ['dr', p.drPer]]),
+    emptyPlaces: (p, context) => perCountLines(context.empty, p.max, [['pctDmg', p.dmgPer], ['pctHp', p.hpPer]])
 });
+/** The gear slots the empty count looks at: the paperdoll's eleven (a third ring slot, opened by a void passive, is left out). */
+const UNIQUE_EFFECT_GEAR_SLOTS = Object.freeze(['무기', '투구', '갑옷', '방패', '장갑1', '장갑2', '신발', '목걸이', '반지1', '반지2', '허리띠']);
 
 /** Ripe seeds and saps on the stump box board (the board is a build field). */
 function countRipeStumpGrowth(owner) {
@@ -192,7 +196,7 @@ function countRipeStumpGrowth(owner) {
 }
 
 /** What the stat-only unique effects count, from build values only: the loop, the stat-giving items (and among them the unique and the
- * rare ones), the wards worn in the 액막이 slots, the stump board. */
+ * rare ones), the gear slots with no stat-giving item, the wards worn in the 액막이 slots, the stump board. */
 function uniqueEffectContext(items, owner) {
     const anointNodes = item => (item.anoint ? [item.anoint.nodeId, item.anoint.second].filter(Boolean).length : 0);
     return {
@@ -200,6 +204,7 @@ function uniqueEffectContext(items, owner) {
         horizontal: items.filter(item => BASE_ITEM_DB.some(base => base.id === item.baseId && base.family)).length,
         uniques: items.filter(item => item.rarity === 'unique').length,
         rares: items.filter(item => item.rarity === 'rare').length,
+        empty: UNIQUE_EFFECT_GEAR_SLOTS.filter(slot => !items.includes((owner.equipment || {})[slot])).length,
         wards: typeof colonyWards === 'object' ? colonyWards.openSlots(owner).filter(slot => colonyWards.isWard((owner.equipment || {})[slot])).length : 0,
         corrupted: items.filter(item => item.corrupted === true).length,
         quality: items.reduce((sum, item) => sum + Math.max(0, Math.floor(Number(item.quality) || 0)), 0),
