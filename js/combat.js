@@ -26,10 +26,13 @@ const WARCRY_PHYSICAL_REDUCTION_CAP_BONUS_PCT = 3;
 const COMBAT_PROJECTILE_MIN_TRAVEL_MS = 120;
 const COMBAT_PROJECTILE_MS_PER_CELL = 55;
 const BOSS_ATTACK_IMPACT_DELAY_MS = 500;
-/** Floor 1's boss of the underworld and the sky tower: life and damage eased so the first floor is no wall. The sky tower took the
- * underworld's values on 2026-10-19 (user: "창공의 탑 1층 보스를 지하계 1층처럼 낮춰줘"; its floor-1 boss felled a T15 build in 8 s). */
-const FIRST_FLOOR_BOSS_TUNING = Object.freeze({ hp: 0.81, damage: 0.74 });
-const FIRST_FLOOR_EASED_ZONE_TYPES = Object.freeze(['underworld', 'skyTower']);
+/** Floor 1's boss of a floor ladder by zone type: life and damage eased so the first floor is no wall. The sky tower's (2026-10-19, user:
+ * "지하계 1층만큼 버틸 수 있게 더 낮춰줘"): the T15 build at loop 15 clears it as the underworld's, 6 of 6 in ten minutes, five without a
+ * death; with the underworld's damage 0.74 it cleared 0 of 6 (nine deaths each). */
+const FIRST_FLOOR_BOSS_TUNING = Object.freeze({
+    underworld: Object.freeze({ hp: 0.81, damage: 0.74 }),
+    skyTower: Object.freeze({ hp: 0.81, damage: 0.3 })
+});
 const UNDERWORLD_ENTRY_BENCHMARK_HP_MULTIPLIER = 0.85;
 const UNDERWORLD_ENTRY_BENCHMARK_DAMAGE_MULTIPLIER = 0.82;
 let pendingSkillStageHits = [];
@@ -6414,9 +6417,9 @@ function getEntryBossTuning(zone, isBoss) {
     if (isUnderworldEntryBenchmark(zone)) {
         return { hp: UNDERWORLD_ENTRY_BENCHMARK_HP_MULTIPLIER, damage: UNDERWORLD_ENTRY_BENCHMARK_DAMAGE_MULTIPLIER };
     }
-    const firstFloor = FIRST_FLOOR_EASED_ZONE_TYPES.includes(zone.type)
+    const firstFloor = Object.hasOwn(FIRST_FLOOR_BOSS_TUNING, zone.type)
         && Math.max(1, Math.floor(Number(zone.floor) || 1)) === 1;
-    return firstFloor ? FIRST_FLOOR_BOSS_TUNING : { hp: 1, damage: 1 };
+    return firstFloor ? FIRST_FLOOR_BOSS_TUNING[zone.type] : { hp: 1, damage: 1 };
 }
 
 function getUnderworldEnemyDamageMultiplier(zone) {
