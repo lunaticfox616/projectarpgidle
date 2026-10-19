@@ -2597,6 +2597,108 @@ function getBattlefieldCaption() {
     return left > 0 && left <= MAP_MONSTERS_LEFT_HINT ? `몬스터 ${left}마리 남음` : '';
 }
 
+// A monster's arrival: rings, a floor glow and, for a boss, rays (the values renderBattlefield drew inline until 2026-10-19).
+const ENEMY_SPAWN_LOOK = Object.freeze({
+    boss: Object.freeze({ alpha: 0.72, width: 4, rings: 3, radius: 15, grow: 34, glow: 0.28, rx: 28, ry: 12, rays: true }),
+    plain: Object.freeze({ alpha: 0.5, width: 3, rings: 2, radius: 10, grow: 22, glow: 0.18, rx: 18, ry: 8, rays: false })
+});
+/** A monster's arrival: widening rings and a floor glow at its feet, rays too for a boss. */
+function drawEnemySpawnFx(ctx, fx, t, enemy) {
+    if (!enemy) return;
+    const look = fx.boss ? ENEMY_SPAWN_LOOK.boss : ENEMY_SPAWN_LOOK.plain, colour = fx.color || '#9ed6ff';
+    ctx.save();
+    ctx.globalAlpha = (1 - t) * look.alpha;
+    ctx.strokeStyle = colour;
+    ctx.lineWidth = look.width;
+    for (let ring = 0; ring < look.rings; ring++) {
+        ctx.beginPath();
+        ctx.arc(enemy.x, enemy.y - 4, look.radius + t * look.grow + ring * 6, 0, Math.PI * 2);
+        ctx.stroke();
+    }
+    ctx.fillStyle = colour;
+    ctx.globalAlpha = (1 - t) * look.glow;
+    ctx.beginPath();
+    ctx.ellipse(enemy.x, enemy.y + 8, look.rx, look.ry, 0, 0, Math.PI * 2);
+    ctx.fill();
+    if (look.rays) drawEnemySpawnRays(ctx, t, enemy);
+    ctx.restore();
+}
+function drawEnemySpawnRays(ctx, t, enemy) {
+    ctx.globalAlpha = (1 - t) * 0.5;
+    for (let ray = 0; ray < 8; ray++) {
+        const angle = ray * Math.PI / 4 + t * 0.6;
+        ctx.beginPath();
+        ctx.moveTo(enemy.x + Math.cos(angle) * 24, enemy.y - 5 + Math.sin(angle) * 12);
+        ctx.lineTo(enemy.x + Math.cos(angle) * (46 + t * 18), enemy.y - 5 + Math.sin(angle) * (24 + t * 10));
+        ctx.stroke();
+    }
+}
+
+/** Motes flying from the fallen monster (or the field's right side) to the hero. path = { from, to, width, height }. */
+function drawLootPickupFx(ctx, fx, t, path) {
+    const { from, to, width, height } = path;
+    const startX = from ? from.x : width * 0.72, startY = from ? from.y - 10 : height * 0.62, endX = to.x, endY = to.y - 24;
+    ctx.save();
+    ctx.globalAlpha = 1 - t * 0.2;
+    ctx.fillStyle = fx.color || '#9ed6ff';
+    ctx.shadowColor = fx.color || '#9ed6ff';
+    ctx.shadowBlur = fx.tier === 'unique' ? 18 : 10;
+    for (let mote = 0; mote < 4; mote++) {
+        const delay = mote * 0.045;
+        const mt = clampNumber((t - delay) / Math.max(0.1, 1 - delay), 0, 1);
+        const mx = startX + (endX - startX) * mt + Math.sin(mt * 12 + mote) * (4 - mote * 0.6);
+        const my = startY + (endY - startY) * mt - Math.sin(mt * Math.PI) * (18 + mote * 3);
+        ctx.globalAlpha = (1 - mt * 0.45) * (1 - mote * 0.14);
+        ctx.beginPath();
+        ctx.arc(mx, my, 3.5 - mote * 0.45, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    ctx.restore();
+}
+
+// A good drop's beam, rings and sparks: a unique's are taller and more; its strength by tier (others 0.5).
+const LOOT_CELEBRATION_LOOK = Object.freeze({
+    unique: Object.freeze({ beam: 220, half: 7, width: 4, rings: 3, grow: 44, sparks: 10 }),
+    other: Object.freeze({ beam: 145, half: 4, width: 3, rings: 2, grow: 30, sparks: 6 })
+});
+const LOOT_CELEBRATION_INTENSITY = Object.freeze({ unique: 1, rare: 0.72 });
+/** A good drop's beam, rings, sparks and name over where the monster fell. area = { width, height }. */
+function drawLootCelebrationFx(ctx, fx, t, enemy, area) {
+    const cx = enemy ? enemy.x : area.width * 0.72, cy = enemy ? enemy.y - 10 : area.height * 0.62;
+    const look = fx.tier === 'unique' ? LOOT_CELEBRATION_LOOK.unique : LOOT_CELEBRATION_LOOK.other;
+    const intensity = LOOT_CELEBRATION_INTENSITY[fx.tier] || 0.5, colour = fx.color || '#ffcf6b';
+    ctx.save();
+    const beamHeight = look.beam * (0.82 + 0.18 * Math.sin(t * Math.PI));
+    const beam = ctx.createLinearGradient(cx, cy, cx, cy - beamHeight);
+    beam.addColorStop(0, colour);
+    beam.addColorStop(0.28, colour);
+    beam.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.globalAlpha = intensity * (1 - t) * 0.72;
+    ctx.fillStyle = beam;
+    ctx.fillRect(cx - look.half, cy - beamHeight, look.half * 2, beamHeight);
+    ctx.globalAlpha = intensity * 0.58 * (1 - t);
+    ctx.strokeStyle = colour;
+    ctx.lineWidth = look.width;
+    for (let ring = 0; ring < look.rings; ring++) {
+        ctx.beginPath();
+        ctx.arc(cx, cy, 13 + ring * 8 + t * look.grow, 0, Math.PI * 2);
+        ctx.stroke();
+    }
+    drawLootCelebrationSparks(ctx, { x: cx, y: cy }, t, look.sparks);
+    drawLootHighlightLabel(ctx, fx, { x: Math.max(130, Math.min(area.width - 130, cx)), y: Math.max(74, cy) }, t);
+    ctx.restore();
+}
+function drawLootCelebrationSparks(ctx, at, t, count) {
+    for (let spark = 0; spark < count; spark++) {
+        const angle = spark * (Math.PI * 2 / count) + t;
+        const reach = 18 + t * 48;
+        ctx.beginPath();
+        ctx.moveTo(at.x + Math.cos(angle) * reach, at.y + Math.sin(angle) * reach * 0.42);
+        ctx.lineTo(at.x + Math.cos(angle) * (reach + 8), at.y + Math.sin(angle) * (reach + 8) * 0.42);
+        ctx.stroke();
+    }
+}
+
 /** targetFrameMs: the drawing cadence of the frame loop (js/ui.js renderBattlefieldThrottled), for the effect density.
  * @returns {(boolean|undefined)} true when the frame was drawn to the end (a hidden canvas or art still loading returns early):
  *   only such draws are counted as battlefield frames (js/battle-frame-stats.js). */
@@ -2883,94 +2985,15 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
         } else if (fx.type === 'playerHit') {
             return;
         } else if (fx.type === 'enemySpawn') {
-            let enemy = enemyPosMap[fx.enemyId];
-            if (!enemy) return;
-            ctx.save();
-            ctx.globalAlpha = (1 - t) * (fx.boss ? 0.72 : 0.5);
-            ctx.strokeStyle = fx.color || '#9ed6ff';
-            ctx.lineWidth = fx.boss ? 4 : 3;
-            const ringCount = fx.boss ? 3 : 2;
-            for (let ring = 0; ring < ringCount; ring++) {
-                ctx.beginPath();
-                ctx.arc(enemy.x, enemy.y - 4, (fx.boss ? 15 : 10) + t * (fx.boss ? 34 : 22) + ring * 6, 0, Math.PI * 2);
-                ctx.stroke();
-            }
-            ctx.fillStyle = fx.color || '#9ed6ff';
-            ctx.globalAlpha = (1 - t) * (fx.boss ? 0.28 : 0.18);
-            ctx.beginPath();
-            ctx.ellipse(enemy.x, enemy.y + 8, fx.boss ? 28 : 18, fx.boss ? 12 : 8, 0, 0, Math.PI * 2);
-            ctx.fill();
-            if (fx.boss) {
-                ctx.globalAlpha = (1 - t) * 0.5;
-                for (let ray = 0; ray < 8; ray++) {
-                    const angle = ray * Math.PI / 4 + t * 0.6;
-                    ctx.beginPath();
-                    ctx.moveTo(enemy.x + Math.cos(angle) * 24, enemy.y - 5 + Math.sin(angle) * 12);
-                    ctx.lineTo(enemy.x + Math.cos(angle) * (46 + t * 18), enemy.y - 5 + Math.sin(angle) * (24 + t * 10));
-                    ctx.stroke();
-                }
-            }
-            ctx.restore();
+            drawEnemySpawnFx(ctx, fx, t, enemyPosMap[fx.enemyId]);
         } else if (fx.type === 'enemyDeath') {
             drawEnemyDeathFx(ctx, fx, t, { enemy: enemyPosMap[fx.enemyId], playerPos, gridProj, now });
         } else if (['bossAreaImpact', 'trialTrapWarning', 'trialTrap'].includes(fx.type)) {
             drawTrialTrapGridFx(ctx, fx, t, gridProj, fx.type === 'trialTrapWarning');
         } else if (fx.type === 'lootPickup') {
-            let enemy = enemyPosMap[fx.enemyId];
-            let startX = enemy ? enemy.x : width * 0.72;
-            let startY = enemy ? enemy.y - 10 : height * 0.62;
-            let endX = playerPos.x;
-            let endY = playerPos.y - 24;
-            let x = startX + (endX - startX) * t;
-            let y = startY + (endY - startY) * t - Math.sin(t * Math.PI) * 18;
-            ctx.save();
-            ctx.globalAlpha = 1 - t * 0.2;
-            ctx.fillStyle = fx.color || '#9ed6ff';
-            ctx.shadowColor = fx.color || '#9ed6ff';
-            ctx.shadowBlur = fx.tier === 'unique' ? 18 : 10;
-            for (let mote = 0; mote < 4; mote++) {
-                const delay = mote * 0.045;
-                const mt = clampNumber((t - delay) / Math.max(0.1, 1 - delay), 0, 1);
-                const mx = startX + (endX - startX) * mt + Math.sin(mt * 12 + mote) * (4 - mote * 0.6);
-                const my = startY + (endY - startY) * mt - Math.sin(mt * Math.PI) * (18 + mote * 3);
-                ctx.globalAlpha = (1 - mt * 0.45) * (1 - mote * 0.14);
-                ctx.beginPath();
-                ctx.arc(mx, my, 3.5 - mote * 0.45, 0, Math.PI * 2);
-                ctx.fill();
-            }
-            ctx.restore();
+            drawLootPickupFx(ctx, fx, t, { from: enemyPosMap[fx.enemyId], to: playerPos, width, height });
         } else if (fx.type === 'lootCelebration') {
-            let enemy = enemyPosMap[fx.enemyId];
-            let cx = enemy ? enemy.x : width * 0.72;
-            let cy = enemy ? enemy.y - 10 : height * 0.62;
-            ctx.save();
-            const intensity = fx.tier === 'unique' ? 1 : (fx.tier === 'rare' ? 0.72 : 0.5);
-            const beamHeight = (fx.tier === 'unique' ? 220 : 145) * (0.82 + 0.18 * Math.sin(t * Math.PI));
-            const beam = ctx.createLinearGradient(cx, cy, cx, cy - beamHeight);
-            beam.addColorStop(0, fx.color || '#ffcf6b');
-            beam.addColorStop(0.28, fx.color || '#ffcf6b');
-            beam.addColorStop(1, 'rgba(255,255,255,0)');
-            ctx.globalAlpha = intensity * (1 - t) * 0.72;
-            ctx.fillStyle = beam;
-            ctx.fillRect(cx - (fx.tier === 'unique' ? 7 : 4), cy - beamHeight, fx.tier === 'unique' ? 14 : 8, beamHeight);
-            ctx.globalAlpha = intensity * 0.58 * (1 - t);
-            ctx.strokeStyle = fx.color || '#ffcf6b';
-            ctx.lineWidth = fx.tier === 'unique' ? 4 : 3;
-            for (let ring = 0; ring < (fx.tier === 'unique' ? 3 : 2); ring++) {
-                ctx.beginPath();
-                ctx.arc(cx, cy, 13 + ring * 8 + t * (fx.tier === 'unique' ? 44 : 30), 0, Math.PI * 2);
-                ctx.stroke();
-            }
-            for (let spark = 0; spark < (fx.tier === 'unique' ? 10 : 6); spark++) {
-                const angle = spark * (Math.PI * 2 / (fx.tier === 'unique' ? 10 : 6)) + t;
-                const reach = 18 + t * 48;
-                ctx.beginPath();
-                ctx.moveTo(cx + Math.cos(angle) * reach, cy + Math.sin(angle) * reach * 0.42);
-                ctx.lineTo(cx + Math.cos(angle) * (reach + 8), cy + Math.sin(angle) * (reach + 8) * 0.42);
-                ctx.stroke();
-            }
-            drawLootHighlightLabel(ctx, fx, { x: Math.max(130, Math.min(width - 130, cx)), y: Math.max(74, cy) }, t);
-            ctx.restore();
+            drawLootCelebrationFx(ctx, fx, t, enemyPosMap[fx.enemyId], { width, height });
         }
     });
     const lightScene = { width, height, light: playerPos, hpPct: playerHpPct, ghostPct: playerHpGhostPct, esPct: playerEsPct, now, layout: dynamicLayout, targets: currentTargets, tileW: gridProj.tileW, projection: gridProj, pending: pendingEnemyCombatAttacks };
