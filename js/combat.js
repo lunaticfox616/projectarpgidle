@@ -13907,9 +13907,9 @@ function enterOutsideChaos() {
             ? (typeof hasCurrentLoopChaos20Clear === 'function' ? hasCurrentLoopChaos20Clear() : !!(game.loopProgressCurrent && game.loopProgressCurrent.chaos20Cleared))
             : Math.max(0, Math.floor((game.loopProgressCurrent && game.loopProgressCurrent.bestAbyssDepth) || 0)) >= getSeasonAbyssDepthCap(game.season || 1));
     if (!outsideChaosRequirementMet) return addLog(getLoopAbyssRequirementPrompt(game.season || 1), 'attack-monster');
+    actExplorationProgress.depart(game); // 바닥의 전리품을 잠금 사본보다 먼저 거둔다: 뒤에 거두면 다음 틱에 가방이 되돌아가 사라졌다(2026-10-20)
     game.woodsmanBuildSnapshot = snapshotWoodsmanBuildState();
     game.woodsmanBuildLock = true;
-    actExplorationProgress.depart(game);
     game.currentZoneId = OUTSIDE_CHAOS_ZONE_ID;
     game.killsInZone = 0;
     game.runProgress = 0;
