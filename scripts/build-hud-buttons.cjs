@@ -5,6 +5,9 @@
  * <메뉴>.png, <메뉴>-down.png으로 적는다. 보통 그림은 둘레의 빈 테를 잘라 내기만 하고(도트를 건드리지 않는다), 눌린 그림은 묶음마다
  * 크기가 조금씩 달라 보통 그림과 같은 크기로 맞춘다(누를 때 단추가 커지거나 밀리지 않게). 화면에서는 CSS가 틀 크기로 줄여 그린다
  * (css/themes/pixel-menu.css의 --px-button-art). 받은 파일은 자료로만 읽는다.
+ * 2026-10-19 묶음부터 올린 그림(hover.png, 틀 밖으로 빛이 번진다)과 잠긴 그림(locked.png, 자물쇠가 틀 밖으로 나온다)도 있다:
+ * <메뉴>-hover.png, <메뉴>-locked.png으로 적되 보통 그림의 틀에 맞춰(밝기가 달라도 맞도록 밝기의 상관으로 자리를 찾는다) 사방에
+ * STATE_BLEED만큼 여백을 둔 판에 옮긴다. CSS는 그리는 칸을 그만큼 넓혀 틀을 제자리에 둔다(--px-button-art-bleed).
  */
 const fs = require('node:fs'), path = require('node:path');
 const { decodePng, encodePng } = require('./lib/png.cjs');
@@ -12,6 +15,10 @@ const { decodePng, encodePng } = require('./lib/png.cjs');
 const MENUS = Object.freeze({ charater_status: 'character', Celtic_Tree_of_Life: 'passive', bagpack: 'bag', setting: 'settings',
     map: 'map', tree_growth_ring: 'stump', old_book: 'journal', Uroboros: 'loop' });
 const OUT = path.join(__dirname, '..', 'assets', 'ui', 'pixel', 'buttons');
+/** 올린 그림과 잠긴 그림의 판: 보통 그림 한 변의 이 몫을 사방 여백으로 둔다. css/themes/pixel-menu.css의 --px-button-art-bleed와 같은 값. */
+const STATE_BLEED = 0.055;
+/** 받은 상태 그림의 파일 이름 → 게임 파일의 뒤붙임. */
+const EXTRA_STATES = Object.freeze({ 'hover.png': 'hover', 'locked.png': 'locked' });
 
 /** 투명하지 않은 픽셀의 상자. */
 function contentBox(png) {
@@ -56,6 +63,52 @@ function resizePng(png, width, height) {
     }
     return { width, height, data };
 }
+const luminance = (png, i) => 0.299 * png.data[i] + 0.587 * png.data[i + 1] + 0.114 * png.data[i + 2];
+/** 보통 그림의 불투명한 픽셀과 상태 그림의 (dx, dy) 자리의 밝기 상관(평균을 뺀 정규화 상관, 밝힌 그림도 1에 가깝다). 밖으로 나가면 -Infinity. */
+function correlation(normal, state, dx, dy) {
+    let n = 0, sa = 0, sb = 0, saa = 0, sbb = 0, sab = 0;
+    for (let y = 0; y < normal.height; y++) for (let x = 0; x < normal.width; x++) {
+        const i = (y * normal.width + x) * 4, bx = x + dx, by = y + dy;
+        if (normal.data[i + 3] < 250) continue;
+        if (bx < 0 || by < 0 || bx >= state.width || by >= state.height) return -Infinity;
+        const a = luminance(normal, i), b = luminance(state, (by * state.width + bx) * 4);
+        n++; sa += a; sb += b; saa += a * a; sbb += b * b; sab += a * b;
+    }
+    return (sab - sa * sb / n) / Math.sqrt((saa - sa * sa / n) * (sbb - sb * sb / n) || 1);
+}
+/** 상태 그림 안에서 보통 그림의 틀이 놓인 자리(크기는 같고 둘레에 빛이나 자물쇠가 더 있다). */
+function frameOffset(normal, state) {
+    let best = { score: -Infinity, dx: 0, dy: 0 };
+    for (let dy = -2; dy <= state.height - normal.height + 2; dy++) for (let dx = -2; dx <= state.width - normal.width + 2; dx++) {
+        const score = correlation(normal, state, dx, dy);
+        if (score > best.score) best = { score, dx, dy };
+    }
+    return best;
+}
+/** 상태 그림을 보통 그림의 틀에 맞춰 사방에 STATE_BLEED만큼 여백을 둔 판에 옮긴다. cut: 판 밖으로 잘린 보이는 픽셀 수. */
+function placeOnBleed(normal, state) {
+    const mx = Math.round(normal.width * STATE_BLEED), my = Math.round(normal.height * STATE_BLEED), at = frameOffset(normal, state);
+    const width = normal.width + 2 * mx, height = normal.height + 2 * my, data = new Uint8Array(width * height * 4);
+    let cut = 0;
+    for (let y = 0; y < state.height; y++) for (let x = 0; x < state.width; x++) {
+        const i = (y * state.width + x) * 4, tx = x - at.dx + mx, ty = y - at.dy + my;
+        if (tx < 0 || ty < 0 || tx >= width || ty >= height) { cut += state.data[i + 3] > 8 ? 1 : 0; continue; }
+        data.set(state.data.subarray(i, i + 4), (ty * width + tx) * 4);
+    }
+    return { png: { width, height, data }, cut, at };
+}
+/** 폴더의 올린 그림과 잠긴 그림(있는 것만)을 <메뉴>-hover.png, <메뉴>-locked.png으로 적는다. */
+function writeExtraStates(folder, menu, normal) {
+    for (const [file, suffix] of Object.entries(EXTRA_STATES)) {
+        const stateFile = path.join(folder, file);
+        if (!fs.existsSync(stateFile)) continue;
+        const source = decodePng(fs.readFileSync(stateFile)), placed = placeOnBleed(normal, cropPng(source, contentBox(source)));
+        fs.writeFileSync(path.join(OUT, `${menu}-${suffix}.png`), encodePng(placed.png.width, placed.png.height, placed.png.data));
+        console.log(''.padEnd(10), suffix.padEnd(6), `${placed.png.width}x${placed.png.height}`, `틀 자리 (${placed.at.dx},${placed.at.dy}) 상관 ${placed.at.score.toFixed(3)}`,
+            placed.cut ? `판 밖으로 ${placed.cut}px 잘림` : '');
+    }
+}
+
 function findButtonFolders(dir, found = []) {
     for (const name of fs.readdirSync(dir)) {
         const full = path.join(dir, name);
@@ -81,6 +134,7 @@ for (const folder of folders) {
     const pressed = resizePng(pressedCrop, normal.width, normal.height);
     fs.writeFileSync(path.join(OUT, menu + '-down.png'), encodePng(pressed.width, pressed.height, pressed.data));
     console.log(menu.padEnd(10), normal.width + 'x' + normal.height, '| 눌림', pressedCrop.width + 'x' + pressedCrop.height, pressedCrop.width === normal.width && pressedCrop.height === normal.height ? '(그대로)' : '→ 보통 크기로 맞춤');
+    writeExtraStates(folder, menu, normal);
 }
 console.log(folders.length - missing, '개를 적었다 →', path.relative(path.join(__dirname, '..'), OUT).split(path.sep).join('/'));
 process.exit(missing ? 1 : 0);
