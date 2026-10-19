@@ -437,6 +437,7 @@ const combatIncidents = (() => {
                 keepCurrencyDrop({ gx: hero.gx, gy: hero.gy }, currency, count);
             }
         });
+        addBattleFx('statusText', { text: '사냥 도전 성공', color: '#ff9f6b', duration: 900, bodyCue: true });
         tell('사냥 도전을 해냈습니다.', 'reward');
         note('challenge');
     }
