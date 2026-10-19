@@ -17,7 +17,8 @@ const RECORDS_LOOP_HISTORY_LIMIT = 30;
 // 한 틱에서 이 이상 벌어진 간격은 "게임이 굴러간 시간"이 아니라 자리를 비운 구간으로 본다.
 // 포그라운드 틱은 100ms, 백그라운드 정산도 100ms 스텝으로 시뮬레이션 시계를 밀어 준다.
 const RECORDS_ACTIVE_TICK_MAX_MS = 5000;
-// 층 기록은 돌파한 층을 남긴다(2026-10-19 사용자 결정). 전에는 다음에 열린 층이라 한 층 높았다.
+// 층 기록은 돌파한 층을 남긴다(2026-10-19 사용자 결정). 전에는 다음에 열린 층이라 한 층 높았다. 군락지 기록도 깬 웨이브를 남긴다
+// (2026-10-20, 전에는 들어선 웨이브라 하나 높았다).
 const RECORD_CLEARED_FLOOR_KEYS = Object.freeze(['labyrinthFloor', 'chaosRealmFloor', 'skyFloor', 'underworldFloor']);
 
 function createDefaultRecordsState(now) {
@@ -30,18 +31,24 @@ function createDefaultRecordsState(now) {
         echo: { bestDps: 0, bestDamage: 0, runs: 0, lastAt: 0 },
         best: {},
         clearedFloorBests: true,
+        clearedColonyBests: true,
         incidents: {}
     };
 }
 
 
-/** 층 기록이 다음에 열린 층이던 저장을 한 번 낮춘다. 표식(clearedFloorBests)은 예전 판이 지우지 않아, 판을 오가도 두 번 낮추지 않는다. */
-function keepClearedFloorBests(records) {
-    if (records.clearedFloorBests === true) return;
-    RECORD_CLEARED_FLOOR_KEYS.forEach(key => {
+/** 층 기록이 다음에 열린 층이던 저장(clearedFloorBests)과 군락지 기록이 들어선 웨이브이던 저장(clearedColonyBests)을 한 번씩 낮춘다.
+ * 표식은 예전 판이 지우지 않아, 판을 오가도 두 번 낮추지 않는다. */
+function keepClearedBests(records) {
+    lowerBestsOnce(records, 'clearedFloorBests', RECORD_CLEARED_FLOOR_KEYS);
+    lowerBestsOnce(records, 'clearedColonyBests', ['colonyWave']);
+}
+function lowerBestsOnce(records, flag, keys) {
+    if (records[flag] === true) return;
+    keys.forEach(key => {
         if (records.best[key] !== undefined) records.best[key] = Math.max(0, toPositiveInt(records.best[key]) - 1);
     });
-    records.clearedFloorBests = true;
+    records[flag] = true;
 }
 
 /** 잔잔한 사건을 겪은 횟수의 모양(열쇠마다 수인 객체), 아니면 빈 객체. */
@@ -65,7 +72,7 @@ function ensureRecordsState(state) {
     r.best = (r.best && typeof r.best === 'object') ? r.best : {};
     // 잔잔한 사건을 겪은 횟수(recordIncident): 매 틱 부르므로 모양만 지킨다. 값은 셀 때와 읽을 때(getRecordsView) 0 이상의 정수로 읽는다.
     r.incidents = keepIncidentCounts(r.incidents);
-    keepClearedFloorBests(r);
+    keepClearedBests(r);
     r.echo = (r.echo && typeof r.echo === 'object') ? r.echo : { bestDps: 0, bestDamage: 0, runs: 0, lastAt: 0 };
     r.echo.bestDps = Math.max(0, Number(r.echo.bestDps) || 0);
     r.echo.bestDamage = Math.max(0, Number(r.echo.bestDamage) || 0);
@@ -113,7 +120,8 @@ function getRecordBestSources(g) {
         skyFloor: getClearedSkyTowerFloor(g),
         underworldFloor: Math.max(0, toPositiveInt(underworld.highestFloor) - 1),
         oceanBoundary: Math.max(toPositiveInt(ocean.depthM), toPositiveInt(ocean.checkpointM)),
-        colonyWave: Math.max(toPositiveInt(colony.highestWave), toPositiveInt(colony.wave))
+        // 군락지는 들어선 웨이브를 들고 있어(깬 웨이브 + 1) 하나 뺀다.
+        colonyWave: Math.max(0, Math.max(toPositiveInt(colony.highestWave), toPositiveInt(colony.wave)) - 1)
     });
 }
 

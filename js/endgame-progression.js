@@ -144,7 +144,7 @@ function startBeyondBoundaryRun(tierValue, ownerState) {
     state.activeRun = {
         tier, wave: 1, sealId: state.selectedSealId,
         rewardFocusId: state.selectedRewardFocusId, intensityId: state.selectedIntensityId,
-        returnZoneId: source.currentZoneId
+        returnZoneId: getContentReturnZoneId(source)
     };
     return { ok: true, run: state.activeRun, costs: payment.costs };
 }
@@ -179,6 +179,8 @@ function completeBeyondBoundaryEncounter(ownerState) {
  * cleared chaos 20. */
 function getBeyondBoundaryReturnZoneId(returnZoneId, source) {
     const frontier = Math.max(0, Math.floor(Number(source.maxZoneId) || 0));
+    // another run's zone (a run started inside it before 2026-10-20, js/state.js getContentReturnZoneId): that run is over
+    if (typeof returnZoneId === 'string' && getFloorZone(returnZoneId) === undefined) return frontier;
     if (typeof returnZoneId !== 'number' || returnZoneId <= frontier) return returnZoneId;
     const openDeepChaos = (source.season || 1) >= 10 && getAbyssDepthFromZoneId(returnZoneId) > 20 && hasCurrentLoopChaos20Clear(source);
     return openDeepChaos ? returnZoneId : frontier;

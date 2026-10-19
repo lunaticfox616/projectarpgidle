@@ -1076,6 +1076,14 @@ function getLoopDeepChaosFrontierDepth(source) {
 
 /** 자동 진행이 향할 지역. 루프 10부터 혼돈 20을 깬 뒤에는 심화 혼돈을 한 층씩 오른다(2026-10-11 사용자: 예전에는 지난 루프까지
  * 기록한 가장 높은 층으로 바로 뛰어 계속 죽었다). 예전 기록 층은 심화층 목록에서 직접 고를 때만 간다(enterUnlockedEndlessDepth). */
+/** Where a content run started now sends the hero back (군락지, 벌집, 대균열, 경계 너머): the zone in hand, unless that is the zone of
+ * another run (a string id other than the floor contents: 혼돈 밖, 군락지, 대균열, 벌집 ...). That run ends on the next tick
+ * (js/combat.js holdZoneBoundRuns), and coming back to its zone stood the hero on an empty map (2026-10-20 hunt), so the auto
+ * progress zone instead. */
+function getContentReturnZoneId(state = game) {
+    const id = state.currentZoneId;
+    return typeof id !== 'string' || getFloorZone(id) !== undefined ? id : getAutoProgressZoneId(state.maxZoneId);
+}
 function getAutoProgressZoneId(fallbackZoneId) {
     if ((game.season || 1) < 10 || !hasCurrentLoopChaos20Clear()) return fallbackZoneId;
     let depth = getLoopDeepChaosFrontierDepth();

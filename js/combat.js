@@ -14008,6 +14008,14 @@ function clearLoopItemStorage(owner) {
     owner.equipmentTemporaryStorage = [];
 }
 
+/** The map the hero stands on closes before the loop is settled (2026-10-20 hunt): its floor is picked up into the old loop, so the
+ * currencies a loop keeps stay and the rest goes with the old bag and wallet (it came into the new loop when the class was picked or
+ * the save loaded), and no saved map counts the fight's monsters alive once game.enemies is cleared (looping mid-fight wrote a save
+ * that threw on load: 탐험 저장에서 살아 있는 적이 누락되었습니다). */
+function closeLoopMap() {
+    if (game.actExploration) actExplorationProgress.depart(game);
+}
+
 /** The loop goes on (by chaos unless the cosmos path is chosen): its record closed, points settled, then the game reset for the next
  * loop with what it keeps. Split into its phases on 2026-10-18; the phases run the same lines in the same order. */
 function triggerSeasonReset(options) {
@@ -14021,6 +14029,7 @@ function triggerSeasonReset(options) {
     if (isRewardOpen()) closeRewardOverlay();
     endWoodsmanFightForLoop(addLog);
     clearLoopGate();
+    closeLoopMap();
     game.pendingLoopHeroSelection = true;
     let codexReveal = getLoopCodexReveal();
     // 전적: 상태를 초기화하기 전에 이번 루프 기록(소요 시간·도달 액트·액트별 돌파 시간)을 닫는다.

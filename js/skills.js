@@ -143,6 +143,7 @@ function selectGemEnhanceTargetSkill(name) {
 
 function upgradeActiveGemWithCondensedSkyPower() {
     if (!contentProgression.isUnlocked('gemForge')) return;
+    if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     let active = getGemEnhanceTargetSkill();
     if (!isEnhanceableAttackGem(active) || !Array.isArray(game.skills) || !game.skills.includes(active)) return addLog('영구 강화할 공격 룬을 먼저 선택하세요.', 'attack-monster');
     let st = ensureSkyTowerState();

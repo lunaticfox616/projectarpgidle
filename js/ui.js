@@ -2625,7 +2625,7 @@ function startColonyRun(){
     game.currencies.colonyTrace--;
     c.entryDeepChaosDepth = getZone('colony_run').entryDeepChaosDepth;
     c.inRun = true; c.wave = 1; c.kills = 0; c.requiredKills = getColonyWaveEnemyCount(1);
-    c.returnZoneId = game.currentZoneId;
+    c.returnZoneId = getContentReturnZoneId();
     actExplorationProgress.depart(game);
     game.currentZoneId = 'colony_run';
     game.combatHalted = false;
@@ -2879,7 +2879,7 @@ function startBeehiveRun(){
     b.inRun = true;
     b.branchStep = 0;
     b.inMapZoneId = 'beehive_run';
-    b.returnZoneId = game.currentZoneId;
+    b.returnZoneId = getContentReturnZoneId();
     b.queenActive = false;
     actExplorationProgress.depart(game);
     game.currentZoneId = 'beehive_run';
@@ -3052,8 +3052,10 @@ function canAutoEnterGrandBreach(){
     let beehiveRunning = isBeehiveRunLockedForMapTravel();
     return !!(game.settings && game.settings.autoEnterGrandBreach && v.grandBreachUnlock && !g.inRun && !beehiveRunning && game.currentZoneId !== 'grand_breach_run');
 }
+/** 대균열 자동입장: 이야기 액트를 깰 때는 들어가지 않는다(2026-10-20: 지난 루프에 열린 대균열이 새 루프의 액트 1을 깨는 순간 1레벨
+ * 영웅을 들여보내 패배했다). 혼돈 구역이나 아틀라스 지도에서 들어간다. */
 function autoEnterGrandBreachIfReady(){
-    if (!canAutoEnterGrandBreach()) return false;
+    if (!canAutoEnterGrandBreach() || getZone(game.currentZoneId)?.type === 'act') return false;
     enterGrandBreach({ automatic: true });
     addLog('🌌 자동입장: 대균열이 열려 즉시 진입합니다.', 'season-up');
     return true;
@@ -3070,7 +3072,7 @@ function enterGrandBreach(options){
     }
     if (v.grandRun && v.grandRun.inRun) return;
     v.grandBreachUnlock = false;
-    v.grandRun = { inRun: true, phase: 'survival', timeLeft: GRAND_BREACH_ENCOUNTER.durationSeconds, kills: 0, rewardVoidChisel: null, nextRefillAt: 0, lastTickAt: getCombatTime(), returnZoneId: game.currentZoneId };
+    v.grandRun = { inRun: true, phase: 'survival', timeLeft: GRAND_BREACH_ENCOUNTER.durationSeconds, kills: 0, rewardVoidChisel: null, nextRefillAt: 0, lastTickAt: getCombatTime(), returnZoneId: getContentReturnZoneId() };
     actExplorationProgress.depart(game);
     game.currentZoneId = 'grand_breach_run';
     game.enemies = [];
