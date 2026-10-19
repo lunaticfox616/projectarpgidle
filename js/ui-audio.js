@@ -5,7 +5,7 @@
     const root = 'assets/audio/game-sfx-v2/';
     const tones = {open:[340,.018,.055], confirm:[520,.024,.07], cancel:[220,.018,.055],
         danger:[145,.028,.09], success:[660,.022,.08]};
-    let context = null, master = null, bank = null, loading = false, resuming = false;
+    let context = null, master = null, muffle = null, bank = null, loading = false, resuming = false;
     const buffers = new Map(), active = new Set(), lastPlayed = new Map(), warnings = new Set();
     const variations = new Map();
     let variationSeed = 0x6d2b79f5;
@@ -73,7 +73,9 @@
                 const compressor = context.createDynamicsCompressor();
                 compressor.threshold.value = -16; compressor.knee.value = 12;
                 compressor.ratio.value = 4; compressor.attack.value = .003; compressor.release.value = .12;
-                master.connect(compressor); compressor.connect(context.destination);
+                // 심해의 먹먹한 소리(updateMuffle): 평소에는 거의 열려 있는 저역 통과 거름
+                muffle = context.createBiquadFilter(); muffle.type = 'lowpass'; muffle.frequency.value = 20000;
+                master.connect(muffle); muffle.connect(compressor); compressor.connect(context.destination);
                 void loadBank();
             }
             updateMasterGain();
@@ -110,7 +112,16 @@
         return false;
     }
 
+    /** 심해에 있는 동안은 낮은 소리만 남는다(2026-10-19 심해 요청문 "먹먹한 소리"): 깊을수록 더 걸러 낸다(1700Hz에서 650Hz까지). */
+    function updateMuffle() {
+        if (!muffle) return;
+        const ocean = typeof OCEAN_ZONE_ID !== 'undefined' && game.currentZoneId === OCEAN_ZONE_ID;
+        const cutoff = ocean ? Math.max(650, 1700 - Math.max(0, Number(game.ocean && game.ocean.depthM) || 0) * 1.1) : 20000;
+        if (Math.abs(muffle.frequency.value - cutoff) > 1) muffle.frequency.setTargetAtTime(cutoff, context.currentTime, .08);
+    }
+
     function attach(node, gain, priority) {
+        updateMuffle();
         const voice = {node, gain, priority};
         node.connect(gain); gain.connect(master);
         node.onended = () => release(voice);

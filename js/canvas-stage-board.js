@@ -17,6 +17,8 @@ const stageBoard = (() => {
     /** 구역 → 지역 이름. 무대가 꺼져 있거나 표에 없는 구역이면 ''. */
     function boardRegion(zone) {
         if (!zone || !stageView.enabled() || typeof STAGE_ROOM_PLANS !== 'object') return '';
+        // 심해 판은 방 지도처럼 수심 띠의 그림이다(가디언 판은 해구)
+        if (zone.type === 'oceanDepth') return actExplorationRoomPlans.oceanRegion(zone, !!game.oceanBossRunPending);
         return STAGE_ROOM_PLANS.regions.boards[zone.type] || '';
     }
     /** 지역 그림을 그리는 쪽(js/canvas-stage-region.js)에 넘길 지도: 판 전체가 문 없는 방 하나다. */

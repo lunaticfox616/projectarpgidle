@@ -127,7 +127,8 @@ const devTestPanel = (() => {
         ['창공의 탑', () => SKY_TOWER_ZONE_ID], ['지하계', () => UNDERWORLD_ZONE_ID], ['고대 미궁', () => LABYRINTH_ZONE_ID], ['혼돈계', () => CHAOS_REALM_ZONE_ID],
         ['벌집 원정', () => 'beehive_run', startTestBeehive], ['케르베로스', () => 's6_beast_cerberus'],
         // 2026-10-13 밤: 판에서 싸우다 방 단위 지도를 걷게 된 콘텐츠, 그리고 아틀라스(지도 한 장과 수호자)
-        ['우주계', null, startTestCosmos], ['심해', null, () => startTestOcean(120)], ['심해 가디언', null, () => startTestOcean(500)],
+        ['우주계', null, startTestCosmos], ['심해', null, () => startTestOcean(120)], ['심해 황혼층', null, () => startTestOcean(400)],
+        ['심해 무광층', null, () => startTestOcean(800)], ['심해 가디언', null, () => startTestOcean(500, true)],
         ['경계 너머', null, startTestBoundary], ['군락지', null, startTestColony], ['대균열', null, startTestBreach],
         ['혼돈 밖', () => OUTSIDE_CHAOS_ZONE_ID], ['나무꾼의 잔상', null, startTestEcho],
         ['아틀라스 지도', null, () => startTestAtlas('map')], ['아틀라스 수호자', null, () => startTestAtlas('guardian')]
@@ -157,10 +158,12 @@ const devTestPanel = (() => {
         game.killsInZone = 0;
         openTestZone('cosmos_challenge');
     }
-    /** depth: 잠수를 시작하는 수심(m). 500이면 그 경계의 가디언이 기다린다. */
-    function startTestOcean(depth) {
+    /** depth: 잠수를 시작하는 수심(m, 방 그림의 띠: 300m 아래 얕은 암초, 700m 아래 황혼층, 그 밑 무광층). guardian: 그 수심의 가디언이
+     * 기다린다(해구). 아니면 지나온 경계의 가디언은 쓰러뜨린 것으로 둔다. */
+    function startTestOcean(depth, guardian = false) {
         const ocean = ensureOceanState(), oxygen = Math.max(1, Math.floor(getOceanOxygenMax()));
-        Object.assign(ocean, { unlocked: true, diving: true, checkpointM: depth, depthM: depth, bossClearM: 0, oxygenMax: oxygen, oxygenCur: oxygen,
+        const bossClearM = guardian ? Math.max(0, depth - getOceanBossBoundaryInterval()) : Math.floor(depth / getOceanBossBoundaryInterval()) * getOceanBossBoundaryInterval();
+        Object.assign(ocean, { unlocked: true, diving: true, checkpointM: depth, depthM: depth, bossClearM, oxygenMax: oxygen, oxygenCur: oxygen,
             drowning: false, drownSec: 0, lastTickAt: getCombatTime() });
         openTestZone(OCEAN_ZONE_ID);
     }

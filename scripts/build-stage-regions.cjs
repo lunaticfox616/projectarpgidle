@@ -5,6 +5,9 @@
  *   node scripts/build-stage-regions.cjs <묶음 폴더> [복사해 둘 폴더]
  *   node scripts/build-stage-regions.cjs --refresh-current
  *     게임에 있는 그림의 캐시 키와 위아래 메움 색만 다시 잰다. 조립 수치와 방·소품 배치는 바꾸지 않는다.
+ *   node scripts/build-stage-regions.cjs --add-variant <지역> <이름> <본뜰 지역> <방 그림.png>
+ *     묶음 밖의 방 그림 한 장을 본뜰 지역과 같은 크기, 바닥 줄, 문 자리, 재질, 소품 규칙으로 더한다(2026-10-20 심해의 수심 띠).
+ *     묶음을 다시 옮길 때 묶음에 없는 지역은 표에 있던 그대로 남는다.
  *
  * 묶음의 kit-manifest.json을 읽어
  *   그림: assets/stage-scenes/regions/<지역>.png, assets/stage-scenes/regions/<재질>/<조각>.png
@@ -22,6 +25,7 @@ const { decodePng } = require('./lib/png.cjs');
 const root = path.join(__dirname, '..');
 const [from, mirror] = process.argv.slice(2);
 if (from === '--refresh-current') { refreshCurrent(); process.exit(0); }
+if (from === '--add-variant') { addVariant(process.argv.slice(3)); refreshCurrent(); process.exit(0); }
 if (!from) { console.error('쓰는 법: node scripts/build-stage-regions.cjs <묶음 폴더> [복사해 둘 폴더]'); process.exit(1); }
 const kit = JSON.parse(fs.readFileSync(path.join(from, 'kit-manifest.json'), 'utf8'));
 const outs = [path.join(root, 'assets/stage-scenes/regions'), ...(mirror ? [path.join(mirror, 'regions')] : [])];
@@ -69,6 +73,13 @@ for (const region of kit.regions) {
         door: region.northDoorX ?? null, family: short(region.family), sky: bandColour(png, 0, 4), earth: bandColour(png, png.height - 4, 4),
         normal: rules.normal.props, elite: rules.elite.props, boss: rules.boss.props, bossSide: left ? 'west' : 'east' };
 }
+// 묶음 밖에서 더한 지역(--add-variant)은 표에 있던 줄 그대로 남긴다
+for (const [id, region] of Object.entries(currentTable().regions)) {
+    if (regions[id]) continue;
+    regions[id] = { ...region };
+    hash.update(id + '.png').update(fs.readFileSync(path.join(outs[0], id + '.png')));
+    console.log(`묶음 밖 지역 유지: ${id}`);
+}
 
 const version = hash.digest('hex').slice(0, 10);
 const list = values => `Object.freeze([${values.join(', ')}])`;
@@ -106,11 +117,33 @@ safeExposeData({ STAGE_REGIONS });
 fs.writeFileSync(path.join(root, 'data/stage-regions.js'), text);
 console.log(`지역 ${Object.keys(regions).length}곳, 재질 ${Object.keys(families).length}가지, 그림 ${files}장 ${(bytes / 1048576).toFixed(1)}MB, 판 ${version}`);
 
+/** 지금 표(data/stage-regions.js)를 읽는다. */
+function currentTable() {
+    let current;
+    require('node:vm').runInNewContext(fs.readFileSync(path.join(root, 'data/stage-regions.js'), 'utf8'), { safeExposeData: data => { current = data.STAGE_REGIONS; } });
+    return current;
+}
+/** 묶음 밖의 방 그림 한 장을 지역으로 더한다: 그림을 옮기고, 본뜰 지역의 줄을 이름만 바꿔 그 줄 아래에 둔다(메움 색과 캐시 키는
+ * 뒤이어 refreshCurrent가 잰다). 그림 크기가 본뜰 지역과 다르면 멈춘다(바닥 줄과 문 자리가 그 크기의 값이다). */
+function addVariant([id, name, like, picture]) {
+    if (!id || !name || !like || !picture) throw new Error('쓰는 법: --add-variant <지역> <이름> <본뜰 지역> <방 그림.png>');
+    const current = currentTable(), base = current.regions[like], data = fs.readFileSync(picture), png = decodePng(data);
+    if (!base) throw new Error(like + ': 표에 없는 지역');
+    if (png.width !== base.width || png.height !== base.height) throw new Error(`${id}: 그림 ${png.width}x${png.height}, ${like}는 ${base.width}x${base.height}`);
+    fs.writeFileSync(path.join(root, current.path, id + '.png'), data);
+    const file = path.join(root, 'data/stage-regions.js'), lines = fs.readFileSync(file, 'utf8').split('\n');
+    const head = key => `        '${key}': Object.freeze({`;
+    const kept = lines.filter(line => !line.startsWith(head(id))), at = kept.findIndex(line => line.startsWith(head(like)));
+    const row = kept[at].replace(head(like), head(id)).replace(/name: '[^']*'/, `name: '${name}'`).replace(/,$/, '');
+    kept[at] = kept[at].replace(/,?$/, ',');
+    kept.splice(at + 1, 0, kept[at + 1].startsWith(`        '`) ? row + ',' : row);
+    fs.writeFileSync(file, kept.join('\n'));
+    console.log(`지역 더함: ${id} (${name}), ${like}를 본뜸`);
+}
 /** 기존 게임 그림을 색 보정한 뒤, 재수입 없이 표의 캐시 키와 메움 색만 갱신한다. */
 function refreshCurrent() {
     const file = path.join(root, 'data/stage-regions.js'), original = fs.readFileSync(file, 'utf8');
-    let current;
-    require('node:vm').runInNewContext(original, { safeExposeData: data => { current = data.STAGE_REGIONS; } });
+    const current = currentTable();
     const digest = crypto.createHash('sha1'), folder = path.join(root, current.path);
     const colour = (png, top) => {
         const sum = [0, 0, 0];

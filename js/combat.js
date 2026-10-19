@@ -10319,7 +10319,10 @@ function callOceanGuardianAtBoundary() {
 function noteOceanKill(enemy, zone) {
     if (!zone || zone.type !== 'oceanDepth') return;
     const seconds = applyOceanKill(enemy);
-    if (seconds > 0) addBattleFx('statusText', { text: `🫧 산소 +${seconds}초`, color: '#8fd8ff', duration: 620 });
+    if (!(seconds > 0)) return;
+    addBattleFx('statusText', { text: `🫧 산소 +${seconds}초`, color: '#8fd8ff', duration: 620 });
+    // 쓰러진 자리에서 공기 기둥이 솟는다(js/canvas-stage-ocean.js): 여덟 장(장마다 125ms)을 두 바퀴
+    addBattleFx('oceanAir', { enemyId: enemy.id, cell: { gx: enemy.gx, gy: enemy.gy }, duration: 2000 });
 }
 /** 심해 가디언이 졸개를 부른다(B안, OCEAN_COMBAT_DIVE.guardianAdds): 가디언이 선 뒤 everyMs마다(다음 시각은 가디언이 들고 있다),
  * 살아 있는 졸개가 max보다 적으면. 졸개는 쓰러지며 공기 방울을 남긴다(js/passives.js getOceanKillAirSec). say: 전투 기록(addLog). */

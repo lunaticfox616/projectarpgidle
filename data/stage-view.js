@@ -325,4 +325,32 @@ const STAGE_HERO_STRIKES = Object.freeze({
     spin: Object.freeze(['회오리'])
 });
 
-safeExposeData({ STAGE_HERO_MOTIONS, STAGE_HERO_RISE, STAGE_HERO_STRIKES, STAGE_VIEW, STAGE_TERRAIN, STAGE_ROOMS, STAGE_BACKDROPS, STAGE_OBJECTS, STAGE_STORY, STAGE_PROPS, STAGE_SCENES, STAGE_MONSTER_SCALE, STAGE_NPC_ART, STAGE_BOSS_REVIVAL, STAGE_BOARD_ROOMS });
+/** 심해 무대의 물속 신호(js/canvas-stage-ocean.js, 2026-10-20 GPT 심해 그림 2차, 요청문 artifacts/ocean-art-request-20261019). 그림은 path 아래에
+ * 있고, 1px이 캐릭터 도트 하나다(빛줄기 겹침은 방 그림과 같은 크기). 방 그림은 수심 띠마다 다르다(data/stage-room-plans.js regions.ocean).
+ *   bands 방 그림(지역) → light 방 그림 위에 겹치는 빛줄기(없으면 null), dust 발밑 먼지, shade 소품과 문 봉인에 얹는 어둠(없으면 null),
+ *         bright 바닥이 밝아 문 표시의 빛무리를 어둡게 까는 띠
+ *   bubbles 영웅 머리 위 거품: 칸, 장 수, 장마다 ms, 다음 거품까지 ms, 발에서 거품 칸의 아래까지 도트
+ *   dust 발밑 먼지: 칸, 장 수, 장마다 ms, 그림마다 발 자리(진흙 먼지는 밑이 두 줄 위다)
+ *   air 쓰러진 몬스터가 남기는 공기 기둥: 칸, 장 수, 장마다 ms, 발 자리(보이는 시간은 js/combat.js noteOceanKill, 끝 4분의 1은 옅어진다)
+ *   drift 떠다니는 입자 두 층: 그림, 크기, 1초에 흐르는 도트 [가로, 세로], 진하기, front 배우 앞에 그리는 층
+ *   lift 가디언 방의 리프트: 그림(가디언이 서 있는 동안 닫힘, 쓰러지면 열림), 크기, 발 자리, 뒤쪽 바닥선 아래 도트 */
+const STAGE_OCEAN = Object.freeze({
+    path: 'assets/stage-scenes/ocean/',
+    bands: Object.freeze({
+        'ocean-shallow': Object.freeze({ light: 'light-shallow', dust: 'dust-sand', shade: null, bright: true }),
+        ocean: Object.freeze({ light: 'light-twilight', dust: 'dust-sand-twilight', shade: null, bright: false }),
+        'ocean-lightless': Object.freeze({ light: null, dust: 'dust-mud', shade: 'rgba(6,14,34,0.5)', bright: false }),
+        'ocean-trench': Object.freeze({ light: null, dust: 'dust-mud', shade: 'rgba(4,10,24,0.55)', bright: false })
+    }),
+    bubbles: Object.freeze({ file: 'bubbles-hero', cell: Object.freeze([32, 64]), frames: 8, frameMs: 125, everyMs: 4200, headDots: 76 }),
+    dust: Object.freeze({ cell: Object.freeze([64, 32]), frames: 6, frameMs: 80,
+        feet: Object.freeze({ 'dust-sand': Object.freeze([32, 31]), 'dust-sand-twilight': Object.freeze([32, 31]), 'dust-mud': Object.freeze([32, 29]) }) }),
+    air: Object.freeze({ file: 'air-column', cell: Object.freeze([64, 192]), frames: 8, frameMs: 125, feet: Object.freeze([32, 190]) }),
+    drift: Object.freeze([
+        Object.freeze({ file: 'drift-far', size: Object.freeze([1280, 720]), flow: Object.freeze([-5, -8]), alpha: 0.7, front: false }),
+        Object.freeze({ file: 'drift-near', size: Object.freeze([1280, 720]), flow: Object.freeze([-11, -18]), alpha: 0.85, front: true })
+    ]),
+    lift: Object.freeze({ closed: 'ocean-lift-closed', open: 'ocean-lift-open', size: Object.freeze([160, 240]), feet: Object.freeze([80, 236]), below: 12 })
+});
+
+safeExposeData({ STAGE_HERO_MOTIONS, STAGE_HERO_RISE, STAGE_HERO_STRIKES, STAGE_VIEW, STAGE_TERRAIN, STAGE_ROOMS, STAGE_BACKDROPS, STAGE_OBJECTS, STAGE_STORY, STAGE_PROPS, STAGE_SCENES, STAGE_MONSTER_SCALE, STAGE_NPC_ART, STAGE_BOSS_REVIVAL, STAGE_BOARD_ROOMS, STAGE_OCEAN });

@@ -1186,6 +1186,7 @@ function drawBattleGroundLayer(ctx, effects, view) {
     wispSummonFx.drawLayer('ground', view.now);
     fxRemake.end();
     if (typeof stageSkillVfx === 'object') stageSkillVfx.draw(ctx, 'ground', view.gridProj);
+    if (typeof stageOcean === 'object') stageOcean.ground(ctx, view); // 심해: 발밑 먼지와 공기 기둥
     drawActiveSummons(ctx, view.playerPos, view.now, view.gridProj);
 }
 
@@ -3036,6 +3037,7 @@ function drawBattleLightingAndBars(ctx, scene) {
     redrawnSkillFx.drawLayer('fore', scene.now);
     wispSummonFx.drawLayer('fore', scene.now);
     fxRemake.end(); // foreground skill effects opened in drawSkillGemVfxLayer, re-dotted below the lighting
+    if (typeof stageOcean === 'object') stageOcean.front(ctx, scene); // 심해: 영웅 머리 위 거품과 가까운 입자(조명을 같이 받는다)
     drawBattleLightingPass(ctx, scene);
     drawBattlePlayerFigure.readability.draw(ctx);
     if (!stageActors.down()) drawBattlefieldPlayerHealthBar(ctx, scene); // not over the first start's lying hero (js/opening-journey-ui.js)

@@ -17,6 +17,20 @@ const stageDoorMarks = (() => {
         }
         return sealImage.complete && sealImage.naturalWidth > 0;
     }
+    const shadedSeals = new Map(); // 어둠(rgba) → 봉인 시트에 어두운 심해 띠의 어둠을 얹은 그림(js/canvas-stage-ocean.js shade)
+    function shadedSeal(shade) {
+        if (!shadedSeals.has(shade)) {
+            const canvas = document.createElement('canvas'), c = canvas.getContext('2d');
+            canvas.width = sealImage.naturalWidth;
+            canvas.height = sealImage.naturalHeight;
+            c.drawImage(sealImage, 0, 0);
+            c.globalCompositeOperation = 'source-atop';
+            c.fillStyle = shade;
+            c.fillRect(0, 0, canvas.width, canvas.height);
+            shadedSeals.set(shade, canvas);
+        }
+        return shadedSeals.get(shade);
+    }
     function sealRoom(run, id) {
         let room = seals.get(run);
         if (!room || room.id !== id) {
@@ -54,11 +68,11 @@ const stageDoorMarks = (() => {
     function drawSeal(ctx, run, row, at) {
         const frame = noteSeal(run, row), spec = STAGE_ROOMS.rootSeal;
         if (!sealReady()) return false;
-        const w = spec.width * at.dot, h = spec.height * at.dot, hero = at.hero;
+        const w = spec.width * at.dot, h = spec.height * at.dot, hero = at.hero, shade = typeof stageOcean === 'object' ? stageOcean.shade() : null;
         ctx.save();
         ctx.imageSmoothingEnabled = false;
         if (hero && hero.y < at.y && hero.y > at.y - spec.heights[frame] * at.dot && Math.abs(hero.x - at.x) < w * .45) ctx.globalAlpha *= .5;
-        ctx.drawImage(sealImage, frame * spec.width, 0, spec.width, spec.height,
+        ctx.drawImage(shade ? shadedSeal(shade) : sealImage, frame * spec.width, 0, spec.width, spec.height,
             Math.round(at.x - w / 2), Math.round(at.y - spec.anchorY * at.dot), w, h);
         ctx.restore();
         return true;
@@ -115,7 +129,8 @@ const stageDoorMarks = (() => {
         const [dx, dy] = ARROW[door.side], phase = performance.now() / 240, colour = door.gate ? INK.gate : INK.open;
         const size = Math.max(2, Math.round(look.dot * (look.thick || 2))), squash = look.upright ? 1 : .5, gap = size * 3.5, dim = look.upright ? .55 : .3;
         ctx.save();
-        glow(ctx, box, colour, !!look.upright);
+        // 밝은 바닥(심해 얕은 암초의 흰 모래)에서는 빛무리가 묻혀 어둡게 깐다
+        glow(ctx, box, typeof stageOcean === 'object' && stageOcean.brightFloor() ? INK.shade : colour, !!look.upright);
         for (let i = 0; i < 3; i++) {
             const reach = (i - 1) * gap;
             ctx.globalAlpha = dim + (1 - dim) * Math.max(0, Math.sin(phase - i * .9));

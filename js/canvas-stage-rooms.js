@@ -116,6 +116,7 @@ const stageRoomsView = (() => {
         ctx.drawImage(view.canvas, p.mapX + box.x * p.tileW, p.mapY + box.y * p.tileH, box.columns * p.tileW, box.rows * p.tileH);
         for (const row of actExplorationDoors.doorsHere(run)) drawDoor(ctx, row, p, { run, kit: view.kit });
         drawFrontShade(ctx, view, p, area);
+        if (view.kit && typeof stageOcean === 'object') stageOcean.back(ctx, view, p, area); // 심해: 먼 입자와 가디언 방의 리프트
         return true;
     }
     /** 바닥의 앞쪽 끝 아래는 걸어갈 수 없는 자리다: 아래로 갈수록 어둡게 덮어 걸을 수 있는 바닥과 가른다(STAGE_ROOMS.frontShade).

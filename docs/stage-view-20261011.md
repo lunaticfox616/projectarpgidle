@@ -43,7 +43,7 @@
 - 액트 1 바닥 3종은 원본 그대로다. 편집한 투명 자산 19장의 원본 크기·투명 외곽·발 자리를 보존했고, 28개 지역의 ground,
   door, fit, family, 방별 소품 목록과 모든 소품 조립 수치는 바꾸지 않았다. 새 그림의 세부 질감에는 생성 편집에 따른 작은 차이가 있다.
 - `node scripts/build-stage-regions.cjs --refresh-current`는 현재 PNG에서 위아래 메움 색과 캐시 키만 갱신한다. 원래 묶음을 재수입하거나
-  새 지역을 만들지 않는다. 액트 1 조각은 `STAGE_SCENES.version`으로 브라우저의 이전 그림 캐시를 구분한다.
+  새 지역을 만들지 않는다. 묶음 밖의 방 그림은 `--add-variant`로 더한다(심해의 수심 띠 셋, 묶음을 다시 옮겨도 남는다). 액트 1 조각은 `STAGE_SCENES.version`으로 브라우저의 이전 그림 캐시를 구분한다.
 - 실제 게임 전후 비교와 제작·검수 기록: `artifacts/worldtree-palette-20261017/production/index.html`.
   이 폴더의 `before/`에는 교체 전 원본, `selected.json`에는 이미지 편집 입력·프롬프트, `pack-report.json`에는 크기·해시가 있다.
   색감 시안 한 장으로 지역 전체나 조립 구조를 대체하지 않는다.
@@ -368,7 +368,9 @@ PixelLab은 유료라 쓰지 않는다(2026-10-12 사용자): 몬스터 그림�
   발자국은 공용 그림 그대로다.
 - 구역과 지역의 짝(data/stage-room-plans.js regions): 액트 2~10은 act-02~act-10, 혼돈 chaos, 혼돈 심화 deep-chaos, 혼돈계 chaos-realm,
   창공의 탑 sky, 지하계 underworld, 고대 미궁 labyrinth, 운석 meteor, 시련 trial-01~05, 시간의 균열은 과거 act-02와 미래 act-06,
-  정점 보스는 그 영역(지하계, 심해 ocean, 창공, 경계의 관측자는 beyond), 버려진 날은 act-06, 잔향체는 cosmos. 그 밖의 구역(아틀라스
+  정점 보스는 그 영역(지하계, 심해 ocean-trench, 창공, 경계의 관측자는 beyond), 버려진 날은 act-06, 잔향체는 cosmos.
+  심해는 지도를 지을 때의 수심 띠(regions.ocean: 300m 아래 ocean-shallow, 700m 아래 ocean, 그 밑 ocean-lightless, 가디언 투기장 ocean-trench)이고,
+  빛줄기, 떠다니는 입자, 리프트, 거품, 발밑 먼지, 공기 기둥은 js/canvas-stage-ocean.js(STAGE_OCEAN)가 그린다. 그 밖의 구역(아틀라스
   지도, 다른 보스)은 빌려 걷는 액트 지도의 그림이다. 액트 1은 뿌리끝 성소 조각 묶음(root-end-v5)이다.
 - 그림을 불러오는 동안은 방을 어둡게 둔다(다른 지형의 방이 잠깐 비쳤다가 바뀌지 않게). 그림 폴더가 없는 판에서는 예전 무대가 나온다.
   방 그림은 최근 세 지역 것만 기억한다(한 장이 풀리면 6MB쯤).

@@ -13,7 +13,7 @@
 //           family 재질, sky와 earth 그림 맨 위와 맨 아래의 색, normal, elite, boss 그 구실의 방에 놓는 소품 번호, bossSide 보스 방의 큰 구조물이 서는 쪽.
 const STAGE_REGIONS = Object.freeze({
     path: 'assets/stage-scenes/regions/',
-    version: 'ba18eb907d',
+    version: 'e283485d50',
     fit: Object.freeze({ width: 1280, height: 720, floorBottom: 536, margin: 192 }),
     families: Object.freeze({
         F01: Object.freeze({
@@ -81,6 +81,9 @@ const STAGE_REGIONS = Object.freeze({
         'underworld': Object.freeze({ name: '지하계', width: 1672, height: 941, ground: 405, door: 0.55, family: 'F09', sky: '#2a2b35', earth: '#1b1c25', normal: Object.freeze([0, 1]), elite: Object.freeze([2]), boss: Object.freeze([3]), bossSide: 'east' }),
         'sky': Object.freeze({ name: '창공의 탑', width: 1672, height: 941, ground: 449, door: 0.5, family: 'F10', sky: '#5d5a70', earth: '#66595d', normal: Object.freeze([0, 6]), elite: Object.freeze([2]), boss: Object.freeze([3]), bossSide: 'west' }),
         'ocean': Object.freeze({ name: '심해', width: 1672, height: 941, ground: 375, door: 0.415, family: 'F11', sky: '#1f3949', earth: '#3e3c40', normal: Object.freeze([0, 1]), elite: Object.freeze([2]), boss: Object.freeze([3]), bossSide: 'east' }),
+        'ocean-trench': Object.freeze({ name: '심해 해구', width: 1672, height: 941, ground: 375, door: 0.415, family: 'F11', sky: '#030a14', earth: '#1d283a', normal: Object.freeze([0, 1]), elite: Object.freeze([2]), boss: Object.freeze([3]), bossSide: 'east' }),
+        'ocean-lightless': Object.freeze({ name: '심해 무광층', width: 1672, height: 941, ground: 375, door: 0.415, family: 'F11', sky: '#040c19', earth: '#2e3b55', normal: Object.freeze([0, 1]), elite: Object.freeze([2]), boss: Object.freeze([3]), bossSide: 'east' }),
+        'ocean-shallow': Object.freeze({ name: '심해 얕은 암초', width: 1672, height: 941, ground: 375, door: 0.415, family: 'F11', sky: '#4f9eb4', earth: '#e3d1ae', normal: Object.freeze([0, 1]), elite: Object.freeze([2]), boss: Object.freeze([3]), bossSide: 'east' }),
         'cosmos': Object.freeze({ name: '우주계', width: 1672, height: 941, ground: 388, door: 0.85, family: 'F12', sky: '#1b1b26', earth: '#24232b', normal: Object.freeze([0, 1]), elite: Object.freeze([2]), boss: Object.freeze([3]), bossSide: 'west' }),
         'void': Object.freeze({ name: '공허 균열', width: 1672, height: 941, ground: 390, door: 0.32, family: 'F12', sky: '#353234', earth: '#2b282a', normal: Object.freeze([1]), elite: Object.freeze([2]), boss: Object.freeze([3]), bossSide: 'east' }),
         'beehive': Object.freeze({ name: '벌집', width: 1672, height: 941, ground: 400, door: 0.62, family: 'F13', sky: '#4d2b22', earth: '#3d2421', normal: Object.freeze([0, 1, 6]), elite: Object.freeze([2, 0]), boss: Object.freeze([3]), bossSide: 'west' }),
