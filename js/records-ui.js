@@ -185,8 +185,9 @@
         let cards = view.incidents.map(row => (row.hidden && !row.count
             ? statCard('', '???', '-', '숨은 사건', INCIDENT_TONE.unknown)
             : statCard('', row.name, `${formatCount(row.count)}회`, row.hidden ? '숨은 사건' : '', INCIDENT_TONE[row.key]))).join('');
+        const hidden = view.incidents.filter(row => row.hidden), found = hidden.filter(row => row.count > 0).length; // 찾은 숨은 사건 수
         return `<section class="records-section">
-            <div class="records-section-title">잔잔한 사건<span>사냥 중에 드물게 일어나는 일, 루프를 넘겨도 유지됩니다</span></div>
+            <div class="records-section-title">잔잔한 사건<span>사냥 중에 드물게 일어나는 일, 루프를 넘겨도 유지됩니다. 숨은 사건 ${found}/${hidden.length}</span></div>
             <div class="records-stat-row">${cards}</div>
         </section>`;
     }
