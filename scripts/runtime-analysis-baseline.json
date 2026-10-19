@@ -1578,7 +1578,7 @@
     },
     "renderBattlefield|max-lines-per-function|Function 'renderBattlefield' has too many lines (#). Maximum allowed is #.": {
       "count": 1,
-      "max": 402
+      "max": 390
     },
     "renderBattlefield|complexity|Function 'renderBattlefield' has a complexity of #. Maximum allowed is #.": {
       "count": 1,
@@ -17153,6 +17153,7 @@
     "dependency:renderBattlefield->setElementText",
     "dependency:renderBattlefield->spawnDamageText",
     "dependency:renderBattlefield->spawnHeroHurtText",
+    "dependency:renderBattlefield->spawnSummonHurtText",
     "dependency:renderBattlefield->updateBattleVfxDensity",
     "dependency:renderBattlefield->updateBossAnnouncement",
     "dependency:renderBattlefield->updatePlayerGridVisualMotion",
@@ -20278,6 +20279,9 @@
     "dependency:spawnHeroHurtText->getHeroBodyHeight",
     "dependency:spawnHeroHurtText->spawnDamageText",
     "dependency:spawnPassiveRevealBurstOverlay->updatePassiveTreeOverlayTransform",
+    "dependency:spawnSummonHurtText->getDamageTextBodyY",
+    "dependency:spawnSummonHurtText->hasGridCell",
+    "dependency:spawnSummonHurtText->spawnDamageText",
     "dependency:spawnVoidBreachReinforcement->applyVoidRiftMobTuning",
     "dependency:spawnVoidBreachReinforcement->createEnemy",
     "dependency:spawnVoidBreachReinforcement->ensureCombatGridRuntime",
