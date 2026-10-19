@@ -69,8 +69,9 @@ const explorationAtlasUi = (() => {
         if (region.id === 'sea') return `현재 ${Math.floor(game.ocean.depthM)}m, 거점 ${Math.floor(game.ocean.checkpointM)}m`;
         return `보스 격파 기록 ${(game.cosmosAtlas?.bossClears || []).length}`;
     }
-    function floorProgress(highest,current) {
-        return `최고 ${highest}층` + (current == null ? '' : ` / 현재 루프 ${current}층`);
+    /** cleared: the highest floor beaten (the entry cards' 도달 최고 is the floor reached, one higher). */
+    function floorProgress(cleared,current) {
+        return `돌파 ${cleared}층` + (current == null ? '' : ` / 현재 루프 ${current}층`);
     }
     function destinationGroupsHtml(region) {
         const routes = region.routes.filter(available).filter(route => route !== 'map-explore-hunting');
