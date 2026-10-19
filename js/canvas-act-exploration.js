@@ -12,7 +12,8 @@ const actExplorationView=(()=>{
     // below the hero is not left at the screen's lower edge behind the HUD (2026-10-05 user request). Eased, never a jump.
     const BOSS_LEAD_TILES=3,BOSS_LEAD_PER_SEC=3;
     // A boss's entrance on a view too narrow for hero and boss (a phone in portrait: the boss would stand less than this many tiles
-    // inside it) centres the boss; the hero may leave the view meanwhile. The whole entrance used to play off screen there (2026-10-17).
+    // inside it) centres the boss, and so does the rest of its name band; the hero may leave the view meanwhile. The whole entrance
+    // used to play off screen there (2026-10-17), and the camera swung back to the far hero while the name still showed (2026-10-19).
     const ENTRANCE_MARGIN_TILES=1.5;
     let lead={run:null,gx:0,gy:0,at:0};
     /** Whole-pixel camera zoom for the 16px art: ×3 (48px tiles) on phones, ×4 once the view keeps about 16×12 tiles —
@@ -55,14 +56,16 @@ const actExplorationView=(()=>{
         return {gx:cell.gx+focus.gx+.5,gy:cell.gy+focus.gy+.5};
     }
     /** Where the camera leans (cells from the hero): half the way to the boss, at most BOSS_LEAD_TILES a side. During the boss's
-     * entrance, when that leaves the boss less than ENTRANCE_MARGIN_TILES inside the view, onto the boss (story bosses are wide). */
+     * entrance and while its name band is up (canvas-battlefield.js updateBossAnnouncement, a frame behind), when that leaves the
+     * boss less than ENTRANCE_MARGIN_TILES inside the view, onto the boss (story bosses are wide). */
     function leanTarget(run,cell,view) {
         const boss=focusBoss(run),center=boss&&hasGridCell(boss)?getGridUnitCenter(boss):null;
         if(!center)return {gx:0,gy:0};
         const clamp=value=>Math.max(-BOSS_LEAD_TILES,Math.min(BOSS_LEAD_TILES,value));
         const dx=center.gx-cell.gx,half={gx:clamp(dx/2),gy:clamp((center.gy-cell.gy)/2)};
         const reach=Math.abs(dx)-(view.columns/2-ENTRANCE_MARGIN_TILES);
-        return actExplorationState.entrance(run) && reach>Math.abs(half.gx) ? {gx:dx,gy:half.gy} : half;
+        const shown=actExplorationState.entrance(run) || battleVisualState.bossBannerFor===boss.id;
+        return shown && reach>Math.abs(half.gx) ? {gx:dx,gy:half.gy} : half;
     }
     /** The boss the camera leans toward: the one fighting, else the one rising in its entrance. */
     function focusBoss(run) {

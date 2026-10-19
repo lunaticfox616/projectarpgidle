@@ -3134,13 +3134,16 @@ function drawLowHealthEdge(ctx, scene) {
 const BOSS_BANNER_MS = 2600;
 function updateBossAnnouncement(enemies, now) {
     const boss = (enemies || []).find(enemy => enemy && enemy.isBoss) || bossEntranceView.revealedBoss(now);
+    battleVisualState.bossBannerFor = null; // the boss whose name is up: the camera keeps it in view (js/canvas-act-exploration.js)
     if (!boss) return null;
     if (battleVisualState.bossAnnounceId !== boss.id) {
         battleVisualState.bossAnnounceId = boss.id;
         battleVisualState.bossAnnounceStart = now;
     }
     const age = now - battleVisualState.bossAnnounceStart;
-    return age >= 0 && age <= BOSS_BANNER_MS ? { boss, age } : null;
+    if (age < 0 || age > BOSS_BANNER_MS) return null;
+    battleVisualState.bossBannerFor = boss.id;
+    return { boss, age };
 }
 
 function getBossBannerAlpha(age) {
