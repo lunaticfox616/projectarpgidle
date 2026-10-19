@@ -2179,7 +2179,7 @@ function getEnemyAttackMotion(fx, enemyPos, playerPos, now, distance) {
 const ENEMY_HIT_RECOIL = Object.freeze({ ms: 170, normal: 0.085, crit: 0.14, heavy: 0.17 });
 // 피격감(2026-10-04): the hero is knocked back from the attacker, further the more life the hit took (tiles).
 const PLAYER_HURT_RECOIL = Object.freeze({ ms: 170, min: 0.035, perLife: 0.5, max: 0.13 });
-// The hero's incoming damage numbers add up per this many ms of combat (dealt hits: 250 per skill and target).
+// The hero's and each summon's incoming damage numbers add up per this many ms of combat (dealt hits: 250 per skill and target).
 const HURT_TEXT_MERGE_MS = 400;
 
 /** The damage a hit took, on the hero's body. Hits landing together add up into one number ("-60 2타"), like dealt hits: in a
@@ -2193,6 +2193,20 @@ function spawnHeroHurtText(fx, playerPos, now) {
         enemyHit: true,
         deflected: !!fx.deflected,
         aggregateKey: `hurt:${fx.deflected ? 'block' : 'hit'}:${Math.floor(fx.start / HURT_TEXT_MERGE_MS)}`
+    });
+}
+
+/** The damage a summon took, on its body (on the hero when the summon is gone), added up per summon like the hero's. */
+function spawnSummonHurtText(fx, gridProj, playerPos, now) {
+    const summon = (game.summons || []).find(row => row && row.id === fx.summonId);
+    const at = summon && gridProj && hasGridCell(summon) ? gridProj.cellToScreen(summon.gx, summon.gy) : playerPos;
+    spawnDamageText({
+        start: now,
+        x: at.x,
+        y: getDamageTextBodyY(at.y, 34),
+        value: fx.damage,
+        enemyHit: true,
+        aggregateKey: `summon:${fx.summonId}:${Math.floor(fx.start / HURT_TEXT_MERGE_MS)}`
     });
 }
 
@@ -2764,19 +2778,7 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
             if (typeof fx.damage === 'number') spawnHeroHurtText(fx, playerPos, now);
             handled = true;
         } else if (fx.type === 'summonHit') {
-            let summon = (game.summons || []).find(row => row && row.id === fx.summonId);
-            let summonPos = summon && gridProj && hasGridCell(summon)
-                ? gridProj.cellToScreen(summon.gx, summon.gy)
-                : playerPos;
-            if (typeof fx.damage === 'number') {
-                spawnDamageText({
-                    start: now,
-                    x: summonPos.x,
-                    y: getDamageTextBodyY(summonPos.y, 34),
-                    value: fx.damage,
-                    enemyHit: true
-                });
-            }
+            if (typeof fx.damage === 'number') spawnSummonHurtText(fx, gridProj, playerPos, now);
             handled = true;
         } else if (fx.type === 'enemyEvade') {
             let enemyPos = enemyPosMap[fx.enemyId] || battleVisualState.enemyGhostPos[fx.enemyId] || { x: width * 0.72, y: height * 0.58 };
