@@ -91,8 +91,8 @@
         let summary = view.loopSummary;
         let summaryRow = `<div class="records-stat-row">
             ${statCard('', '완료한 루프', `${formatCount(summary.count)}회`, '기록 시작 이후', TONE.loop)}
-            ${statCard('', '최단 루프', summary.fastestMs ? formatDuration(summary.fastestMs) : '—', summary.fastestLoop ? `루프 ${formatCount(summary.fastestLoop)}, 진행 시간` : '아직 없음', TONE.level)}
-            ${statCard('', '평균 루프', summary.averageMs ? formatDuration(summary.averageMs) : '—', '진행 시간', TONE.time)}
+            ${statCard('', '최단 루프', summary.fastestMs ? formatDuration(summary.fastestMs) : '-', summary.fastestLoop ? `루프 ${formatCount(summary.fastestLoop)}, 진행 시간` : '아직 없음', TONE.level)}
+            ${statCard('', '평균 루프', summary.averageMs ? formatDuration(summary.averageMs) : '-', '진행 시간', TONE.time)}
         </div>`;
 
         if (!view.loops.length) {
@@ -107,7 +107,7 @@
             <td class="records-num${summary.fastestMs && row.activeMs === summary.fastestMs ? ' is-best' : ''}">${escapeHTML(formatDuration(row.activeMs))}</td>
             <td class="records-num">${escapeHTML(formatDuration(row.durationMs))}</td>
             <td>${escapeHTML(getZoneLabel(row.maxZoneId))}</td>
-            <td class="records-num records-chaos">${row.bestAbyssDepth ? `${formatCount(row.bestAbyssDepth)}층` : '—'}</td>
+            <td class="records-num records-chaos">${row.bestAbyssDepth ? `${formatCount(row.bestAbyssDepth)}층` : '-'}</td>
             <td class="records-num records-level">Lv.${formatCount(row.level)}</td>
             <td class="records-num${row.deaths > 0 ? ' is-deaths' : ''}">${formatCount(row.deaths)}</td>
         </tr>`).join('');
@@ -142,8 +142,8 @@
             let isBestThisLoop = current !== undefined && best !== undefined && current <= best;
             return `<tr>
                 <td>${escapeHTML(getZoneLabel(id))}</td>
-                <td class="records-num">${current === undefined ? '—' : escapeHTML(formatDuration(current))}</td>
-                <td class="records-num${isBestThisLoop ? ' is-best' : ''}">${best === undefined ? '—' : escapeHTML(formatDuration(best))}</td>
+                <td class="records-num">${current === undefined ? '-' : escapeHTML(formatDuration(current))}</td>
+                <td class="records-num${isBestThisLoop ? ' is-best' : ''}">${best === undefined ? '-' : escapeHTML(formatDuration(best))}</td>
             </tr>`;
         }).join('');
         return `<section class="records-section">
