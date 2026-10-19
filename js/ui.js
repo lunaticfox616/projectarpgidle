@@ -3055,8 +3055,10 @@ function canAutoEnterGrandBreach(){
 /** 대균열 자동입장: 이야기 액트를 깰 때는 들어가지 않는다(2026-10-20: 지난 루프에 열린 대균열이 새 루프의 액트 1을 깨는 순간 1레벨
  * 영웅을 들여보내 패배했다). 혼돈 구역이나 아틀라스 지도에서 들어간다. */
 function autoEnterGrandBreachIfReady(){
-    if (!canAutoEnterGrandBreach() || getZone(game.currentZoneId)?.type === 'act') return false;
+    // 콘텐츠 시작이 막힌 곳(열린 아틀라스 지도 같은)에서는 조용히 기다린다: 거절과 "진입" 기록이 지도마다 쌓였다(2026-10-20 검토)
+    if (!canAutoEnterGrandBreach() || getZone(game.currentZoneId)?.type === 'act' || getContentStartBlockReason()) return false;
     enterGrandBreach({ automatic: true });
+    if (game.currentZoneId !== 'grand_breach_run') return false;
     addLog('🌌 자동입장: 대균열이 열려 즉시 진입합니다.', 'season-up');
     return true;
 }

@@ -132,6 +132,9 @@ const stumpCubeUi = (() => {
         if (!result.ok) return showGameToast(result.reason, { tone: 'warning' });
         const names = result.outputs.map(row => itemName(row.kind, row.item)).join(', ');
         addLog(`🧩 조합창 ${result.recipe.name}: ${names}`, 'loot-rare');
+        // 완전한 코어(js/core-items.js rollPerfect)는 드랍처럼 체이싱 티어 알림도
+        result.outputs.filter(row => row.kind === 'core' && row.item && row.item.perfect)
+            .forEach(row => dispatchRuntimeEvent('incident', { text: `체이싱 코어를 획득했습니다. 「${row.item.name}」`, tone: 'chase', chase: true }));
         queueImportantSave(300);
         updateStaticUI();
         refreshCube();

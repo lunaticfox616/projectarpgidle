@@ -126,9 +126,10 @@ const colonyWards = (() => {
         if (!unlocked(state)) return '군락지가 열리면 만들 수 있습니다.';
         if (state.woodsmanBuildLock) return '☠️ 나무꾼 전투 중에는 만들 수 없습니다.';
         if ((Number(state.currencies.colonyShard) || 0) < R.craftCost) return `군락지 편린이 부족합니다(${R.craftCost}개 필요).`;
-        // 자리부터 본다: 가득 찬 가방에 넣으면 줍기의 넘침 해체가 편린을 주고(값은 안 치른다), 누를 때마다 편린이 늘었다(2026-10-20).
+        // 가득 찬 가방에서도 지킨다(guaranteedKeep: 초과 보관, 빈 액막이 칸이 있으면 자동 장착이 먼저): 줍기의 넘침 해체가 편린을 주고
+        // 값은 안 치러, 누를 때마다 편린이 늘었다(2026-10-20).
         const item = create(random, 1);
-        if (!canStoreEquipmentItems([item], state) || !addItemToInventory(item, { ignoreFilter: true, ignoreAutoSalvage: true })) return '가방에 자리가 없습니다.';
+        if (!addItemToInventory(item, { ignoreFilter: true, ignoreAutoSalvage: true, guaranteedKeep: true })) return '가방에 자리가 없습니다.';
         state.currencies.colonyShard -= R.craftCost;
         return '';
     }
