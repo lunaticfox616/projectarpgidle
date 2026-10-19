@@ -10149,22 +10149,33 @@ function getActiveRarityFilterSet() {
     return ['normal', 'magic', 'rare', 'unique'].filter(rarity => !!f[rarity]);
 }
 
+/** The kind the bag's 필터 panel shows alone, or 'all'. A picked kind the bag no longer holds shows every kind again
+ * (js/ui.js getSortedEquipmentInventoryRows), so it counts as 'all' here too. */
+function getShownSlotFilter() {
+    let slot = String((game.settings && game.settings.equipmentSlotFilter) || 'all');
+    return slot !== 'all' && (game.inventory || []).some(item => item && item.slot === slot) ? slot : 'all';
+}
+
+/** 표시 등급 해체: what the bag shows, the grades left on and the kind picked in the 필터 panel (2026-10-19: the kind used to be ignored,
+ * so picking 무기 and 일반 salvaged every normal item). */
 async function bulkSalvageSelected() {
     let selectedRarities = getActiveRarityFilterSet();
     if (selectedRarities.length === 0) return addLog('해체할 등급을 먼저 선택하세요. (등급 필터에서 선택)', 'attack-monster');
     let rarityLabels = ITEM_RARITY_LABELS;
-    let targetItems = (game.inventory || []).filter(item => item && !isBulkSalvageProtectedItem(item) && selectedRarities.includes(item.rarity));
+    let shownSlot = getShownSlotFilter();
+    let isShown = item => selectedRarities.includes(item.rarity) && (shownSlot === 'all' || item.slot === shownSlot);
+    let targetItems = (game.inventory || []).filter(item => item && !isBulkSalvageProtectedItem(item) && isShown(item));
     let targetCount = targetItems.length;
     if (targetCount <= 0) return addLog('선택한 등급의 해체 가능한 장비가 없습니다.', 'attack-monster');
     let labelText = selectedRarities.map(r => rarityLabels[r] || r).join('/');
     const note = bagItems.countNote(targetItems);
-    if (!await requestGameConfirmation(`[${labelText}] 등급 장비 ${targetCount}개를 해체합니다.${note ? `\n${note} 포함` : ''}\n잠긴 장비는 보호됩니다.`, {
+    if (!await requestGameConfirmation(`[${labelText}] 등급 ${shownSlot === 'all' ? '장비' : shownSlot} ${targetCount}개를 해체합니다.${note ? `\n${note} 포함` : ''}\n잠긴 장비는 보호됩니다.`, {
         title: '등급 일괄 해체',
         tone: 'danger',
         confirmLabel: `${targetCount}개 해체`
     })) return;
     const targets = confirmedSalvageTargets(targetItems);
-    const lockedSkipped = game.inventory.filter(item => selectedRarities.includes(item.rarity) && isBulkSalvageProtectedItem(item)).length;
+    const lockedSkipped = game.inventory.filter(item => isShown(item) && isBulkSalvageProtectedItem(item)).length;
     if (targets.length === 0) {
         if (lockedSkipped > 0) return addLog(`🔒 선택 등급 아이템이 모두 보호 상태입니다. (잠금/배치/세팅 ${lockedSkipped}개)`, 'attack-monster');
         return addLog('선택한 등급의 장비가 없습니다.', 'attack-monster');
