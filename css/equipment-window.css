@@ -122,8 +122,8 @@
   padding: 10px; border: 1px solid #c79a4a; background: linear-gradient(180deg, #221a12, #120e0a);
   box-shadow: 0 0 0 1px #000, inset 0 0 0 3px #17120d, inset 0 0 0 4px rgba(227, 189, 114, .3), 0 12px 24px rgba(0, 0, 0, .75); }
 /* 도구 줄: 단추 하나가 가방 한 칸 높이다. 펼침 창은 단추 왼쪽, 가방 위에 뜬다(js/equipment-window-ui.js가 하나만 열어 둔다). */
-:root body #item-tab-equip .eqw-rail { display: grid; grid-auto-rows: var(--equipment-grid-cell-size); align-content: start; }
-:root body #item-tab-equip .eqw-rail-menu { position: relative; }
+/* 판은 도구 줄 맨 위에서 가방 쪽으로 열린다(단추 높이에서 열면 기본 창에서 아래가 잘렸다). */
+:root body #item-tab-equip .eqw-rail { position: relative; display: grid; grid-auto-rows: var(--equipment-grid-cell-size); align-content: start; }
 :root body #item-tab-equip .eqw-rail-tool { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; box-sizing: border-box;
   width: 100%; height: var(--equipment-grid-cell-size); min-height: 0; padding: 0 2px; border: 1px solid rgba(160, 132, 82, .55); border-radius: 0;
   background: linear-gradient(180deg, #1d1710, #110d09); color: #e3cf9f; font-size: 11px; line-height: 1; list-style: none; cursor: pointer; }
@@ -144,7 +144,7 @@
 :root body #item-tab-equip .eqw-rail-tool[data-enabled="true"]::after { background: #a8d5a7; }
 :root body #item-tab-equip .eqw-rail-tool small { position: absolute; top: 2px; right: 2px; min-width: 14px; height: 14px; padding: 0 3px; border-radius: 999px; color: #081018;
   background: #75d5a1; font-size: 9px; font-weight: 900; line-height: 14px; text-align: center; }
-:root body #item-tab-equip .eqw-rail-panel { right: calc(100% + 6px); top: 0; width: min(340px, 78vw); }
+:root body #item-tab-equip .eqw-rail-panel { right: calc(100% + 6px); top: 0; width: min(340px, 78vw); max-height: calc(var(--equipment-grid-cell-size) * 10); overflow: auto; }
 :root body #item-tab-equip .eqw-rail-title { margin: 0; color: var(--eqw-gold); font-size: 12px; }
 :root body #item-tab-equip .eqw-rail-title b { margin-left: 6px; color: var(--eqw-muted); font-weight: 400; }
 :root body #item-tab-equip .eqw-rail-title b.is-on { color: #a8d5a7; }
@@ -306,8 +306,8 @@
 }
 /* 휴대폰: 가방 판이 한 단이 되어 도구 줄은 가방 아래 가로 한 줄, 펼침 창은 위로(가방을 덮으며) 연다. */
 @media (max-width: 640px) {
-  :root body #item-tab-equip .eqw-rail { position: relative; display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
-  :root body #item-tab-equip .eqw-rail-menu { position: static; display: flex; flex: 1 1 0; }
+  :root body #item-tab-equip .eqw-rail { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+  :root body #item-tab-equip .eqw-rail-menu { display: flex; flex: 1 1 0; }
   :root body #item-tab-equip .eqw-rail > .eqw-rail-tool, :root body #item-tab-equip .eqw-rail-menu > .eqw-rail-tool { flex: 1 1 0; flex-direction: row; height: 40px; }
   :root body #item-tab-equip .eqw-rail-panel { left: 0; right: 0; top: auto; bottom: calc(100% + 6px); width: auto; max-height: 60vh; overflow: auto; }
 }
