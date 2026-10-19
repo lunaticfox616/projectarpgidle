@@ -180,13 +180,18 @@ function createCloudSaveState(root) {
     return payload;
 }
 
-function createCloudSaveRequestBody(userId, sourceGame) {
+/** The everyday cloud sync's save data, in the shape of the local save and the leaving upload (serializeSaveState, createSaveSnapshot):
+ * the workbench tidied, a room stage run sealed (this body alone skipped both, 2026-10-20) and the runtime-only fields dropped. The
+ * "nothing changed" check compares prints of this shape (js/ui.js isCloudSaveUnchangedSinceUpload). */
+function createCloudSyncPayload(sourceGame) {
     const payload=createCloudSaveState(sourceGame || game || {});
-    // 로컬 저장과 나갈 때 업로드와 같은 모양(serializeSaveState): 작업대 정리와 방 단위 탐험의 봉인. 이 본문만 빠뜨렸다(2026-10-20).
     payload.craftingWorkspace = craftingWorkspaceState.normalize(payload.craftingWorkspace, payload.currencies);
     payload.actExploration = actExplorationRooms.seal(payload.actExploration);
     dropRuntimeOnlySaveFields(payload);
-    return JSON.stringify({ user_id: userId, save_data: payload });
+    return payload;
+}
+function createCloudSaveRequestBody(userId, sourceGame) {
+    return JSON.stringify({ user_id: userId, save_data: createCloudSyncPayload(sourceGame) });
 }
 
 /** Content print of a cloud save without what moves while nothing happens: saveMeta (save times), the stall clock

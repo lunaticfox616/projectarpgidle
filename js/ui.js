@@ -12348,7 +12348,7 @@ function isCloudSaveDirty() {
 }
 /** Only clocks moved since the last upload: an upload would change nothing on the server. */
 function isCloudSaveUnchangedSinceUpload() {
-    return !!cloudState.lastUploadedFingerprint && cloudSaveFingerprint(createCloudSaveState(game)) === cloudState.lastUploadedFingerprint;
+    return !!cloudState.lastUploadedFingerprint && cloudSaveFingerprint(createCloudSyncPayload(game)) === cloudState.lastUploadedFingerprint; // 올린 본문과 같은 모양
 }
 
 function markCloudSaveUnchanged() {
@@ -12688,7 +12688,7 @@ function buildPageExitCloudRequest(config) {
         Prefer: revisionEnabled ? 'return=representation' : 'resolution=merge-duplicates,return=minimal'
     };
     let endpoint = config.supabaseUrl + (revisionEnabled ? '/rest/v1/rpc/commit_cloud_save' : '/rest/v1/cloud_saves');
-    return { body, headers, endpoint, revisionEnabled, fingerprint: cloudSaveFingerprint(createCloudSaveState(game)) };
+    return { body, headers, endpoint, revisionEnabled, fingerprint: cloudSaveFingerprint(createCloudSyncPayload(game)) };
 }
 
 /** Uploaded a moment ago, or only clocks moved since the last upload: switching apps back and forth uploads once. */
