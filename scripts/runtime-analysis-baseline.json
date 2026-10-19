@@ -18391,6 +18391,7 @@
     "dependency:restoreSelectedMobileWindow->closeAllWindows",
     "dependency:restoreSelectedMobileWindow->openCommunityDock",
     "dependency:restoreSelectedMobileWindow->openWindow",
+    "dependency:restoreTemporaryItem->canStoreItems",
     "dependency:restoreTemporaryItem->cancelCarry",
     "dependency:restoreTemporaryItem->ensureState",
     "dependency:restoreTemporaryItem->findAddPlacement",
