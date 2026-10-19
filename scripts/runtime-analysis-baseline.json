@@ -168,10 +168,6 @@
       "count": 1,
       "max": 22
     },
-    "unequipItemToGrid|complexity|Function 'unequipItemToGrid' has a complexity of #. Maximum allowed is #.": {
-      "count": 1,
-      "max": 13
-    },
     "hasActiveBeehiveRuntimeState|complexity|Function 'hasActiveBeehiveRuntimeState' has a complexity of #. Maximum allowed is #.": {
       "count": 1,
       "max": 15
@@ -8855,6 +8851,7 @@
     "dependency:findSkyEngraveSlot->getSelectedGemEngraveSlot",
     "dependency:findStoredEquipmentAffix->getExplicitModStatIds",
     "dependency:findStoredEquipmentAffix->makeDualDefenseAffixMod",
+    "dependency:findUnequipPlacement->Number",
     "dependency:fineLines->Number",
     "dependency:finish->apply",
     "dependency:finish->applySkippedGuide",
@@ -22065,8 +22062,8 @@
     "dependency:unequipBossStoneByGalaxy->getState",
     "dependency:unequipBossStoneByGalaxy->renderCosmosAtlas",
     "dependency:unequipItem->unequipItemToGrid",
-    "dependency:unequipItemToGrid->Number",
     "dependency:unequipItemToGrid->addLog",
+    "dependency:unequipItemToGrid->findUnequipPlacement",
     "dependency:unequipItemToGrid->getCraftSelectionRef",
     "dependency:unequipItemToGrid->isCraftSelectionEquip",
     "dependency:unequipItemToGrid->normalizeSupportLoadout",
