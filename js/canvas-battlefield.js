@@ -1713,6 +1713,17 @@ function getBodyCueAnchor(pos, bodyHeight) {
     return { x: Math.round(pos.x), y: Math.round(pos.y - bodyHeight * 0.92) };
 }
 
+/** The drawn body height an enemy's numbers and cues centre on: its bar lift less the gap (46 for a ghost left without its enemy). */
+function getEnemyBodyHeight(enemyPos) {
+    return enemyPos.enemy ? getEnemyFieldBarLift(enemyPos.enemy) - 10 : 46;
+}
+
+/** The hero's drawn body height: feet to the drawn head, or the old fixed height before the sprite has drawn. */
+function getHeroBodyHeight(playerPos, now) {
+    const head = getHeroHeadY(now);
+    return head === null ? 82 * HERO_SIZE_SCALE : playerPos.y - head;
+}
+
 /** An untouched ordinary monster carries no bar: a pack walking in reads as monsters, not a row of full red strips (2026-10-04
  * visibility). The bar appears on the first hit or while targeted; elites and bosses always show theirs. */
 function isEnemyFieldBarShown(enemy, targeted) {
@@ -2174,11 +2185,10 @@ const HURT_TEXT_MERGE_MS = 400;
 /** The damage a hit took, on the hero's body. Hits landing together add up into one number ("-60 2타"), like dealt hits: in a
  * crowd up to ten stacked over the hero and hid it (2026-10-19). Blocked hits keep their own number. */
 function spawnHeroHurtText(fx, playerPos, now) {
-    const head = getHeroHeadY(now);
     spawnDamageText({
         start: now,
         x: playerPos.x,
-        y: getDamageTextBodyY(playerPos.y, head === null ? 82 * HERO_SIZE_SCALE : playerPos.y - head),
+        y: getDamageTextBodyY(playerPos.y, getHeroBodyHeight(playerPos, now)),
         value: fx.damage,
         enemyHit: true,
         deflected: !!fx.deflected,
@@ -2726,7 +2736,7 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
                 spawnDamageText({
                     start: now,
                     x: enemyPos.x,
-                    y: getDamageTextBodyY(enemyPos.y, enemyPos.enemy ? getEnemyFieldBarLift(enemyPos.enemy) - 10 : 46),
+                    y: getDamageTextBodyY(enemyPos.y, getEnemyBodyHeight(enemyPos)),
                     value: Number.isFinite(Number(fx.rawDamage)) ? Number(fx.rawDamage) : fx.damage,
                     crit: !!fx.crit,
                     dot: !!fx.dot,
@@ -2770,7 +2780,7 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
             handled = true;
         } else if (fx.type === 'enemyEvade') {
             let enemyPos = enemyPosMap[fx.enemyId] || battleVisualState.enemyGhostPos[fx.enemyId] || { x: width * 0.72, y: height * 0.58 };
-            spawnDamageText({ start: now, ...getBodyCueAnchor(enemyPos, enemyPos.enemy ? getEnemyFieldBarLift(enemyPos.enemy) - 10 : 46),
+            spawnDamageText({ start: now, ...getBodyCueAnchor(enemyPos, getEnemyBodyHeight(enemyPos)),
                 value: fx.text || '회피!', miss: true, bodyCue: true, color: fx.color || '#c4e2ff' });
             handled = true;
         } else if (fx.type === 'statusText') {
@@ -2779,9 +2789,7 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
             let anchorPos = enemyPos || playerPos;
             if (bodyCue) {
                 // 회피 · 막아냄 · 성채화: 맞은 쪽 머리 위 가운데, 대미지 숫자와 같은 크기 결(2026-10-06 사용자 요청 — 몸 옆에 11px로 작게 떴다).
-                const head = enemyPos ? null : getHeroHeadY(now);
-                const bodyHeight = enemyPos ? (enemyPos.enemy ? getEnemyFieldBarLift(enemyPos.enemy) - 10 : 46)
-                    : (head === null ? 82 * HERO_SIZE_SCALE : playerPos.y - head);
+                const bodyHeight = enemyPos ? getEnemyBodyHeight(enemyPos) : getHeroBodyHeight(playerPos, now);
                 spawnDamageText({ start: now, ...getBodyCueAnchor(anchorPos, bodyHeight), value: fx.text || '회피!', miss: true, bodyCue: true,
                     color: fx.color || '#c4e2ff' });
             } else {
