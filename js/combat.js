@@ -26,12 +26,16 @@ const WARCRY_PHYSICAL_REDUCTION_CAP_BONUS_PCT = 3;
 const COMBAT_PROJECTILE_MIN_TRAVEL_MS = 120;
 const COMBAT_PROJECTILE_MS_PER_CELL = 55;
 const BOSS_ATTACK_IMPACT_DELAY_MS = 500;
-/** Floor 1's boss of a floor ladder by zone type: life and damage eased so the first floor is no wall. The sky tower's (2026-10-19, user:
- * "지하계 1층만큼 버틸 수 있게 더 낮춰줘"): the T15 build at loop 15 clears it as the underworld's, 6 of 6 in ten minutes, five without a
- * death; with the underworld's damage 0.74 it cleared 0 of 6 (nine deaths each). */
-const FIRST_FLOOR_BOSS_TUNING = Object.freeze({
-    underworld: Object.freeze({ hp: 0.81, damage: 0.74 }),
-    skyTower: Object.freeze({ hp: 0.81, damage: 0.3 })
+/** The first floors' bosses of a floor ladder by zone type, from floor 1 on: life and damage eased so the entry is no wall; floors past
+ * the list are not eased. The sky tower's (2026-10-19, user: "지하계 1층만큼 버틸 수 있게 더 낮춰줘", then "2층부터 6층까지 층마다 피해
+ * 0.15배씩 올려"): the T15 build at loop 15 clears floor 1 as the underworld's, 6 of 6 in ten minutes, five without a death, where the
+ * underworld's damage 0.74 cleared 0 of 6; floor 2 then clears 3 of 6 (underworld floor 2: 4 of 6). */
+const ENTRY_BOSS_EASING = Object.freeze({
+    underworld: Object.freeze([Object.freeze({ hp: 0.81, damage: 0.74 })]),
+    skyTower: Object.freeze([
+        Object.freeze({ hp: 0.81, damage: 0.3 }), Object.freeze({ hp: 0.85, damage: 0.45 }), Object.freeze({ hp: 0.89, damage: 0.6 }),
+        Object.freeze({ hp: 0.92, damage: 0.75 }), Object.freeze({ hp: 0.96, damage: 0.9 })
+    ])
 });
 const UNDERWORLD_ENTRY_BENCHMARK_HP_MULTIPLIER = 0.85;
 const UNDERWORLD_ENTRY_BENCHMARK_DAMAGE_MULTIPLIER = 0.82;
@@ -6410,16 +6414,15 @@ function getDifficultyBenchmarkProfile(zone) {
     return null;
 }
 
-/** A boss's entry easing: the underworld entry benchmark's own, floor 1's of the underworld and the sky tower (FIRST_FLOOR_BOSS_TUNING),
- * else none. Boss life, boss hits and the panel's recommended power all read it. */
+/** A boss's entry easing: the underworld entry benchmark's own, else its floor's in ENTRY_BOSS_EASING (the underworld's floor 1, the sky
+ * tower's floors 1-5), else none. Boss life, boss hits and the panel's recommended power all read it. */
 function getEntryBossTuning(zone, isBoss) {
     if (!isBoss || !zone) return { hp: 1, damage: 1 };
     if (isUnderworldEntryBenchmark(zone)) {
         return { hp: UNDERWORLD_ENTRY_BENCHMARK_HP_MULTIPLIER, damage: UNDERWORLD_ENTRY_BENCHMARK_DAMAGE_MULTIPLIER };
     }
-    const firstFloor = Object.hasOwn(FIRST_FLOOR_BOSS_TUNING, zone.type)
-        && Math.max(1, Math.floor(Number(zone.floor) || 1)) === 1;
-    return firstFloor ? FIRST_FLOOR_BOSS_TUNING[zone.type] : { hp: 1, damage: 1 };
+    const floors = Object.hasOwn(ENTRY_BOSS_EASING, zone.type) ? ENTRY_BOSS_EASING[zone.type] : [];
+    return floors[Math.max(1, Math.floor(Number(zone.floor) || 1)) - 1] || { hp: 1, damage: 1 };
 }
 
 function getUnderworldEnemyDamageMultiplier(zone) {
