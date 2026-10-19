@@ -365,12 +365,13 @@ function createDefaultOceanState() {
         lastTickAt: 0,
         bossClearM: 0,
         // 자동 재잠수(js/combat.js autoRediveOceanAfterClear): 마지막으로 떠오른 까닭('oxygen' | 'defeat' | 'manual' | ''), 잠수를 시작할
-        // 때의 리프트와 가디언 기록의 합, 새 리프트도 가디언 처치도 없이 산소가 떨어진 잠수가 이어진 수, 자동 재잠수로 들어간 잠수가
-        // 떠오르면 돌아갈 사냥터(구역 id, 자동 재잠수가 아니면 null)
+        // 때의 리프트와 가디언 기록의 합, 새 리프트도 가디언 처치도 없이 산소가 떨어진 잠수가 이어진 수. 떠오르면 돌아갈 사냥터(잠수를
+        // 시작한 액트나 혼돈 구역 id, 없으면 null)와 이 잠수가 자동 재잠수로 들어왔는지
         lastSurfaceReason: '',
         diveStartProgress: 0,
         fruitlessDives: 0,
-        autoReturnZoneId: null,
+        returnZoneId: null,
+        autoDive: false,
         permanentUpgrades: { oxygenMax: 0, oxygenSaving: 0, pressureResist: 0 }
     };
 }
@@ -457,8 +458,9 @@ function normalizeOceanDiveRecord(st) {
     st.lastSurfaceReason = ['oxygen', 'defeat', 'manual'].includes(st.lastSurfaceReason) ? st.lastSurfaceReason : '';
     st.diveStartProgress = Math.max(0, Math.floor(Number(st.diveStartProgress) || 0));
     st.fruitlessDives = Math.max(0, Math.min(OCEAN_AUTO_REDIVE.missLimit, Math.floor(Number(st.fruitlessDives) || 0)));
-    const back = st.autoReturnZoneId;
-    st.autoReturnZoneId = Number.isInteger(back) || (typeof back === 'string' && back !== '') ? back : null;
+    const back = st.returnZoneId;
+    st.returnZoneId = Number.isInteger(back) || (typeof back === 'string' && back !== '') ? back : null;
+    st.autoDive = st.autoDive === true;
 }
 function canEnterOceanDepth() {
     return !!ensureOceanState().unlocked;

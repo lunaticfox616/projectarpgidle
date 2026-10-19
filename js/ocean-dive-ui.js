@@ -70,9 +70,9 @@ const oceanDiveUi = (() => {
     function rulesHtml(st) {
         const rows = [['check', '체크포인트', '100m마다 열리고, 다음 잠수는 여기서 시작합니다.'],
             ['guard', '가디언', `${getOceanBossBoundaryInterval()}m마다 길을 막고, 닿으면 남은 무리를 두고 바로 가디언 방으로 갑니다. 쓰러뜨려야 더 내려갑니다.`],
-            ['oxygen', '산소', `초당 ${drainPerSec(st).toFixed(2)} 줄어듭니다. 다 떨어지면 익사 피해를 받다가 수면으로 올라오고, 체크포인트 뒤 진행은 사라집니다.`],
+            ['oxygen', '산소', `초당 ${drainPerSec(st).toFixed(2)} 줄어듭니다. 다 떨어지면 익사 피해를 받다가 수면으로 올라와 잠수를 시작한 사냥터로 돌아오고, 체크포인트 뒤 진행은 사라집니다.`],
             ['pressure', '수압', '100m마다 1단계 오릅니다. 공격 속도, 피해, 이동 속도가 줄고 산소가 더 빨리 줄어듭니다.'],
-            ['auto', '자동 재잠수', `켜 두면 산소가 떨어져 떠오른 뒤 사냥터 하나를 깨고 체크포인트부터 다시 잠수하고, 떠오르면 그 사냥터로 돌아옵니다. 그 잠수에서 쓰러지거나, 새 리프트도 가디언 처치도 없이 ${OCEAN_AUTO_REDIVE.missLimit}번 떠오르면 멈춥니다. 새 루프의 첫 잠수와 자리를 비운 동안의 정산에서는 다시 잠수하지 않습니다.`]];
+            ['auto', '자동 재잠수', `켜 두면 산소가 떨어져 떠오른 뒤 사냥터 하나를 깨고 체크포인트부터 다시 잠수합니다. 그 잠수에서 쓰러지거나, 새 리프트도 가디언 처치도 없이 ${OCEAN_AUTO_REDIVE.missLimit}번 떠오르면 멈춥니다. 새 루프의 첫 잠수와 자리를 비운 동안의 정산에서는 다시 잠수하지 않습니다.`]];
         return `<details class="dive-rules"><summary>잠수 규칙</summary><ul>${rows.map(([key, label, text]) => `<li class="is-${key}"><b>${label}</b>${text}</li>`).join('')}</ul></details>`;
     }
     function render() {
@@ -91,9 +91,10 @@ const oceanDiveUi = (() => {
         changeZone(OCEAN_ZONE_ID);
         updateStaticUI();
     }
+    /** 수면으로 복귀: 심해에 있으면 잠수를 시작한 사냥터로 돌아가고, 잠수를 둔 채 다른 곳에 있으면 그 자리에 머문다. */
     function surfaceDive() {
-        forceSurfaceOcean('manual');
-        changeZone(Math.max(0, game.maxZoneId || 0));
+        const inOcean = game.currentZoneId === OCEAN_ZONE_ID, back = forceSurfaceOcean('manual');
+        if (inOcean) changeZone(back);
         updateStaticUI();
     }
     function toggleAutoRedive() {
