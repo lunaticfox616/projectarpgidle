@@ -342,6 +342,14 @@ function drawPassiveNodeEffectLabel(ctx, node, radius, active, reachable, visibi
     ctx.restore();
 }
 
+/** The nodes a hover would allocate (tooltip cost, "찍으면" preview, drawn path). An Andromeda free node is itself alone, at one point
+ * (js/passives.js getPassiveActivationPath): the tooltip counted the way to the nearest owned node (2026-10-20 review: "9포인트 필요"
+ * for a node taken at one point). */
+function getHoverAllocationNodeIds(hoveredNodeId) {
+    if (hoveredNodeId && passiveRouting.freeNodes(PASSIVE_TREE, game).has(String(hoveredNodeId))) return new Set([hoveredNodeId]);
+    return getHoveredPassivePathNodeIds(hoveredNodeId);
+}
+
 function getHoveredPassivePathNodeIds(hoveredNodeId) {
     if (!hoveredNodeId) return new Set();
     const cacheKey = String(hoveredNodeId);
@@ -458,7 +466,7 @@ function createPassiveDrawFrame() {
         isActive: id => allocated.has(id),
         blackHoles: new Set(passiveRouting.transcendentNodeIds(game, 'blackHole')),
         linkedIds: getHoveredPassiveLinkedIds(hoverId),
-        pathIds: getHoveredPassivePathNodeIds(hoverId),
+        pathIds: getHoverAllocationNodeIds(hoverId),
         rootId: getPassiveTreeRootNodeId(),
         lightweightMode: !!isDragging,
         zoomedOutMode: camZoom <= PASSIVE_TREE_SIMPLIFY_ZOOM,

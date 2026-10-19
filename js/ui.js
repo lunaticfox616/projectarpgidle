@@ -5405,11 +5405,14 @@ function showEnemyAilmentTooltip(event, payload) {
     showInfoTooltipHtml(event.clientX, event.clientY, html, '#ffcf88');
 }
 
+/** 타겟 방식과 최대 타겟 수: 수는 전투와 같은 상한(js/combat.js getPlayerStats: 6, 투사체 12)으로. 데이터가 99인 룬은 제 방식으로
+ * 치는 네이티브 룬이라 수를 적지 않는다(2026-10-20 검토: 99, 8, 7로 보였지만 전투는 6이었고, 광역은 4인데 6으로 보였다). */
 function getGemTargetSummaryHtml(skill) {
     const label = { all: '광역', whirl: '광역 회전', cleave: '전방 다중', chain: '연쇄', pierce: '관통' }[skill.targetMode] || '단일';
-    let maxTargets = Math.max(1, skill.targets || 1);
-    if (skill.targetMode === 'all') maxTargets = Math.min(8, Math.max(6, skill.targets || 6));
-    return `<div class="tooltip-line">타겟 방식: ${label}</div><div class="tooltip-line">최대 타겟 수: ${maxTargets}</div>`;
+    const kind = `<div class="tooltip-line">타겟 방식: ${label}</div>`;
+    if ((skill.targets || 0) >= 99) return kind;
+    const cap = (skill.tags || []).includes('projectile') ? 12 : 6;
+    return `${kind}<div class="tooltip-line">최대 타겟 수: ${Math.min(cap, Math.max(1, skill.targets || 1))}</div>`;
 }
 
 /** The rune's awakened effect line (GEM_AWAKENED_PERKS) once awakened, or from rune level 15 marked as waiting for the awakening (a new
@@ -10370,7 +10373,7 @@ function setupCanvasEvents() {
         let displayStat = typeof getPassiveNodeDisplayStat === 'function' ? getPassiveNodeDisplayStat(node) : node.stat;
         let passiveAccent = getPassiveStatAccent(displayStat);
         let state = getPassiveVisibility(node.id);
-        let route = getHoveredPassivePathNodeIds(node.id);
+        let route = getHoverAllocationNodeIds(node.id);
         let routeCost = Array.from(route).filter(id => !(game.passives || []).includes(id)
             && PASSIVE_TREE.nodes[id] && PASSIVE_TREE.nodes[id].kind !== 'start').length;
         let ownedApexCount = getPassiveApexNodeIds().filter(id => (game.passives || []).includes(id)).length;
