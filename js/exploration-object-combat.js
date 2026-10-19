@@ -219,6 +219,8 @@ actExplorationProgress.objects = (() => {
         if(state.isEvent(row)) {
             const zone=getZone(run.zoneId);
             for(let wave=row.kind==='nest'?2:1;wave>0;wave--,row.wave++) {
+                // 무리 기록도 남긴다(모두 쓰러진 채, spawn과 같은 모양): 차수와 무리 수가 달라 저장이 불러와지지 않았다(validateEventOwnership, 2026-10-20)
+                run.packs.push({key:`${row.id}:${row.wave+1}`,roomId:row.roomId,stage:null,waiting:[],aliveIds:[],eliteIds:[],objectId:row.id,objectWave:row.wave+1});
                 for(let index=0;index<waveSize(run,row);index++)kill(Object.assign(createEnemy(zone,waveMarker(row,index),index),{gx:row.gx,gy:row.gy}));
             }
         }
