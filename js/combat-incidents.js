@@ -3,6 +3,8 @@
  * - 금빛 수액 슬라임: 방 단위 무대의 보통 무리를 지을 때 드물게 무리 곁에 하나가 더 선다(dressPack). 덤비지 않고(noAttack) 영웅에게서
  *   먼 방 구석으로 달아나며(tick), 영웅과 같은 방에 든 뒤 fleeMs가 지나면 사라진다. 쓰러뜨리면 재화 몇 개와 희귀 장비 하나(onKill).
  *   아주 드물게 무지갯빛(체이싱 티어): 빛깔이 돌고, 황금률 하나와 고유 장비 하나(반은 체이싱 고유)를 더 준다.
+ * - 길 잃은 몬스터: 슬라임이 서지 않은 보통 무리에 드물게 영웅이 가 본 다른 액트의 몬스터가 섞인다(addStray, 이름 앞에 '길 잃은').
+ *   경험치를 더 주고 쓰러뜨리면 장비 하나.
  * - 잠든 무리: 슬라임이 서지 않은 보통 무리가 드물게 잠들어 있다(lullPack, 이름 앞에 '잠든', 머리 위에 z). 무리의 누가 다치거나 영웅이
  *   가까이 오면 무리째 깨어 잠시 멍하다(tickSleep).
  * - 황금 수액 잔치: 처음 들어선 전투 방에서 아주 드물게 그 방의 보통 몬스터가 모두 금빛 수액 슬라임이 된다(feast).
@@ -43,10 +45,11 @@ const combatIncidents = (() => {
         return null;
     }
     /** 무리를 지을 때(js/combat.js createActExplorationPack): 드물게 금빛 수액 슬라임 하나를 무리 곁에 더하고, 그러지 않은 무리는
-     * 드물게 잠들어 있다(lullPack). */
+     * 드물게 길 잃은 몬스터를 데리고 있거나(addStray) 잠들어 있다(lullPack, 길 잃은 몬스터도 함께 잔다). */
     function dressPack(zone, pack) {
-        if (quiet(zone) || !plainPack(pack)) return pack;
-        if (!addCritter(zone, pack)) lullPack(pack);
+        if (quiet(zone) || !plainPack(pack) || addCritter(zone, pack)) return pack;
+        addStray(zone, pack);
+        lullPack(pack);
         return pack;
     }
     /** 금빛 수액 슬라임 하나를 무리 곁에(수액 냄새 밴 장화를 끼면 chanceMul배 자주). 세웠는지. */
@@ -120,6 +123,38 @@ const combatIncidents = (() => {
         addBattleFx('enemyDeath', { enemyId: enemy.id, name: enemy.name, color: '#fff0a8', duration: 420 });
         if (rainbow || !enemy.feast) tell(rainbow ? '무지갯빛 수액 슬라임이 달아났습니다.' : '금빛 수액 슬라임이 달아났습니다.', 'warning');
         return true;
+    }
+
+    // ---------------------------------------------------------------- 길 잃은 몬스터
+    /** 무리의 첫 보통 몬스터(액트 그림을 쓰고 무기를 든 뿌리촉수가 아닌)를 다른 액트의 몬스터로: 그 그림과 이름, 테, 그 그림의 싸우는
+     * 방식(js/combat-grid.js assignEnemyGridCombatProfile), 경험치 expMul배. */
+    function addStray(zone, pack) {
+        const key = `${pack.key}:${pack.aliveIds[0]}`;
+        const enemy = draw('stray', key) < rule().stray.chance ? pack.waiting.find(member => !member.isElite && plainLook(member)) : null;
+        const look = enemy ? strayLook(zone, key) : null;
+        if (look) dressStray(enemy, look);
+    }
+    const plainLook = enemy => { const def = ACT_MONSTER_VISUAL_BY_ID[enemy.spriteVariantId]; return !!def && !def.weapon && !enemy.monsterVisualId; };
+    /** 영웅이 가 본 액트(game.maxZoneId까지)의 몬스터 그림 가운데 이 지역 목록에 없는 것 하나. 없으면(1액트만 가 봤으면) null. */
+    function strayLook(zone, key) {
+        const here = new Set(getActMonsterPool(zone)), reached = Math.min(Math.floor(Number(game.maxZoneId) || 0), MAP_ZONES.length - 1);
+        const acts = MAP_ZONES.slice(0, reached + 1).filter(row => row && row.type === 'act');
+        const ids = [...new Set(acts.flatMap(row => getActMonsterPool(row)))].filter(id => !here.has(id));
+        return ids.length ? ACT_MONSTER_VISUAL_BY_ID[ids[Math.floor(draw('strayLook', key) * ids.length)]] || null : null;
+    }
+    /** 그 몬스터를 길 잃은 몬스터로: 그 그림(look)과 이름 앞에 prefix, 테, 경험치 expMul배, 그 그림의 싸우는 방식. true. */
+    function dressStray(enemy, look) {
+        const S = rule().stray;
+        Object.assign(enemy, { stray: true, name: `${S.prefix} ${look.name}`, baseMonsterName: look.name, spriteVariantId: look.id, encounterOutline: S.outline,
+            expMul: (Number(enemy.expMul) || 1) * S.expMul });
+        assignEnemyGridCombatProfile(enemy);
+        return true;
+    }
+    /** 시험 패널: 지금 방의 첫 보통 몬스터를 길 잃은 몬스터로. 바꿨는지. */
+    function testStray() {
+        const enemy = (game.enemies || []).find(row => row && row.hp > 0 && !row.isBoss && !row.isElite && !row.critter && !row.stray && plainLook(row));
+        const look = enemy ? strayLook(getZone(game.currentZoneId), `test:${enemy.id}`) : null;
+        return look ? dressStray(enemy, look) : false;
     }
 
     // ---------------------------------------------------------------- 잠든 무리
@@ -233,9 +268,10 @@ const combatIncidents = (() => {
         if (sleepers.length) tickSleep(sleepers, now);
         if (map) tickRoom(run, room, now);
     }
-    /** 처치(js/combat.js countKillForContent): 잡은 슬라임의 보상과 알림. 슬라임이 아니면 황금을 빚는 손(rise). */
+    /** 처치(js/combat.js countKillForContent): 길 잃은 몬스터의 장비, 잡은 슬라임의 보상과 알림. 슬라임이 아니면 황금을 빚는 손(rise). */
     function onKill(enemy, zone) {
         if (!enemy) return;
+        if (enemy.stray && !quiet(zone)) grantEquipmentPick(enemy, zone, rule().stray.gear, null);
         if (!enemy.critter) return rise(enemy, zone);
         const rainbow = enemy.critter === 'rainbow';
         grantCritterRewards(enemy, zone);
@@ -293,6 +329,6 @@ const combatIncidents = (() => {
         keepCurrencyDrop(enemy, key, count * hit.mul);
         tell(`행운의 숫자 ${dealt.toLocaleString('ko-KR')}${'2459'.includes(hit.digit) ? '가' : '이'} 나왔습니다.`, 'reward');
     }
-    return Object.freeze({ dressPack, glazeOf, tick, onKill, noteDamage, testSpawn, testYawn, testSleep, testFeast });
+    return Object.freeze({ dressPack, glazeOf, tick, onKill, noteDamage, testSpawn, testYawn, testSleep, testFeast, testStray });
 })();
 safeExposeGlobals({ combatIncidents });

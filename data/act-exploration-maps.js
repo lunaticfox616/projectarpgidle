@@ -244,6 +244,8 @@ const ACT_EXPLORATION_AMBUSH = Object.freeze({chance:0.05,pull:0.4,keep:2,search
 //   경험치 expMul배. 쓰러뜨리면 rewards: currencies [재화, 개수, 무게]에서 picks번 뽑고, gear 등급 이상의 장비 하나. look 그림(수액 슬라임),
 //   glaze 몸에 얹는 빛깔과 진하기, outline 테. rainbow: 금빛 슬라임 가운데 chance로 무지갯빛(체이싱 티어), 빛깔이 glazes를 everyMs마다 돈다.
 //   금빛 보상에 더해 currency 하나와 고유 장비 하나(chaseShare의 확률로 체이싱 고유).
+// stray 길 잃은 몬스터: 금빛 슬라임이 서지 않은 보통 무리가 chance의 확률로 영웅이 가 본 다른 액트의 몬스터 하나를 데리고 있다(무리의
+//   첫 보통 몬스터가 그곳 그림과 이름, 앞에 prefix, 테 outline, 그 그림의 싸우는 방식). 경험치 expMul배, 쓰러뜨리면 gear 등급 이상의 장비 하나.
 // sleep 잠든 무리: 금빛 슬라임이 서지 않은 보통 무리가 chance의 확률로 잠들어 있다. 이름 앞에 prefix, 테 outline, zEveryMs마다 머리 위에
 //   zColor의 z. 깨기 전에는 움직이지도 공격하지도 않고, 무리의 누가 다치거나 영웅이 wakeCells칸 안에 들면 무리째 깨어 groggyMs 동안 멍하다.
 //   습격방에 모이지 않는다.
@@ -259,6 +261,7 @@ const ACT_EXPLORATION_INCIDENTS = Object.freeze({
             ['deepWhetstone', 1, 1], ['rootIron', 1, 1], ['jewelPolish', 1, 1]]) }),
         rainbow: Object.freeze({ chance: 0.02, name: '무지갯빛 수액 슬라임', glazes: Object.freeze(['#ff8f8f', '#ffc46b', '#fff27a', '#8af08a', '#7ad0ff', '#c79bff']),
             everyMs: 220, alpha: 0.42, currency: 'goldenRule', chaseShare: 0.5 }) }),
+    stray: Object.freeze({ chance: 0.02, prefix: '길 잃은', outline: '#9be0a4', expMul: 2, gear: 'magic' }),
     sleep: Object.freeze({ chance: 0.03, prefix: '잠든', outline: '#a9b8ff', zColor: '#d4dcff', zEveryMs: 1700, wakeCells: 2, groggyMs: 1500 }),
     feast: Object.freeze({ chance: 0.0004 }),
     yawn: Object.freeze({ chance: 0.0004, sleepMs: 6000 }),
