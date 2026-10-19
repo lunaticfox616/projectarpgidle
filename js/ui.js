@@ -8972,7 +8972,7 @@ async function bulkSalvageEquipBySearch(salvageUnmatched) {
     const targetCount = targetItems.length;
     if (targetCount <= 0) return addLog('해체 대상이 없습니다.', 'attack-monster');
     const note = bagItems.countNote(targetItems);
-    if (!await requestGameConfirmation(`검색 조건에 해당하는 장비 ${targetCount}개를 해체합니다.${note ? `\n${note} 포함` : ''}\n잠금/장비 세팅으로 보호된 장비는 제외됩니다.`, {
+    if (!await requestGameConfirmation(`검색 조건에 해당하는 장비 ${targetCount}개를 해체합니다.${note ? `\n${note} 포함` : ''}\n잠금, 세팅, 우선 보관 장비는 빼고 해체합니다.`, {
         title: '검색 장비 일괄 해체',
         tone: 'danger',
         confirmLabel: `${targetCount}개 해체`
@@ -8980,7 +8980,7 @@ async function bulkSalvageEquipBySearch(salvageUnmatched) {
     // 끼운 주얼이 가방으로 돌아오므로 가방은 해체하는 쪽에서 다시 맞춘다(js/passives.js salvageBagItems)
     const targets = confirmedSalvageTargets(targetItems), lockedSkipped = targetCount - targets.length;
     const rewards = salvageBagItems(targets);
-    addLog(`🧪 장비 ${targets.length}개 해체 완료, ${formatSalvageRewardSummary(rewards)}${lockedSkipped > 0 ? ` (잠금/배치/세팅 ${lockedSkipped}개 보호)` : ''}`, 'loot-normal');
+    addLog(`🧪 장비 ${targets.length}개 해체 완료, ${formatSalvageRewardSummary(rewards)}${lockedSkipped > 0 ? ` (잠금, 세팅, 우선 보관 ${lockedSkipped}개는 남김)` : ''}`, 'loot-normal');
     updateStaticUI();
 }
 

@@ -10169,7 +10169,7 @@ async function bulkSalvageSelected() {
     if (targetCount <= 0) return addLog('선택한 등급의 해체 가능한 장비가 없습니다.', 'attack-monster');
     let labelText = selectedRarities.map(r => rarityLabels[r] || r).join('/');
     const note = bagItems.countNote(targetItems);
-    if (!await requestGameConfirmation(`[${labelText}] 등급 ${shownSlot === 'all' ? '장비' : shownSlot} ${targetCount}개를 해체합니다.${note ? `\n${note} 포함` : ''}\n잠긴 장비는 보호됩니다.`, {
+    if (!await requestGameConfirmation(`[${labelText}] 등급 ${shownSlot === 'all' ? '장비' : shownSlot} ${targetCount}개를 해체합니다.${note ? `\n${note} 포함` : ''}\n잠금, 세팅, 우선 보관 장비는 빼고 해체합니다.`, {
         title: '등급 일괄 해체',
         tone: 'danger',
         confirmLabel: `${targetCount}개 해체`
@@ -10177,12 +10177,12 @@ async function bulkSalvageSelected() {
     const targets = confirmedSalvageTargets(targetItems);
     const lockedSkipped = game.inventory.filter(item => isShown(item) && isBulkSalvageProtectedItem(item)).length;
     if (targets.length === 0) {
-        if (lockedSkipped > 0) return addLog(`🔒 선택 등급 아이템이 모두 보호 상태입니다. (잠금/배치/세팅 ${lockedSkipped}개)`, 'attack-monster');
+        if (lockedSkipped > 0) return addLog(`🔒 고른 장비가 모두 보호 중입니다(잠금, 세팅, 우선 보관 ${lockedSkipped}개).`, 'attack-monster');
         return addLog('선택한 등급의 장비가 없습니다.', 'attack-monster');
     }
     const rewards = salvageBagItems(targets);
     ensureCraftSelectionValid();
-    addLog(`🧪 선택한 등급 장비 ${targets.length}개 해체, ${formatSalvageRewardSummary(rewards)}${lockedSkipped > 0 ? ` (잠금/배치/세팅 ${lockedSkipped}개 보호)` : ''}`, 'loot-normal');
+    addLog(`🧪 선택한 등급 장비 ${targets.length}개 해체, ${formatSalvageRewardSummary(rewards)}${lockedSkipped > 0 ? ` (잠금, 세팅, 우선 보관 ${lockedSkipped}개는 남김)` : ''}`, 'loot-normal');
     updateStaticUI();
 }
 async function bulkSalvageAllInventory() {
@@ -10190,16 +10190,16 @@ async function bulkSalvageAllInventory() {
     let lockedCount = game.inventory.filter(item => isBulkSalvageProtectedItem(item)).length;
     let targetItems = game.inventory.filter(item => !isBulkSalvageProtectedItem(item));
     let salvageCount = targetItems.length;
-    if (salvageCount <= 0) return addLog('🔒 잠금/배치/세팅 보호되지 않은 아이템이 없어 전체해체를 실행할 수 없습니다.', 'attack-monster');
+    if (salvageCount <= 0) return addLog('🔒 잠금, 세팅, 우선 보관 장비뿐이라 전체 해체할 장비가 없습니다.', 'attack-monster');
     const note = bagItems.countNote(targetItems);
-    if (!await requestGameConfirmation(`인벤토리 장비 ${salvageCount}개를 모두 해체합니다.${note ? `\n${note} 포함` : ''}${lockedCount > 0 ? `\n잠금/배치/세팅 장비 ${lockedCount}개는 보호됩니다.` : ''}`, {
+    if (!await requestGameConfirmation(`인벤토리 장비 ${salvageCount}개를 모두 해체합니다.${note ? `\n${note} 포함` : ''}${lockedCount > 0 ? `\n잠금, 세팅, 우선 보관 장비 ${lockedCount}개는 빼고 해체합니다.` : ''}`, {
         title: '인벤토리 전체 해체',
         tone: 'danger',
         confirmLabel: `${salvageCount}개 해체`
     })) return;
     const targets = confirmedSalvageTargets(targetItems), rewards = salvageBagItems(targets);
     if (!isCraftSelectionEquip()) clearCraftSelection();
-    addLog(`🧪 인벤토리 전체해체 완료 (${targets.length}개), ${formatSalvageRewardSummary(rewards)}${lockedCount > 0 ? `, 잠금/배치/세팅 ${lockedCount}개 보호` : ''}`, 'loot-normal');
+    addLog(`🧪 인벤토리 전체해체 완료 (${targets.length}개), ${formatSalvageRewardSummary(rewards)}${lockedCount > 0 ? `, 잠금, 세팅, 우선 보관 ${lockedCount}개는 남김` : ''}`, 'loot-normal');
     updateStaticUI();
 }
 
