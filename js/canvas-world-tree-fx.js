@@ -19,14 +19,15 @@ const worldTreeSkillFx = (() => {
         if(c && c.move)return movingActorState(state,c,at);
         return assassinPoseActive(c,at,state) ? assassinActorState(state,c,at) : state;
     }
+    /** 암살의 시전자: 박차고 나가는 동안(c.lead, 2026-10-20 v42) 보이다가 0.1초에 사라지고, 순간이동하면 나타나 찌른다. */
     function assassinActorState(state,c,at) {
-        const moved=!!c.destination && game.gridPlayer.gx===c.destination.gx && game.gridPlayer.gy===c.destination.gy;
-        const direction=({2:'south',4:'west',6:'east',8:'north'})[c.direction] || state.motionState.facingDirection;
-        const alpha=moved?Math.min(1,(at-c.at-100)/70):Math.max(0,(c.at+100-at)/100);
+        const moved=!!c.destination && game.gridPlayer.gx===c.destination.gx && game.gridPlayer.gy===c.destination.gy,t=at-c.at-(c.lead||0);
+        const direction=assassinFacing(c) || state.motionState.facingDirection;
+        const alpha=moved?Math.min(1,(t-100)/70):Math.max(0,Math.min(1,(100-t)/100));
         const point=state.gridProj.cellToScreen(game.gridPlayer.gx,game.gridPlayer.gy);
         point.y+=state.gridProj.actorGroundOffsetY || 0;
-        const strikeAt=c.contact?at:Math.min(at,c.at+239);
-        const thrust=moved?Math.max(0,Math.min(1,(strikeAt-c.at-160)/80))*Math.max(0,1-(at-c.at-240)/120):0;
+        const strikeT=c.contact?t:Math.min(t,239);
+        const thrust=moved?Math.max(0,Math.min(1,(strikeT-160)/80))*Math.max(0,1-(t-240)/120):0;
         const [dx,dy]=({west:[-1,0],east:[1,0],north:[0,-1],south:[0,1]})[direction];
         return {...state,playerPos:{x:point.x+dx*thrust*4*state.gridUnitScale,y:point.y+dy*thrust*4*state.gridUnitScale},
             actorAlpha:alpha,swingPower:0,motionState:{...state.motionState,advanceBlend:0,attackBlend:0,attackActive:false,
@@ -43,7 +44,13 @@ const worldTreeSkillFx = (() => {
             playerPos:{x:state.playerPos.x+m.dx*k,y:state.playerPos.y+(m.dy-m.lift)*k}};
     }
     function assassinPoseActive(c,at,state) {
-        return c && !c.failed && game.playerHp>0 && mobilitySkill.equipped()==='암살' && at<=c.at+360 && !state.returnWarp && !state.returnDeparture;
+        return c && !c.failed && game.playerHp>0 && mobilitySkill.equipped()==='암살' && at<=c.at+(c.lead||0)+360 && !state.returnWarp && !state.returnDeparture;
+    }
+    /** 찌르는 쪽: 적을 본다. 무대의 주인공이 뒤찌르기(한손검 전용공격)를 쓰면 돌아보지 않고 등 뒤를 찌르므로 적의 반대쪽을 본다. */
+    function assassinFacing(c) {
+        const backStab=typeof stageView==='object' && stageView.enabled() && typeof getStageHeroStance==='function'
+            && stageActors.motionFor('암살',getHeroAppearanceId(),getStageHeroStance())==='special';
+        return ((backStab ? {2:'north',4:'east',6:'west',8:'south'} : {2:'south',4:'west',6:'east',8:'north'}))[c.direction];
     }
 
     function castFrame(ctx,projection,layer) {
@@ -141,8 +148,7 @@ const worldTreeSkillFx = (() => {
     function stationaryEvents(fx,shared,flight) {
         const events=[],spec=SKILL_FX_ATLAS[fx.skillName];
         // 새 룬은 시전하는 순간도 알린다: 피해의 순간보다 먼저 서는 연출(신성한 단두대의 틀, 화살비의 쏘아 올림)이 쓴다
-        if(!spec || [34,37,38].includes(spec.id))events.push({...shared,
-            kind:fx.skillName==='원소 포션 투척' ? 'travel' : 'windup',at:fx.start,duration:flight});
+        if(!spec || [34,37].includes(spec.id))events.push({...shared,kind:'windup',at:fx.start,duration:flight});
         if(spec?.gridKind==='line' && fx.attackFootprint?.cells?.length) {
             const source=fx.sourceCell,distance=c=>Math.hypot(c.gx-source.gx,c.gy-source.gy);
             shared.targetCells=[fx.attackFootprint.cells.reduce((best,c)=>distance(c)>distance(best)?c:best,source)];
@@ -163,13 +169,22 @@ const worldTreeSkillFx = (() => {
     /** 연발 사격: one arrow to the far cell of each ray (the footprint's ray tips; the fan is narrow since 2026-10-07, so its rays
      * no longer follow the eight directions); a straight shot's arrows keep its speed and height. */
     function fanRays(fx,event,steady) {
-        const source=fx.sourceCell,tips=fx.attackFootprint?.rays?.length ? fx.attackFootprint.rays : directionTips(fx,source);
+        const source=fx.sourceCell,tips=volleyTips(fx,fx.attackFootprint?.rays?.length ? fx.attackFootprint.rays : directionTips(fx,source));
         return tips.map(cell=>{
             if(!steady)return {...event,travelPath:undefined,targetCells:[cell]};
             const [from,to]=aloft([{...source,offsetMs:0},{...cell,offsetMs:0}]);
             return {...event,sourceCell:from,targetCells:[to],travelPath:undefined,contactSchedule:undefined,
                 duration:Math.max(1,Math.hypot(to.gx-from.gx,to.gy-from.gy)*steady.cellMs)};
         });
+    }
+
+    /** 나눠 쏘는 연발 사격(2026-10-20 v42, data/skills.js combatPattern volley): 그 사격 단계가 맡은 갈래들(가운데부터 shots개씩, 마지막
+     * 사격은 남은 갈래 모두, js/combat-grid.js buildVolleySkillHitSequence와 같은 몫). 나눠 쏘지 않는 부채꼴이면 모든 갈래. */
+    function volleyTips(fx,tips) {
+        const pattern=SKILL_DB[fx.skillName]?.combatPattern;
+        if(pattern?.kind!=='volley')return tips;
+        const shots=pattern.shots||[],k=Math.max(0,Math.floor(Number(fx.stageIndex)||0)),start=shots.slice(0,k).reduce((sum,n)=>sum+n,0);
+        return k>=shots.length-1 ? tips.slice(start) : tips.slice(start,start+shots[k]);
     }
 
     /** A footprint without ray tips: the farthest cell in each of the eight directions it covers. */
@@ -344,7 +359,7 @@ const worldTreeSkillFx = (() => {
     function mobility(ctx,fx,progress,projection) {
         if(!known(fx.skillName))return false;
         if(!adapters.has(fx))adapters.set(fx,{skillName:fx.skillName,
-            kind:'mobility',sourceCell:fx.fromCell,targetCells:[fx.toCell],at:0,duration:1,glideMs:fx.duration});
+            kind:'mobility',sourceCell:fx.fromCell,targetCells:[fx.toCell],at:0,duration:1,glideMs:fx.duration,kickoff:!!fx.kickoff});
         renderEvent(ctx,adapters.get(fx),progress,projection);
     }
 

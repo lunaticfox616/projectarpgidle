@@ -1,5 +1,5 @@
 /** 스킬룬 이펙트 가운데 코드로 그리는 범위와 이동 연출 (2026-10-17 "스킬룬 디렉터 전달" v32의 그리기 코드를 옮긴 것이다. 근접 베기 연출은
- * js/canvas-stage-skill-strokes.js). 얼어붙은 고리, 혹한의 지진의 얼음 기둥, 불씨의 함성, 서리바람 내지르기, 전도성 난격의 바닥 방전,
+ * js/canvas-stage-skill-strokes.js). 얼어붙은 고리(2026-10-20 v42), 유성 낙화의 불타는 지대(v42), 혹한의 지진의 얼음 기둥, 불씨의 함성, 서리바람 내지르기, 전도성 난격의 바닥 방전,
  * 신성한 단두대, 신성한 기도의 빛의 창, 화살비, 차원찢기의 우주 구체, 빈 플라스크의 유리, 돌진의 공기 활과 먼지, 섬머솔트 슬래시의 궤적.
  * 자리는 그 연출을 건 곳(발 자리)에서의 도트이고, 칸으로 잰 범위는 게임의 칸(64×32도트)으로 옮긴다. 인계는 캐릭터와 연출을 깊이 순서로
  * 섞어 그리지만 게임의 무대는 바닥 층과 캐릭터 위 층뿐이라, 건 자리보다 뒤쪽(화면 위)의 조각은 바닥 층에, 앞쪽은 위 층에 그린다.
@@ -9,9 +9,14 @@ const stageSkillSpells = (() => {
     const S = stageSkillStrokes, WIDE = 64, DEEP = 32, TAU = Math.PI * 2;
     const dot = g => (x, y) => g.fillRect(x, y, 1, 1);
 
-    // ---------------------------------------------------------------- frozen ring (얼어붙은 고리)
-    const ICE = Object.freeze({ HH: 30, SW: 180, TURN: TAU * 1.12, SPAN: Math.PI * 1.45, D0: 150, D1: 240, W0: 240, WD: 440, RW0: 0.8, RW1: 1.45, RING: 0.8 });
+    // ---------------------------------------------------------------- frozen ring (얼어붙은 고리, 2026-10-20 스킬룬 전달본 v42)
+    // 10-20 사용자 "좀 더 화려하게", "얼음 파동을 더 투명한 얼음으로 해주고 둥근 검격도 바꿔": 육각으로 꺾이는 얼음 베기와 꼭짓점의 얼음 결정,
+    // 바닥 눈꽃 결정진, 투명한 얼음 가시의 파동 두 겹, 반짝이 가루와 눈송이, 맞은 적의 얼음 터짐과 눈꽃 표식. 맞는 때와 피해는 게임의 것 그대로다.
+    const ICE = Object.freeze({ HH: 30, SW: 180, TURN: TAU * 1.12, D1: 240, W0: 240, WD: 440, RW0: 0.8, RW1: 1.45, W2: 130, SIG: 0.86, TAIL: 760 });
+    const BODY = stageSkillKit.BODY;
     const iceHead = t => { const u = Math.min(1, t / ICE.SW); return ICE.TURN * (1 - (1 - u) * (1 - u)); };
+    /** 칼날 머리가 등 뒤에서부터 a만큼 돈 자리에 닿는 때(ms). */
+    const iceTimeOf = a => (a <= 0 ? 0 : a >= ICE.TURN ? ICE.SW : ICE.SW * (1 - Math.sqrt(1 - a / ICE.TURN)));
     const iceWave = t => { const u = Math.min(1, Math.max(0, (t - ICE.W0) / ICE.WD)); return ICE.RW0 + (ICE.RW1 - ICE.RW0) * (1 - Math.pow(1 - u, 1.5)); };
     const iceWaveAt = d => (d <= ICE.RW0 ? ICE.W0 : ICE.W0 + ICE.WD * (1 - Math.pow(1 - Math.min(1, (d - ICE.RW0) / (ICE.RW1 - ICE.RW0)), 1 / 1.5)));
     /** 칼날 고리 위의 한 점: a는 등 뒤에서부터 돈 각, R은 가로 반지름, h는 높이. 바닥 자리의 y(깊이)도 함께. */
@@ -35,18 +40,24 @@ const stageSkillSpells = (() => {
         const t0 = iceWaveAt(Math.hypot(v.dx / ring.A, v.dy / ring.B));
         return [[-10, 22, 8], [1, 32, 11], [11, 20, 7]].map(([dx, H, W], i) => ({ x: v.dx + dx, y: v.dy + 2, H, W, lean: dx * 0.012, t0: t0 + i * 20, hold: 230, big: true, sd: 900 + i }));
     }
-    /** 얼음 가시 한 개: 밑동 그림자, 짙은 테, 왼면 밝게, 오른면 어둡게, 가운데 능선. */
+    /** 얼음 가시 한 개(투명한 얼음): 옅은 밑동 그림자, 비치는 속, 왼쪽 테는 빛, 오른쪽 테는 짙은 선, 굴절 반짝 줄, 끝 빛. s.glint는 테를 타고 오르는 반짝임. */
     function iceSpike(g, ring, s) {
         const hw0 = s.W / 2, C = ring.C, F = ring.F;
-        g.globalAlpha = s.al * 0.7; g.fillStyle = C[1]; g.fillRect(s.x - Math.round(hw0) - 2, s.y, Math.round(hw0) * 2 + 5, 1);
-        g.globalAlpha = s.al;
+        g.globalAlpha = s.al * 0.3; g.fillStyle = C[1]; g.fillRect(s.x - Math.round(hw0) - 1, s.y, Math.round(hw0) * 2 + 3, 1);
         for (let j = 0; j < s.H; j++) {
             const v = j / s.H, hw = Math.round(hw0 * Math.pow(1 - v, 0.85)), cx = s.x + Math.round(s.lean * j), y = s.y - j;
-            g.fillStyle = C[1]; g.fillRect(cx - hw - 1, y, hw * 2 + 3, 1);
-            if (hw > 0) { g.fillStyle = v < 0.3 ? F[2] : F[3]; g.fillRect(cx - hw, y, hw, 1); g.fillStyle = F[1]; g.fillRect(cx + 1, y, hw, 1); }
-            g.fillStyle = v > 0.5 ? F[5] : F[2]; g.fillRect(cx, y, 1, 1);
+            g.globalAlpha = s.al * (0.2 + 0.14 * v); g.fillStyle = v < 0.5 ? F[1] : F[2]; g.fillRect(cx - hw, y, hw * 2 + 1, 1);
+            g.globalAlpha = s.al * 0.85; g.fillStyle = v > 0.3 ? F[4] : F[3]; g.fillRect(cx - hw - 1, y, 1, 1);
+            g.globalAlpha = s.al * 0.6; g.fillStyle = C[2]; g.fillRect(cx + hw + 1, y, 1, 1);
+            if (hw > 1 && j % 4 === 1) { g.globalAlpha = s.al * 0.5; g.fillStyle = F[4]; g.fillRect(cx - Math.round(hw * 0.35), y, 1, 1); }
         }
+        g.globalAlpha = s.al; g.fillStyle = F[5]; g.fillRect(s.x + Math.round(s.lean * (s.H - 1)), s.y - s.H, 1, 1);
+        if (s.glint >= 0 && s.glint < 1) iceGlint(g, s);
         g.globalAlpha = 1;
+    }
+    function iceGlint(g, s) {
+        const j = Math.round(s.glint * (s.H - 1)), hw = Math.round(s.W / 2 * Math.pow(1 - j / s.H, 0.85));
+        g.fillRect(s.x + Math.round(s.lean * j) - hw - 1, s.y - j, 2, 1);
     }
     /** 남은 가시의 지금 높이와 투명도: 솟고(살짝 넘쳤다 돌아오고), 버티고, 큰 가시는 부서지고 잔해는 가라앉는다. */
     function iceSpikeLife(sp, k) {
@@ -73,56 +84,175 @@ const stageSkillSpells = (() => {
         }
         g.globalAlpha = 1;
     }
-    /** 칼날 고리의 띠 한 점(앞쪽이면 위 층, 뒤쪽이면 바닥 층에서만 그린다). */
-    function icePut(g, ring, o) {
-        const [x, y, ground] = icePos(ring, o.a, o.R, o.h);
-        if ((ground >= 0) !== ring.front) return;
-        g.globalAlpha = o.al; g.fillStyle = o.col; g.fillRect(Math.round(x), Math.round(y) - o.hh, o.w, o.hh * 2 + 1);
+
+    /** ① 육각 얼음 베기의 변들: 칼날 머리가 지나는 길을 60°마다 꺾이는 곧은 선으로 끊는다(한 바퀴 넘게 돌아 일곱 변). */
+    function iceHexPlan() {
+        const SIDE = Math.PI / 3, sides = [];
+        for (let k = 0; ; k++) {
+            const a0 = -SIDE * 0.35 + k * SIDE, a1 = Math.min(ICE.TURN, a0 + SIDE);
+            if (a0 >= ICE.TURN - 0.08) break;
+            sides.push({ a0: Math.max(0, a0), a1, tEnd: iceTimeOf(a1) });
+        }
+        return sides;
     }
-    const iceBandInk = (C, u, rr) => (u > 0.8 ? (rr > 0.86 ? C[5] : rr > 0.45 ? C[4] : C[3]) : u > 0.4 ? (rr > 0.8 ? C[4] : C[3]) : (rr > 0.7 ? C[3] : C[2]));
-    /** ① 칼날 고리: 등 뒤에서 시작해 한 바퀴 넘게 돌며, 머리는 굵고 밝고 꼬리는 가늘다. */
-    function iceBlade(g, ring, t) {
-        const hd = iceHead(t), close = t > ICE.SW ? Math.min(1, (t - ICE.SW) / 130) : 0, span = Math.min(hd, ICE.SPAN * (1 - close)), fade = t < ICE.SW ? 1 : Math.max(0, 1 - (t - ICE.SW) / 150);
-        if (fade <= 0 || span <= 0.02) return;
-        const tail = hd - span, N = Math.ceil(span * ring.R_OUT * 0.9);
-        for (let i = 0; i <= N; i++) {
-            const u = i / N, a = tail + span * u, wid = ring.BAND * (0.12 + 0.88 * Math.pow(u, 1.3)) * (u > 0.95 ? 0.35 + 0.65 * (1 - u) / 0.05 : 1);
-            const hv = Math.round(1 + 2.5 * u), al = fade * (0.3 + 0.7 * u), Rhi = ring.R_OUT - (1 - u) * 8, Rlo = Rhi - wid, st = Math.max(1, Math.round(wid / 2));
-            for (let k = 0; k <= st; k++) icePut(g, ring, { a, R: Rlo + (Rhi - Rlo) * k / st, h: ICE.HH, w: 2, hh: hv, col: iceBandInk(ring.C, u, k / st), al });
+    /** 머리가 지나는 대로 변이 뻗고, 다 그은 변은 0.14초 뒤 사라진다. 한 변을 셋으로 나눠 그 가운데의 앞뒤로 층을 고른다. */
+    function iceHex(g, ring, t) {
+        const hd = iceHead(t);
+        for (const side of ring.hex) {
+            if (hd < side.a0) continue;
+            const u = Math.min(1, (hd - side.a0) / (side.a1 - side.a0)), al = u < 1 ? 1 : Math.max(0, 1 - (t - side.tEnd) / 140);
+            if (al > 0) iceHexSide(g, ring, { side, u, al });
+        }
+        g.globalAlpha = 1;
+    }
+    function iceHexSide(g, ring, o) {
+        const { a0, a1 } = o.side, [x0, y0] = icePos(ring, a0, ring.RC, ICE.HH), [x1, y1] = icePos(ring, a1, ring.RC, ICE.HH);
+        const N = Math.ceil(Math.hypot(x1 - x0, y1 - y0) * o.u / 1.2);
+        for (let part = 0; part < 3 && part / 3 <= o.u; part++) {
+            const sA = part / 3, sB = Math.min((part + 1) / 3, o.u);
+            if ((icePos(ring, a0 + (a1 - a0) * (sA + sB) / 2, ring.RC, 0)[2] >= 0) !== ring.front) continue;
+            for (let i = 0; i <= N; i++) {
+                const s = i / Math.max(1, N) * o.u;
+                if (s >= sA && s <= sB) iceHexDot(g, ring, { x: x0 + (x1 - x0) * s, y: y0 + (y1 - y0) * s, s, lead: o.u < 1 && s > o.u - 0.08, al: o.al });
+            }
         }
     }
-    /** ② 내려앉는 서리 고리: 칼날이 지나간 자리의 서리 알갱이가 바닥으로 떨어진다. */
-    function iceSettle(g, ring, t) {
-        if (t <= ICE.D0 || t >= ICE.D1 + 40) return;
-        const u = Math.min(1, (t - ICE.D0) / (ICE.D1 - ICE.D0)), h = ICE.HH * (1 - u * u), al = Math.min(1, (t - ICE.D0) / 50) * (t > ICE.D1 ? 1 - (t - ICE.D1) / 40 : 1);
-        for (let i = 0; i < 64; i++) {
-            const a = i / 64 * TAU + (i % 3) * 0.02, tw = (i * 7 + Math.floor(t / 40)) % 5, col = tw === 0 ? ring.C[5] : tw < 3 ? ring.C[4] : ring.F[2];
-            icePut(g, ring, { a, R: ring.A * ICE.RING * (1 + (i % 4 - 1.5) * 0.015), h: h + (i % 3) * 2 * (1 - u), w: tw ? 2 : 1, hh: 0, col, al });
+    /** 베기 선의 한 점: 가운데 굵고 양끝 가늘다. 아래 옅은 빛, 하늘빛 몸, 흰 심, 뻗는 머리는 흰 점 셋. */
+    function iceHexDot(g, ring, d) {
+        const x = Math.round(d.x), y = Math.round(d.y), w = Math.round(1 + 2.2 * Math.sin(Math.PI * d.s));
+        g.globalAlpha = d.al * 0.45; g.fillStyle = ring.C[3]; g.fillRect(x, y + 1, 2, w + 1);
+        g.globalAlpha = d.al; g.fillStyle = ring.C[4]; g.fillRect(x, y - 1, 2, w);
+        g.fillStyle = d.lead || w > 2 ? ring.F[5] : ring.C[5]; g.fillRect(x, y - 1, 2, 1);
+        if (d.lead) { g.fillStyle = ring.F[5]; g.fillRect(x - 1, y - 2, 3, 3); }
+    }
+    /** 꼭짓점마다의 투명한 얼음 결정 송이(가시 셋): 생기고(50ms) 떠 있다가(70) 떨어지고(120) 바닥에서 부서진다(170). */
+    function iceClusterPlan(ring, r) {
+        return ring.hex.map(side => {
+            const a = side.a1 >= ICE.TURN ? ICE.TURN - 0.02 : side.a1, out = ring.face * Math.cos(Math.PI + a);
+            const sh = [[-0.35, -5, 9, 4], [0, 0, 14, 5], [0.38, 5, 10, 4]].map(([lean, dx, H, W], j) => ({ lean: lean + out * 0.25, dx: dx + out * 3, dy: j === 1 ? 0 : 2, H: H + Math.round(r() * 3), W, ph: r() * 500 }));
+            return { a, t0: iceTimeOf(a) + 10, sd: 6100 + Math.round(a * 100), sh };
+        });
+    }
+    function iceClusters(g, ring, t) {
+        for (const cl of ring.clusters) {
+            const k = t - cl.t0, [ax, , gy] = icePos(ring, cl.a, ring.RC, 0);
+            if (k < 0 || (gy >= 0) !== ring.front) continue;
+            const fall = k > 120 ? Math.min(1, (k - 120) / 120) : 0, brk = k > 240 ? Math.min(1, (k - 240) / 170) : 0;
+            if (brk >= 0.98) continue;
+            if (brk) iceClusterBreak(g, ring, { cl, ax, gy, brk });
+            else iceClusterShards(g, ring, { cl, ax, gy, h: ICE.HH * (1 - fall * fall), grow: Math.min(1, k / 50), t });
+        }
+        g.globalAlpha = 1;
+    }
+    function iceClusterShards(g, ring, o) {
+        for (const sh of o.cl.sh) {
+            const x = Math.round(o.ax + sh.dx), y = Math.round(o.gy - o.h + sh.dy);
+            iceSpike(g, ring, { x, y, H: Math.max(2, Math.round(sh.H * o.grow)), W: sh.W, lean: sh.lean, al: 1, glint: ((o.t + sh.ph) % 500) / 300 });
+            g.globalAlpha = 0.7; g.fillStyle = ring.F[3]; g.fillRect(x - 1, y + 1, 3, 1); g.fillRect(x, y + 2, 1, 2);   // 아래 짧은 끝(떠 있는 결정)
         }
     }
-    /** ③ 파동 마루: 파동 반지름을 따라 바깥으로 밀려가는 들쭉날쭉한 얼음 가시 고리. 0.25까지 솟고 0.6부터 낮아진다. */
+    function iceClusterBreak(g, ring, o) {
+        const rr = S.random(o.cl.sd), s2 = o.brk * 0.3;
+        g.globalAlpha = 1 - o.brk;
+        for (let i = 0; i < 6; i++) {
+            const vx = (rr() - 0.5) * 70, vy = -20 - rr() * 40, size = i % 3 ? 1 : 2;
+            g.fillStyle = i % 2 ? ring.F[4] : ring.F[2]; g.fillRect(Math.round(o.ax + vx * s2), Math.round(o.gy - 4 + vy * s2 + 260 * s2 * s2), size, size);
+        }
+    }
+
+    /** 마루의 솟음: 0.25까지 솟고 0.6부터 낮아져 끝에서 사라진다. */
+    const crestEnvelope = u => (u < 0.25 ? 1 - Math.pow(1 - u / 0.25, 2) : u < 0.6 ? 1 : Math.max(0, 1 - (u - 0.6) / 0.4));
+    /** ③ 파동 마루 두 겹(둘째는 0.13초 뒤, 낮고 조금 안쪽): 파동 반지름을 따라 바깥으로 밀려가는 투명한 얼음 가시 고리. */
     function iceCrest(g, ring, t) {
-        if (t < ICE.W0 || t >= ICE.W0 + ICE.WD) return;
-        const u = (t - ICE.W0) / ICE.WD, env = u < 0.25 ? 1 - Math.pow(1 - u / 0.25, 2) : u < 0.6 ? 1 : Math.max(0, 1 - (u - 0.6) / 0.4), R = iceWave(t), al = u > 0.85 ? (1 - u) / 0.15 : 1;
-        for (const c of ring.crest) {
-            const d = R + c.dr, x = Math.cos(c.a) * ring.A * d, y = Math.sin(c.a) * ring.B * d, H = Math.round(30 * env * c.h * (1 + 0.12 * Math.sin(t / 40 + c.a * 5)));
+        iceCrestSet(g, ring, { t, tt: t, scale: 1, set: ring.crest, first: true });
+        iceCrestSet(g, ring, { t, tt: t - ICE.W2, scale: 0.58, set: ring.crest2, first: false });
+    }
+    function iceCrestSet(g, ring, o) {
+        if (o.tt < ICE.W0 || o.tt >= ICE.W0 + ICE.WD) return;
+        const u = (o.tt - ICE.W0) / ICE.WD, env = crestEnvelope(u), R = iceWave(o.tt) * (o.first ? 1 : 0.94), al = u > 0.85 ? (1 - u) / 0.15 : 1;
+        for (const c of o.set) {
+            const d = R + c.dr, x = Math.cos(c.a) * ring.A * d, y = Math.sin(c.a) * ring.B * d, H = Math.round(30 * o.scale * env * c.h * (1 + 0.12 * Math.sin(o.t / 40 + c.a * 5)));
             if (crestHidden(ring, { x, y, d, H })) continue;
-            iceSpike(g, ring, { x: Math.round(x), y: Math.round(y), H, W: Math.max(4, Math.round(c.W * (0.6 + 0.4 * env))), lean: Math.cos(c.a) * c.ln, al });
+            iceSpike(g, ring, { x: Math.round(x), y: Math.round(y), H, W: Math.max(4, Math.round(c.W * (0.6 + 0.4 * env))), lean: Math.cos(c.a) * c.ln, al, glint: ((o.t / 3 + c.a * 97) % 170) / 100 });
+            if (o.first && crestTwinkles(o.t, c, H)) iceTwinkle(g, ring, { x: Math.round(x + Math.cos(c.a) * c.ln * H), y: Math.round(y - H), al });
         }
+    }
+    /** 첫 겹의 높은 가시 끝이 가끔 반짝이는가. */
+    const crestTwinkles = (t, c, H) => H > 14 && (Math.floor(t / 50) + Math.round(c.a * 10)) % 7 === 0;
+    function iceTwinkle(g, ring, o) {
+        g.globalAlpha = o.al; g.fillStyle = ring.F[5]; g.fillRect(o.x, o.y - 1, 1, 3); g.fillRect(o.x - 1, o.y, 3, 1);
+        g.globalAlpha = 1;
     }
     /** 그리지 않는 마루 가시: 너무 낮거나, 캐릭터 바로 앞을 가리거나, 다른 층의 몫. */
     const crestHidden = (ring, c) => c.H < 2 || (c.y > 0 && Math.abs(c.x) < 26 && c.d < 1) || (c.y >= 0) !== ring.front;
-    /** ①~④를 그 층의 몫만: 앞(front)이면 건 자리보다 앞쪽 조각, 아니면 뒤쪽 조각. */
-    function icePieces(g, ring, t, front) {
-        ring.front = front;
-        iceBlade(g, ring, t);
-        iceSettle(g, ring, t);
-        iceCrest(g, ring, t);
-        for (const sp of ring.spikes) if (t >= sp.t0 && (sp.y >= 0) === front) iceSpikeAt(g, ring, sp, t);
+
+    /** ⑤ 반짝이 가루: 칼날이 지나간 자리(44)와 파동이 지나간 자리(60)에서 얼음 가루가 천천히 떠오르며 깜빡인다. */
+    function iceDustPlan(ring, r) {
+        const dust = [];
+        for (let i = 0; i < 44; i++) {
+            const te = i / 44 * ICE.SW, [x, , y] = icePos(ring, iceHead(te) - 0.05 - r() * 0.25, ring.R_OUT * (0.78 + r() * 0.24), 0);
+            dust.push({ x, y, t0: te + 20, h: ICE.HH + (r() - 0.5) * 14, vy: 14 + r() * 26, vx: (r() - 0.5) * 12, life: 520 + r() * 420, ph: r() * TAU, big: r() < 0.28 });
+        }
+        for (let i = 0; i < 60; i++) {
+            const d = ICE.RW0 + (ICE.RW1 - ICE.RW0) * Math.sqrt(r()), a = r() * TAU;
+            dust.push({ x: Math.cos(a) * ring.A * d, y: Math.sin(a) * ring.B * d, t0: iceWaveAt(d) + 10 + r() * 40, h: 3 + r() * 18, vy: 10 + r() * 22,
+                vx: Math.cos(a) * (4 + r() * 8), life: 480 + r() * 460, ph: r() * TAU, big: r() < 0.22 });
+        }
+        return dust;
+    }
+    function iceDust(g, ring, t) {
+        for (const d of ring.dust) {
+            const k = t - d.t0;
+            if (k < 0 || k > d.life || (d.y >= 0) !== ring.front) continue;
+            const s2 = k / 1000, tw = (Math.sin(k / 45 + d.ph) + 1) / 2, x = Math.round(d.x + d.vx * s2), y = Math.round(d.y - d.h - d.vy * s2);
+            g.globalAlpha = Math.min(1, k / 60) * (1 - Math.pow(k / d.life, 2)) * (0.45 + 0.55 * tw);
+            if (d.big && tw > 0.82) { g.fillStyle = ring.C[4]; g.fillRect(x - 1, y, 3, 1); g.fillRect(x, y - 1, 1, 3); g.fillStyle = ring.F[5]; g.fillRect(x, y, 1, 1); }
+            else { g.fillStyle = tw > 0.6 ? ring.C[5] : ring.F[3]; g.fillRect(x, y, 1, 1); }
+        }
         g.globalAlpha = 1;
     }
-    /** 바닥: 서리 바닥, 파동 띠, 바깥으로 뻗는 금. */
+    /** ⑤-0 눈송이 열넷: 파동이 퍼지는 동안 범위 위에서 6갈래 눈송이가 돌며 천천히 내려앉는다. */
+    function iceFlakePlan(ring, r) {
+        return Array.from({ length: 14 }, () => {
+            const a = r() * TAU, d = 0.3 + r() * 0.95;
+            return { x: Math.cos(a) * ring.A * d, y: Math.sin(a) * ring.B * d, h0: 54 + r() * 46, t0: ICE.W0 - 40 + r() * 320, vy: 26 + r() * 16, life: 640 + r() * 260, rot: r() * 3, sz: r() < 0.4 ? 3 : 2, ph: r() * TAU };
+        });
+    }
+    function iceFlakes(g, ring, t) {
+        for (const fl of ring.flakes) {
+            const k = t - fl.t0;
+            if (k < 0 || k > fl.life || (fl.y >= 0) !== ring.front) continue;
+            g.globalAlpha = Math.min(1, k / 120) * (k > fl.life - 200 ? (fl.life - k) / 200 : 1);
+            iceStar(g, { x: Math.round(fl.x + Math.sin(k / 260 + fl.ph) * 5), y: Math.round(fl.y - Math.max(2, fl.h0 - fl.vy * k / 1000 * 1.4)), size: fl.sz, rot: fl.rot + k / 600,
+                centre: ring.F[5], mid: ring.F[3], tip: ring.C[4] });
+        }
+        g.globalAlpha = 1;
+    }
+    /** 6갈래 별(눈송이, 눈꽃 표식): 세 줄을 60°씩 돌려 긋는다. 가운데 centre, 끝 tip, 그 사이 mid. */
+    function iceStar(g, o) {
+        for (let j = 0; j < 3; j++) {
+            const a = o.rot + j * Math.PI / 3, dx = Math.cos(a), dy = Math.sin(a);
+            for (let s = -o.size; s <= o.size; s++) {
+                g.fillStyle = s === 0 ? o.centre : Math.abs(s) === o.size ? o.tip : o.mid;
+                g.fillRect(Math.round(o.x + dx * s), Math.round(o.y + dy * s), 1, 1);
+            }
+        }
+    }
+    /** ①~⑤ 가운데 그 층의 몫만: 앞(front)이면 건 자리보다 앞쪽 조각, 아니면 뒤쪽 조각. */
+    function icePieces(g, ring, t, front) {
+        ring.front = front;
+        iceHex(g, ring, t);
+        iceClusters(g, ring, t);
+        iceCrest(g, ring, t);
+        for (const sp of ring.spikes) if (t >= sp.t0 && (sp.y >= 0) === front) iceSpikeAt(g, ring, sp, t);
+        iceFlakes(g, ring, t);
+        iceDust(g, ring, t);
+        g.globalAlpha = 1;
+    }
+
+    /** 바닥: 눈꽃 결정진, 서리 바닥, 파동 띠, 바깥으로 뻗는 금. */
     function iceFloor(g, ring, t) {
+        iceSigil(g, ring, t);
         if (t < ICE.W0 - 10) return;
         const R = iceWave(t), u = Math.min(1, (t - ICE.W0) / ICE.WD), out = t > ICE.W0 + ICE.WD ? Math.max(0, 1 - (t - ICE.W0 - ICE.WD) / 420) : 1;
         if (out <= 0) return;
@@ -130,6 +260,57 @@ const stageSkillSpells = (() => {
         iceCracks(g, ring, { R, out });
         if (u < 1) iceWaveBand(g, ring, { R, u });
         g.globalAlpha = 1;
+    }
+    /** 바닥 눈꽃 결정진: 겹고리 넷과 가지 여섯(곁가지 셋, 끝 결정)이 고리가 내려앉을 때 그려져 맥동하다 파동이 끝나면 옅어진다. 아래 한 점에
+     * 어두운 그림자 줄을 먼저 깔고, 내려앉는 순간에는 가는 충격 고리가 바닥을 훑는다. */
+    function iceSigil(g, ring, t) {
+        const k = t - (ICE.D1 - 20);
+        if (k < 0 || t >= ICE.W0 + ICE.WD + 520) return;
+        const out = t > ICE.W0 + ICE.WD ? Math.max(0, 1 - (t - ICE.W0 - ICE.WD) / 520) : 1, sig = { grow: Math.min(1, k / 170), sweep: Math.min(1, k / 140) };
+        for (const lit of [false, true]) {
+            g.globalAlpha = (lit ? 0.95 * (0.7 + 0.3 * Math.sin(k / 70)) : 0.55) * out;
+            iceSigilRings(g, ring, { ...sig, lit });
+            iceSigilBranches(g, ring, { ...sig, lit });
+        }
+        if (k < 190) iceShockRing(g, ring, k / 190);
+        g.globalAlpha = 1;
+    }
+    const sigilAt = (ring, a, d) => [Math.round(Math.cos(a) * ring.A * ICE.SIG * d), Math.round(Math.sin(a) * ring.B * ICE.SIG * d)];
+    function iceSigilRings(g, ring, o) {
+        const dy = o.lit ? 0 : 1;
+        for (const [d, ink, step] of [[1, ring.C[5], 2], [0.94, ring.C[4], 3], [0.55, ring.C[4], 2], [0.3, ring.C[3], 2]]) {
+            g.fillStyle = o.lit ? ink : ring.C[1];
+            const N = Math.round(150 * d * o.sweep);
+            for (let i = 0; i < N; i += step) { const [x, y] = sigilAt(ring, ring.srot + i / 150 / d * TAU, d); g.fillRect(x, y + dy, 2, 1); }
+        }
+    }
+    function iceSigilBranches(g, ring, o) {
+        const dy = o.lit ? 0 : 1, one = (x, y) => g.fillRect(x, y + dy, 1, 1), two = (x, y) => g.fillRect(x, y + dy, 2, 1);
+        for (let i = 0; i < 6; i++) {
+            const a = ring.srot + i * Math.PI / 3 + Math.PI / 6, [x0, y0] = sigilAt(ring, a, 0.1), [x1, y1] = sigilAt(ring, a, 0.1 + 0.82 * o.grow);
+            g.fillStyle = o.lit ? ring.C[4] : ring.C[1];
+            S.line(x0, y0, x1, y1, two);
+            for (const [bd, bl] of [[0.36, 0.17], [0.58, 0.22], [0.78, 0.13]]) if (o.grow * 0.92 >= bd) iceSigilTwig(g, ring, { a, bd, bl, lit: o.lit, put: one });
+            if (o.grow >= 1 && o.lit) iceSigilTip(g, ring, sigilAt(ring, a, 0.94));
+        }
+    }
+    function iceSigilTwig(g, ring, o) {
+        const [x0, y0] = sigilAt(ring, o.a, o.bd);
+        g.fillStyle = o.lit ? (o.bd > 0.7 ? ring.C[5] : ring.C[4]) : ring.C[1];
+        for (const side of [-1, 1]) {
+            const a2 = o.a + side * Math.PI / 3;
+            S.line(x0, y0, Math.round(x0 + Math.cos(a2) * ring.A * ICE.SIG * o.bl), Math.round(y0 + Math.sin(a2) * ring.B * ICE.SIG * o.bl), o.put);
+        }
+    }
+    function iceSigilTip(g, ring, [x, y]) {
+        g.fillStyle = ring.C[4]; g.fillRect(x - 2, y, 5, 1); g.fillRect(x - 1, y - 1, 3, 3);
+        g.fillStyle = ring.F[5]; g.fillRect(x, y - 2, 1, 5);
+    }
+    /** 고리가 내려앉는 순간 바닥을 훑는 가는 충격 고리(u 0 → 1). */
+    function iceShockRing(g, ring, u) {
+        const d = 0.7 + 0.75 * u;
+        g.globalAlpha = (1 - u) * 0.9; g.fillStyle = ring.C[5];
+        for (let i = 0; i < 200; i++) { const a = i / 200 * TAU; g.fillRect(Math.round(Math.cos(a) * ring.A * d), Math.round(Math.sin(a) * ring.B * d), 2, 1); }
     }
     function iceCracks(g, ring, o) {
         const rc = S.random(4409);
@@ -162,24 +343,129 @@ const stageSkillSpells = (() => {
         }
         g.globalAlpha = 1;
     }
-    /** 얼어붙은 고리: 칼날 고리, 바닥 서리, 바깥으로 퍼지는 파동과 작은 가시. 큰 가시는 실제 피격 사건에서 따로 건다.
+    /** 얼어붙은 고리: 육각 얼음 베기와 결정, 바닥 결정진과 서리, 바깥으로 퍼지는 파동 두 겹과 작은 가시, 가루와 눈송이. 맞은 적의 큰 가시와
+     * 얼음 터짐은 실제 피격 사건에서 따로 건다(spellIceRingSpikes).
      * @param {{at:object, face:number, radius:number}} o 건 자리(주인공), 반지름(칸) */
     function spellIceRing(o) {
         const A = (o.radius + 0.5) * WIDE, B = (o.radius + 0.5) * DEEP, r = S.random(77);
-        const ring = { C: S.ramp('cold'), F: S.ramp('frost'), A, B, q: B / A, face: o.face, R_OUT: A * 0.98, BAND: A * 0.36, front: true };
+        const ring = { C: S.ramp('cold'), F: S.ramp('frost'), A, B, q: B / A, face: o.face, R_OUT: A * 0.98, front: true };
+        ring.RC = ring.R_OUT * 0.93;
+        ring.srot = r() * 0.5;
         ring.spikes = iceSpikes(ring);
         ring.crest = Array.from({ length: 46 }, (_, i) => ({ a: i / 46 * TAU + (r() - 0.5) * 0.08, h: 0.55 + r() * 0.45 * (i % 2 ? 0.6 : 1), dr: (r() - 0.5) * 0.06, W: 7 + Math.round(r() * 3), ln: 0.15 + r() * 0.15 }));
-        S.hang(o.at, { life: ICE.W0 + ICE.WD + 480,
+        ring.crest2 = Array.from({ length: 34 }, (_, i) => ({ a: i / 34 * TAU + 0.09 + (r() - 0.5) * 0.1, h: 0.5 + r() * 0.5, dr: (r() - 0.5) * 0.05, W: 5 + Math.round(r() * 2), ln: 0.2 + r() * 0.15 }));
+        ring.hex = iceHexPlan();
+        ring.clusters = iceClusterPlan(ring, r);
+        ring.dust = iceDustPlan(ring, r);
+        ring.flakes = iceFlakePlan(ring, r);
+        S.hang(o.at, { life: ICE.W0 + ICE.WD + ICE.TAIL,
             ground(g, t) { iceFloor(g, ring, t); icePieces(g, ring, t, false); },
             top(g, t) { icePieces(g, ring, t, true); iceShards(g, ring, t); } });
     }
 
-    /** 실제 피격 대상 하나의 큰 가시 셋. 고리와 같은 앞/뒤 층을 쓰되 독립된 생애로 끝까지 그린다.
-     * @param {{at:object, radius:number, victim:{dx:number,dy:number}}} o 고리 위치, 반지름(칸), 그 위치에서 본 적의 위치(도트) */
+    /** ⑥ 맞은 적의 얼음 터짐(0.26초): 몸 가운데에서 얼음 조각 여덟이 튀어 떨어진다. */
+    function iceBurst(g, ring, o) {
+        if (o.k > 260) return;
+        const rr = S.random(o.sd), s2 = o.k / 1000;
+        g.globalAlpha = 1 - o.k / 260;
+        for (let i = 0; i < 8; i++) {
+            const a = i / 8 * TAU + rr() * 0.4, sp = 70 + rr() * 60, x = Math.round(o.x + Math.cos(a) * sp * s2 * 1.6), y = Math.round(o.y + Math.sin(a) * sp * s2 + 140 * s2 * s2), w = i % 3 ? 2 : 3;
+            g.fillStyle = i % 2 ? ring.F[4] : ring.C[4]; g.fillRect(x, y, w, 2); g.fillStyle = ring.C[1]; g.fillRect(x, y + 2, w, 1);
+        }
+        g.globalAlpha = 1;
+    }
+    /** 맞은 적 머리 위 눈꽃 표식(0.42초): 커지며 천천히 돌고 조금 떠오른다. 가지마다 곁점 둘. */
+    function iceMark(g, ring, o) {
+        const sk = o.k / 420, size = Math.round(3 + 3 * Math.min(1, o.k / 90)), rot = sk * 0.9, y = o.y - 30 - Math.round(8 * sk);
+        g.globalAlpha = sk < 0.7 ? 1 : 1 - (sk - 0.7) / 0.3;
+        iceStar(g, { x: o.x, y, size, rot, centre: ring.C[3], mid: ring.C[3], tip: ring.F[5] });
+        g.fillStyle = ring.C[4];
+        for (let j = 0; j < 3; j++) {
+            const a = rot + j * Math.PI / 3;
+            for (const side of [-1, 1]) for (const bend of [-1, 1]) {
+                const a2 = a + bend * 0.8 * side, bx = o.x + Math.cos(a) * side * size * 0.6, by = y + Math.sin(a) * side * size * 0.6;
+                g.fillRect(Math.round(bx + Math.cos(a2) * 2), Math.round(by + Math.sin(a2) * 2), 1, 1);
+            }
+        }
+        g.globalAlpha = 1;
+    }
+    /** 실제 피격 대상 하나: 발밑의 큰 가시 셋(고리와 같은 앞/뒤 층), 몸의 얼음 터짐과 머리 위 눈꽃 표식(위 층, 맞은 순간부터).
+     * @param {{at:object, radius:number, victim:{dx:number,dy:number}, seed?:number}} o 고리 위치, 반지름(칸), 그 위치에서 본 적의 위치(도트) */
     function spellIceRingSpikes(o) {
         const A = (o.radius + 0.5) * WIDE, B = (o.radius + 0.5) * DEEP, ring = { C: S.ramp('cold'), F: S.ramp('frost'), A, B }, spikes = victimSpikes(ring, o.victim);
-        const draw = (g, t) => { for (const sp of spikes) if (t >= sp.t0) iceSpikeAt(g, ring, sp, t); g.globalAlpha = 1; };
-        S.hang(o.at, { life: spikes[2].t0 + 520, [o.victim.dy + 2 >= 0 ? 'top' : 'ground']: draw });
+        const centre = { x: Math.round(o.victim.dx), y: Math.round(o.victim.dy + BODY), sd: 3301 + (Number(o.seed) || 0) * 17 };
+        const drawSpikes = (g, t) => { for (const sp of spikes) if (t >= sp.t0) iceSpikeAt(g, ring, sp, t); g.globalAlpha = 1; };
+        const drawBurst = (g, t) => { if (t > 420) return; iceBurst(g, ring, { ...centre, k: t }); iceMark(g, ring, { x: centre.x, y: centre.y, k: t }); };
+        const front = o.victim.dy + 2 >= 0;
+        S.hang(o.at, { life: spikes[2].t0 + 520, ground: front ? null : drawSpikes, top: front ? (g, t) => { drawSpikes(g, t); drawBurst(g, t); } : drawBurst });
+    }
+
+    // ---------------------------------------------------------------- burning ground (유성 낙화, 2026-10-20 스킬룬 전달본 v42)
+    // 10-20 사용자 "유성낙화 후 화염지대가 남아 피해를 입혔으면": 폭발한 자리(타원 2칸)에 그을린 바닥, 용암빛 틈, 바닥 불씨, 불꽃 혀 36개(여섯에
+    // 하나는 큰 불꽃, 높이가 흔들린다), 떠오르는 불티. 밝은 색은 불꽃 끝 몇 점만(광과민 규칙). 피해는 게임의 땅 불길 틱(data/skills.js)이 준다.
+    function zonePlan(o) {
+        const A = (o.radius + 0.5) * WIDE, B = (o.radius + 0.5) * DEEP, r = S.random(7717);
+        const inside = () => { const a = r() * TAU, d = Math.sqrt(r()) * 0.92; return [Math.cos(a) * A * d, Math.sin(a) * B * d]; };
+        const flames = Array.from({ length: 36 }, (_, i) => { const [x, y] = inside(); return { x, y, H: (i % 6 ? 10 : 18) + r() * 14, W: (i % 6 ? 3 : 5) + Math.round(r() * 2), ph: r() * TAU, sp: 0.8 + r() * 0.6, t0: r() * 220 }; });
+        const specks = Array.from({ length: 70 }, () => { const [x, y] = inside(); return [x, y, r() * TAU]; });
+        const cracks = Array.from({ length: 9 }, (_, i) => zoneCrack(r, { A, B, a: i / 9 * TAU + r() * 0.5 }));
+        const embers = Array.from({ length: 34 }, () => { const [x, y] = inside(); return { x, y, t0: r() * 900, vy: 34 + r() * 30, vx: (r() - 0.5) * 14, life: 520 + r() * 420 }; });
+        return { A, B, C: S.ramp('fire'), life: o.life, flames, specks, cracks, embers };
+    }
+    function zoneCrack(r, o) {
+        const pts = [];
+        for (let d = 0.08, a = o.a; d < 0.9; d += 0.11 + r() * 0.06, a += (r() - 0.5) * 0.5) pts.push([Math.cos(a) * o.A * d, Math.sin(a) * o.B * d]);
+        return pts;
+    }
+    /** 지대의 진하기: 0.22초에 걸쳐 피어나고 끝 0.32초 동안 사그라든다. */
+    const zoneEnvelope = (z, t) => (t < 0 ? 0 : Math.min(1, t / 220) * (t > z.life - 320 ? Math.max(0, (z.life - t) / 320) : 1));
+    function zoneFloor(g, z, t, e) {
+        g.globalAlpha = 0.42 * e; g.fillStyle = '#241812'; g.beginPath(); g.ellipse(0, 0, z.A, z.B, 0, 0, TAU); g.fill();   // 그을린 바닥
+        g.globalAlpha = 0.18 * e; g.fillStyle = z.C[1]; g.beginPath(); g.ellipse(0, 0, z.A * 0.8, z.B * 0.8, 0, 0, TAU); g.fill();
+        const pulse = 0.55 + 0.25 * Math.sin(t / 120);
+        for (const pts of z.cracks) for (let i = 1; i < pts.length; i++) {   // 용암빛 틈
+            g.globalAlpha = e * pulse * (1 - i / pts.length * 0.5); g.fillStyle = i < 2 ? z.C[3] : z.C[2];
+            S.line(pts[i - 1][0], pts[i - 1][1], pts[i][0], pts[i][1], dot(g));
+        }
+        for (const [x, y, ph] of z.specks) {   // 바닥 불씨
+            const q = (Math.sin(t / 80 + ph * 3) + 1) / 2;
+            g.globalAlpha = e * (0.25 + 0.5 * q); g.fillStyle = q > 0.85 ? z.C[4] : q > 0.4 ? z.C[3] : z.C[2]; g.fillRect(Math.round(x), Math.round(y), 1, 1);
+        }
+    }
+    /** 불꽃 혀 하나: 아래는 짙고 위로 갈수록 밝고 가늘어지며 끝이 흔들린다. */
+    function zoneFlame(g, z, fl, o) {
+        const k = o.t - fl.t0;
+        if (k < 0) return;
+        const H = Math.round(fl.H * Math.min(1, k / 160) * o.e * (0.75 + 0.25 * Math.sin(o.t / 70 * fl.sp + fl.ph)) * (0.85 + 0.15 * Math.sin(o.t / 23 + fl.ph * 2)));
+        const x0 = Math.round(fl.x), y0 = Math.round(fl.y), sway = Math.sin(o.t / 110 + fl.ph);
+        for (let j = 0; j < H && H >= 2; j++) {
+            const v = j / H, hw = Math.max(0, Math.round(fl.W / 2 * (1 - v * v))), cx = x0 + Math.round(sway * v * v * 2.5);
+            g.globalAlpha = Math.min(1, o.e * 1.1) * (v > 0.8 ? 0.75 : 0.92); g.fillStyle = v < 0.35 ? z.C[2] : v < 0.7 ? z.C[3] : z.C[4]; g.fillRect(cx - hw, y0 - j, hw * 2 + 1, 1);
+            if (v < 0.3 && hw > 0) { g.fillStyle = z.C[3]; g.fillRect(cx, y0 - j, 1, 1); }
+        }
+    }
+    /** 떠오르는 불티 하나(되풀이된다). */
+    function zoneEmber(g, z, em, o) {
+        const k = (o.t - em.t0) % (em.life + 400);
+        if (o.t < em.t0 || k > em.life) return;
+        const s2 = k / 1000;
+        g.globalAlpha = o.e * (1 - k / em.life); g.fillStyle = k < em.life * 0.4 ? z.C[4] : z.C[3];
+        g.fillRect(Math.round(em.x + em.vx * s2 + Math.sin(k / 90) * 2), Math.round(em.y - 6 - em.vy * s2), 1, k < 120 ? 2 : 1);
+    }
+    /** 불꽃과 불티 가운데 그 층의 몫(front면 지대 가운데보다 앞쪽). */
+    function zoneFire(g, z, t, front) {
+        const e = zoneEnvelope(z, t);
+        if (e <= 0) return;
+        for (const fl of z.flames) if ((fl.y >= 0) === front) zoneFlame(g, z, fl, { t, e });
+        for (const em of z.embers) if ((em.y >= 0) === front) zoneEmber(g, z, em, { t, e });
+        g.globalAlpha = 1;
+    }
+    /** 유성 낙화의 불타는 지대. @param {{at:object, radius:number, delay:number, life:number}} o 지대 가운데, 반지름(칸), 늦춤(ms), 보이는 시간(ms) */
+    function spellFireZone(o) {
+        const z = zonePlan(o);
+        S.hang(o.at, { life: o.life, delay: o.delay,
+            ground(g, t) { const e = zoneEnvelope(z, t); if (e > 0) zoneFloor(g, z, t, e); zoneFire(g, z, t, false); g.globalAlpha = 1; },
+            top(g, t) { zoneFire(g, z, t, true); } });
     }
 
     // ---------------------------------------------------------------- ice columns (혹한의 지진)
@@ -679,6 +965,6 @@ const stageSkillSpells = (() => {
 
     return Object.freeze({ iceRing: spellIceRing, iceRingSpikes: spellIceRingSpikes, iceColumns: spellIceColumns, iceColumn: spellIceColumn, emberShout: spellEmberShout, frostCone: spellFrostCone,
         discharge: spellDischarge, guillotine: spellGuillotine, fallSpear: spellFallSpear, volleyUp: spellVolleyUp, arrowRain: spellArrowRain, cosmos: spellCosmos,
-        glassBreak: spellGlassBreak, glassShard: spellGlassShard, charge: spellCharge, flipTrail: spellFlipTrail });
+        glassBreak: spellGlassBreak, glassShard: spellGlassShard, charge: spellCharge, flipTrail: spellFlipTrail, fireZone: spellFireZone });
 })();
 safeExposeGlobals({ stageSkillSpells });

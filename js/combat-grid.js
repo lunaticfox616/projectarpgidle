@@ -1158,7 +1158,7 @@ function buildAuthoredSkillHitSequence(skillName, skill, targets) {
 }
 
 function buildMeteorSkillHitSequence(pattern, impactCells, targets) {
-    let groundHits = Math.max(1, Math.min(5, Math.floor(Number(pattern.groundHits) || 3)));
+    let groundHits = Math.max(1, Math.min(8, Math.floor(Number(pattern.groundHits) || 3)));
     let groundIntervalMs = Math.max(160, Math.floor(Number(pattern.groundIntervalMs) || 600));
     let groundDamageMultiplier = Math.max(0.01, Number(pattern.groundDamagePct) || 8) / 100;
     let impact = {
@@ -1172,6 +1172,27 @@ function buildMeteorSkillHitSequence(pattern, impactCells, targets) {
         primaryAilmentChance: idx === 0 ? 1 : undefined, impactCells, targets
     }));
     return [impact, ...ground];
+}
+
+/** 판정 칸과 대상만으로 정해지는 단계 묶음: 유성 낙화(meteor)와 나눠 쏘는 부채꼴(volley). */
+const SIMPLE_HIT_SEQUENCES = Object.freeze({
+    meteor: (pattern, impactCells, targets) => buildMeteorSkillHitSequence(pattern, impactCells, targets),
+    volley: (pattern, impactCells, targets) => buildVolleySkillHitSequence(pattern, targets)
+});
+
+/** 나눠 쏘는 부채꼴(2026-10-20 스킬룬 전달본 v42의 연발 사격): 활 연타사격 그림의 쏘는 장 넷에 맞춰 화살을 shots발씩, 첫 사격에서 shotMs 뒤에
+ * 쏜다. 대상은 부채꼴 갈래 순서(가운데 겨눈 화살이 먼저, js/combat-grid.js selectGridAimedFanHits)대로 나눈다. 남는 화살(추가 투사체)은 마지막
+ * 사격에 붙는다. 대상과 화살마다의 피해 배율은 그대로다(나눠 쏘기만 한다). 그림은 js/canvas-world-tree-fx.js fanRays가 같은 몫으로 나눈다. */
+function buildVolleySkillHitSequence(pattern, targets) {
+    const shots = (pattern.shots || []).map(count => Math.max(1, Math.floor(Number(count) || 1))), at = pattern.shotMs || [];
+    const stages = [];
+    let next = 0;
+    shots.forEach((count, idx) => {
+        const group = targets.slice(next, idx === shots.length - 1 ? targets.length : next + count);
+        next += group.length;
+        if (group.length) stages.push({ kind: idx ? 'volleyShot' : 'primary', label: `${idx + 1}번째 사격`, delayMs: Math.max(0, Number(at[idx]) || 0), damageMultiplier: 1, targets: group });
+    });
+    return stages.length ? stages : [{ kind: 'primary', label: '직격', delayMs: 0, damageMultiplier: 1, targets }];
 }
 
 /** 집중(channel): hits번의 시간차 타격. finisher가 있으면 마지막에 제 피해와 범위로 한 번 더(2026-10-17 인계의 전도성 난격이 썼다),
@@ -1206,7 +1227,8 @@ function buildConfiguredSkillHitSequence(skillName, skill, targets) {
     if (pattern.kind === 'radialBurst') {
         return buildRadialBurstHitSequence(skillName, skill, targets, { attacker, primary, impactCells });
     }
-    if (pattern.kind === 'meteor') return buildMeteorSkillHitSequence(pattern, impactCells, targets);
+    const simple = SIMPLE_HIT_SEQUENCES[pattern.kind];
+    if (simple) return simple(pattern, impactCells, targets);
     if (pattern.kind === 'field') {
         let hits = Math.max(1, Math.min(12, Math.floor(Number(pattern.hits) || 1)));
         let damageMultiplier = Math.max(0.01, Number(pattern.damagePct) || 100) / 100;
@@ -1307,7 +1329,7 @@ function getConfiguredSkillDpsMultiplier(pattern) {
     if (!pattern) return null;
     if (pattern.kind === 'authored') return pattern.stages.reduce((sum, stage) => sum + stage.damagePct / 100, 0);
     if (pattern.kind === 'meteor') {
-        let hits = Math.max(1, Math.min(5, Math.floor(Number(pattern.groundHits) || 3)));
+        let hits = Math.max(1, Math.min(8, Math.floor(Number(pattern.groundHits) || 3)));
         return 1 + hits * Math.max(0.01, Number(pattern.groundDamagePct) || 8) / 100;
     }
     if (['field', 'channel'].includes(pattern.kind)) {

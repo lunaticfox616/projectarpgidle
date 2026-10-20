@@ -330,16 +330,6 @@
     ]
   },
   {
-    "source": "assets/effects/skill-potion-sheet-v1.png",
-    "output": "assets/effects/skill-potion-sheet-v1.webp",
-    "sourceSha256": "36b55898b89542ea2167e4c143bfac6b802be66d346bbb4fd85f94c7a8a4f62e",
-    "outputSha256": "87eb0b75b15bc4cc74c2c72b3d5a6c33983f2368f97a3b863f3cfa6c02dd4ae6",
-    "size": [
-      1254,
-      1254
-    ]
-  },
-  {
     "source": "assets/effects/skill-projectile-v2.png",
     "output": "assets/effects/skill-projectile-v2.webp",
     "sourceSha256": "d6e3c720c072c6cb8e48f2d91df6fefaabe084233d2bf62772be26f754554c0a",

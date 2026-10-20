@@ -8,7 +8,7 @@
  * (js/content-progression-ui.js announceStarterGem) → 자동 사냥이 열린다. 새 게임의 첫 루프에서 한 번만 돈다.
  * 진행은 seenTutorials의 열쇠로 남는다(KEY). 그 사이 자동 사냥은 꺼진 채 잠기고(autoLocked, js/act-exploration-ui.js), 쓰러진 동안과
  * 일어나는 동안 게임이 멈춘다(holds, js/canvas-act-title-card.js greeting이 함께 읽는다). 주인공 그림은 받은 그림이다
- * (js/canvas-stage-actors.js setRise, data/stage-view.js STAGE_HERO_RISE, scripts/build-stage-hero-rise.cjs). 무대 그림이 없으면
+ * (js/canvas-stage-actors.js setRise, data/stage-view.js STAGE_HERO_RISE, scripts/import-stage-characters.cjs). 무대 그림이 없으면
  * 쓰러진 장면만 건너뛴다.
  */
 const openingJourney = (() => {

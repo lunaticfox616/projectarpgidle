@@ -186,7 +186,7 @@ const redrawnSkillArt = (() => {
         if (age < 100) for (const [ox, oy] of DIAG) dot(x + ox, y + oy, F.M);
     }
 
-    // ---------------------------------------------------------------- element sparks on a struck cell (what is left of 32 삼원 파동, removed 2026-10-13: 29, 38 and the spectral wisp use them)
+    // ---------------------------------------------------------------- element sparks on a struck cell (what is left of 32 삼원 파동, removed 2026-10-13: 29 and the spectral wisp use them)
     function lightSpark(dot, s) {
         const r = rng(s.seed * 131 + 7), P = s.P, x = s.x, y = s.y;
         if (s.age < 90) { dot(x, y, P.W); forkSparks(dot, { x, y }, r, P); return; }
@@ -751,101 +751,6 @@ const redrawnSkillArt = (() => {
         for (const [ox, oy] of [[2, 0], [-2, 0], [0, 2], [0, -2], [1, 1], [-1, 1], [1, -1], [-1, -1]]) dot(x + ox, y + oy, c);
     }
 
-    // ---------------------------------------------------------------- 38 원소 포션 투척: a thrown flask shatters into one element pool
-    const POOL = {
-        fire: { D: '#572c31', B: '#8c3a34', M: '#c14936', L: '#ff963e', H: '#fff1b8' },   // D = flask liquid shade, B = pool body
-        cold: { D: '#263b59', B: '#2e6489', M: '#378cb9', L: '#81ddef', H: '#ecfffb' },
-        light: { D: '#5e5430', B: '#8c7432', M: '#c18b3a', L: '#ffd35a', H: '#fffbc9' }
-    };
-    const GLASS = { g: '#c4d5df', W: '#ffffff', k: '#8c5222' };
-    const FLASK = ['.kkk.', '..g..', '.gWg.', 'gWLLg', 'gLMMg', 'gMMDg', '.ggg.'];
-    const rot90 = rows => { const h = rows.length, w = rows[0].length, o = []; for (let x = 0; x < w; x++) { let r = ''; for (let y = h - 1; y >= 0; y--) r += rows[y][x]; o.push(r); } return o; };
-    const FLASK_R = [FLASK];
-    for (let i = 1; i < 4; i++) FLASK_R.push(rot90(FLASK_R[i - 1]));
-    function flaskInk(ch, P) { return ch === 'g' ? GLASS.g : ch === 'W' ? GLASS.W : ch === 'k' ? GLASS.k : P[ch]; }
-    function flaskAt(dot, x, y, turn, el) {                              // turn = clockwise quarter turns
-        const P = POOL[el] || POOL.fire, rows = FLASK_R[((turn % 4) + 4) % 4], h = rows.length, w = rows[0].length;
-        const x0 = Math.round(x - (w - 1) / 2), y0 = Math.round(y - (h - 1) / 2);
-        rows.forEach((row, yy) => [...row].forEach((ch, xx) => { if (ch !== '.') dot(x0 + xx, y0 + yy, flaskInk(ch, P)); }));
-    }
-    function lobPos(A, B, u, h) { return { x: A.x + (B.x - A.x) * u, y: A.y + (B.y - A.y) * u - 4 * h * u * (1 - u) }; }
-    /** @param {{dur:number, el:string}} o */
-    function flight(dot, A, B, age, o) {
-        const dur = o.dur;
-        if (age < 0 || age >= dur) return;
-        const u = age / dur, dist = Math.hypot(B.x - A.x, B.y - A.y), h = 10 + dist * .2, p = lobPos(A, B, u, h), sx = B.x >= A.x ? 1 : -1;
-        const P = POOL[o.el] || POOL.fire;
-        for (let k = 0; k < 3; k++) {                                     // a drop leaves the flask every 110ms and falls away
-            const t0 = 60 + k * 110, a = age - t0;
-            if (a < 0 || a >= 150 || t0 >= dur) continue;
-            const q = lobPos(A, B, t0 / dur, h);
-            dot(Math.round(q.x - sx * 1), Math.round(q.y + 3 + a / 150 * 5), a < 80 ? P.L : P.M);
-        }
-        flaskAt(dot, p.x, p.y, Math.floor(age / 70) * sx, o.el);
-    }
-    function shatterPos(o, a, sp, g, tt) { return { x: o.x + Math.cos(a) * sp * tt, y: o.y + Math.sin(a) * sp * tt + g * tt * tt }; }
-    function shatterFlash(lay, s) {
-        const X = Math.round(s.x), Y0 = Math.round(s.y);
-        lay.put(X, Y0, GLASS.W, 6);
-        for (const [ox, oy] of PLUS) { lay.put(X + ox, Y0 + oy, s.age < 30 ? GLASS.W : s.P.H, 5); if (s.age < 30) lay.put(X + ox * 2, Y0 + oy * 2, s.P.H, 4); }
-    }
-    function shatterShard(lay, s) {                                      // glass shards: white, 2 dots, tumble outward and fall
-        const i = s.i, a = -Math.PI / 2 + (i - 2) * .7, sp = 120 + (i % 2) * 30, t = s.age / 1000;
-        const p = shatterPos(s, a, sp, 300, t), px = Math.round(p.x), py = Math.round(p.y), flip = Math.floor(s.age / 60 + i) % 2;
-        lay.put(px, py, s.age < 150 ? GLASS.W : GLASS.g, 4); lay.put(px + (flip ? 1 : 0), py + (flip ? 0 : 1), GLASS.g, 3);
-    }
-    function shatterDrop(lay, s) {                                       // splash crown: drops with a short tail
-        const i = s.i, a = -Math.PI / 2 + (i - 3.5) * .42, sp = 110 + ((i * 37) % 3) * 20, t = s.age / 1000, u = s.age / 300;
-        const p = shatterPos(s, a, sp, 380, t), q = shatterPos(s, a, sp, 380, Math.max(0, t - .025));
-        lay.put(Math.round(p.x), Math.round(p.y), u < .35 ? s.P.H : u < .7 ? s.P.L : s.P.M, 3);
-        if (u < .7) lay.put(Math.round(q.x), Math.round(q.y), u < .35 ? s.P.L : s.P.M, 2);
-    }
-    function shatter(dot, x, y, age, el) {
-        if (age < 0 || age >= 300) return;
-        const P = POOL[el] || POOL.fire, lay = layer();
-        if (age < 60) shatterFlash(lay, { x, y, age, P });
-        for (let i = 0; i < 5; i++) { if (age >= 240) break; shatterShard(lay, { x, y, age, i }); }
-        for (let i = 0; i < 8; i++) shatterDrop(lay, { x, y, age, i, P });
-        lay.flush(dot);
-    }
-    function poolEdge(th) { return 1 + .05 * Math.sin(4 * th + 1.1) + .04 * Math.sin(7 * th + 2.3) + .025 * Math.sin(11 * th + .4); }
-    function isPoolRipple(p, d) { return p.rip != null && d < p.R - 2 && Math.abs(d - p.rip) < .6; }
-    function isPoolShine(R0, q) {
-        return (Math.abs(q.d - R0 * .55) < .5 && q.qx < -1 && q.qy < -1 && q.qx > -R0 * .5) || (Math.abs(q.d - R0 * .3) < .5 && q.qx < 0 && q.qy < -1);
-    }
-    function poolColour(p, q) {
-        const P = p.P;
-        let c = q.inset < 1 ? (p.dry > .5 ? P.M : P.L) : q.inset < 2.6 ? P.M : P.B;
-        if (isPoolRipple(p, q.d)) c = p.age - p.last < 90 ? P.H : P.L;
-        return !p.dry && p.R > 10 && c === P.B && isPoolShine(p.R, q) ? P.M : c;     // shine: two short arcs up-left of the centre
-    }
-    function poolDot(p, px, py, x, y) {
-        const qx = x + .5, qy = y + .5, d = Math.hypot(qx, qy);
-        let inset = p.R * poolEdge(Math.atan2(qy, qx)) - d;
-        for (const b of p.blobs) inset = Math.max(inset, b.r - Math.hypot(qx - b.x, qy - b.y));
-        if (inset >= 0) p.lay.put(px, py, poolColour(p, { inset, d, qx, qy }), 1);
-    }
-    function poolState(s) {
-        const R0 = s.R, blobs = [[-2.3, 1.12, .16], [.55, 1.14, .12], [1.9, 1.1, .1]].map(([a, k, r]) => ({ x: Math.cos(a) * R0 * k, y: Math.sin(a) * R0 * k, r: R0 * r }));
-        const last = Math.max(-1e9, ...s.pulses.filter(p => p <= s.age));
-        const rip = R0 > 10 && !s.dry && s.age - last >= 0 && s.age - last < 220 ? 3 + (R0 - 5) * ((s.age - last) / 220) : null;
-        return { lay: layer(), P: s.P, R: R0, age: s.age, dry: s.dry, blobs, last, rip };
-    }
-    function poolOptions(o) {
-        return { P: POOL[o.el] || POOL.fire, R0: o.R || 19, end: o.end || 720, pulses: o.pulses || [0, 240, 480] };
-    }
-    /** Ground layer. o.pulses: ages of the field ticks; o.end: age at which the last tick ends. */
-    function pool(dot, cx, cy, age, o = {}) {
-        const k = poolOptions(o);
-        if (age < 0 || age >= k.end + 220) return;
-        const grow = Math.max(0, Math.min(1, (age - 40) / 240)), e = 1 - (1 - grow) * (1 - grow), dry = age > k.end ? (age - k.end) / 220 : 0;
-        const R0 = k.R0 * e * (1 - dry * .85);
-        if (R0 < 1.5) return;
-        const p = poolState({ P: k.P, R: R0, age, dry, pulses: k.pulses }), X = Math.round(cx), Y0 = Math.round(cy), B = Math.ceil(R0 * 1.3) + 1;
-        eachDot(-B, -B, B, B, (x, y) => poolDot(p, X + x, Y0 + y, x, y));
-        p.lay.flush(dot);
-    }
-
     // ---------------------------------------------------------------- 46 시간 가속: a Celtic clock on the floor under the caster
     // Two strands (gold and verdigris) woven over-under round the circle between bronze rims; ring-cross knots on the quarters,
     // verdigris dashes between; two hands on the original's accelerating curve; each tick brightens the braid and marks the
@@ -952,7 +857,6 @@ const redrawnSkillArt = (() => {
         RippleSwing: { censer, trail: swingTrail, bolt: arcBolt, spark: groundSpark, colors: BR },
         BloodDrain: { slash: bloodSlash, splash: bloodSplash, drain, tint: drainTint, timing: DRAIN_T, colors: BL },
         GoldQuake: { ground: quakeGround, fore: quakeFore, hit: quakeHit, colors: GQ },
-        PotionThrow: { flight, shatter, pool, flask: flaskAt, colors: POOL, glass: GLASS },
         CelticClock: { clock: celticClock, mark: clockMark, angle: clockAngle, colors: CK },
         // shared by js/canvas-redrawn-skill-art-extra.js (the 09-30 additions draw with the same rasteriser and bolts)
         lib: { rng, line, layer, jag, stroke }

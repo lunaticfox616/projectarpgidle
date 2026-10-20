@@ -14,7 +14,7 @@ const stageSkillCasts = (() => {
     const seen = new WeakSet();                   // 이미 클립으로 옮긴 사건
     /** 투사체의 몸: 룬 번호 → 인계의 생김새(js/canvas-stage-skill-draws.js). */
     const BODIES = Object.freeze({ 7: 'spear', 9: 'spear', 11: 'spear', 26: 'spear', 30: 'bigspear', 14: 'arrow', 25: 'arrow',
-        38: 'flask', 44: 'flask', 47: 'flask', 48: 'flask', 49: 'flask' });
+        44: 'flask', 47: 'flask', 48: 'flask', 49: 'flask' });
     /** 따로 시전하는 룬의 사건에서 단계 이름이 적힌 칸. */
     const PHASE_KEYS = Object.freeze(['flaskPhase', 'lancePhase', 'mixturePhase', 'supercooledPhase', 'emptyFlaskPhase', 'holyMistPhase', 'assassinationPhase',
         'riftPhase', 'smokePhase', 'harpoonPhase', 'timePhase', 'judgmentPhase', 'flickerPhase']);
@@ -104,6 +104,8 @@ const stageSkillCasts = (() => {
     function castRings(c) {
         if (!c.first) return true;
         const gap = Number(c.event.ringInterval) || 260, centre = c.event.landingCell;
+        // 과냉각 혼합물(2026-10-20 v42 burst): 플라스크에 맞은 자리가 깨진 냉기로 터진다(그 적은 첫 고리와 함께 한 번 맞는다, js/skill-gem-casts.js stepCold).
+        if (c.gem.map.burst) castStand(c.gem.map.burst, centre, { ...c.look, scale: 0.9 });
         for (let ring = 0; ring < 3; ring++) for (let i = 0; i < 5; i++) {
             const angle = i / 5 * Math.PI * 2 + ring, a = (ring + 1.5) * WIDE * 0.85, b = (ring + 1.5) * DEEP * 0.85;
             stageSkillVfx.play(c.gem.map.area, K.at(centre, Math.cos(angle) * a, Math.sin(angle) * b - 30), { ...c.look, delay: ring * gap + i * 25, alpha: 0.85 });
@@ -208,8 +210,9 @@ const stageSkillCasts = (() => {
     // ---------------------------------------------------------------- movement gems
     /** 그림자 점멸: 떠난 자리와 나타난 자리에 연기가 핀다. */
     function castBlink(c, from, to) {
-        castStand(c.gem.map.smoke, from, c.look);
-        castStand(c.gem.map.land, to, { ...c.look, delay: 100 });
+        const kick = c.event.kickoff ? STAGE_VIEW.kickoffMs : 0;   // 박차고 나간 뒤 사라진다(data/stage-view.js kickoffMs)
+        castStand(c.gem.map.smoke, from, { ...c.look, delay: kick });
+        castStand(c.gem.map.land, to, { ...c.look, delay: kick + 100 });
     }
     /** 이동하는 사건(mobility): 돌진, 도약 강타, 섬머솔트 슬래시(js/canvas-stage-skill-runes.js)와 그림자 점멸은 새 연출이, 암살은 제 단계가 그린다. */
     function castMobility(c) {

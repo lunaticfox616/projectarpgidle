@@ -348,10 +348,6 @@ function drawElementProjectileVfx(ctx, style, width, height, progress) {
             return [Math.cos(angle) * radius, Math.sin(angle) * radius];
         });
         drawPolygonPath(ctx, points); ctx.globalAlpha *= 0.56; ctx.fill(); ctx.globalAlpha /= 0.56; ctx.stroke();
-    } else if (style === 'potion') {
-        ctx.rotate(-0.2 + progress * 0.5);
-        ctx.strokeStyle = '#f1f7ff'; ctx.strokeRect(-height * 0.08, -height * 0.4, height * 0.22, height * 0.22);
-        ctx.beginPath(); ctx.arc(0, height * 0.1, height * 0.34, 0, Math.PI * 2); ctx.globalAlpha *= 0.62; ctx.fill(); ctx.globalAlpha /= 0.62; ctx.stroke();
     } else {
         drawPolygonPath(ctx, [[-width * 0.48, -height * 0.08], [width * 0.22, -height * 0.08], [width * 0.5, 0], [width * 0.22, height * 0.08], [-width * 0.48, height * 0.08]]);
         ctx.fill();
@@ -1868,12 +1864,22 @@ function updatePlayerGridVisualMotion(gridProj, playerCell, now, moveSpeed) {
 
 function getExplorationPlayerVisualMotion(projection, player) {
     const run = actExplorationState.current(game);
-    const cell = actExplorationMotion.position(run, player);
+    const cell = getStageKickoffCell(player) || actExplorationMotion.position(run, player);
     const position = projection.cellToScreen(cell.gx, cell.gy);
     position.y += Number(projection.actorGroundOffsetY) || 0;
     // 걸음 도중에 게임이 멈추면(선택 창, 안내, 창 열림) 걷는 그림도 멈춘다: 멈춘 화면에서 제자리걸음을 하지 않는다.
     return {position, targetPosition: position, direction: run.motionDirection,
         progress: run.motion ? run.motion.elapsed / run.motion.duration : 1, animating: !!run.motion && !isForegroundGameplayPausedForBackground()};
+}
+
+/** 그림자 점멸이 박차고 나가는 동안(2026-10-20 스킬룬 전달본 v42, data/stage-view.js kickoffMs) 무대의 주인공 그림이 서 있는 칸: 떠난 칸.
+ * 게임의 칸은 이미 닿는 칸이다(그림만 늦게 나타난다). 그때가 아니면 null. */
+function getStageKickoffCell(player) {
+    const now = battleVisualState.visualNow;
+    if (!stageView.enabled() || !Number.isFinite(now)) return null;
+    const move = battleFx.find(fx => fx && fx.type === 'playerMobility' && fx.kickoff && fx.fromCell && fx.toCell
+        && now >= fx.start && now < fx.start + STAGE_VIEW.kickoffMs && fx.toCell.gx === player.gx && fx.toCell.gy === player.gy);
+    return move ? { gx: move.fromCell.gx, gy: move.fromCell.gy } : null;
 }
 
 /** 몸이 뜨는 이동 룬(도약 강타, 섬머솔트 슬래시)을 쓰는 동안 주인공의 땅 위 자리는 떠난 칸에서 닿는 칸으로 공중 시간 동안 옮겨 간다
@@ -2391,8 +2397,8 @@ function glideBattleEnemy(entry, frame) {
 }
 
 /** 옆에서 보는 무대: 주인공이 전투 기록이나 채팅 창 뒤에 서면 그 창이 옅어진다(js/message-frames-ui.js heroAt). 주인공의 키는 그림의
- * 도트 수로 어림한다(머리 위의 체력 막대까지). 위에서 보는 전장에서는 주인공이 늘 화면 가운데라 쓰지 않는다. */
-const STAGE_HERO_TALL_DOTS = 96;
+ * 도트 수로 어림한다(머리 위의 체력 막대까지, 2026-10-20 새 주인공은 키 약 110도트). 위에서 보는 전장에서는 주인공이 늘 화면 가운데라 쓰지 않는다. */
+const STAGE_HERO_TALL_DOTS = 118;
 function noteStageHeroBehindFrames(playerPos, gridProj) {
     if (typeof messageFrames !== 'object' || !messageFrames.isActive()) return;
     if (!stageView.enabled()) { messageFrames.heroAt(NaN, NaN, NaN); return; }

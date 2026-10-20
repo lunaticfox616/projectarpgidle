@@ -8,19 +8,25 @@
  * 몬스터 정의는 scripts/stage-monsters/<묶음>.cjs(입체 몇 개 + 자세), 입체를 쏘는 법은 scripts/stage-monsters/render.cjs,
  * 칠하는 법은 scripts/stage-monsters/paint.cjs(무대 조각 묶음의 화풍에 맞춘 빛과 색).
  * 게임 쪽 규격(발 자리, 높이, 프레임 시간)은 data/monster-sprites.js MONSTER_STAGE_SHEETS, MONSTER_STAGE_KIND.
- * 미리보기에는 무대 주인공 한 장을 옆에 세워 크기를 견준다(그림 폴더 assets/playable/stage가 있을 때만).
+ * 미리보기에는 무대 주인공(전사 대검 대기의 0번 장)을 옆에 세워 크기를 견준다(그림 폴더 assets/playable/stage가 있을 때만).
  */
 'use strict';
 const fs = require('node:fs');
 const path = require('node:path');
+const vm = require('node:vm');
 const R = require('./stage-monsters/render.cjs');
 const P = require('./stage-monsters/paint.cjs');
 const { decodePng, encodePng } = require('./lib/png.cjs');
 
 const root = path.resolve(__dirname, '..');
 const SETS = ['act1', 'wisps'];
-const PREVIEW_SCALE = 3, HERO_CELL = 128, HERO_FEET = 110;
-const HERO_SHEET = path.join(root, 'assets/playable/stage/warrior/swordshield/idle.png');
+const PREVIEW_SCALE = 3, HERO_CELL = 128, HERO_FEET = 116;
+/** 주인공 대기 칸(data/stage-characters.js의 w, h, ax, ay, file). */
+function heroClip() {
+    const sandbox = { safeExposeData: data => Object.assign(sandbox, data) };
+    vm.runInNewContext(fs.readFileSync(path.join(root, 'data/stage-characters.js'), 'utf8'), sandbox);
+    return sandbox.STAGE_CHARACTERS.classes.warrior.weapons.greatsword.idle;
+}
 
 function frames(monster, state, count) {
     return Array.from({ length: count }, (_, f) => P.paint(monster.build({ state, f }), monster.mats, monster.size, monster.feet));
@@ -30,12 +36,12 @@ function heightOf(monster, frame) {
     for (let y = 0; y < monster.size; y++) for (let x = 0; x < monster.size; x++) if (frame[(y * monster.size + x) * 4 + 3]) return monster.feet[1] - y;
     return 0;
 }
-/** Copies the opaque dots of a source rect onto the preview at an integer scale. */
+/** Copies the opaque dots of a source rect onto the preview at an integer scale (dots outside the preview are left out). */
 function blit(target, from, at) {
     const scale = PREVIEW_SCALE;
     for (let y = 0; y < from.h * scale; y++) for (let x = 0; x < from.w * scale; x++) {
         const src = ((from.y + Math.floor(y / scale)) * from.sheet.width + from.x + Math.floor(x / scale)) * 4;
-        if (from.sheet.data[src + 3] < 128) continue;
+        if (from.sheet.data[src + 3] < 128 || at.y + y < 0 || at.x + x < 0 || at.x + x >= target.width || at.y + y >= target.height) continue;
         target.data.set(from.sheet.data.subarray(src, src + 3), ((at.y + y) * target.width + at.x + x) * 4);
     }
 }
@@ -44,10 +50,11 @@ function preview(rows) {
     const target = { width: (columns * cell + HERO_CELL) * PREVIEW_SCALE, height: rows.length * HERO_CELL * PREVIEW_SCALE, data: null };
     target.data = new Uint8Array(target.width * target.height * 4);
     for (let i = 0; i < target.width * target.height; i++) target.data.set([52, 44, 50, 255], i * 4);
-    const hero = fs.existsSync(HERO_SHEET) ? decodePng(fs.readFileSync(HERO_SHEET)) : null;
+    const clip = heroClip(), sheet = path.join(root, 'assets/playable/stage', clip.file);
+    const hero = fs.existsSync(sheet) ? decodePng(fs.readFileSync(sheet)) : null;
     rows.forEach((row, r) => {
         const top = r * HERO_CELL * PREVIEW_SCALE;
-        if (hero) blit(target, { sheet: hero, x: 0, y: 0, w: HERO_CELL, h: HERO_CELL }, { x: 0, y: top });
+        if (hero) blit(target, { sheet: hero, x: 0, y: 0, w: clip.w, h: clip.h }, { x: (HERO_CELL / 2 - clip.ax) * PREVIEW_SCALE, y: top + (HERO_FEET - clip.ay) * PREVIEW_SCALE });
         row.list.forEach((frame, f) => blit(target, { sheet: { width: cell, data: frame }, x: 0, y: 0, w: cell, h: cell },
             { x: (HERO_CELL + f * cell) * PREVIEW_SCALE, y: top + (HERO_FEET - row.monster.feet[1]) * PREVIEW_SCALE }));
     });

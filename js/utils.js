@@ -156,7 +156,7 @@ const SKILL_TAG_LABELS = {
     curse: '저주',
     warcry: '함성',
     shout: '함성',
-    dagger: '단검',
+    dagger: '한손검',
     duration: '지속시간',
     debuff: '약화',
     guard: '수호',

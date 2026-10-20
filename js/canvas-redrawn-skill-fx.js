@@ -12,9 +12,9 @@ const redrawnSkillFx = (() => {
     const OWN_ART = Object.freeze({ '차원찢기': { id: 54 }, '향로구름': { id: 55 }, '작살화살': { id: 56 } });
     /** The art spec a skill is drawn under: its atlas entry, or its own redrawn-only id. */
     const specOf = name => SKILL_FX_ATLAS[name] || OWN_ART[name] || null;
-    const IDS = new Set([3, 5, 10, 16, 17, 18, 21, 28, 29, 30, 37, 38, 42, 45, 46, 48, 50, 51, 54, 55, 56]);
+    const IDS = new Set([3, 5, 10, 16, 17, 18, 21, 28, 29, 30, 37, 45, 46, 48, 50, 51, 54, 55, 56]);
     const REPLACED = { 3: ['windup', 'stage', 'hit'], 21: ['travel', 'hit'],
-        45: ['travel', 'stage', 'hit'], 38: ['travel', 'stage', 'hit'], 51: ['stage'], 16: ['windup', 'stage', 'hit'], 37: ['windup', 'stage', 'hit'],
+        45: ['travel', 'stage', 'hit'], 51: ['stage'], 16: ['windup', 'stage', 'hit'], 37: ['windup', 'stage', 'hit'],
         // 빙결 파열창 keeps its redrawn spear (fxRemake.projectile) and only its hits turn to frost mist; 과냉각 혼합물 keeps
         // its flask flight and hit sparks and only its heavy cloud ring (the wave stage) becomes thin frost rings.
         30: ['hit'], 48: ['stage'],
@@ -257,7 +257,14 @@ const redrawnSkillFx = (() => {
         const j = judgmentPlan(st, ft, view.hand);
         judgmentCells(cast, st).forEach((cl, i) => judgmentBolt(dot, j, cl, i));
         if (j.t >= 300 && j.t < 680) judgmentTrail(dot, j);
-        if (j.t >= 0 && j.t < st.duration) art().RippleSwing.censer(dot, j.H, judgmentPos(j, j.t), j.t >= 300);
+        if (j.t >= 0 && j.t < st.duration && !heroSwingsBigCenser()) art().RippleSwing.censer(dot, j.H, judgmentPos(j, j.t), j.t >= 300);
+    }
+    /** 무대 주인공이 파문심판에 향로큰회전(special2) 그림을 쓰는가: 그 그림이 향로를 휘두르므로 코드 향로는 그리지 않는다(2026-10-20 스킬룬 전달본 v42,
+     * 번개와 궤적은 그대로). */
+    function heroSwingsBigCenser() {
+        if (typeof stageView !== 'object' || !stageView.enabled() || typeof getStageHeroStance !== 'function') return false;
+        const classId = getHeroAppearanceId(), stance = getStageHeroStance(), motion = stageActors.motionFor('파문심판', classId, stance);
+        return motion === 'special2' && !!stageActors.clipOf(classId, stance, motion);
     }
     function drainChest(src, view) { return { x: src.gx * 16 + 8, y: feetY(src, view) - 9 }; }
     function drawDrain(dot, cast, ft, view) {                 // 3 흡혈 관통
@@ -283,31 +290,6 @@ const redrawnSkillFx = (() => {
         art().GoldQuake.fore(dot, q.src.gx * 16 + 8, feetY(q.src, view), ft - q.st.at);
         for (const e of eventsOf(cast, 'hit')) { const tc = hitCell(e); if (tc) art().GoldQuake.hit(dot, tc.gx * 16 + 8, tc.gy * 16 + 7, ft - e.at); }
     }
-    function potionPulses(cast, land) {                       // field ticks seen so far; before the first, the pattern's schedule
-        const pattern = SKILL_DB[cast.skillName]?.combatPattern || {}, ticks = [...new Set(eventsOf(cast, 'hit').map(e => e.at - land))].sort((a, b) => a - b);
-        return ticks.length ? ticks : Array.from({ length: pattern.hits || 3 }, (_, i) => i * (pattern.intervalMs || 240));
-    }
-    function potionInfo(cast) {                               // 38 원소 포션 투척: lob, landing, one pool pulsing on each field hit
-        const tr = firstOf(cast, 'travel'), st = eventsOf(cast, 'stage').sort((a, b) => a.at - b.at);
-        if (!tr || !st.length) return null;
-        const ctr = st[0].footprint?.center || tr.targetCells[0], land = st[0].at, last = st.at(-1);
-        const el = tr.element || SKILL_DB[cast.skillName]?.ele || 'fire';
-        return { tr, st: st[0], land, el, C: cellDot(ctr), pulses: potionPulses(cast, land), end: last.at + last.duration - land };
-    }
-    function drawPotionGround(dot, cast, ft) {
-        const I = potionInfo(cast);
-        if (!I) return;
-        const radius = footprintRadius(cast, I.st, 1);
-        art().PotionThrow.pool(dot, I.C.x, I.C.y, ft - I.land, { el: I.el, pulses: I.pulses, end: I.end, R: radius * 16 + 3 });
-    }
-    function drawPotion(dot, cast, ft) {
-        const I = potionInfo(cast);
-        if (!I) return;
-        const src = I.tr.sourceCell, sx = Math.sign(I.C.x - (src.gx * 16 + 8)) || 1, A = { x: src.gx * 16 + 8 + sx * 5, y: src.gy * 16 + 3 };
-        art().PotionThrow.flight(dot, A, I.C, ft - I.tr.at, { dur: I.tr.duration, el: I.el });
-        art().PotionThrow.shatter(dot, I.C.x, I.C.y, ft - I.land, I.el);
-        cast.events.forEach((e, i) => { const tc = e.kind === 'hit' && hitCell(e); if (tc) art().TriWave.spark(dot, tc.gx * 16 + 8, tc.gy * 16 + 7, ft - e.at, { el: I.el, seed: i + 1 }); });
-    }
     function clockEvent(cast) { return cast.events.find(e => e.timePhase === 'clock'); }
     function drawTimeClock(dot, cast, ft, view) {            // 46 시간 가속 (ground): centred on the drawn character, gliding with the walk
         const st = clockEvent(cast);
@@ -324,7 +306,7 @@ const redrawnSkillFx = (() => {
     const DRAWERS = {
         3: { fore: drawDrain }, 5: { fore: drawWhirl }, 10: { fore: drawFrost }, 16: { fore: drawCrescent },
         18: { ground: drawQuakeGround, fore: drawQuake }, 21: { fore: drawFrostWave }, 28: { fore: drawCollapse },
-        38: { ground: drawPotionGround, fore: drawPotion }, 45: { fore: drawLance },
+        45: { fore: drawLance },
         46: { ground: drawTimeClock, fore: drawTimeMarks }, 50: { ground: drawMist }, 51: { fore: drawJudgment }
     };
     /** js/canvas-redrawn-skill-fx-extra.js adds its drawers (17·29·30·37·48, 54~56) here. */

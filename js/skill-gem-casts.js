@@ -139,24 +139,30 @@ const skillGemCasts = (() => {
         state.casts.push(cast);
         return true;
     }
+    /** 무대의 주인공이 놓는 순간(js/combat.js noteNativeGemSwing): 그 룬의 동작이 이때 타격 장에 온다. */
+    const letGo=(c,impact,until)=>{c.swing={impact,until};};
     function launchFlask(state,c) {
-        const phase=c.id===49?'flask':'flight';
+        const phase=c.id===49?'flask':'flight',release=c.at+ms(c,FLASK_RELEASE);
         c.nextAt=c.at+flight(c,420,c.id===49?45:50);
-        visual(state,c,phase,c.at,c.nextAt-c.at);
+        letGo(c,release,release+ms(c,160));
+        visual(state,c,phase,release,Math.max(1,c.nextAt-release));
     }
     function launchLance(state,c,enemies) {
         c.points=targets(45,c.source,enemies).map(getGridUnitCenter);
         c.nextAt=c.at+440/c.speed;
+        letGo(c,c.at+180/c.speed,c.nextAt);
         visual(state,c,'fall',c.at+180/c.speed,260/c.speed,{targetCells:c.points});
     }
     function launchClock(state,c) {
         const pattern=c.stats.sSkill.combatPattern;
         c.nextAt=c.at+pattern.intervalMs;
+        letGo(c,c.at+ms(c,120),c.at+ms(c,320));
         c.event=visual(state,c,'clock',c.at,pattern.durationMs+200,{timeCenter:cell(c.source),timeRadius:3,
             timeTickTimes:Array.from({length:pattern.ticks},(_,i)=>c.at+(i+1)*pattern.intervalMs),timeTickTargets:[],sourcePath:[]});
     }
     function launchMist(state,c) {
         c.nextAt=c.at+Math.round(330/c.speed);
+        letGo(c,c.at+ms(c,150),c.nextAt);
         c.event=visual(state,c,'censer',c.at,Math.round(520/c.speed),{holySource:cell(c.source)});
     }
     function launchJudgment(state,c,enemies) {
@@ -164,12 +170,16 @@ const skillGemCasts = (() => {
         c.aim=plan.center;c.nextAt=c.at+Math.round(480/c.speed);c.direction=plan.direction;
         c.geometry={judgmentDirection:c.direction,crossRadius:radius,impactOffsetMs:c.nextAt-c.at,
             holdMs:Math.round(140/c.speed),footprint:{cells:cells(c.aim,'cross',radius)}};
+        letGo(c,c.nextAt,c.nextAt+c.geometry.holdMs);
         visual(state,c,'censer',c.at,c.nextAt-c.at+c.geometry.holdMs,c.geometry);
     }
+    /** 암살: 박차고 나간 뒤(2026-10-20 스킬룬 전달본 v42, 무대의 주인공은 한손검 이동 동작) 사라져 등 뒤에 나타나 찌른다. 사라짐은 박차고
+     * 나가는 만큼(lead) 늦다. */
     function launchAssassin(state,c) {
         state.pose=c;
-        c.nextAt=c.at+100;
-        visual(state,c,'vanish',c.at,180,{blinkCell:cell(c.source)});
+        c.lead=ms(c,240);c.nextAt=c.at+c.lead+100;
+        c.swing={impact:c.at+Math.round(c.lead*0.75),until:c.at+c.lead+ms(c,60),pose:'kickoff'};
+        visual(state,c,'vanish',c.at+c.lead,180,{blinkCell:cell(c.source)});
     }
     /** 탄성 플라스크(2026-10-17 스킬룬 인계 v32)의 다음 대상: 처음에는 사거리 안의 가장 가까운 적. 그 뒤로는 3칸 안의 아직 안 맞은 적,
      * 없으면 3칸 안의 다른 적(둘이면 왔다 갔다), 그것도 없으면 같은 적에게 다시(제자리에서 높이 튄다). */
@@ -189,7 +199,9 @@ const skillGemCasts = (() => {
         c.struck.add(target.id);
         c.targetId=target.id;c.aim=getGridUnitCenter(target);
         const duration=Math.round(Math.max(340,Math.min(520,300+distance(c.source,c.aim)*45))/c.speed/1.8);
-        visual(state,c,'flight',c.nextAt,duration);c.nextAt+=duration;
+        const release=c.struck.size===1 ? Math.min(c.nextAt+ms(c,FLASK_RELEASE),c.nextAt+duration-1) : c.nextAt;   // 첫 투척은 손을 떠날 때부터 난다
+        if(c.struck.size===1)letGo(c,release,release+ms(c,160));
+        visual(state,c,'flight',release,c.nextAt+duration-release);c.nextAt+=duration;
     }
     // ---------------------------------------------------------------- 54~56 이동기 (스킬 변경분 2 · 인계 mob4_core.js. 57 공중강타는 2026-10-13에 지웠다)
     // Reach is Euclidean; a landing is free (see free()) and never the caster's own cell; timings scale with attack speed.
@@ -198,6 +210,8 @@ const skillGemCasts = (() => {
     const N8=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
     const reach2=(a,b)=>(a.gx-b.gx)**2+(a.gy-b.gy)**2;
     const ms=(c,value)=>Math.round(value/c.speed);
+    /** 플라스크가 손을 떠나는 때(시전 뒤 ms, 공격 속도로 줄어든다): 주인공의 던지기 동작이 그 장에 온다. 떨어지는 때는 그대로다. */
+    const FLASK_RELEASE=90;
     const moveReach=(id,extra)=>MOVES[id].range+(MOVES[id].grows==='range'?extra:0);
     const moveRadius=c=>1+(MOVES[c.id].grows==='radius'?grow(c.stats):0);
     function lineCells(a,b) {
@@ -385,9 +399,9 @@ const skillGemCasts = (() => {
         const destination=landing(target,input.source,input.enemies.filter(e=>e.hp>0));
         if(!destination || getGridUnitDistance(input.source,target)>4+grow(c.stats)){c.done=true;c.failed=true;return [];}
         c.destination=destination;c.anchor=cell(target);c.direction=toward(destination,target);
-        c.index=1;c.nextAt=c.at+240;
-        visual(state,c,'arrive',c.at+100,180,{blinkCell:cell(destination)});
-        return [{type:'teleport',name:c.name,from:cell(input.source),to:destination,at:c.at+100}];
+        const lead=c.lead||0;c.index=1;c.nextAt=c.at+lead+240;
+        visual(state,c,'arrive',c.at+lead+100,180,{blinkCell:cell(destination)});
+        return [{type:'teleport',name:c.name,element:c.stats.sSkill.ele,from:cell(input.source),to:destination,at:c.at+lead+100,swing:{impactDelayMs:140,duration:260}}];
     }
     function shardPlan(extra) {
         const base=1+Math.floor(Math.random()*4),plan=Array.from({length:base},()=>false);
@@ -450,10 +464,16 @@ const skillGemCasts = (() => {
     function stepHarpoon(state,c,input) {                    // the strike, then (if it moved) the arrival at the rope's end
         if(!c.index) {
             c.index=1;c.nextAt=c.move.pull1;c.done=!c.move.moved;
-            return [contact(c,input.enemies.filter(e=>e.id===c.targetId && e.hp>0),c.move.hitAt)];
+            const hit=contact(c,input.enemies.filter(e=>e.id===c.targetId && e.hp>0),c.move.hitAt);
+            return c.move.moved ? [hit,harpoonPull(c)] : [hit];
         }
         c.done=true;
         return landingNow(c,input) ? [moveTo(c,'pull')] : [];
+    }
+    /** 작살화살이 끌려가는 동안 무대의 주인공이 밧줄을 당긴다(2026-10-20 v42, 활 이동 동작): 당기기 시작에 한 번 힘을 주고 끝까지. */
+    function harpoonPull(c) {
+        const m=c.move;
+        return {type:'pose',name:c.name,element:c.stats.sSkill.ele,targets:[],swing:{impactDelayMs:m.pull0-m.hitAt+ms(c,60),duration:m.pull1-m.hitAt+ms(c,120),pose:'pull'}};
     }
     /** One cut: across to the next foe (teleport, arriving in the strike pose), then the hit; the last one discharges. */
     function stepFlicker(state,c,input) {

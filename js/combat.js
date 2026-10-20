@@ -2723,7 +2723,7 @@ function queuePlayerAttackSequence(pStats, stages, context) {
     noteCombatTacticAttack(duration);
     addBattleFx('playerSwing', {
         color: getElementColor(context.forcedElement), element: context.forcedElement,
-        crit: context.forcedCrit, projectile: tags.includes('projectile'),
+        crit: context.forcedCrit, projectile: tags.includes('projectile'), kickoff: !!context.kickoff,
         combatTravel: getSkillCombatDelivery(pStats.sSkill) !== 'instantTarget',
         skillName: context.skillName, sourceCell:copyCombatGridCell(game.gridPlayer), duration, impactDelayMs: Math.max(0, delayMs),
         // 옆으로만 치는 룬이 대상을 고를 때 정한 쪽(js/combat-grid.js band): 대상이 바로 위나 아래여도 무대의 주인공이 그 쪽을 본다
@@ -5570,6 +5570,16 @@ function movePlayerForBlink(target) {
     return origin;
 }
 
+/** The attack's own move (mobilityPattern): landingMs, the airborne time the hit waits for (0 when it did not move or does not leap);
+ * kickoff, a plain blink (그림자 점멸): the stage hero kicks off before it vanishes (2026-10-20 스킬룬 전달본 v42, js/canvas-stage-actors.js). */
+function beginSkillMobility(pStats, target, isStageReplay) {
+    const moved = !isStageReplay && applySkillMobilityBeforeAttack(pStats.sSkill, target, pStats);
+    const landingMs = moved ? Math.max(0, Number(pStats.sSkill.mobilityPattern.airMs) || 0) : 0;
+    return { landingMs, kickoff: moved && isKickoffBlink(pStats.sSkill.mobilityPattern) };
+}
+/** 공중에 뜨지 않는 점멸(그림자 점멸): 무대의 주인공이 박차고 나간 뒤 사라진다. */
+const isKickoffBlink = pattern => pattern.kind === 'blink' && !(Number(pattern.airMs) > 0);
+
 function applySkillMobilityBeforeAttack(skill, target, pStats) {
     let pattern = skill && skill.mobilityPattern;
     if (!pattern || !target || !hasGridCell(target) || !hasGridCell(game.gridPlayer)) return false;
@@ -5579,7 +5589,8 @@ function applySkillMobilityBeforeAttack(skill, target, pStats) {
     let moveSpeed = Number.isFinite(pStats.moveSpeed) && pStats.moveSpeed > 0 ? pStats.moveSpeed : 100;
     let delayMs = getTacticalMoveAttackDelayMs(moveSpeed);
     combatTacticsRuntime.attackDelayUntil = Math.max(combatTacticsRuntime.attackDelayUntil, getCombatTime() + delayMs);
-    addBattleFx('playerMobility', { skillName: game.activeSkill, fromCell: origin, toCell: copyCombatGridCell(game.gridPlayer), duration: pattern.kind === 'blink' ? 180 : 280 });
+    addBattleFx('playerMobility', { skillName: game.activeSkill, fromCell: origin, toCell: copyCombatGridCell(game.gridPlayer), duration: pattern.kind === 'blink' ? 180 : 280,
+        kickoff: isKickoffBlink(pattern) });
     return true;
 }
 
@@ -11356,18 +11367,20 @@ function startSkillGemCombat(stats, options) {
     noteCombatTacticAttack(300);
 }
 
-/** 이동기 4종 swing their weapon once at the move's key moment (the tear, the puff, the release, the slam). */
+/** 이동기 4종 swing their weapon once at the move's key moment (the tear, the puff, the release, the slam); 암살 kicks off before it
+ * vanishes (cast.swing, pose 'kickoff'). */
 function noteNativeGemSwing(name, stats) {
-    const cast = skillGemCombatRuntime.casts.at(-1), swing = cast && cast.move && cast.move.swing;
+    const cast = skillGemCombatRuntime.casts.at(-1), swing = cast && (cast.move ? cast.move.swing : cast.swing);
     if (!swing || game.isBackgroundCalculation) return;
-    addBattleFx('playerSwing', { skillName: name, element: stats.sSkill.ele, color: getElementColor(stats.sSkill.ele),
+    addBattleFx('playerSwing', { skillName: name, element: stats.sSkill.ele, color: getElementColor(stats.sSkill.ele), pose: swing.pose,
         sourceCell: copyCombatGridCell(game.gridPlayer), impactDelayMs: swing.impact - cast.at, duration: Math.max(80, swing.until - cast.at) });
 }
 
-/** 전도성 난격: each arrival strikes at once, so the hero shows the rune's 단타 pose beside the foe (js/skill-gem-casts.js 70). */
+/** 전도성 난격: each arrival strikes at once, so the hero shows the rune's 단타 pose beside the foe (js/skill-gem-casts.js 70); 암살's
+ * arrival stabs; 작살화살's pose command hauls on the rope (pose 'pull'). */
 function noteNativeGemArrivalSwing(command) {
     if (game.isBackgroundCalculation) return;
-    addBattleFx('playerSwing', { skillName: command.name, element: command.element, color: getElementColor(command.element),
+    addBattleFx('playerSwing', { skillName: command.name, element: command.element, color: getElementColor(command.element), pose: command.swing.pose,
         sourceCell: copyCombatGridCell(game.gridPlayer), impactDelayMs: command.swing.impactDelayMs, duration: command.swing.duration });
 }
 
@@ -11407,6 +11420,7 @@ function initializeSkillGemFacing() {
 }
 
 function applySkillGemCommand(command,stats) {
+    if (command.type==='pose') return noteNativeGemArrivalSwing(command);
     if (command.type==='teleport') {
         if (!skillGemCasts.free(command.to,game.enemies.filter(e=>e.hp>0))) return;
         actExplorationMotion.cancel(game.actExploration);
@@ -11497,8 +11511,7 @@ function performPlayerAttack(pStats, attackOptions) {
         passiveKarmaContext = beginPassiveKarmaAttack(targets[0].enemy, getCombatTime());
     }
     if (!isStageReplay) colosseumStrikeMul *= consumeLoneEvasionCounterMultiplier(pStats, getCombatTime());
-    let landingMs = !isStageReplay && applySkillMobilityBeforeAttack(pStats.sSkill, targets[0].enemy, pStats)
-        ? Math.max(0, Number(pStats.sSkill.mobilityPattern.airMs) || 0) : 0;
+    let { landingMs, kickoff } = beginSkillMobility(pStats, targets[0].enemy, isStageReplay);
     let talentMoonReturn = !isStageReplay && typeof getTalentMoonReturnConfig === 'function'
         ? getTalentMoonReturnConfig(targets)
         : null;
@@ -11582,7 +11595,7 @@ function performPlayerAttack(pStats, attackOptions) {
             skillName, forcedCrit: isCrit, forcedElement: swingElement, stageCount,
             talentAttackMultiplier: talentAttackMul, attackDamageMultiplier: colosseumStrikeMul,
             talentMoonReturn, attackHitGuardCounts, passiveKarmaContext,
-            channelContinuation: channelContinuationRequested, repeatChannelCast: !!options.repeatChannelCast, landingMs
+            channelContinuation: channelContinuationRequested, repeatChannelCast: !!options.repeatChannelCast, landingMs, kickoff
         });
         return;
     }

@@ -169,14 +169,15 @@ const hanaActors = (() => {
 
     /**
      * Attack clip for one swing. Frames before the authored hit frame are compressed into the combat
-     * windup (start → impactAt); the recoil after the hit plays at a gentler speed. Channels hold the hit.
+     * windup (start → impactAt); the recoil after the hit plays at a gentler speed (clip.steady: at the clip's own speed, for frames
+     * that still fire after the hit, the bow volley). Channels hold the hit.
      * @returns {?{frame:number, end:number}}
      */
     function attackPose(clip, swing, now) {
         const hit = Math.max(1, Math.min(clip.frames - 1, clip.hitFrame || 1));
         const pre = sum(clip.ms, 0, hit), post = sum(clip.ms, hit);
         const windup = Math.max(1, swing.impactAt - swing.start);
-        const speed = windup / pre, recover = Math.max(0.55, Math.min(1, speed));
+        const speed = windup / pre, recover = clip.steady ? 1 : Math.max(0.55, Math.min(1, speed));
         const hold = Math.max(0, (swing.channelUntil || 0) - (swing.start + windup));
         const elapsed = now - swing.start, end = swing.start + windup + hold + post * recover;
         if (elapsed < 0 || now >= end) return null;

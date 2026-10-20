@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-/* 스킬룬 이펙트 묶음(2026-10-17 사용자가 준 "스킬룬 디렉터 전달" v32. 그 앞은 2026-10-13 "스킬젬 리메이크 인계" v21: 구매 팩에서 고른
- * 이펙트 그림과 룬마다의 연결표)을 게임이 읽는 모양으로 옮긴다(docs/stage-view-20261011.md).
+/* 스킬룬 이펙트 묶음(2026-10-20 사용자가 준 "스킬룬 디렉터 전달" v42. 그 앞은 10-19 v36, 10-17 v32, 10-13 "스킬젬 리메이크 인계" v21:
+ * 구매 팩에서 고른 이펙트 그림과 룬마다의 연결표)을 게임이 읽는 모양으로 옮긴다(docs/stage-view-20261011.md).
  *
  *   node scripts/build-stage-skill-vfx.cjs <인계 폴더> [복사해 둘 폴더]
  *
@@ -9,7 +9,8 @@
  *   2_시뮬레이터/vfx/vfx2.json, vfx2.png    둘째 장(v32부터, 있으면): 칸 표에 im: 1이 붙는다
  *   2_시뮬레이터/src/gem_template.html      색 램프(RAMP), 클립(CLIPS), 무기 휘두름의 기본 클립(SWING_CLIP), 룬마다의 연결(VFXMAP),
  *                                           속성별 타격 묶음(HIT_POOL, v32부터)
- *   스킬룬_목록.json(v21은 젬_목록.json)     룬의 계열과 동작 슬롯, v32는 직업과 무기 자세마다 쓰는 동작(motions)도
+ *   스킬룬_목록.json(v21은 젬_목록.json)     룬의 계열과 동작 슬롯, v32부터 직업과 무기 자세마다 쓰는 동작(motions)도
+ *                                           (v42: 무기 대검, 한손검과 모션 공방의 모션 이름, scripts/lib/stage-motion-ids.cjs)
  * 을 읽어
  *   그림: assets/stage-vfx/vfx.png, vfx2.png (저장소에 넣지 않는다. 구매 팩에서 온 그림이라 다시 나눠 주면 안 된다). [복사해 둘 폴더]에도 둔다.
  *   표: data/stage-skill-vfx.js (수치와 이름만 있다).
@@ -19,6 +20,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
+const { CLASS_IDS, STANCE_IDS, MOTION_IDS, idOf } = require('./lib/stage-motion-ids.cjs');
 
 const root = path.join(__dirname, '..');
 const [from, mirror] = process.argv.slice(2);
@@ -98,6 +100,10 @@ function tableText(name) {
 const table = name => readLiteral(tableText(name));
 
 const ramps = table('RAMP'), clips = table('CLIPS'), swingClips = table('SWING_CLIP'), gems = table('VFXMAP'), elementRamp = table('EL_RAMP');
+/** 게임 쪽에서 덧붙이는 연결(인계는 그것을 제 코드 연출로 그린다): 전도성 난격이 벨 때마다의 작은 번개 튐은 인계의 flickerCutFx가 그리고,
+ * 게임은 맞은 적의 타격 클립으로 띄운다(2026-10-19 v36 적용, js/canvas-stage-skill-runes.js runeHitRefs). */
+const GAME_HOOKS = { 70: { hit: 'p_espark@light' } };
+for (const [id, hooks] of Object.entries(GAME_HOOKS)) if (gems[id]) gems[id] = { ...gems[id], ...hooks };
 /** 클립 표의 줄 주석 안에 들어가 버린 클립 줄(v32: "// 신성한 기도: 번개창이 꽂힌 자리 p_bow: {...}"로 활 발사 섬광 클립이 시뮬레이터에서도
  * 없어졌다. 시뮬레이터의 코드는 그 클립을 튼다): 주석 뒤의 "이름: { a: '원본', … }"을 살려 넣는다. */
 const commentedClips = [];
@@ -145,25 +151,27 @@ for (const [id, map] of Object.entries(gems)) for (const [hook, value] of Object
 /** 룬의 갈래: cast 시전 마법진을 띄운다(주문, 위습, 시전과 집중 슬롯), melee 근접 타격 모양을 쓴다(인계의 kind가 strike, whirl, move). */
 const meta = {};
 for (const gem of gemList) meta[gem.id] = { name: gem.n, el: gem.el, cast: /시전|집중/.test(gem.slot) || gem.fam === 'spell' || gem.fam === 'wisp', melee: ['strike', 'whirl', 'move'].includes(gem.kind), kind: gem.kind };
-/** 룬을 쓸 때 주인공이 하는 동작(v32의 motions): 룬 번호 → 직업 → 무기 자세 → data/stage-characters.js의 동작 이름('공격2' → 'attack2'). */
-const CLASS_IDS = { 방랑자: 'wanderer', 전사: 'warrior', 궁수: 'archer', 비술사: 'occultist', 연금술사: 'alchemist', 성직자: 'cleric' };
-const STANCE_IDS = { 맨손: 'unarmed', 검방패: 'swordshield', 단검: 'dagger', 활: 'bow', 오브: 'orb', 플라스크: 'flask', 향로: 'censer' };
-const MOTION_IDS = { 대기: 'idle', 걷기: 'walk', 공격: 'attack', 시전: 'cast', 투척: 'throw', 전용공격: 'special', 사망: 'death', 연타: 'flurry', 방패공격: 'bash' };
-function motionId(name) {
-    const hit = /^(\D+?)(\d*)$/.exec(name), base = hit && MOTION_IDS[hit[1]];
-    if (!base) throw new Error('모르는 동작 이름: ' + name);
-    return base + hit[2];
+/** 룬을 쓸 때 주인공이 하는 동작(v32부터의 motions): 룬 번호 → 직업 → 무기 자세 → data/stage-characters.js의 동작 이름('강타' → 'slam'). */
+const heroSets = (() => {
+    const sandbox = { safeExposeData: data => Object.assign(sandbox, data) };
+    require('node:vm').runInNewContext(fs.readFileSync(path.join(root, 'data/stage-characters.js'), 'utf8'), sandbox);
+    return sandbox.STAGE_CHARACTERS.classes;
+})();
+/** 시뮬레이터가 그림이 없어 대신 쓴 동작을 게임의 그림으로 되돌린다: 연금술사와 성직자 한손검의 회전은 v42 시뮬레이터의 그림에 없어 단타로
+ * 대신했지만 10-20 모션 전달본(data/stage-characters.js)에는 있다. 회전 슬롯 룬(회오리, 얼어붙은 고리)은 그 그림이 있으면 회전이다. */
+function motionOf(row, classId, stanceId) {
+    const id = idOf(MOTION_IDS, row.m, '동작 이름');
+    return id === 'attack' && /회전/.test(row.note || '') && heroSets[classId].weapons[stanceId].spin ? 'spin' : id;
 }
 const motions = {};
 for (const gem of gemList) {
     if (!gem.motions) continue;
     const byClass = {};
     for (const [classLabel, stances] of Object.entries(gem.motions)) {
-        const classId = CLASS_IDS[classLabel];
-        if (!classId) throw new Error('모르는 직업: ' + classLabel);
+        const classId = idOf(CLASS_IDS, classLabel, '직업');
         byClass[classId] = Object.fromEntries(Object.entries(stances).map(([stanceLabel, row]) => {
-            if (!STANCE_IDS[stanceLabel]) throw new Error('모르는 무기 자세: ' + stanceLabel);
-            return [STANCE_IDS[stanceLabel], motionId(row.m)];
+            const stanceId = idOf(STANCE_IDS, stanceLabel, '무기 자세');
+            return [stanceId, motionOf(row, classId, stanceId)];
         }));
     }
     motions[gem.id] = byClass;
@@ -185,7 +193,7 @@ const megabytes = files.reduce((sum, file) => sum + fs.statSync(path.join(sim, '
 const q = value => JSON.stringify(value).replace(/"([A-Za-z_$][\w$]*)":/g, '$1:').replace(/"/g, '\'');
 const rows = (object, indent) => Object.entries(object).map(([key, value]) => `${indent}${/^[A-Za-z_$][\w$]*$/.test(key) ? key : `'${key}'`}: ${q(value)}`).join(',\n');
 const text = `// 스킬 이펙트 묶음 (js/canvas-stage-skill-vfx.js). scripts/build-stage-skill-vfx.cjs가 만든 표다: 손으로 고치지 않는다.
-// 2026-10-17 사용자가 준 "스킬룬 디렉터 전달"(v32)의 이펙트: 구매 팩에서 고른 이펙트 그림 두 장(assets/stage-vfx/vfx.png, vfx2.png,
+// 2026-10-20 사용자가 준 "스킬룬 디렉터 전달"(v42)의 이펙트: 구매 팩에서 고른 이펙트 그림 두 장(assets/stage-vfx/vfx.png, vfx2.png,
 // 저장소에 넣지 않는다)과 룬마다 어느 클립을 어느 때 쓰는지, 룬을 쓸 때의 동작. 룬의 판정, 무기 조건, 수치는 data/skills.js가 갖는다.
 //   ramps   색 램프: 어두운 쪽에서 밝은 쪽으로 여섯 단계. 클립을 '이름@램프'로 부르면 그림의 밝기를 이 여섯 색으로 다시 칠한다('@='는 원래 색).
 //   elementRamp 속성 → 램프. 룬이 램프를 정하지 않은 클립은 룬의 속성 색으로 칠한다.

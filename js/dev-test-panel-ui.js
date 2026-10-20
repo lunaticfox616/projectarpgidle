@@ -7,7 +7,7 @@ const devTestPanel = (() => {
     const SPEEDS = [1, 2, 4, 8];
     const WEAPON_MODES = [['auto', '착용 무기'], ['class', '직업 기본'], ['greatsword', '대검'], ['scimitar', '곡도'],
         ['shortbow', '단궁'], ['orb', '오브'], ['flask', '플라스크'], ['censer', '향로']];
-    const STAGE_STANCES = [['auto', '착용 무기'], ['unarmed', '맨손'], ['swordshield', '검방패'], ['dagger', '단검'], ['bow', '활'],
+    const STAGE_STANCES = [['auto', '착용 무기'], ['unarmed', '맨손'], ['greatsword', '대검'], ['sword', '한손검'], ['bow', '활'],
         ['orb', '오브'], ['flask', '플라스크'], ['censer', '향로']];
     let root = null, godTimer = null, speed = 1;
 

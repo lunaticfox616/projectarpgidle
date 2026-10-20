@@ -253,13 +253,27 @@ const stageSkillRunes = (() => {
     let airNow = null;                            // 이번 프레임의 공중 자세(heroAir가 적는다): 공중제비 궤적이 몸 높이를 따라간다
     let airMove = null;                           // 마지막으로 본 이동 표시: 표시 목록이 차서 먼저 밀려나도 공중 시간이 끝날 때까지 쓴다
     /** 몸이 뜨는 이동 룬의 공중 시간(ms, data/skills.js mobilityPattern.airMs), 포물선 높이(도트), 도는 각(인계의 startLeap, startFlip).
-     * 공중제비(flip)는 높이 34도트로 한 바퀴, 도약은 거리에 따라 높이가 는다. 아니면 null. */
+     * 공중제비(flip)는 높이 34도트로 한 바퀴, 도약은 거리에 따라 높이가 는다. 아니면 null. 2026-10-20 v42: 주인공 그림의 도약과 공중제비는
+     * 그림이 스스로 뛰고 돌아서, 그림이 뜨는 높이(data/stage-characters.js lift)만큼 포물선을 낮추고 공중제비 그림이면 코드로 돌리지 않는다. */
     function runeAir(gem, move) {
         const ms = Number(((SKILL_DB[gem.meta.name] || {}).mobilityPattern || {}).airMs) || 0;
         if (!ms) return null;
-        if (gem.map.flip) return { ms, arc: 34, spin: Math.PI * 2 };
-        const far = Math.hypot((move.to.gx - move.from.gx) * WIDE, (move.to.gy - move.from.gy) * DEEP * 2);
-        return { ms, arc: 38 + far * 0.12, spin: 0 };
+        const drawn = heroMotionClip(gem.meta.name);
+        return gem.map.flip ? flipAir(ms, drawn) : leapAir(ms, move, drawn);
+    }
+    const drawnLift = drawn => Number(drawn.clip.lift) || 0;
+    function flipAir(ms, drawn) {
+        return drawn && drawn.motion === 'flip' ? { ms, arc: Math.max(8, 34 - drawnLift(drawn)), spin: 0 } : { ms, arc: 34, spin: Math.PI * 2 };
+    }
+    function leapAir(ms, move, drawn) {
+        const arc = 38 + Math.hypot((move.to.gx - move.from.gx) * WIDE, (move.to.gy - move.from.gy) * DEEP * 2) * 0.12;
+        return { ms, arc: drawn && drawn.motion === 'leap' ? Math.max(12, arc - drawnLift(drawn)) : arc, spin: 0 };
+    }
+    /** 무대 주인공이 그 룬을 쓸 때 그리는 동작과 그 칸(js/canvas-stage-actors.js motionFor, clipOf). 무대가 아니거나 그 그림이 없으면 null. */
+    function heroMotionClip(name) {
+        if (typeof stageView !== 'object' || !stageView.enabled() || typeof getStageHeroStance !== 'function') return null;
+        const classId = getHeroAppearanceId(), stance = getStageHeroStance(), motion = stageActors.motionFor(name, classId, stance), clip = stageActors.clipOf(classId, stance, motion);
+        return clip ? { motion, clip } : null;
     }
     /** 가장 최근의 이동(js/combat.js가 남긴 playerMobility). 목록에서 사라졌으면 마지막으로 본 것. 없으면 null. */
     function latestMobility(now) {

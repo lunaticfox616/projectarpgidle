@@ -11,7 +11,7 @@ const fs = require('node:fs');
             const lab = newSkillLab, result = [], random = Math.random;
             Math.random = () => .5;
             try {
-                const names = lab.items.map(s=>s.name).concat(['이중 베기','서리 폭발','서리 파동','빙결 침식','원소 포션 투척','기습 공격','난타 눈보라']);
+                const names = lab.items.map(s=>s.name).concat(['이중 베기','서리 폭발','서리 파동','빙결 침식','기습 공격','난타 눈보라']);
                 for(const level of [1,10,20]) for(const count of [1,6]) for(const name of names) {
                     changeSkill(name); lab.reset(); game.gemData[name] = {level,exp:0,quality:0};
                     game.enemies = game.enemies.slice(0,count);

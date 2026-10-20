@@ -1461,13 +1461,13 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   assert.strictEqual(context.getSkillHitSequenceDpsMultiplier('강타', context.SKILL_DB['강타']), 1, '판정 세분화만으로 표시 DPS가 증가하면 안 된다');
 
   const meteor = context.buildSkillHitSequence('유성 낙화', context.SKILL_DB['유성 낙화'], targets);
-  assert.strictEqual(meteor.length, 4, '유성 낙화는 충돌 뒤 짧은 불길 지대를 3회 유지해야 한다');
+  assert.strictEqual(meteor.length, 7, '유성 낙화는 충돌 뒤 불타는 지대를 6회 유지해야 한다');
   assert.strictEqual(meteor[0].kind, 'meteorImpact', '유성 낙화는 전용 단일 충돌 단계로 판정해야 한다');
   assert.strictEqual(meteor[0].damageMultiplier, 1, '단일 유성 충돌이 기존 총 피해를 모두 보존해야 한다');
-  assert.strictEqual(meteor.slice(1).map(stage => stage.delayMs).join(','), '600,1200,1800', '불길 지대는 0.6초 간격으로 타격해야 한다');
-  assert.ok(meteor.slice(1).every(stage => stage.kind === 'meteorGroundTick' && stage.damageMultiplier === 0.08), '불길 지대는 각 8% 피해만 줘야 한다');
+  assert.strictEqual(meteor.slice(1).map(stage => stage.delayMs).join(','), '400,800,1200,1600,2000,2400', '불타는 지대는 0.4초 간격으로 2.4초 동안 타격해야 한다');
+  assert.ok(meteor.slice(1).every(stage => stage.kind === 'meteorGroundTick' && stage.damageMultiplier === 0.15), '불타는 지대는 각 15% 피해를 줘야 한다');
   assert.strictEqual(meteor[1].primaryAilmentChance, 1, '첫 불길 타격은 점화 확률이 100%여야 한다');
-  assert.strictEqual(context.getSkillHitSequenceDpsMultiplier('유성 낙화', context.SKILL_DB['유성 낙화']), 1.24, '표시 DPS에 불길 지대 3회의 피해를 포함해야 한다');
+  assert.strictEqual(context.getSkillHitSequenceDpsMultiplier('유성 낙화', context.SKILL_DB['유성 낙화']), 1.9, '표시 DPS에 불타는 지대 6회의 피해를 포함해야 한다');
   assert.ok(meteor[0].impactCells.length > targets.length, '유성 하나가 충돌 지점의 전체 범위를 판정해야 한다');
 
   const field = context.buildSkillHitSequence('난타 눈보라', context.SKILL_DB['난타 눈보라'], targets);
@@ -1869,9 +1869,9 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   context.performPlayerAttack(meteorStats);
   const meteorRows = vm.runInContext("pendingSkillStageHits.filter(row => row.patternKind === 'meteor')", context);
   const meteorTravelFx = vm.runInContext("battleFx.filter(fx => fx.type === 'combatTravel' && fx.patternKind === 'meteor')", context);
-  assert.strictEqual(meteorRows.length, 4, '실제 유성 공격은 충돌과 불길 지대 3회를 예약해야 한다');
+  assert.strictEqual(meteorRows.length, 7, '실제 유성 공격은 충돌과 불타는 지대 6회를 예약해야 한다');
   assert.strictEqual(meteorTravelFx.length, 1, '실제 유성 공격도 낙하 이펙트를 하나만 만들어야 한다');
-  assert.ok(meteorTravelFx[0].duration >= meteorRows[3].at - meteorRows[0].launchAt, '유성 이펙트는 마지막 불길 타격까지 유지되어야 한다');
+  assert.ok(meteorTravelFx[0].duration >= meteorRows[6].at - meteorRows[0].launchAt, '유성 이펙트는 마지막 불길 타격까지 유지되어야 한다');
   vm.runInContext('pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();', context);
   assert.ok(meteorTargets.every(enemy => enemy.hp < enemy.maxHp), '단일 유성이 충돌 범위의 모든 선택 대상에게 피해를 줘야 한다');
   assert.ok(meteorTargets.every(enemy => (enemy.ailments || []).some(ailment => ailment.type === 'ignite')), '불길 지대에 남은 적은 점화되어야 한다');
@@ -2553,10 +2553,10 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   assert.strictEqual(context.canUseSkillWithCurrentEquipment('이중 베기'), false, '활로는 근접 룬을 쓸 수 없다');
   assert.strictEqual(context.getSkillRuneWeaponNote('이중 베기'), '근접 무기 필요');
   context.game.equipment['무기'] = weaponOf('scimitar', 9912);
-  assert.strictEqual(context.getEquippedWeaponStance(), 'dagger', '곡도는 단검 자세다');
+  assert.strictEqual(context.getEquippedWeaponStance(), 'sword', '곡도는 한손검 자세다');
   assert.strictEqual(context.getSkillRuneWeaponNote('연발 사격'), '활 필요', '전용 룬의 이유에는 그 무기 이름이 붙는다');
   context.game.equipment['방패'] = { id: 9913, slot: '방패', name: '시험 방패', rarity: 'normal', baseStats: [], stats: [] };
-  assert.strictEqual(context.getEquippedWeaponStance(), 'swordshield', '방패를 함께 낀 곡도는 검방패 자세다');
+  assert.strictEqual(context.getEquippedWeaponStance(), 'sword', '방패를 함께 껴도 곡도는 한손검 자세다(방패를 든 그림이 없다)');
   context.game.equipment['방패'] = null;
 
   // 낀 주 공격 룬을 못 쓰는 무기로 바꾸면 기본 공격으로 싸우고, 맞는 무기를 다시 들면 그 룬으로 돌아온다
