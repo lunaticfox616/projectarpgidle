@@ -15,6 +15,10 @@ function ensureCloudToolsDialog() {
     dialog.id = 'cloud-tools-dialog';
     dialog.className = 'cloud-tools-dialog';
     dialog.innerHTML = `<div class="cloud-tools-head"><strong id="cloud-tools-title"></strong><button type="button" onclick="closeCloudToolsDialog()" aria-label="닫기">✕</button></div><div id="cloud-tools-body" class="cloud-tools-body"></div>`;
+    dialog.addEventListener('click', event => {
+        let button = event.target.closest('[data-cheat-hold]');
+        if (button) setCheatHold(button);
+    });
     document.body.appendChild(dialog);
     return dialog;
 }
@@ -72,10 +76,12 @@ async function restoreCloudSaveVersion(revision) {
     }
 }
 
+/** A titled table. A column shows row[key], or render(row) as text, or html(row) as markup the column escapes itself (buttons). */
 function renderOpsTable(title, columns, rows) {
     if (!rows.length) return `<section><h3>${title}</h3><p class="cloud-tools-empty">표본 없음</p></section>`;
     let head = columns.map(column => `<th>${cloudToolsEscape(column.label)}</th>`).join('');
-    let body = rows.map(row => `<tr>${columns.map(column => `<td>${cloudToolsEscape(column.render ? column.render(row) : row[column.key])}</td>`).join('')}</tr>`).join('');
+    let cell = (column, row) => column.html ? column.html(row) : cloudToolsEscape(column.render ? column.render(row) : row[column.key]);
+    let body = rows.map(row => `<tr>${columns.map(column => `<td>${cell(column, row)}</td>`).join('')}</tr>`).join('');
     return `<section><h3>${title}</h3><div class="cloud-tools-table-wrap"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div></section>`;
 }
 
@@ -103,12 +109,77 @@ function renderOpsDashboard(data) {
     return html;
 }
 
+/** A hold or release button for one account; the dialog's click handler sends it (setCheatHold). */
+function renderCheatHoldButton(userId, held, note) {
+    return `<button type="button" data-cheat-hold="${cloudToolsEscape(userId)}" data-cheat-held="${held ? '1' : '0'}" data-cheat-note="${cloudToolsEscape(note)}">${held ? '보류 풀기' : '보류'}</button>`;
+}
+
+/** The anti-cheat watch (db/anti-cheat.sql admin_get_cheat_watch): flags, growth per hour, held accounts. */
+function renderCheatWatch(data) {
+    const kinds = { clock: '기기 시계', currency: '화폐', level: '레벨', ghost_dps: '고스트 DPS' };
+    const account = { label: '계정', render: row => row.nickname || String(row.user_id || '').slice(0, 8) };
+    const hold = note => ({ label: '보류', html: row => renderCheatHoldButton(row.user_id, row.held === true, note(row)) });
+    let html = '<section><h3>치트 감시</h3><p class="cloud-tools-note">감시는 기록만 하고 막지 않습니다. 보류한 계정은 전당과 고스트 대결에서 빠지고, 저장과 혼자 하는 플레이는 그대로입니다.</p></section>';
+    html += renderOpsTable('감시 기록, 최근 90일', [
+        account, { label: '종류', render: row => kinds[row.kind] || row.kind }, { key: 'seen_on', label: '날짜' }, { key: 'hits', label: '횟수' },
+        { label: '내용', render: row => JSON.stringify(row.detail || {}) }, hold(row => `${kinds[row.kind] || row.kind} ${row.seen_on}`)
+    ], Array.isArray(data.flags) ? data.flags : []);
+    html += renderOpsTable('성장 속도, 최근 7일', [
+        account, { key: 'seen_on', label: '날짜' }, { key: 'samples', label: '저장' }, { key: 'hours', label: '시간' },
+        { label: '화폐/시간', render: row => cloudToolsNumber(row.currency_per_hour) },
+        { label: '최고 속도', render: row => `${cloudToolsNumber(row.max_currency_per_hour)} ${row.max_currency_key || ''}` },
+        { key: 'level_per_hour', label: '레벨/시간' }, { key: 'season_per_hour', label: '루프/시간' }, hold(row => `성장 ${row.seen_on}`)
+    ], Array.isArray(data.rates) ? data.rates : []);
+    html += renderOpsTable('보류한 계정', [
+        account, { key: 'note', label: '메모' }, { label: '시각', render: row => new Date(row.created_at).toLocaleString('ko-KR') },
+        { label: '보류', html: row => renderCheatHoldButton(row.user_id, true, '') }
+    ], Array.isArray(data.holds) ? data.holds : []);
+    return html;
+}
+
+/** Fills the watch under the ops tables. Before db/anti-cheat.sql runs, the server has no such function and a note says so. */
+async function loadCheatWatch() {
+    let box = document.getElementById('cheat-watch');
+    if (!box) return;
+    try {
+        let data = await cloudJsonRequest('/rest/v1/rpc/admin_get_cheat_watch', { method: 'POST', body: {} });
+        box.innerHTML = renderCheatWatch(data || {});
+    } catch (error) {
+        let text = String(error && error.message || error);
+        box.innerHTML = /schema cache|could not find|does not exist/i.test(text)
+            ? '<section><h3>치트 감시</h3><p class="cloud-tools-note">Supabase에서 db/anti-cheat.sql을 실행하면 보입니다.</p></section>'
+            : `<section><h3>치트 감시</h3><p class="cloud-tools-error">불러올 수 없습니다: ${cloudToolsEscape(text)}</p></section>`;
+    }
+}
+
+/** Holds or releases one account after a confirmation (db/anti-cheat.sql admin_set_cheat_hold), then reloads the watch. */
+async function setCheatHold(button) {
+    let held = button.dataset.cheatHeld === '1';
+    let confirmed = await requestGameConfirmation(held
+        ? '이 계정의 보류를 풀까요?\n다음 고스트 등록부터 다시 순위에 듭니다.\n닫은 전시는 닫힌 채로 둡니다.'
+        : '이 계정을 보류할까요?\n전당 등록과 구매, 고스트 대결에서 빠집니다.\n열린 전시는 더 팔리지 않습니다.', {
+        title: '치트 감시', tone: 'warning', confirmLabel: held ? '보류 풀기' : '보류'
+    });
+    if (!confirmed) return;
+    try {
+        await cloudJsonRequest('/rest/v1/rpc/admin_set_cheat_hold', {
+            method: 'POST', body: { p_user_id: button.dataset.cheatHold, p_hold: !held, p_note: button.dataset.cheatNote || '' }
+        });
+        showGameToast(held ? '보류를 풀었습니다.' : '계정을 보류했습니다.', 'success');
+    } catch (error) {
+        showGameToast(`보류를 바꾸지 못했습니다: ${error.message || error}`, 'danger');
+    }
+    await loadCheatWatch();
+}
+
 async function openOpsDashboard() {
     if (!cloudState || !cloudState.user) return showGameToast('관리자 로그인이 필요합니다.', 'warning');
     openCloudToolsDialog('운영 통계, 최근 30일', '<p class="cloud-tools-empty">집계 중…</p>');
     try {
         let data = await cloudJsonRequest('/rest/v1/rpc/admin_get_ops_dashboard', { method: 'POST', body: {} });
-        document.getElementById('cloud-tools-body').innerHTML = renderOpsDashboard(data || {});
+        document.getElementById('cloud-tools-body').innerHTML = renderOpsDashboard(data || {})
+            + '<div id="cheat-watch"><section><h3>치트 감시</h3><p class="cloud-tools-empty">불러오는 중…</p></section></div>';
+        await loadCheatWatch();
     } catch (error) {
         document.getElementById('cloud-tools-body').innerHTML = `<p class="cloud-tools-error">관리자 통계를 불러올 수 없습니다: ${cloudToolsEscape(error.message || error)}</p>`;
     }

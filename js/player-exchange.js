@@ -24,7 +24,9 @@ function getPlayerExchangeError(error) {
         HALL_SOCKET_NOT_EMPTY: '심연 주얼이 장착된 장비는 전당에 등록할 수 없습니다.', HALL_ITEM_OWNERSHIP: '장비의 서버 소유권을 확인할 수 없습니다.',
         HALL_LISTING_NOT_ACTIVE: '전시가 종료되었거나 회수된 장비입니다.', HALL_SELF_PURCHASE: '자신이 전시한 장비는 구매할 수 없습니다.',
         HALL_ALREADY_COLLECTED: '같은 전시품은 계정당 한 번만 구매할 수 있습니다.', HALL_CURRENCY_SHORTAGE: '황금률이 부족합니다.',
-        HALL_INVENTORY_FULL: '인벤토리 공간이 부족합니다.'
+        HALL_INVENTORY_FULL: '인벤토리 공간이 부족합니다.',
+        HALL_ITEM_OUT_OF_RANGE: '게임에서 나올 수 없는 수치가 있는 장비는 전당에 등록할 수 없습니다.',
+        HALL_ACCOUNT_HELD: '운영 검토 중인 계정이라 전당에 등록하거나 살 수 없습니다.'
     };
     let code = Object.keys(messages).find(key => raw.includes(key));
     return code ? messages[code] : raw;
