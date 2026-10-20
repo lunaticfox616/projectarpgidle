@@ -476,6 +476,17 @@ PixelLab은 유료라 쓰지 않는다(2026-10-12 사용자): 몬스터 그림�
   js/canvas-stage-skill-casts.js castRockFlask(바위 병은 -draws.js의 rock), 끌려가는 움직임은 js/canvas-redrawn-skill-fx-extra.js glide.
 - 시전 마법진(js/canvas-stage-skill-sigil.js)의 화염, 냉기, 카오스 글자는 보조룬 아이콘의 글자(ᚲ, ᚺ, ᛈ)다(같은 날 사용자 결정).
 
+## 전체 몬스터 6장 제작본 (2026-10-21, 사용자 "몬스터 크기는 새 제작본의 목표 키를 따르는 쪽으로 해줘")
+- Codex의 제작본(artifacts/endgame-boss-motion-20261020/all-monsters/motions, 148종 걷기와 공격 6장)을 로스터 빌드의 마지막 묶음으로 넣는다.
+  크기는 제작본의 목표 키 그대로다. 칸마다 좌우를 뒤집어 오른쪽을 보게 하고, 이름, 걸음새, 떠 있는 높이, 쓰러짐은 앞선 그림에서 그대로 가져온다
+  (앞선 그림이 없는 후반 보스의 걸음새는 MOTION_GAITS). 최종 보스 다섯도 여기서 그린다(GPT의 10-18 그림 표 data/atlas-boss-art.js는
+  같은 이름의 시트가 덮여 뺐다). 검수: artifacts/endgame-boss-motion-20261020-review/review.md.
+- 다시 만드는 명령(kit = projectarpgidle1/artifacts/root-stage-kit-20261011): `node scripts/build-stage-roster.cjs <kit>/aseprite-roster-study-v1/claude-review
+  <rignin-ui/stage-monsters> --forge <kit>/sprite-forge-selected-v1 --looks <Downloads/몬스터-새외형-선택.json> --roots <kit>/root-weapon-attack-20261015
+  --actions <kit>/deacon-butterfly-20261016 --attacks <kit>/boss-vfx-20261016 --deaths <kit>/story-state-art-20261016 --motions <제작본 motions 폴더>`,
+  그다음 `node scripts/build-boss-fx.cjs <kit>/boss-vfx-20261016`. 보스 공격 효과의 자리(emit)는 GPT가 찍은 자리를 몸 높이 비율(공격 첫 장끼리)로
+  늘이거나 줄이고, 장 수가 다르면 타격 장끼리 맞춘다.
+
 ## 직접 돌려 보며 고친 것 (2026-10-13, 사용자 "너가 플레이해보고 문제점과 개선사항을 찾아서 계속 개선해줘")
 무대 시험판을 스크립트로 돌렸다: 새 게임에서 전체 탐색으로 액트 1부터 이어 가기(7분에 액트 4 입구까지), 액트 1~10과 혼돈, 심화 혼돈,
 시련을 한 창에서 차례로 돌기, 휴대폰 화면, 직업 넷, 손으로 문 지나기, 싸우다 죽기. 주인공은 죽지 않게 하고 몬스터는 깨어난 지 2~3초 뒤에
