@@ -1,7 +1,10 @@
 # 채팅 갱신 중단 수정
 
-현재 채팅은 REST로 새 메시지를 4초마다 조회한다. WebSocket 실시간 구독은 사용하지 않는다.
-채팅을 닫은 상태에서는 기존 15초 알림 확인 주기를 유지한다.
+2026-10-21부터 새 채팅은 Supabase Realtime으로 받는다(chat_messages INSERT, `js/social.js` syncLiveChat). 채팅 전용 클라이언트가
+게임의 로그인 토큰으로 붙고(accessToken 옵션, 심장박동마다 다시 읽는다), 연결된 동안 채팅 조회(4초)와 닫힌 채팅의 알림 조회(15초)는
+1분에 한 번 도는 안전 조회가 된다. 연결이 끊기거나, 안전 조회가 실시간으로 오지 않은 남의 채팅을 두 번 찾으면 예전 주기로 돌아간다.
+페이지를 1분 가리면 연결을 놓는다(무료 요금제의 동시 연결 수). 서버는 chat_messages를 supabase_realtime 발행에 넣어야 보낸다
+(`db/social.sql`, 이미 설치한 프로젝트는 `db/chat-realtime-20261021.sql`). 아래는 2026-09-14 조회 방식 때의 기록이다.
 
 ## 원인과 변경
 
@@ -17,7 +20,7 @@ UI는 탭 전환 후 이 공개 함수를 호출하며 채팅 DOM이나 작성 �
 ## 검증
 
 - 수정 전 PC 브라우저에서 다른 탭을 연 뒤 새 메시지가 표시되지 않는 회귀를 재현했다.
-- `scripts/smoke-social-chat-incremental.js`: 열린 도크 유지, 닫기, 재개, 중복 타이머 방지, 로그아웃.
+- `scripts/smoke-social-chat-incremental.js`: 열린 도크 유지, 닫기, 재개, 중복 타이머 방지, 로그아웃(이 검사와 아래 브라우저 검사는 2026-10 핵심 검사 정리로 빠졌다).
 - `tests/browser/community-entry.spec.js`: PC와 모바일의 수신 재개, 입력 보존 및 기존 채팅 동작.
 - `npm test`, `npm run check:architecture`.
 
