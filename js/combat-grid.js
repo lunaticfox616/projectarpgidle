@@ -46,6 +46,15 @@ function getBossStageActor(enemy) {
     return roster.actors[roster.wears[look] || look] || roster.actors[enemy.bossAssetKey] || null;
 }
 
+/** The stage's drawing scale for a look (data/stage-view.js STAGE_MONSTER_SCALE): the look's own entry, else the entry of its id's
+ * prefix (a key ending in '-'), else 1. The stage drawing (js/canvas-stage-roster.js) and the boss footprint both read it. */
+function getStageLookScale(id) {
+    const rule = typeof STAGE_MONSTER_SCALE === 'object' ? STAGE_MONSTER_SCALE : {};
+    if (Object.hasOwn(rule, id)) return rule[id];
+    const prefix = Object.keys(rule).find(head => head.endsWith('-') && id.startsWith(head));
+    return prefix ? rule[prefix] : 1;
+}
+
 /** A boss as wide as its picture on the stage (2026-10-16 사용자: "크기가 큰 보스들은 차지하는 칸을 늘리던지 해서 플레이어랑
  * 안겹치도록"): the picture stands on the footprint's middle and reaches reach dots to either side (data/monster-stage-roster.js, the
  * standing picture; × STAGE_MONSTER_SCALE, drawn at STAGE_VIEW.heroTile dots a cell ÷ BOSS_DRAW_SCALE). The footprint is wide enough
@@ -56,8 +65,7 @@ function getBossStageActor(enemy) {
 function fitBossFootprint(enemy) {
     const actor = enemy && enemy.isBoss && !enemy.footprint ? getBossStageActor(enemy) : null;
     if (!actor) return;
-    const rule = typeof STAGE_MONSTER_SCALE === 'object' ? STAGE_MONSTER_SCALE : {}, prefix = Object.keys(rule).find(head => actor.id.startsWith(head));
-    const reach = Math.max(...(actor.reach || [actor.width / 2, 0])) * (prefix ? rule[prefix] : 1) / (BOSS_DRAW_SCALE * STAGE_VIEW.heroTile);
+    const reach = Math.max(...(actor.reach || [actor.width / 2, 0])) * getStageLookScale(actor.id) / (BOSS_DRAW_SCALE * STAGE_VIEW.heroTile);
     const columns = Math.max(2, Math.min(6, Math.ceil(2 * (reach - 0.5 + HERO_HALF_CELLS) - 0.01)));
     if (columns > 2) enemy.footprint = { columns, rows: 2 };
 }

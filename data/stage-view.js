@@ -268,12 +268,20 @@ const STAGE_SCENES = Object.freeze({
         })
     })
 });
-/** 무대에서 몬스터 그림을 그리는 배율(js/canvas-stage-roster.js): 외형 id의 앞머리 → 배율, 여기에 없는 외형은 1(그림의 도트 = 캐릭터의 도트).
+/** 무대에서 몬스터 그림을 그리는 배율(js/combat-grid.js getStageLookScale, 그리기와 보스가 차지하는 칸이 함께 쓴다): '-'로 끝나는 키는
+ * 외형 id의 앞머리, 그 밖의 키는 외형 id 하나이고 외형 id가 앞선다. 여기에 없는 외형은 1(그림의 도트 = 캐릭터의 도트).
  * 2026-10-13 사용자: "위습 크기 줄이고"(몬스터 위습). 새 위습 그림은 몸이 가로 75~108도트, 세로 60도트쯤에 머리 높이로 떠 있어
  * 주인공(가로 40도트쯤)보다 크게 보였다. 0.7배로 줄여 몸이 가로 52~76도트, 세로 42도트쯤이다. */
 // 같은 날 밤 "벌 크기도 줄여줘": 새 벌 그림은 전투벌의 몸이 가로 100도트, 근위벌 142도트, 여왕 185도트로 주인공을 덮었다(검토에서도
 // 주인공이 벌 밑에 묻힌다고 짚었다). 0.6배로 전투벌 60도트, 근위벌 85도트, 여왕 111도트다.
-const STAGE_MONSTER_SCALE = Object.freeze({ 'wisp-': 0.7, 'hive-': 0.6 });
+// 2026-10-21 사용자: "플레이어 캐릭터의 얼굴비율과 몬스터의 비율이 맞도록 해줘", 이어서 "보스별로 다르게 크기 조절". 주인공 머리는 22도트에
+// 둥글고 넓다(머리카락까지 폭 28도트쯤). 두건이나 투구로 머리가 그만큼 큰 보스는 그대로 두고, 얼굴이 가늘고 작아 주인공 옆에서 작아 보이던
+// 보스만 머리가 주인공과 견줄 만큼 키운다(artifacts/endgame-boss-motion-20261020-review). 밑거름의 장로는 얼굴이 없지만 최종 보스가 주인공보다
+// 작아(98도트, 주인공 117도트) 키운다.
+const STAGE_MONSTER_SCALE = Object.freeze({ 'wisp-': 0.7, 'hive-': 0.6,
+    apex_gardener: 1.4, apex_archbishop: 1.4, apex_weaver: 1.2, apex_compost: 1.2, bossAct4_1: 1.2,
+    s2_boss_flame: 1.15, s2_boss_frost: 1.3, s2_boss_storm: 1.2,
+    rival_overheat: 1.25, rival_dull: 1.4, rival_glutton: 1.2, rival_afterimage: 1.4, rival_backedge: 1.15, rival_masterwork: 1.1 });
 
 /** 방 단위 무대의 입구 방에 서는 이야기 NPC(js/canvas-act-title-card.js). 이야기 액트와 시련에서 그 대사의 NPC(data/story-journal.js
  * STORY_NPCS, 이름으로 찾는다)가 입구 방에 선다. 엔드게임 콘텐츠 지도에는 서지 않는다(2026-10-15 사용자: "콘텐츠 지도 입구 NPC도 빼줘",

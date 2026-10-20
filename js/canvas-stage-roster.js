@@ -232,12 +232,9 @@ const stageRoster = (() => {
     function dotFor(enemy, actor, p) {
         return stageActors.scaleFor(p.tile) * lookScale(actor) * (p.spawnScale || 1) / getBossDrawScale(enemy);
     }
-    /** 그 외형을 그리는 배율(data/stage-view.js STAGE_MONSTER_SCALE: 외형 id의 앞머리로 정한다). 표에 없으면 1. */
+    /** 그 외형을 그리는 배율(data/stage-view.js STAGE_MONSTER_SCALE, js/combat-grid.js getStageLookScale). 표에 없으면 1. */
     function lookScale(actor) {
-        if (!scales.has(actor.id)) {
-            const rule = typeof STAGE_MONSTER_SCALE === 'object' ? STAGE_MONSTER_SCALE : {}, prefix = Object.keys(rule).find(head => actor.id.startsWith(head));
-            scales.set(actor.id, prefix ? rule[prefix] : 1);
-        }
+        if (!scales.has(actor.id)) scales.set(actor.id, getStageLookScale(actor.id));
         return scales.get(actor.id);
     }
     function shadow(ctx, actor, p, dot, hop) {
