@@ -277,8 +277,9 @@ const STAGE_SCENES = Object.freeze({
 // 2026-10-21 사용자: "플레이어 캐릭터의 얼굴비율과 몬스터의 비율이 맞도록 해줘", 이어서 "보스별로 다르게 크기 조절". 주인공 머리는 22도트에
 // 둥글고 넓다(머리카락까지 폭 28도트쯤). 두건이나 투구로 머리가 그만큼 큰 보스는 그대로 두고, 얼굴이 가늘고 작아 주인공 옆에서 작아 보이던
 // 보스만 머리가 주인공과 견줄 만큼 키운다(artifacts/endgame-boss-motion-20261020-review). 밑거름의 장로는 얼굴이 없지만 최종 보스가 주인공보다
-// 작아(98도트, 주인공 117도트) 키운다.
-const STAGE_MONSTER_SCALE = Object.freeze({ 'wisp-': 0.7, 'hive-': 0.6,
+// 작아(98도트, 주인공 117도트) 키운다. 일반 몬스터 가운데 사람 모양인 부제사와 부제녀 8종(키 90~94도트, 두건 19도트)도 같은 날
+// "부제사와 부제녀 8종도 1.2배로 맞춰줘".
+const STAGE_MONSTER_SCALE = Object.freeze({ 'wisp-': 0.7, 'hive-': 0.6, 'deacon-': 1.2,
     apex_gardener: 1.4, apex_archbishop: 1.4, apex_weaver: 1.2, apex_compost: 1.2, bossAct4_1: 1.2,
     s2_boss_flame: 1.15, s2_boss_frost: 1.3, s2_boss_storm: 1.2,
     rival_overheat: 1.25, rival_dull: 1.4, rival_glutton: 1.2, rival_afterimage: 1.4, rival_backedge: 1.15, rival_masterwork: 1.1 });

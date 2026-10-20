@@ -482,7 +482,7 @@ PixelLab은 유료라 쓰지 않는다(2026-10-12 사용자): 몬스터 그림�
   (앞선 그림이 없는 후반 보스의 걸음새는 MOTION_GAITS). 최종 보스 다섯도 여기서 그린다(GPT의 10-18 그림 표 data/atlas-boss-art.js는
   같은 이름의 시트가 덮여 뺐다). 검수: artifacts/endgame-boss-motion-20261020-review/review.md.
 - 보스마다 그리는 배율은 data/stage-view.js STAGE_MONSTER_SCALE에 외형 id를 키로 둔다(2026-10-21 사용자 "보스별로 다르게 크기 조절": 얼굴이
-  주인공 머리 22도트보다 작아 보이던 13종이 1.1~1.4배, 주인공보다 작던 밑거름의 장로가 1.2배). 그리기와 보스가 차지하는 칸이 같은 값(js/combat-grid.js getStageLookScale)을 읽는다.
+  주인공 머리 22도트보다 작아 보이던 13종이 1.1~1.4배, 주인공보다 작던 밑거름의 장로가 1.2배, 일반 몬스터는 부제사와 부제녀 deacon- 1.2배). 그리기와 보스가 차지하는 칸이 같은 값(js/combat-grid.js getStageLookScale)을 읽는다.
 - 다시 만드는 명령(kit = projectarpgidle1/artifacts/root-stage-kit-20261011): `node scripts/build-stage-roster.cjs <kit>/aseprite-roster-study-v1/claude-review
   <rignin-ui/stage-monsters> --forge <kit>/sprite-forge-selected-v1 --looks <Downloads/몬스터-새외형-선택.json> --roots <kit>/root-weapon-attack-20261015
   --actions <kit>/deacon-butterfly-20261016 --attacks <kit>/boss-vfx-20261016 --deaths <kit>/story-state-art-20261016 --motions <제작본 motions 폴더>`,
