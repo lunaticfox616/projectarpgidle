@@ -1290,7 +1290,7 @@
     },
     "advanceMapProgress|complexity|Function 'advanceMapProgress' has a complexity of #. Maximum allowed is #.": {
       "count": 1,
-      "max": 28
+      "max": 25
     },
     "tickGrandBreachRun|complexity|Function 'tickGrandBreachRun' has a complexity of #. Maximum allowed is #.": {
       "count": 1,
@@ -1890,7 +1890,7 @@
     },
     "renderChaosRealmMapPanel|complexity|Function 'renderChaosRealmMapPanel' has a complexity of #. Maximum allowed is #.": {
       "count": 1,
-      "max": 32
+      "max": 31
     },
     "updateCombatOxygenBar|complexity|Function 'updateCombatOxygenBar' has a complexity of #. Maximum allowed is #.": {
       "count": 1,
@@ -3130,7 +3130,6 @@
     "dependency:advanceLoop->getAvailableLoopAdvancePaths",
     "dependency:advanceLoopCounters->getLoopAdvancePathLabel",
     "dependency:advanceLoopCounters->say",
-    "dependency:advanceMapProgress->ensureChaosRealmState",
     "dependency:advanceMapProgress->ensureEncounterRun",
     "dependency:advanceMapProgress->getAbyssMonsterScales",
     "dependency:advanceMapProgress->getMapProgressGainMultiplier",
@@ -14641,6 +14640,7 @@
     "dependency:oceanDepth->markerChain",
     "dependency:oceanRegion->Number",
     "dependency:of->empty",
+    "dependency:of->emptyHarvest",
     "dependency:of->strengthOf",
     "dependency:ofCurrency->getCanonicalCurrencyKey",
     "dependency:ofEquipment->higher",
