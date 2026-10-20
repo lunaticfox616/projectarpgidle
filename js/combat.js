@@ -5780,7 +5780,6 @@ function grantChaosRealmFloorBonus(floor) {
     if (floor % 15 === 0) { b.armorPct += 10; b.evasionPct += 10; b.energyShieldPct += 10; }
     if (floor % 25 === 0) { b.critDmg += 5; b.aspd += 5; }
     addLog(`🌌 혼돈계 ${floor}층 최초 돌파 보너스: ${getChaosRealmBonusSummary()}`, 'loot-unique');
-    if (floor === 10) addLog('🗺️ 혼돈계 10층 달성! 모든 액트 구간 지도 길이가 50%로 축소됩니다.', 'season-up');
 }
 
 function getEnemyElementResistance(skillEle, zoneTier, enemy) {
@@ -9294,9 +9293,8 @@ function advanceMapProgress(pStats) {
     let crowdPenalty = enemyCount > 0 ? Math.max(0.4, 1 - enemyCount * 0.13) : 0.94;
     let emptyTravelMultiplier = enemyCount === 0 ? EMPTY_TRAVEL_PROGRESS_MULTIPLIER : 1;
     let moveSpeed = Number.isFinite(pStats.moveSpeed) && pStats.moveSpeed > 0 ? pStats.moveSpeed : 100;
-    let chaosRealmActRush = zone && zone.type === 'act' && ensureChaosRealmState().highestFloor >= 10 ? 2 : 1;
     let gain = baseGain * 0.5 * (moveSpeed / 100) * crowdPenalty * emptyTravelMultiplier
-        * (abyssScale.mapProgressMul || 1) * chaosRealmActRush * getMapProgressGainMultiplier(zone);
+        * (abyssScale.mapProgressMul || 1) * getMapProgressGainMultiplier(zone);
     game.runProgress = Math.min(100, game.runProgress + gain);
     while (game.encounterIndex < game.encounterPlan.length && game.runProgress >= game.encounterPlan[game.encounterIndex].at) {
         spawnEncounterMarker(game.encounterPlan[game.encounterIndex]);
@@ -14278,7 +14276,8 @@ function resetLoopContents(kept) {
     game.colony = JSON.parse(JSON.stringify(defaultGame.colony));
     clearBeehiveRuntimeState(game.beehive);
     abandonBeyondBoundaryRun(game); // a 경계 너머 run held over would refuse every move and content start of the new loop
-    Object.assign(game.voidRift, {active:false, activeKills:0, requiredKills:0, pendingWave:false, totalToSpawn:0, spawnedCount:0, spawnTick:0, grandRun:null});
+    // 열린 대균열도 닫는다(2026-10-20 사용자: 지난 루프의 대균열이 새 루프의 1레벨 영웅을 들여보냈다)
+    Object.assign(game.voidRift, {active:false, activeKills:0, requiredKills:0, pendingWave:false, totalToSpawn:0, spawnedCount:0, spawnTick:0, grandRun:null, grandBreachUnlock:false});
     if (game.woodsmanEchoRun) Object.assign(game.woodsmanEchoRun, { active: false, timeLeft: 0, returnZoneId: null }); // 잔상도 끝낸다
     game.meteorSite = JSON.parse(JSON.stringify(defaultGame.meteorSite));
     game.meteorSite.constellationBuff = preservedConstellationBuff;
@@ -14294,6 +14293,8 @@ function resetLoopContents(kept) {
     game.chaosRealm = preservedChaosRealm;
     atlas.onLoopReset(game);
     game.timeRift = preservedTimeRift;
+    // 제단은 루프마다 비운다(2026-10-20 사용자: 루프를 넘기는 보관함이 되면 안 된다): 올린 장비는 가방처럼 사라지고 제단은 닫힌다
+    Object.assign(game.timeRift, { altarOpen: false, altarUnique: null, altarRare: null, activePressure: null });
     game.skyTower = preservedSkyTower;
     game.ocean = preservedOcean;
     forgetOceanAutoDive(game.ocean);

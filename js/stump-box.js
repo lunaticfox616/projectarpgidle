@@ -42,10 +42,16 @@ const stumpBox = (() => {
     function seedPath(random = Math.random) { return random() < STUMP_BOX_SEED_PATH.fruitShare ? 'fruit' : 'flower'; }
     /** A seed saved before paths were rolled at birth and never planted: a fixed half by id (restore stays repeatable). */
     function legacyPath(id) { return Number(id) % 2 ? 'fruit' : 'flower'; }
-    /** @returns {object} The state's box, created empty when missing. */
+    /** @returns {object} The state's box, created empty when missing. A box from an older save without the harvest journal or the
+     * codex gets their empty shapes here (restore fills the rest later): a load that stored a floor talisman before restore read them
+     * and threw (2026-10-20). */
     function of(state) {
         if (!state.stumpBox || typeof state.stumpBox !== 'object') state.stumpBox = empty();
-        return state.stumpBox;
+        const box = state.stumpBox;
+        if (!box.harvest || !Array.isArray(box.harvest.grown) || !box.harvest.gifts) box.harvest = { ...emptyHarvest(), ...(box.harvest && typeof box.harvest === 'object' ? box.harvest : {}) };
+        if (!Array.isArray(box.harvest.grown)) box.harvest.grown = [];
+        if (!Array.isArray(box.codex)) box.codex = [];
+        return box;
     }
 
     // ── 아이템 ─────────────────────────────────────────────
