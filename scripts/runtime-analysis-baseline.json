@@ -6843,7 +6843,6 @@
     "dependency:data/ascendancies.js#top->ascendancyUniqueLine",
     "dependency:data/ascendancies.js#top->safeExposeData",
     "dependency:data/atlas-board.js#top->safeExposeData",
-    "dependency:data/atlas-boss-art.js#top->safeExposeData",
     "dependency:data/atlas-endgame.js#top->safeExposeData",
     "dependency:data/atlas-passives.js#top->safeExposeData",
     "dependency:data/atlas.js#top->safeExposeData",
