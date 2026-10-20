@@ -165,6 +165,27 @@ const redrawnSkillFxExtra = (() => {
         if (M.moved && ft >= M.pull0 && ft < M.pull1) pullStreaks(dot, C, Math.atan2(T.y - H.y, T.x - H.x));
         moveStars(dot, cast, ft, 0);
     }
+    /** 77 바위 플라스크 on the top-down field (the stage draws its own, js/canvas-stage-skill-casts.js): the rock flies on its rope,
+     * breaks around where it lands, then the rope pulls the caster in. */
+    function drawRockRope(dot, cast, ft, view) {
+        const M = moveOf(cast);
+        if (!M) return;
+        const T = { x: M.foe.gx * 16 + 8, y: M.foe.gy * 16 + 7 }, C = archerAt(M, ft, view), H = { x: C.x + (Math.sign(T.x - C.x) || 1) * 3, y: C.foot - 9 };
+        rockLine(dot, M, H, T, ft);
+        if (M.moved && ft >= M.pull0 && ft < M.pull1) pullStreaks(dot, C, Math.atan2(T.y - H.y, T.x - H.x));
+        moveStars(dot, cast, ft, 0);
+    }
+    /** In flight on its rope, then from the hand to where it broke until the pull ends (a short tug when the caster did not move). */
+    function rockLine(dot, M, H, T, ft) {
+        if (ft >= M.release && ft < M.hitAt) rockFlight(dot, H, T, (ft - M.release) / Math.max(1, M.hitAt - M.release));
+        else if (ft >= M.hitAt && ft < (M.moved ? M.pull1 : M.pull0 + 120)) moves().rope(dot, H, T, { sag: ft >= M.pull0 ? 0 : 2, wob: 0 });
+    }
+    /** The rock on its rope, u of the way from the hand to where it lands (a low arc). */
+    function rockFlight(dot, H, T, u) {
+        const at = { x: H.x + (T.x - H.x) * u, y: H.y + (T.y - H.y) * u - 24 * u * (1 - u) };
+        moves().rope(dot, H, at, { sag: 3 * u, wob: 0 });
+        for (const [x, y] of [[0, 0], [1, 0], [0, 1], [1, 1], [-1, 0], [0, -1]]) dot(Math.round(at.x) + x, Math.round(at.y) + y, y < 0 || x < 0 ? '#968a76' : '#6e6456');
+    }
     /** In flight on its rope, then biting and pulling until it is reeled in. */
     function harpoonLine(dot, H, T, M, ft) {
         const end = M.moved ? M.pull1 : M.hitAt;
@@ -183,7 +204,7 @@ const redrawnSkillFxExtra = (() => {
         const k = v.u < 0.5 ? Math.min(1, v.u / 0.42) * 0.45 : -Math.min(1, (1 - v.u) / 0.42) * 0.45;
         return { dx: dx * k * 16, dy: dy * k * 16 };
     }
-    function glide(M, now) {                                  // 56: pulled along the rope (fast, then slowing), still in the shot pose
+    function glide(M, now) {                                  // 56, 77: pulled along the rope (fast, then slowing), still in the shot pose
         if (!M.moved || now < M.pull0 || now >= M.pull1) return null;
         const k = pullEase(M, now);
         return { alpha: 1, dx: (M.to.gx - M.from.gx) * k * 16, dy: (M.to.gy - M.from.gy) * k * 16, lift: 0 };
@@ -196,7 +217,7 @@ const redrawnSkillFxExtra = (() => {
     /** Where the caster is drawn during a movement cast, relative to the cell it occupies (board dots) — null otherwise.
      * waiting: combat has not moved the caster out of M.from yet (the visual clock runs up to a tick ahead). */
     function moveCaster(id, M, now, waiting) {
-        if (id === 56) return glide(M, now) || (waiting ? arrived(M, now) : null);
+        if (id === 56 || id === 77) return glide(M, now) || (waiting ? arrived(M, now) : null);
         const v = vanish(M, now);
         if (!v) return null;
         if (waiting && v.u >= 0.5) return { alpha: 0, lift: 0, dx: 0, dy: 0 };   // out of sight until it steps out of the other side
@@ -207,7 +228,7 @@ const redrawnSkillFxExtra = (() => {
         17: { ground: drawBurstGround, fore: drawBurst }, 29: { ground: drawVortexGround, fore: drawVortex },
         30: { ground: drawFrostMistGround, fore: drawFrostMist }, 37: { ground: drawMineGround, fore: drawMine },
         48: { ground: drawCoolGround, fore: drawCool },
-        54: { ground: drawRiftGround, fore: drawRift }, 55: { fore: drawSmoke }, 56: { fore: drawHarpoon }
+        54: { ground: drawRiftGround, fore: drawRift }, 55: { fore: drawSmoke }, 56: { fore: drawHarpoon }, 77: { fore: drawRockRope }
     });
     return Object.freeze({ moveCaster });
 })();

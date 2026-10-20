@@ -7,7 +7,7 @@ const skillGemCasts = (() => {
     const distance = (a,b) => Math.hypot(a.gx-b.gx,a.gy-b.gy);
     const dirs = {2:[0,1],4:[-1,0],6:[1,0],8:[0,-1]};
     // Gems that never overlap themselves: the clock, the assassination and the movement gems.
-    const SINGLE_CAST = new Set([46,52,54,55,56,70]);
+    const SINGLE_CAST = new Set([46,52,54,55,56,70,77]);
     // 효과 확장 +N (js/skill-effect-expansion.js): 탄성 플라스크 bounces, 폭발 혼합물·신성한 안개 radius, 파문심판 cross arms,
     // 빈 플라스크 shard reach, 암살 reach and 전도성 난격 cuts grow by it; 신성한 기도·시간 가속·과냉각 혼합물 never do.
     const grow = stats => skillEffectExpansion.extra(stats && stats.sSkill);
@@ -93,7 +93,7 @@ const skillGemCasts = (() => {
     function event(cast,phase,at,duration,extra={}) {
         const keys={44:'flaskPhase',45:'lancePhase',46:'timePhase',47:'mixturePhase',48:'supercooledPhase',
             49:'emptyFlaskPhase',50:'holyMistPhase',51:'judgmentPhase',52:'assassinationPhase',
-            54:'riftPhase',55:'smokePhase',56:'harpoonPhase',70:'flickerPhase'};
+            54:'riftPhase',55:'smokePhase',56:'harpoonPhase',70:'flickerPhase',77:'rockFlaskPhase'};
         const travel=['flight','flask','shard','fall'].includes(phase);
         const ground=['clock','wave','mist'].includes(phase);
         return {skillName:cast.name,kind:travel?'travel':'stage',[keys[cast.id]]:phase,at,duration,
@@ -118,7 +118,7 @@ const skillGemCasts = (() => {
     const contactAreas={45:c=>c.points,46:c=>cells(c.source,'circle',3),47:c=>cells(c.aim,'square',1+grow(c.stats)),
         48:c=>cells(c.aim,'ring',c.index+1).concat(c.index?[]:cells(c.aim,'square',.5)),
         50:c=>cells(c.source,'square',1+grow(c.stats)).filter(p=>!same(p,c.source)),51:c=>cells(c.aim,'cross',c.geometry.crossRadius),
-        54:c=>cells(c.move.to,'square',moveRadius(c))};
+        54:c=>cells(c.move.to,'square',moveRadius(c)),77:c=>cells(c.move.foe,'square',moveRadius(c))};
     function flight(cast,base,perCell) {
         return Math.max(1,Math.round((base+distance(cast.source,cast.aim)*perCell)/cast.speed/1.8));
     }
@@ -206,7 +206,7 @@ const skillGemCasts = (() => {
     // ---------------------------------------------------------------- 54~56 이동기 (스킬 변경분 2 · 인계 mob4_core.js. 57 공중강타는 2026-10-13에 지웠다)
     // Reach is Euclidean; a landing is free (see free()) and never the caster's own cell; timings scale with attack speed.
     // Each cast carries its whole choreography in c.move (one 'move' event) for the redrawn art and the caster's motion.
-    const MOVES={54:{range:4,grows:'radius'},55:{range:5,grows:'range'},56:{range:5,grows:'range'}};
+    const MOVES={54:{range:4,grows:'radius'},55:{range:5,grows:'range'},56:{range:5,grows:'range'},77:{range:5,grows:'radius'}};
     const N8=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
     const reach2=(a,b)=>(a.gx-b.gx)**2+(a.gy-b.gy)**2;
     const ms=(c,value)=>Math.round(value/c.speed);
@@ -249,7 +249,7 @@ const skillGemCasts = (() => {
         return live.filter(e=>{
             const aim=getClosestGridUnitCell(source,e);
             if(reach2(source,aim)>range*range)return false;
-            if(id===56)return true;
+            if(id===56 || id===77)return true;
             return !!(id===55 ? besideTarget(source,aim,live) : landNear(source,aim,live,range));
         });
     }
@@ -283,6 +283,17 @@ const skillGemCasts = (() => {
         c.move={from:cell(c.source),to:to || cell(c.source),foe:aim,release,hitAt,pull0,pull1,moved:!!to,swing:{impact:release,until:release+ms(c,140)}};
         c.nextAt=hitAt;
         visual(state,c,'move',c.at,pull1+ms(c,420)-c.at,{move:c.move,targetCells:[aim]});
+    }
+    /** 77 바위 플라스크(2026-10-20 스킬룬 추가본 v44, 사용자 구상): 줄 매단 바위 병을 던져 떨어진 자리 둘레(3×3, 효과 확장 +N칸)를 치고,
+     * 0.11초 뒤 줄을 당겨 그 앞 칸까지 0.26초에 돌진한다(작살화살의 pullLanding, 이미 붙어 있으면 줄만 당긴다). 던진 팔은 돌진이 끝날 때까지
+     * 뻗은 채다(c.move.swing의 until). 대상이 없으면 쓰지 않는다(작살화살과 같다). */
+    function launchRockFlask(state,c,enemies) {
+        const {live,aim}=moveStart(state,c,enemies),to=pullLanding(c.source,aim,live);
+        const release=c.at+ms(c,360),hitAt=release+ms(c,300+distance(c.source,aim)*32),pull0=hitAt+ms(c,110);
+        const pull1=to ? pull0+ms(c,260) : pull0;
+        c.move={from:cell(c.source),to:to || cell(c.source),foe:aim,release,hitAt,pull0,pull1,moved:!!to,swing:{impact:release,until:pull1+ms(c,60)}};
+        c.nextAt=hitAt;
+        visual(state,c,'move',c.at,pull1+ms(c,420)-c.at,{move:c.move,targetCells:[aim],footprint:{center:aim,radius:moveRadius(c)}});
     }
     // ---------------------------------------------------------------- 70 전도성 난격 (2026-10-19 스킬룬 인계 v36: 점멸)
     // 번개가 되어 적 사이를 순간이동하며 벤다(사용자: 패스오브 엑자일 1의 점멸 타격처럼). 처음엔 5칸 안 가장 가까운 적 곁으로, 그다음
@@ -322,7 +333,7 @@ const skillGemCasts = (() => {
         return [];
     }
     const launch={44:bounce,45:launchLance,46:launchClock,47:launchFlask,48:launchFlask,49:launchFlask,
-        50:launchMist,51:launchJudgment,52:launchAssassin,54:launchRift,55:launchSmoke,56:launchHarpoon,70:launchFlicker};
+        50:launchMist,51:launchJudgment,52:launchAssassin,54:launchRift,55:launchSmoke,56:launchHarpoon,70:launchFlicker,77:launchRockFlask};
     /** 튕길 때마다 떨어진 자리의 작은 중독 폭발: 1칸 안의 적에게 30%(인계의 제안 값). */
     const BOUNCE_POP_PCT=30;
     function stepBounce(state,c,input) {
@@ -470,6 +481,14 @@ const skillGemCasts = (() => {
         c.done=true;
         return landingNow(c,input) ? [moveTo(c,'pull')] : [];
     }
+    function stepRockFlask(state,c,input) {                  // the flask breaks around where it lands, then (if it moved) the dash
+        if(!c.index) {
+            c.index=1;c.nextAt=c.move.pull1;c.done=!c.move.moved;
+            return [contact(c,area(input.enemies,c.move.foe,'square',moveRadius(c)),c.move.hitAt)];
+        }
+        c.done=true;
+        return landingNow(c,input) ? [moveTo(c,'pull')] : [];
+    }
     /** 작살화살이 끌려가는 동안 무대의 주인공이 밧줄을 당긴다(2026-10-20 v42, 활 이동 동작): 당기기 시작에 한 번 힘을 주고 끝까지. */
     function harpoonPull(c) {
         const m=c.move;
@@ -491,7 +510,7 @@ const skillGemCasts = (() => {
         return commands;
     }
     const steps={44:stepBounce,45:stepLance,46:stepClock,47:stepExplosion,48:stepCold,49:stepEmpty,
-        50:stepMist,51:stepJudgment,52:stepAssassin,54:stepRift,55:stepSmoke,56:stepHarpoon,70:stepFlicker};
+        50:stepMist,51:stepJudgment,52:stepAssassin,54:stepRift,55:stepSmoke,56:stepHarpoon,70:stepFlicker,77:stepRockFlask};
     function update(state,input) {
         const commands=[];
         updateMistTargets(state,input);

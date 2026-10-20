@@ -132,13 +132,18 @@ Object.assign(SKILL_DB, {
     "작살화살": {"isGem":true,"category":"attack","ele":"phys","baseSpd":0.8,"targetMode":"nearest-enemy","targets":99,"nativeCastId":56,
         "desc":"줄이 달린 작살화살을 쏴 최대 5칸 안의 적에게 물리 피해를 주고, 줄을 당겨 그 적 바로 앞 칸까지 끌려갑니다. 이미 붙어 있으면 끌려가지 않습니다.",
         "tags":["attack","projectile","physical","mobility"],"baseDmg":1.7,"dmgScale":0.09,"spdScale":0.01,"crit":8,"leech":0,
-        "mobilityCooldownMs":4000,"rangeText":"사거리 5칸, 적 앞 칸까지 끌려감"}
+        "mobilityCooldownMs":4000,"rangeText":"사거리 5칸, 적 앞 칸까지 끌려감"},
+    // 2026-10-20 스킬룬 추가본(v44): 사용자가 구상한 플라스크 이동기. 피해 120, 5칸, 둘레 1칸, 돌진 0.26초는 추가본의 제안 값이다.
+    "바위 플라스크": {"isGem":true,"category":"attack","ele":"phys","baseSpd":0.8,"targetMode":"nearest-enemy","targets":99,"nativeCastId":77,
+        "desc":"단단한 바위를 연성한 플라스크에 줄을 매달아 던져 떨어진 자리 둘레에 피해를 주고, 줄을 당겨 그 앞까지 돌진합니다.",
+        "tags":["attack","projectile","physical","aoe","mobility","potion"],"baseDmg":1.2,"dmgScale":0.06,"spdScale":0.01,"crit":6,"leech":0,
+        "mobilityCooldownMs":4000,"rangeText":"사거리 5칸, 떨어진 자리 둘레 1칸, 그 앞 칸까지 돌진"}
 });
 // The mobility slot's cooldowns for the mobility gems that were main gems before (provisional).
 Object.assign(SKILL_DB['그림자 점멸'], { mobilityCooldownMs: 3500 });
 Object.assign(SKILL_DB['암살'], { mobilityCooldownMs: 4000 });
 // These authored flask trajectories own their contacts; generic pattern engraving cannot replace them.
-for (const name of ['탄성 플라스크','폭발 혼합물','과냉각 혼합물','빈 플라스크']) {
+for (const name of ['탄성 플라스크','폭발 혼합물','과냉각 혼합물','빈 플라스크','바위 플라스크']) {
     SKILL_DB[name].projectilePattern = { mode: 'lob', kind: 'blast', fixed: true };
     SKILL_DB[name].rangeText = '발사 방식: ' + SKILL_DB[name].rangeText + ', 고유 궤적';
 }
@@ -265,6 +270,7 @@ const SKILL_RUNE_FAMILY = Object.freeze({
     '폭발 혼합물': 'flask',
     '과냉각 혼합물': 'flask',
     '빈 플라스크': 'flask',
+    '바위 플라스크': 'flask',
 });
 /** 낀 무기의 대분류(data/weapon-categories.js) → 무기 자세. 곡도는 방패를 함께 껴도 한손검이다(2026-10-20 새 그림에는 방패를 든 자세가 없다).
  * 무대의 주인공 그림(js/canvas-stage-actors.js)도 이 표로 자세를 정한다. */
@@ -283,6 +289,7 @@ const SKILL_GEM_VFX_PROFILES = Object.freeze({
     '폭발 혼합물': {family:'worldTree',scale:1,impactVfx:false},
     '과냉각 혼합물': {family:'worldTree',scale:1,impactVfx:false},
     '빈 플라스크': {family:'worldTree',scale:1,impactVfx:false},
+    '바위 플라스크': {family:'worldTree',scale:1,impactVfx:false},
     '신성한 안개': {family:'worldTree',scale:1,impactVfx:false},
     '파문심판': {family:'worldTree',scale:1,impactVfx:false},
     '암살': {family:'worldTree',scale:1,impactVfx:false},
@@ -486,6 +493,7 @@ const SKILL_GRID_DB = {
     "폭발 혼합물": {"kind":"blast","range":4,"radius":1,"shape":"square","distanceMetric":"euclidean"},
     "과냉각 혼합물": {"kind":"blast","range":4,"radius":3,"shape":"ring","distanceMetric":"euclidean"},
     "빈 플라스크": {"kind":"chain","range":4},
+    "바위 플라스크": {"kind":"blast","range":5,"radius":1,"shape":"square"},
     "신성한 안개": {"kind":"nova","range":1,"radius":1,"shape":"square"},
     "파문심판": {"kind":"blast","range":2,"radius":1,"shape":"cross"},
     "암살": {"kind":"melee","range":4},

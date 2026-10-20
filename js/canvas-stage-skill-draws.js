@@ -2,7 +2,7 @@
  * 인계 그대로이고, 게임의 붓과 시계에 맞게 나눠 적었다).
  * - 혈기 폭쇄의 바늘 찌르기: 뿌리 굵고 끝이 가는 방추가 0.08초에 뻗고, 잠깐 머문 뒤 뿌리부터 걷힌다. 끝에 십자 번쩍임과 속도선 둘.
  * - 공허 가르기의 우주 틈: 베는 선이 0.08초에 그어지고, 그 자국이 별과 성운이 보이는 틈으로 벌어졌다가 닫힌다.
- * - 투사체의 몸: 속성 장식이 붙은 창과 큰 창, 쌍독니, 세로로 도는 방패, 화살, 작살, 던지는 플라스크.
+ * - 투사체의 몸: 속성 장식이 붙은 창과 큰 창, 쌍독니, 세로로 도는 방패, 화살, 작살, 던지는 플라스크, 바위 플라스크의 바위 병.
  * 도트 하나가 캐릭터 도트 하나다. 그리기만 한다: 언제 어디에 그릴지는 js/canvas-stage-skill-rules.js가 정한다.
  */
 const stageSkillDraws = (() => {
@@ -374,11 +374,52 @@ const stageSkillDraws = (() => {
         g.drawImage(flaskSprite(element), -14, -23);
     }
 
+    /** 바위 플라스크(2026-10-20 스킬룬 추가본 v44)의 색: 돌(어두운 쪽에서 밝은 쪽), 금, 연성 룬 금빛 줄, 코르크, 병목에 감은 줄과 그 그림자. */
+    const ROCK = Object.freeze({ outline: '#141210', dark: '#4a4238', mid: '#6e6456', light: '#968a76', high: '#bdb29a', crack: '#2a2420',
+        rune: '#c9a65e', cork: '#8a6b48', rope: '#c9b48a', ropeDark: '#7a6448' });
+    /** 바위 병: 플라스크와 같은 크기(둥근 몸 지름 23도트), 왼쪽 위에서 빛을 받는 거친 돌결(추가본의 rockFlaskSprite 그대로). */
+    function rockSprite() {
+        return cached('rock', () => {
+            const sheet = drawCanvas(28, 37), px = sheet.px, cx = 14, cy = 23;
+            const hash = (x, y) => { const s = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453; return s - Math.floor(s); };
+            for (let y = -12; y <= 12; y++) for (let x = -12; x <= 12; x++) {
+                const d = Math.hypot(x, y) + (hash(Math.floor(x / 3), Math.floor(y / 3)) - 0.5) * 1.2;   // 울퉁불퉁한 돌 테두리
+                if (d > 12.2) continue;
+                if (d > 11.1) { px(cx + x, cy + y, ROCK.outline); continue; }
+                const lit = (-x - y) / 17 + (hash(Math.floor((x + 13) / 2), Math.floor((y + 13) / 2)) - 0.5) * 0.7;   // 왼쪽 위 빛과 돌결 얼룩
+                px(cx + x, cy + y, lit > 0.55 ? ROCK.high : lit > 0.1 ? ROCK.light : lit > -0.45 ? ROCK.mid : ROCK.dark);
+            }
+            rockMarks(px, cx, cy);
+            return sheet.canvas;
+        });
+    }
+    /** 갈라진 금 넷, 연성 룬 금빛 줄, 돌 병목, 코르크, 병목에 감은 줄. */
+    function rockMarks(px, cx, cy) {
+        for (const [x0, y0, x1, y1] of [[-6, -6, -1, 1], [-1, 1, 2, 7], [4, -8, 7, -2], [-9, 3, -5, 6]]) {
+            stageSkillStrokes.line(cx + x0, cy + y0, cx + x1, cy + y1, (x, y) => px(x, y, ROCK.crack));
+        }
+        for (let i = -6; i <= 6; i++) px(cx + i, cy + 2 + Math.round(Math.sin(i / 2.2) * 1.5), ROCK.rune);
+        for (const [x, y] of [[-3, -1], [3, 5], [0, -1]]) px(cx + x, cy + y, ROCK.rune);
+        rockBox(px, { x: cx, y: cy, x0: -3, x1: 3, y0: -17, y1: -11 }, x => (Math.abs(x) === 3 ? ROCK.outline : x < 0 ? ROCK.light : ROCK.mid));   // 돌 병목
+        rockBox(px, { x: cx, y: cy, x0: -2, x1: 2, y0: -21, y1: -18 }, (x, y) => (Math.abs(x) === 2 || y === -21 ? ROCK.outline : ROCK.cork));   // 코르크
+        rockBox(px, { x: cx, y: cy, x0: -4, x1: 4, y0: -14, y1: -13 }, (x, y) => (y === -14 ? ROCK.rope : ROCK.ropeDark));   // 병목에 감은 줄
+        px(cx + 4, cy - 15, ROCK.rope); px(cx + 5, cy - 16, ROCK.rope);
+    }
+    /** 칸 하나하나를 colourOf(x, y)의 색으로 찍는다(가운데 기준의 x0..x1, y0..y1). */
+    function rockBox(px, box, colourOf) {
+        for (let y = box.y0; y <= box.y1; y++) for (let x = box.x0; x <= box.x1; x++) px(box.x + x, box.y + y, colourOf(x, y));
+    }
+    /** 던진 바위 병: 플라스크처럼 70ms마다 사분의 일씩 돈다. */
+    function drawRock(g, t) {
+        g.rotate(Math.floor(t / 70) * Math.PI / 2);
+        g.drawImage(rockSprite(), -14, -23);
+    }
+
     const BODIES = Object.freeze({
         spear: (g, t, element) => drawSpear(g, t, element, false), bigspear: (g, t, element) => drawSpear(g, t, element, true),
-        fang: drawFangs, shield: drawShield, arrow: g => drawBlocks(g, 'arrow'), harpoon: g => drawBlocks(g, 'harpoon'), flask: drawFlask
+        fang: drawFangs, shield: drawShield, arrow: g => drawBlocks(g, 'arrow'), harpoon: g => drawBlocks(g, 'harpoon'), flask: drawFlask, rock: drawRock
     });
-    /** 투사체의 몸을 그 자리에 그린다. @param {string} look 'spear'|'bigspear'|'fang'|'shield'|'arrow'|'harpoon'|'flask'
+    /** 투사체의 몸을 그 자리에 그린다. @param {string} look 'spear'|'bigspear'|'fang'|'shield'|'arrow'|'harpoon'|'flask'|'rock'
      * @param {{x:number,y:number,dot:number,face:number,angle?:number,t:number,element:string}} at 화면 자리, 보는 쪽, 기울기(오른쪽을 볼 때의 라디안), 날아온 시간 */
     function drawBody(ctx, look, at) {
         const body = BODIES[look];
@@ -392,6 +433,6 @@ const stageSkillDraws = (() => {
         ctx.restore();
         return true;
     }
-    return Object.freeze({ pierce: piercePaint, gash: gashPaint, body: drawBody });
+    return Object.freeze({ pierce: piercePaint, gash: gashPaint, body: drawBody, rock: ROCK });
 })();
 safeExposeGlobals({ stageSkillDraws });

@@ -9,17 +9,17 @@
 const redrawnSkillFx = (() => {
     const MOVE_EVENTS = ['windup', 'travel', 'stage', 'hit', 'transfer'];
     // Gems drawn only by the redrawn art (no PixelLab atlas entry): the movement gems of the 이동 스킬 slot.
-    const OWN_ART = Object.freeze({ '차원찢기': { id: 54 }, '향로구름': { id: 55 }, '작살화살': { id: 56 } });
+    const OWN_ART = Object.freeze({ '차원찢기': { id: 54 }, '향로구름': { id: 55 }, '작살화살': { id: 56 }, '바위 플라스크': { id: 77 } });
     /** The art spec a skill is drawn under: its atlas entry, or its own redrawn-only id. */
     const specOf = name => SKILL_FX_ATLAS[name] || OWN_ART[name] || null;
-    const IDS = new Set([3, 5, 10, 16, 17, 18, 21, 28, 29, 30, 37, 45, 46, 48, 50, 51, 54, 55, 56]);
+    const IDS = new Set([3, 5, 10, 16, 17, 18, 21, 28, 29, 30, 37, 45, 46, 48, 50, 51, 54, 55, 56, 77]);
     const REPLACED = { 3: ['windup', 'stage', 'hit'], 21: ['travel', 'hit'],
         45: ['travel', 'stage', 'hit'], 51: ['stage'], 16: ['windup', 'stage', 'hit'], 37: ['windup', 'stage', 'hit'],
         // 빙결 파열창 keeps its redrawn spear (fxRemake.projectile) and only its hits turn to frost mist; 과냉각 혼합물 keeps
         // its flask flight and hit sparks and only its heavy cloud ring (the wave stage) becomes thin frost rings.
         30: ['hit'], 48: ['stage'],
         // The movement gems have no original art at all: everything they show is redrawn.
-        54: MOVE_EVENTS, 55: MOVE_EVENTS, 56: MOVE_EVENTS };
+        54: MOVE_EVENTS, 55: MOVE_EVENTS, 56: MOVE_EVENTS, 77: MOVE_EVENTS };
     const CAST_LIMIT = 48;
     const TAIL_MS = 1400;
     const SPIN = ['east', 'south', 'west', 'north'];

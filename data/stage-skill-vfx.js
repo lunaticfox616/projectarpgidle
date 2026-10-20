@@ -1,5 +1,5 @@
 // 스킬 이펙트 묶음 (js/canvas-stage-skill-vfx.js). scripts/build-stage-skill-vfx.cjs가 만든 표다: 손으로 고치지 않는다.
-// 2026-10-20 사용자가 준 "스킬룬 디렉터 전달"(v42)의 이펙트: 구매 팩에서 고른 이펙트 그림 두 장(assets/stage-vfx/vfx.png, vfx2.png,
+// 2026-10-20 사용자가 준 "스킬룬 디렉터 전달"(v42, 추가본 v44)의 이펙트: 구매 팩에서 고른 이펙트 그림 두 장(assets/stage-vfx/vfx.png, vfx2.png,
 // 저장소에 넣지 않는다)과 룬마다 어느 클립을 어느 때 쓰는지, 룬을 쓸 때의 동작. 룬의 판정, 무기 조건, 수치는 data/skills.js가 갖는다.
 //   ramps   색 램프: 어두운 쪽에서 밝은 쪽으로 여섯 단계. 클립을 '이름@램프'로 부르면 그림의 밝기를 이 여섯 색으로 다시 칠한다('@='는 원래 색).
 //   elementRamp 속성 → 램프. 룬이 램프를 정하지 않은 클립은 룬의 속성 색으로 칠한다.
@@ -328,6 +328,7 @@ const STAGE_SKILL_VFX = Object.freeze({
         '74': {swing:'none',ember:{blast:'fire_blast@fire',flame:'flame@fire'}},
         '75': {swing:'none',frostcone:true,smwave:'m_smwave@frost'},
         '76': {rain:true},
+        '77': {land:'ground_hit@stone',debris:'debris@stone',dust:'m_dust@smoke',skid:'dustup@smoke'},
         '111': {cast:'fflower@fire',body:'fball@=',shot:'fball@='},
         '112': {cast:'iceb@cold',body:'orb@=',shot:'orb@='},
         '113': {cast:'strike@light',body:'orb@light',shot:'orb@light'},
@@ -394,6 +395,7 @@ const STAGE_SKILL_VFX = Object.freeze({
         '74': {name:'불씨의 함성',el:'fire',cast:false,melee:false,kind:'self'},
         '75': {name:'서리바람 내지르기',el:'cold',cast:false,melee:false,kind:'self'},
         '76': {name:'화살비',el:'phys',cast:false,melee:false,kind:'point'},
+        '77': {name:'바위 플라스크',el:'phys',cast:false,melee:true,kind:'move'},
         '111': {name:'화염 위습 소환',el:'fire',cast:true,melee:false,kind:'wisp'},
         '112': {name:'냉기 위습 소환',el:'cold',cast:true,melee:false,kind:'wisp'},
         '113': {name:'번개 위습 소환',el:'light',cast:true,melee:false,kind:'wisp'},
@@ -460,6 +462,7 @@ const STAGE_SKILL_VFX = Object.freeze({
         '74': {wanderer:{unarmed:'shout',greatsword:'shout',sword:'shout',bow:'shout',orb:'shout',flask:'shout',censer:'shout'},warrior:{unarmed:'shout',greatsword:'shout',sword:'shout',bow:'shout',orb:'shout',flask:'shout',censer:'shout'},archer:{unarmed:'shout',greatsword:'shout',sword:'shout',bow:'shout',orb:'shout',flask:'shout',censer:'shout'},occultist:{unarmed:'shout',greatsword:'shout',sword:'shout',bow:'shout',orb:'shout',flask:'shout',censer:'shout'},alchemist:{unarmed:'shout',greatsword:'shout',sword:'shout',bow:'shout',orb:'shout',flask:'shout',censer:'shout'},cleric:{unarmed:'shout',greatsword:'shout',sword:'shout',bow:'shout',orb:'shout',flask:'shout',censer:'shout'}},
         '75': {wanderer:{unarmed:'shout',greatsword:'shout',sword:'shout',bow:'shout',orb:'shout',flask:'shout',censer:'shout'},warrior:{unarmed:'shout',greatsword:'shout',sword:'shout',bow:'shout',orb:'shout',flask:'shout',censer:'shout'},archer:{unarmed:'shout',greatsword:'shout',sword:'shout',bow:'shout',orb:'shout',flask:'shout',censer:'shout'},occultist:{unarmed:'shout',greatsword:'shout',sword:'shout',bow:'shout',orb:'shout',flask:'shout',censer:'shout'},alchemist:{unarmed:'shout',greatsword:'shout',sword:'shout',bow:'shout',orb:'shout',flask:'shout',censer:'shout'},cleric:{unarmed:'shout',greatsword:'shout',sword:'shout',bow:'shout',orb:'shout',flask:'shout',censer:'shout'}},
         '76': {wanderer:{bow:'attack'},warrior:{bow:'attack'},archer:{bow:'attack'},occultist:{bow:'attack'},alchemist:{bow:'attack'},cleric:{bow:'attack'}},
+        '77': {wanderer:{flask:'throw'},warrior:{flask:'throw'},archer:{flask:'throw'},occultist:{flask:'throw'},alchemist:{flask:'throw'},cleric:{flask:'throw'}},
         '111': {wanderer:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},warrior:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},archer:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},occultist:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},alchemist:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},cleric:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'}},
         '112': {wanderer:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},warrior:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},archer:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},occultist:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},alchemist:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},cleric:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'}},
         '113': {wanderer:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},warrior:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},archer:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},occultist:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},alchemist:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},cleric:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'}},

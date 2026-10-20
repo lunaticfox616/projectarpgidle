@@ -16,7 +16,7 @@ const SKILL_EFFECT_EXPANSION = Object.freeze({
         '신성한 단두대': 'radius', '얼어붙은 고리': 'radius', '불씨의 함성': 'radius', '화살비': 'radius',
         '화염 부패': 'radius', '빙결 침식': 'radius', '중력 붕괴': 'radius', '화염 폭풍핵': 'radius', '유성 낙화': 'radius',
         '난타 눈보라': 'radius', '번개 각인': 'radius', '폭발 혼합물': 'radius', '신성한 안개': 'radius',
-        '파문심판': 'radius', '차원찢기': 'radius',
+        '파문심판': 'radius', '차원찢기': 'radius', '바위 플라스크': 'radius',
         '섬머솔트 슬래시': 'cone', '불사르기': 'cone', '혹한의 지진': 'cone', '서리바람 내지르기': 'cone',
         '얼음 창': 'range', '번개 창': 'range', '관통 사격': 'range', '공허 가르기': 'range', '서리 파동': 'range', '참격파': 'range', '부싯돌 베기': 'range',
         '연발 사격': 'range', '폭열 창탄': 'range', '암흑 파열': 'range', '빙결 파열창': 'range',

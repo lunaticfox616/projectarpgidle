@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* 스킬룬 이펙트 묶음(2026-10-20 사용자가 준 "스킬룬 디렉터 전달" v42. 그 앞은 10-19 v36, 10-17 v32, 10-13 "스킬젬 리메이크 인계" v21:
+/* 스킬룬 이펙트 묶음(2026-10-20 사용자가 준 "스킬룬 디렉터 전달" v42와 그 추가본 v44(바위 플라스크, 같은 경로에 덮어 쓴 폴더). 그 앞은 10-19 v36, 10-17 v32, 10-13 "스킬젬 리메이크 인계" v21:
  * 구매 팩에서 고른 이펙트 그림과 룬마다의 연결표)을 게임이 읽는 모양으로 옮긴다(docs/stage-view-20261011.md).
  *
  *   node scripts/build-stage-skill-vfx.cjs <인계 폴더> [복사해 둘 폴더]
@@ -196,7 +196,7 @@ const megabytes = files.reduce((sum, file) => sum + fs.statSync(path.join(sim, '
 const q = value => JSON.stringify(value).replace(/"([A-Za-z_$][\w$]*)":/g, '$1:').replace(/"/g, '\'');
 const rows = (object, indent) => Object.entries(object).map(([key, value]) => `${indent}${/^[A-Za-z_$][\w$]*$/.test(key) ? key : `'${key}'`}: ${q(value)}`).join(',\n');
 const text = `// 스킬 이펙트 묶음 (js/canvas-stage-skill-vfx.js). scripts/build-stage-skill-vfx.cjs가 만든 표다: 손으로 고치지 않는다.
-// 2026-10-20 사용자가 준 "스킬룬 디렉터 전달"(v42)의 이펙트: 구매 팩에서 고른 이펙트 그림 두 장(assets/stage-vfx/vfx.png, vfx2.png,
+// 2026-10-20 사용자가 준 "스킬룬 디렉터 전달"(v42, 추가본 v44)의 이펙트: 구매 팩에서 고른 이펙트 그림 두 장(assets/stage-vfx/vfx.png, vfx2.png,
 // 저장소에 넣지 않는다)과 룬마다 어느 클립을 어느 때 쓰는지, 룬을 쓸 때의 동작. 룬의 판정, 무기 조건, 수치는 data/skills.js가 갖는다.
 //   ramps   색 램프: 어두운 쪽에서 밝은 쪽으로 여섯 단계. 클립을 '이름@램프'로 부르면 그림의 밝기를 이 여섯 색으로 다시 칠한다('@='는 원래 색).
 //   elementRamp 속성 → 램프. 룬이 램프를 정하지 않은 클립은 룬의 속성 색으로 칠한다.

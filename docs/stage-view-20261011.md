@@ -471,6 +471,10 @@ PixelLab은 유료라 쓰지 않는다(2026-10-12 사용자): 몬스터 그림�
   한손검 투척 그림으로 던진다(scripts/build-stage-skill-vfx.cjs motionOf, 방랑자는 그 그림이 없어 찌르기).
 - 투사체는 휘두름 준비의 55%에 손을 떠난다(js/combat.js PROJECTILE_RELEASE_SHARE). 휘두름의 releaseDelayMs로 주인공의 놓는 장도 그때 온다
   (js/canvas-battle-units.js getHanaSwingTiming).
+- 스킬룬 추가본 v44(같은 날, 77 바위 플라스크): 추가본에는 이펙트 그림이 없어, v42 전달본 폴더에 추가본을 같은 경로로 덮어 쓴 폴더에서
+  이펙트 표를 뽑는다. 시전은 js/skill-gem-casts.js 77(작살화살처럼 줄을 당겨 그 앞 칸까지, 대상이 없으면 쓰지 않는다), 무대 그림은
+  js/canvas-stage-skill-casts.js castRockFlask(바위 병은 -draws.js의 rock), 끌려가는 움직임은 js/canvas-redrawn-skill-fx-extra.js glide.
+- 시전 마법진(js/canvas-stage-skill-sigil.js)의 화염, 냉기, 카오스 글자는 보조룬 아이콘의 글자(ᚲ, ᚺ, ᛈ)다(같은 날 사용자 결정).
 
 ## 직접 돌려 보며 고친 것 (2026-10-13, 사용자 "너가 플레이해보고 문제점과 개선사항을 찾아서 계속 개선해줘")
 무대 시험판을 스크립트로 돌렸다: 새 게임에서 전체 탐색으로 액트 1부터 이어 가기(7분에 액트 4 입구까지), 액트 1~10과 혼돈, 심화 혼돈,
