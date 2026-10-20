@@ -288,13 +288,15 @@ const STAGE_MONSTER_SCALE = Object.freeze({ 'wisp-': 0.7, 'hive-': 0.6, 'deacon-
  * STORY_NPCS, 이름으로 찾는다)가 입구 방에 선다. 엔드게임 콘텐츠 지도에는 서지 않는다(2026-10-15 사용자: "콘텐츠 지도 입구 NPC도 빼줘",
  * 지도마다 같은 NPC가 앞질러 서 있는 게 어색했다). 누르면 그 NPC의 창(대사, 즉시 해금, 상점)이 열린다(js/content-progression-ui.js openNpc).
  * 그림은 assets/stage-npcs/<id>-idle.png(대기 6프레임 한 줄, 칸 cell, 발 feet, 머리 꼭대기 head, 프레임마다 frameMs)와
- * <id>-portrait.png(일러스트, 480×720). scale: 몸이 89도트로 주인공(97도트)보다 작아 아이처럼 보여 늘려 그린다.
- * 저장소 밖 그림이다(scripts/build-stage-npcs.cjs가 옮긴다). 그림이 없으면 NPC는 서지 않고 대사만 띠에 나온다.
+ * <id>-portrait.png(일러스트, 480×720). scripts/build-stage-npcs.cjs가 그림 도구의 시트를 검사해 옮긴다. 그림이 없으면 NPC는 서지 않고
+ * 대사만 띠에 나온다. 2026-10-21 새 주인공 비율로 다시 그린 판(artifacts/npc-idle-revision-20261021, 키 112~120도트, 머리 23~25도트)이라
+ * scale은 1(그림의 도트 = 주인공의 도트)이다. 예전 판은 몸이 89도트로 주인공(97도트)보다 작아 1.15배로 그렸다. head는 가장 큰 오르가의
+ * 머리 꼭대기다. version은 그림을 바꿀 때 올린다(브라우저가 예전 시트를 쥐고 새 칸으로 자르지 않게).
  * 2026-10-15 사용자: "하켄부터 세워봐", 이어서 NPC 도트와 일러스트 다섯을 만들어 줬다. 하켄은 액트 5에서 쓰러지므로 엔드게임 자리는 없다. */
 /** 쓰러진 자리에서 이야기가 다시 일으키는 보스(act bossId, js/canvas-boss-revive.js): 처치 대사가 나오는 동안 황금 수액 기둥과 다시 차오르는
  * 체력바를 그린다(2026-10-15: 2막 부제녀의 처치 대사는 "다시 일으킨다!"인데 화면에는 아무 일도 없었다). fillMs: 막대가 다 차는 데 걸리는 시간. */
 const STAGE_BOSS_REVIVAL = Object.freeze({ bosses: Object.freeze(['gardener_immortal']), fillMs: 1400 });
-const STAGE_NPC_ART = Object.freeze({ path: 'assets/stage-npcs/', cell: 128, feet: Object.freeze([64, 112]), head: 22, scale: 1.15,
+const STAGE_NPC_ART = Object.freeze({ path: 'assets/stage-npcs/', version: '20261021-1', cell: 160, feet: Object.freeze([80, 144]), head: 24, scale: 1,
     frameMs: Object.freeze([720, 260, 460, 280, 140, 720]) });
 
 /** 판(9×8)에서 싸우던 콘텐츠가 방 단위 무대에서 걷는 지도(2026-10-13 밤 사용자: "그거 포함해서 아틀라스도, 옮겨줘". js/content-maps.js withRooms).

@@ -278,7 +278,7 @@ const actTitleCard = (() => {
         actors.push({ kind: 'scenery', id: -3, x: point.x, y: point.y + state.gridProj.actorGroundOffsetY, npc, talkable: !rescuing(run) });
     }
     function npcSheet(id) {
-        if (!npcSheets.has(id)) npcSheets.set(id, stagePictures.openPicture(`${STAGE_NPC_ART.path}${id}-idle.png`));
+        if (!npcSheets.has(id)) npcSheets.set(id, stagePictures.openPicture(`${STAGE_NPC_ART.path}${id}-idle.png?v=${STAGE_NPC_ART.version}`));
         return npcSheets.get(id);
     }
     /** The idle frame shown now: the art's own frame times, looping. */

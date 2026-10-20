@@ -819,8 +819,8 @@ PixelLab은 유료라 쓰지 않는다(2026-10-12 사용자): 몬스터 그림�
   logStoryLine; 주인공은 직업 이름, NPC는 칭호 뒤 이름). 설정 전투 로그의 '대사 표시'(showStoryLog)로 끈다. 설명과 비문은 남기지 않는다.
 - 이야기 팝업, 보상 창, 선택 창이 떠 있으면 기다리고 그동안은 세지 않는다. 15초 넘게 못 뜬 대사와 다른 지도의 대사는 버리되,
   처치 대사와 주인공 대사는 보상 창 뒤 다음 액트로 이어진다. 보스가 쓰러지면 아직 못 뜬 등장, 반피 대사는 버린다.
-- NPC 다섯(data/story-journal.js STORY_NPCS: 하켄, 베른, 오르가, 이벨, 베일라)은 무대 그림(assets/stage-npcs, scripts/build-stage-npcs.cjs,
-  저장소 밖)으로 입구 방 가운데 줄 바로 뒷줄, 주인공이 서는 자리에서 두 칸 옆(js/act-exploration-rooms.js npcPost)에 주인공을 보고 선다.
+- NPC 다섯(data/story-journal.js STORY_NPCS: 하켄, 베른, 오르가, 이벨, 베일라)은 무대 그림(assets/stage-npcs, scripts/build-stage-npcs.cjs가
+  그림 도구의 160칸 시트를 검사해 옮긴다. 2026-10-21부터 주인공과 같은 비율이라 배율 1)으로 입구 방 가운데 줄 바로 뒷줄, 주인공이 서는 자리에서 두 칸 옆(js/act-exploration-rooms.js npcPost)에 주인공을 보고 선다.
   이야기 액트와 시련에서 그 대사의 NPC만 선다(js/act-exploration-doors.js storyGuide, guideRoom). 엔드게임 콘텐츠 지도 입구에 맡은 NPC를
   세우던 자리는 뺐다(2026-10-15 사용자: 지도마다 같은 NPC가 앞질러 서 있는 게 어색). 대사는 머리 위 말풍선, 이름표를 달고 싸움에는 끼지 않는다.
   NPC가 선 칸과 같은 세로줄의 앞뒤 두 칸에는 주인공도 몬스터도 서지 않고 돌아간다(guideCells, 2026-10-17 사용자 "NPC와 겹치지 않도록").
