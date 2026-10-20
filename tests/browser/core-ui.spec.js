@@ -21,6 +21,12 @@ async function openLocalGame(page, path = '/') {
     await expect(page.locator('#tab-battle')).toHaveClass(/active/);
 }
 
+// 로그인하면 채팅이 Supabase Realtime 소켓을 연다(js/social.js syncLiveChat). 시험의 가짜 주소(.invalid)는 이름이 풀리지 않아 브라우저가
+// 연결 실패를 콘솔 오류로 남기므로, 소켓은 받아만 두고 답하지 않는다(채팅은 예전처럼 조회로 돈다).
+test.beforeEach(async ({ page }) => {
+    await page.routeWebSocket(/\/realtime\/v1\/websocket/, () => {});
+});
+
 function watchRuntimeFailures(page) {
     const failures = [];
     page.on('pageerror', error => failures.push(error.message));
