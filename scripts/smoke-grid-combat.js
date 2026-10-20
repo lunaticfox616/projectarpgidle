@@ -11,7 +11,7 @@ const files = [
   'data/maps.js',
   'data/act-exploration-maps.js',
   'data/cosmos-route.js',
-  'data/exploration-regions.js', 'data/atlas-board.js', 'data/atlas.js', 'data/atlas-passives.js', 'data/atlas-endgame.js', 'data/atlas-boss-art.js', 'data/loot-omens.js', 'data/memory-leaves.js', 'data/memory-dungeon.js',
+  'data/exploration-regions.js', 'data/atlas-board.js', 'data/atlas.js', 'data/atlas-passives.js', 'data/atlas-endgame.js', 'data/loot-omens.js', 'data/memory-leaves.js', 'data/memory-dungeon.js',
   'data/gem-core-forge.js', 'data/skills.js', 'data/skill-effect-expansion.js', 'data/wisp-summons.js',
   'data/endgame-progression.js',
   'data/severed-wanderers.js',

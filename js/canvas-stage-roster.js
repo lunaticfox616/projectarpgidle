@@ -45,7 +45,7 @@ const stageRoster = (() => {
         const data = table();
         if (!data) return null;
         const look = enemy.spriteVariantId || enemy.monsterVisualId;
-        const own = ATLAS_BOSS_ART[look] || data.actors[data.wears[look] || look] || data.actors[enemy.bossAssetKey];
+        const own = data.actors[data.wears[look] || look] || data.actors[enemy.bossAssetKey];
         return data.actors[settings().stageMonsterLook] || own || null;
     }
     /** A sheet, decoded off the main thread (js/canvas-stage-pictures.js). */
@@ -75,7 +75,7 @@ const stageRoster = (() => {
         tick = performance.now();
         mapLooks = new Set(enemies.map(enemy => actorFor(enemy)).filter(Boolean).map(actor => actor.id));
         sweepAt = tick + stageCache.HOT_MS * 2;
-        for (const id of mapLooks) pairOf(ATLAS_BOSS_ART[id] || data.actors[id]);
+        for (const id of mapLooks) pairOf(data.actors[id]);
     }
     /** keepFor가 건 때가 됐다: 이 지도의 무리가 아닌 그림 가운데 한동안 그려지지 않은 것을 놓는다. */
     function sweepLooks() {

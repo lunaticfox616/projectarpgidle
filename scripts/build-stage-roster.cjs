@@ -3,6 +3,7 @@
  *
  *   node scripts/build-stage-roster.cjs <정리한 그림 폴더> [복사해 둘 폴더] [--forge <새 묶음 폴더>] [--looks <새 외형 선택.json>]
  *     [--roots <무기 뿌리 묶음 폴더>] [--actions <동작 묶음 폴더>] [--attacks <적 공격 효과 묶음 폴더>] [--deaths <장면 상태 그림 폴더>]
+ *     [--motions <전체 몬스터 6장 제작본 폴더>]
  *
  * 그림이 오는 곳은 둘이다.
  *   <정리한 그림 폴더>: 처음 받은 88종을 도트로 정리해 둔 곳(data.js, fixed/<id>/walk.png과 attack.png, 그 위 폴더의 motions.json).
@@ -18,6 +19,8 @@
  *     그림은 그대로다. 그 동작의 프레임마다 효과가 나오는 자리는 scripts/build-boss-fx.cjs가 이 표를 보고 맞춘다(다시 돌린다).
  *   --deaths: 장면 상태 그림 묶음(story-state-art-20261016, 2026-10-17)의 스토리 보스 쓰러짐(clips/<보스 id>, kind boss): deathBatch.
  *     걷기와 공격의 칸과 발 자리는 그대로 두고 쓰러짐만 제 칸에 따로 둔다(<id>-death.png).
+ *   --motions: Codex의 전체 몬스터 이동과 공격 6장 제작본(artifacts/endgame-boss-motion-20261020/all-monsters/motions, 2026-10-21 사용자:
+ *     크기는 제작본의 목표 키를 따른다): 그 제작본에 있는 몬스터는 걷기와 공격을 모두 이것으로 쓴다(motionBatch). 쓰러짐은 그대로다.
  *   새 묶음의 그림이 게임에서 다른 자리에 서면 FORGE_SLOT에 적는다(예: 부제나비는 액트 3 보스 그림 키 bossAct3).
  *   같은 생김새에 색만 다른 외형은 FORGE_TINTS에 적는다: 동작이 온 외형의 걷기와 공격을 제 색으로 옮겨 쓴다(--no-tint로 끈다).
  * 몬스터 하나는 한쪽 묶음의 그림만 쓴다: 새 묶음에 확인 끝난 동작이 있으면 그것(공격이 없으면 공격 그림 없이 간다), 없으면
@@ -36,10 +39,10 @@ const { decodePng, encodePng } = require('./lib/png.cjs');
 const { tidy } = require('./tidy-stage-art.cjs');
 
 const root = path.join(__dirname, '..');
-const args = process.argv.slice(2), OPTIONS = ['--forge', '--looks', '--roots', '--actions', '--attacks', '--deaths'];
+const args = process.argv.slice(2), OPTIONS = ['--forge', '--looks', '--roots', '--actions', '--attacks', '--deaths', '--motions'];
 const option = name => (args.includes(name) ? args[args.indexOf(name) + 1] : null);
 const forge = option('--forge'), looksFile = option('--looks'), rootsDir = option('--roots'), actionsDir = option('--actions'), attacksDir = option('--attacks');
-const deathsDir = option('--deaths');
+const deathsDir = option('--deaths'), motionsDir = option('--motions');
 const [from, mirror] = args.filter((arg, index) => !arg.startsWith('--') && !OPTIONS.includes(args[index - 1]));
 if (!from) { console.error('쓰는 법: node scripts/build-stage-roster.cjs <정리한 그림 폴더> [복사해 둘 폴더] [--forge <새 묶음 폴더>] [--looks <새 외형 선택.json>] [--roots <무기 뿌리 묶음 폴더>] [--actions <동작 묶음 폴더>]'); process.exit(1); }
 const PAD = 2, COLUMNS = 12;
@@ -313,6 +316,38 @@ function attackBatch(dir, previous) {
     return out;
 }
 
+// ------------------------------------------------------------------ 전체 몬스터 6장 제작본(--motions)
+/** 앞선 그림이 없는 외형(후반 보스)의 걸음새: 제작본 계획(motion-plan.json)의 걷기 설명에서 고른다(부유, 활주는 float, 비행은 fly, 기기는 crawl).
+ * 여기 없는 외형은 legs다. */
+const MOTION_GAITS = Object.freeze({ apex_weaver: 'float', apex_archbishop: 'float', woodsman_echo: 'float', s2_boss_frost: 'float',
+    rival_afterimage: 'float', pinnacle_observer: 'float', trial_4: 'float', grand_breach_guardian: 'float', pinnacle_sky: 'float',
+    atlas_pinnacle: 'float', 'atlas-canopy-8': 'fly', 'atlas-roots-8': 'crawl' });
+const MOTION_HOVER = 12;   // 앞선 그림이 없는 떠 있는 외형의 떠 있는 높이(도트)
+/** 앞선 그림의 떠 있는 높이: 서 있는 첫 프레임의 몸 아래 끝이 발 자리보다 얼마나 위인가. */
+function hoverOf(actor) {
+    const box = boxOf(actor.walk.frames[0]);
+    return box ? Math.max(0, -box[3] - 1) : 0;
+}
+/** clips.json의 몬스터마다 move와 attack: 가로 cols칸 시트(칸 width × height, 발 자리 anchor, 왼쪽을 본다), 프레임 시간 ticks(1/60초),
+ * 공격의 타격 프레임 impactFrame. 칸마다 좌우를 뒤집어 오른쪽을 보게 한다. 원화 색상표로 마감된 그림이라 색을 다시 줄이지 않는다.
+ * 이름, 걸음새, 떠 있는 높이는 같은 id의 앞선 그림 것을 잇는다. 다리로 걷는 몬스터는 걸어온 거리로, 떠 있는 몬스터는 시간으로 돈다. */
+function motionBatch(dir, previous) {
+    const pairs = new Map(), out = new Map();
+    for (const clip of JSON.parse(fs.readFileSync(path.join(dir, 'clips.json'), 'utf8'))) pairs.set(clip.id, { ...(pairs.get(clip.id) || {}), [clip.action]: clip });
+    for (const [id, pair] of pairs) {
+        if (!pair.move || !pair.attack) continue;
+        const before = previous.get(id), gait = before ? before.gait : MOTION_GAITS[id] || 'legs', airborne = AIRBORNE.includes(gait);
+        const hover = airborne ? (before ? hoverOf(before) : MOTION_HOVER) : 0;
+        const clipOf = clip => {
+            const sheet = mirrorCells(read(path.join(dir, clip.sheet)), clip.width), feet = [clip.width - 1 - clip.anchor[0], clip.anchor[1] + hover];
+            return { frames: gridFrames(sheet, [clip.width, clip.height], clip.cols, clip.frames, feet), ms: clip.ticks.map(tick => +(tick * 1000 / 60).toFixed(2)) };
+        };
+        out.set(id, { ...(before || {}), id, name: before ? before.name : pair.move.name, gait,
+            walk: { ...clipOf(pair.move), pace: airborne ? 'time' : 'stride' }, attack: { ...clipOf(pair.attack), hit: pair.attack.impactFrame ?? 3 } });
+    }
+    return out;
+}
+
 // ------------------------------------------------------------------ 보스 쓰러짐(--deaths)
 /** 스토리 보스가 쓰러지는 그림(장면 상태 그림 묶음, 2026-10-17): clips/<보스 id>/animation.json(kind boss)의 프레임 파일(묶음 폴더
  * 기준 경로), 칸 크기(width, height), 발 자리(anchor), 프레임 시간(durations, 게임은 마지막 장에 멈춘다). 오른쪽을 본다. */
@@ -352,27 +387,40 @@ function wispWears(made, own) {
 // ------------------------------------------------------------------ 옮기기
 const actors = new Map(window.ROSTER.actors.map(actor => [actor.id, firstBatch(actor)]));
 const counts = { first: actors.size, moving: 0, still: 0 }, moving = [], fromForge = [];
+const source = new Map([...actors.keys()].map(id => [id, 'first'])), attacked = new Set();   // 몬스터마다 걷기 그림이 온 묶음(개수를 셀 때)
 if (forge) for (const [id, actor] of forgeBatch(forge)) {
     counts[actor.walk.frames.length > 1 ? 'moving' : 'still']++;
     fromForge.push(id);
     if (actor.walk.frames.length > 1) moving.push(id);
     if (actors.has(id)) counts.first--;
+    source.set(id, actor.walk.frames.length > 1 ? 'moving' : 'still');
     actors.set(id, actor);
 }
 if (rootsDir) for (const [id, actor] of rootBatch(rootsDir, actors)) {
     const replaced = actors.get(id);
     if (replaced) counts[!fromForge.includes(id) ? 'first' : replaced.walk.frames.length > 1 ? 'moving' : 'still']--;
     counts.roots = (counts.roots || 0) + 1;
+    source.set(id, 'roots');
     actors.set(id, actor);
 }
 if (actionsDir) for (const [id, actor] of actionsBatch(actionsDir, actors)) {
     const replaced = actors.get(id);
     if (replaced) counts[!fromForge.includes(id) ? 'first' : replaced.walk.frames.length > 1 ? 'moving' : 'still']--;
     counts.actions = (counts.actions || 0) + 1;
+    source.set(id, 'actions');
     actors.set(id, actor);
 }
 if (attacksDir) for (const [id, actor] of attackBatch(attacksDir, actors)) {
     counts.attacks = (counts.attacks || 0) + 1;
+    attacked.add(id);
+    actors.set(id, actor);
+}
+if (motionsDir) for (const [id, actor] of motionBatch(motionsDir, actors)) {
+    if (source.has(id)) counts[source.get(id)]--;
+    if (attacked.has(id)) counts.attacks--;
+    counts.motions = (counts.motions || 0) + 1;
+    source.set(id, 'motions');
+    if (!fromForge.includes(id)) fromForge.push(id);   // 제 그림이 왔다: 다른 외형을 빌려 입지 않는다(wispWears)
     actors.set(id, actor);
 }
 if (deathsDir) for (const [id, actor] of deathBatch(deathsDir, actors)) {
@@ -440,5 +488,5 @@ for (const folder of folders) for (const name of fs.readdirSync(folder)) {
     if (/-(walk|attack|death)\.png$/.test(name) && !written.has(name)) fs.unlinkSync(path.join(folder, name));
 }
 const bytes = fs.readdirSync(outDir).reduce((sum, name) => sum + fs.statSync(path.join(outDir, name)).size, 0);
-console.log(`몬스터 ${rows.length}마리: 처음 받은 그림 ${counts.first}, 새 묶음의 동작 ${counts.moving}, 새 묶음의 한 장 ${counts.still}, 무기 뿌리촉수 ${counts.roots || 0}, 쓰러짐 ${counts.deaths || 0}, 동작 묶음 ${counts.actions || 0}, 보스 공격 동작 ${counts.attacks || 0}`);
+console.log(`몬스터 ${rows.length}마리: 처음 받은 그림 ${counts.first}, 새 묶음의 동작 ${counts.moving}, 새 묶음의 한 장 ${counts.still}, 무기 뿌리촉수 ${counts.roots || 0}, 쓰러짐 ${counts.deaths || 0}, 동작 묶음 ${counts.actions || 0}, 보스 공격 동작 ${counts.attacks || 0}, 6장 제작본 ${counts.motions || 0}`);
 console.log(`그림 ${fs.readdirSync(outDir).length}장 (${(bytes / 1048576).toFixed(1)}MB) → assets/enemies/roster/${mirror ? ' 와 ' + mirror : ''}`);

@@ -98,12 +98,25 @@ function frameRecord(id, png, frame) {
     return [index, ax, ay, box ? box[0] : ax, box ? box[2] : ax, frame.flipX ? 1 : 0];
 }
 
-/** Where the effect comes out on each of the game's attack frames, from the boss's feet (dots). The game's own attack clip
- * follows GPT's points frame by frame when they have as many frames; else (no attack clip, or another one) the first point. */
-function emitPoints(profile, animation, actor) {
+/** Where the effect comes out on each of the game's attack frames, from the boss's feet (dots). GPT placed its points on the attack it
+ * drew (animation.json); the game's attack clip may be another one (2026-10-21: the all-monster 6-frame draft, data/monster-stage-roster.js).
+ * The points scale with the body (the game's first attack frame against GPT's, both measured up from the feet) and the game's frames take
+ * GPT's by their place before and after the release (the clip's impact frame meets GPT's releaseFrame). No attack clip: the first point. */
+function emitPoints(profile, animation, actor, gptHeight) {
     const [ax, ay] = animation.anchor, frames = actor.attackMs ? actor.attackMs.length : 0;
-    const points = frames && profile.points.length === frames ? profile.points : [profile.points[0]];
-    return points.map(([x, y]) => [x - ax, y - ay]);
+    const k = gptHeight > 0 && actor.height > 0 ? actor.height / gptHeight : 1;
+    const points = profile.points.map(([x, y]) => [Math.round((x - ax) * k), Math.round((y - ay) * k)]);
+    if (!frames || points.length < 2) return [points[0]];
+    if (points.length === frames) return points;
+    const hit = Math.min(frames - 1, actor.impactFrame || 0), release = Math.min(points.length - 1, profile.releaseFrame ?? hit);
+    const at = f => (f <= hit ? Math.round(f * release / Math.max(1, hit))
+        : release + Math.round((f - hit) * (points.length - 1 - release) / Math.max(1, frames - 1 - hit)));
+    return Array.from({ length: frames }, (_, f) => points[at(f)]);
+}
+/** The height GPT's first attack frame stands above its anchor (dots): the body GPT's points were placed on. */
+function gptBodyHeight(dir, animation) {
+    const png = decodePng(fs.readFileSync(path.join(dir, animation.frames[0]))), box = opaqueBox(png, [0, 0, png.width, png.height]);
+    return box ? animation.anchor[1] - box[1] : 0;
 }
 
 function clipsOf(id, effects, sheets) {
@@ -126,12 +139,13 @@ function readSheet(id, key, file, sheets) {
 
 function actorRow(id, dir, profile, actor, sheets) {
     const effects = { ...JSON.parse(fs.readFileSync(path.join(dir, 'effects.json'), 'utf8')), dir };
-    const animation = JSON.parse(fs.readFileSync(path.join(dir, 'animation.json'), 'utf8'));
+    const animation = JSON.parse(fs.readFileSync(path.join(dir, 'animation.json'), 'utf8')), gptHeight = gptBodyHeight(dir, animation);
+    const body = gptHeight > 0 && actor.height > 0 ? actor.height / gptHeight : 1;   // the effect keeps its size against the body
     return {
         kind: profile.kind,
-        scale: Math.round(profile.fxScale / profile.scale * 1000) / 1000,
+        scale: Math.round(profile.fxScale / profile.scale * body * 1000) / 1000,
         impactScale: profile.impactScale || 1,
-        emit: emitPoints(profile, animation, actor),
+        emit: emitPoints(profile, animation, actor, gptHeight),
         clips: clipsOf(id, effects, sheets)
     };
 }
