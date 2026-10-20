@@ -2721,10 +2721,12 @@ function queuePlayerAttackSequence(pStats, stages, context) {
     let damageTextGroupId = nextPlayerDamageTextGroupId++;
     if (nextPlayerDamageTextGroupId > 1000000000) nextPlayerDamageTextGroupId = 1;
     noteCombatTacticAttack(duration);
+    const delivery = getSkillCombatDelivery(pStats.sSkill);
     addBattleFx('playerSwing', {
         color: getElementColor(context.forcedElement), element: context.forcedElement,
         crit: context.forcedCrit, projectile: tags.includes('projectile'), kickoff: !!context.kickoff,
-        combatTravel: getSkillCombatDelivery(pStats.sSkill) !== 'instantTarget',
+        combatTravel: delivery !== 'instantTarget',
+        releaseDelayMs: delivery.startsWith('projectile') ? Math.floor(Math.max(0, delayMs) * PROJECTILE_RELEASE_SHARE) : undefined,
         skillName: context.skillName, sourceCell:copyCombatGridCell(game.gridPlayer), duration, impactDelayMs: Math.max(0, delayMs),
         // 옆으로만 치는 룬이 대상을 고를 때 정한 쪽(js/combat-grid.js band): 대상이 바로 위나 아래여도 무대의 주인공이 그 쪽을 본다
         bandSide: getSkillBandSide(context.skillName, pStats.sSkill)
@@ -2733,6 +2735,10 @@ function queuePlayerAttackSequence(pStats, stages, context) {
         ...context, channelId, channelCycleMs: cycleMs, baseDelayMs: delayMs, damageTextGroupId
     });
 }
+
+/** How far into the swing's windup a projectile leaves the hand: the stage hero plays its release frame then (playerSwing releaseDelayMs,
+ * js/canvas-battle-units.js getHanaSwingTiming). */
+const PROJECTILE_RELEASE_SHARE = 0.55;
 
 /** When a stage leaves and lands. A pierce is one shot: a victim past the first is hit when that shot reaches it, timed from the
  * caster's release. It used to be a new shot from the previous victim 30ms later, which paid the fixed launch time again, so the
@@ -2744,7 +2750,7 @@ function getPendingStageTimes(stage, delivery, cells, timing) {
     const through = delivery.startsWith('projectile') && stage.kind === 'pierceThrough';
     const stageDelay = through ? 0 : Math.max(0, Math.floor(stage.delayMs));
     if (delivery.startsWith('projectile')) {
-        const launchAt = now + Math.floor(baseDelay * 0.55) + stageDelay;
+        const launchAt = now + Math.floor(baseDelay * PROJECTILE_RELEASE_SHARE) + stageDelay;
         return { stageDelay, launchAt, at: launchAt + getCombatTravelMs(through ? game.gridPlayer : cells.source, cells.target, skill) };
     }
     if (delivery === 'magicMoving') {

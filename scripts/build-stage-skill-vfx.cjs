@@ -158,10 +158,13 @@ const heroSets = (() => {
     return sandbox.STAGE_CHARACTERS.classes;
 })();
 /** 시뮬레이터가 그림이 없어 대신 쓴 동작을 게임의 그림으로 되돌린다: 연금술사와 성직자 한손검의 회전은 v42 시뮬레이터의 그림에 없어 단타로
- * 대신했지만 10-20 모션 전달본(data/stage-characters.js)에는 있다. 회전 슬롯 룬(회오리, 얼어붙은 고리)은 그 그림이 있으면 회전이다. */
-function motionOf(row, classId, stanceId) {
-    const id = idOf(MOTION_IDS, row.m, '동작 이름');
-    return id === 'attack' && /회전/.test(row.note || '') && heroSets[classId].weapons[stanceId].spin ? 'spin' : id;
+ * 대신했지만 10-20 모션 전달본(data/stage-characters.js)에는 있다. 회전 슬롯 룬(회오리, 얼어붙은 고리)은 그 그림이 있으면 회전이다.
+ * 한손검으로 쓰는 투사체 룬(proj 계열)은 던진다(2026-10-20 사용자 결정, 시뮬레이터는 찌르기 끝에서 발사): 그 직업의 한손검 투척 그림이
+ * 있으면 투척, 없으면(방랑자) 찌르기 그대로. */
+function motionOf(gem, row, classId, stanceId) {
+    const id = idOf(MOTION_IDS, row.m, '동작 이름'), set = heroSets[classId].weapons[stanceId];
+    if (gem.fam === 'proj' && stanceId === 'sword' && set.throw) return 'throw';
+    return id === 'attack' && /회전/.test(row.note || '') && set.spin ? 'spin' : id;
 }
 const motions = {};
 for (const gem of gemList) {
@@ -171,7 +174,7 @@ for (const gem of gemList) {
         const classId = idOf(CLASS_IDS, classLabel, '직업');
         byClass[classId] = Object.fromEntries(Object.entries(stances).map(([stanceLabel, row]) => {
             const stanceId = idOf(STANCE_IDS, stanceLabel, '무기 자세');
-            return [stanceId, motionOf(row, classId, stanceId)];
+            return [stanceId, motionOf(gem, row, classId, stanceId)];
         }));
     }
     motions[gem.id] = byClass;

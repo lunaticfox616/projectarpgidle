@@ -1465,9 +1465,9 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   assert.strictEqual(meteor[0].kind, 'meteorImpact', '유성 낙화는 전용 단일 충돌 단계로 판정해야 한다');
   assert.strictEqual(meteor[0].damageMultiplier, 1, '단일 유성 충돌이 기존 총 피해를 모두 보존해야 한다');
   assert.strictEqual(meteor.slice(1).map(stage => stage.delayMs).join(','), '400,800,1200,1600,2000,2400', '불타는 지대는 0.4초 간격으로 2.4초 동안 타격해야 한다');
-  assert.ok(meteor.slice(1).every(stage => stage.kind === 'meteorGroundTick' && stage.damageMultiplier === 0.15), '불타는 지대는 각 15% 피해를 줘야 한다');
+  assert.ok(meteor.slice(1).every(stage => stage.kind === 'meteorGroundTick' && stage.damageMultiplier === 0.1), '불타는 지대는 각 10% 피해를 줘야 한다');
   assert.strictEqual(meteor[1].primaryAilmentChance, 1, '첫 불길 타격은 점화 확률이 100%여야 한다');
-  assert.strictEqual(context.getSkillHitSequenceDpsMultiplier('유성 낙화', context.SKILL_DB['유성 낙화']), 1.9, '표시 DPS에 불타는 지대 6회의 피해를 포함해야 한다');
+  assert.strictEqual(context.getSkillHitSequenceDpsMultiplier('유성 낙화', context.SKILL_DB['유성 낙화']), 1.6, '표시 DPS에 불타는 지대 6회의 피해를 포함해야 한다');
   assert.ok(meteor[0].impactCells.length > targets.length, '유성 하나가 충돌 지점의 전체 범위를 판정해야 한다');
 
   const field = context.buildSkillHitSequence('난타 눈보라', context.SKILL_DB['난타 눈보라'], targets);
@@ -2555,6 +2555,12 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   context.game.equipment['무기'] = weaponOf('scimitar', 9912);
   assert.strictEqual(context.getEquippedWeaponStance(), 'sword', '곡도는 한손검 자세다');
   assert.strictEqual(context.getSkillRuneWeaponNote('연발 사격'), '활 필요', '전용 룬의 이유에는 그 무기 이름이 붙는다');
+  assert.strictEqual(context.canUseSkillWithCurrentEquipment('도약 강타'), false, '돌진, 도약 강타, 섬머솔트 슬래시는 대검 전용이다');
+  assert.strictEqual(context.getSkillRuneWeaponNote('섬머솔트 슬래시'), '대검 필요');
+  assert.strictEqual(context.canUseSkillWithCurrentEquipment('전도성 난격'), true, '전도성 난격은 근접 무기 넷이 함께 쓴다');
+  context.game.equipment['무기'] = weaponOf('greatsword', 9917);
+  assert.strictEqual(context.canUseSkillWithCurrentEquipment('돌진'), true, '대검으로는 대검 전용 이동기를 쓴다');
+  context.game.equipment['무기'] = weaponOf('scimitar', 9912);
   context.game.equipment['방패'] = { id: 9913, slot: '방패', name: '시험 방패', rarity: 'normal', baseStats: [], stats: [] };
   assert.strictEqual(context.getEquippedWeaponStance(), 'sword', '방패를 함께 껴도 곡도는 한손검 자세다(방패를 든 그림이 없다)');
   context.game.equipment['방패'] = null;
