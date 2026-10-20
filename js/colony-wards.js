@@ -69,11 +69,12 @@ const colonyWards = (() => {
     const openWards = (state = game) => openSlots(state).map(slot => (state.equipment || {})[slot]).filter(isWard);
     /** A 고유 액막이's (U.rows) param `name` when `item` is that one, else 0. */
     const uniqueParam = (item, key, name) => (item.rarity === 'unique' && item.uniqueEffectKey === key ? Number((item.uniqueEffectParams || {})[name]) || 0 : 0);
-    /** Lines of the wards in the open slots, as js/combat.js colonyWardBonus adds them: [{ stat, val }] ('편린을 꿴 허리띠' doubles them,
-     * each 메아리 매듭 adds its pct: it has no line of its own, so only the other wards grow). */
+    /** Lines of the wards in the open slots, as js/combat.js colonyWardBonus adds them: [{ stat, val }]. '편린을 꿴 허리띠' adds +100%
+     * (its mul - 1) and each 메아리 매듭 its pct, all added up (2026-10-20 사용자: belt and one echo ×2.5, two ×3); the echo has no line of
+     * its own, so only the other wards grow. */
     function equippedLines(state = game) {
         const wards = openWards(state);
-        const mul = wardString(state.equipment).mul * (1 + wards.reduce((sum, item) => sum + uniqueParam(item, 'wardEcho', 'pct'), 0) / 100);
+        const mul = wardString(state.equipment).mul + wards.reduce((sum, item) => sum + uniqueParam(item, 'wardEcho', 'pct'), 0) / 100;
         return wards.flatMap(item => (item.baseStats || []).map(line => ({ stat: line.id, val: (Number(line.val) || 0) * mul })));
     }
     /** 잔잔한 사건의 확률 배수(js/combat-incidents.js often): 열린 칸에 '사건을 부르는 방울'이 있으면 그 mul(겹치지 않는다), 아니면 1. */
