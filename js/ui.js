@@ -10183,6 +10183,33 @@ function getVoidCraftGuide(node, active) {
     return `${base}<br>외곽 공허 소켓, 성좌 각성 ${progress.completed}/${progress.required}: 여섯을 모두 초월시키면 성좌가 각성합니다.`;
 }
 
+/** 초월 하나의 설명을 수치 범위로(카멜레온 목록): "5~10", 고정값은 그 값. */
+function describeTranscendentRange(def) {
+    const range = (min, max, fixed) => (fixed !== undefined ? fixed : Number.isFinite(Number(min)) && Number.isFinite(Number(max)) ? (min === max ? min : `${min}~${max}`) : '');
+    return def.desc(range(def.min, def.max, def.fixed), range(def.min2, def.max2));
+}
+
+/** 카멜레온 공허 패시브(활성화한 노드): 바꿀 수 있는 초월 목록. 고르면 묻고 바꾼다(convertChameleonFromOverlay). */
+function chameleonChoicesHtml(node, entry, active) {
+    if (!active || !entry.transcendent || entry.transcendent.id !== 'chameleon') return '';
+    const rows = getChameleonChoices(node.id).map(def => `<button type="button" class="void-chameleon-choice" onclick="convertChameleonFromOverlay('${node.id}','${def.id}')">`
+        + `<b>${escapeHTML(def.name)}</b><span>${escapeHTML(describeTranscendentRange(def))}</span></button>`).join('');
+    return `<div class="void-chameleon"><div class="void-craft-hint">카멜레온: 바꿀 초월을 고르세요. 수치는 새로 굴리고, 바꾼 뒤에는 되돌릴 수 없습니다.</div>`
+        + `<div class="void-chameleon-list">${rows || '<div class="void-craft-hint">고를 수 있는 초월이 없습니다.</div>'}</div></div>`;
+}
+
+async function convertChameleonFromOverlay(nodeId, targetId) {
+    const def = TRANSCENDENT_VOID_PASSIVE_DB.find(row => row.id === targetId);
+    if (!def || !await requestGameConfirmation(`카멜레온을 「${def.name}」 초월로 바꿉니다. 수치는 새로 굴리고, 되돌릴 수 없습니다.`, { title: '카멜레온 변환', confirmLabel: '바꾸기' })) return;
+    const reason = convertChameleonVoidPassive(nodeId, targetId);
+    if (reason) return addLog(reason, 'attack-monster');
+    const result = `카멜레온 변환, ${formatTranscendentVoidPassive(getVoidPassiveCraft(nodeId).transcendent).replace(/<[^>]*>/g, '')}`;
+    addLog(`🦎 ${result}`, 'loot-unique');
+    showGameToast(result, { tone: 'info' });
+    updateStaticUI();
+    openVoidPassiveCraftOverlay(nodeId, result);
+}
+
 function openVoidPassiveCraftOverlay(nodeId, result = '') {
     closeVoidPassiveCraftOverlay();
     let node = PASSIVE_TREE.nodes[nodeId];
@@ -10200,7 +10227,7 @@ function openVoidPassiveCraftOverlay(nodeId, result = '') {
             <div><div id="void-craft-title">${escapeHTML(getPassiveNodeDisplayName(node))}</div><div class="void-craft-subtitle">공허 패시브 제작</div></div>
             <button type="button" onclick="closeVoidPassiveCraftOverlay()">닫기</button>
         </div>
-        <div class="void-craft-effect">${effectLabel}</div>
+        <div class="void-craft-effect">${effectLabel}</div>${chameleonChoicesHtml(node, entry, active)}
         ${result ? `<div class="void-craft-result" role="status">${escapeHTML(result)}</div>` : ''}
         <div class="void-craft-hint">${getVoidCraftGuide(node, active)}</div>
         <div class="void-craft-actions">

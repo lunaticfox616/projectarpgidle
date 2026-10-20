@@ -2413,7 +2413,7 @@ const TRANSCENDENT_VOID_PASSIVE_DB = [
     { id: 'toughSoul', name: '강인한 영혼', min: 3, max: 6, desc: v => `할당한 공허 패시브 하나당 에너지 보호막 최대치 +${v}%` },
     { id: 'defenseMechanism', name: '방어기제', min: 5, max: 10, desc: v => `막기 확률 최대치 +${v}% 및 막기 확률 +${v}%` },
     { id: 'blurredPresence', name: '흐릿한 존재감', min: 10, max: 20, min2: 3, max2: 5, desc: (v, v2) => `비껴내기 +${v}% 및 비껴내기 피해 감소 +${v2}%` },
-    { id: 'chameleon', name: '카멜레온', desc: () => '모든 초월 패시브 중 하나로 변환 가능' },
+    { id: 'chameleon', name: '카멜레온', desc: () => '공허 제작 창에서 다른 초월 하나를 골라 바꿀 수 있습니다' }, // convertChameleonVoidPassive
     { id: 'thirdFinger', name: '세 번째 손가락', desc: () => '반지를 하나 더 장착 가능' },
     { id: 'greed', name: '재물욕', desc: () => '주얼을 하나 더 장착 가능' },
     { id: 'wardKnot', name: '액막이 매듭', desc: () => '액막이를 하나 더 장착 가능' }, // 액막이 칸 +1(js/colony-wards.js slotCount)
@@ -2527,7 +2527,11 @@ function rollTranscendentVoidPassive(nodeId) {
     let owned = getOwnedTranscendentVoidPassiveIds(nodeId);
     let pool = TRANSCENDENT_VOID_PASSIVE_DB.filter(def => !owned.has(def.id));
     if (!pool.length) return null;
-    let def = rndChoice(pool);
+    return rollTranscendentDef(rndChoice(pool));
+}
+
+/** 그 초월을 새로 얻을 때의 값(고정, 굴림 함수, 아니면 범위 안에서 굴림). */
+function rollTranscendentDef(def) {
     let roll = (min, max, step) => {
         if (!Number.isFinite(Number(min)) || !Number.isFinite(Number(max))) return 0;
         let s = Number.isFinite(Number(step)) ? Number(step) : 1;
@@ -2537,6 +2541,35 @@ function rollTranscendentVoidPassive(nodeId) {
     };
     let value = def.fixed || (def.rollValue ? def.rollValue() : roll(def.min, def.max));
     return { id: def.id, value, value2: roll(def.min2, def.max2, def.step2) };
+}
+
+/** 카멜레온이 바꿀 수 있는 초월: 카멜레온 자신, 다른 노드에 이미 있는 초월(초월은 트리에 하나씩), 태양(카멜레온 노드에는 지킬 옵션이
+ * 없어 아무 효과가 없다)은 빠진다. */
+function getChameleonChoices(nodeId) {
+    const owned = getOwnedTranscendentVoidPassiveIds(nodeId);
+    return TRANSCENDENT_VOID_PASSIVE_DB.filter(def => !['chameleon', 'sun'].includes(def.id) && !owned.has(def.id));
+}
+
+/** 활성화한 카멜레온 공허 노드의 기록, 아니면 null. */
+function activeChameleonEntry(nodeId) {
+    const node = PASSIVE_TREE.nodes[nodeId], entry = node && node.kind === 'void' ? getVoidPassiveCraft(node.id) : null;
+    return entry && (game.passives || []).includes(node.id) && entry.transcendent && entry.transcendent.id === 'chameleon' ? entry : null;
+}
+
+/** 카멜레온(초월 공허)을 고른 초월로 바꾼다(2026-10-20 사용자: "선택해서 변환 가능하게"). 값은 새로 굴리고, 한 번 바꾸면 카멜레온이
+ * 아니다. 스킬트리 포인트(창백한 푸른 점)와 연결(블랙홀, 안드로메다)은 바로 정산한다. '' when done, otherwise why not. */
+function convertChameleonVoidPassive(nodeId, targetId) {
+    if (game.woodsmanBuildLock) return '☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.';
+    const entry = activeChameleonEntry(nodeId);
+    if (!entry) return '활성화한 카멜레온 공허 패시브만 바꿀 수 있습니다.';
+    const def = getChameleonChoices(nodeId).find(row => row.id === targetId);
+    if (!def) return '고를 수 없는 초월입니다.';
+    const previous = entry.transcendent;
+    entry.transcendent = rollTranscendentDef(def);
+    syncPaleBlueDotPassivePoints(previous, entry.transcendent);
+    if (isRoutingTranscendent(entry.transcendent)) refreshPassiveConnectivity();
+    playerStatCache.invalidate();
+    return '';
 }
 
 function rerollTranscendentVoidPassive(entry) {

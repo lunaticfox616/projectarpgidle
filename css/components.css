@@ -1539,6 +1539,13 @@ html, body { overflow: hidden; }
 .void-craft-dialog button { min-height: 40px; white-space: normal; line-height: 1.5; }
 .void-craft-actions span { font-size: 12px; font-weight: 400; }
 .void-craft-footer { display: flex; justify-content: space-between; gap: 10px; align-items: center; flex-wrap: wrap; padding-top: 12px; border-top: 1px solid var(--color-line); }
+/* 카멜레온 공허 패시브(js/ui.js chameleonChoicesHtml): 바꿀 초월 목록, 두 열(작은 화면은 한 열). */
+.void-chameleon { margin: 4px 0 12px; }
+.void-chameleon-list { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 6px; margin-top: 8px; max-height: 280px; overflow: auto; }
+.void-craft-dialog .void-chameleon-choice { display: grid; gap: 2px; padding: 6px 8px; text-align: left; }
+.void-chameleon-choice b { color: #d8b4ff; }
+.void-chameleon-choice span { color: var(--color-text-secondary); font-size: 12px; font-weight: 400; }
+@media(max-width:600px) { .void-chameleon-list { grid-template-columns: 1fr; } }
 @media(max-width:600px) { .void-craft-dialog { padding: 14px; } .void-craft-actions { grid-template-columns: 1fr; } .void-craft-dialog button { min-height: 44px; } } }        @layer overrides {
         body.startup-active :is(#left-pane, #right-pane) *, body.startup-active :is(#left-pane, #right-pane) *::before, body.startup-active :is(#left-pane, #right-pane) *::after { animation-play-state: paused; }
 
