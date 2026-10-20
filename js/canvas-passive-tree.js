@@ -817,6 +817,23 @@ function paperdollItemLabel(item) {
     return item.baseName;
 }
 
+/** 세 번째 반지 칸(초월 공허 '세 번째 손가락')이 열려 있는가. */
+const isThirdRingOpen = () => typeof getTranscendentVoidPassiveCount === 'function' && getTranscendentVoidPassiveCount('thirdFinger', game) > 0;
+/** 세 번째 손가락이 없는데 세 번째 반지 칸에 남은 반지: 흐리게(효과가 꺼져 있다, js/combat-equipment-stats.js). */
+const thirdRingOffClass = slot => (slot === '반지3' && !isThirdRingOpen() ? ' is-off' : '');
+/** 장착 칸 목록: 세 번째 반지 칸은 세 번째 손가락이 있을 때, 또는 그 칸에 반지가 남아 있을 때만(꺼진 채, 두 번 눌러 뺀다). */
+function getPaperdollSlots() {
+    const slots = ['무기', '투구', '목걸이', '장갑1', '갑옷', '방패', '반지1', '허리띠', '반지2', '신발', '장갑2'];
+    return isThirdRingOpen() || (game.equipment || {})['반지3'] ? [...slots, '반지3'] : slots;
+}
+/** 장착 칸을 그리고 배치를 고른다(css/equipment-window.css): 세 번째 반지는 코어 칸이 없으면 그 자리, 코어가 있으면 신발 아래 줄. */
+function setPaperdollHtml(targetId, html) {
+    const list = document.getElementById(targetId);
+    list.innerHTML = html;
+    list.classList.toggle('has-ring3', !!list.querySelector('.slot-반지3'));
+    list.classList.toggle('has-core', !!list.querySelector('.slot-코어'));
+}
+
 function renderPaperdoll(targetId, forCrafting) {
     let html = '';
     let query = getEquipSearchQueryLocal();
@@ -828,9 +845,9 @@ function renderPaperdoll(targetId, forCrafting) {
         }
         return highlightEquipTextLocal(text, query);
     };
-    ['무기', '투구', '목걸이', '장갑1', '갑옷', '방패', '반지1', '허리띠', '반지2', '신발', '장갑2'].forEach(slot => {
+    getPaperdollSlots().forEach(slot => {
         let item = game.equipment[slot];
-        let displaySlot = slot.replace(/[12]/, '');
+        let displaySlot = slot.replace(/[123]$/, '');
         let selected = isCraftSelectionEquipAvailableLocal() && getCraftSelectionRefLocal() === slot;
         if (item) {
             let click = forCrafting
@@ -842,7 +859,7 @@ function renderPaperdoll(targetId, forCrafting) {
                 ? `<button class="equipment-slot-action" onclick="event.stopPropagation(); selectForCrafting('${slot}', true)">제작 선택</button>`
                 : '';
             let sourceMeta = getDropOnlyItemSourceMeta(item);
-            let sourceTone = sourceMeta ? sourceMeta.toneClass : '';
+            let sourceTone = (sourceMeta ? sourceMeta.toneClass : '') + thirdRingOffClass(slot);
             let preview = `if(window.matchMedia('(hover: hover)').matches) showItemTooltip(event, '${slot}', true)`;
             html += `<div class="slot-box equipment-slot slot-${slot} rarity-${item.rarity || 'normal'} ${selected ? 'selected' : ''} ${sourceTone}${itemInfluencesUi.influenceClasses(item)}" style="${itemInfluencesUi.influenceStyle(item)}" data-slot="${slot}" data-item-tooltip-anchor="1" onclick="${click}" ondblclick="${doubleClick}" onmouseenter="${preview}" onmousemove="${preview}" onmouseleave="hideItemTooltip(event)">
                 <div class="equipment-slot-head"><span>${displaySlot}</span>${equipmentSocketsUi.pipsHtml(item)}</div><div class="equipment-slot-visual"><img src="${getEquipmentGridVisualAsset(item)}" alt="" aria-hidden="true" draggable="false"></div>
@@ -859,7 +876,7 @@ function renderPaperdoll(targetId, forCrafting) {
         }
     });
     if (targetId === 'ui-equip-list') html += coreItemsUi.slotHtml() + colonyWardsUi.slotsHtml();
-    document.getElementById(targetId).innerHTML = html;
+    setPaperdollHtml(targetId, html);
     if (targetId === 'ui-equip-list') equipmentAuxUi.render();
 }
 
