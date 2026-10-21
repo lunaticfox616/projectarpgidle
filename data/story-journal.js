@@ -347,7 +347,7 @@ const STORY_ACT_ENCOUNTERS = Object.freeze({
     7: Object.freeze({
         npc: Object.freeze({
             name: '배교자 이벨',
-            bark: '“살겠다고 줄기를 찢고 나온 곳이야. 기도문 대신 부적을 챙겨.”',
+            bark: '“네 몸에서 정원사의 피냄새가 나는데? 대충 알겠네. 어서와, 난 이곳의 은둔하는 배교자 이벨이야.”',
             loopBark: '“초면인데도 내 좌판 쪽으로 바로 걸어오네? 오래 알고 지낸 단골처럼 말이야.”',
             classBarks: Object.freeze({
                 warrior: '“가위를 부러뜨렸다는 전설의 근위병 양반! 살아 있을 줄은 몰랐는데?”',
