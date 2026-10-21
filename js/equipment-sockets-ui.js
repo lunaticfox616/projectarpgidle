@@ -11,7 +11,7 @@ const equipmentSocketsUi = (() => {
 
     function jewelHtml(jewel) {
         const lines = jewelLines(jewel).map(line => `<li>${escapeHTML(line)}</li>`).join('');
-        const effect = jewel.uniqueEffect ? `<p class="socket-jewel-effect">${escapeHTML(jewel.uniqueEffect)}</p>` : '';
+        const text = getJewelUniqueEffectText(jewel), effect = text ? `<p class="socket-jewel-effect">${escapeHTML(text)}</p>` : '';
         return `<strong class="${getJewelRarityClass(jewel.rarity)}">${escapeHTML(jewel.name || '주얼')}</strong>${effect}<ul class="socket-jewel-lines">${lines || '<li>옵션 없음</li>'}</ul>`;
     }
 
@@ -104,7 +104,7 @@ const equipmentSocketsUi = (() => {
         const item = getSelectedCraftItem();
         if (!item) return;
         const result = equipmentSockets.remove(item, kind, index);
-        report(result, result.ok ? `💠 [${item.name}]에서 [${result.jewel.name}]을(를) 뺐습니다.` : '');
+        report(result, result.ok ? `💠 [${item.name}]에서 [${result.jewel.name}]${pickParticle(result.jewel.name, '을', '를')} 뺐습니다.` : '');
     }
 
     function chisel() {

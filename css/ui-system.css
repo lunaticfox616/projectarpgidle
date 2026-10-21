@@ -95,7 +95,10 @@ body select:focus-visible { outline: 2px solid var(--color-accent-gold); outline
 #tab-character .character-stat-section .stat-label { font-size: 12px; line-height: 1.5; }
 #tab-character .character-stat-section .stat-value { font-size: 14px; font-variant-numeric: tabular-nums; }
 @media (max-width: 640px) {
-  #tab-character .character-overview { gap: 4px; }
+  /* 총 DPS는 한 줄을 다 쓰고 생명력과 보호막이 그 아래 두 칸에 선다(2026-10-21: 세 칸이면 칸이 106px이라 픽셀 테마의 24px 숫자
+     "172,856"이 옆 칸에 붙고, 일곱 자리부터는 겹쳤다). */
+  #tab-character .character-overview { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
+  #tab-character .character-overview .stat-item:first-child { grid-column: 1 / -1; }
   #tab-character .character-overview .stat-item { padding: 9px 6px; }
   #tab-character .character-overview .stat-label { font-size: 11px; }
   #tab-character .character-overview .stat-value { font-size: 17px; }
@@ -118,31 +121,6 @@ body #item-tab-equip .equipment-inventory-panel {
   border-color: var(--color-line);
   background: linear-gradient(180deg, rgba(21, 20, 16, .99), rgba(8, 9, 8, .995));
   box-shadow: inset 0 1px rgba(255, 255, 255, .035), 0 12px 30px rgba(0, 0, 0, .22);
-}
-
-#item-tab-equip .equipment-section-heading {
-  align-items: center;
-  margin-bottom: var(--space-3);
-  padding-bottom: var(--space-3);
-  border-bottom-color: rgba(112, 89, 56, .46);
-}
-
-#item-tab-equip .equipment-section-heading h2 {
-  font-size: 16px;
-  line-height: 1.15;
-}
-
-#item-tab-equip .equipment-section-kicker {
-  color: var(--color-text-tertiary);
-  font-size: 10px;
-  letter-spacing: .08em;
-}
-
-#item-tab-equip .equipment-count-badge {
-  min-width: 54px;
-  padding: 5px 9px;
-  border-radius: var(--radius-sm);
-  text-align: center;
 }
 
 #item-tab-equip .equipment-loadout-summary {
@@ -189,36 +167,6 @@ body #item-tab-equip .equipment-inventory-panel {
 #item-tab-equip .equipment-triage-copy small {
   color: var(--color-text-tertiary);
   font-size: 9px;
-}
-
-#item-tab-equip .bulk-manager {
-  margin-bottom: var(--space-2);
-  overflow: hidden;
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-md);
-  background: rgba(8, 9, 8, .62);
-}
-
-#item-tab-equip .bulk-manager > summary {
-  min-height: var(--size-control-md);
-  padding: 9px 11px;
-  box-sizing: border-box;
-  font-size: 11px;
-  font-weight: 800;
-}
-
-:root body #item-tab-equip .equipment-inventory-toolbar {
-  border-top-width: 1px;
-  border-top-style: solid;
-  margin: 0;
-  padding: var(--space-3);
-  border-width: 0;
-  border-radius: 0;
-}
-
-:root body #item-tab-equip .equipment-inventory-toolbar {
-  border-top-color: rgba(82, 68, 48, .72);
-  background: rgba(13, 14, 12, .82);
 }
 
 #item-tab-equip .equipment-salvage-actions {
@@ -297,11 +245,6 @@ body #item-tab-equip .equipment-inventory-panel {
   border-radius: var(--radius-md);
 }
 
-  #item-tab-equip .equipment-section-heading {
-    margin-bottom: var(--space-2);
-    padding-bottom: var(--space-2);
-  }
-
   #item-tab-equip .equipment-triage-host {
     grid-column: 1 / -1;
     min-height: auto;
@@ -312,11 +255,6 @@ body #item-tab-equip .equipment-inventory-panel {
 
   #item-tab-equip .equipment-triage-controls :where(select, button) {
     min-height: var(--size-control-touch);
-  }
-
-  #item-tab-equip .bulk-manager > summary {
-    min-height: var(--size-control-touch);
-    padding-block: 12px;
   }
 
   #item-tab-equip .equipment-salvage-actions {
@@ -404,12 +342,6 @@ body #item-tab-equip .equipment-inventory-panel {
     font-size: 10px;
     white-space: nowrap;
   }
-
-  #item-tab-equip .equipment-panel-hint {
-    margin-block: 5px 2px;
-    font-size: 8px;
-    line-height: 1.35;
-  }
 }
 
 @media (max-width: 480px) {
@@ -467,10 +399,6 @@ body select {
 @media (max-width: 1080px) {
   .mobile-section-panel[data-mobile-selected="false"],
   .mobile-section-panel > summary {/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */ display: none !important; }
-}
-
-#item-tab-equip .equipment-section-heading h2 {
-  margin-top: 2px;
 }
 
 #item-tab-equip .search-filter-panel {

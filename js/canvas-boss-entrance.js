@@ -181,18 +181,24 @@ const bossEntranceView = (() => {
         }
     }
 
-    /** Centre line for the boss name band (band = { up, down } px around it) that keeps the rising boss and the hero in
-     * view: the usual spot when it is clear, else below both (the top holds the HUD and the minimap), else above both.
-     * null when this boss is not entering. */
-    function bannerY(area, boss, band) {
-        if (!spot || !boss || spot.id !== boss.id) return null;
-        const spans = [[spot.top, spot.feet + 8], heroSpan(area.now)].filter(Boolean);
-        const clear = y => spans.every(([top, bottom]) => y + band.down < top || y - band.up > bottom);
-        const usual = Math.round(area.height * 0.3), below = Math.max(...spans.map(s => s[1])) + band.up + 8;
-        const above = Math.min(...spans.map(s => s[0])) - band.down - 8;
-        if (clear(usual)) return usual;
-        if (below + band.down <= area.height * 0.86) return Math.round(below);
-        return above - band.up >= area.height * 0.12 ? Math.round(above) : usual;
+    /** Where the entering boss will stand ([[top, bottom]] screen y, BOSS_TILES tall), for the name band to keep clear; none when this
+     * boss is not entering. */
+    const enteringSpans = boss => (spot && boss && spot.id === boss.id ? [[spot.top, spot.feet + 8]] : []);
+    /** Centre line for the band clear of the given drawn spans ([top, bottom] screen y) and the hero, below the zone title and the boss
+     * bar and above the HUD: the usual spot, else the clear line just above or below one of them that lies nearest to it (2026-10-19:
+     * "below them all, else above them all" found nothing when the hero stood below the boss and laid the band across the boss). */
+    function bannerLine(area, drawnSpans, band) {
+        const spans = drawnSpans.concat([heroSpan(area.now)]).filter(Boolean), usual = Math.round(area.height * 0.3);
+        const clear = y => y - band.up >= area.height * 0.18 && y + band.down <= hudTop(area)
+            && spans.every(([top, bottom]) => y + band.down < top || y - band.up > bottom);
+        const lines = [usual, ...spans.map(([top]) => top - band.down - 8), ...spans.map(([, bottom]) => bottom + band.up + 8)];
+        const open = lines.map(Math.round).filter(clear).sort((a, b) => Math.abs(a - usual) - Math.abs(b - usual));
+        return open.length ? open[0] : usual;
+    }
+    /** Where the HUD starts covering the battlefield (px down it): the lowest STAGE_ROOMS.hudClear px of a wide one, the lowest fifth
+     * of a phone's (the log bar and the HUD). 2026-10-19: 86% down put the band behind the desktop HUD, which starts at 72%. */
+    function hudTop(area) {
+        return area.width >= STAGE_VIEW.minColumns.narrowBelow ? area.height - STAGE_ROOMS.hudClear : area.height * 0.8;
     }
     /** The hero's drawn span on screen: overhead bar to feet. */
     function heroSpan(now) {
@@ -211,6 +217,6 @@ const bossEntranceView = (() => {
         ctx.restore();
     }
 
-    return { enemyAge, stageLook, revealedBoss, shake, drawGround, drawScreen, bannerY };
+    return { enemyAge, stageLook, revealedBoss, shake, drawGround, drawScreen, enteringSpans, bannerLine };
 })();
 safeExposeGlobals({ bossEntranceView });

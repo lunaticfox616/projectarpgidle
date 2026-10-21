@@ -60,11 +60,20 @@ function clipSkillFootprint(ctx, footprint, includeCaster = false) {
     ctx.clip();
 }
 
-/** Ground display intersects walkable terrain; the immutable cast geometry still owns damage membership. */
+/** Open floor nobody stands on: a standing object's cell (a chest, an unbroken pot, crate or nest) and the story guide's
+ * (js/act-exploration-state.js standsTaken). Ground warnings are not painted over them (2026-10-19 user: not on walls or obstacles). */
+function getGroundTakenCellKeys(run) {
+    if (!run) return new Set();
+    const taken = actExplorationState.objects.solidCells(run);
+    actExplorationDoors.guideCells(run).forEach(key => taken.add(key));
+    return taken;
+}
+
+/** Ground display intersects walkable terrain without the obstacles' cells; the immutable cast geometry still owns damage membership. */
 function clipSkillFootprintTerrain(ctx, footprint) {
     const map=getCombatGridSize(),run=actExplorationState.current(game);
     if(map.tiles) {
-        const sealed=!!run && actExplorationState.gateSealed(run);
+        const sealed=!!run && actExplorationState.gateSealed(run),taken=getGroundTakenCellKeys(run);
         const x0=Math.max(0,Math.floor((footprint.x-footprint.width/2-footprint.board.x)/footprint.tileW));
         const y0=Math.max(0,Math.floor((footprint.y-footprint.height/2-footprint.board.y)/footprint.tileH));
         const x1=Math.min(map.columns,Math.ceil((footprint.x+footprint.width/2-footprint.board.x)/footprint.tileW));
@@ -72,7 +81,7 @@ function clipSkillFootprintTerrain(ctx, footprint) {
         ctx.beginPath();
         for(let index=0;index<(x1-x0)*(y1-y0);index++) {
             const gx=x0+index%(x1-x0),gy=y0+Math.floor(index/(x1-x0));
-            if(!actExplorationMap.walkable(map,{gx,gy},sealed))continue;
+            if(!actExplorationMap.walkable(map,{gx,gy},sealed)||taken.has(gridCellKey(gx,gy)))continue;
             ctx.rect(footprint.board.x+gx*footprint.tileW,footprint.board.y+gy*footprint.tileH,footprint.tileW,footprint.tileH);
         }
         ctx.clip();

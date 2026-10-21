@@ -11,7 +11,7 @@ const files = [
   'data/maps.js',
   'data/act-exploration-maps.js',
   'data/cosmos-route.js',
-  'data/exploration-regions.js', 'data/atlas.js', 'data/atlas-passives.js', 'data/atlas-endgame.js', 'data/loot-omens.js', 'data/memory-leaves.js', 'data/memory-dungeon.js',
+  'data/exploration-regions.js', 'data/atlas-board.js', 'data/atlas.js', 'data/atlas-passives.js', 'data/atlas-endgame.js', 'data/loot-omens.js', 'data/memory-leaves.js', 'data/memory-dungeon.js',
   'data/gem-core-forge.js', 'data/skills.js', 'data/skill-effect-expansion.js', 'data/wisp-summons.js',
   'data/endgame-progression.js',
   'data/severed-wanderers.js',
@@ -47,7 +47,7 @@ const files = [
   'js/core-items.js', 'js/talismans.js', 'js/talisman-effects.js', 'js/talisman-combat.js', 'js/stump-cube-recipes.js', 'js/stump-cube.js',
   'js/skill-effect-expansion.js', 'js/combat-grid.js',
   'js/act-exploration-progress.js', 'js/exploration-object-combat.js',
-  'js/loot-omens.js', 'js/memory-leaves.js', 'js/atlas-maps.js', 'js/atlas-passives.js', 'js/atlas-encounters.js', 'js/atlas-epoch.js', 'js/atlas.js', 'js/atlas-endgame.js', 'js/memory-dungeon.js',
+  'js/loot-omens.js', 'js/memory-leaves.js', 'js/atlas-maps.js', 'js/atlas-passives.js', 'js/atlas-encounters.js', 'js/atlas-epoch.js', 'js/atlas-board.js', 'js/atlas.js', 'js/atlas-endgame.js', 'js/memory-dungeon.js',
   'js/condition-patterns.js',
   'js/hidden-journal.js',
   'js/severed-wanderers.js',
@@ -56,7 +56,7 @@ const files = [
   'js/equipment-sockets.js',
   'js/combat-build-stats.js',
   'js/cosmos-route.js',
-  'js/combat.js', 'js/region-affix-effects.js', 'js/item-influences.js', 'js/item-influences-ui.js', 'js/colony-wards.js', 'js/colony-wards-ui.js', 'js/bag-items.js', 'js/bag-items-ui.js', 'js/equipment-window-ui.js', 'js/atlas-run.js', 'js/atlas-finds.js', 'js/mobility-skill.js', 'js/wisp-summons.js',
+  'js/combat.js', 'js/combat-incidents.js', 'js/region-affix-effects.js', 'js/item-influences.js', 'js/item-influences-ui.js', 'js/colony-wards.js', 'js/colony-wards-ui.js', 'js/bag-items.js', 'js/bag-items-ui.js', 'js/equipment-window-ui.js', 'js/atlas-run.js', 'js/atlas-finds.js', 'js/mobility-skill.js', 'js/wisp-summons.js',
   'js/combat-ehp.js',
   'js/talent-cards.js',
 ];
@@ -1461,13 +1461,13 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   assert.strictEqual(context.getSkillHitSequenceDpsMultiplier('강타', context.SKILL_DB['강타']), 1, '판정 세분화만으로 표시 DPS가 증가하면 안 된다');
 
   const meteor = context.buildSkillHitSequence('유성 낙화', context.SKILL_DB['유성 낙화'], targets);
-  assert.strictEqual(meteor.length, 4, '유성 낙화는 충돌 뒤 짧은 불길 지대를 3회 유지해야 한다');
+  assert.strictEqual(meteor.length, 7, '유성 낙화는 충돌 뒤 불타는 지대를 6회 유지해야 한다');
   assert.strictEqual(meteor[0].kind, 'meteorImpact', '유성 낙화는 전용 단일 충돌 단계로 판정해야 한다');
   assert.strictEqual(meteor[0].damageMultiplier, 1, '단일 유성 충돌이 기존 총 피해를 모두 보존해야 한다');
-  assert.strictEqual(meteor.slice(1).map(stage => stage.delayMs).join(','), '600,1200,1800', '불길 지대는 0.6초 간격으로 타격해야 한다');
-  assert.ok(meteor.slice(1).every(stage => stage.kind === 'meteorGroundTick' && stage.damageMultiplier === 0.08), '불길 지대는 각 8% 피해만 줘야 한다');
+  assert.strictEqual(meteor.slice(1).map(stage => stage.delayMs).join(','), '400,800,1200,1600,2000,2400', '불타는 지대는 0.4초 간격으로 2.4초 동안 타격해야 한다');
+  assert.ok(meteor.slice(1).every(stage => stage.kind === 'meteorGroundTick' && stage.damageMultiplier === 0.1), '불타는 지대는 각 10% 피해를 줘야 한다');
   assert.strictEqual(meteor[1].primaryAilmentChance, 1, '첫 불길 타격은 점화 확률이 100%여야 한다');
-  assert.strictEqual(context.getSkillHitSequenceDpsMultiplier('유성 낙화', context.SKILL_DB['유성 낙화']), 1.24, '표시 DPS에 불길 지대 3회의 피해를 포함해야 한다');
+  assert.strictEqual(context.getSkillHitSequenceDpsMultiplier('유성 낙화', context.SKILL_DB['유성 낙화']), 1.6, '표시 DPS에 불타는 지대 6회의 피해를 포함해야 한다');
   assert.ok(meteor[0].impactCells.length > targets.length, '유성 하나가 충돌 지점의 전체 범위를 판정해야 한다');
 
   const field = context.buildSkillHitSequence('난타 눈보라', context.SKILL_DB['난타 눈보라'], targets);
@@ -1869,9 +1869,9 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   context.performPlayerAttack(meteorStats);
   const meteorRows = vm.runInContext("pendingSkillStageHits.filter(row => row.patternKind === 'meteor')", context);
   const meteorTravelFx = vm.runInContext("battleFx.filter(fx => fx.type === 'combatTravel' && fx.patternKind === 'meteor')", context);
-  assert.strictEqual(meteorRows.length, 4, '실제 유성 공격은 충돌과 불길 지대 3회를 예약해야 한다');
+  assert.strictEqual(meteorRows.length, 7, '실제 유성 공격은 충돌과 불타는 지대 6회를 예약해야 한다');
   assert.strictEqual(meteorTravelFx.length, 1, '실제 유성 공격도 낙하 이펙트를 하나만 만들어야 한다');
-  assert.ok(meteorTravelFx[0].duration >= meteorRows[3].at - meteorRows[0].launchAt, '유성 이펙트는 마지막 불길 타격까지 유지되어야 한다');
+  assert.ok(meteorTravelFx[0].duration >= meteorRows[6].at - meteorRows[0].launchAt, '유성 이펙트는 마지막 불길 타격까지 유지되어야 한다');
   vm.runInContext('pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();', context);
   assert.ok(meteorTargets.every(enemy => enemy.hp < enemy.maxHp), '단일 유성이 충돌 범위의 모든 선택 대상에게 피해를 줘야 한다');
   assert.ok(meteorTargets.every(enemy => (enemy.ailments || []).some(ailment => ailment.type === 'ignite')), '불길 지대에 남은 적은 점화되어야 한다');
@@ -2505,14 +2505,18 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   context.game.gridPlayer = { gx: 1, gy: 6, gridMoveTimer: 0 };
   const target = makeEnemy(301, 6, 6, { hp: 100000, maxHp: 100000 });
   context.game.enemies = [target];
-  // 채널 룬의 본보기는 용화 숨결이다(집중 광선과 공허 절삭광은 2026-10-13에 지웠다).
-  const channelSkill = context.SKILL_DB['용화 숨결'];
-  // 숨결의 사거리는 4칸이다: 다섯 칸 떨어진 대상을 한 칸 다가선 자리에서 겨눈다
-  const channelTargets = context.selectGridSkillTargets('용화 숨결', channelSkill, { gx: 2, gy: 6 }, context.game.enemies);
-  const channelStages = context.buildSkillHitSequence('용화 숨결', channelSkill, channelTargets);
-  assert.strictEqual(channelStages.length, 4, '용화 숨결은 네 번의 실제 시간차 타격이어야 한다');
+  // 채널 엔진을 쓰는 룬은 2026-10-19 인계(v36)로 없어졌다(용화 숨결 삭제, 전도성 난격은 이동기): 지운 용화 숨결의 정의로 엔진을 검사한다.
+  const channelName = '시험 채널 룬';
+  context.SKILL_DB[channelName] = { isGem: true, baseDmg: 0.5, baseSpd: 0.68, leech: 0, crit: 5, dmgScale: 0.027, spdScale: 0.012, ele: 'fire',
+    targetMode: 'spread', targets: 5, combatPattern: { kind: 'channel', hits: 4, intervalMs: 220, damagePct: 27 }, tags: ['spell', 'fire', 'aoe', 'channeling'] };
+  context.SKILL_GRID_DB[channelName] = { kind: 'cone', range: 4 };
+  const channelSkill = context.SKILL_DB[channelName];
+  // 사거리 4칸: 다섯 칸 떨어진 대상을 한 칸 다가선 자리에서 겨눈다
+  const channelTargets = context.selectGridSkillTargets(channelName, channelSkill, { gx: 2, gy: 6 }, context.game.enemies);
+  const channelStages = context.buildSkillHitSequence(channelName, channelSkill, channelTargets);
+  assert.strictEqual(channelStages.length, 4, '채널 룬은 네 번의 실제 시간차 타격이어야 한다');
   assert.deepStrictEqual(Array.from(channelStages, stage => stage.delayMs), [0, 220, 440, 660], '채널링 타격 간격은 룬 정의와 일치해야 한다');
-  assert.ok(Math.abs(context.getSkillHitSequenceDpsMultiplier('용화 숨결', channelSkill) - 1.08) < 1e-9, '표시 DPS는 채널링 4회의 총 배율을 반영해야 한다');
+  assert.ok(Math.abs(context.getSkillHitSequenceDpsMultiplier(channelName, channelSkill) - 1.08) < 1e-9, '표시 DPS는 채널링 4회의 총 배율을 반영해야 한다');
 
   const chargeStats = { moveSpeed: 100 };
   assert.strictEqual(context.applySkillMobilityBeforeAttack(context.SKILL_DB['돌진'], target, chargeStats), true, '돌진은 사거리 안 대상에게 실제로 접근해야 한다');
@@ -2549,10 +2553,16 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   assert.strictEqual(context.canUseSkillWithCurrentEquipment('이중 베기'), false, '활로는 근접 룬을 쓸 수 없다');
   assert.strictEqual(context.getSkillRuneWeaponNote('이중 베기'), '근접 무기 필요');
   context.game.equipment['무기'] = weaponOf('scimitar', 9912);
-  assert.strictEqual(context.getEquippedWeaponStance(), 'dagger', '곡도는 단검 자세다');
+  assert.strictEqual(context.getEquippedWeaponStance(), 'sword', '곡도는 한손검 자세다');
   assert.strictEqual(context.getSkillRuneWeaponNote('연발 사격'), '활 필요', '전용 룬의 이유에는 그 무기 이름이 붙는다');
+  assert.strictEqual(context.canUseSkillWithCurrentEquipment('도약 강타'), false, '돌진, 도약 강타, 섬머솔트 슬래시는 대검 전용이다');
+  assert.strictEqual(context.getSkillRuneWeaponNote('섬머솔트 슬래시'), '대검 필요');
+  assert.strictEqual(context.canUseSkillWithCurrentEquipment('전도성 난격'), true, '전도성 난격은 근접 무기 넷이 함께 쓴다');
+  context.game.equipment['무기'] = weaponOf('greatsword', 9917);
+  assert.strictEqual(context.canUseSkillWithCurrentEquipment('돌진'), true, '대검으로는 대검 전용 이동기를 쓴다');
+  context.game.equipment['무기'] = weaponOf('scimitar', 9912);
   context.game.equipment['방패'] = { id: 9913, slot: '방패', name: '시험 방패', rarity: 'normal', baseStats: [], stats: [] };
-  assert.strictEqual(context.getEquippedWeaponStance(), 'swordshield', '방패를 함께 낀 곡도는 검방패 자세다');
+  assert.strictEqual(context.getEquippedWeaponStance(), 'sword', '방패를 함께 껴도 곡도는 한손검 자세다(방패를 든 그림이 없다)');
   context.game.equipment['방패'] = null;
 
   // 낀 주 공격 룬을 못 쓰는 무기로 바꾸면 기본 공격으로 싸우고, 맞는 무기를 다시 들면 그 룬으로 돌아온다
@@ -2570,13 +2580,13 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   context.game.equipment['무기'] = null;
   vm.runInContext('isSkillRuneUsableWithStance = () => true;', context);
 
-  context.game.activeSkill = '용화 숨결';
-  context.game.skills = ['기본 공격', '용화 숨결'];
+  context.game.activeSkill = channelName;
+  context.game.skills = ['기본 공격', channelName];
   context.game.gridPlayer = { gx: 1, gy: 6, gridMoveTimer: 0 };
   target.gx = 5; target.gy = 6; target.hp = target.maxHp;
   const pStats = context.getPlayerStats();
   context.performPlayerAttack(pStats);
-  const channelTravel = vm.runInContext(`battleFx.find(fx => fx.type === 'combatTravel' && fx.skillName === '용화 숨결')`, context);
+  const channelTravel = vm.runInContext(`battleFx.find(fx => fx.type === 'combatTravel' && fx.skillName === ${JSON.stringify(channelName)})`, context);
   assert.deepStrictEqual([channelTravel.aimCell.gx, channelTravel.aimCell.gy], [5, 6],
     '채널 이미지는 범위 중앙이 아니라 실제로 조준한 1차 대상 방향을 보존해야 한다');
   context.game.playerAilments = [{ type: 'freeze', time: 1, duration: 1, power: 1 }];
@@ -2585,8 +2595,8 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   assert.strictEqual(target.hp, target.maxHp, '채널링 중 동결되면 예약된 후속 타격이 남아 피해를 주면 안 된다');
 
   resetGame();
-  context.game.activeSkill = '용화 숨결';
-  context.game.skills = ['기본 공격', '용화 숨결'];
+  context.game.activeSkill = channelName;
+  context.game.skills = ['기본 공격', channelName];
   context.game.playerAilments = [];
   context.game.gridPlayer = { gx: 1, gy: 6, gridMoveTimer: 0 };
   const sustainedTarget = makeEnemy(302, 5, 6, { hp: 100000, maxHp: 100000 });

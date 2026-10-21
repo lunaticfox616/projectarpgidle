@@ -42,10 +42,16 @@ const stumpBox = (() => {
     function seedPath(random = Math.random) { return random() < STUMP_BOX_SEED_PATH.fruitShare ? 'fruit' : 'flower'; }
     /** A seed saved before paths were rolled at birth and never planted: a fixed half by id (restore stays repeatable). */
     function legacyPath(id) { return Number(id) % 2 ? 'fruit' : 'flower'; }
-    /** @returns {object} The state's box, created empty when missing. */
+    /** @returns {object} The state's box, created empty when missing. A box from an older save without the harvest journal or the
+     * codex gets their empty shapes here (restore fills the rest later): a load that stored a floor talisman before restore read them
+     * and threw (2026-10-20). */
     function of(state) {
         if (!state.stumpBox || typeof state.stumpBox !== 'object') state.stumpBox = empty();
-        return state.stumpBox;
+        const box = state.stumpBox;
+        if (!box.harvest || !Array.isArray(box.harvest.grown) || !box.harvest.gifts) box.harvest = { ...emptyHarvest(), ...(box.harvest && typeof box.harvest === 'object' ? box.harvest : {}) };
+        if (!Array.isArray(box.harvest.grown)) box.harvest.grown = [];
+        if (!Array.isArray(box.codex)) box.codex = [];
+        return box;
     }
 
     // ── 아이템 ─────────────────────────────────────────────
@@ -101,11 +107,12 @@ const stumpBox = (() => {
     /** Highest stored quality: 130%, raised by the box's unlocks (qualityCap, loops 35 and 45). */
     function rollCap(state) { return Math.max(STUMP_BOX_ROLL_LIMIT.max, ...openUnlocks(state).map(row => row.qualityCap || 0)); }
     /** Adds a new item to storage; null when storage is full or the input is invalid. spec.golden makes a golden seed or sap.
-     * A seed grows into spec.path (꽃, 열매) when given, otherwise into one rolled now. */
-    function createItem(state, spec) {
+     * A seed grows into spec.path (꽃, 열매) when given, otherwise into one rolled now. force: a result or reward that must not be
+     * lost to a full storage (a cube merge, an ancient seed), as addTalisman and addScar take it. */
+    function createItem(state, spec, force) {
         const box = of(state);
         if (!FAMILIES.includes(spec.family) || !COLORS.includes(spec.color)) return null;
-        if (storageFull(state)) return null;
+        if (!force && storageFull(state)) return null;
         const path = spec.family === 'seed' ? (PATHS.includes(spec.path) ? spec.path : seedPath()) : null;
         const item = { id: box.nextId++, family: spec.family, color: spec.color, path, xp: 0, ripe: false, roll: clampRoll(spec.roll, rollCap(state)) };
         if (spec.golden === true) item.golden = true;
@@ -404,8 +411,8 @@ const stumpBox = (() => {
     function grow(state, enemy) { return growBy(state, STUMP_BOX_GROWTH.perKill[killKind(enemy)]); }
 
     // ── 거름 ───────────────────────────────────────────────
-    /** The growth a seed or sap gives as compost (its quality scales it). */
-    function compostGrowth(item) { return Math.round(STUMP_BOX_COMPOST.growth * clampRoll(item.roll)); }
+    /** The growth a seed or sap gives as compost (its quality scales it, up to the box's cap: past 130% from loop 35, 2026-10-20). */
+    function compostGrowth(item, state = game) { return Math.round(STUMP_BOX_COMPOST.growth * clampRoll(item.roll, rollCap(state))); }
     /** '' when the stored seed or sap can go on the board as compost, otherwise why not. */
     function compostReason(state, id) {
         const box = of(state), item = findItem(box, id);
@@ -417,7 +424,7 @@ const stumpBox = (() => {
      * @returns {?{growth: number, fed: number, ripened: object[]}} null when not allowed. */
     function compost(state, id) {
         if (compostReason(state, id)) return null;
-        const box = of(state), item = findItem(box, id), growth = compostGrowth(item), fed = growingItems(state).length;
+        const box = of(state), item = findItem(box, id), growth = compostGrowth(item, state), fed = growingItems(state).length;
         box.items = box.items.filter(other => other.id !== id);
         return { growth, fed, ripened: growBy(state, growth) };
     }
@@ -464,7 +471,7 @@ const stumpBox = (() => {
         for (const item of bulkItems(state, filter).sort((a, b) => a.roll - b.roll || a.id - b.id)) {
             if (left <= 0) break;
             plan.push(item);
-            left -= compostGrowth(item);
+            left -= compostGrowth(item, state);
         }
         return plan;
     }
@@ -521,8 +528,13 @@ const stumpBox = (() => {
         if (family === 'seed') spec.path = seedPath(random);
         const item = createItem(state, spec);
         if (item) return { item, compost: null };
-        const growth = compostGrowth(spec), fed = growingItems(state).length;
-        return { item: null, compost: { family, color, growth, fed, ripened: growBy(state, growth, random) } };
+        return { item: null, compost: compostOverflow(state, spec, random) };
+    }
+    /** A seed or sap a full storage could not take feeds the growing items as compost instead (drops, breeding, nursery gifts).
+     * @returns {{family:string, color:string, growth:number, fed:number, ripened:object[]}} fed: growing items that got it */
+    function compostOverflow(state, spec, random = Math.random) {
+        const growth = compostGrowth(spec, state), fed = growingItems(state).length;
+        return { family: spec.family, color: spec.color, growth, fed, ripened: growBy(state, growth, random) };
     }
     const NO_DROP = Object.freeze({ item: null, compost: null });
     function dropsHere(state) { return !(typeof actExplorationState === 'object' && actExplorationState.current(state)?.act != null); }
@@ -699,8 +711,7 @@ const stumpBox = (() => {
             if (spec.scar) return { spec, item: addScar(state, true), compost: null };
             const item = createItem(state, spec);
             if (item) return { spec, item, compost: null };
-            const growth = compostGrowth(spec);
-            return { spec, item: null, compost: { growth, fed: growingItems(state).length, ripened: growBy(state, growth, random) } };
+            return { spec, item: null, compost: compostOverflow(state, spec, random) };
         });
     }
 
@@ -951,7 +962,7 @@ const stumpBox = (() => {
 
     return {
         empty, of, restore, sync, eligible, claimStarter, starterChoice, grantStarter, plantStored, createItem, addTalisman, discard, storage, place, move, unplace,
-        evaluate, applyStats, onEnemyKilled, grow, ancientRanks, rollDrop, regress, compost, compostReason, compostGrowth, feedAsh, growingItems, openCount, isOpen, opensAt, nextOpening, neighbors,
+        evaluate, applyStats, onEnemyKilled, grow, ancientRanks, rollDrop, regress, compost, compostReason, compostGrowth, compostOverflow, feedAsh, growingItems, openCount, isOpen, opensAt, nextOpening, neighbors,
         stageOf, isMature, need, yieldOf, targetStage, label, shortName, lineText, extraLinesOf, iconPath, cellOf, editable, highestLoop,
         graftRank, graftMultiplier, graftOpen, graftPoints, graftJournalPoints, graftOverflowPoints, graftRaiseReason, graftRaise, graftLowerReason, graftLower,
         harvestKey, harvestRows, hasHarvested, pendingGifts, claimHarvestGift, openUnlocks, storageLimit, storageFull, rootMemoryPct,

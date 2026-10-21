@@ -1,7 +1,7 @@
-/** Market presentation and input boundary. Transactions remain in items/passives. */
+/** 거래소 (장비 → 거래소): its four tabs, the currency exchange and the special services. The black market and the stall draw
+ * themselves as shops (js/black-market-ui.js, js/player-stall-ui.js on js/shop-view-ui.js). Transactions stay in items/passives. */
 const marketUi = {
-    section: 'exchange', to: '', recipeId: '', quantity: 1, service: 'annul', blackPage: 0, blackFilter: 'all',
-    blackIndex: null, blackOffer: null,
+    section: 'exchange', to: '', recipeId: '', quantity: 1,
     moveTab(event) {
         const buttons = [...event.currentTarget.querySelectorAll('button')];
         const index = buttons.indexOf(document.activeElement), count = buttons.length;
@@ -83,202 +83,72 @@ const marketUi = {
         button.disabled = !valid;
         document.querySelector('[data-market-max]').disabled = max < 1;
     },
-    selectTarget(value) {
-        const [kind, ref] = value.split(':');
-        if (kind === 'equip') selectForCrafting(ref, true);
-        else if (kind === 'inventory') selectForCrafting(Number(ref), false);
-        else clearCraftSelection();
-        renderMarketUI();
-    },
-    targetOptions(item) {
-        const equipped = Object.entries(game.equipment).filter(([, entry]) => entry).map(([slot, entry]) => ({value:'equip:' + slot, item:entry, label:'장착 ' + slot}));
-        const inventory = game.inventory.map(entry => ({value:'inventory:' + entry.id, item:entry, label:'보관 ' + entry.slot}));
-        return '<option value="">장비 선택</option>' + [...equipped, ...inventory].filter(row => !row.item.hallReplica && !bagItems.isSpecial(row.item)).map(row =>
-            `<option value="${escapeHTML(row.value)}" ${row.item === item ? 'selected' : ''}>${escapeHTML(row.label + ': ' + row.item.name)}</option>`).join('');
-    },
-    renderAnnul() {
-        const host = document.getElementById('ui-market-service-annul'), item = getSelectedCraftItem();
-        const rows = item ? getAnnulmentRemovableStats(item) : [];
+    /** 특수 서비스 as a shop (2026-10-18): the chosen gear's card and the three services on the left, the worn gear and the bag on the
+     * right; pressing gear chooses it (the crafting selection, js/items.js selectForCrafting, which the services act on). */
+    renderServices() {
+        const host = document.getElementById('market-panel-services');
+        if (!host || shopView.dragging() || (host.contains(document.activeElement) && document.activeElement.tagName === 'SELECT')) return;
+        const item = getSelectedCraftItem();
+        const target = item ? shopView.itemCardHtml(item, { rating: false }) : '<p class="shop-hint">옵션 제거와 옵션 보존은 고른 장비에 씁니다. 오른쪽에서 장착한 장비나 가방의 장비를 누르세요.</p>';
+        const html = `<div class="shop-view is-services" data-shop-kind="services"><section class="shop-shelf" aria-label="특수 서비스">
+            <header class="shop-bar"><h3>특수 서비스</h3>${shopView.walletHtml(['goldenRule'])}</header>
+            <div class="market-service-target">${target}</div>${this.annulHtml(item)}${this.keepHtml(item)}${this.passiveResetHtml()}</section>
+            <section class="shop-bag" aria-label="가방">${this.wornHtml(item)}${shopView.bagHtml(entry => this.servicePick(entry, item))}</section></div>`;
+        if (host.marketMarkup === html) return;
         const before = host.querySelector('#sel-market-annul-stat')?.value;
-        const options = rows.map(row => `<option value="${row.index}">${escapeHTML(row.stat.statName || getStatName(row.stat.id))} +${formatValue(row.stat.id, row.stat.val)}</option>`).join('');
-        this.mount(host, `<div class="market-service-top"><h3>장비 옵션 제거</h3><span>황금률 2개</span></div>
-            <p>선택한 추가 옵션 1줄을 제거합니다. 보호된 옵션은 유지됩니다.</p>
-            <label>대상 장비<select data-market-target onchange="marketUi.selectTarget(this.value)">${this.targetOptions(item)}</select></label>
-            ${this.targetArt(item)}
-            <label>제거할 옵션<select id="sel-market-annul-stat" ${rows.length ? '' : 'disabled'}>${options || '<option>제거 가능한 옵션 없음</option>'}</select></label>
-            <button onclick="marketAnnulSelectedStat(Number(document.getElementById('sel-market-annul-stat').value))" ${rows.length && (game.currencies.goldenRule || 0) >= 2 && !game.woodsmanBuildLock ? '' : 'disabled'}>선택 옵션 제거</button>`);
+        host.innerHTML = html; host.marketMarkup = html;
         const select = host.querySelector('#sel-market-annul-stat');
-        if (rows.some(row => String(row.index) === before)) select.value = before;
+        if (select && [...select.options].some(option => option.value === before)) select.value = before;
     },
-    renderKeep() {
-        const host = document.getElementById('ui-market-service-keep'), item = getSelectedCraftItem(), kept = equipmentCrafting.keptKind(item);
+    /** Gear the services can work on (not 전당 copies, jewels, cores or wards), the chosen one marked. */
+    servicePick(entry, item) {
+        const reason = entry.hallReplica ? '전당 소장품은 원본 상태를 보존합니다.' : bagItems.isSpecial(entry) ? '주얼, 코어, 액막이는 고를 수 없습니다.' : '';
+        return { key: reason ? '' : `bag:${entry.id}`, chosen: entry === item, reason };
+    },
+    /** The worn gear, a row of cells above the bag: the services work on it too. */
+    wornHtml(item) {
+        const worn = Object.entries(game.equipment).filter(([, entry]) => entry && !entry.hallReplica && !bagItems.isSpecial(entry)).map(([slot, entry]) =>
+            `<button type="button" class="shop-bag-item is-pick rarity-${entry.rarity || 'normal'}${entry === item ? ' is-chosen' : ''}" data-shop-pick="equip:${escapeHTML(slot)}"
+                title="${escapeHTML(`${slot}: ${entry.name}`)}" aria-label="${escapeHTML(`장착 ${slot}, ${entry.name}`)}"><img src="${getEquipmentGridVisualAsset(entry)}" alt="" draggable="false"></button>`).join('');
+        return worn ? `<div class="shop-worn"><span>장착</span>${worn}</div>` : '';
+    },
+    annulHtml(item) {
+        const rows = getMarketAnnulRows(item);
+        const options = rows.map(row => `<option value="${row.index}">${escapeHTML(row.stat.statName || getStatName(row.stat.id))} +${formatValue(row.stat.id, row.stat.val)}</option>`).join('');
+        const ready = rows.length && (game.currencies.goldenRule || 0) >= 2 && !game.woodsmanBuildLock;
+        return `<div class="market-service-card"><div class="market-service-top"><h3>장비 옵션 제거</h3><span>황금률 2개</span></div>
+            <p>선택한 추가 옵션 1줄을 제거합니다. 보호된 옵션은 유지됩니다.</p>
+            <label>제거할 옵션<select id="sel-market-annul-stat" ${rows.length ? '' : 'disabled'}>${options || `<option>${item ? '제거 가능한 옵션 없음' : '장비를 먼저 고르세요'}</option>`}</select></label>
+            <button type="button" onclick="marketAnnulSelectedStat(Number(document.getElementById('sel-market-annul-stat').value))" ${ready ? '' : 'disabled'}>선택 옵션 제거</button></div>`;
+    },
+    keepHtml(item) {
+        const kept = equipmentCrafting.keptKind(item);
         const buttons = Object.entries(AFFIX_KEEP_RULES.labels).map(([kind, label]) => {
             const reason = getAffixKeepServiceReason(item, kind);
-            return `<button onclick="marketKeepSelectedItemAffixes('${kind}')" ${reason ? `disabled title="${escapeHTML(reason)}"` : ''}>${label} 보존</button>`;
+            return `<button type="button" onclick="marketKeepSelectedItemAffixes('${kind}')" ${reason ? `disabled title="${escapeHTML(reason)}"` : ''}>${label} 보존</button>`;
         }).join('');
-        this.mount(host, `<div class="market-service-top"><h3>옵션 보존</h3><span>황금률 ${AFFIX_KEEP_RULES.cost}개</span></div>
+        return `<div class="market-service-card"><div class="market-service-top"><h3>옵션 보존</h3><span>황금률 ${AFFIX_KEEP_RULES.cost}개</span></div>
             <p>다음 재굴림 한 번 동안 접두나 접미 옵션을 그대로 두고 남은 자리만 굴립니다. 재화, 홀씨, 화석 재굴림에 쓰입니다.</p>
-            <label>대상 장비<select data-market-target onchange="marketUi.selectTarget(this.value)">${this.targetOptions(item)}</select></label>
-            ${this.targetArt(item)}${kept ? `<p>지금 ${AFFIX_KEEP_RULES.labels[kept]} 보존이 걸려 있습니다.</p>` : ''}${buttons}`);
+            ${kept ? `<p>지금 ${AFFIX_KEEP_RULES.labels[kept]} 보존이 걸려 있습니다.</p>` : ''}<div class="market-service-actions">${buttons}</div></div>`;
     },
-    targetArt(item) {
-        if (!item) return '';
-        const image = getInventoryItemVisualAsset(item, 'equipment');
-        return `<div class="market-service-target"><img src="${image}" alt=""><strong>${escapeHTML(item.name)}</strong></div>`;
-    },
-    selectService(value) {
-        this.service = value;
-        this.renderServices();
-    },
-    renderPassiveReset() {
-        const count = getPaidPassiveNodeIds(game.passives).length;
-        this.mount(document.getElementById('ui-market-service-passive'), `<div class="market-service-top"><h3>기본 스킬 트리 초기화</h3><span>황금률 1개</span></div>
+    passiveResetHtml() {
+        const count = getPaidPassiveNodeIds(game.passives).length, ready = count > 0 && (game.currencies.goldenRule || 0) >= 1 && !game.woodsmanBuildLock;
+        return `<div class="market-service-card"><div class="market-service-top"><h3>기본 스킬 트리 초기화</h3><span>황금률 1개</span></div>
             <p>기본 스킬 트리의 투자 ${count}점을 반환합니다.<br>루프 패시브, 심화 패시브와 전직 투자는 유지됩니다.</p>
-            <button onclick="marketResetPassiveTreeByDivine()" ${count > 0 && (game.currencies.goldenRule || 0) >= 1 && !game.woodsmanBuildLock ? '' : 'disabled'}>${count}점 반환하고 초기화</button>`);
-    },
-    renderServices() {
-        document.getElementById('market-service-balance').textContent = `황금률 ${(game.currencies.goldenRule || 0).toLocaleString()}개 보유`;
-        const choices = [{id:'annul', label:'장비 옵션 제거', open:true}, {id:'keep', label:'옵션 보존', open:true}, {id:'passive', label:'스킬 트리 초기화', open:true}];
-        const available = choices.filter(row => row.open);
-        if (!available.some(row => row.id === this.service)) this.service = 'annul';
-        const mobile = uiDisplay.matches('(max-width: 1080px)');
-        this.mount(document.getElementById('market-service-navigation'), mobile ? `<label class="market-mobile-target">이용할 서비스<select aria-label="이용할 서비스" onchange="marketUi.selectService(this.value)">${available.map(row => `<option value="${row.id}" ${row.id === this.service ? 'selected' : ''}>${row.label}</option>`).join('')}</select></label>` : '');
-        for (const row of choices) {
-            const visible = row.open && (!mobile || row.id === this.service);
-            document.getElementById('ui-market-service-' + row.id).hidden = !visible;
-            if (visible) this.renderService(row.id);
-        }
-    },
-    renderService(id) {
-        if (id === 'annul') return this.renderAnnul();
-        if (id === 'keep') return this.renderKeep();
-        return this.renderPassiveReset();
-    },
-    offerArt(offer) {
-        if (offer.type === 'exchange') return this.icon(offer.to);
-        if (offer.type === 'skillGem') return renderSkillGemArt(offer.name, 'gem-art');
-        const src = getInventoryItemVisualAsset({slot:offer.slot, baseId:offer.baseId, name:offer.name}, 'equipment');
-        return src ? `<img src="${src}" alt="">` : '';
-    },
-    offerLabel(offer) {
-        return offer.type === 'exchange' ? `${ORB_DB[offer.to].name} ${offer.gain}개` : offer.name;
-    },
-    offerKind(offer) {
-        if (offer.featured) return '표적 고유';
-        return {exchange:'재화 교환',skillGem:'공격 룬',baseItem:'제작 베이스',unique:'고유 장비'}[offer.type];
-    },
-    offerPrice(offer) {
-        return offer.type === 'exchange' ? {key:offer.from, amount:offer.need} : {key:offer.priceKey, amount:offer.price};
-    },
-    offerCard(offer, index) {
-        if (!offer) return '<div class="market-black-offer market-sold"><span>판매 완료</span></div>';
-        const state = getBlackMarketOfferPurchaseState(offer);
-        const locked = !!game.blackMarket.lockedOffers[index];
-        const price = this.offerPrice(offer), name = this.offerLabel(offer);
-        const selected = this.blackIndex === index && this.blackOffer === offer;
-        const label = `${name}, ${this.offerKind(offer)}, ${ORB_DB[price.key].name} ${price.amount}개${locked ? ', 잠금' : ''}, ${state.reason}`;
-        return `<button type="button" class="market-black-offer ${offer.type}${offer.featured ? ' featured' : ''}" data-market-offer-index="${index}"
-            aria-label="${escapeHTML(label)}" aria-pressed="${selected}" aria-controls="market-black-detail" onclick="marketUi.selectBlack(${index})">
-            <span class="market-offer-art">${this.offerArt(offer)}</span>${locked ? '<span class="market-offer-lock">잠금</span>' : ''}
-            <span class="market-offer-name">${escapeHTML(name)}</span><span class="market-offer-price">${this.icon(price.key)}<span>${price.amount.toLocaleString()}</span></span></button>`;
-    },
-    selectBlack(index) {
-        const offer = game.blackMarket.offers[index];
-        if (!offer) return;
-        this.blackIndex = index; this.blackOffer = offer;
-        this.renderBlackMarket();
-        this.focusBlack(index);
-    },
-    focusBlack(index) {
-        if (index === undefined) return;
-        document.querySelector(`[data-market-offer-index="${index}"]`)?.focus({preventScroll:true});
-    },
-    currentBlackOffer() {
-        return game.blackMarket.offers[this.blackIndex] === this.blackOffer ? this.blackOffer : null;
-    },
-    async purchaseBlack() {
-        if (!this.currentBlackOffer()) return this.renderBlackMarket();
-        await buyBlackMarketOffer(this.blackIndex);
-        this.renderBlackMarket();
-    },
-    lockBlack() {
-        if (!this.currentBlackOffer()) return this.renderBlackMarket();
-        toggleBlackMarketOfferLock(this.blackIndex);
-        this.renderBlackMarket();
-    },
-    blackDetail() {
-        const offer = this.blackOffer;
-        if (!offer) return '<div class="market-black-empty"><strong>상인의 진열대</strong><p>품목을 선택하면 능력치와 가격을 확인할 수 있습니다.</p></div>';
-        const current = this.currentBlackOffer(), state = getBlackMarketOfferPurchaseState(current);
-        const locked = !!game.blackMarket.lockedOffers[this.blackIndex], price = this.offerPrice(offer);
-        const description = getBlackMarketOfferTooltipHtml(offer).replace(/[✨🌠🎯]/gu, '');
-        const status = current ? state.reason : '판매가 끝났거나 진열이 갱신되었습니다. 다른 품목을 선택하세요.';
-        return `<div class="market-black-detail-heading ${offer.type}"><span class="market-detail-art">${this.offerArt(offer)}</span>
-            <div><small>${escapeHTML(this.offerKind(offer))}</small><h3>${escapeHTML(this.offerLabel(offer))}</h3><span>${escapeHTML(offer.slot || '상인 보유품')}</span></div></div>
-            <div class="market-black-description">${description}</div>${offer.type === 'unique' ? '<p class="market-black-roll-note">옵션 수치는 구매 시 표시 범위 안에서 결정됩니다.</p>' : ''}
-            <div class="market-black-payment"><span>지불할 가격</span><strong>${this.icon(price.key)}${ORB_DB[price.key].name} ${price.amount.toLocaleString()}개</strong>
-            <small>보유 ${(game.currencies[price.key] || 0).toLocaleString()}개</small></div>
-            <p class="market-black-state" role="status">${escapeHTML(status)}</p><div class="market-black-actions">
-            <button type="button" class="market-confirm" onclick="marketUi.purchaseBlack()" ${state.canBuy ? '' : 'disabled'}>${offer.type === 'exchange' ? '이 품목 교환' : '이 품목 구매'}</button>
-            <button type="button" aria-pressed="${locked}" onclick="marketUi.lockBlack()" ${current ? '' : 'disabled'}>${locked ? '잠금 해제' : '품목 잠금'}</button></div>`;
-    },
-    browseBlack(filter, page = 0) {
-        if (!['all', 'locked', 'available'].includes(filter)) return;
-        this.blackFilter = filter; this.blackPage = Math.max(0, page);
-        this.renderBlackMarket();
-        document.getElementById('market-black-navigation').scrollIntoView({block:'nearest'});
-    },
-    blackPages(page, pages, count) {
-        return `<nav class="market-black-pages" aria-label="암거래상 페이지"><button onclick="marketUi.browseBlack(marketUi.blackFilter,${page - 1})" ${page === 0 ? 'disabled' : ''}>이전</button><span>${page + 1} / ${pages}, ${count}개</span><button onclick="marketUi.browseBlack(marketUi.blackFilter,${page + 1})" ${page === pages - 1 ? 'disabled' : ''}>다음</button></nav>`;
-    },
-    blackNavigation(page, pages, count, paginated = true) {
-        const filters = [{id:'all',name:'전체 품목'}, {id:'locked',name:'잠근 품목'}, {id:'available',name:'구매 가능'}];
-        return `<label class="market-mobile-target">품목 보기<select aria-label="암거래상 품목 보기" onchange="marketUi.browseBlack(this.value)">${filters.map(row => `<option value="${row.id}" ${row.id === this.blackFilter ? 'selected' : ''}>${row.name}</option>`).join('')}</select></label>${paginated ? this.blackPages(page, pages, count) : `<span class="market-meta">진열 ${count}칸</span>`}`;
-    },
-    renderBlackOffers(bm, count) {
-        const mobile = uiDisplay.matches('(max-width: 1080px)');
-        let rows = bm.offers.slice(0, count).map((offer, index) => ({offer, index}));
-        if (this.blackFilter === 'locked') rows = rows.filter(row => bm.lockedOffers[row.index]);
-        if (this.blackFilter === 'available') rows = rows.filter(row => getBlackMarketOfferPurchaseState(row.offer).canBuy);
-        const pages = Math.max(1, Math.ceil(rows.length / 6));
-        this.blackPage = Math.min(this.blackPage, pages - 1);
-        this.mount(document.getElementById('market-black-navigation'), this.blackNavigation(this.blackPage, pages, rows.length, mobile));
-        const visible = mobile ? rows.slice(this.blackPage * 6, this.blackPage * 6 + 6) : rows;
-        this.reconcileBlackSelection(visible);
-        const host = document.getElementById('ui-market-black');
-        this.mount(host, '<div class="market-black-stock"><div id="market-black-stock-grid" class="market-black-stock-grid" role="group" aria-label="상인의 물품"></div><div id="market-black-stock-footer"></div></div><aside id="market-black-detail" class="market-black-detail" aria-label="선택한 상품 상세"></aside>');
-        const focusedIndex = document.activeElement?.dataset?.marketOfferIndex;
-        const cards = visible.map(row => this.offerCard(row.offer, row.index)).join('') || '<p class="market-meta">조건에 맞는 품목이 없습니다.</p>';
-        const footer = mobile && pages > 1 ? this.blackPages(this.blackPage, pages, rows.length) : '';
-        this.mount(document.getElementById('market-black-stock-grid'), cards);
-        this.mount(document.getElementById('market-black-stock-footer'), footer);
-        this.mount(document.getElementById('market-black-detail'), this.blackDetail());
-        this.focusBlack(focusedIndex);
-    },
-    reconcileBlackSelection(rows) {
-        if (rows.some(row => row.index === this.blackIndex)) return;
-        const first = rows.find(row => row.offer);
-        this.blackIndex = first ? first.index : null;
-        this.blackOffer = first ? first.offer : null;
-    },
-    renderBlackMarket() {
-        const bm = normalizeBlackMarketState(), count = getBlackMarketSlotCount();
-        const left = Math.max(0, Math.ceil((bm.nextRefreshAt - Date.now()) / 1000));
-        document.getElementById('market-refresh-time').textContent = `${Math.floor(left / 60)}:${String(left % 60).padStart(2,'0')}`;
-        const options = [{value:'any', label:'전체 부위'}, ...BLACK_MARKET_EQUIPMENT_SLOTS.map(slot => ({value:slot,label:slot}))];
-        const refreshCost = getBlackMarketManualRefreshCost();
-        const controls = `<label>추적 부위<select onchange="setBlackMarketPreferredSlot(this.value)">${options.map(row => `<option value="${row.value}" ${bm.preferredSlot === row.value ? 'selected' : ''}>${row.label}</option>`).join('')}</select></label>
-            <button onclick="refreshBlackMarketNow()" ${(game.currencies.formlessDew || 0) < refreshCost ? 'disabled' : ''}>즉시 갱신 (이슬 ${refreshCost}개)</button>`;
-        this.mount(document.getElementById('market-black-controls'), controls);
-        document.getElementById('market-black-status').textContent = `잠금 ${getBlackMarketLockCount()}/${BLACK_MARKET_MAX_LOCKED_OFFERS}. 잠근 품목은 갱신 후에도 남습니다`;
-        const remaining = Math.max(0, BLACK_MARKET_INSIGHT_TARGET - (bm.insight || 0));
-        document.getElementById('market-black-insight').textContent = remaining ? `표적 고유까지 ${remaining}회 갱신` : '다음 갱신에 표적 고유 등장';
-        this.renderBlackOffers(bm, count);
-        const button = document.getElementById('market-black-expand'), cost = getBlackMarketSlotExpandCost();
-        button.disabled = count >= BLACK_MARKET_MAX_SLOT_COUNT || (game.currencies.goldenRule || 0) < cost;
-        button.textContent = count >= BLACK_MARKET_MAX_SLOT_COUNT ? `품목 ${count}개 (최대)` : `품목 ${count}개, 1칸 확장 (황금률 ${cost}개)`;
+            <button type="button" onclick="marketResetPassiveTreeByDivine()" ${ready ? '' : 'disabled'}>${count}점 반환하고 초기화</button></div>`;
     }
 };
+
+// 특수 서비스: pressing worn or bag gear chooses it for the services (nothing is carried).
+shopView.registerShop('services', {
+    shopTap(root, pick) {
+        const [kind, ref] = pick.split(':');
+        selectForCrafting(kind === 'equip' ? ref : Number(ref), kind === 'equip');
+        renderMarketUI();
+    },
+    shopAccepts: () => null,
+    shopRedraw: () => marketUi.renderServices()
+});
 
 function renderMarketUI() {
     const locked = document.getElementById('ui-market-locked'), panel = document.getElementById('ui-market-panel');
@@ -294,7 +164,7 @@ function renderMarketUI() {
         document.getElementById('market-panel-' + button.dataset.marketSection).hidden = !active;
     }
     if (marketUi.section === 'exchange') marketUi.renderExchange();
-    if (marketUi.section === 'black') marketUi.renderBlackMarket();
+    if (marketUi.section === 'black') blackMarketUi.render();
     if (marketUi.section === 'services') marketUi.renderServices();
     if (marketUi.section === 'stall') playerStallUi.render();
 }

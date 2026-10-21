@@ -24,7 +24,7 @@ const battleGroundLoot = (() => {
         if (rank === 2) return 'major';
         return (rank === 1 && fxOn('beams', 'good')) || getRarityRank(rarity) >= 2 ? 'rare' : 'plain';
     }
-    /** 발견 연출(장비 드랍 필터 창, game.settings.lootFx): beams and notices the player switched off. */
+    /** 발견 연출(설정 > 아이템 필터, game.settings.lootFx): beams and notices the player switched off. */
     const fxOn = (group, key) => !(game.settings.lootFx && game.settings.lootFx[group] && game.settings.lootFx[group][key] === false);
     const notice = (kind, text, tone, duration) => { if (fxOn('notices', kind)) showGameToast(text, { tone, duration }); };
     const pileKind = (lead, currency) => (currency ? 'currency' : lead.leaf ? 'leaf' : 'equipment');
@@ -553,6 +553,8 @@ const battleGroundLoot = (() => {
         return next;
     }
 
+    // 잔잔한 사건(js/combat-incidents.js): 금빛 수액 슬라임, 세계수의 하품, 행운의 숫자. 무지갯빛 슬라임은 체이싱 티어의 알림이다.
+    addEventListener('project-idle:incident', ({ detail }) => notice(detail.chase ? 'chase' : 'treasure', detail.text, detail.tone, detail.chase ? 6000 : 3200));
     // A treasure carrier fell (js/atlas-finds.js burstTreasure): a notice (golden treasure in the chase tier's colours) and one log line.
     addEventListener('project-idle:atlas-find', ({ detail }) => {
         if (detail.kind !== 'treasure') return;

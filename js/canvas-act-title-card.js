@@ -118,6 +118,7 @@ const actTitleCard = (() => {
         if (typeof zoneId !== 'string') return null;
         if (STORY_TRIAL_ENCOUNTERS[zoneId]) return storyAt(zoneId, STORY_TRIAL_ENCOUNTERS[zoneId]);
         const here = zoneId === ATLAS.zoneId ? getZone(zoneId) : null, key = here ? here.atlasStages : zoneId;
+        if (here?.boardBoss) return storyAt('atlas-board-gate', { boss: ATLAS_BOARD.text.boss, oneBoss: true });
         // oneBoss: the stages of an endgame fight are bodies of one boss, so its intro greets the first body.
         return key && STORY_ENDGAME_ENCOUNTERS[key] ? storyAt(key, { boss: STORY_ENDGAME_ENCOUNTERS[key], oneBoss: true }) : null;
     }
@@ -277,7 +278,7 @@ const actTitleCard = (() => {
         actors.push({ kind: 'scenery', id: -3, x: point.x, y: point.y + state.gridProj.actorGroundOffsetY, npc, talkable: !rescuing(run) });
     }
     function npcSheet(id) {
-        if (!npcSheets.has(id)) npcSheets.set(id, stagePictures.openPicture(`${STAGE_NPC_ART.path}${id}-idle.png`));
+        if (!npcSheets.has(id)) npcSheets.set(id, stagePictures.openPicture(`${STAGE_NPC_ART.path}${id}-idle.png?v=${STAGE_NPC_ART.version}`));
         return npcSheets.get(id);
     }
     /** The idle frame shown now: the art's own frame times, looping. */

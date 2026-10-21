@@ -12,10 +12,15 @@ const combatEquipmentStats = (() => {
         for (const [key, value] of Object.entries(req.attributes)) {
             if ((attributes[key] || 0) < value) result.push(`${getStatName(key)} ${value}`);
         }
-        const offhand = offhandWeaponRequirement(item, slot, owner);
-        if (offhand) result.push(offhand);
+        const slotNeed = slotRequirement(item, slot, owner);
+        if (slotNeed) result.push(slotNeed);
         return result;
     }
+    /** What the slot itself asks: a weapon in the shield slot needs dual wielding, a ring in 반지3 the third finger. '' when nothing. */
+    const slotRequirement = (item, slot, owner) => offhandWeaponRequirement(item, slot, owner) || (slot === '반지3' && !thirdFingerOpen(owner) ? '세 번째 손가락' : '');
+    /** 반지3은 초월 공허 '세 번째 손가락'이 있을 때만 열린다(js/items.js getEquipCandidateSlots): 그 초월이 사라지면 그 칸의 반지는
+     * 꺼진다(2026-10-20 검토: 공허를 돌려받아도 반지 셋의 능력치가 그대로였다). */
+    const thirdFingerOpen = owner => typeof getTranscendentVoidPassiveCount === 'function' && getTranscendentVoidPassiveCount('thirdFinger', owner) > 0;
     /** 방패 칸의 무기는 쌍수 훈련 키스톤(w3, 고른 것이든 우주계 쌍둥이든)이 켜져 있을 때만 적용된다. 쌍둥이 주얼을 빼면
      * 꺼진다(예전에는 다시 끼울 때까지 그대로 남았다, 2026-10-02 검토). */
     function offhandWeaponRequirement(item, slot, owner) {
@@ -25,6 +30,7 @@ const combatEquipmentStats = (() => {
         const snapshot = JSON.parse(JSON.stringify({ ...owner, inventory: [] }));
         snapshot.isBackgroundCalculation = true;
         snapshot.uniqueEliteTraitBuff = null;
+        snapshot.incidentBreath = null; // 세계수의 숨결도 잠깐의 전투 버프다
         // Observed constellation is a persistent build choice until rerolled/looped, not a timed combat buff.
         return snapshot;
     }

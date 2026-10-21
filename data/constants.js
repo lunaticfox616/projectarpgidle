@@ -34,6 +34,7 @@ const CLOUD_EXIT_UPLOAD_MIN_GAP_MS = 60 * 1000;
 // 잡도록 넉넉하게 둔다. 화폐는 한 번에 1~20개씩 쌓여 천만에 닿지 않는다. 룬 레벨은 경험치로 20, 숙련 가공으로 30까지, 품질은 20까지다.
 // 장비 수치는 자기 굴림 범위 최댓값의 2배나 천만을 넘으면 걸린다. 패시브 포인트는 레벨 업마다 1에 일지, 액트 보상,
 // 창백한 푸른 점(공허 하나에 10)과 여유 5를 더한 만큼까지다. 저장에 남은 가장 늦은 시각이 지금보다 10분 넘게 앞서면 기기 시간이 걸린다.
+// 서버 검사(db/anti-cheat.sql의 전당 장비 수치, 클라우드 저장 감시)도 화폐, 장비 수치, 기기 시간에 같은 값을 쓴다. 바꾸면 함께 고친다.
 const GUEST_SAVE_CHECK = Object.freeze({
     currencyMax: 10000000,
     gemLevelMax: 30,
@@ -70,7 +71,9 @@ const ACT_RETREAT_LEVELS = 2;
 /** 캠페인 패널티: 이 구역(액트 6, 혼돈 1)을 열 때마다 모든 원소 저항과 카오스 저항이 each만큼 낮아진다. */
 const CAMPAIGN_RESIST_PENALTY = Object.freeze({ zones: Object.freeze([5, 10]), each: 30 });
 const EQUIPMENT_INVENTORY_COLUMNS = 10;
-const EQUIPMENT_INVENTORY_ROWS_PER_PAGE = 12;
+/** 쪽마다 10x10(2026-10-19 사용자: "인벤토리 칸수 10x10으로 줄이고"). 전에는 12줄이었고, 그때 저장된 칸 위치는
+ * js/equipment-inventory-grid.js가 한 번 옮긴다(adoptPageRows). */
+const EQUIPMENT_INVENTORY_ROWS_PER_PAGE = 10;
 const EQUIPMENT_INVENTORY_MAX_PAGES = 12;
 const EQUIPMENT_INVENTORY_CELLS_PER_PAGE = EQUIPMENT_INVENTORY_COLUMNS * EQUIPMENT_INVENTORY_ROWS_PER_PAGE;
 const UNDERWORLD_DIFFICULTY_CONFIG = Object.freeze({
@@ -113,6 +116,14 @@ const DEATH_REASON_TEXT = {
 // 9x8 직교 전장 그리드 설정. 첨부된 ACT 맵의 중앙 9x8 타일과 좌표·판정을 공유한다.
 // 좌표계: gx(0~8)는 오른쪽, gy(0~7)는 아래쪽. 이동은 상하좌우 4방향만 허용한다.
 const COMBAT_GRID_CONFIG = {
+    // 지속 장판: 시간은 전투 시계 ms. 같은 원소가 겹쳐도 한 번만 적용하며 최대 세 영역만 유지한다.
+    ground: {
+        durationMs: 5000, tickMs: 500, maxAreas: 3,
+        fire: { name: '용암 지대', color: '#e59355', damageShare: 0.22 },
+        cold: { name: '빙결 지대', color: '#9cc8d2', ailment: 'chill' },
+        chaos: { name: '부식 지대', color: '#a7aa6c', damageShare: 0.18 },
+        light: { name: '감전 지대', color: '#c9b9ec', ailment: 'shock' }
+    },
     columns: 9,
     rows: 8,
     playerSpawn: { gx: 1, gy: 4 },

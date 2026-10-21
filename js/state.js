@@ -136,7 +136,7 @@ const CHAOS_REALM_AFFIX_POOL = [
     { id: 'spell_dampening', name: '주문 왜곡', desc: '주문 피해 반감' },
     { id: 'blood_drinker', name: '흡혈', desc: '적 공격 시 생명력 흡수' },
     { id: 'bloodless', name: '무혈', desc: '플레이어 흡혈 효율 대폭 감소' },
-    { id: 'curse_blade', name: '저주를 검', desc: '저주를 공격력/관통으로 전환' },
+    { id: 'curse_blade', name: '저주의 검', desc: '공격력과 관통 증가' },
     { id: 'curse_immune', name: '저주 면역', desc: '저주 적용 불가' },
     { id: 'phys_dampening', name: '물리 반감', desc: '물리 최종 피해 반감' },
     { id: 'deadly_crit', name: '치명적 본능', desc: '치명타 확률/피해 증가' },
@@ -364,6 +364,16 @@ function createDefaultOceanState() {
         diving: false,
         lastTickAt: 0,
         bossClearM: 0,
+        // 쓰러뜨린 몬스터가 쌓았지만 아직 내려가지 않은 거리(m, js/passives.js tickOceanDepth)
+        descentPendingM: 0,
+        // 자동 재잠수(js/combat.js autoRediveOceanAfterClear): 마지막으로 떠오른 까닭('oxygen' | 'guardian' | 'defeat' | 'manual' | ''),
+        // 잠수를 시작할 때의 소득 기록(getOceanDiveRecord), 소득 없이 떠오른 잠수가 이어진 수. 떠오르면 돌아갈 사냥터(잠수를
+        // 시작한 액트나 혼돈 구역 id, 없으면 null)와 이 잠수가 자동 재잠수로 들어왔는지
+        lastSurfaceReason: '',
+        diveStartProgress: 0,
+        fruitlessDives: 0,
+        returnZoneId: null,
+        autoDive: false,
         permanentUpgrades: { oxygenMax: 0, oxygenSaving: 0, pressureResist: 0 }
     };
 }
@@ -441,8 +451,21 @@ function ensureOceanState() {
     st.diving = !!st.diving;
     st.drowning = !!st.drowning;
     st.drownSec = Math.max(0, Number(st.drownSec) || 0);
+    normalizeOceanDiveRecord(st);
     if (!st.unlocked && (game.season || 1) >= OCEAN_UNLOCK_LOOP) st.unlocked = true;
     return st;
+}
+/** 잠수 기록(createDefaultOceanState): 아직 내려가지 않은 하강 거리(잠수 중에만), 그리고 자동 재잠수가 읽는 떠오른 까닭, 시작할 때의
+ * 소득 기록, 소득 없이 떠오른 수. */
+function normalizeOceanDiveRecord(st) {
+    const pending = Number(st.descentPendingM);
+    st.descentPendingM = st.diving && Number.isFinite(pending) ? Math.max(0, pending) : 0;
+    st.lastSurfaceReason = ['oxygen', 'guardian', 'defeat', 'manual'].includes(st.lastSurfaceReason) ? st.lastSurfaceReason : '';
+    st.diveStartProgress = Math.max(0, Math.floor(Number(st.diveStartProgress) || 0));
+    st.fruitlessDives = Math.max(0, Math.min(OCEAN_AUTO_REDIVE.missLimit, Math.floor(Number(st.fruitlessDives) || 0)));
+    const back = st.returnZoneId;
+    st.returnZoneId = Number.isInteger(back) || (typeof back === 'string' && back !== '') ? back : null;
+    st.autoDive = st.autoDive === true;
 }
 function canEnterOceanDepth() {
     return !!ensureOceanState().unlocked;
@@ -488,12 +511,11 @@ function getOceanPendingBossBoundary(st) {
     let nextBoundary = Math.floor(cleared / interval) * interval + interval;
     return (Math.floor(Math.max(0, Number(st.depthM) || 0)) >= nextBoundary) ? nextBoundary : 0;
 }
-function getOceanMoveSpeedDepthBonus() {
-    // 이동 속도가 빠를수록 한 번에 더 깊이 전진합니다(산소 소모와는 무관, 최대 +50%).
-    let moveSpeed = 100;
-    try { if (typeof getPlayerStats === 'function') moveSpeed = Number(getPlayerStats().moveSpeed) || 100; } catch (e) { console.warn('failed to read movement speed for map progress:', e); }
-    let bonusRatio = Math.max(0, (moveSpeed - 100) / 100);
-    return 1 + Math.min(1, bonusRatio * 0.5);
+/** 잠수의 소득을 재는 기록: 열린 리프트와 쓰러뜨린 가디언의 수심 합에 낚은 물고기 수를 더한다(모두 줄지 않는다). 잠수를 시작할 때와
+ * 떠오를 때를 견준다. 막힌 가디언 앞에서 얕게 도는 자동 재잠수는 물고기로 소득을 낸다. */
+function getOceanDiveRecord(st) {
+    const caught = Object.values(st.fishCaughtTotal || {}).reduce((sum, count) => sum + Math.max(0, Math.floor(Number(count) || 0)), 0);
+    return Math.max(0, Math.floor(st.checkpointM || 0)) + Math.max(0, Math.floor(st.bossClearM || 0)) + caught;
 }
 function getOceanFishingGaugeGainMul() {
     let st = ensureOceanState();
@@ -818,11 +840,27 @@ function createColonyZone(state) {
 function getUnderworldZone(floor) {
     return { id: UNDERWORLD_ZONE_ID, name: `지하계 ${floor}층`, type: 'underworld', tier: getUnderworldTier(floor), maxKills: 1, ele: 'chaos', floor, ...contentMaps.underworld(floor) };
 }
+/** The zone of id: a run zone, a floor zone (at its current floor or depth), a trial or root boss, a chaos depth, else a map zone.
+ * Split into these groups on 2026-10-18. */
 function getZone(id) {
+    let zone = getRunZone(id);
+    if (zone === undefined) zone = getFloorZone(id);
+    if (zone !== undefined) return zone;
+    if (typeof id === 'string') {
+        if (id.startsWith('trial_')) return contentMaps.trialCorridor(TRIAL_ZONES.find(t => t.id === id));
+        let seasonBossZone = SEASON_BOSS_ZONES.find(t => t.id === id);
+        if (seasonBossZone) return contentMaps.withArena(seasonBossZone, contentMaps.bossBiome(seasonBossZone));
+    }
+    if (Number.isFinite(id) && id >= ABYSS_START_ZONE_ID) return getChaosDepthZone(id);
+    return MAP_ZONES[id];
+}
+/** The zones of runs that leave the map: atlas map, cosmos challenge (undefined when none is set up), boundary, hive, colony, grand
+ * breach, outside chaos, woodsman echo. Undefined for any other id. */
+function getRunZone(id) {
     if (id === ATLAS.zoneId) return atlas.zone(game);
     if (id === 'cosmos_challenge') {
         const challengeZone = createCosmosChallengeZone(game);
-        if (challengeZone) return contentMaps.withRooms(challengeZone);
+        return challengeZone ? contentMaps.withRooms(challengeZone) : undefined;
     }
     if (id === BEYOND_BOUNDARY_ZONE_ID) return contentMaps.withRooms(createBeyondBoundaryZone(game));
     if (id === 'beehive_run') return createBeehiveZone(game);
@@ -835,85 +873,92 @@ function getZone(id) {
         });
     }
     if (id === OUTSIDE_CHAOS_ZONE_ID) return contentMaps.withRooms({ id: OUTSIDE_CHAOS_ZONE_ID, name: '혼돈 밖', type: 'outsideChaos', tier: 25, maxKills: 1, ele: 'chaos', fixedDifficultyMul: 1 });
-    if (id === CHAOS_REALM_ZONE_ID) {
-        let realm = ensureChaosRealmState();
-        let floor = Math.max(1, Math.floor(realm.currentFloor || 1));
-        return { id: CHAOS_REALM_ZONE_ID, name: `혼돈계 ${floor}층`, type: 'chaosRealm', tier: getChaosRealmTier(floor), maxKills: 1, ele: 'chaos', floor: floor, affixes: getChaosRealmAffixes(floor), ...contentMaps.chaosRealm(floor) };
-    }
-    if (id === SKY_TOWER_ZONE_ID) {
-        let st = ensureSkyTowerState();
-        let floor = Math.max(1, Math.floor(st.currentFloor || 1));
-        return { id: SKY_TOWER_ZONE_ID, name: `창공의 탑 ${floor}층`, type: 'skyTower', tier: getSkyTowerTier(floor), maxKills: 1, ele: 'chaos', floor: floor, ...contentMaps.skyTower(floor) };
-    }
     if (id === WOODSMAN_ECHO_ZONE_ID) return contentMaps.withRooms({ id: WOODSMAN_ECHO_ZONE_ID, name: '나무꾼의 잔상', type: 'woodsmanEcho', tier: getChaosRealmTier(30), maxKills: 1, ele: 'chaos' });
-    if (id === TIME_RIFT_PAST_ZONE_ID || id === TIME_RIFT_FUTURE_ZONE_ID) {
-        let rift = ensureTimeRiftState();
-        let phase = id === TIME_RIFT_PAST_ZONE_ID ? 'past' : 'future';
-        // 시간압이 유일한 난이도 손잡이 — 루프 인플레이션 대신 fixedDifficultyMul로만 세진다.
-        let activePressure = game.currentZoneId === id && rift.activePressure ? rift.activePressure : rift.pressure;
-        let equivalentChaosDepth = getTimeRiftEquivalentChaosDepth(activePressure);
-        let difficultyTier = getTimeRiftDifficultyTier(activePressure);
-        // 과거 시간압 1은 혼돈 1과 같은 기준이며, 미래는 같은 시간압에서도 조금 더 어렵다.
-        let pressureMul = phase === 'past' ? 1 : 1.18;
-        return { id: id, name: `시간의 균열, ${phase === 'past' ? '과거' : '미래'} (시간압 ${activePressure})`, type: 'timeRift', riftPhase: phase, tier: difficultyTier, maxKills: 1, ele: 'chaos', loopScaleExempt: true, fixedDifficultyMul: pressureMul, pressure: activePressure, equivalentChaosDepth: equivalentChaosDepth, ...contentMaps.timeRift(phase, activePressure) };
-    }
-    if (id === UNDERWORLD_ZONE_ID) {
-        let uw = (game && game.underworldProgress) || {};
-        let floor = Math.max(1, Math.floor(uw.currentFloor || 1));
-        return getUnderworldZone(floor);
-    }
-    if (typeof id === 'string') {
-        if (id.startsWith('trial_')) return contentMaps.trialCorridor(TRIAL_ZONES.find(t => t.id === id));
-        let seasonBossZone = SEASON_BOSS_ZONES.find(t => t.id === id);
-        if (seasonBossZone) return contentMaps.withArena(seasonBossZone, contentMaps.bossBiome(seasonBossZone));
-    }
-    if (id === METEOR_FALL_ZONE_ID) {
-        let star = (game && game.meteorSite) || {};
-        let allowBeyond20 = !!star.skyRiftAllCosmos;
-        let tierCap = allowBeyond20 ? 40 : 20;
-        let tier = star.activeMeteorTier || Math.max(8, Math.min(tierCap, Math.floor(star.skyRiftMinTier || 13)));
-        return {
-            id: METEOR_FALL_ZONE_ID,
-            name: '운석 낙하 지점',
-            type: 'meteor',
-            tier: tier,
-            maxKills: 1,
-            ele: 'chaos',
-            bossMods: { hpMul: 2.2, atkMul: 1.1, damageMul: 1.4, patternMode: 'slam' }, exploration: contentMaps.arena('meteor', 'ruins')
-        };
-    }
-    if (id === OCEAN_ZONE_ID) {
-        let ocean = ensureOceanState();
-        let depthM = Math.max(0, Math.floor(ocean.depthM || 0));
-        let depthTier = getOceanDepthTier(depthM);
-        return contentMaps.withRooms({ id: OCEAN_ZONE_ID, name: `심해 ${depthM}m`, type: 'oceanDepth', tier: getChaosRealmTier(21) + depthTier, maxKills: 1, ele: 'chaos', depthM: depthM, depthTier: depthTier, currents: getOceanCurrentAffixes(depthTier) });
-    }
-    if (id === LABYRINTH_ZONE_ID) {
-        let floor = Math.max(1, game.labyrinthFloor || 1);
-        let baseTier = Math.min(20, 7 + Math.floor(floor / 3));
-        let over50 = Math.max(0, floor - 50);
-        let over100 = Math.max(0, floor - 100);
-        let extraTier = Math.floor(over50 / 5) + Math.floor(over100 / 3);
-        return { id: LABYRINTH_ZONE_ID, name: `고대 미궁 ${floor}층`, type: 'labyrinth', tier: baseTier + extraTier, maxKills: 1, ele: 'chaos', floor: floor, exploration: contentMaps.labyrinth(floor) };
-    }
-    if (Number.isFinite(id) && id >= ABYSS_START_ZONE_ID) {
-        let depth = getAbyssDepthFromZoneId(id);
-        let displayDepth = depth;
-        let baseZone = MAP_ZONES[Math.min(id, getAbyssZoneIdForDepth(20))];
-        return {
-            ...(baseZone || {}),
-            id: id,
-            name: displayDepth > 20 ? `혼돈 심화 ${displayDepth}` : `혼돈 ${displayDepth}`,
-            type: 'abyss',
-            tier: getAbyssZoneTier(displayDepth),
-            maxKills: 1,
-            ele: 'chaos',
-            depth: displayDepth,
-            baseDepth: Math.min(20, depth),
-            isEndlessDepth: displayDepth > 20, ...contentMaps.chaos(displayDepth)
-        };
-    }
-    return MAP_ZONES[id];
+    return undefined;
+}
+/** The zones with floors or depths, at the current one: chaos realm, sky tower, time rift (past or future), underworld, meteor site,
+ * ocean, labyrinth. Undefined for any other id. */
+function getFloorZone(id) {
+    if (id === CHAOS_REALM_ZONE_ID) return getChaosRealmZoneNow();
+    if (id === SKY_TOWER_ZONE_ID) return getSkyTowerZoneNow();
+    if (id === TIME_RIFT_PAST_ZONE_ID || id === TIME_RIFT_FUTURE_ZONE_ID) return getTimeRiftZone(id);
+    if (id === UNDERWORLD_ZONE_ID) return getUnderworldZoneNow();
+    if (id === METEOR_FALL_ZONE_ID) return getMeteorSiteZone();
+    if (id === OCEAN_ZONE_ID) return getOceanZoneNow();
+    if (id === LABYRINTH_ZONE_ID) return getLabyrinthZoneNow();
+    return undefined;
+}
+function getUnderworldZoneNow() {
+    let uw = (game && game.underworldProgress) || {};
+    let floor = Math.max(1, Math.floor(uw.currentFloor || 1));
+    return getUnderworldZone(floor);
+}
+function getChaosRealmZoneNow() {
+    let realm = ensureChaosRealmState();
+    let floor = Math.max(1, Math.floor(realm.currentFloor || 1));
+    return { id: CHAOS_REALM_ZONE_ID, name: `혼돈계 ${floor}층`, type: 'chaosRealm', tier: getChaosRealmTier(floor), maxKills: 1, ele: 'chaos', floor: floor, affixes: getChaosRealmAffixes(floor), ...contentMaps.chaosRealm(floor) };
+}
+function getSkyTowerZoneNow() {
+    let st = ensureSkyTowerState();
+    let floor = Math.max(1, Math.floor(st.currentFloor || 1));
+    return { id: SKY_TOWER_ZONE_ID, name: `창공의 탑 ${floor}층`, type: 'skyTower', tier: getSkyTowerTier(floor), maxKills: 1, ele: 'chaos', floor: floor, ...contentMaps.skyTower(floor) };
+}
+function getTimeRiftZone(id) {
+    let rift = ensureTimeRiftState();
+    let phase = id === TIME_RIFT_PAST_ZONE_ID ? 'past' : 'future';
+    // 시간압이 유일한 난이도 손잡이 — 루프 인플레이션 대신 fixedDifficultyMul로만 세진다.
+    let activePressure = game.currentZoneId === id && rift.activePressure ? rift.activePressure : rift.pressure;
+    let equivalentChaosDepth = getTimeRiftEquivalentChaosDepth(activePressure);
+    let difficultyTier = getTimeRiftDifficultyTier(activePressure);
+    // 과거 시간압 1은 혼돈 1과 같은 기준이며, 미래는 같은 시간압에서도 조금 더 어렵다.
+    let pressureMul = phase === 'past' ? 1 : 1.18;
+    return { id: id, name: `시간의 균열, ${phase === 'past' ? '과거' : '미래'} (시간압 ${activePressure})`, type: 'timeRift', riftPhase: phase, tier: difficultyTier, maxKills: 1, ele: 'chaos', loopScaleExempt: true, fixedDifficultyMul: pressureMul, pressure: activePressure, equivalentChaosDepth: equivalentChaosDepth, ...contentMaps.timeRift(phase, activePressure) };
+}
+function getMeteorSiteZone() {
+    let star = (game && game.meteorSite) || {};
+    let allowBeyond20 = !!star.skyRiftAllCosmos;
+    let tierCap = allowBeyond20 ? 40 : 20;
+    let tier = star.activeMeteorTier || Math.max(8, Math.min(tierCap, Math.floor(star.skyRiftMinTier || 13)));
+    return {
+        id: METEOR_FALL_ZONE_ID,
+        name: '운석 낙하 지점',
+        type: 'meteor',
+        tier: tier,
+        maxKills: 1,
+        ele: 'chaos',
+        bossMods: { hpMul: 2.2, atkMul: 1.1, damageMul: 1.4, patternMode: 'slam' }, exploration: contentMaps.arena('meteor', 'ruins')
+    };
+}
+function getOceanZoneNow() {
+    let ocean = ensureOceanState();
+    let depthM = Math.max(0, Math.floor(ocean.depthM || 0));
+    let depthTier = getOceanDepthTier(depthM);
+    return contentMaps.withRooms({ id: OCEAN_ZONE_ID, name: `심해 ${depthM}m`, type: 'oceanDepth', tier: getChaosRealmTier(21) + depthTier, maxKills: 1, ele: 'chaos', depthM: depthM, depthTier: depthTier, currents: getOceanCurrentAffixes(depthTier) });
+}
+function getLabyrinthZoneNow() {
+    let floor = Math.max(1, game.labyrinthFloor || 1);
+    let baseTier = Math.min(20, 7 + Math.floor(floor / 3));
+    let over50 = Math.max(0, floor - 50);
+    let over100 = Math.max(0, floor - 100);
+    let extraTier = Math.floor(over50 / 5) + Math.floor(over100 / 3);
+    return { id: LABYRINTH_ZONE_ID, name: `고대 미궁 ${floor}층`, type: 'labyrinth', tier: baseTier + extraTier, maxKills: 1, ele: 'chaos', floor: floor, exploration: contentMaps.labyrinth(floor) };
+}
+function getChaosDepthZone(id) {
+    let depth = getAbyssDepthFromZoneId(id);
+    let displayDepth = depth;
+    let baseZone = MAP_ZONES[Math.min(id, getAbyssZoneIdForDepth(20))];
+    return {
+        ...(baseZone || {}),
+        id: id,
+        name: displayDepth > 20 ? `혼돈 심화 ${displayDepth}` : `혼돈 ${displayDepth}`,
+        type: 'abyss',
+        tier: getAbyssZoneTier(displayDepth),
+        maxKills: 1,
+        ele: 'chaos',
+        depth: displayDepth,
+        baseDepth: Math.min(20, depth),
+        isEndlessDepth: displayDepth > 20, ...contentMaps.chaos(displayDepth)
+    };
 }
 
 // 시간의 균열 런타임 상태(shape 소유자). 제단 아이템은 인벤토리에서 빠져 이곳에 보관된다.
@@ -945,11 +990,18 @@ function getSeasonAbyssDepthCap(seasonValue) {
     return Math.min(LOOP_GATE_ABYSS_DEPTH_CAP, uncapped);
 }
 
+const loopGateDepthName = cap => `${cap > 20 ? '혼돈 심화' : '혼돈'} ${cap}`;
+const hasLoopGateCosmosPath = seasonValue => Math.max(1, Math.floor(seasonValue || 1)) >= LOOP_GATE_ALT_START_SEASON;
+/** The loop condition as a label (the unlock list, the loop milestones): from loop 31 each path and the loop it opens. */
 function getLoopAbyssRequirementText(seasonValue) {
-    let cap = getSeasonAbyssDepthCap(seasonValue);
-    let base = `루프 조건: ${cap > 20 ? '혼돈 심화' : '혼돈'} ${cap} 클리어`;
-    if (Math.max(1, Math.floor(seasonValue || 1)) < LOOP_GATE_ALT_START_SEASON) return base;
-    return `${base}, 선택 루프: 혼돈 루프 또는 우주계 ${LOOP_GATE_ALT_COSMOS_PLANET_NAME} 행성 돌파 후 우주계 루프 (이번 루프 기준)`;
+    let depth = loopGateDepthName(getSeasonAbyssDepthCap(seasonValue));
+    if (!hasLoopGateCosmosPath(seasonValue)) return `루프 조건: ${depth} 클리어`;
+    return `루프 조건(이번 루프 안): ${depth} 클리어는 혼돈 루프, 우주계 ${LOOP_GATE_ALT_COSMOS_PLANET_NAME} 행성 돌파는 우주계 루프`;
+}
+/** The sentence when the loop condition is not met yet (혼돈 밖, going on to the next loop). */
+function getLoopAbyssRequirementPrompt(seasonValue) {
+    let cosmos = hasLoopGateCosmosPath(seasonValue) ? `나 우주계 ${LOOP_GATE_ALT_COSMOS_PLANET_NAME} 행성 돌파` : '';
+    return `이번 루프에 ${loopGateDepthName(getSeasonAbyssDepthCap(seasonValue))} 클리어${cosmos}가 먼저 필요합니다.`;
 }
 
 function hasCurrentLoopChaosRequirementClear(seasonValue) {
@@ -1024,6 +1076,14 @@ function getLoopDeepChaosFrontierDepth(source) {
 
 /** 자동 진행이 향할 지역. 루프 10부터 혼돈 20을 깬 뒤에는 심화 혼돈을 한 층씩 오른다(2026-10-11 사용자: 예전에는 지난 루프까지
  * 기록한 가장 높은 층으로 바로 뛰어 계속 죽었다). 예전 기록 층은 심화층 목록에서 직접 고를 때만 간다(enterUnlockedEndlessDepth). */
+/** Where a content run started now sends the hero back (군락지, 벌집, 대균열, 경계 너머): the zone in hand, unless that is the zone of
+ * another run (a string id other than the floor contents: 혼돈 밖, 군락지, 대균열, 벌집 ...). That run ends on the next tick
+ * (js/combat.js holdZoneBoundRuns), and coming back to its zone stood the hero on an empty map (2026-10-20 hunt), so the auto
+ * progress zone instead. */
+function getContentReturnZoneId(state = game) {
+    const id = state.currentZoneId;
+    return typeof id !== 'string' || getFloorZone(id) !== undefined ? id : getAutoProgressZoneId(state.maxZoneId);
+}
 function getAutoProgressZoneId(fallbackZoneId) {
     if ((game.season || 1) < 10 || !hasCurrentLoopChaos20Clear()) return fallbackZoneId;
     let depth = getLoopDeepChaosFrontierDepth();
@@ -1133,6 +1193,8 @@ function getLoop10StatCost(statKey) {
 
 function allocateLoop10BonusStat(statKey) {
     if ((game.season || 1) < 10) return;
+    // 나무꾼 전투 중에는 루프 포인트가 매 틱 돌아가 강화만 남았다(js/combat.js enforceWoodsmanBuildLock).
+    if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     let cost = getLoop10StatCost(statKey);
     if ((game.seasonPoints || 0) < cost) return addLog(`루프 포인트가 부족합니다. (필요: ${cost})`, 'attack-monster');
     game.loop10BonusStats = game.loop10BonusStats || { flatHp: 0, flatDmg: 0, aspd: 0, move: 0 };
@@ -1142,7 +1204,8 @@ function allocateLoop10BonusStat(statKey) {
     updateStaticUI();
 }
 
-function enterNextEndlessChaosDepth() {
+/** 혼돈 심화의 다음 층으로. clearedZone: 방금 깬 층(지역 클리어에서 넘어올 때, 자동 입장이 사냥터 클리어로 읽는다), 손으로 누르면 없다. */
+function enterNextEndlessChaosDepth(clearedZone) {
     if (typeof isBeehiveRunLockedForMapTravel === 'function' ? isBeehiveRunLockedForMapTravel() : !!(game.beehive && game.beehive.inRun)) {
         if (typeof warnBeehiveMapTravelBlocked === 'function') return warnBeehiveMapTravelBlocked();
         return;
@@ -1156,7 +1219,7 @@ function enterNextEndlessChaosDepth() {
     game.combatHalted = false;
     game.runProgress = 0;
     addLog(`♾️ 혼돈 심화 ${game.abyssEndlessDepth}층 진입`, 'season-up');
-    enterAutomaticMapInterruptionAfterClear(null); // a ready grand breach or meteor postponed by the map's loot goes first
+    enterAutomaticMapInterruptionAfterClear(clearedZone); // a ready grand breach or meteor postponed by the map's loot goes first
     startMoving(true);
     updateStaticUI();
 }
@@ -1457,6 +1520,20 @@ const P_STATS = {
     shockedEnemyHitDamageMorePct: { name: '감전된 적 명중 피해 증폭(%)', isPct: true },
     energyShieldRechargeFaster: { name: '에너지 보호막 재충전 대기시간 감소(초)' }
 };
+/** A passive stat's value at a node tier: 10 at tier 0, else its own size for the tier (1 s, 2 m, any other k), falling back to the
+ * nearest size it has, then 2, 4 or 8; for a stat P_STATS lacks, 8 at tier 3, 4 at tier 2, else 2. The one rule for the tree, its layout
+ * and loading. */
+function getPassiveStatTierValue(statKey, tier) {
+    const statDef = P_STATS[statKey];
+    if (!statDef) return tier === 3 ? 8 : (tier === 2 ? 4 : 2);
+    if (tier === 0) return 10;
+    const size = tier === 1 || tier === 2 ? tier : 3;
+    const key = PASSIVE_TIER_SIZE_ORDER[size].find(name => statDef[name] !== undefined);
+    return key ? statDef[key] : PASSIVE_TIER_FALLBACK[size];
+}
+/** The sizes a tier reads, nearest first, and its value when the stat has none. */
+const PASSIVE_TIER_SIZE_ORDER = Object.freeze({ 1: ['s', 'm', 'k'], 2: ['m', 's', 'k'], 3: ['k', 'm', 's'] });
+const PASSIVE_TIER_FALLBACK = Object.freeze({ 1: 2, 2: 4, 3: 8 });
 
 Object.keys(SKILL_DB).forEach(name => {
     let skill = SKILL_DB[name];
@@ -1523,9 +1600,9 @@ const MOD_DB = [
     {"id":"weaponFlatDmgPct","type":"prefix","statName":"무기의 기본 피해 증가(%)","slots":["무기"],"affixBalanceVersion":2,"tierValues":[[10,12],[13,16],[17,20],[21,24],[25,28],[29,32],[33,36],[37,40],[41,44],[45,48],[49,52],[53,56],[57,60],[61,64],[65,68],[69,72],[73,76],[77,80],[81,84],[85,88]],"valueStep":1},
     {"id":"pctDmg","type":"prefix","statName":"피해 증가(%)","slots":["무기","반지","목걸이"],"affixBalanceVersion":2,"tierValues":[[9,11],[12,15],[16,19],[20,24],[25,28],[29,32],[33,36],[37,40],[41,45],[46,49],[50,53],[54,57],[58,62],[63,66],[67,70],[71,74],[75,78],[79,83],[84,87],[88,91]],"valueStep":1},
     {"id":"meleePctDmg","type":"prefix","statName":"근접 피해(%)","slots":["무기","장갑","목걸이","허리띠"],"affixBalanceVersion":2,"tierValues":[[10,12],[13,17],[18,23],[24,28],[29,34],[35,39],[40,45],[46,50],[51,55],[56,61],[62,66],[67,72],[73,77],[78,82],[83,88],[89,93],[94,98],[99,104],[105,109],[110,115]],"valueStep":1},
-    {"id":"projectilePctDmg","type":"prefix","statName":"투사체 피해(%)","slots":["무기","반지","장갑","목걸이"],"affixBalanceVersion":2,"tierValues":[[10,12],[13,17],[18,23],[24,28],[29,34],[35,39],[40,45],[46,50],[51,55],[56,61],[62,66],[67,72],[73,77],[78,82],[83,88],[89,93],[94,98],[99,104],[105,109],[110,115]],"valueStep":1},
+    {"id":"projectilePctDmg","type":"prefix","statName":"투사체 피해(%)","slots":["무기","반지","장갑","목걸이","허리띠"],"affixBalanceVersion":2,"tierValues":[[10,12],[13,17],[18,23],[24,28],[29,34],[35,39],[40,45],[46,50],[51,55],[56,61],[62,66],[67,72],[73,77],[78,82],[83,88],[89,93],[94,98],[99,104],[105,109],[110,115]],"valueStep":1},
     {"id":"physPctDmg","type":"prefix","statName":"물리 피해(%)","slots":["무기","허리띠","반지","방패"],"affixBalanceVersion":2,"tierValues":[[11,13],[14,19],[20,24],[25,30],[31,36],[37,41],[42,47],[48,52],[53,58],[59,64],[65,69],[70,75],[76,81],[82,86],[87,92],[93,97],[98,103],[104,109],[110,114],[115,120]],"valueStep":1},
-    {"id":"elementalPctDmg","type":"prefix","statName":"원소 피해(%)","slots":["무기","반지","목걸이"],"affixBalanceVersion":2,"tierValues":[[10,12],[13,17],[18,22],[23,27],[28,33],[34,38],[39,43],[44,48],[49,53],[54,58],[59,64],[65,69],[70,74],[75,79],[80,84],[85,89],[90,94],[95,99],[100,104],[105,110]],"valueStep":1},
+    {"id":"elementalPctDmg","type":"prefix","statName":"원소 피해(%)","slots":["무기","반지","목걸이","허리띠"],"affixBalanceVersion":2,"tierValues":[[10,12],[13,17],[18,22],[23,27],[28,33],[34,38],[39,43],[44,48],[49,53],[54,58],[59,64],[65,69],[70,74],[75,79],[80,84],[85,89],[90,94],[95,99],[100,104],[105,110]],"valueStep":1},
     {"id":"firePctDmg","type":"prefix","statName":"화염 피해(%)","slots":["무기","반지","목걸이","방패"],"affixBalanceVersion":2,"tierValues":[[12,14],[15,20],[21,26],[27,32],[33,38],[39,45],[46,51],[52,57],[58,63],[64,69],[70,75],[76,81],[82,87],[88,93],[94,99],[100,106],[107,112],[113,118],[119,124],[125,130]],"valueStep":1},
     {"id":"coldPctDmg","type":"prefix","statName":"냉기 피해(%)","slots":["무기","반지","목걸이","방패"],"affixBalanceVersion":2,"tierValues":[[12,14],[15,20],[21,26],[27,32],[33,38],[39,45],[46,51],[52,57],[58,63],[64,69],[70,75],[76,81],[82,87],[88,93],[94,99],[100,106],[107,112],[113,118],[119,124],[125,130]],"valueStep":1},
     {"id":"lightPctDmg","type":"prefix","statName":"번개 피해(%)","slots":["무기","반지","목걸이","방패"],"affixBalanceVersion":2,"tierValues":[[12,14],[15,20],[21,26],[27,32],[33,38],[39,45],[46,51],[52,57],[58,63],[64,69],[70,75],[76,81],[82,87],[88,93],[94,99],[100,106],[107,112],[113,118],[119,124],[125,130]],"valueStep":1},
@@ -1552,7 +1629,7 @@ const MOD_DB = [
     {"id":"accuracy","type":"suffix","statName":"정확도","slots":["무기","장갑","반지","목걸이"],"affixBalanceVersion":2,"tierValues":[[150,186],[187,246],[247,306],[307,366],[367,426],[427,486],[487,546],[547,606],[607,666],[667,726],[727,786],[787,846],[847,906],[907,966],[967,1026],[1027,1086],[1087,1146],[1147,1206],[1207,1266],[1267,1326]],"valueStep":1},
     {"id":"armor","type":"prefix","statName":"방어도","slots":["투구","갑옷","장갑","신발","목걸이","반지","허리띠","방패"],"affixBalanceVersion":2,"tierValues":[[22,28],[29,38],[39,48],[49,58],[59,68],[69,78],[79,88],[89,98],[99,108],[109,118],[119,128],[129,138],[139,148],[149,158],[159,168],[169,178],[179,188],[189,198],[199,208],[209,218]],"valueStep":1},
     {"id":"evasion","type":"prefix","statName":"회피","slots":["투구","갑옷","장갑","신발","목걸이","반지","허리띠","방패"],"affixBalanceVersion":2,"tierValues":[[22,28],[29,38],[39,48],[49,58],[59,68],[69,78],[79,88],[89,98],[99,108],[109,118],[119,128],[129,138],[139,148],[149,158],[159,168],[169,178],[179,188],[189,198],[199,208],[209,218]],"valueStep":1},
-    {"id":"energyShield","type":"prefix","statName":"에너지 보호막","slots":["투구","갑옷","장갑","신발","방패"],"affixBalanceVersion":2,"tierValues":[[17,21],[22,29],[30,37],[38,45],[46,53],[54,61],[62,69],[70,77],[78,85],[86,93],[94,101],[102,109],[110,117],[118,125],[126,133],[134,141],[142,149],[150,157],[158,165],[166,173]],"valueStep":1},
+    {"id":"energyShield","type":"prefix","statName":"에너지 보호막","slots":["투구","갑옷","장갑","신발","방패","허리띠"],"affixBalanceVersion":2,"tierValues":[[17,21],[22,29],[30,37],[38,45],[46,53],[54,61],[62,69],[70,77],[78,85],[86,93],[94,101],[102,109],[110,117],[118,125],[126,133],[134,141],[142,149],[150,157],[158,165],[166,173]],"valueStep":1},
     {"id":"armorPct","type":"suffix","statName":"방어도 증가(%)","slots":["투구","갑옷","장갑","신발","방패"],"affixBalanceVersion":2,"tierValues":[[10,12],[13,16],[17,20],[21,24],[25,28],[29,32],[33,36],[37,40],[41,44],[45,48],[49,52],[53,56],[57,60],[61,64],[65,68],[69,72],[73,76],[77,80],[81,84],[85,88]],"valueStep":1},
     {"id":"evasionPct","type":"suffix","statName":"회피 증가(%)","slots":["투구","갑옷","장갑","신발","방패"],"affixBalanceVersion":2,"tierValues":[[10,12],[13,16],[17,20],[21,24],[25,28],[29,32],[33,36],[37,40],[41,44],[45,48],[49,52],[53,56],[57,60],[61,64],[65,68],[69,72],[73,76],[77,80],[81,84],[85,88]],"valueStep":1},
     {"id":"deflectChance","type":"suffix","statName":"비껴내기 확률(%)","slots":["투구","갑옷","장갑","신발","방패"],"affixBalanceVersion":2,"tierValues":[[2,2],[3,3],[4,4],[5,5],[6,6],[7,7],[8,8],[9,9],[10,10],[11,11],[12,12],[13,13],[14,14],[15,15],[16,16],[17,17],[18,18],[19,19],[20,20],[21,21]],"valueStep":1},
@@ -1622,7 +1699,7 @@ const MOD_DB = [
     {"id":"gloveFlatDmg","statId":"flatDmg","type":"prefix","statName":"기본 피해","slots":["장갑"],"tierValues":[[6,6],[7,9],[10,12],[13,15],[16,18],[19,22],[23,26],[27,31],[32,35],[36,40],[41,45],[46,51],[52,56],[57,62],[63,68],[69,74],[75,80],[81,87],[88,93],[94,100]],"affixBalanceVersion":2,"valueStep":1},
     {"id":"accessoryFlatDmg","statId":"flatDmg","type":"prefix","statName":"기본 피해","slots":["목걸이","허리띠"],"tierValues":[[6,6],[7,8],[9,11],[12,14],[15,17],[18,21],[22,24],[25,28],[29,32],[33,37],[38,41],[42,46],[47,51],[52,56],[57,61],[62,67],[68,72],[73,78],[79,84],[85,90]],"affixBalanceVersion":2,"valueStep":1},
     {"id":"attackPctDmg","type":"prefix","statName":"공격 피해 증가(%)","slots":["무기","장갑","목걸이"],"tierValues":[[10,12],[13,17],[18,23],[24,28],[29,34],[35,39],[40,45],[46,50],[51,55],[56,61],[62,66],[67,72],[73,77],[78,82],[83,88],[89,93],[94,98],[99,104],[105,109],[110,115]],"affixBalanceVersion":2,"valueStep":1},
-    {"id":"spellPctDmg","type":"prefix","statName":"주문 피해 증가(%)","slots":["무기","목걸이","방패"],"tierValues":[[10,12],[13,17],[18,23],[24,28],[29,34],[35,39],[40,45],[46,50],[51,55],[56,61],[62,66],[67,72],[73,77],[78,82],[83,88],[89,93],[94,98],[99,104],[105,109],[110,115]],"affixBalanceVersion":2,"valueStep":1},
+    {"id":"spellPctDmg","type":"prefix","statName":"주문 피해 증가(%)","slots":["무기","목걸이","방패","허리띠"],"tierValues":[[10,12],[13,17],[18,23],[24,28],[29,34],[35,39],[40,45],[46,50],[51,55],[56,61],[62,66],[67,72],[73,77],[78,82],[83,88],[89,93],[94,98],[99,104],[105,109],[110,115]],"affixBalanceVersion":2,"valueStep":1},
     {"id":"spellLeech","type":"suffix","statName":"주문 피해의 생명력 흡수(%)","slots":["무기","목걸이","방패"],"affixBalanceVersion":2,"tierValues":[[0.16,0.16],[0.17,0.24],[0.25,0.32],[0.33,0.4],[0.41,0.48],[0.49,0.56],[0.57,0.64],[0.65,0.72],[0.73,0.8],[0.81,0.88],[0.89,0.96],[0.97,1.04],[1.05,1.12],[1.13,1.2],[1.21,1.28],[1.29,1.36],[1.37,1.44],[1.45,1.52],[1.53,1.6],[1.61,1.72]],"valueStep":0.01},
     // 무기 대분류 전용 줄(2026-10-07 드랍 풀 1단계): weaponCategories의 대분류 무기에만 붙는다(js/passives.js getAvailableMods).
     {"id":"greatswordSlamPctDmg","statId":"slamPctDmg","type":"prefix","statName":"강타 피해(%)","slots":["무기"],"weaponCategories":["greatsword"],"affixBalanceVersion":2,"tierValues":[[10,12],[13,17],[18,23],[24,28],[29,34],[35,39],[40,45],[46,50],[51,55],[56,61],[62,66],[67,72],[73,77],[78,82],[83,88],[89,93],[94,98],[99,104],[105,109],[110,115]],"valueStep":1},
@@ -1874,14 +1951,14 @@ const BASE_ITEM_DB = [
     { id: 'twin_stone_ring', slot: '반지', name: '쌍석 반지', reqTier: 14, baseStats: [{ id: 'resF', base: 12 }, { id: 'resL', base: 12 }] },
     { id: 'diamond_ring', slot: '반지', name: '금강석 반지', reqTier: 18, baseStats: [{ id: 'crit', base: 7 }, { id: 'critDmg', base: 18 }] },
     { id: 'root_blade_fang', slot: '무기', name: '뿌리 송곳', reqTier: 6, dropOnly: { type: 'act' }, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 27, legacyDamageBase: 20 }, { id: 'physIgnore', base: 4 }, { id: 'leech', base: 0.8 }] },
-    { id: 'beehive_stinger_mail', slot: '갑옷', name: '벌침 갑피', reqTier: 12, dropOnly: { type: 'beehive' }, baseStats: [{ id: 'flatHp', base: 88 }, { id: 'resChaos', base: 10 }, { id: 'evasion', base: 295 }, { id: 'venomStingerBonus', base: 10 }] },
+    { id: 'beehive_stinger_mail', slot: '갑옷', name: '벌침 갑피', reqTier: 12, dropOnly: { type: 'beehive' }, baseStats: [{ id: 'flatHp', base: 88 }, { id: 'resChaos', base: 10 }, { id: 'evasion', base: 295 }, { id: 'poisonDamageMultiplierPct', base: 10 }] },
     { id: 'grand_breach_shard_helm', slot: '투구', name: '대균열 파편투구', reqTier: 16, dropOnly: { id: 'grand_breach_run' }, baseStats: [{ id: 'flatHp', base: 95 }, { id: 'resAll', base: 9 }, { id: 'dr', base: 4 }, { id: 'energyShield', base: 96 }, { id: 'resPen', base: 6 }] },
-    { id: 'laby_1_greaves', slot: '신발', name: '미궁 수호 각반', reqTier: 8, dropOnly: { type: 'labyrinth', minFloor: 1 }, baseStats: [{ id: 'move', base: 14 }, { id: 'armor', base: 130 }, { id: 'dr', base: 2 }] },
-    { id: 'laby_10_crown', slot: '투구', name: '미궁 심층 관', reqTier: 12, dropOnly: { type: 'labyrinth', minFloor: 10 }, baseStats: [{ id: 'flatHp', base: 76 }, { id: 'resAll', base: 8 }, { id: 'armor', base: 230 }, { id: 'regen', base: 0.8 }] },
-    { id: 'laby_20_robe', slot: '갑옷', name: '미궁 절정 로브', reqTier: 16, dropOnly: { type: 'labyrinth', minFloor: 20 }, baseStats: [{ id: 'energyShield', base: 180 }, { id: 'resChaos', base: 10 }, { id: 'spellFlatPct', base: 10 }] },
-    { id: 'laby_30_ring', slot: '반지', name: '미궁 군주의 반지', reqTier: 20, dropOnly: { type: 'labyrinth', minFloor: 30 }, baseStats: [{ id: 'resAll', base: 10 }, { id: 'crit', base: 8 }, { id: 'resPen', base: 6 }] },
+    { id: 'laby_1_greaves', slot: '신발', name: '미궁 수호 각반', reqTier: 8, dropOnly: { type: 'labyrinth', minFloor: 1, minTier: 7 }, baseStats: [{ id: 'move', base: 14 }, { id: 'armor', base: 130 }, { id: 'dr', base: 2 }] },
+    { id: 'laby_10_crown', slot: '투구', name: '미궁 심층 관', reqTier: 12, dropOnly: { type: 'labyrinth', minFloor: 10, minTier: 10 }, baseStats: [{ id: 'flatHp', base: 76 }, { id: 'resAll', base: 8 }, { id: 'armor', base: 230 }, { id: 'regen', base: 0.8 }] },
+    { id: 'laby_20_robe', slot: '갑옷', name: '미궁 절정 로브', reqTier: 16, dropOnly: { type: 'labyrinth', minFloor: 20, minTier: 13 }, baseStats: [{ id: 'energyShield', base: 180 }, { id: 'resChaos', base: 10 }, { id: 'spellFlatPct', base: 10 }] },
+    { id: 'laby_30_ring', slot: '반지', name: '미궁 군주의 반지', reqTier: 20, dropOnly: { type: 'labyrinth', minFloor: 30, minTier: 15 }, baseStats: [{ id: 'resAll', base: 10 }, { id: 'crit', base: 8 }, { id: 'resPen', base: 6 }] },
     { id: 'trial_emblem_gloves', slot: '장갑', name: '시련 문양 건틀릿', reqTier: 15, dropOnly: { type: 'trial' }, baseStats: [{ id: 'aspd', base: 9 }, { id: 'dr', base: 3 }, { id: 'armor', base: 190 }, { id: 'critDmg', base: 20 }] },
-    { id: 'beehive_queen_veil', slot: '투구', name: '여왕벌 면사포', reqTier: 14, dropOnly: { type: 'beehive' }, baseStats: [{ id: 'flatHp', base: 82 }, { id: 'evasion', base: 138 }, { id: 'resChaos', base: 12 }, { id: 'venomStingerBonus', base: 12 }] },
+    { id: 'beehive_queen_veil', slot: '투구', name: '여왕벌 면사포', reqTier: 14, dropOnly: { type: 'beehive' }, baseStats: [{ id: 'flatHp', base: 82 }, { id: 'evasion', base: 138 }, { id: 'resChaos', base: 12 }, { id: 'poisonDamageMultiplierPct', base: 12 }] },
     { id: 'trial_warden_boots', slot: '신발', name: '시련 감시자 장화', reqTier: 17, dropOnly: { type: 'trial' }, baseStats: [{ id: 'move', base: 20 }, { id: 'armor', base: 128 }, { id: 'dr', base: 4 }, { id: 'resPen', base: 5 }] },
     { id: 'riftglass_robe', slot: '갑옷', name: '균열유리 로브', reqTier: 18, dropOnly: { id: 'grand_breach_run' }, baseStats: [{ id: 'energyShield', base: 256 }, { id: 'resChaos', base: 14 }, { id: 'spellFlatPct', base: 14 }, { id: 'flatHp', base: -40 }] },
     { id: 'meteor_trace_greaves', slot: '신발', name: '운석 자취 경갑', reqTier: 19, dropOnly: { type: 'meteor' }, baseStats: [{ id: 'move', base: 22 }, { id: 'evasion', base: 150 }, { id: 'crit', base: 8 }, { id: 'resL', base: 14 }] },
@@ -1969,6 +2046,7 @@ const BASE_ITEM_DB = [
     { id: 'strongman_belt', slot: '허리띠', name: '역사의 허리띠', reqTier: 12, family: 'champion', baseStats: [{ id: 'flatHp', base: 60 }, { id: 'strength', base: 12 }, { id: 'meleePctDmg', base: 8 }] },
     { id: 'herbalist_sash', slot: '허리띠', name: '약초꾼 띠', reqTier: 12, family: 'alchemist', baseStats: [{ id: 'flatHp', base: 55 }, { id: 'potionPctDmg', base: 9 }, { id: 'dotPctDmg', base: 5 }] },
     { id: 'tracker_baldric', slot: '허리띠', name: '추적자의 띠', reqTier: 12, family: 'hunter', baseStats: [{ id: 'flatHp', base: 55 }, { id: 'dexterity', base: 12 }, { id: 'projectilePctDmg', base: 8 }] },
+    { id: 'scholar_sash', slot: '허리띠', name: '학자의 띠', reqTier: 12, family: 'scholar', baseStats: [{ id: 'flatHp', base: 55 }, { id: 'intelligence', base: 12 }, { id: 'spellPctDmg', base: 8 }] },
     { id: 'bigtree_maul', slot: '무기', name: '거목 망치', reqTier: 12, family: 'maul', requirementWeights: { strength: 1 }, baseStats: [{ id: 'flatDmg', base: 52 }, { id: 'physPctDmg', base: 9 }] },
     { id: 'fang_kris', slot: '무기', name: '뱀이빨 크리스', reqTier: 12, family: 'kris', requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 46 }, { id: 'chaosPctDmg', base: 10 }, { id: 'aspd', base: 4 }] },
     { id: 'hunting_longbow', slot: '무기', name: '사냥 장궁', reqTier: 12, family: 'longbow', requirementWeights: { dexterity: 1 }, baseStats: [{ id: 'flatDmg', base: 44 }, { id: 'projectilePctDmg', base: 12 }, { id: 'crit', base: 4 }] },
@@ -2028,6 +2106,7 @@ const BASE_ITEM_DB = [
     { id: 'champion_belt', slot: '허리띠', name: '투사의 허리띠', reqTier: 20, family: 'champion', baseStats: [{ id: 'flatHp', base: 90 }, { id: 'strength', base: 20 }, { id: 'meleePctDmg', base: 12 }] },
     { id: 'alchemist_sash', slot: '허리띠', name: '연금술사의 띠', reqTier: 20, family: 'alchemist', baseStats: [{ id: 'flatHp', base: 80 }, { id: 'potionPctDmg', base: 14 }, { id: 'dotPctDmg', base: 8 }] },
     { id: 'hunter_baldric', slot: '허리띠', name: '사냥꾼의 띠', reqTier: 20, family: 'hunter', baseStats: [{ id: 'flatHp', base: 80 }, { id: 'dexterity', base: 20 }, { id: 'projectilePctDmg', base: 12 }] },
+    { id: 'archsage_sash', slot: '허리띠', name: '대현자의 띠', reqTier: 20, family: 'scholar', baseStats: [{ id: 'flatHp', base: 80 }, { id: 'intelligence', base: 20 }, { id: 'spellPctDmg', base: 12 }] },
     { id: 'oak_maul', slot: '무기', name: '고목 대망치', reqTier: 17, family: 'maul', requirementWeights: { strength: 1 }, baseStats: [{ id: 'flatDmg', base: 112 }, { id: 'physPctDmg', base: 14 }] },
     { id: 'worldbreaker_maul', slot: '무기', name: '세계파쇄 대망치', reqTier: 20, family: 'maul', requirementWeights: { strength: 1 }, baseStats: [{ id: 'flatDmg', base: 150 }, { id: 'physPctDmg', base: 20 }] },
     { id: 'venom_kris', slot: '무기', name: '독니 크리스', reqTier: 17, family: 'kris', requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 98 }, { id: 'chaosPctDmg', base: 16 }, { id: 'aspd', base: 6 }] },
@@ -2342,6 +2421,7 @@ const defaultGame = {
         equipmentTargets: { enabled: false, slot: 'any', scope: 'explicit', minMatches: 1, rules: [] },
         autoEnterMeteor: false,
         autoEnterGrandBreach: false,
+        autoRediveOcean: false,
         // 자동 환생(js/loop-automation-ui.js): 관문을 채우면 몇 초 뒤 다음 루프로, 다음 직업은 'ask' | 'keep'.
         autoLoop: false, autoLoopClass: 'ask',
         mapCompleteAction: 'nextZone',
@@ -2494,6 +2574,8 @@ const defaultGame = {
     // null before settlement or for legacy receipts; retained until the next entry/loop reset.
     voidRift: { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, grandBreachCleared: false, activeKills: 0, requiredKills: 0 },
     sporeCraftModes: {},
+    craftOmen: null, // 걸어 둔 제작 뿌리 { key, side }(data/items.js CRAFT_OMENS): 다음 맞는 제작 한 번에 쓰인다
+    craftChoice: null, // 성화의 뿌리로 굴린 결과 { itemId, options }: 고를 때까지 남는다(js/equipment-crafting.js craftBasic)
     salvageRecovery: { entries: [], sequence: 0 },
     blackMarket: { nextRefreshAt: 0, extraSlots: 0, offers: [], lockedOffers: {}, preferredSlot: 'any', insight: 0, manualRefreshes: 0 },
     // NPC escrow: UTC millisecond clocks and independent visitors, with integer proceeds per currency.

@@ -1,4 +1,4 @@
-// 옆에서 보는 무대 (2026-10-11 사용자 결정: 던파식 캐릭터를 쓰고 전장도 옆에서 보는 무대로 바꾼다. 대검은 검방패 자세로 대신한다).
+// 옆에서 보는 무대 (2026-10-11 사용자 결정: 던파식 캐릭터를 쓰고 전장도 옆에서 보는 무대로 바꾼다. 2026-10-20부터 주인공은 모션 공방의 6직업 × 7무기).
 // 전투 규칙과 격자는 그대로 두고 그리는 법만 바꾼다: 격자의 가로는 무대의 좌우, 세로는 무대의 깊이다. 깊이 한 칸은 화면에서
 // depth배로 눌려 보이고, 캐릭터와 몬스터는 옆모습으로 서서 깊이 순서대로 겹친다. 2026-10-13부터 게임의 기본 전장이다
 // (js/canvas-stage-actors.js stageView.wanted): 무대 그림이 있는 판은 무대로, 없는 판은 위에서 보는 전장으로 그린다.
@@ -23,17 +23,18 @@ const STAGE_VIEW = Object.freeze({
     anchorY: 0.46,
     /** 칸 너비가 이 값일 때 캐릭터 도트 하나가 화면 1px이다. */
     heroTile: 64,
-    /** 무기 자세 id (data/stage-characters.js의 무기 id와 같다). */
-    stances: Object.freeze(['unarmed', 'swordshield', 'dagger', 'bow', 'orb', 'flask', 'censer']),
-    /** 낀 무기의 대분류(data/weapon-categories.js) → 자세. 대검은 자세 그림이 없어 검방패를 든다(사용자 결정). */
-    stanceByCategory: Object.freeze({ greatsword: 'swordshield', scimitar: 'dagger', shortbow: 'bow', orb: 'orb', flask: 'flask', censer: 'censer' }),
-    /** 곡도에 방패를 함께 끼면 드는 자세. */
-    shieldStance: 'swordshield',
+    /** 무기 자세 id (data/stage-characters.js의 무기 id와 같다). 낀 무기의 대분류 → 자세는 data/skills.js SKILL_RUNE_STANCE_BY_CATEGORY. */
+    stances: Object.freeze(['unarmed', 'greatsword', 'sword', 'bow', 'orb', 'flask', 'censer']),
     /** 준비 시간(휘두르기 시작 → 타격)이 이보다 짧으면 9장 이하의 짧은 공격 그림만 쓴다: 17장짜리를 그 안에 넣으면 깜빡이기만 한다. */
     shortWindupMs: 320,
     shortClipFrames: 9,
     /** 휘두름 사이가 이보다 길면 연속기를 처음 휘두름부터 다시 한다(쉬었다 다시 치면 준비 자세에서 시작한다). */
-    comboResetMs: 1500
+    comboResetMs: 1500,
+    /** 전투가 휘두름에 적는 자세 이름(js/combat.js, js/skill-gem-casts.js) → 무대 주인공의 동작(2026-10-20 스킬룬 전달본 v42의 이동 모션):
+     * kickoff 사라지기 전에 박차고 나가기(암살, 그림자 점멸: 한손검 이동), pull 끌려가는 동안 밧줄 당기기(작살화살: 활 이동). */
+    poseMotions: Object.freeze({ kickoff: 'move', pull: 'move' }),
+    /** 그림자 점멸이 박차고 나가는 시간(ms): 그동안 그림은 떠난 칸에 있고 휘두름 앞부분에 이동 동작을 그린 뒤 사라져 닿는 칸에 나타난다. */
+    kickoffMs: 200
 });
 // 무대의 지형(js/canvas-stage-terrain.js): 지도마다 바닥 판석 색과 뒷벽 벽돌 색 두 가지만 정한다. 나머지 음영은 그리는 쪽이 만든다.
 // wallMax: 뒷벽의 최대 높이(도트, 깊이 네 칸). pillarEvery: 높은 뒷벽에 기둥을 세우는 가로 간격(칸).
@@ -267,24 +268,35 @@ const STAGE_SCENES = Object.freeze({
         })
     })
 });
-/** 무대에서 몬스터 그림을 그리는 배율(js/canvas-stage-roster.js): 외형 id의 앞머리 → 배율, 여기에 없는 외형은 1(그림의 도트 = 캐릭터의 도트).
+/** 무대에서 몬스터 그림을 그리는 배율(js/combat-grid.js getStageLookScale, 그리기와 보스가 차지하는 칸이 함께 쓴다): '-'로 끝나는 키는
+ * 외형 id의 앞머리, 그 밖의 키는 외형 id 하나이고 외형 id가 앞선다. 여기에 없는 외형은 1(그림의 도트 = 캐릭터의 도트).
  * 2026-10-13 사용자: "위습 크기 줄이고"(몬스터 위습). 새 위습 그림은 몸이 가로 75~108도트, 세로 60도트쯤에 머리 높이로 떠 있어
  * 주인공(가로 40도트쯤)보다 크게 보였다. 0.7배로 줄여 몸이 가로 52~76도트, 세로 42도트쯤이다. */
 // 같은 날 밤 "벌 크기도 줄여줘": 새 벌 그림은 전투벌의 몸이 가로 100도트, 근위벌 142도트, 여왕 185도트로 주인공을 덮었다(검토에서도
 // 주인공이 벌 밑에 묻힌다고 짚었다). 0.6배로 전투벌 60도트, 근위벌 85도트, 여왕 111도트다.
-const STAGE_MONSTER_SCALE = Object.freeze({ 'wisp-': 0.7, 'hive-': 0.6 });
+// 2026-10-21 사용자: "플레이어 캐릭터의 얼굴비율과 몬스터의 비율이 맞도록 해줘", 이어서 "보스별로 다르게 크기 조절". 주인공 머리는 22도트에
+// 둥글고 넓다(머리카락까지 폭 28도트쯤). 두건이나 투구로 머리가 그만큼 큰 보스는 그대로 두고, 얼굴이 가늘고 작아 주인공 옆에서 작아 보이던
+// 보스만 머리가 주인공과 견줄 만큼 키운다(artifacts/endgame-boss-motion-20261020-review). 밑거름의 장로는 얼굴이 없지만 최종 보스가 주인공보다
+// 작아(98도트, 주인공 117도트) 키운다. 일반 몬스터 가운데 사람 모양인 부제사와 부제녀 8종(키 90~94도트, 두건 19도트)도 같은 날
+// "부제사와 부제녀 8종도 1.2배로 맞춰줘".
+const STAGE_MONSTER_SCALE = Object.freeze({ 'wisp-': 0.7, 'hive-': 0.6, 'deacon-': 1.2,
+    apex_gardener: 1.4, apex_archbishop: 1.4, apex_weaver: 1.2, apex_compost: 1.2, bossAct4_1: 1.2,
+    s2_boss_flame: 1.15, s2_boss_frost: 1.3, s2_boss_storm: 1.2,
+    rival_overheat: 1.25, rival_dull: 1.4, rival_glutton: 1.2, rival_afterimage: 1.4, rival_backedge: 1.15, rival_masterwork: 1.1 });
 
 /** 방 단위 무대의 입구 방에 서는 이야기 NPC(js/canvas-act-title-card.js). 이야기 액트와 시련에서 그 대사의 NPC(data/story-journal.js
  * STORY_NPCS, 이름으로 찾는다)가 입구 방에 선다. 엔드게임 콘텐츠 지도에는 서지 않는다(2026-10-15 사용자: "콘텐츠 지도 입구 NPC도 빼줘",
  * 지도마다 같은 NPC가 앞질러 서 있는 게 어색했다). 누르면 그 NPC의 창(대사, 즉시 해금, 상점)이 열린다(js/content-progression-ui.js openNpc).
  * 그림은 assets/stage-npcs/<id>-idle.png(대기 6프레임 한 줄, 칸 cell, 발 feet, 머리 꼭대기 head, 프레임마다 frameMs)와
- * <id>-portrait.png(일러스트, 480×720). scale: 몸이 89도트로 주인공(97도트)보다 작아 아이처럼 보여 늘려 그린다.
- * 저장소 밖 그림이다(scripts/build-stage-npcs.cjs가 옮긴다). 그림이 없으면 NPC는 서지 않고 대사만 띠에 나온다.
+ * <id>-portrait.png(일러스트, 480×720). scripts/build-stage-npcs.cjs가 그림 도구의 시트를 검사해 옮긴다. 그림이 없으면 NPC는 서지 않고
+ * 대사만 띠에 나온다. 2026-10-21 새 주인공 비율로 다시 그린 판(artifacts/npc-idle-revision-20261021, 키 112~120도트, 머리 23~25도트)이라
+ * scale은 1(그림의 도트 = 주인공의 도트)이다. 예전 판은 몸이 89도트로 주인공(97도트)보다 작아 1.15배로 그렸다. head는 가장 큰 오르가의
+ * 머리 꼭대기다. version은 그림을 바꿀 때 올린다(브라우저가 예전 시트를 쥐고 새 칸으로 자르지 않게).
  * 2026-10-15 사용자: "하켄부터 세워봐", 이어서 NPC 도트와 일러스트 다섯을 만들어 줬다. 하켄은 액트 5에서 쓰러지므로 엔드게임 자리는 없다. */
 /** 쓰러진 자리에서 이야기가 다시 일으키는 보스(act bossId, js/canvas-boss-revive.js): 처치 대사가 나오는 동안 황금 수액 기둥과 다시 차오르는
  * 체력바를 그린다(2026-10-15: 2막 부제녀의 처치 대사는 "다시 일으킨다!"인데 화면에는 아무 일도 없었다). fillMs: 막대가 다 차는 데 걸리는 시간. */
 const STAGE_BOSS_REVIVAL = Object.freeze({ bosses: Object.freeze(['gardener_immortal']), fillMs: 1400 });
-const STAGE_NPC_ART = Object.freeze({ path: 'assets/stage-npcs/', cell: 128, feet: Object.freeze([64, 112]), head: 22, scale: 1.15,
+const STAGE_NPC_ART = Object.freeze({ path: 'assets/stage-npcs/', version: '20261021-1', cell: 160, feet: Object.freeze([80, 144]), head: 24, scale: 1,
     frameMs: Object.freeze([720, 260, 460, 280, 140, 720]) });
 
 /** 판(9×8)에서 싸우던 콘텐츠가 방 단위 무대에서 걷는 지도(2026-10-13 밤 사용자: "그거 포함해서 아틀라스도, 옮겨줘". js/content-maps.js withRooms).
@@ -297,32 +309,37 @@ const STAGE_BOARD_ROOMS = Object.freeze({
     colonyWaves: 5
 });
 
-// 정리 묶음(data/stage-characters.js, 다시 가져와 만드는 표)에 없는 주인공 동작: 직업 → 무기 자세 → 동작. 규격은 묶음과 같다(칸 128×128,
-// 발바닥 줄 110, 발 가운데 63, 오른쪽을 본다). 그림은 scripts/cut-stage-hero-motion.cjs로 잘라 assets/playable/stage/에 둔다(저장소에 넣지
-// 않는다). 2026-10-14 사용자가 준 전사의 찌르기(9장)와 베기(17장, 세 번 이어 베는 연속기): 베기는 휘두름 하나씩 셋으로 나눴다(0~3, 3~5,
-// 6~10번. 11~16번은 6~10번을 되풀이한 그림이라 쓰지 않았다). 찌르기의 6번 프레임은 칼끝의 흰 섬광이 칸 밖으로 12점 나가 잘렸다.
-// 같은 날 받은 셋째 그림(9장): 낮게 휘둘러 한 번 치고 몸을 한 바퀴 돌려 빛나는 칼로 크게 벤다(돌려베기, 타격은 마지막 8번).
-const STAGE_HERO_MOTIONS = Object.freeze({
-    warrior: Object.freeze({
-        swordshield: Object.freeze({
-            thrust: Object.freeze({ frames: 9, ms: Object.freeze([90, 90, 80, 70, 70, 80, 140, 110, 110]), hit: Object.freeze([6]), file: 'warrior/swordshield/thrust.png' }),
-            slash: Object.freeze({ frames: 4, ms: Object.freeze([90, 80, 140, 110]), hit: Object.freeze([2]), file: 'warrior/swordshield/slash.png' }),
-            slash2: Object.freeze({ frames: 3, ms: Object.freeze([80, 80, 140]), hit: Object.freeze([2]), file: 'warrior/swordshield/slash2.png' }),
-            slash3: Object.freeze({ frames: 5, ms: Object.freeze([90, 90, 140, 110, 110]), hit: Object.freeze([2]), file: 'warrior/swordshield/slash3.png' }),
-            spin: Object.freeze({ frames: 9, ms: Object.freeze([90, 80, 80, 90, 70, 70, 70, 90, 160]), hit: Object.freeze([8]), file: 'warrior/swordshield/spin.png' })
-        })
-    })
-});
-/** 처음 장면의 쓰러진 주인공이 일어나는 동작(2026-10-15 사용자가 만든 6직업 그림, scripts/build-stage-hero-rise.cjs가 옮긴다): 맨손 자세의
- * <직업>/unarmed/rise.png, 주인공 칸과 같은 규격. 0번이 쓰러진 모습(처음 850ms는 쓰러진 채 머문다), 마지막은 맨손 대기의 첫 프레임이다.
- * 쓰는 곳은 js/canvas-stage-actors.js setRise(js/opening-journey-ui.js가 정한다). */
-const STAGE_HERO_RISE = Object.freeze({ file: 'unarmed/rise.png', ms: Object.freeze([850, 180, 220, 240, 260, 220, 220, 650]) });
-/** 휘두르는 모양: 동작 이름 → 그 동작으로 휘두르는 스킬. 그 동작이 있는 자세에서만 쓰고(지금은 전사의 검방패), 없는 자세와 여기에 없는
- * 스킬은 보통 공격 그림(공격, 공격2 …)을 돌린다. 한 대상을 노리는 찌르는 기술은 찌르기, 휘둘러 베는 기술은 베기, 도는 기술은 돌려베기. */
-const STAGE_HERO_STRIKES = Object.freeze({
-    thrust: Object.freeze(['기습 공격', '흡혈 관통']),
-    slash: Object.freeze(['기본 공격', '이중 베기', '강타', '번개 타격', '화염 참격', '공허 가르기', '그림자 점멸']),
-    spin: Object.freeze(['회오리'])
+/** 처음 장면의 쓰러진 주인공이 일어나는 동작: 맨손 사망(9장)을 거꾸로 이은 <직업>/unarmed/rise.png(scripts/import-stage-characters.cjs가
+ * 만든다, 칸과 발 기준점은 사망과 같다). 0번이 쓰러진 모습(처음 850ms는 쓰러진 채 머문다), 마지막은 사망의 0번(선 자세)이다.
+ * 2026-10-20 새 주인공에는 따로 그린 일어나기가 없어 사망을 거꾸로 쓴다. 쓰는 곳은 js/canvas-stage-actors.js setRise(js/opening-journey-ui.js가 정한다). */
+const STAGE_HERO_RISE = Object.freeze({ file: 'unarmed/rise.png', ms: Object.freeze([850, 170, 190, 210, 230, 240, 220, 200, 650]) });
+
+/** 심해 무대의 물속 신호(js/canvas-stage-ocean.js, 2026-10-20 GPT 심해 그림 2차, 요청문 artifacts/ocean-art-request-20261019). 그림은 path 아래에
+ * 있고, 1px이 캐릭터 도트 하나다(빛줄기 겹침은 방 그림과 같은 크기). 방 그림은 수심 띠마다 다르다(data/stage-room-plans.js regions.ocean).
+ *   bands 방 그림(지역) → light 방 그림 위에 겹치는 빛줄기(없으면 null), dust 발밑 먼지, shade 소품과 문 봉인에 얹는 어둠(없으면 null),
+ *         bright 바닥이 밝아 문 표시의 빛무리를 어둡게 까는 띠
+ *   bubbles 영웅 머리 위 거품: 칸, 장 수, 장마다 ms, 다음 거품까지 ms, 발에서 거품 칸의 아래까지 도트
+ *   dust 발밑 먼지: 칸, 장 수, 장마다 ms, 그림마다 발 자리(진흙 먼지는 밑이 두 줄 위다)
+ *   air 쓰러진 몬스터가 남기는 공기 기둥: 칸, 장 수, 장마다 ms, 발 자리(보이는 시간은 js/combat.js noteOceanKill, 끝 4분의 1은 옅어진다)
+ *   drift 떠다니는 입자 두 층: 그림, 크기, 1초에 흐르는 도트 [가로, 세로], 진하기, front 배우 앞에 그리는 층
+ *   lift 가디언 방의 리프트: 그림(가디언이 서 있는 동안 닫힘, 쓰러지면 열림), 크기, 발 자리, 뒤쪽 바닥선 아래 도트 */
+const STAGE_OCEAN = Object.freeze({
+    path: 'assets/stage-scenes/ocean/',
+    bands: Object.freeze({
+        'ocean-shallow': Object.freeze({ light: 'light-shallow', dust: 'dust-sand', shade: null, bright: true }),
+        ocean: Object.freeze({ light: 'light-twilight', dust: 'dust-sand-twilight', shade: null, bright: false }),
+        'ocean-lightless': Object.freeze({ light: null, dust: 'dust-mud', shade: 'rgba(6,14,34,0.5)', bright: false }),
+        'ocean-trench': Object.freeze({ light: null, dust: 'dust-mud', shade: 'rgba(4,10,24,0.55)', bright: false })
+    }),
+    bubbles: Object.freeze({ file: 'bubbles-hero', cell: Object.freeze([32, 64]), frames: 8, frameMs: 125, everyMs: 4200, headDots: 76 }),
+    dust: Object.freeze({ cell: Object.freeze([64, 32]), frames: 6, frameMs: 80,
+        feet: Object.freeze({ 'dust-sand': Object.freeze([32, 31]), 'dust-sand-twilight': Object.freeze([32, 31]), 'dust-mud': Object.freeze([32, 29]) }) }),
+    air: Object.freeze({ file: 'air-column', cell: Object.freeze([64, 192]), frames: 8, frameMs: 125, feet: Object.freeze([32, 190]) }),
+    drift: Object.freeze([
+        Object.freeze({ file: 'drift-far', size: Object.freeze([1280, 720]), flow: Object.freeze([-5, -8]), alpha: 0.7, front: false }),
+        Object.freeze({ file: 'drift-near', size: Object.freeze([1280, 720]), flow: Object.freeze([-11, -18]), alpha: 0.85, front: true })
+    ]),
+    lift: Object.freeze({ closed: 'ocean-lift-closed', open: 'ocean-lift-open', size: Object.freeze([160, 240]), feet: Object.freeze([80, 236]), below: 12 })
 });
 
-safeExposeData({ STAGE_HERO_MOTIONS, STAGE_HERO_RISE, STAGE_HERO_STRIKES, STAGE_VIEW, STAGE_TERRAIN, STAGE_ROOMS, STAGE_BACKDROPS, STAGE_OBJECTS, STAGE_STORY, STAGE_PROPS, STAGE_SCENES, STAGE_MONSTER_SCALE, STAGE_NPC_ART, STAGE_BOSS_REVIVAL, STAGE_BOARD_ROOMS });
+safeExposeData({ STAGE_HERO_RISE, STAGE_VIEW, STAGE_TERRAIN, STAGE_ROOMS, STAGE_BACKDROPS, STAGE_OBJECTS, STAGE_STORY, STAGE_PROPS, STAGE_SCENES, STAGE_MONSTER_SCALE, STAGE_NPC_ART, STAGE_BOSS_REVIVAL, STAGE_BOARD_ROOMS, STAGE_OCEAN });

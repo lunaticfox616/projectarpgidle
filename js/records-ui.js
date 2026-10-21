@@ -16,6 +16,9 @@
     // 그리고 콘텐츠마다 그 세계의 색. 카드는 값과 왼쪽 테가 그 색이다(statCard).
     const TONE = Object.freeze({ loop: '#e8c27a', time: '#8fd8ff', level: '#8fe07a', chaos: '#b78bff', labyrinth: '#d9b066', sky: '#9fd0ff',
         underworld: '#54b8a4', ocean: '#5ab8f0', colony: '#9fd46a', zone: '#eee7dc', damage: '#ff8a5c' });
+    // 잔잔한 사건마다 그 사건의 빛깔(data/act-exploration-maps.js의 테와 같은 결), 숨은 사건은 겪기 전에는 잿빛.
+    const INCIDENT_TONE = Object.freeze({ critter: '#ffcf4a', stray: '#9be0a4', sleep: '#a9b8ff', star: '#ffe9a0', challenge: '#ff9f6b', breath: '#b8f0c8', shower: '#ffd36e', rainbow: '#c79bff',
+        feast: '#ffcf4a', yawn: '#9fd46a', lucky: '#8fd8ff', luckyKill: '#c79bff', unknown: '#8b8478' });
 
     // 최고 도달 지점 표. 값이 0이면 아직 가보지 않은 콘텐츠라 행 자체를 숨긴다
     // (해보지 않은 콘텐츠를 "0층"으로 보여주면 스포일러이자 소음이다).
@@ -32,9 +35,6 @@
         { key: 'colonyWave', label: '군락지 방어', unit: '파도', tone: TONE.colony }
     ];
 
-    function escape(value) {
-        return typeof escapeHTML === 'function' ? escapeHTML(String(value == null ? '' : value)) : String(value == null ? '' : value);
-    }
 
     function formatCount(value) {
         return Math.floor(Number(value) || 0).toLocaleString();
@@ -70,9 +70,9 @@
         let icon = ['attack', 'phys', 'fire', 'cold', 'light', 'chaos'].includes(iconKind)
             ? `<span class="records-stat-icon combat-log-icon combat-log-icon--${iconKind}" aria-hidden="true"></span>` : '';
         return `<div class="records-stat"${tone ? ` style="--record-tone:${tone}"` : ''}>${icon}`
-            + `<span class="records-stat-label">${escape(label)}</span>`
-            + `<strong class="records-stat-value">${escape(value)}</strong>`
-            + (sub ? `<small class="records-stat-sub">${escape(sub)}</small>` : '')
+            + `<span class="records-stat-label">${escapeHTML(label)}</span>`
+            + `<strong class="records-stat-value">${escapeHTML(value)}</strong>`
+            + (sub ? `<small class="records-stat-sub">${escapeHTML(sub)}</small>` : '')
             + '</div>';
     }
 
@@ -85,7 +85,7 @@
                 ${statCard('', '이번 루프 진행', formatDuration(view.currentLoop.activeMs), `실제 경과 ${formatDuration(view.currentLoop.elapsedMs)}`, TONE.time)}
             </div>
             <details class="records-time-note"><summary>시간 기록 안내</summary>
-            <p class="records-note">기록 시작 ${escape(formatDate(view.startedAt))}, ${escape(formatDuration(view.trackedForMs))} 동안 기록<br>
+            <p class="records-note">기록 시작 ${escapeHTML(formatDate(view.startedAt))}, ${escapeHTML(formatDuration(view.trackedForMs))} 동안 기록<br>
             시간 기록은 이 기능이 추가된 시점부터 쌓입니다. 진행 시간은 실제 게임 계산 시간이며, 실제 경과는 자리를 비운 시간도 포함합니다.</p></details>
         </section>`;
     }
@@ -94,8 +94,8 @@
         let summary = view.loopSummary;
         let summaryRow = `<div class="records-stat-row">
             ${statCard('', '완료한 루프', `${formatCount(summary.count)}회`, '기록 시작 이후', TONE.loop)}
-            ${statCard('', '최단 루프', summary.fastestMs ? formatDuration(summary.fastestMs) : '—', summary.fastestLoop ? `루프 ${formatCount(summary.fastestLoop)}, 진행 시간` : '아직 없음', TONE.level)}
-            ${statCard('', '평균 루프', summary.averageMs ? formatDuration(summary.averageMs) : '—', '진행 시간', TONE.time)}
+            ${statCard('', '최단 루프', summary.fastestMs ? formatDuration(summary.fastestMs) : '-', summary.fastestLoop ? `루프 ${formatCount(summary.fastestLoop)}, 진행 시간` : '아직 없음', TONE.level)}
+            ${statCard('', '평균 루프', summary.averageMs ? formatDuration(summary.averageMs) : '-', '진행 시간', TONE.time)}
         </div>`;
 
         if (!view.loops.length) {
@@ -107,10 +107,10 @@
 
         let rows = view.loops.map(row => `<tr>
             <td class="records-loop">${formatCount(row.loop)}</td>
-            <td class="records-num${summary.fastestMs && row.activeMs === summary.fastestMs ? ' is-best' : ''}">${escape(formatDuration(row.activeMs))}</td>
-            <td class="records-num">${escape(formatDuration(row.durationMs))}</td>
-            <td>${escape(getZoneLabel(row.maxZoneId))}</td>
-            <td class="records-num records-chaos">${row.bestAbyssDepth ? `${formatCount(row.bestAbyssDepth)}층` : '—'}</td>
+            <td class="records-num${summary.fastestMs && row.activeMs === summary.fastestMs ? ' is-best' : ''}">${escapeHTML(formatDuration(row.activeMs))}</td>
+            <td class="records-num">${escapeHTML(formatDuration(row.durationMs))}</td>
+            <td>${escapeHTML(getZoneLabel(row.maxZoneId))}</td>
+            <td class="records-num records-chaos">${row.bestAbyssDepth ? `${formatCount(row.bestAbyssDepth)}층` : '-'}</td>
             <td class="records-num records-level">Lv.${formatCount(row.level)}</td>
             <td class="records-num${row.deaths > 0 ? ' is-deaths' : ''}">${formatCount(row.deaths)}</td>
         </tr>`).join('');
@@ -144,9 +144,9 @@
             let best = view.actBest[id];
             let isBestThisLoop = current !== undefined && best !== undefined && current <= best;
             return `<tr>
-                <td>${escape(getZoneLabel(id))}</td>
-                <td class="records-num">${current === undefined ? '—' : escape(formatDuration(current))}</td>
-                <td class="records-num${isBestThisLoop ? ' is-best' : ''}">${best === undefined ? '—' : escape(formatDuration(best))}</td>
+                <td>${escapeHTML(getZoneLabel(id))}</td>
+                <td class="records-num">${current === undefined ? '-' : escapeHTML(formatDuration(current))}</td>
+                <td class="records-num${isBestThisLoop ? ' is-best' : ''}">${best === undefined ? '-' : escapeHTML(formatDuration(best))}</td>
             </tr>`;
         }).join('');
         return `<section class="records-section">
@@ -180,6 +180,18 @@
         </section>`;
     }
 
+    // 잔잔한 사건(js/combat-incidents.js): 겪은 횟수. 숨은 사건은 한 번 겪기 전까지 이름 대신 ???로 둔다(있다는 것만 보인다).
+    function renderIncidentSection(view) {
+        let cards = view.incidents.map(row => (row.hidden && !row.count
+            ? statCard('', '???', '-', '숨은 사건', INCIDENT_TONE.unknown)
+            : statCard('', row.name, `${formatCount(row.count)}회`, row.hidden ? '숨은 사건' : '', INCIDENT_TONE[row.key]))).join('');
+        const hidden = view.incidents.filter(row => row.hidden), found = hidden.filter(row => row.count > 0).length; // 찾은 숨은 사건 수
+        return `<section class="records-section">
+            <div class="records-section-title">잔잔한 사건<span>사냥 중에 드물게 일어나는 일, 루프를 넘겨도 유지됩니다. 숨은 사건 ${found}/${hidden.length}</span></div>
+            <div class="records-stat-row">${cards}</div>
+        </section>`;
+    }
+
     function renderEchoSection(view) {
         let echo = view.echo;
         if (!echo.runs) return '';
@@ -201,6 +213,7 @@
             + (typeof weaponMasteryUi === 'object' ? weaponMasteryUi.sectionHtml() : '')
             + renderActSection(view)
             + renderBestSection(view)
+            + renderIncidentSection(view)
             + renderLoopSection(view)
             + `<details class="records-offline"><summary>영구 방치 성장<span>강화, 방치 지시, 보관함</span></summary>${offlineHtml}</details>`
             + renderEchoSection(view);

@@ -376,29 +376,6 @@
     margin-top: 8px;
 }
 
-.craft-target-metrics {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 5px;
-  margin-top: 8px;
-}
-
-.craft-target-metrics span {
-  display: grid;
-  gap: 1px;
-  padding: 5px 6px;
-  border: 1px solid var(--color-line);
-  border-radius: 6px;
-  color: var(--color-text-secondary);
-  background: var(--color-surface);
-  font-size: .68rem;
-}
-
-.craft-target-metrics b {
-  color: var(--color-text);
-  font-size: .78rem;
-}
-
 .craft-unique-effect {
   display: grid;
   gap: 3px;
@@ -425,65 +402,6 @@
   font-size: 0.76em;
 }
 
-.craft-result-ledger {
-  margin-top: 10px;
-  padding: 9px;
-  border: 1px solid rgba(211, 172, 83, .46);
-  border-radius: 9px;
-  background: var(--color-surface);
-  box-shadow: inset 0 1px rgba(255, 235, 174, .08);
-}
-
-.craft-result-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.craft-result-head div,
-.craft-result-head small,
-.craft-result-head strong { display: block; }
-.craft-result-head small { color: var(--color-text-secondary); font-size: .66rem; }
-.craft-result-head strong { margin-top: 1px; color: var(--color-accent-gold); font-size: .82rem; }
-.craft-result-head button { min-height: 30px; padding: 4px 8px; font-size: .7rem; }
-.craft-result-ledger ul { display: grid; gap: 3px; margin: 8px 0 0; padding: 0; list-style: none; }
-.craft-result-ledger li { display: grid; grid-template-columns: 15px minmax(0, 1fr); gap: 4px; color: var(--color-text); font-size: .72rem; line-height: 1.35; }
-.craft-result-ledger li.added { color: var(--color-success); }
-.craft-result-ledger li.removed { color: var(--color-danger); }
-.craft-result-ledger li.changed { color: var(--color-accent-gold); }
-.craft-result-ledger li.unchanged { color: var(--color-text-secondary); }
-.craft-result-ledger li b { margin: 0 5px; color: var(--color-text-tertiary); }
-
-@media (max-width: 640px) {
-  .craft-result-head { align-items: stretch; flex-direction: column; }
-  .craft-result-head button { width: 100%; }
-}
-
-.inventory-capacity-actions {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.inventory-expand-shortcut {
-  flex: 0 0 auto;
-  min-height: 30px;
-  padding: 5px 8px;
-  border: 1px solid #a88348;
-  border-radius: 6px;
-  background: linear-gradient(180deg, #3a2f1d, #211c14);
-  color: #ffe1a0;
-  font-size: 10px;
-  font-weight: 800;
-  white-space: nowrap;
-}
-
-.inventory-expand-shortcut:hover:not(:disabled) { border-color: #e0b86b; color: #fff3ce; }
-.inventory-expand-shortcut:disabled { opacity: .48; cursor: not-allowed; }
-.inventory-expand-shortcut[hidden] { display: none; }
-
 @container (max-width: 760px) {
 
   .journal-card-grid {
@@ -497,10 +415,6 @@
 
   .journal-next-target button {
       width: 100%;
-  }
-
-  .craft-target-metrics {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 :root body.desktop-windowed-ui #btn-tab-codex::before { content: '⌘'; }
@@ -616,8 +530,7 @@
 
 #enemy-area .enemy-card.targeted .enemy-name,
 #enemy-area .enemy-card.targeted .enemy-tags,
-.player-hud .combat-hud-label,
-.player-hud .combat-hud-note {
+.player-hud .combat-hud-label {
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95);
 }
 
@@ -705,37 +618,6 @@
   box-shadow: inset 0 1px 0 rgba(255,255,255,.035), 0 10px 28px rgba(0,0,0,.24);
 }
 
-.equipment-section-heading {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 12px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid rgba(80, 107, 139, .35);
-}
-
-.equipment-section-heading h2 {
-  font-size: 18px;
-}
-
-.equipment-section-kicker {
-  color: #eef2f6;
-  font-size: 9px;
-  font-weight: 900;
-  letter-spacing: .18em;
-}
-
-.equipment-count-badge {
-  padding: 4px 9px;
-  border: 1px solid rgba(211, 176, 97, .5);
-  border-radius: 999px;
-  color: #f1d28d;
-  background: rgba(94, 69, 25, .22);
-  font-size: 11px;
-  font-weight: 900;
-}
-
 .equipment-loadout-summary {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -810,30 +692,12 @@
   text-transform: uppercase;
 }
 
-.equipment-slot-icon {
-  display: grid;
-  place-items: center;
-  width: 17px;
-  height: 17px;
-  color: #ffffff;
-  border: 1px solid rgba(93, 119, 147, .42);
-  border-radius: 50%;
-  font-size: 10px;
-}
-
 .equipment-slot-name {
   min-width: 0;
   overflow: hidden;
   line-height: 1.2;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.equipment-slot-stats {
-  min-height: 2.5em;
-  overflow: hidden;
-  color: #eef2f6;
-  line-height: 1.25;
 }
 
 .equipment-slot-action {
@@ -852,34 +716,6 @@
 .equipment-slot-empty { opacity: .66; }
 .equipment-empty-mark { margin: auto auto 0; color: #eef2f6; font-size: 22px; line-height: 1; }
 .equipment-empty-label { margin: 3px auto auto; color: #eef2f6; font-size: 9px; }
-
-.equipment-panel-hint {
-  margin-top: 9px;
-  color: #eef2f6;
-  font-size: 10px;
-  line-height: 1.45;
-  text-align: center;
-}
-
-.equipment-inventory-heading { align-items: center; }
-.equipment-capacity { min-width: 108px; text-align: right; }
-.equipment-capacity > strong { display: block; color: #ffffff; font-size: 13px; }
-.equipment-capacity > span { color: #eef2f6; font-size: 9px; }
-.equipment-capacity-track { width: 108px; height: 3px; margin-top: 5px; overflow: hidden; border-radius: 999px; background: #07101a; }
-.equipment-capacity-track > span { display: block; width: 0; height: 100%; background: linear-gradient(90deg, #4b8cbd, #75cbed); transition: width .2s ease; }
-.equipment-capacity-track > span.near-capacity { background: linear-gradient(90deg, #d49d42, #ff765e); }
-
-:root body #item-tab-equip .equipment-inventory-toolbar {
-  display: grid;
-  gap: 9px;
-  margin: 0 0 10px;
-  padding: 10px;
-}
-
-:root body #item-tab-equip .equipment-inventory-toolbar {
-  background: rgba(8, 15, 24, .72);
-  border-color: rgba(48, 72, 98, .7);
-}
 
 .equipment-salvage-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
 .equipment-salvage-actions button { min-width: 0; min-height: 29px; padding: 5px 7px; font-size: 10px; }
@@ -1382,8 +1218,6 @@ body .item-card {
   body .startup-hero-grid,:root 
   body .startup-hero-copy { display: contents; }
   :root body .startup-brand-wrap { order: 0; gap: 4px; margin: 4px auto 2px; text-align: center; }
-  :root body .startup-wordmark { margin-top: 0; font-size: clamp(2rem, 10vw, 2.8rem); line-height: 1; }
-  :root body .startup-wordmark-bar { width: 110px; margin: 6px auto 0; }
   :root body .startup-panel.auth { order: 1; width: 100%; max-width: 440px; margin: 0 auto; padding: 16px; gap: 9px; border-radius: 12px; box-sizing: border-box; }
   :root body .startup-panel.auth::before,:root 
   body .startup-panel.auth::after { display: none; }
@@ -1919,8 +1753,7 @@ body .item-card {
 
 /* Dense management screens keep the primary browse/equip flow visible and fold secondary work. */
 .progression-workbench,
-.progression-section,
-.bulk-manager {
+.progression-section {
   margin-top: 10px;
   border: 1px solid rgba(67, 94, 120, .58);
   border-radius: 9px;
@@ -1928,9 +1761,7 @@ body .item-card {
   overflow: hidden;
 }
 .progression-workbench > summary,
-.progression-section > summary,
-.bulk-manager > summary,
-.item-card-more > summary {
+.progression-section > summary {
   padding: 8px 10px;
   color: var(--color-text);
   cursor: pointer;
@@ -1938,13 +1769,10 @@ body .item-card {
   font-weight: 800;
 }
 .progression-workbench[open] > summary,
-.progression-section[open] > summary,
-.bulk-manager[open] > summary { border-bottom: 1px solid rgba(67, 94, 120, .42); }
+.progression-section[open] > summary { border-bottom: 1px solid rgba(67, 94, 120, .42); }
 .progression-section > h2,
 .progression-section > .trait-tree,
 .progression-section > #ui-season-content-roadmap { margin-right: 10px; margin-left: 10px; }
-.bulk-manager > .bulk-salvage-bar,
-.bulk-manager > .equipment-salvage-actions { margin: 0; border: 0; border-radius: 0; }
 .equipment-triage-host {
   display: flex;
   flex: 1 1 390px;
@@ -1977,10 +1805,6 @@ body .item-card {
 .equipment-triage-chip.triage-special { color: #e2bcff; border-color: #9b67c4; background: rgba(67, 37, 91, .56); }
 .equipment-triage-chip.triage-keep { color: #b9c5d0; border-color: #657482; background: rgba(48, 59, 69, .56); }
 .equipment-card-meta.has-triage { flex-wrap: wrap; overflow: visible; }
-.item-card-more { grid-column: 1 / -1; min-width: 0; border: 1px solid rgba(68, 92, 117, .58); border-radius: 6px; background: rgba(8, 16, 25, .7); }
-.item-card-more > summary { min-height: 25px; box-sizing: border-box; padding: 5px 7px; }
-.item-card-more[open] { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; padding: 0 4px 4px; }
-.item-card-more[open] > summary { grid-column: 1 / -1; margin: 0 -4px; }
 .stat-item.full.character-ehp-block { display: grid; grid-template-columns: minmax(0, 1fr); gap: 7px; padding: 9px 0; }
 .character-ehp-block .ailment-stat-title small { margin-left: 6px; color: var(--copy-muted); font-weight: 500; }
 .character-ehp-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
@@ -2008,7 +1832,6 @@ body .item-card {
 .passive-special-stat-card > strong { color: #e7c878; font-size: 12px; text-align: right; }
 .passive-special-stat-card > small { grid-column: 1 / -1; overflow: hidden; color: #aebdcc; font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
 .passive-special-stat-card:hover, .passive-special-stat-card:focus-visible { border-color: #d2af5a; outline: none; background: rgba(39, 31, 17, .82); }
-.trait-card[role="button"]:focus-visible,
 .class-card:focus-visible { outline: 2px solid #f2d88f; outline-offset: 2px; }
 .class-card { width: 100%; text-align: left; }
 .condition-rule-warning { padding: 6px 8px; color: #f2c68a; border: 1px solid rgba(178, 119, 55, .48); border-radius: 6px; background: rgba(78, 46, 19, .28); font-size: 9px; }
@@ -2072,18 +1895,9 @@ body .item-card {
   backdrop-filter: none;
 }
 
-.equipment-section-heading h2 {
-  margin: 1px 0 0;
-  color: #ffffff;
-}
-
 .equipment-slot-name {
   margin: 6px 0 4px;
   font-size: 11px;
-}
-
-.equipment-slot-stats {
-  font-size: 9px;
 }
 .equipment-slot-empty { justify-content: flex-start; border-style: dashed; }
 .equipment-action-muted { background: #3f4c5a; border-color: #526273; }

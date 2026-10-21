@@ -11,7 +11,7 @@ function renderBeyondBoundarySeal(definition, state) {
     let selected = state.selectedSealId === definition.id;
     let maxed = progress.level >= definition.maxLevel;
     let cost = maxed ? 0 : getBeyondBoundarySealLevelCost(progress.level);
-    let progressText = maxed ? '최대 레벨' : `${progress.xp}/${cost} EXP`;
+    let progressText = maxed ? (selected ? '최대 레벨, 경험치가 더 쌓이지 않으니 다른 인장을 고르세요' : '최대 레벨') : `${progress.xp}/${cost} 경험치`;
     return `<button type="button" class="beyond-seal ${selected ? 'selected' : ''}" onclick="chooseBeyondBoundarySeal('${definition.id}')" ${state.activeRun ? 'disabled' : ''}>
         <span>${escapeHTML(definition.name)}</span><strong>Lv.${progress.level}/${definition.maxLevel}</strong>
         <small>${escapeHTML(definition.description)}</small><i>${formatBeyondBoundarySealStats(definition, progress.level)}</i>
@@ -106,6 +106,8 @@ function chooseBeyondBoundaryIntensity(intensityId) {
 }
 
 function enterBeyondBoundaryRun() {
+    const held = getHeldRunBlockReason();
+    if (held) return addLog(held, 'attack-monster');
     let state = ensureBeyondBoundaryState(game);
     let result = startBeyondBoundaryRun(state.selectedTier, game);
     if (!result.ok) {

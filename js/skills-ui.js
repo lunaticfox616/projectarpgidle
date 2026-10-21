@@ -276,7 +276,7 @@
 
                     { title: '응축 창공 영구 강화', action: 'upgradeActiveGemWithCondensedSkyPower()', done: permanentSkyBoost >= permanentSkyMax, ready: game.skyTower.unlocked && condensedPower >= permanentSkyCost, details: `${game.skyTower.unlocked ? '루프 초기화 없음' : '창공의 탑 해금 필요'}, 보유 ${Math.floor(condensedPower)} / 필요 ${permanentSkyCost}`, gain: 1 },
                     { title: '룬 퀄리티 강화', action: 'upgradeActiveGemQuality()', done: activeGem?.quality >= 20, ready: (game.currencies.bossCore || 0) >= qualityNeed, details: `군주의 핵 ${game.currencies.bossCore || 0}/${qualityNeed}, 피해/속도 배율 +0.5%` },
-                    { title: '각성 룬 변환', action: 'awakenActiveGemCandidate()', done: !!activeGem?.awakened, ready: awakenReady && (game.currencies.awakenedEcho || 0) >= 3, details: `${gemAwakening ? '' : '‘룬 각성’ 해금 필요, '}기본 Lv.20, 각성 잔향 ${game.currencies.awakenedEcho || 0}/3`, gain: 2 }
+                    { title: '각성 룬 변환', action: 'awakenActiveGemCandidate()', done: !!activeGem?.awakened, ready: awakenReady && (game.currencies.awakenedEcho || 0) >= 3, details: `${gemAwakening ? '' : '‘룬 각성’ 해금 필요, '}기본 Lv.20, 각성 잔향 ${game.currencies.awakenedEcho || 0}/3${getGemAwakenedPerkNote(active).replace(/^ (.*)\.$/, ', $1')}`, gain: 2 }
                 ];
                 document.getElementById('ui-gem-upgrade-actions').innerHTML = isGem ? upgrades.map(upgrade => renderGemUpgradeButton(upgrade, currentTotalGemLevel)).join('') : '<div class="gem-process-empty">강화할 공격 룬을 먼저 장착하세요.<br><button type="button" onclick="switchSkillSubtab(\'skill-tab-equip\')">공격 룬 장착하기</button></div>';
                 if ((game.season || 1) >= 4) {

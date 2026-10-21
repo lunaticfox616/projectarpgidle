@@ -706,14 +706,6 @@ function generateOrganicTree() {
         if (pool.length === 0) return 'flatHp';
         return pool[Math.abs(seedIndex) % pool.length];
     }
-    function getTierValue(statKey, tier) {
-        let statDef = P_STATS[statKey];
-        if (!statDef) return tier === 3 ? 8 : (tier === 2 ? 4 : 2);
-        if (tier === 0) return 10;
-        if (tier === 1) return statDef.s !== undefined ? statDef.s : (statDef.m !== undefined ? statDef.m : (statDef.k !== undefined ? statDef.k : 2));
-        if (tier === 2) return statDef.m !== undefined ? statDef.m : (statDef.s !== undefined ? statDef.s : (statDef.k !== undefined ? statDef.k : 4));
-        return statDef.k !== undefined ? statDef.k : (statDef.m !== undefined ? statDef.m : (statDef.s !== undefined ? statDef.s : 8));
-    }
     const genericPathStats = ['aspd', 'move', 'flatHp', 'crit', 'pctDmg', 'flatDmg', 'regen'];
     const regionalPathDefenseStats = {
         templar: ['energyShield', 'energyShieldPct'],
@@ -816,7 +808,7 @@ function generateOrganicTree() {
             let spec = specs[(Math.abs(lane) + sectorIndex) % specs.length];
             if (spec && P_STATS[spec.stat]) {
                 node.stat = spec.stat;
-                node.val = getTierValue(node.stat, node.tier);
+                node.val = getPassiveStatTierValue(node.stat, node.tier);
                 node.title = spec.title;
                 node.desc = `${getCoreDirectionLabel(sectorIndex)} 시작축: ${spec.desc}`;
             }
@@ -825,8 +817,8 @@ function generateOrganicTree() {
         if (['path', 'major', 'keystone', 'hub'].includes(shape.kind)) {
             let stat = getGenericPathStat(theme, depth, lane, sectorIndex);
             node.stat = stat;
-            node.val = getTierValue(stat, node.tier);
-            if (shape.kind === 'major' || shape.kind === 'keystone') node.val = Math.max(node.val, getTierValue(stat, 2));
+            node.val = getPassiveStatTierValue(stat, node.tier);
+            if (shape.kind === 'major' || shape.kind === 'keystone') node.val = Math.max(node.val, getPassiveStatTierValue(stat, 2));
             if (shape.kind === 'hub') {
                 node.title = '교차 거점';
                 node.desc = '여러 갈래의 길이 만나는 거점입니다.';
@@ -843,7 +835,7 @@ function generateOrganicTree() {
             y: y * PASSIVE_WORLD_SCALE,
             tier: tier,
             stat: statKey,
-            val: getTierValue(statKey, tier),
+            val: getPassiveStatTierValue(statKey, tier),
             depth: Infinity,
             layoutDepth: meta && Number.isFinite(meta.depth) ? meta.depth : null,
             lane: meta && Number.isFinite(meta.lane) ? meta.lane : null,
@@ -1265,7 +1257,7 @@ function generateOrganicTree() {
             node.clusterEndStat = themeSpec.endStat || null;
             node.webCellSpoke = spoke;
             node.webCellRing = depth;
-            node.val = getTierValue(statForStep, tier);
+            node.val = getPassiveStatTierValue(statForStep, tier);
             if (statForStep === 'slamPctDmg') node.val *= 2;
             if (statForStep === 'critDmg') {
                 if (chainLength === 4) node.val = [8, 8, 12, 20][i - 1];
@@ -1543,298 +1535,6 @@ function polishPassiveLayout() {
     });
 }
 
-function shapePassiveTreeAsLifeTree() {
-    const nodes = Object.values(PASSIVE_TREE.nodes || {});
-    const root = PASSIVE_TREE.nodes.n0;
-    if (!root || nodes.length < 2) return;
-    const finiteDepths = nodes.map(node => Number(node.depth)).filter(Number.isFinite);
-    const maxDepth = Math.max(1, ...finiteDepths);
-    const sectorOrder = {
-        marauder: 0,
-        duelist: 1,
-        block: 1.35,
-        ranger: 2,
-        deflect: 2.35,
-        center: 2.5,
-        shadow: 3,
-        witch: 4,
-        templar: 5
-    };
-    const originalPosition = new Map(nodes.map(node => [node.id, { x: node.x, y: node.y }]));
-    const adjacency = new Map(nodes.map(node => [node.id, []]));
-    PASSIVE_TREE.edges.forEach(edge => {
-        if (adjacency.has(edge.from) && adjacency.has(edge.to)) {
-            adjacency.get(edge.from).push(edge.to);
-            adjacency.get(edge.to).push(edge.from);
-        }
-    });
-
-    function getTreeSectorOrder(node) {
-        if (Number.isFinite(sectorOrder[node.sector])) return sectorOrder[node.sector];
-        if (String(node.sector || '').startsWith('star_')) {
-            const starIndex = Number(String(node.sector).split('_')[1]);
-            return Number.isFinite(starIndex) ? starIndex * (5 / Math.max(1, PASSIVE_APEX_CONFIGS.length - 1)) : 2.5;
-        }
-        return 2.5;
-    }
-    function getTreeSpoke(node) {
-        if (Number.isFinite(node.webSpoke)) return node.webSpoke;
-        if (Number.isFinite(node.webCellSpoke)) return node.webCellSpoke;
-        return Number.isFinite(node.lane) ? node.lane : 0;
-    }
-
-    const starters = nodes.filter(node => node.id !== root.id && node.depth === 1)
-        .sort((a, b) => String(a.id).localeCompare(String(b.id), undefined, { numeric: true }));
-    const canopyPriority = { ranger: 0, shadow: 1, witch: 2, templar: 3, duelist: 4 };
-    const branches = starters.map(starter => ({
-        id: starter.id,
-        sector: starter.sector,
-        direction: starter.sector === 'marauder' ? 'root' : 'canopy',
-        order: 0,
-        targetX: 0,
-        maxBlockWidth: 0
-    }));
-    const directionBranches = {
-        canopy: branches.filter(branch => branch.direction === 'canopy')
-            .sort((a, b) => (canopyPriority[a.sector] ?? 99) - (canopyPriority[b.sector] ?? 99)),
-        root: branches.filter(branch => branch.direction === 'root')
-            .sort((a, b) => String(a.id).localeCompare(String(b.id), undefined, { numeric: true }))
-    };
-    directionBranches.canopy.forEach((branch, index) => { branch.order = index; });
-    directionBranches.root.forEach((branch, index) => { branch.order = index; });
-
-    const branchByNodeId = new Map();
-    branches.forEach(branch => branchByNodeId.set(branch.id, branch));
-
-    for (let depth = 2; depth <= maxDepth; depth++) {
-        nodes.filter(node => node.depth === depth).forEach(node => {
-            const candidates = (adjacency.get(node.id) || [])
-                .map(id => PASSIVE_TREE.nodes[id])
-                .filter(parent => parent && parent.depth === depth - 1 && branchByNodeId.has(parent.id))
-                .sort((a, b) => {
-                    const branchA = branchByNodeId.get(a.id);
-                    const branchB = branchByNodeId.get(b.id);
-                    const sectorMatchA = branchA.sector === node.sector ? 0 : 1;
-                    const sectorMatchB = branchB.sector === node.sector ? 0 : 1;
-                    if (sectorMatchA !== sectorMatchB) return sectorMatchA - sectorMatchB;
-                    const sectorDeltaA = Math.abs(getTreeSectorOrder(node) - getTreeSectorOrder(a));
-                    const sectorDeltaB = Math.abs(getTreeSectorOrder(node) - getTreeSectorOrder(b));
-                    if (sectorDeltaA !== sectorDeltaB) return sectorDeltaA - sectorDeltaB;
-                    const originalA = originalPosition.get(a.id) || { x: 0, y: 0 };
-                    const originalB = originalPosition.get(b.id) || { x: 0, y: 0 };
-                    const nodeOriginal = originalPosition.get(node.id) || { x: 0, y: 0 };
-                    const distanceA = Math.hypot(originalA.x - nodeOriginal.x, originalA.y - nodeOriginal.y);
-                    const distanceB = Math.hypot(originalB.x - nodeOriginal.x, originalB.y - nodeOriginal.y);
-                    if (distanceA !== distanceB) return distanceA - distanceB;
-                    return branchA.order - branchB.order;
-                });
-            if (candidates.length) branchByNodeId.set(node.id, branchByNodeId.get(candidates[0].id));
-        });
-    }
-
-    const rows = new Map();
-    nodes.forEach(node => {
-        if (node.id === root.id) return;
-        const depth = Number.isFinite(node.depth) ? Math.max(1, Math.floor(node.depth)) : maxDepth;
-        let branch = branchByNodeId.get(node.id);
-        if (!branch) {
-            const direction = node.sector === 'marauder' ? 'root' : 'canopy';
-            const candidates = directionBranches[direction];
-            branch = candidates[Math.abs(Math.floor(getTreeSectorOrder(node))) % Math.max(1, candidates.length)] || branches[0];
-            branchByNodeId.set(node.id, branch);
-        }
-        const rowKey = `${branch.id}:${depth}`;
-        if (!rows.has(rowKey)) rows.set(rowKey, []);
-        rows.get(rowKey).push(node);
-    });
-
-    function sortBranchRow(row) {
-        row.sort((a, b) => {
-            const spokeDelta = getTreeSpoke(a) - getTreeSpoke(b);
-            if (spokeDelta !== 0) return spokeDelta;
-            const clusterDelta = String(a.clusterId || '').localeCompare(String(b.clusterId || ''));
-            if (clusterDelta !== 0) return clusterDelta;
-            const originalDelta = (originalPosition.get(a.id).x || 0) - (originalPosition.get(b.id).x || 0);
-            if (originalDelta !== 0) return originalDelta;
-            return String(a.id).localeCompare(String(b.id), undefined, { numeric: true });
-        });
-        return row;
-    }
-
-    function buildRowBlock(row, direction) {
-        const ordered = sortBranchRow(row.slice());
-        const maxColumns = direction === 'canopy' ? 11 : 5;
-        const horizontalGap = direction === 'canopy' ? 28 : 30;
-        const verticalGap = direction === 'canopy' ? 28 : 34;
-        const lines = [];
-        for (let index = 0; index < ordered.length; index += maxColumns) {
-            let line = ordered.slice(index, index + maxColumns);
-            if (lines.length % 2 === 1) line = line.reverse();
-            let cursor = 0;
-            let maxRadius = 0;
-            const entries = line.map((node, nodeIndex) => {
-                const radius = getPassiveNodeVisualRadius(node);
-                if (nodeIndex > 0) cursor += horizontalGap;
-                cursor += radius;
-                const entry = { node, x: cursor, radius };
-                cursor += radius;
-                maxRadius = Math.max(maxRadius, radius);
-                return entry;
-            });
-            lines.push({ entries, width: cursor, height: maxRadius * 2 });
-        }
-
-        let heightCursor = 0;
-        const placements = [];
-        let blockWidth = 0;
-        lines.forEach((line, lineIndex) => {
-            if (lineIndex > 0) heightCursor += verticalGap;
-            const centerY = heightCursor + line.height * 0.5;
-            const stagger = lines.length > 1
-                ? (lineIndex % 2 === 0 ? -1 : 1) * horizontalGap * 0.38
-                : 0;
-            line.entries.forEach(entry => {
-                const localX = entry.x - line.width * 0.5 + stagger;
-                const normalizedX = line.width > 0 ? Math.min(1, Math.abs(localX) / (line.width * 0.5)) : 0;
-                const arc = Math.pow(normalizedX, 1.45) * (direction === 'canopy' ? 12 : -8);
-                placements.push({
-                    node: entry.node,
-                    x: localX,
-                    y: centerY + arc
-                });
-            });
-            heightCursor += line.height;
-            blockWidth = Math.max(blockWidth, line.width + Math.abs(stagger) * 2);
-        });
-        const blockHeight = Math.max(1, heightCursor);
-        placements.forEach(placement => { placement.y -= blockHeight * 0.5; });
-        return { width: Math.max(1, blockWidth), height: blockHeight, placements };
-    }
-
-    const blocks = new Map();
-    rows.forEach((row, key) => {
-        const branchId = key.split(':')[0];
-        const branch = branchByNodeId.get(branchId) || branches.find(item => item.id === branchId);
-        if (!branch) return;
-        const block = buildRowBlock(row, branch.direction);
-        blocks.set(key, block);
-        branch.maxBlockWidth = Math.max(branch.maxBlockWidth, block.width);
-    });
-
-    function assignBranchTargets(direction) {
-        const list = directionBranches[direction];
-        const branchGap = direction === 'canopy' ? 72 : 88;
-        let cursor = 0;
-        list.forEach((branch, index) => {
-            if (index > 0) cursor += branchGap;
-            cursor += branch.maxBlockWidth * 0.5;
-            branch.targetX = cursor;
-            cursor += branch.maxBlockWidth * 0.5;
-        });
-        const center = cursor * 0.5;
-        list.forEach(branch => { branch.targetX -= center; });
-    }
-    assignBranchTargets('canopy');
-    assignBranchTargets('root');
-
-    function smoothStep(value) {
-        const t = Math.max(0, Math.min(1, value));
-        return t * t * (3 - 2 * t);
-    }
-
-    function layoutDirection(direction) {
-        const list = directionBranches[direction];
-        const verticalBandGap = direction === 'canopy' ? 72 : 82;
-        const liveBranchGap = direction === 'canopy' ? 42 : 50;
-        let verticalCursor = getPassiveNodeVisualRadius(root) + 58;
-
-        for (let depth = 1; depth <= maxDepth; depth++) {
-            const depthBlocks = list
-                .map(branch => ({ branch, block: blocks.get(`${branch.id}:${depth}`) }))
-                .filter(entry => entry.block);
-            if (!depthBlocks.length) continue;
-            const bandHeight = Math.max(...depthBlocks.map(entry => entry.block.height));
-            verticalCursor += bandHeight * 0.5;
-            const bandCenter = direction === 'canopy' ? -verticalCursor : verticalCursor;
-            const progress = depth / maxDepth;
-            const canopyFan = 0.16 + 0.84 * smoothStep(progress);
-            const rootOutward = 0.18 + 0.82 * smoothStep(Math.min(1, progress / 0.58));
-            const rootReturn = 1 - 0.5 * smoothStep((progress - 0.58) / 0.42);
-            const fan = direction === 'canopy' ? canopyFan : rootOutward * rootReturn;
-            const placedBlocks = depthBlocks.map(({ branch, block }) => {
-                const waveAmplitude = direction === 'canopy'
-                    ? 32 + 68 * progress
-                    : 60 + 110 * progress;
-                const wave = Math.sin(depth * (direction === 'canopy' ? 0.64 : 0.82) + branch.order * 1.9)
-                    * waveAmplitude * Math.pow(progress, 0.72);
-                return { branch, block, centerX: branch.targetX * fan + wave };
-            });
-
-            for (let index = 1; index < placedBlocks.length; index++) {
-                const previous = placedBlocks[index - 1];
-                const current = placedBlocks[index];
-                const minimumCenter = previous.centerX + previous.block.width * 0.5 + current.block.width * 0.5 + liveBranchGap;
-                current.centerX = Math.max(current.centerX, minimumCenter);
-            }
-            if (placedBlocks.length) {
-                const leftEdge = placedBlocks[0].centerX - placedBlocks[0].block.width * 0.5;
-                const last = placedBlocks[placedBlocks.length - 1];
-                const rightEdge = last.centerX + last.block.width * 0.5;
-                const centerShift = (leftEdge + rightEdge) * 0.5;
-                placedBlocks.forEach(entry => { entry.centerX -= centerShift; });
-            }
-
-            placedBlocks.forEach(({ branch, block, centerX }) => {
-                const halfSlots = Math.max(1, (list.length - 1) * 0.5);
-                const slotDistance = Math.abs(branch.order - (list.length - 1) * 0.5) / halfSlots;
-                const crownCurve = Math.pow(slotDistance, 1.55) * (direction === 'canopy' ? 88 : 64) * Math.pow(progress, 1.2);
-                const verticalCoil = direction === 'root'
-                    ? Math.cos(depth * 0.78 + branch.order * 2.15) * 14 * progress
-                    : Math.sin(depth * 0.42 + branch.order * 1.35) * 6 * progress;
-                const centerY = direction === 'canopy'
-                    ? bandCenter + crownCurve + verticalCoil
-                    : bandCenter - crownCurve * 0.72 + verticalCoil;
-
-                block.placements.forEach(placement => {
-                    const node = placement.node;
-                    node.x = centerX + placement.x;
-                    node.y = centerY + placement.y;
-                    node.treeDepth = depth;
-                    node.treeDirection = direction;
-                    node.treeBranchRoot = branch.id;
-                    node.treeBranchOrder = branch.order;
-                });
-            });
-            verticalCursor += bandHeight * 0.5 + verticalBandGap;
-        }
-    }
-
-    layoutDirection('canopy');
-    layoutDirection('root');
-
-    root.x = 0;
-    root.y = 0;
-    root.treeDepth = 0;
-    root.treeDirection = 'trunk';
-    root.treeBranchRoot = root.id;
-    root.treeBranchOrder = 0;
-
-    PASSIVE_BOUNDS.minX = Math.min(...nodes.map(node => node.x));
-    PASSIVE_BOUNDS.maxX = Math.max(...nodes.map(node => node.x));
-    PASSIVE_BOUNDS.minY = Math.min(...nodes.map(node => node.y));
-    PASSIVE_BOUNDS.maxY = Math.max(...nodes.map(node => node.y));
-    if (typeof markPassiveRenderCacheDirty === 'function') markPassiveRenderCacheDirty('life-tree-layout');
-}
-
-function getPassiveTierValueForLayout(statKey, tier) {
-    const statDef = P_STATS[statKey];
-    if (!statDef) return tier >= 3 ? 8 : (tier === 2 ? 4 : 2);
-    if (tier === 0) return 10;
-    if (tier === 1) return statDef.s !== undefined ? statDef.s : (statDef.m !== undefined ? statDef.m : (statDef.k !== undefined ? statDef.k : 2));
-    if (tier === 2) return statDef.m !== undefined ? statDef.m : (statDef.s !== undefined ? statDef.s : (statDef.k !== undefined ? statDef.k : 4));
-    return statDef.k !== undefined ? statDef.k : (statDef.m !== undefined ? statDef.m : (statDef.s !== undefined ? statDef.s : 8));
-}
-
 function rebalancePassiveStartingStats() {
     const root = PASSIVE_TREE.nodes.n0;
     if (!root) return;
@@ -1859,7 +1559,7 @@ function rebalancePassiveStartingStats() {
     function setStat(node, statKey) {
         if (!node || !P_STATS[statKey]) return;
         node.stat = statKey;
-        node.val = getPassiveTierValueForLayout(statKey, node.tier);
+        node.val = getPassiveStatTierValue(statKey, node.tier);
         node.effectLabel = null;
     }
 
@@ -2713,7 +2413,7 @@ const TRANSCENDENT_VOID_PASSIVE_DB = [
     { id: 'toughSoul', name: '강인한 영혼', min: 3, max: 6, desc: v => `할당한 공허 패시브 하나당 에너지 보호막 최대치 +${v}%` },
     { id: 'defenseMechanism', name: '방어기제', min: 5, max: 10, desc: v => `막기 확률 최대치 +${v}% 및 막기 확률 +${v}%` },
     { id: 'blurredPresence', name: '흐릿한 존재감', min: 10, max: 20, min2: 3, max2: 5, desc: (v, v2) => `비껴내기 +${v}% 및 비껴내기 피해 감소 +${v2}%` },
-    { id: 'chameleon', name: '카멜레온', desc: () => '모든 초월 패시브 중 하나로 변환 가능' },
+    { id: 'chameleon', name: '카멜레온', desc: () => '공허 제작 창에서 다른 초월 하나를 골라 바꿀 수 있습니다' }, // convertChameleonVoidPassive
     { id: 'thirdFinger', name: '세 번째 손가락', desc: () => '반지를 하나 더 장착 가능' },
     { id: 'greed', name: '재물욕', desc: () => '주얼을 하나 더 장착 가능' },
     { id: 'wardKnot', name: '액막이 매듭', desc: () => '액막이를 하나 더 장착 가능' }, // 액막이 칸 +1(js/colony-wards.js slotCount)
@@ -2827,7 +2527,11 @@ function rollTranscendentVoidPassive(nodeId) {
     let owned = getOwnedTranscendentVoidPassiveIds(nodeId);
     let pool = TRANSCENDENT_VOID_PASSIVE_DB.filter(def => !owned.has(def.id));
     if (!pool.length) return null;
-    let def = rndChoice(pool);
+    return rollTranscendentDef(rndChoice(pool));
+}
+
+/** 그 초월을 새로 얻을 때의 값(고정, 굴림 함수, 아니면 범위 안에서 굴림). */
+function rollTranscendentDef(def) {
     let roll = (min, max, step) => {
         if (!Number.isFinite(Number(min)) || !Number.isFinite(Number(max))) return 0;
         let s = Number.isFinite(Number(step)) ? Number(step) : 1;
@@ -2837,6 +2541,35 @@ function rollTranscendentVoidPassive(nodeId) {
     };
     let value = def.fixed || (def.rollValue ? def.rollValue() : roll(def.min, def.max));
     return { id: def.id, value, value2: roll(def.min2, def.max2, def.step2) };
+}
+
+/** 카멜레온이 바꿀 수 있는 초월: 카멜레온 자신, 다른 노드에 이미 있는 초월(초월은 트리에 하나씩), 태양(카멜레온 노드에는 지킬 옵션이
+ * 없어 아무 효과가 없다)은 빠진다. */
+function getChameleonChoices(nodeId) {
+    const owned = getOwnedTranscendentVoidPassiveIds(nodeId);
+    return TRANSCENDENT_VOID_PASSIVE_DB.filter(def => !['chameleon', 'sun'].includes(def.id) && !owned.has(def.id));
+}
+
+/** 활성화한 카멜레온 공허 노드의 기록, 아니면 null. */
+function activeChameleonEntry(nodeId) {
+    const node = PASSIVE_TREE.nodes[nodeId], entry = node && node.kind === 'void' ? getVoidPassiveCraft(node.id) : null;
+    return entry && (game.passives || []).includes(node.id) && entry.transcendent && entry.transcendent.id === 'chameleon' ? entry : null;
+}
+
+/** 카멜레온(초월 공허)을 고른 초월로 바꾼다(2026-10-20 사용자: "선택해서 변환 가능하게"). 값은 새로 굴리고, 한 번 바꾸면 카멜레온이
+ * 아니다. 스킬트리 포인트(창백한 푸른 점)와 연결(블랙홀, 안드로메다)은 바로 정산한다. '' when done, otherwise why not. */
+function convertChameleonVoidPassive(nodeId, targetId) {
+    if (game.woodsmanBuildLock) return '☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.';
+    const entry = activeChameleonEntry(nodeId);
+    if (!entry) return '활성화한 카멜레온 공허 패시브만 바꿀 수 있습니다.';
+    const def = getChameleonChoices(nodeId).find(row => row.id === targetId);
+    if (!def) return '고를 수 없는 초월입니다.';
+    const previous = entry.transcendent;
+    entry.transcendent = rollTranscendentDef(def);
+    syncPaleBlueDotPassivePoints(previous, entry.transcendent);
+    if (isRoutingTranscendent(entry.transcendent)) refreshPassiveConnectivity();
+    playerStatCache.invalidate();
+    return '';
 }
 
 function rerollTranscendentVoidPassive(entry) {
@@ -2854,11 +2587,6 @@ function rerollTranscendentVoidPassive(entry) {
 function getTranscendentVoidPassiveCount(id, owner = game) {
     let state = owner === game ? ensureVoidPassiveState() : (owner.voidPassives || {});
     return (owner.passives || []).filter(nodeId => state[nodeId]?.transcendent?.id === id).length;
-}
-
-function getTranscendentVoidPassiveBonusValue(id) {
-    let state = ensureVoidPassiveState();
-    return (game.passives || []).reduce((sum, nodeId) => sum + (state[nodeId]?.transcendent?.id === id ? Number(state[nodeId].transcendent.value || 0) : 0), 0);
 }
 
 function recordImmortalHeroDeathPenalty() {
@@ -2918,7 +2646,7 @@ function applyVoidPassiveCurrency(nodeId, currencyKey) {
     if (!node || node.kind !== 'void') return addLog('공허 패시브에만 사용할 수 있습니다.', 'attack-monster');
     if (!(game.passives || []).includes(node.id)) return addLog('먼저 공허 패시브를 활성화해야 합니다.', 'attack-monster');
     if (!['magicBud', 'fairyRing', 'goldenRule'].includes(currencyKey)) return addLog('공허 패시브에는 마법의 새싹, 요정의 고리, 황금률만 사용할 수 있습니다.', 'attack-monster');
-    if ((game.currencies[currencyKey] || 0) <= 0) return addLog('오브가 부족합니다.', 'attack-monster');
+    if ((game.currencies[currencyKey] || 0) <= 0) return addLog('재화가 부족합니다.', 'attack-monster');
     let entry = getVoidPassiveCraft(node.id);
     if (currencyKey === 'fairyRing') {
         const outcome = rollFairyRingOnCraftedVoid(entry, node.id);
@@ -3110,7 +2838,7 @@ function setOceanFishingStrategy(strategyId) {
     if (st.diving) { addLog('낚시 전략은 수면에서만 변경할 수 있습니다.', 'attack-monster'); return false; }
     if (st.fishingStrategy === strategyId) return true;
     st.fishingStrategy = strategyId;
-    addLog(`${strategy.icon} 낚시 전략을 '${strategy.name}'(으)로 변경했습니다.`, 'loot-magic');
+    addLog(`${strategy.icon} 낚시 전략을 ${withDirectionParticle(`'${strategy.name}'`)} 변경했습니다.`, 'loot-magic');
     if (typeof queueImportantSave === 'function') queueImportantSave(200);
     if (typeof updateStaticUI === 'function') updateStaticUI();
     return true;
@@ -3136,17 +2864,8 @@ function advanceOceanDiveFromKill(zone) {
     let st = ensureOceanState();
     if (!st.unlocked || !st.diving) return;
     if (Math.random() < 0.06) awardCurrency('reefFragment', 1);
-    // 수심은 한 지역 안에서 실제 잠수 시간만큼 연속 진행한다. 웨이브 종료 때
-    // 수십 m를 순간 가산하면 다시 구역 단위 진행처럼 보이므로 보상은 낚시만 준다.
+    // 수심은 몬스터를 쓰러뜨릴 때마다 쌓여 조금씩 내려간다(applyOceanKill, tickOceanDepth). 구간을 끝내면 낚시만 준다.
     gainOceanFishingGaugeFromCombat(zone);
-}
-
-function consumeOceanOxygenOnAttack() {
-    let st = ensureOceanState();
-    if (!st.unlocked || !st.diving || !isInOceanZone()) return 0;
-    // 호환용 공개 진입점은 유지하되 공격 속도에 따른 산소 페널티는 적용하지 않는다.
-    // 실제 소모는 tickOceanOxygen의 시간 기반 배수 한 곳에서만 처리한다.
-    return 0;
 }
 
 function gainOceanFishingGaugeFromCombat(zone) {
@@ -3156,8 +2875,9 @@ function gainOceanFishingGaugeFromCombat(zone) {
     let depthTier = Math.max(0, Math.floor(zone?.depthTier ?? getOceanDepthTier(st.depthM)));
     let strategy = getOceanFishingStrategyDef(st);
     let collectionGainPct = getOceanFishCollectionBonus('gaugeGainPct', st);
-    // Five shallow clears introduce the first catch; deeper water improves pace up to tier20.
-    let gain = (20 + Math.min(depthTier, 20) * 2) * getOceanFishingGaugeGainMul();
+    // A first dive clears only three shallow sections before the 500m guardian, so each gives at least 35 and the first fish comes in
+    // that dive (it came in the third, eight minutes in); deeper water improves pace up to tier20.
+    let gain = Math.max(35, 20 + Math.min(depthTier, 20) * 2) * getOceanFishingGaugeGainMul();
     gain *= Math.max(0.1, Number(strategy.gaugeGainMul) || 1) * (1 + collectionGainPct / 100);
     if (hasOceanCurrent(zone, 'school_of_fish')) gain *= 1.5;
     gain = Math.min(100, gain); // At most one catch per completed encounter, including all bonuses.
@@ -3202,7 +2922,7 @@ function catchOceanFish(depthTier) {
     st.rareFishPity = rarityRank >= 2 ? 0 : Math.min(100, st.rareFishPity + Math.max(1, Number(strategy.pityGain) || 8));
     st.lastCatch = { key: picked, at: Date.now(), guaranteed };
     let logType = rarityRank >= 4 ? 'loot-unique' : (rarityRank >= 2 ? 'loot-rare' : 'loot-magic');
-    addLog(`${guaranteed ? '✨ 희귀 조짐 적중! ' : '🐟 '}${OCEAN_FISH_DB[picked].name}을(를) 낚았습니다!`, logType);
+    addLog(`${guaranteed ? '✨ 희귀 조짐 적중! ' : '🐟 '}${withObjectParticle(OCEAN_FISH_DB[picked].name)} 낚았습니다!`, logType);
     let discoveredCount = getOceanFishCollectionProgress(st).discoveredCount;
     if (!wasDiscovered && OCEAN_FISH_COLLECTION_MILESTONES.some(row => row.required === discoveredCount)) {
         addLog(`📘 심해 도감 ${discoveredCount}/${Object.keys(OCEAN_FISH_DB).length}, 받을 보상이 있습니다.`, 'loot-rare');
@@ -3211,7 +2931,7 @@ function catchOceanFish(depthTier) {
     return picked;
 }
 
-safeExposeGlobals({ getOceanFishingStrategyDef, getOceanFishCollectionProgress, getOceanFishCollectionBonus, setOceanFishingStrategy, claimOceanFishCollectionMilestone });
+safeExposeGlobals({ getOceanFishingStrategyDef, getOceanFishCollectionProgress, getOceanFishCollectionBonus, setOceanFishingStrategy, setOceanAutoRedive, claimOceanFishCollectionMilestone });
 
 
 function getOceanPermanentUpgradeCost(key) {
@@ -3278,19 +2998,25 @@ function getPassiveRouting(owner = game) {
         free: passiveRouting.freeNodes(PASSIVE_TREE, owner), edges: PASSIVE_TREE.edges.filter(edge => isPassiveTreePathEdge(edge, allocated)) };
 }
 
-function enterOceanDive() {
-    const reason = getZoneTravelBlockReason(OCEAN_ZONE_ID);
+/** 체크포인트부터 잠수를 시작한다. 떠오르면 지금 있던 사냥터로 돌아온다(takeOceanReturnZone). auto: 자동 재잠수(js/combat.js
+ * autoRediveOceanAfterClear)가 불렀는지. 손으로 시작한 잠수는 소득 없이 떠오른 잠수의 수를 비워 멈춘 자동 재잠수를 다시 잇는다.
+ * shallow: 얕은 리프트(getOceanShallowLiftM)가 있으면 거기서 시작한다.
+ * @returns {boolean} 잠수를 시작했는지 */
+function enterOceanDive({ auto = false, shallow = false } = {}) {
+    const reason = getZoneTravelBlockReason(OCEAN_ZONE_ID) || getContentStartBlockReason();
     if (reason) { addLog(reason, 'attack-monster'); return false; }
-    if (isBeehiveRunLockedForMapTravel()) { warnBeehiveMapTravelBlocked(); return false; }
-    if (ensureBeyondBoundaryState(game).activeRun) {
-        addLog('경계 너머 도전을 먼저 마치거나 포기하세요.', 'attack-monster'); return false;
-    }
     let st = ensureOceanState();
     if (!st.unlocked) { addLog('아직 심해로 진입할 수 없습니다.', 'attack-monster'); return false; }
     if (st.diving) return false;
-    st.depthM = Math.max(0, Math.floor(st.checkpointM || 0));
+    if (!auto) st.fruitlessDives = 0;
+    st.returnZoneId = game.currentZoneId === OCEAN_ZONE_ID ? null : game.currentZoneId;
+    st.autoDive = !!auto;
+    st.diveStartProgress = getOceanDiveRecord(st);
+    st.lastSurfaceReason = '';
+    st.depthM = getOceanDiveStartM(st, shallow);
     st.oxygenMax = Math.max(1, Math.floor(getOceanOxygenMax()));
     st.oxygenCur = st.oxygenMax;
+    st.descentPendingM = 0;
     st.diving = true;
     st.lastTickAt = getCombatTime();
     game.currentZoneId = OCEAN_ZONE_ID;
@@ -3298,21 +3024,85 @@ function enterOceanDive() {
     return true;
 }
 
+/** 얕은 리프트: 가장 깊은 리프트가 아직 못 넘은 가디언 경계에 있으면 마지막으로 넘은 가디언 자리(그 아래 구간의 무리와 낚시를 다시
+ * 한다). 리프트는 경계에 닿을 때 열려서, 넘지 못한 가디언 앞의 잠수는 가디언 싸움뿐이었다. 그런 리프트가 아니면 null. */
+function getOceanShallowLiftM(st) {
+    const interval = getOceanBossBoundaryInterval(), from = Math.floor(Math.max(0, st.bossClearM || 0) / interval) * interval;
+    return Math.floor(st.checkpointM || 0) >= from + interval ? from : null;
+}
+/** 잠수를 시작할 수심: 가장 깊은 리프트, shallow면 얕은 리프트(없으면 가장 깊은 리프트). */
+function getOceanDiveStartM(st, shallow) {
+    const lift = shallow ? getOceanShallowLiftM(st) : null;
+    return lift === null ? Math.max(0, Math.floor(st.checkpointM || 0)) : lift;
+}
+
 function forceSurfaceOcean(reason) {
     let st = ensureOceanState();
+    const returnZoneId = takeOceanReturnZone(st);
     st.diving = false;
     st.depthM = Math.max(0, Math.floor(st.checkpointM || 0));
+    st.descentPendingM = 0;
     st.oxygenCur = st.oxygenMax;
     st.drowning = false;
     st.drownSec = 0;
+    const stopNote = recordOceanSurface(st, reason);
     addLog(reason === 'oxygen' ? '🫧 산소가 모두 소진되어 익사 직전에 수면으로 끌어올려졌습니다. 체크포인트 이후의 진행이 사라졌습니다.' : '🌊 잠수를 종료하고 수면으로 복귀했습니다.', 'attack-monster');
+    if (stopNote) addLog(stopNote, 'attack-monster');
+    st.autoDive = false;
     // 실패(산소 고갈) 시에도 '수면으로 복귀' 버튼과 동일하게 심해 맵을 벗어나 수면(일반 맵)으로 이동한다.
     if (reason !== 'manual') {
         try {
-            if (typeof changeZone === 'function') changeZone(Math.max(0, game.maxZoneId || 0));
+            moveAfterSurfacing(returnZoneId);
             if (typeof updateStaticUI === 'function') updateStaticUI();
         } catch (e) { console.warn('failed to auto-surface from ocean:', e); }
     }
+    return returnZoneId;
+}
+/** 떠오른 영웅을 돌아갈 사냥터로 옮긴다. 그곳이 막혔으면(이동 금지 사유) 심해에 잠수 없이 남지 않게 가장 먼 사냥터로 올라온다. */
+function moveAfterSurfacing(returnZoneId) {
+    if (typeof changeZone !== 'function') return;
+    changeZone(returnZoneId);
+    if (game.currentZoneId === OCEAN_ZONE_ID) changeZone(Math.max(0, game.maxZoneId || 0));
+}
+/** 떠오른 까닭을 적고, 산소가 떨어지거나 가디언에게 쓰러진 잠수면 소득(새 리프트, 가디언 처치, 물고기)이 있었는지 센다(자동 재잠수가
+ * 읽는다). 'defeat'는 자동 재잠수로 들어간 잠수에서 무리에게 쓰러진 경우다(가디언에게 쓰러지면 'guardian').
+ * @returns {string} 자동 재잠수가 멈췄거나 얕게 이어지면 그 알림, 아니면 빈 글 */
+function recordOceanSurface(st, reason) {
+    st.lastSurfaceReason = ['oxygen', 'guardian', 'defeat'].includes(reason) ? reason : 'manual';
+    if (reason === 'defeat') return game.settings.autoRediveOcean ? '🌊 자동 재잠수로 들어간 잠수에서 무리에게 쓰러져 자동 재잠수를 멈춥니다. 잠수 시작을 누르면 다시 이어집니다.' : '';
+    if (reason !== 'oxygen' && reason !== 'guardian') return '';
+    const limit = OCEAN_AUTO_REDIVE.missLimit;
+    st.fruitlessDives = getOceanDiveRecord(st) > st.diveStartProgress ? 0 : Math.min(limit, st.fruitlessDives + 1);
+    return game.settings.autoRediveOcean ? getOceanAutoRediveNote(st, reason) : '';
+}
+/** 자동 재잠수 알림: 소득 없이 한도만큼 떠올라 멈췄거나, 넘지 못한 가디언 때문에 다음 잠수가 지난 가디언 자리부터 내려간다. */
+function getOceanAutoRediveNote(st, reason) {
+    const limit = OCEAN_AUTO_REDIVE.missLimit;
+    if (st.fruitlessDives >= limit) return `🌊 리프트도 가디언 처치도 물고기도 없이 ${limit}번 떠올라 자동 재잠수를 멈춥니다. 잠수 시작을 누르면 다시 이어집니다.`;
+    const lift = reason === 'guardian' ? getOceanShallowLiftM(st) : null;
+    return lift === null ? '' : `🌊 자동 재잠수는 ${lift}m부터 내려가 물고기를 모읍니다.`;
+}
+/** 떠오를 곳: 잠수를 시작한 사냥터(액트나 혼돈 구역이 남아 있으면), 아니면 예전처럼 가장 먼 사냥터. 기록은 비운다. changeZone은
+ * maxZoneId를 넘는 번호(혼돈 심화의 더 깊은 층)를 받지 않으므로 그런 층에서 시작한 잠수도 가장 먼 사냥터로 올라온다. */
+function takeOceanReturnZone(st) {
+    const back = st.returnZoneId === null ? null : getZone(st.returnZoneId), farthest = Math.max(0, game.maxZoneId || 0);
+    st.returnZoneId = null;
+    return back && ['act', 'abyss'].includes(back.type) && !(back.id > farthest) ? back.id : farthest;
+}
+/** 자동 재잠수로 들어간 잠수가 이어지고 있는가(쓰러지면 그 잠수가 끝난다: js/combat.js defeatInOceanDive). */
+const isAutoOceanDive = st => !!st.diving && st.autoDive === true;
+/** 자동 재잠수가 멈췄는가: 자동 잠수에서 무리에게 쓰러졌거나 소득 없이 떠오른 잠수가 한도에 닿았다(손으로 잠수하면 풀린다). */
+const isOceanAutoRediveHalted = st => st.lastSurfaceReason === 'defeat' || st.fruitlessDives >= OCEAN_AUTO_REDIVE.missLimit;
+/** 새 루프: 자동 재잠수는 이 루프에서 직접 시작한 잠수가 떠오른 뒤부터 잇는다(낮은 레벨의 새 영웅을 지난 루프의 깊은 리프트로 보내지 않게). */
+function forgetOceanAutoDive(st) {
+    st.lastSurfaceReason = '';
+    st.returnZoneId = null;
+    st.autoDive = false;
+}
+/** 자동 재잠수 설정(심해 잠수 창의 단추). 켤 때 소득 없이 떠오른 잠수의 수를 비운다. */
+function setOceanAutoRedive(on) {
+    game.settings.autoRediveOcean = !!on;
+    if (on) ensureOceanState().fruitlessDives = 0;
 }
 
 // 산소가 0이 된 뒤에는 시간이 지날수록 점점 큰 익사 피해를 입는다. 쓰러지기 직전이 되면 사망이 아니라 수면으로 복귀한다.
@@ -3391,16 +3181,40 @@ function applyOceanDepthGain(st, meters) {
     }
 }
 
-// 수심을 시간에 따라 꾸준히 증가시킨다(방치 진행의 바닥값).
+// 쓰러뜨린 몬스터가 쌓은 하강 거리(st.descentPendingM, applyOceanKill)를 한 번에 뛰지 않고 조금씩 내려간다(A안, OCEAN_COMBAT_DIVE).
+// 가디언 경계에 닿으면 남은 거리는 버린다(applyOceanDepthGain이 경계에서 멈춘다).
 function tickOceanDepth(st, dtSec) {
-    if (!st || !(dtSec > 0)) return;
-    let speedBonus = typeof getOceanMoveSpeedDepthBonus === 'function' ? getOceanMoveSpeedDepthBonus() : 1;
-    let gearDepthGainPct = 0;
-    try { if (typeof getPlayerStats === 'function') gearDepthGainPct = Math.max(0, Number(getPlayerStats().oceanDepthGainPct) || 0); } catch (e) { console.warn('failed to read ocean depth gain stat:', e); }
-    // 기본 장비로 약 2분 안에 첫 500m 경계에 닿고 산소가 남도록 잡았다.
-    // 이후에는 수압·해류와 영구 업그레이드가 장기 잠수의 성장축이 된다.
-    let depthPerSec = 4 * speedBonus * (1 + gearDepthGainPct / 100);
-    applyOceanDepthGain(st, depthPerSec * dtSec);
+    const pending = Math.max(0, Number(st && st.descentPendingM) || 0);
+    if (!(dtSec > 0) || pending <= 0) return;
+    const step = Math.min(pending, OCEAN_COMBAT_DIVE.descentPerSec * dtSec);
+    st.descentPendingM = pending - step;
+    applyOceanDepthGain(st, step);
+}
+
+/** 심해에서 쓰러뜨린 몬스터(js/combat.js countKillForContent): 잠수 중이면 하강 거리를 쌓고(A안), 공기 방울을 남기는 몬스터면 산소를
+ * 채운다(B안). 가디언과 그 졸개는 하강 거리를 쌓지 않는다(경계에서 멈춘다).
+ * @returns {number} 채운 산소가 버티는 초(반올림, 가득 차 있었으면 0) */
+function applyOceanKill(enemy) {
+    const st = ensureOceanState();
+    if (!st.unlocked || !st.diving || !enemy || enemy.isBoss) return 0;
+    if (!enemy.oceanAirAdd) st.descentPendingM = Math.max(0, Number(st.descentPendingM) || 0) + getOceanKillDescentM(enemy);
+    const seconds = getOceanKillAirSec(enemy), before = st.oxygenCur;
+    if (seconds <= 0) return 0;
+    const drainPerSec = getOceanOxygenDrainPerSec() * Math.max(0.1, Number(getOceanFishingStrategyDef(st).oxygenDrainMul) || 1);
+    st.oxygenCur = Math.min(st.oxygenMax, st.oxygenCur + drainPerSec * seconds);
+    return Math.round((st.oxygenCur - before) / drainPerSec);
+}
+/** 몬스터 하나가 쌓는 하강 거리(m): 정예는 배로, 장비의 심해 수심 전진 속도(%)만큼 더. */
+function getOceanKillDescentM(enemy) {
+    const rule = OCEAN_COMBAT_DIVE, gearPct = Math.max(0, Number(getPlayerStats().oceanDepthGainPct) || 0);
+    return rule.metersPerKill * (enemy.isElite ? rule.eliteKillMul : 1) * (1 + gearPct / 100);
+}
+/** 쓰러지며 남기는 공기(그 수심에서 산소가 줄어드는 초 수): 가디언의 졸개, 정예, 철갑 패각충. */
+function getOceanKillAirSec(enemy) {
+    const air = OCEAN_COMBAT_DIVE.air;
+    if (enemy.oceanAirAdd) return air.guardianAddSec;
+    if (enemy.isElite) return air.eliteSec;
+    return enemy.monsterVisualId === air.carrier ? air.carrierSec : 0;
 }
 
 // The stats of each category come from its tag rule (data/affix-tags.js AFFIX_TAG_LISTS.sea).
@@ -3432,14 +3246,14 @@ const SEA_GIFT_RECIPES = [
     { id: 'purifyingOffering', desc: '【장비 강화: 계열 재굴림 1줄】 발광 송어를 바쳐 원하는 계열의 기존 옵션 한 줄만 다시 굴립니다(다른 줄 보존, 등급 보정 없음).', requires: { glowfinTrout: 4, shallowSilverfin: 3 }, effect: { type: 'taggedReroll' } },
     { id: 'abyssalGift', desc: '【장비 강화: 확정 옵션 부여】 심연 등불고기를 제물로 바쳐 장비에 옵션 한 줄을 확정으로 부여합니다.', requires: { abyssAngler: 4, tidalEel: 3 }, effect: { type: 'guaranteedMod' } },
     // --- 무작위 제작 재화 레시피 (SEA_GIFT_RANDOM_ORB_KEYS: 마법의 새싹, 수액 봉오리, 형체 없는 이슬, 황금률, 축복의 꽃잎, 잿불가지, 전정 가위 중 1개) ---
-    { id: 'tidalFortune', desc: '【재화 획득: 무작위 제작 오브 ×1】 조류 장어와 은빛 비늘치 더미에서 흘러나온 마력을 정제해 무작위 제작 오브 1개를 얻습니다.', requires: { tidalEel: 3, shallowSilverfin: 3 }, effect: { type: 'randomCurrency', amount: 1 } },
-    { id: 'glowingFortune', desc: '【재화 획득: 무작위 제작 오브 ×1】 발광 송어의 빛을 응축해 무작위 제작 오브 1개를 얻습니다.', requires: { glowfinTrout: 3, tidalEel: 2 }, effect: { type: 'randomCurrency', amount: 1 } },
-    { id: 'abyssalCache', desc: '【재화 획득: 무작위 제작 오브 ×2】 심연 등불고기와 발광 송어로 봉인된 보물함을 열어 무작위 제작 오브 2개를 얻습니다.', requires: { abyssAngler: 2, glowfinTrout: 2 }, effect: { type: 'randomCurrency', amount: 2 } },
-    { id: 'tidelordCache', desc: '【재화 획득: 무작위 제작 오브 ×2】 해류군주 비단잉어의 비늘로 만든 함에서 무작위 제작 오브 2개를 얻습니다.', requires: { tidelordKoi: 1, abyssAngler: 2, shallowSilverfin: 4 }, effect: { type: 'randomCurrency', amount: 2 } },
-    { id: 'leviathanCache', desc: '【재화 획득: 무작위 제작 오브 ×3】 리바이어던 본체와 무지갯빛 공포의 잔재로 채워진 최상급 보물함에서 무작위 제작 오브 3개를 얻습니다.', requires: { kingLeviathan: 1, prismaticHorror: 1, abyssAngler: 2 }, effect: { type: 'randomCurrency', amount: 3 } },
+    { id: 'tidalFortune', desc: '【재화 획득: 무작위 제작 재화 ×1】 조류 장어와 은빛 비늘치 더미에서 흘러나온 마력을 정제해 무작위 제작 재화 1개를 얻습니다.', requires: { tidalEel: 3, shallowSilverfin: 3 }, effect: { type: 'randomCurrency', amount: 1 } },
+    { id: 'glowingFortune', desc: '【재화 획득: 무작위 제작 재화 ×1】 발광 송어의 빛을 응축해 무작위 제작 재화 1개를 얻습니다.', requires: { glowfinTrout: 3, tidalEel: 2 }, effect: { type: 'randomCurrency', amount: 1 } },
+    { id: 'abyssalCache', desc: '【재화 획득: 무작위 제작 재화 ×2】 심연 등불고기와 발광 송어로 봉인된 보물함을 열어 무작위 제작 재화 2개를 얻습니다.', requires: { abyssAngler: 2, glowfinTrout: 2 }, effect: { type: 'randomCurrency', amount: 2 } },
+    { id: 'tidelordCache', desc: '【재화 획득: 무작위 제작 재화 ×2】 해류군주 비단잉어의 비늘로 만든 함에서 무작위 제작 재화 2개를 얻습니다.', requires: { tidelordKoi: 1, abyssAngler: 2, shallowSilverfin: 4 }, effect: { type: 'randomCurrency', amount: 2 } },
+    { id: 'leviathanCache', desc: '【재화 획득: 무작위 제작 재화 ×3】 리바이어던 본체와 무지갯빛 공포의 잔재로 채워진 최상급 보물함에서 무작위 제작 재화 3개를 얻습니다.', requires: { kingLeviathan: 1, prismaticHorror: 1, abyssAngler: 2 }, effect: { type: 'randomCurrency', amount: 3 } },
     // --- 장비 옵션 가공 효과 (제련/옵션 조작 계열) ---
     { id: 'safeReroll', desc: '【장비 강화: 하락 없는 안전 재굴림】 발광 송어와 은빛 비늘치로 옵션 1줄을 다시 굴립니다. 결과가 기존보다 낮으면 적용되지 않고 원래 값이 유지됩니다.', requires: { glowfinTrout: 3, shallowSilverfin: 4 }, effect: { type: 'safeReroll' } },
-    { id: 'twinCurrentReroll', desc: '【장비 강화: 무작위 옵션 2줄만 재굴림】 심연 등불고기와 조류 장어로 무작위로 고른 옵션 두 줄만 다시 굴립니다(나머지 줄은 보존, 형체 없는 이슬과 달리 전체 재굴림이 아닙니다).', requires: { abyssAngler: 3, tidalEel: 4 }, effect: { type: 'twinReroll' } },
+    { id: 'twinCurrentReroll', desc: '【장비 강화: 무작위 옵션 2줄 수치 재굴림】 심연 등불고기와 조류 장어로 무작위로 고른 옵션 두 줄의 수치만 같은 등급 안에서 다시 굴립니다(옵션 종류와 나머지 줄은 그대로).', requires: { abyssAngler: 3, tidalEel: 4 }, effect: { type: 'twinReroll' } },
     { id: 'tierStepUp', desc: '【장비 강화: 옵션 1줄 등급 +1 영구 재굴림】 심연 등불고기와 발광 송어로 무작위 옵션 1줄을 한 단계 높은 등급으로 다시 굴립니다(영구 적용).', requires: { abyssAngler: 3, glowfinTrout: 3 }, effect: { type: 'tierStepUp' } },
     { id: 'categoryShift', desc: '【장비 강화: 무작위 옵션 1줄을 원하는 계열로 변환】 발광 송어와 조류 장어로 무작위 옵션 한 줄을 선택한 계열의 옵션으로 바꿉니다.', requires: { glowfinTrout: 3, tidalEel: 3 }, effect: { type: 'convertCategoryMod' } },
     { id: 'echoMod', desc: '【장비 강화: 최고 티어 옵션을 50% 효과로 메아리】 전설의 새끼 괴어와 심연 등불고기로 가장 높은 티어의 옵션 중 한 줄을 무작위로 골라, 나머지 옵션 중 무작위 한 줄을 그 옵션의 50% 효과로 덮어씁니다.', requires: { voidLeviathanSpawn: 1, abyssAngler: 3 }, effect: { type: 'echoMod' } },
@@ -3447,15 +3261,15 @@ const SEA_GIFT_RECIPES = [
     { id: 'sealOffering', desc: '【장비 강화: 옵션 1줄 영구 봉인】 해류군주 비단잉어와 발광 송어로 옵션 한 줄을 영구히 봉인합니다.', requires: { tidelordKoi: 1, glowfinTrout: 3 }, effect: { type: 'lockMod', count: 1 } },
     { id: 'leviathanBoon', desc: '【장비 강화: 최상급 태그 옵션 확정(등급 +2)】 전설의 새끼 괴어와 심연 등불고기, 조류 장어로 최상급 태그 옵션을 확정 부여합니다.', requires: { voidLeviathanSpawn: 2, abyssAngler: 2, tidalEel: 3 }, effect: { type: 'guaranteedTaggedMod', tierBoost: 2 } },
     { id: 'tidelordRefine', desc: '【장비 강화: 계열 재굴림(등급 +1)】 해류군주 비단잉어와 발광 송어로 원하는 계열의 기존 옵션만 다시 굴립니다(다른 줄 보존).', requires: { tidelordKoi: 2, glowfinTrout: 3 }, effect: { type: 'taggedReroll', tierBoost: 1, allMatching: true } },
-    { id: 'crushDepthScar', desc: '【장비 강화: 심해 전용 고정 옵션 부착】 무지갯빛 공포와 해류군주 비단잉어, 심연 등불고기로 심해 전용 고정 옵션을 부착합니다.', requires: { prismaticHorror: 2, tidelordKoi: 1, abyssAngler: 2 }, effect: { type: 'fixedBenchOption' } },
+    { id: 'crushDepthScar', desc: '【장비 강화: 심해 전용 고정 옵션 부착】 무지갯빛 공포와 해류군주 비단잉어, 심연 등불고기로 심해 전용 고정 옵션을 부착합니다(자리가 없으면 가장 낮은 줄을 바꿉니다).', requires: { prismaticHorror: 2, tidelordKoi: 1, abyssAngler: 2 }, effect: { type: 'fixedBenchOption' } },
     { id: 'doubleSealForge', desc: '【장비 강화: 옵션 2줄 동시 영구 봉인 + 나머지 1줄 즉시 재단】 무지갯빛 공포와 발광 송어로 옵션 두 줄을 동시에 봉인하고, 남은 줄은 즉시 재단합니다.', requires: { prismaticHorror: 3, glowfinTrout: 4 }, effect: { type: 'lockMod', count: 2, bonusTaggedReroll: true } },
     { id: 'voidPureRefine', desc: '【장비 강화: 강제 희귀 등급 승급】 무지갯빛 공포와 공허 리바이어던 새끼, 은빛 비늘치로 장비를 강제로 희귀 등급으로 승급시킵니다.', requires: { prismaticHorror: 2, voidLeviathanSpawn: 1, shallowSilverfin: 5 }, effect: { type: 'upgradeRarity', force: true } },
     { id: 'leviathanRemnant', desc: '【장비 강화: 최상급 태그 옵션 확정(등급 +3) + 나쁜 옵션 1줄 무료 제거】 리바이어던 본체와 심연 등불고기로 최상급 태그 옵션을 확정 부여하며, 동시에 나쁜 줄 하나를 무료로 제거합니다.', requires: { kingLeviathan: 1, abyssAngler: 3 }, effect: { type: 'guaranteedTaggedMod', tierBoost: 3, bonusRemoveMod: true } },
-    { id: 'leviathanSigil', desc: '【장비 강화: 이 레시피 전용 최상위 고정 옵션 부착】 리바이어던 본체와 해류군주 비단잉어, 공허 리바이어던 새끼로 오직 이 레시피로만 얻는 최상위 고정 옵션을 부착합니다.', requires: { kingLeviathan: 2, tidelordKoi: 2, voidLeviathanSpawn: 1 }, effect: { type: 'fixedBenchOption', topTier: true } }
+    { id: 'leviathanSigil', desc: '【장비 강화: 이 레시피 전용 최상위 고정 옵션 부착】 리바이어던 본체와 해류군주 비단잉어, 공허 리바이어던 새끼로 오직 이 레시피로만 얻는 최상위 고정 옵션을 부착합니다(자리가 없으면 가장 낮은 줄을 바꿉니다).', requires: { kingLeviathan: 2, tidelordKoi: 2, voidLeviathanSpawn: 1 }, effect: { type: 'fixedBenchOption', topTier: true } }
 ];
 const SEA_GIFT_ITEM_EFFECT_TYPES = new Set(['guaranteedMod', 'guaranteedTaggedMod', 'removeMod', 'upgradeRarity', 'lockMod', 'taggedReroll', 'fixedBenchOption', 'safeReroll', 'twinReroll', 'tierStepUp', 'convertCategoryMod', 'echoMod']);
 
-function getSeaGiftRecipeStatus(recipeId, targetItem) {
+function getSeaGiftRecipeStatus(recipeId, targetItem, category) {
     let recipe = SEA_GIFT_RECIPES.find(r => r.id === recipeId);
     if (!recipe) return null;
     let st = ensureOceanState();
@@ -3465,7 +3279,7 @@ function getSeaGiftRecipeStatus(recipeId, targetItem) {
     let reason = '';
     if (!st.unlocked) reason = '심해 해금 필요';
     else if (!materialReady) reason = '재료 부족';
-    else if (needsItem) reason = getSeaGiftTargetBlockReason(item);
+    else if (needsItem) reason = getSeaGiftTargetBlockReason(item) || getSeaGiftEffectBlockReason(item, recipe.effect, category);
     return { recipe, ready: !reason, materialReady, reason, item, owned: st.fishStock };
 }
 
@@ -3474,7 +3288,55 @@ function getSeaGiftTargetBlockReason(item) {
     if (!isSeaGiftEquipmentTarget(item)) return '일반 장비만 가공 가능';
     if (game.woodsmanBuildLock) return '세팅 변경 잠김';
     if (item.hallReplica) return '전당 소장품 가공 불가';
+    if (item.fusedRelic) return '융합 유물 가공 불가';
     return item.corrupted ? '타락 장비 가공 불가' : '';
+}
+/** Why the effect cannot work on this item, as a short button label ('' when it can): the checks that need no roll. A unique keeps
+ * its fixed lines (they would reroll from the normal tables at a low tier), so only a plain seal works on one, as the honey does. */
+function getSeaGiftEffectBlockReason(item, effect, category) {
+    if (item.rarity === 'unique' && !(effect.type === 'lockMod' && !effect.bonusTaggedReroll)) return '고유 장비 가공 불가';
+    return Object.hasOwn(SEA_GIFT_EFFECT_BLOCKERS, effect.type) ? SEA_GIFT_EFFECT_BLOCKERS[effect.type](item, effect, category) : '';
+}
+/** '' when the item can take a line of the category picked on the card (none picked: any), else a short label. */
+const getSeaGiftCategoryBlockReason = (item, category) => (!category || getAvailableMods(item).some(mod => getModCategory(mod) === category) ? '' : `${category} 옵션 없음`);
+const getSeaGiftEchoBlockReason = item => {
+    if ((item.stats || []).some(s => s && s.isEchoMod)) return '메아리 줄 있음';
+    return getSeaGiftEditableIndexes(item).length < 2 ? '봉인 안 된 2줄 필요' : '';
+};
+const getSeaGiftLockBlockReason = (item, effect) => {
+    const editable = getSeaGiftEditableIndexes(item).length;
+    const required = Math.max(1, Math.floor(effect.count || 1)) + (effect.bonusTaggedReroll ? 1 : 0);
+    if (editable >= required) return '';
+    return editable === 0 ? '봉인할 줄 없음' : `봉인 안 된 ${required}줄 필요`;
+};
+/** A guaranteed line needs a place (room to add it, else an unsealed line to swap) and, with the free removal, a line to remove
+ * besides the one it swaps. */
+const getSeaGiftGuaranteedBlockReason = (item, effect) => {
+    const editable = getSeaGiftEditableIndexes(item).length, adds = canAddSeaGiftLine(item, editable);
+    if (!adds && editable === 0) return '바꿀 줄 없음';
+    return effect.bonusRemoveMod && getSeaGiftRemovableIndexes(item).length < (adds ? 1 : 2) ? '지울 줄 없음' : '';
+};
+/** Each effect's blocker on an item (the refusals that come before any roll; category: the one picked on the card). */
+const SEA_GIFT_EFFECT_BLOCKERS = Object.freeze({
+    guaranteedMod: getSeaGiftGuaranteedBlockReason,
+    guaranteedTaggedMod: (item, effect, category) => getSeaGiftGuaranteedBlockReason(item, effect) || getSeaGiftCategoryBlockReason(item, category),
+    removeMod: item => (getSeaGiftEditableIndexes(item).length ? '' : '지울 줄 없음'),
+    upgradeRarity: item => (item.rarity === 'rare' || item.rarity === 'unique' ? '이미 희귀 이상' : ''),
+    lockMod: (item, effect, category) => getSeaGiftLockBlockReason(item, effect) || (effect.bonusTaggedReroll ? getSeaGiftCategoryBlockReason(item, category) : ''),
+    taggedReroll: (item, effect, category) => (getSeaGiftRerollRows(item, category).length ? '' : `${category || '굴릴'} 줄 없음`),
+    safeReroll: item => (getSeaGiftRerollRows(item).length ? '' : '굴릴 줄 없음'),
+    twinReroll: item => (getSeaGiftRerollRows(item).length ? '' : '굴릴 줄 없음'),
+    tierStepUp: item => (getSeaGiftTierStepRows(item).length ? '' : '올릴 줄 없음'),
+    echoMod: getSeaGiftEchoBlockReason,
+    fixedBenchOption: item => (getSeaGiftBenchSlot(item) === null ? '바꿀 줄 없음' : ''),
+    convertCategoryMod: (item, effect, category) => (getSeaGiftEditableIndexes(item).length ? getSeaGiftCategoryBlockReason(item, category) : '바꿀 줄 없음')
+});
+/** The rerollable lines still below their top tier. */
+function getSeaGiftTierStepRows(item) {
+    return getSeaGiftRerollRows(item).filter(row => {
+        let cap = Array.isArray(row.mod.tierValues) ? row.mod.tierValues.length : 20;
+        return Math.max(1, Math.floor(Number(row.stat.tier) || 1)) < cap;
+    });
 }
 
 function removeOneModFromItem(item) {
@@ -3512,22 +3374,37 @@ function getSeaGiftRerollRows(item, category) {
 function applySeaGiftGuaranteedMod(item, effect, category) {
     const editable = (item.stats || []).map((stat, index) => ({ stat, index }))
         .filter(row => row.stat && !row.stat.lockedByHoney && !row.stat.lockedByRift);
-    if (effect.bonusRemoveMod && editable.length < 2) return '최상급 옵션을 부여하고 다른 옵션을 제거하려면 봉인되지 않은 옵션이 2줄 이상 필요합니다.';
     const pool = getAvailableMods(item).filter(mod => effect.type !== 'guaranteedTaggedMod' || !category || getModCategory(mod) === category);
     const choice = chooseSeaGiftGuaranteedLine(item, pool, editable);
     if (!choice) return '이 장비에 추가로 부여할 수 있는 옵션이 없습니다.';
-    const maxTier = Math.max(1, Math.floor(getItemCraftTier(item) || 1)) + Math.max(0, Math.floor(effect.tierBoost || 0));
-    const rolled = rollAffixValue(choice.mod, maxTier);
-    if (choice.index < 0) item.stats.push(rolled); else item.stats[choice.index] = rolled;
-    if (effect.bonusRemoveMod) removeWorstSeaGiftMod(item, choice.index);
+    const rolled = rollSeaGiftGuaranteedValue(item, choice.mod, effect);
+    const index = choice.index < 0 ? item.stats.push(rolled) - 1 : choice.index;
+    item.stats[index] = rolled;
+    if (effect.bonusRemoveMod) removeWorstSeaGiftMod(item, index);
     updateItemName(item);
     return '';
 }
-/** 바뀔 줄은 같은 종류의 가장 낮은 단계 줄(예전에는 첫 줄). 봉인 안 된 줄이 없으면 자리가 남는 종류로 덧붙인다(index -1). */
+/** 확정 부여한 줄의 단계: 등급 보정이 있으면(최상급 태그 옵션) 장비 제작 단계부터 그만큼 위까지, 없으면 수액 봉오리처럼 제작 단계까지 굴린다.
+ * 2026-10-19 전에는 등급 보정도 1단계부터 굴러 '등급 +2'가 평균 T2.4였다. */
+function rollSeaGiftGuaranteedValue(item, mod, effect) {
+    const tier = Math.max(1, Math.floor(getItemCraftTier(item) || 1)), boost = Math.max(0, Math.floor(effect.tierBoost || 0));
+    return boost ? rollAffixValueInTierRange(mod, tier, tier + boost) : rollAffixValue(mod, tier);
+}
+/** The most lines a sea gift adds up to: magic 2 and rare 6 (their prefix and suffix rule), else the 6-line cap. */
+function getSeaGiftLineCap(item) {
+    const rule = EXPLICIT_AFFIX_RULES[item.rarity];
+    return rule ? Math.min(EXPLICIT_AFFIX_LINE_CAP, rule.prefix + rule.suffix) : EXPLICIT_AFFIX_LINE_CAP;
+}
+/** Whether a guaranteed line is added rather than swapped in: a magic or rare item below its cap, and normal gear (no prefix and suffix
+ * rule) only while it has no unsealed line, as before 2026-10-19 (adding there gathered six lines on a white item). */
+const canAddSeaGiftLine = (item, editableCount) => (EXPLICIT_AFFIX_RULES[item.rarity] ? getItemExplicitOptionCount(item) < getSeaGiftLineCap(item) : editableCount === 0);
+/** 자리가 남으면(접두 3, 접미 3, 모두 6줄) 덧붙이고(index -1), 꽉 찼으면 같은 종류의 가장 낮은 단계 줄을 바꾼다. 2026-10-19 전에는
+ * 자리가 있어도 줄을 바꿔 '부여'가 좋은 줄을 지웠다. */
 function chooseSeaGiftGuaranteedLine(item, pool, editable) {
-    if (editable.length > 0) return equipmentCrafting.pickReplacement(item, pool, editable.map(row => row.index), pickWeightedMod, 'lowest');
-    const mod = pickWeightedMod(pool.filter(row => equipmentCrafting.fitsRoom(equipmentCrafting.affixRoom(item), row)));
-    return mod ? { mod, index: -1 } : null;
+    const room = equipmentCrafting.affixRoom(item);
+    const mod = canAddSeaGiftLine(item, editable.length) ? pickWeightedMod(pool.filter(row => equipmentCrafting.fitsRoom(room, row))) : null;
+    if (mod) return { mod, index: -1 };
+    return editable.length > 0 ? equipmentCrafting.pickReplacement(item, pool, editable.map(row => row.index), pickWeightedMod, 'lowest') : null;
 }
 
 /** 메아리 줄은 원본과 같은 종류다. 그 종류에 자리가 없으면 같은 종류의 줄만 바꿔 끼울 수 있다. */
@@ -3538,26 +3415,22 @@ function getSeaGiftEchoTargets(item, editableIdx, srcIdx) {
     return others.filter(index => equipmentCrafting.storedAffixKind(item, item.stats[index]) === kind);
 }
 
+/** Lines the free bad-line removal may take: unsealed, not fixed (fossil and unique lines) and not an ocean bench line, which is stored as
+ * T5 and cost the rarest fish (the removal always took it before 2026-10-19). */
+function getSeaGiftRemovableIndexes(item) {
+    return getSeaGiftEditableIndexes(item).filter(index => !item.stats[index].oceanBenchOptionId && !isFixedEquipmentAffix(item.stats[index]));
+}
 function removeWorstSeaGiftMod(item, excludedIndex) {
-    let candidates = (item.stats || []).map((stat, index) => ({ stat, index }))
-        .filter(row => row.index !== excludedIndex && row.stat && !row.stat.lockedByHoney && !row.stat.lockedByRift)
-        .sort((left, right) => (Number(left.stat.tier) || 0) - (Number(right.stat.tier) || 0));
+    const tierOf = index => Number(item.stats[index].tier) || 0;
+    const candidates = getSeaGiftRemovableIndexes(item).filter(index => index !== excludedIndex).sort((left, right) => tierOf(left) - tierOf(right));
     if (candidates.length === 0) return false;
-    item.stats.splice(candidates[0].index, 1);
+    item.stats.splice(candidates[0], 1);
     return true;
 }
 
 const applySeaGiftLockEffect = function (item, effect, category) {
     let editable = (item.stats || []).filter(stat => stat && !stat.lockedByHoney && !stat.lockedByRift);
     let count = Math.max(1, Math.floor(effect.count || 1));
-    let requiredEditable = count + (effect.bonusTaggedReroll ? 1 : 0);
-    if (editable.length < requiredEditable) {
-        let message = editable.length === 0
-            ? '봉인할 수 있는 옵션 줄이 없습니다.'
-            : `이 제작에는 봉인되지 않은 옵션이 ${requiredEditable}줄 이상 필요합니다.`;
-        addLog(message, 'attack-monster');
-        return false;
-    }
     let rerollMod = null;
     if (effect.bonusTaggedReroll) {
         // 재단되는 줄은 봉인하고 남은 첫 줄(editable[count]). 새 줄은 그 줄을 뺀 접두 3, 접미 3 자리가 남는 종류에서.
@@ -3583,121 +3456,183 @@ function getSelectedSeaGiftEquipmentTarget() {
     return isSeaGiftEquipmentTarget(item) ? item : null;
 }
 
+/** Makes a sea gift recipe: its effect from SEA_GIFT_EFFECTS on the item (a refusal logs why and keeps the fish), then the fish are
+ * taken. Effects as a table on 2026-10-18, each in its old order. */
 function craftSeaGift(recipeId, targetItem, options) {
-    const status = getSeaGiftRecipeStatus(recipeId, targetItem);
+    const category = options && options.category;
+    const status = getSeaGiftRecipeStatus(recipeId, targetItem, category);
     if (!status) return false;
     if (!status.ready) { addLog(`바다의 선물: ${status.reason}`, 'attack-monster'); return false; }
     let recipe = status.recipe;
     let st = ensureOceanState();
     let effect = recipe.effect;
     let item = status.item;
-    let category = options && options.category;
-    if (effect.type === 'guaranteedMod' || effect.type === 'guaranteedTaggedMod') {
-        const refusal = applySeaGiftGuaranteedMod(item, effect, category);
-        if (refusal) { addLog(refusal, 'attack-monster'); return false; }
-    } else if (effect.type === 'removeMod') {
-        if (!removeOneModFromItem(item)) { addLog('제거할 수 있는 옵션 줄이 없습니다.', 'attack-monster'); return false; }
-        updateItemName(item);
-    } else if (effect.type === 'upgradeRarity') {
-        if (item.rarity === 'rare' || item.rarity === 'unique') {
-            addLog('이미 희귀 이상인 장비는 더 승급할 수 없습니다.', 'attack-monster');
-            return false;
-        }
-        if (effect.force) item.rarity = 'rare';
-        else if (item.rarity === 'normal') item.rarity = 'magic';
-        else if (item.rarity === 'magic') item.rarity = 'rare';
-        updateItemName(item);
-    } else if (effect.type === 'lockMod') {
-        if (!applySeaGiftLockEffect(item, effect, category)) return false;
-    } else if (effect.type === 'taggedReroll') {
-        let rows = getSeaGiftRerollRows(item, category);
-        if (rows.length === 0) { addLog('해당 계열의 재굴림 가능한 옵션 줄이 없습니다.', 'attack-monster'); return false; }
-        let targets = effect.allMatching ? rows : [rows[Math.floor(Math.random() * rows.length)]];
-        targets.forEach(row => { item.stats[row.index] = rollSeaGiftExistingAffix(row, effect.tierBoost); });
-        updateItemName(item);
-    } else if (effect.type === 'fixedBenchOption') {
-        let option = getOceanWorkbenchOption(options && options.optionId, !!effect.topTier);
-        if (!option) { addLog('적용할 수 있는 고정 옵션이 없습니다.', 'attack-monster'); return false; }
-        let minInt = Math.floor(option.min);
-        let maxInt = Math.floor(option.max);
-        let val = minInt + Math.floor(Math.random() * (maxInt - minInt + 1));
-        let rolled = { id: option.statId, val: val, valMin: minInt, valMax: maxInt, tier: 5, statName: getStatName(option.statId), oceanBenchOptionId: option.id };
-        let idx = (item.stats || []).findIndex(stat => stat && (stat.oceanBenchOptionId === option.id));
-        if (idx < 0) idx = (item.stats || []).findIndex(stat => stat && !stat.lockedByHoney && !stat.lockedByRift);
-        if (idx < 0) item.stats.push(rolled); else item.stats[idx] = rolled;
-        updateItemName(item);
-    } else if (effect.type === 'currency') {
-        awardCurrency(effect.key, effect.amount || 1);
-    } else if (effect.type === 'randomCurrency') {
-        let count = Math.max(1, Math.floor(effect.amount || 1));
-        for (let i = 0; i < count; i++) {
-            let key = SEA_GIFT_RANDOM_ORB_KEYS[Math.floor(Math.random() * SEA_GIFT_RANDOM_ORB_KEYS.length)];
-            awardCurrency(key, 1);
-            addLog(`🎲 무작위 제작 오브: ${(ORB_DB[key] || {}).name || key} +1`, 'loot-rare');
-        }
-    } else if (effect.type === 'safeReroll') {
-        let rows = getSeaGiftRerollRows(item);
-        if (rows.length === 0) { addLog('재굴림할 수 있는 옵션 줄이 없습니다.', 'attack-monster'); return false; }
-        let row = rows[Math.floor(Math.random() * rows.length)];
-        let rolled = rollSeaGiftExistingAffix(row, 0);
-        if ((Number(rolled.val) || 0) >= (Number(row.stat.val) || 0)) item.stats[row.index] = rolled;
-        else addLog('🌊 재굴림 결과가 기존보다 낮아 적용을 취소했습니다.', 'loot-magic');
-        updateItemName(item);
-    } else if (effect.type === 'twinReroll') {
-        let rows = getSeaGiftRerollRows(item);
-        if (rows.length === 0) { addLog('재굴림할 수 있는 옵션 줄이 없습니다.', 'attack-monster'); return false; }
-        rows.sort(() => Math.random() - 0.5).slice(0, 2)
-            .forEach(row => { item.stats[row.index] = rollSeaGiftExistingAffix(row, 0); });
-        updateItemName(item);
-    } else if (effect.type === 'tierStepUp') {
-        let rows = getSeaGiftRerollRows(item).filter(row => {
-            let cap = Array.isArray(row.mod.tierValues) ? row.mod.tierValues.length : 20;
-            return Math.max(1, Math.floor(Number(row.stat.tier) || 1)) < cap;
-        });
-        if (rows.length === 0) { addLog('등급을 올릴 수 있는 옵션 줄이 없습니다.', 'attack-monster'); return false; }
-        let row = rows[Math.floor(Math.random() * rows.length)];
-        item.stats[row.index] = rollSeaGiftExistingAffix(row, 1);
-        updateItemName(item);
-    } else if (effect.type === 'echoMod') {
-        if ((item.stats || []).some(s => s && s.isEchoMod)) { addLog('이미 메아리 옵션을 가진 장비에는 다시 사용할 수 없습니다.', 'attack-monster'); return false; }
-        let editableIdx = (item.stats || []).map((s, i) => (s && !s.lockedByHoney && !s.lockedByRift) ? i : -1).filter(i => i >= 0);
-        if (editableIdx.length < 2) { addLog('메아리에는 봉인되지 않은 옵션이 2줄 이상 필요합니다.', 'attack-monster'); return false; }
-        let maxTier = editableIdx.reduce((m, i) => Math.max(m, Number(item.stats[i].tier) || 0), 0);
-        let topIdx = editableIdx.filter(i => (Number(item.stats[i].tier) || 0) === maxTier);
-        let srcIdx = topIdx[Math.floor(Math.random() * topIdx.length)];
-        let targetPool = getSeaGiftEchoTargets(item, editableIdx, srcIdx);
-        if (targetPool.length === 0) { addLog('메아리 줄을 넣을 같은 종류 자리가 없습니다(접두 3, 접미 3).', 'attack-monster'); return false; }
-        let dstIdx = targetPool[Math.floor(Math.random() * targetPool.length)];
-        let src = item.stats[srcIdx];
-        let echo = JSON.parse(JSON.stringify(src));
-        echo.val = Math.floor((Number(src.val) || 0) * 0.5);
-        if (Number.isFinite(echo.valMin)) echo.valMin = Math.floor(echo.valMin * 0.5);
-        if (Number.isFinite(echo.valMax)) echo.valMax = Math.floor(echo.valMax * 0.5);
-        echo.echoOf = src.statName || getStatName(src.id);
-        echo.isEchoMod = true;
-        item.stats[dstIdx] = echo;
-        addLog(`🔊 ${echo.echoOf} 옵션이 50% 효과로 메아리쳤습니다.`, 'loot-rare');
-        updateItemName(item);
-    } else if (effect.type === 'convertCategoryMod') {
-        let editableIdx = (item.stats || []).map((s, i) => (s && !s.lockedByHoney && !s.lockedByRift) ? i : -1).filter(i => i >= 0);
-        if (editableIdx.length === 0) { addLog('변환할 수 있는 옵션 줄이 없습니다.', 'attack-monster'); return false; }
-        let pool = getAvailableMods(item).filter(mod => !category || getModCategory(mod) === category);
-        let choice = equipmentCrafting.pickReplacement(item, pool, editableIdx, pickWeightedMod);
-        if (!choice) { addLog('해당 계열로 변환할 수 있는 옵션이 없습니다.', 'attack-monster'); return false; }
-        item.stats[choice.index] = rollAffixValue(choice.mod, getItemCraftTier(item));
-        updateItemName(item);
-    }
+    const craft = { category, options, say: addLog };
+    const apply = Object.hasOwn(SEA_GIFT_EFFECTS, effect.type) ? SEA_GIFT_EFFECTS[effect.type] : null;
+    if (apply && apply(item, effect, craft) === false) return false;
     Object.keys(recipe.requires).forEach(key => { st.fishStock[key] = Math.max(0, Math.floor(st.fishStock[key] || 0) - recipe.requires[key]); });
     addLog(`🎁 [바다의 선물] 제작이 완료되었습니다.`, 'loot-rare');
     if (item && typeof normalizeItem === 'function') normalizeItem(item);
     queueImportantSave(200);
     return true;
 }
+/** Logs why a sea gift was refused; false for the handler to return. */
+function refuseSeaGift(craft, message) {
+    craft.say(message, 'attack-monster');
+    return false;
+}
+/** The indexes of the item's lines that no seal holds. */
+function getSeaGiftEditableIndexes(item) {
+    return (item.stats || []).map((s, i) => (s && !s.lockedByHoney && !s.lockedByRift) ? i : -1).filter(i => i >= 0);
+}
+/** Each sea gift effect on the item (craft: the chosen category, the options, the log); false refuses. */
+const SEA_GIFT_EFFECTS = Object.freeze({
+    guaranteedMod: applySeaGiftGuaranteedEffect,
+    guaranteedTaggedMod: applySeaGiftGuaranteedEffect,
+    removeMod: item => {
+        removeOneModFromItem(item);
+        updateItemName(item);
+    },
+    upgradeRarity: (item, effect) => {
+        if (effect.force) {
+            item.rarity = 'rare';
+            fillSeaGiftRareLines(item);
+        }
+        else if (item.rarity === 'normal') item.rarity = 'magic';
+        else if (item.rarity === 'magic') item.rarity = 'rare';
+        updateItemName(item);
+    },
+    lockMod: (item, effect, craft) => !!applySeaGiftLockEffect(item, effect, craft.category),
+    taggedReroll: (item, effect, craft) => {
+        let rows = getSeaGiftRerollRows(item, craft.category);
+        if (rows.length === 0) return refuseSeaGift(craft, '해당 계열의 재굴림 가능한 옵션 줄이 없습니다.');
+        let targets = effect.allMatching ? rows : [rows[Math.floor(Math.random() * rows.length)]];
+        targets.forEach(row => { item.stats[row.index] = rollSeaGiftExistingAffix(row, effect.tierBoost); });
+        updateItemName(item);
+    },
+    fixedBenchOption: applySeaGiftBenchOption,
+    currency: (item, effect) => { awardCurrency(effect.key, effect.amount || 1); },
+    randomCurrency: (item, effect, craft) => {
+        let count = Math.max(1, Math.floor(effect.amount || 1));
+        for (let i = 0; i < count; i++) {
+            let key = SEA_GIFT_RANDOM_ORB_KEYS[Math.floor(Math.random() * SEA_GIFT_RANDOM_ORB_KEYS.length)];
+            awardCurrency(key, 1);
+            craft.say(`🎲 무작위 제작 재화: ${(ORB_DB[key] || {}).name || key} +1`, 'loot-rare');
+        }
+    },
+    safeReroll: (item, effect, craft) => {
+        let rows = getSeaGiftRerollRows(item);
+        let row = rows[Math.floor(Math.random() * rows.length)];
+        let rolled = rollSeaGiftExistingAffix(row, 0);
+        if ((Number(rolled.val) || 0) >= (Number(row.stat.val) || 0)) item.stats[row.index] = rolled;
+        else craft.say('🌊 재굴림 결과가 기존보다 낮아 적용을 취소했습니다.', 'loot-magic');
+        updateItemName(item);
+    },
+    twinReroll: item => {
+        let rows = getSeaGiftRerollRows(item);
+        rows.sort(() => Math.random() - 0.5).slice(0, 2)
+            .forEach(row => { item.stats[row.index] = rollSeaGiftExistingAffix(row, 0); });
+        updateItemName(item);
+    },
+    tierStepUp: item => {
+        let rows = getSeaGiftTierStepRows(item);
+        let row = rows[Math.floor(Math.random() * rows.length)];
+        item.stats[row.index] = rollSeaGiftExistingAffix(row, 1);
+        updateItemName(item);
+    },
+    echoMod: applySeaGiftEcho,
+    convertCategoryMod: (item, effect, craft) => {
+        let editableIdx = getSeaGiftEditableIndexes(item);
+        let pool = getAvailableMods(item).filter(mod => !craft.category || getModCategory(mod) === craft.category);
+        let choice = equipmentCrafting.pickReplacement(item, pool, editableIdx, pickWeightedMod);
+        if (!choice) return refuseSeaGift(craft, '해당 계열로 변환할 수 있는 옵션이 없습니다.');
+        item.stats[choice.index] = rollAffixValue(choice.mod, getItemCraftTier(item));
+        updateItemName(item);
+    }
+});
+/** 강제 희귀 승급: 옵션이 4줄이 될 때까지 수액 봉오리처럼 새 줄을 붙인다(2026-10-19 전에는 이름만 희귀가 되어 0줄 희귀가 나왔다). */
+function fillSeaGiftRareLines(item) {
+    const tier = getItemCraftTier(item);
+    while (getItemExplicitOptionCount(item) < 4) {
+        const mod = equipmentCrafting.pickAddMod(item, null);
+        if (!mod) return;
+        item.stats.push(rollAffixValue(mod, tier));
+    }
+}
+/** A guaranteed line (a tagged one in the chosen category); a refusal logs why. */
+function applySeaGiftGuaranteedEffect(item, effect, craft) {
+    const refusal = applySeaGiftGuaranteedMod(item, effect, craft.category);
+    if (refusal) return refuseSeaGift(craft, refusal);
+}
+/** The ocean workbench's fixed line, rolled whole, at getSeaGiftBenchSlot (before 2026-10-19 it took the first unsealed line even with
+ * room). */
+function applySeaGiftBenchOption(item, effect, craft) {
+    let option = getOceanWorkbenchOption(craft.options && craft.options.optionId, !!effect.topTier);
+    if (!option) return refuseSeaGift(craft, '적용할 수 있는 고정 옵션이 없습니다.');
+    let minInt = Math.floor(option.min);
+    let maxInt = Math.floor(option.max);
+    let val = minInt + Math.floor(Math.random() * (maxInt - minInt + 1));
+    let rolled = { id: option.statId, val: val, valMin: minInt, valMax: maxInt, tier: 5, statName: getStatName(option.statId), oceanBenchOptionId: option.id };
+    const idx = getSeaGiftBenchSlot(item);
+    if (idx === null) return refuseSeaGift(craft, '바꿀 수 있는 줄이 없습니다.');
+    if (idx < 0) item.stats.push(rolled); else item.stats[idx] = rolled;
+    updateItemName(item);
+}
+/** Where the bench line goes: over the item's unsealed bench line, else added (-1) below the line cap, else over the lowest line; null
+ * when the item is full and every line is sealed or fixed. A sealed bench line stays. */
+function getSeaGiftBenchSlot(item) {
+    const own = (item.stats || []).findIndex(stat => stat && stat.oceanBenchOptionId && !stat.lockedByHoney && !stat.lockedByRift);
+    if (own >= 0) return own;
+    if (getItemExplicitOptionCount(item) < getSeaGiftLineCap(item)) return -1;
+    const low = getSeaGiftLowestLineIndex(item);
+    return low < 0 ? null : low;
+}
+/** The line a full item gives up: the lowest tier unsealed line that is not fixed (the later one on a tie), else -1. */
+function getSeaGiftLowestLineIndex(item) {
+    const tierOf = index => Number(item.stats[index].tier) || 0;
+    return getSeaGiftEditableIndexes(item).filter(index => !isFixedEquipmentAffix(item.stats[index]))
+        .reduce((low, index) => (low < 0 || tierOf(index) <= tierOf(low) ? index : low), -1);
+}
+/** One of the highest tier lines echoed at half its values onto another unsealed line of the same kind. */
+function applySeaGiftEcho(item, effect, craft) {
+    let editableIdx = getSeaGiftEditableIndexes(item);
+    let maxTier = editableIdx.reduce((m, i) => Math.max(m, Number(item.stats[i].tier) || 0), 0);
+    let topIdx = editableIdx.filter(i => (Number(item.stats[i].tier) || 0) === maxTier);
+    let srcIdx = topIdx[Math.floor(Math.random() * topIdx.length)];
+    let targetPool = getSeaGiftEchoTargets(item, editableIdx, srcIdx);
+    if (targetPool.length === 0) return refuseSeaGift(craft, '메아리 줄을 넣을 같은 종류 자리가 없습니다(접두 3, 접미 3).');
+    let dstIdx = targetPool[Math.floor(Math.random() * targetPool.length)];
+    let echo = makeSeaGiftEchoLine(item.stats[srcIdx]);
+    item.stats[dstIdx] = echo;
+    craft.say(`🔊 ${echo.echoOf} 옵션이 50% 효과로 메아리쳤습니다.`, 'loot-rare');
+    updateItemName(item);
+}
+function makeSeaGiftEchoLine(src) {
+    let echo = JSON.parse(JSON.stringify(src));
+    echo.val = Math.floor((Number(src.val) || 0) * 0.5);
+    if (Number.isFinite(echo.valMin)) echo.valMin = Math.floor(echo.valMin * 0.5);
+    if (Number.isFinite(echo.valMax)) echo.valMax = Math.floor(echo.valMax * 0.5);
+    echo.echoOf = src.statName || getStatName(src.id);
+    echo.isEchoMod = true;
+    return echo;
+}
 
-safeExposeGlobals({ isSeaGiftEquipmentTarget, getSelectedSeaGiftEquipmentTarget });
+safeExposeGlobals({ isSeaGiftEquipmentTarget, getSelectedSeaGiftEquipmentTarget, getOceanShallowLiftM });
 
+/** Why 심해의 파편 cannot reroll a line of the item, or '': the build lock, and corrupted gear, fused relics and uniques keep their
+ * lines as every other craft does. */
+function getOceanShardBlockReason(item) {
+    if (!item) return '아이템을 선택하세요.';
+    if (!Array.isArray(item.stats) || item.stats.length === 0) return '재굴림할 수 있는 옵션 줄이 없습니다.';
+    const locked = equipmentCrafting.buildLockReason(game);
+    if (locked) return locked;
+    if (item.corrupted) return '타락한 아이템은 더 이상 제작할 수 없습니다.';
+    if (item.fusedRelic) return '융합 유물은 황금률, 잿불가지, 축복의 꽃잎만 사용할 수 있습니다.';
+    return item.rarity === 'unique' ? '고유 장비에는 쓸 수 없습니다.' : '';
+}
 function rerollSingleBaseOption(item, costCurrency, costAmount) {
-    if (!item || !Array.isArray(item.stats) || item.stats.length === 0) return false;
+    const blocked = getOceanShardBlockReason(item);
+    if (blocked) { addLog(blocked, 'attack-monster'); return false; }
     let key = costCurrency || 'oceanRerollShard';
     let cost = Math.max(0, Math.floor(costAmount || 1));
     if ((game.currencies[key] || 0) < cost) { addLog('재화가 부족합니다.', 'attack-monster'); return false; }
@@ -3779,7 +3714,14 @@ function getPassiveKeystoneConflict(path) {
     return '';
 }
 
+/** 노드 하나까지의 길을 찍는다. 나무꾼 전투 중에는 빌드가 매 틱 들어갈 때로 돌아가므로(js/combat.js enforceWoodsmanBuildLock) 반환처럼
+ * 거절한다(2026-10-20 검토: "활성화!"가 뜬 뒤 다음 틱에 되돌아갔다). */
 function activatePassivePath(targetNodeId, options) {
+    if (game.woodsmanBuildLock) return { activated: false, cost: 0, path: [], reason: 'locked', message: '☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.' };
+    return allocatePassivePath(targetNodeId, options);
+}
+
+function allocatePassivePath(targetNodeId, options) {
     let path = getPassiveActivationPath(targetNodeId);
     const expected = options && options.expectedPath;
     if (expected && (path.length !== expected.length || path.some((id, index) => id !== expected[index]))) {
@@ -4208,32 +4150,37 @@ let battleFx = [];
 let battleFxId = 0;
 let battleFxSuppressed = false;
 const BATTLE_FX_QUEUE_CAP = 160;
-let battleVisualState = {
-    projectiles: [],
-    damageTexts: [],
-    skillProjectiles: [],
-    skillEffects: [],
-    skillPlayback: null,
-    lastAutoSwingId: 0,
-    lastAutoSkillAt: 0,
-    processedFxIds: new Set(),
-    enemyGhostPos: {},
-    playerPos: null,
-    playerGridMotion: null,
-    playerAttackBlend: 0,
-    playerAttackMotionSeed: 0,
-    playerHurtBlend: 0,
-    playerDownBlend: 0,
-    lastNow: 0,
-    visualNow: 0,
-    lastWallNow: 0,
-    frameTimeEma: 16.7,
-    vfxDensity: 1,
-    hitStopRemainingMs: 0,
-    nextHitStopAt: 0,
-    enemyHitPulses: new Map(), // Last accepted body flash per enemy, visual ms; never saved.
-    lastHitStopFxId: 0
-};
+/** The battle canvas's visual state as it starts (never saved); resetBattleRuntimeVisuals (js/combat.js) starts it over. */
+function createBattleVisualState() {
+    return {
+        projectiles: [],
+        damageTexts: [],
+        skillEffects: [],
+        skillPlayback: null,
+        lastAutoSwingId: 0,
+        lastAutoSkillAt: 0,
+        processedFxIds: new Set(),
+        enemyGhostPos: {},
+        enemySmoothPos: {},
+        playerFacingDirection: 'east',
+        playerPos: null,
+        playerGridMotion: null,
+        playerAttackBlend: 0,
+        playerAttackMotionSeed: 0,
+        playerHurtBlend: 0,
+        playerDownBlend: 0,
+        lastNow: 0,
+        visualNow: 0,
+        lastWallNow: 0,
+        frameTimeEma: 16.7,
+        vfxDensity: 1,
+        hitStopRemainingMs: 0,
+        nextHitStopAt: 0,
+        enemyHitPulses: new Map(), // Last accepted body flash per enemy, visual ms; never saved.
+        lastHitStopFxId: 0
+    };
+}
+let battleVisualState = createBattleVisualState();
 const DEBUG_BATTLE_ANCHORS = false;
 const HERO_SPRITE_CONFIG = { cols: 6, rows: 5, drawHeight: 58, anchorX: 0.5, anchorY: 0.92 };
 const HERO_MOTIONS = {
@@ -4279,40 +4226,14 @@ const HERO_FRAME_META = {
     29: { motion: 'bow', local: 3, pivot: { x: 150, y: 260 }, hand: { x: 138, y: 130 }, drawOffset: { x: 0, y: 0 } }
 };
 const SKILL_CONFIG = {
-    1: { id: 'basic_slash', motion: 'slash', weapon: 'sword', projectile: null, effectIndex: 1 },
-    2: { id: 'heavy_smash', motion: 'slash', weapon: 'greatsword', projectile: null, effectIndex: 2 },
-    3: { id: 'dagger_throw', motion: 'throw', weapon: 'dagger', projectile: 'dagger_projectile', effectIndex: 0 },
-    4: { id: 'bow_shot', motion: 'bow', weapon: 'bow', projectile: 'arrow_projectile', effectIndex: 0 },
-    5: { id: 'spear_thrust', motion: 'throw', weapon: 'spear', projectile: null, effectIndex: 11 },
-    6: { id: 'staff_cast', motion: 'cast', weapon: 'staff', projectile: 'magic_projectile_blue', effectIndex: 26 },
-    7: { id: 'scythe_swing', motion: 'slash', weapon: 'scythe', projectile: null, effectIndex: 16 },
-    8: { id: 'magic_cast', motion: 'cast', weapon: 'magic_orb', projectile: 'magic_projectile_dark', effectIndex: 28 }
-};
-const WEAPON_CONFIG = {
-    sword: { atlasIndex: 0, grip: { x: 105, y: 250 }, scale: 0.18, rotation: -0.65, layer: 'front' },
-    greatsword: { atlasIndex: 1, grip: { x: 100, y: 265 }, scale: 0.22, rotation: -0.65, layer: 'front' },
-    dagger: { atlasIndex: 2, grip: { x: 130, y: 265 }, scale: 0.16, rotation: -0.65, layer: 'front' },
-    bow: { atlasIndex: 4, grip: { x: 205, y: 200 }, scale: 0.2, rotation: 0, layer: 'front' },
-    spear: { atlasIndex: 6, grip: { x: 75, y: 270 }, scale: 0.24, rotation: -0.55, layer: 'front' },
-    staff: { atlasIndex: 7, grip: { x: 72, y: 265 }, scale: 0.22, rotation: -0.35, layer: 'front' },
-    scythe: { atlasIndex: 9, grip: { x: 95, y: 185 }, scale: 0.24, rotation: -0.55, layer: 'front' },
-    magic_orb: { atlasIndex: 10, grip: { x: 165, y: 195 }, scale: 0.14, rotation: 0, layer: 'front' }
-};
-const PROJECTILE_CONFIG = {
-    dagger_projectile: { atlasIndex: 3, speed: 650, scale: 0.35 },
-    arrow_projectile: { atlasIndex: 5, speed: 750, scale: 0.45 },
-    magic_projectile_blue: { atlasIndex: 8, speed: 520, scale: 0.45 },
-    magic_projectile_dark: { atlasIndex: 11, speed: 520, scale: 0.45 }
-};
-const SKILL_WEAPON_OFFSETS = {
-    basic_slash: [{ x: -8, y: 6, rotation: -1.1, scale: 1 }, { x: 2, y: -4, rotation: -0.4, scale: 1.1 }, { x: 18, y: -8, rotation: 0.7, scale: 1.1 }, { x: 8, y: 4, rotation: 1.3, scale: 1 }],
-    heavy_smash: [{ x: -10, y: 8, rotation: -1.3, scale: 1 }, { x: 0, y: -6, rotation: -0.5, scale: 1.1 }, { x: 22, y: -10, rotation: 0.8, scale: 1.15 }, { x: 10, y: 6, rotation: 1.5, scale: 1 }],
-    dagger_throw: [{ x: -6, y: 4, rotation: -0.9, scale: 1 }, { x: 2, y: -2, rotation: -0.3, scale: 1.05 }, { x: 14, y: -6, rotation: 0.5, scale: 1.05 }, { x: 6, y: 2, rotation: 0.9, scale: 1 }],
-    bow_shot: [{ x: -4, y: 2, rotation: -0.15, scale: 1 }, { x: 0, y: -2, rotation: -0.05, scale: 1 }, { x: 6, y: -2, rotation: 0.08, scale: 1 }, { x: 2, y: 1, rotation: 0.12, scale: 1 }],
-    spear_thrust: [{ x: -12, y: 4, rotation: -0.5, scale: 1 }, { x: 4, y: -2, rotation: -0.15, scale: 1.1 }, { x: 28, y: -4, rotation: 0.1, scale: 1.1 }, { x: 10, y: 2, rotation: 0.3, scale: 1 }],
-    staff_cast: [{ x: -6, y: 6, rotation: -0.9, scale: 1 }, { x: 4, y: -6, rotation: -0.3, scale: 1.1 }, { x: 16, y: -8, rotation: 0.4, scale: 1.1 }, { x: 6, y: 2, rotation: 0.7, scale: 1 }],
-    scythe_swing: [{ x: -14, y: 8, rotation: -1.4, scale: 1 }, { x: 2, y: -6, rotation: -0.6, scale: 1.15 }, { x: 24, y: -10, rotation: 0.9, scale: 1.15 }, { x: 12, y: 4, rotation: 1.6, scale: 1 }],
-    magic_cast: [{ x: -4, y: 4, rotation: -0.2, scale: 1 }, { x: 2, y: -4, rotation: 0.0, scale: 1.05 }, { x: 8, y: -4, rotation: 0.15, scale: 1.1 }, { x: 4, y: 2, rotation: 0.1, scale: 1 }]
+    1: { id: 'basic_slash', motion: 'slash' },
+    2: { id: 'heavy_smash', motion: 'slash' },
+    3: { id: 'dagger_throw', motion: 'throw' },
+    4: { id: 'bow_shot', motion: 'bow' },
+    5: { id: 'spear_thrust', motion: 'throw' },
+    6: { id: 'staff_cast', motion: 'cast' },
+    7: { id: 'scythe_swing', motion: 'slash' },
+    8: { id: 'magic_cast', motion: 'cast' }
 };
 let crowdPauseActive = false;
 let activeTutorial = null;
@@ -4619,7 +4540,6 @@ function clearBattleVisualBacklog() {
     latestPlayerSwingImpactAt = 0;
     battleVisualState.projectiles = [];
     battleVisualState.damageTexts = [];
-    battleVisualState.skillProjectiles = [];
     battleVisualState.skillEffects = [];
     battleVisualState.skillPlayback = null;
     battleVisualState.processedFxIds = new Set();
@@ -4731,19 +4651,6 @@ function cleanupBattleVisualState(now) {
     if (battleVisualState.processedFxIds.size > activeFxIds.size * 2 + 64) {
         battleVisualState.processedFxIds = new Set([...battleVisualState.processedFxIds].filter(id => activeFxIds.has(id)));
     }
-}
-function spawnVisualProjectile(config) {
-    battleVisualState.projectiles.push({
-        start: performance.now(),
-        duration: config.duration || 220,
-        fromX: config.fromX || 0,
-        fromY: config.fromY || 0,
-        toX: config.toX || 0,
-        toY: config.toY || 0,
-        color: config.color || '#f8f1c8',
-        radius: config.radius || 3.8,
-        enemyShot: !!config.enemyShot
-    });
 }
 const DAMAGE_NUMBER_FORMATS = ['comma', 'korean', 'korean_short', 'english'];
 
@@ -5039,19 +4946,6 @@ function getSpriteFrameRectByIndex(image, frameIndex, config) {
     let row = Math.floor(safeIndex / cols);
     return { sx: col * frameW, sy: row * frameH, sw: frameW, sh: frameH };
 }
-function getWeaponAtlasRect(atlasIndex) {
-    if (!battleAssets.images.weapons) return null;
-    const cellW = Math.floor(battleAssets.images.weapons.width / 4);
-    const cellH = Math.floor(battleAssets.images.weapons.height / 3);
-    let col = atlasIndex % 4;
-    let row = Math.floor(atlasIndex / 4);
-    return { sx: col * cellW, sy: row * cellH, sw: cellW, sh: cellH, cellW, cellH };
-}
-function getEffectAtlasRect(effectIndex, image) {
-    if (!image) return null;
-    let frame = getSpriteFrameRectByIndex(image, effectIndex, { cols: 6, rows: 5 });
-    return frame;
-}
 function getHeroFrameMeta(frameIndex) {
     return HERO_FRAME_META[frameIndex] || {
         motion: 'idle',
@@ -5099,9 +4993,7 @@ function playSkill(skillId) {
         skillId: normalized,
         startAt: now,
         endAt: now + duration,
-        duration: duration,
-        projectileSpawned: false,
-        effectSpawned: false
+        duration: duration
     };
     return true;
 }
@@ -5117,209 +5009,16 @@ function mapSkillSlotByGemTags(skillName) {
     if (tags.includes('chain')) return 6;
     return 1;
 }
-function mapEffectIndexByElement(element, fallbackIndex) {
-    let ele = normalizeDamageElementKey(element);
-    if (ele === 'chaos') return 28;
-    if (ele === 'cold') return 3;
-    if (ele === 'fire' || ele === 'light') return 26;
-    return Number.isFinite(fallbackIndex) ? fallbackIndex : 1;
-}
-function mapEffectIndexByGemTags(skillName, fallbackIndex) {
-    let skill = SKILL_DB[skillName] || {};
-    if (Array.isArray(skill.randomElementPool) && skill.randomElementPool.length > 0 && game.lastSkillHitElement) {
-        return mapEffectIndexByElement(game.lastSkillHitElement, fallbackIndex);
-    }
-    let tags = ((skill && skill.tags) || []).map(tag => String(tag).toLowerCase());
-    if (tags.includes('chaos')) return 28;
-    if (tags.includes('cold')) return 3;
-    if (tags.includes('fire') || tags.includes('light') || tags.includes('lightning') || tags.includes('thunder') || tags.includes('elemental')) return 26;
-    if (tags.includes('projectile')) return 0;
-    if (tags.includes('slam')) return 2;
-    if (tags.includes('aoe')) return 16;
-    return Number.isFinite(fallbackIndex) ? fallbackIndex : 1;
-}
 function playSkillFromActiveGem(skillName) {
     // World-tree gems draw their own art (the movement gems of the 이동 스킬 slot swing without the generic effect).
     if (SKILL_GEM_VFX_PROFILES[skillName]?.family === 'worldTree') return false;
-    let slot = mapSkillSlotByGemTags(skillName);
-    if (!playSkill(slot)) return false;
-    let state = battleVisualState.skillPlayback;
-    if (!state) return false;
-    let base = SKILL_CONFIG[slot];
-    state.overrideEffectIndex = mapEffectIndexByGemTags(skillName, base.effectIndex);
-    return true;
+    return playSkill(mapSkillSlotByGemTags(skillName));
 }
-function updateSkillPlayback(now, playerPos, width, enemyPosMap) {
-    let state = getSkillPlaybackState(now);
-    if (!state) return;
-    let skillCfg = state.skillCfg;
-    let targetEnemy = null;
-    // 이 함수는 스킬 재생 중 매 프레임 호출된다. getPlayerStats()는 장비/패시브
-    // 전체를 재계산하는 무거운 함수이므로, 렌더 전용 단기 캐시를 사용해 공격 중
-    // 매 프레임 전체 스탯을 재계산하던 렉(특히 상시 공격하는 물리)을 제거한다.
-    let playbackStats = (typeof getCanvasPlayerStats === 'function') ? getCanvasPlayerStats() : getPlayerStats();
-    let targetIds = getSkillTargets(playbackStats).map(hit => hit.enemy && hit.enemy.id).filter(Boolean);
-    if (targetIds.length > 0 && enemyPosMap) {
-        targetEnemy = enemyPosMap[targetIds[0]] || null;
-    }
-    if (!targetEnemy && enemyPosMap) {
-        let firstKey = Object.keys(enemyPosMap)[0];
-        if (firstKey !== undefined) targetEnemy = enemyPosMap[firstKey];
-    }
-    let targetX = targetEnemy ? targetEnemy.x : Math.max(playerPos.x + 50, width - 22);
-    let targetY = targetEnemy ? (targetEnemy.y - 12) : (playerPos.y - 18);
-    let hitFrame = Math.max(1, Math.floor((HERO_MOTIONS[skillCfg.motion] || []).length * 0.5));
-    if (!state.projectileSpawned && skillCfg.projectile && state.frameLocalIndex >= hitFrame) {
-        let pCfg = PROJECTILE_CONFIG[skillCfg.projectile];
-        if (pCfg) {
-            battleVisualState.skillProjectiles.push({
-                projectileName: skillCfg.projectile,
-                skillId: state.skillId,
-                startAt: now,
-                lifetime: 1000,
-                speed: pCfg.speed,
-                x: playerPos.x + 20,
-                y: playerPos.y - 18,
-                targetX: targetX,
-                targetY: targetY
-            });
-        }
-        battleVisualState.skillPlayback.projectileSpawned = true;
-    }
-    let chosenEffectIndex = Number.isFinite(state.overrideEffectIndex) ? state.overrideEffectIndex : skillCfg.effectIndex;
-    if (!state.effectSpawned && Number.isFinite(chosenEffectIndex) && state.frameLocalIndex >= hitFrame) {
-        // 실제 피해 이벤트가 이미지 VFX를 생성한다. 애니메이션 예상 프레임에서 별도
-        // 효과를 쌓으면 빗나간 공격에도 효과가 나오고 동일 배열이 중복 사용된다.
-        battleVisualState.skillPlayback.effectSpawned = true;
-    }
-}
-function drawWeapon(ctx, heroX, heroY, motion, frameLocalIndex, weaponName, layerFilter, skillId) {
-    return;
-}
-function drawProjectile(ctx, now) {
-    battleVisualState.skillProjectiles = [];
-}
-function drawEffect(ctx, now) {
-    battleVisualState.skillEffects = [];
-}
-function drawSkillWeaponLayer(ctx, playerPos, now, layer) {
-    let state = getSkillPlaybackState(now);
-    if (!state) return;
-    drawWeapon(ctx, playerPos.x, playerPos.y, state.skillCfg.motion, state.frameLocalIndex, state.skillCfg.weapon, layer, state.skillId);
-}
-function drawSkillProjectileLayer(ctx, now) { drawProjectile(ctx, now); }
-function drawSkillEffectLayer(ctx, now) { drawEffect(ctx, now); }
 function isTutorialOpen() {
     let overlay = document.getElementById('tutorial-overlay');
     return !!activeTutorial && !!overlay && overlay.classList.contains('active');
 }
-const TUTORIAL_GUIDES = {
-    tutorial_battle_basics: [
-        { title: '전투 화면 읽기', body: '전투는 자동으로 진행되지만, 화면은 현재 전투가 왜 막히는지 판단할 수 있도록 구성되어 있습니다.', bullets: ['파란 칸은 내 위치, 붉은 칸은 적 위치입니다.', '노란 강조는 현재 공격 대상, 청록 강조는 스킬이 닿는 범위입니다.', '적이 사거리 밖이면 캐릭터가 먼저 이동한 뒤 공격합니다.'], tip: '처음에는 피해량보다 생명력 막대와 적의 밀집도를 먼저 보세요.' },
-        { title: '공격과 피해 구분', body: '밝은 흰색/금색 숫자는 내가 준 피해, 붉은 숫자는 내가 받은 피해입니다.', bullets: ['금색 숫자는 치명타입니다.', '작게 반복되는 원소색 숫자는 지속 피해입니다.', '체력 막대 뒤에 남는 주황색은 방금 잃은 피해량입니다.'], tip: '붉은 숫자가 연속으로 크게 뜨면 장비 방어와 저항을 점검할 때입니다.' },
-        { title: '스킬 범위와 태그', body: '룬의 태그에 따라 공격 방식과 연출, 유효 범위가 달라집니다.', bullets: ['강타는 가까운 범위에 큰 충격을 줍니다.', '관통은 직선, 연쇄는 적 사이, 시체 폭발은 처치 지점을 활용합니다.', '공격 범위는 스킬 툴팁의 격자 설명에서 확인할 수 있습니다.'], tip: '넓은 범위가 늘 강하지는 않습니다. 단일 보스에는 집중형 스킬이 유리합니다.' },
-        { title: '다음 성장 순서', body: '막히면 패시브, 장비, 스킬룬을 순서대로 확인하면 원인을 찾기 쉽습니다.', bullets: ['패시브: 부족한 생존/화력 축을 보완', '장비: 방어도/회피/보호막과 저항 점검', '스킬: 공격 태그와 보조스킬룬 연결 확인'], tip: '새 콘텐츠가 열릴 때마다 이와 같은 단계형 설명이 표시됩니다.' }
-    ],
-    unlock_char: [
-        { title: '스킬트리란?', body: '스킬트리 포인트를 사용해 루트에서 가지를 타고 성장 방향을 선택하는 장기 빌드 시스템입니다.', bullets: ['루트 주변의 시작점은 서로 다른 기초 효과를 가집니다.', '활성화한 노드와 연결된 노드만 다음에 선택할 수 있습니다.', '작은 노드는 경로, 큰 장식 노드는 핵심 효과입니다.'], tip: '처음부터 모든 방향을 섞기보다 한 가지 공격 축과 한 가지 방어 축을 정하세요.' },
-        { title: '나무 구조 읽기', body: '아래의 루트에서 위쪽 수관으로 갈수록 전문 효과와 큰 보상이 등장합니다.', bullets: ['가지별 색과 배치는 테마를 구분합니다.', '노드에 마우스를 올리면 현재 경로가 강조됩니다.', '검색을 사용하면 원하는 스탯이 있는 가지를 찾을 수 있습니다.'], tip: '화면을 확대하면 선택 가능한 노드의 짧은 효과만 표시되어 글이 겹치지 않습니다.' },
-        { title: '첫 포인트 사용', body: '원하는 시작점을 고르고 연결된 경로 노드를 차례로 활성화하세요.', bullets: ['현재 부족한 생존 수단을 먼저 확인합니다.', '사용 중인 스킬 태그와 맞는 공격 효과를 고릅니다.', '큰 노드까지 필요한 포인트 수를 경로로 계산합니다.'], tip: '마지막 단계에서 패시브 화면을 바로 열 수 있습니다.' }
-    ],
-    unlock_items: [
-        { title: '장비와 제작', body: '획득한 장비를 비교/장착하고, 제작 재화로 옵션을 단계적으로 다듬는 콘텐츠입니다.', bullets: ['장비 등급: 일반 → 마법 → 희귀 → 고유', '기본 옵션과 추가 옵션은 서로 다른 역할을 합니다.', '아이템 필터와 자동 해체는 원치 않는 드랍을 정리합니다.'], tip: '처음에는 공격력 한 줄보다 생명력/방어/저항의 균형이 중요합니다.' },
-        { title: '오브 사용 순서', body: '오브마다 사용할 수 있는 장비 등급과 역할이 다릅니다.', bullets: ['진화/확장 계열로 일반/마법 장비를 성장시킵니다.', '변화 계열은 옵션을 다시 굴립니다.', '희귀 장비는 빈 옵션과 현재 티어를 확인한 뒤 투자합니다.'], tip: '좋은 베이스가 아닌 장비에 희귀 재화를 너무 일찍 쓰지 마세요.' },
-        { title: '드랍 연출 읽기', body: '좋은 아이템일수록 전장에서 더 강한 색과 빛기둥으로 표시됩니다.', bullets: ['파랑: 일반적인 획득', '금색/보라색 기둥: 희귀 재화 또는 희귀 장비', '굵고 긴 빛기둥: 고유 장비나 최상급 재화'], tip: '로그를 꺼도 중요한 드랍 연출은 계속 표시됩니다.' }
-    ],
-    unlock_skills: [
-        { title: '스킬룬 구성', body: '공격 룬 하나를 중심으로 보조스킬룬을 연결해 공격 방식과 성능을 바꿉니다.', bullets: ['공격 룬은 기본 행동과 피해 태그를 정합니다.', '보조스킬룬은 연결 한도 안에서 효과를 추가합니다.', '룬 레벨과 강화 단계가 기본 성능을 높입니다.'], tip: '보조스킬룬 설명에 현재 공격 룬과 맞지 않는 태그가 없는지 확인하세요.' },
-        { title: '태그와 전투 방식', body: '강타/관통/연쇄/범위/지속 피해 같은 태그는 실제 격자 범위와 이펙트에 반영됩니다.', bullets: ['관통: 한 방향의 여러 적을 노림', '연쇄: 떨어진 적 사이를 순서대로 타격', '범위: 대상 주변 또는 자신 주변을 공격'], tip: '스킬 툴팁의 사거리와 반경을 함께 보세요.' },
-        { title: '교체 전 확인', body: '새 스킬을 장착하면 보조스킬룬 호환과 공격 범위도 함께 달라집니다.', bullets: ['현재 장비가 새 태그를 강화하는지 확인', '단일 대상과 다수 대상 중 필요한 역할 선택', '실전에서 대미지 숫자와 이동 빈도 비교'], tip: '사거리가 짧으면 공격 전 이동이 많아질 수 있습니다.' }
-    ],
-    unlock_map: [
-        { title: '지도는 무엇인가?', body: '현재 갈 수 있는 지역, 예상 난이도, 주요 드랍을 보고 다음 사냥터를 선택하는 콘텐츠입니다.', bullets: ['지역마다 몬스터 속성과 보상이 다릅니다.', '보스 지역은 일반 지역보다 위험하지만 보상이 큽니다.', '해금 조건이 표시된 지역은 요구 콘텐츠를 먼저 완료해야 합니다.'], tip: '막힌 지역을 반복하기보다 필요한 장비가 나오는 이전 지역을 활용하세요.' },
-        { title: '지역 선택 기준', body: '내 빌드가 버틸 수 있는 난이도와 필요한 보상을 함께 비교합니다.', bullets: ['받는 피해가 급증하면 한 단계 낮춤', '원하는 재화/장비/열쇠의 드랍 지역 확인', '보스 전에 저항과 회복 수단 점검'], tip: '클리어 속도가 너무 느리면 높은 지역이 오히려 비효율적입니다.' },
-        { title: '후반 지도 콘텐츠', body: '루프가 진행되면 균열, 혼돈계, 심층 보스 같은 별도 등반 콘텐츠가 지도에 추가됩니다.', bullets: ['각 콘텐츠는 고유 입장 조건과 진행도를 가집니다.', '루프에 귀속되는 보상과 영구 보상을 구분하세요.', '특수 열쇠는 해당 보스 목록에서 사용합니다.'], tip: '새 콘텐츠가 열리면 지도 탭의 알림 표시를 먼저 확인하세요.' }
-    ],
-    unlock_jewel: [
-        { title: '주얼의 역할', body: '주얼은 장비 소켓에 끼워 세밀한 스탯을 보완하는 성장 수단입니다.', bullets: ['반지, 목걸이, 허리띠에는 소켓이 처음부터 있습니다.', '다른 장비는 공허의 끌로 소켓을 한 칸 뚫습니다.'] },
-        { title: '끼우기와 빼기', body: '장비를 선택해 [소켓]을 누르면 보관함의 주얼을 끼우고 뺄 수 있습니다.', bullets: ['뺀 주얼은 보관함으로 돌아갑니다.', '쓰지 않는 주얼은 해체해 주얼 결정을 얻고, 결정 12개로 새 주얼을 뽑습니다.'] }
-    ],
-    unlock_codex: [
-        { title: '고유 아이템 도감', body: '획득한 고유 아이템을 기록하고 수집 진행도에 따른 보너스를 받는 콘텐츠입니다.', bullets: ['새 고유는 처음 획득할 때 도감에 등록됩니다.', '등록 여부와 보유 여부는 서로 다를 수 있습니다.', '수집 보너스는 전체 성장에 누적됩니다.'], tip: '새 도감 전용 필터를 켜면 이미 등록한 고유를 걸러낼 수 있습니다.' },
-        { title: '무엇을 확인하나?', body: '도감에서 미등록 항목, 고유 효과, 획득 경로를 확인하세요.', bullets: ['빌드 핵심 고유의 획득 지역 확인', '중복 고유의 보관/해체 판단', '도감 보너스 달성 구간 확인'], tip: '고유 등급이 늘 현재 빌드에 강하지는 않습니다.' }
-    ],
-    unlock_market: [
-        { title: '거래소의 역할', body: '남는 재화를 필요한 재화로 교환하거나 특수 서비스를 이용하는 보조 성장 콘텐츠입니다.', bullets: ['교환 비율과 보유량을 먼저 확인합니다.', '제작 계획에 필요한 수량만 교환합니다.', '시장 기능은 장비/제작 탭의 하위 메뉴에 있습니다.'], tip: '주력 제작 재화를 전부 다른 재화로 바꾸지 마세요.' },
-        { title: '안전한 사용 순서', body: '목표 장비와 필요한 제작 단계를 정한 뒤 부족한 재화만 보충하세요.', bullets: ['목표 옵션과 베이스 결정', '현재 재고 확인', '부족분만 교환 후 제작'], tip: '마지막 버튼으로 거래소 화면을 바로 엽니다.' }
-    ],
-    unlock_season_tab: [
-        { title: '루프와 영구 성장', body: '루프는 일부 진행을 다시 시작하는 대신 새로운 보너스와 콘텐츠를 여는 장기 진행 시스템입니다.', bullets: ['초기화되는 요소와 유지되는 요소가 다릅니다.', '루프 이정표에서 다음 해금 조건을 확인합니다.', '영구 노드는 이후 모든 루프에 영향을 줍니다.'], tip: '루프 직전에는 유지되는 장비/재화를 반드시 확인하세요.' },
-        { title: '다음 루프 준비', body: '현재 루프의 핵심 보상을 챙긴 뒤 전환하세요.', bullets: ['미완료 시련과 보스 확인', '보존 가능한 장비와 자원 정리', '다음 루프 목표 빌드 결정'], tip: '무조건 빠른 루프보다 필요한 영구 보상을 챙기는 편이 유리할 수 있습니다.' }
-    ],
-    unlock_traits: [
-        { title: '전직 화면 안내', body: '전직 화면에서는 전직을 고르고 두 종류의 전직 포인트를 씁니다.', bullets: ['전직 선택: 직업의 전직 셋 중 하나', '전직 패시브 포인트: 연결된 전직 노드 활성화', '키스톤 포인트: 빌드 규칙을 바꾸는 키스톤 활성화'], tip: '전직 패시브 포인트와 키스톤 포인트는 서로 다른 자원입니다.' }
-    ],
-};
 
-function escapeTutorialText(value) {
-    return String(value == null ? '' : value).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
-}
-
-function getTutorialGuide(notice) {
-    if (!notice) return [];
-    if (TUTORIAL_GUIDES[notice.key]) return TUTORIAL_GUIDES[notice.key];
-    if (String(notice.key).startsWith('unlock_talent')) return TUTORIAL_GUIDES.unlock_traits;
-    return [{ title: notice.title, body: notice.body, bullets: [], tip: '마지막 단계에서 관련 화면을 바로 열 수 있습니다.' }];
-}
-
-function getTutorialVisualKind(key, stepIndex) {
-    if (key === 'tutorial_battle_basics') return ['battle', 'damage', 'skills', 'growth'][stepIndex] || 'battle';
-    if (key === 'unlock_char') return 'passive';
-    if (['unlock_items', 'unlock_jewel', 'unlock_codex', 'unlock_market'].includes(key)) return 'items';
-    if (key === 'unlock_skills') return 'skills-panel';
-    if (['unlock_map', 'unlock_season_tab'].includes(key)) return 'map';
-    if (key === 'unlock_traits') return 'class';
-    if (String(key).startsWith('unlock_talent')) return 'class';
-    return 'system';
-}
-
-function buildTutorialBattlePreview(kind) {
-    let grid = new Array(18).fill('<i></i>').join('');
-    let status = kind === 'growth' ? '방어가 부족합니다' : (kind === 'skills' ? '스킬 범위 확인' : '교전 중, 3기');
-    return `<div class="tutorial-game-preview is-${kind}">
-        <div class="tutorial-mini-status"><span>${status}</span><span class="tutorial-mini-hp"><i></i></span></div>
-        <div class="tutorial-mini-field"><div class="tutorial-mini-grid">${grid}</div><div class="tutorial-mini-hero">아군</div><div class="tutorial-mini-enemy">적</div><div class="tutorial-mini-target"></div><div class="tutorial-mini-damage">12,480</div></div>
-        <div class="tutorial-mini-skillbar"><span>사용 중</span><i class="tutorial-mini-skill">1</i><i class="tutorial-mini-skill">2</i><i class="tutorial-mini-skill">3</i><span>${kind === 'skills' ? '청록 칸 = 유효 범위' : '자동 공격'}</span></div>
-    </div>`;
-}
-
-function getTutorialPanelModel(kind) {
-    const models = {
-        passive: { focus: '패시브', tabs: ['캐릭터', '패시브'], rows: ['생명력 가지', '공격 속도 노드', '다음 연결 노드'] },
-        items: { focus: '장비', tabs: ['장비 창', '제작실'], rows: ['장착 장비 비교', '아이템 등급과 옵션', '필요 재화 확인'] },
-        'skills-panel': { focus: '스킬', tabs: ['공격 룬', '보조스킬룬'], rows: ['주 공격 스킬', '연결 가능한 보조', '태그, 범위 확인'] },
-        map: { focus: '지도', tabs: ['현재 지역', '다음 지역'], rows: ['몬스터 속성', '주요 보상', '보스 위험도'] },
-        class: { focus: '전직', tabs: ['전직', '재능'], rows: ['빌드 방향 선택', '핵심 노드 경로', '개화 효과 확인'] },
-        system: { focus: '안내', tabs: ['새 콘텐츠', '가이드'], rows: ['해금 조건 확인', '관련 화면 열기', '진행 목표 추적'] }
-    };
-    return models[kind] || models.system;
-}
-
-function buildTutorialPanelPreview(kind, stepIndex) {
-    let model = getTutorialPanelModel(kind);
-    let tabs = model.tabs.map((label, index) => `<span class="${index === Math.min(1, stepIndex) ? 'active' : ''}">${label}</span>`).join('');
-    let rows = model.rows.map((label, index) => `<div class="tutorial-panel-row ${index === Math.min(2, stepIndex) ? 'active' : ''}"><span>${label}</span><b>${index === Math.min(2, stepIndex) ? '◀ 지금 확인' : '/'}</b></div>`).join('');
-    return `<div class="tutorial-panel-preview"><div class="tutorial-panel-tabs">${tabs}</div><div class="tutorial-panel-body"><div class="tutorial-panel-focus">${model.focus}</div><div class="tutorial-panel-list">${rows}</div></div></div>`;
-}
-
-function renderTutorialVisual() {
-    let visual = document.getElementById('tutorial-visual');
-    if (!visual || !activeTutorial) return;
-    let kind = getTutorialVisualKind(activeTutorial.key, activeTutorialStep);
-    visual.innerHTML = ['battle', 'damage', 'skills', 'growth'].includes(kind)
-        ? buildTutorialBattlePreview(kind)
-        : buildTutorialPanelPreview(kind, activeTutorialStep);
-}
 
 function isRewardOpen() {
     let overlay = document.getElementById('reward-overlay');
@@ -5429,13 +5128,6 @@ function chooseLoopHero(classId) {
     lastTime = Date.now();
 }
 
-function openRingSlotOverlay(invIdx) {
-    let item = game.inventory[invIdx];
-    pendingRingEquipItemId = item && item.id ? item.id : null;
-    let overlay = document.getElementById('ring-slot-overlay');
-    if (overlay && !overlay.open) overlay.showModal();
-}
-
 function openRingSlotOverlayByItemId(itemId) {
     pendingRingEquipItemId = Number.isFinite(itemId) ? itemId : null;
     let overlay = document.getElementById('ring-slot-overlay');
@@ -5453,13 +5145,6 @@ function selectRingSlotFromOverlay(slot) {
     closeRingSlotOverlay();
     if (!Number.isInteger(itemId)) return;
     equipItemById(itemId, slot);
-}
-
-function openGloveSlotOverlay(invIdx) {
-    let item = game.inventory[invIdx];
-    pendingGloveEquipItemId = item && item.id ? item.id : null;
-    let overlay = document.getElementById('glove-slot-overlay');
-    if (overlay && !overlay.open) overlay.showModal();
 }
 
 function openGloveSlotOverlayByItemId(itemId) {
@@ -5595,9 +5280,7 @@ function closeDeathOverlay() {
 
 function escapeDeathLogText(value) {
     // 보스 이름의 장식 이모지(👿 …)는 도트 판에서 컬러 그림으로 튀어 뺀다.
-    value = stripDecorativeEmoji(value);
-    if (typeof escapeHTML === 'function') return escapeHTML(String(value || ''));
-    return String(value || '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+    return escapeHTML(stripDecorativeEmoji(value));
 }
 
 function renderDeathDamageRows(rows) {
@@ -5702,10 +5385,10 @@ function shopDeathHint() {
     const shops = Object.keys(NPC_SHOPS).filter(id => npcShop.ready(id) > 0).length;
     return shops ? { text: `지금 살 수 있는 물건이 있는 NPC 상점 ${shops}곳`, action: { label: 'NPC', onclick: "closeDeathOverlay();switchTab('tab-npcs')" } } : null;
 }
-/** 비교할 만한 룬: 지금 룬이 아닌 공격 룬(위습 소환 말고)으로, 지금 무기로 쓸 수 있는 룬. */
+/** 비교할 만한 룬: 지금 룬이 아닌 공격 룬(위습 소환과 이동 룬 말고: 이동 룬은 이동 칸에 낀다)으로, 지금 무기로 쓸 수 있는 룬. */
 function isStrongerRuneCandidate(name, keep) {
     const skill = SKILL_DB[name];
-    return name !== keep && !!skill?.isGem && !(skill.tags || []).includes('summon') && canUseSkillWithCurrentEquipment(name);
+    return name !== keep && !!skill?.isGem && !(skill.tags || []).includes('summon') && !isMobilityRuneName(name) && canUseSkillWithCurrentEquipment(name);
 }
 /** 가진 공격 룬 가운데 DPS가 지금 룬의 1.1배를 넘는 룬(얻을 때의 "더 강한 공격 룬" 알림과 같은 기준). 알림은 4초면 지나가, 얼음 창
  * 비술사는 주문 룬을 얻고도 모르고 지나치기 쉬웠다(2026-10-17). */
@@ -5786,6 +5469,15 @@ openDeathOverlay.request = function requestDeathNotice(log) {
     openDeathOverlay.flushPending();
 };
 
+/** Whether a management view is up, so the death notice waits: the windowed UI's management mode, or any tab but battle shown
+ * (no battle tab at all counts too). */
+openDeathOverlay.heldByView = function isDeathNoticeHeldByView() {
+    const body = document.body.classList;
+    if (body.contains('desktop-windowed-ui')) return body.contains('ui-management-mode');
+    const battle = document.getElementById('tab-battle');
+    return !battle || !battle.classList.contains('active');
+};
+
 openDeathOverlay.flushPending = function flushPendingDeathNotice() {
     const pending = openDeathOverlay.pending;
     if (!pending) return;
@@ -5793,12 +5485,7 @@ openDeathOverlay.flushPending = function flushPendingDeathNotice() {
         openDeathOverlay.pending = null;
         return;
     }
-    if (game.isBackgroundCalculation || document.hidden) return;
-    const body = document.body.classList;
-    const managing = body.contains('desktop-windowed-ui')
-        ? body.contains('ui-management-mode')
-        : !document.getElementById('tab-battle').classList.contains('active');
-    if (managing) return;
+    if (game.isBackgroundCalculation || document.hidden || openDeathOverlay.heldByView()) return;
     if (document.querySelector('dialog[open], .tutorial-overlay.active, .selection-overlay, #background-combat-result-overlay, #startup-overlay.active, #loading-overlay.active')) return;
     openDeathOverlay(pending.log);
 };
@@ -5967,33 +5654,49 @@ function getClaimedJournalPassivePointTotal(state) {
         return sum + Math.max(0, Math.floor(entry.bonus.value || 0));
     }, 0);
 }
+/** The journal entries a save's progress proves (prologue, the acts from loop 2, then JOURNAL_PROGRESS_RULES and cleared root bosses),
+ * kept with the save's own valid entries; stored on state and returned. Rules as a table on 2026-10-18, in their old order. */
 function repairJournalEntriesFromProgress(state) {
     let runtimeState = state && typeof state === 'object' ? state : {};
     let recovered = new Set(Array.isArray(runtimeState.journalEntries) ? runtimeState.journalEntries.filter(id => JOURNAL_DB[id]) : []);
     recovered.add('prologue');
     let loopStage = Math.max(Math.floor(runtimeState.season || 1), Math.floor(runtimeState.loopCount || 0));
     if (loopStage >= 2) Object.keys(JOURNAL_DB).filter(id => /^act_/.test(id)).forEach(id => recovered.add(id));
-    if (runtimeState.passiveStarEvolution) recovered.add('passive_star_evolution');
-    if (Math.floor((runtimeState.meteorSite || {}).entriesCleared || 0) > 0) recovered.add('meteor_fall');
-    if (runtimeState.chaosInfuserUnlocked || runtimeState.woodsmanSimulatorSeenLoop || Math.floor(runtimeState.woodsmanDefeatAttempts || 0) > 0) recovered.add('woodsman');
-    if (runtimeState.beehive && runtimeState.beehive.cleared) recovered.add('beehive_queen');
-    if (runtimeState.voidRift && runtimeState.voidRift.grandBreachCleared) recovered.add('void_grand_breach');
-    if (Math.max(Math.floor(runtimeState.labyrinthUnlockedMaxFloor || 1), Math.floor(runtimeState.labyrinthFloor || 1)) >= 11) recovered.add('labyrinth_10');
-    if (runtimeState.ocean && Math.floor(runtimeState.ocean.bossClearM || 0) >= 500) recovered.add('ocean_500');
-    if (runtimeState.skyTower && (Math.floor(runtimeState.skyTower.highestFloor || 1) >= 11 || (runtimeState.skyTower.clearedFloors || []).some(floor => Math.floor(floor || 0) >= 10))) recovered.add('sky_tower_10');
-    let hasFusedRelic = (runtimeState.inventory || []).some(item => item && item.fusedRelic)
-        || Object.values(runtimeState.equipment || {}).some(item => item && item.fusedRelic);
-    if ((runtimeState.timeRift && Math.floor(runtimeState.timeRift.fusionCount || 0) > 0) || hasFusedRelic) recovered.add('time_rift_fusion');
-    let colony = runtimeState.colony || {};
-    if (Math.max(Math.floor(colony.highestWave || 0), Math.floor(colony.wave || 0)) >= 11) recovered.add('colony_wave_10');
-    let rootBossIds = new Set(Array.isArray(runtimeState.clearedRootBosses) ? runtimeState.clearedRootBosses : []);
-    if (typeof SEASON_BOSS_ZONES !== 'undefined' && Array.isArray(SEASON_BOSS_ZONES)) {
-        SEASON_BOSS_ZONES.forEach(zone => {
-            if (zone && zone.journalId && rootBossIds.has(zone.id) && JOURNAL_DB[zone.journalId]) recovered.add(zone.journalId);
-        });
-    }
+    JOURNAL_PROGRESS_RULES.forEach(([id, reached]) => { if (reached(runtimeState)) recovered.add(id); });
+    addRootBossJournalEntries(runtimeState, recovered);
     runtimeState.journalEntries = Array.from(recovered).filter(id => JOURNAL_DB[id]);
     return runtimeState.journalEntries;
+}
+const reachedSkyTowerFloor10 = s => !!(s.skyTower && (Math.floor(s.skyTower.highestFloor || 1) >= 11
+    || (Array.isArray(s.skyTower.clearedFloors) ? s.skyTower.clearedFloors : []).some(floor => Math.floor(floor || 0) >= 10)));
+const holdsFusedRelic = s => (s.inventory || []).some(item => item && item.fusedRelic)
+    || Object.values(s.equipment || {}).some(item => item && item.fusedRelic);
+/** A time rift fusion done, or a fused relic held (the relic scan first, as before). */
+function reachedTimeRiftFusion(s) {
+    const fused = holdsFusedRelic(s);
+    return (s.timeRift && Math.floor(s.timeRift.fusionCount || 0) > 0) || fused;
+}
+const reachedColonyWave10 = s => Math.max(Math.floor((s.colony || {}).highestWave || 0), Math.floor((s.colony || {}).wave || 0)) >= 11;
+/** Journal entries a save's progress proves, in the order they are added: [entry, whether the progress shows it]. */
+const JOURNAL_PROGRESS_RULES = Object.freeze([
+    ['passive_star_evolution', s => !!s.passiveStarEvolution],
+    ['meteor_fall', s => Math.floor((s.meteorSite || {}).entriesCleared || 0) > 0],
+    ['woodsman', s => !!(s.chaosInfuserUnlocked || s.woodsmanSimulatorSeenLoop || Math.floor(s.woodsmanDefeatAttempts || 0) > 0)],
+    ['beehive_queen', s => !!(s.beehive && s.beehive.cleared)],
+    ['void_grand_breach', s => !!(s.voidRift && s.voidRift.grandBreachCleared)],
+    ['labyrinth_10', s => Math.max(Math.floor(s.labyrinthUnlockedMaxFloor || 1), Math.floor(s.labyrinthFloor || 1)) >= 11],
+    ['ocean_500', s => !!(s.ocean && Math.floor(s.ocean.bossClearM || 0) >= 500)],
+    ['sky_tower_10', reachedSkyTowerFloor10],
+    ['time_rift_fusion', reachedTimeRiftFusion],
+    ['colony_wave_10', reachedColonyWave10]
+]);
+/** Each cleared root boss's own journal entry. */
+function addRootBossJournalEntries(runtimeState, recovered) {
+    let rootBossIds = new Set(Array.isArray(runtimeState.clearedRootBosses) ? runtimeState.clearedRootBosses : []);
+    if (typeof SEASON_BOSS_ZONES === 'undefined' || !Array.isArray(SEASON_BOSS_ZONES)) return;
+    SEASON_BOSS_ZONES.forEach(zone => {
+        if (zone && zone.journalId && rootBossIds.has(zone.id) && JOURNAL_DB[zone.journalId]) recovered.add(zone.journalId);
+    });
 }
 function rebuildJournalBonusStateForLoad(state) {
     let runtimeState = state && typeof state === 'object' ? state : {};
@@ -6345,68 +6048,6 @@ function getCustomHeroSheetDataUrl() {
     }
 }
 
-function saveCustomHeroSheetDataUrl(dataUrl) {
-    try {
-        if (!dataUrl) localStorage.removeItem(CUSTOM_HERO_SHEET_STORAGE_KEY);
-        else localStorage.setItem(CUSTOM_HERO_SHEET_STORAGE_KEY, dataUrl);
-    } catch (error) {
-        addLog('⚠️ 브라우저 저장공간 문제로 커스텀 시트를 저장하지 못했습니다.', 'attack-monster');
-    }
-}
-
-function reloadBattleAssets() {
-    battleAssets.loading = false;
-    battleAssets.ready = false;
-    battleAssets.failed = false;
-    battleAssets.failedKeys = [];
-    battleAssets.images = {};
-    battleAssets.backdrops = {};
-    battleAssets.atlas = null;
-    battleAssets.loadPromise = null;
-    battleVisualState.weaponAtlasResolved = null;
-    battleVisualState.effectAtlasResolved = null;
-    battleVisualState.gridOccupancyCache = new WeakMap();
-    initBattleAssets();
-}
-
-function openHeroSheetPicker() {
-    let input = document.getElementById('hero-sheet-input');
-    if (!input) return;
-    input.value = '';
-    input.click();
-}
-
-function onHeroSheetSelected(event) {
-    let file = event && event.target && event.target.files ? event.target.files[0] : null;
-    if (!file) return;
-    if (!/^image\//.test(file.type || '')) {
-        addLog('⚠️ 이미지 파일만 업로드할 수 있습니다.', 'attack-monster');
-        return;
-    }
-    let reader = new FileReader();
-    reader.onload = function(loadEvent) {
-        let dataUrl = String(loadEvent.target && loadEvent.target.result || '');
-        if (!dataUrl.startsWith('data:image/')) {
-            addLog('⚠️ 이미지 데이터 인식에 실패했습니다.', 'attack-monster');
-            return;
-        }
-        saveCustomHeroSheetDataUrl(dataUrl);
-        addLog('🎨 플레이어 커스텀 시트를 적용했습니다.', 'loot-magic');
-        reloadBattleAssets();
-    };
-    reader.onerror = function() {
-        addLog('⚠️ 파일 읽기에 실패했습니다.', 'attack-monster');
-    };
-    reader.readAsDataURL(file);
-}
-
-function resetHeroSheetToDefault() {
-    saveCustomHeroSheetDataUrl(null);
-    addLog('🎨 플레이어 시트를 기본 이미지로 복원했습니다.', 'loot-normal');
-    reloadBattleAssets();
-}
-
-
 function isLocalFileProtocol() {
     return typeof window !== 'undefined' && window.location && window.location.protocol === 'file:';
 }
@@ -6445,17 +6086,6 @@ function shouldPreserveOriginalBattleSheet(key) {
         || key.startsWith('passiveTree');
 }
 
-function fileExists(path) {
-    if (isLocalFileProtocol()) return true;
-    try {
-        const xhr = new XMLHttpRequest();
-        xhr.open('HEAD', path, false);
-        xhr.send();
-        return xhr.status >= 200 && xhr.status < 400;
-    } catch (error) {
-        return false;
-    }
-}
 function initBattleAssets() {
     if (battleAssets.ready) return Promise.resolve(true);
     if (battleAssets.loading && battleAssets.loadPromise) return battleAssets.loadPromise;
@@ -6628,7 +6258,6 @@ function initBattleAssets() {
         skillFxEarthSpike: 'assets/effects/pixel-earth-spike-v1.png',
         skillFxDotField: 'assets/effects/skill-dot-field-v2.png',
         skillFxSummonStrike: 'assets/effects/skill-summon-strike-v1.png',
-        skillFxDragonBreath: 'assets/effects/skill-dragon-breath-v3.png',
         passiveTreeIcons: 'assets/ui/passive-tree-icons-v3.webp',
         passiveTreeKeystoneIcons: 'assets/ui/passive-tree-keystone-icons-v1.webp',
         passiveTreeNotableIcons: 'assets/ui/passive-tree-notable-icons-v4.webp',
@@ -8358,22 +7987,6 @@ function drawBattleSprite(ctx, image, rect, x, y, desiredHeight, options) {
     ctx.restore();
 }
 
-function drawBattleTile(ctx, image, rect, x, y, size, options) {
-    if (!image || !rect) return;
-    options = options || {};
-    let crop = options.crop === undefined ? 0 : options.crop;
-    let overlap = options.overlap === undefined ? 1 : options.overlap;
-    let sx = rect.x + crop;
-    let sy = rect.y + crop;
-    let sw = Math.max(1, rect.width - crop * 2);
-    let sh = Math.max(1, rect.height - crop * 2);
-    let dx = Math.floor(x) - overlap;
-    let dy = Math.floor(y) - overlap;
-    let dw = Math.ceil(size + overlap * 2);
-    let dh = Math.ceil(size + overlap * 2);
-    ctx.drawImage(image, sx, sy, sw, sh, dx, dy, dw, dh);
-}
-
 /** Save boundary: convert old projectile counts once; stat id records the new percent unit. */
 function migrateEquipmentProjectileOption(stat) {
     if (!stat) return;
@@ -8542,8 +8155,21 @@ function normalizeBelt(item) {
     if (typeof colonyWards === 'object') colonyWards.stampBelt(item);
 }
 
-function normalizeItem(item) {
+/** Stat ids older data put on item lines, and what they are now: venomStingerBonus (벌집 장비, never a stat) is 중독 피해 증가 since
+ * 2026-10-18. The 독벌침 craft's own marker (stat.venomStingerBonus = true) is a property, not an id, and stays. Returns the item
+ * (null for none). */
+const RETIRED_ITEM_STAT_IDS = Object.freeze({ venomStingerBonus: 'poisonDamageMultiplierPct' });
+function renameRetiredItemStatIds(item) {
     if (!item) return null;
+    [item.baseStats, item.stats].forEach(list => (Array.isArray(list) ? list : []).forEach(stat => {
+        if (!stat || !Object.hasOwn(RETIRED_ITEM_STAT_IDS, stat.id)) return;
+        stat.id = RETIRED_ITEM_STAT_IDS[stat.id];
+        stat.statName = getStatName(stat.id);
+    }));
+    return item;
+}
+function normalizeItem(item) {
+    if (!renameRetiredItemStatIds(item)) return null;
     if (typeof bagItems === 'object' && bagItems.ownShape(item)) return bagItems.normalize(item); // 가방의 주얼과 코어는 제 모양(js/bag-items.js)
     function coerceFiniteNumber(value, fallback) {
         let num = Number(value);
@@ -8595,6 +8221,7 @@ function normalizeItem(item) {
         else delete item.corruptionSocket;
     }
     item.chaosInfusion = item.chaosInfusion ? normalizeStatRecord(item.chaosInfusion) : null;
+    if ('imprint' in item && !equipmentCrafting.normalizeImprint(item.imprint)) delete item.imprint; // 기억 조각칼(js/equipment-crafting.js)
     if (item.encroached && typeof item.encroached === 'object') {
         let pendingOptions = Array.isArray(item.encroached.pendingOptions) ? item.encroached.pendingOptions.map(normalizeStatRecord).filter(Boolean).slice(0, 3) : [];
         let chosen = item.encroached.chosen ? normalizeStatRecord({ ...item.encroached.chosen, encroachedFinal: true }) : null;
@@ -8741,6 +8368,7 @@ function getTierBadgeHtml(tierValue, labelPrefix) {
 
 function getUniqueCodexKeyByItem(item) {
     if (!item || item.rarity !== 'unique') return null;
+    if (typeof bagItems === 'object' && bagItems.isSpecial(item)) return null; // 고유 주얼과 고유 액막이는 도감에 없다
     return `${item.slot}|${item.name}`;
 }
 
@@ -8822,7 +8450,7 @@ function getBaseStatRollRange(stat) {
     let scale = (stat.id === 'energyShield') ? 1.5 : 1;
     let scaledMin = minBase * scale;
     let scaledMax = maxBase * scale;
-    let usesDecimalRoll = ['leech', 'spellLeech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id);
+    let usesDecimalRoll = isTenthStat(stat.id);
     if (scaledMax > 0) {
         let positiveMinimum = usesDecimalRoll ? 0.1 : 1;
         scaledMin = Math.max(positiveMinimum, scaledMin);
@@ -8882,7 +8510,7 @@ function getAffixTierRange(mod, statId, tier, roundInteger = false) {
     if (Array.isArray(mod.tierValues)) return getListedAffixTierRange(mod, tier);
     const min = mod.base + (tier * mod.step);
     const max = min + mod.step * 1.6;
-    if (['leech', 'spellLeech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(statId)) {
+    if (isTenthStat(statId)) {
         return { min: Math.round(min * 10) / 10, max: Math.round(max * 10) / 10, step: 0.1, tier };
     }
     const toInt = roundInteger ? Math.round : Math.floor;
@@ -8926,7 +8554,7 @@ function rerollStoredAffixValue(stat) {
         stat.val = Number((min + Math.floor(Math.random() * (Math.round((max - min) / stat.valueStep) + 1)) * stat.valueStep).toFixed(2));
         return;
     }
-    if (['leech', 'spellLeech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id)) {
+    if (isTenthStat(stat.id)) {
         let minStep = Math.round(min * 10);
         let maxStep = Math.round(max * 10);
         stat.val = (minStep + Math.floor(Math.random() * (maxStep - minStep + 1))) / 10;
@@ -9352,9 +8980,9 @@ function updateItemName(item) {
     else if (item.rarity === 'rare') item.name = `희귀한 ${item.baseName}`;
 }
 
-function rerollChaosInfusionForItem(item, previousInfusion) {
+function rerollChaosInfusionForItem(item, previousInfusion, side = '') {
     if (!item || !previousInfusion) return null;
-    let pool = getChaosInfuserOptionsForItem(item);
+    let pool = getChaosInfuserOptionsForItem(item).filter(option => !side || equipmentCrafting.storedAffixKind(item, option) === side);
     if (pool.length === 0) {
         item.chaosInfusion = null;
         return null;
@@ -9364,27 +8992,41 @@ function rerollChaosInfusionForItem(item, previousInfusion) {
     return item.chaosInfusion;
 }
 
-function rerollExplicitMods(item, rarity, zoneTier, options = {}) {
-    let maxTier = Math.max(1, zoneTier);
-    let minTier = clampNumber(Math.floor(Number(options && options.minTier) || 1), 1, maxTier);
-    let requestedFalloff = Number(options && options.tierWeightFalloff);
-    let hasTierWeightOverride = Number.isFinite(requestedFalloff);
-    let rerollChaosInfusion = !!(options && options.rerollChaosInfusion);
-    let previousInfusion = rerollChaosInfusion ? item.chaosInfusion : null;
+/** How rerollExplicitMods rolls each new line: options.rollLine (제작 뿌리), else between options.minTier and maxTier with
+ * options.tierWeightFalloff, else up to maxTier. */
+function rerollLineRoll(options, maxTier) {
+    if (options.rollLine) return options.rollLine;
+    let minTier = clampNumber(Math.floor(Number(options.minTier) || 1), 1, maxTier);
+    let falloff = Number(options.tierWeightFalloff);
+    return minTier > 1 || Number.isFinite(falloff)
+        ? mod => rollAffixValueInTierRange(mod, minTier, maxTier, falloff)
+        : mod => rollAffixValue(mod, maxTier);
+}
+
+/** Prepare retained rows and infusion before rolling; a side-only craft preserves every other kind. */
+function prepareExplicitReroll(item, options) {
+    const side = options.side || '', onSide = stat => !side || equipmentCrafting.storedAffixKind(item, stat) === side;
+    let rerollChaosInfusion = !!options.rerollChaosInfusion && (!item.chaosInfusion || onSide(item.chaosInfusion));
+    const previousInfusion = item.chaosInfusion;
     if (rerollChaosInfusion) item.chaosInfusion = null;
-    let locked = (item.stats || []).filter(stat => equipmentCrafting.keptOnReroll(item, stat));
+    let locked = (item.stats || []).filter(stat => equipmentCrafting.keptOnReroll(item, stat) || !onSide(stat));
     item.stats = locked.concat(options.guaranteedStat ? [options.guaranteedStat] : []);
-    delete item.affixKeep;
+    if (!side || equipmentCrafting.keptKind(item) === side) delete item.affixKeep;
     // 주입을 먼저 다시 굴려 그 종류 자리를 차지하게 한다(접두 3, 접미 3).
-    if (rerollChaosInfusion) rerollChaosInfusionForItem(item, previousInfusion);
+    if (rerollChaosInfusion) rerollChaosInfusionForItem(item, previousInfusion, side);
+    return side;
+}
+
+/** options.weigh(pool, picked) → pool reweighs the mods each pick (제작 뿌리 엮음). */
+function rerollExplicitMods(item, rarity, zoneTier, options = {}) {
+    const maxTier = Math.max(1, zoneTier), rollLine = rerollLineRoll(options, maxTier);
+    const side = prepareExplicitReroll(item, options);
     let count = 0;
     if (rarity === 'magic') count = Math.random() < 0.5 ? 1 : 2;
     if (rarity === 'rare') count = 4 + Math.floor(Math.random() * 2);
     count = Math.max(0, count - getItemExplicitOptionCount(item));
-    let mods = pickRandomMods(getAvailableMods(item), count, equipmentCrafting.affixRoom(item, rarity));
-    mods.forEach(mod => item.stats.push(minTier > 1 || hasTierWeightOverride
-        ? rollAffixValueInTierRange(mod, minTier, maxTier, requestedFalloff)
-        : rollAffixValue(mod, maxTier)));
+    let mods = pickRandomMods(getAvailableMods(item).filter(mod => !side || equipmentCrafting.affixKind(mod) === side), count, equipmentCrafting.affixRoom(item, rarity), options.weigh);
+    mods.forEach(mod => item.stats.push(rollLine(mod)));
     updateItemName(item);
 }
 
@@ -9447,7 +9089,7 @@ function rollChaosInfusionOption(option) {
     if (!Number.isFinite(max)) max = min;
     if (max < min) { let tmp = min; min = max; max = tmp; }
     let val;
-    if (['leech', 'spellLeech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(option.id)) {
+    if (isTenthStat(option.id)) {
         let minStep = Math.round(min * 10);
         let maxStep = Math.round(max * 10);
         val = (minStep + Math.floor(Math.random() * (maxStep - minStep + 1))) / 10;
@@ -9591,7 +9233,7 @@ function applyWoodsmanTouchToSelectedItem() { if (game.woodsmanBuildLock) return
     if (item.loopSealed) return addLog('이미 봉인된 장비입니다.', 'attack-monster');
     game.currencies.ouroboros--;
     item.loopSealed = true;
-    addLog(`🌿 [${item.name}]을(를) 나무꾼의 손길로 봉인했습니다. 루프가 진행되어도 사라지지 않습니다.`, 'loot-unique');
+    addLog(`🌿 [${item.name}]${pickParticle(item.name, '을', '를')} 나무꾼의 손길로 봉인했습니다. 루프가 진행되어도 사라지지 않습니다.`, 'loot-unique');
     updateStaticUI();
     queueImportantSave(200);
 }
@@ -9657,15 +9299,16 @@ function pickWeightedMod(mods) {
     return mods[mods.length - 1];
 }
 
-/** room({prefix, suffix} 남은 자리, null이면 제한 없음): 고를 때마다 자리가 남은 종류에서만 고른다. */
-function pickRandomMods(mods, count, room = null) {
+/** room({prefix, suffix} 남은 자리, 없으면 제한 없음): 고를 때마다 자리가 남은 종류에서만 고른다.
+ * weigh(pool, picks) → pool(없어도 됨): 고를 때마다 가중치를 다시 매긴다(제작 뿌리 엮음, js/equipment-crafting.js). */
+function pickRandomMods(mods, count, room, weigh) {
     let pool = Array.isArray(mods) ? mods.slice() : [];
     const left = room && { ...room };
     let picks = [];
     let wanted = Math.max(0, Math.floor(count || 0));
     while (picks.length < wanted) {
         if (left) pool = pool.filter(mod => equipmentCrafting.fitsRoom(left, mod));
-        let picked = pickWeightedMod(pool);
+        let picked = pickWeightedMod(weigh ? weigh(pool, picks) : pool);
         if (!picked) break;
         picks.push(picked);
         if (left && equipmentCrafting.affixKind(picked) !== 'special') left[equipmentCrafting.affixKind(picked)]--;
@@ -9675,24 +9318,25 @@ function pickRandomMods(mods, count, room = null) {
     return picks;
 }
 
-function rollUniqueStatValue(stat) {
+/** The values a unique's stat line (data min~max, or base) can roll: tenths for tenth stats, otherwise whole numbers rounded down
+ * (data 30.7~34.9 rolls 30~34). Cards that show a unique before it exists (black market, unique codex) show this range.
+ * @returns {{min:number, max:number}} */
+function getUniqueStatRollRange(stat) {
     let min = stat.min !== undefined ? stat.min : stat.base;
     let max = stat.max !== undefined ? stat.max : stat.base;
     if (max < min) max = min;
-    let val;
-    if (['leech', 'spellLeech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id)) {
+    if (isTenthStat(stat.id)) return { min: Math.round(min * 10) / 10, max: Math.round(max * 10) / 10 };
+    return { min: Math.floor(min), max: Math.floor(max) };
+}
+
+function rollUniqueStatValue(stat) {
+    let { min, max } = getUniqueStatRollRange(stat);
+    if (isTenthStat(stat.id)) {
         let minStep = Math.round(min * 10);
         let maxStep = Math.round(max * 10);
-        let roll = minStep + Math.floor(Math.random() * (maxStep - minStep + 1));
-        val = Math.round(roll) / 10;
-        min = minStep / 10;
-        max = maxStep / 10;
-    } else {
-        min = Math.floor(min);
-        max = Math.floor(max);
-        val = min + Math.floor(Math.random() * (max - min + 1));
+        return { min, max, val: (minStep + Math.floor(Math.random() * (maxStep - minStep + 1))) / 10 };
     }
-    return { min: min, max: max, val: val };
+    return { min, max, val: min + Math.floor(Math.random() * (max - min + 1)) };
 }
 
 
@@ -9701,17 +9345,29 @@ function getChaseUniqueChance(zone) {
     return 0.0016 * (typeof atlasMaps === 'object' ? atlasMaps.chaseMul(zone) : 1);
 }
 
+/** Whether unique can be rolled in zone: a content unique (dropOnly) only in its own content (type, id, floor). */
+function uniqueDropsInZone(unique, zone) {
+    if (!unique) return false;
+    if (!unique.dropOnly) return true;
+    let dropOnly = unique.dropOnly;
+    if (dropOnly.type && zone.type !== dropOnly.type) return false;
+    if (dropOnly.id && zone.id !== dropOnly.id) return false;
+    if (dropOnly.minFloor && Math.floor(zone.floor || 0) < dropOnly.minFloor) return false;
+    return true;
+}
+/** Whether unique rolls at tier (a content unique's own minimum tier first). */
+const uniqueMeetsTier = (unique, tier) => !!unique && tier >= ((unique.dropOnly && unique.dropOnly.minTier) || unique.reqTier || 1);
+/** 요정의 고리가 바꿀 수 있는 고유: 그 장비의 부위에 그 등급까지 이 지역에서 나오는 것 { chase, normal }. 다른 부위의 고유로 바뀌면
+ * 장비 칸과 가방 칸이 어긋났다(2026-10-20 검토: 착용한 허리띠가 방패가 됐다). */
+function getFairyRingUniquePools(item, zone = getZone(game.currentZoneId) || {}) {
+    const tier = Math.max(1, Math.floor(item.hiddenTier || item.itemTier || 1));
+    const fits = unique => unique.slots.includes(item.slot) && uniqueDropsInZone(unique, zone) && uniqueMeetsTier(unique, tier);
+    return { tier, chase: UNIQUE_DB.filter(unique => unique.ultraRare && fits(unique)), normal: UNIQUE_DB.filter(unique => !unique.ultraRare && fits(unique)) };
+}
+
 function generateUniqueItem(zoneTier, preferredSlot, forcedUniqueName, zone = getZone(game.currentZoneId) || {}) {
-    let canDropUniqueInZone = (unique) => {
-        if (!unique) return false;
-        if (!unique.dropOnly) return true;
-        let dropOnly = unique.dropOnly;
-        if (dropOnly.type && zone.type !== dropOnly.type) return false;
-        if (dropOnly.id && zone.id !== dropOnly.id) return false;
-        if (dropOnly.minFloor && Math.floor(zone.floor || 0) < dropOnly.minFloor) return false;
-        return true;
-    };
-    let meetsUniqueTier = unique => !!unique && zoneTier >= ((unique.dropOnly && unique.dropOnly.minTier) || unique.reqTier || 1);
+    let canDropUniqueInZone = unique => uniqueDropsInZone(unique, zone);
+    let meetsUniqueTier = unique => uniqueMeetsTier(unique, zoneTier);
     let forcedUnique = forcedUniqueName ? UNIQUE_DB.find(unique => unique && unique.name === forcedUniqueName) : null;
     let slot = (forcedUnique && forcedUnique.slots && forcedUnique.slots[0]) || preferredSlot || rndChoice(EQUIPMENT_DROP_SLOTS);
     let normalOptions = UNIQUE_DB.filter(unique => !unique.ultraRare && canDropUniqueInZone(unique));
@@ -9761,9 +9417,9 @@ function generateUniqueItem(zoneTier, preferredSlot, forcedUniqueName, zone = ge
     unique.stats.forEach(stat => {
         let rolled = rollUniqueStatValue(stat);
         let boost = 1;
-        let val = ['leech', 'spellLeech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id) ? Math.round(rolled.val * boost * 10) / 10 : Math.floor(rolled.val * boost);
-        let min = ['leech', 'spellLeech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id) ? Math.round(rolled.min * boost * 10) / 10 : Math.floor(rolled.min * boost);
-        let max = ['leech', 'spellLeech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id) ? Math.round(rolled.max * boost * 10) / 10 : Math.floor(rolled.max * boost);
+        let val = isTenthStat(stat.id) ? Math.round(rolled.val * boost * 10) / 10 : Math.floor(rolled.val * boost);
+        let min = isTenthStat(stat.id) ? Math.round(rolled.min * boost * 10) / 10 : Math.floor(rolled.min * boost);
+        let max = isTenthStat(stat.id) ? Math.round(rolled.max * boost * 10) / 10 : Math.floor(rolled.max * boost);
         item.stats.push({ id: stat.id, val: val, valMin: min, valMax: max, tier: 0, statName: getStatName(stat.id) });
     });
     if (unique.ultraRare && canRollChase) {
@@ -9835,7 +9491,7 @@ function generateEquipmentDrop(enemy, options) {
 
 /** A base stat value scaled by factor, kept on its own grid: 0.1 steps for leech/regen lines, whole numbers (at least 1) otherwise. */
 function boostItemStatValue(statId, value, factor) {
-    if (['leech', 'spellLeech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(statId)) return Math.round(value * factor * 10) / 10;
+    if (isTenthStat(statId)) return Math.round(value * factor * 10) / 10;
     return Math.max(1, Math.floor(value * factor));
 }
 
@@ -9956,27 +9612,14 @@ function addItemToInventory(item, options) {
         return false;
     }
     if (offlineStashEnabled) {
-        let route = routeOfflineItem(item, game, { protected: (typeof isChaseUniqueItem === 'function' && isChaseUniqueItem(item)) || item.locked || guaranteedKeep });
-        if (route.action === 'salvage') {
-            salvageItemObject(item, true, { noDivine: true });
-            game.backgroundOverflowSalvageCount = Math.max(0, Math.floor(Number(game.backgroundOverflowSalvageCount) || 0)) + 1;
-            return false;
-        }
-        if (route.action === 'stored') {
-            if (route.replacedItem) salvageItemObject(route.replacedItem, true, { noDivine: true });
-            recordEquipmentAcquisition(item);
-            checkUnlocks();
-            return true;
-        }
-        if (route.action === 'normal' && route.protected) {
-            ignoreAutoSalvage = true;
-            guaranteedKeep = true;
-            if (!canStoreEquipmentItems([item], game)) game.backgroundStopReason = 'protected-storage-full';
-        }
+        const routed = routeOfflineStashPickup(item, guaranteedKeep);
+        if (routed.stored) { recordEquipmentAcquisition(item); checkUnlocks(); }
+        if (routed.done) return !!routed.stored;
+        if (routed.protect) { ignoreAutoSalvage = true; guaranteedKeep = true; }
     }
     const result = storeEquipmentPickup(item, { guaranteedKeep, ignoreAutoSalvage });
     if (result.accepted) { recordEquipmentAcquisition(item); checkUnlocks(); }
-    if (result.kind === 'protected') addLog(`🎒 인벤토리가 가득 찼지만 [${item.name}]은(는) 유실 방지를 위해 초과 보관됩니다.`, 'attack-monster');
+    if (result.kind === 'protected') addLog(`🎒 인벤토리가 가득 찼지만 [${item.name}]${pickParticle(item.name, '은', '는')} 유실 방지를 위해 초과 보관됩니다.`, 'attack-monster');
     else if (logLoot && result.rewards && result.log) {
         const label = result.kind === 'overflow' ? '공간 부족 자동해체' : '자동해체';
         addLog(`${label}: <span class='loot-${item.rarity}'>[${item.name}]</span>, ${formatSalvageRewardSummary(result.rewards)}`, 'loot-normal');
@@ -9984,7 +9627,42 @@ function addItemToInventory(item, options) {
     return result.accepted;
 }
 
+/** A bought item into the bag (the NPC shops js/npc-shop.js, the black market js/black-market.js): kept whatever the pickup filter
+ * and auto-salvage say, never worn on its own, then moved to place (a bag cell { column, row }, row over all pages) when given.
+ * The shop checked the room first: a full bag would salvage it. */
+function stowBoughtItem(item, place = null) {
+    if (!addItemToInventory(item, { ignoreFilter: true, ignoreAutoSalvage: true, skipAutoEquip: true })) return false;
+    equipmentInventoryGridRuntime.ensureState(game);
+    if (place) equipmentInventoryGridRuntime.placeInventoryItem(equipmentInventoryGridRuntime.getItemKey(item), place.column, place.row, game);
+    return true;
+}
+
 /** Resolve capacity and auto-salvage at pickup time. */
+/** Offline with the stash bought (js/offline-progress.js routeOfflineItem): gear the bag can take goes to the bag, only the rest
+ * goes through the stash (it took every pickup first and salvaged past its few cells, so buying it left a near-empty bag). Protected
+ * gear (locked, unique, chase, a kept target) skips auto-salvage either way. @returns {{done?:boolean, stored?:boolean, protect?:boolean}}
+ * done: settled here (stored in the stash, or salvaged); protect: store it whatever auto-salvage says */
+/** One more gear salvaged for room during an away settlement (the result's 자동해체 count, js/combat-replay.js finishCombatReplay). */
+const countBackgroundOverflowSalvage = () => { game.backgroundOverflowSalvageCount = Math.max(0, Math.floor(Number(game.backgroundOverflowSalvageCount) || 0)) + 1; };
+const isOfflineKeptPickup = (item, guaranteedKeep) => !!((typeof isChaseUniqueItem === 'function' && isChaseUniqueItem(item)) || item.locked || guaranteedKeep);
+
+function routeOfflineStashPickup(item, guaranteedKeep) {
+    const isProtected = isOfflineKeptPickup(item, guaranteedKeep);
+    if (canStoreEquipmentItems([item], game)) return { protect: isProtected || isOfflineProtectedItem(item) };
+    const route = routeOfflineItem(item, game, { protected: isProtected });
+    if (route.action === 'salvage') {
+        salvageItemObject(item, true, { noDivine: true });
+        countBackgroundOverflowSalvage();
+        return { done: true, stored: false };
+    }
+    if (route.action === 'stored') {
+        if (route.replacedItem) { salvageItemObject(route.replacedItem, true, { noDivine: true }); countBackgroundOverflowSalvage(); } // 밀려난 장비도 센다
+        return { done: true, stored: true };
+    }
+    if (route.protected) game.backgroundStopReason = 'protected-storage-full';
+    return { protect: !!route.protected };
+}
+
 function storeEquipmentPickup(item, { guaranteedKeep, ignoreAutoSalvage }) {
     const fits = canStoreEquipmentItems([item], game);
     if (!fits && !guaranteedKeep) return salvageEquipmentPickup(item, true);
@@ -9996,8 +9674,7 @@ function storeEquipmentPickup(item, { guaranteedKeep, ignoreAutoSalvage }) {
 
 function salvageEquipmentPickup(item, overflow) {
     const rewards = salvageItemObject(item, true, { noDivine: overflow });
-    if (overflow && game.isBackgroundCalculation)
-        game.backgroundOverflowSalvageCount = Math.max(0, Math.floor(Number(game.backgroundOverflowSalvageCount) || 0)) + 1;
+    if (overflow && game.isBackgroundCalculation) countBackgroundOverflowSalvage();
     return { accepted: false, kind: overflow ? 'overflow' : 'salvaged', rewards, log: !overflow || !game.isBackgroundCalculation };
 }
 
@@ -10066,13 +9743,19 @@ function passesItemPickupFilter(item) {
 
 
 
+/** A unique jewel's effect text from UNIQUE_JEWEL_DB by its uniqueId (each jewel keeps the text it dropped with, which can be older),
+ * else the stored text. */
+function getJewelUniqueEffectText(jewel) {
+    const row = jewel && jewel.uniqueId ? UNIQUE_JEWEL_DB.find(entry => entry.id === jewel.uniqueId) : null;
+    return (row && row.uniqueEffect) || (jewel && jewel.uniqueEffect) || '';
+}
 const UNIQUE_JEWEL_DB = [
     { id:'uj_crown_empty', name:'비어 있는 왕좌', ultra:true, uniqueEffect:'다른 고유 주얼이 없으면 피해 +25%, 룬 레벨 +1 추가', stats:[{id:'pctDmg',val:25},{id:'gemLevel',val:1}] },
     { id:'uj_mirror_heart', name:'거울 심장', ultra:true, uniqueEffect:'반지 소켓에 끼우면 반대쪽 반지 소켓의 주얼 복제', stats:[{id:'pctDmg',val:8},{id:'resAll',val:8}] },
-    { id:'uj_old_box', name:'오래된 보석함', ultra:true, uniqueEffect:'인벤토리 등급 시너지', stats:[{id:'aspd',val:6},{id:'resAll',val:10}] },
+    { id:'uj_old_box', name:'오래된 보석함', ultra:true, uniqueEffect:'가방의 마법 아이템 하나마다 공격 속도 +0.5%(최대 30%), 희귀 하나마다 피해 +1.2%(최대 60%), 고유 하나마다 물리 피해 감소 +1.5%(최대 12%)', stats:[{id:'aspd',val:6},{id:'resAll',val:10}] },
     { id:'uj_hurried_mind', name:'다급해지는 마음', ultra:true, uniqueEffect:'적이 없으면 이동속도 +50%', stats:[{id:'move',val:12},{id:'regen',val:1.2}] },
     { id:'uj_condensed_curse', name:'응축된 저주', ultra:true, uniqueEffect:'저주 최대치 +1, 대상 저주당 최종 피해 +10%', stats:[{id:'dotPctDmg',val:14},{id:'resPen',val:6}] },
-    { id:'uj_burning_will', name:'불같은 의지', ultra:true, uniqueEffect:'화염 최대저항/저항 연계 보너스', stats:[{id:'maxResF',val:2},{id:'firePctDmg',val:12}] },
+    { id:'uj_burning_will', name:'불같은 의지', ultra:true, uniqueEffect:'최대치를 넘는 화염 저항 1%마다 기본 피해 +0.5%(최대 35%)', stats:[{id:'maxResF',val:2},{id:'firePctDmg',val:12}] },
     { id:'uj_closed_eyes', name:'질끈 감은 눈', ultra:true, uniqueEffect:'플레이어 상태이상 면역, 부적의 수호, 함성, 저주 줄 비활성', stats:[{id:'dr',val:6},{id:'resAll',val:12}] },
     { id:'uj_spark_ember', name:'불씨의 파편', stats:[{id:'firePctDmg',val:14},{id:'igniteChance',val:10}] },
     { id:'uj_frost_nail', name:'서리 못', stats:[{id:'coldPctDmg',val:14},{id:'chillChance',val:10}] },
@@ -10201,10 +9884,6 @@ function isJewelPetiteStat(stat) {
     return !!(stat && stat.petite && !stat.waxBonus);
 }
 
-function getJewelCoreStats(jewel) {
-    return getJewelStats(jewel).filter(stat => !isJewelPetiteStat(stat));
-}
-
 function formatJewelStatValue(statId, value) {
     let option = getJewelOptionDef(statId);
     if (option && Number.isFinite(option.step) && option.step < 1) return Number(value || 0).toFixed(2);
@@ -10317,9 +9996,8 @@ function generateJewelDrop(zoneOrTier, odds = null) {
         let row = (canRollUltra && Math.random() < 0.08) ? rndChoice(ultraPool) : baseRow;
         // 고유 주얼: 구성은 그대로 두고 파워만 약간(+10%) 상승
         let uniquePower = 1.1;
-        let decimalIds = new Set(['leech', 'spellLeech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap']);
         let stats = (row.stats || []).map(st => {
-            let boosted = decimalIds.has(st.id) ? Math.round(st.val * uniquePower * 10) / 10 : Math.round(st.val * uniquePower);
+            let boosted = isTenthStat(st.id) ? Math.round(st.val * uniquePower * 10) / 10 : Math.round(st.val * uniquePower);
             return makeFixedJewelStat(st.id, boosted);
         });
         let petite = rollJewelPetiteStat('rare', stats.map(st => st.id));
@@ -10413,7 +10091,7 @@ function drawJewelRefine() { if (game.woodsmanBuildLock) return addLog('☠️ �
 async function salvageJewel(jewelId) {
     let jewel = bagItems.jewels().find(row => row.id === jewelId);
     if (!jewel) return false;
-    if (jewel.rarity === 'unique' && !await requestGameConfirmation(`[${jewel.name || '고유 주얼'}]을 해체합니다.\n주얼 결정 ${getJewelSalvageShardGain(jewel)}개를 획득하며 되돌릴 수 없습니다.`, {
+    if (jewel.rarity === 'unique' && !await requestGameConfirmation(`[${jewel.name || '고유 주얼'}]${pickParticle(jewel.name || '고유 주얼', '을', '를')} 해체합니다.\n주얼 결정 ${getJewelSalvageShardGain(jewel)}개를 획득하며 되돌릴 수 없습니다.`, {
         title: '고유 주얼 해체',
         tone: 'danger',
         confirmLabel: '해체'
@@ -10487,7 +10165,6 @@ function getItemSalvagePreviewText(item, compact) {
         .filter(([, amount]) => amount > 0)
         .map(([key, amount]) => {
             let label = (ORB_DB[key] && ORB_DB[key].name) || key;
-            if (compact) label = label.replace('의 오브', '');
             return `${label} ${amount}`;
         });
     let chances = profile.chances
@@ -10540,26 +10217,18 @@ function salvageItem(idx) {
     updateStaticUI();
 }
 
-function updateSalvageSettingsFromUI() {
-    game.settings.autoSalvageRarities = game.settings.autoSalvageRarities || { normal: true, magic: true, rare: false, unique: false };
-    ['normal', 'magic', 'rare', 'unique'].forEach(rarity => {
-        let el = document.getElementById(`chk-salvage-${rarity}`);
-        if (el) game.settings.autoSalvageRarities[rarity] = !!el.checked;
-    });
-}
-
 function syncSalvageControlsFromSettings() {
     game.settings.autoSalvageRarities = game.settings.autoSalvageRarities || { normal: true, magic: true, rare: false, unique: false };
     ['normal', 'magic', 'rare', 'unique'].forEach(rarity => {
         let el = document.getElementById(`chk-salvage-${rarity}`);
         if (el) el.checked = !!game.settings.autoSalvageRarities[rarity];
     });
-    let btn = document.getElementById('btn-auto-salvage');
+    // 장비창 도구 줄의 해체 단추: 자동해체가 켜져 있으면 초록 점(css/equipment-window.css)
+    let btn = document.getElementById('eqw-rail-salvage');
     if (btn) {
         let enabled = !!game.settings.autoSalvageEnabled;
-        btn.textContent = '드랍 필터';
         btn.dataset.enabled = String(enabled);
-        btn.setAttribute('aria-label', `드랍 필터, 자동해체 ${enabled ? '켜짐' : '꺼짐'}`);
+        btn.setAttribute('aria-label', `해체, 자동해체 ${enabled ? '켜짐' : '꺼짐'}`);
     }
 }
 
@@ -10597,14 +10266,6 @@ function confirmedSalvageTargets(items) {
     return items.filter(item => game.inventory.includes(item) && !isBulkSalvageProtectedItem(item));
 }
 
-function bulkSalvage(maxRarity) {
-    let targetRank = maxRarity === 'normal' ? 0 : 1;
-    const targets = game.inventory.filter(item => !isBulkSalvageProtectedItem(item) && getRarityRank(item.rarity) <= targetRank);
-    const rewards = salvageBagItems(targets);
-    ensureCraftSelectionValid();
-    if (targets.length > 0) addLog(`🧪 장비 ${targets.length}개 해체, ${formatSalvageRewardSummary(rewards)}`, 'loot-normal');
-    updateStaticUI();
-}
 function getActiveRarityFilterSet() {
     let f = (typeof getInventoryRarityFilter === 'function')
         ? getInventoryRarityFilter()
@@ -10612,29 +10273,40 @@ function getActiveRarityFilterSet() {
     return ['normal', 'magic', 'rare', 'unique'].filter(rarity => !!f[rarity]);
 }
 
+/** The kind the bag's 필터 panel shows alone, or 'all'. A picked kind the bag no longer holds shows every kind again
+ * (js/ui.js getSortedEquipmentInventoryRows), so it counts as 'all' here too. */
+function getShownSlotFilter() {
+    let slot = String((game.settings && game.settings.equipmentSlotFilter) || 'all');
+    return slot !== 'all' && (game.inventory || []).some(item => item && item.slot === slot) ? slot : 'all';
+}
+
+/** 표시 등급 해체: what the bag shows, the grades left on and the kind picked in the 필터 panel (2026-10-19: the kind used to be ignored,
+ * so picking 무기 and 일반 salvaged every normal item). */
 async function bulkSalvageSelected() {
     let selectedRarities = getActiveRarityFilterSet();
     if (selectedRarities.length === 0) return addLog('해체할 등급을 먼저 선택하세요. (등급 필터에서 선택)', 'attack-monster');
     let rarityLabels = ITEM_RARITY_LABELS;
-    let targetItems = (game.inventory || []).filter(item => item && !isBulkSalvageProtectedItem(item) && selectedRarities.includes(item.rarity));
+    let shownSlot = getShownSlotFilter();
+    let isShown = item => selectedRarities.includes(item.rarity) && (shownSlot === 'all' || item.slot === shownSlot);
+    let targetItems = (game.inventory || []).filter(item => item && !isBulkSalvageProtectedItem(item) && isShown(item));
     let targetCount = targetItems.length;
     if (targetCount <= 0) return addLog('선택한 등급의 해체 가능한 장비가 없습니다.', 'attack-monster');
     let labelText = selectedRarities.map(r => rarityLabels[r] || r).join('/');
     const note = bagItems.countNote(targetItems);
-    if (!await requestGameConfirmation(`[${labelText}] 등급 장비 ${targetCount}개를 해체합니다.${note ? `\n${note} 포함` : ''}\n잠긴 장비는 보호됩니다.`, {
+    if (!await requestGameConfirmation(`[${labelText}] 등급 ${shownSlot === 'all' ? '장비' : shownSlot} ${targetCount}개를 해체합니다.${note ? `\n${note} 포함` : ''}\n잠금, 세팅, 우선 보관 장비는 빼고 해체합니다.`, {
         title: '등급 일괄 해체',
         tone: 'danger',
         confirmLabel: `${targetCount}개 해체`
     })) return;
     const targets = confirmedSalvageTargets(targetItems);
-    const lockedSkipped = game.inventory.filter(item => selectedRarities.includes(item.rarity) && isBulkSalvageProtectedItem(item)).length;
+    const lockedSkipped = game.inventory.filter(item => isShown(item) && isBulkSalvageProtectedItem(item)).length;
     if (targets.length === 0) {
-        if (lockedSkipped > 0) return addLog(`🔒 선택 등급 아이템이 모두 보호 상태입니다. (잠금/배치/세팅 ${lockedSkipped}개)`, 'attack-monster');
+        if (lockedSkipped > 0) return addLog(`🔒 고른 장비가 모두 보호 중입니다(잠금, 세팅, 우선 보관 ${lockedSkipped}개).`, 'attack-monster');
         return addLog('선택한 등급의 장비가 없습니다.', 'attack-monster');
     }
     const rewards = salvageBagItems(targets);
     ensureCraftSelectionValid();
-    addLog(`🧪 선택한 등급 장비 ${targets.length}개 해체, ${formatSalvageRewardSummary(rewards)}${lockedSkipped > 0 ? ` (잠금/배치/세팅 ${lockedSkipped}개 보호)` : ''}`, 'loot-normal');
+    addLog(`🧪 선택한 등급 장비 ${targets.length}개 해체, ${formatSalvageRewardSummary(rewards)}${lockedSkipped > 0 ? ` (잠금, 세팅, 우선 보관 ${lockedSkipped}개는 남김)` : ''}`, 'loot-normal');
     updateStaticUI();
 }
 async function bulkSalvageAllInventory() {
@@ -10642,31 +10314,18 @@ async function bulkSalvageAllInventory() {
     let lockedCount = game.inventory.filter(item => isBulkSalvageProtectedItem(item)).length;
     let targetItems = game.inventory.filter(item => !isBulkSalvageProtectedItem(item));
     let salvageCount = targetItems.length;
-    if (salvageCount <= 0) return addLog('🔒 잠금/배치/세팅 보호되지 않은 아이템이 없어 전체해체를 실행할 수 없습니다.', 'attack-monster');
+    if (salvageCount <= 0) return addLog('🔒 잠금, 세팅, 우선 보관 장비뿐이라 전체 해체할 장비가 없습니다.', 'attack-monster');
     const note = bagItems.countNote(targetItems);
-    if (!await requestGameConfirmation(`인벤토리 장비 ${salvageCount}개를 모두 해체합니다.${note ? `\n${note} 포함` : ''}${lockedCount > 0 ? `\n잠금/배치/세팅 장비 ${lockedCount}개는 보호됩니다.` : ''}`, {
+    if (!await requestGameConfirmation(`인벤토리 장비 ${salvageCount}개를 모두 해체합니다.${note ? `\n${note} 포함` : ''}${lockedCount > 0 ? `\n잠금, 세팅, 우선 보관 장비 ${lockedCount}개는 빼고 해체합니다.` : ''}`, {
         title: '인벤토리 전체 해체',
         tone: 'danger',
         confirmLabel: `${salvageCount}개 해체`
     })) return;
     const targets = confirmedSalvageTargets(targetItems), rewards = salvageBagItems(targets);
     if (!isCraftSelectionEquip()) clearCraftSelection();
-    addLog(`🧪 인벤토리 전체해체 완료 (${targets.length}개), ${formatSalvageRewardSummary(rewards)}${lockedCount > 0 ? `, 잠금/배치/세팅 ${lockedCount}개 보호` : ''}`, 'loot-normal');
+    addLog(`🧪 인벤토리 전체해체 완료 (${targets.length}개), ${formatSalvageRewardSummary(rewards)}${lockedCount > 0 ? `, 잠금, 세팅, 우선 보관 ${lockedCount}개는 남김` : ''}`, 'loot-normal');
     updateStaticUI();
 }
-
-function cycleSporeCraftMode(currencyKey) {
-    let allowed = ['transmute','augment','alteration','alchemy','regal','chaos','exalted'];
-    if (!allowed.includes(currencyKey)) return;
-    game.sporeCraftModes = game.sporeCraftModes || {};
-    let modes = getAvailableSporeCraftModes();
-    let cur = game.sporeCraftModes[currencyKey] || 'none';
-    let curIndex = modes.indexOf(cur);
-    let next = modes[((curIndex >= 0 ? curIndex : 0) + 1) % modes.length];
-    game.sporeCraftModes[currencyKey] = next;
-    updateStaticUI();
-}
-
 
 function getAvailableSporeCraftModes() {
     let modes = ['none', 'fire', 'cold', 'light'];
@@ -10675,9 +10334,11 @@ function getAvailableSporeCraftModes() {
 }
 
 /** 혼돈 · 피해 홀씨는 고급 홀씨 해금 뒤에만 쓴다. 저장된 선택도 쓰는 순간 다시 본다(제작 · 미리보기 · 다시 사용 공통). */
-function getSporeCraftBlockReason(item, actionKey, mode) {
+function getSporeCraftBlockReason(item, actionKey, mode, omen = null) {
     if (['chaos', 'damage'].includes(mode) && !getAvailableSporeCraftModes().includes(mode)) return '혼돈, 피해 홀씨 제작은 ‘해금’의 고급 홀씨를 열어야 쓸 수 있습니다.';
-    return equipmentCrafting.getSporeBlockReason(item, actionKey, mode);
+    const reason = equipmentCrafting.getSporeBlockReason(item, actionKey, mode);
+    if (reason || mode === 'none' || !equipmentCrafting.basicActions.includes(actionKey)) return reason;
+    return equipmentCrafting.sporePool(item, actionKey, mode, omen).length ? '' : '선택한 홀씨 계열에서 새로 부여할 수 있는 옵션이 없습니다.';
 }
 
 function isSporeCraftEquipment(item) {
@@ -10887,230 +10548,216 @@ function corruptCraftedItem(item) {
  * @param {string} currencyKey Crafting action; pays one of that currency.
  * @returns {Promise<true|undefined>} True only after the item and payment are committed.
  */
-async function useCurrency(currencyKey) {
-    let item = getSelectedCraftItem();
-    if (!item) return addLog("먼저 아이템을 선택하세요.", "attack-monster");
-    const payment = getCraftPayment(currencyKey);
-    if (!payment?.affordable) return addLog("제작 재화가 부족하거나 사용할 수 없는 제작 방식입니다.", "attack-monster");
-    let actionKey = equipmentCrafting.resolveAction(currencyKey, item.rarity);
-    if (item.corrupted && actionKey !== 'tainted') return addLog("타락한 아이템은 더 이상 제작할 수 없습니다.", "attack-monster");
-    if (item.fusedRelic && !['divine', 'tainted', 'blessing'].includes(actionKey)) return addLog("융합 유물은 황금률/잿불가지/축복의 꽃잎만 사용할 수 있습니다.", "attack-monster");
-
-    let explicitCap = EXPLICIT_AFFIX_LINE_CAP;
-    let ok = false;
-    if (actionKey === 'transmute') ok = item.rarity === 'normal';
-    else if (actionKey === 'alteration') ok = item.rarity === 'magic';
-    else if (actionKey === 'alchemy') ok = item.rarity === 'normal';
-    else if (actionKey === 'exalted') ok = item.rarity === 'rare' && getItemExplicitOptionCount(item) < explicitCap;
-    else if (actionKey === 'regal') ok = item.rarity === 'magic' && getItemExplicitOptionCount(item) < explicitCap;
-    else if (actionKey === 'chaos') ok = item.rarity === 'rare';
-    else if (actionKey === 'divine') ok = item.rarity !== 'normal';
-    else if (actionKey === 'chance') ok = item.rarity === 'normal';
-    else if (actionKey === 'scour') ok = item.rarity !== 'normal' && item.rarity !== 'unique';
-    else if (actionKey === 'tainted') ok = !item.corrupted || (isKaleidoscopeShieldItem(item) && getItemExplicitOptionCount(item) <= EXPLICIT_AFFIX_LINE_CAP);
-    else if (currencyKey === 'blessing') ok = Array.isArray(item.baseStats) && item.baseStats.length > 0;
-    else if (actionKey === 'annulment') ok = getAnnulmentRemovableStats(item).length > 0;
-    else if (currencyKey === 'abyssCatalyst') ok = Math.max(0, Math.floor(item.quality || 0)) > 0 && Array.isArray(item.stats) && item.stats.length > 0;
-    else if (['deepWhetstone', 'rootIron', 'jewelPolish'].includes(currencyKey)) {
-        let slot = String(item.slot || '');
-        let isWeapon = slot === '무기';
-        let isArmor = ['투구', '갑옷', '장갑', '신발', '허리띠'].includes(slot);
-        let isAccessory = ['목걸이', '반지'].includes(slot);
-        if (currencyKey === 'deepWhetstone') ok = isWeapon;
-        if (currencyKey === 'rootIron') ok = isArmor;
-        if (currencyKey === 'jewelPolish') ok = isAccessory;
-        ok = ok && Math.max(0, Math.floor(item.quality || 0)) < 20 && !item.qualityLockedByLimitBreak;
+// 제작실의 재화 한 번(js/crafting-workspace-ui.js workspaceExecuteCraft): 막는 까닭, 홀씨와 뿌리 준비, 값 치르기, 효과, 기록.
+// 2026-10-18 정리: 한 함수(복잡도 145, 288줄)를 책임별로 나눴다. 기본 제작의 굴림은 js/equipment-crafting.js가 맡는다.
+const craftCurrencyUse = (() => {
+    const qualityFits = slots => item => slots.includes(String(item.slot || '')) && Math.max(0, Math.floor(item.quality || 0)) < 20 && !item.qualityLockedByLimitBreak;
+    /** Whether each action fits the item now (rarity, room, slot, quality). An action missing here never fits. */
+    const FITS = Object.freeze({
+        ...Object.fromEntries(equipmentCrafting.basicActions.map(action=>[action,item=>equipmentCrafting.basicFits(item,action)])),
+        divine: item => item.rarity !== 'normal', chance: item => item.rarity === 'normal' && getFairyRingUniquePools(item).normal.length > 0,
+        scour: item => item.rarity !== 'normal' && item.rarity !== 'unique',
+        tainted: item => !item.corrupted || (isKaleidoscopeShieldItem(item) && getItemExplicitOptionCount(item) <= EXPLICIT_AFFIX_LINE_CAP),
+        blessing: item => Array.isArray(item.baseStats) && item.baseStats.length > 0,
+        annulment: item => getAnnulmentRemovableStats(item).length > 0,
+        abyssCatalyst: item => Math.max(0, Math.floor(item.quality || 0)) > 0 && Array.isArray(item.stats) && item.stats.length > 0,
+        deepWhetstone: qualityFits(['무기']), rootIron: qualityFits(['투구', '갑옷', '장갑', '신발', '허리띠']), jewelPolish: qualityFits(['목걸이', '반지'])
+    });
+    const RELIC_ACTIONS = Object.freeze(['divine', 'tainted', 'blessing']);
+    /** Why action cannot be used on item now, or '': the build lock, a 성화의 뿌리 pick waits, corruption, a fused relic, or the action does
+     * not fit. */
+    function blockReason(item, action) {
+        const locked = equipmentCrafting.buildLockReason(game);
+        if (locked) return locked;
+        const waiting = equipmentCrafting.choiceWaitReason(game);
+        if (waiting) return waiting;
+        if (item.corrupted && action !== 'tainted') return '타락한 아이템은 더 이상 제작할 수 없습니다.';
+        if (item.fusedRelic && !RELIC_ACTIONS.includes(action)) return '융합 유물은 황금률, 잿불가지, 축복의 꽃잎만 사용할 수 있습니다.';
+        return Object.hasOwn(FITS, action) && FITS[action](item) ? '' : '지금 선택한 아이템에는 사용할 수 없습니다.';
     }
-    if (!ok) return addLog("지금 선택한 아이템에는 사용할 수 없습니다.", "attack-monster");
-    if (currencyKey === 'divine' && !await requestGameConfirmation('선택한 장비에 황금률을 사용합니다.', {
-        title: '희귀 재화 사용',
-        tone: 'danger',
-        confirmLabel: '사용'
-    })) return;
-    // 확인창이 열린 동안 제작 대상을 바꾸거나 장비를 이동한 경우, 이전 객체에 오브가
-    // 적용되는 것을 막는다. 확인 전의 잔여 수량·제작 가능 상태도 다시 검증한다.
-    if (getSelectedCraftItem() !== item || !getCraftPayment(currencyKey)?.affordable) {
-        return addLog('확인 중 제작 대상 또는 재화가 변경되어 사용을 취소했습니다.', 'attack-monster');
-    }
-    if (item.corrupted && actionKey !== 'tainted') return addLog('확인 중 장비 상태가 변경되어 사용을 취소했습니다.', 'attack-monster');
-    if (item.fusedRelic && !['divine', 'tainted', 'blessing'].includes(actionKey)) return addLog('확인 중 장비 상태가 변경되어 사용을 취소했습니다.', 'attack-monster');
 
-    game.sporeCraftModes = game.sporeCraftModes || {};
-    // 홀씨 태그 보장은 장비 제작 전용이다.
-    let sporeMode = isSporeCraftEquipment(item) ? (game.sporeCraftModes[currencyKey] || 'none') : 'none';
-    const sporeBlock = getSporeCraftBlockReason(item, actionKey, sporeMode);
-    if (sporeBlock) return addLog(sporeBlock, 'attack-monster');
-    function consumeSpore(mode) {
-        if (mode === 'none') return true;
-        if (!hasSporeCraftCost(mode)) return false;
-        const all = ['sporeFire', 'sporeCold', 'sporeLight'];
-        const keys = {fire: ['sporeFire'], cold: ['sporeCold'], light: ['sporeLight'], chaos: all, damage: all}[mode] || [];
+    /** The spore mode set for this currency; spores guarantee lines on gear only. */
+    function sporeMode(item, currencyKey) {
+        game.sporeCraftModes = game.sporeCraftModes || {};
+        return isSporeCraftEquipment(item) ? (game.sporeCraftModes[currencyKey] || 'none') : 'none';
+    }
+    /** Why the spore guarantee stops a basic craft, or '': the mode's unlock, no line of the family to give, or too few spores. */
+    function sporeReason(item, action, mode, guaranteedMod) {
+        const blocked = getSporeCraftBlockReason(item, action, mode);
+        if (blocked || mode === 'none' || !equipmentCrafting.basicActions.includes(action)) return blocked;
+        if (!guaranteedMod) return equipmentCrafting.rerollActions.includes(action) ? '이 장비에는 선택한 홀씨로 출현 가능한 옵션이 없어 제작할 수 없습니다.'
+            : '선택한 홀씨 계열에서 새로 부여할 수 있는 옵션이 없습니다. 홀씨 모드를 미사용으로 바꾸거나 해당 계열의 기존 옵션을 제거하세요.';
+        return hasSporeCraftCost(mode) ? '' : '홀씨가 부족해 제작을 시작하지 않았습니다.';
+    }
+    const ALL_SPORES = Object.freeze(['sporeFire', 'sporeCold', 'sporeLight']);
+    const SPORE_KEYS = Object.freeze({ fire: ['sporeFire'], cold: ['sporeCold'], light: ['sporeLight'], chaos: ALL_SPORES, damage: ALL_SPORES });
+    function spendSpores(mode) {
+        if (mode === 'none') return;
         const cost = getSporeCraftCost();
-        keys.forEach(key => { game.currencies[key] -= cost; });
+        (SPORE_KEYS[mode] || []).forEach(key => { game.currencies[key] -= cost; });
+    }
+    /** Everything decided before payment: { reason }, or { spore, guaranteedMod, omen, addedMod } (the spore mode a basic craft uses,
+     * its guaranteed mod, the 제작 뿌리 it uses and the line a 수액 봉오리 on a rare adds). */
+    function plan(item, currencyKey, action) {
+        const mode = sporeMode(item, currencyKey), spore = equipmentCrafting.basicActions.includes(action) ? mode : 'none';
+        const sideBlock = equipmentCrafting.armedSideReason(game, item, action, spore);
+        if (sideBlock) return { reason: sideBlock };
+        const omen = equipmentCrafting.omenFor(game, action, item, mode);
+        const guaranteedMod = spore === 'none' ? null : equipmentCrafting.pickSporeMod(item, action, spore, omen);
+        const reason = sporeReason(item, action, mode, guaranteedMod);
+        if (reason) return { reason };
+        const addedMod = action === 'exalted' ? guaranteedMod || equipmentCrafting.pickAddMod(item, omen) : null;
+        return action === 'exalted' && !addedMod ? { reason: '이 장비에 추가로 부여할 수 있는 옵션이 없습니다.' } : { spore, guaranteedMod, omen, addedMod };
+    }
+    function addonReason(item, action, mode) {
+        return equipmentCrafting.armedSideReason(game, item, action, mode)
+            || getSporeCraftBlockReason(item, action, mode, equipmentCrafting.omenFor(game, action, item, mode));
+    }
+
+    // ---------------------------------------------------------------- effects after payment (basic crafts: equipmentCrafting.craftBasic)
+    function raiseQuality(item, run) {
+        item.quality = Math.max(0, Math.min(20, Math.floor(item.quality || 0) + 1));
+        run.logs.push([`🛠️ 장비 퀄리티 +1% (현재 ${item.quality}%)`, 'loot-magic']);
+    }
+    /** 황금률: every value rolled again inside its tier (locked lines kept), the infusion, and a socket amp unique's amp. */
+    function rerollValues(item, run) {
+        const onSide = stat => equipmentCrafting.onOmenSide(item, stat, run.omen);
+        item.stats.forEach(stat => { if (!stat.lockedByHoney && !stat.lockedByRift && onSide(stat)) rerollStoredAffixValue(stat); });
+        const infusion = item.chaosInfusion;
+        if (infusion && onSide(infusion) && Number.isFinite(Number(infusion.valMin)) && Number.isFinite(Number(infusion.valMax))) rerollStoredAffixValue(infusion);
+        if (!run.omen && item.uniqueEffectKey === 'abyssSocketAndJewelAmp' && item.uniqueEffectParams) rerollAbyssAmp(item);
+    }
+    function rerollAbyssAmp(item) {
+        const p = item.uniqueEffectParams;
+        const ampMin = Math.max(1, Math.floor(Number(p.ampMin || 1)));
+        const ampMax = Math.max(ampMin, Math.floor(Number(p.ampMax || 100)));
+        p.ampPct = ampMin + Math.floor(Math.random() * (ampMax - ampMin + 1));
+        item.uniqueEffectParams = p;
+        const socketCount = Array.isArray(item.abyssSockets) ? item.abyssSockets.length : Math.max(1, Math.floor(Number(p.socketsMin || 1)));
+        item.uniqueEffect = `심연 주얼 슬롯 (${socketCount})개, 장착 심연 주얼 효과 +${p.ampPct}%`;
+    }
+    const jewelsBack = jewels => (jewels ? ` 끼운 주얼 ${jewels}개는 가방으로 돌아왔습니다.` : '');
+    /** 요정의 고리: a quarter of the time the item breaks, else it becomes a unique of its slot and tier (same id), a chase one at the
+     * drop's chase chance. false when no unique exists for it (FITS.chance refuses that before the payment). */
+    function fairyRing(item, run) {
+        if (Math.random() < 0.25) {
+            run.logs.push([`💥 요정의 고리: 아이템이 파괴되었습니다.${jewelsBack(destroySelectedCraftItem(item))}`, 'attack-monster']);
+            return true;
+        }
+        const pools = getFairyRingUniquePools(item), pool = pools.chase.length && Math.random() < getChaseUniqueChance(getZone(game.currentZoneId) || {}) ? pools.chase : pools.normal;
+        const unique = pool.length ? generateUniqueItem(pools.tier, item.slot, rndChoice(pool).name) : null;
+        if (!unique) { run.logs.push(['승급할 수 있는 고유가 없습니다.', 'attack-monster']); return false; }
+        const previousId = item.id;
+        // The unique is a fresh item: socketed jewels go back to storage before the old keys are cleared.
+        const jewels = equipmentSockets.returnJewels(item);
+        Object.keys(item).forEach(key => delete item[key]);
+        Object.assign(item, unique);
+        item.id = previousId; // 배치 참조가 끊기지 않도록 원래 id를 유지한다.
+        run.logs.push([`🌟 요정의 고리: [${item.name}] 고유로 진화했습니다.${jewelsBack(jewels)}`, 'loot-unique']);
         return true;
     }
-    function getSporeGuaranteedMod(allowReplacement) {
-        if (sporeMode === 'none') return null;
-        let rerollItem = allowReplacement ? {
-            ...item,
-            stats: (item.stats || []).filter(stat => equipmentCrafting.keptOnReroll(item, stat))
-        } : item;
-        // 결과 희귀도의 한도로 센다: 새싹(변환, 변경)은 마법 1과 1, 나머지는 희귀 3과 3.
-        let source = getOpenAffixMods(rerollItem, ['transmute', 'alteration'].includes(actionKey) ? 'magic' : 'rare');
-        let avail = equipmentCrafting.filterSporeMods(source, sporeMode);
-        return pickWeightedMod(avail);
-    }
-    function rollSporeGuaranteedValue(mod) {
-        if (!mod) return null;
-        let range = getCraftTierRangeForItem(item, 'spore');
-        // 계열을 보장하되 최상위 두 티어를 확정하지 않는다. 정의된 홀씨 티어 범위 전체에서 굴린다.
-        return { ...rollAffixValueInTierRange(mod, range.min, range.max), craftSource: 'spore' };
-    }
-    function sporeReroll(extra) {
-        let guaranteedStat = sporeMode !== 'none' && usesSporeAffix ? rollSporeGuaranteedValue(guaranteedMod) : null;
-        return { ...extra, guaranteedStat };
-    }
-    let guaranteedMod = getSporeGuaranteedMod();
-    let consumedSpore = false;
-    // alteration은 transmute처럼 옵션을 통째로 다시 굴린다. 마법의 새싹이 마법
-    // 아이템에서 이 경로를 타게 되면서, 두 목록에 함께 넣지 않으면 홀씨 모드를
-    // 켜도 아무 일 없이 지나가 버린다(소모도 보장도 없음).
-    let sporeAffixCurrencies = ['transmute', 'augment', 'alteration', 'alchemy', 'exalted', 'regal', 'chaos'];
-    let rerollSporeCurrencies = ['transmute', 'alteration', 'alchemy', 'chaos'];
-    let usesSporeAffix = sporeAffixCurrencies.includes(actionKey);
-    let isRerollSporeCurrency = rerollSporeCurrencies.includes(actionKey);
-    let needsPrecheck = usesSporeAffix && !isRerollSporeCurrency;
-    if (sporeMode !== 'none' && needsPrecheck && !guaranteedMod) {
-        return addLog('선택한 홀씨 계열에서 새로 부여할 수 있는 옵션이 없습니다. 홀씨 모드를 미사용으로 바꾸거나 해당 계열의 기존 옵션을 제거하세요.', 'attack-monster');
-    }
-    if (sporeMode !== 'none' && usesSporeAffix && isRerollSporeCurrency) {
-        guaranteedMod = getSporeGuaranteedMod(true);
-        if (!guaranteedMod) return addLog('이 장비에는 선택한 홀씨로 출현 가능한 옵션이 없어 제작할 수 없습니다.', 'attack-monster');
-        if (!consumeSpore(sporeMode)) return addLog('홀씨가 부족해 제작을 시작하지 않았습니다.', 'attack-monster');
-            consumedSpore = true;
-    }
-    let exaltedMod = null;
-    if (actionKey === 'exalted') {
-        exaltedMod = guaranteedMod || pickWeightedMod(getOpenAffixMods(item));
-        if (!exaltedMod) return addLog('이 장비에 추가로 부여할 수 있는 옵션이 없습니다.', 'attack-monster');
-    }
-    if (sporeMode !== 'none' && usesSporeAffix && !isRerollSporeCurrency) {
-        if (!consumeSpore(sporeMode)) return addLog('홀씨가 부족합니다.', 'attack-monster');
-        consumedSpore = true;
-    }
-    let craftResultToken = craftingResultLedger.begin(item, { currencyKey, actionKey });
-    game.currencies[payment.key] -= payment.cost;
-    if (['deepWhetstone', 'rootIron', 'jewelPolish'].includes(currencyKey)) {
-        item.quality = Math.max(0, Math.min(20, Math.floor(item.quality || 0) + 1));
-        addLog(`🛠️ 장비 퀄리티 +1% (현재 ${item.quality}%)`, 'loot-magic');
-    } else if (actionKey === 'transmute') {
-        item.rarity = 'magic';
-        rerollExplicitMods(item, 'magic', getItemCraftTier(item), sporeReroll());
-    } else if (actionKey === 'alteration') {
-        rerollExplicitMods(item, 'magic', getItemCraftTier(item), sporeReroll());
-    } else if (actionKey === 'alchemy') {
-        item.rarity = 'rare';
-        rerollExplicitMods(item, 'rare', getItemCraftTier(item), sporeReroll({ rerollChaosInfusion: true }));
-    } else if (actionKey === 'exalted') {
-        item.stats.push((exaltedMod === guaranteedMod) ? rollSporeGuaranteedValue(exaltedMod) : rollAffixValue(exaltedMod, getItemCraftTier(item)));
+    function annul(item, run) {
+        const candidates = getAnnulmentRemovableStats(item).filter(row => equipmentCrafting.onOmenSide(item, row.stat, run.omen));
+        const picked = equipmentCrafting.pickPruneLine(candidates, run.omen);
+        const removed = item.stats.splice(picked.index, 1)[0];
         updateItemName(item);
-    } else if (actionKey === 'regal') {
-        let mod = guaranteedMod || pickWeightedMod(getOpenAffixMods(item, 'rare'));
-        if (mod) item.stats.push((mod === guaranteedMod) ? rollSporeGuaranteedValue(mod) : rollAffixValue(mod, getItemCraftTier(item)));
-        item.rarity = 'rare';
+        run.logs.push([`🕳️ 전정 가위: ${removed.statName || getStatName(removed.id)} 옵션 제거`, 'loot-unique']);
+    }
+    function scour(item, run) {
+        const sideOnly = run.omen && run.omen.effect === 'side', onSide = stat => equipmentCrafting.onOmenSide(item, stat, run.omen);
+        item.stats = (item.stats || []).filter(stat => stat && (stat.lockedByHoney || stat.lockedByRift || !onSide(stat)));
+        if (item.chaosInfusion && onSide(item.chaosInfusion)) item.chaosInfusion = null;
+        if (!sideOnly || equipmentCrafting.keptKind(item) === run.omen.side) delete item.affixKeep;
+        const remaining = getItemExplicitOptionCount(item) > 0;
+        item.rarity = remaining ? (sideOnly ? item.rarity : 'magic') : 'normal';
         updateItemName(item);
-    } else if (actionKey === 'chaos') {
-        rerollExplicitMods(item, 'rare', getItemCraftTier(item), sporeReroll({ rerollChaosInfusion: true }));
-    } else if (actionKey === 'divine') {
-        item.stats.forEach(stat => {
-            if (stat.lockedByHoney || stat.lockedByRift) return;
-            rerollStoredAffixValue(stat);
-        });
-        if (item.chaosInfusion && Number.isFinite(Number(item.chaosInfusion.valMin)) && Number.isFinite(Number(item.chaosInfusion.valMax))) {
-            rerollStoredAffixValue(item.chaosInfusion);
-        }
-        if (item.uniqueEffectKey === 'abyssSocketAndJewelAmp' && item.uniqueEffectParams) {
-            let p = item.uniqueEffectParams;
-            let ampMin = Math.max(1, Math.floor(Number(p.ampMin || 1)));
-            let ampMax = Math.max(ampMin, Math.floor(Number(p.ampMax || 100)));
-            p.ampPct = ampMin + Math.floor(Math.random() * (ampMax - ampMin + 1));
-            item.uniqueEffectParams = p;
-            let socketCount = Array.isArray(item.abyssSockets) ? item.abyssSockets.length : Math.max(1, Math.floor(Number(p.socketsMin || 1)));
-            item.uniqueEffect = `심연 주얼 슬롯 (${socketCount})개, 장착 심연 주얼 효과 +${p.ampPct}%`;
-        }
-    } else if (actionKey === 'chance') {
-        if (Math.random() < 0.25) {
-            const jewels = destroySelectedCraftItem(item);
-            addLog(`💥 요정의 고리: 아이템이 파괴되었습니다.${jewels ? ` 끼운 주얼 ${jewels}개는 가방으로 돌아왔습니다.` : ''}`, 'attack-monster');
-        } else {
-            let tier = Math.max(1, Math.floor(item.hiddenTier || item.itemTier || 1));
-            let unique = generateUniqueItem(tier, item.slot);
-            if (!unique) return addLog('승급할 수 있는 고유가 없습니다.', 'attack-monster');
-            let previousId = item.id;
-            // The unique is a fresh item: socketed jewels go back to storage before the old keys are cleared.
-            const jewels = equipmentSockets.returnJewels(item);
-            Object.keys(item).forEach(key => delete item[key]);
-            Object.assign(item, unique);
-            // 배치 참조가 끊기지 않도록 원래 id를 유지한다.
-            item.id = previousId;
-            addLog(`🌟 요정의 고리: [${item.name}] 고유로 진화했습니다.${jewels ? ` 끼운 주얼 ${jewels}개는 가방으로 돌아왔습니다.` : ''}`, 'loot-unique');
-        }
-    } else if (actionKey === 'annulment') {
-        let removable = getAnnulmentRemovableStats(item);
-        if (removable.length <= 0) return addLog('제거할 수 있는 추가 옵션이 없습니다.', 'attack-monster');
-        let picked = rndChoice(removable);
-        let removed = item.stats.splice(picked.index, 1)[0];
-        updateItemName(item);
-        addLog(`🕳️ 전정 가위: ${removed.statName || getStatName(removed.id)} 옵션 제거`, 'loot-unique');
-    } else if (actionKey === 'scour') {
-        item.stats = (item.stats || []).filter(stat => stat && (stat.lockedByHoney || stat.lockedByRift));
-        item.chaosInfusion = null;
-        delete item.affixKeep;
-        item.rarity = item.stats.length > 0 ? 'magic' : 'normal';
-        updateItemName(item);
-    } else if (actionKey === 'tainted') {
+    }
+    function taint(item, run) {
         const outcome = corruptCraftedItem(item);
-        craftResultToken.meta.outcome = outcome.text; // the craft result card leads with it (js/crafting-result-ui.js)
-        addLog(`🩸 타락: ${outcome.text}`, outcome.kind === 'nothing' ? 'attack-monster' : 'loot-unique', { toast: true });
-    } else if (currencyKey === 'abyssCatalyst') {
-        let qualityLabel = applyAbyssCatalystToItemQuality(item);
-        addLog(`🧪 심연 촉매: [${item.name}] 퀄리티 속성 → ${qualityLabel}`, 'loot-unique');
-    } else if (currencyKey === 'blessing') {
-        (item.baseStats || []).forEach(stat => {
-            let baseMin = Number.isFinite(Number(stat.baseRollMin)) ? Number(stat.baseRollMin) : Number(stat.valMin);
-            let baseMax = Number.isFinite(Number(stat.baseRollMax)) ? Number(stat.baseRollMax) : Number(stat.valMax);
-            if (!Number.isFinite(baseMin) || !Number.isFinite(baseMax)) {
-                let fallback = Number.isFinite(Number(stat.val)) ? Number(stat.val) : Number(stat.base || 0);
-                baseMin = fallback;
-                baseMax = fallback;
-            }
-            if (baseMax < baseMin) {
-                let tmp = baseMin;
-                baseMin = baseMax;
-                baseMax = tmp;
-            }
-            if (['leech', 'spellLeech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id)) {
-                let minStep = Math.round(baseMin * 10);
-                let maxStep = Math.round(baseMax * 10);
-                stat.val = (minStep + Math.floor(Math.random() * (maxStep - minStep + 1))) / 10;
-                baseMin = minStep / 10;
-                baseMax = maxStep / 10;
-            } else {
-                baseMin = Math.floor(baseMin);
-                baseMax = Math.floor(baseMax);
-                if (baseMax > 0) baseMin = Math.max(1, baseMin);
-                stat.val = baseMin + Math.floor(Math.random() * (baseMax - baseMin + 1));
-            }
-            stat.baseRollMin = baseMin;
-            stat.baseRollMax = baseMax;
-            stat.valMin = baseMin;
-            stat.valMax = baseMax;
-        });
+        run.token.meta.outcome = outcome.text; // 제작 경과가 그 줄로 시작한다(js/crafting-workspace-ui.js)
+        run.logs.push([`🩸 타락: ${outcome.text}`, outcome.kind === 'nothing' ? 'attack-monster' : 'loot-unique', { toast: true }]);
+    }
+    function catalyse(item, run) {
+        const label = applyAbyssCatalystToItemQuality(item);
+        run.logs.push([`🧪 심연 촉매: [${item.name}] 퀄리티 속성 → ${label}`, 'loot-unique']);
+    }
+    /** A base line's roll range [low, high]: its base roll, else its range, else its value. */
+    function blessRange(stat) {
+        let low = Number.isFinite(Number(stat.baseRollMin)) ? Number(stat.baseRollMin) : Number(stat.valMin);
+        let high = Number.isFinite(Number(stat.baseRollMax)) ? Number(stat.baseRollMax) : Number(stat.valMax);
+        if (!Number.isFinite(low) || !Number.isFinite(high)) {
+            const fallback = Number.isFinite(Number(stat.val)) ? Number(stat.val) : Number(stat.base || 0);
+            low = fallback;
+            high = fallback;
+        }
+        return high < low ? [high, low] : [low, high];
+    }
+    /** 축복의 꽃잎: one base line rolled again inside its base range (in tenths for the leech and regen lines). */
+    function blessBaseStat(stat) {
+        let [low, high] = blessRange(stat);
+        if (isTenthStat(stat.id)) {
+            const minStep = Math.round(low * 10), maxStep = Math.round(high * 10);
+            stat.val = (minStep + Math.floor(Math.random() * (maxStep - minStep + 1))) / 10;
+            low = minStep / 10;
+            high = maxStep / 10;
+        } else {
+            low = Math.floor(low);
+            high = Math.floor(high);
+            if (high > 0) low = Math.max(1, low);
+            stat.val = low + Math.floor(Math.random() * (high - low + 1));
+        }
+        Object.assign(stat, { baseRollMin: low, baseRollMax: high, valMin: low, valMax: high });
+    }
+    function bless(item) {
+        (item.baseStats || []).forEach(blessBaseStat);
         if (typeof colonyWards === 'object') colonyWards.rerollBelt(item); // 허리띠는 액막이 칸 수(1~3)도 다시 굴린다
     }
-    let guaranteedTagNote = (sporeMode !== 'none' && usesSporeAffix && consumedSpore && guaranteedMod) ? `, 홀씨 보장: ${guaranteedMod.statName}` : '';
-    craftingResultLedger.commit(craftResultToken, item);
-    addLog(`⚒️ ${ORB_DB[payment.key].name} 사용${guaranteedTagNote}`, currencyKey === 'exalted' || currencyKey === 'divine' ? 'loot-unique' : 'loot-magic');
+    const EFFECTS = Object.freeze({ deepWhetstone: raiseQuality, rootIron: raiseQuality, jewelPolish: raiseQuality, divine: rerollValues,
+        chance: fairyRing, annulment: annul, scour, tainted: taint, abyssCatalyst: catalyse, blessing: bless });
+    /** The action's effect on item; false when it could not happen after all (a fairy ring with no unique for the slot). */
+    function apply(item, action, run) {
+        if (!equipmentCrafting.basicActions.includes(action)) return EFFECTS[action](item, run);
+        // 홀씨 보장 줄: 첫 결과는 값을 치르기 전에 고른 종류로, 성화의 뿌리의 나머지 결과는 저마다 같은 풀에서 다시 골라 굴린다.
+        const guaranteedFor = copy => (run.guaranteedMod ? equipmentCrafting.rollSporeLine(copy,
+            equipmentCrafting.pickSporeMod(copy, action, run.spore, run.omen) || run.guaranteedMod, run.omen) : null);
+        equipmentCrafting.craftBasic(game, item, action, { addedMod: run.addedMod, guaranteedStat: equipmentCrafting.rollSporeLine(item, run.guaranteedMod, run.omen),
+            guaranteedFor, omen: run.omen });
+        return true;
+    }
+
+    /** One use of currencyKey on the selected item, nothing logged or drawn here: { reason } when nothing happened, else { ok, logs }
+     * (ok false: paid but no change, a fairy ring with no unique). logs are addLog arguments in order. */
+    function use(currencyKey) {
+        const item = getSelectedCraftItem();
+        if (!item) return { reason: '먼저 아이템을 선택하세요.' };
+        const payment = getCraftPayment(currencyKey);
+        // A key that is no craft currency (the old 'divine', merged into 황금률) is refused like a missing one.
+        if (!Object.hasOwn(ORB_DB, currencyKey) || !payment || !payment.affordable) return { reason: '제작 재화가 부족하거나 사용할 수 없는 제작 방식입니다.' };
+        const action = equipmentCrafting.resolveAction(currencyKey, item.rarity);
+        const block = blockReason(item, action);
+        if (block) return { reason: block };
+        const run = plan(item, currencyKey, action);
+        if (run.reason) return { reason: run.reason };
+        run.token = craftingResultLedger.begin(item, { currencyKey, actionKey: action });
+        run.logs = [];
+        spendSpores(run.spore);
+        game.currencies[payment.key] -= payment.cost;
+        if (apply(item, action, run) === false) return { ok: false, logs: run.logs };
+        const note = (run.spore !== 'none' && run.guaranteedMod ? `, 홀씨 보장: ${run.guaranteedMod.statName}` : '') + equipmentCrafting.spendOmen(game, run.omen);
+        craftingResultLedger.commit(run.token, item);
+        run.logs.push([`⚒️ ${ORB_DB[payment.key].name} 사용${note}`, 'loot-magic']);
+        return { ok: true, logs: run.logs };
+    }
+    return Object.freeze({ use, blockReason, addonReason });
+})();
+
+/** The crafting workspace's currency use (js/crafting-workspace-ui.js): craftCurrencyUse.use, its log lines, a redraw. true when it
+ * crafted. Kept async for its callers. */
+async function useCurrency(currencyKey) {
+    const result = craftCurrencyUse.use(currencyKey);
+    if (result.reason) return addLog(result.reason, 'attack-monster');
+    result.logs.forEach(args => addLog(...args));
+    if (!result.ok) return undefined;
     updateStaticUI();
     return true;
 }

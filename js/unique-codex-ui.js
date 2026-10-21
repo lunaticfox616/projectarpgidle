@@ -68,12 +68,11 @@ const uniqueCodexUi = (() => {
     /** The stored copy's rolled lines while it is kept, else the definition's ranges (a loop keeps only the record). */
     function statLines(entry, stored) {
         if (stored && stored.baseName) {
-            return (stored.baseStats || []).map(stat => ({ id: stat.id, text: `${stat.statName} +${formatValue(stat.id, stat.val)}`, base: true }))
+            return (stored.baseStats || []).map(stat => ({ id: stat.id, text: `${stat.statName} ${formatSignedValue(stat.id, stat.val)}`, base: true }))
                 .concat((stored.stats || []).map(stat => ({ id: stat.id, text: `${stat.statName} +${formatValue(stat.id, stat.val)}${rangeText(stat)}` })));
         }
         return (entry.stats || []).map(stat => {
-            const min = Number.isFinite(Number(stat.min)) ? Number(stat.min) : Number(stat.base || 0);
-            const max = Number.isFinite(Number(stat.max)) ? Number(stat.max) : min;
+            const { min, max } = getUniqueStatRollRange(stat);
             return { id: stat.id, text: `${getStatName(stat.id)} +${formatValue(stat.id, min)}~+${formatValue(stat.id, max)}` };
         });
     }

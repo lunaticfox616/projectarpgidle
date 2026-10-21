@@ -220,16 +220,6 @@
     ]
   },
   {
-    "source": "assets/effects/skill-dragon-breath-v3.png",
-    "output": "assets/effects/skill-dragon-breath-v3.webp",
-    "sourceSha256": "356a739a0a614a2af137150af9e018d67b8028582766c6aff57a1463b9a70741",
-    "outputSha256": "c5614df83f7689b52f63ca031271a4c191fee7b357bbfa2dc0d6d95500bdf300",
-    "size": [
-      1254,
-      1254
-    ]
-  },
-  {
     "source": "assets/effects/skill-fork-sheet-v1.png",
     "output": "assets/effects/skill-fork-sheet-v1.webp",
     "sourceSha256": "df81121d7692b28c94fb1251d5ef452d3ebd548665497d86db5dce4bb82cb6b3",
@@ -334,16 +324,6 @@
     "output": "assets/effects/skill-mine-sheet-v1.webp",
     "sourceSha256": "d95a0180c72ca35cf648a8f715cd467199cc3d57862fcd2665a6f1e35c2b8c4e",
     "outputSha256": "8d5dd1a4078db3e399df8a9dbd671ea11bd55da599ecf8aca453f391fa264fd1",
-    "size": [
-      1254,
-      1254
-    ]
-  },
-  {
-    "source": "assets/effects/skill-potion-sheet-v1.png",
-    "output": "assets/effects/skill-potion-sheet-v1.webp",
-    "sourceSha256": "36b55898b89542ea2167e4c143bfac6b802be66d346bbb4fd85f94c7a8a4f62e",
-    "outputSha256": "87eb0b75b15bc4cc74c2c72b3d5a6c33983f2368f97a3b863f3cfa6c02dd4ae6",
     "size": [
       1254,
       1254

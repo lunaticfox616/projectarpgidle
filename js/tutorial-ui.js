@@ -4,6 +4,8 @@ const TUTORIAL_CARD_GAP = 12, TUTORIAL_CARD_EDGE = 8;
 const TUTORIAL_TOOLTIPS = Object.freeze(['#info-tooltip', '#canvas-tooltip', '#item-tooltip-box']);
 /** Pointer input that ends a hover hush (see hushHover). */
 const TUTORIAL_HUSH_WAKERS = Object.freeze(['pointermove', 'pointerdown', 'wheel']);
+/** ms after a guide starts while it holds the next card even before its target is drawn (see holdsQueue). */
+const TUTORIAL_GUIDE_OPENING_MS = 1500;
 /**
  * Optional action guidance owned by the UI. Reads real loadouts; never equips or
  * spends points. Each notice offers one action and can be skipped immediately.
@@ -83,7 +85,7 @@ const tutorialActionUi = {
         const guide = this.guideFor(notice.key);
         if (!guide) return;
         this.finish(false);
-        this.active = { notice, guide, before: guide.read() };
+        this.active = { notice, guide, before: guide.read(), startedAt: Date.now() };
         this.ensureCard();
         this.card.hidden = false;
         this.card.classList.remove('is-away');
@@ -192,9 +194,12 @@ const tutorialActionUi = {
         this.refresh();
     },
     /** 따라 하기는 가리키는 화면에 있는 동안만 다음 안내 카드를 붙잡는다. 그 화면을 떠나면(한 줄 띠로 줄어듦) 쌓인 카드가 뜬다 —
-     * 첫 스킬트리 투자를 하지 않고 나가면 '지도 개방'(액트 1 보상으로 가는 안내)이 띠를 닫을 때까지 5분 넘게 숨어 있었다(검토 2026-10-01). */
+     * 첫 스킬트리 투자를 하지 않고 나가면 '지도 개방'(액트 1 보상으로 가는 안내)이 띠를 닫을 때까지 5분 넘게 숨어 있었다(검토 2026-10-01).
+     * 막 시작해 가리킬 칸이 아직 그려지지 않은 동안(TUTORIAL_GUIDE_OPENING_MS)도 붙잡는다: 첫 스킬룬 따라 하기를 누른 그 틈에 '첫 장비'
+     * 카드가 떠서 휴대폰에서는 빛나는 룬을 덮었다(2026-10-21). */
     holdsQueue() {
-        return !!this.active && !this.card.classList.contains('is-away');
+        if (!this.active) return false;
+        return !this.card.classList.contains('is-away') || Date.now() - this.active.startedAt < TUTORIAL_GUIDE_OPENING_MS;
     },
     /** 따라 하기가 화면을 바꾸면 멈춰 있던 마우스 밑으로 새 칸이 와서, 그 칸의 hover 툴팁('기본 공격')이 가리키는 칸을 덮었다
      * (검토 2026-10-01). 마우스가 실제로 움직이거나 누르거나 휠을 굴릴 때까지 그 자리의 hover 툴팁을 띄우지 않는다(hushesTooltipAt). */
@@ -346,7 +351,7 @@ function tutorialNoticeKind(notice) {
 }
 /** Colour in card text: ‘menu or button’ in the card's kind colour (where to go), [item name] in blue (what it is). */
 function tutorialMarkup(line) {
-    return escapeTutorialText(line)
+    return escapeHTML(line)
         .replace(/‘([^’]+)’/g, '<span class="tutorial-ui">$1</span>')
         .replace(/\[([^\]]+)\]/g, '<span class="tutorial-name">[$1]</span>');
 }
@@ -542,8 +547,10 @@ const TUTORIAL_STARTER_GUIDES = Object.freeze([
         starterDue: state => state.level >= 2 && state.passivePoints > 0 },
     { key: 'tutorial_first_gear', seenAs: 'unlock_items', tabId: 'tab-items', title: '첫 장비',
         body: '장비를 얻었습니다. 빈 칸에 맞는 장비는 바로 착용합니다.\n‘장비’에서 착용한 장비의 효과를 확인하고, 보관 중인 장비와 비교하세요.\n바꿔 입으면 전투 화면의 생명 구슬 위에 DPS 변화가 뜹니다.',
-        // 빈 칸에 바로 입은 장비도 첫 장비다: 초반 드랍은 가방을 거치지 않아 안내가 끝내 뜨지 않았다(검토 7차).
-        starterDue: state => (state.inventory || []).some(Boolean) || Object.values(state.equipment || {}).some(Boolean) },
+        // 빈 칸에 바로 입은 장비도 첫 장비다: 초반 드랍은 가방을 거치지 않아 안내가 끝내 뜨지 않았다(검토 7차). 무기 칸은 세지 않는다:
+        // 직업을 고를 때 쥐여 주는 대표 무기(js/passives.js grantClassStarterWeapon) 때문에 첫 장면 끝에 스킬룬, 장비, 자동 사냥 카드가
+        // 잇달아 떴다(2026-10-21). 떨어진 무기는 무기 칸이 차 있어 가방으로 가므로 그때 뜬다.
+        starterDue: state => (state.inventory || []).some(Boolean) || Object.entries(state.equipment || {}).some(([slot, item]) => item && slot !== '무기') },
     { key: 'tutorial_weapon_rune', seenAs: 'tutorial_weapon_rune', tabId: 'tab-skills', title: '무기와 스킬룬',
         body: '스킬룬마다 쓸 수 있는 무기가 있습니다. 지금 무기로 쓸 수 없는 룬은 흐리게 보이고, 카드에 필요한 무기가 적혀 있습니다.\n장착한 룬을 쓸 수 없는 무기로 바꾸면 기본 공격으로 싸우다가, 맞는 무기를 들면 그 룬으로 돌아갑니다.',
         starterDue: state => ownsWeaponBlockedRune(state) }
@@ -592,11 +599,6 @@ window.addEventListener('resize', () => { if (activeTutorial) placeTutorialCard(
 function advanceTutorial() {
     if (!activeTutorial) return;
     dismissTutorial(true);
-}
-function goBackTutorialStep() {
-    if (!activeTutorial || activeTutorialStep <= 0) return;
-    activeTutorialStep -= 1;
-    renderTutorialStep();
 }
 /** 첫 스킬룬 안내를 따라 하지 않고 닫으면 그 룬을 대신 장착한다 — 방치하는 플레이어는 기본 공격으로 싸우며 초반에 거듭
  * 쓰러졌다(검토 2026-10-01). 바꾸고 싶으면 '스킬룬'에서 언제든 바꾼다. */

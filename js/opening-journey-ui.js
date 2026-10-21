@@ -8,7 +8,7 @@
  * (js/content-progression-ui.js announceStarterGem) → 자동 사냥이 열린다. 새 게임의 첫 루프에서 한 번만 돈다.
  * 진행은 seenTutorials의 열쇠로 남는다(KEY). 그 사이 자동 사냥은 꺼진 채 잠기고(autoLocked, js/act-exploration-ui.js), 쓰러진 동안과
  * 일어나는 동안 게임이 멈춘다(holds, js/canvas-act-title-card.js greeting이 함께 읽는다). 주인공 그림은 받은 그림이다
- * (js/canvas-stage-actors.js setRise, data/stage-view.js STAGE_HERO_RISE, scripts/build-stage-hero-rise.cjs). 무대 그림이 없으면
+ * (js/canvas-stage-actors.js setRise, data/stage-view.js STAGE_HERO_RISE, scripts/import-stage-characters.cjs). 무대 그림이 없으면
  * 쓰러진 장면만 건너뛴다.
  */
 const openingJourney = (() => {
@@ -184,10 +184,12 @@ const openingJourney = (() => {
         else if (step === 'attack' && rescueStruck(run)) mark(KEY.attack);
         else if (step === 'gem' && gemLearnt()) finish(now);
     }
-    /** The opening ends: the auto hunt opens, its guide card comes, and the auto button glows until it is switched on. */
+    /** The opening ends: the auto hunt opens, its guide card comes, and the auto button glows until it is switched on. The battle comes
+     * back to the front first: the rune window the gem guide opened covered the glowing button and half of the line naming it (2026-10-21). */
     function finish(now) {
         mark(KEY.done);
         autoHintUntil = now + AUTO_HINT_MS;
+        switchTab('tab-battle');
         const key = coarse() ? '' : hotkeyBindings.label(hotkeyBindings.codeFor(game.settings.hotkeyOverrides, 'combat:autoMove'));
         queueTutorialNotice('opening_auto', '자동 사냥', `이제 자동 사냥을 쓸 수 있습니다.\n오른쪽 위 자동 단추${key ? `나 ${key} 키` : ''}로 켜면 캐릭터가 알아서 걷고 싸웁니다.\n지금 할 일은 ‘목표’에 나옵니다.`);
         actExplorationUi.render();

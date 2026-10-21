@@ -17,17 +17,11 @@
         .subtab-content.active { display: block; }
 
         .forge-panel { background: #111; border: 1px solid #d35400; padding: 15px; border-radius: 6px; margin-bottom: 16px; }
-        .currency-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; margin-top: 12px; }
         .currency-card { background: #16161d; border: 1px solid #3d3d5c; padding: 10px; border-radius: 6px; }
         .currency-name { color: #f1c40f; font-weight: bold; margin-bottom: 4px; }
-        .currency-desc { color: var(--copy-muted); font-size: 0.78em; min-height: 34px; }
-        .currency-count { color: var(--color-accent, #d7b36f); margin-top: 6px; }
-        .craft-layout { display: grid; grid-template-columns: minmax(300px, .85fr) minmax(0, 2fr); gap: 16px; align-items: start; }
-        .craft-selected { background: #0d0d12; border: 1px solid #333; border-radius: 6px; padding: 12px; min-height: 140px; }
         #ui-currency-grid { min-height: 280px; align-content: start; }
         .craft-actions { display: grid; gap: 8px; margin-top: 12px; }
         .inventory-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }
-        .settings-stack { display: flex; flex-direction: column; gap: 10px; max-width: 300px; }
 
         .combat-dashboard { display: grid; grid-template-columns: minmax(0, 2.05fr) minmax(190px, 0.7fr); gap: 10px; flex: 1; min-width: 0; min-height: 0; align-items: stretch; }
         .combat-stage { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
@@ -37,7 +31,6 @@
         .combat-zone-actions button { margin-left: 0; }
         .combat-zone-row-title { display: flex; align-items: center; gap: 6px; min-width: 0; }
         .combat-zone-row-title > #ui-combat-zone-inline { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .combat-zone-row-title .combat-contract-status { flex: 0 0 auto; }
         .combat-action-btn { background-color: #8e44ad; border: 1px solid #b57ad4; color: #f3e8ff; font-size: 0.7em; padding: 4px 8px; border-radius: 6px; font-weight: 700; min-height: 30px; }
         #btn-combat-loop-advance { display: none; background: linear-gradient(180deg, #6e57c9 0%, #4b3a91 100%); border-color: #d7c36a; box-shadow: 0 0 0 1px rgba(255, 221, 106, 0.22), 0 0 12px rgba(215, 195, 106, 0.18); color: #fff4c4; }
         .combat-log-toggle { font-size: 0.72em; padding: 3px 8px; min-height: 26px; }
@@ -58,7 +51,6 @@
         .battlefield-caption:empty { display: none; }
         #battlefield-canvas { width: 100%; height: 100%; display: block; image-rendering: pixelated; image-rendering: crisp-edges; }
         .battlefield-caption { position: absolute; top: 8px; left: 12px; font-size: 0.78em; color: rgba(205, 228, 255, 0.82); letter-spacing: 0.03em; text-shadow: 0 1px 2px rgba(0,0,0,0.45); pointer-events: none; }
-        .bulk-salvage-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; padding: 10px 12px; background: #11151c; border: 1px solid #26384a; border-radius: 10px; }
         .bulk-salvage-action { background: linear-gradient(180deg, #596b7d 0%, #44515f 100%); border-color: #7d8d9e; }
         .startup-overlay { display: none; position: fixed; inset: 0; z-index: 14000; padding: 28px; background:
             radial-gradient(circle at 12% 14%, rgba(86, 147, 212, 0.24), transparent 26%),

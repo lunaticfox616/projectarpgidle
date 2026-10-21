@@ -12,7 +12,7 @@ function canDrawHanaPlayer() {
 
 /** The stance the stage hero holds: the worn weapon's (settings.stageStance forces one from the test panel). */
 function getStageHeroStance() {
-    return stageActors.stanceFor(game.equipment?.['무기'], game.settings?.stageStance || 'auto', !!game.equipment?.['방패']);
+    return stageActors.stanceFor(game.equipment?.['무기'], game.settings?.stageStance || 'auto');
 }
 
 /** The side-view stage draws its own hero (js/canvas-stage-actors.js) once the worn class × stance sheets have loaded. */
@@ -132,12 +132,12 @@ function drawHanaPlayerBody(ctx, state, position) {
     } finally { ctx.battleActorAlpha = previous; }
 }
 
-/** 이 휘두름의 룬이 무대 주인공에게 정하는 것: 주문이면 시전, 던지는 플라스크면 던지기, 찌르기와 베기와 회전의 모양, 룬의 동작(인계의 동작 표).
+/** 이 휘두름의 룬이 무대 주인공에게 정하는 것: 주문이면 시전, 던지는 플라스크면 던지기, 룬의 동작(전달본의 동작 표).
  * 휘두름에 적힌 룬을 따른다(이동 칸의 룬을 쓰는 동안에는 주 룬이 아니다). */
 function getStageHeroSwingLook(timing, stance) {
     const name = (timing.attack && timing.attack.skillName) || game.activeSkill, skill = SKILL_DB[name] || {};
     return { spell: (skill.tags || []).includes('spell'), throwsWeapon: stance === 'flask' && HANA_THROWN_FLASK_GEMS.has(SKILL_FX_ATLAS[name]?.id),
-        strike: stageActors.strikeFor(name), motion: stageActors.motionFor(name, getHeroAppearanceId(), stance) };
+        motion: STAGE_VIEW.poseMotions[timing.attack && timing.attack.pose] || stageActors.motionFor(name, getHeroAppearanceId(), stance) };
 }
 
 /** 몸이 뜨는 이동 룬(도약 강타, 섬머솔트 슬래시) 동안의 몸 그림: 포물선 높이만큼 띄우고, 공중제비는 몸 가운데를 축으로 돌린다
@@ -146,7 +146,7 @@ function getStageHeroSwingLook(timing, stance) {
 function drawStageHeroAloft(ctx, position, tile, drawHeroBodyAt) {
     const air = battleVisualState.playerAir;
     if (!air) return drawHeroBodyAt(position.y);
-    const dot = stageActors.scaleFor(tile), y = position.y - air.lift * dot, centre = y - 46 * dot;
+    const dot = stageActors.scaleFor(tile), y = position.y - air.lift * dot, centre = y - 56 * dot;   // 몸 가운데(새 주인공은 키 약 110도트)
     ctx.save();
     ctx.translate(position.x, centre); ctx.rotate(air.rot); ctx.translate(-position.x, -centre);
     try { return drawHeroBodyAt(y); } finally { ctx.restore(); }
@@ -172,7 +172,7 @@ function drawStagePlayerBody(ctx, state, position) {
 }
 
 // Gems whose art throws the flask itself: from the release frame the character's hand is empty.
-const HANA_THROWN_FLASK_GEMS = new Set([38, 44, 47, 48, 49]);
+const HANA_THROWN_FLASK_GEMS = new Set([44, 47, 48, 49]);
 /** The weapon in hand is the one equipped (settings.heroWeaponMode: 'auto' · 'class' · a weapon slug), and the
  * active skill says when its own art takes it out of the hand. */
 function getHanaWeaponState(now) {
@@ -191,7 +191,9 @@ function getHanaSwingTiming(swing, direction) {
     if (!swing) return null;
     let windup = Math.max(1, (Number(swing.impactAt) || swing.start) - swing.start);
     let channelUntil = swing.duration > windup + 40 ? swing.start + swing.duration : 0;
-    return { start: swing.start, impactAt: swing.start + windup, direction, channelUntil, skillName: swing.skillName };
+    // A projectile leaves the hand before the swing's impact (js/combat.js PROJECTILE_RELEASE_SHARE): the release frame plays then.
+    let release = Number.isFinite(swing.releaseDelayMs) ? Math.max(1, Math.min(windup, swing.releaseDelayMs)) : windup;
+    return { start: swing.start, impactAt: swing.start + release, direction, channelUntil, skillName: swing.skillName, pose: swing.pose || null, kickoff: !!swing.kickoff };
 }
 
 /** A hit worth at least 6% of max life tints the body harder than chip damage from archers. */

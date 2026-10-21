@@ -21,6 +21,12 @@ async function openLocalGame(page, path = '/') {
     await expect(page.locator('#tab-battle')).toHaveClass(/active/);
 }
 
+// 로그인하면 채팅이 Supabase Realtime 소켓을 연다(js/social.js syncLiveChat). 시험의 가짜 주소(.invalid)는 이름이 풀리지 않아 브라우저가
+// 연결 실패를 콘솔 오류로 남기므로, 소켓은 받아만 두고 답하지 않는다(채팅은 예전처럼 조회로 돈다).
+test.beforeEach(async ({ page }) => {
+    await page.routeWebSocket(/\/realtime\/v1\/websocket/, () => {});
+});
+
 function watchRuntimeFailures(page) {
     const failures = [];
     page.on('pageerror', error => failures.push(error.message));
@@ -289,6 +295,28 @@ test('guest mode is local-only and survives reload', async ({ page }) => {
     await page.locator('#btn-startup-guest').click();
     await expect.poll(() => page.evaluate(() => game.level)).toBe(37);
     expect(failures).toEqual([]);
+});
+
+// 같은 브라우저의 두 탭은 같은 기기 저장을 쓴다(js/game-tab-guard-ui.js): 뒤에 연 탭이 앞 탭의 저장하지 않은 진행까지 받아 잇고,
+// 앞 탭은 대기 화면이 되어 더 쓰지 않는다. 대기 화면의 버튼은 같은 방법으로 게임을 되찾는다.
+test('a second tab takes the game over with unsaved progress and the first tab stops writing', async ({ page, context }) => {
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    await page.evaluate(() => { game.level = 37; saveGame({ skipCloudSync: true }); game.level = 38; });
+    const second = await context.newPage();
+    const secondFailures = watchRuntimeFailures(second);
+    await openLocalGame(second);
+    await expect(page.locator('#startup-standby')).toBeVisible();
+    await expect(page.locator('#btn-startup-guest')).toBeHidden();
+    expect(await second.evaluate(() => game.level)).toBe(38);
+    await second.evaluate(() => { game.level = 39; saveGame({ skipCloudSync: true }); game.level = 40; });
+    expect(await page.evaluate(() => saveGame({ skipCloudSync: true }))).toBe(false);
+    expect(await second.evaluate(() => JSON.parse(localStorage.getItem(LOCAL_SAVE_KEY)).level)).toBe(39);
+    await page.locator('#btn-startup-standby').click();
+    await expect(second.locator('#startup-standby')).toBeVisible();
+    await page.locator('#btn-startup-guest').click();
+    await expect.poll(() => page.evaluate(() => gameplayStarted && game.level)).toBe(40);
+    expect([...failures, ...secondFailures]).toEqual([]);
 });
 
 async function openGameWithUpdate(page) {

@@ -34,17 +34,30 @@ function hasLegacySummonEngraving(slots) {
     return Array.isArray(slots) && slots.some(id => id && GEM_SKY_ENHANCEMENTS[id]);
 }
 
-/** gemData + skyGemEnhancements: the grown record per wisp, awakened if any was (a wisp already in the save counts too).
- * Engravings follow the kept record; when it has none, the first merged gem that has some keeps them. */
+/** One record for runes that became one: the more grown level and experience (pickGrownLegacySummonGem), and every investment at its
+ * highest: 군주의 핵 and 창공의 정수 (each with its own failures), engraving slots, unlocked and active tier, quality; awakened if any was.
+ * Taking one whole record lost the other's investments (2026-10-20 hunt: a cored, quality-20 용화 숨결 Lv.20 folded into a bare
+ * 화염 폭풍핵 Lv.20, its five engravings outside the one slot left). */
+function mergeGrownGemRecords(gemData, names) {
+    const rows = names.map(name => gemData[name]).filter(row => row && typeof row === 'object');
+    const highestBy = key => rows.reduce((best, row) => ((Number(row[key]) || 0) > (Number(best[key]) || 0) ? row : best), rows[0]);
+    const boss = highestBy('bossCoreLevel'), sky = highestBy('skyCoreLevel'), tier = highestBy('unlockedTier');
+    return { ...gemData[pickGrownLegacySummonGem(gemData, names)],
+        bossCoreLevel: boss.bossCoreLevel, bossCoreFailures: boss.bossCoreFailures, skyCoreLevel: sky.skyCoreLevel, skyCoreFailures: sky.skyCoreFailures,
+        skyEnhanceCap: Math.max(...rows.map(row => Number(row.skyEnhanceCap) || 1)), unlockedTier: tier.unlockedTier, activeTier: tier.activeTier,
+        quality: Math.max(...rows.map(row => Number(row.quality) || 0)), awakened: rows.some(row => !!row.awakened) };
+}
+
+/** gemData + skyGemEnhancements: one merged record per wisp (mergeGrownGemRecords; a wisp already in the save counts too).
+ * Engravings follow the grown record; when it has none, the first merged gem that has some keeps them. */
 function mergeLegacySummonGemRecords(state) {
     const gemData = state.gemData && typeof state.gemData === 'object' ? state.gemData : null;
     if (!gemData) return;
     const engravings = state.skyGemEnhancements && typeof state.skyGemEnhancements === 'object' ? state.skyGemEnhancements : {};
     Object.entries(legacySummonGemSources(gemData)).forEach(([wisp, oldNames]) => {
         const names = gemData[wisp] ? [wisp, ...oldNames] : oldNames, keep = pickGrownLegacySummonGem(gemData, names);
-        const awakened = names.some(name => gemData[name] && gemData[name].awakened);
         const engraved = [keep, ...names].find(name => hasLegacySummonEngraving(engravings[name]));
-        gemData[wisp] = { ...gemData[keep], awakened };
+        gemData[wisp] = mergeGrownGemRecords(gemData, names);
         if (engraved) engravings[wisp] = engravings[engraved];
         oldNames.forEach(name => { delete gemData[name]; delete engravings[name]; });
     });
@@ -78,7 +91,7 @@ function migrateLegacySummonGemLoadout(state) {
     ['skills', 'sealedSkills', 'equippedSummonSkills'].forEach(key => {
         if (Array.isArray(state[key])) state[key] = [...new Set(state[key].map(renameLegacySummonGem))];
     });
-    ['activeSkill', 'mobilitySkill', 'gemEnhanceTargetSkill', 'starterGemTutorialPending'].forEach(key => {
+    ['activeSkill', 'mobilitySkill', 'gemEnhanceTargetSkill', 'starterGemTutorialPending', 'weaponBlockedSkill'].forEach(key => {
         if (typeof state[key] === 'string') state[key] = renameLegacySummonGem(state[key]);
     });
     if (state.summonSkillCounts && typeof state.summonSkillCounts === 'object') {
@@ -86,13 +99,23 @@ function migrateLegacySummonGemLoadout(state) {
     }
 }
 
-/** Outside the loadout: sky tower gem boosts, black market gem offers, pending exploration loot. */
+/** NPC rune shop stock (js/npc-shop.js rollGemWares): a ware of a retired rune sells its successor. */
+function renameLegacySummonGemWares(npcShops) {
+    Object.values(npcShops && typeof npcShops === 'object' ? npcShops : {}).forEach(shop => {
+        (Array.isArray(shop?.offers) ? shop.offers : []).forEach(ware => {
+            if (ware?.gem?.kind === 'attack' && typeof ware.gem.name === 'string') ware.gem.name = renameLegacySummonGem(ware.gem.name);
+        });
+    });
+}
+
+/** Outside the loadout: sky tower gem boosts, black market gem offers, NPC rune shop stock, pending exploration loot. */
 function migrateLegacySummonGemHoldings(merged) {
     const boosts = merged.skyTower?.gemBoosts;
     if (boosts && typeof boosts === 'object') merged.skyTower.gemBoosts = renameLegacySummonGemCounts(boosts, Math.max);
     (Array.isArray(merged.blackMarket?.offers) ? merged.blackMarket.offers : []).forEach(offer => {
         if (offer && offer.type === 'skillGem') offer.name = renameLegacySummonGem(offer.name);
     });
+    renameLegacySummonGemWares(merged.npcShops);
     const loot = merged.actExploration?.loot;
     if (loot && Array.isArray(loot.gems)) loot.gems = renameLegacySummonGemLoot(loot.gems);
 }

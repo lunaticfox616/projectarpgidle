@@ -156,7 +156,7 @@ const SKILL_TAG_LABELS = {
     curse: '저주',
     warcry: '함성',
     shout: '함성',
-    dagger: '단검',
+    dagger: '한손검',
     duration: '지속시간',
     debuff: '약화',
     guard: '수호',
@@ -259,14 +259,23 @@ function formatSupportGemEffectValue(value) {
     return num.toFixed(1);
 }
 
+/** The stats rolled and shown in tenths (leech, regen and their caps); every other stat is whole. */
+const TENTH_STAT_IDS = Object.freeze(['leech', 'spellLeech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap']);
+function isTenthStat(statId) {
+    return TENTH_STAT_IDS.includes(statId);
+}
 function formatValue(statId, value) {
     const numeric = Number(value);
     if (!Number.isFinite(numeric)) return '0';
-    if (['leech', 'spellLeech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(statId)) {
+    if (isTenthStat(statId)) {
         return numeric.toFixed(2).replace(/0$/, '');
     }
     const rounded = Math.round(numeric * 100) / 100;
     return Number.isInteger(rounded) ? rounded : String(rounded);
+}
+/** A stat value with its sign, '+12' or '-40' (a drawback line such as 균열유리 로브's 최대 생명력). */
+function formatSignedValue(statId, value) {
+    return `${Number(value) < 0 ? '' : '+'}${formatValue(statId, value)}`;
 }
 function formatPercentMultiplier(value) {
     return `${Math.round(value * 100)}%`;
@@ -305,7 +314,6 @@ const STAT_DISPLAY_NAMES = {
         cullStrikePct: '처형 일격(생명력 % 이하 즉사)',
         oceanPressureResist: '심해 수압 내성(%)',
         oceanDepthGainPct: '심해 수심 전진 속도(%)',
-        oceanOxygenAttackSavingPct: '심해 공격당 산소 소모 감소(%)',
         oceanRareFishChancePct: '심해 초희귀 어종 확률(%)',
         flatHp: '최대 생명력',
         pctHp: '생명력 증가(%)',
@@ -479,8 +487,10 @@ function createEmptyStatBucket() {
         poisonDamageMultiplierPct: 0, accuracyBonusPct: 0, chillEffect: 0, shockEffect: 0,
         summonFlatDmg: 0, summonPctDmg: 0, summonAspd: 0, summonHpPct: 0, summonCrit: 0, summonCritDmg: 0, summonCap: 0, summonEfficiency: 0, summonGuardRedirectPct: 0, summonResPen: 0, summonGemLevel: 0,
         curseCap: 0, oxygenMax: 0, oxygenRegen: 0,
-        oceanPressureResist: 0, oceanDepthGainPct: 0, oceanOxygenAttackSavingPct: 0, oceanRareFishChancePct: 0,
+        oceanPressureResist: 0, oceanDepthGainPct: 0, oceanRareFishChancePct: 0,
         bossDamagePct: 0, eliteDamagePct: 0, firstStrikeDamagePct: 0, cullStrikePct: 0, echoPower: 0, chaosErosion: 0, chaosErosionCap: 0,
+        // 우주계 보스 유물석과 보스 부적의 줄(js/combat.js가 reward에서 읽는다): 통에 없어 addStatToBucket이 버렸다(2026-10-20).
+        firstHitDamageMorePct: 0, cosmosAlwaysFirstHitChancePct: 0, uniqueInstantLeechPct: 0, cosmosLightningVariance: 0, cosmosBossDamageMorePct: 0,
         regionPoisonSpread: 0, regionChaosShred: 0, regionPoisonedLeech: 0, regionChaosOvercap: 0, regionBlockEmpower: 0, regionArmorToPhys: 0,
         regionBleedingDamage: 0, regionLowLifeDR: 0, regionShockChain: 0, regionCritMove: 0, regionShockSpread: 0, regionShockedLightPen: 0,
         regionIgniteSpread: 0, regionFullLifeFire: 0, regionIgniteDuration: 0, regionIgnitedDamage: 0, regionFrozenCritDamage: 0, regionShatter: 0,
@@ -561,7 +571,7 @@ function dedupeList(values) {
 function makeSourceLine(label, value, suffix, formatter) {
     if (!value) return null;
     let rendered = formatter ? formatter(value) : `${Math.floor(value)}${suffix || ''}`;
-    return `${label} +${rendered}`;
+    return `${label} ${value < 0 ? '' : '+'}${rendered}`;
 }
 
 /**
@@ -578,6 +588,45 @@ function getAdditiveDropBonusMultiplier(codexBonusPct, challengeBonusPct) {
 }
 
 /** 도트 UI에 섞이면 안 되는 컬러 그림 글자를 뺀다. 이모지 속성이 없는 그림 기호(U+1F56E 책 등)도 U+1F000 ~ 1FAFF 묶음으로 함께 뺀다. */
+/** The final consonant (batchim) index of the word's last syllable for picking a particle: 0 for none, 8 for ㄹ, -1 when the word
+ * ends in something else (the caller keeps a dual form). Closing brackets and quotes are skipped; a digit reads as its name (일, 삼). */
+function getLastBatchim(word) {
+    const text = String(word || '').replace(/[\s)\]}」』'"]+$/u, '');
+    const last = text.charAt(text.length - 1);
+    if (last >= '0' && last <= '9') return KOREAN_DIGIT_BATCHIM[Number(last)];
+    const code = text.charCodeAt(text.length - 1) - 0xAC00;
+    return code >= 0 && code < 11172 ? code % 28 : -1;
+}
+/** 영(십, 백) 일 이 삼 사 오 육 칠 팔 구: the batchim each digit is read with. */
+const KOREAN_DIGIT_BATCHIM = Object.freeze([21, 8, 0, 16, 0, 0, 1, 8, 8, 0]);
+/** 받침에 맞춘 조사: pickParticle('검', '을', '를') → '을'. 받침을 알 수 없는 끝(영문 따위)은 '을(를)'. */
+function pickParticle(word, afterConsonant, afterVowel) {
+    const batchim = getLastBatchim(word);
+    if (batchim < 0) return `${afterConsonant}(${afterVowel})`;
+    return batchim ? afterConsonant : afterVowel;
+}
+/** 받침에 맞춘 방향 조사: "성소" → "성소로", "숲" → "숲으로", "길" → "길로"(ㄹ 받침은 '로'). 알 수 없는 끝은 '(으)로'. */
+function withDirectionParticle(word) {
+    const batchim = getLastBatchim(word);
+    return String(word || '') + (batchim < 0 ? '(으)로' : (batchim === 0 || batchim === 8 ? '로' : '으로'));
+}
+/** 받침에 맞춘 목적격 조사: "줄기의 전령" → "줄기의 전령을", "부제녀" → "부제녀를". */
+function withObjectParticle(word) {
+    return String(word || '') + pickParticle(word, '을', '를');
+}
+/** 받침에 맞춘 주격 조사: "힘" → "힘이", "계시" → "계시가". */
+function withSubjectParticle(word) {
+    return String(word || '') + pickParticle(word, '이', '가');
+}
+/** Text made safe for HTML: & < > " and ' as entities; null and undefined as an empty string. */
+function escapeHTML(value) {
+    return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
 function stripDecorativeEmoji(value) {
     return String(value == null ? '' : value)
         .replace(/[\p{Extended_Pictographic}\p{Emoji_Presentation}\u{1F000}-\u{1FAFF}\uFE0F\u200D]/gu, '')

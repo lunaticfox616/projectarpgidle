@@ -284,8 +284,7 @@ const SKILL_GEM_VFX_IMAGE_KEYS = Object.freeze({
     radialWave: 'skillFxRadialWave',
     rune: 'skillFxBurst',
     dot: 'skillFxDotField',
-    summon: 'skillFxSummonStrike',
-    dragonBreath: 'skillFxDragonBreath'
+    summon: 'skillFxSummonStrike'
 });
 
 function getSkillGemVfxProfile(skillName) {
@@ -349,10 +348,6 @@ function drawElementProjectileVfx(ctx, style, width, height, progress) {
             return [Math.cos(angle) * radius, Math.sin(angle) * radius];
         });
         drawPolygonPath(ctx, points); ctx.globalAlpha *= 0.56; ctx.fill(); ctx.globalAlpha /= 0.56; ctx.stroke();
-    } else if (style === 'potion') {
-        ctx.rotate(-0.2 + progress * 0.5);
-        ctx.strokeStyle = '#f1f7ff'; ctx.strokeRect(-height * 0.08, -height * 0.4, height * 0.22, height * 0.22);
-        ctx.beginPath(); ctx.arc(0, height * 0.1, height * 0.34, 0, Math.PI * 2); ctx.globalAlpha *= 0.62; ctx.fill(); ctx.globalAlpha /= 0.62; ctx.stroke();
     } else {
         drawPolygonPath(ctx, [[-width * 0.48, -height * 0.08], [width * 0.22, -height * 0.08], [width * 0.5, 0], [width * 0.22, height * 0.08], [-width * 0.48, height * 0.08]]);
         ctx.fill();
@@ -561,11 +556,11 @@ function queueSkillGemVfx(fx, enemyPos, playerPos, enemyPosMap, now, viewportSca
             stageKind: stageKind,
             imageKey: imageKey,
             startAt: now + repeat * 44,
-            duration: family === 'dot' ? 720 : (family === 'breath' ? 380 : (family === 'whirlwind' ? 260 : (connector ? 170 : 300))),
+            duration: family === 'dot' ? 720 : (family === 'whirlwind' ? 260 : (connector ? 170 : 300)),
             x: family === 'whirlwind' ? source.x : target.x + (connector ? 0 : repeatOffset * 5),
             y: family === 'whirlwind' ? source.y - 3 : target.y - (connector ? 8 : 5) + Math.abs(repeatOffset) * 2,
-            fromX: source.x + (family === 'breath' ? Math.cos(baseRotation) * 14 : (family === 'projectile' ? 15 : 0)),
-            fromY: source.y - (family === 'breath' ? 18 : (family === 'projectile' ? 18 : 7)) + (family === 'breath' ? Math.sin(baseRotation) * 10 : 0),
+            fromX: source.x + (family === 'projectile' ? 15 : 0),
+            fromY: source.y - (family === 'projectile' ? 18 : 7),
             toX: target.x,
             toY: target.y - 8,
             connector: connector,
@@ -835,22 +830,6 @@ function getChannelEffectGeometry(source, aim, targets) {
     };
 }
 
-/** One filled breath sprite follows the cast triangle, never the victim count. */
-function drawChannelBreathImage(ctx, image, fx, geometry, fadeOut) {
-    let source = fx.screenSource;
-    geometry = fx.screenFootprint?.cone || geometry;
-    ctx.save();
-    ctx.translate(source.x, source.y);
-    ctx.rotate(geometry.angle);
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.globalAlpha = 0.48 * fadeOut;
-    ctx.filter = 'none';
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(image, 0, -geometry.width / 2, geometry.length, geometry.width);
-    ctx.restore();
-    return true;
-}
-
 function drawChannelCombatFx(ctx, fx, now, targets) {
     let source = fx.screenSource;
     if (!source || targets.length <= 0) return;
@@ -861,13 +840,11 @@ function drawChannelCombatFx(ctx, fx, now, targets) {
     let image = getSkillGemVfxImage(imageKey);
     let fadeOut = clampNumber((fx.start + fx.duration - now) / 160, 0, 1)
         * (0.88 + Math.sin((now - fx.start) / 48) * 0.12);
-    let isBreath = !!(profile && profile.family === 'breath');
-    if (isBreath && image && drawChannelBreathImage(ctx, image, fx, geometry, fadeOut)) return;
     ctx.save();
     ctx.translate(geometry.x, geometry.y);
     ctx.rotate(geometry.angle);
     ctx.globalCompositeOperation = 'source-over';
-    ctx.globalAlpha = (isBreath ? 0.42 : 0.68) * fadeOut;
+    ctx.globalAlpha = 0.68 * fadeOut;
     ctx.filter = 'none';
     ctx.imageSmoothingEnabled = false;
     if (image) ctx.drawImage(image, -geometry.length / 2, -geometry.width / 2, geometry.length, geometry.width);
@@ -1205,6 +1182,8 @@ function drawBattleGroundLayer(ctx, effects, view) {
     wispSummonFx.drawLayer('ground', view.now);
     fxRemake.end();
     if (typeof stageSkillVfx === 'object') stageSkillVfx.draw(ctx, 'ground', view.gridProj);
+    if (typeof stageOcean === 'object') stageOcean.ground(ctx, view); // 심해: 발밑 먼지와 공기 기둥
+    if (typeof stageIncidents === 'object') stageIncidents.ground(ctx, view); // 잔잔한 사건: 별똥별
     drawActiveSummons(ctx, view.playerPos, view.now, view.gridProj);
 }
 
@@ -1307,53 +1286,10 @@ function drawShieldChargeImpactVfx(ctx, effect, progress) {
     ctx.fill();
 }
 
-function drawBreathSkillVfx(ctx, effect, progress) {
-    let dx = effect.toX - effect.fromX;
-    let dy = effect.toY - effect.fromY;
-    let length = Math.max(76, Math.hypot(dx, dy));
-    let reach = length * (0.36 + Math.min(1, progress * 2.5) * 0.64);
-    let baseAlpha = ctx.globalAlpha;
-    let colors = ['#c52c18', '#ff5b1f', '#ff9b24', '#ffe37a'];
-    ctx.translate(effect.fromX, effect.fromY);
-    ctx.rotate(Math.atan2(dy, dx));
-    ctx.filter = 'none';
-    ctx.shadowColor = '#ff6a24';
-    ctx.shadowBlur = Math.max(5, effect.size * 0.09);
-    for (let index = 0; index < 16; index++) {
-        let random = Math.abs(Math.sin((effect.seed + 1) * 12.9898 + index * 78.233) * 43758.5453) % 1;
-        let lane = Math.abs(Math.sin((effect.seed + 7) * 39.346 + index * 21.719) * 24634.6345) % 1;
-        let phase = (progress * 1.45 + random + index / 23) % 1;
-        let spread = effect.size * (0.035 + phase * 0.28);
-        let x = reach * (0.08 + phase * 0.92);
-        let y = (lane * 2 - 1) * spread + Math.sin(progress * 13 + index) * spread * 0.16;
-        let radius = effect.size * (0.045 + phase * 0.07) * (0.72 + Math.sin(phase * Math.PI) * 0.42);
-        let tail = radius * (1.65 + phase * 0.85);
-        ctx.globalAlpha = baseAlpha * (0.3 + Math.sin(phase * Math.PI) * 0.58);
-        ctx.fillStyle = colors[index % colors.length];
-        ctx.beginPath();
-        ctx.moveTo(x + radius, y);
-        ctx.bezierCurveTo(x + radius * 0.25, y - radius, x - tail * 0.35, y - radius * 0.72, x - tail, y);
-        ctx.bezierCurveTo(x - tail * 0.28, y + radius * 0.78, x + radius * 0.32, y + radius, x + radius, y);
-        ctx.closePath();
-        ctx.fill();
-    }
-    ctx.shadowBlur = 4;
-    for (let ember = 0; ember < 6; ember++) {
-        let phase = (progress * 1.8 + ember * 0.173 + effect.seed * 0.011) % 1;
-        let x = reach * (0.45 + phase * 0.58);
-        let y = Math.sin(effect.seed + ember * 2.4) * effect.size * (0.08 + phase * 0.25);
-        ctx.globalAlpha = baseAlpha * (1 - phase) * 0.75;
-        ctx.fillStyle = ember % 2 ? '#fff0a0' : '#ff8b28';
-        ctx.beginPath(); ctx.arc(x, y, Math.max(1, effect.size * 0.018), 0, Math.PI * 2); ctx.fill();
-    }
-    ctx.globalAlpha = baseAlpha;
-}
-
 function drawProceduralSkillImpact(ctx, effect, progress) {
     if (effect.family === 'iai') drawIaiSkillVfx(ctx, effect, progress);
     else if (effect.family === 'stormStrike') drawStormStrikeVfx(ctx, effect, progress);
     else if (effect.family === 'fireCore' || effect.family === 'mine') drawCoreSkillVfx(ctx, effect, progress);
-    else if (effect.family === 'breath') drawBreathSkillVfx(ctx, effect, progress);
     else if (effect.family === 'charge') drawShieldChargeImpactVfx(ctx, effect, progress);
     else return false;
     return true;
@@ -1368,7 +1304,7 @@ function drawTrialTrapGridFx(ctx, fx, progress, gridProj, warning) {
     if (fx.type === 'bossAreaImpact') return bossAttackView.drawImpact(ctx, fx, progress, gridProj);
     if (!gridProj || !Array.isArray(fx.targetCells)) return;
     // 원소마다 바닥에서 솟는 실체(js/canvas-trial-traps.js; 바닥 부분은 drawBattleGroundLayer가 인물 아래에 그렸다).
-    if (trialTrapArt.drawRise(ctx, fx, progress, gridProj, warning)) return;
+    if (trialTrapArt.drawRise(ctx, fx, progress, gridProj)) return;
     let halfW = gridProj.tileW / 2;
     let halfH = gridProj.tileH / 2;
     let pulse = 0.5 + Math.sin(progress * Math.PI * 8) * 0.5;
@@ -1619,6 +1555,7 @@ function drawEnemyAttackTelegraphs(ctx, layout, gridUnitScale, projection, pendi
         ctx.stroke();
         ctx.restore();
     });
+    bossAttackView.drawMarks(ctx, { layout, projection, pending: pendingAttacks }); // lines and fans, landings: on the floor, under the actors
 }
 
 /** The player's bar floats just above the drawn head — Hana sprites scale with the tile (×3~×5), so a fixed offset
@@ -1710,6 +1647,17 @@ function getDamageTextBodyY(feetY, bodyHeight) {
 /** 회피 · 막아냄 같은 짧은 판정 글씨의 자리: 몸 위쪽(머리 높이) 가운데 — 몸통 가운데의 대미지 숫자와 겹치지 않는다. */
 function getBodyCueAnchor(pos, bodyHeight) {
     return { x: Math.round(pos.x), y: Math.round(pos.y - bodyHeight * 0.92) };
+}
+
+/** The drawn body height an enemy's numbers and cues centre on: its bar lift less the gap (46 for a ghost left without its enemy). */
+function getEnemyBodyHeight(enemyPos) {
+    return enemyPos.enemy ? getEnemyFieldBarLift(enemyPos.enemy) - 10 : 46;
+}
+
+/** The hero's drawn body height: feet to the drawn head, or the old fixed height before the sprite has drawn. */
+function getHeroBodyHeight(playerPos, now) {
+    const head = getHeroHeadY(now);
+    return head === null ? 82 * HERO_SIZE_SCALE : playerPos.y - head;
 }
 
 /** An untouched ordinary monster carries no bar: a pack walking in reads as monsters, not a row of full red strips (2026-10-04
@@ -1916,12 +1864,22 @@ function updatePlayerGridVisualMotion(gridProj, playerCell, now, moveSpeed) {
 
 function getExplorationPlayerVisualMotion(projection, player) {
     const run = actExplorationState.current(game);
-    const cell = actExplorationMotion.position(run, player);
+    const cell = getStageKickoffCell(player) || actExplorationMotion.position(run, player);
     const position = projection.cellToScreen(cell.gx, cell.gy);
     position.y += Number(projection.actorGroundOffsetY) || 0;
     // 걸음 도중에 게임이 멈추면(선택 창, 안내, 창 열림) 걷는 그림도 멈춘다: 멈춘 화면에서 제자리걸음을 하지 않는다.
     return {position, targetPosition: position, direction: run.motionDirection,
         progress: run.motion ? run.motion.elapsed / run.motion.duration : 1, animating: !!run.motion && !isForegroundGameplayPausedForBackground()};
+}
+
+/** 그림자 점멸이 박차고 나가는 동안(2026-10-20 스킬룬 전달본 v42, data/stage-view.js kickoffMs) 무대의 주인공 그림이 서 있는 칸: 떠난 칸.
+ * 게임의 칸은 이미 닿는 칸이다(그림만 늦게 나타난다). 그때가 아니면 null. */
+function getStageKickoffCell(player) {
+    const now = battleVisualState.visualNow;
+    if (!stageView.enabled() || !Number.isFinite(now)) return null;
+    const move = battleFx.find(fx => fx && fx.type === 'playerMobility' && fx.kickoff && fx.fromCell && fx.toCell
+        && now >= fx.start && now < fx.start + STAGE_VIEW.kickoffMs && fx.toCell.gx === player.gx && fx.toCell.gy === player.gy);
+    return move ? { gx: move.fromCell.gx, gy: move.fromCell.gy } : null;
 }
 
 /** 몸이 뜨는 이동 룬(도약 강타, 섬머솔트 슬래시)을 쓰는 동안 주인공의 땅 위 자리는 떠난 칸에서 닿는 칸으로 공중 시간 동안 옮겨 간다
@@ -2134,9 +2092,7 @@ function drawBattlePlayerActor(ctx, state) {
         ctx.translate(position.x * 2, 0);
         ctx.scale(-1, 1);
     }
-    drawSkillWeaponLayer(ctx, position, state.now, 'back');
     drawTintedBattlePlayerFigure(ctx, state, position);
-    drawSkillWeaponLayer(ctx, position, state.now, 'front');
     ctx.restore();
     drawPlayerReturnWhiteShroud(ctx, transitionPosition, transition && transition.whiteShroud, true);
     drawPlayerReturnWarpEffect(ctx, warpPosition, returnWarp, true);
@@ -2169,6 +2125,36 @@ function getEnemyAttackMotion(fx, enemyPos, playerPos, now, distance) {
 const ENEMY_HIT_RECOIL = Object.freeze({ ms: 170, normal: 0.085, crit: 0.14, heavy: 0.17 });
 // 피격감(2026-10-04): the hero is knocked back from the attacker, further the more life the hit took (tiles).
 const PLAYER_HURT_RECOIL = Object.freeze({ ms: 170, min: 0.035, perLife: 0.5, max: 0.13 });
+// The hero's and each summon's incoming damage numbers add up per this many ms of combat (dealt hits: 250 per skill and target).
+const HURT_TEXT_MERGE_MS = 400;
+
+/** The damage a hit took, on the hero's body. Hits landing together add up into one number ("-60 2타"), like dealt hits: in a
+ * crowd up to ten stacked over the hero and hid it (2026-10-19). Blocked hits keep their own number. */
+function spawnHeroHurtText(fx, playerPos, now) {
+    spawnDamageText({
+        start: now,
+        x: playerPos.x,
+        y: getDamageTextBodyY(playerPos.y, getHeroBodyHeight(playerPos, now)),
+        value: fx.damage,
+        enemyHit: true,
+        deflected: !!fx.deflected,
+        aggregateKey: `hurt:${fx.deflected ? 'block' : 'hit'}:${Math.floor(fx.start / HURT_TEXT_MERGE_MS)}`
+    });
+}
+
+/** The damage a summon took, on its body (on the hero when the summon is gone), added up per summon like the hero's. */
+function spawnSummonHurtText(fx, gridProj, playerPos, now) {
+    const summon = (game.summons || []).find(row => row && row.id === fx.summonId);
+    const at = summon && gridProj && hasGridCell(summon) ? gridProj.cellToScreen(summon.gx, summon.gy) : playerPos;
+    spawnDamageText({
+        start: now,
+        x: at.x,
+        y: getDamageTextBodyY(at.y, 34),
+        value: fx.damage,
+        enemyHit: true,
+        aggregateKey: `summon:${fx.summonId}:${Math.floor(fx.start / HURT_TEXT_MERGE_MS)}`
+    });
+}
 
 /** Out fast, back slowly: 0 to 1 over the first fifth of the flinch, then eases home. */
 function getHitRecoilCurve(t) {
@@ -2411,8 +2397,8 @@ function glideBattleEnemy(entry, frame) {
 }
 
 /** 옆에서 보는 무대: 주인공이 전투 기록이나 채팅 창 뒤에 서면 그 창이 옅어진다(js/message-frames-ui.js heroAt). 주인공의 키는 그림의
- * 도트 수로 어림한다(머리 위의 체력 막대까지). 위에서 보는 전장에서는 주인공이 늘 화면 가운데라 쓰지 않는다. */
-const STAGE_HERO_TALL_DOTS = 96;
+ * 도트 수로 어림한다(머리 위의 체력 막대까지, 2026-10-20 새 주인공은 키 약 110도트). 위에서 보는 전장에서는 주인공이 늘 화면 가운데라 쓰지 않는다. */
+const STAGE_HERO_TALL_DOTS = 118;
 function noteStageHeroBehindFrames(playerPos, gridProj) {
     if (typeof messageFrames !== 'object' || !messageFrames.isActive()) return;
     if (!stageView.enabled()) { messageFrames.heroAt(NaN, NaN, NaN); return; }
@@ -2476,9 +2462,11 @@ function drawBattleActorLayer(ctx, enemyEntries, state) {
     }));
     actors.push({ kind: 'player', id: -1, y: state.playerPos.y });
     actExplorationView.appendScenery(actors,state);
+    actors.push(...trialTrapArt.riseActors(battleFx, state.now, state.gridProj)); // trap blades, flames, frost: in depth order
     bossEntranceView.drawGround(ctx, state);
     sortBattleActorsByDepth(actors).forEach(actor => {
         if (actor.kind === 'player') drawBattlePlayerActor(ctx, state);
+        else if (actor.kind === 'trapRise') actor.draw(ctx);
         else if (actor.kind === 'gate' || actor.kind === 'scenery' || actor.kind === 'object') actExplorationView.drawScenery(ctx,actor,state);
         else drawBattleEnemyActor(ctx, actor.entry, state);
     });
@@ -2553,6 +2541,108 @@ function getBattlefieldCaption() {
     if (game.moveTimer > 0) return '';
     const left = getMapMonstersLeft();
     return left > 0 && left <= MAP_MONSTERS_LEFT_HINT ? `몬스터 ${left}마리 남음` : '';
+}
+
+// A monster's arrival: rings, a floor glow and, for a boss, rays (the values renderBattlefield drew inline until 2026-10-19).
+const ENEMY_SPAWN_LOOK = Object.freeze({
+    boss: Object.freeze({ alpha: 0.72, width: 4, rings: 3, radius: 15, grow: 34, glow: 0.28, rx: 28, ry: 12, rays: true }),
+    plain: Object.freeze({ alpha: 0.5, width: 3, rings: 2, radius: 10, grow: 22, glow: 0.18, rx: 18, ry: 8, rays: false })
+});
+/** A monster's arrival: widening rings and a floor glow at its feet, rays too for a boss. */
+function drawEnemySpawnFx(ctx, fx, t, enemy) {
+    if (!enemy) return;
+    const look = fx.boss ? ENEMY_SPAWN_LOOK.boss : ENEMY_SPAWN_LOOK.plain, colour = fx.color || '#9ed6ff';
+    ctx.save();
+    ctx.globalAlpha = (1 - t) * look.alpha;
+    ctx.strokeStyle = colour;
+    ctx.lineWidth = look.width;
+    for (let ring = 0; ring < look.rings; ring++) {
+        ctx.beginPath();
+        ctx.arc(enemy.x, enemy.y - 4, look.radius + t * look.grow + ring * 6, 0, Math.PI * 2);
+        ctx.stroke();
+    }
+    ctx.fillStyle = colour;
+    ctx.globalAlpha = (1 - t) * look.glow;
+    ctx.beginPath();
+    ctx.ellipse(enemy.x, enemy.y + 8, look.rx, look.ry, 0, 0, Math.PI * 2);
+    ctx.fill();
+    if (look.rays) drawEnemySpawnRays(ctx, t, enemy);
+    ctx.restore();
+}
+function drawEnemySpawnRays(ctx, t, enemy) {
+    ctx.globalAlpha = (1 - t) * 0.5;
+    for (let ray = 0; ray < 8; ray++) {
+        const angle = ray * Math.PI / 4 + t * 0.6;
+        ctx.beginPath();
+        ctx.moveTo(enemy.x + Math.cos(angle) * 24, enemy.y - 5 + Math.sin(angle) * 12);
+        ctx.lineTo(enemy.x + Math.cos(angle) * (46 + t * 18), enemy.y - 5 + Math.sin(angle) * (24 + t * 10));
+        ctx.stroke();
+    }
+}
+
+/** Motes flying from the fallen monster (or the field's right side) to the hero. path = { from, to, width, height }. */
+function drawLootPickupFx(ctx, fx, t, path) {
+    const { from, to, width, height } = path;
+    const startX = from ? from.x : width * 0.72, startY = from ? from.y - 10 : height * 0.62, endX = to.x, endY = to.y - 24;
+    ctx.save();
+    ctx.globalAlpha = 1 - t * 0.2;
+    ctx.fillStyle = fx.color || '#9ed6ff';
+    ctx.shadowColor = fx.color || '#9ed6ff';
+    ctx.shadowBlur = fx.tier === 'unique' ? 18 : 10;
+    for (let mote = 0; mote < 4; mote++) {
+        const delay = mote * 0.045;
+        const mt = clampNumber((t - delay) / Math.max(0.1, 1 - delay), 0, 1);
+        const mx = startX + (endX - startX) * mt + Math.sin(mt * 12 + mote) * (4 - mote * 0.6);
+        const my = startY + (endY - startY) * mt - Math.sin(mt * Math.PI) * (18 + mote * 3);
+        ctx.globalAlpha = (1 - mt * 0.45) * (1 - mote * 0.14);
+        ctx.beginPath();
+        ctx.arc(mx, my, 3.5 - mote * 0.45, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    ctx.restore();
+}
+
+// A good drop's beam, rings and sparks: a unique's are taller and more; its strength by tier (others 0.5).
+const LOOT_CELEBRATION_LOOK = Object.freeze({
+    unique: Object.freeze({ beam: 220, half: 7, width: 4, rings: 3, grow: 44, sparks: 10 }),
+    other: Object.freeze({ beam: 145, half: 4, width: 3, rings: 2, grow: 30, sparks: 6 })
+});
+const LOOT_CELEBRATION_INTENSITY = Object.freeze({ unique: 1, rare: 0.72 });
+/** A good drop's beam, rings, sparks and name over where the monster fell. area = { width, height }. */
+function drawLootCelebrationFx(ctx, fx, t, enemy, area) {
+    const cx = enemy ? enemy.x : area.width * 0.72, cy = enemy ? enemy.y - 10 : area.height * 0.62;
+    const look = fx.tier === 'unique' ? LOOT_CELEBRATION_LOOK.unique : LOOT_CELEBRATION_LOOK.other;
+    const intensity = LOOT_CELEBRATION_INTENSITY[fx.tier] || 0.5, colour = fx.color || '#ffcf6b';
+    ctx.save();
+    const beamHeight = look.beam * (0.82 + 0.18 * Math.sin(t * Math.PI));
+    const beam = ctx.createLinearGradient(cx, cy, cx, cy - beamHeight);
+    beam.addColorStop(0, colour);
+    beam.addColorStop(0.28, colour);
+    beam.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.globalAlpha = intensity * (1 - t) * 0.72;
+    ctx.fillStyle = beam;
+    ctx.fillRect(cx - look.half, cy - beamHeight, look.half * 2, beamHeight);
+    ctx.globalAlpha = intensity * 0.58 * (1 - t);
+    ctx.strokeStyle = colour;
+    ctx.lineWidth = look.width;
+    for (let ring = 0; ring < look.rings; ring++) {
+        ctx.beginPath();
+        ctx.arc(cx, cy, 13 + ring * 8 + t * look.grow, 0, Math.PI * 2);
+        ctx.stroke();
+    }
+    drawLootCelebrationSparks(ctx, { x: cx, y: cy }, t, look.sparks);
+    drawLootHighlightLabel(ctx, fx, { x: Math.max(130, Math.min(area.width - 130, cx)), y: Math.max(74, cy) }, t);
+    ctx.restore();
+}
+function drawLootCelebrationSparks(ctx, at, t, count) {
+    for (let spark = 0; spark < count; spark++) {
+        const angle = spark * (Math.PI * 2 / count) + t;
+        const reach = 18 + t * 48;
+        ctx.beginPath();
+        ctx.moveTo(at.x + Math.cos(angle) * reach, at.y + Math.sin(angle) * reach * 0.42);
+        ctx.lineTo(at.x + Math.cos(angle) * (reach + 8), at.y + Math.sin(angle) * (reach + 8) * 0.42);
+        ctx.stroke();
+    }
 }
 
 /** targetFrameMs: the drawing cadence of the frame loop (js/ui.js renderBattlefieldThrottled), for the effect density.
@@ -2692,7 +2782,6 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
         const viewportProjectileFxScale = Math.min(width / 960, height / 540);
         queueSkillGemProjectileLaunch(latestSwingFx, currentTargets, playerPos, enemyPosMap, viewportProjectileFxScale);
     }
-    updateSkillPlayback(now, playerPos, width, enemyPosMap);
     let gridUnitScale = clampNumber(gridProj.tileW / 46, 0.48, Math.max(1.3, gridProj.unitScaleCap || 0));
     drawBattleGroundLayer(ctx, battleFx, { now, gridProj, playerPos, enemyPosMap });
     bossAttackView.drawGround(ctx, gridProj);
@@ -2709,7 +2798,7 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
                 spawnDamageText({
                     start: now,
                     x: enemyPos.x,
-                    y: getDamageTextBodyY(enemyPos.y, enemyPos.enemy ? getEnemyFieldBarLift(enemyPos.enemy) - 10 : 46),
+                    y: getDamageTextBodyY(enemyPos.y, getEnemyBodyHeight(enemyPos)),
                     value: Number.isFinite(Number(fx.rawDamage)) ? Number(fx.rawDamage) : fx.damage,
                     crit: !!fx.crit,
                     dot: !!fx.dot,
@@ -2734,53 +2823,25 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
         } else if (fx.type === 'playerHit') {
             requestBattleHitStop(fx);
             let enemyPos = enemyPosMap[fx.enemyId] || battleVisualState.enemyGhostPos[fx.enemyId];
-            if (typeof fx.damage === 'number') {
-                const head = getHeroHeadY(now);
-                spawnDamageText({
-                    start: now,
-                    x: playerPos.x,
-                    y: getDamageTextBodyY(playerPos.y, head === null ? 82 * HERO_SIZE_SCALE : playerPos.y - head),
-                    value: fx.damage,
-                    enemyHit: true,
-                    deflected: !!fx.deflected
-                });
-            }
+            if (typeof fx.damage === 'number') spawnHeroHurtText(fx, playerPos, now);
             handled = true;
         } else if (fx.type === 'summonHit') {
-            let summon = (game.summons || []).find(row => row && row.id === fx.summonId);
-            let summonPos = summon && gridProj && hasGridCell(summon)
-                ? gridProj.cellToScreen(summon.gx, summon.gy)
-                : playerPos;
-            if (typeof fx.damage === 'number') {
-                spawnDamageText({
-                    start: now,
-                    x: summonPos.x,
-                    y: getDamageTextBodyY(summonPos.y, 34),
-                    value: fx.damage,
-                    enemyHit: true
-                });
-            }
+            if (typeof fx.damage === 'number') spawnSummonHurtText(fx, gridProj, playerPos, now);
             handled = true;
         } else if (fx.type === 'enemyEvade') {
             let enemyPos = enemyPosMap[fx.enemyId] || battleVisualState.enemyGhostPos[fx.enemyId] || { x: width * 0.72, y: height * 0.58 };
-            spawnDamageText({ start: now, ...getBodyCueAnchor(enemyPos, enemyPos.enemy ? getEnemyFieldBarLift(enemyPos.enemy) - 10 : 46),
+            spawnDamageText({ start: now, ...getBodyCueAnchor(enemyPos, getEnemyBodyHeight(enemyPos)),
                 value: fx.text || '회피!', miss: true, bodyCue: true, color: fx.color || '#c4e2ff' });
             handled = true;
         } else if (fx.type === 'statusText') {
-            let bodyCue = fx.bodyCue === true;
             let enemyPos = fx.enemyId ? (enemyPosMap[fx.enemyId] || battleVisualState.enemyGhostPos[fx.enemyId]) : null;
             let anchorPos = enemyPos || playerPos;
-            if (bodyCue) {
-                // 회피 · 막아냄 · 성채화: 맞은 쪽 머리 위 가운데, 대미지 숫자와 같은 크기 결(2026-10-06 사용자 요청 — 몸 옆에 11px로 작게 떴다).
-                const head = enemyPos ? null : getHeroHeadY(now);
-                const bodyHeight = enemyPos ? (enemyPos.enemy ? getEnemyFieldBarLift(enemyPos.enemy) - 10 : 46)
-                    : (head === null ? 82 * HERO_SIZE_SCALE : playerPos.y - head);
-                spawnDamageText({ start: now, ...getBodyCueAnchor(anchorPos, bodyHeight), value: fx.text || '회피!', miss: true, bodyCue: true,
-                    color: fx.color || '#c4e2ff' });
-            } else {
-                spawnDamageText({ start: now, x: anchorPos.x + 14, y: anchorPos.y - 40, value: fx.text || '회피!', miss: true,
-                    color: fx.color || '#c4e2ff' });
-            }
+            // 짧은 글씨는 모두 그 몸의 머리 위 가운데에 뜬다. 회피, 막아냄, 성채화(bodyCue)는 대미지 숫자와 같은 크기 결이다(2026-10-06
+            // 사용자 요청: 몸 옆에 11px로 작게 떴다). 2026-10-19: 나머지(무효, 죽음 저항, 밀려남, 경계하는 무리의 "!")도 발에서 40px 위
+            // 몸 오른쪽을 떠나 머리 위로 왔다. "!"는 달려오는 몬스터의 머리 위에 서야 했다.
+            const bodyHeight = enemyPos ? getEnemyBodyHeight(enemyPos) : getHeroBodyHeight(playerPos, now);
+            spawnDamageText({ start: now, ...getBodyCueAnchor(anchorPos, bodyHeight), value: fx.text || '회피!', miss: true,
+                bodyCue: fx.bodyCue === true, color: fx.color || '#c4e2ff' });
             handled = true;
         } else if (fx.type === 'enemyDeath') {
             if (now - fx.start < 500 && typeof playUiFeedbackSound === 'function') {
@@ -2870,94 +2931,15 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
         } else if (fx.type === 'playerHit') {
             return;
         } else if (fx.type === 'enemySpawn') {
-            let enemy = enemyPosMap[fx.enemyId];
-            if (!enemy) return;
-            ctx.save();
-            ctx.globalAlpha = (1 - t) * (fx.boss ? 0.72 : 0.5);
-            ctx.strokeStyle = fx.color || '#9ed6ff';
-            ctx.lineWidth = fx.boss ? 4 : 3;
-            const ringCount = fx.boss ? 3 : 2;
-            for (let ring = 0; ring < ringCount; ring++) {
-                ctx.beginPath();
-                ctx.arc(enemy.x, enemy.y - 4, (fx.boss ? 15 : 10) + t * (fx.boss ? 34 : 22) + ring * 6, 0, Math.PI * 2);
-                ctx.stroke();
-            }
-            ctx.fillStyle = fx.color || '#9ed6ff';
-            ctx.globalAlpha = (1 - t) * (fx.boss ? 0.28 : 0.18);
-            ctx.beginPath();
-            ctx.ellipse(enemy.x, enemy.y + 8, fx.boss ? 28 : 18, fx.boss ? 12 : 8, 0, 0, Math.PI * 2);
-            ctx.fill();
-            if (fx.boss) {
-                ctx.globalAlpha = (1 - t) * 0.5;
-                for (let ray = 0; ray < 8; ray++) {
-                    const angle = ray * Math.PI / 4 + t * 0.6;
-                    ctx.beginPath();
-                    ctx.moveTo(enemy.x + Math.cos(angle) * 24, enemy.y - 5 + Math.sin(angle) * 12);
-                    ctx.lineTo(enemy.x + Math.cos(angle) * (46 + t * 18), enemy.y - 5 + Math.sin(angle) * (24 + t * 10));
-                    ctx.stroke();
-                }
-            }
-            ctx.restore();
+            drawEnemySpawnFx(ctx, fx, t, enemyPosMap[fx.enemyId]);
         } else if (fx.type === 'enemyDeath') {
             drawEnemyDeathFx(ctx, fx, t, { enemy: enemyPosMap[fx.enemyId], playerPos, gridProj, now });
         } else if (['bossAreaImpact', 'trialTrapWarning', 'trialTrap'].includes(fx.type)) {
             drawTrialTrapGridFx(ctx, fx, t, gridProj, fx.type === 'trialTrapWarning');
         } else if (fx.type === 'lootPickup') {
-            let enemy = enemyPosMap[fx.enemyId];
-            let startX = enemy ? enemy.x : width * 0.72;
-            let startY = enemy ? enemy.y - 10 : height * 0.62;
-            let endX = playerPos.x;
-            let endY = playerPos.y - 24;
-            let x = startX + (endX - startX) * t;
-            let y = startY + (endY - startY) * t - Math.sin(t * Math.PI) * 18;
-            ctx.save();
-            ctx.globalAlpha = 1 - t * 0.2;
-            ctx.fillStyle = fx.color || '#9ed6ff';
-            ctx.shadowColor = fx.color || '#9ed6ff';
-            ctx.shadowBlur = fx.tier === 'unique' ? 18 : 10;
-            for (let mote = 0; mote < 4; mote++) {
-                const delay = mote * 0.045;
-                const mt = clampNumber((t - delay) / Math.max(0.1, 1 - delay), 0, 1);
-                const mx = startX + (endX - startX) * mt + Math.sin(mt * 12 + mote) * (4 - mote * 0.6);
-                const my = startY + (endY - startY) * mt - Math.sin(mt * Math.PI) * (18 + mote * 3);
-                ctx.globalAlpha = (1 - mt * 0.45) * (1 - mote * 0.14);
-                ctx.beginPath();
-                ctx.arc(mx, my, 3.5 - mote * 0.45, 0, Math.PI * 2);
-                ctx.fill();
-            }
-            ctx.restore();
+            drawLootPickupFx(ctx, fx, t, { from: enemyPosMap[fx.enemyId], to: playerPos, width, height });
         } else if (fx.type === 'lootCelebration') {
-            let enemy = enemyPosMap[fx.enemyId];
-            let cx = enemy ? enemy.x : width * 0.72;
-            let cy = enemy ? enemy.y - 10 : height * 0.62;
-            ctx.save();
-            const intensity = fx.tier === 'unique' ? 1 : (fx.tier === 'rare' ? 0.72 : 0.5);
-            const beamHeight = (fx.tier === 'unique' ? 220 : 145) * (0.82 + 0.18 * Math.sin(t * Math.PI));
-            const beam = ctx.createLinearGradient(cx, cy, cx, cy - beamHeight);
-            beam.addColorStop(0, fx.color || '#ffcf6b');
-            beam.addColorStop(0.28, fx.color || '#ffcf6b');
-            beam.addColorStop(1, 'rgba(255,255,255,0)');
-            ctx.globalAlpha = intensity * (1 - t) * 0.72;
-            ctx.fillStyle = beam;
-            ctx.fillRect(cx - (fx.tier === 'unique' ? 7 : 4), cy - beamHeight, fx.tier === 'unique' ? 14 : 8, beamHeight);
-            ctx.globalAlpha = intensity * 0.58 * (1 - t);
-            ctx.strokeStyle = fx.color || '#ffcf6b';
-            ctx.lineWidth = fx.tier === 'unique' ? 4 : 3;
-            for (let ring = 0; ring < (fx.tier === 'unique' ? 3 : 2); ring++) {
-                ctx.beginPath();
-                ctx.arc(cx, cy, 13 + ring * 8 + t * (fx.tier === 'unique' ? 44 : 30), 0, Math.PI * 2);
-                ctx.stroke();
-            }
-            for (let spark = 0; spark < (fx.tier === 'unique' ? 10 : 6); spark++) {
-                const angle = spark * (Math.PI * 2 / (fx.tier === 'unique' ? 10 : 6)) + t;
-                const reach = 18 + t * 48;
-                ctx.beginPath();
-                ctx.moveTo(cx + Math.cos(angle) * reach, cy + Math.sin(angle) * reach * 0.42);
-                ctx.lineTo(cx + Math.cos(angle) * (reach + 8), cy + Math.sin(angle) * (reach + 8) * 0.42);
-                ctx.stroke();
-            }
-            drawLootHighlightLabel(ctx, fx, { x: Math.max(130, Math.min(width - 130, cx)), y: Math.max(74, cy) }, t);
-            ctx.restore();
+            drawLootCelebrationFx(ctx, fx, t, enemyPosMap[fx.enemyId], { width, height });
         }
     });
     const lightScene = { width, height, light: playerPos, hpPct: playerHpPct, ghostPct: playerHpGhostPct, esPct: playerEsPct, now, layout: dynamicLayout, targets: currentTargets, tileW: gridProj.tileW, projection: gridProj, pending: pendingEnemyCombatAttacks };
@@ -3062,9 +3044,8 @@ function drawBattleLightingAndBars(ctx, scene) {
     redrawnSkillFx.drawLayer('fore', scene.now);
     wispSummonFx.drawLayer('fore', scene.now);
     fxRemake.end(); // foreground skill effects opened in drawSkillGemVfxLayer, re-dotted below the lighting
+    if (typeof stageOcean === 'object') stageOcean.front(ctx, scene); // 심해: 영웅 머리 위 거품과 가까운 입자(조명을 같이 받는다)
     drawBattleLightingPass(ctx, scene);
-    drawBattleDangerEdges(ctx, scene);
-    bossAttackView.drawMarks(ctx, scene);
     drawBattlePlayerFigure.readability.draw(ctx);
     if (!stageActors.down()) drawBattlefieldPlayerHealthBar(ctx, scene); // not over the first start's lying hero (js/opening-journey-ui.js)
     // 락온한 몬스터(js/act-exploration-state.js lockOn)는 겨눈 적처럼 막대가 늘 보이고 금빛 테를 두른다. 그 위에 화살표가 선다.
@@ -3083,15 +3064,6 @@ function drawLockOnMark(ctx, scene, locked) {
 }
 
 /** Only the existing cast boundary returns above foreground effects; never duplicate its opaque fill. */
-function drawBattleDangerEdges(ctx, scene) {
-    const areas = scene.layout.filter(({ enemy }) => enemy.isBoss && !enemy.noAttack && enemy.hp > 0 && Number.isFinite(Number(enemy.attackTimer)))
-        .filter(({ enemy }) => !(enemy.ailments || []).some(ailment => ['freeze', 'stun', 'silence'].includes(ailment.type) && ailment.time > 0))
-        .map(({ enemy }) => enemy.patternArea);
-    // Once released the pending snapshot owns the warning, even when the source no longer has a preview.
-    (scene.pending || []).filter(attack => attack.delivery === 'patternArea').forEach(attack => areas.push(attack.bossPattern.area));
-    new Set(areas).forEach(area => drawBossPatternArea(ctx, area, scene.projection, 0.92, true));
-}
-
 /** Where the dark vignette opens: around the hero, or over the whole boss room while the hero stands in it. */
 function getBattleLightFocus(scene) {
     const { width, height, light } = scene;
@@ -3145,13 +3117,16 @@ function drawLowHealthEdge(ctx, scene) {
 const BOSS_BANNER_MS = 2600;
 function updateBossAnnouncement(enemies, now) {
     const boss = (enemies || []).find(enemy => enemy && enemy.isBoss) || bossEntranceView.revealedBoss(now);
+    battleVisualState.bossBannerFor = null; // the boss whose name is up: the camera keeps it in view (js/canvas-act-exploration.js)
     if (!boss) return null;
     if (battleVisualState.bossAnnounceId !== boss.id) {
         battleVisualState.bossAnnounceId = boss.id;
         battleVisualState.bossAnnounceStart = now;
     }
     const age = now - battleVisualState.bossAnnounceStart;
-    return age >= 0 && age <= BOSS_BANNER_MS ? { boss, age } : null;
+    if (age < 0 || age > BOSS_BANNER_MS) return null;
+    battleVisualState.bossBannerFor = boss.id;
+    return { boss, age };
 }
 
 function getBossBannerAlpha(age) {
@@ -3159,20 +3134,31 @@ function getBossBannerAlpha(age) {
     return Math.min(1, Math.max(0, (BOSS_BANNER_MS - age) / 640));
 }
 
-/** The band's centre line, chosen once per banner: out of the way of a boss rising through its entrance, else 30% down. */
-function getBossBannerY(area, banner) {
+/** The band's centre line, chosen once per banner: out of the way of the boss (where it rises through its entrance and where it was
+ * drawn this frame; 2026-10-19: the entrance alone guessed 2.6 tiles, and the band lay across a taller boss's head for its first
+ * 2.6 s) and of the hero. */
+function getBossBannerY(area, banner, down) {
     const held = battleVisualState.bossBannerY;
     if (held && held.start === battleVisualState.bossAnnounceStart) return held.y;
-    const y = bossEntranceView.bannerY(area, banner.boss, { up: 38, down: 32 }) ?? Math.round(area.height * 0.3);
-    battleVisualState.bossBannerY = { start: battleVisualState.bossAnnounceStart, y };
+    const spans = bossEntranceView.enteringSpans(banner.boss).concat(drawnBossSpans(banner.boss));
+    const y = bossEntranceView.bannerLine(area, spans, { up: 38, down });
+    // Held once the boss's place is known: on the board a revealed boss is drawn a few frames after its name comes up.
+    if (spans.length) battleVisualState.bossBannerY = { start: battleVisualState.bossAnnounceStart, y };
     return y;
+}
+
+/** A standing boss's drawn span, from its overhead bar to its feet, as this frame drew it; none while it is not drawn. */
+function drawnBossSpans(boss) {
+    const entry = typeof battleDrawList === 'object' ? battleDrawList.drawnEntry(boss) : null;
+    return entry ? [[entry.y - getEnemyFieldBarLift(boss) - 14, entry.y + 8]] : [];
 }
 
 function drawBossAnnouncement(ctx, area, banner) {
     bossEntranceView.drawScreen(ctx, area);
     if (!banner) return;
     const { width } = area;
-    const cy = getBossBannerY(area, banner);
+    const lines = getBossBannerSubLines(ctx, banner.boss, width);
+    const cy = getBossBannerY(area, banner, 32 + (lines.length - 1) * 14);
     ctx.save();
     ctx.globalAlpha = getBossBannerAlpha(banner.age);
     ctx.textAlign = 'center';
@@ -3190,8 +3176,17 @@ function drawBossAnnouncement(ctx, area, banner) {
     ctx.fillStyle = '#f0c46a';
     ctx.fillText(name, mid, cy);
     ctx.font = `12px ${BATTLE_PIXEL_FONT}`;
-    fillPixelToneText(ctx, [`${getElementLabel(banner.boss.ele)} 속성 보스`, getBossReach(banner.boss).label, ...getEnemyDefenseHighlights(banner.boss)].join(', '), mid, cy + 25, '#d98a6a');
+    lines.forEach((line, index) => fillPixelToneText(ctx, line, mid, cy + 25 + index * 14, '#d98a6a'));
     ctx.restore();
+}
+
+/** The band's small lines: element, reach and standout defenses, the defenses on a line of their own when the screen is too narrow
+ * for one (2026-10-19: with two of them the line was 371 px wide, wider than a 360 px phone). */
+function getBossBannerSubLines(ctx, boss, width) {
+    const head = [`${getElementLabel(boss.ele)} 속성 보스`, getBossReach(boss).label], defenses = getEnemyDefenseHighlights(boss);
+    ctx.font = `12px ${BATTLE_PIXEL_FONT}`;
+    const one = [...head, ...defenses].join(', ');
+    return !defenses.length || ctx.measureText(one).width <= width - 24 ? [one] : [head.join(', '), defenses.join(', ')];
 }
 
 /** 이름 뒤의 그늘: 이름 둘레가 가장 짙고 위아래와 양옆 모두 둥글게 옅어져 사라지는 납작한 타원. 2026-10-16 사용자 "보스 등장씬에서
@@ -3223,11 +3218,6 @@ function drawBossBannerRule(ctx, left, right, y) {
     }
 }
 
-function getBattleMarkerLabel(marker) {
-    if (marker.boss) return '보';
-    if (marker.elite) return `정${marker.count || 1}`;
-    return `${marker.count || 1}기`;
-}
 function getElementLabel(ele) {
     if (ele === 'fire') return '화염';
     if (ele === 'cold') return '냉기';
@@ -3268,16 +3258,6 @@ function getEnemyTraitSummary(enemy) {
     if ((enemy.leechEffMul || 1) <= 0) tags.push('흡혈불가');
     else if ((enemy.leechEffMul || 1) < 1) tags.push(`흡혈저항 ${Math.floor((enemy.leechEffMul || 1) * 100)}%`);
     return Array.from(new Set(tags.filter(Boolean)));
-}
-function getEnemyShortLabel(enemy) {
-    if (enemy.isSeveredWanderer) return '방랑자';
-    if (enemy.isBoss) return '보스';
-    if (enemy.isElite) return '정예';
-    if (enemy.ele === 'fire') return '화염';
-    if (enemy.ele === 'cold') return '냉기';
-    if (enemy.ele === 'light') return '번개';
-    if (enemy.ele === 'chaos') return '공허';
-    return '추종자';
 }
 
 

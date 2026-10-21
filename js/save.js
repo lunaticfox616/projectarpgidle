@@ -117,11 +117,18 @@ function refreshItemIdCounter() {
     itemIdCounter = Math.max(0, ...items.concat(jewels).map(item => item.id || 0));
 }
 
+/** Fields of game that live only while the game runs: the talent card runtime and the last combat tick's stat sheet and time
+ * (about a tenth of a save, and stale after a load). Never saved or uploaded; old saves drop them on load (mergeDefaults). */
+const RUNTIME_ONLY_SAVE_KEYS = Object.freeze(['talentCardRuntime', 'lastCombatStats', 'lastCombatStatsAt']);
+function dropRuntimeOnlySaveFields(target) {
+    RUNTIME_ONLY_SAVE_KEYS.forEach(key => delete target[key]);
+}
+
 function createSaveSnapshot(sourceGame) {
     let snapshot = JSON.parse(JSON.stringify(sourceGame || game || {}));
     snapshot.craftingWorkspace = craftingWorkspaceState.normalize(snapshot.craftingWorkspace, snapshot.currencies);
     snapshot.actExploration = actExplorationRooms.seal(snapshot.actExploration);
-    delete snapshot.talentCardRuntime;
+    dropRuntimeOnlySaveFields(snapshot);
     if (!snapshot.saveMeta || typeof snapshot.saveMeta !== 'object') snapshot.saveMeta = {};
     return snapshot;
 }
@@ -133,7 +140,7 @@ function serializeSaveState(sourceGame) {
     let serializable = root && typeof root === 'object' ? { ...root } : {};
     serializable.craftingWorkspace = craftingWorkspaceState.normalize(root.craftingWorkspace, root.currencies);
     serializable.actExploration = actExplorationRooms.seal(root.actExploration);   // 방 단위 탐험: 앞선 판이 탐험만 버리고 읽는 모양으로
-    delete serializable.talentCardRuntime;
+    dropRuntimeOnlySaveFields(serializable);
     return JSON.stringify(serializable);
 }
 
@@ -169,14 +176,22 @@ function createCloudSaveState(root) {
         realmDeathWard: null,
         realmInvulnerableBarrierUntil: 0
     };
-    delete payload.talentCardRuntime;
+    dropRuntimeOnlySaveFields(payload);
     return payload;
 }
 
-function createCloudSaveRequestBody(userId, sourceGame) {
+/** The everyday cloud sync's save data, in the shape of the local save and the leaving upload (serializeSaveState, createSaveSnapshot):
+ * the workbench tidied, a room stage run sealed (this body alone skipped both, 2026-10-20) and the runtime-only fields dropped. The
+ * "nothing changed" check compares prints of this shape (js/ui.js isCloudSaveUnchangedSinceUpload). */
+function createCloudSyncPayload(sourceGame) {
     const payload=createCloudSaveState(sourceGame || game || {});
-    delete payload.talentCardRuntime;
-    return JSON.stringify({ user_id: userId, save_data: payload });
+    payload.craftingWorkspace = craftingWorkspaceState.normalize(payload.craftingWorkspace, payload.currencies);
+    payload.actExploration = actExplorationRooms.seal(payload.actExploration);
+    dropRuntimeOnlySaveFields(payload);
+    return payload;
+}
+function createCloudSaveRequestBody(userId, sourceGame) {
+    return JSON.stringify({ user_id: userId, save_data: createCloudSyncPayload(sourceGame) });
 }
 
 /** Content print of a cloud save without what moves while nothing happens: saveMeta (save times), the stall clock
@@ -217,11 +232,22 @@ function noteSaveClock(meta) {
     meta.maxSeenAt = Math.max(Number(meta.maxSeenAt) || 0, Date.now());
 }
 
+/** A save's modified time: now, or while a hidden page or a paused app holds the game still (js/main.js runForegroundCombat) the time
+ * play stopped (backgroundCombatRuntime.hiddenAtMs), so a tab closed while hidden (or dropped by the browser) settles its hidden
+ * hours at the next launch instead of losing them. */
+function getSaveModifiedAt() {
+    const now = Date.now();
+    if (typeof backgroundCombatRuntime === 'undefined' || typeof document === 'undefined') return now;
+    const still = document.hidden || backgroundCombatRuntime.appInactive;
+    const at = Math.floor(Number(backgroundCombatRuntime.hiddenAtMs) || 0);
+    return still && at > 0 ? Math.min(at, now) : now;
+}
+
 function persistLocalSave(options = {}) {
     if (!canPersistLocalSave(options)) return false;
     ensureSaveMeta();
     noteSaveClock(game.saveMeta);
-    if (options.touchModifiedAt !== false) game.saveMeta.lastModifiedAt = Date.now();
+    if (options.touchModifiedAt !== false) game.saveMeta.lastModifiedAt = getSaveModifiedAt();
     try {
         localStorage.setItem(LOCAL_SAVE_KEY, serializeSaveState(game));
     } catch (error) {

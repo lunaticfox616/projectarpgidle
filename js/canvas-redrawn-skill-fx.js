@@ -9,17 +9,17 @@
 const redrawnSkillFx = (() => {
     const MOVE_EVENTS = ['windup', 'travel', 'stage', 'hit', 'transfer'];
     // Gems drawn only by the redrawn art (no PixelLab atlas entry): the movement gems of the 이동 스킬 slot.
-    const OWN_ART = Object.freeze({ '차원찢기': { id: 54 }, '향로구름': { id: 55 }, '작살화살': { id: 56 } });
+    const OWN_ART = Object.freeze({ '차원찢기': { id: 54 }, '향로구름': { id: 55 }, '작살화살': { id: 56 }, '바위 플라스크': { id: 77 } });
     /** The art spec a skill is drawn under: its atlas entry, or its own redrawn-only id. */
     const specOf = name => SKILL_FX_ATLAS[name] || OWN_ART[name] || null;
-    const IDS = new Set([3, 5, 10, 16, 17, 18, 21, 28, 29, 30, 37, 38, 42, 45, 46, 48, 50, 51, 54, 55, 56]);
+    const IDS = new Set([3, 5, 10, 16, 17, 18, 21, 28, 29, 30, 37, 45, 46, 48, 50, 51, 54, 55, 56, 77]);
     const REPLACED = { 3: ['windup', 'stage', 'hit'], 21: ['travel', 'hit'],
-        45: ['travel', 'stage', 'hit'], 38: ['travel', 'stage', 'hit'], 51: ['stage'], 16: ['windup', 'stage', 'hit'], 37: ['windup', 'stage', 'hit'],
+        45: ['travel', 'stage', 'hit'], 51: ['stage'], 16: ['windup', 'stage', 'hit'], 37: ['windup', 'stage', 'hit'],
         // 빙결 파열창 keeps its redrawn spear (fxRemake.projectile) and only its hits turn to frost mist; 과냉각 혼합물 keeps
         // its flask flight and hit sparks and only its heavy cloud ring (the wave stage) becomes thin frost rings.
         30: ['hit'], 48: ['stage'],
         // The movement gems have no original art at all: everything they show is redrawn.
-        54: MOVE_EVENTS, 55: MOVE_EVENTS, 56: MOVE_EVENTS };
+        54: MOVE_EVENTS, 55: MOVE_EVENTS, 56: MOVE_EVENTS, 77: MOVE_EVENTS };
     const CAST_LIMIT = 48;
     const TAIL_MS = 1400;
     const SPIN = ['east', 'south', 'west', 'north'];
@@ -151,36 +151,6 @@ const redrawnSkillFx = (() => {
             if (t.gx !== ctr.gx || t.gy !== ctr.gy) art().FrostRing.flake(dot, t.gx * 16 + 8, t.gy * 16 + 6, ft - e.at);
         }
     }
-    function breathFlames(dot, b, t0, i) {
-        const dir = i % 2 ? -1 : 1;
-        for (const cl of b.cells) {
-            const cx = cl.gx * 16 + 8, cy = cl.gy * 16 + 8;
-            let phi = Math.atan2(cy - b.O.y, cx - b.O.x) - b.base;
-            phi = Math.atan2(Math.sin(phi), Math.cos(phi));
-            const f = Math.min(1, Math.max(0, (phi * dir + 1.4) / (2 * 1.4))), at = t0 + 200 * (1 - Math.sqrt(1 - f)), sd = (cl.gx * 7 + cl.gy * 13) % 5;
-            art().DragonSweep.flame(dot, cx + (sd % 3) - 1, cy + 5, b.ft - at, { life: 560, big: 1, seed: sd + i });
-            art().DragonSweep.flame(dot, cx + (sd % 2 ? 4 : -4), cy + 7, b.ft - at - 40, { life: 440, big: 0, seed: sd + i + 2 });
-        }
-    }
-    function breathDirection(st) {
-        const cone = st.footprint?.cone;
-        return cone ? { x: cone.dx, y: cone.dy } : unitToward(cellDot(st.sourceCell), cellDot(st.targetCells[0]));
-    }
-    function breathMouth(dot, O, hot) {                       // a small steady knot at the hand while channelling
-        const x = Math.round(O.x), y = Math.round(O.y);
-        dot(x, y, hot ? '#ffffff' : '#fff1b8');
-        for (const [ox, oy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) dot(x + ox, y + oy, hot ? '#fff1b8' : '#ff963e');
-    }
-    function drawBreath(dot, cast, ft) {                      // 42 용화 숨결
-        const st = firstOf(cast, 'stage');
-        if (!st) return;
-        const src = st.sourceCell, d = breathDirection(st), O = { x: src.gx * 16 + 8 + d.x * 3, y: src.gy * 16 + 8 + d.y * 3 - 2 };
-        const b = { O, base: Math.atan2(d.y, d.x), cells: st.footprint?.cells || [], ft };
-        const ticks = [...new Set(eventsOf(cast, 'hit').map(e => e.at))].sort((p, q) => p - q);
-        ticks.forEach((t0, i) => breathFlames(dot, b, t0, i));
-        ticks.forEach((t0, i) => art().DragonSweep.swing(dot, O, d, ft - t0, { T: 200, life: 170, sweep: 1.4, dir: i % 2 ? -1 : 1, R: 28 }));
-        if (ft >= st.at && ft < st.at + st.duration) breathMouth(dot, O, ticks.some(t => ft >= t && ft < t + 50));
-    }
     function drawMist(dot, cast, ft) {                        // 50 신성한 안개 (ground)
         for (const st of cast.events) {
             if (st.kind !== 'stage' || st.holyMistPhase !== 'mist') continue;
@@ -287,7 +257,14 @@ const redrawnSkillFx = (() => {
         const j = judgmentPlan(st, ft, view.hand);
         judgmentCells(cast, st).forEach((cl, i) => judgmentBolt(dot, j, cl, i));
         if (j.t >= 300 && j.t < 680) judgmentTrail(dot, j);
-        if (j.t >= 0 && j.t < st.duration) art().RippleSwing.censer(dot, j.H, judgmentPos(j, j.t), j.t >= 300);
+        if (j.t >= 0 && j.t < st.duration && !heroSwingsBigCenser()) art().RippleSwing.censer(dot, j.H, judgmentPos(j, j.t), j.t >= 300);
+    }
+    /** 무대 주인공이 파문심판에 향로큰회전(special2) 그림을 쓰는가: 그 그림이 향로를 휘두르므로 코드 향로는 그리지 않는다(2026-10-20 스킬룬 전달본 v42,
+     * 번개와 궤적은 그대로). */
+    function heroSwingsBigCenser() {
+        if (typeof stageView !== 'object' || !stageView.enabled() || typeof getStageHeroStance !== 'function') return false;
+        const classId = getHeroAppearanceId(), stance = getStageHeroStance(), motion = stageActors.motionFor('파문심판', classId, stance);
+        return motion === 'special2' && !!stageActors.clipOf(classId, stance, motion);
     }
     function drainChest(src, view) { return { x: src.gx * 16 + 8, y: feetY(src, view) - 9 }; }
     function drawDrain(dot, cast, ft, view) {                 // 3 흡혈 관통
@@ -313,31 +290,6 @@ const redrawnSkillFx = (() => {
         art().GoldQuake.fore(dot, q.src.gx * 16 + 8, feetY(q.src, view), ft - q.st.at);
         for (const e of eventsOf(cast, 'hit')) { const tc = hitCell(e); if (tc) art().GoldQuake.hit(dot, tc.gx * 16 + 8, tc.gy * 16 + 7, ft - e.at); }
     }
-    function potionPulses(cast, land) {                       // field ticks seen so far; before the first, the pattern's schedule
-        const pattern = SKILL_DB[cast.skillName]?.combatPattern || {}, ticks = [...new Set(eventsOf(cast, 'hit').map(e => e.at - land))].sort((a, b) => a - b);
-        return ticks.length ? ticks : Array.from({ length: pattern.hits || 3 }, (_, i) => i * (pattern.intervalMs || 240));
-    }
-    function potionInfo(cast) {                               // 38 원소 포션 투척: lob, landing, one pool pulsing on each field hit
-        const tr = firstOf(cast, 'travel'), st = eventsOf(cast, 'stage').sort((a, b) => a.at - b.at);
-        if (!tr || !st.length) return null;
-        const ctr = st[0].footprint?.center || tr.targetCells[0], land = st[0].at, last = st.at(-1);
-        const el = tr.element || SKILL_DB[cast.skillName]?.ele || 'fire';
-        return { tr, st: st[0], land, el, C: cellDot(ctr), pulses: potionPulses(cast, land), end: last.at + last.duration - land };
-    }
-    function drawPotionGround(dot, cast, ft) {
-        const I = potionInfo(cast);
-        if (!I) return;
-        const radius = footprintRadius(cast, I.st, 1);
-        art().PotionThrow.pool(dot, I.C.x, I.C.y, ft - I.land, { el: I.el, pulses: I.pulses, end: I.end, R: radius * 16 + 3 });
-    }
-    function drawPotion(dot, cast, ft) {
-        const I = potionInfo(cast);
-        if (!I) return;
-        const src = I.tr.sourceCell, sx = Math.sign(I.C.x - (src.gx * 16 + 8)) || 1, A = { x: src.gx * 16 + 8 + sx * 5, y: src.gy * 16 + 3 };
-        art().PotionThrow.flight(dot, A, I.C, ft - I.tr.at, { dur: I.tr.duration, el: I.el });
-        art().PotionThrow.shatter(dot, I.C.x, I.C.y, ft - I.land, I.el);
-        cast.events.forEach((e, i) => { const tc = e.kind === 'hit' && hitCell(e); if (tc) art().TriWave.spark(dot, tc.gx * 16 + 8, tc.gy * 16 + 7, ft - e.at, { el: I.el, seed: i + 1 }); });
-    }
     function clockEvent(cast) { return cast.events.find(e => e.timePhase === 'clock'); }
     function drawTimeClock(dot, cast, ft, view) {            // 46 시간 가속 (ground): centred on the drawn character, gliding with the walk
         const st = clockEvent(cast);
@@ -354,7 +306,7 @@ const redrawnSkillFx = (() => {
     const DRAWERS = {
         3: { fore: drawDrain }, 5: { fore: drawWhirl }, 10: { fore: drawFrost }, 16: { fore: drawCrescent },
         18: { ground: drawQuakeGround, fore: drawQuake }, 21: { fore: drawFrostWave }, 28: { fore: drawCollapse },
-        38: { ground: drawPotionGround, fore: drawPotion }, 42: { fore: drawBreath }, 45: { fore: drawLance },
+        45: { fore: drawLance },
         46: { ground: drawTimeClock, fore: drawTimeMarks }, 50: { ground: drawMist }, 51: { fore: drawJudgment }
     };
     /** js/canvas-redrawn-skill-fx-extra.js adds its drawers (17·29·30·37·48, 54~56) here. */

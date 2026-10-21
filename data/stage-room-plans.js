@@ -85,7 +85,10 @@ const STAGE_ROOM_PLANS = Object.freeze({
         deep: 'deep-chaos',
         zones: Object.freeze({ trial_1: 'trial-01', trial_2: 'trial-02', trial_3: 'trial-03', trial_4: 'trial-04', trial_5: 'trial-05' }),
         rift: Object.freeze({ past: 'act-02', future: 'act-06' }),
-        tracks: Object.freeze({ underworld: 'underworld', sky: 'sky', ocean: 'ocean', convergence: 'beyond' }),
+        tracks: Object.freeze({ underworld: 'underworld', sky: 'sky', ocean: 'ocean-trench', convergence: 'beyond' }),
+        /** 심해의 수심 띠(2026-10-20 GPT 심해 그림 2차): bands [이 수심(m) 아래, 지역], 그 아래는 deep, 500m마다 가디언의 투기장은 arena.
+         * 지도를 지을 때의 수심으로 고른다(지도 하나는 한 띠다). 1000m의 탈라사(정점 보스)는 tracks.ocean. */
+        ocean: Object.freeze({ bands: Object.freeze([Object.freeze([300, 'ocean-shallow']), Object.freeze([700, 'ocean'])]), deep: 'ocean-lightless', arena: 'ocean-trench' }),
         rival: 'act-06',
         capstone: 'cosmos',
         /** 걷는 지도가 없는 고정 전장(구역 종류 → 지역): 판 전체를 방 하나처럼 그린다(js/canvas-stage-board.js). 여기에 없는 고정 전장은

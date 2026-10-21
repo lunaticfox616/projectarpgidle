@@ -210,15 +210,23 @@ const actExplorationRoomPlans = (() => {
         if (zone.pinnacleTrack) return rule.tracks[zone.pinnacleTrack] || '';
         return zone.rivalBlade ? rule.rival : zone.cosmosCapstone ? rule.capstone : '';
     }
+    /** 심해의 그림: 가디언의 투기장은 해구, 그 밖은 구역의 수심이 든 띠(STAGE_ROOM_PLANS.regions.ocean). */
+    function oceanRegion(zone, arena) {
+        const rule = STAGE_ROOM_PLANS.regions.ocean, depth = Math.max(0, Number(zone.depthM) || 0);
+        if (arena) return rule.arena;
+        const band = rule.bands.find(([below]) => depth < below);
+        return band ? band[1] : rule.deep;
+    }
     /** 구역의 무대 그림(data/stage-regions.js의 지역 이름). 정해 둔 것이 없으면 그 구역이 빌려 걷는 액트 지도의 그림이다. */
     function regionForZone(zone, where) {
         const rule = STAGE_ROOM_PLANS.regions;
         if (where.act) return actRegionName(where.act);
+        if (zone.type === 'oceanDepth') return oceanRegion(zone, !!where.source.arena);
         const own = rule.zones[zone.id] || (zone.type === 'abyss' && zone.isEndlessDepth ? rule.deep : rule.types[zone.type])
             || (zone.type === 'timeRift' ? rule.rift[zone.riftPhase] : bossRegionName(zone, rule));
         return own || (where.source.style === 'act' ? actRegionName(where.source.act) : '');
     }
     return Object.freeze({ parse: parsePlanLines, text: planLines, build: buildRoomPlan, valid: validPlanKey, choose: chooseRoomPlan, region: regionForZone,
-        random: semiRandomPlan, countsOf: roleCounts });
+        oceanRegion, random: semiRandomPlan, countsOf: roleCounts });
 })();
 safeExposeGlobals({ actExplorationRoomPlans });

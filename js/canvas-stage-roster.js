@@ -49,7 +49,7 @@ const stageRoster = (() => {
         return data.actors[settings().stageMonsterLook] || own || null;
     }
     /** A sheet, decoded off the main thread (js/canvas-stage-pictures.js). */
-    const load = file => stagePictures.openPicture(`${table().path}${file}?v=${table().version}`);
+    const load = (file, version = table().version) => stagePictures.openPicture(`${table().path}${file}?v=${version}`);
     function letGo(id, pair) {
         stagePictures.closePicture(pair.walk);
         if (pair.attack) stagePictures.closePicture(pair.attack);
@@ -90,8 +90,8 @@ const stageRoster = (() => {
         if (!pair) {
             // 쓴 때를 적고 나서 묶음을 줄인다: 0으로 넣고 줄이면 방금 넣은 묶음이 가장 오래된 것으로 뽑혀 바로 버려졌고, 그림을 비운
             // 묶음은 '불러오지 못함'으로 읽혀 그 몬스터가 예전 그림으로 그려졌다(2026-10-13: 한 번의 플레이에서 열다섯 번째 모습부터 모두).
-            pair = { walk: load(actor.id + '-walk.png'), attack: actor.attackMs ? load(actor.id + '-attack.png') : null,
-                death: actor.death ? load(actor.id + '-death.png') : null, at: tick };
+            pair = { walk: load(actor.id + '-walk.png', actor.version), attack: actor.attackMs ? load(actor.id + '-attack.png', actor.version) : null,
+                death: actor.death ? load(actor.id + '-death.png', actor.version) : null, at: tick };
             sheets.set(actor.id, pair);
             trim();
         }
@@ -188,6 +188,11 @@ const stageRoster = (() => {
             ctx.globalAlpha = 1;
         }
         stamp(ctx, pair[pose.clip].source, frame, RIM_NONE);
+        if (look.glaze) {
+            ctx.globalAlpha = look.glaze.alpha;
+            stamp(ctx, tintedFrame(pair, actor, pose, look.glaze.color), own, RIM_NONE);
+            ctx.globalAlpha = 1;
+        }
         if (look.shade > 0) {
             ctx.globalAlpha = Math.min(1, look.shade);
             stamp(ctx, tintedFrame(pair, actor, pose, SHADE), own, RIM_NONE);
@@ -203,8 +208,8 @@ const stageRoster = (() => {
     function frameKey(actor, pose, look) {
         const flash = look.flash > 0 ? Math.min(1, Number(look.flash)) : 0;
         if (look.shade > 0 || (flash > 0 && flash < 1)) return '';
-        const rim = look.outline ? look.outline.color + '@' + look.outline.alpha : '';
-        return `${actor.id}|${pose.clip}|${pose.index}|${pose.breath ? 1 : 0}|${rim}|${flash}`;
+        const rim = look.outline ? look.outline.color + '@' + look.outline.alpha : '', glaze = look.glaze ? look.glaze.color + '@' + look.glaze.alpha : '';
+        return `${actor.id}|${pose.clip}|${pose.index}|${pose.breath ? 1 : 0}|${rim}|${flash}|${glaze}`;
     }
     /** Keep an immutable copy, never cache the shared mutable work canvas. Position, mirroring, alpha and scaling remain live.
      * When every kept pose is on screen the new one is drawn from the work canvas and not kept. */
@@ -227,12 +232,9 @@ const stageRoster = (() => {
     function dotFor(enemy, actor, p) {
         return stageActors.scaleFor(p.tile) * lookScale(actor) * (p.spawnScale || 1) / getBossDrawScale(enemy);
     }
-    /** 그 외형을 그리는 배율(data/stage-view.js STAGE_MONSTER_SCALE: 외형 id의 앞머리로 정한다). 표에 없으면 1. */
+    /** 그 외형을 그리는 배율(data/stage-view.js STAGE_MONSTER_SCALE, js/combat-grid.js getStageLookScale). 표에 없으면 1. */
     function lookScale(actor) {
-        if (!scales.has(actor.id)) {
-            const rule = typeof STAGE_MONSTER_SCALE === 'object' ? STAGE_MONSTER_SCALE : {}, prefix = Object.keys(rule).find(head => actor.id.startsWith(head));
-            scales.set(actor.id, prefix ? rule[prefix] : 1);
-        }
+        if (!scales.has(actor.id)) scales.set(actor.id, getStageLookScale(actor.id));
         return scales.get(actor.id);
     }
     function shadow(ctx, actor, p, dot, hop) {
@@ -240,7 +242,8 @@ const stageRoster = (() => {
         stageRings.shadow(ctx, { x: p.x, y: p.y, dot }, Math.max(6, rx), air ? 0.2 : 0.34);
     }
     /** How the figure is dressed this frame: its rim (an entrance's, else the monster's own), the flash of a hit, the dark of an entrance. */
-    const lookOf = (enemy, p) => ({ outline: p.rim || getEnemyOutlineStyle(enemy), flash: p.flash, shade: p.shade || 0 });
+    const lookOf = (enemy, p) => ({ outline: p.rim || getEnemyOutlineStyle(enemy), flash: p.flash, shade: p.shade || 0,
+        glaze: typeof combatIncidents === 'object' ? combatIncidents.glazeOf(enemy) : null }); // 금빛 수액 슬라임의 빛깔(js/combat-incidents.js)
     /** Draws a roster monster with its feet on (p.x, p.y). p as in monsterActors.draw, plus (a boss entrance) p.shade: how dark
      * the figure is (0 to 1) and p.rim: { color, alpha } its rim meanwhile. False → not in the roster, the stage is off, or its
      * pictures are missing here. */

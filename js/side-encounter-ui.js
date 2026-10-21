@@ -199,15 +199,21 @@ const sideEncounterUi = (() => {
     function labyrinthPanel(power) {
         const floor = Math.max(1,Math.floor(game.labyrinthFloor||1));
         const max = Math.max(floor,Math.floor(game.labyrinthUnlockedMaxFloor||1));
-        const current = game.currentZoneId === LABYRINTH_ZONE_ID;
+        // 지도 완료 행동 '중단'으로 멈춘 미궁은 탐험 중이 아니다: 그 층에 다시 들어가는 단추를 보인다
+        const current = game.currentZoneId === LABYRINTH_ZONE_ID && !game.combatHalted;
         const fossils = contentProgression.isUnlocked('fossil');
         const reward = fossils ? '미궁 화석, 속성 화석' : '화석 제작 해금 후 전리품 획득';
         const owned = fossils ? `<small>미궁 화석 ${game.currencies.fossil||0}개 보유</small>` : '';
-        const action = current ? '<button type="button" onclick="switchTab(\'tab-battle\')">전투 보기</button>' : `<button type="button" data-exploration-departure onclick="enterLabyrinthFloor(${floor})">${floor}층 입장</button>`;
+        const lock = labyrinthLock();
+        const action = current ? '<button type="button" onclick="switchTab(\'tab-battle\')">전투 보기</button>' : `<button type="button" data-exploration-departure onclick="enterLabyrinthFloor(${floor})"${lock.attr}>${floor}층 입장</button>`;
         return `<div class="map-expedition-intro"><div class="map-expedition-heading"><strong>${floor}층 ${current?'탐험 중':'입장 준비'}</strong>${power}</div>
             <dl><div><dt>층 돌파</dt><dd>다음 층 개방<small>입장 가능 1 ~ ${max}층</small></dd></div>
             <div><dt>층 완료 시 확률 획득</dt><dd>${reward}${owned}</dd></div></dl>
-            <div class="map-expedition-actions">${action}${max>1?'<button type="button" data-exploration-departure onclick="enterLabyrinthPrompt()">층 선택</button>':''}</div></div>`;
+            <div class="map-expedition-actions">${action}${max>1?`<button type="button" data-exploration-departure onclick="enterLabyrinthPrompt()"${lock.attr}>층 선택</button>`:''}${lock.note}</div></div>`;
+    }
+    /** 액트 5를 깨기 전에는 미궁에 들어갈 수 없다(js/items.js가 이동을 거절한다): 단추를 끄고 까닭을 적는다. 루프가 바뀌면 다시 잠긴다. */
+    function labyrinthLock() {
+        return (game.maxZoneId||0) < 5 ? {attr:' disabled',note:'<span>액트 5를 클리어하면 입장할 수 있습니다.</span>'} : {attr:'',note:''};
     }
 
     function timePressure(rift) {
@@ -261,7 +267,7 @@ const sideEncounterUi = (() => {
 
     function timeFuture(rift) {
         const current = game.currentZoneId === TIME_RIFT_FUTURE_ZONE_ID;
-        const issue = getTimeRiftFusionMismatchReason(rift.altarUnique,rift.altarRare);
+        const issue = getTimeRiftFutureEntryReason(rift); // 입장과 같은 까닭(가방 자리도)
         const action = current ? '<button type="button" onclick="switchTab(\'tab-battle\')">전투 보기</button>' :
             `<button type="button" data-exploration-departure onclick="changeZone('${TIME_RIFT_FUTURE_ZONE_ID}')" ${issue?'disabled':''}>미래 입장</button>`;
         return `<div class="map-expedition-intro"><h3>3. 미래</h3><strong>희귀 옵션을 고유에 계승</strong>
@@ -306,7 +312,8 @@ const sideEncounterUi = (() => {
         const remaining = getSkyTowerRemainingClears();
         const first = !tower.clearedFloors.includes(floor);
         const reward = getSkyTowerRewardAmount(floor);
-        const current = game.currentZoneId === SKY_TOWER_ZONE_ID;
+        // 지도 완료 행동 '중단'으로 멈춘 탑은 탐험 중이 아니다: 그 층에 다시 들어가는 단추를 보인다(미궁과 같다)
+        const current = game.currentZoneId === SKY_TOWER_ZONE_ID && !game.combatHalted;
         const ready = canEnterSkyTower();
         const rewardText = first ? `${reward}개 확정` : `${Math.max(1,Math.floor(reward*.35))}개, 16% 확률`;
         return `<div class="map-expedition-intro"><div class="map-expedition-heading"><strong>${floor}층 ${current?'탐험 중':'입장 준비'}</strong>${buildMapPowerEstimateHtml(getZone(SKY_TOWER_ZONE_ID))}</div>
@@ -315,14 +322,14 @@ const sideEncounterUi = (() => {
             <div class="map-expedition-result"><span>영구 기록</span><strong>${tower.clearedFloors.length}개 층 돌파</strong><span>최고 입장 ${tower.highestFloor}층</span></div>
             ${ready?'':'<p>이번 루프 혼돈 입성 후 입장할 수 있습니다.</p>'}
             <details class="map-expedition-details" id="sky-tower-guide"><summary>등반, 보상 규칙</summary>
-            <p>일반 지역의 5배 길이입니다. 새 층을 돌파하면 다음 층이 열립니다. 25회 소진 후에는 등반 기록과 응축 보상이 늘지 않습니다.</p>
+            <p>새 층을 돌파하면 다음 층이 열립니다. 25회 소진 후에는 등반 기록과 응축 보상이 늘지 않습니다.</p>
             <p>돌파 기록/응축된 창공의 정수/영구 강화는 루프를 넘어 유지됩니다. 보상 전투 횟수만 루프마다 회복됩니다.</p></details>
             <div class="map-expedition-actions">${skyEntryActions(tower,remaining)}</div></div>`;
     }
 
     function skyEntryActions(tower,remaining) {
         const disabled = canEnterSkyTower() ? '' : 'disabled';
-        const action = game.currentZoneId === SKY_TOWER_ZONE_ID ? '<button onclick="switchTab(\'tab-battle\')">전투 보기</button>' :
+        const action = game.currentZoneId === SKY_TOWER_ZONE_ID && !game.combatHalted ? '<button onclick="switchTab(\'tab-battle\')">전투 보기</button>' :
             `<button data-exploration-departure onclick="enterSkyTowerPrompt(${tower.currentFloor})" ${disabled}>${tower.currentFloor}층 ${remaining?'입장':'연습 입장'}</button>`;
         return action + (tower.highestFloor>1?`<button data-exploration-departure onclick="enterSkyTowerPrompt()" ${disabled}>다른 층 선택</button>`:'');
     }
@@ -333,7 +340,7 @@ const sideEncounterUi = (() => {
         const cost = getSkyStoneNextCost();
         const gemUnlocked = contentProgression.isUnlocked('gemForge');
         return `<div class="map-expedition-intro"><div class="map-expedition-heading"><strong>영구 강화</strong><span>응축된 창공의 정수 ${tower.condensedPower}개</span></div>
-            <dl><div><dt>창공석, ${level}/${max}</dt><dd>지하계 패널티 감소 ${getSkyStoneReductionPct()}%<small>${level>=max?'최대 강화':`다음 단계 ${getSkyStoneReductionPct()+5}%, 필요 ${cost}개`}</small></dd></div>
+            <dl><div><dt>창공석, ${level}/${max}</dt><dd>지하계 중력 패널티 감소 ${getSkyStoneReductionPct()}%<small>${level>=max?'최대 강화':`다음 단계 ${getSkyStoneReductionPct()+5}%, 필요 ${cost}개`}</small></dd></div>
             <div><dt>공격 룬 영구 강화</dt><dd>룬 레벨 최대 +${getSkyTowerGemBoostMaxLevel()}<small>${gemUnlocked?'룬별 60 → 120 → 240개':'룬 강화 해금 필요'}</small></dd></div></dl>
             <div class="map-expedition-actions"><button onclick="upgradeSkyStone()" ${level>=max||tower.condensedPower<cost?'disabled':''}>창공석 ${level?'강화':'제작'}</button>
             <button onclick="switchTab('tab-skills'); switchSkillSubtab('skill-tab-enhance')" ${gemUnlocked?'':'disabled'}>룬 강화로 이동</button></div></div>`;

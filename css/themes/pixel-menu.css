@@ -16,6 +16,9 @@ body[data-ui-skin] {
   --px-key-frame-on: url('../../assets/ui/pixel/hud-key-on.png');
   /* 새 단추 그림(틀까지 든 한 장)의 한 변: 공용 틀(40)보다 크게, 한 칸의 폭(48)을 다 쓴다. 원본이 73~91px이라 40px에서는 무늬가 뭉개졌다. */
   --px-key-art: 48px;
+  /* 올린 그림의 사방 여백: 보통 그림 한 변에 대한 몫(scripts/build-hud-buttons.cjs의 STATE_BLEED와 같다). 그 그림을 그리는 칸을
+     이만큼 넓혀 틀은 제자리에 두고, 틀 밖으로 번지는 빛만 바깥에 그린다. */
+  --px-button-art-bleed: 0.055;
 }
 body[data-ui-skin] #btn-tab-battle { --px-icon: 0; }
 body[data-ui-skin] #btn-tab-character { --px-icon: 1; }
@@ -37,16 +40,25 @@ body[data-ui-skin] #btn-tab-settings { --px-icon: 19; }
 body[data-ui-skin] #btn-map-complete-action-picker { --px-icon: 20; }
 /* 새 단추 그림(2026-10-13 사용자가 만들어 온 여덟 개: 틀과 아이콘이 한 장에 있고 눌린 그림이 따로 있다. scripts/build-hud-buttons.cjs →
    assets/ui/pixel/buttons/). 그림이 있는 메뉴(index.html의 data-button-art)는 공용 틀(hud-key)과 13도트 아이콘 대신 이 그림 한 장을 쓴다.
-   누르는 동안과 창이 열려 있는 동안은 눌린 그림이다. 그림은 도트 하나가 화면 한 점보다 작게 줄어들어 부드럽게 그린다(image-rendering: auto).
+   누르는 동안과 창이 열려 있는 동안은 눌린 그림이다. 2026-10-19 묶음부터 올린 그림(빛나는 틀)이 있다. 그림은 도트 하나가 화면 한 점보다
+   작게 줄어들어 부드럽게 그린다(image-rendering: auto).
    같은 아이콘을 나눠 쓰던 메뉴(전직은 스킬트리, 도감과 전적은 기록)는 그림도 나눠 쓴다. */
-body[data-ui-skin] #btn-tab-character { --px-button-art: url('../../assets/ui/pixel/buttons/character.png'); --px-button-art-down: url('../../assets/ui/pixel/buttons/character-down.png'); }
-body[data-ui-skin] :is(#btn-tab-char, #btn-tab-traits, #btn-tab-talent) { --px-button-art: url('../../assets/ui/pixel/buttons/passive.png'); --px-button-art-down: url('../../assets/ui/pixel/buttons/passive-down.png'); }
-body[data-ui-skin] #btn-tab-season { --px-button-art: url('../../assets/ui/pixel/buttons/loop.png'); --px-button-art-down: url('../../assets/ui/pixel/buttons/loop-down.png'); }
-body[data-ui-skin] #btn-tab-stump { --px-button-art: url('../../assets/ui/pixel/buttons/stump.png'); --px-button-art-down: url('../../assets/ui/pixel/buttons/stump-down.png'); }
-body[data-ui-skin] #btn-tab-items { --px-button-art: url('../../assets/ui/pixel/buttons/bag.png'); --px-button-art-down: url('../../assets/ui/pixel/buttons/bag-down.png'); }
-body[data-ui-skin] #btn-tab-map { --px-button-art: url('../../assets/ui/pixel/buttons/map.png'); --px-button-art-down: url('../../assets/ui/pixel/buttons/map-down.png'); }
-body[data-ui-skin] :is(#btn-tab-journal, #btn-tab-codex, #btn-tab-records, #btn-tab-npcs) { --px-button-art: url('../../assets/ui/pixel/buttons/journal.png'); --px-button-art-down: url('../../assets/ui/pixel/buttons/journal-down.png'); }
-body[data-ui-skin] #btn-tab-settings { --px-button-art: url('../../assets/ui/pixel/buttons/settings.png'); --px-button-art-down: url('../../assets/ui/pixel/buttons/settings-down.png'); }
+body[data-ui-skin] #btn-tab-character { --px-button-art: url('../../assets/ui/pixel/buttons/character.png'); --px-button-art-down: url('../../assets/ui/pixel/buttons/character-down.png');
+  --px-button-art-hover: url('../../assets/ui/pixel/buttons/character-hover.png'); }
+body[data-ui-skin] :is(#btn-tab-char, #btn-tab-traits, #btn-tab-talent) { --px-button-art: url('../../assets/ui/pixel/buttons/passive.png'); --px-button-art-down: url('../../assets/ui/pixel/buttons/passive-down.png');
+  --px-button-art-hover: url('../../assets/ui/pixel/buttons/passive-hover.png'); }
+body[data-ui-skin] #btn-tab-season { --px-button-art: url('../../assets/ui/pixel/buttons/loop.png'); --px-button-art-down: url('../../assets/ui/pixel/buttons/loop-down.png');
+  --px-button-art-hover: url('../../assets/ui/pixel/buttons/loop-hover.png'); }
+body[data-ui-skin] #btn-tab-stump { --px-button-art: url('../../assets/ui/pixel/buttons/stump.png'); --px-button-art-down: url('../../assets/ui/pixel/buttons/stump-down.png');
+  --px-button-art-hover: url('../../assets/ui/pixel/buttons/stump-hover.png'); }
+body[data-ui-skin] #btn-tab-items { --px-button-art: url('../../assets/ui/pixel/buttons/bag.png'); --px-button-art-down: url('../../assets/ui/pixel/buttons/bag-down.png');
+  --px-button-art-hover: url('../../assets/ui/pixel/buttons/bag-hover.png'); }
+body[data-ui-skin] #btn-tab-map { --px-button-art: url('../../assets/ui/pixel/buttons/map.png'); --px-button-art-down: url('../../assets/ui/pixel/buttons/map-down.png');
+  --px-button-art-hover: url('../../assets/ui/pixel/buttons/map-hover.png'); }
+body[data-ui-skin] :is(#btn-tab-journal, #btn-tab-codex, #btn-tab-records, #btn-tab-npcs) { --px-button-art: url('../../assets/ui/pixel/buttons/journal.png'); --px-button-art-down: url('../../assets/ui/pixel/buttons/journal-down.png');
+  --px-button-art-hover: url('../../assets/ui/pixel/buttons/journal-hover.png'); }
+body[data-ui-skin] #btn-tab-settings { --px-button-art: url('../../assets/ui/pixel/buttons/settings.png'); --px-button-art-down: url('../../assets/ui/pixel/buttons/settings-down.png');
+  --px-button-art-hover: url('../../assets/ui/pixel/buttons/settings-hover.png'); }
 
 /* ─── 묶음 창의 탭 (2026-10-13 사용자: 단추 하나로 합치고 "UI를 잘 만들어야겠지?") ─────────────────────────
    메뉴 단추 하나가 창 하나를 열고, 그 창 안의 화면들(장비와 스킬룬, 루프 패시브와 해금, 스킬트리와 전직, 저널과 도감과 기록)은
@@ -351,7 +363,8 @@ body[data-ui-skin] .window-tab-strip > .window-tab { display: flex; align-items:
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-external-controls > button:active::after { top: 8px; }
   /* 새 단추 그림이 있는 메뉴: 공용 틀과 13도트 아이콘 대신 그 그림 한 장(틀과 아이콘이 함께 있다)을 그린다. 아이콘을 그리던 ::after가
      그림을 맡는다: 한 칸의 폭을 다 쓰는 크기(--px-key-art)로, 틀 자리의 아래 끝에 맞춰 위로 자란다(판 위쪽의 빈 자리).
-     올리면 조금 밝아지고, 누르는 동안과 창이 열린 동안은 눌린 그림이다(눌러도 자리는 그대로다: 눌린 그림에 내려앉은 모양이 있다). */
+     올리면 빛나는 그림이고, 누르는 동안과 창이 열린 동안은 눌린 그림이다(눌러도 자리는 그대로다: 눌린 그림에 내려앉은 모양이 있다).
+     올린 그림은 틀 밖으로 빛이 번져 사방에 --px-button-art-bleed만큼 넓다: 그리는 칸을 그만큼 넓혀 틀을 제자리에 둔다. */
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-tab-layer > .tab-btn[data-button-art],
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-tab-layer > .tab-btn[data-button-art]:is(.ui-window-open, [aria-pressed='true']) { background: none; }
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-tab-layer > .tab-btn[data-button-art]::after {
@@ -361,10 +374,19 @@ body[data-ui-skin] .window-tab-strip > .window-tab { display: flex; align-items:
     image-rendering: auto;
     filter: none;
   }
-  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-tab-layer > .tab-btn[data-button-art]:is(:hover, :focus-visible)::after { filter: brightness(1.16); }
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-tab-layer > .tab-btn[data-button-art]:is(:hover, :focus-visible)::after {
+    margin: calc(var(--px-key-art) * var(--px-button-art-bleed) * -1);
+    height: calc(var(--px-key-art) * (1 + 2 * var(--px-button-art-bleed)));
+    background-image: var(--px-button-art-hover, var(--px-button-art));
+    background-size: 100% 100%;
+    filter: none;
+  }
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-tab-layer > .tab-btn[data-button-art]:is(.ui-window-open, [aria-pressed='true'], :active)::after {
     top: calc(var(--px-key) - var(--px-key-art));
+    margin: 0;
+    height: var(--px-key-art);
     background-image: var(--px-button-art-down);
+    background-size: var(--px-key-art) var(--px-key-art);
     filter: none;
   }
   /* 알림 점, 가득 참, 이름표는 커진 그림의 위 끝을 따라 올라간다 */

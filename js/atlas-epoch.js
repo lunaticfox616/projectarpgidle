@@ -10,7 +10,7 @@ const atlasEpoch = (() => {
 
     function reason(state) {
         if (state.atlas.seeds < ATLAS.seeds.max) return `세계수 씨앗 ${ATLAS.seeds.max}개가 필요합니다(지금 ${state.atlas.seeds}개). 정점을 쓰러뜨리면 하나씩 얻습니다.`;
-        return state.atlas.run ? '열린 지도를 먼저 마치거나 닫으세요.' : '';
+        return atlas.runOpenReason(state);
     }
     function essenceFor(state) {
         const rule = ATLAS.epoch.essence;

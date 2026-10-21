@@ -63,7 +63,9 @@
 .skill-board-core:hover, .skill-board-core:focus-visible { filter: drop-shadow(0 0 14px color-mix(in srgb, var(--gem-accent) 70%, transparent)) brightness(1.08); }
 .skill-board-core-art { position: relative; z-index: 1; width: 64px; height: 64px; }
 .skill-board-core-art img { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; }
-#skill-tab-equip[data-picking="active"] .skill-board-core { animation: skillBoardPick 1.6s ease-in-out infinite; }
+/* 끊어서 빛난다(steps): 부드러운 무한 애니메이션은 창이 열린 동안 화면을 주사율대로 다시 그리게 해 240Hz 화면에서 CPU를 많이 쓴다
+   (2026-10-21 측정, 프레임 제한 없이 렌더러 1.18코어 + GPU 0.58코어에서 0.15 + 0.10). */
+#skill-tab-equip[data-picking="active"] .skill-board-core { animation: skillBoardPick 1.6s steps(4, end) infinite; }
 @keyframes skillBoardPick { 50% { filter: drop-shadow(0 0 16px color-mix(in srgb, var(--gem-accent) 80%, transparent)) brightness(1.1); } }
 
 /* 각인 마름모: 찬 칸(창공빛) · 빈 칸(금빛 점선 +) · 다음 칸(희미한 자물쇠) · 잠긴 칸(어두운 자물쇠) */
@@ -156,8 +158,11 @@
   color: var(--board-support); font: normal 20px var(--board-label); text-shadow: 1px 1px 0 #000;
 }
 .support-slot > i > em { position: absolute; right: 3px; bottom: 1px; color: var(--board-gold-hi); font: normal 9px var(--board-label); letter-spacing: -1px; }
-.support-slot > b { max-width: 100%; overflow: hidden; color: var(--board-copy); font: 400 12px var(--board-label); text-overflow: ellipsis; white-space: nowrap; }
-.support-slot > small { max-width: 100%; overflow: hidden; color: var(--board-muted); font: 12px var(--board-label); text-overflow: ellipsis; white-space: nowrap; }
+.support-slot > b { color: var(--board-copy); font: 400 12px var(--board-label); }
+.support-slot > small { color: var(--board-muted); font: 12px var(--board-label); }
+/* 칸이 65px 남짓이라 한 줄이면 "근접 물…", "장비, 패…"로 잘렸다: 단어째 두 줄까지 쓴다. */
+.support-slot > :is(b, small) { display: -webkit-box; max-width: 100%; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-height: 1.2;
+  text-align: center; white-space: normal; word-break: keep-all; }
 .support-slot.is-empty > i { background: rgba(20, 16, 22, .6); box-shadow: none; border: 1px dashed var(--board-gold); color: var(--board-gold); }
 .support-slot.is-empty > b, .support-slot.is-lock > b { color: var(--board-muted); }
 .support-slot.is-lock { cursor: default; }
@@ -203,7 +208,9 @@
 #tab-skills .gem-tile .gem-tile-art { width: 44px; height: 44px; border-radius: 0; background: none; }
 #tab-skills .gem-tile .gem-tile-art img { image-rendering: pixelated; }
 #tab-skills .gem-tile .gem-tile-name { max-width: 100%; overflow: hidden; color: #fff; font: 400 13px var(--board-read); text-overflow: ellipsis; white-space: nowrap; text-shadow: 1px 1px 0 #000; }
-#tab-skills .gem-tile .gem-usage-state { max-width: 100%; margin: 0; overflow: hidden; color: var(--board-muted); font: 12px var(--board-label); text-overflow: ellipsis; white-space: nowrap; }
+/* 쓰임("전방 부채꼴, 1칸")은 휴대폰 카드에서 한 줄이면 잘렸다: 단어째 두 줄까지 쓴다. */
+#tab-skills .gem-tile .gem-usage-state { display: -webkit-box; max-width: 100%; margin: 0; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; color: var(--board-muted);
+  font: 12px var(--board-label); line-height: 1.2; text-align: center; white-space: normal; word-break: keep-all; }
 #tab-skills .gem-tile .gem-tile-level { position: absolute; right: 4px; top: 3px; color: var(--board-gold-hi); font: 12px var(--board-label); }
 #tab-skills .gem-tile .gem-tile-level.effective { color: #8fe0a8; }
 #tab-skills .gem-tile .gem-tile-worn { position: absolute; left: 0; top: 0; padding: 1px 5px; background: #3a2c22; box-shadow: inset 0 -1px 0 var(--board-gold); color: var(--board-gold-hi); font: 12px var(--board-label); }

@@ -6,10 +6,10 @@ const skillGemCasts = (() => {
     const same = (a,b) => a.gx===b.gx && a.gy===b.gy;
     const distance = (a,b) => Math.hypot(a.gx-b.gx,a.gy-b.gy);
     const dirs = {2:[0,1],4:[-1,0],6:[1,0],8:[0,-1]};
-    // Gems that never overlap themselves: the clock, the assassination and the three movement gems.
-    const SINGLE_CAST = new Set([46,52,54,55,56]);
+    // Gems that never overlap themselves: the clock, the assassination and the movement gems.
+    const SINGLE_CAST = new Set([46,52,54,55,56,70,77]);
     // 효과 확장 +N (js/skill-effect-expansion.js): 탄성 플라스크 bounces, 폭발 혼합물·신성한 안개 radius, 파문심판 cross arms,
-    // 빈 플라스크 shard reach and 암살 reach grow by it; 신성한 기도·시간 가속·과냉각 혼합물 never do.
+    // 빈 플라스크 shard reach, 암살 reach and 전도성 난격 cuts grow by it; 신성한 기도·시간 가속·과냉각 혼합물 never do.
     const grow = stats => skillEffectExpansion.extra(stats && stats.sSkill);
     function facing(enemy,source) {
         const center=getGridUnitCenter(enemy),x=source.gx-center.gx,y=source.gy-center.gy;
@@ -24,11 +24,12 @@ const skillGemCasts = (() => {
         if(direction===2)destination.gy--;
         return destination;
     }
-    /** A landing cell: on the board, walkable (walls and sealed gates block), not under a living enemy and not where the story guide
-     * stands (js/act-exploration-doors.js guideCells). */
+    /** A landing cell: on the board, walkable (walls and sealed gates block), not under a living enemy, not where the story guide
+     * stands (js/act-exploration-doors.js guideCells) and not on a map object (a chest, a jar, a nest: like grid blinks, 2026-10-20). */
     function free(destination,enemies) {
-        const taken=new Set(enemies.flatMap(e=>getGridUnitCells(e).map(c=>gridCellKey(c.gx,c.gy))));
-        actExplorationDoors.guideCells(actExplorationState.current(game)).forEach(key=>taken.add(key));
+        const taken=new Set(enemies.flatMap(e=>getGridUnitCells(e).map(c=>gridCellKey(c.gx,c.gy)))),run=actExplorationState.current(game);
+        actExplorationDoors.guideCells(run).forEach(key=>taken.add(key));
+        actExplorationState.objects.solidCells(run).forEach(key=>taken.add(key));
         return canPlaceGridFootprint(taken,destination.gx,destination.gy,{columns:1,rows:1});
     }
     const nearness=(c,source)=>Math.max(Math.abs(c.gx-source.gx),Math.abs(c.gy-source.gy))*100+(c.gx-source.gx)**2+(c.gy-source.gy)**2;
@@ -60,6 +61,7 @@ const skillGemCasts = (() => {
         if(MOVES[id])return moveTargets(id,source,live,extra);
         if(id===51)return live.filter(e=>cross(source,e,1+extra));
         if(id===52)return live.filter(e=>getGridUnitDistance(source,e)<=4+extra && landing(e,source,live));
+        if(id===70)return live.filter(e=>getGridUnitDistance(source,e)<=FLICKER.first && flickerLanding(e,cell(source),live));
         const range=({44:9,45:3,46:3,47:4,48:4,49:4,50:1+extra})[id];
         return live.filter(e=>getGridUnitCells(e).some(c=>inArea(id,source,c,range)));
     }
@@ -91,7 +93,7 @@ const skillGemCasts = (() => {
     function event(cast,phase,at,duration,extra={}) {
         const keys={44:'flaskPhase',45:'lancePhase',46:'timePhase',47:'mixturePhase',48:'supercooledPhase',
             49:'emptyFlaskPhase',50:'holyMistPhase',51:'judgmentPhase',52:'assassinationPhase',
-            54:'riftPhase',55:'smokePhase',56:'harpoonPhase'};
+            54:'riftPhase',55:'smokePhase',56:'harpoonPhase',70:'flickerPhase',77:'rockFlaskPhase'};
         const travel=['flight','flask','shard','fall'].includes(phase);
         const ground=['clock','wave','mist'].includes(phase);
         return {skillName:cast.name,kind:travel?'travel':'stage',[keys[cast.id]]:phase,at,duration,
@@ -116,7 +118,7 @@ const skillGemCasts = (() => {
     const contactAreas={45:c=>c.points,46:c=>cells(c.source,'circle',3),47:c=>cells(c.aim,'square',1+grow(c.stats)),
         48:c=>cells(c.aim,'ring',c.index+1).concat(c.index?[]:cells(c.aim,'square',.5)),
         50:c=>cells(c.source,'square',1+grow(c.stats)).filter(p=>!same(p,c.source)),51:c=>cells(c.aim,'cross',c.geometry.crossRadius),
-        54:c=>cells(c.move.to,'square',moveRadius(c))};
+        54:c=>cells(c.move.to,'square',moveRadius(c)),77:c=>cells(c.move.foe,'square',moveRadius(c))};
     function flight(cast,base,perCell) {
         return Math.max(1,Math.round((base+distance(cast.source,cast.aim)*perCell)/cast.speed/1.8));
     }
@@ -126,7 +128,9 @@ const skillGemCasts = (() => {
         const options=targets(id,source,enemies,grow(stats));
         if(!options.length)return false;
         if(SINGLE_CAST.has(id) && state.casts.some(c=>c.id===id))return false;
-        const target=findNearestGridEnemy(source,options);
+        // 잠근 몬스터(js/act-exploration-state.js lockOn)가 닿으면 그 몬스터를, 아니면 가장 가까운 몬스터를 노린다(다른 룬과 같다).
+        const locked=actExplorationState.lockedEnemy(actExplorationState.current(game));
+        const target=(locked && options.find(enemy=>enemy.id===locked.id)) || findNearestGridEnemy(source,options);
         const cast={id,name,stats,attackOptions:input.attackOptions,source:cell(source),aim:getGridUnitCenter(target),targetId:target.id,
             speed:Math.max(.5,Math.min(2.5,stats.aspd)),key:'gem-'+(++state.sequence),at:now,index:0,nextAt:now};
         state.lastSkill=name;
@@ -135,24 +139,30 @@ const skillGemCasts = (() => {
         state.casts.push(cast);
         return true;
     }
+    /** 무대의 주인공이 놓는 순간(js/combat.js noteNativeGemSwing): 그 룬의 동작이 이때 타격 장에 온다. */
+    const letGo=(c,impact,until)=>{c.swing={impact,until};};
     function launchFlask(state,c) {
-        const phase=c.id===49?'flask':'flight';
+        const phase=c.id===49?'flask':'flight',release=c.at+ms(c,FLASK_RELEASE);
         c.nextAt=c.at+flight(c,420,c.id===49?45:50);
-        visual(state,c,phase,c.at,c.nextAt-c.at);
+        letGo(c,release,release+ms(c,160));
+        visual(state,c,phase,release,Math.max(1,c.nextAt-release));
     }
     function launchLance(state,c,enemies) {
         c.points=targets(45,c.source,enemies).map(getGridUnitCenter);
         c.nextAt=c.at+440/c.speed;
+        letGo(c,c.at+180/c.speed,c.nextAt);
         visual(state,c,'fall',c.at+180/c.speed,260/c.speed,{targetCells:c.points});
     }
     function launchClock(state,c) {
         const pattern=c.stats.sSkill.combatPattern;
         c.nextAt=c.at+pattern.intervalMs;
+        letGo(c,c.at+ms(c,120),c.at+ms(c,320));
         c.event=visual(state,c,'clock',c.at,pattern.durationMs+200,{timeCenter:cell(c.source),timeRadius:3,
             timeTickTimes:Array.from({length:pattern.ticks},(_,i)=>c.at+(i+1)*pattern.intervalMs),timeTickTargets:[],sourcePath:[]});
     }
     function launchMist(state,c) {
         c.nextAt=c.at+Math.round(330/c.speed);
+        letGo(c,c.at+ms(c,150),c.nextAt);
         c.event=visual(state,c,'censer',c.at,Math.round(520/c.speed),{holySource:cell(c.source)});
     }
     function launchJudgment(state,c,enemies) {
@@ -160,12 +170,16 @@ const skillGemCasts = (() => {
         c.aim=plan.center;c.nextAt=c.at+Math.round(480/c.speed);c.direction=plan.direction;
         c.geometry={judgmentDirection:c.direction,crossRadius:radius,impactOffsetMs:c.nextAt-c.at,
             holdMs:Math.round(140/c.speed),footprint:{cells:cells(c.aim,'cross',radius)}};
+        letGo(c,c.nextAt,c.nextAt+c.geometry.holdMs);
         visual(state,c,'censer',c.at,c.nextAt-c.at+c.geometry.holdMs,c.geometry);
     }
+    /** 암살: 박차고 나간 뒤(2026-10-20 스킬룬 전달본 v42, 무대의 주인공은 한손검 이동 동작) 사라져 등 뒤에 나타나 찌른다. 사라짐은 박차고
+     * 나가는 만큼(lead) 늦다. */
     function launchAssassin(state,c) {
         state.pose=c;
-        c.nextAt=c.at+100;
-        visual(state,c,'vanish',c.at,180,{blinkCell:cell(c.source)});
+        c.lead=ms(c,240);c.nextAt=c.at+c.lead+100;
+        c.swing={impact:c.at+Math.round(c.lead*0.75),until:c.at+c.lead+ms(c,60),pose:'kickoff'};
+        visual(state,c,'vanish',c.at+c.lead,180,{blinkCell:cell(c.source)});
     }
     /** 탄성 플라스크(2026-10-17 스킬룬 인계 v32)의 다음 대상: 처음에는 사거리 안의 가장 가까운 적. 그 뒤로는 3칸 안의 아직 안 맞은 적,
      * 없으면 3칸 안의 다른 적(둘이면 왔다 갔다), 그것도 없으면 같은 적에게 다시(제자리에서 높이 튄다). */
@@ -185,15 +199,19 @@ const skillGemCasts = (() => {
         c.struck.add(target.id);
         c.targetId=target.id;c.aim=getGridUnitCenter(target);
         const duration=Math.round(Math.max(340,Math.min(520,300+distance(c.source,c.aim)*45))/c.speed/1.8);
-        visual(state,c,'flight',c.nextAt,duration);c.nextAt+=duration;
+        const release=c.struck.size===1 ? Math.min(c.nextAt+ms(c,FLASK_RELEASE),c.nextAt+duration-1) : c.nextAt;   // 첫 투척은 손을 떠날 때부터 난다
+        if(c.struck.size===1)letGo(c,release,release+ms(c,160));
+        visual(state,c,'flight',release,c.nextAt+duration-release);c.nextAt+=duration;
     }
     // ---------------------------------------------------------------- 54~56 이동기 (스킬 변경분 2 · 인계 mob4_core.js. 57 공중강타는 2026-10-13에 지웠다)
     // Reach is Euclidean; a landing is free (see free()) and never the caster's own cell; timings scale with attack speed.
     // Each cast carries its whole choreography in c.move (one 'move' event) for the redrawn art and the caster's motion.
-    const MOVES={54:{range:4,grows:'radius'},55:{range:5,grows:'range'},56:{range:5,grows:'range'}};
+    const MOVES={54:{range:4,grows:'radius'},55:{range:5,grows:'range'},56:{range:5,grows:'range'},77:{range:5,grows:'radius'}};
     const N8=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
     const reach2=(a,b)=>(a.gx-b.gx)**2+(a.gy-b.gy)**2;
     const ms=(c,value)=>Math.round(value/c.speed);
+    /** 플라스크가 손을 떠나는 때(시전 뒤 ms, 공격 속도로 줄어든다): 주인공의 던지기 동작이 그 장에 온다. 떨어지는 때는 그대로다. */
+    const FLASK_RELEASE=90;
     const moveReach=(id,extra)=>MOVES[id].range+(MOVES[id].grows==='range'?extra:0);
     const moveRadius=c=>1+(MOVES[c.id].grows==='radius'?grow(c.stats):0);
     function lineCells(a,b) {
@@ -231,7 +249,7 @@ const skillGemCasts = (() => {
         return live.filter(e=>{
             const aim=getClosestGridUnitCell(source,e);
             if(reach2(source,aim)>range*range)return false;
-            if(id===56)return true;
+            if(id===56 || id===77)return true;
             return !!(id===55 ? besideTarget(source,aim,live) : landNear(source,aim,live,range));
         });
     }
@@ -266,8 +284,56 @@ const skillGemCasts = (() => {
         c.nextAt=hitAt;
         visual(state,c,'move',c.at,pull1+ms(c,420)-c.at,{move:c.move,targetCells:[aim]});
     }
+    /** 77 바위 플라스크(2026-10-20 스킬룬 추가본 v44, 사용자 구상): 줄 매단 바위 병을 던져 떨어진 자리 둘레(3×3, 효과 확장 +N칸)를 치고,
+     * 0.11초 뒤 줄을 당겨 그 앞 칸까지 0.26초에 돌진한다(작살화살의 pullLanding, 이미 붙어 있으면 줄만 당긴다). 던진 팔은 돌진이 끝날 때까지
+     * 뻗은 채다(c.move.swing의 until). 대상이 없으면 쓰지 않는다(작살화살과 같다). */
+    function launchRockFlask(state,c,enemies) {
+        const {live,aim}=moveStart(state,c,enemies),to=pullLanding(c.source,aim,live);
+        const release=c.at+ms(c,360),hitAt=release+ms(c,300+distance(c.source,aim)*32),pull0=hitAt+ms(c,110);
+        const pull1=to ? pull0+ms(c,260) : pull0;
+        c.move={from:cell(c.source),to:to || cell(c.source),foe:aim,release,hitAt,pull0,pull1,moved:!!to,swing:{impact:release,until:pull1+ms(c,60)}};
+        c.nextAt=hitAt;
+        visual(state,c,'move',c.at,pull1+ms(c,420)-c.at,{move:c.move,targetCells:[aim],footprint:{center:aim,radius:moveRadius(c)}});
+    }
+    // ---------------------------------------------------------------- 70 전도성 난격 (2026-10-19 스킬룬 인계 v36: 점멸)
+    // 번개가 되어 적 사이를 순간이동하며 벤다(사용자: 패스오브 엑자일 1의 점멸 타격처럼). 처음엔 5칸 안 가장 가까운 적 곁으로, 그다음
+    // 0.15초마다 그 적에게서 4칸 안의 아직 안 벤 적(가까운 순), 다 벴으면 덜 벤 적, 혼자 남은 적은 반대편으로 건너가 다시 벤다.
+    // 모두 6번(효과 확장 +N = 횟수), 마지막 자리에 바닥 방전. 한 번 건널 때: 사라짐 0.04초, 적 옆에 단타 자세로 나타나 0.03초 뒤 벤다.
+    // 값(6번, 5칸, 4칸, 0.15초, 피해 70)은 인계의 제안 값이다. 한 번 건너기가 한 걸음이라 전투 틱(0.1초)에 맞춰 건넌다.
+    const FLICKER={first:5,jump:4,cuts:6,every:150,appear:40,cut:70,pose:110};
+    const flickerNear=origin=>(a,b)=>getGridUnitDistance(origin,a)-getGridUnitDistance(origin,b);
+    /** Where to stand beside the foe: its left or right neighbour on its middle row (the side nearer `from` first), else any free
+     * neighbour nearest `from`. Never `from` itself, so the same foe is crossed to its other side. */
+    function flickerLanding(enemy,from,live) {
+        const at=cell(enemy),size=getGridUnitFootprint(enemy),gy=at.gy+Math.floor((size.rows-1)/2);
+        const sides=[{gx:at.gx-1,gy},{gx:at.gx+size.columns,gy}];
+        if(from.gx>getGridUnitCenter(enemy).gx)sides.reverse();
+        const ok=q=>!same(q,from) && free(q,live);
+        return sides.find(ok) || nearestNeighbour(getClosestGridUnitCell(from,enemy),from,ok);
+    }
+    /** Foes in the order the next cut tries them. */
+    function flickerOrder(c,live,from) {
+        if(!c.index) {
+            const first=live.find(e=>e.id===c.targetId);
+            return [first,...live.filter(e=>e!==first && getGridUnitDistance(from,e)<=FLICKER.first).sort(flickerNear(from))].filter(Boolean);
+        }
+        const last=live.find(e=>e.id===c.prev),base=last||from;
+        const near=live.filter(e=>e!==last && getGridUnitDistance(base,e)<=FLICKER.jump).sort(flickerNear(base));
+        const fresh=near.filter(e=>!c.struck.has(e.id)),again=near.filter(e=>c.struck.has(e.id)).sort((a,b)=>c.struck.get(a.id)-c.struck.get(b.id));
+        return [...fresh,...again,...(last?[last]:[])];
+    }
+    function launchFlicker(state,c) {
+        c.struck=new Map();c.prev=null;c.holds=true;c.total=FLICKER.cuts+grow(c.stats);
+    }
+    /** The last spot discharges into the floor; a flicker that found no foe at all just ends. */
+    function flickerEnd(state,c,spot,at) {
+        c.done=true;
+        if(!c.index){c.failed=true;return [];}
+        visual(state,c,'discharge',at+ms(c,40),ms(c,320),{sourceCell:spot,landingCell:spot,targetCells:[spot]});
+        return [];
+    }
     const launch={44:bounce,45:launchLance,46:launchClock,47:launchFlask,48:launchFlask,49:launchFlask,
-        50:launchMist,51:launchJudgment,52:launchAssassin,54:launchRift,55:launchSmoke,56:launchHarpoon};
+        50:launchMist,51:launchJudgment,52:launchAssassin,54:launchRift,55:launchSmoke,56:launchHarpoon,70:launchFlicker,77:launchRockFlask};
     /** 튕길 때마다 떨어진 자리의 작은 중독 폭발: 1칸 안의 적에게 30%(인계의 제안 값). */
     const BOUNCE_POP_PCT=30;
     function stepBounce(state,c,input) {
@@ -344,9 +410,9 @@ const skillGemCasts = (() => {
         const destination=landing(target,input.source,input.enemies.filter(e=>e.hp>0));
         if(!destination || getGridUnitDistance(input.source,target)>4+grow(c.stats)){c.done=true;c.failed=true;return [];}
         c.destination=destination;c.anchor=cell(target);c.direction=toward(destination,target);
-        c.index=1;c.nextAt=c.at+240;
-        visual(state,c,'arrive',c.at+100,180,{blinkCell:cell(destination)});
-        return [{type:'teleport',name:c.name,from:cell(input.source),to:destination,at:c.at+100}];
+        const lead=c.lead||0;c.index=1;c.nextAt=c.at+lead+240;
+        visual(state,c,'arrive',c.at+lead+100,180,{blinkCell:cell(destination)});
+        return [{type:'teleport',name:c.name,element:c.stats.sSkill.ele,from:cell(input.source),to:destination,at:c.at+lead+100,swing:{impactDelayMs:140,duration:260}}];
     }
     function shardPlan(extra) {
         const base=1+Math.floor(Math.random()*4),plan=Array.from({length:base},()=>false);
@@ -409,13 +475,42 @@ const skillGemCasts = (() => {
     function stepHarpoon(state,c,input) {                    // the strike, then (if it moved) the arrival at the rope's end
         if(!c.index) {
             c.index=1;c.nextAt=c.move.pull1;c.done=!c.move.moved;
-            return [contact(c,input.enemies.filter(e=>e.id===c.targetId && e.hp>0),c.move.hitAt)];
+            const hit=contact(c,input.enemies.filter(e=>e.id===c.targetId && e.hp>0),c.move.hitAt);
+            return c.move.moved ? [hit,harpoonPull(c)] : [hit];
         }
         c.done=true;
         return landingNow(c,input) ? [moveTo(c,'pull')] : [];
     }
+    function stepRockFlask(state,c,input) {                  // the flask breaks around where it lands, then (if it moved) the dash
+        if(!c.index) {
+            c.index=1;c.nextAt=c.move.pull1;c.done=!c.move.moved;
+            return [contact(c,area(input.enemies,c.move.foe,'square',moveRadius(c)),c.move.hitAt)];
+        }
+        c.done=true;
+        return landingNow(c,input) ? [moveTo(c,'pull')] : [];
+    }
+    /** 작살화살이 끌려가는 동안 무대의 주인공이 밧줄을 당긴다(2026-10-20 v42, 활 이동 동작): 당기기 시작에 한 번 힘을 주고 끝까지. */
+    function harpoonPull(c) {
+        const m=c.move;
+        return {type:'pose',name:c.name,element:c.stats.sSkill.ele,targets:[],swing:{impactDelayMs:m.pull0-m.hitAt+ms(c,60),duration:m.pull1-m.hitAt+ms(c,120),pose:'pull'}};
+    }
+    /** One cut: across to the next foe (teleport, arriving in the strike pose), then the hit; the last one discharges. */
+    function stepFlicker(state,c,input) {
+        const live=input.enemies.filter(e=>e.hp>0),from=cell(input.source),at=c.nextAt;
+        let foe=null,to=null;
+        for(const enemy of flickerOrder(c,live,from)){to=flickerLanding(enemy,from,live);if(to){foe=enemy;break;}}
+        if(!foe)return flickerEnd(state,c,from,at);
+        const aim=getGridUnitCenter(foe),cutAt=at+ms(c,FLICKER.cut),face=Math.sign(aim.gx-to.gx) || 1;
+        visual(state,c,'jump',at,ms(c,240),{sourceCell:from,landingCell:to,targetCells:[to],flickerFace:face});
+        visual(state,c,'cut',cutAt,ms(c,260),{sourceCell:to,landingCell:aim,targetCells:[aim],flickerIndex:c.index});
+        c.struck.set(foe.id,(c.struck.get(foe.id)||0)+1);c.prev=foe.id;c.source=to;c.aim=aim;c.index++;c.nextAt=at+ms(c,FLICKER.every);
+        const commands=[{type:'teleport',name:c.name,from,to,element:c.stats.sSkill.ele,
+            swing:{impactDelayMs:ms(c,FLICKER.cut-FLICKER.appear),duration:ms(c,FLICKER.pose)}},contact(c,[foe],cutAt)];
+        if(c.index>=c.total)flickerEnd(state,c,to,cutAt);
+        return commands;
+    }
     const steps={44:stepBounce,45:stepLance,46:stepClock,47:stepExplosion,48:stepCold,49:stepEmpty,
-        50:stepMist,51:stepJudgment,52:stepAssassin,54:stepRift,55:stepSmoke,56:stepHarpoon};
+        50:stepMist,51:stepJudgment,52:stepAssassin,54:stepRift,55:stepSmoke,56:stepHarpoon,70:stepFlicker,77:stepRockFlask};
     function update(state,input) {
         const commands=[];
         updateMistTargets(state,input);

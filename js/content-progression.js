@@ -200,6 +200,8 @@ const contentProgression = (() => {
     }
 
     function legacyAccess(def, owner) {
+        // Newly gated simulator has no historical purchase to inherit from a pre-ledger save.
+        if (def.id === 'craftSimulator') return false;
         // Saves predating the unlock ledger used act five for the market.
         if (def.id === 'market') return owner.maxZoneId >= 5;
         if ((def.routes || []).some(route => owner.unlockedMapContents.includes(route))) return true;

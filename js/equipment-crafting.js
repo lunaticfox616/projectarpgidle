@@ -59,7 +59,12 @@ const equipmentCrafting = (() => {
         return getRerollSpaceReason(item, 1, ['transmute', 'alteration'].includes(action) ? magicLineCap() : EXPLICIT_AFFIX_LINE_CAP);
     }
 
+    /** Uniques, fused relics and hall pieces keep what they are: no reroll (fossils), no imprint. */
+    const KEEPS_KIND = '고유 장비, 융합 유물, 전당 소장품에는 쓸 수 없습니다.';
+    const keepsKind = item => item.rarity === 'unique' || !!item.fusedRelic || !!item.hallReplica;
     function getFossilBlockReason(item, fossilKey) {
+        // A fossil rerolls the item as a rare one (js/skills.js applyFossilChaosCraft): a unique lost its line and effect (2026-10-20).
+        if (keepsKind(item)) return KEEPS_KIND;
         // The blank + amplifier are one fossil effect with a two-affix cost, not two fossil crafts.
         const marker = fossilKey === 'fossilRift' ? 'fossilRiftBlank' : '';
         return getBlockReason(item, 'fossil', true, marker) || getRerollSpaceReason(item, marker ? 2 : 1, EXPLICIT_AFFIX_LINE_CAP, marker);
@@ -170,7 +175,271 @@ const equipmentCrafting = (() => {
             over: used.prefix > rule.prefix || used.suffix > rule.suffix };
     }
 
-    return Object.freeze({ getSource, getLabel, filterSporeMods, resolveAction, getBlockReason, getSporeBlockReason, getFossilBlockReason, getFossilUseReason,
-        affixKind, storedAffixKind, keptKind, keptOnReroll, getAffixKeepReason, affixCounts, affixRoom, fitsRoom, pickReplacement, affixHeader });
+    /** Register a basic action once: live admission, output rarity and research read this same rule. */
+    const basicRules = Object.freeze(Object.fromEntries([
+        ['transmute','normal','magic','reroll'],['alteration','magic','magic','reroll'],
+        ['alchemy','normal','rare','reroll'],['chaos','rare','rare','reroll'],
+        ['regal','magic','rare','add'],['exalted','rare','rare','add']
+    ].map(([action,source,rarity,kind])=>[action,Object.freeze({source,rarity,kind})])));
+    const basicRule = action => basicRules[action];
+    const basicActions = Object.freeze(Object.keys(basicRules));
+    const rerollActions = Object.freeze(basicActions.filter(action=>basicRules[action].kind==='reroll'));
+    function basicFits(item, action) {
+        const rule=basicRule(action);
+        return !!rule && item.rarity===rule.source && (rule.kind!=='add'||getItemExplicitOptionCount(item)<EXPLICIT_AFFIX_LINE_CAP);
+    }
+    /** The affix a spore mode guarantees for action on item, or null (spore mode off, or nothing of its family is open): picked by
+     * weight among the open affixes in the spore's family, counted against the result's rarity (새싹 transmute and alteration: magic,
+     * one and one; the rest: rare, three and three). A reroll counts only the lines it keeps (keptOnReroll, as rerollExplicitMods).
+     * The live craft (js/passives.js useCurrency) and the bench's rehearsal (js/crafting-goal-options.js rehearse) both pick here. */
+    function sporePool(item, action, mode, omen = null) {
+        if (mode === 'none' || !basicRule(action)) return [];
+        const base = rerollActions.includes(action) ? { ...item, stats: (item.stats || []).filter(stat => keptOnReroll(item, stat) || !onOmenSide(item, stat, omen)) } : item;
+        return filterOmenMods(filterSporeMods(getOpenAffixMods(base, basicRule(action).rarity), mode), omen);
+    }
+    function pickSporeMod(item, action, mode, omen = null) {
+        const pool = sporePool(item, action, mode, omen);
+        return pool.length ? pickWeightedMod(pool) : null;
+    }
+    /** mod's guaranteed line, rolled over the whole spore tier range of item (the family is promised, the top two tiers are not). With
+     * 거름의 뿌리 (omen effect 'floor') it rolls above the floor too, as every new line does (2026-10-20 hunt: only this line ignored it). */
+    function rollSporeLine(item, mod, omen = null) {
+        if (!mod) return null;
+        const range = getCraftTierRangeForItem(item, 'spore');
+        const min = omen && omen.effect === 'floor' ? Math.min(range.max, Math.max(range.min, floorTier(range.max))) : range.min;
+        return { ...rollAffixValueInTierRange(mod, min, range.max), craftSource: 'spore' };
+    }
+    // ---------------------------------------------------------------- 제작 뿌리 (data/items.js CRAFT_OMENS)
+    // 2026-10-18 사용자: "craft of exile 사이트를 참고해서 ... 가중치 메커니즘, 크래프팅 방법 및 컨텐츠와 연계성". 걸어 둔 뿌리 하나가 자기가
+    // 바꾸는 다음 제작 한 번에 쓰이고 하나 줄어든다. 실제 제작(js/passives.js useCurrency)과 제작 연구의 연습(rehearse)이 같은 규칙을 쓴다.
+    /** omen key with side as the rolls read it: { key, side, effect } (practice uses it without owning one), or null. */
+    function omenSpec(key, side) {
+        const armed = normalizeCraftOmen({ key, side });
+        return armed && { ...armed, effect: CRAFT_OMENS.effects[armed.key].effect };
+    }
+    /** Arms omen key (side for 허기) for the next craft it fits; an empty key disarms. { ok, reason }. */
+    function armOmen(state, key, side) {
+        if (!key) { state.craftOmen = null; return { ok: true }; }
+        if (!CRAFT_OMENS.keys.includes(key)) return { ok: false, reason: '알 수 없는 뿌리입니다.' };
+        if ((state.currencies[key] || 0) < 1) return { ok: false, reason: `${ORB_DB[key].name}가 없습니다.` };
+        state.craftOmen = normalizeCraftOmen({ key, side });
+        return { ok: true };
+    }
+    /** Side membership is shared by rolling, value changes, removal and pre-payment admission. Special lines stay untouched. */
+    const onOmenSide = (item, stat, omen) => !omen || omen.effect !== 'side' || storedAffixKind(item, stat) === omen.side;
+    /** Candidate restrictions shared by actual rolls, guaranteed spores and every research view. */
+    const filterOmenMods = (pool, omen) => !omen || omen.effect !== 'side' ? pool : pool.filter(mod => affixKind(mod) === omen.side);
+    function sideReason(item, action, omen, sporeMode) {
+        const label = omen.side === 'prefix' ? '접두어' : '접미어';
+        if (basicActions.includes(action)) return sideRollReason(item, action, omen, sporeMode);
+        const lines = action === 'annulment' ? getAnnulmentRemovableStats(item).map(row => row.stat)
+            : [...item.stats, ...(item.chaosInfusion ? [item.chaosInfusion] : [])].filter(stat => !stat.lockedByHoney && !stat.lockedByRift);
+        return lines.some(stat => onOmenSide(item, stat, omen)) ? '' : `변경 가능한 ${label} 옵션이 없습니다.`;
+    }
+    function sideRollReason(item, action, omen, sporeMode) {
+        const label = omen.side === 'prefix' ? '접두어' : '접미어';
+        const kept = rerollActions.includes(action) ? item.stats.filter(stat => keptOnReroll(item, stat) || !onOmenSide(item, stat, omen)) : item.stats;
+        if (sporeMode !== 'none' && kept.some(stat => getSource(stat) === 'spore')) return '보존되는 홀씨 옵션이 있어 홀씨를 함께 사용할 수 없습니다.';
+        const pool = filterOmenMods(getOpenAffixMods({ ...item, stats: kept }, 'rare'), omen);
+        if (!pool.length) return `${label}에 새로 부여할 수 있는 옵션이나 빈자리가 없습니다.`;
+        return sporeMode !== 'none' && !filterSporeMods(pool, sporeMode).length ? `${label}에 선택한 홀씨 계열 옵션을 부여할 수 없습니다.` : '';
+    }
+    /** A short reason for an unavailable combination; this is also used before paying, never silently falling back to both sides. */
+    function omenReason(item, action, omen, sporeMode = 'none') {
+        if (!omen || !CRAFT_OMENS.effects[omen.key].actions.includes(action)) return '이 재화에는 적용되지 않습니다.';
+        if (!item) return '장비를 선택하세요.';
+        if (omen.effect === 'side') return sideReason(item, action, omen, sporeMode);
+        if (['regal', 'exalted'].includes(action) && sporeMode !== 'none') return '옵션 추가 시 홀씨와 함께 사용할 수 없습니다.';
+        return '';
+    }
+    function omenFits(item, action, omen, sporeMode = 'none') {
+        return !omenReason(item, action, omen, sporeMode);
+    }
+    function armedSideReason(state, item, action, sporeMode = 'none') {
+        const armed = normalizeCraftOmen(state.craftOmen), omen = armed && omenSpec(armed.key, armed.side);
+        if (!omen || omen.effect !== 'side' || !CRAFT_OMENS.effects[omen.key].actions.includes(action) || !(state.currencies[omen.key] > 0)) return '';
+        return omenReason(item, action, omen, sporeMode);
+    }
+    /** The armed omen that changes this craft ({ key, side, effect }), or null: none armed, none left, or it does not fit. */
+    function omenFor(state, action, item, sporeMode = 'none') {
+        const armed = normalizeCraftOmen(state.craftOmen), omen = armed && (state.currencies[armed.key] || 0) > 0 ? omenSpec(armed.key, armed.side) : null;
+        return omenFits(item, action, omen, sporeMode) ? omen : null;
+    }
+    /** After the craft omen changed: one fewer, disarmed. The log's words for it ('' without one). */
+    function spendOmen(state, omen) {
+        if (!omen) return '';
+        state.currencies[omen.key] = Math.max(0, (state.currencies[omen.key] || 0) - 1);
+        state.craftOmen = null;
+        return `, ${ORB_DB[omen.key].name}`;
+    }
+    const floorTier = tier => Math.max(1, Math.ceil(tier * CRAFT_OMENS.floorShare));
+    /** One new line of mod at item tier: 거름 rolls above a tier floor. */
+    function rollOmenLine(mod, tier, omen) {
+        return omen && omen.effect === 'floor' ? rollAffixValueInTierRange(mod, floorTier(tier), tier) : rollAffixValue(mod, tier);
+    }
+    /** 엮음: (pool, picked) → pool where a mod sharing a tag with a line on item (or a mod picked before it this craft) weighs
+     * weaveMul times more, as fossils weigh their tags (js/skills.js). */
+    function weighOmenPool(item, pool, omen, picked = []) {
+        const candidates = filterOmenMods(pool, omen);
+        if (!omen || omen.effect !== 'weave') return candidates;
+        const held = new Set([...(item.stats || []), ...picked].flatMap(getAffixTags));
+        return candidates.map(mod => getAffixTags(mod).some(tag => held.has(tag)) ? { ...mod, weight: (Number(mod.weight) || 1) * CRAFT_OMENS.weaveMul } : mod);
+    }
+    /** The line an added craft (regal, exalted) picks: an open mod of item, on 허기's side, weighed by 엮음. */
+    function pickAddMod(item, omen) {
+        return pickWeightedMod(weighOmenPool(item, getOpenAffixMods(item, 'rare'), omen));
+    }
+    /** The row 전정 가위 cuts among removable rows ({ index, stat }): with 가지치기 the lowest tier among tiered lines (a fixed line,
+     * shown as T0 whatever tier it stores, is not low: it has no better roll), else any. */
+    function pickPruneLine(removable, omen) {
+        const tiered = removable.filter(row => !isFixedEquipmentAffix(row.stat) && Number(row.stat.tier) > 0);
+        if (!omen || omen.effect !== 'prune' || !tiered.length) return rndChoice(removable);
+        const low = Math.min(...tiered.map(row => Number(row.stat.tier)));
+        return rndChoice(tiered.filter(row => Number(row.stat.tier) === low));
+    }
+    /** What an omen changes in a reroll (js/passives.js rerollExplicitMods): each new line's roll, and 엮음's weights. */
+    function omenRerollOptions(item, tier, omen) {
+        if (!omen) return {};
+        const before = { ...item, stats: item.stats.slice() };
+        return { side: omen.effect === 'side' ? omen.side : '', rollLine: mod => rollOmenLine(mod, tier, omen),
+            weigh: (pool, picked) => weighOmenPool(before, pool, omen, picked) };
+    }
+    function addedLine(item, options) {
+        if (options.guaranteedStat) return options.guaranteedStat;
+        const mod = options.addedMod || pickAddMod(item, options.omen);
+        return mod ? rollOmenLine(mod, getItemCraftTier(item), options.omen) : null;
+    }
+    /** Shared item-only roll for live currency use and the crafting bench's rehearsal. Payment and saves stay with the caller.
+     * options.omen: the 제작 뿌리 that changes this craft ({ key, side, effect }, omenFor or omenSpec). */
+    function applyBasic(item, action, options = {}) {
+        if (!basicActions.includes(action)) throw Error('지원하지 않는 기본 제작');
+        const tier = getItemCraftTier(item), guaranteed = options.guaranteedStat || null;
+        if (basicRule(action).kind === 'add') {
+            const line = addedLine(item, options);
+            if (line) item.stats.push(line);
+            item.rarity = basicRule(action).rarity;
+            updateItemName(item);
+            return;
+        }
+        item.rarity = basicRule(action).rarity;
+        rerollExplicitMods(item, item.rarity, tier, { guaranteedStat: guaranteed, rerollChaosInfusion: item.rarity === 'rare', ...omenRerollOptions(item, tier, options.omen) });
+    }
+
+    // ---------------------------------------------------------------- 성화의 뿌리: 세 결과 가운데 고르기 (game.craftChoice)
+    // 2026-10-18 사용자: "다음 제작에 세번 굴려서 세 결과 중에 선택". 아이템은 첫 결과를 바로 받고, 세 결과는 고를 때까지 저장에 남는다
+    // (다시 불러와도 다시 묻는다). 고르기는 같은 아이템의 제작 칸만 바꾼다: 새 아이템을 만들지 않는다.
+    /** The fields a craft writes (applyBasic, fossils, annul, scour, spores, honey): explicit lines, rarity, name, chaos infusion,
+     * the kept side. Base lines, quality, sockets and corruption are not among them. */
+    const CRAFT_FIELDS = Object.freeze(['rarity', 'name', 'stats', 'chaosInfusion', 'affixKeep']);
+    /** A deep copy of item's craft fields (a missing one as null). */
+    function craftFields(item) {
+        return JSON.parse(JSON.stringify(Object.fromEntries(CRAFT_FIELDS.map(key => [key, item[key] === undefined ? null : item[key]]))));
+    }
+    /** Puts saved craft fields back on item, as a copy (a null kept side is no kept side). */
+    function putCraftFields(item, fields) {
+        Object.assign(item, JSON.parse(JSON.stringify(fields)));
+        if (item.affixKeep == null) delete item.affixKeep;
+    }
+    /** What tells whether an item still holds a craft result: rarity, name, the kept side, the chaos infusion's line and each line's id,
+     * value and tier. A load (js/passives.js normalizeItem) fills other line fields (originalVal, valMin, statName, craftSource), so the
+     * whole-field JSON of a loaded item never matched the saved pick, and a reload dropped a waiting 성화 pick (2026-10-20). */
+    const lineMark = stat => (stat ? [stat.id, Number(stat.val), Math.floor(Number(stat.tier) || 0)] : null);
+    const craftMark = fields => JSON.stringify([fields.rarity || null, fields.name || null, fields.affixKeep || null, lineMark(fields.chaosInfusion),
+        (fields.stats || []).map(lineMark)]);
+    const sameCraftFields = (item, fields) => craftMark(craftFields(item)) === craftMark(fields);
+    /** The bag or worn item with id, or null. */
+    function findCraftItem(state, id) {
+        return (state.inventory || []).find(row => row && row.id === id) || Object.values(state.equipment || {}).find(row => row && row.id === id) || null;
+    }
+    /** A live basic craft (js/passives.js useCurrency): applyBasic, and with 성화의 뿌리 more rolls on copies of the item as it was. The
+     * item keeps the first result; all of them wait in state.craftChoice for the player's pick (pickChoice). options.guaranteedFor(copy)
+     * gives each other result its own spore line (as the research simulator rolls them), else they share options.guaranteedStat. */
+    function craftBasic(state, item, action, options) {
+        const before = options.omen && options.omen.effect === 'choice' ? JSON.parse(JSON.stringify(item)) : null;
+        applyBasic(item, action, options);
+        if (!before) return;
+        const others = Array.from({ length: CRAFT_OMENS.choices - 1 }, () => {
+            const copy = JSON.parse(JSON.stringify(before));
+            const guaranteedStat = options.guaranteedFor ? options.guaranteedFor(copy) : options.guaranteedStat;
+            applyBasic(copy, action, { ...options, addedMod: null, guaranteedStat });
+            return craftFields(copy);
+        });
+        state.craftChoice = { itemId: item.id, options: [craftFields(item), ...others] };
+    }
+    /** The 성화의 뿌리 pick waiting ({ item, options }), or null. One whose item is gone or changed since (sold, crafted another way)
+     * is dropped here. */
+    function pendingChoice(state) {
+        const choice = state.craftChoice;
+        if (!choice) return null;
+        const item = findCraftItem(state, choice.itemId);
+        if (item && sameCraftFields(item, choice.options[0])) return { item, options: choice.options };
+        state.craftChoice = null;
+        return null;
+    }
+    /** Why another craft must wait now, or '': a 성화의 뿌리 pick is waiting. */
+    const choiceWaitReason = state => (pendingChoice(state) ? '성화의 뿌리로 굴린 결과 가운데 하나를 먼저 고르세요.' : '');
+    /** Why the fossil craft (js/skills.js applyFossilChaosCraft) cannot run now, or '': the build lock, a waiting pick, then the fossil's
+     * own rules (the crafting room checked the first two for it before). */
+    const fossilCraftReason = (state, item, fossil) => buildLockReason(state) || choiceWaitReason(state)
+        || getFossilUseReason(item, fossil, state.season, state.currencies);
+    /** Puts result index of the waiting pick on its item and ends the pick. Returns the item, or null when nothing waits. */
+    function pickChoice(state, index) {
+        const pending = pendingChoice(state);
+        if (!pending || !pending.options[index]) return null;
+        putCraftFields(pending.item, pending.options[index]);
+        state.craftChoice = null;
+        return pending.item;
+    }
+
+    // ---------------------------------------------------------------- 기억 조각칼 (item.imprint, 화면 이름 기억 새겨짐)
+    // 2026-10-18 사용자가 고른 제작 방법(PoE 야수 제작의 Imprint에서): 장비의 제작 칸(CRAFT_FIELDS)을 새겨 두고 한 번 되돌린다. 같은
+    // 장비의 칸만 바꾸므로 장비가 늘지 않는다. 타락한 장비, 고유, 융합 유물, 전당 소장품은 새기지도 되돌리지도 않는다.
+    const IMPRINT_KEY = 'memoryImprint';
+    /** A saved imprint (craft fields of a magic or rare item), or null: the load boundary (js/passives.js normalizeItem). */
+    function normalizeImprint(value) {
+        return value && typeof value === 'object' && ['magic', 'rare'].includes(value.rarity) && Array.isArray(value.stats) ? value : null;
+    }
+    function imprintBlock(item) {
+        if (!item) return '아이템을 선택하세요.';
+        if (item.corrupted) return '타락한 장비는 새기거나 되돌릴 수 없습니다.';
+        return keepsKind(item) ? KEEPS_KIND : '';
+    }
+    /** Why the build may not change now, or '': the woodsman fight puts gear and bag back to its snapshot every tick (not the wallet),
+     * so a craft paid then would be lost. */
+    function buildLockReason(state) {
+        return state && state.woodsmanBuildLock ? '☠️ 나무꾼 전투 중에는 장비 옵션을 변경할 수 없습니다.' : '';
+    }
+    /** Why item cannot be engraved now, or '': the build lock, a magic or rare piece, and a 기억 조각칼 in the wallet. */
+    function engraveReason(state, item) {
+        const reason = buildLockReason(state) || imprintBlock(item);
+        if (reason) return reason;
+        if (!['magic', 'rare'].includes(item.rarity)) return '마법이나 희귀 장비에 새깁니다.';
+        return (state.currencies[IMPRINT_KEY] || 0) > 0 ? '' : `${ORB_DB[IMPRINT_KEY].name}이 없습니다.`;
+    }
+    /** Engraves item's craft fields for one 기억 조각칼 (an older imprint is replaced). { ok, reason }. */
+    function engrave(state, item) {
+        const reason = engraveReason(state, item);
+        if (reason) return { ok: false, reason };
+        state.currencies[IMPRINT_KEY] -= 1;
+        item.imprint = craftFields(item);
+        return { ok: true };
+    }
+    /** Why item cannot go back to its imprint now, or ''. Its rarity may have changed since (a scour makes it normal). */
+    function restoreReason(item) {
+        return imprintBlock(item) || (normalizeImprint(item.imprint) ? '' : '새긴 기억이 없습니다.');
+    }
+    /** Puts item back to its imprint; the imprint is used up. { ok, reason }. */
+    function restoreImprint(item) {
+        const reason = restoreReason(item);
+        if (reason) return { ok: false, reason };
+        putCraftFields(item, item.imprint);
+        delete item.imprint;
+        return { ok: true };
+    }
+
+    return Object.freeze({ basicActions, rerollActions, basicRule, basicFits, applyBasic, sporePool, pickSporeMod, rollSporeLine, getSource, getLabel, filterSporeMods, resolveAction, getBlockReason, getSporeBlockReason, getFossilBlockReason, getFossilUseReason,
+        affixKind, storedAffixKind, keptKind, keptOnReroll, getAffixKeepReason, affixCounts, affixRoom, fitsRoom, pickReplacement, affixHeader,
+        omenSpec, armOmen, omenFits, omenReason, armedSideReason, onOmenSide, filterOmenMods, weighOmenPool, omenFor, spendOmen, pickAddMod, pickPruneLine, craftBasic, pendingChoice, choiceWaitReason, fossilCraftReason, pickChoice,
+        normalizeImprint, engraveReason, engrave, restoreReason, restoreImprint, buildLockReason });
 })();
 safeExposeGlobals({ equipmentCrafting });

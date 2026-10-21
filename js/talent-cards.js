@@ -189,9 +189,6 @@ function getTalentRuntimeAppliedText(runtime, level) {
     return '';
 }
 
-function escapeTalentHtml(s) {
-    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
 
 /** The level's applied effects as { text, stat } (stat = the stat id for a plain stat line, null for a unique or runtime one). */
 function getTalentPreciseAppliedParts(comboKey, surface, level) {
@@ -224,16 +221,6 @@ function getTalentCardEffectParts(heroId, classKey, level) {
     let hidden = talentHiddenList(def).filter(h => h && h.stat)
         .map(h => ({ text: `${getTalentStatLabel(h.stat)} +${talentHiddenVal(h, lv)}%`, stat: h.stat }));
     return { level: lv, surface: (def.surface && def.surface.desc) || '', applied, hidden };
-}
-
-function getTalentCardEffectLines(heroId, classKey, level) {
-    let parts = getTalentCardEffectParts(heroId, classKey, level);
-    if (!parts) return [];
-    let lines = [];
-    if (parts.surface) lines.push(`<span style="color:#ffd36b;">⭐ [표면] ${escapeTalentHtml(parts.surface)}</span>`);
-    if (parts.applied.length) lines.push(`<span style="color:#ffe7a8;">[현재 Lv.${parts.level}] ${parts.applied.map(part => escapeTalentHtml(part.text)).join(', ')}</span>`);
-    if (parts.hidden.length) lines.push(`<span style="color:#9fe0ff;">[이면] ${parts.hidden.map(part => part.text).join(', ')}</span>`);
-    return lines;
 }
 
 // 고유 효과 키 → 실제 효과를 나타내는 간략한 한국어 설명(파라미터 반영).
@@ -361,13 +348,6 @@ function equipTalentCard(comboKey) {
     for (let i = 0; i < unlocked; i++) { if (!loadout[i]) { target = i; break; } }
     if (target < 0) target = unlocked - 1;
     loadout[target] = comboKey;
-    afterTalentLoadoutChange();
-}
-
-function unequipTalentSlot(slotIndex) {
-    let loadout = ensureTalentCardLoadout();
-    if (slotIndex < 0 || slotIndex >= loadout.length) return;
-    loadout[slotIndex] = null;
     afterTalentLoadoutChange();
 }
 

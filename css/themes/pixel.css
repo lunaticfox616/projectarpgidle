@@ -90,10 +90,10 @@ body[data-ui-skin] {
 
 /* 요소마다 박힌 글꼴(맑은 고딕·IBM Plex 등)을 걷어 내고 부모 글꼴을 따른다. 제목처럼 스킨이 고른 곳만 예외. */
 body[data-ui-skin] :where(*) { font-family: inherit; }
-/* 모서리는 모두 각지게. */
-body[data-ui-skin] :where(*),
-body[data-ui-skin] ::before,
-body[data-ui-skin] ::after { border-radius: 0; }
+/* 모서리는 각지게. 나이테의 원패·주사위는 콘텐츠 고유 형태를 유지한다. */
+body[data-ui-skin] :where(*):not(:where(.ab, .ab *)),
+body[data-ui-skin] :not(:where(.ab, .ab *))::before,
+body[data-ui-skin] :not(:where(.ab, .ab *))::after { border-radius: 0; }
 /* 예외: 패시브 트리의 호버·리빌 고리는 둥근 노드를 감싸는 캔버스 위 표식이라 둥글게 둔다. */
 body[data-ui-skin] #tree-container :is(.passive-overlay-node, .passive-reveal-burst) { border-radius: 50%; }
 /* 도트로 다시 찍은 로고(scripts/build-pixel-ui.cjs): 정수배로 키우고 번지지 않게 */
@@ -115,7 +115,7 @@ body[data-ui-skin] #tree-container :is(.passive-overlay-node, .passive-reveal-bu
 :root body[data-ui-skin] :is(#act-exploration-panel canvas, #act-exploration-map-large) { image-rendering: pixelated; }
 /* 도트로 다시 찍은 아이콘(assets/px/, scripts/build-pixel-icons.cjs), 32도트 세계수 룬, 처음부터 도트로 그린 장비 아이콘
    (assets/items/illustrated/pixel/)도 확대할 때 번지지 않게 */
-body[data-ui-skin] :is(img[src*="assets/px/"], img[src*="assets/gems/world-tree/"], img[src*="assets/items/illustrated/pixel/"]) { image-rendering: pixelated; }
+body[data-ui-skin] :is(img[src*="assets/px/"], img[src*="assets/gems/runes/"], img[src*="assets/items/illustrated/pixel/"]) { image-rendering: pixelated; }
 
 /* 독립 제목: Galmuri11 Bold 24px. 문장 중간의 강조와 달리 한 줄 전체 역할이다. */
 body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutorial-title, .combat-zone-row-title, #ui-combat-zone-inline, .startup-title) {
@@ -172,7 +172,7 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 :root body[data-ui-skin] :is(.records-stat-value, #trait-season-section h2 span, #ui-season-text-tab span) { font-size: 15px; }
 /* 전투 기록 · 툴팁 줄: overflow-wrap:anywhere(와 word-break:break-word)는 줄이 좁아지면 한글 낱말 한가운데서 끊었다
    ("[마법 / 의 들바람 장화]") — 띄어쓰기에서 끊고, 한 낱말이 줄보다 길 때만 쪼갠다. */
-:root body[data-ui-skin] :is(.log-msg, .tooltip-line, .item-description) { word-break: keep-all; overflow-wrap: break-word; }
+:root body[data-ui-skin] :is(.log-msg, .tooltip-line) { word-break: keep-all; overflow-wrap: break-word; }
 /* 보스 특성: 옛 장식 틀의 칸(막대 한가운데, 7 ~ 10px 글씨)에 절대 위치로 얹혀 체력 숫자를 가렸다 — 정예처럼 막대 아래 한 줄(12px) */
 :root body[data-ui-skin] #enemy-area .enemy-card.enemy-boss .enemy-traits,
 :root body[data-ui-skin].mobile-battle-tab #tab-battle .enemy-card.enemy-boss .enemy-traits {
@@ -203,17 +203,17 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 :root body[data-ui-skin] .patch-note-version { font-size: 15px; }
 
 /* 긴 글은 Galmuri14 15px. 문단 안에서 11 Bold를 끼우지 않고 기존 의미 색상으로 강조한다. */
-:root body[data-ui-skin] :is(.tutorial-body, .story-journal-text, .journal-entry-text, .game-dialog-body,
-  .story-scene-copy, .item-description, .condition-gem-heading p, .tactics-defaults p, #item-tooltip-box, #canvas-tooltip, #info-tooltip) {
+:root body[data-ui-skin] :is(.tutorial-body, .game-dialog-body,
+  .story-scene-copy, .condition-gem-heading p, .tactics-defaults p, .ab-lore, #item-tooltip-box, #canvas-tooltip, #info-tooltip) {
   font-family: var(--font-pixel-read);
   font-size: var(--font-size-reading);
   font-weight: var(--font-weight-regular);
   line-height: 1.6;
 }
-:root body[data-ui-skin] :is(.story-scene-copy, .story-journal-text, .journal-entry-text, .game-dialog-body) {
+:root body[data-ui-skin] :is(.story-scene-copy, .game-dialog-body) {
   padding: var(--space-1) var(--space-2);
 }
-:root body[data-ui-skin] :is(.story-scene-copy, .story-journal-text, .journal-entry-text, .game-dialog-body, .item-description) :is(p, b, strong, em) {
+:root body[data-ui-skin] :is(.story-scene-copy, .game-dialog-body) :is(p, b, strong, em) {
   font-family: inherit; font-size: inherit; font-weight: var(--font-weight-regular); font-style: normal;
 }
 :root body[data-ui-skin] :is(#item-tooltip-box, #canvas-tooltip, #info-tooltip) :is(.tooltip-line:not(.tooltip-meta):not(.tooltip-section), .tooltip-final) {
@@ -398,7 +398,6 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 :root body[data-ui-skin] :is(.records-stat-sub, .records-table, .records-offline > summary span, .records-fold > summary span, .records-fold-hint),
 :root body[data-ui-skin] :is(.records-offline, .records-fold) > summary::after,
 :root body[data-ui-skin] :is(.mastery-card small, .mastery-card-head em, .chronicle-chapter span, .chronicle-chapter small) { font-size: 12px; }
-:root body[data-ui-skin] #btn-auto-salvage::after { font-size: 11px; }
 :root body[data-ui-skin] #ui-passive-points { font-size: 20px; }
 :root body[data-ui-skin] :is(#tab-character, #tab-stump) h2,
 :root body[data-ui-skin] #tab-char h2 :is(span, .h2-right) { font-size: 16px; }
@@ -452,13 +451,13 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 /* 예전 스킨의 청회색이 박혀 있던 판도 따뜻한 판으로(패시브 트리 요약 · 검색 목록 · 전장 여백) */
 :root body[data-ui-skin] :is(.search-result-list, .passive-tree-gesture-hint, #passive-investment-summary) { background-color: var(--color-panel-bg); }
 /* 진행 판(루프 패시브 · 전직 · 재능 · 일괄 정리의 접는 판)과 트리 요약: 옛 남색 유리 → 숯빛 판, 먹선 안쪽 어두운 청동 선 */
-:root body[data-ui-skin] :is(.progression-workbench, .progression-section, .bulk-manager, .item-card-more, .trait-progress-summary, .loop10-panel) {
+:root body[data-ui-skin] :is(.progression-workbench, .progression-section, .trait-progress-summary, .loop10-panel) {
   border: 1px solid var(--px-ink);
   border-radius: 0;
   background: var(--px-panel);
   box-shadow: inset 0 0 0 1px var(--px-bronze-lo);
 }
-:root body[data-ui-skin] :is(.progression-workbench, .progression-section, .bulk-manager, .item-card-more)[open] > summary { border-bottom: 1px solid var(--px-bronze-lo); }
+:root body[data-ui-skin] :is(.progression-workbench, .progression-section)[open] > summary { border-bottom: 1px solid var(--px-bronze-lo); }
 :root body[data-ui-skin] .trait-progress-summary > div { border-radius: 0; background: rgba(8, 5, 8, .35); }
 /* 접힌 머리(summary)가 없는 휴대폰에서 판 첫 제목의 도트 글자 윗부분이 판의 overflow에 잘렸다 — 위 여백 */
 :root body[data-ui-skin] .progression-section > h2 { padding-top: 10px; }
@@ -607,9 +606,9 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 /* ─── 역할별 글꼴 규칙 (docs/ui-display.md) ───────────────────────────────────────────
    제목 11 Bold/24, 소제목 11 Bold/12, 조작·수치 11/12, 긴 글 14/15. 여백은 space 토큰을 쓴다.
    새 UI도 이 역할을 재사용하며 같은 역할 수정은 토큰·소유 규칙에서 일괄 적용한다. */
-:root body[data-ui-skin] .tab-content:not(#tab-battle) :is(h1, h2) { font-family: var(--font-pixel-title); font-size: var(--font-size-heading); font-weight: var(--font-weight-emphasis); line-height: 1.5; }
+:root body[data-ui-skin] .tab-content:not(#tab-battle) :is(h1, h2, .ab-title) { font-family: var(--font-pixel-title); font-size: var(--font-size-heading); font-weight: var(--font-weight-emphasis); line-height: 1.5; }
 :root body[data-ui-skin] .tab-content:not(#tab-battle) :is(h1, h2) * { font-family: inherit; font-size: inherit; }
-:root body[data-ui-skin] .tab-content:not(#tab-battle) :is(h3, summary, .records-section-title, .journal-section-title, .gem-enhance-section-title,
+:root body[data-ui-skin] .tab-content:not(#tab-battle) :is(h3:not(.ab-title), summary, .records-section-title, .journal-section-title, .gem-enhance-section-title,
     .map-zone-group-title, .craft-spores-title) { font-family: var(--font-pixel); font-size: var(--font-size-ui); font-weight: var(--font-weight-emphasis); }
 :root body[data-ui-skin] .tab-content:not(#tab-battle) :is(label, button, select, input, textarea, small, td, th, h4, .subtab-btn strong, .equipment-slot-name, .equipment-slot-action,
     .unlock-eyebrow, .unlock-lifetime-tag, .unlock-origin-label, .content-unlock-balance, .records-stat-value, .stat-value) { font-family: var(--font-pixel); font-size: var(--font-size-ui); }

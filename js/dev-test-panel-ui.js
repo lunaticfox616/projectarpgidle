@@ -7,7 +7,7 @@ const devTestPanel = (() => {
     const SPEEDS = [1, 2, 4, 8];
     const WEAPON_MODES = [['auto', '착용 무기'], ['class', '직업 기본'], ['greatsword', '대검'], ['scimitar', '곡도'],
         ['shortbow', '단궁'], ['orb', '오브'], ['flask', '플라스크'], ['censer', '향로']];
-    const STAGE_STANCES = [['auto', '착용 무기'], ['unarmed', '맨손'], ['swordshield', '검방패'], ['dagger', '단검'], ['bow', '활'],
+    const STAGE_STANCES = [['auto', '착용 무기'], ['unarmed', '맨손'], ['greatsword', '대검'], ['sword', '한손검'], ['bow', '활'],
         ['orb', '오브'], ['flask', '플라스크'], ['censer', '향로']];
     let root = null, godTimer = null, speed = 1;
 
@@ -51,6 +51,7 @@ const devTestPanel = (() => {
         note(label);
     }
     function toggleGodMode(on) {
+        setCombatTestImmortal(on);
         clearInterval(godTimer);
         godTimer = on ? setInterval(() => {
             if (game.playerHp > 0) game.playerHp = getPlayerHpCap(getUiPlayerStats());
@@ -85,6 +86,12 @@ const devTestPanel = (() => {
         const made = Array.from({ length: 8 }, (_, i) => stumpBox.createItem(game, { family: i % 3 ? 'seed' : 'sap', color: colors[i % 4], roll: 0.8 + Math.random() * 0.4 }));
         refresh();
         note(`씨앗/수액 ${made.filter(Boolean).length}개`);
+    }
+    /** 고유 액막이 셋(js/colony-wards.js createUnique)을 가방에. */
+    function giveUniqueWards() {
+        const made = COLONY_WARD_UNIQUES.rows.filter(row => addItemToInventory(colonyWards.createUnique(Math.random, 16, row.key), { ignoreFilter: true }));
+        refresh();
+        note(`고유 액막이 ${made.length}개`);
     }
     function growStumpBox() {
         for (let i = 0; i < 100; i++) stumpBox.grow(game, {});
@@ -126,7 +133,8 @@ const devTestPanel = (() => {
         ['창공의 탑', () => SKY_TOWER_ZONE_ID], ['지하계', () => UNDERWORLD_ZONE_ID], ['고대 미궁', () => LABYRINTH_ZONE_ID], ['혼돈계', () => CHAOS_REALM_ZONE_ID],
         ['벌집 원정', () => 'beehive_run', startTestBeehive], ['케르베로스', () => 's6_beast_cerberus'],
         // 2026-10-13 밤: 판에서 싸우다 방 단위 지도를 걷게 된 콘텐츠, 그리고 아틀라스(지도 한 장과 수호자)
-        ['우주계', null, startTestCosmos], ['심해', null, () => startTestOcean(120)], ['심해 가디언', null, () => startTestOcean(500)],
+        ['우주계', null, startTestCosmos], ['심해', null, () => startTestOcean(120)], ['심해 황혼층', null, () => startTestOcean(400)],
+        ['심해 무광층', null, () => startTestOcean(800)], ['심해 가디언', null, () => startTestOcean(500, true)],
         ['경계 너머', null, startTestBoundary], ['군락지', null, startTestColony], ['대균열', null, startTestBreach],
         ['혼돈 밖', () => OUTSIDE_CHAOS_ZONE_ID], ['나무꾼의 잔상', null, startTestEcho],
         ['아틀라스 지도', null, () => startTestAtlas('map')], ['아틀라스 수호자', null, () => startTestAtlas('guardian')]
@@ -156,10 +164,12 @@ const devTestPanel = (() => {
         game.killsInZone = 0;
         openTestZone('cosmos_challenge');
     }
-    /** depth: 잠수를 시작하는 수심(m). 500이면 그 경계의 가디언이 기다린다. */
-    function startTestOcean(depth) {
+    /** depth: 잠수를 시작하는 수심(m, 방 그림의 띠: 300m 아래 얕은 암초, 700m 아래 황혼층, 그 밑 무광층). guardian: 그 수심의 가디언이
+     * 기다린다(해구). 아니면 지나온 경계의 가디언은 쓰러뜨린 것으로 둔다. */
+    function startTestOcean(depth, guardian = false) {
         const ocean = ensureOceanState(), oxygen = Math.max(1, Math.floor(getOceanOxygenMax()));
-        Object.assign(ocean, { unlocked: true, diving: true, checkpointM: depth, depthM: depth, bossClearM: 0, oxygenMax: oxygen, oxygenCur: oxygen,
+        const bossClearM = guardian ? Math.max(0, depth - getOceanBossBoundaryInterval()) : Math.floor(depth / getOceanBossBoundaryInterval()) * getOceanBossBoundaryInterval();
+        Object.assign(ocean, { unlocked: true, diving: true, checkpointM: depth, depthM: depth, bossClearM, oxygenMax: oxygen, oxygenCur: oxygen,
             drowning: false, drownSec: 0, lastTickAt: getCombatTime() });
         openTestZone(OCEAN_ZONE_ID);
     }
@@ -217,7 +227,7 @@ const devTestPanel = (() => {
         game.maxZoneId = Math.max(game.maxZoneId || 0, zoneId);
         changeZone(zoneId);
         refresh();
-        note(`액트 ${order}(으)로 이동`);
+        note(`${withDirectionParticle(`액트 ${order}`)} 이동`);
     }
 
     // ------------------------------------------------------------------ markup
@@ -312,8 +322,21 @@ const devTestPanel = (() => {
         const god = el('input', { type: 'checkbox', id: 'dtp-god', onchange: () => toggleGodMode(god.checked) });
         return section('전투', [
             row([el('label', { htmlFor: 'dtp-god' }, [god, ' 무적(생명력 유지)'])]),
-            row(SPEEDS.map(value => button(`×${value}`, () => setSpeed(value), { dataset: { speed: String(value) } })))
+            row(SPEEDS.map(value => button(`×${value}`, () => setSpeed(value), { dataset: { speed: String(value) } }))),
+            // 잔잔한 사건(js/combat-incidents.js): 지금 싸우는 무리 곁에 슬라임을 바로 세운다
+            row([el('label', { textContent: '사건' }), button('금빛 슬라임', () => spawnCritter(false)), button('무지갯빛 슬라임', () => spawnCritter(true)),
+                button('하품', () => note(combatIncidents.testYawn() ? '세계수가 하품을 했습니다' : '지금 싸우는 몬스터가 없습니다')),
+                button('잠든 무리', () => note(combatIncidents.testSleep() ? '지금 방의 몬스터가 잠들었습니다' : '지금 싸우는 몬스터가 없습니다')),
+                button('길 잃은 몬스터', () => note(combatIncidents.testStray() ? '길 잃은 몬스터를 세웠습니다' : '바꿀 몬스터나 가 본 다른 액트가 없습니다')),
+                button('별똥별', () => note(combatIncidents.testStar() ? '별똥별을 떨어뜨렸습니다' : '방 단위 지도의 방에서만 됩니다')),
+                button('사냥 도전', () => note(combatIncidents.testChallenge() ? '사냥 도전을 열었습니다' : '방 단위 지도의 방에서만, 하나씩 됩니다')),
+                button('세계수의 숨결', () => note(combatIncidents.testBreath() ? '세계수의 숨결이 깃들었습니다' : '숨결을 부르지 못했습니다')),
+                button('유성우', () => note(combatIncidents.testShower() ? '유성우를 떨어뜨렸습니다' : '방 단위 지도의 방에서만 됩니다')),
+                button('수액 잔치', () => note(combatIncidents.testFeast() ? '황금 수액 잔치를 열었습니다' : '지금 방에 보통 몬스터가 없습니다'))])
         ]);
+    }
+    function spawnCritter(rainbow) {
+        note(combatIncidents.testSpawn(rainbow) ? '수액 슬라임을 세웠습니다' : '지금 방에서 싸우는 무리가 없습니다');
     }
     function progressSection() {
         const acts = el('select', { id: 'dtp-act' }, STORY_ACTS.map(act => el('option', { value: String(act.order), textContent: `액트 ${act.displayAct}, ${act.title}` })));
@@ -322,7 +345,8 @@ const devTestPanel = (() => {
             row([button('레벨 +1', () => addLevels(1)), button('레벨 +5', () => addLevels(5)), button('레벨 +20', () => addLevels(20))]),
             row([acts, button('이동', () => travelToAct(Number(acts.value)))]),
             row([zones, button('시험 입장', () => enterTestZone(Number(zones.value)))]),
-            row([button('그루터기 함 받기', grantStumpBox), button('씨앗/수액 +8', giveStumpItems), button('함 성장 +100', growStumpBox)])
+            row([button('그루터기 함 받기', grantStumpBox), button('씨앗/수액 +8', giveStumpItems), button('함 성장 +100', growStumpBox)]),
+            row([button('고유 액막이 셋', giveUniqueWards), button('완전한 코어', () => { coreItems.keep(coreItems.rollPerfect()); refresh(); note('완전한 코어 1개'); })])
         ]);
     }
     function status() {

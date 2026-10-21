@@ -17,6 +17,9 @@ const RECORDS_LOOP_HISTORY_LIMIT = 30;
 // 한 틱에서 이 이상 벌어진 간격은 "게임이 굴러간 시간"이 아니라 자리를 비운 구간으로 본다.
 // 포그라운드 틱은 100ms, 백그라운드 정산도 100ms 스텝으로 시뮬레이션 시계를 밀어 준다.
 const RECORDS_ACTIVE_TICK_MAX_MS = 5000;
+// 층 기록은 돌파한 층을 남긴다(2026-10-19 사용자 결정). 전에는 다음에 열린 층이라 한 층 높았다. 군락지 기록도 깬 웨이브를 남긴다
+// (2026-10-20, 전에는 들어선 웨이브라 하나 높았다).
+const RECORD_CLEARED_FLOOR_KEYS = Object.freeze(['labyrinthFloor', 'chaosRealmFloor', 'skyFloor', 'underworldFloor']);
 
 function createDefaultRecordsState(now) {
     return {
@@ -26,9 +29,30 @@ function createDefaultRecordsState(now) {
         loops: [],
         actBest: {},
         echo: { bestDps: 0, bestDamage: 0, runs: 0, lastAt: 0 },
-        best: {}
+        best: {},
+        clearedFloorBests: true,
+        clearedColonyBests: true,
+        incidents: {}
     };
 }
+
+
+/** 층 기록이 다음에 열린 층이던 저장(clearedFloorBests)과 군락지 기록이 들어선 웨이브이던 저장(clearedColonyBests)을 한 번씩 낮춘다.
+ * 표식은 예전 판이 지우지 않아, 판을 오가도 두 번 낮추지 않는다. */
+function keepClearedBests(records) {
+    lowerBestsOnce(records, 'clearedFloorBests', RECORD_CLEARED_FLOOR_KEYS);
+    lowerBestsOnce(records, 'clearedColonyBests', ['colonyWave']);
+}
+function lowerBestsOnce(records, flag, keys) {
+    if (records[flag] === true) return;
+    keys.forEach(key => {
+        if (records.best[key] !== undefined) records.best[key] = Math.max(0, toPositiveInt(records.best[key]) - 1);
+    });
+    records[flag] = true;
+}
+
+/** 잔잔한 사건을 겪은 횟수의 모양(열쇠마다 수인 객체), 아니면 빈 객체. */
+const keepIncidentCounts = value => (value && typeof value === 'object' && !Array.isArray(value) ? value : {});
 
 function toPositiveInt(value) {
     let num = Math.floor(Number(value) || 0);
@@ -46,6 +70,9 @@ function ensureRecordsState(state) {
     r.loops = Array.isArray(r.loops) ? r.loops.filter(row => row && typeof row === 'object') : [];
     r.actBest = (r.actBest && typeof r.actBest === 'object') ? r.actBest : {};
     r.best = (r.best && typeof r.best === 'object') ? r.best : {};
+    // 잔잔한 사건을 겪은 횟수(recordIncident): 매 틱 부르므로 모양만 지킨다. 값은 셀 때와 읽을 때(getRecordsView) 0 이상의 정수로 읽는다.
+    r.incidents = keepIncidentCounts(r.incidents);
+    keepClearedBests(r);
     r.echo = (r.echo && typeof r.echo === 'object') ? r.echo : { bestDps: 0, bestDamage: 0, runs: 0, lastAt: 0 };
     r.echo.bestDps = Math.max(0, Number(r.echo.bestDps) || 0);
     r.echo.bestDamage = Math.max(0, Number(r.echo.bestDamage) || 0);
@@ -68,10 +95,10 @@ function ensureRecordsState(state) {
 }
 
 // ── 최고 기록 적립 ──────────────────────────────────────────────────
-// Starting floors represent unopened progress, including in pre-fix saved records.
+// The chaos depth starts at 20, so 20 is no progress (floor records keep the floor cleared: 0 is none).
 // Filter a copy so reading a legacy record never rewrites the save.
 function getAchievedRecordBests(best) {
-    const baselines = { abyssDepth: 20, labyrinthFloor: 1, skyFloor: 1, underworldFloor: 1 };
+    const baselines = { abyssDepth: 20 };
     return Object.fromEntries(Object.entries(best).filter(([key, value]) => toPositiveInt(value) > (baselines[key] || 0)));
 }
 
@@ -79,7 +106,6 @@ function getAchievedRecordBests(best) {
 // 역대 최고를 단조 증가로 남긴다. 값을 읽기만 하고 원본은 건드리지 않는다.
 function getRecordBestSources(g) {
     let chaosRealm = (g.chaosRealm && typeof g.chaosRealm === 'object') ? g.chaosRealm : {};
-    let skyTower = (g.skyTower && typeof g.skyTower === 'object') ? g.skyTower : {};
     let underworld = (g.underworldProgress && typeof g.underworldProgress === 'object') ? g.underworldProgress : {};
     let ocean = (g.ocean && typeof g.ocean === 'object') ? g.ocean : {};
     let colony = (g.colony && typeof g.colony === 'object') ? g.colony : {};
@@ -88,19 +114,21 @@ function getRecordBestSources(g) {
         level: toPositiveInt(g.level),
         loop: Math.max(1, Math.floor(g.season || 1)),
         abyssDepth: toPositiveInt(g.abyssEndlessDepth),
-        labyrinthFloor: toPositiveInt(g.labyrinthUnlockedMaxFloor || g.labyrinthFloor),
-        chaosRealmFloor: toPositiveInt(chaosRealm.highestFloor),
-        skyFloor: toPositiveInt(skyTower.highestFloor),
-        underworldFloor: toPositiveInt(underworld.highestFloor),
-        oceanBoundary: toPositiveInt(ocean.highestBoundary || ocean.bestBoundary || ocean.highestDepth),
-        colonyWave: Math.max(toPositiveInt(colony.highestWave), toPositiveInt(colony.wave))
+        // 층 콘텐츠는 다음에 열린 층을 들고 있어(돌파 층 + 1) 하나 뺀다.
+        labyrinthFloor: Math.max(0, toPositiveInt(g.labyrinthUnlockedMaxFloor || g.labyrinthFloor) - 1),
+        chaosRealmFloor: Math.max(0, toPositiveInt(chaosRealm.highestFloor) - 1),
+        skyFloor: getClearedSkyTowerFloor(g),
+        underworldFloor: Math.max(0, toPositiveInt(underworld.highestFloor) - 1),
+        oceanBoundary: Math.max(toPositiveInt(ocean.depthM), toPositiveInt(ocean.checkpointM)),
+        // 군락지는 들어선 웨이브를 들고 있어(깬 웨이브 + 1) 하나 뺀다.
+        colonyWave: Math.max(0, Math.max(toPositiveInt(colony.highestWave), toPositiveInt(colony.wave)) - 1)
     });
 }
 
 // 실제 경과(벽시계)와 활동 시간을 나눠 센다.
 //
-// 방치형은 자리를 비운 동안 게임이 그만큼 진행되지 않는다. 복귀 정산은 실제 경과의 10%만,
-// 그것도 3시간까지만 시뮬레이션한다(js/ui.js의 BACKGROUND_PROGRESS_RATE / MAX_REAL_MS).
+// 방치형은 자리를 비운 동안 게임이 그만큼 진행되지 않는다. 복귀 정산은 실제 경과의 일부(효율 30~75%)만,
+// 그것도 한도(3~24시간)까지만 시뮬레이션한다(js/ui.js calculateBackgroundProgressMs, data/offline-progress.js).
 // 그래서 벽시계로 잰 "루프 소요 시간"은 사실상 "얼마나 자리를 안 비웠나"를 재게 되어
 // 루프끼리 비교하는 의미가 사라진다. 틱이 실제로 돈 시간만 따로 적립해 비교에 쓴다.
 // 전투 시계가 있는 저장은 실제로 실행한 틱 시간만 적립한다.
@@ -154,6 +182,15 @@ function recordWoodsmanEchoRun(totalDamage, dps, state) {
     r.echo.lastAt = Date.now();
     r.echo.bestDps = Math.max(r.echo.bestDps, Math.max(0, Number(dps) || 0));
     r.echo.bestDamage = Math.max(r.echo.bestDamage, Math.max(0, Number(totalDamage) || 0));
+}
+
+// ── 잔잔한 사건 ─────────────────────────────────────────────────────
+// 금빛 수액 슬라임을 잡았다, 별똥별이 떨어졌다 같은 사건마다 한 번. 루프를 넘겨도 남는다.
+function recordIncident(kind, state) {
+    let g = state || (typeof game !== 'undefined' ? game : null);
+    if (!g || !ACT_EXPLORATION_INCIDENTS.records.some(([key]) => key === kind)) return;
+    let r = ensureRecordsState(g);
+    r.incidents[kind] = toPositiveInt(r.incidents[kind]) + 1;
 }
 
 // ── 루프 경계 ───────────────────────────────────────────────────────
@@ -220,7 +257,8 @@ function getRecordsView(state) {
         },
         actBest: { ...r.actBest },
         echo: { ...r.echo },
-        best: getAchievedRecordBests(r.best)
+        best: getAchievedRecordBests(r.best),
+        incidents: ACT_EXPLORATION_INCIDENTS.records.map(([key, name, hidden]) => ({ key, name, hidden, count: toPositiveInt(r.incidents[key]) }))
     };
 }
 
@@ -229,6 +267,7 @@ safeExposeGlobals({
     trackRecordBests,
     recordActClear,
     recordWoodsmanEchoRun,
+    recordIncident,
     closeLoopRecord,
     getRecordsView,
     createDefaultRecordsState,

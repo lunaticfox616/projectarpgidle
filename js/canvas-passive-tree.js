@@ -342,6 +342,14 @@ function drawPassiveNodeEffectLabel(ctx, node, radius, active, reachable, visibi
     ctx.restore();
 }
 
+/** The nodes a hover would allocate (tooltip cost, "찍으면" preview, drawn path). An Andromeda free node is itself alone, at one point
+ * (js/passives.js getPassiveActivationPath): the tooltip counted the way to the nearest owned node (2026-10-20 review: "9포인트 필요"
+ * for a node taken at one point). */
+function getHoverAllocationNodeIds(hoveredNodeId) {
+    if (hoveredNodeId && passiveRouting.freeNodes(PASSIVE_TREE, game).has(String(hoveredNodeId))) return new Set([hoveredNodeId]);
+    return getHoveredPassivePathNodeIds(hoveredNodeId);
+}
+
 function getHoveredPassivePathNodeIds(hoveredNodeId) {
     if (!hoveredNodeId) return new Set();
     const cacheKey = String(hoveredNodeId);
@@ -458,7 +466,7 @@ function createPassiveDrawFrame() {
         isActive: id => allocated.has(id),
         blackHoles: new Set(passiveRouting.transcendentNodeIds(game, 'blackHole')),
         linkedIds: getHoveredPassiveLinkedIds(hoverId),
-        pathIds: getHoveredPassivePathNodeIds(hoverId),
+        pathIds: getHoverAllocationNodeIds(hoverId),
         rootId: getPassiveTreeRootNodeId(),
         lightweightMode: !!isDragging,
         zoomedOutMode: camZoom <= PASSIVE_TREE_SIMPLIFY_ZOOM,
@@ -742,6 +750,9 @@ function getDropOnlyItemSourceMeta(item) {
         ancient_labyrinth: { badgeClass: 'item-source-badge item-source-badge--ancient-labyrinth', toneClass: 'item-source-tone--ancient-labyrinth', label: '고대 미궁 한정' },
         grand_breach_run: { badgeClass: 'item-source-badge item-source-badge--rift', toneClass: 'item-source-tone--rift', label: '대균열 한정' },
         atlasLate: { badgeClass: 'item-source-badge item-source-badge--atlas-late', toneClass: 'item-source-tone--atlas-late', label: '아틀라스 한정' },
+        seasonBoss: { badgeClass: 'item-source-badge item-source-badge--root-boss', toneClass: 'item-source-tone--root-boss', label: '보스 한정' },
+        skyTower: { badgeClass: 'item-source-badge item-source-badge--sky-tower', toneClass: 'item-source-tone--sky-tower', label: '창공의 탑 한정' },
+        colony: { badgeClass: 'item-source-badge item-source-badge--colony', toneClass: 'item-source-tone--colony', label: '군락지 한정' },
         realm_chaos: { badgeClass: 'item-source-badge item-source-badge--realm-chaos', toneClass: 'item-source-tone--realm-chaos', label: '혼돈계 한정' },
         realm_underworld: { badgeClass: 'item-source-badge item-source-badge--realm-underworld', toneClass: 'item-source-tone--realm-underworld', label: '지하계 한정' },
         realm_cosmos: { badgeClass: 'item-source-badge item-source-badge--realm-cosmos', toneClass: 'item-source-tone--realm-cosmos', label: '우주계 한정' }
@@ -806,6 +817,23 @@ function paperdollItemLabel(item) {
     return item.baseName;
 }
 
+/** 세 번째 반지 칸(초월 공허 '세 번째 손가락')이 열려 있는가. */
+const isThirdRingOpen = () => typeof getTranscendentVoidPassiveCount === 'function' && getTranscendentVoidPassiveCount('thirdFinger', game) > 0;
+/** 세 번째 손가락이 없는데 세 번째 반지 칸에 남은 반지: 흐리게(효과가 꺼져 있다, js/combat-equipment-stats.js). */
+const thirdRingOffClass = slot => (slot === '반지3' && !isThirdRingOpen() ? ' is-off' : '');
+/** 장착 칸 목록: 세 번째 반지 칸은 세 번째 손가락이 있을 때, 또는 그 칸에 반지가 남아 있을 때만(꺼진 채, 두 번 눌러 뺀다). */
+function getPaperdollSlots() {
+    const slots = ['무기', '투구', '목걸이', '장갑1', '갑옷', '방패', '반지1', '허리띠', '반지2', '신발', '장갑2'];
+    return isThirdRingOpen() || (game.equipment || {})['반지3'] ? [...slots, '반지3'] : slots;
+}
+/** 장착 칸을 그리고 배치를 고른다(css/equipment-window.css): 세 번째 반지는 코어 칸이 없으면 그 자리, 코어가 있으면 신발 아래 줄. */
+function setPaperdollHtml(targetId, html) {
+    const list = document.getElementById(targetId);
+    list.innerHTML = html;
+    list.classList.toggle('has-ring3', !!list.querySelector('.slot-반지3'));
+    list.classList.toggle('has-core', !!list.querySelector('.slot-코어'));
+}
+
 function renderPaperdoll(targetId, forCrafting) {
     let html = '';
     let query = getEquipSearchQueryLocal();
@@ -817,9 +845,9 @@ function renderPaperdoll(targetId, forCrafting) {
         }
         return highlightEquipTextLocal(text, query);
     };
-    ['무기', '투구', '목걸이', '장갑1', '갑옷', '방패', '반지1', '허리띠', '반지2', '신발', '장갑2'].forEach(slot => {
+    getPaperdollSlots().forEach(slot => {
         let item = game.equipment[slot];
-        let displaySlot = slot.replace(/[12]/, '');
+        let displaySlot = slot.replace(/[123]$/, '');
         let selected = isCraftSelectionEquipAvailableLocal() && getCraftSelectionRefLocal() === slot;
         if (item) {
             let click = forCrafting
@@ -831,7 +859,7 @@ function renderPaperdoll(targetId, forCrafting) {
                 ? `<button class="equipment-slot-action" onclick="event.stopPropagation(); selectForCrafting('${slot}', true)">제작 선택</button>`
                 : '';
             let sourceMeta = getDropOnlyItemSourceMeta(item);
-            let sourceTone = sourceMeta ? sourceMeta.toneClass : '';
+            let sourceTone = (sourceMeta ? sourceMeta.toneClass : '') + thirdRingOffClass(slot);
             let preview = `if(window.matchMedia('(hover: hover)').matches) showItemTooltip(event, '${slot}', true)`;
             html += `<div class="slot-box equipment-slot slot-${slot} rarity-${item.rarity || 'normal'} ${selected ? 'selected' : ''} ${sourceTone}${itemInfluencesUi.influenceClasses(item)}" style="${itemInfluencesUi.influenceStyle(item)}" data-slot="${slot}" data-item-tooltip-anchor="1" onclick="${click}" ondblclick="${doubleClick}" onmouseenter="${preview}" onmousemove="${preview}" onmouseleave="hideItemTooltip(event)">
                 <div class="equipment-slot-head"><span>${displaySlot}</span>${equipmentSocketsUi.pipsHtml(item)}</div><div class="equipment-slot-visual"><img src="${getEquipmentGridVisualAsset(item)}" alt="" aria-hidden="true" draggable="false"></div>
@@ -848,7 +876,7 @@ function renderPaperdoll(targetId, forCrafting) {
         }
     });
     if (targetId === 'ui-equip-list') html += coreItemsUi.slotHtml() + colonyWardsUi.slotsHtml();
-    document.getElementById(targetId).innerHTML = html;
+    setPaperdollHtml(targetId, html);
     if (targetId === 'ui-equip-list') equipmentAuxUi.render();
 }
 
@@ -1015,7 +1043,7 @@ function renderInventoryCard(item, idx, mode, triageResult) {
         ${typeof renderInventoryItemVisual === 'function' ? renderInventoryItemVisual(item, 'equipment', 'equipment-card-visual') : ''}
         <div class="equipment-card-main">
             <div class="equipment-card-topline"><span class="equipment-card-slot">${hi(typeof getItemSlotDisplayLabel === 'function' ? getItemSlotDisplayLabel(item) : item.slot)}</span>${presetBadge}<span class="equipment-card-rarity">${rarityLabel}</span>${lockIcon}</div>
-            <div class="item-title equipment-card-name ${item.rarity}">${hi(item.name)}${exceptionalStars}${sourceBadge}${recordedTag}${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.corrupted ? ' <span style="color:#e74c3c;">(타락)</span>' : ''}</div>
+            <div class="item-title equipment-card-name ${item.rarity}">${hi(item.name)}${exceptionalStars}${sourceBadge}${recordedTag}${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.corrupted ? ' <span style="color:#e74c3c;">(타락)</span>' : ''}${craftingWorkspaceUi.imprintMark(item)}</div>
             ${itemInfluencesUi.tagsHtml(item)}<div class="item-base-line equipment-card-base">${hi(item.baseName)}</div>
             <div class="item-stats equipment-card-meta${triageResult ? ' has-triage' : ''}">${metaChips}</div>
         </div>

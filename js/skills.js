@@ -143,6 +143,7 @@ function selectGemEnhanceTargetSkill(name) {
 
 function upgradeActiveGemWithCondensedSkyPower() {
     if (!contentProgression.isUnlocked('gemForge')) return;
+    if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     let active = getGemEnhanceTargetSkill();
     if (!isEnhanceableAttackGem(active) || !Array.isArray(game.skills) || !game.skills.includes(active)) return addLog('영구 강화할 공격 룬을 먼저 선택하세요.', 'attack-monster');
     let st = ensureSkyTowerState();
@@ -159,6 +160,7 @@ function upgradeActiveGemWithCondensedSkyPower() {
 }
 
 function upgradeSkyEngraveCap() {
+    if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     if (!contentProgression.isUnlocked('engraving') || (game.season || 1) < 4) {
         addLog('창공 각인 확장은 루프4부터 가능합니다.', 'attack-monster');
         return false;
@@ -293,18 +295,28 @@ function getGemSkyEnhanceGemLevelBonus(skillName) {
     });
     return Math.max(0, Math.floor(bonus));
 }
+/** A skill rune's levels beyond its own: the sky tower boost (응축 창공), the material levels (the core forge, +2 awakened, the boost)
+ * and the sky engraving's rune levels. The one source for the active skill, the rune presentation and the summon level. */
+function getSkillRuneBonusLevels(name, record) {
+    const permanentSkyBonus = typeof getSkyTowerGemBoostLevel === 'function' ? getSkyTowerGemBoostLevel(name) : 0;
+    const materialBonus = gemCoreForge.effects(record).levels + (record.awakened ? 2 : 0) + permanentSkyBonus;
+    return { permanentSkyBonus, materialBonus, engraveLevel: getGemSkyEnhanceGemLevelBonus(name) };
+}
+/** The extra levels of a rune that is not a skill rune. */
+const NO_RUNE_BONUS_LEVELS = Object.freeze({ permanentSkyBonus: 0, materialBonus: 0, engraveLevel: 0 });
 
+/** Why an engraving cannot go on now, or '': the woodsman fight's build lock, the engraving unlock (loop 4), sky essence, and the
+ * awakening unlock for awakened engravings. */
+function getSkyEngraveApplyRefusal(enhanceId) {
+    if (game.woodsmanBuildLock) return '☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.';
+    if (!contentProgression.isUnlocked('engraving') || (game.season || 1) < 4) return '창공의 정수는 루프4부터 사용할 수 있습니다.';
+    if ((game.currencies.skyEssence || 0) <= 0) return '창공의 정수가 부족합니다.';
+    return canUseSkyEnhancement(enhanceId) ? '' : '각성 각인은 ‘해금’의 룬 각성을 열어야 쓸 수 있습니다.';
+}
 function applySkyGemEnhancementToActive(enhanceId, requestedSlotIndex) {
-    if (!contentProgression.isUnlocked('engraving') || (game.season || 1) < 4) {
-        addLog('창공의 정수는 루프4부터 사용할 수 있습니다.', 'attack-monster');
-        return false;
-    }
-    if ((game.currencies.skyEssence || 0) <= 0) {
-        addLog('창공의 정수가 부족합니다.', 'attack-monster');
-        return false;
-    }
-    if (!canUseSkyEnhancement(enhanceId)) {
-        addLog('각성 각인은 ‘해금’의 룬 각성을 열어야 쓸 수 있습니다.', 'attack-monster');
+    const refusal = getSkyEngraveApplyRefusal(enhanceId);
+    if (refusal) {
+        addLog(refusal, 'attack-monster');
         return false;
     }
     let active = getGemEnhanceTargetSkill();
@@ -375,12 +387,17 @@ function getSkyGemEnhancementRemoveCost() {
     return 2;
 }
 
+/** The slot holding enhanceId: the asked slot (or the selected one) when it holds it, else wherever it is; -1 when nowhere. */
+function findSkyEngraveSlot(slots, enhanceId, slotIndex) {
+    let selectedSlot = Number.isFinite(Number(slotIndex)) ? Math.max(0, Math.min(4, Math.floor(Number(slotIndex)))) : getSelectedGemEngraveSlot();
+    return slots[selectedSlot] === enhanceId ? selectedSlot : slots.indexOf(enhanceId);
+}
 function removeSkyGemEnhancementFromActive(enhanceId, slotIndex) {
     if (!contentProgression.isUnlocked('engraving')) return false;
+    if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     let active = getGemEnhanceTargetSkill();
     let slots = getSkyEnhancementSlotsForSkill(active);
-    let selectedSlot = Number.isFinite(Number(slotIndex)) ? Math.max(0, Math.min(4, Math.floor(Number(slotIndex)))) : getSelectedGemEngraveSlot();
-    if (slots[selectedSlot] !== enhanceId) selectedSlot = slots.indexOf(enhanceId);
+    let selectedSlot = findSkyEngraveSlot(slots, enhanceId, slotIndex);
     if (selectedSlot < 0) return false;
     let cost = getSkyGemEnhancementRemoveCost();
     if (cost > 0 && (game.currencies.skyEssence || 0) < cost) {
@@ -398,6 +415,7 @@ function removeSkyGemEnhancementFromActive(enhanceId, slotIndex) {
 
 
 function upgradeActiveGemQuality() {
+    if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     let active = getGemEnhanceTargetSkill();
     game.gemData[active] = normalizeGemRecord(game.gemData[active]);
     let gem = game.gemData[active];
@@ -455,20 +473,31 @@ function processSupportGemWithSkyEssence(name) {
 }
 
 
+/** Why the equipped attack rune cannot become an awakening candidate now, or '': no such rune, already awakened, below Lv.20, or
+ * too few 각성 잔향. */
+function getGemAwakenRefusal(active, gem, echoNeed) {
+    if (!gem || !isEnhanceableAttackGem(active)) return '각성할 공격 룬을 먼저 장착하세요.';
+    if (gem.awakened) return '이미 각성 후보로 변환된 룬입니다.';
+    if ((gem.level || 1) < 20) return 'Lv.20 이상의 공격 룬만 각성 후보로 변환할 수 있습니다.';
+    return (game.currencies.awakenedEcho || 0) < echoNeed ? `각성 잔향이 부족합니다. (필요: ${echoNeed})` : '';
+}
+/** ' 각성 효과: …' for a rune with its own awakened effect (GEM_AWAKENED_PERKS), else ''. */
+function getGemAwakenedPerkNote(name) {
+    return Object.hasOwn(GEM_AWAKENED_PERKS, name) ? ` 각성 효과: ${GEM_AWAKENED_PERKS[name].label}.` : '';
+}
 function awakenActiveGemCandidate() {
+    if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     if (!contentProgression.isUnlocked('gemAwakening')) return addLog('각성 후보 변환은 ‘해금’의 룬 각성을 열어야 쓸 수 있습니다.', 'attack-monster');
     let active = getGemEnhanceTargetSkill();
     game.gemData[active] = normalizeGemRecord(game.gemData[active]);
     let gem = game.gemData[active];
-    if (!gem || !isEnhanceableAttackGem(active)) return addLog('각성할 공격 룬을 먼저 장착하세요.', 'attack-monster');
-    if (gem.awakened) return addLog('이미 각성 후보로 변환된 룬입니다.', 'attack-monster');
-    if ((gem.level || 1) < 20) return addLog('Lv.20 이상의 공격 룬만 각성 후보로 변환할 수 있습니다.', 'attack-monster');
     let echoNeed = 3;
-    if ((game.currencies.awakenedEcho || 0) < echoNeed) return addLog(`각성 잔향이 부족합니다. (필요: ${echoNeed})`, 'attack-monster');
+    const refusal = getGemAwakenRefusal(active, gem, echoNeed);
+    if (refusal) return addLog(refusal, 'attack-monster');
     game.currencies.awakenedEcho -= echoNeed;
     gem.awakened = true;
     gem.skyEnhanceCap = Math.min(5, Math.max(gem.skyEnhanceCap || 1, 2));
-    addLog(`🌌 [${active}] 각성 룬 변환 완료! 총 룬 레벨 +2 및 각인 슬롯 보정이 적용됩니다. 각성 각인은 각성 룬이 아니어도 부여할 수 있습니다.`, 'loot-unique');
+    addLog(`🌌 [${active}] 각성 룬 변환 완료! 총 룬 레벨 +2 및 각인 슬롯 보정이 적용됩니다.${getGemAwakenedPerkNote(active)} 각성 각인은 각성 룬이 아니어도 부여할 수 있습니다.`, 'loot-unique');
     updateStaticUI();
 }
 
@@ -573,7 +602,7 @@ function weighFossilTagMods(pool, fossilKey) {
 function applyFossilChaosCraft(fossilKey) {
     let fossil = FOSSIL_DB.find(entry => entry.key === fossilKey);
     let item = getSelectedCraftItem();
-    const craftBlock = equipmentCrafting.getFossilUseReason(item, fossil, game.season, game.currencies);
+    const craftBlock = equipmentCrafting.fossilCraftReason(game, item, fossil);
     if (craftBlock) return addLog(craftBlock, 'attack-monster');
     let immutableIds = new Set(typeof getImmutableItemSpecialStats === 'function' ? getImmutableItemSpecialStats(item).map(stat => stat && stat.id).filter(Boolean) : []);
     let lockedStats = (item.stats || []).filter(stat => equipmentCrafting.keptOnReroll(item, stat));
@@ -691,14 +720,6 @@ function restorePrimalFossil(kind) {
     updateStaticUI();
 }
 
-
-function getItemTotalStats(item) {
-    let bucket = createEmptyStatBucket();
-    applyStatsToBucket(bucket, item.baseStats || []);
-    applyStatsToBucket(bucket, item.stats || []);
-    if (typeof getImmutableItemSpecialStats === 'function') applyStatsToBucket(bucket, getImmutableItemSpecialStats(item));
-    return bucket;
-}
 
 // knownStats: 이미 계산해 둔 스탯이 있으면 넘긴다. getPlayerStats는 한 번에 2.7ms가
 // 드는데, 화면 갱신마다 여기서 한 번, 바로 뒤에서 또 한 번 부르고 있었다.
@@ -850,18 +871,16 @@ function hasEquippedShield() {
     return !!(shield && shield.slot === '방패');
 }
 
-/** 낀 무기의 자세(data/stage-view.js의 자세 id): 대분류 → 자세(SKILL_RUNE_STANCE_BY_CATEGORY), 방패를 함께 낀 곡도는 검방패, 무기가 없으면 맨손. */
+/** 낀 무기의 자세(data/stage-view.js의 자세 id): 대분류 → 자세(SKILL_RUNE_STANCE_BY_CATEGORY), 무기가 없으면 맨손. */
 function getEquippedWeaponStance() {
     const weapon = combatEquipmentStats.activeEquipment(game)['무기'];
     const category = weapon && typeof getWeaponCategoryId === 'function' ? getWeaponCategoryId(weapon) : null;
-    if (!category) return 'unarmed';
-    if (category === 'scimitar' && hasEquippedShield()) return 'swordshield';
-    return SKILL_RUNE_STANCE_BY_CATEGORY[category] || 'unarmed';
+    return (category && SKILL_RUNE_STANCE_BY_CATEGORY[category]) || 'unarmed';
 }
 
 /** 태그 피해 계산 호출부(combat.js, gem-selection-ui.js)가 쓰는 태그: 방패를 들고 쓰는 근접 공격은 방패 스킬로 친다(방패 공명, 방패 스킬 피해).
- * 방패 태그 룬(방패 투척, 방패 돌진)이 2026-10-17 스킬룬 인계에서 빠져 방패 스킬 피해가 붙을 곳이 없었다. 자세가 아니라 든 방패를 본다:
- * 대검도 검방패 자세를 쓴다. */
+ * 방패 태그 룬(방패 투척, 방패 돌진)이 2026-10-17 스킬룬 인계에서 빠져 방패 스킬 피해가 붙을 곳이 없었다. 자세가 아니라 든 방패를 본다
+ * (방패를 그린 자세는 없다). */
 function getSkillDamageTagSet(skill) {
     const tags = new Set(skill.tags || []);
     if (tags.has('melee') && hasEquippedShield()) tags.add('shield');
@@ -939,9 +958,13 @@ function getGemSpellEarlyMultiplier(skill, level) {
     return start + (1 - start) * Math.min(1, Math.max(0, (level - 1) / (until - 1)));
 }
 
+/** 이동 스킬룬(태그 mobility, js/mobility-skill.js isMobilityGem과 같은 판정)인가. */
+const isMobilityRuneName = name => (SKILL_DB[name]?.tags || []).includes('mobility');
 /** 주 공격 칸의 룬을 지금 무기에 맞춘다: 못 쓰면 기본 공격으로 바꿔 두고 그 룬을 game.weaponBlockedSkill에 적어 두며, 맞는 무기를 다시
  * 들면 그 룬으로 돌린다. 무기 자세를 보는 장비 평가가 getActiveSkillStats를 다시 부르므로 이름은 먼저 잡아 두고 확인 뒤에 쓴다. */
 function fitActiveSkillToWeapon() {
+    // 이동 룬은 주 공격 칸으로 돌아오지 않는다(불러올 때 이동 칸으로, js/save-migrations.js keepBlockedMobilityGem).
+    if (isMobilityRuneName(game.weaponBlockedSkill)) game.weaponBlockedSkill = '';
     const blocked = game.weaponBlockedSkill;
     if (game.activeSkill === '기본 공격' && blocked && (game.skills || []).includes(blocked) && canUseSkillWithCurrentEquipment(blocked)) {
         game.activeSkill = blocked;
@@ -953,6 +976,17 @@ function fitActiveSkillToWeapon() {
     game.activeSkill = '기본 공격';
 }
 
+/** An awakened rune's stat effect (GEM_AWAKENED_PERKS) on its stats, when it has one. */
+function applyGemAwakenedPerk(stats, perk) {
+    if (!perk || !perk.stat) return;
+    if (perk.mul) stats[perk.stat] *= perk.mul;
+    else stats[perk.stat] += perk.add;
+}
+/** A crit hit's damage multiplier from the awakened active rune's effect (강타: x1.3), else 1. */
+function getGemCritHitPerkMul(skillName, pStats) {
+    const perk = Object.hasOwn(GEM_AWAKENED_PERKS, skillName) ? GEM_AWAKENED_PERKS[skillName] : null;
+    return perk && perk.critHitMul && pStats.sSkill.awakened ? perk.critHitMul : 1;
+}
 function getActiveSkillStats(bonusLevel) {
     fitActiveSkillToWeapon();
     let skill = SKILL_DB[game.activeSkill] || SKILL_DB['기본 공격'];
@@ -965,24 +999,18 @@ function getActiveSkillStats(bonusLevel) {
     game.gemData = game.gemData || {};
     let gem = normalizeGemRecord((game.gemData || {})[game.activeSkill]);
     if (skill.levelable) game.gemData[game.activeSkill] = gem;
-    let permanentSkyBonus = usesGemProgression && typeof getSkyTowerGemBoostLevel === 'function' ? getSkyTowerGemBoostLevel(game.activeSkill) : 0;
-    let materialBonus = usesGemProgression ? gemCoreForge.effects(gem).levels + (gem.awakened ? 2 : 0) + permanentSkyBonus : 0;
-    let awakenedGemLevelBonus = usesGemProgression ? getGemSkyEnhanceGemLevelBonus(game.activeSkill) : 0;
+    const { permanentSkyBonus, materialBonus, engraveLevel: awakenedGemLevelBonus } = usesGemProgression ? getSkillRuneBonusLevels(game.activeSkill, gem) : NO_RUNE_BONUS_LEVELS;
     let levelBonus = usesGemProgression ? bonusLevel : 0;
     let finalLevel = Math.min(20, gem.level) + levelBonus + materialBonus + awakenedGemLevelBonus;
     let totalLevel = gem.level + levelBonus + materialBonus + awakenedGemLevelBonus;
-    let stats = { ...skill, baseLevel: gem.level, finalLevel: finalLevel, totalLevel: totalLevel, bonusLevel: bonusLevel, materialBonusLevel: materialBonus, permanentSkyBonusLevel: permanentSkyBonus };
+    let stats = { ...skill, baseLevel: gem.level, finalLevel: finalLevel, totalLevel: totalLevel, bonusLevel: bonusLevel, materialBonusLevel: materialBonus, permanentSkyBonusLevel: permanentSkyBonus, awakened: !!gem.awakened };
     stats.dmg = stats.baseDmg + (getGemLevelGrowthSteps(finalLevel) * stats.dmgScale);
     stats.spd = stats.baseSpd + (getGemLevelGrowthSteps(finalLevel) * stats.spdScale);
     if (stats.critScale) stats.crit = (stats.crit || 0) + (getGemLevelGrowthSteps(finalLevel, 0) * stats.critScale);
     let qualityMul = 1 + Math.max(0, Math.min(20, gem.quality || 0)) / 200;
     stats.dmg *= qualityMul * (usesGemProgression ? gemCoreForge.effects(gem).damage : 1);
     stats.spd *= qualityMul * (usesGemProgression ? gemCoreForge.effects(gem).speed : 1);
-    if (usesGemProgression && gem.level >= 20) {
-        if (game.activeSkill === '이중 베기') stats.spd *= 1.2;
-        if (game.activeSkill === '흡혈 관통') stats.leech *= 2;
-        if (game.activeSkill === '기습 공격') stats.crit += 15;
-    }
+    if (usesGemProgression && gem.awakened) applyGemAwakenedPerk(stats, GEM_AWAKENED_PERKS[game.activeSkill]);
     if (!usesGemProgression) return stats;
     getSkyEnhancementForSkill(game.activeSkill).forEach(id => {
         let enh = GEM_SKY_ENHANCEMENTS[id];
@@ -991,7 +1019,7 @@ function getActiveSkillStats(bonusLevel) {
         if (enh.stat === 'aspd') stats.spd *= (1 + enh.val / 100);
         if (enh.stat === 'crit') stats.crit += enh.val;
         if (enh.stat === 'leech') stats.leech += enh.val;
-        if (enh.stat === 'targets') stats.targets = Math.min(99, Math.max(1, (stats.targets || 1) + enh.val));
+        if (enh.stat === 'targets') stats.engraveTargets = (stats.engraveTargets || 0) + enh.val; // 상한 뒤에 더한다(js/combat.js addUncappedSkillTargets)
         if (enh.stat === 'critDmg') stats.critDmgBonus = (stats.critDmgBonus || 0) + enh.val;
         if (enh.stat === 'ds') stats.dsBonus = (stats.dsBonus || 0) + enh.val;
         if (enh.stat === 'flatSkillDmgPct') stats.flatSkillDmgPct = (stats.flatSkillDmgPct || 0) + enh.val;

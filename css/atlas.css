@@ -20,10 +20,11 @@
 #ui-atlas .atlas-auto input{width:16px;height:16px;accent-color:var(--atlas-gold)}
 #ui-atlas .atlas-lock{margin:0;padding:9px 18px;border-bottom:1px solid var(--atlas-line);background:#1b150e;color:#dcbf86;font-size:12px}
 #ui-atlas .atlas-muted{margin:6px 0;color:var(--atlas-muted);font-size:12px}
-#ui-atlas button{font:inherit;color:inherit;border:1px solid var(--atlas-edge);background:var(--atlas-raised);box-shadow:inset 1px 1px 0 #8d724938,inset -1px -1px 0 #0009;cursor:pointer}
-#ui-atlas button:hover:not(:disabled){border-color:var(--atlas-gold);background:#261f17}
-#ui-atlas button:focus-visible{outline:2px solid var(--atlas-gold-hi);outline-offset:2px}
-#ui-atlas button:disabled{opacity:.45;cursor:not-allowed}
+/* 나이테의 칸과 행동 버튼은 atlas-board.css가 소유한다. */
+#ui-atlas button:not(:where(.ab button)){font:inherit;color:inherit;border:1px solid var(--atlas-edge);background:var(--atlas-raised);box-shadow:inset 1px 1px 0 #8d724938,inset -1px -1px 0 #0009;cursor:pointer}
+#ui-atlas button:not(:where(.ab button)):hover:not(:disabled){border-color:var(--atlas-gold);background:#261f17}
+#ui-atlas button:not(:where(.ab button)):focus-visible{outline:2px solid var(--atlas-gold-hi);outline-offset:2px}
+#ui-atlas button:not(:where(.ab button)):disabled{opacity:.45;cursor:not-allowed}
 #ui-atlas .atlas-main{display:grid;grid-template-columns:minmax(0,1fr) 300px}
 #ui-atlas .atlas-chart-column{padding:10px 12px 14px}
 /* 지도: 도트 그림이 판 전체를 그리고, 버튼은 메달 자리에 투명하게 선다(누르기 · 초점 · 등급 숫자). */
@@ -110,8 +111,9 @@
 @container (max-width:720px){#ui-atlas .atlas-main{grid-template-columns:minmax(0,1fr)}#ui-atlas .atlas-side{border-left:0;border-top:1px solid var(--atlas-line)}}
 @container (max-width:420px){#ui-atlas .atlas-node i{min-width:8px;width:8px;height:8px;padding:0;right:-2px;top:-2px;font-size:0}#ui-atlas .atlas-node{font-size:10px}}
 @container (max-width:480px){#ui-atlas .atlas-head,#ui-atlas .atlas-stash{padding:10px}#ui-atlas .atlas-head h2{font-size:17px}#ui-atlas .atlas-chart-column{padding:8px 4px 10px}#ui-atlas .atlas-stash-list{grid-template-columns:minmax(0,1fr)}}
-#ui-atlas .atlas-views{display:flex;gap:4px}
-#ui-atlas .atlas-view{min-height:32px;padding:5px 14px}
+/* 보기 단추: 글자는 한 줄로 두고, 좁은 화면에서는 단추째 다음 줄로(2026-10-18: 휴대폰에서 "지/도"처럼 한 자씩 끊겼다). */
+#ui-atlas .atlas-views{display:flex;flex-wrap:wrap;gap:4px}
+#ui-atlas .atlas-view{min-height:32px;padding:5px 14px;white-space:nowrap}
 #ui-atlas .atlas-view.is-on{border-color:var(--atlas-gold-hi);background:#2a2217;color:var(--atlas-gold-hi)}
 #ui-atlas .atlas-fragments{display:flex;flex-wrap:wrap;gap:4px;margin-top:10px}
 #ui-atlas .atlas-fragments>p{flex-basis:100%;margin:0 0 2px}
@@ -168,6 +170,8 @@
 #ui-atlas .atlas-late-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px}
 #ui-atlas .atlas-late-card{display:flex;flex-direction:column;gap:4px;padding:10px;border:1px solid var(--atlas-line);background:var(--atlas-panel)}
 #ui-atlas .atlas-late-card.is-ready{border-color:var(--atlas-gold)}
+#ui-atlas .atlas-late-card details{padding:8px 0;border-top:1px solid var(--atlas-line)}
+#ui-atlas .atlas-late-card summary{cursor:pointer;min-height:28px;color:var(--atlas-gold-hi)}
 #ui-atlas .atlas-late-card.is-locked{opacity:.72}
 #ui-atlas .atlas-late-card strong{font-size:13px;color:var(--atlas-gold-hi)}
 #ui-atlas .atlas-late-card>small{font-size:11px;color:var(--atlas-muted)}

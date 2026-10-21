@@ -18,7 +18,8 @@
         touchArrange = !touchArrange;
         document.getElementById('item-tab-equip').classList.toggle('touch-arrange', touchArrange);
         button.setAttribute('aria-pressed', String(touchArrange));
-        button.textContent = touchArrange ? '배치 완료' : '배치 모드';
+        button.setAttribute('aria-label', touchArrange ? '배치 완료' : '배치 모드');
+        button.querySelector('span').textContent = touchArrange ? '완료' : '배치';
     }
 
     function getFocusedKey() {
@@ -136,11 +137,17 @@
         return true;
     }
 
+    /** Page badges count what the bag shows: the search word and also the 필터 panel's grades and kind (2026-10-19; before, only a
+     * search word lit the pages, so a kind picked in a 12-page bag had to be found page by page). */
     function getPageSearchSummary(layout, rows, query) {
         let normalizedQuery = String(query || '').trim();
         let counts = Array.from({ length: layout.pageCount }, () => 0);
-        if (!normalizedQuery) return { active: false, query: '', counts, totalMatches: 0, matchingPages: 0 };
-        let matchedKeys = new Set((Array.isArray(rows) ? rows : [])
+        rows = Array.isArray(rows) ? rows : [];
+        if (!normalizedQuery && !rows.some(row => row && row.filterActive)) return { active: false, query: '', key: '', counts, totalMatches: 0, matchingPages: 0 };
+        let settings = game.settings || {};
+        let judged = typeof equipmentTriage === 'object' ? equipmentTriage.currentFilter() : 'all';
+        let key = JSON.stringify([normalizedQuery, settings.equipmentSlotFilter || 'all', settings.inventoryViewRarities || {}, judged]);
+        let matchedKeys = new Set(rows
             .filter(row => row && row.filterMatched)
             .map(row => equipmentInventoryGridRuntime.getItemKey(row.item)));
         layout.entries.forEach(entry => {
@@ -151,6 +158,7 @@
         return {
             active: true,
             query: normalizedQuery,
+            key,
             counts,
             totalMatches: counts.reduce((sum, count) => sum + count, 0),
             matchingPages: counts.filter(count => count > 0).length
@@ -158,8 +166,8 @@
     }
 
     function selectFirstSearchPage(search) {
-        if (!search.active || search.query === lastPageSearchQuery) return;
-        lastPageSearchQuery = search.query;
+        if (!search.active || search.key === lastPageSearchQuery) return;
+        lastPageSearchQuery = search.key;
         let firstMatchPage = search.counts.findIndex(count => count > 0);
         if (firstMatchPage < 0 || firstMatchPage === activePage) return;
         cancelCarry();
@@ -178,7 +186,8 @@
         let pageLabel = layout.unlockedPageCount >= maxPages
             ? `${layout.unlockedPageCount}페이지, 최대 확장`
             : `${layout.unlockedPageCount}페이지, 루프 진행으로 확장`;
-        if (search.active) pageLabel = `검색 결과 ${search.totalMatches}개, ${search.matchingPages}페이지`;
+        let found = search.query ? '검색 결과' : '필터에 맞는 장비';
+        if (search.active) pageLabel = `${found} ${search.totalMatches}개, ${search.matchingPages}페이지`;
         if (label) {
             label.textContent = pageLabel;
             label.hidden = !search.active;
@@ -186,12 +195,11 @@
         renderTemporaryStorage();
         if (!root) return page;
         root.innerHTML = Array.from({ length: layout.pageCount }, (_, index) => {
-            let overflow = index >= layout.unlockedPageCount ? ', 초과 보관' : '';
             let matchCount = search.counts[index];
             let searchClass = search.active ? (matchCount > 0 ? ' search-match' : ' search-miss') : '';
-            let searchText = search.active ? `, 검색 결과 ${matchCount}개` : '';
+            let searchText = search.active ? `, ${found} ${matchCount}개` : '';
             let badge = matchCount > 0 ? `<small>${matchCount}</small>` : '';
-            return `<button type="button" class="${index === page ? 'active' : ''}${searchClass}" onclick="equipmentInventoryInteraction.setPage(${index})" aria-pressed="${index === page ? 'true' : 'false'}" aria-label="${index + 1}페이지${searchText}${overflow}" title="${index + 1}페이지${searchText}${overflow}"><span>${index + 1}</span>${badge}</button>`;
+            return `<button type="button" class="${index === page ? 'active' : ''}${searchClass}" onclick="equipmentInventoryInteraction.setPage(${index})" aria-pressed="${index === page ? 'true' : 'false'}" aria-label="${index + 1}페이지${searchText}" title="${index + 1}페이지${searchText}"><span>${index + 1}</span>${badge}</button>`;
         }).join('');
         return page;
     }
@@ -222,7 +230,7 @@
         }
         if (typeof saveGame === 'function') saveGame({ skipCloudSync: true });
         if (typeof updateStaticUI === 'function') updateStaticUI();
-        notify(`${result.item.name || '장비'}을(를) 인벤토리로 회수했습니다.`, 'success');
+        notify(`${withObjectParticle(result.item.name || '장비')} 인벤토리로 회수했습니다.`, 'success');
         return true;
     }
 
@@ -607,12 +615,21 @@
 
     function autoArrange() {
         cancelCarry();
+        let order = equipmentInventoryGridRuntime.autoArrange(game);
+        if (!order) {
+            notify('가방이 거의 차서 빈칸 없이 다시 놓을 수 없습니다. 그대로 두었습니다.', 'warning');
+            return;
+        }
         activePage = 0;
-        let mode = game.settings && game.settings.equipmentSort;
-        equipmentInventoryGridRuntime.autoArrange(game, mode);
         if (typeof saveGame === 'function') saveGame({ skipCloudSync: true });
         if (typeof updateStaticUI === 'function') updateStaticUI();
-        notify('장비를 정렬 기준에 맞춰 빈칸 없이 배치했습니다.', 'success');
+        notify(order === 'recent' ? '최근 장비부터 빈칸 없이 배치했습니다.' : '최근 장비부터는 다 들어가지 않아 큰 장비부터 빈칸 없이 배치했습니다.', 'success');
+    }
+
+    /** equipmentInventoryGridRuntime packed the bag again so an item with no free cell fits instead of going to the temporary storage. */
+    function notifyBagRepacked() {
+        cancelCarry();
+        notify('빈칸이 흩어져 새 장비가 들어가도록 가방 빈칸 정리를 했습니다.', 'info');
     }
 
     function startPointer(event) {
@@ -759,6 +776,7 @@
     });
 
     safeExposeGlobals({ equipmentInventoryInteraction });
+    window.addEventListener('project-idle:bag-repacked', notifyBagRepacked);
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bindPointerEvents, { once: true });
     else bindPointerEvents();
 }());

@@ -24,6 +24,7 @@
 @import "./cosmos-atlas.css";
 @import "./cosmos-route.css";
 @import "./atlas.css";
+@import "./atlas-board.css";
 @import "./exploration-atlas.css";
 @import "./exploration-encounters.css";
 @import "./map-list.css";
@@ -75,4 +76,5 @@
 @import "./item-influences.css";
 @import "./colony-wards.css";
 @import "./equipment-window.css";
+@import "./shop-view.css";
 @import "./npc-shop.css";

@@ -183,17 +183,6 @@
   border-radius: 10px;
   box-shadow: 0 6px 20px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.03);
 }
-:root body .craft-selected {
-  background: linear-gradient(180deg, var(--skin-panel) 0%, var(--skin-canvas) 100%);
-  border: 1px solid var(--skin-line);
-  border-radius: 10px;
-  box-shadow: inset 0 2px 8px rgba(0,0,0,0.3);
-}
-:root body .craft-orb-card {
-  border-radius: 8px;
-  transition: border-color .14s ease, box-shadow .14s ease, background .14s ease;
-}
-:root body .craft-orb-name { color: #ffffff; }
 
 /* ── BATTLEFIELD ────────────────────────────────────────────── */
 :root body .battlefield-wrap {
@@ -259,34 +248,6 @@
   font-weight: 700;
 }
 
-/* 고유 주얼/부적은 일반 장비의 고유 카드처럼 인벤토리에서 즉시 구분한다. */
-.item-card.item-card--unique-special {
-  border: 2px solid #ff9f43;
-  background: linear-gradient(155deg, rgba(75, 39, 18, 0.96) 0%, rgba(30, 24, 29, 0.98) 52%, rgba(24, 29, 39, 0.98) 100%);
-  box-shadow: inset 0 0 18px rgba(255, 159, 67, 0.14), 0 0 16px rgba(255, 159, 67, 0.2);
-}
-.item-card.item-card--unique-special:hover {
-  border-color: #ffc078;
-  background: linear-gradient(155deg, rgba(92, 48, 20, 0.98) 0%, rgba(37, 28, 34, 0.98) 52%, rgba(27, 34, 46, 0.98) 100%);
-  box-shadow: inset 0 0 22px rgba(255, 171, 82, 0.2), 0 0 24px rgba(255, 159, 67, 0.3);
-}
-.item-card.item-card--unique-special .item-title.unique {
-  text-shadow: 0 0 9px rgba(255, 159, 67, 0.65);
-}
-.item-card .unique-inventory-badge {
-  display: inline-block;
-  margin-right: 5px;
-  padding: 1px 6px;
-  border: 1px solid rgba(255, 183, 102, 0.72);
-  border-radius: 999px;
-  color: #ffd09b;
-  background: rgba(113, 54, 18, 0.58);
-  font-size: 0.72em;
-  font-weight: 900;
-  letter-spacing: 0.04em;
-  vertical-align: 1px;
-}
-
 /* ── 패치 노트 (설정 탭 / 시작 화면 공용) ── */
 .patch-note-body {
   display: flex;
@@ -332,9 +293,6 @@
   font-size: 0.82em;
   color: #eef2f6;
 }
-.patch-note-card .patch-note-body {
-  max-height: 160px;
-}
 .patch-notes-open-btn {
   margin-top: 6px;
   padding: 8px 14px;
@@ -368,18 +326,5 @@
   border-color: color-mix(in srgb, var(--skin-line), #000 24%);
   color: var(--color-text-tertiary);
   box-shadow: none;
-}
-:root body .craft-orb-card {
-  background: linear-gradient(180deg, var(--skin-panel-raised) 0%, var(--skin-panel) 100%);
-  border: 1px solid var(--skin-line);
-}
-:root body .craft-orb-card:hover:not(.disabled) {
-  background: linear-gradient(180deg, var(--skin-control) 0%, var(--skin-panel-raised) 100%);
-  border-color: var(--skin-line-strong);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--skin-accent), transparent 86%), 0 4px 12px rgba(0,0,0,0.3);
-}
-:root body .craft-orb-count { color: var(--skin-accent); }
-.item-card.item-card--unique-special .item-title.unique {
-  color: #ffad5c;
 }
 }

@@ -21,7 +21,7 @@ const actExplorationRoomsUi = (() => {
         link: '#93a2b0', linkDim: '#46525d', gate: '#c2554f', elite: '#e2b457', eliteEdge: '#3a2a10',
         here: '#7ff0de', hereGlow: 'rgba(110,240,220,.85)', hero: '#f4fffd', heroEdge: '#0b2a27' });
     /** 약도가 들어가는 자리(px): 작은 미니맵은 둥글게 잘리므로 모서리를 넉넉히 비운다. cap, least = 격자 한 칸의 가장 큰 크기와 가장 작은 크기.
-     * 작은 미니맵은 방이 많아 least로도 다 들어가지 않으면 주인공이 선 방을 따라 움직인다(큰 지도는 언제나 전체를 보여 준다). */
+     * 작은 미니맵은 아는 방이 많아 least로도 다 들어가지 않으면 주인공이 선 방을 따라 움직인다(큰 지도는 아는 방을 언제나 다 보여 준다). */
     const SIZE = Object.freeze({ mini: { w: 152, h: 152, pad: 18, cap: 30, least: 19 }, large: { w: 560, h: 400, pad: 40, cap: 92, least: 0 } });
 
     /** The rooms the map shows: visited ones, and the ones a door of a visited room leads to. */
@@ -34,12 +34,21 @@ const actExplorationRoomsUi = (() => {
     function planStart(span, room, pad, at) {
         return span <= room - pad * 2 ? (room - span) / 2 : Math.max(room - pad - span, Math.min(pad, room / 2 - at));
     }
-    /** Plan units → canvas px: the whole plan fitted and centred; a plan too large for the small map follows the hero's room. */
-    function fit(canvas, map) {
-        const size = canvas.id === 'act-exploration-map' ? SIZE.mini : SIZE.large, plan = map.plan;
+    /** The grid cells of the rooms the map shows, in plan units. 2026-10-19: the map used to fit the whole plan, so in a large plan
+     * (the ancient maze) the few known rooms sat in a corner of the round minimap and the empty rest hinted at the unseen rooms. */
+    function knownBounds(map, seen) {
+        const plan = map.plan, known = plan.boxes.filter(box => seen.known.has(box.index)), boxes = known.length ? known : plan.boxes;
+        const x0 = Math.min(...boxes.map(box => box.x)) - plan.cell.w / 2, y0 = Math.min(...boxes.map(box => box.y)) - plan.cell.h / 2;
+        const x1 = Math.max(...boxes.map(box => box.x)) + plan.cell.w / 2, y1 = Math.max(...boxes.map(box => box.y)) + plan.cell.h / 2;
+        return { x0, y0, width: x1 - x0, height: y1 - y0 };
+    }
+    /** Plan units → canvas px: the known rooms fitted and centred; too many for the small map, it follows the hero's room. */
+    function fit(canvas, map, seen) {
+        const size = canvas.id === 'act-exploration-map' ? SIZE.mini : SIZE.large, plan = map.plan, shown = knownBounds(map, seen);
         const room = actExplorationRooms.roomAt(map, game.gridPlayer), here = plan.boxes[room ? room.index : map.entry.index];
-        const scale = Math.max(size.least, Math.min(size.cap, (size.w - size.pad * 2) / plan.width, (size.h - size.pad * 2) / plan.height));
-        const left = planStart(plan.width * scale, size.w, size.pad, here.x * scale), top = planStart(plan.height * scale, size.h, size.pad, here.y * scale);
+        const scale = Math.max(size.least, Math.min(size.cap, (size.w - size.pad * 2) / shown.width, (size.h - size.pad * 2) / shown.height));
+        const left = planStart(shown.width * scale, size.w, size.pad, (here.x - shown.x0) * scale) - shown.x0 * scale;
+        const top = planStart(shown.height * scale, size.h, size.pad, (here.y - shown.y0) * scale) - shown.y0 * scale;
         return { size, scale, x: value => left + value * scale, y: value => top + value * scale };
     }
     function rectOf(box, view) {
@@ -140,7 +149,7 @@ const actExplorationRoomsUi = (() => {
         if (!memo) bases.set(canvas, memo = { canvas: document.createElement('canvas'), key: '', map: null });
         if (memo.key === key && memo.map === map) return memo.canvas;
         if (memo.canvas.width !== canvas.width || memo.canvas.height !== canvas.height) { memo.canvas.width = canvas.width; memo.canvas.height = canvas.height; }
-        const ctx = memo.canvas.getContext('2d'), seen = knowledge(run, map);
+        const ctx = memo.canvas.getContext('2d'), seen = at.seen;
         ctx.setTransform(SS, 0, 0, SS, 0, 0);
         ctx.fillStyle = INK.back; ctx.fillRect(0, 0, view.size.w, view.size.h);
         drawLinks(ctx, map, view, seen);
@@ -151,12 +160,12 @@ const actExplorationRoomsUi = (() => {
     }
     /** @param {number} rev 지도 상태의 판 번호(바뀌면 바탕을 다시 그린다). 캔버스 크기는 달라질 때만 넣는다. */
     function draw(canvas, run, map, rev) {
-        const view = fit(canvas, map), width = view.size.w * SS, height = view.size.h * SS;
+        const seen = knowledge(run, map), view = fit(canvas, map, seen), width = view.size.w * SS, height = view.size.h * SS;
         if (canvas.width !== width || canvas.height !== height) { canvas.width = width; canvas.height = height; }
         if (canvas.dataset.view !== 'rooms') canvas.dataset.view = 'rooms';
         const ctx = canvas.getContext('2d');
         ctx.setTransform(1, 0, 0, 1, 0, 0);
-        ctx.drawImage(mapBaseOf(canvas, run, map, { view, rev }), 0, 0);
+        ctx.drawImage(mapBaseOf(canvas, run, map, { view, rev, seen }), 0, 0);
         ctx.setTransform(SS, 0, 0, SS, 0, 0);
         drawCommand(ctx, run, map, view);
         drawHero(ctx, map, view);
@@ -168,7 +177,7 @@ const actExplorationRoomsUi = (() => {
     }
     /** The shown room under a click on the minimap, or null. */
     function roomUnder(event, run, map) {
-        const canvas = event.currentTarget, bounds = canvas.getBoundingClientRect(), view = fit(canvas, map), seen = knowledge(run, map);
+        const canvas = event.currentTarget, bounds = canvas.getBoundingClientRect(), seen = knowledge(run, map), view = fit(canvas, map, seen);
         const x = (event.clientX - bounds.left) / bounds.width * view.size.w, y = (event.clientY - bounds.top) / bounds.height * view.size.h;
         const slack = 3;
         const hit = map.plan.boxes.find(box => {

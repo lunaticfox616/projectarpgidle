@@ -108,7 +108,7 @@
 #startup-overlay .startup-primary:hover:not(:disabled) { color: #11170e; background: #e1cca0; border-color: #f0dfb7; box-shadow: none; transform: none; }
 #startup-overlay :is(.startup-secondary,.startup-ghost):hover:not(:disabled) { color: #eee9de; background: #253328; border-color: #768069; box-shadow: none; transform: none; }
 #startup-overlay button:disabled { opacity: .45; cursor: not-allowed; }
-#startup-overlay .startup-local-save-warning { color: #b6b6a3; font-size: 12px; line-height: 1.5; text-align: center; }
+#startup-overlay :is(.startup-local-save-warning, .startup-standby-note) { color: #b6b6a3; font-size: 12px; line-height: 1.5; text-align: center; }
 /* 소셜 로그인: 접어 둔 한 줄. 펼치면 각 사 규정대로의 버튼 두 개. */
 #startup-overlay .startup-social-login { margin: 0; }
 #startup-overlay .startup-social-login > summary {
@@ -139,6 +139,11 @@
 #startup-overlay .startup-policy-links a { color: #b3bca9; text-decoration-color: #677460; }
 #startup-overlay .startup-legal-consent { color: var(--entry-muted); border-color: #3b2f1e; background: #0d0b08; }
 #startup-overlay .startup-legal-consent input { accent-color: var(--entry-gold); }
+/* 다른 탭이 게임을 이어 받은 탭(js/game-tab-guard-ui.js): 로그인 판과 빈 저장 요약 대신 대기 판 하나만 둔다. */
+#startup-overlay .startup-panel.auth[hidden],
+#startup-overlay.standby .startup-panel.auth:not(.startup-standby),
+#startup-overlay.standby .startup-summary-card { display: none; }
+#startup-overlay .startup-standby-copy { margin: 0; color: var(--entry-muted); font-size: 13px; line-height: 1.6; }
 
 @media (max-width: 1000px) {
   #startup-overlay .startup-shell { grid-template-columns: minmax(0,1fr) 350px; gap: 32px; padding: 32px; }

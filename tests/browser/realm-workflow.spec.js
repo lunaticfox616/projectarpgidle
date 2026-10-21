@@ -38,12 +38,11 @@ test('finishing a pending settlement commits once and clears the replayable abse
         backgroundCombatRuntime.snapshot=cloneBackgroundCombatState(game);
         backgroundCombatRuntime.signature=getBackgroundCombatSignature(game);
         window.settlementReviewTask=startBackgroundCombatReturn(Date.now());
-        // Pause at the native lifecycle boundary so the test can reliably exercise the pending controls.
-        backgroundCombatRuntime.appInactive=true;
     });
+    // The controls are pressed while the settlement runs: pausing the app now abandons it on purpose (js/ui.js
+    // startBackgroundCombatReturn, abandonWhenPaused: the next return settles the whole time away).
     await page.locator('#background-combat-fast-button').click();
     await page.locator('#background-combat-finish-button').click();
-    await page.evaluate(()=>{backgroundCombatRuntime.appInactive=false});
     expect(await page.evaluate(()=>window.settlementReviewTask)).toBe(true);
     await expect(page.locator('#background-combat-result-overlay')).toContainText('해당 시간 보상 미지급');
     expect(await page.evaluate(()=>backgroundCombatRuntime.snapshot)).toBeNull();

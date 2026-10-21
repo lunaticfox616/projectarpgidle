@@ -6,9 +6,17 @@ actExplorationProgress.objects = (() => {
     function initialize(run,zone) {
         if(!['act','abyss','atlasMap'].includes(zone.type)||actExplorationState.packRooms(actExplorationMap.forRun(run)).length<2)return;
         const atlasMap=zone.type==='atlasMap',saved=atlasMap&&game.atlas.run?.objects;
-        if(saved){run.objects=JSON.parse(JSON.stringify(saved));run.objects.pendingId=null;state.validate(run);return;}
+        if(saved&&restoreSaved(run,saved))return;
         run.objects=state.create(run,configuration(run,zone));
         remember(run);
+    }
+    /** A re-entered atlas map takes its saved objects when their cells fit this map (checked here: the load checks the copy's shape
+     * only, js/exploration-objects.js restoreAtlas). A copy placed on another layout (a room stage setting changed since) is left
+     * behind with a warning, and the map gets new objects. */
+    function restoreSaved(run,saved) {
+        run.objects=JSON.parse(JSON.stringify(saved));run.objects.pendingId=null;
+        try{state.validate(run);return true;}
+        catch(error){console.warn('atlas map objects left behind:',error.message);run.objects=undefined;return false;}
     }
     /** The facing a re-entered atlas map must keep so its saved object cells still fit; null for a fresh facing. */
     function savedFacing(zone) {
@@ -211,6 +219,8 @@ actExplorationProgress.objects = (() => {
         if(state.isEvent(row)) {
             const zone=getZone(run.zoneId);
             for(let wave=row.kind==='nest'?2:1;wave>0;wave--,row.wave++) {
+                // 무리 기록도 남긴다(모두 쓰러진 채, spawn과 같은 모양): 차수와 무리 수가 달라 저장이 불러와지지 않았다(validateEventOwnership, 2026-10-20)
+                run.packs.push({key:`${row.id}:${row.wave+1}`,roomId:row.roomId,stage:null,waiting:[],aliveIds:[],eliteIds:[],objectId:row.id,objectWave:row.wave+1});
                 for(let index=0;index<waveSize(run,row);index++)kill(Object.assign(createEnemy(zone,waveMarker(row,index),index),{gx:row.gx,gy:row.gy}));
             }
         }

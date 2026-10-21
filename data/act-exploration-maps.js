@@ -237,6 +237,60 @@ const ACT_EXPLORATION_ALERT = Object.freeze({fromLoop:2,chance:0.2,hearReach:12,
 // search칸 안의 빈 칸, 주인공의 keep칸 안은 비운다) 공격 게이지를 windUp까지 채운다(js/act-exploration-doors.js springAmbush): 들어선 뒤의 유예가
 // 끝나면 한꺼번에 덤비고, 문은 싸우는 동안 잠긴다. 테두리는 outline.
 const ACT_EXPLORATION_AMBUSH = Object.freeze({chance:0.05,pull:0.4,keep:2,search:3,windUp:0.9,outline:'#ff3d5a'});
+// 잔잔한 사건 (2026-10-20 사용자: "계속 같은 게임이라고 느껴지지 않도록 낮은 확률로 나올만한 잔잔한 이벤트", js/combat-incidents.js).
+// 굴림은 다른 난수를 밀지 않는다: 무리는 무리 열쇠와 첫 몬스터 번호로, 방은 탐험마다 정한 값과 방 번호로 굴리고, 굴린 방은 탐험 기록에
+// 남겨 다시 불러와도 다시 굴리지 않는다. 1루프의 액트 1과 방치 정산에서는 일어나지 않는다.
+// critter 금빛 수액 슬라임: 방 단위 무대의 보통 무리(보스, 조우, 구출, 경계, 습격, 보물 무리 말고) 곁에 chance의 확률로 하나가 더 선다. 덤비지
+//   않고 영웅에게서 먼 방 구석으로 달아나다가(자동 사냥이면 영웅이 잠가 쫓는다), 영웅과 같은 방에 든 뒤 fleeMs가 지나면 사라진다. 생명력 hpMul배,
+//   경험치 expMul배. 쓰러뜨리면 rewards: currencies [재화, 개수, 무게]에서 picks번 뽑고, gear 등급 이상의 장비 하나. look 그림(수액 슬라임),
+//   glaze 몸에 얹는 빛깔과 진하기, outline 테. rainbow: 금빛 슬라임 가운데 chance로 무지갯빛(체이싱 티어), 빛깔이 glazes를 everyMs마다 돈다.
+//   금빛 보상에 더해 currency 하나와 고유 장비 하나(chaseShare의 확률로 체이싱 고유).
+// stray 길 잃은 몬스터: 금빛 슬라임이 서지 않은 보통 무리가 chance의 확률로 영웅이 가 본 다른 액트의 몬스터 하나를 데리고 있다(무리의
+//   첫 보통 몬스터가 그곳 그림과 이름, 앞에 prefix, 테 outline, 그 그림의 싸우는 방식). 경험치 expMul배, 쓰러뜨리면 gear 등급 이상의 장비 하나.
+// sleep 잠든 무리: 금빛 슬라임이 서지 않은 보통 무리가 chance의 확률로 잠들어 있다. 이름 앞에 prefix, 테 outline, zEveryMs마다 머리 위에
+//   zColor의 z. 깨기 전에는 움직이지도 공격하지도 않고, 무리의 누가 다치거나 영웅이 wakeCells칸 안에 들면 무리째 깨어 groggyMs 동안 멍하다.
+//   습격방에 모이지 않는다.
+// feast 황금 수액 잔치: 처음 들어서는 전투 방마다 chance의 확률로 그 방의 보통 몬스터(정예와 조우, 구출, 보물 무리 말고)가 모두 금빛 수액
+//   슬라임이 된다(무지갯빛은 critter.rainbow.chance대로). 열리면 그 방에는 하품이 없다.
+// star 별똥별: 처음 들어서는 전투 방마다 chance의 확률로 별 하나가 방의 빈 칸(영웅에게서 두 칸 넘게)에 떨어진다. fallMs 동안 떨어지고
+//   burstMs 동안 빛이 퍼지며(js/canvas-stage-incidents.js), 닿으면 그 칸에 rewards에서 하나([재화, 개수]).
+// breath 세계수의 숨결: 처음 들어서는 전투 방마다 chance의 확률로(도전이 열린 방 말고) kinds 가운데 하나가 seconds초 동안 영웅에게
+//   깃든다(game.incidentBreath, 능력치는 js/player-stat-cache.js incidentBreath로 읽는다). text는 알림과 아이콘 설명.
+// challenge 사냥 도전: 처음 들어서는 전투 방마다 chance의 확률로(잔치가 열리지 않은 방, 도전이 열리면 하품은 없다) 도전이 열린다. seconds초
+//   안에 그 방의 무리를 모두 쓰러뜨리면 영웅의 칸에 rewards에서 picks번 고른 재화(열리지 않은 재화는 빠진다). 남은 시간은 marks초에 영웅 머리 위에.
+// yawn 세계수의 하품: 처음 들어서는 전투 방마다 chance의 확률로 그 방의 몬스터가 sleepMs 동안 움직이지도 공격하지도 않는다.
+// lucky 행운의 숫자: 한 번에 준 피해가 7로만 된 수(777 이상)면 그 자릿수의 재화를 준다([재화, 개수], 그보다 긴 수는 맨 끝 줄). 한 번 나오면
+//   gapMs 동안은 다시 나오지 않는다(지속 피해도 같은 길로 들어온다). 체이싱 고유 일곱 번째 행운의 병은 같은 숫자로만 된 수(111 이상)도 센다.
+//   kill: 이번 루프의 그 번째 처치(방치 정산 말고, 방 단위 무대의 무리에서)는 그 자리에서 무지갯빛 수액 슬라임으로 일어난다.
+// records 전적 화면의 사건 기록(js/records.js recordIncident, js/records-ui.js): [열쇠, 이름, 숨은 사건이면 true(겪기 전에는 ???)].
+const ACT_EXPLORATION_INCIDENTS = Object.freeze({
+    critter: Object.freeze({ chance: 0.012, look: 'act1-slime', name: '금빛 수액 슬라임', glaze: Object.freeze({ color: '#ffcf4a', alpha: 0.36 }), outline: '#fff0a8',
+        hpMul: 2.5, expMul: 3, fleeMs: 13000, stepSec: 0.42,
+        rewards: Object.freeze({ picks: 4, gear: 'rare', currencies: Object.freeze([['magicBud', 3, 5], ['sapBud', 1, 3], ['formlessDew', 1, 2], ['blessing', 1, 1],
+            ['deepWhetstone', 1, 1], ['rootIron', 1, 1], ['jewelPolish', 1, 1]]) }),
+        rainbow: Object.freeze({ chance: 0.02, name: '무지갯빛 수액 슬라임', glazes: Object.freeze(['#ff8f8f', '#ffc46b', '#fff27a', '#8af08a', '#7ad0ff', '#c79bff']),
+            everyMs: 220, alpha: 0.42, currency: 'goldenRule', chaseShare: 0.5 }) }),
+    stray: Object.freeze({ chance: 0.02, prefix: '길 잃은', outline: '#9be0a4', expMul: 2, gear: 'magic' }),
+    sleep: Object.freeze({ chance: 0.03, prefix: '잠든', outline: '#a9b8ff', zColor: '#d4dcff', zEveryMs: 1700, wakeCells: 2, groggyMs: 1500 }),
+    feast: Object.freeze({ chance: 0.0004 }),
+    star: Object.freeze({ chance: 0.015, fallMs: 520, burstMs: 680,
+        rewards: Object.freeze([['magicBud', 3], ['sapBud', 1], ['formlessDew', 1], ['blessing', 1]]),
+        // 유성우(숨은 사건): 별 하나 대신 count개가 한꺼번에, 그 가운데 하나는 황금률(golden, 떨어질 수 있을 때).
+        shower: Object.freeze({ chance: 0.0006, count: 7, golden: Object.freeze(['goldenRule', 1]) }) }),
+    breath: Object.freeze({ chance: 0.012, seconds: 30, kinds: Object.freeze([
+        Object.freeze({ key: 'wind', name: '바람의 숨결', text: '이동 속도 +30%, 공격 속도 +15%', stats: Object.freeze([['move', 30], ['aspd', 15]]) }),
+        Object.freeze({ key: 'ember', name: '불씨의 숨결', text: '피해 +40%', stats: Object.freeze([['pctDmg', 40]]) }),
+        Object.freeze({ key: 'ring', name: '나이테의 숨결', text: '받는 물리 피해 감소 +10%, 모든 원소 저항 +15%', stats: Object.freeze([['dr', 10], ['resAll', 15]]) })
+    ]) }),
+    challenge: Object.freeze({ chance: 0.012, seconds: 20, marks: Object.freeze([10, 5, 3]), picks: 3,
+        rewards: Object.freeze([['magicBud', 2], ['sapBud', 1], ['formlessDew', 1], ['blessing', 1]]) }),
+    yawn: Object.freeze({ chance: 0.0004, sleepMs: 6000 }),
+    lucky: Object.freeze({ min: 777, gapMs: 30000, kill: 7777, rewards: Object.freeze([['magicBud', 3], ['sapBud', 1], ['formlessDew', 2], ['goldenRule', 1], ['fairyRing', 1]]) }),
+    records: Object.freeze([['critter', '금빛 수액 슬라임', false], ['stray', '길 잃은 몬스터', false], ['sleep', '잠든 무리', false], ['star', '별똥별', false],
+        ['challenge', '사냥 도전', false], ['breath', '세계수의 숨결', false],
+        ['rainbow', '무지갯빛 수액 슬라임', true], ['feast', '황금 수액 잔치', true], ['yawn', '세계수의 하품', true], ['lucky', '행운의 숫자', true], ['shower', '유성우', true],
+        ['luckyKill', '루프의 7,777번째 처치', true]].map(row => Object.freeze(row)))
+});
 // Whole-pixel camera zoom for the 16px art (js/canvas-act-exploration.js tileSize). 2026-10-02: at most ×4 (was ×5): on a 125%
 // desktop display the ×5 tiles (80px) made the hero feel too big and the view cramped.
 const ACT_EXPLORATION_CAMERA = Object.freeze({minZoom:3,maxZoom:4});
@@ -246,4 +300,4 @@ const ACT_EXPLORATION_CAMERA = Object.freeze({minZoom:3,maxZoom:4});
 // 시간)가 지난 것만 줍고 주우러 간다(js/exploration-ground-loot.js landed): 가장 늦게 닿는 그림에 이름이 다 뜬 뒤다. 전에는 580~679ms를
 // 날고 이름이 240ms에 걸쳐 떴으며, 주인공은 떨어지는 중에도 줍거나 주우러 갔다.
 const GROUND_LOOT_DROP = Object.freeze({flightMs:300,flightSpreadMs:60,nameMs:120,readyMs:520});
-safeExposeData({ACT_EXPLORATION_MAPS,CONTENT_EXPLORATION_MAPS,ACT_EXPLORATION_BACKDROPS,ACT_EXPLORATION_ART_VERSION,ACT_EXPLORATION_VISION,ACT_EXPLORATION_ALERT,ACT_EXPLORATION_AMBUSH,ACT_EXPLORATION_CAMERA,GROUND_LOOT_DROP});
+safeExposeData({ACT_EXPLORATION_MAPS,CONTENT_EXPLORATION_MAPS,ACT_EXPLORATION_BACKDROPS,ACT_EXPLORATION_ART_VERSION,ACT_EXPLORATION_VISION,ACT_EXPLORATION_ALERT,ACT_EXPLORATION_AMBUSH,ACT_EXPLORATION_INCIDENTS,ACT_EXPLORATION_CAMERA,GROUND_LOOT_DROP});

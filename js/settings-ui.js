@@ -66,6 +66,7 @@
             section.hidden = section.dataset.settingsGroup !== category;
         });
         if (category === 'layout') renderTabOrderSettings();
+        if (category === 'items') equipmentLootUi.renderSettings();
     }
 
     function applyEffects(key) {

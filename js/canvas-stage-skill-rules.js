@@ -30,7 +30,9 @@ const stageSkillRules = (() => {
     /** 휘두름을 제 단계에서 내는 룬(암살은 도착한 뒤의 베기 단계가 낸다). */
     const CAST_SWING = new Set([52]);
     /** 닿는 순간(stage)을 새 클립이 맡게 하는 훅. */
-    const STAGE_HOOKS = Object.freeze(['shout', 'suck', 'area', 'ring', 'area2', 'land', 'seep', 'drop', 'orb']);
+    const STAGE_HOOKS = Object.freeze(['shout', 'suck', 'area', 'ring', 'area2', 'land', 'seep', 'drop', 'orb', 'zone']);
+    /** 불타는 지대가 폭발 뒤 나타나기까지(ms): 폭발이 잦아든 뒤(2026-10-20 스킬룬 전달본 v42의 유성 낙화). */
+    const ZONE_DELAY = 330;
     function ruleForget(map, now, age) { for (const [key, time] of map) if (now - time > age || time > now) map.delete(key); }
 
     // ---------------------------------------------------------------- swing, chop, impact
@@ -336,10 +338,17 @@ const stageSkillRules = (() => {
         [].concat(s.map.area2).forEach((ref, index) => stageSkillVfx.play(ref, K.at(s.area.centre, 0, K.onGround(ref) ? 1 : -46), { face: s.look.face, ramp: s.look.ramp, delay: 320 + index * 40 }));
     }
     /** 닿는 순간(stage)의 훅과 그 연출. */
-    const STAGE_PLAYS = Object.freeze([['suck', rulePlaySuck], ['area', rulePlayArea], ['ring', rulePlayRing], ['area2', rulePlayRocks], ['land', rulePlayLand], ['seep', ruleSeepMist], ['drop', rulePlayDrops]]);
+    /** 유성 낙화의 불타는 지대: 첫 단계(충돌)에 한 번, 땅 불길 틱(data/skills.js combatPattern groundHits × groundIntervalMs)이 끝날 때까지 남는다. */
+    function rulePlayZone(s) {
+        if (!s.first) return;
+        const pattern = (SKILL_DB[s.gem.meta.name] || {}).combatPattern || {};
+        const ticksMs = Math.max(1, Number(pattern.groundHits) || 1) * Math.max(0, Number(pattern.groundIntervalMs) || 0);
+        stageSkillSpells.fireZone({ at: K.at(s.area.centre), radius: s.area.radius, delay: ZONE_DELAY, life: Math.max(400, ticksMs + 200 - ZONE_DELAY) });
+    }
+    const STAGE_PLAYS = Object.freeze([['suck', rulePlaySuck], ['area', rulePlayArea], ['ring', rulePlayRing], ['area2', rulePlayRocks], ['land', rulePlayLand], ['seep', ruleSeepMist], ['drop', rulePlayDrops], ['zone', rulePlayZone]]);
     /** 닿는 순간의 범위 연출. 여진(강타의 둘째 단계)은 그 범위에 여진 클립을 깐다. */
     function rulePlayStage(gem, event, look) {
-        const s = { map: gem.map, area: ruleAreaOf(event), look, long: Math.max(400, event.duration || 0) };
+        const s = { gem, map: gem.map, area: ruleAreaOf(event), look, long: Math.max(400, event.duration || 0), first: !Number(event.stageIndex) };
         if (gem.map.shout) { rulePlayShout(gem.map.shout, look); return; }
         if (gem.map.after && Number(event.stageIndex) > 0) { rulePlayAfter(gem, s, look); return; }
         for (const [hook, play] of STAGE_PLAYS) if (gem.map[hook]) play(s);

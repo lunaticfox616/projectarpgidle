@@ -42,7 +42,7 @@ const gardenOils = (() => {
         if (!item || item.slot !== '목걸이') return '목걸이에만 바를 수 있습니다.';
         if (colorsOf(bowl).length !== G.perAnoint) return `기름 ${G.perAnoint}개를 고르세요.`;
         const short = Object.entries(needs(bowl)).find(([key, need]) => (state.currencies[key] || 0) < need);
-        return short ? `${BY_KEY.get(short[0]).name}이(가) 부족합니다.` : '';
+        return short ? `${withSubjectParticle(BY_KEY.get(short[0]).name)} 부족합니다.` : '';
     }
     const majorOf = id => { const node = id ? PASSIVE_TREE.nodes[id] : null; return node && node.kind === 'major' ? node : null; };
     /** The engraved nodes by slot, [first, second] (null for an empty slot). */

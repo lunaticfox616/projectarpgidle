@@ -42,7 +42,7 @@ const explorationAtlasUi = (() => {
     function hunt(index) {
         if (!STORY_ACTS.some((act,id) => id === index && id <= game.maxZoneId) || !available('map-explore-hunting')) return;
         if (game.currentZoneId === index && !game.combatHalted) return switchTab('tab-battle');
-        if (getZoneTravelBlockReason(index) || isBeehiveRunLockedForMapTravel() || game.beyondBoundary.activeRun) return;
+        if (getZoneTravelBlockReason(index) || getHeldRunBlockReason()) return;
         changeZone(index);
         if (game.currentZoneId === index) switchTab('tab-battle');
     }
@@ -69,8 +69,9 @@ const explorationAtlasUi = (() => {
         if (region.id === 'sea') return `현재 ${Math.floor(game.ocean.depthM)}m, 거점 ${Math.floor(game.ocean.checkpointM)}m`;
         return `보스 격파 기록 ${(game.cosmosAtlas?.bossClears || []).length}`;
     }
-    function floorProgress(highest,current) {
-        return `최고 ${highest}층` + (current == null ? '' : ` / 현재 루프 ${current}층`);
+    /** cleared: the highest floor beaten (the entry cards' 도달 최고 is the floor reached, one higher). */
+    function floorProgress(cleared,current) {
+        return `돌파 ${cleared}층` + (current == null ? '' : ` / 현재 루프 ${current}층`);
     }
     function destinationGroupsHtml(region) {
         const routes = region.routes.filter(available).filter(route => route !== 'map-explore-hunting');
@@ -124,7 +125,7 @@ const explorationAtlasUi = (() => {
     }
     function huntingActionsHtml(index,rewards) {
         const current = game.currentZoneId === index && !game.combatHalted;
-        const blocked = !current && (getZoneTravelBlockReason(index) || isBeehiveRunLockedForMapTravel() || game.beyondBoundary.activeRun);
+        const blocked = !current && (getZoneTravelBlockReason(index) || getHeldRunBlockReason());
         return `${rewards.length ? `<button class="atlas-claim" onclick="openActReward(${rewards[0]})">받을 보상 ${rewards.length}</button>` : ''}
             <button class="atlas-hunt-now" ${current ? '' : 'data-exploration-departure'} onclick="explorationAtlasUi.hunt(${index})" ${blocked ? 'disabled' : ''}>${current ? '전투로 돌아가기' : blocked ? '이동 대기' : '즉시 이동'}</button>
             <button class="atlas-hunt-select" onclick="explorationAtlasUi.enter('map-explore-hunting')">세부 지역</button>`;
@@ -149,7 +150,7 @@ const explorationAtlasUi = (() => {
         // The existing trial list owns unlock/completion eligibility and renders before this chooser.
         const pending = document.querySelector('#ui-trial-list .trial-pending:not(.current)[data-trial-id]');
         const ready = !!pending && !getZoneTravelBlockReason(pending.dataset.trialId)
-            && !isBeehiveRunLockedForMapTravel() && !game.beyondBoundary.activeRun;
+            && !getHeldRunBlockReason();
         return {attention:ready,status:ready ? '새 시련 도전 가능' : `완료한 시련 ${game.completedTrials.length}개`};
     }
     function hiveRouteSummary() {
@@ -171,7 +172,7 @@ const explorationAtlasUi = (() => {
         const keyCount = zone.key ? Math.max(0,Math.floor(game.currencies[zone.key] || 0)) : 0;
         const hasEntry = !!zone.milestonePinnacle || keyCount > 0;
         const current = game.currentZoneId === zone.id && !game.combatHalted;
-        const travelBlocked = !!getZoneTravelBlockReason(zone.id) || isBeehiveRunLockedForMapTravel() || !!game.beyondBoundary.activeRun;
+        const travelBlocked = !!getZoneTravelBlockReason(zone.id) || !!getHeldRunBlockReason();
         return {gate,keyCount,hasEntry,current,travelBlocked,ready:current || (gate.met && hasEntry && !travelBlocked)};
     }
     function bossRewardLabel(zone) {

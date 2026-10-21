@@ -86,17 +86,6 @@ function paintSkillSprite(ctx, spec, geometry, phase) {
     ctx.restore();
 }
 
-/** Only the bottle moves; the landing field uses the unchanged collision snapshot. */
-function drawSkillPotionFlight(ctx, spec, geometry, phase) {
-    let image=getSkillGemVfxImage(spec.asset);
-    if (!image) return;
-    let from=geometry.fp.sourcePoint, to=geometry.fp.centerPoint, p=phase.p;
-    let place={x:from.x+(to.x-from.x)*p,y:from.y+(to.y-from.y)*p-Math.sin(p*Math.PI)*34,
-        width:geometry.fp.tileW,height:geometry.fp.tileH,angle:0};
-    ctx.save(); ctx.globalAlpha=0.94; ctx.imageSmoothingEnabled=false;
-    drawSkillSpriteFrame(ctx,image,Math.min(1,Math.floor(p*2)),place); ctx.restore();
-}
-
 /** Delay later phases until their real hit; the first phase alone has preparation. */
 function getSkillSignaturePhase(fx, time) {
     let prepare=time.now<time.arriveAt, phase=fx.stageIndex || 0;
@@ -127,7 +116,6 @@ function drawSkillSignatureTravel(ctx, fx, time, projection) {
 
 function renderSkillSpriteTravel(ctx, view) {
     let {fx,spec,geometry,phase}=view;
-    if (spec.layout==='potion' && phase.prepare) return drawSkillPotionFlight(ctx,spec,geometry,phase);
     if (spec.layout==='wave') {
         let elapsed=phase.age+(fx.stageDelayMs || 0);
         phase={...phase,p:clampNumber(elapsed/Math.max(1,fx.waveDurationMs || 220),0,1),prepare:elapsed<0};

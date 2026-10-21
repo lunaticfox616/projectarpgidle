@@ -246,7 +246,32 @@ const UNIQUE_EQUIPMENT_RULES = Object.freeze(Object.fromEntries([
     ['잿불 군주의 심장','world_tree_leaf_amulet',72,0,0,0],
     ['호박에 갇힌 시간','alchemist_sash',72,60,0,60],
     ['마른 꽃잎 고리','void_ring',72,0,0,0],
-    ['어미나무의 손길','gen__armor_evasion_t20_2',72,90,90,0]
+    ['어미나무의 손길','gen__armor_evasion_t20_2',72,90,90,0],
+    // 뿌리 보스와 최종 관문의 대표 고유, 창공의 탑과 벌집, 군락지 보스의 고유(2026-10-19)
+    ['야수왕의 세 목줄','resin_amulet',57,0,0,0],
+    ['모르그란의 용광로 흉갑','gen__armor_t20_1',72,130,0,0],
+    ['탈라사의 해구 이빨','gen__evasion_t20_2',72,0,130,0],
+    ['빈 왕좌의 관','gen__energyShield_t20',72,0,0,130],
+    ['관측자의 마지막 기록','diamond_ring',80,0,0,0],
+    ['창공 사서의 두건','oracle_circlet',37,0,0,70],
+    ['별을 엮는 손','stormbind_mitts',41,0,0,75],
+    ['구름을 딛는 걸음','gen__energyShield_t12',49,0,0,80],
+    ['벌꿀술 투척병','volatile_flask',29,0,30,30],
+    ['여왕벌의 독침 시약','herb_toxin_flask',41,0,45,45],
+    ['끓어넘치는 밀랍병','alchemist_retort',49,0,55,55],
+    ['액막이 향로','ember_censer',29,30,0,30],
+    ['군락을 사르는 향','coal_censer',41,45,0,45],
+    ['마지막 수호의 향로','chapel_censer',49,55,0,55],
+    // 체이싱 고유 아홉(2026-10-20, data/items.js)
+    ['달을 벤 초승달','crescent_scimitar',53,60,60,0],
+    ['세계수의 첫 껍질','dread_plate',53,110,0,0],
+    ['고요한 맹세','bastion_aegis',57,80,0,40],
+    ['수액 냄새 밴 장화','hawkstride_boots',45,0,60,0],
+    ['일곱 번째 행운의 병','alchemist_retort',53,0,60,60],
+    ['꿈결의 향로','chapel_censer',53,60,0,60],
+    ['황금을 빚는 손','hunting_gauntlets',49,40,40,0],
+    ['비워 둔 자리','engraved_ring',45,0,0,0],
+    ['편린을 꿴 허리띠','vine_chain_belt',53,60,0,0]
 ].map(([name, baseId, level, strength, dexterity, intelligence, slot]) => [name, Object.freeze({
     baseId, level, slot, attributes: Object.freeze(Object.fromEntries(Object.entries({strength, dexterity, intelligence}).filter(([,value]) => value > 0)))
 })])));

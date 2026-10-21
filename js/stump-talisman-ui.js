@@ -21,9 +21,16 @@ const stumpTalismanUi = (() => {
     }
     /** A line that does not work yet: grey with (비활성) (2026-10-09 사용자, the seeds' rule). */
     function offRow(text) { return `<li class="is-off">${esc(text)} (비활성)</li>`; }
-    function linesHtml(item, active) {
+    /** What the board multiplies a working talisman's lines by (js/talisman-effects.js evaluate): its cell's graft with the ancient
+     * seeds beside it, and a repulsion's +25%. The lines show these values, as the seeds show theirs (2026-10-20: 왕좌의 창끝 on a
+     * rank 5 cell showed +18 and gave 27). */
+    function boardMul(item, cell) {
+        return stumpBox.graftMultiplier(game.stumpBox, cell) * (talismanEffects.summarize().amplified.has(item.id) ? 1.25 : 1);
+    }
+    const scaledLine = (line, mul) => ({ ...line, value: Math.round(line.value * mul * 100) / 100 });
+    function linesHtml(item, active, mul = 1) {
         const moment = item.special === 'moment' ? `보스에게 주는 최종 피해 +${item.moment}%, 생명력 5% 이하 보스 처형` : '';
-        const rows = active ? item.lines.map(lineRow) : item.lines.map(line => offRow(talismans.describeLine(line)));
+        const rows = active ? item.lines.map(line => lineRow(scaledLine(line, mul))) : item.lines.map(line => offRow(talismans.describeLine(line)));
         if (moment) rows.push(active ? `<li class="is-condition" style="color:${getItemStatToneColor('bossDamagePct')}">${moment}</li>` : offRow(moment));
         return rows.length ? `<ul class="stump-talisman-lines">${rows.join('')}</ul>` : '';
     }
@@ -69,7 +76,7 @@ const stumpTalismanUi = (() => {
     function tooltipHtml(item, cell) {
         const active = isActive(item, cell);
         return `<p class="stump-talisman-rarity" style="--stump-tone:${tone(item)}">${RARITY_LABELS[item.rarity]} 부적</p>`
-            + uniqueEffectHtml(item, active) + linesHtml(item, active) + stateLine(item, cell);
+            + uniqueEffectHtml(item, active) + linesHtml(item, active, active ? boardMul(item, cell) : 1) + stateLine(item, cell);
     }
 
     function statRow(stat, value) {
@@ -151,7 +158,7 @@ const stumpTalismanUi = (() => {
     async function discard(id) {
         const item = stumpBox.itemById(game, id);
         if (!item || item.family !== 'talisman') return false;
-        const message = `[${item.name}]을(를) 버립니다. 되돌릴 수 없습니다.`;
+        const message = `[${item.name}]${pickParticle(item.name, '을', '를')} 버립니다. 되돌릴 수 없습니다.`;
         const options = { title: '부적 버리기', tone: 'danger', confirmLabel: '버리기', cancelLabel: '취소' };
         if (item.rarity === 'unique' && !await requestGameConfirmation(message, options)) return false;
         return stumpBox.discard(game, id);

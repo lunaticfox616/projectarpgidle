@@ -18,6 +18,7 @@ const stageRegion = (() => {
     const recent = [];                          // 최근에 쓴 지역(맨 앞이 지금)
     const fits = new Map();                     // 파일 → 지금 배율(fitDot)로 옮겨 둔 그림
     const tints = new Map();                    // "파일|색" → 한 색을 얹은 그림(보급 상자의 등급, 누를 수 있는 물체의 테)
+    const shades = new Map();                   // "파일|어둠" → 화면 배율의 조각에 어두운 심해 띠의 어둠을 얹은 그림
     const layouts = new WeakMap();              // 지도 → Map(방 번호 → 소품 자리)
     let fitDot = 0, fitFamily = '';
     /** 문 봉인의 발 자리(도트): 뒤쪽 문은 바닥선 아래로, 앞쪽 문은 바닥의 앞쪽 끝 아래로 내려 서고, 좌우 문은 문 칸의 가운데에서
@@ -93,6 +94,7 @@ const stageRegion = (() => {
         // 이웃한 방이 똑같아 보이지 않게, 정해진 방은 좌우로 뒤집어 그린다(js/act-exploration-rooms.js roomMirrored)
         if (room.mirror) { ctx.save(); ctx.translate(x * 2 + Math.round(w), 0); ctx.scale(-1, 1); }
         ctx.drawImage(regionPicture(view.map.region + '.png').image, x, y, Math.round(w), Math.round(h));
+        if (typeof stageOcean === 'object') stageOcean.light(ctx, view.map.region, { x, y, w: Math.round(w), h: Math.round(h) }); // 심해 띠의 빛줄기, 같은 뒤집기
         if (room.mirror) ctx.restore();
         blendPictureEdges(ctx, region, { y, h: Math.round(h), reach: Math.round(BLEND_DOTS * dot) }, area);
     }
@@ -238,14 +240,33 @@ const stageRegion = (() => {
         ctx.imageSmoothingEnabled = false;
         if (pieceHidesHero(actor, state, size, dot)) ctx.globalAlpha *= 0.5;
         if (piece.flip) { ctx.translate(Math.round(actor.point.x) * 2, 0); ctx.scale(-1, 1); }
-        ctx.drawImage(fittedRegionPiece(regionPieceFile(piece.region, piece.name), dot), at.x, at.y, size[0] * dot, size[1] * dot);
+        const file = regionPieceFile(piece.region, piece.name), shade = typeof stageOcean === 'object' ? stageOcean.shade() : null;
+        ctx.drawImage(shade ? shadedRegionPiece(file, dot, shade) : fittedRegionPiece(file, dot), at.x, at.y, size[0] * dot, size[1] * dot);
         ctx.restore();
+    }
+    /** 어두운 심해 띠의 소품(js/canvas-stage-ocean.js shade): 화면 배율로 옮겨 둔 조각에 그 띠의 어둠을 얹은 그림. 공용 심해 소품은
+     * 황혼층 빛으로 칠해져 무광층과 해구에서 혼자 밝게 튀었다. 배율이 바뀌어 조각을 새로 옮기면 다시 만든다. */
+    function shadedRegionPiece(file, dot, shade) {
+        const source = fittedRegionPiece(file, dot), key = file + '|' + shade;
+        let row = shades.get(key);
+        if (!row || row.source !== source) {
+            const canvas = document.createElement('canvas'), c = canvas.getContext('2d');
+            canvas.width = source.width;
+            canvas.height = source.height;
+            c.drawImage(source, 0, 0);
+            c.globalCompositeOperation = 'source-atop';
+            c.fillStyle = shade;
+            c.fillRect(0, 0, canvas.width, canvas.height);
+            row = { source, canvas };
+            shades.set(key, row);
+        }
+        return row.canvas;
     }
     /** 열린 좌우 문의 화살표: 접힌 봉인 위에 세운다. 전장의 조명을 입힌 뒤에 그린다(js/canvas-battlefield.js가 부른다). */
     function drawRegionSideMarks(ctx, p, here) {
         const dot = stageActors.scaleFor(p.tileW);
         for (const row of actExplorationDoors.doorsHere(here.run)) {
-            if (row.locked || (row.door.side !== 'west' && row.door.side !== 'east')) continue;
+            if (row.locked || (row.door.side !== 'west' && row.door.side !== 'east') || stageDoorMarks.underFrame(p, row)) continue;
             const piece = regionDoorPiece(row, here.room);
             stageDoorMarks.arrows(ctx, { cx: p.mapX + piece.x * dot, cy: p.mapY + (piece.y - 20) * dot,
                 w: WIDE * dot }, row.door, { dot, thick: 3, upright: true });
@@ -286,7 +307,8 @@ const stageRegion = (() => {
     function drawRegionObject(ctx, look, at) {
         const piece = regionObjectPiece(look);
         if (!piece) return false;
-        stampRegionObject(ctx, piece.grade ? tintedRegionPiece(piece.file, piece.grade, false) : regionPicture(piece.file).image, piece, at);
+        const shade = typeof stageOcean === 'object' ? stageOcean.shade() : null, tint = piece.grade || shade;
+        stampRegionObject(ctx, tint ? tintedRegionPiece(piece.file, tint, false) : regionPicture(piece.file).image, piece, at);
         return true;
     }
     /** 그 물체를 이 지역의 재질 그림으로 그릴 때 그림이 차지하는 맨 위(화면 px). 이 지역의 그림이 아니면 null. */

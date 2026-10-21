@@ -383,20 +383,20 @@
     };
 
     const COSMOS_MASTERY_NODES = [
-        { key: 'planetRelief', name: '행성 패널티 완화', max: 30, cost: 1, desc: '10레벨마다 행성 전투 위협 티어 -1 (최대 -3)' },
+        { key: 'planetRelief', name: '행성 패널티 완화', max: 30, cost: 1, desc: '10레벨마다 행성 전투 위협 티어 -1 (최대 -3, 위협 티어 완화는 모두 합쳐 -8까지)' },
         { key: 'asteroidRelief', name: '소행성 수확 증폭', max: 24, cost: 1, desc: '소행성 클리어 보상 +1.6% (최대 38.4%)' },
         { key: 'combatFocus', name: '전투 파밍 집중', max: 24, cost: 1, desc: '행성 클리어 보상 +1.0% (최대 24%)' },
         { key: 'craftFocus', name: '제작 파밍 집중', max: 24, cost: 1, desc: '소행성 클리어 보상 +1.0% (최대 24%)' },
         { key: 'stardustGain', name: '탐사 보상 증폭', max: 30, cost: 1, desc: '우주계 탐사 보상 +1.0% (최대 30%)' },
-        { key: 'challengeEase', name: '행성 난이도 완화', max: 22, cost: 1, desc: '4레벨마다 우주계 전투 위협 티어 -1 (최대 -5)' },
+        { key: 'challengeEase', name: '행성 난이도 완화', max: 22, cost: 1, desc: '4레벨마다 우주계 전투 위협 티어 -1 (최대 -5, 위협 티어 완화는 모두 합쳐 -8까지)' },
         { key: 'highRisk', name: '고위험 난이도', max: 20, cost: 1, desc: '4레벨마다 위협 티어 +1, 보상 +2.2% (최대 +44%)' },
         { key: 'bossBounty', name: '보스 보상 강화', max: 18, cost: 1, desc: '은하 보스 보상 +2.2% (최대 +39.6%)' },
-        { key: 'routeInsight', name: '별길 통찰', max: 28, cost: 1, desc: '7레벨마다 우주계 전투 위협 티어 -1 (최대 -4)' },
+        { key: 'routeInsight', name: '별길 통찰', max: 28, cost: 1, desc: '7레벨마다 우주계 전투 위협 티어 -1 (최대 -4, 위협 티어 완화는 모두 합쳐 -8까지)' },
         { key: 'gravityHarness', name: '중력 제어', max: 22, cost: 1, desc: '중력 페널티 완화 +1.0% (최대 22%)' },
         { key: 'warpEfficiency', name: '항성 추진', max: 20, cost: 1, desc: '모든 우주계 클리어 보상 +1.0% (최대 20%)' },
         { key: 'eliteHunt', name: '유물 감응', max: 20, cost: 1, desc: '보스 유물 드랍 확률 +0.7%p (최대 +14%p)' },
         { key: 'resonanceDrive', name: '공명 구동', max: 22, cost: 1, desc: '우주계 전투 최종 피해 +0.6% (최대 13.2%)' },
-        { key: 'voidSurvey', name: '공허 측량', max: 20, cost: 1, desc: '8레벨마다 소행성 전투 위협 티어 -1 (최대 -2)' },
+        { key: 'voidSurvey', name: '공허 측량', max: 20, cost: 1, desc: '8레벨마다 소행성 전투 위협 티어 -1 (최대 -2, 위협 티어 완화는 모두 합쳐 -8까지)' },
         { key: 'stellarForge', name: '항성 단조', max: 26, cost: 1, desc: '소행성 클리어 보상 +0.9% (최대 23.4%)' },
         { key: 'echoCache', name: '에코 저장고', max: 20, cost: 1, desc: '탐사 완료 보상 +1.0% (최대 20%)' },
         { key: 'riftGuard', name: '균열 방벽', max: 20, cost: 1, desc: '우주계 받는 피해 완화 +0.7% (최대 14%)' },
@@ -453,13 +453,6 @@
         return ((x >>> 0) % 100000) / 100000;
     }
 
-    function escapeHtml(value) {
-        if (typeof window.escapeHTML === 'function') return window.escapeHTML(value);
-        return String(value == null ? '' : value)
-            .replace(/&/g, '&amp;').replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;').replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;');
-    }
 
     function formatAsteroidNo(no) {
         return String(no).padStart(3, '0');
@@ -961,8 +954,8 @@
         const g = Math.max(1, Math.min(6, Math.floor(galaxy || 1)));
         const acquired = isCosmosStoneAcquired(state, g);
         const options = acquired ? ensureCosmosStoneOptions(state, g) : [];
-        const lines = options.map(option => `<div class="tooltip-line">${escapeHtml(getCosmosStoneOptionText(option))}</div>`).join('') || '<div class="tooltip-line">아직 획득하지 않았습니다.</div>';
-        return `<div class="tooltip-title">${escapeHtml(getCosmosStoneNameByGalaxy(g))}</div>${getCosmosTierFloorTooltipHtml()}<div class="tooltip-line" style="color:var(--copy-bright);">보스 유물 사용: 무작위 1줄을 해당 우주석의 보스 옵션으로 리롤</div>${lines}`;
+        const lines = options.map(option => `<div class="tooltip-line">${escapeHTML(getCosmosStoneOptionText(option))}</div>`).join('') || '<div class="tooltip-line">아직 획득하지 않았습니다.</div>';
+        return `<div class="tooltip-title">${escapeHTML(getCosmosStoneNameByGalaxy(g))}</div>${getCosmosTierFloorTooltipHtml()}<div class="tooltip-line" style="color:var(--copy-bright);">보스 유물 사용: 무작위 1줄을 해당 우주석의 보스 옵션으로 리롤</div>${lines}`;
     }
 
     function showCosmosStoneTooltip(event, galaxy) {
@@ -1567,8 +1560,8 @@
             const equipped = !!(state.equippedStones && state.equippedStones[String(g)]);
             const usableRelic = Array.isArray(state.bossRelics) && findCosmosBossRelicIndexForStone(state.bossRelics, g) >= 0;
             const options = acquired ? ensureCosmosStoneOptions(state, g) : [];
-            const optionHtml = options.map(option => `<div class="cosmos-stone-option ${option.boss ? 'boss' : ''}">${escapeHtml(getCosmosStoneOptionText(option))}</div>`).join('') || '<div class="cosmos-stone-option empty">미획득</div>';
-            return `<article class="cosmos-stone-card ${acquired ? 'acquired' : 'locked'} ${equipped ? 'equipped' : ''}" data-info-tooltip-anchor="1" onmouseenter="showCosmosStoneTooltip(event,${g})" onmousemove="showCosmosStoneTooltip(event,${g})" onmouseleave="hideInfoTooltip()"><div class="cosmos-stone-orb"><i></i><b>G${g}</b></div><div class="cosmos-stone-card-body"><header><b>${escapeHtml(getCosmosStoneNameByGalaxy(g))}</b><span>${equipped ? '장착 중' : (acquired ? '보유' : '미획득')}</span></header><small>최소 티어 T${getCosmosTierFloor()}</small><div class="cosmos-stone-options">${optionHtml}</div><div class="cosmos-stone-actions"><button onclick="equipBossStoneByGalaxy(${g})" ${acquired && !equipped ? '' : 'disabled'}>장착</button><button onclick="unequipBossStoneByGalaxy(${g})" ${equipped ? '' : 'disabled'}>해제</button><button onclick="applyCosmosBossRelicToStone(${g})" ${acquired && usableRelic ? '' : 'disabled'} title="${usableRelic ? '이 우주석 전용 보스 유물 사용' : '이 우주석에 맞는 보스 유물이 없습니다'}">유물 각인</button></div></div></article>`;
+            const optionHtml = options.map(option => `<div class="cosmos-stone-option ${option.boss ? 'boss' : ''}">${escapeHTML(getCosmosStoneOptionText(option))}</div>`).join('') || '<div class="cosmos-stone-option empty">미획득</div>';
+            return `<article class="cosmos-stone-card ${acquired ? 'acquired' : 'locked'} ${equipped ? 'equipped' : ''}" data-info-tooltip-anchor="1" onmouseenter="showCosmosStoneTooltip(event,${g})" onmousemove="showCosmosStoneTooltip(event,${g})" onmouseleave="hideInfoTooltip()"><div class="cosmos-stone-orb"><i></i><b>G${g}</b></div><div class="cosmos-stone-card-body"><header><b>${escapeHTML(getCosmosStoneNameByGalaxy(g))}</b><span>${equipped ? '장착 중' : (acquired ? '보유' : '미획득')}</span></header><small>최소 티어 T${getCosmosTierFloor()}</small><div class="cosmos-stone-options">${optionHtml}</div><div class="cosmos-stone-actions"><button onclick="equipBossStoneByGalaxy(${g})" ${acquired && !equipped ? '' : 'disabled'}>장착</button><button onclick="unequipBossStoneByGalaxy(${g})" ${equipped ? '' : 'disabled'}>해제</button><button onclick="applyCosmosBossRelicToStone(${g})" ${acquired && usableRelic ? '' : 'disabled'} title="${usableRelic ? '이 우주석 전용 보스 유물 사용' : '이 우주석에 맞는 보스 유물이 없습니다'}">유물 각인</button></div></div></article>`;
         }).join('');
         return `<section class="cosmos-stone-panel"><header><strong>우주석 성좌</strong><span>보스 유물 ${relicCount}개</span></header><div class="cosmos-stone-grid">${cards}</div></section>`;
     }
@@ -1610,7 +1603,7 @@
             <button type="button" class="cosmos-capstone-boss ${row.cleared ? 'cleared' : 'missing'}"
                 onclick="focusCosmosCapstoneBoss('${row.id}')"
                 title="${row.cleared ? '이번 루프 격파 완료' : '아틀라스에서 위치 확인'}">
-                <span>G${row.galaxy}</span>${escapeHtml(row.name)}<b>${row.cleared ? '✓' : '○'}</b>
+                <span>G${row.galaxy}</span>${escapeHTML(row.name)}<b>${row.cleared ? '✓' : '○'}</b>
             </button>`).join('');
         const capstoneAction = capstone.ready
             ? `<button type="button" class="cosmos-capstone-action" onclick="openCosmosCapstoneBossPanel()">잔향체 아스트라 위치 열기</button>`
@@ -1627,7 +1620,7 @@
             <details class="cosmos-capstone-card ${capstoneState}" data-ui-disclosure="cosmos-capstone">
                 <summary class="cosmos-capstone-head"><span>최종 관문</span><strong>잔향체 아스트라 ${capstone.clearedCount}/${capstone.total}, 표식 ${capstone.keyCount}</strong></summary>
                 <div class="cosmos-capstone-bosses">${capstoneBosses}</div>
-                <p>${escapeHtml(capstoneMessage)}</p>
+                <p>${escapeHTML(capstoneMessage)}</p>
                 <div class="cosmos-capstone-footer"><span>표식: 잔향 <b>${capstone.keyCount}</b></span>${capstoneAction}</div>
             </details>`;
     }
@@ -1672,10 +1665,10 @@
         const chance = Math.round(Math.max(0, Number(directive.jackpotChance) || 0) * 100);
         const className = ['cosmos-directive-card', selected ? 'selected' : '', directive.rare ? 'rare' : '']
             .filter(Boolean).join(' ');
-        return `<button type="button" class="${className}" data-cosmos-directive-node="${escapeHtml(node.id)}" data-cosmos-directive-id="${escapeHtml(directive.id)}" aria-pressed="${selected ? 'true' : 'false'}" ${disabled ? 'disabled' : ''}>
-            <span class="cosmos-directive-card-head"><small>${escapeHtml(directive.signal || 'SIGNAL')}</small>${selected ? '<b>선택됨</b>' : (directive.rare ? '<b>희귀 신호</b>' : '')}</span>
-            <strong>${escapeHtml(directive.name)}</strong>
-            <span class="cosmos-directive-desc">${escapeHtml(directive.description)}</span>
+        return `<button type="button" class="${className}" data-cosmos-directive-node="${escapeHTML(node.id)}" data-cosmos-directive-id="${escapeHTML(directive.id)}" aria-pressed="${selected ? 'true' : 'false'}" ${disabled ? 'disabled' : ''}>
+            <span class="cosmos-directive-card-head"><small>${escapeHTML(directive.signal || 'SIGNAL')}</small>${selected ? '<b>선택됨</b>' : (directive.rare ? '<b>희귀 신호</b>' : '')}</span>
+            <strong>${escapeHTML(directive.name)}</strong>
+            <span class="cosmos-directive-desc">${escapeHTML(directive.description)}</span>
             <span class="cosmos-directive-risk"><i>생명력 ${formatCosmosDirectivePressure(directive.enemyHpMul)}</i><i>피해 ${formatCosmosDirectivePressure(directive.enemyDamageMul)}</i><i>속도 ${formatCosmosDirectivePressure(directive.enemyAttackSpeedMul)}</i></span>
             <span class="cosmos-directive-reward"><b>보상 ×${Number(directive.rewardMul || 1).toFixed(2)}</b><em>${chance > 0 ? `공명 잭팟 ${chance}%` : '잭팟 없음'}</em></span>
         </button>`;
@@ -1711,7 +1704,7 @@
         const reward = node.tag === 'boss' ? `첫 격파, ${getBossStoneName(node)}`
             : `창공의 정수, ${node.kind === 'planet' ? '행성 보상' : '제작 재료'}`;
         ATLAS.detail.innerHTML = `
-            <div class="cosmos-detail-hero"><div class="cosmos-detail-title">${escapeHtml(node.name)}</div>
+            <div class="cosmos-detail-hero"><div class="cosmos-detail-title">${escapeHTML(node.name)}</div>
                 <span class="cosmos-status ${status}">${getStatusLabel(status)}</span></div>
             ${renderCosmosDifficultySection(node)}
             ${renderGalaxyGateLine(node, state)}
@@ -1721,7 +1714,7 @@
                 <button onclick="this.closest('details').open=false">닫기</button>
             </div>
             <details data-ui-disclosure="cosmos-selected-conditions"><summary>전투 조건, 보상</summary>
-                <p class="cosmos-reward-line">${escapeHtml(reward)}</p>
+                <p class="cosmos-reward-line">${escapeHTML(reward)}</p>
                 ${renderCosmosDirectiveSection(node, state)}
             </details>`;
     }

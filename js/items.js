@@ -17,14 +17,6 @@ window.GameModules.items = {
 
 let craftingSelectionState = { ref: null, isEquip: false };
 
-const BLACK_MARKET_BASE_SLOT_COUNT = 6;
-const BLACK_MARKET_MAX_SLOT_COUNT = 50;
-const BLACK_MARKET_MAX_EXTRA_SLOTS = Math.max(0, BLACK_MARKET_MAX_SLOT_COUNT - BLACK_MARKET_BASE_SLOT_COUNT);
-const BLACK_MARKET_CHASE_UNIQUE_CHANCE = 0.0016;
-const BLACK_MARKET_BASE_CRAFT_TIER = 15;
-const BLACK_MARKET_MAX_LOCKED_OFFERS = 3;
-const BLACK_MARKET_INSIGHT_TARGET = 5;
-const BLACK_MARKET_EQUIPMENT_SLOTS = ['무기','투구','갑옷','장갑','신발','목걸이','반지','허리띠','방패'];
 
 function getInventoryItemVisualAsset(item, kind) {
     return pickInventoryItemVisualAsset(item, kind);
@@ -102,189 +94,6 @@ function getAverageExplicitAffixTier(items) {
 }
 safeExposeGlobals({ getAverageExplicitAffixTier });
 
-function isUniqueEligibleForBlackMarket(unique) {
-    if (!unique || unique.contentOnly || unique.bossOnly || unique.realmCodexOnly) return false;
-    if (!unique.dropOnly) return true;
-    return false;
-}
-
-function isBaseEligibleForBlackMarket(base) {
-    return !!(base && !base.dropOnly && !base.realmBase);
-}
-
-function rollBlackMarketExchangeOffer(recipe, index) {
-    let multiplierRoll = Math.random();
-    let bulkMultiplier = 1;
-    if (multiplierRoll < 0.0002) bulkMultiplier = 100;
-    else if (multiplierRoll < 0.0022) bulkMultiplier = 10;
-    else if (multiplierRoll < 0.0222) bulkMultiplier = 2 + Math.floor(Math.random() * 4);
-    let needVariance = 0.9 + Math.random() * 0.2;
-    let gainVariance = 0.9 + Math.random() * 0.2;
-    let baseGain = recipe.gain;
-    if (recipe.id === 'm11' && recipe.from === 'goldenRule' && recipe.to === 'formlessDew') baseGain = 70;
-    let need = Math.max(1, Math.floor(recipe.need * 0.8 * needVariance * bulkMultiplier));
-    let gain = Math.max(1, Math.floor(baseGain * gainVariance * bulkMultiplier));
-    let standardRate = Math.max(0.0001, recipe.gain / Math.max(1, recipe.need));
-    let rolledRate = gain / Math.max(1, need);
-    let dealPct = Math.max(0, Math.round((rolledRate / standardRate - 1) * 100));
-    return { type:'exchange', name:`암거래 교환 #${index+1}`, from:recipe.from, to:recipe.to, need, gain, bulkMultiplier, dealPct };
-}
-
-function getBlackMarketBaseChainInfo(base) {
-    return typeof getBaseChainInfo === 'function' ? getBaseChainInfo(base) : null;
-}
-
-function rollBlackMarketBaseStats(base, hiddenTier) {
-    if (typeof rollBaseStats === 'function') return rollBaseStats(base, hiddenTier || base.reqTier || 1);
-    return Array.isArray(base.baseStats) ? base.baseStats.map(stat => ({ ...stat })) : [];
-}
-
-function maybeApplyBlackMarketExceptionalBaseStats(baseStats) {
-    if (!Array.isArray(baseStats) || baseStats.length <= 0 || Math.random() >= 0.12) return { baseStats, exceptionalBase: false, names: [] };
-    let names = [];
-    baseStats.forEach(stat => {
-        if (!stat) return;
-        let max = Number.isFinite(Number(stat.baseRollMax)) ? Number(stat.baseRollMax)
-            : (Number.isFinite(Number(stat.valMax)) ? Number(stat.valMax) : Number(stat.val || stat.base || 0));
-        let boosted = max * 1.2;
-        let usesDecimal = ['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id);
-        stat.val = usesDecimal ? Math.round(boosted * 10) / 10 : Math.max(1, Math.floor(boosted));
-        stat.exceptional = true;
-        names.push(stat.statName || getStatName(stat.id));
-    });
-    return { baseStats, exceptionalBase: names.length > 0, names };
-}
-
-function clearExceptionalBaseState(item) {
-    if (!item) return item;
-    delete item.exceptionalBase;
-    delete item.exceptionalStatNames;
-    delete item.exceptionalStatName;
-    delete item.exceptionalAllLines;
-    (Array.isArray(item.baseStats) ? item.baseStats : []).forEach(stat => {
-        if (stat) delete stat.exceptional;
-    });
-    return item;
-}
-
-function chooseBlackMarketBase(slot) {
-    let candidates = BASE_ITEM_DB.filter(base => isBaseEligibleForBlackMarket(base)
-        && base.slot === slot && (base.reqTier || 1) <= BLACK_MARKET_BASE_CRAFT_TIER);
-    return candidates.length ? rndChoice(candidates) : chooseItemBase(slot, BLACK_MARKET_BASE_CRAFT_TIER);
-}
-
-function getBlackMarketBaseRollRange(stat) {
-    let statBase = Number(stat && stat.base) || 0;
-    let minBase = Number.isFinite(Number(stat && stat.baseMin)) ? Number(stat.baseMin)
-        : (Number.isFinite(Number(stat && stat.baseRollMin)) ? Number(stat.baseRollMin)
-        : (Number.isFinite(Number(stat && stat.valMin)) ? Number(stat.valMin) : statBase * 0.8));
-    let maxBase = Number.isFinite(Number(stat && stat.baseMax)) ? Number(stat.baseMax)
-        : (Number.isFinite(Number(stat && stat.baseRollMax)) ? Number(stat.baseRollMax)
-        : (Number.isFinite(Number(stat && stat.valMax)) ? Number(stat.valMax) : statBase * 1.2));
-    let scale = stat && stat.id === 'energyShield' ? 1.5 : 1;
-    let min = minBase * scale;
-    let max = maxBase * scale;
-    if (max > 0) {
-        let decimal = ['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id);
-        min = Math.max(decimal ? 0.1 : 1, min);
-        max = Math.max(min, max);
-    }
-    return { min, max };
-}
-
-function getBlackMarketBaseTooltipOptionLines(baseStats) {
-    let rows = Array.isArray(baseStats) ? baseStats : [];
-    if (rows.length <= 0) return '<div class="tooltip-line">베이스 옵션 없음</div>';
-    return rows.map(stat => {
-        let range = getBlackMarketBaseRollRange(stat);
-        let label = stat.statName || getStatName(stat.id);
-        return `<div class="tooltip-line" style="color:#9fd6ff;">베이스 옵션, ${escapeHTML(label)} +${formatValue(stat.id, range.min)}~+${formatValue(stat.id, range.max)}</div>`;
-    }).join('');
-}
-
-function getBlackMarketUniqueBase(unique) {
-    if (!unique || !Array.isArray(unique.slots) || unique.slots.length <= 0) return null;
-    return BASE_ITEM_DB.find(base => base.id === UNIQUE_EQUIPMENT_RULES[unique.name].baseId);
-}
-
-function rollBlackMarketChaseUniquePrice(reqTier) {
-    let tier = Math.max(1, Math.floor(Number(reqTier) || 1));
-    let minPrice = Math.max(30, Math.min(150, Math.floor(tier * 2)));
-    let maxPrice = Math.max(minPrice, Math.min(150, Math.floor(tier * 7.5)));
-    return minPrice + Math.floor(Math.random() * (maxPrice - minPrice + 1));
-}
-
-function getBlackMarketUniqueCodexKey(unique) {
-    if (!unique || !Array.isArray(unique.slots) || unique.slots.length <= 0) return '';
-    return `${unique.slots[0]}|${unique.name}`;
-}
-
-function isBlackMarketUniqueRegistered(unique) {
-    let key = getBlackMarketUniqueCodexKey(unique);
-    return !!(key && game.uniqueCodex && game.uniqueCodex[key]);
-}
-
-/** Saved offers keep their price and lock; their displayed base follows the fixed unique identity. */
-function migrateUniqueMarketOffer(offer) {
-    const rule = offer.type === 'unique' && UNIQUE_EQUIPMENT_RULES[offer.name];
-    if (!rule) return;
-    const base = BASE_ITEM_DB.find(row => row.id === rule.baseId);
-    if (offer.baseId === base.id && offer.slot === base.slot) return;
-    offer.baseId = base.id;
-    offer.baseName = base.name;
-    offer.slot = base.slot;
-    offer.baseStats = base.baseStats.map(stat => ({ ...stat }));
-}
-
-function normalizeBlackMarketState() {
-    game.blackMarket = (game.blackMarket && typeof game.blackMarket === 'object') ? game.blackMarket : { nextRefreshAt: 0, extraSlots: 0, offers: [], lockedOffers: {} };
-    game.blackMarket.extraSlots = Math.max(0, Math.min(BLACK_MARKET_MAX_EXTRA_SLOTS, Math.floor(Number(game.blackMarket.extraSlots) || 0)));
-    game.blackMarket.offers = Array.isArray(game.blackMarket.offers) ? game.blackMarket.offers.slice(0, BLACK_MARKET_MAX_SLOT_COUNT).map(offer => {
-        if (!offer) return offer;
-        migrateUniqueMarketOffer(offer);
-        if (offer.type === 'baseItem') {
-            let base = BASE_ITEM_DB.find(row => row && ((offer.baseId && row.id === offer.baseId)
-                || (row.name === String(offer.name || '').replace(' 베이스', '') && row.slot === offer.slot)));
-            if (base && (base.reqTier || 1) > BLACK_MARKET_BASE_CRAFT_TIER) return null;
-            offer.hiddenTier = BLACK_MARKET_BASE_CRAFT_TIER;
-            offer.affixTierCap = BLACK_MARKET_BASE_CRAFT_TIER;
-            offer.rareT20Base = false;
-            offer.price = Math.ceil(BLACK_MARKET_BASE_CRAFT_TIER * 0.45) + 2 + (offer.exceptionalBase ? 4 : 0);
-            return offer;
-        }
-        if (offer.type !== 'unique') return offer;
-        let unique = UNIQUE_DB.find(row => row && row.name === offer.name);
-        return isUniqueEligibleForBlackMarket(unique) ? offer : null;
-    }) : [];
-    game.blackMarket.lockedOffers = (game.blackMarket.lockedOffers && typeof game.blackMarket.lockedOffers === 'object') ? game.blackMarket.lockedOffers : {};
-    game.blackMarket.preferredSlot = BLACK_MARKET_EQUIPMENT_SLOTS.includes(game.blackMarket.preferredSlot) ? game.blackMarket.preferredSlot : 'any';
-    game.blackMarket.insight = Math.max(0, Math.min(BLACK_MARKET_INSIGHT_TARGET, Math.floor(Number(game.blackMarket.insight) || 0)));
-    game.blackMarket.manualRefreshes = Math.max(0, Math.min(20, Math.floor(Number(game.blackMarket.manualRefreshes) || 0)));
-    Object.keys(game.blackMarket.lockedOffers).forEach(key => {
-        let idx = Math.floor(Number(key));
-        if (!Number.isFinite(idx) || idx < 0 || idx >= BLACK_MARKET_MAX_SLOT_COUNT || !game.blackMarket.offers[idx]) delete game.blackMarket.lockedOffers[key];
-    });
-    return game.blackMarket;
-}
-
-function getBlackMarketLockCount() {
-    let bm = normalizeBlackMarketState();
-    return Object.keys(bm.lockedOffers || {}).filter(key => bm.lockedOffers[key] && bm.offers[Math.floor(Number(key))]).length;
-}
-
-function getBlackMarketManualRefreshCost() {
-    let bm = normalizeBlackMarketState();
-    return Math.min(25, 3 + Math.max(0, Math.floor(bm.manualRefreshes || 0)) * 2);
-}
-
-function getBlackMarketSlotCount() {
-    let bm = normalizeBlackMarketState();
-    return Math.min(BLACK_MARKET_MAX_SLOT_COUNT, BLACK_MARKET_BASE_SLOT_COUNT + Math.max(0, Math.floor(bm.extraSlots || 0)));
-}
-
-function isBlackMarketSlotCapReached() {
-    return getBlackMarketSlotCount() >= BLACK_MARKET_MAX_SLOT_COUNT;
-}
 
 function runItemStartMoving(force) {
     try {
@@ -393,9 +202,17 @@ const craftingResultLedger = (() => {
         return JSON.stringify(snapshotCraftResultItem(item)) === latest.afterKey ? latest : null;
     }
 
+    /** The latest result's item changed again within the same craft (성화의 뿌리 pick): its after becomes the item now. */
+    function amend(item) {
+        if (!latest || latest.itemRef !== item) return null;
+        const after = snapshotCraftResultItem(item);
+        latest = { ...latest, after, afterKey: JSON.stringify(after) };
+        return latest;
+    }
+
     function clear() { latest = null; }
 
-    return { begin, commit, getForItem, clear };
+    return { begin, commit, amend, getForItem, clear };
 })();
 
 function getEquipCandidateSlots(item, targetGame = game) {
@@ -560,13 +377,19 @@ function equipSelectedCraftInventoryItem() {
     return equipItemById(itemId);
 }
 
+/** Where an unequipped item goes: the chosen cell, else the first free cell, else (no cell chosen) a packed bag: placement null, and
+ * the next ensureState packs the bag as for a pickup (2026-10-19). @returns {{ok:boolean, placement?:?object, reason?:string}} */
+function findUnequipPlacement(item, column, row) {
+    if (Number.isFinite(Number(column)) && Number.isFinite(Number(row))) return equipmentInventoryGridRuntime.canAdd(item, column, row, game);
+    let result = equipmentInventoryGridRuntime.findAddPlacement(item, game);
+    if (!result.ok && equipmentInventoryGridRuntime.canStoreItems([item], game)) return { ok: true, placement: null };
+    return result;
+}
+
 function unequipItemToGrid(slot, column, row) {
     let item = game.equipment[slot];
     if (!item) return false;
-    let hasTargetCell = Number.isFinite(Number(column)) && Number.isFinite(Number(row));
-    let placementResult = hasTargetCell
-        ? equipmentInventoryGridRuntime.canAdd(item, column, row, game)
-        : equipmentInventoryGridRuntime.findAddPlacement(item, game);
+    let placementResult = findUnequipPlacement(item, column, row);
     if (!placementResult.ok) {
         addLog(placementResult.reason || '인벤토리 공간이 부족해 장착 해제할 수 없습니다.', 'attack-monster');
         return false;
@@ -575,10 +398,7 @@ function unequipItemToGrid(slot, column, row) {
     delete item.legacyRequirementGrace;
     game.inventory.push(item);
     game.equipment[slot] = null;
-    game.equipmentInventoryPlacements = {
-        ...(game.equipmentInventoryPlacements || {}),
-        [itemKey]: placementResult.placement
-    };
+    if (placementResult.placement) game.equipmentInventoryPlacements = { ...(game.equipmentInventoryPlacements || {}), [itemKey]: placementResult.placement };
     if (isCraftSelectionEquip() && getCraftSelectionRef() === slot) {
         craftingSelectionState.ref = item.id;
         craftingSelectionState.isEquip = false;
@@ -590,6 +410,17 @@ function unequipItemToGrid(slot, column, row) {
 
 function unequipItem(slot) {
     return unequipItemToGrid(slot);
+}
+
+/** 반지3의 반지(초월 공허 '세 번째 손가락'이 연 칸)가 그 초월이 사라진 뒤 남아 있으면 가방에 자리가 날 때 가방으로 돌려보낸다
+ * (전투 틱마다, js/combat.js prepareCombatTick). 장비창에 반지3 칸이 없어 보지도 빼지도 못했다(2026-10-20 검토). 꺼지는 것은
+ * js/combat-equipment-stats.js missing이 맡는다. 방치 정산과 나무꾼 잠금 중에는 그대로 둔다. say: 기록(전투 틱이 넘긴다). */
+function releaseClosedThirdRing(say) {
+    const ring = game.equipment && game.equipment['반지3'];
+    if (!ring || game.isBackgroundCalculation || game.woodsmanBuildLock || getTranscendentVoidPassiveCount('thirdFinger', game) > 0) return false;
+    if (!findUnequipPlacement(ring).ok || !unequipItemToGrid('반지3')) return false;
+    say(`세 번째 손가락이 사라져 [${ring.name}]${pickParticle(ring.name, '을', '를')} 가방에 넣었습니다.`, 'loot-normal');
+    return true;
 }
 
 function salvageItemById(itemId) {
@@ -666,9 +497,23 @@ function isBeehiveRunLockedForMapTravel() {
     return reconcileBeehiveRunState() && game.currentZoneId === 'beehive_run';
 }
 
+const BEEHIVE_TRAVEL_REFUSAL = '벌집 원정 중에는 [원정 포기] 전까지 다른 지역으로 이동할 수 없습니다.';
 function warnBeehiveMapTravelBlocked() {
-    if (typeof addLog === 'function') addLog('벌집 원정 중에는 [던전 포기] 전까지 다른 지역으로 이동할 수 없습니다.', 'attack-monster');
+    if (typeof addLog === 'function') addLog(BEEHIVE_TRAVEL_REFUSAL, 'attack-monster');
     return true;
+}
+/** Runs that keep the hero until they end or are given up (벌집 원정, 경계 너머). changeZone and the deep sea refuse from inside one,
+ * and so does every content start (getContentStartBlockReason, and 경계 너머 itself). Returns the refusal, or ''. */
+function getHeldRunBlockReason() {
+    if (isBeehiveRunLockedForMapTravel()) return BEEHIVE_TRAVEL_REFUSAL;
+    return ensureBeyondBoundaryState(game).activeRun ? '경계 너머 도전을 먼저 마치거나 포기하세요.' : '';
+}
+/** Content starts (군락지, 벌집, 혼돈 밖, 심해, 나무꾼의 잔상, 대균열, 증표 시련) refuse from a held run and from inside an atlas map:
+ * they set the zone themselves, so leaving the map that way skipped the portal changeZone spends. They refuse at the loop gate too
+ * (time stands still there, as for hunting-ground travel; the loop then ended the run unplayed). Returns the refusal, or ''. */
+function getContentStartBlockReason() {
+    if (game.pendingLoopReady) return '⏸️ 루프 진행 대기 중에는 콘텐츠를 시작할 수 없습니다. [루프 진행] 버튼으로 다음 루프를 시작하세요.';
+    return getHeldRunBlockReason() || (atlas.inMap(game) ? atlas.runOpenReason(game) : '');
 }
 
 // ── 시간의 균열: 제단 배치/회수 + 융합 정산 ──────────────────────────────
@@ -679,6 +524,13 @@ function setTimeRiftPressure(delta) {
     if (inRift || rift.altarOpen) return addLog('시간압은 과거에 진입하기 전에만 바꿀 수 있습니다. 제단 아이템을 회수하면 다시 선택할 수 있습니다.', 'attack-monster');
     rift.pressure = Math.max(1, Math.min(TIME_RIFT_MAX_PRESSURE, rift.pressure + Math.floor(delta || 0)));
     updateStaticUI();
+}
+
+/** 미래에 들어갈 수 없는 까닭: 제단의 두 장비가 맞지 않거나, 융합 결과가 들어갈 가방 자리가 없다(전에는 싸움을 끝낸 뒤에야 융합을
+ * 미뤄 미래를 다시 깨야 했다, 2026-10-20). 들어갈 수 있으면 null. */
+function getTimeRiftFutureEntryReason(rift) {
+    return getTimeRiftFusionMismatchReason(rift.altarUnique, rift.altarRare)
+        || (rift.altarUnique && !canStoreEquipmentItems([rift.altarUnique], game) ? '⌛ 가방에 융합 결과가 들어갈 자리가 없습니다. 자리를 비우고 미래에 들어가세요.' : null);
 }
 
 /** @returns {string|null} 시간의 균열 장비 융합 불가 사유. 가능하면 null. */
@@ -692,6 +544,7 @@ function getTimeRiftFusionMismatchReason(altarItem, candidate) {
 
 /** Shared admission for inventory candidates and the final altar action; null means eligible. */
 function getTimeAltarItemIssue(item, rift = ensureTimeRiftState()) {
+    if (game.woodsmanBuildLock) return '☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.'; // 잠금이 가방을 되돌려 제단의 장비가 가방에도 남았다
     if (!rift.altarOpen) return '먼저 과거를 클리어해 제단을 열어야 합니다.';
     if (!item) return '제단에 올릴 장비를 고르세요.';
     if (item.hallReplica) return '전당 소장품은 제단에 올릴 수 없습니다.';
@@ -719,12 +572,13 @@ function placeItemOnTimeAltar() {
     game.inventory = (game.inventory || []).filter(row => row && row.id !== item.id);
     rift[slotKey] = item;
     clearCraftSelection();
-    addLog(`⏳ [${item.name}]을(를) 과거의 제단에 올렸습니다.${rift.altarUnique && rift.altarRare ? ' 두 자리가 모두 찼습니다. 미래로 건너가세요.' : ''}`, 'season-up');
+    addLog(`⏳ [${item.name}]${pickParticle(item.name, '을', '를')} 과거의 제단에 올렸습니다.${rift.altarUnique && rift.altarRare ? ' 두 자리가 모두 찼습니다. 미래로 건너가세요.' : ''}`, 'season-up');
     updateStaticUI();
     queueImportantSave(200);
 }
 
 function retrieveTimeAltarItems() {
+    if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster'); // 잠금이 가방을 되돌려 회수한 장비가 사라졌다
     let rift = ensureTimeRiftState();
     if (!rift.altarUnique && !rift.altarRare) {
         if (!rift.altarOpen) return addLog('제단이 비어 있습니다.', 'attack-monster');
@@ -782,8 +636,9 @@ function resolveTimeRiftFusion() {
     return { fused: fused, grade: grade, lost: lost, inherited: rareStats.length };
 }
 
-// Manual entry returns to the chosen act/abyss. Ticket encounters are not resumable for free.
-// Automatic interruptions pass their own explicit return destination.
+// Manual entry returns to the chosen act/abyss. Ticket encounters are not resumable for free, and a floor content is entered again
+// through its own checks (the time rift's future asks for bag room). Automatic interruptions pass their own explicit return
+// destination (an atlas map's chain goes on after the meteor).
 function prepareMeteorEncounterEntry(returnZoneId = Number.isInteger(game.currentZoneId) ? game.currentZoneId : null) {
     let st = ensureMeteorSiteState();
     st.activeMeteorTier = Math.max(8, getSkyRiftGaugeEffectiveTier({tier:st.skyRiftMinTier || 13}, st));
@@ -809,10 +664,9 @@ function getZoneTravelBlockReason(id) {
 function changeZone(id) {
     const blockReason = getZoneTravelBlockReason(id);
     if (blockReason) return addLog(blockReason, 'attack-monster');
-    if (isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked();
     let boundary = ensureBeyondBoundaryState(game);
-    if (boundary.activeRun && id !== BEYOND_BOUNDARY_ZONE_ID)
-        return addLog('경계 너머 도전 중에는 다른 지역으로 이동할 수 없습니다. 먼저 도전을 포기하세요.', 'attack-monster');
+    const held = id === BEYOND_BOUNDARY_ZONE_ID && boundary.activeRun ? '' : getHeldRunBlockReason();
+    if (held) return addLog(held, 'attack-monster');
     if (id === BEYOND_BOUNDARY_ZONE_ID && !boundary.activeRun)
         return addLog('경계 너머 화면에서 단계와 성장시킬 인장을 선택해 도전을 시작하세요.', 'attack-monster');
     game.inTicketBossFight = false;
@@ -842,7 +696,7 @@ function changeZone(id) {
     if (zone.type === 'timeRift') {
         let rift = ensureTimeRiftState();
         if ((game.season || 1) < TIME_RIFT_UNLOCK_LOOP) return addLog(`시간의 균열은 루프 ${TIME_RIFT_UNLOCK_LOOP}부터 열립니다.`, 'attack-monster');
-        const mismatch = zone.riftPhase === 'future' ? getTimeRiftFusionMismatchReason(rift.altarUnique, rift.altarRare) : null;
+        const mismatch = zone.riftPhase === 'future' ? getTimeRiftFutureEntryReason(rift) : null;
         if (mismatch) return addLog(mismatch, 'attack-monster');
         rift.activePressure = rift.pressure;
     }
@@ -908,7 +762,7 @@ async function marketAnnulSelectedStat(statIdx) {
     if (!isMarketUnlocked()) return addLog('장비 제련을 해금하면 거래소를 이용할 수 있습니다.', 'attack-monster');
     let item = getSelectedCraftItem();
     if (!item) return addLog('먼저 제작 대상 장비를 선택하세요.', 'attack-monster');
-    let removable = getAnnulmentRemovableStats(item);
+    let removable = getMarketAnnulRows(item);
     if (item.rarity === 'normal' || removable.length <= 0) return addLog('소멸시킬 수 있는 옵션이 없습니다. 보호된 옵션은 제거할 수 없습니다.', 'attack-monster');
     if ((game.currencies.goldenRule || 0) < 2) return addLog('황금률이 부족합니다. (필요: 2)', 'attack-monster');
     let idx = Math.floor(Number(statIdx));
@@ -921,7 +775,7 @@ async function marketAnnulSelectedStat(statIdx) {
         tone: 'danger',
         confirmLabel: '옵션 제거'
     })) return;
-    if (!isMarketUnlocked() || game.woodsmanBuildLock || getSelectedCraftItem() !== item || !getAnnulmentRemovableStats(item).some(row => row.stat === target) || item.stats[idx] !== target || (game.currencies.goldenRule || 0) < 2) {
+    if (!isMarketUnlocked() || game.woodsmanBuildLock || getSelectedCraftItem() !== item || !getMarketAnnulRows(item).some(row => row.stat === target) || item.stats[idx] !== target || (game.currencies.goldenRule || 0) < 2) {
         return addLog('확인 중 장비 또는 재화 상태가 변경되어 옵션 소멸을 취소했습니다.', 'attack-monster');
     }
     game.currencies.goldenRule -= 2;
@@ -943,6 +797,12 @@ function getAffixKeepServiceReason(item, kind) {
 function buildGoldenRuleSpendPrompt(message) {
     let owned = Math.max(0, Math.floor((game.currencies && game.currencies.goldenRule) || 0));
     return `${message}\n\n현재 보유: 황금률 ${owned}개`;
+}
+
+/** 거래소 '장비 옵션 제거'가 고를 수 있는 줄. 타락한 장비, 융합 유물, 전당 소장품은 옵션을 바꾸지 않는다(옵션 보존과 같다,
+ * js/equipment-crafting.js getAffixKeepReason; 전에는 전정 가위가 거절하는 타락 장비의 줄도 지웠다). */
+function getMarketAnnulRows(item) {
+    return !item || item.corrupted || item.fusedRelic || item.hallReplica ? [] : getAnnulmentRemovableStats(item);
 }
 
 function getBaseDefenseProfile(base) {
@@ -1140,8 +1000,8 @@ function upgradeSelectedItemBase() {
     let bodyEl = document.getElementById('base-upgrade-body');
     if (titleEl) titleEl.innerText = `${currentBase.name} → ${nextBase.name}`;
     if (bodyEl) {
-        let curStats = (currentBase.baseStats || []).map(stat => `${getStatName(stat.id)} +${formatValue(stat.id, stat.baseMin || stat.base)}~${formatValue(stat.id, stat.baseMax || stat.base)}`).join(' / ');
-        let nextStats = (nextBase.baseStats || []).map(stat => `${getStatName(stat.id)} +${formatValue(stat.id, stat.baseMin || stat.base)}~${formatValue(stat.id, stat.baseMax || stat.base)}`).join(' / ');
+        let curStats = (currentBase.baseStats || []).map(stat => `${getStatName(stat.id)} ${formatSignedValue(stat.id, stat.baseMin || stat.base)}~${formatValue(stat.id, stat.baseMax || stat.base)}`).join(' / ');
+        let nextStats = (nextBase.baseStats || []).map(stat => `${getStatName(stat.id)} ${formatSignedValue(stat.id, stat.baseMin || stat.base)}~${formatValue(stat.id, stat.baseMax || stat.base)}`).join(' / ');
         bodyEl.innerHTML = `현재 베이스: <strong>${currentBase.name}</strong><br><span style="color:var(--copy-muted);">${curStats || '없음'}</span><br><br>업그레이드 베이스: <strong>${nextBase.name}</strong><br><span style="color:#ffd08a;">${nextStats || '없음'}</span><br><br>비용: 형체 없는 이슬 ${cost.formlessDew}${cost.goldenRule > 0 ? ` + 황금률 ${cost.goldenRule}` : ''}<br><span style="color:var(--copy-muted);">총 이슬 가치 ${cost.totalDewValue}</span>`;
     }
     let overlay = document.getElementById('base-upgrade-overlay');
@@ -1154,9 +1014,15 @@ function closeBaseUpgradeOverlay() {
     if (overlay) overlay.close();
 }
 
+/** What the wallet lacks for a base upgrade's cost, or ''. */
+function getBaseUpgradeShortfall(cost) {
+    if ((game.currencies.formlessDew || 0) < cost.formlessDew) return `형체 없는 이슬이 부족합니다. (필요: ${cost.formlessDew})`;
+    return (game.currencies.goldenRule || 0) < cost.goldenRule ? `황금률이 부족합니다. (필요: ${cost.goldenRule})` : '';
+}
 function confirmSelectedItemBaseUpgrade() {
     let pending = game.pendingBaseUpgrade;
     if (!pending) return;
+    if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 장비 옵션을 변경할 수 없습니다.', 'attack-monster');
     let item = (game.inventory || []).find(v => v && v.id === pending.itemId);
     if (!item) {
         let equipMatch = Object.entries(game.equipment || {}).find(([, equipped]) => equipped && equipped.id === pending.itemId);
@@ -1167,8 +1033,8 @@ function confirmSelectedItemBaseUpgrade() {
     let nextBase = BASE_ITEM_DB.find(base => base && base.id === pending.nextBaseId);
     if (!nextBase) return closeBaseUpgradeOverlay();
     let cost = getBaseUpgradeCost(nextBase);
-    if ((game.currencies.formlessDew || 0) < cost.formlessDew) return addLog(`형체 없는 이슬이 부족합니다. (필요: ${cost.formlessDew})`, 'attack-monster');
-    if ((game.currencies.goldenRule || 0) < cost.goldenRule) return addLog(`황금률이 부족합니다. (필요: ${cost.goldenRule})`, 'attack-monster');
+    const shortfall = getBaseUpgradeShortfall(cost);
+    if (shortfall) return addLog(shortfall, 'attack-monster');
     game.currencies.formlessDew -= cost.formlessDew;
     game.currencies.goldenRule = Math.max(0, (game.currencies.goldenRule || 0) - cost.goldenRule);
     item.baseId = nextBase.id;
@@ -1181,424 +1047,4 @@ function confirmSelectedItemBaseUpgrade() {
     updateStaticUI();
 }
 
-function createBlackMarketUniqueOffer(unique, tier, options) {
-    if (!unique) return null;
-    let req = unique.reqTier || tier;
-    let uniqueBase = getBlackMarketUniqueBase(unique);
-    let price;
-    if (unique.ultraRare) {
-        price = rollBlackMarketChaseUniquePrice(req);
-    } else {
-        let minPrice = Math.max(1, Math.floor(req / 10));
-        let maxPrice = Math.max(minPrice + 1, Math.floor(req / 4) + 1);
-        price = minPrice + Math.floor(Math.random() * (maxPrice - minPrice + 1));
-    }
-    return {
-        type:'unique',
-        name:unique.name,
-        slot:unique.slots[0],
-        reqTier:req,
-        hiddenTier:req,
-        baseId: uniqueBase ? uniqueBase.id : '',
-        baseName: uniqueBase ? uniqueBase.name : '',
-        priceKey:'goldenRule',
-        price:price,
-        chase: !!unique.ultraRare,
-        featured: !!(options && options.featured),
-        uniqueEffect: unique.uniqueEffect || '',
-        baseStats: uniqueBase && Array.isArray(uniqueBase.baseStats) ? uniqueBase.baseStats.map(stat => ({ ...stat })) : [],
-        uniqueStats: Array.isArray(unique.stats) ? unique.stats.map(stat => ({ ...stat })) : []
-    };
-}
-
-function getBlackMarketUniquePool(tier, preferredSlot, options) {
-    let includeChase = !!(options && options.includeChase);
-    let pool = UNIQUE_DB.filter(unique => {
-        if (!isUniqueEligibleForBlackMarket(unique)) return false;
-        if ((unique.reqTier || 1) > tier + 4) return false;
-        if (!includeChase && unique.ultraRare) return false;
-        if (preferredSlot && preferredSlot !== 'any' && (!Array.isArray(unique.slots) || unique.slots[0] !== preferredSlot)) return false;
-        return true;
-    });
-    if (pool.length <= 0 && preferredSlot && preferredSlot !== 'any') {
-        return getBlackMarketUniquePool(tier, 'any', options);
-    }
-    return pool;
-}
-
-function buildBlackMarketFeaturedOffer() {
-    let tier = (getZone(game.currentZoneId) || { tier: 1 }).tier || 1;
-    let bm = normalizeBlackMarketState();
-    let pool = getBlackMarketUniquePool(tier, bm.preferredSlot, { includeChase: false });
-    let missing = pool.filter(unique => !isBlackMarketUniqueRegistered(unique));
-    let unique = rndChoice(missing.length > 0 ? missing : pool);
-    return createBlackMarketUniqueOffer(unique, tier, { featured: true }) || buildBlackMarketOffer(0);
-}
-
-
-
-function buildBlackMarketOffer(index) {
-    let tier = (getZone(game.currentZoneId) || { tier: 1 }).tier || 1;
-    let bm = normalizeBlackMarketState();
-    let roll = Math.random();
-    if (roll < 0.45) {
-        return rollBlackMarketExchangeOffer(rndChoice(MARKET_EXCHANGES), index);
-    }
-    if (roll < 0.75) {
-        let preferred = bm.preferredSlot;
-        let slot = preferred !== 'any' && Math.random() < 0.35 ? preferred : rndChoice(BLACK_MARKET_EQUIPMENT_SLOTS);
-        let base = chooseBlackMarketBase(slot);
-        let hiddenTier = BLACK_MARKET_BASE_CRAFT_TIER;
-        let chainInfo = getBlackMarketBaseChainInfo(base);
-        let rolledBase = maybeApplyBlackMarketExceptionalBaseStats(rollBlackMarketBaseStats(base, hiddenTier));
-        // 제작 가능 옵션 단계는 현재 지역(hiddenTier)을 따르므로 가격도 원본 베이스 요구 티어가
-        // 아니라 실제 제공 티어를 기준으로 계산한다. 저티어 베이스를 고단계 제작대로 헐값에
-        // 구매하는 경제 우회를 막되, 직접 드랍보다 접근성은 유지한다.
-        let price = Math.max(2, Math.ceil(hiddenTier * 0.45) + 2 + (rolledBase.exceptionalBase ? 4 : 0));
-        return { type:'baseItem', name:`${base.name} 베이스`, slot: base.slot, baseId: base.id, baseName: base.name, hiddenTier:hiddenTier, affixTierCap:hiddenTier, priceKey:'formlessDew', price:price, baseStats: rolledBase.baseStats, exceptionalBase: rolledBase.exceptionalBase, exceptionalStatNames: rolledBase.names, rareT20Base:false, baseChainStep: chainInfo && chainInfo.step, baseChainTotal: chainInfo && chainInfo.total };
-    }
-    if (roll < 0.9) {
-        let missing = Object.keys(SKILL_DB).filter(k => SKILL_DB[k].isGem && !hasSkillGemOwned(k));
-        if (missing.length>0) return { type:'skillGem', name:pickSkillRuneReward(missing), priceKey:'formlessDew', price:5 };
-    }
-    let preferredUniqueSlot = bm.preferredSlot !== 'any' && Math.random() < 0.35 ? bm.preferredSlot : 'any';
-    let uniqPool = getBlackMarketUniquePool(tier, preferredUniqueSlot, { includeChase: true });
-    let normalPool = uniqPool.filter(u => !u.ultraRare);
-    let chasePool = uniqPool.filter(u => u.ultraRare);
-    let pickChase = chasePool.length > 0 && Math.random() < BLACK_MARKET_CHASE_UNIQUE_CHANCE;
-    let fallbackPool = uniqPool.length ? uniqPool : UNIQUE_DB.filter(isUniqueEligibleForBlackMarket);
-    let unregisteredNormal = normalPool.filter(unique => !isBlackMarketUniqueRegistered(unique));
-    let normalChoicePool = unregisteredNormal.length > 0 && Math.random() < 0.7 ? unregisteredNormal : normalPool;
-    let unique = pickChase
-        ? rndChoice(chasePool)
-        : rndChoice(normalChoicePool.length ? normalChoicePool : fallbackPool);
-    return createBlackMarketUniqueOffer(unique, tier);
-}
-
-function getBlackMarketUniqueTooltipOptionLines(offer, uniq) {
-    let effect = (offer && offer.uniqueEffect) || (uniq && uniq.uniqueEffect) || '';
-    let sourceStats = Array.isArray(offer && offer.uniqueStats) ? offer.uniqueStats : (uniq && uniq.stats);
-    let effectLine = effect ? `<div class="tooltip-line" style="color:#d7b8ff;">고유 효과: ${escapeHTML(effect)}</div>` : '';
-    let statLines = (Array.isArray(sourceStats) ? sourceStats : []).map(stat => {
-        let statId = stat.id;
-        let min = Number.isFinite(Number(stat.min)) ? Number(stat.min) : Number(stat.base || stat.val || 0);
-        let max = Number.isFinite(Number(stat.max)) ? Number(stat.max) : min;
-        let label = stat.statName || getStatName(statId);
-        return `<div class="tooltip-line" style="color:#ffd98a;">고유 옵션, ${escapeHTML(label)} +${formatValue(statId, min)}~+${formatValue(statId, max)}</div>`;
-    });
-    return effectLine + (statLines.join('') || '<div class="tooltip-line">고유 옵션 보유</div>');
-}
-
-function getBlackMarketOfferPurchaseState(offer) {
-    if (!offer) return { canBuy: false, reason: '품절' };
-    if (offer.type === 'exchange') {
-        let have = Math.max(0, Math.floor((game.currencies && game.currencies[offer.from]) || 0));
-        let need = Math.max(1, Math.floor(Number(offer.need) || 1));
-        return {
-            canBuy: have >= need,
-            reason: have >= need ? `교환 가능, ${have}/${need}` : `재화 부족, ${have}/${need}`
-        };
-    }
-    let priceKey = offer.priceKey;
-    let price = Math.max(0, Math.floor(Number(offer.price) || 0));
-    let have = Math.max(0, Math.floor((game.currencies && game.currencies[priceKey]) || 0));
-    if (offer.type === 'skillGem' && typeof hasSkillGemOwned === 'function' && hasSkillGemOwned(offer.name)) {
-        return { canBuy: false, reason: '이미 보유한 룬' };
-    }
-    if ((offer.type === 'baseItem' || offer.type === 'unique') && !canStoreEquipmentItems([offer], game)) {
-        return { canBuy: false, reason: `인벤토리 가득 참, ${getInventoryUsedCellCount(game)}/${getInventoryLimit(game)}칸` };
-    }
-    return {
-        canBuy: have >= price,
-        reason: have >= price ? `구매 가능, ${have}/${price}` : `재화 부족, ${have}/${price}`
-    };
-}
-
-function getBlackMarketBaseComparison(offer) {
-    if (!offer || offer.type !== 'baseItem' || !offer.slot) return null;
-    let equipped = Object.entries((game && game.equipment) || {})
-        .filter(([slotKey, item]) => item && String(slotKey).replace(/[123]$/, '') === offer.slot)
-        .map(([slotKey, item]) => ({ slotKey, item, tier: Math.max(1, Math.floor(Number(item.hiddenTier || item.itemTier) || 1)) }));
-    if (equipped.length <= 0) return { delta: null, label: '빈 장착 슬롯 있음', tone: 'empty' };
-    equipped.sort((a, b) => a.tier - b.tier || a.slotKey.localeCompare(b.slotKey));
-    let weakest = equipped[0];
-    let offerTier = Math.max(1, Math.floor(Number(offer.hiddenTier || offer.reqTier) || 1));
-    let delta = offerTier - weakest.tier;
-    return {
-        delta,
-        comparedSlot: weakest.slotKey,
-        comparedTier: weakest.tier,
-        label: `${weakest.slotKey} T${weakest.tier} 대비 ${delta === 0 ? '동급' : `${delta > 0 ? '+' : ''}${delta}티어`}`,
-        tone: delta > 0 ? 'upgrade' : (delta < 0 ? 'downgrade' : 'same')
-    };
-}
-
-function getBlackMarketOfferTooltipHtml(offer) {
-    if (!offer) return '<div class="tooltip-title">품절</div>';
-    if (offer.type === 'exchange') {
-        let fromName = typeof getStyledOrbName === 'function' ? getStyledOrbName(offer.from) : ORB_DB[offer.from].name;
-        let toName = typeof getStyledOrbName === 'function' ? getStyledOrbName(offer.to) : ORB_DB[offer.to].name;
-        let bulkLine = offer.bulkMultiplier && offer.bulkMultiplier > 1 ? `<div class="tooltip-line" style="color:#ffd36a;">대량 교환 x${offer.bulkMultiplier}</div>` : '';
-        let dealLine = Number.isFinite(Number(offer.dealPct)) ? `<div class="tooltip-line" style="color:#8fd9a7;">정규 거래소 대비 교환 효율 +${Math.max(0, Math.floor(offer.dealPct))}%</div>` : '';
-        return `<div class="tooltip-title">재화 교환</div><div class="tooltip-line">${fromName} ${offer.need}개를 ${toName} ${offer.gain}개로 교환합니다.</div>${dealLine}${bulkLine}`;
-    }
-    if (offer.type === 'skillGem') {
-        let skill = SKILL_DB[offer.name] || {};
-        return `<div class="tooltip-title">룬: ${offer.name}</div><div class="tooltip-line">${skill.desc || '미보유 공격 룬을 획득합니다.'}</div>`;
-    }
-    if (offer.type === 'baseItem') {
-        let base = BASE_ITEM_DB.find(row => row && ((offer.baseId && row.id === offer.baseId) || (row.name === String(offer.name || '').replace(' 베이스','') && row.slot === offer.slot)));
-        let sourceStats = Array.isArray(offer.baseStats) && offer.baseStats.length > 0 ? offer.baseStats : (base && base.baseStats);
-        let chainLabel = offer && offer.baseChainStep && offer.baseChainTotal ? `${Math.floor(offer.baseChainStep)}/${Math.floor(offer.baseChainTotal)}` : '';
-        let chainLine = chainLabel ? `<div class="tooltip-line" style="color:#9fd6ff;">베이스 체인 ${chainLabel}</div>` : '';
-        let rareLine = offer.rareT20Base ? '<div class="tooltip-line" style="color:#ffd36a; font-weight:800;">T20 희귀 베이스</div>' : '';
-        let exLine = offer.exceptionalBase ? '<div class="tooltip-line" style="color:#ffb454; font-weight:800;">특출난 베이스</div>' : '';
-        let comparison = getBlackMarketBaseComparison(offer);
-        let comparisonLine = comparison ? `<div class="tooltip-line" style="color:${comparison.tone === 'upgrade' || comparison.tone === 'empty' ? '#8fd9a7' : (comparison.tone === 'downgrade' ? '#d99b91' : '#9fb4d1')};">장착 비교, ${escapeHTML(comparison.label)}</div>` : '';
-        return `<div class="tooltip-title">베이스 장비</div><div class="tooltip-line">${offer.name}, 숨겨진 티어 ${offer.hiddenTier || offer.reqTier}</div>${comparisonLine}${chainLine}${rareLine}${exLine}${getBlackMarketBaseTooltipOptionLines(sourceStats)}<div class="tooltip-line">제작용 베이스로 사용됩니다.</div>`;
-    }
-    if (offer.type === 'unique') {
-        let uniq = UNIQUE_DB.find(u => u && u.name === offer.name);
-        let slot = (uniq && Array.isArray(uniq.slots) && uniq.slots.length > 0) ? uniq.slots[0] : '';
-        let codexKey = `${slot}|${offer.name}`;
-        let codex = (game && game.uniqueCodex && typeof game.uniqueCodex === 'object') ? game.uniqueCodex : {};
-        let registered = !!codex[codexKey];
-        let codexLine = registered ? '<span style="color:#8dffb1;">등록됨</span>' : '<span style="color:#ffb0b0;">미등록</span>';
-        let optionLines = getBlackMarketUniqueTooltipOptionLines(offer, uniq);
-        let baseLines = getBlackMarketBaseTooltipOptionLines(offer.baseStats);
-        let baseTitle = offer.baseName ? `<div class="tooltip-line" style="color:var(--copy-bright);">베이스: ${escapeHTML(offer.baseName)}, 숨겨진 티어 ${offer.hiddenTier || offer.reqTier}</div>` : '';
-        let chaseLine = offer.chase ? '<div class="tooltip-line" style="color:#ffd36a; font-weight:800;">체이싱 유니크 암거래 품목</div>' : '';
-        let featuredLine = offer.featured ? '<div class="tooltip-line" style="color:#93e7c1; font-weight:800;">시장 정보로 확보한 표적 고유</div>' : '';
-        return `<div class="tooltip-title">도감 고유 정보, ${escapeHTML(offer.name)} (숨겨진 티어 ${offer.hiddenTier || offer.reqTier})</div>${featuredLine}${chaseLine}${baseTitle}${baseLines}${optionLines}<div class="tooltip-line">도감 등록: ${codexLine}</div>`;
-    }
-    return '<div class="tooltip-title">암거래 품목</div>';
-}
-
-function showBlackMarketOfferTooltip(event, encodedHtml) {
-    if (!event || typeof showInfoTooltipHtml !== 'function') return;
-    let html = '';
-    try {
-        html = decodeURIComponent(encodedHtml || '');
-    } catch (error) {
-        html = '<div class="tooltip-title">암거래 품목</div>';
-    }
-    showInfoTooltipHtml(event.clientX, event.clientY, html, '#6f89a6');
-}
-
-function refreshBlackMarket(force) {
-    if (!isMarketUnlocked()) return;
-    let bm = normalizeBlackMarketState();
-    let now = Date.now();
-    let count = getBlackMarketSlotCount();
-    Object.keys(bm.lockedOffers || {}).forEach(key => {
-        let idx = Math.floor(Number(key));
-        if (!Number.isFinite(idx) || idx < 0 || idx >= count) delete bm.lockedOffers[key];
-    });
-    if (!force && now < (bm.nextRefreshAt || 0)) {
-        for (let index = 0; index < count; index++) {
-            if (typeof bm.offers[index] === 'undefined') bm.offers[index] = buildBlackMarketOffer(index);
-        }
-        return;
-    }
-    let isNaturalRefresh = !force;
-    if (isNaturalRefresh) bm.manualRefreshes = 0;
-    let prevOffers = Array.isArray(bm.offers) ? bm.offers.slice(0, count) : [];
-    let openIndices = Array.from({ length: count }, (_, index) => index).filter(index => !(bm.lockedOffers[index] && prevOffers[index]));
-    let nextInsight = Math.min(BLACK_MARKET_INSIGHT_TARGET, Math.max(0, Math.floor(bm.insight || 0)) + 1);
-    let featuredIndex = nextInsight >= BLACK_MARKET_INSIGHT_TARGET && openIndices.length > 0 ? openIndices[0] : -1;
-    let featuredOffer = featuredIndex >= 0 ? buildBlackMarketFeaturedOffer() : null;
-    bm.offers = Array.from({ length: count }, (_, i) => {
-        if (bm.lockedOffers[i] && prevOffers[i]) return prevOffers[i];
-        if (bm.lockedOffers[i]) delete bm.lockedOffers[i];
-        if (i === featuredIndex) return featuredOffer;
-        return buildBlackMarketOffer(i);
-    });
-    bm.insight = featuredOffer && featuredOffer.featured ? 0 : nextInsight;
-    bm.nextRefreshAt = now + (10 * 60 * 1000);
-}
-
-function toggleBlackMarketOfferLock(idx) {
-    let bm = normalizeBlackMarketState();
-    let offer = (bm.offers || [])[idx];
-    if (!offer) return;
-    let isLocked = !!bm.lockedOffers[idx];
-    if (isLocked) {
-        delete bm.lockedOffers[idx];
-    } else {
-        if (getBlackMarketLockCount() >= BLACK_MARKET_MAX_LOCKED_OFFERS) {
-            return addLog(`암거래 잠금은 최대 ${BLACK_MARKET_MAX_LOCKED_OFFERS}개까지 가능합니다.`, 'attack-monster');
-        }
-        bm.lockedOffers[idx] = true;
-    }
-    updateStaticUI();
-}
-
-function setBlackMarketPreferredSlot(slot) {
-    let bm = normalizeBlackMarketState();
-    let next = BLACK_MARKET_EQUIPMENT_SLOTS.includes(slot) ? slot : 'any';
-    if (bm.preferredSlot === next) return;
-    bm.preferredSlot = next;
-    addLog(`🕶️ 암거래 추적 부위: ${next === 'any' ? '전체 부위' : next}`, 'loot-normal');
-    updateStaticUI();
-}
-
-async function refreshBlackMarketNow() {
-    if (!isMarketUnlocked()) return;
-    let bm = normalizeBlackMarketState();
-    let cost = getBlackMarketManualRefreshCost();
-    if ((game.currencies.formlessDew || 0) < cost) return addLog(`즉시 갱신에 필요한 형체 없는 이슬이 부족합니다. (필요 ${cost})`, 'attack-monster');
-    let lockCount = getBlackMarketLockCount();
-    let accepted = await requestGameConfirmation(
-        `잠그지 않은 암거래 품목을 즉시 갱신합니다.\n형체 없는 이슬 ${cost}개를 사용하며 잠금 ${lockCount}개는 유지됩니다.`,
-        { title: '암거래 즉시 갱신', confirmLabel: '갱신', danger: false }
-    );
-    if (!accepted) return;
-    if ((game.currencies.formlessDew || 0) < cost) return addLog('갱신 도중 재화가 변경되어 취소되었습니다.', 'attack-monster');
-    game.currencies.formlessDew -= cost;
-    bm.manualRefreshes = Math.min(20, Math.max(0, Math.floor(bm.manualRefreshes || 0)) + 1);
-    refreshBlackMarket(true);
-    addLog(`🕶️ 암거래 즉시 갱신 완료 (카오스 ${cost} 소모)`, 'loot-magic');
-    updateStaticUI();
-}
-
-async function expandBlackMarketSlotsByDivine(){
-    let bm = normalizeBlackMarketState();
-    if (isBlackMarketSlotCapReached()) return addLog(`암거래상 품목 한도는 최대 ${BLACK_MARKET_MAX_SLOT_COUNT}개입니다.`, 'attack-monster');
-    let cost = getBlackMarketSlotExpandCost();
-    if ((game.currencies.goldenRule||0) < cost) return addLog(`황금률이 부족합니다. (필요 ${cost})`, 'attack-monster');
-    if (!await requestGameConfirmation(buildGoldenRuleSpendPrompt(`황금률 ${cost}개를 소모해 암거래 품목 슬롯을 영구히 1칸 확장합니다.\n현재 상품과 잠금 상태는 그대로 유지됩니다.`), {
-        title: '암거래 품목 확장',
-        tone: cost >= 5 ? 'danger' : 'warning',
-        confirmLabel: '슬롯 확장'
-    })) return;
-    bm = normalizeBlackMarketState();
-    if (isBlackMarketSlotCapReached() || getBlackMarketSlotExpandCost() !== cost) return addLog('확장 대기 중 거래소 상태가 변경되어 취소되었습니다.', 'attack-monster');
-    if ((game.currencies.goldenRule||0) < cost) return addLog('확장 대기 중 재화가 변경되어 취소되었습니다.', 'attack-monster');
-    let previousCount = getBlackMarketSlotCount();
-    game.currencies.goldenRule -= cost;
-    bm.extraSlots = Math.min(BLACK_MARKET_MAX_EXTRA_SLOTS, Math.max(0, Math.floor(bm.extraSlots||0)) + 1);
-    bm.offers = Array.isArray(bm.offers) ? bm.offers : [];
-    bm.offers[previousCount] = buildBlackMarketOffer(previousCount);
-    addLog(`🕶️ 암거래상 품목 슬롯이 늘어났습니다. (${getBlackMarketSlotCount()}/${BLACK_MARKET_MAX_SLOT_COUNT}, 황금률 ${cost} 소모)`, 'loot-unique');
-    updateStaticUI();
-}
-
-
-function getBlackMarketSlotExpandCost() {
-    let bm = normalizeBlackMarketState();
-    let bought = Math.max(0, Math.floor(bm.extraSlots || 0));
-    return 1 + bought;
-}
-
-function canStoreBlackMarketEquipmentOffer(offer) {
-    if (canStoreEquipmentItems([offer], game)) return true;
-    addLog('인벤토리 공간이 부족해 암거래 장비를 구매할 수 없습니다.', 'attack-monster');
-    return false;
-}
-
-async function buyBlackMarketOffer(idx){
-    let bm = normalizeBlackMarketState();
-    let offerIndex = Math.floor(Number(idx));
-    if (!Number.isInteger(offerIndex) || offerIndex < 0 || offerIndex >= getBlackMarketSlotCount()) return addLog('유효하지 않은 암거래 상품입니다.', 'attack-monster');
-    let offer = (bm.offers || [])[offerIndex];
-    if (!offer) return;
-    // 화면에 보인 상품의 시간이 끝난 뒤 클릭했을 때 같은 슬롯의 새 상품을 대신 구매하지 않는다.
-    // 잠금 상품만 자연 갱신을 통과해 동일 객체로 보존되므로 계속 구매할 수 있다.
-    if (Date.now() >= (bm.nextRefreshAt || 0)) {
-        let wasLocked = !!bm.lockedOffers[offerIndex];
-        refreshBlackMarket(false);
-        bm = normalizeBlackMarketState();
-        if (!wasLocked || bm.offers[offerIndex] !== offer) {
-            addLog('선택한 암거래 상품의 판매 시간이 끝나 목록을 갱신했습니다. 새 상품을 다시 확인하세요.', 'attack-monster');
-            updateStaticUI();
-            return;
-        }
-        offer = bm.offers[offerIndex];
-    }
-    let purchaseState = getBlackMarketOfferPurchaseState(offer);
-    if (!purchaseState.canBuy) return addLog(purchaseState.reason, 'attack-monster');
-    let needsConfirmation = !!(offer.chase || offer.featured || (offer.priceKey === 'goldenRule' && Number(offer.price) >= 5));
-    if (needsConfirmation) {
-        let priceName = offer.priceKey && ORB_DB[offer.priceKey] ? ORB_DB[offer.priceKey].name : offer.priceKey;
-        let accepted = await requestGameConfirmation(`[${offer.name || '암거래 상품'}]을 구매합니다.\n${priceName} ${offer.price}개를 소모하며 구매 후 되돌릴 수 없습니다.`, {
-            title: offer.chase ? '체이싱 고유 구매' : (offer.featured ? '표적 고유 구매' : '고가 암거래 구매'),
-            tone: 'danger',
-            confirmLabel: '구매'
-        });
-        if (!accepted) return;
-        bm = normalizeBlackMarketState();
-        if (bm.offers[offerIndex] !== offer || (Date.now() >= (bm.nextRefreshAt || 0) && !bm.lockedOffers[offerIndex])) {
-            refreshBlackMarket(false);
-            addLog('구매 확인 중 상품 목록이 변경되어 거래를 취소했습니다.', 'attack-monster');
-            updateStaticUI();
-            return;
-        }
-        purchaseState = getBlackMarketOfferPurchaseState(offer);
-        if (!purchaseState.canBuy) return addLog(`구매 확인 중 상태가 변경되었습니다. ${purchaseState.reason}`, 'attack-monster');
-    }
-    let purchased = false;
-    let purchaseSummary = '';
-    if (offer.type==='exchange') {
-        if ((game.currencies[offer.from]||0) < offer.need) return addLog('재화가 부족합니다.', 'attack-monster');
-        game.currencies[offer.from]-=offer.need; awardCurrency(offer.to, offer.gain); purchased = true;
-        purchaseSummary = `${ORB_DB[offer.from].name} ${offer.need} → ${ORB_DB[offer.to].name} ${offer.gain}`;
-    } else if (offer.type==='skillGem') {
-        if ((game.currencies[offer.priceKey]||0) < offer.price) return addLog('재화가 부족합니다.', 'attack-monster');
-        if (hasSkillGemOwned(offer.name)) return addLog('이미 보유한 룬입니다.', 'attack-monster');
-        game.currencies[offer.priceKey]-=offer.price; game.skills.push(offer.name); game.gemData[offer.name]={level:1,exp:0}; purchased = true;
-        game.noti = game.noti || {}; game.noti.skills = true;
-        purchaseSummary = `공격 룬 [${offer.name}]`;
-    } else if (offer.type==='baseItem') {
-        if ((game.currencies[offer.priceKey]||0) < offer.price) return addLog('재화가 부족합니다.', 'attack-monster');
-        if (!canStoreBlackMarketEquipmentOffer(offer)) return;
-        let base = BASE_ITEM_DB.find(row => row && ((offer.baseId && row.id === offer.baseId) || (row.name === offer.name.replace(' 베이스','') && row.slot === offer.slot))) || chooseItemBase(offer.slot, offer.hiddenTier || offer.reqTier);
-        let item = normalizeItem({
-            id: ++itemIdCounter,
-            slot: base.slot,
-            baseId: base.id,
-            baseName: base.name,
-            name: base.name,
-            rarity: 'normal',
-            itemTier: offer.hiddenTier || offer.reqTier || base.reqTier || 1,
-            hiddenTier: offer.hiddenTier || offer.reqTier || base.reqTier || 1,
-            affixTierCap: BLACK_MARKET_BASE_CRAFT_TIER,
-            baseStats: Array.isArray(offer.baseStats) && offer.baseStats.length > 0 ? offer.baseStats.map(stat => ({ ...stat })) : rollBaseStats(base, offer.hiddenTier || offer.reqTier || base.reqTier || 1),
-            stats: [],
-            exceptionalBase: !!offer.exceptionalBase,
-            exceptionalStatNames: Array.isArray(offer.exceptionalStatNames) ? offer.exceptionalStatNames.slice() : [],
-            exceptionalStatName: Array.isArray(offer.exceptionalStatNames) ? offer.exceptionalStatNames.join(', ') : '',
-            exceptionalAllLines: !!(offer.exceptionalBase && Array.isArray(offer.baseStats) && offer.baseStats.length > 0 && offer.baseStats.every(stat => stat && stat.exceptional))
-        });
-        if (item && addItemToInventory(item, { ignoreFilter: true, ignoreAutoSalvage: true })) {
-            game.currencies[offer.priceKey]-=offer.price;
-            purchased = true;
-            game.noti = game.noti || {}; game.noti.items = true;
-            purchaseSummary = `제작 베이스 [${item.name}]`;
-        }
-    } else if (offer.type==='unique') {
-        if ((game.currencies[offer.priceKey]||0) < offer.price) return addLog('재화가 부족합니다.', 'attack-monster');
-        if (!canStoreBlackMarketEquipmentOffer(offer)) return;
-        let item = generateUniqueItem(offer.hiddenTier || offer.reqTier, offer.slot, offer.name);
-        let base = BASE_ITEM_DB.find(row => row && offer.baseId && row.id === offer.baseId);
-        if (item && base) {
-            item.baseId = base.id;
-            item.baseName = base.name;
-            item.baseStats = rollBaseStats(base, offer.hiddenTier || offer.reqTier || base.reqTier || 1);
-            clearExceptionalBaseState(item);
-            if (typeof maybeApplyExceptionalBase === 'function') maybeApplyExceptionalBase(item);
-        }
-        if (item && addItemToInventory(item, { ignoreFilter: true, ignoreAutoSalvage: true })) {
-            game.currencies[offer.priceKey]-=offer.price;
-            purchased = true;
-            game.noti = game.noti || {}; game.noti.items = true;
-            purchaseSummary = `${offer.featured ? '표적 ' : ''}고유 [${item.name}]`;
-        }
-    }
-    if (!purchased) return;
-    game.blackMarket.offers[offerIndex]=null;
-    if (game.blackMarket && game.blackMarket.lockedOffers) delete game.blackMarket.lockedOffers[offerIndex];
-    addLog(`🕶️ 암거래 구매 완료${purchaseSummary ? `, ${purchaseSummary}` : ''}`, offer.chase || offer.featured ? 'loot-unique' : 'loot-magic');
-    updateStaticUI();
-}
-
-safeExposeGlobals({ canStoreBlackMarketEquipmentOffer, getBlackMarketOfferPurchaseState, showBlackMarketOfferTooltip, marketResetPassiveTreeByDivine, marketAnnulSelectedStat, refreshBlackMarket, refreshBlackMarketNow, setBlackMarketPreferredSlot, buyBlackMarketOffer, toggleBlackMarketOfferLock, getBlackMarketManualRefreshCost, getBlackMarketLockCount, getBlackMarketSlotExpandCost, getBlackMarketSlotCount, isBlackMarketSlotCapReached, expandBlackMarketSlotsByDivine, upgradeSelectedItemBase, confirmSelectedItemBaseUpgrade, closeBaseUpgradeOverlay });
+safeExposeGlobals({ marketResetPassiveTreeByDivine, marketAnnulSelectedStat, upgradeSelectedItemBase, confirmSelectedItemBaseUpgrade, closeBaseUpgradeOverlay });

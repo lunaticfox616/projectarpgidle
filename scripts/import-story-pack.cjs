@@ -268,6 +268,13 @@ function checkScenes(pack, game, report) {
     // 장면 해설은 게임에서도 고친다(2026-10-15 Gemini 검토): 바뀐 장면을 보여 주어 예전 글로 되돌아가는지 보게 한다.
     if (changed.length && pack !== game) report.note(`장면 해설이 바뀜: ${changed.join(', ')}`);
 }
+/** A scene picture must be a file the game has (the 2026-10-15 pack wrote act_5.webp for act-5.webp, and acts 5 and 6 lost theirs). */
+function checkSceneImages(story, report) {
+    for (const scene of SCENE_TABLES.flatMap(name => story.tables[name] || [])) {
+        const image = scene && scene.image ? String(scene.image).split('?')[0] : '';
+        if (image && !fs.existsSync(path.join(root, image))) report.error(`${scene.id}: 그림 파일이 없다 ${scene.image}`);
+    }
+}
 const codeTokens = (story, stmt) => espree.tokenize(story.text.slice(...stmt.range), { ecmaVersion: 'latest' })
     .map(token => `${token.type}:${token.value}`).join(' ');
 function checkCode(pack, game, report) {
@@ -366,6 +373,7 @@ function inspect(pack, game, report) {
     checkKeys(pack, ids, report);
     checkClassLines(pack, ids.STORY_CLASS_ORIGINS, report);
     checkScenes(pack, game, report);
+    checkSceneImages(pack, report);
     checkMissingTables(pack, game, report);
     checkCode(pack, game, report);
     checkStrings(STORY, pack.text, report);

@@ -1,7 +1,7 @@
 /**
  * 장비창(2026-10-10 개편, 사용자가 시안 6차에서 고른 고급 테마). 왼쪽은 장착 장비(인형 배치, 칸마다 그림과 칸 이름만), 요약(DPS 하나만
  * 크게, 그 아래 저항, 생명력과 에너지 보호막, 방어도와 회피, 유효 생명력을 능력치마다 제 색으로), 세팅 한 줄. 가운데는 가방이고 머리 한 줄에
- * 칸 수, 검색, 등급, 칸, 정렬, ⋯(빈칸 정리, 배치 모드, 판단, 다시 분석, 추천 교체, 빈 칸 채우기, 일괄 해체, 해체 복구, 드랍 필터)를 둔다.
+ * 칸 수와 검색, 그 아래 쪽 단추, 가방 오른쪽에 도구 줄(정리, 판단, 필터, 해체, 복구, 터치 기기는 배치)을 둔다(2026-10-19).
  * 창이 넓으면 오른쪽에 선택한 장비(바꾸면 증감표, 단추, 툴팁)가 붙고, 좁으면 같은 내용이 떠서 나오며, 휴대폰은 요약을 한 줄로 접고
  * (장착 장비 ▾로 펼친다) 선택한 장비는 아래에서 올라온다. 배치와 모양은 css/equipment-window.css.
  * 새로 들어온 아이템은 빨간 점 하나: id가 game.bagSeenId보다 크면 새 것이고, 가방을 열었다가 닫으면 그때까지 들어온 것을 모두 본 것으로 친다.
@@ -64,11 +64,66 @@ const equipmentWindowUi = (() => {
         const query = String(getSearchFilterState().equip || '');
         if (input && document.activeElement !== input && input.value !== query) input.value = query;
     }
-    /** ⋯ closes when the pointer goes down anywhere outside it. */
+    /** ⋯ and the rail's panels close when the pointer goes down anywhere outside them. */
     function closeMenus(event) {
-        document.querySelectorAll('#item-tab-equip details.eqw-more[open]').forEach(menu => {
+        document.querySelectorAll('#item-tab-equip details:is(.eqw-more, .eqw-rail-menu)[open]').forEach(menu => {
             if (!menu.contains(event.target)) menu.removeAttribute('open');
         });
+    }
+
+    // ---------------------------------------------------------------- 도구 줄(2026-10-19: 정리, 판단, 필터, 해체, 복구, 손가락 기기의 배치)
+    /** Each tool's pixel icon (index.html data-icon) goes in once, before its name. */
+    function fillRailIcons() {
+        document.querySelectorAll('#item-tab-equip .eqw-rail-tool[data-icon]').forEach(tool => {
+            if (!tool.querySelector('svg')) tool.insertAdjacentHTML('afterbegin', renderPixelIcon(tool.dataset.icon, 'eqw-rail-icon'));
+        });
+    }
+    /** 필터 has a dot while a grade is hidden or one kind of slot is picked (a picked slot the bag no longer holds shows everything);
+     * 판단 has one while its filter dims the bag, so a closed panel still says why items are dimmed. */
+    function markFilter() {
+        const summary = document.querySelector('#eqw-filter-menu > summary');
+        if (!summary) return;
+        const settings = game.settings || {};
+        const slot = String(settings.equipmentSlotFilter || 'all');
+        const slotPicked = slot !== 'all' && (game.inventory || []).some(item => item && item.slot === slot);
+        const gradeHidden = Object.values(settings.inventoryViewRarities || {}).some(shown => shown === false);
+        summary.dataset.active = String(slotPicked || gradeHidden);
+        const judge = document.querySelector('#eqw-judge-menu > summary');
+        if (judge) judge.dataset.active = String(equipmentTriage.currentFilter() !== 'all');
+    }
+    /** 검색 항목 해체 and 미검색 항목 해체 wait for a search word: with none, the first took the whole bag and the second nothing. */
+    function markSearchSalvage() {
+        const empty = !getSearchFilterState().equip.trim();
+        document.querySelectorAll('#item-tab-equip [data-search-salvage]').forEach(button => {
+            button.disabled = empty;
+            button.title = empty ? '가방 검색어를 먼저 입력하세요.' : '';
+        });
+    }
+    /** Opening one panel closes the others (the toggle event does not bubble, so the document listens in the capture phase). */
+    function keepOnePanel(event) {
+        const menu = event.target;
+        if (!menu.matches || !menu.matches('#item-tab-equip .eqw-rail-menu') || !menu.open) return;
+        document.querySelectorAll('#item-tab-equip .eqw-rail-menu[open]').forEach(other => { if (other !== menu) other.removeAttribute('open'); });
+    }
+    /** Esc, and the Android back key (it sends one, js/android-app-ui.js), closes an open panel before the window. */
+    function closePanelOnEscape(event) {
+        if (event.key !== 'Escape') return;
+        const menu = document.querySelector('#item-tab-equip details:is(.eqw-more, .eqw-rail-menu)[open]');
+        if (!menu || !menu.getClientRects().length) return;
+        menu.removeAttribute('open');
+        menu.querySelector('summary').focus();
+        event.preventDefault();
+        event.stopPropagation();
+    }
+    /** 해체 panel opened from elsewhere (the triage's near-full hint): auto salvage is set there now. */
+    function openSalvage() {
+        const menu = document.getElementById('eqw-salvage-menu');
+        if (menu) menu.open = true;
+    }
+    /** 아이템 필터 열기: the drop filter moved to the settings screen (2026-10-19). */
+    function openItemFilter() {
+        switchTab('tab-settings');
+        settingsUi.select('items');
     }
 
     // ---------------------------------------------------------------- 새 아이템
@@ -99,6 +154,9 @@ const equipmentWindowUi = (() => {
         const dps = fmt(stats.totalDps || stats.dps);
         setHtml(document.getElementById('ui-equipment-loadout-summary'), fullHtml(stats, dps) + miniHtml(stats, dps));
         renderHead();
+        fillRailIcons();
+        markFilter();
+        markSearchSalvage();
         watchBag();
     }
 
@@ -254,7 +312,12 @@ const equipmentWindowUi = (() => {
         else setTimeout(run, 0);
     }
 
-    if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') document.addEventListener('pointerdown', closeMenus, true);
-    return Object.freeze({ COLOR, render, toggleLoadout, newDotHtml, isNew, inspectorDock, inspectorHtml, emptyHtml, fillDeltas, wornSlots, compareNode, showPane, toggleDeltas });
+    if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+        document.addEventListener('pointerdown', closeMenus, true);
+        document.addEventListener('toggle', keepOnePanel, true);
+        document.addEventListener('keydown', closePanelOnEscape, true);
+    }
+    return Object.freeze({ render, toggleLoadout, newDotHtml, inspectorDock, inspectorHtml, emptyHtml, fillDeltas, wornSlots, compareNode, showPane, toggleDeltas,
+        openSalvage, openItemFilter });
 })();
 safeExposeGlobals({ equipmentWindowUi });

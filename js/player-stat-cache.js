@@ -37,6 +37,10 @@ const playerStatTick = (() => {
             const buff = game.uniqueEliteTraitBuff;
             return buff && (buff.expiresAt || 0) > now ? buff : null;
         },
+        incidentBreath: now => {
+            const breath = game.incidentBreath; // 세계수의 숨결(js/combat-incidents.js breathe)
+            return breath && (breath.until || 0) > now ? breath : null;
+        },
         cycleBuffEffects: now => getActivePassiveCycleBuffEffects(now),
         fanaticismStacks: () => ensurePassiveSpecializationState().fanaticism.stacks,
         leechActive: () => Array.isArray(game.playerLeechInstances)

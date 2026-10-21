@@ -86,7 +86,7 @@ const stageRoomsView = (() => {
      * 이동했는데 vfx, 대미지폰트 등이 남아있는데 없어지게 해줘": 화면 좌표에 묶인 것(대미지 숫자 등)은 카메라가 새 방으로 넘어가도
      * 그 자리에 남았다. */
     function clearLeftRoom() {
-        Object.assign(battleVisualState, { damageTexts: [], projectiles: [], skillProjectiles: [], skillEffects: [] });
+        Object.assign(battleVisualState, { damageTexts: [], projectiles: [], skillEffects: [] });
         if (battleVisualState.enemyHitPulses) battleVisualState.enemyHitPulses.clear();
         stageSkillVfx.clear();
         stageSkillSigil.clear();
@@ -116,6 +116,7 @@ const stageRoomsView = (() => {
         ctx.drawImage(view.canvas, p.mapX + box.x * p.tileW, p.mapY + box.y * p.tileH, box.columns * p.tileW, box.rows * p.tileH);
         for (const row of actExplorationDoors.doorsHere(run)) drawDoor(ctx, row, p, { run, kit: view.kit });
         drawFrontShade(ctx, view, p, area);
+        if (view.kit && typeof stageOcean === 'object') stageOcean.back(ctx, view, p, area); // 심해: 먼 입자와 가디언 방의 리프트
         return true;
     }
     /** 바닥의 앞쪽 끝 아래는 걸어갈 수 없는 자리다: 아래로 갈수록 어둡게 덮어 걸을 수 있는 바닥과 가른다(STAGE_ROOMS.frontShade).
@@ -147,7 +148,7 @@ const stageRoomsView = (() => {
         const sideways = row.door.side === 'west' || row.door.side === 'east';
         ctx.save();
         if (!look.kit) stageDoorMarks.seal.draw(ctx, look.run, row, { x: box.cx, y: box.cy + box.h / 2, dot });
-        if (!row.locked && !(look.kit && sideways)) stageDoorMarks.arrows(ctx, box, row.door, { dot });
+        if (!row.locked && !(look.kit && sideways) && !stageDoorMarks.underFrame(p, row)) stageDoorMarks.arrows(ctx, box, row.door, { dot });
         ctx.restore();
     }
 

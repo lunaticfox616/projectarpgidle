@@ -15,6 +15,13 @@ const SOCIAL_ONLINE_POLL_MS = 30000;
 // 새 채팅이 들어올 때 접속 인원을 다시 읽는 가장 짧은 간격(socialOnlineChat.refresh). 채팅이 몰려도 이 간격에 한 번만 읽는다.
 const SOCIAL_ONLINE_CHAT_REFRESH_MS = 10000;
 const SOCIAL_CHAT_FULL_SYNC_MS = 5 * 60 * 1000;
+// 채팅이 실시간으로 오는 동안(syncLiveChat) 채팅 조회와 새 채팅 알림 조회가 도는 간격: 실시간이 놓친 틈을 메우는 안전 조회다.
+const SOCIAL_CHAT_LIVE_POLL_MS = 60000;
+// 페이지를 가린 뒤 실시간 연결을 놓기까지: 방치형이라 가린 탭이 오래 열려 있고, 무료 요금제는 동시 연결 수에 한도가 있다.
+const SOCIAL_CHAT_LIVE_HIDDEN_MS = 60000;
+// 안전 조회가 실시간으로 오지 않은 남의 채팅을 이만큼 찾으면 이 세션은 예전 주기로 돌아간다. 연결 직후 이 시간 안의 조회는 세지 않는다.
+const SOCIAL_CHAT_LIVE_MISSES = 2;
+const SOCIAL_CHAT_LIVE_SETTLE_MS = 10000;
 // 커뮤니티 탭이 비활성일 때 새 채팅 여부만 가볍게 확인하는 주기(활성 탭 폴링보다 훨씬 느리게).
 const SOCIAL_BG_NOTI_POLL_MS = 15000;
 const SOCIAL_MSG_MAX = 300;
@@ -46,6 +53,15 @@ let socialState = {
     chatInitialized: false,
     chatMessages: [],
     lastChatFullSyncAt: 0,
+    lastChatPollAt: 0,
+    lastChatNoticeAt: 0,
+    chatChannel: null,
+    chatChannelUserId: null,
+    chatRealtime: null,
+    chatLive: false,
+    chatLiveMisses: 0,
+    chatLiveSince: 0,
+    chatLiveHiddenTimer: null,
     onlineLoading: false,
     lastOnlineLoadAt: 0,
     onlineChatTimer: null,
@@ -265,7 +281,7 @@ function buildJewelSnapshot(jewel) {
         if (typeof getJewelStats === 'function') getJewelStats(jewel).forEach(st => stats.push(snapStat(st)));
     } catch (e) { /* 무시 */ }
     return { kind: 'jewel', name: jewel.name || '주얼', rarity: jewel.rarity || 'normal', stats: stats.slice(0, 8),
-        uniqueEffect: jewel.uniqueEffect || undefined, keystone: buildJewelKeystoneSnapshot(jewel) };
+        uniqueEffect: getJewelUniqueEffectText(jewel) || undefined, keystone: buildJewelKeystoneSnapshot(jewel) };
 }
 /** 부적(게임 그루터기 함의 부적 설명과 같은 구성): 줄은 게임과 같은 문장, 고유 효과, 순간 부적의 보스 처형, 판 위 상태. */
 function buildTalismanSnapshot(t) {
@@ -578,7 +594,7 @@ async function promptAndSetNickname() {
     try {
         await uploadPlayerProfile({ fromNicknameChange: true });
         await updatePastChatNicknames(name);     // 과거 채팅도 새 닉네임으로
-        if (typeof addLog === 'function') addLog(`🪪 닉네임이 "${name}"(으)로 설정되었습니다.`, 'season-up');
+        if (typeof addLog === 'function') addLog(`🪪 닉네임이 ${withDirectionParticle(`"${name}"`)} 설정되었습니다.`, 'season-up');
         socialState.chatInitialized = false;
         socialState.chatMessages = [];
         socialState.lastChatRenderKey = '';
@@ -759,12 +775,41 @@ function getSocialChatNotificationPreview(row) {
     if (!body) body = row && row.payload ? '아이템을 공유했습니다.' : '새 메시지가 도착했습니다.';
     return body.length > 54 ? `${body.slice(0, 54)}…` : body;
 }
+/** Chats newer than the last one seen on this device while the chat is off screen (rows newest first): the community dot and one toast
+ * for the newest from someone else. The poll below and the live feed (receiveLiveChat) both land here. */
+function noteIncomingChats(rows) {
+    let latest = rows.reduce((max, row) => Math.max(max, Number(row && row.id) || 0), 0);
+    if (!Number.isFinite(latest) || latest <= 0) return;
+    // 첫 확인(이 기기에서 채팅을 한 번도 안 봄)에는 과거 메시지로 알림하지 않고 기준점만 잡는다.
+    if (getLastSeenChatId() == null) { setLastSeenChatId(latest); return; }
+    if (!isSocialChatNotificationEnabled()) {
+        setLastSeenChatId(latest);
+        game.noti.social = false;
+        refreshSocialNotificationDots();
+        return;
+    }
+    let incoming = rows.find(row => row && row.user_id !== socialLoggedInUserId());
+    if (!incoming) {
+        setLastSeenChatId(latest);
+        return;
+    }
+    game.noti.social = true;
+    refreshSocialNotificationDots();
+    let incomingId = Number(incoming.id);
+    // 채팅 메시지 id는 로컬 저장소에 남기지 않고 세션 메모리에서만 중복 토스트를 막는다.
+    if (socialState.lastNotifiedChatId !== incomingId && typeof showGameToast === 'function') {
+        socialState.lastNotifiedChatId = incomingId;
+        let nickname = String(incoming.nickname || '플레이어');
+        showGameToast(`새 채팅, ${nickname}: ${getSocialChatNotificationPreview(incoming)}`, { tone: 'info', duration: 3600 });
+    }
+}
 async function checkSocialChatNotification() {
     if (!socialCloudReady() || socialState.bgNotiLoading) return;
     // 탭을 보고 있으면 활성 폴링이 채팅을 렌더하며 확인 처리하므로 알림이 필요 없다.
     if (isSocialTabActive()) return;
     if (typeof game === 'undefined' || !game || !game.noti) return;
     socialState.bgNotiLoading = true;
+    socialState.lastChatNoticeAt = Date.now();
     try {
         let seen = getLastSeenChatId();
         let cutoff = encodeURIComponent(new Date(Date.now() - SOCIAL_CHAT_RETENTION_MS).toISOString());
@@ -773,31 +818,7 @@ async function checkSocialChatNotification() {
             : `/rest/v1/chat_messages?select=id,user_id,nickname,body,payload&id=gt.${encodeURIComponent(String(seen))}&created_at=gte.${cutoff}&order=id.desc&limit=20`;
         let rows = await cloudJsonRequest(query, {});
         rows = Array.isArray(rows) ? rows : [];
-        if (!rows.length) return;
-        let latest = rows.reduce((max, row) => Math.max(max, Number(row && row.id) || 0), 0);
-        if (!Number.isFinite(latest) || latest <= 0) return;
-        // 첫 확인(이 기기에서 채팅을 한 번도 안 봄)에는 과거 메시지로 알림하지 않고 기준점만 잡는다.
-        if (seen == null) { setLastSeenChatId(latest); return; }
-        if (!isSocialChatNotificationEnabled()) {
-            setLastSeenChatId(latest);
-            game.noti.social = false;
-            refreshSocialNotificationDots();
-            return;
-        }
-        let incoming = rows.find(row => row && row.user_id !== socialLoggedInUserId());
-        if (!incoming) {
-            setLastSeenChatId(latest);
-            return;
-        }
-        game.noti.social = true;
-        refreshSocialNotificationDots();
-        let incomingId = Number(incoming.id);
-        // 채팅 메시지 id는 로컬 저장소에 남기지 않고 세션 메모리에서만 중복 토스트를 막는다.
-        if (socialState.lastNotifiedChatId !== incomingId && typeof showGameToast === 'function') {
-            socialState.lastNotifiedChatId = incomingId;
-            let nickname = String(incoming.nickname || '플레이어');
-            showGameToast(`새 채팅, ${nickname}: ${getSocialChatNotificationPreview(incoming)}`, { tone: 'info', duration: 3600 });
-        }
+        if (rows.length) noteIncomingChats(rows);
     } catch (e) { /* 무시: 네트워크 실패 시 다음 주기에 재시도 */ } finally {
         socialState.bgNotiLoading = false;
     }
@@ -816,8 +837,13 @@ function isSocialPageHidden() {
     return typeof document !== 'undefined' && document.hidden === true;
 }
 
+/** A chat poll is due on its own clock, or once a minute (SOCIAL_CHAT_LIVE_POLL_MS) while chats arrive live. */
+function socialChatPollDue(lastAt) {
+    return !socialState.chatLive || Date.now() - lastAt >= SOCIAL_CHAT_LIVE_POLL_MS;
+}
+
 function pollSocialChatNotification() {
-    if (!isSocialPageHidden()) return checkSocialChatNotification();
+    if (!isSocialPageHidden() && socialChatPollDue(socialState.lastChatNoticeAt)) return checkSocialChatNotification();
 }
 
 function ensureSocialNotificationPolling() {
@@ -833,6 +859,7 @@ function stopSocialNotificationPolling() {
 }
 
 function syncSocialBackgroundTasks() {
+    syncLiveChat();
     if (!socialCloudReady()) {
         stopHeartbeat();
         stopSocialNotificationPolling();
@@ -853,6 +880,105 @@ function syncSocialBackgroundTasks() {
             }
         }).catch(error => console.warn('소셜 계정 정보 동기화 실패:', error));
     }
+}
+
+// --- 실시간 수신(Supabase Realtime) ---------------------------------------
+// 2026-10-21 사용자: "채팅을 Supabase Realtime으로 바꿔줘". 새 채팅은 chat_messages 표의 INSERT 알림(postgres_changes)으로 바로 받는다.
+// 서버는 db/social.sql이 표를 supabase_realtime 발행에 넣어야 보내고, 읽기가 로그인한 사용자만이라 연결은 게임의 로그인 토큰으로 붙는다.
+// 연결된 동안 채팅 조회와 알림 조회는 1분에 한 번만 돌며 빠진 틈과 닉네임 변경(5분 전체 동기화)을 메운다. 그 조회가 실시간으로 오지
+// 않은 남의 채팅을 SOCIAL_CHAT_LIVE_MISSES번 찾으면 이 세션은 예전 주기로 돌아간다(발행을 켜지 않은 서버라면 연결은 되어도 알림이
+// 오지 않는다). 연결이 끊긴 동안도 예전 주기로 묻고, 다시 붙으면 다음 조회가 바로 돌아 그 사이를 메운다.
+function socialAccessToken() {
+    return (typeof cloudState !== 'undefined' && cloudState && cloudState.session && cloudState.session.access_token) || '';
+}
+/** A Supabase client for chat alone, on the address and key of the one js/ui.js made (window.supabaseClient). Its realtime token is the
+ * game's own session, read again at every heartbeat (the accessToken option): the shared client would take its auth session's token or
+ * fall back to the anon key, and the game signs in and renews tokens with its own requests (js/ui.js applyCloudSession). */
+function socialChatRealtime() {
+    if (socialState.chatRealtime) return socialState.chatRealtime;
+    let base = typeof window !== 'undefined' ? window.supabaseClient : null;
+    if (!base || !base.supabaseUrl || !base.supabaseKey || !window.supabase || typeof window.supabase.createClient !== 'function') return null;
+    socialState.chatRealtime = window.supabase.createClient(base.supabaseUrl, base.supabaseKey, {
+        accessToken: async () => socialAccessToken() || null,
+        realtime: { disconnectOnEmptyChannelsAfterMs: 0 }   // 채널을 놓으면 소켓도 바로 닫는다(동시 연결 수)
+    });
+    return socialState.chatRealtime;
+}
+/** A chat row the server sent: on screen it joins the list, elsewhere it lights the chat dot as the poll does. */
+function receiveLiveChat(row) {
+    if (!row || !Number.isFinite(Number(row.id)) || !isSocialChatMessageCurrent(row)) return;
+    socialState.chatLiveMisses = 0;
+    socialState.chatLive = true;
+    if (socialState.chatInitialized) socialState.chatMessages = mergeSocialChatMessages(socialState.chatMessages, [row]);
+    showLiveChat(row);
+}
+/** On screen the row joins the list (someone else's chat also refreshes the online count); elsewhere it lights the chat dot. */
+function showLiveChat(row) {
+    if (!isSocialTabActive()) {
+        if (typeof game !== 'undefined' && game && game.noti) noteIncomingChats([row]);
+        return;
+    }
+    if (socialState.chatInitialized) renderChatMessages(socialState.chatMessages, false);
+    if (row.user_id !== socialLoggedInUserId()) socialOnlineChat.refresh(false);
+}
+function onLiveChatStatus(status) {
+    if (status === 'SUBSCRIBED') {
+        socialState.chatLive = socialState.chatLiveMisses < SOCIAL_CHAT_LIVE_MISSES;
+        socialState.chatLiveSince = Date.now();
+        // 연결되기 전과 끊긴 사이에 온 채팅: 채팅 조회와 알림 조회가 다음 차례에 바로 읽어 메운다.
+        socialState.lastChatPollAt = 0;
+        socialState.lastChatNoticeAt = 0;
+        return;
+    }
+    if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') socialState.chatLive = false;
+}
+function openLiveChat() {
+    if (socialState.chatChannel || !socialAccessToken()) return;
+    let client = socialChatRealtime();
+    if (!client) return;
+    socialState.chatChannelUserId = socialLoggedInUserId();
+    let channel = client.channel('social-chat')
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, change => receiveLiveChat(change && change.new));
+    socialState.chatChannel = channel;
+    // 토큰을 먼저 건다: 구독 요청이 이 토큰을 싣고 나가야 처음부터 로그인한 사용자로 읽는다(라이브러리는 토큰을 한 박자 늦게 넣는다).
+    Promise.resolve(client.realtime.setAuth(socialAccessToken())).then(() => {
+        if (socialState.chatChannel === channel) channel.subscribe(status => { if (socialState.chatChannel === channel) onLiveChatStatus(status); });
+    }).catch(error => console.warn('채팅 실시간 연결 준비 실패:', error));
+}
+function closeLiveChat() {
+    clearTimeout(socialState.chatLiveHiddenTimer);
+    socialState.chatLiveHiddenTimer = null;
+    socialState.chatLive = false;
+    let channel = socialState.chatChannel, client = socialState.chatRealtime;
+    if (!channel) return;
+    socialState.chatChannel = null;
+    socialState.chatChannelUserId = null;
+    if (client) {
+        Promise.resolve(client.removeChannel(channel)).catch(error => console.warn('채팅 실시간 연결 해제 실패:', error));
+    }
+}
+/** Connected while a signed-in player has the page in view (another account gets its own connection). A page hidden for
+ * SOCIAL_CHAT_LIVE_HIDDEN_MS lets it go, and showing the page again joins and fills the gap. */
+function syncLiveChat() {
+    if (!socialCloudReady() || (socialState.chatChannel && socialState.chatChannelUserId !== socialLoggedInUserId())) closeLiveChat();
+    if (!socialCloudReady()) return;
+    if (isSocialPageHidden()) {
+        if (socialState.chatChannel && !socialState.chatLiveHiddenTimer) socialState.chatLiveHiddenTimer = setTimeout(closeLiveChat, SOCIAL_CHAT_LIVE_HIDDEN_MS);
+        return;
+    }
+    clearTimeout(socialState.chatLiveHiddenTimer);
+    socialState.chatLiveHiddenTimer = null;
+    openLiveChat();
+}
+/** New rows of a chat poll that is not the first look: someone else's chat among them, past the first seconds after joining and not
+ * already in the list (it may have come live while the poll was on its way), is one the connection never brought (see above). */
+function noteLiveChatGap(rows, fullSync, wasReady) {
+    if (fullSync || !wasReady || !socialState.chatLive || Date.now() - socialState.chatLiveSince < SOCIAL_CHAT_LIVE_SETTLE_MS) return;
+    let listed = new Set(socialState.chatMessages.map(row => String(row.id)));
+    if (!rows.some(row => row.user_id !== socialLoggedInUserId() && !listed.has(String(row.id)))) return;
+    if (++socialState.chatLiveMisses < SOCIAL_CHAT_LIVE_MISSES) return;
+    socialState.chatLive = false;
+    console.warn('채팅 실시간 수신이 새 채팅을 놓쳐 이 세션은 예전 조회 주기로 돌아갑니다(db/social.sql의 supabase_realtime 발행 확인).');
 }
 
 async function loadChatMessages(afterId = null, now = Date.now()) {
@@ -1144,7 +1270,9 @@ async function refreshChatPanel(forceScroll) {
         let now = Date.now();
         let fullSync = !socialState.chatInitialized || now - socialState.lastChatFullSyncAt >= SOCIAL_CHAT_FULL_SYNC_MS;
         let knownId = socialChatMaxId(socialState.chatMessages), wasReady = socialState.chatInitialized;
+        socialState.lastChatPollAt = now;
         let incoming = await loadChatMessages(fullSync ? null : knownId, now);
+        noteLiveChatGap(incoming, fullSync, wasReady);
         socialState.chatMessages = fullSync ? incoming : mergeSocialChatMessages(socialState.chatMessages, incoming, now);
         socialState.chatInitialized = true;
         if (fullSync) socialState.lastChatFullSyncAt = now;
@@ -1160,7 +1288,7 @@ function startChatPolling() {
     refreshOnlineUsers();
     socialState.chatPollTimer = setInterval(() => {
         if (!isSocialTabActive()) { stopChatPolling(); return; }
-        if (!isSocialPageHidden()) refreshChatPanel(false);
+        if (!isSocialPageHidden() && socialChatPollDue(socialState.lastChatPollAt)) refreshChatPanel(false);
     }, SOCIAL_CHAT_POLL_MS);
     socialState.onlinePollTimer = setInterval(() => {
         if (!isSocialTabActive()) { stopChatPolling(); return; }
@@ -2075,6 +2203,7 @@ if (typeof document !== 'undefined') {
     else { injectSocialStyles(); ensureSocialTooltip(); }
     // 클라우드 복원이 늦어지는 환경을 위한 1회성 보조 동기화. 이후 수명주기는 세션 변경 이벤트가 관리한다.
     if (typeof setTimeout === 'function') setTimeout(syncSocialBackgroundTasks, 15000);
+    document.addEventListener('visibilitychange', syncLiveChat);   // 실시간 채팅: 가리면 잠시 뒤 놓고, 보이면 다시 붙는다
 }
 
 if (typeof safeExposeGlobals === 'function') {

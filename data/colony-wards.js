@@ -8,10 +8,11 @@ const COLONY_WARD_RULES = Object.freeze({
     slots: Object.freeze(['액막이1', '액막이2', '액막이3', '액막이4', '액막이5']),
     // 칸 수(2026-10-11 사용자: "액막이 칸 기본 0칸이고, 허리띠로 1~3칸까지 가능하게 (랜덤) 특수한 경우 5칸까지되는건유지"): 기본 0,
     // 낀 허리띠가 제 칸 수만큼(허리띠마다 1~3 가운데 하나로 정해져 있다, 고르게 굴린다), 초월 공허 패시브 '액막이 매듭' 하나마다,
-    // 가디언 '수호 재생', 고유 허리띠 '천 개의 유리병'(예전 물약 칸 허리띠) 각 +1. 5칸까지. 허리띠의 칸 수는 축복의 꽃잎이 베이스 옵션
-    // 값과 함께 다시 굴린다(사용자: "꽃잎으로 굴리게해줘").
+    // 가디언 '수호 재생', 고유 허리띠 '천 개의 유리병'(예전 물약 칸 허리띠) 각 +1, 체이싱 고유 허리띠 '편린을 꿴 허리띠'(stringEffectKey)는
+    // 제 값만큼(+2, 끼운 액막이의 줄도 두 배). 5칸까지. 허리띠의 칸 수는 축복의 꽃잎이 베이스 옵션 값과 함께 다시 굴린다(사용자: "꽃잎으로
+    // 굴리게해줘").
     baseSlots: 0, beltSlots: Object.freeze({ min: 1, max: 3 }), maxSlots: 5,
-    voidPassive: 'wardKnot', ascendNode: 'gd3', uniqueEffectKey: 'thousandBottles',
+    voidPassive: 'wardKnot', ascendNode: 'gd3', uniqueEffectKey: 'thousandBottles', stringEffectKey: 'wardString',
     // 얻는 곳: 군락지 웨이브가 주된 곳(5웨이브마다 반드시, 나머지 웨이브도 28%: 20웨이브 한 판에 여덟 개 안팎). 군락지가 열린 뒤에는
     // 모든 지도의 처치에서 아주 드물게(일반 0.04%, 정예 0.2%, 보스 1%: 16등급 지도 300판 실측 50판에 하나, 기대값 40판에 하나).
     unlock: 'colony', colonyZoneId: 'colony_run',
@@ -38,3 +39,18 @@ const COLONY_WARD_POOL = Object.freeze([
     ['takenDamageReduceWhen1EnemyPct', 1, 5, '받는 피해 감소(1마리)'], ['igniteDamageReducePct', 3, 10, '받는 점화 피해 감소'],
     ['bleedDamageReducePct', 3, 10, '받는 출혈 피해 감소'], ['poisonDamageReducePct', 3, 10, '받는 중독 피해 감소']
 ].map(([id, min, max, name]) => Object.freeze({ id, min, max, name })));
+
+// 고유 액막이(체이싱, 2026-10-20 사용자: "체이싱 아이템들을 지금 그런 컨텐츠가 없는 장비 종류들 위주로 ... 약간만 밸런스 파괴급이라도
+// 괜찮아"): 군락지 웨이브와 처치에서 액막이가 나올 때 chance의 확률로 셋 가운데 하나가 대신 나온다(편린으로 만들 때는 아니다). 군락지 한
+// 판에 액막이가 여덟 개 안팎이라 군락지 스무 판 남짓에 하나 꼴. 효과는 js/colony-wards.js: wardEcho는 줄 없이 열린 칸의 다른 액막이 줄을
+// pct% 더(둘이면 두 번), incidentBell은 줄 없이 잔잔한 사건(js/combat-incidents.js often)을 mul배 자주(겹치지 않는다), doubleKnot은 풀의
+// 줄 하나를 그 줄 최대치의 min~max배로 굴린다. 메아리는 편린을 꿴 허리띠의 +100%에 더해진다(2026-10-20 사용자: 허리띠와 메아리 하나면
+// 2.5배, 둘이면 3배).
+const COLONY_WARD_UNIQUES = Object.freeze({
+    chance: 0.005,
+    rows: Object.freeze([
+        Object.freeze({ key: 'wardEcho', name: '메아리 매듭', text: '끼운 다른 액막이의 줄이 50% 강해집니다', params: Object.freeze({ pct: 50 }) }),
+        Object.freeze({ key: 'incidentBell', name: '사건을 부르는 방울', text: '잔잔한 사건을 두 배 자주 만납니다', params: Object.freeze({ mul: 2 }) }),
+        Object.freeze({ key: 'doubleKnot', name: '두 번 맨 매듭', text: '줄 하나가 보통 액막이 최대치의 1.5~2배입니다', params: Object.freeze({ min: 1.5, max: 2 }) })
+    ])
+});

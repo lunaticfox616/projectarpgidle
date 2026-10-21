@@ -6,6 +6,7 @@
 const colonyWards = (() => {
     const R = COLONY_WARD_RULES;
     const POOL = new Map(COLONY_WARD_POOL.map(row => [row.id, row]));
+    const U = COLONY_WARD_UNIQUES;
     const isWard = item => !!item && item.slot === R.slot;
     /** 줍기 필터의 항상 줍기 '액막이'(기본 켬)가 켜져 있으면 줍기 필터와 등급 자동 해체를 건너뛴다(마법 등급은 이름뿐이라). */
     const keptOnPickup = item => isWard(item) && !!game.settings && (game.settings.itemFilterAlways || {}).ward !== false;
@@ -36,13 +37,20 @@ const colonyWards = (() => {
     /** 허리띠 카드에 적는 칸 수(게임 툴팁과 프로필 카드): 허리띠가 아니거나 군락지가 아직 안 열렸으면 undefined. */
     const beltRoll = (item, state = game) => isBelt(item) && unlocked(state) ? beltSlots(item) : undefined;
 
-    /** 액막이 칸 수: 기본 0, 낀 허리띠의 칸 수(1~3), 초월 공허 '액막이 매듭' 하나마다 +1, 가디언 '수호 재생' +1, 고유 '천 개의 유리병' +1. 5칸까지. */
+    /** 체이싱 고유 허리띠 '편린을 꿴 허리띠'(R.stringEffectKey): 더하는 칸 수와 끼운 액막이 줄의 배수. 안 꼈으면 { slots: 0, mul: 1 }. */
+    function wardString(equipment) {
+        const item = Object.values(equipment || {}).find(entry => entry && entry.rarity === 'unique' && entry.uniqueEffectKey === R.stringEffectKey);
+        const p = item ? item.uniqueEffectParams || {} : {};
+        return { slots: Math.max(0, Math.floor(Number(p.slots) || 0)), mul: Math.max(1, Number(p.mul) || 1) };
+    }
+    /** 액막이 칸 수: 기본 0, 낀 허리띠의 칸 수(1~3), 초월 공허 '액막이 매듭' 하나마다 +1, 가디언 '수호 재생' +1, 고유 '천 개의 유리병' +1,
+     * '편린을 꿴 허리띠' +2. 5칸까지. */
     function slotCount(state = game) {
         const equipment = state.equipment || {};
         const extra = [beltSlots(equipment['허리띠']),
             typeof getTranscendentVoidPassiveCount === 'function' ? getTranscendentVoidPassiveCount(R.voidPassive, state) : 0,
             typeof hasKeystone === 'function' && hasKeystone(R.ascendNode, state) ? 1 : 0,
-            Object.values(equipment).some(item => item && item.uniqueEffectKey === R.uniqueEffectKey) ? 1 : 0];
+            Object.values(equipment).some(item => item && item.uniqueEffectKey === R.uniqueEffectKey) ? 1 : 0, wardString(equipment).slots];
         return Math.max(0, Math.min(R.maxSlots, R.baseSlots + extra.reduce((sum, value) => sum + value, 0)));
     }
     /** 장비창의 바꾸면 표(js/equipment-window-ui.js wardRows): `item`을 `slot`에 끼우면 달라지는 액막이 칸 수. 그대로면 null.
@@ -58,17 +66,26 @@ const colonyWards = (() => {
         const open = openSlots(state);
         return open.find(slot => !(state.equipment || {})[slot]) || open[0];
     }
-    /** Lines of the wards in the open slots, as js/combat.js colonyWardBonus adds them: [{ stat, val }]. */
+    const openWards = (state = game) => openSlots(state).map(slot => (state.equipment || {})[slot]).filter(isWard);
+    /** A 고유 액막이's (U.rows) param `name` when `item` is that one, else 0. */
+    const uniqueParam = (item, key, name) => (item.rarity === 'unique' && item.uniqueEffectKey === key ? Number((item.uniqueEffectParams || {})[name]) || 0 : 0);
+    /** Lines of the wards in the open slots, as js/combat.js colonyWardBonus adds them: [{ stat, val }]. '편린을 꿴 허리띠' adds +100%
+     * (its mul - 1) and each 메아리 매듭 its pct, all added up (2026-10-20 사용자: belt and one echo ×2.5, two ×3); the echo has no line of
+     * its own, so only the other wards grow. */
     function equippedLines(state = game) {
-        return openSlots(state).map(slot => (state.equipment || {})[slot]).filter(isWard)
-            .flatMap(item => (item.baseStats || []).map(line => ({ stat: line.id, val: Number(line.val) || 0 })));
+        const wards = openWards(state);
+        const mul = wardString(state.equipment).mul + wards.reduce((sum, item) => sum + uniqueParam(item, 'wardEcho', 'pct'), 0) / 100;
+        return wards.flatMap(item => (item.baseStats || []).map(line => ({ stat: line.id, val: (Number(line.val) || 0) * mul })));
     }
+    /** 잔잔한 사건의 확률 배수(js/combat-incidents.js often): 열린 칸에 '사건을 부르는 방울'이 있으면 그 mul(겹치지 않는다), 아니면 1. */
+    const incidentMul = (state = game) => Math.max(1, ...openWards(state).map(item => uniqueParam(item, 'incidentBell', 'mul')));
 
-    function makeItem(row, val, tier, locked) {
+    /** A ward item with one line (row) or none (a 고유 액막이 without a line); `unique` holds a 고유 액막이's name and effect. */
+    function makeItem(row, val, tier, locked, unique = null) {
         itemIdCounter += 1;
         const item = { id: itemIdCounter, slot: R.slot, baseId: R.baseId, baseName: R.name, name: R.name, rarity: 'magic',
             itemTier: Math.max(1, Math.min(20, Math.floor(Number(tier) || 1))), locked: !!locked,
-            baseStats: [{ id: row.id, val, statName: row.name, valMin: row.min, valMax: row.max }], stats: [] };
+            baseStats: row ? [{ id: row.id, val, statName: row.name, valMin: row.min, valMax: row.max }] : [], stats: [], ...unique };
         if (typeof normalizeItem === 'function') normalizeItem(item);
         return item;
     }
@@ -78,31 +95,47 @@ const colonyWards = (() => {
         return makeItem(row, row.min + Math.floor(random() * (row.max - row.min + 1)), tier);
     }
 
+    /** A 고유 액막이 (U.rows, `key` or one at random): a chase unique; 두 번 맨 매듭 rolls one pool line past the usual range. */
+    function createUnique(random = Math.random, tier = 1, key = '') {
+        const row = U.rows.find(entry => entry.key === key) || U.rows[Math.floor(random() * U.rows.length)];
+        const unique = { name: row.name, rarity: 'unique', chaseUnique: true, uniqueEffect: row.text, uniqueEffectKey: row.key, uniqueEffectParams: { ...row.params } };
+        if (row.key !== 'doubleKnot') return makeItem(null, 0, tier, false, unique);
+        const line = COLONY_WARD_POOL[Math.floor(random() * COLONY_WARD_POOL.length)];
+        const min = Math.round(line.max * row.params.min), max = Math.round(line.max * row.params.max);
+        return makeItem({ ...line, min, max }, min + Math.floor(random() * (max - min + 1)), tier, false, unique);
+    }
+    /** A ward that drops (colony waves, kills): now and then (U.chance) a 고유 액막이 instead. Crafting makes plain ones only. */
+    const createDrop = (random, tier) => (random() < U.chance ? createUnique(random, tier) : create(random, tier));
+
     // ---------------------------------------------------------------- where wards come from
     /** A kill anywhere but the colony (once the colony is open): now and then a ward, through the normal floor and pickup. */
     function rollFieldDrop(enemy, zone, random = Math.random) {
         if (!enemy || !zone || zone.id === R.colonyZoneId || !unlocked()) return [];
         const chance = enemy.isBoss ? R.field.boss : enemy.isElite ? R.field.elite : R.field.normal;
         if (random() >= chance) return [];
-        const item = create(random, zone.tier);
+        const item = createDrop(random, zone.tier);
         return keepEquipmentDrop(enemy, item) === 'kept' ? [item] : [];
     }
     /** A cleared colony wave: every fifth wave, and the others now and then, a ward straight into the bag. */
     function rollColonyWave(wave, zone, random = Math.random) {
         if (wave % R.colonyWave.every !== 0 && random() >= R.colonyWave.chance) return null;
-        const item = create(random, zone && zone.tier);
+        const item = createDrop(random, zone && zone.tier);
         return addItemToInventory(item, { ignoreFilter: true }) ? item : null;
     }
     /** 군락지 편린으로 만들기: craftCost개를 내고 새 액막이 하나를 가방에. '' when done, otherwise why not. */
     function craft(state = game, random = Math.random) {
         if (!unlocked(state)) return '군락지가 열리면 만들 수 있습니다.';
+        if (state.woodsmanBuildLock) return '☠️ 나무꾼 전투 중에는 만들 수 없습니다.';
         if ((Number(state.currencies.colonyShard) || 0) < R.craftCost) return `군락지 편린이 부족합니다(${R.craftCost}개 필요).`;
+        // 가득 찬 가방에서도 지킨다(guaranteedKeep: 초과 보관, 빈 액막이 칸이 있으면 자동 장착이 먼저): 줍기의 넘침 해체가 편린을 주고
+        // 값은 안 치러, 누를 때마다 편린이 늘었다(2026-10-20).
         const item = create(random, 1);
-        if (!addItemToInventory(item, { ignoreFilter: true, ignoreAutoSalvage: true })) return '가방에 자리가 없습니다.';
+        if (!addItemToInventory(item, { ignoreFilter: true, ignoreAutoSalvage: true, guaranteedKeep: true })) return '가방에 자리가 없습니다.';
         state.currencies.colonyShard -= R.craftCost;
         return '';
     }
     const salvageShards = item => {
+        if (item && item.rarity === 'unique') return R.shards.max; // 고유 액막이
         const value = Math.abs(Number(((item && item.baseStats) || [])[0]?.val) || 0);
         return Math.max(R.shards.base, Math.min(R.shards.max, R.shards.base + Math.floor(value / R.shards.per)));
     };
@@ -140,7 +173,7 @@ const colonyWards = (() => {
         Object.assign(colony, { wardInventory: [], wardEquipped: [null, null, null, null], wardSlots: 1 });
     }
 
-    return Object.freeze({ isWard, keptOnPickup, unlocked, beltSlots, stampBelt, rerollBelt, beltRoll, slotCount, slotChange, openSlots, pickSlot, equippedLines, create,
+    return Object.freeze({ isWard, keptOnPickup, unlocked, beltSlots, stampBelt, rerollBelt, beltRoll, slotCount, slotChange, openSlots, pickSlot, equippedLines, incidentMul, create, createUnique,
         rollFieldDrop, rollColonyWave, craft, salvageShards, salvageProfile, migrate });
 })();
 safeExposeGlobals({ colonyWards });

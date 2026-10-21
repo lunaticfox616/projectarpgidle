@@ -5,14 +5,6 @@
     let activeDialog = null;
     let previousFocus = null;
 
-    function escapeFeedbackHtml(value) {
-        return String(value == null ? '' : value)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;');
-    }
 
     function ensureFeedbackRoot() {
         let root = document.getElementById('game-feedback-root');
@@ -114,7 +106,7 @@
         card.dataset.tone = activeDialog.tone;
         document.getElementById('game-dialog-kicker').textContent = activeDialog.kicker;
         document.getElementById('game-dialog-title').textContent = activeDialog.title;
-        document.getElementById('game-dialog-message').innerHTML = escapeFeedbackHtml(activeDialog.message).replace(/\n/g, '<br>');
+        document.getElementById('game-dialog-message').innerHTML = escapeHTML(activeDialog.message).replace(/\n/g, '<br>');
         cancel.textContent = activeDialog.cancelLabel;
         confirm.textContent = activeDialog.confirmLabel;
         cancel.style.display = activeDialog.type === 'notice' ? 'none' : '';
@@ -147,15 +139,15 @@
             </div>`;
         }
         if (dialog.type === 'text') {
-            return `<label class="game-text-field"><span>입력값</span><input id="game-dialog-text" type="text" maxlength="${dialog.maxLength}" value="${escapeFeedbackHtml(dialog.value || '')}" placeholder="${escapeFeedbackHtml(dialog.placeholder)}" autocomplete="off"></label>`;
+            return `<label class="game-text-field"><span>입력값</span><input id="game-dialog-text" type="text" maxlength="${dialog.maxLength}" value="${escapeHTML(dialog.value || '')}" placeholder="${escapeHTML(dialog.placeholder)}" autocomplete="off"></label>`;
         }
         if (dialog.type === 'choice') {
             return `<div class="game-choice-grid">${dialog.choices.map((choice, index) => {
                 const entry = choice && typeof choice === 'object' ? choice : {value:choice,label:choice};
                 const {value,label,detail} = entry;
                 // Internal presentation HTML only; callers must escape any external text.
-                let detailHtml = entry.detailHtml || (detail ? `<span>${escapeFeedbackHtml(detail)}</span>` : '');
-                return `<button type="button" class="game-choice-option" data-choice-index="${index}" data-choice-value="${escapeFeedbackHtml(value)}" aria-pressed="${index === 0 ? 'true' : 'false'}"><strong>${escapeFeedbackHtml(label)}</strong>${detailHtml}</button>`;
+                let detailHtml = entry.detailHtml || (detail ? `<span>${escapeHTML(detail)}</span>` : '');
+                return `<button type="button" class="game-choice-option" data-choice-index="${index}" data-choice-value="${escapeHTML(value)}" aria-pressed="${index === 0 ? 'true' : 'false'}"><strong>${escapeHTML(label)}</strong>${detailHtml}</button>`;
             }).join('')}</div>`;
         }
         return '';
@@ -302,7 +294,7 @@
         let toast = document.createElement('div');
         let tone = opts.tone || 'info';
         toast.className = `game-toast game-toast-${tone}`;
-        toast.innerHTML = `<span class="game-toast-mark">${TOAST_MARKS[tone] || '◆'}</span><span>${escapeFeedbackHtml(toastText(message))}</span>`;
+        toast.innerHTML = `<span class="game-toast-mark">${TOAST_MARKS[tone] || '◆'}</span><span>${escapeHTML(toastText(message))}</span>`;
         region.appendChild(toast);
         trimToasts(region);
         requestAnimationFrame(() => toast.classList.add('active'));

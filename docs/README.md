@@ -13,13 +13,14 @@
 | NPC 가판대 | [현재 거래 규칙과 변경 이력](balance-and-player-stall-20260929.md) |
 | 그루터기 함·조합창 | [현재 구조와 초기 설계 이력](stump-cube-game-design.md), [보조 콘텐츠 통합 이력](aux-consolidation-20260930.md) |
 | 루프 밸런스·경험치 | [루프 난이도 곡선 재조율](loop-difficulty-20261006.md), [전투·보상 조정](loop-balance-20261004.md), [몹팩·요구 경험치](pack-balance-20261004.md). 측정치는 해당 실험 조건에 한정 |
-| 저장과 방치 성능 | [방치 성능](offline-performance.md) |
+| 저장과 방치 성능 | [방치 성능](offline-performance.md), 두 탭 보호는 [game-tab-guard-ui.js](../js/game-tab-guard-ui.js)의 머리말 |
 | 탐험·바닥 줍기 | [현재 보상·진행 계약](act-exploration-integration.md) |
 | 옆에서 보는 무대, 방 탐색 | [무대 문서](stage-view-20261011.md), [그리기 성능](stage-render-performance-20261013.md) |
 | 이야기, 대사 | [스토리 바이블](story-bible.md), 글은 [이야기 데이터](../data/story-journal.js). 새 묶음은 `node scripts/import-story-pack.cjs <폴더> --write` |
 | 적 공격, 보스 싸움 거리 | [적 공격 계약](enemy-attack-system.md) |
 | 탐험 상자·파괴물 | [클릭 조작, 배치와 후반 사건](exploration-objects-20261005.md) |
-| 아틀라스·특수 콘텐츠 지도 | [현재 구현과 후반부 이력](atlas-pinnacles-20261002.md), [초기 아틀라스 설계 이력](atlas-endgame-20260930.md) |
+| 아틀라스·특수 콘텐츠 지도 | [현재 구현·후반 보스·루프 34 원정 보드](atlas-pinnacles-20261002.md), [초기 아틀라스 설계 이력](atlas-endgame-20260930.md) |
+| 제작실·제작 시뮬레이터 | [제작 통합·다중 목표·옵션 목록·소모 없는 확률 실험](crafting-workspace-integration-20260914.md) |
 | 전투·보상 피드백 | [타격·처치·개봉 표현과 검토 방법](game-feel-20261005.md) |
 | 엔드게임 드랍 | [지도 기운, 보물 무리, 기억의 잎, 발견 등급, 드랍 시뮬레이터](endgame-loot-20261009.md) |
 | 생성 효과음 | [게임용 52개 효과음·보스 등장·클리어·희귀 드롭 무음과 제작·재생 계약](game-audio-20261006.md) |
@@ -31,6 +32,7 @@
 | 브라우저 검사·CI | [현재 실행 방법](browser-ci.md) |
 | Android 검사 | [빌드 경로와 과거 시험판 기록](android-testing.md) |
 | 공개·비공개 자산 | [배포 경계](github-publish-20261001.md) |
+| 치트 방지 | [서버 검사와 감시](../db/anti-cheat.sql)의 머리말(막는 검사, 기록만 하는 검사, 관리자 보류), 게스트 저장 검사는 [guest-save-check.js](../js/guest-save-check.js) |
 | 최근 플레이테스트 | [2026-10-06 보고서](main-playtest-20261006.json). 실행 기준·수동 확인 범위·미검증 항목 포함 |
 
 ## 현재 규칙과 이력을 구분하기

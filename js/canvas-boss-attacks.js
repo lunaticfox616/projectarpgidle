@@ -1,8 +1,8 @@
 // 보스 공격 연출(2026-10-06 사용자 요청: "보스 몬스터들의 공격 및 패턴이 너무 허접하고 이펙트도 안보여서"). 그림과 소리만 맡고
 // 판정 칸은 건드리지 않는다(예고할 때 정해진 enemy.patternArea, 놓은 뒤에는 대기 중인 공격의 bossPattern.area 그대로).
 // - 바닥 경고(js/canvas-battlefield.js drawBossPatternArea): 예고가 흐를수록 진해지고 끝 무렵 깜빡인다(groundAlpha).
-// - 인물 위(drawMarks): 큰 보스와 주인공이 바닥 칠을 가리므로 채움 없이 선만 더한다. 범위기는 바깥에서 좁혀 드는 조준 고리,
-//   줄 · 부채꼴은 보스에서 끝으로 흐르는 꺾쇠. 놓은 뒤 맞기 직전에는 고리가 다 좁혀진 채 빠르게 깜빡인다.
+// - 바닥 표시(drawMarks, 2026-10-19부터 인물 아래): 줄과 부채꼴은 보스 쪽에서부터 차오르는 칸과 바닥에 눕힌 화살촉, 위에서 보는
+//   전장의 범위기는 바깥에서 좁혀 드는 조준 고리. 놓은 뒤 맞기 직전에는 다 찬 채 빠르게 깜빡인다. 맞는 순간의 칸 번쩍임도 바닥에 그린다.
 // - 그림 보스의 몸(addMotions): 예고 동안 목표 반대쪽으로 젖히고 떨다가, 놓는 순간(bossRelease 효과) 범위기는 뛰어올라
 //   내리찍고 나머지는 앞으로 내지른다. 맞는 순간의 작은 돌진(enemyAttack)은 보스에게서 이것으로 바뀐다.
 // - 타격(drawImpact): 충격파 두 겹, 원소 색 파편(canvas-attack-fx 'slam'), 땅 갈라짐 자국(drawGround), 소리. 흔들림은
@@ -41,7 +41,7 @@ const bossAttackView = (() => {
     function warningShare(enemy) {
         const started = Number(enemy && enemy.patternTelegraphStartedAt) || 0;
         if (!enemy || !enemy.patternTelegraphKey || !started) return null;
-        return clampNumber((smoothCombatTime() - started) / COMBAT_GRID_CONFIG.bossPatternWarningMs, 0, 1);
+        return clampNumber((smoothCombatTime() - started) / (enemy.nextPatternState?.warningMs || COMBAT_GRID_CONFIG.bossPatternWarningMs), 0, 1);
     }
     /** 1, then a blink that quickens towards the release. The phase is the rate integrated over the warning; clock × rate made the
      * phase jump at random as soon as the rate moved. */
@@ -84,26 +84,93 @@ const bossAttackView = (() => {
         ctx.lineWidth = 3;
         drawBrackets(ctx, { x: footprint.x, y: footprint.y, rx, ry }, (1 - close) * Math.PI / 2);
     }
-    function drawChevron(ctx, point, dir, size) {
-        const back = { x: point.x - dir.x * size, y: point.y - dir.y * size }, side = { x: -dir.y * size, y: dir.x * size };
+    // 줄과 갈래(2026-10-19 사용자 "사용 전 알려주는 화살표가 허접해서 그럴듯하게", "캐릭터보단 아래 레이어에"): 칸마다 그은 가는 흰 꺾쇠
+    // 대신, 바닥에 눕힌 두툼한 화살촉이 보스에서 끝으로 늘어서고, 예고가 흐르는 만큼 보스 쪽에서부터 칸이 차오른다(끝까지 차면 맞는다).
+    // 바닥 칸 경고와 같이 인물 아래에 그린다. 거리는 바닥 단위(칸 너비 = 1)로 잰다: 무대의 깊이는 눌려 그려지므로 화면 y를 펴서 잰다.
+    const ARROW = Object.freeze({ depth: 0.36, half: 0.32, thick: 0.16, first: 1.15, every: 1.7, endGap: 0.45 });
+    /** The warned cells shown on the floor (open floor without obstacles, js/canvas-skill-footprint.js): the ray is measured on these,
+     * so its charge reaches the end the player sees, not a cell hidden in a wall. */
+    function shownPoints(footprint) {
+        const map = getCombatGridSize(), run = actExplorationState.current(game);
+        if (!map.tiles) return footprint.points;
+        const sealed = !!run && actExplorationState.gateSealed(run), taken = getGroundTakenCellKeys(run);
+        return footprint.points.filter(point => actExplorationMap.walkable(map, point, sealed) && !taken.has(gridCellKey(point.gx, point.gy)));
+    }
+    /** The ray's frame on the floor: origin, unit axis, reach (floor tiles) and the shown cells. */
+    function rayFrame(footprint, origin) {
+        const squash = footprint.tileH / footprint.tileW, unit = footprint.tileW, shown = shownPoints(footprint);
+        const flat = point => ({ x: (point.x - origin.x) / unit, y: (point.y - origin.y) / squash / unit });
+        const offsets = shown.map(flat).filter(o => Math.hypot(o.x, o.y) > 0.01);
+        if (!offsets.length) return null;
+        const sum = offsets.reduce((acc, o) => { const l = Math.hypot(o.x, o.y); return { x: acc.x + o.x / l, y: acc.y + o.y / l }; }, { x: 0, y: 0 });
+        const len = Math.hypot(sum.x, sum.y);
+        if (len < 0.01) return null;
+        const axis = { x: sum.x / len, y: sum.y / len };
+        const reach = Math.max(...offsets.map(o => o.x * axis.x + o.y * axis.y + 0.5));
+        return { origin, axis, reach, squash, unit, shown, tileH: footprint.tileH };
+    }
+    /** Whether a screen point lies on one of the shown cells. */
+    const onShownCell = (frame, point) => frame.shown.some(cell => Math.abs(point.x - cell.x) <= frame.unit / 2 && Math.abs(point.y - cell.y) <= frame.tileH / 2);
+    /** A floor point (tiles along the axis and across it) back on the screen. */
+    function onFloor(frame, along, across) {
+        const ax = frame.axis.x, ay = frame.axis.y, x = ax * along - ay * across, y = ay * along + ax * across;
+        return { x: frame.origin.x + x * frame.unit, y: frame.origin.y + y * frame.squash * frame.unit };
+    }
+    /** The charged part: from the boss out to share of the reach (straight with time: full means it lands now), with a bright front. */
+    function drawCharge(ctx, frame, look) {
+        const front = frame.reach * look.share, wide = frame.reach * 2 + 2;
+        if (front <= 0.05) return;
+        const corners = [onFloor(frame, 0, -wide), onFloor(frame, front, -wide), onFloor(frame, front, wide), onFloor(frame, 0, wide)];
+        ctx.globalAlpha = (0.18 + 0.2 * look.share) * look.blink;
+        ctx.fillStyle = '#ff8a5c';
         ctx.beginPath();
-        ctx.moveTo(back.x + side.x, back.y + side.y);
-        ctx.lineTo(point.x + dir.x * size * 0.4, point.y + dir.y * size * 0.4);
-        ctx.lineTo(back.x - side.x, back.y - side.y);
+        corners.forEach((point, i) => (i ? ctx.lineTo(point.x, point.y) : ctx.moveTo(point.x, point.y)));
+        ctx.closePath();
+        ctx.fill();
+        // The front: a soft wide glow under a bright line, so where the charge has got to reads even on a busy floor.
+        for (const [width, colour, alpha] of [[0.14, '#ff6a40', 0.35], [0.05, '#fff1e2', 0.6 + 0.4 * look.share]]) {
+            ctx.globalAlpha = Math.min(1, alpha) * look.blink;
+            ctx.strokeStyle = colour;
+            ctx.lineWidth = Math.max(2, frame.unit * width);
+            ctx.beginPath();
+            ctx.moveTo(corners[1].x, corners[1].y);
+            ctx.lineTo(corners[2].x, corners[2].y);
+            ctx.stroke();
+        }
+    }
+    /** One solid arrowhead lying on the floor, its tip `along` tiles out on the ray; none where it would be cut by the edge of the
+     * warned floor (a broken arrowhead read as a glitch). */
+    function drawArrowhead(ctx, frame, along, lit) {
+        const { depth, half, thick } = ARROW;
+        const shape = [[thick, 0], [thick - depth, -half], [-depth, -half], [0, 0], [-depth, half], [thick - depth, half]];
+        const points = shape.map(([a, b]) => onFloor(frame, along + a, b));
+        if (![points[0], points[2], points[4]].every(point => onShownCell(frame, point))) return;
+        ctx.beginPath();
+        points.forEach((point, i) => (i ? ctx.lineTo(point.x, point.y) : ctx.moveTo(point.x, point.y)));
+        ctx.closePath();
+        ctx.fillStyle = lit ? '#ffe7d6' : '#ff9d7a';
+        ctx.fill();
+        ctx.strokeStyle = '#3d140e';
+        ctx.lineWidth = Math.max(1, frame.unit * 0.025);
         ctx.stroke();
     }
-    /** Lines and fans start at the boss: a chevron on every cell pointing away from it, a bright band running outward. */
-    function drawRays(ctx, footprint, look) {
-        if (!look.origin) return;
-        ctx.strokeStyle = '#ffd9c2';
-        ctx.lineWidth = 2;
-        for (const point of footprint.points) {
-            const dx = point.x - look.origin.x, dy = point.y - look.origin.y, length = Math.hypot(dx, dy);
-            if (length < 1) continue;
-            const band = (length / footprint.tileW - look.now * 0.007) % 3;
-            ctx.globalAlpha = (0.3 + 0.6 * look.share) * (band < 0 ? band + 3 : band) / 3 * look.blink;
-            drawChevron(ctx, point, { x: dx / length, y: dy / length }, footprint.tileW * 0.2);
+    /** Arrowheads every ARROW.every tiles down the middle out to the far end (a fan's spread shows in its cells; arrows toward its edges
+     * only fitted next to the boss, bunched on one another). The ones the charge has passed are lit. */
+    function drawArrows(ctx, frame, look) {
+        const front = frame.reach * look.share;
+        for (let along = ARROW.first; along <= frame.reach - ARROW.endGap; along += ARROW.every) {
+            const lit = along <= front;
+            ctx.globalAlpha = (lit ? 0.95 : 0.5 + 0.2 * look.share) * look.blink;
+            drawArrowhead(ctx, frame, along, lit);
         }
+    }
+    /** Lines and fans start at the boss: they charge outward from it, under arrowheads pointing the way it strikes. */
+    function drawRays(ctx, footprint, look) {
+        const frame = look.origin && rayFrame(footprint, look.origin);
+        if (!frame) return;
+        clipSkillFootprint(ctx, footprint); // the warned cells only (a fan's triangle), and below only floor the hero could stand on
+        drawCharge(ctx, frame, look);
+        drawArrows(ctx, frame, look);
     }
     function originOf(source, projection) {
         if (!source || !hasGridCell(source)) return null;
@@ -115,24 +182,70 @@ const bossAttackView = (() => {
         if (!footprint) return;
         ctx.save();
         if (RAY_KINDS.has(area.kind)) {
-            clipSkillFootprintTerrain(ctx, footprint); // chevrons only where the hero could stand, like the ground fill
-            drawRays(ctx, footprint, { ...look, origin: originOf(look.source, projection) });
-        } else if (!onStage()) drawReticle(ctx, footprint, look);
+            clipSkillFootprintTerrain(ctx, footprint); // only where the hero could stand, like the ground fill
+            // From the boss's cell the ray leaves from (js/combat-patterns.js patternArea.source), else the boss's middle: from the middle of a
+            // wide boss the axis leant off the ray's row.
+            const origin = hasGridCell(area.source) ? projection.cellToScreen(area.source.gx, area.source.gy) : originOf(look.source, projection);
+            drawRays(ctx, footprint, { ...look, origin });
+        } else if (onStage()) {
+            clipSkillFootprintTerrain(ctx, footprint);
+            drawAreaCharge(ctx, footprint, look);
+        } else drawReticle(ctx, footprint, look);
         ctx.restore();
+    }
+    /** Areas around a point (blasts, crosses) on the stage charge the same way as lines and fans: a fill and a bright front spread from
+     * the centre with the warning time, full means it lands (2026-10-19: they only darkened and blinked, so their timing did not read). */
+    function drawAreaCharge(ctx, footprint, look) {
+        const centre = footprint.centerPoint, unit = footprint.tileW, squash = footprint.tileH / footprint.tileW, shown = shownPoints(footprint);
+        if (!shown.length) return;
+        const reach = Math.max(...shown.map(p => Math.hypot((p.x - centre.x) / unit, (p.y - centre.y) / squash / unit))) + 0.62;
+        const radius = reach * look.share * unit;
+        if (radius < 1) return;
+        clipSkillFootprint(ctx, footprint);
+        ctx.beginPath();
+        ctx.ellipse(centre.x, centre.y, radius, radius * squash, 0, 0, Math.PI * 2);
+        ctx.globalAlpha = (0.18 + 0.2 * look.share) * look.blink;
+        ctx.fillStyle = '#ff8a5c';
+        ctx.fill();
+        for (const [width, colour, alpha] of [[0.14, '#ff6a40', 0.35], [0.05, '#fff1e2', 0.6 + 0.4 * look.share]]) {
+            ctx.globalAlpha = Math.min(1, alpha) * look.blink;
+            ctx.strokeStyle = colour;
+            ctx.lineWidth = Math.max(2, unit * width);
+            ctx.stroke();
+        }
     }
     /** A released area gets the closing ring; a move's stages show their own warnings, shots and bursts (js/canvas-boss-moves.js). */
     const closesIn = attack => attack.delivery === 'patternArea' && !attack.bossPattern.move;
-    /** Strokes over the actors for every live and released boss warning (no fill, so the actors stay readable). */
+    /** The bright edge of every live and released boss warning (a released snapshot owns its warning even when the boss no longer
+     * previews one). Under the actors since 2026-10-19 (before, it was the last part of a warning still drawn over them). */
+    function drawEdges(ctx, scene) {
+        const areas = (scene.layout || []).filter(({ enemy }) => isLiveWarning(enemy)).map(({ enemy }) => enemy.patternArea);
+        (scene.pending || []).forEach(attack => { if (attack.delivery === 'patternArea') areas.push(attack.bossPattern.area); });
+        new Set(areas).forEach(area => drawBossPatternArea(ctx, area, scene.projection, 0.92, true));
+    }
+    /** Every landing's flash of the struck cells (battleFx bossAreaImpact), on the floor like its warning. Effects are stamped on the
+     * battlefield's clock (battleVisualState.visualNow, held back by hit stops), so the flash is timed on it too. */
+    function drawImpactFlashes(ctx, projection) {
+        const now = Number.isFinite(battleVisualState.visualNow) ? battleVisualState.visualNow : performance.now();
+        for (const fx of battleFx) {
+            if (!fx || fx.type !== 'bossAreaImpact' || now < fx.start) continue;
+            const ms = now - fx.start;
+            if (ms < IMPACT_FLASH_MS) drawBossPatternArea(ctx, fx.footprint, projection, (1 - ms / IMPACT_FLASH_MS) * 5);
+        }
+    }
+    /** Under the actors, after the ground warnings (js/canvas-battlefield.js drawEnemyAttackTelegraphs): the landings' flashes and the
+     * marks of every live and released boss warning, so the bosses and the hero stand over them (2026-10-19 user: "캐릭터에 가려지도록"). */
     function drawMarks(ctx, scene) {
         if (!scene || !scene.projection) return;
-        const now = performance.now(); // the flowing bands of lines and fans
+        drawImpactFlashes(ctx, scene.projection);
+        drawEdges(ctx, scene);
         for (const { enemy } of scene.layout || []) {
             const share = isLiveWarning(enemy) ? warningShare(enemy) : null;
-            if (share !== null) drawMark(ctx, enemy.patternArea, scene.projection, { share, source: enemy, now, blink: blink(share) });
+            if (share !== null) drawMark(ctx, enemy.patternArea, scene.projection, { share, source: enemy, blink: blink(share) });
         }
         for (const attack of scene.pending || []) {
             if (!closesIn(attack)) continue;
-            drawMark(ctx, attack.bossPattern.area, scene.projection, { share: 1, source: attack.source, now, blink: pendingAlpha() / 7 });
+            drawMark(ctx, attack.bossPattern.area, scene.projection, { share: 1, source: attack.source, blink: pendingAlpha() / 7 });
         }
     }
 
@@ -220,12 +333,11 @@ const bossAttackView = (() => {
         if (cracks.length > 6) cracks.shift();
         if (typeof playUiFeedbackSound === 'function') playUiFeedbackSound('hitSlam');
     }
-    /** The released area lands: a short flash of the cells, two shockwaves, and (once) debris, crack and sound. */
+    /** The released area lands, over the actors: two shockwaves and (once) debris, crack and sound. The cells' flash is on the floor
+     * (drawImpactFlashes). */
     function drawImpact(ctx, fx, progress, projection) {
         const footprint = projectSkillFootprint(fx.footprint, projection);
         if (!footprint) return;
-        const ms = progress * (Number(fx.duration) || IMPACT_FLASH_MS);
-        if (ms < IMPACT_FLASH_MS) drawBossPatternArea(ctx, fx.footprint, projection, (1 - ms / IMPACT_FLASH_MS) * 5);
         if (onStage()) {
             if (!landed.has(fx)) { landed.add(fx); if (typeof playUiFeedbackSound === 'function') playUiFeedbackSound('hitSlam'); }
             return;

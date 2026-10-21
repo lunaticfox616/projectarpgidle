@@ -118,12 +118,20 @@ const messageFrames = (() => {
         return width > 100 ? width : DEFAULT_WIDTH;
     }
 
+    /** The bottom of the open goal drawer's panel (js/ui-window-manager.js #ui-goal-body) in frame px, 0 while it is folded. */
+    function openGoalBottom() {
+        const body = document.querySelector('#ui-goal-drawer.expanded #ui-goal-body');
+        const box = body && body.getClientRects().length ? body.getBoundingClientRect() : null;
+        return box && box.height ? box.bottom / frameScale() : 0;
+    }
+
     function defaultMainRect() {
         const ws = frameWorkspace(), width = shellLogWidth();
         const hud = document.querySelector('.player-hud');
         const hudTop = hud ? hud.getBoundingClientRect().top / frameScale() : 0;
         const bottom = hudTop > ws.top + 240 ? hudTop - GAP : ws.top + ws.height;
-        const height = Math.min(DEFAULT_HEIGHT, bottom - ws.top - TOP_RESERVE);
+        const room = bottom - Math.max(ws.top + TOP_RESERVE, openGoalBottom() + GAP);
+        const height = Math.min(DEFAULT_HEIGHT, bottom - ws.top - TOP_RESERVE, Math.max(MIN_HEIGHT, room));
         return { width, height, x: ws.left + ws.width - width, y: bottom - height };
     }
 
@@ -199,8 +207,27 @@ const messageFrames = (() => {
         if (typeof updateTabNotificationDots === 'function') updateTabNotificationDots();
     }
 
+    // The open goal drawer comes down the right side. Under about 816 px of height the frame's first place reached into it: in the fight
+    // the drawer hid the frame's tabs, and with a window open (the drawer then sits below #right-pane) the frame covered the drawer's
+    // button and notices (2026-10-21, 1280x720). A frame still at its first place starts below the open drawer and follows it.
+    let goalWatch = null;
+    function followGoalDrawer() {
+        if (!mounted) return;
+        FRAMES.forEach(frame => {
+            if (frameTabs(frame).length && !(frame === 'main' ? state.main : state.sideRect)) applyRect(frame, clampRect(defaultRect(frame)));
+        });
+    }
+
+    function watchGoalDrawer() {
+        const body = document.getElementById('ui-goal-body');
+        if (goalWatch || !body || typeof ResizeObserver !== 'function') return;
+        goalWatch = new ResizeObserver(followGoalDrawer);
+        goalWatch.observe(body);
+    }
+
     function renderFrames() {
         if (!mounted) return;
+        watchGoalDrawer();
         FRAMES.forEach(renderFrame);
         placePanes();
         saveFrameState();

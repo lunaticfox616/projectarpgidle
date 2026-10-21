@@ -161,6 +161,19 @@ create policy "chat_messages_delete_own"
     to authenticated
     using (auth.uid() = user_id);
 
+-- 실시간 채팅(2026-10-21): 새 채팅을 Supabase Realtime(postgres_changes)으로 보낸다(js/social.js syncLiveChat).
+-- 읽을 수 있는 사람은 위 chat_messages_select 정책 그대로 로그인한 사용자뿐이다. 이미 설치한 프로젝트는 db/chat-realtime-20261021.sql.
+do $$
+begin
+    if not exists (
+        select 1 from pg_publication_tables
+         where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'chat_messages'
+    ) then
+        alter publication supabase_realtime add table public.chat_messages;
+    end if;
+end
+$$;
+
 -- 스팸 방지: 서버 측 속도 제한 트리거 -----------------------------------------
 --   * 같은 사용자가 1.5초 안에 연속 전송 → 차단
 --   * 같은 사용자가 최근 60초 동안 15개 초과 전송 → 차단

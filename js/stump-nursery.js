@@ -1,6 +1,7 @@
 // 묘목장과 고대 씨앗(12번 루프 39, 42, 2026-10-08, data/stump-nursery.js): 묘목 무리의 처치 드롭(js/combat.js recordKillProgress),
 // 묘목장 정리의 선물(js/atlas-run.js clearRoom), 최종 보스의 고대 씨앗(js/atlas-endgame.js onComplete). 받은 것은 그루터기 함 보관함으로
-// 가고(stumpBox.createItem), 그 소식은 보통 드롭처럼 'stump-box-changed'로 알린다. 고대 씨앗의 효과는 js/stump-box.js가 계산한다.
+// 가고(stumpBox.createItem), 그 소식은 보통 드롭처럼 'stump-box-changed'로 알린다. 보관함이 가득 차면 고대 씨앗은 그래도 들어가고(보스 부적처럼),
+// 보통 씨앗과 수액은 드롭처럼 거름이 된다(stumpBox.compostOverflow). 고대 씨앗의 효과는 js/stump-box.js가 계산한다.
 const stumpNursery = (() => {
     const N = STUMP_NURSERY;
     const loopOf = state => Number(state.season) || 1;
@@ -13,9 +14,10 @@ const stumpNursery = (() => {
     /** The colour a nursery in this zone grows: the map region's (the trunk: any). */
     const colorOf = (zone, random) => N.regionColors[zone && zone.atlasRegion] || anyColor(random);
 
-    function give(state, spec) {
-        const item = stumpBox.createItem(state, spec);
-        if (item) dispatchRuntimeEvent('stump-box-changed', { ripened: [], drop: item, compost: null });
+    function give(state, spec, random) {
+        const item = stumpBox.createItem(state, spec, spec.ancient === true);
+        const compost = item ? null : stumpBox.compostOverflow(state, spec, random);
+        dispatchRuntimeEvent('stump-box-changed', { ripened: compost ? compost.ripened : [], drop: item, compost });
         return item;
     }
     function nurserySpec(zone, roll, random) {
@@ -27,20 +29,20 @@ const stumpNursery = (() => {
     function onKilled(state, enemy, random = Math.random) {
         if (!enemy || enemy.atlasEncounter !== 'nursery' || enemy.isBoss || !acquired(state)) return null;
         if (random() >= N.killChance[enemy.isElite ? 'elite' : 'normal']) return null;
-        return give(state, nurserySpec(getZone(state.currentZoneId), N.killRoll, random));
+        return give(state, nurserySpec(getZone(state.currentZoneId), N.killRoll, random), random);
     }
     /** An emptied nursery: one seed or sap for sure (from loop 42 sometimes an ancient seed), and by chance a scar. @returns {object[]} */
     function clearGift(state, zone, random = Math.random) {
         if (!acquired(state)) return [];
         const ancient = ancientOpen(state) && random() < N.ancient.roomChance;
-        const out = [give(state, ancient ? ancientSpec(colorOf(zone, random), random) : nurserySpec(zone, N.clearRoll, random))];
+        const out = [give(state, ancient ? ancientSpec(colorOf(zone, random), random) : nurserySpec(zone, N.clearRoll, random), random)];
         if (random() < N.scarChance && stumpBox.devourOpen(state)) out.push(stumpBox.rollScarDrop(state, () => 0));
         return out.filter(Boolean);
     }
     /** A final boss falls: from loop 42, by chance, an ancient seed of any colour. */
     function ancientFromBoss(state, random = Math.random) {
         if (!acquired(state) || !ancientOpen(state) || random() >= N.ancient.apexChance) return null;
-        return give(state, ancientSpec(anyColor(random), random));
+        return give(state, ancientSpec(anyColor(random), random), random);
     }
     return Object.freeze({ open, ancientOpen, colorOf, onKilled, clearGift, ancientFromBoss });
 })();

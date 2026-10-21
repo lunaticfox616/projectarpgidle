@@ -12,8 +12,8 @@
   역제안은 한 번만 가능하다. 손님은 수락·마지막 제안·이탈 중 하나로 응답한다. 먼저 성립한 거래만 지급한다.
 - 방치 방문은 최대 12시간을 정산한다. 판매 기록은 최근 50건의 스냅샷이며 추가 수령권이 아니다.
   손님 애니메이션은 가판대를 보고 있을 때의 실제 최근 사건만 표시한다.
-- 소유: `data/player-stall.js`, `js/item-appraisal.js`, `js/player-stall.js`, `js/player-stall-ui.js`.
-  검사: `scripts/smoke-player-stall-*.js`, `scripts/smoke-item-appraisal*.js`.
+- 소유: `data/player-stall.js`, `js/item-appraisal.js`, `js/player-stall.js`, `js/player-stall-ui.js`(화면과 끌어 놓기는 2026-10-18부터
+  공용 상점 화면 `js/shop-view-ui.js`). 검사: `scripts/smoke-player-stall.js`, 경제 감사 `scripts/audit-player-stall.js`.
 
 ## 변경·측정 이력
 
@@ -145,7 +145,7 @@ NPC 흥정은 본 게임에 추가한 규칙입니다.
 이전 저장·중복·잘못된 위치만 빈칸에 배치합니다. 네 칸을 넘는 손상 저장의 실제 장비는 보관함으로 돌려줍니다.
 
 새 전역이나 스크립트 순서 변경은 없습니다. 가격 정의 → 감정/가판대 도메인 → UI 순서이며,
-드래그·임시 배치는 `js/player-stall-ui.js`, 소유권·위치·판매는 `js/player-stall.js`가 담당합니다.
+드래그·임시 배치는 `js/player-stall-ui.js`(끌기 자체는 2026-10-18부터 `js/shop-view-ui.js`), 소유권·위치·판매는 `js/player-stall.js`가 담당합니다.
 별도 검사 `smoke-item-appraisal`, `smoke-player-stall-placement`, `smoke-player-stall-ui`는
 가격 세분화, 저장 복구, 실패 시 원자성, 드래그 취소, 제안을 보존한 이동, 진열 확정을 검증합니다.
 최종 전체 스모크 **233/233**, 구조 검사, CSS 검사, 웹 빌드가 통과했습니다. 실제 브라우저에서

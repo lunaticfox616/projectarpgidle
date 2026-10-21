@@ -95,20 +95,20 @@ function init() {
             handleBackgroundVisibilityChange();
             if (document.hidden) {
                 if (window.__skipUnloadSaveOnce) return;
-                saveGame({ skipCloudSync: true });
+                saveGame({ skipCloudSync: true, touchModifiedAt: gameplayStarted });
                 pushCloudSaveOnPageExit('visibilitychange');
             }
         });
         window.addEventListener('pagehide', function() {
-            recordBackgroundCombatEntry(Date.now());
+            notePageExit();
             if (window.__skipUnloadSaveOnce) return;
-            saveGame({ skipCloudSync: true });
+            saveGame({ skipCloudSync: true, touchModifiedAt: gameplayStarted });
             pushCloudSaveOnPageExit('pagehide');
         });
         window.addEventListener('beforeunload', function() {
-            recordBackgroundCombatEntry(Date.now());
+            notePageExit();
             if (window.__skipUnloadSaveOnce) return;
-            saveGame({ skipCloudSync: true });
+            saveGame({ skipCloudSync: true, touchModifiedAt: gameplayStarted });
             pushCloudSaveOnPageExit('beforeunload');
         });
     }
@@ -214,6 +214,12 @@ function refreshCombatTickUi() {
     updateCombatUI(recentStats);
 }
 
+/** Closing or leaving the page. A page already hidden keeps the time it was hidden: closing a hidden tab restamped it, and the next
+ * launch's offline settlement lost the hidden hours. Saves before the game starts (the title screen) keep the loaded save's time. */
+function notePageExit() {
+    if (!(document.hidden && backgroundCombatRuntime.hiddenAtMs)) recordBackgroundCombatEntry(Date.now());
+}
+
 function syncGameplayTimers() {
     if (gameTickHandle) clearInterval(gameTickHandle);
     if (autoSaveHandle) clearInterval(autoSaveHandle);
@@ -275,9 +281,10 @@ window.addEventListener('error', function(event) {
 // 저장을 불러오기 전에 무대 그림이 있는지 알아 둔다(js/canvas-stage-actors.js whenStageArtKnown): 답이 늦게 오면 방 단위 탐험을 저장한 게임이
 // 예전 이어진 지도로 열렸다(2026-10-16). 답을 기다리는 것은 STAGE_PROBE_WAIT_MS까지다.
 const STAGE_PROBE_WAIT_MS = 2500;
+// 다른 탭이 게임을 돌리고 있으면 그 탭이 저장을 마치고 놓아 준 뒤에 부팅한다(js/game-tab-guard-ui.js). 대기 화면의 탭은 부팅하지 않는다.
 function bootWhenStageArtKnown() {
     const known = typeof stageActors === 'object' ? stageActors.whenStageArtKnown() : Promise.resolve();
-    Promise.race([known, new Promise(done => setTimeout(done, STAGE_PROBE_WAIT_MS))]).then(bootGame);
+    Promise.all([Promise.race([known, new Promise(done => setTimeout(done, STAGE_PROBE_WAIT_MS))]), gameTabGuard.ready()]).then(bootGame);
 }
 window.addEventListener('load', bootWhenStageArtKnown);
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bootWhenStageArtKnown);

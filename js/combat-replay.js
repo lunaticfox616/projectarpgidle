@@ -155,10 +155,12 @@ function applyCombatReplayControl(replay, control) {
 
 /**
  * @typedef {{elapsedMs:number, snapshot:typeof defaultGame, startNowMs?:number, project?:boolean,
- * isPaused?:()=>boolean, getControl?:()=>({tier:number,finish:boolean}),
+ * isPaused?:()=>boolean, abandonWhenPaused?:boolean, getControl?:()=>({tier:number,finish:boolean}),
  * onProgress?:(doneMs:number,totalMs:number,skippedMs:number,phase:string)=>void}} CombatReplayOptions
  * snapshot must already have passed save migration. Durations are effective combat milliseconds.
  * project: measure the pace with real combat, then project the rest (js/combat-replay-projection.js). The settlement uses it.
+ * abandonWhenPaused: the chunked replay gives up (null) once isPaused says the page went away again; the settlement then counts the
+ * whole time away on the next return.
  */
 /** @param {CombatReplayOptions} options Synchronous replay for diagnostics. Does not commit or persist. */
 function simulateBackgroundCombat(options) {
@@ -184,6 +186,8 @@ function waitBackgroundReplayFrame() {
     });
 }
 
+const replayAbandoned = options => !!options.abandonWhenPaused && !!options.isPaused?.();
+
 /** @param {CombatReplayOptions} options Progress callbacks run outside the replay state and may throw. */
 async function simulateBackgroundCombatChunked(options) {
     let replay = createCombatReplay(options.elapsedMs, options.snapshot, options.startNowMs);
@@ -191,6 +195,7 @@ async function simulateBackgroundCombatChunked(options) {
     let pending;
     do {
         // The UI supplies lifecycle state; do not burn CPU while the app is inactive.
+        if (replayAbandoned(options)) return null;
         while (options.isPaused?.()) await new Promise(resolve => setTimeout(resolve, 250));
         applyCombatReplayControl(replay, options.getControl?.());
         pending = replayProjection.advanceProjectedReplay(replay, BACKGROUND_REPLAY_SLICE_MS);

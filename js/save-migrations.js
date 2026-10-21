@@ -9,6 +9,7 @@ function normalizeLoopGateFlags(state) {
 function normalizeAutomationSettings(settings) {
     settings.autoMove = settings.autoMove !== false;
     settings.autoLoop = settings.autoLoop === true;
+    settings.autoRediveOcean = settings.autoRediveOcean === true; // 심해 자동 재잠수(기본 끔)
     settings.autoLoopClass = settings.autoLoopClass === 'keep' ? 'keep' : 'ask';
 }
 
@@ -322,7 +323,16 @@ function normalizeSkillSlotsSave(merged) {
         if (!worn(merged.mobilitySkill)) merged.mobilitySkill = merged.activeSkill;
         merged.activeSkill = '기본 공격';
     }
+    keepBlockedMobilityGem(merged, worn);
     merged.mobilitySkill = worn(merged.mobilitySkill) ? merged.mobilitySkill : '';
+}
+
+/** A main gem held back for the weapon (js/skills.js fitActiveSkillToWeapon) that is a mobility gem now (전도성 난격 of 0.3.8) goes to
+ * the empty mobility slot, never back to the main attack. Idempotent. */
+function keepBlockedMobilityGem(merged, worn) {
+    if (!mobilitySkill.isMobilityGem(merged.weaponBlockedSkill)) return;
+    if (!worn(merged.mobilitySkill) && worn(merged.weaponBlockedSkill)) merged.mobilitySkill = merged.weaponBlockedSkill;
+    merged.weaponBlockedSkill = '';
 }
 
 /** The gem the enhance screen opens on: one that is worn — the main gem, the mobility gem or a summon gem. */
@@ -371,6 +381,32 @@ function normalizeVoidRiftSave(state) {
     run.rewardVoidChisel = Number.isFinite(paid) && paid >= 0 ? Math.floor(paid) : null;
 }
 
+/** A saved currency that is text other than a number, negative or not a number counts as none: such a value stayed and showed as
+ * NaN, -7 or [object Object] (only the legacy-merged keys were cleaned). Numeric text becomes a number. */
+function normalizeSavedCurrencies(currencies) {
+    for (const key of Object.keys(currencies)) {
+        const raw = currencies[key], amount = Number(raw);
+        currencies[key] = (typeof raw === 'number' || typeof raw === 'string') && Number.isFinite(amount) && amount > 0 ? amount : 0;
+    }
+}
+/** Talisman curse rows per enemy (transient combat state): each a list, else dropped (coreLoop's expiry threw on every tick). */
+function normalizeConditionDebuffMap(map) {
+    const rows = map && typeof map === 'object' && !Array.isArray(map) ? map : {};
+    return Object.fromEntries(Object.entries(rows).filter(([, list]) => Array.isArray(list)));
+}
+
+/** A saved ailment on the hero: its clock and power, and for a damage ailment its source (the hit, a crit's DoT bonus, the score that
+ * picks the stronger one, the monster that dealt it). Load kept only the first four and dropped the rest (2026-10-20 hunt: a crit
+ * ignite lost its bonus for its last seconds). */
+function normalizePlayerAilmentRow(row, clampFiniteNumber) { // clampFiniteNumber: mergeDefaults's own clamp
+    const time = Math.max(0, clampFiniteNumber(row.time, 0, 0, 30));
+    const out = { type: row.type, time, duration: Math.max(time, clampFiniteNumber(row.duration, time, 0, 30)),
+        power: Math.max(0, clampFiniteNumber(row.power, 0.1, 0, 1.5)), sourceHitDamage: Math.max(0, Math.floor(clampFiniteNumber(row.sourceHitDamage || row.hitDamage, 0, 0))) };
+    if (Number.isFinite(Number(row.critDotBonusPct))) out.critDotBonusPct = Math.max(0, Number(row.critDotBonusPct));
+    if (Number.isFinite(Number(row.ailmentDotScore))) out.ailmentDotScore = Math.max(0, Number(row.ailmentDotScore));
+    if (row.sourceEnemyName) Object.assign(out, { sourceEnemyId: row.sourceEnemyId === undefined ? null : row.sourceEnemyId, sourceEnemyName: String(row.sourceEnemyName) });
+    return out;
+}
 function mergeDefaults(save) {
     function clampFiniteNumber(value, fallback, min, max) {
         let num = Number(value);
@@ -661,14 +697,14 @@ function mergeDefaults(save) {
         equipment: { ...defaultGame.equipment, ...(save.equipment || {}) },
         saveMeta: { ...defaultGame.saveMeta, ...(save.saveMeta || {}) }
     };
-    delete merged.hideout;
-    delete merged.abyssPassivePoints;
-    delete merged.abyssPassives;
+    // Fields of removed systems (lastSkillHitElement: the old skill playback, 2026-10-18).
+    ['hideout', 'abyssPassivePoints', 'abyssPassives', 'lastSkillHitElement'].forEach(key => delete merged[key]);
     delete merged.unlocks.hideout;
     delete merged.noti.hideout;
     migratePassiveSaveNodeReferences(merged);
     migrateLegacySummonGemSave(merged);
-    delete merged.talentCardRuntime;
+    dropRuntimeOnlySaveFields(merged);
+    normalizeSavedCurrencies(merged.currencies);
     Object.entries(typeof CURRENCY_LEGACY_MERGE === 'object' ? CURRENCY_LEGACY_MERGE : {}).forEach(([currentKey, legacyKeys]) => {
         let legacyAmount = (legacyKeys || []).reduce((sum, legacyKey) => sum + Math.max(0, Math.floor(Number(merged.currencies[legacyKey]) || 0)), 0);
         merged.currencies[currentKey] = Math.max(0, Math.floor(Number(merged.currencies[currentKey]) || 0)) + legacyAmount;
@@ -739,17 +775,9 @@ function mergeDefaults(save) {
     let passiveAllocationNormalization = normalizeAllocatedPassiveTreeNodes(merged.passives, !!merged.passiveStarEvolution, merged);
     merged.passives = passiveAllocationNormalization.passives;
     merged.autoRefundedPassivePoints = Math.max(0, Math.floor(passiveAllocationNormalization.refunded || 0));
-    function getPassiveTierValueForLoad(statKey, tier) {
-        let statDef = P_STATS[statKey];
-        if (!statDef) return tier === 3 ? 8 : (tier === 2 ? 4 : 2);
-        if (tier === 0) return 10;
-        if (tier === 1) return statDef.s !== undefined ? statDef.s : (statDef.m !== undefined ? statDef.m : (statDef.k !== undefined ? statDef.k : 2));
-        if (tier === 2) return statDef.m !== undefined ? statDef.m : (statDef.s !== undefined ? statDef.s : (statDef.k !== undefined ? statDef.k : 4));
-        return statDef.k !== undefined ? statDef.k : (statDef.m !== undefined ? statDef.m : (statDef.s !== undefined ? statDef.s : 8));
-    }
     Object.values(PASSIVE_TREE.nodes || {}).forEach(node => {
         if (!node || node.stat !== 'critDmg') return;
-        node.val = getPassiveTierValueForLoad('critDmg', Math.max(0, Math.floor(node.tier || 1)));
+        node.val = getPassiveStatTierValue('critDmg', Math.max(0, Math.floor(node.tier || 1)));
     });
     merged.discoveredPassives = Array.from(new Set((merged.discoveredPassives || []).map(normalizePassiveNodeId).filter(Boolean)));
     const passiveAttributeStats = new Set(['strength', 'dexterity', 'intelligence']);
@@ -1084,7 +1112,7 @@ function mergeDefaults(save) {
     delete merged.heroFreeSwitchUnlocked;
     merged.pendingLoopHeroSelection = !!merged.pendingLoopHeroSelection;
     merged.abyssClearedDepths = Array.isArray(merged.abyssClearedDepths) ? merged.abyssClearedDepths.map(v => Math.max(1, Math.floor(v || 1))).filter(v => v <= 20) : [];
-    merged.playerAilments = Array.isArray(merged.playerAilments) ? merged.playerAilments.map(row => ({ type: row.type, time: Math.max(0, clampFiniteNumber(row.time, 0, 0, 30)), power: Math.max(0, clampFiniteNumber(row.power, 0.1, 0, 1.5)), sourceHitDamage: Math.max(0, Math.floor(clampFiniteNumber(row.sourceHitDamage || row.hitDamage, 0, 0))) })).filter(row => row.type) : [];
+    merged.playerAilments = Array.isArray(merged.playerAilments) ? merged.playerAilments.map(row => normalizePlayerAilmentRow(row, clampFiniteNumber)).filter(row => row.type) : [];
     merged.playerLeechInstances = Array.isArray(merged.playerLeechInstances) ? merged.playerLeechInstances.map(row => ({ remaining: Math.max(0, clampFiniteNumber(row.remaining, 0, 0)), rate: Math.max(0, clampFiniteNumber(row.rate, 0, 0)), target: row.target === 'energyShield' ? 'energyShield' : 'life' })).filter(row => row.remaining > 0 && row.rate > 0).slice(0, 80) : [];
     merged.recentDamageEvents = Array.isArray(merged.recentDamageEvents) ? merged.recentDamageEvents.map(normalizeRecentDamageEvent).filter(Boolean) : [];
     merged.lastDeathLog = normalizeDeathLog(merged.lastDeathLog);
@@ -1111,10 +1139,8 @@ function mergeDefaults(save) {
         }
         return out;
     }
-    merged.enemyKeystoneDebuffs = pruneEnemyRuntimeMap(merged.enemyKeystoneDebuffs, { maxKeys: 120 });
-    merged.rangerWeakpointMarks = pruneEnemyRuntimeMap(merged.rangerWeakpointMarks, { maxKeys: 120 });
-    merged.enemyUniqueChaosResDown = pruneEnemyRuntimeMap(merged.enemyUniqueChaosResDown, { maxKeys: 120 });
-    merged.enemyUniqueElementalResDown = pruneEnemyRuntimeMap(merged.enemyUniqueElementalResDown, { maxKeys: 120 });
+    ['enemyKeystoneDebuffs', 'rangerWeakpointMarks', 'enemyUniqueChaosResDown', 'enemyUniqueElementalResDown'].forEach(key => { merged[key] = pruneEnemyRuntimeMap(merged[key], { maxKeys: 120 }); });
+    merged.enemyConditionDebuffs = normalizeConditionDebuffMap(merged.enemyConditionDebuffs);
     merged.encounterPlan = Array.isArray(merged.encounterPlan) ? merged.encounterPlan.map(normalizeEncounterMarker).filter(Boolean).sort((a, b) => a.at - b.at) : [];
     merged.level = Math.max(1, Math.floor(clampFiniteNumber(merged.level, defaultGame.level, 1, MAX_PLAYER_LEVEL)));
     merged.exp = Math.max(0, Math.floor(clampFiniteNumber(merged.exp, defaultGame.exp, 0)));
@@ -1179,14 +1205,9 @@ function mergeDefaults(save) {
     merged.chaosRealm.unlocked = !!merged.chaosRealm.unlocked;
     merged.chaosRealm.highestFloor = Math.max(0, Math.floor(clampFiniteNumber(merged.chaosRealm.highestFloor, 0, 0)));
     merged.chaosRealm.currentFloor = Math.max(1, Math.floor(clampFiniteNumber(merged.chaosRealm.currentFloor, 1, 1)));
-    let hasSavedUnderworldProgress = !!(save && typeof save === 'object' && save.underworldProgress && typeof save.underworldProgress === 'object');
-    let legacyUnderworldProgress = {};
-    if (!hasSavedUnderworldProgress) {
-        let legacyHighest = Math.max(1, Math.floor(clampFiniteNumber(((save && save.chaosRealm) || {}).highestFloor, 1, 1)));
-        let legacyCurrent = Math.max(1, Math.floor(clampFiniteNumber(((save && save.chaosRealm) || {}).currentFloor, 1, 1)));
-        legacyUnderworldProgress = { highestFloor: legacyHighest, currentFloor: legacyCurrent, floor10Cleared: legacyHighest >= 11 };
-    }
-    merged.underworldProgress = { ...(defaultGame.underworldProgress || { highestFloor: 1, currentFloor: 1 }), ...legacyUnderworldProgress, ...(merged.underworldProgress || {}) };
+    // A save from before the underworld starts it like a new one (2026-10-19 user: the old copy from chaos realm floors kept only
+    // the floor 10 credit, which opened the underworld without its entry conditions).
+    merged.underworldProgress = { ...(defaultGame.underworldProgress || { highestFloor: 1, currentFloor: 1 }), ...(merged.underworldProgress || {}) };
     merged.underworldProgress.highestFloor = Math.max(1, Math.floor(clampFiniteNumber(merged.underworldProgress.highestFloor, 1, 1)));
     merged.underworldProgress.currentFloor = Math.max(1, Math.floor(clampFiniteNumber(merged.underworldProgress.currentFloor, 1, 1)));
     let savedRunes = (merged.underworldRunes && typeof merged.underworldRunes === 'object') ? merged.underworldRunes : {};
@@ -1341,6 +1362,7 @@ function mergeDefaults(save) {
     const normalized = normalizeContentProgressionSave(normalizeSavedCombatRuntime(merged), save);
     // Escrow identity checks need the migrated exploration loot containers first.
     playerStall.restore(normalized);
+    Object.assign(normalized, { craftOmen: normalizeCraftOmen(normalized.craftOmen), craftChoice: normalizeCraftChoice(normalized.craftChoice) });
     return normalized;
 }
 

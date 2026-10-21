@@ -36,7 +36,7 @@ const memoryDungeon = (() => {
         if (tier > maxTier(state)) return `${tier}단계는 루프 ${M.highTiers.loop}부터 도전할 수 있습니다.`;
         const lock = atlas.lockReason(state);
         if (lock) return lock;
-        if (state.atlas.run) return '이미 열린 지도가 있습니다. 먼저 마치거나 닫으세요.';
+        if (state.atlas.run) return atlas.runOpenReason(state);
         return count(state, nodeId, tier) > 0 ? '' : '그 단계의 기억이 없습니다.';
     }
     const spend = (state, nodeId, tier) => take(state, nodeId, tier);

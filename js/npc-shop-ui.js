@@ -1,15 +1,11 @@
 /** The NPC's shop inside its window (js/content-progression-ui.js openNpc, mode 'shop'): its stock (js/npc-shop.js) on a grid like
  * the bag's with the card of the pointed or chosen ware under it, and the hero's bag beside it (2026-10-16 사용자: "인벤토리 처럼
  * 상점이 되어있고 그걸 눌러서 사거나 인벤토리로 끌어다 놓으면 구매 (POE,디아블로스타일)"). A click buys into the first free place of
- * the bag (on a touch screen the first tap shows the card, the second buys); a drag onto the bag buys into the place it is dropped on. */
+ * the bag (on a touch screen the first tap shows the card, the second buys); a drag onto the bag buys into the place it is dropped on.
+ * The screen and the pointer are the shared shop view's (js/shop-view-ui.js); this is the NPC shop's adapter. */
 const npcShopUi = (() => {
-    const DRAG_PX = 6;
-    const HOW_TO_BUY = Object.freeze({ pointer: '누르면 사고, 가방 칸으로 끌어다 놓으면 그 자리에 삽니다.',
-        touch: '한 번 누르면 정보, 다시 누르면 삽니다. 가방 칸으로 끌어 놓아도 삽니다.' });
     let chosen = null;    // { id, index }: the ware whose card shows
-    let press = null;     // the pointer held on a ware: { root, id, index, button, x, y, pointerId, touch, offset, ghost, place }
-    let bagPage = 0;
-    const WALLET_ORDER = Object.freeze(['magicBud', 'formlessDew', 'goldenRule']);
+    let shown = null;     // { id, stock }: the shelf drawn last; a meeting on the next map lays out a new stock object
     // Where a short currency comes from (js/passives.js getItemSalvageRewardProfile). Until 장비 제련 opens they never drop
     // (data/items.js dropUnlocks), so in loop 1 salvage is the only way.
     const EARN_HINTS = Object.freeze({ magicBud: '일반 장비나 마법 장비를 해체하면 마법의 새싹을 얻습니다.',
@@ -17,13 +13,10 @@ const npcShopUi = (() => {
 
     const wareAt = (id, index) => npcShop.stock(id)?.offers[index] || null;
     const wareName = ware => (ware.gem ? ware.gem.name : ware.item.name || ware.item.baseName || '장비');
-    const held = key => Math.floor(Number(game.currencies[key]) || 0);
-    const howToBuy = () => HOW_TO_BUY[uiDisplay.matches('(hover: hover)') ? 'pointer' : 'touch'];
     const isChosen = (id, index) => !!chosen && chosen.id === id && chosen.index === index;
-    function coinHtml(key) {
-        const icon = ORB_DB[key] && ORB_DB[key].icon;
-        return icon ? `<img class="npc-shop-coin" src="${icon}" alt="">` : '';
-    }
+    const pickIndex = pick => Number(String(pick).replace('ware:', ''));
+    /** The window still shows a shelf the NPC no longer has (met again on the next map, or a new loop). */
+    const staleShelf = root => !shown || shown.id !== root.dataset.npcShop || shown.stock !== npcShop.stock(root.dataset.npcShop);
 
     /** The way into the shop under the talk: what it sells and how many wares are left, or nothing before its first stock. */
     function shopDoorHtml(npc) {
@@ -34,152 +27,72 @@ const npcShopUi = (() => {
             <em>${left ? `${left}개${ready ? `, ${ready}개 살 수 있음` : ''}` : '다 팔림'}</em></button>`;
     }
 
-    function shopBodyHtml(npc) {
+    function shopBodyHtml(npc, note = '') {
         const shop = NPC_SHOPS[npc.id], stock = npcShop.stock(npc.id);
-        const shelf = stock && stock.offers.length ? shelfHtml(npc.id, stock) : '<p class="npc-shop-empty">다 팔렸습니다. 다음에 만나면 새 물건을 들여옵니다.</p>';
-        return `<div class="npc-shop" data-npc-shop="${npc.id}">
-            <section class="npc-shop-stock" aria-label="${escapeHTML(shop.label)} 상점"><header class="npc-shop-bar">
-                <button type="button" class="npc-shop-back" data-npc-topic="greet">대화</button><h3>${escapeHTML(shop.label)}</h3>${walletHtml(stock)}</header>
-                ${shelf}<div class="npc-shop-info" aria-live="polite">${wareInfoHtml(npc.id)}</div></section>
-            <section class="npc-shop-bag" aria-label="가방">${shopBagHtml()}</section></div>`;
-    }
-
-    /** The currencies this stock is priced in, with what the hero holds. */
-    function walletHtml(stock) {
-        const keys = WALLET_ORDER.filter(key => (stock ? stock.offers : []).some(ware => ware.priceKey === key));
-        return `<span class="npc-shop-wallet">${keys.map(key => `<span title="${escapeHTML(npcShop.currencyName(key))}">${coinHtml(key)}${held(key)}</span>`).join('')}</span>`;
-    }
-
-    function shopCellsHtml(columns, rows, mark) {
-        let cells = '';
-        for (let row = 0; row < rows; row++) {
-            for (let column = 0; column < columns; column++) cells += `<span class="npc-shop-cell" style="grid-area:${row + 1}/${column + 1}" ${mark(column, row)}></span>`;
-        }
-        return cells;
+        shown = { id: npc.id, stock };
+        const shelf = stock && stock.offers.length ? shelfHtml(npc.id, stock) : '<p class="shop-empty">다 팔렸습니다. 다음에 만나면 새 물건을 들여옵니다.</p>';
+        const keys = (stock ? stock.offers : []).map(ware => ware.priceKey);
+        return `<div class="shop-view is-npc" data-shop-kind="npc" data-npc-shop="${npc.id}">
+            <section class="shop-shelf" aria-label="${escapeHTML(shop.label)} 상점"><header class="shop-bar">
+                <button type="button" class="shop-back" data-npc-topic="greet">대화</button><h3>${escapeHTML(shop.label)}</h3>${shopView.walletHtml(keys)}</header>
+                ${shelf}<div class="shop-info" aria-live="polite">${wareInfoHtml(npc.id, note)}</div></section>
+            <section class="shop-bag" aria-label="가방">${shopView.bagHtml()}</section></div>`;
     }
 
     function wareArtHtml(ware) {
-        if (!ware.gem) return `<img src="${getEquipmentGridVisualAsset(ware.item)}" alt="" draggable="false">`;
-        return ware.gem.kind === 'support' ? supportGemSigil.html(ware.gem.name, 'npc-shop-gem', 0) : renderSkillGemArt(ware.gem.name, 'npc-shop-gem', { eager: true });
+        return ware.gem ? shopView.gemArtHtml(ware.gem) : `<img src="${getEquipmentGridVisualAsset(ware.item)}" alt="" draggable="false">`;
     }
 
     function shelfHtml(id, stock) {
         const wares = stock.offers.map((ware, index) => {
             const rarity = ware.gem ? (ware.gem.kind === 'support' ? 'rare' : 'magic') : ware.item.rarity || 'normal';
-            const marks = `${held(ware.priceKey) < ware.price ? ' is-dear' : ''}${isChosen(id, index) ? ' is-chosen' : ''}`;
-            return `<button type="button" class="npc-shop-item rarity-${rarity}${marks}" data-npc-ware="${index}"
-                style="grid-area:${ware.row + 1}/${ware.column + 1}/span ${ware.rows}/span ${ware.columns}" aria-label="${escapeHTML(wareName(ware))}, ${escapeHTML(npcShop.currencyName(ware.priceKey))} ${ware.price}">
-                ${wareArtHtml(ware)}<span class="npc-shop-price">${coinHtml(ware.priceKey)}${ware.price}</span></button>`;
+            const marks = `${shopView.held(ware.priceKey) < ware.price ? ' is-dear' : ''}${isChosen(id, index) ? ' is-chosen' : ''}`;
+            return `<button type="button" class="shop-item rarity-${rarity}${marks}" data-shop-pick="ware:${index}" style="${shopView.areaStyle(ware)}"
+                aria-label="${escapeHTML(wareName(ware))}, ${escapeHTML(npcShop.currencyName(ware.priceKey))} ${ware.price}">
+                ${wareArtHtml(ware)}${shopView.priceHtml(ware.priceKey, ware.price)}</button>`;
         }).join('');
-        const grid = npcShop.grid;
-        return `<div class="npc-shop-grid" style="--grid-columns:${grid.columns};--grid-rows:${grid.rows}">${shopCellsHtml(grid.columns, grid.rows, () => '')}${wares}</div>`;
+        return shopView.gridHtml(npcShop.grid.columns, npcShop.grid.rows, wares);
     }
 
-    /** The hero's bag, one page at a time as in the equipment window, its cells the places a ware can be dropped on. */
-    function shopBagHtml() {
-        const layout = equipmentInventoryGridRuntime.ensureState(game);
-        bagPage = Math.max(0, Math.min(layout.unlockedPageCount - 1, bagPage));
-        const page = equipmentInventoryGridRuntime.getPageLayout(layout, bagPage), rows = equipmentInventoryGridRuntime.rowsPerPage;
-        const items = page.entries.map(entry => `<span class="npc-shop-bag-item rarity-${entry.item.rarity || 'normal'}"
-            style="grid-area:${entry.row + 1}/${entry.column + 1}/span ${entry.rows}/span ${entry.columns}"><img src="${getEquipmentGridVisualAsset(entry.item)}" alt="" draggable="false"></span>`).join('');
-        const pages = layout.unlockedPageCount > 1 ? `<nav class="npc-shop-pages" aria-label="가방 쪽">${Array.from({ length: layout.unlockedPageCount }, (_, index) =>
-            `<button type="button" data-npc-bag-page="${index}" aria-pressed="${index === bagPage}">${index + 1}</button>`).join('')}</nav>` : '';
-        return `<header class="npc-shop-bar"><h3>가방</h3><span class="npc-shop-room">${getInventoryUsedCellCount(game)}/${getInventoryLimit(game)}칸</span>${pages}</header>
-            <div class="npc-shop-grid is-bag" style="--grid-columns:${layout.columns};--grid-rows:${rows}">${shopCellsHtml(layout.columns, rows, (column, row) => `data-bag-cell="${column}:${row}"`)}${items}</div>`;
-    }
-
-    /** The chosen ware's card: the item's own tooltip (or the gem's text), its price and the buy button; else how to buy. */
+    /** The chosen ware's card: the item's own tooltip (or the rune's text), its price and the buy button; else how to buy. */
     function wareInfoHtml(id, note = '') {
         const ware = chosen && chosen.id === id ? wareAt(id, chosen.index) : null;
-        if (!ware) return `<p class="npc-shop-hint">${escapeHTML(note || howToBuy())}</p>`;
+        if (!ware) return `<p class="shop-hint">${escapeHTML(note || shopView.howToBuy())}</p>`;
         const check = npcShop.check(id, chosen.index, null);
-        const card = ware.gem ? gemWareCardHtml(ware.gem) : itemWareCardHtml(ware.item);
-        return `${card}<div class="npc-shop-deal"><span>${coinHtml(ware.priceKey)}${escapeHTML(npcShop.currencyName(ware.priceKey))} ${ware.price}</span>
+        const card = ware.gem ? shopView.gemCardHtml(ware.gem) : shopView.itemCardHtml(ware.item);
+        return `${card}<div class="shop-deal"><span>${shopView.coinHtml(ware.priceKey)}${escapeHTML(npcShop.currencyName(ware.priceKey))} ${ware.price}</span>
             <button type="button" data-npc-buy="${chosen.index}" ${check.ok ? '' : 'disabled'}>${check.ok ? '구매' : escapeHTML(check.reason)}</button></div>
             ${earnHintHtml(ware)}
-            ${note ? `<p class="npc-shop-note" role="status">${escapeHTML(note)}</p>` : ''}`;
+            ${note ? `<p class="shop-note" role="status">${escapeHTML(note)}</p>` : ''}`;
     }
 
     /** Where the currency of ware comes from, when the hero holds too little of it. */
     function earnHintHtml(ware) {
-        const hint = held(ware.priceKey) < ware.price ? EARN_HINTS[ware.priceKey] : '';
-        return hint ? `<p class="npc-shop-hint">${hint}</p>` : '';
+        const hint = shopView.held(ware.priceKey) < ware.price ? EARN_HINTS[ware.priceKey] : '';
+        return hint ? `<p class="shop-hint">${hint}</p>` : '';
     }
 
-    function itemWareCardHtml(item) {
-        const box = document.createElement('div');
-        showItemTooltip(null, null, false, item, { target: box });
-        return `<div class="npc-shop-tooltip">${box.innerHTML}</div>${gearRatingHtml(item)}`;
-    }
-
-    /** The bag analysis' verdict on a ware (js/equipment-triage.js rate) in the bag card's words: 공격 +8.3%, 생존 +12%, or 현 세팅 유지.
-     * Nothing while the hero cannot wear it: the card above shows the requirement. */
-    function gearRatingHtml(item) {
-        const wearable = getEquipCandidateSlots(item).some(slot => combatEquipmentStats.inspect(item, slot).ok);
-        const rating = wearable ? equipmentTriage.rate(item) : null;
-        if (!rating) return '';
-        const chips = [rating.dpsGainPct >= 1 ? `<span class="is-damage">공격 +${rating.dpsGainPct}%</span>` : '',
-            rating.ehpGainPct >= 1 ? `<span class="is-defense">생존 +${rating.ehpGainPct}%</span>` : ''].join('');
-        return `<p class="npc-shop-rating">${chips || '<span>현 세팅 유지</span>'}</p>`;
-    }
-
-    function gemWareCardHtml(gem) {
-        const support = gem.kind === 'support', def = (support ? SUPPORT_GEM_DB : SKILL_DB)[gem.name] || {};
-        const kind = support ? `보조스킬룬, ${getSupportTierLabel(gem.name, gem.tier)}` : '공격 룬';
-        return `<div class="npc-shop-gem-card"><div class="npc-shop-gem-head">${wareArtHtml({ gem })}<div><small>${escapeHTML(kind)}</small>
-            <strong>${escapeHTML(gem.name)}</strong></div></div><p>${statToneText.html(def.desc || '')}</p>${support ? supportFitHtml(gem) : runeFitHtml(gem.name)}</div>`;
-    }
-
-    /** An attack rune against the hero now: why the weapon in hand cannot use it (as its loot line says, js/currency-acquisition-ui.js),
-     * or what wearing it brings. Wisp runes summon instead of striking and show no line. */
-    function runeFitHtml(name) {
-        const note = getSkillRuneWeaponNote(name);
-        if (note) return `<p class="npc-shop-note">지금 무기로 쓸 수 없음: ${escapeHTML(note)}</p>`;
-        return (SKILL_DB[name]?.tags || []).includes('summon') ? '' : wearPreviewHtml(copy => { copy.activeSkill = name; });
-    }
-
-    /** A support rune the hero could wear at its shelf tier now: what wearing it brings (buying only grants it). */
-    function supportFitHtml(gem) {
-        return supportFits(gem) ? wearPreviewHtml(copy => wearSupportOnCopy(copy, gem)) : '';
-    }
-
-    /** A free support place and enough 공명력 for the shelf tier, as toggleSupport checks (a worn one frees its own cost first).
-     * Summon guards also need room under the summon cap: left out. */
-    function supportFits(gem) {
-        if (isSummonGuardSupport(gem.name)) return false;
-        const worn = Array.isArray(game.equippedSupports) ? game.equippedSupports : [], wearing = worn.includes(gem.name);
-        const stats = getUiPlayerStats(), used = worn.reduce((sum, name) => sum + getSupportTierResonanceCost(name), 0);
-        if (!wearing && worn.length >= Math.floor(stats.suppCap || 0)) return false;
-        const freed = wearing ? getSupportTierResonanceCost(gem.name) : 0;
-        return getEffectiveResonanceCap(stats) - used + freed >= getSupportResonanceCostAtTier(gem.name, gem.tier);
-    }
-
-    /** The support owned at the shelf tier, that tier active, and worn: on the game copy only. */
-    function wearSupportOnCopy(copy, gem) {
-        const record = (copy.supportGemData || {})[gem.name] || { level: 1, exp: 0 };
-        copy.supports = [...new Set([...(copy.supports || []), gem.name])];
-        copy.supportGemData = { ...copy.supportGemData, [gem.name]: { ...record, unlockedTier: gem.tier, activeTier: gem.tier } };
-        copy.equippedSupports = [...new Set([...(copy.equippedSupports || []), gem.name])];
-    }
-
-    /** "장착하면 DPS 60 → 64, 생명력 …" with edit made on a copy of the game (js/passives.js previewBuildStats), in the words and colours of
-     * the skill tree and act reward previews; nothing when nothing changes. */
-    function wearPreviewHtml(edit) {
-        const parts = buildStatPreviewParts(previewBuildStats(edit));
-        return parts ? `<p class="npc-shop-gem-dps">장착하면 ${parts}</p>` : '';
-    }
-
-    /** Draws the shop again (after a sale or a bag page), or only its card with a note (why a sale did not go). */
+    /** Draws the shop again (after a sale, a bag page or a new shelf), or only its card with a note (why a sale did not go). */
     function redrawShop(root, note = '') {
         if (!root || !root.isConnected) return;
         const id = root.dataset.npcShop;
-        if (note) { root.querySelector('.npc-shop-info').innerHTML = wareInfoHtml(id, note); return; }
-        root.outerHTML = shopBodyHtml({ id });
+        if (note && !staleShelf(root)) { root.querySelector('.shop-info').innerHTML = wareInfoHtml(id, note); return; }
+        root.outerHTML = shopBodyHtml({ id }, note);
+    }
+
+    /** A new shelf replaced the one on screen: draw it with a note and do nothing else. */
+    function refreshStaleShelf(root) {
+        if (!staleShelf(root)) return false;
+        chosen = null;
+        redrawShop(root, npcShop.shelfChanged);
+        return true;
     }
 
     /** Buys ware index of the shop root shows, into place (a bag cell over all pages) or the first free place. */
     function buyShopWare(root, index, place = null) {
-        const id = root.dataset.npcShop, result = npcShop.buy(id, index, { place, resonanceCap: getEffectiveResonanceCap() });
+        if (refreshStaleShelf(root)) return;
+        const id = root.dataset.npcShop, busy = shopView.busyReason(), seen = shown.stock.offers[index];
+        const result = busy ? { ok: false, reason: busy } : npcShop.buy(id, index, { place, resonanceCap: getEffectiveResonanceCap(), seen });
         if (!result.ok) { chosen = { id, index }; redrawShop(root, result.reason); return; }
         const who = contentUnlockUi.personal(STORY_NPCS[id].name);
         addLog(`${who}에게서 [${escapeHTML(wareName(result.offer))}] 구매, ${npcShop.currencyName(result.offer.priceKey)} ${result.offer.price}`, 'loot-magic');
@@ -190,112 +103,47 @@ const npcShopUi = (() => {
         redrawShop(root);
     }
 
-    // ---- pointer: hover shows the card, a press buys or picks, a drag carries the ware onto the bag ----
-
-    function pointedWare(event) {
-        const button = event.target.closest?.('.npc-shop-item'), root = button?.closest('.npc-shop');
-        return button && root ? { root, id: root.dataset.npcShop, index: Number(button.dataset.npcWare), button } : null;
+    function choose(root, index) {
+        if (refreshStaleShelf(root)) return;
+        const id = root.dataset.npcShop;
+        chosen = { id, index };
+        root.querySelectorAll('.shop-item.is-chosen').forEach(el => el.classList.remove('is-chosen'));
+        root.querySelector(`[data-shop-pick="ware:${index}"]`)?.classList.add('is-chosen');
+        root.querySelector('.shop-info').innerHTML = wareInfoHtml(id);
     }
 
-    function hoverShopWare(event) {
-        const ware = event.pointerType === 'mouse' && !press ? pointedWare(event) : null;
-        if (!ware || isChosen(ware.id, ware.index)) return;
-        chosen = { id: ware.id, index: ware.index };
-        ware.root.querySelectorAll('.npc-shop-item.is-chosen').forEach(el => el.classList.remove('is-chosen'));
-        ware.button.classList.add('is-chosen');
-        ware.root.querySelector('.npc-shop-info').innerHTML = wareInfoHtml(ware.id);
-    }
-
-    function pressShopWare(event) {
-        const ware = event.button === 0 ? pointedWare(event) : null;
-        if (!ware) return;
-        const rect = ware.button.getBoundingClientRect();
-        press = { ...ware, x: event.clientX, y: event.clientY, pointerId: event.pointerId, touch: event.pointerType !== 'mouse',
-            offset: { x: event.clientX - rect.left, y: event.clientY - rect.top }, ghost: null, place: null };
-        ware.button.setPointerCapture?.(event.pointerId);
-    }
-
-    function dragShopWare(event) {
-        if (!press || press.pointerId !== event.pointerId) return;
-        if (!press.ghost && Math.hypot(event.clientX - press.x, event.clientY - press.y) < DRAG_PX) return;
-        if (!press.ghost) press.ghost = wareGhost(press);
-        // The page is drawn at the UI scale (uiDisplay.factor): screen pixels divide by it, as the bag's own carried item does.
-        press.ghost.style.transform = `translate(${(event.clientX - press.offset.x) / uiDisplay.factor}px,${(event.clientY - press.offset.y) / uiDisplay.factor}px)`;
-        press.place = bagDropPlace(event);
-        paintBagDrop(press.root, press.place);
-    }
-
-    function wareGhost(holding) {
-        const ghost = holding.button.cloneNode(true);
-        const rect = holding.button.getBoundingClientRect();
-        ghost.className = `${holding.button.className} npc-shop-ghost`;
-        Object.assign(ghost.style, { width: `${rect.width / uiDisplay.factor}px`, height: `${rect.height / uiDisplay.factor}px`, gridArea: '' });
-        holding.button.closest('dialog').appendChild(ghost);
-        holding.button.classList.add('is-carried');
-        return ghost;
-    }
-
-    /** The bag place under the carried ware's top-left cell: { column, row (over all pages), local, size, ok }, or null off the bag. */
-    function bagDropPlace(event) {
-        const grid = press.root.querySelector('.npc-shop-grid.is-bag'), first = grid?.querySelector('[data-bag-cell="0:0"]');
-        if (!first) return null;
-        const box = first.getBoundingClientRect(), step = grid.querySelector('[data-bag-cell="1:0"]').getBoundingClientRect().left - box.left;
-        const column = Math.round((event.clientX - press.offset.x - box.left) / step), row = Math.round((event.clientY - press.offset.y - box.top) / step);
-        const rows = equipmentInventoryGridRuntime.rowsPerPage, ware = wareAt(press.id, press.index);
-        if (!ware || column < 0 || row < 0 || column >= equipmentInventoryGridRuntime.columns || row >= rows) return null;
-        const place = { column, row: row + bagPage * rows };
-        return { ...place, local: { column, row }, size: ware.gem ? { columns: 1, rows: 1 } : ware, ok: npcShop.check(press.id, press.index, ware.gem ? null : place).ok };
-    }
-
-    function paintBagDrop(root, place) {
-        root.querySelectorAll('.npc-shop-cell.is-drop-ok, .npc-shop-cell.is-drop-bad').forEach(cell => cell.classList.remove('is-drop-ok', 'is-drop-bad'));
-        if (!place) return;
-        for (let row = place.local.row; row < place.local.row + place.size.rows; row++) {
-            for (let column = place.local.column; column < place.local.column + place.size.columns; column++) {
-                root.querySelector(`[data-bag-cell="${column}:${row}"]`)?.classList.add(place.ok ? 'is-drop-ok' : 'is-drop-bad');
-            }
-        }
-    }
-
-    /** Ends the press (its ghost and marks gone) and returns it. */
-    function endShopPress() {
-        const holding = press;
-        press = null;
-        holding.ghost?.remove();
-        holding.button.classList.remove('is-carried');
-        paintBagDrop(holding.root, null);
-        return holding;
-    }
-
-    /** Let go: a drag buys where it was dropped on the bag (a gem anywhere on the bag); a press without a drag buys at once with a
-     * mouse, and on a touch screen picks the ware first (its card) and buys on the second tap. */
-    function releaseShopWare(event) {
-        if (!press || press.pointerId !== event.pointerId) return;
-        const holding = endShopPress();
-        if (holding.ghost) {
-            if (holding.place) buyShopWare(holding.root, holding.index, wareAt(holding.id, holding.index)?.gem ? null : holding.place);
-            return;
-        }
-        if (!holding.touch || isChosen(holding.id, holding.index)) { buyShopWare(holding.root, holding.index); return; }
-        chosen = { id: holding.id, index: holding.index };
-        redrawShop(holding.root);
-        document.querySelector(`.npc-shop[data-npc-shop="${holding.id}"] .npc-shop-info`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-    }
-
-    function shopClick(event) {
-        const control = event.target.closest?.('.npc-shop [data-npc-buy], .npc-shop [data-npc-bag-page]');
-        if (!control) return;
-        const root = control.closest('.npc-shop');
-        if (control.dataset.npcBagPage !== undefined) { bagPage = Number(control.dataset.npcBagPage); redrawShop(root); return; }
-        buyShopWare(root, Number(control.dataset.npcBuy));
-    }
-
-    document.addEventListener('pointerover', hoverShopWare);
-    document.addEventListener('pointerdown', pressShopWare);
-    document.addEventListener('pointermove', dragShopWare);
-    document.addEventListener('pointerup', releaseShopWare);
-    document.addEventListener('pointercancel', () => { if (press) endShopPress(); });
-    document.addEventListener('click', shopClick);
+    shopView.registerShop('npc', {
+        shopHover(root, pick) { if (!isChosen(root.dataset.npcShop, pickIndex(pick))) choose(root, pickIndex(pick)); },
+        /** A mouse press buys at once; on a touch screen the first tap shows the card and the second buys. */
+        shopTap(root, pick, { touch }) {
+            const index = pickIndex(pick);
+            if (!touch || isChosen(root.dataset.npcShop, index)) { buyShopWare(root, index); return; }
+            choose(root, index);
+            root.querySelector('.shop-info')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        },
+        shopSize(root, pick) {
+            const ware = wareAt(root.dataset.npcShop, pickIndex(pick));
+            return ware ? (ware.gem ? { columns: 1, rows: 1 } : { columns: ware.columns, rows: ware.rows }) : null;
+        },
+        /** A rune goes anywhere on the bag (into the collection), gear only where it fits. */
+        shopAccepts(root, pick, target) {
+            const id = root.dataset.npcShop, index = pickIndex(pick), ware = wareAt(id, index);
+            return target.area === 'bag' && ware ? npcShop.check(id, index, ware.gem ? null : target).ok : null;
+        },
+        shopDrop(root, pick, target) {
+            const index = pickIndex(pick), ware = wareAt(root.dataset.npcShop, index);
+            if (ware) buyShopWare(root, index, ware.gem ? null : { column: target.column, row: target.row });
+        },
+        shopRedraw: root => redrawShop(root)
+    });
+    window.addEventListener('project-idle:npc-shop-stocked', event => {
+        const root = document.querySelector(`.shop-view.is-npc[data-npc-shop="${CSS.escape(String(event.detail.id))}"]`);
+        if (root) refreshStaleShelf(root);
+    });
+    document.addEventListener('click', event => {
+        const control = event.target.closest?.('.shop-view.is-npc [data-npc-buy]');
+        if (control) buyShopWare(control.closest('.shop-view'), Number(control.dataset.npcBuy));
+    });
     return Object.freeze({ door: shopDoorHtml, body: shopBodyHtml });
 })();
 safeExposeGlobals({ npcShopUi });

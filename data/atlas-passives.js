@@ -105,6 +105,7 @@ const ATLAS_PASSIVES = Object.freeze({
         emberFieldReward: ['잿불 터 보상', '%'], sapWoundReward: ['수액 상처 보상', '%'], witheredGardenReward: ['시든 정원 보상', '%'],
         nurseryReward: ['묘목장 보상', '%'], goldenRoom: ['황금 방', '%p'], chestGrade: ['은빛과 황금 보급 상자', '%'],
         memoryDrop: ['보스의 기억', '%'], variantChance: ['보스 변이체', '%p'], chestExtra: ['보급 상자', '개'],
+        omenBearer: ['뿌리를 품은 몬스터', '%'],
         chestMinGrade: ['보급 상자가 모두 은빛 이상', 'on'],
         // 켜기만 하는 효과(값 없이 이름만 보인다): 예전 양봉업자 · 천문학자 기능(2026-10-01).
         beeEvents: ['지도 처치 중 벌 이벤트(꽃가루 10)', 'on'], constellation: ['운석 정산마다 별자리 관측(루프 후 유지)', 'on']

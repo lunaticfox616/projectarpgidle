@@ -1,23 +1,28 @@
 // Currency state is committed in the domain; notices and logs cannot grant it again.
 (() => {
-    /** 을/를: the object particle after a Korean name (a final consonant or not). */
-    function objectParticle(name) {
-        const text=String(name),code=text.charCodeAt(text.length-1)-0xAC00;
-        return code>=0 && code<11172 && code%28 ? '을' : '를';
-    }
     /** 알림창(js/ui-feedback.js): 황금률은 금빛, 체이싱 티어 재화(js/loot.js lootMoments jackpot: 요정의 고리, 우로보로스)는 붉은 금빛. */
     function noticeCurrency(currencyKey,gain) {
         if(!(gain>0))return;
         const chase=lootMoments.ofCurrency(currencyKey)==='jackpot';
         if(currencyKey!=='goldenRule' && !chase)return; // 그 밖의 재화는 알림이 없다(군락지 편린 같은 지갑 재화는 ORB_DB에 없어 이름을 읽다 멈췄다)
         const name=ORB_DB[currencyKey].name;
-        // 장비 드랍 필터 창의 발견 연출에서 끈 알림은 띄우지 않는다(game.settings.lootFx.notices).
+        // 설정 > 아이템 필터의 발견 연출에서 끈 알림은 띄우지 않는다(game.settings.lootFx.notices).
         if(game.settings.lootFx?.notices?.[chase?'chase':'goldenRule']===false)return;
-        showGameToast(`${name}${objectParticle(name)} 획득했습니다.`,{tone:chase?'chase':'reward',duration:chase?6000:3600});
+        showGameToast(`${withObjectParticle(name)} 획득했습니다.`,{tone:chase?'chase':'reward',duration:chase?6000:3600});
+    }
+    /** 처음 얻은 제작 뿌리와 기억 조각칼: 어디서 어떻게 쓰는지 한 번(2026-10-18, 둘 다 늦은 콘텐츠의 드문 재화라 처음 보면 쓸 곳을 모른다). */
+    const FIRST_USE={
+        roots:['craft_roots','제작 뿌리','제작 뿌리를 얻었습니다.\n‘장비 → 제작실’의 ‘뿌리 함께 사용’에서 걸어 두면 그 뿌리가 바꾸는 다음 제작 한 번에 쓰입니다.'],
+        memoryImprint:['memory_chisel','기억 조각칼','기억 조각칼을 얻었습니다.\n‘장비 → 제작실’에서 장비의 지금 추가 옵션을 새겨 두면, 뒤에 제작이 마음에 들지 않을 때 그 옵션으로 한 번 되돌릴 수 있습니다.']
+    };
+    function noticeFirstUse(currencyKey,gain) {
+        const row=FIRST_USE[CRAFT_OMENS.keys.includes(currencyKey)?'roots':currencyKey];
+        if(gain>0&&row)queueTutorialNotice(row[0],row[1],row[2],'tab-items','item-tab-craft');
     }
     function announce(event) {
         const {currencyKey,gain,unlocked}=event.detail;
         noticeCurrency(currencyKey,gain);
+        noticeFirstUse(currencyKey,gain);
         if(currencyKey==='goldenRule' && gain>0) {
             addLog(`✨✨ <strong>${ORB_DB.goldenRule.name} +${gain}</strong> 획득!`,'loot-unique');
         }
@@ -28,12 +33,13 @@
         if(currencyKey==='ouroboros' && gain>0) {
             addLog(`🌿✨ <strong>${ORB_DB.ouroboros.name} +${gain}</strong> 획득! 장비를 봉인해 루프가 지나도 지킬 수 있습니다.`,'loot-unique');
         }
-        if(unlocked.gem)addLog('☁️ 스킬룬 강화 탭이 개방되었습니다!','loot-unique');
+        if(unlocked.gem)addLog('☁️ 스킬룬 탭의 성장과 각인이 열렸습니다!','loot-unique');
     }
-    /** 새 공격 룬이 지금 주 공격 룬보다 보이는 DPS가 10% 넘게 높으면 알림창에 알린다. 주 공격 칸을 잠시 그 룬으로 바꿔 한 번 잰다. */
+    /** 새 공격 룬이 지금 주 공격 룬보다 보이는 DPS가 10% 넘게 높으면 알림창에 알린다. 주 공격 칸을 잠시 그 룬으로 바꿔 한 번 잰다.
+     * 이동 룬은 이동 칸에 끼므로 재지 않는다. */
     const RUNE_UPGRADE_NOTICE_GAIN=1.1;
     function noticeRuneUpgrade(name) {
-        if(game.activeSkill===name || !(game.skills||[]).includes(name) || !canUseSkillWithCurrentEquipment(name))return;
+        if(game.activeSkill===name || isMobilityRuneName(name) || !(game.skills||[]).includes(name) || !canUseSkillWithCurrentEquipment(name))return;
         const keep=game.activeSkill,before=getPlayerStats(false).dps||0;
         let after=0;
         game.activeSkill=name;
@@ -59,7 +65,7 @@
         }
         if(shards<=0)return;
         const message=kind==='attack'?`모든 공격 룬을 보유해 드랍이 룬 잔향 +${shards}로 환원되었습니다.`
-            :`최고 등급 보조스킬룬 [${name}]이 룬 잔향 +${shards}로 환원되었습니다.`;
+            :`최고 등급 보조스킬룬 [${name}]${pickParticle(name, '이', '가')} 룬 잔향 +${shards}로 환원되었습니다.`;
         addLog('💠 '+message,kind==='attack'?'loot-magic':'loot-rare');
     }
     window.addEventListener('project-idle:currency-acquired',announce);
@@ -76,6 +82,8 @@
     }
     window.addEventListener('project-idle:jewel-drop-received',event=>announceJewelReward(event.detail));
     function announceCore(core) {
+        // 완전한 코어(js/core-items.js rollPerfect): 체이싱 티어 알림(설정과 무관하게, 방치 정산 중에는 말고).
+        if(core.perfect && !game.isBackgroundCalculation)dispatchRuntimeEvent('incident',{text:`체이싱 코어를 획득했습니다. 「${core.name}」`,tone:'chase',chase:true});
         if(game.settings.showLootLog && !game.isBackgroundCalculation)addLog(`🧊 코어 [${core.name}] 획득! (${core.lines.map(coreItems.describe).join(', ')})`,'loot-unique',{item:core,itemKind:'core'});
     }
     window.addEventListener('project-idle:core-item-received',event=>announceCore(event.detail));

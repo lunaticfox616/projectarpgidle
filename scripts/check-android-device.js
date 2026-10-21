@@ -49,9 +49,9 @@ async function review(page) {
     await page.waitForFunction(() => game.exp > 0 || game.level > 1, null, { timeout: 45000 });
     capture('battle.png');
     await page.evaluate(() => { tutorialQueue.length = 0; if (activeTutorial) dismissTutorial(false); switchTab('tab-items'); });
-    await tap(page, '#btn-auto-salvage');
+    await tap(page, '#btn-salvage-recovery');
     device('shell', 'input', 'keyevent', '4');
-    await page.waitForFunction(() => !document.getElementById('auto-salvage-config-overlay')?.getClientRects().length);
+    await page.waitForFunction(() => !document.getElementById('salvage-recovery-overlay')?.getClientRects().length);
     capture('equipment.png');
     device('shell', 'input', 'keyevent', '4');
     await page.waitForFunction(() => document.getElementById('tab-battle').classList.contains('active'));

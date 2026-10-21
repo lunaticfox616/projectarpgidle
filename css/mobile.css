@@ -31,8 +31,7 @@
   .sea-gift-group-picker select { width: 100%; min-width: 0; min-height: 44px; font-size: 16px; }
   #fishing-workshop[data-recipe-group="supply"] .fishing-group:not([data-ui-disclosure="sea-gift-supply"]),
   #fishing-workshop[data-recipe-group="forge"] .fishing-group:not([data-ui-disclosure="sea-gift-forge"]),
-  #fishing-workshop[data-recipe-group="chase"] .fishing-group:not([data-ui-disclosure="sea-gift-chase"]),
-  #fishing-workshop[data-recipe-group="supply"] .fishing-target { display: none; }
+  #fishing-workshop[data-recipe-group="chase"] .fishing-group:not([data-ui-disclosure="sea-gift-chase"]) { display: none; }
   :is(#tab-items, #tab-items .merged-subtab-pane[data-tab-id="tab-items"]) > .subtab-row {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -44,7 +43,6 @@
   #ui-fossil-actions { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
   #ui-fossil-material-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
   #ui-fossil-material-actions > button { min-width: 0; min-height: 44px; width: auto; font-size: 13px; line-height: 1.4; padding: 8px; word-break: keep-all; }
-  #fossil-reroll .craft-layout { display: block; }
   #fossil-item-display { min-height: 0; margin-block: 10px; }
   body { box-sizing: border-box; }
   #left-pane, #right-pane, #battle-column, .panel, .tab-content, .subtab-content {
@@ -79,7 +77,6 @@
   .equipment-inventory-panel,
   .gem-target-rail,
   .gem-forge-detail { min-width: 0; }
-  .equipment-inventory-toolbar,
   .gem-enhance-section-head { align-items: stretch; flex-direction: column; }
   .equipment-salvage-actions { width: 100%; }
   #tab-skills .skill-gem-library,
@@ -186,11 +183,6 @@
   .craft-picker-search button, .craft-picker-pages button { min-height: 44px; }
   .market-mobile-target { display: grid; gap: 6px; font-size: 13px; color: var(--copy-muted); }
   .market-mobile-target select { min-height: 44px; width: 100%; font-size: 16px; }
-  #market-service-navigation:not(:empty) { margin-bottom: 12px; }
-  .market-black-pages { display: flex; justify-content: space-between; align-items: center; margin: 8px 0; font-size: 13px; }
-  .market-black-grid > .market-black-pages { grid-column: 1 / -1; }
-  .market-black-pages button, .market-black-actions button { min-height: 44px; }
-  .market-service-stack:not(:has(> :not([hidden]))) { display: none; }
   #tree-container .passive-tree-toolbar { display: flex; gap: 4px; height: 52px; position: relative; z-index: 12; background: var(--color-surface); }
   #tree-container .passive-tree-right-tools { display: contents; }
   #tree-container .passive-tree-toolbar details,
@@ -239,7 +231,8 @@
 
 @media (pointer: coarse) {
   .item-card, .skill-gem, .slot-box, .map-item { touch-action: manipulation; }
-  button:not(.combat-flask-mini) { min-height: 42px; }
+  /* 가방 칸과 아이템은 줄 높이(휴대폰 약 35px)를 따른다: 42px이면 한 줄짜리 아이템이 아래 칸을 덮었다(css/themes/pixel-mobile.css와 같은 제외). */
+  button:not(.combat-flask-mini, .equipment-grid-cell, .equipment-grid-item) { min-height: 42px; }
 } }
 @layer overrides {
 @media (max-width: 1080px) {

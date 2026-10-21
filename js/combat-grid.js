@@ -46,6 +46,15 @@ function getBossStageActor(enemy) {
     return roster.actors[roster.wears[look] || look] || roster.actors[enemy.bossAssetKey] || null;
 }
 
+/** The stage's drawing scale for a look (data/stage-view.js STAGE_MONSTER_SCALE): the look's own entry, else the entry of its id's
+ * prefix (a key ending in '-'), else 1. The stage drawing (js/canvas-stage-roster.js) and the boss footprint both read it. */
+function getStageLookScale(id) {
+    const rule = typeof STAGE_MONSTER_SCALE === 'object' ? STAGE_MONSTER_SCALE : {};
+    if (Object.hasOwn(rule, id)) return rule[id];
+    const prefix = Object.keys(rule).find(head => head.endsWith('-') && id.startsWith(head));
+    return prefix ? rule[prefix] : 1;
+}
+
 /** A boss as wide as its picture on the stage (2026-10-16 사용자: "크기가 큰 보스들은 차지하는 칸을 늘리던지 해서 플레이어랑
  * 안겹치도록"): the picture stands on the footprint's middle and reaches reach dots to either side (data/monster-stage-roster.js, the
  * standing picture; × STAGE_MONSTER_SCALE, drawn at STAGE_VIEW.heroTile dots a cell ÷ BOSS_DRAW_SCALE). The footprint is wide enough
@@ -56,8 +65,7 @@ function getBossStageActor(enemy) {
 function fitBossFootprint(enemy) {
     const actor = enemy && enemy.isBoss && !enemy.footprint ? getBossStageActor(enemy) : null;
     if (!actor) return;
-    const rule = typeof STAGE_MONSTER_SCALE === 'object' ? STAGE_MONSTER_SCALE : {}, prefix = Object.keys(rule).find(head => actor.id.startsWith(head));
-    const reach = Math.max(...(actor.reach || [actor.width / 2, 0])) * (prefix ? rule[prefix] : 1) / (BOSS_DRAW_SCALE * STAGE_VIEW.heroTile);
+    const reach = Math.max(...(actor.reach || [actor.width / 2, 0])) * getStageLookScale(actor.id) / (BOSS_DRAW_SCALE * STAGE_VIEW.heroTile);
     const columns = Math.max(2, Math.min(6, Math.ceil(2 * (reach - 0.5 + HERO_HALF_CELLS) - 0.01)));
     if (columns > 2) enemy.footprint = { columns, rows: 2 };
 }
@@ -396,14 +404,14 @@ function gridStepToward(unit, tx, ty, blocked) {
  * @param {number} intervalSec 1칸 이동 주기(초)
  * @returns {boolean} 실제로 이동했는지
  */
-function advanceGridUnitMovement(unit, target, dtSec, intervalSec) {
+function advanceGridUnitMovement(unit, target, dtSec, intervalSec, avoid) {
     if (!hasGridCell(unit) || !target) return false;
     let interval = Number.isFinite(intervalSec) && intervalSec > 0 ? intervalSec : COMBAT_GRID_CONFIG.enemyMoveIntervalSec;
-    if (actExplorationState.current(game) && unit===game.gridPlayer) return beginExplorationGridStep(target,interval);
+    if (actExplorationState.current(game) && unit===game.gridPlayer) return beginExplorationGridStep(target,interval,avoid);
     unit.gridMoveTimer = (Number(unit.gridMoveTimer) || 0) + dtSec;
     if (unit.gridMoveTimer < interval) return false;
     let from = { gx: unit.gx, gy: unit.gy };
-    let moved = gridStepToward(unit, target.gx, target.gy, getGridBlockedCells(unit));
+    let moved = stepAroundDanger(getGridBlockedCells(unit), avoid, blocked => gridStepToward(unit, target.gx, target.gy, blocked));
     unit.gridMoveTimer = moved ? 0 : interval;
     markGridStep(unit, from, moved);
     return moved;
@@ -420,11 +428,31 @@ function markGridStep(unit, from, moved) {
     if (moved) Object.assign(unit, { gridStepFrom: from, gridStepAt: getCombatTime() });
 }
 
-function beginExplorationGridStep(target,interval) {
+function withAvoidedGridCells(blocked, cells) {
+    for (const cell of cells || []) blocked.add(gridCellKey(cell.gx, cell.gy));
+    return blocked;
+}
+/** One step (step(blocked) → moved) around danger. avoid: { hard, soft } (an array is hard). Hard cells (a telegraphed attack) are never
+ * stepped into; soft ones (lasting ground) only when no other step leads on (2026-10-18: as walls they kept a melee hero from its boss). */
+function stepAroundDanger(blocked, avoid, stepThrough) {
+    const { hard = [], soft = [] } = Array.isArray(avoid) ? { hard: avoid } : (avoid || {});
+    withAvoidedGridCells(blocked, hard);
+    return (soft.length > 0 && stepThrough(withAvoidedGridCells(new Set(blocked), soft))) || stepThrough(blocked);
+}
+function beginExplorationGridStep(target,interval,avoid) {
     const run=actExplorationState.current(game);if(!run || run.motion)return false;
     const next={gx:game.gridPlayer.gx,gy:game.gridPlayer.gy};
-    if(!gridStepToward(next,target.gx,target.gy,getExplorationPlanningBlockedCells(run)))return false;
+    if(!stepAroundDanger(getExplorationPlanningBlockedCells(run),avoid,blocked=>gridStepToward(next,target.gx,target.gy,blocked)))return false;
     return actExplorationMotion.start(run,game.gridPlayer,next,interval/actExplorationDoors.pace(run),run.motionTimeMs);
+}
+/** Whether a step toward target is free for unit now, by the rule advanceGridUnitMovement steps by, without moving it. */
+function canGridUnitStepToward(unit, target, avoid) {
+    if (!hasGridCell(unit) || !target) return false;
+    const run = actExplorationState.current(game);
+    const exploring = !!run && unit === game.gridPlayer;
+    const probe = exploring ? { gx: unit.gx, gy: unit.gy } : { ...unit };
+    const blocked = exploring ? getExplorationPlanningBlockedCells(run) : getGridBlockedCells(unit);
+    return stepAroundDanger(blocked, avoid, cells => gridStepToward(probe, target.gx, target.gy, cells));
 }
 
 /** The hero plans its exploration step around fighters and its own reserved tile, but not around dormant packs: they wake
@@ -1047,12 +1075,6 @@ function getSkillChainDamageMultiplier(skill, jumpIndex) {
     return Math.max(0.1, 1 + Math.max(0, jumpIndex) * stepPct / 100);
 }
 
-function getGridUnitDistanceFromCell(origin, unit) {
-    if (!origin || !unit) return 0;
-    return getGridUnitCells(unit).reduce((closest, cell) => Math.min(closest,
-        Math.hypot(cell.gx - origin.gx, cell.gy - origin.gy)), Infinity);
-}
-
 /** 대지의 함성 · 서리바람 내지르기: the wave hurts where its drawn ring touches a monster, in the order it spreads (js/combat.js
  * pickWaveFrontTargets). The ring grows one cell per msPerCell up to reach; the stages, every half cell, are only the moments it is
  * checked. One wave strikes a monster once (shared state). The hits used to be fixed on the cells the targets stood on at the cast,
@@ -1144,7 +1166,7 @@ function buildAuthoredSkillHitSequence(skillName, skill, targets) {
 }
 
 function buildMeteorSkillHitSequence(pattern, impactCells, targets) {
-    let groundHits = Math.max(1, Math.min(5, Math.floor(Number(pattern.groundHits) || 3)));
+    let groundHits = Math.max(1, Math.min(8, Math.floor(Number(pattern.groundHits) || 3)));
     let groundIntervalMs = Math.max(160, Math.floor(Number(pattern.groundIntervalMs) || 600));
     let groundDamageMultiplier = Math.max(0.01, Number(pattern.groundDamagePct) || 8) / 100;
     let impact = {
@@ -1160,7 +1182,28 @@ function buildMeteorSkillHitSequence(pattern, impactCells, targets) {
     return [impact, ...ground];
 }
 
-/** 집중(channel): hits번의 시간차 타격. finisher가 있으면 마지막에 제 피해와 범위로 한 번 더(전도성 난격의 마무리 내려치기),
+/** 판정 칸과 대상만으로 정해지는 단계 묶음: 유성 낙화(meteor)와 나눠 쏘는 부채꼴(volley). */
+const SIMPLE_HIT_SEQUENCES = Object.freeze({
+    meteor: (pattern, impactCells, targets) => buildMeteorSkillHitSequence(pattern, impactCells, targets),
+    volley: (pattern, impactCells, targets) => buildVolleySkillHitSequence(pattern, targets)
+});
+
+/** 나눠 쏘는 부채꼴(2026-10-20 스킬룬 전달본 v42의 연발 사격): 활 연타사격 그림의 쏘는 장 넷에 맞춰 화살을 shots발씩, 첫 사격에서 shotMs 뒤에
+ * 쏜다. 대상은 부채꼴 갈래 순서(가운데 겨눈 화살이 먼저, js/combat-grid.js selectGridAimedFanHits)대로 나눈다. 남는 화살(추가 투사체)은 마지막
+ * 사격에 붙는다. 대상과 화살마다의 피해 배율은 그대로다(나눠 쏘기만 한다). 그림은 js/canvas-world-tree-fx.js fanRays가 같은 몫으로 나눈다. */
+function buildVolleySkillHitSequence(pattern, targets) {
+    const shots = (pattern.shots || []).map(count => Math.max(1, Math.floor(Number(count) || 1))), at = pattern.shotMs || [];
+    const stages = [];
+    let next = 0;
+    shots.forEach((count, idx) => {
+        const group = targets.slice(next, idx === shots.length - 1 ? targets.length : next + count);
+        next += group.length;
+        if (group.length) stages.push({ kind: idx ? 'volleyShot' : 'primary', label: `${idx + 1}번째 사격`, delayMs: Math.max(0, Number(at[idx]) || 0), damageMultiplier: 1, targets: group });
+    });
+    return stages.length ? stages : [{ kind: 'primary', label: '직격', delayMs: 0, damageMultiplier: 1, targets }];
+}
+
+/** 집중(channel): hits번의 시간차 타격. finisher가 있으면 마지막에 제 피해와 범위로 한 번 더(2026-10-17 인계의 전도성 난격이 썼다),
  * advanceCells가 있으면 중간 타격 때 주인공이 겨눈 쪽으로 한 칸 걸어 나간다(js/combat.js advanceHeroForStage). */
 function buildChannelSkillHitSequence(skillName, skill, targets, area) {
     const pattern = skill.combatPattern, { attacker, primary, impactCells, intervalMs } = area;
@@ -1192,7 +1235,8 @@ function buildConfiguredSkillHitSequence(skillName, skill, targets) {
     if (pattern.kind === 'radialBurst') {
         return buildRadialBurstHitSequence(skillName, skill, targets, { attacker, primary, impactCells });
     }
-    if (pattern.kind === 'meteor') return buildMeteorSkillHitSequence(pattern, impactCells, targets);
+    const simple = SIMPLE_HIT_SEQUENCES[pattern.kind];
+    if (simple) return simple(pattern, impactCells, targets);
     if (pattern.kind === 'field') {
         let hits = Math.max(1, Math.min(12, Math.floor(Number(pattern.hits) || 1)));
         let damageMultiplier = Math.max(0.01, Number(pattern.damagePct) || 100) / 100;
@@ -1284,7 +1328,7 @@ function buildSkillHitSequence(skillName, skill, targetEntries) {
     return [{ kind: 'primary', label: '직격', delayMs: 0, damageMultiplier: 1, targets }];
 }
 
-/** 집중의 마무리 일격 배율(전도성 난격), 없으면 0. */
+/** 집중의 마무리 일격 배율, 없으면 0. */
 function getChannelFinisherMultiplier(pattern) {
     return pattern.kind === 'channel' && pattern.finisher ? Math.max(0.01, Number(pattern.finisher.damagePct) || 100) / 100 : 0;
 }
@@ -1293,7 +1337,7 @@ function getConfiguredSkillDpsMultiplier(pattern) {
     if (!pattern) return null;
     if (pattern.kind === 'authored') return pattern.stages.reduce((sum, stage) => sum + stage.damagePct / 100, 0);
     if (pattern.kind === 'meteor') {
-        let hits = Math.max(1, Math.min(5, Math.floor(Number(pattern.groundHits) || 3)));
+        let hits = Math.max(1, Math.min(8, Math.floor(Number(pattern.groundHits) || 3)));
         return 1 + hits * Math.max(0.01, Number(pattern.groundDamagePct) || 8) / 100;
     }
     if (['field', 'channel'].includes(pattern.kind)) {
@@ -1479,7 +1523,7 @@ safeExposeGlobals({
     getGridDirectHitDistanceMultiplier,
     getGridBlockedCells, getHeroStepBlockedCells, swapSummonOutOfHeroTile, findFreeGridCell, assignEnemyGridSpawn, assignEnemyGridCombatProfile,
     resetPlayerGridPosition, ensureCombatGridRuntime, gridLineCells, gridProjectedLineEnd,
-    gridStepToward, advanceGridUnitMovement, findNearestSafeGridRoute, advanceGridHazardEscape, advanceGridTacticalMovement, getSkillGridProfile, getSkillGridProfileKindLabel,
+    gridStepToward, advanceGridUnitMovement, canGridUnitStepToward, findNearestSafeGridRoute, advanceGridHazardEscape, advanceGridTacticalMovement, getSkillGridProfile, getSkillGridProfileKindLabel,
     describeSkillGridProfile, getGridSkillTargetMult, getGridAttackAreaCells,
     selectGridSkillTargets, findNearestGridEnemy, extendGridTargetsBySpill,
     getSkillHitSequenceProfile, buildSkillHitSequence, getSkillHitSequenceDpsMultiplier, splitFanSpreadDps, getFanSpreadDpsLines

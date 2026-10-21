@@ -43,10 +43,16 @@
 - 액트 1 바닥 3종은 원본 그대로다. 편집한 투명 자산 19장의 원본 크기·투명 외곽·발 자리를 보존했고, 28개 지역의 ground,
   door, fit, family, 방별 소품 목록과 모든 소품 조립 수치는 바꾸지 않았다. 새 그림의 세부 질감에는 생성 편집에 따른 작은 차이가 있다.
 - `node scripts/build-stage-regions.cjs --refresh-current`는 현재 PNG에서 위아래 메움 색과 캐시 키만 갱신한다. 원래 묶음을 재수입하거나
-  새 지역을 만들지 않는다. 액트 1 조각은 `STAGE_SCENES.version`으로 브라우저의 이전 그림 캐시를 구분한다.
+  새 지역을 만들지 않는다. 묶음 밖의 방 그림은 `--add-variant`로 더한다(심해의 수심 띠 셋, 묶음을 다시 옮겨도 남는다). 액트 1 조각은 `STAGE_SCENES.version`으로 브라우저의 이전 그림 캐시를 구분한다.
 - 실제 게임 전후 비교와 제작·검수 기록: `artifacts/worldtree-palette-20261017/production/index.html`.
   이 폴더의 `before/`에는 교체 전 원본, `selected.json`에는 이미지 편집 입력·프롬프트, `pack-report.json`에는 크기·해시가 있다.
   색감 시안 한 장으로 지역 전체나 조립 구조를 대체하지 않는다.
+
+- 2026-10-18 상태 그림 색상 수정: `artifacts/worldtree-props-20261018/index.html`에서 하켄의 뿌리 연결부 3상태,
+  수액 통로 3상태, 둥지 3재질 × 2상태를 비교한다. 10장을 회백색 살아 있는 목질로 편집하고 이미 색이 맞는 수관 둥지 2장은
+  원본 그대로 보존했다. 썩은 밑면·금속·알·천은 별도 재질로 남긴다. 원본 크기·투명 외곽·발 위치·상태 시간은 유지한다.
+  이 묶음은 아직 런타임에 연결되지 않은 장면/소품 자산이다. 현재 게임의 공용 뿌리 문이나 임시 알집 그림을 교체한 것은 아니다.
+  낱장·가로 시트·상태 메타데이터는 같은 폴더의 `after/clips/`, 원본은 `before/clips/`, 제작 프롬프트는 `*-prompt.txt`에 있다.
 
 ## 1단계: 시험판 (이 문서를 만든 변경)
 - 켜는 곳: 2026-10-13부터 기본으로 켜져 있다(아래 "방 탐색을 게임의 기본 전장으로"). 테스트 패널(로컬에서 주소 끝에 `?dev=1`)의 "끄기"가
@@ -54,11 +60,13 @@
   크기(자동, 또는 캐릭터 도트 하나의 화면 px 1, 1.5, 2)와 들 자세도 거기서 고른다.
 - 그림 폴더(`assets/playable/stage/`)가 서버에 없으면 설정이 켜져 있어도 위에서 보는 전장 그대로다(`stageActors.available`).
   시험판 세이브가 그림 없는 빌드로 넘어가도 화면이 깨지지 않는다. 그림은 2026-10-16부터 저장소에 있고, 구입한 이펙트 그림(assets/stage-vfx/vfx.png)만 비공개 저장소에 둔다.
-- 가져오기: `node scripts/import-stage-characters.cjs <정리 묶음 폴더>` → `assets/playable/stage/<직업>/<무기>/<모션>.png`,
-  `data/stage-characters.js`(프레임 수, ms, 반복, 타격 프레임, 피격과 이동 공용 규칙).
+- 가져오기(2026-10-20부터 모션 공방 전달본): `node scripts/import-stage-characters.cjs <모션 전달본 폴더>` → `assets/playable/stage/<직업>/<무기>/<모션>.png`
+  (모션마다 가로 한 줄 시트, 칸 w × h와 발 기준점 ax, ay), `data/stage-characters.js`(장 수, ms, 반복, 타격 장, lift, 그림 해시 version).
+  규칙(발 기준점, 활 사격과 플라스크 투척의 7번 타격 장, 광과민으로 앞 장을 담는 장, 맨손 사망을 거꾸로 이은 일어나기)은 그 스크립트 머리말.
+  이름(직업, 무기 대검과 한손검, 모션)은 scripts/lib/stage-motion-ids.cjs.
 - 주인공(js/canvas-stage-actors.js):
-  - 낀 무기의 대분류 → 자세(`STAGE_VIEW.stanceByCategory`). 곡도에 방패를 끼면 검방패, 무기가 없으면 맨손.
-  - 공격은 휘두를 때마다 공격 → 공격2 → … 순서로 돌고, 주문 젬은 시전, 던지는 플라스크 젬은 투척 그림을 쓴다.
+  - 낀 무기의 대분류 → 자세(data/skills.js `SKILL_RUNE_STANCE_BY_CATEGORY`, 룬 무기 규칙과 같은 표). 곡도는 방패를 함께 껴도 한손검, 무기가 없으면 맨손.
+  - 룬은 그 룬의 동작(동작 표)을, 기본 공격은 공격(플라스크는 투척), 주문은 시전 그림을 쓴다.
     타격 프레임이 실제 타격 순간에 오도록 준비 구간을 줄여 맞춘다(Hana 그림과 같은 규칙). 준비 시간이 320ms보다 짧으면 9장 이하 그림만 쓴다.
   - 걷기는 이동 속도에 맞춰 0.5배에서 2배로 재생한다. 사망은 맨손 사망 공용.
   - 피격은 그림 없이 붉은 외곽선과 밀림이다(규격의 공용.피격). 몸 전체를 붉게 칠하던 표시는 무대에서 쓰지 않는다.
@@ -362,7 +370,9 @@ PixelLab은 유료라 쓰지 않는다(2026-10-12 사용자): 몬스터 그림�
   발자국은 공용 그림 그대로다.
 - 구역과 지역의 짝(data/stage-room-plans.js regions): 액트 2~10은 act-02~act-10, 혼돈 chaos, 혼돈 심화 deep-chaos, 혼돈계 chaos-realm,
   창공의 탑 sky, 지하계 underworld, 고대 미궁 labyrinth, 운석 meteor, 시련 trial-01~05, 시간의 균열은 과거 act-02와 미래 act-06,
-  정점 보스는 그 영역(지하계, 심해 ocean, 창공, 경계의 관측자는 beyond), 버려진 날은 act-06, 잔향체는 cosmos. 그 밖의 구역(아틀라스
+  정점 보스는 그 영역(지하계, 심해 ocean-trench, 창공, 경계의 관측자는 beyond), 버려진 날은 act-06, 잔향체는 cosmos.
+  심해는 지도를 지을 때의 수심 띠(regions.ocean: 300m 아래 ocean-shallow, 700m 아래 ocean, 그 밑 ocean-lightless, 가디언 투기장 ocean-trench)이고,
+  빛줄기, 떠다니는 입자, 리프트, 거품, 발밑 먼지, 공기 기둥은 js/canvas-stage-ocean.js(STAGE_OCEAN)가 그린다. 그 밖의 구역(아틀라스
   지도, 다른 보스)은 빌려 걷는 액트 지도의 그림이다. 액트 1은 뿌리끝 성소 조각 묶음(root-end-v5)이다.
 - 그림을 불러오는 동안은 방을 어둡게 둔다(다른 지형의 방이 잠깐 비쳤다가 바뀌지 않게). 그림 폴더가 없는 판에서는 예전 무대가 나온다.
   방 그림은 최근 세 지역 것만 기억한다(한 장이 풀리면 6MB쯤).
@@ -444,8 +454,44 @@ PixelLab은 유료라 쓰지 않는다(2026-10-12 사용자): 몬스터 그림�
   js/canvas-stage-skill-runes.js heroAir, 공중 시간은 data/skills.js mobilityPattern.airMs). 다른 룬은 주인공 그림을 움직이지 않는다.
   실제로 이동한 이 두 룬의 피해 예약은 공중 시간보다 이르지 않다(js/combat.js landingMs). 이동하지 않은 공격과 돌진은 원래 타이밍을 쓴다.
   공격 대기시간·이동 룬 재사용 시간은 늘리지 않는다. 피해는 전투 시계, 공중 그림은 화면 시계를 쓰므로 테스트 배속·히트스톱에서는 차이가 날 수 있다.
-- 동작: 룬마다 직업과 무기 자세의 동작을 인계의 표대로 고른다(js/canvas-stage-actors.js motionFor, 휘두름에 적힌 룬을 따른다). 전사 검방패의
-  찌르기, 베기, 회전 그림(사용자가 준 시트, STAGE_HERO_STRIKES)은 그대로 먼저 쓴다. 표에 없는 룬과 기본 공격은 예전처럼 그 자세의 동작을 차례로 돈다.
+- 동작: 룬마다 직업과 무기 자세의 동작을 인계의 표대로 고른다(js/canvas-stage-actors.js motionFor, 휘두름에 적힌 룬을 따른다). 표에 없는 룬과
+  기본 공격은 그 자세의 기본 휘두름을 쓴다. 2026-10-14에 받은 전사 검방패 시트(찌르기, 베기, 회전)는 10-20 새 주인공으로 바꾸며 뺐다.
+
+## 스킬룬 전달본 v42와 새 주인공 (2026-10-20, 사용자 "해당 모션, 스킬룬 전달본을 게임에 적용시켜줘")
+- 주인공: 모션 공방 전달본 563모션(소환 제외)과 일어나기 6장. 무기 자세 id는 greatsword(대검), sword(한손검)로 바꿨다(룬 카드 표기도 대검, 한손검).
+- 이펙트 표(scripts/build-stage-skill-vfx.cjs)는 v42 시뮬레이터에서 다시 뽑았다. 시뮬레이터가 그림이 없어 단타로 대신한 연금술사와 성직자 한손검의
+  회전 룬은 그 그림이 생겨 회전이다(스크립트의 motionOf). 전도성 난격의 타격 클립은 게임 쪽 연결이다(GAME_HOOKS).
+- 유성 낙화의 불타는 지대(js/canvas-stage-skill-spells.js spellFireZone, rules zone), 얼어붙은 고리 v42 연출(같은 파일), 과냉각 혼합물의 떨어진 자리 얼음 터짐.
+- 연발 사격은 활 연타사격 그림의 쏘는 장 넷에 맞춰 2, 1, 1, 1발로 나눠 쏜다(js/combat-grid.js buildVolleySkillHitSequence, 그림은 world-tree fanRays).
+- 이동 모션: 휘두름의 pose(kickoff, pull)를 무대가 이동 동작으로 그린다(data/stage-view.js poseMotions). 그림자 점멸은 박차고 나가는 0.2초 동안
+  그림이 떠난 칸에 있고(kickoffMs), 암살은 그만큼 늦게 사라진다(js/skill-gem-casts.js lead). 작살화살은 끌려가는 동안 밧줄을 당긴다.
+- 따로 시전하는 룬(플라스크 넷, 신성한 기도, 시간 가속, 신성한 안개, 파문심판)도 놓는 순간(c.swing)에 그 룬의 동작으로 휘두른다. 플라스크는 그때 손을 떠난다.
+- 도약과 공중제비는 그림이 스스로 뛰고 돌아, 그림이 뜨는 높이만큼 포물선을 낮추고 공중제비 그림이면 코드로 돌리지 않는다.
+- 같은 날 사용자 답: 돌진, 도약 강타, 섬머솔트 슬래시는 대검 전용(data/skills.js SKILL_RUNE_FAMILY greatsword). 한손검 투사체 룬은
+  한손검 투척 그림으로 던진다(scripts/build-stage-skill-vfx.cjs motionOf, 방랑자는 그 그림이 없어 찌르기).
+- 투사체는 휘두름 준비의 55%에 손을 떠난다(js/combat.js PROJECTILE_RELEASE_SHARE). 휘두름의 releaseDelayMs로 주인공의 놓는 장도 그때 온다
+  (js/canvas-battle-units.js getHanaSwingTiming).
+- 스킬룬 추가본 v44(같은 날, 77 바위 플라스크): 추가본에는 이펙트 그림이 없어, v42 전달본 폴더에 추가본을 같은 경로로 덮어 쓴 폴더에서
+  이펙트 표를 뽑는다. 시전은 js/skill-gem-casts.js 77(작살화살처럼 줄을 당겨 그 앞 칸까지, 대상이 없으면 쓰지 않는다), 무대 그림은
+  js/canvas-stage-skill-casts.js castRockFlask(바위 병은 -draws.js의 rock), 끌려가는 움직임은 js/canvas-redrawn-skill-fx-extra.js glide.
+- 시전 마법진(js/canvas-stage-skill-sigil.js)의 화염, 냉기, 카오스 글자는 보조룬 아이콘의 글자(ᚲ, ᚺ, ᛈ)다(같은 날 사용자 결정).
+
+## 전체 몬스터 6장 제작본 (2026-10-21, 사용자 "몬스터 크기는 새 제작본의 목표 키를 따르는 쪽으로 해줘")
+- Codex의 제작본(artifacts/endgame-boss-motion-20261020/all-monsters/motions, 148종 걷기와 공격 6장)을 로스터 빌드의 마지막 묶음으로 넣는다.
+  크기는 제작본의 목표 키 그대로다. 칸마다 좌우를 뒤집어 오른쪽을 보게 한다. 원본이 오른쪽을 보던 클립은 MOTION_FACES_RIGHT에 적어 그대로 쓴다
+  (2026-10-21: 이야기 보스 7종, 뿌리 촉수 무리, 질풍 하피, 장막 철퇴 부제사의 공격). 제작본은 장마다 몸 자리가 달라 alignMotion이 장마다 몸통이
+  기준 장과 겹치도록 발 자리를 옮기고, 땅을 딛는 몬스터는 걷기와 서 있는 자세를 같은 땅선에 둔다. 제작본의 장 수가 앞선 그림보다 적은 31종
+  (위습 4, 개미 4, 슬라임 2, 부제사와 부제녀 8, 이야기 보스 6 등)은 MOTION_KEEP_EARLIER로 앞선 그림을 그대로 쓴다(2026-10-21 사용자가 게임에서 두 판을 비교하고 고름).
+  이름, 걸음새, 떠 있는 높이, 쓰러짐은 앞선 그림에서 그대로 가져온다
+  (앞선 그림이 없는 후반 보스의 걸음새는 MOTION_GAITS). 최종 보스 다섯도 여기서 그린다(GPT의 10-18 그림 표 data/atlas-boss-art.js는
+  같은 이름의 시트가 덮여 뺐다). 검수: artifacts/endgame-boss-motion-20261020-review/review.md.
+- 보스마다 그리는 배율은 data/stage-view.js STAGE_MONSTER_SCALE에 외형 id를 키로 둔다(2026-10-21 사용자 "보스별로 다르게 크기 조절": 얼굴이
+  주인공 머리 22도트보다 작아 보이던 13종이 1.1~1.4배, 주인공보다 작던 밑거름의 장로가 1.2배, 일반 몬스터는 부제사와 부제녀 deacon- 1.2배). 그리기와 보스가 차지하는 칸이 같은 값(js/combat-grid.js getStageLookScale)을 읽는다.
+- 다시 만드는 명령(kit = projectarpgidle1/artifacts/root-stage-kit-20261011): `node scripts/build-stage-roster.cjs <kit>/aseprite-roster-study-v1/claude-review
+  <rignin-ui/stage-monsters> --forge <kit>/sprite-forge-selected-v1 --looks <Downloads/몬스터-새외형-선택.json> --roots <kit>/root-weapon-attack-20261015
+  --actions <kit>/deacon-butterfly-20261016 --attacks <kit>/boss-vfx-20261016 --deaths <kit>/story-state-art-20261016 --motions <제작본 motions 폴더>`,
+  그다음 `node scripts/build-boss-fx.cjs <kit>/boss-vfx-20261016`. 보스 공격 효과의 자리(emit)는 GPT가 찍은 자리를 몸 높이 비율(공격 첫 장끼리)로
+  늘이거나 줄이고, 장 수가 다르면 타격 장끼리 맞춘다.
 
 ## 직접 돌려 보며 고친 것 (2026-10-13, 사용자 "너가 플레이해보고 문제점과 개선사항을 찾아서 계속 개선해줘")
 무대 시험판을 스크립트로 돌렸다: 새 게임에서 전체 탐색으로 액트 1부터 이어 가기(7분에 액트 4 입구까지), 액트 1~10과 혼돈, 심화 혼돈,
@@ -748,12 +794,7 @@ PixelLab은 유료라 쓰지 않는다(2026-10-12 사용자): 몬스터 그림�
 
 ### 전사의 찌르기와 베기 (2026-10-14, 사용자 "전사 공격모션인데 찌르기랑 베기에 맞도록 넣어줘")
 
-- 따로 받은 동작: 정리 묶음(data/stage-characters.js, 다시 가져와 만드는 표)에 없는 동작은 data/stage-view.js `STAGE_HERO_MOTIONS`에
-  직업 → 무기 자세 → 동작으로 적는다. 그리는 쪽(js/canvas-stage-actors.js setOf)이 묶음의 동작에 더해 읽는다.
-- 그림 자르기: `node scripts/cut-stage-hero-motion.cjs <그림.png> <가로>x<세로> <프레임 수> <시트.png> [--frames a-b] [--match <시트>]`.
-  받은 그림은 칸 크기가 그림마다 달라(찌르기 168×136, 베기 144×144) 0번 프레임의 발 자리(가장 아래 줄, 아래 여섯 줄의 가운데)를 찾아
-  모든 프레임을 같은 만큼 옮긴다. 두 그림의 0번 프레임은 기존 공격의 0번 프레임과 한 점도 다르지 않았다(같은 배율, 같은 자리).
-  시트는 assets/playable/stage/와 실행기의 rignin-ui/stage-art/ 둘 다에 둔다(저장소에 넣지 않는다).
+- 2026-10-20 새 주인공으로 바꾸며 이 시트와 STAGE_HERO_MOTIONS, STAGE_HERO_STRIKES, scripts/cut-stage-hero-motion.cjs는 지웠다(아래는 그때의 기록).
 - 전사 검방패: 찌르기(thrust, 9장, 타격 6번: 칼끝의 흰 섬광). 6번 프레임은 섬광 끝이 칸(128) 밖으로 12점 나가 잘렸다. 베기는 17장이
   세 번 이어 베는 연속기라 휘두름 하나씩 셋으로 나눴다: slash(0~3번, 타격 2번), slash2(3~5번, 5번), slash3(6~10번, 8번). 11~16번은
   6~10번을 되풀이한 그림이라 쓰지 않았다.
@@ -782,8 +823,8 @@ PixelLab은 유료라 쓰지 않는다(2026-10-12 사용자): 몬스터 그림�
   logStoryLine; 주인공은 직업 이름, NPC는 칭호 뒤 이름). 설정 전투 로그의 '대사 표시'(showStoryLog)로 끈다. 설명과 비문은 남기지 않는다.
 - 이야기 팝업, 보상 창, 선택 창이 떠 있으면 기다리고 그동안은 세지 않는다. 15초 넘게 못 뜬 대사와 다른 지도의 대사는 버리되,
   처치 대사와 주인공 대사는 보상 창 뒤 다음 액트로 이어진다. 보스가 쓰러지면 아직 못 뜬 등장, 반피 대사는 버린다.
-- NPC 다섯(data/story-journal.js STORY_NPCS: 하켄, 베른, 오르가, 이벨, 베일라)은 무대 그림(assets/stage-npcs, scripts/build-stage-npcs.cjs,
-  저장소 밖)으로 입구 방 가운데 줄 바로 뒷줄, 주인공이 서는 자리에서 두 칸 옆(js/act-exploration-rooms.js npcPost)에 주인공을 보고 선다.
+- NPC 다섯(data/story-journal.js STORY_NPCS: 하켄, 베른, 오르가, 이벨, 베일라)은 무대 그림(assets/stage-npcs, scripts/build-stage-npcs.cjs가
+  그림 도구의 160칸 시트를 검사해 옮긴다. 2026-10-21부터 주인공과 같은 비율이라 배율 1)으로 입구 방 가운데 줄 바로 뒷줄, 주인공이 서는 자리에서 두 칸 옆(js/act-exploration-rooms.js npcPost)에 주인공을 보고 선다.
   이야기 액트와 시련에서 그 대사의 NPC만 선다(js/act-exploration-doors.js storyGuide, guideRoom). 엔드게임 콘텐츠 지도 입구에 맡은 NPC를
   세우던 자리는 뺐다(2026-10-15 사용자: 지도마다 같은 NPC가 앞질러 서 있는 게 어색). 대사는 머리 위 말풍선, 이름표를 달고 싸움에는 끼지 않는다.
   NPC가 선 칸과 같은 세로줄의 앞뒤 두 칸에는 주인공도 몬스터도 서지 않고 돌아간다(guideCells, 2026-10-17 사용자 "NPC와 겹치지 않도록").
@@ -816,7 +857,7 @@ PixelLab은 유료라 쓰지 않는다(2026-10-12 사용자): 몬스터 그림�
   첫 루프의 장착 안내가 빈 방에서 뜬다. 하켄의 말은 그 몬스터가 쓰러진 뒤에 나온다. 전에는 젬이 첫 전투 방(몬스터 열 마리까지) 한가운데의
   첫 처치 때 장착 안내와 함께 와서, 레벨 1 주인공이 기본 공격으로 싸우다 쓰러졌다(2026-10-15 첫 1분 측정).
 - 새 게임의 첫 시작(2026-10-15 사용자, js/opening-journey-ui.js): 프롤로그 삽화 인트로, 어둠이 걷히면 입구 방에 쓰러진 주인공(누르면
-  받은 그림으로 일어난다: assets/playable/stage/<직업>/unarmed/rise.png, scripts/build-stage-hero-rise.cjs, data/stage-view.js STAGE_HERO_RISE),
+  일어난다: assets/playable/stage/<직업>/unarmed/rise.png, 2026-10-20부터 맨손 사망을 거꾸로 이은 그림, data/stage-view.js STAGE_HERO_RISE),
   이동, 하켄을 치는 몬스터에게 다가가 자동 공격, 떨어진 젬 줍기와 장착 안내 순서로 한 줄 안내가 뜬다. 그동안 자동 사냥은 꺼진 채 잠기고
   장착 안내가 끝나면 열린다. 진행은 seenTutorials의 opening_* 열쇠로 남는다. 무대 그림이 없는 위에서 보는 전장은 인트로만 보고 예전처럼 간다.
   브라우저 검사는 tests/browser/helpers.js pickClass가 첫 시작을 본 것으로 두고 시작한다(opening: true면 직접 진행).

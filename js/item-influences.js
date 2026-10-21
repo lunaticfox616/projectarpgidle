@@ -91,7 +91,7 @@ const itemInfluences = (() => {
     /** Spends one ember or ichor on the item. { ok, line } or { ok: false, reason } (nothing is spent). */
     function useAltarCurrency(state, item, currencyKey, random = Math.random) {
         const altar = altarOfCurrency(currencyKey);
-        const reason = altar ? altarUseReason(item, altar) : '제단 재화가 아닙니다.';
+        const reason = equipmentCrafting.buildLockReason(state) || (altar ? altarUseReason(item, altar) : '제단 재화가 아닙니다.');
         if (reason) return { ok: false, reason };
         if ((Number(state.currencies[currencyKey]) || 0) < 1) return { ok: false, reason: '재화 부족' };
         state.currencies[currencyKey] -= 1;

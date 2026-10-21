@@ -43,8 +43,8 @@ const STUMP_CUBE_RECIPES = Object.freeze([
         inputs: [{ kind: 'stump', family: 'talisman', rarity: 'unique', count: 2 }], cost: { strongSealShard: 1 } },
     { id: 'jewel_fuse', reveal: { content: 'jewel' }, group: '주얼', need: '주얼 3(고유 제외)', name: '주얼 융합', result: '희귀 주얼 1(옵션 3~4줄, 재료 가운데 가장 높은 등급 범위)',
         inputs: [{ kind: 'jewel', rarity: ['magic', 'rare'], count: 3 }], cost: { jewelShard: 10 } },
-    { id: 'core_reroll', reveal: { content: 'cube' }, group: '코어', need: '코어 3', name: '코어 다시 빚기', result: '새 코어 1',
-        inputs: [{ kind: 'core', count: 3 }], cost: {} }
+    { id: 'core_reroll', reveal: { content: 'cube' }, group: '코어', need: '코어 3(완전한 코어 제외)', name: '코어 다시 빚기', result: '새 코어 1',
+        inputs: [{ kind: 'core', rarity: ['rare'], count: 3 }], cost: {} }
 ]);
 
 safeExposeData({ STUMP_CUBE_SIZE, STUMP_CUBE_STUMP_ROLL_STEP, STUMP_CUBE_UNIQUE_EXCEPTIONAL_CHANCE, STUMP_CUBE_RECIPES });

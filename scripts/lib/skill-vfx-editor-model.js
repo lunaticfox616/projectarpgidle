@@ -30,8 +30,7 @@ const VFX_LABELS = Object.freeze({
     skillFxEarthCrack: ['지진 지면 균열', '지진 파쇄의 연결된 균열'],
     skillFxRadialWave: ['원형 충격파', '대지의 함성·지뢰 폭발'],
     skillFxDotField: ['지속 피해 장판', '화염 부패·빙결 침식·저주'],
-    skillFxSummonStrike: ['소환수 타격', '소환수 공격 공통'],
-    skillFxDragonBreath: ['용화 숨결', '용화 숨결 채널링']
+    skillFxSummonStrike: ['소환수 타격', '소환수 공격 공통']
 });
 
 const FIXED_LAYOUT_KEYS = new Set([

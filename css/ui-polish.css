@@ -95,7 +95,6 @@ body .item-compare-tooltip .item-compare-grid {
 :root body .tooltip-final { color: #ffcc7a; line-height: 1.5; }
 
 .forge-panel,
-.craft-selected,
 .currency-card {
   border-color: var(--color-line);
   background: var(--color-surface);
@@ -103,36 +102,25 @@ body .item-compare-tooltip .item-compare-grid {
   box-shadow: inset 0 1px rgba(255,255,255,.03);
 }
 :root body .forge-panel,:root 
-body .craft-selected,:root 
 body .currency-card {
   border-color: var(--color-line);
   background: var(--color-surface);
   box-shadow: inset 0 1px rgba(255,255,255,.03);
 }
 .currency-card:hover { border-color: var(--color-line-strong); }
-.craft-item-heading { display: flex; align-items: center; gap: 10px; margin: 10px 0; }
-.craft-target-art { width: 64px; height: 78px; padding: 4px; object-fit: contain; flex: none; box-sizing: border-box; }
-.craft-item-heading > div { min-width: 0; }
-.craft-selected-summary { font-size: 12px; }
-:is(.craft-target-library, .secondary-craft-library) { border-top: 1px solid var(--color-line); margin-top: 12px; }
-:is(.craft-target-library, .secondary-craft-library) > summary { cursor: pointer; padding: 12px 0; color: var(--color-text-secondary); }
-:is(.craft-target-library, .secondary-craft-library)[open] > summary { color: var(--color-accent-gold); }
-:is(.craft-target-library, .secondary-craft-library) h3 { font-size: 14px; }
-.fossil-recipe { padding: 10px; border: 1px solid var(--color-line); border-radius: 6px; background: var(--color-surface-raised); }
-.fossil-recipe p, #ui-fossil-info { color: var(--color-text-secondary); font-size: 13px; line-height: 1.5; }
-.fossil-recipe button { min-height: 44px; width: 100%; }
+:is(.craft-target-library) { border-top: 1px solid var(--color-line); margin-top: 12px; }
+:is(.craft-target-library) > summary { cursor: pointer; padding: 12px 0; color: var(--color-text-secondary); }
+:is(.craft-target-library)[open] > summary { color: var(--color-accent-gold); }
+:is(.craft-target-library) h3 { font-size: 14px; }
+#ui-fossil-info { color: var(--color-text-secondary); font-size: 13px; line-height: 1.5; }
 .craft-spores { padding: 8px; background: var(--color-surface); border: 1px solid var(--color-line); border-radius: 6px; }
 .orb-tone { color: var(--orb-tone); }
 .craft-spores-title { font-weight: 600; margin-bottom: 6px; color: var(--color-text-secondary); }
 
-.currency-card-header,
-.currency-card-name-wrap,
 .currency-tooltip-title {
   display: flex;
   align-items: center;
 }
-.currency-card-header { justify-content: space-between; gap: 8px; }
-.currency-card-name-wrap,
 .currency-tooltip-title { gap: 7px; min-width: 0; }
 .currency-icon {
   width: 30px;
@@ -149,9 +137,9 @@ body .currency-card {
   image-rendering: pixelated;
 }
 
-:root body .loot-unique,:root  body .reward,:root  body .text-reward { color: var(--color-accent-gold); }
-:root body .attack-monster,:root  body .text-danger { color: var(--color-danger); }
-:root body .season-up,:root  body .text-success { color: var(--color-positive-muted); }
+:root body .loot-unique,:root  body .reward { color: var(--color-accent-gold); }
+:root body .attack-monster { color: var(--color-danger); }
+:root body .season-up { color: var(--color-positive-muted); }
 
 :root body .combat-feed,:root 
 body #log,:root 
@@ -271,13 +259,7 @@ body:has(:is(#loop-ready-overlay, #loop-decision-overlay).active) :is(#mobile-to
 /* Sky entry and permanent investment share the expedition panel system. */
 #ui-sky-tower-list { margin-top: 12px; }
 /* Existing ocean/fishing panels still share these compact labels. */
-.sky-tower-head { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap; }
 .sky-tower-title { font-weight:800; color:var(--color-text); font-size:1.05em; }
-.sky-tower-sub { margin-top:4px; color:var(--color-text-secondary); font-size:.95em; line-height:1.5; max-width:560px; }
-.sky-tower-lock-chip { flex-shrink:0; background:var(--color-surface-raised); border:1px solid var(--color-line); border-radius:5px; padding:5px 12px; font-size:.9em; color:var(--color-accent); }
-.sky-tower-chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:9px; }
-.sky-tower-chip { background:var(--color-surface-raised); border:1px solid var(--color-line); border-radius:5px; padding:4px 10px; font-size:.9em; color:var(--color-text); }
-.sky-tower-chip b { color:var(--color-accent); }
 
 /* Vertical subtab shells shared by the codex and map exploration panels. */
 .vertical-tab-layout {
@@ -499,42 +481,10 @@ body:has(:is(#loop-ready-overlay, #loop-decision-overlay).active) :is(#mobile-to
     padding: 8px 12px;
   }
 }
-
-.currency-card.woodsman-touch-currency {
-  position: relative;
-  overflow: hidden;
-  border-color: rgba(126, 255, 185, 0.78);
-  box-shadow: 0 0 14px rgba(72, 255, 157, 0.22), inset 0 0 18px rgba(72, 255, 157, 0.08);
-}
-.currency-card.woodsman-touch-currency::before {
-  content: "";
-  position: absolute;
-  inset: -45%;
-  background: conic-gradient(from 0deg, transparent 0 18%, rgba(112,255,184,.95) 24%, rgba(255,234,151,.95) 30%, transparent 38% 100%);
-  animation: woodsman-touch-border-spin 8s linear infinite;
-  pointer-events: none;
-}
-.currency-card.woodsman-touch-currency::after {
-  content: "";
-  position: absolute;
-  inset: 2px;
-  border-radius: 5px;
-  background: linear-gradient(180deg, rgba(21,39,32,.96), rgba(13,27,25,.96));
-  pointer-events: none;
-}
-.currency-card.woodsman-touch-currency > * {
-  position: relative;
-  z-index: 1;
-}
-.woodsman-touch-name,
-.currency-card.woodsman-touch-currency .currency-name {
+.woodsman-touch-name {
   color: #9dffc8;
   font-weight: 900;
   text-shadow: 0 0 8px rgba(104, 255, 177, 0.58), 0 0 16px rgba(255, 232, 148, 0.28);
-}
-.currency-card.woodsman-touch-currency .currency-count {
-  color: #fff0a6;
-  text-shadow: 0 0 8px rgba(255, 220, 112, 0.34);
 }
 @keyframes woodsman-touch-border-spin {
   to { transform: rotate(360deg); }
