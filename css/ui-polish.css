@@ -210,7 +210,8 @@ input[data-search-key]:focus {
 .loop-settlement-actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
 .loop-settlement-actions button, #loop-decision-actions button { min-height: 40px; }
 @keyframes loop-settlement-in { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-body:has(:is(#loop-ready-overlay, #loop-decision-overlay).active) :is(#mobile-toast-root, #game-toast-region) { visibility: hidden; }
+/* 알림은 루프 창과 액트 보상 창(고를 칸을 가렸다) 뒤로 숨는다. 사망 창은 모달 dialog라 이미 그 위에 그려진다 */
+body:has(:is(#loop-ready-overlay, #loop-decision-overlay, #reward-overlay).active) :is(#mobile-toast-root, #game-toast-region) { visibility: hidden; }
 @media (max-width: 600px) { .tutorial-overlay .tutorial-card.loop-settlement-card { padding: 20px; } }
 @media (prefers-reduced-motion: reduce) { .loop-settlement-story, .loop-settlement-next { animation: none; } }
 .loop-ready-banner {
