@@ -124,9 +124,11 @@
   body.desktop-windowed-ui .ui-goal-bar-fill { display: block; height: 100%; width: 0; border-radius: inherit; background: linear-gradient(90deg, #4f8fd0, #7fd0ff); transition: width 0.25s ease; }
   body.desktop-windowed-ui .ui-goal-progress { margin-top: 4px; font-size: 11px; color: #ffd36b; font-weight: 700; }
   body.desktop-windowed-ui .ui-goal-action { margin-top: 8px; width: 100%; }
-  body.desktop-windowed-ui .ui-goal-notices { display: grid; gap: 5px; margin-top: 8px; font-size: 10.5px; line-height: 1.4; color: #ffffff; }
+  /* 열 하나를 패널 폭에 묶고 긴 알림은 줄을 바꾼다(2026-10-21: 한 줄로 두면 열이 글 길이만큼 늘어 "최종 관문으로, 수호자 격파
+     0/3, 지하계 0/30층"이 패널 밖으로 나가 화면 끝에서 잘렸다). */
+  body.desktop-windowed-ui .ui-goal-notices { display: grid; grid-template-columns: minmax(0, 1fr); gap: 5px; margin-top: 8px; font-size: 10.5px; line-height: 1.4; color: #ffffff; }
   body.desktop-windowed-ui .ui-goal-notice-action { width: 100%; min-height: 30px; padding: 5px 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; text-align: left; }
-  body.desktop-windowed-ui .ui-goal-notice-action span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  body.desktop-windowed-ui .ui-goal-notice-action span { min-width: 0; overflow-wrap: anywhere; }
   body.desktop-windowed-ui .ui-goal-notice-action strong { flex: 0 0 auto; color: #ffd58e; font-size: 12px; }
   body.desktop-windowed-ui .ui-goal-notice-text { padding: 4px 7px; border-left: 2px solid rgba(96, 128, 168, .55); }
 
