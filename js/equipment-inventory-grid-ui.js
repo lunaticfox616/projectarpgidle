@@ -66,7 +66,16 @@
         const dock = equipmentWindowUi.inspectorDock(inspector);
         if (dock === 'panel' && inspector.matches(':popover-open')) inspector.hidePopover();
         if (dock === 'sheet' && !inspector.matches(':popover-open')) inspector.showPopover();
+        matchSheetOrder(inspector, dock === 'sheet');
         return dock === 'panel' || dock === 'sheet';
+    }
+    /** 단추 줄과 옵션의 차례는 그릴 때 정한다(js/equipment-window-ui.js orderedBody). 창 폭을 휴대폰 폭 너머로 바꾸면 다시 그리지 않으므로
+     * 여기서 맞춘다: 카드(sheet)는 옵션 뒤에 단추 줄, 그 밖은 앞에. 이미 맞으면 아무것도 옮기지 않는다. */
+    function matchSheetOrder(inspector, sheet) {
+        const actions = inspector.querySelector(':scope > .equipment-grid-inspector-actions'), details = inspector.querySelector(':scope > .equipment-inspection-details');
+        if (!actions || !details || (actions.compareDocumentPosition(details) === Node.DOCUMENT_POSITION_PRECEDING) === sheet) return;
+        if (sheet) details.after(actions);
+        else details.before(actions);
     }
 
     function fitInspector(inspector, rect) {
