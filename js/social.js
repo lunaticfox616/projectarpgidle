@@ -71,7 +71,10 @@ let socialState = {
     profileUploadUserId: null,
     profileSyncTimer: null,
     profileBootSyncUserId: null,
-    lastProfileUploadAt: 0,
+    /** The last profile write this session: account, nickname and snapshot without its clock (an identical one is not sent again),
+     * and the account and nickname whose row it wrote (a chat line needs that row, not a fresh 27 KB profile before every line). */
+    profileSentKey: '',
+    profileRowFor: '',
     onlineSupported: true,
     pendingChatItems: [],
     sendTimestamps: [],
@@ -190,14 +193,19 @@ function buildItemSnapshot(item, slotOverride) {
     let slot = slotOverride || item.slot || '';
     let snap = {
         slot,
-        category: profileItemCategory(item, slot),
+        // 무기 종류는 장비 자신의 칸으로 본다: 쌍수 훈련으로 방패 칸에 든 무기가 [방패]로 나왔다.
+        category: profileItemCategory(item, item.slot || slot),
         name: item.name || '',
         rarity: item.rarity || 'normal',
         baseName: item.baseName || '',
         uniqueEffect: item.uniqueEffect || '',
+        // 베이스 수치를 키우는 고유(implicitAmp)의 방어도와 회피(itemTooltipRules.defenseView)가 절반으로 나오지 않게.
+        uniqueEffectKey: item.uniqueEffectKey || undefined,
+        uniqueEffectParams: item.uniqueEffectParams || undefined,
         corrupted: !!item.corrupted,
         baseStats: (item.baseStats || []).slice(0, 8).map(snapStat),
-        stats: (item.stats || []).slice(0, 8).map(st => {
+        // 고유 융합 유물은 고유 줄과 희귀 줄을 합쳐 12줄까지 된다(8에서 자르면 줄이 빠졌다).
+        stats: (item.stats || []).slice(0, 12).map(st => {
             let o = snapStat(st);
             if (Array.isArray(st.extraStats)) o.extraStats = st.extraStats.slice(0, 4).map(snapStat);
             return Object.assign(o, snapAffixKind(item, st));
@@ -366,7 +374,8 @@ function buildProfileStats() {
     let s = typeof getPlayerStats === 'function' ? getPlayerStats() : null;
     if (!s) return { stats: [], power: 0 };
     let rows = PROFILE_STAT_KEYS.filter(([key]) => key !== 'summonDps' || Number(s.summonDps) > 0)
-        .map(([key]) => ({ key, label: COMPARE_STAT_META[key].label, value: COMPARE_STAT_META[key].format(Number(s[key]) || 0) }));
+        // dps는 직접 DPS다(캐릭터 창과 같은 이름). 머리 띠의 큰 수가 총 DPS라, 'DPS'로 두면 둘이 다른 수로 보였다.
+        .map(([key]) => ({ key, label: key === 'dps' ? '직접 DPS' : COMPARE_STAT_META[key].label, value: COMPARE_STAT_META[key].format(Number(s[key]) || 0) }));
     // 총 DPS(직접 + 소환)는 게임의 권장 전투력 비교와 같은 값이다(js/combat-ehp.js getMapPowerReadiness).
     let power = Math.floor(Number(s.totalDps) || (Number(s.dps) || 0) + (Number(s.summonDps) || 0));
     return { stats: rows, power };
@@ -472,16 +481,28 @@ function getProfileUploadError(error) {
     }
     return translated;
 }
+/** 공개 프로필에는 이 계정의 캐릭터로 플레이하는 동안만 그림을 올린다. 부팅 때 읽은 저장은 클라우드 저장을 고르기 전이라 새 브라우저의
+ * 레벨 1이거나 이 기기에 남은 다른 계정의 캐릭터일 수 있었고, 그것이 그 계정의 공개 프로필을 덮었다(2026-10-22 점검). */
+function profileSnapshotIsOwn() {
+    let started = typeof gameplayStarted !== 'undefined' && gameplayStarted;
+    let atStart = typeof isStartupOverlayOpen === 'function' && isStartupOverlayOpen();
+    let owner = typeof getCloudSaveOwnerId === 'function' ? getCloudSaveOwnerId() : null;
+    return started && !atStart && !!owner && owner === socialLoggedInUserId();
+}
 async function performPlayerProfileUpload(options, userId, nickname) {
     try {
-        let snapshot = buildProfileSnapshot();
+        // 내 캐릭터가 아니면 채팅과 대전이 찾는 닉네임 줄만 맞춘다(있던 profile_data는 그대로 남는다).
+        let snapshot = profileSnapshotIsOwn() ? buildProfileSnapshot() : null;
+        let key = `${userId}\n${nickname}\n${snapshot ? JSON.stringify({ ...snapshot, updatedAt: 0 }) : ''}`;
+        if (key === socialState.profileSentKey) return true;
         await cloudJsonRequest('/rest/v1/player_profiles', {
             method: 'POST',
             headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
             // last_seen / nickname_updated_at 은 DB 기본값·트리거·하트비트가 관리한다.
-            body: { user_id: userId, nickname, profile_data: snapshot }
+            body: snapshot ? { user_id: userId, nickname, profile_data: snapshot } : { user_id: userId, nickname }
         });
-        socialState.lastProfileUploadAt = Date.now();
+        socialState.profileSentKey = key;
+        socialState.profileRowFor = `${userId}\n${nickname}`;
         return true;
     } catch (error) {
         let translated = getProfileUploadError(error);
@@ -520,7 +541,7 @@ async function uploadPlayerProfile(options = {}) {
 }
 async function flushPlayerProfileQuiet() {
     socialState.profileSyncTimer = null;
-    if (!socialCloudReady() || !getMyNickname()) return false;
+    if (!socialCloudReady() || !getMyNickname() || !profileSnapshotIsOwn()) return false;
     let inFlight = socialState.profileUploadPromise;
     if (inFlight) {
         try { await inFlight; } catch (error) { console.warn('이전 공개 프로필 갱신 실패:', error); }
@@ -540,9 +561,10 @@ function syncPlayerProfileQuiet() {
     }, SOCIAL_PROFILE_SYNC_DELAY_MS);
     return true;
 }
+/** 세션의 첫 갱신: 로그인 정리 때와 전장에 들어설 때(js/ui.js enterGameWorld) 부르고, 내 캐릭터로 플레이할 때 한 번만 나간다. */
 function syncInitialPlayerProfile() {
     let userId = socialLoggedInUserId();
-    if (!userId || !getMyNickname() || socialState.profileBootSyncUserId === userId) return;
+    if (!userId || !getMyNickname() || socialState.profileBootSyncUserId === userId || !profileSnapshotIsOwn()) return;
     socialState.profileBootSyncUserId = userId;
     syncPlayerProfileQuiet();
 }
@@ -1023,7 +1045,7 @@ async function prepareChatSender(senderId) {
     if (!getMyNickname()) await promptAndSetNickname();
     if (socialLoggedInUserId() !== senderId) throw new Error('전송 중 계정이 변경되었습니다.');
     if (!getMyNickname()) return false;
-    await uploadPlayerProfile({ required: true });
+    if (socialState.profileRowFor !== `${senderId}\n${getMyNickname()}`) await uploadPlayerProfile({ required: true });
     if (socialLoggedInUserId() !== senderId) throw new Error('전송 중 계정이 변경되었습니다.');
     return true;
 }
@@ -1989,6 +2011,7 @@ async function openPlayerProfile(userId) {
     if (body) body.innerHTML = `<div class="social-profile-empty">불러오는 중…</div>`;
     try {
         let rows = await cloudJsonRequest(`/rest/v1/player_profiles?user_id=eq.${encodeURIComponent(userId)}&select=nickname,profile_data,updated_at`, {});
+        if (socialState.currentProfileUserId !== String(userId)) return; // 그새 다른 프로필을 열었다: 늦게 온 답이 그 창을 덮지 않게
         let row = Array.isArray(rows) ? rows[0] : null;
         if (!row) { renderProfileData(null); return; }
         let profile = row.profile_data || {};

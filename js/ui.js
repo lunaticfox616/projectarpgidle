@@ -11517,6 +11517,7 @@ async function enterGameWorld() {
     await ensureBattleAssetsLoadedBeforeEntry();
     gameplayStarted = true;
     setStartupOverlayActive(false);
+    if (typeof syncInitialPlayerProfile === 'function') syncInitialPlayerProfile(); // 이 계정의 캐릭터로 들어섰다(js/social.js profileSnapshotIsOwn)
     try {
         if (typeof closeAllWindows === 'function') closeAllWindows();
         if (typeof closeCommunityDock === 'function') closeCommunityDock();
