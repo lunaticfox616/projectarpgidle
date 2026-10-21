@@ -9,8 +9,11 @@
   #passive-mobile-detail header { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--color-accent-gold); font-size: 13px; }
   #passive-mobile-detail button { min-height: 44px; font-size: 14px; }
   #passive-mobile-detail footer button { width: 100%; }
-  /* The legacy mobile log sets bottom inline; keep notices away from this sheet's action. */
-  body:has(#passive-mobile-detail:not([hidden])) :is(#mobile-toast-root, #game-toast-region) { top: max(10px, env(safe-area-inset-top)); }
+  /* The legacy mobile log sets bottom inline; keep notices away from this sheet's action. The same for the item sheet's pinned action
+     row and the ascendancy card's button (2026-10-22). */
+  body:has(#passive-mobile-detail:not([hidden]), #ui-equipment-inventory-inspector:popover-open, #tab-traits.active .ascend-detail:not(.is-empty)) #mobile-toast-root { top: max(10px, env(safe-area-inset-top)); }
+  /* Both notice kinds took the same spot: the log notice (one at a time, the shortage or failure of the button just pressed) goes first, game toasts below it. */
+  body:has(#passive-mobile-detail:not([hidden]), #ui-equipment-inventory-inspector:popover-open, #tab-traits.active .ascend-detail:not(.is-empty)) #game-toast-region { top: calc(max(10px, env(safe-area-inset-top)) + 60px); }
   .passive-mobile-description { min-height: 0; overflow-y: auto; overscroll-behavior: contain; font-size: 13px; line-height: 1.5; }
   .mobile-map-navigation { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 10px; margin-bottom: 10px; padding: 6px 10px; border: 1px solid var(--color-line); border-radius: var(--radius-sm); background: var(--color-surface-raised); }
   .mobile-map-navigation > span { font-size: 12px; color: var(--color-accent-gold); }
@@ -236,7 +239,7 @@
 } }
 @layer overrides {
 @media (max-width: 1080px) {
-  body:has(#passive-mobile-detail:not([hidden])) :is(#mobile-toast-root, #game-toast-region) {/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */ bottom: auto !important; }
+  body:has(#passive-mobile-detail:not([hidden]), #ui-equipment-inventory-inspector:popover-open, #tab-traits.active .ascend-detail:not(.is-empty)) :is(#mobile-toast-root, #game-toast-region) {/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */ bottom: auto !important; }
   #tab-map .map-primary-tabs,
   #tab-map .map-explore-layout > .vertical-tab-sidebar { display: none; }
 }
