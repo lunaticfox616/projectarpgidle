@@ -224,8 +224,15 @@ const equipmentWindowUi = (() => {
         return `<h4 class="eqw-title">선택한 장비<small>${escapeHTML(subtitleOf(slot, slots))}</small></h4>
             <div class="eqw-pick rarity-${rarity}"><img src="${getEquipmentGridVisualAsset(item)}" alt="" draggable="false"><div><b class="${rarity}">${escapeHTML(item.name || item.baseName || '장비')}</b>
                 <small>${hint}${flags ? `, ${escapeHTML(flags)}` : ''}</small></div></div>
-            ${deltaTablesHtml(slots)}<div class="equipment-grid-inspector-actions">${actionsHtml}</div><div class="equipment-inspection-details"></div>
+            ${deltaTablesHtml(slots)}${orderedBody(actionsHtml)}
             <button type="button" class="equipment-grid-inspector-close" aria-label="선택 닫기" onclick="equipmentInventoryInteraction.focus(null)">×</button>`;
+    }
+    /** 휴대폰 카드(sheet)는 단추 줄을 옵션 뒤에 그린다: 바꾸면 표 바로 밑의 단추 줄이 카드의 끝처럼 보여 아래의 옵션을 찾기 어려웠다.
+     * css/equipment-window.css가 그 줄을 카드 아래에 붙인다. 넓은 창은 표, 단추, 옵션 차례 그대로다. */
+    function orderedBody(actionsHtml) {
+        const actions = `<div class="equipment-grid-inspector-actions">${actionsHtml}</div>`, details = '<div class="equipment-inspection-details"></div>';
+        const inspector = document.getElementById('ui-equipment-inventory-inspector');
+        return inspector && inspectorDock(inspector) === 'sheet' ? details + actions : actions + details;
     }
     /** The panel without a selection: in the right column it keeps its title band. */
     const emptyHtml = message => `<h4 class="eqw-title">선택한 장비</h4><div class="equipment-grid-inspector-empty">${message}</div>`;
