@@ -206,11 +206,12 @@
     }
 
     // 휴대폰에서는 쪽 단추가 옆으로 미는 한 줄이다(css/equipment-inventory-grid.css): 쪽이 바뀌면 그 단추를 가운데로 옮기고,
-    // 같은 쪽을 다시 그릴 때는 사용자가 민 자리를 그대로 둔다. 창이 닫혀 폭이 0이면 다음에 보일 때 맞춘다.
-    let pageInView = -1;
+    // 같은 쪽을 다시 그릴 때는 사용자가 민 자리를 그대로 둔다. 창이 닫혀 폭이 0이면 다음에 보일 때 맞춘다. 첫 쪽은 처음부터 보이는 자리라
+    // 0에서 시작한다(-1이면 가방을 열기 전 전투 중 다시 그릴 때마다 크기를 재느라 배치를 다시 계산했다). PC는 줄을 바꿔 다 보이니 재지 않는다.
+    let pageInView = 0;
     function keepPageInView(root, page) {
         let button = root.children[page];
-        if (page === pageInView || !button || !root.clientWidth) return;
+        if (page === pageInView || !button || !uiDisplay.matches('(max-width: 640px)') || !root.clientWidth) return;
         pageInView = page;
         let box = root.getBoundingClientRect(), at = button.getBoundingClientRect();
         if (root.scrollWidth > root.clientWidth) root.scrollLeft += at.left + at.width / 2 - (box.left + box.width / 2);
