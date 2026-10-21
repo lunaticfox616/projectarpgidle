@@ -8987,7 +8987,6 @@ function prepareExplicitReroll(item, options) {
     if (rerollChaosInfusion) item.chaosInfusion = null;
     let locked = (item.stats || []).filter(stat => equipmentCrafting.keptOnReroll(item, stat) || !onSide(stat));
     item.stats = locked.concat(options.guaranteedStat ? [options.guaranteedStat] : []);
-    if (!side || equipmentCrafting.keptKind(item) === side) delete item.affixKeep;
     // 주입을 먼저 다시 굴려 그 종류 자리를 차지하게 한다(접두 3, 접미 3).
     if (rerollChaosInfusion) rerollChaosInfusionForItem(item, previousInfusion, side);
     return side;
@@ -10650,7 +10649,6 @@ const craftCurrencyUse = (() => {
         const sideOnly = run.omen && run.omen.effect === 'side', onSide = stat => equipmentCrafting.onOmenSide(item, stat, run.omen);
         item.stats = (item.stats || []).filter(stat => stat && (stat.lockedByHoney || stat.lockedByRift || !onSide(stat)));
         if (item.chaosInfusion && onSide(item.chaosInfusion)) item.chaosInfusion = null;
-        if (!sideOnly || equipmentCrafting.keptKind(item) === run.omen.side) delete item.affixKeep;
         const remaining = getItemExplicitOptionCount(item) > 0;
         item.rarity = remaining ? (sideOnly ? item.rarity : 'magic') : 'normal';
         updateItemName(item);

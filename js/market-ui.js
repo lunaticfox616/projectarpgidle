@@ -1,4 +1,4 @@
-/** 거래소 (장비 → 거래소): its four tabs, the currency exchange and the special services. The black market and the stall draw
+/** 거래소 (장비 → 거래소): its three tabs and the currency exchange. The black market and the stall draw
  * themselves as shops (js/black-market-ui.js, js/player-stall-ui.js on js/shop-view-ui.js). Transactions stay in items/passives. */
 const marketUi = {
     section: 'exchange', to: '', recipeId: '', quantity: 1,
@@ -10,7 +10,7 @@ const marketUi = {
         event.preventDefault();buttons[next].click();buttons[next].focus();
     },
     show(section) {
-        if (!['exchange', 'black', 'services', 'stall'].includes(section)) return;
+        if (!['exchange', 'black', 'stall'].includes(section)) return;
         this.section = section;
         renderMarketUI();
     },
@@ -82,73 +82,8 @@ const marketUi = {
         const button = document.querySelector('[data-market-exchange-once]');
         button.disabled = !valid;
         document.querySelector('[data-market-max]').disabled = max < 1;
-    },
-    /** 특수 서비스 as a shop (2026-10-18): the chosen gear's card and the three services on the left, the worn gear and the bag on the
-     * right; pressing gear chooses it (the crafting selection, js/items.js selectForCrafting, which the services act on). */
-    renderServices() {
-        const host = document.getElementById('market-panel-services');
-        if (!host || shopView.dragging() || (host.contains(document.activeElement) && document.activeElement.tagName === 'SELECT')) return;
-        const item = getSelectedCraftItem();
-        const target = item ? shopView.itemCardHtml(item, { rating: false }) : '<p class="shop-hint">옵션 제거와 옵션 보존은 고른 장비에 씁니다. 오른쪽에서 장착한 장비나 가방의 장비를 누르세요.</p>';
-        const html = `<div class="shop-view is-services" data-shop-kind="services"><section class="shop-shelf" aria-label="특수 서비스">
-            <header class="shop-bar"><h3>특수 서비스</h3>${shopView.walletHtml(['goldenRule'])}</header>
-            <div class="market-service-target">${target}</div>${this.annulHtml(item)}${this.keepHtml(item)}${this.passiveResetHtml()}</section>
-            <section class="shop-bag" aria-label="가방">${this.wornHtml(item)}${shopView.bagHtml(entry => this.servicePick(entry, item))}</section></div>`;
-        if (host.marketMarkup === html) return;
-        const before = host.querySelector('#sel-market-annul-stat')?.value;
-        host.innerHTML = html; host.marketMarkup = html;
-        const select = host.querySelector('#sel-market-annul-stat');
-        if (select && [...select.options].some(option => option.value === before)) select.value = before;
-    },
-    /** Gear the services can work on (not 전당 copies, jewels, cores or wards), the chosen one marked. */
-    servicePick(entry, item) {
-        const reason = entry.hallReplica ? '전당 소장품은 원본 상태를 보존합니다.' : bagItems.isSpecial(entry) ? '주얼, 코어, 액막이는 고를 수 없습니다.' : '';
-        return { key: reason ? '' : `bag:${entry.id}`, chosen: entry === item, reason };
-    },
-    /** The worn gear, a row of cells above the bag: the services work on it too. */
-    wornHtml(item) {
-        const worn = Object.entries(game.equipment).filter(([, entry]) => entry && !entry.hallReplica && !bagItems.isSpecial(entry)).map(([slot, entry]) =>
-            `<button type="button" class="shop-bag-item is-pick rarity-${entry.rarity || 'normal'}${entry === item ? ' is-chosen' : ''}" data-shop-pick="equip:${escapeHTML(slot)}"
-                title="${escapeHTML(`${slot}: ${entry.name}`)}" aria-label="${escapeHTML(`장착 ${slot}, ${entry.name}`)}"><img src="${getEquipmentGridVisualAsset(entry)}" alt="" draggable="false"></button>`).join('');
-        return worn ? `<div class="shop-worn"><span>장착</span>${worn}</div>` : '';
-    },
-    annulHtml(item) {
-        const rows = getMarketAnnulRows(item);
-        const options = rows.map(row => `<option value="${row.index}">${escapeHTML(row.stat.statName || getStatName(row.stat.id))} +${formatValue(row.stat.id, row.stat.val)}</option>`).join('');
-        const ready = rows.length && (game.currencies.goldenRule || 0) >= 2 && !game.woodsmanBuildLock;
-        return `<div class="market-service-card"><div class="market-service-top"><h3>장비 옵션 제거</h3><span>황금률 2개</span></div>
-            <p>선택한 추가 옵션 1줄을 제거합니다. 보호된 옵션은 유지됩니다.</p>
-            <label>제거할 옵션<select id="sel-market-annul-stat" ${rows.length ? '' : 'disabled'}>${options || `<option>${item ? '제거 가능한 옵션 없음' : '장비를 먼저 고르세요'}</option>`}</select></label>
-            <button type="button" onclick="marketAnnulSelectedStat(Number(document.getElementById('sel-market-annul-stat').value))" ${ready ? '' : 'disabled'}>선택 옵션 제거</button></div>`;
-    },
-    keepHtml(item) {
-        const kept = equipmentCrafting.keptKind(item);
-        const buttons = Object.entries(AFFIX_KEEP_RULES.labels).map(([kind, label]) => {
-            const reason = getAffixKeepServiceReason(item, kind);
-            return `<button type="button" onclick="marketKeepSelectedItemAffixes('${kind}')" ${reason ? `disabled title="${escapeHTML(reason)}"` : ''}>${label} 보존</button>`;
-        }).join('');
-        return `<div class="market-service-card"><div class="market-service-top"><h3>옵션 보존</h3><span>황금률 ${AFFIX_KEEP_RULES.cost}개</span></div>
-            <p>다음 재굴림 한 번 동안 접두나 접미 옵션을 그대로 두고 남은 자리만 굴립니다. 재화, 홀씨, 화석 재굴림에 쓰입니다.</p>
-            ${kept ? `<p>지금 ${AFFIX_KEEP_RULES.labels[kept]} 보존이 걸려 있습니다.</p>` : ''}<div class="market-service-actions">${buttons}</div></div>`;
-    },
-    passiveResetHtml() {
-        const count = getPaidPassiveNodeIds(game.passives).length, ready = count > 0 && (game.currencies.goldenRule || 0) >= 1 && !game.woodsmanBuildLock;
-        return `<div class="market-service-card"><div class="market-service-top"><h3>기본 스킬 트리 초기화</h3><span>황금률 1개</span></div>
-            <p>기본 스킬 트리의 투자 ${count}점을 반환합니다.<br>루프 패시브, 심화 패시브와 전직 투자는 유지됩니다.</p>
-            <button type="button" onclick="marketResetPassiveTreeByDivine()" ${ready ? '' : 'disabled'}>${count}점 반환하고 초기화</button></div>`;
     }
 };
-
-// 특수 서비스: pressing worn or bag gear chooses it for the services (nothing is carried).
-shopView.registerShop('services', {
-    shopTap(root, pick) {
-        const [kind, ref] = pick.split(':');
-        selectForCrafting(kind === 'equip' ? ref : Number(ref), kind === 'equip');
-        renderMarketUI();
-    },
-    shopAccepts: () => null,
-    shopRedraw: () => marketUi.renderServices()
-});
 
 function renderMarketUI() {
     const locked = document.getElementById('ui-market-locked'), panel = document.getElementById('ui-market-panel');
@@ -165,23 +100,6 @@ function renderMarketUI() {
     }
     if (marketUi.section === 'exchange') marketUi.renderExchange();
     if (marketUi.section === 'black') blackMarketUi.render();
-    if (marketUi.section === 'services') marketUi.renderServices();
     if (marketUi.section === 'stall') playerStallUi.render();
 }
-/** 접두 보존, 접미 보존(data/items.js AFFIX_KEEP_RULES): the next full reroll keeps every line of the kind once. */
-async function marketKeepSelectedItemAffixes(kind) {
-    const item = getSelectedCraftItem(), label = AFFIX_KEEP_RULES.labels[kind], cost = AFFIX_KEEP_RULES.cost;
-    const reason = getAffixKeepServiceReason(item, kind);
-    if (reason) return addLog(reason, 'attack-monster');
-    if (!await requestGameConfirmation(buildGoldenRuleSpendPrompt(`황금률 ${cost}개를 소모하여 [${item.name}]의 ${label} 옵션을 다음 재굴림 한 번 동안 그대로 둡니다.`), {
-        title: `${label} 보존`,
-        confirmLabel: '보존'
-    })) return;
-    if (getSelectedCraftItem() !== item || getAffixKeepServiceReason(item, kind)) return addLog('확인 중 장비 또는 재화 상태가 변경되어 보존을 취소했습니다.', 'attack-monster');
-    game.currencies.goldenRule -= cost;
-    item.affixKeep = kind;
-    addLog(`🔒 ${label} 보존: [${item.name}] 다음 재굴림에서 ${label} 옵션을 그대로 둡니다.`, 'loot-unique');
-    updateStaticUI();
-}
-
 safeExposeGlobals({marketUi, renderMarketUI});

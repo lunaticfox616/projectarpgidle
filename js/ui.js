@@ -5958,9 +5958,7 @@ function itemExplicitAffixHeaderHtml(item, count) {
     const header = equipmentCrafting.affixHeader(item.rarity, count, used);
     const style = header.over ? ' style="color:#ffb454;"' : '';
     const note = header.over ? '<div class="tooltip-line" style="color:#ffb454;">예전 규칙으로 한도를 넘은 장비: 넘친 종류에는 더 붙지 않습니다.</div>' : '';
-    const kept = equipmentCrafting.keptKind(item);
-    const keep = kept ? `<div class="tooltip-line" style="color:#9fd6ff;">다음 재굴림에서 ${AFFIX_KEEP_RULES.labels[kept]} 보존</div>` : '';
-    return `<div class="tooltip-line tooltip-section tooltip-section-explicit"${style}><span class="px-center">${header.text}</span></div>${note}${keep}`;
+    return `<div class="tooltip-line tooltip-section tooltip-section-explicit"${style}><span class="px-center">${header.text}</span></div>${note}`;
 }
 
 /** The base line's badges: the upgrade step ([2/4]) and 수평 for a horizontal base (a base with a family, 2026-10-09). */
@@ -8814,7 +8812,7 @@ function performUpdateStaticUI() {
     // (탭 전환 시 switchTab이 updateStaticUI를 다시 호출하므로 진입 시 정상 갱신된다.)
     let itemsTabActive = isTabRendering('tab-items');
     const sf = getSearchFilterState();
-    document.getElementById('ui-passive-points').innerText = game.passivePoints;
+    syncPassiveTreeHeader();
     if (isTabRendering('tab-char')) renderPassiveInvestmentSummary();
     document.getElementById('ui-season-text-tab').innerText = game.season;
     document.getElementById('ui-season-pts').innerText = game.seasonPoints;
@@ -10035,6 +10033,48 @@ function togglePassiveInvestmentSummary() {
 
 safeExposeGlobals({ togglePassiveInvestmentSummary, renderPassiveInvestmentSummary,
     onPassiveRevelationChanged });
+
+/** 스킬트리 머리: 남은 포인트와 초기화 단추(resetPassiveTreeByGoldenRule, 2026-10-22 거래소에서 옮김). 단추는 기본 트리에 찍은 노드가
+ * 있을 때만 보인다. 누르면 확인 창이 돌려받을 점수를 묻고, 황금률이 없으면 그렇다고 알린다. */
+function syncPassiveTreeHeader() {
+    document.getElementById('ui-passive-points').innerText = game.passivePoints;
+    const button = document.getElementById('btn-passive-tree-reset');
+    if (!button) return;
+    const count = getPaidPassiveNodeIds(game.passives).length, title = `황금률 1개로 찍은 ${count}점을 모두 돌려받습니다. 루프 패시브, 심화 패시브와 전직은 그대로입니다.`;
+    if (button.hidden !== count <= 0) button.hidden = count <= 0;
+    if (button.title !== title) button.title = title;
+}
+
+/** 기본 스킬트리 초기화를 지금 못 하는 까닭('' 이면 된다): 나무꾼 전투, 황금률, 찍은 노드. */
+function getPassiveTreeResetBlockReason() {
+    if (game.woodsmanBuildLock) return '☠️ 나무꾼 전투 중에는 스킬트리를 초기화할 수 없습니다.';
+    if ((game.currencies.goldenRule || 0) < 1) return '황금률이 부족합니다.';
+    return getPaidPassiveNodeIds(game.passives).length > 0 ? '' : '초기화할 스킬트리 노드가 없습니다.';
+}
+
+/** 기본 스킬트리 초기화(스킬트리 머리의 단추, 2026-10-22 거래소 특수 서비스에서 옮김): 황금률 1개로 기본 트리에 찍은 점수를 모두
+ * 돌려받는다. 루프 패시브, 심화 패시브와 전직은 그대로다. 직업 시작점은 소유 목록에 넣지 않아도 늘 무료 연결점이다. */
+async function resetPassiveTreeByGoldenRule() {
+    const blocked = getPassiveTreeResetBlockReason();
+    if (blocked) return addLog(blocked, 'attack-monster');
+    const spentNodes = getPaidPassiveNodeIds(game.passives).length, before = game.passives.join('|');
+    if (!await requestGameConfirmation(`황금률 1개로 기본 스킬트리를 초기화하고 ${spentNodes}점을 돌려받습니다.\n루프 패시브, 심화 패시브와 전직은 그대로입니다.`, {
+        title: '스킬트리 초기화',
+        tone: 'danger',
+        confirmLabel: '초기화'
+    })) return;
+    if (getPassiveTreeResetBlockReason() || game.passives.join('|') !== before) return addLog('확인하는 사이 스킬트리나 재화가 바뀌어 초기화를 취소했습니다.', 'attack-monster');
+    game.currencies.goldenRule -= 1;
+    const grantedPoints = passiveRouting.paleBonus(game);
+    game.passives = [];
+    game.passiveAttributeChoices = {};
+    game.passivePoints = Math.max(0, game.passivePoints + spentNodes - grantedPoints);
+    calculateReachableNodes();
+    refreshPassiveVisibility();
+    addLog(`🧠 스킬트리 초기화: ${spentNodes}점을 돌려받았습니다.`, 'season-up');
+    updateStaticUI();
+}
+safeExposeGlobals({ resetPassiveTreeByGoldenRule });
 
 function renderPassiveTreePlannerPanel() {
     let host = document.getElementById('passive-tree-planner');

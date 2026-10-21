@@ -654,8 +654,8 @@ body[data-ui-skin] :where(*), body[data-ui-skin] :where(*)::before, body[data-ui
     display: grid; grid-template-columns: minmax(0, 1fr); grid-auto-flow: column; column-gap: var(--space-1);
     grid-auto-columns: round(down, calc((100% - (var(--subtab-count) - 1) * var(--space-1)) / var(--subtab-count)), 1px); }
 }
-/* 거래소 탭 넷도 같은 방식(첫 칸이 남는 폭, 나머지 정수 px). */
-:root body[data-ui-skin] .market-tabs { display: grid; grid-template-columns: minmax(0, 1fr); grid-auto-flow: column; grid-auto-columns: round(down, calc((100% - 12px) / 4), 1px); }
+/* 거래소 탭 셋도 같은 방식(첫 칸이 남는 폭, 나머지 정수 px). */
+:root body[data-ui-skin] .market-tabs { display: grid; grid-template-columns: minmax(0, 1fr); grid-auto-flow: column; grid-auto-columns: round(down, calc((100% - 8px) / 3), 1px); }
 /* 가운데 맞춘 한 줄 글을 감싼 span: 감싼 칸의 가운데 맞춤은 그대로 두고, 칸 폭(left 50%)과 제 폭(translate 50%)이 홀수일 때 생기는
    반 화소를 되돌린다. 칸이 가운데로 맞출 때만 맞는 계산이라 그런 칸(단추, 아이템 툴팁의 제목과 구획 등)에서만 켠다. 왼쪽 맞춤인
    장비 판의 같은 툴팁 글은 그대로 둔다. 두 줄로 접히면 줄마다의 가운데 맞춤은 여전히 반 화소에 놓일 수 있다(2026-10-21). */

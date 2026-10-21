@@ -162,6 +162,7 @@ function stripRemovedAuxSystems(merged) {
     // 장비 칸 '코어'로 옮긴다(js/colony-wards.js, js/bag-items.js migrate).
     colonyWards.migrate(merged);
     bagItems.migrate(merged);
+    refundRemovedAffixKeep(merged);
 }
 
 /** 7단계: 전문가 레벨로 이미 쓰던 기능은 새 해금 항목으로 이어 준다(포인트 없이 계승). 옛 최소 레벨 기준 —
@@ -181,6 +182,32 @@ function inheritRetiredExpertAccess(ledger, save) {
 
 /** 2단계(2026-10-01): 플라스크 삭제 — 물약 상태(연금 유리 포함) · 알림을 보상 없이 지운다(결정 4 · 7).
  * 단축키 배정 · 히든 저널 · 보스 도전 기록은 불러올 때 이미 모르는 항목을 버리거나 새로 시작한다. */
+/** 2026-10-22: 거래소 특수 서비스(장비 옵션 제거, 접두 보존, 접미 보존)를 없앴다. 걸어 두고 아직 재굴림에 쓰지 않은 보존(item.affixKeep)은
+ * 지우고, 낸 황금률(장비마다 4개)을 돌려준다. 프리셋에 같은 장비가 또 있어도 한 번만 센다. 지운 뒤에는 셀 것이 없어 두 번 불러와도 같다. */
+const REMOVED_AFFIX_KEEP_REFUND = 4;
+function savedItemsOf(merged) {
+    const offline = merged.offlineProgress || {}, rift = merged.timeRift || {};
+    const presets = ((merged.equipmentLoadouts || {}).presets || []).filter(Boolean).flatMap(preset => Object.values(preset.slots || {}));
+    const listings = ((merged.playerStall || {}).listings || []).map(row => row && row.item);
+    return [merged.inventory, Object.values(merged.equipment || {}), merged.equipmentTemporaryStorage, offline.stash, offline.protectedOverflow,
+        rift.altarUnique, rift.altarRare, presets, listings].flat().filter(item => item && typeof item === 'object');
+}
+/** The kept side left in a waiting 성화 pick's saved results (they put their fields back on the item when picked). */
+function stripCraftChoiceAffixKeep(merged) {
+    ((merged.craftChoice || {}).options || []).forEach(fields => { if (fields && typeof fields === 'object') delete fields.affixKeep; });
+}
+function refundRemovedAffixKeep(merged) {
+    const refunded = new Set();
+    for (const item of savedItemsOf(merged)) {
+        if (!Object.hasOwn(item, 'affixKeep')) continue;
+        if (item.affixKeep === 'prefix' || item.affixKeep === 'suffix') refunded.add(String(item.id));
+        delete item.affixKeep;
+    }
+    stripCraftChoiceAffixKeep(merged);
+    if (!refunded.size || !merged.currencies || typeof merged.currencies !== 'object') return;
+    merged.currencies.goldenRule = Math.max(0, Math.floor(Number(merged.currencies.goldenRule) || 0)) + REMOVED_AFFIX_KEEP_REFUND * refunded.size;
+}
+
 function stripRemovedFlasks(merged) {
     delete merged.flasks;
     [[merged.settings && merged.settings.notiFilters, 'flask'], [merged.noti, 'flask']]

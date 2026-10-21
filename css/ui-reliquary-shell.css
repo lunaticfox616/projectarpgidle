@@ -2237,7 +2237,6 @@ body .hero-choice {
 :root body :where(
   .market-shell,
   .market-locked,
-  .market-service-card,
   .offline-progress-panel,
   .offline-stash-item
 ) {

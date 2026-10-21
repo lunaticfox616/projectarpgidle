@@ -98,15 +98,6 @@
 .shop-stand.is-empty .shop-stand-tag { color: #7d8996; }
 .stall-terms-box { margin-top: 10px; padding-top: 6px; border-top: 1px solid var(--skin-line); }
 
-/* 특수 서비스(js/market-ui.js renderServices): 고른 장비의 카드와 서비스 셋, 오른쪽에 장착한 장비 한 줄과 가방. */
-.shop-view.is-services > .shop-shelf { width: calc(var(--cell) * 10 + 2px); }
-.market-service-target { max-height: 220px; padding: 10px 12px; overflow: auto; border: 1px solid var(--skin-line); background: rgba(0, 0, 0, .24); }
-.shop-view.is-services .market-service-card { margin-top: 10px; }
-.market-service-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-.shop-worn { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin: 0 0 8px; }
-.shop-worn > span { margin-right: 4px; color: var(--color-text-secondary); font-size: 12px; }
-.shop-worn > .shop-bag-item { width: var(--cell); height: var(--cell); }
-
 /* 휴대폰: 진열대, 가방, 물건 정보가 위에서 아래로 이어지고 칸은 화면 폭에 맞춘다. 진열대 바로 아래에 가방을 두어
    끌어 놓기가 한 화면에 들어오고, 물건 정보는 맨 아래로 간다. */
 @media (max-width: 720px) {

@@ -670,7 +670,6 @@ function applyFossilChaosCraft(fossilKey) {
 
     item.stats = newStats;
     item.rarity = 'rare';
-    delete item.affixKeep;
     if (typeof rerollChaosInfusionForItem === 'function') rerollChaosInfusionForItem(item, previousChaosInfusion);
     game.currencies[fossilKey]--;
     updateItemName(item);

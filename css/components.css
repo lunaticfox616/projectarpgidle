@@ -370,12 +370,6 @@
 .market-exchange-quote p{font-size:12px;color:var(--color-text-secondary);line-height:1.7;margin:0}
 .market-shell .market-confirm{min-height:44px;margin:0;border-color:var(--color-accent-gold);color:var(--color-accent-gold);font-size:14px}
 .market-meta{margin:0 0 12px;color:var(--color-text-secondary);font-size:12px;line-height:1.6}
-.market-service-card{display:grid;gap:14px;min-width:0;padding:16px;border:1px solid var(--color-line);border-radius:8px;background:var(--color-surface-raised)}
-.market-service-top{display:flex;justify-content:space-between;align-items:start;gap:8px}
-.market-service-top h3{font-size:14px;margin:0;color:var(--color-text)}
-.market-service-top span{font-size:11px;color:var(--color-accent-gold);white-space:nowrap}
-.market-service-card p{font-size:12px;line-height:1.7;color:var(--color-text-secondary);margin:0}
-.market-service-card button{min-height:40px;margin:0;font-size:13px}
 #market-panel-black{container-type:inline-size}
 @media(max-width:720px){
   .market-exchange-workspace{grid-template-columns:1fr;gap:14px}
@@ -759,6 +753,10 @@
 .passive-planner-share input { flex: 1 1 260px; min-width: 180px; }
 
 .passive-tree-toolbar { display: contents; }
+/* 스킬트리 머리의 초기화 단추(js/ui.js syncPassiveTreeHeader): 포인트 옆, 황금률 그림과 값 1. */
+.passive-tree-reset { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; margin: 0 0 0 14px; padding: 0 10px; font-size: 15px; vertical-align: middle; }
+.passive-tree-reset img { width: 20px; height: 20px; image-rendering: pixelated; }
+.passive-tree-reset b { font: inherit; color: var(--color-accent-gold); }
 
 .passive-preset-drawer,
 .passive-search-drawer {

@@ -185,7 +185,7 @@
      (누르면 설명 — 글줄 20px이라 판이 없는 위아래 여백으로 칸을 44px로 키우고, 같은 만큼 음수 여백으로 줄 간격은 그대로) */
   :root body[data-ui-skin] .gem-library-pager button { min-height: 44px; }
   :root body[data-ui-skin] #tab-map .map-power-estimate { position: relative; padding-block: 12px; margin-block: -12px; }
-  /* 거래소 서비스 탭 넷은 한 줄로: '특수 서비스' · '나의 가판대'만 두 줄로 꺾여 높이가 들쭉날쭉했다 */
+  /* 거래소 탭 셋은 한 줄로: '나의 가판대'가 두 줄로 꺾여 높이가 들쭉날쭉했다 */
   :root body[data-ui-skin] .market-tabs button { padding-inline: 2px; font-size: 12px; white-space: nowrap; }
   :root body[data-ui-skin] .mobile-menu-group-title { border-top: 1px solid var(--px-bronze-lo); color: var(--px-gold); font-size: 12px; text-shadow: var(--px-text-edge); }
 
