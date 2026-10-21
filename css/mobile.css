@@ -299,7 +299,7 @@
   .gem-support-process-list { grid-template-columns: minmax(0, 1fr); }
   .gem-resource-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .gem-target-list { grid-template-columns: minmax(0, 1fr); }
-  #tree-container {/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */ width: 100% !important; /* Fills the tab down to the bottom navigation: 240px = phone header, subtab strip, title and bottom tabs. */ min-height: calc(100svh - 240px - env(safe-area-inset-bottom, 0px)) !important; }
+  #tree-container {/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */ width: 100% !important; /* Fills the tab down to the bottom navigation: 285px = phone header, window tabs, title row and the menu band (240px left the last zoom button under the menu). */ min-height: calc(100svh - 285px - env(safe-area-inset-bottom, 0px)) !important; }
   .craft-picker-grid .craft-picker-card .item-title { font-size: 14px; }
   .craft-picker-card .craft-picker-stat { font-size: 13px; white-space: normal; }
   .craft-picker-grid .craft-picker-card .item-base-line { font-size: 12px; }

@@ -1576,7 +1576,7 @@ html, body { overflow: hidden; }
             body.has-bottom-tabs .tab-content:not(#tab-social):not(#tab-battle):not(#tab-char) { padding-bottom: calc(24px + var(--bottom-tab-height, 52px) + env(safe-area-inset-bottom)); }
             #tab-char > div { height: auto; }
             #tree-container {
-                        /* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */ min-height: clamp(360px, 62vh, 520px) !important; }
+                        /* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. Fills down to the bottom menu (285px = header, window tabs, title row and menu band; tablets stopped at 520px, 223px short). */ min-height: max(360px, calc(100svh - 285px - env(safe-area-inset-bottom, 0px))) !important; }
             .responsive-split-grid,
             #ui-class-grid {
                         /* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */ grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
