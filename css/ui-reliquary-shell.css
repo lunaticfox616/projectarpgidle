@@ -833,9 +833,10 @@ body #death-overlay .deathlog-bar { background: var(--color-control); border-col
     box-shadow: inset 2px 0 #6c5231;
   }
 
-  body.desktop-windowed-ui .ui-community-dock .social-item-link {
-    border-radius: 2px;
-    background: rgba(8, 9, 8, .72);
+  /* 채팅 속 아이템은 등급 색의 [이름] 글이다(js/social.js renderChatItemLink): 바탕을 깔지 않는다. 입력 줄은 들고 온 장비를 놓을 수 있을 때 빛난다. */
+  body.desktop-windowed-ui .social-chat-inputbar.is-item-drop {
+    box-shadow: 0 0 0 1px #e3bd72, 0 0 10px rgba(227, 189, 114, .45);
+    background: rgba(227, 189, 114, .08);
   }
 
   body.desktop-windowed-ui .ui-community-dock .social-notice {

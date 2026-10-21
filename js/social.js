@@ -1172,8 +1172,8 @@ async function sendChatMessage() {
     let inputEl = document.getElementById('social-chat-input');
     if (!inputEl) return;
     let draft = inputEl.value;
-    let body = draft.trim();
-    let items = socialState.pendingChatItems.slice(0, SOCIAL_MAX_ITEMS_PER_MSG);
+    let pending = socialState.pendingChatItems.slice(0, SOCIAL_MAX_ITEMS_PER_MSG);
+    let { body, items } = toChatBody(draft.trim(), pending);
     if (!body && !items.length) return;
     if (body.length > SOCIAL_MSG_MAX) { showGameToast(`메시지는 최대 ${SOCIAL_MSG_MAX}자까지 입력할 수 있습니다.`, 'warning'); return; }
     if (body && body === socialState.lastSentBody && !items.length) { showGameToast('같은 메시지를 연속으로 보낼 수 없습니다.', 'warning'); return; }
@@ -1195,7 +1195,7 @@ async function sendChatMessage() {
             return true;
         });
         if (!sent || socialLoggedInUserId() !== senderId) return;
-        clearSubmittedChatDraft(inputEl, draft, items);
+        clearSubmittedChatDraft(inputEl, draft, pending);
         socialState.sendTimestamps.push(Date.now());
         socialState.lastSentBody = body;
         await refreshChatPanel(true);
@@ -1217,26 +1217,56 @@ function getChatAttachSnapshot(source, key) {
     if (source === 'talisman') return buildTalismanSnapshot(state.stumpBox ? stumpBox.itemById(state, Number(key)) : null);
     return null;
 }
-function attachChatItem(source, idx) {
-    let snap = getChatAttachSnapshot(source, idx);
-    if (!snap) return;
+/** 입력 칸에서 첨부 아이템이 보이는 글: [이름](2026-10-22 사용자 "창과 채팅에 나오는 표기 개선": 예전에는 ⟦0⟧이 보였다). */
+function chatItemLabel(snap) {
+    return `[${String(snap && snap.name || '아이템')}]`;
+}
+/** 입력 칸의 글을 보낼 글과 아이템으로 바꾼다: 첨부한 차례대로 그 [이름]을 ⟦번호⟧로 바꾸고(채팅 줄의 형식은 그대로다, renderChatBody),
+ * 글에서 지운 첨부는 뺀다. */
+function toChatBody(text, pending) {
+    let body = String(text || ''), items = [];
+    pending.forEach(snap => {
+        let label = chatItemLabel(snap), at = body.indexOf(label);
+        if (at < 0) return;
+        body = body.slice(0, at) + `⟦${items.length}⟧` + body.slice(at + label.length);
+        items.push(snap);
+    });
+    return { body, items };
+}
+/** 글을 쓰던 자리에 [이름]을 넣는다(칸을 누른 적이 없으면 끝에). */
+function insertChatItemLabel(inputEl, label) {
+    let value = String(inputEl.value || ''), start = inputEl.selectionStart ?? value.length, end = inputEl.selectionEnd ?? start;
+    let before = value.slice(0, start), gap = before && !/\s$/.test(before) ? ' ' : '';
+    inputEl.value = `${before}${gap}${label} ${value.slice(end)}`;
+    let caret = before.length + gap.length + label.length + 1;
+    inputEl.focus();
+    inputEl.setSelectionRange(caret, caret);
+}
+function attachChatSnapshot(snap) {
     if (socialState.pendingChatItems.length >= SOCIAL_MAX_ITEMS_PER_MSG) { showGameToast(`메시지당 최대 ${SOCIAL_MAX_ITEMS_PER_MSG}개의 아이템만 첨부할 수 있습니다.`, 'warning'); return; }
-    let tokenIndex = socialState.pendingChatItems.length;
     socialState.pendingChatItems.push(snap);
     let inputEl = document.getElementById('social-chat-input');
-    if (inputEl) { inputEl.value = (inputEl.value || '') + `⟦${tokenIndex}⟧`; inputEl.focus(); }
+    if (inputEl) insertChatItemLabel(inputEl, chatItemLabel(snap));
     renderPendingChatItems();
     updateChatCounter();
     closeItemPicker();
 }
+function attachChatItem(source, idx) {
+    let snap = getChatAttachSnapshot(source, idx);
+    if (snap) attachChatSnapshot(snap);
+}
+/** 들고 있던 장비를 채팅 입력 줄에 놓았다(js/equipment-inventory-grid-ui.js, 2026-10-22 사용자 "아이템을 직접 채팅창에 끌어다가 놓아도
+ * 가능하게"). 주얼은 주얼 카드로 붙는다. 코어와 액막이는 채팅 카드가 아직 그리지 못해 붙이지 않는다. */
+function attachChatItemOf(item, slot) {
+    if (!getMyNickname()) return showGameToast('닉네임을 정하면 아이템을 채팅에 붙일 수 있습니다.', 'warning');
+    let snap = !item ? null : bagItems.isJewel(item) ? buildJewelSnapshot(item) : bagItems.isSpecial(item) ? null : buildItemSnapshot(item, slot);
+    if (!snap) return showGameToast('이 아이템은 채팅에 붙일 수 없습니다.', 'warning');
+    attachChatSnapshot(snap);
+}
 function removePendingChatItem(idx) {
-    socialState.pendingChatItems.splice(idx, 1);
+    let [snap] = socialState.pendingChatItems.splice(idx, 1);
     let inputEl = document.getElementById('social-chat-input');
-    if (inputEl) {
-        let base = String(inputEl.value || '').replace(SOCIAL_ITEM_TOKEN_RE, '').trim();
-        let tokens = socialState.pendingChatItems.map((_, i) => `⟦${i}⟧`).join('');
-        inputEl.value = (base + (base && tokens ? ' ' : '') + tokens);
-    }
+    if (inputEl && snap) inputEl.value = String(inputEl.value || '').replace(chatItemLabel(snap), '').replace(/ {2,}/g, ' ').trim();
     renderPendingChatItems();
     updateChatCounter();
 }
@@ -1247,14 +1277,14 @@ function renderPendingChatItems() {
     host.style.display = 'flex';
     host.innerHTML = socialState.pendingChatItems.map((it, i) => {
         let color = socialRarityColor(it.rarity);
-        return `<span class="social-pending-chip" style="border-color:${color};color:${color};">⟦${i}⟧ ${socialEscape(it.name)}<button onclick="removePendingChatItem(${i})" title="첨부 취소">✕</button></span>`;
+        return `<span class="social-pending-chip" style="border-color:${color};color:${color};">${socialEscape(chatItemLabel(it))}<button onclick="removePendingChatItem(${i})" title="첨부 취소">✕</button></span>`;
     }).join('');
 }
 function updateChatCounter() {
     let inputEl = document.getElementById('social-chat-input');
     let counterEl = document.getElementById('social-chat-counter');
     if (!inputEl || !counterEl) return;
-    let len = String(inputEl.value || '').length;
+    let len = toChatBody(inputEl.value, socialState.pendingChatItems).body.length; // 보낼 글의 길이([이름]은 ⟦번호⟧로 줄어든다)
     counterEl.textContent = `${len}/${SOCIAL_MSG_MAX}`;
     counterEl.style.color = len > SOCIAL_MSG_MAX ? '#e88' : 'var(--copy-muted)';
 }
@@ -1331,9 +1361,9 @@ function renderChatItemLink(key, snap) {
     } catch (error) {
         console.warn('채팅 아이템 카드를 그리지 못했습니다:', error);
     }
-    if (!card) return `<span class="social-item-link">◇ ${name}</span>`;
+    if (!card) return `<span class="social-item-link">[${name}]</span>`;
     socialState.chatTips[key] = card;
-    return `<span class="social-item-link" style="border-color:${color};color:${color};" onmouseenter="showSocialTip(event,'chat','${socialEscape(key)}')" onmousemove="moveSocialTip(event)" onmouseleave="hideSocialTip()" onclick="openTipModal('chat','${socialEscape(key)}')">◇ ${name}</span>`;
+    return `<span class="social-item-link" style="border-color:${color};color:${color};" onmouseenter="showSocialTip(event,'chat','${socialEscape(key)}')" onmousemove="moveSocialTip(event)" onmouseleave="hideSocialTip()" onclick="openTipModal('chat','${socialEscape(key)}')">[${name}]</span>`;
 }
 function formatChatTime(iso) {
     let d = new Date(iso);
@@ -2297,8 +2327,8 @@ function injectSocialStyles() {
     .social-pending-items{display:flex;flex-wrap:wrap;gap:6px;}
     .social-pending-chip{display:inline-flex;align-items:center;gap:4px;font-size:12px;background:#0f1a28;border:1px solid;border-radius:14px;padding:2px 6px 2px 9px;}
     .social-pending-chip button{background:none;border:none;color:inherit;cursor:pointer;padding:0 2px;font-size:12px;}
-    .social-item-link{display:inline-block;font-size:12px;font-weight:700;border:1px solid;border-radius:6px;padding:0 6px;margin:0 1px;cursor:pointer;}
-    .social-item-link:hover{filter:brightness(1.2);}
+    .social-item-link{display:inline;font-size:12px;font-weight:700;border:0;padding:0;margin:0 1px;background:none;cursor:pointer;}
+    .social-item-link:hover{text-decoration:underline;text-underline-offset:2px;}
     .social-modal-overlay{position:fixed;inset:0;background:rgba(4,8,14,0.78);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;}
     .social-modal-box{position:relative;width:min(760px,calc(96vw / var(--scale-display-factor, 1)));max-height:calc(90vh / var(--scale-display-factor, 1));display:flex;flex-direction:column;overflow:hidden;background:var(--color-surface);border:1px solid var(--color-line-strong);border-radius:var(--radius-lg);color:var(--color-text);}
     .social-modal-content{flex:1 1 auto;overflow-y:auto;padding:20px;min-height:0;overscroll-behavior:contain;}

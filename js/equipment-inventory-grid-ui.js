@@ -272,6 +272,30 @@
         return pointed && pointed.closest ? pointed.closest('#ui-equip-list .equipment-slot') : null;
     }
 
+    /** 들고 있는 장비 아래의 채팅 입력 줄(js/social.js): 거기에 놓으면 그 장비를 채팅에 붙인다(2026-10-22 사용자 "아이템을 직접 채팅창에
+     * 끌어다가 놓아도 가능하게"). 위에 있는 동안 입력 줄이 빛난다. */
+    function chatDropZoneAt(event) {
+        if (!carryState || !Number.isFinite(event.clientX) || typeof document.elementsFromPoint !== 'function') return null;
+        // 들고 있는 그림과 놓을 자리 표시 밑의 맨 위 요소만 본다: 창 뒤에 가려진 채팅 줄 위에서 놓으면 가방 안에서 옮기는 것이다
+        let top = document.elementsFromPoint(event.clientX, event.clientY)
+            .find(node => !(node.closest && node.closest('.equipment-grid-cursor-item,.equipment-grid-drop-preview')));
+        return (top && top.closest && top.closest('.social-chat-inputbar')) || null;
+    }
+    function markChatDropZone(event) {
+        let zone = chatDropZoneAt(event);
+        document.querySelectorAll('.social-chat-inputbar.is-item-drop').forEach(node => { if (node !== zone) node.classList.remove('is-item-drop'); });
+        if (zone) zone.classList.add('is-item-drop');
+        return zone;
+    }
+    function dropOnChat(event) {
+        if (!chatDropZoneAt(event) || typeof attachChatItemOf !== 'function') return false;
+        suppressClickUntil = Date.now() + 350;
+        event.preventDefault();
+        attachChatItemOf(carryState.entry.item, carryState.sourceSlot);
+        cancelCarry();
+        return true;
+    }
+
     function updateEquipmentDropTarget(event) {
         clearEquipmentDropTarget();
         if (!carryState || carryState.mode !== 'inventory') return null;
@@ -348,6 +372,7 @@
 
     function clearInteractionArtifacts() {
         document.querySelectorAll('.equipment-grid-cursor-item,.equipment-grid-drop-preview').forEach(element => element.remove());
+        document.querySelectorAll('.social-chat-inputbar.is-item-drop').forEach(element => element.classList.remove('is-item-drop'));
         document.querySelectorAll('.equipment-grid-item.is-carried,.equipment-grid-item.is-dragging,.equipment-slot.is-carried').forEach(element => {
             element.classList.remove('is-carried', 'is-dragging');
         });
@@ -419,6 +444,7 @@
         setGhostTone(result);
         let equipmentTarget = updateEquipmentDropTarget(event);
         if (equipmentTarget) setGhostTone({ ok: equipmentTarget.valid });
+        if (markChatDropZone(event)) setGhostTone({ ok: true });
         if (carryState.previewKey !== previewKey) paintDropPreview(carryState.grid, localPlacement, localizeMoveResult(result));
         carryState.previewKey = previewKey;
     }
@@ -670,6 +696,7 @@
         if (carryFrame) cancelAnimationFrame(carryFrame);
         carryFrame = 0;
         pendingPointer = null;
+        if (dropOnChat(event)) return;
         let equipmentTarget = updateEquipmentDropTarget(event);
         if (equipmentTarget) {
             suppressClickUntil = Date.now() + 350;
