@@ -617,7 +617,7 @@
       "y": -300,
       "type": "keystone",
       "name": "금단의 만상",
-      "desc": "모든 명중 피해가 피해 유형과 관계없이 점화, 냉각, 감전, 중독 및 출혈을 유발할 수 있습니다.\n이 방식으로 유발한 상태 이상의 피해와 위력이 50% 감폭됩니다.\n총 방어도·회피·에너지 보호막이 60% 감폭됩니다.\n막기 및 비껴내기의 최대 확률이 25%가 됩니다.",
+      "desc": "모든 명중 피해가 피해 유형과 관계없이 점화, 냉각, 감전, 중독 및 출혈을 유발할 수 있습니다.\n이 방식으로 유발한 상태 이상의 피해와 위력이 50% 감폭됩니다.\n총 방어도/회피/에너지 보호막이 60% 감폭됩니다.\n막기 및 비껴내기의 최대 확률이 25%가 됩니다.",
       "mods": [],
       "statAutoName": false,
       "keystoneTemplateId": "mystique_forbidden_manifestation",
@@ -632,7 +632,7 @@
       "y": -150,
       "type": "keystone",
       "name": "타락한 복음",
-      "desc": "보유한 모든 계시가 광신으로 대체됩니다.\n계시의 효과를 받을 수 없습니다.\n같은 주력 스킬을 계속 사용하면 광신 수치까지 열광을 획득합니다.\n열광 1당 피해가 1.5% 증가하고 스킬 속도가 0.5% 증가하며, 총 방어도·회피·에너지 보호막이 0.75% 감폭됩니다.",
+      "desc": "보유한 모든 계시가 광신으로 대체됩니다.\n계시의 효과를 받을 수 없습니다.\n같은 주력 스킬을 계속 사용하면 광신 수치까지 열광을 획득합니다.\n열광 1당 피해가 1.5% 증가하고 스킬 속도가 0.5% 증가하며, 총 방어도/회피/에너지 보호막이 0.75% 감폭됩니다.",
       "mods": [],
       "statAutoName": false,
       "keystoneTemplateId": "devotion_corrupted_gospel",
@@ -692,7 +692,7 @@
       "y": -150,
       "type": "keystone",
       "name": "사중합일",
-      "desc": "힘, 민첩, 지능 및 신비가 정확히 동일하고 각각 20 이상이면 전지 상태가 됩니다.\n전지 상태에서 기본 피해의 능력치 1당 0.5%를 추가 고정 피해로 가합니다. 이 효과는 최대 25%입니다.\n전지 상태에서 능력치에 비례한 전지 방벽을 얻습니다.\n전지의 고정 피해는 치명타, 피해 증가·배율, 속성 전환, 상태 이상 및 생명력 흡수의 영향을 받지 않습니다.",
+      "desc": "힘, 민첩, 지능 및 신비가 정확히 동일하고 각각 20 이상이면 전지 상태가 됩니다.\n전지 상태에서 기본 피해의 능력치 1당 0.5%를 추가 고정 피해로 가합니다. 이 효과는 최대 25%입니다.\n전지 상태에서 능력치에 비례한 전지 방벽을 얻습니다.\n전지의 고정 피해는 치명타, 피해 증가/배율, 속성 전환, 상태 이상 및 생명력 흡수의 영향을 받지 않습니다.",
       "mods": [],
       "statAutoName": false,
       "keystoneTemplateId": "mystique_fourfold_unity",
@@ -5214,7 +5214,7 @@
       "y": 1460,
       "type": "major",
       "name": "맹렬한 주문",
-      "desc": "주문 피해 +50%\n스킬 속도 -5%\n보조 스킬 젬 한도 +1",
+      "desc": "주문 피해 +50%\n스킬 속도 -5%\n보조스킬룬 한도 +1",
       "mods": [
         {
           "statId": "spellPctDmg",
@@ -5929,7 +5929,7 @@
       "y": 1650,
       "type": "major",
       "name": "파쇄하는 왜곡",
-      "desc": "카오스 피해 +10%\n중독 확률 +8%p\n카오스 스킬 젬 레벨 +1",
+      "desc": "카오스 피해 +10%\n중독 확률 +8%p\n카오스 스킬룬 레벨 +1",
       "mods": [
         {
           "statId": "chaosPctDmg",
@@ -6161,7 +6161,7 @@
       "y": 1630,
       "type": "major",
       "name": "맹렬한 칼끝",
-      "desc": "근접 피해 +30%\n근접 스킬 젬 레벨 +1",
+      "desc": "근접 피해 +30%\n근접 스킬룬 레벨 +1",
       "mods": [
         {
           "statId": "meleePctDmg",
@@ -14832,12 +14832,12 @@
       "x": -1425.621778264911,
       "y": 1199.019237886467,
       "type": "assist",
-      "name": "이동 속도",
-      "desc": "이동 속도 +2%",
+      "name": "재사용 대기시간 회복 속도",
+      "desc": "재사용 대기시간 회복 속도 +3%",
       "mods": [
         {
-          "statId": "move",
-          "value": 2
+          "statId": "cooldownRecovery",
+          "value": 3
         }
       ],
       "statAutoName": true,
@@ -14845,8 +14845,8 @@
       "optionProfile": "topology:corridor:dexterity:move",
       "runtimeEffects": [
         {
-          "statId": "move",
-          "value": 2
+          "statId": "cooldownRecovery",
+          "value": 3
         }
       ],
       "optionClusterId": "anchor:nfy49tagsuw",
@@ -25176,7 +25176,7 @@
       "y": -1800,
       "type": "major",
       "name": "농축된 발놀림",
-      "desc": "이동 속도 +8%\n회피 +20%",
+      "desc": "이동 속도 +8%\n회피 +20%\n이동 스킬 재사용 대기시간 회복 속도 +6%",
       "mods": [
         {
           "statId": "move",
@@ -25185,6 +25185,10 @@
         {
           "statId": "evasionPct",
           "value": 20
+        },
+        {
+          "statId": "mobilityCooldownRecovery",
+          "value": 6
         }
       ],
       "statAutoName": false,
@@ -25198,6 +25202,10 @@
         {
           "statId": "evasionPct",
           "value": 20
+        },
+        {
+          "statId": "mobilityCooldownRecovery",
+          "value": 6
         }
       ],
       "optionClusterId": "bundle:n35cb78278z",
@@ -25550,12 +25558,12 @@
       "x": -1058.23,
       "y": -1264.41,
       "type": "assist",
-      "name": "이동 속도",
-      "desc": "이동 속도 +2%",
+      "name": "재사용 대기시간 회복 속도",
+      "desc": "재사용 대기시간 회복 속도 +3%",
       "mods": [
         {
-          "statId": "move",
-          "value": 2
+          "statId": "cooldownRecovery",
+          "value": 3
         }
       ],
       "statAutoName": true,
@@ -25563,8 +25571,8 @@
       "optionProfile": "topology:corridor:dexterity:move",
       "runtimeEffects": [
         {
-          "statId": "move",
-          "value": 2
+          "statId": "cooldownRecovery",
+          "value": 3
         }
       ],
       "optionClusterId": "anchor:n0syjlnechx",
@@ -26177,7 +26185,7 @@
       "y": 227.23760858053777,
       "type": "major",
       "name": "날렵한 발놀림",
-      "desc": "피해 +25%\n이동 속도 +8%",
+      "desc": "피해 +25%\n이동 속도 +8%\n이동 스킬 재사용 대기시간 회복 속도 +6%",
       "mods": [
         {
           "statId": "pctDmg",
@@ -26186,6 +26194,10 @@
         {
           "statId": "move",
           "value": 8
+        },
+        {
+          "statId": "mobilityCooldownRecovery",
+          "value": 6
         }
       ],
       "statAutoName": false,
@@ -26199,6 +26211,10 @@
         {
           "statId": "move",
           "value": 8
+        },
+        {
+          "statId": "mobilityCooldownRecovery",
+          "value": 6
         }
       ],
       "optionClusterId": "anchor:n02xuvik1ha",
@@ -29530,7 +29546,7 @@
       "y": -1400,
       "type": "major",
       "name": "상위 냉기술",
-      "desc": "냉기 피해 +30%\n냉기 스킬 젬 레벨 +1",
+      "desc": "냉기 피해 +30%\n냉기 스킬룬 레벨 +1",
       "mods": [
         {
           "statId": "coldPctDmg",
@@ -32069,7 +32085,7 @@
       "y": -1476.0769515458676,
       "type": "major",
       "name": "관통 쇠뇌",
-      "desc": "투사체 피해 +30%\n투사체 스킬 젬 레벨 +1",
+      "desc": "투사체 피해 +30%\n투사체 스킬룬 레벨 +1",
       "mods": [
         {
           "statId": "projectilePctDmg",
@@ -32838,7 +32854,7 @@
       "y": -488.43266739736634,
       "type": "major",
       "name": "봉인된 주문핵",
-      "desc": "주문 피해 +15%\n신비 -1\n스킬 젬 레벨 +1",
+      "desc": "주문 피해 +15%\n신비 -1\n스킬룬 레벨 +1",
       "mods": [
         {
           "statId": "spellPctDmg",
@@ -38188,7 +38204,7 @@
       "y": -560,
       "type": "major",
       "name": "봉인된 대주문진",
-      "desc": "범위 피해 +30%\n범위 스킬 젬 레벨 +1",
+      "desc": "범위 피해 +30%\n범위 스킬룬 레벨 +1",
       "mods": [
         {
           "statId": "aoePctDmg",
@@ -42133,7 +42149,7 @@
       "y": -770,
       "type": "major",
       "name": "원소의 극점",
-      "desc": "원소 피해 +30%\n원소 스킬 젬 레벨 +1",
+      "desc": "원소 피해 +30%\n원소 스킬룬 레벨 +1",
       "mods": [
         {
           "statId": "elementalPctDmg",
@@ -45238,7 +45254,7 @@
       "y": -2030.9116882454314,
       "type": "major",
       "name": "변성의 술식",
-      "desc": "주문 피해 +10%\n모든 스킬 젬 레벨 +1",
+      "desc": "주문 피해 +10%\n모든 스킬룬 레벨 +1",
       "mods": [
         {
           "statId": "spellPctDmg",
@@ -45497,7 +45513,7 @@
       "y": -2041.1282905745636,
       "type": "major",
       "name": "부식의 정점",
-      "desc": "지속 피해 배율 +30%\n지속 스킬 젬 레벨 +1",
+      "desc": "지속 피해 배율 +30%\n지속 스킬룬 레벨 +1",
       "mods": [
         {
           "statId": "dotPctDmg",
@@ -47624,12 +47640,12 @@
       "x": -1454.9999999999998,
       "y": -134.43375672974105,
       "type": "assist",
-      "name": "이동 속도",
-      "desc": "이동 속도 +2%",
+      "name": "재사용 대기시간 회복 속도",
+      "desc": "재사용 대기시간 회복 속도 +3%",
       "mods": [
         {
-          "statId": "move",
-          "value": 2
+          "statId": "cooldownRecovery",
+          "value": 3
         }
       ],
       "statAutoName": true,
@@ -47637,8 +47653,8 @@
       "optionProfile": "topology:corridor:dexterity:move",
       "runtimeEffects": [
         {
-          "statId": "move",
-          "value": 2
+          "statId": "cooldownRecovery",
+          "value": 3
         }
       ],
       "optionClusterId": "bundle:n03bj7kq5iu",
@@ -48127,7 +48143,7 @@
       "y": 380,
       "type": "major",
       "name": "굳건한 주문핵",
-      "desc": "주문 피해 +12%\n스킬 젬 레벨 +1",
+      "desc": "주문 피해 +12%\n스킬룬 레벨 +1",
       "mods": [
         {
           "statId": "spellPctDmg",
@@ -48243,7 +48259,7 @@
       "y": 480,
       "type": "major",
       "name": "전장의 파문",
-      "desc": "강타 피해 +30%\n강타 스킬 젬 레벨 +1",
+      "desc": "강타 피해 +30%\n강타 스킬룬 레벨 +1",
       "mods": [
         {
           "statId": "slamPctDmg",
@@ -50809,7 +50825,7 @@
       "y": -1840,
       "type": "major",
       "name": "상위 화염술",
-      "desc": "화염 피해 +30%\n화염 스킬 젬 레벨 +1",
+      "desc": "화염 피해 +30%\n화염 스킬룬 레벨 +1",
       "mods": [
         {
           "statId": "firePctDmg",
@@ -52450,8 +52466,8 @@
       "x": 1780.33,
       "y": -1313.54,
       "type": "major",
-      "name": "젬 공명",
-      "desc": "피해 +10%\n보조 스킬 젬 한도 +1",
+      "name": "룬 공명",
+      "desc": "피해 +10%\n보조스킬룬 한도 +1",
       "mods": [
         {
           "statId": "pctDmg",
@@ -52493,7 +52509,7 @@
       "y": -1410.49,
       "type": "major",
       "name": "상위 주문 각인",
-      "desc": "주문 스킬 젬 레벨 +1\n주문 내장 피해 +10",
+      "desc": "주문 스킬룬 레벨 +1\n주문 내장 피해 +10",
       "mods": [
         {
           "statId": "spellGemLevel",
@@ -53763,7 +53779,7 @@
       "y": 1460,
       "type": "major",
       "name": "성스러운 지휘",
-      "desc": "소환수 효율 +20%\n소환수 공격 스킬 젬 레벨 +1",
+      "desc": "소환수 효율 +20%\n소환수 공격 스킬룬 레벨 +1",
       "mods": [
         {
           "statId": "summonEfficiency",
@@ -56476,7 +56492,7 @@
       "x": -97.73,
       "y": -2385.57,
       "type": "normal",
-      "name": "룬 지뢰 집중",
+      "name": "번개 각인 집중",
       "desc": "지뢰 피해 +13%\n범위 피해 +5%",
       "mods": [
         {
@@ -57027,7 +57043,7 @@
       "y": -2132.63,
       "type": "major",
       "name": "상위 번개술",
-      "desc": "번개 피해 +30%\n번개 스킬 젬 레벨 +1",
+      "desc": "번개 피해 +30%\n번개 스킬룬 레벨 +1",
       "mods": [
         {
           "statId": "lightPctDmg",

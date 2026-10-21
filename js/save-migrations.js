@@ -319,12 +319,17 @@ function normalizeSkillSlotsSave(merged) {
         merged.activeSkill = '기본 공격';
     }
     const worn = name => mobilitySkill.isMobilityGem(name) && merged.skills.includes(name);
-    if (mobilitySkill.isMobilityGem(merged.activeSkill)) {
-        if (!worn(merged.mobilitySkill)) merged.mobilitySkill = merged.activeSkill;
-        merged.activeSkill = '기본 공격';
-    }
+    moveAttackSlotMobilityGem(merged, worn);
     keepBlockedMobilityGem(merged, worn);
     merged.mobilitySkill = worn(merged.mobilitySkill) ? merged.mobilitySkill : '';
+}
+
+/** A mobility gem in the main slot goes to the empty mobility slot, unless the save wears 칼이 된 발걸음 (data/items.js), which keeps
+ * it there as the attack gem. Idempotent. */
+function moveAttackSlotMobilityGem(merged, worn) {
+    if (!mobilitySkill.isMobilityGem(merged.activeSkill) || isMobilityRuneAttackWorn(merged)) return;
+    if (!worn(merged.mobilitySkill)) merged.mobilitySkill = merged.activeSkill;
+    merged.activeSkill = '기본 공격';
 }
 
 /** A main gem held back for the weapon (js/skills.js fitActiveSkillToWeapon) that is a mobility gem now (전도성 난격 of 0.3.8) goes to

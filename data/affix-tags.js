@@ -19,6 +19,7 @@ const STAT_AFFIX_TAGS = Object.freeze(Object.fromEntries(Object.entries({
     flatHp: 'life', strength: 'attribute', dexterity: 'attribute', intelligence: 'attribute', accuracy: 'attack',
     armor: 'defense', evasion: 'defense', energyShield: 'defense', armorPct: 'defense', evasionPct: 'defense', deflectChance: 'defense',
     energyShieldPct: 'defense', pctHp: 'life', aspd: 'attack speed', crit: 'crit', move: 'speed', gemLevel: 'gem',
+    cooldownRecovery: 'speed', cooldownReduction: 'speed', mobilityCooldownRecovery: 'speed', mobilityCooldownReduction: 'speed',
     physIgnore: 'physical penetration', resF: 'elemental fire resistance', resC: 'elemental cold resistance',
     resL: 'elemental light resistance', resAll: 'elemental resistance', resChaos: 'chaos resistance', resPen: 'elemental penetration',
     regen: 'life recovery', regenFlat: 'life recovery', regenSuppress: 'dot', targetAny: 'target', targetProjectile: 'projectile target',

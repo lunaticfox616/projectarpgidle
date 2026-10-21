@@ -106,7 +106,12 @@
     /** Owned gems that fit this slot, without the one in it and the sealed ones. */
     function slotCandidates() {
         if (isSupportSlot()) return game.supports.filter(name => name !== slot.name);
-        return game.skills.filter(name => name !== slot.name && skillGemBoardUi.kindOf(name) === slot.kind);
+        return game.skills.filter(name => name !== slot.name && fitsSlot(name));
+    }
+    /** 칼이 된 발걸음을 신은 동안 주 공격 칸에는 이동 룬도 들어간다(js/ui.js wearMobilityRune). */
+    function fitsSlot(name) {
+        const kind = skillGemBoardUi.kindOf(name);
+        return kind === slot.kind || (slot.kind === 'active' && kind === 'mobility' && isMobilityRuneAttackWorn(game));
     }
 
     function slotListHtml(stats) {
@@ -223,7 +228,11 @@
     function chooseSlotGem(name) {
         if (isSupportSlot()) swapSlotSupport(name);
         else if (slot.kind === 'summon') swapSlotSummon(name);
-        else changeSkill(name);
+        else {
+            // 칼이 된 발걸음: 이동 칸에 있던 룬을 공격 칸으로 고르면 이동 칸을 먼저 비운다(js/ui.js wearMobilityRune).
+            if (slot.kind === 'active' && game.mobilitySkill === name) wearMobilityGem('');
+            changeSkill(name, slot.kind);
+        }
     }
 
     /** After a change the slot shows what is really worn: the main attack always holds a gem, the others may be empty. */

@@ -77,9 +77,10 @@ const talismanCombat = (() => {
         game.enemyConditionDebuffs[target.id] = list.slice(-Math.max(1, Math.floor(pStats.curseCap || 1)));
     }
 
+    /** 저주 간격: 컨디션 교본의 간격 감소(그 줄에만, 감소 상한 90%)에 재사용 대기시간 줄(js/skills.js getSkillCooldownMs, 2026-10-21)을 더한다. */
     function hexInterval(pStats) {
-        const cdr = Math.min(0.9, Math.max(0, Number((pStats.uniqueConditionManual || {}).cdrPct) || 0) / 100);
-        return Math.floor(TALISMAN_HEX_RULES.intervalMs * (1 - cdr));
+        const manualPct = Math.max(0, Number((pStats.uniqueConditionManual || {}).cdrPct) || 0);
+        return getSkillCooldownMs(TALISMAN_HEX_RULES.intervalMs, pStats, { extraReductionPct: manualPct, reductionCapPct: 90, floorMs: 1000 });
     }
 
     /** Curse lines: each fires on its own interval at the first living target. */

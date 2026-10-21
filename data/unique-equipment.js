@@ -226,6 +226,9 @@ const UNIQUE_EQUIPMENT_RULES = Object.freeze(Object.fromEntries([
     // 등급 17~20 일반 고유(2026-10-09, data/items.js): 수평 베이스 위
     ['왕을 베는 고목','oak_maul',62,95,0,0],
     ['쫓는 자의 발자국','phantom_treads',62,0,90,0],
+    // 재사용 대기시간 세팅의 고유(2026-10-21): 그림자 걸음과 바람 목걸이 위
+    ['칼이 된 발걸음','shade_treads',50,0,75,0],
+    ['되감긴 모래시계','gale_amulet',58,0,60,0],
     ['질풍의 손목','flurry_wraps',62,0,90,0],
     ['나이테 심장','resin_amulet',62,0,0,0],
     ['약탈자의 가면','warlord_helm',65,100,0,0],

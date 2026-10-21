@@ -214,7 +214,7 @@ Object.assign(CLASS_KEYSTONE_DEFS, {
         { id: 'bd2', name: '잔상', desc: '회피 +20%', req: null, stats: [ascendancyStatLine('evasionPct', 20)] },
         { id: 'bd3', name: '비껴내기', desc: '비껴내기 확률 +8%', req: null, stats: [ascendancyStatLine('deflectChance', 8)] },
         { id: 'bd4', name: '연무', desc: '연속 타격 +8%, 치명타 확률 +3%', req: 'bd1', stats: [ascendancyStatLine('ds', 8), ascendancyStatLine('crit', 3)] },
-        { id: 'bd5', name: '바람 걸음', desc: '회피할 때마다 4초 동안 회피 +4%, 이동 속도 +2%(최대 4중첩)', req: 'bd2', uniques: [ascendancyUniqueLine('evasionDanceOnEvade', {maxStacks: 4, evasionPctPerStack: 4, movePerStack: 2, duration: 4})] },
+        { id: 'bd5', name: '바람 걸음', desc: '회피할 때마다 4초 동안 회피 +4%, 이동 속도 +2%(최대 4중첩), 이동 스킬 재사용 대기시간 회복 속도 +12%', req: 'bd2', stats: [ascendancyStatLine('mobilityCooldownRecovery', 12)], uniques: [ascendancyUniqueLine('evasionDanceOnEvade', {maxStacks: 4, evasionPctPerStack: 4, movePerStack: 2, duration: 4})] },
         { id: 'bd6', name: '흘려보내기', desc: '비껴내기 확률 +4%, 비껴내면 3초 동안 이동 속도 +15%, 회피 +15%, 치명타 피해 +15%', req: 'bd3', stats: [ascendancyStatLine('deflectChance', 4)], uniques: [ascendancyUniqueLine('deflectGrantShadowStealth', {duration: 3, move: 15, evasionPct: 15, critDmg: 15})] },
         { id: 'bd7', name: '검무', desc: '치명타 피해 +30%, 적이 하나뿐이면 참격이 되돌아와 원 피해의 20%로 한 번 더 스침(명중과 상태이상 판정은 따로)', reqAny: ['bd4', 'bd5'], stats: [ascendancyStatLine('critDmg', 30)], bloomMechanic: 'hero4__hunter' },
         { id: 'bd8', name: '칼바람', desc: '근접 피해 +70%, 연속 타격 +10%, 공격 대상 +1, 대신 최대 생명력 -10%', req: 'bd7', stats: [ascendancyStatLine('meleePctDmg', 70), ascendancyStatLine('pctHp', -10)], uniques: [ascendancyUniqueLine('dsAndTargetAnyBonus', {ds: 10, target: 1})] },
@@ -223,7 +223,7 @@ Object.assign(CLASS_KEYSTONE_DEFS, {
     stormarcher: [
         { id: 'sa1', name: '번개 화살', desc: '번개 피해 +35%, 피해의 20%를 번개 피해로 추가', req: null, stats: [ascendancyStatLine('lightPctDmg', 35), ascendancyStatLine('addedLightDamagePct', 20)] },
         { id: 'sa2', name: '질풍 시위', desc: '투사체 피해 +30%', req: null, stats: [ascendancyStatLine('projectilePctDmg', 30)] },
-        { id: 'sa3', name: '바람 발', desc: '이동 속도 +10%', req: null, stats: [ascendancyStatLine('move', 10)] },
+        { id: 'sa3', name: '바람 발', desc: '이동 속도 +10%, 이동 스킬 재사용 대기시간 감소 +6%', req: null, stats: [ascendancyStatLine('move', 10), ascendancyStatLine('mobilityCooldownReduction', 6)] },
         { id: 'sa4', name: '감전', desc: '감전 확률 +20%, 감전된 적에게 주는 피해 10% 증폭', req: 'sa1', stats: [ascendancyStatLine('shockChance', 20), ascendancyStatLine('shockedEnemyHitDamageMorePct', 10)] },
         { id: 'sa5', name: '연사', desc: '공격 속도 +6%, 세 번째 공격마다 그 스킬의 대상 +3, 피해 +33%', req: 'sa2', stats: [ascendancyStatLine('aspd', 6)], bloomMechanic: 'hero1__gladiator' },
         { id: 'sa6', name: '폭풍 걸음', desc: '회피 +10%, 적을 처치하면 6초 동안 이동 속도 +4%(최대 5중첩)', req: 'sa3', stats: [ascendancyStatLine('evasionPct', 10)], uniques: [ascendancyUniqueLine('realmKillMoveStacks', {movePerStack: 4, maxStacks: 5, duration: 6, cooldownSec: 1})] },

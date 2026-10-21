@@ -353,6 +353,9 @@ const STAT_DISPLAY_NAMES = {
         bleedChance: '출혈 확률(%)',
         aspd: '공격 속도(%)',
         move: '이동 속도(%)', sight: '시야(칸)', sightCap: '시야 상한(칸)', chestGrade: '보급 상자 등급 확률(%)',
+        // 재사용 대기시간(2026-10-21, js/skills.js getSkillCooldownMs): 이동 스킬 줄은 이동 룬에만, 나머지 둘은 대기시간이 있는 모든 스킬에.
+        cooldownRecovery: '재사용 대기시간 회복 속도(%)', cooldownReduction: '재사용 대기시간 감소(%)',
+        mobilityCooldownRecovery: '이동 스킬 재사용 대기시간 회복 속도(%)', mobilityCooldownReduction: '이동 스킬 재사용 대기시간 감소(%)',
         crit: '치명타 확률(%)',
         critDmg: '치명타 피해(%)',
         leech: '공격 피해의 생명력 흡수(%)',
@@ -467,7 +470,7 @@ function getRarityRank(rarity) {
 
 function createEmptyStatBucket() {
     return {
-        flatDmg: 0, weaponFlatDmgPct: 0, pctDmg: 0, flatHp: 0, pctHp: 0, aspd: 0, crit: 0, move: 0, sight: 0, sightCap: 0, chestGrade: 0, gemLevel: 0, elementalGemLevel: 0, fireGemLevel: 0, coldGemLevel: 0, lightGemLevel: 0, chaosGemLevel: 0, physGemLevel: 0, projectileGemLevel: 0, meleeGemLevel: 0, slamGemLevel: 0, spellGemLevel: 0, dotGemLevel: 0, aoeGemLevel: 0, suppCap: 0, runeResonancePower: 0, regenFlat: 0,
+        flatDmg: 0, weaponFlatDmgPct: 0, pctDmg: 0, flatHp: 0, pctHp: 0, aspd: 0, crit: 0, move: 0, cooldownRecovery: 0, cooldownReduction: 0, mobilityCooldownRecovery: 0, mobilityCooldownReduction: 0, cooldownReductionCapBonus: 0, sight: 0, sightCap: 0, chestGrade: 0, gemLevel: 0, elementalGemLevel: 0, fireGemLevel: 0, coldGemLevel: 0, lightGemLevel: 0, chaosGemLevel: 0, physGemLevel: 0, projectileGemLevel: 0, meleeGemLevel: 0, slamGemLevel: 0, spellGemLevel: 0, dotGemLevel: 0, aoeGemLevel: 0, suppCap: 0, runeResonancePower: 0, regenFlat: 0,
         dr: 0, physIgnore: 0, resPen: 0, resF: 0, resC: 0, resL: 0, maxResAll: 0, maxResF: 0, maxResC: 0, maxResL: 0, maxResChaos: 0, resChaos: 0, leech: 0, leechRateCap: 0, leechTotalCap: 0, leechInstanceCap: 0, leechKeepFullLife: 0, critDmg: 0, regen: 0, regenSuppress: 0, ds: 0, expGain: 0,
         minDmgRoll: 0, maxDmgRoll: 0, slamEchoChance: 0, slamEchoDamagePct: 0, doubleDamageChance: 0, blockChanceMax: 0,
         physFlatTakenReduce: 0, fireFlatTakenReduce: 0, coldFlatTakenReduce: 0, lightFlatTakenReduce: 0, chaosFlatTakenReduce: 0, allFlatTakenReduce: 0,

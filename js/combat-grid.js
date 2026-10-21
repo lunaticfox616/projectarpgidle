@@ -1447,7 +1447,17 @@ function describeSkillGridProfile(skillName, skillDef) {
     if (profile.kind === 'fan') parts.push(describeGridFanRays(profile));
     if (tags.includes('projectile')) parts.push(skillDef.projectilePatternSource ? `적용: ${skillDef.projectilePatternSource}` : '발사 방식 변경 가능');
     parts.push(...describeWiderStageAreas(skillDef, profile));
-    return getSkillGridDescriptionText(skillDef,parts);
+    return [getSkillGridDescriptionText(skillDef, parts), describeMobilityRuneCooldown(skillName, skillDef)].filter(Boolean).join(', ');
+}
+
+/** 이동 룬의 재사용 대기: '재사용 대기 4초', 줄이 줄였으면 '재사용 대기 4초 → 1.2초'(최근 전투 틱의 능력치, js/skills.js
+ * getSkillCooldownMs). 칼이 된 발걸음으로 공격 칸에 둔 룬은 대기 없이 공격 속도대로 나간다. */
+function describeMobilityRuneCooldown(skillName, skillDef) {
+    if (!(skillDef && Array.isArray(skillDef.tags) && skillDef.tags.includes('mobility'))) return '';
+    if (skillName === game.activeSkill && isMobilityRuneAttackWorn(game)) return '공격 칸: 공격 속도대로';
+    const seconds = ms => `${Math.round(ms / 100) / 10}초`;
+    const base = mobilitySkill.baseCooldownMs(skillName), now = mobilitySkill.cooldownMs(skillName, game.lastCombatStats);
+    return now < base ? `재사용 대기 ${seconds(base)} → ${seconds(now)}` : `재사용 대기 ${seconds(base)}`;
 }
 
 /** 첫 줄: 투사체는 발사 방식, 그 밖은 공격 범위의 이름(옆으로만 치는 룬은 '옆으로 곧게'). */

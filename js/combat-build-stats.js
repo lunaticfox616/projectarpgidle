@@ -171,6 +171,8 @@ const UNIQUE_EFFECT_STAT_LINES = Object.freeze({
     familyBond: (p, context) => perCountLines(context.horizontal, p.maxPieces, [['pctDmg', p.dmgPer], ['resAll', p.resPer]]),
     // 탐험 지도 시야 상한(js/act-exploration-state.js sightRadius)과 보급 상자 등급 확률(js/exploration-object-combat.js chestRules).
     sightBeyond: p => [{ id: 'sightCap', val: Number(p.cap) || 0 }],
+    // 되감긴 모래시계: 재사용 대기시간 감소 상한(js/skills.js getSkillCooldownMs, 기본 60%)을 올린다.
+    cooldownReductionCap: p => [{ id: 'cooldownReductionCapBonus', val: Number(p.pct) || 0 }],
     chestLuck: p => [{ id: 'chestGrade', val: Number(p.gradePct) || 0 }],
     // 리그 우두머리 고유: 잿불 터(타락), 수액 상처(품질), 시든 정원(목걸이 기름), 묘목장(그루터기 함).
     emberHeart: (p, context) => perCountLines(context.corrupted, p.max, [['pctDmg', p.dmgPer], ['resF', p.resPer]]),

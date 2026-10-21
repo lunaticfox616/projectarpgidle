@@ -4338,13 +4338,13 @@ function changeSummonSkillCount(name, delta) { if (!assertBuildEditable()) retur
     updateStaticUI();
 }
 
-function changeSkill(name) { if (!assertBuildEditable()) return;
+function changeSkill(name, slotKind) { if (!assertBuildEditable()) return;
     if (mobilitySkill.isMobilityGem(name) && game.mobilitySkill === name) return wearMobilityGem('');
     if (typeof canUseSkillWithCurrentEquipment === 'function' && !canUseSkillWithCurrentEquipment(name)) {
-        return addLog(`[${name}]${pickParticle(name, '은', '는')} 지금 무기로 쓸 수 없습니다: ${getSkillRuneWeaponNote(name)}.`, 'attack-monster');
+        return addLog(`[${name}]${pickParticle(name, '은', '는')} 지금 장비로 쓸 수 없습니다: ${getSkillRuneWeaponNote(name)}.`, 'attack-monster');
     }
     if ((SKILL_DB[name]?.tags || []).includes('summon_attack')) return toggleSummonAttackGem(name);
-    if (mobilitySkill.isMobilityGem(name)) return wearMobilityGem(name);
+    if (mobilitySkill.isMobilityGem(name)) return wearMobilityRune(name, slotKind);
     game.activeSkill = name;
     completeStarterGemTutorial(name);
     if (SKILL_DB[name]?.isGem) game.gemEnhanceTargetSkill = name;
@@ -4367,6 +4367,23 @@ function wearMobilityGem(name) {
     game.mobilitySkill = name;
     mobilitySkill.reset();
     if (name) { completeStarterGemTutorial(name); game.gemEnhanceTargetSkill = name; }
+    updateStaticUI();
+}
+
+/** 이동 룬은 보통 이동 칸에 간다. 칼이 된 발걸음(data/items.js)을 신으면 공격 칸으로 간다: 룬 창이 공격 칸을 골랐거나 공격 칸에 이동
+ * 룬이 아직 없을 때. 공격 칸의 이동 룬을 이동 칸으로 고르면 공격 칸은 기본 공격이 된다. 이동 칸에 있던 룬을 공격 칸으로 옮기는 일은
+ * 룬 창이 이동 칸을 먼저 비우고 부른다(js/gem-slot-dialog-ui.js chooseSlotGem). */
+function wearMobilityRune(name, slotKind) {
+    const boots = isMobilityRuneAttackWorn(game);
+    if (boots && name === game.activeSkill && slotKind !== 'mobility') return updateStaticUI();
+    const toAttack = boots && slotKind !== 'mobility' && (slotKind === 'active' || !mobilitySkill.isMobilityGem(game.activeSkill));
+    if (!toAttack) {
+        if (name === game.activeSkill) game.activeSkill = '기본 공격';
+        return wearMobilityGem(name);
+    }
+    game.activeSkill = name;
+    completeStarterGemTutorial(name);
+    game.gemEnhanceTargetSkill = name;
     updateStaticUI();
 }
 
@@ -5576,7 +5593,7 @@ const ITEM_STAT_TONE_BY_ID = Object.freeze(Object.fromEntries([
     ['#8fdcff', ['energyShield', 'energyShieldPct', 'energyShieldRegen', 'energyShieldRechargeFaster']],
     ['#ffb3b3', ['flatHp', 'pctHp', 'regen', 'regenFlat']],
     ['#ffd6f2', ['crit', 'critDmg']],
-    ['#fff3a8', ['aspd', 'move', 'sight']],
+    ['#fff3a8', ['aspd', 'move', 'sight', 'cooldownRecovery', 'cooldownReduction', 'mobilityCooldownRecovery', 'mobilityCooldownReduction']],
     ['#ffcf9f', ['flatDmg', 'pctDmg', 'physPctDmg', 'meleePctDmg', 'aoePctDmg', 'minDmgRoll', 'maxDmgRoll',
         'bossDamagePct', 'eliteDamagePct', 'firstStrikeDamagePct', 'doubleDamageChance']],
     ['#d4a8ff', ['spellFlatPct', 'spellFlatDmg']],

@@ -9804,6 +9804,9 @@ const JEWEL_OPTION_POOL = [
     { id: 'flatHp', name: '생명력 주입', min: 20, max: 45 },
     { id: 'crit', name: '치명 보석', min: 1, max: 3 },
     { id: 'aspd', name: '질주 보석', min: 3, max: 7 },
+    // 재사용 대기시간 세팅(2026-10-21): 한 개로는 작고, 여러 개를 모아야 난사에 다가간다.
+    { id: 'cooldownRecovery', name: '순환 수정', min: 2, max: 4 },
+    { id: 'mobilityCooldownRecovery', name: '바람결 파편', min: 3, max: 6 },
     { id: 'resAll', name: '수호 보석', min: 4, max: 9 },
     { id: 'resF', name: '화염 수호', min: 8, max: 18 },
     { id: 'resC', name: '냉기 수호', min: 8, max: 18 },
