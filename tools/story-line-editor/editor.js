@@ -1,5 +1,6 @@
 // 대사 편집기 화면(scripts/story-line-editor-server.js가 띄운다): 서버가 읽어 준 대사를 탭과 거르기로 보여 주고, 고친 줄만 모아
-// 한꺼번에 저장한다. 서버는 저장할 때 같은 규칙을 다시 보고, 이야기 검사가 실패하면 저장 전으로 되돌린다.
+// 한꺼번에 저장한다. 서버는 저장할 때 같은 규칙을 다시 보고, 이야기 검사가 실패하면 저장 전으로 되돌린다. 밖에서 고친 표 파일을
+// 넣으면 그 표의 바뀐 줄이 여기서 고친 줄처럼 들어오고, 확인한 뒤 저장한다.
 const BANNED = /[·・—―]/u;
 const HANGUL = /[가-힣]/u;
 const $ = selector => document.querySelector(selector);
@@ -36,19 +37,21 @@ function keywordRefusals(line) {
     const twin = state.lines.some(other => other !== line && other.kind === 'keyword' && npcOf(other) === npcOf(line) && other.draft.trim() === text);
     return twin ? ['같은 NPC에 같은 키워드가 있습니다'] : [];
 }
-/** What only needs a look: too long for one line of the band, empty, spaces at the ends. */
+/** What only needs a look: too long for one line of the band, empty, spaces at the ends, straight quotes (typed in a sheet or a
+ * text editor: the game's lines use “ ” and 「 」, and a boss line speaks only in “ ”, js/canvas-act-title-card.js queueBossLine). */
 function cautions(line) {
     const text = line.draft, warns = [];
     if (line.screen && [...text].length > state.screenMax) warns.push(`화면 대사는 ${state.screenMax}자까지 한 줄에 들어갑니다`);
     if (line.screen && !text.trim()) warns.push('빈 줄은 게임에 나오지 않습니다');
     if (text.trim() && text !== text.trim()) warns.push('앞뒤에 빈칸이 있습니다');
+    if (line.screen && text.includes('"')) warns.push('곧은 따옴표(")가 있습니다. 게임 대사는 “ ”나 「 」를 씁니다');
     return warns;
 }
 const problems = line => ({ bad: refusals(line), warns: cautions(line) });
 const hasProblem = line => refusals(line).length + cautions(line).length > 0;
 
 function adopt(payload) {
-    state.lines = payload.lines.map((line, index) => ({ ...line, index, draft: line.text }));
+    state.lines = payload.lines.map(line => ({ ...line, draft: line.text }));
     state.classes = payload.classes || [];
     state.screenMax = payload.screenMax || state.screenMax;
 }
@@ -67,16 +70,15 @@ function visibleLines() {
     return state.lines.filter(line => tests.every(test => test(line)));
 }
 
-/** Groups in the order of their first act (ties in file order), lines in each by act and by when they come in a run. */
+/** The lines come in the editor's order (scripts/lib/story-line-editor-model.js pageOrder): each group's lines under its title. */
 function grouped(lines) {
-    const groups = new Map();
-    lines.forEach(line => {
-        if (!groups.has(line.group)) groups.set(line.group, []);
-        groups.get(line.group).push(line);
-    });
-    const byRun = (a, b) => a.area.order - b.area.order || a.moment - b.moment || a.index - b.index;
-    return [...groups].map(([name, rows]) => ({ name, rows: rows.sort(byRun) }))
-        .sort((a, b) => a.rows[0].area.order - b.rows[0].area.order || a.rows[0].index - b.rows[0].index);
+    const groups = [];
+    for (const line of lines) {
+        const last = groups[groups.length - 1];
+        if (last && last.name === line.group) last.rows.push(line);
+        else groups.push({ name: line.group, rows: [line] });
+    }
+    return groups;
 }
 
 function fit(box) {
@@ -176,6 +178,7 @@ function updateCounts() {
     save.disabled = state.busy || !edits.length || blocked.length > 0;
     $('#revert-all-button').disabled = state.busy || !edits.length;
     $('#reload-button').disabled = state.busy;
+    $('#import-button').disabled = state.busy;
     $('#undo-save-button').hidden = !state.lastSave;
     $('#undo-save-button').disabled = state.busy || edits.some(line => state.lastSave && state.lastSave.some(change => change.id === line.id));
     document.querySelectorAll('.tabs button').forEach(button => {
@@ -251,6 +254,52 @@ async function undoSave() {
     updateCounts();
 }
 
+/** Puts a sheet's changes in as typed lines: each line still as the page read it (else the game file changed since: 새로 읽기 first)
+ * and not typed otherwise here meanwhile (that typing is kept). */
+function takeChanges(changes) {
+    const taken = [], stale = [], typed = [];
+    for (const change of changes) {
+        const line = state.lines.find(item => item.id === change.id);
+        if (!line || line.text !== change.before) stale.push(change);
+        else if (changed(line) && line.draft !== change.after) typed.push(line);
+        else {
+            line.draft = change.after;
+            taken.push(line);
+        }
+    }
+    return { taken, stale, typed };
+}
+
+function importItems(result, took) {
+    const items = result.problems.map(row => `${row.row}번째 줄${row.place ? ` (${row.place}, ${row.speaker})` : ''}: ${row.reason}`);
+    took.typed.forEach(line => items.push(`편집기에서 고치던 줄이라 넣지 않았습니다: ${line.place}, ${line.speaker}`));
+    if (took.stale.length) items.push(`편집기가 읽은 뒤 게임 파일이 바뀐 줄 ${took.stale.length}개는 넣지 않았습니다. 새로 읽기를 누른 뒤 다시 넣어 주세요.`);
+    if (result.flattened) items.push(`칸 안의 줄바꿈이나 탭 ${result.flattened}곳을 빈칸으로 바꿨습니다.`);
+    if (!result.oldColumn) items.push('원래 대사 칸이 없어 지금 게임 글과 비교했습니다.');
+    items.push(`그대로인 줄 ${result.same}개 (파일 글자: ${result.encoding})`);
+    return items;
+}
+
+/** A sheet file edited outside (scripts/lib/story-line-sheet.js): its changed lines come in as typed ones, shown alone. */
+async function importSheet(file) {
+    setStatus('파일을 읽는 중입니다.');
+    try {
+        const result = await api('/api/import', { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: await file.arrayBuffer() });
+        const took = takeChanges(result.changes), first = took.taken[0];
+        const head = first ? `${file.name}에서 ${took.taken.length}줄을 가져왔습니다. 확인한 뒤 저장을 누르세요.` : `${file.name}에서 가져올 줄이 없습니다.`;
+        showResult(head, importItems(result, took), '', !first && result.problems.length > 0);
+        setStatus(head);
+        if (!first) return updateCounts();
+        $('#search-input').value = '';
+        $('#class-select').value = 'all';
+        $('#changed-only').checked = true;
+        return switchTab(first.tab);
+    } catch (error) {
+        showResult(`파일을 넣지 못했습니다. ${error.message}`, [], '', true);
+        return setStatus('파일을 넣지 못했습니다.');
+    }
+}
+
 async function load() {
     setStatus('대사를 불러오는 중입니다.');
     try {
@@ -289,6 +338,26 @@ $('#reload-button').addEventListener('click', () => {
     if (state.lines.some(changed) && !window.confirm('저장하지 않은 줄이 있습니다. 새로 읽으면 사라집니다. 새로 읽을까요?')) return;
     state.lastSave = null;
     load();
+});
+$('#export-link').addEventListener('click', event => {
+    const typed = state.lines.filter(changed).length;
+    if (typed && !window.confirm(`저장하지 않은 줄 ${typed}개는 파일에 들어가지 않습니다. 내보낼까요?`)) event.preventDefault();
+});
+$('#import-button').addEventListener('click', () => $('#import-input').click());
+$('#import-input').addEventListener('change', () => {
+    const file = $('#import-input').files[0];
+    $('#import-input').value = ''; // the same file can be put in again
+    if (file) importSheet(file);
+});
+// A sheet file dropped anywhere on the page goes in like one picked with 파일 넣기.
+document.addEventListener('dragover', event => {
+    if (event.dataTransfer.types.includes('Files')) event.preventDefault();
+});
+document.addEventListener('drop', event => {
+    const file = event.dataTransfer.files[0];
+    if (!file) return;
+    event.preventDefault();
+    if (!state.busy) importSheet(file);
 });
 document.addEventListener('keydown', event => {
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {

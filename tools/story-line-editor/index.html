@@ -13,6 +13,10 @@
             <span id="line-count">불러오는 중</span>
         </div>
         <nav>
+            <a id="export-link" class="button-link" href="/api/export" download>파일로 내보내기</a>
+            <button id="import-button" type="button">파일 넣기</button>
+            <input id="import-input" type="file" accept=".csv,.tsv,.txt" hidden>
+            <span class="nav-gap" aria-hidden="true"></span>
             <button id="reload-button" type="button">새로 읽기</button>
             <button id="undo-save-button" type="button" hidden>방금 저장 되돌리기</button>
             <button id="revert-all-button" type="button" disabled>모두 되돌리기</button>
@@ -44,6 +48,7 @@
     </section>
 
     <p class="hint">저장하면 게임 파일과 스토리 바이블이 함께 바뀌고, 저장 전 사본이 artifacts/story-line-backups에 남습니다.</p>
+    <p class="hint">밖에서 고치려면 파일로 내보내 엑셀이나 구글 시트에서 새 대사 칸만 고친 뒤, 파일 넣기(화면에 끌어 놓아도 됩니다)로 넣고 저장하세요.</p>
 
     <section id="result" class="result" hidden aria-live="polite">
         <p id="result-text"></p>

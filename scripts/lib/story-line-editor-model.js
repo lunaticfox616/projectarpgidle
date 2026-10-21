@@ -217,7 +217,21 @@ function boardLines(tables, push) {
 function readTexts(root) {
     return Object.fromEntries(LINE_FILES.map(file => [file, fs.readFileSync(path.join(root, file), 'utf8')]));
 }
-/** Every line the editor shows, read from the given file texts: { lines, classes }. */
+const TAB_ORDER = Object.freeze(['hero', 'npc', 'boss']);
+/** The editor's order, for the page and the exported sheet: by tab, then groups in the order of their first act (ties in file
+ * order), then lines by act and by when they come in a run of the map. */
+function pageOrder(rows) {
+    const fileOrder = new Map(rows.map((row, index) => [row, index]));
+    const byRun = (a, b) => a.area.order - b.area.order || a.moment - b.moment || fileOrder.get(a) - fileOrder.get(b);
+    const lead = new Map();
+    [...rows].sort(byRun).forEach(row => {
+        if (!lead.has(`${row.tab}/${row.group}`)) lead.set(`${row.tab}/${row.group}`, row);
+    });
+    const leadOf = row => lead.get(`${row.tab}/${row.group}`);
+    const byGroup = (a, b) => leadOf(a).area.order - leadOf(b).area.order || fileOrder.get(leadOf(a)) - fileOrder.get(leadOf(b));
+    return [...rows].sort((a, b) => TAB_ORDER.indexOf(a.tab) - TAB_ORDER.indexOf(b.tab) || byGroup(a, b) || byRun(a, b));
+}
+/** Every line the editor shows, read from the given file texts, in the editor's order: { lines, classes }. */
 function collectLines(texts, names) {
     const rows = [], where = places(names);
     const story = tablesOf(espree.parse(texts[STORY], PARSE)), pushStory = makeCollector(STORY, rows);
@@ -227,7 +241,7 @@ function collectLines(texts, names) {
     keywordLines(story, pushStory);
     bossLines(story, where, pushStory, names);
     boardLines(tablesOf(espree.parse(texts[BOARD], PARSE)), makeCollector(BOARD, rows));
-    return { lines: rows.map(row => ({ ...row, quote: row.quote || texts[row.file][row.range[0]] })), classes };
+    return { lines: pageOrder(rows).map(row => ({ ...row, quote: row.quote || texts[row.file][row.range[0]] })), classes };
 }
 
 // ---- 저장 ----------------------------------------------------------------------------------------------------------------

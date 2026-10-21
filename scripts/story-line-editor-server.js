@@ -2,7 +2,8 @@
 /* 이야기 대사 편집기: npm run story:edit 뒤 http://127.0.0.1:4186/ (포트는 STORY_LINE_EDITOR_PORT).
  * 주인공, NPC(머리 위 말과 창의 키워드), 보스의 대사를 한 화면에서 보고 고친다(scripts/lib/story-line-editor-model.js).
  * 저장은 바뀐 줄의 문자열만 그 자리에서 바꾸고, 쓰기 전에 artifacts/story-line-backups에 시각별 사본을 남긴다. 쓴 뒤
- * scripts/import-story-pack.cjs --check가 실패하면 되돌린다. 같은 글이 docs/story-bible.md(작가가 보는 원본)에 있으면 거기서도 바꾼다. */
+ * scripts/import-story-pack.cjs --check가 실패하면 되돌린다. 같은 글이 docs/story-bible.md(작가가 보는 원본)에 있으면 거기서도 바꾼다.
+ * 밖에서 고치려면 표(CSV)로 내보내고, 고친 표를 넣으면 바뀐 줄이 화면에 고친 줄로 들어온다(scripts/lib/story-line-sheet.js). */
 'use strict';
 
 const fs = require('fs');
@@ -10,6 +11,7 @@ const http = require('http');
 const path = require('path');
 const { execFile } = require('child_process');
 const model = require('./lib/story-line-editor-model');
+const sheet = require('./lib/story-line-sheet');
 
 const ROOT = path.resolve(__dirname, '..');
 const EDITOR_ROOT = path.join(ROOT, 'tools', 'story-line-editor');
@@ -50,25 +52,28 @@ function serveFile(response, file) {
     response.end(body);
 }
 
-function readRequestBody(request) {
+function readRequestBytes(request) {
     return new Promise((resolve, reject) => {
         let size = 0;
         const chunks = [];
         request.on('data', chunk => {
             size += chunk.length;
             if (size > MAX_BODY_BYTES) {
-                reject(new Error('요청이 너무 큽니다.'));
+                reject(new Error('보낸 내용이 너무 큽니다 (1MB까지).'));
                 request.destroy();
                 return;
             }
             chunks.push(chunk);
         });
-        request.on('end', () => {
-            try { resolve(JSON.parse(Buffer.concat(chunks).toString('utf8'))); }
-            catch (error) { reject(new Error(`JSON을 읽을 수 없습니다: ${error.message}`)); }
-        });
+        request.on('end', () => resolve(Buffer.concat(chunks)));
         request.on('error', reject);
     });
+}
+
+async function readRequestJson(request) {
+    const bytes = await readRequestBytes(request);
+    try { return JSON.parse(bytes.toString('utf8')); }
+    catch (error) { throw new Error(`JSON을 읽을 수 없습니다: ${error.message}`); }
 }
 
 function atomicWrite(file, contents) {
@@ -147,20 +152,43 @@ function readLines() {
     return { lines: lines.map(row => Object.fromEntries(Object.entries(row).filter(([key]) => !SERVER_ONLY.has(key)))), classes };
 }
 
-async function handleApi(request, response, url) {
-    if (request.method === 'GET' && url.pathname === '/api/lines') {
-        return sendJson(response, 200, { ...readLines(), screenMax: model.SCREEN_MAX, root: ROOT });
+/** Every line as the game files have them now, as a CSV sheet to download (scripts/lib/story-line-sheet.js). */
+function sendSheet(response) {
+    const body = Buffer.from(sheet.sheetOf(readLines().lines, model.SCREEN_MAX), 'utf8');
+    response.writeHead(200, {
+        'Content-Type': 'text/csv; charset=utf-8', 'Content-Length': body.length, 'Cache-Control': 'no-store',
+        'Content-Disposition': `attachment; filename="rignin-story-lines-${stamp().slice(0, 13)}.csv"`
+    });
+    response.end(body);
+}
+
+/** A sheet file edited outside: the changes it asks for, for the page to take in as typed lines. */
+async function handleImport(request, response) {
+    const bytes = await readRequestBytes(request);
+    try { return sendJson(response, 200, sheet.sheetChanges(readLines().lines, bytes)); }
+    catch (error) { return sendJson(response, 400, { error: error.message || String(error) }); }
+}
+
+async function handleSave(request, response) {
+    const payload = await readRequestJson(request);
+    try {
+        const result = await oneAtATime(() => save(payload.changes));
+        return sendJson(response, 200, { ...result, ...readLines() });
+    } catch (error) {
+        return sendJson(response, 409, { error: error.message || String(error), output: error.output || '' });
     }
-    if (request.method === 'POST' && url.pathname === '/api/save') {
-        const payload = await readRequestBody(request);
-        try {
-            const result = await oneAtATime(() => save(payload.changes));
-            return sendJson(response, 200, { ...result, ...readLines() });
-        } catch (error) {
-            return sendJson(response, 409, { error: error.message || String(error), output: error.output || '' });
-        }
-    }
-    return sendJson(response, 404, { error: 'API를 찾을 수 없습니다.' });
+}
+
+const ROUTES = Object.freeze({
+    'GET /api/lines': (request, response) => sendJson(response, 200, { ...readLines(), screenMax: model.SCREEN_MAX, root: ROOT }),
+    'GET /api/export': (request, response) => sendSheet(response),
+    'POST /api/import': handleImport,
+    'POST /api/save': handleSave
+});
+
+function handleApi(request, response, url) {
+    const route = ROUTES[`${request.method} ${url.pathname}`];
+    return route ? route(request, response) : sendJson(response, 404, { error: 'API를 찾을 수 없습니다.' });
 }
 
 async function handleRequest(request, response) {
