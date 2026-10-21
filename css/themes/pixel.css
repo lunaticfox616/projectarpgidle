@@ -650,7 +650,7 @@ body[data-ui-skin] :where(*), body[data-ui-skin] :where(*)::before, body[data-ui
 /* 하위 탭 줄(PC 창): 첫 칸이 남는 폭(1fr)을 받고 나머지 칸은 정수 px. flex: 1로 나눈 소수 폭이면 탭 이름이 화소 사이에서 시작해 번졌다.
    칸 수(--subtab-count)는 js/ui.js syncSingleSubtabRows가 보이는 단추 수로 적는다. 좁은 창(520px 이하)은 원래처럼 줄을 바꾼다(2026-10-21). */
 @container (min-width: 521px) {
-  :root body[data-ui-skin].desktop-windowed-ui .tab-content .subtab-row[style*="--subtab-count"]:not(.skill-subtab-row) {
+  :root body[data-ui-skin].desktop-windowed-ui .tab-content .subtab-row[style*="--subtab-count"]:not(.skill-subtab-row, [hidden]) {
     display: grid; grid-template-columns: minmax(0, 1fr); grid-auto-flow: column; column-gap: var(--space-1);
     grid-auto-columns: round(down, calc((100% - (var(--subtab-count) - 1) * var(--space-1)) / var(--subtab-count)), 1px); }
 }
