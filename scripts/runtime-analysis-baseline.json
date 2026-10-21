@@ -6867,6 +6867,7 @@
     "dependency:data/cosmos-route.js#top->safeExposeData",
     "dependency:data/ember-corruption.js#top->safeExposeData",
     "dependency:data/endgame-progression.js#top->safeExposeData",
+    "dependency:data/exploration-regions.js#top->String",
     "dependency:data/exploration-regions.js#top->safeExposeData",
     "dependency:data/garden-oils.js#top->safeExposeData",
     "dependency:data/hana-skill-fx.js#top->safeExposeData",
