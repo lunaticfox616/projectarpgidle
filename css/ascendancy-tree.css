@@ -4,7 +4,7 @@
 #tab-traits .ascend-points{color:#f1c40f;font-weight:700}
 #tab-traits .ascend-summary{display:grid;gap:6px;margin:0 0 12px;padding:10px 12px;border:2px solid #4b4136;background:rgba(18,14,10,.72)}
 #tab-traits .ascend-summary-name{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px}
-#tab-traits .ascend-summary-name strong{color:#f3dc9a;font-size:15px}
+#tab-traits .ascend-summary-name strong{color:#f3dc9a;font-size:var(--font-size-reading)}
 #tab-traits .ascend-summary-name span{color:#a99d84;font-size:12px}
 #tab-traits .ascend-summary-chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 #tab-traits .ascend-summary-chips>span{padding:3px 8px;border:1px solid #4b4136;background:rgba(0,0,0,.25);font-size:12px;color:#d9ceb0}
@@ -32,7 +32,7 @@
 #tab-traits .ascend-node:hover{border-color:#f6dc8c;background:#241c12}
 #tab-traits .ascend-node.is-focus{outline:2px solid #f6dc8c;outline-offset:2px}
 #tab-traits .ascend-keystone{width:98px;height:54px}
-#tab-traits .ascend-keystone span{white-space:normal;text-align:center;font-size:11px}
+#tab-traits .ascend-keystone span{white-space:normal;text-align:center;font-size:var(--font-size-ui)}
 #tab-traits .ascend-note{position:sticky;bottom:0;z-index:2;min-height:44px;margin:0;padding:8px 12px;border:2px solid #4b4136;background:rgba(16,12,9,.96);font-size:12px;line-height:1.5;color:#d9ceb0}
 #tab-traits .ascend-note strong{color:#f3dc9a}
 #tab-traits .ascend-note small{color:#a99d84}

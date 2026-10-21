@@ -233,7 +233,8 @@
   border-radius: 6px;
   font-weight: 600;
   letter-spacing: 0.02em;
-  font-size: 0.85em;
+  /* 창 밖 단추(확인 창, 안내 오버레이)는 .85em이면 10.2px로 번졌다: 조작 글씨 크기(2026-10-21) */
+  font-size: var(--font-size-ui);
   position: relative;
   overflow: hidden;
 }

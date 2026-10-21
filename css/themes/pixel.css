@@ -118,7 +118,7 @@ body[data-ui-skin] #tree-container :is(.passive-overlay-node, .passive-reveal-bu
 body[data-ui-skin] :is(img[src*="assets/px/"], img[src*="assets/gems/runes/"], img[src*="assets/items/illustrated/pixel/"]) { image-rendering: pixelated; }
 
 /* 독립 제목: Galmuri11 Bold 24px. 문장 중간의 강조와 달리 한 줄 전체 역할이다. */
-body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutorial-title, .combat-zone-row-title, #ui-combat-zone-inline, .startup-title) {
+body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutorial-title, .combat-zone-row-title, #ui-combat-zone-inline, .startup-title, .game-dialog-title) {
   font-family: var(--font-display);
   font-size: var(--font-size-heading);
   font-weight: var(--font-weight-emphasis);
@@ -203,7 +203,7 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 :root body[data-ui-skin] .patch-note-version { font-size: 15px; }
 
 /* 긴 글은 Galmuri14 15px. 문단 안에서 11 Bold를 끼우지 않고 기존 의미 색상으로 강조한다. */
-:root body[data-ui-skin] :is(.tutorial-body, .game-dialog-body,
+:root body[data-ui-skin] :is(.tutorial-body, .game-dialog-body, .game-dialog-message,
   .story-scene-copy, .condition-gem-heading p, .tactics-defaults p, .ab-lore, #item-tooltip-box, #canvas-tooltip, #info-tooltip) {
   font-family: var(--font-pixel-read);
   font-size: var(--font-size-reading);
@@ -232,9 +232,10 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
   font-family: var(--font-pixel-meta); font-size: var(--font-size-meta);
   font-weight: var(--font-weight-regular); line-height: 1.6; color: var(--color-text-secondary);
 }
-/* 좁은 칸의 표식(장비 칸의 조건 부족 꼬리표, 가방 칸의 긴 부위 이름, 보조 룬 칸의 ◆): 9 ~ 10px 갈무리11은 도트가 화소 사이에 걸려 번졌다.
+/* 좁은 칸의 표식(장비 칸의 조건 부족 꼬리표, 가방 칸의 긴 부위 이름, 출처 꼬리표, 보조 룬 칸의 ◆, 시작 화면의 약관 링크): 9 ~ 10px 갈무리11은 도트가 화소 사이에 걸려 번졌다.
    같은 자리에 갈무리9 10px. */
-:root body[data-ui-skin] :is(.equipment-requirement-badge, .equipment-grid-slot-label.is-long, .support-sigil > em, .support-slot > i > em, .gem-tile-support-art > em) {
+:root body[data-ui-skin] :is(.equipment-requirement-badge, .equipment-grid-slot-label.is-long, .item-source-badge, .support-sigil > em, .support-slot > i > em, .gem-tile-support-art > em,
+  #startup-overlay .startup-policy-links) {
   font-family: var(--font-pixel-meta); font-size: var(--font-size-meta);
 }
 
@@ -663,15 +664,18 @@ body[data-ui-skin] :where(*), body[data-ui-skin] :where(*)::before, body[data-ui
 :root body[data-ui-skin] .tab-content:not(#tab-battle) :is(h3, summary, .records-section-title, .journal-section-title, .gem-enhance-section-title, .map-zone-group-title,
     .craft-spores-title) :is(span, strong, b, small, em, i) { font-family: var(--font-pixel); font-size: 12px; }
 /* 카드와 판의 이름 줄은 소제목 크기(갈무리14). 지도 목록 머리와 액트 카드 이름, 룬 판의 주 룬 이름과 보조 룬 머리는 아래 층(features)에서 14를 골랐지만
-   맨 위의 글꼴 되돌림(:where(*))에 지워져 갈무리11 15 ~ 16px로 번졌다. */
+   맨 위의 글꼴 되돌림(:where(*))에 지워져 갈무리11 15 ~ 16px로 번졌다. 제작실의 옵션 줄은 툴팁의 옵션 줄과 같은 14/15. */
 :root body[data-ui-skin] .tab-content:not(#tab-battle) :is(.gem-research-card-head strong, .journal-card-head strong,
     .passive-planner-primary > strong, .map-route-copy strong, .journal-summary-main :is(strong, b),
-    .character-ehp-stat strong, .map-list-head strong, .map-act-body strong, .skill-board-head > b, .support-slots-head > span, .support-resonance b) {
+    .character-ehp-stat strong, .map-list-head strong, .map-act-body strong, .skill-board-head > b, .support-slots-head > span, .support-resonance b,
+    .ascend-summary-name strong, .talent-trial-main strong, .talent-class > header strong, .codex-hunt > header strong,
+    .cl-affix > div) {
   font-family: var(--font-pixel-read); font-size: var(--font-size-reading); }
 /* 작은 이름표 · 값 · 안내 글 */
 :root body[data-ui-skin] .tab-content:not(#tab-battle) :is(.gem-research-card-head > span, .gem-resource-strip :is(span, strong),
     .market-exchange-quote :is(span, strong), .content-unlock-heading > span,
-    .offline-progress-upgrade strong, .gem-target-rail-heading > span, .merged-subtab-pane > div:not([class]), #ui-class-locked) { font-family: var(--font-pixel); font-size: 12px; }
+    .offline-progress-upgrade strong, .gem-target-rail-heading > span, .merged-subtab-pane > div:not([class]), #ui-class-locked,
+    .cl-affix .tier-badge) { font-family: var(--font-pixel); font-size: 12px; }
 /* 스킬트리 노드 툴팁의 효과 상자, 장비 창 장착 칸의 그림 자리: 둥근 모서리 · 대각선 그라데이션 · 남색 원형 그라데이션 대신
    숯빛 판 + 1px 테(효과 상자는 노드 색) — 마지막 남은 옛 모양(검토 2026-10-01) */
 :root body[data-ui-skin] .passive-effect-badge { flex: 1 1 160px; margin-top: 6px; padding: 6px 8px; border: 1px solid var(--badge-edge, var(--px-bronze));

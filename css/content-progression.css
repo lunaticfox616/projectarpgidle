@@ -63,7 +63,7 @@
 .unlock-detail-art:after{width:94px;height:94px;border-color:var(--skin-line)}
 .unlock-detail-art img{width:76px;height:76px;object-fit:contain;z-index:1}
 #content-unlock-panel .unlock-detail h3{font-size:21px;font-weight:500;color:var(--color-text);margin:0 0 12px}
-.unlock-detail-top>p{font-size:13px;line-height:1.85;color:var(--color-text-secondary);margin:0}
+.unlock-detail-top>p{font-size:var(--font-size-ui);line-height:1.85;color:var(--color-text-secondary);margin:0}
 .unlock-requirements{border-top:1px solid var(--skin-line);padding-top:15px}
 .unlock-requirements h4,.unlock-milestone-group h4{font-size:11px;color:var(--color-text-tertiary);font-weight:400;margin:0 0 10px}
 .unlock-requirements>div{display:flex;align-items:baseline;justify-content:space-between;gap:12px;font-size:12px;color:var(--color-text-secondary);margin-bottom:8px}

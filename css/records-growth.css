@@ -29,7 +29,7 @@
 
 .chronicle-body { grid-template-columns: 120px minmax(0, 1fr); align-items: start; }
 .chronicle-rings { width: 120px; height: 120px; }
-.chronicle-rings text { fill: #ffd36b; font-size: 15px; font-weight: 700; }
+.chronicle-rings text { fill: #ffd36b; font-size: var(--font-size-ui); font-weight: 700; }
 .chronicle-chapters { list-style: none; margin: 8px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 6px 10px; }
 .chronicle-chapter { display: grid; gap: 3px; padding-left: 8px; border-left: 2px solid color-mix(in srgb, var(--chapter-tone, #e8c27a) 35%, transparent); }
 .chronicle-chapter > div:first-child { display: flex; justify-content: space-between; gap: 6px; }

@@ -387,7 +387,7 @@
 
 
 
-.item-source-badge{display:inline-block;margin-left:6px;padding:0 6px;border-radius:999px;font-size:.68em;font-weight:700;vertical-align:middle;border:1px solid transparent}
+.item-source-badge{display:inline-block;margin-left:6px;padding:0 6px;border-radius:999px;font-size:var(--font-size-meta);font-weight:700;vertical-align:middle;border:1px solid transparent}
 .item-source-badge--beehive{background:#5b3f0f;color:#ffd978;border-color:#ad7f2c}
 .item-source-badge--trial{background:#173f2a;color:#b6ff7a;border-color:#4dff9a}
 .item-source-badge--rift{background:#311f52;color:#c07cff;border-color:#9b5cff}

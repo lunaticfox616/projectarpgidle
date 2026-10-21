@@ -68,7 +68,7 @@ body.message-frames-on .combat-feed { display: none; }
   border-radius: 0;
   background: transparent;
   color: #b3a588;
-  font-size: 13px;
+  font-size: var(--font-size-ui);
   line-height: 1;
   cursor: pointer;
 }
