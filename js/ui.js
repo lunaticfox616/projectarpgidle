@@ -8777,7 +8777,6 @@ function performUpdateStaticUI() {
     validateItemTooltipAnchor();
     applySeasonContentProgression({ silent: false });
     refreshTabHeaderUiIfNeeded();
-    syncSingleSubtabRows(); // 잠금(해금 단추, 묶음 창)을 고친 뒤에 센다: 앞에서 세면 이번에 열린 하위 탭 줄이 다음 갱신까지 숨었다
     let passiveStateSig = [
         game.passivePoints || 0,
         (game.passives || []).length,
@@ -9855,6 +9854,7 @@ function buildCraftActionButtons(item) {
         switchSkillSubtab(game.skillSubtab || 'skill-tab-equip');
     }
     if (isTabRendering('tab-map')) switchMapSubtab(game.mapSubtab || 'map-tab-zones');
+    syncSingleSubtabRows(); // 단추마다 보이기(잠금, 거래소 같은 해금)를 다 정한 뒤에 센다: 중간에 세면 이번에 보인 단추가 빠져 칸이 모자랐다
     __mark('end');
     let __ptot = __perfNow() - __pm[0][1];
     if (__ptot > 150 || (typeof window !== 'undefined' && window.__perfLog)) {
