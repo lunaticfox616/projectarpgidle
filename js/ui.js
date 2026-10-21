@@ -4805,6 +4805,7 @@ function flushLogQueue(frameNow = performance.now()) {
 }
 /** 휴대폰에서 접힌 전투 기록 막대에 보일 최근 한 줄(접기 단추의 data-latest, ui-responsive-refine.css가 '전투 로그' 대신 쓴다). */
 function noteCombatLogLatest(entry) {
+    if (!document.body.classList.contains('mobile-battle-tab')) return; // PC에는 이 줄을 읽는 규칙이 없다: 기록마다 단추 스타일만 다시 계산했다
     const toggle = document.getElementById('btn-combat-log-toggle'), text = entry ? stripHtmlMessage(entry.msg) : '';
     if (toggle && text && toggle.dataset.latest !== text) toggle.dataset.latest = text;
 }
