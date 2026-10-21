@@ -4932,8 +4932,10 @@ drawDamageTexts.paint = (() => {
         ctx.restore();
     }
     return function render(ctx, now) {
-        const field = typeof document === 'object' ? document.getElementById('battlefield-canvas') : null;
-        compact = !!field && field.clientWidth > 0 && field.clientWidth < COMPACT_CANVAS_PX;
+        // 폭은 크기가 바뀔 때만 잰 값(js/canvas-battlefield.js battleCanvasBox): 매 프레임 clientWidth를 읽으면 그 프레임에 화면이 바뀐 때마다 배치를 다시 계산했다
+        const field = typeof document === 'object' && typeof battleCanvasBox === 'object' ? document.getElementById('battlefield-canvas') : null;
+        const width = field ? battleCanvasBox.read(field).width : 0;
+        compact = width > 0 && width < COMPACT_CANVAS_PX;
         ctx.save();
         try {
             const rows = (battleVisualState.damageTexts || []).map(text => frame(ctx, text, now)).filter(Boolean);
