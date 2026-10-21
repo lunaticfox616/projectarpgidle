@@ -10343,7 +10343,7 @@ function getAvailableSporeCraftModes() {
 
 /** 혼돈 · 피해 홀씨는 고급 홀씨 해금 뒤에만 쓴다. 저장된 선택도 쓰는 순간 다시 본다(제작 · 미리보기 · 다시 사용 공통). */
 function getSporeCraftBlockReason(item, actionKey, mode, omen = null) {
-    if (['chaos', 'damage'].includes(mode) && !getAvailableSporeCraftModes().includes(mode)) return '혼돈, 피해 홀씨 제작은 ‘해금’의 고급 홀씨를 열어야 쓸 수 있습니다.';
+    if (['chaos', 'damage'].includes(mode) && !getAvailableSporeCraftModes().includes(mode)) return '혼돈, 피해 홀씨 제작은 이벨에게서 고급 홀씨를 받아야 쓸 수 있습니다.';
     const reason = equipmentCrafting.getSporeBlockReason(item, actionKey, mode);
     if (reason || mode === 'none' || !equipmentCrafting.basicActions.includes(actionKey)) return reason;
     return equipmentCrafting.sporePool(item, actionKey, mode, omen).length ? '' : '선택한 홀씨 계열에서 새로 부여할 수 있는 옵션이 없습니다.';
@@ -10358,7 +10358,7 @@ function isSporeCraftEquipment(item) {
 // The elemental lines a rot spore removes (data/affix-tags.js AFFIX_TAG_LISTS.rotSpore).
 const ROT_SPORE_STAT_IDS = resolveAffixTagList(AFFIX_TAG_LISTS.rotSpore, MOD_DB);
 function applyCorruptSporeToSelectedItem() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
-    if (!contentProgression.isUnlocked('advancedSpores')) return addLog('부패 홀씨는 ‘해금’의 고급 홀씨를 열어야 쓸 수 있습니다.', 'attack-monster');
+    if (!contentProgression.isUnlocked('advancedSpores')) return addLog('부패 홀씨는 이벨에게서 고급 홀씨를 받아야 쓸 수 있습니다.', 'attack-monster');
     let item = getSelectedCraftItem();
     if (!item) return addLog('먼저 아이템을 선택하세요.', 'attack-monster');
     if (!isSporeCraftEquipment(item)) return addLog('홀씨 제작은 장비에만 사용할 수 있습니다.', 'attack-monster');
@@ -10380,7 +10380,7 @@ function applyCorruptSporeToSelectedItem() { if (game.woodsmanBuildLock) return 
 }
 
 function applyRiftSporeToSelectedItem() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
-    if (!contentProgression.isUnlocked('advancedSpores')) return addLog('균열 홀씨는 ‘해금’의 고급 홀씨를 열어야 쓸 수 있습니다.', 'attack-monster');
+    if (!contentProgression.isUnlocked('advancedSpores')) return addLog('균열 홀씨는 이벨에게서 고급 홀씨를 받아야 쓸 수 있습니다.', 'attack-monster');
     let item = getSelectedCraftItem();
     if (!item) return addLog('먼저 아이템을 선택하세요.', 'attack-monster');
     if (!isSporeCraftEquipment(item)) return addLog('홀씨 제작은 장비에만 사용할 수 있습니다.', 'attack-monster');

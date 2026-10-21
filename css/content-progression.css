@@ -37,6 +37,9 @@
 .unlock-node-art{position:relative;width:66px;height:66px;display:grid;place-items:center;border:1px solid var(--skin-line-strong);background:var(--skin-panel-raised);box-shadow:inset 0 0 0 4px var(--skin-panel)}
 .unlock-node-art:before{content:'';position:absolute;top:-4px;left:28px;width:7px;height:7px;transform:rotate(45deg);background:var(--skin-panel);border:1px solid var(--skin-line-strong)}
 .unlock-node-art img{width:49px;height:49px;object-fit:contain}
+/* NPC 해금의 표시: 그 해금을 주는 NPC의 얼굴(js/content-progression-ui.js npcFace). 전신 초상에서 머리만 보이게 키워 자른다. */
+.unlock-node-art .unlock-npc-face{position:absolute;right:-7px;bottom:-7px;width:26px;height:26px;overflow:hidden;border:1px solid var(--color-accent-gold);border-radius:50%;background:var(--skin-panel)}
+.unlock-node-art .unlock-npc-face img{position:absolute;top:0;left:50%;width:auto;max-width:none;height:400%;transform:translateX(-50%)}
 .unlock-node strong{font-size:12px;font-weight:500;color:var(--color-text)}
 .unlock-node small{font-size:10px;color:var(--color-text-tertiary);line-height:1.6}
 .unlock-lifetime-tag{display:block;font-size:10px;line-height:1.4;color:var(--color-text-secondary);letter-spacing:0}
@@ -76,12 +79,12 @@
 .unlock-detail-reward>p{font-size:11px;color:var(--color-text-tertiary);line-height:1.7;margin:0}
 #content-unlock-panel .unlock-detail-action>button{width:100%;min-height:44px;font-size:13px;border:1px solid var(--skin-accent);background:linear-gradient(120deg,rgba(157,127,59,.3),var(--skin-panel));white-space:normal}
 #content-unlock-panel .unlock-detail-action>button:disabled{border-color:var(--skin-line);opacity:.65}
-/* 만난 NPC가 포인트 없이 여는 해금(js/content-progression-ui.js npcGiftButton): 포인트로 사는 단추 위에 먼저 둔다. */
-#content-unlock-panel .unlock-detail-action>.unlock-npc-gift{margin-bottom:6px;border-color:var(--color-accent-gold);color:var(--color-accent-gold)}
-#content-unlock-panel [data-unlock-content="craft"]:enabled{position:relative;margin-top:16px;overflow:visible}
-#content-unlock-panel [data-unlock-content="craft"]:enabled::after{content:"";position:absolute;left:calc(50% - 5px);top:-23px;width:10px;height:10px;border-right:2px solid var(--skin-accent);border-bottom:2px solid var(--skin-accent);pointer-events:none;transform:translateY(0) rotate(45deg);animation:unlock-first-prompt 1.8s ease-in-out infinite}
+/* NPC 해금(js/content-progression-ui.js actionButton): 포인트로 사지 않고 그 NPC 창을 연다. */
+#content-unlock-panel .unlock-detail-action>.unlock-npc-gift:enabled{border-color:var(--color-accent-gold);color:var(--color-accent-gold)}
+#content-unlock-panel [data-unlock-npc="craft"]:enabled{position:relative;margin-top:16px;overflow:visible}
+#content-unlock-panel [data-unlock-npc="craft"]:enabled::after{content:"";position:absolute;left:calc(50% - 5px);top:-23px;width:10px;height:10px;border-right:2px solid var(--skin-accent);border-bottom:2px solid var(--skin-accent);pointer-events:none;transform:translateY(0) rotate(45deg);animation:unlock-first-prompt 1.8s ease-in-out infinite}
 @keyframes unlock-first-prompt{0%,100%{transform:translateY(0) rotate(45deg);opacity:.65}50%{transform:translateY(6px) rotate(45deg);opacity:1}}
-@media(prefers-reduced-motion:reduce){#content-unlock-panel [data-unlock-content="craft"]:enabled::after{animation:none;opacity:1}}
+@media(prefers-reduced-motion:reduce){#content-unlock-panel [data-unlock-npc="craft"]:enabled::after{animation:none;opacity:1}}
 .content-unlock-choice{display:grid;gap:8px;color:var(--color-text-secondary);font-size:12px;margin:12px 0}
 .content-unlock-choice select{width:100%;min-width:0;min-height:40px;background:var(--skin-control);color:var(--color-text);border:1px solid var(--skin-line-strong);border-radius:3px;padding:7px}
 .unlock-detail-reward .unlock-reward{color:var(--skin-accent)}

@@ -8,7 +8,7 @@ const ctx = buildGameRuntime();
 ctx.Math = Object.create(Math); ctx.Math.random = () => .999999;
 const run = code => vm.runInContext(code, ctx), start = 1700000000000;
 run(`game=mergeDefaults({season:2,contentProgression:JSON.parse(JSON.stringify(defaultGame.contentProgression))});
-    contentProgression.sync(game);contentProgression.purchase('craft',game);playerStall.advance(game,${start});
+    contentProgression.sync(game);game.npcMet.orga={count:1};contentProgression.gift('craft',game);playerStall.advance(game,${start});
     var measureGear=createItemFromBase(BASE_ITEM_DB.find(base=>base.id==='apocalypse_greatblade'),'rare',20,{affixTierCap:20});
     measureGear.stats=['flatDmg','weaponFlatDmgPct','attackPctDmg','aspd','crit','critDmg'].map(id=>
         rollAffixValueInTierRange(MOD_DB.find(mod=>mod.id===id),20,20));measureGear=normalizeItem(measureGear);

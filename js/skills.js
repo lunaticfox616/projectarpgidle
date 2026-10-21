@@ -550,7 +550,7 @@ function getFossilSurplusRefiningCost(fossilKey) {
 function refineFossilSurplus(fossilKey) {
     let cost = getFossilSurplusRefiningCost(fossilKey);
     if (!cost) return false;
-    if (!contentProgression.isUnlocked('fossilRestore')) return addLog('잉여 화석 정제는 ‘해금’의 화석 복원을 열어야 쓸 수 있습니다.', 'attack-monster');
+    if (!contentProgression.isUnlocked('fossilRestore')) return addLog('잉여 화석 정제는 오르가에게서 화석 복원을 받아야 쓸 수 있습니다.', 'attack-monster');
     if ((game.currencies[fossilKey] || 0) < cost) return addLog(`잉여 화석 정제에는 같은 화석 ${cost}개가 필요합니다.`, 'attack-monster');
     game.currencies[fossilKey] -= cost;
     awardCurrency('fossilPrimal', 1);
@@ -682,7 +682,7 @@ function applyFossilChaosCraft(fossilKey) {
 function restorePrimalFossil(kind) {
     let key = kind === 'ancient' ? 'fossilAncientPrimal' : 'fossilPrimal';
     let isAncient = key === 'fossilAncientPrimal';
-    if (!contentProgression.isUnlocked('fossilRestore')) return addLog(`${isAncient ? '원시 고대 화석' : '원시 화석'} 복원은 ‘해금’의 화석 복원을 열어야 쓸 수 있습니다.`, 'attack-monster');
+    if (!contentProgression.isUnlocked('fossilRestore')) return addLog(`${isAncient ? '원시 고대 화석' : '원시 화석'} 복원은 오르가에게서 화석 복원을 받아야 쓸 수 있습니다.`, 'attack-monster');
     if ((game.currencies[key] || 0) <= 0) return addLog(`${ORB_DB[key] ? ORB_DB[key].name : key}이 부족합니다.`, 'attack-monster');
     game.currencies[key]--;
     let rewardLines = [];
