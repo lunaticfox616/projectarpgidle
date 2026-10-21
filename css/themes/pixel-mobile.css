@@ -233,6 +233,10 @@
   :root body[data-ui-skin].mobile-battle-tab:has(#tab-battle.active) #mobile-toast-root { --mobile-toast-bottom: calc(84px + env(safe-area-inset-bottom)); }
   :root body[data-ui-skin].mobile-battle-tab:has(#tab-battle.active) .game-toast-region { top: 84px; bottom: auto; }
   :root body[data-ui-skin].mobile-battle-tab:has(#tab-battle.active) .tutorial-action-card { bottom: calc(84px + env(safe-area-inset-bottom)); }
+  /* 전체 메뉴 서랍: 가로 화면은 높이가 342px쯤이라 세로용 여백(지역 줄 71px)을 두면 한 줄만 보였다. 메뉴 띠 위를 다 쓴다(지역 줄은 서랍 뒤로 어두워진다) */
+  :root body[data-ui-skin].mobile-primary-navigation.mobile-tab-drawer-open #tab-header-main {
+    max-height: calc(100dvh - var(--mobile-primary-nav-height) - env(safe-area-inset-bottom) - 14px);
+  }
 }
 @media (max-width: 1080px) and (orientation: landscape) and (max-height: 339px) and (pointer: coarse) {
   /* 주소창이 보이는 가로 휴대폰(높이 293px 안팎)은 지역 줄 · HUD · 전장 · 메뉴 띠가 들어갈 수 없다 — 세로로 돌리라는 안내만.
