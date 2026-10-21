@@ -2472,20 +2472,23 @@ function getConditionRuleKind(action) {
     return tactic.positionMode ? '거리' : '귀환';
 }
 function renderConditionRuleHead(rule, idx, action) {
-    const last = game.skillAutoRules.length - 1;
     return `<div class="condition-rule-head"><b class="condition-rule-rank" title="우선순위">${idx + 1}</b><span class="condition-rule-kind">${getConditionRuleKind(action)}</span>
             <span class="condition-rule-lamp"></span><span class="condition-rule-tools">
-            <label><input type="checkbox" ${rule.enabled ? 'checked' : ''} onchange="game.skillAutoRules[${idx}].enabled=this.checked; renderSkillAutoRulePanel();"> 사용</label>
-            <button aria-label="규칙 위로 이동" onclick="moveSkillAutoRule(${idx},-1)" ${idx === 0 ? 'disabled' : ''}>↑</button>
+            <label><input type="checkbox" ${rule.enabled ? 'checked' : ''} onchange="game.skillAutoRules[${idx}].enabled=this.checked; renderSkillAutoRulePanel();"> 사용</label></span></div>`;
+}
+/** 순서 바꾸기와 삭제: 행동 줄 끝에 둔다(머리 줄에 두면 휴대폰에서 줄 하나를 따로 썼다). */
+function renderConditionRuleMoves(idx) {
+    const last = game.skillAutoRules.length - 1;
+    return `<span class="condition-rule-moves"><button aria-label="규칙 위로 이동" onclick="moveSkillAutoRule(${idx},-1)" ${idx === 0 ? 'disabled' : ''}>↑</button>
             <button aria-label="규칙 아래로 이동" onclick="moveSkillAutoRule(${idx},1)" ${idx === last ? 'disabled' : ''}>↓</button>
-            <button onclick="game.skillAutoRules.splice(${idx},1); renderSkillAutoRulePanel();">삭제</button></span></div>`;
+            <button onclick="game.skillAutoRules.splice(${idx},1); renderSkillAutoRulePanel();">삭제</button></span>`;
 }
 function renderConditionRuleLine(rule, idx, choice, options) {
     const pick = (rows, current) => rows.map(row => `<option value="${row.id}" ${current && current.id === row.id ? 'selected' : ''}>${row.label}</option>`).join('');
-    return `<div class="condition-rule-line"><span>조건</span>
+    return `<div class="condition-rule-line"><span class="condition-rule-if"><span>조건</span>
             <select aria-label="발동 조건" onchange="setConditionPatternTrigger(${idx},this.value);">${pick(options.triggers, choice.trigger)}</select>
-            ${renderConditionPatternValueControl(rule, idx, choice.trigger)}<span class="condition-rule-arrow" aria-hidden="true">→</span><span>행동</span>
-            <select aria-label="실행 행동" onchange="setConditionPatternAction(${idx},this.value);">${pick(options.actions, choice.action)}</select></div>`;
+            ${renderConditionPatternValueControl(rule, idx, choice.trigger)}<span class="condition-rule-arrow" aria-hidden="true">→</span></span><span class="condition-rule-do"><span>행동</span>
+            <select aria-label="실행 행동" onchange="setConditionPatternAction(${idx},this.value);">${pick(options.actions, choice.action)}</select>${renderConditionRuleMoves(idx)}</span></div>`;
 }
 
 function renderConditionPatternRule(rule, idx, options) {
