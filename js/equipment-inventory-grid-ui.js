@@ -687,6 +687,18 @@
         event.preventDefault();
     }
 
+    /** 장착 칸 위에서 놓았다: 맞는 칸이면 끼우고, 아니면 알린다. 놓은 곳이 장착 칸이 아니면 false. */
+    function dropOnEquipmentSlot(event) {
+        let equipmentTarget = updateEquipmentDropTarget(event);
+        if (!equipmentTarget) return false;
+        suppressClickUntil = Date.now() + 350;
+        event.preventDefault();
+        if (equipmentTarget.valid) equipCarriedItemToSlot(equipmentTarget.slot);
+        else notify('이 장비는 해당 슬롯에 장착할 수 없습니다.', 'warning');
+        cancelCarry();
+        return true;
+    }
+
     function finishPointer(event) {
         if (!pointerState || pointerState.pointerId !== event.pointerId) return;
         let wasDragging = pointerState.dragging;
@@ -696,18 +708,7 @@
         if (carryFrame) cancelAnimationFrame(carryFrame);
         carryFrame = 0;
         pendingPointer = null;
-        if (dropOnChat(event)) return;
-        let equipmentTarget = updateEquipmentDropTarget(event);
-        if (equipmentTarget) {
-            suppressClickUntil = Date.now() + 350;
-            event.preventDefault();
-            if (equipmentTarget.valid) equipCarriedItemToSlot(equipmentTarget.slot);
-            else {
-                notify('이 장비는 해당 슬롯에 장착할 수 없습니다.', 'warning');
-            }
-            cancelCarry();
-            return;
-        }
+        if (dropOnChat(event) || dropOnEquipmentSlot(event)) return;
         if (carryState) updateCarry(event);
         suppressClickUntil = Date.now() + 350;
         event.preventDefault();
