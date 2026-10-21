@@ -38,6 +38,8 @@ button, .button-link {
 }
 button:hover, .button-link:hover { border-color: #7093aa; background: #1b2935; }
 .nav-gap { width: 10px; }
+/* The take-away pack (body.pack, opened from a file) has no server: no save, reload or pack; the server page has no pack note. */
+body.pack .server-only, body:not(.pack) .pack-only { display: none; }
 button:disabled { cursor: not-allowed; opacity: .4; }
 button.primary { border-color: #9a773c; background: #5d4524; color: #fff0c9; }
 button.primary:hover:not(:disabled) { border-color: #d7a85a; background: #6e5129; }

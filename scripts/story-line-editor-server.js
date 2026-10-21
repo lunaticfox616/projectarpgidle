@@ -3,7 +3,9 @@
  * 주인공, NPC(머리 위 말과 창의 키워드), 보스의 대사를 한 화면에서 보고 고친다(scripts/lib/story-line-editor-model.js).
  * 저장은 바뀐 줄의 문자열만 그 자리에서 바꾸고, 쓰기 전에 artifacts/story-line-backups에 시각별 사본을 남긴다. 쓴 뒤
  * scripts/import-story-pack.cjs --check가 실패하면 되돌린다. 같은 글이 docs/story-bible.md(작가가 보는 원본)에 있으면 거기서도 바꾼다.
- * 밖에서 고치려면 표(CSV)로 내보내고, 고친 표를 넣으면 바뀐 줄이 화면에 고친 줄로 들어온다(scripts/lib/story-line-sheet.js). */
+ * 밖에서 고치려면 화면에서 표(CSV)로 내보내고, 고친 표를 넣으면 바뀐 줄이 화면에 고친 줄로 들어온다(tools/story-line-editor/sheet.js).
+ * 다른 컴퓨터에는 묶음(zip, GET /api/pack)을 가져간다: 설치 없이 브라우저로 여는 편집기가 게임 파일 대신 표를 내보내고, 그 표를
+ * 여기서 넣는다. */
 'use strict';
 
 const fs = require('fs');
@@ -11,7 +13,7 @@ const http = require('http');
 const path = require('path');
 const { execFile } = require('child_process');
 const model = require('./lib/story-line-editor-model');
-const sheet = require('./lib/story-line-sheet');
+const { createZipArchive } = require('./lib/zip-archive');
 
 const ROOT = path.resolve(__dirname, '..');
 const EDITOR_ROOT = path.join(ROOT, 'tools', 'story-line-editor');
@@ -152,21 +154,41 @@ function readLines() {
     return { lines: lines.map(row => Object.fromEntries(Object.entries(row).filter(([key]) => !SERVER_ONLY.has(key)))), classes };
 }
 
-/** Every line as the game files have them now, as a CSV sheet to download (scripts/lib/story-line-sheet.js). */
-function sendSheet(response) {
-    const body = Buffer.from(sheet.sheetOf(readLines().lines, model.SCREEN_MAX), 'utf8');
-    response.writeHead(200, {
-        'Content-Type': 'text/csv; charset=utf-8', 'Content-Length': body.length, 'Cache-Control': 'no-store',
-        'Content-Disposition': `attachment; filename="rignin-story-lines-${stamp().slice(0, 13)}.csv"`
-    });
-    response.end(body);
+// The take-away pack: the page, its code and the lines as saved now, for a computer with only a browser. Opened from the file, the
+// page reads lines.js, keeps what is typed in that browser and exports a sheet, which comes back here through 파일 넣기. Its old
+// line column is the text of this moment, so a line changed here meanwhile is not overwritten.
+const PACK_PAGE = '대사 편집기.html';
+const PACK_FILES = Object.freeze(['editor.css', 'editor.js', 'sheet.js']);
+function packReadme(made) {
+    return [
+        `리그닌 대사 편집기, 다른 컴퓨터용 묶음 (${made}에 저장되어 있던 대사)`,
+        '',
+        `1. 압축을 풀고 "${PACK_PAGE}"을 더블클릭해 크롬이나 엣지로 엽니다. 설치할 프로그램은 없습니다.`,
+        '2. 대사를 고칩니다. 고친 줄은 그 브라우저에 남아서, 창을 닫았다 다시 열어도 이어서 고칠 수 있습니다.',
+        '3. 다 고쳤으면 "파일로 내보내기"를 눌러 CSV 파일을 받습니다.',
+        '4. 원래 컴퓨터의 대사 편집기(npm run story:edit)에서 "파일 넣기"로 그 CSV를 넣고 저장합니다.',
+        '',
+        '이 묶음은 게임 파일을 바꾸지 않습니다. 묶은 뒤 원래 컴퓨터에서 같은 줄이 바뀌었으면, 넣을 때 그 줄은 덮어쓰지 않고 알려 줍니다.'
+    ].join('\r\n');
 }
-
-/** A sheet file edited outside: the changes it asks for, for the page to take in as typed lines. */
-async function handleImport(request, response) {
-    const bytes = await readRequestBytes(request);
-    try { return sendJson(response, 200, sheet.sheetChanges(readLines().lines, bytes)); }
-    catch (error) { return sendJson(response, 400, { error: error.message || String(error) }); }
+function sendPack(response) {
+    const at = stamp(), folder = `rignin-story-editor-${at.slice(0, 13)}`;
+    const made = `${at.slice(0, 4)}-${at.slice(4, 6)}-${at.slice(6, 8)} ${at.slice(9, 11)}:${at.slice(11, 13)}`;
+    const page = fs.readFileSync(path.join(EDITOR_ROOT, 'index.html'), 'utf8');
+    const packed = page.replace('<script src="./editor.js"></script>', '<script src="./lines.js"></script>\n    <script src="./editor.js"></script>');
+    if (packed === page) throw new Error('index.html에서 editor.js를 부르는 줄을 찾지 못했습니다.');
+    const files = [
+        [PACK_PAGE, packed],
+        ['lines.js', `window.STORY_LINE_PACK = ${JSON.stringify({ made, screenMax: model.SCREEN_MAX, ...readLines() })};\n`],
+        ['읽어 주세요.txt', `\uFEFF${packReadme(made)}\r\n`],
+        ...PACK_FILES.map(name => [name, fs.readFileSync(path.join(EDITOR_ROOT, name))])
+    ];
+    const archive = createZipArchive(files.map(([name, data]) => ({ name: `${folder}/${name}`, data, modifiedAt: new Date() })));
+    response.writeHead(200, {
+        'Content-Type': 'application/zip', 'Content-Length': archive.length, 'Cache-Control': 'no-store',
+        'Content-Disposition': `attachment; filename="${folder}.zip"`
+    });
+    response.end(archive);
 }
 
 async function handleSave(request, response) {
@@ -181,8 +203,7 @@ async function handleSave(request, response) {
 
 const ROUTES = Object.freeze({
     'GET /api/lines': (request, response) => sendJson(response, 200, { ...readLines(), screenMax: model.SCREEN_MAX, root: ROOT }),
-    'GET /api/export': (request, response) => sendSheet(response),
-    'POST /api/import': handleImport,
+    'GET /api/pack': (request, response) => sendPack(response),
     'POST /api/save': handleSave
 });
 

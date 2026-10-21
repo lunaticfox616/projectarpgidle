@@ -1,10 +1,14 @@
 // 대사 편집기 화면(scripts/story-line-editor-server.js가 띄운다): 서버가 읽어 준 대사를 탭과 거르기로 보여 주고, 고친 줄만 모아
-// 한꺼번에 저장한다. 서버는 저장할 때 같은 규칙을 다시 보고, 이야기 검사가 실패하면 저장 전으로 되돌린다. 밖에서 고친 표 파일을
-// 넣으면 그 표의 바뀐 줄이 여기서 고친 줄처럼 들어오고, 확인한 뒤 저장한다.
+// 한꺼번에 저장한다. 서버는 저장할 때 같은 규칙을 다시 보고, 이야기 검사가 실패하면 저장 전으로 되돌린다. 표 파일(sheet.js)로
+// 내보내고 넣을 수 있고, 넣은 표의 바뀐 줄은 여기서 고친 줄처럼 들어온다.
+// 다른 컴퓨터용 묶음(GET /api/pack)으로 파일에서 열면 서버 없이 lines.js(STORY_LINE_PACK)의 대사를 보여 주고, 고친 줄을 그
+// 브라우저에 남기며, 저장 대신 표로 내보낸다.
 const BANNED = /[·・—―]/u;
 const HANGUL = /[가-힣]/u;
+const PACK = window.STORY_LINE_PACK || null;
+const PACK_KEY = PACK ? `rignin-story-pack:${PACK.made}` : '';
 const $ = selector => document.querySelector(selector);
-const state = { lines: [], classes: [], screenMax: 50, tab: 'hero', lastSave: null, busy: false };
+const state = { lines: [], classes: [], screenMax: 50, tab: 'hero', lastSave: null, busy: false, kept: true };
 
 function el(tag, className, text) {
     const node = document.createElement(tag);
@@ -54,6 +58,35 @@ function adopt(payload) {
     state.lines = payload.lines.map(line => ({ ...line, draft: line.text }));
     state.classes = payload.classes || [];
     state.screenMax = payload.screenMax || state.screenMax;
+}
+
+// ---- 묶음: 고친 줄을 이 브라우저에 남긴다 --------------------------------------------------------------------------------
+function remember() {
+    if (!PACK) return;
+    const drafts = Object.fromEntries(state.lines.filter(changed).map(line => [line.id, line.draft]));
+    try {
+        localStorage.setItem(PACK_KEY, JSON.stringify(drafts));
+        state.kept = true;
+    } catch (error) {
+        state.kept = false;
+        setStatus(`고친 줄을 이 브라우저에 남기지 못했습니다(${error.message}). 창을 닫기 전에 파일로 내보내세요.`);
+    }
+}
+function recall() {
+    try {
+        const drafts = JSON.parse(localStorage.getItem(PACK_KEY) || '{}');
+        state.lines.forEach(line => {
+            if (typeof drafts[line.id] === 'string') line.draft = drafts[line.id];
+        });
+    } catch (error) {
+        state.kept = false;
+        setStatus(`이 브라우저에 남긴 줄을 읽지 못했습니다(${error.message}).`);
+    }
+}
+/** After typed lines change: kept in the pack's browser, and the counts. */
+function touched() {
+    remember();
+    updateCounts();
 }
 
 function visibleLines() {
@@ -128,7 +161,7 @@ function lineRow(line) {
         line.draft = flat;
         fit(box);
         if (line.kind === 'keyword') refreshShown(); else refreshRow(row, line);
-        updateCounts();
+        touched();
     });
     box.addEventListener('keydown', event => { if (event.key === 'Enter') event.preventDefault(); });
     row.querySelector('.revert-button').addEventListener('click', () => {
@@ -136,7 +169,7 @@ function lineRow(line) {
         box.value = line.text;
         fit(box);
         refreshShown();
-        updateCounts();
+        touched();
     });
     refreshRow(row, line);
     return row;
@@ -172,10 +205,11 @@ function fillClasses() {
 
 function updateCounts() {
     const edits = state.lines.filter(changed), blocked = edits.filter(line => problems(line).bad.length);
-    $('#line-count').textContent = `대사 ${state.lines.length}줄${edits.length ? `, 고친 줄 ${edits.length}` : ''}${blocked.length ? `, 저장 못 하는 줄 ${blocked.length}` : ''}`;
+    const from = PACK ? `묶음 ${PACK.made}, ` : '';
+    $('#line-count').textContent = `${from}대사 ${state.lines.length}줄${edits.length ? `, 고친 줄 ${edits.length}` : ''}${blocked.length ? `, 저장 못 하는 줄 ${blocked.length}` : ''}`;
     const save = $('#save-button');
     save.textContent = edits.length ? `저장 (${edits.length}줄)` : '저장';
-    save.disabled = state.busy || !edits.length || blocked.length > 0;
+    save.disabled = !!PACK || state.busy || !edits.length || blocked.length > 0;
     $('#revert-all-button').disabled = state.busy || !edits.length;
     $('#reload-button').disabled = state.busy;
     $('#import-button').disabled = state.busy;
@@ -254,60 +288,77 @@ async function undoSave() {
     updateCounts();
 }
 
-/** Puts a sheet's changes in as typed lines: each line still as the page read it (else the game file changed since: 새로 읽기 first)
- * and not typed otherwise here meanwhile (that typing is kept). */
+// ---- 표 파일 ------------------------------------------------------------------------------------------------------------
+const fileStamp = () => {
+    const now = new Date(), two = value => String(value).padStart(2, '0');
+    return `${now.getFullYear()}${two(now.getMonth() + 1)}${two(now.getDate())}-${two(now.getHours())}${two(now.getMinutes())}`;
+};
+/** Every line as a sheet: the saved line (in a pack, the one packed) as the old line, what is typed now as the new one. */
+function exportSheet() {
+    const link = el('a'), typed = state.lines.filter(changed).length;
+    link.href = URL.createObjectURL(new Blob([storyLineSheet.sheetOf(state.lines, state.screenMax)], { type: 'text/csv;charset=utf-8' }));
+    link.download = `rignin-story-lines-${fileStamp()}.csv`;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(link.href), 10000);
+    setStatus(typed ? `고친 줄 ${typed}개가 든 표를 내보냈습니다.` : '고친 줄이 없는 표를 내보냈습니다.');
+}
+
+/** Puts a sheet's changes in as typed lines, but not over a line typed otherwise here meanwhile (that typing is kept). */
 function takeChanges(changes) {
-    const taken = [], stale = [], typed = [];
+    const taken = [], typed = [];
     for (const change of changes) {
         const line = state.lines.find(item => item.id === change.id);
-        if (!line || line.text !== change.before) stale.push(change);
-        else if (changed(line) && line.draft !== change.after) typed.push(line);
+        if (changed(line) && line.draft !== change.after) typed.push(line);
         else {
             line.draft = change.after;
             taken.push(line);
         }
     }
-    return { taken, stale, typed };
+    return { taken, typed };
 }
 
 function importItems(result, took) {
     const items = result.problems.map(row => `${row.row}번째 줄${row.place ? ` (${row.place}, ${row.speaker})` : ''}: ${row.reason}`);
     took.typed.forEach(line => items.push(`편집기에서 고치던 줄이라 넣지 않았습니다: ${line.place}, ${line.speaker}`));
-    if (took.stale.length) items.push(`편집기가 읽은 뒤 게임 파일이 바뀐 줄 ${took.stale.length}개는 넣지 않았습니다. 새로 읽기를 누른 뒤 다시 넣어 주세요.`);
     if (result.flattened) items.push(`칸 안의 줄바꿈이나 탭 ${result.flattened}곳을 빈칸으로 바꿨습니다.`);
-    if (!result.oldColumn) items.push('원래 대사 칸이 없어 지금 게임 글과 비교했습니다.');
+    if (!result.oldColumn) items.push('원래 대사 칸이 없어 지금 대사와 비교했습니다.');
     items.push(`그대로인 줄 ${result.same}개 (파일 글자: ${result.encoding})`);
     return items;
 }
 
-/** A sheet file edited outside (scripts/lib/story-line-sheet.js): its changed lines come in as typed ones, shown alone. */
+/** A sheet file edited outside (sheet.js): its changed lines come in as typed ones, shown alone. A line saved here after the
+ * sheet was made is refused there (its old line differs); one saved elsewhere meanwhile is caught by the save. */
 async function importSheet(file) {
     setStatus('파일을 읽는 중입니다.');
     try {
-        const result = await api('/api/import', { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: await file.arrayBuffer() });
+        const result = storyLineSheet.sheetChanges(state.lines, new Uint8Array(await file.arrayBuffer()));
         const took = takeChanges(result.changes), first = took.taken[0];
-        const head = first ? `${file.name}에서 ${took.taken.length}줄을 가져왔습니다. 확인한 뒤 저장을 누르세요.` : `${file.name}에서 가져올 줄이 없습니다.`;
+        const head = first ? `${file.name}에서 ${took.taken.length}줄을 가져왔습니다. ${PACK ? '확인한 뒤 파일로 내보내세요.' : '확인한 뒤 저장을 누르세요.'}` : `${file.name}에서 가져올 줄이 없습니다.`;
         showResult(head, importItems(result, took), '', !first && result.problems.length > 0);
         setStatus(head);
-        if (!first) return updateCounts();
+        touched();
+        if (!first) return;
         $('#search-input').value = '';
         $('#class-select').value = 'all';
         $('#changed-only').checked = true;
-        return switchTab(first.tab);
+        switchTab(first.tab);
     } catch (error) {
         showResult(`파일을 넣지 못했습니다. ${error.message}`, [], '', true);
-        return setStatus('파일을 넣지 못했습니다.');
+        setStatus('파일을 넣지 못했습니다.');
     }
 }
 
 async function load() {
     setStatus('대사를 불러오는 중입니다.');
     try {
-        adopt(await api('/api/lines'));
+        adopt(PACK || await api('/api/lines'));
+        if (PACK) recall();
         fillClasses();
         fillAreas();
         render();
-        setStatus(`대사 ${state.lines.length}줄을 읽었습니다.`);
+        setStatus(PACK ? `묶음의 대사 ${state.lines.length}줄을 열었습니다.` : `대사 ${state.lines.length}줄을 읽었습니다.`);
     } catch (error) {
         setStatus(`대사를 읽지 못했습니다: ${error.message}`);
     }
@@ -320,6 +371,8 @@ function switchTab(tab) {
     render();
 }
 
+document.body.classList.toggle('pack', !!PACK);
+$('#export-button').classList.toggle('primary', !!PACK);
 document.querySelectorAll('.tabs button').forEach(button => {
     button.dataset.label = button.textContent;
     button.addEventListener('click', () => switchTab(button.dataset.tab));
@@ -332,6 +385,7 @@ $('#undo-save-button').addEventListener('click', undoSave);
 $('#revert-all-button').addEventListener('click', () => {
     state.lines.forEach(line => { line.draft = line.text; });
     render();
+    remember();
     setStatus('고친 줄을 모두 되돌렸습니다.');
 });
 $('#reload-button').addEventListener('click', () => {
@@ -339,9 +393,10 @@ $('#reload-button').addEventListener('click', () => {
     state.lastSave = null;
     load();
 });
-$('#export-link').addEventListener('click', event => {
+$('#export-button').addEventListener('click', exportSheet);
+$('#pack-link').addEventListener('click', event => {
     const typed = state.lines.filter(changed).length;
-    if (typed && !window.confirm(`저장하지 않은 줄 ${typed}개는 파일에 들어가지 않습니다. 내보낼까요?`)) event.preventDefault();
+    if (typed && !window.confirm(`저장하지 않은 줄 ${typed}개는 묶음에 들어가지 않습니다. 묶을까요?`)) event.preventDefault();
 });
 $('#import-button').addEventListener('click', () => $('#import-input').click());
 $('#import-input').addEventListener('change', () => {
@@ -362,11 +417,12 @@ document.addEventListener('drop', event => {
 document.addEventListener('keydown', event => {
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
         event.preventDefault();
-        saveEdits();
+        if (PACK) exportSheet(); else saveEdits();
     }
 });
+// The server page loses typed lines on leaving; a pack keeps them in the browser unless that failed.
 window.addEventListener('beforeunload', event => {
-    if (state.lines.some(changed)) event.preventDefault();
+    if (state.lines.some(changed) && (!PACK || !state.kept)) event.preventDefault();
 });
 
 load();
