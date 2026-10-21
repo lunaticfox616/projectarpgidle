@@ -13,7 +13,7 @@
 | NPC 가판대 | [현재 거래 규칙과 변경 이력](balance-and-player-stall-20260929.md) |
 | 그루터기 함·조합창 | [현재 구조와 초기 설계 이력](stump-cube-game-design.md), [보조 콘텐츠 통합 이력](aux-consolidation-20260930.md) |
 | 루프 밸런스·경험치 | [루프 난이도 곡선 재조율](loop-difficulty-20261006.md), [전투·보상 조정](loop-balance-20261004.md), [몹팩·요구 경험치](pack-balance-20261004.md). 측정치는 해당 실험 조건에 한정 |
-| 저장과 방치 성능 | [방치 성능](offline-performance.md) |
+| 저장과 방치 성능 | [방치 성능](offline-performance.md), 두 탭 보호는 [game-tab-guard-ui.js](../js/game-tab-guard-ui.js)의 머리말 |
 | 탐험·바닥 줍기 | [현재 보상·진행 계약](act-exploration-integration.md) |
 | 옆에서 보는 무대, 방 탐색 | [무대 문서](stage-view-20261011.md), [그리기 성능](stage-render-performance-20261013.md) |
 | 이야기, 대사 | [스토리 바이블](story-bible.md), 글은 [이야기 데이터](../data/story-journal.js). 새 묶음은 `node scripts/import-story-pack.cjs <폴더> --write` |

@@ -297,6 +297,28 @@ test('guest mode is local-only and survives reload', async ({ page }) => {
     expect(failures).toEqual([]);
 });
 
+// 같은 브라우저의 두 탭은 같은 기기 저장을 쓴다(js/game-tab-guard-ui.js): 뒤에 연 탭이 앞 탭의 저장하지 않은 진행까지 받아 잇고,
+// 앞 탭은 대기 화면이 되어 더 쓰지 않는다. 대기 화면의 버튼은 같은 방법으로 게임을 되찾는다.
+test('a second tab takes the game over with unsaved progress and the first tab stops writing', async ({ page, context }) => {
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    await page.evaluate(() => { game.level = 37; saveGame({ skipCloudSync: true }); game.level = 38; });
+    const second = await context.newPage();
+    const secondFailures = watchRuntimeFailures(second);
+    await openLocalGame(second);
+    await expect(page.locator('#startup-standby')).toBeVisible();
+    await expect(page.locator('#btn-startup-guest')).toBeHidden();
+    expect(await second.evaluate(() => game.level)).toBe(38);
+    await second.evaluate(() => { game.level = 39; saveGame({ skipCloudSync: true }); game.level = 40; });
+    expect(await page.evaluate(() => saveGame({ skipCloudSync: true }))).toBe(false);
+    expect(await second.evaluate(() => JSON.parse(localStorage.getItem(LOCAL_SAVE_KEY)).level)).toBe(39);
+    await page.locator('#btn-startup-standby').click();
+    await expect(second.locator('#startup-standby')).toBeVisible();
+    await page.locator('#btn-startup-guest').click();
+    await expect.poll(() => page.evaluate(() => gameplayStarted && game.level)).toBe(40);
+    expect([...failures, ...secondFailures]).toEqual([]);
+});
+
 async function openGameWithUpdate(page) {
     await page.route('**/version.json?*', route => route.fulfill({ json: { build: 'test-next-release' } }));
     await page.route(TEST_ORIGIN, async route => {

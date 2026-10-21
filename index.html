@@ -94,34 +94,42 @@
                     <label><input type="checkbox" id="startup-terms-consent"> <span>[필수] <a href="legal/terms.html" target="_blank" rel="noopener">이용약관</a>에 동의합니다.</span></label>
                     <label><input type="checkbox" id="startup-privacy-consent"> <span>[필수] <a href="legal/privacy.html" target="_blank" rel="noopener">개인정보 수집/이용</a>에 동의합니다.</span></label>
                     <div>회원가입을 완료하려면 동의가 필요하며, 만 14세 이상만 이용할 수 있습니다.</div>
-                    <button type="button" id="btn-startup-resend-confirmation" class="startup-resend-confirmation" onclick="resendSignupConfirmation()">인증 메일을 못 받았다면 다시 받기</button>
+                    <button type="button" id="btn-startup-resend-confirmation" disabled class="startup-resend-confirmation" onclick="resendSignupConfirmation()">인증 메일을 못 받았다면 다시 받기</button>
                 </div>
             </div>
+            <!-- 시작 버튼은 부팅이 저장을 읽은 뒤에 켜진다(js/ui.js updateStartupScreenUI). 그 전에 누르면 빈 새 게임으로 들어갔다. -->
             <div class="startup-actions-stack two" id="startup-auth-actions">
-                <button id="btn-startup-login" class="startup-primary" onclick="startupLogin()">로그인</button>
-                <button id="btn-startup-signup" class="startup-secondary" aria-controls="startup-signup-consent" aria-expanded="false" onclick="startupSignUp()">회원가입</button>
+                <button id="btn-startup-login" disabled class="startup-primary" onclick="startupLogin()">로그인</button>
+                <button id="btn-startup-signup" disabled class="startup-secondary" aria-controls="startup-signup-consent" aria-expanded="false" onclick="startupSignUp()">회원가입</button>
             </div>
             <div class="startup-actions-stack">
-                <button id="btn-startup-continue" class="startup-primary" onclick="continueWithCloudSession()" style="display:none;">클라우드 세이브로 계속</button>
-                <button id="btn-startup-switch-account" class="startup-ghost" onclick="prepareStartupAccountSwitch()" style="display:none;">다른 계정 사용</button>
-                <button id="btn-startup-guest" class="startup-ghost" onclick="startGuestMode()">게스트로 시작</button>
+                <button id="btn-startup-continue" disabled class="startup-primary" onclick="continueWithCloudSession()" style="display:none;">클라우드 세이브로 계속</button>
+                <button id="btn-startup-switch-account" disabled class="startup-ghost" onclick="prepareStartupAccountSwitch()" style="display:none;">다른 계정 사용</button>
+                <button id="btn-startup-guest" disabled class="startup-ghost" onclick="startGuestMode()">게스트로 시작</button>
                 <div class="startup-local-save-warning">이 기기에만 저장되며, 지우면 복구되지 않습니다.</div>
-                <button id="btn-startup-back" class="startup-ghost" onclick="returnFromStartupGate()" style="display:none;">게임으로 돌아가기</button>
+                <button id="btn-startup-back" disabled class="startup-ghost" onclick="returnFromStartupGate()" style="display:none;">게임으로 돌아가기</button>
             </div>
             <details class="startup-social-login" id="startup-social-login">
                 <summary>소셜 로그인</summary>
                 <div class="startup-actions-stack social-login-stack" id="startup-social-actions">
-                    <button id="btn-startup-google" class="social-login-image-btn" aria-label="Google 계정으로 로그인" onclick="loginWithGoogle()">
+                    <button id="btn-startup-google" disabled class="social-login-image-btn" aria-label="Google 계정으로 로그인" onclick="loginWithGoogle()">
                         <img src="assets/ui/login-google-mark.png" alt="" width="20" height="20">
                         <span>Google 계정으로 로그인</span>
                     </button>
-                    <button id="btn-startup-kakao" class="social-login-image-btn" onclick="loginWithKakao()">
+                    <button id="btn-startup-kakao" disabled class="social-login-image-btn" onclick="loginWithKakao()">
                         <img src="assets/ui/login-kakao.png" alt="카카오 계정으로 로그인" width="366" height="90">
                     </button>
                 </div>
             </details>
             <div class="startup-status" id="startup-status" role="status"></div>
             <div class="startup-policy-links"><a href="legal/terms.html" target="_blank" rel="noopener">이용약관</a><span>/</span><a href="legal/privacy.html" target="_blank" rel="noopener">개인정보처리방침</a></div>
+        </div>
+        <!-- 다른 탭이 게임을 이어 받은 탭(js/game-tab-guard-ui.js). 로그인 판 자리에 대신 선다. -->
+        <div class="startup-panel auth startup-standby" id="startup-standby" role="alert" hidden>
+            <div class="startup-auth-title">다른 탭에서 게임 중</div>
+            <p class="startup-standby-copy">이 게임을 다른 탭에서 열어 이 탭은 멈췄습니다.</p>
+            <button type="button" id="btn-startup-standby" class="startup-primary">이 탭에서 이어 하기</button>
+            <div class="startup-standby-note">다른 탭의 게임은 멈추고 여기서 이어집니다.</div>
         </div>
     </div>
 </div>
@@ -1838,6 +1846,7 @@
 <script defer src="js/android-app-ui.js?v=20260907-1&thermal=20260907-1&popup-layer=20260911-1"></script>
 <script defer src="js/dev-test-panel-ui.js?v=20260930-5&uiwords=20261009-1&stage=20261011-1&rooms=20261011-1&backdrop=20261011-1&theme=20261011-1&roster=20261012-1&plans=20261013-1&skillvfx=20261013-1&jump=20261013-3&sizes=20261013-1&hive=20261013-1&boardrooms=20261013-1&perf=20261013-1&boss=20261014-1&runes=20261017-1&tidy=20261018-1&ocean2=20261020-1&incident=20261020-1"></script>
 <script defer src="js/settings-ui.js?v=20261015-1&cfg=20261016-1&bagrail=20261019-1"></script>
-<script defer src="js/main.js?v=20260905-runtime1&loot-filter=20260905-1&display=20260906-1&thermal=20260907-1&return-ui=20260908-1&login-idle=20260908-1&return-regions=20260908-1&route=20260909-2&journal-preference=20260914-1&aux=20260930-8&aux=20261001-17&aux=20261002-1&font=20261006-1&eff=20261008-1&fg=20261008-1&storylog=20261015-1&scripted=20261017-1&offlineaway=20261019-1"></script>
+<script defer src="js/game-tab-guard-ui.js?v=20261021-1"></script>
+<script defer src="js/main.js?v=20260905-runtime1&loot-filter=20260905-1&display=20260906-1&thermal=20260907-1&return-ui=20260908-1&login-idle=20260908-1&return-regions=20260908-1&route=20260909-2&journal-preference=20260914-1&aux=20260930-8&aux=20261001-17&aux=20261002-1&font=20261006-1&eff=20261008-1&fg=20261008-1&storylog=20261015-1&scripted=20261017-1&offlineaway=20261019-1&tabguard=20261021-1"></script>
 </body>
 </html>
