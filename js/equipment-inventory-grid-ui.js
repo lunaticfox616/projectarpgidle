@@ -201,7 +201,19 @@
             let badge = matchCount > 0 ? `<small>${matchCount}</small>` : '';
             return `<button type="button" class="${index === page ? 'active' : ''}${searchClass}" onclick="equipmentInventoryInteraction.setPage(${index})" aria-pressed="${index === page ? 'true' : 'false'}" aria-label="${index + 1}페이지${searchText}" title="${index + 1}페이지${searchText}"><span>${index + 1}</span>${badge}</button>`;
         }).join('');
+        keepPageInView(root, page);
         return page;
+    }
+
+    // 휴대폰에서는 쪽 단추가 옆으로 미는 한 줄이다(css/equipment-inventory-grid.css): 쪽이 바뀌면 그 단추를 가운데로 옮기고,
+    // 같은 쪽을 다시 그릴 때는 사용자가 민 자리를 그대로 둔다. 창이 닫혀 폭이 0이면 다음에 보일 때 맞춘다.
+    let pageInView = -1;
+    function keepPageInView(root, page) {
+        let button = root.children[page];
+        if (page === pageInView || !button || !root.clientWidth) return;
+        pageInView = page;
+        let box = root.getBoundingClientRect(), at = button.getBoundingClientRect();
+        if (root.scrollWidth > root.clientWidth) root.scrollLeft += at.left + at.width / 2 - (box.left + box.width / 2);
     }
 
     function renderTemporaryStorage() {
