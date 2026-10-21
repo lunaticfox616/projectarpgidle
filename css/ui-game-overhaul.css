@@ -1809,7 +1809,8 @@ body .item-card {
 .equipment-card-meta.has-triage { flex-wrap: wrap; overflow: visible; }
 .stat-item.full.character-ehp-block { display: grid; grid-template-columns: minmax(0, 1fr); gap: 7px; padding: 9px 0; }
 .character-ehp-block .ailment-stat-title small { margin-left: 6px; color: var(--copy-muted); font-weight: 500; }
-.character-ehp-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+/* 첫 칸만 남는 폭(1fr)을 받고 나머지는 정수 px: 소수 폭이면 칸 안의 수치가 화소 사이에서 시작해 번졌다(2026-10-21). */
+.character-ehp-grid { display: grid; grid-template-columns: minmax(0, 1fr) repeat(4, round(down, calc((100% - 24px) / 5), 1px)); gap: 6px; }
 .character-ehp-stat { min-height: 42px; }
 #tab-character .character-ehp-stat, #tab-character .passive-special-stat-card { border: 1px solid var(--color-line); border-radius: var(--radius-sm); background: var(--color-surface-raised); padding: 9px 10px; font-family: inherit; }
 #tab-character .character-ehp-stat { display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:4px 8px;padding:7px 9px;border-width:0 0 1px;border-radius:0;background:transparent;cursor:help; }
@@ -1839,7 +1840,7 @@ body .item-card {
 .condition-rule-warning { padding: 6px 8px; color: #f2c68a; border: 1px solid rgba(178, 119, 55, .48); border-radius: 6px; background: rgba(78, 46, 19, .28); font-size: 9px; }
 
 @media (max-width: 760px) {
-  .character-ehp-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .character-ehp-grid { grid-template-columns: minmax(0, 1fr) round(down, calc((100% - 6px) / 2), 1px); }
   .passive-special-stat-grid { grid-template-columns: 1fr; }
   .equipment-triage-host { flex: 1 1 100%; width: 100%; padding: 7px 0 0; border-top: 1px solid rgba(78, 105, 132, .48); border-left: 0; }
   .equipment-triage-copy small { max-width: 46vw; }

@@ -228,8 +228,8 @@ actExplorationView.objects=(()=>{
     function nameLabel(ctx,row,x,y) {
         if(!actExplorationState.objects.isEvent(row)||row.phase==='spent')return;
         ctx.save();ctx.globalAlpha=1;ctx.font=NAME_FONT;ctx.textAlign='center';ctx.textBaseline='middle';
-        ctx.lineWidth=3;ctx.strokeStyle='rgba(8,6,4,0.9)';ctx.fillStyle=RIM[row.kind]||'#f3d6a4';
-        const name=actExplorationState.objects.name(row);ctx.strokeText(name,Math.round(x),Math.round(y));ctx.fillText(name,Math.round(x),Math.round(y));
+        ctx.lineWidth=2;ctx.strokeStyle='rgba(8,6,4,0.9)';ctx.fillStyle=RIM[row.kind]||'#f3d6a4';
+        const name=actExplorationState.objects.name(row);drawCrispCanvasText(ctx,name,x,y,'strokeText');drawCrispCanvasText(ctx,name,x,y);
         ctx.restore();
     }
     /** A glint that wanders over a closed chest's lid every couple of seconds: it can be opened. */

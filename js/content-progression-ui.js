@@ -248,8 +248,8 @@ const contentUnlockUi = {
         const status = contentProgression.status(def.id);
         const conditions = contentProgression.requirements(def.id);
         const action = status.unlocked ? this.openButton(def) : def.cost === 0
-            ? '<button type="button" disabled>조건 달성 시 자동 개방</button>'
-            : `<button type="button" data-unlock-content="${def.id}" ${status.available ? '' : 'disabled'}>${escapeHTML(status.reason)}</button>`;
+            ? '<button type="button" disabled><span class="px-center">조건 달성 시 자동 개방</span></button>'
+            : `<button type="button" data-unlock-content="${def.id}" ${status.available ? '' : 'disabled'}><span class="px-center">${escapeHTML(status.reason)}</span></button>`;
         // 첫 보상은 설명 바로 아래, 해금 단추는 맨 아래에서 창 본문 아래쪽에 붙어(sticky) 늘 보인다 — 작은 창(1366×768 ·
         // HUD 위 작업 영역)에서 단추가 스크롤 밖으로 밀려났다.
         return `<div class="unlock-detail-top"><span class="unlock-eyebrow">${escapeHTML(def.group)}, ${def.cost ? '선택 해금' : '자동 개방'}</span>
@@ -277,7 +277,7 @@ const contentUnlockUi = {
     },
     openButton(def) {
         const reachable = def.action || (def.routes || []).some(route => route.startsWith('tab-') || route.startsWith('item-tab-') || route.startsWith('skill-tab-') || route.startsWith('map-'));
-        return reachable ? `<button type="button" data-open-content="${def.id}">바로 사용하기</button>` : '<span class="content-unlock-owned">해금 완료</span>';
+        return reachable ? `<button type="button" data-open-content="${def.id}"><span class="px-center">바로 사용하기</span></button>` : '<span class="content-unlock-owned">해금 완료</span>';
     },
     pointBalanceHtml() {
         const points = contentProgression.points();

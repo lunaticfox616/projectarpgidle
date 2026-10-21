@@ -26,10 +26,11 @@
 
   /* 수심 게이지: 이번 가디언 구간, 눈금 하나가 리프트 하나(100m) */
   .dive-depth { display: grid; gap: 6px; margin-top: 12px; padding: 10px 12px; border: 1px solid var(--dive-line); background: var(--dive-bg); }
-  .dive-depth-nums { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  /* 첫 칸만 남는 폭(1fr)을 받고 나머지는 정수 px: 소수 폭이면 수심 숫자가 화소 사이에서 시작해 번졌다(2026-10-21). */
+  .dive-depth-nums { display: grid; grid-template-columns: minmax(0, 1fr) repeat(2, round(down, calc((100% - 16px) / 3), 1px)); gap: 8px; }
   .dive-depth-nums > span { display: grid; gap: 2px; }
   .dive-depth-nums small { color: var(--dive-muted); }
-  .dive-depth-nums b { font-size: 20px; font-weight: 400; line-height: 1.1; }
+  .dive-depth-nums b { font-size: 24px; font-weight: 400; line-height: 1.1; }
   .dive-depth-nums .is-depth b { color: var(--dive-water); }
   .dive-depth-nums .is-check b { color: var(--dive-gold); }
   .dive-depth-nums .is-guard { justify-items: end; }
@@ -45,7 +46,7 @@
   .dive-oxygen { display: grid; gap: 5px; margin-top: 8px; padding: 8px 12px; border: 1px solid var(--dive-line); background: var(--dive-bg); }
   .dive-oxygen > div:first-child { display: flex; align-items: baseline; gap: 8px; }
   .dive-oxygen > div:first-child > span { color: var(--dive-muted); }
-  .dive-oxygen > div:first-child > b { color: var(--dive-water); font-size: 16px; font-weight: 400; }
+  .dive-oxygen > div:first-child > b { color: var(--dive-water); font-size: 15px; font-weight: 400; }
   .dive-oxygen > div:first-child > small { margin-left: auto; color: var(--dive-muted); }
   .dive-oxygen-bar { height: 8px; background: #050404; box-shadow: 0 0 0 1px var(--dive-line); }
   .dive-oxygen-bar > i { display: block; height: 100%; background: linear-gradient(90deg, #1f9bd6, #4fd1ff); }
@@ -58,11 +59,18 @@
   .dive-chips .is-pressure b { color: var(--dive-pressure); }
 
   /* 잠수 장비 강화 */
-  .dive-upgrades { margin-top: 14px; }
+  /* 강화 카드 칸 폭 계산(100cqw)이 이 칸의 폭을 쓰도록 크기 기준으로 둔다. */
+  .dive-upgrades { margin-top: 14px; container-type: inline-size; }
   .dive-upgrades > header { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
   #ui-ocean-panel .dive-upgrades > header strong { color: var(--px-gold-bright, #e0c283); font-size: 15px; font-weight: 400; }
   .dive-upgrades > header small { color: var(--dive-muted); }
   .dive-upgrade-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); gap: 8px; }
+  /* 칸 수는 카드 수(--dive-upgrade-count, js/ocean-dive-ui.js)와 폭으로 정하고 칸 폭은 정수 px: auto-fit의 1fr 칸은 소수 폭이라
+     강화 카드 글이 번졌다(2026-10-21). 카드가 한 줄에 다 들어가면 줄을 꽉 채운다(auto-fit과 같다). */
+  @supports (width: calc(1px / 1px * 1px)) {
+    .dive-upgrade-grid { --dive-cols: min(var(--dive-upgrade-count, 3), max(1, round(down, (100cqw + 8px) / 228px, 1)));
+      grid-template-columns: repeat(auto-fill, round(down, calc((100cqw - (var(--dive-cols) - 1) * 8px) / var(--dive-cols)), 1px)); }
+  }
   .dive-upgrade { display: grid; align-content: start; gap: 6px; padding: 10px 12px; border: 1px solid var(--dive-line); background: var(--dive-bg); }
   .dive-upgrade > header { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
   .dive-upgrade > header strong { color: var(--dive-ink); font-weight: 400; }
@@ -104,7 +112,7 @@
     .dive-head { flex-wrap: wrap; }
     .dive-actions { justify-content: stretch; width: 100%; }
     .dive-actions > button { flex: 1 1 0; }
-    .dive-depth-nums b { font-size: 16px; }
+    .dive-depth-nums b { font-size: 12px; }
     .dive-oxygen > div:first-child { flex-wrap: wrap; }
   }
   /* 단추가 넷이면(얕게 잠수, 다른 곳에서 잠수 중) 조금 넓은 창에서도 제목 아래 2x2로 놓는다(한 줄에 셋과 하나로 갈라지지 않게) */

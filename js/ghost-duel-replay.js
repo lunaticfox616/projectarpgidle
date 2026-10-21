@@ -171,9 +171,10 @@ function drawGhostDuelCue(ctx, cue, elapsed, width, height) {
     if (age >= 185 && age < 430) drawGhostDuelImpact(ctx, toX, height - 132, (age - 185) / 245, color);
     if (age < 180 || progress < 1) return;
     let fade = 1 - clampNumber((age - 180) / 440, 0, 1); ctx.save(); ctx.globalAlpha = fade;
-    ctx.font = '900 17px "Malgun Gothic",sans-serif'; ctx.textAlign = 'center'; ctx.lineWidth = 4; ctx.strokeStyle = '#070911';
+    // 전장 피해 숫자처럼 갈무리11 Bold 24px, 정수 화소(2026-10-21: 맑은 고딕 17px이었다).
+    ctx.font = '800 24px "Galmuri11", "Malgun Gothic", sans-serif'; ctx.textAlign = 'center'; ctx.lineWidth = 4; ctx.strokeStyle = '#070911';
     let targetX = toX; let targetY = height - 190 - (age - 180) * 0.035;
-    ctx.strokeText(cue.text, targetX, targetY); ctx.fillStyle = cue.outcome === 'hit' ? color : '#c9d5e8'; ctx.fillText(cue.text, targetX, targetY); ctx.restore();
+    drawCrispCanvasText(ctx, cue.text, targetX, targetY, 'strokeText'); ctx.fillStyle = cue.outcome === 'hit' ? color : '#c9d5e8'; drawCrispCanvasText(ctx, cue.text, targetX, targetY); ctx.restore();
 }
 
 function getGhostDuelLunge(cue, progress, width) {

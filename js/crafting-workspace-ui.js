@@ -330,7 +330,7 @@ const craftingWorkspaceUi = (() => {
     function workspaceAutoControlsHtml(state) {
         const reason=workspaceAutoReason();
         return `<div class="cl-auto"><label>최대 <input id="cl-limit" type="number" min="1" max="100" value="${limit}" aria-label="자동 사용 최대 횟수">회</label>
-            <button data-command="auto" ${busy||!state.enabled||reason?'disabled':''}>목표까지 자동 사용</button></div>${reason&&goal.rules.length?`<small>${esc(reason)}</small>`:''}`;
+            <button data-command="auto" ${busy||!state.enabled||reason?'disabled':''}><span class="px-center">목표까지 자동 사용</span></button></div>${reason&&goal.rules.length?`<small>${esc(reason)}</small>`:''}`;
     }
 
     function workspaceResultHtml() {
@@ -375,7 +375,7 @@ const craftingWorkspaceUi = (() => {
         const state=workspaceUseState(), stopped=held();
         const html=`<div class="cl-heading">${adapter.targetControls()}<button id="cl-inventory-open" data-command="inventory">재화 인벤토리</button></div>
             <div class="cl-workspace">${workspaceItemHtml()}<div class="cl-controls">${workspaceMethodsHtml()}${workspaceGoalHtml()}<div class="cl-action"><small>${esc(workspaceCostText())}</small>
-            ${workspaceActionHtml(state,stopped)}<span class="cl-block cl-error" role="status">${!state.enabled?esc(state.reason):''}</span></div></div></div>${workspaceResultHtml()}`;
+            ${workspaceActionHtml(state,stopped)}<span class="cl-block cl-error" role="status">${!state.enabled?`<span class="px-center">${esc(state.reason)}</span>`:''}</span></div></div></div>${workspaceResultHtml()}`;
         workspaceReplaceMarkup(html,reveal);
         if(reveal)root.querySelector('.cl-item').classList.add('just-crafted');
         workspaceShowDialogs(reveal,stopped);

@@ -219,6 +219,9 @@ function renderTrialMapList(trials) {
     // An unchanged destination must stay connected during departure confirmation.
     // Changed/reordered destinations are replaced so the stale-click guard still applies.
     if (panel.__lastHtml !== html) panel.innerHTML = panel.__lastHtml = html;
+    // 시련 수: 카드 칸 폭을 정수 px로 자를 때 쓴다(css/exploration-encounters.css).
+    const count = String(trials.length);
+    if (panel.style.getPropertyValue('--trial-count') !== count) panel.style.setProperty('--trial-count', count);
 }
 
 safeExposeGlobals({ showMapPowerEstimateTooltip });
@@ -2015,7 +2018,7 @@ function mergedTabMarkHtml(tab) {
 /** 그 화면을 바로 여는 단축키(PC)의 작은 자판: 메뉴 단추가 하나로 합쳐져도 키는 화면마다 그대로다. */
 function mergedTabHotkeyHtml(tab) {
     let source = document.getElementById('btn-' + tab.id);
-    return source && source.dataset.hotkey ? `<kbd class="window-tab-key">${escapeHTML(source.dataset.hotkey)}</kbd>` : '';
+    return source && source.dataset.hotkey ? `<kbd class="window-tab-key"><span class="px-center">${escapeHTML(source.dataset.hotkey)}</span></kbd>` : '';
 }
 /** 묶음 창의 탭 하나: 그 화면의 그림과 이름, 표시(mergedTabMarkHtml), 단축키. */
 function mergedTabButtonHtml(groupKey, tab, selectedId) {
@@ -5933,7 +5936,7 @@ function itemExplicitAffixHeaderHtml(item, count) {
     const note = header.over ? '<div class="tooltip-line" style="color:#ffb454;">예전 규칙으로 한도를 넘은 장비: 넘친 종류에는 더 붙지 않습니다.</div>' : '';
     const kept = equipmentCrafting.keptKind(item);
     const keep = kept ? `<div class="tooltip-line" style="color:#9fd6ff;">다음 재굴림에서 ${AFFIX_KEEP_RULES.labels[kept]} 보존</div>` : '';
-    return `<div class="tooltip-line tooltip-section tooltip-section-explicit"${style}>${header.text}</div>${note}${keep}`;
+    return `<div class="tooltip-line tooltip-section tooltip-section-explicit"${style}><span class="px-center">${header.text}</span></div>${note}${keep}`;
 }
 
 /** The base line's badges: the upgrade step ([2/4]) and 수평 for a horizontal base (a base with a family, 2026-10-09). */
@@ -5956,7 +5959,7 @@ function showItemTooltip(event, idx, isEquip, itemOverride, options = {}) {
     const inactiveAffixes = equipmentInspectionUi.getInactiveAffixIds(cachedTooltipStats, game.equippedSummonSkills);
     const affixClass = statId => inactiveAffixes.has(statId) ? ' class="equipment-affix-inactive"' : '';
     let exceptionalStars = typeof getExceptionalBaseStarsHtml === 'function' ? getExceptionalBaseStarsHtml(item) : '';
-    let html = `<div class="tooltip-title" style="color:${getRarityColor(item.rarity)}">[${getItemSlotDisplayLabel(item)}] ${escapeHTML(item.name)}${exceptionalStars}${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.corrupted ? ' <span style="color:#e74c3c;">(타락)</span>' : ''}${craftingWorkspaceUi.imprintMark(item)}${item.loopSealed ? ' <span style="color:#7fd99a;" title="나무꾼의 손길로 봉인됨: 루프가 지나도 유지">🌿봉인</span>' : ''}</div>${itemInfluencesUi.tooltipHtml(item)}`;
+    let html = `<div class="tooltip-title" style="color:${getRarityColor(item.rarity)}"><span class="px-center">[${getItemSlotDisplayLabel(item)}] ${escapeHTML(item.name)}${exceptionalStars}${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.corrupted ? ' <span style="color:#e74c3c;">(타락)</span>' : ''}${craftingWorkspaceUi.imprintMark(item)}${item.loopSealed ? ' <span style="color:#7fd99a;" title="나무꾼의 손길로 봉인됨: 루프가 지나도 유지">🌿봉인</span>' : ''}</span></div>${itemInfluencesUi.tooltipHtml(item)}`;
     if (item.hallReplica) html += `<div class="tooltip-line" style="color:#d2b878;">🏛️ 전당 소장품, 전시자 ${escapeHTML(item.hallCuratorName || '익명')}, 감정 ${Math.max(0, Math.floor(Number(item.hallAppraisalScore) || 0)).toLocaleString()}, 제작/재등록 불가</div>`;
     else if (item.hallRelistBlocked) html += '<div class="tooltip-line" style="color:#bda979;">🏛️ 전당 복제 이력, 재등록 불가</div>';
     html += `<div class="tooltip-line tooltip-meta tooltip-meta-base">베이스: ${item.baseName}${getItemBaseBadgesHtml(item)}</div>`;
@@ -5974,7 +5977,7 @@ function showItemTooltip(event, idx, isEquip, itemOverride, options = {}) {
     }
     let defenseView = itemTooltipRules.defenseView(item);
     if ((item.baseStats || []).length > 0) {
-        html += `<div class="tooltip-line tooltip-section tooltip-section-base">베이스 옵션</div>${colonyWardsUi.beltLineHtml(item)}`;
+        html += `<div class="tooltip-line tooltip-section tooltip-section-base"><span class="px-center">베이스 옵션</span></div>${colonyWardsUi.beltLineHtml(item)}`;
         item.baseStats.forEach(stat => {
             let statKey = stat && (stat.id || stat.stat);
             if (statKey === 'armor' || statKey === 'evasion' || statKey === 'energyShield') return;
@@ -8683,6 +8686,9 @@ function syncSingleSubtabRows() {
     document.querySelectorAll('.tab-content .subtab-row:not(.merged-tab-subtabs)').forEach(row => {
         const open = [...row.children].filter(button => !button.hasAttribute('data-content-locked') && !button.hidden && button.style.display !== 'none');
         row.hidden = open.length < 2;
+        // 보이는 단추 수: PC 창의 탭 줄이 칸 폭을 정수 px로 자를 때 쓴다(css/themes/pixel.css).
+        const count = String(open.length);
+        if (row.style.getPropertyValue('--subtab-count') !== count) row.style.setProperty('--subtab-count', count);
     });
 }
 

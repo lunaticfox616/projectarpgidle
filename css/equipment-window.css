@@ -64,6 +64,7 @@
 :root body #item-tab-equip #ui-equip-list > .equipment-slot .equipment-socket-pips { position: absolute; top: 3px; right: 3px; }
 :root body #item-tab-equip #ui-equip-list > .equipment-slot .equipment-requirement-badge { grid-area: 1 / 1; position: static; align-self: end; justify-self: end; z-index: 3; margin: 0 2px 1px 0; }
 :root body #item-tab-equip #ui-equip-list > .equipment-slot .equipment-slot-name { grid-area: 2 / 1; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; margin: 0 0 3px;
+  justify-self: start; width: fit-content; max-width: 100%; position: relative; left: round(down, 50%, 1px); translate: round(up, -50%, 1px);
   padding: 0 2px; overflow: hidden; font-size: var(--font-size-ui); font-weight: 700; line-height: 14px; text-align: center; white-space: normal; word-break: keep-all; overflow-wrap: anywhere;
   text-shadow: 0 1px 0 #000; }
 :root body #item-tab-equip #ui-equip-list > .equipment-slot.is-menu-selected,
@@ -224,7 +225,7 @@
 :root body #item-tab-equip .eqw-dl-note.is-loss { color: #c98f9f; }
 :root body #item-tab-equip .eqw-none { margin: 4px 0; color: var(--eqw-muted); font-size: 12px; }
 :root body #item-tab-equip .eqw-dl-more { display: none; }
-:root body #item-tab-equip #ui-equipment-inventory-inspector .equipment-grid-inspector-actions { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; grid-auto-flow: row;
+:root body #item-tab-equip #ui-equipment-inventory-inspector .equipment-grid-inspector-actions { display: grid; grid-template-columns: minmax(0, 1fr) repeat(3, round(down, calc((100% - 18px) / 5), 1px)); grid-auto-flow: row;
   grid-row: auto; grid-column: auto; gap: 6px; margin: 0 0 8px; }
 :root body #item-tab-equip #ui-equipment-inventory-inspector .equipment-grid-inspector-actions button { min-width: 0; min-height: 32px; padding: 4px 6px; border-radius: 0; font-size: 12px; }
 :root body #item-tab-equip #ui-equipment-inventory-inspector .equipment-grid-inspector-actions .equipment-card-primary { grid-column: auto;

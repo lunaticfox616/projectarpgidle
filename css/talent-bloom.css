@@ -48,6 +48,8 @@
   .talent-slot-row { display: grid; grid-template-columns: minmax(0, 1fr) repeat(2, round(down, calc((100% - 12px) / 3), 1px)); gap: 6px; }
   .talent-slot { display: grid; justify-items: center; align-content: center; gap: 3px; min-width: 0; min-height: 70px; padding: 6px 4px;
     border: 1px dashed #3a3024; background: #0d0b08; color: #948a75; text-align: center; }
+  /* 칸 안의 그림과 글(가운데 맞춤)은 칸 폭과 제 폭이 홀수일 때 생기는 반 화소를 되돌린다(2026-10-21). */
+  .talent-slot > * { position: relative; left: calc(round(down, 50%, 1px) - 50%); translate: calc(round(up, 50%, 1px) - 50%); }
   .talent-slot.is-empty { border-style: solid; border-color: #4a3f2f; color: var(--px-copy-muted, #a39883); }
   .talent-plus { color: #c69f5e; font-size: 18px; line-height: 1; }
   .talent-lock { position: relative; width: 10px; height: 8px; margin-top: 6px; background: #5a5040; }
@@ -63,6 +65,12 @@
 
   /* 직업 여섯의 카드 판 */
   .talent-board { display: grid; grid-template-columns: repeat(auto-fill, minmax(214px, 1fr)); gap: 8px; }
+  /* 칸 수는 폭으로 정하고 칸 폭은 정수 px로 자른다(남는 몇 px는 오른쪽 끝): 1fr 칸은 소수 폭이라 카드 글이 화소 사이에서 시작해 번졌다(2026-10-21).
+     100cqw는 #tab-talent의 내용 폭이고 카드 판이 그 폭을 다 쓴다. 길이를 길이로 나누지 못하는 브라우저는 위 1fr 칸을 쓴다. */
+  @supports (width: calc(1px / 1px * 1px)) {
+    .talent-board { --talent-cols: max(1, round(down, (100cqw + 8px) / 222px, 1));
+      grid-template-columns: repeat(auto-fill, round(down, calc((100cqw - (var(--talent-cols) - 1) * 8px) / var(--talent-cols)), 1px)); }
+  }
   .talent-class { display: grid; align-content: start; min-width: 0; border: 1px solid #2a2218; background: rgba(10, 8, 6, .5); }
   .talent-class.is-current { border-color: #8a6a2e; box-shadow: 0 0 0 1px rgba(198, 159, 94, .3), 0 0 10px rgba(198, 159, 94, .12); }
   .talent-class > header { display: grid; grid-template-columns: 46px minmax(0, 1fr) auto; grid-template-areas: 'art name count' 'art bar bar'; align-items: center;

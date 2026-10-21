@@ -97,7 +97,7 @@ const oceanDiveUi = (() => {
             return;
         }
         updateGamePanelMarkup(panel, `${headHtml(st)}${depthHtml(st)}${oxygenHtml(st)}${chipsHtml(st)}`
-            + `<section class="dive-upgrades"><header><strong>잠수 장비 강화</strong><small>영구 유지</small></header><div class="dive-upgrade-grid">${OCEAN_PERMANENT_UPGRADE_KEYS.map(upgradeHtml).join('')}</div></section>${rulesHtml(st)}`);
+            + `<section class="dive-upgrades"><header><strong>잠수 장비 강화</strong><small>영구 유지</small></header><div class="dive-upgrade-grid" style="--dive-upgrade-count:${OCEAN_PERMANENT_UPGRADE_KEYS.length}">${OCEAN_PERMANENT_UPGRADE_KEYS.map(upgradeHtml).join('')}</div></section>${rulesHtml(st)}`);
     }
     function startDive(shallow) {
         if (!enterOceanDive({ shallow: shallow === true })) return;

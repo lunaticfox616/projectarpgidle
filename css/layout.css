@@ -1,6 +1,7 @@
 @layer components {
         .log-msg { margin-bottom: 4px; padding-bottom: 2px; border-bottom: 1px solid #111; line-height: 1.3; overflow-wrap: anywhere; word-break: break-word; }
-        .combat-log-icon { display: inline-block; width: 1.08em; height: 1.08em; margin-right: .3em; vertical-align: -.17em; background: url('../assets/ui/combat-log-icons-v1.webp?v=20260822-2') no-repeat; background-size: 300% 200%; }
+        /* 아이콘 폭과 여백은 정수 px: 1.08em + .3em(16.56px)이면 아이콘 뒤 글자가 화소 사이에서 시작해 전투 기록 줄이 번졌다(2026-10-21). */
+        .combat-log-icon { display: inline-block; width: round(1.08em, 1px); height: round(1.08em, 1px); margin-right: round(.3em, 1px); vertical-align: round(-.17em, 1px); background: url('../assets/ui/combat-log-icons-v1.webp?v=20260822-2') no-repeat; background-size: 300% 200%; }
         .combat-log-icon--attack { background-position: 0 0; }
         .combat-log-icon--phys { background-position: 50% 0; }
         .combat-log-icon--fire { background-position: 100% 0; }
@@ -134,7 +135,8 @@
             .deathlog-panel { flex: 0 0 auto; max-height: none; overflow: visible; }
         }
 
-        .paperdoll { display: grid; grid-template-columns: 1fr 1fr 1fr; grid-template-rows: auto auto auto auto; gap: 8px; margin-bottom: 20px; }
+        /* 첫 칸만 남는 폭(1fr)을 받고 나머지는 정수 px: 제작실의 장착 장비 고르기에서 칸 글이 번졌다(2026-10-21). */
+        .paperdoll { display: grid; grid-template-columns: minmax(0, 1fr) repeat(2, round(down, calc((100% - 16px) / 3), 1px)); grid-template-rows: auto auto auto auto; gap: 8px; margin-bottom: 20px; }
         .slot-box { background: #1a1a24; border: 1px solid #3d3d5c; border-radius: 6px; padding: 6px; min-height: 65px; display: flex; flex-direction: column; justify-content: center; cursor: pointer; }
         .slot-box:hover { background-color: #222230; border-color: #7f8c8d; }
         .slot-box.selected { border-color: #e74c3c; box-shadow: 0 0 8px rgba(231,76,60,0.5); }

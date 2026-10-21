@@ -175,7 +175,7 @@ body[data-ui-skin] .message-frame-actions [data-message-action="settings"]::befo
 .message-frame .social-attach-btn,
 #right-pane .message-frame-body > #tab-social .social-attach-btn { min-width: 0; padding: 0 9px; font-size: 0; }
 .message-frame .social-attach-btn > span,
-#right-pane .message-frame-body > #tab-social .social-attach-btn > span { font-size: 14px; }
+#right-pane .message-frame-body > #tab-social .social-attach-btn > span { font-size: var(--font-size-ui); }
 .message-frame .social-chat-counter { display: none; }
 
 /* 휴대폰 채팅 머리: ⚙는 닫기 바로 옆에, 메뉴의 설정과 같은 도트 톱니(26px, menu-icons.png 19번).

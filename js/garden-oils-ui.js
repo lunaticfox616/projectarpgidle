@@ -10,7 +10,7 @@ const gardenOilsUi = (() => {
     function actionHtml(item, slot) {
         if (!item || item.slot !== '목걸이' || !(gardenOils.open(game) || item.anoint)) return '';
         const ref = slot ? `'${slot}',true` : `${item.id},false`;
-        return `<button type="button" data-content-action="anoint" onclick="equipmentInventoryInteraction.focus(null);gardenOilsUi.open(${ref})">기름</button>`;
+        return `<button type="button" data-content-action="anoint" onclick="equipmentInventoryInteraction.focus(null);gardenOilsUi.open(${ref})"><span class="px-center">기름</span></button>`;
     }
     function open(ref, isEquip) {
         if (!selectForCrafting(ref, isEquip)) return;

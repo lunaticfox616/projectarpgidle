@@ -55,7 +55,8 @@
 
 /* 가방 판: 10칸 줄과 오른쪽 도구 줄(폭 52px, 2026-10-19). 칸 크기는 판 폭에서 도구 줄과 틈을 뺀 나머지의 1/10. */
 .equipment-inventory-grid-shell {
-    --equipment-grid-cell-size: clamp(24px, calc((100cqw - 58px) / 10), 52px);
+    /* 칸 크기는 정수 px: 52px보다 좁은 창에서 소수 크기면 가방 칸의 글이 화소 사이에 놓였다(2026-10-21). */
+    --equipment-grid-cell-size: round(down, clamp(24px, calc((100cqw - 58px) / 10), 52px), 1px);
     container-type: inline-size;
     display: grid;
     grid-template-columns: minmax(0, 1fr) 52px;
@@ -483,7 +484,7 @@
     /* 빈 칸 채우기는 아랫줄 혼자라 두 칸을 쓴다(첫 칸 폭에서 "빈 칸 채우기 6"이 잘렸다) */
     #item-tab-equip .equipment-triage-controls .equipment-fill-empty { grid-column: span 2; }
     .equipment-inventory-grid-shell {
-        --equipment-grid-cell-size: clamp(24px, calc((100cqw - 2px) / 10), 52px);
+        --equipment-grid-cell-size: round(down, clamp(24px, calc((100cqw - 2px) / 10), 52px), 1px);
         display: block;
     }
     .equipment-inventory-pages button { min-height: 30px; padding: 3px 7px; }

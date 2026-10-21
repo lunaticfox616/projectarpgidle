@@ -2,9 +2,10 @@
    고유 칩, 부위 탭(부위 그림, 모은 수 막대), 카드 판(고유 그림: 미등록은 검은 그림자에 금빛 윤곽, 등록은 제 색), 고유 창. 고유의 색은
    장비 툴팁의 고유 색과 같은 주황 금빛, 극희귀는 보라. */
 @layer features {
-  #tab-codex { container-type: inline-size; }
+  #tab-codex { container: codex-tab / inline-size; }
   #tab-codex .vertical-tab-sidebar[hidden] { display: none; }
-  .codex-root { display: grid; gap: 10px; }
+  /* 부위 탭과 카드 판의 칸 폭 계산(100cqw)이 이 칸의 폭을 쓰도록 크기 기준으로 둔다. 좁은 화면 규칙은 이름(codex-tab)으로 창 폭을 본다. */
+  .codex-root { display: grid; gap: 10px; container-type: inline-size; }
   #ui-codex-summary { margin-bottom: 10px; }
   .codex-bar { display: block; height: 5px; background: #050404; box-shadow: 0 0 0 1px #2a2218; }
   .codex-bar > i { display: block; height: 100%; background: linear-gradient(90deg, #8a5a1e, #f0a85a); }
@@ -29,6 +30,11 @@
 
   /* 부위 탭 */
   .codex-slots { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; }
+  /* 칸 폭은 정수 px(남는 몇 px는 오른쪽 끝): 1fr 칸은 소수 폭이라 칸 글이 번졌다(2026-10-21). */
+  @supports (width: calc(1px / 1px * 1px)) {
+    .codex-slots { --codex-slot-cols: max(1, round(down, (100cqw + 6px) / 102px, 1));
+      grid-template-columns: repeat(auto-fill, round(down, calc((100cqw - (var(--codex-slot-cols) - 1) * 6px) / var(--codex-slot-cols)), 1px)); }
+  }
   #tab-codex .codex-slot { position: relative; display: grid; grid-template-columns: 26px minmax(0, 1fr); grid-template-areas: 'art name' 'art count' 'bar bar';
     align-items: center; gap: 2px 6px; min-height: 52px; padding: 5px 7px; border: 1px solid #2a2218; border-radius: 0; background: rgba(10, 8, 6, .5);
     box-shadow: none; color: var(--px-copy, #e8dcc0); text-align: left; }
@@ -42,9 +48,15 @@
 
   /* 카드 판 */
   .codex-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); gap: 6px; }
-  #tab-codex .codex-tile { position: relative; display: grid; justify-items: center; align-content: start; gap: 4px; min-width: 0; padding: 8px 6px;
+  @supports (width: calc(1px / 1px * 1px)) {
+    .codex-grid { --codex-cols: max(1, round(down, (100cqw + 6px) / 134px, 1));
+      grid-template-columns: repeat(auto-fill, round(down, calc((100cqw - (var(--codex-cols) - 1) * 6px) / var(--codex-cols)), 1px)); }
+  }
+  #tab-codex .codex-tile { position: relative; display: grid; justify-items: start; align-content: start; gap: 4px; min-width: 0; padding: 8px 6px;
     border: 1px solid #241d14; border-radius: 0; background: rgba(10, 8, 6, .5); box-shadow: none; text-align: center; cursor: pointer; }
   #tab-codex .codex-tile:hover, #tab-codex .codex-tile:focus-visible { border-color: #5a4630; background: rgba(240, 168, 90, .06); }
+  /* 칸 안의 그림과 글은 칸 왼쪽에서 정수 px로 가운데에 놓는다(가운데 맞춤은 반 화소에 놓였다, 2026-10-21). */
+  #tab-codex .codex-tile > * { position: relative; left: round(down, 50%, 1px); translate: round(up, -50%, 1px); }
   .codex-tile .codex-art { width: 66px; height: 74px; }
   .codex-tile .codex-art img { max-width: 60px; max-height: 68px; }
   .codex-tile strong { max-width: 100%; color: #6f6656; font-size: 12px; font-weight: 400; line-height: 1.3; overflow-wrap: anywhere; }
@@ -105,7 +117,7 @@
   #tab-codex .codex-hunt-actions button { min-height: 28px; padding: 2px 8px; font-size: 12px; }
   .codex-hunt-empty { display: grid; place-items: center; min-height: 86px; border: 1px dashed #3a3024; color: #6f6656; font-size: 12px; text-align: center; }
 
-  @container (max-width: 560px) {
+  @container codex-tab (max-width: 560px) {
     .codex-summary { grid-template-columns: minmax(0, 1fr) round(down, calc((100% - 8px) / 2), 1px); }
     .codex-summary .is-count { grid-column: 1 / -1; }
     .codex-hunt-row { grid-template-columns: minmax(0, 1fr); }

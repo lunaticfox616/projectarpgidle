@@ -5,7 +5,8 @@
         .map-reward-btn { background: linear-gradient(180deg, #6e5420 0%, #4a3815 100%); border-color: #b88a2b; color: #ffe7a2; font-size: 0.78em; padding: 5px 10px; }
         .map-reward-btn.claimed { background: #263544; border-color: #3a536c; color: #ffffff; }
         .map-zone-status { color: var(--copy-muted); font-size: 0.78em; font-weight: normal; }
-        .map-power-estimate { display: inline-flex; flex-wrap: wrap; gap: 0.25rem 0.65rem; cursor: help; }
+        /* 간격은 정수 px: .65rem(10.4px)은 뒤 칸의 글을 화소 사이로 밀었다(2026-10-21). */
+        .map-power-estimate { display: inline-flex; flex-wrap: wrap; gap: 4px 10px; cursor: help; }
         .map-power-estimate > span { white-space: nowrap; }
         .map-power-grade { font-weight: 800; }
         .map-power-grade.grade-low { color: #ff877f; }

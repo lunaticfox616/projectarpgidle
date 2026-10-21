@@ -30,18 +30,19 @@
 /* 지도: 도트 그림이 판 전체를 그리고, 버튼은 메달 자리에 투명하게 선다(누르기 · 초점 · 등급 숫자). */
 #ui-atlas .atlas-chart{position:relative;width:min(100%,660px);aspect-ratio:1;margin:0 auto;container-type:inline-size}
 #ui-atlas .atlas-art{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated}
-#ui-atlas .atlas-legend{display:flex;flex-wrap:wrap;justify-content:center;gap:4px 14px;margin:0 0 8px;font-size:var(--font-size-ui);color:var(--atlas-ink)}
+/* 범례 줄은 제 폭만 차지하고 가운데(margin auto)에서 반 화소를 되돌린다: 칸 안의 가운데 맞춤은 반 화소에 놓였다(2026-10-21). */
+#ui-atlas .atlas-legend{display:flex;flex-wrap:wrap;justify-content:center;gap:4px 14px;width:fit-content;max-width:100%;margin:0 auto 8px;position:relative;left:calc(round(down,50%,1px) - 50%);translate:calc(round(up,50%,1px) - 50%);font-size:var(--font-size-ui);color:var(--atlas-ink)}
 #ui-atlas .atlas-legend span{display:inline-flex;align-items:center;gap:6px}
 #ui-atlas .atlas-legend i{width:8px;height:8px;background:color-mix(in srgb,var(--tint) 70%,#d8ccb0);box-shadow:1px 1px 0 #000}
 #ui-atlas .atlas-legend small{color:var(--atlas-muted)}
-#ui-atlas .atlas-node{--node:4.4cqw;position:absolute;left:var(--x);top:var(--y);transform:translate(-50%,-50%);width:var(--node);height:var(--node);min-width:0;min-height:0;padding:0;display:grid;place-items:center;border:0;background:transparent;box-shadow:none;color:#8d826e;font-size:12px;line-height:1}
+#ui-atlas .atlas-node{--node:round(4.4cqw,2px);position:absolute;left:round(var(--x),1px);top:round(var(--y),1px);transform:translate(round(-50%,1px),round(-50%,1px));width:var(--node);height:var(--node);min-width:0;min-height:0;padding:0;display:grid;place-items:center;border:0;background:transparent;box-shadow:none;color:#8d826e;font-size:12px;line-height:1}
 #ui-atlas .atlas-node:hover:not(:disabled){border:0;background:transparent}
 #ui-atlas .atlas-node b{font-weight:400;text-shadow:1px 0 0 #000,-1px 0 0 #000,0 1px 0 #000,0 -1px 0 #000,1px 1px 0 #000;pointer-events:none}
 #ui-atlas .atlas-node.is-open{color:var(--atlas-gold-hi)}
 #ui-atlas .atlas-node.is-complete{color:#efe6d2}
 #ui-atlas .atlas-node.is-bonus{color:#fff1c9}
-#ui-atlas .atlas-node.kind-guardian{--node:6.2cqw}
-#ui-atlas .atlas-node.kind-pinnacle{--node:7.6cqw;font-size:13px}
+#ui-atlas .atlas-node.kind-guardian{--node:round(6.2cqw,2px)}
+#ui-atlas .atlas-node.kind-pinnacle{--node:round(7.6cqw,2px);font-size:13px}
 #ui-atlas .atlas-node:hover b{color:#fff4d6}
 #ui-atlas .atlas-node i{position:absolute;right:-3px;top:-3px;min-width:13px;height:13px;padding:0 2px;background:var(--atlas-gold);box-shadow:1px 1px 0 #000;color:#15120e;font-size:9px;font-style:normal;font-weight:700;line-height:13px;box-sizing:border-box}
 #ui-atlas .atlas-guardian-note{color:#d6c08a}

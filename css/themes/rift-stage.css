@@ -160,8 +160,8 @@
 
   /* 채팅 판: 예전 스킨의 남색 안내 상자를 판 재질로, 작은 글자는 읽을 크기로 */
   :root body[data-ui-skin="rift"].desktop-windowed-ui .ui-community-dock .social-empty-state { border-color: var(--stage-line); background: rgba(10, 11, 13, .6); }
-  body[data-ui-skin="rift"].desktop-windowed-ui .ui-community-dock .social-chat-nick { font-size: 11px; }
-  body[data-ui-skin="rift"].desktop-windowed-ui .ui-community-dock .social-chat-time { font-size: 10px; }
+  body[data-ui-skin="rift"].desktop-windowed-ui .ui-community-dock .social-chat-nick { font-size: var(--font-size-ui); }
+  body[data-ui-skin="rift"].desktop-windowed-ui .ui-community-dock .social-chat-time { font-size: var(--font-size-meta); }
 
   /* 목표 서랍: 9px대로 줄어 있던 글자를 읽을 크기로 */
   body[data-ui-skin="rift"].desktop-windowed-ui #ui-goal-body .ui-goal-title { font-size: 12px; line-height: 1.4; }

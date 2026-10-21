@@ -347,7 +347,8 @@
 .market-shell button:hover:not(:disabled){filter:brightness(1.1)}
 .market-shell label{display:grid;gap:7px;color:var(--color-text-secondary);font-size:12px;min-width:0}
 .market-shell select,.market-shell input{box-sizing:border-box;width:100%;max-width:100%;min-width:0;min-height:40px;margin:0;padding:8px 10px;background:var(--color-surface);color:var(--color-text);border:1px solid var(--color-line);border-radius:5px;font:inherit;font-size:13px}
-.market-exchange-workspace{display:grid;grid-template-columns:minmax(170px,.7fr) minmax(0,1.3fr);gap:22px}
+/* 왼쪽 칸은 .7:1.3 몫을 정수 px로 자르고 오른쪽이 나머지를 받는다: fr 몫은 소수 폭이라 오른쪽 상세 글이 번졌다(2026-10-21). */
+.market-exchange-workspace{display:grid;grid-template-columns:max(170px,round(down,calc((100% - 22px) * .35),1px)) minmax(0,1fr);gap:22px}
 .market-targets h3{margin:0 0 10px;color:var(--color-text-secondary);font-size:12px;font-weight:500}
 .market-target-list{display:grid;gap:5px}
 .market-target-list button{display:flex;align-items:center;gap:10px;width:100%;min-width:0;margin:0;padding:8px 12px;text-align:left;background:var(--color-surface-raised);border:1px solid transparent;border-radius:6px;color:var(--color-text);font-size:13px}
@@ -621,7 +622,7 @@
   }
 }
 
-.colony-ward-panel{container:colony-ward / inline-size;color:var(--color-text);background:var(--color-surface);border:1px solid var(--color-line);border-radius:var(--radius-md);padding:16px;font-size:16px;line-height:1.5}
+.colony-ward-panel{container:colony-ward / inline-size;color:var(--color-text);background:var(--color-surface);border:1px solid var(--color-line);border-radius:var(--radius-md);padding:16px;font-size:15px;line-height:1.5}
 .colony-ward-hero{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
 .colony-ward-hero h3{margin:0;color:var(--color-text);font-size:20px}
 .colony-ward-hero p{margin:4px 0 0;color:var(--color-text-secondary)}
@@ -744,7 +745,9 @@
     background: rgba(3, 7, 12, .72);
     font-size: .68rem;
     pointer-events: none;
-    transform: translateX(-50%);
+    /* 가운데는 정수 px: translateX(-50%)는 폭이 홀수면 글을 반 화소에 놓았다(2026-10-21). */
+    left: round(down, 50%, 1px);
+    translate: round(up, -50%, 1px);
 }
 
 .passive-planner-row { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
@@ -1224,14 +1227,15 @@
     background: linear-gradient(135deg, rgba(249, 241, 214, .34), rgba(225, 183, 92, .24));
     filter: drop-shadow(0 9px 10px rgba(0, 0, 0, .42)) drop-shadow(0 0 12px rgba(209, 169, 82, .16));
 }
+/* 노드 자리는 정수 px로 자른다(round): %와 -50%가 소수로 떨어지면 노드 안의 글이 화소 사이에서 시작해 번졌다(2026-10-21). */
 .loop-passive-node {
     position: absolute;
     z-index: 5;
-    left: var(--loop-node-x);
-    top: var(--loop-node-y);
+    left: round(var(--loop-node-x), 1px);
+    top: round(var(--loop-node-y), 1px);
     width: var(--loop-node-size);
     height: var(--loop-node-size);
-    transform: translate(-50%, -50%);
+    transform: translate(round(-50%, 1px), round(-50%, 1px));
     border-radius: 50%;
     color: #c8d5d2;
     cursor: pointer;

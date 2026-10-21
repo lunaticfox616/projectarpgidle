@@ -734,10 +734,10 @@
     
     <div id="tab-items" class="tab-content">
         <div class="subtab-row">
-            <button class="subtab-btn active" id="btn-item-tab-equip" onclick="switchItemSubtab('item-tab-equip')">장비 창</button>
-            <button class="subtab-btn" id="btn-item-tab-craft" onclick="switchItemSubtab('item-tab-craft')">제작실</button>
-            <button class="subtab-btn" id="btn-item-tab-market" onclick="switchItemSubtab('item-tab-market')" style="display:none;">거래소</button>
-            <button class="subtab-btn" id="btn-item-tab-hall" onclick="switchItemSubtab('item-tab-hall')">장비 전당</button>
+            <button class="subtab-btn active" id="btn-item-tab-equip" onclick="switchItemSubtab('item-tab-equip')"><span class="px-center">장비 창</span></button>
+            <button class="subtab-btn" id="btn-item-tab-craft" onclick="switchItemSubtab('item-tab-craft')"><span class="px-center">제작실</span></button>
+            <button class="subtab-btn" id="btn-item-tab-market" onclick="switchItemSubtab('item-tab-market')" style="display:none;"><span class="px-center">거래소</span></button>
+            <button class="subtab-btn" id="btn-item-tab-hall" onclick="switchItemSubtab('item-tab-hall')"><span class="px-center">장비 전당</span></button>
         </div>
 
         <div id="item-tab-equip" class="subtab-content active">
@@ -827,10 +827,10 @@
                 <div id="ui-market-locked" class="market-locked">장비 제련을 해금하면 거래소가 함께 열립니다.</div>
                 <div id="ui-market-panel" hidden>
                     <nav class="market-tabs" role="tablist" aria-label="거래소 서비스" onkeydown="marketUi.moveTab(event)">
-                        <button type="button" role="tab" aria-controls="market-panel-exchange" data-market-section="exchange" aria-selected="true" onclick="marketUi.show('exchange')">재화 교환</button>
-                        <button type="button" role="tab" aria-controls="market-panel-black" data-market-section="black" aria-selected="false" onclick="marketUi.show('black')">암거래상</button>
-                        <button type="button" role="tab" aria-controls="market-panel-services" data-market-section="services" aria-selected="false" onclick="marketUi.show('services')">특수 서비스</button>
-                        <button type="button" role="tab" aria-controls="market-panel-stall" data-market-section="stall" aria-selected="false" onclick="marketUi.show('stall')">나의 가판대</button>
+                        <button type="button" role="tab" aria-controls="market-panel-exchange" data-market-section="exchange" aria-selected="true" onclick="marketUi.show('exchange')"><span class="px-center">재화 교환</span></button>
+                        <button type="button" role="tab" aria-controls="market-panel-black" data-market-section="black" aria-selected="false" onclick="marketUi.show('black')"><span class="px-center">암거래상</span></button>
+                        <button type="button" role="tab" aria-controls="market-panel-services" data-market-section="services" aria-selected="false" onclick="marketUi.show('services')"><span class="px-center">특수 서비스</span></button>
+                        <button type="button" role="tab" aria-controls="market-panel-stall" data-market-section="stall" aria-selected="false" onclick="marketUi.show('stall')"><span class="px-center">나의 가판대</span></button>
                     </nav>
                     <section id="market-panel-exchange" role="tabpanel" aria-label="재화 교환"><div id="ui-market-exchange-list"></div></section>
                     <section id="market-panel-black" role="tabpanel" aria-label="암거래상" hidden></section>
@@ -1001,10 +1001,10 @@
 
     <div id="tab-skills" class="tab-content">
         <div class="subtab-row skill-subtab-row">
-            <button class="subtab-btn active" id="btn-skill-tab-equip" onclick="switchSkillSubtab('skill-tab-equip')"><strong>장착과 보조</strong><small>현재 전투 세팅</small></button>
-            <button class="subtab-btn" id="btn-skill-tab-enhance" onclick="switchSkillSubtab('skill-tab-enhance')"><strong>성장과 각인</strong><small>룬 강화와 특수 옵션</small></button>
-            <button class="subtab-btn" id="btn-skill-tab-research" onclick="switchSkillSubtab('skill-tab-research')"><strong>룬 연구</strong><small>미보유 룬 확정 해금</small></button>
-            <button class="subtab-btn" id="btn-skill-tab-condition" onclick="switchSkillSubtab('skill-tab-condition')"><strong>전술 규칙</strong><small>조건과 행동 규칙</small></button>
+            <button class="subtab-btn active" id="btn-skill-tab-equip" onclick="switchSkillSubtab('skill-tab-equip')"><span class="px-center"><strong>장착과 보조</strong><small>현재 전투 세팅</small></span></button>
+            <button class="subtab-btn" id="btn-skill-tab-enhance" onclick="switchSkillSubtab('skill-tab-enhance')"><span class="px-center"><strong>성장과 각인</strong><small>룬 강화와 특수 옵션</small></span></button>
+            <button class="subtab-btn" id="btn-skill-tab-research" onclick="switchSkillSubtab('skill-tab-research')"><span class="px-center"><strong>룬 연구</strong><small>미보유 룬 확정 해금</small></span></button>
+            <button class="subtab-btn" id="btn-skill-tab-condition" onclick="switchSkillSubtab('skill-tab-condition')"><span class="px-center"><strong>전술 규칙</strong><small>조건과 행동 규칙</small></span></button>
         </div>
         <div id="skill-tab-equip" class="subtab-content active">
             <!-- 룬 보드(js/skill-gem-board-ui.js): 가운데 주 공격 룬, 둘레 각인, 이동/소환 칸, 보조스킬룬 칸 줄.

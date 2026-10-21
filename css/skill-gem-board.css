@@ -128,6 +128,8 @@
 .skill-board-satellite-art img { width: 38px; height: 38px; object-fit: contain; image-rendering: pixelated; }
 .skill-board-satellite > i { color: var(--board-gold); font: normal var(--font-size-heading) var(--board-label); background: rgba(20, 16, 22, .6); box-shadow: none; border: 1px dashed var(--board-gold); }
 .skill-board-satellite > small { color: var(--board-gold); font: 12px var(--board-label); }
+/* 칸 안의 그림과 글(가운데 맞춤)은 칸 폭과 제 폭이 홀수일 때 생기는 반 화소를 되돌린다(2026-10-21). */
+.skill-board-satellite > * { position: relative; left: calc(round(down, 50%, 1px) - 50%); translate: calc(round(up, 50%, 1px) - 50%); }
 .skill-board-satellite > b { max-width: 100%; overflow: hidden; color: var(--board-copy); font: 400 12px var(--board-label); text-overflow: ellipsis; white-space: nowrap; }
 .skill-board-satellite.is-empty > b { color: var(--board-muted); }
 .skill-board-satellite:hover > :is(.skill-board-satellite-art, i) { filter: brightness(1.2); }
@@ -136,7 +138,8 @@
 #skill-tab-equip[data-picking="summon"] .skill-board-satellite[data-board-pick="summon"] > :is(.skill-board-satellite-art, i) { opacity: 1; outline: 2px solid var(--board-gold-hi); outline-offset: 2px; }
 
 /* ── 보조스킬룬 칸 줄 ─────────────────────────────────────────────────────────────── */
-.support-slots { padding: 10px; }
+/* 칸 줄의 칸 폭 계산(100cqw)이 이 칸의 내용 폭을 쓰도록 크기 기준으로 둔다. */
+.support-slots { padding: 10px; container-type: inline-size; }
 .support-slots-head { display: flex; align-items: baseline; gap: 7px; margin-bottom: 8px; }
 .support-slots-head > span { color: var(--board-gold-hi); font: 400 var(--font-size-reading) var(--board-read); }
 .support-slots-head > em { color: var(--board-muted); font: normal 12px var(--board-label); }
@@ -146,8 +149,13 @@
 .support-resonance-bar { position: relative; width: 64px; height: 7px; border: 1px solid var(--board-ink); background: #0d0b0f; box-shadow: inset 0 0 0 1px #2a2420; }
 .support-resonance-bar > i { position: absolute; inset: 1px auto 1px 1px; max-width: calc(100% - 2px); background: linear-gradient(180deg, #f1dc9c, #a28942); }
 .support-slots-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(62px, 1fr)); gap: 8px 6px; }
+/* 칸 폭은 정수 px(남는 몇 px는 오른쪽 끝): 1fr 칸은 소수 폭이라 룬 이름이 번졌다(2026-10-21). */
+@supports (width: calc(1px / 1px * 1px)) {
+  .support-slots-row { --support-cols: max(1, round(down, (100cqw + 6px) / 68px, 1));
+    grid-template-columns: repeat(auto-fill, round(down, calc((100cqw - (var(--support-cols) - 1) * 6px) / var(--support-cols)), 1px)); }
+}
 .support-slot {
-  display: grid; justify-items: center; gap: 2px;
+  display: grid; justify-items: start; gap: 2px;
   min-width: 0; min-height: 0; padding: 0; overflow: visible; border: 0; background: none; box-shadow: none; cursor: pointer;
 }
 .support-slot > i {
@@ -157,6 +165,8 @@
   box-shadow: inset 0 0 0 1px #3f9c80, inset 0 1px 0 rgba(180, 255, 228, .25), 0 0 8px rgba(111, 211, 176, .18);
   color: var(--board-support); font: normal 20px var(--board-label); text-shadow: 1px 1px 0 #000;
 }
+/* 칸 안의 그림과 글은 칸 왼쪽에서 절반(정수 px) 옮기고 제 폭의 절반(정수 px)만큼 되돌린다: 가운데 맞춤은 폭의 홀짝이 다르면 반 화소에 놓였다. */
+.support-slot > * { position: relative; left: round(down, 50%, 1px); translate: round(up, -50%, 1px); }
 .support-slot > i > em { position: absolute; right: 3px; bottom: 1px; color: var(--board-gold-hi); font: normal var(--font-size-meta) var(--font-pixel-meta, 'Galmuri9', sans-serif); letter-spacing: -1px; }
 .support-slot > b { color: var(--board-copy); font: 400 12px var(--board-label); }
 .support-slot > small { color: var(--board-muted); font: 12px var(--board-label); }
@@ -175,7 +185,8 @@
 #skill-tab-equip[data-picking="support"] .support-slots { box-shadow: inset 0 0 0 1px var(--board-gold), inset 0 1px 0 rgba(236, 196, 118, .12); }
 
 /* ── 고르기 목록 ─────────────────────────────────────────────────────────────── */
-.skill-picker { min-width: 0; padding: 10px; }
+/* 룬 목록의 칸 폭 계산(100cqw)이 이 판의 내용 폭을 쓰도록 크기 기준으로 둔다. */
+.skill-picker { min-width: 0; padding: 10px; container-type: inline-size; }
 .skill-picker-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
 .skill-picker-head h3 { margin: 0; color: var(--board-gold-hi); font: 400 15px var(--board-read); }
 .skill-picker-count { color: var(--board-muted); font: 12px var(--board-label); }
@@ -186,6 +197,11 @@
 }
 .skill-picker-fold[aria-pressed="true"] { background: #3a2c22; box-shadow: inset 0 0 0 1px var(--board-gold); color: var(--board-gold-hi); }
 #tab-skills .skill-picker .skill-gem-library { display: grid; grid-template-columns: repeat(auto-fill, minmax(98px, 1fr)); gap: 6px; }
+/* 칸 폭은 정수 px(남는 몇 px는 오른쪽 끝): 1fr 칸은 소수 폭이라 룬 이름이 번졌다(2026-10-21). */
+@supports (width: calc(1px / 1px * 1px)) {
+  #tab-skills .skill-picker .skill-gem-library { --gem-cols: max(1, round(down, (100cqw + 6px) / 104px, 1));
+    grid-template-columns: repeat(auto-fill, round(down, calc((100cqw - (var(--gem-cols) - 1) * 6px) / var(--gem-cols)), 1px)); }
+}
 #tab-skills .skill-picker .skill-gem-library[hidden] { display: none; }
 #tab-skills .skill-picker .search-filter-panel { margin-bottom: 4px; padding: 6px; border: 1px solid #2c2532; border-radius: 0; background: #120f14; }
 #tab-skills .skill-picker .search-filter-input { min-height: 30px; border: 1px solid var(--board-ink); border-radius: 0; background: #0d0b0f; color: var(--board-copy); font: 12px var(--board-label); }
@@ -206,6 +222,8 @@
 #tab-skills .gem-tile:hover { transform: translateY(-1px); border-color: color-mix(in srgb, var(--gem-accent) 70%, #2c2532); }
 #tab-skills .gem-tile:focus-visible { outline: 2px solid var(--board-gold-hi); outline-offset: 1px; }
 #tab-skills .gem-tile .gem-tile-art { width: 44px; height: 44px; border-radius: 0; background: none; }
+/* 카드 안의 그림과 글(가운데 맞춤)은 카드 폭과 제 폭이 홀수일 때 생기는 반 화소를 되돌린다(2026-10-21). */
+#tab-skills .gem-tile > :not(.gem-tile-level, .gem-tile-worn) { position: relative; left: calc(round(down, 50%, 1px) - 50%); translate: calc(round(up, 50%, 1px) - 50%); }
 #tab-skills .gem-tile .gem-tile-art img { image-rendering: pixelated; }
 #tab-skills .gem-tile .gem-tile-name { max-width: 100%; overflow: hidden; color: #fff; font: 400 var(--font-size-ui) var(--board-label); text-overflow: ellipsis; white-space: nowrap; text-shadow: 1px 1px 0 #000; }
 /* 쓰임("전방 부채꼴, 1칸")은 휴대폰 카드에서 한 줄이면 잘렸다: 단어째 두 줄까지 쓴다. */
@@ -262,7 +280,7 @@
 
 @media (max-width: 1080px) {
   .skill-board-layout { grid-template-columns: minmax(0, 1fr); }
-  #tab-skills .skill-picker .skill-gem-library { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  #tab-skills .skill-picker .skill-gem-library { grid-template-columns: minmax(0, 1fr) repeat(3, round(down, calc((100% - 18px) / 4), 1px)); }
   #tab-skills .gem-tile { padding: 11px 3px 6px; }
   #tab-skills .gem-tile .gem-tile-art { width: 40px; height: 40px; }
 }

@@ -33,7 +33,9 @@
 .unlock-connections{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;fill:none;stroke:var(--skin-line-strong);stroke-width:1}
 .unlock-depth{width:136px;position:relative;display:flex;flex-direction:column;align-items:center;gap:20px;flex-shrink:0}
 .unlock-depth-label{font-size:10px;line-height:16px;color:var(--color-text-tertiary);letter-spacing:2px}
-#content-unlock-panel .unlock-node{display:flex;flex-direction:column;align-items:center;gap:5px;background:none;border:0;box-shadow:none;padding:0 3px;width:100%;height:136px;flex-shrink:0;white-space:normal}
+#content-unlock-panel .unlock-node{display:flex;flex-direction:column;align-items:flex-start;gap:5px;background:none;border:0;box-shadow:none;padding:0 3px;width:100%;height:136px;flex-shrink:0;white-space:normal}
+/* 노드 그림과 이름은 노드 왼쪽에서 정수 px로 가운데에 놓는다(가운데 맞춤은 반 화소에 놓였다, 2026-10-21). */
+#content-unlock-panel .unlock-node>*{position:relative;left:round(down,50%,1px);translate:round(up,-50%,1px)}
 .unlock-node-art{position:relative;width:66px;height:66px;display:grid;place-items:center;border:1px solid var(--skin-line-strong);background:var(--skin-panel-raised);box-shadow:inset 0 0 0 4px var(--skin-panel)}
 .unlock-node-art:before{content:'';position:absolute;top:-4px;left:28px;width:7px;height:7px;transform:rotate(45deg);background:var(--skin-panel);border:1px solid var(--skin-line-strong)}
 .unlock-node-art img{width:49px;height:49px;object-fit:contain}
@@ -131,6 +133,7 @@
  /* 노드는 그림 왼쪽 · 이름과 상태 오른쪽의 한 줄 목록으로 */
  #content-unlock-panel .unlock-node{display:grid;grid-template-columns:54px minmax(0,1fr);column-gap:12px;align-items:center;justify-items:start;width:100%;height:auto;min-height:62px;text-align:left}
  #content-unlock-panel .unlock-node>.unlock-node-art{grid-row:1/span 3}
+ #content-unlock-panel .unlock-node>*{left:0;translate:none}
  .unlock-milestone-intro{align-items:flex-start;flex-direction:column}
  .unlock-toolbar{padding:0 14px}
 }
