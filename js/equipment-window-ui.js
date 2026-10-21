@@ -1,6 +1,6 @@
 /**
- * 장비창(2026-10-10 개편, 사용자가 시안 6차에서 고른 고급 테마). 왼쪽은 장착 장비(인형 배치, 칸마다 그림과 칸 이름만), 요약(DPS 하나만
- * 크게, 그 아래 저항, 생명력과 에너지 보호막, 방어도와 회피, 유효 생명력을 능력치마다 제 색으로), 세팅 한 줄. 가운데는 가방이고 머리 한 줄에
+ * 장비창(2026-10-10 개편, 사용자가 시안 6차에서 고른 고급 테마). 왼쪽은 장착 장비(인형 배치, 칸마다 그림과 칸 이름만, 머리에 세팅 I II III,
+ * 2026-10-21)와 요약(DPS 하나만 크게, 그 아래 유효 생명력을 원소마다 제 색으로). 가운데는 가방이고 머리 한 줄에
  * 칸 수와 검색, 그 아래 쪽 단추, 가방 오른쪽에 도구 줄(정리, 판단, 필터, 해체, 복구, 터치 기기는 배치)을 둔다(2026-10-19).
  * 창이 넓으면 오른쪽에 선택한 장비(바꾸면 증감표, 단추, 툴팁)가 붙고, 좁으면 같은 내용이 떠서 나오며, 휴대폰은 요약을 한 줄로 접고
  * (장착 장비 ▾로 펼친다) 선택한 장비는 아래에서 올라온다. 배치와 모양은 css/equipment-window.css.
@@ -9,8 +9,6 @@
 const equipmentWindowUi = (() => {
     const COLOR = Object.freeze({ dps: '#ffcf6e', life: '#ff6b6b', es: '#7fd3ff', fire: '#ff8a50', cold: '#6cb8ff', light: '#ffd54f', chaos: '#c39bff',
         armor: '#d2b98c', evasion: '#8fe08f', phys: '#d6cdb8' });
-    const RES = Object.freeze([['화염', 'resF', 'maxResF', 'fire'], ['냉기', 'resC', 'maxResC', 'cold'], ['번개', 'resL', 'maxResL', 'light'],
-        ['카오스', 'resChaos', 'maxResChaos', 'chaos']]);
     const EHP = Object.freeze([['물리', 'phys'], ['화염', 'fire'], ['냉기', 'cold'], ['번개', 'light'], ['카오스', 'chaos']]);
     /** 바꾸면 표의 이름 색: 요약과 같은 능력치는 요약과 같은 색. */
     const DELTA_TINT = Object.freeze({ dps: 'dps', summonDps: 'dps', maxHp: 'life', energyShield: 'es', resF: 'fire', resC: 'cold', resL: 'light',
@@ -18,8 +16,6 @@ const equipmentWindowUi = (() => {
     const fmt = value => Math.floor(Number(value) || 0).toLocaleString('ko-KR');
     const pretty = text => (/^-?\d{4,}$/.test(text) ? Number(text).toLocaleString('ko-KR') : text);
     const slotName = slot => (typeof getDualSlotDisplayLabel === 'function' ? getDualSlotDisplayLabel(slot) : String(slot).replace(/[123]$/, ''));
-    const kv = (name, value, tint, cap) => `<div class="eqw-kv" style="--c:${COLOR[tint]}"><span>${name}</span><b>${value}${cap ? `<small>/${cap}</small>` : ''}</b></div>`;
-    const resOf = (stats, key) => Math.floor(Number(stats[key]) || 0);
     function setHtml(node, html) {
         if (node && node.__eqwHtml !== html) { node.innerHTML = html; node.__eqwHtml = html; }
     }
@@ -31,21 +27,15 @@ const equipmentWindowUi = (() => {
         const items = EHP.map(([name, key]) => `<span style="--c:${COLOR[key]}" title="직격 ${fmt(profile.elements[key].direct)}">${name} <b>${fmt(profile.elements[key].entropy)}</b></span>`);
         return `<div class="eqw-ehp"><span class="eqw-ehp-label">유효 생명력</span>${items.join('')}</div>`;
     }
+    /** DPS and 유효 생명력 only (2026-10-21 사용자: "DPS/EHP 만 보이게 하고 나머지는 삭제해"; 저항, 생명력, 보호막, 방어도, 회피는 캐릭터 창에). */
     function fullHtml(stats, dps) {
-        const res = RES.map(([name, key, cap, tint]) => kv(`${name} 저항`, resOf(stats, key), tint, resOf(stats, cap) || 75)).join('');
-        const rest = kv('생명력', fmt(stats.maxHp), 'life') + kv('에너지 보호막', fmt(stats.energyShield), 'es') + kv('방어도', fmt(stats.armor), 'armor')
-            + kv('회피', fmt(stats.evasion), 'evasion');
-        return `<div class="eqw-summary-full"><div class="eqw-dps" style="--c:${COLOR.dps}"><span>DPS</span><b>${dps}</b></div>
-            <div class="eqw-kvs">${res}${rest}</div>${ehpHtml(stats)}</div>`;
+        return `<div class="eqw-summary-full"><div class="eqw-dps" style="--c:${COLOR.dps}"><span>DPS</span><b>${dps}</b></div>${ehpHtml(stats)}</div>`;
     }
-    /** Phone: one line under a toggle that unfolds the equipped gear and the presets (game.settings.equipmentMobilePane). */
+    /** Phone: DPS and 유효 생명력 under a toggle that unfolds the equipped gear and the presets (game.settings.equipmentMobilePane). */
     function miniHtml(stats, dps) {
         const open = (game.settings || {}).equipmentMobilePane === 'loadout';
-        const word = (name, value, tint) => `<span style="--c:${COLOR[tint]}">${name} <b>${value}</b></span>`;
-        const words = RES.map(([name, key, , tint]) => word(name, resOf(stats, key), tint)).join('')
-            + word('생명력', fmt(stats.maxHp), 'life') + word('에너지 보호막', fmt(stats.energyShield), 'es');
         return `<div class="eqw-summary-mini"><button type="button" class="eqw-mini-toggle" aria-expanded="${open}" onclick="equipmentWindowUi.toggleLoadout()">장착 장비 ${open ? '▴' : '▾'}</button>
-            <div class="eqw-mini-dps" style="--c:${COLOR.dps}"><small>DPS</small><b>${dps}</b></div><div class="eqw-mini-line">${words}</div></div>`;
+            <div class="eqw-mini-dps" style="--c:${COLOR.dps}"><small>DPS</small><b>${dps}</b></div><div class="eqw-mini-line">${ehpHtml(stats)}</div></div>`;
     }
     function toggleLoadout() {
         setEquipmentMobilePane((game.settings || {}).equipmentMobilePane === 'loadout' ? 'inventory' : 'loadout');
@@ -114,6 +104,21 @@ const equipmentWindowUi = (() => {
         menu.querySelector('summary').focus();
         event.preventDefault();
         event.stopPropagation();
+    }
+    /** A rail tool double-clicked does its main job at once, with no question and no panel (2026-10-21, the user's ask): 해체 salvages
+     * the whole bag (locked, set and priority-kept gear stays, as with the panel's 전체 해체), 판단 runs the analysis again (the bag
+     * marks show the results). Keyed by the panel's id; the two clicks before the double-click opened and closed it. */
+    const RAIL_DOUBLE_CLICK = Object.freeze({
+        'eqw-salvage-menu': () => bulkSalvageAllInventory({ ask: false }),
+        'eqw-judge-menu': () => equipmentTriage.start()
+    });
+    function runRailToolOnDoubleClick(event) {
+        const summary = event.target.closest && event.target.closest('#item-tab-equip .eqw-rail-menu > summary');
+        const action = summary && RAIL_DOUBLE_CLICK[summary.parentElement.id];
+        if (!action) return;
+        event.preventDefault();
+        summary.parentElement.removeAttribute('open');
+        action();
     }
     /** 해체 panel opened from elsewhere (the triage's near-full hint): auto salvage is set there now. */
     function openSalvage() {
@@ -316,6 +321,7 @@ const equipmentWindowUi = (() => {
         document.addEventListener('pointerdown', closeMenus, true);
         document.addEventListener('toggle', keepOnePanel, true);
         document.addEventListener('keydown', closePanelOnEscape, true);
+        document.addEventListener('dblclick', runRailToolOnDoubleClick, true);
     }
     return Object.freeze({ render, toggleLoadout, newDotHtml, inspectorDock, inspectorHtml, emptyHtml, fillDeltas, wornSlots, compareNode, showPane, toggleDeltas,
         openSalvage, openItemFilter });

@@ -4,37 +4,39 @@ function describeLoadoutMissingWarning(missing) {
     return `${label}: ${missing.map(row => row.name).join(', ')}`;
 }
 
+// 세팅 단추의 글자(2026-10-21 사용자: "세팅 1번칸 2번칸 3번칸은 '장착 장비' 있는 곳에 I II III 으로").
+const LOADOUT_SLOT_NUMERALS = Object.freeze(['I', 'II', 'III']);
+
+/** What a preset holds, or what keeps it from applying (the end of its button's title). */
+function describeLoadoutPresetSlot(preset, inspection) {
+    if (!preset) return '빈 세팅, 누르고 저장';
+    if (inspection.applied) return `지금 장착 중, ${inspection.count}부위`;
+    if (inspection.missing.length > 0) return describeLoadoutMissingWarning(inspection.missing);
+    if (inspection.incompatible.length > 0) return `장착 불가: ${inspection.incompatible.map(row => row.name).join(', ')}`;
+    return `${inspection.count}부위, 누르면 바꿉니다`;
+}
+
+/** A preset button shows its numeral; its title has the number, the name and describeLoadoutPresetSlot. */
 function renderEquipmentLoadoutPresetSlot(preset, index, selectedSlot) {
     let inspection = equipmentLoadoutRuntime.inspect(index);
     let blocked = inspection.missing.length + inspection.incompatible.length;
     let stateClass = !preset ? ' empty' : inspection.applied ? ' applied' : blocked ? ' missing' : '';
-    let meta = !preset ? '빈 세팅, 누르고 저장' : inspection.applied ? `지금 장착 중, ${inspection.count}부위`
-        : inspection.missing.length > 0 ? `누락 ${inspection.missing.length}`
-            : inspection.incompatible.length > 0 ? `장착 불가 ${inspection.incompatible.length}` : `${inspection.count}부위, 누르면 바꿉니다`;
-    return `<button type="button" class="equipment-preset-slot${index === selectedSlot ? ' selected' : ''}${stateClass}" title="${escapeHTML(meta)}"
-        aria-pressed="${index === selectedSlot}" onclick="equipmentLoadoutUi.pick(${index})"><span>${index + 1}</span>${escapeHTML(preset ? preset.name : '빈 칸')}</button>`;
+    let name = `${index + 1}번 세팅${preset ? ` [${preset.name}]` : ''}`;
+    return `<button type="button" class="equipment-preset-slot${index === selectedSlot ? ' selected' : ''}${stateClass}" title="${escapeHTML(`${name}, ${describeLoadoutPresetSlot(preset, inspection)}`)}"
+        aria-label="${escapeHTML(name)}" aria-pressed="${index === selectedSlot}" onclick="equipmentLoadoutUi.pick(${index})">${LOADOUT_SLOT_NUMERALS[index] || index + 1}</button>`;
 }
 
-/** The note under the 세팅 title: what keeps the selected preset from applying, else what presets do. */
-function describeLoadoutPresetNote(inspection) {
-    if (inspection.missing.length > 0) return describeLoadoutMissingWarning(inspection.missing);
-    if (inspection.incompatible.length > 0) return `현재 장착 불가: ${inspection.incompatible.map(row => row.name).join(', ')}`;
-    return '저장한 장비는 일괄 해체에서 보호';
-}
-
-/** 세팅 한 줄(2026-10-10 장비창 개편): 세팅 단추 셋, 저장, ⋯(이름 바꾸기, 비우기). 세팅을 누르면 그 세팅으로 바꾼다. */
+/** 세팅(2026-10-21 맨 밑 세팅 칸에서 '장착 장비' 머리로 옮김): 세팅 단추 셋(I, II, III), 저장, ⋯(이름 바꾸기, 비우기). 세팅을 누르면 그
+ * 세팅으로 바꾼다. 막힌 세팅은 붉은 테두리이고 까닭은 단추의 title에 있다. */
 function renderEquipmentLoadoutPresetPanel() {
     let root = document.getElementById('ui-equipment-presets');
     if (!root) return;
     let state = equipmentLoadoutRuntime.ensureState();
     let selected = state.selectedSlot;
     let preset = state.presets[selected];
-    let inspection = equipmentLoadoutRuntime.inspect(selected);
-    let warn = inspection.missing.length + inspection.incompatible.length > 0;
-    let html = `<section class="equipment-preset-panel">
-        <h4 class="eqw-title">세팅<small class="${warn ? 'is-warning' : ''}">${escapeHTML(describeLoadoutPresetNote(inspection))}</small></h4>
+    let html = `<section class="equipment-preset-panel" aria-label="장비 세팅">
         <div class="equipment-preset-row">${state.presets.map((row, index) => renderEquipmentLoadoutPresetSlot(row, index, selected)).join('')}
-            <button type="button" class="equipment-preset-save" onclick="equipmentLoadoutUi.save()" title="지금 장비를 ${selected + 1}번 세팅에 저장">저장</button>
+            <button type="button" class="equipment-preset-save" onclick="equipmentLoadoutUi.save()" title="지금 장비를 ${selected + 1}번 세팅에 저장, 저장한 장비는 일괄 해체에서 보호">저장</button>
             <details class="eqw-more equipment-preset-more"><summary aria-label="세팅 관리">⋯</summary><div class="eqw-more-panel">
                 <button type="button" onclick="equipmentLoadoutUi.rename()" ${preset ? '' : 'disabled'}>이름 바꾸기</button>
                 <button type="button" onclick="equipmentLoadoutUi.clear()" ${preset ? '' : 'disabled'}>비우기</button></div></details>

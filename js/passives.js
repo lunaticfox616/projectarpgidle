@@ -10309,22 +10309,26 @@ async function bulkSalvageSelected() {
     addLog(`🧪 선택한 등급 장비 ${targets.length}개 해체, ${formatSalvageRewardSummary(rewards)}${lockedSkipped > 0 ? ` (잠금, 세팅, 우선 보관 ${lockedSkipped}개는 남김)` : ''}`, 'loot-normal');
     updateStaticUI();
 }
-async function bulkSalvageAllInventory() {
+/** 전체 해체. The panel's button asks first; the rail's 해체 button double-clicked passes ask false and salvages at once
+ * (2026-10-21, js/equipment-window-ui.js salvageAllOnDoubleClick). Locked, set and priority-kept gear stays either way. */
+async function bulkSalvageAllInventory(options = {}) {
     if (!Array.isArray(game.inventory) || game.inventory.length <= 0) return addLog('해체할 장비가 없습니다.', 'attack-monster');
     let lockedCount = game.inventory.filter(item => isBulkSalvageProtectedItem(item)).length;
     let targetItems = game.inventory.filter(item => !isBulkSalvageProtectedItem(item));
-    let salvageCount = targetItems.length;
-    if (salvageCount <= 0) return addLog('🔒 잠금, 세팅, 우선 보관 장비뿐이라 전체 해체할 장비가 없습니다.', 'attack-monster');
-    const note = bagItems.countNote(targetItems);
-    if (!await requestGameConfirmation(`인벤토리 장비 ${salvageCount}개를 모두 해체합니다.${note ? `\n${note} 포함` : ''}${lockedCount > 0 ? `\n잠금, 세팅, 우선 보관 장비 ${lockedCount}개는 빼고 해체합니다.` : ''}`, {
-        title: '인벤토리 전체 해체',
-        tone: 'danger',
-        confirmLabel: `${salvageCount}개 해체`
-    })) return;
+    if (targetItems.length <= 0) return addLog('🔒 잠금, 세팅, 우선 보관 장비뿐이라 전체 해체할 장비가 없습니다.', 'attack-monster');
+    if (options.ask !== false && !await confirmBulkSalvageAll(targetItems, lockedCount)) return;
     const targets = confirmedSalvageTargets(targetItems), rewards = salvageBagItems(targets);
     if (!isCraftSelectionEquip()) clearCraftSelection();
     addLog(`🧪 인벤토리 전체해체 완료 (${targets.length}개), ${formatSalvageRewardSummary(rewards)}${lockedCount > 0 ? `, 잠금, 세팅, 우선 보관 ${lockedCount}개는 남김` : ''}`, 'loot-normal');
     updateStaticUI();
+}
+function confirmBulkSalvageAll(targetItems, lockedCount) {
+    const count = targetItems.length, note = bagItems.countNote(targetItems);
+    return requestGameConfirmation(`인벤토리 장비 ${count}개를 모두 해체합니다.${note ? `\n${note} 포함` : ''}${lockedCount > 0 ? `\n잠금, 세팅, 우선 보관 장비 ${lockedCount}개는 빼고 해체합니다.` : ''}`, {
+        title: '인벤토리 전체 해체',
+        tone: 'danger',
+        confirmLabel: `${count}개 해체`
+    });
 }
 
 function getAvailableSporeCraftModes() {
