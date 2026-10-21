@@ -237,6 +237,11 @@ const ACT_EXPLORATION_ALERT = Object.freeze({fromLoop:2,chance:0.2,hearReach:12,
 // search칸 안의 빈 칸, 주인공의 keep칸 안은 비운다) 공격 게이지를 windUp까지 채운다(js/act-exploration-doors.js springAmbush): 들어선 뒤의 유예가
 // 끝나면 한꺼번에 덤비고, 문은 싸우는 동안 잠긴다. 테두리는 outline.
 const ACT_EXPLORATION_AMBUSH = Object.freeze({chance:0.05,pull:0.4,keep:2,search:3,windUp:0.9,outline:'#ff3d5a'});
+// 이어지는 무리 (2026-10-21 사용자: "막다른 방이나 정예 방에서 항상은 말고 가끔씩은 맵 출입구 봉인 해제되기 전에 추가 몬스터 젠, 3젠까지"):
+// 방 단위 무대의 정예 방과 막다른 방(문이 하나인 전투 방과 들르는 방)이 chance의 확률로, 그 방의 무리를 모두 쓰러뜨려도 문이 닫힌 채 delayMs
+// 뒤에 새 무리를 세운다(js/combat.js releaseExplorationWave). 몇 번 더 오는지는 counts [번, 무게]. 무리는 그 지역의 보통 무리 크기, 정예는 없다.
+// 그 방 무리의 첫 몬스터 번호로 굴려 다른 난수를 밀지 않는다. 1루프의 액트 1, 습격방, 조우와 구출의 방, 무리를 따로 세우는 콘텐츠(벌집 같은)는 빠진다.
+const ACT_EXPLORATION_WAVES = Object.freeze({chance:0.3,counts:Object.freeze([[1,5],[2,3],[3,2]]),delayMs:1500});
 // 잔잔한 사건 (2026-10-20 사용자: "계속 같은 게임이라고 느껴지지 않도록 낮은 확률로 나올만한 잔잔한 이벤트", js/combat-incidents.js).
 // 굴림은 다른 난수를 밀지 않는다: 무리는 무리 열쇠와 첫 몬스터 번호로, 방은 탐험마다 정한 값과 방 번호로 굴리고, 굴린 방은 탐험 기록에
 // 남겨 다시 불러와도 다시 굴리지 않는다. 1루프의 액트 1과 방치 정산에서는 일어나지 않는다.
@@ -300,4 +305,4 @@ const ACT_EXPLORATION_CAMERA = Object.freeze({minZoom:3,maxZoom:4});
 // 시간)가 지난 것만 줍고 주우러 간다(js/exploration-ground-loot.js landed): 가장 늦게 닿는 그림에 이름이 다 뜬 뒤다. 전에는 580~679ms를
 // 날고 이름이 240ms에 걸쳐 떴으며, 주인공은 떨어지는 중에도 줍거나 주우러 갔다.
 const GROUND_LOOT_DROP = Object.freeze({flightMs:300,flightSpreadMs:60,nameMs:120,readyMs:520});
-safeExposeData({ACT_EXPLORATION_MAPS,CONTENT_EXPLORATION_MAPS,ACT_EXPLORATION_BACKDROPS,ACT_EXPLORATION_ART_VERSION,ACT_EXPLORATION_VISION,ACT_EXPLORATION_ALERT,ACT_EXPLORATION_AMBUSH,ACT_EXPLORATION_INCIDENTS,ACT_EXPLORATION_CAMERA,GROUND_LOOT_DROP});
+safeExposeData({ACT_EXPLORATION_MAPS,CONTENT_EXPLORATION_MAPS,ACT_EXPLORATION_BACKDROPS,ACT_EXPLORATION_ART_VERSION,ACT_EXPLORATION_VISION,ACT_EXPLORATION_ALERT,ACT_EXPLORATION_AMBUSH,ACT_EXPLORATION_WAVES,ACT_EXPLORATION_INCIDENTS,ACT_EXPLORATION_CAMERA,GROUND_LOOT_DROP});

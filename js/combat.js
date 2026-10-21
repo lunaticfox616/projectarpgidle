@@ -2033,6 +2033,7 @@ function prepareCombatTick(nowMs) {
     callOceanGuardianAtBoundary();
     callOceanGuardianAdds(addLog);
     combatIncidents.tick(); // 잔잔한 사건: 달아나는 금빛 수액 슬라임, 세계수의 하품
+    releaseExplorationWave(addLog); // 이어지는 무리: 정예 방과 막다른 방이 비면 문이 닫힌 채 새 무리가 선다
     releaseClosedThirdRing(addLog); // 세 번째 손가락이 사라진 반지3의 반지는 가방으로
     tickWoodsmanCurse();
     if (typeof trackRecordBests === 'function') trackRecordBests();
@@ -8534,11 +8535,17 @@ const explorationPackFormation=(()=>{
     const spots=(room,count)=>cells(room,Math.min(count,offsets.length),0).concat(count>offsets.length?around(room,count-offsets.length):[]);
     /** 방 가운데의 3×3을 비워 두고 그 둘레에 서는 자리 count개: 가운데에 보스(2×2)가 서는 무리의 나머지. */
     const around=(room,count)=>outerOffsets(room).slice(0,count).map(([dx,dy])=>({gx:room.gx+dx,gy:room.gy+dy}));
+    /** 무리의 열쇠와, 정예를 세우지 않는 무리인지(plain): 길목, 덧무리(extraN), 이어지는 무리(waveN). 그 밖은 방의 보통 무리나 보스 단계다. */
+    function packIdentity(room,stage,shape,patrol) {
+        if(patrol)return {key:room.id+':patrol',plain:true};
+        if(shape.extra)return {key:`${room.id}:extra${shape.extra}`,plain:true};
+        if(shape.wave)return {key:`${room.id}:wave${shape.wave}`,plain:true};
+        return {key:explorationPackKey(room,stage),plain:false};
+    }
     function prepare(zone,room,stage,encounter,formation) {
-        const shape=formation || {},patrol=Object.hasOwn(shape,'anchor');
-        const key=patrol?room.id+':patrol':shape.extra?`${room.id}:extra${shape.extra}`:explorationPackKey(room,stage),at=explorationPackSpawnAt(zone,key,stage);
-        const elite=patrol||shape.extra?false:(room.role==='elite' || !!encounter || isAtlasExtraEliteRoom(zone,room));
-        return {key,at,elite,anchor:shape.anchor,extra:shape.extra,cells:shape.cells || cells(shape.center || room,roomCount(zone,stage,encounter,shape),at%4)};
+        const shape=formation || {},patrol=Object.hasOwn(shape,'anchor'),{key,plain}=packIdentity(room,stage,shape,patrol),at=explorationPackSpawnAt(zone,key,stage);
+        const elite=!plain && (room.role==='elite' || !!encounter || isAtlasExtraEliteRoom(zone,room));
+        return {key,at,elite,anchor:shape.anchor,extra:shape.extra,wave:shape.wave,cells:shape.cells || cells(shape.center || room,roomCount(zone,stage,encounter,shape),at%4)};
     }
     /** Leave the entry's five-tile notice radius empty when a larger first-room group spreads toward it. */
     function roomCenter(map,room) {
@@ -8598,7 +8605,7 @@ function createExplorationPackEnemy(zone,marker,index,role) {
     return enemy;
 }
 function createActExplorationPack(zone,room,stage,encounter=null,formation=null) {
-    const {key,at,cells,elite,anchor,extra}=explorationPackFormation.prepare(zone,room,stage,encounter,formation),waiting=[];
+    const shape=explorationPackFormation.prepare(zone,room,stage,encounter,formation),{key,at,cells,elite}=shape,waiting=[];
     const cast=(formation && formation.cast) || [];
     cells.forEach((cell,index)=>{
         const marker={at,count:1,boss:stage!==null,elite:elite && index===0,storyStage:stage,ownLook:atlasEncounters.hasOwnLook(encounter)};
@@ -8611,13 +8618,20 @@ function createActExplorationPack(zone,room,stage,encounter=null,formation=null)
         waiting.push(enemy);
     });
     const pack={key,roomId:room.id,stage,waiting,aliveIds:waiting.map(enemy=>enemy.id),eliteIds:waiting.filter(enemy=>enemy.isElite).map(enemy=>enemy.id)};
-    if(encounter)pack.encounter=encounter;
-    if(anchor)pack.anchor={...anchor};
-    if(extra)pack.extra=extra;
-    if(formation && formation.rescue)pack.rescue=true;
+    markExplorationPackShape(pack,encounter,shape,formation);
     markExplorationAlertPack(pack);
     atlasFinds.dressTreasurePack(zone,pack);
     return pack;
+}
+
+/** A pack's shape marks, each kept only when set: its atlas encounter, a road group's anchor, a stage room's added pack (extra), a
+ * follow-up wave (wave, releaseExplorationWave), the first start's rescue pair (rescue). */
+function markExplorationPackShape(pack,encounter,shape,formation) {
+    if(encounter)pack.encounter=encounter;
+    if(shape.anchor)pack.anchor={...shape.anchor};
+    if(shape.extra)pack.extra=shape.extra;
+    if(shape.wave)pack.wave=shape.wave;
+    if(formation && formation.rescue)pack.rescue=true;
 }
 
 /** 경계하는 무리 (data ACT_EXPLORATION_ALERT): an ordinary room pack that runs at the hero once a fight within its hearing hurts a
@@ -8654,6 +8668,61 @@ function ambushRoomPacks(room,packs) {
     return (Math.abs(hashSeed(`ambush:${main.key}:${main.aliveIds[0]}`))%1000)/1000<ACT_EXPLORATION_AMBUSH.chance ? own : [];
 }
 
+/** 이어지는 무리(data ACT_EXPLORATION_WAVES)를 받는 방과 그 수. 그 방 원래 무리의 첫 몬스터 번호로 굴려 다른 난수를 밀지 않는다.
+ * @returns {Object<string,{left:number,total:number,at:?number}>} 방 id → 남은 번수, 모두 몇 번인지, 다음 무리가 설 전투 시각(ms, 그 방이
+ *   비기 전에는 null). 탐험 기록에 저장된다(js/act-exploration-state.js validateWaves). */
+function rollExplorationRoomWaves(zone,map,packs) {
+    const rule=ACT_EXPLORATION_WAVES,waves={};
+    if(!explorationWavesAllowed(zone,map))return waves;
+    for(const room of map.rooms.filter(row=>isExplorationWaveRoom(map,row))) {
+        const roll=explorationWaveRoll(room,packs);
+        if(roll===null || roll>=rule.chance)continue;
+        const total=weightedWaveCount(roll/rule.chance,rule.counts);
+        waves[room.id]={left:total,total,at:null};
+    }
+    return waves;
+}
+/** 이어지는 무리를 받을 수 있는 탐험: 방 단위 무대이고, 무리를 따로 세우는 콘텐츠(벌집 같은)와 1루프의 액트 1이 아니다. */
+const explorationWavesAllowed=(zone,map)=>!!map.stage && !ownRoomPackBuilder(zone) && !(zone.type==='act' && zone.id===0 && (game.season||1)===1);
+/** 그 방의 굴림(0 이상 1 미만): 그 방 원래 무리의 첫 몬스터 번호로. 원래 무리가 없거나 비었거나 조우, 구출, 습격의 방이면 null. */
+function explorationWaveRoll(room,packs) {
+    const own=packs.filter(pack=>pack.roomId===room.id),main=own.find(pack=>pack.key===room.id+':pack');
+    if(!main || main.encounter || !main.aliveIds.length || own.some(pack=>pack.rescue || pack.ambush))return null;
+    return (Math.abs(hashSeed(`waves:${main.key}:${main.aliveIds[0]}`))%1000)/1000;
+}
+/** 정예 방, 또는 문이 하나인 막다른 방(입구와 보스 방 말고). */
+const isExplorationWaveRoom=(map,room)=>room.role==='elite' || (['battle','optional'].includes(room.role) && map.doors.filter(door=>door.room===room.index).length===1);
+/** u(0 이상 1 미만)를 무게 줄 [값, 무게]에 대어 고른 값. */
+function weightedWaveCount(u,rows) {
+    let left=u*rows.reduce((sum,row)=>sum+row[1],0);
+    for(const [value,weight] of rows){left-=weight;if(left<0)return value;}
+    return rows[rows.length-1][0];
+}
+/** 전투 틱마다: 주인공이 선 방이 비었고 그 방에 이어지는 무리가 남았으면(js/act-exploration-doors.js waveDue: 그동안 문은 닫혀 있다)
+ * delayMs 뒤에 그 방 원래 무리의 자리에 보통 무리 하나를 세운다. 세운 무리는 곧 주인공을 알아채고 덤빈다. */
+function releaseExplorationWave(log) {
+    const run=actExplorationState.current(game),map=run && run.status==='active'?actExplorationDoors.stageMap(run):null;
+    const room=map?actExplorationRooms.roomAt(map,game.gridPlayer):null,wave=room && actExplorationDoors.waveDue(run,room)?run.waves[room.id]:null;
+    if(!wave)return;
+    const now=getCombatTime();
+    if(wave.at===null){wave.at=now+ACT_EXPLORATION_WAVES.delayMs;return;}
+    if(now<wave.at)return;
+    const zone=getZone(game.currentZoneId),number=wave.total-wave.left+1,count=explorationPackFormation.count(zone,null,{});
+    const pack=createActExplorationPack(zone,room,null,null,{wave:number,cells:explorationWaveCells(map,room,count)});
+    run.packs.push(pack);
+    Object.assign(wave,{left:wave.left-1,at:null});
+    pack.waiting.forEach(enemy=>addBattleFx('enemySpawn',{enemyId:enemy.id,color:getElementColor(enemy.ele),duration:420,boss:false}));
+    if(game.settings.showSpawnLog!==false)log(`⚠️ 무리가 더 몰려옵니다(${number}/${wave.total})`,'attack-monster');
+}
+/** 새 무리가 설 칸: 그 방 원래 무리의 자리에서, 막힌 칸, 그 방의 문 칸과 문 안쪽 칸, 주인공 둘레 한 칸은 피해 가까운 빈 칸으로. */
+function explorationWaveCells(map,room,count) {
+    const blocked=getGridBlockedCells(),hero=game.gridPlayer,key=at=>gridCellKey(at.gx,at.gy);
+    map.doors.filter(door=>door.room===room.index).forEach(door=>door.cells.concat(door.landings).forEach(at=>blocked.add(key(at))));
+    for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)blocked.add(gridCellKey(hero.gx+dx,hero.gy+dy));
+    const wanted=stageRoomArranger.forMap(map).cells(room,0,count) || explorationPackFormation.spots(room,count);
+    return wanted.map(cell=>{const spot=findFreeGridCell(blocked,cell)||cell;blocked.add(key(spot));return spot;});
+}
+
 /** An atlas map's extra-elite mod leads some ordinary rooms with an elite (fixed per map and room). */
 function isAtlasExtraEliteRoom(zone,room) {
     if(!zone.atlasExtraElite || room.role==='boss')return false;
@@ -8680,6 +8749,7 @@ function createActExplorationEncounter(zone,exploration) {
     plan.rotation=actExplorationProgress.objects.savedFacing(zone)??rollExplorationFacing();
     if(actExplorationDoors.session())plan.rooms=actExplorationDoors.planKey(zone,plan); // 방 단위 무대 시험판(js/act-exploration-doors.js): 액트와 그 밖의 모든 탐험 구역
     const run=actExplorationState.create(plan,createExplorationPacks(zone,actExplorationMap.forRun(plan),plan.bossStages),getCombatTime());
+    run.waves=rollExplorationRoomWaves(zone,actExplorationMap.forRun(run),run.packs);
     if(plan.rooms && SEALED_ROOM_ZONES.includes(zone.type))run.sealed=true;
     run.mode=actExplorationProgress.startMode(game.settings);
     actExplorationProgress.objects.initialize(run,zone);

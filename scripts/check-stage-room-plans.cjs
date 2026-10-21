@@ -19,7 +19,7 @@ for (const file of ['js/utils.js', 'data/act-exploration-maps.js', 'data/stage-r
 }
 const { ACT_EXPLORATION_MAPS, CONTENT_EXPLORATION_MAPS, STAGE_ROOM_PLANS, actExplorationRoomPlans: plans } = context;
 
-/** 놓임새가 온전한가: 모든 방이 입구에서 닿고, 보스 방의 문은 하나, 들르는 방의 문도 하나. */
+/** 놓임새가 온전한가: 모든 방이 입구에서 닿고, 보스 방의 문은 하나이며 좌우 벽에 있고(2026-10-21), 들르는 방의 문도 하나. */
 function problems(plan) {
     const out = [], doors = plan.cells.map(() => 0), reached = new Set([plan.cells.findIndex(cell => cell.role === 'entry')]);
     for (const link of plan.links) { doors[link.from]++; doors[link.to]++; }
@@ -30,6 +30,7 @@ function problems(plan) {
     if (reached.size !== plan.cells.length) out.push('끊긴 방이 있다');
     plan.cells.forEach((cell, index) => {
         if (cell.role === 'boss' && doors[index] !== 1) out.push('보스 방의 문이 ' + doors[index] + '개');
+        if (cell.role === 'boss' && plan.links.some(link => (link.from === index || link.to === index) && link.side !== 'east')) out.push('보스 방의 문이 위나 아래에 있다');
         if (cell.role === 'optional' && doors[index] !== 1) out.push('들르는 방(' + cell.id + ')의 문이 ' + doors[index] + '개');
     });
     const spots = new Set(plan.cells.map(cell => cell.col + ',' + cell.row));

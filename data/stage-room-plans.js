@@ -2,7 +2,7 @@
 // 준 랜덤으로"). 지도에 적힌 방들(data/act-exploration-maps.js)은 그대로 두고 놓는 자리와 문으로 잇는 짝만 바꾼다. 방의 수와 구실별
 // 수가 지도와 같아야 한다(다르면 그 놓임새는 쓰이지 않고 오류가 난다: scripts/check-stage-room-plans.cjs가 미리 본다).
 // 글자 그림: 짝수 줄의 짝수 칸이 방, 그 사이의 '-'와 '|'가 문이다. 오른쪽이 무대의 오른쪽, 아래가 무대의 앞쪽.
-//   S 입구, X 보스 방(문은 하나), b 전투 방, e 정예 방, o 들르지 않아도 되는 방(막다른 끝)
+//   S 입구, X 보스 방(문은 하나, 왼쪽이나 오른쪽 벽), b 전투 방, e 정예 방, o 들르지 않아도 되는 방(막다른 끝)
 const STAGE_ROOM_PLANS = Object.freeze({
     /** 액트마다 네 장. 첫 장은 이어진 지도(뿌리 갈래, 중정 둘레길, 널다리, 미궁, 신전의 본당, 무너진 중정, 나선, 장막, 세 갈래, 차륜)의
      * 생김새를 옮긴 것이고 나머지 셋은 같은 방들을 다르게 놓은 것이다. */
@@ -71,10 +71,10 @@ const STAGE_ROOM_PLANS = Object.freeze({
     /** 소프트 랜덤의 무게: 바로 앞에 걸은 놓임새(last)와 그 앞의 것(before). 나머지는 1. */
     soft: Object.freeze({ last: 0, before: 0.5 }),
     /** 준 랜덤 규칙. mainShare 큰길에 서는 전투 방의 몫(가장 적게, 가장 많게), eliteOnMain 정예 방이 큰길에 설 확률,
-     * east 큰길이 오른쪽으로 가는 무게(위와 아래는 1씩), bossEast 보스 방으로 가는 마지막 걸음에서 그 무게에 곱하는 값,
+     * east 큰길이 오른쪽으로 가는 무게(위와 아래는 1씩, 보스 방으로 가는 마지막 걸음은 언제나 오른쪽),
      * turn 큰길이 위아래로 잇달아 가는 걸음의 상한, entryHost 곁가지가 입구에 붙는 무게, chain 곁가지에 다시 붙는 무게(큰길은 1),
      * upright 곁가지가 위아래로 붙는 무게(좌우는 1), loop 돌아가는 길 하나를 더 낼 확률. */
-    random: Object.freeze({ mainShare: Object.freeze([0.6, 1]), eliteOnMain: 0.4, east: 3, bossEast: 3, turn: 2, entryHost: 0.25, chain: 1.3, upright: 2, loop: 0.35 }),
+    random: Object.freeze({ mainShare: Object.freeze([0.6, 1]), eliteOnMain: 0.4, east: 3, turn: 2, entryHost: 0.25, chain: 1.3, upright: 2, loop: 0.35 }),
     /** 구역의 무대 그림(data/stage-regions.js의 지역). types 구역 종류, deep 혼돈 심화(깊이 21부터), zones 구역 id, rift 시간의 균열의
      * 두 시대, tracks 정점 보스의 영역, rival 버려진 날들, capstone 우주의 끝, boards 고정 전장. 여기에 없는 구역은 빌려 걷는 액트 지도의 그림을 쓴다.
      * 2026-10-13 밤: 판에서 싸우던 군락지, 심해, 우주계, 대균열, 혼돈 밖, 나무꾼의 잔상, 경계 너머가 방 단위 무대에서는 제 지도를 걷는다

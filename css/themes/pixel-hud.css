@@ -37,7 +37,6 @@ body[data-ui-skin] {
   background-clip: padding-box;
   box-shadow: 6px 6px 0 rgba(0, 0, 0, .5);
   image-rendering: pixelated;
-  pointer-events: auto;
 }
 :root body[data-ui-skin] #battle-column .player-hud-shell::before { content: none; }
 :root body[data-ui-skin] #battle-column .player-hud-shell > .player-health-frame,
@@ -513,7 +512,11 @@ body[data-ui-skin] {
   border-image: none;
   background: none;
   box-shadow: none;
+  /* 판은 돌판(::before)과 그 위의 구슬, 지도, 단추만 누른다. 판 상자는 지도와 구슬 높이까지 솟아 그 투명한 윗부분이 밑의 전장
+     (앞쪽 문 줄)을 누르던 손을 가로챘다(2026-10-21 사용자: 마우스로 아래쪽 입구에 들어갈 수 없다). 구슬 묶음은 원래 누르지 않는다. */
+  pointer-events: none;
 }
+:root body[data-ui-skin] #battle-column .player-hud-shell > :not(.player-health-frame) { pointer-events: auto; }
 :root body[data-ui-skin] #battle-column .player-hud-shell::before {
   content: '';
   position: absolute;
@@ -526,7 +529,7 @@ body[data-ui-skin] {
   background-clip: padding-box;
   box-shadow: 6px 6px 0 rgba(0, 0, 0, .5);
   image-rendering: pixelated;
-  pointer-events: none;
+  pointer-events: auto;
   /* 돌판만 반투명하게 해 그 밑의 전장이 비친다(2026-10-07 사용자 요청). 구슬과 메뉴 단추는 자식이라 그대로 선명하다. */
   opacity: .72;
 }

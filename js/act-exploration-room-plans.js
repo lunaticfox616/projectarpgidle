@@ -5,7 +5,9 @@
  * - 놓임새는 격자다: 방은 칸 하나, 문은 맞닿은 두 칸 사이. 오른쪽이 무대의 오른쪽, 아래가 무대의 앞쪽이다(던파의 약도와 같다).
  * - 액트: 글자 그림 네 장 가운데 하나. 바로 앞에 걸은 놓임새는 다시 나오지 않고 그 앞의 것은 덜 나온다(소프트 랜덤).
  * - 그 밖의 구역: 씨앗으로 짠다(준 랜덤). 입구에서 오른쪽으로 뻗는 큰길에 전투 방과 정예 방이 놓이고, 남은 방은 큰길에서
- *   갈라진 곁가지가 된다. 들르는 방은 언제나 막다른 끝이다. 보스 방의 문은 하나다.
+ *   갈라진 곁가지가 된다. 들르는 방은 언제나 막다른 끝이다.
+ * - 보스 방의 문은 하나이고 왼쪽이나 오른쪽 벽에 있다(2026-10-21 사용자: 보스는 좌우만 보아 위아래에서 들어가면 어색하다). 프리셋도
+ *   그렇게 그린다(scripts/check-stage-room-plans.cjs가 본다).
  * - 보스만 서는 투기장: 보스 방 앞의 방과 보스 방, 두 칸이다.
  * 순수 함수: 게임 상태와 DOM을 쓰지 않는다. choose와 region만 구역(zone)과 방금 걸은 놓임새의 기억을 읽는다.
  */
@@ -85,9 +87,11 @@ const actExplorationRoomPlans = (() => {
         const side = shuffledList(rng, [...Array(counts.battle - onMain).fill('battle'), ...elites.filter(on => !on).map(() => 'elite')]);
         return { main, side: [...side, ...Array(counts.optional).fill('optional')] };
     }
-    /** 큰길의 다음 걸음: 오른쪽으로 자주, 위아래로 가끔. 방금 올라갔으면 내려가지 않고, 위아래로 turn번 넘게 잇지 않는다. */
+    /** 큰길의 다음 걸음: 오른쪽으로 자주, 위아래로 가끔. 방금 올라갔으면 내려가지 않고, 위아래로 turn번 넘게 잇지 않는다. 보스 방으로
+     * 가는 마지막 걸음은 언제나 오른쪽이라 보스 방의 문이 왼쪽 벽에 선다. 큰길은 왼쪽으로 가지 않으므로 그 칸은 언제나 비어 있다. */
     function nextMainStep(rng, rule, walk, last) {
-        const upright = walk.side !== 'east', rows = [['east', last ? rule.east * rule.bossEast : rule.east]];
+        if (last) return 'east';
+        const upright = walk.side !== 'east', rows = [['east', rule.east]];
         if (walk.run < rule.turn) for (const side of ['north', 'south']) if (!upright || walk.side === side) rows.push([side, 1]);
         return weightedPick(rng, rows);
     }
@@ -151,19 +155,27 @@ const actExplorationRoomPlans = (() => {
      *         |
      *   b-b-b-b
      *   |
-     *   b-b-b-X */
+     *   b-b-b-X
+     * 보스 방이 새 줄의 첫 칸이 될 차례면(위의 방에서 내려온다) 그 앞 방의 옆, 앞 줄의 끝에 붙여 옆에서 들어가게 한다. */
     const CHAIN_WIDE = 4;
     /** 한 줄에 서는 방 수: 방이 열둘을 넘으면 줄을 넓힌다(약도가 세로로 길어지지 않게. 우주계와 깊은 심해는 방이 열셋을 넘는다). */
     const chainWide = total => (total <= 12 ? CHAIN_WIDE : total <= 18 ? 6 : 8);
+    /** 맞닿은 두 칸 a, b를 잇는 문: 왼쪽(위쪽) 방에서 오른쪽(아래쪽) 방을 보는 벽. */
+    function chainLink(cells, a, b) {
+        const [first, second] = cells[a].col + cells[a].row <= cells[b].col + cells[b].row ? [a, b] : [b, a];
+        return { from: first, to: second, side: cells[first].row === cells[second].row ? 'east' : 'south' };
+    }
     function chainPlan(base) {
-        const total = base.rooms.length, wide = chainWide(total), rows = Math.ceil(total / wide), lines = [];
-        const letter = index => (index >= total ? ' ' : index === 0 ? 'S' : index === total - 1 ? 'X' : 'b');
-        for (let row = 0; row < rows; row++) {
-            const cells = Array.from({ length: wide }, (unused, col) => letter(row * wide + (row % 2 ? wide - 1 - col : col)));
-            lines.push(cells.map((cell, col) => cell + (col < wide - 1 ? (cell !== ' ' && cells[col + 1] !== ' ' ? '-' : ' ') : '')).join(''));
-            if (row < rows - 1) lines.push(' '.repeat(row % 2 ? 0 : (wide - 1) * 2) + '|');
+        const total = base.rooms.length, wide = chainWide(total), cells = [], links = [];
+        for (let index = 0; index < total; index++) {
+            const row = Math.floor(index / wide), along = index % wide, boss = index === total - 1;
+            const cell = { role: index === 0 ? 'entry' : boss ? 'boss' : 'battle', col: row % 2 ? wide - 1 - along : along, row };
+            if (boss && row > 0 && along === 0) Object.assign(cell, { row: row - 1, col: cells[index - 1].col + ((row - 1) % 2 ? -1 : 1) });
+            cells.push(cell);
+            if (index) links.push(chainLink(cells, index - 1, index));
         }
-        return nameRooms(parsePlanLines(lines), base);
+        const left = Math.min(...cells.map(cell => cell.col));
+        return nameRooms({ cells: cells.map(cell => ({ ...cell, col: cell.col - left })), links }, base);
     }
     /** 액트의 프리셋 하나(0부터). 그 액트에 프리셋이 없거나 번호가 없으면 null. */
     function presetPlan(base, index) {
