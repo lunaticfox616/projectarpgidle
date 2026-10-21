@@ -223,7 +223,9 @@ const ascendancyTreeUi = (() => {
     /** Pointer or keyboard on a node: the note reads it; nothing is bought. */
     function hint(kind, id) {
         const card = document.querySelector('#ui-ascend-tree-container .ascend-detail'), cls = game.ascendClass;
-        if (!card || !cls) return;
+        // 터치의 탭은 가리키기(mouseenter, focus)를 먼저 보낸다: 여기서 카드를 띄우면 좁은 창에서는 아래에 붙은 카드가 누른 칸을 덮어 정작
+        // 누름이 카드로 갔다. 터치에서는 누름(press)이 카드를 띄운다.
+        if (!card || !cls || touchOnly()) return;
         shown = { kind, id };
         card.innerHTML = detailBody(fullTree(cls), getClassKeystoneDefs(cls));
         card.classList.remove('is-empty');
@@ -233,10 +235,28 @@ const ascendancyTreeUi = (() => {
         const again = !!focus && focus.kind === kind && focus.id === id;
         focus = { kind, id };
         shown = focus;
-        if (touchOnly() && !again) return render();
-        if (kind === 'node') actOnNode(id);
-        else actOnKeystone(id);
+        if (!touchOnly() || again) (kind === 'node' ? actOnNode(id) : actOnKeystone(id));
         render();
+        keepFocusAboveCard();
+    }
+    /** 좁은 창에서는 자세히 카드가 화면 아래에 붙어 뜬다(css/ascendancy-tree.css): 방금 누른 칸이 그 밑에 깔리면(나무 위쪽 칸을 누르면 카드가
+     * 바로 그 칸을 덮었다) 카드 위로 보이게 민다. */
+    function keepFocusAboveCard() {
+        requestAnimationFrame(() => {
+            const box = document.getElementById('ui-ascend-tree-container');
+            const cell = box && box.querySelector('.ascend-node.is-focus'), card = box && box.querySelector('.ascend-detail');
+            if (!cell || !card || getComputedStyle(card).position !== 'sticky') return;
+            // 카드는 스크롤 칸 아래 끝에 붙는다: 그 자리 위로 칸이 오도록 민다(카드가 아직 칸 아래의 제자리에 있어도 밀고 나면 붙는다).
+            const scroller = scrollerOf(box), port = scroller === document.scrollingElement ? innerHeight : scroller.getBoundingClientRect().top + scroller.clientTop + scroller.clientHeight;
+            const over = cell.getBoundingClientRect().bottom + 8 - (Math.min(port, innerHeight) - card.getBoundingClientRect().height);
+            if (over > 0) scroller.scrollBy({ top: over / (uiDisplay.factor || 1) });
+        });
+    }
+    function scrollerOf(el) {
+        for (let at = el.parentElement; at; at = at.parentElement) {
+            if (/auto|scroll/.test(getComputedStyle(at).overflowY) && at.scrollHeight > at.clientHeight) return at;
+        }
+        return document.scrollingElement;
     }
     /** 닫기(좁은 창에서만 보인다): 카드를 내리고 고른 칸을 잊는다. */
     function clear() {
