@@ -137,8 +137,8 @@
     background: #e4a44b;
     box-shadow: none;
   }
-  /* 검색 줄 끝에 필터 단추가 붙으니, 지울 검색어가 없을 때는 '검색어 리셋'을 접는다(검토 5차 — 장비 격자를 위로) */
-  :root body[data-ui-skin] #item-tab-equip .search-filter-input:placeholder-shown + .search-action-row > button:first-child { display: none; }
+  /* 지울 검색어가 없을 때는 '검색어 리셋'을 접는다(검토 5차 장비 격자, 2026-10-22 룬 연구와 룬 목록도: 빈 검색 아래 44px 줄을 단추 하나가 썼다) */
+  :root body[data-ui-skin] .search-filter-input:placeholder-shown + .search-action-row > button:first-child { display: none; }
   /* 장비 창 · 제작실 · 거래소 · 장비 전당은 한 줄에: 세 칸 격자라 넷째가 혼자 둘째 줄을 썼다 */
   :root body[data-ui-skin] :is(#tab-items, #tab-items .merged-subtab-pane[data-tab-id="tab-items"]) > .subtab-row { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
   /* 전체 메뉴 서랍의 알림 표시도 하단 메뉴와 같은 주황 네모(빨간 네모와 섞여 있었다 — 검토 4차) */
