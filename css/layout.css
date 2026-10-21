@@ -75,10 +75,13 @@
         .tier-7 { color: #ff9a67; }
         .tier-8 { color: #ff6f6f; }
         .tier-9 { color: #ff5bd1; text-shadow: 0 0 8px rgba(255,91,209,0.65); }
-        .tier-10 { color: #ffd166; text-shadow: 0 0 10px rgba(255,209,102,0.82), 0 0 18px rgba(255,130,60,0.45); animation: tierPulse 1.35s ease-in-out infinite; }
+        /* 글자색과 그림자로 끊어서 빛난다(steps): 후반 장비는 옵션 대부분이 10등급 이상이라 제작실과 설명 창에서 계속 돈다. 예전 밝기
+           filter는 단계식이어도 합성 단계에서 매 프레임 돌아, 제작실을 열어 둔 동안 화면을 주사율대로 다시 그렸다(2026-10-21 측정, 프레임
+           제한 없이 렌더러 1.12코어 + GPU 0.26코어에서 0.13 + 0.10). */
+        .tier-10 { color: #ffd166; text-shadow: 0 0 10px rgba(255,209,102,0.82), 0 0 18px rgba(255,130,60,0.45); animation: tierPulse 1.35s steps(4, end) infinite; }
         @keyframes tierPulse {
-            0%, 100% { filter: brightness(1); }
-            50% { filter: brightness(1.35); }
+            0%, 100% { color: #ffd166; text-shadow: 0 0 10px rgba(255,209,102,0.82), 0 0 18px rgba(255,130,60,0.45); }
+            50% { color: #ffe3a1; text-shadow: 0 0 14px rgba(255,224,150,1), 0 0 26px rgba(255,150,70,0.7); }
         }
         .tutorial-overlay { display: none; position: fixed; inset: 0; z-index: 12000; background: rgba(4, 7, 12, 0.84); }
         .tutorial-overlay.active { display: flex; align-items: center; justify-content: center; }
