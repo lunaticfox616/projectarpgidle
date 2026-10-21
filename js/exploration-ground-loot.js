@@ -30,16 +30,17 @@ actExplorationState.groundLoot = (() => {
     const kindOf = row => row.kind || (typeof row.currency === 'string' ? 'currency' : 'equipment');
 
     // 방 단위 무대의 문 봉인은 캐릭터와 함께 바닥 전리품 위에 그려진다(js/battle-ground-loot-ui.js actorContext): 봉인이 서는 자리에 떨어진 것은
-    // 가려진다(2026-10-16 사용자 "출입구(문)이 아이템을 가리는 것도 수정"). 닫힌 봉인(세 칸 너비, 다섯 줄 높이)은 뒷문에서 뒷줄, 앞문에서 앞의
-    // 네 줄을 문 칸 좌우 한 칸 안에서, 옆문에서 방의 첫 칸을 위로 두 줄과 아래로 한 줄까지 덮는다. 그보다 조금 넓게(앞뒤는 좌우 두 칸,
-    // 옆문은 위로 세 줄) 잡고, 거기 떨어질 것은 같은 방의 가장 가까운 빈 칸(SEAL_REACH 안)으로 옮긴다.
+    // 가려진다(2026-10-16 사용자 "출입구(문)이 아이템을 가리는 것도 수정"). 2026-10-21의 봉인(data/stage-view.js rootSeal)은 앞뒤 문의 정면 그림이
+    // 세 칸 반 너비에 일곱 줄 높이, 좌우 문의 옆 그림이 두 칸 너비에 일곱 줄 높이다: 뒷문에서 뒷줄, 앞문에서 앞의 일곱 줄을 문 칸 좌우 두 칸
+    // 안에서, 옆문에서 방의 첫 칸을 위로 일곱 줄과 아래로 한 줄까지 덮는다(조각 묶음 방과 지역 그림 방의 발 자리에서 잰 칸 가운데). 거기 떨어질
+    // 것은 같은 방의 가장 가까운 빈 칸(SEAL_REACH 안)으로 옮긴다.
     const SEAL_REACH = 4;
     function underDoorSeal(map, cell) {
         return map.doors.some(door => {
             const dx = Math.abs(cell.gx - door.cell.gx), dy = cell.gy - door.cell.gy;
             if (door.side === 'north') return dx <= 2 && dy <= 1;
-            if (door.side === 'south') return dx <= 2 && dy >= -4;
-            return dx <= 1 && dy >= -3 && dy <= 1;
+            if (door.side === 'south') return dx <= 2 && dy >= -7;
+            return dx <= 1 && dy >= -7 && dy <= 1;
         });
     }
     /** The cell a drop lies on: the given one, or on a room stage the nearest walkable cell of its room that no door seal covers. */
