@@ -1,4 +1,26 @@
 // Currency state is committed in the domain; notices and logs cannot grant it again.
+/** 전투 화면의 기본 재화 줄(2026-10-21 사용자: "메인 화면 즉 전투화면에서 기본 재화들 (있는 것만) 몇개 있는지 보여주면"): 제작실의 기본 재화
+ * 묶음(js/crafting-workspace-state.js) 가운데 가진 것만 지역 이름 아래에. 제작이 닫힌 루프 1에도 NPC 상점에 낼 재화가 보인다.
+ * js/main.js refreshCombatTickUi가 틱마다 부르고, 수가 바뀐 때만 다시 그린다. */
+const combatCurrencyHud = (() => {
+    let keys = null, drawn = '';
+    function update() {
+        const root = document.getElementById('ui-combat-currencies');
+        if (!root) return;
+        keys = keys || Object.keys(ORB_DB).filter(key => craftingWorkspaceState.group(key) === 'basic' && ORB_DB[key].icon);
+        const held = keys.map(key => [key, Math.floor(Number(game.currencies[key]) || 0)]).filter(([, count]) => count > 0);
+        const sign = held.join('|');
+        if (sign === drawn) return;
+        drawn = sign;
+        root.hidden = !held.length;
+        root.innerHTML = held.map(([key, count]) => {
+            const name = escapeHTML(ORB_DB[key].name);
+            return `<span title="${name}" aria-label="${name} ${count}개"><img src="${ORB_DB[key].icon}" alt="">${count.toLocaleString('ko-KR')}</span>`;
+        }).join('');
+    }
+    return Object.freeze({ update });
+})();
+safeExposeGlobals({ combatCurrencyHud });
 (() => {
     /** 알림창(js/ui-feedback.js): 황금률은 금빛, 체이싱 티어 재화(js/loot.js lootMoments jackpot: 요정의 고리, 우로보로스)는 붉은 금빛. */
     function noticeCurrency(currencyKey,gain) {

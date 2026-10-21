@@ -8561,6 +8561,7 @@ function processQueuedUIRefresh() {
         performUpdateStaticUI();
         updateBuildFeedback(cachedTooltipStats);
         tutorialActionUi.refresh();
+        combatCurrencyHud.update();
     } finally {
         restoreUiDisclosureState(document);
         uiRefreshRunning = false;
