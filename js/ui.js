@@ -9672,9 +9672,9 @@ function buildCraftActionButtons(item) {
         let stateClass = active ? 'active' : (reqMet ? 'available' : 'locked');
         let maxedClass = active && lv >= cap ? 'maxed' : '';
         let actionAttrs = reqMet
-            ? ` role="button" tabindex="0" onclick="buySeason('${id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();buySeason('${id}');}"`
+            ? ` role="button" tabindex="0" onclick="loopPassivePress('${id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();buySeason('${id}');}"`
             : ' aria-disabled="true"';
-        return `<div class="loop-passive-node ${placement || ''} ${horizontalClass} ${stateClass} ${maxedClass}"${style}${actionAttrs} aria-label="${node.name}: ${node.desc}"><span class="loop-node-core">${renderPixelIcon(seasonNodeIcons[node.stat] || 'star', 'loop-node-icon')}<span class="loop-node-rank">${active ? `${lv}/${cap}` : (reqMet ? '+' : '×')}</span></span><span class="loop-node-tooltip"><strong>${node.name}</strong><small>${statToneText.html(node.desc)}</small><em style="color:${getItemStatToneColor(node.stat)}">${statInfo.name || node.stat} +${formatValue(node.stat, scaled)}${suffix}</em><b>${stateText}</b>${active ? `<span class="loop-node-refund" role="button" tabindex="0" onclick="event.stopPropagation(); askRefundSeasonNode('${id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();askRefundSeasonNode('${id}');}">마름병 포자로 반환</span>` : ''}</span></div>`;
+        return `<div class="loop-passive-node ${placement || ''} ${horizontalClass} ${stateClass} ${maxedClass}"${style}${actionAttrs} onmouseenter="loopPassiveHint('${id}')" onfocus="loopPassiveHint('${id}')" aria-label="${node.name}: ${node.desc}"><span class="loop-node-core">${renderPixelIcon(seasonNodeIcons[node.stat] || 'star', 'loop-node-icon')}<span class="loop-node-rank">${active ? `${lv}/${cap}` : (reqMet ? '+' : '×')}</span></span><span class="loop-node-tooltip"><strong>${node.name}</strong><small>${statToneText.html(node.desc)}</small><em style="color:${getItemStatToneColor(node.stat)}">${statInfo.name || node.stat} +${formatValue(node.stat, scaled)}${suffix}</em><b>${stateText}</b>${active ? `<span class="loop-node-refund" role="button" tabindex="0" onclick="event.stopPropagation(); askRefundSeasonNode('${id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();askRefundSeasonNode('${id}');}">마름병 포자로 반환</span>` : ''}</span></div>`;
     };
     let seasonNodeIds = Object.keys(SEASON_NODES || {});
     let activeSeasonNodeCount = seasonNodeIds.filter(id => getSeasonNodeLevel(id) > 0).length;
@@ -9691,7 +9691,7 @@ function buildCraftActionButtons(item) {
         return renderSeasonNode(id, 'inner-node', 50 + Math.cos(angle) * 17.2, 50 + Math.sin(angle) * 17.2);
     }).join('') : '';
     let innerCircle = seasonEvolved ? '<div class="loop-magic-circle" aria-hidden="true"><span class="loop-magic-runes"></span><span class="loop-magic-core"></span></div>' : '';
-    document.getElementById('ui-season-tree').innerHTML = `${seasonSummary}<div class="loop-passive-orbit ${seasonEvolved ? 'complete' : ''}"><div class="loop-orbit-ambient" aria-hidden="true"></div><span class="loop-ouroboros-silhouette" aria-hidden="true"></span>${innerCircle}${ringNodes}${innerNodes}</div>`;
+    document.getElementById('ui-season-tree').innerHTML = `${seasonSummary}<div class="loop-passive-orbit ${seasonEvolved ? 'complete' : ''}"><div class="loop-orbit-ambient" aria-hidden="true"></div><span class="loop-ouroboros-silhouette" aria-hidden="true"></span>${innerCircle}${loopOrbitCenterHtml()}${ringNodes}${innerNodes}</div>`;
     }
 
 
@@ -13429,6 +13429,71 @@ function hasSpendableSeasonPoint() {
         return canInvestSeasonNode(node, id) && getSeasonNodeLevel(id) < getSeasonNodeCap(node);
     });
 }
+
+// ---------------------------------------------------------------- 루프 패시브 고리의 가운데 칸 (2026-10-22)
+// 넓은 화면에서 비어 있던 고리 가운데에 가리키거나 누른 노드의 이름, 효과, 상태와 그 단추를 쓴다. 아무것도 고르지 않았으면 켠 노드의 합계.
+// 완성한 고리(안쪽 노드가 가운데를 쓴다)와 1080px 아래의 목록 배치(노드마다 글이 다 보인다)에는 없다.
+let loopOrbitShown = null, loopOrbitPressed = null;
+const loopOrbitListed = () => uiDisplay.matches('(max-width: 1080px)');
+function loopOrbitCenterHtml() {
+    return isSeasonTreeEvolved() ? '' : `<div class="loop-orbit-center" aria-live="polite">${loopOrbitCenterBody()}</div>`;
+}
+function loopOrbitCenterBody() {
+    const node = loopOrbitShown ? getSeasonPassiveNodeDef(loopOrbitShown) : null;
+    return node ? loopNodeDetailHtml(loopOrbitShown, node) : loopOrbitTotalsHtml();
+}
+/** 한 노드가 지금 주는 값(단계마다 20%씩 늘어난다) 한 줄. */
+function loopNodeValueText(node, lv) {
+    const info = P_STATS[node.stat] || {}, value = Number((node.val * (1 + Math.max(0, lv - 1) * 0.2)).toFixed(2));
+    return `${String(info.name || node.stat).replace(/s*(%)$/, '')} +${formatValue(node.stat, value)}${info.isPct ? '%' : ''}`;
+}
+function loopNodeStateText(id, node, lv) {
+    const unlockLoop = getSeasonPassiveUnlockLoop(id);
+    if ((game.season || 1) < unlockLoop) return `루프 ${unlockLoop}에 열립니다`;
+    if (!isSeasonNodeRequirementMet(node)) return '이어진 노드를 먼저 활성화하세요';
+    return lv > 0 ? `${lv}/${getSeasonNodeCap(node)}단계` : '활성화할 수 있습니다';
+}
+/** 활성화, 강화(포인트 1), 마름병 포자로 반환. buySeason과 askRefundSeasonNode가 사고 되돌리는 규칙을 그대로 따른다. */
+function loopNodeBuyHtml(id, node, lv) {
+    const open = (game.season || 1) >= getSeasonPassiveUnlockLoop(id) && isSeasonNodeRequirementMet(node);
+    if (!open || lv >= getSeasonNodeCap(node)) return '';
+    return `<button type="button" onclick="buySeason('${id}')" ${game.seasonPoints > 0 ? '' : 'disabled title="루프 포인트가 없습니다"'}>${lv > 0 ? '강화' : '활성화'}</button>`;
+}
+function loopNodeActionsHtml(id, node, lv) {
+    const buy = loopNodeBuyHtml(id, node, lv);
+    const refund = lv > 0 ? `<button type="button" onclick="askRefundSeasonNode('${id}')">마름병 포자로 반환</button>` : '';
+    return buy || refund ? `<span class="loop-orbit-actions">${buy}${refund}</span>` : '';
+}
+function loopNodeDetailHtml(id, node) {
+    const lv = getSeasonNodeLevel(id);
+    return `<strong>${escapeHTML(node.name)}</strong><small>${statToneText.html(node.desc)}</small>
+        ${lv > 1 ? `<em style="color:${getItemStatToneColor(node.stat)}">지금 ${escapeHTML(loopNodeValueText(node, lv))}</em>` : ''}<b>${loopNodeStateText(id, node, lv)}</b>${loopNodeActionsHtml(id, node, lv)}`;
+}
+function loopOrbitTotalsHtml() {
+    const sums = new Map();
+    Object.keys(SEASON_NODES || {}).forEach(id => {
+        const lv = getSeasonNodeLevel(id), node = getSeasonPassiveNodeDef(id);
+        if (lv > 0 && node) sums.set(node.stat, (sums.get(node.stat) || 0) + node.val * (1 + (lv - 1) * 0.2));
+    });
+    const total = [...sums].map(([stat, val]) => loopNodeValueText({ stat, val }, 1)).join(', ');
+    return `<strong>우로보로스 원환</strong><small>${total ? `활성화한 노드의 합계: ${statToneText.html(total)}` : '노드를 가리키면 그 효과가 여기에 나옵니다. + 표시 노드를 지금 활성화할 수 있습니다.'}</small>`;
+}
+/** 노드를 가리키거나 고르면 가운데 칸만 고쳐 쓴다(고리는 다시 그리지 않는다). */
+function loopPassiveHint(id) {
+    loopOrbitShown = id;
+    const center = document.querySelector('#ui-season-tree .loop-orbit-center');
+    if (center) center.innerHTML = loopOrbitCenterBody();
+}
+/** 노드 누르기: 넓은 화면의 터치(가리킬 수 없다)에서는 첫 탭이 가운데 칸에 읽기만 하고 같은 노드를 한 번 더 누르면 산다.
+ * 목록 배치와 마우스는 전처럼 바로 산다. */
+function loopPassivePress(id) {
+    const again = loopOrbitPressed === id, touch = typeof matchMedia === 'function' && !matchMedia('(hover: hover)').matches;
+    loopOrbitPressed = id;
+    loopPassiveHint(id);
+    if (touch && !loopOrbitListed() && !again) return;
+    buySeason(id);
+}
+safeExposeGlobals({ loopPassiveHint, loopPassivePress });
 
 async function buySeason(id) { if (!assertBuildEditable()) return;
     let node = getSeasonPassiveNodeDef(id);

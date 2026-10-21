@@ -1337,6 +1337,15 @@
 .loop-passive-node.tooltip-right .loop-node-tooltip { left: 0; transform: none; }
 .loop-passive-node.tooltip-left .loop-node-tooltip { right: 0; left: auto; transform: none; }
 .loop-passive-node:hover .loop-node-tooltip, .loop-passive-node:focus-visible .loop-node-tooltip { display: grid; gap: 5px; }
+/* 고리 가운데 칸(js/ui.js loopOrbitCenterHtml): 가리키거나 누른 노드의 자세히, 아니면 켠 노드의 합계. 칸이 있으면 노드 말풍선은 겹쳐서 숨긴다. */
+.loop-orbit-center { position: absolute; top: 50%; left: 50%; z-index: 2; display: grid; justify-items: center; gap: 6px; width: 38%; max-height: 44%; overflow: hidden; translate: -50% -50%; text-align: center; color: var(--copy-bright); }
+.loop-orbit-center strong { color: #f3dca1; font-size: 15px; }
+.loop-orbit-center small { font-size: 12px; line-height: 1.5; }
+.loop-orbit-center em { font-size: 12px; font-style: normal; }
+.loop-orbit-center b { color: #d0ba83; font-size: 12px; font-weight: normal; }
+.loop-orbit-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+.loop-orbit-actions button { min-height: 30px; padding: 3px 12px; font-size: 12px; }
+@media (min-width: 1081px) { .loop-passive-orbit:has(.loop-orbit-center) .loop-passive-node:is(:hover, :focus-visible) .loop-node-tooltip { display: none; } }
 .loop-node-tooltip strong { color: #f3dca1; font-size: .82rem; }
 .loop-node-tooltip small { color: var(--copy-bright); font-size: .69rem; line-height: 1.4; }
 .loop-node-tooltip em { color: #9ecdbf; font-size: .7rem; font-style: normal; }
@@ -1372,7 +1381,7 @@
     #ui-season-tree .trait-progress-summary { background: var(--color-surface-raised); border-color: var(--color-line); }
     #ui-season-tree .trait-progress-summary > div { background: transparent; }
     #ui-season-tree .loop-passive-orbit { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; height: auto; min-height: 0; aspect-ratio: auto; margin: 8px 0; gap: 8px; border-radius: 0; background: none; }
-    #ui-season-tree :is(.loop-orbit-ambient, .loop-ouroboros-silhouette, .loop-magic-circle) { display: none; }
+    #ui-season-tree :is(.loop-orbit-ambient, .loop-ouroboros-silhouette, .loop-magic-circle, .loop-orbit-center) { display: none; }
     #ui-season-tree .loop-passive-node { position: relative; inset: auto; width: auto; height: auto; min-height: 104px; padding: 10px; border: 1px solid var(--color-line); border-radius: var(--radius-sm); background: var(--color-surface-raised); }
     #ui-season-tree .loop-passive-node.available { border-color: var(--color-accent-gold); }
     #ui-season-tree .loop-passive-node.active { border-color: #6a9986; }
