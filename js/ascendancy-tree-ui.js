@@ -1,5 +1,6 @@
-/** 전직 트리 보기 (2026-10-09 목표 "전직노드 UI/UX 개선"). 노드와 키스톤을 선으로 이은 작은 나무로 그리고, 가리키거나 누른 칸의
- * 설명과 지금 할 수 있는 일을 아래 설명 칸에 쓴다. 사고 되돌리는 규칙은 js/ui.js(buyAscend, askRefundAscendNode, buyAscendKeystone,
+/** 전직 트리 보기 (2026-10-09 목표 "전직노드 UI/UX 개선", 2026-10-22 "전직 노드창 개선"). 왼쪽에 노드 나무(칸마다 그림, 값,
+ * 능력치 이름, 궁극과 4차 핵심과 특화 줄에는 이름표), 오른쪽에 키스톤과 자세히 카드를 둔다. 좁은 창에서는 나무, 자세히, 키스톤 차례로
+ * 쌓고 자세히 카드가 아래에 붙는다. 자세히 카드는 가리키거나 누른 칸의 효과, 찍으면 바뀌는 값, 할 수 있는 일과 그 단추를 보인다. 사고 되돌리는 규칙은 js/ui.js(buyAscend, askRefundAscendNode, buyAscendKeystone,
  * refundAscendKeystone)를 그대로 부른다. 마우스로는 누르면 바로 찍고, 가리킬 수 없는 화면(터치)에서는 첫 탭이 고르기, 같은 칸을
  * 한 번 더 누르면 찍는다(잘못 눌러 되돌리느라 마름병 포자를 쓰지 않게).
  * 아직 열리지 않은 4차 핵심과 전직 특화는 흐리게 미리 보이고, 재능 특화는 개화한 재능이 정해질 때까지 자리만 보인다.
@@ -19,6 +20,10 @@ const ascendancyTreeUi = (() => {
     const NODE_TEXT = Object.freeze({ taken: '찍음', open: '찍을 수 있음', nopoint: '포인트 없음', locked: '이어진 노드가 먼저', closed: '짝 노드를 골라 닫힘', future: '아직 열리지 않음' });
     const KEYSTONE_TEXT = Object.freeze({ taken: '고름', open: '고를 수 있음', nopoint: '키스톤 포인트 없음', full: '다섯 개를 다 고름', locked: '선행 키스톤이 먼저', fifth: '5차 전직 뒤' });
     let focus = null; // { kind: 'node' | 'keystone', id } 마지막으로 누른 칸
+    let shown = null; // 자세히 카드가 읽는 칸: 마지막으로 가리키거나 누른 칸
+    const ROW_LABEL = Object.freeze({ n10: '궁극', n11: '4차 핵심', n13a: '특화' });
+    const NODE_ACTIONS = Object.freeze({ taken: '되돌리기', open: '찍기' });
+    const KEYSTONE_ACTIONS = Object.freeze({ taken: '되돌리기', open: '고르기' });
     /** The stat's dot picture (the talent window marks each ascendancy with its main stat's, js/talent-ui.js). */
     const iconOf = stat => ICONS[stat] || 'star';
 
@@ -65,13 +70,13 @@ const ascendancyTreeUi = (() => {
     }
     /** Both ends taken: gold; the way on from a taken node: lit; the rest waits dim. */
     const linkState = (a, b) => (a === 'taken' && b === 'taken' ? 'done' : (a === 'taken' ? 'lit' : 'dim'));
-    function nodeButton(id, node, pos, state) {
+    function nodeButton(id, node, pos, state, tight) {
         const lines = linesOf(node), icon = iconOf((lines[0] || {}).stat), label = lines.length ? shortValue(lines[0]) : '?';
-        const name = `${RANK[id] || lines.map(line => statName(line.stat)).join(', ') || '재능 특화'}, ${NODE_TEXT[state]}`;
+        const stat = lines.length ? statName(lines[0].stat) : '재능 특화', name = `${RANK[id] || stat}, ${NODE_TEXT[state]}`;
         const focused = focus && focus.kind === 'node' && focus.id === id ? ' is-focus' : '';
-        return `<button type="button" class="ascend-node is-${state}${RANK[id] ? ' is-major' : ''}${focused}" style="--x:${pos.x}%;--y:${pos.y}%"
+        return `<button type="button" class="ascend-node is-${state}${RANK[id] ? ' is-major' : ''}${tight ? ' is-tight' : ''}${focused}" style="--x:${pos.x}%;--y:${pos.y}%"
             aria-label="${esc(name)}" aria-pressed="${state === 'taken'}" onclick="ascendancyTreeUi.press('node','${id}')"
-            onmouseenter="ascendancyTreeUi.hint('node','${id}')" onfocus="ascendancyTreeUi.hint('node','${id}')">${renderPixelIcon(icon, 'ascend-node-icon')}<span>${esc(label)}</span></button>`;
+            onmouseenter="ascendancyTreeUi.hint('node','${id}')" onfocus="ascendancyTreeUi.hint('node','${id}')"><span class="ascend-node-head">${renderPixelIcon(icon, 'ascend-node-icon')}<b>${esc(label)}</b></span><span class="ascend-node-name">${esc(stat)}</span></button>`;
     }
     /** The prerequisites a node's lines come from. Nodes of one row that share the same choice of several prerequisites (n13a~d
      * after n11 or n12) draw only from the nearest one, or their lines cross into an X; a lone node (n10 after n7~n9) keeps them all. */
@@ -87,8 +92,11 @@ const ascendancyTreeUi = (() => {
         const states = new Map([...at.keys()].map(id => [id, nodeState(tree[id], id)]));
         const links = [...at.keys()].flatMap(id => linkSources(tree, rows, at, id)
             .map(req => linkHtml(at.get(req), at.get(id), linkState(states.get(req), states.get(id)))));
-        const buttons = [...at.keys()].map(id => nodeButton(id, tree[id], at.get(id), states.get(id)));
-        return `<div class="ascend-graph" style="--rows:${rows.length}"><svg class="ascend-links" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">${links.join('')}</svg>${buttons.join('')}</div>`;
+        const tight = new Set(rows.filter(ids => ids.length > 3).flat());
+        const buttons = [...at.keys()].map(id => nodeButton(id, tree[id], at.get(id), states.get(id), tight.has(id)));
+        const labels = rows.map(ids => ids.find(id => ROW_LABEL[id])).filter(Boolean)
+            .map(id => `<span class="ascend-row-label" style="--y:${at.get(id).y}%">${esc(ROW_LABEL[id])}</span>`);
+        return `<div class="ascend-graph" style="--rows:${rows.length}"><svg class="ascend-links" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">${links.join('')}</svg>${labels.join('')}${buttons.join('')}</div>`;
     }
 
     // ---------------------------------------------------------------- keystones
@@ -156,15 +164,21 @@ const ascendancyTreeUi = (() => {
         const node = tree[id];
         if (!node) return '';
         const state = nodeState(node, id), lines = linesOf(node);
-        const body = lines.length ? lines.map(line => `<span style="color:${getItemStatToneColor(line.stat)}">${esc(lineText(line))}</span>`).join(', ') : '개화한 재능에 따라 정해집니다.';
-        return `<strong>${esc(RANK[id] || '전직 노드')}</strong> ${body}${canTake(state) ? previewHtml('ascendNodes', id, '찍으면') : ''}<br><small>${esc(nodeAdvice(tree, node, id, state))}</small>`;
+        const body = lines.length ? lines.map(line => `<span style="color:${getItemStatToneColor(line.stat)}">${esc(lineText(line))}</span>`).join('<br>') : '개화한 재능에 따라 정해집니다.';
+        return `${detailHead(RANK[id] || '전직 노드', NODE_TEXT[state], state)}<p class="ascend-detail-lines">${body}</p>
+            ${canTake(state) ? previewHtml('ascendNodes', id, '찍으면') : ''}<p class="ascend-detail-advice">${esc(nodeAdvice(tree, node, id, state))}</p>${actionHtml(NODE_ACTIONS[state])}`;
     }
     /** A node or keystone the hero can take now or once a point comes. */
     const canTake = state => state === 'open' || state === 'nopoint';
+    /** The card's title line: the cell's name and its state. */
+    const detailHead = (title, stateText, state) => `<p class="ascend-detail-head"><strong>${esc(title)}</strong><small class="is-${state}">${esc(stateText)}</small>
+        <button type="button" class="ascend-detail-close" onclick="ascendancyTreeUi.clear()">닫기</button></p>`;
+    /** The card's button (찍기, 고르기, 되돌리기) for what it shows; nothing when the cell waits on something else. */
+    const actionHtml = label => (label ? `<button type="button" class="ascend-detail-act" onclick="ascendancyTreeUi.act()">${esc(label)}</button>` : '');
     /** "찍으면 DPS 61 → 64, 생명력 186 → 196": the stats with id added to game[field], read on a copy (js/passives.js previewBuildStats). */
     function previewHtml(field, id, verb) {
         const parts = buildStatPreviewParts(previewBuildStats(copy => { copy[field] = [...(copy[field] || []), id]; }));
-        return parts ? `<br><span class="ascend-preview">${verb} ${parts}</span>` : '';
+        return parts ? `<p class="ascend-preview">${verb} ${parts}</p>` : '';
     }
     function nodeAdvice(tree, node, id, state) {
         if (state === 'future') return node.future;
@@ -186,11 +200,12 @@ const ascendancyTreeUi = (() => {
             nopoint: '키스톤 포인트가 없습니다. 전직 시련을 처음 통과할 때마다 1점씩 받습니다.',
             open: `${touchOnly() ? '한 번 더 누르면' : '누르면'} 고릅니다.`
         }[state];
-        return `<strong>${esc(k.name)}</strong> ${statToneText.html(k.desc)}${canTake(state) ? previewHtml('ascendKeystones', id, '고르면') : ''}<br><small>${esc(advice)}</small>`;
+        return `${detailHead(k.name, KEYSTONE_TEXT[state], state)}<p class="ascend-detail-lines">${statToneText.html(k.desc)}</p>
+            ${canTake(state) ? previewHtml('ascendKeystones', id, '고르면') : ''}<p class="ascend-detail-advice">${esc(advice)}</p>${actionHtml(KEYSTONE_ACTIONS[state])}`;
     }
-    function noteHtml(tree, defs) {
-        const body = focus ? (focus.kind === 'node' ? nodeNote(tree, focus.id) : keystoneNote(defs, focus.id)) : '';
-        return `<p class="ascend-note" aria-live="polite">${body || '노드나 키스톤을 가리키거나 누르면 여기에 효과와 할 수 있는 일이 나옵니다.'}</p>`;
+    function detailBody(tree, defs) {
+        const body = shown ? (shown.kind === 'node' ? nodeNote(tree, shown.id) : keystoneNote(defs, shown.id)) : '';
+        return body || '<p class="ascend-muted">노드나 키스톤을 가리키거나 누르면 효과와 할 수 있는 일이 여기에 나옵니다.</p>';
     }
 
     // ---------------------------------------------------------------- screen and actions
@@ -200,22 +215,40 @@ const ascendancyTreeUi = (() => {
         game.ascendNodes = Array.isArray(game.ascendNodes) ? game.ascendNodes : [];
         game.ascendKeystones = Array.isArray(game.ascendKeystones) ? game.ascendKeystones : [];
         const tree = fullTree(cls), defs = getClassKeystoneDefs(cls);
-        box.innerHTML = `${summaryHtml(cls, tree)}<section class="ascend-board" aria-label="전직 노드"><h3>전직 노드</h3>${nodeGraphHtml(tree)}</section>
-            <section class="ascend-board" aria-label="키스톤"><h3>키스톤 <button type="button" class="ascend-reset" onclick="resetAscendKeystones()">키스톤 초기화</button></h3>${keystoneGraphHtml(defs)}</section>${noteHtml(tree, defs)}`;
+        box.innerHTML = `${summaryHtml(cls, tree)}<div class="ascend-layout">
+            <section class="ascend-board is-nodes" aria-label="전직 노드"><h3>전직 노드</h3>${nodeGraphHtml(tree)}</section>
+            <section class="ascend-board is-keystones" aria-label="키스톤"><h3>키스톤 <button type="button" class="ascend-reset" onclick="resetAscendKeystones()">키스톤 초기화</button></h3>${keystoneGraphHtml(defs)}</section>
+            <section class="ascend-detail${shown ? '' : ' is-empty'}" aria-label="자세히" aria-live="polite">${detailBody(tree, defs)}</section></div>`;
     }
     /** Pointer or keyboard on a node: the note reads it; nothing is bought. */
     function hint(kind, id) {
-        const note = document.querySelector('#ui-ascend-tree-container .ascend-note'), cls = game.ascendClass;
-        if (!note || !cls) return;
-        note.innerHTML = kind === 'node' ? nodeNote(fullTree(cls), id) : keystoneNote(getClassKeystoneDefs(cls), id);
+        const card = document.querySelector('#ui-ascend-tree-container .ascend-detail'), cls = game.ascendClass;
+        if (!card || !cls) return;
+        shown = { kind, id };
+        card.innerHTML = detailBody(fullTree(cls), getClassKeystoneDefs(cls));
+        card.classList.remove('is-empty');
     }
     /** A press: on a touch screen the first one only reads the node; otherwise (and on the second touch) it buys or refunds. */
     function press(kind, id) {
         const again = !!focus && focus.kind === kind && focus.id === id;
         focus = { kind, id };
+        shown = focus;
         if (touchOnly() && !again) return render();
         if (kind === 'node') actOnNode(id);
         else actOnKeystone(id);
+        render();
+    }
+    /** 닫기(좁은 창에서만 보인다): 카드를 내리고 고른 칸을 잊는다. */
+    function clear() {
+        shown = null;
+        focus = null;
+        render();
+    }
+    /** The card's button: the same as pressing the cell it shows (on a touch screen without the second tap). */
+    function act() {
+        if (!shown) return;
+        if (shown.kind === 'node') actOnNode(shown.id);
+        else actOnKeystone(shown.id);
         render();
     }
     function actOnNode(id) {
@@ -240,6 +273,6 @@ const ascendancyTreeUi = (() => {
             <span>${esc(template.desc)}</span><span class="ascend-pick-line">노드: ${esc(getAscendancyNodeFocus(key).join(', '))}</span>
             ${names.length ? `<span class="ascend-pick-line is-keystone">첫 키스톤: ${esc(names.join(', '))}</span>` : ''}</button>`;
     }
-    return Object.freeze({ render, hint, press, pickCardHtml, icon: iconOf });
+    return Object.freeze({ render, hint, press, act, clear, pickCardHtml, icon: iconOf });
 })();
 safeExposeGlobals({ ascendancyTreeUi });
