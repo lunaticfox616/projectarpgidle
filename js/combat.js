@@ -14108,14 +14108,23 @@ function getLoopAdvancePathLabel(path) {
     return path === 'cosmos' ? '우주계 루프' : '혼돈 루프';
 }
 
-function getSeasonResetBlockReason(loopPath) {
+/** 루프 밖에 맡겨 두어 루프를 막는 장비: 가판대(js/player-stall.js)와 장비 전당에 전시한 원본(js/player-exchange.js, 가판대와 같은
+ * 까닭). 루프 화면의 단추, 경고 줄, 자동 루프도 이것을 묻는다(js/loop-ui.js, js/loop-automation-ui.js). 없으면 ''. */
+function getHeldGearLoopBlockReason() {
     const stallReason = typeof playerStall === 'object' ? playerStall.loopBlockReason(game) : '';
     if (stallReason) return stallReason;
-    if ((game.season || 1) < 31 || loopPath) return '';
-    let available = typeof getAvailableLoopAdvancePaths === 'function' ? getAvailableLoopAdvancePaths(game.season || 1) : [];
+    return typeof playerHallTrade === 'object' ? playerHallTrade.loopBlockReason() : '';
+}
+
+function getSeasonResetBlockReason(loopPath) {
+    const heldReason = getHeldGearLoopBlockReason();
+    if (heldReason) return heldReason;
+    const season = game.season || 1;
+    if (season < 31 || loopPath) return '';
+    let available = typeof getAvailableLoopAdvancePaths === 'function' ? getAvailableLoopAdvancePaths(season) : [];
     return available.length > 1
         ? '혼돈 루프와 우주계 루프 조건을 모두 달성했습니다. 진행할 루프 경로를 선택하세요.'
-        : getLoopAbyssRequirementPrompt(game.season || 1);
+        : getLoopAbyssRequirementPrompt(season);
 }
 
 /** Sealed gear survives the loop wherever it waits: in the bag or in the temporary storage. */

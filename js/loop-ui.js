@@ -48,9 +48,9 @@ const loopSettlementUi = {
             <li>유지: 해금한 콘텐츠, 루프 패시브, 그루터기 함, 저널과 도감, 아틀라스, 혼돈계와 탑과 바다의 기록, 봉인한 장비</li>
             <li>해금 포인트와 루프 포인트로 더 강해진 채 다시 오릅니다.</li></ul></details>`;
     },
-    /** A loop button that resets at once (loop-10 panel): disabled until ready, and while the stall still holds gear or dew. */
+    /** A loop button that resets at once (loop-10 panel): disabled until ready, and while the stall still holds gear or dew or the hall shows an original. */
     resetButtonAttr(ready) {
-        return ready && !playerStall.loopBlockReason(game) ? '' : 'disabled';
+        return ready && !getHeldGearLoopBlockReason() ? '' : 'disabled';
     },
     /** A refused loop click flashes the warning: toasts are hidden while the loop screen is up. */
     nudgeStallWarning() {
@@ -60,9 +60,9 @@ const loopSettlementUi = {
             node.classList.add('is-nudged');
         });
     },
-    /** Gear or dew left on the stall blocks the reset (triggerSeasonReset): say so where the loop button is. */
+    /** Gear or dew left on the stall, or an original on show in the hall, blocks the reset (triggerSeasonReset): say so where the loop button is. */
     stallWarningHtml() {
-        const reason = playerStall.loopBlockReason(game);
+        const reason = getHeldGearLoopBlockReason();
         return reason ? `<p class="loop-settlement-warning" role="alert">${escapeHTML(reason)}</p>` : '';
     },
     render() {
@@ -73,7 +73,7 @@ const loopSettlementUi = {
         overlay.classList.toggle('active', ready && this.dismissedReadyLoop !== game.season);
         document.getElementById('loop-decision-overlay').classList.toggle('active', decision);
         if (!ready && !decision) { this.renderedKey = ''; this.dismissedReadyLoop = 0; return; }
-        const key = `${game.season}:${ready}:${decision}:${this.unlockRewardText()}:${playerStall.loopBlockReason(game)}:${game.settings.autoLoop}:${game.settings.autoLoopClass}`;
+        const key = `${game.season}:${ready}:${decision}:${this.unlockRewardText()}:${getHeldGearLoopBlockReason()}:${game.settings.autoLoop}:${game.settings.autoLoopClass}`;
         if (key === this.renderedKey) return;
         this.renderedKey = key;
         const html = this.summaryHtml();
@@ -84,8 +84,9 @@ const loopSettlementUi = {
         this.dismissedReadyLoop = game.season;
         this.render();
         switchTab('tab-items');
-        // When the stall is what blocks the loop, open it directly.
+        // When the stall or the hall is what blocks the loop, open it directly.
         if (playerStall.loopBlockReason(game)) { switchItemSubtab('item-tab-market'); marketUi.show('stall'); }
+        else if (getHeldGearLoopBlockReason()) switchItemSubtab('item-tab-hall'); // 장비 전당에 전시한 원본
     },
     reopen() {
         this.dismissedReadyLoop = 0;
@@ -138,7 +139,7 @@ const loopSettlementUi = {
 
     function requestManualLoopAdvanceConfirmation() {
         // The reset would be refused anyway: show why instead of asking to confirm.
-        const stallReason = playerStall.loopBlockReason(game);
+        const stallReason = getHeldGearLoopBlockReason();
         if (stallReason) {
             if (typeof addLog === 'function') addLog(stallReason, 'attack-monster', { toast: true });
             loopSettlementUi.nudgeStallWarning();
