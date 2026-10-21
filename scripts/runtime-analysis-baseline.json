@@ -9011,6 +9011,7 @@
     "dependency:finish->setTimeout",
     "dependency:finish->showGameToast",
     "dependency:finish->startMoving",
+    "dependency:finish->switchTab",
     "dependency:finish->updateStaticUI",
     "dependency:finishAnalysis->clearResults",
     "dependency:finishAnalysis->getBuildSignature",
