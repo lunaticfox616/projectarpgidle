@@ -14179,7 +14179,7 @@ function advanceLoopCounters(loopPath, say) {
 /** The one-time notices of the loop the hero arrives at (spores, exploration events, time rift, rival blades). */
 function queueLoopArrivalNotices() {
     if (game.season === 2 && typeof queueTutorialNotice === 'function') {
-        queueTutorialNotice('unlock_spore_crafting', '속성 홀씨', '사냥에서 속성 홀씨가 나오기 시작합니다.\n루프 3부터 ‘해금’에서 화석 제작을 열면 홀씨로 제작 태그를 정할 수 있습니다.\n화염/냉기/번개 홀씨 보유량은 루프마다 초기화됩니다.', 'tab-unlocks');
+        queueTutorialNotice('unlock_spore_crafting', '속성 홀씨', '사냥에서 속성 홀씨가 나오기 시작합니다.\n루프 3부터 오르가에게서 화석 제작을 받으면 홀씨로 제작 태그를 정할 수 있습니다.\n화염/냉기/번개 홀씨 보유량은 루프마다 초기화됩니다.', 'tab-unlocks');
     }
     Object.entries(EXPLORATION_EVENT_NOTICES).forEach(([kind, notice]) => {
         if (game.season === notice.loop) queueTutorialNotice('exploration_event_' + kind, notice.title, notice.body);

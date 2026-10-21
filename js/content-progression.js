@@ -23,6 +23,18 @@ const contentProgression = (() => {
         stump: owner => [['액트 10 클리어', !!(owner.stumpBox && owner.stumpBox.acquired) || stumpBox.eligible(owner)]]
     };
 
+    /** How an unlock opens: 'paid' with 해금 points in the unlock tab, 'npc' for no points in its NPC's window only (def.npc,
+     * 2026-10-21 사용자: NPC 해금과 일반 해금 분리), 'auto' by itself once its conditions are met. */
+    function kind(def) {
+        if (def.npc) return 'npc';
+        return def.cost > 0 ? 'paid' : 'auto';
+    }
+
+    /** An NPC's personal name, the last word of its STORY_NPCS name (벼림꾼 오르가 → 오르가). */
+    function npcName(id) {
+        return String(STORY_NPCS[id]?.name || id).split(/[\s,]+/).pop();
+    }
+
     function requirements(id, owner = game) {
         const def = definitions.get(id);
         if (!def) return [];
@@ -31,6 +43,8 @@ const contentProgression = (() => {
             rows.push([definitions.get(key).name + ' 해금', isUnlocked(key, owner)]);
         }
         if (def.progress) rows.push(...progressChecks[def.progress](owner));
+        // Meetings are counted on the maps (js/npc-shop.js meet) and kept across loops.
+        if (def.npc) rows.push([npcName(def.npc) + ' 조우', !!owner.npcMet?.[def.npc]]);
         return rows.map(([label, met]) => ({ label, met: !!met }));
     }
 
@@ -47,7 +61,7 @@ const contentProgression = (() => {
         const state = owner.contentProgression;
         if (!state) return true;
         if (state.unlocked.includes(id) || state.inherited.includes(id)) return true;
-        if (def.cost !== 0) return false;
+        if (kind(def) !== 'auto') return false;
         if (state.automatic.includes(id)) return true;
         return automaticAccess(def, owner);
     }
@@ -88,20 +102,36 @@ const contentProgression = (() => {
         return !!feature && isUnlocked(feature, owner);
     }
 
-    /** Unlock points earned up to a loop: loops 2~5 give CONTENT_UNLOCK_POINT_AWARDS.early, every later loop perLoop. */
-    function earnedBy(loop) {
-        const { early, perLoop } = CONTENT_UNLOCK_POINT_AWARDS, loops = Math.max(0, Math.floor(Number(loop) || 1) - 1);
+    /** Unlock points earned up to a loop: loop L (2 or later) gives awards.early[L - 2], every loop after them awards.perLoop. */
+    function earnedBy(loop, awards = CONTENT_UNLOCK_POINT_AWARDS) {
+        const { early, perLoop } = awards, loops = Math.max(0, Math.floor(Number(loop) || 1) - 1);
         return early.slice(0, loops).reduce((sum, points) => sum + points, 0) + Math.max(0, loops - early.length) * perLoop;
     }
 
-    /** Points earned by a loop, the points paid and what the catalog can still take (unbought paid unlocks). The record may still be
-     * the saved one: the stump box restores its graft ranks (overflow) before mergeDefaults normalizes this ledger. */
+    // The awards before NPC unlocks split from the paid ones (2026-10-21). A save from then keeps every point that table had given
+    // it by its highest loop (the ledger's carry), so loading never drops a paid unlock it bought nor a stump graft rank bought with
+    // overflow points (js/stump-box.js restoreGraft).
+    const AWARDS_BEFORE_NPC_SPLIT = Object.freeze({ early: Object.freeze([4, 4, 3, 3]), perLoop: 2 });
+    const LEDGER_VERSION = 9;
+    const carryGap = loop => Math.max(0, earnedBy(loop, AWARDS_BEFORE_NPC_SPLIT) - earnedBy(loop));
+    /** Points beyond the current awards: a ledger from before version 9 is owed the whole gap at the loop it reached; a current one
+     * keeps the carry fixed when it was first loaded (never more than that gap). */
+    function carryOf(state, loop) {
+        if (!(Number(state.version) >= LEDGER_VERSION)) return carryGap(loop);
+        return Math.min(carryGap(loop), Math.max(0, Math.floor(Number(state.carry) || 0)));
+    }
+
+    /** Points earned by a loop, the points paid and what the catalog can still take (unbought paid unlocks). Only unlock-tab prices
+     * count: points once paid for what is now an NPC unlock or automatic content come back. The record may still be the saved one: the
+     * stump box restores its graft ranks (overflow) before mergeDefaults normalizes this ledger. */
     function ledger(state, loop) {
         const unlocked = Array.isArray(state.unlocked) ? state.unlocked : [], inherited = Array.isArray(state.inherited) ? state.inherited : [];
+        const paid = def => !!def && kind(def) === 'paid';
         const remaining = CONTENT_UNLOCK_CATALOG.reduce((sum, def) =>
-            sum + (def.cost > 0 && !unlocked.includes(def.id) && !inherited.includes(def.id) ? def.cost : 0), 0);
-        const spent = unlocked.reduce((sum, id) => sum + (Number((state.paidCosts || {})[id]) || 0), 0);
-        return { remaining, spent, earned: earnedBy(Math.max(Number(state.highestLoop) || 1, loop)) };
+            sum + (paid(def) && !unlocked.includes(def.id) && !inherited.includes(def.id) ? def.cost : 0), 0);
+        const spent = unlocked.reduce((sum, id) => sum + (paid(definitions.get(id)) ? Number((state.paidCosts || {})[id]) || 0 : 0), 0);
+        const reached = Math.max(Number(state.highestLoop) || 1, loop);
+        return { remaining, spent, earned: earnedBy(reached) + carryOf(state, reached) };
     }
 
     /** Read-only point budget; future gated growth counts, automatic combat never costs points. */
@@ -130,7 +160,7 @@ const contentProgression = (() => {
 
     /** The cheapest paid unlock whose conditions are met now, or null while every remaining one waits for a loop or progress. */
     function cheapestOpen(owner = game) {
-        return CONTENT_UNLOCK_CATALOG.filter(def => def.cost > 0 && owner.season >= def.minLoop && !isUnlocked(def.id, owner)
+        return CONTENT_UNLOCK_CATALOG.filter(def => kind(def) === 'paid' && owner.season >= def.minLoop && !isUnlocked(def.id, owner)
             && requirements(def.id, owner).every(row => row.met))
             .reduce((best, def) => (!best || def.cost < best.cost ? def : best), null);
     }
@@ -141,6 +171,8 @@ const contentProgression = (() => {
         if (isUnlocked(id, owner)) return { available: false, reason: '해금 완료', unlocked: true };
         const missing = requirements(id, owner).filter(row => !row.met);
         if (missing.length) return { available: false, reason: missing[0].label + ' 필요' };
+        // npc: the NPC whose window opens it (gift); the unlock tab cannot buy it.
+        if (kind(def) === 'npc') return { available: true, npc: def.npc, reason: npcName(def.npc) + '에게서 받기' };
         if (balance(owner) < def.cost) return { available: false, reason: '해금 포인트 부족' };
         return { available: true, reason: `${def.cost}점으로 해금` };
     }
@@ -155,7 +187,7 @@ const contentProgression = (() => {
             if (def.gate) owner.unlocks[def.gate] = opened;
             for (const flag of def.flags || []) owner[flag] = opened;
         }
-        const automatic = CONTENT_UNLOCK_CATALOG.filter(def => def.cost === 0 && isUnlocked(def.id, owner)).map(def => def.id);
+        const automatic = CONTENT_UNLOCK_CATALOG.filter(def => kind(def) === 'auto' && isUnlocked(def.id, owner)).map(def => def.id);
         state.automatic = [...new Set([...state.automatic, ...automatic])];
     }
 
@@ -171,20 +203,24 @@ const contentProgression = (() => {
         }
     }
 
-    /** Synchronous check-and-spend: validate choices before mutating any state. */
+    /** Synchronous check-and-spend: validate choices before mutating any state. NPC unlocks are opened by their NPC (gift) only. */
     function purchase(id, owner = game, rewardKey) {
+        const def = definitions.get(id);
+        if (def && kind(def) === 'npc') return { ok: false, message: npcName(def.npc) + '에게서 받는 해금입니다.' };
         const check = status(id, owner);
         if (!check.available) return { ok: false, message: check.reason };
-        return takeUnlock(id, owner, rewardKey, definitions.get(id).cost);
+        return takeUnlock(id, owner, rewardKey, def.cost);
     }
 
-    /** An NPC's 즉시 해금 (js/content-progression-ui.js npcReady; 2026-10-16 사용자: 포인트 없이 공짜로): the same unlock and first
-     * reward for no points once its loop, progress and earlier-unlock conditions are met. paidCosts 0 keeps it free across loads. */
+    /** An NPC's 즉시 해금 (js/content-progression-ui.js npcReady; 2026-10-16 사용자: 포인트 없이 공짜로): one of its NPC unlocks with
+     * the first reward, for no points, once the hero has met that NPC and the loop, progress and earlier-unlock conditions are met.
+     * Paid unlocks are the unlock tab's alone since 2026-10-21. paidCosts 0 keeps it free across loads. */
     function gift(id, owner = game, rewardKey) {
         const def = definitions.get(id);
-        if (!def || def.cost === 0 || isUnlocked(id, owner)) return { ok: false, message: def ? '해금 완료' : '알 수 없는 콘텐츠입니다.' };
-        const missing = requirements(id, owner).find(row => !row.met);
-        if (missing) return { ok: false, message: missing.label + ' 필요' };
+        if (!def) return { ok: false, message: '알 수 없는 콘텐츠입니다.' };
+        if (kind(def) !== 'npc') return { ok: false, message: '해금 탭에서 여는 해금입니다.' };
+        const check = status(id, owner);
+        if (!check.available) return { ok: false, message: check.reason };
         return takeUnlock(id, owner, rewardKey, 0);
     }
 
@@ -213,10 +249,10 @@ const contentProgression = (() => {
 
     function restorePurchases(purchased, next, record) {
         const version = Number(record.version) || 0;
-        let remaining = earnedBy(next.highestLoop);
+        let remaining = earnedBy(next.highestLoop) + next.carry;
         for (const id of purchased) {
             const def = definitions.get(id);
-            if (!def || def.cost === 0 || next.inherited.includes(id)) continue;
+            if (!def || kind(def) === 'auto' || next.inherited.includes(id)) continue;
             const cost = restoredPrice(def, record);
             if (cost > remaining) continue;
             if (version >= 4 && !next.grandfathered.includes(id) && !canRestoreChoice(def, next)) continue;
@@ -225,13 +261,15 @@ const contentProgression = (() => {
     }
 
     function canRestoreChoice(def, next) {
-        if (def.cost > 0 && next.highestLoop < def.minLoop) return false;
+        if (next.highestLoop < def.minLoop) return false;
         return [def.after, ...(def.requires || [])].filter(Boolean)
             .every(key => next.unlocked.includes(key) || next.inherited.includes(key));
     }
 
     // Save boundary: old 1P purchases are grandfathered and NPC gifts (gift, paid 0) stay free; invalid new prices use the catalog.
+    // An NPC unlock takes no points: one bought before the split (2026-10-21) gets its points back.
     function restoredPrice(def, record) {
+        if (kind(def) === 'npc') return 0;
         if ((Number(record.version) || 0) < 6) return 1;
         const paid = record.paidCosts?.[def.id];
         return paid === 0 || paid === 1 ? paid : def.cost;
@@ -262,9 +300,9 @@ const contentProgression = (() => {
             : savedIds(record.inherited);
         const savedChoices = savedIds(record.unlocked);
         const grandfathered = Number(record.version) < 5 ? savedChoices : record.grandfathered;
-        return { version: 8, highestLoop, legacy: legacy || record.legacy === true,
+        return { version: LEDGER_VERSION, highestLoop, legacy: legacy || record.legacy === true, carry: carryOf(record, highestLoop),
             unlocked: [], paidCosts: {}, inherited: savedIds(inherited), grandfathered: savedIds(grandfathered),
-            automatic: savedIds(record.automatic).filter(id => definitions.get(id).cost === 0) };
+            automatic: savedIds(record.automatic).filter(id => kind(definitions.get(id)) === 'auto') };
     }
 
     /** Save boundary: retain paid access, grandfather free bundles, refund newly automatic content. */
@@ -274,7 +312,7 @@ const contentProgression = (() => {
         inheritFormerTactics(record, next, owner, existingSave);
         inheritFormerFreeAccess(record, next, owner);
         restorePurchases(savedIds(record.unlocked), next, record);
-        if (Number(record.version) < 5 && [...next.unlocked, ...next.inherited].some(id => definitions.get(id).cost > 0)
+        if (Number(record.version) < 5 && [...next.unlocked, ...next.inherited].some(id => kind(definitions.get(id)) !== 'auto')
             && ![...next.unlocked, ...next.inherited].includes('craft')) next.inherited.push('craft');
         next.grandfathered = next.grandfathered.filter(id => next.unlocked.includes(id));
         inheritSplitGrowth(record, next);
@@ -295,6 +333,7 @@ const contentProgression = (() => {
         if (owned.has('gemForge') && !owned.has('engraving')) next.inherited.push('engraving');
     }
 
-    return Object.freeze({ isUnlocked, canDropCurrency, canOpen, earnedBy, points, overflow, balance, cheapestOpen, status, requirements, sync, purchase, gift, restore });
+    return Object.freeze({ kind, npcName, isUnlocked, canDropCurrency, canOpen, earnedBy, points, overflow, balance, cheapestOpen, status, requirements, sync,
+        purchase, gift, restore });
 })();
 safeExposeGlobals({ contentProgression });

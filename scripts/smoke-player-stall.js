@@ -8,7 +8,7 @@ const json = code => JSON.parse(run(`JSON.stringify(${code})`));
 const start = 1700000000000, hour = 3600000;
 function fresh() {
     run(`game=mergeDefaults({season:2,contentProgression:JSON.parse(JSON.stringify(defaultGame.contentProgression))});
-        contentProgression.sync(game); contentProgression.purchase('craft',game);
+        contentProgression.sync(game); game.npcMet.orga={count:1}; contentProgression.gift('craft',game);
         playerStall.advance(game, ${start});
         game.inventory=[createItemFromBase(BASE_ITEM_DB.find(base=>base.id==='apocalypse_greatblade'), 'rare', 20,{affixTierCap:20})];
         game.inventory[0].stats=['flatDmg','aspd','crit'].map(id=>rollAffixValueInTierRange(MOD_DB.find(mod=>mod.id===id&&mod.slots.includes('무기')),20,20));

@@ -79,7 +79,10 @@ function queueTutorialNotice(key, title, body, tabId, target) {
  * points at 해금 — a card aimed at a closed screen would be dropped unseen. bodies = { open, locked }. */
 function queueContentNotice(key, title, contentId, bodies, route) {
     const opened = typeof contentProgression !== 'object' || contentProgression.isUnlocked(contentId);
-    queueTutorialNotice(key, title, opened ? bodies.open : bodies.locked, opened ? route : 'tab-unlocks');
+    if (opened) { queueTutorialNotice(key, title, bodies.open, route); return; }
+    // A locked NPC unlock is taken in its NPC's window (기록 → NPC), any other in the unlock tab.
+    const giver = CONTENT_UNLOCK_CATALOG.find(row => row.id === contentId)?.npc;
+    queueTutorialNotice(key, title, bodies.locked, giver ? 'tab-npcs' : 'tab-unlocks');
 }
 
 // Phase-3 extracted world/season progression helpers.
@@ -2338,8 +2341,9 @@ const defaultGame = {
     weaponMastery: { xp: {} },
     chronicle: { rings: 0 },
     saveVersion: 19,
-    // Permanent ledger: income follows CONTENT_UNLOCK_POINT_AWARDS (contentProgression.earnedBy), starting at loop two.
-    contentProgression: { version: 8, highestLoop: 1, unlocked: [], paidCosts: {}, inherited: [], automatic: [], grandfathered: [] },
+    // Permanent ledger: income follows CONTENT_UNLOCK_POINT_AWARDS (contentProgression.earnedBy), starting at loop two. carry: points a
+    // save from before 2026-10-21 keeps beyond those awards (the earlier table's), 0 for a new game.
+    contentProgression: { version: 9, highestLoop: 1, carry: 0, unlocked: [], paidCosts: {}, inherited: [], automatic: [], grandfathered: [] },
     loopChallenge: null,
     loopChallengeHistory: [],
     level: 1,

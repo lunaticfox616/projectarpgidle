@@ -4,7 +4,8 @@
 //   permanent growth  loop points (loop passive tree), deep points (deep passive, --deep-per-loop from loop 10). The loop-10 stat
 //                     buy left the game with the 2026-05-04 loop depth redesign (no button calls allocateLoop10BonusStat), so
 //                     loop points no longer go there (until 2026-10-08 this audit still bought them).
-//   unlock points     4, 4, 3, 3 at loops 2~5, then 2 a loop (contentProgression.earnedBy), bought power-first (craft, support gems, loop tree, trials, deep tree ...)
+//   unlock points     CONTENT_UNLOCK_POINT_AWARDS (contentProgression.earnedBy), bought power-first (craft, support gems, loop tree, trials, deep tree ...);
+//                     NPC unlocks (craft, codex ...) cost nothing, as their NPC gives them
 //   in-loop rebuild   support gems and the ascendancy the player re-earns each loop (levels/points per zone below)
 // Usage extra: --talismans N caps the awake talismans (default 8).
 // Points go where the game's own readiness model (getMapPowerReadiness) gains most (geometric mean of DPS and EHP).
