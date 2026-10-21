@@ -69,9 +69,16 @@ const guestSaveCheck = (() => {
         return Array.isArray(value.stats) && !!(value.rarity || value.slot || value.baseId);
     }
 
+    /** Every line the game adds to the stats (js/equipment-stat-resolution.js): the explicit lines and their second stats, the base lines,
+     * ember lines, 하급 부여, 혼돈 주입 and the chosen 잠식 line. The hall check on the server reads the same lines (db/anti-cheat.sql). */
+    function itemLines(item) {
+        const list = value => (Array.isArray(value) ? value : []);
+        return [...item.stats, ...item.stats.flatMap(stat => list(stat && stat.extraStats)), ...list(item.baseStats), ...list(item.emberLines),
+            item.underEnchant, item.chaosInfusion, item.encroached && item.encroached.chosen].filter(line => line && typeof line === 'object');
+    }
+
     function itemLinesProblem(item) {
-        const lines = [...item.stats, ...(Array.isArray(item.baseStats) ? item.baseStats : [])];
-        return item.stats.length > GUEST_SAVE_CHECK.statLinesMax || lines.some(statProblem);
+        return item.stats.length > GUEST_SAVE_CHECK.statLinesMax || itemLines(item).some(statProblem);
     }
 
     /** Every item anywhere in the save: bag, worn, stashes, codex copies, sockets. Walked with a stack, not recursion. */

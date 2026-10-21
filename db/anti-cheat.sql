@@ -15,11 +15,12 @@
 
 begin;
 
--- 기록: 계정, 종류, 날짜(UTC)마다 한 줄. 같은 날 같은 일은 횟수만 늘고 내용은 마지막 것으로 바뀐다.
+-- 날짜는 모두 UTC로 센다((now() at time zone 'utc')::date). current_date는 요청마다 바꿀 수 있는 세션 시간대를 따른다.
+-- 기록: 계정, 종류, 날짜마다 한 줄. 같은 날 같은 일은 횟수만 늘고 내용은 마지막 것으로 바뀐다.
 create table if not exists public.cheat_flags (
     user_id  uuid not null references auth.users(id) on delete cascade,
-    kind     text not null check (kind in ('clock', 'currency', 'level', 'ghost_dps')),
-    seen_on  date not null default current_date,
+    kind     text not null,
+    seen_on  date not null default ((now() at time zone 'utc')::date),
     hits     integer not null default 1,
     detail   jsonb not null default '{}'::jsonb,
     first_at timestamptz not null default now(),
@@ -27,6 +28,9 @@ create table if not exists public.cheat_flags (
     primary key (user_id, kind, seen_on)
 );
 create index if not exists cheat_flags_last_at_idx on public.cheat_flags (last_at desc);
+-- 종류 목록은 다시 실행할 때마다 새로 건다(create table if not exists는 예전 제약을 그대로 둔다).
+alter table public.cheat_flags drop constraint if exists cheat_flags_kind_check;
+alter table public.cheat_flags add constraint cheat_flags_kind_check check (kind in ('clock', 'currency', 'level', 'ghost_dps'));
 
 -- 관리자가 건 보류: 이 계정은 전당에 올리거나 살 수 없고, 고스트는 순위와 대전에서 빠지며 다시 등록할 수 없다.
 create table if not exists public.cheat_holds (
@@ -40,7 +44,7 @@ create table if not exists public.cheat_holds (
 -- max_currency_per_hour는 저장 한 번 사이에 한 종류가 가장 빨리 늘어난 속도다(간격이 5분보다 짧으면 5분으로 친다).
 create table if not exists public.cloud_save_rates (
     user_id               uuid not null references auth.users(id) on delete cascade,
-    seen_on               date not null default current_date,
+    seen_on               date not null default ((now() at time zone 'utc')::date),
     samples               integer not null default 0,
     hours                 numeric not null default 0,
     level_gain            numeric not null default 0,
@@ -90,11 +94,15 @@ $$;
 -- 장비 한 줄이 게임에서 나올 수 없는 수치인가(js/guest-save-check.js statProblem, data/constants.js GUEST_SAVE_CHECK와 같다):
 -- 값이 천만을 넘거나, 티어가 20을 넘거나, 그 줄의 굴림 범위 최댓값보다 범위 크기 + 1만큼 넘게 크다(최댓값의 2배쯤).
 -- 뛰어난 기반(1.2배), 오염(1.15배), 잉걸불(0.8~1.2배)을 겹쳐도 이 여유 안에 든다. 굴림 범위가 없는 줄은 앞의 두 기준만 본다.
+-- 보는 줄은 게임이 능력치에 더하는 줄 모두다(js/equipment-stat-resolution.js): 추가 옵션과 그 둘째 수치(extraStats), 베이스 옵션,
+-- 잿불 줄(emberLines), 하급 부여(underEnchant), 혼돈 주입(chaosInfusion), 고른 잠식 줄(encroached.chosen). 없는 칸은 null이라 빠진다.
 create or replace function public.hall_item_out_of_range(item_data jsonb)
 returns boolean language sql immutable set search_path = public as $$
     select exists (
         select 1
-          from jsonb_array_elements(public.hall_array(item_data -> 'stats') || public.hall_array(item_data -> 'baseStats')) line
+          from jsonb_array_elements(public.hall_array(item_data -> 'stats') || public.hall_array(item_data -> 'baseStats')
+                   || public.hall_array(item_data -> 'emberLines') || jsonb_path_query_array(item_data, '$.stats[*].extraStats[*]')
+                   || jsonb_build_array(item_data -> 'underEnchant', item_data -> 'chaosInfusion', item_data #> '{encroached,chosen}')) line
          cross join lateral (
                select public.cheat_number(line -> 'val') as val,
                       coalesce(nullif(line -> 'valMin', 'null'::jsonb), line -> 'baseRollMin') as low_data,
@@ -153,9 +161,10 @@ create trigger trg_guard_ghost_profile before insert or update of active on publ
     for each row execute function public.guard_ghost_profile();
 
 -- 같은 전투 판에서 DPS 상위 20명(자기 빼고)의 가운데 값보다 10배 넘게 크면 기록한다. 20명이 안 되면 보지 않는다.
--- 실제로 들어간 등록에만 한 번 돈다(AFTER). 기록이 실패해도 등록은 막지 않는다.
+-- 실제로 들어간 등록에만 한 번 돈다(AFTER). 기록이 실패해도 등록은 막지 않는다. 잠금을 2초 넘게 기다리면 그 오류도 잡히도록
+-- lock_timeout을 둔다(요청 시간 제한으로 끊기면 예외 블록이 잡지 못해 등록까지 실패한다).
 create or replace function public.watch_ghost_dps()
-returns trigger language plpgsql security definer set search_path = public as $$
+returns trigger language plpgsql security definer set search_path = public set lock_timeout = '2s' as $$
 declare
     peers integer;
     top_median numeric;
@@ -261,29 +270,34 @@ $$;
 create or replace function public.prune_cheat_watch(p_user_id uuid)
 returns void language plpgsql security definer set search_path = public as $$
 begin
-    if exists (select 1 from public.cloud_save_rates where user_id = p_user_id and seen_on = current_date) then return; end if;
-    delete from public.cloud_save_rates where user_id = p_user_id and seen_on < current_date - 30;
-    delete from public.cheat_flags where user_id = p_user_id and seen_on < current_date - 90;
+    if exists (select 1 from public.cloud_save_rates where user_id = p_user_id and seen_on = (now() at time zone 'utc')::date) then return; end if;
+    delete from public.cloud_save_rates where user_id = p_user_id and seen_on < (now() at time zone 'utc')::date - 30;
+    delete from public.cheat_flags where user_id = p_user_id and seen_on < (now() at time zone 'utc')::date - 90;
 end;
 $$;
 
 -- 저장이 들어가기 직전(BEFORE)에 돈다. 새 세이브는 아직 메모리에 있어 값싸게 읽고, 지난 세이브는 한 번만 읽는다.
--- commit_cloud_save와 전당 함수가 save_data를 바꿀 때만 돌고, 무엇이 실패해도 저장은 그대로 들어간다.
+-- commit_cloud_save와 전당 함수가 save_data를 바꿀 때만 돌고, 무엇이 실패해도 저장은 그대로 들어간다. 값 검사와 성장 기록은 따로
+-- 감싼다(지난 세이브가 객체가 아니라 성장 쪽이 실패해도 시계, 화폐, 레벨 기록은 남는다). lock_timeout은 watch_ghost_dps와 같은 까닭이다.
 create or replace function public.watch_cloud_save()
-returns trigger language plpgsql security definer set search_path = public as $$
+returns trigger language plpgsql security definer set search_path = public set lock_timeout = '2s' as $$
 declare
     fresh jsonb;
 begin
     begin
         fresh := public.cheat_save_digest(new.save_data);
         perform public.watch_cloud_save_values(new.user_id, fresh);
-        if tg_op = 'UPDATE' then
+    exception when others then
+        raise warning 'watch_cloud_save values: %', sqlerrm;
+    end;
+    if tg_op = 'UPDATE' and fresh is not null then
+        begin
             perform public.prune_cheat_watch(new.user_id);
             perform public.watch_cloud_save_rates(new.user_id, public.cheat_save_digest(old.save_data), fresh, now() - old.updated_at);
-        end if;
-    exception when others then
-        raise warning 'watch_cloud_save: %', sqlerrm;
-    end;
+        exception when others then
+            raise warning 'watch_cloud_save rates: %', sqlerrm;
+        end;
+    end if;
     return new;
 end;
 $$;
@@ -300,8 +314,8 @@ returns jsonb language plpgsql security definer set search_path = public as $$
 begin
     if not public.is_project_admin() then raise exception 'ADMIN_REQUIRED'; end if;
     -- 그만둔 계정의 오래된 줄은 저장이 없어 prune_cheat_watch가 지우지 못하므로 관리자가 열 때 한꺼번에 지운다.
-    delete from public.cloud_save_rates where seen_on < current_date - 30;
-    delete from public.cheat_flags where seen_on < current_date - 90;
+    delete from public.cloud_save_rates where seen_on < (now() at time zone 'utc')::date - 30;
+    delete from public.cheat_flags where seen_on < (now() at time zone 'utc')::date - 90;
     return jsonb_build_object(
         'flags', coalesce((select jsonb_agg(to_jsonb(row_data) order by row_data.last_at desc) from (
             select flag.user_id, profile.nickname, flag.kind, flag.seen_on, flag.hits, flag.detail, flag.last_at,
@@ -318,7 +332,7 @@ begin
                    public.cheat_account_held(rate.user_id) as held
               from public.cloud_save_rates rate
               left join public.player_profiles profile on profile.user_id = rate.user_id
-             where rate.seen_on >= current_date - 7
+             where rate.seen_on >= (now() at time zone 'utc')::date - 7
              order by rate.currency_gain / greatest(rate.hours, 1) desc limit 30) row_data), '[]'::jsonb),
         'holds', coalesce((select jsonb_agg(to_jsonb(row_data) order by row_data.created_at desc) from (
             select hold.user_id, profile.nickname, hold.note, hold.created_at
