@@ -68,11 +68,23 @@
 #tab-traits .ascend-pick-plan{margin:0 0 12px}
 #tab-traits .ascend-pick-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
 #tab-traits .ascend-pick-card,#tab-traits .ascend-plan-card{display:grid;gap:5px;width:100%;padding:10px 12px;text-align:left;border-radius:0}
-#tab-traits .ascend-pick-card strong{color:#f1c40f;font-size:14px}
+#tab-traits .ascend-pick-card{display:flex;flex-direction:column;gap:8px;padding:12px 14px}
+#tab-traits .ascend-pick-card strong{color:#f1c40f;font-size:15px}
+/* 전직 고르기 카드(js/ascendancy-tree-ui.js pickCardHtml): 대표 능력치 그림과 이름, 설명, 노드 칩, 첫 키스톤, 고르기 */
+#tab-traits .ascend-pick-head{display:flex;align-items:center;gap:8px}
+#tab-traits .ascend-pick-icon{width:22px;height:22px}
+#tab-traits .ascend-pick-card .ascend-pick-desc{color:#d9ceb0}
+#tab-traits .ascend-pick-card .ascend-pick-section{margin-top:4px;padding-top:6px;border-top:1px solid #3a3229;color:#e6c068}
+#tab-traits .ascend-pick-chips{display:flex;flex-wrap:wrap;gap:6px}
+#tab-traits .ascend-pick-card .ascend-pick-chip{display:inline-flex;align-items:center;gap:4px;padding:2px 6px;border:1px solid #4b4136;background:rgba(0,0,0,.3);color:#9fd3ff}
+#tab-traits .ascend-pick-chip-icon{width:14px;height:14px}
+#tab-traits .ascend-pick-keys{display:grid;gap:6px}
+#tab-traits .ascend-pick-key{display:grid;gap:2px}
+#tab-traits .ascend-pick-key b{color:#f0d7a6;font-weight:normal}
+#tab-traits .ascend-pick-card .ascend-pick-cta{align-self:flex-end;margin-top:auto;padding:4px 12px;border:1px solid #7a6a4a;color:#f6dc8c}
+#tab-traits .ascend-pick-card:hover .ascend-pick-cta{border-color:#f6dc8c;background:#3a2c14}
 #tab-traits .ascend-plan-card strong{color:#8fe7b0}
 #tab-traits .ascend-pick-card span,#tab-traits .ascend-plan-card span{font-size:12px;line-height:1.45;color:#b8ad96}
-#tab-traits .ascend-pick-card .ascend-pick-line{color:#9fd3ff}
-#tab-traits .ascend-pick-card .ascend-pick-line.is-keystone{color:#f0d7a6}
 @media (max-width:720px){
     #tab-traits .ascend-graph{height:calc(var(--rows) * 66px)}
     #tab-traits .ascend-graph.is-keystones{height:calc(var(--rows) * 62px)}

@@ -265,13 +265,28 @@ const ascendancyTreeUi = (() => {
         if (state === 'open') return buyAscendKeystone(id);
         hint('keystone', id);
     }
-    /** The pick screen's card for one ascendancy: what it is, the stats its nodes give and its first keystones. */
+    /** The stats nodes n1~n9 give, first seen first, each once, four at most (a class that reshuffles its rows reads its real nodes). */
+    function focusStats(key) {
+        const tree = getClassTreeDef(key), stats = [];
+        ['n1', 'n2', 'n3', 'n4', 'n5', 'n6', 'n7', 'n8', 'n9'].forEach(id => linesOf(tree[id]).forEach(line => {
+            if (line.stat && !stats.includes(line.stat)) stats.push(line.stat);
+        }));
+        return stats.slice(0, 4);
+    }
+    /** The pick screen's card for one ascendancy (2026-10-22: the choice holds for the loop, so the card carries what decides it): the
+     * main stat's picture, name and line, the node stats with their pictures, the first keystones with what they do, a 고르기 footer.
+     * selectClass asks before it takes. */
     function pickCardHtml(key) {
-        const template = CLASS_TEMPLATES[key], first = keystoneRows(getClassKeystoneDefs(key))[0] || [];
-        const names = first.map(id => (getClassKeystoneDefs(key).find(k => k.id === id) || {}).name).filter(Boolean);
-        return `<button type="button" class="class-card ascend-pick-card" onclick="selectClass('${key}')"><strong>${esc(template.name)}</strong>
-            <span>${esc(template.desc)}</span><span class="ascend-pick-line">노드: ${esc(getAscendancyNodeFocus(key).join(', '))}</span>
-            ${names.length ? `<span class="ascend-pick-line is-keystone">첫 키스톤: ${esc(names.join(', '))}</span>` : ''}</button>`;
+        const template = CLASS_TEMPLATES[key], defs = getClassKeystoneDefs(key), stats = focusStats(key);
+        const chips = stats.map(stat => `<span class="ascend-pick-chip">${renderPixelIcon(iconOf(stat), 'ascend-pick-chip-icon')}${esc(statName(stat))}</span>`).join('');
+        const keys = (keystoneRows(defs)[0] || []).map(id => defs.find(k => k.id === id)).filter(Boolean)
+            .map(k => `<span class="ascend-pick-key"><b>${esc(k.name)}</b><span>${statToneText.html(k.desc)}</span></span>`).join('');
+        return `<button type="button" class="class-card ascend-pick-card" onclick="selectClass('${key}')">
+            <span class="ascend-pick-head">${renderPixelIcon(iconOf(stats[0]), 'ascend-pick-icon')}<strong>${esc(template.name)}</strong></span>
+            <span class="ascend-pick-desc">${esc(template.desc)}</span>
+            <span class="ascend-pick-section">노드</span><span class="ascend-pick-chips">${chips}</span>
+            <span class="ascend-pick-section">첫 키스톤 (${defs.length}개 가운데 ${CLASS_KEYSTONE_PICK_LIMIT}개를 고릅니다)</span><span class="ascend-pick-keys">${keys}</span>
+            <span class="ascend-pick-cta">이 전직 고르기</span></button>`;
     }
     return Object.freeze({ render, hint, press, act, clear, pickCardHtml, icon: iconOf });
 })();

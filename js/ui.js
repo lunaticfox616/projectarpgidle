@@ -13699,20 +13699,6 @@ async function selectClass(key) {
     }
 }
 
-/** 전직 고르기 카드: 이름, 한 줄 설명, 노드 능력치. 이번 루프에는 바꿀 수 없으니 고를 근거를 한 줄 더 준다. */
-/** 노드 n1~n9가 주는 능력치 이름(처음 나온 순서, 같은 이름은 한 번, 넷까지). 자리 규칙을 통째로 바꾼 전직(크루세이더)도 실제 노드대로. */
-function getAscendancyNodeFocus(key) {
-    const tree = getClassTreeDef(key), labels = [];
-    ['n1', 'n2', 'n3', 'n4', 'n5', 'n6', 'n7', 'n8', 'n9'].forEach(id => {
-        const node = tree[id];
-        (node ? (node.stats || [node]) : []).forEach(line => {
-            const label = String(getStatName(line.stat)).replace(/\s*\(%\)$/, '');
-            if (line.stat && !labels.includes(label)) labels.push(label);
-        });
-    });
-    return labels.slice(0, 4);
-}
-
 function renderAscendancyPickCard(key) {
     return ascendancyTreeUi.pickCardHtml(key);
 }
