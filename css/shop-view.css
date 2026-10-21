@@ -109,5 +109,10 @@
   .shop-shelf > :is(.shop-grid, .shop-empty, .shop-stands, .shop-more) { order: 2; }
   .shop-bag { order: 3; }
   .shop-shelf > .shop-info { order: 4; flex: none; max-height: none; margin-top: 4px; }
+  /* 가방 쪽 단추: 제목 옆 좁은 칸에서 12쪽이 44px 세 줄(140px)이 되었다. 제목 아래 한 줄로 두고 옆으로 민다(장비창 가방 쪽 줄과 같다) */
+  .shop-bag { max-width: 100%; }
+  .shop-bag > .shop-bar { flex-wrap: wrap; min-width: 0; }
+  .shop-bag > .shop-bar > .shop-pages { flex: 1 0 100%; flex-wrap: nowrap; justify-content: flex-start; overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain; margin-left: 0; }
+  .shop-bag > .shop-bar > .shop-pages button { flex: none; }
 }
 }
