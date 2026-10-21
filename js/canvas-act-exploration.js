@@ -18,7 +18,7 @@ const actExplorationView=(()=>{
     // A narrow view (a phone in portrait keeps about 8 columns of a 21-column room) in an ordinary fight: the camera leans just enough
     // that the monsters fighting the hero stand ENTRANCE_MARGIN_TILES inside the view, at most PACK_LEAN_TILES, and not when they stand
     // on both sides past it (2026-10-22: the pack on the hero's right was cut by the screen's edge). Wide views stay on the hero.
-    const NARROW_VIEW_COLUMNS=12,PACK_LEAN_TILES=2.5,PACK_LEAN_RANGE=8;
+    const NARROW_VIEW_COLUMNS=12,PACK_LEAN_TILES=BOSS_LEAD_TILES,PACK_LEAN_RANGE=8;
     let lead={run:null,gx:0,gy:0,at:0};
     /** Whole-pixel camera zoom for the 16px art: ×3 (48px tiles) on phones, ×4 once the view keeps about 16×12 tiles —
      * on a desktop window the corridor then fills the screen instead of floating in black (data ACT_EXPLORATION_CAMERA).

@@ -4847,11 +4847,15 @@ function drawDamageTexts(ctx, now) {
  * All categories share this layout, including incoming damage and block/evade cues. No combat or saved state is changed. */
 drawDamageTexts.paint = (() => {
     const MAX_LIFT = 207, GAP = 3;
+    // 좁은 전장(휴대폰 세로, 칸이 PC의 절반인 48px)은 한 단계 작은 제 크기를 쓴다: 보통 12px, 최대 타격 24px(2026-10-22: 24px 숫자 여럿이
+    // 쌓여 주인공과 몬스터를 덮었다). render가 그 프레임의 전장 캔버스(#battlefield-canvas) 폭으로 정한다: 그리는 판은 화면 밖 캔버스일 수 있다.
+    const COMPACT_CANVAS_PX = 600;
+    let compact = false;
     // 크기는 갈무리11 Bold의 제 크기(12, 24, 36px)만 쓴다: 사이 크기(16 ~ 32px)는 도트가 번졌다(2026-10-21). 치명타와 큰 타격은 색, 빛,
     // 튀는 크기로 구별하고 지속 피해와 빗나감은 작은 크기다.
     function font(text) {
         const size = text.bodyCue ? 24 : (text.impactTier === 'annihilate' ? 36 : (text.miss || text.dot ? 12 : 24));
-        return `800 ${size}px "Galmuri11", "Malgun Gothic", sans-serif`;
+        return `800 ${compact ? Math.max(12, size - 12) : size}px "Galmuri11", "Malgun Gothic", sans-serif`;
     }
     function appearance(text, t) {
         const align = text.side > 0 ? 'left' : (text.side < 0 ? 'right' : 'center');
@@ -4928,6 +4932,8 @@ drawDamageTexts.paint = (() => {
         ctx.restore();
     }
     return function render(ctx, now) {
+        const field = typeof document === 'object' ? document.getElementById('battlefield-canvas') : null;
+        compact = !!field && field.clientWidth > 0 && field.clientWidth < COMPACT_CANVAS_PX;
         ctx.save();
         try {
             const rows = (battleVisualState.damageTexts || []).map(text => frame(ctx, text, now)).filter(Boolean);
