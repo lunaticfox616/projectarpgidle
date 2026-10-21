@@ -180,8 +180,6 @@ function inheritRetiredExpertAccess(ledger, save) {
     });
 }
 
-/** 2단계(2026-10-01): 플라스크 삭제 — 물약 상태(연금 유리 포함) · 알림을 보상 없이 지운다(결정 4 · 7).
- * 단축키 배정 · 히든 저널 · 보스 도전 기록은 불러올 때 이미 모르는 항목을 버리거나 새로 시작한다. */
 /** 2026-10-22: 거래소 특수 서비스(장비 옵션 제거, 접두 보존, 접미 보존)를 없앴다. 걸어 두고 아직 재굴림에 쓰지 않은 보존(item.affixKeep)은
  * 지우고, 낸 황금률(장비마다 4개)을 돌려준다. 프리셋에 같은 장비가 또 있어도 한 번만 센다. 지운 뒤에는 셀 것이 없어 두 번 불러와도 같다. */
 const REMOVED_AFFIX_KEEP_REFUND = 4;
@@ -208,6 +206,8 @@ function refundRemovedAffixKeep(merged) {
     merged.currencies.goldenRule = Math.max(0, Math.floor(Number(merged.currencies.goldenRule) || 0)) + REMOVED_AFFIX_KEEP_REFUND * refunded.size;
 }
 
+/** 2단계(2026-10-01): 플라스크 삭제 — 물약 상태(연금 유리 포함) · 알림을 보상 없이 지운다(결정 4 · 7).
+ * 단축키 배정 · 히든 저널 · 보스 도전 기록은 불러올 때 이미 모르는 항목을 버리거나 새로 시작한다. */
 function stripRemovedFlasks(merged) {
     delete merged.flasks;
     [[merged.settings && merged.settings.notiFilters, 'flask'], [merged.noti, 'flask']]
