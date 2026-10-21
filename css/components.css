@@ -1396,6 +1396,8 @@
     #ui-season-tree .loop-node-tooltip { display: grid; position: static; width: auto; padding: 0; gap: 6px; transform: none; border: 0; background: none; box-shadow: none; pointer-events: auto; }
     #ui-season-tree .loop-node-tooltip strong { font-size: 13px; padding-right: 24px; }
     #ui-season-tree .loop-node-tooltip small, #ui-season-tree .loop-node-tooltip em { font-size: 12px; }
+    /* 고리 노드의 설명("경험치 +20%")은 바로 아래 값 줄(경험치 획득(%) +20%, 단계마다 늘어난 값)과 같은 말이라 값 줄만 둔다. 안쪽 노드의 설명은 따로 있다 */
+    #ui-season-tree .loop-passive-node:not(.inner-node) .loop-node-tooltip small { display: none; }
     #ui-season-tree .loop-node-tooltip b { font-size: 11px; }
     #ui-season-tree .loop-node-refund { display: flex; min-height: 44px; align-items: center; font-size: 12px; }
     #trait-season-section > h2 { display: flex; flex-wrap: wrap; gap: 6px; font-size: 15px; }
