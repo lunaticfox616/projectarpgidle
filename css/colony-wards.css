@@ -41,7 +41,7 @@
     color: #c8b6ff;
 }
 :root body #ui-equip-list .ward-slot-cells .ward-slot.is-off { opacity: .45; filter: grayscale(.6); }
-:root body #ui-equip-list .ward-slot-cells .ward-slot-plus { color: var(--px-copy-muted, #a39883); font-size: 18px; }
+:root body #ui-equip-list .ward-slot-cells .ward-slot-plus { color: var(--px-copy-muted, #a39883); font-size: var(--font-size-heading); }
 :root body #ui-equip-list .ward-slot-cells .ward-slot.is-locked {
     display: grid;
     place-items: center;

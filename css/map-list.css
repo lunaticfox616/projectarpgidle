@@ -4,7 +4,7 @@
   #ui-chaos-map-list { container-type: inline-size; }
   .map-list-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: 'title note count' 'bar bar bar'; align-items: baseline;
     gap: 5px 10px; margin: 0 0 8px; }
-  #tab-map .map-list-head strong { grid-area: title; color: var(--px-gold-bright, #e0c283); font-size: 15px; font-weight: 400; }
+  #tab-map .map-list-head strong { grid-area: title; color: var(--px-gold-bright, #e0c283); font-size: var(--font-size-reading); font-weight: 400; }
   .map-list-head em { grid-area: note; color: #ff9a76; font-size: 12px; font-style: normal; }
   .map-list-head b { grid-area: count; color: var(--px-copy-muted, #a39883); font-size: 12px; font-weight: 400; }
   .map-list-head .map-list-bar { grid-area: bar; }
@@ -23,7 +23,7 @@
   .map-act-card.is-cleared:not(.current) .map-act-art img { filter: saturate(.6) brightness(.82); }
   .map-act-body { grid-area: body; display: grid; align-content: start; gap: 2px; min-width: 0; }
   .map-act-body small { color: var(--px-copy-muted, #a39883); font-size: 12px; }
-  #tab-map .map-act-body strong { color: var(--px-copy, #e8dcc0); font-size: 15px; font-weight: 400; }
+  #tab-map .map-act-body strong { color: var(--px-copy, #e8dcc0); font-size: var(--font-size-reading); font-weight: 400; }
   #tab-map .map-act-card.current .map-act-body strong { color: #f3d28c; }
   .map-act-boss { color: #d99a8a; font-size: 12px; }
   #tab-map .map-act-body .map-power-estimate { margin-top: 3px; font-size: 12px; }

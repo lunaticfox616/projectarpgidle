@@ -27,7 +27,7 @@
 .skill-board { padding: 10px 10px 12px; }
 .skill-board-head { display: flex; align-items: baseline; gap: 7px; min-width: 0; padding: 0 2px; }
 .skill-board-head > span { color: var(--board-gold); font: 12px var(--board-label); }
-.skill-board-head > b { min-width: 0; overflow: hidden; color: #fff; font: 400 16px var(--board-read); text-overflow: ellipsis; white-space: nowrap; text-shadow: 1px 1px 0 #000; }
+.skill-board-head > b { min-width: 0; overflow: hidden; color: #fff; font: 400 var(--font-size-reading) var(--board-read); text-overflow: ellipsis; white-space: nowrap; text-shadow: 1px 1px 0 #000; }
 .skill-board-head > small { color: var(--board-gold-hi); font: 12px var(--board-label); }
 .skill-board-head > small.is-boosted { color: #8fe0a8; }
 .skill-board-head > em { margin-left: auto; color: var(--board-muted); font: normal 12px var(--board-label); white-space: nowrap; }
@@ -126,7 +126,7 @@
   box-shadow: inset 0 0 0 1px var(--board-bronze), inset 0 -2px 0 color-mix(in srgb, var(--gem-accent) 70%, transparent);
 }
 .skill-board-satellite-art img { width: 38px; height: 38px; object-fit: contain; image-rendering: pixelated; }
-.skill-board-satellite > i { color: var(--board-gold); font: normal 20px var(--board-label); background: rgba(20, 16, 22, .6); box-shadow: none; border: 1px dashed var(--board-gold); }
+.skill-board-satellite > i { color: var(--board-gold); font: normal var(--font-size-heading) var(--board-label); background: rgba(20, 16, 22, .6); box-shadow: none; border: 1px dashed var(--board-gold); }
 .skill-board-satellite > small { color: var(--board-gold); font: 12px var(--board-label); }
 .skill-board-satellite > b { max-width: 100%; overflow: hidden; color: var(--board-copy); font: 400 12px var(--board-label); text-overflow: ellipsis; white-space: nowrap; }
 .skill-board-satellite.is-empty > b { color: var(--board-muted); }
@@ -138,11 +138,11 @@
 /* ── 보조스킬룬 칸 줄 ─────────────────────────────────────────────────────────────── */
 .support-slots { padding: 10px; }
 .support-slots-head { display: flex; align-items: baseline; gap: 7px; margin-bottom: 8px; }
-.support-slots-head > span { color: var(--board-gold-hi); font: 400 15px var(--board-read); }
+.support-slots-head > span { color: var(--board-gold-hi); font: 400 var(--font-size-reading) var(--board-read); }
 .support-slots-head > em { color: var(--board-muted); font: normal 12px var(--board-label); }
 .support-resonance { display: flex; align-items: center; gap: 5px; margin-left: auto; }
 .support-resonance small { color: var(--board-muted); font: 12px var(--board-label); }
-.support-resonance b { color: #f3e3a8; font: 400 15px var(--board-read); }
+.support-resonance b { color: #f3e3a8; font: 400 var(--font-size-reading) var(--board-read); }
 .support-resonance-bar { position: relative; width: 64px; height: 7px; border: 1px solid var(--board-ink); background: #0d0b0f; box-shadow: inset 0 0 0 1px #2a2420; }
 .support-resonance-bar > i { position: absolute; inset: 1px auto 1px 1px; max-width: calc(100% - 2px); background: linear-gradient(180deg, #f1dc9c, #a28942); }
 .support-slots-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(62px, 1fr)); gap: 8px 6px; }
@@ -157,7 +157,7 @@
   box-shadow: inset 0 0 0 1px #3f9c80, inset 0 1px 0 rgba(180, 255, 228, .25), 0 0 8px rgba(111, 211, 176, .18);
   color: var(--board-support); font: normal 20px var(--board-label); text-shadow: 1px 1px 0 #000;
 }
-.support-slot > i > em { position: absolute; right: 3px; bottom: 1px; color: var(--board-gold-hi); font: normal 9px var(--board-label); letter-spacing: -1px; }
+.support-slot > i > em { position: absolute; right: 3px; bottom: 1px; color: var(--board-gold-hi); font: normal var(--font-size-meta) var(--font-pixel-meta, 'Galmuri9', sans-serif); letter-spacing: -1px; }
 .support-slot > b { color: var(--board-copy); font: 400 12px var(--board-label); }
 .support-slot > small { color: var(--board-muted); font: 12px var(--board-label); }
 /* 칸이 65px 남짓이라 한 줄이면 "근접 물…", "장비, 패…"로 잘렸다: 단어째 두 줄까지 쓴다. */
@@ -207,7 +207,7 @@
 #tab-skills .gem-tile:focus-visible { outline: 2px solid var(--board-gold-hi); outline-offset: 1px; }
 #tab-skills .gem-tile .gem-tile-art { width: 44px; height: 44px; border-radius: 0; background: none; }
 #tab-skills .gem-tile .gem-tile-art img { image-rendering: pixelated; }
-#tab-skills .gem-tile .gem-tile-name { max-width: 100%; overflow: hidden; color: #fff; font: 400 13px var(--board-read); text-overflow: ellipsis; white-space: nowrap; text-shadow: 1px 1px 0 #000; }
+#tab-skills .gem-tile .gem-tile-name { max-width: 100%; overflow: hidden; color: #fff; font: 400 var(--font-size-ui) var(--board-label); text-overflow: ellipsis; white-space: nowrap; text-shadow: 1px 1px 0 #000; }
 /* 쓰임("전방 부채꼴, 1칸")은 휴대폰 카드에서 한 줄이면 잘렸다: 단어째 두 줄까지 쓴다. */
 #tab-skills .gem-tile .gem-usage-state { display: -webkit-box; max-width: 100%; margin: 0; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; color: var(--board-muted);
   font: 12px var(--board-label); line-height: 1.2; text-align: center; white-space: normal; word-break: keep-all; }
@@ -226,7 +226,7 @@
   border: 1px solid var(--board-ink); background: linear-gradient(160deg, #1f5446, var(--board-support-deep) 70%);
   box-shadow: inset 0 0 0 1px #3f9c80; color: var(--board-support); font: normal 20px var(--board-label);
 }
-#tab-skills .gem-tile .gem-tile-support-art > em { position: absolute; right: 2px; bottom: 0; color: var(--board-gold-hi); font: normal 9px var(--board-label); letter-spacing: -1px; }
+#tab-skills .gem-tile .gem-tile-support-art > em { position: absolute; right: 2px; bottom: 0; color: var(--board-gold-hi); font: normal var(--font-size-meta) var(--font-pixel-meta, 'Galmuri9', sans-serif); letter-spacing: -1px; }
 #tab-skills .gem-tile.sealed-gem-card { cursor: default; border-style: dashed; filter: grayscale(.6); }
 #tab-skills .gem-tile .gem-card-utility { min-height: 26px; margin-top: 2px; padding: 2px 8px; font: 12px var(--board-label); }
 
@@ -265,6 +265,5 @@
   #tab-skills .skill-picker .skill-gem-library { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   #tab-skills .gem-tile { padding: 11px 3px 6px; }
   #tab-skills .gem-tile .gem-tile-art { width: 40px; height: 40px; }
-  #tab-skills .gem-tile .gem-tile-name { font-size: 12px; }
 }
 }

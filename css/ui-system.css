@@ -91,6 +91,10 @@ body select:focus-visible { outline: 2px solid var(--color-accent-gold); outline
 #tab-character .character-stat-section { margin: 0 0 10px; padding: 0; border: 1px solid var(--color-line); border-radius: var(--radius-sm); background: var(--color-surface-raised); }
 #tab-character .character-stat-section > summary { padding: 11px 12px; color: var(--color-accent-gold); font: inherit; font-weight: 600; cursor: pointer; }
 #tab-character .character-stat-section > .stat-grid { margin: 0; padding: 0 10px 10px; gap: 4px 10px; }
+/* 두 칸은 정수 px: 반으로 나눈 382.5px 칸이면 오른쪽 칸의 이름과 수치가 화소 사이에서 시작해 번졌다. 좁은 화면의 한 칸 규칙은 그대로다. */
+@media (min-width: 721px) {
+  #tab-character .character-stat-section > .stat-grid { grid-template-columns: repeat(2, round(down, calc((100% - 10px) / 2), 1px)); }
+}
 #tab-character .character-stat-section .stat-item { min-width: 0; padding: 9px 4px; border: 0; border-bottom: 1px solid var(--color-line); border-radius: 0; background: transparent; }
 #tab-character .character-stat-section .stat-label { font-size: 12px; line-height: 1.5; }
 #tab-character .character-stat-section .stat-value { font-size: 14px; font-variant-numeric: tabular-nums; }

@@ -32,7 +32,7 @@
 .support-sigil-icon { display: block; width: 33px; height: 33px; image-rendering: pixelated; }
 .support-sigil-icon .m { fill: color-mix(in srgb, var(--sigil) 34%, #fff); }
 .support-sigil-icon .f { fill: color-mix(in srgb, var(--sigil) 78%, #17141b); }
-.support-sigil > em { position: absolute; right: 3px; bottom: 1px; color: var(--px-gold-bright, #e0c283); font: normal 9px var(--font-pixel, 'Galmuri11', sans-serif); letter-spacing: -1px; text-shadow: 1px 1px 0 #000; }
+.support-sigil > em { position: absolute; right: 3px; bottom: 1px; color: var(--px-gold-bright, #e0c283); font: normal var(--font-size-meta) var(--font-pixel-meta, 'Galmuri9', sans-serif); letter-spacing: -1px; text-shadow: 1px 1px 0 #000; }
 /* 보드의 보조스킬룬 칸 */
 .support-slot > .support-sigil { width: 100%; max-width: 56px; height: 48px; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--sigil) 62%, #17141b), inset 0 1px 0 color-mix(in srgb, var(--sigil) 26%, transparent), 0 0 8px color-mix(in srgb, var(--sigil) 22%, transparent); }
 .support-slot:hover > .support-sigil { filter: brightness(1.2); }
