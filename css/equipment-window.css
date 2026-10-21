@@ -280,9 +280,9 @@
   }
   @container eqw (760px <= width < 1170px) {
     /* 왼쪽 칸은 262px에서 330px까지, 나머지는 가방이다. 가방 칸은 판 폭을 채우게 64px까지 커진다(52px에서 멈추던 때는 1920x1080 기본 창에서
-       106px가 비었다). 세로는 요약이 DPS와 유효 생명력만 남아 남는다 */
+       106px가 비었다). 칸 폭은 정수 px로 내린다: 반 화소 칸에서는 칸 글자와 도구 줄 글이 번졌다. 세로는 요약이 DPS와 유효 생명력만 남아 남는다 */
     :root body #item-tab-equip .equipment-window { grid-template-columns: clamp(262px, calc(100cqw - 718px), 330px) minmax(0, 1fr); }
-    :root body #item-tab-equip .equipment-window .equipment-inventory-grid-shell { --equipment-grid-cell-size: clamp(24px, calc((100cqw - 58px) / 10), 64px); }
+    :root body #item-tab-equip .equipment-window .equipment-inventory-grid-shell { --equipment-grid-cell-size: round(down, clamp(24px, calc((100cqw - 58px) / 10), 64px), 1px); }
   }
   /* 떠서 나오는 선택한 장비(두 칸 창) */
   :root body #item-tab-equip #ui-equipment-inventory-inspector:popover-open { display: block; width: 340px; padding: 10px 12px; overflow: auto; border: 1px solid #c79a4a; border-radius: 0;

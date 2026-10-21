@@ -23,7 +23,7 @@ function renderEquipmentLoadoutPresetSlot(preset, index, selectedSlot) {
     let stateClass = !preset ? ' empty' : inspection.applied ? ' applied' : blocked ? ' missing' : '';
     let name = `${index + 1}번 세팅${preset ? ` [${preset.name}]` : ''}`;
     return `<button type="button" class="equipment-preset-slot${index === selectedSlot ? ' selected' : ''}${stateClass}" title="${escapeHTML(`${name}, ${describeLoadoutPresetSlot(preset, inspection)}`)}"
-        aria-label="${escapeHTML(name)}" aria-pressed="${index === selectedSlot}" onclick="equipmentLoadoutUi.pick(${index})">${LOADOUT_SLOT_NUMERALS[index] || index + 1}</button>`;
+        aria-label="${escapeHTML(name)}" aria-pressed="${index === selectedSlot}" onclick="equipmentLoadoutUi.pick(${index})"><span class="px-center">${LOADOUT_SLOT_NUMERALS[index] || index + 1}</span></button>`;
 }
 
 /** 세팅(2026-10-21 맨 밑 세팅 칸에서 '장착 장비' 머리로 옮김): 세팅 단추 셋(I, II, III), 저장, ⋯(이름 바꾸기, 비우기). 세팅을 누르면 그
