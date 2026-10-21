@@ -11216,6 +11216,18 @@ function applyPatchNotesHTML(html) {
     if (el) el.innerHTML = html;
 }
 
+/** The title's patch-notes link names the newest entry's date. index.html keeps a copy for the first paint, which nobody kept
+ * up to date (it said 2026.10.11 while the notes reached 2026-10-18). */
+function showLatestPatchDate(entry) {
+    let match = entry && /^(\d{4})-(\d{2})-(\d{2})$/.exec(entry.date || '');
+    let link = document.querySelector('.startup-patch-note-link');
+    if (!match || !link) return;
+    let [, year, month, day] = match;
+    let shown = link.querySelector('.startup-latest-patch-date');
+    if (shown) shown.textContent = `(${year}.${month}.${day})`;
+    link.setAttribute('aria-label', `패치노트, 최신 패치 ${year}년 ${Number(month)}월 ${Number(day)}일`);
+}
+
 function openPatchNotes() {
     renderPatchNotes();
     let overlay = document.getElementById('patch-notes-overlay');
@@ -11244,6 +11256,7 @@ function renderPatchNotes() {
         .then(res => res.ok ? res.text() : Promise.reject(new Error('changelog load failed')))
         .then(text => {
             __patchNotesCache = parseChangelogMarkdown(text);
+            showLatestPatchDate(__patchNotesCache[0]);
             applyPatchNotesHTML(buildPatchNotesHTML(__patchNotesCache));
         })
         .catch(() => {
