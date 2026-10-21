@@ -342,7 +342,7 @@ function drawPassiveNodeEffectLabel(ctx, node, radius, active, reachable, visibi
     ctx.restore();
 }
 
-/** The nodes a hover would allocate (tooltip cost, "찍으면" preview, drawn path). An Andromeda free node is itself alone, at one point
+/** The nodes a hover would allocate (tooltip cost, "이 노드까지 할당 시" preview, drawn path). An Andromeda free node is itself alone, at one point
  * (js/passives.js getPassiveActivationPath): the tooltip counted the way to the nearest owned node (2026-10-20 review: "9포인트 필요"
  * for a node taken at one point). */
 function getHoverAllocationNodeIds(hoveredNodeId) {

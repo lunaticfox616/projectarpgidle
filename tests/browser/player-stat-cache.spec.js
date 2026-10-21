@@ -31,6 +31,9 @@ async function spendPassiveOnTree(page) {
     await page.locator('#btn-tab-char').click();
     await page.waitForFunction(() => passiveCameraInitialized && !uiRefreshRunning && !uiRefreshQueued);
     await page.waitForTimeout(200);
+    // The helmet queued the first gear guide (TUTORIAL_STARTER_GUIDES in js/tutorial-ui.js). When it opens depends on timing:
+    // on a slow run it covers the tree and takes the node click. Close guide cards as the player's '확인' does.
+    await page.evaluate(() => { tutorialQueue.length = 0; if (activeTutorial) dismissTutorial(false); });
     const target = await page.evaluate(() => {
         const id = [...reachableNodes].find(nodeId => getPassiveActivationPath(nodeId).length === 1
             && PASSIVE_TREE.nodes[nodeId].kind !== 'attribute' && (PASSIVE_TREE.nodes[nodeId].effects || []).length > 0);

@@ -2710,11 +2710,12 @@ function previewPassiveNodeStats(nodeIds) {
 }
 
 /** "DPS 61 → 64, 생명력 170 → 180" for a preview ({ dps: [before, after], life: [before, after] }): each part only when it changes,
- * green up and red down; '' when none does. The skill tree tooltip, the ascendancy window and the act reward window word it alike. */
+ * green up and red down; '' when none does. The skill tree tooltip, the ascendancy window and the act reward window word it alike.
+ * A part never wraps inside: the skill tree's longer "이 노드까지 할당 시" line broke between "98 →" and "128" (2026-10-21). */
 function buildStatPreviewParts(preview) {
     const format = COMPARE_STAT_META.dps.format;
     const part = (label, [before, after]) => (format(before) === format(after) ? ''
-        : `<span style="color:${after > before ? '#8fe0a8' : '#ff9b92'};">${label} ${format(before)} → ${format(after)}</span>`);
+        : `<span style="color:${after > before ? '#8fe0a8' : '#ff9b92'}; white-space:nowrap;">${label} ${format(before)} → ${format(after)}</span>`);
     return [part('DPS', preview.dps), part('생명력', preview.life)].filter(Boolean).join(', ');
 }
 
