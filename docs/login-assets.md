@@ -5,8 +5,9 @@
 
 ## 배경
 
-- 2026-09-29 도트 UI 통일 때 교체: `assets/background/act1.png`(액트 1 뿌리 성소 도트 그림, 512×512)를
-  정수배(×3 = 1536px, 1537px 이상 화면 ×4, 휴대폰 ×2)로 `image-rendering: pixelated` 확대하고 가장자리·위아래를 어둡게 덮는다.
+- 2026-10-21: 액트 1 뿌리끝 성소의 무대 그림(`assets/playable/stage/backdrops/root.webp`, 첫 방 뒤에 서는 그림)을 화면을 덮게
+  (`center top / cover`) 깔고 가장자리와 위아래를 어둡게 덮는다. `index.html`이 미리 받아 첫 방도 같은 그림을 쓴다.
+- 그 전(2026-09-29~10-21)의 `assets/background/act1.png`(예전 전장의 판 그림, 512×512)는 무대로 바뀐 뒤 예전 전투로 보여 뺐다(사용자 요청).
 - 이전 배경 `assets/ui/login-world-tree.webp`(손그림 세계수)는 도트 UI와 결이 달라 뺐다(깃 기록에 남아 있음).
 
 ## 화면 구성

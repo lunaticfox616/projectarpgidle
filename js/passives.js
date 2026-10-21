@@ -6314,7 +6314,7 @@ function initBattleAssets() {
     const selectedHeroKeys = new Set(Object.values((selectedHeroDef || {}).strips || {})
         .flatMap(value => Array.isArray(value) ? value : ((value && typeof value === 'object') ? Object.values(value) : [value]))
         .filter(value => typeof value === 'string' && value));
-    const criticalManifestKeys = new Set(['enemies', 'effects', 'summon1', 'bgAct1', getBattleBackdropKeyForZone(getZone(game.currentZoneId)), ...selectedHeroKeys]);
+    const criticalManifestKeys = new Set(['enemies', 'effects', 'summon1', ...getFirstBattleBackdropKeys(getZone(game.currentZoneId)), ...selectedHeroKeys]);
     const manifestGroups = prepareBattleAssetGroups(manifest, criticalManifestKeys, battleAssets.images, game.activeSkill, battleAssets.backdrops);
     const maxParallelLoads = Math.max(4, Math.min(8, Number((typeof navigator !== 'undefined' && navigator.hardwareConcurrency) || 6) || 6));
     let pending = manifestGroups.length;

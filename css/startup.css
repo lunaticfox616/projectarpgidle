@@ -18,17 +18,12 @@
   overflow: auto;
   overscroll-behavior: contain;
   color: var(--entry-copy);
-  /* 배경: 액트 1 뿌리 성소 도트 그림(512도트)을 정수배(×3, 큰 화면 ×4, 휴대폰 ×2)로 키우고 가장자리를 어둡게.
-     image-rendering은 상속되므로 내용(.startup-shell)은 다시 기본값으로 둔다. */
+  /* 배경: 액트 1 뿌리끝 성소의 무대 그림(첫 방 뒤에 서는 그림, data/stage-view.js STAGE_BACKDROPS). 위쪽은 뿌리, 아래쪽은 바닥이
+     놓일 어두운 띠다. 화면을 덮게 키우고 가장자리를 어둡게 한다. 2026-10-21: 예전 전장의 판 그림(act1.png)을 뺐다. */
   background: radial-gradient(ellipse 75% 70% at 50% 45%, transparent 0 35%, rgba(4,3,2,.82) 100%),
     linear-gradient(180deg, rgba(5,4,3,.5), rgba(5,4,3,.25) 40%, rgba(5,4,3,.85)),
-    #0a0806 url('../assets/background/act1.png') center / 1536px auto no-repeat;
-  image-rendering: pixelated;
+    #0a0806 url('../assets/playable/stage/backdrops/root.webp') center top / cover no-repeat;
 }
-@media (min-width: 1537px), (min-height: 1537px) {
-  #startup-overlay { background-size: auto, auto, 2048px auto; }
-}
-#startup-overlay .startup-shell { image-rendering: auto; }
 #startup-overlay::before, #startup-overlay::after { display: none; }
 #startup-overlay .startup-shell {
   width: 100%; min-height: 100%; height: max-content; box-sizing: border-box;
@@ -151,7 +146,6 @@
   #startup-overlay .startup-panel.auth { padding: 24px; }
 }
 @media (max-width: 760px) {
-  #startup-overlay { background-size: auto, auto, 1024px auto; }
   #startup-overlay .startup-shell { display: flex; flex-direction: column; gap: 26px; padding: max(28px,env(safe-area-inset-top)) 20px calc(28px + env(safe-area-inset-bottom)); }
   #startup-overlay .startup-panel.hero, #startup-overlay .startup-hero-grid, #startup-overlay .startup-hero-copy { display: contents; }
   #startup-overlay .startup-brand-wrap { order: 0; margin: 0 auto; gap: 12px; text-align: center; }

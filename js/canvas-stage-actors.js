@@ -374,6 +374,10 @@ const stageView = Object.freeze({
         return choice !== 'top';
     },
     enabled: () => stageView.wanted() && stageActors.available(),
+    /** Whether the battlefield is the top-down field with its 9×8 board pictures: the test panel picked it, or this server answered
+     * that it has no stage art. While the art is still being asked for (boot) the stage is expected, so the board is not drawn
+     * (2026-10-21 사용자: 시작할 때와 로딩 화면에 이전 전장(8x9)이 뜬다). */
+    topDown: () => !stageView.wanted() || (stageActors.stageArtKnown() && !stageActors.available()),
     /** 무대 시험판으로 연 창인가(주소에 stage=1): 이 창은 클라우드 저장을 쓰지 않는다(시험하는 판이 계정의 저장을 고쳐 쓰지 않게). */
     trial: () => stageByAddress,
     /** 새 탐험을 방 단위 지도로 여는가(js/act-exploration-doors.js): 무대가 켜져 있고 테스트 패널에서 끄지 않았을 때. */

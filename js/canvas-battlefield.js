@@ -3370,6 +3370,15 @@ function drawBattleGridFloor(ctx, proj, theme, skillTargets, skillAreaCells, bac
         const sealed=actExplorationState.gateSealed(run);
         skillAreaCells=skillAreaCells.filter(cell=>actExplorationMap.walkable(map,cell,sealed));
     }
+    ctx.save();
+    // 9×8 칸 선은 위에서 보는 전장에만 긋는다: 무대에서는 지도가 놓이기 전의 순간(부팅, 구역을 여는 중)에도 옛 판이 비치지 않는다(2026-10-21).
+    if (!run && stageView.topDown()) drawFixedBoardCells(ctx, proj, theme, backdropActive);
+    drawRiftCombatOccupants(ctx, { proj, skillTargets, skillAreaCells });
+    ctx.restore();
+}
+
+/** 위에서 보는 전장의 9×8 칸. 칠과 선의 투명도는 칸 다음에 그리는 표시(drawRiftCombatOccupants)까지 이어진다. */
+function drawFixedBoardCells(ctx, proj, theme, backdropActive) {
     const halfW = proj.tileW / 2;
     const halfH = proj.tileH / 2;
     const tilePath = (gx, gy) => {
@@ -3377,8 +3386,7 @@ function drawBattleGridFloor(ctx, proj, theme, skillTargets, skillAreaCells, bac
         ctx.beginPath();
         ctx.rect(c.x - halfW, c.y - halfH, proj.tileW, proj.tileH);
     };
-    ctx.save();
-    for (let gx = 0; !actExplorationState.current(game) && gx < getCombatGridSize().columns; gx++) {
+    for (let gx = 0; gx < getCombatGridSize().columns; gx++) {
         for (let gy = 0; gy < getCombatGridSize().rows; gy++) {
             tilePath(gx, gy);
             // 배경 디오라마가 깔린 경우 바닥 아트를 가리지 않게 체커 칠 없이 선만 긋는다.
@@ -3393,8 +3401,6 @@ function drawBattleGridFloor(ctx, proj, theme, skillTargets, skillAreaCells, bac
             ctx.stroke();
         }
     }
-    drawRiftCombatOccupants(ctx, { proj, skillTargets, skillAreaCells });
-    ctx.restore();
 }
 
 // 칸 표시: 네모 칸 대신 발밑 타원과 모서리 표식만 그린다. 칸 판정과 범위 계산은 그대로이고 그리는 모양만 바꾼다.

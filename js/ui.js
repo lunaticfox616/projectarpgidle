@@ -6413,6 +6413,8 @@ function drawActMapEffect(ctx, rect, key, now) {
 function drawBattleBackdrop(ctx, width, height, theme, now, zone, gridProj) {
     if(actExplorationView.background(ctx,width,height,gridProj))return true;
     if(drawStageBoardBackdrop(ctx,width,height,gridProj))return true;
+    // 무대에서 지도가 아직 없는 순간(부팅, 구역을 여는 중)은 그림을 기다리는 방처럼 어둠만 둔다. 아래의 판 그림과 들판은 위에서 보는 전장에만 쓴다(2026-10-21).
+    if(!stageView.topDown()){ctx.fillStyle='#0b090c';ctx.fillRect(0,0,width,height);return true;}
     let backdropEntry = getBattleBackdropForZone(zone);
     if (backdropEntry && backdropEntry.image) {
         const rect = drawGridAlignedBackdrop(ctx, width, height, backdropEntry.image, gridProj, backdropEntry.key);
