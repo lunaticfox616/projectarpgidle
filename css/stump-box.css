@@ -243,7 +243,8 @@
   .stump-cube > .stump-cube-grid { grid-column: 1; grid-row: 1 / span 4; }
   .stump-cube > .stump-cube-book { grid-column: 1 / -1; }
   .stump-cube h3 { margin: 0 0 4px; font-size: 15px; }
-  .stump-cube .stump-actions { margin-top: 4px; }
+  /* 판 옆의 단추 넷(조합, 재료 넣기, 비우기, 조합법)은 같은 폭으로 쌓는다: 글자 폭대로 놓이면 휴대폰에서 들쭉날쭉한 계단이 되었다 */
+  .stump-cube .stump-actions { display: grid; grid-template-columns: minmax(0, 1fr); margin-top: 4px; }
   /* 조합창 4×4(2026-10-10, 2×3 대검 둘이 나란히): 한 칸 크기는 3×3 때와 같다. */
   .stump-cube-grid {
     display: grid;
