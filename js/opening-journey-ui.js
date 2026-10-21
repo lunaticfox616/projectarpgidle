@@ -184,10 +184,12 @@ const openingJourney = (() => {
         else if (step === 'attack' && rescueStruck(run)) mark(KEY.attack);
         else if (step === 'gem' && gemLearnt()) finish(now);
     }
-    /** The opening ends: the auto hunt opens, its guide card comes, and the auto button glows until it is switched on. */
+    /** The opening ends: the auto hunt opens, its guide card comes, and the auto button glows until it is switched on. The battle comes
+     * back to the front first: the rune window the gem guide opened covered the glowing button and half of the line naming it (2026-10-21). */
     function finish(now) {
         mark(KEY.done);
         autoHintUntil = now + AUTO_HINT_MS;
+        switchTab('tab-battle');
         const key = coarse() ? '' : hotkeyBindings.label(hotkeyBindings.codeFor(game.settings.hotkeyOverrides, 'combat:autoMove'));
         queueTutorialNotice('opening_auto', '자동 사냥', `이제 자동 사냥을 쓸 수 있습니다.\n오른쪽 위 자동 단추${key ? `나 ${key} 키` : ''}로 켜면 캐릭터가 알아서 걷고 싸웁니다.\n지금 할 일은 ‘목표’에 나옵니다.`);
         actExplorationUi.render();

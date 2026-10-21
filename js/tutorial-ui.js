@@ -4,6 +4,8 @@ const TUTORIAL_CARD_GAP = 12, TUTORIAL_CARD_EDGE = 8;
 const TUTORIAL_TOOLTIPS = Object.freeze(['#info-tooltip', '#canvas-tooltip', '#item-tooltip-box']);
 /** Pointer input that ends a hover hush (see hushHover). */
 const TUTORIAL_HUSH_WAKERS = Object.freeze(['pointermove', 'pointerdown', 'wheel']);
+/** ms after a guide starts while it holds the next card even before its target is drawn (see holdsQueue). */
+const TUTORIAL_GUIDE_OPENING_MS = 1500;
 /**
  * Optional action guidance owned by the UI. Reads real loadouts; never equips or
  * spends points. Each notice offers one action and can be skipped immediately.
@@ -83,7 +85,7 @@ const tutorialActionUi = {
         const guide = this.guideFor(notice.key);
         if (!guide) return;
         this.finish(false);
-        this.active = { notice, guide, before: guide.read() };
+        this.active = { notice, guide, before: guide.read(), startedAt: Date.now() };
         this.ensureCard();
         this.card.hidden = false;
         this.card.classList.remove('is-away');
@@ -192,9 +194,12 @@ const tutorialActionUi = {
         this.refresh();
     },
     /** 따라 하기는 가리키는 화면에 있는 동안만 다음 안내 카드를 붙잡는다. 그 화면을 떠나면(한 줄 띠로 줄어듦) 쌓인 카드가 뜬다 —
-     * 첫 스킬트리 투자를 하지 않고 나가면 '지도 개방'(액트 1 보상으로 가는 안내)이 띠를 닫을 때까지 5분 넘게 숨어 있었다(검토 2026-10-01). */
+     * 첫 스킬트리 투자를 하지 않고 나가면 '지도 개방'(액트 1 보상으로 가는 안내)이 띠를 닫을 때까지 5분 넘게 숨어 있었다(검토 2026-10-01).
+     * 막 시작해 가리킬 칸이 아직 그려지지 않은 동안(TUTORIAL_GUIDE_OPENING_MS)도 붙잡는다: 첫 스킬룬 따라 하기를 누른 그 틈에 '첫 장비'
+     * 카드가 떠서 휴대폰에서는 빛나는 룬을 덮었다(2026-10-21). */
     holdsQueue() {
-        return !!this.active && !this.card.classList.contains('is-away');
+        if (!this.active) return false;
+        return !this.card.classList.contains('is-away') || Date.now() - this.active.startedAt < TUTORIAL_GUIDE_OPENING_MS;
     },
     /** 따라 하기가 화면을 바꾸면 멈춰 있던 마우스 밑으로 새 칸이 와서, 그 칸의 hover 툴팁('기본 공격')이 가리키는 칸을 덮었다
      * (검토 2026-10-01). 마우스가 실제로 움직이거나 누르거나 휠을 굴릴 때까지 그 자리의 hover 툴팁을 띄우지 않는다(hushesTooltipAt). */
