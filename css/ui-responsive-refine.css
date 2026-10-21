@@ -167,6 +167,10 @@
   body.mobile-battle-tab #tab-battle #btn-combat-log-toggle::before { content: '전투 로그'; margin-right: auto; color: var(--copy-bright); }
   body.mobile-battle-tab #tab-battle #btn-combat-log-toggle::after { content: ' ▴'; }
   body.mobile-battle-tab #tab-battle #btn-combat-log-toggle[aria-expanded='false']::after { content: ' ▾'; }
+  /* 접힌 막대는 제목 대신 최근 기록 한 줄(js/ui.js noteCombatLogLatest)을 보인다: 펼치지 않아도 방금 일이 읽힌다 */
+  body.mobile-battle-tab #tab-battle #btn-combat-log-toggle[aria-expanded='false'][data-latest]::before {
+    content: attr(data-latest); flex: 1 1 auto; min-width: 0; overflow: hidden; color: var(--copy-muted); text-align: left; white-space: nowrap; text-overflow: ellipsis;
+  }
   body.mobile-battle-tab #tab-battle .combat-feed:not(.collapsed) #log {
     flex: 1 1 auto;
     overscroll-behavior: contain;

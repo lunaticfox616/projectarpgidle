@@ -29,7 +29,9 @@
      메뉴 띠 + HUD 판 + 기록 막대가 248px로 기종이 달라도 같다. 게임 알림은 전투 기록 알림(37px) 위에 쌓는다. */
   /* 변수는 쓰는 곳(#mobile-toast-root)에만 둔다 — body에 두면 탭을 바꿀 때마다 문서 전체가 스타일을 다시 계산했다. */
   :root body[data-ui-skin].mobile-battle-tab:has(#tab-battle.active) #mobile-toast-root { --mobile-toast-bottom: calc(254px + env(safe-area-inset-bottom)); }
-  :root body[data-ui-skin].mobile-battle-tab:has(#tab-battle.active) .game-toast-region { top: auto; bottom: calc(302px + env(safe-area-inset-bottom)); }
+  /* 2026-10-22: 게임 알림은 전장 위쪽(지역 줄 아래, 목표 단추 왼쪽)으로. 기록 막대 위 자리(302px)는 두 줄 알림이 전장 바닥, 곧 싸우는
+     자리까지 올라와 몬스터를 가렸다. 전장 위쪽은 배경이다. */
+  :root body[data-ui-skin].mobile-battle-tab:has(#tab-battle.active) .game-toast-region { top: calc(56px + env(safe-area-inset-top)); right: 60px; bottom: auto; left: 10px; width: auto; }
   /* 전체 메뉴 서랍이나 확인 창이 열려 있는 동안 알림은 감춘다(닫으면 남은 알림이 다시 보인다) — 알림이 서랍의 기록 단추를
      덮어, 누르면 기록이 아니라 알림만 닫혔다(검토 2026-10-01). */
   :root body[data-ui-skin]:is(.mobile-tab-drawer-open, .game-dialog-open) :is(#mobile-toast-root, .game-toast-region) { visibility: hidden; }
@@ -192,13 +194,6 @@
   /* 휴대폰 탭 제목: 금빛 도트 제목 + 도트 밑줄 */
   :root body[data-ui-skin] .tab-content h2:not([style*="color"]) { color: var(--px-gold-bright); font-family: var(--font-display); font-size: var(--font-size-heading); font-weight: var(--font-weight-emphasis); }
   :root body[data-ui-skin] .tab-content h2:not([style*="border"]) { border-bottom: 1px solid var(--px-bronze); box-shadow: 0 1px 0 var(--px-ink); }
-}
-@media (max-width: 1080px) and (min-height: 601px) {
-  /* 펼친 기록 막대(높이는 ui-responsive-refine.css) 위로 쌓아 접기 단추를 가리지 않는다.
-     접힌 상태의 302px 자리와 달리, 숨긴 중복 기록 알림을 위한 간격은 필요 없다. */
-  :root body[data-ui-skin].mobile-battle-tab:not(.combat-log-collapsed):has(#tab-battle.active) .game-toast-region {
-    bottom: calc(208px + clamp(110px, 20dvh, 180px) + env(safe-area-inset-bottom));
-  }
 }
 @media (max-width: 1080px) and (orientation: landscape) and (max-height: 600px) {
   /* 가로 휴대폰: HUD는 지역 줄 아래 왼쪽 칸이라 메뉴 띠와 붙지 않는다. 세로용 "메뉴 띠와 이어 붙이기"(아래 테 없음 ·

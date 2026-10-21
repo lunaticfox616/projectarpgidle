@@ -4793,10 +4793,16 @@ function flushLogQueue(frameNow = performance.now()) {
         div.innerHTML = entry.msg;
         frag.appendChild(div);
     });
+    noteCombatLogLatest(logQueue[logQueue.length - 1]);
     logQueue = [];
     log.appendChild(frag);
     while (log.childElementCount > 60) log.removeChild(log.firstChild);
     settleCombatLogScroll(log, { hidden, scrollState });
+}
+/** 휴대폰에서 접힌 전투 기록 막대에 보일 최근 한 줄(접기 단추의 data-latest, ui-responsive-refine.css가 '전투 로그' 대신 쓴다). */
+function noteCombatLogLatest(entry) {
+    const toggle = document.getElementById('btn-combat-log-toggle'), text = entry ? stripHtmlMessage(entry.msg) : '';
+    if (toggle && text && toggle.dataset.latest !== text) toggle.dataset.latest = text;
 }
 function isCombatLogRateLimited(opts, settings, now) {
     if (!opts.rateKey || settings.combatLogRateLimit === false) return false;
