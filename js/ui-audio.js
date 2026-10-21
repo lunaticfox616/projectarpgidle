@@ -199,10 +199,11 @@
         if (major) playUiFeedbackSound('lootMajor');
     }
 
-    // Mute preserves the chosen level; a zero level also stops all ongoing voices.
+    // Mute preserves the chosen level; a zero level also stops all ongoing voices. Settings sync runs at boot too, before any gesture:
+    // it only wakes an existing context, and the first pointerdown or keydown creates one (Chrome warned about a context made earlier).
     playUiFeedbackSound.syncSettings = () => {
         if (!permitted()) { updateMasterGain(); silence(); }
-        else unlock();
+        else if (context) unlock();
         syncVolumeControl();
     };
     document.addEventListener('input', event => {
