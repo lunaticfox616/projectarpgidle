@@ -328,6 +328,13 @@ function hoverOf(actor) {
     const box = boxOf(actor.walk.frames[0]);
     return box ? Math.max(0, -box[3] - 1) : 0;
 }
+/** 제작본의 6장이 앞선 그림보다 장 수가 적은 외형(걷기나 공격 가운데 하나라도: 위습 걷기 65~78장, 개미 48~49장, 슬라임 36장, 부제사와
+ * 부제녀 24~32장, 이야기 보스 공격 16~17장 등)은 앞선 그림을 걷기와 공격 모두 그대로 쓴다(2026-10-21 사용자, 게임에서 두 판을 비교한 뒤:
+ * "프레임이 줄어든 시트는 이전 판으로 되돌리고, 나머지는 고친 초안으로 가자"). 한 외형 안에서 두 판을 섞으면 걷다가 때릴 때 크기와 생김새가 바뀐다. */
+const MOTION_KEEP_EARLIER = Object.freeze(['league_nursery', 'league_nursery-stage2', 'sky-imp', 'act1-slime', 'ocean-oracle', 'atlas-trunk-6',
+    'wisp-b01', 'wisp-b03', 'wisp-b04', 'wisp-b05', 'act1-ant', 'act3-ant', 'act4-ant', 'act5-slime', 'act5-ant', 'atlas-sanctum-0', 'atlas-garden-7',
+    'deacon-act2-melee', 'deacon-act2-ranged', 'deacon-act6-melee', 'deacon-act6-ranged', 'deacon-act7-melee', 'deacon-act7-ranged',
+    'deacon-act8-melee', 'deacon-act8-ranged', 'bossAct2', 'bossAct4_2', 'bossAct5', 'bossAct6', 'bossAct8_1', 'bossAct10_2']);
 /** 제작본은 원본 그림의 방향을 따른다(제작 지시: 장마다 같은 방향, 뒤집지 않는다). 원본은 대부분 왼쪽을 보지만 이 몬스터의 클립은 오른쪽을
  * 보고 그려져, 뒤집으면 게임에서 뒤로 걷고 몸 뒤를 때렸다(2026-10-21: 공격이 뒤로 뻗고 앞선 그림과 좌우가 반대였다). 그대로 쓴다. */
 const MOTION_FACES_RIGHT = Object.freeze({
@@ -435,7 +442,7 @@ function motionBatch(dir, previous) {
     const pairs = new Map(), out = new Map();
     for (const clip of JSON.parse(fs.readFileSync(path.join(dir, 'clips.json'), 'utf8'))) pairs.set(clip.id, { ...(pairs.get(clip.id) || {}), [clip.action]: clip });
     for (const [id, pair] of pairs) {
-        if (!pair.move || !pair.attack) continue;
+        if (!pair.move || !pair.attack || MOTION_KEEP_EARLIER.includes(id)) continue;
         const before = previous.get(id), gait = before ? before.gait : MOTION_GAITS[id] || 'legs', airborne = AIRBORNE.includes(gait);
         const hover = airborne ? (before ? hoverOf(before) : MOTION_HOVER) : 0;
         const clipOf = clip => {
