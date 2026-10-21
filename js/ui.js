@@ -10386,15 +10386,15 @@ function setupCanvasEvents() {
 
     function renderPassiveRouteHint(cost) {
         if (cost <= 0) return '';
-        return `<div class="tooltip-line" style="margin-top:6px;color:#f2d88f;">현재 경로 기준 ${cost}포인트 필요, 연결 경로가 트리에 강조됩니다.</div>`;
+        return `<div class="tooltip-line" style="margin-top:6px;color:#f2d88f;">현재 경로 기준 ${cost}포인트 필요</div>`;
     }
 
-    /** "찍으면 DPS 61 → 64, 생명력 170 → 180": the path's untaken nodes taken (js/passives.js previewPassiveNodeStats). */
+    /** "이 노드까지 할당 시 DPS 61 → 64, 생명력 170 → 180": the path's untaken nodes taken (js/passives.js previewPassiveNodeStats). */
     function renderPassiveStatPreview(route) {
         const taken = new Set(game.passives || []);
         const ids = Array.from(route).filter(id => !taken.has(id) && PASSIVE_TREE.nodes[id] && PASSIVE_TREE.nodes[id].kind !== 'start');
         const parts = ids.length ? buildStatPreviewParts(previewPassiveNodeStats(ids)) : '';
-        return parts ? `<div class="tooltip-line" style="margin-top:6px;">찍으면 ${parts}</div>` : '';
+        return parts ? `<div class="tooltip-line" style="margin-top:6px;">이 노드까지 할당 시 ${parts}</div>` : '';
     }
 
     /** The node's effect text in the option colours (2026-10-06): each effect line in its own stat's colour (a node with several
