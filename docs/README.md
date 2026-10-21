@@ -16,7 +16,7 @@
 | 저장과 방치 성능 | [방치 성능](offline-performance.md), 두 탭 보호는 [game-tab-guard-ui.js](../js/game-tab-guard-ui.js)의 머리말 |
 | 탐험·바닥 줍기 | [현재 보상·진행 계약](act-exploration-integration.md) |
 | 옆에서 보는 무대, 방 탐색 | [무대 문서](stage-view-20261011.md), [그리기 성능](stage-render-performance-20261013.md) |
-| 이야기, 대사 | [스토리 바이블](story-bible.md), 글은 [이야기 데이터](../data/story-journal.js). 새 묶음은 `node scripts/import-story-pack.cjs <폴더> --write` |
+| 이야기, 대사 | [스토리 바이블](story-bible.md), 글은 [이야기 데이터](../data/story-journal.js). 새 묶음은 `node scripts/import-story-pack.cjs <폴더> --write`, 대사를 하나씩 고칠 때는 `npm run story:edit` |
 | 적 공격, 보스 싸움 거리 | [적 공격 계약](enemy-attack-system.md) |
 | 탐험 상자·파괴물 | [클릭 조작, 배치와 후반 사건](exploration-objects-20261005.md) |
 | 아틀라스·특수 콘텐츠 지도 | [현재 구현·후반 보스·루프 34 원정 보드](atlas-pinnacles-20261002.md), [초기 아틀라스 설계 이력](atlas-endgame-20260930.md) |
