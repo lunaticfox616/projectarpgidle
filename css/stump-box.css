@@ -8,6 +8,8 @@
   /* 제목 줄: 제목이 남는 너비를 채우고, 오른쪽 끝에 색 개수 · 열린 칸 · 규칙(?)을 둔다. 좁으면 아래 줄로 내려간다 */
   .stump-title-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 4px 12px; margin-bottom: 10px; }
   .stump-title-row > h2 { flex: 1 1 8em; min-width: 0; margin: 0; }
+  /* PC 창은 머리에 이미 "그루터기 함"이 있어 같은 제목이 두 번 나왔다: 창에서는 숨기고 색 개수 줄만 남긴다(휴대폰은 화면 제목이라 둔다) */
+  body.desktop-windowed-ui .stump-title-row > h2 { display: none; }
   .stump-box-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; padding-bottom: 4px; }
   .stump-box-head .stump-line { margin: 0; color: var(--px-copy-muted, #a39883); }
   #tab-stump .stump-rules-button { min-width: 26px; min-height: 26px; padding: 0 6px; line-height: 1; }
