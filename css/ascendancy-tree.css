@@ -1,6 +1,6 @@
 @layer components{
 /* 전직 트리 보기(2026-10-09, 2026-10-22 다시 짬, js/ascendancy-tree-ui.js): 왼쪽에 노드 나무, 오른쪽에 키스톤과 자세히 카드. 좁은 창은
-   나무, 자세히, 키스톤 차례로 쌓는다(창 폭으로 가른다: container). 도트 테마의 각진 청동 틀. */
+   나무, 키스톤, 자세히 차례로 쌓는다(창 폭으로 가른다: container). 도트 테마의 각진 청동 틀. */
 #tab-traits #ui-ascend-tree-container{display:block;container-type:inline-size}
 #tab-traits .ascend-points{color:#f1c40f;font-weight:700}
 #tab-traits .ascend-summary{display:grid;gap:6px;margin:0 0 12px;padding:10px 12px;border:2px solid #4b4136;background:rgba(18,14,10,.72)}
@@ -59,7 +59,8 @@
 #tab-traits .ascend-detail-close{display:none;min-height:28px;margin:0 0 0 auto;padding:2px 10px;font-size:12px}
 #tab-traits .ascend-detail-act{justify-self:start;min-height:32px;margin:2px 0 0;padding:4px 18px;font-size:12px}
 @container (max-width:860px){
-    #tab-traits .ascend-layout{grid-template-columns:minmax(0,1fr);grid-template-areas:"nodes" "detail" "keys";grid-template-rows:auto}
+    /* 자세히 카드는 맨 뒤: 화면 아래에 붙는 카드는 제자리 위의 칸을 볼 때만 붙는다(나무와 키스톤 사이에 두면 키스톤을 볼 때 위로 밀려 보이지 않았다) */
+    #tab-traits .ascend-layout{grid-template-columns:minmax(0,1fr);grid-template-areas:"nodes" "keys" "detail";grid-template-rows:auto}
     /* 좁은 창: 칸을 고르면 화면 아래에 붙어 뜨고 닫기로 내린다(고르기 전에는 나무를 가리지 않는다). 뒤가 비치지 않게 불투명 */
     #tab-traits .ascend-detail.is-empty{display:none}
     #tab-traits .ascend-detail-close{display:inline-flex}
