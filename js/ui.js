@@ -8762,7 +8762,6 @@ function performUpdateStaticUI() {
     updateInventoryFullWarnings();
     announceMapPrimaryContentUnlocks();
     syncMapPrimaryContentTabs();
-    syncSingleSubtabRows();
     // 진단용 단계별 타이밍. 한 번의 갱신이 150ms를 넘으면(또는 window.__perfLog가 켜져
     // 있으면) 어느 단계가 느린지 콘솔에 한 줄 남긴다. 정상 갱신에는 거의 영향이 없다.
     const __perfNow = (typeof performance !== 'undefined' && performance.now) ? () => performance.now() : () => Date.now();
@@ -8775,6 +8774,7 @@ function performUpdateStaticUI() {
     validateItemTooltipAnchor();
     applySeasonContentProgression({ silent: false });
     refreshTabHeaderUiIfNeeded();
+    syncSingleSubtabRows(); // 잠금(해금 단추, 묶음 창)을 고친 뒤에 센다: 앞에서 세면 이번에 열린 하위 탭 줄이 다음 갱신까지 숨었다
     let passiveStateSig = [
         game.passivePoints || 0,
         (game.passives || []).length,
