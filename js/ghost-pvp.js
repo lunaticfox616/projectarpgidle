@@ -81,7 +81,7 @@ function resetGhostArenaForAccount(userId) {
     let switched = ghostArenaState.userId !== null;
     ghostArenaState.userId = userId;
     if (!switched) return;
-    if (typeof stopGhostDuelReplay === 'function') stopGhostDuelReplay();
+    ghostDuelStage.stop();
     Object.assign(ghostArenaState, { data: null, message: '', result: null, selectedProfile: null, friendlyResult: null,
         duel: null, duelMode: '', loadedAt: 0, failedAt: 0 });
 }
@@ -120,7 +120,7 @@ async function fightRandomGhost() {
     ghostArenaState.result = null;
     ghostArenaState.duel = null;
     ghostArenaState.duelMode = '';
-    if (typeof stopGhostDuelReplay === 'function') stopGhostDuelReplay();
+    ghostDuelStage.stop();
     renderGhostArena();
     try {
         ghostArenaState.result = await cloudJsonRequest('/rest/v1/rpc/fight_ghost', {
@@ -128,6 +128,7 @@ async function fightRandomGhost() {
         });
         ghostArenaState.duel = ghostArenaState.result && ghostArenaState.result.duel || null;
         ghostArenaState.duelMode = 'ranked';
+        playGhostDuel();
     } catch (error) {
         ghostArenaState.message = getGhostArenaError(error);
     } finally {
@@ -140,8 +141,7 @@ function renderProfileGhostResult(result) {
     if (!result) return '';
     let labels = { win: '승리', loss: '패배', draw: '무승부' };
     let tone = result.result === 'win' ? 'win' : (result.result === 'loss' ? 'loss' : 'draw');
-    let pending = result.duel ? ' ghost-duel-result-pending' : '';
-    return `<div class="ghost-result ${tone}${pending}" data-ghost-duel-result><strong>친선전 ${labels[result.result] || result.result}</strong><span>${ghostArenaEscape(result.opponent)}, 레이팅 변동 없음</span></div>`;
+    return `<div class="ghost-result ${tone}" data-ghost-duel-result><strong>친선전 ${labels[result.result] || result.result}</strong><span>${ghostArenaEscape(result.opponent)}, 레이팅 변동 없음</span></div>`;
 }
 
 async function fightCurrentProfileGhost() {
@@ -156,7 +156,7 @@ async function fightCurrentProfileGhost() {
     ghostArenaState.friendlyResult = null;
     ghostArenaState.duel = null;
     ghostArenaState.duelMode = '';
-    if (typeof stopGhostDuelReplay === 'function') stopGhostDuelReplay();
+    ghostDuelStage.stop();
     if (typeof closePlayerProfile === 'function') closePlayerProfile();
     if (typeof window !== 'undefined' && typeof window.switchTab === 'function') {
         window.switchTab('tab-map', { keepWindowOpen: true });
@@ -175,7 +175,7 @@ async function fightSelectedProfileGhost() {
     ghostArenaState.message = '';
     ghostArenaState.duel = null;
     ghostArenaState.duelMode = '';
-    if (typeof stopGhostDuelReplay === 'function') stopGhostDuelReplay();
+    ghostDuelStage.stop();
     renderGhostArena();
     try {
         let result = await cloudJsonRequest('/rest/v1/rpc/fight_ghost_target', {
@@ -184,6 +184,7 @@ async function fightSelectedProfileGhost() {
         ghostArenaState.friendlyResult = result || {};
         ghostArenaState.duel = result && result.duel || null;
         ghostArenaState.duelMode = 'friendly';
+        playGhostDuel();
     } catch (error) {
         ghostArenaState.message = getGhostArenaError(error);
     } finally {
@@ -197,8 +198,7 @@ function renderGhostResult(result) {
     let labels = { win: '승리', loss: '패배', draw: '무승부' };
     let tone = result.result === 'win' ? 'win' : (result.result === 'loss' ? 'loss' : 'draw');
     let delta = Number(result.ratingDelta) || 0;
-    let pending = result.duel ? ' ghost-duel-result-pending' : '';
-    return `<div class="ghost-result ${tone}${pending}" data-ghost-duel-result><strong>${labels[result.result] || result.result}</strong>, ${ghostArenaEscape(result.opponent)} (${ghostArenaEscape(result.opponentSkill)})<span>레이팅 ${ghostArenaEscape(result.ratingBefore)} → ${ghostArenaEscape(result.ratingAfter)} (${delta >= 0 ? '+' : ''}${delta})</span></div>`;
+    return `<div class="ghost-result ${tone}" data-ghost-duel-result><strong>${labels[result.result] || result.result}</strong>, ${ghostArenaEscape(result.opponent)} (${ghostArenaEscape(result.opponentSkill)})<span>레이팅 ${ghostArenaEscape(result.ratingBefore)} → ${ghostArenaEscape(result.ratingAfter)} (${delta >= 0 ? '+' : ''}${delta})</span></div>`;
 }
 
 function renderGhostLeaderboard(rows) {
@@ -213,9 +213,21 @@ function renderFriendlyGhostChallenge() {
     return `<section class="ghost-friendly"><div><small>친선전 상대</small><strong>${ghostArenaEscape(selected.nickname)}</strong><span>레이팅과 전적은 변하지 않습니다.</span></div><button type="button" onclick="fightSelectedProfileGhost()" ${disabled ? 'disabled' : ''}>${ghostArenaState.friendlyBusy ? '대결 중…' : '친선 대결 시작'}</button></section>`;
 }
 
+/** 대결을 무대의 방에서 보여 준다(js/ghost-duel-stage-ui.js): 지도 창을 닫고 전장 위에서 재생한다. 결과 줄과 레이팅은 이 탭에도 남는다. */
+function playGhostDuel() {
+    if (!ghostArenaState.duel) return;
+    let result = ghostArenaState.duelMode === 'ranked' ? ghostArenaState.result : ghostArenaState.friendlyResult;
+    ghostDuelStage.play(ghostArenaState.duel, { mode: ghostArenaState.duelMode, result });
+}
+
 function renderActiveGhostDuel() {
-    if (!ghostArenaState.duel || typeof renderGhostDuelReplay !== 'function') return '';
-    return renderGhostDuelReplay(ghostArenaState.duel);
+    return ghostArenaState.duel ? '<button type="button" class="ghost-replay" onclick="playGhostDuel()">무대에서 다시 보기</button>' : '';
+}
+
+/** 읽기가 실패해 보여 줄 대전 정보가 없을 때만 다시 불러오기 단추(그 밖에는 탭을 다시 열면 1분 지난 정보를 새로 읽는다). */
+function renderGhostArenaRetry() {
+    return ghostArenaState.failedAt && !ghostArenaState.data && !ghostArenaState.loading
+        ? '<button type="button" class="ghost-retry" onclick="loadGhostArena()">다시 불러오기</button>' : '';
 }
 
 function renderActiveGhostResult() {
@@ -229,11 +241,6 @@ function updateGhostArenaMarkup(host, html) {
     host.innerHTML = html;
     host.__ghostArenaHtml = html;
     return true;
-}
-
-function mountActiveGhostDuel() {
-    if (!ghostArenaState.duel || ghostArenaState.loading || typeof mountGhostDuelReplay !== 'function') return;
-    requestAnimationFrame(() => mountGhostDuelReplay(ghostArenaState.duel));
 }
 
 function renderGhostArena() {
@@ -252,9 +259,8 @@ function renderGhostArena() {
     let status = me
         ? `<span>내 레이팅 <strong>${me.rating}</strong>, ${me.wins}승 ${me.losses}패 ${me.draws}무${me.matches < 10 ? ', 배치 중' : ''}</span>`
         : '<span>등록된 고스트 없음</span>';
-    let html = `<section class="ghost-arena"><header><div><strong>고스트 실전투</strong><small>보상 없음, 점수는 서버 모의 전투로 판정</small></div></header><div class="ghost-toolbar">${status}<button onclick="registerMyGhost()" ${ghostArenaState.loading || !serverReady ? 'disabled' : ''}>${me ? '고스트 갱신' : '고스트 등록'}</button><button onclick="fightRandomGhost()" ${!me || ghostArenaState.loading || !serverReady ? 'disabled' : ''}>상대 찾기</button></div><p class="ghost-help">등록 시 현재 세팅을 즉시 반영합니다. 대전 간 20초, 랭크 20회/24시간, 친선 30회/24시간 제한이 서버에서 적용됩니다.</p>${visibleMessage ? `<p class="ghost-error">${ghostArenaEscape(visibleMessage)}</p>` : ''}${ghostArenaState.failedAt && !ghostArenaState.data && !ghostArenaState.loading ? '<button type="button" class="ghost-retry" onclick="loadGhostArena()">다시 불러오기</button>' : ''}${renderFriendlyGhostChallenge()}${renderActiveGhostDuel()}${renderActiveGhostResult()}${renderGhostLeaderboard(Array.isArray(data.leaderboard) ? data.leaderboard : [])}</section>`;
+    let html = `<section class="ghost-arena"><header><div><strong>고스트 실전투</strong><small>보상 없음, 점수는 서버 모의 전투로 판정</small></div></header><div class="ghost-toolbar">${status}<button onclick="registerMyGhost()" ${ghostArenaState.loading || !serverReady ? 'disabled' : ''}>${me ? '고스트 갱신' : '고스트 등록'}</button><button onclick="fightRandomGhost()" ${!me || ghostArenaState.loading || !serverReady ? 'disabled' : ''}>상대 찾기</button></div><p class="ghost-help">등록 시 현재 세팅을 즉시 반영합니다. 대전 간 20초, 랭크 20회/24시간, 친선 30회/24시간 제한이 서버에서 적용됩니다.</p>${visibleMessage ? `<p class="ghost-error">${ghostArenaEscape(visibleMessage)}</p>` : ''}${renderGhostArenaRetry()}${renderFriendlyGhostChallenge()}${renderActiveGhostResult()}${renderActiveGhostDuel()}${renderGhostLeaderboard(Array.isArray(data.leaderboard) ? data.leaderboard : [])}</section>`;
     updateGhostArenaMarkup(host, html);
-    mountActiveGhostDuel();
     if (ghostArenaLoadDue()) Promise.resolve(loadGhostArena()).catch(() => {});
 }
 
@@ -263,11 +269,11 @@ function injectGhostArenaStyles() {
     let style = document.createElement('style');
     style.id = 'ghost-arena-styles';
     // 레이어 안에 둔다(레이어 밖 CSS는 스킨 규칙을 모두 이긴다).
-    style.textContent = `@layer components{.map-pvp-heading{display:flex;justify-content:space-between;align-items:end;gap:16px;margin-bottom:12px}.map-pvp-heading span{color:#a999d0;font-size:12px;font-weight:800;letter-spacing:.14em}.map-pvp-heading h2{margin:2px 0 0}.map-pvp-heading p{max-width:520px;margin:0;color:#9eabc0;font-size:12px}.ghost-arena{margin:8px 0;border:1px solid #4b3d72;border-radius:9px;background:linear-gradient(145deg,#17162a,#101827);overflow:hidden}.ghost-arena>header{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid #342d50;background:rgba(39,31,65,.62);color:#e3d8ff}.ghost-arena>header div{display:flex;align-items:baseline;gap:8px}.ghost-arena>header small{color:#9e96b8;font-weight:500}.ghost-toolbar{display:flex;align-items:center;gap:7px;flex-wrap:wrap;padding:12px 10px 8px}.ghost-toolbar>span{margin-right:auto;color:#d9e7f8}.ghost-help{margin:0 10px 10px;color:#9eabc0;font-size:12px}.ghost-error{margin:0 10px 8px;color:#ff9b9b}.ghost-retry{margin:0 10px 10px}.ghost-friendly{display:flex;align-items:center;gap:12px;margin:0 10px 10px;padding:10px;border:1px solid #4a5477;border-radius:8px;background:#18243a}.ghost-friendly>div{display:flex;flex-direction:column;gap:2px;margin-right:auto}.ghost-friendly small,.ghost-friendly span{color:#9eabc0;font-size:12px}.ghost-friendly strong{color:#f0e8ff}.ghost-result{display:flex;gap:7px;flex-wrap:wrap;margin:0 10px 8px;padding:8px;border-radius:7px;background:#172238}.ghost-result:empty{display:none}.ghost-result span{margin-left:auto}.ghost-result.win strong{color:#7ee4a1}.ghost-result.loss strong{color:#ff8f8f}.ghost-result.draw strong{color:#e5d080}.ghost-board{display:grid;gap:4px;padding:0 10px 10px}.ghost-rank{display:grid;grid-template-columns:28px minmax(120px,1fr) 58px 92px;gap:7px;align-items:center;padding:6px 8px;border:1px solid #283b56;border-radius:6px;background:#111d2d}.ghost-rank>b{color:#c9a8ff}.ghost-rank span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ghost-rank small{display:block;color:#94a7bf;overflow:hidden;text-overflow:ellipsis}.ghost-rank strong{text-align:right}.ghost-rank em{font-style:normal;color:#aebbd0;font-size:12px;text-align:right}.ghost-empty{padding:0 10px 10px;color:#9eabc0}@media(max-width:640px){.map-pvp-heading{display:block}.map-pvp-heading p{margin-top:6px}.ghost-arena>header div{align-items:flex-start;flex-direction:column;gap:2px}.ghost-friendly{align-items:stretch;flex-direction:column}.ghost-rank{grid-template-columns:24px minmax(100px,1fr) 52px}.ghost-rank em{display:none}}}`;
+    style.textContent = `@layer components{.map-pvp-heading{display:flex;justify-content:space-between;align-items:end;gap:16px;margin-bottom:12px}.map-pvp-heading span{color:#a999d0;font-size:12px;font-weight:800;letter-spacing:.14em}.map-pvp-heading h2{margin:2px 0 0}.map-pvp-heading p{max-width:520px;margin:0;color:#9eabc0;font-size:12px}.ghost-arena{margin:8px 0;border:1px solid #4b3d72;border-radius:9px;background:linear-gradient(145deg,#17162a,#101827);overflow:hidden}.ghost-arena>header{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid #342d50;background:rgba(39,31,65,.62);color:#e3d8ff}.ghost-arena>header div{display:flex;align-items:baseline;gap:8px}.ghost-arena>header small{color:#9e96b8;font-weight:500}.ghost-toolbar{display:flex;align-items:center;gap:7px;flex-wrap:wrap;padding:12px 10px 8px}.ghost-toolbar>span{margin-right:auto;color:#d9e7f8}.ghost-help{margin:0 10px 10px;color:#9eabc0;font-size:12px}.ghost-error{margin:0 10px 8px;color:#ff9b9b}.ghost-retry,.ghost-replay{margin:0 10px 10px}.ghost-friendly{display:flex;align-items:center;gap:12px;margin:0 10px 10px;padding:10px;border:1px solid #4a5477;border-radius:8px;background:#18243a}.ghost-friendly>div{display:flex;flex-direction:column;gap:2px;margin-right:auto}.ghost-friendly small,.ghost-friendly span{color:#9eabc0;font-size:12px}.ghost-friendly strong{color:#f0e8ff}.ghost-result{display:flex;gap:7px;flex-wrap:wrap;margin:0 10px 8px;padding:8px;border-radius:7px;background:#172238}.ghost-result:empty{display:none}.ghost-result span{margin-left:auto}.ghost-result.win strong{color:#7ee4a1}.ghost-result.loss strong{color:#ff8f8f}.ghost-result.draw strong{color:#e5d080}.ghost-board{display:grid;gap:4px;padding:0 10px 10px}.ghost-rank{display:grid;grid-template-columns:28px minmax(120px,1fr) 58px 92px;gap:7px;align-items:center;padding:6px 8px;border:1px solid #283b56;border-radius:6px;background:#111d2d}.ghost-rank>b{color:#c9a8ff}.ghost-rank span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ghost-rank small{display:block;color:#94a7bf;overflow:hidden;text-overflow:ellipsis}.ghost-rank strong{text-align:right}.ghost-rank em{font-style:normal;color:#aebbd0;font-size:12px;text-align:right}.ghost-empty{padding:0 10px 10px;color:#9eabc0}@media(max-width:640px){.map-pvp-heading{display:block}.map-pvp-heading p{margin-top:6px}.ghost-arena>header div{align-items:flex-start;flex-direction:column;gap:2px}.ghost-friendly{align-items:stretch;flex-direction:column}.ghost-rank{grid-template-columns:24px minmax(100px,1fr) 52px}.ghost-rank em{display:none}}}`;
     document.head.appendChild(style);
 }
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', injectGhostArenaStyles);
 else injectGhostArenaStyles();
 
-safeExposeGlobals({ renderGhostArena, registerMyGhost, fightRandomGhost, fightCurrentProfileGhost, fightSelectedProfileGhost, loadGhostArena });
+safeExposeGlobals({ renderGhostArena, registerMyGhost, fightRandomGhost, fightCurrentProfileGhost, fightSelectedProfileGhost, loadGhostArena, playGhostDuel });

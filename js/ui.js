@@ -394,13 +394,20 @@ function isForegroundGameplayPausedForBackground() {
     // 사망 기록은 읽을거리일 뿐 — 열려 있어도 방치 진행은 멈추지 않는다(예전에는 닫을 때까지 전투 시간이 멈췄다).
     if (typeof isLoopHeroSelectOpen === 'function' && isLoopHeroSelectOpen()) return true;
     if (actExplorationUi.departurePending()) return true;
-    // 입구 방의 인사(js/canvas-act-title-card.js greeting): 이야기 팝업처럼 주인공이 서서 듣는다(2026-10-15 사용자 "처음에 바로 막 진행하는데").
-    if (typeof actTitleCard === 'object' && actTitleCard.greeting()) return true;
+    // 입구 방의 인사나 고스트 대결처럼 주인공이 장면 앞에 서 있는 동안(isHeroHeldByScene)
+    if (isHeroHeldByScene()) return true;
     // "창을 열면 전투 일시정지"가 꺼져 있으면 아래 창 검사의 답은 쓰이지 않는다: 묻지 않는다(2026-10-17 측정: 8초에 2,083번 검사).
     if (!game?.settings?.pauseGameOnOverlay) return false;
     // 안내 카드뿐 아니라 따라 하기의 대상 화면이 열려 있는 동안도(검토 7차) — isTutorialPausingCombat이 함께 본다.
     return !!(isTutorialPausingCombat() || isPauseSettingOverlayOpenNow());
 }
+/** 주인공이 장면 앞에 서 있는 동안: 입구 방의 인사(js/canvas-act-title-card.js greeting, 이야기 팝업처럼 서서 듣는다: 2026-10-15 사용자
+ * "처음에 바로 막 진행하는데")와 고스트 대결의 방(js/ghost-duel-stage-ui.js, 전장이 덮여 있다). */
+function isHeroHeldByScene() {
+    if (typeof actTitleCard === 'object' && actTitleCard.greeting()) return true;
+    return typeof ghostDuelStage === 'object' && ghostDuelStage.playing();
+}
+
 
 /** 일시정지를 거는 창이 열려 있는지(isPauseSettingOverlayOpen)를 16ms 동안 한 번만 찾는다. 주 루프, 탐험 걸음, 전장 그림이 한 프레임에
  * 여러 번 묻는다. 창은 입력으로 열리고 닫히므로 다음 프레임이 바뀐 상태를 본다. */

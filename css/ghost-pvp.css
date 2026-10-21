@@ -1,16 +1,26 @@
-@layer components{.ghost-duel-replay{position:relative;isolation:isolate;margin:0 10px 10px;border:1px solid #79649d;border-radius:12px;overflow:hidden;background:#050812;box-shadow:inset 0 0 46px rgba(112,72,180,.2),0 12px 28px rgba(0,0,0,.34)}
-.ghost-duel-replay::after{position:absolute;z-index:1;inset:0;content:"";pointer-events:none;box-shadow:inset 0 0 45px rgba(0,0,0,.72),inset 0 -70px 80px rgba(3,5,11,.35)}
-.ghost-duel-canvas{display:block;width:100%;height:auto;aspect-ratio:5/3;background:#080c16}
-.ghost-duel-stage-label{position:absolute;z-index:2;left:50%;bottom:46px;transform:translateX(-50%);color:rgba(226,216,247,.56);font-size:.58em;font-weight:900;letter-spacing:.18em;white-space:nowrap;pointer-events:none}
-.ghost-duel-hud{position:absolute;z-index:2;top:12px;width:min(38%,250px);display:grid;grid-template-columns:1fr auto;gap:2px 8px;color:#f3efff;text-shadow:0 2px 3px #000;pointer-events:none}
-.ghost-duel-hud.left{left:14px}.ghost-duel-hud.right{right:14px;text-align:right}
-.ghost-duel-hud>strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ghost-duel-hud>span{grid-row:2;color:#b7aacd;font-size:.72em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.ghost-duel-hud>div{grid-column:1/-1;height:9px;border:1px solid rgba(232,221,255,.58);border-radius:5px;background:#170e19;overflow:hidden;box-shadow:0 1px 5px #000}
-.ghost-duel-hud>div>i{display:block;width:100%;height:100%;background:linear-gradient(90deg,#a72c42,#ed5364);transition:width .12s steps(3)}
-.ghost-duel-hud>em{position:absolute;top:38px;right:0;color:#fff;font-size:.68em;font-style:normal}.ghost-duel-hud.left>em{right:auto;left:0}
-.ghost-duel-status{position:absolute;z-index:2;left:50%;top:13px;transform:translateX(-50%);padding:3px 9px;border:1px solid rgba(202,180,244,.32);border-radius:999px;background:rgba(8,10,17,.72);color:#d9ccf2;font-size:.7em;font-weight:800;white-space:nowrap}
-.ghost-duel-controls{position:absolute;z-index:3;left:50%;bottom:8px;transform:translateX(-50%);display:flex;gap:5px;padding:4px;border-radius:8px;background:rgba(6,8,14,.76);backdrop-filter:blur(4px)}
-.ghost-duel-controls button{min-height:28px;padding:4px 9px;border-color:#51436d;background:#19172a;color:#dcd4ed;font-size:.72em}
-.ghost-duel-result-pending{visibility:hidden;min-height:42px}
-/* 휴대폰: 이름과 단추 자리로 280px을 두고 그림은 5:3 그대로 위아래를 비운다(전: 폭이 467px보다 좁으면 그림이 세로로 늘어났다). */
-@media(max-width:640px){.ghost-duel-hud{top:8px;width:39%;font-size:.78em}.ghost-duel-hud.left{left:8px}.ghost-duel-hud.right{right:8px}.ghost-duel-status{top:50px}.ghost-duel-controls{bottom:5px;width:max-content;max-width:96%}.ghost-duel-controls button{padding:3px 7px}.ghost-duel-stage-label{bottom:42px;font-size:.5em}.ghost-duel-canvas{min-height:280px;object-fit:contain}}}
+@layer components{
+/* 고스트 대결의 방(js/ghost-duel-stage-ui.js): 전장 위를 덮는다. 이름판 둘은 위의 양 끝, 단추는 위 가운데, 알림은 그 아래, 결과 창은 한가운데.
+   아래쪽은 하단 HUD가 덮으므로 비운다. 글은 갈무리11의 제 크기(12px, 결과 24px)이고, 가운데에 놓는 것은 정수 화소에서 시작한다
+   (css/themes/pixel.css의 round 규칙과 같다).
+   z-index 85: 전장 안의 목표 서랍(80)은 덮고, 하단 HUD(990)와 전투 기록 창(1100)은 그 위에 남는다. */
+.ghost-duel-stage{position:absolute;z-index:85;inset:0;overflow:hidden;background:#0b090c;color:#f3e6c8;font-size:var(--font-size-ui)}
+.ghost-duel-stage .ghost-duel-canvas{display:block;width:100%;height:100%;image-rendering:pixelated}
+.ghost-duel-plate{position:absolute;top:10px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:3px 8px;width:min(38%,260px);padding:6px 8px;border:1px solid rgba(227,189,114,.45);background:rgba(18,14,10,.84);pointer-events:none}
+.ghost-duel-plate.left{left:10px}.ghost-duel-plate.right{right:10px}
+.ghost-duel-plate>strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ghost-duel-plate>small{grid-row:2;color:#c9b48a;font-size:var(--font-size-ui);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ghost-duel-plate>em{grid-column:2;grid-row:1/span 2;align-self:center;color:#fff;font-style:normal}
+.ghost-duel-life{grid-column:1/-1;height:8px;border:1px solid rgba(232,221,255,.5);background:#170e19;overflow:hidden}
+.ghost-duel-life>i{display:block;width:100%;height:100%;background:linear-gradient(90deg,#a72c42,#ed5364);transition:width .12s steps(3)}
+/* 오른쪽 사람의 줄은 오른쪽 끝에서 줄어든다(마주 보는 두 줄) */
+.ghost-duel-plate.right .ghost-duel-life>i{margin-left:auto}
+.ghost-duel-banner{position:absolute;top:52px;left:round(down,50%,1px);translate:round(up,-50%,1px);margin:0;padding:3px 10px;border:1px solid rgba(227,189,114,.4);background:rgba(10,8,6,.8);color:#f1d69b;font-weight:700;white-space:nowrap;pointer-events:none}
+.ghost-duel-controls{position:absolute;top:10px;left:round(down,50%,1px);translate:round(up,-50%,1px);display:flex;gap:6px;padding:4px;background:rgba(10,8,6,.72)}
+.ghost-duel-result{position:absolute;top:round(down,30%,1px);left:round(down,50%,1px);translate:round(up,-50%,1px);display:grid;justify-items:center;gap:6px;width:max-content;max-width:90%;padding:14px 18px;border:1px solid #c79a4a;background:linear-gradient(180deg,#221a12,#120e0a);text-align:center;box-shadow:0 0 0 1px #000,0 12px 28px rgba(0,0,0,.7)}
+.ghost-duel-result>strong{font-size:var(--font-size-heading)}
+.ghost-duel-result>strong.win{color:#7ee4a1}.ghost-duel-result>strong.loss{color:#ff8f8f}.ghost-duel-result>strong.draw{color:#e5d080}
+.ghost-duel-result>div{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;margin-top:4px}
+.ghost-duel-stage [hidden]{display:none}
+/* 휴대폰: 이름판이 화면의 절반 가까이를 쓰고, 단추와 알림은 이름판 아래로 내려온다 */
+@media(max-width:640px){.ghost-duel-plate{top:6px;width:45%}.ghost-duel-plate.left{left:6px}.ghost-duel-plate.right{right:6px}.ghost-duel-controls{top:64px}.ghost-duel-banner{top:104px}}
+}
