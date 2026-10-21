@@ -176,6 +176,9 @@
     overscroll-behavior: contain;
     scrollbar-width: thin;
   }
+  /* 펼친 기록: 제목 줄 아래 여백(6 + 8px)과 목록 안 여백(위아래 8px)이 기록 한 줄을 먹어 두 줄만 보였다 */
+  body.mobile-battle-tab #tab-battle .combat-feed:not(.collapsed) .combat-feed-title { margin-bottom: 2px; padding-bottom: 0; }
+  body.mobile-battle-tab #tab-battle .combat-feed:not(.collapsed) #log { padding-block: 4px; }
 }
 
 @media (max-width: 1080px) and (orientation: landscape) and (max-height: 600px) {
@@ -354,8 +357,9 @@
 
   body.mobile-battle-tab #tab-battle .combat-feed {
     min-height: 110px;
-    height: clamp(110px, 20dvh, 180px);
-    max-height: 180px;
+    /* 펼친 기록: 화면의 20%(664px 화면에서 133px)는 기록이 두세 줄이었다. 24%(159px)면 네 줄쯤 */
+    height: clamp(110px, 24dvh, 200px);
+    max-height: 200px;
     padding: 5px 6px;
     overflow: hidden;
   }
