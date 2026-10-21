@@ -328,6 +328,106 @@ function hoverOf(actor) {
     const box = boxOf(actor.walk.frames[0]);
     return box ? Math.max(0, -box[3] - 1) : 0;
 }
+/** 제작본은 원본 그림의 방향을 따른다(제작 지시: 장마다 같은 방향, 뒤집지 않는다). 원본은 대부분 왼쪽을 보지만 이 몬스터의 클립은 오른쪽을
+ * 보고 그려져, 뒤집으면 게임에서 뒤로 걷고 몸 뒤를 때렸다(2026-10-21: 공격이 뒤로 뻗고 앞선 그림과 좌우가 반대였다). 그대로 쓴다. */
+const MOTION_FACES_RIGHT = Object.freeze({
+    bossAct2: ['move', 'attack'], bossAct4_1: ['move', 'attack'], bossAct5: ['move', 'attack'], bossAct6: ['move', 'attack'],
+    bossAct7: ['move', 'attack'], bossAct8_1: ['move', 'attack'], bossAct8_3: ['move', 'attack'], 'apex_devourer-stage2': ['move', 'attack'],
+    'sky-harpy': ['move', 'attack'], 'deacon-act8-melee': ['attack']
+});
+
+// 제작본 프레임 맞추기. 제작본은 장마다 몸을 칸 안의 다른 자리에 그렸고(장마다 따로 그린 그림) 클립마다 기준점이 하나뿐이라, 그대로 그리면
+// 걷거나 서거나 때릴 때 몸이 좌우로 수십 도트 튀었다(2026-10-21 사용자 "위치정렬이 안되어서 막 날뛰는 몬스터들이 많기 때문에"). 장마다 몸통
+// (가는 팔다리, 무기, 날개 끝을 깎아 낸 두꺼운 부분)이 기준 장과 가장 많이 겹치는 자리로 발 자리를 옮긴다: 걷기는 걷기 첫 장에, 서 있는
+// 자세(공격 첫 장)는 걷기 첫 장에, 공격의 다른 장은 공격 첫 장에. 땅을 딛는 몬스터는 걷기의 장마다, 그리고 서 있는 자세의 몸 아래 끝을
+// 걷기 첫 장과 같은 땅선에 둔다(걸을 때 통통 튀지 않게). 공격 안의 위아래와 뛰는 슬라임, 떠 있는 몬스터의 오르내림은 그림대로 두고,
+// 서 있는 자세만 걷기와 높이를 맞춘다(공격의 다른 장은 서 있는 자세와 같은 만큼 옮긴다).
+const GROUNDED = Object.freeze(['legs', 'crawl', 'roll']);
+const ALIGN_SPAN = 96;     // 몸을 찾는 좌우 범위(도트)
+const ALIGN_RISE = 24;     // 떠 있는 몬스터의 서 있는 자세를 찾는 위아래 범위(도트)
+
+/** 한 장의 몸: 칸 안의 불투명 도트와, r 도트 깎아 낸 몸통(사방 r 안이 모두 찬 도트), 땅선(두 도트 이상 찬 가장 아래 줄: 떨어진 한 도트는 뺀다). */
+function bodyOf(cell, r) {
+    const { w, h } = cell, solid = new Uint8Array(w * h), rows = new Uint32Array(h);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+        if (cell.png.data[((cell.y + y) * cell.png.width + cell.x + x) * 4 + 3] < 128) continue;
+        solid[y * w + x] = 1; rows[y]++;
+    }
+    let ground = h - 1;
+    while (ground > 0 && rows[ground] < 2) ground--;
+    return { w, h, feet: cell.feet, core: erode(solid, w, h, r), ground };
+}
+/** 사방 r 도트 안이 모두 찬 도트만 남긴다(가로로 깎고 세로로 깎는다). */
+function erode(mask, w, h, r) {
+    if (r < 1) return mask;
+    const pass = (src, length, count, at) => {
+        const out = new Uint16Array(src.length);   // 이어진 도트 수(255를 넘는 몸이 있다)
+        for (let line = 0; line < count; line++) {
+            let run = 0;
+            for (let i = 0; i < length; i++) run = src[at(line, i)] ? run + 1 : 0, out[at(line, i)] = run;
+            for (let i = length - 1, back = 0; i >= 0; i--) {
+                back = src[at(line, i)] ? back + 1 : 0;
+                out[at(line, i)] = out[at(line, i)] > r && back > r ? 1 : 0;
+            }
+        }
+        return out;
+    };
+    return pass(pass(mask, w, h, (y, x) => y * w + x), h, w, (x, y) => y * w + x);
+}
+/** 몸통 도트의 자리(발 자리 기준). step으로 듬성듬성 고른다. */
+function corePoints(body, step) {
+    const points = [];
+    for (let y = 0; y < body.h; y += step) for (let x = 0; x < body.w; x += step) if (body.core[y * body.w + x]) points.push(x - body.feet[0], y - body.feet[1]);
+    return points;
+}
+function overlap(points, body, sx, sy) {
+    let hits = 0;
+    const fx = body.feet[0] + sx, fy = body.feet[1] + sy;
+    for (let i = 0; i < points.length; i += 2) {
+        const x = points[i] + fx, y = points[i + 1] + fy;
+        if (x >= 0 && y >= 0 && x < body.w && y < body.h && body.core[y * body.w + x]) hits++;
+    }
+    return hits;
+}
+/** body의 발 자리를 얼마나 옮기면 몸통이 ref와 가장 많이 겹치는가([sx, sy]). sy가 주어지면 위아래는 그대로 쓰고, 아니면 rise 안에서 찾는다. */
+function bestShift(ref, body, fixedY, rise) {
+    const coarse = corePoints(ref, 2), fine = corePoints(ref, 1);
+    const ys = fixedY !== null ? [fixedY] : Array.from({ length: rise + 1 }, (_, i) => 2 * i - rise);
+    let best = { score: -1, sx: 0, sy: fixedY || 0 };
+    for (const sy of ys) for (let sx = -ALIGN_SPAN; sx <= ALIGN_SPAN; sx += 2) {
+        const score = overlap(coarse, body, sx, sy);
+        if (score > best.score || (score === best.score && Math.abs(sx) + Math.abs(sy) < Math.abs(best.sx) + Math.abs(best.sy))) best = { score, sx, sy };
+    }
+    let fit = { score: -1, sx: best.sx, sy: best.sy };
+    for (let dy = fixedY !== null ? 0 : -1; dy <= (fixedY !== null ? 0 : 1); dy++) for (let dx = -1; dx <= 1; dx++) {
+        const score = overlap(fine, body, best.sx + dx, best.sy + dy);
+        if (score > fit.score) fit = { score, sx: best.sx + dx, sy: best.sy + dy };
+    }
+    return [fit.sx, fit.sy];
+}
+/** 한 장의 발 자리를 옮긴다(gridFrames의 프레임은 발 자리 배열을 함께 쓰므로 새 배열로). */
+function moveFeet(cell, [sx, sy]) { cell.feet = [cell.feet[0] + sx, cell.feet[1] + sy]; }
+/** 몸통을 깎는 두께: 몸 키의 1/24(1~7도트). 그만큼 깎으면 몸통이 거의 남지 않는 가는 몬스터는 덜 깎는다. */
+function coreRadius(cell) {
+    const box = boxOf(cell);
+    let r = box ? Math.min(7, Math.max(1, Math.round((box[3] - box[1] + 1) / 24))) : 1;
+    while (r > 0 && corePoints(bodyOf(cell, r), 1).length < 160) r--;
+    return r;
+}
+/** 땅선이 발 자리보다 얼마나 아래인가: 두 장의 이 값이 같으면 같은 땅을 딛는다(걷기와 공격은 칸과 기준점이 달라 발 자리 기준으로 잰다). */
+const groundBelowFeet = body => body.ground - body.feet[1];
+/** 땅을 딛는 몬스터의 땅선은 걷기 장들의 가운데 값이다(첫 장이 발을 든 장이면 그 장에 맞춘 걷기가 통째로 떴다). */
+function alignMotion(walk, attack, grounded) {
+    const r = coreRadius(walk[0]), bodies = walk.map(cell => bodyOf(cell, r));
+    const ground = grounded ? middle(bodies.map(groundBelowFeet)) : 0, lift = body => (grounded ? groundBelowFeet(body) - ground : 0);
+    moveFeet(walk[0], [0, lift(bodies[0])]);
+    const walkRef = bodyOf(walk[0], r);
+    walk.slice(1).forEach((cell, i) => moveFeet(cell, bestShift(walkRef, bodies[i + 1], lift(bodies[i + 1]), 0)));
+    const stand = bodyOf(attack[0], r), shift = bestShift(walkRef, stand, grounded ? lift(stand) : null, ALIGN_RISE);
+    moveFeet(attack[0], shift);
+    const standRef = bodyOf(attack[0], r);
+    for (const cell of attack.slice(1)) moveFeet(cell, bestShift(standRef, bodyOf(cell, r), shift[1], 0));
+}
 /** clips.json의 몬스터마다 move와 attack: 가로 cols칸 시트(칸 width × height, 발 자리 anchor, 왼쪽을 본다), 프레임 시간 ticks(1/60초),
  * 공격의 타격 프레임 impactFrame. 칸마다 좌우를 뒤집어 오른쪽을 보게 한다. 원화 색상표로 마감된 그림이라 색을 다시 줄이지 않는다.
  * 이름, 걸음새, 떠 있는 높이는 같은 id의 앞선 그림 것을 잇는다. 다리로 걷는 몬스터는 걸어온 거리로, 떠 있는 몬스터는 시간으로 돈다. */
@@ -339,11 +439,13 @@ function motionBatch(dir, previous) {
         const before = previous.get(id), gait = before ? before.gait : MOTION_GAITS[id] || 'legs', airborne = AIRBORNE.includes(gait);
         const hover = airborne ? (before ? hoverOf(before) : MOTION_HOVER) : 0;
         const clipOf = clip => {
-            const sheet = mirrorCells(read(path.join(dir, clip.sheet)), clip.width), feet = [clip.width - 1 - clip.anchor[0], clip.anchor[1] + hover];
+            const right = (MOTION_FACES_RIGHT[id] || []).includes(clip.action), png = read(path.join(dir, clip.sheet));
+            const sheet = right ? png : mirrorCells(png, clip.width), feet = [right ? clip.anchor[0] : clip.width - 1 - clip.anchor[0], clip.anchor[1] + hover];
             return { frames: gridFrames(sheet, [clip.width, clip.height], clip.cols, clip.frames, feet), ms: clip.ticks.map(tick => +(tick * 1000 / 60).toFixed(2)) };
         };
-        out.set(id, { ...(before || {}), id, name: before ? before.name : pair.move.name, gait,
-            walk: { ...clipOf(pair.move), pace: airborne ? 'time' : 'stride' }, attack: { ...clipOf(pair.attack), hit: pair.attack.impactFrame ?? 3 } });
+        const walk = { ...clipOf(pair.move), pace: airborne ? 'time' : 'stride' }, attack = { ...clipOf(pair.attack), hit: pair.attack.impactFrame ?? 3 };
+        alignMotion(walk.frames, attack.frames, GROUNDED.includes(gait));
+        out.set(id, { ...(before || {}), id, name: before ? before.name : pair.move.name, gait, walk, attack });
     }
     return out;
 }
