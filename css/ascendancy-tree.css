@@ -30,6 +30,9 @@
 #tab-traits .ascend-node>*{position:relative;left:round(down,50%,1px);translate:round(up,-50%,1px)}
 #tab-traits .ascend-node-head{display:flex;align-items:center;gap:4px}
 #tab-traits .ascend-node .ascend-node-icon{width:18px;height:18px}
+/* 칸과 고르기 카드의 그림(js/ui.js renderPixelIcon): 채우기를 정하지 않아 검게 그려져, 찍지 않은 어두운 칸에서는 보이지 않았다. 글자색을 따른다 */
+#tab-traits :is(.ascend-node-icon,.ascend-pick-icon,.ascend-pick-chip-icon) .m{fill:currentColor}
+#tab-traits :is(.ascend-node-icon,.ascend-pick-icon,.ascend-pick-chip-icon) .f{fill:color-mix(in srgb,currentColor 55%,transparent)}
 #tab-traits .ascend-node-head b{font-weight:normal;color:#f6dc8c;white-space:nowrap}
 /* 능력치 이름: 두 줄까지(긴 이름은 자세히 카드가 다 쓴다) */
 #tab-traits .ascend-node-name{display:-webkit-box;max-width:100%;max-height:28px;overflow:hidden;color:#b8ad96;text-align:center;word-break:keep-all;-webkit-line-clamp:2;-webkit-box-orient:vertical}
