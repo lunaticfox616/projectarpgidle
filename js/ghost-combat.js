@@ -33,6 +33,35 @@ function getGhostCombatDirectEhp(stats, profile) {
     ]));
 }
 
+/** 대결에서 쓰는 전투 전술(js/combat.js updatePlayerGridEngagement와 같다): 위치 전술(조건부 규칙이 맞지 않을 때의 기본 전술)과
+ * 최후방 사격은 전술이 열렸을 때만, 추적자의 다가가는 이동 속도(%)는 늘. */
+function getGhostCombatTactics(stats) {
+    let unlocked = game.combatTacticsUnlocked === true;
+    let flags = stats.passiveKeystoneFlags || {};
+    return {
+        positionMode: unlocked ? normalizeCombatTacticsSettings(game.settings).positionMode : 'auto',
+        farshot: unlocked && flags.farshot === true,
+        pursuitMovePct: clampNumber(Number(stats.uniquePursuitMovePct) || 0, 0, 100)
+    };
+}
+
+/** 움직이며 싸우는 대결의 값(db/operations-and-ghost.sql simulate_ghost_duel): 이동 속도(100이 기본), 주 스킬과 이동 스킬룬의
+ * 사거리(칸, js/combat-grid.js getSkillGridProfile), 재사용 대기시간 줄을 더한 이동 스킬룬의 대기, 전술, 다시 보기의 직업과 무기 자세.
+ * 서버가 아직 모르는 값은 버리므로 예전 서버에도 그대로 보낼 수 있다. */
+function getGhostCombatMotion(stats, skill) {
+    let reach = (name, def) => clampNumber(Number(getSkillGridProfile(name, def).range) || 1, 1, 8);
+    let mobility = mobilitySkill.equipped(game);
+    return {
+        moveSpeed: clampNumber(Number(stats.moveSpeed) || 100, 20, 400),
+        attackRange: reach(game.activeSkill, skill),
+        mobilityRange: mobility ? reach(mobility, SKILL_DB[mobility]) : 0,
+        mobilityCooldownMs: mobility ? Math.round(mobilitySkill.cooldownMs(mobility, stats)) : 4000,
+        mobilitySkill: mobility || undefined,
+        classId: getHeroAppearanceId(),
+        stance: SKILL_RUNE_STANCE_BY_CATEGORY[getWeaponCategoryId(game.equipment && game.equipment['무기'])] || 'unarmed'
+    };
+}
+
 /**
  * 서버 고스트 판정에 필요한 파생 전투 능력치만 만든다. 저장 원문이나 장비 원본은 포함하지 않는다.
  * @param {Readonly<object>} suppliedStats
@@ -76,7 +105,9 @@ function getGhostCombatSnapshot(suppliedStats) {
         deflectChance: clampNumber(Number(stats.deflectChance) || 0, 0, 75),
         deflectDamageReduce: clampNumber(40 + (Number(stats.deflectDamageReduce) || 0), 40, 85),
         leechPct: clampNumber(Number(stats.leech) || 0, 0, 20),
-        recoveryPct: getGhostCombatRecoveryPct(stats)
+        recoveryPct: getGhostCombatRecoveryPct(stats),
+        ...getGhostCombatMotion(stats, skill),
+        ...getGhostCombatTactics(stats)
     };
 }
 
