@@ -59,11 +59,11 @@
 #startup-overlay .startup-summary-item {
   min-height: 0; padding: 0; border: 0; border-radius: 0; background: none; transform: none; box-shadow: none;
 }
-#startup-overlay .startup-summary-label { color: var(--entry-muted); font-size: 11px; letter-spacing: .03em; }
+#startup-overlay .startup-summary-label { color: var(--entry-muted); font-size: var(--font-size-ui); letter-spacing: .03em; }
 #startup-overlay .startup-summary-value { margin-top: 4px; color: var(--entry-copy); font-size: 12px; font-weight: 400; line-height: 1.5; }
 #startup-overlay .startup-patch-note-link {
   min-height: 30px; margin: 0; padding: 4px 0 4px 12px; border: 0; border-radius: 0;
-  color: var(--entry-gold); background: none; box-shadow: none; font: 400 11px/1.4 var(--font-body); text-shadow: none;
+  color: var(--entry-gold); background: none; box-shadow: none; font: 400 var(--font-size-ui)/1.4 var(--font-body); text-shadow: none;
 }
 #startup-overlay .startup-patch-note-link:hover { color: #fff3d4; text-decoration: underline; }
 #startup-overlay .startup-latest-patch-date { color: var(--entry-muted); font-size: 12px; }
@@ -77,7 +77,7 @@
   box-shadow: 0 24px 70px rgba(0,0,0,.28), inset 0 1px rgba(255,243,209,.04); backdrop-filter: none;
 }
 #startup-overlay .startup-auth-head { margin-bottom: 6px; }
-#startup-overlay .startup-auth-title { margin: 0; color: var(--entry-copy); font-size: 23px; font-weight: 500; letter-spacing: .02em; }
+#startup-overlay .startup-auth-title { margin: 0; color: var(--entry-copy); font-size: var(--font-size-heading); font-weight: 500; letter-spacing: .02em; }
 #startup-overlay .startup-form { gap: 7px; }
 /* 칸 이름은 칸 안의 안내(placeholder)가 대신한다. 화면 읽기 프로그램에는 그대로 읽힌다. */
 #startup-overlay .startup-field-label {
@@ -130,7 +130,7 @@
 #startup-overlay #btn-startup-kakao img { width: auto; height: 44px; max-width: 100%; margin: 0; object-fit: contain; border-radius: 0; }
 #startup-overlay .startup-status { min-height: 0; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; color: #d8c392; font-size: 12px; line-height: 1.5; text-align: center; }
 #startup-overlay .startup-status:empty { display: none; }
-#startup-overlay .startup-policy-links { padding-top: 2px; font-size: 10px; }
+#startup-overlay .startup-policy-links { padding-top: 2px; font-size: var(--font-size-meta); }
 #startup-overlay .startup-policy-links a { color: #b3bca9; text-decoration-color: #677460; }
 #startup-overlay .startup-legal-consent { color: var(--entry-muted); border-color: #3b2f1e; background: #0d0b08; }
 #startup-overlay .startup-legal-consent input { accent-color: var(--entry-gold); }

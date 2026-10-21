@@ -12,15 +12,18 @@
   background: linear-gradient(180deg, #1d1712 0%, #120e0a 100%);
   box-shadow: 0 0 0 1px #000, inset 0 0 0 3px #120e0a, inset 0 0 0 4px rgba(227, 189, 114, .32), 0 10px 24px rgba(0, 0, 0, .55); }
 :root body #item-tab-equip .equipment-window .eqw-title { display: flex; gap: 8px; align-items: baseline; margin: -10px -12px 10px; padding: 6px 12px 5px;
-  color: var(--eqw-gold); font-size: 13px; letter-spacing: .5px; text-shadow: 0 1px 0 #000;
+  color: var(--eqw-gold); font-size: var(--font-size-ui); letter-spacing: 1px; text-shadow: 0 1px 0 #000;
   background: linear-gradient(90deg, rgba(227, 189, 114, .22), rgba(227, 189, 114, .04) 70%, transparent); border-bottom: 1px solid rgba(227, 189, 114, .45); }
 :root body #item-tab-equip .equipment-window .eqw-title small { margin-left: auto; color: var(--eqw-muted); font-size: 11px; font-weight: 400; letter-spacing: 0; text-align: right; }
 :root body #item-tab-equip .equipment-window .eqw-title small.is-warning { color: #ff9a80; }
 
 /* 장착 장비: 인형 배치. 칸마다 위에 칸 이름, 그림, 아래에 아이템 이름(등급 색, 두 줄까지). 2026-10-11: 개편 때 아이템 이름을 빼고 칸 이름을
-   10px 흐린 글로 줄였더니 무엇을 꼈는지 칸마다 마우스를 올려야 알 수 있었다. 빼기는 두 번 누르기와 선택한 장비의 단추. */
-:root body #item-tab-equip #ui-equip-list.equipment-paperdoll { display: grid; gap: 5px 8px; margin: 0; padding: 2px 0; border: 0;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.16fr) minmax(0, 1fr); grid-template-rows: repeat(5, 68px);
+   10px 흐린 글로 줄였더니 무엇을 꼈는지 칸마다 마우스를 올려야 알 수 있었다. 빼기는 두 번 누르기와 선택한 장비의 단추.
+   2026-10-21: 옆 두 칸은 정수 px로 자른다(round). 1 : 1.16 : 1이 71.5px처럼 소수로 나뉘면 칸 이름과 아이템 이름이 화소 사이에서 시작해
+   번졌다. 12px 이름이 기본 창의 옆 칸(72px)에서 두 줄에 들도록 칸 틈은 6px, 이름 좌우 여백은 2px. */
+:root body #item-tab-equip #ui-equip-list.equipment-paperdoll { display: grid; gap: 5px 6px; margin: 0; padding: 2px 0; border: 0;
+  --eqw-doll-side: round(down, calc((100% - 12px) / 3.16), 1px);
+  grid-template-columns: var(--eqw-doll-side) minmax(0, 1fr) var(--eqw-doll-side); grid-template-rows: repeat(5, 68px);
   grid-template-areas: "amulet helm core" "weapon body shield" "weapon body shield" "glove1 belt glove2" "ring1 boots ring2";
   background: radial-gradient(ellipse 50% 58% at 50% 46%, rgba(227, 189, 114, .16), transparent 72%); }
 :root body #item-tab-equip #ui-equip-list .slot-목걸이 { grid-area: amulet; }
@@ -56,20 +59,21 @@
 :root body #item-tab-equip #ui-equip-list > .equipment-slot.equipment-slot-empty .equipment-slot-visual img { opacity: .22; }
 :root body #item-tab-equip #ui-equip-list > .equipment-slot .equipment-slot-head { grid-area: 1 / 1; position: relative; z-index: 2; display: block; padding: 0; pointer-events: none; }
 :root body #item-tab-equip #ui-equip-list > .equipment-slot .equipment-slot-head > span:first-child { position: absolute; left: 15px; top: 1px; color: #d9cdb4;
-  font-size: 11px; line-height: 1.2; text-shadow: 1px 1px 0 #000, 0 0 3px #000; }
+  font-size: var(--font-size-ui); line-height: 14px; text-shadow: 1px 1px 0 #000, 0 0 3px #000; }
 :root body #item-tab-equip #ui-equip-list > .equipment-slot.equipment-slot-empty .equipment-slot-head > span:first-child { left: 4px; color: var(--eqw-muted); }
 :root body #item-tab-equip #ui-equip-list > .equipment-slot .equipment-socket-pips { position: absolute; top: 3px; right: 3px; }
 :root body #item-tab-equip #ui-equip-list > .equipment-slot .equipment-requirement-badge { grid-area: 1 / 1; position: static; align-self: end; justify-self: end; z-index: 3; margin: 0 2px 1px 0; }
-:root body #item-tab-equip #ui-equip-list > .equipment-slot .equipment-slot-name { grid-area: 2 / 1; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; margin: 0;
-  padding: 0 3px 3px; overflow: hidden; font-size: 11px; font-weight: 700; line-height: 1.18; text-align: center; white-space: normal; word-break: keep-all; overflow-wrap: anywhere;
+:root body #item-tab-equip #ui-equip-list > .equipment-slot .equipment-slot-name { grid-area: 2 / 1; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; margin: 0 0 3px;
+  justify-self: start; width: fit-content; max-width: 100%; position: relative; left: round(down, 50%, 1px); translate: round(up, -50%, 1px);
+  padding: 0 2px; overflow: hidden; font-size: var(--font-size-ui); font-weight: 700; line-height: 14px; text-align: center; white-space: normal; word-break: keep-all; overflow-wrap: anywhere;
   text-shadow: 0 1px 0 #000; }
 :root body #item-tab-equip #ui-equip-list > .equipment-slot.is-menu-selected,
 :root body #item-tab-equip #ui-equip-list > .equipment-slot.selected { box-shadow: 0 0 0 2px #000, 0 0 14px rgba(255, 210, 122, .85), inset 0 0 12px rgba(0, 0, 0, .8); }
 :root body #item-tab-equip #ui-equip-list > .ward-slot-row { grid-column: 1 / -1; gap: 4px; margin-top: 2px; }
-/* 액막이 칸은 그림 24px과 두 줄 글(11px)에 맞춘 높이: 기본 창에서 요약의 유효 생명력까지 한 화면에 들어오게 왼쪽 칸의 세로를 줄였다(2026-10-11). */
+/* 액막이 칸은 그림 24px과 두 줄 글(12px, 줄 14px)에 맞춘 높이: 기본 창에서 요약의 유효 생명력까지 한 화면에 들어오게 왼쪽 칸의 세로를 줄였다(2026-10-11). */
 :root body #item-tab-equip #ui-equip-list .ward-slot-cells .ward-slot { min-height: 58px; padding: 3px; }
 :root body #item-tab-equip #ui-equip-list .ward-slot-cells .ward-slot img { width: 24px; height: 24px; }
-:root body #item-tab-equip #ui-equip-list .ward-slot-cells .ward-slot-line { font-size: 11px; line-height: 1.15; }
+:root body #item-tab-equip #ui-equip-list .ward-slot-cells .ward-slot-line { font-size: var(--font-size-ui); line-height: 14px; }
 
 /* 요약: DPS 하나만 크게, 그 아래 유효 생명력 한 줄(2026-10-21 사용자: 저항과 그 밖의 능력치는 지웠다) */
 :root body #item-tab-equip .equipment-window .equipment-loadout-summary { display: block; margin: 0; }
@@ -77,9 +81,9 @@
 :root body #item-tab-equip .eqw-dps { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 6px; padding: 3px 8px;
   background: linear-gradient(180deg, rgba(227, 189, 114, .07), transparent); border: 1px solid rgba(122, 95, 51, .45); }
 :root body #item-tab-equip .eqw-dps span { color: #c9b48a; font-size: 12px; letter-spacing: 1px; }
-:root body #item-tab-equip .eqw-dps b { color: var(--c); font-size: 22px; text-shadow: 0 0 10px color-mix(in srgb, var(--c) 45%, transparent); }
+:root body #item-tab-equip .eqw-dps b { color: var(--c); font-size: var(--font-size-heading); text-shadow: 0 0 10px color-mix(in srgb, var(--c) 45%, transparent); }
 :root body #item-tab-equip .eqw-ehp { display: flex; flex-wrap: wrap; gap: 2px 10px; margin-top: 6px; }
-:root body #item-tab-equip .eqw-ehp > span { color: var(--eqw-muted); font-size: 11px; }
+:root body #item-tab-equip .eqw-ehp > span { color: var(--eqw-muted); font-size: var(--font-size-ui); }
 :root body #item-tab-equip .eqw-ehp > span b { color: var(--c); }
 :root body #item-tab-equip .eqw-ehp .eqw-ehp-label { color: #c9b48a; }
 
@@ -109,7 +113,7 @@
 :root body #item-tab-equip .eqw-bag-head { position: relative; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 8px; padding-bottom: 8px;
   border-bottom: 1px solid rgba(227, 189, 114, .3); }
 :root body #item-tab-equip .eqw-cap { display: grid; grid-template-columns: auto auto; grid-template-rows: auto 5px; column-gap: 6px; align-items: baseline; padding-right: 4px; }
-:root body #item-tab-equip .eqw-cap b { color: var(--eqw-gold); font-size: 14px; text-shadow: 0 0 8px rgba(227, 189, 114, .35); }
+:root body #item-tab-equip .eqw-cap b { color: var(--eqw-gold); font-size: var(--font-size-ui); text-shadow: 0 0 8px rgba(227, 189, 114, .35); }
 :root body #item-tab-equip .eqw-cap small { color: var(--eqw-muted); font-size: 11px; }
 :root body #item-tab-equip .eqw-cap i { position: relative; grid-column: 1 / span 2; height: 5px; background: #241d16; border: 1px solid #000; }
 :root body #item-tab-equip .eqw-cap i::after { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: var(--v); background: #b98a3e; }
@@ -178,7 +182,7 @@
 :root body #item-tab-equip .eqw-auto-salvage #auto-salvage-toggle-btn { justify-self: start; }
 /* 꺼져 있으면 등급 칩은 아무 일도 하지 않는다: 설정 아이템 필터의 꺼진 조건처럼 흐리게(고를 수는 있다). */
 :root body #item-tab-equip .eqw-auto-salvage:has(.eqw-rail-title b:not(.is-on)) #auto-salvage-rarity-chips { opacity: .5; }
-:root body #item-tab-equip .eqw-rail-panel .loot-filter-note { margin: 0; color: var(--eqw-muted); font-size: 11px; line-height: 1.5; }
+:root body #item-tab-equip .eqw-rail-panel .loot-filter-note { margin: 0; color: var(--eqw-muted); font-size: var(--font-size-ui); line-height: 1.5; }
 :root body #item-tab-equip .eqw-rail-panel .eqw-rail-link { min-height: 0; padding: 0 2px; border: 0; background: none; color: var(--eqw-gold); text-decoration: underline; }
 
 /* 가방 칸: 칸마다 살짝 나뉘는 결, 고른 장비는 금빛 테, 새 아이템은 빨간 점 하나 */
@@ -195,14 +199,14 @@
 /* 선택한 장비: 그림과 이름, 지금 장착, 바꾸면 증감표, 단추, 툴팁 */
 :root body #item-tab-equip .eqw-pick { display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: 10px; align-items: center; margin-bottom: 8px; }
 :root body #item-tab-equip .eqw-pick img { width: 48px; height: 48px; object-fit: contain; image-rendering: pixelated; border: 1px solid #6b5431; background: #000; }
-:root body #item-tab-equip .eqw-pick b { display: block; font-size: 14px; }
+:root body #item-tab-equip .eqw-pick b { display: block; font-size: var(--font-size-ui); }
 :root body #item-tab-equip .eqw-pick small { display: block; color: var(--eqw-muted); font-size: 11px; }
 :root body #item-tab-equip :is(.eqw-pick, .eqw-pick small) :is(.normal) { color: #d6cdb8; }
 :root body #item-tab-equip :is(.eqw-pick, .eqw-pick small) :is(.magic) { color: #86b2e2; }
 :root body #item-tab-equip :is(.eqw-pick, .eqw-pick small) :is(.rare) { color: #e2c466; }
 :root body #item-tab-equip :is(.eqw-pick, .eqw-pick small) :is(.unique) { color: #ff9f43; }
 :root body #item-tab-equip .eqw-deltas { margin-bottom: 8px; padding: 6px 8px; border: 1px solid #4a3a22; background: linear-gradient(180deg, #0f0c09, #0a0806); }
-:root body #item-tab-equip .eqw-dl-head { margin-bottom: 3px; color: var(--eqw-muted); font-size: 11px; }
+:root body #item-tab-equip .eqw-dl-head { margin-bottom: 3px; color: var(--eqw-muted); font-size: var(--font-size-ui); }
 :root body #item-tab-equip .eqw-dl { display: grid; grid-template-columns: minmax(44px, 96px) auto 14px auto minmax(max-content, 1fr); gap: 6px; align-items: baseline; padding: 2px 0;
   font-size: 12px; white-space: nowrap; }
 :root body #item-tab-equip .eqw-dl span { overflow: hidden; color: var(--eqw-muted); text-overflow: ellipsis; }
@@ -211,12 +215,12 @@
 :root body #item-tab-equip .eqw-dl em { font-style: normal; font-weight: 700; text-align: right; }
 :root body #item-tab-equip .eqw-dl.up :is(em, b:last-of-type) { color: #8fe08f; }
 :root body #item-tab-equip .eqw-dl.down :is(em, b:last-of-type) { color: #ff8a80; }
-:root body #item-tab-equip .eqw-dl-note { font-size: 11px; }
+:root body #item-tab-equip .eqw-dl-note { font-size: var(--font-size-ui); }
 :root body #item-tab-equip .eqw-dl-note.is-gain { color: #d8b5ff; }
 :root body #item-tab-equip .eqw-dl-note.is-loss { color: #c98f9f; }
 :root body #item-tab-equip .eqw-none { margin: 4px 0; color: var(--eqw-muted); font-size: 12px; }
 :root body #item-tab-equip .eqw-dl-more { display: none; }
-:root body #item-tab-equip #ui-equipment-inventory-inspector .equipment-grid-inspector-actions { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; grid-auto-flow: row;
+:root body #item-tab-equip #ui-equipment-inventory-inspector .equipment-grid-inspector-actions { display: grid; grid-template-columns: minmax(0, 1fr) repeat(3, round(down, calc((100% - 18px) / 5), 1px)); grid-auto-flow: row;
   grid-row: auto; grid-column: auto; gap: 6px; margin: 0 0 8px; }
 :root body #item-tab-equip #ui-equipment-inventory-inspector .equipment-grid-inspector-actions button { min-width: 0; min-height: 32px; padding: 4px 6px; border-radius: 0; font-size: 12px; }
 :root body #item-tab-equip #ui-equipment-inventory-inspector .equipment-grid-inspector-actions .equipment-card-primary { grid-column: auto;
@@ -233,7 +237,7 @@
 :root body #item-tab-equip .eqw-compare-tabs > button.active { border-color: #e3bd72; background: linear-gradient(180deg, #4a3618, #2c2010); color: #fff3d6; box-shadow: inset -1px 0 0 #e3bd72; }
 :root body #item-tab-equip .eqw-compare-pane { display: none; min-width: 0; }
 :root body #item-tab-equip .eqw-compare-pane.active { display: block; }
-:root body #item-tab-equip .eqw-compare-pane > h5 { display: none; margin: 0 0 4px; color: var(--eqw-gold); font-size: 12px; font-weight: 700; letter-spacing: .5px; }
+:root body #item-tab-equip .eqw-compare-pane > h5 { display: none; margin: 0 0 4px; color: var(--eqw-gold); font-size: 12px; font-weight: 700; letter-spacing: 1px; }
 @container eqwpanel (min-width: 500px) {
   :root body #item-tab-equip .eqw-compare-tabs { display: none; }
   :root body #item-tab-equip .eqw-compare-panes { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 8px; align-items: start; }
@@ -302,8 +306,8 @@
     color: var(--eqw-gold); font-size: 12px; }
   :root body #item-tab-equip .eqw-mini-dps { text-align: right; }
   :root body #item-tab-equip .eqw-mini-dps small { display: block; color: var(--eqw-muted); font-size: 10px; }
-  :root body #item-tab-equip .eqw-mini-dps b { color: var(--c); font-size: 16px; text-shadow: 0 0 10px color-mix(in srgb, var(--c) 45%, transparent); }
-  :root body #item-tab-equip .eqw-mini-line { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 2px 10px; color: var(--eqw-muted); font-size: 11px; }
+  :root body #item-tab-equip .eqw-mini-dps b { color: var(--c); font-size: var(--font-size-heading); text-shadow: 0 0 10px color-mix(in srgb, var(--c) 45%, transparent); }
+  :root body #item-tab-equip .eqw-mini-line { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 2px 10px; color: var(--eqw-muted); font-size: var(--font-size-ui); }
   :root body #item-tab-equip .eqw-mini-line b { color: var(--c); }
   :root body #item-tab-equip #ui-equip-list.equipment-paperdoll { justify-content: center; grid-template-columns: repeat(3, minmax(0, 88px)); grid-template-rows: repeat(5, 72px); }
   :root body #item-tab-equip #ui-equip-list.equipment-paperdoll.has-ring3.has-core { grid-template-rows: repeat(6, 72px); }

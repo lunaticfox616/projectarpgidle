@@ -146,15 +146,17 @@ body[data-ui-skin] .window-tab-strip > .window-tab { display: flex; align-items:
     background: none;
     box-shadow: none;
     color: var(--px-copy-muted);
-    font-family: var(--font-pixel);
-    font-size: 16px;
+    font-family: var(--font-pixel-title);
+    font-size: var(--font-size-heading);
+    font-weight: var(--font-weight-emphasis);
     line-height: 1;
     text-shadow: var(--px-text-edge);
     cursor: pointer;
     transform: none;
   }
-  /* 도트 테마가 창 안의 단추 글씨를 12px로 묶는다(css/themes/pixel.css, #tab-battle을 뺀 모든 화면): 탭의 이름은 창의 제목 구실이라 제목 크기다 */
-  :root body[data-ui-skin].desktop-windowed-ui .tab-content:not(#tab-battle) .ui-window-tabs > .window-tab { font-size: 16px; }
+  /* 도트 테마가 창 안의 단추 글씨를 12px로 묶는다(css/themes/pixel.css, #tab-battle을 뺀 모든 화면): 탭의 이름은 창의 제목 구실이라 제목 크기다.
+     16px은 갈무리11의 제 격자(12px의 정수 배)가 아니라 번졌다: 창 제목과 같은 24px Bold(2026-10-21). */
+  :root body[data-ui-skin].desktop-windowed-ui .tab-content:not(#tab-battle) .ui-window-tabs > .window-tab { font-size: var(--font-size-heading); }
   :root body[data-ui-skin].desktop-windowed-ui .ui-window-tabs > .window-tab:first-child { border-left: 1px solid var(--px-ink); }
   :root body[data-ui-skin].desktop-windowed-ui .ui-window-tabs > .window-tab:is(:hover, :focus-visible) { background: var(--px-board), var(--px-stone-control); color: var(--px-copy); }
   /* 보고 있는 탭: 본문과 이어진 밝은 판, 금빛 이름, 아래의 금 줄 */

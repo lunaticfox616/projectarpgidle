@@ -14,6 +14,12 @@
 .records-gain { color: var(--color-success); font-weight: 700; }
 
 .mastery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; }
+/* 칸 폭은 정수 px(남는 몇 px는 오른쪽 끝): 1fr 칸은 소수 폭이라 카드 글이 번졌다(2026-10-21). 100cqw는 숙련 칸 본문의 폭. */
+.records-mastery > .records-fold-body { container-type: inline-size; }
+@supports (width: calc(1px / 1px * 1px)) {
+  .records-mastery .mastery-grid { --mastery-cols: max(1, round(down, (100cqw + 8px) / 188px, 1));
+    grid-template-columns: repeat(auto-fill, round(down, calc((100cqw - (var(--mastery-cols) - 1) * 8px) / var(--mastery-cols)), 1px)); }
+}
 .mastery-card { display: grid; gap: 4px; padding: 8px 10px; border: 1px solid var(--color-line); border-left: 3px solid var(--mastery-tone, var(--color-line)); border-radius: var(--radius-sm); background: rgba(0, 0, 0, .18); }
 .mastery-card.is-wielded { border-color: var(--mastery-tone, #e8c27a); background: color-mix(in srgb, var(--mastery-tone, #e8c27a) 8%, rgba(0, 0, 0, .18)); }
 .mastery-card-head { display: flex; align-items: baseline; gap: 6px; }
@@ -29,7 +35,7 @@
 
 .chronicle-body { grid-template-columns: 120px minmax(0, 1fr); align-items: start; }
 .chronicle-rings { width: 120px; height: 120px; }
-.chronicle-rings text { fill: #ffd36b; font-size: 15px; font-weight: 700; }
+.chronicle-rings text { fill: #ffd36b; font-size: var(--font-size-ui); font-weight: 700; }
 .chronicle-chapters { list-style: none; margin: 8px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 6px 10px; }
 .chronicle-chapter { display: grid; gap: 3px; padding-left: 8px; border-left: 2px solid color-mix(in srgb, var(--chapter-tone, #e8c27a) 35%, transparent); }
 .chronicle-chapter > div:first-child { display: flex; justify-content: space-between; gap: 6px; }

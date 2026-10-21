@@ -121,17 +121,18 @@ const stageDoorMarks = (() => {
         const run = actExplorationState.current(game), map = run ? actExplorationDoors.stageMap(run) : null, to = map && map.rooms[door.to];
         return to && !run.visitedRooms.includes(to.id) ? '다음 방' : '';
     }
-    const LABEL_FONT = `13px 'MulmaruMono', 'Malgun Gothic', sans-serif`;
+    // NPC 이름처럼 갈무리11 12px(2026-10-21): 적어 둔 MulmaruMono는 웹 글꼴로 불러오지 않아 맑은 고딕 13px로 그려졌다.
+    const LABEL_FONT = `12px 'Galmuri11', 'Malgun Gothic', sans-serif`;
     function markLabel(ctx, label, at, colour) {
         ctx.globalAlpha = 1;
         ctx.font = LABEL_FONT;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.lineWidth = 3;
+        ctx.lineWidth = 2;
         ctx.strokeStyle = 'rgba(8,6,4,0.9)';
         ctx.fillStyle = colour;
-        ctx.strokeText(label, Math.round(at.x), Math.round(at.y));
-        ctx.fillText(label, Math.round(at.x), Math.round(at.y));
+        drawCrispCanvasText(ctx, label, at.x, at.y, 'strokeText');
+        drawCrispCanvasText(ctx, label, at.x, at.y);
     }
     /**
      * @param {{cx:number, cy:number, w:number}} box where the mark sits and how wide its light spreads

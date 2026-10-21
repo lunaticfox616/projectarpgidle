@@ -25,7 +25,7 @@ const equipmentSocketsUi = (() => {
         if (!sockets.length && !canOpen) return '';
         const label = sockets.length ? `소켓 ${sockets.filter(row => row.jewel).length}/${sockets.length}` : '소켓 뚫기';
         const ref = slot ? `'${slot}',true` : `${item.id},false`;
-        return `<button type="button" data-content-action="sockets" onclick="equipmentInventoryInteraction.focus(null);equipmentSocketsUi.open(${ref})">${label}</button>`;
+        return `<button type="button" data-content-action="sockets" onclick="equipmentInventoryInteraction.focus(null);equipmentSocketsUi.open(${ref})"><span class="px-center">${label}</span></button>`;
     }
 
     /** Small filled/empty marks on a worn equipment card. */

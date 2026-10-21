@@ -100,7 +100,7 @@ const stumpBoxUi = (() => {
             stumpBox.graftOpen(game) ? `<span class="is-graft">접붙이기 ${stumpBox.graftPoints(game).free}</span>` : ''].filter(Boolean);
         return `<div class="stump-chips">${chips}</div><span class="stump-line">${notes.join(', ')}</span>`
             + stumpHarvestUi.rewardButtonHtml()
-            + '<button type="button" class="stump-rules-button" data-stump-action="rules" data-stump-tip="rules" data-info-tooltip-anchor="1" aria-label="그루터기 함 규칙">?</button>';
+            + '<button type="button" class="stump-rules-button" data-stump-action="rules" data-stump-tip="rules" data-info-tooltip-anchor="1" aria-label="그루터기 함 규칙"><span class="px-center">?</span></button>';
     }
     /** 옵션 합계 under the cube: what the working items add up to, each line in its stat's colour (the item affix colours, 2026-10-06). */
     function stumpSummaryHtml(result) {

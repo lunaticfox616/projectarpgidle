@@ -23,10 +23,11 @@
   .fishing-last { display: flex; align-items: center; gap: 8px; flex: none; padding: 6px 10px 6px 6px; border: 1px solid #2a2218; background: rgba(10, 8, 6, .5); }
   .fishing-last .fishing-fish { width: 40px; height: 40px; }
   .fishing-last .fishing-fish-icon { width: 30px; height: 30px; }
-  .fishing-last small { display: block; color: var(--px-copy-muted, #a39883); font-size: 11px; }
-  .fishing-last strong { color: var(--px-copy, #e8dcc0); font-size: 13px; font-weight: 400; }
+  .fishing-last small { display: block; color: var(--px-copy-muted, #a39883); font-size: 12px; }
+  .fishing-last strong { color: var(--px-copy, #e8dcc0); font-size: 12px; font-weight: 400; }
   .fishing-last strong.is-rare { color: #7fb6ff; } .fishing-last strong.is-epic { color: #c58cff; } .fishing-last strong.is-legendary { color: #ffb35c; } .fishing-last strong.is-mythic { color: #ff7a6a; }
-  .fishing-meters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
+  /* 첫 칸만 남는 폭(1fr)을 받고 나머지는 정수 px: 소수 폭이면 칸 글이 번졌다(2026-10-21). */
+  .fishing-meters { display: grid; grid-template-columns: minmax(0, 1fr) round(down, calc((100% - 8px) / 2), 1px); gap: 8px; margin-top: 10px; }
   .fishing-meter { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: 'label value' 'bar bar'; gap: 5px 8px; padding: 8px 10px; border: 1px solid #2a2218; background: rgba(10, 8, 6, .45); }
   .fishing-meter > span { grid-area: label; color: var(--px-copy-muted, #a39883); font-size: 12px; }
   .fishing-meter > b { grid-area: value; color: #8fd3ff; font-weight: 400; }
@@ -44,11 +45,11 @@
   #map-tab-fishing .fishing-strategy-card.is-on { border-color: #4f8fb0; background: linear-gradient(180deg, rgba(143, 211, 255, .1), rgba(10, 8, 6, .5)); }
   #map-tab-fishing .fishing-strategy-card:disabled { opacity: .7; }
   .fishing-strategy-icon { grid-area: icon; font-size: 18px; text-align: center; }
-  .fishing-strategy-card > strong { grid-area: name; color: var(--px-copy, #e8dcc0); font-size: 13px; font-weight: 400; }
+  .fishing-strategy-card > strong { grid-area: name; color: var(--px-copy, #e8dcc0); font-size: 12px; font-weight: 400; }
   .fishing-strategy-card.is-on > strong { color: #8fd3ff; }
-  .fishing-strategy-card > em { grid-area: on; color: #8fd3ff; font-size: 11px; font-style: normal; }
+  .fishing-strategy-card > em { grid-area: on; color: #8fd3ff; font-size: 12px; font-style: normal; }
   .fishing-chips { grid-area: chips; display: flex; flex-wrap: wrap; gap: 4px; }
-  .fishing-chips > i { padding: 0 5px; border: 1px solid #3a3024; color: var(--px-copy-muted, #a39883); font-size: 11px; font-style: normal; }
+  .fishing-chips > i { padding: 0 5px; border: 1px solid #3a3024; color: var(--px-copy-muted, #a39883); font-size: 10px; font-style: normal; }
   .fishing-chips > i.is-good { border-color: #3d5a26; color: #9fd46a; }
   .fishing-chips > i.is-bad { border-color: #6a2e26; color: #ff9a76; }
   .fishing-reef { display: grid; grid-template-columns: auto minmax(60px, 1fr) auto auto; align-items: center; gap: 8px; padding: 6px 10px; border: 1px solid #2a2218; background: rgba(10, 8, 6, .45); font-size: 12px; }
@@ -62,8 +63,8 @@
   .fishing-fish-tile .fishing-fish { grid-area: art; width: 40px; height: 40px; }
   .fishing-fish-tile .fishing-fish-icon { width: 30px; height: 30px; }
   .fishing-fish-tile strong { grid-area: name; color: var(--px-copy, #e8dcc0); font-size: 12px; font-weight: 400; overflow-wrap: anywhere; }
-  .fishing-fish-tile small { grid-area: rarity; color: var(--px-copy-muted, #a39883); font-size: 11px; }
-  .fishing-fish-tile b { grid-area: count; color: #8fd3ff; font-size: 11px; font-weight: 400; }
+  .fishing-fish-tile small { grid-area: rarity; color: var(--px-copy-muted, #a39883); font-size: 12px; }
+  .fishing-fish-tile b { grid-area: count; color: #8fd3ff; font-size: 12px; font-weight: 400; }
   .fishing-fish-tile.is-unknown strong, .fishing-fish-tile.is-unknown b { color: #8a7f6c; }
   .fishing-fish-tile[data-last] { border-color: #4f8fb0; }
   .fishing-milestones { display: grid; gap: 4px; margin-top: 10px; }
@@ -71,7 +72,7 @@
   .fishing-milestone > span { color: #8fd3ff; text-align: center; }
   .fishing-milestone > div { display: grid; gap: 3px; min-width: 0; }
   .fishing-milestone strong { color: var(--px-copy, #e8dcc0); font-size: 12px; font-weight: 400; }
-  .fishing-milestone small { color: var(--px-copy-muted, #a39883); font-size: 11px; }
+  .fishing-milestone small { color: var(--px-copy-muted, #a39883); font-size: 12px; }
   .fishing-milestone.is-ready { border-color: #8a6a2e; }
   .fishing-milestone.is-ready strong { color: #f3d28c; }
   .fishing-milestone.is-claimed { opacity: .65; }
@@ -81,8 +82,8 @@
   .fishing-target { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; padding: 8px 10px; border: 1px solid #2a2218; background: rgba(10, 8, 6, .45); }
   .fishing-target.is-on { border-color: #4f8fb0; }
   .fishing-target > div:first-child { display: grid; gap: 1px; min-width: 0; }
-  .fishing-target small { color: var(--px-copy-muted, #a39883); font-size: 11px; }
-  .fishing-target strong { font-size: 13px; font-weight: 400; }
+  .fishing-target small { color: var(--px-copy-muted, #a39883); font-size: 12px; }
+  .fishing-target strong { font-size: 12px; font-weight: 400; }
   .fishing-target span { color: var(--px-copy-muted, #a39883); font-size: 12px; }
   .fishing-target > div:last-child { display: flex; flex: none; gap: 6px; }
   .fishing-groups { display: grid; gap: 8px; }
@@ -92,8 +93,8 @@
   .fishing-group > summary::before { content: ''; flex: none; width: 6px; height: 6px; margin: 0 2px; border-right: 2px solid var(--px-copy-muted, #a39883);
     border-bottom: 2px solid var(--px-copy-muted, #a39883); transform: rotate(-45deg); }
   .fishing-group[open] > summary::before { transform: rotate(45deg); }
-  #map-tab-fishing .fishing-group > summary strong { color: var(--px-gold-bright, #e0c283); font-size: 13px; font-weight: 400; }
-  .fishing-group > summary em { padding: 0 5px; border: 1px solid #8a6a2e; color: #f3d28c; font-size: 11px; font-style: normal; }
+  #map-tab-fishing .fishing-group > summary strong { color: var(--px-gold-bright, #e0c283); font-size: 12px; font-weight: 400; }
+  .fishing-group > summary em { padding: 0 5px; border: 1px solid #8a6a2e; color: #f3d28c; font-size: 12px; font-style: normal; }
   .fishing-group > summary b { margin-left: auto; color: var(--px-copy-muted, #a39883); font-weight: 400; }
   .fishing-recipes { display: grid; gap: 4px; padding: 0 8px 8px; }
   .fishing-recipe { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 7px 10px; border: 1px solid #241d14; background: rgba(10, 8, 6, .5); }
@@ -101,9 +102,9 @@
   .fishing-recipe-copy { display: grid; gap: 3px; min-width: 0; }
   .fishing-recipe-copy strong { color: var(--px-copy, #e8dcc0); font-size: 12px; font-weight: 400; }
   .fishing-recipe.is-ready .fishing-recipe-copy strong { color: #f3d28c; }
-  .fishing-recipe-copy small { color: var(--px-copy-muted, #a39883); font-size: 11px; line-height: 1.4; }
+  .fishing-recipe-copy small { color: var(--px-copy-muted, #a39883); font-size: 12px; line-height: 1.4; }
   .fishing-costs { display: flex; flex-wrap: wrap; gap: 4px 10px; }
-  .fishing-cost { display: inline-flex; align-items: center; gap: 4px; color: #8a7f6c; font-size: 11px; }
+  .fishing-cost { display: inline-flex; align-items: center; gap: 4px; color: #8a7f6c; font-size: 12px; }
   .fishing-cost .fishing-fish { width: 20px; height: 20px; }
   .fishing-cost .fishing-fish-icon { width: 16px; height: 16px; }
   .fishing-cost b { color: #ff9a76; font-weight: 400; }

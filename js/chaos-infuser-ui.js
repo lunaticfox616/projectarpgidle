@@ -7,7 +7,7 @@ const chaosInfusionUi = (() => {
     function actionHtml(item, slot) {
         if (!item || !isChaosInfuserUnlocked() || (item.rarity !== 'rare' && !item.chaosInfusion)) return '';
         const ref = slot ? `'${slot}',true` : `${item.id},false`;
-        return `<button type="button" data-content-action="infuse" onclick="equipmentInventoryInteraction.focus(null);chaosInfusionUi.open(${ref})">주입</button>`;
+        return `<button type="button" data-content-action="infuse" onclick="equipmentInventoryInteraction.focus(null);chaosInfusionUi.open(${ref})"><span class="px-center">주입</span></button>`;
     }
 
     function open(ref, isEquip) {

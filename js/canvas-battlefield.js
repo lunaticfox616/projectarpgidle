@@ -18,9 +18,9 @@ const BATTLE_PIXEL_FONT = "'Galmuri11', 'Galmuri14', 'Malgun Gothic', sans-serif
 const BATTLE_TITLE_FONT = "'Galmuri11', 'Galmuri14', 'Malgun Gothic', sans-serif";
 function fillPixelText(ctx, text, x, y, color) {
     ctx.fillStyle = '#000';
-    ctx.fillText(text, x + 1, y + 1);
+    drawCrispCanvasText(ctx, text, x + 1, y + 1);
     ctx.fillStyle = color;
-    ctx.fillText(text, x, y);
+    drawCrispCanvasText(ctx, text, x, y);
 }
 /** Centred pixel text whose keywords and numbers take the item tone colours (js/stat-tone-text-ui.js segments, 2026-10-06);
  * the rest keeps baseColor. Drawn piece by piece from the left edge of the whole line. */
@@ -1756,9 +1756,9 @@ function drawLevelUpLabel(ctx, fx, pos) {
     ctx.strokeStyle = 'rgba(25,9,0,.92)';
     const label = `레벨 ${fx.level || ''}`;
     const x = Math.round(pos.x), y = Math.round(pos.y);
-    ctx.strokeText(label, x, y);
+    drawCrispCanvasText(ctx, label, x, y, 'strokeText');
     ctx.fillStyle = '#ffe9a8';
-    ctx.fillText(label, x, y);
+    drawCrispCanvasText(ctx, label, x, y);
 }
 
 function getBattlefieldClientPoint(canvas, clientX, clientY) {
@@ -2487,9 +2487,11 @@ function drawLootHighlightLabel(ctx, fx, position, progress) {
     ctx.fillRect(position.x - width / 2, top, width, 43);
     ctx.fillStyle = fx.color;
     ctx.fillRect(position.x - width / 2, top, 3, 43);
-    ctx.fillText(fx.reason, position.x, top + 15);
+    drawCrispCanvasText(ctx, fx.reason, position.x, top + 15);
     ctx.fillStyle = '#f4eedf';
-    ctx.fillText(name, position.x, top + 32, width - 16);
+    // 칸보다 긴 이름만 줄여 그린다(줄이면 도트가 번진다).
+    if (ctx.measureText(name).width <= width - 16) drawCrispCanvasText(ctx, name, position.x, top + 32);
+    else ctx.fillText(name, position.x, top + 32, width - 16);
     ctx.restore();
 }
 
@@ -2716,7 +2718,7 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
         ctx.fillStyle = 'rgba(201, 223, 244, 0.82)';
         ctx.font = `700 24px ${BATTLE_TITLE_FONT}`;
         ctx.textAlign = 'center';
-        ctx.fillText('전장을 준비하는 중...', width / 2, height / 2);
+        drawCrispCanvasText(ctx, '전장을 준비하는 중...', width / 2, height / 2);
         ctx.restore();
         document.getElementById('ui-battlefield-caption').innerText = '전장을 준비하는 중...';
         return;
@@ -3172,9 +3174,9 @@ function drawBossAnnouncement(ctx, area, banner) {
     ctx.lineWidth = 4;
     ctx.lineJoin = 'miter';
     ctx.strokeStyle = 'rgba(12,4,4,.95)';
-    ctx.strokeText(name, mid, cy);
+    drawCrispCanvasText(ctx, name, mid, cy, 'strokeText');
     ctx.fillStyle = '#f0c46a';
-    ctx.fillText(name, mid, cy);
+    drawCrispCanvasText(ctx, name, mid, cy);
     ctx.font = `12px ${BATTLE_PIXEL_FONT}`;
     lines.forEach((line, index) => fillPixelToneText(ctx, line, mid, cy + 25 + index * 14, '#d98a6a'));
     ctx.restore();

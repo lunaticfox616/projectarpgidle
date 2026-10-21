@@ -56,14 +56,15 @@ const bossRevive = (() => {
         ctx.fillRect(x, y, Math.round(barW * share), 10);
         ctx.fillStyle = 'rgba(255,240,196,0.55)';
         ctx.fillRect(x, y, Math.round(barW * share), 3);
-        ctx.font = "13px 'Galmuri14', 'Galmuri11', 'Malgun Gothic', sans-serif";
+        // 갈무리14의 제 크기 15px, 짝수 폭 테, 정수 화소(13px과 가운데 맞춤은 도트가 번졌다, 2026-10-21).
+        ctx.font = "15px 'Galmuri14', 'Galmuri11', 'Malgun Gothic', sans-serif";
         ctx.textAlign = 'center';
         ctx.textBaseline = 'bottom';
-        ctx.lineWidth = 3;
+        ctx.lineWidth = 2;
         ctx.strokeStyle = 'rgba(8,6,4,0.9)';
         ctx.fillStyle = GOLD;
-        ctx.strokeText(name, width / 2, y - 6);
-        ctx.fillText(name, width / 2, y - 6);
+        drawCrispCanvasText(ctx, name, width / 2, y - 6, 'strokeText');
+        drawCrispCanvasText(ctx, name, width / 2, y - 6);
     }
     return Object.freeze({ draw });
 })();

@@ -269,10 +269,10 @@ const contentUnlockUi = {
     /** Opened: the way to it. Paid: buy with points. NPC unlock: its NPC's window (npcFoot) once met and ready. Automatic: none. */
     actionButton(def, status, kind) {
         if (status.unlocked) return this.openButton(def);
-        if (kind === 'auto') return '<button type="button" disabled>조건 달성 시 자동 개방</button>';
+        if (kind === 'auto') return '<button type="button" disabled><span class="px-center">조건 달성 시 자동 개방</span></button>';
         const reason = escapeHTML(status.reason), disabled = status.available ? '' : 'disabled';
-        if (kind === 'npc') return `<button type="button" class="unlock-npc-gift" data-npc-open="${def.npc}" data-unlock-npc="${def.id}" ${disabled}>${reason}</button>`;
-        return `<button type="button" data-unlock-content="${def.id}" ${disabled}>${reason}</button>`;
+        if (kind === 'npc') return `<button type="button" class="unlock-npc-gift" data-npc-open="${def.npc}" data-unlock-npc="${def.id}" ${disabled}><span class="px-center">${reason}</span></button>`;
+        return `<button type="button" data-unlock-content="${def.id}" ${disabled}><span class="px-center">${reason}</span></button>`;
     },
     /** Who speaks for this unlock and what (data/story-journal.js STORY_LOOP_MILESTONES), under the unlock's description, with
      * the face of that NPC when the stage art is here (for an NPC unlock, the NPC who gives it). */
@@ -286,7 +286,7 @@ const contentUnlockUi = {
     },
     openButton(def) {
         const reachable = def.action || (def.routes || []).some(route => route.startsWith('tab-') || route.startsWith('item-tab-') || route.startsWith('skill-tab-') || route.startsWith('map-'));
-        return reachable ? `<button type="button" data-open-content="${def.id}">바로 사용하기</button>` : '<span class="content-unlock-owned">해금 완료</span>';
+        return reachable ? `<button type="button" data-open-content="${def.id}"><span class="px-center">바로 사용하기</span></button>` : '<span class="content-unlock-owned">해금 완료</span>';
     },
     pointBalanceHtml() {
         const points = contentProgression.points();

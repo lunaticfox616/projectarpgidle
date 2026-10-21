@@ -232,21 +232,21 @@ function renderHallListingAction(row) {
 
 function renderHallPicker() {
     let owned = getHallEligibleItems();
-    if (!owned.length) return '<div class="player-exchange-empty">전시 가능한 희귀/고유 장비가 없습니다. 잠금/프리셋/심연 주얼 장착/복제 이력 장비는 제외됩니다.</div>';
+    if (!owned.length) return '<div class="player-exchange-empty"><span class="px-center">전시 가능한 희귀/고유 장비가 없습니다. 잠금/프리셋/심연 주얼 장착/복제 이력 장비는 제외됩니다.</span></div>';
     return owned.map(item => renderHallItemCard(item, `owned-${item.id}`,
         `<button class="${Number(item.id) === Number(playerExchangeState.selectedItemId) ? 'active' : ''}" onclick="selectPlayerHallItem(${Number(item.id)})">${Number(item.id) === Number(playerExchangeState.selectedItemId) ? '선택됨' : '전당 등록 선택'}</button>`)).join('');
 }
 
 function renderHallMarket() {
     let listings = getPlayerHallListings();
-    if (!listings.length) return '<div class="player-exchange-empty">현재 전시 중인 소장품이 없습니다.</div>';
+    if (!listings.length) return '<div class="player-exchange-empty"><span class="px-center">현재 전시 중인 소장품이 없습니다.</span></div>';
     return listings.map(row => renderHallItemCard(row.item || {}, `hall-${row.id}`, renderHallListingAction(row),
         `<small class="hall-appraisal">감정 ${Number(row.score || 0).toLocaleString()}, 전시자 명예 +${Number(row.honorPerCopy || 0)}</small>`)).join('');
 }
 
 function renderMyHallListings() {
     let mine = Array.isArray(playerExchangeState.data && playerExchangeState.data.mine) ? playerExchangeState.data.mine : [];
-    if (!mine.length) return '<div class="player-exchange-empty">보관 중인 전시 원본이 없습니다.</div>';
+    if (!mine.length) return '<div class="player-exchange-empty"><span class="px-center">보관 중인 전시 원본이 없습니다.</span></div>';
     return mine.map(row => renderHallItemCard(row.item || {}, `mine-${row.id}`,
         `<div class="player-trade-price"><b>${row.status === 'sold_out' ? '복제 한도 완료' : `황금률 ${Number(row.price || 0).toLocaleString()}`}</b><span>${Number(row.copiesSold || 0)}/${Number(row.copyCap || 5)} 소장</span><button onclick="withdrawPlayerHallListing(${Number(row.id)})" ${playerExchangeState.loading ? 'disabled' : ''}>전시 종료/회수</button></div>`,
         `<small class="hall-appraisal">감정 ${Number(row.score || 0).toLocaleString()}</small>`)).join('');
@@ -254,8 +254,8 @@ function renderMyHallListings() {
 
 /** 전당을 못 여는 까닭: 로그인 전이면 로그인 단추, 로그인했는데 서버가 준비 전이면 기다려 달라는 말. */
 function playerHallUnavailableHtml() {
-    if (cloudState && cloudState.user) return '<div class="player-exchange-empty">장비 전당 서버를 준비 중입니다. 잠시 후 다시 열어주세요.</div>';
-    return '<div class="player-exchange-empty">장비 전당은 클라우드 로그인 후 이용할 수 있습니다.<button type="button" onclick="openStartupGate({ accountOnly: true })">로그인 화면 열기</button></div>';
+    if (cloudState && cloudState.user) return '<div class="player-exchange-empty"><span class="px-center">장비 전당 서버를 준비 중입니다. 잠시 후 다시 열어주세요.</span></div>';
+    return '<div class="player-exchange-empty"><span class="px-center">장비 전당은 클라우드 로그인 후 이용할 수 있습니다.<button type="button" onclick="openStartupGate({ accountOnly: true })">로그인 화면 열기</button></span></div>';
 }
 
 function renderPlayerHallPanel() {
