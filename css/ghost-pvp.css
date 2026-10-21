@@ -12,4 +12,5 @@
 .ghost-duel-controls{position:absolute;z-index:3;left:50%;bottom:8px;transform:translateX(-50%);display:flex;gap:5px;padding:4px;border-radius:8px;background:rgba(6,8,14,.76);backdrop-filter:blur(4px)}
 .ghost-duel-controls button{min-height:28px;padding:4px 9px;border-color:#51436d;background:#19172a;color:#dcd4ed;font-size:.72em}
 .ghost-duel-result-pending{visibility:hidden;min-height:42px}
-@media(max-width:640px){.ghost-duel-hud{top:8px;width:39%;font-size:.78em}.ghost-duel-hud.left{left:8px}.ghost-duel-hud.right{right:8px}.ghost-duel-status{top:50px}.ghost-duel-controls{bottom:5px;width:max-content;max-width:96%}.ghost-duel-controls button{padding:3px 7px}.ghost-duel-stage-label{bottom:42px;font-size:.5em}.ghost-duel-canvas{min-height:280px}}}
+/* 휴대폰: 이름과 단추 자리로 280px을 두고 그림은 5:3 그대로 위아래를 비운다(전: 폭이 467px보다 좁으면 그림이 세로로 늘어났다). */
+@media(max-width:640px){.ghost-duel-hud{top:8px;width:39%;font-size:.78em}.ghost-duel-hud.left{left:8px}.ghost-duel-hud.right{right:8px}.ghost-duel-status{top:50px}.ghost-duel-controls{bottom:5px;width:max-content;max-width:96%}.ghost-duel-controls button{padding:3px 7px}.ghost-duel-stage-label{bottom:42px;font-size:.5em}.ghost-duel-canvas{min-height:280px;object-fit:contain}}}

@@ -1951,7 +1951,9 @@ function renderProfileData(profile) {
     let stats = Array.isArray(p.stats) ? p.stats : [];
     let updatedAt = p.updatedAt ? new Date(p.updatedAt) : null;
     let updated = (updatedAt && Number.isFinite(updatedAt.getTime())) ? updatedAt.toLocaleString('ko-KR') : '';
-    let canDuel = socialState.currentProfileUserId && socialState.currentProfileUserId !== socialLoggedInUserId();
+    // 대전 탭은 루프 3부터 열린다(data/maps.js): 그 전에 누르면 프로필만 닫히고 지도의 다른 탭이 열렸다.
+    let canDuel = socialState.currentProfileUserId && socialState.currentProfileUserId !== socialLoggedInUserId()
+        && contentProgression.canOpen('map-tab-pvp') && isMapPrimaryContentUnlocked(game, 'map-tab-pvp');
     let duelAction = canDuel ? `<div class="social-profile-duel"><button type="button" onclick="fightCurrentProfileGhost()">대전 탭에서 친선전</button><small>상대를 지정해 지도 창의 대전 탭으로 이동합니다.</small></div>` : '';
     // 고급 테마(2026-10-11, css/social-profile.css): 머리 띠에 이름과 큰 총 DPS, 제목 띠가 있는 두 판(능력치 묶음, 장착 구성).
     body.innerHTML = `
