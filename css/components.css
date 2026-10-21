@@ -759,6 +759,8 @@
 .passive-tree-reset { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; margin: 0 0 0 14px; padding: 0 10px; font-size: 15px; vertical-align: middle; }
 .passive-tree-reset img { width: 20px; height: 20px; image-rendering: pixelated; }
 .passive-tree-reset b { font: inherit; color: var(--color-accent-gold); }
+/* 돌려받을 점수가 없으면 숨긴다(js/ui.js syncPassiveTreeHeader의 hidden): 위의 display가 hidden을 덮어 첫 시작에도 보였다 */
+.passive-tree-reset[hidden] { display: none; }
 
 .passive-preset-drawer,
 .passive-search-drawer {
