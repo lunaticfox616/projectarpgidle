@@ -325,6 +325,13 @@
   /* 휴대폰의 닫기 단추는 손가락 크기(폭 44px, css/themes/pixel-mobile.css)라 제목 줄 오른쪽 글을 가렸다: 단추 왼쪽에 12px 틈이 남게 비운다. */
   :root body #item-tab-equip #ui-equipment-inventory-inspector:popover-open .eqw-title { padding-right: 64px; }
   :root body #item-tab-equip #ui-equipment-inventory-inspector .equipment-grid-inspector-actions button { min-height: 44px; }
+  /* 휴대폰 장비 카드는 화면의 62%에 내용이 두 배쯤이라 밀어 본다. 단추 줄(장착, 잠금, 제작실, 해체)이 바꾸면 표 바로 밑에 있어 카드의 끝처럼
+     보였고, 그 아래의 옵션(고른 장비, 지금 장착)을 찾기 어려웠다: 단추 줄을 맨 뒤로 옮겨(js/equipment-inventory-grid-ui.js placeDocked) 카드 아래에
+     붙이고, 옵션이 그 위로 밀린다. 한 줄에 다 놓고(두 줄이면 110px를 먹었다) 장착이 두 칸이다. */
+  :root body #item-tab-equip #ui-equipment-inventory-inspector:popover-open > .equipment-grid-inspector-actions { position: sticky; bottom: -10px; z-index: 2;
+    margin: 8px -10px -10px; padding: 8px 10px 10px; background: #120e0a; box-shadow: 0 -1px 0 rgba(227, 189, 114, .3), 0 -10px 12px rgba(0, 0, 0, .6);
+    grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
+  :root body #item-tab-equip #ui-equipment-inventory-inspector:popover-open > .equipment-grid-inspector-actions .equipment-card-primary { grid-column: span 2; }
 }
 /* 휴대폰: 가방 판이 한 단이 되어 도구 줄은 가방 아래 가로 한 줄, 펼침 창은 위로(가방을 덮으며) 연다. */
 @media (max-width: 640px) {

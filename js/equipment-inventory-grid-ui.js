@@ -66,7 +66,15 @@
         const dock = equipmentWindowUi.inspectorDock(inspector);
         if (dock === 'panel' && inspector.matches(':popover-open')) inspector.hidePopover();
         if (dock === 'sheet' && !inspector.matches(':popover-open')) inspector.showPopover();
+        if (dock === 'sheet') keepActionsLast(inspector);
         return dock === 'panel' || dock === 'sheet';
+    }
+
+    /** 휴대폰 카드에서는 단추 줄이 옵션 뒤에 온다: 바꾸면 표 바로 밑의 단추 줄이 카드의 끝처럼 보여 아래의 옵션을 찾기 어려웠다.
+     * CSS(css/equipment-window.css)가 그 줄을 카드 아래에 붙인다. 넓은 창은 그리는 순서(표, 단추, 옵션) 그대로다. */
+    function keepActionsLast(inspector) {
+        const actions = inspector.querySelector(':scope > .equipment-grid-inspector-actions');
+        if (actions && actions !== inspector.lastElementChild) inspector.append(actions);
     }
 
     function fitInspector(inspector, rect) {
