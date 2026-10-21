@@ -804,7 +804,23 @@
 }
 
 .condition-pattern-rule input[type="number"] { width: 68px; }
-.condition-rule-draft { color: var(--color-text-muted); font-size: 12px; }
+/* 규칙 카드(js/ui.js renderConditionPatternRule): 번호, 바꾸는 것, 지금 상태의 불, 도구 / 조건 → 행동 */
+.condition-rule-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.condition-rule-rank { display: inline-grid; place-items: center; min-width: 24px; height: 24px; border: 1px solid rgba(214, 170, 92, .6); color: #f3dc9a; font-weight: normal; }
+.condition-rule-kind { padding: 2px 6px; border: 1px solid rgba(117, 91, 58, .6); color: #d9ceb0; font-size: 12px; }
+.condition-rule-lamp { display: inline-flex; align-items: center; gap: 5px; color: var(--color-text-muted); font-size: 12px; }
+.condition-rule-lamp::before { content: ''; width: 8px; height: 8px; background: #4b4f56; }
+.condition-pattern-rule[data-live="on"] { border-color: rgba(95, 211, 138, .72); }
+.condition-pattern-rule[data-live="on"] .condition-rule-lamp { color: #8fe7b0; }
+.condition-pattern-rule[data-live="on"] .condition-rule-lamp::before { background: #5fd38a; }
+.condition-pattern-rule[data-live="shadow"] .condition-rule-lamp { color: #e0c27a; }
+.condition-pattern-rule[data-live="shadow"] .condition-rule-lamp::before { background: #c9a24a; }
+.condition-pattern-rule.is-off { opacity: .72; }
+.condition-rule-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-left: auto; }
+.condition-rule-line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: var(--copy-bright); }
+.condition-rule-arrow { color: #e6c068; }
+.condition-rule-empty { margin-top: 8px; padding: 12px; border: 1px dashed #39506c; color: var(--copy-muted); }
+.tactics-now { margin: var(--space-3) 0 0; color: #8fe7b0; }
 .condition-pattern-rule > div:first-child { position: relative; }
 .condition-pattern-rule select { min-width: 0; max-width: 100%; }
 

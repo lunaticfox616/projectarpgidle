@@ -2463,32 +2463,64 @@ function renderConditionPatternRoadmap() {
 }
 
 
-function renderConditionRuleStatus(rule) {
-    return rule.enabled ? '' : '<div class="condition-rule-draft">사용 중지, 조건을 확인한 뒤 ‘사용’을 켜세요.</div>';
+const CONDITION_RULE_LIVE_TEXT = Object.freeze({ on: '지금 맞음', shadow: '위 규칙이 먼저', wait: '기다림', off: '꺼짐' });
+/** 규칙이 바꾸는 것: 먼저 공격할 적, 전투 거리, 그 밖(마을로 귀환). */
+function getConditionRuleKind(action) {
+    const tactic = (action && action.tactic) || {};
+    if (tactic.targetPriority) return '대상';
+    return tactic.positionMode ? '거리' : '귀환';
+}
+function renderConditionRuleHead(rule, idx, action) {
+    const last = game.skillAutoRules.length - 1;
+    return `<div class="condition-rule-head"><b class="condition-rule-rank" title="우선순위">${idx + 1}</b><span class="condition-rule-kind">${getConditionRuleKind(action)}</span>
+            <span class="condition-rule-lamp"></span><span class="condition-rule-tools">
+            <label><input type="checkbox" ${rule.enabled ? 'checked' : ''} onchange="game.skillAutoRules[${idx}].enabled=this.checked; renderSkillAutoRulePanel();"> 사용</label>
+            <button aria-label="규칙 위로 이동" onclick="moveSkillAutoRule(${idx},-1)" ${idx === 0 ? 'disabled' : ''}>↑</button>
+            <button aria-label="규칙 아래로 이동" onclick="moveSkillAutoRule(${idx},1)" ${idx === last ? 'disabled' : ''}>↓</button>
+            <button onclick="game.skillAutoRules.splice(${idx},1); renderSkillAutoRulePanel();">삭제</button></span></div>`;
+}
+function renderConditionRuleLine(rule, idx, choice, options) {
+    const pick = (rows, current) => rows.map(row => `<option value="${row.id}" ${current && current.id === row.id ? 'selected' : ''}>${row.label}</option>`).join('');
+    return `<div class="condition-rule-line"><span>조건</span>
+            <select aria-label="발동 조건" onchange="setConditionPatternTrigger(${idx},this.value);">${pick(options.triggers, choice.trigger)}</select>
+            ${renderConditionPatternValueControl(rule, idx, choice.trigger)}<span class="condition-rule-arrow" aria-hidden="true">→</span><span>행동</span>
+            <select aria-label="실행 행동" onchange="setConditionPatternAction(${idx},this.value);">${pick(options.actions, choice.action)}</select></div>`;
 }
 
 function renderConditionPatternRule(rule, idx, options) {
-    const { triggers, actions } = options;
-    let trigger = triggers.find(row => row.id === rule.triggerType) || triggers[0];
-    let action = actions.find(row => row.id === rule.actionType) || actions[0];
-    return `
-    <div class="condition-pattern-rule">
-        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-            <label><input type="checkbox" ${rule.enabled ? 'checked' : ''} onchange="game.skillAutoRules[${idx}].enabled=this.checked; renderSkillAutoRulePanel();"> 사용</label>
-            <span>우선순위 ${idx + 1}</span>
-            <button aria-label="규칙 위로 이동" onclick="moveSkillAutoRule(${idx},-1)" ${idx === 0 ? 'disabled' : ''}>↑</button>
-            <button aria-label="규칙 아래로 이동" onclick="moveSkillAutoRule(${idx},1)" ${idx === game.skillAutoRules.length - 1 ? 'disabled' : ''}>↓</button>
-            <button onclick="game.skillAutoRules.splice(${idx},1); renderSkillAutoRulePanel();">삭제</button>
-        </div>
-        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; color:var(--copy-bright);">
-            <span>이때</span>
-            <select aria-label="발동 조건" onchange="setConditionPatternTrigger(${idx},this.value);">${triggers.map(row => `<option value="${row.id}" ${trigger && trigger.id === row.id ? 'selected' : ''}>${row.label}</option>`).join('')}</select>
-            ${renderConditionPatternValueControl(rule, idx, trigger)}
-            <span>실행</span>
-            <select aria-label="실행 행동" onchange="setConditionPatternAction(${idx},this.value);">${actions.map(row => `<option value="${row.id}" ${action && action.id === row.id ? 'selected' : ''}>${row.label}</option>`).join('')}</select>
-        </div>
-        ${renderConditionRuleStatus(rule)}
-    </div>`;
+    const trigger = options.triggers.find(row => row.id === rule.triggerType) || options.triggers[0];
+    const action = options.actions.find(row => row.id === rule.actionType) || options.actions[0];
+    return `<div class="condition-pattern-rule${rule.enabled ? '' : ' is-off'}">${renderConditionRuleHead(rule, idx, action)}${renderConditionRuleLine(rule, idx, { trigger, action }, options)}</div>`;
+}
+
+/** 규칙 하나의 지금 상태(전투가 쓰는 js/condition-patterns.js resolveConditionalCombatTactics와 같은 차례): on 이 규칙이 바꾸는 중,
+ * shadow 맞지만 같은 것을 바꾸는 위 규칙이 먼저, wait 조건이 맞지 않음, off 사용 꺼짐. locked는 앞 규칙들이 이미 바꾼 칸. */
+function getConditionRuleLiveState(rule, locked, pStats, now) {
+    if (!rule.enabled) return 'off';
+    if (!evaluateConditionPatternRule(rule, pStats, game, now)) return 'wait';
+    const action = getConditionPatternActions(game, true).find(row => row.id === normalizeConditionPatternRule(rule).actionType);
+    const keys = Object.keys((action && action.tactic) || {});
+    if (keys.length && keys.every(key => locked.has(key))) return 'shadow';
+    keys.forEach(key => locked.add(key));
+    return 'on';
+}
+const TACTIC_NOW_LABELS = Object.freeze({ nearest: '가까운 적', weakest: '약한 적', dangerous: '위험한 적', dense: '밀집 지역', auto: '자동', pressure: '압박', keepRange: '거리 유지' });
+/** 규칙 카드의 불과 기본 전술 칸의 '지금' 줄만 고친다. 카드는 다시 그리지 않아 고르던 칸과 입력이 그대로다. */
+function syncConditionRuleLive() {
+    const panel = document.getElementById('ui-skill-rules-panel'), now = document.getElementById('combat-tactics-now');
+    if (!panel || !isTacticsRulesOpen()) return;
+    const rules = Array.isArray(game.skillAutoRules) ? game.skillAutoRules : [], pStats = getPlayerStats(), at = getCombatTime(), locked = new Set();
+    const states = [];
+    rules.map((rule, index) => ({ rule, index })).sort((a, b) => (a.rule.priority || 0) - (b.rule.priority || 0))
+        .forEach(({ rule, index }) => { states[index] = getConditionRuleLiveState(rule, locked, pStats, at); });
+    panel.querySelectorAll('.condition-pattern-rule').forEach((card, index) => {
+        const state = states[index] || 'off', lamp = card.querySelector('.condition-rule-lamp');
+        if (card.dataset.live !== state) card.dataset.live = state;
+        if (lamp && lamp.textContent !== CONDITION_RULE_LIVE_TEXT[state]) lamp.textContent = CONDITION_RULE_LIVE_TEXT[state];
+    });
+    const tactic = resolveConditionalCombatTactics(normalizeCombatTacticsSettings(game.settings), pStats, game, at);
+    const text = `지금: 먼저 공격할 적 ${TACTIC_NOW_LABELS[tactic.targetPriority]}, 전투 거리 ${TACTIC_NOW_LABELS[tactic.positionMode]}${states.includes('on') ? '(조건부 규칙이 바꿈)' : ''}`;
+    if (now && now.textContent !== text) now.textContent = text;
 }
 
 function paintSkillRulesPanel(panel, html) {
@@ -2510,10 +2542,11 @@ function renderSkillAutoRulePanel() {
     game.skillAutoRules = Array.isArray(game.skillAutoRules) ? game.skillAutoRules.map(normalizeConditionPatternRule) : [];
     let summary = `<div class="condition-pattern-summary"><div><strong>수호, 함성, 저주</strong><span>그루터기 함에서 깨어난 부적의 조건부 줄이 맡습니다.</span></div></div>${renderConditionPatternRoadmap()}`;
     if (game.skillAutoRules.length === 0) {
-        return paintSkillRulesPanel(panel, summary + '<div style="color:var(--copy-muted); border:1px dashed #39506c; border-radius:8px; padding:12px; margin-top:8px;">[규칙 추가]로 조건과 행동을 고르세요.</div>');
+        return paintSkillRulesPanel(panel, summary + '<div class="condition-rule-empty">아직 규칙이 없습니다. [+ 규칙 추가]를 누르고 "생명력 40% 이하 → 거리 유지"처럼 조건과 행동을 고르세요.</div>');
     }
     const options = { triggers: getConditionPatternTriggers(game, false), actions: getConditionPatternActions(game, false) };
     paintSkillRulesPanel(panel, summary + game.skillAutoRules.map((rule, idx) => renderConditionPatternRule(rule, idx, options)).join(''));
+    syncConditionRuleLive();
 }
 
 safeExposeGlobals({ setConditionPatternTrigger, setConditionPatternAction, setConditionPatternValue });
