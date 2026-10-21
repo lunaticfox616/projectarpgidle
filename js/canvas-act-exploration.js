@@ -15,6 +15,10 @@ const actExplorationView=(()=>{
     // inside it) centres the boss, and so does the rest of its name band; the hero may leave the view meanwhile. The whole entrance
     // used to play off screen there (2026-10-17), and the camera swung back to the far hero while the name still showed (2026-10-19).
     const ENTRANCE_MARGIN_TILES=1.5;
+    // A narrow view (a phone in portrait keeps about 8 columns of a 21-column room) in an ordinary fight: the camera leans just enough
+    // that the monsters fighting the hero stand ENTRANCE_MARGIN_TILES inside the view, at most PACK_LEAN_TILES, and not when they stand
+    // on both sides past it (2026-10-22: the pack on the hero's right was cut by the screen's edge). Wide views stay on the hero.
+    const NARROW_VIEW_COLUMNS=12,PACK_LEAN_TILES=2.5,PACK_LEAN_RANGE=8;
     let lead={run:null,gx:0,gy:0,at:0};
     /** Whole-pixel camera zoom for the 16px art: ×3 (48px tiles) on phones, ×4 once the view keeps about 16×12 tiles —
      * on a desktop window the corridor then fills the screen instead of floating in black (data ACT_EXPLORATION_CAMERA).
@@ -60,12 +64,21 @@ const actExplorationView=(()=>{
      * boss less than ENTRANCE_MARGIN_TILES inside the view, onto the boss (story bosses are wide). */
     function leanTarget(run,cell,view) {
         const boss=focusBoss(run),center=boss&&hasGridCell(boss)?getGridUnitCenter(boss):null;
-        if(!center)return {gx:0,gy:0};
+        if(!center)return packLean(cell,view);
         const clamp=value=>Math.max(-BOSS_LEAD_TILES,Math.min(BOSS_LEAD_TILES,value));
         const dx=center.gx-cell.gx,half={gx:clamp(dx/2),gy:clamp((center.gy-cell.gy)/2)};
         const reach=Math.abs(dx)-(view.columns/2-ENTRANCE_MARGIN_TILES);
         const shown=actExplorationState.entrance(run) || battleVisualState.bossBannerFor===boss.id;
         return shown && reach>Math.abs(half.gx) ? {gx:dx,gy:half.gy} : half;
+    }
+    /** The lean of a narrow view toward the fighting monsters within PACK_LEAN_RANGE columns (see NARROW_VIEW_COLUMNS). */
+    function packLean(cell,view) {
+        if(view.columns>=NARROW_VIEW_COLUMNS)return {gx:0,gy:0};
+        const xs=game.enemies.filter(enemy=>enemy.hp>0&&hasGridCell(enemy)).map(enemy=>getGridUnitCenter(enemy).gx-cell.gx).filter(dx=>Math.abs(dx)<=PACK_LEAN_RANGE);
+        if(!xs.length)return {gx:0,gy:0};
+        const room=view.columns/2-ENTRANCE_MARGIN_TILES,right=Math.max(0,Math.max(...xs)-room),left=Math.min(0,Math.min(...xs)+room);
+        const need=right>0&&left<0?0:right+left;
+        return {gx:Math.max(-PACK_LEAN_TILES,Math.min(PACK_LEAN_TILES,need)),gy:0};
     }
     /** The boss the camera leans toward: the one fighting, else the one rising in its entrance. */
     function focusBoss(run) {
