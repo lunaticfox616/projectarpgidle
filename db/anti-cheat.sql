@@ -256,6 +256,17 @@ begin
 end;
 $$;
 
+-- 계정의 그날 첫 저장에서 그 계정의 오래된 줄(성장 30일, 기록 90일)을 지운다. 관리자가 감시 창을 열지 않아도
+-- 표가 계정마다 30줄 안팎에 머물러 무료 DB(500MB)를 갉아먹지 않는다. 그 밖의 저장은 기본 키 한 번만 본다.
+create or replace function public.prune_cheat_watch(p_user_id uuid)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+    if exists (select 1 from public.cloud_save_rates where user_id = p_user_id and seen_on = current_date) then return; end if;
+    delete from public.cloud_save_rates where user_id = p_user_id and seen_on < current_date - 30;
+    delete from public.cheat_flags where user_id = p_user_id and seen_on < current_date - 90;
+end;
+$$;
+
 -- 저장이 들어가기 직전(BEFORE)에 돈다. 새 세이브는 아직 메모리에 있어 값싸게 읽고, 지난 세이브는 한 번만 읽는다.
 -- commit_cloud_save와 전당 함수가 save_data를 바꿀 때만 돌고, 무엇이 실패해도 저장은 그대로 들어간다.
 create or replace function public.watch_cloud_save()
@@ -267,6 +278,7 @@ begin
         fresh := public.cheat_save_digest(new.save_data);
         perform public.watch_cloud_save_values(new.user_id, fresh);
         if tg_op = 'UPDATE' then
+            perform public.prune_cheat_watch(new.user_id);
             perform public.watch_cloud_save_rates(new.user_id, public.cheat_save_digest(old.save_data), fresh, now() - old.updated_at);
         end if;
     exception when others then
@@ -287,7 +299,7 @@ create or replace function public.admin_get_cheat_watch()
 returns jsonb language plpgsql security definer set search_path = public as $$
 begin
     if not public.is_project_admin() then raise exception 'ADMIN_REQUIRED'; end if;
-    -- 오래된 기록은 관리자가 열 때 정리한다(저장마다 돌지 않게).
+    -- 그만둔 계정의 오래된 줄은 저장이 없어 prune_cheat_watch가 지우지 못하므로 관리자가 열 때 한꺼번에 지운다.
     delete from public.cloud_save_rates where seen_on < current_date - 30;
     delete from public.cheat_flags where seen_on < current_date - 90;
     return jsonb_build_object(
@@ -348,6 +360,7 @@ revoke all on function public.guard_ghost_profile() from public, anon, authentic
 revoke all on function public.watch_ghost_dps() from public, anon, authenticated;
 revoke all on function public.watch_cloud_save_values(uuid, jsonb) from public, anon, authenticated;
 revoke all on function public.watch_cloud_save_rates(uuid, jsonb, jsonb, interval) from public, anon, authenticated;
+revoke all on function public.prune_cheat_watch(uuid) from public, anon, authenticated;
 revoke all on function public.watch_cloud_save() from public, anon, authenticated;
 revoke all on function public.admin_get_cheat_watch() from public, anon;
 revoke all on function public.admin_set_cheat_hold(uuid, boolean, text) from public, anon;
