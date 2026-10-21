@@ -612,6 +612,9 @@ body[data-ui-skin] .window-tab-strip > .window-tab { display: flex; align-items:
   }
   :root body[data-ui-skin].mobile-primary-navigation #tab-header-bottom > :is(.tab-btn, .mobile-nav-more).active::after,
   :root body[data-ui-skin].mobile-primary-navigation #tab-header-main > .tab-btn.active::after { filter: brightness(1.15); }
+  /* 전체 메뉴 서랍이 열려 있는 동안은 전체 단추만 밝힌다(css/themes/pixel-mobile.css의 켜진 칸과 같이) */
+  :root body[data-ui-skin].mobile-primary-navigation.mobile-tab-drawer-open #tab-header-bottom > .mobile-nav-more::after { filter: brightness(1.15); }
+  :root body[data-ui-skin].mobile-primary-navigation.mobile-tab-drawer-open #tab-header-bottom > .tab-btn.active::after { filter: brightness(.8); }
   /* 새 단추 그림이 있는 메뉴: 13도트 아이콘 자리에 그 그림을 그린다(칸 46px 안에 그림 30px, 이름 12px). 흐리게 하고 밝히는 것은 위와 같다. */
   :root body[data-ui-skin].mobile-primary-navigation #tab-header-bottom > .tab-btn[data-button-art]::after,
   :root body[data-ui-skin].mobile-primary-navigation #tab-header-main > .tab-btn[data-button-art]::after {
