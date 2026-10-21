@@ -156,14 +156,15 @@ function readLines() {
 
 // The take-away pack: the page, its code and the lines as saved now, for a computer with only a browser. Opened from the file, the
 // page reads lines.js, keeps what is typed in that browser and exports a sheet, which comes back here through 파일 넣기. Its old
-// line column is the text of this moment, so a line changed here meanwhile is not overwritten.
-const PACK_PAGE = '대사 편집기.html';
+// line column is the text of this moment, so a line changed here meanwhile is not overwritten. File names stay ASCII: an older
+// Windows unzips names by its own code page and would garble Korean ones.
+const PACK_PAGE = 'story-editor.html';
 const PACK_FILES = Object.freeze(['editor.css', 'editor.js', 'sheet.js']);
 function packReadme(made) {
     return [
         `리그닌 대사 편집기, 다른 컴퓨터용 묶음 (${made}에 저장되어 있던 대사)`,
         '',
-        `1. 압축을 풀고 "${PACK_PAGE}"을 더블클릭해 크롬이나 엣지로 엽니다. 설치할 프로그램은 없습니다.`,
+        `1. 압축을 풀고 ${PACK_PAGE} 파일을 더블클릭해 크롬이나 엣지로 엽니다. 설치할 프로그램은 없습니다.`,
         '2. 대사를 고칩니다. 고친 줄은 그 브라우저에 남아서, 창을 닫았다 다시 열어도 이어서 고칠 수 있습니다.',
         '3. 다 고쳤으면 "파일로 내보내기"를 눌러 CSV 파일을 받습니다.',
         '4. 원래 컴퓨터의 대사 편집기(npm run story:edit)에서 "파일 넣기"로 그 CSV를 넣고 저장합니다.',
@@ -180,7 +181,7 @@ function sendPack(response) {
     const files = [
         [PACK_PAGE, packed],
         ['lines.js', `window.STORY_LINE_PACK = ${JSON.stringify({ made, screenMax: model.SCREEN_MAX, ...readLines() })};\n`],
-        ['읽어 주세요.txt', `\uFEFF${packReadme(made)}\r\n`],
+        ['README.txt', `\uFEFF${packReadme(made)}\r\n`],
         ...PACK_FILES.map(name => [name, fs.readFileSync(path.join(EDITOR_ROOT, name))])
     ];
     const archive = createZipArchive(files.map(([name, data]) => ({ name: `${folder}/${name}`, data, modifiedAt: new Date() })));
