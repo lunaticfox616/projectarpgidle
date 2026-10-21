@@ -2415,11 +2415,15 @@ function moveSkillAutoRule(index, delta) {
 
 
 
+/** 조건을 값의 종류가 다른 것으로 바꾸면 그 종류의 기본값에서 시작한다: 앞 값을 범위로 자르기만 하면 생명력 40%가 "적 30마리 이상"(최댓값)이 되었다. */
+const CONDITION_TRIGGER_DEFAULT_VALUES = Object.freeze({ percent: 40, count: 3, cells: 3, seconds: 3 });
 function setConditionPatternTrigger(index, triggerType) {
     if (!isTacticsRulesOpen()) return;
     let rule = normalizeConditionPatternRule((game.skillAutoRules || [])[index]);
     let trigger = getConditionPatternTriggers(game, false).find(row => row.id === triggerType);
     if (!rule || !trigger) return;
+    const before = CONDITION_PATTERN_TRIGGER_DB.find(row => row.id === rule.triggerType);
+    if (!before || before.valueKind !== trigger.valueKind) rule.triggerValue = CONDITION_TRIGGER_DEFAULT_VALUES[trigger.valueKind] ?? rule.triggerValue;
     rule.triggerType = trigger.id;
     normalizeConditionPatternRule(rule);
     renderSkillAutoRulePanel();
