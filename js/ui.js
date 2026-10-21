@@ -12184,7 +12184,7 @@ async function pullCloudSave(options = {}) {
 
 async function resolveCloudRevisionConflict(record, options = {}) {
     if (cloudState.revisionSupported !== true || !record || !record.save_data) return null;
-    if (getLocalCloudRevision() === cloudState.lastRemoteRevision) return null;
+    if (getLocalCloudRevision() === cloudState.lastRemoteRevision) return keepLocalOnSameRevision(record);
     if (!options.preferRemoteOnResume) return null;
     let loopSummary = getLoopCompareSummary(record);
     if (loopSummary.localLoop > loopSummary.remoteLoop) {
@@ -12215,6 +12215,21 @@ async function resolveCloudRevisionConflict(record, options = {}) {
     applyExternalSave(record.save_data, remoteStamp);
     setCloudMessage('저장 충돌에서 서버 저장을 선택했습니다.');
     return 'pulled-remote-conflict';
+}
+
+/** Same revision: the server row is still the one this device last committed or loaded, so this save is that one or newer. When the
+ * save times still say the server is newer (the device clock runs behind the server's commit time), the steps after this would put the
+ * server copy over the progress made since the last upload; it goes up instead (2026-10-21). A higher local loop, a newer local time and
+ * a new-device default save keep their usual steps, and so does a device that cannot write its save (the server copy repairs it there).
+ */
+async function keepLocalOnSameRevision(record) {
+    if (isLikelyBootstrapLocalSave(game) || (typeof canPersistLocalSave === 'function' && !canPersistLocalSave())) return null;
+    if (getLocalSaveStamp() > getRemoteSaveStamp(record)) return null;
+    const loops = getLoopCompareSummary(record);
+    if (loops.localLoop !== loops.remoteLoop) return null;
+    await pushCloudSave({ touchModifiedAt: false });
+    setCloudMessage('서버 저장이 이 기기의 마지막 동기화와 같아 현재 진행을 이어서 올렸습니다.');
+    return 'pushed-local-same-revision';
 }
 
 async function reconcileCloudSaveState(options = {}) {
