@@ -1772,7 +1772,6 @@ function updateTabNotificationDots() {
     // 스킬룬은 장비 단추로 열린다(묶음 gear): 첫 룬을 알리는 표시는 화면에 있는 그 단추에 단다
     let skillTabButton = document.getElementById('btn-tab-items');
     if (skillTabButton) skillTabButton.classList.toggle('starter-gem-tutorial-pending', !!getStarterGemTutorialTarget());
-    syncMobilePrimaryNavigationState();
 }
 
 /** 해금 단추 표시. 휴대폰 하단 메뉴의 지도는 열리기 전에도 흐린 잠금 칸으로 자리를 지킨다 — 액트 1을 마쳐 지도가 열리는 순간
@@ -2135,6 +2134,8 @@ function syncMergedTabLauncherState() {
         // 열려 있는 묶음 창의 탭 줄(쓸 포인트의 수, 새 소식의 점)도 함께 맞춘다
         if (root && (root.classList.contains('active') || root.classList.contains('ui-window-open'))) renderMergedTabStrip(getMergedTabGroup(group.launcher)[0]);
     });
+    // 휴대폰 하단의 전체 단추도 탭을 바꿀 때마다 맞춘다(알림 점이 바뀔 때만 맞추면 커뮤니티를 열어도 켜지지 않았다)
+    syncMobilePrimaryNavigationState();
 }
 
 function openMergedTabPicker(event, groupKey) {
