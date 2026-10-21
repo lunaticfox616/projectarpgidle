@@ -81,9 +81,13 @@ function readRow(cells, number, ctx) {
     else if (before !== line.text) problem(line, '원래 대사가 지금 게임 글과 다릅니다. 내보낸 뒤 게임에서 바뀌었거나 원래 대사 칸을 고쳤습니다');
     else ctx.result.changes.push({ id: line.id, before: line.text, after });
 }
+// A workbook (.xlsx, .ods) is a zip archive, not text: its bytes would read as a sheet without the needed columns.
+const isZip = bytes => bytes.length >= 4 && bytes[0] === 0x50 && bytes[1] === 0x4B && bytes[2] === 0x03 && bytes[3] === 0x04;
 /** The changes a sheet file asks for, against the lines as the game files have them now: { changes: [{ id, before, after }], same,
- * problems: [{ row, place, speaker, reason }], encoding, flattened }. Throws when the head row lacks the id or new line column. */
+ * problems: [{ row, place, speaker, reason }], encoding, flattened }. Throws for a workbook file, or when the head row lacks the id
+ * or new line column. */
 function sheetChanges(lines, bytes) {
+    if (isZip(bytes)) throw new Error('엑셀 통합 문서(.xlsx) 같은 문서 파일은 넣을 수 없습니다. 엑셀은 CSV UTF-8로 저장하고, 구글 시트는 CSV로 다운로드해서 넣어 주세요.');
     const { text, encoding } = decodeSheet(bytes);
     const table = tableOf(text, separatorOf(text)), head = (table[0] || []).map(name => name.replace(/^﻿/u, '').trim());
     const col = Object.fromEntries(Object.entries(COLUMNS).map(([key, name]) => [key, head.indexOf(name)]));
