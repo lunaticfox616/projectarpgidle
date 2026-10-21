@@ -574,6 +574,8 @@
   gap: 8px;
 }
 .craft-picker-equip-grid { gap: 8px; }
+/* 장비창 인형 배치의 왼쪽 위는 코어 자리인데 코어는 제작 대상이 아니라 늘 비었다: 무기 카드가 그 칸까지 쓴다 */
+.craft-picker-equip-grid .slot-무기 { grid-row: 1 / 3; }
 .craft-picker-card {
   position: relative;
   text-align: left;

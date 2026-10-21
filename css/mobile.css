@@ -25,6 +25,10 @@
 
 @media (max-width: 640px) {
   button { min-height: 36px; }
+  /* The craft picker's worn gear is a two-column list in slot order on phones: the doll's three 116px columns broke every option line
+     in two or three. Unlayered like the phone .paperdoll rule below, and one class stronger. */
+  .paperdoll.craft-picker-equip-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .paperdoll.craft-picker-equip-grid > .slot-box { grid-column: auto; grid-row: auto; justify-content: flex-start; }
 }
 
 /* Playable phone layout: switch composition instead of shrinking the desktop UI. */
