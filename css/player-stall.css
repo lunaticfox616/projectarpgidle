@@ -63,7 +63,8 @@
         .loop-settlement-warning.is-nudged { animation: none; background: rgba(228, 169, 135, .16); }
     }
     @container (max-width: 440px) {
-        .stall-payout { width: 100%; }
+        /* 테두리 기준으로 잰다: 안쪽 여백과 테두리(22px)가 더해져 좁은 거래소 칸 밖으로 넘쳤다 */
+        .stall-payout { box-sizing: border-box; width: 100%; }
     }
     @media (max-width: 700px) {
         #market-panel-stall { padding: 8px; }
