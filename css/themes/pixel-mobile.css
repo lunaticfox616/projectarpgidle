@@ -70,6 +70,8 @@
   :root body[data-ui-skin].mobile-primary-navigation .tab-content:not(#tab-battle) label:has(> input[type="checkbox"]) { display: flex; align-items: center; }
   :root body[data-ui-skin].mobile-primary-navigation :is(.mobile-tab-drawer-head button, #btn-combat-log-toggle) { min-height: 44px; min-width: 44px; }
   :root body[data-ui-skin] .startup-policy-links a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 6px; }
+  /* 링크를 44px로 늘려도 그 사이 "/"가 줄 맨 위에 붙지 않게 줄을 세로 가운데로 맞춘다 */
+  :root body[data-ui-skin] .startup-policy-links { align-items: center; }
   /* 스킬트리 검색 필터 칩: 한 줄에 줄여 넣으면 "원소/카오스"가 42px 칸에서 잘렸다 → 제 폭을 지키고 다음 줄로 */
   :root body[data-ui-skin] #passive-filter-row { flex-wrap: wrap; overflow-x: visible; }
   :root body[data-ui-skin] #passive-filter-row > button { flex: 1 0 auto; }
