@@ -59,9 +59,9 @@
   :root body[data-ui-skin].mobile-battle-tab #tab-battle #btn-combat-goal-toggle::after { content: ''; position: absolute; inset: -6px -6px -16px -8px; }
   :root body[data-ui-skin].mobile-battle-tab #tab-battle .combat-zone-actions button::after { content: ''; position: absolute; inset: -8px -6px; }
   /* 휴대폰 창 안의 누르는 것(단추 · 고르기 · 접는 머리)은 44px 이상: 도트 테를 입히며 27 ~ 36px로 줄어 있던 것들(룬 필터 · 등급 칩 ·
-     지도 이동 · 설정 머리). 장비 가방 칸은 격자 크기가 곧 자리라 뺀다. */
-  :root body[data-ui-skin].mobile-primary-navigation .tab-content:not(#tab-battle) :is(button, select, summary):not(.equipment-grid-cell, .equipment-grid-item, .stump-item) { min-height: 44px; }
-  :root body[data-ui-skin].mobile-primary-navigation .tab-content:not(#tab-battle) button:not(.equipment-grid-cell, .equipment-grid-item, .stump-item) { min-width: 44px; }
+     지도 이동 · 설정 머리). 장비 가방 칸과 상점 진열칸은 격자 크기가 곧 자리라 뺀다(진열칸을 44px로 늘리면 32px 칸의 물건이 옆 물건과 그 가격을 덮었다). */
+  :root body[data-ui-skin].mobile-primary-navigation .tab-content:not(#tab-battle) :is(button, select, summary):not(.equipment-grid-cell, .equipment-grid-item, .stump-item, .shop-item, .shop-bag-item) { min-height: 44px; }
+  :root body[data-ui-skin].mobile-primary-navigation .tab-content:not(#tab-battle) button:not(.equipment-grid-cell, .equipment-grid-item, .stump-item, .shop-item, .shop-bag-item) { min-width: 44px; }
   /* 접는 머리는 대개 목록 항목(▶ 표시)이라 늘린 44px 안에서 글이 위에 붙고 아래가 27 ~ 39px 비었다: 표시 방식은 두고 글만 세로 가운데로 */
   :root body[data-ui-skin].mobile-primary-navigation .tab-content:not(#tab-battle) summary { align-content: center; }
   /* 검색 칸 · 체크 상자 줄(고대비 모드 · 해금 조건 보기)도 같은 높이, 창 밖의 전체 메뉴 닫기 · 전투 기록 접기 · 시작 화면 약관 글줄도
