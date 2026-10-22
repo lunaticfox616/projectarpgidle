@@ -183,7 +183,9 @@
 }
 
 @media (max-width: 1080px) and (orientation: landscape) and (max-height: 600px) {
-  body.mobile-battle-tab #tab-battle .combat-panel { grid-template-columns: clamp(220px, 26vw, 280px) minmax(0, 1fr); grid-template-rows: auto auto 1fr; gap: 6px; }
+  /* 왼쪽 칸은 HUD 한 줄(구슬, 지도, 룬)이 들어가는 폭: 220px로 좁혀 두 줄로 접으면 HUD가 205px이 되어, 높이 342px 화면에서 전투 기록이
+     아래 메뉴 띠 밑으로 들어갔다(2026-10-22 GPT 작업 검토) */
+  body.mobile-battle-tab #tab-battle .combat-panel { grid-template-columns: minmax(220px, .85fr) minmax(0, 1.15fr); grid-template-rows: auto auto 1fr; gap: 6px; }
   body.mobile-battle-tab #tab-battle .combat-zone-row { grid-column: 1 / -1; grid-row: 1; }
   body.mobile-battle-tab #tab-battle .player-hud { grid-column: 1; grid-row: 2; align-self: start; }
   body.mobile-battle-tab #tab-battle .combat-feed { grid-column: 1; grid-row: 3; align-self: stretch; }
