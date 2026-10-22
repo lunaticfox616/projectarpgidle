@@ -227,6 +227,18 @@
   /* 휴대폰 탭 제목: 금빛 도트 제목 + 도트 밑줄 */
   :root body[data-ui-skin] .tab-content h2:not([style*="color"]) { color: var(--px-gold-bright); font-family: var(--font-display); font-size: var(--font-size-heading); font-weight: var(--font-weight-emphasis); }
   :root body[data-ui-skin] .tab-content h2:not([style*="border"]) { border-bottom: 1px solid var(--px-bronze); box-shadow: 0 1px 0 var(--px-ink); }
+
+  /* 스킬트리 창: 트리가 창 바닥까지 채운다(탭 줄, 제목 줄, 트리가 한 격자). 예전에는 화면 높이에서 고정값(285px: 머리, 탭 줄, 제목 줄, 메뉴 띠)을
+     뺐는데, 탭 줄이 숨는 새 저장에서는 트리 아래가 91px 비었고 화면 배율을 키우면 트리가 화면 밖으로 나갔다 */
+  :root body[data-ui-skin] #tab-char .merged-tab-shell:has(> .merged-tab-panels > .merged-subtab-pane.active[data-tab-id="tab-char"]) { display: grid; grid-template-rows: auto auto minmax(0, 1fr); height: 100%; }
+  :root body[data-ui-skin] #tab-char .merged-tab-panels:has(> .merged-subtab-pane.active[data-tab-id="tab-char"]),
+  :root body[data-ui-skin] #tab-char .merged-subtab-pane.active[data-tab-id="tab-char"] { display: contents; }
+  :root body[data-ui-skin] #tab-char .merged-subtab-pane.active[data-tab-id="tab-char"] > div {
+    /* Overrides the markup's inline flex column (index.html) so the title row and the tree join the window grid. */ display: contents !important; }
+  :root body[data-ui-skin] #tab-char .merged-tab-shell > .window-tab-strip { grid-row: 1; }
+  :root body[data-ui-skin] #tab-char .merged-subtab-pane[data-tab-id="tab-char"] > div > h2 { grid-row: 2; }
+  :root body[data-ui-skin] #tab-char .merged-subtab-pane[data-tab-id="tab-char"] > div > #tree-container { grid-row: 3;
+    /* Overrides inline presentation from the runtime (min-height 280px); the grid row sets the height here. */ min-height: 0 !important; }
 }
 @media (max-width: 1080px) and (orientation: landscape) and (max-height: 600px) {
   /* 가로 휴대폰: HUD는 지역 줄 아래 왼쪽 칸이라 메뉴 띠와 붙지 않는다. 세로용 "메뉴 띠와 이어 붙이기"(아래 테 없음 ·
@@ -253,23 +265,19 @@
   }
   /* 스킬트리 창: 몸통이 170px쯤이라 하위 탭 줄과 제목 줄을 쌓으면 트리가 메뉴 띠 위로 50px만 보였고, 내려서 보면 화면이 다 캔버스라
      손가락으로 다시 올라갈 수 없었다. 하위 탭은 왼쪽 세로 칸, 포인트와 초기화는 검색 단추처럼 트리 왼쪽 위에 띄우고 트리가 오른쪽 높이를 다 쓴다 */
-  /* min-height: 자동 줄이 창 높이까지 늘어 트리가 다 채운다(전직, 재능처럼 긴 칸은 더 길어지고 화면이 내려간다) */
-  :root body[data-ui-skin] #tab-char .merged-tab-shell { display: grid; grid-template-columns: 136px minmax(0, 1fr); column-gap: 10px; align-items: start; min-height: 100%; }
+  /* 한 줄 격자: 트리 칸에서는 위의 공통 규칙이 창 높이(height: 100%)를 주고, 전직과 재능처럼 긴 칸은 그 길이대로 내려간다 */
+  :root body[data-ui-skin] #tab-char .merged-tab-shell { display: grid; grid-template-columns: 136px minmax(0, 1fr); column-gap: 10px; align-items: start; }
+  :root body[data-ui-skin] #tab-char .merged-tab-shell:has(> .merged-tab-panels > .merged-subtab-pane.active[data-tab-id="tab-char"]) { grid-template-rows: minmax(0, 1fr); }
   /* 전직과 재능이 열리기 전에는 탭 줄이 숨는다: 빈 왼쪽 칸을 남기지 않는다 */
   :root body[data-ui-skin] #tab-char .merged-tab-shell:not(:has(> .window-tab-strip:not([hidden]))) { grid-template-columns: 0 minmax(0, 1fr); column-gap: 0; }
   :root body[data-ui-skin] #tab-char .merged-tab-shell > .window-tab-strip:not([hidden]) { grid-column: 1; grid-row: 1; grid-auto-flow: row; grid-auto-columns: auto; margin: 0; }
   :root body[data-ui-skin] #tab-char .merged-tab-shell > .window-tab-strip > .window-tab { justify-content: flex-start; }
   :root body[data-ui-skin] #tab-char .merged-tab-shell > .merged-tab-panels { grid-column: 2; grid-row: 1; min-width: 0; }
-  :root body[data-ui-skin] #tab-char .merged-tab-panels:has(> .merged-subtab-pane.active[data-tab-id="tab-char"]),
-  :root body[data-ui-skin] #tab-char .merged-subtab-pane.active[data-tab-id="tab-char"] { display: contents; }
-  :root body[data-ui-skin] #tab-char .merged-subtab-pane.active[data-tab-id="tab-char"] > div {
-    /* Overrides the markup's inline flex column (index.html) so the title row and the tree join the window grid. */ display: contents !important; }
   :root body[data-ui-skin] #tab-char .merged-subtab-pane[data-tab-id="tab-char"] > div > h2 { grid-column: 2; grid-row: 1; justify-self: start; position: relative; z-index: 9; display: block; margin: 6px; padding: 0 0 0 8px; border: 1px solid var(--color-line); background: var(--color-surface); }
   :root body[data-ui-skin] #tab-char .merged-subtab-pane[data-tab-id="tab-char"] > div > h2 > span:first-child { display: none; }
   :root body[data-ui-skin] #tab-char .merged-subtab-pane[data-tab-id="tab-char"] > div > h2 > .h2-right { display: flex; align-items: center; gap: 8px; min-height: 44px; }
   :root body[data-ui-skin] #tab-char .merged-subtab-pane[data-tab-id="tab-char"] > div > h2 .passive-tree-reset { margin: 0; }
-  :root body[data-ui-skin] #tab-char .merged-subtab-pane[data-tab-id="tab-char"] > div > #tree-container { grid-column: 2; grid-row: 1; align-self: stretch;
-    /* Overrides inline presentation from the runtime (min-height 280px) and the tablet 360px floor; the grid row sets the height here. */ min-height: 0 !important; }
+  :root body[data-ui-skin] #tab-char .merged-subtab-pane[data-tab-id="tab-char"] > div > #tree-container { grid-column: 2; grid-row: 1; align-self: stretch; }
 }
 @media (min-width: 721px) and (max-width: 1080px) and (orientation: landscape) and (max-height: 600px) {
   /* 열린 검색 칸은 화면 폭(components.css)이 아니라 트리 폭에 맞춘다: 왼쪽 탭 줄 뒤로 들어가 전체 거르개와 입력란 앞이 가렸다 */
