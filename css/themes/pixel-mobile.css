@@ -249,8 +249,10 @@
   }
   /* 스킬트리 창: 몸통이 170px쯤이라 하위 탭 줄과 제목 줄을 쌓으면 트리가 메뉴 띠 위로 50px만 보였고, 내려서 보면 화면이 다 캔버스라
      손가락으로 다시 올라갈 수 없었다. 하위 탭은 왼쪽 세로 칸, 포인트와 초기화는 검색 단추처럼 트리 왼쪽 위에 띄우고 트리가 오른쪽 높이를 다 쓴다 */
-  :root body[data-ui-skin] #tab-char .merged-tab-shell { display: grid; grid-template-columns: 136px minmax(0, 1fr); column-gap: 10px; align-items: start; }
-  :root body[data-ui-skin] #tab-char .merged-tab-shell:has(> .merged-tab-panels > .merged-subtab-pane.active[data-tab-id="tab-char"]) { height: 100%; }
+  /* min-height: 자동 줄이 창 높이까지 늘어 트리가 다 채운다(전직, 재능처럼 긴 칸은 더 길어지고 화면이 내려간다) */
+  :root body[data-ui-skin] #tab-char .merged-tab-shell { display: grid; grid-template-columns: 136px minmax(0, 1fr); column-gap: 10px; align-items: start; min-height: 100%; }
+  /* 전직과 재능이 열리기 전에는 탭 줄이 숨는다: 빈 왼쪽 칸을 남기지 않는다 */
+  :root body[data-ui-skin] #tab-char .merged-tab-shell:not(:has(> .window-tab-strip:not([hidden]))) { grid-template-columns: 0 minmax(0, 1fr); column-gap: 0; }
   :root body[data-ui-skin] #tab-char .merged-tab-shell > .window-tab-strip:not([hidden]) { grid-column: 1; grid-row: 1; grid-auto-flow: row; grid-auto-columns: auto; margin: 0; }
   :root body[data-ui-skin] #tab-char .merged-tab-shell > .window-tab-strip > .window-tab { justify-content: flex-start; }
   :root body[data-ui-skin] #tab-char .merged-tab-shell > .merged-tab-panels { grid-column: 2; grid-row: 1; min-width: 0; }
