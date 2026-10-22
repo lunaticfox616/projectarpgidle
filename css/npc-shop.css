@@ -44,13 +44,21 @@
 .npc-roster-tags em { padding: 1px 6px; border: 1px solid var(--skin-line); font-style: normal; font-size: 12px; color: var(--color-text); }
 .npc-roster-tags em.is-unlock { border-color: var(--color-accent-gold); color: var(--color-accent-gold); }
 
-/* 휴대폰: 상점은 진열대, 가방, 물건 정보가 위에서 아래로 이어지고 칸은 화면 폭에 맞춘다. */
+/* 휴대폰: 상점은 진열대, 가방, 물건 정보가 위에서 아래로 이어지고 칸은 화면 폭에 맞춘다. 대화의 휴대폰 배치는 세로 화면만이라
+   (css/content-progression.css) 가로 휴대폰의 상점은 한 칸 격자와 세로로 쌓는 본문을 여기서 받는다. */
 @media (max-width: 720px) {
-  .npc-dialog.is-shop { width: 100vw; max-width: 100vw; height: 92dvh; max-height: 92dvh; margin: auto 0 0; }
+  .npc-dialog.is-shop { box-sizing: border-box; width: 100vw; max-width: 100vw; height: 92dvh; max-height: 92dvh; margin: auto 0 0; }
   .npc-dialog.is-shop[open] { grid-template-rows: minmax(0, 1fr); }
   .npc-dialog.is-shop .npc-dialog-figure { display: none; }
+  .npc-dialog.is-shop[open] { grid-template-columns: 1fr; }
+  .npc-dialog.is-shop .npc-dialog-main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
   .npc-dialog .shop-view { display: flex; flex: 1; padding: 0 12px 14px; overflow: auto; }
   .npc-instant-row { grid-template-columns: 30px minmax(0, 1fr); }
   .npc-instant-row > button { grid-column: 1 / -1; }
+}
+/* 낮은 가로 화면(721px 이상): PC 배치 그대로(진열대 옆에 가방) 상점 본문이 창 안에서 밀린다. 창 아래로 잘려 밀 수 없었다 */
+@media (min-width: 721px) and (max-width: 1080px) and (orientation: landscape) and (max-height: 600px) {
+  /* 두 칸 사이와 좌우를 좁혀 750px에서도 가방이 옆으로 넘치지 않는다(26px 넘쳤다) */
+  .npc-dialog .shop-view { overflow: auto; overscroll-behavior: contain; gap: 10px; padding-inline: 12px; }
 }
 }
