@@ -269,7 +269,6 @@ function retireWoodMonsterVisual(enemy, zone) {
 
 /** Save boundary: retain prior access except locked trial bypasses. */
 function normalizeContentProgressionSave(merged, save) {
-    merged.knitting = knitting.normalize(merged.knitting, merged.season);
     merged.contentProgression = contentProgression.restore(save.contentProgression, merged, Object.keys(save).length > 0);
     inheritRetiredExpertAccess(merged.contentProgression, save);
     contentProgression.sync(merged);
@@ -1400,6 +1399,8 @@ function mergeDefaults(save) {
 }
 
 function normalizeSavedCombatRuntime(state) {
+    // 지난 지도의 바닥 실타래는 아래 복원이 보관함에 넣는다: 손상된 보관함이면 그 전에 고친다
+    state.knitting = knitting.normalize(state.knitting, state.season);
     actExplorationState.restore(state);
     combatLootReceipts.normalize(state);
     state.cosmosGravity = null;

@@ -424,7 +424,7 @@ run(`game=mergeDefaults({season:5,maxZoneId:9,selectedClassId:'warrior',knitting
     Object.assign(game.contentProgression,{unlocked:['craft','knitting'],inherited:['knitting'],automatic:['knitting'],legacy:true});`);
 assert(!run("contentProgression.isUnlocked('knitting')"), 'unlocked, inherited, automatic and legacy records stay closed before loop 40');
 assert.equal(run("knitting.rollKill(game,{type:'act',id:9},{isBoss:true,level:game.level},()=>0)"), null, 'no thread drops before the floor');
-assert.equal(json("knitting.knit('first-row')").ok, false, 'no exchange before the floor');
+assert.equal(json("knittingRewards.knit('first-row')").ok, false, 'no exchange before the floor');
 run(`game.contentProgression=contentProgression.restore({version:9,highestLoop:5,unlocked:['craft','knitting'],inherited:['knitting'],automatic:['knitting']},game,true)`);
 assert(!run("contentProgression.isUnlocked('knitting')"), 'the save boundary does not reopen it');
 run('game=mergeDefaults(JSON.parse(JSON.stringify(game)))');
@@ -432,7 +432,7 @@ assert.deepEqual(json('game.knitting.counts'), held.counts, "this loop's stock s
 assert.deepEqual(json('game.knitting.knitted'), held.knitted);
 assert.deepEqual(json('game.knitting.seen').sort(), held.seen.slice().sort());
 // Catalogue: 150 kinds, real IDs and unlock links, named-unique grades, 55 home zones with 1-4 kinds each.
-assert.deepEqual(json('knitting.catalogProblems()'), [], 'ids, names, grades, sets, sources, unlock links, rewards, unique grades and homes');
+assert.deepEqual(json('knittingRewards.catalogProblems()'), [], 'ids, names, grades, sets, sources, unlock links, rewards, unique grades and homes');
 assert.equal(run('KNITTING.list.length'), 150);
 assert(run('KNITTING.rankBonus < KNITTING.homeBonus'), 'a home outranks a rank-only bonus');
 const homeCounts = json(`[...Array.from({length:10},(_,i)=>'act:'+i),...atlas.nodes.filter(n=>n.kind==='map').map(n=>'node:'+n.id)]
@@ -504,12 +504,16 @@ fresh(40);
 assert.deepEqual(json('knitting.visible(game)'), [], 'undiscovered names are absent, not placeholders');
 run("for(let i=0;i<4;i++)knitting.receive(game,'first-row')");
 const budBefore = run('game.currencies.magicBud');
-assert(json("knitting.knit('first-row')").ok);
+assert(json("knittingRewards.knit('first-row')").ok);
 assert.equal(run('game.currencies.magicBud'), budBefore + 3);
-assert.equal(json("knitting.knit('first-row')").ok, false, 'a double click cannot spend the same set twice');
+assert.equal(json("knittingRewards.knit('first-row')").ok, false, 'a double click cannot spend the same set twice');
 run("game.knitting.counts['first-row']=3;game.season++;knitting.resetForLoop(game)");
 assert.equal(run("game.knitting.counts['first-row']||0"), 0);
 assert(run("game.knitting.seen.includes('first-row') && game.knitting.knitted['first-row']===1"));
+// 창공석 보상은 창공의 탑 상태에 쌓인다: 재화 칸에 들어가면 창공석 화면에 보이지 않고 다음 루프에 사라졌다.
+run("game.contentProgression.inherited=CONTENT_UNLOCK_CATALOG.map(def=>def.id);contentProgression.sync();game.skyTower.unlocked=true;game.skyTower.condensedPower=2;for(let i=0;i<6;i++)knitting.receive(game,'cloud-thread')");
+assert(json("knittingRewards.knit('cloud-thread')").ok, 'the sky thread set knits');
+assert.deepEqual(json('[game.skyTower.condensedPower, game.currencies.condensedSkyPower||0]'), [3, 0], 'condensed sky power lands in the sky tower state');
 run('game=mergeDefaults(JSON.parse(JSON.stringify(game)))');
 assert(run("game.knitting.seen.includes('first-row') && game.knitting.knitted['first-row']===1"));
 const badKnitting = json("knitting.normalize({season:1,counts:{'first-row':10,unknown:99},seen:['unknown'],knitted:{'first-row':2},once:['last-hem']},2)");
@@ -541,7 +545,7 @@ run(`game=mergeDefaults({season:40,maxZoneId:9,selectedClassId:'warrior'});
     game.knitting.seen=KNITTING.list.map(row=>row.id); game.settings.autoEquip=true; game.settings.autoSalvageEnabled=true;`);
 for (const kind of json('KNITTING.list')) {
     run(`game.inventory=[];game.knitting.counts[${JSON.stringify(kind.id)}]=${kind.set}`);
-    const made = json(`knitting.knit(${JSON.stringify(kind.id)},()=>0.25)`);
+    const made = json(`knittingRewards.knit(${JSON.stringify(kind.id)},()=>0.25)`);
     assert(made.ok, `${kind.id}: ${made.reason}`);
     if (kind.reward.gear || kind.reward.unique || kind.reward.uniquePool) {
         assert.equal(run('game.inventory.length'), 1, `${kind.id} stores exactly one equipment, regardless of automation`);
@@ -552,7 +556,7 @@ for (const kind of json('KNITTING.list')) {
 // The fossil boots keep the shared pool contract (same-effect normal lines may coexist) for every class and draw.
 for (const cls of ['warrior', 'wanderer', 'archer', 'occultist', 'alchemist', 'cleric']) for (const draw of [0, 0.25, 0.5, 0.75, 0.999999]) {
     run(`game.selectedClassId=${JSON.stringify(cls)};game.inventory=[];game.knitting.counts['buried-print']=6`);
-    const made = json(`knitting.knit('buried-print',()=>${draw})`);
+    const made = json(`knittingRewards.knit('buried-print',()=>${draw})`);
     assert(made.ok, `buried-print ${cls} ${draw}: ${made.reason}`);
     assert.equal(run('game.inventory[0].stats.filter(s=>s.fossilExclusiveDrop).length'), 1, 'exactly the one promised fossil line');
 }
@@ -561,14 +565,14 @@ run(`game.inventory=Array.from({length:getInventoryLimit(game)},()=>createItemFr
     game.knitting.counts['buried-print']=6;`);
 
 const stocked = json('({inventory:game.inventory,knitting:game.knitting,counter:itemIdCounter})');
-assert.equal(json("knitting.knit('buried-print')").ok, false);
+assert.equal(json("knittingRewards.knit('buried-print')").ok, false);
 assert.deepEqual(json('({inventory:game.inventory,knitting:game.knitting,counter:itemIdCounter})'), stocked, 'a full bag consumes no stock or item ids');
 run("game.inventory=[];game.woodsmanBuildLock=true;game.knitting.counts['first-row']=4");
-assert.equal(json("knitting.knit('first-row')").ok, false);
+assert.equal(json("knittingRewards.knit('first-row')").ok, false);
 run("game.woodsmanBuildLock=false;game.knitting.seen=['unravelled','clock-seam','last-hem'];game.knitting.counts.unravelled=3");
-assert.equal(json("knitting.knit('unravelled')").ok, false, 'returns cannot recurse or mint one-piece jackpots');
+assert.equal(json("knittingRewards.knit('unravelled')").ok, false, 'returns cannot recurse or mint one-piece jackpots');
 run("game.knitting.seen=['unravelled','twin-loop']");
-assert.equal(json("knitting.knit('unravelled')").ok, false, 'a grade-2 return never mints a grade-3 thread');
+assert.equal(json("knittingRewards.knit('unravelled')").ok, false, 'a grade-2 return never mints a grade-3 thread');
 }
 
 // Content uniques never leak through generic pools or forced-name rewards before their source is open.
@@ -588,11 +592,11 @@ assert.equal(json("knitting.knit('unravelled')").ok, false, 'a grade-2 return ne
     assert(run("knitting.yarnPool(game,'unravelled').every(row=>row.yarnOut!==false)"));
     for(let i=0;i<80;i++) {
         run("game.inventory=[];game.knitting.counts['buried-print']=6");
-        assert(run("knitting.knit('buried-print').ok"));
+        assert(run("knittingRewards.knit('buried-print').ok"));
         assert(run("game.inventory[0].stats.filter(row=>row.fossilExclusiveDrop).length===1"));
         assert(run("equipmentCrafting.affixCounts(game.inventory[0]).prefix<=3 && equipmentCrafting.affixCounts(game.inventory[0]).suffix<=3"));
         run("game.inventory=[];game.knitting.counts['guardian-knot']=5");
-        assert(run("knitting.knit('guardian-knot').ok"));
+        assert(run("knittingRewards.knit('guardian-knot').ok"));
         assert(run("game.inventory[0].stats.some(row=>itemInfluences.lineInfluence(row)==='guardian')"));
     }
 }

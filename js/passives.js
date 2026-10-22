@@ -5853,7 +5853,7 @@ function actRewardWaitsForGuide() {
 function promptActReward(zoneId) {
     clearInterval(actRewardPromptTimer);
     clearTimeout(actRewardPromptDelay);
-    actRewardPromptTimer = null;
+    actRewardPromptTimer = actRewardPromptDelay = null;
     if (game.isBackgroundCalculation) return;   // 방치 정산에서는 띄우지 않는다(보상은 지도와 목표 서랍에 남는다)
     actRewardPromptDelay = setTimeout(() => startActRewardPrompt(zoneId), ACT_REWARD_PROMPT.afterKillMs);
 }
@@ -6020,10 +6020,15 @@ function grantActRewardItem(zoneId, choice) {
         : createItemFromBase(base, choice.rarity || 'magic', zoneId + 1);
     // The shown base is the granted base. Only unidentified affixes remain random.
     if (!isFirstActStarterReward(zoneId)) item.baseStats = base.baseStats.map(stat => rollBaseStat(stat, 0.5));
-    return addItemToInventory(item, { guaranteedKeep: true });
+    return addItemToInventory(item, { guaranteedKeep: true }) ? item : null;
 }
 function grantActRewardEntry(zoneId, choice) {
-    if (choice.kind === 'item') return grantActRewardItem(zoneId, choice);
+    if (choice.kind === 'item') {
+        // 받은 장비를 기록에 남긴다(GPT가 장비 지급을 나누며 빠졌다: 1루프 무기는 시작 무기가 칸을 채워 가방으로만 간다)
+        const item = grantActRewardItem(zoneId, choice);
+        if (item) addLog(`🎁 액트 보상으로 [${item.name}] 획득!`, choice.rarity === 'rare' ? 'loot-rare' : 'loot-magic', { item });
+        return !!item;
+    }
     if (choice.kind === 'skill') {
         if (!hasSkillGemOwned(choice.skill)) {
             game.skills.push(choice.skill);

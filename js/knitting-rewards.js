@@ -82,6 +82,9 @@ const knittingRewards = (() => {
         return item;
     }
     const plannedCurrencies = reward => (reward.currencies || []).map(([key, n]) => [getCanonicalCurrencyKey(key), n]);
+    // 창공석은 재화 칸이 아니라 창공의 탑 상태에 쌓인다(js/passives.js commitCurrencyGain, js/exploration-ground-loot.js settleRow)
+    const SKY_POWER = 'condensedSkyPower';
+    const heldCurrency = (state, key) => (key === SKY_POWER ? (state.skyTower && state.skyTower.condensedPower) : state.currencies[key]) || 0;
     const plannedYarns = (state, row, random) => Array.from({ length: row.reward.yarns || 0 }, () => knitting.pickYarn(state, row.id, random));
     /** 장비 → 재화 → 반환 실타래 순으로 계획한다. 장비 보상인데 장비가 없거나 반환할 실타래가 없으면 null(아무것도 쓰지 않는다). */
     function plan(state, row, random) {
@@ -94,7 +97,7 @@ const knittingRewards = (() => {
         if (!made) return '현재 보상 풀에 맞는 아이템이 없습니다. 실타래는 유지됩니다.';
         if (made.item && !canStoreEquipmentItems([made.item], state)) return '장비 보관함에 빈자리가 필요합니다.';
         if (made.currencies.some(([key]) => !contentProgression.canDropCurrency(key, state))) return '보상 재화의 콘텐츠를 먼저 해금하세요.';
-        if (made.currencies.some(([key, n]) => !ORB_DB[key] || !Number.isSafeInteger((state.currencies[key] || 0) + n))) return '재화를 더 보관할 수 없습니다.';
+        if (made.currencies.some(([key, n]) => !ORB_DB[key] || !Number.isSafeInteger(heldCurrency(state, key) + n))) return '재화를 더 보관할 수 없습니다.';
         const counts = {};
         for (const id of made.yarns) counts[id] = (counts[id] || 0) + 1;
         return Object.entries(counts).some(([id, n]) => (state.knitting.counts[id] || 0) + n > KNITTING.countCap) ? '실타래 보관 수량이 가득 찼습니다.' : '';
@@ -106,9 +109,14 @@ const knittingRewards = (() => {
         next.knitting.counts[row.id] -= row.set;
         next.knitting.knitted[row.id] = (next.knitting.knitted[row.id] || 0) + 1;
         if (made.item) next.inventory.push(made.item);
-        for (const [key, n] of made.currencies) next.currencies[key] = (next.currencies[key] || 0) + n;
+        let skyPower = 0;
+        for (const [key, n] of made.currencies) {
+            if (key === SKY_POWER) skyPower += n;
+            else next.currencies[key] = (next.currencies[key] || 0) + n;
+        }
         made.yarns.forEach(id => knitting.receive(next, id));
         Object.assign(state, { currencies: next.currencies, inventory: next.inventory, knitting: next.knitting });
+        if (skyPower) state.skyTower.condensedPower = heldCurrency(state, SKY_POWER) + skyPower;
         state.currencyDropVersion = (Number(state.currencyDropVersion) || 0) + made.currencies.length;
         state.noti.items = true;
     }
@@ -177,6 +185,20 @@ const knittingRewards = (() => {
     }
     
     
-    return Object.freeze({ plan, reason, commit, uniquePool, uniqueWeight, basesFor, rewardProblems });
+    /** 세트 하나를 뜨개질한다: 모든 보상을 계획하고 자리를 확인한 뒤에만 수량을 쓴다. 실패하면 수량도 아이템 번호도 그대로다. */
+    function knit(id, random = Math.random) {
+        const blocked = knitting.reason(game, id);
+        if (blocked) return { ok: false, reason: blocked };
+        const row = knitting.row(id), counter = itemIdCounter;
+        try {
+            const made = plan(game, row, random), failure = reason(game, made);
+            if (failure) { itemIdCounter = counter; return { ok: false, reason: failure }; }
+            commit(game, row, made);
+            return { ok: true, row, made };
+        } catch (error) { itemIdCounter = counter; throw error; }
+    }
+    const catalogProblems = () => knitting.structureProblems().concat(rewardProblems());
+
+    return Object.freeze({ plan, reason, commit, knit, catalogProblems, uniquePool, uniqueWeight, basesFor, rewardProblems });
 })();
 safeExposeGlobals({ knittingRewards });

@@ -2546,10 +2546,11 @@ const battleCanvasBox = (() => {
             observer = new ResizeObserver(() => { box = null; }); observeSizes();
         }
         if (hud && typeof MutationObserver === 'function') {
-            hudObserver = new MutationObserver(rows => {
-                if (rows.some(row => row.type === 'attributes' || [...row.addedNodes, ...row.removedNodes].some(node => node.nodeType === 1))) observeSizes();
-            });
-            hudObserver.observe(hud, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'hidden'] });
+            // 같은 값을 다시 넣은 속성(틱마다 hidden = true)은 바뀐 것이 아니다: 그때마다 상자를 버리면 거의 매 프레임 배치를 다시 쟀다
+            const changed = row => (row.type === 'attributes' ? row.oldValue !== row.target.getAttribute(row.attributeName)
+                : [...row.addedNodes, ...row.removedNodes].some(node => node.nodeType === 1));
+            hudObserver = new MutationObserver(rows => { if (rows.some(changed)) observeSizes(); });
+            hudObserver.observe(hud, { childList: true, subtree: true, attributes: true, attributeOldValue: true, attributeFilter: ['class', 'hidden'] });
         }
         document.addEventListener('scroll', forget, { capture: true, passive: true });
     }

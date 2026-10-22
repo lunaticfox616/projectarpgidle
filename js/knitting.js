@@ -130,18 +130,6 @@ const knitting = (() => {
         if (row.reward.yarns && !yarnPool(state, id).length) return '다른 종류의 실타래를 먼저 발견하세요.';
         return '';
     }
-    /** Plans all rewards before consuming a set. A failed capacity check returns without changing stock or item ids. */
-    function knit(id, random = Math.random) {
-        const blocked = reason(game, id);
-        if (blocked) return { ok: false, reason: blocked };
-        const row = byId.get(id), counter = itemIdCounter;
-        try {
-            const made = knittingRewards.plan(game, row, random), failure = knittingRewards.reason(game, made);
-            if (failure) { itemIdCounter = counter; return { ok: false, reason: failure }; }
-            knittingRewards.commit(game, row, made);
-            return { ok: true, row, made };
-        } catch (error) { itemIdCounter = counter; throw error; }
-    }
     const visible = state => KNITTING.list.filter(row => state.knitting.seen.includes(row.id));
     function gainedBetween(before, after) {
         const old = before?.counts || {}, seen = before?.seen || [];
@@ -213,9 +201,7 @@ const knitting = (() => {
         if (KNITTING.list.length !== KNITTING.target) out.push(`종류 ${KNITTING.list.length}, 목표 ${KNITTING.target}`);
         return out.concat(homeProblems(), nodeProblems());
     }
-    const catalogProblems = () => structureProblems().concat(knittingRewards.rewardProblems());
-
     return Object.freeze({ defaults, normalize, resetForLoop, zoneKeys, dropPool, weighted, rollKill, markDrop, receive, yarnPool,
-        pickYarn, reason, knit, visible, gainedBetween, catalogProblems, row: id => byId.get(id), validId: id => byId.has(id), pick });
+        pickYarn, reason, visible, gainedBetween, structureProblems, row: id => byId.get(id), validId: id => byId.has(id), pick });
 })();
 safeExposeGlobals({ knitting });

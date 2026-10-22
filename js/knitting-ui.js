@@ -38,7 +38,7 @@ const knittingUi = (() => {
     function knit(id) {
         shownSeason = game.season;
         try {
-            const result = knitting.knit(id);
+            const result = knittingRewards.knit(id);
             lastResult = result.ok ? `${result.row.name} → ${resultText(result.made)}` : result.reason;
             if (result.ok) {
                 queueImportantSave(0);
