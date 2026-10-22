@@ -11,6 +11,9 @@
     height: 96px;
     min-height: 96px;
   }
+  /* 칸에 보일 것(아틀라스 지도 띠, 정예와 보스 카드)이 없으면 접는다: 늘 비워 두면 전장 위가 까만 빈 띠였다(2026-10-22 사용자 결정,
+     정예나 보스와 싸우는 동안은 전장이 그만큼 줄어든다) */
+  :root body[data-ui-skin].mobile-battle-tab #tab-battle .combat-stage:not(:has(#ui-atlas-combat:not([hidden]), #ui-enemy-list:not([hidden]) .enemy-card.targeted:is(.enemy-elite, .enemy-boss))) .combat-stage-info { display: none; }
   :root body[data-ui-skin].mobile-battle-tab #tab-battle #ui-atlas-combat {
     position: absolute;
     inset: 0;
