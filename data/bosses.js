@@ -8,6 +8,9 @@ const BOSS_BODY_ELEMENTS = Object.freeze({
     'atlas-garden-1': 'phys', 'atlas-garden-2': 'cold',
     'atlas-sanctum-4': 'light', 'atlas-sanctum-5': 'cold'
 });
+/** 아틀라스 지도 보스 가운데 제 몸(로스터 그림)으로 그리는 넷: 2026-10-22 검토한 몬스터 묶음의 지도 보스다. 나머지 지도, 수호자, 정점의
+ * 몸은 크기와 정체성 결정을 기다려(2026-10-20 보스 그림 검토) 액트 보스 그림 그대로다. */
+const ATLAS_BOSS_BODIES = Object.freeze(['atlas-garden-1', 'atlas-garden-2', 'atlas-sanctum-4', 'atlas-sanctum-5']);
 
 
 const ACT_BOSS_ASSET_KEYS = [
@@ -385,7 +388,7 @@ function getBossReach(enemy) {
 }
 
 safeExposeData({
-    BOSS_REACH, getBossReach, BOSS_BODY_ELEMENTS,
+    BOSS_REACH, getBossReach, BOSS_BODY_ELEMENTS, ATLAS_BOSS_BODIES,
     ACT_BOSS_NAMES, ACT_BOSS_ASSET_KEYS, BOSS_ASSET_SOURCES, BOSS_ASSET_MANIFEST, BOSS_ASSET_VARIANTS_BY_ACT, BOSS_ASSET_FRONT_FACING,
     getBossAssetKeyForZone, getBossNameForZone, ENEMY_TRAIT_POOL, MONSTER_VARIANT_DEFS, getMonsterVariantDefinition,
     ACT_MONSTER_VISUALS, ACT_MONSTER_VISUAL_BY_ID, ACT_MONSTER_POOLS, RETIRED_WOOD_MONSTER_SKINS, RETIRED_REALM_MONSTERS, getActMonsterPool,

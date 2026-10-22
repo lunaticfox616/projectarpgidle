@@ -6,17 +6,16 @@
 const atlas = (() => {
     const MAP_NODES = ATLAS.regions.flatMap((region, regionIndex) => ATLAS.nodes[region.id].map((row, slot) => Object.freeze({
         id: `${region.id}_${slot}`, kind: 'map', region: region.id, regionIndex, slot, name: row[0], tier: row[1], boss: row[2], act: row[3],
-        bossAct: row[4], bossVisualId: `atlas-${region.id}-${slot}`, ele: region.ele
+        bossAct: row[4], bossVisualId: ATLAS_BOSS_BODIES.includes(`atlas-${region.id}-${slot}`) ? `atlas-${region.id}-${slot}` : null, ele: region.ele
     })));
     // A guardian closes each region's innermost pair (slots 7 · 8); the pinnacle sits in the centre, opened with the four tickets.
     const GUARDIANS = ATLAS.regions.map((region, regionIndex) => {
         const [name, ticket, bossAct] = ATLAS.guardians[region.id];
         return Object.freeze({ id: `${region.id}_g`, kind: 'guardian', region: region.id, regionIndex, slot: 9, name, tier: ATLAS.guardianRules.tier,
-            boss: name, arena: true, act: region.act, bossAct, bossVisualId: `guardian-${region.id}`, ele: region.ele, ticket });
+            boss: name, arena: true, act: region.act, bossAct, ele: region.ele, ticket });
     });
     const PINNACLE = Object.freeze({ id: 'pinnacle', kind: 'pinnacle', region: null, regionIndex: -1, slot: -1, name: ATLAS.pinnacle.name,
-        tier: ATLAS.guardianRules.tier, boss: ATLAS.pinnacle.boss, arena: true, act: ATLAS.pinnacle.act, bossAct: ATLAS.pinnacle.bossAct,
-        bossVisualId: 'atlas_pinnacle', ele: 'chaos' });
+        tier: ATLAS.guardianRules.tier, boss: ATLAS.pinnacle.boss, arena: true, act: ATLAS.pinnacle.act, bossAct: ATLAS.pinnacle.bossAct, ele: 'chaos' });
     const NODES = Object.freeze([...MAP_NODES, ...GUARDIANS, PINNACLE]);
     // 후반부 싸움(data/atlas-endgame.js, js/atlas-endgame.js): 그래프 밖의 투기장. 지도 장치 런 · 포털 · 정산은 같은 길을 쓴다.
     const lateNode = (row, kind, name) => Object.freeze({ id: row.id, kind, region: null, regionIndex: -1, slot: -1, name, tier: row.tier,

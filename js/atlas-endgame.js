@@ -121,7 +121,8 @@ const atlasEndgame = (() => {
     /** Zone fields an apostle map or a late fight adds (names, art, stage table, floor hazard). */
     function zoneExtras(run, node) {
         const extra = (run && run.endgame) || {}, apostle = APOSTLES.get(extra.apostle);
-        if (node.kind === 'map' && apostle) return { bossName: apostle.name, bossAct: apostle.bossAct, atlasApostle: apostle.id };
+        // 사도가 차지한 지도는 사도의 이름과 그 액트 그림이다: 지도 보스의 몸(bossVisualId)을 쓰지 않는다
+        if (node.kind === 'map' && apostle) return { bossName: apostle.name, bossAct: apostle.bossAct, bossVisualId: null, atlasApostle: apostle.id };
         const row = def(node.id);
         if (!row) return {};
         const echoes = extra.echoes || [], names = row.stages.map(stage => stageName(row, stage, echoes));
