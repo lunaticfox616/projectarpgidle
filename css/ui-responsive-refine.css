@@ -364,11 +364,14 @@
     overflow: hidden;
   }
 
+  /* 접힌 막대: 안의 펼치기 단추(44px)가 테 안 높이 그대로라 위아래 여백을 두지 않는다(두면 단추가 아래로 밀려 글이 막대 아래쪽에 앉았다) */
   body.mobile-battle-tab #tab-battle .combat-feed.collapsed {
     min-height: 52px;
     height: 52px;
     max-height: 52px;
+    padding-block: 0;
   }
+  body.mobile-battle-tab #tab-battle .combat-feed.collapsed .combat-feed-title { padding-bottom: 0; }
 
   body.mobile-battle-tab #tab-battle .combat-feed-title {
     display: flex;

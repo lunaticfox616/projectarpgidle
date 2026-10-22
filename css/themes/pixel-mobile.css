@@ -249,10 +249,8 @@
     /* Overrides inline presentation from the runtime (min-height 280px); the grid row sets the height here. */ min-height: 0 !important; }
 }
 @media (max-width: 1080px) and (orientation: landscape) and (max-height: 600px) {
-  /* 가로 휴대폰: HUD는 지역 줄 아래 왼쪽 칸이라 메뉴 띠와 붙지 않는다. 세로용 "메뉴 띠와 이어 붙이기"(아래 테 없음 ·
-     돌판이 위로 솟음)를 되돌려 돌판을 HUD 상자 안에 맞춘다 — 예전에는 돌판 윗단이 지역 줄을 덮었다. */
+  /* 가로 휴대폰: HUD는 지역 줄 아래 왼쪽 칸이라 메뉴 띠와 붙지 않는다. 세로용 "메뉴 띠와 이어 붙이기"(아래 테 없음)를 되돌린다 */
   :root body[data-ui-skin].mobile-primary-navigation.mobile-battle-tab #battle-column .player-hud-shell::before {
-    box-sizing: border-box;
     border-bottom-width: var(--px-plate-border);
     border-image-width: var(--px-plate-border);
     box-shadow: var(--px-drop);

@@ -397,10 +397,12 @@ const stageView = Object.freeze({
         const widest = Math.floor(Math.min(width / columns, rows ? stageView.tallestTile(width, height, rows) : Infinity));
         return STAGE_VIEW.heroTile * Math.max(STAGE_VIEW.minDot, widest / STAGE_VIEW.heroTile);
     },
-    /** 바닥의 앞쪽 끝이 놓이는 세로 자리(화면 높이의 비율): 그 아래는 HUD가 덮는다. 좁은 화면(휴대폰)은 narrow. */
+    /** 바닥의 앞쪽 끝이 놓이는 세로 자리(화면 높이의 비율): 그 아래는 HUD가 덮는다. 휴대폰 세로는 전투 기록과 HUD 높이만큼(phoneClear),
+     * 가로 휴대폰은 HUD가 옆 칸이라 narrow. */
     floorShare(width, height) {
-        if (width < STAGE_VIEW.minColumns.narrowBelow) return STAGE_ROOMS.floorBottom.narrow;
-        return Math.min(STAGE_ROOMS.floorBottom.wide, 1 - STAGE_ROOMS.hudClear / height);
+        const share = STAGE_ROOMS.floorBottom;
+        if (width >= STAGE_VIEW.minColumns.narrowBelow) return Math.min(share.wide, 1 - STAGE_ROOMS.hudClear / height);
+        return height > width ? Math.max(share.narrow, Math.min(share.wide, 1 - STAGE_ROOMS.phoneClear / height)) : share.narrow;
     },
     /** 깊이 rows칸의 바닥과 그 위의 머리 높이가 화면에 다 들어오는 가장 큰 칸 너비(px). */
     tallestTile(width, height, rows) {
