@@ -5895,6 +5895,11 @@ function isActRewardPromptBlocked() {
     if (activeTutorial || actRewardWaitsForGuide() || backgroundCombatRuntime.processing) return true;
     return !!document.querySelector('.tutorial-overlay.active, dialog:modal, .selection-overlay, .background-combat-progress-overlay, #background-combat-result-overlay');
 }
+/** Shown again, the reward card came back at the last act's scroll spot (phones scroll it to the lower choices), past the title. */
+function scrollActRewardCardToTop() {
+    const card = document.querySelector('#reward-overlay .tutorial-card');
+    if (card) card.scrollTo(0, 0);
+}
 function openActReward(zoneId) {
     if (!(game.claimableActRewards || []).includes(zoneId)) return;
     let config = getActRewardConfig(zoneId);
@@ -5911,8 +5916,7 @@ function openActReward(zoneId) {
     document.getElementById('reward-grid').innerHTML = getActRewardChoices(zoneId)
         .map((choice, index) => isActRewardChoiceAvailable(choice) ? renderActRewardChoice(zoneId, choice, index) : '').join('');
     document.getElementById('reward-overlay').classList.add('active');
-    // Shown again, the card came back at the last act's scroll spot (phones scroll it to the lower choices), past the title.
-    document.querySelector('#reward-overlay .tutorial-card').scrollTo(0, 0);
+    scrollActRewardCardToTop();
     lastTime = Date.now();
     watchActRewardAway();
 }
