@@ -11352,7 +11352,10 @@ function showLatestPatchDate(entry) {
 function openPatchNotes() {
     renderPatchNotes();
     let overlay = document.getElementById('patch-notes-overlay');
-    if (overlay) overlay.classList.add('active');
+    if (!overlay) return;
+    overlay.classList.add('active');
+    // Shown again, the notes came back at the last scroll spot, an older version, instead of the newest at the top.
+    document.getElementById('patch-notes-overlay-body').scrollTo(0, 0);
 }
 
 function closePatchNotes() {
