@@ -847,8 +847,9 @@
     .passive-preset-drawer[open] { width: calc(100% - 14px); }
     .passive-preset-drawer .passive-tree-planner { max-height: 46vh; }
     .passive-tree-right-tools { top: 7px; right: 7px; max-width: calc(100% - 14px); }
-    .passive-search-drawer { max-width: calc(100vw - 28px); }
-    .passive-search-drawer[open] { width: calc(100vw - 28px); }
+    /* 721-760px tablets: the tree has 16px window margins each side, plus the tools' 7px insets */
+    .passive-search-drawer { max-width: calc(100vw - 46px); }
+    .passive-search-drawer[open] { width: calc(100vw - 46px); }
 }
 
 .passive-reveal-burst {
