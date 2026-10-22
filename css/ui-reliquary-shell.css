@@ -1870,8 +1870,15 @@ body.has-bottom-tabs .selection-overlay {
 
   .selection-overlay-panel {
     width: min(100%, 520px);
-    max-height: calc(100dvh - 24px);
+    /* A content height: the pixel frame and the padding come on top (they ran 13px past a phone's top and bottom). */
+    max-height: calc(100dvh - 16px - 2 * var(--px-window-border, 0px) - 24px);
     padding: 12px;
+  }
+}
+
+@media (min-width: 701px) and (max-width: 1080px) and (orientation: landscape) and (max-height: 600px) {
+  .selection-overlay-panel {
+    max-height: calc(100dvh - 16px - 2 * var(--px-window-border, 0px) - 28px);
   }
 }
 
