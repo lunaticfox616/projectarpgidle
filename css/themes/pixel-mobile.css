@@ -247,6 +247,27 @@
   :root body[data-ui-skin].mobile-primary-navigation.mobile-tab-drawer-open #tab-header-main {
     max-height: calc(100dvh - var(--mobile-primary-nav-height) - env(safe-area-inset-bottom) - 14px);
   }
+  /* 스킬트리 창: 몸통이 170px쯤이라 하위 탭 줄과 제목 줄을 쌓으면 트리가 메뉴 띠 위로 50px만 보였고, 내려서 보면 화면이 다 캔버스라
+     손가락으로 다시 올라갈 수 없었다. 하위 탭은 왼쪽 세로 칸, 포인트와 초기화는 검색 단추처럼 트리 왼쪽 위에 띄우고 트리가 오른쪽 높이를 다 쓴다 */
+  :root body[data-ui-skin] #tab-char .merged-tab-shell { display: grid; grid-template-columns: 136px minmax(0, 1fr); column-gap: 10px; align-items: start; }
+  :root body[data-ui-skin] #tab-char .merged-tab-shell:has(> .merged-tab-panels > .merged-subtab-pane.active[data-tab-id="tab-char"]) { height: 100%; }
+  :root body[data-ui-skin] #tab-char .merged-tab-shell > .window-tab-strip:not([hidden]) { grid-column: 1; grid-row: 1; grid-auto-flow: row; grid-auto-columns: auto; margin: 0; }
+  :root body[data-ui-skin] #tab-char .merged-tab-shell > .window-tab-strip > .window-tab { justify-content: flex-start; }
+  :root body[data-ui-skin] #tab-char .merged-tab-shell > .merged-tab-panels { grid-column: 2; grid-row: 1; min-width: 0; }
+  :root body[data-ui-skin] #tab-char .merged-tab-panels:has(> .merged-subtab-pane.active[data-tab-id="tab-char"]),
+  :root body[data-ui-skin] #tab-char .merged-subtab-pane.active[data-tab-id="tab-char"] { display: contents; }
+  :root body[data-ui-skin] #tab-char .merged-subtab-pane.active[data-tab-id="tab-char"] > div {
+    /* Overrides the markup's inline flex column (index.html) so the title row and the tree join the window grid. */ display: contents !important; }
+  :root body[data-ui-skin] #tab-char .merged-subtab-pane[data-tab-id="tab-char"] > div > h2 { grid-column: 2; grid-row: 1; justify-self: start; position: relative; z-index: 11; display: block; margin: 6px; padding: 0 0 0 8px; border: 1px solid var(--color-line); background: var(--color-surface); }
+  :root body[data-ui-skin] #tab-char .merged-subtab-pane[data-tab-id="tab-char"] > div > h2 > span:first-child { display: none; }
+  :root body[data-ui-skin] #tab-char .merged-subtab-pane[data-tab-id="tab-char"] > div > h2 > .h2-right { display: flex; align-items: center; gap: 8px; min-height: 44px; }
+  :root body[data-ui-skin] #tab-char .merged-subtab-pane[data-tab-id="tab-char"] > div > h2 .passive-tree-reset { margin: 0; }
+  :root body[data-ui-skin] #tab-char .merged-subtab-pane[data-tab-id="tab-char"] > div > #tree-container { grid-column: 2; grid-row: 1; align-self: stretch;
+    /* Overrides inline presentation from the runtime (min-height 280px) and the tablet 360px floor; the grid row sets the height here. */ min-height: 0 !important; }
+}
+@media (max-width: 720px) and (orientation: landscape) and (max-height: 600px) {
+  /* 720px 이하에서는 트리 도구(프리셋, 검색, 투자 효과 총합)가 트리 맨 위 한 줄이라 포인트 판은 왼쪽 아래에 둔다 */
+  :root body[data-ui-skin] #tab-char .merged-subtab-pane[data-tab-id="tab-char"] > div > h2 { align-self: end; }
 }
 @media (max-width: 1080px) and (orientation: landscape) and (max-height: 339px) and (pointer: coarse) {
   /* 주소창이 보이는 가로 휴대폰(높이 293px 안팎)은 지역 줄 · HUD · 전장 · 메뉴 띠가 들어갈 수 없다 — 세로로 돌리라는 안내만.

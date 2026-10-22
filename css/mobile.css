@@ -5,7 +5,7 @@
 
 #passive-mobile-detail { display: none; }
 @media (max-width: 1080px) {
-  #passive-mobile-detail:not([hidden]) { display: flex; flex-direction: column; position: fixed; left: 8px; right: 8px; bottom: calc(62px + env(safe-area-inset-bottom)); z-index: 15000; max-height: 42dvh; border: 1px solid var(--color-accent-gold); border-radius: 8px; background: var(--color-surface); box-shadow: 0 -8px 24px #0008; padding: 10px; gap: 8px; }
+  #passive-mobile-detail:not([hidden]) { display: flex; flex-direction: column; position: fixed; left: 8px; right: 8px; bottom: calc(var(--mobile-primary-nav-height, 62px) + env(safe-area-inset-bottom)); z-index: 15000; max-height: 42dvh; border: 1px solid var(--color-accent-gold); border-radius: 8px; background: var(--color-surface); box-shadow: 0 -8px 24px #0008; padding: 10px; gap: 8px; }
   #passive-mobile-detail header { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--color-accent-gold); font-size: 13px; }
   #passive-mobile-detail button { min-height: 44px; font-size: 14px; }
   #passive-mobile-detail footer button { width: 100%; }
@@ -225,6 +225,9 @@
   body.mobile-battle-tab #tab-battle .battlefield-wrap {
     width: min(100%, 81.08svh);
   }
+  /* Landscape phones are about 270px tall above the menu: the bottom sheet covered the whole tree and cut the node text to one line.
+     Dock it as a tall card over the window's tab rail instead. */
+  #passive-mobile-detail:not([hidden]) { top: max(8px, env(safe-area-inset-top)); right: auto; width: min(340px, 48vw); max-height: none; }
 }
 
 .gem-library-pager {
