@@ -360,8 +360,17 @@ function getUiPlayerHudIdentity() {
         : null;
     return {
         name: heroDef ? heroDef.label : '플레이어',
-        className: classDef ? classDef.name : '미전직'
+        className: classDef ? classDef.name : '미전직',
+        ascended: !!classDef
     };
+}
+
+/** HUD 이름표: 직업과 전직(전직 전이면 미전직). 휴대폰 세로의 이름표는 전직한 뒤 전직 이름만 보인다(data-ascended, css/themes/pixel-hud.css). */
+function renderPlayerHudIdentity(identity) {
+    setTextById('ui-player-name-label', identity.name);
+    setTextById('ui-player-class-label', identity.className);
+    let row = document.querySelector('#battle-column .player-hud-identity-row');
+    if (row) row.toggleAttribute('data-ascended', identity.ascended);
 }
 
 const BACKGROUND_PROGRESS_MIN_REAL_MS = 60 * 1000;
@@ -8156,9 +8165,7 @@ function updateCombatUI(pStats) {
     setTextById('ui-maxexp', formatSettingNumber(expProgress.required, 'showExpComma'));
     let expPct = expProgress.percent;
     setUiImageGaugePercent(document.getElementById('ui-exp-bar'), expPct);
-    let playerHudIdentity = getUiPlayerHudIdentity();
-    setTextById('ui-player-name-label', playerHudIdentity.name);
-    setTextById('ui-player-class-label', playerHudIdentity.className);
+    renderPlayerHudIdentity(getUiPlayerHudIdentity());
     showHudLevel(game.level);
     setTextById('ui-exp-note', `${expPct.toFixed(1)}%`);
     updatePlayerCombatEffectHud(pStats, hpAilBar);

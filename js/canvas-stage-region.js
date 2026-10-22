@@ -98,6 +98,11 @@ const stageRegion = (() => {
         if (room.mirror) ctx.restore();
         blendPictureEdges(ctx, region, { y, h: Math.round(h), reach: Math.round(BLEND_DOTS * dot) }, area);
     }
+    /** 방 그림이 방 바닥의 뒤쪽 끝(바닥선) 위로 올라가는 높이(칸 너비 단위, js/canvas-stage-scene.js coverTile). 지역 그림이 없는 지도는 0. */
+    function pictureRise(map) {
+        const region = regionOfMap(map);
+        return region && map.frame ? region.ground * stageRegionFit.scale(region, map.frame.columns, map.frame.rows) / WIDE : 0;
+    }
     /** 방 그림이 화면의 위나 아래에 닿지 않으면(세로로 긴 화면) 그림의 끝이 메운 색과 맞닿아 줄로 보였다: 끝에서 reach만큼을 메운 색으로
      * 풀어 준다. 그림이 화면을 덮는 넓은 화면에서는 아무것도 그리지 않는다. */
     function blendPictureEdges(ctx, region, picture, area) {
@@ -334,7 +339,7 @@ const stageRegion = (() => {
     function warmRegion(id) {
         if (stageView.backdrops() && stageRegionFit.of(id)) regionPicture(id + '.png');
     }
-    return Object.freeze({ warm: warmRegion, status: regionStatus, drawFar: drawRoomPicture, paintRoom: paintRoomShade, append: appendRegionPieces, draw: drawRegionPiece,
+    return Object.freeze({ warm: warmRegion, status: regionStatus, rise: pictureRise, drawFar: drawRoomPicture, paintRoom: paintRoomShade, append: appendRegionPieces, draw: drawRegionPiece,
         drawMarks: drawRegionSideMarks, drawObject: drawRegionObject, outlineObject: outlineRegionObject, objectTop: regionObjectTop, fitJobs: regionFitJobs });
 })();
 safeExposeGlobals({ stageRegion });

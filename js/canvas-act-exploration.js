@@ -37,13 +37,20 @@ const actExplorationView=(()=>{
      * 함께 눌린다. 위에서 보는 전장에서는 둘이 같다. */
     function projection(width,height) {
         const run=actExplorationState.current(game),map=actExplorationMap.forRun(run);
-        const cell=actExplorationMotion.position(run,game.gridPlayer),tile=stageView.enabled()?stageView.tile(width,height,stageRoomRows(run)):tileSize(width,height);
+        const cell=actExplorationMotion.position(run,game.gridPlayer),tile=stageView.enabled()?stageTile(run,map,width,height):tileSize(width,height);
         const deep=tile*stageView.depth(),centre=cameraCentre(run,cell,{columns:width/tile,rows:height/deep,width,height});
         const mapX=snap(width/2-centre.gx*tile),mapY=snap(height*stageView.anchorY()-centre.gy*deep);
         shiftActors(run,{x:mapX,y:mapY,tile,deep});
         return {tileW:tile,tileH:deep,actorGroundOffsetY:deep/6,unitScaleCap:tile/46,mapX,mapY,
             mapWidth:map.columns*tile,mapHeight:map.rows*deep,
             cellToScreen:(gx,gy)=>({x:mapX+(gx+.5)*tile,y:mapY+(gy+.5)*deep})};
+    }
+    /** 무대의 칸 너비: 화면 너비와 높이를 따른다(stageView.tile). 휴대폰과 태블릿 세로에서는 방 그림이 화면 위끝까지 닿을 만큼은
+     * 키운다(stageScene.coverTile). PC 창은 창 모양이 달라도 가로로 같은 칸 수가 보이게 그대로 두고, 테스트 패널에서 고른 배율도 그대로다. */
+    function stageTile(run,map,width,height) {
+        const tile=stageView.tile(width,height,stageRoomRows(run));
+        if(Number(game.settings.stageZoom)||typeof stageScene!=='object'||!stageView.phonePortrait(width,height))return tile;
+        return Math.max(tile,stageScene.coverTile(map,width,height));
     }
     /** 방 단위 무대에서 그 지도의 기준 방의 깊이(칸): 칸 크기가 화면 높이에 맞게 줄어들 기준이다(방마다 깊이가 달라도 칸 크기는
      * 지도 하나에서 같다). 이어진 지도에서는 0(너비만 따른다). */
