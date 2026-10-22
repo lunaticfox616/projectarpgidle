@@ -213,6 +213,13 @@ input[data-search-key]:focus {
 /* 알림과 DPS 변화 표시는 루프 창, 루프 시작 영웅 고르기, 액트 보상 창(고를 칸을 가렸다), 패치 노트 뒤로 숨는다. 사망 창은 모달 dialog라 이미 그 위에 그려진다 */
 body:has(:is(#loop-ready-overlay, #loop-decision-overlay, #loop-hero-select-overlay, #reward-overlay, #patch-notes-overlay).active) :is(#mobile-toast-root, #game-toast-region, .build-dps-chip) { visibility: hidden; }
 @media (max-width: 600px) { .tutorial-overlay .tutorial-card.loop-settlement-card { padding: 20px; } }
+/* 휴대폰: 정산 글이 창보다 길어 진행 단추가 아래에 숨었다(세로 246px, 가로 486px를 밀어야 보였다). 단추 줄을 창 아래에 붙이고,
+   창의 아래 여백(28px, 600px 이하 20px)까지 덮어 그 아래로 글이 비치지 않게 한다. */
+@media (max-width: 1080px) {
+  .loop-settlement-card { --loop-card-pad: 28px; }
+  .loop-settlement-card :is(.loop-settlement-actions, #loop-decision-actions) { position: sticky; bottom: calc(-1 * var(--loop-card-pad)); z-index: 1; margin-bottom: calc(-1 * var(--loop-card-pad)); padding: 10px 0 var(--loop-card-pad); background: inherit; box-shadow: 0 -10px 12px -4px rgb(30 28 34); }
+}
+@media (max-width: 600px) { .loop-settlement-card { --loop-card-pad: 20px; } }
 @media (prefers-reduced-motion: reduce) { .loop-settlement-story, .loop-settlement-next { animation: none; } }
 .loop-ready-banner {
   display: none;
