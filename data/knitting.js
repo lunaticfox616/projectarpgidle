@@ -33,7 +33,7 @@ const KNITTING = (() => {
             reward: { gear: { slots: ['신발'], fossil: true }, tier: 10 }, label: '화석 전용 옵션이 붙은 10등급 희귀 신발 1개' },
 
         { id: 'duelist-edge', name: "시련자의 부러진 검", grade: 2, set: 5, source: { types: ['trial'], boss: true }, homes: [], unlocks: ['battleTrials'], found: '전직 시련 보스',
-            reward: { gear: { slots: ['장갑', '방패'] }, tier: 8 }, label: '8등급 희귀 장갑, 방패 중 1개' },
+            reward: { gear: { slots: ['장갑', '방패'] }, tier: 8 }, label: '8등급 희귀 장갑, 완갑 중 1개' },
         { id: 'meteor-scorch', yarnOut: false, name: "식지 않은 운석 파편", grade: 4, set: 5, source: { types: ['meteor'] }, homes: ['type:meteor'], unlocks: ['meteorSite'], found: '운석 낙하 지점',
             reward: { uniquePool: 'meteor', tier: 20 }, label: '운석 낙하 지점 전용 고유 장비 1개' },
         { id: 'hex-wax', yarnOut: false, name: "여왕벌의 빈 방", grade: 4, set: 6, source: { types: ['beehive'] }, homes: ['type:beehive'], unlocks: ['beehive'], found: '벌집 원정',
@@ -47,7 +47,7 @@ const KNITTING = (() => {
         { id: 'sky-lace', name: "종탑 위의 깃털", grade: 2, set: 5, source: { types: ['skyTower'] }, homes: ['type:skyTower'], unlocks: ['sky'], found: '창공의 탑',
             reward: { gear: { base: 'cathedral_plate' }, tier: 12 }, label: '12등급 희귀 대성당 판갑 1개' },
         { id: 'guardian-knot', yarnOut: false, name: "파수꾼의 뼈호루라기", grade: 4, set: 5, source: { types: ['atlasMap'], kind: 'guardian', boss: true }, homes: [], found: '세계수 지역 수호자',
-            reward: { gear: { slots: ['갑옷', '방패'], influence: 'guardian' }, tier: 20 }, label: '수호자 영향이 붙은 20등급 희귀 갑옷, 방패 중 1개' },
+            reward: { gear: { slots: ['갑옷', '방패'], influence: 'guardian' }, tier: 20 }, label: '수호자 영향이 붙은 20등급 희귀 갑옷, 완갑 중 1개' },
         { id: 'blighted-hem', yarnOut: false, name: "잿빛 나뭇가지", grade: 4, set: 5, source: { types: ['atlasMap'], apostle: true, boss: true }, homes: [], found: '마름 사도',
             reward: { gear: { slots: ['투구', '장갑'], influence: 'blight' }, tier: 20 }, label: '마름 영향이 붙은 20등급 희귀 투구, 장갑 중 1개' },
         { id: 'beyond-fringe', yarnOut: false, name: "경계 너머의 유실물", grade: 5, set: 8, source: { types: ['beyondBoundary'] }, homes: ['type:beyondBoundary'], unlocks: ['beyond'], found: '경계 너머',
@@ -70,7 +70,7 @@ const KNITTING = (() => {
         { id: 'hollow-trunk', name: "바닥난 가죽 수통", grade: 2, set: 3, source: { types: ['act'], act: 6 }, homes: acts(6), found: '말라가는 큰 줄기',
             reward: { currencies: [['formlessDew', 2]] }, label: '형체 없는 이슬 2개' },
         { id: 'veil-step', name: "포개어진 발자국", grade: 2, set: 3, source: { types: ['act'], act: 7 }, homes: acts(7), found: '끝없는 장막의 줄기',
-            reward: { gear: { slots: ['방패', '목걸이'] }, tier: 9 }, label: '9등급 희귀 방패, 목걸이 중 1개' },
+            reward: { gear: { slots: ['방패', '목걸이'] }, tier: 9 }, label: '9등급 희귀 완갑, 목걸이 중 1개' },
         { id: 'grief-graft', name: "어긋난 접목 가지", grade: 2, set: 3, source: { types: ['act'], act: 8 }, homes: acts(8), found: '비탄의 교차',
             reward: { gear: { slots: ['반지'] }, tier: 10 }, label: '10등급 희귀 반지 1개' },
         { id: 'crown-wheel', name: "깨어나지 못한 고치", grade: 3, set: 4, source: { types: ['act'], act: 9 }, homes: acts(9), found: '합일의 차륜',
@@ -81,7 +81,7 @@ const KNITTING = (() => {
         { id: 'sprout-sinew', name: "양철 물뿌리개", grade: 1, set: 3, source: { types: ['act'], elite: true }, homes: acts(0, 1), found: '액트 정예와 보스',
             reward: { gear: { slots: ['목걸이'] }, tier: 3 }, label: '3등급 희귀 목걸이 1개' },
         { id: 'gall-sinew', name: "길 잃은 측량추", grade: 1, set: 3, source: { types: ['act'], elite: true }, homes: acts(2, 3), found: '액트 정예와 보스',
-            reward: { gear: { slots: ['방패'] }, tier: 5 }, label: '5등급 희귀 방패 1개' },
+            reward: { gear: { slots: ['방패'] }, tier: 5 }, label: '5등급 희귀 완갑 1개' },
         { id: 'shrine-sinew', name: "어린 복사의 촛대", grade: 2, set: 3, source: { types: ['act'], elite: true }, homes: acts(4, 5), found: '액트 정예와 보스',
             reward: { gear: { slots: ['장갑', '신발'] }, tier: 7 }, label: '7등급 희귀 장갑, 신발 중 1개' },
         { id: 'trunk-sinew', name: "돌아오지 못한 순찰", grade: 2, set: 3, source: { types: ['act'], elite: true }, homes: acts(6, 7), found: '액트 정예와 보스',
@@ -119,9 +119,9 @@ const KNITTING = (() => {
         { id: 'thorn-crown', name: "식어버린 찻잔", grade: 3, set: 5, source: { ...atlas('garden'), boss: true }, homes: [], found: '잊힌 정원 보스',
             reward: { unique: '폭군의 왕관', tier: 11 }, label: '고유 투구 「폭군의 왕관」 1개' },
         { id: 'frost-sinew', name: "성소의 얼음 타일", grade: 2, set: 4, source: { ...atlas('sanctum'), elite: true }, homes: [], found: '잠든 성소 정예와 보스',
-            reward: { gear: { slots: ['방패', '신발'] }, tier: 12 }, label: '12등급 희귀 방패, 신발 중 1개' },
+            reward: { gear: { slots: ['방패', '신발'] }, tier: 12 }, label: '12등급 희귀 완갑, 신발 중 1개' },
         { id: 'frost-crown', name: "서리 낀 촛대", grade: 3, set: 5, source: { ...atlas('sanctum'), boss: true }, homes: [], found: '잠든 성소 보스',
-            reward: { unique: '별빛 응축기', tier: 12 }, label: '고유 방패 「별빛 응축기」 1개' },
+            reward: { unique: '별빛 응축기', tier: 12 }, label: '고유 완갑 「별빛 응축기」 1개' },
 
         // 깊은 뿌리 지도 9곳 (지도마다 1종, 그 지역 전체에서 나오고 자기 지도에서 자주)
         { id: 'moss-burrow', name: "마른 이끼 뭉치", grade: 2, set: 4, source: atlas('roots'), homes: [node('roots', 0)], found: '이끼 낀 뿌리굴',
@@ -159,9 +159,9 @@ const KNITTING = (() => {
         { id: 'lift-rope', name: "승강기 쇠도르래", grade: 3, set: 5, source: atlas('trunk'), homes: [node('trunk', 6)], found: '수관 승강로',
             reward: { unique: '가호의 갑피', tier: 11 }, label: '고유 갑옷 「가호의 갑피」 1개' },
         { id: 'struck-heart', name: "벼락 맞은 심재 조각", grade: 4, set: 5, source: atlas('trunk'), homes: [node('trunk', 7)], found: '벼락 맞은 심재',
-            reward: { gear: { slots: ['갑옷', '방패'] }, tier: 18 }, label: '18등급 희귀 갑옷, 방패 중 1개' },
+            reward: { gear: { slots: ['갑옷', '방패'] }, tier: 18 }, label: '18등급 희귀 갑옷, 완갑 중 1개' },
         { id: 'trunk-throne', name: "속 빈 거목의 메아리", grade: 4, set: 6, source: atlas('trunk'), homes: [node('trunk', 8)], found: '줄기의 옥좌',
-            reward: { unique: '성채의 문', tier: 18 }, label: '고유 방패 「성채의 문」 1개' },
+            reward: { unique: '성채의 팔고리', tier: 18 }, label: '고유 완갑 「성채의 팔고리」 1개' },
         // 하늘 가지 지도 9곳
 
         { id: 'wind-top', name: "바람 읽는 풍향계", grade: 2, set: 4, source: atlas('canopy'), homes: [node('canopy', 0)], found: '바람 부는 우듬지',
@@ -218,7 +218,7 @@ const KNITTING = (() => {
         { id: 'sleeping-abbey', name: "끊어진 묵주 줄", grade: 3, set: 5, source: atlas('sanctum'), homes: [node('sanctum', 6)], found: '잠든 수도원',
             reward: { unique: '빙결파수 장화', tier: 12 }, label: '고유 신발 「빙결파수 장화」 1개' },
         { id: 'frost-crown-hall', name: "얼음 깎던 정", grade: 3, set: 5, source: atlas('sanctum'), homes: [node('sanctum', 7)], found: '서리 왕관의 전당',
-            reward: { unique: '성소의 맹세', tier: 12 }, label: '고유 방패 「성소의 맹세」 1개' },
+            reward: { unique: '성소의 맹세', tier: 12 }, label: '고유 완갑 「성소의 맹세」 1개' },
         { id: 'sleeping-eye', name: "봉인된 고서", grade: 4, set: 5, source: atlas('sanctum'), homes: [node('sanctum', 8)], unlocks: ['talisman'], found: '성소의 잠든 눈',
             reward: { currencies: [['radiantSealShard', 1]] }, label: '찬란한 봉인편린 1개' },
 
@@ -267,7 +267,7 @@ const KNITTING = (() => {
             reward: { currencies: [['timeRemnant', 6], ['formlessDew', 1]] }, label: '시간의 잔재 6개와 형체 없는 이슬 1개' },
         // 군락지
         { id: 'watch-cord', name: "비어 있는 군량함", grade: 2, set: 5, source: { types: ['colony'] }, homes: ['type:colony'], unlocks: ['colony'], found: '군락지',
-            reward: { gear: { slots: ['투구', '방패'] }, tier: 12 }, label: '12등급 희귀 투구, 방패 중 1개' },
+            reward: { gear: { slots: ['투구', '방패'] }, tier: 12 }, label: '12등급 희귀 투구, 완갑 중 1개' },
         { id: 'swarm-mesh', name: "군락의 마른 날개", grade: 3, set: 5, source: { types: ['colony'], elite: true }, homes: [], unlocks: ['colony'], found: '군락지 정예와 보스',
             reward: { currencies: [['magicBud', 6], ['sapBud', 1]] }, label: '마법의 새싹 6개와 수액 봉오리 1개' },
         // 창공의 탑
@@ -364,7 +364,7 @@ const KNITTING = (() => {
         { id: 'twin-loop', name: "두 번 감은 은줄", grade: 3, set: 5, source: { any: true, elite: true }, homes: [], found: '정예와 보스',
             reward: { gear: { slots: ['반지'] }, tier: 16 }, label: '16등급 희귀 반지 1개' },
         { id: 'warding-weave', name: "호신용 호박 조각", grade: 3, set: 5, source: { any: true, boss: true }, homes: [], found: '보스',
-            reward: { gear: { slots: ['방패', '허리띠'] }, tier: 16 }, label: '16등급 희귀 방패, 허리띠 중 1개' },
+            reward: { gear: { slots: ['방패', '허리띠'] }, tier: 16 }, label: '16등급 희귀 완갑, 허리띠 중 1개' },
         { id: 'gold-strand', name: "황금 수액 방울", grade: 4, set: 6, source: { any: true, boss: true }, homes: [], found: '보스',
             reward: { currencies: [['goldenRule', 1], ['sapBud', 1]] }, label: '황금률 1개와 수액 봉오리 1개' },
         { id: 'fairy-stitch', name: "달빛 아래 피어난 버섯", grade: 4, set: 5, source: { any: true, elite: true }, homes: [], found: '정예와 보스',

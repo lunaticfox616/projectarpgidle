@@ -248,6 +248,8 @@
     pointer-events: none;
     z-index: 3;
 }
+/* Keep the rarity corner clear of the one comparison chip at top left and the new-item dot at top right. */
+.equipment-grid-item::after { top: auto; left: auto; right: 2px; bottom: 2px; transform: rotate(180deg); }
 
 .equipment-grid-item.rarity-magic { --item-rarity: #5fb4ec; }
 .equipment-grid-item.rarity-rare { --item-rarity: #e9c355; }
@@ -341,71 +343,45 @@
 }
 
 .equipment-grid-item > img {
+    position: absolute;
+    inset: 2px;
     display: block;
-    width: 100%;
-    height: 100%;
+    width: calc(100% - 4px);
+    height: calc(100% - 4px);
     object-fit: contain;
+    object-position: center;
     pointer-events: none;
     filter: none;
 }
-
-.equipment-grid-item-name {
-    position: absolute;
-    right: 2px;
-    bottom: 2px;
-    left: 2px;
-    overflow: hidden;
-    padding: 2px 3px;
-    color: #f3f6fa;
-    background: linear-gradient(90deg, rgba(4, 8, 13, .84), rgba(4, 8, 13, .58));
-    font-size: 12px;
-    font-weight: 800;
-    line-height: 1.15;
-    text-align: left;
-    text-overflow: ellipsis;
-    text-shadow: 0 1px 2px #000;
-    white-space: nowrap;
-    pointer-events: none;
-    opacity: 0;
-    transform: translateY(3px);
-    transition: opacity .12s ease, transform .12s ease;
+.equipment-grid-item:has(> .equipment-grid-slot-label) > .equipment-grid-item-art {
+    bottom: 13px;
+    height: calc(100% - 15px);
 }
-
-.equipment-grid-item:hover .equipment-grid-item-name,
-.equipment-grid-item:focus-visible .equipment-grid-item-name,
-.equipment-grid-item.selected .equipment-grid-item-name { opacity: 1; transform: translateY(0); }
 
 .equipment-grid-item-badges {
     position: absolute;
-    top: 15px;
+    top: 2px;
     left: 2px;
-    display: grid;
-    gap: 2px;
+    z-index: 4;
+    display: block;
     pointer-events: none;
 }
 
 .equipment-grid-item-badges span {
-    padding: 1px 3px;
-    border: 1px solid rgba(246, 220, 155, .48);
-    border-radius: 3px;
+    display: block;
+    padding: 0 2px;
+    border: 0;
+    border-radius: 0;
     color: #ffe7a6;
-    background: rgba(21, 16, 8, .84);
-    font-size: 12px;
-    font-weight: 900;
-    line-height: 1.1;
+    background: #151008;
+    font-family: var(--font-pixel-meta);
+    font-size: 10px;
+    font-weight: 400;
+    line-height: 12px;
+    white-space: nowrap;
 }
 .equipment-grid-item-badges .is-atk { color: #ffb36b; }
 .equipment-grid-item-badges .is-def { color: #8fe0a0; }
-.equipment-grid-item-badges .is-special { color: #ffd36b; }
-/* 한 칸 폭이 좁으면(휴대폰 35px, PC 기본 창 48px) 위에서 15px 내려온 증감 표시가 칸 이름("목걸이")을 덮었고 휴대폰에서는 칸을 넘었다:
-   칸 이름 자리에 작게 쓰고 이름은 뺀다. 52px 칸(안쪽 46px)부터는 둘 다 들어간다. 고르거나 올렸을 때 뜨는 아이템 이름도 이 폭에서는
-   "희…"처럼 한 글자만 남아 칸 이름을 가렸다: 이름은 선택한 장비 칸에 나오므로 뺀다. */
-@container eqw-cell (max-width: 44px) {
-    .equipment-grid-item-name { display: none; }
-    .equipment-grid-item-badges { top: auto; right: 0; bottom: 2px; left: 0; justify-items: center; }
-    .equipment-grid-item-badges span { padding: 0 1px; font-size: 10px; letter-spacing: -.5px; }
-    .equipment-grid-item:has(.equipment-grid-item-badges span) .equipment-grid-slot-label { display: none; }
-}
 
 .equipment-slot-visual {
     position: relative;
@@ -499,9 +475,9 @@
     .equipment-grid-item-badges span { padding-inline: 2px; }
 }
 
-/* 한 칸 폭(휴대폰 35px) 아이템의 "목걸이"가 "목걸 / 이"로 갈라지지 않게 한 줄 — 양옆 2px까지 넘겨 쓴다 */
-.equipment-grid-slot-label.is-long { font-size: 10px; letter-spacing: -1px; }
-.equipment-grid-slot-label { position: absolute; bottom: 3px; left: -2px; right: -2px; color: #eee5d7; font-family: inherit; font-size: 12px; line-height: 1.2; text-align: center; white-space: nowrap; text-shadow: 0 1px 2px #000; pointer-events: none; }
+/* Opus 4차 검수: 가로 두 칸 이상만 12px 전용 띠를 쓴다. 전체 이름은 툴팁/선택 상세/ARIA로 읽는다. */
+.equipment-grid-slot-label { position: absolute; bottom: 0; left: 0; right: 0; height: 12px; color: #eee5d7; background: #151008;
+    font-family: var(--font-pixel-meta); font-size: 10px; font-weight: 400; line-height: 12px; text-align: center; white-space: nowrap; pointer-events: none; }
 .equipment-slot.equipment-requirements-unmet { filter: saturate(.3); }
 .equipment-requirement-badge { position:absolute; right:3px; top:3px; padding:1px 4px; border:1px solid #ad7162; background:#291d19; color:#f0b4a2; font-size:var(--font-size-meta); line-height:1.4; pointer-events:none; }
 }

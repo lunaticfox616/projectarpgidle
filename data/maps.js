@@ -70,9 +70,13 @@ const TRIAL_ZONES = [
 const METEOR_FALL_ZONE_ID = 'meteor_fall_site';
 const GRAND_BREACH_ENCOUNTER = Object.freeze({
     unlockChance: 0.08,
-    durationSeconds: 35, intervalMs: 1400, openingPack: 16, refillPack: 8, eliteLimit: 4,
+    requiredGauge: 200, normalGaugeGain: 1, eliteGaugeGain: 6,
+    intervalMs: 1400, openingPack: 16, refillPack: 8, eliteLimit: 4,
     portals: Object.freeze([{gx:0,gy:1}, {gx:8,gy:1}, {gx:4,gy:7}]),
-    capacities: Object.freeze([16,24,32])
+    capacities: Object.freeze([16,24,32]),
+    // The stage arena has nearly three times the walkable floor of a standard stage room.
+    arena: Object.freeze({intervalMs: 900, openingPack: 24, refillPack: 10, eliteLimit: 6,
+        spawnRadius: 3, capacities: Object.freeze([30,36,40])})
 });
 
 // 운석 낙하 지점: 루프 7에서 액트 7에 닿으면 하늘 균열 게이지가 차기 시작한다.

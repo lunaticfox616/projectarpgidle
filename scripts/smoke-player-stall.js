@@ -152,6 +152,19 @@ assert.match(run('stallToasts.join("|")'), /^가판대 판매: \[[^\]]+\], 형�
 assert.strictEqual(run(`playerStallUi.settleSales(${start + 4*hour + 60000})`), 0);
 assert.strictEqual(run('stallToasts.length'), 1, 'no sale, no news');
 
+// The woodsman fight refuses arranging the stall with its own reason (an answered offer used to read as expired, after a settlement
+// it should not have run) and keeps the offer; collecting proceeds only moves currency and stays open.
+fresh(); assert(list(1000000));
+run(`(() => { const row=game.playerStall.listings[0]; row.negotiate=true;
+    row.offer={id:1,amount:10,customerId:0,createdAt:${start + 60000},expiresAt:${start + 60000}+PLAYER_STALL_RULES.offerLifetimeMs,buyerLimit:10,negotiated:false};
+    game.playerStall.offerSequence=1; game.woodsmanBuildLock=true; })()`);
+const lockedStall = json('game.playerStall');
+run('playerStallUi.respond(game.playerStall.listings[0].id,1,true)');
+assert.match(run('playerStallUi.message'), /나무꾼/);
+assert.deepStrictEqual(json('game.playerStall'), lockedStall, 'a refused answer leaves the stall and its offer as they were');
+assert.strictEqual(run('playerStallUi.busy(false)'), '', 'collecting stays open during the woodsman fight');
+run('game.woodsmanBuildLock=false; playerStallUi.message=""');
+
 // DOM boundary: ordinary battle refreshes preserve the actual input/button nodes.
 fresh();
 let writes = 0, markup = '';
@@ -168,4 +181,5 @@ ctx.document.activeElement = { tagName:'BUTTON' };
 run('playerStallUi.render()');
 assert.strictEqual(writes, 2, 'a previously clicked button must not freeze incoming sale updates');
 assert(markup.includes('형체 없는 이슬 8'));
-console.log('player stall: appraisal, ownership, prices, timing, offline parity, payout, saves and loop protection passed');
+
+console.log('player stall: appraisal, ownership, prices, timing, offline parity, payout, saves, loop protection passed');

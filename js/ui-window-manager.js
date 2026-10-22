@@ -307,6 +307,8 @@
     }
 
     function focusWindow(tabId) {
+        // Prepared panels retain pointer listeners after returning to mobile tabs.
+        if (!isDesktopWindowed()) return;
         zOrder = zOrder.filter(id => id !== tabId).concat(tabId);
         zOrder.forEach((id, index) => {
             let el = document.getElementById(id);

@@ -4,6 +4,14 @@
 // 글자 그림: 짝수 줄의 짝수 칸이 방, 그 사이의 '-'와 '|'가 문이다. 오른쪽이 무대의 오른쪽, 아래가 무대의 앞쪽.
 //   S 입구, X 보스 방(문은 하나, 왼쪽이나 오른쪽 벽), b 전투 방, e 정예 방, o 들르지 않아도 되는 방(막다른 끝)
 const STAGE_ROOM_PLANS = Object.freeze({
+    /** A single continuous battlefield for each defense/survival encounter. Offsets are from the room's top-left floor tile. */
+    specialArenas: Object.freeze({
+        colony_run: Object.freeze({ width: 33, depth: 13, entry: Object.freeze([27, 6]), core: Object.freeze([25, 6]),
+            spawns: Object.freeze([Object.freeze([2, 2]), Object.freeze([2, 6]), Object.freeze([2, 10])]) }),
+        grand_breach_run: Object.freeze({ width: 35, depth: 15, entry: Object.freeze([17, 7]),
+            rifts: Object.freeze([Object.freeze([3, 3]), Object.freeze([3, 11]), Object.freeze([17, 2]),
+                Object.freeze([31, 3]), Object.freeze([31, 11]), Object.freeze([17, 12])]) })
+    }),
     /** 액트마다 네 장. 첫 장은 이어진 지도(뿌리 갈래, 중정 둘레길, 널다리, 미궁, 신전의 본당, 무너진 중정, 나선, 장막, 세 갈래, 차륜)의
      * 생김새를 옮긴 것이고 나머지 셋은 같은 방들을 다르게 놓은 것이다. */
     acts: Object.freeze({

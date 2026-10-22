@@ -225,7 +225,7 @@ const actExplorationUi=(()=>{
     }
     /** An explicit move order (minimap, large map, battlefield click): walk there; auto-move stays as it was. */
     function commandMove(cell) {
-        const run=actExplorationState.current(game);if(!run||run.status!=='active'||!cell)return false;
+        const run=actExplorationState.current(game);if(!actExplorationProgress.canMove(run)||!cell)return false;
         const accepted=actExplorationState.selectDestination(run,cell);
         if(!accepted)showGameToast('그곳으로는 갈 수 없습니다',{tone:'warning',duration:1400});
         render();
@@ -234,7 +234,7 @@ const actExplorationUi=(()=>{
     // 모바일의 작은 미니맵은 손가락으로 칸을 고르기 어려워, 누르면 크게 보기 창을 연다(칸 선택은 큰 지도에서).
     function choose(event) {
         if(event.currentTarget.id==='act-exploration-map'&&window.matchMedia('(max-width: 1080px)').matches)return expand();
-        const run=actExplorationState.current(game);if(!run||run.status!=='active')return;
+        const run=actExplorationState.current(game);if(!actExplorationProgress.canMove(run))return;
         const map=actExplorationMap.forRun(run),rect=event.currentTarget.getBoundingClientRect();
         if(map.stage){commandMove(actExplorationRoomsUi.pick(event,run,map));return;}
         const view=mapView(event.currentTarget,map);
@@ -255,11 +255,11 @@ const actExplorationUi=(()=>{
         if(!direction)held.length=0;
     }
     /** @param {?string} direction up/down/left/right; null with down false lets go of every key (window blur).
-     * @returns {boolean} whether an active exploration map took the key. */
+     * @returns {boolean} whether an exploring or loot-waiting map took the key. */
     function holdMove(direction,down) {
         press(direction,down);
         const run=actExplorationState.current(game);
-        if(!run||run.status!=='active'){held.length=0;stopWalking(null);return false;}
+        if(!actExplorationProgress.canMove(run)){held.length=0;stopWalking(null);return false;}
         if(isForegroundGameplayPausedForBackground())return nudge(run,down&&direction);
         if(!held.length){stopWalking(run);return true;}
         steer();
@@ -281,7 +281,7 @@ const actExplorationUi=(()=>{
     const footing=run=>(run.motion?run.motion.to:game.gridPlayer);
     function steer() {
         const run=actExplorationState.current(game),direction=held[held.length-1];
-        if(!run||run.status!=='active'||!direction){held.length=0;return stopWalking(run);}
+        if(!actExplorationProgress.canMove(run)||!direction){held.length=0;return stopWalking(run);}
         const [dx,dy]=STEPS[direction],from=footing(run);
         let reached=0;
         // 키보드로 거는 명령은 화면에 표시하지 않는다(KEYED: 클릭한 자리가 아니라 누른 방향의 몇 칸 앞이다)
@@ -291,7 +291,7 @@ const actExplorationUi=(()=>{
     }
     function stopWalking(run) {
         if(walkTimer){clearInterval(walkTimer);walkTimer=null;}
-        if(run&&run.status==='active'&&run.destination)actExplorationState.selectDestination(run,footing(run),KEYED);
+        if(actExplorationProgress.canMove(run)&&run.destination)actExplorationState.selectDestination(run,footing(run),KEYED);
     }
     function expand(){document.getElementById('act-exploration-dialog').showModal();render();}
     function hint(event) {

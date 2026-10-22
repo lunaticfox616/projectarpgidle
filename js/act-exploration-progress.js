@@ -5,11 +5,13 @@ const actExplorationProgress = (() => {
     // the hero stays as close as it got and, with auto-move on, goes back to exploring.
     const COMMAND_GIVE_UP_STEPS=15;
     const commandStalls=new WeakMap(); // run → steps the command has not advanced (transient, like the discovery memos)
-    // After the last boss falls, auto-move walks to what it dropped before the map completes, for at most this long: a pile the
-    // hero cannot reach is collected from where it stands, and leaving the map settles anything left (js/exploration-ground-loot.js).
-    const LOOT_WALK_MAX_MS=12000;
+    // After the last boss falls, auto-move walks to what it dropped before the map completes. A pile the hero cannot reach is
+    // collected from where it stands; manual movement waits for a click or an explicit step onto the pile, at most
+    // MANUAL_LOOT_WAIT_MS of combat time (leaving collects what is left: a hero left alone in 직접 이동 kept the map forever).
+    const MANUAL_LOOT_WAIT_MS=20000;
     const lootWalks=new WeakMap(); // run → {stalls, clearedAt} (transient, like the discovery memos)
     const walkedMs=new WeakMap(); // run → ms the hero walked since the last combat tick took it (takeWalkedMs, transient)
+    const inscriptionVisits=new WeakMap(); // run → last settled cell/room checked, never part of a save
     const ground=actExplorationState.groundLoot;
     function advance(stats) {
         const run=actExplorationState.current(game);
@@ -20,7 +22,7 @@ const actExplorationProgress = (() => {
     /** Foreground frames and offline combat ticks advance the same 20 ms movement clock. */
     /** A live run walks; a cleared one (its boss down) finishes the step it was taking, so the hero can still fight, and with
      * auto-move picks up the floor items before the map completes. */
-    const stepsLeft=run=>run.status==='active' || (run.status==='cleared' && (!!run.motion || collectingLoot(run)));
+    const stepsLeft=run=>canMove(run) || (run.status==='cleared' && !!run.motion);
     function tick(now,stats) {
         const run=actExplorationState.current(game);
         if(!run || !stepsLeft(run))return;
@@ -57,9 +59,11 @@ const actExplorationProgress = (() => {
         const from=run.motion&&run.motion.from;
         actExplorationMotion.advance(run,game.gridPlayer,run.motionTimeMs,canEnterMotionTile(run));
         swapSummonOutOfHeroTile(from);
-        if(run.motion || !explore(run,stats))return;
+        if(run.motion)return;
+        if(!explore(run,stats)){walkClearedCommand(run,stats);return;}
         actExplorationDoors.cross(run); // 방 단위 무대: 열린 문 칸에 서 있으면 이어진 방으로 옮겨진 뒤 그 방을 본다
         actExplorationState.discover(run,game.gridPlayer,stats);
+        recordVisitedInscription(run);
         const opened=actExplorationState.entrance(run);
         wakeBosses(actExplorationState.engage(game,run.motionTimeMs));
         announceAlerted(actExplorationState.wake(game,actExplorationState.alerted(game)));
@@ -69,6 +73,34 @@ const actExplorationProgress = (() => {
         if(!(run.source && run.source.chain===true))game.runProgress=Math.min(99,100*cleared/run.packs.length);
         if(holdsOrDetours(run,entrance,stats))return;
         const target=actExplorationState.destination(run,game.gridPlayer,runMode(run));
+        if(!target)return;
+        if(target.gx===game.gridPlayer.gx && target.gy===game.gridPlayer.gy){run.destination=null;return;}
+        walk(run,target,stats);
+    }
+    /** 복원 첫 걸음과 방을 바꿀 때 확인한다. 옛 방문 목록에 있는 방도 다시 들어서면 기록할 수 있다. */
+    function recordVisitedInscription(run) {
+        if(!JOURNAL_DB['inscription_'+run.zoneId])return;
+        const hero=game.gridPlayer,prior=inscriptionVisits.get(run);
+        if(prior && prior.gx===hero.gx && prior.gy===hero.gy)return;
+        const room=actExplorationDoors.room(run);
+        inscriptionVisits.set(run,{gx:hero.gx,gy:hero.gy,roomId:room?.id});
+        if(room && room.id!==prior?.roomId)recordInscription(run,false);
+    }
+    /** 기존 비문을 실제 방문/클리어 때 한 번 기록한다. 그림 그리기나 반복 프레임에는 저장을 쓰지 않는다. */
+    function recordInscription(run,completed) {
+        const id='inscription_'+run.zoneId,entry=JOURNAL_DB[id];
+        if(!entry || entry.afterClear!==completed || game.journalEntries.includes(id))return;
+        if(!actExplorationDoors.stageMap(run))return;
+        if(!completed && actExplorationDoors.room(run)?.role!=='optional')return;
+        unlockJournalEntry(id);
+        if(!game.isBackgroundCalculation)queueImportantSave(220);
+    }
+    /** A loot-waiting map may cross internal room doors, but never engages new packs or advances to another map. */
+    function walkClearedCommand(run,stats) {
+        if(run.status!=='cleared'||run.motion)return;
+        if(collectingLoot(run))actExplorationDoors.cross(run);
+        recordVisitedInscription(run);
+        const target=run.destination;
         if(!target)return;
         if(target.gx===game.gridPlayer.gx && target.gy===game.gridPlayer.gy){run.destination=null;return;}
         walk(run,target,stats);
@@ -93,7 +125,7 @@ const actExplorationProgress = (() => {
     /** Floor pickups on every settled step; a cleared map only walks to its floor items. Returns whether exploration goes on. */
     function explore(run,stats) {
         pickUp(run);
-        if(run.status==='cleared' && collectingLoot(run))walkToLoot(run,stats);
+        if(run.status==='cleared' && collectingLoot(run) && runMode(run)!=='manual')walkToLoot(run,stats);
         return run.status==='active';
     }
     function walkStep(target,stats) {
@@ -113,20 +145,24 @@ const actExplorationProgress = (() => {
     function walkToLoot(run,stats) {
         const now=getCombatTime(),pile=ground.nearest(run,game.gridPlayer,now);
         if(!pile)return ground.falling(run,now);
-        const memo=lootWalks.get(run)||{stalls:0,clearedAt:null};lootWalks.set(run,memo);
+        const memo=lootWalks.get(run)||{stalls:0};lootWalks.set(run,memo);
         if(isPlayerAttackRecovering(run.motionTimeMs))return true;
         memo.stalls=walkStep(actExplorationDoors.toward(run,pile),stats)?0:memo.stalls+1;
         if(memo.stalls>=COMMAND_GIVE_UP_STEPS){memo.stalls=0;collectExplorationFloorLoot(ground.takeAt(run,pile));}
         return true;
     }
-    /** A cleared map waits for auto-move to pick up its floor items, at most LOOT_WALK_MAX_MS of combat time. */
+    /** A cleared map stays put until every floor item is collected; in manual mode for MANUAL_LOOT_WAIT_MS at most. */
     function collectingLoot(run) {
-        if(run.status!=='cleared' || run.completionApplied || game.isBackgroundCalculation || runMode(run)==='manual'
-            || !ground.nearest(run,game.gridPlayer))return false;
-        const memo=lootWalks.get(run)||{stalls:0,clearedAt:null};lootWalks.set(run,memo);
+        if(run.status!=='cleared' || run.completionApplied || game.isBackgroundCalculation || !ground.nearest(run,game.gridPlayer))return false;
+        if(runMode(run)!=='manual')return true;
+        const memo=lootWalks.get(run)||{stalls:0};lootWalks.set(run,memo);
         const now=getCombatTime();
-        if(memo.clearedAt===null)memo.clearedAt=now;
-        return now-memo.clearedAt<LOOT_WALK_MAX_MS;
+        if(memo.clearedAt===undefined)memo.clearedAt=now;
+        return now-memo.clearedAt<MANUAL_LOOT_WAIT_MS;
+    }
+    /** Movement controls stay available while a cleared map waits for floor pickups. Completion/failed maps accept no new walk. */
+    function canMove(run) {
+        return !!run && (run.status==='active' || collectingLoot(run));
     }
     /** The mode a new run starts in: the chosen route (보스 직행 · 전체 탐색) while auto-move is on, else 직접 이동. */
     function startMode(settings) {
@@ -189,6 +225,7 @@ const actExplorationProgress = (() => {
         actExplorationMotion.cancel(run);
         actExplorationState.retireCombat(game);
         run.completionApplied=true;
+        recordInscription(run,true);
         game.runProgress=100;
         // Act 4's two actual boss kills happen within this one map, not two new maps (zones without kill counts skip it).
         if(Number.isFinite(zone.maxKills))game.killsInZone=Math.max(game.killsInZone,zone.maxKills-1);
@@ -224,10 +261,11 @@ const actExplorationProgress = (() => {
         state.combatHalted=false;
         return true;
     }
-    /** Leaving the map (next map, town, death, portal) picks up whatever is still on its floor: nothing is left behind. */
+    /** Ordinary maps settle their floor on departure. A colony or breach departure abandons that encounter's uncollected loot. */
     function depart(state) {
         const run=state.actExploration;
-        if(run && state===game){const rows=ground.takeAll(run);if(rows.length)collectExplorationFloorLoot(rows);}
+        if(run && ['colony_run','grand_breach_run'].includes(run.zoneId))ground.discardEncounter(state,run.zoneId);
+        else if(run && state===game){const rows=ground.takeAll(run);if(rows.length)collectExplorationFloorLoot(rows);}
         else if(run)ground.settleOnLoad(state,run);
         state.actExploration=null;
     }
@@ -243,6 +281,6 @@ const actExplorationProgress = (() => {
         const run=actExplorationState.current(state);
         if(run && !run.completionApplied){actExplorationMotion.cancel(run);run.status='failed';}
     }
-    return {advance,tick,moving,takeWalkedMs,collectPile,canFinish,beginCompletion,shouldTrackStall,holdPosition,runMode,startMode,waiting,deferDeparture,stopAfterCompletion,depart,reconcileDeparture,defeat};
+    return {advance,tick,moving,takeWalkedMs,collectPile,canMove,canFinish,beginCompletion,shouldTrackStall,holdPosition,runMode,startMode,waiting,deferDeparture,stopAfterCompletion,depart,reconcileDeparture,defeat};
 })();
 safeExposeGlobals({actExplorationProgress});

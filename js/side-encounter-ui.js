@@ -51,23 +51,53 @@ const sideEncounterUi = (() => {
         const queen = (Array.isArray(hive.pendingQueenRewards) ? hive.pendingQueenRewards : [])
             .map(reward => String(reward.text || '').replace(/^\[[^\]]+\]\s*/, ''));
         const power = Math.max(0, Math.floor(hive.enemyEmpower || 0));
+        const wax = 1 + Math.floor(Math.min(30, power) / 6);
+        const stinger = 1 + Math.floor(Math.min(30, power) / 10);
         return `<section class="expedition-ledger" aria-label="벌집 위험과 보상">
             <div class="expedition-ledger-risk"><h3>누적 위험 <b>군체 강화 ${power}</b></h3><ul>${rows(penalties,'선택한 위험 없음')}</ul></div>
             <div><h3>확보 보상 <b>이미 지급됨</b></h3><ul>${rows(rewards,'아직 없음')}</ul>
                 ${hive.pendingWaveRewardText ? `<p>이번 무리 처치 후, ${escapeHTML(hive.pendingWaveRewardText)}</p>` : ''}</div>
             <div class="expedition-ledger-queen"><h3>여왕 처치 시 <b>보류 중</b></h3>
-                <ul>${rows(queen,'아직 보류한 보상 없음')}</ul><p>확률 보상은 처치 시 추첨</p></div>
+                <ul>${rows(queen,'아직 보류한 선택 보상 없음')}</ul><p>기본 전리품: 밀랍 ${wax}, 독벌침 ${stinger}. 확률 보상은 처치 시 추첨</p></div>
         </section>`;
     }
 
+    function grandRewardPreview(reward) {
+        const parts = [];
+        if (contentProgression.canDropCurrency('voidChisel')) parts.push(`공허의 끌 ${reward.voidChisel}`);
+        if (reward.jewelShard && contentProgression.canDropCurrency('jewelShard')) parts.push(`주얼 결정 ${reward.jewelShard}`);
+        return parts.join(', ') || '제작 재화 해금 후 획득';
+    }
+    function usesGrandBreachArena() {
+        const expedition = actExplorationState.current(game);
+        if (expedition?.zoneId === 'grand_breach_run') return !!actExplorationMap.forRun(expedition).grandBreach;
+        return !!getZone('grand_breach_run')?.exploration?.arena;
+    }
     function grandSummary(run) {
+        if (run.phase === 'loot') return `<strong>군주 격파</strong><span>전리품 수거 중</span><small>바닥 아이템을 모두 획득하면 귀환</small>`;
+        const progress = getGrandBreachProgress(run.gauge);
         const reward = getGrandBreachRewardSummary(run.kills);
         const nextKills = 10 - reward.kills % 10;
-        const heading = run.phase === 'survival' ? '균열 쇄도' : '균열 군주';
-        if (!contentProgression.canDropCurrency('voidChisel')) return `<strong>${heading}</strong><span>처치 <b>${reward.kills}</b></span><small>주얼 해금 후 제작 재화 획득</small>`;
-        const next = run.phase === 'survival' ? `다음 보상까지 ${nextKills}마리` : '군주 처치 시 지급';
-        return `<strong>${heading}</strong><span>처치 <b>${reward.kills}</b></span>
-            <span>격파 보상 <b>공허의 끌 ${reward.voidChisel}</b></span><small>${next}</small>`;
+        const pressure = Math.min(6, Math.floor(reward.kills / 10));
+        const heading = { survival: '균열 쇄도', bossPending: '군주 소환' }[run.phase] || '균열 군주';
+        const next = run.phase === 'survival' ? `다음 보상 증가까지 ${nextKills}마리`
+            : run.phase === 'bossPending' ? '군주 소환 중' : '군주 처치 시 지급';
+        const config = usesGrandBreachArena() ? GRAND_BREACH_ENCOUNTER.arena : GRAND_BREACH_ENCOUNTER;
+        const crowd = run.inRun && run.phase === 'survival'
+            ? `<span>현장 적 <b>${game.enemies.filter(enemy => enemy.hp > 0).length}/${config.capacities[progress.stage]}</b></span>` : '';
+        return `<strong>${heading}</strong><span>게이지 <b>${progress.percent}%</b></span>
+            <span>군주 압박 <b>${pressure}단계</b></span>
+            ${crowd}<span class="grand-breach-reward">격파 보상 <b>${grandRewardPreview(reward)}</b></span><small>${next}</small>`;
+    }
+
+    function updateGrandBreachGauge(run) {
+        if (run.phase === 'loot') { updateLootCollectionProgress(); return; }
+        const progress = getGrandBreachProgress(run.gauge);
+        const survival = run.phase === 'survival';
+        const pending = run.phase === 'bossPending';
+        setTextById('ui-progress-label', survival ? '균열 게이지' : pending ? '군주 소환' : '최종 전투');
+        setTextById('ui-move-time-text', survival ? `${progress.percent}%` : pending ? '100%' : '군주 처치');
+        setCombatProgressGaugePercent(survival ? progress.percent : 100);
     }
 
     function updateHud(zone) {
@@ -82,11 +112,7 @@ const sideEncounterUi = (() => {
         if (!active) { lastHudHtml = ''; return; }
         const html = grandSummary(run);
         if (html !== lastHudHtml) { host.innerHTML = html; lastHudHtml = html; }
-        const seconds = Math.max(0, run.timeLeft);
-        const survival = run.phase === 'survival';
-        setTextById('ui-progress-label', survival ? '남은 시간' : '최종 전투');
-        setTextById('ui-move-time-text', survival ? `${Math.ceil(seconds)}초` : '군주 처치');
-        setCombatProgressGaugePercent(survival ? seconds / GRAND_BREACH_ENCOUNTER.durationSeconds * 100 : 100);
+        updateGrandBreachGauge(run);
     }
 
     function updateMeteorProgress(zone) {
@@ -107,10 +133,24 @@ const sideEncounterUi = (() => {
 
     function updateColonyProgress(zone) {
         if (zone.type !== 'colony' || !game.colony.inRun) return;
-        const {wave, kills, requiredKills} = game.colony;
-        setTextById('ui-progress-label', `${wave}웨이브`);
-        setTextById('ui-move-time-text', `${kills}/${requiredKills} 처치`);
-        setCombatProgressGaugePercent(requiredKills > 0 ? kills / requiredKills * 100 : 0);
+        if (game.colony.lootPending) { updateLootCollectionProgress(); return; }
+        const {wave, kills, requiredKills, coreHp, coreMaxHp} = game.colony;
+        if (!coreMaxHp) {
+            setTextById('ui-progress-label', `${wave}웨이브`);
+            setTextById('ui-move-time-text', `${kills}/${requiredKills} 처치`);
+            setCombatProgressGaugePercent(requiredKills > 0 ? kills / requiredKills * 100 : 0);
+            return;
+        }
+        const durability = Math.max(0, Math.ceil(coreHp / coreMaxHp * 100));
+        setTextById('ui-progress-label', `${wave}웨이브, 군락 핵`);
+        setTextById('ui-move-time-text', `${durability}%, ${kills}/${requiredKills} 처치`);
+        setCombatProgressGaugePercent(durability);
+    }
+    function updateLootCollectionProgress() {
+        const remaining = actExplorationState.current(game)?.groundLoot?.length || 0;
+        setTextById('ui-progress-label', '전리품 수거');
+        setTextById('ui-move-time-text', `${remaining}개 남음`);
+        setCombatProgressGaugePercent(100);
     }
 
     function destinations() {
@@ -144,7 +184,8 @@ const sideEncounterUi = (() => {
     function hivePanel(hive, choices, power) {
         const keys = Math.max(0,game.currencies.hiveKey || 0);
         if (!hive.inRun) return `<div class="map-expedition-intro"><p class="map-expedition-type">갈림길을 직접 고르는 원정, 10갈래 후 여왕</p>
-            <dl><div><dt>주요 전리품</dt><dd>꽃가루, 독벌침, 벌꿀, 밀랍</dd></div>
+            <dl><div><dt>전투 방식</dt><dd>벌떼 열 방과 여왕의 방. 강화 대가를 고를수록 여왕 전리품 증가</dd></div>
+            <div><dt>주요 전리품</dt><dd>꽃가루, 독벌침, 벌꿀, 밀랍</dd></div>
             <div><dt>입장 비용</dt><dd>벌집 열쇠 1개 <small>보유 ${keys}개</small></dd></div></dl>
             ${power}<div class="map-expedition-actions"><button type="button" data-exploration-departure onclick="startBeehiveRun()" ${keys>0?'':'disabled'}>벌집 입장</button>
             ${keys>0?'':'<span>벌집 열쇠가 필요합니다.</span>'}</div></div>`;
@@ -160,27 +201,54 @@ const sideEncounterUi = (() => {
         return `<button type="button" data-exploration-departure onclick="enterGrandBreach()" ${rift.grandBreachUnlock?'':'disabled'}>대균열 입장</button>${hint}`;
     }
 
+    function grandResultReward(run) {
+        if (run.phase !== 'done') return '군주 보상 없음';
+        const pieces = [];
+        if (run.rewardVoidChisel > 0) pieces.push(`공허의 끌 +${run.rewardVoidChisel}`);
+        if (run.rewardJewelShard > 0) pieces.push(`주얼 결정 +${run.rewardJewelShard}`);
+        return pieces.join(', ') || (run.rewardVoidChisel == null ? '정산 완료' : '지급된 제작 재화 없음');
+    }
+
     function grandResult(run) {
         if (!run || run.inRun || !['done','failed'].includes(run.phase)) return '';
         const cleared = run.phase === 'done';
-        const paid = run.rewardVoidChisel;
-        let reward = '군주 보상 없음';
-        if (cleared) reward = paid == null ? '정산 완료' : '지급된 제작 재화 없음';
-        if (cleared && paid > 0) reward = `공허의 끌 +${paid}`;
         return `<div class="map-expedition-result" aria-label="최근 원정 결과"><span>최근 원정</span>
-            <strong>${cleared?'군주 격파':'군주 격파 실패'}</strong><span>생존 구간 ${Math.max(0,Math.floor(run.kills||0))}처치</span>
-            <b>${reward}</b></div>`;
+            <strong>${cleared?'군주 격파':'군주 격파 실패'}</strong><span>균열 몬스터 ${Math.max(0,Math.floor(run.kills||0))}처치</span>
+            <b>${grandResultReward(run)}</b></div>`;
     }
 
+    function grandEntryRewardDescription() {
+        const rewards = [
+            contentProgression.canDropCurrency('voidChisel') ? '공허의 끌 2개부터, 10마리 처치마다 +1개' : '',
+            contentProgression.canDropCurrency('jewelShard') ? '15마리마다 주얼 결정 +1개(최대 3개)' : ''
+        ];
+        return rewards.filter(Boolean).join(', ') || '제작 재화 해금 후 획득';
+    }
+    function grandEncounterDescription() {
+        const rule = GRAND_BREACH_ENCOUNTER;
+        const normal = rule.normalGaugeGain / rule.requiredGauge * 100;
+        const elite = rule.eliteGaugeGain / rule.requiredGauge * 100;
+        if (usesGrandBreachArena()) {
+            return `균열 게이지 100%까지 몬스터 쇄도 (일반 ${normal}%, 정예 ${elite}%) → 균열 군주`;
+        }
+        return `몬스터를 처치해 게이지 100% 달성(일반 ${normal}%, 정예 ${elite}%) → 균열 군주. 10마리마다 군주 압박 증가`;
+    }
+    function grandPanelProgress(run) {
+        if (run.phase === 'loot') return '군주 격파, 바닥 전리품을 다 주우면 귀환';
+        if (run.phase === 'bossPending') return '균열 군주 소환 중';
+        if (run.phase !== 'survival') return '균열 군주 전투';
+        const progress = getGrandBreachProgress(run.gauge);
+        return `균열 게이지 ${progress.percent}%, 몬스터 ${Math.max(0, Math.floor(run.kills || 0))}처치`;
+    }
     function grandPanel(rift, power) {
         const run = rift.grandRun;
         const current = run?.inRun;
         const waves = rift.active ? `${rift.defeatedCount || 0}/${rift.totalToSpawn || 0} 처치` : '혼돈 사냥 중 발생';
-        const reward = contentProgression.canDropCurrency('voidChisel') ? '공허의 끌 2개부터, 10마리 처치마다 +1개' : '주얼 해금 후 제작 재화 획득';
+        const reward = grandEntryRewardDescription();
         return `<div class="map-expedition-intro"><p class="map-expedition-type">공허 균열, ${waves}</p>
             <div class="map-expedition-heading"><strong>대균열 ${current?'진행 중':''}</strong>${power}</div>
-            ${current ? `<p>${run.phase==='survival'?`남은 시간 ${Math.max(0,Math.ceil(run.timeLeft))}초`:'균열 군주 전투'}</p><div class="map-grand-summary">${grandSummary(run)}</div>` :
-            `<dl><div><dt>전투 방식</dt><dd>${GRAND_BREACH_ENCOUNTER.durationSeconds}초간 몬스터 쇄도 → 균열 군주</dd></div><div><dt>격파 보상</dt><dd>${reward}</dd></div></dl>`}
+            ${current ? `<p>${grandPanelProgress(run)}</p><div class="map-grand-summary">${grandSummary(run)}</div>` :
+            `<dl><div><dt>전투 방식</dt><dd>${grandEncounterDescription()}</dd></div><div><dt>격파 보상</dt><dd>${reward}</dd></div></dl>`}
             ${grandResult(run)}<div class="map-expedition-actions">${grandActions(rift)}</div></div>`;
     }
 
@@ -188,10 +256,13 @@ const sideEncounterUi = (() => {
         const active = game.currentZoneId === METEOR_FALL_ZONE_ID;
         const ready = game.meteorSite.skyRiftReady;
         const percent = Math.min(100,Math.floor(game.meteorSite.skyRiftGauge || 0));
-        const reward = '희귀 이상 장비, 운석 고유 장비(낮은 확률)';
+        const site = getZone(METEOR_FALL_ZONE_ID);
+        const reward = `희귀 이상 장비 ${site.rewardEquipmentCount}개 확정, 운석 고유 장비(낮은 확률). 가방이 차도 보상은 보관됩니다`;
+        const escort = site.tier >= 40 ? '정예 호위 2기' : site.tier >= 20 ? '정예 호위 1기' : '보스 단독';
         return `<div class="map-expedition-intro"><div class="map-expedition-heading"><strong>${active?'운석 원정 진행 중':ready?'원정 준비 완료':`하늘의 균열 충전 ${percent}%`}</strong>${power}</div>
             <dl><div><dt>주요 전리품</dt><dd>${reward}</dd></div>
-            <div><dt>난이도</dt><dd>티어 ${getZone(METEOR_FALL_ZONE_ID).tier}<small>충전 중 기록한 최저 티어 기준</small></dd></div></dl>
+            <div><dt>난이도</dt><dd>티어 ${site.tier}<small>충전 중 기록한 최저 티어 기준</small></dd></div>
+            <div><dt>전투 방식</dt><dd>파편 무리 → 별철 관통 사수 → 운석 핵(${escort}). 핵 체력 절반부터 연속 예고 공격</dd></div></dl>
             <div class="map-expedition-actions">${active?'<button type="button" onclick="switchTab(\'tab-battle\')">전투 보기</button>':
             `<button type="button" data-exploration-departure onclick="changeZone('${METEOR_FALL_ZONE_ID}')" ${ready?'':'disabled'}>운석 원정 입장</button>${ready?'':'<span>충전을 완료하면 1회 입장할 수 있습니다.</span>'}`}</div></div>`;
     }
@@ -286,22 +357,39 @@ const sideEncounterUi = (() => {
         renderPanel(host.querySelector('[data-rift-stage="future"]'),timeFuture(rift));
     }
 
+    function colonyWavePattern(zone) {
+        const patterns = {charge:'굴착 돌격 (근접 무리)',sharpshooters:'독침 사격 (예고 관통탄)',carapace:'갑각 호위 (높은 방어)',mixed:'혼합 파상 (여러 역할)',overlord:'지배체 (예고 강타)'};
+        return patterns[zone.wavePattern] || '군락 방어전';
+    }
+    function colonyNextBossReward(colony) {
+        const wave = Math.ceil(Math.max(1,colony.wave||1) / 5) * 5;
+        const rule = COLONY_WARD_RULES.colonyWave;
+        const floor = Math.min(rule.maxRollFloor, rule.bossRollFloor + (wave / rule.every - 1) * rule.bossRollStep);
+        return `5웨이브마다 액막이 확정, 다음 지배체의 일반 액막이 최소 굴림 ${Math.round(floor*100)}%`;
+    }
+    function colonyPanelActions(colony, traces) {
+        const entryDisabled = traces <= 0 || colony.inRun ? 'disabled' : '';
+        const withdrawDisabled = colony.inRun ? '' : 'disabled';
+        return `<div class="map-expedition-actions"><button type="button" data-exploration-departure onclick="startColonyRun()" ${entryDisabled}>군락지 입장</button>
+            <button type="button" onclick="forfeitColonyRun()" ${withdrawDisabled}>철수</button>
+            <button type="button" onclick="document.getElementById('ui-colony-ward-panel')?.scrollIntoView({ block: 'start', behavior: 'smooth' })">액막이 관리</button>
+            <span>액막이 칸 ${colonyWards.slotCount()}/${COLONY_WARD_RULES.maxSlots}, 편린 ${game.currencies.colonyShard||0}개</span></div>`;
+    }
     function colonyPanel(colony,zone) {
         const traces = Math.max(0,game.currencies.colonyTrace||0);
         const completed = Math.max(0,Math.floor(colony.wave||0)-1);
-        const stage = colony.inRun ? `${colony.wave}웨이브, ${colony.kills}/${colony.requiredKills}처치` : '방어전 입장 준비';
+        const stage = colony.inRun ? `${colony.wave}웨이브, ${colony.kills}/${colony.requiredKills}처치` : colony.failedWave > 0 ? `${colony.failedWave}웨이브, 군락 핵 파괴` : '방어전 입장 준비';
         const returnNote = colony.inRun ? '현재 원정' : '최근 원정';
         return `<div class="map-expedition-intro"><div class="map-expedition-heading"><strong>${stage}</strong>${buildMapPowerEstimateHtml(zone)}</div>
             <dl><div><dt>입장 비용</dt><dd>군락지 흔적 1개<small>보유 ${traces}개, 기준 혼돈 심화 ${zone.entryDeepChaosDepth}</small></dd></div>
-            <div><dt>웨이브 돌파 보상</dt><dd>군락지 편린, 액막이 부적<small>5웨이브마다 액막이 확정, 10웨이브마다 흔적 1개</small></dd></div></dl>
+            <div><dt>현재 적 무리</dt><dd>${colonyWavePattern(zone)}</dd></div>
+            <div><dt>방어 목표</dt><dd>군락 핵 보호<small>${colony.coreMaxHp > 0 ? `${Math.ceil(colony.coreHp).toLocaleString()} / ${colony.coreMaxHp.toLocaleString()} 내구도` : '입장 시 핵 내구도 충전'}, 파괴되면 실패</small></dd></div>
+            <div><dt>웨이브 돌파 보상</dt><dd>군락지 편린, 액막이 부적<small>${colonyNextBossReward(colony)}</small></dd></div></dl>
             <div class="map-expedition-result"><span>${returnNote}</span><strong>완료 ${completed}웨이브</strong><span>최고 도달 ${Math.max(0,colony.highestWave||0)}웨이브</span></div>
             <details class="map-expedition-details" id="colony-entry-guide"><summary>입장권 획득처, 진행 규칙</summary>
             <p>혼돈 심화 21층 이상/벌집/대균열에서 군락지 흔적을 얻습니다. 웨이브를 돌파하면 보상을 즉시 받고 다음 무리가 시작됩니다.</p>
             <p>철수해도 받은 보상은 유지됩니다. 새 도전은 1웨이브부터 시작합니다.</p></details>
-            <div class="map-expedition-actions"><button type="button" data-exploration-departure onclick="startColonyRun()" ${traces<=0||colony.inRun?'disabled':''}>군락지 입장</button>
-            <button type="button" onclick="forfeitColonyRun()" ${colony.inRun?'':'disabled'}>철수</button>
-            <button type="button" onclick="document.getElementById('ui-colony-ward-panel')?.scrollIntoView({ block: 'start', behavior: 'smooth' })">액막이 관리</button>
-            <span>액막이 칸 ${colonyWards.slotCount()}/${COLONY_WARD_RULES.maxSlots}, 편린 ${game.currencies.colonyShard||0}개</span></div></div>`;
+            ${colonyPanelActions(colony, traces)}</div>`;
     }
 
     function skyPanel(tower) {

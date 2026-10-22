@@ -1,7 +1,7 @@
 /** 거래소 (장비 → 거래소): its three tabs and the currency exchange. The black market and the stall draw
  * themselves as shops (js/black-market-ui.js, js/player-stall-ui.js on js/shop-view-ui.js). Transactions stay in items/passives. */
 const marketUi = {
-    section: 'exchange', to: '', recipeId: '', quantity: 1,
+    section: 'exchange', to: '', recipeId: '', quantity: 1, exchanging: false,
     moveTab(event) {
         const buttons = [...event.currentTarget.querySelectorAll('button')];
         const index = buttons.indexOf(document.activeElement), count = buttons.length;
@@ -34,9 +34,34 @@ const marketUi = {
         this.quantity = getMarketExchangeQuote(recipe, value).times;
         this.renderQuote(recipe);
     },
+    /** One exchange at a time: a second press while the first (and its dialog) is under way does nothing. */
     async exchange() {
         const recipe = this.recipe();
-        if (recipe) await exchangeAtMarket(recipe.id, false, this.quantity);
+        if (!recipe || this.exchanging) return;
+        this.exchanging = true;
+        try {
+            await this.trade(recipe);
+        } finally {
+            this.exchanging = false;
+        }
+    },
+    /** Trades this.quantity times recipe, asking first for more than one. The dialog can outlast an offline replay that replaces the
+     * game, or a purse change: nothing trades during a replay or on another game, and js/passives.js exchangeAtMarket re-checks the
+     * purse and the bound on the game now held. */
+    async trade(recipe) {
+        const quote = getMarketExchangeQuote(recipe, this.quantity), owner = game, busy = shopView.busyReason();
+        if (busy || !quote.valid) return addLog(busy || '교환 가능한 수량을 입력하세요.', 'attack-monster');
+        const from = ORB_DB[recipe.from].name, to = ORB_DB[recipe.to].name;
+        if (quote.times > 1 && !await requestGameConfirmation(`${from} ${quote.spend.toLocaleString()}개를 ${to} ${quote.gain.toLocaleString()}개로 교환하시겠습니까?`,
+            { title: '재화 교환', tone: 'danger', confirmLabel: '교환' })) return;
+        const changed = shopView.busyReason() || (game !== owner ? '확인하는 사이 게임 상태가 바뀌어 교환을 취소했습니다.' : '');
+        if (changed) return addLog(changed, 'attack-monster');
+        const result = exchangeAtMarket(recipe.id, quote.times, game);
+        if (!result.ok) return addLog(result.reason, 'attack-monster');
+        notifyCurrencyAcquisition(recipe.to, result.gain);
+        addLog(`🏦 거래소 교환: ${from} ${result.spend.toLocaleString()}개 → ${to} ${result.gain.toLocaleString()}개`, 'loot-magic');
+        checkUnlocks();
+        updateStaticUI();
     },
     icon(key, className = '') {
         const src = ORB_DB[key]?.icon;

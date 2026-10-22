@@ -25,7 +25,7 @@ function getInventoryItemVisualAsset(item, kind) {
 function pickInventoryItemVisualAsset(item, kind) {
     let visuals = typeof ITEM_VISUAL_ASSET_DB !== 'undefined' ? ITEM_VISUAL_ASSET_DB : null;
     if (!visuals) return '';
-    if (kind === 'jewel') return visuals.jewel;
+    if (kind === 'jewel') return bagItems.jewelArt(item);
     if (kind === 'talisman') return item && item.family === 'talisman' ? stumpBox.iconPath(item) : visuals.talisman;
     if (kind === 'core') return coreItems.icon(item);
     return getEquipmentGridVisualAsset(item);
@@ -308,7 +308,7 @@ function getDualSlotDisplayLabel(targetSlot) {
     if (targetSlot === '장갑1') return '왼쪽 장갑';
     if (targetSlot === '장갑2') return '오른쪽 장갑';
     if (targetSlot === '무기') return '주 무기';
-    if (targetSlot === '방패') return '방패';
+    if (targetSlot === '방패') return '완갑';
     return targetSlot;
 }
 

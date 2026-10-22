@@ -91,6 +91,7 @@ const equipmentCrafting = (() => {
 
     /** 저장된 추가 옵션 한 줄의 종류. 화석 전용 줄, 균열 표식, 심해 고정 옵션은 'special'. */
     function storedAffixKind(item, stat) {
+        if (stat && stat.isEchoMod && ['prefix', 'suffix', 'special'].includes(stat.echoKind)) return stat.echoKind;
         if (!stat || stat.fossilExclusive || stat.fossilExclusiveDrop || stat.fossilExclusiveSpore || stat.oceanBenchOptionId) return 'special';
         return affixKind(findStoredEquipmentAffix(item, stat));
     }
@@ -132,16 +133,22 @@ const equipmentCrafting = (() => {
     /**
      * 한 줄을 바꾸는 제작(바다의 선물 확정 부여와 변환, 심해의 파편, 봉인 재단): 새 줄은 바뀔 줄을 뺀 자리가 남는 종류에서만 고른다.
      * indexes는 바뀔 수 있는 줄(봉인 안 된 줄)의 번호. pick(mods)가 새 줄을 고르고, 바뀔 줄은 같은 종류를 먼저, choose가
-     * 'lowest'면 가장 낮은 단계(같으면 뒤 줄), 'random'이면 무작위. 고를 수 없으면 null.
+     * 'lowest'면 가장 낮은 단계(같으면 뒤 줄), 'random'이면 무작위. 'all'은 난수 없이 가능한 모든
+     * {mod,index}를 반환한다. 고를 수 없으면 null('all'은 빈 배열).
      */
     function pickReplacement(item, pool, indexes, pick, choose = 'random') {
         const room = affixRoom(item), kindOf = index => storedAffixKind(item, item.stats[index]);
         const freed = new Set(indexes.map(kindOf));
-        const mod = pick(pool.filter(row => fitsRoom(room, row) || freed.has(affixKind(row))));
+        const candidatesFor = mod => {
+            const kind = affixKind(mod);
+            if (!fitsRoom(room, mod) && !freed.has(kind)) return [];
+            const same = indexes.filter(index => kindOf(index) === kind);
+            return same.length || !fitsRoom(room, mod) ? same : indexes;
+        };
+        if (choose === 'all') return pool.flatMap(mod => candidatesFor(mod).map(index => ({ mod, index })));
+        const mod = pick(pool.filter(row => candidatesFor(row).length));
         if (!mod) return null;
-        const kind = affixKind(mod), same = indexes.filter(index => kindOf(index) === kind);
-        const candidates = same.length || !fitsRoom(room, mod) ? same : indexes;
-        if (!candidates.length) return null;
+        const candidates = candidatesFor(mod);
         if (choose !== 'lowest') return { mod, index: candidates[Math.floor(Math.random() * candidates.length)] };
         const tier = index => Number(item.stats[index].tier) || 0;
         return { mod, index: candidates.reduce((best, index) => (tier(index) <= tier(best) ? index : best)) };

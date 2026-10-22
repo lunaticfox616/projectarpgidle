@@ -136,14 +136,26 @@ function isBlackMarketUniqueRegistered(unique) {
 
 /** Saved offers keep their price and lock; their displayed base follows the fixed unique identity. */
 function migrateUniqueMarketOffer(offer) {
+    if (offer.type === 'unique') offer.name = RENAMED_UNIQUES[offer.name] || offer.name;
     const rule = offer.type === 'unique' && UNIQUE_EQUIPMENT_RULES[offer.name];
     if (!rule) return;
     const base = BASE_ITEM_DB.find(row => row.id === rule.baseId);
-    if (offer.baseId === base.id && offer.slot === base.slot) return;
+    if (offer.baseId === base.id && offer.slot === base.slot && offer.baseName === base.name && offer.blockBaseVersion >= 1) return;
     offer.baseId = base.id;
     offer.baseName = base.name;
     offer.slot = base.slot;
     offer.baseStats = base.baseStats.map(stat => ({ ...stat }));
+    offer.blockBaseVersion = 1;
+    if (offer.name === '고요한 맹세') offer.uniqueStats = UNIQUE_DB.find(row => row.name === offer.name).stats.map(stat => ({ ...stat }));
+}
+
+/** Saved crafting bases retain their rolls, price and shelf location while their equipment definition changes. */
+function migrateBlackMarketBaseOffer(offer) {
+    if (!offer.baseId) offer.baseId = ARM_GUARD_BASE_LEGACY_NAMES[String(offer.baseName || offer.name || '').replace(/ 베이스$/, '')];
+    normalizeArmGuardIdentity(offer);
+    if (Array.isArray(offer.baseStats)) migrateEquipmentBlockBases(offer);
+    const base = BASE_ITEM_DB.find(row => row.id === offer.baseId);
+    if (base) offer.name = base.name + ' 베이스';
 }
 
 function normalizeBlackMarketState() {
@@ -153,6 +165,7 @@ function normalizeBlackMarketState() {
         if (!offer) return offer;
         migrateUniqueMarketOffer(offer);
         if (offer.type === 'baseItem') {
+            migrateBlackMarketBaseOffer(offer);
             let base = BASE_ITEM_DB.find(row => row && ((offer.baseId && row.id === offer.baseId)
                 || (row.name === String(offer.name || '').replace(' 베이스', '') && row.slot === offer.slot)));
             if (base && (base.reqTier || 1) > BLACK_MARKET_BASE_CRAFT_TIER) return null;

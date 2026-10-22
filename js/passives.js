@@ -1347,7 +1347,7 @@ function generateOrganicTree() {
             if (!node) return;
             let title = stat === 'blockChancePct' ? '막기 기반 강화' : '막기 자세';
             let desc = stat === 'blockChancePct'
-                ? '방패의 베이스 막기 확률에서만 비율로 증가하는 방어 성좌입니다.'
+                ? '완갑과 대검의 기본 막기 확률에서 비율로 증가하는 방어 성좌입니다.'
                 : '최종 막기 확률에 직접 더해지는 방어 성좌입니다.';
             applyNodeSpec(node, {
                 stat: stat,
@@ -3242,8 +3242,8 @@ const SEA_GIFT_RANDOM_ORB_KEYS = ['magicBud', 'sapBud', 'formlessDew', 'goldenRu
 const SEA_GIFT_RECIPES = [
     // --- 일반 레시피 ---
     { id: 'reefBundle', desc: '【재화 획득: 암초 조각 ×2】 얕은 바다 어종을 모아 암초 조각으로 가공합니다.', requires: { shallowSilverfin: 5 }, effect: { type: 'currency', key: 'reefFragment', amount: 2 } },
-    { id: 'tidalCharm', desc: '【재화 획득: 심해의 파편 ×1】 조류 장어로 장비 베이스 옵션을 다시 굴리는 심해의 파편을 만듭니다.', requires: { tidalEel: 4 }, effect: { type: 'currency', key: 'oceanRerollShard', amount: 1 } },
-    { id: 'glowfinEssence', desc: '【재화 획득: 심해의 파편 ×2】 발광 송어로 베이스 옵션 재제련에 쓰는 심해의 파편을 정제합니다.', requires: { glowfinTrout: 3, tidalEel: 2 }, effect: { type: 'currency', key: 'oceanRerollShard', amount: 2 } },
+    { id: 'tidalCharm', desc: '【재화 획득: 심해의 파편 ×1】 조류 장어로 봉인되지 않은 무작위 추가 옵션 1줄의 종류와 수치를 교체하는 심해의 파편을 만듭니다.', requires: { tidalEel: 4 }, effect: { type: 'currency', key: 'oceanRerollShard', amount: 1 } },
+    { id: 'glowfinEssence', desc: '【재화 획득: 심해의 파편 ×2】 발광 송어로 봉인되지 않은 무작위 추가 옵션 1줄의 종류와 수치를 교체하는 심해의 파편을 정제합니다.', requires: { glowfinTrout: 3, tidalEel: 2 }, effect: { type: 'currency', key: 'oceanRerollShard', amount: 2 } },
     { id: 'purifyingOffering', desc: '【장비 강화: 계열 재굴림 1줄】 발광 송어를 바쳐 원하는 계열의 기존 옵션 한 줄만 다시 굴립니다(다른 줄 보존, 등급 보정 없음).', requires: { glowfinTrout: 4, shallowSilverfin: 3 }, effect: { type: 'taggedReroll' } },
     { id: 'abyssalGift', desc: '【장비 강화: 확정 옵션 부여】 심연 등불고기를 제물로 바쳐 장비에 옵션 한 줄을 확정으로 부여합니다.', requires: { abyssAngler: 4, tidalEel: 3 }, effect: { type: 'guaranteedMod' } },
     // --- 무작위 제작 재화 레시피 (SEA_GIFT_RANDOM_ORB_KEYS: 마법의 새싹, 수액 봉오리, 형체 없는 이슬, 황금률, 축복의 꽃잎, 잿불가지, 전정 가위 중 1개) ---
@@ -3302,7 +3302,9 @@ function getSeaGiftEffectBlockReason(item, effect, category) {
 const getSeaGiftCategoryBlockReason = (item, category) => (!category || getAvailableMods(item).some(mod => getModCategory(mod) === category) ? '' : `${category} 옵션 없음`);
 const getSeaGiftEchoBlockReason = item => {
     if ((item.stats || []).some(s => s && s.isEchoMod)) return '메아리 줄 있음';
-    return getSeaGiftEditableIndexes(item).length < 2 ? '봉인 안 된 2줄 필요' : '';
+    const editable = getSeaGiftEditableIndexes(item);
+    if (editable.length < 2) return '봉인 안 된 2줄 필요';
+    return getSeaGiftEchoTargets(item, editable).length ? '' : '메아리 줄을 넣을 같은 종류 자리 없음';
 };
 const getSeaGiftLockBlockReason = (item, effect) => {
     const editable = getSeaGiftEditableIndexes(item).length;
@@ -3312,25 +3314,40 @@ const getSeaGiftLockBlockReason = (item, effect) => {
 };
 /** A guaranteed line needs a place (room to add it, else an unsealed line to swap) and, with the free removal, a line to remove
  * besides the one it swaps. */
-const getSeaGiftGuaranteedBlockReason = (item, effect) => {
-    const editable = getSeaGiftEditableIndexes(item).length, adds = canAddSeaGiftLine(item, editable);
-    if (!adds && editable === 0) return '바꿀 줄 없음';
-    return effect.bonusRemoveMod && getSeaGiftRemovableIndexes(item).length < (adds ? 1 : 2) ? '지울 줄 없음' : '';
+const getSeaGiftGuaranteedBlockReason = (item, effect, category) => {
+    const editable = getSeaGiftEditableIndexes(item).map(index => ({ stat: item.stats[index], index }));
+    if (!canAddSeaGiftLine(item, editable.length) && !editable.length) return '바꿀 줄 없음';
+    const pool = getAvailableMods(item).filter(mod => !category || getModCategory(mod) === category);
+    if (chooseSeaGiftGuaranteedLine(item, pool, editable, effect, true)) return '';
+    return effect.bonusRemoveMod ? '새 옵션과 별도로 지울 줄 없음' : '새 옵션을 넣을 자리 없음';
 };
 /** Each effect's blocker on an item (the refusals that come before any roll; category: the one picked on the card). */
 const SEA_GIFT_EFFECT_BLOCKERS = Object.freeze({
     guaranteedMod: getSeaGiftGuaranteedBlockReason,
-    guaranteedTaggedMod: (item, effect, category) => getSeaGiftGuaranteedBlockReason(item, effect) || getSeaGiftCategoryBlockReason(item, category),
+    guaranteedTaggedMod: (item, effect, category) => getSeaGiftCategoryBlockReason(item, category) || getSeaGiftGuaranteedBlockReason(item, effect, category),
     removeMod: item => (getSeaGiftEditableIndexes(item).length ? '' : '지울 줄 없음'),
     upgradeRarity: item => (item.rarity === 'rare' || item.rarity === 'unique' ? '이미 희귀 이상' : ''),
-    lockMod: (item, effect, category) => getSeaGiftLockBlockReason(item, effect) || (effect.bonusTaggedReroll ? getSeaGiftCategoryBlockReason(item, category) : ''),
+    lockMod: (item, effect, category) => {
+        const reason = getSeaGiftLockBlockReason(item, effect);
+        if (reason || !effect.bonusTaggedReroll) return reason;
+        const categoryReason = getSeaGiftCategoryBlockReason(item, category);
+        if (categoryReason) return categoryReason;
+        const editable = getSeaGiftEditableIndexes(item), count = Math.max(1, Math.floor(effect.count || 1));
+        return getOpenAffixMods(item, item.rarity, item.stats[editable[count]])
+            .some(mod => !category || getModCategory(mod) === category) ? '' : '해당 계열로 재단할 자리 없음';
+    },
     taggedReroll: (item, effect, category) => (getSeaGiftRerollRows(item, category).length ? '' : `${category || '굴릴'} 줄 없음`),
     safeReroll: item => (getSeaGiftRerollRows(item).length ? '' : '굴릴 줄 없음'),
     twinReroll: item => (getSeaGiftRerollRows(item).length ? '' : '굴릴 줄 없음'),
     tierStepUp: item => (getSeaGiftTierStepRows(item).length ? '' : '올릴 줄 없음'),
     echoMod: getSeaGiftEchoBlockReason,
     fixedBenchOption: item => (getSeaGiftBenchSlot(item) === null ? '바꿀 줄 없음' : ''),
-    convertCategoryMod: (item, effect, category) => (getSeaGiftEditableIndexes(item).length ? getSeaGiftCategoryBlockReason(item, category) : '바꿀 줄 없음')
+    convertCategoryMod: (item, effect, category) => {
+        const editable = getSeaGiftEditableIndexes(item);
+        if (!editable.length) return '바꿀 줄 없음';
+        const pool = getAvailableMods(item).filter(mod => !category || getModCategory(mod) === category);
+        return equipmentCrafting.pickReplacement(item, pool, editable, null, 'all').length ? '' : '해당 계열로 변환할 자리 없음';
+    }
 });
 /** The rerollable lines still below their top tier. */
 function getSeaGiftTierStepRows(item) {
@@ -3350,9 +3367,11 @@ function removeOneModFromItem(item) {
 
 function getSeaGiftRerollRow(item, index) {
     let stat = item && Array.isArray(item.stats) ? item.stats[index] : null;
-    if (!stat || stat.lockedByHoney || stat.lockedByRift) return null;
+    if (!stat || stat.lockedByHoney || stat.lockedByRift || stat.isEchoMod
+        || equipmentCrafting.storedAffixKind(item, stat) === 'special') return null;
     let probe = { ...item, stats: item.stats.filter((row, rowIndex) => rowIndex !== index) };
-    let mod = getAvailableMods(probe).find(row => (row.statId || row.id) === stat.id);
+    let stored = findStoredEquipmentAffix(item, stat);
+    let mod = stored && getAvailableMods(probe).find(row => row.id === stored.id);
     return mod ? { index, stat, mod } : null;
 }
 
@@ -3376,8 +3395,11 @@ function applySeaGiftGuaranteedMod(item, effect, category) {
     const editable = (item.stats || []).map((stat, index) => ({ stat, index }))
         .filter(row => row.stat && !row.stat.lockedByHoney && !row.stat.lockedByRift);
     const pool = getAvailableMods(item).filter(mod => effect.type !== 'guaranteedTaggedMod' || !category || getModCategory(mod) === category);
-    const choice = chooseSeaGiftGuaranteedLine(item, pool, editable);
+    const choice = chooseSeaGiftGuaranteedLine(item, pool, editable, effect);
     if (!choice) return '이 장비에 추가로 부여할 수 있는 옵션이 없습니다.';
+    if (effect.bonusRemoveMod && !getSeaGiftRemovableIndexes(item).some(index => index !== choice.index)) {
+        return '새 옵션과 별도로 제거할 봉인되지 않은 일반 옵션이 없습니다.';
+    }
     const rolled = rollSeaGiftGuaranteedValue(item, choice.mod, effect);
     const index = choice.index < 0 ? item.stats.push(rolled) - 1 : choice.index;
     item.stats[index] = rolled;
@@ -3400,30 +3422,55 @@ function getSeaGiftLineCap(item) {
  * rule) only while it has no unsealed line, as before 2026-10-19 (adding there gathered six lines on a white item). */
 const canAddSeaGiftLine = (item, editableCount) => (EXPLICIT_AFFIX_RULES[item.rarity] ? getItemExplicitOptionCount(item) < getSeaGiftLineCap(item) : editableCount === 0);
 /** 자리가 남으면(접두 3, 접미 3, 모두 6줄) 덧붙이고(index -1), 꽉 찼으면 같은 종류의 가장 낮은 단계 줄을 바꾼다. 2026-10-19 전에는
- * 자리가 있어도 줄을 바꿔 '부여'가 좋은 줄을 지웠다. */
-function chooseSeaGiftGuaranteedLine(item, pool, editable) {
+ * 자리가 있어도 줄을 바꿔 '부여'가 좋은 줄을 지웠다. 제거 효과는 별도로 지울 줄이 남는 후보만 쓴다.
+ * preview=true는 같은 후보의 첫 선택을 반환하며 난수나 장비 상태를 바꾸지 않는다. */
+function chooseSeaGiftGuaranteedLine(item, pool, editable, effect, preview = false) {
     const room = equipmentCrafting.affixRoom(item);
-    const mod = canAddSeaGiftLine(item, editable.length) ? pickWeightedMod(pool.filter(row => equipmentCrafting.fitsRoom(room, row))) : null;
-    if (mod) return { mod, index: -1 };
-    return editable.length > 0 ? equipmentCrafting.pickReplacement(item, pool, editable.map(row => row.index), pickWeightedMod, 'lowest') : null;
+    const indexes = editable.map(row => row.index), removable = getSeaGiftRemovableIndexes(item);
+    const addable = canAddSeaGiftLine(item, editable.length) ? pool.filter(mod => equipmentCrafting.fitsRoom(room, mod)) : [];
+    const allChoices = () => {
+        if (effect.bonusRemoveMod && !removable.length) return [];
+        const withRemoval = choice => effect.bonusRemoveMod
+            ? { ...choice, removeIndex: removeWorstSeaGiftMod(item, choice.index, true) } : choice;
+        if (addable.length) return addable.map(mod => withRemoval({ mod, index: -1 }));
+        return pool.map(mod => equipmentCrafting.pickReplacement(item, [mod], indexes, rows => rows[0], 'lowest'))
+            .filter(choice => choice && (!effect.bonusRemoveMod || removable.some(index => index !== choice.index)))
+            .map(withRemoval);
+    };
+    const choices = allChoices();
+    if (preview === 'all') return choices;
+    if (!choices.length) return null;
+    const mod = preview ? choices[0].mod : pickWeightedMod(choices.map(choice => choice.mod));
+    return choices.find(choice => choice.mod === mod);
 }
 
 /** 메아리 줄은 원본과 같은 종류다. 그 종류에 자리가 없으면 같은 종류의 줄만 바꿔 끼울 수 있다. */
 function getSeaGiftEchoTargets(item, editableIdx, srcIdx) {
-    const kind = equipmentCrafting.storedAffixKind(item, item.stats[srcIdx]), room = equipmentCrafting.affixRoom(item);
-    const others = editableIdx.filter(index => index !== srcIdx);
-    if (!room || kind === 'special' || room[kind] > 0) return others;
-    return others.filter(index => equipmentCrafting.storedAffixKind(item, item.stats[index]) === kind);
+    const targetsForSource = index => {
+        const kind = equipmentCrafting.storedAffixKind(item, item.stats[index]), room = equipmentCrafting.affixRoom(item);
+        const others = editableIdx.filter(target => target !== index);
+        if (!room || kind === 'special' || room[kind] > 0) return others;
+        return others.filter(target => equipmentCrafting.storedAffixKind(item, item.stats[target]) === kind);
+    };
+    if (srcIdx === undefined) {
+        const maxTier = editableIdx.reduce((max, index) => Math.max(max, Number(item.stats[index].tier) || 0), 0);
+        return editableIdx.filter(index => (Number(item.stats[index].tier) || 0) === maxTier)
+            .map(sourceIndex => ({ sourceIndex, targetIndexes: targetsForSource(sourceIndex) }))
+            .filter(choice => choice.targetIndexes.length);
+    }
+    return targetsForSource(srcIdx);
 }
 
 /** Lines the free bad-line removal may take: unsealed, not fixed (fossil and unique lines) and not an ocean bench line, which is stored as
  * T5 and cost the rarest fish (the removal always took it before 2026-10-19). */
 function getSeaGiftRemovableIndexes(item) {
-    return getSeaGiftEditableIndexes(item).filter(index => !item.stats[index].oceanBenchOptionId && !isFixedEquipmentAffix(item.stats[index]));
+    return getSeaGiftEditableIndexes(item).filter(index => (!item.stats[index].oceanBenchOptionId || item.stats[index].isEchoMod)
+        && !isFixedEquipmentAffix(item.stats[index]));
 }
-function removeWorstSeaGiftMod(item, excludedIndex) {
+function removeWorstSeaGiftMod(item, excludedIndex, preview = false) {
     const tierOf = index => Number(item.stats[index].tier) || 0;
     const candidates = getSeaGiftRemovableIndexes(item).filter(index => index !== excludedIndex).sort((left, right) => tierOf(left) - tierOf(right));
+    if (preview) return candidates.length ? candidates[0] : null;
     if (candidates.length === 0) return false;
     item.stats.splice(candidates[0], 1);
     return true;
@@ -3435,8 +3482,7 @@ const applySeaGiftLockEffect = function (item, effect, category) {
     let rerollMod = null;
     if (effect.bonusTaggedReroll) {
         // 재단되는 줄은 봉인하고 남은 첫 줄(editable[count]). 새 줄은 그 줄을 뺀 접두 3, 접미 3 자리가 남는 종류에서.
-        const room = equipmentCrafting.affixRoom(item, item.rarity, editable[count]);
-        let pool = getAvailableMods(item).filter(mod => (!category || getModCategory(mod) === category) && equipmentCrafting.fitsRoom(room, mod));
+        let pool = getOpenAffixMods(item, item.rarity, editable[count]).filter(mod => !category || getModCategory(mod) === category);
         rerollMod = pickRandomMods(pool, 1)[0];
         if (!rerollMod) { addLog('해당 계열로 재단할 수 있는 옵션이 없습니다.', 'attack-monster'); return false; }
     }
@@ -3525,7 +3571,10 @@ const SEA_GIFT_EFFECTS = Object.freeze({
         let rows = getSeaGiftRerollRows(item);
         let row = rows[Math.floor(Math.random() * rows.length)];
         let rolled = rollSeaGiftExistingAffix(row, 0);
-        if ((Number(rolled.val) || 0) >= (Number(row.stat.val) || 0)) item.stats[row.index] = rolled;
+        const oldParts = [row.stat, ...(row.stat.extraStats || [])], newParts = [rolled, ...(rolled.extraStats || [])];
+        const noDecrease = oldParts.length === newParts.length && oldParts.every((part, index) =>
+            newParts[index].id === part.id && Number(newParts[index].val) >= Number(part.val));
+        if (noDecrease) item.stats[row.index] = rolled;
         else craft.say('🌊 재굴림 결과가 기존보다 낮아 적용을 취소했습니다.', 'loot-magic');
         updateItemName(item);
     },
@@ -3582,7 +3631,8 @@ function applySeaGiftBenchOption(item, effect, craft) {
 /** Where the bench line goes: over the item's unsealed bench line, else added (-1) below the line cap, else over the lowest line; null
  * when the item is full and every line is sealed or fixed. A sealed bench line stays. */
 function getSeaGiftBenchSlot(item) {
-    const own = (item.stats || []).findIndex(stat => stat && stat.oceanBenchOptionId && !stat.lockedByHoney && !stat.lockedByRift);
+    const own = (item.stats || []).findIndex(stat => stat && stat.oceanBenchOptionId && !stat.isEchoMod
+        && !stat.lockedByHoney && !stat.lockedByRift);
     if (own >= 0) return own;
     if (getItemExplicitOptionCount(item) < getSeaGiftLineCap(item)) return -1;
     const low = getSeaGiftLowestLineIndex(item);
@@ -3596,23 +3646,32 @@ function getSeaGiftLowestLineIndex(item) {
 }
 /** One of the highest tier lines echoed at half its values onto another unsealed line of the same kind. */
 function applySeaGiftEcho(item, effect, craft) {
-    let editableIdx = getSeaGiftEditableIndexes(item);
-    let maxTier = editableIdx.reduce((m, i) => Math.max(m, Number(item.stats[i].tier) || 0), 0);
-    let topIdx = editableIdx.filter(i => (Number(item.stats[i].tier) || 0) === maxTier);
-    let srcIdx = topIdx[Math.floor(Math.random() * topIdx.length)];
-    let targetPool = getSeaGiftEchoTargets(item, editableIdx, srcIdx);
-    if (targetPool.length === 0) return refuseSeaGift(craft, '메아리 줄을 넣을 같은 종류 자리가 없습니다(접두 3, 접미 3).');
-    let dstIdx = targetPool[Math.floor(Math.random() * targetPool.length)];
-    let echo = makeSeaGiftEchoLine(item.stats[srcIdx]);
+    const choices = getSeaGiftEchoTargets(item, getSeaGiftEditableIndexes(item));
+    if (!choices.length) return refuseSeaGift(craft, '메아리 줄을 넣을 같은 종류 자리가 없습니다(접두 3, 접미 3).');
+    const choice = choices[Math.floor(Math.random() * choices.length)];
+    const dstIdx = choice.targetIndexes[Math.floor(Math.random() * choice.targetIndexes.length)];
+    const source = item.stats[choice.sourceIndex];
+    let echo = makeSeaGiftEchoLine(source, equipmentCrafting.storedAffixKind(item, source));
     item.stats[dstIdx] = echo;
     craft.say(`🔊 ${echo.echoOf} 옵션이 50% 효과로 메아리쳤습니다.`, 'loot-rare');
     updateItemName(item);
 }
-function makeSeaGiftEchoLine(src) {
+function makeSeaGiftEchoLine(src, kind) {
     let echo = JSON.parse(JSON.stringify(src));
-    echo.val = Math.floor((Number(src.val) || 0) * 0.5);
-    if (Number.isFinite(echo.valMin)) echo.valMin = Math.floor(echo.valMin * 0.5);
-    if (Number.isFinite(echo.valMax)) echo.valMax = Math.floor(echo.valMax * 0.5);
+    const halve = line => {
+        for (const key of ['val', 'valMin', 'valMax', 'baseRollMin', 'baseRollMax', 'originalVal', 'valueStep']) {
+            if (Number.isFinite(line[key])) line[key] = Number((line[key] / 2).toFixed(3));
+        }
+    };
+    halve(echo);
+    (echo.extraStats || []).forEach(halve);
+    // Only the source owns its workbench/fossil provenance; echoKind keeps the original affix room on the copy.
+    delete echo.oceanBenchOptionId;
+    delete echo.fossilExclusive;
+    delete echo.fossilExclusiveDrop;
+    delete echo.fossilExclusiveSpore;
+    if (echo.craftSource === 'fossil') delete echo.craftSource;
+    echo.echoKind = kind;
     echo.echoOf = src.statName || getStatName(src.id);
     echo.isEchoMod = true;
     return echo;
@@ -3645,22 +3704,25 @@ function rerollSingleBaseOption(item, costCurrency, costAmount) {
     game.currencies[key] = (game.currencies[key] || 0) - cost;
     item.stats[choice.index] = rollAffixValue(choice.mod, maxTier, { roundInteger: true });
     updateItemName(item);
-    addLog(`🌊 ${item.name || '장비'}의 베이스 옵션 한 줄을 다시 굴렸습니다.`, 'loot-rare');
+    addLog(`🌊 ${item.name || '장비'}의 봉인되지 않은 무작위 추가 옵션 1줄의 종류와 수치를 교체했습니다.`, 'loot-rare');
     return true;
 }
 
 function grantMeteorEquipmentReward() {
-    const item = generateEquipmentDrop({ isBoss: true }, { minimumRarity: 'rare' });
-    return item && addItemToInventory(item, { guaranteedKeep: true }) ? item : null;
+    const item = generateEquipmentDrop({ isBoss: true }, { minimumRarity: 'rare', zone: getZone(METEOR_FALL_ZONE_ID) });
+    return item && addItemToInventory(item, { ignoreFilter: true, ignoreAutoSalvage: true, guaranteedKeep: true }) ? item : null;
 }
 
-/** 운석 낙하 정산(2026-10-01 정리): 희귀 이상 장비 하나. 운석 고유 '낙성의 발자취'는 이 지역 전용 드롭으로 따로 떨어진다.
+/** 운석 낙하 정산: 단계 20, 40에서 희귀 이상 장비가 하나씩 늘어난다. 고유 '낙성의 발자취'는 지역 전용 드롭으로 따로 떨어진다.
  * 운석 파편 · 별쐐기 재료(6단계)와 별가루(7단계)는 없어졌다. 별자리 관측은 아틀라스 패시브 '떨어지는 별'. */
 function grantMeteorEncounterRewards() {
     let st = ensureMeteorSiteState();
     let encounterTier = Math.max(1, Math.floor(st.activeMeteorTier || 1));
-    const item = grantMeteorEquipmentReward();
-    addLog(`☄️ 운석 ${encounterTier}단계 정산${item ? `, [${item.name}]` : ''}`, 'loot-rare', item ? { item } : {});
+    const count = getZone(METEOR_FALL_ZONE_ID).rewardEquipmentCount;
+    for (let i = 0; i < count; i++) {
+        const item = grantMeteorEquipmentReward();
+        addLog(`☄️ 운석 ${encounterTier}단계 정산 (${i + 1}/${count})${item ? `, [${item.name}]` : ''}`, 'loot-rare', item ? { item } : {});
+    }
     unlockJournalEntry('meteor_fall');
     grantConstellationObservationReward();
 }
@@ -5810,10 +5872,11 @@ function grantJournalBonus(entryId, state = game) {
     }
 }
 function unlockJournalEntry(entryId, state = game) {
-    if (!entryId || !JOURNAL_DB[entryId]) return;
+    if (!JOURNAL_DB[entryId]) return;
     state.journalEntries = Array.isArray(state.journalEntries) ? state.journalEntries : ['prologue'];
     if (!state.journalEntries.includes(entryId)) {
         state.journalEntries.push(entryId);
+        if (JOURNAL_DB[entryId].discoveryOnly) return; // 읽을거리만 보관: 보상·새 기록 목표·팝업을 추가하지 않는다.
         state.noti = state.noti && typeof state.noti === 'object' ? state.noti : {};
         state.noti.journal = true;
         if (state === game) {
@@ -5930,52 +5993,46 @@ function openActReward(zoneId) {
     lastTime = Date.now();
     watchActRewardAway();
 }
-/** 장비 선택지의 부위 그림(빈 장착 칸과 같은 그림, 직업 대표 무기는 그 대분류 첫 바탕의 그림). 다른 보상은 그림 없이 글만. */
-function actRewardChoiceArt(choice) {
-    if (choice.kind !== 'item') return '';
-    const base = choice.weaponCategory ? BASE_ITEM_DB.find(row => getWeaponCategoryOfBase(row.id) === choice.weaponCategory) : null;
-    return `<img class="reward-choice-art${choice.slot === '무기' ? ' is-weapon' : ''}" src="${getEquipmentGridVisualAsset({ slot: choice.slot, baseId: base ? base.id : 'empty-' + choice.slot })}" alt="" aria-hidden="true">`;
+/** 장비 선택지는 실제 지급할 베이스 그림을 쓴다. 다른 보상은 그림 없이 글만. */
+function actRewardChoiceArt(item) {
+    if (!item) return '';
+    return `<img class="reward-choice-art${item.slot === '무기' ? ' is-weapon' : ''}" src="${getEquipmentGridVisualAsset(item)}" alt="" aria-hidden="true">`;
 }
-/** 선택지 한 칸: 이름, 설명, 미리보기(장비는 등급과 바로 장착되는지), 고르면 바뀌는 DPS와 생명력. before: { dps, life } 지금 값. */
+/** 장비는 고정 베이스와 알려진 옵션, 능력치 보상은 고르면 바뀌는 DPS와 생명력을 표시한다. */
 function renderActRewardChoice(zoneId, choice, index) {
-    const change = measureActRewardDps(zoneId, choice);
-    const preview = choice.kind === 'item' ? actRewardItemPreview(choice, !!change && change.direct) : getActRewardPreview(choice);
+    const item = choice.kind === 'item' ? buildActRewardPreviewItem(zoneId, choice) : null;
+    const preview = item ? actRewardItemPreview(choice, item)
+        : `<small>${getActRewardPreview(choice)}${formatActRewardDps(measureActRewardDps(zoneId, choice))}</small>`;
     return `
         <button class="reward-choice" data-choice-key="${encodeURIComponent(choice.claimKey)}" onclick="claimActRewardChoice(${zoneId}, ${index}, this.dataset.choiceKey)">
-            ${actRewardChoiceArt(choice)}<strong>${choice.label}</strong>
+            ${actRewardChoiceArt(item)}<strong>${choice.label}</strong>
             ${choice.desc ? `<span>${choice.desc}</span>` : ''}
-            <small>${preview}${formatActRewardDps(change, choice)}</small>
+            ${preview}
         </button>
     `;
 }
-/** 장비 선택지: 등급과, 맞는 빈 장착 칸에 바로 끼워지는지(액트 보상은 빈 칸에 저절로 낀다) 아니면 가방으로 가는지. */
-function actRewardItemPreview(choice, equips) {
+/** 실제 베이스 수치와 고정 추가 옵션을 표시하며, 지급 때 무작위로 붙는 추가 옵션은 ?로 남긴다. */
+function actRewardItemPreview(choice, item) {
     const rarity = ITEM_RARITY_LABELS[choice.rarity] || '';
-    return `${rarity ? `${rarity} 등급, ` : ''}${equips ? '빈 칸에 바로 장착됩니다' : '가방으로 들어갑니다'}`;
+    const slot = getEquipCandidateSlots(item).find(name => Object.hasOwn(game.equipment, name) && !game.equipment[name]);
+    const equips = game.settings.autoEquipEmptySlots !== false && slot && combatEquipmentStats.inspect(item, slot).ok;
+    const optionText = stat => escapeHTML(`${stat.statName || getStatName(stat.id)} ${formatSignedValue(stat.id, stat.val)}`);
+    const extra = choice.fixedStarter ? item.stats.map(optionText).join(' · ') : '?';
+    return `<small>${rarity ? `${rarity} 등급, ` : ''}${equips ? '빈 칸에 바로 장착됩니다' : '가방으로 들어갑니다'}</small>
+        <span class="reward-item-options">
+            <span>베이스: ${escapeHTML(item.baseName)}</span>
+            <span>베이스 옵션: ${item.baseStats.map(optionText).join(' · ') || '없음'}</span>
+            <span>추가 옵션: ${extra}</span>
+        </span>`;
 }
-/** 고르면 바뀌는 DPS와 생명력 {dps: [전, 후], life: [전, 후], direct, swap}: 살아 있는 게임 대신 사본에 보상을 적용해 잰다. 능력치는 액트 보상
- * 능력치로, 장비는 맞는 빈 칸(없으면 첫 칸과 바꿔)에 끼워 잰다(요구 능력치가 모자라면 null). direct는 실제로 바로 끼워지는지, swap은
- * 바꿔 끼운 값인지. 룬과 포인트는 재지 않는다. */
+/** 능력치 보상의 DPS와 생명력 변화만 게임 사본에 적용해 잰다. 장비·룬·포인트는 비교하지 않는다. */
 function measureActRewardDps(zoneId, choice) {
-    if (choice.kind === 'stat') {
-        const change = previewBuildStats(copy => {
-            copy.actRewardBonuses = [...(copy.actRewardBonuses || []), { actId: zoneId, stat: choice.stat, value: choice.value }];
-        });
-        return { ...change, direct: true, swap: false };
-    }
-    const item = choice.kind === 'item' ? buildActRewardPreviewItem(zoneId, choice) : null;
-    const slots = item ? getEquipCandidateSlots(item).filter(name => Object.hasOwn(game.equipment, name)) : [];
-    const slot = slots.find(name => !game.equipment[name]) || slots[0];
-    if (!slot || !combatEquipmentStats.inspect(item, slot).ok) return null;
-    const swap = !!game.equipment[slot];
-    return { ...previewBuildStats(copy => { copy.equipment[slot] = item; }), swap,
-        moveBonus: firstActRewardMoveBonus(choice, item),
-        direct: !swap && game.settings.autoEquipEmptySlots !== false };
+    if (choice.kind !== 'stat') return null;
+    return previewBuildStats(copy => {
+        copy.actRewardBonuses = [...(copy.actRewardBonuses || []), { actId: zoneId, stat: choice.stat, value: choice.value }];
+    });
 }
 function isFirstActStarterReward(zoneId) { return zoneId === 0 && (game.season || 1) === 1 && !(game.loopCount > 0); }
-function firstActRewardMoveBonus(choice, item) {
-    return choice.fixedStarter ? (item.stats.find(stat => stat.id === 'move')?.val || 0) : 0;
-}
 /** First-loop choices use ordinary T1 mods at their listed maximum; no DPS reroll loop or invented stat ranges. */
 function buildFirstActRewardItem(base, choice) {
     const item = createItemFromBase(base, 'normal', 1);
@@ -6006,13 +6063,10 @@ function buildActRewardPreviewItem(zoneId, choice) {
         return item;
     } finally { itemIdCounter = counter; }
 }
-/** "DPS 13 → 59, 생명력 410 → 443": 바뀌는 값만, 스킬트리와 전직 창의 미리보기와 같은 말과 빛깔(js/ui.js buildStatPreviewParts).
- * 가방으로 가는 장비는 "바꿔 끼우면"으로, 장비는 옵션 없는 기본 성능 값이라 (옵션 제외)를 붙인다. */
-function formatActRewardDps(change, choice) {
-    const parts = change ? [buildStatPreviewParts(change), change.moveBonus ? `이동 속도 +${formatValue('move', change.moveBonus)}%` : ''].filter(Boolean).join(', ') : '';
-    if (!parts) return '';
-    const lead = change.direct ? '' : (change.swap ? '바꿔 끼우면 ' : '끼우면 ');
-    return `<b class="reward-choice-dps">${lead}${parts}${choice.kind === 'item' && !choice.fixedStarter ? ' (옵션 제외)' : ''}</b>`;
+/** 능력치 보상으로 바뀌는 값만 스킬트리·전직 미리보기와 같은 말과 빛깔로 표시한다. */
+function formatActRewardDps(change) {
+    const parts = change ? buildStatPreviewParts(change) : '';
+    return parts ? `<b class="reward-choice-dps">${parts}</b>` : '';
 }
 function getActRewardPreview(choice) {
     if (choice.kind === 'skill') return `${choice.skill} 공격 룬을 획득합니다.`;
@@ -8101,9 +8155,11 @@ function refitGemLevelAffix(item, stat) {
 function migrateEquipmentAffixBalance(item) {
     [...item.baseStats, ...item.stats, item.underEnchant, item.chaosInfusion].forEach(migrateEquipmentProjectileOption);
     if (item.rarity === 'unique') return;
-    for (const stat of item.stats) {
+    // Bench and echo lines keep their authored values, including when their stat ID also exists in MOD_DB.
+    for (const stat of item.stats.filter(stat => !stat.oceanBenchOptionId && !stat.isEchoMod)) {
         refitGemLevelAffix(item, stat);
-        if (stat.affixBalanceVersion >= 2 || !stat.tier || stat.fossilExclusiveDrop || stat.fossilExclusiveSpore) continue;
+        if (stat.affixBalanceVersion >= 2 || !stat.tier
+            || stat.fossilExclusiveDrop || stat.fossilExclusiveSpore) continue;
         const mod = findStoredEquipmentAffix(item, stat);
         if (!mod) continue;
         const preserveValue = stat.affixBalanceVersion >= 1;
@@ -8230,8 +8286,65 @@ function renameRetiredItemStatIds(item) {
         stat.id = RETIRED_ITEM_STAT_IDS[stat.id];
         stat.statName = getStatName(stat.id);
     }));
+    if (item.rarity === 'unique' && Object.hasOwn(RENAMED_UNIQUES, item.name)) item.name = RENAMED_UNIQUES[item.name];
+    normalizeArmGuardIdentity(item);
     return item;
 }
+
+/** Old shield IDs/slot keys remain save-compatible; only the authored equipment names change. */
+function normalizeArmGuardIdentity(item) {
+    if (item.slot !== '방패') return;
+    const previousName = item.baseName || item.name || '';
+    const legacy = Object.entries(ARM_GUARD_BASE_LEGACY_NAMES).find(([name]) => name === previousName || name === item.name
+        || String(item.name || '').endsWith(' ' + name));
+    const base = BASE_ITEM_DB.find(row => row.id === (item.baseId || legacy?.[1]));
+    if (!base || base.slot !== '방패') return;
+    item.baseId = base.id;
+    item.baseName = base.name;
+    const oldName = legacy?.[0] || previousName;
+    replaceArmGuardBaseName(item, oldName, base.name);
+    if (equipmentCrafting.normalizeImprint(item.imprint)) replaceArmGuardBaseName(item.imprint, oldName, base.name);
+}
+
+function replaceArmGuardBaseName(item, previousName, nextName) {
+    if (item.rarity === 'unique') return;
+    if (!item.name || item.name === previousName) item.name = nextName;
+    else if (previousName && item.name.endsWith(' ' + previousName)) item.name = item.name.slice(0, -previousName.length) + nextName;
+}
+
+/** 2026-10-23: only guard/focus bracers have innate block; all greatsword bases gain 5%. This is one-time so later altar
+ * replacements stay replaced. Affixes, sockets and already converted implicit lines are never rerolled. */
+function migrateEquipmentBlockBases(item) {
+    if (item.blockBaseVersion >= 1 || !['무기', '방패'].includes(item.slot)) return;
+    const base = BASE_ITEM_DB.find(row => row.id === item.baseId || (row.slot === item.slot && row.name === item.baseName));
+    if (!base) return;
+    migrateVowBlockAffix(item);
+    const block = base.baseStats.find(stat => stat.id === 'baseBlockChance');
+    if (item.slot === '방패' && !block) {
+        item.baseStats = item.baseStats.filter(stat => stat.id !== 'baseBlockChance');
+        item.exceptionalStatNames = item.baseStats.filter(stat => stat.exceptional).map(stat => stat.statName);
+        item.exceptionalBase = item.exceptionalStatNames.length > 0;
+        item.exceptionalStatName = item.exceptionalStatNames.join(', ');
+        item.exceptionalAllLines = item.exceptionalBase && item.exceptionalStatNames.length === item.baseStats.length;
+    }
+    if (item.slot === '무기' && block
+        && !item.baseStats.some(stat => stat.id === 'baseBlockChance')) item.baseStats.push({ ...rollBaseStat(block, 0), originalVal: null });
+    item.blockBaseVersion = 1;
+}
+
+/** 고요한 맹세 keeps its old rolled quality while its original unique multiplier becomes +2~3%p block.
+ * A crafted or fused rare line is independent of that authored tier-0 line and keeps its existing percent effect. */
+function migrateVowBlockAffix(item) {
+    if (item.rarity !== 'unique' || item.name !== '고요한 맹세') return;
+    const stat = item.stats.find(row => row.id === 'blockChancePct' && row.tier === 0 && !row.fusedFromRare);
+    if (!stat) return;
+    stat.id = 'blockChance';
+    stat.statName = getStatName(stat.id);
+    for (const key of ['val', 'valMin', 'valMax', 'baseRollMin', 'baseRollMax', 'originalVal']) {
+        if (Number.isFinite(stat[key])) stat[key] = Number((stat[key] / 10).toFixed(2));
+    }
+}
+
 function normalizeItem(item) {
     if (!renameRetiredItemStatIds(item)) return null;
     if (typeof bagItems === 'object' && bagItems.ownShape(item)) return bagItems.normalize(item); // 가방의 주얼과 코어는 제 모양(js/bag-items.js)
@@ -8298,7 +8411,7 @@ function normalizeItem(item) {
     } else item.encroached = null;
     item.rarity = item.rarity || 'magic';
     item.hiddenTier = Math.max(1, Math.floor(coerceFiniteNumber(item.hiddenTier, coerceFiniteNumber(item.itemTier, 1), 1)));
-    migrateUniqueEquipmentIdentity(item);
+    migrateUniqueEquipmentIdentity(item); migrateEquipmentBlockBases(item);
     const existingHighAffixTier = item.stats.reduce((max, stat) => Math.max(max, Math.floor(coerceFiniteNumber(stat && stat.tier, 0))), 0);
     const storedHighAffixCap = Number.isFinite(Number(item.affixTierCap)) && Number(item.affixTierCap) >= 11;
     const legacyProgressionProvenance = item.dropRealm === 'cosmos' || storedHighAffixCap || existingHighAffixTier >= 11;
@@ -8918,13 +9031,11 @@ function isDefenseTypeStatAllowed(item, statId) {
     let defenseSlots = new Set(['투구', '갑옷', '장갑', '신발', '방패']);
     if (!item || item.rarity === 'unique' || !defenseSlots.has(item.slot)) return true;
     statId = String(statId || '');
-    if (!['armor', 'evasion', 'energyShield', 'armorPct', 'evasionPct', 'energyShieldPct'].includes(statId)) return true;
+    if (item.slot === '방패' && statId === 'blockChancePct') return (item.baseStats || []).some(stat => stat.id === 'baseBlockChance' && stat.val > 0);
+    const defenseType = getDefenseTypeForAffixStat(statId);
+    if (!defenseType) return true;
     let baseDefenseTypes = getItemBaseDefenseTypes(item);
-    if (baseDefenseTypes.size <= 0) return true;
-    if (statId.startsWith('armor') && !baseDefenseTypes.has('armor')) return false;
-    if (statId.startsWith('evasion') && !baseDefenseTypes.has('evasion')) return false;
-    if (statId.startsWith('energyShield') && !baseDefenseTypes.has('energyShield')) return false;
-    return true;
+    return baseDefenseTypes.size <= 0 || baseDefenseTypes.has(defenseType);
 }
 
 function isKaleidoscopeShieldItem(item) {
@@ -9001,7 +9112,8 @@ function hasSummonBaseStat(item) {
 function getAvailableModPoolKey(item) {
     const summonSlot = item.slot === '무기' || item.slot === '반지';
     return [item.slot, item.rarity === 'unique' ? 'unique' : '', isKaleidoscopeShieldItem(item) ? 'kaleidoscope' : '', getWeaponCategoryId(item) || '',
-        summonSlot && hasSummonBaseStat(item) ? 'summon' : '', [...getItemBaseDefenseTypes(item)].join('+'), item.dropRegion || '', item.influence || ''].join('|');
+        summonSlot && hasSummonBaseStat(item) ? 'summon' : '', [...getItemBaseDefenseTypes(item)].join('+'),
+        isDefenseTypeStatAllowed(item, 'blockChancePct') ? 'block' : '', item.dropRegion || '', item.influence || ''].join('|');
 }
 
 /** Stats this base never takes: deflection without evasion, spell gem levels on a shield without energy shield (the kaleidoscope
@@ -9031,9 +9143,10 @@ function getAvailableMods(item) {
     return availableModPools.get(key).filter(row => !row.statIds.some(id => existing.has(id))).map(row => row.mod);
 }
 
-/** getAvailableMods 가운데 종류 자리가 남은 줄만(접두 3, 접미 3; data/items.js EXPLICIT_AFFIX_RULES). */
-function getOpenAffixMods(item, rarity = item.rarity) {
-    const room = equipmentCrafting.affixRoom(item, rarity);
+/** getAvailableMods 가운데 종류 자리가 남은 줄만(접두 3, 접미 3; data/items.js EXPLICIT_AFFIX_RULES).
+ * skip은 교체할 줄을 자리 계산에서만 뺀다. 원본 장비의 중복 옵션 ID 제외는 유지한다. */
+function getOpenAffixMods(item, rarity = item.rarity, skip = null) {
+    const room = equipmentCrafting.affixRoom(item, rarity, skip);
     return getAvailableMods(item).filter(mod => equipmentCrafting.fitsRoom(room, mod));
 }
 
@@ -9099,8 +9212,8 @@ const CHAOS_INFUSER_OPTIONS = [
     { optionId: 'weapon_pctDmg', id: 'pctDmg', min: 18, max: 26, currency: 'chaos', cost: 6, label: '무기 피해 증가', slots: ['무기'] },
     { optionId: 'weapon_aspd', id: 'aspd', min: 8, max: 12, currency: 'alteration', cost: 12, label: '무기 공격 속도', slots: ['무기'] },
     { optionId: 'armor_pctHp', id: 'pctHp', min: 12, max: 18, currency: 'exalted', cost: 1, label: '갑옷 생명력 증가', slots: ['갑옷'] },
-    { optionId: 'armor_flatHp', id: 'flatHp', min: 55, max: 80, currency: 'transmute', cost: 18, label: '갑옷/방패 최대 생명력', slots: ['갑옷', '방패'] },
-    { optionId: 'armor_defensePct', id: 'armorPct', min: 18, max: 26, currency: 'augment', cost: 12, label: '갑옷/방패 방어도 증가', slots: ['갑옷', '방패'] },
+    { optionId: 'armor_flatHp', id: 'flatHp', min: 55, max: 80, currency: 'transmute', cost: 18, label: '갑옷/완갑 최대 생명력', slots: ['갑옷', '방패'] },
+    { optionId: 'armor_defensePct', id: 'armorPct', min: 18, max: 26, currency: 'augment', cost: 12, label: '갑옷/완갑 방어도 증가', slots: ['갑옷', '방패'] },
     { optionId: 'boots_move', id: 'move', min: 16, max: 22, currency: 'exalted', cost: 1, label: '장화 이동 속도', slots: ['신발'] },
     { optionId: 'boots_evasionPct', id: 'evasionPct', min: 18, max: 26, currency: 'augment', cost: 12, label: '장화 회피 증가', slots: ['신발'] },
     { optionId: 'gloves_aspd', id: 'aspd', min: 8, max: 12, currency: 'alteration', cost: 12, label: '장갑 공격 속도', slots: ['장갑'] },
@@ -9115,8 +9228,8 @@ const CHAOS_INFUSER_OPTIONS = [
     { optionId: 'res_fire', id: 'resF', min: 12, max: 18, currency: 'chaos', cost: 5, label: '화염 저항', slots: ['투구', '갑옷', '장갑', '신발', '반지', '목걸이', '허리띠', '방패'] },
     { optionId: 'res_cold', id: 'resC', min: 12, max: 18, currency: 'chaos', cost: 5, label: '냉기 저항', slots: ['투구', '갑옷', '장갑', '신발', '반지', '목걸이', '허리띠', '방패'] },
     { optionId: 'res_light', id: 'resL', min: 12, max: 18, currency: 'chaos', cost: 5, label: '번개 저항', slots: ['투구', '갑옷', '장갑', '신발', '반지', '목걸이', '허리띠', '방패'] },
-    { optionId: 'shield_chaos_res', id: 'resChaos', min: 8, max: 12, currency: 'chaos', cost: 6, label: '방패 카오스 저항', slots: ['방패'] },
-    { optionId: 'shield_block_pct', id: 'blockChancePct', min: 16, max: 24, currency: 'augment', cost: 12, label: '방패 막기 확률 증가', slots: ['방패'] }
+    { optionId: 'shield_chaos_res', id: 'resChaos', min: 8, max: 12, currency: 'chaos', cost: 6, label: '완갑 카오스 저항', slots: ['방패'] },
+    { optionId: 'shield_block_pct', id: 'blockChancePct', min: 16, max: 24, currency: 'augment', cost: 12, label: '기본 막기 확률 증가', slots: ['방패'] }
 ];
 CHAOS_INFUSER_OPTIONS.forEach(option => {
     let merged = Object.entries(CURRENCY_LEGACY_MERGE || {}).find(([, legacyKeys]) => legacyKeys.includes(option.currency));
@@ -9334,6 +9447,7 @@ function createItemFromBase(base, rarity, zoneTier, origin) {
         baseName: base.name,
         name: base.name,
         rarity: rarity,
+        blockBaseVersion: 1,
         itemTier: zoneTier,
         hiddenTier: Math.max(1, Math.floor(Number(zoneTier) || 1)),
         affixTierCap: affixTierCap,
@@ -9431,7 +9545,7 @@ function getFairyRingUniquePools(item, zone = getZone(game.currentZoneId) || {})
 function generateUniqueItem(zoneTier, preferredSlot, forcedUniqueName, zone = getZone(game.currentZoneId) || {}) {
     let canDropUniqueInZone = unique => uniqueDropsInZone(unique, zone);
     let meetsUniqueTier = unique => uniqueMeetsTier(unique, zoneTier);
-    let forcedUnique = UNIQUE_DB.find(unique => unique.name === forcedUniqueName);
+    let forcedUnique = UNIQUE_DB.find(unique => unique.name === (RENAMED_UNIQUES[forcedUniqueName] || forcedUniqueName));
     if (forcedUnique && !contentProgression.canDropUnique(forcedUnique)) return null;
     let slot = forcedUnique?.slots?.[0] || preferredSlot || rndChoice(EQUIPMENT_DROP_SLOTS);
     let normalOptions = UNIQUE_DB.filter(unique => !unique.ultraRare && canDropUniqueInZone(unique));
@@ -9454,7 +9568,7 @@ function generateUniqueItem(zoneTier, preferredSlot, forcedUniqueName, zone = ge
         baseName: base.name,
         name: unique.name,
         rarity: 'unique',
-        uniqueEquipmentVersion: 1,
+        uniqueEquipmentVersion: 1, blockBaseVersion: 1,
         itemTier: uniqueTier,
         hiddenTier: uniqueTier,
         baseStats: rollBaseStats(base, uniqueTier),
@@ -10631,7 +10745,7 @@ const craftCurrencyUse = (() => {
         blessing: item => Array.isArray(item.baseStats) && item.baseStats.length > 0,
         annulment: item => getAnnulmentRemovableStats(item).length > 0,
         abyssCatalyst: item => Math.max(0, Math.floor(item.quality || 0)) > 0 && Array.isArray(item.stats) && item.stats.length > 0,
-        deepWhetstone: qualityFits(['무기']), rootIron: qualityFits(['투구', '갑옷', '장갑', '신발', '허리띠']), jewelPolish: qualityFits(['목걸이', '반지'])
+        deepWhetstone: qualityFits(['무기']), rootIron: qualityFits(['투구', '갑옷', '방패', '장갑', '신발', '허리띠']), jewelPolish: qualityFits(['목걸이', '반지'])
     });
     const RELIC_ACTIONS = Object.freeze(['divine', 'tainted', 'blessing']);
     /** Why action cannot be used on item now, or '': the build lock, a 성화의 뿌리 pick waits, corruption, a fused relic, or the action does
@@ -10845,27 +10959,20 @@ function getMarketExchangeQuote(recipe, quantity, owner = game) {
     return { have, max, times, valid, spend, gain, afterFrom: have - spend, afterTo: (owner.currencies[recipe.to] || 0) + gain };
 }
 
-async function exchangeAtMarket(exchangeId, exchangeAll, quantity = 1) {
-    if (!isMarketUnlocked()) return addLog('장비 제련을 해금하면 거래소를 이용할 수 있습니다.', 'attack-monster');
-    let recipe = MARKET_EXCHANGES.find(row => row.id === exchangeId);
-    if (!recipe) return;
-    const { valid, times, spend, gain } = getMarketExchangeQuote(recipe, exchangeAll ? 'max' : quantity);
-    if (!valid) return addLog('교환 가능한 수량을 입력하세요.', 'attack-monster');
-    if (exchangeAll || times > 1) {
-        let question = `${ORB_DB[recipe.from].name} ${spend}개를 ${ORB_DB[recipe.to].name} ${gain}개로 교환하시겠습니까?`;
-        if (!await requestGameConfirmation(question, {
-            title: '재화 교환',
-            tone: 'danger',
-            confirmLabel: '교환'
-        })) return;
-        if (!isMarketUnlocked() || game.currencies[recipe.from] < spend)
-            return addLog('교환 확인 중 재화 또는 해금 상태가 변경되어 거래를 취소했습니다.', 'attack-monster');
-    }
-    game.currencies[recipe.from] -= spend;
-    awardCurrency(recipe.to, gain);
-    addLog(`🏦 거래소 교환: ${ORB_DB[recipe.from].name} ${spend}개 → ${ORB_DB[recipe.to].name} ${gain}개`, 'loot-magic');
-    checkUnlocks();
-    updateStaticUI();
+/** One market trade, quantity times (an integer count or 'max'), out of owner's purse: { ok, reason, spend, gain }. Exact amounts
+ * (no gain bonus), and nothing changes unless the received balance stays a safe integer (the stall's proceeds use the same bound).
+ * Synchronous: asking, logging and drawing are js/market-ui.js's, which calls this on the game it asked about. */
+function exchangeAtMarket(exchangeId, quantity, owner = game) {
+    if (!contentProgression.isUnlocked('market', owner)) return { ok: false, reason: '장비 제련을 해금하면 거래소를 이용할 수 있습니다.' };
+    const recipe = MARKET_EXCHANGES.find(row => row.id === exchangeId);
+    if (!recipe) return { ok: false, reason: '없는 교환입니다.' };
+    const quote = getMarketExchangeQuote(recipe, quantity, owner);
+    if (!quote.valid) return { ok: false, reason: '보유한 재화로 교환할 수 없는 수량입니다.' };
+    if (!Number.isSafeInteger(quote.afterTo)) return { ok: false, reason: `${ORB_DB[recipe.to].name} 보유 한도를 넘어 교환할 수 없습니다.` };
+    owner.currencies[recipe.from] = quote.afterFrom;
+    owner.currencies[recipe.to] = quote.afterTo;
+    owner.currencyDropVersion = (owner.currencyDropVersion || 0) + 1;
+    return { ok: true, spend: quote.spend, gain: quote.gain };
 }
 
 safeExposeGlobals({

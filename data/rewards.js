@@ -13,8 +13,7 @@ const ACT_REWARD_DB = {
         title: '액트 1 클리어 보상',
         body: '성소에서 얻은 전리품 중 하나를 골라 다음 구간을 준비하세요.',
         choices: [
-            // 장비 선택지는 설명 줄 대신 부위 그림과 "등급 · 바로 장착 여부"(getActRewardPreview)를 보여 준다 — 이름 · 설명 · 미리보기가
-            // 같은 말을 세 번 했다(검토 2026-10-01).
+            // 장비의 베이스·옵션·등급·장착 안내는 actRewardItemPreview에서 표시하므로 설명을 되풀이하지 않는다.
             { kind: 'item', slot: '장갑', rarity: 'magic', label: '미확인 장갑', desc: '' },
             { kind: 'item', slot: '무기', rarity: 'magic', label: '미확인 무기', desc: '' },
             { kind: 'item', slot: '신발', rarity: 'magic', label: '미확인 신발', desc: '' }

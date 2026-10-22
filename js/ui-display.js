@@ -6,7 +6,9 @@ const uiDisplay = (() => {
     let sideBattleHudQuery;
     const mediaRules = new Map();
     const visitedSheets = new WeakSet();
-    const mobileDevice = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    // iPadOS Safari asks for desktop pages and identifies as Mac; it still needs the mobile draw budget.
+    const mobileDevice = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+        || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     // Resting cadence: an idle game keeps fighting while nobody watches closely. After a quiet
     // period, or while another window has focus, the battlefield repaints less often.
     // Combat timing is unaffected; only drawing is spaced out. Any input restores full cadence.

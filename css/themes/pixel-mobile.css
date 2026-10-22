@@ -2,31 +2,35 @@
 /* 도트 UI — 휴대폰 화면 틀: 지역 줄·귀환/목표 버튼·전투 기록 막대·하단 메뉴. 판·버튼 재질은 themes/pixel.css와 같다.
    지역 줄은 판 없이 그늘만 둔다(themes/rift-stage.css). */
 @media (max-width: 1080px) {
-  /* 대상이 바뀌어도 무대 크기는 고정. 아틀라스 정보와 정예·보스 카드는 전장 바깥의 같은 슬롯을 쓴다. */
+  /* 정예·보스와 지도 정보는 전장 위에 겹친다. 등장할 때 96px씩 무대를 줄이면 가로 화면의 전장이 77px까지 좁아졌다.
+     빈 정보 띠는 접되(2026-10-22 결정), 캔버스와 캐릭터 비율은 전투 도중 바뀌지 않게 한다. */
   :root body[data-ui-skin].mobile-battle-tab #tab-battle .combat-stage-info {
     display: block;
-    position: relative;
-    order: -3;
-    flex: 0 0 96px;
+    position: absolute;
+    inset: 0 0 auto;
+    z-index: 25;
     height: 96px;
-    min-height: 96px;
+    pointer-events: none;
   }
-  /* 칸에 보일 것(아틀라스 지도 띠, 정예와 보스 카드)이 없으면 접는다: 늘 비워 두면 전장 위가 까만 빈 띠였다(2026-10-22 사용자 결정,
-     정예나 보스와 싸우는 동안은 전장이 그만큼 줄어든다) */
+  /* 아틀라스 정보와 정예·보스 카드가 없으면 빈 띠도 보이지 않는다. */
   :root body[data-ui-skin].mobile-battle-tab #tab-battle .combat-stage:not(:has(#ui-atlas-combat:not([hidden]), #ui-enemy-list:not([hidden]) .enemy-card.targeted:is(.enemy-elite, .enemy-boss))) .combat-stage-info { display: none; }
   :root body[data-ui-skin].mobile-battle-tab #tab-battle #ui-atlas-combat {
     position: absolute;
-    inset: 0;
+    inset: 0 auto auto 0;
     box-sizing: border-box;
-    width: 100%;
+    width: calc(100% - 56px);
     height: 96px;
     margin: 0;
     box-shadow: none;
+    pointer-events: auto;
   }
+  :root body[data-ui-skin].mobile-battle-tab #tab-battle #ui-atlas-combat button { min-height: 44px; }
+  /* 지도 정보 띠는 전장 위에 겹치므로 비치게 둔다(불투명하면 지도 내내 전장 윗부분과 큰 보스의 머리를 가렸다). */
+  :root body[data-ui-skin].mobile-battle-tab #tab-battle #ui-atlas-combat { background: color-mix(in srgb, var(--px-panel) 72%, transparent); }
   :root body[data-ui-skin].mobile-battle-tab #tab-battle #enemy-area { top: 0; }
   :root body[data-ui-skin].mobile-battle-tab #tab-battle .combat-panel:has(#ui-enemy-list:not([hidden]) .enemy-elite) #ui-atlas-combat { display: none; }
   :root body[data-ui-skin].mobile-battle-tab #tab-battle #enemy-area .enemy-card.targeted:is(.enemy-elite, .enemy-boss) {
-    width: calc(100% - 16px);
+    width: calc(100% - 100px);
     margin-top: 4px;
   }
   :root body[data-ui-skin].mobile-battle-tab #tab-battle #enemy-area .enemy-nameplate { max-width: 100%; }
@@ -100,11 +104,9 @@
     /* Overrides inline presentation from the runtime: the toast root sets its layer inline; the guide card must stay on top. */
     z-index: 13200 !important;
   }
-  /* 손가락 누름 자리: 목표(38×25) · 귀환(48×32)은 겉모양은 그대로 두고 보이지 않는 자리를 44px 넘게 넓힌다.
-     버튼 공통 규칙(tabs.css)의 overflow:hidden이 넓힌 자리를 잘라 먹지 않게 풀어 준다(위치 지정은 원래 규칙 그대로). */
+  /* 목표는 실제 44px 자리로 둔다. 아래로 넓힌 가상 누름 영역이 아틀라스 단추를 가로채던 문제를 막는다.
+     귀환은 보이지 않는 누름 자리를 넓히고 공통 overflow:hidden에 잘리지 않게 한다. */
   :root body[data-ui-skin].mobile-battle-tab #tab-battle :is(#btn-combat-goal-toggle, .combat-zone-actions button) { overflow: visible; }
-  /* 목표 단추는 전장 오른쪽 위 모서리에서 6px 안쪽이라(전장은 넘친 것을 자른다) 아래 · 왼쪽으로 넓힌다 */
-  :root body[data-ui-skin].mobile-battle-tab #tab-battle #btn-combat-goal-toggle::after { content: ''; position: absolute; inset: -6px -6px -16px -8px; }
   :root body[data-ui-skin].mobile-battle-tab #tab-battle .combat-zone-actions button::after { content: ''; position: absolute; inset: -8px -6px; }
   /* 휴대폰 창 안의 누르는 것(단추 · 고르기 · 접는 머리)은 44px 이상: 도트 테를 입히며 27 ~ 36px로 줄어 있던 것들(룬 필터 · 등급 칩 ·
      지도 이동 · 설정 머리). 장비 가방 칸과 상점 진열칸은 격자 크기가 곧 자리라 뺀다(진열칸을 44px로 늘리면 32px 칸의 물건이 옆 물건과 그 가격을 덮었다). */
@@ -289,6 +291,9 @@
     /* Overrides inline presentation from the runtime (min-height 280px); the grid row sets the height here. */ min-height: 0 !important; }
 }
 @media (max-width: 1080px) and (orientation: landscape) and (max-height: 600px) {
+  /* 지도 정보는 두 줄만 쓰고 오른쪽 목표 자리를 비운다. 낮은 전장의 캐릭터를 불투명한 96px 띠로 덮지 않는다. */
+  :root body[data-ui-skin].mobile-battle-tab #tab-battle #ui-atlas-combat { height: 56px; padding: 5px 8px; gap: 6px; background: color-mix(in srgb, var(--px-panel) 64%, transparent); }
+  :root body[data-ui-skin].mobile-battle-tab #tab-battle #ui-atlas-combat .atlas-hud-copy > :is(strong, span) { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
   /* 가로 휴대폰: HUD는 지역 줄 아래 왼쪽 칸이라 돌판을 HUD 상자 안에 맞춘다(예전에는 돌판 윗단이 지역 줄을 덮었다) */
   :root body[data-ui-skin].mobile-primary-navigation.mobile-battle-tab #battle-column .player-hud-shell::before {
     box-sizing: border-box;
@@ -331,6 +336,11 @@
   :root body[data-ui-skin] #tab-char .merged-subtab-pane[data-tab-id="tab-char"] > div > h2 .passive-tree-reset { margin: 0; }
   :root body[data-ui-skin] #tab-char .merged-subtab-pane[data-tab-id="tab-char"] > div > #tree-container { grid-column: 2; grid-row: 1; align-self: stretch; }
 }
+@media (max-width: 1080px) and (orientation: landscape) and (max-height: 360px) {
+  :root body[data-ui-skin].mobile-battle-tab #tab-battle #enemy-area .enemy-card.targeted .enemy-nameplate { padding-block: 0; }
+  :root body[data-ui-skin].mobile-battle-tab #tab-battle #enemy-area .enemy-card.targeted:is(.enemy-boss, .enemy-elite) .enemy-health-frame { height: 18px; }
+  :root body[data-ui-skin].mobile-battle-tab #tab-battle #enemy-area .enemy-card.targeted .enemy-hud-meta { top: calc(100% + 1px); }
+}
 @media (max-width: 1080px) and (max-height: 600px) {
   /* 낮은 휴대폰 화면(가로, 또는 화면 배율을 키운 세로): 도움말 말풍선은 밀리지 않아 긴 설명(소환 DPS 11줄, 공격력 내역)이 1.6 줄 높이로
      화면 높이를 넘었다. 줄 사이와 안쪽 여백을 줄인다 */
@@ -356,22 +366,5 @@
   /* 도구 줄 아래로 여는 칸(화면의 40%, css/mobile.css)이 낮은 트리 밖으로 잘렸다: 트리 높이에서 도구 줄을 뺀 만큼 */
   :root body[data-ui-skin] #tab-char .merged-subtab-pane[data-tab-id="tab-char"] > div > #tree-container { container-type: size; }
   :root body[data-ui-skin] #tab-char #tree-container :is(.passive-preset-drawer > :not(summary), .passive-investment-summary-body) { max-height: calc(100cqh - 84px); }
-}
-@media (max-width: 1080px) and (orientation: landscape) and (max-height: 339px) and (pointer: coarse) {
-  /* 주소창이 보이는 가로 휴대폰(높이 293px 안팎)은 지역 줄 · HUD · 전장 · 메뉴 띠가 들어갈 수 없다 — 세로로 돌리라는 안내만.
-     설치 앱의 가로 화면(360px 이상)은 위의 가로 배치를 그대로 쓴다. 가림막이라 아래 화면은 눌리지 않는다. */
-  body[data-ui-skin]::after {
-    content: '세로 화면으로 돌려 주세요';
-    position: fixed;
-    inset: 0;
-    z-index: 30000;
-    display: grid;
-    place-items: center;
-    background: rgba(8, 5, 8, .96);
-    color: var(--px-gold-bright);
-    font: 16px var(--font-pixel);
-    text-shadow: var(--px-text-edge);
-    pointer-events: auto;
-  }
 }
 }

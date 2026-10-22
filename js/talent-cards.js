@@ -152,7 +152,7 @@ const TALENT_STAT_LABELS = {
     aspd: '공격 속도', ds: '연속 타격', move: '이동 속도', pctHp: '생명력 증가', armorPct: '방어도',
     evasionPct: '회피', energyShieldPct: '에너지 보호막', resPen: '저항 관통', leech: '생명력 흡수',
     dr: '받는 피해 감소', physIgnore: '물리 피해 감소 무시', regen: '생명력 재생', regenSuppress: '재생 억제',
-    blockChance: '막기 확률', blockChancePct: '방패 기본 막기 확률 증가', blockChanceMax: '막기 확률 최대치',
+    blockChance: '막기 확률', blockChancePct: '기본 막기 확률 증가', blockChanceMax: '막기 확률 최대치',
     deflectDamageReduce: '비껴내기 피해 감소', resAll: '모든 원소 저항', resChaos: '카오스 저항',
     igniteChance: '점화 확률', poisonChance: '중독 확률', bleedChance: '출혈 확률', shockChance: '감전 확률',
     freezeChance: '동결 확률', chillChance: '한기 확률',

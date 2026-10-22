@@ -15,7 +15,7 @@ const stumpHarvestUi = (() => {
     function journalCell(row, color, grown) {
         const key = `${row}-${color}`, on = grown.has(key), name = `${STUMP_BOX_COLORS[color].label} ${ROW_LABELS[row]}`;
         return `<span class="stump-harvest-cell${on ? ' is-on' : ''}" style="--stump-tone:${tone(color)}" title="${esc(on ? name : `${name} (아직)`)}">`
-            + `<img src="assets/px/stump/${key}.png" alt="${esc(name)}" draggable="false"></span>`;
+            + `<img src="assets/items/stump-pixel-v1/${key}.png" alt="${esc(name)}" draggable="false"></span>`;
     }
     function journalRow(row, grown) {
         return `<div class="stump-harvest-row"><span>${ROW_LABELS[row]}</span>${COLORS.map(color => journalCell(row, color, grown)).join('')}</div>`;
@@ -64,7 +64,7 @@ const stumpHarvestUi = (() => {
     }
     function rewardChoice(attrs, family, color, path, note) {
         return `<button type="button" class="stump-reward-choice" ${attrs} style="--stump-tone:${tone(color)}">`
-            + `<img src="assets/px/stump/${family}-${color}.png" alt="" draggable="false"><span>${esc(rewardName(family, color, path))}</span><small>${note}</small></button>`;
+            + `<img src="assets/items/stump-pixel-v1/${family}-${color}.png" alt="" draggable="false"><span>${esc(rewardName(family, color, path))}</span><small>${note}</small></button>`;
     }
     function giftSection(row) {
         const family = STUMP_BOX_HARVEST.rows[row], quality = `품질 ${Math.round(STUMP_BOX_HARVEST.giftRoll * 100)}%`;

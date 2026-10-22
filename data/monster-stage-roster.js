@@ -13,7 +13,7 @@ const MONSTER_STAGE_ROSTER = Object.freeze({
     /** 그림 묶음의 지문: 그림을 이 값과 함께 불러, 칸이 바뀐 그림을 브라우저가 예전 것으로 쓰지 않게 한다. */
     version: '72eade745e',
     /** 제 새 그림이 아직 없어 다른 외형의 그림을 빌려 입는 외형(위습: 같은 속성의 새 그림). */
-    wears: Object.freeze({  }),
+    wears: Object.freeze({ 'meteor-shard': 'cosmos-star', 'meteor-melt': 'cosmos-ooze', 'meteor-sentinel': 'cosmos-sentinel' }),
     // [id, 이름, 칸 가로, 칸 세로, 발 x, 발 y, 몸 높이, 몸 너비, 걸음새, 걷기, 공격, 품, 쓰러짐]
     actors: Object.freeze(Object.fromEntries([
         ['famine_beast', '기근의 맹수', 226, 140, 114, 135, 133, 201, 'legs', [6, 6, [133.33, 133.33, 133.33, 133.33, 133.33, 133.33], 'stride'], [6, 6, [200, 166.67, 166.67, 83.33, 116.67, 200], 3], [100, 101], null],

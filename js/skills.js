@@ -920,7 +920,7 @@ function getSkillRuneWeaponNote(name) {
     if (canUseSkillWithCurrentEquipment(name)) return '';
     const skill = SKILL_DB[name], family = SKILL_RUNE_FAMILY[name];
     if (isAttackRuneBlockedByMobilityBoots(name)) return `${MOBILITY_RUNE_ATTACK_UNIQUE} 착용 중, 이동 스킬룬만`;
-    if (skill && skill.requiresShield && !hasEquippedShield()) return '방패 필요';
+    if (skill && skill.requiresShield && !hasEquippedShield()) return '완갑 필요';
     return SKILL_RUNE_WEAPON_NOTES[family] || `${SKILL_RUNE_WEAPONS[family].map(stance => SKILL_RUNE_STANCE_LABELS[stance]).join(', ')} 필요`;
 }
 

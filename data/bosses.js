@@ -6,7 +6,8 @@ const ACT_BOSS_NAMES = Object.fromEntries(STORY_ACTS.map((act, idx) => [idx, act
 // Body identity controls ordinary attacks and resistance cues; ocean current rules still take precedence.
 const BOSS_BODY_ELEMENTS = Object.freeze({
     'atlas-garden-1': 'phys', 'atlas-garden-2': 'cold',
-    'atlas-sanctum-4': 'light', 'atlas-sanctum-5': 'cold'
+    'atlas-sanctum-4': 'light', 'atlas-sanctum-5': 'cold',
+    'meteor-heart': 'fire'
 });
 /** 아틀라스 지도 보스 가운데 제 몸(로스터 그림)으로 그리는 넷: 2026-10-22 검토한 몬스터 묶음의 지도 보스다. 나머지 지도, 수호자, 정점의
  * 몸은 크기와 정체성 결정을 기다려(2026-10-20 보스 그림 검토) 액트 보스 그림 그대로다. */
@@ -101,11 +102,29 @@ const REALM_MONSTER_VISUAL_SETS = Object.freeze({
     colony: Object.freeze({
         id: 'colony',
         zoneTypes: Object.freeze(['colony']),
+        formations: Object.freeze({
+            charge: Object.freeze({ normal: Object.freeze(['act5-ant', 'colony-borer-grub', 'act4-ant']), elite: Object.freeze(['hive-guard']) }),
+            sharpshooters: Object.freeze({ normal: Object.freeze(['hive-scout', 'hive-nurse', 'act5-ant', 'hive-scout']), elite: Object.freeze(['hive-guard']) }),
+            carapace: Object.freeze({ normal: Object.freeze(['act4-ant', 'act5-worm', 'colony-borer-grub']), elite: Object.freeze(['colony-carapace-beetle']) }),
+            mixed: Object.freeze({ normal: Object.freeze(['act5-ant', 'hive-scout', 'act5-worm', 'hive-nurse']), elite: Object.freeze(['hive-guard', 'colony-carapace-beetle']) }),
+            overlord: Object.freeze({ normal: Object.freeze(['act4-ant', 'hive-scout', 'colony-borer-grub']), elite: Object.freeze(['colony-carapace-beetle', 'hive-guard']) })
+        }),
         members: Object.freeze([
             ['act5-ant', '군락 일개미', 'normal', 'melee'], ['act4-ant', '군락 병정개미', 'normal', 'melee'],
             ['colony-borer-grub', '군락 굴착벌레', 'normal', 'melee'], ['act5-worm', '군락 천공벌레', 'normal', 'melee'],
+            ['hive-scout', '군락 독침 사수', 'normal', 'ranged'], ['hive-nurse', '군락 독낭 벌', 'normal', 'ranged'],
             ['hive-guard', '군락 수호벌', 'elite', 'melee'], ['colony-carapace-beetle', '군락 갑충', 'elite', 'melee'],
             ['colony-boss', '군락지 지배체', 'boss', 'melee']
+        ].map(([id, name, role, attack]) => Object.freeze({ id, name, role, attack })))
+    }),
+    meteor: Object.freeze({
+        id: 'meteor',
+        zoneTypes: Object.freeze(['meteor']),
+        members: Object.freeze([
+            ['meteor-shard', '별철 가시체', 'normal', 'melee'],
+            ['meteor-melt', '융해 점액체', 'normal', 'melee'],
+            ['meteor-sentinel', '낙하 궤도 파수병', 'elite', 'ranged'],
+            ['meteor-heart', '검은 별의 심장', 'boss', 'ranged']
         ].map(([id, name, role, attack]) => Object.freeze({ id, name, role, attack })))
     }),
     sky: Object.freeze({
@@ -116,6 +135,17 @@ const REALM_MONSTER_VISUAL_SETS = Object.freeze({
             ['sky-harpy', '질풍 하피', 'normal', 'ranged'],
             ['sky-griffin', '태양 그리핀', 'elite', 'melee'],
             ['sky-titan', '창공 거신', 'boss', 'melee']
+        ].map(([id, name, role, attack]) => Object.freeze({ id, name, role, attack })))
+    }),
+    grandBreach: Object.freeze({
+        id: 'grandBreach',
+        zoneTypes: Object.freeze(['grandBreach']),
+        members: Object.freeze([
+            ['breach-scout', '균열 척후', 'normal', 'melee'],
+            ['breach-reflux', '역류 사수', 'normal', 'ranged'],
+            ['breach-veil', '장막 봉합자', 'elite', 'ranged'],
+            ['breach-venom', '독낭 파열체', 'elite', 'melee'],
+            ['grand_breach_guardian', '대균열의 지배자', 'boss', 'ranged']
         ].map(([id, name, role, attack]) => Object.freeze({ id, name, role, attack })))
     })
 });

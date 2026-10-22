@@ -255,12 +255,15 @@ for (const classId of json('Object.keys(HANA_WEAPON_COMBOS.classWeapons)')) {
     for (const choiceIndex of [0, 1, 2]) {
         run(`game=mergeDefaults({selectedClassId:${JSON.stringify(classId)}});grantClassStarterWeapon(game.selectedClassId);
             var firstChoice=getActRewardChoices(0)[${choiceIndex}], beforeReward=JSON.stringify(game.equipment);
-            var firstPreview=buildActRewardPreviewItem(0,firstChoice), previewChange=measureActRewardDps(0,firstChoice);`);
+            var firstPreview=buildActRewardPreviewItem(0,firstChoice);`);
         assert.deepEqual(json('equipmentCrafting.affixCounts(firstPreview)'), { prefix: 1, suffix: 1, special: 0 },
             `${classId}: first-act reward ${choiceIndex} obeys ordinary magic affix limits`);
         assert(run('firstPreview.stats.every(stat=>!!findStoredEquipmentAffix(firstPreview,stat))'), 'every guaranteed option belongs on its base');
-        if (choiceIndex === 1) assert(run('previewChange.dps[1]>previewChange.dps[0]'), `${classId}: first weapon improves the starter`);
-        if (choiceIndex === 2) assert(run('previewChange.moveBonus>0'), `${classId}: boots visibly improve movement`);
+        if (choiceIndex === 1) {
+            run("var previewChange=previewBuildStats(copy=>{copy.equipment['무기']=firstPreview;});");
+            assert(run('previewChange.dps[1]>previewChange.dps[0]'), `${classId}: first weapon improves the starter`);
+        }
+        if (choiceIndex === 2) assert(run("firstPreview.stats.some(stat=>stat.id==='move' && stat.val>0)"), `${classId}: boots improve movement`);
         assert.equal(run('JSON.stringify(game.equipment)'),run('beforeReward'),'preview does not change live gear');
         run(`game.settings.autoSalvageEnabled=true;game.settings.autoSalvageRarities.magic=true;
             game.settings.autoEquipEmptySlots=false;grantActRewardEntry(0,firstChoice);`);
@@ -272,4 +275,137 @@ for (const classId of json('Object.keys(HANA_WEAPON_COMBOS.classWeapons)')) {
 }
 run('game.season=2;game.loopCount=1');
 assert.equal(run('getActRewardChoices(0)[1].fixedStarter'),undefined,'later loops keep random act rewards');
+// A guaranteed sea gift must keep both the gear and fish when its free removal has no separate line.
+run(`game=mergeDefaults({});game.level=100;
+    var seaWeapon=createItemFromBase(BASE_ITEM_DB.find(base=>base.id==='warden_greatsword'),'rare',100);
+    seaWeapon.stats=['flatDmg','pctDmg','aspd','strength','intelligence']
+        .map(id=>rollAffixValue(MOD_DB.find(mod=>mod.id===id),getItemCraftTier(seaWeapon)));
+    seaWeapon.stats.forEach((stat,index)=>{if(index!==2)stat.lockedByHoney=true});
+    game.inventory=[seaWeapon];
+    var seaState=ensureOceanState();seaState.unlocked=true;
+    seaState.fishStock.kingLeviathan=1;seaState.fishStock.abyssAngler=3;
+    var seaBefore=JSON.stringify({stats:seaWeapon.stats,fish:seaState.fishStock});`);
+assert.equal(run("getSeaGiftRecipeStatus('leviathanRemnant',seaWeapon,'속도/치명').ready"),false,
+    'a remnant with no add or separate removal route is blocked before crafting');
+assert.equal(run("craftSeaGift('leviathanRemnant',seaWeapon,{category:'속도/치명'})"),false,
+    'the remnant needs a different removable line after replacing its chosen option');
+assert.equal(run('JSON.stringify({stats:seaWeapon.stats,fish:seaState.fishStock})'),run('seaBefore'),
+    'failed remnant craft preserves the item and fish');
+run(`seaWeapon.stats=['flatDmg','pctDmg','flatHp','aspd','strength','intelligence']
+        .map(id=>rollAffixValue(MOD_DB.find(mod=>mod.id===id),getItemCraftTier(seaWeapon)));
+    seaWeapon.stats.slice(3).forEach(stat=>{stat.lockedByHoney=true});
+    seaState.fishStock.prismaticHorror=3;seaState.fishStock.glowfinTrout=4;
+    var sealBefore=JSON.stringify({stats:seaWeapon.stats,fish:seaState.fishStock});`);
+assert.equal(run("getSeaGiftRecipeStatus('doubleSealForge',seaWeapon,'속도/치명').ready"),false,
+    'a category without room for the third line is blocked before double sealing');
+assert.equal(run("getSeaGiftRecipeStatus('doubleSealForge',seaWeapon,'공격').ready"),true,
+    'the first fitting category remains selectable');
+assert.equal(run("craftSeaGift('doubleSealForge',seaWeapon,{category:'속도/치명'})"),false);
+assert.equal(run('JSON.stringify({stats:seaWeapon.stats,fish:seaState.fishStock})'),run('sealBefore'),
+    'blocked double seal keeps both the original affixes and fish');
+assert.equal(run("craftSeaGift('doubleSealForge',seaWeapon,{category:'공격'})"),true);
+assert.equal(run('seaWeapon.stats[0].lockedByHoney && seaWeapon.stats[1].lockedByHoney'),true);
+assert.equal(run("getModCategory(seaWeapon.stats[2])"),'공격');
+// Safe reroll cannot erase a compound side stat when its primary roll improves.
+run(`game=mergeDefaults({});game.level=100;
+    var compoundWeapon=createItemFromBase(BASE_ITEM_DB.find(base=>base.id==='warden_greatsword'),'rare',100);
+    compoundWeapon.stats=[rollAffixValueInTierRange(MOD_DB.find(mod=>mod.id==='compoundWeaponDmg'),6,6),
+        rollAffixValueInTierRange(MOD_DB.find(mod=>mod.id==='aspd'),5,5)];
+    compoundWeapon.stats[0].val=compoundWeapon.stats[0].valMin;
+    compoundWeapon.stats[0].extraStats[0].val=compoundWeapon.stats[0].extraStats[0].valMax;
+    game.inventory=[compoundWeapon];
+    var compoundFish=ensureOceanState();compoundFish.unlocked=true;
+    compoundFish.fishStock.glowfinTrout=3;compoundFish.fishStock.shallowSilverfin=4;
+    var compoundBefore=JSON.stringify(compoundWeapon.stats[0]);`);
+assert.equal(run('getSeaGiftRerollRows(compoundWeapon)[0].mod.id'),'compoundWeaponDmg');
+let seaRollIndex=0;
+try {
+    const draws=[0,0,.99,0];
+    r.Math.random=()=>draws[Math.min(seaRollIndex++,draws.length-1)];
+    assert.equal(run("craftSeaGift('safeReroll',compoundWeapon)"),true);
+} finally { r.Math.random=originalRandom; }
+assert.equal(run('compoundWeapon.stats[0].val'),run('JSON.parse(compoundBefore).val'));
+assert.equal(run('compoundWeapon.stats[0].extraStats[0].val'),run('JSON.parse(compoundBefore).extraStats[0].val'));
+assert.equal(run('compoundFish.fishStock.glowfinTrout'),0,'a declined roll preserves the whole line and charges its listed fish');
+run(`compoundWeapon.stats[0].val=18;compoundWeapon.stats[0].extraStats[0].val=9.11;
+    compoundFish.fishStock.voidLeviathanSpawn=1;compoundFish.fishStock.abyssAngler=3;`);
+try { r.Math.random=()=>0;assert.equal(run("craftSeaGift('echoMod',compoundWeapon)"),true); }
+finally { r.Math.random=originalRandom; }
+assert.deepEqual(json('({main:compoundWeapon.stats[1].val,extra:compoundWeapon.stats[1].extraStats[0].val,kind:compoundWeapon.stats[1].echoKind})'),
+    {main:9,extra:4.555,kind:'prefix'},'echo halves every part of a compound line without losing its affix kind');
+assert.deepEqual(json('({main:[compoundWeapon.stats[1].valMin,compoundWeapon.stats[1].valMax],extra:[compoundWeapon.stats[1].extraStats[0].valMin,compoundWeapon.stats[1].extraStats[0].valMax]})'),
+    {main:[8,9.5],extra:[4.255,4.85]},'echo halves primary and side-stat ranges with decimal precision');
+assert.equal(run('normalizeItem(JSON.parse(JSON.stringify(compoundWeapon))).stats[1].extraStats[0].val'),4.555,
+    'save normalization preserves the echoed side stat');
+run(`game=mergeDefaults({});game.level=100;
+    var benchWeapon=createItemFromBase(BASE_ITEM_DB.find(base=>base.id==='warden_greatsword'),'rare',100);
+    benchWeapon.stats=[rollAffixValueInTierRange(MOD_DB.find(mod=>mod.id==='aspd'),4,4)];game.inventory=[benchWeapon];
+    var benchFish=ensureOceanState();benchFish.unlocked=true;
+    benchFish.fishStock.prismaticHorror=2;benchFish.fishStock.tidelordKoi=1;benchFish.fishStock.abyssAngler=5;
+    benchFish.fishStock.voidLeviathanSpawn=1;`);
+assert.equal(run("craftSeaGift('crushDepthScar',benchWeapon,{optionId:'oceanBossSlayer'})"),true);
+const benchSource=json('benchWeapon.stats.find(stat=>stat.oceanBenchOptionId)');
+assert.equal(benchSource.valMin,18,'bench crafting retains its authored minimum instead of an ordinary mod range');
+assert.equal(benchSource.valMax,28,'bench crafting retains its authored maximum');
+assert.ok(benchSource.val>=18 && benchSource.val<=28);
+try { r.Math.random=()=>0;assert.equal(run("craftSeaGift('echoMod',benchWeapon)"),true); }
+finally { r.Math.random=originalRandom; }
+const benchEcho=json('benchWeapon.stats.find(stat=>stat.isEchoMod)');
+for (const key of ['val','valMin','valMax']) {
+    assert.equal(benchEcho[key],Number((benchSource[key]/2).toFixed(3)),`bench echo keeps exactly half of ${key}`);
+}
+const restoredBench=json('normalizeItem(JSON.parse(JSON.stringify(benchWeapon)))');
+for (const key of ['val','valMin','valMax']) {
+    assert.equal(restoredBench.stats.find(stat=>stat.oceanBenchOptionId)[key],benchSource[key],`saved bench ${key} stays authored`);
+    assert.equal(restoredBench.stats.find(stat=>stat.isEchoMod)[key],benchEcho[key],`saved bench echo ${key} stays halved`);
+}
+assert.equal(run('benchWeapon.stats.filter(stat=>stat.oceanBenchOptionId).length'),1,'the original alone owns the bench option');
+assert.equal(run('benchWeapon.stats.find(stat=>stat.isEchoMod).echoKind'),'special');
+assert.equal(run('getSeaGiftBenchSlot(benchWeapon)'),1,'later bench crafts still target the original line');
+assert.equal(run("equipmentCrafting.storedAffixKind(benchWeapon,{...benchWeapon.stats[0],echoKind:'broken',oceanBenchOptionId:'oceanBossSlayer'})"),'special',
+    'a corrupt echo kind falls back to legacy special provenance');
+assert.equal(run("getSeaGiftBenchSlot({...benchWeapon,stats:[{...benchWeapon.stats[0],oceanBenchOptionId:'oceanBossSlayer'},benchWeapon.stats[1]]})"),1,
+    'a saved old echo cannot impersonate its source bench slot');
+assert.equal(run('normalizeItem(JSON.parse(JSON.stringify(benchWeapon))).stats[0].echoKind'),'special',
+    'save normalization retains the echo affix kind');
+assert.equal(run('getSeaGiftRerollRows(benchWeapon).length'),0,'bench and echo lines cannot turn into ordinary affixes on reroll');
+run(`game=mergeDefaults({});game.level=100;
+    var fossilWeapon=createItemFromBase(BASE_ITEM_DB.find(base=>base.id==='warden_greatsword'),'rare',100);
+    fossilWeapon.stats=[rollAffixValueInTierRange(FOSSIL_EXCLUSIVE_MODS.find(mod=>mod.id==='fossilVoidHeart'),6,6),
+        rollAffixValueInTierRange(MOD_DB.find(mod=>mod.id==='flatDmg'),5,5)];
+    fossilWeapon.stats[0].fossilExclusiveDrop=true;
+    var oldNormal={...fossilWeapon.stats[1],affixBalanceVersion:1};
+    game.inventory=[fossilWeapon];
+    var fossilFish=ensureOceanState();fossilFish.unlocked=true;
+    fossilFish.fishStock.voidLeviathanSpawn=1;fossilFish.fishStock.abyssAngler=3;`);
+const fossilSource=json('fossilWeapon.stats[0]');
+try { r.Math.random=()=>0;assert.equal(run("craftSeaGift('echoMod',fossilWeapon)"),true); }
+finally { r.Math.random=originalRandom; }
+const fossilEcho=json('fossilWeapon.stats.find(stat=>stat.isEchoMod)');
+const restoredFossil=json('normalizeItem(JSON.parse(JSON.stringify(fossilWeapon)))');
+for (const key of ['val','valMin','valMax']) {
+    const half=Number((fossilSource[key]/2).toFixed(3));
+    assert.equal(fossilEcho[key],half,`fossil echo keeps exactly half of ${key}`);
+    assert.equal(restoredFossil.stats.find(stat=>stat.isEchoMod)[key],half,`saved fossil echo ${key} stays halved`);
+}
+assert.equal(fossilEcho.echoKind,'special');
+assert.equal(run('fossilWeapon.stats[0].val'),fossilSource.val,'echo crafting does not alter the fossil source');
+assert.equal(run('normalizeItem({...fossilWeapon,stats:[oldNormal]}).stats[0].affixBalanceVersion'),2,
+    'ordinary legacy affixes still take the normal balance migration');
+run(`game=mergeDefaults({});game.level=100;
+    var fullSeaHood=createItemFromBase(BASE_ITEM_DB.find(base=>base.id==='cloth_hood'),'rare',100);
+    fullSeaHood.stats=['aoePctDmg','flatHp','energyShield','strength','dexterity','intelligence']
+        .map(id=>rollAffixValue(MOD_DB.find(mod=>mod.id===id),getItemCraftTier(fullSeaHood)));
+    fullSeaHood.stats.slice(1).forEach(stat=>{stat.lockedByHoney=true});game.inventory=[fullSeaHood];
+    var fullSeaFish=ensureOceanState();fullSeaFish.unlocked=true;
+    fullSeaFish.fishStock.abyssAngler=4;fullSeaFish.fishStock.tidalEel=3;
+    fullSeaFish.fishStock.glowfinTrout=3;fullSeaFish.fishStock.voidLeviathanSpawn=2;
+    var fullSeaBefore=JSON.stringify({stats:fullSeaHood.stats,fish:fullSeaFish.fishStock});`);
+assert.equal(run("getSeaGiftRecipeStatus('abyssalGift',fullSeaHood).ready"),false);
+assert.equal(run("getSeaGiftRecipeStatus('leviathanBoon',fullSeaHood,'저항').ready"),false);
+assert.equal(run("getSeaGiftRecipeStatus('categoryShift',fullSeaHood,'저항').ready"),false);
+assert.equal(run("craftSeaGift('abyssalGift',fullSeaHood)"),false);
+assert.equal(run("craftSeaGift('categoryShift',fullSeaHood,{category:'저항'})"),false);
+assert.equal(run('JSON.stringify({stats:fullSeaHood.stats,fish:fullSeaFish.fishStock})'),run('fullSeaBefore'),
+    'unplaceable guaranteed or conversion recipes keep all lines and fish');
 console.log('smoke-level-progression passed');

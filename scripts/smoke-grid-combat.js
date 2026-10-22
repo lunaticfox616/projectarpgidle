@@ -751,8 +751,8 @@ const cfg = context.COMBAT_GRID_CONFIG;
   const breachRewards = context.getGrandBreachRewardSummary(31);
   assert.strictEqual(breachRewards.kills, 31, '대균열 정산은 실제 생존 구간 처치 수를 사용해야 한다');
   assert.strictEqual(breachRewards.voidChisel, 5, '대균열 처치 수가 공허의 끌 정산량을 높여야 한다');
-  assert.strictEqual(context.getColonyWaveEnemyCount(1), 12, '군락지 첫 웨이브 목표와 실제 생성 수가 같아야 한다');
-  assert.strictEqual(context.getColonyWaveEnemyCount(20), 36, '군락지 적 수는 무한히 늘지 않아야 한다');
+  assert.strictEqual(context.getColonyWaveEnemyCount(1), 6, '군락지 첫 웨이브 목표와 실제 생성 수가 같아야 한다');
+  assert.strictEqual(context.getColonyWaveEnemyCount(25), 18, '군락지 적 수는 무한히 늘지 않아야 한다');
   assert.strictEqual(context.getTrialSkillGemRewardChance(context.getZone('trial_1'), false), 0.05, '무료 1차 시련 반복은 낮은 확률로 공격 룬을 지급해야 한다');
   assert.strictEqual(context.getTrialSkillGemRewardChance(context.getZone('trial_2'), false), 0.08, '무료 2차 시련 반복은 1차보다 높은 확률로 공격 룬을 지급해야 한다');
   assert.strictEqual(context.getTrialSkillGemRewardChance(context.getZone('trial_3'), false), 1, '증표를 소비하는 시련 반복은 공격 룬을 확정 지급해야 한다');
@@ -2769,6 +2769,56 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
     return before===JSON.stringify(game.gridPlayer)&&!actExplorationProgress.moving()&&actExplorationState.lockedEnemy(run).id===9991;
   })()`,runtime);
   assert(held,'blocked locked target must hold both grid position and interpolated movement');
+}
+
+// Special encounter loot is owned by the run until its boss dies. A saved floor must still block the next wave.
+{
+  const runtime = buildGameRuntime();
+  for (const file of ['data/stage-room-plans.js', 'data/stage-regions.js', 'js/act-exploration-room-plans.js'])
+    vm.runInContext(fs.readFileSync(file, 'utf8'), runtime, { filename: file });
+  const settled = JSON.parse(JSON.stringify(vm.runInContext(`(() => {
+    game=mergeDefaults({});window.game=game;stageActors.available=()=>true;
+    game.settings.stageRooms='on';game.settings.autoEquipEmptySlots=false;
+    game.season=15;game.level=100;game.currentZoneId='colony_run';
+    Object.assign(game.colony,{inRun:true,wave:5,kills:0,requiredKills:8,returnZoneId:0});
+    spawnColonyWave();
+    const enemy=game.enemies.find(row=>!row.isBoss);
+    const item=generateEquipmentDrop(enemy,{zone:getZone('colony_run'),minimumRarity:'rare'});
+    keepEquipmentDrop(enemy,item); // an ordinary rare waits (guaranteed and unique drops are never held)
+    const held=game.colony.pendingLoot.some(row=>row.item?.id===item.id)
+      && !game.inventory.some(row=>row.id===item.id)
+      && !game.actExploration.groundLoot.some(row=>row.item?.id===item.id);
+    for(const row of [...game.enemies]){row.hp=0;handleEnemyDeath(row,getPlayerStats());}
+    const released=game.actExploration.groundLoot.some(row=>row.item?.id===item.id)
+      && !game.colony.pendingLoot.some(row=>row.item?.id===item.id);
+    game=mergeDefaults(JSON.parse(JSON.stringify(game)));window.game=game;
+    const saved=game.colony.lootPending&&game.actExploration.groundLoot.some(row=>row.item?.id===item.id);
+    game.combatHalted=true;game.combatTimeMs+=15000;tickColonyRun(getPlayerStats());
+    const heldFloor=game.enemies.length===0&&game.colony.wave===6;
+    game.combatHalted=false;
+    for(const pile of actExplorationState.groundLoot.piles(game.actExploration))
+      actExplorationProgress.collectPile(pile);
+    tickColonyRun(getPlayerStats());
+    return {held,released,saved,heldFloor,received:game.inventory.some(row=>row.id===item.id),
+      resumed:game.enemies.length>0&&!game.colony.lootPending};
+  })()`, runtime)));
+  assert.deepStrictEqual(settled,{held:true,released:true,saved:true,heldFloor:true,received:true,resumed:true},
+    'colony boss releases reserved gear once, and a saved floor blocks the next wave until pickup');
+
+  const forfeited = JSON.parse(JSON.stringify(vm.runInContext(`(() => {
+    game=mergeDefaults({});window.game=game;stageActors.available=()=>true;
+    game.settings.stageRooms='on';game.season=15;game.level=100;game.currentZoneId='colony_run';
+    Object.assign(game.colony,{inRun:true,wave:1,kills:0,requiredKills:6,returnZoneId:0});
+    spawnColonyWave();
+    const enemy=game.enemies[0],item=generateEquipmentDrop(enemy,{zone:getZone('colony_run'),minimumRarity:'rare'});
+    keepEquipmentDrop(enemy,item); // an ordinary rare waits (guaranteed and unique drops are never held)
+    const held=game.colony.pendingLoot.some(row=>row.item?.id===item.id);
+    forfeitColonyRun();
+    return {held,lost:game.colony.pendingLoot.length===0&&!game.inventory.some(row=>row.id===item.id),
+      returned:game.currentZoneId===0&&game.actExploration===null};
+  })()`, runtime)));
+  assert.deepStrictEqual(forfeited,{held:true,lost:true,returned:true},
+    'forfeiting a colony run discards reserved gear without paying it');
 }
 
 console.log('smoke-grid-combat passed');

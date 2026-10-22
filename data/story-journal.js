@@ -446,6 +446,18 @@ const STORY_TRIAL_ENCOUNTERS = Object.freeze({
     })
 });
 
+// 샛길에서 읽은 비문은 보상 없는 현장 기록으로 남는다. 기존 무대 문구가 유일한 출처이며,
+// 발견 전에는 저널 목록·해금 조건·전체 수에서 빠진다. 저장은 기존 journalEntries만 사용한다.
+for (const [zoneId, story] of [
+    ...Object.entries(STORY_ACT_ENCOUNTERS).map(([act, story]) => [Number(act) - 1, story]),
+    ...Object.entries(STORY_TRIAL_ENCOUNTERS)
+]) {
+    const id = 'inscription_' + zoneId, stele = story.stele;
+    JOURNAL_DB[id] = { title: stele.title, lines: [stele.bark], hidden: true,
+        discoveryOnly: true, afterClear: stele.afterClear === true };
+    JOURNAL_ENTRY_ORDER.push(id);
+}
+
 // One per unlock (data/content-progression.js CONTENT_UNLOCK_CATALOG id); default closes the loop result.
 const STORY_LOOP_MILESTONES = Object.freeze({
     craft: Object.freeze({

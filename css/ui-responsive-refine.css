@@ -90,7 +90,7 @@
     align-items: center;
     justify-content: center;
     width: auto;
-    height: 25px;
+    height: 44px;
     line-height: 1;
     pointer-events: auto;
   }
@@ -313,9 +313,9 @@
 /* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */
     display: inline-flex !important;
     /* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */
-    min-width: 38px !important;
+    min-width: 44px !important;
     /* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */
-    min-height: 25px !important;
+    min-height: 44px !important;
     /* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */
     padding: 2px 7px !important;
   }

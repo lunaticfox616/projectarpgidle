@@ -64,18 +64,44 @@
      * @returns {boolean} true when the panel needs no anchoring next to the item */
     function placeDocked(inspector) {
         const dock = equipmentWindowUi.inspectorDock(inspector);
+        if (dock === 'panel' || dock === 'sheet') ['left', 'top', 'max-height'].forEach(property => inspector.style.removeProperty(property));
         if (dock === 'panel' && inspector.matches(':popover-open')) inspector.hidePopover();
         if (dock === 'sheet' && !inspector.matches(':popover-open')) inspector.showPopover();
         matchSheetOrder(inspector, dock === 'sheet');
         return dock === 'panel' || dock === 'sheet';
     }
-    /** 단추 줄과 옵션의 차례는 그릴 때 정한다(js/equipment-window-ui.js orderedBody). 창 폭을 휴대폰 폭 너머로 바꾸면 다시 그리지 않으므로
-     * 여기서 맞춘다: 카드(sheet)는 옵션 뒤에 단추 줄, 그 밖은 앞에. 이미 맞으면 아무것도 옮기지 않는다. */
+    /** Phone: independently scrolling options and a fixed equip footer. Desktop keeps its existing table/actions/options order.
+     * Reparent the same buttons on resize so item actions and their domain checks stay unchanged. */
     function matchSheetOrder(inspector, sheet) {
-        const actions = inspector.querySelector(':scope > .equipment-grid-inspector-actions'), details = inspector.querySelector(':scope > .equipment-inspection-details');
-        if (!actions || !details || (actions.compareDocumentPosition(details) === Node.DOCUMENT_POSITION_PRECEDING) === sheet) return;
-        if (sheet) details.after(actions);
-        else details.before(actions);
+        const actions = inspector.querySelector('.equipment-grid-inspector-actions'), details = inspector.querySelector('.equipment-inspection-details');
+        if (!actions || !details) return;
+        if (sheet && actions.parentElement !== inspector) inspector.append(actions);
+        if (!sheet && actions.nextElementSibling !== details) details.before(actions);
+        groupSheetActions(actions, sheet);
+    }
+
+    function groupSheetActions(actions, sheet) {
+        const group = actions.querySelector('.eqw-secondary-actions');
+        if (sheet === !!group) return;
+        if (!sheet) {
+            group.replaceWith(...group.children);
+            actions.querySelector('.eqw-manage-toggle').remove();
+            actions.classList.remove('tools-open');
+            return;
+        }
+        const secondary = document.createElement('div');
+        secondary.className = 'eqw-secondary-actions';
+        secondary.id = 'eqw-management-actions';
+        [...actions.children].filter(node => !node.classList.contains('equipment-card-primary')).forEach(node => secondary.append(node));
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'eqw-manage-toggle';
+        button.textContent = '장비 관리';
+        button.setAttribute('aria-expanded', 'false');
+        button.setAttribute('aria-controls', secondary.id);
+        button.addEventListener('click', () => equipmentWindowUi.toggleTools(button));
+        button.disabled = !secondary.childElementCount;
+        actions.append(button, secondary);
     }
 
     function fitInspector(inspector, rect) {
@@ -583,7 +609,9 @@
         if (!carryState || carryState.mode !== 'inventory') return false;
         let item = carryState.entry.item;
         if (!canEquipItemToSlot(item, slot)) {
-            notify('이 장비는 해당 슬롯에 장착할 수 없습니다.', 'warning');
+            const restriction = getPassiveEquipmentRestriction(item);
+            const requirement = getEquipCandidateSlots(item).includes(slot) ? combatEquipmentStats.inspect(item, slot).reason : '';
+            notify(restriction || (requirement ? `장착 실패, ${requirement}` : '이 장비는 해당 슬롯에 장착할 수 없습니다.'), 'warning');
             return false;
         }
         doubleClickCandidateKey = null;
@@ -716,8 +744,7 @@
         if (!equipmentTarget) return false;
         suppressClickUntil = Date.now() + 350;
         event.preventDefault();
-        if (equipmentTarget.valid) equipCarriedItemToSlot(equipmentTarget.slot);
-        else notify('이 장비는 해당 슬롯에 장착할 수 없습니다.', 'warning');
+        equipCarriedItemToSlot(equipmentTarget.slot);
         cancelCarry();
         return true;
     }

@@ -17,10 +17,10 @@ const oceanDiveUi = (() => {
         return getOceanOxygenDrainPerSec() * Math.max(0.1, Number(getOceanFishingStrategyDef(st).oxygenDrainMul) || 1);
     }
     function actionsHtml(st) {
-        const fishing = `<button type="button" onclick="switchMapSubtab('map-tab-fishing')">낚시와 제작</button>`;
-        if (!st.diving) return `<button type="button" class="dive-go" data-exploration-departure onclick="oceanDiveUi.startDive()">잠수 시작<small>${st.checkpointM}m부터</small></button>${shallowHtml(st)}${autoHtml(st)}${fishing}`;
+        const workshop = `<button type="button" onclick="fishingUi.openWorkshop()">심해 제작</button>`;
+        if (!st.diving) return `<button type="button" class="dive-go" data-exploration-departure onclick="oceanDiveUi.startDive()">잠수 시작<small>${st.checkpointM}m부터</small></button>${shallowHtml(st)}${autoHtml(st)}${workshop}`;
         const back = game.currentZoneId === OCEAN_ZONE_ID ? '' : `<button type="button" class="dive-go" data-exploration-departure onclick="changeZone(OCEAN_ZONE_ID)">심해로 돌아가기</button>`;
-        return `${back}<button type="button"${back ? '' : surfaceGuard(st)} onclick="oceanDiveUi.surfaceDive()">수면으로 복귀</button>${autoHtml(st)}${fishing}`;
+        return `${back}<button type="button"${back ? '' : surfaceGuard(st)} onclick="oceanDiveUi.surfaceDive()">수면으로 복귀</button>${autoHtml(st)}${workshop}`;
     }
     /** 심해에서 떠오르기 전 확인(방 탐험 중일 때, js/act-exploration-ui.js departureCopy). 다른 곳에 있으면 떠올라도 그 자리에 머물러 묻지 않는다. */
     function surfaceGuard(st) {

@@ -134,7 +134,7 @@ const actExplorationView=(()=>{
     function drawRoomStage(ctx,run,p,area) {
         ctx.save();
         const drawn=stageRoomsView.background(ctx,run,p,area);
-        if(drawn){actExplorationView.objects.drawGround(ctx,run,p,area);drawRoomFog(ctx,run,p);drawCommand(ctx,run,p);}
+        if(drawn){actExplorationView.objects.drawGround(ctx,run,p,area);drawRoomFog(ctx,run,p);drawCommand(ctx,run,p,area);}
         ctx.restore();
         return drawn;
     }
@@ -165,13 +165,26 @@ const actExplorationView=(()=>{
         // The fog is pre-softened into its view whenever it changes; per frame it is only copied.
         const veil=updateFog(run,map,null);ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='low';
         ctx.drawImage(veil,p.mapX,p.mapY,p.mapWidth,p.mapHeight);
-        drawCommand(ctx,run,p);ctx.restore();return true;
+        drawCommand(ctx,run,p,{width,height});ctx.restore();return true;
     }
-    /** The player's move command: a thin pale-gold dashed ring on the cell's floor until the hero gets there. A command the
-     * keyboard steers (WASD) is not drawn: it is no chosen spot, only a few cells ahead of the hero. */
-    function drawCommand(ctx,run,p) {
-        const cell=actExplorationState.markedDestination(run);if(!cell)return;
+    /** A thin pale-gold ring marks the command's floor cell, or the current-room doorstep of its known open route door.
+     * Doorstep rings stay inside the visible width, like door arrows. Keyboard steering remains unmarked; the command stays intact. */
+    function drawCommand(ctx,run,p,area) {
+        const target=actExplorationState.markedDestination(run);if(!target)return;
+        let cell=actExplorationDoors.toward(run,target);
+        if(cell!==target) {
+            const row=actExplorationDoors.doorsHere(run).find(row=>row.door.cells.includes(cell));
+            if(!row||row.locked)return;
+            const landing=row.door.landings[row.door.cells.indexOf(cell)];
+            if(![target,cell,landing].every(at=>actExplorationSight.knownCell(run,at)))return;
+            cell=landing;
+        }
         const point=p.cellToScreen(cell.gx,cell.gy),dot=p.tileW/16;
+        if(cell!==target) {
+            const limit=typeof messageFrames==='object'?messageFrames.coveredFrom(point.y+p.actorGroundOffsetY,area.width):area.width,inset=p.tileW*.6;
+            if(limit<inset*2)return;
+            point.x=Math.max(inset,Math.min(limit-inset,point.x));
+        }
         ctx.globalAlpha=.9;ctx.strokeStyle='#f3e5b4';ctx.lineWidth=Math.max(1,dot);ctx.setLineDash([dot*2,dot*1.5]);
         ctx.beginPath();ctx.ellipse(point.x,point.y+p.actorGroundOffsetY,p.tileW*.3,p.tileW*.13,0,0,Math.PI*2);ctx.stroke();
         ctx.setLineDash([]);ctx.globalAlpha=1;

@@ -980,26 +980,24 @@ function ensureMobileBattlePip() {
         host.id = 'mobile-battle-pip';
         host.className = 'mobile-battle-dock';
         host.style.display = 'none';
-        host.setAttribute('role', 'button');
-        host.setAttribute('tabindex', '0');
-        host.setAttribute('aria-label', '전투 화면으로 이동');
-        host.addEventListener('click', () => switchTab('tab-battle'));
-        host.addEventListener('keydown', event => {
-            if (!['Enter', ' '].includes(event.key)) return;
-            event.preventDefault();
-            switchTab('tab-battle');
+        host.setAttribute('role', 'region');
+        host.setAttribute('aria-label', '작은 전투 화면');
+        host.innerHTML = '<button type="button" class="mobile-battle-pip-preview" data-pip-return aria-label="전투 화면으로 이동"><canvas width="320" height="180" aria-hidden="true"></canvas></button>'
+            + '<div class="mobile-battle-pip-actions"><button type="button" data-pip-return class="mobile-battle-dock-label">전투로</button>'
+            + '<button type="button" data-pip-toggle aria-expanded="true" aria-label="작은 전투 화면 접기">접기</button></div>';
+        host.addEventListener('click', event => {
+            const toggle = event.target.closest('[data-pip-toggle]');
+            if (toggle) {
+                const collapsed = !host.classList.contains('is-collapsed');
+                setMobileBattlePipCollapsed(host, collapsed);
+                dockMobileBattlePip(host);
+                if (collapsed) {
+                    clearTimeout(mobilePipRefreshHandle);
+                    mobilePipRefreshHandle = null;
+                } else refreshMobileBattlePip();
+            } else if (event.target.closest('[data-pip-return]')) switchTab('tab-battle');
         });
-        let c = document.createElement('canvas');
-        c.width = 296; c.height = 168;
-        host.appendChild(c);
-        let label = document.createElement('span');
-        label.className = 'mobile-battle-dock-label';
-        label.textContent = '전투로 돌아가기';
-        host.appendChild(label);
-        let rightPane = document.getElementById('right-pane');
-        let firstTab = rightPane && rightPane.querySelector('.tab-content');
-        if (rightPane && firstTab) rightPane.insertBefore(host, firstTab);
-        else document.body.appendChild(host);
+        document.body.appendChild(host);
     }
     if (!mobilePipCanvas) {
         mobilePipCanvas = host.querySelector('canvas');
@@ -1008,45 +1006,97 @@ function ensureMobileBattlePip() {
     return host;
 }
 
-function updateMobileBattlePipVisibility() {
+function setMobileBattlePipCollapsed(host, collapsed) {
+    host.classList.toggle('is-collapsed', collapsed);
+    const toggle = host.querySelector('[data-pip-toggle]');
+    toggle.setAttribute('aria-expanded', String(!collapsed));
+    toggle.setAttribute('aria-label', collapsed ? '작은 전투 화면 펼치기' : '작은 전투 화면 접기');
+    toggle.textContent = collapsed ? '전투 보기' : '접기';
+}
+
+/** Dense map/crafting views and early landscape trees start folded; leaving restores the previous PiP choice. */
+function dockMobileBattlePip(host) {
+    function syncContext(context) {
+        if ((host.dataset.compactContext || '') !== context) {
+            if (host.hasAttribute('data-context-collapsed')) {
+                setMobileBattlePipCollapsed(host, host.dataset.contextCollapsed === 'true');
+                delete host.dataset.contextCollapsed;
+            }
+            if (context) {
+                host.dataset.contextCollapsed = String(host.classList.contains('is-collapsed'));
+                setMobileBattlePipCollapsed(host, true);
+            }
+            host.dataset.compactContext = context;
+        }
+        const atlasPanel = document.getElementById('map-explore-worldtree');
+        if (!atlasPanel) return;
+        const hasPip = context === 'atlas' && game.settings.showMobileBattlePip !== false;
+        atlasPanel.classList.toggle('has-battle-pip', hasPip);
+        atlasPanel.classList.toggle('is-pip-expanded', hasPip && !host.classList.contains('is-collapsed'));
+    }
+    function battlePipDockTarget() {
+        if (!uiDisplay.matches('(max-width: 1080px)')) return { context: '', anchor: null };
+        const workshop = document.querySelector('#tab-map.active #map-tab-fishing.active #fishing-workshop[data-mobile-selected="true"] #fishing-battle-preview');
+        if (workshop) return { context: 'fishing', anchor: workshop };
+        const title = uiDisplay.matches('(orientation: landscape) and (max-height: 600px)')
+            ? document.querySelector('#tab-char.active .merged-tab-shell:not(:has(> .window-tab-strip:not([hidden]))) .h2-right') : null;
+        if (title) return { context: 'tree', anchor: title };
+        if (document.querySelector('#tab-map.active #map-explore-worldtree.active')) return { context: 'atlas', anchor: null };
+        // The bag fills the equipment tab to the menu: the preview starts folded there (opened, it covered the last rows and tools)
+        return { context: document.querySelector('#tab-items.active') ? 'items' : '', anchor: null };
+    }
+    const dock = battlePipDockTarget();
+    syncContext(dock.context);
+    const docked = !!dock.anchor && (dock.context === 'fishing' || host.classList.contains('is-collapsed'));
+    host.classList.toggle('is-tree-docked', docked && dock.context === 'tree');
+    host.classList.toggle('is-workshop-docked', docked && dock.context === 'fishing');
+    const parent = docked ? dock.anchor : document.body;
+    if (host.parentElement !== parent) parent.appendChild(host);
+}
+
+function updateMobileBattlePipVisibility(schedule = true) {
     let host = ensureMobileBattlePip();
     if (!host) return;
-    let isMobile = window.matchMedia ? uiDisplay.matches('(max-width: 1080px)') : window.innerWidth <= 1080;
-    let activeBattle = (document.getElementById('tab-battle') || {}).classList.contains('active');
-    let blocked = isStartupOverlayOpen() || isLoadingOverlayOpen();
-    host.style.display = (isMobile && !activeBattle && !blocked && game.settings && game.settings.showMobileBattlePip !== false) ? 'grid' : 'none';
-    if (host.style.display !== 'none') {
-        let src = document.getElementById('battlefield-canvas');
-        if (src && !activeBattle && mobilePipCanvas) {
-            // 캔버스 width/height에 값을 대입하면 (같은 값이어도) 드로잉 버퍼가
-            // 투명 검정으로 초기화된다. 이 함수는 메인 게임 루프와 PiP 갱신 루프
-            // 양쪽에서 매 프레임 호출되므로, 매번 초기화하면 다른 루프가 그려 둔
-            // 프레임이 지워져 모바일 PiP가 검게 깜빡인다. 크기가 실제로 달라질
-            // 때만 재설정한다.
-            if (src.width !== mobilePipCanvas.width) src.width = mobilePipCanvas.width;
-            if (src.height !== mobilePipCanvas.height) src.height = mobilePipCanvas.height;
-            if (src.dataset.renderScale !== '1') src.dataset.renderScale = '1';
-        } else if (src && (src.width < 32 || src.height < 32)) {
-            src.width = 960;
-            src.height = 540;
-        }
+    dockMobileBattlePip(host);
+    let isMobile = uiDisplay.matches('(max-width: 1080px)');
+    let activeBattle = document.getElementById('tab-battle').classList.contains('active');
+    // Detail sheets own the touch area. Resume the preview when they close; no hidden canvas polling.
+    let blocked = isMobile && !activeBattle && (isBattlePresentationSuspended() || document.body.classList.contains('mobile-tab-drawer-open')
+        || !!document.querySelector('#passive-mobile-detail:not([hidden]), #ui-equipment-inventory-inspector:popover-open, .selection-overlay, dialog[open], .tutorial-overlay.active, #background-combat-result-overlay, #tab-traits.active .ascend-detail:not(.is-empty), #tab-items.active .shop-info:not(:empty)'));
+    let display = (isMobile && !activeBattle && !blocked && game.settings.showMobileBattlePip !== false) ? 'grid' : 'none';
+    if (host.style.display !== display) host.style.display = display;
+    if (isMobileBattlePipVisible()) {
+        if (schedule && mobilePipRefreshHandle === null) mobilePipRefreshHandle = setTimeout(runMobilePipRefreshTick, MOBILE_PIP_BASE_INTERVAL_MS);
+    } else if (mobilePipRefreshHandle !== null) {
+        clearTimeout(mobilePipRefreshHandle);
+        mobilePipRefreshHandle = null;
     }
 }
 
 function refreshMobileBattlePip() {
-    renderBattlefield(true);
+    if (!isMobileBattlePipVisible() || isBattlePresentationSuspended()) return;
+    const src = document.getElementById('battlefield-canvas');
+    // Width/height assignments clear the bitmap even when unchanged. Resize only before an actual PiP draw,
+    // then discard the full battle's cached bounds so a just-hidden canvas cannot stretch this 16:9 view.
+    if (src.width !== mobilePipCanvas.width || src.height !== mobilePipCanvas.height || src.dataset.renderScale !== '1') {
+        src.width = mobilePipCanvas.width;
+        src.height = mobilePipCanvas.height;
+        src.dataset.renderScale = '1';
+        battleCanvasBox.forget();
+    }
+    renderBattlefield(true, MOBILE_PIP_BASE_INTERVAL_MS);
     renderMobileBattlePipFrame();
 }
 
 function isMobileBattlePipVisible() {
     let host = document.getElementById('mobile-battle-pip');
-    return !!(host && host.style.display !== 'none');
+    return !!(host && host.style.display !== 'none' && !host.classList.contains('is-collapsed'));
 }
 
 function renderMobileBattlePipFrame() {
     if (!mobilePipCtx || !mobilePipCanvas) return;
     let host = document.getElementById('mobile-battle-pip');
-    if (!host || host.style.display === 'none') return;
+    if (!host || !isMobileBattlePipVisible()) return;
     let src = document.getElementById('battlefield-canvas');
     if (!src) return;
     if (src.width < 32 || src.height < 32) { src.width = mobilePipCanvas.width; src.height = mobilePipCanvas.height; }
@@ -1067,36 +1117,26 @@ function runMobilePipRefreshTick() {
     mobilePipRefreshHandle = null;
     let nextDelay = MOBILE_PIP_BASE_INTERVAL_MS;
     try {
-        if (isBattlePresentationSuspended()) {
-            nextDelay = 500;
-        } else {
-            updateMobileBattlePipVisibility();
-            if (isMobileBattlePipVisible()) {
-                let t0 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
-                renderBattlefield(true);
-                renderMobileBattlePipFrame();
-                let cost = ((typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now()) - t0;
-                // 렌더가 무거우면(기기가 버거우면) 다음 주기를 늘려 전경 탭 끊김을 줄인다.
-                if (cost > 16) nextDelay = Math.min(420, Math.round(MOBILE_PIP_BASE_INTERVAL_MS + cost * 8));
-                else if (cost > 9) nextDelay = MOBILE_PIP_BASE_INTERVAL_MS + 70;
-            } else {
-                // PiP가 보이지 않으면 노출 전환만 감지하면 되므로 느리게 폴링한다.
-                nextDelay = 420;
-            }
-            mobilePipRefreshErrorReported = false;
-        }
+        updateMobileBattlePipVisibility(false);
+        if (!isMobileBattlePipVisible() || isBattlePresentationSuspended()) return;
+        const t0 = performance.now();
+        refreshMobileBattlePip();
+        const cost = performance.now() - t0;
+        // 렌더가 무거우면(기기가 버거우면) 다음 주기를 늘려 전경 탭 끊김을 줄인다.
+        if (cost > 16) nextDelay = Math.min(420, Math.round(MOBILE_PIP_BASE_INTERVAL_MS + cost * 8));
+        else if (cost > 9) nextDelay = MOBILE_PIP_BASE_INTERVAL_MS + 70;
+        mobilePipRefreshErrorReported = false;
     } catch (error) {
         if (!mobilePipRefreshErrorReported) console.error('mobile battle PIP refresh failed:', error);
         mobilePipRefreshErrorReported = true;
     }
-    mobilePipRefreshHandle = setTimeout(runMobilePipRefreshTick, nextDelay);
+    if (isMobileBattlePipVisible() && !isBattlePresentationSuspended()) mobilePipRefreshHandle = setTimeout(runMobilePipRefreshTick, nextDelay);
 }
 
 function startMobilePipRefreshLoop() {
     if (mobilePipRefreshHandle) clearTimeout(mobilePipRefreshHandle);
     mobilePipRefreshHandle = null;
-    if (isStartupOverlayOpen()) return;
-    mobilePipRefreshHandle = setTimeout(runMobilePipRefreshTick, MOBILE_PIP_BASE_INTERVAL_MS);
+    updateMobileBattlePipVisibility();
 }
 
 
@@ -2371,7 +2411,7 @@ function syncEquipmentSlotFilterOptions(select, slots) {
     if (!select) return;
     let signature = JSON.stringify(slots);
     if (select.dataset.optionSignature === signature) return;
-    select.innerHTML = `<option value="all">모든 칸</option>${slots.map(slot => `<option value="${escapeHTML(slot)}">${escapeHTML(slot)}</option>`).join('')}`;
+    select.innerHTML = `<option value="all">모든 칸</option>${slots.map(slot => `<option value="${escapeHTML(slot)}">${escapeHTML(getItemSlotDisplayLabel(null, slot))}</option>`).join('')}`;
     select.dataset.optionSignature = signature;
 }
 
@@ -2393,7 +2433,7 @@ function setEquipmentMobilePane(pane) {
 
 safeExposeGlobals({ setEquipmentMobilePane });
 
-function getSortedEquipmentInventoryRows(query) {
+function getSortedEquipmentInventoryRows(query, isItemRarityVisible) {
     game.settings = game.settings || {};
     let slotValue = game.settings.equipmentSlotFilter || 'all';
     let slots = Array.from(new Set(game.inventory.map(item => item && item.slot).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'ko'));
@@ -2688,6 +2728,8 @@ function startColonyRun(){
     game.currencies.colonyTrace--;
     c.entryDeepChaosDepth = getZone('colony_run').entryDeepChaosDepth;
     c.inRun = true; c.wave = 1; c.kills = 0; c.requiredKills = getColonyWaveEnemyCount(1);
+    c.coreMaxHp = 0; c.coreHp = 0; c.failedWave = 0;
+    c.pendingLoot = []; c.lootPending = false; c.bossLootCell = null;
     c.returnZoneId = getContentReturnZoneId();
     actExplorationProgress.depart(game);
     game.currentZoneId = 'colony_run';
@@ -2701,6 +2743,7 @@ function startColonyRun(){
 function forfeitColonyRun(){
     let c = game.colony || {};
     if (!c.inRun) return;
+    actExplorationState.groundLoot.discardEncounter(game, 'colony_run');
     c.inRun = false;
     game.currentZoneId = c.returnZoneId !== undefined && c.returnZoneId !== null ? c.returnZoneId : getAutoProgressZoneId(game.maxZoneId);
     c.returnZoneId = null;
@@ -2708,8 +2751,8 @@ function forfeitColonyRun(){
     game.encounterPlan = [];
     game.encounterIndex = 0;
     game.runProgress = 0;
-    actExplorationProgress.depart(game); // 방 단위 지도: 바닥의 전리품을 거두고 지도를 닫는다
-    addLog(`🪲 군락지 ${Math.max(0, Math.floor(c.wave || 1) - 1)}웨이브 정산 후 철수했습니다. 획득 보상은 유지됩니다.`, 'season-up');
+    actExplorationProgress.depart(game);
+    addLog('🪲 군락지에서 철수했습니다. 보관 중이거나 바닥에 남은 전리품은 사라지고, 이미 주운 보상은 유지됩니다.', 'season-up');
     updateStaticUI();
     queueImportantSave(200);
 }
@@ -2729,9 +2772,9 @@ function renderLoop9VoidRiftPanel(){
     let v = game.voidRift || (game.voidRift = { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0 });
     let g = v.grandRun || {};
     if (g.inRun && game.currentZoneId !== 'grand_breach_run') {
+        actExplorationState.groundLoot.discardEncounter(game, 'grand_breach_run');
         g.inRun = false;
         g.phase = 'failed';
-        g.timeLeft = 0;
         v.grandRun = g;
     }
     sideEncounterUi.renderPanel(panel, sideEncounterUi.grandPanel(v, buildMapPowerEstimateHtml(getZone('grand_breach_run'))));
@@ -2751,18 +2794,7 @@ function spawnBeehiveWave(isBoss){
     for (let i = 0; i < count; i++) {
         let marker = { elite: !isBoss && i < eliteCount, boss: isBoss };
         let enemy = createEnemy(zone, marker, i);
-        if (isBoss) {
-            enemy.name = '👑 벌집 여왕';
-            enemy.traitName = `분노한 군체 (강화 ${Math.floor(b.enemyEmpower || 0)})`;
-        } else {
-            enemy.maxHp = Math.floor(enemy.maxHp * zone.waveHpMul);
-            enemy.hp = enemy.maxHp;
-            enemy.atkMul *= zone.waveAttackRateMul;
-            enemy.damageMul *= zone.waveDamageMul;
-            enemy.name = `${enemy.isElite ? '정예 ' : ''}벌집 전투벌`;
-            enemy.traitName = enemy.traitName || '벌떼 돌격';
-        }
-        wave.push(enemy);
+        wave.push(tuneBeehiveWaveEnemy(enemy, zone, isBoss, b.enemyEmpower));
     }
     // 방 단위 무대: 벌집 전용 지도의 다음 방(여왕은 여왕의 방)에 세운다(js/combat.js placeBeehiveRoomWave). 그 밖에서는 판에 바로 선다.
     let roomRun = getBeehiveRoomRun();
@@ -2882,7 +2914,7 @@ function buildBeehiveChoiceOption(type, branchStep, timing = 'wave') {
     if (type === 'stinger') { let chance = scaleBeehiveRewardChance(0.38, timing); return mk(`독벌침 획득 확률 ${Math.floor(chance * 100)}%`, 'stinger', 1, chance); }
     if (type === 'formlessDew') { let amount = scaleBeehiveRewardAmount(getBeehiveRewardAmount(1 + (step >= 7 ? 1 : 0), step), timing); return mk(`형체 없는 이슬 +${amount}`, 'formlessDew', amount); }
     if (type === 'goldenRule') { let chance = scaleBeehiveRewardChance(step >= 8 ? 1 : 0.35, timing); return mk(chance >= 1 ? '황금률 +1' : `황금률 획득 확률 ${Math.floor(chance * 100)}%`, 'goldenRule', 1, chance); }
-    if (type === 'jewelShard') { let amount = scaleBeehiveRewardAmount(getBeehiveRewardAmount(2 + Math.floor(Math.random() * 3), step), timing); return mk(`주얼 파편 +${amount}`, 'jewelShard', amount); }
+    if (type === 'jewelShard') { let amount = scaleBeehiveRewardAmount(getBeehiveRewardAmount(2 + Math.floor(Math.random() * 3), step), timing); return mk(`주얼 결정 +${amount}`, 'jewelShard', amount); }
     if (type === 'beeswax') { let amount = scaleBeehiveRewardAmount(step >= 8 ? 2 : 1, timing); return mk(`밀랍 +${amount}`, 'beeswax', amount); }
     if (type === 'spore') {
         let sporeType = rndChoice(['sporeFire', 'sporeCold', 'sporeLight']);
@@ -3027,6 +3059,7 @@ function completeBeehiveRun(){
     let b = game.beehive || {};
     if (!b.inRun || !b.queenActive) return;
     const rewardZone = getZone('beehive_run');
+    const risk = Math.max(0, Math.min(30, Math.floor(b.enemyEmpower || 0)));
     closeBeehiveChoiceOverlay();
     let queenRewardResults = [];
     if (Array.isArray(b.pendingQueenRewards)) {
@@ -3050,13 +3083,15 @@ function completeBeehiveRun(){
     game.combatHalted = false;
     markLoopSpecialBossKill('beehive_queen');
     unlockJournalEntry('beehive_queen');
+    const wax = awardCurrency('beeswax', 1 + Math.floor(risk / 6), 'reward');
+    const stinger = awardCurrency('venomStinger', 1 + Math.floor(risk / 10), 'reward');
     if (Math.random() < 0.08) {
         const itemLevel = levelProgression.itemLevel(rewardZone, { isBoss: true });
         const tier = Math.min(getRealmEquipmentHiddenTierCap(rewardZone), levelProgression.maxDropTier(itemLevel));
         let item = levelProgression.stampItem(generateUniqueItem(tier, '무기', null, rewardZone), itemLevel);
-        addItemToInventory(item);
+        addItemToInventory(item, { ignoreFilter: true, ignoreAutoSalvage: true, guaranteedKeep: true });
     }
-    addLog(`👑 여왕벌 처치! 벌집 클리어 체크가 영구 적용되고 벌집 패널티가 초기화되었습니다.${queenRewardResults.length ? ` 여왕벌 보상: ${queenRewardResults.join(' / ')}` : ''}`, 'level-up');
+    addLog(`👑 여왕벌 처치! 밀랍 +${wax}, 독벌침 +${stinger} (군체 강화 ${risk} 정산).${queenRewardResults.length ? ` 여왕벌 선택 보상: ${queenRewardResults.join(' / ')}` : ''}`, 'level-up');
     updateStaticUI();
 }
 function onBeehiveWaveCleared(){
@@ -3131,13 +3166,14 @@ function enterGrandBreach(options){
     let v = game.voidRift;
     if (!v.grandBreachUnlock) return;
     if (v.grandRun && v.grandRun.inRun && game.currentZoneId !== 'grand_breach_run') {
+        actExplorationState.groundLoot.discardEncounter(game, 'grand_breach_run');
         v.grandRun.inRun = false;
         v.grandRun.phase = 'failed';
-        v.grandRun.timeLeft = 0;
     }
     if (v.grandRun && v.grandRun.inRun) return;
     v.grandBreachUnlock = false;
-    v.grandRun = { inRun: true, phase: 'survival', timeLeft: GRAND_BREACH_ENCOUNTER.durationSeconds, kills: 0, rewardVoidChisel: null, nextRefillAt: 0, lastTickAt: getCombatTime(), returnZoneId: getContentReturnZoneId() };
+    v.grandRun = { inRun: true, phase: 'survival', survivalStarted: false, kills: 0, gauge: 0, pendingLoot: [],
+        rewardVoidChisel: null, rewardJewelShard: null, nextRefillAt: 0, returnZoneId: getContentReturnZoneId() };
     actExplorationProgress.depart(game);
     game.currentZoneId = 'grand_breach_run';
     game.enemies = [];
@@ -3146,7 +3182,7 @@ function enterGrandBreach(options){
     game.runProgress = 0;
     game.moveTimer = 0;
     game.combatHalted = false;
-    if (!options || !options.automatic) addLog('🌌 대균열 진입! 35초 동안 무리가 점차 늘어납니다. 많이 처치할수록 군주 격파 보상이 증가합니다.', 'season-up');
+    if (!options || !options.automatic) addLog('🌌 대균열 진입! 일반 몬스터 0.5%, 정예 3%씩 게이지를 채워 균열 군주를 소환합니다. 전리품은 군주 처치 시 쏟아집니다.', 'season-up');
     updateStaticUI();
 }
 
@@ -4302,7 +4338,7 @@ function grantCodexLegacyStarterUniques() {
     let item = generateUniqueItem(1, null, pick.name, {});
     if (!canStoreEquipmentItems([item], game)) return;
     game.inventory.push(normalizeItem(item));
-    addLog(`🎁 도감 완성 특전 지급: [${pick.slots[0]}] ${pick.name} (액트1 고유 랜덤 1개)`, 'loot-unique');
+    addLog(`🎁 도감 완성 특전 지급: [${getItemSlotDisplayLabel(item, pick.slots[0])}] ${pick.name} (액트1 고유 랜덤 1개)`, 'loot-unique');
 }
 
 function assertBuildEditable() {
@@ -4461,16 +4497,7 @@ function openEquippedGemManagement(name) {
 }
 safeExposeGlobals({ openEquippedGemManagement });
 function getEffectiveResonanceCap(statsOverride) {
-    let base = Math.max(0, Math.floor(game.resonancePower || 0));
-    let runeBonus = 0;
-    let stats = statsOverride || getUiPlayerStats(null);
-    if (stats) {
-        runeBonus = Math.max(0, Math.floor((stats && stats.runeResonancePower) || 0));
-        let tempFloor = Math.max(0, Math.floor((stats && stats.uniqueResonanceFloor) || 0));
-        let inquisitorBonus = Math.max(0, Math.floor((stats && stats.inquisitorResonanceBonus) || 0));
-        base = Math.max(base, tempFloor) + inquisitorBonus;
-    }
-    return base + runeBonus;
+    return gemDropRewards.resonanceCap(game, statsOverride || getUiPlayerStats(null));
 }
 
 function getSupportTierResonanceCost(name) {
@@ -5078,6 +5105,11 @@ window.addEventListener('project-idle:ground-damage', event => {
     const text = persistent ? `${name} [${getDamageElementLabel(element)}] 지속 피해 ${damage}`
         : `${name} 발동 [${getDamageElementLabel(element)}] (${damage} 피해)`;
     addLog(text, 'attack-monster', { noToast: true, element });
+});
+window.addEventListener('project-idle:colony-defense-failed', event => {
+    const { wave, background } = event.detail;
+    addLog(`군락 핵이 파괴되어 ${wave}웨이브 방어에 실패했습니다. 귀환하며 이미 획득한 보상은 유지됩니다.`,
+        'attack-monster', { noToast: !!background });
 });
 window.addEventListener('project-idle:loop-hero-selection-requested', event => {
     let detail = event && event.detail;
@@ -8758,7 +8790,7 @@ function getEquipmentSearchText(item) {
     const base = (item.baseStats || []).map(stat => getEquipmentSearchStatText(stat, false)).join(' ');
     const stats = (item.stats || []).map(stat => getEquipmentSearchStatText(stat, true)).join(' ');
     const under = item.underEnchant ? `${getEquipmentSearchStatText(item.underEnchant, true)} ${item.underEnchant.val || ''}` : '';
-    return `${item.name || ''} ${item.slot || ''} ${getWeaponCategoryName(item)} ${item.rarity || ''} ${base} ${stats} ${under}`;
+    return `${item.name || ''} ${item.baseName || ''} ${getItemSlotDisplayLabel(item)} ${getWeaponCategoryName(item)} ${item.rarity || ''} ${ITEM_RARITY_LABELS[item.rarity] || ''} ${base} ${stats} ${under}`;
 }
 function getSearchTokens(query) {
     return String(query || '').toLowerCase().trim().split(/\s+/).filter(Boolean);
@@ -8785,7 +8817,8 @@ function syncSingleSubtabRows() {
 /** 저널 분류: 기억의 잎은 숨겨진 기록과 별도로 모아 읽는다. */
 function getJournalCategory(id) {
     if (id.startsWith('memory_leaf_')) return '기억의 잎';
-    if (id === 'prologue' || /^act_\d+$/.test(id)) return '스토리';
+    if (/^(prologue|act_\d+)$/.test(id)) return '스토리';
+    if (id.startsWith('inscription_')) return '세계의 흔적';
     if (JOURNAL_DB[id]?.hidden) return '숨겨진 기록';
     if (/^rival_/.test(id)) return '버려진 날';
     if (id === 'cosmos_astra') return '우주계 기록';
@@ -8793,7 +8826,37 @@ function getJournalCategory(id) {
     if (['labyrinth_10', 'ocean_500', 'sky_tower_10', 'time_rift_fusion', 'colony_wave_10'].includes(id)) return '탐험 기록';
     return '세계의 흔적';
 }
-function performUpdateStaticUI() {
+// 제작 선택창의 수명주기는 이 UI scope에만 두고, 렌더 진입점 이름은 유지한다.
+var performUpdateStaticUI = (() => {
+/** native 모달 안에서도 기존 장비 툴팁을 쓰고, 닫으면 원래 DOM 자리와 연 단추로 돌려놓는다. */
+function prepareCraftItemPickerDialog(overlay, kind, closePicker) {
+    const opener = document.activeElement;
+    const host = opener?.closest('.tab-content, dialog');
+    const tooltips = ['item-tooltip-box', 'info-tooltip'].map(id => document.getElementById(id)).filter(Boolean)
+        .map(node => ({ node, parent: node.parentNode, next: node.nextSibling }));
+    hideItemTooltip();
+    hideInfoTooltip();
+    tooltips.forEach(({ node }) => overlay.appendChild(node));
+    overlay.oncancel = event => { event.preventDefault(); closePicker(); };
+    overlay.onclose = () => {
+        if (!overlay.isConnected) return;
+        hideItemTooltip();
+        hideInfoTooltip();
+        // 뒤쪽부터 복구하면 두 툴팁이 원래 서로 이웃한 경우에도 nextSibling을 보존한다.
+        tooltips.slice().reverse().forEach(({ node, parent, next }) => {
+            if (node.parentNode !== overlay) return;
+            parent.insertBefore(node, next?.parentNode === parent ? next : null);
+        });
+        overlay.remove();
+        const modal = [...document.querySelectorAll('dialog:modal')].at(-1);
+        if (modal && !modal.contains(host || opener)) return;
+        // 대상을 고르면 제작실을 다시 그리므로, 사라진 단추 대신 같은 창의 같은 선택 단추를 찾는다.
+        const target = opener?.isConnected ? opener : host?.querySelector(`button[onclick*="openCraftItemPickerOverlay('${kind}')"]`);
+        target?.focus({ preventScroll: true });
+    };
+}
+
+return function performUpdateStaticUI() {
     craftingWorkspaceState.capture(game);
     updateInventoryFullWarnings();
     announceMapPrimaryContentUnlocks();
@@ -8911,7 +8974,7 @@ function performUpdateStaticUI() {
         window.equipmentTriage.autoStart();
         window.equipmentTriage.render();
     }
-    const equipInvRows = getSortedEquipmentInventoryRows(sf.equip);
+    const equipInvRows = getSortedEquipmentInventoryRows(sf.equip, isItemRarityVisible);
     const equipmentGridLayout = equipmentInventoryGridRuntime.ensureState(game);
     const equipmentPage = equipmentInventoryInteraction.renderPageControls(equipmentGridLayout, equipInvRows, sf.equip);
     const equipmentPageLayout = equipmentInventoryGridRuntime.getPageLayout(equipmentGridLayout, equipmentPage);
@@ -9111,8 +9174,8 @@ async function bulkSalvageEquipBySearch(salvageUnmatched) {
     const sf = getSearchFilterState();
     const targetItems = (game.inventory || []).filter(item => {
         if (!item) return false;
-        const underEnchantHay = item.underEnchant ? `${item.underEnchant.id || ''} ${item.underEnchant.statName || getStatName(item.underEnchant.id || '') || ''} ${item.underEnchant.val || ''}` : '';
-        const hay = `${item.name || ''} ${item.slot || ''} ${getWeaponCategoryName(item)} ${item.rarity || ''} ${(item.baseStats||[]).map(s => `${s&&s.id||''} ${s&&s.statName||''}`).join(' ')} ${(item.stats || []).map(s2 => `${s2&&s2.id||''} ${s2&&s2.statName||getStatName((s2&&s2.id)||'')||''}`).join(' ')} ${underEnchantHay}`;
+        // 가방 검색이 밝게 보이는 장비와 같은 글로 맞춘다(베이스 이름, 한글 등급 포함): 다르면 일치로 보이던 장비가 미검색 해체에 들어갔다
+        const hay = getEquipmentSearchText(item);
         const matched = matchSearchQuery(hay, sf.equip);
         return shouldBulkSalvageBySearch(matched, !!salvageUnmatched) && !isBulkSalvageProtectedItem(item);
     });
@@ -9288,7 +9351,7 @@ function getMobileCraftCurrencyUseState(key, item) {
         if (['deepWhetstone', 'rootIron', 'jewelPolish'].includes(key)) {
             let slot = String(item.slot || '');
             let isWeapon = slot === '무기';
-            let isArmor = ['투구', '갑옷', '장갑', '신발', '허리띠'].includes(slot);
+            let isArmor = ['투구', '갑옷', '방패', '장갑', '신발', '허리띠'].includes(slot);
             let isAccessory = ['목걸이', '반지'].includes(slot);
             let slotOk = (key === 'deepWhetstone' && isWeapon) || (key === 'rootIron' && isArmor) || (key === 'jewelPolish' && isAccessory);
             let qualityOk = Math.max(0, Math.floor(item.quality || 0)) < 20 && !item.qualityLockedByLimitBreak;
@@ -9325,18 +9388,19 @@ function buildSporeSummaryHtml() {
 
 /** 제작실 첫 화면: 착용 장비 칸(누르면 그 장비가 대상)과 인벤토리에서 고르기. */
 function getCraftEmptyStateHtml() {
-    return `<div class="cl-empty-head"><strong>제작할 장비를 고르세요</strong><button type="button" onclick="openCraftItemPickerOverlay('inventory')">인벤토리에서 고르기</button></div>${getCraftPickerBodyHtml('equip')}`;
+    return `<div class="cl-empty-head"><strong>제작할 장비를 고르세요</strong><button type="button" id="craft-target-inventory-open" onclick="openCraftItemPickerOverlay('inventory')">인벤토리에서 고르기</button></div>${getCraftPickerBodyHtml('equip')}`;
 }
 
 function getCraftTargetControlsHtml() {
-    return `<div class="craft-target-actions"><button type="button" onclick="event.stopPropagation(); openCraftItemPickerOverlay('equip')">장비</button><button type="button" onclick="event.stopPropagation(); openCraftItemPickerOverlay('inventory')">인벤토리</button></div>`;
+    return `<div class="craft-target-actions"><button type="button" id="craft-target-equip-open" onclick="event.stopPropagation(); openCraftItemPickerOverlay('equip')">장비</button><button type="button" id="craft-target-inventory-open" onclick="event.stopPropagation(); openCraftItemPickerOverlay('inventory')">인벤토리</button></div>`;
 }
 
 function closeCraftItemPickerOverlay() {
-    if (typeof hideItemTooltip === 'function') hideItemTooltip();
-    if (typeof hideInfoTooltip === 'function') hideInfoTooltip();
-    let overlay = document.getElementById('craft-item-picker-overlay');
-    if (overlay) overlay.remove();
+    const overlay = document.getElementById('craft-item-picker-overlay');
+    if (!overlay) return;
+    overlay.close();
+    // close 이벤트는 다음 task에 온다. 즉시 정리해 연속해서 열어도 이전 창이 새 창을 건드리지 않게 한다.
+    overlay.onclose();
 }
 
 function selectCraftPickerEquipment(slot) {
@@ -9391,7 +9455,7 @@ function getCraftPickerBodyHtml(kind, browse = {}) {
         return `<div class="paperdoll craft-picker-equip-grid">${slots.map(slot => {
             let item = game.equipment && game.equipment[slot];
             let slotClass = `slot-box slot-${slot}`;
-            if (!item) return `<button type="button" class="craft-picker-card ${slotClass} empty" disabled><div style="font-weight:800;">[${slot.replace(/[12]/, '')}]</div><div style="color:var(--copy-muted); margin-top:5px;">비어있음</div></button>`;
+            if (!item) return `<button type="button" class="craft-picker-card ${slotClass} empty" disabled><div style="font-weight:800;">[${escapeHTML(getItemSlotDisplayLabel(null, slot))}]</div><div style="color:var(--copy-muted); margin-top:5px;">비어있음</div></button>`;
             return getCraftPickerCardHtml(item, {
                 slotLabel: slot,
                 selected: currentIsEquip && currentRef === slot,
@@ -9441,9 +9505,10 @@ function openCraftItemPickerOverlay(kind) {
     closeCraftItemPickerOverlay();
     let isEquip = kind === 'equip';
     window.__craftPickerKind = kind;
-    let overlay = document.createElement('div');
+    let overlay = document.createElement('dialog');
     overlay.id = 'craft-item-picker-overlay';
     overlay.className = 'craft-picker-overlay';
+    overlay.setAttribute('aria-labelledby', 'craft-picker-title');
     overlay.onclick = event => {
         if (event.target === overlay) closeCraftItemPickerOverlay();
         const button = event.target.closest('[data-craft-page]');
@@ -9453,13 +9518,15 @@ function openCraftItemPickerOverlay(kind) {
     overlay.onsubmit = event => { event.preventDefault(); overlay.dataset.page = '0'; refreshCraftItemPickerOverlay(); };
     let bodyHtml = getCraftPickerBodyHtml(kind);
     let filterRowHtml = isEquip ? '' : `<div class="craft-picker-filter"><span class="inventory-view-filter-label">표시</span>${renderRarityFilterChips('picker')}</div>`;
-    overlay.innerHTML = `<div class="craft-picker-panel"><div class="craft-picker-head"><div><div class="craft-picker-title">${isEquip ? '장착 장비에서 제작 대상 선택' : '인벤토리에서 제작 대상 선택'}</div><div class="craft-picker-desc">카드를 클릭하면 제작실 대상 장비로 바로 선택됩니다.</div></div><button type="button" onclick="closeCraftItemPickerOverlay()">닫기</button></div>${filterRowHtml}<div class="craft-picker-body">${bodyHtml}</div></div>`;
+    overlay.innerHTML = `<div class="craft-picker-panel"><div class="craft-picker-head"><div><div class="craft-picker-title" id="craft-picker-title">${isEquip ? '장착 장비에서 제작 대상 선택' : '인벤토리에서 제작 대상 선택'}</div><div class="craft-picker-desc">카드를 클릭하면 제작실 대상 장비로 바로 선택됩니다.</div></div><button type="button" autofocus onclick="closeCraftItemPickerOverlay()">닫기</button></div>${filterRowHtml}<div class="craft-picker-body">${bodyHtml}</div></div>`;
     if (kind === 'altar') {
         overlay.querySelector('.craft-picker-title').textContent = '제단 장비 선택';
         overlay.querySelector('.craft-picker-desc').textContent = '제단에 올릴 수 있는 장비만 표시됩니다. 선택 후 제단에 올리세요.';
     }
-    if (!isEquip && uiDisplay.matches('(max-width: 1080px)')) overlay.querySelector('.craft-picker-head').insertAdjacentHTML('afterend', '<form class="craft-picker-search"><input name="craftSearch" type="search" aria-label="제작 장비 이름/부위/옵션 검색" placeholder="이름/부위/옵션 검색"><button type="submit">검색</button></form>');
+    if (!isEquip && uiDisplay.matches('(max-width: 1080px)')) overlay.querySelector('.craft-picker-head').insertAdjacentHTML('afterend', '<form class="craft-picker-search"><input name="craftSearch" type="search" aria-label="제작 장비 이름/베이스/등급/부위/옵션 검색" placeholder="이름/베이스/등급/옵션 검색"><button type="submit">검색</button></form>');
+    prepareCraftItemPickerDialog(overlay, kind, closeCraftItemPickerOverlay);
     document.body.appendChild(overlay);
+    overlay.showModal();
 }
 
 function exposeUiRenderHelpersOnce() {
@@ -9763,7 +9830,7 @@ function buildCraftActionButtons(item) {
     let journalList = isTabRendering('tab-journal') ? document.getElementById('ui-journal-list') : null;
     if (journalList) {
         let unlocked = new Set((game.journalEntries || []).filter(id => JOURNAL_DB[id]));
-        let orderedIds = JOURNAL_ENTRY_ORDER.filter(id => !!JOURNAL_DB[id]);
+        let orderedIds = JOURNAL_ENTRY_ORDER.filter(id => JOURNAL_DB[id] && (!JOURNAL_DB[id].discoveryOnly || unlocked.has(id)));
         let entries = orderedIds.map(id => ({ id: id, def: JOURNAL_DB[id] }));
         let journalHintById = {
             prologue: '게임 시작',
@@ -9886,7 +9953,8 @@ function buildCraftActionButtons(item) {
         for (let i = 1; i < __pm.length; i++) __parts.push(`${__pm[i][0]}:${Math.round(__pm[i][1] - __pm[i - 1][1])}`);
         console.warn(`[perf] updateStaticUI ${Math.round(__ptot)}ms | ${__parts.join(' ')}`);
     }
-}
+};
+})();
 
 
 function ensurePassiveTreeSearchSettings() {
@@ -10112,8 +10180,11 @@ function syncPassiveTreeHeader() {
     if (button.title !== title) button.title = title;
 }
 
-/** 기본 스킬트리 초기화를 지금 못 하는 까닭('' 이면 된다): 나무꾼 전투, 황금률, 찍은 노드. */
+/** 기본 스킬트리 초기화를 지금 못 하는 까닭('' 이면 된다): 방치 전투 정산(끝나면 game이 바뀌어 초기화가 사라진다), 나무꾼 전투,
+ * 황금률, 찍은 노드. */
 function getPassiveTreeResetBlockReason() {
+    const replay = shopView.busyReason();
+    if (replay) return replay;
     if (game.woodsmanBuildLock) return '☠️ 나무꾼 전투 중에는 스킬트리를 초기화할 수 없습니다.';
     if ((game.currencies.goldenRule || 0) < 1) return '황금률이 부족합니다.';
     return getPaidPassiveNodeIds(game.passives).length > 0 ? '' : '초기화할 스킬트리 노드가 없습니다.';
@@ -10122,15 +10193,28 @@ function getPassiveTreeResetBlockReason() {
 /** 기본 스킬트리 초기화(스킬트리 머리의 단추, 2026-10-22 거래소 특수 서비스에서 옮김): 황금률 1개로 기본 트리에 찍은 점수를 모두
  * 돌려받는다. 루프 패시브, 심화 패시브와 전직은 그대로다. 직업 시작점은 소유 목록에 넣지 않아도 늘 무료 연결점이다. */
 async function resetPassiveTreeByGoldenRule() {
+    const button = document.getElementById('btn-passive-tree-reset');
+    if (button && button.disabled) return;
     const blocked = getPassiveTreeResetBlockReason();
     if (blocked) return addLog(blocked, 'attack-monster');
-    const spentNodes = getPaidPassiveNodeIds(game.passives).length, before = game.passives.join('|');
-    if (!await requestGameConfirmation(`황금률 1개로 기본 스킬트리를 초기화하고 ${spentNodes}점을 돌려받습니다.\n루프 패시브, 심화 패시브와 전직은 그대로입니다.`, {
-        title: '스킬트리 초기화',
-        tone: 'danger',
-        confirmLabel: '초기화'
-    })) return;
-    if (getPassiveTreeResetBlockReason() || game.passives.join('|') !== before) return addLog('확인하는 사이 스킬트리나 재화가 바뀌어 초기화를 취소했습니다.', 'attack-monster');
+    const owner = game, spentNodes = getPaidPassiveNodeIds(game.passives).length, before = game.passives.join('|');
+    // 확인 창이 열린 동안 단추를 잠가 두 번째 확인 창이 줄 서지 않게 한다. 기다리는 사이 방치 정산이나 저장 불러오기가 game을
+    // 바꿀 수 있어, 확인 뒤에는 같은 game인지부터 다시 본다.
+    if (button) button.disabled = true;
+    let accepted = false;
+    try {
+        accepted = await requestGameConfirmation(`황금률 1개로 기본 스킬트리를 초기화하고 ${spentNodes}점을 돌려받습니다.\n루프 패시브, 심화 패시브와 전직은 그대로입니다.`, {
+            title: '스킬트리 초기화',
+            tone: 'danger',
+            confirmLabel: '초기화'
+        });
+    } finally {
+        if (button) button.disabled = false;
+    }
+    if (!accepted) return;
+    if (game !== owner || getPassiveTreeResetBlockReason() || game.passives.join('|') !== before) {
+        return addLog('확인하는 사이 게임 상태, 스킬트리나 재화가 바뀌어 초기화를 취소했습니다.', 'attack-monster');
+    }
     game.currencies.goldenRule -= 1;
     const grantedPoints = passiveRouting.paleBonus(game);
     game.passives = [];
@@ -10464,12 +10548,6 @@ function setupCanvasEvents() {
     const canvas = document.getElementById('tree-canvas');
     if (!canvas) return;
     const canvasTooltip = document.getElementById('canvas-tooltip');
-    let pinchStartDistance = 0;
-    let touchStartZoom = camZoom;
-    let pinchAnchorWorldX = 0;
-    let pinchAnchorWorldY = 0;
-    let lastTouchX = 0;
-    let lastTouchY = 0;
     let pendingTouchPassiveId = null;
     let pendingTouchPassiveAt = 0;
     let pendingTouchPassiveRefundId = null;
@@ -10525,7 +10603,7 @@ function setupCanvasEvents() {
     }
 
     function renderPassiveRouteHint(cost) {
-        if (cost <= 0) return '';
+        if (cost <= 0 || uiDisplay.matches('(max-width: 1080px)')) return '';
         return `<div class="tooltip-line" style="margin-top:6px;color:#f2d88f;">현재 경로 기준 ${cost}포인트 필요</div>`;
     }
 
@@ -10758,105 +10836,8 @@ function setupCanvasEvents() {
         clampPassiveCamera();
         drawPassiveTree();
     });
-    canvas.addEventListener('touchstart', e => {
-        if (!e.touches.length) return;
-        e.preventDefault();
-        if (e.touches.length >= 2) {
-            const rect = canvas.getBoundingClientRect();
-            let dx = e.touches[0].clientX - e.touches[1].clientX;
-            let dy = e.touches[0].clientY - e.touches[1].clientY;
-            pinchStartDistance = Math.hypot(dx, dy);
-            touchStartZoom = camZoom;
-            let midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
-            let midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
-            let centerX = rect.width / 2;
-            let centerY = rect.height / 2;
-            pinchAnchorWorldX = (midX - rect.left - centerX - camX) / camZoom;
-            pinchAnchorWorldY = (midY - rect.top - centerY - camY) / camZoom;
-            isDragging = false;
-            pendingTouchPassiveId = null;
-            hideCanvasTooltip();
-            return;
-        }
-        let touch = e.touches[0];
-        isDragging = true;
-        dragDist = 0;
-        dragStartX = touch.clientX / uiDisplay.factor - camX;
-        dragStartY = touch.clientY / uiDisplay.factor - camY;
-        lastTouchX = touch.clientX;
-        lastTouchY = touch.clientY;
-        hoverNode = getPassiveNodeAtTouch(touch);
-        canvas.style.cursor = 'grabbing';
-    }, { passive: false });
-    canvas.addEventListener('touchmove', e => {
-        if (!e.touches.length) return;
-        e.preventDefault();
-        if (e.touches.length >= 2) {
-            const rect = canvas.getBoundingClientRect();
-            let dx = e.touches[0].clientX - e.touches[1].clientX;
-            let dy = e.touches[0].clientY - e.touches[1].clientY;
-            let distance = Math.hypot(dx, dy);
-            if (!pinchStartDistance) {
-                pinchStartDistance = distance;
-                touchStartZoom = camZoom;
-            }
-            camZoom = clampNumber(touchStartZoom * (distance / pinchStartDistance), 0.12, 2.5);
-            let midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
-            let midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
-            let centerX = rect.width / 2;
-            let centerY = rect.height / 2;
-            camX = (midX - rect.left - centerX) - (pinchAnchorWorldX * camZoom);
-            camY = (midY - rect.top - centerY) - (pinchAnchorWorldY * camZoom);
-            clampPassiveCamera();
-            pendingTouchPassiveId = null;
-            drawPassiveTree();
-            hideCanvasTooltip();
-            return;
-        }
-        let touch = e.touches[0];
-        if (isDragging) {
-            updateDrag(touch.clientX, touch.clientY, touch.clientX - lastTouchX, touch.clientY - lastTouchY);
-            lastTouchX = touch.clientX;
-            lastTouchY = touch.clientY;
-        }
-    }, { passive: false });
-    canvas.addEventListener('touchend', e => {
-        e.preventDefault();
-        if (e.touches.length >= 2) {
-            let dx = e.touches[0].clientX - e.touches[1].clientX;
-            let dy = e.touches[0].clientY - e.touches[1].clientY;
-            pinchStartDistance = Math.hypot(dx, dy);
-            touchStartZoom = camZoom;
-            return;
-        }
-        if (e.touches.length === 1) {
-            let touch = e.touches[0];
-            isDragging = true;
-            dragStartX = touch.clientX / uiDisplay.factor - camX;
-            dragStartY = touch.clientY / uiDisplay.factor - camY;
-            lastTouchX = touch.clientX;
-            lastTouchY = touch.clientY;
-            pinchStartDistance = 0;
-            return;
-        }
-        isDragging = false;
-        pinchStartDistance = 0;
-        canvas.style.cursor = 'grab';
-        if (e.changedTouches && e.changedTouches.length) {
-            let touch = e.changedTouches[0];
-            hoverNode = getPassiveNodeAtTouch(touch);
-            passiveSelectionUi.touch(hoverNode, touch, { preview: renderPassiveTooltip, activate: activateHoveredPassive });
-        }
-    }, { passive: false });
-    canvas.addEventListener('touchcancel', () => {
-        isDragging = false;
-        pinchStartDistance = 0;
-        hoverNode = null;
-        pendingTouchPassiveId = null;
-        canvas.style.cursor = 'grab';
-        drawPassiveTree();
-        hideCanvasTooltip();
-    }, { passive: false });
+    passiveSelectionUi.bindTouch(canvas, { drag: updateDrag, hideTooltip: hideCanvasTooltip,
+        nodeAt: getPassiveNodeAtTouch, preview: renderPassiveTooltip, activate: activateHoveredPassive });
     resizePassiveTreeCanvas(true);
 }
 
@@ -10869,7 +10850,7 @@ function resizePassiveTreeCanvas(force) {
     let displayWidth = Math.max(1, Math.floor(rect.width / uiDisplay.factor));
     let displayHeight = Math.max(1, Math.floor(rect.height / uiDisplay.factor));
     if (displayWidth < 50 || displayHeight < 50) return false;
-    let dpr = Math.max(1, (window.devicePixelRatio || 1) * uiDisplay.factor);
+    let dpr = passiveSelectionUi.pixelRatio();
     let bufferWidth = Math.max(1, Math.round(displayWidth * dpr));
     let bufferHeight = Math.max(1, Math.round(displayHeight * dpr));
     let changed = !!force
@@ -11549,6 +11530,14 @@ async function ensureCloudSessionFresh(reason) {
     return true;
 }
 
+/** A cloud request's headers: the anon key, the session token unless useAuth is false, and JSON for an object body. */
+function cloudRequestHeaders(config, options, body) {
+    let headers = { apikey: config.supabaseAnonKey, ...(options.headers || {}) };
+    if (options.useAuth !== false && cloudState.session && cloudState.session.access_token) headers.Authorization = `Bearer ${cloudState.session.access_token}`;
+    if (body !== undefined && typeof body !== 'string' && !headers['Content-Type']) headers['Content-Type'] = 'application/json';
+    return headers;
+}
+
 async function cloudJsonRequest(path, options = {}) {
     let config = getCloudConfig();
     if (!config.enabled) throw new Error('cloud-save-config.js 설정이 비어 있습니다.');
@@ -11557,10 +11546,9 @@ async function cloudJsonRequest(path, options = {}) {
         if (!fresh) throw new Error('클라우드 로그인 세션이 만료되었습니다. 다시 로그인해주세요.');
     }
     if (options.expectedUserId && options.expectedUserId !== getActiveCloudUserId()) throw new Error('로그인 계정이 변경되어 작업을 중단했습니다.');
-    let headers = { apikey: config.supabaseAnonKey, ...(options.headers || {}) };
-    if (options.useAuth !== false && cloudState.session && cloudState.session.access_token) headers.Authorization = `Bearer ${cloudState.session.access_token}`;
-    let body = options.body;
-    if (body !== undefined && typeof body !== 'string' && !headers['Content-Type']) headers['Content-Type'] = 'application/json';
+    let body = options.body, headers = cloudRequestHeaders(config, options, body);
+    // onSend: the request is about to leave (after the token and account checks above), for callers that must know it went out
+    if (options.onSend) options.onSend();
     let response = await fetch(config.supabaseUrl + path, {
         method: options.method || 'GET',
         headers,
@@ -11575,7 +11563,7 @@ async function cloudJsonRequest(path, options = {}) {
             data = text;
         }
     }
-    if (!response.ok) throw new Error(describeCloudServerError(data, response.status));
+    if (!response.ok) throw Object.assign(new Error(describeCloudServerError(data, response.status)), { status: response.status });
     return data;
 }
 
@@ -12268,6 +12256,7 @@ function rememberCloudUpload(saveData, syncedAt) {
 
 async function pushCloudSave(options = {}) {
     if (!cloudState.user || !cloudState.user.id) throw new Error('로그인이 필요합니다.');
+    const uploadOwner = game, uploadUserId = getActiveCloudUserId();
     if (typeof canPersistLocalSave === 'function' && !canPersistLocalSave()) {
         let status = getLocalSaveStatus();
         throw new Error(status.message || '로컬 저장이 차단되어 클라우드 업로드를 중단했습니다.');
@@ -12281,6 +12270,7 @@ async function pushCloudSave(options = {}) {
         throw new Error('클라우드 상태를 확인할 수 없어 업로드를 중단했습니다: ' + (loadError.message || loadError));
     }
     let tFetch = Date.now();
+    checkCloudUploadOwner(uploadOwner, uploadUserId);
     let loopGuard = shouldBlockLocalPushForRemoteLoop(remoteRecord);
     if (loopGuard.blocked) {
         setCloudMessage(loopGuard.message);
@@ -12293,18 +12283,13 @@ async function pushCloudSave(options = {}) {
     if (!persistLocalSave({ touchModifiedAt: options.touchModifiedAt === true })) {
         throw new Error('로컬 저장에 실패하여 클라우드 업로드를 중단했습니다.');
     }
-    let requestBody;
-    if (typeof createCloudSaveRequestBody === 'function') {
-        requestBody = createCloudSaveRequestBody(cloudState.user.id, game);
-    } else {
-        let payload = typeof createCloudSavePayload === 'function' ? createCloudSavePayload(game) : JSON.parse(JSON.stringify(game));
-        requestBody = JSON.stringify({ user_id: cloudState.user.id, save_data: payload });
-    }
+    const requestBody = createCloudSaveRequestBody(uploadUserId, uploadOwner);
     let payloadSize = requestBody.length;
     if (payloadSize > 900000 && typeof addLog === 'function') addLog(`☁️ 클라우드 저장 데이터 최적화 적용 (${Math.round(payloadSize / 1024)}KB)`, 'attack-monster', { noToast: true });
     let tSerialize = Date.now();
     let request = JSON.parse(requestBody);
-    let row = await commitCloudSavePayload(request.save_data, requestBody);
+    let row = await commitCloudSavePayload(request.save_data, requestBody, { expectedUserId: uploadUserId });
+    checkCloudUploadOwner(uploadOwner, uploadUserId);
     let tUpload = Date.now();
     let syncedAt = row && row.updated_at ? (new Date(row.updated_at).getTime() || Date.now()) : Date.now();
     ensureSaveMeta();
@@ -12324,6 +12309,11 @@ async function pushCloudSave(options = {}) {
     updateCloudSaveUI();
     if (typeof syncPlayerProfileQuiet === 'function') syncPlayerProfileQuiet();
     return row;
+}
+
+/** A preflight/upload may finish after logout or a different save load. Never commit that upload into the new session. */
+function checkCloudUploadOwner(owner, userId) {
+    if (game !== owner || getActiveCloudUserId() !== userId) throw new Error('로그인 계정이나 게임 상태가 바뀌어 클라우드 저장을 중단했습니다.');
 }
 
 async function pullCloudSave(options = {}) {
@@ -13568,23 +13558,23 @@ function enforceWarriorDualTrainingEquipment(onEnable) {
     if (onEnable) {
         if (shield && shield.slot === '방패') {
             if (!canStoreEquipmentItems([shield], game)) {
-                addLog('쌍수 훈련 활성화를 위해 방패를 해제해야 하지만 인벤토리가 가득 찼습니다.', 'attack-monster');
+                addLog('쌍수 훈련 활성화를 위해 완갑을 해제해야 하지만 인벤토리가 가득 찼습니다.', 'attack-monster');
                 return false;
             }
             game.inventory.push(shield);
             game.equipment['방패'] = null;
-            addLog('🛡️ 쌍수 훈련 활성화: 기존 방패를 인벤토리로 이동했습니다.', 'loot-normal');
+            addLog('🛡️ 쌍수 훈련 활성화: 기존 완갑을 인벤토리로 이동했습니다.', 'loot-normal');
         }
         return true;
     }
     if (shield && shield.slot === '무기') {
         if (!canStoreEquipmentItems([shield], game)) {
-            addLog('쌍수 훈련 해제를 위해 방패 슬롯 무기를 해제해야 하지만 인벤토리가 가득 찼습니다.', 'attack-monster');
+            addLog('쌍수 훈련 해제를 위해 보조 슬롯 무기를 해제해야 하지만 인벤토리가 가득 찼습니다.', 'attack-monster');
             return false;
         }
         game.inventory.push(shield);
         game.equipment['방패'] = null;
-        addLog('🧰 쌍수 훈련 해제: 방패 슬롯 무기를 인벤토리로 이동했습니다.', 'loot-normal');
+        addLog('🧰 쌍수 훈련 해제: 보조 슬롯 무기를 인벤토리로 이동했습니다.', 'loot-normal');
     }
     return true;
 }

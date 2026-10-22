@@ -560,7 +560,9 @@ for (const actor of actors.values()) {
         + `${attack ? clipText({ n: actor.attack.frames.length, cols: attack.cols, ms: actor.attack.ms, extra: actor.attack.hit }) : 'null'}, [${-still[0]}, ${still[2]}], ${deathRowOf(actor)}]`);
 }
 
-const version = stamp.digest('hex').slice(0, 10), wears = wispWears(moving, fromForge);
+const version = stamp.digest('hex').slice(0, 10), wears = wispWears(moving, fromForge).concat([
+    ['meteor-shard', 'cosmos-star'], ['meteor-melt', 'cosmos-ooze'], ['meteor-sentinel', 'cosmos-sentinel']
+].filter(([id]) => !actors.has(id)));
 const text = `// 옆에서 보는 무대의 몬스터 새 그림(docs/stage-view-20261011.md): node scripts/build-stage-roster.cjs가 쓴다. 손으로 고치지 않는다.
 // 몬스터마다 걷기와 공격 두 장(오른쪽을 보는 그림, 한 줄에 cols칸, 도트 하나 = 캐릭터 도트 하나)이고, 두 장은 칸 크기와 발 자리가 같다.
 // 그림은 assets/enemies/roster/에 있다(2026-10-16부터 저장소에 넣는다). 없는 곳에서는 앞서 쓰던 그림으로 그린다(js/canvas-stage-roster.js).

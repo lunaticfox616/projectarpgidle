@@ -243,8 +243,13 @@
 | `js/stump-box.js` | 도메인(`stumpBox`): 획득 판정, 배치, 처치 성장, 억제·공명·능력치 계산, 드랍, 루프 회귀, 저장 경계 |
 | `js/stump-box-ui.js` | 화면(`stumpBoxUi`): 판·설명·요약·시작 선물·보관함, 획득 안내, 처치 소식 로그 |
 | `css/stump-box.css` | 판 그림(`assets/ui/grove/stump-board-v1.png`) 위 칸 겹치기, 좁은 화면 한 열 |
-| `assets/px/stump/` | 아이템 도트 아이콘 28장(`scripts/build-stump-icons.cjs`) |
+| `assets/items/stump-pixel-v1/` | 게임에서 쓰는 48×48 도트 아이콘 36장. `assets/px/stump/`와 이전 생성 스크립트는 원본 보존용이며 새 그림을 덮어쓰지 않는다 |
 | `scripts/smoke-stump-box.js` | 획득·해금·배치·성장·억제·공명·드랍·루프·저장 검사 |
+
+도트 자산 규칙(2026-10-23): 48×48, 투명 알파 0/255, 투명색 포함 32색 이하로 내보낸다.
+잠든 부적은 깨어난 부적과 외곽·고리·장식을 유지하고 중심 봉인 띠로 상태를 구분한다.
+송진은 속성마다 비슷한 크기의 굳은 덩어리로, 식은 흉터는 검은 칸에서도 보이는 잿빛 목질 면으로 표현한다.
+원본·프롬프트·내보내기 기록과 전후 비교는 `artifacts/stump-pixel-20261023/`에 보존한다.
 
 - **획득**: 액트 10 저널(`act_10`), 혼돈층 개방(`maxZoneId ≥ 10`), 액트 10 보상 기록, 루프 2 이상 중 하나면
   `stumpBox.sync`가 한 번 지급한다(`stumpBox.acquired`가 영수증). 실행 중에는 `checkUnlocks`, 저장·클라우드·방치 정산은

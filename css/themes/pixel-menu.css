@@ -551,24 +551,21 @@ body[data-ui-skin] .window-tab-strip > .window-tab { display: flex; align-items:
 
 /* ─── 휴대폰: 하단 메뉴 띠 = HUD 돌판의 아랫단 ─────────────────────────────────── */
 @media (max-width: 1080px) {
-  /* 메뉴 칸이 손가락 크기(44px 이상)가 되게: 전투 화면이 아닐 때는 띠 위 테(13px)까지 있어 66px에서는 칸이 38px였다 */
+  /* 모든 탭이 같은 메뉴 띠를 쓴다. 전투에서만 위 테를 빼면 다른 탭의 버튼과 선택 줄이 아래로 밀린다. */
   body[data-ui-skin].mobile-primary-navigation { --mobile-primary-nav-height: 72px; }
-  /* 테(13px) 안쪽 위아래 여백 3px도 칸 높이로(안전 영역 여백은 그대로) — 칸 46px */
-  :root body[data-ui-skin].mobile-primary-navigation #tab-header-bottom { padding-top: 0; padding-bottom: env(safe-area-inset-bottom); }
+  /* 아래 테 13px을 제외한 59px을 버튼이 쓴다. 안전 영역 여백은 그대로 둔다. */
   :root body[data-ui-skin].mobile-primary-navigation #tab-header-bottom {
+    padding-top: 0;
+    padding-bottom: env(safe-area-inset-bottom);
     border: var(--px-plate-border) solid transparent;
+    border-top-width: 0;
     border-image: var(--px-plate-frame);
+    border-image-width: 0 10px 10px;
     border-radius: 0;
     background: var(--px-wood-dark), var(--px-stone);
     background-clip: padding-box;
-    box-shadow: none;
-    image-rendering: pixelated;
-  }
-  /* 전투 화면: 바로 위 HUD 판과 이어 붙인다(HUD 판은 아래 테를, 메뉴 띠는 위 테를 빼고 가는 금 한 줄로 나눈다). */
-  :root body[data-ui-skin].mobile-primary-navigation.mobile-battle-tab:has(#tab-battle.active) #tab-header-bottom {
-    border-top-width: 0;
-    border-image-width: 0 10px 10px;
     box-shadow: inset 0 1px 0 var(--px-ink), inset 0 2px 0 var(--px-bronze);
+    image-rendering: pixelated;
   }
   :root body[data-ui-skin].mobile-primary-navigation #tab-header-bottom > :is(.tab-btn, .mobile-nav-more) {
     display: flex;
@@ -607,7 +604,7 @@ body[data-ui-skin] .window-tab-strip > .window-tab { display: flex; align-items:
   /* 전체 메뉴 서랍이 열려 있는 동안은 전체 단추만 밝힌다(css/themes/pixel-mobile.css의 켜진 칸과 같이) */
   :root body[data-ui-skin].mobile-primary-navigation.mobile-tab-drawer-open #tab-header-bottom > .mobile-nav-more::after { filter: brightness(1.15); }
   :root body[data-ui-skin].mobile-primary-navigation.mobile-tab-drawer-open #tab-header-bottom > .tab-btn.active::after { filter: brightness(.8); }
-  /* 새 단추 그림이 있는 메뉴: 13도트 아이콘 자리에 그 그림을 그린다(칸 46px 안에 그림 30px, 이름 12px). 흐리게 하고 밝히는 것은 위와 같다. */
+  /* 새 단추 그림이 있는 메뉴: 13도트 아이콘 자리에 그 그림을 그린다(칸 59px 안에 그림 30px, 이름 12px). 흐리게 하고 밝히는 것은 위와 같다. */
   :root body[data-ui-skin].mobile-primary-navigation #tab-header-bottom > .tab-btn[data-button-art]::after,
   :root body[data-ui-skin].mobile-primary-navigation #tab-header-main > .tab-btn[data-button-art]::after {
     flex-basis: 30px;
@@ -639,6 +636,13 @@ body[data-ui-skin] .window-tab-strip > .window-tab { display: flex; align-items:
   }
   /* 전체 메뉴 서랍: 아이콘 + 이름 */
   :root body[data-ui-skin].mobile-primary-navigation #tab-header-main > .tab-btn { display: flex; align-items: center; justify-content: center; gap: 8px; }
+}
+@media (max-width: 1080px) and (orientation: landscape) and (max-height: 600px) {
+  /* 가로 화면은 아이콘과 이름을 나란히 두어 메뉴를 56px로 줄인다. 버튼은 44px 이상을 유지한다. */
+  body[data-ui-skin].mobile-primary-navigation { --mobile-primary-nav-height: 56px; }
+  :root body[data-ui-skin].mobile-primary-navigation #tab-header-bottom { border-width: 0 6px 6px; border-image-width: 0 6px 6px; }
+  :root body[data-ui-skin].mobile-primary-navigation #tab-header-bottom > :is(.tab-btn, .mobile-nav-more) { flex-direction: row; gap: 6px; min-height: 44px; padding: 0; }
+  :root body[data-ui-skin].mobile-primary-navigation #tab-header-bottom > :is(.tab-btn, .mobile-nav-more)::after { flex-basis: 26px; }
 }
 /* 전투 화면 HUD 판(휴대폰 세로와 태블릿, 메뉴 띠 바로 위): 테 없이 위에서 아래로 짙어지는 그늘이 메뉴 띠 위 바탕색으로 이어지고, 메뉴 띠의
    가는 금 한 줄이 둘을 나눈다(2026-10-22 사용자: 경계선이 보여 너무 비어 보인다, 자연스러운 선 처리). 판의 테와 전장을 두른 테(#right-pane)의

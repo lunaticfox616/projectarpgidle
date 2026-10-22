@@ -90,9 +90,10 @@ const colonyWards = (() => {
         return item;
     }
     /** A new ward: one line from the pool, rolled in its range. */
-    function create(random = Math.random, tier = 1) {
+    function create(random = Math.random, tier = 1, rollFloor = 0) {
         const row = COLONY_WARD_POOL[Math.floor(random() * COLONY_WARD_POOL.length)];
-        return makeItem(row, row.min + Math.floor(random() * (row.max - row.min + 1)), tier);
+        const min = row.min + Math.ceil((row.max - row.min) * rollFloor);
+        return makeItem(row, min + Math.floor(random() * (row.max - min + 1)), tier);
     }
 
     /** A 고유 액막이 (U.rows, `key` or one at random): a chase unique; 두 번 맨 매듭 rolls one pool line past the usual range. */
@@ -105,7 +106,7 @@ const colonyWards = (() => {
         return makeItem({ ...line, min, max }, min + Math.floor(random() * (max - min + 1)), tier, false, unique);
     }
     /** A ward that drops (colony waves, kills): now and then (U.chance) a 고유 액막이 instead. Crafting makes plain ones only. */
-    const createDrop = (random, tier) => (random() < U.chance ? createUnique(random, tier) : create(random, tier));
+    const createDrop = (random, tier, rollFloor = 0) => (random() < U.chance ? createUnique(random, tier) : create(random, tier, rollFloor));
 
     // ---------------------------------------------------------------- where wards come from
     /** A kill anywhere but the colony (once the colony is open): now and then a ward, through the normal floor and pickup. */
@@ -116,11 +117,15 @@ const colonyWards = (() => {
         const item = createDrop(random, zone.tier);
         return keepEquipmentDrop(enemy, item) === 'kept' ? [item] : [];
     }
-    /** A cleared colony wave: every fifth wave, and the others now and then, a ward straight into the bag. */
+    /** A cleared colony wave reserves a ward for its boss payout; non-encounter callers use normal pickup. */
     function rollColonyWave(wave, zone, random = Math.random) {
-        if (wave % R.colonyWave.every !== 0 && random() >= R.colonyWave.chance) return null;
-        const item = createDrop(random, zone && zone.tier);
-        return addItemToInventory(item, { ignoreFilter: true }) ? item : null;
+        const bossWave = wave % R.colonyWave.every === 0;
+        if (!bossWave && random() >= R.colonyWave.chance) return null;
+        const floor = bossWave ? Math.min(R.colonyWave.maxRollFloor,
+            R.colonyWave.bossRollFloor + (wave / R.colonyWave.every - 1) * R.colonyWave.bossRollStep) : 0;
+        const item = createDrop(random, zone && zone.tier, floor);
+        return keepEquipmentDrop(game.gridPlayer, item, { ignoreFilter: true, ignoreAutoSalvage: bossWave,
+            guaranteedKeep: bossWave }) === 'kept' ? item : null;
     }
     /** 군락지 편린으로 만들기: craftCost개를 내고 새 액막이 하나를 가방에. '' when done, otherwise why not. */
     function craft(state = game, random = Math.random) {

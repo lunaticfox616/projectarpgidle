@@ -84,12 +84,16 @@ const atlasRun = (() => {
         startMoving(false);
     }
 
-    /** 보스 처치 → 완료 정산. 자동 지도가 켜져 있으면 규칙대로 다음 지도석을 연다(방치 · 오프라인 재생도 같다). */
+    /** 보스 처치 → 완료 정산. 일반·수호자 지도 완료만 자동 지도석으로 잇는다(방치 · 오프라인 재생도 같다). */
     function finish(zone) {
-        const result = atlas.complete(game);
+        // Capture while the finished run still owns this receipt; completion rewards belong to this map too.
+        const result = combatLootReceipts.capture(game, () => {
+            const settled = atlas.complete(game);
+            if (settled) grantSpoils(settled, zone);
+            return settled;
+        });
         if (!result) return;
         atlas.keepLoot(game, game.explorationLoot);
-        grantSpoils(result, zone);
         game.killsInZone = 0;
         const stop = game.settings.mapCompleteAction === 'stop';
         const next = nextMapForResult(stop, result);
@@ -105,8 +109,13 @@ const atlasRun = (() => {
         actExplorationProgress.reconcileDeparture(game);
         startMoving(false);
     }
+    /** Special challenges return after settlement without spending an unrelated map stone or changing the auto-map setting. */
+    function nextMapForResult(stop, result) {
+        const kind = atlas.node(result.nodeId)?.kind;
+        if (stop || result.board || result.memory?.spoils || !['map', 'guardian'].includes(kind)) return null;
+        return atlas.nextAuto(game, result.tier);
+    }
     /** 수호자의 뿌리 입장권, 정점의 보상은 지도가 끝난 뒤라 바로 지갑으로 간다. */
-    const nextMapForResult = (stop, result) => stop || result.board ? null : atlas.nextAuto(game, result.tier);
     function grantSpoils(result, zone) {
         if (result.board) grantBoardSpoils(result.board, zone);
         if (result.ticket) awardCurrency(result.ticket, 1);

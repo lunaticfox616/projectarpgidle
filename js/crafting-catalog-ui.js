@@ -42,7 +42,7 @@ const craftingCatalogUi = (() => {
         catalystFire:'품질 속성 화염, 품질 +2%',catalystCold:'품질 속성 냉기, 품질 +2%',catalystLight:'품질 속성 번개, 품질 +2%',
         catalystChaos:'품질 속성 카오스, 품질 +2%',catalystCrit:'품질 속성 치명, 품질 +2%',catalystSummon:'품질 속성 소환, 품질 +2%',enchantedHoney:'옵션 1줄 영구 고정',
         venomStinger:'무기 공격 옵션 추가/재설정',voidChisel:'장신구 소켓, 공허 주얼 제작',
-        oceanRerollShard:'베이스 옵션 1줄 재설정',
+        oceanRerollShard:'봉인되지 않은 무작위 추가 옵션 1줄 교체',
         altarEmber:'베이스 옵션 1줄을 태양 줄로',altarIchor:'베이스 옵션 1줄을 허기 줄로',memoryImprint:'추가 옵션 새기기, 한 번 되돌리기',
         sporeFire:'화염 홀씨, 함께 사용',sporeCold:'냉기 홀씨, 함께 사용',sporeLight:'번개 홀씨, 함께 사용',
         fossil:'타입별 화석으로 정제',fossilPrimal:'복원, 화석과 재화 획득',fossilAncientPrimal:'복원, 전용 화석과 고급 재화',

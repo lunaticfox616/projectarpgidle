@@ -6,12 +6,14 @@ const chronicle = (() => {
     const list = value => (Array.isArray(value) ? value : []);
     const keysOf = value => (value && typeof value === 'object' ? Object.keys(value).filter(key => value[key]) : []);
     const count = (value, goal) => ({ count: Math.max(0, Math.floor(Number(value) || 0)), goal });
+    // 비문은 선택해서 읽는 현장 기록: 연대기의 보상 목표나 완성도에는 포함하지 않는다.
+    const journalIds = new Set(JOURNAL_ENTRY_ORDER.filter(id => !JOURNAL_DB[id].discoveryOnly));
     // Each chapter's count and goal, read from a state (the live game or a settlement snapshot).
     const COUNTERS = Object.freeze({
         codex: state => count(keysOf(state.uniqueCodex).filter(key => UNIQUE_CODEX_KEYS.has(key)).length, UNIQUE_CODEX_KEYS.size),
         mastery: state => count(weaponMastery.total(state), weaponMastery.ids.length * WEAPON_MASTERY.maxLevel),
         talismans: state => count(list(state.stumpBox && state.stumpBox.codex).length, TALISMAN_UNIQUE_DB.length + TALISMAN_WILD_UNIQUE_DB.length),
-        journal: state => count(list(state.journalEntries).filter(id => JOURNAL_ENTRY_ORDER.includes(id)).length, JOURNAL_ENTRY_ORDER.length),
+        journal: state => count(list(state.journalEntries).filter(id => journalIds.has(id)).length, journalIds.size),
         depth: state => count(Math.max(0, (Number(state.records && state.records.best && state.records.best.abyssDepth) || 0) - 20), null),
         loops: state => count(getOfflineCompletedLoopCount(state), null),
         harvest: state => count(list(state.stumpBox && state.stumpBox.harvest && state.stumpBox.harvest.grown).length,

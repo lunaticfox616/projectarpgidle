@@ -485,7 +485,13 @@
   position: fixed;
   inset: 0;
   z-index: 10000;
-  display: flex;
+  display: none;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  border: 0;
   align-items: center;
   justify-content: center;
   padding: 18px;
@@ -495,6 +501,9 @@
   box-sizing: border-box;
   animation: craftPickerFadeIn .18s ease;
 }
+.craft-picker-overlay[open] { display: flex; }
+/* 전체 화면 shell이 기존 어두운 배경과 blur를 그린다. native backdrop은 중복해서 어둡게 하지 않는다. */
+.craft-picker-overlay::backdrop { background: transparent; }
 @keyframes craftPickerFadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes craftPickerRiseIn {
   from { opacity: 0; transform: translateY(14px) scale(0.985); }

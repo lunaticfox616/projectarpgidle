@@ -21,17 +21,30 @@ const stageRoomsView = (() => {
     }
     /** 카메라 가운데 칸(소수): 가로는 방 안에서 따라가고, 세로는 방 기준 위치와 화면 안 인물의 머리 보호 한계를 함께 적용한다. */
     function focus(run, cell, view) {
-        const room = roomOf(run);
+        const map = mapOf(run), room = roomOf(run);
         if (!room) return null;
         const left = room.x0 - 1, right = room.x1 + 2, span = right - left;
         const gx = span <= view.columns ? (left + right) / 2
-            : Math.max(left + view.columns / 2, Math.min(right - view.columns / 2, cell.gx + .5));
-        const row = isOpen(mapOf(run)) ? openFocusRow(room, view) : focusRow(room, view);
+            : Math.max(left + view.columns / 2, Math.min(right - view.columns / 2, cell.gx + .5 + coreViewLean(map, cell, view)));
+        const row = map.colonyDefense || map.grandBreach ? specialFocusRow(room, cell, view)
+            : isOpen(map) ? openFocusRow(room, view) : focusRow(room, view);
         if (!stageView.enabled()) return { gx, gy: row };
         const base = Math.min(row, heroRow(room, cell, view));
         if (!uiDisplay.battleHudAtSide) { bossCamera.room = null; return { gx, gy: base }; }
         const top = Math.min(base, heldBossRow(run, room, view, gx));
         return { gx, gy: Math.max(top, heroFeetRow(room, cell, view)) };
+    }
+    /** On a narrow screen, keep the nearby defense core inside the frame beside the hero. */
+    function coreViewLean(map, cell, view) {
+        if (!map.colonyDefense || view.columns >= 12) return 0;
+        const towardCore = map.colonyDefense.core.gx - cell.gx;
+        return Math.sign(towardCore) * .65 * Math.max(0, Math.min(1, (6 - Math.abs(towardCore)) / 2));
+    }
+    /** The wide defense and breach floors extend beyond a screen vertically as well as horizontally. */
+    function specialFocusRow(room, cell, view) {
+        const anchor = stageView.anchorY(), low = room.y0 - 1 + anchor * view.rows;
+        const high = room.y1 + 2 - (1 - anchor) * view.rows;
+        return low > high ? (low + high) / 2 : Math.max(low, Math.min(high, cell.gy + .5));
     }
     /** Keep a room's acquired boss headroom after death or horizontal departure, so the loot floor does not jump back.
      * The hero-foot bound below still overrides it. A room or projection change starts a fresh frame. */
@@ -111,6 +124,49 @@ const stageRoomsView = (() => {
         ctx.fillStyle = stageTerrain.colours(map).dark;
         ctx.fillRect(0, 0, area.width, area.height);
     }
+    /** Readable approach lanes, core footprint and rift mouths on the existing painted stage floor. */
+    function drawSpecialGround(ctx, map, p) {
+        if (!map.colonyDefense && !map.grandBreach) return;
+        ctx.save();
+        if (map.colonyDefense) drawDefenseMarks(ctx, map.colonyDefense, p);
+        else drawRiftMarks(ctx, map.grandBreach, p);
+        ctx.restore();
+    }
+    function drawDefenseMarks(ctx, defense, p) {
+        const core = p.cellToScreen(defense.core.gx, defense.core.gy);
+        ctx.lineWidth = Math.max(2, p.tileH * .13);
+        ctx.setLineDash([p.tileW * .23, p.tileW * .2]);
+        for (const spawn of defense.spawnCells) {
+            const from = p.cellToScreen(spawn.gx, spawn.gy);
+            const turn = p.cellToScreen(defense.core.gx - 5, spawn.gy);
+            ctx.strokeStyle = 'rgba(238, 171, 74, .32)';
+            ctx.beginPath(); ctx.moveTo(from.x, from.y); ctx.lineTo(turn.x, turn.y); ctx.lineTo(core.x, core.y); ctx.stroke();
+            ctx.fillStyle = 'rgba(255, 177, 76, .68)';
+            ctx.fillRect(from.x - p.tileW * .18, from.y - p.tileH * .24, p.tileW * .36, p.tileH * .48);
+        }
+        ctx.setLineDash([]);
+        const colony = game.colony, max = Math.max(1, Number(colony?.coreMaxHp) || 1);
+        const share = Math.max(0, Math.min(1, Number(colony?.coreHp) / max));
+        ctx.strokeStyle = share > .5 ? '#f5c96e' : share > .2 ? '#ff9c5a' : '#f45d5d';
+        ctx.lineWidth = Math.max(2, p.tileH * .16);
+        ctx.beginPath(); ctx.ellipse(core.x, core.y + p.tileH * .18, p.tileW * .84, p.tileH * .85, 0, 0, Math.PI * 2); ctx.stroke();
+    }
+    function drawRiftMarks(ctx, breach, p) {
+        const run = game.voidRift?.grandRun;
+        const stage = getGrandBreachProgress(run?.gauge).stage;
+        const capacity = GRAND_BREACH_ENCOUNTER.arena.capacities[stage];
+        const alive = game.enemies.filter(enemy => enemy.hp > 0).length;
+        const warning = run?.inRun && run.phase === 'survival' && alive < capacity
+            && run.nextRefillAt - getCombatTime() <= 650;
+        breach.riftCells.forEach(cell => {
+            const at = p.cellToScreen(cell.gx, cell.gy), radius = p.tileW * (warning ? .9 : .68);
+            ctx.strokeStyle = warning ? '#de8eff' : '#9e6ebe';
+            ctx.lineWidth = Math.max(2, p.tileH * (warning ? .2 : .13));
+            ctx.beginPath(); ctx.ellipse(at.x, at.y + p.tileH * .22, radius, p.tileH * (warning ? 1 : .75), 0, 0, Math.PI * 2); ctx.stroke();
+            ctx.fillStyle = warning ? 'rgba(199, 95, 255, .29)' : 'rgba(112, 60, 148, .15)';
+            ctx.fillRect(at.x - p.tileW * .4, at.y - p.tileH * .35, p.tileW * .8, p.tileH * .7);
+        });
+    }
     /** 방이 바뀐 순간을 기억한다(밝아지기의 시작). 탐험이 바뀐 첫 방은 밝아지지 않고 바로 보인다. waiting: 방 그림이 아직 준비되지
      * 않았다. 그동안은 어둠을 지키고(밝아지기의 시작을 뒤로 민다) 그림이 온 때부터 밝아진다. */
     function noteRoom(run, room, now, waiting) {
@@ -154,6 +210,7 @@ const stageRoomsView = (() => {
         else drawWallDark(ctx, map, area);
         ctx.imageSmoothingEnabled = false;
         ctx.drawImage(view.canvas, p.mapX + box.x * p.tileW, p.mapY + box.y * p.tileH, box.columns * p.tileW, box.rows * p.tileH);
+        drawSpecialGround(ctx, map, p);
         for (const row of actExplorationDoors.doorsHere(run)) drawDoor(ctx, row, p, { run, kit: view.kit });
         drawFrontShade(ctx, view, p, area);
         if (view.kit && typeof stageOcean === 'object') stageOcean.back(ctx, view, p, area); // 심해: 먼 입자와 가디언 방의 리프트

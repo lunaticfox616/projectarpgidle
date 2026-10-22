@@ -90,7 +90,7 @@ const actExplorationDoors = (() => {
         Object.assign(hero, { gx: spot.gx, gy: spot.gy, gridMoveTimer: 0 });
         actExplorationState.lockOn(run, null); // 락온은 그 방에서만: 방을 옮기면 풀린다
         actExplorationState.arrive(run, getCombatTime());
-        springAmbush(run, map, spot);
+        if(run.status==='active')springAmbush(run, map, spot);
         bringSummons(spot);
         return true;
     }

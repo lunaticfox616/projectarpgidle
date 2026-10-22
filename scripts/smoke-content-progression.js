@@ -697,4 +697,42 @@ assert.equal(json("knittingRewards.knit('unravelled')").ok, false, 'a grade-2 re
     assert(run("getActRewardConfig(1,game).choices.every(row=>row.kind==='support')"),'availability follows the supplied owner');
     } finally { runtime.document.getElementById=originalGetElement; }
 }
+// A paid boundary run must not be created while the loop gate refuses travel.
+for (const gate of ['pendingLoopReady','pendingLoopDecision']) {
+    run(`game=mergeDefaults({season:50,maxZoneId:29});game.beyondBoundary.unlocked=true;
+        game.beyondBoundary.selectedIntensityId='etched';game.currencies.formlessDew=10;
+        game.currentZoneId=29;game.${gate}=true;`);
+    const beforeEntry=json('[game.currentZoneId,game.currencies,game.beyondBoundary]');
+    run('enterBeyondBoundaryRun()');
+    assert.deepEqual(json('[game.currentZoneId,game.currencies,game.beyondBoundary]'),beforeEntry,
+        'a refused boundary entry keeps the wallet and run unchanged');
+}
+// Boundary encounters stay consecutive; the final payout respects the chosen completion action.
+for (const [action,wave] of [['stop',5],['nextZone',5],['stop',1]]) {
+    run(`game=mergeDefaults({season:50,maxZoneId:29});game.contentProgression.inherited.push('craft');
+        game.beyondBoundary.unlocked=true;game.beyondBoundary.selectedRewardFocusId='currency';
+        startBeyondBoundaryRun(1,game);game.beyondBoundary.activeRun.wave=${wave};
+        game.currentZoneId=BEYOND_BOUNDARY_ZONE_ID;game.moveTimer=0;game.settings.mapCompleteAction='${action}';
+        finishBeyondBoundaryEncounter(getZone(game.currentZoneId),'${action}',{say:addLog,unlocks:checkUnlocks,redraw:updateStaticUI});`);
+    if (wave < 5) {
+        assert.equal(run('game.beyondBoundary.activeRun.wave'),2,'a middle encounter advances the same paid run');
+        assert.equal(run('game.currentZoneId'),run('BEYOND_BOUNDARY_ZONE_ID'));
+        assert(run('!game.combatHalted && game.moveTimer>0'),'stop applies after the tier, not between its encounters');
+        assert.deepEqual(json('[game.beyondBoundary.completions,game.currencies.magicBud,game.currencies.formlessDew]'),[0,0,0],
+            'a middle encounter grants no final payout');
+        continue;
+    }
+    assert.deepEqual(json('[game.beyondBoundary.activeRun,game.beyondBoundary.completions,game.beyondBoundary.bestTier,game.beyondBoundary.highestTier]'),
+        [null,1,1,2],'the final encounter commits one completed tier');
+    assert.deepEqual(json('[game.beyondBoundary.seals.edge,game.currencies.magicBud,game.currencies.formlessDew]'),
+        [{level:1,xp:0},3,2],'both completion actions grant the same seal experience and focused reward');
+    assert.equal(run('game.currentZoneId'),0,'a completed boundary run returns to its origin');
+    if (action === 'stop') {
+        assert(run('game.combatHalted && game.moveTimer===0'),'stop keeps the returned hero out of combat');
+        assert.equal(run('actExplorationState.current(game)?.zoneId'),0,'a stopped return still prepares its destination room');
+    } else assert(run('!game.combatHalted && game.moveTimer>0'),'normal completion resumes hunting at the return zone');
+    const settled=json('[game.beyondBoundary,game.currencies]');
+    run(`finishBeyondBoundaryEncounter(getZone(game.currentZoneId),'${action}',{say:addLog,unlocks:checkUnlocks,redraw:updateStaticUI})`);
+    assert.deepEqual(json('[game.beyondBoundary,game.currencies]'),settled,'a completed tier cannot pay twice');
+}
 console.log('smoke-content-progression passed');

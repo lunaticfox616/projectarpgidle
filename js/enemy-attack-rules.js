@@ -20,14 +20,20 @@ const enemyAttackRules = (() => {
 
     function units(state) {
         const alive = state.playerHp > 0 ? [state.gridPlayer] : [];
-        return alive.concat(state.summons.filter(unit => unit.alive && !unit.isGhost && unit.hp > 0));
+        const targets=alive.concat(state.summons.filter(unit => unit.alive && !unit.isGhost && unit.hp > 0));
+        if(state.currentZoneId==='colony_run' && state.colony?.inRun && state.colony.coreHp>0) {
+            const core=getCombatGridSize(state).colonyDefense?.core;
+            if(core)targets.push({...core,isColonyCore:true});
+        }
+        return targets;
     }
 
     function impactTargets(attack, state) {
         const alive = units(state);
         if (attack.delivery === 'projectileTarget' || attack.delivery === 'instantTarget') {
+            if(attack.targetType==='colonyCore')return alive.filter(unit=>unit.isColonyCore);
             return alive.filter(unit => attack.targetType === 'player'
-                ? unit === state.gridPlayer : unit !== state.gridPlayer && unit.id === attack.targetId);
+                ? unit === state.gridPlayer : !unit.isColonyCore && unit !== state.gridPlayer && unit.id === attack.targetId);
         }
         if (attack.delivery === 'patternArea') {
             const keys = new Set(attack.bossPattern.area.cells.map(cell => gridCellKey(cell.gx, cell.gy)));

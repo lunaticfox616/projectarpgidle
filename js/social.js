@@ -196,7 +196,7 @@ function profileItemCategory(item) {
 }
 /** The tag before an item's name: a weapon's category, otherwise its slot without the 1, 2, 3 of paired slots. */
 function profileItemTag(item) {
-    return item.category || String(item.slot || '').replace(/[123]$/, '');
+    return weaponCategorySlotLabel(item, item.category || String(item.slot || '').replace(/[123]$/, ''));
 }
 function buildItemSnapshot(item, slotOverride) {
     if (!item) return null;
@@ -1292,9 +1292,9 @@ function getChatItemPickerGroups() {
     let state = typeof game !== 'undefined' && game ? game : {};
     let entries = (source, rows, label) => (rows || []).map((item, index) => item ? { source, key: index, label: label(item, index) } : null).filter(Boolean);
     let equipment = Object.keys(state.equipment || {}).filter(slot => state.equipment[slot] && !bagItems.isSpecial(state.equipment[slot]))
-        .map(slot => ({ source: 'equip', key: slot, label: `[${slot}]` }));
+        .map(slot => ({ source: 'equip', key: slot, label: `[${weaponCategorySlotLabel(null, slot)}]` }));
     let jewels = entries('jewel', bagItems.jewels(state), () => '[가방]');
-    let gear = entries('inv', (state.inventory || []).slice(0, 300), item => `[${item.slot || '장비'}]`).filter(entry => !bagItems.isSpecial(state.inventory[entry.key]));
+    let gear = entries('inv', (state.inventory || []).slice(0, 300), item => `[${weaponCategorySlotLabel(item, item.slot || '장비')}]`).filter(entry => !bagItems.isSpecial(state.inventory[entry.key]));
     let stump = state.stumpBox || { items: [], board: [] };
     let talismanEntries = stump.items.filter(item => item.family === 'talisman')
         .map(item => ({ source: 'talisman', key: item.id, label: stump.board.includes(item.id) ? '[판]' : '[보관]' }));
@@ -1973,14 +1973,17 @@ function renderProfileEquipPaperdoll(p) {
 }
 
 function profileEmptySlotHtml(slot) {
-    return `<div class="social-slot is-empty slot-${slot}"><span class="social-slot-tag">${socialEscape(slot.replace(/[123]$/, ''))}</span></div>`;
+    return `<div class="social-slot is-empty slot-${slot}"><span class="social-slot-tag">${socialEscape(weaponCategorySlotLabel(null, slot.replace(/[123]$/, '')))}</span></div>`;
 }
 
 /** 코어 그림: 이름의 묶음 말(수호의 코어 ...)로 고른다. 프로필에는 코어의 줄 글만 올라온다. */
 function profileCoreArt(core) {
-    let names = typeof CORE_ITEM_RULES === 'object' ? CORE_ITEM_RULES.groupNames : {};
-    let group = Object.keys(names).find(key => String(core.name || '').startsWith(names[key]));
-    return `assets/px/cores/core-${group || 'empty'}.png`;
+    const names = CORE_ITEM_RULES.groupNames;
+    const prefix = `${CORE_ITEM_RULES.perfect.prefix} `;
+    const name = String(core && core.name || '');
+    const plainName = name.startsWith(prefix) ? name.slice(prefix.length) : name;
+    const group = Object.keys(names).find(key => plainName.startsWith(names[key]));
+    return ITEM_VISUAL_ASSET_DB.coreAssets[group || 'empty'];
 }
 
 /** 장비 그림(게임 가방과 같은 그림). 베이스 id 없이 올라온 예전 프로필은 베이스 이름으로 찾는다. */
@@ -2053,7 +2056,7 @@ function profileStumpIconSuffix(item) {
 /** 판 칸의 그림(게임 stumpBox.iconPath와 같은 파일). 알려진 단계, 색, 희귀도만 쓴다. */
 function profileStumpIconHtml(item) {
     let stage = typeof STUMP_BOX_STAGES === 'object' ? profileOwn(STUMP_BOX_STAGES, item.stage) : '', suffix = profileStumpIconSuffix(item);
-    return stage && suffix !== null ? `<img src="assets/px/stump/${stage.icon}${suffix}.png" alt="" draggable="false">` : '';
+    return stage && suffix !== null ? `<img src="assets/items/stump-pixel-v1/${stage.icon}${suffix}.png" alt="" draggable="false">` : '';
 }
 
 function profileStumpBarHtml(item) {
