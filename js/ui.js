@@ -9805,7 +9805,7 @@ function buildCraftActionButtons(item) {
             if (unlocked.has(id)) categoryCounts[category].unlocked++;
         });
         let standardEntries = entries.filter(({ def }) => !def.hidden);
-        let hiddenEntries = entries.filter(({ def }) => !!def.hidden);
+        let hiddenEntries = entries.filter(({ id }) => getJournalCategory(id) === '숨겨진 기록'); // 기억의 잎은 제 분류에서 센다
         let unlockedCount = entries.filter(({ id }) => unlocked.has(id)).length;
         let standardUnlockedCount = standardEntries.filter(({ id }) => unlocked.has(id)).length;
         let hiddenUnlockedCount = hiddenEntries.filter(({ id }) => unlocked.has(id)).length;

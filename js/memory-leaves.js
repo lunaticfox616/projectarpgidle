@@ -26,18 +26,20 @@ const memoryLeaves = (() => {
         for (const row of state.actExploration?.groundLoot || []) if (row.kind === 'leaf') seen.add(row.leaf);
         const open = MEMORY_LEAVES.list.filter(leaf => !seen.has(leaf.id)
             && (leaf.minTier || 0) <= (Number(zone.atlasTier) || 0) && sourceMatches(leaf.source, zone, enemy));
-        const special = open.filter(leaf => leaf.source.treasure || leaf.source.golden);
+        const special = open.filter(isSpecialLeaf);
         return special.length ? special : open;
     }
     const rankOf = enemy => (enemy.isBoss ? 'boss' : enemy.isElite ? 'elite' : 'regular');
-    const dropChance = enemy => MEMORY_LEAVES.chance[rankOf(enemy)]
-        * (enemy.treasureCarrier ? MEMORY_LEAVES.treasureMul : enemy.atlasGolden ? MEMORY_LEAVES.goldenMul : 1);
+    // 보물 운반자와 황금 배율은 그 몬스터만의 잎(보물, 황금)이 남았을 때만: 다 찾은 뒤에는 일반 잎이 보물 운반자에게서 24%로 나왔다
+    const specialMul = enemy => (enemy.treasureCarrier ? MEMORY_LEAVES.treasureMul : enemy.atlasGolden ? MEMORY_LEAVES.goldenMul : 1);
+    const isSpecialLeaf = leaf => !!(leaf.source.treasure || leaf.source.golden);
+    const dropChance = (enemy, pool) => MEMORY_LEAVES.chance[rankOf(enemy)] * (pool.some(isSpecialLeaf) ? specialMul(enemy) : 1);
     const isAtlasKill = (state, zone, enemy) => !!state.atlas?.unlocked && zone?.type === 'atlasMap' && !!enemy && !enemy.noLoot;
     function rollKill(state, zone, enemy, random) {
         if (!isAtlasKill(state, zone, enemy)) return null;
         if (store(state).seen.length === MEMORY_LEAVES.list.length) return null;
-        if (random() >= dropChance(enemy)) return null;
         const pool = poolFor(state, zone, enemy), total = pool.reduce((sum, leaf) => sum + leaf.weight, 0);
+        if (random() >= dropChance(enemy, pool)) return null;
         if (!total) return null;
         let roll = random() * total;
         return (pool.find(leaf => (roll -= leaf.weight) < 0) || pool[pool.length - 1]).id;
@@ -52,7 +54,8 @@ const memoryLeaves = (() => {
     }
     /** 저장 복원 시 발견 이력과 저널을 양방향으로 맞춘다. 보너스는 기존 로드 재구성에서 한 번만 적용된다. */
     function restoreJournal(state, entries) {
-        if (!state.atlas) return;
+        // 손상된 아틀라스(문자열, 숫자)는 아래 아틀라스 정규화가 새로 만든다: 여기서 읽으면 불러오기 전체가 손상 저장으로 막혔다
+        if (!state.atlas || typeof state.atlas !== 'object') return;
         // 저널 복원이 아틀라스 정규화보다 먼저 실행된다. 구 수량만 있는 저장도 여기서 발견으로 변환한다.
         state.atlas.leaves = normalize(state.atlas.leaves);
         const seen = new Set(state.atlas.leaves.seen);
