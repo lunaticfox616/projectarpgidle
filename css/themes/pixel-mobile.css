@@ -162,6 +162,10 @@
     background-clip: padding-box;
     image-rendering: pixelated;
   }
+  /* 목표 서랍의 높이 상한(css/ui-reliquary-shell.css)은 안쪽 높이라 판 테두리가 더해져, 내용이 상한을 넘는 가로 화면에서 판 아래가 메뉴 띠를
+     19px 덮었다. 테두리까지 상한에 넣고, 본문은 아래 "목표" 손잡이(46px)와 테두리를 뺀 만큼 */
+  :root body[data-ui-skin].mobile-primary-navigation .ui-goal-drawer.expanded .ui-goal-panel { box-sizing: border-box; }
+  :root body[data-ui-skin].mobile-primary-navigation .ui-goal-drawer.expanded #ui-goal-body { max-height: calc(min(68dvh, 620px) - 2 * var(--px-plate-border) - 46px); }
   :root body[data-ui-skin].mobile-primary-navigation.mobile-tab-drawer-open #tab-header-main { box-shadow: 6px 6px 0 rgba(0, 0, 0, .5); }
   /* 전체 메뉴 서랍의 높이: 화면의 72%로 묶으면 짧은 화면(390×664)에서 마지막 줄(완료 후 행동)이 13px 잘려 스크롤이 생겼다.
      위쪽 지역 이름 줄(64px)만 남기고 쓴다 */
