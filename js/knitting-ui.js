@@ -13,7 +13,7 @@ const knittingUi = (() => {
             + (reason && ready ? `<p class="knit-warning">${esc(reason)}</p>` : '') + '</article>';
     }
     function header(seen, ready) {
-        return `<header class="knit-head"><div><h3>실타래 보관함</h3><p>보유 수량은 루프마다 초기화됩니다. 발견과 뜨개질 기록은 남습니다.</p></div>${ready ? `<strong>완성 ${ready}</strong>` : ''}</header>`
+        return `<header class="knit-head"><div><h3>실타래 보관함</h3></div>${ready ? `<strong>완성 ${ready}</strong>` : ''}</header>`
             + (seen.length > 6 ? `<div class="knit-toolbar"><button type="button" data-knit-filter="all" aria-pressed="${!ownedOnly}">발견 기록 ${seen.length}</button><button type="button" data-knit-filter="owned" aria-pressed="${ownedOnly}">보유한 실타래</button></div>` : '');
     }
     function render() {
@@ -26,7 +26,7 @@ const knittingUi = (() => {
         const ready = seen.filter(row => (game.knitting.counts[row.id] || 0) >= row.set).length;
         const html = header(seen, ready)
             + `<div class="knit-result" role="status" aria-live="polite">${esc(currentResult())}</div><div class="knit-grid">`
-            + (rows.map(card).join('') || '<p class="knit-empty">아직 모은 실타래가 없습니다. 사냥터에서 발견하면 여기에 기록됩니다.</p>') + '</div>';
+            + (rows.map(card).join('') || '<p class="knit-empty">아직 모은 실타래가 없습니다.</p>') + '</div>';
         if (html !== lastHtml) { panel.innerHTML = html; lastHtml = html; }
     }
     function resultText(made) {

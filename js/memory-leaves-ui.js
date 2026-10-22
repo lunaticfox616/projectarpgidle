@@ -23,8 +23,7 @@ const memoryLeavesUi = (() => {
     function render() {
         const root = document.getElementById('ui-leaf-book');
         if (!root) return;
-        const header = `<header class="leaf-head"><div class="leaf-head-title"><h3>기억의 잎</h3>`
-            + '<small>처음 발견하면 저널과 영구 효과가 남습니다.</small></div>'
+        const header = `<header class="leaf-head"><div class="leaf-head-title"><h3>기억의 잎</h3></div>`
             + `<div class="leaf-stats"><span><small>발견한 기억</small><b>${game.atlas.leaves.seen.length}/${memoryLeaves.list.length}</b></span></div></header>`;
         const html = header + GROUPS.map(groupHtml).join('');
         if (html !== lastHtml) { root.innerHTML = html; lastHtml = html; }

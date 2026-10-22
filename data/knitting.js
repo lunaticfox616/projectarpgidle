@@ -335,7 +335,7 @@ const KNITTING = (() => {
         { id: 'ash-basket', name: '불씨 담은 바구니', grade: 2, set: 5, source: atlas('garden'), homes: [], found: '정원 지역',
             reward: { currencies: [['emberBranch', 4]] }, label: '잿불가지 4개' },
         { id: 'fire-brazier', name: '덩굴에 묻힌 화로', grade: 3, set: 6, source: { ...atlas('garden'), elite: true }, homes: [], found: '정원 지역 정예와 보스',
-            reward: { currencies: [['burningEmberBranch', 1], ['oilFire', 3]] }, label: '불타는 잿불가지 1개와 화염 기름 3개' },
+            reward: { currencies: [['burningEmberBranch', 1], ['oilFire', 3]] }, label: '타오른 잿불가지 1개와 불씨 기름 3개' },
         { id: 'gardener-cinder', name: '정원사의 마지막 불씨', grade: 3, set: 6, source: { ...atlas('garden'), boss: true, minAtlasTier: 10 }, homes: [], found: '10등급 이상 정원 지역 보스',
             reward: { unique: '화염 군주의 숨결', tier: 20 }, label: '고유 장비 「화염 군주의 숨결」 1개' },
         { id: 'frost-vial', name: '서리 맺힌 향유병', grade: 2, set: 5, source: atlas('sanctum'), homes: [], found: '성역 지역',
