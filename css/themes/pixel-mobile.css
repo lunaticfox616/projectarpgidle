@@ -263,16 +263,19 @@
   :root body[data-ui-skin].mobile-primary-navigation.mobile-tab-drawer-open #tab-header-main {
     max-height: calc(100dvh - var(--mobile-primary-nav-height) - env(safe-area-inset-bottom) - 14px);
   }
+  /* 묶음 창(장비와 스킬룬, 루프 패시브와 해금, 스킬트리와 전직과 재능, 저널과 도감과 기록)의 탭 줄은 왼쪽 세로 칸: 몸통이 200px쯤이라 위에 두면
+     내용은 120px쯤만 보였다. 화면을 내려도 탭 줄은 따라온다 */
+  :root body[data-ui-skin] .merged-tab-shell:has(> .window-tab-strip:not([hidden])) { display: grid; grid-template-columns: 136px minmax(0, 1fr); column-gap: 10px; align-items: start; }
+  :root body[data-ui-skin] .merged-tab-shell > .window-tab-strip:not([hidden]) { grid-column: 1; grid-row: 1; grid-auto-flow: row; grid-auto-columns: auto; margin: 0; position: sticky; top: 8px; z-index: 2; }
+  :root body[data-ui-skin] .merged-tab-shell > .window-tab-strip > .window-tab { justify-content: flex-start; }
+  :root body[data-ui-skin] .merged-tab-shell > .merged-tab-panels { grid-column: 2; grid-row: 1; min-width: 0; }
   /* 스킬트리 창: 몸통이 170px쯤이라 하위 탭 줄과 제목 줄을 쌓으면 트리가 메뉴 띠 위로 50px만 보였고, 내려서 보면 화면이 다 캔버스라
-     손가락으로 다시 올라갈 수 없었다. 하위 탭은 왼쪽 세로 칸, 포인트와 초기화는 검색 단추처럼 트리 왼쪽 위에 띄우고 트리가 오른쪽 높이를 다 쓴다 */
-  /* 한 줄 격자: 트리 칸에서는 위의 공통 규칙이 창 높이(height: 100%)를 주고, 전직과 재능처럼 긴 칸은 그 길이대로 내려간다 */
+     손가락으로 다시 올라갈 수 없었다. 포인트와 초기화는 검색 단추처럼 트리 왼쪽 위에 띄우고 트리가 오른쪽 높이를 다 쓴다.
+     한 줄 격자: 트리 칸에서는 위의 공통 규칙이 창 높이(height: 100%)를 주고, 전직과 재능처럼 긴 칸은 그 길이대로 내려간다 */
   :root body[data-ui-skin] #tab-char .merged-tab-shell { display: grid; grid-template-columns: 136px minmax(0, 1fr); column-gap: 10px; align-items: start; }
   :root body[data-ui-skin] #tab-char .merged-tab-shell:has(> .merged-tab-panels > .merged-subtab-pane.active[data-tab-id="tab-char"]) { grid-template-rows: minmax(0, 1fr); }
   /* 전직과 재능이 열리기 전에는 탭 줄이 숨는다: 빈 왼쪽 칸을 남기지 않는다 */
   :root body[data-ui-skin] #tab-char .merged-tab-shell:not(:has(> .window-tab-strip:not([hidden]))) { grid-template-columns: 0 minmax(0, 1fr); column-gap: 0; }
-  :root body[data-ui-skin] #tab-char .merged-tab-shell > .window-tab-strip:not([hidden]) { grid-column: 1; grid-row: 1; grid-auto-flow: row; grid-auto-columns: auto; margin: 0; }
-  :root body[data-ui-skin] #tab-char .merged-tab-shell > .window-tab-strip > .window-tab { justify-content: flex-start; }
-  :root body[data-ui-skin] #tab-char .merged-tab-shell > .merged-tab-panels { grid-column: 2; grid-row: 1; min-width: 0; }
   :root body[data-ui-skin] #tab-char .merged-subtab-pane[data-tab-id="tab-char"] > div > h2 { grid-column: 2; grid-row: 1; justify-self: start; position: relative; z-index: 9; display: block; margin: 6px; padding: 0 0 0 8px; border: 1px solid var(--color-line); background: var(--color-surface); }
   :root body[data-ui-skin] #tab-char .merged-subtab-pane[data-tab-id="tab-char"] > div > h2 > span:first-child { display: none; }
   :root body[data-ui-skin] #tab-char .merged-subtab-pane[data-tab-id="tab-char"] > div > h2 > .h2-right { display: flex; align-items: center; gap: 8px; min-height: 44px; }
