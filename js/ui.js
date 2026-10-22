@@ -2512,7 +2512,7 @@ function getConditionRuleLiveState(rule, locked, pStats, now) {
     keys.forEach(key => locked.add(key));
     return 'on';
 }
-const TACTIC_NOW_LABELS = Object.freeze({ nearest: '가까운 적', weakest: '약한 적', dangerous: '위험한 적', dense: '밀집 지역', auto: '자동', pressure: '압박', keepRange: '거리 유지' });
+const TACTIC_NOW_LABELS = Object.freeze({ nearest: '가까운 적부터', weakest: '약한 적부터', dangerous: '위험한 적부터', dense: '밀집 지역부터', auto: '거리 자동', pressure: '압박', keepRange: '거리 유지' });
 /** 규칙 카드의 불과 기본 전술 칸의 '지금' 줄만 고친다. 카드는 다시 그리지 않아 고르던 칸과 입력이 그대로다. */
 function syncConditionRuleLive() {
     const panel = document.getElementById('ui-skill-rules-panel'), now = document.getElementById('combat-tactics-now');
@@ -2527,7 +2527,7 @@ function syncConditionRuleLive() {
         if (lamp && lamp.textContent !== CONDITION_RULE_LIVE_TEXT[state]) lamp.textContent = CONDITION_RULE_LIVE_TEXT[state];
     });
     const tactic = resolveConditionalCombatTactics(normalizeCombatTacticsSettings(game.settings), pStats, game, at);
-    const text = `지금: 먼저 공격할 적 ${TACTIC_NOW_LABELS[tactic.targetPriority]}, 전투 거리 ${TACTIC_NOW_LABELS[tactic.positionMode]}${states.includes('on') ? '(조건부 규칙이 바꿈)' : ''}`;
+    const text = `지금: ${TACTIC_NOW_LABELS[tactic.targetPriority]}, ${TACTIC_NOW_LABELS[tactic.positionMode]}${states.includes('on') ? '(조건부 규칙이 바꿈)' : ''}`;
     if (now && now.textContent !== text) now.textContent = text;
 }
 
@@ -2550,7 +2550,7 @@ function renderSkillAutoRulePanel() {
     game.skillAutoRules = Array.isArray(game.skillAutoRules) ? game.skillAutoRules.map(normalizeConditionPatternRule) : [];
     let summary = `<div class="condition-pattern-summary"><div><strong>수호, 함성, 저주</strong><span>그루터기 함에서 깨어난 부적의 조건부 줄이 맡습니다.</span></div></div>${renderConditionPatternRoadmap()}`;
     if (game.skillAutoRules.length === 0) {
-        return paintSkillRulesPanel(panel, summary + '<div class="condition-rule-empty">아직 규칙이 없습니다. [+ 규칙 추가]를 누르고 "생명력 40% 이하 → 거리 유지"처럼 조건과 행동을 고르세요.</div>');
+        return paintSkillRulesPanel(panel, summary + '<div class="condition-rule-empty">[+ 규칙 추가]로 조건과 행동을 고르세요.</div>');
     }
     const options = { triggers: getConditionPatternTriggers(game, false), actions: getConditionPatternActions(game, false) };
     paintSkillRulesPanel(panel, summary + game.skillAutoRules.map((rule, idx) => renderConditionPatternRule(rule, idx, options)).join(''));
@@ -13485,7 +13485,7 @@ function loopOrbitTotalsHtml() {
         if (lv > 0 && node) sums.set(node.stat, (sums.get(node.stat) || 0) + node.val * (1 + (lv - 1) * 0.2));
     });
     const total = [...sums].map(([stat, val]) => loopNodeValueText({ stat, val }, 1)).join(', ');
-    return `<strong>우로보로스 원환</strong><small>${total ? `활성화한 노드의 합계: ${statToneText.html(total)}` : '노드를 가리키면 그 효과가 여기에 나옵니다. + 표시 노드를 지금 활성화할 수 있습니다.'}</small>`;
+    return `<strong>우로보로스 원환</strong><small>${total ? `활성화한 노드의 합계: ${statToneText.html(total)}` : '노드를 가리키면 그 효과가 여기에 나옵니다.'}</small>`;
 }
 /** 노드를 가리키거나 고르면 가운데 칸만 고쳐 쓴다(고리는 다시 그리지 않는다). */
 function loopPassiveHint(id) {
