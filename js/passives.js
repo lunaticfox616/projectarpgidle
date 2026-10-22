@@ -5865,6 +5865,8 @@ function openActReward(zoneId) {
     document.getElementById('reward-grid').innerHTML = getActRewardChoices(zoneId)
         .map((choice, index) => isActRewardChoiceAvailable(choice) ? renderActRewardChoice(zoneId, choice, index, before) : '').join('');
     document.getElementById('reward-overlay').classList.add('active');
+    // Shown again, the card came back at the last act's scroll spot (phones scroll it to the lower choices), past the title.
+    document.querySelector('#reward-overlay .tutorial-card').scrollTo(0, 0);
     lastTime = Date.now();
     watchActRewardAway();
 }
