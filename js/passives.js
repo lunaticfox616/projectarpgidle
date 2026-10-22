@@ -5720,6 +5720,7 @@ function repairJournalEntriesFromProgress(state) {
     if (loopStage >= 2) Object.keys(JOURNAL_DB).filter(id => /^act_/.test(id)).forEach(id => recovered.add(id));
     JOURNAL_PROGRESS_RULES.forEach(([id, reached]) => { if (reached(runtimeState)) recovered.add(id); });
     addRootBossJournalEntries(runtimeState, recovered);
+    memoryLeaves.restoreJournal(runtimeState, recovered);
     runtimeState.journalEntries = Array.from(recovered).filter(id => JOURNAL_DB[id]);
     return runtimeState.journalEntries;
 }
@@ -5787,31 +5788,40 @@ function rebuildJournalBonusStateForLoad(state) {
     });
     return { pendingPassivePoints, hadLegacyImmortalHpBonus, legacyPassivePointBonusIds: Array.from(legacyPassivePointBonusIds) };
 }
-function grantJournalBonus(entryId) {
+/** 실제 수치 반영은 전달된 저장에만 한다. 로드 중인 사본에서 자동 투자나 UI를 실행하지 않는다. */
+function applyJournalBonusValue(state, entryId, bonus) {
+    state.journalBonuses = Array.isArray(state.journalBonuses) ? state.journalBonuses : [];
+    if (bonus.stat === 'passivePoint') {
+        state.passivePoints = Math.max(0, Math.floor(state.passivePoints || 0)) + Math.max(0, Math.floor(bonus.value || 0));
+    }
+    else if (!state.journalBonuses.some(row => row && row.entryId === entryId)) state.journalBonuses.push({ entryId, stat: bonus.stat, value: bonus.value });
+}
+function grantJournalBonus(entryId, state = game) {
     let entry = JOURNAL_DB[entryId];
     if (!entry || !entry.bonus) return;
-    game.journalBonusClaims = (game.journalBonusClaims && typeof game.journalBonusClaims === 'object') ? game.journalBonusClaims : {};
-    if (game.journalBonusClaims[entryId]) return;
-    game.journalBonuses = Array.isArray(game.journalBonuses) ? game.journalBonuses : [];
-    if (entry.bonus.stat === 'passivePoint') {
-        game.passivePoints = Math.max(0, Math.floor(game.passivePoints || 0)) + Math.max(0, Math.floor(entry.bonus.value || 0));
-        if (typeof runPassiveTreeAutoInvest === 'function') runPassiveTreeAutoInvest();
+    state.journalBonusClaims = (state.journalBonusClaims && typeof state.journalBonusClaims === 'object') ? state.journalBonusClaims : {};
+    if (state.journalBonusClaims[entryId]) return;
+    applyJournalBonusValue(state, entryId, entry.bonus);
+    state.journalBonusClaims[entryId] = true;
+    if (state === game) {
+        if (entry.bonus.stat === 'passivePoint' && typeof runPassiveTreeAutoInvest === 'function') runPassiveTreeAutoInvest();
+        playerStatCache.invalidate();
+        addLog(`저널 영구 보너스 획득: ${entry.bonus.label}`, 'season-up');
     }
-    else if (!game.journalBonuses.some(row => row && row.entryId === entryId)) game.journalBonuses.push({ entryId: entryId, stat: entry.bonus.stat, value: entry.bonus.value });
-    game.journalBonusClaims[entryId] = true;
-    addLog(`저널 영구 보너스 획득: ${entry.bonus.label}`, 'season-up');
 }
-function unlockJournalEntry(entryId) {
+function unlockJournalEntry(entryId, state = game) {
     if (!entryId || !JOURNAL_DB[entryId]) return;
-    game.journalEntries = Array.isArray(game.journalEntries) ? game.journalEntries : ['prologue'];
-    if (!game.journalEntries.includes(entryId)) {
-        game.journalEntries.push(entryId);
-        game.noti = game.noti && typeof game.noti === 'object' ? game.noti : {};
-        game.noti.journal = true;
-        addLog(`📓 저널 해금: ${JOURNAL_DB[entryId].title}`, 'loot-rare');
-        if (typeof requestGoalSystemRefresh === 'function') requestGoalSystemRefresh();
+    state.journalEntries = Array.isArray(state.journalEntries) ? state.journalEntries : ['prologue'];
+    if (!state.journalEntries.includes(entryId)) {
+        state.journalEntries.push(entryId);
+        state.noti = state.noti && typeof state.noti === 'object' ? state.noti : {};
+        state.noti.journal = true;
+        if (state === game) {
+            addLog(`📓 저널 해금: ${JOURNAL_DB[entryId].title}`, 'loot-rare');
+            if (typeof requestGoalSystemRefresh === 'function') requestGoalSystemRefresh();
+        }
     }
-    grantJournalBonus(entryId);
+    grantJournalBonus(entryId, state);
 }
 function ensureActJournalCompletionForLoop(options) {
     let silent = !options || options.silent !== false;

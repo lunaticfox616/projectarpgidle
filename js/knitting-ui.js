@@ -32,6 +32,7 @@ const knittingUi = (() => {
     function resultText(made) {
         const parts = made.currencies.map(([key, n]) => `${ORB_DB[key].name} ${n}개`);
         if (made.item) parts.push(made.item.name + ' 1개');
+        if (made.mapReward) parts.push(`희귀 지도석 ${made.mapReward.maps.length}개`);
         for (const id of made.yarns) parts.push(knitting.row(id).name + ' 1개');
         return parts.join(', ');
     }

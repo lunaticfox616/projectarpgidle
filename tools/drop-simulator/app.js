@@ -36,8 +36,8 @@
     }
     function leafChip(id, count, first) {
         const leaf = leafOf(id);
-        return `<span class="sim-chip is-leaf${first ? ' moment-great' : ''}" title="${esc(leaf ? `${leaf.set}장, ${leaf.reward}` : '')}">`
-            + `<span class="glyph"></span>${esc(leaf ? leaf.name : id)}${count > 1 ? ` <b>×${count}</b>` : ''}${first ? ' <i>새 잎</i>' : ''}</span>`;
+        return `<span class="sim-chip is-leaf${first ? ' moment-great' : ''}" title="${esc(leaf ? `저널: ${leaf.journal}, ${leaf.reward}` : '')}">`
+            + `<span class="glyph"></span>${esc(leaf ? leaf.name : id)} <i>기억 발견</i></span>`;
     }
     function otherChip(drop) {
 if (drop.kind === 'yarn') return `<span class="sim-chip is-yarn"><span class="glyph"></span>${esc(drop.name)} <i>${drop.grade}등급</i></span>`;
@@ -81,7 +81,7 @@ if (drop.kind === 'yarn') return `<span class="sim-chip is-yarn"><span class="gl
             stat('큰 발견', fixed(r.momentsPerMap.great), unique ? `판마다, 고유 ${fixed(unique)}` : '판마다', 'great'),
             stat('체이싱 티어', fixed(r.momentsPerMap.jackpot, 3), r.momentsPerMap.jackpot ? `${Math.round(1 / r.momentsPerMap.jackpot)}판에 한 번꼴` : '판마다', 'jackpot'),
             stat('보물 무리', fixed(r.treasurePerMap), '판마다'),
-            stat('기억의 잎', fixed(r.leavesPerMap), `본 잎 ${r.leafSeen}/${catalog.leaves.length}`, 'leaf'),
+            stat('기억의 잎 발견', fixed(r.leavesPerMap), `저널 ${r.leafSeen}/${catalog.leaves.length}, 재발견 없음`, 'leaf'),
 stat('실타래', fixed(r.yarnPerMap), `완성 세트 ${fixed(r.yarnSetsPerMap)}, 본 종류 ${r.yarnSeen}`),
             stat('재화 종류', fixed(r.currencyKindsPerMap, 1), '판마다'),
             stat('계산', `${(result.elapsedMs / 1000).toFixed(1)}초`, `등급 ${result.options.tier}, 루프 ${result.options.loop}`)

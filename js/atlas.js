@@ -356,7 +356,7 @@ const atlas = (() => {
         run.drops.push(...maps.slice(0, Math.max(0, ATLAS.stashCap - run.drops.length)));
         return maps;
     }
-    /** A woven leaf's map stones (js/memory-leaves.js): `count` of `rarity` on the best node at or under the best tier + tierUp,
+    /** Knitting map stones: `count` of `rarity` on the best node at or under the best tier + tierUp,
      * stamped like drops (omen, quality). @returns {object[]} the ones the stash took */
     function rewardMaps(state, rule, random = Math.random) {
         const bonus = bonusOf(state), tier = Math.min(ATLAS.tierCap, Math.max(1, bestTier(state)) + (rule.tierUp || 0));
@@ -365,11 +365,6 @@ const atlas = (() => {
             return node && stamp(state, atlasMaps.create(node.id, effectiveTier(state, node), rule.rarity, random), random, bonus);
         }).filter(Boolean);
         return maps.slice(0, store(state, maps));
-    }
-    /** The zone a normal map of the best tier reached would be (a woven leaf's gear rolls there). */
-    function rewardZone(state) {
-        const tier = Math.max(1, bestTier(state)), node = nodeForTier(state, tier, () => 0) || MAP_NODES[0];
-        return preview(state, atlasMaps.create(node.id, effectiveTier(state, node), 'normal', () => 0));
     }
     /** One more map for the run (an emptied content room's find). */
     function extraMap(state, random = Math.random) {
@@ -598,7 +593,7 @@ const atlas = (() => {
         fragment: id => FRAGMENTS.get(id) || null, pinnacle: PINNACLE, position, polar, defaults, lockReason, runOpenReason, status, reachable, points, bestTier, sync,
         effectiveTier, hasTickets, pinnacleReason, beginPinnacle, beginSpecial, beginMemory, beginBoard, lateNodes: LATE_NODES,
         slots, setLoadout, beginReason, begin, cancel, complete, markCleared, keepLoot, usePortal, close, nextAuto, dropFromKill, extraMap, fragmentFromKill, fragmentOpen,
-        zone, preview, lootTier, equivalentDepth, normalize, onLoopReset, travelReason, rewardMaps, rewardZone,
+        zone, preview, lootTier, equivalentDepth, normalize, onLoopReset, travelReason, rewardMaps,
         inMap: state => state.currentZoneId === ATLAS.zoneId });
 })();
 safeExposeGlobals({ atlas });

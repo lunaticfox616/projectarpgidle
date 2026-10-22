@@ -407,7 +407,21 @@ for(const saved of [{season:20},{season:20,contentProgression:{version:8,highest
     assert(run("contentProgression.isUnlocked('craft')"));
     assert(!run("contentProgression.isUnlocked('craftSimulator')"),'old crafting access does not inherit the new simulator purchase');
 }
-// Knitting (2026-10-22): a loop-40 floor no saved unlock record can bypass, the 150-kind catalogue, value weights without learning or
+// Memory leaves: one discovery, one journal bonus, no repeat currency exchange; old saves and loop resets preserve discoveries.
+{
+    run("game=mergeDefaults({season:40,level:100,atlas:{unlocked:true,leaves:{counts:{roots_spring:15},woven:{roots_hive:2}}}})");
+    assert.deepEqual(json('game.atlas.leaves.seen').sort(),['roots_hive','roots_spring']);
+    assert.equal(run("game.journalBonuses.filter(b=>b.entryId.startsWith('memory_leaf_')).length"),2);
+    const held=json('({leaves:game.atlas.leaves,bonuses:game.journalBonuses,currencies:game.currencies})');
+    run("memoryLeaves.receive(game,'roots_spring');game=mergeDefaults(JSON.parse(JSON.stringify(game)))");
+    assert.deepEqual(json('({leaves:game.atlas.leaves,bonuses:game.journalBonuses,currencies:game.currencies})'),held);
+    run("game.season++;atlas.onLoopReset(game);game=mergeDefaults(JSON.parse(JSON.stringify(game)))");
+    assert.deepEqual(json('game.atlas.leaves'),held.leaves);
+    assert.equal(run("game.journalBonuses.filter(b=>b.entryId.startsWith('memory_leaf_')).length"),2);
+    run("game.atlas.leaves.seen=MEMORY_LEAVES.list.map(r=>r.id)");
+    assert.equal(run("memoryLeaves.rollKill(game,{type:'atlasMap'},{isBoss:true},()=>{throw Error('all discovered')})"),null);
+}
+// Knitting (2026-10-22): a loop-40 floor no saved unlock record can bypass, the 165-kind catalogue, value weights without learning or
 // once guarantees, home over rank bonus, internal unique weights, fixed homes, every exchange per class, save/loop, floor and offline.
 {
 const row = id => json(`knitting.row(${JSON.stringify(id)})`);
@@ -431,9 +445,9 @@ run('game=mergeDefaults(JSON.parse(JSON.stringify(game)))');
 assert.deepEqual(json('game.knitting.counts'), held.counts, "this loop's stock survives a reload while closed");
 assert.deepEqual(json('game.knitting.knitted'), held.knitted);
 assert.deepEqual(json('game.knitting.seen').sort(), held.seen.slice().sort());
-// Catalogue: 150 kinds, real IDs and unlock links, named-unique grades, 55 home zones with 1-4 kinds each.
+// Catalogue: 165 kinds, real IDs and unlock links, named-unique grades, 55 home zones with 1-4 kinds each.
 assert.deepEqual(json('knittingRewards.catalogProblems()'), [], 'ids, names, grades, sets, sources, unlock links, rewards, unique grades and homes');
-assert.equal(run('KNITTING.list.length'), 150);
+assert.equal(run('KNITTING.list.length'), 165);
 assert(run('KNITTING.rankBonus < KNITTING.homeBonus'), 'a home outranks a rank-only bonus');
 const homeCounts = json(`[...Array.from({length:10},(_,i)=>'act:'+i),...atlas.nodes.filter(n=>n.kind==='map').map(n=>'node:'+n.id)]
     .map(key=>[key,KNITTING.list.filter(row=>(row.homes||[]).includes(key)).length])`);
@@ -539,10 +553,11 @@ const before = json('game.knitting');
 run("knitting.receive(game,'loose-end')");
 const gains = json(`knitting.gainedBetween(${JSON.stringify(before)},game.knitting)`);
 assert.equal(gains.total, 1);
-// Every one of the 150 exchanges with everything open; one equipment, no automation.
+// Every exchange with everything open; one equipment, no automation.
 run(`game=mergeDefaults({season:40,maxZoneId:9,selectedClassId:'warrior'});
     game.contentProgression.unlocked=CONTENT_UNLOCK_CATALOG.map(row=>row.id);contentProgression.sync();
     game.knitting.seen=KNITTING.list.map(row=>row.id); game.settings.autoEquip=true; game.settings.autoSalvageEnabled=true;`);
+run('game.atlas.unlocked=true');
 for (const kind of json('KNITTING.list')) {
     run(`game.inventory=[];game.knitting.counts[${JSON.stringify(kind.id)}]=${kind.set}`);
     const made = json(`knittingRewards.knit(${JSON.stringify(kind.id)},()=>0.25)`);
@@ -554,6 +569,15 @@ for (const kind of json('KNITTING.list')) {
     }
 }
 // The fossil boots keep the shared pool contract (same-effect normal lines may coexist) for every class and draw.
+// Mapstone exchanges are all-or-nothing, including the atlas's UID counter.
+run("game.knitting.counts['cartographer-rubbing']=5;game.atlas.stash=Array.from({length:ATLAS.stashCap-1},()=>atlasMaps.create('roots_0',1,'normal',()=>0))");
+const mapStock=json('({atlas:game.atlas,knitting:game.knitting,counter:itemIdCounter})');
+assert.equal(run("knittingRewards.knit('cartographer-rubbing').ok"),false);
+assert.deepEqual(json('({atlas:game.atlas,knitting:game.knitting,counter:itemIdCounter})'),mapStock);
+run('game.atlas.stash=[]');
+assert(run("knittingRewards.knit('cartographer-rubbing').ok"));
+assert.equal(run('game.atlas.stash.length'),2);
+assert(run("game.atlas.stash.every(m=>m.rarity==='rare')"));
 for (const cls of ['warrior', 'wanderer', 'archer', 'occultist', 'alchemist', 'cleric']) for (const draw of [0, 0.25, 0.5, 0.75, 0.999999]) {
     run(`game.selectedClassId=${JSON.stringify(cls)};game.inventory=[];game.knitting.counts['buried-print']=6`);
     const made = json(`knittingRewards.knit('buried-print',()=>${draw})`);

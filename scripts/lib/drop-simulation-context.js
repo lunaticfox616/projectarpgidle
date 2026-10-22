@@ -127,13 +127,11 @@ var dropSimulation = (() => {
         }
         return out;
     }
-    const leafSnapshot = () => ({ counts: { ...game.atlas.leaves.counts }, seen: [...game.atlas.leaves.seen] });
-    /** Leaves a map gave, the first sightings among them and the sets they filled. */
+    const leafSnapshot = () => ({ seen: [...game.atlas.leaves.seen] });
+    /** Only first discoveries count; leaves no longer have quantities or exchange sets. */
     function leafGains(before) {
-        const now = game.atlas.leaves, gained = {};
-        for (const [id, count] of Object.entries(now.counts)) if (count > (before.counts[id] || 0)) gained[id] = count - (before.counts[id] || 0);
-        const filled = Object.keys(gained).filter(id => (before.counts[id] || 0) < memoryLeaves.leaf(id).set && now.counts[id] >= memoryLeaves.leaf(id).set);
-        return { gained, first: now.seen.filter(id => !before.seen.includes(id)), filled };
+        const first = game.atlas.leaves.seen.filter(id => !before.seen.includes(id));
+        return { gained: Object.fromEntries(first.map(id => [id, 1])), first };
     }
     const fragmentGains = (before, after) => Object.fromEntries(Object.entries(after).map(([id, count]) => [id, count - (before[id] || 0)])
         .filter(([, gain]) => gain > 0));
@@ -201,8 +199,8 @@ var dropSimulation = (() => {
             icon: ORB_DB[key].icon || null, moment: lootMoments.ofCurrency(key) }]));
         return { omens: LOOT_OMENS.list.map(({ id, name, note, tone, kind }) => ({ id, name, note, tone, kind })), currencies,
 yarns: Object.fromEntries(KNITTING.list.map(row => [row.id, { name: row.name, grade: row.grade, set: row.set }])),
-            leaves: memoryLeaves.list.map(leaf => ({ id: leaf.id, name: leaf.name, set: leaf.set, source: memoryLeaves.sourceText(leaf),
-                reward: memoryLeaves.rewardText(leaf) })),
+            leaves: memoryLeaves.list.map(leaf => ({ id: leaf.id, name: leaf.name, source: memoryLeaves.sourceText(leaf),
+                reward: memoryLeaves.bonusText(leaf), journal: leaf.title })),
             regions: ATLAS.regions.map(({ id, name, tint }) => ({ id, name, tint })),
             fragments: Object.fromEntries(ATLAS.fragments.map(fragment => [fragment.id, fragment.name])),
             nodes: Object.fromEntries(ATLAS.regions.flatMap(region => ATLAS.nodes[region.id].map((row, slot) => [`${region.id}_${slot}`, row[0]]))) };

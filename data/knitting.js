@@ -321,6 +321,38 @@ const KNITTING = (() => {
         { id: 'zenith-knot', name: "가장 높은 곳의 별", grade: 5, set: 1, source: { types: ['cosmos'], boss: true }, homes: [], unlocks: ['cosmos'], found: '우주계 보스',
             reward: { currencies: [['fairyRing', 2], ['goldenRule', 1]] }, label: '요정의 고리 2개와 황금률 1개' },
 
+        // 기억의 잎에서 이관: 기존과 비슷한 보상은 재등록하지 않는다. 새 보상은 아틀라스에서만 발견한다.
+        { id: 'black-filter', name: '검은 수액 거름천', grade: 3, set: 5, source: { ...atlas('roots'), elite: true }, homes: [], found: '뿌리 지역 정예와 보스',
+            reward: { currencies: [['oilChaos', 3], ['catalystChaos', 3]] }, label: '그늘 기름 3개와 카오스 기폭제 3개' },
+        { id: 'serpent-relic', name: '탈피한 왕의 허물', grade: 4, set: 7, source: { ...atlas('roots'), boss: true, minAtlasTier: 10 }, homes: [], found: '10등급 이상 뿌리 지역 보스',
+            reward: { unique: '큰뱀의 송곳니', tier: 20 }, label: '고유 장비 「큰뱀의 송곳니」 1개' },
+        { id: 'worn-chisel', name: '나이테 새긴 끌', grade: 2, set: 4, source: atlas('trunk'), homes: [], found: '줄기 지역',
+            reward: { currencies: [['rootIron', 3], ['deepWhetstone', 3]] }, label: '뿌리철 3개와 심층 숫돌 3개' },
+        { id: 'throne-splinter', name: '옥좌에 남은 칼집', grade: 4, set: 7, source: { ...atlas('trunk'), boss: true, minAtlasTier: 10 }, homes: [], found: '10등급 이상 줄기 지역 보스',
+            reward: { unique: '왕을 베는 고목', tier: 20 }, label: '고유 장비 「왕을 베는 고목」 1개' },
+        { id: 'storm-pennant', name: '폭풍에 찢긴 군기', grade: 4, set: 7, source: { ...atlas('canopy'), boss: true, minAtlasTier: 10 }, homes: [], found: '10등급 이상 수관 지역 보스',
+            reward: { unique: '폭풍 군단장의 창끝', tier: 20 }, label: '고유 장비 「폭풍 군단장의 창끝」 1개' },
+        { id: 'ash-basket', name: '불씨 담은 바구니', grade: 2, set: 5, source: atlas('garden'), homes: [], found: '정원 지역',
+            reward: { currencies: [['emberBranch', 4]] }, label: '잿불가지 4개' },
+        { id: 'fire-brazier', name: '덩굴에 묻힌 화로', grade: 3, set: 6, source: { ...atlas('garden'), elite: true }, homes: [], found: '정원 지역 정예와 보스',
+            reward: { currencies: [['burningEmberBranch', 1], ['oilFire', 3]] }, label: '불타는 잿불가지 1개와 화염 기름 3개' },
+        { id: 'gardener-cinder', name: '정원사의 마지막 불씨', grade: 3, set: 6, source: { ...atlas('garden'), boss: true, minAtlasTier: 10 }, homes: [], found: '10등급 이상 정원 지역 보스',
+            reward: { unique: '화염 군주의 숨결', tier: 20 }, label: '고유 장비 「화염 군주의 숨결」 1개' },
+        { id: 'frost-vial', name: '서리 맺힌 향유병', grade: 2, set: 5, source: atlas('sanctum'), homes: [], found: '성역 지역',
+            reward: { currencies: [['oilCold', 3]] }, label: '서리 기름 3개' },
+        { id: 'sleeping-signet', name: '잠든 궁정의 봉랍', grade: 3, set: 6, source: { ...atlas('sanctum'), boss: true, minAtlasTier: 10 }, homes: [], found: '10등급 이상 성역 지역 보스',
+            reward: { unique: '서리 여제의 인장', tier: 20 }, label: '고유 장비 「서리 여제의 인장」 1개' },
+        { id: 'shadow-summons', name: '네 그림자의 초대장', grade: 4, set: 6, source: { types: ['atlasMap'], boss: true, minAtlasTier: 13 }, homes: [], found: '13등급 이상 지도 보스',
+            reward: { pickCurrencies: [['uberRootTicketFlame', 1], ['uberRootTicketFrost', 1], ['uberRootTicketStorm', 1], ['uberRootTicketChaos', 1]] }, label: '네 속성의 그림자 뿌리 입장권 중 1개' },
+        { id: 'pilfered-clasp', name: '도굴꾼의 금장 버클', grade: 4, set: 6, source: { types: ['atlasMap'], treasure: true }, homes: [], found: '지도의 보물 운반자',
+            reward: { unique: '보물 사냥꾼의 띠', tier: 20 }, label: '고유 장비 「보물 사냥꾼의 띠」 1개' },
+        { id: 'cartographer-rubbing', name: '길잡이의 탁본', grade: 3, set: 5, source: { types: ['atlasMap'] }, homes: [], found: '지도의 적',
+            reward: { maps: { rarity: 'rare', count: 2, tierUp: 1 } }, label: '희귀 지도석 2개 (진행도에 맞는 지도)' },
+        { id: 'beacon-lens', name: '꺼지지 않는 등불 심지', grade: 4, set: 7, source: { types: ['atlasMap'], minAtlasTier: 14 }, homes: [], found: '14등급 이상 지도',
+            reward: { unique: '등대지기의 눈', tier: 20 }, label: '고유 장비 「등대지기의 눈」 1개' },
+        { id: 'unreturning-path', yarnOut: false, name: '돌아오지 않은 자의 발자국', grade: 5, set: 8, source: { types: ['atlasMap'], boss: true, minAtlasTier: 16 }, homes: [], found: '16등급 이상 지도 보스',
+            reward: { uniquePool: 'chase', tier: 20 }, label: '극희귀 고유 장비 1개' },
+
         // 어디서나 (주력 배정 없음)
         { id: 'loose-end', name: "때이른 낙엽", grade: 1, set: 5, source: { any: true }, homes: [], found: '사냥터의 적',
             reward: { currencies: [['magicBud', 2], ['formlessDew', 1]] }, label: '마법의 새싹 2개와 형체 없는 이슬 1개' },
@@ -353,11 +385,11 @@ const KNITTING = (() => {
             reward: { currencies: [['goldenRule', 1], ['fairyRing', 1]] }, label: '황금률 1개와 요정의 고리 1개' }
     ];
     return Object.freeze({
-        target: 150, countCap: 99999, maxSingles: 8, homeBonus: 2.5, rankBonus: 1.5,
+        target: 165, countCap: 99999, maxSingles: 8, homeBonus: 2.5, rankBonus: 1.5,
         chance: Object.freeze({ regular: 0.004, elite: 0.03, boss: 0.15, actBoss: 0.2 }),
         grades: Object.freeze({ 1: { weight: 100 }, 2: { weight: 40 }, 3: { weight: 15 }, 4: { weight: 5 }, 5: { weight: 1.5 } }),
         setRange: Object.freeze({ 1: [3, 5], 2: [3, 6], 3: [3, 6], 4: [4, 8], 5: [1, 8] }),
-        uniquePools: Object.freeze(['general', 'meteor', 'beehive', 'colony', 'skyTower', 'labyrinth', 'trial', 'oceanDepth', 'grandBreach', 'beyondBoundary']),
+        uniquePools: Object.freeze(['general', 'chase', 'meteor', 'beehive', 'colony', 'skyTower', 'labyrinth', 'trial', 'oceanDepth', 'grandBreach', 'beyondBoundary']),
         uniqueBand: Object.freeze({ step: 4, decay: 0.7, bump: Object.freeze({
 '군단 지휘관의 투구': [1, '3단계에서 스킬 대상 수 +1'], '별무리': [1, '스킬 타겟 수 +1, 연속 타격 +8%'],
             '명사수의 경보': [1, '투사체 스킬 타겟 수 +1'],

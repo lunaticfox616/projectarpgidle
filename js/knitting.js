@@ -45,6 +45,8 @@ const knitting = (() => {
         zones: (value, zone) => zoneKeys(zone).some(key => value.includes(key)),
         boss: (value, zone, enemy) => !value || !!enemy.isBoss,
         elite: (value, zone, enemy) => !value || !!enemy.isElite || !!enemy.isBoss,
+        treasure: (value, zone, enemy) => !value || !!enemy.treasureCarrier,
+        minAtlasTier: (value, zone) => zone.type === 'atlasMap' && Number(zone.atlasTier) >= value,
         act: (value, zone) => Number(zone.id) === value, minAct: (value, zone) => Number(zone.id) >= value,
         kind: (value, zone) => zone.atlasKind === value, apostle: (value, zone) => !value || !!zone.atlasApostle
     };

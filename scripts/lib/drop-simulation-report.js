@@ -43,7 +43,7 @@ function summarize(result) {
         }
         for (const tier of Object.keys(moments)) moments[tier] += (map.currencyMoments || {})[tier] || 0;
         // 보물 무리는 큰 발견, 황금 보물은 체이싱 티어(그 안의 요정의 고리나 체이싱 고유는 위에서 따로 센다).
-        moments.great += (map.counts.treasure || 0) - (map.counts.golden || 0) + (map.leaves ? map.leaves.first.length + map.leaves.filled.length : 0);
+        moments.great += (map.counts.treasure || 0) - (map.counts.golden || 0) + (map.leaves ? map.leaves.first.length : 0);
         moments.jackpot += map.counts.golden || 0;
         for (const [key, gain] of Object.entries(map.currencies)) currencies[key] = (currencies[key] || 0) + gain;
         for (const kind of kinds[index]) if (!firstSeen.has(kind)) firstSeen.set(kind, index + 1);

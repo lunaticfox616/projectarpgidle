@@ -8782,6 +8782,17 @@ function syncSingleSubtabRows() {
     });
 }
 
+/** 저널 분류: 기억의 잎은 숨겨진 기록과 별도로 모아 읽는다. */
+function getJournalCategory(id) {
+    if (id.startsWith('memory_leaf_')) return '기억의 잎';
+    if (id === 'prologue' || /^act_\d+$/.test(id)) return '스토리';
+    if (JOURNAL_DB[id]?.hidden) return '숨겨진 기록';
+    if (/^rival_/.test(id)) return '버려진 날';
+    if (id === 'cosmos_astra') return '우주계 기록';
+    if (/^pinnacle_/.test(id)) return '최종 관문';
+    if (['labyrinth_10', 'ocean_500', 'sky_tower_10', 'time_rift_fusion', 'colony_wave_10'].includes(id)) return '탐험 기록';
+    return '세계의 흔적';
+}
 function performUpdateStaticUI() {
     craftingWorkspaceState.capture(game);
     updateInventoryFullWarnings();
@@ -9754,15 +9765,6 @@ function buildCraftActionButtons(item) {
         let unlocked = new Set((game.journalEntries || []).filter(id => JOURNAL_DB[id]));
         let orderedIds = JOURNAL_ENTRY_ORDER.filter(id => !!JOURNAL_DB[id]);
         let entries = orderedIds.map(id => ({ id: id, def: JOURNAL_DB[id] }));
-        let getJournalCategory = id => {
-            if (id === 'prologue' || /^act_\d+$/.test(id)) return '스토리';
-            if (JOURNAL_DB[id] && JOURNAL_DB[id].hidden) return '숨겨진 기록';
-            if (/^rival_/.test(id)) return '버려진 날';
-            if (id === 'cosmos_astra') return '우주계 기록';
-            if (/^pinnacle_/.test(id)) return '최종 관문';
-            if (['labyrinth_10', 'ocean_500', 'sky_tower_10', 'time_rift_fusion', 'colony_wave_10'].includes(id)) return '탐험 기록';
-            return '세계의 흔적';
-        };
         let journalHintById = {
             prologue: '게임 시작',
             woodsman: '혼돈 5층 클리어',
@@ -9793,7 +9795,7 @@ function buildCraftActionButtons(item) {
             if (actMatch) return `액트 ${actMatch[1]} 보스 처치`;
             return journalHintById[id] || '관련 콘텐츠 탐험';
         };
-        let categoryOrder = ['스토리', '세계의 흔적', '탐험 기록', '버려진 날', '우주계 기록', '최종 관문', '숨겨진 기록'];
+        let categoryOrder = ['스토리', '세계의 흔적', '기억의 잎', '탐험 기록', '버려진 날', '우주계 기록', '최종 관문', '숨겨진 기록'];
         let availabilityById = new Map(entries.map(entry => [entry.id, getJournalEntryAvailability(entry, Array.from(unlocked))]));
         let categoryCounts = {};
         entries.forEach(({ id }) => {
