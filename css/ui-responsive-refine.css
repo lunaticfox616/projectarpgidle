@@ -395,6 +395,9 @@
   body.mobile-battle-tab #tab-battle .combat-panel { display: grid; }
   body.mobile-battle-tab #tab-battle .combat-feed { height: 100%; min-height: 80px; max-height: none; }
   body.mobile-battle-tab #tab-battle .combat-feed.collapsed { height: 52px; min-height: 52px; max-height: 52px; }
+  /* 펼친 기록: 제 줄(80px)에서는 제목만 보이고 첫 줄이 잘렸다. HUD 줄까지 차지하고 그동안 HUD는 숨는다(체력은 전장의 주인공 막대로 보인다) */
+  body.mobile-battle-tab #tab-battle .combat-feed:not(.collapsed) { grid-row: 2 / 4; }
+  body.mobile-battle-tab #tab-battle .combat-panel:has(.combat-feed:not(.collapsed)) > .player-hud { visibility: hidden; }
   body.mobile-battle-tab #tab-battle .battlefield-wrap { height: 100%; width: 100%; }
 }
 
