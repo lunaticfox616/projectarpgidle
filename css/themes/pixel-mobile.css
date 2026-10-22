@@ -269,12 +269,23 @@
 }
 @media (min-width: 721px) and (max-width: 1080px) and (orientation: landscape) and (max-height: 600px) {
   /* 열린 검색 칸은 화면 폭(components.css)이 아니라 트리 폭에 맞춘다: 왼쪽 탭 줄 뒤로 들어가 전체 거르개와 입력란 앞이 가렸다 */
-  :root body[data-ui-skin] #tab-char .merged-subtab-pane[data-tab-id="tab-char"] > div > #tree-container { container-type: inline-size; }
+  :root body[data-ui-skin] #tab-char .merged-subtab-pane[data-tab-id="tab-char"] > div > #tree-container { container-type: size; }
   :root body[data-ui-skin] #tab-char .passive-search-drawer[open] { width: calc(100cqw - 14px); max-width: none; }
+  /* 트리가 170px쯤이라 열린 칸이 트리 밖으로 잘렸다(프리셋은 위, 투자 효과 총합은 아래, 밀어도 안 보임). 검색과 투자 효과 총합 단추를
+     한 줄에 두어 아래 칸 자리를 늘리고, 두 칸의 높이는 트리 높이에 맞춘다. 열린 프리셋은 도구 단추 위에 놓인다(검색 단추가 저장 단추를 덮었다) */
+  :root body[data-ui-skin] #tab-char .passive-tree-right-tools { flex-direction: row; justify-content: flex-end; align-items: flex-start; }
+  :root body[data-ui-skin] #tab-char .passive-tree-right-tools:has(> .passive-search-drawer[open]) > .passive-investment-summary { display: none; }
+  :root body[data-ui-skin] #tab-char .passive-investment-summary:not(.collapsed) { width: min(250px, calc(100cqw - 90px)); }
+  :root body[data-ui-skin] #tab-char .passive-investment-summary-body { max-height: calc(100cqh - 80px); }
+  :root body[data-ui-skin] #tab-char .passive-preset-drawer[open] { z-index: 11; }
+  :root body[data-ui-skin] #tab-char .passive-preset-drawer .passive-tree-planner { max-height: calc(100cqh - 96px); }
 }
 @media (max-width: 720px) and (orientation: landscape) and (max-height: 600px) {
   /* 720px 이하에서는 트리 도구(프리셋, 검색, 투자 효과 총합)가 트리 맨 위 한 줄이라 포인트 판은 왼쪽 아래에 둔다 */
   :root body[data-ui-skin] #tab-char .merged-subtab-pane[data-tab-id="tab-char"] > div > h2 { align-self: end; }
+  /* 도구 줄 아래로 여는 칸(화면의 40%, css/mobile.css)이 낮은 트리 밖으로 잘렸다: 트리 높이에서 도구 줄을 뺀 만큼 */
+  :root body[data-ui-skin] #tab-char .merged-subtab-pane[data-tab-id="tab-char"] > div > #tree-container { container-type: size; }
+  :root body[data-ui-skin] #tab-char #tree-container :is(.passive-preset-drawer > :not(summary), .passive-investment-summary-body) { max-height: calc(100cqh - 84px); }
 }
 @media (max-width: 1080px) and (orientation: landscape) and (max-height: 339px) and (pointer: coarse) {
   /* 주소창이 보이는 가로 휴대폰(높이 293px 안팎)은 지역 줄 · HUD · 전장 · 메뉴 띠가 들어갈 수 없다 — 세로로 돌리라는 안내만.
