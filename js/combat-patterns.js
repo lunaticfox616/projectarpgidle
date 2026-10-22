@@ -226,8 +226,18 @@
         enemy.patternTelegraphStartedAt = 0;
         enemy.patternArea = null;
     }
-    function warningMayStart(charge, chargePerSec, warnMs) {
-        return chargePerSec > 0 ? (1 - charge) / chargePerSec * 1000 <= warnMs : charge >= 0.5;
+    /** 정점, 우주 보스는 새 후딜이 없어 예전 시계 그대로다: 게이지 절반에서 예고하고 게이지가 찬 뒤에 쓴다(앞당겨 예고하면 공격이 9~18% 잦아졌다). */
+    const keepsOldClock = state => OWN_PATTERN_MODES.has(state.patternMode) || state.patternMode === 'cosmos';
+    function warningMayStart(state, charge, chargePerSec) {
+        if (keepsOldClock(state) || !(chargePerSec > 0)) return charge >= 0.5;
+        return (1 - charge) / chargePerSec * 1000 <= warningDuration(state);
+    }
+    /** 예고가 끝난 뒤: 새 시계는 예고가 발동 시각을 정해 게이지를 채우고, 예전 시계는 게이지가 찰 때까지 기다린다. */
+    function releaseAfterWarning(enemy, state, charge) {
+        if (keepsOldClock(state)) return charge >= 1;
+        // Once warned, this cast owns its clock. A new slow changes the next charge, not the already announced impact.
+        enemy.attackTimer = Math.max(charge, 1);
+        return true;
     }
 
     /** Lock the special's cells at warning time; moving the victim never retargets them.
@@ -249,7 +259,7 @@
         let key = `${state.patternMode || state.mode}:${state.attackNumber}`;
         let timestamp = Number.isFinite(Number(now)) ? Number(now) : getCombatTime();
         if (enemy.patternTelegraphKey !== key) {
-            if (!warningMayStart(charge, chargePerSec, warningDuration(state))) { clearBossTelegraph(enemy); return false; }
+            if (!warningMayStart(state, charge, chargePerSec)) { clearBossTelegraph(enemy); return false; }
             enemy.patternTelegraphKey = key;
             enemy.patternTelegraphStartedAt = timestamp;
             if (target) {
@@ -259,9 +269,7 @@
             }
         }
         if (timestamp - enemy.patternTelegraphStartedAt < warningDuration(state)) return false;
-        // Once warned, this cast owns its clock. A new slow changes the next charge, not the already announced impact.
-        enemy.attackTimer = Math.max(charge, 1);
-        return true;
+        return releaseAfterWarning(enemy, state, charge);
     }
 
     /** Live warnings, including attacks already released but not yet resolved. */
