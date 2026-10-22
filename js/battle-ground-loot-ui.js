@@ -99,33 +99,42 @@ const battleGroundLoot = (() => {
         ground.style.setProperty('--loot-width', box.width + 'px');
     }
 
+    const armWidth = (marker, side) => marker.querySelector(`.battle-loot-labels.${side}`)?.offsetWidth || 0;
+    /** Measures a shown pile's names once, with the side hide classes off (a hidden arm measures 0 wide). */
+    function measure(marker, labels) {
+        marker.classList.remove('cuts-left', 'cuts-right');
+        const row = labels.firstElementChild?.offsetHeight || 20;
+        const down = marker.querySelector('.battle-loot-labels.is-down');
+        marker.dataset.labelRow = String(row);
+        marker.dataset.labelHeight = String(labels.offsetHeight || labels.children.length * (row + 2));
+        setStyle(marker, '--up-height', marker.dataset.labelHeight + 'px');
+        marker.dataset.labelHalf = String(labels.offsetWidth / 2);
+        marker.dataset.downHalf = String(down ? down.offsetWidth / 2 : 0);
+        marker.dataset.leftWidth = String(armWidth(marker, 'is-left'));
+        marker.dataset.rightWidth = String(armWidth(marker, 'is-right'));
+    }
+
+    /** Side names cannot slide: one that would cross the field edge hides (a hidden arm is fine, see yieldCrowdedArms). */
+    function hideCutSides(marker, x, width) {
+        const left = x - 26, right = x + 26;
+        marker.classList.toggle('cuts-left', left - Number(marker.dataset.leftWidth) < 0 || left > width);
+        marker.classList.toggle('cuts-right', right < 0 || right + Number(marker.dataset.rightWidth) > width);
+    }
+
     function place(marker, point) {
         const labels = marker.querySelector('.battle-loot-labels');
         if (!labels) return; // a marker whose labels failed to build is rebuilt on the next frame (syncFloor)
         const x = Math.round(point.x), y = Math.round(point.y);
         setStyle(marker, 'left', x + 'px'); setStyle(marker, 'top', y + 'px');
         if (marker.hidden) return; // Measure when shown again, not as a zero-width hidden element.
-        if (!marker.dataset.labelRow) {
-            marker.classList.remove('cuts-left', 'cuts-right');
-            const row = labels.firstElementChild?.offsetHeight || 20;
-            const down = marker.querySelector('.battle-loot-labels.is-down');
-            marker.dataset.labelRow = String(row);
-            marker.dataset.labelHeight = String(labels.offsetHeight || labels.children.length * (row + 2));
-            setStyle(marker, '--up-height', marker.dataset.labelHeight + 'px');
-            marker.dataset.labelHalf = String(labels.offsetWidth / 2);
-            marker.dataset.downHalf = String(down ? down.offsetWidth / 2 : 0);
-            marker.dataset.leftWidth = String(marker.querySelector('.battle-loot-labels.is-left')?.offsetWidth || 0);
-            marker.dataset.rightWidth = String(marker.querySelector('.battle-loot-labels.is-right')?.offsetWidth || 0);
-        }
+        if (!marker.dataset.labelRow) measure(marker, labels);
         const view = canvasBox(canvas), half = Number(marker.dataset.labelHalf), shift = edgeShift(x, half, view.width);
         const height = Number(marker.dataset.labelHeight);
         // A visible pile whose names cannot fit above it uses the less-clipped side, keeping its first name nearest the picture.
         const above = EDGE_PAD - (y - 30 - height), below = y + 24 + height - (view.height - EDGE_PAD);
         const under = y >= 0 && above > 0 && below < above;
         marker.classList.toggle('is-under', under);
-        // Side names cannot slide: one that would cross the field edge hides (a hidden arm is fine, see yieldCrowdedArms).
-        marker.classList.toggle('cuts-left', x - 26 - Number(marker.dataset.leftWidth) < 0 || x - 26 > view.width);
-        marker.classList.toggle('cuts-right', x + 26 < 0 || x + 26 + Number(marker.dataset.rightWidth) > view.width);
+        hideCutSides(marker, x, view.width);
         setStyle(marker, '--label-shift', shift + 'px');
         setStyle(marker, '--down-shift', edgeShift(x, Number(marker.dataset.downHalf), view.width) + 'px');
         stackLabel(marker, { x, y, half, shift, height, under, floor: view.height - EDGE_PAD, row: Number(marker.dataset.labelRow) });
