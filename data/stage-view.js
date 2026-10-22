@@ -112,8 +112,10 @@ const STAGE_ROOMS = Object.freeze({
     /** 방 그림에 함께 담는 둘레의 벽 칸 수(좌우, 위, 아래). openFrame: 배경 그림을 쓰는 방(벽이 없어 바닥과 길이 화면 끝까지 간다). */
     frame: Object.freeze({ side: 3, top: 5, bottom: 2 }),
     openFrame: Object.freeze({ side: 7, top: 6, bottom: 7 }),
-    /** 배경 그림을 쓰는 방에서 바닥의 앞쪽 끝이 놓이는 세로 자리(화면 높이의 비율): 그 아래는 HUD가 덮는다. 좁고 낮은 전장(가로 휴대폰)은 narrow. */
-    floorBottom: Object.freeze({ wide: 0.745, narrow: 0.6 }),
+    /** 배경 그림을 쓰는 방에서 바닥의 앞쪽 끝이 놓이는 세로 자리(화면 높이의 비율): 그 아래는 HUD가 덮는다. 좁고 낮은 전장(가로 휴대폰)은 narrow, 왼쪽 HUD 배치는 sideHud. */
+    floorBottom: Object.freeze({ wide: 0.745, narrow: 0.6, sideHud: 0.85 }),
+    /** 왼쪽 HUD 배치에서는 하단 HUD 공제 대신 최소 타일 한 칸과 이 여유만 남긴다. 타일 크기는 기존 규칙을 유지한다. */
+    sideHudGap: 8,
     /** 넓은 화면에서 바닥의 앞쪽 끝이 전장의 아래 끝에서 이만큼(전장의 px)은 떨어져 있어야 한다: 하단 HUD(.player-hud)의 높이다(어느 창
      * 크기에서나 244px). 2026-10-13 돌려 본 결과: 높이 864 화면에서 앞쪽 문이 가운데 구슬(미니맵)에 가려졌다. */
     hudClear: 244,

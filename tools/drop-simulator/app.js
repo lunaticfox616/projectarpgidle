@@ -40,6 +40,7 @@
             + `<span class="glyph"></span>${esc(leaf ? leaf.name : id)}${count > 1 ? ` <b>×${count}</b>` : ''}${first ? ' <i>새 잎</i>' : ''}</span>`;
     }
     function otherChip(drop) {
+if (drop.kind === 'yarn') return `<span class="sim-chip is-yarn"><span class="glyph"></span>${esc(drop.name)} <i>${drop.grade}등급</i></span>`;
         if (drop.kind === 'jewel') return `<span class="sim-chip is-${drop.rarity}${momentClass(drop.moment)}"><span class="glyph"></span>${esc(drop.name)}</span>`;
         if (drop.kind === 'talisman') return `<span class="sim-chip${momentClass(drop.moment)}"><span class="glyph"></span>야생 부적 ${esc(drop.name || drop.currency)}</span>`;
         return `<span class="sim-chip"><span class="glyph"></span>${drop.gemKind === 'attack' ? '공격' : '보조'} 젬 ${esc(drop.name || '잔향')}</span>`;
@@ -81,6 +82,7 @@
             stat('체이싱 티어', fixed(r.momentsPerMap.jackpot, 3), r.momentsPerMap.jackpot ? `${Math.round(1 / r.momentsPerMap.jackpot)}판에 한 번꼴` : '판마다', 'jackpot'),
             stat('보물 무리', fixed(r.treasurePerMap), '판마다'),
             stat('기억의 잎', fixed(r.leavesPerMap), `본 잎 ${r.leafSeen}/${catalog.leaves.length}`, 'leaf'),
+stat('실타래', fixed(r.yarnPerMap), `완성 세트 ${fixed(r.yarnSetsPerMap)}, 본 종류 ${r.yarnSeen}`),
             stat('재화 종류', fixed(r.currencyKindsPerMap, 1), '판마다'),
             stat('계산', `${(result.elapsedMs / 1000).toFixed(1)}초`, `등급 ${result.options.tier}, 루프 ${result.options.loop}`)
         ].join('');
@@ -91,7 +93,7 @@
     }
     function renderKinds(report) {
         const rows = ['normal', 'magic', 'rare', 'unique'].map(rarity => [`장비 ${RARITY[rarity]}`, report.totals[`equipment:${rarity}`] || 0, rarity === 'unique' ? 'unique' : ''])
-            .concat([['주얼', report.totals.jewel || 0], ['야생 부적', report.totals.talisman || 0], ['젬', report.totals.gem || 0], ['기억의 잎', report.leavesPerMap, 'leaf']]);
+            .concat([['주얼', report.totals.jewel || 0], ['야생 부적', report.totals.talisman || 0], ['젬', report.totals.gem || 0], ['기억의 잎', report.leavesPerMap, 'leaf'], ['실타래', report.yarnPerMap]]);
         $('sim-kinds').innerHTML = barsHtml(rows, Math.max(...rows.map(row => row[1])));
     }
     function renderCurrencies(report) {
@@ -108,7 +110,9 @@
     }
     function kindLabel(kind) {
         const [type, ...rest] = kind.split(':'), id = rest.join(':');
-        const labels = { currency: () => (catalog.currencies[id] || {}).name || id, unique: () => `고유 ${id}`, leaf: () => `잎 ${(leafOf(id) || {}).name || id}`,
+        const labels = {
+yarn: () => `실타래 ${(catalog.yarns[id] || {}).name || id}`,
+            currency: () => (catalog.currencies[id] || {}).name || id, unique: () => `고유 ${id}`, leaf: () => `잎 ${(leafOf(id) || {}).name || id}`,
             map: () => `${RARITY[id] || id} 지도석`, fragment: () => catalog.fragments[id] || id, jewel: () => `주얼 ${id}`, talisman: () => `야생 부적 ${id}`,
             gem: () => (id.startsWith('attack') ? '공격 젬' : '보조 젬'), equipment: () => ({ corrupted: '타락 장비', exceptional: '특출 장비', socket: '소켓 장비' })[id] || `장비 ${RARITY[id] || id}` };
         return (labels[type] || (() => kind))();

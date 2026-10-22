@@ -269,6 +269,7 @@ function retireWoodMonsterVisual(enemy, zone) {
 
 /** Save boundary: retain prior access except locked trial bypasses. */
 function normalizeContentProgressionSave(merged, save) {
+    merged.knitting = knitting.normalize(merged.knitting, merged.season);
     merged.contentProgression = contentProgression.restore(save.contentProgression, merged, Object.keys(save).length > 0);
     inheritRetiredExpertAccess(merged.contentProgression, save);
     contentProgression.sync(merged);

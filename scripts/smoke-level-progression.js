@@ -250,4 +250,26 @@ for (const zone of dropOrigins) {
     assert(local.some(item => item.rarity === 'unique'), 'the origin comparison must exercise unique generation');
     assert(local.some(item => item.rarity !== 'unique'), 'the origin comparison must exercise ordinary bases');
 }
+// The first act gives exactly the previewed gear and cannot destroy a chosen reward through loot filters.
+for (const classId of json('Object.keys(HANA_WEAPON_COMBOS.classWeapons)')) {
+    for (const choiceIndex of [0, 1, 2]) {
+        run(`game=mergeDefaults({selectedClassId:${JSON.stringify(classId)}});grantClassStarterWeapon(game.selectedClassId);
+            var firstChoice=getActRewardChoices(0)[${choiceIndex}], beforeReward=JSON.stringify(game.equipment);
+            var firstPreview=buildActRewardPreviewItem(0,firstChoice), previewChange=measureActRewardDps(0,firstChoice);`);
+        assert.deepEqual(json('equipmentCrafting.affixCounts(firstPreview)'), { prefix: 1, suffix: 1, special: 0 },
+            `${classId}: first-act reward ${choiceIndex} obeys ordinary magic affix limits`);
+        assert(run('firstPreview.stats.every(stat=>!!findStoredEquipmentAffix(firstPreview,stat))'), 'every guaranteed option belongs on its base');
+        if (choiceIndex === 1) assert(run('previewChange.dps[1]>previewChange.dps[0]'), `${classId}: first weapon improves the starter`);
+        if (choiceIndex === 2) assert(run('previewChange.moveBonus>0'), `${classId}: boots visibly improve movement`);
+        assert.equal(run('JSON.stringify(game.equipment)'),run('beforeReward'),'preview does not change live gear');
+        run(`game.settings.autoSalvageEnabled=true;game.settings.autoSalvageRarities.magic=true;
+            game.settings.autoEquipEmptySlots=false;grantActRewardEntry(0,firstChoice);`);
+        assert.equal(run('game.inventory.length'),1,'chosen reward survives auto salvage');
+        const values = '.map(({id,val,tier})=>({id,val,tier}))';
+        assert.deepEqual(json('game.inventory[0].baseStats'+values),json('firstPreview.baseStats'+values));
+        assert.deepEqual(json('game.inventory[0].stats'+values),json('firstPreview.stats'+values),'actual affixes equal preview');
+    }
+}
+run('game.season=2;game.loopCount=1');
+assert.equal(run('getActRewardChoices(0)[1].fixedStarter'),undefined,'later loops keep random act rewards');
 console.log('smoke-level-progression passed');

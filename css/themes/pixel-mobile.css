@@ -2,6 +2,43 @@
 /* 도트 UI — 휴대폰 화면 틀: 지역 줄·귀환/목표 버튼·전투 기록 막대·하단 메뉴. 판·버튼 재질은 themes/pixel.css와 같다.
    지역 줄은 판 없이 그늘만 둔다(themes/rift-stage.css). */
 @media (max-width: 1080px) {
+  /* 대상이 바뀌어도 무대 크기는 고정. 아틀라스 정보와 정예·보스 카드는 전장 바깥의 같은 슬롯을 쓴다. */
+  :root body[data-ui-skin].mobile-battle-tab #tab-battle .combat-stage-info {
+    display: block;
+    position: relative;
+    order: -3;
+    flex: 0 0 96px;
+    height: 96px;
+    min-height: 96px;
+  }
+  :root body[data-ui-skin].mobile-battle-tab #tab-battle #ui-atlas-combat {
+    position: absolute;
+    inset: 0;
+    box-sizing: border-box;
+    width: 100%;
+    height: 96px;
+    margin: 0;
+    box-shadow: none;
+  }
+  :root body[data-ui-skin].mobile-battle-tab #tab-battle #enemy-area { top: 0; }
+  :root body[data-ui-skin].mobile-battle-tab #tab-battle .combat-panel:has(#ui-enemy-list:not([hidden]) .enemy-elite) #ui-atlas-combat { display: none; }
+  :root body[data-ui-skin].mobile-battle-tab #tab-battle #enemy-area .enemy-card.targeted:is(.enemy-elite, .enemy-boss) {
+    width: calc(100% - 16px);
+    margin-top: 4px;
+  }
+  :root body[data-ui-skin].mobile-battle-tab #tab-battle #enemy-area .enemy-nameplate { max-width: 100%; }
+  :root body[data-ui-skin].mobile-battle-tab #tab-battle #enemy-area .enemy-card.targeted .enemy-health-frame { height: 22px; }
+  :root body[data-ui-skin].mobile-battle-tab #tab-battle #enemy-area .enemy-card.targeted .enemy-hud-meta { inset: calc(100% + 2px) 32% auto 0; }
+  :root body[data-ui-skin].mobile-battle-tab #tab-battle #enemy-area .enemy-card.targeted > .enemy-combat-effect-strip {
+    position: absolute;
+    top: calc(100% + 2px);
+    right: 8px;
+    margin: 0;
+    flex-wrap: nowrap;
+    max-width: 28%;
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
   :root body[data-ui-skin].mobile-battle-tab #tab-battle .combat-feed {
     border: var(--px-light-border) solid transparent;
     border-image: var(--px-light-frame);
@@ -249,6 +286,16 @@
     /* Overrides inline presentation from the runtime (min-height 280px); the grid row sets the height here. */ min-height: 0 !important; }
 }
 @media (max-width: 1080px) and (orientation: landscape) and (max-height: 600px) {
+  /* 세로 여유를 써서 구슬·지도와 직업·룬을 두 줄로 접는다. 로그 내용이 전장 너비를 늘리거나 줄이지 않는다. */
+  :root body[data-ui-skin].mobile-battle-tab #battle-column .player-hud-shell {
+    grid-template-columns: var(--px-orb-size) minmax(0, 1fr) minmax(0, 1fr) var(--px-orb-size);
+    grid-template-rows: auto auto;
+    row-gap: 12px;
+  }
+  :root body[data-ui-skin].mobile-battle-tab #battle-column .player-hud-shell #act-exploration-panel { grid-column: 2 / 4; justify-self: center; }
+  :root body[data-ui-skin].mobile-battle-tab #battle-column .player-hud-shell .player-hud-left-wing { grid-column: 1 / 3; grid-row: 2; margin-left: 0; }
+  :root body[data-ui-skin].mobile-battle-tab #battle-column .player-hud-shell .player-hud-skill-rack { grid-column: 3 / 5; grid-row: 2; max-width: 100%; }
+  :root body[data-ui-skin].mobile-battle-tab #battle-column .player-hud-shell .player-health-frame :is(.combat-exp-bar, #ui-exp-level-label, .player-exp-percent) { grid-column: 4; }
   /* 가로 휴대폰: HUD는 지역 줄 아래 왼쪽 칸이라 돌판을 HUD 상자 안에 맞춘다(예전에는 돌판 윗단이 지역 줄을 덮었다) */
   :root body[data-ui-skin].mobile-primary-navigation.mobile-battle-tab #battle-column .player-hud-shell::before {
     box-sizing: border-box;

@@ -533,6 +533,7 @@ function getBackgroundRewardSummary(beforeState, afterState, combatMetrics, over
         stashTotal: afterStash,
         overflowSalvaged: Math.max(0, Math.floor(Number(overflowSalvaged) || 0)),
         masteryGains: getBackgroundMasteryGains(beforeState, afterState),
+        knitting: knitting.gainedBetween(beforeState.knitting, afterState.knitting),
         atlas: getBackgroundAtlasGains(beforeState, afterState)
     };
 }
@@ -667,7 +668,7 @@ function showBackgroundCombatResult(result) {
     overlay.className = 'background-combat-result-overlay';
     const summary = result.summary || {};
     const limits = result.limits || getBackgroundProgressResultLimits(game);
-    const body = renderBackgroundStoryLine() + renderBackgroundResultTiles(summary) + renderBackgroundResultLoot(summary) + renderBackgroundResultAtlas(summary.atlas)
+    const body = renderBackgroundStoryLine() + renderBackgroundResultTiles(summary) + renderBackgroundResultLoot(summary) + renderBackgroundResultAtlas(summary.atlas) + knittingUi.offlineHtml(summary.knitting)
         + renderBackgroundResultCurrencies(summary.currencies) + renderBackgroundResultGrowth(summary) + renderBackgroundResultNotes(result, summary, limits);
     const close = "hideItemTooltip();document.getElementById('background-combat-result-overlay').remove()";
     overlay.innerHTML = `<div class="background-combat-result-card" role="dialog" aria-modal="true" aria-labelledby="background-result-title">${renderBackgroundResultHeader(result, limits)}`
@@ -1139,6 +1140,8 @@ function commandBattlefieldMove(canvas, event) {
     let point = getBattlefieldClientPoint(canvas, event.clientX, event.clientY);
     let npc = actTitleCard.npcAt(point);
     if (npc && contentUnlockUi.openNpc(npc)) return;
+    const door = stageDoorMarks.targetAt(point);
+    if (door) { actExplorationUi.commandMove(door); return; }
     if (actExplorationUi.lockOnAt(point)) return;
     let cell = actExplorationView.cellAt(point);
     if (cell) actExplorationUi.commandMove(cell);
@@ -5059,7 +5062,7 @@ function resetHeroSelectionForSave() {
 function playLoopRewriteEffect() {
     let overlay = document.getElementById('loop-rewrite-overlay');
     if (!overlay) return;
-    overlay.innerHTML = '<div class="rewrite-card"><div class="rewrite-title">세계가 되감기는 중…</div><div class="rewrite-sub">흔적을 거슬러, 이전 루프로 복귀합니다.</div></div>';
+    overlay.innerHTML = '<div class="rewrite-card"><div class="rewrite-title">세계가 되감기는 중…</div><div class="rewrite-sub">전투의 기억을 간직한 채, 새로운 루프를 시작합니다.</div></div>';
     document.body.classList.add('loop-rewrite-active');
     overlay.classList.remove('active');
     void overlay.offsetWidth;
@@ -7963,6 +7966,22 @@ function updateUiEnemyTraitPanel(traitEl, labels, display, fullTooltip, isBoss) 
     }, 2600);
 }
 
+/** Use the existing information line for the special currently preparing/releasing; ordinary attacks retain traits. */
+function updateFocusedEnemyTraitPanel(traitEl, enemy, tags) {
+    const isBoss = !!(enemy.isBoss || enemy.bossPhase);
+    const pending = pendingEnemyCombatAttacks.find(attack => attack.enemyId === enemy.id);
+    const cast = isBoss ? enemyAttackRules.castBar(enemy, getCombatTime(), pending) : null;
+    const traits = getUiEnemyTraitLabels(tags);
+    const labels = cast?.label ? [cast.label] : traits;
+    const display = getUiEnemyTraitDisplayText(labels);
+    const pattern = enemy.patternMode ? getBossPatternDescription(enemy.patternMode) : '';
+    const tooltip = [cast?.label, traits.join(', '), pattern].filter(Boolean).join('\n');
+    traitEl.classList.toggle('is-casting', !!cast?.label);
+    updateUiEnemyTraitPanel(traitEl, labels, display, tooltip, isBoss);
+    if (cast?.label) setElementAttribute(traitEl, 'data-enemy-trait-kind', '보스 행동');
+    traitEl.closest('.enemy-card').classList.toggle('has-trait-line', labels.length > 0);
+}
+
 function showEnemyTraitTooltip(event) {
     let anchor = event.currentTarget || (event.target && event.target.closest
         ? event.target.closest('.enemy-traits') : null);
@@ -8325,17 +8344,7 @@ function updateCombatUI(pStats) {
             } else setElementText(hpTextEl, `${focusedEnemy.energyShield > 0 ? `보호막 ${formatSettingNumber(focusedEnemy.energyShield, 'showEnemyHpComma')}, ` : ''}${formatSettingNumber(Math.max(0, focusedEnemy.hp), 'showEnemyHpComma')}/${formatSettingNumber(focusedEnemy.maxHp, 'showEnemyHpComma')}`);
         }
         patchCombatEffectStrip(ailmentEl, effectMarkup);
-        if (traitEl) {
-            let showTraits = !!(focusedEnemy.isElite || focusedEnemy.isBoss || focusedEnemy.bossPhase);
-            let traitLabels = getUiEnemyTraitLabels(showTraits ? tags : []);
-            let traitDisplay = getUiEnemyTraitDisplayText(traitLabels);
-            let patternText = focusedEnemy.patternMode && typeof getBossPatternDescription === 'function'
-                ? getBossPatternDescription(focusedEnemy.patternMode) : '';
-            let fullTooltip = [traitDisplay.fullText, patternText].filter(Boolean).join('\n');
-            updateUiEnemyTraitPanel(traitEl, traitLabels, traitDisplay, fullTooltip, enemyHudTier === 'boss');
-            // 특성 줄이 보이면 상태 이상 아이콘 줄은 그 아래로 내려간다(pixel-hud.css .has-trait-line)
-            enemyListEl.querySelector('.enemy-card.targeted').classList.toggle('has-trait-line', traitLabels.length > 0);
-        }
+        if (traitEl) updateFocusedEnemyTraitPanel(traitEl, focusedEnemy, enemyHudTier === 'mob' ? [] : tags);
     }
 }
 
@@ -8715,6 +8724,7 @@ const renderCharacterPassiveSpecialStats = function(pStats) {
 /** 장비창의 요약, 가방 머리, 새 아이템 표시(js/equipment-window-ui.js, 2026-10-10 개편: 옵션 티어와 품질은 뺐다). */
 function renderEquipmentLoadoutSummary(pStats) {
     equipmentWindowUi.render(pStats);
+    knittingUi.render();
 }
 
 function updateInventoryFullWarnings() {

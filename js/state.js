@@ -2350,6 +2350,7 @@ const defaultGame = {
     saveVersion: 19,
     // Permanent ledger: income follows CONTENT_UNLOCK_POINT_AWARDS (contentProgression.earnedBy), starting at loop two. carry: points a
     // save from before 2026-10-21 keeps beyond those awards (the earlier table's), 0 for a new game.
+    knitting: { season: 1, counts: {}, seen: [], knitted: {}, once: [] },
     contentProgression: { version: 9, highestLoop: 1, carry: 0, unlocked: [], paidCosts: {}, inherited: [], automatic: [], grandfathered: [] },
     loopChallenge: null,
     loopChallengeHistory: [],

@@ -11,7 +11,7 @@ var dropSimulation = (() => {
 
     function wrapCapturePoints() {
         const required = ['addItemToInventory', 'receiveJewelDrop', 'announceWildTalisman', 'rollEnemyGemReward', 'handleEnemyDeath',
-            'finishEncounterRun', 'startEncounterRun', 'getEquipmentGridVisualAsset'];
+            'receiveKnittingYarn', 'finishEncounterRun', 'startEncounterRun', 'getEquipmentGridVisualAsset'];
         const missing = required.filter(name => typeof globalThis[name] !== 'function');
         if (missing.length) throw new Error(`드랍 시뮬레이터가 쓰는 게임 함수가 없습니다: ${missing.join(', ')}`);
         globalThis.addItemToInventory = item => { normalizeItem(item); record({ kind: 'equipment', item }); return true; };
@@ -27,6 +27,9 @@ var dropSimulation = (() => {
             record({ kind: 'gem', reward });
             return reward;
         };
+
+        const receiveYarn = globalThis.receiveKnittingYarn;
+        globalThis.receiveKnittingYarn = id => { record({ kind: 'yarn', id }); return receiveYarn(id); };
     }
 
     /** A loop-`loop` endgame hero (scripts/lib/offline-endgame-fixture.js already ran) with every content open and nothing filtered. */
@@ -135,12 +138,32 @@ var dropSimulation = (() => {
     const fragmentGains = (before, after) => Object.fromEntries(Object.entries(after).map(([id, count]) => [id, count - (before[id] || 0)])
         .filter(([, gain]) => gain > 0));
 
+    const yarnSnapshot = () => ({ ...game.knitting.counts });
+    /** Threads a map gave and the sets they filled (no exchange runs in the simulator, so a crossed multiple of the set is one set). */
+    function yarnGains(before) {
+        const pieces = {}, sets = {};
+        for (const [id, count] of Object.entries(game.knitting.counts)) {
+            const was = before[id] || 0;
+            if (count <= was) continue;
+            pieces[id] = count - was;
+            const set = knitting.row(id).set, filled = Math.floor(count / set) - Math.floor(was / set);
+            if (filled > 0) sets[id] = filled;
+        }
+        return { pieces, sets };
+    }
+
     /** One map from opening to completion: what it gave, by kind. */
+    /** One map from opening to completion: what it gave, by kind. Threads are recorded only once knitting is open (the loop is fixed
+     * for the whole map); before that the game's rollKill stops at its first gate and nothing here copies or compares thread stock. */
     function runMap(options) {
         sink = [];
+        const knittingOpen = contentProgression.isUnlocked('knitting');
         const currencies = currencySnapshot(), fragments = { ...game.atlas.fragments }, leaves = leafSnapshot();
+        const yarns = knittingOpen ? yarnSnapshot() : null;
         const counts = { regular: 0, elite: 0, boss: 0, objects: 0, treasure: 0, golden: 0 };
         const map = openMap(options);
+        if (knittingOpen && !knitting.zoneKeys(getZone(game.currentZoneId)).includes('node:' + map.node))
+            throw new Error(`처치 지역에 지도 키(node:${map.node})가 없어 실타래 주력이 작동하지 않습니다.`);
         const run = game.atlas.run, encounters = [...run.encounters], golden = [...run.golden];
         clearMap(counts);
         const result = game.atlas.lastResult || {};
@@ -151,10 +174,11 @@ var dropSimulation = (() => {
             omen: lootOmens.describe(map.omen), omenStrength: map.omen ? lootOmens.strengthOf(map) : 0,
             outcome: result.outcome || 'unknown' }, counts, drops: rows.map(summarize), currencies: gains, currencyMoments: currencyMoments(gains),
             maps: maps.map(entry => ({ tier: entry.tier, rarity: entry.rarity, node: entry.node })),
-            fragments: fragmentGains(fragments, game.atlas.fragments), leaves: leafGains(leaves) };
+            fragments: fragmentGains(fragments, game.atlas.fragments), leaves: leafGains(leaves), yarns: yarns && yarnGains(yarns) };
     }
 
     function summarize(row) {
+        if (row.kind === 'yarn') { const yarn = knitting.row(row.id); return { kind: 'yarn', id: row.id, name: yarn.name, grade: yarn.grade, set: yarn.set }; }
         if (row.kind === 'equipment') return summarizeEquipment(row.item);
         if (row.kind === 'jewel') return { kind: 'jewel', name: row.item.name, rarity: row.item.rarity, moment: lootMoments.ofItem(row.item, 'jewel') };
         if (row.kind === 'talisman') return { kind: 'talisman', name: row.item ? row.item.name : null, currency: row.currency,
@@ -176,6 +200,7 @@ var dropSimulation = (() => {
         const currencies = Object.fromEntries(Object.keys(ORB_DB).map(key => [key, { name: ORB_DB[key].name,
             icon: ORB_DB[key].icon || null, moment: lootMoments.ofCurrency(key) }]));
         return { omens: LOOT_OMENS.list.map(({ id, name, note, tone, kind }) => ({ id, name, note, tone, kind })), currencies,
+yarns: Object.fromEntries(KNITTING.list.map(row => [row.id, { name: row.name, grade: row.grade, set: row.set }])),
             leaves: memoryLeaves.list.map(leaf => ({ id: leaf.id, name: leaf.name, set: leaf.set, source: memoryLeaves.sourceText(leaf),
                 reward: memoryLeaves.rewardText(leaf) })),
             regions: ATLAS.regions.map(({ id, name, tint }) => ({ id, name, tint })),

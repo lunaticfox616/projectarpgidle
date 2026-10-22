@@ -220,7 +220,7 @@ const actExplorationUi=(()=>{
         const point=event?getBattlefieldClientPoint(canvas,event.clientX,event.clientY):null,npc=point?actTitleCard.npcAt(point):null;
         actTitleCard.hover(npc);
         const run=actExplorationState.current(game),enemy=point&&run&&run.status==='active'?battleDrawList.enemyAt(point):null;
-        const cursor=npc||enemy?'pointer':'';
+        const cursor=npc||enemy||stageDoorMarks.targetAt(point)?'pointer':'';
         if(canvas.style.cursor!==cursor)canvas.style.cursor=cursor;
     }
     /** An explicit move order (minimap, large map, battlefield click): walk there; auto-move stays as it was. */

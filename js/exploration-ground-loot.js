@@ -80,6 +80,9 @@ actExplorationState.groundLoot = (() => {
         lay(run, { gx: cell.gx, gy: cell.gy, kind: 'leaf', leaf });
     }
     /** Lays the loop's starter gem (its name) on a walkable cell. */
+    function placeYarn(run, cell, yarn) {
+        lay(run, { gx: cell.gx, gy: cell.gy, kind: 'yarn', yarn });
+    }
     function placeGem(run, cell, gem) {
         lay(run, { gx: cell.gx, gy: cell.gy, kind: 'gem', gem });
     }
@@ -140,6 +143,7 @@ actExplorationState.groundLoot = (() => {
         core: (state, row) => { coreItems.keep(row.item, state); },
         talisman: (state, row) => { talismans.receiveWild(state, { talisman: row.item, overflow: row.overflow }); },
         leaf: (state, row) => { memoryLeaves.receive(state, row.leaf); },
+        yarn: (state, row) => { knitting.receive(state, row.yarn); },
         gem: (state, row) => { receiveStarterGem(state, row.gem); }
     };
     function settleOnLoad(state, run) {
@@ -154,7 +158,7 @@ actExplorationState.groundLoot = (() => {
         const map = actExplorationMap.forRun(run), ids = new Set();
         for (const row of run.groundLoot) {
             if (!validRow(map, row)) throw Error('잘못된 탐험 바닥 아이템 저장');
-            if (['talisman', 'leaf', 'gem'].includes(kindOf(row))) continue; // a rolled talisman has no id until the stump box stores it; leaves repeat; a gem is a name
+            if (['talisman', 'leaf', 'yarn', 'gem'].includes(kindOf(row))) continue; // a rolled talisman has no id until the stump box stores it; leaves repeat; a gem is a name
             const key = row.item ? `item:${row.item.id}` : `currency:${row.gx},${row.gy},${row.currency}`;
             if (ids.has(key)) throw Error('중복된 탐험 바닥 아이템 저장');
             ids.add(key);
@@ -169,6 +173,7 @@ actExplorationState.groundLoot = (() => {
         core: row => loot.validCore(row.item),
         talisman: row => !!talismans.normalizeTalisman(row.item) && loot.isCurrency(row.overflow),
         leaf: row => memoryLeaves.validId(row.leaf) && !row.item,
+        yarn: row => knitting.validId(row.yarn) && !row.item,
         gem: row => typeof row.gem === 'string' && !!SKILL_DB[row.gem] && !row.item
     };
     function validRow(map, row) {
@@ -177,5 +182,5 @@ actExplorationState.groundLoot = (() => {
         return !!check && check(row);
     }
 
-    return { PICKUP_RANGE, kindOf, place, placeItem, placeLeaf, placeGem, placeCurrency, takeNear, takeAt, takeAll, nearest, falling, piles, reservedItems, settleOnLoad, validate };
+    return { PICKUP_RANGE, kindOf, place, placeItem, placeLeaf, placeYarn, placeGem, placeCurrency, takeNear, takeAt, takeAll, nearest, falling, piles, reservedItems, settleOnLoad, validate };
 })();

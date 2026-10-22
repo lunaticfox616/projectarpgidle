@@ -10,7 +10,8 @@ function dropKinds(map) {
             if (drop.corrupted) kinds.push('equipment:corrupted');
             if (drop.exceptional) kinds.push('equipment:exceptional');
             if (drop.socket) kinds.push('equipment:socket');
-        } else if (drop.kind === 'gem') kinds.push(`gem:${drop.gemKind}${drop.awakened ? ':awakened' : ''}`);
+} else if (drop.kind === 'yarn') kinds.push(`yarn:${drop.id}`);
+        else if (drop.kind === 'gem') kinds.push(`gem:${drop.gemKind}${drop.awakened ? ':awakened' : ''}`);
         else kinds.push(`${drop.kind}:${drop.name || drop.currency || drop.rarity || ''}`);
     }
     for (const key of Object.keys(map.currencies)) kinds.push(`currency:${key}`);
@@ -59,6 +60,11 @@ function summarize(result) {
         treasurePerMap: per(maps.reduce((sum, map) => sum + (map.counts.treasure || 0), 0)),
         leavesPerMap: per(maps.reduce((sum, map) => sum + Object.values((map.leaves && map.leaves.gained) || {}).reduce((a, b) => a + b, 0), 0)),
         leafSeen: new Set(maps.flatMap(map => (map.leaves && map.leaves.first) || [])).size,
+        yarnPerMap: per(maps.reduce((s, m) => s + Object.values((m.yarns && m.yarns.pieces) || {}).reduce((a, b) => a + b, 0), 0)),
+        yarnSetsPerMap: per(maps.reduce((s, m) => s + Object.values((m.yarns && m.yarns.sets) || {}).reduce((a, b) => a + b, 0), 0)),
+        yarnSeen: new Set(maps.flatMap(m => Object.keys((m.yarns && m.yarns.pieces) || {}))).size,
+        yarnByGrade: Object.fromEntries([1, 2, 3, 4, 5].map(grade => [grade,
+            per(maps.reduce((s, m) => s + m.drops.filter(d => d.kind === 'yarn' && d.grade === grade).length, 0))])),
         kills: { regular: per(maps.reduce((s, m) => s + m.counts.regular, 0)), elite: per(maps.reduce((s, m) => s + m.counts.elite, 0)),
             objects: per(maps.reduce((s, m) => s + m.counts.objects, 0)) },
         totals: Object.fromEntries(Object.entries(totals).map(([key, count]) => [key, per(count)])),

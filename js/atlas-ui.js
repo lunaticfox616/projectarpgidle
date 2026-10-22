@@ -314,6 +314,9 @@ const atlasUi = (() => {
         const leaf = memoryLeaves.leaf(id);
         return { rank: LEAF_RANK, html: `<span class="atlas-find is-leaf">${renderPixelIcon('leaf', 'atlas-find-leaf')}${escapeHTML(leaf ? leaf.name : id)}${count > 1 ? ` <b>×${count}</b>` : ''}</span>` };
     }
+    function yarnFind([id, count]) {
+        return { rank: 1, html: `<span class="atlas-find">실타래 ${escapeHTML(knitting.row(id).name)} <b>×${count}</b></span>` };
+    }
     function currencyFind([key, count]) {
         const moment = lootMoments.ofCurrency(key), src = ORB_DB[key] && ORB_DB[key].icon;
         const icon = src ? `<img class="atlas-find-icon" src="${src}" alt="" aria-hidden="true">` : '';
@@ -321,7 +324,7 @@ const atlasUi = (() => {
     }
     function findsHtml(receipt) {
         const currencies = Object.entries(receipt.currencies).filter(([key]) => lootMoments.ofCurrency(key));
-        const finds = [...receipt.items.map(itemFind), ...Object.entries(receipt.leaves).map(leafFind), ...currencies.map(currencyFind)];
+        const finds = [...receipt.items.map(itemFind), ...Object.entries(receipt.leaves).map(leafFind), ...Object.entries(receipt.yarns || {}).map(yarnFind), ...currencies.map(currencyFind)];
         return finds.sort((a, b) => b.rank - a.rank).slice(0, 8).map(find => find.html).join('');
     }
     function resultNotes(result) {

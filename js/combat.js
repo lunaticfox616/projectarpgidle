@@ -2357,7 +2357,7 @@ function runFightTick(pStats, hazardEvasion, walkedMs) {
         combatTacticsRuntime.recoverUntil = Math.max(combatTacticsRuntime.recoverUntil || 0, nowCast + getPlayerAttackRecoveryMs(pStats.aspd));
         performDoubleStrikes(pStats);
     }
-    mobilitySkill.cast({ blocked: castBlocked, inRange: inSkillRange, auto: !actExplorationProgress.holdPosition(hazardEvasion.holdPosition), stats: pStats }); // 이동 스킬: the player's key, or (auto-move on) closing the gap the main gem can't reach
+    mobilitySkill.cast({ blocked: castBlocked, inRange: inSkillRange, auto: !actExplorationProgress.holdPosition(hazardEvasion.holdPosition || hazardEvasion.warning), stats: pStats }); // 이동 스킬: the player's key, or (auto-move on) closing the gap the main gem can't reach
     runSummonAttackTick(pStats);
     performMonsterAttacks(pStats);
 }
@@ -5619,10 +5619,13 @@ function advancePlayerExplorationFrame(now, pStats) {
  */
 function continuePlayerExplorationApproach(pStats) {
     if (actExplorationProgress.holdPosition(false) || hasPlayerChannelBreakingAilment()) return;
-    if (getBossWarningCells(game, pendingEnemyCombatAttacks).length > 0 || isTrialHazardPositionHeld()) return;
+    const warned = getBossWarningCells(game, pendingEnemyCombatAttacks);
+    if (isTrialHazardPositionHeld() || (warned.length && isApexFight())) return;
+    const approach = bossWarningApproach(warned);
+    if (approach.hold) return;
     if (getCombatChannelGate(pStats, getCombatTime()).locked) return;
     if (getSkillTargets(pStats).length > 0) return;
-    updatePlayerGridEngagement(pStats);
+    updatePlayerGridEngagement(pStats, { avoidCells: { hard: approach.block, soft: groundHazardCells(), warned: approach.block } });
 }
 
 /**
@@ -5662,12 +5665,13 @@ function updatePlayerGridEngagement(pStats, options) {
  * stood still in a one-tile passage while the ranged harpy holding it shot at it), the nearest monster a step leads toward becomes
  * the target. @returns {boolean} whether a step began */
 function approachPlayerTarget(pStats, alive, target, avoidCells) {
-    const stepSec = getPlayerGridStepSec(pStats);
-    if (advanceGridUnitMovement(game.gridPlayer, getPlayerApproachCell(pStats, target), 0.1, stepSec, avoidCells)) return true;
+    const stepSec = getPlayerGridStepSec(pStats), cell = getPlayerApproachCell(pStats, target);
+    if (!warningAllowsStep(cell, avoidCells)) return false;
+    if (advanceGridUnitMovement(game.gridPlayer, cell, 0.1, stepSec, avoidCells)) return true;
     const canStep = enemy => canGridUnitStepToward(game.gridPlayer, getPlayerApproachCell(pStats, enemy), avoidCells);
     if (canStep(target)) return false;
     const open = findNearestGridEnemy(game.gridPlayer, alive.filter(enemy => enemy !== target && canStep(enemy)));
-    if (!open) return false;
+    if (!open || !warningAllowsStep(getPlayerApproachCell(pStats, open), avoidCells)) return false;
     combatTacticsRuntime.approachTargetId = open.id;
     return advanceGridUnitMovement(game.gridPlayer, getPlayerApproachCell(pStats, open), 0, stepSec, avoidCells);
 }
@@ -5683,11 +5687,25 @@ function getPlayerGridStepSec(pStats) {
 }
 
 /** A locked-on monster (js/act-exploration-state.js lockOn) that this attack does not reach: the hero steps toward it instead.
- * When no step toward it is free, the hero fights whatever it reaches. @returns {boolean} whether a step began */
+ * When no step toward it is free, the hero fights whatever it reaches. A warning blocks fallback walking to another target.
+ * @returns {boolean} whether this tick is held for the locked approach (walking, or waiting outside a warning) */
 function approachLockedEnemy(pStats, targets, avoidCells) {
     const locked = actExplorationState.lockedEnemy(actExplorationState.current(game));
     if (!locked || !game.enemies.includes(locked) || targets.some(hit => hit.enemy === locked) || isPlayerAttackRecovering()) return false;
-    return advanceGridUnitMovement(game.gridPlayer, getPlayerApproachCell(pStats, locked), 0.1, getPlayerGridStepSec(pStats), avoidCells);
+    const cell = getPlayerApproachCell(pStats, locked);
+    if (!warningAllowsStep(cell, avoidCells)) return targets.length === 0;
+    return advanceGridUnitMovement(game.gridPlayer, cell, 0.1, getPlayerGridStepSec(pStats), avoidCells);
+}
+
+/** A warning may stop the ordinary approach, but never redirects it into an automatic dodge or a different target. */
+function warningAllowsStep(target, avoidCells) {
+    const warned = avoidCells?.warned;
+    if (!warned?.length) return true;
+    const keys = new Set(warned.map(cell => gridCellKey(cell.gx, cell.gy)));
+    const baseHard = avoidCells.hard.filter(cell => !keys.has(gridCellKey(cell.gx, cell.gy)));
+    const ordinary = getGridApproachStep(game.gridPlayer, target, { ...avoidCells, hard: baseHard });
+    const safe = getGridApproachStep(game.gridPlayer, target, avoidCells);
+    return !!ordinary && !!safe && ordinary.gx === safe.gx && ordinary.gy === safe.gy;
 }
 
 /** 다가갈 자리: 옆으로만 치는 룬(js/combat-grid.js getSkillBand)이면 그 적이 띠 안에 드는 가장 가까운 자리(줄을 맞춘다), 아니면 그 적. */
@@ -6653,11 +6671,12 @@ function getEnemyLook(zone, marker, ctx) {
     const wispDefense = getWispEnemyDefenseBonuses(monsterVariant);
     return { ...art, trait, realmVisualSet, realmVisual, monsterVariant, wispDefense, wispVisual: wispDefense.isWisp ? monsterVariant : null };
 }
-/** A boss's art: a chaos boss visual (its art and tint), else the zone's boss art. */
+/** An atlas boss keeps its own roster identity. Act art remains the fallback for an undelivered sheet. */
 function getEnemyBossArt(zone, marker, isBoss, variantSeed) {
     const chaosBossVisual = isBoss ? getChaosBossVisual(zone, variantSeed) : null;
     const bossAssetKey = chaosBossVisual ? chaosBossVisual.assetKey : (isBoss && typeof getBossAssetKeyForZone === 'function' ? getBossAssetKeyForZone(zone, variantSeed, marker.storyStage ?? 0) : null);
-    return { chaosBossVisual, bossAssetKey };
+    const bossVisualId = isBoss ? zone.bossVisualId || null : null;
+    return { chaosBossVisual: bossVisualId ? null : chaosBossVisual, bossAssetKey, bossVisualId };
 }
 function getRealmVisualFor(realmVisualSet, isBoss, isElite, variantSeed) {
     const realmVisualRole = isBoss ? 'boss' : (isElite ? 'elite' : 'normal');
@@ -6777,7 +6796,7 @@ function getEnemyIdentityRecord(marker, spawn) {
         spriteVariantId: look.monsterVariant ? look.monsterVariant.id : null,
         monsterArchetype: look.wispVisual ? 'wisp' : null,
         monsterVisualSetId: look.realmVisualSet ? look.realmVisualSet.id : null,
-        monsterVisualId: look.realmVisual ? look.realmVisual.id : null,
+        monsterVisualId: look.bossVisualId || (look.realmVisual ? look.realmVisual.id : null),
         baseMonsterName: look.realmVisual ? look.realmVisual.name : (look.monsterVariant ? look.monsterVariant.name : null)
     };
 }
@@ -7110,10 +7129,12 @@ function getChaosBossElements(zone) {
     return [CHAOS_BOSS_ELEMENTS[depth % 4], CHAOS_BOSS_ELEMENTS[(depth + 1) % 4]];
 }
 
-/** An ocean current fixes the element, a chaos depth's boss its own (getChaosBossElements); otherwise one from the pool. */
+/** Current rules, authored boss body, chaos depth, then the ordinary random element pool. */
 function pickEnemyElement(zone, pool, isBoss) {
     if (hasOceanCurrent(zone, 'cold_current')) return 'cold';
     if (hasOceanCurrent(zone, 'warm_current')) return 'fire';
+    const own = isBoss && BOSS_BODY_ELEMENTS[zone.bossVisualId];
+    if (own) return own;
     const chaosBoss = isBoss ? getChaosBossElements(zone) : null;
     return chaosBoss ? chaosBoss[0] : rndChoice(pool);
 }
@@ -9754,6 +9775,7 @@ const receiveFloorItem = {
     core: row => { if (coreItems.keep(row.item)) dispatchRuntimeEvent('core-item-received', row.item); },
     talisman: row => announceWildTalisman(talismans.receiveWild(game, { talisman: row.item, overflow: row.overflow })),
     leaf: row => atlasFinds.receiveMemoryLeaf(row.leaf),
+    yarn: row => receiveKnittingYarn(row.yarn),
     gem: receiveStarterGemRow
 };
 /** The loop's starter gem picked up from the floor: the gem goes in here; the log line and, in a first loop, the equip guide come
@@ -9886,6 +9908,22 @@ function rollLootForEnemy(enemy) {
     rollHiveKeyDrop(enemy, mappingZone, ui);
     rollColonyTraceDrop(zone, ui);
     rollSporeDrop(enemy, zone, ui);
+    rollKnittingYarn(enemy, zone);
+}
+/** Threads share floor pickup and offline settlement. Reserve one-per-loop drops when laid, before the hero picks them up. */
+function rollKnittingYarn(enemy, zone) {
+    const id = knitting.rollKill(game, zone, enemy);
+    if (!id) return;
+    knitting.markDrop(game, id);
+    const run = explorationFloorFor(enemy);
+    if (run) actExplorationState.groundLoot.placeYarn(run, enemy, id);
+    else receiveKnittingYarn(id);
+}
+function receiveKnittingYarn(id) {
+    const result = knitting.receive(game, id);
+    if (!result) return;
+    combatLootReceipts.yarn(game, id);
+    dispatchRuntimeEvent('knitting-yarn', result);
 }
 function rollAwakenedEchoDrop(enemy, contentDropMul, gemAwakening, ui) {
     if (!(contentProgression.canDropCurrency('awakenedEcho') && gemAwakening && (enemy.isBoss || enemy.isElite))) return;
@@ -13079,8 +13117,16 @@ function retireDeadEnemyAttacks(enemy) {
     for (let i = pendingEnemyCombatAttacks.length - 1; i >= 0; i--) {
         const row = pendingEnemyCombatAttacks[i];
         const mine = row && (row.source ? row.source === enemy : row.enemyId === enemy.id);
-        if (mine && row.delivery === 'patternArea') pendingEnemyCombatAttacks.splice(i, 1);
+        if (mine && (enemy.isBoss || row.delivery === 'patternArea')) dropEnemyAttack(i, getCombatTime());
     }
+    if (enemy.isBoss) Object.assign(enemy, { patternArea: null, patternTelegraphKey: null, patternTelegraphStartedAt: 0, attackCast: null });
+}
+
+/** Remove the pending hit and its future pictures together; normal monsters' released projectiles survive their source. */
+function dropEnemyAttack(index, now) {
+    const [row] = pendingEnemyCombatAttacks.splice(index, 1);
+    bossMoves.cut(row.bossPattern && row.bossPattern.move, now);
+    for (let i = battleFx.length - 1; i >= 0; i--) if (battleFx[i]?.enemyFlight === row) battleFx.splice(i, 1);
 }
 
 /** Shots the last enemy let go before it died still land now, not at the first tick of the next fight: the tick runs enemy
@@ -13094,12 +13140,22 @@ function takePendingEnemyCombatAttack(enemyId, now) {
     let index = pendingEnemyCombatAttacks.findIndex(row => row && row.enemyId === enemyId);
     if (index < 0) return null;
     let attack = pendingEnemyCombatAttacks[index];
-    if (enemyAttackRules.cancelPending(attack,now)) { pendingEnemyCombatAttacks.splice(index,1); return null; }
+    if (attack.source.isBoss && attack.source.hp <= 0) { dropEnemyAttack(index,now); return null; }
+    if (enemyAttackRules.cancelPending(attack,now)) {
+        clearCancelledBossRecovery(attack.source, now);
+        dropEnemyAttack(index,now);
+        return null;
+    }
     if (attack.at > now) return null;
     if (attack.path && !enemyAttackRules.advanceFlight(attack,game,now)) return null;
     pendingEnemyCombatAttacks.splice(index, 1);
     if (attack.delivery === 'patternArea') landBossPatternArea(attack, now);
     return attack;
+}
+
+/** Interrupted ordinary specials never keep the recovery reserved for their unplayed stages. */
+function clearCancelledBossRecovery(enemy, now) {
+    if (enemy.isBoss && enemy.patternMode !== 'apex') enemy.apexRecoveryUntil = now;
 }
 
 /** A released special lands: all at once, or (a move, js/boss-moves.js) its next stage with the rest queued again. Ground bursts
@@ -13184,7 +13240,7 @@ function performMonsterAttacks(pStats) {
         if (!pendingAttack) enemy.attackTimer += 0.1 * atkRate;
         if (enemy.isBoss && typeof refreshBossPatternPreview === 'function') refreshBossPatternPreview(enemy);
         let bossPatternTelegraphReady = !!pendingAttack || (enemy.isBoss
-            ? updateBossPatternTelegraph(enemy, getCombatTime(), attackTarget) : enemyAttackRules.ready(enemy,getCombatTime(),attackTarget));
+            ? updateBossPatternTelegraph(enemy, getCombatTime(), attackTarget, atkRate) : enemyAttackRules.ready(enemy,getCombatTime(),attackTarget));
         let bossAttacksThisTick = 0;
         while (pendingAttack || enemy.attackTimer >= 1) {
             if (enemy.isBoss && bossAttacksThisTick >= 1) {
@@ -13639,15 +13695,14 @@ function performMonsterAttacks(pStats) {
             let topDamageEntry = damageBreakdown
                 .filter(row => row && row.amount > 0)
                 .sort((a, b) => (b.amount || 0) - (a.amount || 0))[0] || { ele: enemy.ele === 'phys' ? 'phys' : (enemy.ele || 'phys'), amount: dmg };
-            damageBreakdown.forEach(row => recordIncomingDamage(row.ele, row.amount, enemy.name, {
-                sourceType: 'monster',
-                sourceId: enemy.id,
-                sourceName: enemy.name
+            const damageSource = enemyAttackRules.damageName(enemy, bossPattern);
+            damageBreakdown.forEach(row => recordIncomingDamage(row.ele, row.amount, damageSource, {
+                sourceType: 'monster', sourceId: enemy.id, sourceName: enemy.name
             }));
             addBattleFx('playerHit', { enemyId: enemy.id, color: getElementColor(topDamageEntry.ele), damage: dmg, duration: 220, deflected: deflected,
                 targetMaxHp: getPlayerHpCap(pStats) });
             if (game.settings.showCombatLog && dmg > 0) {
-                let damageLog = `${getDamageElementIcon(topDamageEntry.ele)} ${enemy.name}의 공격으로 ${formatNumberKR(dmg)} 피해`;
+                let damageLog = `${getDamageElementIcon(topDamageEntry.ele)} ${damageSource}의 공격으로 ${formatNumberKR(dmg)} 피해`;
                 if (game.settings.showDetailedDamageLog === true) {
                     let breakdownText = damageBreakdown
                         .filter(row => row.amount > 0)
@@ -13655,12 +13710,12 @@ function performMonsterAttacks(pStats) {
                         .map(row => `${getDamageElementLabel(row.ele)} ${formatNumberKR(row.amount)}`)
                         .join(' / ');
                     let deflectText = deflected ? `, 🪶비껴냄 -${deflectReducePct}%` : '';
-                    damageLog = `🩸 [${getDamageElementLabel(topDamageEntry.ele)}] 피격 (${formatNumberKR(dmg)} 피해, ${breakdownText}${deflectText})`;
+                    damageLog = `🩸 [${getDamageElementLabel(topDamageEntry.ele)}] ${damageSource}에게 피격 (${formatNumberKR(dmg)} 피해, ${breakdownText}${deflectText})`;
                 }
                 addLog(damageLog, "attack-monster", { element:topDamageEntry.ele });
             }
             if (game.playerHp <= 0) {
-                handlePlayerDefeat(zone, pStats, null, { fatalElement: topDamageEntry.ele, sourceName: enemy.name });
+                handlePlayerDefeat(zone, pStats, null, { fatalElement: topDamageEntry.ele, sourceName: damageSource });
                 return;
             }
         }
@@ -13789,13 +13844,19 @@ function updateCombatHazardEscape(hazard, pStats, now, reason = '함정 회피')
     return true;
 }
 
-/** The cells auto battle walks out of now: a trap about to go off that the hero should not take, and a final boss's telegraphed combo.
- * (Other boss warnings are escaped by the mobility slot, js/mobility-skill.js.) */
+/** Existing automatic escape is limited to trial traps and final-boss combos; ordinary warnings only gate the approach. */
+const isApexFight = () => game.enemies.some(enemy => enemy.hp > 0 && enemy.patternMode === 'apex');
+/** Ordinary warnings forbid entry, not all walking. Do not escape an occupied warning or retreat to find a way around it. */
+function bossWarningApproach(warned) {
+    if (!warned.length || !hasGridCell(game.gridPlayer)) return { hold: false, block: [] };
+    const keys = new Set(warned.map(cell => gridCellKey(cell.gx, cell.gy)));
+    return { hold: isGridUnitInCellSet(game.gridPlayer, keys), block: warned };
+}
 function hardHazardCells() {
     let cells = [];
     if (trialHazardRuntime.active && trialHazardRuntime.active.shouldAvoid) cells.push(...trialHazardRuntime.active.cells);
     // 최종 보스의 연계는 이동 룬이 없어도 걸어서 대응한다. 기존 공격 후딜과 실제 이동 속도는 지킨다.
-    if (game.enemies.some(enemy => enemy.hp > 0 && enemy.patternMode === 'apex')) cells.push(...getBossWarningCells(game, pendingEnemyCombatAttacks));
+    if (isApexFight()) cells.push(...getBossWarningCells(game, pendingEnemyCombatAttacks));
     return cells;
 }
 /** Lasting ground (lava, frost, corrosion, shock): a soft danger. The hero walks around it when it can and fights in it when it must
@@ -13805,11 +13866,12 @@ function updateCombatHazardEvasion(pStats) {
     if (game.playerHp <= 0) return { avoiding: false, holdPosition: false };
     applyTrialTrapTick(pStats, true);
     if (game.playerHp <= 0) return { avoiding: false, holdPosition: false };
-    const cells = hardHazardCells();
-    let holdPosition = getBossWarningCells(game, pendingEnemyCombatAttacks).length > 0 || isTrialHazardPositionHeld();
+    const cells = hardHazardCells(), warned = getBossWarningCells(game, pendingEnemyCombatAttacks);
+    const approach = isApexFight() ? { hold: warned.length > 0, block: [] } : bossWarningApproach(warned);
+    let holdPosition = approach.hold || isTrialHazardPositionHeld();
     let avoiding = updateCombatHazardEscape({ cells, shouldAvoid: true }, pStats, getCombatTime(), '위험 범위 회피');
     let frozen = game.playerAilments.some(ail => ail.type === 'freeze' && ail.time > 0);
-    return { avoiding: avoiding || frozen, holdPosition, avoidCells: { hard: cells, soft: groundHazardCells() } };
+    return { avoiding: avoiding || frozen, holdPosition, warning: warned.length > 0, avoidCells: { hard: cells.concat(approach.block), soft: groundHazardCells(), warned: approach.block } };
 }
 
 /** The trap's name in the log and the defeat line: a trial's '시련 함정', or the zone's own (the atlas late arenas' '바닥 함정'). */
@@ -14397,6 +14459,7 @@ function resetLoopContents(kept) {
     game.mapExploreSubtab = 'map-explore-hunting';
     game.chaosRealm = preservedChaosRealm;
     atlas.onLoopReset(game);
+    knitting.resetForLoop(game);
     game.timeRift = preservedTimeRift;
     // 제단은 루프마다 비운다(2026-10-20 사용자: 루프를 넘기는 보관함이 되면 안 된다): 올린 장비는 가방처럼 사라지고 제단은 닫힌다
     Object.assign(game.timeRift, { altarOpen: false, altarUnique: null, altarRare: null, activePressure: null });

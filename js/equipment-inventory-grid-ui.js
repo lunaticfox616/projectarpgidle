@@ -272,6 +272,7 @@
         if (typeof renderEquipmentInventoryInspector === 'function') {
             renderEquipmentInventoryInspector(game.inventory.map((item, idx) => ({ item, idx })));
         }
+        if (typeof tutorialActionUi === 'object') tutorialActionUi.refresh();
     }
 
     function notify(message, tone) {

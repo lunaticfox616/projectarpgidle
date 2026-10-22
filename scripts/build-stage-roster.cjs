@@ -40,6 +40,8 @@ const { tidy } = require('./tidy-stage-art.cjs');
 
 const root = path.join(__dirname, '..');
 const args = process.argv.slice(2), OPTIONS = ['--forge', '--looks', '--roots', '--actions', '--attacks', '--deaths', '--motions'];
+// Reviewed six-frame delivery: append only; never remove or regenerate other actors.
+if (args[0] === '--append-pack') { require('./lib/append-roster-pack.cjs')(root, path.resolve(args[1])); process.exit(0); }
 const option = name => (args.includes(name) ? args[args.indexOf(name) + 1] : null);
 const forge = option('--forge'), looksFile = option('--looks'), rootsDir = option('--roots'), actionsDir = option('--actions'), attacksDir = option('--attacks');
 const deathsDir = option('--deaths'), motionsDir = option('--motions');

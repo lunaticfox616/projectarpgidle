@@ -213,7 +213,7 @@ const stageScene = (() => {
     function draw(ctx, actor, state) {
         if (actor.piece.doorRow) {
             stageDoorMarks.seal.draw(ctx, actExplorationState.current(game), actor.piece.doorRow,
-                { x: actor.point.x, y: actor.y, dot: stageActors.scaleFor(state.gridProj.tileW), hero: state.playerPos });
+                { x: actor.point.x, y: actor.y, dot: stageActors.scaleFor(state.gridProj.tileW) });
             return;
         }
         if (actor.piece.region) { stageRegion.draw(ctx, actor, state); return; }

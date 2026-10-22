@@ -265,6 +265,18 @@ const UNIQUE_EQUIPMENT_RULES = Object.freeze(Object.fromEntries([
     ['액막이 향로','ember_censer',29,30,0,30],
     ['군락을 사르는 향','coal_censer',41,45,0,45],
     ['마지막 수호의 향로','chapel_censer',49,55,0,55],
+    // 콘텐츠 귀속 고유(2026-10-22)
+    ['미궁 수문장의 관','bastion_helm',21,40,0,0],
+    ['층계참의 반지','topaz_ring',17,0,0,0],
+    ['도전자의 증표','valor_amulet',25,0,30,0],
+    ['불똥 맺힌 손마디','windguard_grips',33,0,60,0],
+    ['독침 엮은 흉갑','beehive_stinger_mail',37,40,40,0],
+    ['균열유리 장의','riftglass_robe',45,0,0,90],
+    ['해구 작살','echo_lance',41,45,45,0],
+    ['파수탑 감시 투구','phase_sentinel_helm',62,0,90,0],
+    ['구름 서고의 고리','eclipse_ring',65,0,0,60],
+    ['끝을 넘은 손','phasebound_gloves',72,60,60,0],
+    ['관측 너머의 대검','apocalypse_greatblade',80,150,0,0],
     // 체이싱 고유 아홉(2026-10-20, data/items.js)
     ['달을 벤 초승달','crescent_scimitar',53,60,60,0],
     ['세계수의 첫 껍질','dread_plate',53,110,0,0],

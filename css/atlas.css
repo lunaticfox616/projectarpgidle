@@ -200,6 +200,8 @@
 #ui-atlas .memory-tier.is-empty{opacity:.45}
 #ui-atlas-combat[hidden]{/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */display:none!important}
 #ui-atlas-combat{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 12px;border:1px solid #5d4a2e;background:#17130e;box-shadow:2px 2px 0 #000;color:#ece4cf;grid-column:1/-1}
+/* The live boss card owns this space; map controls remain in the map window. */
+.combat-panel:has(#ui-enemy-list:not([hidden]) .enemy-boss) #ui-atlas-combat{display:none}
 #ui-atlas-combat .atlas-hud-copy{display:flex;flex-direction:column;gap:3px;min-width:0}
 #ui-atlas-combat strong{font-size:12px;font-weight:600;line-height:1.4}
 #ui-atlas-combat strong span{margin-left:6px;color:#c9b27c;font-weight:400}

@@ -447,12 +447,16 @@ function beginExplorationGridStep(target,interval,avoid) {
 }
 /** Whether a step toward target is free for unit now, by the rule advanceGridUnitMovement steps by, without moving it. */
 function canGridUnitStepToward(unit, target, avoid) {
-    if (!hasGridCell(unit) || !target) return false;
+    return !!getGridApproachStep(unit, target, avoid);
+}
+/** Read the next real cardinal path step without moving the actor, for warning-aware approach decisions. */
+function getGridApproachStep(unit, target, avoid) {
+    if (!hasGridCell(unit) || !target) return null;
     const run = actExplorationState.current(game);
     const exploring = !!run && unit === game.gridPlayer;
     const probe = exploring ? { gx: unit.gx, gy: unit.gy } : { ...unit };
     const blocked = exploring ? getExplorationPlanningBlockedCells(run) : getGridBlockedCells(unit);
-    return stepAroundDanger(blocked, avoid, cells => gridStepToward(probe, target.gx, target.gy, cells));
+    return stepAroundDanger(blocked, avoid, cells => gridStepToward(probe, target.gx, target.gy, cells)) ? probe : null;
 }
 
 /** The hero plans its exploration step around fighters and its own reserved tile, but not around dormant packs: they wake
@@ -547,16 +551,26 @@ function findGridRetreatCell(unit, target, maxRange, previousCell, keepRows) {
     let stage = unit === game.gridPlayer ? actExplorationDoors.stageMap(actExplorationState.current(game)) : null;
     let open = cell => canPlaceGridFootprint(blocked, cell.gx, cell.gy, footprint) && !(stage && actExplorationRooms.doorAt(stage, cell))
         && (!keepRows || getGridUnitCells(target).some(row => Math.abs(row.gy - cell.gy) <= keepRows));
+    const turns = [];
     GRID_CARDINAL_STEPS.forEach(direction => {
         let gx = unit.gx + direction.dx, gy = unit.gy + direction.dy;
         if (!open({ gx, gy })) return;
-        let distance = getGridUnitDistance({ gx, gy, isBoss: unit.isBoss }, target);
-        if (distance <= currentDist || distance > maxRange) return;
+        let distance = getGridUnitDistance({ gx, gy, isBoss: unit.isBoss, footprint }, target);
         let backtrack = previousCell && gx === previousCell.gx && gy === previousCell.gy;
+        if (distance === currentDist && !backtrack) turns.push({ gx, gy });
+        if (distance <= currentDist || distance > maxRange) return;
         let score = distance - (backtrack ? 0.25 : 0);
         if (score > bestScore) { best = { gx, gy }; bestScore = score; }
     });
-    return best;
+    if (best) return best;
+    if (currentDist >= maxRange) return null;
+    // A wall can keep the cell gap unchanged for one side step. Only step away from the target's centre;
+    // a stationary target therefore cannot cause an A→B→A loop. Direct retreats retain their old priority.
+    const center = getGridUnitCenter(target);
+    const gap = cell => (cell.gx + (footprint.columns - 1) / 2 - center.gx) ** 2
+        + (cell.gy + (footprint.rows - 1) / 2 - center.gy) ** 2;
+    const turn = turns.reduce((farther, cell) => gap(cell) > gap(farther) ? cell : farther, unit);
+    return turn === unit ? null : turn;
 }
 
 /** 사거리 안 전술 재배치를 한 칸만 수행한다. */
@@ -1531,7 +1545,7 @@ safeExposeGlobals({
     getCombatGridSize, isGridCellInBounds, gridCellKey, gridChebyshevDist, hasGridCell,
     getGridUnitFootprint, getGridUnitCells, getGridUnitCenter, getGridUnitDistance, fitBossFootprint,
     getGridDirectHitDistanceMultiplier,
-    getGridBlockedCells, getHeroStepBlockedCells, swapSummonOutOfHeroTile, findFreeGridCell, assignEnemyGridSpawn, assignEnemyGridCombatProfile,
+    getGridBlockedCells, getGridApproachStep, getHeroStepBlockedCells, swapSummonOutOfHeroTile, findFreeGridCell, assignEnemyGridSpawn, assignEnemyGridCombatProfile,
     resetPlayerGridPosition, ensureCombatGridRuntime, gridLineCells, gridProjectedLineEnd,
     gridStepToward, advanceGridUnitMovement, canGridUnitStepToward, findNearestSafeGridRoute, advanceGridHazardEscape, advanceGridTacticalMovement, getSkillGridProfile, getSkillGridProfileKindLabel,
     describeSkillGridProfile, getGridSkillTargetMult, getGridAttackAreaCells,

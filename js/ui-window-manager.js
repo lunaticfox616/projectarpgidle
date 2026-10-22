@@ -503,7 +503,8 @@
     }
 
     function closeCommunityDock() {
-        if (isDesktopWindowed() && typeof messageFrames === 'object') messageFrames.showTab('log');
+        // Startup closes the community dock too: switching back must not unfold the saved/default combat log.
+        if (isDesktopWindowed() && typeof messageFrames === 'object') messageFrames.showTab('log', false);
     }
 
 

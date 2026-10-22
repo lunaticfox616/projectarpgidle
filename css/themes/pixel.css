@@ -194,6 +194,11 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
   line-height: 14px;
   text-shadow: var(--px-text-edge);
 }
+/* The current special replaces the trait line only while it is preparing/releasing. */
+:root body[data-ui-skin] #enemy-area .enemy-traits.is-casting .enemy-trait-text {
+  color: color-mix(in srgb, var(--color-danger) 60%, white);
+  font-weight: var(--font-weight-emphasis);
+}
 /* 적 체력 막대의 붉은 번짐(휴대폰 · PC 대상 적): 윗면 밝은 한 줄만 남긴다 */
 :root body[data-ui-skin] .hp-bar-fill.enemy,
 :root body[data-ui-skin].mobile-battle-tab #tab-battle .hp-bar-fill.enemy,

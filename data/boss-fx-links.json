@@ -1,0 +1,162 @@
+{
+  "atlas-garden-1": {
+    "source": "guardian-roots",
+    "kind": "melee",
+    "scale": 0.95,
+    "impactScale": 0.8,
+    "emit": [
+      [
+        93,
+        -88
+      ],
+      [
+        86,
+        -86
+      ],
+      [
+        62,
+        -66
+      ],
+      [
+        125,
+        -80
+      ],
+      [
+        108,
+        -83
+      ],
+      [
+        93,
+        -88
+      ]
+    ]
+  },
+  "atlas-garden-2": {
+    "source": "ocean-leviathan",
+    "kind": "projectile",
+    "scale": 0.78,
+    "impactScale": 0.8,
+    "emit": [
+      [
+        -27,
+        -80
+      ],
+      [
+        -12,
+        -154
+      ],
+      [
+        -10,
+        -153
+      ],
+      [
+        49,
+        -91
+      ],
+      [
+        -25,
+        -83
+      ],
+      [
+        -27,
+        -80
+      ]
+    ]
+  },
+  "atlas-sanctum-4": {
+    "source": "bossAct7",
+    "kind": "wave",
+    "scale": 0.9,
+    "impactScale": 0.9,
+    "emit": [
+      [
+        27,
+        -67
+      ],
+      [
+        20,
+        -76
+      ],
+      [
+        30,
+        -82
+      ],
+      [
+        101,
+        -109
+      ],
+      [
+        59,
+        -78
+      ],
+      [
+        27,
+        -67
+      ]
+    ]
+  },
+  "atlas-sanctum-5": {
+    "source": "ocean-leviathan",
+    "kind": "fall",
+    "scale": 0.8,
+    "impactScale": 1,
+    "emit": [
+      [
+        -6,
+        -119
+      ],
+      [
+        -13,
+        -128
+      ],
+      [
+        -34,
+        -184
+      ],
+      [
+        40,
+        -76
+      ],
+      [
+        8,
+        -119
+      ],
+      [
+        -6,
+        -119
+      ]
+    ]
+  },
+  "colony-boss": {
+    "source": "guardian-roots",
+    "kind": "melee",
+    "scale": 1.1,
+    "impactScale": 0.85,
+    "emit": [
+      [
+        97,
+        -54
+      ],
+      [
+        99,
+        -52
+      ],
+      [
+        62,
+        -125
+      ],
+      [
+        104,
+        -49
+      ],
+      [
+        105,
+        -52
+      ],
+      [
+        97,
+        -54
+      ]
+    ]
+  }
+}

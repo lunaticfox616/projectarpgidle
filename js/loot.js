@@ -110,7 +110,7 @@ function generateRealmBossUniqueDrop(zone, enemy) {
     if (Math.random() >= chance) return null;
     const itemLevel = levelProgression.itemLevel(zone, enemy);
     const cap = Math.min(getRealmEquipmentHiddenTierCap(zone), levelProgression.maxDropTier(itemLevel));
-    const eligible = UNIQUE_DB.filter(unique => unique.dropOnly?.type === zone.type
+    const eligible = UNIQUE_DB.filter(unique => unique.dropOnly?.type === zone.type && uniqueDropsInZone(unique, zone)
         && cap >= (unique.dropOnly.minTier || unique.reqTier || 1));
     const chase = eligible.filter(unique => unique.ultraRare);
     const useChase = chase.length > 0 && Math.random() < REALM_BOSS_UNIQUE_DROP_RULES.ultraRareShare;
@@ -606,6 +606,7 @@ safeExposeGlobals({ getCurrencyDrops });
     function ofReceipt(receipt) {
         if (receipt.currency) return ofCurrency(receipt.currency);
         if (receipt.leaf) return memoryLeaves.momentOf(game, receipt.leaf);
+        if (receipt.yarn) return 'good';
         const tier = ofItem(receipt.item, receipt.itemKind || 'equipment');
         const hunted = receipt.highlight && (equipmentLootPolicy.highlight(receipt.item, game)?.priority || 0) >= 3;
         return hunted ? higher(tier, 'great') : tier;

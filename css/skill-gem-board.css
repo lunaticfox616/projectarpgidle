@@ -224,7 +224,7 @@
 #tab-skills .gem-tile:focus-visible { outline: 2px solid var(--board-gold-hi); outline-offset: 1px; }
 #tab-skills .gem-tile .gem-tile-art { width: 44px; height: 44px; border-radius: 0; background: none; }
 /* 카드 안의 그림과 글(가운데 맞춤)은 카드 폭과 제 폭이 홀수일 때 생기는 반 화소를 되돌린다(2026-10-21). */
-#tab-skills .gem-tile > :not(.gem-tile-level, .gem-tile-worn) { position: relative; left: calc(round(down, 50%, 1px) - 50%); translate: calc(round(up, 50%, 1px) - 50%); }
+#tab-skills .gem-tile > :not(.gem-tile-level, .gem-tile-worn, .starter-gem-equip-guide) { position: relative; left: calc(round(down, 50%, 1px) - 50%); translate: calc(round(up, 50%, 1px) - 50%); }
 #tab-skills .gem-tile .gem-tile-art img { image-rendering: pixelated; }
 #tab-skills .gem-tile .gem-tile-name { max-width: 100%; overflow: hidden; color: #fff; font: 400 var(--font-size-ui) var(--board-label); text-overflow: ellipsis; white-space: nowrap; text-shadow: 1px 1px 0 #000; }
 /* 쓰임("전방 부채꼴, 1칸")은 휴대폰 카드에서 한 줄이면 잘렸다: 단어째 두 줄까지 쓴다. */

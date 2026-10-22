@@ -180,11 +180,19 @@ const enemyAttackRules = (() => {
     }
 
     function warningBar(enemy,now) {
-        if (!enemy.nextPatternState?.isSpecial || !enemy.patternTelegraphKey || !enemy.patternArea) return null;
-        return {label:enemy.nextPatternState?.label || '강력한 공격',
-            progress:clampNumber(Math.min(enemy.attackTimer,(now-enemy.patternTelegraphStartedAt)/(COMBAT_GRID_CONFIG.bossPatternWarningMs+BOSS_ATTACK_IMPACT_DELAY_MS)),0,1)};
+        const state = enemy.nextPatternState;
+        if (!state?.isSpecial || !enemy.patternTelegraphKey || !enemy.patternArea) return null;
+        const span = (state.warningMs || COMBAT_GRID_CONFIG.bossPatternWarningMs) + bossMoves.firstImpactMs(state, enemy);
+        return {label:state.label || '강력한 공격',
+            progress:clampNumber((now-enemy.patternTelegraphStartedAt)/span,0,1)};
     }
 
-    return {delivery,impactTargets,trajectory,advanceFlight,interrupt,cancelPending,ready,castBar};
+    /** Later stages suppress the cast announcement, but remain damage from the same named special. */
+    function damageName(enemy,pattern) {
+        const special = pattern && (pattern.isSpecial || pattern.move);
+        return special && pattern.label ? `${enemy.name} (${pattern.label})` : enemy.name;
+    }
+
+    return {delivery,impactTargets,trajectory,advanceFlight,interrupt,cancelPending,ready,castBar,damageName};
 })();
 safeExposeGlobals({enemyAttackRules});

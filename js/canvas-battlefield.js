@@ -1165,8 +1165,9 @@ function isGroundSkillCast(fx) {
     return ['gravity', 'erosion', 'decay', 'resonance', 'mine'].includes(profile?.signature);
 }
 
-/** Paint ground spells first and summons above them, before the main actor layer. */
+/** Shade the environment, then paint ground spells and summons before the main actor layer. */
 function drawBattleGroundLayer(ctx, effects, view) {
+    drawBattleScreenGrade(ctx, view.width, view.height);
     drawRiftPlayerRing(ctx, view.gridProj, view.playerPos);
     sideEncounterCanvas.portals(ctx, view.gridProj, getCombatTime());
     trialTrapArt.drawGround(ctx, effects, view.now, view.gridProj); // trap cracks, glow, frost, rune, puddle, scorch
@@ -1492,6 +1493,7 @@ function drawBossPatternLabel(ctx, entry, enemy) {
     const viewWidth = ctx.canvas.width / ctx.getTransform().a;
     const x = Math.round(clampNumber(entry.x-width/2,6,Math.max(6,viewWidth-width-6)));
     const y = Math.round(Math.max(6,entry.y-getEnemyFieldBarLift(enemy)-13));
+    reserveBossText(enemy, { x: x - 3, y: y - 3, w: width + 6, h: 14 });
     const edge = cast.cancelled ? '#a8706a' : '#8e7951';
     ctx.globalAlpha = 0.96;
     ctx.fillStyle = '#111310';
@@ -1630,9 +1632,9 @@ function noteEnemyDrawnHeight(enemy, height) { if (enemy && height > 0) enemyDra
 
 /** Bar height above the feet: clear of the drawn sprite (bosses grow with the tile), never below the old fixed lift; a wisp
  * floats its body higher (js/canvas-wisp-actors.js). */
-function getEnemyFieldBarLift(enemy) {
+function getEnemyFieldBarLift(enemy, bodyHeight) {
     const base = enemy.isBoss ? 106 : (wispActors.barLift(enemy) || 56);
-    const drawn = enemyDrawnHeights.get(enemy) || 0;
+    const drawn = bodyHeight ?? enemyDrawnHeights.get(enemy) ?? 0;
     return Math.max(base, Math.round(drawn + 10));
 }
 
@@ -1646,7 +1648,7 @@ function getDamageTextBodyY(feetY, bodyHeight) {
 
 /** 회피 · 막아냄 같은 짧은 판정 글씨의 자리: 몸 위쪽(머리 높이) 가운데 — 몸통 가운데의 대미지 숫자와 겹치지 않는다. */
 function getBodyCueAnchor(pos, bodyHeight) {
-    return { x: Math.round(pos.x), y: Math.round(pos.y - bodyHeight * 0.92) };
+    return { x: Math.round(pos.x), y: Math.round(pos.y - bodyHeight * (pos.enemy?.isBoss ? 0.64 : 0.92)) };
 }
 
 /** The drawn body height an enemy's numbers and cues centre on: its bar lift less the gap (46 for a ghost left without its enemy). */
@@ -1669,8 +1671,13 @@ function isEnemyFieldBarShown(enemy, targeted) {
 /** This frame's top of each drawn enemy bar with its elite nameplate (screen px): the lock-on arrow stands over it (drawLockOnMark). */
 const enemyFieldBarTops = new Map();
 
+/** Actual HP/cast rectangles, recorded as they draw, including screen-edge clamping. */
+const bossTextExclusions = [];
+function reserveBossText(enemy, box) { if (enemy.isBoss) bossTextExclusions.push(box); }
+
 function drawBattlefieldEnemyHealthBars(ctx, layout, targetIds, tileW) {
     enemyFieldBarTops.clear();
+    bossTextExclusions.length = 0;
     (layout || []).forEach(entry => {
         let enemy = entry.enemy;
         if (!isEnemyFieldBarShown(enemy, targetIds.includes(enemy.id))) return;
@@ -1681,6 +1688,7 @@ function drawBattlefieldEnemyHealthBars(ctx, layout, targetIds, tileW) {
         const nameHeight = enemy.isElite && !enemy.isBoss ? 24 : 6;
         const reserved = drawBattlePlayerFigure.readability.place({ x: x - 3, y: baseY - nameHeight, w: width + 6, h: nameHeight + 10 }, !enemy.isBoss);
         enemyFieldBarTops.set(enemy, reserved.y);
+        reserveBossText(enemy, reserved);
         let y = reserved.y + nameHeight;
         let targeted = targetIds.includes(enemy.id);
         ctx.save();
@@ -2444,6 +2452,19 @@ function buildBattleEnemyPosMap(layout, fxList, now) {
     return map;
 }
 
+/** Register bodies after drawing: a foreground body never fades a seal drawn behind it. Hidden enemies never reach here. */
+function noteStageActorBody(actor, state) {
+    if (!stageView.enabled()) return;
+    const tile = state.gridProj.tileW;
+    if (actor.kind === 'player') {
+        stageDoorMarks.seal.body({ ...state.playerPos, halfW: tile * .4, h: getHeroBodyHeight(state.playerPos, state.now) });
+    } else if (actor.kind === 'enemy' && actor.entry.enemy.hp > 0) {
+        const entry = actor.entry, size = stageRoster.bodySize(entry.enemy, tile)
+            || { halfW: tile * .45 * getGridUnitFootprint(entry.enemy).columns, h: getEnemyFieldBarLift(entry.enemy) - 10 };
+        stageDoorMarks.seal.body({ x: entry.x, y: entry.y, ...size });
+    }
+}
+
 function drawBattleActorLayer(ctx, enemyEntries, state) {
     state = { ...state, enemyHitRecoil: buildEnemyHitRecoilMap(battleFx, state) };
     const view = { width: state.width, height: state.height, tile: state.gridProj.tileW };
@@ -2469,6 +2490,7 @@ function drawBattleActorLayer(ctx, enemyEntries, state) {
         else if (actor.kind === 'trapRise') actor.draw(ctx);
         else if (actor.kind === 'gate' || actor.kind === 'scenery' || actor.kind === 'object') actExplorationView.drawScenery(ctx,actor,state);
         else drawBattleEnemyActor(ctx, actor.entry, state);
+        noteStageActorBody(actor, state);
     });
     drawBattlePlayerFigure.readability.begin(state, seen.concat(waiting));
 }
@@ -2507,15 +2529,48 @@ function drawLegacyHitFeedback(ctx, fx, progress, playerPos, enemyPosMap) {
  * resizeBattlefieldCanvas, marks it stale. */
 const battleCanvasBox = (() => {
     const MAX_AGE_MS = 1000;
-    let observed = null, box = null;
+    let observed = null, box = null, observer = null, hudObserver = null;
     function watch(canvas) {
         if (observed === canvas) return;
         observed = canvas; box = null;
-        if (typeof ResizeObserver === 'function') new ResizeObserver(() => { box = null; }).observe(canvas);
+        if (observer) observer.disconnect();
+        if (hudObserver) hudObserver.disconnect();
+        const hud = document.getElementById('ui-enemy-list');
+        const observeSizes = () => {
+            box = null;
+            if (!observer) return;
+            observer.disconnect(); observer.observe(canvas);
+            if (hud) [hud, ...hud.querySelectorAll('.enemy-nameplate, .enemy-health-frame, .enemy-hud-meta, .enemy-ailments')].forEach(part => observer.observe(part));
+        };
+        if (typeof ResizeObserver === 'function') {
+            observer = new ResizeObserver(() => { box = null; }); observeSizes();
+        }
+        if (hud && typeof MutationObserver === 'function') {
+            hudObserver = new MutationObserver(rows => {
+                if (rows.some(row => row.type === 'attributes' || [...row.addedNodes, ...row.removedNodes].some(node => node.nodeType === 1))) observeSizes();
+            });
+            hudObserver.observe(hud, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'hidden'] });
+        }
+        document.addEventListener('scroll', forget, { capture: true, passive: true });
+    }
+    /** HUD children can extend outside their card. Convert their viewport bounds through CSS zoom, once per cached layout. */
+    function enemyOverlays(canvas) {
+        const hud = document.querySelector('#ui-enemy-list:not([hidden])');
+        if (!hud) return [];
+        const view = canvas.getBoundingClientRect();
+        if (!view.width || !view.height) return [];
+        const sx = canvas.clientWidth / view.width, sy = canvas.clientHeight / view.height;
+        return [...hud.querySelectorAll('.enemy-nameplate, .enemy-health-frame, .enemy-hud-meta, .enemy-ailments')].map(element => {
+            const rect = element.getBoundingClientRect();
+            const x = Math.max(0, (rect.left - view.left) * sx), y = Math.max(0, (rect.top - view.top) * sy);
+            const right = Math.min(canvas.clientWidth, (rect.right - view.left) * sx);
+            const bottom = Math.min(canvas.clientHeight, (rect.bottom - view.top) * sy);
+            return { x, y, w: right - x, h: bottom - y };
+        }).filter(rect => rect.w > 0 && rect.h > 0);
     }
     function measure(canvas, now) {
-        if (canvas.offsetParent === null) return { width: 0, height: 0, left: 0, top: 0, at: now };
-        return { width: canvas.clientWidth, height: canvas.clientHeight, left: canvas.offsetLeft, top: canvas.offsetTop, at: now };
+        if (canvas.offsetParent === null) return { width: 0, height: 0, left: 0, top: 0, at: now, enemyOverlays: [] };
+        return { width: canvas.clientWidth, height: canvas.clientHeight, left: canvas.offsetLeft, top: canvas.offsetTop, at: now, enemyOverlays: enemyOverlays(canvas) };
     }
     function read(canvas) {
         watch(canvas);
@@ -2523,7 +2578,8 @@ const battleCanvasBox = (() => {
         if (!box || now - box.at >= MAX_AGE_MS || typeof ResizeObserver !== 'function') box = measure(canvas, now);
         return box;
     }
-    return Object.freeze({ read, forget: () => { box = null; } });
+    function forget() { box = null; }
+    return Object.freeze({ read, forget });
 })();
 
 const MAP_MONSTERS_LEFT_HINT = 5;
@@ -2647,11 +2703,16 @@ function drawLootCelebrationSparks(ctx, at, t, count) {
     }
 }
 
+function beginBattlefieldFrame() {
+    stageDoorMarks.begin();
+    worldTreeSkillFx.beginFrame();
+}
+
 /** targetFrameMs: the drawing cadence of the frame loop (js/ui.js renderBattlefieldThrottled), for the effect density.
  * @returns {(boolean|undefined)} true when the frame was drawn to the end (a hidden canvas or art still loading returns early):
  *   only such draws are counted as battlefield frames (js/battle-frame-stats.js). */
 function renderBattlefield(forceWhenHidden, targetFrameMs) {
-    worldTreeSkillFx.beginFrame();
+    beginBattlefieldFrame();
     const canvas = document.getElementById('battlefield-canvas');
     if (!canvas) return;
     const box = battleCanvasBox.read(canvas);
@@ -2785,7 +2846,7 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
         queueSkillGemProjectileLaunch(latestSwingFx, currentTargets, playerPos, enemyPosMap, viewportProjectileFxScale);
     }
     let gridUnitScale = clampNumber(gridProj.tileW / 46, 0.48, Math.max(1.3, gridProj.unitScaleCap || 0));
-    drawBattleGroundLayer(ctx, battleFx, { now, gridProj, playerPos, enemyPosMap });
+    drawBattleGroundLayer(ctx, battleFx, { now, width, height, gridProj, playerPos, enemyPosMap });
     bossAttackView.drawGround(ctx, gridProj);
 
     battleFx.forEach(fx => {
@@ -2947,10 +3008,10 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
     const lightScene = { width, height, light: playerPos, hpPct: playerHpPct, ghostPct: playerHpGhostPct, esPct: playerEsPct, now, layout: dynamicLayout, targets: currentTargets, tileW: gridProj.tileW, projection: gridProj, pending: pendingEnemyCombatAttacks };
     drawBattleLightingAndBars(ctx, lightScene);
     if (typeof stageScene === 'object' && stageView.enabled()) stageScene.drawMarks(ctx, gridProj);
-    drawDamageTexts(ctx, now);
+    drawDamageTexts(ctx, now, bossTextExclusions.concat(view.enemyOverlays.map(rect => ({ ...rect, x: rect.x - cameraShake.x, y: rect.y - cameraShake.y }))));
     actTitleCard.draw(ctx, lightScene); // over the damage numbers: a speech bubble above the hero stays readable
     ctx.setTransform(renderScale, 0, 0, renderScale, 0, 0);
-    drawBattleScreenGrade(ctx, width, height, now);
+    drawPlayerHurtEdge(ctx, width, height, now);
     worldTreeSkillFx.feedback.screen(ctx, { width, height, now });
     drawBossAnnouncement(ctx, { width, height, now }, updateBossAnnouncement(enemies, now));
     if (typeof stageRoomsView === 'object') stageRoomsView.drawFade(ctx, { width, height });
@@ -3005,7 +3066,8 @@ function drawPlayerHurtEdge(ctx, width, height, now) {
     ctx.restore();
 }
 
-function drawBattleScreenGrade(ctx, width, height, now) {
+/** Environment edge shade stays below combat bodies and warnings; the damage vignette remains a final screen effect. */
+function drawBattleScreenGrade(ctx, width, height) {
     ctx.save();
     let edgeSizeX = Math.max(72, width * 0.2);
     let edgeSizeY = Math.max(58, height * 0.18);
@@ -3030,7 +3092,6 @@ function drawBattleScreenGrade(ctx, width, height, now) {
     ctx.fillStyle = bottomEdge;
     ctx.fillRect(0, height - edgeSizeY, width, edgeSizeY);
     ctx.restore();
-    drawPlayerHurtEdge(ctx, width, height, now);
 }
 
 // 균열 등불(rift) 스킨의 조명 패스. 플레이어 주변만 밝히고 바깥을 눌러 시선을 전투로 모은다.
@@ -3249,12 +3310,6 @@ function getEnemyTraitSummary(enemy) {
     tags.push(getElementLabel(enemy.ele));
     tags.push(...getEnemyDefenseHighlights(enemy));
     if (enemy.traitName) tags.push(enemy.traitName);
-    if (enemy.patternMode && typeof getBossPatternModeLabel === 'function') {
-        let patternLabel = getBossPatternModeLabel(enemy.patternMode);
-        if (patternLabel) tags.push(`패턴: ${patternLabel}`);
-        let nextPattern = enemy.nextPatternState || (typeof getBossPatternPreview === 'function' ? getBossPatternPreview(enemy) : null);
-        if (nextPattern && nextPattern.isSpecial && nextPattern.label) tags.push(`다음: ${nextPattern.label}`);
-    }
     if ((enemy.firstHitGuard || 0) > 0 && !enemy.firstHitConsumed) tags.push(`첫타보호 ${Math.floor((enemy.firstHitGuard || 0) * 100)}%`);
     if ((enemy.hitRateGuard || 0) > 0) tags.push(`연타경감 ${Math.floor((enemy.hitRateGuard || 0) * 100)}%/후속타`);
     if ((enemy.leechEffMul || 1) <= 0) tags.push('흡혈불가');
@@ -3465,6 +3520,8 @@ function getRiftUnitFootprintBox(proj, unit, walking = false) {
 
 /** A unit's foot ring: an enemy's, a summon's, or the locked-on enemy's (RIFT_CELL_TONES.target: gold, turning like the hero's). */
 function drawRiftUnitRing(ctx, proj, unit, tone) {
+    // Boss bodies already cast a ground shadow. Keep red floor marks exclusive to attacks; manual lock-on stays gold.
+    if (unit.isBoss && tone === RIFT_CELL_TONES.enemy) return;
     const box = getRiftUnitFootprintBox(proj, unit, tone !== RIFT_CELL_TONES.summon);
     if (!box) return;
     const rx = (box.right - box.left) * 0.4;

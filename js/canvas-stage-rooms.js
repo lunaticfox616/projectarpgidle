@@ -1,6 +1,6 @@
 /** 방 단위 무대를 그리는 쪽 (2026-10-11 사용자: "던파처럼 방 하나마다 이동하는 방식"). 지도는 js/act-exploration-rooms.js,
  * 문을 지나는 규칙은 js/act-exploration-doors.js에 있고 여기는 그리기만 한다.
- * - 방이 화면보다 좁으면 가운데에 두고, 넓으면 방 끝에서 멈추며 주인공을 따라간다. 세로는 고정하되 주인공 머리가 잘릴 때만 따라간다.
+ * - 방이 화면보다 좁으면 가운데에 두고, 넓으면 방 끝에서 멈추며 주인공을 따라간다. 세로는 주인공 머리와 짧은 가로 화면의 보스 시전 표시를 보호한다.
  * - 방 그림은 그리기 밖에서 준비해 둔 것을 쓴다(js/canvas-stage-room-pictures.js): 지금 방과 걸어가는 문 너머의 방.
  *   아직 준비되지 않은 방은 어둠으로 두고, 그림이 오면 그때부터 밝아진다(다른 방의 그림을 잠깐 쓰지 않는다).
  * - 문: 잠긴 문은 회백색 뿌리 봉인, 풀릴 때 아래로 접히며 열린 문에는 방향 화살표가 선다. 보스 방의 표시는 붉다.
@@ -11,6 +11,7 @@ const stageRoomsView = (() => {
     const AHEAD_MS = 250;                        // 걸어가는 문 너머의 방을 다시 묻는 간격
     let shown = { run: null, room: null, at: 0 }; // 마지막으로 그린 방과 그 방에 들어선 시각(화면 밝아지기)
     let ahead = { run: null, room: null, at: 0, next: null };
+    let bossCamera = { run: null, room: null, view: {}, row: Infinity };
 
     const mapOf = run => actExplorationDoors.stageMap(run);
     /** The room the camera holds: the hero's (the one being left until the step's half-way point moves the hero). */
@@ -18,7 +19,7 @@ const stageRoomsView = (() => {
         const map = mapOf(run);
         return map ? actExplorationRooms.roomAt(map, game.gridPlayer) : null;
     }
-    /** 카메라의 가운데 칸(소수): 가로는 방 안에서 따라가고, 세로는 방에 고정하되 작은 화면에서 주인공 머리가 잘릴 때만 따라간다. */
+    /** 카메라 가운데 칸(소수): 가로는 방 안에서 따라가고, 세로는 방 기준 위치와 화면 안 인물의 머리 보호 한계를 함께 적용한다. */
     function focus(run, cell, view) {
         const room = roomOf(run);
         if (!room) return null;
@@ -26,7 +27,43 @@ const stageRoomsView = (() => {
         const gx = span <= view.columns ? (left + right) / 2
             : Math.max(left + view.columns / 2, Math.min(right - view.columns / 2, cell.gx + .5));
         const row = isOpen(mapOf(run)) ? openFocusRow(room, view) : focusRow(room, view);
-        return { gx, gy: stageView.enabled() ? Math.min(row, heroRow(room, cell, view)) : row };
+        if (!stageView.enabled()) return { gx, gy: row };
+        const base = Math.min(row, heroRow(room, cell, view));
+        if (!uiDisplay.battleHudAtSide) { bossCamera.room = null; return { gx, gy: base }; }
+        const top = Math.min(base, heldBossRow(run, room, view, gx));
+        return { gx, gy: Math.max(top, heroFeetRow(room, cell, view)) };
+    }
+    /** Keep a room's acquired boss headroom after death or horizontal departure, so the loot floor does not jump back.
+     * The hero-foot bound below still overrides it. A room or projection change starts a fresh frame. */
+    function heldBossRow(run, room, view, gx) {
+        const prior = bossCamera.view;
+        if (bossCamera.run !== run || bossCamera.room !== room || prior.width !== view.width || prior.height !== view.height
+            || prior.columns !== view.columns || prior.rows !== view.rows) bossCamera = { run, room, view: { ...view }, row: Infinity };
+        bossCamera.row = Math.min(bossCamera.row, bossRow(room, view, gx, mapOf(run)));
+        return bossCamera.row;
+    }
+    /** In a view too short for hero and boss together, retain the hero's feet, ring and one warning row below them. */
+    function heroFeetRow(room, cell, view) {
+        const deep = view.height / view.rows, gy = Math.max(room.y0, Math.min(room.y1, cell.gy));
+        return gy + .5 + 1 / 6 + 1 - (1 - stageView.anchorY()) * view.rows + STAGE_ROOMS.sideHudGap / deep;
+    }
+    /** Short side-HUD views also keep the visible boss's cast bar below the upper edge. The same bound as the hero's;
+     * no boss following unless its bar would clip. Read stable roster dimensions, not last frame's scale after a resize. */
+    function bossRow(room, view, gx, map) {
+        const deep = view.height / view.rows, tile = view.width / view.columns;
+        let limit = Infinity;
+        for (const enemy of game.enemies) {
+            if (!enemy.isBoss || enemy.hp <= 0 || !hasGridCell(enemy)) continue;
+            const center = getGridUnitCenter(enemy);
+            if (actExplorationRooms.roomAt(map, enemy) !== room) continue;
+            if (Math.abs(center.gx + .5 - gx) > view.columns / 2) continue;
+            const size = stageRoster.bodySize(enemy, tile), lift = getEnemyFieldBarLift(enemy, size?.h);
+            const stride = stageStride.read(enemy, performance.now());
+            const feet = enemy.gy + getGridUnitFootprint(enemy).rows - .5 + (stride?.dy || 0) + 1 / 6;
+            // 16 px for cast-bar decoration and 24 px of visible space above it.
+            limit = Math.min(limit, feet + (stageView.anchorY() * view.height - lift - 40) / deep);
+        }
+        return limit;
     }
     /** A short view keeps the minimum-sized hero's head below the top margin. In a view that fits the room this limit leaves
      * its fixed row unchanged. Follow fractional walking positions, clamped to the room's end rows during a door crossing. */
@@ -39,8 +76,11 @@ const stageRoomsView = (() => {
     const isOpen = map => stageScene.ready(map) || stageBackdrop.ready(map);
     /** 배경 그림을 쓰는 방: 바닥의 앞쪽 끝이 화면의 정해진 높이(STAGE_ROOMS.floorBottom)에 오게 한다. 그 위로 바닥 다섯 줄, 그 위가 배경이다. */
     function openFocusRow(room, view) {
-        // 넓은 화면: 정해진 높이와, 하단 HUD 위로 앞쪽 문이 드러나는 높이 가운데 더 위쪽(stageView.floorShare). 전장의 px은 UI 배율로 이미 나뉜 값이다.
-        return room.y1 + 1 - (stageView.floorShare(view.width, view.height) - stageView.anchorY()) * view.rows;
+        // 왼쪽 HUD는 전장 바닥을 덮지 않는다. 위치만 내리고 tallestTile의 기존 확대율은 유지한다.
+        const gap = STAGE_VIEW.heroTile * STAGE_VIEW.minDot + STAGE_ROOMS.sideHudGap;
+        const floor = uiDisplay.battleHudAtSide ? Math.max(0, Math.min(STAGE_ROOMS.floorBottom.sideHud, 1 - gap / view.height))
+            : stageView.floorShare(view.width, view.height);
+        return room.y1 + 1 - (floor - stageView.anchorY()) * view.rows;
     }
     /** 세로로 화면의 기준 줄(stageView.anchorY)에 올 칸: 뒷벽 꼭대기(방 위 네 칸)부터 앞쪽 문 자리까지의 가운데에서, 뒷벽이 잘리지
      * 않는 만큼(최대 lift칸) 방을 위로 올린다. 화면 아래쪽은 HUD가 덮어 앞쪽 문이 가려지기 때문이다. */

@@ -4731,6 +4731,9 @@ function mergeDamageTextByKey(activeTexts, config, start, x, y) {
     if (!text || !Number.isFinite(nextValue)) return false;
     text.value = Math.max(0, Number(text.value) || 0) + Math.max(0, nextValue);
     text.hitCount = Math.max(1, Math.floor(Number(text.hitCount) || 1)) + 1;
+    // A newly updated sum must remain readable even if its previous value was fading below a HUD/bar.
+    text.readabilityUpdatedAt = start;
+    delete text.readabilityFadeStart;
     text.crit = text.crit || !!config.crit;
     text.x = x;
     text.y = y;
@@ -4838,8 +4841,8 @@ function getDamageTextLabel(text) {
     return label;
 }
 
-function drawDamageTexts(ctx, now) {
-    drawDamageTexts.paint(ctx, now);
+function drawDamageTexts(ctx, now, protectedBoxes = []) {
+    drawDamageTexts.paint(ctx, now, protectedBoxes);
 }
 
 /** Keep each hit's body-centred x anchor. New labels reserve their actual glyph/pop/count bounds; older overlapping labels
@@ -4884,9 +4887,9 @@ drawDamageTexts.paint = (() => {
         const t = clampNumber(elapsed / text.duration, 0, 1);
         const rise = text.bodyCue ? 10 : ((text.dot ? 14 : 20) + (text.crit ? 5 : 0));
         const y = text.y - rise * (1 - Math.pow(1 - t, 2));
-        return measure(ctx, { text, t, x: text.x, y, ...appearance(text, t) });
+        return measure(ctx, { text, t, now, x: text.x, y, ...appearance(text, t) });
     }
-    function place(row, taken) {
+    function place(row, taken, protectedBoxes) {
         const limit = Math.min(MAX_LIFT, Math.max(0, row.box.y - GAP));
         let lift = Math.min(limit, row.text.readabilityLift || 0);
         row.box.y -= lift;
@@ -4899,13 +4902,36 @@ drawDamageTexts.paint = (() => {
         }
         row.y -= lift;
         row.text.readabilityLift = lift;
+        clearBlockedLabel(row, protectedBoxes, taken);
         taken.push(row.box);
         taken.sort((a, b) => b.y + b.h - a.y - a.h);
+    }
+    const overlaps = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h + GAP && b.y < a.y + a.h + GAP;
+    /** When there is no room above, place below the remaining obstacles; bars and labels share one ordered pass. */
+    function clearBlockedLabel(row, boxes, taken) {
+        if (row.box.y >= GAP && !boxes.some(box => overlaps(row.box, box)) && !taken.some(box => overlaps(row.box, box))) return;
+        const edge = Math.max(0, GAP - row.box.y);
+        row.y += edge; row.box.y += edge;
+        for (const box of [...boxes, ...taken].sort((a, b) => a.y - b.y)) {
+            if (!overlaps(row.box, box)) continue;
+            const down = box.y + box.h + GAP - row.box.y;
+            row.y += down; row.box.y += down;
+            row.text.readabilityLift = 0;
+        }
+    }
+    function crowdFade(row) {
+        const { text, now, y } = row;
+        // If obstacles force a number a full row below its body anchor, retire it without moving other rows.
+        // Keep the last value for at least 350 visual ms; once fading, it cannot reappear just because the HUD moved.
+        if (!text.bodyCue && !text.miss && y - text.y >= row.box.h && !Number.isFinite(text.readabilityFadeStart)) {
+            text.readabilityFadeStart = Math.max(now, (text.readabilityUpdatedAt ?? text.start) + 350);
+        }
+        return Number.isFinite(text.readabilityFadeStart) ? clampNumber(1 - (now - text.readabilityFadeStart) / 150, 0, 1) : 1;
     }
     function paint(ctx, row) {
         const { text, t, x, y } = row;
         ctx.save();
-        ctx.globalAlpha = getDamageTextPeakAlpha(text) * (t < 0.62 ? 1 : Math.max(0, (1 - t) / 0.38));
+        ctx.globalAlpha = getDamageTextPeakAlpha(text) * (t < 0.62 ? 1 : Math.max(0, (1 - t) / 0.38)) * crowdFade(row);
         ctx.font = row.font; ctx.textAlign = row.align;
         ctx.translate(x, y); ctx.scale(row.pop, row.pop); ctx.translate(-x, -y);
         const strong = isStrongDamageText(text);
@@ -4931,7 +4957,7 @@ drawDamageTexts.paint = (() => {
         }
         ctx.restore();
     }
-    return function render(ctx, now) {
+    return function render(ctx, now, protectedBoxes) {
         // 폭은 크기가 바뀔 때만 잰 값(js/canvas-battlefield.js battleCanvasBox): 매 프레임 clientWidth를 읽으면 그 프레임에 화면이 바뀐 때마다 배치를 다시 계산했다
         const field = typeof document === 'object' && typeof battleCanvasBox === 'object' ? document.getElementById('battlefield-canvas') : null;
         const width = field ? battleCanvasBox.read(field).width : 0;
@@ -4940,7 +4966,8 @@ drawDamageTexts.paint = (() => {
         try {
             const rows = (battleVisualState.damageTexts || []).map(text => frame(ctx, text, now)).filter(Boolean);
             const taken = [];
-            for (let i = rows.length - 1; i >= 0; i--) place(rows[i], taken);
+            const bars = [...protectedBoxes].sort((a, b) => a.y - b.y);
+            for (let i = rows.length - 1; i >= 0; i--) place(rows[i], taken, bars);
             rows.forEach(row => paint(ctx, row));
         } finally { ctx.restore(); }
     };
@@ -5039,6 +5066,7 @@ function closeRewardOverlay() {
     document.getElementById('reward-overlay').classList.remove('active');
     activeRewardZoneId = null;
     lastTime = Date.now();
+    if (typeof tutorialActionUi === 'object') tutorialActionUi.waitBetweenNotices();
 }
 
 function getHeroAppearanceId() {
@@ -5602,8 +5630,14 @@ function buildDeathMonsterSummary(windowMs, events) {
     }).sort((a, b) => b.value - a.value);
 }
 
-function getActRewardConfig(zoneId) {
-    return ACT_REWARD_DB[zoneId] || null;
+function getActRewardConfig(zoneId, owner = game) {
+    const config = ACT_REWARD_DB[zoneId];
+    if (!config) return null;
+    // All original choices locked: keep the act reward useful without unlocking its content early.
+    if (config.lockedChoices && !config.choices.some(choice => isActRewardChoiceAvailable(choice, owner))) {
+        return { ...config, body: config.lockedBody, choices: config.lockedChoices };
+    }
+    return config;
 }
 
 function getSupportActRewardFallback(choice) {
@@ -5624,7 +5658,7 @@ function isActRewardChoiceAvailable(choice, owner = game) {
 }
 function getAvailableActRewardZoneIds(owner = game) {
     return (owner.claimableActRewards || []).filter(id =>
-        getActRewardConfig(id)?.choices.some(choice => isActRewardChoiceAvailable(choice, owner)));
+        getActRewardConfig(id, owner)?.choices.some(choice => isActRewardChoiceAvailable(choice, owner)));
 }
 function getActRewardChoices(zoneId) {
     let config = getActRewardConfig(zoneId);
@@ -5639,6 +5673,13 @@ function getActRewardChoices(zoneId) {
             enriched.desc = `${choice.desc} 이미 보유 중이면 ${fallback.label}로 바뀝니다.`;
         }
         if (choice.kind === 'item' && choice.slot === '무기') Object.assign(enriched, describeActRewardWeapon());
+        if (choice.kind === 'item' && isFirstActStarterReward(zoneId)) {
+            enriched.label = enriched.label.replace('미확인 ', '');
+            enriched.fixedStarter = true;
+        }
+        // Reward identity excludes labels/descriptions that change after acquiring a duplicate rune.
+        enriched.claimKey = JSON.stringify([choice.kind, choice.slot, choice.rarity, choice.skill, choice.gem,
+            choice.stat, choice.value, choice.currency, choice.fallbackKind, choice.fallbackValue, enriched.weaponCategory]);
         return enriched;
     });
 }
@@ -5791,8 +5832,7 @@ function markActRewardReady(zoneId) {
     game.claimedActRewards = game.claimedActRewards || [];
     if (game.claimedActRewards.includes(zoneId) || game.claimableActRewards.includes(zoneId)) return;
     game.claimableActRewards.push(zoneId);
-    // 고를 것이 없는 보상은 조용히 남긴다: 1루프의 액트 2, 6 보상은 모두 보조스킬룬(루프 2부터 해금)이라 받을 것이 없는데 받을 수 있다는
-    // 줄과 지도 점이 떴다(2026-10-17). 해금하면 그때 지도와 목표에 나온다.
+    // 원래 선택지와 미해금 대체 선택지 모두 고를 수 없다면 청구권만 남긴다.
     if (!getAvailableActRewardZoneIds().includes(zoneId)) return;
     game.noti.map = true;
     addLog(`🎁 [${MAP_ZONES[zoneId].name}] 클리어 보상을 받을 수 있습니다.`, 'loot-rare');
@@ -5805,6 +5845,11 @@ function markActRewardReady(zoneId) {
 // 그림(1.6초)이 창에 가리지 않게(2026-10-17, 창이 0.6초 만에 덮었다).
 const ACT_REWARD_PROMPT = Object.freeze({ awayMs: 180000, retryMs: 500, tries: 120, awayCheckMs: 5000, afterKillMs: 1500 });
 let actRewardPromptTimer = null, actRewardAwayTimer = null, actRewardPromptDelay = null;
+function actRewardPromptPending() { return !!(actRewardPromptDelay || actRewardPromptTimer); }
+function actRewardWaitsForGuide() {
+    return typeof tutorialActionUi === 'object'
+        && (tutorialActionUi.holdsQueue() || Date.now() < tutorialActionUi.quietUntil);
+}
 function promptActReward(zoneId) {
     clearInterval(actRewardPromptTimer);
     clearTimeout(actRewardPromptDelay);
@@ -5818,7 +5863,7 @@ function startActRewardPrompt(zoneId) {
     if (tryOpenPromptedActReward(zoneId)) return;
     let triesLeft = ACT_REWARD_PROMPT.tries;
     actRewardPromptTimer = setInterval(() => {
-        if (!tryOpenPromptedActReward(zoneId) && --triesLeft > 0) return;
+        if (!tryOpenPromptedActReward(zoneId) && (actRewardWaitsForGuide() || --triesLeft > 0)) return;
         clearInterval(actRewardPromptTimer);
         actRewardPromptTimer = null;
     }, ACT_REWARD_PROMPT.retryMs);
@@ -5847,7 +5892,7 @@ function canPromptActReward(zoneId) {
 /** 보상 창보다 먼저 떠 있는 것: 루프 관문, 방치 정산, 안내 카드, 다른 판(사망 기록, 선택 창, 대화상자). */
 function isActRewardPromptBlocked() {
     if (game.pendingLoopHeroSelection || game.pendingLoopReady || game.pendingLoopDecision) return true;
-    if (activeTutorial || backgroundCombatRuntime.processing) return true;
+    if (activeTutorial || actRewardWaitsForGuide() || backgroundCombatRuntime.processing) return true;
     return !!document.querySelector('.tutorial-overlay.active, dialog:modal, .selection-overlay, .background-combat-progress-overlay, #background-combat-result-overlay');
 }
 function openActReward(zoneId) {
@@ -5860,10 +5905,11 @@ function openActReward(zoneId) {
     // 머리글이 "액트 N 클리어 보상", 제목은 지역 이름만(예전에는 둘 다 '클리어 보상'을 되풀이했다).
     document.getElementById('reward-kicker').innerText = storyAct ? `${formatStoryActLabel(storyAct)} 클리어 보상` : '액트 클리어 보상';
     document.getElementById('reward-title').innerText = storyAct ? storyAct.title : config.title;
-    document.getElementById('reward-body').innerText = storyAct ? `${storyAct.subtitle}\n${config.body}` : config.body;
-    const now = getPlayerStats(false), before = { dps: now.dps, life: now.maxHp };
+    const nextAct = zoneId < 9 ? getStoryActByZoneId(zoneId + 1) : null;
+    const body = storyAct ? `${storyAct.subtitle}\n${config.body}` : config.body;
+    document.getElementById('reward-body').innerText = body + (nextAct ? `\n다음: ${formatStoryActLabel(nextAct)} 「${nextAct.title}」` : '');
     document.getElementById('reward-grid').innerHTML = getActRewardChoices(zoneId)
-        .map((choice, index) => isActRewardChoiceAvailable(choice) ? renderActRewardChoice(zoneId, choice, index, before) : '').join('');
+        .map((choice, index) => isActRewardChoiceAvailable(choice) ? renderActRewardChoice(zoneId, choice, index) : '').join('');
     document.getElementById('reward-overlay').classList.add('active');
     // Shown again, the card came back at the last act's scroll spot (phones scroll it to the lower choices), past the title.
     document.querySelector('#reward-overlay .tutorial-card').scrollTo(0, 0);
@@ -5877,11 +5923,11 @@ function actRewardChoiceArt(choice) {
     return `<img class="reward-choice-art${choice.slot === '무기' ? ' is-weapon' : ''}" src="${getEquipmentGridVisualAsset({ slot: choice.slot, baseId: base ? base.id : 'empty-' + choice.slot })}" alt="" aria-hidden="true">`;
 }
 /** 선택지 한 칸: 이름, 설명, 미리보기(장비는 등급과 바로 장착되는지), 고르면 바뀌는 DPS와 생명력. before: { dps, life } 지금 값. */
-function renderActRewardChoice(zoneId, choice, index, before) {
-    const change = measureActRewardDps(zoneId, choice, before);
+function renderActRewardChoice(zoneId, choice, index) {
+    const change = measureActRewardDps(zoneId, choice);
     const preview = choice.kind === 'item' ? actRewardItemPreview(choice, !!change && change.direct) : getActRewardPreview(choice);
     return `
-        <button class="reward-choice" onclick="claimActRewardChoice(${zoneId}, ${index})">
+        <button class="reward-choice" data-choice-key="${encodeURIComponent(choice.claimKey)}" onclick="claimActRewardChoice(${zoneId}, ${index}, this.dataset.choiceKey)">
             ${actRewardChoiceArt(choice)}<strong>${choice.label}</strong>
             ${choice.desc ? `<span>${choice.desc}</span>` : ''}
             <small>${preview}${formatActRewardDps(change, choice)}</small>
@@ -5893,56 +5939,66 @@ function actRewardItemPreview(choice, equips) {
     const rarity = ITEM_RARITY_LABELS[choice.rarity] || '';
     return `${rarity ? `${rarity} 등급, ` : ''}${equips ? '빈 칸에 바로 장착됩니다' : '가방으로 들어갑니다'}`;
 }
-/** 고르면 바뀌는 DPS와 생명력 {dps: [전, 후], life: [전, 후], direct, swap}: 보상을 잠시 적용해 재고 그대로 되돌린다. 능력치는 액트 보상
+/** 고르면 바뀌는 DPS와 생명력 {dps: [전, 후], life: [전, 후], direct, swap}: 살아 있는 게임 대신 사본에 보상을 적용해 잰다. 능력치는 액트 보상
  * 능력치로, 장비는 맞는 빈 칸(없으면 첫 칸과 바꿔)에 끼워 잰다(요구 능력치가 모자라면 null). direct는 실제로 바로 끼워지는지, swap은
  * 바꿔 끼운 값인지. 룬과 포인트는 재지 않는다. */
-function measureActRewardDps(zoneId, choice, before) {
-    const twin = Array.isArray(game.cosmosTwinKeystones) ? game.cosmosTwinKeystones.slice() : game.cosmosTwinKeystones;
-    const preview = applyActRewardPreview(zoneId, choice);
-    if (!preview) return null;
-    try {
-        const after = getPlayerStats(false);
-        return { dps: [before.dps, after.dps], life: [before.life, after.maxHp], direct: preview.direct, swap: preview.swap };
-    } finally {
-        preview.undo();
-        game.cosmosTwinKeystones = twin;
-    }
-}
-/** 보상을 잠시 적용하고 {undo, direct, swap}을 돌려준다(적용할 수 없으면 null). 빈 칸 규칙은 실제 지급(equipIntoFirstEmptySlot)과 같다. */
-function applyActRewardPreview(zoneId, choice) {
+function measureActRewardDps(zoneId, choice) {
     if (choice.kind === 'stat') {
-        game.actRewardBonuses = Array.isArray(game.actRewardBonuses) ? game.actRewardBonuses : [];
-        game.actRewardBonuses.push({ actId: zoneId, stat: choice.stat, value: choice.value });
-        return { undo: () => game.actRewardBonuses.pop(), direct: true, swap: false };
+        const change = previewBuildStats(copy => {
+            copy.actRewardBonuses = [...(copy.actRewardBonuses || []), { actId: zoneId, stat: choice.stat, value: choice.value }];
+        });
+        return { ...change, direct: true, swap: false };
     }
     const item = choice.kind === 'item' ? buildActRewardPreviewItem(zoneId, choice) : null;
     const slots = item ? getEquipCandidateSlots(item).filter(name => Object.hasOwn(game.equipment, name)) : [];
     const slot = slots.find(name => !game.equipment[name]) || slots[0];
     if (!slot || !combatEquipmentStats.inspect(item, slot).ok) return null;
-    const previous = game.equipment[slot];
-    game.equipment[slot] = item;
-    return { undo: () => { game.equipment[slot] = previous; }, swap: !!previous, direct: !previous && game.settings.autoEquipEmptySlots !== false };
+    const swap = !!game.equipment[slot];
+    return { ...previewBuildStats(copy => { copy.equipment[slot] = item; }), swap,
+        moveBonus: firstActRewardMoveBonus(choice, item),
+        direct: !swap && game.settings.autoEquipEmptySlots !== false };
+}
+function isFirstActStarterReward(zoneId) { return zoneId === 0 && (game.season || 1) === 1 && !(game.loopCount > 0); }
+function firstActRewardMoveBonus(choice, item) {
+    return choice.fixedStarter ? (item.stats.find(stat => stat.id === 'move')?.val || 0) : 0;
+}
+/** First-loop choices use ordinary T1 mods at their listed maximum; no DPS reroll loop or invented stat ranges. */
+function buildFirstActRewardItem(base, choice) {
+    const item = createItemFromBase(base, 'normal', 1);
+    item.rarity = 'magic';
+    item.baseStats = base.baseStats.map(stat => rollBaseStat(stat, 1));
+    item.stats = FIRST_ACT_REWARD_STATS[choice.slot].map(id => {
+        const mod = MOD_DB.find(row => (row.statId || row.id) === id && row.slots.includes(choice.slot));
+        const range = getAffixTierRange(mod, id, 1);
+        return { id, val: range.max, valMin: range.min, valMax: range.max, tier: 1, statName: mod.statName };
+    });
+    updateItemName(item);
+    return item;
+}
+function actRewardItemBase(zoneId, choice) {
+    const bases = keepWeaponCategoryBases(BASE_ITEM_DB.filter(base => base.slot === choice.slot && !base.realmBase && !base.dropOnly && base.reqTier <= zoneId + 1), choice.weaponCategory);
+    return bases.reduce((best, row) => (!best || row.reqTier > best.reqTier ? row : best), null);
 }
 /** 미리보기 장비: 그 액트에서 나올 바탕(무기는 직업 대표 무기의 대분류) 가운데 가장 높은 것을 보통 등급, 기본 수치 가운데 값으로. */
 function buildActRewardPreviewItem(zoneId, choice) {
     const tier = zoneId + 1;
-    const bases = keepWeaponCategoryBases(BASE_ITEM_DB.filter(base => base.slot === choice.slot && !base.realmBase && !base.dropOnly && base.reqTier <= tier),
-        choice.weaponCategory);
-    const base = bases.reduce((best, row) => (!best || row.reqTier > best.reqTier ? row : best), null);
+    const base = actRewardItemBase(zoneId, choice);
     if (!base) return null;
     const counter = itemIdCounter;
-    const item = createItemFromBase(base, 'normal', tier);
-    itemIdCounter = counter;
-    item.baseStats = base.baseStats.map(stat => rollBaseStat(stat, 0.5));
-    return item;
+    try {
+        if (isFirstActStarterReward(zoneId)) return buildFirstActRewardItem(base, choice);
+        const item = createItemFromBase(base, 'normal', tier);
+        item.baseStats = base.baseStats.map(stat => rollBaseStat(stat, 0.5));
+        return item;
+    } finally { itemIdCounter = counter; }
 }
 /** "DPS 13 → 59, 생명력 410 → 443": 바뀌는 값만, 스킬트리와 전직 창의 미리보기와 같은 말과 빛깔(js/ui.js buildStatPreviewParts).
  * 가방으로 가는 장비는 "바꿔 끼우면"으로, 장비는 옵션 없는 기본 성능 값이라 (옵션 제외)를 붙인다. */
 function formatActRewardDps(change, choice) {
-    const parts = change ? buildStatPreviewParts(change) : '';
+    const parts = change ? [buildStatPreviewParts(change), change.moveBonus ? `이동 속도 +${formatValue('move', change.moveBonus)}%` : ''].filter(Boolean).join(', ') : '';
     if (!parts) return '';
     const lead = change.direct ? '' : (change.swap ? '바꿔 끼우면 ' : '끼우면 ');
-    return `<b class="reward-choice-dps">${lead}${parts}${choice.kind === 'item' ? ' (옵션 제외)' : ''}</b>`;
+    return `<b class="reward-choice-dps">${lead}${parts}${choice.kind === 'item' && !choice.fixedStarter ? ' (옵션 제외)' : ''}</b>`;
 }
 function getActRewardPreview(choice) {
     if (choice.kind === 'skill') return `${choice.skill} 공격 룬을 획득합니다.`;
@@ -5953,19 +6009,17 @@ function getActRewardPreview(choice) {
     return '영구 보상';
 }
 /** 장비 보상은 그 액트에서 나올 바탕 하나(무기는 직업 대표 무기의 대분류, getActRewardChoices)를 마법 등급으로 준다. 빈 칸이면 바로 낀다. */
+function grantActRewardItem(zoneId, choice) {
+    const base = actRewardItemBase(zoneId, choice);
+    if (!base) return false;
+    const item = isFirstActStarterReward(zoneId) ? buildFirstActRewardItem(base, choice)
+        : createItemFromBase(base, choice.rarity || 'magic', zoneId + 1);
+    // The shown base is the granted base. Only unidentified affixes remain random.
+    if (!isFirstActStarterReward(zoneId)) item.baseStats = base.baseStats.map(stat => rollBaseStat(stat, 0.5));
+    return addItemToInventory(item, { guaranteedKeep: true });
+}
 function grantActRewardEntry(zoneId, choice) {
-    if (choice.kind === 'item') {
-        let base = chooseItemBase(choice.slot, zoneId + 1, getZone(zoneId), choice.weaponCategory);
-        if (!base) {
-            addLog(`⚠️ 액트 보상 아이템 생성 실패 (${choice.slot})`, 'attack-monster');
-            return;
-        }
-        let item = createItemFromBase(base, choice.rarity || 'magic', zoneId + 1);
-        let added = addItemToInventory(item, { ignoreFilter: true });
-        if (added) addLog(`🎁 액트 보상으로 [${item.name}] 획득!`, choice.rarity === 'rare' ? 'loot-rare' : 'loot-magic', { item });
-        else addLog(`⚠️ 인벤토리 공간 부족으로 액트 보상 아이템이 자동 해체되었습니다.`, 'attack-monster');
-        return;
-    }
+    if (choice.kind === 'item') return grantActRewardItem(zoneId, choice);
     if (choice.kind === 'skill') {
         if (!hasSkillGemOwned(choice.skill)) {
             game.skills.push(choice.skill);
@@ -6014,15 +6068,16 @@ function grantActRewardEntry(zoneId, choice) {
         addLog(`🎁 ${getStatName(choice.stat)} +${choice.value}${P_STATS[choice.stat] && P_STATS[choice.stat].isPct ? '%' : ''}`, 'loot-rare');
     }
 }
-function claimActRewardChoice(zoneId, choiceIndex) { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
-    if (!(game.claimableActRewards || []).includes(zoneId)) return;
+function claimActRewardChoice(zoneId, choiceIndex, displayedChoice) { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
+    if (!game.claimableActRewards.includes(zoneId)) return;
     let choices = getActRewardChoices(zoneId);
     let choice = choices[choiceIndex];
     if (!choice || !isActRewardChoiceAvailable(choice)) return;
-    grantActRewardEntry(zoneId, choice);
+    if (displayedChoice !== undefined && displayedChoice !== encodeURIComponent(choice.claimKey)) return openActReward(zoneId);
+    if (grantActRewardEntry(zoneId, choice) === false) return addLog('액트 보상을 지급하지 못했습니다. 보상은 유지됩니다.', 'system');
     if (typeof runPassiveTreeAutoInvest === 'function') runPassiveTreeAutoInvest();
-    game.claimableActRewards = (game.claimableActRewards || []).filter(id => id !== zoneId);
-    if (!(game.claimedActRewards || []).includes(zoneId)) game.claimedActRewards.push(zoneId);
+    game.claimableActRewards = game.claimableActRewards.filter(id => id !== zoneId);
+    if (!game.claimedActRewards.includes(zoneId)) game.claimedActRewards.push(zoneId);
     closeRewardOverlay();
     checkUnlocks();
     normalizeSupportLoadout(true);
@@ -9336,7 +9391,7 @@ function getChaseUniqueChance(zone) {
 
 /** Whether unique can be rolled in zone: a content unique (dropOnly) only in its own content (type, id, floor). */
 function uniqueDropsInZone(unique, zone) {
-    if (!unique) return false;
+    if (!contentProgression.canDropUnique(unique)) return false;
     if (!unique.dropOnly) return true;
     let dropOnly = unique.dropOnly;
     if (dropOnly.type && zone.type !== dropOnly.type) return false;
@@ -9357,8 +9412,9 @@ function getFairyRingUniquePools(item, zone = getZone(game.currentZoneId) || {})
 function generateUniqueItem(zoneTier, preferredSlot, forcedUniqueName, zone = getZone(game.currentZoneId) || {}) {
     let canDropUniqueInZone = unique => uniqueDropsInZone(unique, zone);
     let meetsUniqueTier = unique => uniqueMeetsTier(unique, zoneTier);
-    let forcedUnique = forcedUniqueName ? UNIQUE_DB.find(unique => unique && unique.name === forcedUniqueName) : null;
-    let slot = (forcedUnique && forcedUnique.slots && forcedUnique.slots[0]) || preferredSlot || rndChoice(EQUIPMENT_DROP_SLOTS);
+    let forcedUnique = UNIQUE_DB.find(unique => unique.name === forcedUniqueName);
+    if (forcedUnique && !contentProgression.canDropUnique(forcedUnique)) return null;
+    let slot = forcedUnique?.slots?.[0] || preferredSlot || rndChoice(EQUIPMENT_DROP_SLOTS);
     let normalOptions = UNIQUE_DB.filter(unique => !unique.ultraRare && canDropUniqueInZone(unique));
     let chaseOptions = UNIQUE_DB.filter(unique => unique.ultraRare
         && canDropUniqueInZone(unique)
@@ -9367,8 +9423,7 @@ function generateUniqueItem(zoneTier, preferredSlot, forcedUniqueName, zone = ge
     let poolSource = canRollChase ? chaseOptions : normalOptions;
     let options = poolSource.filter(unique => unique.slots.includes(slot) && meetsUniqueTier(unique));
     if (options.length === 0) options = poolSource.filter(meetsUniqueTier);
-    if (options.length === 0) options = poolSource.length > 0 ? poolSource : UNIQUE_DB.filter(unique => canDropUniqueInZone(unique));
-    if (options.length === 0) options = UNIQUE_DB.filter(unique => canDropUniqueInZone(unique));
+    if (options.length === 0) options = poolSource.length > 0 ? poolSource : UNIQUE_DB.filter(canDropUniqueInZone);
     let unique = forcedUnique || rndChoice(options);
     let uniqueTier = unique.reqTier || zoneTier;
     let base = BASE_ITEM_DB.find(row => row.id === UNIQUE_EQUIPMENT_RULES[unique.name].baseId);
