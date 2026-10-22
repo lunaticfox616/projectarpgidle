@@ -238,7 +238,8 @@
 #tab-skills .gem-tile.equipment-blocked .gem-usage-state { color: #ff9b92; }
 #tab-skills .gem-tile.is-gem-selected { outline: 2px solid var(--board-gold-hi); outline-offset: 1px; box-shadow: 0 0 14px rgba(224, 194, 131, .3); }
 #tab-skills .gem-tile.starter-gem-tutorial-target { border-color: #78dcff; box-shadow: 0 0 0 1px rgba(120, 220, 255, .55), 0 0 18px rgba(83, 205, 255, .35); animation: starterGemCardPulse 1.15s ease-in-out infinite; }
-#tab-skills .gem-tile .starter-gem-equip-guide { position: absolute; left: 0; right: 0; bottom: 0; margin: 0; padding: 1px 0; background: rgba(8, 40, 52, .92); color: #b9edff; font: 12px var(--board-label); }
+/* 첫 스킬룬 띠는 카드의 맨 아래 줄(order): 아래에 겹쳐 붙이면 좁은 카드에서 두 줄이 되어 룬 이름과 범위 줄을 덮었다 */
+#tab-skills .gem-tile .starter-gem-equip-guide { position: static; order: 9; justify-self: stretch; margin: 2px -3px -6px; padding: 1px 2px; background: rgba(8, 40, 52, .92); color: #b9edff; font: 12px var(--board-label); left: auto; translate: none; }
 #tab-skills .gem-tile.support-gem { --gem-accent: var(--board-support); }
 #tab-skills .gem-tile .gem-tile-support-art {
   position: relative; display: grid; place-items: center;
