@@ -38,10 +38,12 @@ const battleGroundLoot = (() => {
     /** Rows per arm of the name cross. Up sits over the picture; the side arms stay short so they fit between the up and
      * down arms. Drops beyond every arm stay unnamed: never a "외 N개" row (user, 2026-10-03). */
     const ARM_ROWS = Object.freeze({ wide: { up: 6, right: 2, left: 2, down: 3 }, narrow: { up: 3, right: 1, left: 1, down: 2 } });
-    // Keep the pile beneath its name even when the centred name arm slides away from a screen edge.
+    // Keep the pile beneath its name even when the centred name arm slides away from a screen edge. A pile closer to the edge
+    // than that, or past it (drawn up to 64px out), takes its whole name inside: the name showed a cut fragment ("기] 룬").
     const EDGE_PAD = 4, EDGE_GRIP = 12;
     function edgeShift(x, half, width) {
-        const reach = Math.max(0, half - EDGE_GRIP), left = x - half, right = x + half;
+        const atEdge = x < EDGE_PAD + EDGE_GRIP || x > width - EDGE_PAD - EDGE_GRIP;
+        const reach = atEdge ? Infinity : Math.max(0, half - EDGE_GRIP), left = x - half, right = x + half;
         const want = left < EDGE_PAD ? EDGE_PAD - left : right > width - EDGE_PAD ? width - EDGE_PAD - right : 0;
         return Math.round(Math.max(-reach, Math.min(reach, want)));
     }
@@ -104,6 +106,7 @@ const battleGroundLoot = (() => {
         setStyle(marker, 'left', x + 'px'); setStyle(marker, 'top', y + 'px');
         if (marker.hidden) return; // Measure when shown again, not as a zero-width hidden element.
         if (!marker.dataset.labelRow) {
+            marker.classList.remove('cuts-left', 'cuts-right');
             const row = labels.firstElementChild?.offsetHeight || 20;
             const down = marker.querySelector('.battle-loot-labels.is-down');
             marker.dataset.labelRow = String(row);
@@ -111,6 +114,8 @@ const battleGroundLoot = (() => {
             setStyle(marker, '--up-height', marker.dataset.labelHeight + 'px');
             marker.dataset.labelHalf = String(labels.offsetWidth / 2);
             marker.dataset.downHalf = String(down ? down.offsetWidth / 2 : 0);
+            marker.dataset.leftWidth = String(marker.querySelector('.battle-loot-labels.is-left')?.offsetWidth || 0);
+            marker.dataset.rightWidth = String(marker.querySelector('.battle-loot-labels.is-right')?.offsetWidth || 0);
         }
         const view = canvasBox(canvas), half = Number(marker.dataset.labelHalf), shift = edgeShift(x, half, view.width);
         const height = Number(marker.dataset.labelHeight);
@@ -118,6 +123,9 @@ const battleGroundLoot = (() => {
         const above = EDGE_PAD - (y - 30 - height), below = y + 24 + height - (view.height - EDGE_PAD);
         const under = y >= 0 && above > 0 && below < above;
         marker.classList.toggle('is-under', under);
+        // Side names cannot slide: one that would cross the field edge hides (a hidden arm is fine, see yieldCrowdedArms).
+        marker.classList.toggle('cuts-left', x - 26 - Number(marker.dataset.leftWidth) < 0 || x - 26 > view.width);
+        marker.classList.toggle('cuts-right', x + 26 < 0 || x + 26 + Number(marker.dataset.rightWidth) > view.width);
         setStyle(marker, '--label-shift', shift + 'px');
         setStyle(marker, '--down-shift', edgeShift(x, Number(marker.dataset.downHalf), view.width) + 'px');
         stackLabel(marker, { x, y, half, shift, height, under, floor: view.height - EDGE_PAD, row: Number(marker.dataset.labelRow) });
