@@ -1060,9 +1060,10 @@ function updateMobileBattlePipVisibility(schedule = true) {
     dockMobileBattlePip(host);
     let isMobile = uiDisplay.matches('(max-width: 1080px)');
     let activeBattle = document.getElementById('tab-battle').classList.contains('active');
-    // Detail sheets own the touch area. Resume the preview when they close; no hidden canvas polling.
+    // Detail sheets own the touch area. Resume the preview when they close; no hidden canvas polling. Settings hold the save reset
+    // and account buttons at the page end: no preview there.
     let blocked = isMobile && !activeBattle && (isBattlePresentationSuspended() || document.body.classList.contains('mobile-tab-drawer-open')
-        || !!document.querySelector('#passive-mobile-detail:not([hidden]), #ui-equipment-inventory-inspector:popover-open, .selection-overlay, dialog[open], .tutorial-overlay.active, #background-combat-result-overlay, #tab-traits.active .ascend-detail:not(.is-empty), #tab-items.active .shop-info:not(:empty)'));
+        || !!document.querySelector('#passive-mobile-detail:not([hidden]), #ui-equipment-inventory-inspector:popover-open, .selection-overlay, dialog[open], .tutorial-overlay.active, #background-combat-result-overlay, #tab-settings.active, #tab-traits.active .ascend-detail:not(.is-empty), #tab-items.active .shop-info:not(:empty)'));
     let display = (isMobile && !activeBattle && !blocked && game.settings.showMobileBattlePip !== false) ? 'grid' : 'none';
     if (host.style.display !== display) host.style.display = display;
     if (isMobileBattlePipVisible()) {

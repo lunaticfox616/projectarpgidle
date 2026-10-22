@@ -91,6 +91,14 @@
   #mobile-battle-pip.is-collapsed [data-pip-return] { display: none; }
   #mobile-battle-pip.is-collapsed .mobile-battle-pip-actions { grid-template-columns: 1fr; }
   #mobile-battle-pip.is-collapsed [data-pip-toggle] { padding-inline: 12px; }
+  /* A floating preview covers the lower right of the page: scrolling pages get its height below their last row, so that row can
+     be lifted above it (the settings reset button sat under it). Docked previews and the bag tab (its own gap below) need none. */
+  body:has(#mobile-battle-pip.mobile-battle-dock[style*="display: grid"]:not(.is-tree-docked, .is-workshop-docked)):not(:has(#tab-items.active)) {
+    padding-bottom: calc(clamp(144px, 42vw, 192px) * 9 / 16 + 64px);
+  }
+  body:has(#mobile-battle-pip.mobile-battle-dock.is-collapsed[style*="display: grid"]:not(.is-tree-docked, .is-workshop-docked)):not(:has(#tab-items.active)) {
+    padding-bottom: 64px;
+  }
   /* The bag's tool rail ends about 40px above the menu: the folded button sits in that gap instead of over 배치 and 복구. */
   body:has(#tab-items.active) #mobile-battle-pip.is-collapsed { bottom: calc(var(--mobile-primary-nav-height, 62px) + env(safe-area-inset-bottom) + 2px); padding: 1px; }
   body:has(#tab-items.active) #mobile-battle-pip.is-collapsed [data-pip-toggle] { min-height: 34px; }
