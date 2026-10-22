@@ -260,12 +260,17 @@
   :root body[data-ui-skin] #tab-char .merged-subtab-pane.active[data-tab-id="tab-char"] { display: contents; }
   :root body[data-ui-skin] #tab-char .merged-subtab-pane.active[data-tab-id="tab-char"] > div {
     /* Overrides the markup's inline flex column (index.html) so the title row and the tree join the window grid. */ display: contents !important; }
-  :root body[data-ui-skin] #tab-char .merged-subtab-pane[data-tab-id="tab-char"] > div > h2 { grid-column: 2; grid-row: 1; justify-self: start; position: relative; z-index: 11; display: block; margin: 6px; padding: 0 0 0 8px; border: 1px solid var(--color-line); background: var(--color-surface); }
+  :root body[data-ui-skin] #tab-char .merged-subtab-pane[data-tab-id="tab-char"] > div > h2 { grid-column: 2; grid-row: 1; justify-self: start; position: relative; z-index: 9; display: block; margin: 6px; padding: 0 0 0 8px; border: 1px solid var(--color-line); background: var(--color-surface); }
   :root body[data-ui-skin] #tab-char .merged-subtab-pane[data-tab-id="tab-char"] > div > h2 > span:first-child { display: none; }
   :root body[data-ui-skin] #tab-char .merged-subtab-pane[data-tab-id="tab-char"] > div > h2 > .h2-right { display: flex; align-items: center; gap: 8px; min-height: 44px; }
   :root body[data-ui-skin] #tab-char .merged-subtab-pane[data-tab-id="tab-char"] > div > h2 .passive-tree-reset { margin: 0; }
   :root body[data-ui-skin] #tab-char .merged-subtab-pane[data-tab-id="tab-char"] > div > #tree-container { grid-column: 2; grid-row: 1; align-self: stretch;
     /* Overrides inline presentation from the runtime (min-height 280px) and the tablet 360px floor; the grid row sets the height here. */ min-height: 0 !important; }
+}
+@media (min-width: 721px) and (max-width: 1080px) and (orientation: landscape) and (max-height: 600px) {
+  /* 열린 검색 칸은 화면 폭(components.css)이 아니라 트리 폭에 맞춘다: 왼쪽 탭 줄 뒤로 들어가 전체 거르개와 입력란 앞이 가렸다 */
+  :root body[data-ui-skin] #tab-char .merged-subtab-pane[data-tab-id="tab-char"] > div > #tree-container { container-type: inline-size; }
+  :root body[data-ui-skin] #tab-char .passive-search-drawer[open] { width: calc(100cqw - 14px); max-width: none; }
 }
 @media (max-width: 720px) and (orientation: landscape) and (max-height: 600px) {
   /* 720px 이하에서는 트리 도구(프리셋, 검색, 투자 효과 총합)가 트리 맨 위 한 줄이라 포인트 판은 왼쪽 아래에 둔다 */
