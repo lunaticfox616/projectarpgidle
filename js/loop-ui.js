@@ -75,6 +75,8 @@ const loopSettlementUi = {
         if (!ready && !decision) { this.renderedKey = ''; this.dismissedReadyLoop = 0; return; }
         const key = `${game.season}:${ready}:${decision}:${this.unlockRewardText()}:${getHeldGearLoopBlockReason()}:${game.settings.autoLoop}:${game.settings.autoLoopClass}`;
         if (key === this.renderedKey) return;
+        // A new loop's summary starts at its top: shown again, the cards came back at the last loop's scroll spot.
+        if (!this.renderedKey.startsWith(`${game.season}:`)) document.querySelectorAll('#loop-ready-overlay .tutorial-card, #loop-decision-overlay .tutorial-card').forEach(card => card.scrollTo(0, 0));
         this.renderedKey = key;
         const html = this.summaryHtml();
         document.getElementById('loop-ready-summary').innerHTML = html;
