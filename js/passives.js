@@ -5469,6 +5469,8 @@ function openDeathOverlay(log) {
     overlay.classList.add('active');
     deathOverlayActive = true;
     overlay.showModal();
+    // 확인 takes the focus (autofocus); on a short screen that scrolled the card to its end, past the title and the last hit.
+    overlay.querySelector('.deathlog-card').scrollTop = 0;
     lastTime = Date.now();
 }
 
