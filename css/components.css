@@ -1145,7 +1145,10 @@
 
 .passive-investment-summary {
     position: static;
-    width: min(300px, calc(100% - 24px));
+    /* A fixed width: the tool column (.passive-tree-right-tools) shrinks to its content, so a percentage of it took 24px off the
+       summary's own width (151px at 1536x864, the 계시 label broke in two). */
+    width: 280px;
+    max-width: 100%;
     border: 1px solid rgba(210, 178, 108, 0.54);
     border-radius: 10px;
     background: rgba(5, 9, 15, 0.9);
