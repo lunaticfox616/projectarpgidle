@@ -198,8 +198,8 @@
   /* 높이 상한은 안쪽 높이라 도트 테두리와 여백이 더해져 화면을 넘었다(가로 휴대폰에서 위아래 3px) */
   .selection-overlay-panel.gem-slot-panel { max-height: calc(100dvh - 16px - 2 * var(--px-window-border, 0px) - 28px); }
 }
-@media (max-width: 1080px) and (orientation: landscape) and (max-height: 600px) {
-  /* 가로 휴대폰: 지금 낀 룬 카드까지 쌓으면 후보 목록이 틀 밖으로 잘리고 밀 수 없었다(틀은 overflow: hidden).
+@media (max-height: 600px) {
+  /* 낮은 화면(가로 휴대폰, 화면 배율을 키운 휴대폰): 지금 낀 룬 카드까지 쌓으면 후보 목록이 틀 밖으로 잘리고 밀 수 없었다(틀은 overflow: hidden).
      창 전체를 밀고(공용 틀이 그 자리를 기억한다) 목록은 제 높이로 둔다 */
   .selection-overlay-panel.gem-slot-panel { overflow-y: auto; }
   .gem-slot-panel > * { flex-shrink: 0; }
