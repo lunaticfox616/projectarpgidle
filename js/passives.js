@@ -5124,6 +5124,8 @@ function openLoopHeroSelection(onSelect, options = {}) {
     }).join('');
     renderLoopHeroChoiceDetail(null);
     overlay.classList.add('active');
+    // Shown again, the list came back at its last scroll spot (a lower card picked last loop), past the title and the first row.
+    grid.parentElement.scrollTo(0, 0);
     return true;
 }
 
