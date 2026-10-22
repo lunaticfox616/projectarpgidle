@@ -723,14 +723,14 @@ body[data-ui-skin] {
   /* 룬: 누르는 칸(주 공격 44 · 이동 스킬 40px)은 두 줄 높이, 소환 룬(누르면 스킬룬 창)은 24px 알로 그 옆에 두 줄씩(하나면 가운데).
      룬이 늘 다 들어가게 이름 칸이 양보한다. 위 칸 소환 룬(첫째와 셋째)은 누름 자리를 위로 넓힌다 */
   :root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-rack { min-width: max-content; }
-  /* 이름표: 구슬 옆 칸은 룬이 넷이거나 화면 배율을 키우면 좁아져 직업 이름 끝이 잘렸다 → 판 윗변 왼쪽에 걸친 한 줄 이름표(오른쪽 상태
-     아이콘과 같은 높이). 전직한 뒤에는 전직 이름만(js/ui.js renderPlayerHudIdentity). 보호막 값은 구슬 옆 가운데 */
-  :root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-left-wing { position: absolute; grid-column: 1 / -1; top: -22px; left: 0; z-index: 4; max-width: calc(50% - 50px); margin: 0; pointer-events: none; }
-  :root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-left-wing .player-hud-identity-row { flex-direction: row; align-items: baseline; gap: 6px; padding: 2px 7px 3px; border: 1px solid var(--px-ink); background: var(--px-panel); box-shadow: inset 1px 1px 0 var(--px-bronze), inset -1px -1px 0 #19161c; }
+  /* 직업 이름: 구슬 옆 칸은 룬이 넷이거나 화면 배율을 키우면 좁아져 이름 끝이 잘렸다 → 생명 구슬 위 한 줄(상자 없이, 오른쪽의 상태
+     아이콘과 같은 줄). 전직한 뒤에는 전직 이름만(js/ui.js renderPlayerHudIdentity). 보호막 값은 구슬 옆 가운데 */
+  :root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-left-wing { position: absolute; grid-column: 1 / -1; top: -17px; left: 0; z-index: 4; max-width: calc(50% - 50px); margin: 0; pointer-events: none; }
+  :root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-left-wing .player-hud-identity-row { flex-direction: row; align-items: baseline; gap: 6px; }
   :root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-identity-row[data-ascended] #ui-player-name-label { display: none; }
   :root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame .combat-es-text { top: 50%; bottom: auto; translate: 0 -50%; }
-  /* 상태 아이콘(24px)은 판 윗변에 가운데를 맞춰 매단다: 위치의 기준은 판 위 여백(13px) 아래의 구슬 줄이다 */
-  :root body[data-ui-skin] #battle-column .player-hud-shell #ui-player-ailments-under { top: -25px; }
+  /* 상태 아이콘(22px)은 룬 위 한 줄: 위치의 기준은 판 위 여백(13px) 아래의 구슬 줄이다 */
+  :root body[data-ui-skin] #battle-column .player-hud-shell #ui-player-ailments-under { top: -23px; }
   :root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-slots { display: grid; grid-auto-flow: column; grid-template-rows: 24px 24px; gap: 4px; align-items: center; }
   :root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-slot { grid-row: 1 / -1; }
   :root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-slot.summon { grid-row: auto; }
