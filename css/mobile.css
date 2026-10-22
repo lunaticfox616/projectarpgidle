@@ -227,7 +227,11 @@
   }
   /* Landscape phones are about 270px tall above the menu: the bottom sheet covered the whole tree and cut the node text to one line.
      Dock it as a tall card over the window's tab rail instead. */
-  #passive-mobile-detail:not([hidden]) { top: max(8px, env(safe-area-inset-top)); right: auto; width: min(340px, 48vw); max-height: none; }
+  #passive-mobile-detail:not([hidden]) { top: max(8px, env(safe-area-inset-top)); right: auto; width: min(340px, 46vw); max-height: none; }
+  /* The log notices sit centred at the top while the card is open and covered its close button: move them to the right half.
+     The root's left, width and centring transform are inline (getMobileToastRoot), so this narrows it and shifts it with translate. */
+  body:has(#passive-mobile-detail:not([hidden])) #mobile-toast-root { max-width: calc(50vw - 32px); translate: 25vw 0; }
+  body:has(#passive-mobile-detail:not([hidden])) #game-toast-region { max-width: calc(50vw - 32px); }
 }
 
 .gem-library-pager {
