@@ -6,7 +6,7 @@ const context = buildGameRuntime();
 const run = source => vm.runInContext(source, context);
 
 async function resetPassiveTree() {
-    return vm.runInContext('marketResetPassiveTreeByDivine()', context);
+    return vm.runInContext('resetPassiveTreeByGoldenRule()', context);
 }
 
 async function main() {

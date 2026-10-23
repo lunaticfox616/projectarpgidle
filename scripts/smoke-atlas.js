@@ -106,6 +106,54 @@ assert.deepEqual(difficulty.map(row => row.loot), [15, 20], 'equipment tier rise
 assert.equal(copy(`[1, 30].map(season => { game.season = season; const hp = createEnemy(atlas.preview(game, atlasMaps.create('roots_0', 1)), { at: 0, count: 1, boss: true }, 0).maxHp; game.season = 1; return hp; })`)
     .reduce((a, b) => a === b), true, 'the loop count never inflates an atlas map');
 
+// ---------------------------------------------------------------- a full stash must not swallow the guardian route
+const stashSafety = copy(`(() => {
+    const state = mergeDefaults({ season: 10 });
+    state.loopProgressCurrent.chaos20Cleared = true;
+    state.atlas.unlocked = true;
+    state.atlas.completed = atlas.nodes.filter(node => node.kind === 'map').map(node => node.id);
+    state.atlas.stash = Array.from({ length: ATLAS.stashCap }, (_, i) => ({ ...atlasMaps.create('roots_8', 15), uid: i + 1 }));
+    state.atlas.nextUid = ATLAS.stashCap + 1;
+    const original = JSON.stringify(state.atlas.stash.slice(1));
+    atlas.begin(state, 1, 29, () => .5);
+    const activeBefore = JSON.stringify(state.atlas), activeReason = atlas.discard(state, 2);
+    const activeSafe = activeBefore === JSON.stringify(state.atlas);
+    // Even if normal maps already filled the held-drop limit, the boss's guardian remains eligible for the one free slot.
+    state.atlas.run.drops = Array.from({ length: ATLAS.stashCap }, () => ({ ...atlasMaps.create('roots_0', 1), uid: state.atlas.nextUid++ }));
+    const rolled = atlas.dropFromKill(state, atlas.zone(state), { isBoss: true }, () => 0);
+    const guardian = rolled.find(map => atlas.node(map.node).kind === 'guardian');
+    const heldGuardian = state.atlas.run.drops.some(map => map.uid === guardian.uid);
+    const heldCount = state.atlas.run.drops.length;
+    atlas.complete(state);
+    const storedGuardian = state.atlas.stash.find(map => map.uid === guardian.uid);
+    const existingSafe = JSON.stringify(state.atlas.stash.slice(0, ATLAS.stashCap - 1)) === original;
+    const roundTrip = mergeDefaults(JSON.parse(JSON.stringify(state)));
+    const restoredGuardian = roundTrip.atlas.stash.find(map => map.uid === guardian.uid);
+    const missingBefore = JSON.stringify(state.atlas), missingReason = atlas.discard(state, -1);
+    const missingSafe = missingBefore === JSON.stringify(state.atlas);
+    const discardBefore = JSON.stringify(state.atlas.stash.filter(map => map.uid !== 2)), nextUid = state.atlas.nextUid;
+    const discardReason = atlas.discard(state, 2);
+    const discardedOnlySelected = JSON.stringify(state.atlas.stash) === discardBefore && state.atlas.nextUid === nextUid;
+    // Unfinished guardians win over repeat guardians, without deleting any previously stored maps.
+    atlas.begin(state, 3, 29, () => .5);
+    state.atlas.completed.push('roots_g');
+    state.atlas.stash.push({ ...atlasMaps.create('roots_0', 1), uid: state.atlas.nextUid++ });
+    state.atlas.run.drops = ['roots_0', 'roots_g', 'trunk_g'].map(node => ({ ...atlasMaps.create(node, 16), uid: state.atlas.nextUid++ }));
+    const unfinishedUid = state.atlas.run.drops[2].uid;
+    atlas.complete(state);
+    return { activeReason, activeSafe, heldGuardian, heldCount, guardian, storedGuardian, restoredGuardian, existingSafe,
+        missingReason, missingSafe, discardReason, discardedOnlySelected, unfinishedKept: state.atlas.stash.some(map => map.uid === unfinishedUid),
+        capped: state.atlas.stash.length === ATLAS.stashCap };
+})()`);
+assert.ok(stashSafety.activeReason && stashSafety.activeSafe, 'an active run blocks stash deletion without partial changes');
+assert.ok(stashSafety.heldGuardian && stashSafety.heldCount === run('ATLAS.stashCap'), 'guardian map survives the held reward cap');
+assert.deepEqual(stashSafety.storedGuardian, stashSafety.guardian, 'the guardian map, including its uid, wins the last free stash slot');
+assert.deepEqual(stashSafety.restoredGuardian, stashSafety.guardian, 'guardian access survives a save round trip');
+assert.ok(stashSafety.existingSafe && stashSafety.unfinishedKept && stashSafety.capped, 'only new rewards compete; unfinished guardians take priority');
+assert.ok(stashSafety.missingReason && stashSafety.missingSafe, 'a stale uid never deletes another map');
+assert.equal(stashSafety.discardReason, '');
+assert.ok(stashSafety.discardedOnlySelected, 'explicit discard removes just that uid and never rewrites remaining uids');
+
 // ---------------------------------------------------------------- unlock, starter maps, the device and a real map
 let tick = 0;
 const advance = (count = 1) => { for (let n = 0; n < count; n++) run(`coreLoop(${1800000000000 + (++tick) * 100})`); };
@@ -153,7 +201,214 @@ assert.match(run(`game.pendingLoopDecision=true;atlasRun.open(game.atlas.stash[0
 assert.equal(run('game.atlas.stash.length'), held, 'and no map is spent');
 run('game.pendingLoopDecision=false;');
 
+// Completion rewards belong to the finished map, including its guaranteed unique, material and seed receipts.
+{
+    const {run: settle}=fixture(731);
+    const read=code=>JSON.parse(settle(`JSON.stringify(${code})`));
+    settle(`game=mergeDefaults({...game,season:50});game.maxZoneId=29;game.currentZoneId=29;game.loopProgressCurrent.chaos20Cleared=true;
+        game.settings.mapCompleteAction='stop';atlas.sync(game);
+        for(const key of ATLAS.pinnacle.tickets)game.currencies[key]=1;`);
+    assert.equal(settle('atlasRun.openPinnacle()'),'');
+    settle('atlasRun.finish(getZone(game.currentZoneId));');
+    assert.equal(settle('game.atlas.lastResult.seed'),true);
+    assert.equal(settle('game.atlas.lastResult.seeds'),1);
+    assert.equal(settle('game.atlas.lastResult.endgame.awakened'),true);
+    for(const [key,amount] of read('ATLAS.pinnacle.rewards'))assert.equal(settle(`game.atlas.lastResult.loot.currencies['${key}']`),amount);
+    settle(`for(const item of Object.values(ATLAS_ENDGAME.guardianShears))game.atlas.endgame.items[item]=1;
+        game.atlas.endgame.witness=4;`);
+    assert.equal(settle("atlasRun.openEndgame('apex_gardener')"),'');
+    const before=read('game.currencies');
+    settle('atlasRun.finish(getZone(game.currentZoneId));');
+    const result=read('game.atlas.lastResult'),wallet=read('game.currencies');
+    for(const [key,amount] of read("atlasEndgame.def('apex_gardener').rewards")) {
+        assert.equal(wallet[key]-(before[key] || 0),amount);
+        assert.equal(result.loot.currencies[key],amount,'completion currency is in this map receipt');
+    }
+    assert.equal(result.endgame.invite,1);
+    const unique=settle("atlasEndgame.def('apex_gardener').unique");
+    assert.ok(result.loot.items.some(item=>item.name===unique),'guaranteed unique appears in the actual loot receipt');
+    const gear=read('game.inventory');
+    assert.ok(gear.some(item=>item.name===unique));
+    settle('game=mergeDefaults(JSON.parse(serializeSaveState(game)));atlasRun.finish(getZone(game.currentZoneId));');
+    assert.deepEqual(read('game.atlas.lastResult'),result,'result survives save/load and repeated completion');
+    assert.deepEqual(read('game.currencies'),wallet,'loading the result never pays it again');
+    assert.deepEqual(read('game.inventory.map(({instanceId,...item})=>item)'),gear,'same earned equipment after identity migration');
+    assert.equal(settle('atlasRun.open(game.atlas.stash[0].uid)'), '');
+    const beforeVariant=read('game.currencies');
+    const variantKill="recordKillProgress({isBoss:true,bossVariant:BOSS_VARIANTS.kinds[0].id,name:'변이 보스 검사'});";
+    settle(variantKill);
+    for(const [key,amount] of read('BOSS_VARIANTS.reward.firstKill')) {
+        assert.equal(settle(`game.currencies['${key}']`)-(beforeVariant[key] || 0),amount);
+        assert.equal(settle(`game.explorationLoot.currencies['${key}']`),amount,'variant first-kill gift belongs to this map receipt');
+    }
+    const variantWallet=read('game.currencies'),variantReceipt=read('game.explorationLoot');
+    settle(variantKill);
+    assert.deepEqual(read('game.currencies'),variantWallet,'repeat variant kill does not pay the first-kill gift twice');
+    assert.deepEqual(read('game.explorationLoot'),variantReceipt,'repeat variant kill does not duplicate its receipt');
+    settle(`game.atlas.endgame.items.shearRoots=98;game.atlas.run.endgame.items={shearRoots:5};atlasRun.finish(getZone(game.currentZoneId));`);
+    assert.deepEqual(read('game.atlas.lastResult.endgame.items'),[['shearRoots',1]],'receipt counts only materials accepted under the cap');
+    assert.equal(settle('game.atlas.lastResult.loot.equipmentCount'),0,'next map does not inherit the last unique');
+    const old=read('game.atlas.lastResult');delete old.seed;delete old.seeds;delete old.endgame;
+    settle(`game.atlas.lastResult=${JSON.stringify(old)};game=mergeDefaults(JSON.parse(serializeSaveState(game)));`);
+    assert.equal(settle('game.atlas.lastResult.endgame'),null,'older result saves are still accepted');
+}
+
+// Memory progress receipts survive saves without replacing the completion event's reward contract.
+{
+    const {run: memoryRun,runtime: memoryRuntime}=fixture(844);
+    const read=code=>JSON.parse(memoryRun(`JSON.stringify(${code})`));
+    memoryRun(`game=mergeDefaults({...game,season:50});game.maxZoneId=29;game.currentZoneId=29;game.loopProgressCurrent.chaos20Cleared=true;atlas.sync(game);
+        game.atlas.stash=[{...atlasMaps.create('roots_0',1),uid:game.atlas.nextUid++}];
+        atlas.begin(game,game.atlas.stash[0].uid,29,()=>.5);`);
+    memoryRuntime.Math.random=()=>0;
+    memoryRun('var receiptEvent=atlas.complete(game);');
+    assert.deepEqual(read('game.atlas.lastResult.memory'),{foughtTier:0,newBest:false,ticket:{node:'roots_0',tier:1}});
+    assert.deepEqual(read('receiptEvent.memory.ticket'),{node:'roots_0',name:memoryRun("atlas.node('roots_0').boss"),tier:1});
+    assert.equal(memoryRun('receiptEvent.memory.spoils'),null,'the event still exposes memory payouts separately from the saved receipt');
+    const beforePreview=read('game'),randomBeforePreview=memoryRuntime.Math.random;
+    let previewDraws=0;
+    memoryRuntime.Math.random=()=>{previewDraws++;return randomBeforePreview();};
+    const preview=read("memoryDungeon.preview(game,'roots_0',1)");
+    memoryRun("memoryDungeon.preview(game,'roots_0',1);memoryDungeon.overview(game);");
+    assert.deepEqual(read('game'),beforePreview,'reading memory preparation never spends a ticket or changes progress');
+    assert.equal(previewDraws,0,'repeated preparation does not advance reward or combat randomness');
+    memoryRuntime.Math.random=randomBeforePreview;
+    assert.equal(memoryRun("atlas.beginMemory(game,'roots_0',1,29,()=>.5)"),'');
+    assert.deepEqual(read('[game.atlas.run.map.node,game.atlas.run.map.memory,game.atlas.run.map.tier]'),
+        [preview.map.node,preview.tier,preview.map.tier],'the eventual entry uses the previewed memory and difficulty');
+    memoryRun('receiptEvent=atlas.complete(game);');
+    assert.deepEqual(read('game.atlas.lastResult.memory'),{foughtTier:1,newBest:true,ticket:{node:'roots_0',tier:2}});
+    assert.equal(memoryRun('receiptEvent.memory.spoils.tier'),1);
+    assert.equal(memoryRun('receiptEvent.memory.spoils.best'),true);
+    assert.ok(read('receiptEvent.memory.spoils.rewards').length,'the event retains the actual currency payout list');
+    const result=read('game.atlas.lastResult'),progress=read('game.atlas.memory'),wallet=read('game.currencies');
+    memoryRun('atlas.complete(game);game=mergeDefaults(JSON.parse(serializeSaveState(game)));atlas.complete(game);');
+    assert.deepEqual(read('game.atlas.lastResult'),{...result,loot:null},'memory result survives restoration and repeated completion');
+    assert.deepEqual(read('game.atlas.memory'),progress,'loading a progress receipt never grants another ticket or advances its best tier');
+    assert.deepEqual(read('game.currencies'),wallet,'a presentation receipt never pays currencies');
+    memoryRun("memoryDungeon.give(game,'roots_0',1);atlas.beginMemory(game,'roots_0',1,29,()=>.5);atlas.complete(game);");
+    assert.equal(memoryRun('game.atlas.lastResult.memory.newBest'),false,'a repeated tier is not a new record');
+    memoryRun("memoryDungeon.give(game,'roots_0',5);atlas.beginMemory(game,'roots_0',5,29,()=>.5);atlas.close(game,'failed');");
+    const failed={foughtTier:5,newBest:false,ticket:null};
+    assert.deepEqual(read('game.atlas.lastResult.memory'),failed,'failed memory fights retain their fought tier only');
+    const afterFailure=read('game.atlas.memory');
+    memoryRun("atlas.close(game,'failed');game=mergeDefaults(JSON.parse(serializeSaveState(game)));");
+    assert.deepEqual(read('game.atlas.lastResult.memory'),failed);
+    assert.deepEqual(read('game.atlas.memory'),afterFailure,'repeated failure and load never refund the spent memory');
+    const base=read('game.atlas.lastResult');delete base.memory;
+    memoryRun(`game.atlas.lastResult=${JSON.stringify(base)};atlas.normalize(game);`);
+    assert.equal(memoryRun('game.atlas.lastResult.memory'),null,'older saves invent no memory progress');
+    for(const [raw,expected] of [
+        [{foughtTier:'2',newBest:true,ticket:{node:'missing',tier:1}},null],
+        [{foughtTier:1.5,newBest:true,ticket:{node:'roots_0',tier:'2'}},null],
+        [{foughtTier:6,newBest:true,ticket:null},null],
+        [{foughtTier:2,newBest:'true',ticket:{node:'roots_0',tier:99}},{foughtTier:2,newBest:false,ticket:null}],
+        [{foughtTier:0,newBest:true,ticket:{node:'roots_0',tier:5}},{foughtTier:0,newBest:false,ticket:{node:'roots_0',tier:5}}]
+    ]) {
+        memoryRun(`game.atlas.lastResult={...${JSON.stringify(base)},outcome:'complete',memory:${JSON.stringify(raw)}};atlas.normalize(game);`);
+        assert.deepEqual(read('game.atlas.lastResult.memory'),expected,'invalid memory receipt fields are dropped, never clamped into invented progress');
+    }
+    memoryRun(`game.atlas.lastResult={...${JSON.stringify(base)},memory:{foughtTier:5,newBest:true,ticket:{node:'roots_0',tier:2}}};atlas.normalize(game);`);
+    assert.deepEqual(read('game.atlas.lastResult.memory'),failed,'a corrupted failed result cannot claim a win or a ticket');
+    memoryRun("memoryDungeon.give(game,'trunk_0',5);atlas.beginMemory(game,'trunk_0',5,29,()=>.5);atlas.complete(game);");
+    assert.equal(memoryRun("memoryDungeon.count(game,'trunk_0',5)"),0,'the final held memory was spent');
+    memoryRun('game=mergeDefaults(JSON.parse(serializeSaveState(game)));');
+    assert.deepEqual(read("memoryDungeon.overview(game).filter(row=>row.node.id==='trunk_0').map(row=>[row.best,row.counts])"),
+        [[5,[0,0,0,0,0]]],'a completed memory remains in records after its last ticket is spent and the save reloads');
+}
+
+// A completion reports only fragments actually stored under the per-kind cap, including after save/load.
+for(const before of [0,98,99]) {
+    const {run: fragmentRun}=fixture(845);
+    const read=code=>JSON.parse(fragmentRun(`JSON.stringify(${code})`));
+    fragmentRun(`game.season=10;game.maxZoneId=29;game.currentZoneId=29;game.loopProgressCurrent.chaos20Cleared=true;atlas.sync(game);
+        atlas.begin(game,game.atlas.stash[0].uid,29,()=>.5);game.atlas.fragments[ATLAS.fragments[0].id]=${before};
+        game.atlas.run.found=Array(3).fill(ATLAS.fragments[0].id);atlas.complete(game);`);
+    const stored=Math.min(3,99-before),result=read('game.atlas.lastResult');
+    assert.equal(fragmentRun('game.atlas.fragments[ATLAS.fragments[0].id]'),before+stored);
+    assert.equal(result.fragments,stored,'completion receipt counts the stock increase');
+    assert.equal(result.lostFragments,3-stored,'completion records fragments discarded at the cap');
+    fragmentRun('atlas.complete(game);game=mergeDefaults(JSON.parse(serializeSaveState(game)));atlas.complete(game);');
+    assert.equal(fragmentRun('game.atlas.fragments[ATLAS.fragments[0].id]'),before+stored,'repeated completion and restored receipt never pay fragments twice');
+    assert.deepEqual(read('[game.atlas.lastResult.fragments,game.atlas.lastResult.lostFragments]'),[stored,3-stored]);
+    fragmentRun('game.atlas.lastResult.lostFragments=999;atlas.normalize(game);');
+    assert.equal(fragmentRun('game.atlas.lastResult.lostFragments'),50,'corrupt overflow quantities stay bounded by the held-fragment cap');
+    fragmentRun('delete game.atlas.lastResult.lostFragments;atlas.normalize(game);');
+    assert.equal(fragmentRun('game.atlas.lastResult.lostFragments'),0,'older completion receipts invent no discarded fragments');
+}
+
+// Memory rewards use the map's entry snapshot, even if the player changes passives before completion.
+for(const allocatedBefore of [true,false]) {
+    const {run: memoryRun,runtime: memoryRuntime}=fixture(841);
+    memoryRun(`game.season=50;game.maxZoneId=29;game.currentZoneId=29;game.loopProgressCurrent.chaos20Cleared=true;atlas.sync(game);
+        game.atlas.completed=atlas.nodes.filter(node=>node.kind==='map').slice(0,5).map(node=>node.id);`);
+    const allocate="for(const id of ['f_r','f_a1','f_a2','f_aN','f_k3'])atlasPassives.allocate(game,id);";
+    if(allocatedBefore)memoryRun(allocate);
+    assert.equal(memoryRun('atlasRun.open(game.atlas.stash[0].uid)'), '');
+    const nodeId=memoryRun('game.atlas.run.map.node');
+    if(allocatedBefore)assert.equal(memoryRun("atlasPassives.refund(game,'f_k3')"),'');
+    else memoryRun(allocate);
+    memoryRuntime.Math.random=()=>0.04; // Between the normal map's 3% and its entry bonus's 4.5%.
+    memoryRun('atlas.complete(game);atlas.complete(game);');
+    assert.equal(memoryRun(`memoryDungeon.count(game,'${nodeId}',1)`),Number(allocatedBefore),'only the entry bonus applies, once');
+}
+
+// A dropped memory can fill the spent ticket's slot. Loop cancellation returns that ticket without losing it on save/load.
+{
+    const {run: memoryRun}=fixture(842);
+    const read=code=>JSON.parse(memoryRun(`JSON.stringify(${code})`));
+    memoryRun(`game.season=50;game.maxZoneId=29;game.currentZoneId=29;game.loopProgressCurrent.chaos20Cleared=true;atlas.sync(game);
+        game.atlas.memory.tickets.apex_gardener=[0,0,MEMORY_DUNGEON.ticketCap,0,0];`);
+    assert.equal(memoryRun("atlasRun.openMemory('apex_gardener',3)"),'');
+    memoryRun("recordKillProgress({isBoss:true,bossVariant:BOSS_VARIANTS.kinds[0].id,name:'기억 변이 보스 검사'});");
+    assert.equal(memoryRun("memoryDungeon.count(game,'apex_gardener',3)"),9);
+    memoryRun(`game.loopProgressCurrent.bestAbyssDepth=getSeasonAbyssDepthCap(game.season);triggerSeasonReset({path:'chaos'});
+        atlas.onLoopReset(game);game=mergeDefaults(JSON.parse(serializeSaveState(game)));`);
+    assert.equal(memoryRun('game.season'),51);
+    assert.equal(memoryRun("memoryDungeon.count(game,'apex_gardener',3)"),10,'one reserved refund survives load and repeated loop cleanup');
+    assert.equal(memoryRun("memoryDungeon.give(game,'apex_gardener',3)"),false,'normal drops still stop at nine');
+    memoryRun('game.maxZoneId=29;game.currentZoneId=29;game.loopProgressCurrent.chaos20Cleared=true;');
+    assert.equal(memoryRun("atlasRun.openMemory('apex_gardener',3)"),'');
+    assert.equal(memoryRun("memoryDungeon.count(game,'apex_gardener',3)"),9);
+    memoryRun('atlas.cancel(game);atlas.cancel(game);game=mergeDefaults(JSON.parse(serializeSaveState(game)));');
+    assert.equal(memoryRun("memoryDungeon.count(game,'apex_gardener',3)"),10,'reopening and cancelling cannot multiply the reserved refund');
+    assert.deepEqual(read("memoryDungeon.normalize({tickets:{roots_0:[0,9,10,999,-1],unknown:[1,1,1,1,1]}}).tickets"),
+        {roots_0:[0,9,10,10,0]},'older rows remain valid and corrupt counts stay bounded');
+}
+
 // ---------------------------------------------------------------- auto-map
+{
+    const {run: autoRun}=fixture(844);
+    autoRun(`game=mergeDefaults({...game,season:50});game.maxZoneId=29;game.currentZoneId=29;game.loopProgressCurrent.chaos20Cleared=true;
+        game.atlas.unlocked=true;game.atlas.autoMap=true;game.atlas.completed=['trunk_8'];
+        game.atlas.stash=[{...atlasMaps.create('trunk_8',16),uid:1},{...atlasMaps.create('trunk_g',16),uid:2}];`);
+    // 수호자 지도는 기본으로 자동에 들어간다(이전 저장도): 빠지면 뿌리 입장권이 끊겨 정점 진행이 조용히 멈춘다
+    assert.equal(autoRun('game.atlas.autoGuardians'),true);
+    assert.equal(autoRun('atlas.nextAuto(game,16).node'),'trunk_g','unfinished guardians still come first');
+    autoRun('game.atlas.autoGuardians=false;game=mergeDefaults(JSON.parse(serializeSaveState(game)));');
+    assert.equal(autoRun('atlas.nextAuto(game,16).node'),'trunk_8','turning guardians off survives save/load');
+}
+for(const action of ['nextZone','stop']) {
+    const challenges=["memoryDungeon.give(game,'roots_0',1);atlasRun.openMemory('roots_0',1)",
+        'atlasRun.openPinnacle()',"atlasRun.openEndgame('apex_gardener')",'atlasRun.openEndgame(ATLAS_ENDGAME.leagues[0].id)',
+        'atlasBoard.sync(game);atlasBoard.roll(game,()=>0);atlasRun.openBoard()'];
+    for(const open of challenges) {
+        const {run: specialRun}=fixture(845);
+        specialRun(`game=mergeDefaults({...game,season:50});game.maxZoneId=29;game.currentZoneId=29;game.loopProgressCurrent.chaos20Cleared=true;
+            game.settings.mapCompleteAction='${action}';atlas.sync(game);game.atlas.autoMap=true;
+            game.atlas.stash=[{...atlasMaps.create('roots_0',1),uid:900}];game.atlas.nextUid=901;
+            game.atlas.endgame.kills.pinnacle=1;game.atlas.endgame.items=Object.fromEntries(Object.keys(ATLAS_ENDGAME.items).map(id=>[id,99]));
+            for(const key of ATLAS.pinnacle.tickets)game.currencies[key]=1;`);
+        assert.equal(specialRun(open),'');
+        specialRun('atlasRun.finish(getZone(game.currentZoneId));');
+        assert.equal(specialRun('game.atlas.run'),null,'a special challenge never opens an automatic map');
+        assert.equal(specialRun('game.atlas.stash.some(map=>map.uid===900)'),true,'unchosen map stones remain in the stash');
+        assert.equal(specialRun('game.currentZoneId'),29);
+        assert.equal(specialRun('game.combatHalted'),action==='stop','special returns honor the completion action');
+        specialRun('game=mergeDefaults(JSON.parse(serializeSaveState(game)));');
+        assert.equal(specialRun('game.atlas.autoMap'),true,'special returns preserve the player auto-map setting');
+    }
+}
 run(`game.atlas.autoMap=true;game.atlas.stash=game.atlas.stash.filter(map=>map.tier===1);`);
 const autoFirst = copy('game.atlas.stash[0]');
 run(`atlasRun.open(${autoFirst.uid})`);
@@ -178,6 +433,59 @@ const failed = copy('{run:game.atlas.run,result:game.atlas.lastResult,zone:game.
 assert.equal(failed.run, null, 'the last portal closes the map');
 assert.equal(failed.result.outcome, 'failed');
 assert.equal(failed.zone, 29, 'and the hero goes back');
+
+// Failure preserves ordinary drops, loses held atlas rewards, and keeps those separate through portals and save/load.
+for(const mode of ['abandon','outside-abandon','last-portal-defeat']) {
+    const {run: failedRun}=fixture(843);
+    const read=code=>JSON.parse(failedRun(`JSON.stringify(${code})`));
+    failedRun(`game=mergeDefaults({...game,season:50});game.maxZoneId=29;game.currentZoneId=29;game.loopProgressCurrent.chaos20Cleared=true;
+        game.settings.showDeathNotice=false;game.settings.mapCompleteAction='stop';atlas.sync(game);`);
+    assert.equal(failedRun('atlasRun.open(game.atlas.stash[0].uid)'),'');
+    failedRun(`combatLootReceipts.capture(game,()=>{
+        awardCurrency('sapBud',2);
+        actExplorationState.groundLoot.placeCurrency(game.actExploration,game.gridPlayer,'sapBud',7);
+    });game.atlas.run.endgame.items={shearRoots:120,voidSplinter:3};
+    game.atlas.run.found=[ATLAS.fragments[0].id,ATLAS.fragments[0].id];
+    game.atlas.run.drops=[{...game.atlas.stash[0],uid:game.atlas.nextUid++}];`);
+    let expectedSapBud=9;
+    if(mode!=='last-portal-defeat') {
+        failedRun('changeZone(29);');
+        assert.equal(failedRun('game.currencies.sapBud'),9,'leaving already collects floor currency');
+        if(mode==='outside-abandon') {
+            const receipt=read('game.explorationLoot');
+            failedRun(`grantEnemyLoot(createEnemy(getZone(29),{at:0,count:1,boss:true},0));
+                combatLootReceipts.capture(game,()=>awardCurrency('sapBud',11));
+                game=mergeDefaults(JSON.parse(serializeSaveState(game)));`);
+            assert.deepEqual(read('game.explorationLoot'),receipt,'outside combat and rewards never enter the held map receipt, including after load');
+            expectedSapBud=failedRun('game.currencies.sapBud');
+            assert.ok(expectedSapBud>=20,'the outside reward was actually granted');
+        } else {
+            assert.equal(failedRun('atlasRun.reenter()'),'');
+            assert.equal(failedRun('game.explorationLoot.currencies.sapBud'),9,'the same map retains its receipt across portals');
+        }
+        failedRun('atlasRun.abandon();');
+    } else failedRun('game.atlas.run.portals=1;handlePlayerDefeat(getZone(game.currentZoneId),getPlayerStats(),"test",{noToast:true});');
+    const result=read('game.atlas.lastResult'),wallet=read('game.currencies');
+    assert.equal(result.outcome,'failed');
+    assert.equal(result.lost,1);
+    assert.equal(result.fragments,0);
+    assert.equal(result.lostFragments,2);
+    assert.deepEqual(result.lostMaterials,[['shearRoots',120],['voidSplinter',3]],'losses report held quantities, not the 99-item stock cap');
+    assert.equal(result.loot.currencies.sapBud,9);
+    assert.equal(wallet.sapBud,expectedSapBud);
+    assert.equal(result.endgame,null,'lost materials are never presented as completion gains');
+    assert.equal(failedRun("atlasEndgame.count(game,'shearRoots')"),0);
+    failedRun('atlasRun.abandon();atlas.usePortal(game);atlas.close(game,"failed");game=mergeDefaults(JSON.parse(serializeSaveState(game)));');
+    assert.deepEqual(read('game.atlas.lastResult'),result,'repeated failure and reload keep the same receipt');
+    assert.deepEqual(read('game.currencies'),wallet,'failure receipts never repay drops');
+    assert.equal(failedRun('atlasRun.open(game.atlas.stash[0].uid)'),'');
+    failedRun('atlasRun.finish(getZone(game.currentZoneId));');
+    assert.deepEqual(read('[game.atlas.lastResult.lostFragments,game.atlas.lastResult.lostMaterials,game.atlas.lastResult.loot.currencies]'),[0,[],{}],
+        'the next completion does not inherit failed-map losses or ordinary rewards');
+    failedRun(`game.atlas.lastResult=${JSON.stringify(result)};delete game.atlas.lastResult.lostFragments;delete game.atlas.lastResult.lostMaterials;
+        game=mergeDefaults(JSON.parse(serializeSaveState(game)));`);
+    assert.deepEqual(read('[game.atlas.lastResult.lostFragments,game.atlas.lastResult.lostMaterials]'),[0,[]],'older failures have no invented loss quantities');
+}
 
 // ---------------------------------------------------------------- save boundary and the loop
 run(`game.atlas.stash.push({uid:-4,node:'nowhere',tier:1,rarity:'rare',mods:[]},{uid:game.atlas.stash[0].uid,node:'roots_1',tier:2,rarity:'normal',mods:[]},

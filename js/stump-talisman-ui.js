@@ -102,7 +102,7 @@ const stumpTalismanUi = (() => {
     function shardCard(key) {
         const rule = TALISMAN_UNSEAL_RULES[key], have = owned(key), ready = have >= rule.cost;
         return `<div class="stump-shard-card${ready ? ' is-ready' : ''}" style="--shard-tone:${shardTone(key)}">`
-            + `<img src="assets/px/stump/sealed-${SHARD_RARITY[key] || 'magic'}.png" alt="" draggable="false">`
+            + `<img src="assets/items/stump-pixel-v1/sealed-${SHARD_RARITY[key] || 'magic'}.png" alt="" draggable="false">`
             + `<strong>${esc(shardName(key))}</strong><span class="stump-shard-count">보유 <b>${have}</b></span>`
             + `<small>옵션 ${linesText(rule.lines)}, 고유 ${chanceText(rule.uniqueChance)}</small>`
             + `<button type="button" data-stump-action="talisman-unseal" data-source="${key}"${ready ? '' : ' disabled'}>풀기</button></div>`;

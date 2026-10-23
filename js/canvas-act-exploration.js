@@ -15,6 +15,10 @@ const actExplorationView=(()=>{
     // inside it) centres the boss, and so does the rest of its name band; the hero may leave the view meanwhile. The whole entrance
     // used to play off screen there (2026-10-17), and the camera swung back to the far hero while the name still showed (2026-10-19).
     const ENTRANCE_MARGIN_TILES=1.5;
+    // A narrow view (a phone in portrait keeps about 8 columns of a 21-column room) in an ordinary fight: the camera leans just enough
+    // that the monsters fighting the hero stand ENTRANCE_MARGIN_TILES inside the view, at most PACK_LEAN_TILES, and not when they stand
+    // on both sides past it (2026-10-22: the pack on the hero's right was cut by the screen's edge). Wide views stay on the hero.
+    const NARROW_VIEW_COLUMNS=12,PACK_LEAN_TILES=BOSS_LEAD_TILES,PACK_LEAN_RANGE=8;
     let lead={run:null,gx:0,gy:0,at:0};
     /** Whole-pixel camera zoom for the 16px art: ×3 (48px tiles) on phones, ×4 once the view keeps about 16×12 tiles —
      * on a desktop window the corridor then fills the screen instead of floating in black (data ACT_EXPLORATION_CAMERA).
@@ -33,13 +37,20 @@ const actExplorationView=(()=>{
      * 함께 눌린다. 위에서 보는 전장에서는 둘이 같다. */
     function projection(width,height) {
         const run=actExplorationState.current(game),map=actExplorationMap.forRun(run);
-        const cell=actExplorationMotion.position(run,game.gridPlayer),tile=stageView.enabled()?stageView.tile(width,height,stageRoomRows(run)):tileSize(width,height);
+        const cell=actExplorationMotion.position(run,game.gridPlayer),tile=stageView.enabled()?stageTile(run,map,width,height):tileSize(width,height);
         const deep=tile*stageView.depth(),centre=cameraCentre(run,cell,{columns:width/tile,rows:height/deep,width,height});
         const mapX=snap(width/2-centre.gx*tile),mapY=snap(height*stageView.anchorY()-centre.gy*deep);
         shiftActors(run,{x:mapX,y:mapY,tile,deep});
         return {tileW:tile,tileH:deep,actorGroundOffsetY:deep/6,unitScaleCap:tile/46,mapX,mapY,
             mapWidth:map.columns*tile,mapHeight:map.rows*deep,
             cellToScreen:(gx,gy)=>({x:mapX+(gx+.5)*tile,y:mapY+(gy+.5)*deep})};
+    }
+    /** 무대의 칸 너비: 화면 너비와 높이를 따른다(stageView.tile). 휴대폰과 태블릿 세로에서는 방 그림이 화면 위끝까지 닿을 만큼은
+     * 키운다(stageScene.coverTile). PC 창은 창 모양이 달라도 가로로 같은 칸 수가 보이게 그대로 두고, 테스트 패널에서 고른 배율도 그대로다. */
+    function stageTile(run,map,width,height) {
+        const tile=stageView.tile(width,height,stageRoomRows(run));
+        if(Number(game.settings.stageZoom)||typeof stageScene!=='object'||!stageView.phonePortrait(width,height))return tile;
+        return Math.max(tile,stageScene.coverTile(map,width,height));
     }
     /** 방 단위 무대에서 그 지도의 기준 방의 깊이(칸): 칸 크기가 화면 높이에 맞게 줄어들 기준이다(방마다 깊이가 달라도 칸 크기는
      * 지도 하나에서 같다). 이어진 지도에서는 0(너비만 따른다). */
@@ -60,12 +71,21 @@ const actExplorationView=(()=>{
      * boss less than ENTRANCE_MARGIN_TILES inside the view, onto the boss (story bosses are wide). */
     function leanTarget(run,cell,view) {
         const boss=focusBoss(run),center=boss&&hasGridCell(boss)?getGridUnitCenter(boss):null;
-        if(!center)return {gx:0,gy:0};
+        if(!center)return packLean(cell,view);
         const clamp=value=>Math.max(-BOSS_LEAD_TILES,Math.min(BOSS_LEAD_TILES,value));
         const dx=center.gx-cell.gx,half={gx:clamp(dx/2),gy:clamp((center.gy-cell.gy)/2)};
         const reach=Math.abs(dx)-(view.columns/2-ENTRANCE_MARGIN_TILES);
         const shown=actExplorationState.entrance(run) || battleVisualState.bossBannerFor===boss.id;
         return shown && reach>Math.abs(half.gx) ? {gx:dx,gy:half.gy} : half;
+    }
+    /** The lean of a narrow view toward the fighting monsters within PACK_LEAN_RANGE columns (see NARROW_VIEW_COLUMNS). */
+    function packLean(cell,view) {
+        if(view.columns>=NARROW_VIEW_COLUMNS)return {gx:0,gy:0};
+        const xs=game.enemies.filter(enemy=>enemy.hp>0&&hasGridCell(enemy)).map(enemy=>getGridUnitCenter(enemy).gx-cell.gx).filter(dx=>Math.abs(dx)<=PACK_LEAN_RANGE);
+        if(!xs.length)return {gx:0,gy:0};
+        const room=view.columns/2-ENTRANCE_MARGIN_TILES,right=Math.max(0,Math.max(...xs)-room),left=Math.min(0,Math.min(...xs)+room);
+        const need=right>0&&left<0?0:right+left;
+        return {gx:Math.max(-PACK_LEAN_TILES,Math.min(PACK_LEAN_TILES,need)),gy:0};
     }
     /** The boss the camera leans toward: the one fighting, else the one rising in its entrance. */
     function focusBoss(run) {
@@ -114,7 +134,7 @@ const actExplorationView=(()=>{
     function drawRoomStage(ctx,run,p,area) {
         ctx.save();
         const drawn=stageRoomsView.background(ctx,run,p,area);
-        if(drawn){actExplorationView.objects.drawGround(ctx,run,p,area);drawRoomFog(ctx,run,p);drawCommand(ctx,run,p);}
+        if(drawn){actExplorationView.objects.drawGround(ctx,run,p,area);drawRoomFog(ctx,run,p);drawCommand(ctx,run,p,area);}
         ctx.restore();
         return drawn;
     }
@@ -145,13 +165,26 @@ const actExplorationView=(()=>{
         // The fog is pre-softened into its view whenever it changes; per frame it is only copied.
         const veil=updateFog(run,map,null);ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='low';
         ctx.drawImage(veil,p.mapX,p.mapY,p.mapWidth,p.mapHeight);
-        drawCommand(ctx,run,p);ctx.restore();return true;
+        drawCommand(ctx,run,p,{width,height});ctx.restore();return true;
     }
-    /** The player's move command: a thin pale-gold dashed ring on the cell's floor until the hero gets there. A command the
-     * keyboard steers (WASD) is not drawn: it is no chosen spot, only a few cells ahead of the hero. */
-    function drawCommand(ctx,run,p) {
-        const cell=actExplorationState.markedDestination(run);if(!cell)return;
+    /** A thin pale-gold ring marks the command's floor cell, or the current-room doorstep of its known open route door.
+     * Doorstep rings stay inside the visible width, like door arrows. Keyboard steering remains unmarked; the command stays intact. */
+    function drawCommand(ctx,run,p,area) {
+        const target=actExplorationState.markedDestination(run);if(!target)return;
+        let cell=actExplorationDoors.toward(run,target);
+        if(cell!==target) {
+            const row=actExplorationDoors.doorsHere(run).find(row=>row.door.cells.includes(cell));
+            if(!row||row.locked)return;
+            const landing=row.door.landings[row.door.cells.indexOf(cell)];
+            if(![target,cell,landing].every(at=>actExplorationSight.knownCell(run,at)))return;
+            cell=landing;
+        }
         const point=p.cellToScreen(cell.gx,cell.gy),dot=p.tileW/16;
+        if(cell!==target) {
+            const limit=typeof messageFrames==='object'?messageFrames.coveredFrom(point.y+p.actorGroundOffsetY,area.width):area.width,inset=p.tileW*.6;
+            if(limit<inset*2)return;
+            point.x=Math.max(inset,Math.min(limit-inset,point.x));
+        }
         ctx.globalAlpha=.9;ctx.strokeStyle='#f3e5b4';ctx.lineWidth=Math.max(1,dot);ctx.setLineDash([dot*2,dot*1.5]);
         ctx.beginPath();ctx.ellipse(point.x,point.y+p.actorGroundOffsetY,p.tileW*.3,p.tileW*.13,0,0,Math.PI*2);ctx.stroke();
         ctx.setLineDash([]);ctx.globalAlpha=1;

@@ -93,7 +93,7 @@ const coreItems = (() => {
     /** Pixel icon by the first line's group; ground loot and log rows carry only the lines. */
     function icon(core) {
         const first = core && Array.isArray(core.lines) && core.lines[0] && pool.get(core.lines[0].id);
-        return `assets/px/cores/core-${first ? first.group : 'empty'}.png`;
+        return ITEM_VISUAL_ASSET_DB.coreAssets[first ? first.group : 'empty'];
     }
 
     function describe(line) {

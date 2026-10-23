@@ -1608,7 +1608,14 @@ body #tab-map .map-state-badge.recommended {
     box-shadow: inset 2px 0 #6c5231;
   }
 
+  /* 안내 칸(로그인 전의 커뮤니티 안내)이 창보다 길면 창을 민다. 채팅 때문에 넘침을 숨겨 가로 휴대폰에서 로그인 화면 열기 단추가 잘려 누를 수 없었다 */
+  #tab-social.active .social-root:has(> .social-notice:is(.social-empty-state, .social-notice-loading)) {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
   #tab-social.active .social-notice {
+    flex: none;
     border: 1px solid #51432f;
     border-radius: 3px;
     color: #d5ccbe;
@@ -1870,8 +1877,15 @@ body.has-bottom-tabs .selection-overlay {
 
   .selection-overlay-panel {
     width: min(100%, 520px);
-    max-height: calc(100dvh - 24px);
+    /* A content height: the pixel frame and the padding come on top (they ran 13px past a phone's top and bottom). */
+    max-height: calc(100dvh - 16px - 2 * var(--px-window-border, 0px) - 24px);
     padding: 12px;
+  }
+}
+
+@media (min-width: 701px) and (max-width: 1080px) and (orientation: landscape) and (max-height: 600px) {
+  .selection-overlay-panel {
+    max-height: calc(100dvh - 16px - 2 * var(--px-window-border, 0px) - 28px);
   }
 }
 
@@ -2237,7 +2251,6 @@ body .hero-choice {
 :root body :where(
   .market-shell,
   .market-locked,
-  .market-service-card,
   .offline-progress-panel,
   .offline-stash-item
 ) {

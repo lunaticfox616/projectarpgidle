@@ -45,15 +45,16 @@ const bossAttackView = (() => {
     }
     /** 1, then a blink that quickens towards the release. The phase is the rate integrated over the warning; clock × rate made the
      * phase jump at random as soon as the rate moved. */
-    function blink(share) {
+    const warnMsOf = enemy => enemy.nextPatternState?.warningMs || COMBAT_GRID_CONFIG.bossPatternWarningMs;
+    function blink(share, span) {
         if (share < BLINK_FROM) return 1;
-        const span = COMBAT_GRID_CONFIG.bossPatternWarningMs, late = share - BLINK_FROM;
+        const late = share - BLINK_FROM;
         return 0.62 + 0.38 * Math.abs(Math.cos(0.009 * share * span + 0.015 * span * late * late));
     }
     /** Ground warning strength for drawBossPatternArea: 3 when it appears, 7 at release, blinking near the end. */
     function groundAlpha(enemy) {
         const share = warningShare(enemy);
-        return share === null ? 3 : (3 + 4 * share) * blink(share);
+        return share === null ? 3 : (3 + 4 * share) * blink(share, warnMsOf(enemy));
     }
     /** A released area that lands within half a second: full strength, blinking fast (about 105 ms a beat, on the screen's clock). */
     function pendingAlpha() {
@@ -241,7 +242,7 @@ const bossAttackView = (() => {
         drawEdges(ctx, scene);
         for (const { enemy } of scene.layout || []) {
             const share = isLiveWarning(enemy) ? warningShare(enemy) : null;
-            if (share !== null) drawMark(ctx, enemy.patternArea, scene.projection, { share, source: enemy, blink: blink(share) });
+            if (share !== null) drawMark(ctx, enemy.patternArea, scene.projection, { share, source: enemy, blink: blink(share, warnMsOf(enemy)) });
         }
         for (const attack of scene.pending || []) {
             if (!closesIn(attack)) continue;

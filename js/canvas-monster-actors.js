@@ -85,6 +85,7 @@ const monsterActors = (() => {
         if (moving) return null;
         const warning = enemy.isBoss ? bossAttackView.warningShare(enemy) : null;
         if (warning !== null) return { share: Math.min(0.999, warning), bob: warning > 0.6 ? Math.floor(now / 70) % 2 : 0 };
+        if (enemy.isBoss && enemy.nextPatternState?.isSpecial) return null; // A slow special winds up only once its warning starts.
         const gauge = Number(enemy.attackTimer);
         return gauge >= WIND_UP_FROM && gauge < 1 ? { share: (gauge - WIND_UP_FROM) / (1 - WIND_UP_FROM), bob: 0 } : null;
     }

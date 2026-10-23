@@ -7,6 +7,7 @@
         slam: '파쇄 강타',
         ramp: '격앙',
         cosmos: '성좌 순환',
+        coreFrenzy: '핵 폭주',
         cosmosBoss: '은하 고유 기믹',
         apex: '후반부 보스 고유 기믹'
     });
@@ -16,6 +17,7 @@
         slam: '때때로 파쇄 강타로 피해가 55% 증가합니다. 생명력이 적을수록 자주 씁니다.',
         ramp: '생명력이 낮아질수록 최대 3단계까지 격앙하여 공격 피해가 증가합니다. 때때로 영웅 자리에 충격파를 내고, 생명력이 적을수록 자주 냅니다.',
         cosmos: '연속 참격/파쇄 강타/격앙을 차례로 순환합니다.',
+        coreFrenzy: '연속 참격, 파쇄 강타, 격앙을 차례로 씁니다.',
         cosmosBoss: '은하 보스마다 고유한 공격 순서와 파훼 조건을 사용합니다.',
         apex: '아틀라스 후반부 보스는 단계마다 이름이 붙은 특수기를 정해진 횟수마다 예고한 뒤 씁니다.'
     });
@@ -24,7 +26,8 @@
         burst: 1.30,
         slam: 1.55,
         ramp: 1.21,
-        cosmos: 1.34
+        cosmos: 1.34,
+        coreFrenzy: 1.34
     });
 
     function getBossPatternPeakDamageMultiplier(mode) {
@@ -101,9 +104,10 @@
     // (data/boss-fx.js kind)마다 세 모양 가운데 하나를 고른다(js/boss-moves.js intro: 근접은 강타, 연쇄 폭발, 이중 파동; 원거리는 강타,
     // 갈래 사격, 관통 광선 등). 쓰는 때와 모양은 planBossSpecial이 굴린다. 피해 배율은 그대로(1.15).
     function buildSlamPatternState(mode, attackNumber, cosmosPattern, enemy) {
-        let plan = planBossSpecial(enemy, attackNumber, mode === 'intro' ? bossMoves.introCount(enemy) : 1);
+        let plan = mode === 'intro' ? planBossSpecial(enemy, attackNumber, bossMoves.introCount(enemy)) : styleSpecialPlan(enemy, attackNumber, 'area');
         let special = cosmosPattern || plan.special;
         let intro = mode === 'intro' && special ? bossMoves.intro(enemy, Math.max(0, plan.shape) + 1) : null;
+        if (mode === 'slam' && !cosmosPattern && special) intro = plan;
         return { mode, ...slamLook(mode, special, intro, cosmosPattern), isSpecial: special, shapeIndex: cosmosPattern ? -1 : plan.shape, attackNumber };
     }
     /** The name, damage and warning shape of a 파쇄 강타 or first-loop attack: a plain heavy blow, or the special (the boss's own shape for intro). */
@@ -118,41 +122,49 @@
     function buildRampPatternState(enemy, attackNumber, cosmosPattern) {
         let stage = getRampStage(enemy);
         let cosmosStage = cosmosPattern ? Math.max(1, stage) : stage;
+        const plan = styleSpecialPlan(enemy, attackNumber, 'area');
         return {
             mode: 'ramp',
             label: cosmosStage > 0 ? `격앙 ${'ⅠⅡⅢ'[Math.min(2, cosmosStage - 1)]}` : '격앙 전조',
             damageMul: cosmosPattern ? 1.12 : (1 + stage * 0.07),
-            isSpecial: cosmosPattern || planBossSpecial(enemy, attackNumber, 1).special,
-            telegraphKind: 'pulse',
-            shapeIndex: cosmosPattern ? -1 : 0,
+            isSpecial: cosmosPattern || plan.special,
+            telegraphKind: cosmosPattern ? 'pulse' : (plan.telegraphKind || 'pulse'),
+            shapeIndex: cosmosPattern ? -1 : plan.shape,
             stage,
             attackNumber
         };
     }
 
     function buildPatternState(mode, enemy, attackNumber, cosmosPattern) {
-        if (mode === 'burst') {
-            let special = cosmosPattern || planBossSpecial(enemy, attackNumber, 1).special;
-            return {
-                mode,
-                label: special ? '연속 참격' : '빠른 베기',
-                damageMul: special ? (cosmosPattern ? 1.18 : getBossPatternPeakDamageMultiplier('burst')) : 1,
-                isSpecial: special,
-                telegraphKind: 'fan',
-                shapeIndex: cosmosPattern ? -1 : 0,
-                attackNumber
-            };
-        }
+        if (mode === 'burst') return buildBurstPatternState(enemy, attackNumber, cosmosPattern);
         if (mode === 'slam' || mode === 'intro') {
             return buildSlamPatternState(mode, attackNumber, cosmosPattern, enemy);
         }
         if (mode === 'ramp') return buildRampPatternState(enemy, attackNumber, cosmosPattern);
         return null;
     }
+    function styleSpecialPlan(enemy, attackNumber, family) {
+        const shapes = bossMoves.familyShapes(enemy, family), plan = planBossSpecial(enemy, attackNumber, shapes.length);
+        return plan.special ? { ...plan, ...bossMoves.shapeLook(enemy, shapes[plan.shape]) } : plan;
+    }
+    function buildBurstPatternState(enemy, attackNumber, cosmosPattern) {
+        const plan = styleSpecialPlan(enemy, attackNumber, 'ray'), special = cosmosPattern || plan.special;
+        return { mode: 'burst', label: special ? plan.label || '연속 참격' : '빠른 베기',
+            damageMul: special ? (cosmosPattern ? 1.18 : getBossPatternPeakDamageMultiplier('burst')) : 1,
+            isSpecial: special, telegraphKind: cosmosPattern ? 'fan' : (plan.telegraphKind || 'fan'),
+            shapeIndex: cosmosPattern ? -1 : plan.shape, attackNumber };
+    }
 
     // Bosses that carry their own special table: cosmos galaxy bosses (js/cosmos-rules.js) and the awakened atlas's late bosses
     // (js/atlas-endgame.js, a named special every n-th attack per stage).
     const OWN_PATTERN_MODES = new Set(['cosmosBoss', 'apex']);
+    // Time to resume filling the gauge after the last special impact. Own boss tables retain their authored timing.
+    const SPECIAL_RECOVERY_MS = Object.freeze({ intro: 600, burst: 450, slam: 750, ramp: 350 });
+    // 핵 폭주는 매 공격이 특수기라 숨 고르기를 절반만 둔다: 초당 피해가 파쇄 강타 단계와 같거나 조금(공격 속도에 따라 9%까지) 높다.
+    // 성좌 순환처럼 없애면 21~37% 높았고, 보통만큼 두면 12% 낮았다(2026-10-23 측정, 생명력 40%에서 60번 공격).
+    const CORE_FRENZY_RECOVERY_SHARE = 0.5;
+    const recoveryOf = state => state.recoveryMs ?? (state.isSpecial && !OWN_PATTERN_MODES.has(state.patternMode)
+        && state.patternMode !== 'cosmos' ? (SPECIAL_RECOVERY_MS[state.mode] || 0) * (state.patternMode === 'coreFrenzy' ? CORE_FRENZY_RECOVERY_SHARE : 1) : 0);
     function getOwnPatternState(mode, enemy, attackNumber) {
         if (mode === 'cosmosBoss') {
             return typeof globalThis.getCosmosBossPatternState === 'function' ? globalThis.getCosmosBossPatternState(enemy.cosmosBossId, attackNumber) : null;
@@ -165,13 +177,14 @@
         let attackNumber = normalizeAttackCount(enemy) + 1;
         let mode = String(enemy.patternMode);
         if (OWN_PATTERN_MODES.has(mode)) return getOwnPatternState(mode, enemy, attackNumber);
-        if (mode === 'cosmos') {
+        // 성좌 순환(우주계 보스)과 핵 폭주(운석 핵의 체력 절반 뒤): 같은 순환. 핵 폭주는 특수기 뒤 숨 고르기(recoveryOf)가 있다.
+        if (mode === 'cosmos' || mode === 'coreFrenzy') {
             let cycle = ['burst', 'slam', 'ramp'];
             let resolvedMode = cycle[(attackNumber - 1) % cycle.length];
             let state = buildPatternState(resolvedMode, enemy, attackNumber, true);
             if (!state) return null;
-            state.patternMode = 'cosmos';
-            state.label = `성좌 순환, ${state.label}`;
+            state.patternMode = mode;
+            state.label = `${BOSS_PATTERN_NAMES[mode]}, ${state.label}`;
             return state;
         }
         let state = buildPatternState(mode, enemy, attackNumber, false);
@@ -185,9 +198,10 @@
         if (enemy.patternArea) state.area = enemy.patternArea;
         noteBossSpecial(enemy, state);
         bossMoves.plan(state, enemy); // the special lands over time: shots, a beam, bursts one after another (js/boss-moves.js)
-        if (state.recoveryMs) {
+        const recovery = recoveryOf(state);
+        if (recovery) {
             const impactDelay = state.move ? state.move.stages.at(-1).ms : BOSS_ATTACK_IMPACT_DELAY_MS;
-            enemy.apexRecoveryUntil = getCombatTime() + impactDelay + state.recoveryMs;
+            enemy.apexRecoveryUntil = getCombatTime() + impactDelay + recovery;
         }
         state.castStartedAt = enemy.patternTelegraphStartedAt;
         enemy.patternAttackCount = normalizeAttackCount(enemy) + 1;
@@ -214,6 +228,24 @@
 
     /** How long a special warns (ms): its own (a final boss combo, js/atlas-endgame.js comboState) or the shared default. */
     const warningDuration = state => state.warningMs || COMBAT_GRID_CONFIG.bossPatternWarningMs;
+    function clearBossTelegraph(enemy) {
+        enemy.patternTelegraphKey = null;
+        enemy.patternTelegraphStartedAt = 0;
+        enemy.patternArea = null;
+    }
+    /** 정점, 우주 보스는 새 후딜이 없어 예전 시계 그대로다: 게이지 절반에서 예고하고 게이지가 찬 뒤에 쓴다(앞당겨 예고하면 공격이 9~18% 잦아졌다). */
+    const keepsOldClock = state => OWN_PATTERN_MODES.has(state.patternMode) || state.patternMode === 'cosmos';
+    function warningMayStart(state, charge, chargePerSec) {
+        if (keepsOldClock(state) || !(chargePerSec > 0)) return charge >= 0.5;
+        return (1 - charge) / chargePerSec * 1000 <= warningDuration(state);
+    }
+    /** 예고가 끝난 뒤: 새 시계는 예고가 발동 시각을 정해 게이지를 채우고, 예전 시계는 게이지가 찰 때까지 기다린다. */
+    function releaseAfterWarning(enemy, state, charge) {
+        if (keepsOldClock(state)) return charge >= 1;
+        // Once warned, this cast owns its clock. A new slow changes the next charge, not the already announced impact.
+        enemy.attackTimer = Math.max(charge, 1);
+        return true;
+    }
 
     /** Lock the special's cells at warning time; moving the victim never retargets them.
      * @param {ReturnType<typeof createEnemy>} enemy
@@ -221,27 +253,20 @@
      * @param {{gx:number,gy:number}|undefined} target Omit only for timing-only previews.
      * @returns {boolean} Whether the attack may be released.
      */
-    function updateBossPatternTelegraph(enemy, now, target) {
+    function updateBossPatternTelegraph(enemy, now, target, chargePerSec) {
         if (!enemy || !enemy.isBoss) return true;
         let state = enemy.nextPatternState || getBossPatternPreview(enemy);
         if (!state || !state.isSpecial) {
-            enemy.patternTelegraphKey = null;
-            enemy.patternTelegraphStartedAt = 0;
-            enemy.patternArea = null;
+            clearBossTelegraph(enemy);
             return true;
         }
         let charge = Math.max(0, Number(enemy.attackTimer) || 0);
         // 공격 번호까지만 본다: 예고 도중 생명력이 단계 경계를 넘어 이름(격앙 전조 → 격앙 Ⅰ)만 바뀌어도 경고가 처음부터 다시
         // 시작했다(2026-10-07 검토). 맞는 칸은 예고를 시작할 때 정한 그대로다.
         let key = `${state.patternMode || state.mode}:${state.attackNumber}`;
-        if (charge < 0.5) {
-            enemy.patternTelegraphKey = null;
-            enemy.patternTelegraphStartedAt = 0;
-            enemy.patternArea = null;
-            return false;
-        }
         let timestamp = Number.isFinite(Number(now)) ? Number(now) : getCombatTime();
         if (enemy.patternTelegraphKey !== key) {
+            if (!warningMayStart(state, charge, chargePerSec)) { clearBossTelegraph(enemy); return false; }
             enemy.patternTelegraphKey = key;
             enemy.patternTelegraphStartedAt = timestamp;
             if (target) {
@@ -250,7 +275,8 @@
                 enemy.patternArea = { ...getSkillStageFootprint('', {}, { aimCell: target, gridProfile: profile }, from), source: from };
             }
         }
-        return charge >= 1 && timestamp - Math.max(0, Number(enemy.patternTelegraphStartedAt) || 0) >= warningDuration(state);
+        if (timestamp - enemy.patternTelegraphStartedAt < warningDuration(state)) return false;
+        return releaseAfterWarning(enemy, state, charge);
     }
 
     /** Live warnings, including attacks already released but not yet resolved. */

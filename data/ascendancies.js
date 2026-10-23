@@ -30,7 +30,7 @@ const CLASS_KEYSTONE_DEFS = {
     warrior: [
         { id: 'w1', name: '강철 태세', desc: '물리 피해 10% 증폭, 방어도 15% 증가', req: null },
         { id: 'w2', name: '전장의 리듬', desc: '치명타 및 연속 공격 발생 시 각각 2초간 공격속도 +3% (각각 최대 5중첩)', req: null },
-        { id: 'w3', name: '쌍수 훈련', desc: '방패 슬롯에 무기 장착 가능', req: null },
+        { id: 'w3', name: '쌍수 훈련', desc: '완갑 슬롯에 보조 무기 장착 가능', req: null },
         { id: 'w4', name: '갑주 분쇄', desc: '물리 피해 감소 무시가 마이너스까지 적용될 수 있음', req: 'w1' },
         { id: 'w5', name: '격노 순환', desc: '피격 시 5초간 물리 피해 +6% (최대 5중첩, 곱연산)', req: 'w2' },
         { id: 'w6', name: '거인의 힘', desc: '쌍수 상태에서, 각 무기의 효과 50% 증가', req: 'w3' },
@@ -203,7 +203,7 @@ Object.assign(CLASS_KEYSTONE_DEFS, {
         { id: 'jg2', name: '철갑', desc: '방어도 +30%', req: null, stats: [ascendancyStatLine('armorPct', 30)] },
         { id: 'jg3', name: '거구', desc: '최대 생명력 +12%', req: null, stats: [ascendancyStatLine('pctHp', 12)] },
         { id: 'jg4', name: '여진', desc: '강타 메아리 확률 +15%, 강타 피해 +20%', req: 'jg1', stats: [ascendancyStatLine('slamEchoChance', 15), ascendancyStatLine('slamPctDmg', 20)] },
-        { id: 'jg5', name: '방패 벽', desc: '막기 확률 +8%, 방어도 +20%, 막아 내면 2초 동안 최대 생명력 10%의 돌 보호막', req: 'jg2', stats: [ascendancyStatLine('blockChance', 8), ascendancyStatLine('armorPct', 20)], bloomMechanic: 'hero2__guardian' },
+        { id: 'jg5', name: '철벽 방어', desc: '막기 확률 +8%, 방어도 +20%, 막아 내면 2초 동안 최대 생명력 10%의 돌 보호막', req: 'jg2', stats: [ascendancyStatLine('blockChance', 8), ascendancyStatLine('armorPct', 20)], bloomMechanic: 'hero2__guardian' },
         { id: 'jg6', name: '불굴', desc: '물리 피해 감소 +4%, 빙결과 출혈에 걸리지 않음', req: 'jg3', stats: [ascendancyStatLine('dr', 4)], uniques: [ascendancyUniqueLine('immuneFreeze'), ascendancyUniqueLine('immuneBleed')] },
         { id: 'jg7', name: '파성추', desc: '강타 피해 +60%, 방어도 1000마다 물리 스킬 피해 +3%', reqAny: ['jg4', 'jg5'], stats: [ascendancyStatLine('slamPctDmg', 60)], uniques: [ascendancyUniqueLine('realmArmorToPhysicalDamage', {pctPer1000: 3})] },
         { id: 'jg8', name: '멈출 수 없는 진군', desc: '방어도 +40%, 최대 생명력 +15%, 몬스터에게 받는 피해 6% 감소(보스 10%), 대신 이동 속도 -8%', req: 'jg7', stats: [ascendancyStatLine('armorPct', 40), ascendancyStatLine('pctHp', 15), ascendancyStatLine('move', -8)], uniques: [ascendancyUniqueLine('guardianArmor', {takenLessPct: 6, bossTakenLessPct: 10})] },

@@ -19,7 +19,7 @@ const loopSettlementUi = {
         return `${this.storyHtml()}
             <h2>루프 ${loop} 달성</h2>
             <dl class="loop-settlement-stats"><div><dt>도달 레벨</dt><dd>${game.level}</dd></div><div><dt>처치</dt><dd>${Number(game.loopKills || 0).toLocaleString()}</dd></div><div><dt>활동 시간</dt><dd>${time}</dd></div></dl>${this.barkHtml(loop)}
-            <section class="loop-settlement-next"><h3>다음 루프 ${loop + 1}</h3><ul>${features.map(row => `<li>${escapeHTML(row)}</li>`).join('')}</ul><p>진행 시 루프 포인트 1점 획득</p></section>${this.explainHtml(loop)}${this.stallWarningHtml()}${loopAutomationUi.controlsHtml()}`;
+            <section class="loop-settlement-next"><h3>다음 루프 ${loop + 1}</h3><ul>${features.concat(loopMutationUi.nextLoopLines(loop + 1)).map(row => `<li>${escapeHTML(row)}</li>`).join('')}</ul><p>진행 시 루프 포인트 1점 획득</p></section>${this.explainHtml(loop)}${this.stallWarningHtml()}${loopAutomationUi.controlsHtml()}`;
     },
     /** The loop's close (data/story-journal.js STORY_LOOP_MILESTONES.default): the narration, then the woodsman's words. */
     storyHtml() {
@@ -44,8 +44,8 @@ const loopSettlementUi = {
     /** 루프가 무엇인지(2026-10-07 사용자: 루프 정산 카드와 함께): 처음부터 다시 하는 것과 남는 것. 첫 루프는 펼친다. */
     explainHtml(loop) {
         return `<details class="loop-settlement-explain"${loop <= 1 ? ' open' : ''}><summary>루프를 넘기면</summary><ul>
-            <li>초기화: 레벨, 액트 진행, 장비와 가방, 재화, 스킬룬, 스킬트리, 전직</li>
-            <li>유지: 해금한 콘텐츠, 루프 패시브, 그루터기 함, 저널과 도감, 아틀라스, 혼돈계와 탑과 바다의 기록, 봉인한 장비</li>
+            <li>초기화: 레벨, 액트 진행, 장비와 가방, 재화, 스킬룬, 스킬트리, 전직, 실타래 수량</li>
+            <li>유지: 해금한 콘텐츠, 루프 패시브, 그루터기 함, 저널과 도감, 실타래 발견과 뜨개질 기록, 아틀라스, 혼돈계와 탑과 바다의 기록, 봉인한 장비</li>
             <li>해금 포인트와 루프 포인트로 더 강해진 채 다시 오릅니다.</li></ul></details>`;
     },
     /** A loop button that resets at once (loop-10 panel): disabled until ready, and while the stall still holds gear or dew or the hall shows an original. */
@@ -75,6 +75,8 @@ const loopSettlementUi = {
         if (!ready && !decision) { this.renderedKey = ''; this.dismissedReadyLoop = 0; return; }
         const key = `${game.season}:${ready}:${decision}:${this.unlockRewardText()}:${getHeldGearLoopBlockReason()}:${game.settings.autoLoop}:${game.settings.autoLoopClass}`;
         if (key === this.renderedKey) return;
+        // A new loop's summary starts at its top: shown again, the cards came back at the last loop's scroll spot.
+        if (!this.renderedKey.startsWith(`${game.season}:`)) document.querySelectorAll('#loop-ready-overlay .tutorial-card, #loop-decision-overlay .tutorial-card').forEach(card => card.scrollTo(0, 0));
         this.renderedKey = key;
         const html = this.summaryHtml();
         document.getElementById('loop-ready-summary').innerHTML = html;

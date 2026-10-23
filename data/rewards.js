@@ -1,13 +1,19 @@
 if (typeof safeExposeData !== 'function') throw new Error('data/constants.js must load before data/rewards.js');
 
+// 첫 루프의 첫 장비 선택: 모든 직업에 쓰이는 T1 옵션, 미리보기와 지급이 같은 수치다.
+const FIRST_ACT_REWARD_STATS = Object.freeze({
+    '무기': Object.freeze(['flatDmg', 'aspd']),
+    '장갑': Object.freeze(['flatHp', 'aspd']),
+    '신발': Object.freeze(['move', 'energyShieldPct'])
+});
+
 // Phase-1 extracted data (global compatibility).
 const ACT_REWARD_DB = {
     0: {
         title: '액트 1 클리어 보상',
         body: '성소에서 얻은 전리품 중 하나를 골라 다음 구간을 준비하세요.',
         choices: [
-            // 장비 선택지는 설명 줄 대신 부위 그림과 "등급 · 바로 장착 여부"(getActRewardPreview)를 보여 준다 — 이름 · 설명 · 미리보기가
-            // 같은 말을 세 번 했다(검토 2026-10-01).
+            // 장비의 베이스·옵션·등급·장착 안내는 actRewardItemPreview에서 표시하므로 설명을 되풀이하지 않는다.
             { kind: 'item', slot: '장갑', rarity: 'magic', label: '미확인 장갑', desc: '' },
             { kind: 'item', slot: '무기', rarity: 'magic', label: '미확인 무기', desc: '' },
             { kind: 'item', slot: '신발', rarity: 'magic', label: '미확인 신발', desc: '' }
@@ -19,6 +25,12 @@ const ACT_REWARD_DB = {
         // 대신 방금 얻은 공격 스킬을 살려줄 보조스킬룬을 고르게 한다.
         title: '액트 2 클리어 보상',
         body: '떨어진 곳에서 당신이 찾아낸 룬은, 아직 이름을 부르지 못한 힘을 품고 있었다. 하나를 골라 지금 쓰는 스킬을 벼리세요.',
+        lockedBody: '다음 구간을 준비할 전리품 하나를 고르세요.',
+        lockedChoices: [
+            { kind: 'item', slot: '투구', rarity: 'magic', label: '미확인 투구', desc: '' },
+            { kind: 'item', slot: '갑옷', rarity: 'magic', label: '미확인 갑옷', desc: '' },
+            { kind: 'currency', currency: 'magicBud', value: 2, label: '마법의 새싹 2개', desc: '' }
+        ],
         choices: [
             { kind: 'support', gem: '가벼운 발걸음', fallbackKind: 'points', fallbackValue: 1, label: '보조스킬룬 - 가벼운 발걸음', desc: '이동 속도를 높여 맵 진행을 빠르게 합니다.' },
             { kind: 'support', gem: '날카로움', fallbackKind: 'points', fallbackValue: 1, label: '보조스킬룬 - 날카로움', desc: '치명타 확률을 높이는 보조스킬룬을 얻습니다.' },
@@ -55,6 +67,12 @@ const ACT_REWARD_DB = {
     5: {
         title: '액트 6 클리어 보상',
         body: '가져갈 보조스킬룬 하나를 선택하세요.',
+        lockedBody: '다음 구간을 준비할 전리품 하나를 고르세요.',
+        lockedChoices: [
+            { kind: 'item', slot: '반지', rarity: 'magic', label: '미확인 반지', desc: '' },
+            { kind: 'item', slot: '목걸이', rarity: 'magic', label: '미확인 목걸이', desc: '' },
+            { kind: 'currency', currency: 'magicBud', value: 2, label: '마법의 새싹 2개', desc: '' }
+        ],
         choices: [
             { kind: 'support', gem: '가속', fallbackKind: 'currency', currency: 'magicBud', fallbackValue: 2, label: '보조스킬룬 - 가속', desc: '공격 속도를 높이는 보조스킬룬을 얻습니다.' },
             { kind: 'support', gem: '무자비', fallbackKind: 'currency', currency: 'magicBud', fallbackValue: 2, label: '보조스킬룬 - 무자비', desc: '치명타 피해를 높이는 보조스킬룬을 얻습니다.' },
@@ -104,4 +122,4 @@ const ACT_REWARD_DB = {
 };
 
 
-safeExposeData({ ACT_REWARD_DB });
+safeExposeData({ ACT_REWARD_DB, FIRST_ACT_REWARD_STATS });

@@ -97,6 +97,7 @@ const equipmentSocketsUi = (() => {
         const item = getSelectedCraftItem();
         if (!item) return;
         const result = equipmentSockets.insert(item, jewelId);
+        if (result.ok) playUiFeedbackSound('gemSocket');
         report(result, result.ok ? `💠 [${item.name}]에 [${result.jewel.name}] 장착` : '');
     }
 

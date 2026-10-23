@@ -307,6 +307,8 @@
     }
 
     function focusWindow(tabId) {
+        // Prepared panels retain pointer listeners after returning to mobile tabs.
+        if (!isDesktopWindowed()) return;
         zOrder = zOrder.filter(id => id !== tabId).concat(tabId);
         zOrder.forEach((id, index) => {
             let el = document.getElementById(id);
@@ -503,7 +505,8 @@
     }
 
     function closeCommunityDock() {
-        if (isDesktopWindowed() && typeof messageFrames === 'object') messageFrames.showTab('log');
+        // Startup closes the community dock too: switching back must not unfold the saved/default combat log.
+        if (isDesktopWindowed() && typeof messageFrames === 'object') messageFrames.showTab('log', false);
     }
 
 

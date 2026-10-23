@@ -31,17 +31,19 @@ const battleGroundLoot = (() => {
     /** A leaf shows the pixel leaf (PIXEL_ICONS.leaf); other items show their inventory art. */
     const LEAF_ART = 'pixel:leaf';
     // The loop's starter gem (a floor row by name, js/exploration-ground-loot.js placeGem) shows the gem's own art and name.
-    const leadArt = lead => (lead.leaf ? LEAF_ART : lead.gem ? getSkillGemArtPath(lead.gem) : getInventoryItemVisualAsset(lead.item, lead.itemKind));
-    const leadName = lead => (lead.leaf ? memoryLeaves.leaf(lead.leaf).name : lead.gem ? `[${lead.gem}] 룬` : shownName(lead));
+    const leadArt = lead => (lead.yarn ? '' : lead.leaf ? LEAF_ART : lead.gem ? getSkillGemArtPath(lead.gem) : getInventoryItemVisualAsset(lead.item, lead.itemKind));
+    const leadName = lead => (lead.yarn ? `실타래 ${knitting.row(lead.yarn).name}` : lead.leaf ? memoryLeaves.leaf(lead.leaf).name : lead.gem ? `[${lead.gem}] 룬` : shownName(lead));
     /** The name a pile shows: an unidentified unique on the floor shows only its base (the name appears when picked up). */
-    const shownName = receipt => (receipt.unidentified ? `미확인 ${receipt.item.baseName || receipt.item.slot || '고유'}` : receipt.item.name);
+    const shownName = receipt => (receipt.unidentified ? `미확인 ${receipt.item.baseName || getItemSlotDisplayLabel(receipt.item, '고유')}` : receipt.item.name);
     /** Rows per arm of the name cross. Up sits over the picture; the side arms stay short so they fit between the up and
      * down arms. Drops beyond every arm stay unnamed: never a "외 N개" row (user, 2026-10-03). */
     const ARM_ROWS = Object.freeze({ wide: { up: 6, right: 2, left: 2, down: 3 }, narrow: { up: 3, right: 1, left: 1, down: 2 } });
-    // Keep the pile beneath its name even when the centred name arm slides away from a screen edge.
+    // Keep the pile beneath its name even when the centred name arm slides away from a screen edge. A pile closer to the edge
+    // than that, or past it (drawn up to 64px out), takes its whole name inside: the name showed a cut fragment ("기] 룬").
     const EDGE_PAD = 4, EDGE_GRIP = 12;
     function edgeShift(x, half, width) {
-        const reach = Math.max(0, half - EDGE_GRIP), left = x - half, right = x + half;
+        const atEdge = x < EDGE_PAD + EDGE_GRIP || x > width - EDGE_PAD - EDGE_GRIP;
+        const reach = atEdge ? Infinity : Math.max(0, half - EDGE_GRIP), left = x - half, right = x + half;
         const want = left < EDGE_PAD ? EDGE_PAD - left : right > width - EDGE_PAD ? width - EDGE_PAD - right : 0;
         return Math.round(Math.max(-reach, Math.min(reach, want)));
     }
@@ -97,27 +99,42 @@ const battleGroundLoot = (() => {
         ground.style.setProperty('--loot-width', box.width + 'px');
     }
 
+    const armWidth = (marker, side) => marker.querySelector(`.battle-loot-labels.${side}`)?.offsetWidth || 0;
+    /** Measures a shown pile's names once, with the side hide classes off (a hidden arm measures 0 wide). */
+    function measure(marker, labels) {
+        marker.classList.remove('cuts-left', 'cuts-right');
+        const row = labels.firstElementChild?.offsetHeight || 20;
+        const down = marker.querySelector('.battle-loot-labels.is-down');
+        marker.dataset.labelRow = String(row);
+        marker.dataset.labelHeight = String(labels.offsetHeight || labels.children.length * (row + 2));
+        setStyle(marker, '--up-height', marker.dataset.labelHeight + 'px');
+        marker.dataset.labelHalf = String(labels.offsetWidth / 2);
+        marker.dataset.downHalf = String(down ? down.offsetWidth / 2 : 0);
+        marker.dataset.leftWidth = String(armWidth(marker, 'is-left'));
+        marker.dataset.rightWidth = String(armWidth(marker, 'is-right'));
+    }
+
+    /** Side names cannot slide: one that would cross the field edge hides (a hidden arm is fine, see yieldCrowdedArms). */
+    function hideCutSides(marker, x, width) {
+        const left = x - 26, right = x + 26;
+        marker.classList.toggle('cuts-left', left - Number(marker.dataset.leftWidth) < 0 || left > width);
+        marker.classList.toggle('cuts-right', right < 0 || right + Number(marker.dataset.rightWidth) > width);
+    }
+
     function place(marker, point) {
         const labels = marker.querySelector('.battle-loot-labels');
         if (!labels) return; // a marker whose labels failed to build is rebuilt on the next frame (syncFloor)
         const x = Math.round(point.x), y = Math.round(point.y);
         setStyle(marker, 'left', x + 'px'); setStyle(marker, 'top', y + 'px');
         if (marker.hidden) return; // Measure when shown again, not as a zero-width hidden element.
-        if (!marker.dataset.labelRow) {
-            const row = labels.firstElementChild?.offsetHeight || 20;
-            const down = marker.querySelector('.battle-loot-labels.is-down');
-            marker.dataset.labelRow = String(row);
-            marker.dataset.labelHeight = String(labels.offsetHeight || labels.children.length * (row + 2));
-            setStyle(marker, '--up-height', marker.dataset.labelHeight + 'px');
-            marker.dataset.labelHalf = String(labels.offsetWidth / 2);
-            marker.dataset.downHalf = String(down ? down.offsetWidth / 2 : 0);
-        }
+        if (!marker.dataset.labelRow) measure(marker, labels);
         const view = canvasBox(canvas), half = Number(marker.dataset.labelHalf), shift = edgeShift(x, half, view.width);
         const height = Number(marker.dataset.labelHeight);
         // A visible pile whose names cannot fit above it uses the less-clipped side, keeping its first name nearest the picture.
         const above = EDGE_PAD - (y - 30 - height), below = y + 24 + height - (view.height - EDGE_PAD);
         const under = y >= 0 && above > 0 && below < above;
         marker.classList.toggle('is-under', under);
+        hideCutSides(marker, x, view.width);
         setStyle(marker, '--label-shift', shift + 'px');
         setStyle(marker, '--down-shift', edgeShift(x, Number(marker.dataset.downHalf), view.width) + 'px');
         stackLabel(marker, { x, y, half, shift, height, under, floor: view.height - EDGE_PAD, row: Number(marker.dataset.labelRow) });
@@ -211,7 +228,7 @@ const battleGroundLoot = (() => {
         label.dataset.rarity = receipt.item?.rarity || 'normal';
         label.dataset.moment = momentOf(receipt) || '';
         label.style.setProperty('--loot-color', receipt.color || getRarityColor(label.dataset.rarity));
-        if (receipt.currency && ORB_DB[receipt.currency]) currencyRow(label, receipt);
+        if (receipt.currency) currencyRow(label, receipt);
         else label.textContent = leadName(receipt);
         if (receipt.leaf) label.dataset.rarity = 'leaf';
         itemInfluencesUi.markFrame(label, receipt.item);
@@ -237,7 +254,7 @@ const battleGroundLoot = (() => {
 
     /** One item picture for the pile (its most important drop) under the name cross. tier drives the glow, pop and sound. */
     function appearance(marker, receipts) {
-        const lead = receipts[0], item = lead.item, currency = lead.currency && ORB_DB[lead.currency];
+        const lead = receipts[0], item = lead.item, currency = lead.currency && getCurrencyInfo(lead.currency);
         marker.dataset.rarity = item?.rarity || 'normal';
         marker.dataset.kind = pileKind(lead, currency);
         marker.dataset.tier = pileTier(lead, marker.dataset.rarity);
@@ -313,7 +330,7 @@ const battleGroundLoot = (() => {
         later(entry, () => absorb(entry), important ? 3300 : 2400);
     }
 
-    function launch(entry, flight, point) {
+    function launch(entry, flight, point, tier = entry.marker.dataset.tier) {
         const dx = point.x - parseFloat(entry.marker.style.left), dy = point.y - parseFloat(entry.marker.style.top);
         const frames = [0, .125, .25, .375, .5, .625, .75, .875, 1].map(t => ({ offset: t,
             transform: `translate(${dx * (1 - t)}px,${dy * (1 - t) - 4 * t * (1 - t) * Math.min(65, 35 + Math.hypot(dx, dy) * .2)}px)` }));
@@ -321,13 +338,12 @@ const battleGroundLoot = (() => {
         flight.animate(frames, { duration, fill: 'backwards' });
         const art = flight.firstElementChild, rest = getComputedStyle(art).transform;
         art.animate([{ transform: rest + ' rotate(-45deg) scale(.75)' }, { transform: rest }], { duration, fill: 'backwards' });
-        later(entry, () => land(entry), duration);
+        later(entry, () => land(entry, tier), duration);
     }
 
-    function land(entry) {
+    function land(entry, tier) {
         entry.marker.classList.add('landed');
         const contact = document.createElement('span'); contact.className = 'battle-loot-contact'; entry.marker.append(contact);
-        const tier = entry.marker.dataset.tier;
         if (tier !== 'plain' && typeof playLootDropSound === 'function') playLootDropSound(tier === 'major' || tier === 'jackpot');
         if (!reduced()) landingPop(entry.marker.querySelector('.battle-loot-item'), tier);
         later(entry, () => contact.remove(), 550);
@@ -417,7 +433,9 @@ const battleGroundLoot = (() => {
         core: row => ({ item: row.item, itemKind: 'core' }),
         talisman: row => ({ item: row.item, itemKind: 'talisman', color: TALISMAN_RARITY_TONES[row.item.rarity] }),
         leaf: row => ({ leaf: row.leaf, itemKind: 'leaf', color: MEMORY_LEAVES.tone }),
-        gem: row => ({ gem: row.gem, itemKind: 'gem', color: getRarityColor('rare') })
+        yarn: row => ({ yarn: row.yarn, itemKind: 'yarn', color: '#d7bb82' }),
+        gem: row => ({ gem: row.gem, itemKind: 'gem', color: getRarityColor('rare') }),
+        rune: row => ({ gem: row.gem.name, itemKind: 'gem', color: getRarityColor('rare') })
     };
     const floorReceipts = pile => pile.rows.map(row => floorReceipt[actExplorationState.groundLoot.kindOf(row)](row))
         .sort((a, b) => importance(b) - importance(a));
@@ -444,7 +462,7 @@ const battleGroundLoot = (() => {
     }
 
     function floorRowKey(row) {
-        if (row.kind === 'talisman' || row.kind === 'leaf' || row.kind === 'gem') {
+        if (['talisman', 'leaf', 'yarn', 'gem', 'rune'].includes(row.kind)) {
             if (!talismanKeys.has(row)) talismanKeys.set(row, `talisman#${++nextTalismanKey}`);
             return talismanKeys.get(row);
         }
@@ -460,11 +478,16 @@ const battleGroundLoot = (() => {
         marker.replaceChildren();
         delete marker.dataset.labelRow; // Changed contents need their new width, even on the same floor cell.
         const flight = appearance(marker, receipts); beam(marker, receipts[0]);
-        const names = receipts.map(receipt => (receipt.currency ? `${ORB_DB[receipt.currency]?.name || receipt.currency} ×${receipt.count}` : leadName(receipt)));
+        const names = receipts.map(receipt => (receipt.currency ? `${getCurrencyInfo(receipt.currency).name} ×${receipt.count}` : leadName(receipt)));
         marker.setAttribute('aria-label', `줍기: ${names.slice(0, 3).join(', ')}${names.length > 3 ? ` 외 ${names.length - 3}개` : ''}`);
         const point = originFor(entry.cell, projection);
         place(marker, point); yieldCrowdedArms(marker);
-        if (fresh) launch(entry, flight, point);
+        // The permanent marker shows the best item in the pile, but only newly dropped rows choose the landing sound/pop.
+        // Capture their tier now: a different drop can join this cell before the flight finishes.
+        if (fresh.length) {
+            const lead = floorReceipts({ rows: fresh })[0];
+            launch(entry, flight, point, pileTier(lead, lead.item?.rarity || 'normal'));
+        }
         else marker.classList.add('landed');
     }
     function addFloorPile(key, pile) {
@@ -489,7 +512,7 @@ const battleGroundLoot = (() => {
             live.add(key);
             const existing = floorPiles.get(key), entry = existing || addFloorPile(key, pile);
             if (entry.ids === ids) continue;
-            const fresh = pile.rows.some(row => !landedFloorIds.has(floorRowKey(row)));
+            const fresh = pile.rows.filter(row => !landedFloorIds.has(floorRowKey(row)));
             floorMarker(entry, pile, projection, fresh);
             // Remembered only once the marker is built: a failed build is tried again instead of leaving an empty marker.
             entry.ids = ids;

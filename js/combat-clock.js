@@ -1,9 +1,14 @@
+/* @dev-only */
 // Local test panel only (js/dev-test-panel-ui.js): more fixed steps per callback. Never saved; 1 in normal play.
+// A release build removes this block and the multiplier in takeForegroundCombatSteps (scripts/lib/release-bundle.js),
+// so no console line can speed combat there.
 let testCombatSpeed = 1;
 function setTestCombatSpeed(multiplier) {
     testCombatSpeed = Math.max(1, Math.min(8, Math.floor(Number(multiplier) || 1)));
     return testCombatSpeed;
 }
+safeExposeGlobals({ setTestCombatSpeed });
+/* @end-dev-only */
 
 /** @returns {number} Game time in milliseconds; wall time only initializes legacy saves. */
 function getCombatTime() {
@@ -21,10 +26,10 @@ function takeForegroundCombatSteps(clock, nowMs, paused) {
     let elapsed = clock.lastAtMs === null ? 0 : Math.max(0, nowMs - clock.lastAtMs);
     clock.lastAtMs = nowMs;
     if (paused) { clock.remainderMs = 0; return 0; }
-    clock.remainderMs += Math.min(1000, elapsed) * testCombatSpeed;
+    clock.remainderMs += Math.min(1000, elapsed) /* @dev-only */ * testCombatSpeed /* @end-dev-only */;
     let steps = Math.floor(clock.remainderMs / 100);
     clock.remainderMs -= steps * 100;
     return steps;
 }
 
-safeExposeGlobals({ getCombatTime, takeForegroundCombatSteps, setTestCombatSpeed });
+safeExposeGlobals({ getCombatTime, takeForegroundCombatSteps });

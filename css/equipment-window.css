@@ -193,8 +193,8 @@
 :root body #item-tab-equip .equipment-grid-item { outline: 1px solid #050403; outline-offset: -1px; border-radius: 0;
   box-shadow: inset 0 0 0 2px rgba(255, 226, 160, .07), inset 0 0 14px rgba(0, 0, 0, .55); }
 :root body #item-tab-equip .equipment-grid-item.selected { outline: 2px solid #ffd27a; outline-offset: -2px; box-shadow: 0 0 14px rgba(255, 210, 122, .75); z-index: 3; }
-:root body #item-tab-equip .eqw-new-dot { position: absolute; top: 4px; right: 4px; z-index: 6; width: 8px; height: 8px; border-radius: 50%; background: #ff3b30;
-  box-shadow: 0 0 0 1px #000, 0 0 6px rgba(255, 59, 48, .85); pointer-events: none; }
+:root body #item-tab-equip .eqw-new-dot { position: absolute; top: 2px; right: 2px; z-index: 6; width: 6px; height: 6px; border-radius: 50%; background: #ff3b30;
+  box-shadow: 0 0 0 1px #000; pointer-events: none; }
 
 /* 선택한 장비: 그림과 이름, 지금 장착, 바꾸면 증감표, 단추, 툴팁 */
 :root body #item-tab-equip .eqw-pick { display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: 10px; align-items: center; margin-bottom: 8px; }
@@ -227,6 +227,7 @@
   border-color: #f6dc9c; background: linear-gradient(180deg, #e8c57c, #a77a2d); color: #1c1309; font-weight: 700; text-shadow: none; }
 :root body #item-tab-equip .equipment-inspection-tooltip { padding: 6px; border: 1px solid #4a3a22; background: #0b0907; }
 :root body #item-tab-equip .equipment-inspection-tooltip > * { position: static; max-width: none; transform: none; }
+:root body #item-tab-equip .eqw-inspector-body { display: contents; }
 
 /* 선택한 장비와 지금 낀 장비의 옵션(js/equipment-window-ui.js compareNode): 칸이 넓으면(500px부터) 나란히, 좁으면 탭으로 바꿔 본다. */
 :root body #item-tab-equip .equipment-inspection-details { container: eqwpanel / inline-size; }
@@ -300,9 +301,11 @@
   :root body #item-tab-equip .equipment-window .eqw-doll-card { order: -2; }
   :root body #item-tab-equip .equipment-window:not([data-mobile-pane="loadout"]) .eqw-doll-card { display: none; }
   :root body #item-tab-equip .equipment-window .equipment-inventory-panel { display: block; }
+  /* Let the tool rail scroll above the folded battle button (44px touch target, 4px padding and border, 8px above the menu, 8px air). */
+  :root body #item-tab-equip .equipment-window .eqw-bag-card { padding-bottom: calc(var(--size-control-touch) + 20px); }
   :root body #item-tab-equip .eqw-summary-full { display: none; }
   :root body #item-tab-equip .eqw-summary-mini { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 8px; align-items: center; }
-  :root body #item-tab-equip .eqw-mini-toggle { min-height: 34px; padding: 4px 10px; border: 1px solid #e3bd72; border-radius: 0; background: linear-gradient(180deg, #241c14, #17120d);
+  :root body #item-tab-equip .eqw-mini-toggle { min-height: 44px; padding: 4px 10px; border: 1px solid #e3bd72; border-radius: 0; background: linear-gradient(180deg, #241c14, #17120d);
     color: var(--eqw-gold); font-size: 12px; }
   :root body #item-tab-equip .eqw-mini-dps { text-align: right; }
   :root body #item-tab-equip .eqw-mini-dps small { display: block; color: var(--eqw-muted); font-size: 10px; }
@@ -311,26 +314,40 @@
   :root body #item-tab-equip .eqw-mini-line b { color: var(--c); }
   :root body #item-tab-equip #ui-equip-list.equipment-paperdoll { justify-content: center; grid-template-columns: repeat(3, minmax(0, 88px)); grid-template-rows: repeat(5, 72px); }
   :root body #item-tab-equip #ui-equip-list.equipment-paperdoll.has-ring3.has-core { grid-template-rows: repeat(6, 72px); }
-  :root body #item-tab-equip .eqw-compare-tabs > button { min-height: 40px; }
+  :root body #item-tab-equip .eqw-compare-tabs { position: sticky; top: 0; z-index: 1; background: #120e0a; }
+  :root body #item-tab-equip .eqw-compare-tabs > button { min-height: 44px; }
   /* 바꾸면 표: 요약에 있는 능력치만 먼저, 나머지는 단추로 편다(js/equipment-window-ui.js restButton). */
   :root body #item-tab-equip .eqw-dl-body:not(.is-open) .eqw-dl.is-rest { display: none; }
-  :root body #item-tab-equip .eqw-dl-more { display: block; width: 100%; min-height: 36px; margin-top: 4px; padding: 3px 8px; border: 1px solid #4a3a22; border-radius: 0;
+  :root body #item-tab-equip .eqw-dl-more { display: block; width: 100%; min-height: 44px; margin-top: 4px; padding: 3px 8px; border: 1px solid #4a3a22; border-radius: 0;
     background: transparent; color: var(--eqw-muted); font-size: 12px; }
   :root body #item-tab-equip .eqw-bag-head .eqw-search { flex: 1 1 100px; }
   :root body #item-tab-equip #ui-equipment-inventory-inspector { --eqw-dock: sheet; }
-  :root body #item-tab-equip #ui-equipment-inventory-inspector:popover-open { position: fixed; inset: auto 8px calc(var(--mobile-nav-height, 64px) + 12px) 8px; display: block;
-    width: auto; max-width: none; max-height: 62vh; margin: 0; padding: 10px; overflow: auto; border: 1px solid #c79a4a; border-radius: 0;
+  :root body #item-tab-equip #ui-equipment-inventory-inspector:popover-open { position: fixed; inset: auto 8px calc(var(--mobile-nav-height, 64px) + 12px) 8px; display: flex; flex-direction: column; align-items: stretch; gap: 0;
+    width: auto; max-width: none; max-height: min(80dvh, calc(100dvh - var(--mobile-nav-height, 64px) - 24px)); margin: 0; padding: 10px; overflow: visible; border: 1px solid #c79a4a; border-radius: 0;
     background: linear-gradient(180deg, #221a12, #120e0a); box-shadow: 0 0 0 1px #000, inset 0 0 0 3px #17120d, inset 0 0 0 4px rgba(227, 189, 114, .3), 0 -10px 24px rgba(0, 0, 0, .75); }
-  :root body #item-tab-equip #ui-equipment-inventory-inspector:popover-open .equipment-grid-inspector-close { position: absolute; top: 4px; right: 6px; min-height: 36px; }
+  :root body #item-tab-equip #ui-equipment-inventory-inspector:popover-open .equipment-grid-inspector-close { position: absolute; top: 2px; right: 4px; min-height: 44px; min-width: 44px; }
   /* 휴대폰의 닫기 단추는 손가락 크기(폭 44px, css/themes/pixel-mobile.css)라 제목 줄 오른쪽 글을 가렸다: 단추 왼쪽에 12px 틈이 남게 비운다. */
-  :root body #item-tab-equip #ui-equipment-inventory-inspector:popover-open .eqw-title { padding-right: 64px; }
+  :root body #item-tab-equip #ui-equipment-inventory-inspector:popover-open .eqw-title { min-height: 44px; box-sizing: border-box; align-items: center; padding-right: 64px; margin: -10px -10px 8px; }
+  :root body #item-tab-equip #ui-equipment-inventory-inspector:popover-open > :is(.eqw-title, .eqw-pick) { flex: none; }
+  :root body #item-tab-equip #ui-equipment-inventory-inspector:popover-open .eqw-inspector-body { display: block; min-height: 0; overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+  :root body #item-tab-equip #ui-equipment-inventory-inspector:popover-open .equipment-inspection-details { overflow: visible; }
   :root body #item-tab-equip #ui-equipment-inventory-inspector .equipment-grid-inspector-actions button { min-height: 44px; }
+  /* 장착과 관리만 고정한다. 옵션을 밀어 읽어도 대상 이름과 장착 버튼이 남고, 후기 장비의 많은 관리 작업은 충분한 터치 크기로 펼친다. */
+  :root body #item-tab-equip #ui-equipment-inventory-inspector:popover-open > .equipment-grid-inspector-actions { position: relative; flex: none; z-index: 2;
+    margin: 8px -10px -10px; padding: 8px 10px 10px; background: #120e0a; box-shadow: 0 -1px 0 rgba(227, 189, 114, .3);
+    grid-template-columns: minmax(0, 2fr) minmax(100px, 1fr); grid-auto-flow: row; }
+  :root body #item-tab-equip .eqw-secondary-actions { display: none; position: absolute; bottom: 100%; left: 0; right: 0; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px;
+    max-height: 42dvh; overflow: auto; overscroll-behavior: contain; padding: 10px; border: 1px solid #8a6a36; background: #18120d; box-shadow: 0 -8px 20px rgba(0, 0, 0, .55); }
+  :root body #item-tab-equip .tools-open .eqw-secondary-actions { display: grid; }
+  :root body #item-tab-equip .eqw-manage-toggle[aria-expanded="true"] { border-color: #ecc982; color: #fff3d6; }
+  :root body #item-tab-equip .eqw-manage-toggle:disabled { display: none; }
+  :root body #item-tab-equip .equipment-grid-inspector-actions:has(.eqw-manage-toggle:disabled) .equipment-card-primary { grid-column: 1 / -1; }
 }
 /* 휴대폰: 가방 판이 한 단이 되어 도구 줄은 가방 아래 가로 한 줄, 펼침 창은 위로(가방을 덮으며) 연다. */
 @media (max-width: 640px) {
   :root body #item-tab-equip .eqw-rail { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
   :root body #item-tab-equip .eqw-rail-menu { display: flex; flex: 1 1 0; }
-  :root body #item-tab-equip .eqw-rail > .eqw-rail-tool, :root body #item-tab-equip .eqw-rail-menu > .eqw-rail-tool { flex: 1 1 0; flex-direction: row; height: 40px; }
+  :root body #item-tab-equip .eqw-rail > .eqw-rail-tool, :root body #item-tab-equip .eqw-rail-menu > .eqw-rail-tool { flex: 1 1 0; flex-direction: row; height: 44px; }
   /* 가로 단추에서는 안쪽 모서리의 개수 표시가 "복구" 글자를 덮었다(글자 뒤에 두면 그림이 밀려났다): 바깥 모서리에 얹는다. */
   :root body #item-tab-equip .eqw-rail-tool { overflow: visible; }
   :root body #item-tab-equip .eqw-rail-tool small { z-index: 1; top: -6px; right: -4px; box-shadow: 0 0 0 2px #0d0a07; }

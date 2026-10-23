@@ -34,7 +34,8 @@ const messageFrames = (() => {
     let suppressClick = false;
 
     function defaultFrameState() {
-        return { split: false, active: 'log', side: 'chat', main: null, sideRect: null, collapsed: { main: false, side: false } };
+        // 새 모험은 탭 줄만 둔다. 펼친 전투 기록이 첫 방 오른쪽 출구를 덮지 않게 한다.
+        return { split: false, active: 'log', side: 'chat', main: null, sideRect: null, collapsed: { main: true, side: false } };
     }
 
     function validFrameRect(rect) {
@@ -48,7 +49,8 @@ const messageFrames = (() => {
         const collapsed = saved.collapsed || {};
         return {
             split: saved.split === true, active: TABS[saved.active] ? saved.active : base.active, side: TABS[saved.side] ? saved.side : base.side,
-            main: validFrameRect(saved.main), sideRect: validFrameRect(saved.sideRect), collapsed: { main: collapsed.main === true, side: collapsed.side === true }
+            main: validFrameRect(saved.main), sideRect: validFrameRect(saved.sideRect),
+            collapsed: { main: typeof collapsed.main === 'boolean' ? collapsed.main : base.collapsed.main, side: collapsed.side === true }
         };
     }
 
@@ -409,12 +411,14 @@ const messageFrames = (() => {
     }
 
     /** Brings a tab into view: its own frame when splitTab, otherwise the shared frame's active tab. */
-    function showFrameTab(tab) {
+    function showFrameTab(tab, expand = true) {
         if (!mounted || !TABS[tab]) return false;
-        if (state.split) state.collapsed[state.side === tab ? 'side' : 'main'] = false;
+        if (state.split) {
+            if (expand) state.collapsed[state.side === tab ? 'side' : 'main'] = false;
+        }
         else {
             state.active = tab;
-            state.collapsed.main = false;
+            if (expand) state.collapsed.main = false;
         }
         renderFrames();
         return true;

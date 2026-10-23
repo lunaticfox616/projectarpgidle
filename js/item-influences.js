@@ -59,7 +59,7 @@ const itemInfluences = (() => {
     /** '' when the altar's line can be carved into the item, otherwise why not. */
     function altarUseReason(item, altar) {
         if (!item) return '아이템을 선택하세요.';
-        if (!altarLines(altar, item)) return '투구, 갑옷, 장갑, 신발, 방패, 허리띠에만 새깁니다.';
+        if (!altarLines(altar, item)) return '투구, 갑옷, 장갑, 신발, 완갑, 허리띠에만 새깁니다.';
         if (item.rarity === 'unique') return '고유 장비에는 새길 수 없습니다.';
         if (item.corrupted || item.fusedRelic || item.hallReplica) return '이 장비는 옵션을 바꿀 수 없습니다.';
         return replaceIndex(item, altar) < 0 ? '바꿀 베이스 옵션이 없습니다.' : heldReason(item, altar);

@@ -1,0 +1,32 @@
+/* 변이시간선 (js/loop-mutation-ui.js): 전투 화면 지역 이름 아래의 칩과 첫 처치 공격룬 3택 창. 속성마다 그 속성 빛깔(--mutation-ele,
+   js/passives.js getElementColor)을 쓴다. 3택 카드는 선택 창의 단추지만 공용 단추 모양(components 층)을 쓰지 않으므로 features 층에서
+   모양을 다시 정한다(그루터기 함 받을 보상 카드와 같은 방식). */
+@layer features {
+  /* 지역 이름 아래 줄(css/theme.css .combat-zone-subline)의 첫 칸 */
+  .loop-mutation-chip { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; padding: 0 6px;
+    border: 1px solid rgba(215, 195, 106, .32); border-radius: 4px; background: rgba(10, 9, 16, .72);
+    font-size: 12px; line-height: 16px; white-space: nowrap; pointer-events: auto; }
+  .loop-mutation-chip[hidden] { display: none; }
+  .loop-mutation-chip i { font-style: normal; color: var(--copy-muted); }
+  .loop-mutation-chip b { color: var(--mutation-ele); font-weight: 700; }
+
+  .starter-rune-panel { width: min(560px, calc(100vw - 24px)); }
+  .starter-rune-choices { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 4px 0; }
+  .starter-rune-choice { display: grid; justify-items: center; align-content: start; gap: 4px; min-width: 0; padding: 10px 6px;
+    border: 1px solid color-mix(in srgb, var(--mutation-ele) 40%, #050404); border-top: 3px solid var(--mutation-ele);
+    background: color-mix(in srgb, var(--mutation-ele) 8%, #120f0b); color: #efe3c9; font-size: 12px; line-height: 1.35;
+    text-align: center; cursor: pointer; }
+  .starter-rune-choice:hover, .starter-rune-choice:focus-visible { background: color-mix(in srgb, var(--mutation-ele) 18%, #120f0b);
+    outline: 1px solid var(--mutation-ele); }
+  .starter-rune-choice.is-weak { box-shadow: 0 0 10px color-mix(in srgb, var(--mutation-ele) 45%, transparent); }
+  .starter-rune-choice img { width: 48px; height: 48px; image-rendering: pixelated; }
+  .starter-rune-choice strong { color: #fff4c4; font-size: 14px; }
+  .starter-rune-element { color: var(--mutation-ele); font-weight: 700; }
+  .starter-rune-choice small { color: var(--copy-muted); font-size: 12px; }
+  .starter-rune-dps { color: #f6c461; font-weight: 700; }
+  @media (max-width: 560px) {
+    .starter-rune-choices { grid-template-columns: minmax(0, 1fr); }
+    .starter-rune-choice { grid-template-columns: 48px minmax(0, 1fr); justify-items: start; text-align: left; column-gap: 10px; }
+    .starter-rune-choice img { grid-row: 1 / span 4; }
+  }
+}

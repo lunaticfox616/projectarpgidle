@@ -49,7 +49,7 @@ actExplorationProgress.objects = (() => {
         if(!interactive(run))return false;
         const row=entries(run).find(e=>e.id===id&&e.phase==='ready'&&e.kind!=='ambush');
         if(!row||!state.visible(run,row))return false;
-        if(distance(game.gridPlayer,row)<=1){use(run,row);return true;}
+        if(distance(game.gridPlayer,row)<=1){actExplorationState.lockOn(run,null);use(run,row);return true;}
         if(!actExplorationState.selectDestination(run,row,{object:true}))return false;
         run.objects.pendingId=id;return true;
     }

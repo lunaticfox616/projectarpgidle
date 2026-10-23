@@ -20,14 +20,20 @@ const enemyAttackRules = (() => {
 
     function units(state) {
         const alive = state.playerHp > 0 ? [state.gridPlayer] : [];
-        return alive.concat(state.summons.filter(unit => unit.alive && !unit.isGhost && unit.hp > 0));
+        const targets=alive.concat(state.summons.filter(unit => unit.alive && !unit.isGhost && unit.hp > 0));
+        if(state.currentZoneId==='colony_run' && state.colony?.inRun && state.colony.coreHp>0) {
+            const core=getCombatGridSize(state).colonyDefense?.core;
+            if(core)targets.push({...core,isColonyCore:true});
+        }
+        return targets;
     }
 
     function impactTargets(attack, state) {
         const alive = units(state);
         if (attack.delivery === 'projectileTarget' || attack.delivery === 'instantTarget') {
+            if(attack.targetType==='colonyCore')return alive.filter(unit=>unit.isColonyCore);
             return alive.filter(unit => attack.targetType === 'player'
-                ? unit === state.gridPlayer : unit !== state.gridPlayer && unit.id === attack.targetId);
+                ? unit === state.gridPlayer : !unit.isColonyCore && unit !== state.gridPlayer && unit.id === attack.targetId);
         }
         if (attack.delivery === 'patternArea') {
             const keys = new Set(attack.bossPattern.area.cells.map(cell => gridCellKey(cell.gx, cell.gy)));
@@ -180,11 +186,19 @@ const enemyAttackRules = (() => {
     }
 
     function warningBar(enemy,now) {
-        if (!enemy.nextPatternState?.isSpecial || !enemy.patternTelegraphKey || !enemy.patternArea) return null;
-        return {label:enemy.nextPatternState?.label || '강력한 공격',
-            progress:clampNumber(Math.min(enemy.attackTimer,(now-enemy.patternTelegraphStartedAt)/(COMBAT_GRID_CONFIG.bossPatternWarningMs+BOSS_ATTACK_IMPACT_DELAY_MS)),0,1)};
+        const state = enemy.nextPatternState;
+        if (!state?.isSpecial || !enemy.patternTelegraphKey || !enemy.patternArea) return null;
+        const span = (state.warningMs || COMBAT_GRID_CONFIG.bossPatternWarningMs) + bossMoves.firstImpactMs(state, enemy);
+        return {label:state.label || '강력한 공격',
+            progress:clampNumber((now-enemy.patternTelegraphStartedAt)/span,0,1)};
     }
 
-    return {delivery,impactTargets,trajectory,advanceFlight,interrupt,cancelPending,ready,castBar};
+    /** Later stages suppress the cast announcement, but remain damage from the same named special. */
+    function damageName(enemy,pattern) {
+        const special = pattern && (pattern.isSpecial || pattern.move);
+        return special && pattern.label ? `${enemy.name} (${pattern.label})` : enemy.name;
+    }
+
+    return {delivery,impactTargets,trajectory,advanceFlight,interrupt,cancelPending,ready,castBar,damageName};
 })();
 safeExposeGlobals({enemyAttackRules});

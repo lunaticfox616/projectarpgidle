@@ -153,6 +153,8 @@ docs/item-pool-expansion-review-20261007.md). 읽기 전용 검토와 메모리 
 (data/items.js AFFIX_KEEP_RULES), 아이템 필드 affixKeep. 재화, 홀씨, 화석 재굴림 한 번에 쓰이고 마름병 포자로 지우면 사라진다. 남길 줄은
 equipmentCrafting.keptOnReroll 하나가 정한다. 화석 나머지 줄은 FOSSIL_TAG_WEIGHT(3)배: 톱니 화석 무기에서 그 계열 비율 23% → 47%.
 홀씨 모드 늘리기(생명, 방어, 속도)는 하지 않았다(콘텐츠를 늘리는 일이라 먼저 묻는다).
+2026-10-22: 사용자 요청으로 거래소 특수 서비스(옵션 제거, 접두 보존, 접미 보존)를 없앴다. affixKeep과 AFFIX_KEEP_RULES도 지웠고,
+걸어 둔 보존은 불러올 때 지우고 황금률 4개씩 돌려준다(js/save-migrations.js refundRemovedAffixKeep).
 
 
 - 접두 봉인, 접미 봉인: 황금률 서비스(marketAnnulSelectedStat 옆). 다음 재굴림에서 그 종류 줄을 남긴다. 아이템에 affixSeal 필드.

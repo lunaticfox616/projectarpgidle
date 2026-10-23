@@ -2,6 +2,50 @@
 /* 도트 UI — 휴대폰 화면 틀: 지역 줄·귀환/목표 버튼·전투 기록 막대·하단 메뉴. 판·버튼 재질은 themes/pixel.css와 같다.
    지역 줄은 판 없이 그늘만 둔다(themes/rift-stage.css). */
 @media (max-width: 1080px) {
+  /* 정예·보스와 지도 정보는 전장 위에 겹친다. 등장할 때 96px씩 무대를 줄이면 가로 화면의 전장이 77px까지 좁아졌다.
+     빈 정보 띠는 접되(2026-10-22 결정), 캔버스와 캐릭터 비율은 전투 도중 바뀌지 않게 한다. */
+  :root body[data-ui-skin].mobile-battle-tab #tab-battle .combat-stage-info {
+    display: block;
+    position: absolute;
+    inset: 0 0 auto;
+    z-index: 25;
+    height: 96px;
+    pointer-events: none;
+  }
+  /* 아틀라스 정보와 정예·보스 카드가 없으면 빈 띠도 보이지 않는다. */
+  :root body[data-ui-skin].mobile-battle-tab #tab-battle .combat-stage:not(:has(#ui-atlas-combat:not([hidden]), #ui-enemy-list:not([hidden]) .enemy-card.targeted:is(.enemy-elite, .enemy-boss))) .combat-stage-info { display: none; }
+  :root body[data-ui-skin].mobile-battle-tab #tab-battle #ui-atlas-combat {
+    position: absolute;
+    inset: 0 auto auto 0;
+    box-sizing: border-box;
+    width: calc(100% - 56px);
+    height: 96px;
+    margin: 0;
+    box-shadow: none;
+    pointer-events: auto;
+  }
+  :root body[data-ui-skin].mobile-battle-tab #tab-battle #ui-atlas-combat button { min-height: 44px; }
+  /* 지도 정보 띠는 전장 위에 겹치므로 비치게 둔다(불투명하면 지도 내내 전장 윗부분과 큰 보스의 머리를 가렸다). */
+  :root body[data-ui-skin].mobile-battle-tab #tab-battle #ui-atlas-combat { background: color-mix(in srgb, var(--px-panel) 72%, transparent); }
+  :root body[data-ui-skin].mobile-battle-tab #tab-battle #enemy-area { top: 0; }
+  :root body[data-ui-skin].mobile-battle-tab #tab-battle .combat-panel:has(#ui-enemy-list:not([hidden]) .enemy-elite) #ui-atlas-combat { display: none; }
+  :root body[data-ui-skin].mobile-battle-tab #tab-battle #enemy-area .enemy-card.targeted:is(.enemy-elite, .enemy-boss) {
+    width: calc(100% - 100px);
+    margin-top: 4px;
+  }
+  :root body[data-ui-skin].mobile-battle-tab #tab-battle #enemy-area .enemy-nameplate { max-width: 100%; }
+  :root body[data-ui-skin].mobile-battle-tab #tab-battle #enemy-area .enemy-card.targeted .enemy-health-frame { height: 22px; }
+  :root body[data-ui-skin].mobile-battle-tab #tab-battle #enemy-area .enemy-card.targeted .enemy-hud-meta { inset: calc(100% + 2px) 32% auto 0; }
+  :root body[data-ui-skin].mobile-battle-tab #tab-battle #enemy-area .enemy-card.targeted > .enemy-combat-effect-strip {
+    position: absolute;
+    top: calc(100% + 2px);
+    right: 8px;
+    margin: 0;
+    flex-wrap: nowrap;
+    max-width: 28%;
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
   :root body[data-ui-skin].mobile-battle-tab #tab-battle .combat-feed {
     border: var(--px-light-border) solid transparent;
     border-image: var(--px-light-frame);
@@ -29,7 +73,26 @@
      메뉴 띠 + HUD 판 + 기록 막대가 248px로 기종이 달라도 같다. 게임 알림은 전투 기록 알림(37px) 위에 쌓는다. */
   /* 변수는 쓰는 곳(#mobile-toast-root)에만 둔다 — body에 두면 탭을 바꿀 때마다 문서 전체가 스타일을 다시 계산했다. */
   :root body[data-ui-skin].mobile-battle-tab:has(#tab-battle.active) #mobile-toast-root { --mobile-toast-bottom: calc(254px + env(safe-area-inset-bottom)); }
-  :root body[data-ui-skin].mobile-battle-tab:has(#tab-battle.active) .game-toast-region { top: auto; bottom: calc(302px + env(safe-area-inset-bottom)); }
+  /* 2026-10-22: 세로 화면의 게임 알림은 전장 위쪽(지역 줄 아래, 목표 단추 왼쪽)으로. 기록 막대 위 자리(302px)는 두 줄 알림이 전장 바닥, 곧 싸우는
+     자리까지 올라와 몬스터를 가렸다. 전장 위쪽은 배경이다. */
+  /* 가로 화면은 아래 landscape 묶음의 전장 오른쪽 위 자리를 쓴다(여기 left, right가 가로까지 새어 알림이 HUD 위로 화면 폭 전체에 퍼졌다) */
+  @media (orientation: portrait) {
+  :root body[data-ui-skin].mobile-battle-tab:has(#tab-battle.active) .game-toast-region { top: calc(56px + env(safe-area-inset-top)); right: 60px; bottom: auto; left: 10px; width: auto; }
+  /* 정예와 보스를 노리는 동안은 전장 위쪽에 그 이름표와 체력 막대(#ui-enemy-list)가 있어 두 줄 알림이 이름표를 덮었다: 그동안 알림은 지역 이름
+     줄 위, 자동 켬 단추 왼쪽까지에 띄운다(잠시 가리는 것은 지역 이름뿐이다). */
+  :root body[data-ui-skin].mobile-battle-tab:has(#tab-battle.active):has(#ui-enemy-list:not([hidden]) .enemy-card.targeted) .game-toast-region {
+    top: calc(7px + env(safe-area-inset-top)); right: 132px; }
+  /* 그 자리의 알림은 바탕을 채운다(반투명 바탕 너머로 지역 이름 글자가 비쳤다) */
+  :root body[data-ui-skin].mobile-battle-tab:has(#tab-battle.active):has(#ui-enemy-list:not([hidden]) .enemy-card.targeted) .game-toast { background-color: #12100d; }
+  }
+  /* 높은 가로 화면(태블릿): 기본 자리(오른쪽 위)는 자동 켬, 귀환, 목표 단추를 덮었다. 전장 위쪽 가운데에 띄우고, 정예와 보스를 노리는 동안은
+     세로 화면처럼 지역 이름 줄 위로 */
+  @media (orientation: landscape) and (min-height: 601px) {
+  :root body[data-ui-skin].mobile-battle-tab:has(#tab-battle.active) .game-toast-region { top: calc(56px + env(safe-area-inset-top)); right: auto; bottom: auto; left: 50%; width: min(420px, calc(100vw - 280px)); translate: -50% 0; }
+  :root body[data-ui-skin].mobile-battle-tab:has(#tab-battle.active):has(#ui-enemy-list:not([hidden]) .enemy-card.targeted) .game-toast-region {
+    top: calc(7px + env(safe-area-inset-top)); right: 140px; left: 10px; width: auto; translate: none; }
+  :root body[data-ui-skin].mobile-battle-tab:has(#tab-battle.active):has(#ui-enemy-list:not([hidden]) .enemy-card.targeted) .game-toast { background-color: #12100d; }
+  }
   /* 전체 메뉴 서랍이나 확인 창이 열려 있는 동안 알림은 감춘다(닫으면 남은 알림이 다시 보인다) — 알림이 서랍의 기록 단추를
      덮어, 누르면 기록이 아니라 알림만 닫혔다(검토 2026-10-01). */
   :root body[data-ui-skin]:is(.mobile-tab-drawer-open, .game-dialog-open) :is(#mobile-toast-root, .game-toast-region) { visibility: hidden; }
@@ -41,22 +104,24 @@
     /* Overrides inline presentation from the runtime: the toast root sets its layer inline; the guide card must stay on top. */
     z-index: 13200 !important;
   }
-  /* 손가락 누름 자리: 목표(38×25) · 귀환(48×32)은 겉모양은 그대로 두고 보이지 않는 자리를 44px 넘게 넓힌다.
-     버튼 공통 규칙(tabs.css)의 overflow:hidden이 넓힌 자리를 잘라 먹지 않게 풀어 준다(위치 지정은 원래 규칙 그대로). */
+  /* 목표는 실제 44px 자리로 둔다. 아래로 넓힌 가상 누름 영역이 아틀라스 단추를 가로채던 문제를 막는다.
+     귀환은 보이지 않는 누름 자리를 넓히고 공통 overflow:hidden에 잘리지 않게 한다. */
   :root body[data-ui-skin].mobile-battle-tab #tab-battle :is(#btn-combat-goal-toggle, .combat-zone-actions button) { overflow: visible; }
-  /* 목표 단추는 전장 오른쪽 위 모서리에서 6px 안쪽이라(전장은 넘친 것을 자른다) 아래 · 왼쪽으로 넓힌다 */
-  :root body[data-ui-skin].mobile-battle-tab #tab-battle #btn-combat-goal-toggle::after { content: ''; position: absolute; inset: -6px -6px -16px -8px; }
   :root body[data-ui-skin].mobile-battle-tab #tab-battle .combat-zone-actions button::after { content: ''; position: absolute; inset: -8px -6px; }
   /* 휴대폰 창 안의 누르는 것(단추 · 고르기 · 접는 머리)은 44px 이상: 도트 테를 입히며 27 ~ 36px로 줄어 있던 것들(룬 필터 · 등급 칩 ·
-     지도 이동 · 설정 머리). 장비 가방 칸은 격자 크기가 곧 자리라 뺀다. */
-  :root body[data-ui-skin].mobile-primary-navigation .tab-content:not(#tab-battle) :is(button, select, summary):not(.equipment-grid-cell, .equipment-grid-item, .stump-item) { min-height: 44px; }
-  :root body[data-ui-skin].mobile-primary-navigation .tab-content:not(#tab-battle) button:not(.equipment-grid-cell, .equipment-grid-item, .stump-item) { min-width: 44px; }
+     지도 이동 · 설정 머리). 장비 가방 칸과 상점 진열칸은 격자 크기가 곧 자리라 뺀다(진열칸을 44px로 늘리면 32px 칸의 물건이 옆 물건과 그 가격을 덮었다). */
+  :root body[data-ui-skin].mobile-primary-navigation .tab-content:not(#tab-battle) :is(button, select, summary):not(.equipment-grid-cell, .equipment-grid-item, .stump-item, .shop-item, .shop-bag-item) { min-height: 44px; }
+  :root body[data-ui-skin].mobile-primary-navigation .tab-content:not(#tab-battle) button:not(.equipment-grid-cell, .equipment-grid-item, .stump-item, .shop-item, .shop-bag-item) { min-width: 44px; }
+  /* 접는 머리는 대개 목록 항목(▶ 표시)이라 늘린 44px 안에서 글이 위에 붙고 아래가 27 ~ 39px 비었다: 표시 방식은 두고 글만 세로 가운데로 */
+  :root body[data-ui-skin].mobile-primary-navigation .tab-content:not(#tab-battle) summary { align-content: center; }
   /* 검색 칸 · 체크 상자 줄(고대비 모드 · 해금 조건 보기)도 같은 높이, 창 밖의 전체 메뉴 닫기 · 전투 기록 접기 · 시작 화면 약관 글줄도
      (검토 2026-10-01: 32 ~ 40px, 약관 글줄은 14px) */
   :root body[data-ui-skin].mobile-primary-navigation .tab-content:not(#tab-battle) :is(input:not([type="checkbox"], [type="radio"], [type="range"]), label:has(> input[type="checkbox"])) { min-height: 44px; }
   :root body[data-ui-skin].mobile-primary-navigation .tab-content:not(#tab-battle) label:has(> input[type="checkbox"]) { display: flex; align-items: center; }
   :root body[data-ui-skin].mobile-primary-navigation :is(.mobile-tab-drawer-head button, #btn-combat-log-toggle) { min-height: 44px; min-width: 44px; }
   :root body[data-ui-skin] .startup-policy-links a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 6px; }
+  /* 링크를 44px로 늘려도 그 사이 "/"가 줄 맨 위에 붙지 않게 줄을 세로 가운데로 맞춘다 */
+  :root body[data-ui-skin] .startup-policy-links { align-items: center; }
   /* 스킬트리 검색 필터 칩: 한 줄에 줄여 넣으면 "원소/카오스"가 42px 칸에서 잘렸다 → 제 폭을 지키고 다음 줄로 */
   :root body[data-ui-skin] #passive-filter-row { flex-wrap: wrap; overflow-x: visible; }
   :root body[data-ui-skin] #passive-filter-row > button { flex: 1 0 auto; }
@@ -124,8 +189,8 @@
     background: #e4a44b;
     box-shadow: none;
   }
-  /* 검색 줄 끝에 필터 단추가 붙으니, 지울 검색어가 없을 때는 '검색어 리셋'을 접는다(검토 5차 — 장비 격자를 위로) */
-  :root body[data-ui-skin] #item-tab-equip .search-filter-input:placeholder-shown + .search-action-row > button:first-child { display: none; }
+  /* 지울 검색어가 없을 때는 '검색어 리셋'을 접는다(검토 5차 장비 격자, 2026-10-22 룬 연구와 룬 목록도: 빈 검색 아래 44px 줄을 단추 하나가 썼다) */
+  :root body[data-ui-skin] .search-filter-input:placeholder-shown + .search-action-row > button:first-child { display: none; }
   /* 장비 창 · 제작실 · 거래소 · 장비 전당은 한 줄에: 세 칸 격자라 넷째가 혼자 둘째 줄을 썼다 */
   :root body[data-ui-skin] :is(#tab-items, #tab-items .merged-subtab-pane[data-tab-id="tab-items"]) > .subtab-row { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
   /* 전체 메뉴 서랍의 알림 표시도 하단 메뉴와 같은 주황 네모(빨간 네모와 섞여 있었다 — 검토 4차) */
@@ -147,7 +212,27 @@
     background-clip: padding-box;
     image-rendering: pixelated;
   }
+  /* 목표 서랍의 높이 상한(css/ui-reliquary-shell.css)은 안쪽 높이라 판 테두리가 더해져, 내용이 상한을 넘는 가로 화면에서 판 아래가 메뉴 띠를
+     19px 덮었다. 테두리까지 상한에 넣고, 본문은 아래 "목표" 손잡이(46px)와 테두리를 뺀 만큼 */
+  :root body[data-ui-skin].mobile-primary-navigation .ui-goal-drawer.expanded .ui-goal-panel { box-sizing: border-box; }
+  :root body[data-ui-skin].mobile-primary-navigation .ui-goal-drawer.expanded #ui-goal-body { max-height: calc(min(68dvh, 620px) - 2 * var(--px-plate-border) - 46px); }
   :root body[data-ui-skin].mobile-primary-navigation.mobile-tab-drawer-open #tab-header-main { box-shadow: 6px 6px 0 rgba(0, 0, 0, .5); }
+  /* 전체 메뉴 서랍의 높이: 화면의 72%로 묶으면 짧은 화면(390×664)에서 마지막 줄(완료 후 행동)이 13px 잘려 스크롤이 생겼다.
+     위쪽 지역 이름 줄(64px)만 남기고 쓴다 */
+  :root body[data-ui-skin].mobile-primary-navigation.mobile-tab-drawer-open #tab-header-main {
+    max-height: min(680px, calc(100dvh - var(--mobile-primary-nav-height) - env(safe-area-inset-bottom) - 71px));
+  }
+  /* 서랍이 열려 있는 동안 켜진 칸은 전체 단추 하나다(보던 화면의 칸까지 켜져 둘이 함께 빛났다) */
+  :root body[data-ui-skin].mobile-primary-navigation.mobile-tab-drawer-open #tab-header-bottom > .mobile-nav-more {
+    background: var(--px-board-hot), var(--px-stone-control);
+    box-shadow: inset 0 4px 0 var(--px-gold), inset 2px 0 0 #000, inset -2px 0 0 #000;
+    color: var(--px-gold-bright);
+  }
+  :root body[data-ui-skin].mobile-primary-navigation.mobile-tab-drawer-open #tab-header-bottom > .tab-btn.active {
+    background: none;
+    box-shadow: inset -1px 0 0 var(--px-bronze-lo);
+    color: var(--px-copy-muted);
+  }
   :root body[data-ui-skin].mobile-primary-navigation .ui-goal-drawer.expanded .ui-goal-panel { box-shadow: 0 -100vh 0 100vh rgba(0, 0, 0, .58); }
   :root body[data-ui-skin].mobile-primary-navigation #tab-header-main > .mobile-tab-drawer-head {
     border-bottom: 1px solid var(--px-ink);
@@ -185,50 +270,101 @@
      (누르면 설명 — 글줄 20px이라 판이 없는 위아래 여백으로 칸을 44px로 키우고, 같은 만큼 음수 여백으로 줄 간격은 그대로) */
   :root body[data-ui-skin] .gem-library-pager button { min-height: 44px; }
   :root body[data-ui-skin] #tab-map .map-power-estimate { position: relative; padding-block: 12px; margin-block: -12px; }
-  /* 거래소 서비스 탭 넷은 한 줄로: '특수 서비스' · '나의 가판대'만 두 줄로 꺾여 높이가 들쭉날쭉했다 */
+  /* 거래소 탭 셋은 한 줄로: '나의 가판대'가 두 줄로 꺾여 높이가 들쭉날쭉했다 */
   :root body[data-ui-skin] .market-tabs button { padding-inline: 2px; font-size: 12px; white-space: nowrap; }
   :root body[data-ui-skin] .mobile-menu-group-title { border-top: 1px solid var(--px-bronze-lo); color: var(--px-gold); font-size: 12px; text-shadow: var(--px-text-edge); }
 
   /* 휴대폰 탭 제목: 금빛 도트 제목 + 도트 밑줄 */
   :root body[data-ui-skin] .tab-content h2:not([style*="color"]) { color: var(--px-gold-bright); font-family: var(--font-display); font-size: var(--font-size-heading); font-weight: var(--font-weight-emphasis); }
   :root body[data-ui-skin] .tab-content h2:not([style*="border"]) { border-bottom: 1px solid var(--px-bronze); box-shadow: 0 1px 0 var(--px-ink); }
-}
-@media (max-width: 1080px) and (min-height: 601px) {
-  /* 펼친 기록 막대(높이는 ui-responsive-refine.css) 위로 쌓아 접기 단추를 가리지 않는다.
-     접힌 상태의 302px 자리와 달리, 숨긴 중복 기록 알림을 위한 간격은 필요 없다. */
-  :root body[data-ui-skin].mobile-battle-tab:not(.combat-log-collapsed):has(#tab-battle.active) .game-toast-region {
-    bottom: calc(208px + clamp(110px, 20dvh, 180px) + env(safe-area-inset-bottom));
-  }
+
+  /* 스킬트리 창: 트리가 창 바닥까지 채운다(탭 줄, 제목 줄, 트리가 한 격자). 예전에는 화면 높이에서 고정값(285px: 머리, 탭 줄, 제목 줄, 메뉴 띠)을
+     뺐는데, 탭 줄이 숨는 새 저장에서는 트리 아래가 91px 비었고 화면 배율을 키우면 트리가 화면 밖으로 나갔다 */
+  :root body[data-ui-skin] #tab-char .merged-tab-shell:has(> .merged-tab-panels > .merged-subtab-pane.active[data-tab-id="tab-char"]) { display: grid; grid-template-rows: auto auto minmax(0, 1fr); height: 100%; }
+  :root body[data-ui-skin] #tab-char .merged-tab-panels:has(> .merged-subtab-pane.active[data-tab-id="tab-char"]),
+  :root body[data-ui-skin] #tab-char .merged-subtab-pane.active[data-tab-id="tab-char"] { display: contents; }
+  :root body[data-ui-skin] #tab-char .merged-subtab-pane.active[data-tab-id="tab-char"] > div {
+    /* Overrides the markup's inline flex column (index.html) so the title row and the tree join the window grid. */ display: contents !important; }
+  :root body[data-ui-skin] #tab-char .merged-tab-shell > .window-tab-strip { grid-row: 1; }
+  :root body[data-ui-skin] #tab-char .merged-subtab-pane[data-tab-id="tab-char"] > div > h2 { grid-row: 2; }
+  :root body[data-ui-skin] #tab-char .merged-subtab-pane[data-tab-id="tab-char"] > div > #tree-container { grid-row: 3;
+    /* Overrides inline presentation from the runtime (min-height 280px); the grid row sets the height here. */ min-height: 0 !important; }
 }
 @media (max-width: 1080px) and (orientation: landscape) and (max-height: 600px) {
-  /* 가로 휴대폰: HUD는 지역 줄 아래 왼쪽 칸이라 메뉴 띠와 붙지 않는다. 세로용 "메뉴 띠와 이어 붙이기"(아래 테 없음 ·
-     돌판이 위로 솟음)를 되돌려 돌판을 HUD 상자 안에 맞춘다 — 예전에는 돌판 윗단이 지역 줄을 덮었다. */
+  /* 지도 정보는 두 줄만 쓰고 오른쪽 목표 자리를 비운다. 낮은 전장의 캐릭터를 불투명한 96px 띠로 덮지 않는다. */
+  :root body[data-ui-skin].mobile-battle-tab #tab-battle #ui-atlas-combat { height: 56px; padding: 5px 8px; gap: 6px; background: color-mix(in srgb, var(--px-panel) 64%, transparent); }
+  :root body[data-ui-skin].mobile-battle-tab #tab-battle #ui-atlas-combat .atlas-hud-copy > :is(strong, span) { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  /* 가로 휴대폰: HUD는 지역 줄 아래 왼쪽 칸이라 돌판을 HUD 상자 안에 맞춘다(예전에는 돌판 윗단이 지역 줄을 덮었다) */
   :root body[data-ui-skin].mobile-primary-navigation.mobile-battle-tab #battle-column .player-hud-shell::before {
     box-sizing: border-box;
-    border-bottom-width: var(--px-plate-border);
-    border-image-width: var(--px-plate-border);
     box-shadow: var(--px-drop);
   }
   /* 알림: 세로용 자리(기록 막대 위 254 · 302px)는 가로에서 HUD와 지역 줄을 덮는다 — 기록은 메뉴 띠 위, 게임 알림은 전장 오른쪽 위 */
   :root body[data-ui-skin].mobile-battle-tab:has(#tab-battle.active) #mobile-toast-root { --mobile-toast-bottom: calc(84px + env(safe-area-inset-bottom)); }
   :root body[data-ui-skin].mobile-battle-tab:has(#tab-battle.active) .game-toast-region { top: 84px; bottom: auto; }
   :root body[data-ui-skin].mobile-battle-tab:has(#tab-battle.active) .tutorial-action-card { bottom: calc(84px + env(safe-area-inset-bottom)); }
-}
-@media (max-width: 1080px) and (orientation: landscape) and (max-height: 339px) and (pointer: coarse) {
-  /* 주소창이 보이는 가로 휴대폰(높이 293px 안팎)은 지역 줄 · HUD · 전장 · 메뉴 띠가 들어갈 수 없다 — 세로로 돌리라는 안내만.
-     설치 앱의 가로 화면(360px 이상)은 위의 가로 배치를 그대로 쓴다. 가림막이라 아래 화면은 눌리지 않는다. */
-  body[data-ui-skin]::after {
-    content: '세로 화면으로 돌려 주세요';
-    position: fixed;
-    inset: 0;
-    z-index: 30000;
-    display: grid;
-    place-items: center;
-    background: rgba(8, 5, 8, .96);
-    color: var(--px-gold-bright);
-    font: 16px var(--font-pixel);
-    text-shadow: var(--px-text-edge);
-    pointer-events: auto;
+  /* 따라 하기 카드: 기본 크기(356x162)로는 메뉴 띠 위 270px 안에서 가리키는 칸 옆에 둘 자리가 없어 늘 숨었다(첫 스킬룬, 첫 스킬트리 안내 글이
+     가로 화면에서는 한 번도 보이지 않았다). 좁고 낮게 해 칸 옆에 선다 */
+  :root body[data-ui-skin] .tutorial-action-card { width: min(276px, calc(50vw - 64px)); padding: 8px 10px; }
+  :root body[data-ui-skin] .tutorial-action-card p { margin: 4px 0 6px; }
+  /* 정예와 보스 카드: 전장 높이가 170px쯤이라 세로용 36px 내림(css/themes/pixel-hud.css)과 30px 막대가 카드를 주인공 위 한가운데로 밀었다.
+     맨 위에 붙이고(오른쪽 목표 단추를 비켜 폭을 줄인다) 보스 막대는 얇게. 그동안 알림은 전장 위가 아니라 지역 이름 줄 위에 뜬다 */
+  :root body[data-ui-skin].mobile-battle-tab #tab-battle #enemy-area .enemy-card.targeted:is(.enemy-elite, .enemy-boss) { width: calc(100% - 100px); margin-top: 0; }
+  :root body[data-ui-skin].mobile-battle-tab #tab-battle #enemy-area .enemy-card.targeted.enemy-boss .enemy-health-frame { height: 22px; }
+  :root body[data-ui-skin].mobile-battle-tab:has(#tab-battle.active):has(#ui-enemy-list:not([hidden]) .enemy-card.targeted:is(.enemy-elite, .enemy-boss)) .game-toast-region { top: 7px; right: 150px; }
+  :root body[data-ui-skin].mobile-battle-tab:has(#tab-battle.active):has(#ui-enemy-list:not([hidden]) .enemy-card.targeted:is(.enemy-elite, .enemy-boss)) .game-toast { background-color: #12100d; }
+  /* 전체 메뉴 서랍: 가로 화면은 높이가 342px쯤이라 세로용 여백(지역 줄 71px)을 두면 한 줄만 보였다. 메뉴 띠 위를 다 쓴다(지역 줄은 서랍 뒤로 어두워진다) */
+  :root body[data-ui-skin].mobile-primary-navigation.mobile-tab-drawer-open #tab-header-main {
+    max-height: calc(100dvh - var(--mobile-primary-nav-height) - env(safe-area-inset-bottom) - 14px);
   }
+  /* 묶음 창(장비와 스킬룬, 루프 패시브와 해금, 스킬트리와 전직과 재능, 저널과 도감과 기록)의 탭 줄은 왼쪽 세로 칸: 몸통이 200px쯤이라 위에 두면
+     내용은 120px쯤만 보였다. 화면을 내려도 탭 줄은 따라온다 */
+  :root body[data-ui-skin] .merged-tab-shell:has(> .window-tab-strip:not([hidden])) { display: grid; grid-template-columns: 136px minmax(0, 1fr); column-gap: 10px; align-items: start; }
+  :root body[data-ui-skin] .merged-tab-shell > .window-tab-strip:not([hidden]) { grid-column: 1; grid-row: 1; grid-auto-flow: row; grid-auto-columns: auto; margin: 0; position: sticky; top: 8px; z-index: 2; }
+  :root body[data-ui-skin] .merged-tab-shell > .window-tab-strip > .window-tab { justify-content: flex-start; }
+  :root body[data-ui-skin] .merged-tab-shell > .merged-tab-panels { grid-column: 2; grid-row: 1; min-width: 0; }
+  /* 스킬트리 창: 몸통이 170px쯤이라 하위 탭 줄과 제목 줄을 쌓으면 트리가 메뉴 띠 위로 50px만 보였고, 내려서 보면 화면이 다 캔버스라
+     손가락으로 다시 올라갈 수 없었다. 포인트와 초기화는 검색 단추처럼 트리 왼쪽 위에 띄우고 트리가 오른쪽 높이를 다 쓴다.
+     한 줄 격자: 트리 칸에서는 위의 공통 규칙이 창 높이(height: 100%)를 주고, 전직과 재능처럼 긴 칸은 그 길이대로 내려간다 */
+  :root body[data-ui-skin] #tab-char .merged-tab-shell { display: grid; grid-template-columns: 136px minmax(0, 1fr); column-gap: 10px; align-items: start; }
+  :root body[data-ui-skin] #tab-char .merged-tab-shell:has(> .merged-tab-panels > .merged-subtab-pane.active[data-tab-id="tab-char"]) { grid-template-rows: minmax(0, 1fr); }
+  /* 전직과 재능이 열리기 전에는 탭 줄이 숨는다: 빈 왼쪽 칸을 남기지 않는다 */
+  :root body[data-ui-skin] #tab-char .merged-tab-shell:not(:has(> .window-tab-strip:not([hidden]))) { grid-template-columns: 0 minmax(0, 1fr); column-gap: 0; }
+  :root body[data-ui-skin] #tab-char .merged-subtab-pane[data-tab-id="tab-char"] > div > h2 { grid-column: 2; grid-row: 1; justify-self: start; position: relative; z-index: 9; display: block; margin: 6px; padding: 0 0 0 8px; border: 1px solid var(--color-line); background: var(--color-surface); }
+  :root body[data-ui-skin] #tab-char .merged-subtab-pane[data-tab-id="tab-char"] > div > h2 > span:first-child { display: none; }
+  :root body[data-ui-skin] #tab-char .merged-subtab-pane[data-tab-id="tab-char"] > div > h2 > .h2-right { display: flex; align-items: center; gap: 8px; min-height: 44px; }
+  :root body[data-ui-skin] #tab-char .merged-subtab-pane[data-tab-id="tab-char"] > div > h2 .passive-tree-reset { margin: 0; }
+  :root body[data-ui-skin] #tab-char .merged-subtab-pane[data-tab-id="tab-char"] > div > #tree-container { grid-column: 2; grid-row: 1; align-self: stretch; }
+}
+@media (max-width: 1080px) and (orientation: landscape) and (max-height: 360px) {
+  :root body[data-ui-skin].mobile-battle-tab #tab-battle #enemy-area .enemy-card.targeted .enemy-nameplate { padding-block: 0; }
+  :root body[data-ui-skin].mobile-battle-tab #tab-battle #enemy-area .enemy-card.targeted:is(.enemy-boss, .enemy-elite) .enemy-health-frame { height: 18px; }
+  :root body[data-ui-skin].mobile-battle-tab #tab-battle #enemy-area .enemy-card.targeted .enemy-hud-meta { top: calc(100% + 1px); }
+}
+@media (max-width: 1080px) and (max-height: 600px) {
+  /* 낮은 휴대폰 화면(가로, 또는 화면 배율을 키운 세로): 도움말 말풍선은 밀리지 않아 긴 설명(소환 DPS 11줄, 공격력 내역)이 1.6 줄 높이로
+     화면 높이를 넘었다. 줄 사이와 안쪽 여백을 줄인다 */
+  :root body[data-ui-skin] #info-tooltip { padding: 8px 10px; }
+  :root body[data-ui-skin] #info-tooltip :is(.tooltip-line:not(.tooltip-meta):not(.tooltip-section), .tooltip-final) { line-height: 1.35; }
+}
+@media (min-width: 721px) and (max-width: 1080px) and (orientation: landscape) and (max-height: 600px) {
+  /* 열린 검색 칸은 화면 폭(components.css)이 아니라 트리 폭에 맞춘다: 왼쪽 탭 줄 뒤로 들어가 전체 거르개와 입력란 앞이 가렸다 */
+  :root body[data-ui-skin] #tab-char .merged-subtab-pane[data-tab-id="tab-char"] > div > #tree-container { container-type: size; }
+  :root body[data-ui-skin] #tab-char .passive-search-drawer[open] { width: calc(100cqw - 14px); max-width: none; }
+  /* 트리가 170px쯤이라 열린 칸이 트리 밖으로 잘렸다(프리셋은 위, 투자 효과 총합은 아래, 밀어도 안 보임). 검색과 투자 효과 총합 단추를
+     한 줄에 두어 아래 칸 자리를 늘리고, 두 칸의 높이는 트리 높이에 맞춘다. 열린 프리셋은 도구 단추 위에 놓인다(검색 단추가 저장 단추를 덮었다) */
+  :root body[data-ui-skin] #tab-char .passive-tree-right-tools { flex-direction: row; justify-content: flex-end; align-items: flex-start; }
+  :root body[data-ui-skin] #tab-char .passive-tree-right-tools:has(> .passive-search-drawer[open]) > .passive-investment-summary { display: none; }
+  :root body[data-ui-skin] #tab-char .passive-investment-summary:not(.collapsed) { width: min(250px, calc(100cqw - 90px)); }
+  :root body[data-ui-skin] #tab-char .passive-investment-summary-body { max-height: calc(100cqh - 80px); }
+  :root body[data-ui-skin] #tab-char .passive-preset-drawer[open] { z-index: 11; }
+  :root body[data-ui-skin] #tab-char .passive-preset-drawer .passive-tree-planner { max-height: calc(100cqh - 96px); }
+}
+@media (max-width: 720px) and (orientation: landscape) and (max-height: 600px) {
+  /* 720px 이하에서는 트리 도구(프리셋, 검색, 투자 효과 총합)가 트리 맨 위 한 줄이라 포인트 판은 왼쪽 아래에 둔다 */
+  :root body[data-ui-skin] #tab-char .merged-subtab-pane[data-tab-id="tab-char"] > div > h2 { align-self: end; }
+  /* 도구 줄 아래로 여는 칸(화면의 40%, css/mobile.css)이 낮은 트리 밖으로 잘렸다: 트리 높이에서 도구 줄을 뺀 만큼 */
+  :root body[data-ui-skin] #tab-char .merged-subtab-pane[data-tab-id="tab-char"] > div > #tree-container { container-type: size; }
+  :root body[data-ui-skin] #tab-char #tree-container :is(.passive-preset-drawer > :not(summary), .passive-investment-summary-body) { max-height: calc(100cqh - 84px); }
 }
 }

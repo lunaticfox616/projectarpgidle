@@ -164,7 +164,7 @@ const bossMoveView = (() => {
     /** A beam held from the hand to the line's far cell: head, tiled middle, tail (beam art), or a stream of shots (shot art). */
     function drawBeam(ctx, entry, row, now, projection) {
         const move = entry.move, first = move.stages[0], last = move.stages[move.stages.length - 1];
-        const start = move.releasedAt + first.ms, end = move.releasedAt + last.ms + BOSS_MOVE_RULES.beam.tickMs;
+        const start = move.releasedAt + first.ms, end = Math.min(move.releasedAt + last.ms + BOSS_MOVE_RULES.beam.tickMs, move.cutAt ?? Infinity);
         if (now < start - 90 || now > end + 200) return;
         const body = bodyOf(entry.source, row, projection), far = first.cells[first.cells.length - 1], floor = floorOf(far, projection);
         const tip = { x: floor.x, y: floor.y + body.hand.y - body.feet.y }, scale = body.dot * row.scale;

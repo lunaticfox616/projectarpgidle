@@ -10,7 +10,7 @@
  * 검수(넘으면 멈춘다): 시트 64KB 이하, 색 48 이하, 알파는 0과 255만, 프레임 그림이 칸 가장자리에 닿지 않는다(잘린 그림),
  *   기준점이 칸 안. GPT의 몸 그림은 게임 그림과 도트 크기가 같다(같은 그림에서 왔다): 효과 자리(points)를 그대로 쓴다.
  * 쓰는 곳: assets/stage-vfx/boss-fx/<시트>.png(투명한 화소의 색을 이웃 색으로 채운다: 그림을 줄여 그릴 때 테두리에 원본의 바탕색
- *   (회청색, 검정)이 번지지 않게. 저장소에 넣지 않는다), data/boss-fx.js(표). [복사해 둘 폴더]에도 그림을 똑같이 둔다.
+ *   (회청색, 검정)이 번지지 않게. 생성한 보스 효과는 저장소에 넣는다), data/boss-fx.js(표). [복사해 둘 폴더]에도 그림을 똑같이 둔다.
  * --check: 쓰지 않고 검수만 한다. 원본은 읽기만 한다.
  */
 'use strict';
@@ -21,9 +21,9 @@ const crypto = require('node:crypto');
 const { decodePng, encodePng } = require('./lib/png.cjs');
 
 const root = path.join(__dirname, '..');
-const args = process.argv.slice(2), checkOnly = args.includes('--check');
+const args = process.argv.slice(2), checkOnly = args.includes('--check'), refreshLinks = args.includes('--refresh-links');
 const [from, mirror] = args.filter(arg => !arg.startsWith('--'));
-if (!from) { console.error('쓰는 법: node scripts/build-boss-fx.cjs <boss-vfx 폴더> [복사해 둘 폴더] [--check]'); process.exit(1); }
+if (!from && !refreshLinks) { console.error('쓰는 법: node scripts/build-boss-fx.cjs <boss-vfx 폴더> [복사해 둘 폴더] [--check], 또는 --refresh-links'); process.exit(1); }
 const LIMIT = Object.freeze({ bytes: 64 * 1024, colours: 48 });
 const CELL = 160, COLS = 6, CLIPS = Object.freeze(['charge', 'action', 'impact']);
 const problems = [];
@@ -157,7 +157,29 @@ function build() {
         if (profile.category === 'regular' || !actor || !fs.existsSync(path.join(dir, 'effects.json'))) continue;
         actors[profile.id] = actorRow(profile.id, dir, profile, actor, sheets);
     }
+    applyRuntimeLinks(actors);
     return { actors, sheets };
+}
+
+// Authored emission points for reviewed replacement bodies; reuse existing effect art at its native proportions.
+function applyRuntimeLinks(actors) {
+    const links = JSON.parse(fs.readFileSync(path.join(root, 'data/boss-fx-links.json'), 'utf8'));
+    const roster = readRoster();
+    for (const [id, link] of Object.entries(links)) {
+        const source = actors[link.source], actor = roster.actors[id];
+        if (!source || !actor || link.emit.length !== actor.attackMs.length) throw Error('Invalid boss FX link: ' + id);
+        const { source: _source, ...own } = link;
+        actors[id] = { ...source, ...own };
+    }
+}
+
+function refreshRuntimeLinks() {
+    const file = path.join(root, 'data/boss-fx.js'), text = fs.readFileSync(file, 'utf8');
+    const sandbox = { safeExposeData: values => Object.assign(sandbox, values) };
+    vm.createContext(sandbox); vm.runInContext(text, sandbox);
+    applyRuntimeLinks(sandbox.BOSS_FX.actors);
+    fs.writeFileSync(file, text.replace(/const BOSS_FX = Object.freeze\(.*\);/, 'const BOSS_FX = Object.freeze(' + JSON.stringify(sandbox.BOSS_FX) + ');'));
+    console.log('Reviewed boss effect links refreshed; existing sheets unchanged.');
 }
 
 function writeOut({ actors, sheets }) {
@@ -172,7 +194,7 @@ function writeOut({ actors, sheets }) {
     }
     const table = { path: 'assets/stage-vfx/boss-fx/', version: hash.digest('hex').slice(0, 10), cell: CELL, cols: COLS, actors };
     const text = `// 보스의 공격 효과(GPT가 만든 적 공격 효과, boss-vfx-20261016): node scripts/build-boss-fx.cjs가 쓴다. 손으로 고치지 않는다.\n`
-        + `// 그림은 저장소에 없다(assets/stage-vfx/boss-fx/, 로컬에만 둔다). 없는 곳에서는 효과 없이 예고와 판정만 남는다(js/canvas-boss-moves.js).\n`
+        + `// 생성한 보스 효과는 assets/stage-vfx/boss-fx/에 게임과 함께 보관한다. 없는 곳에서는 효과 없이 예고와 판정만 남는다(js/canvas-boss-moves.js).\n`
         + `// 외형 id → kind(GPT가 정한 공격 방식: melee, projectile, ground, wave, beam, fall), scale(몸 도트 하나에 효과 화소 몇 개),\n`
         + `// impactScale, emit(게임의 공격 프레임마다 효과가 나오는 자리, 발에서 도트), clips(charge 준비, action 날아감, impact 맞음:\n`
         + `// sheet 시트, ms 프레임 시간, frames [칸 번호, 기준점 x, y, 그림의 왼쪽 끝 x, 오른쪽 끝 x, 좌우 뒤집기]).\n`
@@ -181,6 +203,7 @@ function writeOut({ actors, sheets }) {
     console.log(`보스 ${Object.keys(actors).length}종, 시트 ${sheets.size}장 → assets/stage-vfx/boss-fx, data/boss-fx.js`);
 }
 
+if (refreshLinks) { refreshRuntimeLinks(); process.exit(0); }
 const result = build();
 console.log(`검수: 보스 ${Object.keys(result.actors).length}종, 시트 ${result.sheets.size}장, 문제 ${problems.length}건`);
 problems.forEach(line => console.log('  ' + line));

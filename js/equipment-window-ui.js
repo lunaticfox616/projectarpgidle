@@ -185,7 +185,7 @@ const equipmentWindowUi = (() => {
         wrap.className = 'eqw-compare';
         wrap.dataset.panes = String(panes.length);
         const selected = Math.max(0, panes.findIndex(pane => pane.label === selectedLabel));
-        const tabs = panes.map((pane, index) => `<button type="button" class="${index === selected ? 'active' : ''}" onclick="equipmentWindowUi.showPane(this, ${index})">${escapeHTML(pane.tab)}</button>`);
+        const tabs = panes.map((pane, index) => `<button type="button" aria-pressed="${index === selected}" class="${index === selected ? 'active' : ''}" onclick="equipmentWindowUi.showPane(this, ${index})">${escapeHTML(pane.tab)}</button>`);
         wrap.innerHTML = `<div class="eqw-compare-tabs">${tabs.join('')}</div><div class="eqw-compare-panes"></div>`;
         panes.forEach((pane, index) => {
             const section = document.createElement('section');
@@ -201,6 +201,7 @@ const equipmentWindowUi = (() => {
     function showPane(button, index) {
         const wrap = button.closest('.eqw-compare');
         wrap.querySelectorAll('.eqw-compare-tabs > button, .eqw-compare-pane').forEach(node => node.classList.remove('active'));
+        wrap.querySelectorAll('.eqw-compare-tabs > button').forEach((node, tabIndex) => node.setAttribute('aria-pressed', String(tabIndex === index)));
         wrap.querySelectorAll('.eqw-compare-tabs > button')[index].classList.add('active');
         wrap.querySelectorAll('.eqw-compare-pane')[index].classList.add('active');
         equipmentInventoryInteraction.positionInspector();
@@ -224,8 +225,22 @@ const equipmentWindowUi = (() => {
         return `<h4 class="eqw-title">선택한 장비<small>${escapeHTML(subtitleOf(slot, slots))}</small></h4>
             <div class="eqw-pick rarity-${rarity}"><img src="${getEquipmentGridVisualAsset(item)}" alt="" draggable="false"><div><b class="${rarity}">${escapeHTML(item.name || item.baseName || '장비')}</b>
                 <small>${hint}${flags ? `, ${escapeHTML(flags)}` : ''}</small></div></div>
-            ${deltaTablesHtml(slots)}<div class="equipment-grid-inspector-actions">${actionsHtml}</div><div class="equipment-inspection-details"></div>
+            <div class="eqw-inspector-body">${deltaTablesHtml(slots)}${orderedBody(actionsHtml)}</div>
             <button type="button" class="equipment-grid-inspector-close" aria-label="선택 닫기" onclick="equipmentInventoryInteraction.focus(null)">×</button>`;
+    }
+    /** 휴대폰 카드(sheet)는 단추 줄을 옵션 뒤에 그린다: 바꾸면 표 바로 밑의 단추 줄이 카드의 끝처럼 보여 아래의 옵션을 찾기 어려웠다.
+     * css/equipment-window.css가 그 줄을 카드 아래에 붙인다. 넓은 창은 표, 단추, 옵션 차례 그대로다. */
+    function orderedBody(actionsHtml) {
+        const actions = `<div class="equipment-grid-inspector-actions">${actionsHtml}</div>`, details = '<div class="equipment-inspection-details"></div>';
+        const inspector = document.getElementById('ui-equipment-inventory-inspector');
+        return inspector && inspectorDock(inspector) === 'sheet' ? details + actions : actions + details;
+    }
+    /** Phone management stays separate from the equip action; it changes presentation only. */
+    function toggleTools(button) {
+        const actions = button.closest('.equipment-grid-inspector-actions');
+        const open = actions.classList.toggle('tools-open');
+        button.setAttribute('aria-expanded', String(open));
+        button.textContent = open ? '관리 닫기' : '장비 관리';
     }
     /** The panel without a selection: in the right column it keeps its title band. */
     const emptyHtml = message => `<h4 class="eqw-title">선택한 장비</h4><div class="equipment-grid-inspector-empty">${message}</div>`;
@@ -324,6 +339,6 @@ const equipmentWindowUi = (() => {
         document.addEventListener('dblclick', runRailToolOnDoubleClick, true);
     }
     return Object.freeze({ render, toggleLoadout, newDotHtml, inspectorDock, inspectorHtml, emptyHtml, fillDeltas, wornSlots, compareNode, showPane, toggleDeltas,
-        openSalvage, openItemFilter });
+        openSalvage, openItemFilter, toggleTools });
 })();
 safeExposeGlobals({ equipmentWindowUi });

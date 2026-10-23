@@ -70,8 +70,8 @@ const contentMaps = (() => {
         outsideChaos: boardArena, woodsmanEcho: boardArena, cosmos: markerChain, beyondBoundary: markerChain,
         // 심해: 500m 경계의 가디언이 기다리면 가디언만 서는 투기장, 아니면 무리마다 방 하나
         oceanDepth: zone => (getOceanPendingBossBoundary(ensureOceanState()) > 0 ? boardArena(zone) : markerChain(zone)),
-        // 군락지: 웨이브마다 방 하나, 다섯째 웨이브(지배체)는 끝 방. 대균열: 균열의 방(생존)과 군주의 방
-        colony: zone => boardChain(zone, STAGE_BOARD_ROOMS.colonyWaves - 1), grandBreach: zone => boardChain(zone, 1)
+        // 군락 방어와 대균열은 전용 단일 대형 전장이다. 이전 진행 저장의 chain 명세는 그대로 복원한다.
+        colony: boardArena, grandBreach: boardArena
     });
     /** 방 단위 무대에서 판 콘텐츠가 걷는 지도를 붙인 구역(사본). 그 밖에서는 구역 그대로. */
     function withRooms(zone) {

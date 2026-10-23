@@ -141,6 +141,57 @@ const actExplorationRoomsUi = (() => {
         ctx.strokeRect(rect.x - 3.5, rect.y - 3.5, rect.w + 7, rect.h + 7); ctx.setLineDash([]);
     }
     const SS = 2;               // 캔버스는 두 배로 그린다(CSS로 줄여도 표식의 윤곽이 뭉개지지 않게)
+    /** A single large arena shows its actual footprint and landmarks, rather than a tiny boss-room symbol. */
+    function arenaView(canvas, map) {
+        const size = canvas.id === 'act-exploration-map' ? SIZE.mini : SIZE.large, room = map.rooms[0];
+        const columns = room.x1 - room.x0 + 1, rows = room.y1 - room.y0 + 1;
+        const scale = Math.min((size.w - size.pad * 2) / columns, (size.h - size.pad * 2) / rows);
+        const left = (size.w - columns * scale) / 2, top = (size.h - rows * scale) / 2;
+        return { size, room, scale, left, top, width: columns * scale, height: rows * scale,
+            x: gx => left + (gx - room.x0 + .5) * scale, y: gy => top + (gy - room.y0 + .5) * scale };
+    }
+    function arenaDot(ctx, view, cell, colour, radius) {
+        ctx.beginPath(); ctx.arc(view.x(cell.gx), view.y(cell.gy), radius, 0, Math.PI * 2);
+        ctx.fillStyle = colour; ctx.fill(); ctx.lineWidth = 1; ctx.strokeStyle = INK.rim; ctx.stroke();
+    }
+    function drawArenaLandmarks(ctx, map, view) {
+        if (map.colonyDefense) {
+            const { core, spawnCells } = map.colonyDefense;
+            ctx.strokeStyle = INK.linkDim; ctx.lineWidth = 1; ctx.setLineDash([2, 3]);
+            for (const cell of spawnCells) {
+                ctx.beginPath(); ctx.moveTo(view.x(cell.gx), view.y(cell.gy)); ctx.lineTo(view.x(core.gx), view.y(core.gy)); ctx.stroke();
+                arenaDot(ctx, view, cell, INK.bossLight, 2.5);
+            }
+            ctx.setLineDash([]);
+            eliteDiamond(ctx, view.x(core.gx), view.y(core.gy), 4);
+        } else for (const cell of map.grandBreach.riftCells) arenaDot(ctx, view, cell, '#bc83e4', 3);
+    }
+    function drawArena(canvas, run, map) {
+        const view = arenaView(canvas, map), width = view.size.w * SS, height = view.size.h * SS;
+        if (canvas.width !== width || canvas.height !== height) { canvas.width = width; canvas.height = height; }
+        canvas.dataset.view = 'rooms';
+        const ctx = canvas.getContext('2d'); ctx.setTransform(SS, 0, 0, SS, 0, 0);
+        ctx.fillStyle = INK.back; ctx.fillRect(0, 0, view.size.w, view.size.h);
+        ctx.fillStyle = INK.doneShade; ctx.fillRect(view.left, view.top, view.width, view.height);
+        ctx.strokeStyle = INK.roomLight; ctx.lineWidth = 1; ctx.strokeRect(view.left, view.top, view.width, view.height);
+        drawArenaLandmarks(ctx, map, view);
+        const command = actExplorationState.markedDestination(run);
+        if (command) {
+            ctx.beginPath(); ctx.arc(view.x(command.gx), view.y(command.gy), 5, 0, Math.PI * 2);
+            ctx.strokeStyle = INK.here; ctx.stroke();
+        }
+        arenaDot(ctx, view, game.gridPlayer, INK.hero, 3);
+    }
+    function pickArena(event, map) {
+        const canvas = event.currentTarget, bounds = canvas.getBoundingClientRect(), view = arenaView(canvas, map);
+        const x = (event.clientX - bounds.left) / bounds.width * view.size.w;
+        const y = (event.clientY - bounds.top) / bounds.height * view.size.h;
+        const cell = { gx: Math.floor((x - view.left) / view.scale) + view.room.x0,
+            gy: Math.floor((y - view.top) / view.scale) + view.room.y0 };
+        const core = map.colonyDefense?.core;
+        if (core && cell.gx === core.gx && cell.gy === core.gy) return null;
+        return actExplorationMap.walkable(map, cell) ? cell : null;
+    }
     const bases = new WeakMap(); // 약도 캔버스 → { canvas, key }: 그려 둔 지도 바탕
     /** 지도 바탕: 바닥, 문, 방, 정예 표식. rev(지도 상태)나 약도의 자리와 크기가 바뀌었을 때만 다시 그린다. */
     function mapBaseOf(canvas, run, map, at) {
@@ -160,6 +211,7 @@ const actExplorationRoomsUi = (() => {
     }
     /** @param {number} rev 지도 상태의 판 번호(바뀌면 바탕을 다시 그린다). 캔버스 크기는 달라질 때만 넣는다. */
     function draw(canvas, run, map, rev) {
+        if (map.colonyDefense || map.grandBreach) return drawArena(canvas, run, map);
         const seen = knowledge(run, map), view = fit(canvas, map, seen), width = view.size.w * SS, height = view.size.h * SS;
         if (canvas.width !== width || canvas.height !== height) { canvas.width = width; canvas.height = height; }
         if (canvas.dataset.view !== 'rooms') canvas.dataset.view = 'rooms';
@@ -189,6 +241,7 @@ const actExplorationRoomsUi = (() => {
     /** @returns {?{gx:number,gy:number}} where a click on the minimap sends the hero: the centre of a visited room, or the door
      * (in a visited room, the hero's own first) that leads to a room not yet visited; null off the rooms. */
     function pick(event, run, map) {
+        if (map.colonyDefense || map.grandBreach) return pickArena(event, map);
         const under = roomUnder(event, run, map);
         if (!under) return null;
         if (under.visited) return { gx: under.room.gx, gy: under.room.gy };

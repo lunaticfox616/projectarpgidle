@@ -19,7 +19,7 @@ const statToneText = (() => {
         ['번개', 'lightPctDmg'], ['감전', 'shockChance'], ['뇌전', 'lightPctDmg'], ['폭풍', 'lightPctDmg'],
         ['카오스', 'chaosPctDmg'], ['중독', 'poisonChance'], ['독무', 'poisonChance'], ['출혈', 'bleedChance'], ['지속 피해', 'dotPctDmg'], ['공허', 'chaosPctDmg'],
         ['최대 생명력', 'flatHp'], ['생명력 흡수', 'leech'], ['생명력', 'pctHp'], ['재생', 'regen'], ['회복', 'regen'], ['흡혈', 'leech'],
-        ['방어도', 'armor'], ['피해 감소', 'dr'], ['막기', 'blockChance'], ['방패', 'armor'],
+        ['방어도', 'armor'], ['피해 감소', 'dr'], ['막기', 'blockChance'], ['완갑', 'armor'], ['방패', 'armor'],
         ['회피', 'evasion'], ['비껴내기', 'deflectChance'],
         ['저항', 'resAll'], ['관통', 'resPen'],
         ['물리', 'physPctDmg'], ['주문', 'spellPctDmg'], ['룬 레벨', 'gemLevel'], ['경험치', 'expGain'],

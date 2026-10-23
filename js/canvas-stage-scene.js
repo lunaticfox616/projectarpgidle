@@ -84,6 +84,16 @@ const stageScene = (() => {
         for (let x = offset - w; x < area.width; x += w) ctx.drawImage(image, Math.round(x), y, w, h);
     }
 
+    /** 방의 먼 그림(지역 그림, 없으면 조각 묶음의 먼 띠)이 화면 위끝까지 닿는 가장 작은 칸 너비(px). 그림의 위끝은 바닥의 앞쪽 끝
+     * (stageView.floorShare)에서 방 깊이와 그림이 바닥선 위로 올라간 높이만큼 위라, 세로로 긴 화면(태블릿 세로)에서는 너비로 정한 칸으로는
+     * 그림 위에 하늘 색 띠가 남았다(2026-10-22 사용자: 빈 띠 삭제). 칸은 지도 하나에서 같아야 하므로 가장 얕은 방으로 잰다. 먼 그림이 없으면 0. */
+    function coverTile(map, width, height) {
+        const kit = kitOf(map), rise = regionState(map) === 'ready' ? stageRegion.rise(map) : kit ? (kit.far.height - kit.far.bottom) / WIDE : 0;
+        if (!rise || !map.rooms || !map.rooms.length) return 0;
+        const rows = Math.min(...map.rooms.map(room => room.y1 + 1 - room.y0));
+        return Math.ceil(stageView.floorShare(width, height) * height / (rows * STAGE_VIEW.depth + rise));
+    }
+
     // ---------------------------------------------------------------- floor and back strip (painted once a room)
     /** 띠 그림을 도트 그대로 이어 붙인다. 위/아래 이음은 원본의 2도트 줄을 투명하게 겹쳐 직선을 누른다(방 진입 시 한 번). */
     function strip(ctx, box, image, at) {
@@ -203,7 +213,7 @@ const stageScene = (() => {
     function draw(ctx, actor, state) {
         if (actor.piece.doorRow) {
             stageDoorMarks.seal.draw(ctx, actExplorationState.current(game), actor.piece.doorRow,
-                { x: actor.point.x, y: actor.y, dot: stageActors.scaleFor(state.gridProj.tileW), hero: state.playerPos });
+                { x: actor.point.x, y: actor.y, dot: stageActors.scaleFor(state.gridProj.tileW) });
             return;
         }
         if (actor.piece.region) { stageRegion.draw(ctx, actor, state); return; }
@@ -233,6 +243,6 @@ const stageScene = (() => {
             stageDoorMarks.arrows(ctx, { cx: p.mapX + piece.x * dot, cy: p.mapY + (piece.y - 20) * dot, w: WIDE * dot }, row.door, { dot, thick: 3, upright: true });
         }
     }
-    return Object.freeze({ ready, pending, drawFar, paintRoom, append, draw, drawMarks, fitJobs: sceneFitJobs });
+    return Object.freeze({ ready, pending, coverTile, drawFar, paintRoom, append, draw, drawMarks, fitJobs: sceneFitJobs });
 })();
 safeExposeGlobals({ stageScene });

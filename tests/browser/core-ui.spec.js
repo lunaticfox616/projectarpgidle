@@ -472,16 +472,20 @@ test('equipment presets swap owned gear atomically and stay usable on narrow scr
     }, initial);
     await expect(panel.locator('.equipment-preset-slot').first()).not.toHaveClass(/applied/);
     const inventoryItems = page.locator('#ui-inventory-list .equipment-grid-item');
-    const protectedItem = inventoryItems.filter({ hasText:'세팅' });
+    // 칸에는 표시가 하나만 나온다(분석의 +N%가 있으면 세팅 대신): 세팅 포함은 칸의 이름(aria-label)으로 찾는다
+    const protectedItem = page.locator('#ui-inventory-list .equipment-grid-item[aria-label*="장비 세팅에 포함"]');
     await expect(protectedItem).toHaveCount(1);
     await protectedItem.click();
     await expect(page.locator('#ui-equipment-inventory-inspector')).toContainText('세팅 보호');
     await expect(page.locator('#ui-equipment-inventory-inspector .equipment-card-danger:disabled')).toHaveCount(1);
     await page.keyboard.press('Escape');
-    const sameNameSalvage = inventoryItems.filter({ hasNotText:'세팅' });
+    const sameNameSalvage = page.locator('#ui-inventory-list .equipment-grid-item:not([aria-label*="장비 세팅에 포함"])');
     await expect(sameNameSalvage).toHaveCount(1);
     await sameNameSalvage.click();
     await expect(page.locator('#ui-equipment-inventory-inspector')).not.toContainText('세팅 보호');
+    // 휴대폰 카드는 장착만 앞에 두고 잠금, 해체 같은 단추를 '장비 관리' 서랍에 둔다(2026-10-23)
+    const manage = page.locator('#ui-equipment-inventory-inspector .eqw-manage-toggle');
+    if (await manage.isVisible()) await manage.click();
     await page.locator('#ui-equipment-inventory-inspector .equipment-card-danger:not(:disabled)').click();
     await expect(page.locator('#ui-inventory-list .equipment-grid-item')).toHaveCount(1);
     await dismissVisibleTutorials(page);

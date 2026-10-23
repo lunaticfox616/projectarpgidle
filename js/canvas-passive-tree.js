@@ -847,7 +847,7 @@ function renderPaperdoll(targetId, forCrafting) {
     };
     getPaperdollSlots().forEach(slot => {
         let item = game.equipment[slot];
-        let displaySlot = slot.replace(/[123]$/, '');
+        let displaySlot = getItemSlotDisplayLabel(null, slot.replace(/[123]$/, ''));
         let selected = isCraftSelectionEquipAvailableLocal() && getCraftSelectionRefLocal() === slot;
         if (item) {
             let click = forCrafting
@@ -869,7 +869,7 @@ function renderPaperdoll(targetId, forCrafting) {
         } else {
             let emptyClick = forCrafting ? '' : ` onclick="equipmentInventoryInteraction.handleEquippedItemClick(event,'${slot}')"`;
             html += `<div class="slot-box equipment-slot equipment-slot-empty slot-${slot}" data-slot="${slot}"${emptyClick}>
-                <div class="equipment-slot-head"><span>${displaySlot}</span></div><div class="equipment-slot-visual empty"><img src="${getEquipmentGridVisualAsset({ slot: displaySlot, baseId: `empty-${displaySlot}` })}" alt="" aria-hidden="true" draggable="false"></div>
+                <div class="equipment-slot-head"><span>${displaySlot}</span></div><div class="equipment-slot-visual empty"><img src="${getEquipmentGridVisualAsset({ slot: slot.replace(/[123]$/, ''), baseId: `empty-${slot}` })}" alt="" aria-hidden="true" draggable="false"></div>
                 <div class="equipment-empty-mark">＋</div>
                 <div class="equipment-empty-label">비어 있음</div>
             </div>`;
@@ -880,10 +880,11 @@ function renderPaperdoll(targetId, forCrafting) {
     if (targetId === 'ui-equip-list') equipmentAuxUi.render();
 }
 
-/** The small label under a grid item: its slot, or a weapon's category. Four-letter names (플라스크) take the narrow style. */
-function equipmentGridSlotLabelHtml(item) {
+/** Only two-column or wider bag items reserve a strip for the slot/category; narrow items retain their tooltip and ARIA name. */
+function equipmentGridSlotLabelHtml(item, columns) {
+    if (columns < 2) return '';
     const label = getItemSlotDisplayLabel(item);
-    return `<span class="equipment-grid-slot-label${label.length > 3 ? ' is-long' : ''}">${escapeHTML(label)}</span>`;
+    return `<span class="equipment-grid-slot-label" aria-hidden="true">${escapeHTML(label)}</span>`;
 }
 
 function renderEquipmentGridItem(item, idx, triageResult, placement, filterState) {
@@ -898,12 +899,15 @@ function renderEquipmentGridItem(item, idx, triageResult, placement, filterState
     let filterClass = filterState && filterState.filterActive
         ? (filterState.filterMatched ? 'is-filter-match' : 'is-filter-muted') : '';
     let rarityLabel = ITEM_RARITY_LABELS[item.rarity] || ITEM_RARITY_LABELS.normal;
-    // 한 칸(휴대폰 약 33px)에도 들어가는 두 글자 표식(12px): 잠금 · 세팅(장비 세팅에 포함) · 특수, 분석 결과는 색으로 나눈 +N%(주황 공격 · 초록 생존).
-    let badges = `${item.locked ? '<span class="is-lock" title="잠금">잠금</span>' : ''}${presetProtected ? '<span class="is-set" title="장비 세팅에 포함">세팅</span>' : ''}`;
-    if (triageResult && triageResult.dpsGainPct >= 1) badges += `<span class="is-atk" title="공격 +${triageResult.dpsGainPct}%">+${Math.round(triageResult.dpsGainPct)}%</span>`;
-    if (triageResult && triageResult.ehpGainPct >= 1) badges += `<span class="is-def" title="생존 +${triageResult.ehpGainPct}%">+${Math.round(triageResult.ehpGainPct)}%</span>`;
-    if (triageResult && triageResult.special) badges += '<span class="is-special" title="특수 효과">특수</span>';
-    let label = `${rarityLabel} ${item.name || item.baseName || '장비'}, ${footprint.columns}×${footprint.rows}`;
+    // Opus 4차 검수: 비교 수치를 먼저 한 개만 표시. 잠금·세팅·특수와 다른 비교 수치는 툴팁/ARIA에 남긴다.
+    const gains = triageResult ? [[triageResult.dpsGainPct, 'atk', '공격'], [triageResult.ehpGainPct, 'def', '생존']].filter(row => row[0] >= 1) : [];
+    const status = item.locked ? '잠금' : presetProtected ? '장비 세팅에 포함' : '';
+    const gain = gains[0];
+    const badges = gain ? `<span class="is-${gain[1]}" title="${gain[2]} +${gain[0]}%">+${Math.round(gain[0])}%</span>`
+        : status ? `<span title="${status}">${item.locked ? '잠금' : '세팅'}</span>` : '';
+    const details = [item.locked && '잠금', presetProtected && '장비 세팅에 포함', triageResult && triageResult.special && '특수 효과',
+        ...gains.map(row => `${row[2]} +${row[0]}%`)].filter(Boolean).join(', ');
+    let label = [`${rarityLabel} ${item.name || item.baseName || '장비'}`, getItemSlotDisplayLabel(item), `${footprint.columns}×${footprint.rows}`, details].filter(Boolean).join(', ');
     let preview = `if(window.matchMedia('(hover: hover)').matches&&!equipmentInventoryInteraction.isCarrying())showItemTooltip(event,${idx},false)`;
     return `<button type="button" class="equipment-grid-item rarity-${item.rarity || 'normal'} ${selected ? 'selected' : ''} ${carried ? 'is-carried' : ''} ${filterClass} ${sourceMeta ? sourceMeta.toneClass : ''}${itemInfluencesUi.influenceClasses(item)}"
         style="grid-column:${footprint.column + 1}/span ${footprint.columns};grid-row:${footprint.row + 1}/span ${footprint.rows};--item-grid-columns:${footprint.columns};--item-grid-rows:${footprint.rows};${itemInfluencesUi.influenceStyle(item)}" data-equipment-grid-key="${escapeHTML(itemKey)}"
@@ -911,7 +915,7 @@ function renderEquipmentGridItem(item, idx, triageResult, placement, filterState
         onclick="equipmentInventoryInteraction.handleItemClick(event,this.dataset.equipmentGridKey,${idx})"
         ondblclick="equipmentInventoryInteraction.handleItemDoubleClick(event,this.dataset.equipmentGridKey,${item.id})"
         onmouseenter="${preview}" onmousemove="${preview}" onmouseleave="hideItemTooltip(event)">
-        <img src="${asset}" alt="" aria-hidden="true" draggable="false">${equipmentGridSlotLabelHtml(item)}<span class="equipment-grid-item-name">${escapeHTML(item.name || item.baseName || '장비')}</span>${equipmentWindowUi.newDotHtml(item)}
+        <img class="equipment-grid-item-art" src="${asset}" alt="" aria-hidden="true" draggable="false">${equipmentGridSlotLabelHtml(item, footprint.columns)}${equipmentWindowUi.newDotHtml(item)}
         <span class="equipment-grid-item-badges">${badges}</span>
     </button>`;
 }

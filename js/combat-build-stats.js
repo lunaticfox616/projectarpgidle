@@ -280,7 +280,9 @@ function accumulateCombatItemDefenses(result, slotKey, item, resolved) {
     resolved.baseStats.forEach(stat => {
         if (!stat) return;
         if (Object.hasOwn(base, stat.id)) base[stat.id] += Number(stat.val || 0);
-        if (stat.id === 'baseBlockChance') result.shieldBaseBlockChance += Number(stat.val || 0);
+        // 대검의 기본 막기는 주 무기 칸에서만: 완갑 칸에 낀 보조 대검까지 세면 쌍수 대검이 막기 완갑보다 높았다
+        const offhandWeapon = slotKey === '방패' && item.slot === '무기';
+        if (stat.id === 'baseBlockChance' && !offhandWeapon) result.shieldBaseBlockChance += Number(stat.val || 0);
     });
     const addExplicit = stat => accumulateCombatDefenseLine(result, flat, pct, stat);
     resolved.explicitStats.forEach(stat => {

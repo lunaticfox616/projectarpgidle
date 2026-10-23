@@ -65,7 +65,7 @@
   padding-top: 4px;
   border-top: 1px solid var(--px-bronze-lo, #483239);
   color: var(--px-copy-muted, #9d927d);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .social-item-stat.is-continued { padding-left: 14px; }
