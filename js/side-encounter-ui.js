@@ -73,6 +73,12 @@ const sideEncounterUi = (() => {
         if (expedition?.zoneId === 'grand_breach_run') return !!actExplorationMap.forRun(expedition).grandBreach;
         return !!getZone('grand_breach_run')?.exploration?.arena;
     }
+    /** Time left before the lord must be called (GRAND_BREACH_ENCOUNTER.survivalLimitSeconds), as m:ss. */
+    function grandTimeLeft(run) {
+        const left = Number.isFinite(run.survivalEndsAt) ? run.survivalEndsAt - getCombatTime() : GRAND_BREACH_ENCOUNTER.survivalLimitSeconds * 1000;
+        const seconds = Math.max(0, Math.ceil(left / 1000));
+        return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+    }
     function grandSummary(run) {
         if (run.phase === 'loot') return `<strong>군주 격파</strong><span>전리품 수거 중</span><small>바닥 아이템을 모두 획득하면 귀환</small>`;
         const progress = getGrandBreachProgress(run.gauge);
@@ -80,7 +86,7 @@ const sideEncounterUi = (() => {
         const nextKills = 10 - reward.kills % 10;
         const pressure = Math.min(6, Math.floor(reward.kills / 10));
         const heading = { survival: '균열 쇄도', bossPending: '군주 소환' }[run.phase] || '균열 군주';
-        const next = run.phase === 'survival' ? `다음 보상 증가까지 ${nextKills}마리`
+        const next = run.phase === 'survival' ? `남은 시간 ${grandTimeLeft(run)}, 다음 보상 증가까지 ${nextKills}마리`
             : run.phase === 'bossPending' ? '군주 소환 중' : '군주 처치 시 지급';
         const config = usesGrandBreachArena() ? GRAND_BREACH_ENCOUNTER.arena : GRAND_BREACH_ENCOUNTER;
         const crowd = run.inRun && run.phase === 'survival'
@@ -96,7 +102,7 @@ const sideEncounterUi = (() => {
         const survival = run.phase === 'survival';
         const pending = run.phase === 'bossPending';
         setTextById('ui-progress-label', survival ? '균열 게이지' : pending ? '군주 소환' : '최종 전투');
-        setTextById('ui-move-time-text', survival ? `${progress.percent}%` : pending ? '100%' : '군주 처치');
+        setTextById('ui-move-time-text', survival ? `${progress.percent}%, ${grandTimeLeft(run)}` : pending ? '100%' : '군주 처치');
         setCombatProgressGaugePercent(survival ? progress.percent : 100);
     }
 
@@ -238,7 +244,7 @@ const sideEncounterUi = (() => {
         if (run.phase === 'bossPending') return '균열 군주 소환 중';
         if (run.phase !== 'survival') return '균열 군주 전투';
         const progress = getGrandBreachProgress(run.gauge);
-        return `균열 게이지 ${progress.percent}%, 몬스터 ${Math.max(0, Math.floor(run.kills || 0))}처치`;
+        return `균열 게이지 ${progress.percent}%, 몬스터 ${Math.max(0, Math.floor(run.kills || 0))}처치, 남은 시간 ${grandTimeLeft(run)}`;
     }
     function grandPanel(rift, power) {
         const run = rift.grandRun;

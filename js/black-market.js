@@ -151,7 +151,8 @@ function migrateUniqueMarketOffer(offer) {
 
 /** Saved crafting bases retain their rolls, price and shelf location while their equipment definition changes. */
 function migrateBlackMarketBaseOffer(offer) {
-    if (!offer.baseId) offer.baseId = ARM_GUARD_BASE_LEGACY_NAMES[String(offer.baseName || offer.name || '').replace(/ 베이스$/, '')];
+    const legacyName = String(offer.baseName || offer.name || '').replace(/ 베이스$/, '');
+    if (!offer.baseId) offer.baseId = ARM_GUARD_BASE_LEGACY_NAMES[legacyName] || WEAPON_BASE_LEGACY_NAMES[legacyName];
     normalizeArmGuardIdentity(offer);
     if (Array.isArray(offer.baseStats)) migrateEquipmentBlockBases(offer);
     const base = BASE_ITEM_DB.find(row => row.id === offer.baseId);

@@ -8292,13 +8292,16 @@ function renameRetiredItemStatIds(item) {
 }
 
 /** Old shield IDs/slot keys remain save-compatible; only the authored equipment names change. */
+/** Renamed bases keep their ids (shields became 완갑, 2026-10-23 weapons took their category's noun): old base name → id per slot. */
+const RENAMED_BASE_NAMES_BY_SLOT = Object.freeze({ 방패: ARM_GUARD_BASE_LEGACY_NAMES, 무기: WEAPON_BASE_LEGACY_NAMES });
 function normalizeArmGuardIdentity(item) {
-    if (item.slot !== '방패') return;
+    const legacyNames = RENAMED_BASE_NAMES_BY_SLOT[item.slot];
+    if (!legacyNames) return;
     const previousName = item.baseName || item.name || '';
-    const legacy = Object.entries(ARM_GUARD_BASE_LEGACY_NAMES).find(([name]) => name === previousName || name === item.name
+    const legacy = Object.entries(legacyNames).find(([name]) => name === previousName || name === item.name
         || String(item.name || '').endsWith(' ' + name));
     const base = BASE_ITEM_DB.find(row => row.id === (item.baseId || legacy?.[1]));
-    if (!base || base.slot !== '방패') return;
+    if (!base || base.slot !== item.slot) return;
     item.baseId = base.id;
     item.baseName = base.name;
     const oldName = legacy?.[0] || previousName;

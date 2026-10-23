@@ -309,7 +309,7 @@ function normalizeStoredEquipmentSave(state) {
 function normalizeEquipmentCraftChoiceSave(state) {
     state.craftChoice = normalizeCraftChoice(state.craftChoice);
     if (!state.craftChoice) return;
-    const item = savedItemsOf(state).find(row => row.id === state.craftChoice.itemId && row.slot === '방패');
+    const item = savedItemsOf(state).find(row => row.id === state.craftChoice.itemId && ['방패', '무기'].includes(row.slot));
     if (!item) return;
     state.craftChoice.options.forEach(fields => {
         const named = { ...fields, slot: item.slot, baseId: item.baseId, baseName: item.baseName };
@@ -459,6 +459,8 @@ function normalizeGrandBreachCounters(run) {
     const savedGauge = Number(run.gauge);
     const legacyGauge = Math.min(GRAND_BREACH_ENCOUNTER.requiredGauge, run.kills * 2);
     run.gauge = getGrandBreachProgress(run.gauge == null || !Number.isFinite(savedGauge) ? legacyGauge : savedGauge).gauge;
+    // Combat-clock deadline of the survival phase; a broken one is set again (full time) on the next tick
+    if (!Number.isFinite(run.survivalEndsAt)) delete run.survivalEndsAt;
 }
 /** Save boundary: an absent/invalid old receipt is unknown, never an inferred payout. */
 function normalizeVoidRiftSave(state) {
@@ -502,6 +504,28 @@ function normalizePlayerAilmentRow(row, clampFiniteNumber) { // clampFiniteNumbe
     if (row.sourceEnemyName) Object.assign(out, { sourceEnemyId: row.sourceEnemyId === undefined ? null : row.sourceEnemyId, sourceEnemyName: String(row.sourceEnemyName) });
     return out;
 }
+/** Removed support runes (data/skills.js RETIRED_SUPPORT_GEMS) leave every saved place before validation: their record, the run's
+ * rune rewards, rune rows on the floor and in encounter buffers, NPC shelves and the woodsman snapshot. The rune lists are filtered by
+ * SUPPORT_GEM_DB below. A saved row naming one failed the exploration loot check and with it the whole load. Idempotent. */
+function dropRetiredSupportGems(merged) {
+    const retired = name => RETIRED_SUPPORT_GEMS.includes(name);
+    const keepRune = row => !(row && row.gem && row.gem.kind === 'support' && retired(row.gem.name));
+    const filterRows = (owner, key) => { if (owner && Array.isArray(owner[key])) owner[key] = owner[key].filter(keepRune); };
+    if (merged.supportGemData && typeof merged.supportGemData === 'object') RETIRED_SUPPORT_GEMS.forEach(name => delete merged.supportGemData[name]);
+    const run = merged.actExploration;
+    if (run?.loot && Array.isArray(run.loot.gems)) run.loot.gems = run.loot.gems.filter(row => !(row && row.kind === 'support' && retired(row.name)));
+    filterRows(run, 'groundLoot');
+    filterRows(merged.colony, 'pendingLoot');
+    filterRows(merged.voidRift?.grandRun, 'pendingLoot');
+    Object.values(merged.npcShops && typeof merged.npcShops === 'object' ? merged.npcShops : {}).forEach(shop => filterRows(shop, 'offers'));
+    dropRetiredSupportsFrom(merged.woodsmanBuildSnapshot, retired);
+}
+function dropRetiredSupportsFrom(build, retired) {
+    if (!build || typeof build !== 'object') return;
+    ['supports', 'sealedSupports', 'equippedSupports'].forEach(key => { if (Array.isArray(build[key])) build[key] = build[key].filter(name => !retired(name)); });
+    if (build.supportGemData && typeof build.supportGemData === 'object') RETIRED_SUPPORT_GEMS.forEach(name => delete build.supportGemData[name]);
+}
+
 function mergeDefaults(save) {
     function clampFiniteNumber(value, fallback, min, max) {
         let num = Number(value);
@@ -792,6 +816,7 @@ function mergeDefaults(save) {
         equipment: { ...defaultGame.equipment, ...(save.equipment || {}) },
         saveMeta: { ...defaultGame.saveMeta, ...(save.saveMeta || {}) }
     };
+    dropRetiredSupportGems(merged);
     // Fields of removed systems (lastSkillHitElement: the old skill playback, 2026-10-18).
     ['hideout', 'abyssPassivePoints', 'abyssPassives', 'lastSkillHitElement'].forEach(key => delete merged[key]);
     delete merged.unlocks.hideout;

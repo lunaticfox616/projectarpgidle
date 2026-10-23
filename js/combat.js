@@ -9765,6 +9765,21 @@ function summonGrandBreachLord(zone, run, battlefield) {
     run.phase='boss';
     return soul;
 }
+/** The survival deadline on the combat clock, set when the fight begins (old runs get the full time on their next tick). */
+function grandBreachTimeUp(run, now) {
+    if (!Number.isFinite(run.survivalEndsAt)) run.survivalEndsAt = now + GRAND_BREACH_ENCOUNTER.survivalLimitSeconds * 1000;
+    return now >= run.survivalEndsAt;
+}
+/** The lord was not called in time: the attempt fails as a defeat does (its held loot is lost), without a death or its penalty. */
+function failGrandBreachTimeUp(zone) {
+    actExplorationProgress.defeat(game);
+    defeatInGrandBreach(zone, `⌛ ${GRAND_BREACH_ENCOUNTER.survivalLimitSeconds / 60}분 안에 균열 군주를 부르지 못해 대균열이 닫혔습니다.`, {}, { say: addLog });
+    actExplorationProgress.depart(game);
+    resetBattleRuntimeVisuals();
+    game.combatHalted=false;
+    pendingHeavyUiRefresh=true;
+    queueImportantSave(200);
+}
 function tickGrandBreachRun(zone) {
     let v = game.voidRift || (game.voidRift = { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0 });
     let g = v.grandRun;
@@ -9775,6 +9790,7 @@ function tickGrandBreachRun(zone) {
     if (!grandBreachSurvivalReady(g, battlefield)) return;
     if (g.phase === 'survival') {
         if(getGrandBreachProgress(g.gauge).complete)g.phase='bossPending';
+        else if(grandBreachTimeUp(g,now)){failGrandBreachTimeUp(zone);return;}
         else refillGrandBreachWave(zone,g,now,battlefield);
     }
     if(g.phase==='bossPending') {
@@ -13589,7 +13605,7 @@ function updateMeteorHeartPhase(enemy, zone, pendingAttack) {
     if (zone.type !== 'meteor' || enemy.monsterVisualId !== 'meteor-heart' || enemy.patternMode !== 'slam'
         || enemy.hp > enemy.maxHp / 2 || enemy.patternTelegraphKey || enemy.patternArea || enemy.attackCast || pendingAttack
         || pendingEnemyCombatAttacks.some(row => row.enemyId === enemy.id)) return;
-    enemy.patternMode = 'cosmos';
+    enemy.patternMode = 'coreFrenzy';
     enemy.nextPatternState = null;
 }
 

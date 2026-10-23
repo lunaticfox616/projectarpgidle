@@ -71,6 +71,8 @@ const METEOR_FALL_ZONE_ID = 'meteor_fall_site';
 const GRAND_BREACH_ENCOUNTER = Object.freeze({
     unlockChance: 0.08,
     requiredGauge: 200, normalGaugeGain: 1, eliteGaugeGain: 6,
+    // 군주를 부르기 전 쇄도의 시간(초, 2026-10-23 사용자 결정): 넘기면 실패, 군주가 나온 뒤에는 제한 없음
+    survivalLimitSeconds: 300,
     intervalMs: 1400, openingPack: 16, refillPack: 8, eliteLimit: 4,
     portals: Object.freeze([{gx:0,gy:1}, {gx:8,gy:1}, {gx:4,gy:7}]),
     capacities: Object.freeze([16,24,32]),
@@ -350,7 +352,7 @@ const SEASON_CONTENT_ROADMAP = {
 const SEASON_BOSS_ZONES = [
     { id: 's2_boss_flame', name: '화염 군주 이그니스', signatureUnique: '화염 군주의 숨결', type: 'seasonBoss', tier: 12, key: 'bossKeyFlame', reqSeason: 2, ele: 'fire', reward: 'bossCore' },
     { id: 's2_boss_frost', name: '서리 여제 글라시아', signatureUnique: '서리 여제의 인장', type: 'seasonBoss', tier: 12, key: 'bossKeyFrost', reqSeason: 2, ele: 'cold', reward: 'bossCore' },
-    { id: 's2_boss_storm', name: '폭풍 군단장 볼타', signatureUnique: '폭풍 군단장의 창끝', type: 'seasonBoss', tier: 13, key: 'bossKeyStorm', reqSeason: 2, ele: 'light', reward: 'bossCore' },
+    { id: 's2_boss_storm', name: '폭풍 군단장 볼타', signatureUnique: '폭풍 군단장의 칼날', type: 'seasonBoss', tier: 13, key: 'bossKeyStorm', reqSeason: 2, ele: 'light', reward: 'bossCore' },
     // bossStages: the arena's boss rises three times (js/combat.js CERBERUS_STAGES: three heads, two heads, the body). Until 2026-10-13 it
     // was the one boss kept on the 9×8 board (user: "보스전은 방 두개 해서 다음 방에 바로 보스만 나오게 해").
     { id: 's6_beast_cerberus', name: '야수왕 케르베로스', signatureUnique: '야수왕의 세 목줄', type: 'seasonBoss', tier: 18, key: 'beastKeyCerberus', reqSeason: 6, ele: 'chaos', reward: 'bossCore', bossStages: 3 },

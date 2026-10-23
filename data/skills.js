@@ -167,7 +167,10 @@ const RETIRED_GEM_SUCCESSORS = Object.freeze({
     // 2026-10-20 스킬룬 인계(v42)가 지운 원소 포션 투척: 같은 플라스크 전용, 떨어진 자리를 치는 범위 룬
     '원소 포션 투척': '폭발 혼합물'
 });
-safeExposeData({ SKILL_DB, LOOP_STARTER_GEM_BY_HERO, PROJECTILE_PATTERN_MODE_DB, RETIRED_GEM_SUCCESSORS });
+/** 지운 보조스킬룬: 대신 받는 룬 없이 저장에서 걷어 낸다(js/save-migrations.js dropRetiredSupportGems).
+ * 2026-10-23 사용자 "방패 공명: 보조 스킬 룬 삭제"(방패가 완갑이 된 뒤). */
+const RETIRED_SUPPORT_GEMS = Object.freeze(['방패 공명']);
+safeExposeData({ SKILL_DB, LOOP_STARTER_GEM_BY_HERO, PROJECTILE_PATTERN_MODE_DB, RETIRED_GEM_SUCCESSORS, RETIRED_SUPPORT_GEMS });
 
 // 각성 룬 효과(각성 룬 변환 뒤, 2026-10-18 사용자 결정으로 룬 Lv.20 특전을 옮김). 앞의 셋은 능력치에(getActiveSkillStats), 강타는
 // 치명타 적중에(getGemCritHitPerkMul) 붙는다. 룬 툴팁과 각성 룬 변환 칸도 이 표를 읽는다.

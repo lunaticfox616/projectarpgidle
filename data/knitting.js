@@ -331,7 +331,7 @@ const KNITTING = (() => {
         { id: 'throne-splinter', name: '옥좌에 남은 칼집', grade: 4, set: 7, source: { ...atlas('trunk'), boss: true, minAtlasTier: 10 }, homes: [], found: '10등급 이상 줄기 지역 보스',
             reward: { unique: '왕을 베는 고목', tier: 20 }, label: '고유 장비 「왕을 베는 고목」 1개' },
         { id: 'storm-pennant', name: '폭풍에 찢긴 군기', grade: 4, set: 7, source: { ...atlas('canopy'), boss: true, minAtlasTier: 10 }, homes: [], found: '10등급 이상 수관 지역 보스',
-            reward: { unique: '폭풍 군단장의 창끝', tier: 20 }, label: '고유 장비 「폭풍 군단장의 창끝」 1개' },
+            reward: { unique: '폭풍 군단장의 칼날', tier: 20 }, label: '고유 장비 「폭풍 군단장의 창끝」 1개' },
         { id: 'ash-basket', name: '불씨 담은 바구니', grade: 2, set: 5, source: atlas('garden'), homes: [], found: '정원 지역',
             reward: { currencies: [['emberBranch', 4]] }, label: '잿불가지 4개' },
         { id: 'fire-brazier', name: '덩굴에 묻힌 화로', grade: 3, set: 6, source: { ...atlas('garden'), elite: true }, homes: [], found: '정원 지역 정예와 보스',
@@ -396,7 +396,7 @@ const KNITTING = (() => {
             '새벽 현자 후드': [2, '1단계에서 모든 스킬룬 레벨 +1'], '심연 군주갑': [2, '6단계에서 심연 주얼 칸과 생명 260~340'],
             '황제의 심연띠': [1, '심연 주얼 칸과 효과 증가'], '현자의 시선': [1, '룬 레벨 +1, 보조 한도 +1'], '컨디션 교본': [1, '룬 레벨 +2'],
 
-            '첫 계약': [1, '1단계 소환 한도 +1'], '무리의 서약': [1, '소환 한도 +1'], '효율적인 아콘 사역마 지팡이': [1, '소환 한도 +2'],
+            '첫 계약': [1, '1단계 소환 한도 +1'], '무리의 서약': [1, '소환 한도 +1'], '효율적인 아콘 사역마 오브': [1, '소환 한도 +2'],
             '나이테 심장': [1, '루프 수에 비례해 강해짐'] }) }),
         typeUnlocks: Object.freeze({ labyrinth: 'labyrinth', trial: 'battleTrials', meteor: 'meteorSite', beehive: 'beehive', grandBreach: 'voidrift',
             oceanDepth: 'ocean', timeRift: 'timerift', colony: 'colony', skyTower: 'sky', chaosRealm: 'chaosRealm', underworld: 'underworld',
