@@ -24,8 +24,10 @@ async function buildMobile() {
         // the page pins the version package.json installs (@2.115.0); any pin becomes the bundled copy
         .replace(/https:\/\/cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js@[0-9.]+/, 'vendor/supabase.js');
     const { buildCss } = require('./build-css');
+    const { prepareRelease } = require('./lib/release-bundle');
     const bundled = await buildCss(destination, html);
-    fs.writeFileSync(path.join(destination, 'index.html'), bundled);
+    // Same release rules as the web build: no test panel and no dev-only code in the APK.
+    fs.writeFileSync(path.join(destination, 'index.html'), await prepareRelease(destination, bundled));
     fs.writeFileSync(path.join(destination, 'mobile-build.json'), JSON.stringify({
         commit: cp.execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(),
         builtAt: new Date().toISOString(), updateMode: 'bundled-apk'

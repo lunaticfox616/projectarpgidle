@@ -74,7 +74,7 @@ const atlasFinds = (() => {
         if (!zone || zone.type !== 'atlasMap') return;
         lootOmens.killDrops(zone, enemy, game, Math.random).forEach(drop => grantOmenDrop(enemy, zone, drop));
         lootOmens.strayDrops(zone, enemy, game, Math.random).forEach(drop => grantOmenDrop(enemy, zone, drop));
-        const leaf = memoryLeaves.rollKill(zone, enemy, Math.random);
+        const leaf = memoryLeaves.rollKill(game, zone, enemy, Math.random);
         if (leaf) grantMemoryLeaf(enemy, leaf);
         if (enemy.treasureCarrier) burstTreasure(enemy, zone);
         if (enemy.isBoss && MAP_BOSS_KINDS.has(zone.atlasKind) && !zone.memoryTier) grantBossReward(enemy, zone);

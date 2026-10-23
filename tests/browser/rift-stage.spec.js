@@ -30,6 +30,8 @@ const rectOf = (page, selector) => page.locator(selector).evaluate(el => {
 test('desktop battlefield fills the screen and management windows overlay it', async ({ page }, info) => {
     test.skip(info.project.use.isMobile, 'Desktop stage');
     const errors = await openGame(page, info);
+    // 새 모험은 전투 기록을 접은 채 시작한다: 아래 배치는 펼친 기록 창의 계약이다
+    await page.evaluate(() => messageFrames.showTab('log'));
     expect(await page.evaluate(() => document.body.dataset.uiSkin)).toBe('rift');
     const viewport = page.viewportSize();
     const field = await rectOf(page, '#battlefield-wrap');

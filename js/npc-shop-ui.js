@@ -1,10 +1,11 @@
 /** The NPC's shop inside its window (js/content-progression-ui.js openNpc, mode 'shop'): its stock (js/npc-shop.js) on a grid like
- * the bag's with the card of the pointed or chosen ware under it, and the hero's bag beside it (2026-10-16 사용자: "인벤토리 처럼
- * 상점이 되어있고 그걸 눌러서 사거나 인벤토리로 끌어다 놓으면 구매 (POE,디아블로스타일)"). A click buys into the first free place of
- * the bag (on a touch screen the first tap shows the card, the second buys); a drag onto the bag buys into the place it is dropped on.
+ * the bag's beside the hero's bag, and the chosen ware's sheet (its price and buy button first) (2026-10-16 사용자: "인벤토리 처럼
+ * 상점이 되어있고 그걸 눌러서 사거나 인벤토리로 끌어다 놓으면 구매 (POE,디아블로스타일)"). A mouse over a ware shows its floating card
+ * (price and options); a press chooses; the sheet's button buys into the first free place of the bag, a drag onto the bag buys into
+ * the place it is dropped on.
  * The screen and the pointer are the shared shop view's (js/shop-view-ui.js); this is the NPC shop's adapter. */
 const npcShopUi = (() => {
-    let chosen = null;    // { id, index }: the ware whose card shows
+    let chosen = null;    // { id, index }: the chosen ware, the one the buy button buys
     let shown = null;     // { id, stock }: the shelf drawn last; a meeting on the next map lays out a new stock object
     // Where a short currency comes from (js/passives.js getItemSalvageRewardProfile). Until 장비 제련 opens they never drop
     // (data/items.js dropUnlocks), so in loop 1 salvage is the only way.
@@ -32,11 +33,12 @@ const npcShopUi = (() => {
         shown = { id: npc.id, stock };
         const shelf = stock && stock.offers.length ? shelfHtml(npc.id, stock) : '<p class="shop-empty">다 팔렸습니다. 다음에 만나면 새 물건을 들여옵니다.</p>';
         const keys = (stock ? stock.offers : []).map(ware => ware.priceKey);
-        return `<div class="shop-view is-npc" data-shop-kind="npc" data-npc-shop="${npc.id}">
+        return `<div class="shop-view is-npc" data-shop-kind="npc" data-npc-shop="${npc.id}"><div class="shop-body">
             <section class="shop-shelf" aria-label="${escapeHTML(shop.label)} 상점"><header class="shop-bar">
                 <button type="button" class="shop-back" data-npc-topic="greet">대화</button><h3>${escapeHTML(shop.label)}</h3>${shopView.walletHtml(keys)}</header>
-                ${shelf}<div class="shop-info" aria-live="polite">${wareInfoHtml(npc.id, note)}</div></section>
-            <section class="shop-bag" aria-label="가방">${shopView.bagHtml()}</section></div>`;
+                ${shelf}</section>
+            <div class="shop-info" aria-live="polite">${wareInfoHtml(npc.id, note)}</div>
+            <section class="shop-bag" aria-label="가방">${shopView.bagHtml()}</section></div></div>`;
     }
 
     function wareArtHtml(ware) {
@@ -48,23 +50,26 @@ const npcShopUi = (() => {
             const rarity = ware.gem ? (ware.gem.kind === 'support' ? 'rare' : 'magic') : ware.item.rarity || 'normal';
             const marks = `${shopView.held(ware.priceKey) < ware.price ? ' is-dear' : ''}${isChosen(id, index) ? ' is-chosen' : ''}`;
             return `<button type="button" class="shop-item rarity-${rarity}${marks}" data-shop-pick="ware:${index}" style="${shopView.areaStyle(ware)}"
-                aria-label="${escapeHTML(wareName(ware))}, ${escapeHTML(npcShop.currencyName(ware.priceKey))} ${ware.price}">
+                aria-pressed="${isChosen(id, index)}" aria-label="${escapeHTML(wareName(ware))}, ${escapeHTML(npcShop.currencyName(ware.priceKey))} ${ware.price}">
                 ${wareArtHtml(ware)}${shopView.priceHtml(ware.priceKey, ware.price)}</button>`;
         }).join('');
         return shopView.gridHtml(npcShop.grid.columns, npcShop.grid.rows, wares);
     }
 
-    /** The chosen ware's card: the item's own tooltip (or the rune's text), its price and the buy button; else how to buy. */
+    /** The chosen ware's sheet: the deal (its exact price, the purse before and after, the buy button or why not), why the last sale
+     * did not go and where a short currency comes from; beside or under it the item's own tooltip or the rune's card. Nothing chosen:
+     * the note alone, or nothing (the sheet hides). */
     function wareInfoHtml(id, note = '') {
-        const ware = chosen && chosen.id === id ? wareAt(id, chosen.index) : null;
-        if (!ware) return `<p class="shop-hint">${escapeHTML(note || shopView.howToBuy())}</p>`;
-        const check = npcShop.check(id, chosen.index, null);
-        const card = ware.gem ? shopView.gemCardHtml(ware.gem) : shopView.itemCardHtml(ware.item);
-        return `${card}<div class="shop-deal"><span>${shopView.coinHtml(ware.priceKey)}${escapeHTML(npcShop.currencyName(ware.priceKey))} ${ware.price}</span>
-            <button type="button" data-npc-buy="${chosen.index}" ${check.ok ? '' : 'disabled'}>${check.ok ? '구매' : escapeHTML(check.reason)}</button></div>
-            ${earnHintHtml(ware)}
-            ${note ? `<p class="shop-note" role="status">${escapeHTML(note)}</p>` : ''}`;
+        const index = chosen && chosen.id === id ? chosen.index : null, ware = index === null ? null : wareAt(id, index);
+        const noted = note ? `<p class="shop-note" role="status">${escapeHTML(note)}</p>` : '';
+        if (!ware) return noted;
+        const deal = shopView.dealHtml({ key: ware.priceKey, amount: ware.price, check: npcShop.check(id, index, null), action: `data-npc-buy="${index}"` });
+        return `<div class="shop-info-deal">${deal}${noted}${earnHintHtml(ware)}</div><div class="shop-info-card">${wareCardHtml(ware)}</div>`;
     }
+
+    const wareCardHtml = ware => (ware.gem ? shopView.gemCardHtml(ware.gem) : shopView.itemCardHtml(ware.item));
+
+    function paintWareInfo(root, note = '') { shopView.paintInfo(root, wareInfoHtml(root.dataset.npcShop, note)); }
 
     /** Where the currency of ware comes from, when the hero holds too little of it. */
     function earnHintHtml(ware) {
@@ -76,7 +81,7 @@ const npcShopUi = (() => {
     function redrawShop(root, note = '') {
         if (!root || !root.isConnected) return;
         const id = root.dataset.npcShop;
-        if (note && !staleShelf(root)) { root.querySelector('.shop-info').innerHTML = wareInfoHtml(id, note); return; }
+        if (note && !staleShelf(root)) { paintWareInfo(root, note); return; }
         root.outerHTML = shopBodyHtml({ id }, note);
     }
 
@@ -103,23 +108,32 @@ const npcShopUi = (() => {
         redrawShop(root);
     }
 
+    /** Chooses ware index: its card stays (with its buy button) until another is chosen. */
     function choose(root, index) {
         if (refreshStaleShelf(root)) return;
-        const id = root.dataset.npcShop;
-        chosen = { id, index };
-        root.querySelectorAll('.shop-item.is-chosen').forEach(el => el.classList.remove('is-chosen'));
-        root.querySelector(`[data-shop-pick="ware:${index}"]`)?.classList.add('is-chosen');
-        root.querySelector('.shop-info').innerHTML = wareInfoHtml(id);
+        chosen = { id: root.dataset.npcShop, index };
+        shopView.markChosen(root, `ware:${index}`);
+        paintWareInfo(root);
     }
 
     shopView.registerShop('npc', {
-        shopHover(root, pick) { if (!isChosen(root.dataset.npcShop, pickIndex(pick))) choose(root, pickIndex(pick)); },
-        /** A mouse press buys at once; on a touch screen the first tap shows the card and the second buys. */
-        shopTap(root, pick, { touch }) {
+        /** The pointed ware's floating card: its price against the purse (no buttons) and its options. Looking chooses nothing. */
+        shopPeekHtml(root, pick) {
+            const ware = staleShelf(root) ? null : wareAt(root.dataset.npcShop, pickIndex(pick));
+            return ware ? `${shopView.dealHtml({ key: ware.priceKey, amount: ware.price, peek: true })}${wareCardHtml(ware)}` : '';
+        },
+        /** A press (mouse, touch or Enter) only chooses: buying is the sheet's button or a drag. Enter on the chosen ware again goes to
+         * its buy button. */
+        shopTap(root, pick, { keyboard }) {
             const index = pickIndex(pick);
-            if (!touch || isChosen(root.dataset.npcShop, index)) { buyShopWare(root, index); return; }
+            const focusBuy = keyboard && isChosen(root.dataset.npcShop, index);
             choose(root, index);
-            root.querySelector('.shop-info')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            if (focusBuy) shopView.focusDeal(root);
+        },
+        shopUnchoose(root) {
+            chosen = null;
+            shopView.markChosen(root, null);
+            paintWareInfo(root);
         },
         shopSize(root, pick) {
             const ware = wareAt(root.dataset.npcShop, pickIndex(pick));

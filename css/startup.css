@@ -54,7 +54,10 @@
   border-top: 1px solid rgba(217,189,130,.36); border-radius: 0;
   background: none; box-shadow: none; backdrop-filter: none; gap: 16px;
 }
-#startup-overlay .startup-summary-title { color: var(--entry-gold); font-size: 12px; font-weight: 500; }
+#startup-overlay .startup-summary-title { color: var(--entry-gold); font-size: 12px; font-weight: 500; white-space: nowrap; }
+/* 좁은 칸(가로 휴대폰의 왼쪽 칸)에서는 패치노트 단추가 다음 줄로 내려간다: "새 모험"이 두 줄로 꺾이고 날짜가 잘렸다 */
+#startup-overlay .startup-summary-head { flex-wrap: wrap; row-gap: 0; }
+#startup-overlay .startup-patch-note-link { white-space: nowrap; }
 #startup-overlay .startup-summary-grid { grid-template-columns: minmax(0,1.3fr) minmax(0,1fr); gap: 24px; align-items: end; }
 #startup-overlay .startup-summary-item {
   min-height: 0; padding: 0; border: 0; border-radius: 0; background: none; transform: none; box-shadow: none;
@@ -145,7 +148,8 @@
   #startup-overlay .startup-summary-grid { grid-template-columns: 1fr; gap: 12px; }
   #startup-overlay .startup-panel.auth { padding: 24px; }
 }
-@media (max-width: 760px) {
+/* 위아래로 쌓기는 세로 화면이나 높은 화면만: 가로 휴대폰(750x342)은 나란히 두어 로그인과 게스트 단추가 첫 화면에 든다(210px 내려야 보였다). */
+@media (max-width: 760px) and (orientation: portrait), (max-width: 760px) and (min-height: 601px) {
   #startup-overlay .startup-shell { display: flex; flex-direction: column; gap: 26px; padding: max(28px,env(safe-area-inset-top)) 20px calc(28px + env(safe-area-inset-bottom)); }
   #startup-overlay .startup-panel.hero, #startup-overlay .startup-hero-grid, #startup-overlay .startup-hero-copy { display: contents; }
   #startup-overlay .startup-brand-wrap { order: 0; margin: 0 auto; gap: 12px; text-align: center; }

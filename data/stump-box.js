@@ -196,7 +196,7 @@ const STUMP_BOX_YIELDS = Object.freeze({
     })
 });
 
-// 단계 이름과 아이콘 모양(assets/px/stump/<모양>-<색>.png, scripts/build-stump-icons.cjs).
+// 단계 이름과 아이콘 모양(assets/items/stump-pixel-v1/<모양>-<색>.png). 이전 assets/px/stump 원본은 보존한다.
 const STUMP_BOX_STAGES = Object.freeze({
     seed: Object.freeze({ label: '씨앗', icon: 'seed' }),
     sprout: Object.freeze({ label: '새싹', icon: 'sprout' }),

@@ -6,7 +6,7 @@
 const atlas = (() => {
     const MAP_NODES = ATLAS.regions.flatMap((region, regionIndex) => ATLAS.nodes[region.id].map((row, slot) => Object.freeze({
         id: `${region.id}_${slot}`, kind: 'map', region: region.id, regionIndex, slot, name: row[0], tier: row[1], boss: row[2], act: row[3],
-        bossAct: row[4], ele: region.ele
+        bossAct: row[4], bossVisualId: ATLAS_BOSS_BODIES.includes(`atlas-${region.id}-${slot}`) ? `atlas-${region.id}-${slot}` : null, ele: region.ele
     })));
     // A guardian closes each region's innermost pair (slots 7 · 8); the pinnacle sits in the centre, opened with the four tickets.
     const GUARDIANS = ATLAS.regions.map((region, regionIndex) => {
@@ -50,7 +50,7 @@ const atlas = (() => {
     }
     function defaults() {
         return { version: 1, unlocked: false, completed: [], bonus: [], passives: [], seeds: 0, stash: [], fragments: {}, loadout: [], nextUid: 1,
-            run: null, lastResult: null, autoMap: false, starterSeason: 0, epoch: { count: 0, essence: 0, perks: {} }, endgame: atlasEndgame.defaults(),
+            run: null, lastResult: null, autoMap: false, autoGuardians: true, starterSeason: 0, epoch: { count: 0, essence: 0, perks: {} }, endgame: atlasEndgame.defaults(),
             memory: { tickets: {}, best: {}, variants: {} }, leaves: memoryLeaves.defaults(), board: atlasBoard.defaults(), tally: normalizeTally(null) };
     }
     /** 세계수 씨앗 하나마다 모든 노드가 2등급 오른다(24등급까지). */
@@ -116,14 +116,27 @@ const atlas = (() => {
         if (random() >= rules.dropChance * (1 + bonus.bossMap / 100)) return [];
         return [stamp(state, atlasMaps.create(guardian.id, effectiveTier(state, guardian), 'normal', random), random, bonus)];
     }
-    /** @returns {number} how many fit; the rest are lost (the stash keeps its cap). */
+    /** Only newly earned maps compete for room. Preserve unfinished guardian access before repeat guardians and ordinary maps. */
+    function preferredDrops(state, maps, room) {
+        if (room <= 0) return [];
+        if (maps.length <= room) return maps.slice();
+        const priority = map => BY_ID.get(map.node)?.kind === 'guardian' ? Number(completed(state, map.node)) : 2;
+        return [...maps].sort((a, b) => priority(a) - priority(b)).slice(0, room);
+    }
+    /** @returns {number} how many fit; existing stash entries are never replaced. */
     function store(state, maps) {
         const room = Math.max(0, ATLAS.stashCap - state.atlas.stash.length);
-        state.atlas.stash.push(...maps.slice(0, room));
+        state.atlas.stash.push(...preferredDrops(state, maps, room));
         return Math.min(room, maps.length);
     }
     function addFragments(state, ids) {
-        for (const id of ids) state.atlas.fragments[id] = Math.min(ATLAS.fragmentRules.cap, (state.atlas.fragments[id] || 0) + 1);
+        let stored = 0;
+        for (const id of ids) {
+            const before = state.atlas.fragments[id] || 0;
+            state.atlas.fragments[id] = Math.min(ATLAS.fragmentRules.cap, before + 1);
+            stored += state.atlas.fragments[id] - before;
+        }
+        return stored;
     }
 
     /** Once per loop, the first look after this loop's chaos 20 clear: the atlas opens for good and a few maps start the loop. */
@@ -150,6 +163,15 @@ const atlas = (() => {
         if (reason) return reason;
         if (state.atlas.run) return runOpenReason(state);
         return state.atlas.stash.some(map => map.uid === uid) ? '' : '보관함에 없는 지도석입니다.';
+    }
+    /** Explicit player choice only. Never remove an open map or another stash entry when the requested uid is stale. */
+    function discard(state, uid) {
+        const reason = runOpenReason(state);
+        if (reason) return reason;
+        const index = state.atlas.stash.findIndex(map => map.uid === uid);
+        if (index < 0) return '보관함에 없는 지도석입니다.';
+        state.atlas.stash.splice(index, 1);
+        return '';
     }
     /** The loadout's first `slots` fragments in stock. Encounter fragments only while the map has ordinary rooms left for
      * them (guardian and pinnacle arenas have none) — the rest stay in the stock. */
@@ -266,7 +288,8 @@ const atlas = (() => {
         const board = atlasBoard.complete(state, run.board);
         if (!board) return null;
         state.atlas.run = null;
-        state.atlas.lastResult = { nodeId: run.map.node, tier: run.map.tier, outcome: 'complete', first: false, bonus: false, drops: 0, lost: 0, fragments: 0 };
+        state.atlas.lastResult = { nodeId: run.map.node, tier: run.map.tier, outcome: 'complete', first: false, bonus: false, drops: 0, lost: 0,
+            fragments: 0, lostFragments: 0, lostMaterials: [], memory: null };
         return { ...state.atlas.lastResult, board, returnZoneId: run.returnZoneId };
     }
     /** Boss down: completion (and the bonus for a rare map) count once per node; the run's drops go to the stash. */
@@ -280,16 +303,19 @@ const atlas = (() => {
         if (first) state.atlas.completed.push(id);
         const bonus = !recalled && run.map.rarity === 'rare' && !state.atlas.bonus.includes(id);
         if (bonus) state.atlas.bonus.push(id);
-        const stored = store(state, run.drops);
-        addFragments(state, run.found);
+        const stored = store(state, run.drops), fragments = addFragments(state, run.found);
         state.atlas.run = null;
         state.atlas.tally.maps += 1;
         state.atlas.lastResult = { nodeId: id, tier: run.map.tier, outcome: 'complete', first, bonus, drops: stored,
-            lost: run.drops.length - stored, fragments: run.found.length };
+            lost: run.drops.length - stored, fragments, lostFragments: run.found.length - fragments, lostMaterials: [] };
         // 기억 싸움은 그 보스의 기억 보상만(입장권, 씨앗, 후반부 보상과 처치 수는 원래 싸움의 몫), 다른 싸움은 기억을 남길 수 있다.
-        const node = BY_ID.get(id), memory = memoryDungeon.settle(state, node, run.map);
+        const node = BY_ID.get(id), memory = memoryDungeon.settle(state, node, run.map, Math.random, run.bonus);
         const endgame = recalled ? null : atlasEndgame.onComplete(state, node, run);
-        return { ...state.atlas.lastResult, ...(recalled ? {} : bossSpoils(state, node)), endgame, memory, returnZoneId: run.returnZoneId };
+        const spoils = recalled ? {} : bossSpoils(state, node);
+        Object.assign(state.atlas.lastResult, { seed: spoils.seed === true, seeds: state.atlas.seeds, endgame: normalizeResultEndgame(endgame),
+            memory: completedMemoryResult(run.map, memory) });
+        // The event keeps its payout contract; only lastResult stores the bounded presentation receipt above.
+        return { ...state.atlas.lastResult, ...spoils, endgame, memory, returnZoneId: run.returnZoneId };
     }
     /** An ordinary room emptied in the open map stays empty when a portal re-enters it: it is the same map. */
     function markCleared(state, roomId) {
@@ -310,18 +336,29 @@ const atlas = (() => {
     }
     function close(state, outcome) {
         const run = state.atlas.run;
-        if (run?.board && outcome === 'failed') atlasBoard.fail(state, run.board);
+        if (!run) return null;
+        if (run.board && outcome === 'failed') atlasBoard.fail(state, run.board);
         state.atlas.run = null;
         state.atlas.lastResult = { nodeId: run.map.node, tier: run.map.tier, outcome, first: false, bonus: false, drops: 0,
-            lost: run.drops.length, fragments: 0 };
+            lost: run.drops.length, fragments: 0, lostFragments: run.found.length,
+            lostMaterials: normalizeResultMaterials(Object.entries(run.endgame.items), ATLAS_ENDGAME.itemCap * 10),
+            seed: false, seeds: state.atlas.seeds, endgame: null,
+            memory: normalizeResultMemory({ foughtTier: run.map.memory }, true) };
+        // Floor drops already entered this receipt when produced; the existing departure still collects them exactly once.
+        keepLoot(state, state.explorationLoot);
         return { returnZoneId: run.returnZoneId };
     }
-    /** 자동 지도: 방금 마친 등급 이하에서 가장 높은 지도석 — 같은 등급이면 아직 못 끝낸 노드, 희귀한 것, 먼저 얻은 것 순. */
+    /** 자동 지도: 일반 지도와 수호자 지도(수호자는 끄지 않았을 때, 이전 저장도 켜짐: 끄면 뿌리 입장권이 끊긴다).
+     * 방금 마친 등급 이하에서 높은 등급, 미완료, 희귀, 먼저 얻은 순. */
     function nextAuto(state, tierCap) {
         if (!state.atlas.autoMap || lockReason(state)) return null;
         const score = map => [map.tier, Number(!completed(state, map.node)), RARITY_RANK[map.rarity], -map.uid];
         const better = (a, b) => { const x = score(a), y = score(b); const i = x.findIndex((v, k) => v !== y[k]); return i >= 0 && x[i] > y[i]; };
-        return state.atlas.stash.filter(map => map.tier <= tierCap).reduce((best, map) => (!best || better(map, best) ? map : best), null);
+        const eligible = map => {
+            const kind = BY_ID.get(map.node)?.kind;
+            return map.tier <= tierCap && (kind === 'map' || (kind === 'guardian' && state.atlas.autoGuardians !== false));
+        };
+        return state.atlas.stash.filter(eligible).reduce((best, map) => (!best || better(map, best) ? map : best), null);
     }
 
     // ---------------------------------------------------------------- drops
@@ -353,10 +390,10 @@ const atlas = (() => {
         const count = Math.floor(chance) + Number(random() < chance % 1) + extra;
         const maps = Array.from({ length: count }, () => rollMap(state, dropTier(run.map.tier, random, bonus), random, bonus)).filter(Boolean);
         if (enemy.isBoss) maps.push(...guardianDrop(state, run.map, random, bonus));
-        run.drops.push(...maps.slice(0, Math.max(0, ATLAS.stashCap - run.drops.length)));
+        if (maps.length) run.drops = preferredDrops(state, [...run.drops, ...maps], ATLAS.stashCap);
         return maps;
     }
-    /** A woven leaf's map stones (js/memory-leaves.js): `count` of `rarity` on the best node at or under the best tier + tierUp,
+    /** Knitting map stones: `count` of `rarity` on the best node at or under the best tier + tierUp,
      * stamped like drops (omen, quality). @returns {object[]} the ones the stash took */
     function rewardMaps(state, rule, random = Math.random) {
         const bonus = bonusOf(state), tier = Math.min(ATLAS.tierCap, Math.max(1, bestTier(state)) + (rule.tierUp || 0));
@@ -365,11 +402,6 @@ const atlas = (() => {
             return node && stamp(state, atlasMaps.create(node.id, effectiveTier(state, node), rule.rarity, random), random, bonus);
         }).filter(Boolean);
         return maps.slice(0, store(state, maps));
-    }
-    /** The zone a normal map of the best tier reached would be (a woven leaf's gear rolls there). */
-    function rewardZone(state) {
-        const tier = Math.max(1, bestTier(state)), node = nodeForTier(state, tier, () => 0) || MAP_NODES[0];
-        return preview(state, atlasMaps.create(node.id, effectiveTier(state, node), 'normal', () => 0));
     }
     /** One more map for the run (an emptied content room's find). */
     function extraMap(state, random = Math.random) {
@@ -437,7 +469,8 @@ const atlas = (() => {
             atlasGolden: run.golden, atlasChest: chestRules(bonus),
             atlasLootQuantity: fx.quantity + bonus.quantity, atlasLootRarity: fx.rarity + bonus.rarity, atlasBossRarity: bonus.bossRarity,
             packExtra: fx.packExtra + bonus.packSize, atlasExtraElite: fx.extraElite + bonus.extraElite / 100,
-            atlasSeed: map.uid, bossName: node.boss, bossAct: node.bossAct, atlasCleared: run.cleared,
+            atlasSeed: map.uid, bossName: node.boss, bossAct: node.bossAct, bossVisualId: run.board ? null : node.bossVisualId,
+            atlasCleared: run.cleared,
             atlasKind: node.kind, memoryTier: map.memory || 0, exploration: explorationSpec(map), ...atlasEndgame.zoneExtras(run, node),
             ...lootOmens.zoneFields(map),
             ...(run.board ? { name: `${ATLAS_BOARD.text.title}: ${run.board.name}`, boardBoss: run.board.boss,
@@ -469,7 +502,7 @@ const atlas = (() => {
             if (Object.hasOwn(ORB_DB, key) && amount > 0) currencies[key] = Math.min(Number.MAX_SAFE_INTEGER, amount);
         }
         return { currencies, equipmentCount: Math.max(0, Math.min(1e6, Math.floor(Number(raw.equipmentCount) || 0))),
-            items: combatLootReceipts.cleanItems(raw.items), leaves: combatLootReceipts.cleanLeaves(raw.leaves) };
+            items: combatLootReceipts.cleanItems(raw.items), leaves: combatLootReceipts.cleanLeaves(raw.leaves), yarns: combatLootReceipts.cleanYarns(raw.yarns) };
     }
     function normalizeBonus(raw) {
         const bonus = ZERO();
@@ -492,12 +525,43 @@ const atlas = (() => {
             endgame: atlasEndgame.normalizeRun(raw.endgame),
             objects: actExplorationState.objects.restoreAtlas(raw.objects) };
     }
+    /** A result's material quantities: gains use the stock cap; losses use the open run's held-material cap. */
+    function normalizeResultMaterials(raw, cap) {
+        return (Array.isArray(raw) ? raw : []).filter(row => Array.isArray(row)
+            && Object.hasOwn(ATLAS_ENDGAME.items, row[0]) && Number.isFinite(row[1]) && row[1] > 0)
+            .slice(0, Object.keys(ATLAS_ENDGAME.items).length).map(([id, amount]) => [id, Math.min(cap, Math.floor(amount))]);
+    }
+    /** Presentation-only progress receipt. Restoring it never grants materials or advances progression. */
+    function normalizeResultEndgame(raw) {
+        if (!raw || typeof raw !== 'object') return null;
+        const count = value => Math.max(0, Math.min(ATLAS_ENDGAME.itemCap, Math.floor(Number(value) || 0)));
+        return { items: normalizeResultMaterials(raw.items, ATLAS_ENDGAME.itemCap), invite: count(raw.invite), awakened: raw.awakened === true };
+    }
+    function normalizeResultMemoryTicket(raw) {
+        if (!raw || !BY_ID.has(raw.node) || !memoryDungeon.validTier(raw.tier)) return null;
+        return { node: raw.node, tier: raw.tier };
+    }
+    function completedMemoryResult(map, settled) {
+        return normalizeResultMemory({ foughtTier: map.memory, newBest: settled.spoils?.best, ticket: settled.ticket }, false);
+    }
+    /** This names a completed or failed memory fight and its actual ticket drop; loading it never pays rewards. */
+    function normalizeResultMemory(raw, failed) {
+        if (!raw || typeof raw !== 'object') return null;
+        const foughtTier = memoryDungeon.validTier(raw.foughtTier) ? raw.foughtTier : 0;
+        const ticket = failed ? null : normalizeResultMemoryTicket(raw.ticket);
+        if (!foughtTier && !ticket) return null;
+        return { foughtTier, newBest: !failed && foughtTier > 0 && raw.newBest === true, ticket };
+    }
     function normalizeResult(raw) {
         if (!raw || !BY_ID.has(raw.nodeId) || !['complete', 'failed'].includes(raw.outcome)) return null;
         const count = value => Math.max(0, Math.min(ATLAS.stashCap, Math.floor(Number(value) || 0)));
+        const failed = raw.outcome === 'failed';
         return { nodeId: raw.nodeId, tier: Math.max(1, Math.min(ATLAS.tierCap, Math.floor(Number(raw.tier) || 1))), outcome: raw.outcome,
             first: raw.first === true, bonus: raw.bonus === true, drops: count(raw.drops), lost: count(raw.lost), fragments: count(raw.fragments),
-            loot: normalizeLoot(raw.loot) };
+            lostFragments: Math.min(ATLAS.fragmentRules.held, count(raw.lostFragments)),
+            lostMaterials: failed ? normalizeResultMaterials(raw.lostMaterials, ATLAS_ENDGAME.itemCap * 10) : [],
+            seed: !failed && raw.seed === true, seeds: Math.min(ATLAS.seeds.max, count(raw.seeds)), endgame: failed ? null : normalizeResultEndgame(raw.endgame),
+            loot: normalizeLoot(raw.loot), memory: normalizeResultMemory(raw.memory, failed) };
     }
     /** 기억 던전의 기억(js/memory-dungeon.js). 그 모듈을 싣지 않은 검사 런타임에서는 비운다. */
     function normalizeMemory(raw) {
@@ -563,7 +627,7 @@ const atlas = (() => {
             fragments: normalizeFragments(raw.fragments), run, lastResult: normalizeResult(raw.lastResult), endgame: atlasEndgame.normalize(raw.endgame, done.includes(PINNACLE.id)),
             memory: normalizeMemory(raw.memory), leaves: memoryLeaves.normalize(raw.leaves), board: atlasBoard.normalize(raw.board), tally: normalizeTally(raw.tally),
             seeds: Math.max(0, Math.min(ATLAS.seeds.max, Math.floor(Number(raw.seeds) || 0))),
-            autoMap: raw.autoMap === true, starterSeason: Math.max(0, Math.floor(Number(raw.starterSeason) || 0)) };
+            autoMap: raw.autoMap === true, autoGuardians: raw.autoGuardians !== false, starterSeason: Math.max(0, Math.floor(Number(raw.starterSeason) || 0)) };
         const savedNext = Math.floor(Number(raw.nextUid));
         next.nextUid = Math.min(Number.MAX_SAFE_INTEGER, Math.max(Number.isSafeInteger(savedNext) ? savedNext : 1, ...[...uids].map(uid => uid + 1), 1));
         state.atlas = next;
@@ -596,8 +660,8 @@ const atlas = (() => {
     return Object.freeze({ nodes: NODES, links: LINKS, renameSavedIds, node: id => BY_ID.get(id) || null, neighbours: id => NEIGHBOURS.get(id) || [],
         fragment: id => FRAGMENTS.get(id) || null, pinnacle: PINNACLE, position, polar, defaults, lockReason, runOpenReason, status, reachable, points, bestTier, sync,
         effectiveTier, hasTickets, pinnacleReason, beginPinnacle, beginSpecial, beginMemory, beginBoard, lateNodes: LATE_NODES,
-        slots, setLoadout, beginReason, begin, cancel, complete, markCleared, keepLoot, usePortal, close, nextAuto, dropFromKill, extraMap, fragmentFromKill, fragmentOpen,
-        zone, preview, lootTier, equivalentDepth, normalize, onLoopReset, travelReason, rewardMaps, rewardZone,
+        slots, setLoadout, beginReason, begin, discard, cancel, complete, markCleared, keepLoot, usePortal, close, nextAuto, dropFromKill, extraMap, fragmentFromKill, fragmentOpen,
+        zone, preview, lootTier, equivalentDepth, normalize, onLoopReset, travelReason, rewardMaps,
         inMap: state => state.currentZoneId === ATLAS.zoneId });
 })();
 safeExposeGlobals({ atlas });

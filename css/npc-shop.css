@@ -17,15 +17,16 @@
 .npc-dialog-shop > b { flex: 1; font-weight: 400; color: var(--color-text-secondary); }
 .npc-dialog-shop > em { font-style: normal; font-size: .8rem; color: var(--color-text-secondary); }
 
-/* 상점: 창이 넓어지고 초상은 작은 얼굴 액자로 줄며, 아래를 진열대(왼쪽, 그 아래 물건 정보)와 가방(오른쪽)이 나눈다. */
+/* 상점: 창이 넓어지고 초상은 작은 얼굴 액자로 줄며, 아래에 진열대와 가방이 나란히, 고른 물건의 시트가 창 아래에 붙는다. */
 .npc-dialog.is-shop { width: min(820px, 96vw); height: min(760px, 94vh); max-height: min(760px, 94vh); }
 .npc-dialog.is-shop[open] { grid-template-rows: auto minmax(0, 1fr); }
 .npc-dialog.is-shop .npc-dialog-figure { grid-row: 1; width: 64px; height: 64px; margin: 14px 0 0 20px; }
 .npc-dialog.is-shop .npc-dialog-portrait { height: 330%; }
 .npc-dialog.is-shop .npc-dialog-head { padding-bottom: 12px; }
 .npc-dialog.is-shop .npc-dialog-who::after { display: none; }
-/* 상점 본문은 함께 쓰는 상점 화면(css/shop-view.css). 창 안에서는 머리 아래 줄 전체를 차지하고, 두 칸은 진열대와 가방의 폭이다. */
-.npc-dialog .shop-view { --shop-tone: var(--npc-tone); grid-column: 1 / -1; grid-row: 2; display: grid; align-items: stretch; grid-template-columns: min-content min-content; justify-content: space-between; gap: 22px; min-height: 0; padding: 4px 20px 18px; border-top: 1px solid var(--skin-line); }
+/* 상점 본문은 함께 쓰는 상점 화면(css/shop-view.css). 창 안에서는 머리 아래 줄 전체를 차지하고 스스로 밀린다
+   (고른 물건의 시트가 이 안에서 아래에 붙는다). 배치는 상점 화면의 것을 그대로 쓴다. */
+.npc-dialog .shop-view { --shop-tone: var(--npc-tone); grid-column: 1 / -1; grid-row: 2; min-height: 0; padding: 4px 20px 18px; overflow: auto; overscroll-behavior: contain; border-top: 1px solid var(--skin-line); }
 
 /* NPC 탭: 만난 NPC의 카드. 초상, 이름과 칭호, 최근에 만난 곳, 지금 있는 일(즉시 해금은 금빛, 새 이야기, 상점). */
 .npc-roster-lead, .npc-roster-empty { margin: 0 0 12px; color: var(--color-text-secondary); font-size: 13px; }
@@ -44,13 +45,20 @@
 .npc-roster-tags em { padding: 1px 6px; border: 1px solid var(--skin-line); font-style: normal; font-size: 12px; color: var(--color-text); }
 .npc-roster-tags em.is-unlock { border-color: var(--color-accent-gold); color: var(--color-accent-gold); }
 
-/* 휴대폰: 상점은 진열대, 가방, 물건 정보가 위에서 아래로 이어지고 칸은 화면 폭에 맞춘다. */
+/* 휴대폰: 상점은 진열대, 가방, 물건 정보가 위에서 아래로 이어지고 칸은 화면 폭에 맞춘다. 대화의 휴대폰 배치는 세로 화면만이라
+   (css/content-progression.css) 가로 휴대폰의 상점은 한 칸 격자와 세로로 쌓는 본문을 여기서 받는다. */
 @media (max-width: 720px) {
-  .npc-dialog.is-shop { width: 100vw; max-width: 100vw; height: 92dvh; max-height: 92dvh; margin: auto 0 0; }
+  .npc-dialog.is-shop { box-sizing: border-box; width: 100vw; max-width: 100vw; height: 92dvh; max-height: 92dvh; margin: auto 0 0; }
   .npc-dialog.is-shop[open] { grid-template-rows: minmax(0, 1fr); }
   .npc-dialog.is-shop .npc-dialog-figure { display: none; }
-  .npc-dialog .shop-view { display: flex; flex: 1; padding: 0 12px 14px; overflow: auto; }
+  .npc-dialog.is-shop[open] { grid-template-columns: 1fr; }
+  .npc-dialog.is-shop .npc-dialog-main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+  .npc-dialog .shop-view { flex: 1; padding: 0 12px 14px; }
   .npc-instant-row { grid-template-columns: 30px minmax(0, 1fr); }
   .npc-instant-row > button { grid-column: 1 / -1; }
+}
+/* 낮은 가로 화면(721px 이상): 좌우를 좁혀 창 안의 상점 자리를 넓힌다(본문은 창 안에서 밀린다). */
+@media (min-width: 721px) and (max-width: 1080px) and (orientation: landscape) and (max-height: 600px) {
+  .npc-dialog .shop-view { padding-inline: 12px; }
 }
 }

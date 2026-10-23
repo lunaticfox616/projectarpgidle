@@ -64,9 +64,44 @@
      * @returns {boolean} true when the panel needs no anchoring next to the item */
     function placeDocked(inspector) {
         const dock = equipmentWindowUi.inspectorDock(inspector);
+        if (dock === 'panel' || dock === 'sheet') ['left', 'top', 'max-height'].forEach(property => inspector.style.removeProperty(property));
         if (dock === 'panel' && inspector.matches(':popover-open')) inspector.hidePopover();
         if (dock === 'sheet' && !inspector.matches(':popover-open')) inspector.showPopover();
+        matchSheetOrder(inspector, dock === 'sheet');
         return dock === 'panel' || dock === 'sheet';
+    }
+    /** Phone: independently scrolling options and a fixed equip footer. Desktop keeps its existing table/actions/options order.
+     * Reparent the same buttons on resize so item actions and their domain checks stay unchanged. */
+    function matchSheetOrder(inspector, sheet) {
+        const actions = inspector.querySelector('.equipment-grid-inspector-actions'), details = inspector.querySelector('.equipment-inspection-details');
+        if (!actions || !details) return;
+        if (sheet && actions.parentElement !== inspector) inspector.append(actions);
+        if (!sheet && actions.nextElementSibling !== details) details.before(actions);
+        groupSheetActions(actions, sheet);
+    }
+
+    function groupSheetActions(actions, sheet) {
+        const group = actions.querySelector('.eqw-secondary-actions');
+        if (sheet === !!group) return;
+        if (!sheet) {
+            group.replaceWith(...group.children);
+            actions.querySelector('.eqw-manage-toggle').remove();
+            actions.classList.remove('tools-open');
+            return;
+        }
+        const secondary = document.createElement('div');
+        secondary.className = 'eqw-secondary-actions';
+        secondary.id = 'eqw-management-actions';
+        [...actions.children].filter(node => !node.classList.contains('equipment-card-primary')).forEach(node => secondary.append(node));
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'eqw-manage-toggle';
+        button.textContent = '장비 관리';
+        button.setAttribute('aria-expanded', 'false');
+        button.setAttribute('aria-controls', secondary.id);
+        button.addEventListener('click', () => equipmentWindowUi.toggleTools(button));
+        button.disabled = !secondary.childElementCount;
+        actions.append(button, secondary);
     }
 
     function fitInspector(inspector, rect) {
@@ -201,7 +236,20 @@
             let badge = matchCount > 0 ? `<small>${matchCount}</small>` : '';
             return `<button type="button" class="${index === page ? 'active' : ''}${searchClass}" onclick="equipmentInventoryInteraction.setPage(${index})" aria-pressed="${index === page ? 'true' : 'false'}" aria-label="${index + 1}페이지${searchText}" title="${index + 1}페이지${searchText}"><span>${index + 1}</span>${badge}</button>`;
         }).join('');
+        keepPageInView(root, page);
         return page;
+    }
+
+    // 휴대폰에서는 쪽 단추가 옆으로 미는 한 줄이다(css/equipment-inventory-grid.css): 쪽이 바뀌면 그 단추를 가운데로 옮기고,
+    // 같은 쪽을 다시 그릴 때는 사용자가 민 자리를 그대로 둔다. 창이 닫혀 폭이 0이면 다음에 보일 때 맞춘다. 첫 쪽은 처음부터 보이는 자리라
+    // 0에서 시작한다(-1이면 가방을 열기 전 전투 중 다시 그릴 때마다 크기를 재느라 배치를 다시 계산했다). PC는 줄을 바꿔 다 보이니 재지 않는다.
+    let pageInView = 0;
+    function keepPageInView(root, page) {
+        let button = root.children[page];
+        if (page === pageInView || !button || !uiDisplay.matches('(max-width: 640px)') || !root.clientWidth) return;
+        pageInView = page;
+        let box = root.getBoundingClientRect(), at = button.getBoundingClientRect();
+        if (root.scrollWidth > root.clientWidth) root.scrollLeft += at.left + at.width / 2 - (box.left + box.width / 2);
     }
 
     function renderTemporaryStorage() {
@@ -250,6 +298,7 @@
         if (typeof renderEquipmentInventoryInspector === 'function') {
             renderEquipmentInventoryInspector(game.inventory.map((item, idx) => ({ item, idx })));
         }
+        if (typeof tutorialActionUi === 'object') tutorialActionUi.refresh();
     }
 
     function notify(message, tone) {
@@ -492,6 +541,7 @@
         setFocusedKey(null);
         if (typeof hideInfoTooltip === 'function') hideInfoTooltip();
         updateCarry({ clientX, clientY });
+        playUiFeedbackSound.inventory(entry.item, 'pick');
         return true;
     }
 
@@ -548,6 +598,7 @@
             return false;
         }
         let itemKey = carryState.itemKey;
+        playUiFeedbackSound.inventory(carryState.entry.item, 'place');
         suppressClickUntil = Date.now() + 250;
         endCarry();
         focusedItemKey = itemKey;
@@ -560,7 +611,9 @@
         if (!carryState || carryState.mode !== 'inventory') return false;
         let item = carryState.entry.item;
         if (!canEquipItemToSlot(item, slot)) {
-            notify('이 장비는 해당 슬롯에 장착할 수 없습니다.', 'warning');
+            const restriction = getPassiveEquipmentRestriction(item);
+            const requirement = getEquipCandidateSlots(item).includes(slot) ? combatEquipmentStats.inspect(item, slot).reason : '';
+            notify(restriction || (requirement ? `장착 실패, ${requirement}` : '이 장비는 해당 슬롯에 장착할 수 없습니다.'), 'warning');
             return false;
         }
         doubleClickCandidateKey = null;
@@ -568,6 +621,7 @@
         endCarry();
         let equipped = equipItemById(itemId, slot);
         if (!equipped) return false;
+        if (!bagItems.isJewel(item)) playUiFeedbackSound.inventory(item, 'place');
         suppressClickUntil = Date.now() + 250;
         focusedItemKey = null;
         if (typeof saveGame === 'function') saveGame({ skipCloudSync: true });
@@ -578,11 +632,15 @@
         if (!carryState) return false;
         if (carryState.mode === 'inventory') return commitInventoryCarry(column, row);
         let slot = carryState.sourceSlot;
+        let item = carryState.entry.item;
         suppressClickUntil = Date.now() + 250;
         endCarry();
         let moved = unequipItemToGrid(slot, column, row);
         if (!moved) notify('그 위치에는 장비를 놓을 수 없습니다.', 'warning');
-        else if (typeof saveGame === 'function') saveGame({ skipCloudSync: true });
+        else {
+            playUiFeedbackSound.inventory(item, 'place');
+            if (typeof saveGame === 'function') saveGame({ skipCloudSync: true });
+        }
         return moved;
     }
 
@@ -618,8 +676,10 @@
         if (carryState && carryState.itemKey !== itemKey) return false;
         doubleClickCandidateKey = null;
         endCarry();
+        const item = game.inventory.find(row => row.id === itemId);
         let equipped = equipItemById(itemId);
         if (!equipped) return false;
+        playUiFeedbackSound.inventory(item, 'equip');
         suppressClickUntil = Date.now() + 250;
         focusedItemKey = null;
         if (typeof saveGame === 'function') saveGame({ skipCloudSync: true });
@@ -693,8 +753,7 @@
         if (!equipmentTarget) return false;
         suppressClickUntil = Date.now() + 350;
         event.preventDefault();
-        if (equipmentTarget.valid) equipCarriedItemToSlot(equipmentTarget.slot);
-        else notify('이 장비는 해당 슬롯에 장착할 수 없습니다.', 'warning');
+        equipCarriedItemToSlot(equipmentTarget.slot);
         cancelCarry();
         return true;
     }

@@ -7,7 +7,7 @@ const combatLootReceipts = (() => {
     const RARITIES = Object.freeze(['normal','magic','rare','unique']);
     let capturedState = null;
     function reset(state) {
-        state.explorationLoot = {currencies:{},items:[],equipmentCount:0,leaves:{}};
+        state.explorationLoot = {currencies:{},items:[],equipmentCount:0,leaves:{},yarns:{}};
     }
     /** Capture only synchronous loot production, excluding crafting, trade and unrelated side trips. */
     function capture(state, produce) {
@@ -43,8 +43,14 @@ const combatLootReceipts = (() => {
         leaves[id] = (leaves[id] || 0) + 1;
     }
     /** A row laid on the floor during the capture. Wild talismans and cores are not listed. */
+    function yarn(state, id) {
+        if (capturedState !== state) return;
+        const yarns = state.explorationLoot.yarns;
+        yarns[id] = (yarns[id] || 0) + 1;
+    }
     function floorRow(state, row) {
-        if (row.kind === 'leaf') leaf(state, row.leaf);
+        if (row.kind === 'yarn') yarn(state, row.yarn);
+        else if (row.kind === 'leaf') leaf(state, row.leaf);
         else if (!row.kind || row.kind === 'jewel') item(state, row.item, row.kind || 'equipment');
     }
     function normalize(state) {
@@ -58,6 +64,7 @@ const combatLootReceipts = (() => {
         }
         receipt.items = cleanItems(raw.items);
         receipt.leaves = cleanLeaves(raw.leaves);
+        receipt.yarns = cleanYarns(raw.yarns);
         receipt.equipmentCount = Math.max(receipt.items.length,Math.floor(Number(raw.equipmentCount) || 0));
         if (!Number.isFinite(receipt.equipmentCount)) receipt.equipmentCount = receipt.items.length;
     }
@@ -75,9 +82,14 @@ const combatLootReceipts = (() => {
         }
         return leaves;
     }
+    function cleanYarns(raw) {
+        return Object.fromEntries(Object.entries(raw && typeof raw === 'object' ? raw : {})
+            .filter(([id, n]) => knitting.validId(id) && Number.isFinite(n) && n > 0)
+            .map(([id, n]) => [id, Math.min(KNITTING.countCap, Math.floor(n))]));
+    }
     function validItem(row) {
         return row && typeof row.name === 'string' && typeof row.slot === 'string' && RARITIES.includes(row.rarity);
     }
-    return {reset,capture,currency,item,leaf,floorRow,normalize,cleanItems,cleanLeaves};
+    return {reset,capture,currency,item,leaf,yarn,floorRow,normalize,cleanItems,cleanLeaves,cleanYarns};
 })();
 safeExposeGlobals({combatLootReceipts});

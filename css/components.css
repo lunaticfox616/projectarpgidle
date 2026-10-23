@@ -370,12 +370,6 @@
 .market-exchange-quote p{font-size:12px;color:var(--color-text-secondary);line-height:1.7;margin:0}
 .market-shell .market-confirm{min-height:44px;margin:0;border-color:var(--color-accent-gold);color:var(--color-accent-gold);font-size:14px}
 .market-meta{margin:0 0 12px;color:var(--color-text-secondary);font-size:12px;line-height:1.6}
-.market-service-card{display:grid;gap:14px;min-width:0;padding:16px;border:1px solid var(--color-line);border-radius:8px;background:var(--color-surface-raised)}
-.market-service-top{display:flex;justify-content:space-between;align-items:start;gap:8px}
-.market-service-top h3{font-size:14px;margin:0;color:var(--color-text)}
-.market-service-top span{font-size:11px;color:var(--color-accent-gold);white-space:nowrap}
-.market-service-card p{font-size:12px;line-height:1.7;color:var(--color-text-secondary);margin:0}
-.market-service-card button{min-height:40px;margin:0;font-size:13px}
 #market-panel-black{container-type:inline-size}
 @media(max-width:720px){
   .market-exchange-workspace{grid-template-columns:1fr;gap:14px}
@@ -491,7 +485,13 @@
   position: fixed;
   inset: 0;
   z-index: 10000;
-  display: flex;
+  display: none;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  border: 0;
   align-items: center;
   justify-content: center;
   padding: 18px;
@@ -501,6 +501,9 @@
   box-sizing: border-box;
   animation: craftPickerFadeIn .18s ease;
 }
+.craft-picker-overlay[open] { display: flex; }
+/* 전체 화면 shell이 기존 어두운 배경과 blur를 그린다. native backdrop은 중복해서 어둡게 하지 않는다. */
+.craft-picker-overlay::backdrop { background: transparent; }
 @keyframes craftPickerFadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes craftPickerRiseIn {
   from { opacity: 0; transform: translateY(14px) scale(0.985); }
@@ -580,6 +583,8 @@
   gap: 8px;
 }
 .craft-picker-equip-grid { gap: 8px; }
+/* 장비창 인형 배치의 왼쪽 위는 코어 자리인데 코어는 제작 대상이 아니라 늘 비었다: 무기 카드가 그 칸까지 쓴다 */
+.craft-picker-equip-grid .slot-무기 { grid-row: 1 / 3; }
 .craft-picker-card {
   position: relative;
   text-align: left;
@@ -759,6 +764,12 @@
 .passive-planner-share input { flex: 1 1 260px; min-width: 180px; }
 
 .passive-tree-toolbar { display: contents; }
+/* 스킬트리 머리의 초기화 단추(js/ui.js syncPassiveTreeHeader): 포인트 옆, 황금률 그림과 값 1. */
+.passive-tree-reset { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; margin: 0 0 0 14px; padding: 0 10px; font-size: 15px; vertical-align: middle; }
+.passive-tree-reset img { width: 20px; height: 20px; image-rendering: pixelated; }
+.passive-tree-reset b { font: inherit; color: var(--color-accent-gold); }
+/* 돌려받을 점수가 없으면 숨긴다(js/ui.js syncPassiveTreeHeader의 hidden): 위의 display가 hidden을 덮어 첫 시작에도 보였다 */
+.passive-tree-reset[hidden] { display: none; }
 
 .passive-preset-drawer,
 .passive-search-drawer {
@@ -845,8 +856,9 @@
     .passive-preset-drawer[open] { width: calc(100% - 14px); }
     .passive-preset-drawer .passive-tree-planner { max-height: 46vh; }
     .passive-tree-right-tools { top: 7px; right: 7px; max-width: calc(100% - 14px); }
-    .passive-search-drawer { max-width: calc(100vw - 28px); }
-    .passive-search-drawer[open] { width: calc(100vw - 28px); }
+    /* 721-760px tablets: the tree has 16px window margins each side, plus the tools' 7px insets */
+    .passive-search-drawer { max-width: calc(100vw - 46px); }
+    .passive-search-drawer[open] { width: calc(100vw - 46px); }
 }
 
 .passive-reveal-burst {
@@ -1142,7 +1154,10 @@
 
 .passive-investment-summary {
     position: static;
-    width: min(300px, calc(100% - 24px));
+    /* A fixed width: the tool column (.passive-tree-right-tools) shrinks to its content, so a percentage of it took 24px off the
+       summary's own width (151px at 1536x864, the 계시 label broke in two). */
+    width: 280px;
+    max-width: 100%;
     border: 1px solid rgba(210, 178, 108, 0.54);
     border-radius: 10px;
     background: rgba(5, 9, 15, 0.9);
@@ -1339,6 +1354,15 @@
 .loop-passive-node.tooltip-right .loop-node-tooltip { left: 0; transform: none; }
 .loop-passive-node.tooltip-left .loop-node-tooltip { right: 0; left: auto; transform: none; }
 .loop-passive-node:hover .loop-node-tooltip, .loop-passive-node:focus-visible .loop-node-tooltip { display: grid; gap: 5px; }
+/* 고리 가운데 칸(js/ui.js loopOrbitCenterHtml): 가리키거나 누른 노드의 자세히, 아니면 켠 노드의 합계. 칸이 있으면 노드 말풍선은 겹쳐서 숨긴다. */
+.loop-orbit-center { position: absolute; top: 50%; left: 50%; z-index: 2; display: grid; justify-items: center; gap: 6px; width: 38%; max-height: 44%; overflow: hidden; translate: -50% -50%; text-align: center; color: var(--copy-bright); }
+.loop-orbit-center strong { color: #f3dca1; font-size: 15px; }
+.loop-orbit-center small { font-size: 12px; line-height: 1.5; }
+.loop-orbit-center em { font-size: 12px; font-style: normal; }
+.loop-orbit-center b { color: #d0ba83; font-size: 12px; font-weight: normal; }
+.loop-orbit-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+.loop-orbit-actions button { min-height: 30px; padding: 3px 12px; font-size: 12px; }
+@media (min-width: 1081px) { .loop-passive-orbit:has(.loop-orbit-center) .loop-passive-node:is(:hover, :focus-visible) .loop-node-tooltip { display: none; } }
 .loop-node-tooltip strong { color: #f3dca1; font-size: .82rem; }
 .loop-node-tooltip small { color: var(--copy-bright); font-size: .69rem; line-height: 1.4; }
 .loop-node-tooltip em { color: #9ecdbf; font-size: .7rem; font-style: normal; }
@@ -1374,7 +1398,7 @@
     #ui-season-tree .trait-progress-summary { background: var(--color-surface-raised); border-color: var(--color-line); }
     #ui-season-tree .trait-progress-summary > div { background: transparent; }
     #ui-season-tree .loop-passive-orbit { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; height: auto; min-height: 0; aspect-ratio: auto; margin: 8px 0; gap: 8px; border-radius: 0; background: none; }
-    #ui-season-tree :is(.loop-orbit-ambient, .loop-ouroboros-silhouette, .loop-magic-circle) { display: none; }
+    #ui-season-tree :is(.loop-orbit-ambient, .loop-ouroboros-silhouette, .loop-magic-circle, .loop-orbit-center) { display: none; }
     #ui-season-tree .loop-passive-node { position: relative; inset: auto; width: auto; height: auto; min-height: 104px; padding: 10px; border: 1px solid var(--color-line); border-radius: var(--radius-sm); background: var(--color-surface-raised); }
     #ui-season-tree .loop-passive-node.available { border-color: var(--color-accent-gold); }
     #ui-season-tree .loop-passive-node.active { border-color: #6a9986; }
@@ -1387,6 +1411,8 @@
     #ui-season-tree .loop-node-tooltip { display: grid; position: static; width: auto; padding: 0; gap: 6px; transform: none; border: 0; background: none; box-shadow: none; pointer-events: auto; }
     #ui-season-tree .loop-node-tooltip strong { font-size: 13px; padding-right: 24px; }
     #ui-season-tree .loop-node-tooltip small, #ui-season-tree .loop-node-tooltip em { font-size: 12px; }
+    /* 고리 노드의 설명("경험치 +20%")은 바로 아래 값 줄(경험치 획득(%) +20%, 단계마다 늘어난 값)과 같은 말이라 값 줄만 둔다. 안쪽 노드의 설명은 따로 있다 */
+    #ui-season-tree .loop-passive-node:not(.inner-node) .loop-node-tooltip small { display: none; }
     #ui-season-tree .loop-node-tooltip b { font-size: 11px; }
     #ui-season-tree .loop-node-refund { display: flex; min-height: 44px; align-items: center; font-size: 12px; }
     #trait-season-section > h2 { display: flex; flex-wrap: wrap; gap: 6px; font-size: 15px; }
@@ -1564,8 +1590,6 @@ html, body { overflow: hidden; }
                         /* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */ flex: 1 0 100% !important; /* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */ text-align: left !important; }
             body.has-bottom-tabs .tab-content:not(#tab-social):not(#tab-battle):not(#tab-char) { padding-bottom: calc(24px + var(--bottom-tab-height, 52px) + env(safe-area-inset-bottom)); }
             #tab-char > div { height: auto; }
-            #tree-container {
-                        /* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */ min-height: clamp(360px, 62vh, 520px) !important; }
             .responsive-split-grid,
             #ui-class-grid {
                         /* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */ grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }

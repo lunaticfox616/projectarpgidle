@@ -298,4 +298,27 @@ for (const value of [undefined, null, -1, 1.5, 'bad', Infinity, 0, 8]) {
     assert.notStrictEqual(merged.currentZoneId, 0);
 }
 
+// Arm guards keep the old slot/ownership; new greatsword block is a one-time addition, not a repeatable crafted-line reset.
+{
+    const stat = (id, val) => ({ id, val, valMin: val, valMax: val });
+    const g = merge({ inventory: [{ id: 8001, slot: '무기', baseId: 'dull_greatsword', baseName: '무딘 대검',
+        rarity: 'normal', baseStats: [stat('resF', 17)], stats: [] }], equipment: {
+        방패: { id: 8002, slot: '방패', baseName: '고철 버클러', name: '불굴의 고철 버클러', rarity: 'rare',
+            baseStats: [stat('armor', 52), stat('baseBlockChance', 6), stat('resC', 11)], stats: [],
+            corruptionSocket: { jewel: { id: 8003, stats: [] } } }
+    } });
+    assert.strictEqual(g.equipment['방패'].id, 8002, 'the old shield remains equipped in the same slot');
+    assert.strictEqual(g.equipment['방패'].baseId, 'buckler_scrap', 'legacy base-name-only items regain their authored identity');
+    assert.strictEqual(g.equipment['방패'].corruptionSocket.jewel.id, 8003, 'conversion never drops a socketed jewel');
+    assert.deepStrictEqual(Array.from(g.equipment['방패'].baseStats, row => [row.id, row.val]), [['armor', 52], ['resC', 11]],
+        'only retired innate block disappears; rolled armor and converted implicits stay');
+    assert.strictEqual(g.inventory[0].baseStats.filter(row => row.id === 'baseBlockChance').length, 1);
+    assert.strictEqual(g.inventory[0].baseStats.find(row => row.id === 'baseBlockChance').val, 5);
+    const again = merge(g);
+    assert.deepStrictEqual(JSON.parse(JSON.stringify(again.inventory[0].baseStats)), JSON.parse(JSON.stringify(g.inventory[0].baseStats)));
+    again.inventory[0].baseStats = again.inventory[0].baseStats.filter(row => row.id !== 'baseBlockChance');
+    assert.strictEqual(merge(again).inventory[0].baseStats.some(row => row.id === 'baseBlockChance'), false,
+        'a later craft removing the new innate block survives reload');
+}
+
 console.log('smoke-save-migration passed');

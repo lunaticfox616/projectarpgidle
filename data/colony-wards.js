@@ -16,7 +16,8 @@ const COLONY_WARD_RULES = Object.freeze({
     // 얻는 곳: 군락지 웨이브가 주된 곳(5웨이브마다 반드시, 나머지 웨이브도 28%: 20웨이브 한 판에 여덟 개 안팎). 군락지가 열린 뒤에는
     // 모든 지도의 처치에서 아주 드물게(일반 0.04%, 정예 0.2%, 보스 1%: 16등급 지도 300판 실측 50판에 하나, 기대값 40판에 하나).
     unlock: 'colony', colonyZoneId: 'colony_run',
-    colonyWave: Object.freeze({ every: 5, chance: 0.28 }),
+    // 지배체를 넘긴 액막이는 줄의 기존 범위 안에서 더 높게 굴린다. 5웨이브 25%, 10웨이브 35%, 최대 75% 바닥.
+    colonyWave: Object.freeze({ every: 5, chance: 0.28, bossRollFloor: 0.25, bossRollStep: 0.1, maxRollFloor: 0.75 }),
     field: Object.freeze({ normal: 0.0004, elite: 0.002, boss: 0.01 }),
     // 해체하면 군락지 편린 1 + 값 / 40(1~6), 예전과 같다. 편린 30개로 군락지 화면에서 새 액막이 하나를 만든다(칸을 사던 편린의 새 쓰임,
     // 웨이브마다 편린 1 + 웨이브 / 3이라 군락지 한 판에 두어 개).

@@ -164,6 +164,7 @@ function addExplorationGridReservations(blocked,excludeUnit) {
     const run=actExplorationState.current(game);if(!run)return;
     actExplorationState.objects.solidCells(run).forEach(key=>blocked.add(key));
     actExplorationDoors.guideCells(run).forEach(key=>blocked.add(key)); // 이야기 NPC가 선 칸과 그 앞뒤: 아무도 NPC 그림 위에 서지 않는다
+    reserveColonyDefenseCore(blocked,run);
     // 기다리는 무리의 자리는 비워 둔다. 다만 그 자리에 이미 서 있는 유닛(같은 자리에서 차례를 기다리는 다음 단계의 보스 위에 선 지금의
     // 보스: 액트 4)은 가두지 않는다. 가두면 어느 쪽으로 한 칸을 가도 그 자리와 겹쳐 한 걸음도 떼지 못했다(2026-10-14, 보스가 걷게 되며 드러남).
     const own=excludeUnit && hasGridCell(excludeUnit)?new Set(getGridUnitCells(excludeUnit).map(cell=>gridCellKey(cell.gx,cell.gy))):new Set();
@@ -172,6 +173,12 @@ function addExplorationGridReservations(blocked,excludeUnit) {
         if(!keys.some(key=>own.has(key)))keys.forEach(key=>blocked.add(key));
     }));
     if(run.motion && excludeUnit!==game.gridPlayer)blocked.add(gridCellKey(run.motion.to.gx,run.motion.to.gy));
+}
+
+function reserveColonyDefenseCore(blocked,run) {
+    if(run.zoneId!=='colony_run' || !game.colony?.inRun)return;
+    const core=actExplorationMap.forRun(run).colonyDefense?.core;
+    if(core)blocked.add(gridCellKey(core.gx,core.gy));
 }
 
 /**
@@ -447,12 +454,16 @@ function beginExplorationGridStep(target,interval,avoid) {
 }
 /** Whether a step toward target is free for unit now, by the rule advanceGridUnitMovement steps by, without moving it. */
 function canGridUnitStepToward(unit, target, avoid) {
-    if (!hasGridCell(unit) || !target) return false;
+    return !!getGridApproachStep(unit, target, avoid);
+}
+/** Read the next real cardinal path step without moving the actor, for warning-aware approach decisions. */
+function getGridApproachStep(unit, target, avoid) {
+    if (!hasGridCell(unit) || !target) return null;
     const run = actExplorationState.current(game);
     const exploring = !!run && unit === game.gridPlayer;
     const probe = exploring ? { gx: unit.gx, gy: unit.gy } : { ...unit };
     const blocked = exploring ? getExplorationPlanningBlockedCells(run) : getGridBlockedCells(unit);
-    return stepAroundDanger(blocked, avoid, cells => gridStepToward(probe, target.gx, target.gy, cells));
+    return stepAroundDanger(blocked, avoid, cells => gridStepToward(probe, target.gx, target.gy, cells)) ? probe : null;
 }
 
 /** The hero plans its exploration step around fighters and its own reserved tile, but not around dormant packs: they wake
@@ -538,25 +549,44 @@ function advanceGridHazardEscape(unit, hazardCells, dtSec, intervalSec) {
 /** keepRows: 옆으로만 치는 룬(getSkillBand)이면 대상을 위아래 그 줄 수 안에 둔 채 물러선다. 띠 밖으로 물러서면 칠 대상이 없어져
  * 다시 다가가기를 되풀이했다. */
 function findGridRetreatCell(unit, target, maxRange, previousCell, keepRows) {
-    let blocked = getGridBlockedCells(unit);
-    let footprint = getGridUnitFootprint(unit);
-    let currentDist = getGridUnitDistance(unit, target);
+    const { footprint, open, currentDist } = gridRetreatSpace(unit, target, keepRows);
     let best = null, bestScore = currentDist;
-    // 방 단위 무대: 주인공은 벽에 파인 문 칸(한 칸짜리 막다른 곳)으로 물러서지 않는다. 2026-10-17 사용자 "거리유지 전술에서 방 입구의
-    // 1칸 막다른길로는 안 들어가게 해줘": 몰린 채 그 칸에 갇혀 싸웠다.
-    let stage = unit === game.gridPlayer ? actExplorationDoors.stageMap(actExplorationState.current(game)) : null;
-    let open = cell => canPlaceGridFootprint(blocked, cell.gx, cell.gy, footprint) && !(stage && actExplorationRooms.doorAt(stage, cell))
-        && (!keepRows || getGridUnitCells(target).some(row => Math.abs(row.gy - cell.gy) <= keepRows));
     GRID_CARDINAL_STEPS.forEach(direction => {
         let gx = unit.gx + direction.dx, gy = unit.gy + direction.dy;
         if (!open({ gx, gy })) return;
-        let distance = getGridUnitDistance({ gx, gy, isBoss: unit.isBoss }, target);
+        let distance = getGridUnitDistance({ gx, gy, isBoss: unit.isBoss, footprint }, target);
         if (distance <= currentDist || distance > maxRange) return;
         let backtrack = previousCell && gx === previousCell.gx && gy === previousCell.gy;
         let score = distance - (backtrack ? 0.25 : 0);
         if (score > bestScore) { best = { gx, gy }; bestScore = score; }
     });
     return best;
+}
+/** 물러설 칸을 고르는 공통 조건: 막힌 칸과 발자국, 문 칸(주인공), 옆 띠(keepRows), 지금 칸 거리. */
+function gridRetreatSpace(unit, target, keepRows) {
+    let blocked = getGridBlockedCells(unit);
+    let footprint = getGridUnitFootprint(unit);
+    // 방 단위 무대: 주인공은 벽에 파인 문 칸(한 칸짜리 막다른 곳)으로 물러서지 않는다. 2026-10-17 사용자 "거리유지 전술에서 방 입구의
+    // 1칸 막다른길로는 안 들어가게 해줘": 몰린 채 그 칸에 갇혀 싸웠다.
+    let stage = unit === game.gridPlayer ? actExplorationDoors.stageMap(actExplorationState.current(game)) : null;
+    let open = cell => canPlaceGridFootprint(blocked, cell.gx, cell.gy, footprint) && !(stage && actExplorationRooms.doorAt(stage, cell))
+        && (!keepRows || getGridUnitCells(target).some(row => Math.abs(row.gy - cell.gy) <= keepRows));
+    return { footprint, open, currentDist: getGridUnitDistance(unit, target) };
+}
+/** 거리 유지 전술의 벽 옆 이동(2026-10-22): 칸 거리를 늘릴 길이 없으면, 거리는 같아도 대상의 가운데에서 멀어지는 옆 칸 하나.
+ * 직전 칸으로는 돌아가지 않아 멈춘 대상 앞에서 A→B→A로 왕복하지 않는다. 밀어내기(js/combat.js pushEnemyAwayOnHit)는 쓰지 않는다:
+ * 벽에 붙은 몬스터가 옆으로 미끄러지며 두 칸을 밀려났다. */
+function findGridSidestepCell(unit, target, maxRange, previousCell, keepRows) {
+    const { footprint, open, currentDist } = gridRetreatSpace(unit, target, keepRows);
+    if (currentDist >= maxRange) return null;
+    const turns = GRID_CARDINAL_STEPS.map(direction => ({ gx: unit.gx + direction.dx, gy: unit.gy + direction.dy }))
+        .filter(cell => open(cell) && !(previousCell && cell.gx === previousCell.gx && cell.gy === previousCell.gy)
+            && getGridUnitDistance({ ...cell, isBoss: unit.isBoss, footprint }, target) === currentDist);
+    const center = getGridUnitCenter(target);
+    const gap = cell => (cell.gx + (footprint.columns - 1) / 2 - center.gx) ** 2
+        + (cell.gy + (footprint.rows - 1) / 2 - center.gy) ** 2;
+    const turn = turns.reduce((farther, cell) => gap(cell) > gap(farther) ? cell : farther, unit);
+    return turn === unit ? null : turn;
 }
 
 /** 사거리 안 전술 재배치를 한 칸만 수행한다. */
@@ -585,7 +615,8 @@ function beginExplorationTacticalStep(target,config,interval) {
 }
 
 function findGridTacticalDestination(unit,target,config) {
-    if(config.direction==='away')return findGridRetreatCell(unit,target,Math.max(1,Number(config.maxRange)||1),config.previousCell,config.keepRows);
+    const range=Math.max(1,Number(config.maxRange)||1);
+    if(config.direction==='away')return findGridRetreatCell(unit,target,range,config.previousCell,config.keepRows)||findGridSidestepCell(unit,target,range,config.previousCell,config.keepRows);
     const next={gx:unit.gx,gy:unit.gy};
     return gridStepToward(next,target.gx,target.gy,getGridBlockedCells(unit))?next:null;
 }
@@ -1531,7 +1562,7 @@ safeExposeGlobals({
     getCombatGridSize, isGridCellInBounds, gridCellKey, gridChebyshevDist, hasGridCell,
     getGridUnitFootprint, getGridUnitCells, getGridUnitCenter, getGridUnitDistance, fitBossFootprint,
     getGridDirectHitDistanceMultiplier,
-    getGridBlockedCells, getHeroStepBlockedCells, swapSummonOutOfHeroTile, findFreeGridCell, assignEnemyGridSpawn, assignEnemyGridCombatProfile,
+    getGridBlockedCells, getGridApproachStep, getHeroStepBlockedCells, swapSummonOutOfHeroTile, findFreeGridCell, assignEnemyGridSpawn, assignEnemyGridCombatProfile,
     resetPlayerGridPosition, ensureCombatGridRuntime, gridLineCells, gridProjectedLineEnd,
     gridStepToward, advanceGridUnitMovement, canGridUnitStepToward, findNearestSafeGridRoute, advanceGridHazardEscape, advanceGridTacticalMovement, getSkillGridProfile, getSkillGridProfileKindLabel,
     describeSkillGridProfile, getGridSkillTargetMult, getGridAttackAreaCells,

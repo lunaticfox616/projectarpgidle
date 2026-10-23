@@ -1,0 +1,24 @@
+@layer features {
+  #item-tab-knitting { padding: 12px; }
+  .knit-head { display: flex; gap: 16px; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .knit-head h3 { margin: 0 0 8px; color: #e6c88e; font-family: var(--font-title); }
+  .knit-head p, .knit-card p { margin: 0; line-height: 1.7; color: #e3dccf; }
+  .knit-head p { font-size: 12px; }
+  .knit-head > strong { white-space: nowrap; color: #e6c88e; }
+  .knit-toolbar { display: flex; gap: 8px; margin-bottom: 10px; }
+  .knit-toolbar button, .knit-card button { padding: 8px 12px; border: 1px solid #786649; background: #29251f; color: #e5d3ac; }
+  .knit-toolbar button[aria-pressed="true"] { border-color: #d1ac64; background: #3b3324; }
+  .knit-card button:disabled { opacity: .5; }
+  .knit-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(270px, 100%), 1fr)); gap: 12px; }
+  .knit-card { padding: 14px; border: 1px solid #514a3e; background: #201f1b; display: grid; gap: 10px; }
+  .knit-card.is-ready { border-color: #c5a76b; background: #29271e; }
+  .knit-card-head { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; }
+  .knit-card-head strong { color: #e8cd95; }
+  .knit-card small { color: #c2baaa; font-size: 12px; }
+  .knit-card-foot { display: flex; justify-content: flex-end; align-items: center; gap: 8px; }
+  .knit-progress { height: 4px; background: #121412; }
+  .knit-progress i { display: block; height: 100%; background: #bba270; }
+  .knit-result { min-height: 24px; margin-bottom: 8px; color: #d9c992; line-height: 1.6; }
+  .knit-card .knit-warning { color: #ff9b95; }
+  .knit-empty { padding: 24px 8px; color: #c2baaa; line-height: 1.7; }
+}

@@ -70,9 +70,15 @@ const TRIAL_ZONES = [
 const METEOR_FALL_ZONE_ID = 'meteor_fall_site';
 const GRAND_BREACH_ENCOUNTER = Object.freeze({
     unlockChance: 0.08,
-    durationSeconds: 35, intervalMs: 1400, openingPack: 16, refillPack: 8, eliteLimit: 4,
+    requiredGauge: 200, normalGaugeGain: 1, eliteGaugeGain: 6,
+    // 군주를 부르기 전 쇄도의 시간(초, 2026-10-23 사용자 결정): 넘기면 실패, 군주가 나온 뒤에는 제한 없음
+    survivalLimitSeconds: 300,
+    intervalMs: 1400, openingPack: 16, refillPack: 8, eliteLimit: 4,
     portals: Object.freeze([{gx:0,gy:1}, {gx:8,gy:1}, {gx:4,gy:7}]),
-    capacities: Object.freeze([16,24,32])
+    capacities: Object.freeze([16,24,32]),
+    // The stage arena has nearly three times the walkable floor of a standard stage room.
+    arena: Object.freeze({intervalMs: 900, openingPack: 24, refillPack: 10, eliteLimit: 6,
+        spawnRadius: 3, capacities: Object.freeze([30,36,40])})
 });
 
 // 운석 낙하 지점: 루프 7에서 액트 7에 닿으면 하늘 균열 게이지가 차기 시작한다.
@@ -264,6 +270,18 @@ const BOSS_DEFENSE_SPECIALTIES = Object.freeze({
     byElement: Object.freeze({ phys: 'dr', fire: 'resF', cold: 'resC', light: 'resL' })
 });
 
+// 변이시간선(2026-10-23 사용자 결정, js/loop-mutation.js): 루프 startLoop부터 그 루프의 모든 몬스터가 한 속성 피해에 면역이고(관통, 저항
+// 감소로도 뚫리지 않음) 다른 한 속성 피해를 weakTakenPct% 더 받는다. 루프 번호로 정해져 schedule을 10루프마다 되풀이한다([면역, 약점],
+// 첫 줄이 루프 5). 면역은 루프마다 바뀌고 약점은 면역과 겹치지 않는다.
+const LOOP_MUTATION = Object.freeze({
+    startLoop: 5,
+    weakTakenPct: 30,
+    schedule: Object.freeze([
+        ['fire', 'cold'], ['cold', 'light'], ['light', 'phys'], ['phys', 'chaos'], ['chaos', 'fire'],
+        ['fire', 'light'], ['cold', 'chaos'], ['light', 'fire'], ['phys', 'cold'], ['chaos', 'phys']
+    ].map(Object.freeze))
+});
+
 // 시간의 균열 (루프 13+): 과거에 심고, 미래에 거둔다 — 고유+희귀 융합 던전.
 //  - 과거 클리어 → 제단 개방 → 같은 부위의 고유 1개·희귀 1개를 올림 → 미래 클리어 → 융합 유물 획득.
 //  - 시간압(1~10)이 난이도이자 보상 손잡이: 높을수록 몬스터가 강해지고 '완벽한 융합' 확률이 오른다.
@@ -318,7 +336,7 @@ const SEASON_CONTENT_ROADMAP = {
     37: { title: '루프 37', features: ['그루터기 함: 봉인 칸 3', '심화: 혼돈 단계 상승'] },
     38: { title: '루프 38', features: ['심화: 혼돈 단계 상승'] },
     39: { title: '루프 39', features: ['아틀라스: 묘목장 (그 지역 색의 씨앗과 수액, 불씨의 흉터)', '심화: 혼돈 단계 상승'] },
-    40: { title: '루프 40', features: ['심화: 혼돈 단계 상승'] },
+    40: { title: '루프 40', features: ['해금: 뜨개질 (같은 실타래를 모아 정해진 보상으로 바꿈)', '심화: 혼돈 단계 상승'] },
     41: { title: '루프 41', features: ['심화: 혼돈 단계 상승'] },
     42: { title: '루프 42', features: ['그루터기 함: 고대 씨앗 (모든 색 공명, 이웃 접붙이기 +1, 묘목장과 최종 보스)', '심화: 혼돈 단계 상승'] },
     43: { title: '루프 43', features: ['심화: 혼돈 단계 상승'] },
@@ -346,7 +364,7 @@ const SEASON_CONTENT_ROADMAP = {
 const SEASON_BOSS_ZONES = [
     { id: 's2_boss_flame', name: '화염 군주 이그니스', signatureUnique: '화염 군주의 숨결', type: 'seasonBoss', tier: 12, key: 'bossKeyFlame', reqSeason: 2, ele: 'fire', reward: 'bossCore' },
     { id: 's2_boss_frost', name: '서리 여제 글라시아', signatureUnique: '서리 여제의 인장', type: 'seasonBoss', tier: 12, key: 'bossKeyFrost', reqSeason: 2, ele: 'cold', reward: 'bossCore' },
-    { id: 's2_boss_storm', name: '폭풍 군단장 볼타', signatureUnique: '폭풍 군단장의 창끝', type: 'seasonBoss', tier: 13, key: 'bossKeyStorm', reqSeason: 2, ele: 'light', reward: 'bossCore' },
+    { id: 's2_boss_storm', name: '폭풍 군단장 볼타', signatureUnique: '폭풍 군단장의 칼날', type: 'seasonBoss', tier: 13, key: 'bossKeyStorm', reqSeason: 2, ele: 'light', reward: 'bossCore' },
     // bossStages: the arena's boss rises three times (js/combat.js CERBERUS_STAGES: three heads, two heads, the body). Until 2026-10-13 it
     // was the one boss kept on the 9×8 board (user: "보스전은 방 두개 해서 다음 방에 바로 보스만 나오게 해").
     { id: 's6_beast_cerberus', name: '야수왕 케르베로스', signatureUnique: '야수왕의 세 목줄', type: 'seasonBoss', tier: 18, key: 'beastKeyCerberus', reqSeason: 6, ele: 'chaos', reward: 'bossCore', bossStages: 3 },
@@ -433,5 +451,5 @@ const JOURNAL_DB = {
 
 const JOURNAL_ENTRY_ORDER = ['prologue', 'act_1', 'act_2', 'act_3', 'act_4', 'act_5', 'act_6', 'act_7', 'act_8', 'act_9', 'act_10', 'woodsman', 'woodsman_echo', 'meteor_fall', 'beehive_queen', 'void_grand_breach', 'labyrinth_10', 'ocean_500', 'sky_tower_10', 'time_rift_fusion', 'colony_wave_10', 'immortal', 'level_200', 'passive_star_evolution', 'hidden_last_breath', 'hidden_unscarred', 'hidden_fourfold_affliction', 'rival_overheat', 'rival_dull', 'rival_glutton', 'rival_afterimage', 'rival_backedge', 'rival_masterwork', 'cosmos_astra', 'pinnacle_underking', 'pinnacle_leviathan', 'pinnacle_sky', 'pinnacle_observer'];
 
-safeExposeData({ MONSTER_LOOP_HP_CURVE, CHAOS_LOOP_RAMP_PER_DEPTH, MONSTER_LOOP_POWER_SCALE, ENEMY_DEFENSE_TIER20, BOSS_DEFENSE_SPECIALTIES, MONSTER_LOOP_GROWTH, LOOP_DEEP_STATS, WORLD_TREE_BARK, EXPLORATION_EVENT_LOOPS, EXPLORATION_EVENT_NOTICES, EXPLORATION_PROP_LOOT, EXPLORATION_CHEST_GRADES });
+safeExposeData({ MONSTER_LOOP_HP_CURVE, CHAOS_LOOP_RAMP_PER_DEPTH, MONSTER_LOOP_POWER_SCALE, ENEMY_DEFENSE_TIER20, BOSS_DEFENSE_SPECIALTIES, LOOP_MUTATION, MONSTER_LOOP_GROWTH, LOOP_DEEP_STATS, WORLD_TREE_BARK, EXPLORATION_EVENT_LOOPS, EXPLORATION_EVENT_NOTICES, EXPLORATION_PROP_LOOT, EXPLORATION_CHEST_GRADES });
 safeExposeData({ ACT_BATTLE_MAP_SOURCES, ACT_BATTLE_MAP_LAYOUT, STORY_ACTS, WORLD_MAP_HOTSPOTS, TRIAL_ZONES, METEOR_FALL_ZONE_ID, METEOR_SITE_UNLOCK_LOOP, METEOR_SITE_UNLOCK_ACT, METEOR_CONSTELLATION_POOL, SEASON_CONTENT_ROADMAP, SEASON_BOSS_ZONES, LABYRINTH_ZONE_ID, JOURNAL_DB, JOURNAL_ENTRY_ORDER, LOOP_GATE_ABYSS_DEPTH_CAP, LOOP_GATE_ALT_START_SEASON, LOOP_GATE_ALT_COSMOS_PLANET_ID, LOOP_GATE_ALT_COSMOS_PLANET_NAME, OCEAN_UNLOCK_LOOP, OCEAN_AUTO_REDIVE, OCEAN_ZONE_ID, MAP_PRIMARY_CONTENTS, COSMOS_MECHANIC_DB, COSMOS_GALAXY_ENVIRONMENT_DB, COSMOS_EXPEDITION_DIRECTIVE_DB });

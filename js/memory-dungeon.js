@@ -15,10 +15,12 @@ const memoryDungeon = (() => {
     function count(state, nodeId, tier) {
         return ((ledger(state).tickets[nodeId] || [])[tier - 1]) || 0;
     }
-    /** One more memory of the node at this tier (up to the cap). @returns {boolean} whether it was kept. */
+    // A single open fight can refund one spent memory after a new drop filled its slot. Keep that reserved memory across saves.
+    const refundCap = M.ticketCap + 1;
+    /** Normal drops stop at ticketCap; only a cancelled fight's refund may use its one reserved slot. */
     function give(state, nodeId, tier, force = false) {
         const book = ledger(state), row = book.tickets[nodeId] || emptyRow();
-        if (!force && row[tier - 1] >= M.ticketCap) return false;
+        if (row[tier - 1] >= (force ? refundCap : M.ticketCap)) return false;
         row[tier - 1] += 1;
         book.tickets[nodeId] = row;
         return true;
@@ -64,44 +66,66 @@ const memoryDungeon = (() => {
     }
 
     // ---------------------------------------------------------------- a boss falls
-    /** The open map's 되감긴 기억 passive (data/atlas-passives.js memoryDrop %): first memories from ordinary fights fall more often. */
-    function memoryDropMul(state) {
-        const run = state.atlas && state.atlas.run;
-        return 1 + (Number(run && run.bonus && run.bonus.memoryDrop) || 0) / 100;
-    }
+    /** The entry snapshot's 되감긴 기억 bonus survives closing the run before completion rewards are settled. */
+    const memoryDropMul = bonus => 1 + (Number(bonus.memoryDrop) || 0) / 100;
     /** The memory a fallen atlas boss leaves: tier 1 by chance after an ordinary fight, the next tier by the ladder after a memory fight. */
-    function rollTicket(state, node, map, random) {
+    function rollTicket(state, node, map, random, bonus) {
         const tier = validTier(map.memory) ? map.memory + 1 : 1;
         if (!open(state) || tier > maxTier(state)) return null;
-        const chance = tier > 1 ? M.ladder[tier - 2] : (M.ticketDrop[node.kind] || 0) * memoryDropMul(state);
+        const chance = tier > 1 ? M.ladder[tier - 2] : (M.ticketDrop[node.kind] || 0) * memoryDropMul(bonus);
         return random() < chance && give(state, node.id, tier) ? { node: node.id, name: node.boss, tier } : null;
     }
     const ownUnique = node => (atlasEndgame.def(node.id) || {}).unique || null;
-    /** Currency for a won tier, × the fight's map tier / rewardTier (a low node's memory pays less than a guardian's). */
-    function rolledRewards(tier, mapTierValue, random) {
+    /** Shared reward expectations for settlement and the pre-entry preview; deriving them never rolls entropy. */
+    function rewardExpectations(tier, mapTierValue) {
         const scale = Math.max(M.rewardScale.min, Math.min(M.rewardScale.max, mapTierValue / M.rewardTier));
         return [...M.rewards.map(([key, base, perTier]) => [key, base + perTier * tier]), ['burningEmberBranch', M.burning[tier - 1]]]
-            .map(([key, expected]) => [key, expected * scale])
+            .map(([key, expected]) => [key, expected * scale]);
+    }
+    /** Currency for a won tier. Keep one random draw per configured reward, including currently locked ones. */
+    function rolledRewards(state, tier, mapTierValue, random) {
+        return rewardExpectations(tier, mapTierValue)
             .map(([key, expected]) => [key, Math.floor(expected) + Number(random() < expected % 1)])
-            .filter(([key, amount]) => amount > 0 && contentProgression.canDropCurrency(key));
+            .filter(([key, amount]) => amount > 0 && contentProgression.canDropCurrency(key, state));
     }
     /** A won memory fight: its spoils (currency by tier, a unique by chance, a rare piece from gearFrom) and the best tier record. */
     function spoils(state, node, tier, random) {
         const own = ownUnique(node), book = ledger(state), best = (book.best[node.id] || 0) < tier;
         if (best) book.best[node.id] = tier;
         const unique = random() < M.uniqueChance[own ? 'own' : 'other'][tier - 1] ? (own || 'any') : null;
-        return { tier, rewards: rolledRewards(tier, mapTier(state, node, tier), random), unique, gear: tier >= M.gearFrom, best };
+        return { tier, rewards: rolledRewards(state, tier, mapTier(state, node, tier), random), unique, gear: tier >= M.gearFrom, best };
     }
     /** Boss down in an atlas run (js/atlas.js complete): the memory it leaves and, after a memory fight, its spoils.
      * @returns {{ticket: ?object, spoils: ?object}} */
-    function settle(state, node, map, random = Math.random) {
+    function settle(state, node, map, random = Math.random, bonus = {}) {
         const fight = validTier(map.memory) ? spoils(state, node, map.memory, random) : null;
-        return { ticket: rollTicket(state, node, map, random), spoils: fight };
+        return { ticket: rollTicket(state, node, map, random, bonus), spoils: fight };
+    }
+
+    function nextMemoryPreview(state, node, tier) {
+        if (tier >= M.tiers) return null;
+        const nextTier = tier + 1, have = count(state, node.id, nextTier);
+        const reason = nextTier > maxTier(state) ? `${nextTier}단계 기억은 루프 ${M.highTiers.loop}부터 얻을 수 있습니다.`
+            : have >= M.ticketCap ? `다음 단계 기억의 보관 한도 ${M.ticketCap}개에 도달했습니다.` : '';
+        return { tier: nextTier, chance: reason ? 0 : M.ladder[tier - 1], reason, have, cap: M.ticketCap };
+    }
+    /** Read-only preparation for a held memory or a past record. Choosing it never consumes a memory or advances random rolls. */
+    function preview(state, nodeId, tier) {
+        const node = atlas.node(nodeId);
+        if (!node || !validTier(tier)) return null;
+        const map = atlasMaps.create(nodeId, mapTier(state, node, tier), 'normal', () => 0), own = ownUnique(node);
+        map.memory = tier;
+        const rewards = rewardExpectations(tier, map.tier).filter(([key, expected]) => expected > 0 && contentProgression.canDropCurrency(key, state))
+            .map(([key, expected]) => ({ key, min: Math.floor(expected), max: Math.ceil(expected), extraChance: expected % 1 }));
+        return { node, tier, have: count(state, nodeId, tier), map, best: ledger(state).best[nodeId] || 0,
+            reason: entryReason(state, nodeId, tier), rewards,
+            unique: { name: own, chance: M.uniqueChance[own ? 'own' : 'other'][tier - 1], swapChance: M.swap[tier - 1] },
+            gear: tier >= M.gearFrom, next: nextMemoryPreview(state, node, tier) };
     }
 
     // ---------------------------------------------------------------- save boundary and view
     function normalizeRow(raw) {
-        const row = emptyRow().map((zero, index) => Math.max(0, Math.min(M.ticketCap, Math.floor(Number(Array.isArray(raw) ? raw[index] : 0) || 0))));
+        const row = emptyRow().map((zero, index) => Math.max(0, Math.min(refundCap, Math.floor(Number(Array.isArray(raw) ? raw[index] : 0) || 0))));
         return row.some(value => value > 0) ? row : null;
     }
     function normalizeTickets(raw) {
@@ -117,15 +141,16 @@ const memoryDungeon = (() => {
     }
     /** The boss variant record (12번 루프 33, js/boss-variants.js) lives with the memories. */
     const normalizeVariants = raw => (typeof bossVariants === 'object' ? bossVariants.normalizeKills(raw) : {});
-    /** Known nodes only, whole counts under the cap, best tiers 1..5. */
+    /** Known nodes only, whole counts including one reserved refund, best tiers 1..5. Older rows need no migration. */
     function normalize(raw) {
         const source = raw && typeof raw === 'object' ? raw : {};
         return { tickets: normalizeTickets(source.tickets), best: normalizeBest(source.best), variants: normalizeVariants(source.variants) };
     }
-    /** Every boss with a memory: counts per tier, the best tier won, and each tier's fight tier. Highest tier first, then by name. */
+    /** Held memories and past victories: spending the last ticket must not hide a boss's best-tier record. */
     function overview(state) {
-        return Object.entries(ledger(state).tickets).map(([id, row]) => {
-            const node = atlas.node(id);
+        const book = ledger(state), ids = new Set([...Object.keys(book.tickets), ...Object.keys(book.best)]);
+        return [...ids].map(id => {
+            const node = atlas.node(id), row = book.tickets[id] || emptyRow();
             return { node, counts: row.slice(), best: ledger(state).best[id] || 0, unique: ownUnique(node),
                 tiers: row.map((have, index) => ({ tier: index + 1, have, mapTier: mapTier(state, node, index + 1), reason: entryReason(state, id, index + 1) })) };
         }).sort((a, b) => b.counts.findLastIndex(value => value > 0) - a.counts.findLastIndex(value => value > 0) || a.node.boss.localeCompare(b.node.boss));
@@ -133,6 +158,6 @@ const memoryDungeon = (() => {
     /** How many memories are held (the atlas's 기억 tab shows it). */
     const total = state => Object.values(ledger(state).tickets).reduce((sum, row) => sum + row.reduce((a, b) => a + b, 0), 0);
     return Object.freeze({ defaults, normalize, open, validTier, maxTier, count, total, give, entryReason, spend, refund, mapTier, boost, zoneName, tuneBoss,
-        settle, overview });
+        settle, overview, preview });
 })();
 safeExposeGlobals({ memoryDungeon });

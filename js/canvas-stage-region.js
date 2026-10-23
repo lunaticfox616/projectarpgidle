@@ -98,6 +98,11 @@ const stageRegion = (() => {
         if (room.mirror) ctx.restore();
         blendPictureEdges(ctx, region, { y, h: Math.round(h), reach: Math.round(BLEND_DOTS * dot) }, area);
     }
+    /** 방 그림이 방 바닥의 뒤쪽 끝(바닥선) 위로 올라가는 높이(칸 너비 단위, js/canvas-stage-scene.js coverTile). 지역 그림이 없는 지도는 0. */
+    function pictureRise(map) {
+        const region = regionOfMap(map);
+        return region && map.frame ? region.ground * stageRegionFit.scale(region, map.frame.columns, map.frame.rows) / WIDE : 0;
+    }
     /** 방 그림이 화면의 위나 아래에 닿지 않으면(세로로 긴 화면) 그림의 끝이 메운 색과 맞닿아 줄로 보였다: 끝에서 reach만큼을 메운 색으로
      * 풀어 준다. 그림이 화면을 덮는 넓은 화면에서는 아무것도 그리지 않는다. */
     function blendPictureEdges(ctx, region, picture, area) {
@@ -199,7 +204,8 @@ const stageRegion = (() => {
     function regionRoomLayout(map, room, region) {
         // 씨앗에 방의 크기와 자리를 넣는다: 같은 지도라도 놓임새와 생김새가 달라지면 소품도 달라진다
         const rng = createSeededRng(`stage-props:${map.id}:${room.id}:${map.plan.boxes.length}:${room.x1 - room.x0}:${room.y1 - room.y0}:${room.at.join('.')}`), family = regionFamily(region);
-        const list = room.role === 'boss' ? bossRoomProps(map, room, region) : room.role === 'elite' ? eliteRoomProps(map, room, region, rng) : normalRoomProps(map, room, region, rng);
+        const list = map.colonyDefense || map.grandBreach ? normalRoomProps(map, room, region, rng)
+            : room.role === 'boss' ? bossRoomProps(map, room, region) : room.role === 'elite' ? eliteRoomProps(map, room, region, rng) : normalRoomProps(map, room, region, rng);
         return list.filter(piece => family.pieces[piece.name]);
     }
     function regionRoomPieces(map, room, region) {
@@ -216,13 +222,20 @@ const stageRegion = (() => {
         const y = door.side === 'north' ? room.y0 * DEEP : door.side === 'south' ? (room.y1 + 1) * DEEP : (door.cell.gy + 0.5) * DEEP;
         return { doorRow: row, x: (door.cell.gx + 0.5) * WIDE + dx, y: y + dy };
     }
+    /** Existing region props stand at the gameplay anchors, so the core and each rift keep their depth among actors. */
+    function specialRoomPieces(map) {
+        const propAt = (name, cell, scale = 1) => ({ name, x: (cell.gx + .5) * WIDE, y: (cell.gy + 1) * DEEP, scale });
+        // 반 크기(.5): 그림 도트 둘이 한 도트가 된다(.45는 도트가 고르지 않게 뭉개졌다)
+        if (map.colonyDefense) return [propAt('prop-3', map.colonyDefense.core, .5)];
+        return map.grandBreach ? map.grandBreach.riftCells.map(cell => propAt('prop-2', cell)) : [];
+    }
 
     // ---------------------------------------------------------------- actors
     /** 전장 그리기의 배우 목록에 이 방의 소품과 문을 끼운다(깊이 순서는 발 자리의 화면 y). */
     function appendRegionPieces(actors, state, here) {
         const region = regionOfMap(here.map), p = state.gridProj, dot = p.tileW / WIDE, reach = 400 * dot;
         const doors = actExplorationDoors.doorsHere(here.run).map(row => regionDoorPiece(row, here.room));
-        regionRoomPieces(here.map, here.room, region).concat(doors).forEach((piece, index) => {
+        regionRoomPieces(here.map, here.room, region).concat(specialRoomPieces(here.map), doors).forEach((piece, index) => {
             const x = p.mapX + piece.x * dot, y = p.mapY + piece.y * dot;
             if (x > -reach && x < state.width + reach) actors.push({ kind: 'scenery', id: -2000 - index, y, piece: { ...piece, region }, point: { x, y } });
         });
@@ -234,14 +247,14 @@ const stageRegion = (() => {
     }
     /** 조각 하나: 발 자리를 actor.point에 맞춘다. 뒤집은 조각은 발 자리를 축으로 좌우를 바꾼다. */
     function drawRegionPiece(ctx, actor, state) {
-        const piece = actor.piece, size = regionFamily(piece.region).pieces[piece.name], dot = stageActors.scaleFor(state.gridProj.tileW);
-        const at = { x: Math.round(actor.point.x - size[2] * dot), y: Math.round(actor.y - size[3] * dot), dot };
+        const piece = actor.piece, size = regionFamily(piece.region).pieces[piece.name], dot = stageActors.scaleFor(state.gridProj.tileW), drawnDot = dot * (piece.scale || 1);
+        const at = { x: Math.round(actor.point.x - size[2] * drawnDot), y: Math.round(actor.y - size[3] * drawnDot) };
         ctx.save();
         ctx.imageSmoothingEnabled = false;
-        if (pieceHidesHero(actor, state, size, dot)) ctx.globalAlpha *= 0.5;
+        if (pieceHidesHero(actor, state, size, drawnDot)) ctx.globalAlpha *= 0.5;
         if (piece.flip) { ctx.translate(Math.round(actor.point.x) * 2, 0); ctx.scale(-1, 1); }
         const file = regionPieceFile(piece.region, piece.name), shade = typeof stageOcean === 'object' ? stageOcean.shade() : null;
-        ctx.drawImage(shade ? shadedRegionPiece(file, dot, shade) : fittedRegionPiece(file, dot), at.x, at.y, size[0] * dot, size[1] * dot);
+        ctx.drawImage(shade ? shadedRegionPiece(file, dot, shade) : fittedRegionPiece(file, dot), at.x, at.y, size[0] * drawnDot, size[1] * drawnDot);
         ctx.restore();
     }
     /** 어두운 심해 띠의 소품(js/canvas-stage-ocean.js shade): 화면 배율로 옮겨 둔 조각에 그 띠의 어둠을 얹은 그림. 공용 심해 소품은
@@ -327,14 +340,15 @@ const stageRegion = (() => {
     /** 그 방을 그릴 때 쓰는 조각 그림(소품)을 화면 배율로 옮겨 두는 일들, 하나에 그림 한 장. 방 그림을 준비할
      * 때 미리 해 둔다(js/canvas-stage-room-pictures.js): 예전에는 방을 처음 그리는 프레임에서 조각마다 옮겼다. */
     function regionFitJobs(map, room, dot) {
-        const region = regionOfMap(map), family = regionFamily(region), names = regionRoomPieces(map, room, region).map(piece => piece.name);
+        const region = regionOfMap(map), family = regionFamily(region), names = regionRoomPieces(map, room, region)
+            .concat(specialRoomPieces(map)).map(piece => piece.name);
         return [...new Set(names)].filter(name => family.pieces[name]).map(name => () => fittedRegionPiece(regionPieceFile(region, name), dot));
     }
     /** 곧 쓸 지역의 방 그림을 미리 불러 둔다(그림이 없는 지역이면 아무 일도 없다). */
     function warmRegion(id) {
         if (stageView.backdrops() && stageRegionFit.of(id)) regionPicture(id + '.png');
     }
-    return Object.freeze({ warm: warmRegion, status: regionStatus, drawFar: drawRoomPicture, paintRoom: paintRoomShade, append: appendRegionPieces, draw: drawRegionPiece,
+    return Object.freeze({ warm: warmRegion, status: regionStatus, rise: pictureRise, drawFar: drawRoomPicture, paintRoom: paintRoomShade, append: appendRegionPieces, draw: drawRegionPiece,
         drawMarks: drawRegionSideMarks, drawObject: drawRegionObject, outlineObject: outlineRegionObject, objectTop: regionObjectTop, fitJobs: regionFitJobs });
 })();
 safeExposeGlobals({ stageRegion });

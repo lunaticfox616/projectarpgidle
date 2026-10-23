@@ -4,19 +4,29 @@
  * market (js/black-market-ui.js) and the stall (js/player-stall-ui.js) each register an adapter by kind; this module owns what they
  * share: the grid cells, prices and wallet, the bag page, the item and rune cards, the replay guard and the pointer.
  *
- * Markup contract: the shop's root carries data-shop-kind (and its own data), a thing the pointer can carry data-shop-pick (the
- * adapter's own key, as 'ware:3' or 'bag:812'), a place it can be dropped on besides the bag data-shop-drop, and the bag grid is
- * bagHtml's. A hover (mouse) shows a card, a press without a drag (or Enter on the button) is a tap, a drag carries a ghost onto the
- * bag (its top-left cell picks the place, over all pages) or onto a drop place under the pointer.
+ * Layout (2026-10-23 사용자: "옵션 및 가격 확인하기 쉽게", "마우스를 올리면 바로"): root .shop-view > .shop-body > the shelf section,
+ * the chosen thing's sheet (.shop-info: .shop-info-deal, .shop-info-card) and the bag section. A wide view sets the shelf and the bag
+ * side by side, a narrow one stacks them; the sheet shows only while something is chosen, held to the bottom of the scrolling window
+ * over the bag (css/shop-view.css). Pointing with a mouse never changes the sheet: a floating card by the pointed thing shows its
+ * options and its price (a ware's deal without buttons, a listing's asking price; a bag item, the stall's or not, its own card).
  *
- * adapter: { shopHover?(root, pick), shopTap(root, pick, { touch }), shopSize?(root, pick) → { columns, rows } when the pick can go into the bag,
- *            shopAccepts(root, pick, target) → true, false (painted red) or null (no target), shopDrop(root, pick, target), shopRedraw(root) }
+ * Markup contract: the shop's root carries data-shop-kind (and its own data), a thing the pointer can carry data-shop-pick (the
+ * adapter's own key, as 'ware:3' or 'bag:812'), a place it can be dropped on besides the bag data-shop-drop, a bag item
+ * data-shop-item (its id; data-shop-why when the shop does not take it), and the bag grid is bagHtml's. A press without a drag (or
+ * Enter on the button) is a tap, which only chooses (buying is the sheet's button, or a drag: a stray click never buys); a drag
+ * carries a ghost onto the bag (its top-left cell picks the place, over all pages) or onto a drop place under the pointer.
+ *
+ * adapter: { shopPeekHtml?(root, pick) → the floating card's html ('' for none), shopTap(root, pick, { touch, keyboard }),
+ *            shopUnchoose?(root): the sheet's 닫기, shopSize?(root, pick) → { columns, rows } when the pick can go into the bag,
+ *            shopAccepts(root, pick, target) → true, false (painted red) or null (no target), shopDrop(root, pick, target), shopRedraw(root),
+ *            shopDim?(root, itemId): a dimmed bag item (bagHtml's pick gave it a reason, no key) was pressed }
  * target: { area: 'bag', column, row (over all pages), local, size } or { area: 'drop', key, el }. */
 const shopView = (() => {
     const DRAG_PX = 6;
     const WALLET_ORDER = Object.freeze(['magicBud', 'formlessDew', 'goldenRule']);
     const adapters = new Map();
     let press = null;   // { root, adapter, el, pick, x, y, pointerId, touch, offset, ghost, target }
+    let floatCard = null; // the floating card of the thing under the mouse (in the shop's dialog or over the page)
     let bagPage = 0;
 
     const held = key => Math.floor(Number(game.currencies[key]) || 0);
@@ -62,27 +72,81 @@ const shopView = (() => {
 
     function bagItemHtml(entry, choice) {
         const item = entry.item, art = `<img src="${getEquipmentGridVisualAsset(item)}" alt="" draggable="false">`, style = areaStyle(entry);
-        if (!choice) return `<span class="shop-bag-item rarity-${item.rarity || 'normal'}" style="${style}">${art}</span>`;
+        if (!choice) return `<span class="shop-bag-item rarity-${item.rarity || 'normal'}" style="${style}" data-shop-item="${item.id}">${art}</span>`;
         const { key, chosen, reason } = choice;
-        if (!key) return `<span class="shop-bag-item rarity-${item.rarity || 'normal'} is-dim" style="${style}" title="${escapeHTML(reason || '')}">${art}</span>`;
+        if (!key) return dimBagItemHtml(item, style, art, reason);
         return `<button type="button" class="shop-bag-item is-pick rarity-${item.rarity || 'normal'}${chosen ? ' is-chosen' : ''}" style="${style}"
-            data-shop-pick="${escapeHTML(key)}" aria-label="${escapeHTML(item.name || item.baseName || '장비')}">${art}</button>`;
+            data-shop-pick="${escapeHTML(key)}" data-shop-item="${item.id}" aria-label="${escapeHTML(item.name || item.baseName || '장비')}">${art}</button>`;
+    }
+
+    /** A rejected bag item remains pressable so touch users can read its refusal; a mouse reads it on the floating card. */
+    function dimBagItemHtml(item, style, art, reason) {
+        return `<button type="button" class="shop-bag-item rarity-${item.rarity || 'normal'} is-dim" style="${style}" data-shop-dim="${item.id}"
+            data-shop-item="${item.id}" data-shop-why="${escapeHTML(reason || '')}" aria-label="${escapeHTML(`${item.name || item.baseName || '장비'}, ${reason || '고를 수 없음'}`)}">${art}</button>`;
     }
 
     /** An item's card: its own tooltip (the bag's), and the bag analysis' verdict on wearing it (js/equipment-triage.js rate) in the bag
      * card's words: 공격 +8.3%, 생존 +12%, or 현 세팅 유지. No verdict while the hero cannot wear it: the card shows the requirement.
-     * rating: false for gear already sold. The last card is kept while the item, the level and the worn gear stay (a shop redraws often). */
-    let cardMemo = null;
+     * rating: false for gear already sold. Each item's card is kept while its data and the persistent build stay (a hover previews another
+     * ware and leaving puts the chosen one back: both stay drawn). */
+    const cardMemo = new WeakMap();
     function itemCardHtml(item, { rating = true } = {}) {
-        const key = `${rating}:${game.level}:${Object.values(game.equipment || {}).map(entry => entry?.id || 0).join(',')}`;
-        if (cardMemo && cardMemo.item === item && cardMemo.key === key) return cardMemo.html;
+        // Crafting edits an existing item; build changes can also change its requirements and comparison.
+        const key = `${rating}:${JSON.stringify(item)}:${getPersistentBuildSignature(game, false)}`;
+        const kept = cardMemo.get(item);
+        if (kept && kept.key === key) return kept.html;
         const box = document.createElement('div');
         showItemTooltip(null, null, false, item, { target: box });
         const html = `<div class="shop-tooltip">${box.innerHTML}</div>${rating ? gearRatingHtml(item) : ''}`;
-        cardMemo = { item, key, html };
+        cardMemo.set(item, { key, html });
         return html;
     }
 
+    /** The deal of a ware: its exact price, what the hero holds and keeps after it, and (chosen) the buy button and 닫기, or why it
+     * cannot go now. verb: '구매' or '교환'. action: the button's attribute the adapter listens to. extra: more buttons (the lock).
+     * peek: the floating card of a pointed ware: no buttons (the pointer cannot reach them). */
+    function dealHtml({ key, amount, verb = '구매', check = { ok: true }, action = '', extra = '', peek = false }) {
+        const have = held(key), price = Number(amount) || 0, short = Math.max(0, price - have);
+        const purse = short ? `<span class="is-short">보유 ${have.toLocaleString()}, ${short.toLocaleString()} 부족</span>`
+            : `<span>보유 ${have.toLocaleString()} → ${verb} 후 ${(have - price).toLocaleString()}</span>`;
+        const act = dealActionsHtml({ verb, check, action, extra, peek });
+        return `<div class="shop-deal${peek ? ' is-peek' : ''}"><p class="shop-deal-price"><span>가격</span>${coinHtml(key)}
+            <strong${short ? ' class="is-short"' : ''}>${escapeHTML(currencyName(key))} ${price.toLocaleString()}</strong></p>
+            <p class="shop-deal-purse">${purse}</p>${act}</div>`;
+    }
+
+    /** The sheet's 닫기: the choice goes and the bag under the sheet comes back in sight (the stall's sheet writes the same button). */
+    const CLOSE_HTML = '<button type="button" class="shop-info-close" data-shop-unchoose>닫기</button>';
+    function dealActionsHtml({ verb, check, action, extra, peek }) {
+        return peek ? ''
+            : `<div class="shop-deal-actions"><button type="button" class="shop-buy" ${action} ${check.ok ? '' : 'disabled'}>${verb}</button>${extra}${CLOSE_HTML}</div>
+                ${check.ok ? '' : `<p class="shop-deal-why">${escapeHTML(check.reason || '')}</p>`}`;
+    }
+
+    /** The card's html put in (only when it changed: a hover over the same ware repaints nothing). */
+    function paintInfo(root, html) {
+        const info = root?.querySelector('.shop-info');
+        if (!info || info.shopHtml === html) return;
+        info.innerHTML = html;
+        info.shopHtml = html;
+    }
+
+    /** The chosen ware marked (and pressed for a screen reader), the rest unmarked. */
+    function markChosen(root, pick) {
+        root.querySelectorAll('[data-shop-pick].is-chosen').forEach(el => { el.classList.remove('is-chosen'); el.setAttribute('aria-pressed', 'false'); });
+        const el = pick === null ? null : root.querySelector(`[data-shop-pick="${CSS.escape(String(pick))}"]`);
+        el?.classList.add('is-chosen');
+        el?.setAttribute('aria-pressed', 'true');
+    }
+
+    /** Enter on the chosen ware again: the focus goes to its buy button (it never buys by itself). */
+    function focusDeal(root) {
+        const button = root?.querySelector('.shop-info .shop-buy:not([disabled])') || root?.querySelector('.shop-info button:not([disabled])');
+        button?.focus();
+    }
+
+    /** The bag analysis' verdict on wearing item ('' while it cannot be worn): the shop card's, and the hall's comparison of the chosen
+     * show (js/player-exchange.js hallCompareHtml). */
     function gearRatingHtml(item) {
         const wearable = getEquipCandidateSlots(item).some(slot => combatEquipmentStats.inspect(item, slot).ok);
         const rating = wearable ? equipmentTriage.rate(item) : null;
@@ -152,9 +216,6 @@ const shopView = (() => {
         return replay ? '방치 전투 정산을 마친 뒤 이용해 주세요.' : '';
     }
 
-    const howToBuy = () => (uiDisplay.matches('(hover: hover)') ? '누르면 사고, 가방 칸으로 끌어다 놓으면 그 자리에 삽니다.'
-        : '한 번 누르면 정보, 다시 누르면 삽니다. 가방 칸으로 끌어 놓아도 삽니다.');
-
     // ---- pointer ----
 
     function pickAt(node) {
@@ -163,12 +224,58 @@ const shopView = (() => {
         return adapter ? { root, adapter, el, pick: el.dataset.shopPick } : null;
     }
 
+    // ---- the floating card: only looks, never chooses (the chosen thing, its sheet and the typed prices stay as they are) ----
+
+    /** The mouse over a ware, a listing or a bag item: its floating card beside it; over anything else, none. */
     function hoverPick(event) {
-        const at = event.pointerType === 'mouse' && !press ? pickAt(event.target) : null;
-        if (at && at.adapter.shopHover) at.adapter.shopHover(at.root, at.pick);
+        if (event.pointerType !== 'mouse' || press) return;
+        const peek = peekAt(event.target);
+        if (peek && peek.html) showFloat(peek.el, peek.html);
+        else hideFloat();
     }
 
+    /** What the node shows when pointed: a bag item its own card, an adapter's thing what its shopPeekHtml says. */
+    function peekAt(node) {
+        const item = node?.closest?.('.shop-view [data-shop-item]');
+        if (item) return { el: item, html: bagPeekHtml(item) };
+        const at = pickAt(node);
+        return at && at.adapter.shopPeekHtml ? { el: at.el, html: at.adapter.shopPeekHtml(at.root, at.pick) } : null;
+    }
+
+    /** A bag item's card, with why the shop does not take it (the stall) first. */
+    function bagPeekHtml(el) {
+        const item = game.inventory.find(entry => String(entry.id) === el.dataset.shopItem);
+        if (!item) return '';
+        const why = el.dataset.shopWhy ? `<p class="shop-note">${escapeHTML(el.dataset.shopWhy)}</p>` : '';
+        return `${why}${itemCardHtml(item)}`;
+    }
+
+    function showFloat(el, html) {
+        const host = el.closest('dialog') || document.body;
+        if (!floatCard || floatCard.parentNode !== host) {
+            floatCard?.remove();
+            floatCard = Object.assign(document.createElement('div'), { className: 'shop-float' });
+            floatCard.setAttribute('aria-hidden', 'true');
+            host.appendChild(floatCard);
+        }
+        if (floatCard.shopHtml !== html) { floatCard.innerHTML = html; floatCard.shopHtml = html; }
+        floatCard.hidden = false;
+        placeFloat(floatCard, el.getBoundingClientRect());
+    }
+
+    /** Beside the pointed thing: right of it when the card fits there, else left; kept inside the screen. Screen pixels divide by the
+     * UI scale (uiDisplay.factor), as the carried ghost's do; whole pixels keep the dot font sharp. */
+    function placeFloat(card, at) {
+        const factor = uiDisplay.factor || 1, gap = 8, box = card.getBoundingClientRect();
+        const x = at.right + gap + box.width <= window.innerWidth - gap ? at.right + gap : Math.max(gap, at.left - gap - box.width);
+        const y = Math.max(gap, Math.min(at.top, window.innerHeight - gap - box.height));
+        card.style.transform = `translate(${Math.round(x / factor)}px,${Math.round(y / factor)}px)`;
+    }
+
+    function hideFloat() { if (floatCard) floatCard.hidden = true; }
+
     function pressPick(event) {
+        hideFloat();
         const at = event.button === 0 ? pickAt(event.target) : null;
         if (!at) return;
         const rect = at.el.getBoundingClientRect();
@@ -245,24 +352,45 @@ const shopView = (() => {
         if (!press || press.pointerId !== event.pointerId) return;
         const holding = endPress();
         if (holding.ghost) { if (holding.target) holding.adapter.shopDrop(holding.root, holding.pick, holding.target); return; }
-        holding.adapter.shopTap(holding.root, holding.pick, { touch: holding.touch });
+        holding.adapter.shopTap(holding.root, holding.pick, { touch: holding.touch, keyboard: false });
     }
 
-    /** Bag pages, and Enter or Space on a carried thing's button (no pointer): a tap that picks first, as on a touch screen. */
+    /** Bag pages, and Enter or Space on a carried thing's button (no pointer): a tap that chooses (on the chosen one again, the
+     * adapter moves the focus to its buy button). */
     function shopClick(event) {
         const page = event.target.closest?.('[data-shop-bag-page]'), root = page?.closest('[data-shop-kind]');
         if (root && adapters.has(root.dataset.shopKind)) { bagPage = Number(page.dataset.shopBagPage); adapters.get(root.dataset.shopKind).shopRedraw(root); return; }
+        if (clickUnchoose(event.target) || clickDimItem(event.target)) return;
         const at = event.detail === 0 ? pickAt(event.target) : null;
-        if (at) at.adapter.shopTap(at.root, at.pick, { touch: true });
+        if (at) at.adapter.shopTap(at.root, at.pick, { touch: true, keyboard: true });
+    }
+
+    function clickUnchoose(target) {
+        const close = target.closest?.('[data-shop-unchoose]'), root = close?.closest('[data-shop-kind]');
+        const adapter = root && adapters.get(root.dataset.shopKind);
+        if (!adapter?.shopUnchoose) return false;
+        adapter.shopUnchoose(root);
+        return true;
+    }
+
+    function clickDimItem(target) {
+        const dim = target.closest?.('[data-shop-dim]'), root = dim?.closest('[data-shop-kind]');
+        const adapter = root && adapters.get(root.dataset.shopKind);
+        if (!adapter?.shopDim) return false;
+        adapter.shopDim(root, dim.dataset.shopDim);
+        return true;
     }
 
     document.addEventListener('pointerover', hoverPick);
+    document.addEventListener('pointerout', event => { if (!event.relatedTarget) hideFloat(); });
+    document.addEventListener('scroll', hideFloat, true);
     document.addEventListener('pointerdown', pressPick);
     document.addEventListener('pointermove', dragPick);
     document.addEventListener('pointerup', releasePick);
     document.addEventListener('pointercancel', () => { if (press) endPress(); });
     document.addEventListener('click', shopClick);
     return Object.freeze({ registerShop, WALLET_ORDER, held, currencyName, coinHtml, priceHtml, walletHtml, cellsHtml, gridHtml, areaStyle,
-        bagHtml, itemCardHtml, gemArtHtml, gemCardHtml, busyReason, howToBuy, dragging: () => !!press });
+        bagHtml, itemCardHtml, ratingHtml: gearRatingHtml, gemArtHtml, gemCardHtml, dealHtml, paintInfo, markChosen, focusDeal,
+        busyReason, dragging: () => !!press });
 })();
 safeExposeGlobals({ shopView });

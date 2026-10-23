@@ -21,9 +21,6 @@
     pointer-events: none;
     z-index: 2;
 }
-/* 칸 이름이 영향 색으로 물든다(가방 칸에서 고를 때 보이는 이름). */
-.equipment-grid-item.has-influence .equipment-grid-item-name { color: color-mix(in srgb, var(--infl-a) 65%, #ffffff); }
-
 /* 바닥 이름표(js/battle-ground-loot-ui.js nameRow): 이름표 테가 영향 색이 된다. */
 .battle-loot-name[data-influence] {
     border-width: 2px;

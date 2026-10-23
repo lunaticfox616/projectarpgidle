@@ -93,7 +93,7 @@ const stumpBox = (() => {
     }
     function iconPath(item) {
         const icon = STUMP_BOX_STAGES[stageOf(item)].icon, suffix = item.family === 'talisman' ? item.rarity : item.color;
-        return `assets/px/stump/${icon}${suffix ? `-${suffix}` : ''}.png`;
+        return `assets/items/stump-pixel-v1/${icon}${suffix ? `-${suffix}` : ''}.png`;
     }
     function findItem(box, id) { return box.items.find(item => item.id === id) || null; }
     function cellOf(state, id) { return of(state).board.indexOf(id); }

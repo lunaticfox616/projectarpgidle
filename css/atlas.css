@@ -25,6 +25,36 @@
 #ui-atlas button:not(:where(.ab button)):hover:not(:disabled){border-color:var(--atlas-gold);background:#261f17}
 #ui-atlas button:not(:where(.ab button)):focus-visible{outline:2px solid var(--atlas-gold-hi);outline-offset:2px}
 #ui-atlas button:not(:where(.ab button)):disabled{opacity:.45;cursor:not-allowed}
+#ui-atlas .atlas-journey{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:6px 14px;padding:12px 18px;border-bottom:1px solid var(--atlas-edge);background:var(--atlas-panel)}
+#ui-atlas .atlas-journey h3{margin:0;color:var(--atlas-gold-hi);font-size:14px;font-weight:600}
+#ui-atlas .atlas-journey p{margin:3px 0 0;color:var(--atlas-ink);font-size:12px;line-height:1.6;overflow-wrap:anywhere}
+#ui-atlas .atlas-journey .atlas-actions{margin:0}
+#ui-atlas .atlas-journey button{min-height:44px}
+#ui-atlas .atlas-journey details{grid-column:1/-1;color:var(--atlas-muted);font-size:11px}
+#ui-atlas .atlas-journey summary{width:fit-content;padding:4px 0;cursor:pointer}
+#ui-atlas .atlas-journey summary:focus-visible{outline:2px solid var(--atlas-gold-hi);outline-offset:2px}
+#ui-atlas .atlas-auto-options{display:flex;align-items:center;flex-wrap:wrap;gap:4px 12px;padding:8px 18px;border-bottom:1px solid var(--atlas-line);background:var(--atlas-raised);font-size:12px}
+#ui-atlas .atlas-auto-options label{display:flex;align-items:center;gap:8px;min-height:44px;cursor:pointer}
+#ui-atlas .atlas-auto-options input{width:16px;height:16px;accent-color:var(--atlas-gold)}
+#ui-atlas .atlas-auto-options p{flex:1 1 230px;margin:0;color:var(--atlas-ink);line-height:1.6}
+#ui-atlas .atlas-auto-options button{min-height:44px;padding:6px 10px}
+#ui-atlas .atlas-auto-options>small{flex-basis:100%;color:var(--atlas-muted);font-size:11px;line-height:1.6}
+#ui-atlas .atlas-result-loss p{margin:0;color:#e9b18d;line-height:1.6}
+#ui-atlas .atlas-result-loss p+p{color:var(--atlas-muted)}
+#ui-atlas .atlas-result-memory{display:flex;align-items:center;flex-wrap:wrap;gap:6px 12px;color:#d9b8fa}
+#ui-atlas .atlas-result-memory p{margin:0;line-height:1.6}
+#ui-atlas .atlas-result-memory button{min-height:44px;padding:6px 12px}
+#ui-atlas .atlas-fight-followup{margin:12px 0;padding:12px;border:1px solid var(--atlas-edge);background:var(--atlas-panel)}
+#ui-atlas .atlas-fight-followup h3{margin:0;color:var(--atlas-gold-hi);font-size:14px}
+#ui-atlas .atlas-fight-followup p{margin:6px 0;font-size:12px;line-height:1.6}
+#ui-atlas :is(.atlas-fight-followup,.atlas-fight-empty) button{min-height:44px;padding:6px 12px}
+#ui-atlas [data-atlas-fight]{scroll-margin-block-start:10px}
+#ui-atlas [data-atlas-fight]:focus-visible{outline:2px solid var(--atlas-gold-hi);outline-offset:2px}
+@container (max-width:600px){
+  #ui-atlas .atlas-journey{grid-template-columns:minmax(0,1fr);padding:10px}
+  #ui-atlas .atlas-journey .atlas-actions{justify-content:flex-start}
+  #ui-atlas .atlas-auto-options{padding:6px 10px}
+}
 #ui-atlas .atlas-main{display:grid;grid-template-columns:minmax(0,1fr) 300px}
 #ui-atlas .atlas-chart-column{padding:10px 12px 14px}
 /* 지도: 도트 그림이 판 전체를 그리고, 버튼은 메달 자리에 투명하게 선다(누르기 · 초점 · 등급 숫자). */
@@ -50,7 +80,7 @@
 #ui-atlas .atlas-tickets span{padding:2px 7px;border:1px solid var(--atlas-line);color:var(--atlas-muted);font-size:11px}
 #ui-atlas .atlas-tickets span.is-on{border-color:var(--atlas-edge);color:#eadbb5;background:var(--atlas-raised)}
 #ui-atlas .atlas-side{display:flex;flex-direction:column;border-left:1px solid var(--atlas-line);background:var(--atlas-panel)}
-#ui-atlas .atlas-device,#ui-atlas .atlas-node-detail{padding:14px 16px;border-bottom:1px solid var(--atlas-line)}
+#ui-atlas .atlas-device,#ui-atlas .atlas-node-detail{padding:14px 16px;border-bottom:1px solid var(--atlas-line);scroll-margin-block-start:10px}
 #ui-atlas .atlas-side h3{margin:0 0 10px;font-size:13px;font-weight:600;color:var(--atlas-gold)}
 #ui-atlas .atlas-map-card{--rarity:var(--atlas-normal);padding:10px 12px;border:1px solid color-mix(in srgb,var(--rarity) 45%,transparent);background:var(--atlas-deep);box-shadow:2px 2px 0 #000}
 #ui-atlas .atlas-map-card.rarity-magic{--rarity:var(--atlas-magic)}
@@ -79,6 +109,15 @@
 #ui-atlas .atlas-stash{padding:14px 18px;border-top:1px solid var(--atlas-line)}
 #ui-atlas .atlas-stash h3{margin:0 0 10px;font-size:13px;font-weight:600;color:var(--atlas-gold)}
 #ui-atlas .atlas-stash h3 span{margin-left:6px;color:var(--atlas-muted);font-weight:400}
+#ui-atlas .atlas-stash-capacity{margin:0 0 10px;color:var(--atlas-ink);font-size:12px;line-height:1.6;overflow-wrap:anywhere}
+#ui-atlas .atlas-stash-capacity span{display:block;color:var(--atlas-muted);font-size:11px}
+#ui-atlas .atlas-stash-capacity.is-full{padding:8px 10px;border:1px solid #a66b45;background:#2b1c14;color:#f2c391}
+#ui-atlas .atlas-stash-management{display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px;margin:0 0 12px;padding:10px;border:1px solid var(--atlas-edge);background:var(--atlas-panel)}
+#ui-atlas .atlas-stash-management p{flex:1 1 180px;min-width:0;margin:0;font-size:12px;overflow-wrap:anywhere}
+#ui-atlas .atlas-stash-management strong{display:block;color:var(--atlas-gold-hi);font-weight:400}
+#ui-atlas .atlas-stash-management span,#ui-atlas .atlas-stash-management small{display:block;color:var(--atlas-muted);font-size:11px}
+#ui-atlas .atlas-stash-management small{flex-basis:100%}
+#ui-atlas .atlas-stash-management .atlas-discard{min-height:44px;padding:8px 12px;color:#efbf9c;border-color:#875839}
 #ui-atlas .atlas-stash-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:5px}
 #ui-atlas .atlas-stash-row{--rarity:var(--atlas-normal);display:grid;grid-template-columns:28px minmax(0,1fr);align-items:center;gap:0 8px;min-height:40px;padding:5px 8px;text-align:left}
 #ui-atlas .atlas-stash-row.rarity-magic{--rarity:var(--atlas-magic)}
@@ -111,11 +150,23 @@
 #ui-atlas .atlas-result-currencies b{font-weight:500;color:#e5d2aa}
 @container (max-width:720px){#ui-atlas .atlas-main{grid-template-columns:minmax(0,1fr)}#ui-atlas .atlas-side{border-left:0;border-top:1px solid var(--atlas-line)}}
 @container (max-width:420px){#ui-atlas .atlas-node i{min-width:8px;width:8px;height:8px;padding:0;right:-2px;top:-2px;font-size:0}#ui-atlas .atlas-node{font-size:10px}}
-@container (max-width:480px){#ui-atlas .atlas-head,#ui-atlas .atlas-stash{padding:10px}#ui-atlas .atlas-head h2{font-size:17px}#ui-atlas .atlas-chart-column{padding:8px 4px 10px}#ui-atlas .atlas-stash-list{grid-template-columns:minmax(0,1fr)}}
-/* 보기 단추: 글자는 한 줄로 두고, 좁은 화면에서는 단추째 다음 줄로(2026-10-18: 휴대폰에서 "지/도"처럼 한 자씩 끊겼다). */
+@container (max-width:480px){#ui-atlas .atlas-stash{padding:10px}#ui-atlas .atlas-head h2{font-size:17px}#ui-atlas .atlas-chart-column{padding:8px 4px 10px}#ui-atlas .atlas-stash-list{grid-template-columns:minmax(0,1fr)}}
+/* 보기 단추: 좁은 칸에서도 단어는 유지한다(2026-10-18: 휴대폰에서 "지/도"처럼 한 자씩 끊겼다). */
 #ui-atlas .atlas-views{display:flex;flex-wrap:wrap;gap:4px}
 #ui-atlas .atlas-view{min-height:32px;padding:5px 14px;white-space:nowrap}
 #ui-atlas .atlas-view.is-on{border-color:var(--atlas-gold-hi);background:#2a2217;color:var(--atlas-gold-hi)}
+/* Keep all six destinations visible without giving the automatic-map switch its own row. */
+@container (max-width:1080px){
+  #ui-atlas .atlas-head{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 8px;padding:10px}
+  #ui-atlas .atlas-head>div{display:contents}
+  #ui-atlas .atlas-head h2{grid-column:1;grid-row:1;margin:0}
+  #ui-atlas .atlas-head>div>span{grid-column:1/-1;grid-row:2;line-height:1.5}
+  #ui-atlas .atlas-auto{grid-column:2;grid-row:1;min-height:44px;gap:2px 6px}
+  #ui-atlas .atlas-auto small{max-width:160px}
+  #ui-atlas .atlas-views{grid-column:1/-1;grid-row:3;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:4px}
+  #ui-atlas .atlas-view{min-height:44px;padding:4px 2px;white-space:normal;word-break:keep-all;line-height:1.25}
+}
+@container (max-width:350px){#ui-atlas .atlas-views{grid-template-columns:repeat(3,minmax(0,1fr))}}
 #ui-atlas .atlas-fragments{display:flex;flex-wrap:wrap;gap:4px;margin-top:10px}
 #ui-atlas .atlas-fragments>p{flex-basis:100%;margin:0 0 2px}
 #ui-atlas .atlas-fragment{display:flex;align-items:center;gap:6px;min-height:28px;padding:3px 8px;font-size:11px}
@@ -150,6 +201,14 @@
 #ui-atlas .atlas-wheel[hidden]{display:none}
 @container (min-width:640px){#ui-atlas .atlas-wheel{display:grid;grid-template-columns:minmax(0,360px) minmax(0,1fr);column-gap:18px;align-items:center}#ui-atlas .atlas-wheel[hidden]{display:none}}
 #ui-atlas .atlas-epoch{padding:14px 18px}
+#ui-atlas .atlas-epoch-restart{display:grid;gap:8px;margin-bottom:14px;padding:12px;border:1px solid var(--atlas-gold);background:var(--atlas-raised);font-size:12px;overflow-wrap:anywhere}
+#ui-atlas .atlas-epoch-restart h3{margin:0;color:var(--atlas-gold-hi);font-size:12px}
+#ui-atlas .atlas-epoch-restart p{margin:0;line-height:1.5}
+#ui-atlas .atlas-epoch-restart b{color:var(--atlas-gold-hi)}
+#ui-atlas .atlas-epoch-restart>div{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
+#ui-atlas .atlas-epoch-restart button{min-height:44px;padding:8px 12px}
+#ui-atlas .atlas-epoch-restart span{color:var(--atlas-muted)}
+#ui-atlas .atlas-epoch-restart~.atlas-epoch-head{margin-top:14px;padding-top:12px;border-top:1px solid var(--atlas-line)}
 #ui-atlas .atlas-epoch-head{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px 24px;padding-bottom:12px;border-bottom:1px solid var(--atlas-line)}
 #ui-atlas .atlas-epoch-head h3{margin:0 0 6px;font-size:15px;color:var(--atlas-gold)}
 #ui-atlas .atlas-epoch-head h3 span{margin-left:6px;color:var(--atlas-muted);font-weight:400}
@@ -166,6 +225,14 @@
 /* 최종 보기(js/atlas-endgame-ui.js): 최종 보스와 리그 우두머리 카드, 바칠 재료 칩, 지역 마름. */
 #ui-atlas .atlas-late{padding:14px 18px}
 #ui-atlas .atlas-late-head{padding-bottom:10px;border-bottom:1px solid var(--atlas-line)}
+#ui-atlas .atlas-fight-filters{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+#ui-atlas .atlas-fight-filters button,#ui-atlas .atlas-late-head>button{min-height:44px;padding:6px 10px}
+#ui-atlas .atlas-fight-filters button[aria-pressed="true"]{border-color:var(--atlas-gold);color:var(--atlas-gold-hi);background:var(--atlas-raised)}
+#ui-atlas .atlas-material-sources ul{display:grid;gap:10px;padding:0;margin:8px 0 0;list-style:none}
+#ui-atlas .atlas-material-sources li{display:grid;gap:4px;min-width:0;font-size:12px;overflow-wrap:anywhere}
+#ui-atlas .atlas-material-sources b{font-weight:400;color:var(--atlas-ink)}
+#ui-atlas .atlas-material-sources span{color:var(--atlas-muted)}
+#ui-atlas .atlas-material-sources button{min-height:44px;padding:6px 8px;justify-self:start}
 #ui-atlas .atlas-late h3{margin:0 0 6px;font-size:15px;color:var(--atlas-gold)}
 #ui-atlas .atlas-late-group{margin-top:14px}
 #ui-atlas .atlas-late-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px}
@@ -179,27 +246,52 @@
 #ui-atlas .atlas-late-card .atlas-muted{margin:2px 0;font-size:11px}
 #ui-atlas .atlas-late-card .atlas-lock{margin:2px 0;padding:6px 8px;border:0;font-size:11px}
 #ui-atlas .atlas-late-unique{margin:0;font-size:11px;color:#ff9f43}
-#ui-atlas .atlas-late-card button{margin-top:auto;min-height:32px}
+#ui-atlas .atlas-late-card>button{margin-top:auto;min-height:44px}
 #ui-atlas .atlas-late-entry{display:flex;flex-wrap:wrap;gap:3px}
 #ui-atlas .atlas-late-entry span{padding:1px 4px;border:1px solid var(--atlas-line);background:var(--atlas-raised);font-size:10px;color:var(--atlas-muted)}
 #ui-atlas .atlas-late-entry span.is-on{border-color:#6f8a57;color:#cfe3b0}
 #ui-atlas .atlas-late-blight{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px}
 #ui-atlas .atlas-late-blight span{display:inline-flex;align-items:center;gap:6px}
 #ui-atlas .atlas-late-blight i{width:8px;height:8px;background:color-mix(in srgb,var(--tint) 70%,#d8ccb0);box-shadow:1px 1px 0 #000}
-/* 기억 던전(js/memory-dungeon-ui.js): 보스마다 카드, 단계마다 도전 단추(가진 수와 싸움 등급). */
-#ui-atlas .memory-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px;margin-top:14px}
+/* 기억 던전: 단계를 선택해 준비 정보를 읽은 뒤에만 기억을 소비한다. */
+#ui-atlas .memory-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,260px),1fr));gap:8px;margin-top:12px}
 #ui-atlas .memory-card{display:flex;flex-direction:column;gap:4px;padding:10px;border:1px solid var(--atlas-line);background:var(--atlas-panel)}
 #ui-atlas .memory-card strong{font-size:13px;color:var(--atlas-gold-hi)}
 #ui-atlas .memory-card>small{font-size:11px;color:var(--atlas-muted)}
 #ui-atlas .memory-tiers{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;margin-top:4px}
-#ui-atlas .memory-tier{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:40px;padding:3px 2px;border:1px solid var(--atlas-line);background:var(--atlas-raised);color:var(--atlas-muted);font-size:10px}
+#ui-atlas .memory-tier{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:0;min-height:44px;padding:5px 2px;border:1px solid var(--atlas-line);background:var(--atlas-raised);color:var(--atlas-muted);font-size:12px;overflow-wrap:anywhere}
 #ui-atlas button.memory-tier{border-color:#8a6fc2;color:#e4d8ff;cursor:pointer}
-#ui-atlas button.memory-tier strong{font-size:11px;color:#e4d8ff}
-#ui-atlas button.memory-tier small{font-size:9px;color:#b9a8dd}
-#ui-atlas button.memory-tier:disabled{opacity:.6;cursor:default}
+#ui-atlas button.memory-tier strong{font-size:12px;color:#e4d8ff}
+#ui-atlas button.memory-tier small{font-size:12px;color:#b9a8dd}
+#ui-atlas button.memory-tier[aria-pressed="true"]{border-color:var(--atlas-gold-hi);background:#33291a;color:var(--atlas-gold-hi);box-shadow:inset 0 0 0 1px var(--atlas-gold)}
 #ui-atlas .memory-tier.is-empty{opacity:.45}
+#ui-atlas :is(.memory-preparation,.memory-current-run,.memory-empty){margin-top:12px;padding:12px;border:1px solid var(--atlas-line);background:var(--atlas-panel);font-size:12px;line-height:1.5;overflow-wrap:anywhere}
+#ui-atlas .memory-preparation{border-color:var(--atlas-gold);scroll-margin-block-start:12px}
+#ui-atlas .memory-preparation:focus{outline:2px solid var(--atlas-gold-hi);outline-offset:2px}
+#ui-atlas .memory-preparation h3{margin:0 0 4px;color:var(--atlas-gold-hi);font-size:12px}
+#ui-atlas .memory-preparation-meta{margin:0 0 8px;color:var(--atlas-muted)}
+#ui-atlas .memory-preparation p{margin:6px 0}
+#ui-atlas .memory-rewards{margin:10px 0;padding:8px 10px;background:var(--atlas-deep);border:1px solid var(--atlas-line)}
+#ui-atlas .memory-rewards details{margin-top:8px}
+#ui-atlas .memory-rewards summary{cursor:pointer;padding:6px 0}
+#ui-atlas .memory-rewards ul{display:grid;gap:6px;list-style:none;margin:8px 0;padding:0}
+#ui-atlas .memory-rewards li{display:flex;flex-wrap:wrap;justify-content:space-between;gap:2px 10px}
+#ui-atlas .memory-rewards b{color:var(--atlas-gold-hi);font-weight:400}
+#ui-atlas .memory-entry-cost{color:var(--atlas-gold-hi)}
+#ui-atlas :is(.memory-challenge,.memory-current-run button,.memory-empty button,.memory-controls button){min-height:44px;padding:8px 12px}
+#ui-atlas .memory-challenge{margin-top:6px}
+#ui-atlas .memory-current-run{border-color:#8a6fc2}
+#ui-atlas .memory-current-run strong{color:#e4d8ff}
+#ui-atlas :is(.memory-current-run,.memory-empty) p{margin:0 0 8px}
+#ui-atlas .memory-controls{display:flex;flex-wrap:wrap;align-items:end;justify-content:space-between;gap:10px;margin-top:14px;font-size:12px}
+#ui-atlas .memory-controls nav{display:flex;flex-wrap:wrap;gap:6px}
+#ui-atlas .memory-controls button[aria-pressed="true"]{border-color:var(--atlas-gold-hi);background:#33291a;color:var(--atlas-gold-hi)}
+#ui-atlas .memory-controls label{display:grid;gap:4px;flex:1 1 180px;max-width:300px;min-width:0;color:var(--atlas-muted)}
+#ui-atlas .memory-controls input{width:100%;min-width:0;min-height:44px;padding:8px;color:var(--atlas-ink);background:var(--atlas-deep);border:1px solid var(--atlas-line);font:inherit}
 #ui-atlas-combat[hidden]{/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */display:none!important}
 #ui-atlas-combat{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 12px;border:1px solid #5d4a2e;background:#17130e;box-shadow:2px 2px 0 #000;color:#ece4cf;grid-column:1/-1}
+/* The live boss card owns this space; map controls remain in the map window. */
+.combat-panel:has(#ui-enemy-list:not([hidden]) .enemy-boss) #ui-atlas-combat{display:none}
 #ui-atlas-combat .atlas-hud-copy{display:flex;flex-direction:column;gap:3px;min-width:0}
 #ui-atlas-combat strong{font-size:12px;font-weight:600;line-height:1.4}
 #ui-atlas-combat strong span{margin-left:6px;color:#c9b27c;font-weight:400}

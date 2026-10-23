@@ -26,7 +26,7 @@ function renderSalvageRecoveryEntry(entry) {
     return `<article class="salvage-recovery-entry rarity-${item.rarity}" data-item-tooltip-anchor="1" tabindex="0" role="group" aria-label="${escapeHTML(item.name)}"
         onmouseenter="salvageRecoveryUi.showTooltip(event,${entry.id})" onmousemove="salvageRecoveryUi.showTooltip(event,${entry.id})" onmouseleave="salvageRecoveryUi.hideTooltip(event)" onfocus="salvageRecoveryUi.showTooltip(event,${entry.id})" onblur="salvageRecoveryUi.hideTooltip(event)">
         <div class="salvage-recovery-item-head"><strong>${escapeHTML(item.name)}</strong><span>${getSalvageRecoveryRarityLabel(item.rarity)}</span></div>
-        <div class="salvage-recovery-meta">${escapeHTML(item.slot)}, T${tier}</div>
+        <div class="salvage-recovery-meta">${escapeHTML(getItemSlotDisplayLabel(item))}, T${tier}</div>
         <div class="salvage-recovery-cost"><span>반환 비용</span><strong>${escapeHTML(cost)}</strong></div>
         <button type="button" onclick="salvageRecoveryUi.restore(${entry.id})" ${disabled} title="${escapeHTML(status)}">${availability.canRestore ? '재화 반환 후 복구' : escapeHTML(status)}</button>
     </article>`;

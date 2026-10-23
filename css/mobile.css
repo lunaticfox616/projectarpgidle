@@ -1,16 +1,27 @@
 @layer components {
 /* Mobile-only layer (phase 2). */
 .mobile-map-navigation { display: none; }
-.sea-gift-group-picker { display: none; }
 
 #passive-mobile-detail { display: none; }
+.passive-mobile-camera { display: none; }
 @media (max-width: 1080px) {
-  #passive-mobile-detail:not([hidden]) { display: flex; flex-direction: column; position: fixed; left: 8px; right: 8px; bottom: calc(62px + env(safe-area-inset-bottom)); z-index: 15000; max-height: 42dvh; border: 1px solid var(--color-accent-gold); border-radius: 8px; background: var(--color-surface); box-shadow: 0 -8px 24px #0008; padding: 10px; gap: 8px; }
-  #passive-mobile-detail header { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--color-accent-gold); font-size: 13px; }
+  #passive-mobile-detail:not([hidden]) { display: flex; flex-direction: column; position: fixed; left: 8px; right: 8px; bottom: calc(var(--mobile-primary-nav-height, 62px) + env(safe-area-inset-bottom)); z-index: 15000; max-height: 42dvh; border: 1px solid var(--color-accent-gold); border-radius: 8px; background: var(--color-surface); box-shadow: 0 -8px 24px #0008; padding: 10px; gap: 8px; }
+  #passive-mobile-detail header { display: flex; flex-shrink: 0; align-items: center; justify-content: space-between; gap: 8px; color: var(--color-accent-gold); font-size: 13px; }
   #passive-mobile-detail button { min-height: 44px; font-size: 14px; }
+  #passive-mobile-detail footer { flex-shrink: 0; display: grid; gap: 6px; }
+  #passive-mobile-action-hint { margin: 0; color: var(--copy-muted); font-size: 12px; line-height: 1.5; }
   #passive-mobile-detail footer button { width: 100%; }
-  /* The legacy mobile log sets bottom inline; keep notices away from this sheet's action. */
-  body:has(#passive-mobile-detail:not([hidden])) :is(#mobile-toast-root, #game-toast-region) { top: max(10px, env(safe-area-inset-top)); }
+  .passive-mobile-camera { display: flex; position: absolute; right: 8px; bottom: 8px; z-index: 8; gap: 4px; }
+  .passive-mobile-camera button { min-width: 44px; min-height: 44px; margin: 0; padding: 6px 10px; }
+  body:has(#passive-mobile-detail:not([hidden])) .passive-mobile-camera { visibility: hidden; }
+  /* The legacy mobile log sets bottom inline; keep notices away from this sheet's action. The same for the item sheet's pinned action
+     row and the ascendancy card's button (2026-10-22). */
+  body:has(#tab-char.active, #passive-mobile-detail:not([hidden]), #ui-equipment-inventory-inspector:popover-open, #tab-traits.active .ascend-detail:not(.is-empty), .selection-overlay) #mobile-toast-root { top: max(10px, env(safe-area-inset-top)); }
+  /* Both notice kinds took the same spot: the log notice (one at a time, the shortage or failure of the button just pressed) goes first, game toasts below it. */
+  body:has(#tab-char.active, #passive-mobile-detail:not([hidden]), #ui-equipment-inventory-inspector:popover-open, #tab-traits.active .ascend-detail:not(.is-empty)) #game-toast-region { top: calc(max(10px, env(safe-area-inset-top)) + 60px); }
+  /* A selection dialog (talent score, shops, cube picker) fills the screen's middle: game toasts wait behind it (the game is paused while it
+     is open); the log notice above carries the feedback of presses inside it. */
+  body:has(.selection-overlay) #game-toast-region { visibility: hidden; }
   .passive-mobile-description { min-height: 0; overflow-y: auto; overscroll-behavior: contain; font-size: 13px; line-height: 1.5; }
   .mobile-map-navigation { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 10px; margin-bottom: 10px; padding: 6px 10px; border: 1px solid var(--color-line); border-radius: var(--radius-sm); background: var(--color-surface-raised); }
   .mobile-map-navigation > span { font-size: 12px; color: var(--color-accent-gold); }
@@ -22,16 +33,15 @@
 
 @media (max-width: 640px) {
   button { min-height: 36px; }
+  /* The craft picker's worn gear is a two-column list in slot order on phones: the doll's three 116px columns broke every option line
+     in two or three. Unlayered like the phone .paperdoll rule below, and one class stronger. */
+  .paperdoll.craft-picker-equip-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .paperdoll.craft-picker-equip-grid > .slot-box { grid-column: auto; grid-row: auto; justify-content: flex-start; }
 }
 
 /* Playable phone layout: switch composition instead of shrinking the desktop UI. */
 @media (max-width: 1080px) {
   html, body { width: 100%; max-width: 100%; }
-  .sea-gift-group-picker { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: center; margin: 10px 0; font-size: 13px; }
-  .sea-gift-group-picker select { width: 100%; min-width: 0; min-height: 44px; font-size: 16px; }
-  #fishing-workshop[data-recipe-group="supply"] .fishing-group:not([data-ui-disclosure="sea-gift-supply"]),
-  #fishing-workshop[data-recipe-group="forge"] .fishing-group:not([data-ui-disclosure="sea-gift-forge"]),
-  #fishing-workshop[data-recipe-group="chase"] .fishing-group:not([data-ui-disclosure="sea-gift-chase"]) { display: none; }
   :is(#tab-items, #tab-items .merged-subtab-pane[data-tab-id="tab-items"]) > .subtab-row {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -52,27 +62,53 @@
   img, canvas { max-width: 100%; }
   input, select, textarea { max-width: 100%; box-sizing: border-box; }
   #mobile-battle-pip.mobile-battle-dock {
-    position: relative;
+    position: fixed;
     top: auto;
-    z-index: 24;
-    grid-template-columns: 64px minmax(0, 1fr);
+    right: max(8px, env(safe-area-inset-right));
+    bottom: calc(var(--mobile-primary-nav-height, 62px) + env(safe-area-inset-bottom) + 8px);
+    z-index: 240;
+    grid-template-columns: minmax(0, 1fr);
     align-items: center;
-    gap: 10px;
-    width: 100%;
-    height: 44px;
-    margin: 0 0 6px;
-    padding: 3px 7px 3px 3px;
+    gap: 0;
+    width: clamp(144px, 42vw, 192px);
+    height: auto;
+    margin: 0;
+    padding: 3px;
     overflow: hidden;
     box-sizing: border-box;
-    border: 1px solid #4c6b93;
-    border-radius: 9px;
-    color: #eef7ff;
-    background: rgba(8, 17, 28, .96);
+    border: 1px solid var(--color-line-strong);
+    border-radius: var(--radius-sm);
+    color: var(--color-text);
+    background: var(--color-surface-raised);
     box-shadow: 0 8px 22px rgba(0,0,0,.34);
-    cursor: pointer;
   }
-  #mobile-battle-pip canvas { display: block; width: 64px; height: 36px; border-radius: 3px; object-fit: cover; }
-  .mobile-battle-dock-label { overflow: hidden; font-size: 11px; font-weight: 900; text-overflow: ellipsis; white-space: nowrap; }
+  #mobile-battle-pip canvas { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; border-radius: var(--radius-sm); box-sizing: border-box; object-fit: contain; }
+  #mobile-battle-pip .mobile-battle-pip-preview { display: block; width: 100%; min-height: 0; padding: 0; border: 0; background: var(--color-surface); }
+  #mobile-battle-pip .mobile-battle-pip-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; }
+  #mobile-battle-pip .mobile-battle-pip-actions button { min-height: 44px; padding: 4px; font-size: 12px; line-height: 1.25; }
+  #mobile-battle-pip.is-collapsed { width: auto; }
+  #mobile-battle-pip.is-collapsed .mobile-battle-pip-preview,
+  #mobile-battle-pip.is-collapsed [data-pip-return] { display: none; }
+  #mobile-battle-pip.is-collapsed .mobile-battle-pip-actions { grid-template-columns: 1fr; }
+  #mobile-battle-pip.is-collapsed [data-pip-toggle] { padding-inline: 12px; }
+  /* A floating preview covers the lower right of the page: scrolling pages get its height below their last row, so that row can
+     be lifted above it (the settings reset button sat under it). Docked previews and the bag tab (its own gap below) need none. */
+  body:has(#mobile-battle-pip.mobile-battle-dock[style*="display: grid"]:not(.is-tree-docked, .is-workshop-docked)):not(:has(#tab-items.active)) {
+    padding-bottom: calc(clamp(144px, 42vw, 192px) * 9 / 16 + 64px);
+  }
+  body:has(#mobile-battle-pip.mobile-battle-dock.is-collapsed[style*="display: grid"]:not(.is-tree-docked, .is-workshop-docked)):not(:has(#tab-items.active)) {
+    padding-bottom: 64px;
+  }
+  /* The bag's tool rail ends about 40px above the menu: the folded button sits in that gap instead of over 배치 and 복구. */
+  body:has(#tab-items.active) #mobile-battle-pip.is-collapsed { bottom: calc(var(--mobile-primary-nav-height, 62px) + env(safe-area-inset-bottom) + 2px); padding: 1px; }
+  body:has(#tab-items.active) #mobile-battle-pip.is-collapsed [data-pip-toggle] { min-height: 34px; }
+  #mobile-battle-pip.is-tree-docked { position: static; width: auto; padding: 0; border: 0; background: none; box-shadow: none; }
+  /* Extra scroll space lets the final Atlas action clear the floating preview, including an explicitly expanded one. */
+  #tab-map #map-explore-worldtree.has-battle-pip { padding-bottom: 64px; }
+  #tab-map #map-explore-worldtree.has-battle-pip.is-pip-expanded { padding-bottom: 180px; }
+  /* The tree camera owns the lower right corner; detail sheets suspend PiP in the UI controller. */
+  body:has(#tab-char.active) #mobile-battle-pip { right: auto; left: max(8px, env(safe-area-inset-left)); }
+  .mobile-battle-dock-label { overflow: hidden; font-size: 12px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
   .equipment-loadout-panel,
   .equipment-inventory-panel,
   .gem-target-rail,
@@ -212,9 +248,18 @@
 }
 
 @media (max-width: 1080px) and (orientation: landscape) and (max-height: 600px) {
+  /* The narrow left tab rail leaves the tree's centre and its right camera controls free. */
+  body:has(#tab-char.active) #mobile-battle-pip { width: 136px; }
   body.mobile-battle-tab #tab-battle .battlefield-wrap {
     width: min(100%, 81.08svh);
   }
+  /* Landscape phones are about 270px tall above the menu: the bottom sheet covered the whole tree and cut the node text to one line.
+     Dock it as a tall card over the window's tab rail instead. */
+  #passive-mobile-detail:not([hidden]) { top: max(8px, env(safe-area-inset-top)); right: auto; width: min(340px, 46vw); max-height: none; }
+  /* The log notices sit centred at the top while the card is open and covered its close button: move them to the right half.
+     The root's left, width and centring transform are inline (getMobileToastRoot), so this narrows it and shifts it with translate. */
+  body:has(#passive-mobile-detail:not([hidden])) #mobile-toast-root { max-width: calc(50vw - 32px); translate: 25vw 0; }
+  body:has(#passive-mobile-detail:not([hidden])) #game-toast-region { max-width: calc(50vw - 32px); }
 }
 
 .gem-library-pager {
@@ -236,7 +281,7 @@
 } }
 @layer overrides {
 @media (max-width: 1080px) {
-  body:has(#passive-mobile-detail:not([hidden])) :is(#mobile-toast-root, #game-toast-region) {/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */ bottom: auto !important; }
+  body:has(#tab-char.active, #passive-mobile-detail:not([hidden]), #ui-equipment-inventory-inspector:popover-open, #tab-traits.active .ascend-detail:not(.is-empty), .selection-overlay) :is(#mobile-toast-root, #game-toast-region) {/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */ bottom: auto !important; }
   #tab-map .map-primary-tabs,
   #tab-map .map-explore-layout > .vertical-tab-sidebar { display: none; }
 }
@@ -292,7 +337,7 @@
   .gem-support-process-list { grid-template-columns: minmax(0, 1fr); }
   .gem-resource-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .gem-target-list { grid-template-columns: minmax(0, 1fr); }
-  #tree-container {/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */ width: 100% !important; /* Fills the tab down to the bottom navigation: 240px = phone header, subtab strip, title and bottom tabs. */ min-height: calc(100svh - 240px - env(safe-area-inset-bottom, 0px)) !important; }
+  #tree-container {/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */ width: 100% !important; }
   .craft-picker-grid .craft-picker-card .item-title { font-size: 14px; }
   .craft-picker-card .craft-picker-stat { font-size: 13px; white-space: normal; }
   .craft-picker-grid .craft-picker-card .item-base-line { font-size: 12px; }

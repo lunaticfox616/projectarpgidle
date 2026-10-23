@@ -36,6 +36,8 @@
 .cfg-page { display: grid; gap: 14px; padding-bottom: 6px; }
 .cfg-block {
   display: grid;
+  /* 칸은 판 폭: 이름 없는 칸은 줄 하나의 최소 폭(음량 줄)까지 늘어 판 밖으로 나갔다 */
+  grid-template-columns: minmax(0, 1fr);
   min-width: 0;
   padding: 10px 14px 6px;
   border: 1px solid rgba(255, 255, 255, .07);
@@ -197,7 +199,7 @@
   #tab-settings .cfg-row > .cfg-select { flex-basis: 170px; width: 170px; }
   .cfg-row:has(> .cfg-row-actions), .cfg-row--volume { flex-wrap: wrap; }
   .cfg-row > .cfg-row-actions { flex: 1 1 100%; justify-content: flex-start; }
-  .cfg-row--volume .cfg-volume { flex: 1 1 100%; }
+  .cfg-row--volume .cfg-volume { flex: 1 1 100%; flex-wrap: wrap; }
 }
 }
 

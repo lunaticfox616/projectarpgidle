@@ -26,7 +26,7 @@ const actExplorationState = (() => {
     function remainingElites(run) {
         return run.packs.reduce((sum,pack)=>sum+(pack.stage===null?pack.eliteIds.filter(id=>pack.aliveIds.includes(id)).length:0),0);
     }
-    /** 보스 관문이 닫혀 있는가: 정예가 남았거나, 그 콘텐츠가 아직 열지 않았다(run.sealed. 대균열의 생존 시간이 끝나기 전, 군락지의
+    /** 보스 관문이 닫혀 있는가: 정예가 남았거나, 그 콘텐츠가 아직 열지 않았다(run.sealed. 대균열의 처치 게이지가 차기 전, 군락지의
      * 지배체가 오기 전: js/combat.js). 닫힌 동안 끝 방의 무리는 깨어나지 않고 자동 탐험도 그 방을 노리지 않는다. */
     function gateSealed(run) {return !!run.sealed || remainingElites(run)>0;}
     /**
@@ -318,6 +318,7 @@ const actExplorationState = (() => {
         return run.destination && !unmarkedCommands.has(run.destination) ? run.destination : null;
     }
     function reachableBeforeBoss(map,cell) {
+        if(map.colonyDefense || map.grandBreach)return !!actExplorationRooms.roomAt(map,cell);
         if(map.stage)return actExplorationRooms.roomAt(map,cell)?.role!=='boss'; // 보스 방만 관문 뒤에 있다
         if(cell.gx===map.entry.gx && cell.gy===map.entry.gy)return true;
         const blocked=new Set([actExplorationMap.index(map,map.gate)]);

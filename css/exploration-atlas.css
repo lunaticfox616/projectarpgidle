@@ -64,8 +64,6 @@
 #ui-exploration-atlas .atlas-current-hunt small{color:#a7b29c;font-size:12px}
 #ui-exploration-atlas .atlas-current-hunt strong{font-size:12px;font-weight:500;overflow-wrap:anywhere}
 #ui-exploration-atlas .atlas-current-hunt button{flex-shrink:0;background:none;border:0;border-bottom:1px solid #b7a36b60;border-radius:0;color:#dcca9c;font-size:12px;padding:5px 0}
-/* The existing mobile battle dock already supplies this action; keep it when that dock is disabled. */
-#mobile-battle-pip[style*="display: grid"] ~ #tab-map .atlas-current-hunt button{display:none}
 #ui-exploration-atlas .atlas-destination .atlas-route-status{color:#c6caba;font-size:12px;border-top:1px solid #bcbda126;padding-top:8px;margin-top:2px}
 #ui-exploration-atlas .has-new-challenge{position:relative;overflow:visible;border-color:#bfa16a}
 /* Two small highlights follow the border; no canvas, JS timer or full-card rotating layer. */

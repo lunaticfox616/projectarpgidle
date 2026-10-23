@@ -106,6 +106,6 @@ body.desktop-windowed-ui #side-encounter-hud { margin-bottom:72px; }
     .expedition-ledger ul { max-height:76px; }
     .beehive-choice-actions { grid-template-columns:1fr; }
     .beehive-choice-actions button { min-height:44px; }
-    #side-encounter-hud { gap:4px 10px; padding:6px 8px; font-size:11px; }
-    #side-encounter-hud small { flex-basis:100%; margin:0; }
+    #side-encounter-hud { display:grid; grid-template-columns:max-content max-content; gap:4px 10px; padding:6px 8px; font-size:11px; }
+    #side-encounter-hud .grand-breach-reward, #side-encounter-hud small { display:none; }
 } }

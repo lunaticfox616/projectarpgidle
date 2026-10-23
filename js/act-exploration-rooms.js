@@ -173,6 +173,36 @@ const actExplorationRooms = (() => {
             portals: new Map(doors.flatMap(door => door.cells.map((cell, index) => [at(cell), door.exits[index]]))),
             doorAt: new Map(doors.flatMap(door => door.cells.map(cell => [at(cell), door]))), plan: buildPlan(plan, byCell) });
     }
+    /** The colony and breach stay in one room throughout a wave. The boss role preserves pack/save validation;
+     * the entry is a separate cell in that same room, and a peripheral gate is never used as a door. */
+    function specialArena(base, spec, run, shape) {
+        const x0 = 3, y0 = STAGE_ROOMS.top, x1 = x0 + shape.width - 1, y1 = y0 + shape.depth - 1;
+        const columns = x1 + 4, rows = y1 + STAGE_ROOMS.bottom + 1;
+        const boss = base.rooms.find(row => row[5] === 'boss');
+        if (!boss) throw Error('특수 전장의 보스 방이 없습니다: ' + base.id);
+        const room = Object.freeze({ id: boss[0], role: 'boss', index: 0, x0, y0, x1, y1,
+            gx: x0 + (shape.width - 1) / 2, gy: y0 + (shape.depth - 1) / 2,
+            radiusX: (shape.width - 1) / 2, radiusY: (shape.depth - 1) / 2,
+            at: Object.freeze([0, 0]), mirror: false });
+        const cell = offset => Object.freeze({ gx: x0 + offset[0], gy: y0 + offset[1] });
+        const tiles = Array(columns * rows).fill(0), owner = new Int16Array(columns * rows).fill(-1);
+        for (let gy = y0; gy <= y1; gy++) for (let gx = x0; gx <= x1; gx++) {
+            const index = gy * columns + gx;
+            tiles[index] = 1; owner[index] = 0;
+        }
+        const box = Object.freeze({ index: 0, x: .5, y: .4, halfW: .39, halfH: .3 });
+        const plan = Object.freeze({ boxes: Object.freeze([box]), lines: Object.freeze([]), cell: Object.freeze({ w: 1, h: .8 }), width: 1, height: .8 });
+        const map = { id: base.id, act: null, biome: base.biome, region: spec.region, columns, rows, tiles: Object.freeze(tiles),
+            frame: Object.freeze({ columns: shape.width, rows: shape.depth }), rooms: Object.freeze([room]),
+            entry: Object.freeze({ ...room, ...cell(shape.entry) }), gate: cell([shape.width - 1, 0]),
+            rotation: 0, stage: true, doors: Object.freeze([]), owner,
+            hops: Object.freeze([Object.freeze([null])]), far: Object.freeze([Object.freeze([0])]),
+            route: Object.freeze([room.id]), portals: new Map(), doorAt: new Map(), plan };
+        if (run.zoneId === 'colony_run') map.colonyDefense = Object.freeze({ core: cell(shape.core),
+            spawnCells: Object.freeze(shape.spawns.map(cell)) });
+        else map.grandBreach = Object.freeze({ arena: room, riftCells: Object.freeze(shape.rifts.map(cell)) });
+        return Object.freeze(map);
+    }
     /** 탐험이 걷는 바탕 지도: 다른 구역은 그 명세의 지도(투기장이면 구실이 바뀐 것), 액트는 그 액트의 지도. */
     function baseMapOf(run) {
         if (run.source) return explorationLayouts.build(run.source);
@@ -183,13 +213,16 @@ const actExplorationRooms = (() => {
         if (cache.size > KEEP) cache.delete(cache.keys().next().value);
         return map;
     }
+    const specialArenaShape = run => run.source?.arena === true ? STAGE_ROOM_PLANS.specialArenas[run.zoneId] : null;
     /** @param {{act:?number,source:?object,rooms:string}} run 탐험 기록(또는 같은 모양의 계획)
      * @returns {?object} 그 열쇠의 방 단위 지도(지은 것은 기억해 둔다). 이 판이 놓을 수 없는 열쇠나 없는 놓임새면 null. */
     function stageLayout(run) {
         const spec = readRoomKey(run.rooms), base = spec ? baseMapOf(run) : null;
         if (!base) return null;
-        const seed = run.source ? String(run.source.seed) : 'act', id = [base.id, explorationLayouts.key(run.source || { style: 'act', act: run.act }), run.rooms, seed].join('|');
+        const seed = run.source ? String(run.source.seed) : 'act', id = [run.zoneId, base.id, explorationLayouts.key(run.source || { style: 'act', act: run.act }), run.rooms, seed].join('|');
         if (cache.has(id)) return cache.get(id);
+        const shape = specialArenaShape(run);
+        if (shape) return rememberRoomMap(id, specialArena(base, spec, run, shape));
         const plan = actExplorationRoomPlans.build(base, spec.plan, seed);
         // seed: 방의 생김새와 문 자리를 고르는 씨앗(지도, 놓임새, 탐험의 씨앗). 같은 탐험은 언제나 같은 지도다.
         return rememberRoomMap(id, plan ? compileRooms(base, plan, { ...spec, act: run.source ? null : run.act, seed: [base.id, spec.plan, seed].join(':') }) : null);

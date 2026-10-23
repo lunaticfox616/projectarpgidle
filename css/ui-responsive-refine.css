@@ -1,4 +1,5 @@
 @layer components {
+.combat-stage-info { display: contents; }
 .scroll-to-top-button {
   position: fixed;
   right: max(10px, env(safe-area-inset-right));
@@ -89,7 +90,7 @@
     align-items: center;
     justify-content: center;
     width: auto;
-    height: 25px;
+    height: 44px;
     line-height: 1;
     pointer-events: auto;
   }
@@ -167,14 +168,23 @@
   body.mobile-battle-tab #tab-battle #btn-combat-log-toggle::before { content: '전투 로그'; margin-right: auto; color: var(--copy-bright); }
   body.mobile-battle-tab #tab-battle #btn-combat-log-toggle::after { content: ' ▴'; }
   body.mobile-battle-tab #tab-battle #btn-combat-log-toggle[aria-expanded='false']::after { content: ' ▾'; }
+  /* 접힌 막대는 제목 대신 최근 기록 한 줄(js/ui.js noteCombatLogLatest)을 보인다: 펼치지 않아도 방금 일이 읽힌다 */
+  body.mobile-battle-tab #tab-battle #btn-combat-log-toggle[aria-expanded='false'][data-latest]::before {
+    content: attr(data-latest); flex: 1 1 auto; min-width: 0; overflow: hidden; color: var(--copy-muted); text-align: left; white-space: nowrap; text-overflow: ellipsis;
+  }
   body.mobile-battle-tab #tab-battle .combat-feed:not(.collapsed) #log {
     flex: 1 1 auto;
     overscroll-behavior: contain;
     scrollbar-width: thin;
   }
+  /* 펼친 기록: 제목 줄 아래 여백(6 + 8px)과 목록 안 여백(위아래 8px)이 기록 한 줄을 먹어 두 줄만 보였다 */
+  body.mobile-battle-tab #tab-battle .combat-feed:not(.collapsed) .combat-feed-title { margin-bottom: 2px; padding-bottom: 0; }
+  body.mobile-battle-tab #tab-battle .combat-feed:not(.collapsed) #log { padding-block: 4px; }
 }
 
 @media (max-width: 1080px) and (orientation: landscape) and (max-height: 600px) {
+  /* 왼쪽 칸은 HUD 한 줄(구슬, 지도, 룬)이 들어가는 폭: 220px로 좁혀 두 줄로 접으면 HUD가 205px이 되어, 높이 342px 화면에서 전투 기록이
+     아래 메뉴 띠 밑으로 들어갔다(2026-10-22 GPT 작업 검토) */
   body.mobile-battle-tab #tab-battle .combat-panel { grid-template-columns: minmax(220px, .85fr) minmax(0, 1.15fr); grid-template-rows: auto auto 1fr; gap: 6px; }
   body.mobile-battle-tab #tab-battle .combat-zone-row { grid-column: 1 / -1; grid-row: 1; }
   body.mobile-battle-tab #tab-battle .player-hud { grid-column: 1; grid-row: 2; align-self: start; }
@@ -303,9 +313,9 @@
 /* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */
     display: inline-flex !important;
     /* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */
-    min-width: 38px !important;
+    min-width: 44px !important;
     /* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */
-    min-height: 25px !important;
+    min-height: 44px !important;
     /* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */
     padding: 2px 7px !important;
   }
@@ -350,17 +360,21 @@
 
   body.mobile-battle-tab #tab-battle .combat-feed {
     min-height: 110px;
-    height: clamp(110px, 20dvh, 180px);
-    max-height: 180px;
+    /* 펼친 기록: 화면의 20%(664px 화면에서 133px)는 기록이 두세 줄이었다. 24%(159px)면 네 줄쯤 */
+    height: clamp(110px, 24dvh, 200px);
+    max-height: 200px;
     padding: 5px 6px;
     overflow: hidden;
   }
 
+  /* 접힌 막대: 안의 펼치기 단추(44px)가 테 안 높이 그대로라 위아래 여백을 두지 않는다(두면 단추가 아래로 밀려 글이 막대 아래쪽에 앉았다) */
   body.mobile-battle-tab #tab-battle .combat-feed.collapsed {
     min-height: 52px;
     height: 52px;
     max-height: 52px;
+    padding-block: 0;
   }
+  body.mobile-battle-tab #tab-battle .combat-feed.collapsed .combat-feed-title { padding-bottom: 0; }
 
   body.mobile-battle-tab #tab-battle .combat-feed-title {
     display: flex;
@@ -387,6 +401,9 @@
   body.mobile-battle-tab #tab-battle .combat-panel { display: grid; }
   body.mobile-battle-tab #tab-battle .combat-feed { height: 100%; min-height: 80px; max-height: none; }
   body.mobile-battle-tab #tab-battle .combat-feed.collapsed { height: 52px; min-height: 52px; max-height: 52px; }
+  /* 펼친 기록: 제 줄(80px)에서는 제목만 보이고 첫 줄이 잘렸다. HUD 줄까지 차지하고 그동안 HUD는 숨는다(체력은 전장의 주인공 막대로 보인다) */
+  body.mobile-battle-tab #tab-battle .combat-feed:not(.collapsed) { grid-row: 2 / 4; }
+  body.mobile-battle-tab #tab-battle .combat-panel:has(.combat-feed:not(.collapsed)) > .player-hud { visibility: hidden; }
   body.mobile-battle-tab #tab-battle .battlefield-wrap { height: 100%; width: 100%; }
 }
 

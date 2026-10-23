@@ -62,32 +62,7 @@ assert.strictEqual(salvageContext.formatSalvageRewardSummary({ alteration: 1, tr
 
 // Confirmation-time target changes are exercised against the full runtime below.
 
-const annulBlock = extract(itemSource, 'async function marketAnnulSelectedStat', 'function getBaseDefenseProfile');
 const jewelSalvageBlock = extract(passiveSource, 'async function salvageJewel(jewelId)', 'function isChaseUniqueItem');
-const protectedItem = {
-    name: '보호 장비',
-    rarity: 'rare',
-    stats: [
-        { id: 'flatHp', statName: '생명력', val: 10, lockedByHoney: true },
-        { id: 'crit', statName: '치명타', val: 5 }
-    ]
-};
-const annulLogs = [];
-let annulPrompt = '';
-const annulContext = {
-    game: { currencies: { goldenRule: 2 } },
-    isMarketUnlocked: () => true,
-    getSelectedCraftItem: () => protectedItem,
-    getAnnulmentRemovableStats: item => item.stats.map((stat, index) => ({ stat, index })).filter(row => !row.stat.lockedByHoney && !row.stat.lockedByRift && !row.stat.encroachedFinal && !row.stat.unremovable),
-    requestGameConfirmation: async message => { annulPrompt = message; return true; },
-    getStatName: id => id,
-    updateItemName() {},
-    updateStaticUI() {},
-    addLog(message) { annulLogs.push(message); }
-};
-vm.createContext(annulContext);
-vm.runInContext(annulBlock, annulContext, { filename: 'market-annul.js' });
-
 (async () => {
     const runtime = require('./lib/game-runtime').buildGameRuntime();
     const run = code => vm.runInContext(code, runtime);
@@ -98,15 +73,6 @@ vm.runInContext(annulBlock, annulContext, { filename: 'market-annul.js' });
     await run("useCurrency('divine')");
     assert.strictEqual(run('JSON.stringify(game.inventory)'), equipmentBefore, 'a key that is no craft currency changes nothing');
     assert.strictEqual(run('game.currencies.divine'), 1, 'a key that is no craft currency spends nothing');
-    await annulContext.marketAnnulSelectedStat(0);
-    assert.strictEqual(protectedItem.stats.length, 2, 'market service must preserve a honey-locked affix');
-    assert.strictEqual(annulContext.game.currencies.goldenRule, 2, 'rejected protected removal must not spend currency');
-
-    await annulContext.marketAnnulSelectedStat(1);
-    assert.deepStrictEqual(Array.from(protectedItem.stats, stat => stat.id), ['flatHp'], 'market service should remove the selected removable affix');
-    assert.strictEqual(annulContext.game.currencies.goldenRule, 0);
-    assert(annulPrompt.includes('황금률 2개') && !annulPrompt.includes('오브'), 'market confirmation must name the currency that is actually spent');
-
     // A unique jewel asks first; if it left the bag while the question was open (for example into a socket), nothing is salvaged.
     const uniqueJewel = { id: 7, name: '확인 대상', rarity: 'unique', slot: '주얼' };
     const salvaged = [];

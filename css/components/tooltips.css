@@ -6,6 +6,10 @@
         #item-tooltip-box.item-compare-tooltip, #info-tooltip.item-compare-tooltip { width: fit-content; max-width: min(680px, calc(100vw - 20px)); min-width: 0; padding: 0; border: 0; background: transparent; box-shadow: none; backdrop-filter: none; }
         #canvas-tooltip { z-index: 9999; border-color: #f39c12; min-width: 0; width: max-content; max-width: min(390px, calc((100vw - 24px) / var(--scale-display-factor, 1))); box-sizing: border-box; white-space: normal; overflow-wrap: anywhere; word-break: keep-all; }
         #info-tooltip { z-index: 13050; max-width: 340px; }
+        /* 휴대폰: 폭은 화면 배율을 뺀 화면 폭까지(배율 150%에서 340px이 화면보다 넓었다), 아래 메뉴 띠(13100)보다 위에 그린다(끝 줄이 메뉴 띠
+           뒤에 가렸다). 고르기 창(13160)은 여전히 그 위다. 낮은 가로 화면은 넓게 펴서 줄을 줄인다(긴 도움말이 화면 높이를 넘었다, 말풍선은 밀리지 않는다) */
+        @media (max-width: 1080px) { #info-tooltip { box-sizing: border-box; z-index: 13110; max-width: min(366px, calc((100vw - 16px) / var(--scale-display-factor, 1))); } }
+        @media (max-width: 1080px) and (orientation: landscape) and (max-height: 600px) { #info-tooltip { max-width: min(660px, calc((100vw - 24px) / var(--scale-display-factor, 1))); } }
         .tooltip-title { font-weight: bold; border-bottom: 1px solid #444; padding-bottom: 5px; margin-bottom: 6px; }
         .tooltip-line { color: var(--copy-bright); }
 

@@ -1,5 +1,13 @@
 // Exact gem-drop records and collection merging. No random draws, UI or global game mutations.
 const gemDropRewards=(()=>{
+    /** Shared by the support-rune UI and deferred floor pickups. Pure calculation from the supplied build. */
+    function resonanceCap(state, stats) {
+        const base = Math.max(0, Math.floor(state.resonancePower || 0));
+        const floor = Math.max(0, Math.floor(stats?.uniqueResonanceFloor || 0));
+        const inquisitor = Math.max(0, Math.floor(stats?.inquisitorResonanceBonus || 0));
+        const runes = Math.max(0, Math.floor(stats?.runeResonancePower || 0));
+        return Math.max(base, floor) + inquisitor + runes;
+    }
     function missingAttacks(state) {
         const owned=new Set(getOwnedSkillGemNames(state));
         return Object.keys(SKILL_DB).filter(name=>SKILL_DB[name].isGem&&!owned.has(name));
@@ -70,6 +78,6 @@ const gemDropRewards=(()=>{
         const extra=getSupportResonanceCostAtTier(name,record.unlockedTier)-getSupportResonanceCostAtTier(name,before);
         if(!state.equippedSupports.includes(name)||Math.max(0,cap-used)>=extra)record.activeTier=record.unlockedTier;
     }
-    return {missingAttacks,nextSupport,validate,validateGem,prepare,grant};
+    return {resonanceCap,missingAttacks,nextSupport,validate,validateGem,prepare,grant};
 })();
 safeExposeGlobals({gemDropRewards});
