@@ -89,6 +89,8 @@ const uiDisplay = (() => {
         // Reuse the MediaQueryList in drawing; its matches value follows resize without a frame-time DOM measure.
         if (changed || !sideBattleHudQuery) sideBattleHudQuery = window.matchMedia(mediaText('(max-width: 1080px) and (orientation: landscape) and (max-height: 600px)'));
         document.documentElement.style.setProperty('--scale-display-factor', String(factor));
+        // 기기 픽셀 ÷ CSS 1px(배율과 확대를 합친 값): 도트 그림을 기기 픽셀의 정수배로 맞출 때 쓴다(css/themes/pixel-hud.css 스킬룬 칸)
+        document.documentElement.style.setProperty('--device-ratio', String(dpr * factor));
         document.documentElement.style.zoom = String(factor);
         registerStyles();
         const select = document.getElementById('sel-ui-scale');

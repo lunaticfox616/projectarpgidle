@@ -224,8 +224,8 @@ body[data-ui-skin] .window-tab-strip > .window-tab { display: flex; align-items:
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #battle-column .player-hud-shell .player-hud-left-wing .player-hud-identity-row { display: none; }
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #battle-column .player-hud-shell .player-hud-skill-rack { grid-column: 6; justify-self: end; margin-bottom: calc(2px + var(--px-key-caption)); }
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #battle-column .player-hud-shell .player-hud-skill-slots { flex-wrap: nowrap; }
-  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #battle-column .player-hud-shell .player-hud-skill-slot { flex-basis: 32px; width: 32px; height: 32px; }
-  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #battle-column .player-hud-shell .player-hud-skill-slot.primary { flex-basis: 36px; width: 36px; height: 36px; }
+  /* 룬 칸은 그림을 기기 픽셀의 정수배로 그리는 크기(--rune-img, css/themes/pixel-hud.css) */
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #battle-column .player-hud-shell .player-hud-skill-slot { flex-basis: auto; width: calc(var(--rune-img) + 6px); height: calc(var(--rune-img) + 6px); }
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #battle-column .player-hud-shell :is(.combat-exp-bar, #ui-exp-level-label, .player-exp-percent) { grid-column: 7; }
 
   /* 레일 틀은 사라지고 안의 날개·단추·기타 목록만 HUD 격자에 놓인다. 로고는 PC 전투 화면에서 뺀다. */

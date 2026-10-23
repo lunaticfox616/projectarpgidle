@@ -57,7 +57,7 @@ const stumpTalismanUi = (() => {
             buttons.push(`<button type="button" data-stump-action="talisman-wax"${owned('beeswax') > 0 ? '' : ' disabled'}>`
                 + `밀랍 바르기 → ${esc(getStatName(wax.id))} +${esc(formatValue(wax.id, wax.value))}, 밀랍 ${owned('beeswax')}</button>`);
         }
-        if (cell < 0) buttons.push('<button type="button" data-stump-action="talisman-discard">버리기</button>');
+        if (cell < 0) buttons.push(`<button type="button" data-stump-action="talisman-discard"${item.locked ? ' disabled' : ''}>버리기</button>`);
         return buttons.length ? `<div class="stump-actions">${buttons.join('')}</div>` : '';
     }
 

@@ -68,11 +68,10 @@ function getEquipmentInventoryFootprint(item) {
     if (slot === '투구' || slot === '장갑' || slot === '신발' || slot === '방패') return { columns: 2, rows: 2 };
     if (slot === '갑옷') return { columns: 2, rows: 2 };
     if (slot !== '무기') return { columns: 1, rows: 1 };
-    // 무기: 대검 대분류는 2×3, 완드 · 로드 · 홀 · 초점봉은 1×2, 나머지는 1×3(세로 4칸 무기는 없다, 2026-10-03).
-    if (getWeaponCategoryId(item) === 'greatsword') return { columns: 2, rows: 3 };
-    let label = `${item && item.baseId || ''} ${item && item.baseName || ''} ${item && item.name || ''}`.toLowerCase();
-    if (/완드|wand|scepter|셉터|초점|focus|로드|rod|봉|홀$/.test(label)) return { columns: 1, rows: 2 };
-    return { columns: 1, rows: 3 };
+    // 무기(2026-10-23 사용자, 도트 그림이 정사각형이라): 대검과 단궁은 2×3, 나머지(곡도, 오브, 플라스크, 향로)는 2×2.
+    // 전에는 대검 2×3, 완드 · 로드 · 홀 · 초점봉 1×2, 나머지 1×3이라 그림이 칸의 20% 안팎만 채웠다.
+    const category = getWeaponCategoryId(item);
+    return category === 'greatsword' || category === 'shortbow' ? { columns: 2, rows: 3 } : { columns: 2, rows: 2 };
 }
 
 /** A unique's picture from its definition, before one drops (the codex and the hunt targets, js/unique-codex-ui.js). */

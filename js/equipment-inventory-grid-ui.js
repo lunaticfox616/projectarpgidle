@@ -321,14 +321,16 @@
         return pointed && pointed.closest ? pointed.closest('#ui-equip-list .equipment-slot') : null;
     }
 
-    /** 들고 있는 장비 아래의 채팅 입력 줄(js/social.js): 거기에 놓으면 그 장비를 채팅에 붙인다(2026-10-22 사용자 "아이템을 직접 채팅창에
-     * 끌어다가 놓아도 가능하게"). 위에 있는 동안 입력 줄이 빛난다. */
+    /** 들고 있는 장비 아래의 채팅 창(js/social.js .social-chat-wrap: 대화, 붙인 아이템, 입력 줄): 어디에 놓아도 그 장비를 채팅에 붙인다
+     * (2026-10-22 사용자 "아이템을 직접 채팅창에 끌어다가 놓아도 가능하게", 2026-10-23 "채팅창에 장비 드래그 앤 드랍하면 자동으로
+     * 아이템 태그": 전에는 입력 줄 위에서만 붙었다). 위에 있는 동안 그 창의 입력 줄이 빛난다. */
     function chatDropZoneAt(event) {
         if (!carryState || !Number.isFinite(event.clientX) || typeof document.elementsFromPoint !== 'function') return null;
-        // 들고 있는 그림과 놓을 자리 표시 밑의 맨 위 요소만 본다: 창 뒤에 가려진 채팅 줄 위에서 놓으면 가방 안에서 옮기는 것이다
+        // 들고 있는 그림과 놓을 자리 표시 밑의 맨 위 요소만 본다: 창 뒤에 가려진 채팅 위에서 놓으면 가방 안에서 옮기는 것이다
         let top = document.elementsFromPoint(event.clientX, event.clientY)
             .find(node => !(node.closest && node.closest('.equipment-grid-cursor-item,.equipment-grid-drop-preview')));
-        return (top && top.closest && top.closest('.social-chat-inputbar')) || null;
+        let chat = top && top.closest && top.closest('.social-chat-wrap');
+        return (chat && chat.querySelector('.social-chat-inputbar')) || null;
     }
     function markChatDropZone(event) {
         let zone = chatDropZoneAt(event);
@@ -412,9 +414,9 @@
 
     function clearDropPreview(grid) {
         if (!grid) return;
-        let selector = '.equipment-grid-cell.drop-valid,.equipment-grid-cell.drop-invalid';
+        let selector = '.equipment-grid-cell.drop-valid,.equipment-grid-cell.drop-invalid,.equipment-grid-cell.drop-swap';
         grid.querySelectorAll(selector).forEach(cell => {
-            cell.classList.remove('drop-valid', 'drop-invalid');
+            cell.classList.remove('drop-valid', 'drop-invalid', 'drop-swap');
         });
         grid.querySelectorAll('.equipment-grid-drop-preview').forEach(preview => { preview.hidden = true; });
     }
@@ -448,6 +450,8 @@
         if (!placement || !moveResult.entry) return;
         let targetClass = moveResult.ok ? 'drop-valid' : 'drop-invalid';
         paintFootprint(grid, moveResult.placement || placement, moveResult.entry, targetClass);
+        // 자리 맞바꾸기: 밑에 있던 장비가 갈 자리(이 쪽에 있을 때만)
+        if (moveResult.swap) paintFootprint(grid, moveResult.swap.placement, moveResult.swap.entry, 'drop-swap');
         let targetPlacement = moveResult.placement || placement;
         let preview = carryState && carryState.preview;
         if (preview) {
@@ -472,6 +476,7 @@
         let rowStart = activePage * equipmentInventoryGridRuntime.rowsPerPage;
         let localized = { ...result };
         if (result.placement) localized.placement = { ...result.placement, row: result.placement.row - rowStart };
+        if (result.swap) localized.swap = { ...result.swap, placement: { ...result.swap.placement, row: result.swap.placement.row - rowStart } };
         return localized;
     }
 
@@ -540,8 +545,10 @@
         grid.classList.add('is-drag-active');
         setFocusedKey(null);
         if (typeof hideInfoTooltip === 'function') hideInfoTooltip();
+        // 누른 뒤 6px 안에서 다시 뜬 장비 툴팁이 옮기는 내내 남아 바꿀 칸(drop-swap)을 가렸다
+        dismissItemTooltipNow();
+        // 집을 때는 소리 없음: 놓을 때, 옮겼을 때, 장착할 때만(2026-10-23 사용자)
         updateCarry({ clientX, clientY });
-        playUiFeedbackSound.inventory(entry.item, 'pick');
         return true;
     }
 

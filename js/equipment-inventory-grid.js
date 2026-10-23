@@ -257,6 +257,25 @@
         return occupied;
     }
 
+    const overlapsSpot = (other, placement, size) => other.column < placement.column + size.columns && placement.column < other.column + other.columns
+        && other.row < placement.row + size.rows && placement.row < other.row + other.rows;
+
+    /** A drop on one other item trades places with it (2026-10-23 사용자 "드래그 앤 드랍으로 자연스럽게 위치 교환"): the carried item
+     * takes the spot and the other goes where the carried one stood, else to the first free spot on the drop's page.
+     * @returns {?{entry:EquipmentInventoryGridEntry, placement:EquipmentInventoryPlacement}} null under several items or with no room */
+    function findSwapInLayout(layout, entry, placement) {
+        const blockers = layout.entries.filter(other => other.key !== entry.key && overlapsSpot(other, placement, entry));
+        if (blockers.length !== 1) return null;
+        const other = blockers[0], occupied = getOccupied(layout, new Set([entry.key, other.key]));
+        if (!canFit(occupied, placement, entry, layout.rows)) return null;
+        occupy(occupied, placement, entry);
+        const home = { column: entry.column, row: entry.row };
+        if (canFit(occupied, home, other, layout.rows)) return { entry: other, placement: home };
+        const pageStart = Math.floor(placement.row / GRID_ROWS_PER_PAGE) * GRID_ROWS_PER_PAGE;
+        const spot = findFirstFitInRows(occupied, other, layout.rows, pageStart, pageStart + GRID_ROWS_PER_PAGE);
+        return spot ? { entry: other, placement: spot } : null;
+    }
+
     function evaluateMoveInLayout(itemKey, column, row, layout) {
         let entry = layout.entries.find(candidate => candidate.key === itemKey);
         if (!entry) return { ok: false, reason: '이 장비를 인벤토리에서 찾을 수 없습니다.' };
@@ -264,6 +283,8 @@
         if (!placement) return { ok: false, reason: '인벤토리 칸을 벗어났습니다.', entry, layout };
         let occupied = getOccupied(layout, new Set([itemKey]));
         if (canFit(occupied, placement, entry, layout.rows)) return { ok: true, placement, entry, layout };
+        const swap = findSwapInLayout(layout, entry, placement);
+        if (swap) return { ok: true, placement, entry, layout, swap };
         return { ok: false, reason: '그 위치에는 장비를 놓을 수 없습니다.', entry, layout };
     }
 
@@ -271,7 +292,8 @@
         let state = targetGame || game;
         let result = evaluateMoveInLayout(itemKey, column, row, ensureState(state));
         if (!result.ok) return result;
-        state.equipmentInventoryPlacements = { ...result.layout.placements, [itemKey]: result.placement };
+        const swapped = result.swap ? { [result.swap.entry.key]: result.swap.placement } : {};
+        state.equipmentInventoryPlacements = { ...result.layout.placements, [itemKey]: result.placement, ...swapped };
         return { ...result, layout: ensureState(state) };
     }
 

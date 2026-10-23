@@ -134,6 +134,11 @@
     pointer-events: none;
   }
   /* 접붙이기 단계: 칸 왼쪽 위의 작은 잎색 숫자(억제 X는 오른쪽 위, 성장 막대는 아래라 겹치지 않는다) */
+  /* 잠긴 그루터기 아이템(js/stump-box-ui.js stumpLockMark): 오른쪽 위 자물쇠, 11도트 그대로(정수배) */
+  .stump-lock-mark { position: absolute; top: 1px; right: 1px; width: 11px; height: 11px; pointer-events: none; }
+  .stump-lock-icon { display: block; width: 11px; height: 11px; }
+  .stump-lock-icon .m { fill: #e3bd72; }
+  .stump-lock-icon .f { fill: #1a1209; }
   .stump-graft-mark {
     position: absolute;
     top: 2px;
