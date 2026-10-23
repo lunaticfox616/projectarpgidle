@@ -338,6 +338,25 @@ body[data-ui-skin] {
 :root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-slot.just-cast { box-shadow: inset 0 0 0 2px var(--px-gold-bright), inset 0 0 0 4px rgba(243, 210, 140, .45); }
 :root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-slot .player-hud-skill-cooldown:not([hidden]) { font-size: 12px; text-shadow: var(--px-text-outline); }
 
+/* PC 스킬룬 칸(2026-10-23 사용자 "칸 크기를 조금 키우고 픽셀을 정수배로 보이게 해서 이미지가 안깨지게"): 룬 그림은 64도트를 다 쓰는
+   그림이라 48칸(안쪽 42, 0.66배)에서 줄마다 고르지 않게 빠졌다. --device-ratio(js/ui-display.js)로 그림을 기기 픽셀 32의 정수배
+   (64도트의 꼭 절반)로 고르게 줄여 그리고, 칸은 그림에 테두리와 여백 6px을 더한 크기다. 주 공격 칸도 같다(2026-10-24 사용자: 64도트
+   그대로인 70px 칸은 메뉴 단추 48px보다 컸다). 휴대폰은 기기 배율이 제각각이라 칸 크기를 그대로 둔다. */
+@media (min-width: 1081px) {
+  :root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-slot {
+    /* 배율(정수)은 calc 밖에 둔다: 빌드의 postcss-calc가 calc 안의 round()를 읽지 못한다 */
+    --rune-scale: max(1, round(down, var(--device-ratio, 1), 1));
+    --rune-img: calc(32px * var(--rune-scale) / var(--device-ratio, 1));
+    flex: 0 0 auto;
+    width: calc(var(--rune-img) + 6px);
+    height: calc(var(--rune-img) + 6px);
+  }
+  :root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-slot.primary { flex-basis: auto; }
+  :root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-slot .combat-skill-gem-art img {
+    width: var(--rune-img); height: var(--rune-img); object-fit: contain; image-rendering: auto;
+  }
+}
+
 /* 경험치 구슬: "EXP" 머리말(영어 · .82em 소수 크기)을 뺀다 — 호박색 구슬 안의 레벨 · 퍼센트로 충분하다 */
 :root body[data-ui-skin] .player-exp-percent::before { content: none; }
 

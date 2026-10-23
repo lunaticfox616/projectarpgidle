@@ -83,10 +83,13 @@ const stumpRipeningUi = (() => {
     }
     /** The storage filter's bulk buttons (none on the talisman filter). */
     function bulkHtml(filter) {
-        if (filter === 'talisman') return '';
-        const compostReason = stumpBox.bulkCompostReason(game, filter), discardReason = stumpBox.bulkDiscardReason(game, filter);
+        const discardReason = stumpBox.bulkDiscardReason(game, filter);
+        const discard = bulkButton('discard', '일괄 버리기', discardReason, discardReason ? 0 : stumpBox.bulkDiscardItems(game, filter).length);
+        // 부적 칸은 거름이 없어 일괄 버리기만(2026-10-23 사용자: 일괄 버리기에서 부적이 빠져 있었다)
+        if (filter === 'talisman') return `<div class="stump-bulk">${discard}</div>`;
+        const compostReason = stumpBox.bulkCompostReason(game, filter);
         const compost = stumpBox.bulkCompostOpen(game) ? bulkButton('compost', '일괄 거름 사용', compostReason, compostReason ? 0 : stumpBox.bulkCompostPlan(game, filter).length) : '';
-        return `<div class="stump-bulk">${compost}${bulkButton('discard', '일괄 버리기', discardReason, discardReason ? 0 : stumpBox.bulkDiscardItems(game, filter).length)}</div>`;
+        return `<div class="stump-bulk">${compost}${discard}</div>`;
     }
     function rollRange(rolls) {
         const low = Math.min(...rolls), high = Math.max(...rolls);
@@ -106,9 +109,10 @@ const stumpRipeningUi = (() => {
         const growth = plan.reduce((sum, item) => sum + stumpBox.compostGrowth(item), 0);
         return `그루터기 함에서 성장 중인 그루터기 아이템 ${stumpBox.growingItems(game).length}개의 경험치가 ${growth}만큼 증가합니다.`;
     }
-    const DISCARD_KEEPS = ['황금', '고대 씨앗', '성장 완료', '성장 중', '부적', STUMP_BOX_SCAR.name];
+    const DISCARD_KEEPS = ['잠금', '황금', '고대 씨앗', '성장 완료', '성장 중', '고유 부적', STUMP_BOX_SCAR.name];
     function discardKeep(item) {
-        if (item.family === 'talisman') return '부적';
+        if (item.locked) return '잠금';
+        if (item.family === 'talisman' && item.rarity === 'unique') return '고유 부적';
         if (item.family === 'scar') return STUMP_BOX_SCAR.name;
         if (item.golden) return '황금';
         if (item.ancient) return '고대 씨앗';
@@ -117,7 +121,8 @@ const stumpRipeningUi = (() => {
     /** '남는 아이템: 황금 2개, 부적 12개' for what of the filter 일괄 버리기 leaves in storage, '' when nothing stays. */
     function discardKeptLine(filter, gone) {
         const ids = new Set(gone.map(item => item.id)), counts = new Map();
-        stumpBox.storage(game).filter(item => !ids.has(item.id) && (filter === 'all' || item.color === filter))
+        const inFilter = item => filter === 'all' || (filter === 'talisman' ? item.family === 'talisman' : item.color === filter);
+        stumpBox.storage(game).filter(item => !ids.has(item.id) && inFilter(item))
             .forEach(item => counts.set(discardKeep(item), (counts.get(discardKeep(item)) || 0) + 1));
         const parts = DISCARD_KEEPS.filter(why => counts.has(why)).map(why => `${why} ${counts.get(why)}개`);
         return parts.length ? `남는 아이템: ${parts.join(', ')}` : '';

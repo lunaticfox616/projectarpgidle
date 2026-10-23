@@ -131,8 +131,8 @@ const stumpBox = (() => {
     }
     /** Throws away a stored (not placed) item. */
     function discard(state, id) {
-        const box = of(state);
-        if (box.board.includes(id) || !findItem(box, id)) return false;
+        const box = of(state), item = findItem(box, id);
+        if (box.board.includes(id) || !item || item.locked) return false;
         box.items = box.items.filter(item => item.id !== id);
         return true;
     }
@@ -417,6 +417,7 @@ const stumpBox = (() => {
     function compostReason(state, id) {
         const box = of(state), item = findItem(box, id);
         if (!editable(state)) return '나무꾼 전투 중에는 그루터기 함을 바꿀 수 없습니다.';
+        if (item && item.locked) return '잠긴 아이템은 거름으로 쓸 수 없습니다.';
         if (!item || !FAMILIES.includes(item.family) || box.board.includes(id)) return '보관함의 씨앗이나 수액만 거름으로 쓸 수 있습니다.';
         return growingItems(state).length ? '' : '그루터기 함에서 성장 중인 그루터기 아이템이 없습니다.';
     }
@@ -456,12 +457,16 @@ const stumpBox = (() => {
             groups.set(key, (groups.get(key) || []).concat(item));
         });
         return [...groups.values()].flatMap(list => list.sort((a, b) => b.roll - a.roll || a.id - b.id).slice(STUMP_BOX_BULK_COMPOST.keep))
-            .filter(item => !item.golden && !item.ancient);
+            .filter(item => !item.golden && !item.ancient && !item.locked);
     }
     /** What 일괄 버리기 takes of a storage filter: every stored seed and sap but golden, ancient and grown ones (any growth, cube
-     * material). It used to keep the best three of each kind as compost does: 12 kinds kept up to 36 (2026-10-17 사용자: 75개 중 25개만). */
+     * material), and under 전체 and 부적 the stored talismans but unique and grown ones (2026-10-23 사용자: 부적이 빠져 있었다).
+     * Locked items always stay. It used to keep the best three of each kind as compost does (2026-10-17 사용자: 75개 중 25개만). */
     function bulkDiscardItems(state, filter) {
-        return storedSeedsAndSaps(state, filter).filter(item => !item.golden && !item.ancient && !item.xp && !isMature(item));
+        const seeds = storedSeedsAndSaps(state, filter).filter(item => !item.golden && !item.ancient && !item.xp && !isMature(item));
+        const talismanItems = filter === 'all' || filter === 'talisman'
+            ? storage(state).filter(item => item.family === 'talisman' && item.rarity !== 'unique' && !item.xp && !isMature(item)) : [];
+        return seeds.concat(talismanItems).filter(item => !item.locked);
     }
     /** The bulk-compost items in use order (lowest quality first), cut where everything growing has ripened as pressing them one by
      * one would stop: each compost feeds every growing item alike, so the item furthest from ripe decides. */
@@ -498,7 +503,16 @@ const stumpBox = (() => {
     /** '' when the filter's bulkDiscardItems can be thrown away now (일괄 버리기), otherwise why not. */
     function bulkDiscardReason(state, filter) {
         if (!editable(state)) return '나무꾼 전투 중에는 그루터기 함을 바꿀 수 없습니다.';
-        return bulkDiscardItems(state, filter).length ? '' : '버릴 씨앗이나 수액이 없습니다.';
+        return bulkDiscardItems(state, filter).length ? '' : '버릴 아이템이 없습니다.';
+    }
+    /** 잠금(2026-10-23): a locked item stays out of 일괄 거름 사용 and 일괄 버리기 and cannot be composted or thrown away one by
+     * one. @returns {boolean} whether it turned */
+    function toggleLock(state, id) {
+        const item = findItem(of(state), id);
+        if (!item || !editable(state)) return false;
+        if (item.locked) delete item.locked;
+        else item.locked = true;
+        return true;
     }
     /** 일괄 버리기: throws the filter's bulkDiscardItems away. @returns {?object[]} what went, null when not allowed. */
     function discardMany(state, filter) {
@@ -863,7 +877,13 @@ const stumpBox = (() => {
         if (raw.ancient === true && raw.family === 'seed') item.ancient = true;
     }
     /** cap: the quality cap the save has reached (rollCap), so a restored roll never tops what it could have been made at. */
+    /** A saved item read back, keeping its lock (toggleLock). */
     function cleanItem(raw, cap) {
+        const item = cleanItemFields(raw, cap);
+        if (item && raw.locked === true) item.locked = true;
+        return item;
+    }
+    function cleanItemFields(raw, cap) {
         if (raw.family === 'talisman') return cleanTalisman(raw);
         if (raw.family === 'scar') return cleanScar(raw);
         const path = raw.family !== 'seed' ? null : PATHS.includes(raw.path) ? raw.path : legacyPath(raw.id);
@@ -967,7 +987,7 @@ const stumpBox = (() => {
         graftRank, graftMultiplier, graftOpen, graftPoints, graftJournalPoints, graftOverflowPoints, graftRaiseReason, graftRaise, graftLowerReason, graftLower,
         harvestKey, harvestRows, hasHarvested, pendingGifts, claimHarvestGift, openUnlocks, storageLimit, storageFull, rootMemoryPct,
         rollCap, graftMaxRank, qualityOf, goldenMul, sealLimit, isSealed, sealReason, toggleSeal, devourOpen, addScar, grantScar, rollScarDrop, scarCaps: () => SCAR_CAPS,
-        breedingOpen, bulkCompostOpen, bulkItems, bulkCompostPlan, bulkCompostReason, compostMany, bulkDiscardItems, bulkDiscardReason, discardMany, pendingPouches, pouchOffers, choosePouch,
+        breedingOpen, bulkCompostOpen, bulkItems, bulkCompostPlan, bulkCompostReason, compostMany, bulkDiscardItems, bulkDiscardReason, discardMany, toggleLock, pendingPouches, pouchOffers, choosePouch,
         codexIds: () => CODEX_IDS,
         itemById: (state, id) => findItem(of(state), id)
     };

@@ -189,7 +189,9 @@
 :root body #item-tab-equip #ui-inventory-list > .search-filter-panel { display: none; }
 :root body #item-tab-equip #ui-inventory-list > .search-result-list { border: 1px solid #5a4528; border-radius: 0; background: #0a0806; box-shadow: inset 0 0 24px rgba(0, 0, 0, .8); }
 :root body #item-tab-equip .equipment-grid-cell { background: rgba(255, 226, 160, .018); box-shadow: inset 1px 1px 0 rgba(255, 226, 160, .06), inset -1px -1px 0 rgba(0, 0, 0, .7); }
-:root body #item-tab-equip .equipment-grid-cell:is(.drop-valid, .drop-invalid) { box-shadow: none; }
+:root body #item-tab-equip .equipment-grid-cell:is(.drop-valid, .drop-invalid, .drop-swap) { box-shadow: none; }
+/* 자리 맞바꾸기(js/equipment-inventory-grid.js findSwapInLayout): 밑에 있던 장비가 갈 칸. 위에 덮는 미리보기 판이 없어 칸에 칠한다 */
+:root body #item-tab-equip .equipment-grid-cell.drop-swap { border-color: #e3bd72; background: rgba(227, 189, 114, .28); }
 :root body #item-tab-equip .equipment-grid-item { outline: 1px solid #050403; outline-offset: -1px; border-radius: 0;
   box-shadow: inset 0 0 0 2px rgba(255, 226, 160, .07), inset 0 0 14px rgba(0, 0, 0, .55); }
 :root body #item-tab-equip .equipment-grid-item.selected { outline: 2px solid #ffd27a; outline-offset: -2px; box-shadow: 0 0 14px rgba(255, 210, 122, .75); z-index: 3; }
