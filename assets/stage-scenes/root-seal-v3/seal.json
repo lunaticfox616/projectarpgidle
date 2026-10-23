@@ -1,0 +1,26 @@
+{
+  "artSource": "user (2026-10-21): 정면.zip and 측면.zip, pixel art sprite sheets of 256x256 cells (row 0 the closed still, row 1 nine frames closed to open)",
+  "packed": "row 1 only, one row of nine 256x256 frames, every pixel kept (one picture pixel is one character dot); row 0 equals row 1 frame 0",
+  "durationsMs": [80, 80, 80, 80, 80, 80, 80, 80, 0],
+  "openFrame": 8,
+  "front": {
+    "file": "front.png",
+    "source": "A_single_static_sprite_of_a_fu.png",
+    "object": "c4fb55b2-d0d8-400f-abd4-2de09c5b480e",
+    "exported": "2026-10-21T11:23:52Z",
+    "directions": ["north", "south"],
+    "anchor": [128, 238],
+    "closed": [215, 217],
+    "heights": [217, 218, 215, 208, 197, 193, 195, 199, 196]
+  },
+  "side": {
+    "file": "side.png",
+    "source": "Strict_side-profile_pixel-art.png",
+    "object": "e9ebf84a-7ed6-407b-ae1e-5a4daeb68b5b",
+    "exported": "2026-10-21T11:23:46Z",
+    "directions": ["east", "west (mirrored: the picture's front faces left)"],
+    "anchor": [128, 241],
+    "closed": [119, 228],
+    "heights": [228, 225, 221, 214, 206, 198, 137, 83, 50]
+  }
+}

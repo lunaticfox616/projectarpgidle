@@ -2033,6 +2033,7 @@ function prepareCombatTick(nowMs) {
     callOceanGuardianAtBoundary();
     callOceanGuardianAdds(addLog);
     combatIncidents.tick(); // 잔잔한 사건: 달아나는 금빛 수액 슬라임, 세계수의 하품
+    releaseExplorationWave(addLog); // 이어지는 무리: 정예 방과 막다른 방이 비면 문이 닫힌 채 새 무리가 선다
     releaseClosedThirdRing(addLog); // 세 번째 손가락이 사라진 반지3의 반지는 가방으로
     tickWoodsmanCurse();
     if (typeof trackRecordBests === 'function') trackRecordBests();
@@ -2356,7 +2357,7 @@ function runFightTick(pStats, hazardEvasion, walkedMs) {
         combatTacticsRuntime.recoverUntil = Math.max(combatTacticsRuntime.recoverUntil || 0, nowCast + getPlayerAttackRecoveryMs(pStats.aspd));
         performDoubleStrikes(pStats);
     }
-    mobilitySkill.cast({ blocked: castBlocked, inRange: inSkillRange, auto: !actExplorationProgress.holdPosition(hazardEvasion.holdPosition) }); // 이동 스킬: the player's key, or (auto-move on) closing the gap the main gem can't reach
+    mobilitySkill.cast({ blocked: castBlocked, inRange: inSkillRange, auto: !actExplorationProgress.holdPosition(hazardEvasion.holdPosition), stats: pStats }); // 이동 스킬: the player's key, or (auto-move on) closing the gap the main gem can't reach
     runSummonAttackTick(pStats);
     performMonsterAttacks(pStats);
 }
@@ -2901,7 +2902,7 @@ function getUniqueEffectImplementationReport() {
         'projectileDoubleStrikePct','projectilePatternMode','hitApplyChaosResDown','corpseExplodeOnKill','instantLeechAndDoubleDamage',
         'riderCompass','maxRollBonusHit','ceilingSmashDouble','minRollEqualsMaxRoll','hpToPhysPct','immuneIgnite',
         'rollGapDamagePct','rollGapCritAndDs','crowdEvasionMore','fewEnemyEvasionMore','evasionDanceOnEvade','loneEvasionCounter','critAdvanceEnergyShieldRecharge','energyShieldBreakRecharge','esToLightPct','underdogNonMaxRollMorePct','instakillNormalOnHitPct','projectileExtraShotChance',
-        'abyssSocketOnItem','abyssSocketAndJewelAmp','leechEfficiencyOnKill','overkillSplash','dragonVeinGuard','fateTwinRollSync','realmBleedingEnemyDamageMore','realmRiftWaveOnHit','realmChaosDamageInstantLeech','realmInvulnerableBarrierOnHit','realmPoisonDuration','realmArmorToPhysicalDamage','realmDeathWard','realmAllResDownOnHit','realmKillMoveStacks','realmCursedTakenAndRefresh','realmEnemyRegenCutAndMinRoll','realmPhysDrHalfTakenAsMore','realmArmorAppliesToDot','realmMeleeArmorAmp','realmRepelMelee','realmResonanceAndSuppCap','realmRegenRateAndRegen','realmMaxHpPct','realmAllMaxRes','frostSentinelBoots','shockTracerGreaves','venomStride','bleedBlockHelm','curseCrown','guardianArmor','warcryResonanceBelt','stackingElementalResDownOnHit','conditionManual','queenBeeSummonOnHit','bleedWeightOnBleedingHit','grandBreachCrown','labyrinthShackles','meteorFootsteps'
+        'abyssSocketOnItem','abyssSocketAndJewelAmp','leechEfficiencyOnKill','overkillSplash','dragonVeinGuard','fateTwinRollSync','realmBleedingEnemyDamageMore','realmRiftWaveOnHit','realmChaosDamageInstantLeech','realmInvulnerableBarrierOnHit','realmPoisonDuration','realmArmorToPhysicalDamage','realmDeathWard','realmAllResDownOnHit','realmKillMoveStacks','realmCursedTakenAndRefresh','realmEnemyRegenCutAndMinRoll','realmPhysDrHalfTakenAsMore','realmArmorAppliesToDot','realmMeleeArmorAmp','realmRepelMelee','realmResonanceAndSuppCap','realmRegenRateAndRegen','realmMaxHpPct','realmAllMaxRes','frostSentinelBoots','shockTracerGreaves','venomStride','bleedBlockHelm','curseCrown','guardianArmor','warcryResonanceBelt','stackingElementalResDownOnHit','conditionManual','cooldownReductionCap','mobilityRuneAsAttack','queenBeeSummonOnHit','bleedWeightOnBleedingHit','grandBreachCrown','labyrinthShackles','meteorFootsteps'
         ,'cosmosFinalDmg','cosmosTakenLess','cosmosSpeedBurst','cosmosPenetration','cosmosSustain','cosmosBossSlayer','cosmosStatBundle','summonCapBonus','summonDeathDamageBuff','summonCritAspdStacks','summonNonCritNoDamage','summonEfficiencyBonus','rightRingSummonCap','genericTakenDamageReducePct','uniqueBlockChance','uniqueDeflectDamageReduce','blockRecoverEnergyShieldPct','blockedDamageTakenPct','uniqueTakenReduceWhen2Enemies','uniqueMaxResAll','deflectGrantShadowStealth','chaosTakenDamageReducePct','uniqueGemLevelBonus','lifeRecoupTakenDamage','immuneBleed','uniqueTakenReduceWhen1Enemy','lifePctAsEnergyShield','dsAndTargetAnyBonus','poisonDamageMorePct','immuneFreeze','uniqueMinDmgRoll','hitShockedEnemyDamageMorePct','pursuitMoveSpeed','projectileTargetBonus','igniteDamageMorePct','cosmosAlwaysFirstHit','cosmosEnergyShieldAmpBypass','cosmosOrbitCycle','cosmosDeepSeaLeechCaps','cosmosTideEsRegenToLife','cosmosEqualDamageSplit','cosmosBalanceMitigation','cosmosTwinStarResonance','cosmosJudgmentLightning','cosmosDeathResist','cosmosVerdictSupportDamage','cosmosGuardianConditionInstant','cosmosBossDamageMore','cosmosCometChillNoFreeze','fixedAllMaxRes','kaleidoscopeShield','stealEliteTrait','mirrorOppositeRing','astraUniqueConvergence','thousandBottles','implicitAmp','loopGrowth','familyBond','sightBeyond','chestLuck','emberHeart','amberTime','witheredEcho','nurseryBloom'
     ]);
     return {
@@ -2925,6 +2926,13 @@ function recordPlayerEvadeUniqueEffects(pStats, aliveEnemyCount, now) {
     let counter = pStats && pStats.uniqueLoneEvasionCounter;
     if (!counter || aliveEnemyCount < 1 || aliveEnemyCount > Math.max(1, Math.floor(counter.maxEnemies || 2))) return;
     game.uniqueLoneEvasionCounterUntil = at + Math.max(0.1, Number(counter.duration || 3)) * 1000;
+}
+
+/** 재사용 대기시간 줄 of one stat evaluation (sum = getPlayerStats' bucket sum), for js/skills.js getSkillCooldownMs: the mobility
+ * runes and the talisman curses. cooldownReductionCapBonus is 되감긴 모래시계's (js/combat-build-stats.js UNIQUE_EFFECT_STAT_LINES). */
+function collectCooldownStats(sum) {
+    const ids = ['cooldownRecovery', 'cooldownReduction', 'mobilityCooldownRecovery', 'mobilityCooldownReduction', 'cooldownReductionCapBonus'];
+    return Object.fromEntries(ids.map(id => [id, Math.max(0, sum(id))]));
 }
 
 /** Ocean stats of one stat evaluation (sum = getPlayerStats' bucket sum): pressure resistance (with its upgrades), depth gain, rare fish. */
@@ -5284,7 +5292,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         shockedEnemyHitDamagePct: Math.max(0, sumStatAcrossBuckets('shockedEnemyHitDamagePct')),
         shockedEnemyHitDamageMorePct: Math.max(0, (gearBase.shockedEnemyHitDamageMorePct || 0) + (gearExplicit.shockedEnemyHitDamageMorePct || 0) + (passive.shockedEnemyHitDamageMorePct || 0) + (season.shockedEnemyHitDamageMorePct || 0) + (ascend.shockedEnemyHitDamageMorePct || 0) + (support.shockedEnemyHitDamageMorePct || 0) + (reward.shockedEnemyHitDamageMorePct || 0)),
         sbPlayerAttackPower: Math.max(0, sbPlayerAttackPower),
-        ...collectOceanStats(sumStatAcrossBuckets),
+        ...collectOceanStats(sumStatAcrossBuckets), ...collectCooldownStats(sumStatAcrossBuckets),
         regionAffix: regionAffixEffects.collect(sumStatAcrossBuckets),
         bossDamagePct: Math.max(0, sumStatAcrossBuckets('bossDamagePct')),
         eliteDamagePct: Math.max(0, sumStatAcrossBuckets('eliteDamagePct')),
@@ -8527,11 +8535,17 @@ const explorationPackFormation=(()=>{
     const spots=(room,count)=>cells(room,Math.min(count,offsets.length),0).concat(count>offsets.length?around(room,count-offsets.length):[]);
     /** 방 가운데의 3×3을 비워 두고 그 둘레에 서는 자리 count개: 가운데에 보스(2×2)가 서는 무리의 나머지. */
     const around=(room,count)=>outerOffsets(room).slice(0,count).map(([dx,dy])=>({gx:room.gx+dx,gy:room.gy+dy}));
+    /** 무리의 열쇠와, 정예를 세우지 않는 무리인지(plain): 길목, 덧무리(extraN), 이어지는 무리(waveN). 그 밖은 방의 보통 무리나 보스 단계다. */
+    function packIdentity(room,stage,shape,patrol) {
+        if(patrol)return {key:room.id+':patrol',plain:true};
+        if(shape.extra)return {key:`${room.id}:extra${shape.extra}`,plain:true};
+        if(shape.wave)return {key:`${room.id}:wave${shape.wave}`,plain:true};
+        return {key:explorationPackKey(room,stage),plain:false};
+    }
     function prepare(zone,room,stage,encounter,formation) {
-        const shape=formation || {},patrol=Object.hasOwn(shape,'anchor');
-        const key=patrol?room.id+':patrol':shape.extra?`${room.id}:extra${shape.extra}`:explorationPackKey(room,stage),at=explorationPackSpawnAt(zone,key,stage);
-        const elite=patrol||shape.extra?false:(room.role==='elite' || !!encounter || isAtlasExtraEliteRoom(zone,room));
-        return {key,at,elite,anchor:shape.anchor,extra:shape.extra,cells:shape.cells || cells(shape.center || room,roomCount(zone,stage,encounter,shape),at%4)};
+        const shape=formation || {},patrol=Object.hasOwn(shape,'anchor'),{key,plain}=packIdentity(room,stage,shape,patrol),at=explorationPackSpawnAt(zone,key,stage);
+        const elite=!plain && (room.role==='elite' || !!encounter || isAtlasExtraEliteRoom(zone,room));
+        return {key,at,elite,anchor:shape.anchor,extra:shape.extra,wave:shape.wave,cells:shape.cells || cells(shape.center || room,roomCount(zone,stage,encounter,shape),at%4)};
     }
     /** Leave the entry's five-tile notice radius empty when a larger first-room group spreads toward it. */
     function roomCenter(map,room) {
@@ -8591,7 +8605,7 @@ function createExplorationPackEnemy(zone,marker,index,role) {
     return enemy;
 }
 function createActExplorationPack(zone,room,stage,encounter=null,formation=null) {
-    const {key,at,cells,elite,anchor,extra}=explorationPackFormation.prepare(zone,room,stage,encounter,formation),waiting=[];
+    const shape=explorationPackFormation.prepare(zone,room,stage,encounter,formation),{key,at,cells,elite}=shape,waiting=[];
     const cast=(formation && formation.cast) || [];
     cells.forEach((cell,index)=>{
         const marker={at,count:1,boss:stage!==null,elite:elite && index===0,storyStage:stage,ownLook:atlasEncounters.hasOwnLook(encounter)};
@@ -8604,13 +8618,20 @@ function createActExplorationPack(zone,room,stage,encounter=null,formation=null)
         waiting.push(enemy);
     });
     const pack={key,roomId:room.id,stage,waiting,aliveIds:waiting.map(enemy=>enemy.id),eliteIds:waiting.filter(enemy=>enemy.isElite).map(enemy=>enemy.id)};
-    if(encounter)pack.encounter=encounter;
-    if(anchor)pack.anchor={...anchor};
-    if(extra)pack.extra=extra;
-    if(formation && formation.rescue)pack.rescue=true;
+    markExplorationPackShape(pack,encounter,shape,formation);
     markExplorationAlertPack(pack);
     atlasFinds.dressTreasurePack(zone,pack);
     return pack;
+}
+
+/** A pack's shape marks, each kept only when set: its atlas encounter, a road group's anchor, a stage room's added pack (extra), a
+ * follow-up wave (wave, releaseExplorationWave), the first start's rescue pair (rescue). */
+function markExplorationPackShape(pack,encounter,shape,formation) {
+    if(encounter)pack.encounter=encounter;
+    if(shape.anchor)pack.anchor={...shape.anchor};
+    if(shape.extra)pack.extra=shape.extra;
+    if(shape.wave)pack.wave=shape.wave;
+    if(formation && formation.rescue)pack.rescue=true;
 }
 
 /** 경계하는 무리 (data ACT_EXPLORATION_ALERT): an ordinary room pack that runs at the hero once a fight within its hearing hurts a
@@ -8647,6 +8668,61 @@ function ambushRoomPacks(room,packs) {
     return (Math.abs(hashSeed(`ambush:${main.key}:${main.aliveIds[0]}`))%1000)/1000<ACT_EXPLORATION_AMBUSH.chance ? own : [];
 }
 
+/** 이어지는 무리(data ACT_EXPLORATION_WAVES)를 받는 방과 그 수. 그 방 원래 무리의 첫 몬스터 번호로 굴려 다른 난수를 밀지 않는다.
+ * @returns {Object<string,{left:number,total:number,at:?number}>} 방 id → 남은 번수, 모두 몇 번인지, 다음 무리가 설 전투 시각(ms, 그 방이
+ *   비기 전에는 null). 탐험 기록에 저장된다(js/act-exploration-state.js validateWaves). */
+function rollExplorationRoomWaves(zone,map,packs) {
+    const rule=ACT_EXPLORATION_WAVES,waves={};
+    if(!explorationWavesAllowed(zone,map))return waves;
+    for(const room of map.rooms.filter(row=>isExplorationWaveRoom(map,row))) {
+        const roll=explorationWaveRoll(room,packs);
+        if(roll===null || roll>=rule.chance)continue;
+        const total=weightedWaveCount(roll/rule.chance,rule.counts);
+        waves[room.id]={left:total,total,at:null};
+    }
+    return waves;
+}
+/** 이어지는 무리를 받을 수 있는 탐험: 방 단위 무대이고, 무리를 따로 세우는 콘텐츠(벌집 같은)와 1루프의 액트 1이 아니다. */
+const explorationWavesAllowed=(zone,map)=>!!map.stage && !ownRoomPackBuilder(zone) && !(zone.type==='act' && zone.id===0 && (game.season||1)===1);
+/** 그 방의 굴림(0 이상 1 미만): 그 방 원래 무리의 첫 몬스터 번호로. 원래 무리가 없거나 비었거나 조우, 구출, 습격의 방이면 null. */
+function explorationWaveRoll(room,packs) {
+    const own=packs.filter(pack=>pack.roomId===room.id),main=own.find(pack=>pack.key===room.id+':pack');
+    if(!main || main.encounter || !main.aliveIds.length || own.some(pack=>pack.rescue || pack.ambush))return null;
+    return (Math.abs(hashSeed(`waves:${main.key}:${main.aliveIds[0]}`))%1000)/1000;
+}
+/** 정예 방, 또는 문이 하나인 막다른 방(입구와 보스 방 말고). */
+const isExplorationWaveRoom=(map,room)=>room.role==='elite' || (['battle','optional'].includes(room.role) && map.doors.filter(door=>door.room===room.index).length===1);
+/** u(0 이상 1 미만)를 무게 줄 [값, 무게]에 대어 고른 값. */
+function weightedWaveCount(u,rows) {
+    let left=u*rows.reduce((sum,row)=>sum+row[1],0);
+    for(const [value,weight] of rows){left-=weight;if(left<0)return value;}
+    return rows[rows.length-1][0];
+}
+/** 전투 틱마다: 주인공이 선 방이 비었고 그 방에 이어지는 무리가 남았으면(js/act-exploration-doors.js waveDue: 그동안 문은 닫혀 있다)
+ * delayMs 뒤에 그 방 원래 무리의 자리에 보통 무리 하나를 세운다. 세운 무리는 곧 주인공을 알아채고 덤빈다. */
+function releaseExplorationWave(log) {
+    const run=actExplorationState.current(game),map=run && run.status==='active'?actExplorationDoors.stageMap(run):null;
+    const room=map?actExplorationRooms.roomAt(map,game.gridPlayer):null,wave=room && actExplorationDoors.waveDue(run,room)?run.waves[room.id]:null;
+    if(!wave)return;
+    const now=getCombatTime();
+    if(wave.at===null){wave.at=now+ACT_EXPLORATION_WAVES.delayMs;return;}
+    if(now<wave.at)return;
+    const zone=getZone(game.currentZoneId),number=wave.total-wave.left+1,count=explorationPackFormation.count(zone,null,{});
+    const pack=createActExplorationPack(zone,room,null,null,{wave:number,cells:explorationWaveCells(map,room,count)});
+    run.packs.push(pack);
+    Object.assign(wave,{left:wave.left-1,at:null});
+    pack.waiting.forEach(enemy=>addBattleFx('enemySpawn',{enemyId:enemy.id,color:getElementColor(enemy.ele),duration:420,boss:false}));
+    if(game.settings.showSpawnLog!==false)log(`⚠️ 무리가 더 몰려옵니다(${number}/${wave.total})`,'attack-monster');
+}
+/** 새 무리가 설 칸: 그 방 원래 무리의 자리에서, 막힌 칸, 그 방의 문 칸과 문 안쪽 칸, 주인공 둘레 한 칸은 피해 가까운 빈 칸으로. */
+function explorationWaveCells(map,room,count) {
+    const blocked=getGridBlockedCells(),hero=game.gridPlayer,key=at=>gridCellKey(at.gx,at.gy);
+    map.doors.filter(door=>door.room===room.index).forEach(door=>door.cells.concat(door.landings).forEach(at=>blocked.add(key(at))));
+    for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)blocked.add(gridCellKey(hero.gx+dx,hero.gy+dy));
+    const wanted=stageRoomArranger.forMap(map).cells(room,0,count) || explorationPackFormation.spots(room,count);
+    return wanted.map(cell=>{const spot=findFreeGridCell(blocked,cell)||cell;blocked.add(key(spot));return spot;});
+}
+
 /** An atlas map's extra-elite mod leads some ordinary rooms with an elite (fixed per map and room). */
 function isAtlasExtraEliteRoom(zone,room) {
     if(!zone.atlasExtraElite || room.role==='boss')return false;
@@ -8673,6 +8749,7 @@ function createActExplorationEncounter(zone,exploration) {
     plan.rotation=actExplorationProgress.objects.savedFacing(zone)??rollExplorationFacing();
     if(actExplorationDoors.session())plan.rooms=actExplorationDoors.planKey(zone,plan); // 방 단위 무대 시험판(js/act-exploration-doors.js): 액트와 그 밖의 모든 탐험 구역
     const run=actExplorationState.create(plan,createExplorationPacks(zone,actExplorationMap.forRun(plan),plan.bossStages),getCombatTime());
+    run.waves=rollExplorationRoomWaves(zone,actExplorationMap.forRun(run),run.packs);
     if(plan.rooms && SEALED_ROOM_ZONES.includes(zone.type))run.sealed=true;
     run.mode=actExplorationProgress.startMode(game.settings);
     actExplorationProgress.objects.initialize(run,zone);
@@ -14031,14 +14108,23 @@ function getLoopAdvancePathLabel(path) {
     return path === 'cosmos' ? '우주계 루프' : '혼돈 루프';
 }
 
-function getSeasonResetBlockReason(loopPath) {
+/** 루프 밖에 맡겨 두어 루프를 막는 장비: 가판대(js/player-stall.js)와 장비 전당에 전시한 원본(js/player-exchange.js, 가판대와 같은
+ * 까닭). 루프 화면의 단추, 경고 줄, 자동 루프도 이것을 묻는다(js/loop-ui.js, js/loop-automation-ui.js). 없으면 ''. */
+function getHeldGearLoopBlockReason() {
     const stallReason = typeof playerStall === 'object' ? playerStall.loopBlockReason(game) : '';
     if (stallReason) return stallReason;
-    if ((game.season || 1) < 31 || loopPath) return '';
-    let available = typeof getAvailableLoopAdvancePaths === 'function' ? getAvailableLoopAdvancePaths(game.season || 1) : [];
+    return typeof playerHallTrade === 'object' ? playerHallTrade.loopBlockReason() : '';
+}
+
+function getSeasonResetBlockReason(loopPath) {
+    const heldReason = getHeldGearLoopBlockReason();
+    if (heldReason) return heldReason;
+    const season = game.season || 1;
+    if (season < 31 || loopPath) return '';
+    let available = typeof getAvailableLoopAdvancePaths === 'function' ? getAvailableLoopAdvancePaths(season) : [];
     return available.length > 1
         ? '혼돈 루프와 우주계 루프 조건을 모두 달성했습니다. 진행할 루프 경로를 선택하세요.'
-        : getLoopAbyssRequirementPrompt(game.season || 1);
+        : getLoopAbyssRequirementPrompt(season);
 }
 
 /** Sealed gear survives the loop wherever it waits: in the bag or in the temporary storage. */
@@ -14179,7 +14265,7 @@ function advanceLoopCounters(loopPath, say) {
 /** The one-time notices of the loop the hero arrives at (spores, exploration events, time rift, rival blades). */
 function queueLoopArrivalNotices() {
     if (game.season === 2 && typeof queueTutorialNotice === 'function') {
-        queueTutorialNotice('unlock_spore_crafting', '속성 홀씨', '사냥에서 속성 홀씨가 나오기 시작합니다.\n루프 3부터 ‘해금’에서 화석 제작을 열면 홀씨로 제작 태그를 정할 수 있습니다.\n화염/냉기/번개 홀씨 보유량은 루프마다 초기화됩니다.', 'tab-unlocks');
+        queueTutorialNotice('unlock_spore_crafting', '속성 홀씨', '사냥에서 속성 홀씨가 나오기 시작합니다.\n루프 3부터 오르가에게서 화석 제작을 받으면 홀씨로 제작 태그를 정할 수 있습니다.\n화염/냉기/번개 홀씨 보유량은 루프마다 초기화됩니다.', 'tab-unlocks');
     }
     Object.entries(EXPLORATION_EVENT_NOTICES).forEach(([kind, notice]) => {
         if (game.season === notice.loop) queueTutorialNotice('exploration_event_' + kind, notice.title, notice.body);

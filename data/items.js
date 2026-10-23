@@ -621,8 +621,20 @@ const UNIQUE_DB = [
     { name: "끓어넘치는 밀랍병", slots: ["무기"], reqTier: 15, dropOnly: { type: 'beehive' }, uniqueEffect: "투사체 공격 시 12% 확률로 투사체 +1", uniqueEffectKey: "projectileExtraShotChance", uniqueEffectParams: { chance: 12, shots: 1 }, stats: [{ id: "flatDmg", min: 70, max: 100 }, { id: "potionPctDmg", min: 35, max: 45 }, { id: "fireFlatDmg", min: 30, max: 45 }, { id: "aoePctDmg", min: 15, max: 25 }] },
     { name: "액막이 향로", slots: ["무기"], reqTier: 10, dropOnly: { type: 'colony' }, uniqueEffect: "타격 시 20% 확률로 2초간 수호(최대생명력 8% 보호막, 중첩 불가)", uniqueEffectKey: "dragonVeinGuard", uniqueEffectParams: { chance: 20, duration: 2, hpPct: 8 }, stats: [{ id: "flatDmg", min: 40, max: 60 }, { id: "lightPctDmg", min: 20, max: 30 }, { id: "regen", min: 0.6, max: 0.9 }, { id: "flatHp", min: 50, max: 70 }] },
     { name: "군락을 사르는 향", slots: ["무기"], reqTier: 13, dropOnly: { type: 'colony' }, uniqueEffect: "점화 피해 25% 증폭", uniqueEffectKey: "igniteDamageMorePct", uniqueEffectParams: { pct: 25 }, stats: [{ id: "flatDmg", min: 55, max: 80 }, { id: "firePctDmg", min: 25, max: 35 }, { id: "igniteChance", min: 15, max: 20 }, { id: "regen", min: 0.7, max: 1 }] },
+    // 재사용 대기시간 세팅(2026-10-21 사용자: 전도성 난격 같은 이동 룬을 세팅이 갖춰지면 난사). 칼이 된 발걸음은 공격 룬 대신 이동 룬을
+    // 공격 칸에 두고(js/skills.js isAttackRuneBlockedByMobilityBoots), 되감긴 모래시계는 재사용 대기시간 감소 상한을 올린다.
+    { name: "칼이 된 발걸음", slots: ["신발"], reqTier: 14, uniqueEffect: "공격 스킬룬을 쓸 수 없음. 이동 스킬룬을 공격 스킬룬 칸에 둘 수 있고, 그 룬은 공격 속도대로 나가며 보조스킬룬을 받음", uniqueEffectKey: "mobilityRuneAsAttack", stats: [{ id: "move", min: 12, max: 18 }, { id: "aspd", min: 6, max: 10 }, { id: "evasion", min: 90, max: 140 }, { id: "mobilityCooldownRecovery", min: 10, max: 20 }, { id: "resAll", min: 8, max: 12 }] },
+    { name: "되감긴 모래시계", slots: ["목걸이"], reqTier: 16, uniqueEffect: "재사용 대기시간 감소 상한 +10%p", uniqueEffectKey: "cooldownReductionCap", uniqueEffectParams: { pct: 10 }, stats: [{ id: "cooldownRecovery", min: 15, max: 25 }, { id: "cooldownReduction", min: 6, max: 10 }, { id: "pctHp", min: 6, max: 10 }, { id: "resAll", min: 10, max: 16 }, { id: "aspd", min: 4, max: 8 }] },
     { name: "마지막 수호의 향로", slots: ["무기"], reqTier: 15, dropOnly: { type: 'colony' }, uniqueEffect: "사망 방지 보호막(최대 생명력 15%) 25초마다 재생성", uniqueEffectKey: "realmDeathWard", uniqueEffectParams: { hpPct: 15, cooldown: 25 }, stats: [{ id: "flatDmg", min: 70, max: 100 }, { id: "lightPctDmg", min: 30, max: 40 }, { id: "lightFlatDmg", min: 30, max: 45 }, { id: "resAll", min: 8, max: 12 }] }
 ];
+
+// 칼이 된 발걸음의 효과 키와 이름: 저장(js/save-migrations.js), 장착 규칙(js/skills.js), 전투(js/mobility-skill.js)가 함께 본다.
+const MOBILITY_RUNE_ATTACK_KEY = 'mobilityRuneAsAttack';
+const MOBILITY_RUNE_ATTACK_UNIQUE = '칼이 된 발걸음';
+/** 그 신발을 신었는가(state.equipment의 고유 효과 키). */
+function isMobilityRuneAttackWorn(state) {
+    return Object.values((state && state.equipment) || {}).some(item => item && item.rarity === 'unique' && item.uniqueEffectKey === MOBILITY_RUNE_ATTACK_KEY);
+}
 
 const REALM_UNIQUE_SLOTS = ['무기', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠'];
 const CHAOS_REALM_ENTRIES = [
@@ -1038,8 +1050,8 @@ const ORB_DB = {
     blessing: { name: '축복의 꽃잎', desc: '장비의 베이스 옵션 값을 80%~120% 구간에서 다시 굴립니다. 허리띠는 액막이 칸 수(1~3)도 다시 굴립니다.' },
     bossCore: { name: '군주의 핵', desc: '루프2 뿌리 보스를 처치하면 얻는 룬 강화 재료입니다.' },
     fossil: { name: '미궁 화석', desc: '기본 화석 조각입니다. 미궁에서 다양한 타입의 화석으로 정제됩니다.' },
-    fossilPrimal: { name: '원시 화석', desc: '‘해금’의 화석 복원을 열면 미궁에서 발견되고, 남는 화석을 정제해도 얻는 복원 전용 화석입니다. 복원하면 화석과 재화를 얻습니다.' },
-    fossilAncientPrimal: { name: '원시 고대 화석', desc: '‘해금’의 화석 복원을 열면 미궁에서 낮은 확률로 발견되는 복원 전용 화석입니다. 복원하면 전용 화석과 고급 재화 확률이 높습니다.' },
+    fossilPrimal: { name: '원시 화석', desc: '오르가에게서 화석 복원을 받으면 미궁에서 발견되고, 남는 화석을 정제해도 얻는 복원 전용 화석입니다. 복원하면 화석과 재화를 얻습니다.' },
+    fossilAncientPrimal: { name: '원시 고대 화석', desc: '오르가에게서 화석 복원을 받으면 미궁에서 낮은 확률로 발견되는 복원 전용 화석입니다. 복원하면 전용 화석과 고급 재화 확률이 높습니다.' },
     fossilPrimordial: { name: '태고 화석', desc: '원시 고대 화석 복원으로 얻습니다. 관통/카오스 계열 옵션 하나를 확정하여 희귀 아이템의 옵션을 다시 굴립니다.' },
     fossilJagged: { name: '톱니 화석', desc: '물리/근접 계열 옵션 하나를 확정하여 희귀 아이템의 옵션을 다시 굴립니다.' },
     fossilBound: { name: '속박 화석', desc: '생명/방어 계열 옵션 하나를 확정하여 희귀 아이템의 옵션을 다시 굴립니다.' },

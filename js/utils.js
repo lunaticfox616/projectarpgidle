@@ -65,6 +65,47 @@ if (typeof HTMLCollection !== 'undefined' && !HTMLCollection.prototype.forEach) 
 
 // Phase-3 extracted shared utility/stat formatting helpers.
 function clampNumber(value, min, max) { return Math.max(min, Math.min(max, value)); }
+/** 도트 글꼴의 제 크기: base(갈무리11 12, 갈무리14 15, 갈무리9 10px)의 정수배 가운데 size에 가장 가까운 크기. 사이 크기는 도트가 번진다(2026-10-21). */
+function pixelFontSize(size, base) { return base * Math.max(1, Math.round(size / base)); }
+/**
+ * Aligns an axis-aligned destination rectangle to backing-store pixels.
+ * This keeps one-pixel sprite details stable at fractional device scales such as 125%.
+ *
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {number} x
+ * @param {number} y
+ * @param {number} width
+ * @param {number} height
+ * @returns {{x: number, y: number, width: number, height: number}}
+ */
+function snapCanvasRectToDevicePixels(ctx, x, y, width, height) {
+    let transform = ctx.getTransform();
+    let scaleX = Number(transform.a);
+    let scaleY = Number(transform.d);
+    let axisAligned = Number.isFinite(scaleX) && Math.abs(scaleX) > 0.001
+        && Number.isFinite(scaleY) && Math.abs(scaleY) > 0.001
+        && Math.abs(Number(transform.b) || 0) < 0.001
+        && Math.abs(Number(transform.c) || 0) < 0.001;
+    if (!axisAligned) return { x, y, width, height };
+    let left = (Math.round(x * scaleX + transform.e) - transform.e) / scaleX;
+    let top = (Math.round(y * scaleY + transform.f) - transform.f) / scaleY;
+    let right = (Math.round((x + width) * scaleX + transform.e) - transform.e) / scaleX;
+    let bottom = (Math.round((y + height) * scaleY + transform.f) - transform.f) / scaleY;
+    return { x: left, y: top, width: Math.max(1 / Math.abs(scaleX), right - left), height: Math.max(1 / Math.abs(scaleY), bottom - top) };
+}
+/**
+ * 캔버스 글을 정수 화소에서 시작하게 그린다(2026-10-21): 가운데, 오른쪽 맞춤은 왼쪽 시작점으로 바꾸고 그 자리를
+ * snapCanvasRectToDevicePixels로 맞춘다. 가운데 맞춘 글은 폭이 홀수면 반 화소에 놓여 번졌다.
+ * @param {'fillText'|'strokeText'} method
+ */
+function drawCrispCanvasText(ctx, text, x, y, method = 'fillText') {
+    const label = String(text), align = ctx.textAlign;
+    const width = align === 'center' || align === 'right' || align === 'end' ? ctx.measureText(label).width : 0;
+    const at = snapCanvasRectToDevicePixels(ctx, align === 'center' ? x - width / 2 : x - width, y, 0, 0);
+    ctx.textAlign = 'left';
+    ctx[method](label, at.x, at.y);
+    ctx.textAlign = align;
+}
 function getEquipmentInventoryPageCount(targetGame) {
     let state = targetGame || game;
     let loop = Math.max(1, Math.floor(Number(state.season) || 1), Math.floor(Number(state.loopCount) || 0) + 1);
@@ -353,6 +394,9 @@ const STAT_DISPLAY_NAMES = {
         bleedChance: '출혈 확률(%)',
         aspd: '공격 속도(%)',
         move: '이동 속도(%)', sight: '시야(칸)', sightCap: '시야 상한(칸)', chestGrade: '보급 상자 등급 확률(%)',
+        // 재사용 대기시간(2026-10-21, js/skills.js getSkillCooldownMs): 이동 스킬 줄은 이동 룬에만, 나머지 둘은 대기시간이 있는 모든 스킬에.
+        cooldownRecovery: '재사용 대기시간 회복 속도(%)', cooldownReduction: '재사용 대기시간 감소(%)',
+        mobilityCooldownRecovery: '이동 스킬 재사용 대기시간 회복 속도(%)', mobilityCooldownReduction: '이동 스킬 재사용 대기시간 감소(%)',
         crit: '치명타 확률(%)',
         critDmg: '치명타 피해(%)',
         leech: '공격 피해의 생명력 흡수(%)',
@@ -467,7 +511,7 @@ function getRarityRank(rarity) {
 
 function createEmptyStatBucket() {
     return {
-        flatDmg: 0, weaponFlatDmgPct: 0, pctDmg: 0, flatHp: 0, pctHp: 0, aspd: 0, crit: 0, move: 0, sight: 0, sightCap: 0, chestGrade: 0, gemLevel: 0, elementalGemLevel: 0, fireGemLevel: 0, coldGemLevel: 0, lightGemLevel: 0, chaosGemLevel: 0, physGemLevel: 0, projectileGemLevel: 0, meleeGemLevel: 0, slamGemLevel: 0, spellGemLevel: 0, dotGemLevel: 0, aoeGemLevel: 0, suppCap: 0, runeResonancePower: 0, regenFlat: 0,
+        flatDmg: 0, weaponFlatDmgPct: 0, pctDmg: 0, flatHp: 0, pctHp: 0, aspd: 0, crit: 0, move: 0, cooldownRecovery: 0, cooldownReduction: 0, mobilityCooldownRecovery: 0, mobilityCooldownReduction: 0, cooldownReductionCapBonus: 0, sight: 0, sightCap: 0, chestGrade: 0, gemLevel: 0, elementalGemLevel: 0, fireGemLevel: 0, coldGemLevel: 0, lightGemLevel: 0, chaosGemLevel: 0, physGemLevel: 0, projectileGemLevel: 0, meleeGemLevel: 0, slamGemLevel: 0, spellGemLevel: 0, dotGemLevel: 0, aoeGemLevel: 0, suppCap: 0, runeResonancePower: 0, regenFlat: 0,
         dr: 0, physIgnore: 0, resPen: 0, resF: 0, resC: 0, resL: 0, maxResAll: 0, maxResF: 0, maxResC: 0, maxResL: 0, maxResChaos: 0, resChaos: 0, leech: 0, leechRateCap: 0, leechTotalCap: 0, leechInstanceCap: 0, leechKeepFullLife: 0, critDmg: 0, regen: 0, regenSuppress: 0, ds: 0, expGain: 0,
         minDmgRoll: 0, maxDmgRoll: 0, slamEchoChance: 0, slamEchoDamagePct: 0, doubleDamageChance: 0, blockChanceMax: 0,
         physFlatTakenReduce: 0, fireFlatTakenReduce: 0, coldFlatTakenReduce: 0, lightFlatTakenReduce: 0, chaosFlatTakenReduce: 0, allFlatTakenReduce: 0,

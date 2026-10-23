@@ -440,7 +440,7 @@ function renderTutorialStep() {
     const openButton = document.getElementById('tutorial-open-btn');
     const dismissButton = document.getElementById('tutorial-dismiss-btn');
     openButton.style.display = hasShortcut ? 'inline-block' : 'none';
-    openButton.innerText = tutorialOpenLabel(activeTutorial);
+    openButton.innerHTML = `<span class="px-center">${escapeHTML(tutorialOpenLabel(activeTutorial))}</span>`;
     dismissButton.innerText = '확인';
 }
 

@@ -6,7 +6,8 @@
 .ward-slot-row > header { display: flex; align-items: baseline; gap: 8px; }
 .ward-slot-row > header span { color: var(--px-gold, #c69f5e); font-weight: 700; }
 .ward-slot-row > header small { color: var(--px-copy-muted, #a39883); }
-.ward-slot-cells { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+/* 첫 칸만 남는 폭(1fr)을 받고 나머지는 정수 px: 소수 폭이면 칸 안의 글이 화소 사이에서 시작해 번졌다(2026-10-21). */
+.ward-slot-cells { display: grid; grid-template-columns: minmax(0, 1fr) repeat(4, round(down, calc((100% - 24px) / 5), 1px)); gap: 6px; }
 .ward-belt-line span { color: #c8b6ff; }
 .ward-belt-line b { color: #e6dcc6; }
 .ward-belt-line small { color: #888; font-size: inherit; }
@@ -20,13 +21,17 @@
     position: relative;
     display: flex;
     flex-direction: column;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
     gap: 2px;
     min-width: 0;
     min-height: 66px;
     padding: 4px 3px;
 }
+/* 칸 안의 그림과 글은 왼쪽에서 절반(정수 px) 옮기고 제 폭의 절반(정수 px)만큼 되돌린다: 가운데 맞춤은 반 화소에 놓였다(2026-10-21). */
+:root body #ui-equip-list .ward-slot-cells .ward-slot:not(.is-locked) > * { position: relative; left: round(down, 50%, 1px); translate: round(up, -50%, 1px); }
+/* 잠긴 칸(가운데 맞춤 격자)의 자물쇠는 칸 폭과 제 폭이 홀수일 때 생기는 반 화소만 되돌린다. */
+:root body #ui-equip-list .ward-slot-cells .ward-slot.is-locked > * { position: relative; left: calc(round(down, 50%, 1px) - 50%); translate: calc(round(up, 50%, 1px) - 50%); }
 :root body #ui-equip-list .ward-slot-cells .ward-slot img { width: 30px; height: 30px; object-fit: contain; image-rendering: pixelated; }
 :root body #ui-equip-list .ward-slot-cells .ward-slot-line {
     display: -webkit-box;
@@ -41,7 +46,7 @@
     color: #c8b6ff;
 }
 :root body #ui-equip-list .ward-slot-cells .ward-slot.is-off { opacity: .45; filter: grayscale(.6); }
-:root body #ui-equip-list .ward-slot-cells .ward-slot-plus { color: var(--px-copy-muted, #a39883); font-size: 18px; }
+:root body #ui-equip-list .ward-slot-cells .ward-slot-plus { color: var(--px-copy-muted, #a39883); font-size: var(--font-size-heading); }
 :root body #ui-equip-list .ward-slot-cells .ward-slot.is-locked {
     display: grid;
     place-items: center;

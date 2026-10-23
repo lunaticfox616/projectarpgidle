@@ -21,7 +21,8 @@ async function buildMobile() {
     copy('node_modules/@supabase/supabase-js/LICENSE', 'vendor/supabase-LICENSE.txt');
     const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8')
         .replace('<script id="app-update-registration">', '<script src="vendor/capacitor.js"></script>\n    <script id="app-update-registration">')
-        .replace('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2', 'vendor/supabase.js');
+        // the page pins the version package.json installs (@2.115.0); any pin becomes the bundled copy
+        .replace(/https:\/\/cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js@[0-9.]+/, 'vendor/supabase.js');
     const { buildCss } = require('./build-css');
     const bundled = await buildCss(destination, html);
     fs.writeFileSync(path.join(destination, 'index.html'), bundled);

@@ -34,7 +34,7 @@ const itemTooltipRules = (() => {
 
     // 잠식 특수 옵션과 복합 옵션도 실제 전투 계산과 같은 방식으로 베이스 방어 수치에 반영한다.
     function defenseSources(item) {
-        const lines = (item.stats || []).concat(item.chaosInfusion ? [item.chaosInfusion] : [], getImmutableItemSpecialStats(item));
+        const lines = (Array.isArray(item.stats) ? item.stats : []).concat(item.chaosInfusion ? [item.chaosInfusion] : [], getImmutableItemSpecialStats(item));
         return lines.filter(Boolean).flatMap(stat => [stat].concat(Array.isArray(stat.extraStats) ? stat.extraStats : [])).filter(Boolean);
     }
 
@@ -42,7 +42,7 @@ const itemTooltipRules = (() => {
      * 기본 옵션 배율 (getUniqueImplicitMultiplier) like the stat calculation. */
     function defenseView(item) {
         const base = defenseTable(), flat = defenseTable(), pct = defenseTable(), implicit = getUniqueImplicitMultiplier(item);
-        (item.baseStats || []).forEach(stat => { if (stat && Object.hasOwn(base, stat.id)) base[stat.id] += Number(stat.val || 0) * implicit; });
+        (Array.isArray(item.baseStats) ? item.baseStats : []).forEach(stat => { if (stat && Object.hasOwn(base, stat.id)) base[stat.id] += Number(stat.val || 0) * implicit; });
         defenseSources(item).forEach(stat => {
             if (Object.hasOwn(flat, stat.id)) flat[stat.id] += Number(stat.val || 0);
             if (Object.hasOwn(DEFENSE_PCT, stat.id)) pct[DEFENSE_PCT[stat.id]] += Number(stat.val || 0);

@@ -23,7 +23,17 @@ const mobilitySkill = (() => {
         const name = state && state.mobilitySkill;
         return isMobilityGem(name) && Array.isArray(state.skills) && state.skills.includes(name) ? name : '';
     }
-    function cooldownMs(name) { return Math.max(500, Number(SKILL_DB[name]?.mobilityCooldownMs) || DEFAULT_COOLDOWN_MS); }
+    /** The rune's own cooldown, before the build's 재사용 대기시간 lines. */
+    function baseCooldownMs(name) { return Math.max(500, Number(SKILL_DB[name]?.mobilityCooldownMs) || DEFAULT_COOLDOWN_MS); }
+    /** After the build's lines (js/skills.js getSkillCooldownMs). Any gem's stats serve: the lines belong to the build, not the gem. */
+    function cooldownMs(name, stats) { return getSkillCooldownMs(baseCooldownMs(name), stats, { mobility: true }); }
+    /** 난사(2026-10-21 사용자: 세팅이 갖춰지면 쿨타임을 극한으로 줄여 난사): 줄들이 제 대기를 40% 아래로 줄이면, 자동 이동이 켜진 동안
+     * 피해를 주는 이동 룬은 주 공격이 닿아도 준비될 때마다 나간다. 피해 없는 순간이동은 예전처럼 틈을 메울 때만 저절로 나간다. */
+    const SPAM_COOLDOWN_SHARE = 0.4;
+    function spams(name, stats) {
+        const def = SKILL_DB[name] || {};
+        return (Number(def.baseDmg) > 0 || Number(def.spellFlatBase) > 0) && cooldownMs(name, stats) <= baseCooldownMs(name) * SPAM_COOLDOWN_SHARE;
+    }
     /** Runs fn with the mobility gem in the main slot (its stats, targets, grid and native runtime), then restores both. */
     function withGem(name, fn) {
         const main = game.activeSkill, mainRuntime = skillGemCombatRuntime;
@@ -58,12 +68,12 @@ const mobilitySkill = (() => {
     }
     /** The player pressed the key or the HUD slot a moment ago. */
     function requested(now) { return requestedAt !== null && now - requestedAt < REQUEST_MS; }
-    /** Asked for by the player, or — auto-move on — the main gem has no enemy in reach (a gap to close). */
-    function wanted(gate, now) {
-        return requested(now) || (gate.auto && !gate.inRange);
+    /** Asked for by the player, or — auto-move on — the main gem has no enemy in reach (a gap to close), or the rune spams. */
+    function wanted(name, gate, now) {
+        return requested(now) || (gate.auto && (!gate.inRange || spams(name, gate.stats)));
     }
     function ready(name, gate, now) {
-        return !gate.blocked && wanted(gate, now) && now >= cooldownUntil && game.playerHp > 0 && !game.combatHalted
+        return !gate.blocked && wanted(name, gate, now) && now >= cooldownUntil && game.playerHp > 0 && !game.combatHalted
             && canUseSkillWithCurrentEquipment(name);
     }
     /** The way out of a boss warning on the hero's cell: the nearest safe cell within reach, or null. */
@@ -72,7 +82,7 @@ const mobilitySkill = (() => {
         const route = findNearestSafeGridRoute(game.gridPlayer, getBossWarningCells(game, pendingEnemyCombatAttacks));
         return route && route.distance > 0 && route.distance <= EVADE_RANGE ? route : null;
     }
-    function evade(name, now) {
+    function evade(name, now, stats) {
         const route = evadeRoute();
         if (!route) return false;
         const from = { gx: game.gridPlayer.gx, gy: game.gridPlayer.gy };
@@ -81,23 +91,23 @@ const mobilitySkill = (() => {
         combatTacticsRuntime.attackDelayUntil = Math.max(combatTacticsRuntime.attackDelayUntil, now + 180);
         combatTacticsRuntime.recoverUntil = 0; // 이동기는 공격 후딜을 끊는다(js/combat.js isPlayerAttackRecovering)
         addBattleFx('playerMobility', { fromCell: from, toCell: route.destination, duration: 180 });
-        cooldownUntil = now + cooldownMs(name);
+        cooldownUntil = now + cooldownMs(name, stats);
         requestedAt = null;
         return true;
     }
-    /** After the main attack loop. gate: { blocked, inRange, auto } — the main cast delay or a hazard, whether the main gem
-     * already reaches an enemy, and whether auto-move is on (the gap-closer is part of moving by itself).
-     * True when the mobility gem was cast. */
+    /** After the main attack loop. gate: { blocked, inRange, auto, stats } — the main cast delay or a hazard, whether the main gem
+     * already reaches an enemy, whether auto-move is on (the gap-closer is part of moving by itself), and the tick's stats
+     * (their 재사용 대기시간 lines decide whether the rune spams). True when the mobility gem was cast. */
     function cast(gate) {
         const name = equipped(), now = getCombatTime();
         if (!name || now < cooldownUntil || game.playerHp <= 0 || game.combatHalted) return false;
-        if (requested(now) && evade(name, now)) return true; // only on the player's press: never by itself (2026-10-07)
+        if (requested(now) && evade(name, now, gate.stats)) return true; // only on the player's press: never by itself (2026-10-07)
         if (!ready(name, gate, now) || !reachable(name)) return false;
         return withGem(name, () => {
             const stats = getPlayerStats(false);
             if (!getSkillTargets(stats).length) { cooldownUntil = now + RETRY_MS; return false; }
             lastStats = stats;
-            cooldownUntil = now + cooldownMs(name);
+            cooldownUntil = now + cooldownMs(name, stats);
             requestedAt = null;
             actExplorationMotion.cancel(game.actExploration); // a step in progress stops: the move starts from the caster's cell
             combatTacticsRuntime.recoverUntil = 0; // 이동기는 공격 후딜을 끊는다
@@ -105,8 +115,10 @@ const mobilitySkill = (() => {
             return true;
         });
     }
-    /** True while a movement gem is mid-move (a tear, smoke, rope or leap, 전도성 난격's cuts): the caster neither walks nor attacks. */
-    function moving() { return !!runtime && runtime.casts.some(c => (c.move || c.holds) && !c.done); }
+    const busy = state => !!state && state.casts.some(c => (c.move || c.holds) && !c.done);
+    /** True while a movement gem is mid-move (a tear, smoke, rope or leap, 전도성 난격's cuts): the caster neither walks nor attacks.
+     * 칼이 된 발걸음 puts a mobility gem in the main slot: its moves in the main runtime hold the caster the same way. */
+    function moving() { return busy(runtime) || (isMobilityGem(game.activeSkill) && busy(skillGemCombatRuntime)); }
     /** Remaining cooldown for the HUD (0 when ready). */
     function cooldownLeft(now = getCombatTime()) { return Math.max(0, cooldownUntil - now); }
     function reset() { runtime = null; cooldownUntil = 0; lastStats = null; requestedAt = null; }
@@ -118,7 +130,7 @@ const mobilitySkill = (() => {
         ({ runtime, cooldownUntil, lastStats } = snapshot || { runtime: null, cooldownUntil: 0, lastStats: null });
         requestedAt = Number.isFinite(snapshot?.requestedAt) ? snapshot.requestedAt : null;
     }
-    return Object.freeze({ isMobilityGem, equipped, cooldownMs, advance, request, cast, moving, mainGem, cooldownLeft, reset, castState,
+    return Object.freeze({ isMobilityGem, equipped, baseCooldownMs, cooldownMs, advance, request, cast, moving, mainGem, cooldownLeft, reset, castState,
         capture, restore });
 })();
 safeExposeGlobals({ mobilitySkill });

@@ -49,7 +49,7 @@ const talentUi = (() => {
             <div class="talent-stat"><span>모은 카드</span><b>${count}<small>/${TALENT_BLOOM_TOTAL_CARDS}</small></b>${bar(count, TALENT_BLOOM_TOTAL_CARDS)}</div>
             <div class="talent-stat"><span>장착</span><b>${worn}<small>/${unlocked}</small></b>${bar(worn, Math.max(1, unlocked))}</div>
             ${scoreStatHtml()}
-            <button type="button" class="talent-help" data-talent-action="score" aria-label="개화 점수 내역">?</button></div>`;
+            <button type="button" class="talent-help" data-talent-action="score" aria-label="개화 점수 내역"><span class="px-center">?</span></button></div>`;
     }
 
     // ── 개화 시련 카드 ─────────────────────────────────────────────
@@ -81,7 +81,7 @@ const talentUi = (() => {
         const list = needs.map(need => `<li class="${need.ok ? 'is-on' : 'is-off'}"><i></i>${esc(need.text)}</li>`).join('');
         return `<section class="talent-trial${ready ? ' is-ready' : ''}"${info ? ` style="--tone:${info.tone}"` : ''}>${trialTopHtml(info)}`
             + `<ul class="talent-needs">${list}</ul>`
-            + `<button type="button" class="talent-trial-go" data-talent-action="trial"${ready ? '' : ' disabled'}>개화 시련 도전</button></section>`;
+            + `<button type="button" class="talent-trial-go" data-talent-action="trial"${ready ? '' : ' disabled'}><span class="px-center">개화 시련 도전</span></button></section>`;
     }
 
     // ── 장착 슬롯 ──────────────────────────────────────────────────

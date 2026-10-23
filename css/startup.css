@@ -18,17 +18,12 @@
   overflow: auto;
   overscroll-behavior: contain;
   color: var(--entry-copy);
-  /* 배경: 액트 1 뿌리 성소 도트 그림(512도트)을 정수배(×3, 큰 화면 ×4, 휴대폰 ×2)로 키우고 가장자리를 어둡게.
-     image-rendering은 상속되므로 내용(.startup-shell)은 다시 기본값으로 둔다. */
+  /* 배경: 성소 터에서 올려다본 세계수(2026-10-21 GPT 그림, 16:9 1672×941). 로고 자리(왼쪽 위), 로그인 판(오른쪽), 저장 요약(왼쪽 아래)은
+     그림이 어둡게 비워 두었다. 화면을 덮게 키우고 가장자리를 어둡게 한다. 같은 날 예전 전장의 판 그림(act1.png)을 뺐다. */
   background: radial-gradient(ellipse 75% 70% at 50% 45%, transparent 0 35%, rgba(4,3,2,.82) 100%),
     linear-gradient(180deg, rgba(5,4,3,.5), rgba(5,4,3,.25) 40%, rgba(5,4,3,.85)),
-    #0a0806 url('../assets/background/act1.png') center / 1536px auto no-repeat;
-  image-rendering: pixelated;
+    #0a0806 url('../assets/background/title-worldtree-v1.webp') center / cover no-repeat;
 }
-@media (min-width: 1537px), (min-height: 1537px) {
-  #startup-overlay { background-size: auto, auto, 2048px auto; }
-}
-#startup-overlay .startup-shell { image-rendering: auto; }
 #startup-overlay::before, #startup-overlay::after { display: none; }
 #startup-overlay .startup-shell {
   width: 100%; min-height: 100%; height: max-content; box-sizing: border-box;
@@ -64,11 +59,11 @@
 #startup-overlay .startup-summary-item {
   min-height: 0; padding: 0; border: 0; border-radius: 0; background: none; transform: none; box-shadow: none;
 }
-#startup-overlay .startup-summary-label { color: var(--entry-muted); font-size: 11px; letter-spacing: .03em; }
+#startup-overlay .startup-summary-label { color: var(--entry-muted); font-size: var(--font-size-ui); letter-spacing: .03em; }
 #startup-overlay .startup-summary-value { margin-top: 4px; color: var(--entry-copy); font-size: 12px; font-weight: 400; line-height: 1.5; }
 #startup-overlay .startup-patch-note-link {
   min-height: 30px; margin: 0; padding: 4px 0 4px 12px; border: 0; border-radius: 0;
-  color: var(--entry-gold); background: none; box-shadow: none; font: 400 11px/1.4 var(--font-body); text-shadow: none;
+  color: var(--entry-gold); background: none; box-shadow: none; font: 400 var(--font-size-ui)/1.4 var(--font-body); text-shadow: none;
 }
 #startup-overlay .startup-patch-note-link:hover { color: #fff3d4; text-decoration: underline; }
 #startup-overlay .startup-latest-patch-date { color: var(--entry-muted); font-size: 12px; }
@@ -82,7 +77,7 @@
   box-shadow: 0 24px 70px rgba(0,0,0,.28), inset 0 1px rgba(255,243,209,.04); backdrop-filter: none;
 }
 #startup-overlay .startup-auth-head { margin-bottom: 6px; }
-#startup-overlay .startup-auth-title { margin: 0; color: var(--entry-copy); font-size: 23px; font-weight: 500; letter-spacing: .02em; }
+#startup-overlay .startup-auth-title { margin: 0; color: var(--entry-copy); font-size: var(--font-size-heading); font-weight: 500; letter-spacing: .02em; }
 #startup-overlay .startup-form { gap: 7px; }
 /* 칸 이름은 칸 안의 안내(placeholder)가 대신한다. 화면 읽기 프로그램에는 그대로 읽힌다. */
 #startup-overlay .startup-field-label {
@@ -135,7 +130,7 @@
 #startup-overlay #btn-startup-kakao img { width: auto; height: 44px; max-width: 100%; margin: 0; object-fit: contain; border-radius: 0; }
 #startup-overlay .startup-status { min-height: 0; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; color: #d8c392; font-size: 12px; line-height: 1.5; text-align: center; }
 #startup-overlay .startup-status:empty { display: none; }
-#startup-overlay .startup-policy-links { padding-top: 2px; font-size: 10px; }
+#startup-overlay .startup-policy-links { padding-top: 2px; font-size: var(--font-size-meta); }
 #startup-overlay .startup-policy-links a { color: #b3bca9; text-decoration-color: #677460; }
 #startup-overlay .startup-legal-consent { color: var(--entry-muted); border-color: #3b2f1e; background: #0d0b08; }
 #startup-overlay .startup-legal-consent input { accent-color: var(--entry-gold); }
@@ -151,7 +146,6 @@
   #startup-overlay .startup-panel.auth { padding: 24px; }
 }
 @media (max-width: 760px) {
-  #startup-overlay { background-size: auto, auto, 1024px auto; }
   #startup-overlay .startup-shell { display: flex; flex-direction: column; gap: 26px; padding: max(28px,env(safe-area-inset-top)) 20px calc(28px + env(safe-area-inset-bottom)); }
   #startup-overlay .startup-panel.hero, #startup-overlay .startup-hero-grid, #startup-overlay .startup-hero-copy { display: contents; }
   #startup-overlay .startup-brand-wrap { order: 0; margin: 0 auto; gap: 12px; text-align: center; }

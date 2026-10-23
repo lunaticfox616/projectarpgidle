@@ -27,7 +27,13 @@ const actExplorationDoors = (() => {
         const map = stageMap(run), room = map && Number.isInteger(roomIndex) ? map.rooms[roomIndex] : null;
         const here = cell => !room || actExplorationRooms.roomAt(map, cell) === room;
         const bursting = row => (row.phase === 'warning' || row.phase === 'active') && here(row);
-        return game.enemies.some(enemy => enemy.hp > 0 && here(enemy)) || (run.objects?.entries || []).some(bursting);
+        return game.enemies.some(enemy => enemy.hp > 0 && here(enemy)) || (run.objects?.entries || []).some(bursting) || (!!room && waveDue(run, room));
+    }
+    /** 그 방에 이어지는 무리(data ACT_EXPLORATION_WAVES)가 남았고 지금 무리를 모두 쓰러뜨렸는가: 그동안도 싸우는 중이라 문이 닫혀 있고,
+     * js/combat.js releaseExplorationWave가 잠시 뒤 새 무리를 세운다. */
+    function waveDue(run, room) {
+        const wave = run.waves && run.waves[room.id];
+        return !!wave && wave.left > 0 && run.packs.every(pack => pack.roomId !== room.id || !pack.aliveIds.length);
     }
     /** 방 단위 무대: 주인공이 선 방이 아닌 다른 방에서 싸움에 든 몬스터(화면에 없다)를 그 무리의 대기 줄로 돌려보낸다. 주인공이 그 방에
      * 들어서면 다시 알아챈다(actExplorationState.engage). 무리가 없는 것은 걷는다. 벽 칸에 선 것(방이 없다)은 그대로 둔다. 정산 뒤 다른
@@ -192,7 +198,7 @@ const actExplorationDoors = (() => {
         const rows = Array.from({ length: GUIDE_KEEP_ROWS * 2 + 1 }, (_, index) => post.gy - GUIDE_KEEP_ROWS + index);
         return rows.filter(gy => gy >= room.y0 && gy <= room.y1).map(gy => gridCellKey(post.gx, gy)).filter(key => !doorways.has(key));
     }
-    return Object.freeze({ session, planKey, stageMap, cross, startAtGate, toward, room, doorsHere, pace, fightingHere, sendStraysBack, storyGuide, guideRoom,
+    return Object.freeze({ session, planKey, stageMap, cross, startAtGate, toward, room, doorsHere, pace, fightingHere, waveDue, sendStraysBack, storyGuide, guideRoom,
         guideCells });
 })();
 safeExposeGlobals({ actExplorationDoors });

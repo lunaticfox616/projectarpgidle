@@ -36,6 +36,12 @@ function getBattleBackdropKeyForZone(zone) {
     return 'bgAct1';
 }
 
+/** 전투 그림과 함께 먼저 받는 판 그림(js/passives.js initBattleAssets): 위에서 보는 전장만 판을 그린다(bgAct1과 그 구역의 판).
+ * 무대에서는 먼저 받지 않고, 쓰게 되면 그때 받는다(2026-10-21: 로딩 화면에 예전 전장이 비치던 그림). */
+function getFirstBattleBackdropKeys(zone) {
+    return stageView.topDown() ? ['bgAct1', getBattleBackdropKeyForZone(zone)] : [];
+}
+
 /**
  * @param {string} key
  * @returns {Promise<HTMLImageElement|null>|null}

@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Rignin 대사 편집기</title>
+    <link rel="stylesheet" href="./editor.css">
+</head>
+<body>
+    <header class="topbar">
+        <div>
+            <strong>대사 편집기</strong>
+            <span id="line-count">불러오는 중</span>
+        </div>
+        <nav>
+            <button id="export-button" type="button">파일로 내보내기</button>
+            <button id="import-button" type="button">파일 넣기</button>
+            <input id="import-input" type="file" accept=".csv,.tsv,.txt" hidden>
+            <a id="pack-link" class="button-link server-only" href="/api/pack" download>다른 컴퓨터용 묶음</a>
+            <span class="nav-gap" aria-hidden="true"></span>
+            <button id="reload-button" class="server-only" type="button">새로 읽기</button>
+            <button id="undo-save-button" class="server-only" type="button" hidden>방금 저장 되돌리기</button>
+            <button id="revert-all-button" type="button" disabled>모두 되돌리기</button>
+            <button id="save-button" class="primary server-only" type="button" disabled>저장</button>
+        </nav>
+    </header>
+
+    <nav class="tabs" role="tablist" aria-label="말하는 이">
+        <button type="button" role="tab" data-tab="hero">주인공</button>
+        <button type="button" role="tab" data-tab="npc">NPC</button>
+        <button type="button" role="tab" data-tab="boss">보스</button>
+    </nav>
+
+    <section class="toolbar" aria-label="거르기">
+        <label class="grow">
+            <span>검색</span>
+            <input id="search-input" type="search" placeholder="대사, 말하는 이, 장소, 나오는 때">
+        </label>
+        <label>
+            <span>장소</span>
+            <select id="area-select"></select>
+        </label>
+        <label id="class-filter">
+            <span>직업</span>
+            <select id="class-select"></select>
+        </label>
+        <label class="check"><input id="changed-only" type="checkbox"> 고친 줄만</label>
+        <label class="check"><input id="warn-only" type="checkbox"> 경고 있는 줄만</label>
+    </section>
+
+    <p class="hint server-only">저장하면 게임 파일과 스토리 바이블이 함께 바뀌고, 저장 전 사본이 artifacts/story-line-backups에 남습니다.</p>
+    <p class="hint server-only">밖에서 고치려면 파일로 내보내 엑셀이나 구글 시트에서 새 대사 칸만 고친 뒤, 파일 넣기(화면에 끌어 놓아도 됩니다)로 넣고 저장하세요. 다른 컴퓨터에서는 다른 컴퓨터용 묶음을 풀어 여세요.</p>
+    <p class="hint pack-only">다른 컴퓨터용 묶음입니다. 게임 파일은 바뀌지 않고, 고친 줄은 이 브라우저에 남습니다. 다 고쳤으면 파일로 내보내기로 받은 CSV를 원래 컴퓨터의 편집기에서 파일 넣기로 넣고 저장하세요.</p>
+
+    <section id="result" class="result" hidden aria-live="polite">
+        <p id="result-text"></p>
+        <ul id="result-list"></ul>
+        <pre id="result-output" hidden></pre>
+    </section>
+
+    <main id="line-list"></main>
+
+    <footer><span id="status-text">대사를 불러오는 중입니다.</span></footer>
+
+    <template id="line-template">
+        <article class="line-row">
+            <div class="line-meta">
+                <span class="speaker"></span>
+                <span class="place"></span>
+                <span class="when"></span>
+            </div>
+            <textarea class="line-text" rows="1" spellcheck="false"></textarea>
+            <div class="line-foot">
+                <span class="count"></span>
+                <span class="warns"></span>
+                <span class="source"></span>
+                <button class="revert-button" type="button" hidden>되돌리기</button>
+            </div>
+            <p class="was" hidden></p>
+        </article>
+    </template>
+
+    <script src="./sheet.js"></script>
+    <script src="./editor.js"></script>
+</body>
+</html>

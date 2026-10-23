@@ -24,6 +24,8 @@ const STAT_META = Object.freeze({
     poisonChance: ['중독 확률', '%p'], bleedChance: ['출혈 확률', '%p'], freezeChance: ['동결 확률', '%p'],
     aspd: ['스킬 속도', '%'], ds: ['연속 타격', '%p'], leech: ['생명력 흡수', '%'],
     move: ['이동 속도', '%'], crit: ['치명타 확률', '%p'], critDmg: ['치명타 피해 배율', '%'],
+    cooldownRecovery: ['재사용 대기시간 회복 속도', '%'], cooldownReduction: ['재사용 대기시간 감소', '%'],
+    mobilityCooldownRecovery: ['이동 스킬 재사용 대기시간 회복 속도', '%'], mobilityCooldownReduction: ['이동 스킬 재사용 대기시간 감소', '%'],
     armor: ['방어도', ''], armorPct: ['방어도', '%'], evasion: ['회피', ''], evasionPct: ['회피', '%'],
     energyShield: ['에너지 보호막', ''], energyShieldPct: ['에너지 보호막', '%'], blockChance: ['막기 확률', '%p'],
     energyShieldRegen: ['에너지 보호막 회복 속도', '%'], energyShieldRechargeFaster: ['에너지 보호막 재충전 대기시간 감소', '초'],

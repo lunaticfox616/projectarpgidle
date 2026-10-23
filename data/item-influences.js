@@ -47,16 +47,16 @@ const { ALTAR_INFLUENCE_LINES, INFLUENCE_AFFIX_MODS } = (() => {
         return Object.freeze(out);
     };
 
-    // 제단 영향: 베이스 옵션 한 줄을 바꾸는 줄. 부위마다 다섯 줄. [능력치, T1 최저, T20 최고, 소수]. 일반 추가 옵션 20티어의 절반쯤이다.
+    // 제단 영향: 베이스 옵션 한 줄을 바꾸는 줄. 부위마다 다섯 줄(붉은 제단의 투구와 장갑은 재사용 대기시간 회복 속도까지 여섯, 2026-10-21). [능력치, T1 최저, T20 최고, 소수]. 일반 추가 옵션 20티어의 절반쯤이다.
     const altarLines = (() => {
         const line = (statId, min, max, decimal) => Object.freeze({ statId, tierValues: itemInfluenceTiers(min, max, decimal) });
         const slots = rows => Object.freeze(Object.fromEntries(Object.entries(rows).map(([slot, list]) => [slot, Object.freeze(list.map(row => line(...row)))])));
         return Object.freeze({
             // 성화와 검은 태양: 불, 점화, 번지는 불길, 성가의 빠르기, 치명.
             red: slots({
-                투구: [['firePctDmg', 6, 65], ['critDmg', 8, 70], ['aoePctDmg', 6, 60], ['maxResF', 0.5, 4, true], ['resPen', 1, 12]],
+                투구: [['firePctDmg', 6, 65], ['critDmg', 8, 70], ['aoePctDmg', 6, 60], ['maxResF', 0.5, 4, true], ['resPen', 1, 12], ['cooldownRecovery', 2, 14]],
                 갑옷: [['maxResF', 0.5, 4, true], ['firePctDmg', 6, 65], ['pctHp', 3, 32], ['igniteDamageMultiplierPct', 4, 40], ['dr', 2, 22]],
-                장갑: [['igniteChance', 2, 25], ['igniteDamageMultiplierPct', 4, 40], ['aspd', 2, 22], ['fireFlatDmg', 6, 80], ['crit', 0.5, 5.5, true]],
+                장갑: [['igniteChance', 2, 25], ['igniteDamageMultiplierPct', 4, 40], ['aspd', 2, 22], ['fireFlatDmg', 6, 80], ['crit', 0.5, 5.5, true], ['cooldownRecovery', 2, 14]],
                 신발: [['move', 3, 24], ['resF', 3, 26], ['aspd', 2, 18], ['ds', 4, 34], ['critDmg', 8, 60]],
                 방패: [['maxResF', 0.5, 4, true], ['firePctDmg', 6, 65], ['igniteChance', 2, 20], ['aoePctDmg', 6, 55], ['critDmg', 8, 60]],
                 허리띠: [['pctHp', 3, 32], ['firePctDmg', 6, 60], ['igniteDamageMultiplierPct', 4, 35], ['resF', 3, 26], ['aspd', 2, 18]]
@@ -90,6 +90,7 @@ const { ALTAR_INFLUENCE_LINES, INFLUENCE_AFFIX_MODS } = (() => {
             guardian(['guardianBoss', 'bossDamagePct'], 'prefix', '보스 처치 피해(%)', ['무기', '장갑', '목걸이', '반지'], [4, 40]),
             guardian(['guardianFirstStrike', 'firstStrikeDamagePct'], 'prefix', '선제 타격 피해(%)', ['무기', '장갑', '신발'], [6, 60]),
             guardian(['guardianDouble', 'doubleDamageChance'], 'suffix', '확률로 2배의 피해를 줌(%)', ['무기', '목걸이', '반지'], [1, 8, true]),
+            guardian(['guardianMobilityCooldown', 'mobilityCooldownRecovery'], 'suffix', '이동 스킬 재사용 대기시간 회복 속도(%)', ['신발', '장갑', '목걸이'], [3, 20]),
             // 마름 사도: 썩히고 퍼뜨리고, 낫지 못하게 하고, 들쭉날쭉 세게 친다.
             blight(['blightPoisonChance', 'poisonChance'], 'suffix', '중독 확률(%)', ['무기', '장갑', '반지', '목걸이', '방패'], [2, 25]),
             blight(['blightPoisonDamage', 'poisonDamageMultiplierPct'], 'prefix', '중독 피해 증가(%)', ['무기', '장갑', '반지', '허리띠'], [5, 50]),
@@ -97,7 +98,8 @@ const { ALTAR_INFLUENCE_LINES, INFLUENCE_AFFIX_MODS } = (() => {
             blight(['blightRotDamage', 'dotPctDmg'], 'prefix', '지속 피해 배율(%)', ['투구', '갑옷', '허리띠', '신발'], [4, 40]),
             blight(['blightElite', 'eliteDamagePct'], 'prefix', '정예 처치 피해(%)', ['투구', '목걸이', '신발'], [4, 40]),
             blight(['blightMaxRoll', 'maxDmgRoll'], 'prefix', '최대 피해 보정(%)', ['장갑', '반지', '목걸이'], [3, 25]),
-            blight(['blightChaosRes', 'maxResChaos'], 'suffix', '최대 카오스 저항(%)', ['갑옷', '방패', '허리띠'], [0.5, 3, true])
+            blight(['blightChaosRes', 'maxResChaos'], 'suffix', '최대 카오스 저항(%)', ['갑옷', '방패', '허리띠'], [0.5, 3, true]),
+            blight(['blightCooldownCut', 'cooldownReduction'], 'suffix', '재사용 대기시간 감소(%)', ['투구', '목걸이', '반지'], [1, 6])
         ]);
     })();
     return { ALTAR_INFLUENCE_LINES: altarLines, INFLUENCE_AFFIX_MODS: affixMods };

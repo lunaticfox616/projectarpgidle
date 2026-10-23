@@ -118,7 +118,7 @@ const explorationAtlasUi = (() => {
         const rewards = getAvailableActRewardZoneIds();
         const steps = STORY_ACTS.slice(0,index+1).map((entry,i) => `<span class="${i === index ? 'is-current' : ''}">${entry.displayAct}</span>`).join('');
         return `<section class="atlas-hunting" data-atlas-route="map-explore-hunting" aria-label="나무">
-            <img class="atlas-landscape" src="${ACT_BATTLE_MAP_SOURCES['bgAct'+act.order]}" alt="" decoding="async">
+            <img class="atlas-landscape" src="${EXPLORATION_REGIONS.actLandscapes[act.order-1]}" alt="" decoding="async">
             <button class="atlas-hunting-copy" aria-label="나무" onclick="explorationAtlasUi.enter('map-explore-hunting')"><strong>나무</strong><small>액트 ${act.displayAct}, ${act.title}</small>
             <span class="atlas-act-steps" aria-label="열린 액트">${steps}</span>${trackedRewardHtml('map-explore-hunting')}</button>
             <div class="atlas-hunting-action">${huntingActionsHtml(index,rewards)}</div></section>`;

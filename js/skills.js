@@ -550,7 +550,7 @@ function getFossilSurplusRefiningCost(fossilKey) {
 function refineFossilSurplus(fossilKey) {
     let cost = getFossilSurplusRefiningCost(fossilKey);
     if (!cost) return false;
-    if (!contentProgression.isUnlocked('fossilRestore')) return addLog('잉여 화석 정제는 ‘해금’의 화석 복원을 열어야 쓸 수 있습니다.', 'attack-monster');
+    if (!contentProgression.isUnlocked('fossilRestore')) return addLog('잉여 화석 정제는 오르가에게서 화석 복원을 받아야 쓸 수 있습니다.', 'attack-monster');
     if ((game.currencies[fossilKey] || 0) < cost) return addLog(`잉여 화석 정제에는 같은 화석 ${cost}개가 필요합니다.`, 'attack-monster');
     game.currencies[fossilKey] -= cost;
     awardCurrency('fossilPrimal', 1);
@@ -682,7 +682,7 @@ function applyFossilChaosCraft(fossilKey) {
 function restorePrimalFossil(kind) {
     let key = kind === 'ancient' ? 'fossilAncientPrimal' : 'fossilPrimal';
     let isAncient = key === 'fossilAncientPrimal';
-    if (!contentProgression.isUnlocked('fossilRestore')) return addLog(`${isAncient ? '원시 고대 화석' : '원시 화석'} 복원은 ‘해금’의 화석 복원을 열어야 쓸 수 있습니다.`, 'attack-monster');
+    if (!contentProgression.isUnlocked('fossilRestore')) return addLog(`${isAncient ? '원시 고대 화석' : '원시 화석'} 복원은 오르가에게서 화석 복원을 받아야 쓸 수 있습니다.`, 'attack-monster');
     if ((game.currencies[key] || 0) <= 0) return addLog(`${ORB_DB[key] ? ORB_DB[key].name : key}이 부족합니다.`, 'attack-monster');
     game.currencies[key]--;
     let rewardLines = [];
@@ -916,10 +916,11 @@ function getSkillRuneRewardWeights(names) {
     return new Map(names.map(name => [name, getSkillRuneRewardWeight(name, stance)]));
 }
 
-/** 지금 무기로 못 쓰는 까닭(카드, 알림): '근접 무기 필요', '활 필요' 같은 한 줄. 쓸 수 있으면 ''. */
+/** 지금 장비로 못 쓰는 까닭(카드, 알림): '근접 무기 필요', '활 필요' 같은 한 줄. 쓸 수 있으면 ''. */
 function getSkillRuneWeaponNote(name) {
     if (canUseSkillWithCurrentEquipment(name)) return '';
     const skill = SKILL_DB[name], family = SKILL_RUNE_FAMILY[name];
+    if (isAttackRuneBlockedByMobilityBoots(name)) return `${MOBILITY_RUNE_ATTACK_UNIQUE} 착용 중, 이동 스킬룬만`;
     if (skill && skill.requiresShield && !hasEquippedShield()) return '방패 필요';
     return SKILL_RUNE_WEAPON_NOTES[family] || `${SKILL_RUNE_WEAPONS[family].map(stance => SKILL_RUNE_STANCE_LABELS[stance]).join(', ')} 필요`;
 }
@@ -928,7 +929,31 @@ function canUseSkillWithCurrentEquipment(name) {
     let skill = SKILL_DB[name];
     if (!skill) return true;
     if (skill.requiresShield && !hasEquippedShield()) return false;
+    if (isAttackRuneBlockedByMobilityBoots(name)) return false;
     return isSkillRuneUsableWithStance(name, getEquippedWeaponStance());
+}
+
+/** 칼이 된 발걸음(data/items.js MOBILITY_RUNE_ATTACK_KEY)을 신은 동안 주 공격 칸의 룬(이동 룬과 소환 룬 말고)은 쓰지 못한다. */
+function isAttackRuneBlockedByMobilityBoots(name) {
+    const tags = SKILL_DB[name]?.tags || [];
+    return !!SKILL_DB[name]?.isGem && !isMobilityRuneName(name) && !tags.includes('summon') && !tags.includes('summon_attack')
+        && isMobilityRuneAttackWorn(game);
+}
+
+/** 재사용 대기시간(2026-10-21 사용자: 재사용 대기시간 회복 속도와 감소, 이동 스킬 줄은 이동 룬에만). 감소는 더해 상한까지, 회복 속도는
+ * 더한 만큼 빨리 돈다: base × (1 − 감소) ÷ (1 + 회복). options: mobility(이동 스킬 줄도 더함), extraReductionPct(그 스킬에만 붙는 감소,
+ * 컨디션 교본의 저주 간격), reductionCapPct, floorMs. 감소 상한은 되감긴 모래시계(pStats.cooldownReductionCapBonus)가 올린다. */
+const SKILL_COOLDOWN_RULES = Object.freeze({ reductionCapPct: 60, floorMs: 250 });
+function sumCooldownPct(pStats, generalId, mobilityId, mobility) {
+    const value = id => Math.max(0, Number(pStats && pStats[id]) || 0);
+    return value(generalId) + (mobility ? value(mobilityId) : 0);
+}
+function getSkillCooldownMs(baseMs, pStats, options = {}) {
+    const rules = { ...SKILL_COOLDOWN_RULES, ...options };
+    const cap = rules.reductionCapPct + Math.max(0, Number(pStats && pStats.cooldownReductionCapBonus) || 0);
+    const reduction = Math.min(cap, sumCooldownPct(pStats, 'cooldownReduction', 'mobilityCooldownReduction', !!rules.mobility) + (Number(rules.extraReductionPct) || 0));
+    const recovery = sumCooldownPct(pStats, 'cooldownRecovery', 'mobilityCooldownRecovery', !!rules.mobility);
+    return Math.max(rules.floorMs, Math.round(baseMs * (1 - reduction / 100) / (1 + recovery / 100)));
 }
 
 
@@ -965,6 +990,7 @@ const isMobilityRuneName = name => (SKILL_DB[name]?.tags || []).includes('mobili
 function fitActiveSkillToWeapon() {
     // 이동 룬은 주 공격 칸으로 돌아오지 않는다(불러올 때 이동 칸으로, js/save-migrations.js keepBlockedMobilityGem).
     if (isMobilityRuneName(game.weaponBlockedSkill)) game.weaponBlockedSkill = '';
+    releaseMobilityRuneFromAttackSlot();
     const blocked = game.weaponBlockedSkill;
     if (game.activeSkill === '기본 공격' && blocked && (game.skills || []).includes(blocked) && canUseSkillWithCurrentEquipment(blocked)) {
         game.activeSkill = blocked;
@@ -973,6 +999,13 @@ function fitActiveSkillToWeapon() {
     const worn = game.activeSkill;
     if (canUseSkillWithCurrentEquipment(worn)) return;
     game.weaponBlockedSkill = worn;
+    game.activeSkill = '기본 공격';
+}
+/** 칼이 된 발걸음을 벗으면 주 공격 칸의 이동 룬은 이동 칸으로 간다(이동 칸이 차 있으면 내려 둔다). 막혀 있던 공격 룬은 위에서 돌아온다. */
+function releaseMobilityRuneFromAttackSlot() {
+    const worn = game.activeSkill;
+    if (!isMobilityRuneName(worn) || isMobilityRuneAttackWorn(game)) return;
+    if (!isMobilityRuneName(game.mobilitySkill) || !(game.skills || []).includes(game.mobilitySkill)) game.mobilitySkill = worn;
     game.activeSkill = '기본 공격';
 }
 

@@ -2710,11 +2710,12 @@ function previewPassiveNodeStats(nodeIds) {
 }
 
 /** "DPS 61 → 64, 생명력 170 → 180" for a preview ({ dps: [before, after], life: [before, after] }): each part only when it changes,
- * green up and red down; '' when none does. The skill tree tooltip, the ascendancy window and the act reward window word it alike. */
+ * green up and red down; '' when none does. The skill tree tooltip, the ascendancy window and the act reward window word it alike.
+ * A part never wraps inside: the skill tree's longer "이 노드까지 할당 시" line broke between "98 →" and "128" (2026-10-21). */
 function buildStatPreviewParts(preview) {
     const format = COMPARE_STAT_META.dps.format;
     const part = (label, [before, after]) => (format(before) === format(after) ? ''
-        : `<span style="color:${after > before ? '#8fe0a8' : '#ff9b92'};">${label} ${format(before)} → ${format(after)}</span>`);
+        : `<span style="color:${after > before ? '#8fe0a8' : '#ff9b92'}; white-space:nowrap;">${label} ${format(before)} → ${format(after)}</span>`);
     return [part('DPS', preview.dps), part('생명력', preview.life)].filter(Boolean).join(', ');
 }
 
@@ -4846,9 +4847,10 @@ function drawDamageTexts(ctx, now) {
  * All categories share this layout, including incoming damage and block/evade cues. No combat or saved state is changed. */
 drawDamageTexts.paint = (() => {
     const MAX_LIFT = 207, GAP = 3;
+    // 크기는 갈무리11 Bold의 제 크기(12, 24, 36px)만 쓴다: 사이 크기(16 ~ 32px)는 도트가 번졌다(2026-10-21). 치명타와 큰 타격은 색, 빛,
+    // 튀는 크기로 구별하고 지속 피해와 빗나감은 작은 크기다.
     function font(text) {
-        const tier = text.impactTier === 'annihilate' ? 32 : (text.impactTier === 'heavy' ? 28 : 0);
-        const size = text.bodyCue ? 20 : (tier || (text.miss ? 16 : (text.dot ? 17 : (text.crit ? 25 : 21))));
+        const size = text.bodyCue ? 24 : (text.impactTier === 'annihilate' ? 36 : (text.miss || text.dot ? 12 : 24));
         return `800 ${size}px "Galmuri11", "Malgun Gothic", sans-serif`;
     }
     function appearance(text, t) {
@@ -4864,7 +4866,7 @@ drawDamageTexts.paint = (() => {
         const count = !text.bodyCue && !text.miss && text.hitCount > 1 ? `${Math.floor(text.hitCount)}타` : '';
         // Korean unit glyphs can overhang their advance width; leave a real gap before the hit-count suffix.
         const countX = metrics.actualBoundingBoxRight + GAP * 2;
-        ctx.font = '800 10px "Galmuri11", "Malgun Gothic", sans-serif';
+        ctx.font = '10px "Galmuri9", "Galmuri11", "Malgun Gothic", sans-serif';
         const right = Math.max(metrics.actualBoundingBoxRight, count ? countX + ctx.measureText(count).width : 0);
         const box = { x: text.x - (metrics.actualBoundingBoxLeft + GAP) * pop,
             y: row.y - (metrics.actualBoundingBoxAscent + GAP) * pop,
@@ -4904,23 +4906,24 @@ drawDamageTexts.paint = (() => {
         ctx.translate(x, y); ctx.scale(row.pop, row.pop); ctx.translate(-x, -y);
         const strong = isStrongDamageText(text);
         // Strokes straddle the glyph edge, so 2px reads as a 1px dark outline. Only crits and heavy hits keep a glow.
-        ctx.lineWidth = text.impactTier === 'annihilate' ? 4 : (strong ? 3.5 : 3);
-        ctx.lineJoin = 'round';
+        // Even widths with square joins keep the outline on whole pixels around the pixel glyphs (2026-10-21).
+        ctx.lineWidth = strong || text.impactTier === 'annihilate' ? 4 : 2;
+        ctx.lineJoin = 'miter';
         ctx.strokeStyle = 'rgba(2,5,9,0.92)';
         ctx.shadowColor = text.impactTier === 'annihilate' ? 'rgba(255,155,72,.5)' : (strong ? 'rgba(255,211,102,0.38)' : 'transparent');
         ctx.shadowBlur = text.bodyCue ? 0 : (text.impactTier === 'annihilate' ? 7 : (strong ? 4 : 0));
-        ctx.strokeText(row.label, x, y);
+        drawCrispCanvasText(ctx, row.label, x, y, 'strokeText');
         // The fill sits inside the stroke, so the stroke pass already casts the whole glow.
         ctx.shadowBlur = 0;
         ctx.fillStyle = getDamageTextFillColor(text);
-        ctx.fillText(row.label, x, y);
+        drawCrispCanvasText(ctx, row.label, x, y);
         if (row.count) {
-            ctx.font = `800 10px "Galmuri11", "Malgun Gothic", sans-serif`;
+            ctx.font = '10px "Galmuri9", "Galmuri11", "Malgun Gothic", sans-serif';
             ctx.textAlign = 'left';
-            ctx.lineWidth = 1.2;
-            ctx.strokeText(row.count, x + row.countX, y - 3);
+            ctx.lineWidth = 2;
+            drawCrispCanvasText(ctx, row.count, x + row.countX, y - 3, 'strokeText');
             ctx.fillStyle = '#c8d9e8';
-            ctx.fillText(row.count, x + row.countX, y - 3);
+            drawCrispCanvasText(ctx, row.count, x + row.countX, y - 3);
         }
         ctx.restore();
     }
@@ -6314,7 +6317,7 @@ function initBattleAssets() {
     const selectedHeroKeys = new Set(Object.values((selectedHeroDef || {}).strips || {})
         .flatMap(value => Array.isArray(value) ? value : ((value && typeof value === 'object') ? Object.values(value) : [value]))
         .filter(value => typeof value === 'string' && value));
-    const criticalManifestKeys = new Set(['enemies', 'effects', 'summon1', 'bgAct1', getBattleBackdropKeyForZone(getZone(game.currentZoneId)), ...selectedHeroKeys]);
+    const criticalManifestKeys = new Set(['enemies', 'effects', 'summon1', ...getFirstBattleBackdropKeys(getZone(game.currentZoneId)), ...selectedHeroKeys]);
     const manifestGroups = prepareBattleAssetGroups(manifest, criticalManifestKeys, battleAssets.images, game.activeSkill, battleAssets.backdrops);
     const maxParallelLoads = Math.max(4, Math.min(8, Number((typeof navigator !== 'undefined' && navigator.hardwareConcurrency) || 6) || 6));
     let pending = manifestGroups.length;
@@ -7822,33 +7825,6 @@ function buildBattleAssetAtlas() {
             }
         }
     };
-}
-
-/**
- * Aligns an axis-aligned destination rectangle to backing-store pixels.
- * This keeps one-pixel sprite details stable at fractional device scales such as 125%.
- *
- * @param {CanvasRenderingContext2D} ctx
- * @param {number} x
- * @param {number} y
- * @param {number} width
- * @param {number} height
- * @returns {{x: number, y: number, width: number, height: number}}
- */
-function snapCanvasRectToDevicePixels(ctx, x, y, width, height) {
-    let transform = ctx.getTransform();
-    let scaleX = Number(transform.a);
-    let scaleY = Number(transform.d);
-    let axisAligned = Number.isFinite(scaleX) && Math.abs(scaleX) > 0.001
-        && Number.isFinite(scaleY) && Math.abs(scaleY) > 0.001
-        && Math.abs(Number(transform.b) || 0) < 0.001
-        && Math.abs(Number(transform.c) || 0) < 0.001;
-    if (!axisAligned) return { x, y, width, height };
-    let left = (Math.round(x * scaleX + transform.e) - transform.e) / scaleX;
-    let top = (Math.round(y * scaleY + transform.f) - transform.f) / scaleY;
-    let right = (Math.round((x + width) * scaleX + transform.e) - transform.e) / scaleX;
-    let bottom = (Math.round((y + height) * scaleY + transform.f) - transform.f) / scaleY;
-    return { x: left, y: top, width: Math.max(1 / Math.abs(scaleX), right - left), height: Math.max(1 / Math.abs(scaleY), bottom - top) };
 }
 
 function getBattleActorDrawAlpha(ctx,alpha) {
@@ -9804,6 +9780,9 @@ const JEWEL_OPTION_POOL = [
     { id: 'flatHp', name: '생명력 주입', min: 20, max: 45 },
     { id: 'crit', name: '치명 보석', min: 1, max: 3 },
     { id: 'aspd', name: '질주 보석', min: 3, max: 7 },
+    // 재사용 대기시간 세팅(2026-10-21): 한 개로는 작고, 여러 개를 모아야 난사에 다가간다.
+    { id: 'cooldownRecovery', name: '순환 수정', min: 2, max: 4 },
+    { id: 'mobilityCooldownRecovery', name: '바람결 파편', min: 3, max: 6 },
     { id: 'resAll', name: '수호 보석', min: 4, max: 9 },
     { id: 'resF', name: '화염 수호', min: 8, max: 18 },
     { id: 'resC', name: '냉기 수호', min: 8, max: 18 },
@@ -10309,22 +10288,26 @@ async function bulkSalvageSelected() {
     addLog(`🧪 선택한 등급 장비 ${targets.length}개 해체, ${formatSalvageRewardSummary(rewards)}${lockedSkipped > 0 ? ` (잠금, 세팅, 우선 보관 ${lockedSkipped}개는 남김)` : ''}`, 'loot-normal');
     updateStaticUI();
 }
-async function bulkSalvageAllInventory() {
+/** 전체 해체. The panel's button asks first; the rail's 해체 button double-clicked passes ask false and salvages at once
+ * (2026-10-21, js/equipment-window-ui.js salvageAllOnDoubleClick). Locked, set and priority-kept gear stays either way. */
+async function bulkSalvageAllInventory(options = {}) {
     if (!Array.isArray(game.inventory) || game.inventory.length <= 0) return addLog('해체할 장비가 없습니다.', 'attack-monster');
     let lockedCount = game.inventory.filter(item => isBulkSalvageProtectedItem(item)).length;
     let targetItems = game.inventory.filter(item => !isBulkSalvageProtectedItem(item));
-    let salvageCount = targetItems.length;
-    if (salvageCount <= 0) return addLog('🔒 잠금, 세팅, 우선 보관 장비뿐이라 전체 해체할 장비가 없습니다.', 'attack-monster');
-    const note = bagItems.countNote(targetItems);
-    if (!await requestGameConfirmation(`인벤토리 장비 ${salvageCount}개를 모두 해체합니다.${note ? `\n${note} 포함` : ''}${lockedCount > 0 ? `\n잠금, 세팅, 우선 보관 장비 ${lockedCount}개는 빼고 해체합니다.` : ''}`, {
-        title: '인벤토리 전체 해체',
-        tone: 'danger',
-        confirmLabel: `${salvageCount}개 해체`
-    })) return;
+    if (targetItems.length <= 0) return addLog('🔒 잠금, 세팅, 우선 보관 장비뿐이라 전체 해체할 장비가 없습니다.', 'attack-monster');
+    if (options.ask !== false && !await confirmBulkSalvageAll(targetItems, lockedCount)) return;
     const targets = confirmedSalvageTargets(targetItems), rewards = salvageBagItems(targets);
     if (!isCraftSelectionEquip()) clearCraftSelection();
     addLog(`🧪 인벤토리 전체해체 완료 (${targets.length}개), ${formatSalvageRewardSummary(rewards)}${lockedCount > 0 ? `, 잠금, 세팅, 우선 보관 ${lockedCount}개는 남김` : ''}`, 'loot-normal');
     updateStaticUI();
+}
+function confirmBulkSalvageAll(targetItems, lockedCount) {
+    const count = targetItems.length, note = bagItems.countNote(targetItems);
+    return requestGameConfirmation(`인벤토리 장비 ${count}개를 모두 해체합니다.${note ? `\n${note} 포함` : ''}${lockedCount > 0 ? `\n잠금, 세팅, 우선 보관 장비 ${lockedCount}개는 빼고 해체합니다.` : ''}`, {
+        title: '인벤토리 전체 해체',
+        tone: 'danger',
+        confirmLabel: `${count}개 해체`
+    });
 }
 
 function getAvailableSporeCraftModes() {
@@ -10335,7 +10318,7 @@ function getAvailableSporeCraftModes() {
 
 /** 혼돈 · 피해 홀씨는 고급 홀씨 해금 뒤에만 쓴다. 저장된 선택도 쓰는 순간 다시 본다(제작 · 미리보기 · 다시 사용 공통). */
 function getSporeCraftBlockReason(item, actionKey, mode, omen = null) {
-    if (['chaos', 'damage'].includes(mode) && !getAvailableSporeCraftModes().includes(mode)) return '혼돈, 피해 홀씨 제작은 ‘해금’의 고급 홀씨를 열어야 쓸 수 있습니다.';
+    if (['chaos', 'damage'].includes(mode) && !getAvailableSporeCraftModes().includes(mode)) return '혼돈, 피해 홀씨 제작은 이벨에게서 고급 홀씨를 받아야 쓸 수 있습니다.';
     const reason = equipmentCrafting.getSporeBlockReason(item, actionKey, mode);
     if (reason || mode === 'none' || !equipmentCrafting.basicActions.includes(actionKey)) return reason;
     return equipmentCrafting.sporePool(item, actionKey, mode, omen).length ? '' : '선택한 홀씨 계열에서 새로 부여할 수 있는 옵션이 없습니다.';
@@ -10350,7 +10333,7 @@ function isSporeCraftEquipment(item) {
 // The elemental lines a rot spore removes (data/affix-tags.js AFFIX_TAG_LISTS.rotSpore).
 const ROT_SPORE_STAT_IDS = resolveAffixTagList(AFFIX_TAG_LISTS.rotSpore, MOD_DB);
 function applyCorruptSporeToSelectedItem() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
-    if (!contentProgression.isUnlocked('advancedSpores')) return addLog('부패 홀씨는 ‘해금’의 고급 홀씨를 열어야 쓸 수 있습니다.', 'attack-monster');
+    if (!contentProgression.isUnlocked('advancedSpores')) return addLog('부패 홀씨는 이벨에게서 고급 홀씨를 받아야 쓸 수 있습니다.', 'attack-monster');
     let item = getSelectedCraftItem();
     if (!item) return addLog('먼저 아이템을 선택하세요.', 'attack-monster');
     if (!isSporeCraftEquipment(item)) return addLog('홀씨 제작은 장비에만 사용할 수 있습니다.', 'attack-monster');
@@ -10372,7 +10355,7 @@ function applyCorruptSporeToSelectedItem() { if (game.woodsmanBuildLock) return 
 }
 
 function applyRiftSporeToSelectedItem() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
-    if (!contentProgression.isUnlocked('advancedSpores')) return addLog('균열 홀씨는 ‘해금’의 고급 홀씨를 열어야 쓸 수 있습니다.', 'attack-monster');
+    if (!contentProgression.isUnlocked('advancedSpores')) return addLog('균열 홀씨는 이벨에게서 고급 홀씨를 받아야 쓸 수 있습니다.', 'attack-monster');
     let item = getSelectedCraftItem();
     if (!item) return addLog('먼저 아이템을 선택하세요.', 'attack-monster');
     if (!isSporeCraftEquipment(item)) return addLog('홀씨 제작은 장비에만 사용할 수 있습니다.', 'attack-monster');

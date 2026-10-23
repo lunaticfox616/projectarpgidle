@@ -294,14 +294,14 @@ const actTitleCard = (() => {
         return npcMark.kind;
     }
     function npcLabel(ctx, npc, x, y) {
-        ctx.font = `13px 'Galmuri11', 'Malgun Gothic', sans-serif`;
+        ctx.font = `12px 'Galmuri11', 'Malgun Gothic', sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.lineWidth = 3;
+        ctx.lineWidth = 2;
         ctx.strokeStyle = 'rgba(8,6,4,0.9)';
         ctx.fillStyle = TONES[npc.tone] || TONES.gold;
-        ctx.strokeText(npc.name, x, y);
-        ctx.fillText(npc.name, x, y);
+        drawCrispCanvasText(ctx, npc.name, x, y, 'strokeText');
+        drawCrispCanvasText(ctx, npc.name, x, y);
     }
     /** The mark over the name in a dark square: a gold "!" for an unlock to offer, three pale dots for a keyword not yet heard
      * (js/content-progression-ui.js npcNews). */
@@ -313,7 +313,7 @@ const actTitleCard = (() => {
         ctx.lineWidth = 1;
         ctx.strokeRect(x - 7.5, y - 8.5, 15, 17);
         ctx.fillStyle = colour;
-        if (kind === 'unlock') ctx.fillText('!', x, y + 1);
+        if (kind === 'unlock') drawCrispCanvasText(ctx, '!', x, y + 1);
         else for (let dot = -1; dot <= 1; dot++) ctx.fillRect(x + dot * 4 - 1, y + 2, 2, 2);
     }
     // A monster striking the NPC (act 1's first monster, js/combat.js strikeRescueTarget, battle fx 'npcStruck'): the NPC's frame
@@ -462,20 +462,21 @@ const actTitleCard = (() => {
     }
     function kicker(ctx, view) {
         const half = view.size * 2.4;
-        ctx.font = `${Math.round(view.size * 0.5)}px 'Galmuri11', 'Malgun Gothic', sans-serif`;
+        ctx.font = `${pixelFontSize(view.size * 0.5, 15)}px ${STORY_FONT}`;
         ctx.fillStyle = card.style.kickerColour;
-        ctx.fillText(card.kicker, view.x, view.top - view.size * 0.55);
+        drawCrispCanvasText(ctx, card.kicker, view.x, view.top - view.size * 0.55);
         const gap = ctx.measureText(card.kicker).width / 2 + view.size * 0.5;
         ctx.fillRect(Math.round(view.x - gap - half), Math.round(view.top - view.size * 0.72), Math.round(half), 1);
         ctx.fillRect(Math.round(view.x + gap), Math.round(view.top - view.size * 0.72), Math.round(half), 1);
     }
     function title(ctx, view) {
-        ctx.font = `${view.size}px ${STORY_FONT}`;
-        ctx.lineWidth = Math.max(3, view.size * 0.16);
+        // 글은 갈무리14의 제 크기(15px의 정수배), 테는 짝수 폭: 사이 크기와 홀수 폭 테는 도트가 번졌다(2026-10-21).
+        ctx.font = `${pixelFontSize(view.size, 15)}px ${STORY_FONT}`;
+        ctx.lineWidth = 2 * Math.max(2, Math.round(view.size * 0.08));
         ctx.strokeStyle = 'rgba(8,6,4,0.9)';
-        ctx.strokeText(card.title, view.x, view.top + view.size * 0.5);
+        drawCrispCanvasText(ctx, card.title, view.x, view.top + view.size * 0.5, 'strokeText');
         ctx.fillStyle = card.style.titleColour;
-        ctx.fillText(card.title, view.x, view.top + view.size * 0.5);
+        drawCrispCanvasText(ctx, card.title, view.x, view.top + view.size * 0.5);
     }
     function drawTitleCard(ctx, width, height, now) {
         const size = Math.round(Math.max(20, Math.min(34, Math.min(width, height) * 0.04)));
@@ -538,7 +539,7 @@ const actTitleCard = (() => {
         const x = Math.round(Math.min(Math.max(8, anchor.x - w / 2), view.width - w - 8)), y = Math.round(Math.max(8, anchor.y - h - 7));
         storyBubbleFrame(ctx, { x, y, w, h }, Math.round(Math.min(Math.max(x + 12, anchor.x), x + w - 12)));
         ctx.fillStyle = '#efe7d6';
-        rows.forEach((row, index) => ctx.fillText(row, x + w / 2, y + pad + rowH * (index + 0.5)));
+        rows.forEach((row, index) => drawCrispCanvasText(ctx, row, x + w / 2, y + pad + rowH * (index + 0.5)));
     }
     /** A line with no body to speak from: the band where the card stands, the speaker above unless it is narration. */
     function drawStoryBand(ctx, view) {
@@ -549,20 +550,20 @@ const actTitleCard = (() => {
         ctx.fillStyle = shade;
         ctx.fillRect(0, top, view.width, height);
         if (line.who !== 'narration') storyBandSpeaker(ctx, view);
-        ctx.font = `${view.size}px ${STORY_FONT}`;
-        ctx.lineWidth = Math.max(3, view.size * 0.2);
+        ctx.font = `${pixelFontSize(view.size, 15)}px ${STORY_FONT}`;
+        ctx.lineWidth = 2 * Math.max(2, Math.round(view.size * 0.1));
         ctx.strokeStyle = 'rgba(8,6,4,0.9)';
         ctx.fillStyle = line.who === 'narration' ? '#d9cdb0' : '#efe7d6';
         rows.forEach((row, index) => {
             const y = view.top + view.size * (0.9 + index * 1.5);
-            ctx.strokeText(row, view.x, y);
-            ctx.fillText(row, view.x, y);
+            drawCrispCanvasText(ctx, row, view.x, y, 'strokeText');
+            drawCrispCanvasText(ctx, row, view.x, y);
         });
     }
     function storyBandSpeaker(ctx, view) {
-        ctx.font = `${Math.round(view.size * 0.8)}px 'Galmuri11', 'Malgun Gothic', sans-serif`;
+        ctx.font = `${pixelFontSize(view.size * 0.8, 12)}px 'Galmuri11', 'Malgun Gothic', sans-serif`;
         ctx.fillStyle = line.colour;
-        ctx.fillText(line.speaker, view.x, view.top - view.size * 0.6);
+        drawCrispCanvasText(ctx, line.speaker, view.x, view.top - view.size * 0.6);
     }
     function drawStoryLine(ctx, scene) {
         if (line.revive) bossRevive.draw(ctx, scene, line.revive, scene.now - line.startAt, line.showMs);
@@ -573,7 +574,7 @@ const actTitleCard = (() => {
         ctx.globalAlpha = opacity(scene.now - line.startAt, line.showMs);
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.font = `${size}px ${STORY_FONT}`;
+        ctx.font = `${pixelFontSize(size, 15)}px ${STORY_FONT}`;
         if (anchor) drawStoryBubble(ctx, view, anchor);
         else drawStoryBand(ctx, view);
         ctx.restore();

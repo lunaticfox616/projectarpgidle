@@ -390,6 +390,25 @@ const actExplorationState = (() => {
     function validatePackKind(map,pack,room) {
         if(pack.anchor!==undefined)validatePatrol(map,pack,room);
         if(pack.extra!==undefined)validateExtra(map,pack,room);
+        if(pack.wave!==undefined)validateWave(map,pack,room);
+    }
+    /** 이어지는 무리의 가장 많은 번수(data ACT_EXPLORATION_WAVES counts). */
+    const mostWaves=()=>Math.max(...ACT_EXPLORATION_WAVES.counts.map(row=>row[0]));
+    /** 방이 빈 뒤에 서는 이어지는 무리(js/combat.js releaseExplorationWave): 방 단위 무대에서만, n번째 무리의 열쇠는 "방:waveN", 정예 없이. */
+    function validateWave(map,pack,room) {
+        const known=map.stage && Number.isInteger(pack.wave) && pack.wave>=1 && pack.wave<=mostWaves() && pack.key===`${room.id}:wave${pack.wave}`;
+        if(!known || pack.stage!==null || pack.eliteIds.length || pack.anchor!==undefined || pack.extra!==undefined)throw Error('탐험 저장의 이어지는 무리가 잘못되었습니다.');
+    }
+    /** 이어지는 무리의 기록(js/combat.js rollExplorationRoomWaves): 방 id마다 { left, total, at }. 저장에서 온 잘못된 줄은 버린다(그 방에 무리가
+     * 더 오지 않을 뿐이다). 기록이 없는 탐험(이 판 전에 열린 탐험)은 그대로 둔다. */
+    function validateWaves(map,run) {
+        if(run.waves===undefined)return;
+        const shaped=!!run.waves && typeof run.waves==='object' && !Array.isArray(run.waves),rows=shaped?Object.entries(run.waves):[];
+        const valid=([id,row])=>map.rooms.some(room=>room.id===id) && !!row && Number.isInteger(row.total) && row.total>=1 && row.total<=mostWaves()
+            && Number.isInteger(row.left) && row.left>=0 && row.left<=row.total && (row.at===null || Number.isFinite(row.at));
+        const kept=rows.filter(valid);
+        if(!shaped || kept.length!==rows.length)console.warn('탐험 저장의 이어지는 무리 기록을 일부 버렸습니다.');
+        run.waves=Object.fromEntries(kept);
     }
     /** 방 단위 무대의 방에 더 서는 무리(js/combat.js createStageExtraPacks): 방마다 둘까지, 정예 없이. */
     function validateExtra(map,pack,room) {
@@ -429,6 +448,7 @@ const actExplorationState = (() => {
         enemies.filter(enemy=>enemy.hp>0 && enemy.explorationPack).forEach(enemy=>validateEnemy(map,enemy,run.packs.find(pack=>pack.key===enemy.explorationPack),context));
         enemies.filter(enemy=>enemy.hp>0 && !enemy.explorationPack).forEach(enemy=>validateEnemyBody(map,enemy));
         if(context.alive.size!==context.records.size)throw Error('탐험 저장에서 살아 있는 적이 누락되었습니다.');
+        validateWaves(map,run);
         validateProgress(run);
         actExplorationState.objects.validate(run);
         return run;
@@ -461,7 +481,7 @@ const actExplorationState = (() => {
     }
     function validateRoomPacks(run) {
         const rooms=packRooms(actExplorationMap.forRun(run));
-        if(rooms.some(room=>run.packs.filter(pack=>pack.roomId===room.id && pack.stage===null && !pack.anchor && !pack.objectId && !pack.extra).length!==1))throw Error('탐험 저장에 탐색 구역이 누락되었습니다.');
+        if(rooms.some(room=>run.packs.filter(pack=>pack.roomId===room.id && pack.stage===null && !pack.anchor && !pack.objectId && !pack.extra && !pack.wave).length!==1))throw Error('탐험 저장에 탐색 구역이 누락되었습니다.');
         if(run.packs.filter(pack=>pack.anchor).length>1)throw Error('탐험 저장의 길목 무리가 중복되었습니다.');
     }
     function bossStageCount(run) {return run.source?run.bossStages:STORY_ACTS[run.zoneId].maxKills;}

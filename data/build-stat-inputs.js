@@ -29,7 +29,9 @@ const PLAYER_STAT_CONTEXT_FIELDS = Object.freeze({
 });
 // game fields the stat calculation may write: shape normalization, or a value made from the build that is the same on every call
 // for the same build. A kept calculation skips these writes; anything that must happen on every call belongs in finishPlayerStats.
-const PLAYER_STAT_DERIVED_WRITES = Object.freeze(['activeSkill', 'weaponBlockedSkill', 'chaosRealm', 'cosmosTwinKeystones', 'equippedSummonSkills', 'gemData',
+// mobilitySkill: js/skills.js releaseMobilityRuneFromAttackSlot gives the attack slot's mobility rune back to the mobility slot once
+// 칼이 된 발걸음 comes off (2026-10-21), the same fit as activeSkill and weaponBlockedSkill for the weapon.
+const PLAYER_STAT_DERIVED_WRITES = Object.freeze(['activeSkill', 'weaponBlockedSkill', 'mobilitySkill', 'chaosRealm', 'cosmosTwinKeystones', 'equippedSummonSkills', 'gemData',
     'ocean', 'oceanOxygenDrainReductionPct', 'oceanOxygenMaxBonus', 'passiveSpecialization', 'skyGemEnhancements', 'skyTower',
     'summonSkillCounts', 'supportGemData', 'timeRift', 'voidPassives']);
 // Every this many kept answers, a calculation is compared with a fresh one; a difference is repaired at once and reported.

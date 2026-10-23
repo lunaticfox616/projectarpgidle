@@ -79,7 +79,10 @@ function queueTutorialNotice(key, title, body, tabId, target) {
  * points at 해금 — a card aimed at a closed screen would be dropped unseen. bodies = { open, locked }. */
 function queueContentNotice(key, title, contentId, bodies, route) {
     const opened = typeof contentProgression !== 'object' || contentProgression.isUnlocked(contentId);
-    queueTutorialNotice(key, title, opened ? bodies.open : bodies.locked, opened ? route : 'tab-unlocks');
+    if (opened) { queueTutorialNotice(key, title, bodies.open, route); return; }
+    // A locked NPC unlock is taken in its NPC's window (기록 → NPC), any other in the unlock tab.
+    const giver = CONTENT_UNLOCK_CATALOG.find(row => row.id === contentId)?.npc;
+    queueTutorialNotice(key, title, bodies.locked, giver ? 'tab-npcs' : 'tab-unlocks');
 }
 
 // Phase-3 extracted world/season progression helpers.
@@ -1430,6 +1433,11 @@ const P_STATS = {
     targetProjectile: { name: '투사체 스킬 타겟 수', tiers: [3], k: 1 },
     aspd: { name: '공격 속도(%)', tiers: [1, 2, 3], s: 1.5, m: 4, k: 8, isPct: true },
     move: { name: '이동 속도(%)', tiers: [1, 2], s: 1.5, m: 4, isPct: true },
+    // 재사용 대기시간(2026-10-21, js/skills.js getSkillCooldownMs): 스킬트리 편집기(scripts/passive-tree-editor-server.js)도 이 표로 효과를 받는다.
+    cooldownRecovery: { name: '재사용 대기시간 회복 속도(%)', tiers: [1, 2], s: 3, m: 6, isPct: true },
+    cooldownReduction: { name: '재사용 대기시간 감소(%)', tiers: [1, 2], s: 1, m: 3, isPct: true },
+    mobilityCooldownRecovery: { name: '이동 스킬 재사용 대기시간 회복 속도(%)', tiers: [1, 2], s: 4, m: 6, isPct: true },
+    mobilityCooldownReduction: { name: '이동 스킬 재사용 대기시간 감소(%)', tiers: [1, 2], s: 2, m: 4, isPct: true },
     crit: { name: '치명타 확률(%)', tiers: [2, 3], m: 1.5, k: 4, isPct: true },
     critDmg: { name: '치명타 피해 배율(%)', tiers: [3], s: 12.5, m: 12.5, k: 25, isPct: true },
     leech: { name: '생명력 흡수(%)', tiers: [2, 3], m: 0.3, k: 1.0, isPct: true },
@@ -1952,14 +1960,16 @@ const BASE_ITEM_DB = [
     { id: 'diamond_ring', slot: '반지', name: '금강석 반지', reqTier: 18, baseStats: [{ id: 'crit', base: 7 }, { id: 'critDmg', base: 18 }] },
     { id: 'root_blade_fang', slot: '무기', name: '뿌리 송곳', reqTier: 6, dropOnly: { type: 'act' }, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 27, legacyDamageBase: 20 }, { id: 'physIgnore', base: 4 }, { id: 'leech', base: 0.8 }] },
     { id: 'beehive_stinger_mail', slot: '갑옷', name: '벌침 갑피', reqTier: 12, dropOnly: { type: 'beehive' }, baseStats: [{ id: 'flatHp', base: 88 }, { id: 'resChaos', base: 10 }, { id: 'evasion', base: 295 }, { id: 'poisonDamageMultiplierPct', base: 10 }] },
-    { id: 'grand_breach_shard_helm', slot: '투구', name: '대균열 파편투구', reqTier: 16, dropOnly: { id: 'grand_breach_run' }, baseStats: [{ id: 'flatHp', base: 95 }, { id: 'resAll', base: 9 }, { id: 'dr', base: 4 }, { id: 'energyShield', base: 96 }, { id: 'resPen', base: 6 }] },
+    // 재사용 대기시간 세팅(2026-10-21): 대균열 파편투구와 시련 감시자 장화의 저항 관통 줄을 재사용 대기시간 줄로 바꿨다. 장비는 베이스 줄을
+    // 떨어질 때 제 몸에 적으므로(js/passives.js rollBaseStat) 이미 가진 장비는 그대로다.
+    { id: 'grand_breach_shard_helm', slot: '투구', name: '대균열 파편투구', reqTier: 16, dropOnly: { id: 'grand_breach_run' }, baseStats: [{ id: 'flatHp', base: 95 }, { id: 'resAll', base: 9 }, { id: 'dr', base: 4 }, { id: 'energyShield', base: 96 }, { id: 'cooldownRecovery', base: 8 }] },
     { id: 'laby_1_greaves', slot: '신발', name: '미궁 수호 각반', reqTier: 8, dropOnly: { type: 'labyrinth', minFloor: 1, minTier: 7 }, baseStats: [{ id: 'move', base: 14 }, { id: 'armor', base: 130 }, { id: 'dr', base: 2 }] },
     { id: 'laby_10_crown', slot: '투구', name: '미궁 심층 관', reqTier: 12, dropOnly: { type: 'labyrinth', minFloor: 10, minTier: 10 }, baseStats: [{ id: 'flatHp', base: 76 }, { id: 'resAll', base: 8 }, { id: 'armor', base: 230 }, { id: 'regen', base: 0.8 }] },
     { id: 'laby_20_robe', slot: '갑옷', name: '미궁 절정 로브', reqTier: 16, dropOnly: { type: 'labyrinth', minFloor: 20, minTier: 13 }, baseStats: [{ id: 'energyShield', base: 180 }, { id: 'resChaos', base: 10 }, { id: 'spellFlatPct', base: 10 }] },
     { id: 'laby_30_ring', slot: '반지', name: '미궁 군주의 반지', reqTier: 20, dropOnly: { type: 'labyrinth', minFloor: 30, minTier: 15 }, baseStats: [{ id: 'resAll', base: 10 }, { id: 'crit', base: 8 }, { id: 'resPen', base: 6 }] },
     { id: 'trial_emblem_gloves', slot: '장갑', name: '시련 문양 건틀릿', reqTier: 15, dropOnly: { type: 'trial' }, baseStats: [{ id: 'aspd', base: 9 }, { id: 'dr', base: 3 }, { id: 'armor', base: 190 }, { id: 'critDmg', base: 20 }] },
     { id: 'beehive_queen_veil', slot: '투구', name: '여왕벌 면사포', reqTier: 14, dropOnly: { type: 'beehive' }, baseStats: [{ id: 'flatHp', base: 82 }, { id: 'evasion', base: 138 }, { id: 'resChaos', base: 12 }, { id: 'poisonDamageMultiplierPct', base: 12 }] },
-    { id: 'trial_warden_boots', slot: '신발', name: '시련 감시자 장화', reqTier: 17, dropOnly: { type: 'trial' }, baseStats: [{ id: 'move', base: 20 }, { id: 'armor', base: 128 }, { id: 'dr', base: 4 }, { id: 'resPen', base: 5 }] },
+    { id: 'trial_warden_boots', slot: '신발', name: '시련 감시자 장화', reqTier: 17, dropOnly: { type: 'trial' }, baseStats: [{ id: 'move', base: 20 }, { id: 'armor', base: 128 }, { id: 'dr', base: 4 }, { id: 'mobilityCooldownRecovery', base: 10 }] },
     { id: 'riftglass_robe', slot: '갑옷', name: '균열유리 로브', reqTier: 18, dropOnly: { id: 'grand_breach_run' }, baseStats: [{ id: 'energyShield', base: 256 }, { id: 'resChaos', base: 14 }, { id: 'spellFlatPct', base: 14 }, { id: 'flatHp', base: -40 }] },
     { id: 'meteor_trace_greaves', slot: '신발', name: '운석 자취 경갑', reqTier: 19, dropOnly: { type: 'meteor' }, baseStats: [{ id: 'move', base: 22 }, { id: 'evasion', base: 150 }, { id: 'crit', base: 8 }, { id: 'resL', base: 14 }] },
     { id: 'runic_bastion_helm', slot: '투구', name: '룬 철벽투구', reqTier: 8, baseStats: [{ id: 'flatHp', base: 46 }, { id: 'armor', base: 92 }] },
@@ -2338,8 +2348,9 @@ const defaultGame = {
     weaponMastery: { xp: {} },
     chronicle: { rings: 0 },
     saveVersion: 19,
-    // Permanent ledger: income follows CONTENT_UNLOCK_POINT_AWARDS (contentProgression.earnedBy), starting at loop two.
-    contentProgression: { version: 8, highestLoop: 1, unlocked: [], paidCosts: {}, inherited: [], automatic: [], grandfathered: [] },
+    // Permanent ledger: income follows CONTENT_UNLOCK_POINT_AWARDS (contentProgression.earnedBy), starting at loop two. carry: points a
+    // save from before 2026-10-21 keeps beyond those awards (the earlier table's), 0 for a new game.
+    contentProgression: { version: 9, highestLoop: 1, carry: 0, unlocked: [], paidCosts: {}, inherited: [], automatic: [], grandfathered: [] },
     loopChallenge: null,
     loopChallengeHistory: [],
     level: 1,

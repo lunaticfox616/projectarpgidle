@@ -342,7 +342,7 @@ function drawPassiveNodeEffectLabel(ctx, node, radius, active, reachable, visibi
     ctx.restore();
 }
 
-/** The nodes a hover would allocate (tooltip cost, "찍으면" preview, drawn path). An Andromeda free node is itself alone, at one point
+/** The nodes a hover would allocate (tooltip cost, "이 노드까지 할당 시" preview, drawn path). An Andromeda free node is itself alone, at one point
  * (js/passives.js getPassiveActivationPath): the tooltip counted the way to the nearest owned node (2026-10-20 review: "9포인트 필요"
  * for a node taken at one point). */
 function getHoverAllocationNodeIds(hoveredNodeId) {
@@ -950,16 +950,16 @@ function renderEquipmentInspectorActions(item, slot, presetProtected) {
     let primaryAction = slot ? `equipmentInventoryInteraction.focus(null);unequipItem('${slot}')` : `equipmentInventoryInteraction.cancelCarry();equipItemById(${item.id})`;
     let craftAction = slot ? `equipmentInventoryInteraction.focus(null);switchItemSubtab('item-tab-craft');selectForCrafting('${slot}',true)` : `equipmentInventoryInteraction.focus(null);craftSelectInventoryItemById(${item.id})`;
     // 단추 줄(2026-10-10 개편): 장착, 잠금, 제작실, 해체, 그다음 주입, 소켓, 기름. 주얼, 코어, 액막이는 제작실부터 받지 않는다(js/bag-items.js).
-    let craft = !bagItems.isSpecial(item) && contentProgression.canOpen('item-tab-craft') ? `<button data-content-action="craft" onclick="${craftAction}">제작실</button>` : '';
+    let craft = !bagItems.isSpecial(item) && contentProgression.canOpen('item-tab-craft') ? `<button data-content-action="craft" onclick="${craftAction}"><span class="px-center">제작실</span></button>` : '';
     let tools = bagItems.isSpecial(item) ? '' : `${chaosInfusionUi.actionHtml(item, slot)}${equipmentSocketsUi.actionHtml(item, slot)}${gardenOilsUi.actionHtml(item, slot)}`;
-    return `<button class="equipment-card-primary" onclick="${primaryAction}">${slot ? '장착 해제' : bagItems.isJewel(item) ? '끼우기' : '장착'}</button>
+    return `<button class="equipment-card-primary" onclick="${primaryAction}"><span class="px-center">${slot ? '장착 해제' : bagItems.isJewel(item) ? '끼우기' : '장착'}</span></button>
         ${slot ? craft : renderEquipmentInventoryProtectionActions(item, presetProtected, craft)}${tools}`;
 }
 
 function renderEquipmentInventoryProtectionActions(item, presetProtected, middle = '') {
     let salvageTitle = presetProtected ? '장비 세팅 프리셋에서 제거한 뒤 해체할 수 있습니다.' : '장비를 해체합니다.';
-    return `<button class="${item.locked ? 'is-locked' : ''}" onclick="toggleItemLockById(${item.id})">${item.locked ? '잠금해제' : '잠금'}</button>${middle}
-        <button class="equipment-card-danger" title="${salvageTitle}" onclick="equipmentInventoryInteraction.cancelCarry();salvageItemById(${item.id})" ${item.locked || presetProtected ? 'disabled' : ''}>${presetProtected ? '보호됨' : '해체'}</button>`;
+    return `<button class="${item.locked ? 'is-locked' : ''}" onclick="toggleItemLockById(${item.id})"><span class="px-center">${item.locked ? '잠금해제' : '잠금'}</span></button>${middle}
+        <button class="equipment-card-danger" title="${salvageTitle}" onclick="equipmentInventoryInteraction.cancelCarry();salvageItemById(${item.id})" ${item.locked || presetProtected ? 'disabled' : ''}><span class="px-center">${presetProtected ? '보호됨' : '해체'}</span></button>`;
 }
 
 function renderEquipmentInventoryInspector(rows) {

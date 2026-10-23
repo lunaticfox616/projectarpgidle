@@ -89,10 +89,22 @@ const contentUnlockUi = {
     node(def) {
         const status = contentProgression.status(def.id);
         const state = status.unlocked ? 'owned' : status.available ? 'ready' : 'locked';
-        const label = status.unlocked ? '해금 완료' : status.available ? `선택 가능, ${def.cost}P` : status.reason;
         return `<button type="button" class="unlock-node is-${state}" data-unlock-select="${def.id}" aria-pressed="${this.selectedId === def.id}">
-            <span class="unlock-node-art"><img src="${this.art(def)}" alt="" loading="lazy"></span>
-            <strong>${escapeHTML(def.name)}</strong><small>${escapeHTML(label)}</small><span class="unlock-lifetime-tag">${escapeHTML(def.lifecycle?.label || '해금 영구 유지')}</span></button>`;
+            <span class="unlock-node-art"><img src="${this.art(def)}" alt="" loading="lazy">${this.npcFace(def)}</span>
+            <strong>${escapeHTML(def.name)}</strong><small>${escapeHTML(this.caption(def, status))}</small><span class="unlock-lifetime-tag">${escapeHTML(def.lifecycle?.label || '해금 영구 유지')}</span></button>`;
+    },
+    /** The line under an unlock: done, how it opens now (its price or its NPC) or what it still needs. */
+    caption(def, status) {
+        if (status.unlocked) return '해금 완료';
+        if (!status.available) return status.reason;
+        return status.npc ? status.reason : `선택 가능, ${def.cost}P`;
+    },
+    /** A growth choice of the tree: bought in this tab or given by an NPC, not content that opens by itself (contentProgression.kind). */
+    growth: def => contentProgression.kind(def) !== 'auto',
+    /** An NPC unlock's mark: the face of the NPC who gives it, on the corner of its picture (stage art; a missing one is dropped). */
+    npcFace(def) {
+        if (!def.npc) return '';
+        return `<span class="unlock-npc-face" title="${escapeHTML(contentProgression.npcName(def.npc))}에게서 받는 해금"><img src="${STAGE_NPC_ART.path}${def.npc}-portrait.png" alt=""></span>`;
     },
     branchRoot(def) {
         if (def.displayBranch) return def.displayBranch;
@@ -122,17 +134,17 @@ const contentUnlockUi = {
     },
     choiceMap() {
         const starter = CONTENT_UNLOCK_CATALOG.find(row => row.id === 'craft');
-        if (!contentProgression.isUnlocked('craft')) return `<div class="unlock-start"><span class="unlock-eyebrow">첫 성장</span>${this.node(starter)}<p>장비에 첫 옵션을 더하고<br>다음 성장 갈래를 열어보세요.</p></div>`;
-        const roots = CONTENT_UNLOCK_CATALOG.filter(row => row.cost > 0 && (!row.after || row.branchStart));
+        if (!contentProgression.isUnlocked('craft')) return `<div class="unlock-start"><span class="unlock-eyebrow">첫 성장</span>${this.node(starter)}<p>${escapeHTML(contentProgression.npcName(starter.npc))}에게서 장비 제련을 받으면<br>다음 성장 갈래가 열립니다.</p></div>`;
+        const roots = CONTENT_UNLOCK_CATALOG.filter(row => this.growth(row) && (!row.after || row.branchStart));
         const filters = roots.map(row => `<button type="button" data-unlock-group="${row.id}" aria-pressed="${this.group === row.id}">${escapeHTML(row.group)}</button>`).join('');
         const branches = roots.filter(row => this.group === 'all' || row.id === this.group).map(root => {
-            const nodes = CONTENT_UNLOCK_CATALOG.filter(row => row.cost > 0 && row.id !== 'craft' && this.branchRoot(row) === root.id);
+            const nodes = CONTENT_UNLOCK_CATALOG.filter(row => this.growth(row) && row.id !== 'craft' && this.branchRoot(row) === root.id);
             const depths = [...new Set(nodes.map(row => this.depth(row)))].sort((a,b) => a-b);
             const columns = depths.map(depth => `<div class="unlock-depth"><span class="unlock-depth-label">${depths.indexOf(depth) + 2}단계</span>${nodes.filter(row => this.depth(row) === depth).map(row => this.node(row)).join('')}</div>`).join('');
             return `<section class="unlock-branch" aria-label="${escapeHTML(root.group)}"><span class="unlock-trunk" aria-hidden="true"></span><h3>${escapeHTML(root.group)}</h3><div class="unlock-path">${this.connections(nodes, depths)}${columns}</div></section>`;
         }).join('');
         return `<nav class="unlock-filters" aria-label="성장 분야"><button type="button" data-unlock-group="all" aria-pressed="${this.group === 'all'}">전체</button>${filters}</nav>
-            <div class="unlock-map" tabindex="0" aria-label="성장 해금 연결도"><button type="button" class="unlock-origin" data-unlock-select="craft" aria-pressed="${this.selectedId === 'craft'}"><span class="unlock-node-art"><img src="${this.art(starter)}" alt=""></span><span class="unlock-origin-label">장비 제련 <small>해금 완료, 이어지는 성장 선택</small></span></button>${branches}</div>`;
+            <div class="unlock-map" tabindex="0" aria-label="성장 해금 연결도"><button type="button" class="unlock-origin" data-unlock-select="craft" aria-pressed="${this.selectedId === 'craft'}"><span class="unlock-node-art"><img src="${this.art(starter)}" alt="">${this.npcFace(starter)}</span><span class="unlock-origin-label">장비 제련 <small>해금 완료, 이어지는 성장 선택</small></span></button>${branches}</div>`;
     },
     /** A one-time visual transition from the existing starter; never stored in the progression ledger. */
     revealBranches(root, previous) {
@@ -162,13 +174,12 @@ const contentUnlockUi = {
     },
     milestone(loop, end = loop) {
         const rows = CONTENT_UNLOCK_CATALOG.filter(row => row.minLoop === loop);
-        const choices = rows.filter(row => row.cost > 0);
-        const automatic = rows.filter(row => row.cost === 0);
+        const of = kind => rows.filter(row => contentProgression.kind(row) === kind);
         const additions = this.roadmapAdditions(loop);
         return `<details id="unlock-milestone-${loop}" class="unlock-milestone" ${loop === game.season ? 'open' : ''}>
             <summary><strong>루프 ${end > loop ? `${loop}–${end}` : loop}</strong><span>${loop < game.season ? '도달 완료' : loop === game.season ? '현재 여정' : '예정'}${this.milestoneTeaser(loop)}</span></summary>
             <p class="unlock-loop-requirement">${escapeHTML(getLoopAbyssRequirementText(loop))}</p>
-            ${this.milestoneRows(automatic, '자동 개방')}${this.milestoneRows(choices, '성장 선택')}
+            ${this.milestoneRows(of('auto'), '자동 개방')}${this.milestoneRows(of('npc'), 'NPC 해금')}${this.milestoneRows(of('paid'), '성장 선택')}
             ${additions.length ? `<p class="unlock-expansion">${additions.map(escapeHTML).join('<br>')}</p>` : ''}</details>`;
     },
     /** 같은 예고만 이어지는 앞날의 루프는 한 줄로 묶는다(루프 21 ~ 24가 "심화: 혼돈 단계 상승" 네 줄이었다 — 검토 5차). */
@@ -203,8 +214,7 @@ const contentUnlockUi = {
     milestoneRows(rows, label) {
         if (!rows.length) return '';
         return `<div class="unlock-milestone-group"><h4>${label}</h4>${rows.map(def => {
-            const status = contentProgression.status(def.id);
-            const caption = status.unlocked ? '해금 완료' : status.available ? `선택 가능, ${def.cost}P` : status.reason;
+            const caption = this.caption(def, contentProgression.status(def.id));
             return `<button type="button" data-unlock-select="${def.id}" class="unlock-milestone-item"><span>${escapeHTML(def.name)}<span class="unlock-lifetime-tag">${escapeHTML(def.lifecycle?.label || '해금 영구 유지')}</span></span><small>${escapeHTML(caption)}</small></button>`;
         }).join('')}</div>`;
     },
@@ -245,28 +255,27 @@ const contentUnlockUi = {
             `<p><strong>${escapeHTML(row.name)}</strong>${escapeHTML(row.description)}</p>`).join('')}</details>`;
     },
     detail(def) {
-        const status = contentProgression.status(def.id);
+        const status = contentProgression.status(def.id), kind = contentProgression.kind(def);
         const conditions = contentProgression.requirements(def.id);
-        const action = status.unlocked ? this.openButton(def) : def.cost === 0
-            ? '<button type="button" disabled>조건 달성 시 자동 개방</button>'
-            : `<button type="button" data-unlock-content="${def.id}" ${status.available ? '' : 'disabled'}>${escapeHTML(status.reason)}</button>`;
         // 첫 보상은 설명 바로 아래, 해금 단추는 맨 아래에서 창 본문 아래쪽에 붙어(sticky) 늘 보인다 — 작은 창(1366×768 ·
         // HUD 위 작업 영역)에서 단추가 스크롤 밖으로 밀려났다.
-        return `<div class="unlock-detail-top"><span class="unlock-eyebrow">${escapeHTML(def.group)}, ${def.cost ? '선택 해금' : '자동 개방'}</span>
+        return `<div class="unlock-detail-top"><span class="unlock-eyebrow">${escapeHTML(def.group)}, ${{ paid: '선택 해금', npc: 'NPC 해금', auto: '자동 개방' }[kind]}</span>
             <div class="unlock-detail-art"><img src="${this.art(def)}" alt=""></div><h3>${escapeHTML(def.name)}</h3><p>${escapeHTML(def.description)}</p>${this.loreHtml(def.id)}</div>
             <div class="unlock-detail-reward">${this.entryReward(def, status)}</div>
             ${this.lifecycle(def)}${this.relatedFeatures(def)}
-            <div class="unlock-requirements"><h4>${status.unlocked ? '해금 완료' : `해금 조건${def.cost ? ', ' + def.cost + 'P' : ''}`}</h4>${conditions.map(row => `<div class="${row.met ? 'is-met' : ''}"><span>${escapeHTML(row.label)}</span><small>${row.met ? '달성' : '미달성'}</small></div>`).join('')}</div>
-            <div class="unlock-detail-action">${this.npcGiftButton(def)}${action}</div>`;
+            <div class="unlock-requirements"><h4>${status.unlocked ? '해금 완료' : `해금 조건${kind === 'paid' ? ', ' + def.cost + 'P' : ''}`}</h4>${conditions.map(row => `<div class="${row.met ? 'is-met' : ''}"><span>${escapeHTML(row.label)}</span><small>${row.met ? '달성' : '미달성'}</small></div>`).join('')}</div>
+            <div class="unlock-detail-action">${this.actionButton(def, status, kind)}</div>`;
     },
-    /** The met NPC who opens this unlock for no points now (npcReady, 즉시 해금): a button to its window. */
-    npcGiftButton(def) {
-        const npc = Object.values(STORY_NPCS).find(row => this.personal(row.name) === this.keeperOf(def.id));
-        if (!npc || !game.npcMet[npc.id] || !this.npcReady(npc.name).includes(def)) return '';
-        return `<button type="button" class="unlock-npc-gift" data-npc-open="${npc.id}">${escapeHTML(this.personal(npc.name))}에게서 포인트 없이 열기</button>`;
+    /** Opened: the way to it. Paid: buy with points. NPC unlock: its NPC's window (npcFoot) once met and ready. Automatic: none. */
+    actionButton(def, status, kind) {
+        if (status.unlocked) return this.openButton(def);
+        if (kind === 'auto') return '<button type="button" disabled><span class="px-center">조건 달성 시 자동 개방</span></button>';
+        const reason = escapeHTML(status.reason), disabled = status.available ? '' : 'disabled';
+        if (kind === 'npc') return `<button type="button" class="unlock-npc-gift" data-npc-open="${def.npc}" data-unlock-npc="${def.id}" ${disabled}><span class="px-center">${reason}</span></button>`;
+        return `<button type="button" data-unlock-content="${def.id}" ${disabled}><span class="px-center">${reason}</span></button>`;
     },
     /** Who speaks for this unlock and what (data/story-journal.js STORY_LOOP_MILESTONES), under the unlock's description, with
-     * the face of that NPC when the stage art is here (the same NPC whose window lists this unlock). */
+     * the face of that NPC when the stage art is here (for an NPC unlock, the NPC who gives it). */
     loreHtml(id) {
         const lore = STORY_LOOP_MILESTONES[id];
         if (!lore) return '';
@@ -277,13 +286,14 @@ const contentUnlockUi = {
     },
     openButton(def) {
         const reachable = def.action || (def.routes || []).some(route => route.startsWith('tab-') || route.startsWith('item-tab-') || route.startsWith('skill-tab-') || route.startsWith('map-'));
-        return reachable ? `<button type="button" data-open-content="${def.id}">바로 사용하기</button>` : '<span class="content-unlock-owned">해금 완료</span>';
+        return reachable ? `<button type="button" data-open-content="${def.id}"><span class="px-center">바로 사용하기</span></button>` : '<span class="content-unlock-owned">해금 완료</span>';
     },
     pointBalanceHtml() {
         const points = contentProgression.points();
         if (points.complete) return '<div class="content-unlock-balance" title="넘치는 해금 포인트는 그루터기 함 접붙이기 점수가 됩니다.">전체 해금 완료</div>';
+        const { early, perLoop } = CONTENT_UNLOCK_POINT_AWARDS;
         const title = points.balance === points.remaining ? '남은 해금에 필요한 포인트를 모두 모았습니다. 넘치는 몫은 그루터기 함 접붙이기 점수가 됩니다.'
-            : `루프 2~5에 ${CONTENT_UNLOCK_POINT_AWARDS.early.join(', ')}P, 그 뒤 매 루프 ${CONTENT_UNLOCK_POINT_AWARDS.perLoop}P. 남은 해금 비용을 넘는 몫은 그루터기 함 접붙이기 점수`;
+            : `루프 2~${early.length + 1}에 ${early.join(', ')}P, 그 뒤 매 루프 ${perLoop}P. 남은 해금 비용을 넘는 몫은 그루터기 함 접붙이기 점수. NPC 해금은 포인트 없이 그 NPC에게서 받습니다.`;
         return `<div class="content-unlock-balance" title="${title}"><span>해금</span><strong>${points.balance}</strong><span>P</span></div>`;
     },
     render() {
@@ -390,40 +400,31 @@ const contentUnlockUi = {
         contentProgression.sync();
         this.announceOpenedSince(before);
     },
-    /** The unlocks the NPC keeps: those whose loop lines it speaks (STORY_LOOP_MILESTONES speaker, matched by the personal name, the
-     * last word of the name) that the hero may know of now: bought ones and ones whose loop and progress conditions are met (buyable,
-     * or short of points only). Ones still behind a loop, a progress step or another unlock stay hidden, so the window spoils nothing
-     * (2026-10-16 사용자: 아직 알지 못하는 정보의 해금과 불가능한 해금은 안 보이게). */
-    npcUnlocks(name) {
-        return CONTENT_UNLOCK_CATALOG.filter(def => this.keeperOf(def.id) === this.personal(name) && this.npcKnows(def.id));
-    },
-    /** Whether the hero may know of an unlock now: bought, or its loop, progress and earlier-unlock conditions are met. */
+    /** Whether the hero may know of an unlock now: bought, or its loop, progress, earlier-unlock (and meeting) conditions are met. */
     npcKnows(id) {
         return contentProgression.isUnlocked(id) || contentProgression.requirements(id).every(row => row.met);
     },
     personal: text => String(text || '').split(/[\s,]+/).pop(),
-    /** The personal name of the NPC who speaks an unlock's loop lines, or ''. */
-    keeperOf(id) {
-        return STORY_LOOP_MILESTONES[id] ? this.personal(STORY_LOOP_MILESTONES[id].speaker) : '';
-    },
     /** What the NPC has for the hero, for the mark over it on the stage (js/canvas-act-title-card.js) and in the NPC tab: 'unlock'
-     * while one of its unlocks can be bought now (npcReady), 'talk' while a keyword it can speak of has not been heard, else ''.
+     * while one of its unlocks can be opened now (npcReady), 'talk' while a keyword it can speak of has not been heard, else ''.
      * npc: { id, name }. */
     npcNews(npc) {
         if (!game.contentProgression) return '';
-        if (this.npcReady(npc.name).length) return 'unlock';
+        if (this.npcReady(npc.id).length) return 'unlock';
         return this.npcTopics(npc).open.some(row => !this.npcHeard(npc, row.topic)) ? 'talk' : '';
     },
-    /** 즉시 해금: the NPC's unlocks whose loop, progress and earlier-unlock conditions are met, opened by the NPC for no points
-     * (2026-10-16 사용자: 맡은 해금 대신 기존 해금 시스템처럼, 조우 후 NPC를 누르면 그 NPC의 콘텐츠를 바로 해금, 포인트 없이 공짜로).
-     * The unlock tab stays the place of the whole system. */
-    npcReady(name) {
-        return this.npcUnlocks(name).filter(def => def.cost > 0 && !contentProgression.isUnlocked(def.id));
+    /** 즉시 해금: the NPC's own unlocks (catalog npc, contentProgression.kind 'npc') not opened yet whose conditions are met, opened
+     * here for no points (2026-10-16 사용자: 조우 후 NPC를 누르면 그 NPC의 콘텐츠를 바로 해금, 포인트 없이 공짜로). Since 2026-10-21 only
+     * these few early unlocks (사용자: NPC 해금과 일반 해금 분리); the unlock tab sells the rest. Ones still behind a loop, a progress step
+     * or another unlock stay hidden, so the window spoils nothing (2026-10-16 사용자: 아직 알지 못하는 정보의 해금과 불가능한 해금은
+     * 안 보이게). npcId: STORY_NPCS id. */
+    npcReady(npcId) {
+        return CONTENT_UNLOCK_CATALOG.filter(def => def.npc === npcId && !contentProgression.isUnlocked(def.id) && this.npcKnows(def.id));
     },
     /** The NPC's window, an ARPG's NPC talk (2026-10-15 사용자: "POE처럼 키워드 누르면 관련 스크립트만", "NPC 대화창도 정성들여서"):
      * the NPC's portrait on the left; on the right its name, a speech box with what it says (its line on the stage when the window
      * opens, then the chosen keyword's), the keywords it can speak of (STORY_NPCS dialogues, new ones marked until heard, heard ones
-     * grey) and, under them, its unlocks to buy now (즉시 해금) and the door to its shop (js/npc-shop-ui.js), which takes the body.
+     * grey) and, under them, its unlocks to open now (즉시 해금) and the door to its shop (js/npc-shop-ui.js), which takes the body.
      * npc: { id, name, title, tone, line } (js/canvas-act-title-card.js npcAt, js/npc-roster-ui.js). */
     openNpc(npc) {
         const old = document.getElementById('npc-dialog');
@@ -467,7 +468,7 @@ const contentUnlockUi = {
     /** 즉시 해금 (npcReady), each opened right here for no points with its first reward choice; then the door to the shop. */
     npcFoot(view) {
         const hides = id => !this.npcKnows(id);
-        const rows = this.npcReady(view.npc.name).map(def => `<li class="npc-instant-row"><img src="${this.art(def)}" alt="">
+        const rows = this.npcReady(view.npc.id).map(def => `<li class="npc-instant-row"><img src="${this.art(def)}" alt="">
             <div><strong>${escapeHTML(def.name)}</strong><p>${escapeHTML(def.description)}</p>${this.entryReward(def, contentProgression.status(def.id), hides)}</div>
             <button type="button" data-npc-gift="${def.id}">해금</button></li>`).join('');
         const instant = rows ? `<section class="npc-dialog-instant" aria-label="즉시 해금"><h4>즉시 해금<small>포인트 없이 바로 엽니다</small></h4>
@@ -547,6 +548,8 @@ window.addEventListener('project-idle:starter-gem-received', event => {
 });
 // NPC pictures are local stage art (assets/stage-npcs): where one is missing, drop it rather than show a broken image.
 document.addEventListener('error', event => {
-    if (event.target instanceof HTMLImageElement && event.target.matches('.npc-dialog-portrait, .unlock-lore-face, .npc-roster-portrait')) event.target.remove();
+    if (!(event.target instanceof HTMLImageElement)) return;
+    if (event.target.matches('.unlock-npc-face img')) event.target.parentElement.remove();
+    else if (event.target.matches('.npc-dialog-portrait, .unlock-lore-face, .npc-roster-portrait')) event.target.remove();
 }, true);
 safeExposeGlobals({ contentUnlockUi });

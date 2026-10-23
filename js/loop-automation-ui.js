@@ -33,9 +33,9 @@ const loopAutomationUi = (() => {
     const screenFree = () => gameplayStarted && !isStartupOverlayOpen() && !isLoadingOverlayOpen() && !isRewardOpen()
         && !document.getElementById('game-dialog-overlay')?.classList.contains('active');
     /** The loop screen is up (not put aside for 장비 정리), automation is on, the gate was reached while the page was open
-     * (offline auto-loop stays off), the page is visible and nothing (the stall) blocks the reset. */
+     * (offline auto-loop stays off), the page is visible and nothing (the stall, the hall) blocks the reset. */
     const armed = () => !!(game.pendingLoopReady || game.pendingLoopDecision) && game.settings.autoLoop && !game.loopGateOffline
-        && !document.hidden && loopSettlementUi.dismissedReadyLoop !== game.season && !playerStall.loopBlockReason(game);
+        && !document.hidden && loopSettlementUi.dismissedReadyLoop !== game.season && !getHeldGearLoopBlockReason();
     function autoTick(now = Date.now()) {
         if (typeof game === 'undefined' || !game || !game.settings) return;
         if (!screenFree()) { deadline = 0; return; }

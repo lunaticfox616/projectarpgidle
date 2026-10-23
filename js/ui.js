@@ -219,6 +219,9 @@ function renderTrialMapList(trials) {
     // An unchanged destination must stay connected during departure confirmation.
     // Changed/reordered destinations are replaced so the stale-click guard still applies.
     if (panel.__lastHtml !== html) panel.innerHTML = panel.__lastHtml = html;
+    // 시련 수: 카드 칸 폭을 정수 px로 자를 때 쓴다(css/exploration-encounters.css).
+    const count = String(trials.length);
+    if (panel.style.getPropertyValue('--trial-count') !== count) panel.style.setProperty('--trial-count', count);
 }
 
 safeExposeGlobals({ showMapPowerEstimateTooltip });
@@ -391,13 +394,20 @@ function isForegroundGameplayPausedForBackground() {
     // 사망 기록은 읽을거리일 뿐 — 열려 있어도 방치 진행은 멈추지 않는다(예전에는 닫을 때까지 전투 시간이 멈췄다).
     if (typeof isLoopHeroSelectOpen === 'function' && isLoopHeroSelectOpen()) return true;
     if (actExplorationUi.departurePending()) return true;
-    // 입구 방의 인사(js/canvas-act-title-card.js greeting): 이야기 팝업처럼 주인공이 서서 듣는다(2026-10-15 사용자 "처음에 바로 막 진행하는데").
-    if (typeof actTitleCard === 'object' && actTitleCard.greeting()) return true;
+    // 입구 방의 인사나 고스트 대결처럼 주인공이 장면 앞에 서 있는 동안(isHeroHeldByScene)
+    if (isHeroHeldByScene()) return true;
     // "창을 열면 전투 일시정지"가 꺼져 있으면 아래 창 검사의 답은 쓰이지 않는다: 묻지 않는다(2026-10-17 측정: 8초에 2,083번 검사).
     if (!game?.settings?.pauseGameOnOverlay) return false;
     // 안내 카드뿐 아니라 따라 하기의 대상 화면이 열려 있는 동안도(검토 7차) — isTutorialPausingCombat이 함께 본다.
     return !!(isTutorialPausingCombat() || isPauseSettingOverlayOpenNow());
 }
+/** 주인공이 장면 앞에 서 있는 동안: 입구 방의 인사(js/canvas-act-title-card.js greeting, 이야기 팝업처럼 서서 듣는다: 2026-10-15 사용자
+ * "처음에 바로 막 진행하는데")와 고스트 대결의 방(js/ghost-duel-stage-ui.js, 전장이 덮여 있다). */
+function isHeroHeldByScene() {
+    if (typeof actTitleCard === 'object' && actTitleCard.greeting()) return true;
+    return typeof ghostDuelStage === 'object' && ghostDuelStage.playing();
+}
+
 
 /** 일시정지를 거는 창이 열려 있는지(isPauseSettingOverlayOpen)를 16ms 동안 한 번만 찾는다. 주 루프, 탐험 걸음, 전장 그림이 한 프레임에
  * 여러 번 묻는다. 창은 입력으로 열리고 닫히므로 다음 프레임이 바뀐 상태를 본다. */
@@ -2015,7 +2025,7 @@ function mergedTabMarkHtml(tab) {
 /** 그 화면을 바로 여는 단축키(PC)의 작은 자판: 메뉴 단추가 하나로 합쳐져도 키는 화면마다 그대로다. */
 function mergedTabHotkeyHtml(tab) {
     let source = document.getElementById('btn-' + tab.id);
-    return source && source.dataset.hotkey ? `<kbd class="window-tab-key">${escapeHTML(source.dataset.hotkey)}</kbd>` : '';
+    return source && source.dataset.hotkey ? `<kbd class="window-tab-key"><span class="px-center">${escapeHTML(source.dataset.hotkey)}</span></kbd>` : '';
 }
 /** 묶음 창의 탭 하나: 그 화면의 그림과 이름, 표시(mergedTabMarkHtml), 단축키. */
 function mergedTabButtonHtml(groupKey, tab, selectedId) {
@@ -4338,13 +4348,13 @@ function changeSummonSkillCount(name, delta) { if (!assertBuildEditable()) retur
     updateStaticUI();
 }
 
-function changeSkill(name) { if (!assertBuildEditable()) return;
+function changeSkill(name, slotKind) { if (!assertBuildEditable()) return;
     if (mobilitySkill.isMobilityGem(name) && game.mobilitySkill === name) return wearMobilityGem('');
     if (typeof canUseSkillWithCurrentEquipment === 'function' && !canUseSkillWithCurrentEquipment(name)) {
-        return addLog(`[${name}]${pickParticle(name, '은', '는')} 지금 무기로 쓸 수 없습니다: ${getSkillRuneWeaponNote(name)}.`, 'attack-monster');
+        return addLog(`[${name}]${pickParticle(name, '은', '는')} 지금 장비로 쓸 수 없습니다: ${getSkillRuneWeaponNote(name)}.`, 'attack-monster');
     }
     if ((SKILL_DB[name]?.tags || []).includes('summon_attack')) return toggleSummonAttackGem(name);
-    if (mobilitySkill.isMobilityGem(name)) return wearMobilityGem(name);
+    if (mobilitySkill.isMobilityGem(name)) return wearMobilityRune(name, slotKind);
     game.activeSkill = name;
     completeStarterGemTutorial(name);
     if (SKILL_DB[name]?.isGem) game.gemEnhanceTargetSkill = name;
@@ -4367,6 +4377,23 @@ function wearMobilityGem(name) {
     game.mobilitySkill = name;
     mobilitySkill.reset();
     if (name) { completeStarterGemTutorial(name); game.gemEnhanceTargetSkill = name; }
+    updateStaticUI();
+}
+
+/** 이동 룬은 보통 이동 칸에 간다. 칼이 된 발걸음(data/items.js)을 신으면 공격 칸으로 간다: 룬 창이 공격 칸을 골랐거나 공격 칸에 이동
+ * 룬이 아직 없을 때. 공격 칸의 이동 룬을 이동 칸으로 고르면 공격 칸은 기본 공격이 된다. 이동 칸에 있던 룬을 공격 칸으로 옮기는 일은
+ * 룬 창이 이동 칸을 먼저 비우고 부른다(js/gem-slot-dialog-ui.js chooseSlotGem). */
+function wearMobilityRune(name, slotKind) {
+    const boots = isMobilityRuneAttackWorn(game);
+    if (boots && name === game.activeSkill && slotKind !== 'mobility') return updateStaticUI();
+    const toAttack = boots && slotKind !== 'mobility' && (slotKind === 'active' || !mobilitySkill.isMobilityGem(game.activeSkill));
+    if (!toAttack) {
+        if (name === game.activeSkill) game.activeSkill = '기본 공격';
+        return wearMobilityGem(name);
+    }
+    game.activeSkill = name;
+    completeStarterGemTutorial(name);
+    game.gemEnhanceTargetSkill = name;
     updateStaticUI();
 }
 
@@ -5576,7 +5603,7 @@ const ITEM_STAT_TONE_BY_ID = Object.freeze(Object.fromEntries([
     ['#8fdcff', ['energyShield', 'energyShieldPct', 'energyShieldRegen', 'energyShieldRechargeFaster']],
     ['#ffb3b3', ['flatHp', 'pctHp', 'regen', 'regenFlat']],
     ['#ffd6f2', ['crit', 'critDmg']],
-    ['#fff3a8', ['aspd', 'move', 'sight']],
+    ['#fff3a8', ['aspd', 'move', 'sight', 'cooldownRecovery', 'cooldownReduction', 'mobilityCooldownRecovery', 'mobilityCooldownReduction']],
     ['#ffcf9f', ['flatDmg', 'pctDmg', 'physPctDmg', 'meleePctDmg', 'aoePctDmg', 'minDmgRoll', 'maxDmgRoll',
         'bossDamagePct', 'eliteDamagePct', 'firstStrikeDamagePct', 'doubleDamageChance']],
     ['#d4a8ff', ['spellFlatPct', 'spellFlatDmg']],
@@ -5933,7 +5960,7 @@ function itemExplicitAffixHeaderHtml(item, count) {
     const note = header.over ? '<div class="tooltip-line" style="color:#ffb454;">예전 규칙으로 한도를 넘은 장비: 넘친 종류에는 더 붙지 않습니다.</div>' : '';
     const kept = equipmentCrafting.keptKind(item);
     const keep = kept ? `<div class="tooltip-line" style="color:#9fd6ff;">다음 재굴림에서 ${AFFIX_KEEP_RULES.labels[kept]} 보존</div>` : '';
-    return `<div class="tooltip-line tooltip-section tooltip-section-explicit"${style}>${header.text}</div>${note}${keep}`;
+    return `<div class="tooltip-line tooltip-section tooltip-section-explicit"${style}><span class="px-center">${header.text}</span></div>${note}${keep}`;
 }
 
 /** The base line's badges: the upgrade step ([2/4]) and 수평 for a horizontal base (a base with a family, 2026-10-09). */
@@ -5956,7 +5983,7 @@ function showItemTooltip(event, idx, isEquip, itemOverride, options = {}) {
     const inactiveAffixes = equipmentInspectionUi.getInactiveAffixIds(cachedTooltipStats, game.equippedSummonSkills);
     const affixClass = statId => inactiveAffixes.has(statId) ? ' class="equipment-affix-inactive"' : '';
     let exceptionalStars = typeof getExceptionalBaseStarsHtml === 'function' ? getExceptionalBaseStarsHtml(item) : '';
-    let html = `<div class="tooltip-title" style="color:${getRarityColor(item.rarity)}">[${getItemSlotDisplayLabel(item)}] ${escapeHTML(item.name)}${exceptionalStars}${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.corrupted ? ' <span style="color:#e74c3c;">(타락)</span>' : ''}${craftingWorkspaceUi.imprintMark(item)}${item.loopSealed ? ' <span style="color:#7fd99a;" title="나무꾼의 손길로 봉인됨: 루프가 지나도 유지">🌿봉인</span>' : ''}</div>${itemInfluencesUi.tooltipHtml(item)}`;
+    let html = `<div class="tooltip-title" style="color:${getRarityColor(item.rarity)}"><span class="px-center">[${getItemSlotDisplayLabel(item)}] ${escapeHTML(item.name)}${exceptionalStars}${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.corrupted ? ' <span style="color:#e74c3c;">(타락)</span>' : ''}${craftingWorkspaceUi.imprintMark(item)}${item.loopSealed ? ' <span style="color:#7fd99a;" title="나무꾼의 손길로 봉인됨: 루프가 지나도 유지">🌿봉인</span>' : ''}</span></div>${itemInfluencesUi.tooltipHtml(item)}`;
     if (item.hallReplica) html += `<div class="tooltip-line" style="color:#d2b878;">🏛️ 전당 소장품, 전시자 ${escapeHTML(item.hallCuratorName || '익명')}, 감정 ${Math.max(0, Math.floor(Number(item.hallAppraisalScore) || 0)).toLocaleString()}, 제작/재등록 불가</div>`;
     else if (item.hallRelistBlocked) html += '<div class="tooltip-line" style="color:#bda979;">🏛️ 전당 복제 이력, 재등록 불가</div>';
     html += `<div class="tooltip-line tooltip-meta tooltip-meta-base">베이스: ${item.baseName}${getItemBaseBadgesHtml(item)}</div>`;
@@ -5974,7 +6001,7 @@ function showItemTooltip(event, idx, isEquip, itemOverride, options = {}) {
     }
     let defenseView = itemTooltipRules.defenseView(item);
     if ((item.baseStats || []).length > 0) {
-        html += `<div class="tooltip-line tooltip-section tooltip-section-base">베이스 옵션</div>${colonyWardsUi.beltLineHtml(item)}`;
+        html += `<div class="tooltip-line tooltip-section tooltip-section-base"><span class="px-center">베이스 옵션</span></div>${colonyWardsUi.beltLineHtml(item)}`;
         item.baseStats.forEach(stat => {
             let statKey = stat && (stat.id || stat.stat);
             if (statKey === 'armor' || statKey === 'evasion' || statKey === 'energyShield') return;
@@ -6396,6 +6423,8 @@ function drawActMapEffect(ctx, rect, key, now) {
 function drawBattleBackdrop(ctx, width, height, theme, now, zone, gridProj) {
     if(actExplorationView.background(ctx,width,height,gridProj))return true;
     if(drawStageBoardBackdrop(ctx,width,height,gridProj))return true;
+    // 무대에서 지도가 아직 없는 순간(부팅, 구역을 여는 중)은 그림을 기다리는 방처럼 어둠만 둔다. 아래의 판 그림과 들판은 위에서 보는 전장에만 쓴다(2026-10-21).
+    if(!stageView.topDown()){ctx.fillStyle='#0b090c';ctx.fillRect(0,0,width,height);return true;}
     let backdropEntry = getBattleBackdropForZone(zone);
     if (backdropEntry && backdropEntry.image) {
         const rect = drawGridAlignedBackdrop(ctx, width, height, backdropEntry.image, gridProj, backdropEntry.key);
@@ -8561,6 +8590,7 @@ function processQueuedUIRefresh() {
         performUpdateStaticUI();
         updateBuildFeedback(cachedTooltipStats);
         tutorialActionUi.refresh();
+        combatCurrencyHud.update();
     } finally {
         restoreUiDisclosureState(document);
         uiRefreshRunning = false;
@@ -8683,6 +8713,9 @@ function syncSingleSubtabRows() {
     document.querySelectorAll('.tab-content .subtab-row:not(.merged-tab-subtabs)').forEach(row => {
         const open = [...row.children].filter(button => !button.hasAttribute('data-content-locked') && !button.hidden && button.style.display !== 'none');
         row.hidden = open.length < 2;
+        // 보이는 단추 수: PC 창의 탭 줄이 칸 폭을 정수 px로 자를 때 쓴다(css/themes/pixel.css).
+        const count = String(open.length);
+        if (row.style.getPropertyValue('--subtab-count') !== count) row.style.setProperty('--subtab-count', count);
     });
 }
 
@@ -9110,7 +9143,7 @@ function renderTimeRiftPanel() {
 
 function sporeModeDialogBody(modeOptions, cur, sporeCost, advancedSpores) {
     let buttons = modeOptions.map(opt => `<button type="button" class="selection-overlay-option${cur === opt.id ? ' selected' : ''}" data-spore-mode="${opt.id}">${opt.label}${cur === opt.id ? ' ✓' : ''}</button>`).join('');
-    return `<div class="selection-overlay-help">재화 사용 시 적용할 홀씨 태그를 고르세요. 단일 속성은 ${sporeCost}개, 카오스/피해는 세 속성 홀씨를 각각 ${sporeCost}개 사용합니다.${advancedSpores ? '' : ' 카오스/피해 태그는 ‘해금’의 고급 홀씨가 엽니다.'}</div>`
+    return `<div class="selection-overlay-help">재화 사용 시 적용할 홀씨 태그를 고르세요. 단일 속성은 ${sporeCost}개, 카오스/피해는 세 속성 홀씨를 각각 ${sporeCost}개 사용합니다.${advancedSpores ? '' : ' 카오스/피해 태그는 이벨에게서 고급 홀씨를 받으면 열립니다.'}</div>`
         + `<div class="selection-overlay-help spore-balance">보유: 화염 ${game.currencies.sporeFire || 0}, 냉기 ${game.currencies.sporeCold || 0}, 번개 ${game.currencies.sporeLight || 0}</div>`
         + `<div class="selection-overlay-grid spore-mode-grid">${buttons}</div>`;
 }
@@ -10386,15 +10419,15 @@ function setupCanvasEvents() {
 
     function renderPassiveRouteHint(cost) {
         if (cost <= 0) return '';
-        return `<div class="tooltip-line" style="margin-top:6px;color:#f2d88f;">현재 경로 기준 ${cost}포인트 필요, 연결 경로가 트리에 강조됩니다.</div>`;
+        return `<div class="tooltip-line" style="margin-top:6px;color:#f2d88f;">현재 경로 기준 ${cost}포인트 필요</div>`;
     }
 
-    /** "찍으면 DPS 61 → 64, 생명력 170 → 180": the path's untaken nodes taken (js/passives.js previewPassiveNodeStats). */
+    /** "이 노드까지 할당 시 DPS 61 → 64, 생명력 170 → 180": the path's untaken nodes taken (js/passives.js previewPassiveNodeStats). */
     function renderPassiveStatPreview(route) {
         const taken = new Set(game.passives || []);
         const ids = Array.from(route).filter(id => !taken.has(id) && PASSIVE_TREE.nodes[id] && PASSIVE_TREE.nodes[id].kind !== 'start');
         const parts = ids.length ? buildStatPreviewParts(previewPassiveNodeStats(ids)) : '';
-        return parts ? `<div class="tooltip-line" style="margin-top:6px;">찍으면 ${parts}</div>` : '';
+        return parts ? `<div class="tooltip-line" style="margin-top:6px;">이 노드까지 할당 시 ${parts}</div>` : '';
     }
 
     /** The node's effect text in the option colours (2026-10-06): each effect line in its own stat's colour (a node with several
@@ -11491,6 +11524,7 @@ async function enterGameWorld() {
     await ensureBattleAssetsLoadedBeforeEntry();
     gameplayStarted = true;
     setStartupOverlayActive(false);
+    if (typeof syncInitialPlayerProfile === 'function') syncInitialPlayerProfile(); // 이 계정의 캐릭터로 들어섰다(js/social.js profileSnapshotIsOwn)
     try {
         if (typeof closeAllWindows === 'function') closeAllWindows();
         if (typeof closeCommunityDock === 'function') closeCommunityDock();
@@ -13130,7 +13164,7 @@ function checkUnlocks() {
             u.codex = true;
             game.noti.codex = true;
             queueContentNotice('unlock_codex', '첫 고유 장비', 'codex', { open: '고유 장비를 처음 얻었습니다.\n‘기록 → 도감’에 등록하면 도감 보너스를 받습니다.',
-                locked: '고유 장비를 처음 얻었습니다.\n‘해금’에서 고유 도감을 열면 등록해 도감 보너스를 받을 수 있습니다.' }, 'tab-codex');
+                locked: '고유 장비를 처음 얻었습니다.\n베른에게서 고유 도감을 받으면 등록해 도감 보너스를 얻습니다.' }, 'tab-codex');
         }
     }
     if (game.maxZoneId >= 1 && !u.map) {

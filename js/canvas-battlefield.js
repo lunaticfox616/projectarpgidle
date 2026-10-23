@@ -18,9 +18,9 @@ const BATTLE_PIXEL_FONT = "'Galmuri11', 'Galmuri14', 'Malgun Gothic', sans-serif
 const BATTLE_TITLE_FONT = "'Galmuri11', 'Galmuri14', 'Malgun Gothic', sans-serif";
 function fillPixelText(ctx, text, x, y, color) {
     ctx.fillStyle = '#000';
-    ctx.fillText(text, x + 1, y + 1);
+    drawCrispCanvasText(ctx, text, x + 1, y + 1);
     ctx.fillStyle = color;
-    ctx.fillText(text, x, y);
+    drawCrispCanvasText(ctx, text, x, y);
 }
 /** Centred pixel text whose keywords and numbers take the item tone colours (js/stat-tone-text-ui.js segments, 2026-10-06);
  * the rest keeps baseColor. Drawn piece by piece from the left edge of the whole line. */
@@ -1756,9 +1756,9 @@ function drawLevelUpLabel(ctx, fx, pos) {
     ctx.strokeStyle = 'rgba(25,9,0,.92)';
     const label = `레벨 ${fx.level || ''}`;
     const x = Math.round(pos.x), y = Math.round(pos.y);
-    ctx.strokeText(label, x, y);
+    drawCrispCanvasText(ctx, label, x, y, 'strokeText');
     ctx.fillStyle = '#ffe9a8';
-    ctx.fillText(label, x, y);
+    drawCrispCanvasText(ctx, label, x, y);
 }
 
 function getBattlefieldClientPoint(canvas, clientX, clientY) {
@@ -2487,9 +2487,11 @@ function drawLootHighlightLabel(ctx, fx, position, progress) {
     ctx.fillRect(position.x - width / 2, top, width, 43);
     ctx.fillStyle = fx.color;
     ctx.fillRect(position.x - width / 2, top, 3, 43);
-    ctx.fillText(fx.reason, position.x, top + 15);
+    drawCrispCanvasText(ctx, fx.reason, position.x, top + 15);
     ctx.fillStyle = '#f4eedf';
-    ctx.fillText(name, position.x, top + 32, width - 16);
+    // 칸보다 긴 이름만 줄여 그린다(줄이면 도트가 번진다).
+    if (ctx.measureText(name).width <= width - 16) drawCrispCanvasText(ctx, name, position.x, top + 32);
+    else ctx.fillText(name, position.x, top + 32, width - 16);
     ctx.restore();
 }
 
@@ -2716,7 +2718,7 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
         ctx.fillStyle = 'rgba(201, 223, 244, 0.82)';
         ctx.font = `700 24px ${BATTLE_TITLE_FONT}`;
         ctx.textAlign = 'center';
-        ctx.fillText('전장을 준비하는 중...', width / 2, height / 2);
+        drawCrispCanvasText(ctx, '전장을 준비하는 중...', width / 2, height / 2);
         ctx.restore();
         document.getElementById('ui-battlefield-caption').innerText = '전장을 준비하는 중...';
         return;
@@ -3172,9 +3174,9 @@ function drawBossAnnouncement(ctx, area, banner) {
     ctx.lineWidth = 4;
     ctx.lineJoin = 'miter';
     ctx.strokeStyle = 'rgba(12,4,4,.95)';
-    ctx.strokeText(name, mid, cy);
+    drawCrispCanvasText(ctx, name, mid, cy, 'strokeText');
     ctx.fillStyle = '#f0c46a';
-    ctx.fillText(name, mid, cy);
+    drawCrispCanvasText(ctx, name, mid, cy);
     ctx.font = `12px ${BATTLE_PIXEL_FONT}`;
     lines.forEach((line, index) => fillPixelToneText(ctx, line, mid, cy + 25 + index * 14, '#d98a6a'));
     ctx.restore();
@@ -3370,6 +3372,15 @@ function drawBattleGridFloor(ctx, proj, theme, skillTargets, skillAreaCells, bac
         const sealed=actExplorationState.gateSealed(run);
         skillAreaCells=skillAreaCells.filter(cell=>actExplorationMap.walkable(map,cell,sealed));
     }
+    ctx.save();
+    // 9×8 칸 선은 위에서 보는 전장에만 긋는다: 무대에서는 지도가 놓이기 전의 순간(부팅, 구역을 여는 중)에도 옛 판이 비치지 않는다(2026-10-21).
+    if (!run && stageView.topDown()) drawFixedBoardCells(ctx, proj, theme, backdropActive);
+    drawRiftCombatOccupants(ctx, { proj, skillTargets, skillAreaCells });
+    ctx.restore();
+}
+
+/** 위에서 보는 전장의 9×8 칸. 칠과 선의 투명도는 칸 다음에 그리는 표시(drawRiftCombatOccupants)까지 이어진다. */
+function drawFixedBoardCells(ctx, proj, theme, backdropActive) {
     const halfW = proj.tileW / 2;
     const halfH = proj.tileH / 2;
     const tilePath = (gx, gy) => {
@@ -3377,8 +3388,7 @@ function drawBattleGridFloor(ctx, proj, theme, skillTargets, skillAreaCells, bac
         ctx.beginPath();
         ctx.rect(c.x - halfW, c.y - halfH, proj.tileW, proj.tileH);
     };
-    ctx.save();
-    for (let gx = 0; !actExplorationState.current(game) && gx < getCombatGridSize().columns; gx++) {
+    for (let gx = 0; gx < getCombatGridSize().columns; gx++) {
         for (let gy = 0; gy < getCombatGridSize().rows; gy++) {
             tilePath(gx, gy);
             // 배경 디오라마가 깔린 경우 바닥 아트를 가리지 않게 체커 칠 없이 선만 긋는다.
@@ -3393,8 +3403,6 @@ function drawBattleGridFloor(ctx, proj, theme, skillTargets, skillAreaCells, bac
             ctx.stroke();
         }
     }
-    drawRiftCombatOccupants(ctx, { proj, skillTargets, skillAreaCells });
-    ctx.restore();
 }
 
 // 칸 표시: 네모 칸 대신 발밑 타원과 모서리 표식만 그린다. 칸 판정과 범위 계산은 그대로이고 그리는 모양만 바꾼다.

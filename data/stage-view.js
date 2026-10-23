@@ -66,8 +66,8 @@ const STAGE_ROOMS = Object.freeze({
     /** 방 놓는 법의 판 번호: 탐험 기록(run.rooms)에 적힌다. 방 크기나 자리를 바꾸면 올린다(옛 번호의 탐험은 불러올 때 버리고 다시 연다).
      * 4 = 방 놓임새(data/stage-room-plans.js: 액트는 프리셋 넷, 그 밖의 구역은 준 랜덤)와 구역마다의 무대 그림. 5 = 방의 바탕 크기를 키움.
      * 6 = 보통 방을 보스 방의 크기로, 보스 방은 더 작게. 7 = 모든 방을 그 작아진 보스 방의 크기로.
-     * 8 = 방마다 생김새(shapes)와 문 자리(doorSpots)가 다르다. */
-    version: 8,
+     * 8 = 방마다 생김새(shapes)와 문 자리(doorSpots)가 다르다. 9 = 보스 방은 좌우 문으로만 들어간다(준 랜덤의 마지막 걸음, 한 줄 지도). */
+    version: 9,
     /** 방의 생김새 (2026-10-13 밤, 검토: "전부 직사각형이고 깊이는 9칸으로 같아" → 사용자 "규칙 상관없으니까 바꿔줘"): 전투, 정예, 들르는
      * 방은 기준 방(widths + grow, depth + grow: 21×9)에서 가로와 깊이를 줄인 생김새 가운데 하나를 씨앗으로 고른다.
      * [가로에서 빼는 칸, 깊이에서 빼는 칸, 무게]. 기준 방보다 커지지는 않는다: 무대 그림은 기준 방에 맞춘 한 배율로 모든 방에 놓이므로
@@ -124,9 +124,17 @@ const STAGE_ROOMS = Object.freeze({
     frontShade: Object.freeze({ colour: '#06050a', alpha: 0.6, bands: 12, bandDots: 4 }),
     /** 문을 지난 뒤 화면이 어둠에서 밝아지는 시간(ms). */
     fadeMs: 280,
-    /** 네 방향 공용 회백색 뿌리 봉인. 같은 발 기준으로 풀리고 접히며, 마지막 모습은 바닥에 남는다. */
-    rootSeal: Object.freeze({ file: 'assets/stage-scenes/root-seal-v2/opening.png', width: 192, height: 224, anchorY: 216,
-        ends: Object.freeze([90, 200, 340, 480, 630]), heights: Object.freeze([167, 145, 102, 79, 48, 36]) }),
+    /** 문의 회백색 뿌리 봉인(2026-10-21 사용자가 만든 그림): 앞뒤 문은 정면(front, 풀리면 뿌리가 갈라진 아치가 남는다), 좌우 문은 옆에서 본
+     * 그림(side, 바닥으로 눕는다. 그림의 앞이 화면 왼쪽을 보므로 서쪽 문에서는 좌우를 뒤집는다). 시트마다 256도트 칸 9장이 가로로 있고 첫
+     * 장이 닫힌 모습이다. ends = 앞의 여덟 장이 끝나는 시각(ms, 잠금이 풀릴 때 한 번), anchorY = 칸 위에서 잰 발 자리, half = 주인공이 그
+     * 뒤에 서면 반투명해지는 가로 반폭, heights = 장마다 그림의 높이(모두 도트). 낱장과 출처는 같은 폴더의 seal.json. */
+    rootSeal: Object.freeze({
+        ends: Object.freeze([80, 160, 240, 320, 400, 480, 560, 640]),
+        front: Object.freeze({ file: 'assets/stage-scenes/root-seal-v3/front.png', width: 256, height: 256, anchorY: 238, half: 105,
+            heights: Object.freeze([217, 218, 215, 208, 197, 193, 195, 199, 196]) }),
+        side: Object.freeze({ file: 'assets/stage-scenes/root-seal-v3/side.png', width: 256, height: 256, anchorY: 241, half: 57,
+            heights: Object.freeze([228, 225, 221, 214, 206, 198, 137, 83, 50]) })
+    }),
     /** 방 단위 탐험에서 주인공이 걷는 빠르기의 배수(2026-10-11 사용자: "기본 이동속도를 지금보다 50% 정도 빠르게"): 방이 넓어져 한 칸씩
      * 걷는 시간이 길게 느껴졌다. 방 단위 탐험(run.rooms)에만 곱하므로 이어진 지도의 탐험과 그 계산은 그대로다. */
     pace: 1.5,

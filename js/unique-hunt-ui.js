@@ -68,7 +68,7 @@ function renderUniqueHuntPanel() {
     if (root.hidden) return;
     let targets = uniqueHuntRuntime.getTargets();
     let cells = targets.map(renderUniqueHuntTargetCard);
-    while (cells.length < uniqueHuntRuntime.limit) cells.push(`<div class="codex-hunt-empty">${cells.length ? '빈 칸' : '고유를 눌러 추적'}</div>`);
+    while (cells.length < uniqueHuntRuntime.limit) cells.push(`<div class="codex-hunt-empty"><span class="px-center">${cells.length ? '빈 칸' : '고유를 눌러 추적'}</span></div>`);
     root.innerHTML = `<section class="codex-hunt"><header><strong>파밍 추적</strong><em>자동해체 보호</em><b>${targets.length}/${uniqueHuntRuntime.limit}</b></header>
         <div class="codex-hunt-row">${cells.join('')}</div></section>`;
 }

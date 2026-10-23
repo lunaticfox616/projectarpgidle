@@ -1,3 +1,9 @@
+/* 접힘 제목의 표식은 갈무리11의 글자(▶ ▼, 보통과 굵게 모두 있다)로 그린다: 브라우저가 그리는 삼각형은 폭이 소수(12px 글에서 12.7px)라
+   제목 글이 화소 사이에서 시작했다. 맨 아래 층(base)에 두어 표식을 숨기거나 바꾼 규칙(list-style: none 등)이 그대로 이긴다(2026-10-21). */
+@layer base {
+:where(body[data-ui-skin] details > summary) { list-style-type: '▶ '; }
+:where(body[data-ui-skin] details[open] > summary) { list-style-type: '▼ '; }
+}
 @layer overrides {
 /* 도트 UI. 전장(한 칸 16도트)과 같은 결로 UI를 맞춘다: 도트 글꼴, 각진 모서리, 흐림 없는 그림자, 도트 테두리.
    재질(2026-10-01, 하단 HUD 그림과 같은 결): 숯빛 판 · 청동 빗면 테 · 모서리 켈트 매듭. 창은 HUD 그림의 네모 단추를 키운 테
@@ -118,7 +124,7 @@ body[data-ui-skin] #tree-container :is(.passive-overlay-node, .passive-reveal-bu
 body[data-ui-skin] :is(img[src*="assets/px/"], img[src*="assets/gems/runes/"], img[src*="assets/items/illustrated/pixel/"]) { image-rendering: pixelated; }
 
 /* 독립 제목: Galmuri11 Bold 24px. 문장 중간의 강조와 달리 한 줄 전체 역할이다. */
-body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutorial-title, .combat-zone-row-title, #ui-combat-zone-inline, .startup-title) {
+body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutorial-title, .combat-zone-row-title, #ui-combat-zone-inline, .startup-title, .game-dialog-title) {
   font-family: var(--font-display);
   font-size: var(--font-size-heading);
   font-weight: var(--font-weight-emphasis);
@@ -127,7 +133,7 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 }
 :root body[data-ui-skin] .ui-window-title { font-size: var(--font-size-heading); color: var(--px-gold-bright); }
 :root body[data-ui-skin] .combat-zone-row-title { font-size: var(--font-size-ui); color: var(--px-gold-bright); }
-:root body[data-ui-skin] :is(.tutorial-kicker, .game-dialog-kicker) { letter-spacing: .12em; }
+:root body[data-ui-skin] :is(.tutorial-kicker, .game-dialog-kicker) { letter-spacing: 1px; }
 /* 8~11px로 줄어 있던 글자는 물마루의 제 크기(12px)로. 그보다 작으면 도트가 뭉개져 읽히지 않는다. */
 :root body[data-ui-skin] :is(
   .equipment-slot-head span, .equipment-empty-label, .equipment-summary-stat span,
@@ -203,7 +209,7 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 :root body[data-ui-skin] .patch-note-version { font-size: 15px; }
 
 /* 긴 글은 Galmuri14 15px. 문단 안에서 11 Bold를 끼우지 않고 기존 의미 색상으로 강조한다. */
-:root body[data-ui-skin] :is(.tutorial-body, .game-dialog-body,
+:root body[data-ui-skin] :is(.tutorial-body, .game-dialog-body, .game-dialog-message,
   .story-scene-copy, .condition-gem-heading p, .tactics-defaults p, .ab-lore, #item-tooltip-box, #canvas-tooltip, #info-tooltip) {
   font-family: var(--font-pixel-read);
   font-size: var(--font-size-reading);
@@ -216,16 +222,29 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 :root body[data-ui-skin] :is(.story-scene-copy, .game-dialog-body) :is(p, b, strong, em) {
   font-family: inherit; font-size: inherit; font-weight: var(--font-weight-regular); font-style: normal;
 }
-:root body[data-ui-skin] :is(#item-tooltip-box, #canvas-tooltip, #info-tooltip) :is(.tooltip-line:not(.tooltip-meta):not(.tooltip-section), .tooltip-final) {
+/* 툴팁과 장비 창의 선택한 장비 판(같은 툴팁 내용): 옵션 줄은 14/15, 제목은 11 Bold/12, 베이스, 레벨, 요구 줄과 구획 이름은 11/12.
+   짧은 줄과 구획은 아래 층의 읽기 규칙(components/modals.css max(.86em, 13px))에 13px로 남아 번졌다(2026-10-21). */
+:root body[data-ui-skin] :is(#item-tooltip-box, #canvas-tooltip, #info-tooltip, .equipment-inspection-tooltip) :is(.tooltip-line:not(.tooltip-meta):not(.tooltip-section), .tooltip-final) {
   font-family: var(--font-pixel-read); font-size: var(--font-size-reading); line-height: 1.6;
 }
-:root body[data-ui-skin] :is(#item-tooltip-box, #canvas-tooltip, #info-tooltip) .tooltip-title {
+:root body[data-ui-skin] :is(#item-tooltip-box, #canvas-tooltip, #info-tooltip, .equipment-inspection-tooltip) .tooltip-title {
   font-family: var(--font-pixel); font-size: var(--font-size-ui); font-weight: var(--font-weight-emphasis);
 }
+:root body[data-ui-skin] :is(#item-tooltip-box, #canvas-tooltip, #info-tooltip, .equipment-inspection-tooltip) :is(.tooltip-meta, .tooltip-section) {
+  font-family: var(--font-pixel); font-size: var(--font-size-ui);
+}
+/* 아이템 툴팁의 가운데 짧은 줄은 줄 폭만큼만 차지하고 정수 px로 가운데에 놓는다(가운데 맞춤은 반 화소에 놓였다). */
+:root body[data-ui-skin] #item-tooltip-box .tooltip-meta { width: fit-content; max-width: 100%; position: relative; left: round(down, 50%, 1px); translate: round(up, -50%, 1px); }
 /* 날짜처럼 선택적인 보조 정보만 작은 격자를 쓴다. 본문·조작 설명은 줄이지 않는다. */
 :root body[data-ui-skin] .patch-note-date {
   font-family: var(--font-pixel-meta); font-size: var(--font-size-meta);
   font-weight: var(--font-weight-regular); line-height: 1.6; color: var(--color-text-secondary);
+}
+/* 좁은 칸의 표식(장비 칸의 조건 부족 꼬리표, 가방 칸의 긴 부위 이름, 출처 꼬리표, 보조 룬 칸의 ◆, 시작 화면의 약관 링크, 채팅 시각): 9 ~ 10px 갈무리11은 도트가 화소 사이에 걸려 번졌다.
+   같은 자리에 갈무리9 10px. */
+:root body[data-ui-skin] :is(.equipment-requirement-badge, .equipment-grid-slot-label.is-long, .item-source-badge, .support-sigil > em, .support-slot > i > em, .gem-tile-support-art > em,
+  #startup-overlay .startup-policy-links, .message-frame .social-chat-time) {
+  font-family: var(--font-pixel-meta); font-size: var(--font-size-meta);
 }
 
 /* ─── 도트 판 ─────────────────────────────────────────────── */
@@ -606,6 +625,9 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 /* ─── 역할별 글꼴 규칙 (docs/ui-display.md) ───────────────────────────────────────────
    제목 11 Bold/24, 소제목 11 Bold/12, 조작·수치 11/12, 긴 글 14/15. 여백은 space 토큰을 쓴다.
    새 UI도 이 역할을 재사용하며 같은 역할 수정은 토큰·소유 규칙에서 일괄 적용한다. */
+/* 자간: 갈무리는 글자 사이의 한 도트가 글자 폭에 들어 있다. em 자간(단추 .02em, 탭 .08em 등)은 글자마다 소수 화소씩 밀려 세로 획이
+   두 화소에 번졌다(2026-10-21). 아래 층의 자간은 0으로 두고, 넓혀야 하는 곳만 정수 px로 쓴다. */
+body[data-ui-skin] :where(*), body[data-ui-skin] :where(*)::before, body[data-ui-skin] :where(*)::after { letter-spacing: 0; }
 :root body[data-ui-skin] .tab-content:not(#tab-battle) :is(h1, h2, .ab-title) { font-family: var(--font-pixel-title); font-size: var(--font-size-heading); font-weight: var(--font-weight-emphasis); line-height: 1.5; }
 :root body[data-ui-skin] .tab-content:not(#tab-battle) :is(h1, h2) * { font-family: inherit; font-size: inherit; }
 :root body[data-ui-skin] .tab-content:not(#tab-battle) :is(h3:not(.ab-title), summary, .records-section-title, .journal-section-title, .gem-enhance-section-title,
@@ -625,6 +647,28 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 :root body[data-ui-skin] .gem-card-hint { margin-top: 6px; color: var(--px-copy-muted); }
 /* 하위 탭이 하나뿐이면 줄을 숨긴다(js/ui.js syncSingleSubtabRows) */
 :root body[data-ui-skin] .tab-content .subtab-row[hidden] { display: none; }
+/* 하위 탭 줄(PC 창): 첫 칸이 남는 폭(1fr)을 받고 나머지 칸은 정수 px. flex: 1로 나눈 소수 폭이면 탭 이름이 화소 사이에서 시작해 번졌다.
+   칸 수(--subtab-count)는 js/ui.js syncSingleSubtabRows가 보이는 단추 수로 적는다. 좁은 창(520px 이하)은 원래처럼 줄을 바꾼다(2026-10-21). */
+@container (min-width: 521px) {
+  :root body[data-ui-skin].desktop-windowed-ui .tab-content .subtab-row[style*="--subtab-count"]:not(.skill-subtab-row) {
+    display: grid; grid-template-columns: minmax(0, 1fr); grid-auto-flow: column; column-gap: var(--space-1);
+    grid-auto-columns: round(down, calc((100% - (var(--subtab-count) - 1) * var(--space-1)) / var(--subtab-count)), 1px); }
+}
+/* 거래소 탭 넷도 같은 방식(첫 칸이 남는 폭, 나머지 정수 px). */
+:root body[data-ui-skin] .market-tabs { display: grid; grid-template-columns: minmax(0, 1fr); grid-auto-flow: column; grid-auto-columns: round(down, calc((100% - 12px) / 4), 1px); }
+/* 가운데 맞춘 한 줄 글을 감싼 span: 감싼 칸의 가운데 맞춤은 그대로 두고, 칸 폭(left 50%)과 제 폭(translate 50%)이 홀수일 때 생기는
+   반 화소를 되돌린다. 칸이 가운데로 맞출 때만 맞는 계산이라 그런 칸(단추, 아이템 툴팁의 제목과 구획 등)에서만 켠다. 왼쪽 맞춤인
+   장비 판의 같은 툴팁 글은 그대로 둔다. 두 줄로 접히면 줄마다의 가운데 맞춤은 여전히 반 화소에 놓일 수 있다(2026-10-21). */
+:root body[data-ui-skin] :is(button, .window-tab-key, .codex-hunt-empty, .player-exchange-empty, .cl-block, #item-tooltip-box :is(.tooltip-title, .tooltip-section)) > .px-center {
+  display: inline-block; position: relative; left: calc(round(down, 50%, 1px) - 50%); translate: calc(round(up, 50%, 1px) - 50%); }
+/* 룬 창 하위 탭: 두 줄(이름, 설명) 묶음을 단추 폭 칸의 가운데에 두고, 묶음 안의 두 줄은 왼쪽 맞춤 그대로. */
+:root body[data-ui-skin] #tab-skills .skill-subtab-row .subtab-btn { justify-content: stretch; justify-items: center; }
+:root body[data-ui-skin] #tab-skills .skill-subtab-row .subtab-btn > .px-center { display: grid; gap: 2px; justify-items: start; text-align: left; }
+/* 루프 패시브 제목 줄(제목, 루프 수, 포인트): 셋을 space-between으로 벌리면 가운데 루프 수가 반 화소에 놓였다. 가운데 칸(1fr)에 놓고
+   칸 폭 절반과 제 폭 절반의 정수 px로 맞춘다(PC 창, 2026-10-21). */
+:root body[data-ui-skin].desktop-windowed-ui #trait-season-section > h2 { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; }
+:root body[data-ui-skin].desktop-windowed-ui #trait-season-section > h2 > span:not(.h2-right) { justify-self: center; position: relative;
+  left: calc(round(down, 50%, 1px) - 50%); translate: calc(round(up, 50%, 1px) - 50%); }
 /* 목표 서랍: 제목 · 알림 앞의 4px 가로줄 장식은 "- "처럼 읽히고 단추 모서리에 떠 보였다(검토 4차) → 없애고 글을 왼쪽에 맞춘다 */
 :root body[data-ui-skin] #ui-goal-drawer :is(.ui-goal-title, .ui-goal-notice-action, .ui-goal-notice-text)::before { content: none; }
 :root body[data-ui-skin] #ui-goal-drawer .ui-goal-title { padding-left: 0; }
@@ -639,7 +683,9 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 :root body[data-ui-skin] #ui-atlas .atlas-chart-column { display: flex; flex-direction: column; }
 :root body[data-ui-skin] #ui-atlas .atlas-chart-column > .atlas-legend { order: 1; margin-top: 8px; }
 @media (min-width: 1081px) {
-  :root body[data-ui-skin] #ui-atlas .atlas-chart { width: min(100%, 660px, max(320px, calc(100dvh - 524px))); }
+  /* 원판 폭은 짝수 px, 가운데는 정수 px로 옮겨 맞춘다: 노드와 숫자가 반 화소에 놓였다(2026-10-21). */
+  :root body[data-ui-skin] #ui-atlas .atlas-chart { width: round(down, min(100%, 660px, max(320px, calc(100dvh - 524px))), 2px);
+    margin: 0; align-self: flex-start; left: round(down, 50%, 1px); translate: round(up, -50%, 1px); }
   :root body[data-ui-skin] #ui-atlas .atlas-wheel-art { width: min(100%, 360px, max(240px, calc(100dvh - 636px))); }
 }
 /* 고른 쪽이 보이게: 휴대폰 구역 단추(판/보관함 등)와 탐험 지도의 방식(보스 직행 · 전체 탐색 · 직접 이동) — 도트 단추 재질이
@@ -649,14 +695,35 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 /* 소제목 · 접힘 제목 안의 보조 글(개수 · 설명 · 도구 이름)은 본문 크기 */
 :root body[data-ui-skin] .tab-content:not(#tab-battle) :is(h3, summary, .records-section-title, .journal-section-title, .gem-enhance-section-title, .map-zone-group-title,
     .craft-spores-title) :is(span, strong, b, small, em, i) { font-family: var(--font-pixel); font-size: 12px; }
-/* 카드 · 판의 이름 줄은 소제목 크기 */
+/* 카드와 판의 이름 줄은 소제목 크기(갈무리14). 지도 목록 머리와 액트 카드 이름, 룬 판의 주 룬 이름과 보조 룬 머리는 아래 층(features)에서 14를 골랐지만
+   맨 위의 글꼴 되돌림(:where(*))에 지워져 갈무리11 15 ~ 16px로 번졌다. 제작실의 옵션 줄은 툴팁의 옵션 줄과 같은 14/15. */
 :root body[data-ui-skin] .tab-content:not(#tab-battle) :is(.gem-research-card-head strong, .journal-card-head strong,
     .passive-planner-primary > strong, .map-route-copy strong, .journal-summary-main :is(strong, b),
-    .character-ehp-stat strong) { font-family: var(--font-pixel-read); font-size: 15px; }
+    .character-ehp-stat strong, .map-list-head strong, .map-act-body strong, .skill-board-head > b, .support-slots-head > span, .support-resonance b,
+    .ascend-summary-name strong, .talent-trial-main strong, .talent-class > header strong, .codex-hunt > header strong,
+    .cl-affix > div) {
+  font-family: var(--font-pixel-read); font-size: var(--font-size-reading); }
 /* 작은 이름표 · 값 · 안내 글 */
 :root body[data-ui-skin] .tab-content:not(#tab-battle) :is(.gem-research-card-head > span, .gem-resource-strip :is(span, strong),
     .market-exchange-quote :is(span, strong), .content-unlock-heading > span,
-    .offline-progress-upgrade strong, .gem-target-rail-heading > span, .merged-subtab-pane > div:not([class]), #ui-class-locked) { font-family: var(--font-pixel); font-size: 12px; }
+    .offline-progress-upgrade strong, .gem-target-rail-heading > span, .merged-subtab-pane > div:not([class]), #ui-class-locked,
+    .cl-affix .tier-badge) { font-family: var(--font-pixel); font-size: 12px; }
+/* 지도 콘텐츠 화면(원정 소개, 군락지 액막이, 아틀라스 목적지, 시련, 보스 목록, 심해, 낚시)과 보상 창: 긴 글과 수치는 갈무리14 15px.
+   아래 층의 15 ~ 18px이 맨 위의 글꼴 되돌림에 지워져 갈무리11 15 ~ 18px로 번졌다(2026-10-21). 그 안의 짧은 이름표와 제목은 갈무리11. */
+:root body[data-ui-skin] :is(.map-expedition-intro, .colony-ward-panel, #ui-exploration-atlas .atlas-route-target, #tab-map :is(.encounter-card p, .encounter-reward,
+    #ui-season-boss-list .map-zone-group-header, .map-boss-title strong), .dive-oxygen > div:first-child > b, #ui-ocean-panel .dive-upgrades > header strong,
+    #map-tab-fishing .fishing-strategy > header strong, .beehive-choice-heading strong, .hive-choice strong, #reward-overlay :is(.tutorial-body, .reward-choice strong)) {
+  font-family: var(--font-pixel-read); font-size: var(--font-size-reading); }
+:root body[data-ui-skin] :is(.map-expedition-intro :is(dt, .map-power-grade), .map-expedition-actions > span, #tab-map .encounter-reward small,
+    #tab-map #ui-season-boss-list .map-zone-group-count, .colony-ward-panel .colony-ward-note) {
+  font-family: var(--font-pixel); font-size: var(--font-size-ui); }
+:root body[data-ui-skin] .map-expedition-heading > strong { font-family: var(--font-pixel-title); font-size: var(--font-size-heading); }
+/* 좁은 칸의 표식(아틀라스 액트 칸 번호, 낚시 전략 카드의 효과 칩)은 갈무리9 10px: 12px이면 칩이 카드 안에서 두 줄로 넘쳤다. */
+:root body[data-ui-skin] :is(#ui-exploration-atlas .atlas-act-steps > span, .fishing-chips > i) { font-family: var(--font-pixel-meta); font-size: var(--font-size-meta); }
+/* 좁은 가방 칸(44px 이하)의 증감 표시는 10px라 갈무리9로 그린다(갈무리11 10px은 번졌다). */
+@container eqw-cell (max-width: 44px) {
+  :root body[data-ui-skin] .equipment-grid-item-badges span { font-family: var(--font-pixel-meta); font-size: var(--font-size-meta); }
+}
 /* 스킬트리 노드 툴팁의 효과 상자, 장비 창 장착 칸의 그림 자리: 둥근 모서리 · 대각선 그라데이션 · 남색 원형 그라데이션 대신
    숯빛 판 + 1px 테(효과 상자는 노드 색) — 마지막 남은 옛 모양(검토 2026-10-01) */
 :root body[data-ui-skin] .passive-effect-badge { flex: 1 1 160px; margin-top: 6px; padding: 6px 8px; border: 1px solid var(--badge-edge, var(--px-bronze));

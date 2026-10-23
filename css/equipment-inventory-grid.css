@@ -55,7 +55,8 @@
 
 /* 가방 판: 10칸 줄과 오른쪽 도구 줄(폭 52px, 2026-10-19). 칸 크기는 판 폭에서 도구 줄과 틈을 뺀 나머지의 1/10. */
 .equipment-inventory-grid-shell {
-    --equipment-grid-cell-size: clamp(24px, calc((100cqw - 58px) / 10), 52px);
+    /* 칸 크기는 정수 px: 52px보다 좁은 창에서 소수 크기면 가방 칸의 글이 화소 사이에 놓였다(2026-10-21). */
+    --equipment-grid-cell-size: round(down, clamp(24px, calc((100cqw - 58px) / 10), 52px), 1px);
     container-type: inline-size;
     display: grid;
     grid-template-columns: minmax(0, 1fr) 52px;
@@ -483,7 +484,7 @@
     /* 빈 칸 채우기는 아랫줄 혼자라 두 칸을 쓴다(첫 칸 폭에서 "빈 칸 채우기 6"이 잘렸다) */
     #item-tab-equip .equipment-triage-controls .equipment-fill-empty { grid-column: span 2; }
     .equipment-inventory-grid-shell {
-        --equipment-grid-cell-size: clamp(24px, calc((100cqw - 2px) / 10), 52px);
+        --equipment-grid-cell-size: round(down, clamp(24px, calc((100cqw - 2px) / 10), 52px), 1px);
         display: block;
     }
     .equipment-inventory-pages button { min-height: 30px; padding: 3px 7px; }
@@ -497,7 +498,7 @@
 .equipment-grid-slot-label.is-long { font-size: 10px; letter-spacing: -1px; }
 .equipment-grid-slot-label { position: absolute; bottom: 3px; left: -2px; right: -2px; color: #eee5d7; font-family: inherit; font-size: 12px; line-height: 1.2; text-align: center; white-space: nowrap; text-shadow: 0 1px 2px #000; pointer-events: none; }
 .equipment-slot.equipment-requirements-unmet { filter: saturate(.3); }
-.equipment-requirement-badge { position:absolute; right:3px; top:3px; padding:1px 4px; border:1px solid #ad7162; background:#291d19; color:#f0b4a2; font-size:10px; line-height:1.4; pointer-events:none; }
+.equipment-requirement-badge { position:absolute; right:3px; top:3px; padding:1px 4px; border:1px solid #ad7162; background:#291d19; color:#f0b4a2; font-size:var(--font-size-meta); line-height:1.4; pointer-events:none; }
 }
 
 @layer overrides {

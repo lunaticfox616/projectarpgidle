@@ -1,35 +1,46 @@
-/** 방 입구의 공용 뿌리 봉인과 열린 문의 방향 표시. 봉인은 네 방향에서 같은 6프레임 시트를 쓰며, 잠금 해제 때 아래로 접힌다.
- * 뒤쪽과 앞쪽 표시는 문 칸의 바닥, 좌우 표시는 뿌리가 접힌 자리에 선다. 좌우는 화면 가장자리 조명에 묻히지 않게 조명 뒤에 그린다.
- * 저장·잠금·통행 규칙은 바꾸지 않고 그림과 연출 시각만 관리한다.
+/** 방 입구의 뿌리 봉인과 열린 문의 방향 표시. 봉인은 앞뒤 문에 정면, 좌우 문에 옆에서 본 9프레임 시트를 쓰며(data/stage-view.js
+ * STAGE_ROOMS.rootSeal), 잠금 해제 때 한 번 풀린다. 뒤쪽과 앞쪽 표시는 문 칸의 바닥, 좌우 표시는 뿌리가 누운 자리에 선다. 좌우는 화면
+ * 가장자리 조명에 묻히지 않게 조명 뒤에 그린다. 저장·잠금·통행 규칙은 바꾸지 않고 그림과 연출 시각만 관리한다.
  */
 const stageDoorMarks = (() => {
     const ARROW = Object.freeze({ east: [1, 0], west: [-1, 0], north: [0, -1], south: [0, 1] });
     const INK = Object.freeze({ open: '#f3e5b4', gate: '#ff7a66', shade: '#1b171c' });
     const seals = new WeakMap(); // 탐험마다 현재 방의 연출만 기억한다. 저장·통행 상태에는 쓰지 않는다.
     const opened = new WeakMap(); // 탐험마다 한 번이라도 열린 채로 본 문(id). 저장하지 않는다.
-    let sealImage = null;
-    function sealReady() {
-        if (!sealImage) {
-            sealImage = new Image();
-            sealImage.decoding = 'async';
-            sealImage.onerror = () => console.warn('Root seal image failed to load:', STAGE_ROOMS.rootSeal.file);
-            sealImage.src = STAGE_ROOMS.rootSeal.file;
+    const sheets = new Map();     // 'front' | 'side' → Image
+    /** 그 쪽의 문이 쓰는 시트: 앞뒤 문은 정면, 좌우 문은 옆에서 본 그림. */
+    const sheetOf = side => (side === 'west' || side === 'east' ? 'side' : 'front');
+    /** 그 시트의 그림: 다 불러왔으면 그림, 아니면 null(처음 부를 때 불러오기 시작한다). */
+    function sheetImage(kind) {
+        if (!sheets.has(kind)) {
+            const image = new Image(), file = STAGE_ROOMS.rootSeal[kind].file;
+            image.decoding = 'async';
+            image.onerror = () => console.warn('Root seal image failed to load:', file);
+            image.src = file;
+            sheets.set(kind, image);
         }
-        return sealImage.complete && sealImage.naturalWidth > 0;
+        const image = sheets.get(kind);
+        return image.complete && image.naturalWidth > 0 ? image : null;
     }
-    const shadedSeals = new Map(); // 어둠(rgba) → 봉인 시트에 어두운 심해 띠의 어둠을 얹은 그림(js/canvas-stage-ocean.js shade)
-    function shadedSeal(shade) {
-        if (!shadedSeals.has(shade)) {
+    /** 두 시트를 불러 두고, 둘 다 왔는가. */
+    function sealReady() {
+        const front = sheetImage('front'), side = sheetImage('side');
+        return !!front && !!side;
+    }
+    const shadedSeals = new Map(); // 시트와 어둠(rgba) → 봉인 시트에 어두운 심해 띠의 어둠을 얹은 그림(js/canvas-stage-ocean.js shade)
+    function shadedSeal(kind, image, shade) {
+        const key = kind + '|' + shade;
+        if (!shadedSeals.has(key)) {
             const canvas = document.createElement('canvas'), c = canvas.getContext('2d');
-            canvas.width = sealImage.naturalWidth;
-            canvas.height = sealImage.naturalHeight;
-            c.drawImage(sealImage, 0, 0);
+            canvas.width = image.naturalWidth;
+            canvas.height = image.naturalHeight;
+            c.drawImage(image, 0, 0);
             c.globalCompositeOperation = 'source-atop';
             c.fillStyle = shade;
             c.fillRect(0, 0, canvas.width, canvas.height);
-            shadedSeals.set(shade, canvas);
+            shadedSeals.set(key, canvas);
         }
-        return shadedSeals.get(shade);
+        return shadedSeals.get(key);
     }
     function sealRoom(run, id) {
         let room = seals.get(run);
@@ -64,15 +75,17 @@ const stageDoorMarks = (() => {
         const frame = STAGE_ROOMS.rootSeal.ends.findIndex(end => now - entry.at < end);
         return frame < 0 ? last : frame;
     }
-    /** at는 발 자리와 도트 배율. 네 방향 모두 회전·뒤집기·눌러 그리기 없이 같은 시트를 쓴다. */
+    /** at는 발 자리와 도트 배율. 앞뒤 문은 정면 시트, 좌우 문은 옆 시트를 쓰고, 옆 그림은 앞이 화면 왼쪽을 보므로 서쪽 문에서는
+     * 발 자리를 축으로 좌우를 뒤집는다(뿌리 끝이 방 안을 본다). 회전하거나 눌러 그리지 않는다. */
     function drawSeal(ctx, run, row, at) {
-        const frame = noteSeal(run, row), spec = STAGE_ROOMS.rootSeal;
-        if (!sealReady()) return false;
+        const frame = noteSeal(run, row), kind = sheetOf(row.door.side), spec = STAGE_ROOMS.rootSeal[kind], image = sheetImage(kind);
+        if (!image) return false;
         const w = spec.width * at.dot, h = spec.height * at.dot, hero = at.hero, shade = typeof stageOcean === 'object' ? stageOcean.shade() : null;
         ctx.save();
         ctx.imageSmoothingEnabled = false;
-        if (hero && hero.y < at.y && hero.y > at.y - spec.heights[frame] * at.dot && Math.abs(hero.x - at.x) < w * .45) ctx.globalAlpha *= .5;
-        ctx.drawImage(shade ? shadedSeal(shade) : sealImage, frame * spec.width, 0, spec.width, spec.height,
+        if (hero && hero.y < at.y && hero.y > at.y - spec.heights[frame] * at.dot && Math.abs(hero.x - at.x) < spec.half * at.dot) ctx.globalAlpha *= .5;
+        if (row.door.side === 'west') { ctx.translate(Math.round(at.x) * 2, 0); ctx.scale(-1, 1); }
+        ctx.drawImage(shade ? shadedSeal(kind, image, shade) : image, frame * spec.width, 0, spec.width, spec.height,
             Math.round(at.x - w / 2), Math.round(at.y - spec.anchorY * at.dot), w, h);
         ctx.restore();
         return true;
@@ -108,17 +121,18 @@ const stageDoorMarks = (() => {
         const run = actExplorationState.current(game), map = run ? actExplorationDoors.stageMap(run) : null, to = map && map.rooms[door.to];
         return to && !run.visitedRooms.includes(to.id) ? '다음 방' : '';
     }
-    const LABEL_FONT = `13px 'MulmaruMono', 'Malgun Gothic', sans-serif`;
+    // NPC 이름처럼 갈무리11 12px(2026-10-21): 적어 둔 MulmaruMono는 웹 글꼴로 불러오지 않아 맑은 고딕 13px로 그려졌다.
+    const LABEL_FONT = `12px 'Galmuri11', 'Malgun Gothic', sans-serif`;
     function markLabel(ctx, label, at, colour) {
         ctx.globalAlpha = 1;
         ctx.font = LABEL_FONT;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.lineWidth = 3;
+        ctx.lineWidth = 2;
         ctx.strokeStyle = 'rgba(8,6,4,0.9)';
         ctx.fillStyle = colour;
-        ctx.strokeText(label, Math.round(at.x), Math.round(at.y));
-        ctx.fillText(label, Math.round(at.x), Math.round(at.y));
+        drawCrispCanvasText(ctx, label, at.x, at.y, 'strokeText');
+        drawCrispCanvasText(ctx, label, at.x, at.y);
     }
     /**
      * @param {{cx:number, cy:number, w:number}} box where the mark sits and how wide its light spreads
