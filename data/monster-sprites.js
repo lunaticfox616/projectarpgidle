@@ -55,6 +55,13 @@ const MONSTER_SPRITE_SHEETS = Object.freeze(Object.fromEntries([
     }).map(([weapon, feet]) => [`root-${weapon}`, 'root', `roots/${WEAPON_CATEGORIES[weapon].root}`, 31, feet]),
         ['underworld-beetle', 'realm', 'realms/underworld/beetle', 17, [24, 32]], ['underworld-hound', 'realm', 'realms/underworld/hound', 22, [24, 31]], ['underworld-king', 'realmBoss', 'realms/underworld/king', 42, [32, 46]],
         ['cosmos-star', 'realm', 'realms/cosmos/star', 22, [24, 33]], ['cosmos-ooze', 'realm', 'realms/cosmos/ooze', 24, [24, 32]], ['cosmos-sentinel', 'realm', 'realms/cosmos/sentinel', 30, [24, 36]], ['cosmos-colossus', 'realmBoss', 'realms/cosmos/colossus', 43, [32, 46]],
+        // 운석 전용 역할은 고유 ID로 공격 유형과 표기를 분리하고, 그림은 이미 있는 우주계 시트를 빌린다.
+        ['meteor-shard', 'realm', 'realms/cosmos/star', 22, [24, 33]], ['meteor-melt', 'realm', 'realms/cosmos/ooze', 24, [24, 32]],
+        ['meteor-sentinel', 'realm', 'realms/cosmos/sentinel', 30, [24, 36]],
+        // 대균열 전용 ID는 전투 역할을 구별한다. 낡은 시점 그림은 가까운 종족의 시트를 빌린다.
+        ['breach-scout', 'realm', 'realms/cosmos/star', 22, [24, 33]], ['breach-reflux', 'realm', 'realms/sky/imp', 25, [24, 36]],
+        ['breach-veil', 'realm', 'realms/cosmos/sentinel', 30, [24, 36]], ['breach-venom', 'realm', 'realms/ocean/oracle', 26, [24, 37]],
+        ['grand_breach_guardian', 'realmBoss', 'realms/cosmos/colossus', 43, [32, 46]],
         ['ocean-angler', 'realm', 'realms/ocean/angler', 28, [24, 32]], ['ocean-crab', 'realm', 'realms/ocean/crab', 19, [24, 33]], ['ocean-shell', 'realm', 'realms/ocean/shell', 14, [24, 31]], ['ocean-oracle', 'realm', 'realms/ocean/oracle', 26, [24, 37]], ['ocean-leviathan', 'realmBoss', 'realms/ocean/leviathan', 42, [32, 47]],
         ['hive-worker', 'realm', 'realms/hive/worker', 24, [24, 34]], ['hive-drone', 'realm', 'realms/hive/drone', 25, [24, 34]],
         ['hive-scout', 'realm', 'realms/hive/scout', 23, [24, 34]], ['hive-nurse', 'realm', 'realms/hive/nurse', 24, [24, 34]],
@@ -75,9 +82,11 @@ const MONSTER_STAGE_KIND = Object.freeze({
 // 속성 위습 여섯 장(wisp-fire …)은 위습 외형 18종이 나눠 쓴다: 외형 id → 속성은 data/wisp-sprites.js WISP_SPRITE_BY_VISUAL.
 const MONSTER_STAGE_SHEETS = Object.freeze(Object.fromEntries([
     ['act1-slime', 53, [44, 84]], ['act1-ant', 41, [42, 84]], ['act1-worm', 29, [46, 84]],
-    ...Object.entries({ fire: 74, ice: 66, lightning: 60, poison: 66, holy: 72, void: 60 }).map(([element, height]) => ['wisp-' + element, height, [48, 84]])
-].map(([id, height, feet]) => [id, Object.freeze({
-    id, kind: 'stage', height, feet: Object.freeze(feet), idle: `assets/enemies/stage/${id}-idle.png`, attack: `assets/enemies/stage/${id}-attack.png`
+    ...Object.entries({ fire: 74, ice: 66, lightning: 60, poison: 66, holy: 72, void: 60 }).map(([element, height]) => ['wisp-' + element, height, [48, 84]]),
+    ['breach-scout', 60, [48, 84], 'wisp-void'], ['breach-reflux', 60, [48, 84], 'wisp-void'],
+    ['breach-veil', 60, [48, 84], 'wisp-void'], ['breach-venom', 66, [48, 84], 'wisp-poison']
+].map(([id, height, feet, source = id]) => [id, Object.freeze({
+    id, kind: 'stage', height, feet: Object.freeze(feet), idle: `assets/enemies/stage/${source}-idle.png`, attack: `assets/enemies/stage/${source}-attack.png`
 })])));
 
 safeExposeData({ MONSTER_SPRITE_KINDS, MONSTER_SPRITE_SHEETS, MONSTER_STAGE_KIND, MONSTER_STAGE_SHEETS });

@@ -37,7 +37,7 @@
 
     function renderPickup(open = false) {
         const settings = game.settings;
-        const slots = EQUIPMENT_DROP_SLOTS.map(slot => pickChip('slot', slot, slot)).join('');
+        const slots = EQUIPMENT_DROP_SLOTS.map(slot => pickChip('slot', slot, getItemSlotDisplayLabel(null, slot))).join('');
         const weapons = Object.entries(WEAPON_CATEGORIES).map(([id, row]) => pickChip('weapon', id, row.name)).join('');
         return `<details class="loot-filter-section" id="loot-pickup-config" ${open ? 'open' : ''}><summary>습득 조건</summary>${renderPresets()}
             <label><input id="chk-item-filter-enabled" type="checkbox" ${settings.itemFilterEnabled ? 'checked' : ''} onchange="equipmentLootUi.updatePickup()">습득 조건 사용</label>
@@ -91,7 +91,7 @@
 
     function renderTargets() {
         const filter = game.settings.equipmentTargets;
-        const slots = ['any', ...EQUIPMENT_DROP_SLOTS].map(slot => `<option value="${escapeHTML(slot)}" ${filter.slot === slot ? 'selected' : ''}>${slot === 'any' ? '모든 장비 부위' : escapeHTML(slot)}</option>`).join('');
+        const slots = ['any', ...EQUIPMENT_DROP_SLOTS].map(slot => `<option value="${escapeHTML(slot)}" ${filter.slot === slot ? 'selected' : ''}>${slot === 'any' ? '모든 장비 부위' : escapeHTML(getItemSlotDisplayLabel(null, slot))}</option>`).join('');
         return `<div class="loot-filter-section loot-target-section"><h3>노리는 옵션, 우선 보관</h3>
             <label><input id="loot-target-enabled" type="checkbox" ${filter.enabled ? 'checked' : ''} onchange="equipmentLootUi.updateTargets()">목표 옵션 보호 사용</label>
             <p class="loot-filter-note">일치한 장비는 습득 제한/자동해체/일괄해체에서 보호합니다. 개별 해체는 가능합니다.</p>
@@ -222,7 +222,7 @@
     function renderHighlight(item, owned) {
         const equipment=owned.find(entry=>String(entry.id)===String(item.id));
         const token=equipment ? registerCombatLogItemSnapshot(equipment) : null;
-        const detail=`<span class="loot-highlight-name"><strong>${escapeHTML(item.name)}</strong><small>${escapeHTML(item.slot)}, ${escapeHTML(item.location)}</small></span><span class="loot-highlight-reason">${escapeHTML(item.reason)}</span>`;
+        const detail=`<span class="loot-highlight-name"><strong>${escapeHTML(item.name)}</strong><small>${escapeHTML(getItemSlotDisplayLabel(item))}, ${escapeHTML(item.location)}</small></span><span class="loot-highlight-reason">${escapeHTML(item.reason)}</span>`;
         const attrs=token===null ? 'disabled' : `data-item-tooltip-anchor="1" data-log-item-token="${token}" onpointerenter="if(event.pointerType!=='touch')equipmentLootUi.showHighlight(event,${token})" onpointermove="if(event.pointerType!=='touch')equipmentLootUi.showHighlight(event,${token})" onpointerleave="if(event.pointerType==='mouse')hideItemTooltip(event)" onfocus="equipmentLootUi.showHighlight(event,${token})" onblur="hideItemTooltip()" onclick="equipmentLootUi.showHighlight(event,${token})"`;
         // 까닭 글은 그 까닭의 색(목표 일치는 민트, 고유는 주황, 타락은 빨강: equipmentLootPolicy.highlight)
         const tones=`--loot-rarity:${getRarityColor(item.rarity)}${item.color ? `;--loot-reason:${item.color}` : ''}`;

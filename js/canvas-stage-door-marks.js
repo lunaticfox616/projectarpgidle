@@ -8,6 +8,18 @@ const stageDoorMarks = (() => {
     const seals = new WeakMap(); // 탐험마다 현재 방의 연출만 기억한다. 저장·통행 상태에는 쓰지 않는다.
     const opened = new WeakMap(); // 탐험마다 한 번이라도 열린 채로 본 문(id). 저장하지 않는다.
     const sheets = new Map();     // 'front' | 'side' → Image
+    const fades = new WeakMap(); // door -> visual opacity; never saved or used for passage.
+    const FADE = Object.freeze({ alpha: .3, ms: 120, enter: .2, leave: .12 });
+    let marks = []; // This frame's visible open-door marks, including ones moved away from the log/screen edge.
+    let bodies = []; // Only bodies already drawn this frame; respects depth order and visibility.
+    const begin = () => { marks = []; bodies = []; };
+    const noteBody = body => { if (body.h > 0 && body.halfW > 0) bodies.push(body); };
+    function targetAt(point) {
+        if (!point) return null;
+        const run = actExplorationState.current(game), doors = run ? actExplorationDoors.doorsHere(run) : [];
+        const hit = marks.findLast(({ box }) => point.x >= box.x && point.x <= box.x + box.w && point.y >= box.y && point.y <= box.y + box.h);
+        return hit && doors.some(row => row.door === hit.door && !row.locked) ? hit.door.cell : null;
+    }
     /** 그 쪽의 문이 쓰는 시트: 앞뒤 문은 정면, 좌우 문은 옆에서 본 그림. */
     const sheetOf = side => (side === 'west' || side === 'east' ? 'side' : 'front');
     /** 그 시트의 그림: 다 불러왔으면 그림, 아니면 null(처음 부를 때 불러오기 시작한다). */
@@ -27,7 +39,7 @@ const stageDoorMarks = (() => {
         const front = sheetImage('front'), side = sheetImage('side');
         return !!front && !!side;
     }
-    const shadedSeals = new Map(); // 시트와 어둠(rgba) → 봉인 시트에 어두운 심해 띠의 어둠을 얹은 그림(js/canvas-stage-ocean.js shade)
+    const shadedSeals = new Map(); // Two sheet kinds × (no ocean shade or either fixed deep-water shade): at most six sheets.
     function shadedSeal(kind, image, shade) {
         const key = kind + '|' + shade;
         if (!shadedSeals.has(key)) {
@@ -36,8 +48,13 @@ const stageDoorMarks = (() => {
             canvas.height = image.naturalHeight;
             c.drawImage(image, 0, 0);
             c.globalCompositeOperation = 'source-atop';
-            c.fillStyle = shade;
-            c.fillRect(0, 0, canvas.width, canvas.height);
+            if (shade) {
+                c.fillStyle = shade;
+                c.fillRect(0, 0, canvas.width, canvas.height);
+            }
+            // Only the closed first frame recedes. Opening/open pixels retain their existing ocean treatment.
+            c.fillStyle = 'rgba(24,17,12,0.30)';
+            c.fillRect(0, 0, STAGE_ROOMS.rootSeal[kind].width, canvas.height);
             shadedSeals.set(key, canvas);
         }
         return shadedSeals.get(key);
@@ -75,17 +92,35 @@ const stageDoorMarks = (() => {
         const frame = STAGE_ROOMS.rootSeal.ends.findIndex(end => now - entry.at < end);
         return frame < 0 ? last : frame;
     }
+    /** Share of an already drawn body covered by this seal's occupied rectangle, in battlefield CSS pixels. */
+    function coveredShare(body, at, spec, frame) {
+        const width = Math.min(body.x + body.halfW, at.x + spec.half * at.dot) - Math.max(body.x - body.halfW, at.x - spec.half * at.dot);
+        const bottom = at.y + (spec.height - spec.anchorY) * at.dot;
+        const height = Math.min(body.y, bottom) - Math.max(body.y - body.h, at.y - spec.heights[frame] * at.dot);
+        return Math.max(0, width) * Math.max(0, height) / (2 * body.halfW * body.h);
+    }
+    /** Fade the whole seal rather than cutting holes through its art. Hysteresis prevents idle edge flicker. */
+    function sealAlpha(door, at, spec, frame, now) {
+        const state = fades.get(door) || { alpha: 1, at: now, hidden: false };
+        const threshold = state.hidden ? FADE.leave : FADE.enter;
+        state.hidden = bodies.some(body => coveredShare(body, at, spec, frame) >= threshold);
+        const target = state.hidden ? FADE.alpha : 1, step = Math.max(0, now - state.at) / FADE.ms * (1 - FADE.alpha);
+        state.alpha = state.alpha < target ? Math.min(target, state.alpha + step) : Math.max(target, state.alpha - step);
+        state.at = now;
+        fades.set(door, state);
+        return state.alpha;
+    }
     /** at는 발 자리와 도트 배율. 앞뒤 문은 정면 시트, 좌우 문은 옆 시트를 쓰고, 옆 그림은 앞이 화면 왼쪽을 보므로 서쪽 문에서는
      * 발 자리를 축으로 좌우를 뒤집는다(뿌리 끝이 방 안을 본다). 회전하거나 눌러 그리지 않는다. */
     function drawSeal(ctx, run, row, at) {
         const frame = noteSeal(run, row), kind = sheetOf(row.door.side), spec = STAGE_ROOMS.rootSeal[kind], image = sheetImage(kind);
         if (!image) return false;
-        const w = spec.width * at.dot, h = spec.height * at.dot, hero = at.hero, shade = typeof stageOcean === 'object' ? stageOcean.shade() : null;
+        const w = spec.width * at.dot, h = spec.height * at.dot, shade = typeof stageOcean === 'object' ? stageOcean.shade() : null;
         ctx.save();
         ctx.imageSmoothingEnabled = false;
-        if (hero && hero.y < at.y && hero.y > at.y - spec.heights[frame] * at.dot && Math.abs(hero.x - at.x) < spec.half * at.dot) ctx.globalAlpha *= .5;
+        ctx.globalAlpha *= sealAlpha(row.door, at, spec, frame, performance.now());
         if (row.door.side === 'west') { ctx.translate(Math.round(at.x) * 2, 0); ctx.scale(-1, 1); }
-        ctx.drawImage(shade ? shadedSeal(kind, image, shade) : image, frame * spec.width, 0, spec.width, spec.height,
+        ctx.drawImage(shade || frame === 0 ? shadedSeal(kind, image, shade) : image, frame * spec.width, 0, spec.width, spec.height,
             Math.round(at.x - w / 2), Math.round(at.y - spec.anchorY * at.dot), w, h);
         ctx.restore();
         return true;
@@ -137,10 +172,12 @@ const stageDoorMarks = (() => {
     /**
      * @param {{cx:number, cy:number, w:number}} box where the mark sits and how wide its light spreads
      * @param {{side:string, gate?:boolean, to?:number}} door the side it leads out by; the boss gate is red; to = the room it leads to
-     * @param {{dot:number, thick?:number, upright?:boolean}} look one dot on screen, the stroke in dots, standing in a door frame
+     * @param {{dot:number, thick?:number, upright?:boolean, side?:string}} look one dot on screen, stroke width, upright mark, optional screen-edge direction
      */
     function arrows(ctx, box, door, look) {
-        const [dx, dy] = ARROW[door.side], phase = performance.now() / 240, colour = door.gate ? INK.gate : INK.open;
+        const half = Math.max(22, box.w * .55), top = Math.max(24, box.w * .8 + 10);
+        marks.push({ door, box: { x: box.cx - half, y: box.cy - top, w: half * 2, h: top + 20 } });
+        const [dx, dy] = ARROW[look.side || door.side], phase = performance.now() / 240, colour = door.gate ? INK.gate : INK.open;
         const size = Math.max(2, Math.round(look.dot * (look.thick || 2))), squash = look.upright ? 1 : .5, gap = size * 3.5, dim = look.upright ? .55 : .3;
         ctx.save();
         // 밝은 바닥(심해 얕은 암초의 흰 모래)에서는 빛무리가 묻혀 어둡게 깐다
@@ -165,23 +202,22 @@ const stageDoorMarks = (() => {
             if (!at) continue;
             // 오른쪽은 전투 기록이나 채팅 창이 가리는 데까지만 보인다: 창 밑에 깔린 문도 창 왼쪽에 표시를 세운다
             const limit = shownUntil(at.y, width);
-            if (at.x >= 0 && !beyond(at.x, limit, p)) continue;
-            const side = at.x < 0 ? 'west' : 'east';
-            arrows(ctx, { cx: side === 'west' ? inset : limit - inset, cy: at.y, w: p.tileW * 0.7 }, { ...row.door, side }, { dot, thick: 3, upright: true });
+            if (!beyond(at.x, limit, p)) continue;
+            const side = at.x < inset ? 'west' : 'east';
+            arrows(ctx, { cx: side === 'west' ? inset : limit - inset, cy: at.y, w: p.tileW * 0.7 }, row.door, { dot, thick: 3, upright: true, side });
         }
     }
     /** 그 높이에서 전장이 오른쪽으로 어디까지 보이는가(전장의 px): 창에 가려지지 않았으면 전장의 너비. */
     const shownUntil = (y, width) => (typeof messageFrames === 'object' ? messageFrames.coveredFrom(y, width) : width);
-    /** Past the visible part on the right (half a cell short of limit): edgeMarks stands the door's mark at the edge instead. */
-    const beyond = (x, limit, p) => x > limit - Math.round(p.tileW * 0.5);
-    /** Whether an open door's own mark would sit under the log or chat window. Its mark then stands at the window's edge
-     * (edgeMarks), so the door's own one is not drawn: it showed through the window, its 다음 방 label over the window's head
-     * (2026-10-18 first minutes at 1536x864). */
+    /** Keep half a cell on both sides for the label. The same boundary replaces, rather than duplicates, the native mark. */
+    const beyond = (x, limit, p) => x < Math.round(p.tileW * 0.5) || x > limit - Math.round(p.tileW * 0.5);
+    /** Whether an open door's own mark is replaced by edgeMarks, at either screen edge or before the log/chat window.
+     * Excluding the left edge here drew its clipped label as well as the replacement (2026-10-22, 844×390). */
     function underFrame(p, row) {
         const width = typeof lastBattlefieldCanvasSize === 'object' && lastBattlefieldCanvasSize ? lastBattlefieldCanvasSize.width : 0;
         const at = width > 0 && !row.locked ? p.cellToScreen(row.door.cell.gx, row.door.cell.gy) : null;
-        return !!at && at.x >= 0 && beyond(at.x, shownUntil(at.y, width), p);
+        return !!at && beyond(at.x, shownUntil(at.y, width), p);
     }
-    return Object.freeze({ arrows, edges: edgeMarks, underFrame, seal: Object.freeze({ ready: sealReady, note: noteSeal, draw: drawSeal }) });
+    return Object.freeze({ begin, targetAt, arrows, edges: edgeMarks, underFrame, seal: Object.freeze({ ready: sealReady, note: noteSeal, body: noteBody, draw: drawSeal }) });
 })();
 safeExposeGlobals({ stageDoorMarks });

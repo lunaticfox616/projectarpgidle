@@ -289,6 +289,7 @@ function drawActiveSummons(ctx, playerPos, now, proj) {
         if (summon.isGhost) drawSummonGhostRing(ctx, summon, at);
         ctx.restore();
         drawSummonHpBar(ctx, summon, at.x, top);
+        if (stageView.enabled()) stageDoorMarks.seal.body({ x: at.x, y: at.y, halfW: Math.max(12, (at.y - top) * .5), h: at.y - top });
     });
 }
 

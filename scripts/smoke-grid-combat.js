@@ -20,7 +20,7 @@ const files = [
   'data/core-items.js', 'data/talismans.js', 'data/stump-cube.js',
   'data/passives.js',
   'data/passive-tree-v22.js',
-  'data/bosses.js', 'data/monster-sprites.js',
+  'data/bosses.js', 'data/monster-sprites.js', 'data/monster-stage-roster.js', 'data/stage-view.js', 'data/knitting.js',
   'data/rewards.js',
   'data/talent-cards.js',
   'data/content-progression.js',
@@ -56,9 +56,9 @@ const files = [
   'js/equipment-sockets.js',
   'js/combat-build-stats.js',
   'js/cosmos-route.js',
-  'js/combat.js', 'js/combat-incidents.js', 'js/region-affix-effects.js', 'js/item-influences.js', 'js/item-influences-ui.js', 'js/colony-wards.js', 'js/colony-wards-ui.js', 'js/bag-items.js', 'js/bag-items-ui.js', 'js/equipment-window-ui.js', 'js/atlas-run.js', 'js/atlas-finds.js', 'js/mobility-skill.js', 'js/wisp-summons.js',
+  'js/loop-mutation.js', 'js/combat.js', 'js/combat-incidents.js', 'js/region-affix-effects.js', 'js/item-influences.js', 'js/item-influences-ui.js', 'js/colony-wards.js', 'js/colony-wards-ui.js', 'js/bag-items.js', 'js/bag-items-ui.js', 'js/equipment-window-ui.js', 'js/atlas-run.js', 'js/atlas-finds.js', 'js/mobility-skill.js', 'js/wisp-summons.js',
   'js/combat-ehp.js',
-  'js/talent-cards.js',
+  'js/talent-cards.js', 'js/knitting.js', 'js/knitting-rewards.js',
 ];
 
 function createElement() {
@@ -152,7 +152,7 @@ const cfg = context.COMBAT_GRID_CONFIG;
 // 렌더 스프라이트와 전투 이름은 같은 안정적인 변형 id를 사용해야 한다.
 {
   resetGame();
-  assert.strictEqual(context.MONSTER_VARIANT_DEFS.length, 44, '액트 몬스터 20종, 무기 뿌리촉수 6종, 위습 18종에 이름이 지정되어야 한다');
+  assert.strictEqual(new Set(context.MONSTER_VARIANT_DEFS.map(def=>def.id)).size, context.MONSTER_VARIANT_DEFS.length, '몬스터 외형 id는 중복되지 않아야 한다');
   assert(context.MONSTER_VARIANT_DEFS.every(def => def.id && def.name), '몬스터 변형 정의에 id와 이름이 모두 있어야 한다');
   const fireWisp = context.getMonsterVariantDefinition(5, 'fire');
   assert(fireWisp.id.startsWith('wisp-'), '일반 구역에서도 위습이 일정 비율로 등장해야 한다');
@@ -223,6 +223,12 @@ const cfg = context.COMBAT_GRID_CONFIG;
     assert(kinds[0] >= 2 && kinds[2] === 1, '각 영역 세트는 일반 2종 이상과 보스 1종을 가진다(정예 종류는 없을 수 있다)');
     assert(set.members.every(member => !context.RETIRED_REALM_MONSTERS[member.id]), '지운 영역 몬스터는 세트에 남지 않는다');
     set.members.forEach(member => {
+      const actor = context.MONSTER_STAGE_ROSTER.actors[member.id];
+      if (actor) {
+        assert(fs.existsSync(context.MONSTER_STAGE_ROSTER.path + member.id + '-walk.png'), member.id+' 이동 시트');
+        assert(actor.attackMs && fs.existsSync(context.MONSTER_STAGE_ROSTER.path + member.id + '-attack.png'), member.id+' 공격 시트');
+        return;
+      }
       const sheet = context.MONSTER_SPRITE_SHEETS[member.id];
       assert(sheet, `${member.id}는 제 시트로 그린다`);
       assert.strictEqual(context.MONSTER_SPRITE_KINDS[sheet.kind].frame, member.role === 'boss' ? 64 : 48,
@@ -746,7 +752,7 @@ const cfg = context.COMBAT_GRID_CONFIG;
   assert.strictEqual(breachRewards.kills, 31, '대균열 정산은 실제 생존 구간 처치 수를 사용해야 한다');
   assert.strictEqual(breachRewards.voidChisel, 5, '대균열 처치 수가 공허의 끌 정산량을 높여야 한다');
   assert.strictEqual(context.getColonyWaveEnemyCount(1), 12, '군락지 첫 웨이브 목표와 실제 생성 수가 같아야 한다');
-  assert.strictEqual(context.getColonyWaveEnemyCount(20), 36, '군락지 적 수는 무한히 늘지 않아야 한다');
+  assert.strictEqual(context.getColonyWaveEnemyCount(25), 36, '군락지 적 수는 무한히 늘지 않아야 한다');
   assert.strictEqual(context.getTrialSkillGemRewardChance(context.getZone('trial_1'), false), 0.05, '무료 1차 시련 반복은 낮은 확률로 공격 룬을 지급해야 한다');
   assert.strictEqual(context.getTrialSkillGemRewardChance(context.getZone('trial_2'), false), 0.08, '무료 2차 시련 반복은 1차보다 높은 확률로 공격 룬을 지급해야 한다');
   assert.strictEqual(context.getTrialSkillGemRewardChance(context.getZone('trial_3'), false), 1, '증표를 소비하는 시련 반복은 공격 룬을 확정 지급해야 한다');
@@ -1120,6 +1126,18 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   });
   assert.strictEqual(moved.moved, true, '거리 유지 전술은 이동 주기가 찼을 때 한 칸만 후퇴해야 한다');
   assert.strictEqual(context.gridChebyshevDist(context.game.gridPlayer.gx, context.game.gridPlayer.gy, 4, 3), 2, '후퇴 한 번에 두 칸 이상 순간이동하면 안 된다');
+
+  context.game.gridPlayer = { gx: 0, gy: 3, gridMoveTimer: 0 };
+  context.game.enemies = [makeEnemy(223, 1, 3)];
+  let previousCell = { gx: 0, gy: 3 };
+  for (let step = 0; step < 2; step++) {
+    const turn = context.advanceGridTacticalMovement(context.game.gridPlayer, context.game.enemies[0], {
+      direction: 'away', maxRange: 5, dtSec: 0.6, intervalSec: 0.6, previousCell,
+    });
+    assert.strictEqual(turn.moved, true, '벽 옆에서 합법적인 옆걸음으로 돌아 나올 수 있어야 한다');
+    previousCell = turn.from;
+  }
+  assert.strictEqual(context.getGridUnitDistance(context.game.gridPlayer, context.game.enemies[0]), 2, '벽을 따라 두 걸음 뒤에는 거리도 늘어야 한다');
 
   context.game.combatTacticsUnlocked = true;
   context.game.settings.combatPositionMode = 'auto';
@@ -2723,6 +2741,84 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
     return {reachesSurvivor,attacksNearby,stayed,held};
   })()`,runtime);
   assert.deepStrictEqual(JSON.parse(JSON.stringify(result)),{reachesSurvivor:true,attacksNearby:true,stayed:true,held:true});
+}
+
+
+// Boss death / interrupted specials leave no later hit, and warning clocks/approach match the real combat route.
+{
+  const runtime = buildGameRuntime();
+  const result = JSON.parse(JSON.stringify(vm.runInContext("(() => {\ngame=mergeDefaults({});window.game=game;game.selectedClassId='warrior';game.combatTimeMs=10000;\ngame.gridPlayer={gx:1,gy:3,gridMoveTimer:0};game.enemies=[{id:1,gx:7,gy:3,hp:100}];\nconst stats=getPlayerStats(),target=game.enemies[0],before=JSON.stringify(game.gridPlayer);\nconst distant=[{gx:6,gy:3}],inside=[{gx:1,gy:3}],wall=Array.from({length:getCombatGridSize().rows},(_,gy)=>({gx:2,gy}));\nconst avoid=warned=>({hard:warned,soft:[],warned});\nconst safe=warningAllowsStep(target,avoid(distant)),blocked=warningAllowsStep(target,avoid(wall)),held=bossWarningApproach(inside).hold;\nconst untouched=before===JSON.stringify(game.gridPlayer);\nconst wanted=getGridApproachStep(game.gridPlayer,target,avoid(distant));\nadvanceGridUnitMovement(game.gridPlayer,target,1,.1,avoid(distant));\nconst moved=wanted.gx===game.gridPlayer.gx&&wanted.gy===game.gridPlayer.gy;\ngame.gridPlayer={gx:2,gy:3,gridMoveTimer:0};game.playerHp=1000;\nconst boss=createEnemy(getZone(1),{boss:true},0);Object.assign(boss,{gx:6,gy:3,hp:100,maxHp:100,attackCast:null});\ngame.enemies=[boss];queueEnemyCombatAttack(boss,game.gridPlayer,null,'projectileCell');\nboss.hp=0;retireDeadEnemyAttacks(boss);game.enemies=[];settleLastEnemyAttacks(stats);\nconst death={hp:game.playerHp,pending:pendingEnemyCombatAttacks.length,flights:battleFx.filter(f=>f?.enemyFlight).length};\nObject.assign(boss,{hp:100,attackCast:null,patternMode:'intro',apexRecoveryUntil:20000});game.enemies=[boss];game.combatTimeMs=11000;\nconst area={kind:'line',source:{gx:6,gy:3},cells:[{gx:5,gy:3},{gx:4,gy:3},{gx:3,gy:3},{gx:2,gy:3}]};\nconst pattern={isSpecial:true,telegraphKind:'beam',damageMul:1.15,area,castStartedAt:9000};\nbossMoves.plan(pattern,boss);queueEnemyCombatAttack(boss,game.gridPlayer,pattern,'patternArea');\nboss.ailments=[{type:'freeze',time:2}];takePendingEnemyCombatAttack(boss.id,12000);\nconst cancel={pending:pendingEnemyCombatAttacks.length,live:bossMoves.live(12000).length,recovery:boss.apexRecoveryUntil};\nboss.ailments=[];boss.attackCast=null;boss.patternTelegraphKey=null;\nboss.nextPatternState={isSpecial:true,mode:'intro',attackNumber:2,telegraphKind:'impact',warningMs:1200};boss.attackTimer=.5;\nconst early=updateBossPatternTelegraph(boss,12000,game.gridPlayer,.1);\nboss.attackTimer=.9;updateBossPatternTelegraph(boss,13000,game.gridPlayer,.1);const first=JSON.stringify(boss.patternArea);\nconst during=updateBossPatternTelegraph(boss,14199,{gx:0,gy:0},.01),ready=updateBossPatternTelegraph(boss,14200,{gx:0,gy:0},.01);\nreturn {safe,blocked,held,untouched,moved,death,cancel,early,during,ready,fixed:first===JSON.stringify(boss.patternArea)};\n})()", runtime)));
+  assert.deepStrictEqual(result, {safe:true,blocked:false,held:true,untouched:true,moved:true,
+    death:{hp:1000,pending:0,flights:0},cancel:{pending:0,live:0,recovery:12000},early:false,during:false,ready:true,fixed:true});
+}
+
+// A locked approach blocked by a warning must not quietly start a step toward a different enemy.
+{
+  const runtime = buildGameRuntime();
+  const held = vm.runInContext(`(() => {
+    game=mergeDefaults({});window.game=game;game.selectedClassId='warrior';game.combatTimeMs=10000;
+    const run=createActExplorationEncounter(getZone(0),true);run.rotation=0;game.actExploration=run;
+    const map=actExplorationMap.forRun(run),room=map.rooms.find(r=>r.radiusX>=4&&r.radiusY>=2);
+    game.gridPlayer={gx:room.gx-2,gy:room.gy-1,gridMoveTimer:0};
+    game.enemies=[{id:9991,gx:room.gx+2,gy:room.gy-1,hp:100},{id:9992,gx:room.gx-2,gy:room.gy+2,hp:100}];
+    run.discovered=Array.from({length:map.columns*map.rows},(_,i)=>i);run.motion=null;
+    actExplorationState.lockOn(run,game.enemies[0]);
+    const warned=Array.from({length:map.rows},(_,gy)=>({gx:room.gx-1,gy}));
+    const before=JSON.stringify(game.gridPlayer),stats=getPlayerStats();
+    for(let i=0;i<8;i++)updatePlayerGridEngagement(stats,{avoidCells:{hard:warned,soft:[],warned}});
+    return before===JSON.stringify(game.gridPlayer)&&!actExplorationProgress.moving()&&actExplorationState.lockedEnemy(run).id===9991;
+  })()`,runtime);
+  assert(held,'blocked locked target must hold both grid position and interpolated movement');
+}
+
+// Special encounter loot is owned by the run until its boss dies. A saved floor must still block the next wave.
+{
+  const runtime = buildGameRuntime();
+  for (const file of ['data/stage-room-plans.js', 'data/stage-regions.js', 'js/act-exploration-room-plans.js'])
+    vm.runInContext(fs.readFileSync(file, 'utf8'), runtime, { filename: file });
+  const settled = JSON.parse(JSON.stringify(vm.runInContext(`(() => {
+    game=mergeDefaults({});window.game=game;stageActors.available=()=>true;
+    game.settings.stageRooms='on';game.settings.autoEquipEmptySlots=false;
+    game.season=15;game.level=100;game.currentZoneId='colony_run';
+    Object.assign(game.colony,{inRun:true,wave:5,kills:0,requiredKills:8,returnZoneId:0});
+    spawnColonyWave();
+    const enemy=game.enemies.find(row=>!row.isBoss);
+    const item=generateEquipmentDrop(enemy,{zone:getZone('colony_run'),minimumRarity:'rare'});
+    keepEquipmentDrop(enemy,item); // an ordinary rare waits (guaranteed and unique drops are never held)
+    const held=game.colony.pendingLoot.some(row=>row.item?.id===item.id)
+      && !game.inventory.some(row=>row.id===item.id)
+      && !game.actExploration.groundLoot.some(row=>row.item?.id===item.id);
+    for(const row of [...game.enemies]){row.hp=0;handleEnemyDeath(row,getPlayerStats());}
+    const released=game.actExploration.groundLoot.some(row=>row.item?.id===item.id)
+      && !game.colony.pendingLoot.some(row=>row.item?.id===item.id);
+    game=mergeDefaults(JSON.parse(JSON.stringify(game)));window.game=game;
+    const saved=game.colony.lootPending&&game.actExploration.groundLoot.some(row=>row.item?.id===item.id);
+    game.combatHalted=true;game.combatTimeMs+=15000;tickColonyRun(getPlayerStats());
+    const heldFloor=game.enemies.length===0&&game.colony.wave===6;
+    game.combatHalted=false;
+    for(const pile of actExplorationState.groundLoot.piles(game.actExploration))
+      actExplorationProgress.collectPile(pile);
+    tickColonyRun(getPlayerStats());
+    return {held,released,saved,heldFloor,received:game.inventory.some(row=>row.id===item.id),
+      resumed:game.enemies.length>0&&!game.colony.lootPending};
+  })()`, runtime)));
+  assert.deepStrictEqual(settled,{held:true,released:true,saved:true,heldFloor:true,received:true,resumed:true},
+    'colony boss releases reserved gear once, and a saved floor blocks the next wave until pickup');
+
+  const forfeited = JSON.parse(JSON.stringify(vm.runInContext(`(() => {
+    game=mergeDefaults({});window.game=game;stageActors.available=()=>true;
+    game.settings.stageRooms='on';game.season=15;game.level=100;game.currentZoneId='colony_run';
+    Object.assign(game.colony,{inRun:true,wave:1,kills:0,requiredKills:6,returnZoneId:0});
+    spawnColonyWave();
+    const enemy=game.enemies[0],item=generateEquipmentDrop(enemy,{zone:getZone('colony_run'),minimumRarity:'rare'});
+    keepEquipmentDrop(enemy,item); // an ordinary rare waits (guaranteed and unique drops are never held)
+    const held=game.colony.pendingLoot.some(row=>row.item?.id===item.id);
+    forfeitColonyRun();
+    return {held,lost:game.colony.pendingLoot.length===0&&!game.inventory.some(row=>row.id===item.id),
+      returned:game.currentZoneId===0&&game.actExploration===null};
+  })()`, runtime)));
+  assert.deepStrictEqual(forfeited,{held:true,lost:true,returned:true},
+    'forfeiting a colony run discards reserved gear without paying it');
 }
 
 console.log('smoke-grid-combat passed');

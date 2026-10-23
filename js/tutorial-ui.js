@@ -6,12 +6,18 @@ const TUTORIAL_TOOLTIPS = Object.freeze(['#info-tooltip', '#canvas-tooltip', '#i
 const TUTORIAL_HUSH_WAKERS = Object.freeze(['pointermove', 'pointerdown', 'wheel']);
 /** ms after a guide starts while it holds the next card even before its target is drawn (see holdsQueue). */
 const TUTORIAL_GUIDE_OPENING_MS = 1500;
+const TUTORIAL_CHAIN_GAP_MS = 700;
 /**
  * Optional action guidance owned by the UI. Reads real loadouts; never equips or
  * spends points. Each notice offers one action and can be skipped immediately.
  */
 const tutorialActionUi = {
     noticeUntil: 0,
+    quietUntil: 0,
+    waitBetweenNotices() {
+        this.quietUntil = Date.now() + TUTORIAL_CHAIN_GAP_MS;
+        setTimeout(showNextTutorial, TUTORIAL_CHAIN_GAP_MS + 40);
+    },
     /** Ordinary unlocks stay readable without stopping battle. Story and first actions retain the pause setting. */
     requiresAttention(notice) {
         return !!notice && (TUTORIAL_START_KEYS.has(notice.key) || TUTORIAL_GUIDED_CONTENT_KEYS.has(notice.key) || String(notice.key).startsWith('story_'));
@@ -35,11 +41,12 @@ const tutorialActionUi = {
     hush: null,
     guides: {
         unlock_items: {
-            selector: '#ui-inventory-list .equipment-grid-item',
-            title: '첫 장비 장착',
-            body: '장비를 눌러 비교한 뒤 장착 버튼으로 착용해 보세요.',
-            read: () => Object.values(game.equipment).filter(Boolean).map(item => String(item.instanceId || item.id)),
-            completed: (current, before) => current.some(id => !before.includes(id))
+            selector: ['#ui-equip-list .equipment-slot:not(.equipment-slot-empty):not([data-slot="무기"])',
+                '#ui-inventory-list .equipment-grid-item', '#ui-equip-list .equipment-slot:not(.equipment-slot-empty)'],
+            title: '첫 장비 살펴보기',
+            body: '장비를 눌러 효과를 확인하세요. 빈 칸에 맞는 장비는 이미 착용되어 있습니다. 바꿔 끼우고 싶을 때 ‘장착’을 누르세요.',
+            read: () => equipmentInventoryInteraction.getFocusedKey(),
+            completed: current => !!current
         },
         unlock_char: {
             // 휴대폰에서 노드 상세가 열려 있으면 그 "포인트 사용" 단추를, 아니면 트리 캔버스를 가리킨다.
@@ -61,7 +68,7 @@ const tutorialActionUi = {
             read: () => JSON.stringify([game.activeSkill, game.mobilitySkill, game.equippedSupports, game.equippedSummonSkills]),
             completed: (current, before) => current !== before,
             // 룬 상세와 고른 룬 카드도 덮지 않는다(카드가 고른 룬 위로 올라와 설명을 가렸다).
-            keepClear: ['#gem-selection:popover-open', '#tab-skills .is-gem-selected']
+            keepClear: ['#gem-selection:popover-open', '#tab-skills .is-gem-selected', '#skill-tab-equip .skill-board-head']
         },
         unlock_stump_box: {
             // 그루터기 함 시작 선물 놓기(2026-10-07): 보관함의 씨앗이나 수액을 고르면 판의 빈 칸이 빛나고, 그 칸을 누르면 놓인다.
@@ -76,7 +83,7 @@ const tutorialActionUi = {
         tutorial_stump_starter: 'unlock_stump_box' },
     guideFor(key) {
         const guideKey = this.aliases[key] || key;
-        if (guideKey === 'unlock_items' && !game.inventory.some(Boolean)) return null;
+        if (guideKey === 'unlock_items' && !game.inventory.some(Boolean) && !Object.values(game.equipment).some(Boolean)) return null;
         if (guideKey === 'unlock_char' && game.passivePoints < 1) return null;
         if (guideKey === 'unlock_stump_box' && !stumpBox.storage(game).some(item => item.family !== 'talisman')) return null;
         return Object.hasOwn(this.guides, guideKey) ? this.guides[guideKey] : null;
@@ -85,6 +92,7 @@ const tutorialActionUi = {
         const guide = this.guideFor(notice.key);
         if (!guide) return;
         this.finish(false);
+        if (guide === this.guides.unlock_items) equipmentInventoryInteraction.focus(null);
         this.active = { notice, guide, before: guide.read(), startedAt: Date.now() };
         this.ensureCard();
         this.card.hidden = false;
@@ -262,7 +270,7 @@ const tutorialActionUi = {
             game.seenTutorials.push('action_' + action.notice.key);
             showGameToast(action.guide.title + ' 완료', { tone: 'success' });
         } else applySkippedGuide(action.notice.key);
-        setTimeout(showNextTutorial, 40);
+        this.waitBetweenNotices();
     }
 };
 
@@ -401,7 +409,7 @@ function syncTutorialQueueCount() {
         card.prepend(count);
     }
     if (!count) return;
-    const waiting = tutorialQueue.filter(next => storyJournalUi.allowsNotice(next.key) && contentProgression.canOpen(next.subtabId || next.tabId)).length;
+    const waiting = tutorialQueue.filter(tutorialNoticeAllowed).length;
     count.hidden = waiting === 0;
     count.textContent = waiting ? `다음 안내 ${waiting}` : '';
 }
@@ -459,7 +467,7 @@ function isTutorialPresentationBlocked() {
     if (game.pendingLoopHeroSelection || game.pendingLoopReady || game.pendingLoopDecision) return true;
     // 방치 전투를 되돌리는 중이거나 그 결과 창이 열려 있으면 이야기 · 안내 카드는 결과를 닫은 뒤에 뜬다(두 판이 겹쳤다).
     if (backgroundCombatRuntime.processing || document.getElementById('background-combat-result-overlay')) return true;
-    if (tutorialWaitsForTitleCard() || tutorialYieldsToMenus()) return true;
+    if (tutorialWaitsForTitleCard() || tutorialYieldsToMenus() || tutorialWaitsForReward()) return true;
     return ['isStartupOverlayOpen', 'isLoadingOverlayOpen', 'isRewardOpen', 'isDeathOverlayOpen', 'isLoopHeroSelectOpen', 'isOpeningIntroOpen']
         .some(name => typeof window[name] === 'function' && window[name]());
 }
@@ -488,13 +496,22 @@ function refreshTutorialCardPlacement() {
     placeTutorialCard();
 }
 
+/** The first map notice sends the player to the act reward; after claiming it, the map button remains the way back. */
+function tutorialNoticeAllowed(notice) {
+    if (notice.key === 'unlock_map' && (game.claimedActRewards || []).includes(0)) return false;
+    return storyJournalUi.allowsNotice(notice.key) && contentProgression.canOpen(notice.subtabId || notice.tabId);
+}
+function tutorialWaitsForReward() {
+    return !!tutorialQueue[0] && !String(tutorialQueue[0].key).startsWith('story_') && actRewardPromptPending();
+}
+function tutorialQueueIsHeld() { return tutorialActionUi.holdsQueue() || Date.now() < tutorialActionUi.quietUntil; }
 function showNextTutorial() {
     tutorialActionUi.expireNotice(Date.now());
     refreshTutorialCardPlacement();
-    if (activeTutorial || tutorialActionUi.holdsQueue() || tutorialQueue.length === 0 || isTutorialPresentationBlocked()) return;
+    if (activeTutorial || tutorialQueueIsHeld() || tutorialQueue.length === 0 || isTutorialPresentationBlocked()) return;
     while (tutorialQueue.length) {
         const next = tutorialQueue.shift();
-        if (storyJournalUi.allowsNotice(next.key) && contentProgression.canOpen(next.subtabId || next.tabId)) {
+        if (tutorialNoticeAllowed(next)) {
             activeTutorial = next;
             break;
         }
@@ -632,10 +649,10 @@ function dismissTutorial(openTarget) {
     setTimeout(() => { if (typeof pumpMobileToastQueue === 'function') pumpMobileToastQueue(); }, 120);
     if (!openTarget) {
         applySkippedGuide(notice.key);
-        return setTimeout(showNextTutorial, 40);
+        return tutorialActionUi.waitBetweenNotices();
     }
     if (tutorialActionUi.guideFor(notice.key)) return tutorialActionUi.start(notice);
     openTutorialTarget(notice);
     if (['tutorial_first_gear', 'unlock_items'].includes(notice.key)) tutorialActionUi.openEquipment();
-    setTimeout(showNextTutorial, 40);
+    tutorialActionUi.waitBetweenNotices();
 }

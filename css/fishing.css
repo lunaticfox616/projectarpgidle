@@ -78,45 +78,91 @@
   .fishing-milestone.is-claimed { opacity: .65; }
   .fishing-milestone.is-claimed .fishing-bar > i { background: #6d926e; }
 
-  /* 바다의 선물 */
-  .fishing-target { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; padding: 8px 10px; border: 1px solid #2a2218; background: rgba(10, 8, 6, .45); }
+  /* 바다의 선물: 목적 → 제작법 → 변경 범위/재료 → 실제 결과. 상세 한 건만 보여 긴 전체 목록을 읽지 않아도 된다. */
+  .fishing-workshop-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+  #fishing-battle-preview:empty { display: none; }
+  .sea-gift-group-picker { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 12px; margin: 10px 0; }
+  .sea-gift-group-picker select, .fishing-recipe-picker select, .fishing-category-label select { width: 100%; min-width: 0; min-height: 44px; }
+  .fishing-workshop-intro { margin: 0 0 12px; color: var(--px-copy, #e8dcc0); line-height: 1.6; }
+  .fishing-workshop-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 12px; color: var(--px-gold-bright, #e0c283); }
+  .fishing-filter { display: flex; align-items: center; gap: 10px; min-height: 44px; margin-bottom: 12px; cursor: pointer; color: var(--px-copy, #e8dcc0); }
+  .fishing-filter input { width: 18px; height: 18px; flex: 0 0 auto; accent-color: #d0aa60; }
+  .fishing-empty { padding: 18px; border: 1px solid #53412b; }
+  .fishing-empty p { margin: 0 0 12px; line-height: 1.6; }
+  .fishing-empty button { min-height: 44px; width: 100%; }
+  .fishing-workshop-layout { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 14px; align-items: start; }
+  .fishing-recipe-list { display: grid; gap: 6px; }
+  #fishing-workshop .fishing-recipe-list button { display: grid; gap: 5px; width: 100%; padding: 10px; text-align: left; border: 1px solid #3a3024; background: #100e12; box-shadow: none; }
+  #fishing-workshop .fishing-recipe-list button.is-selected { border-color: #d0aa60; background: #282116; box-shadow: inset 3px 0 #d0aa60; }
+  .fishing-recipe-list strong { color: var(--px-copy, #e8dcc0); }
+  .fishing-recipe-list span, .fishing-recipe-list small { color: var(--px-copy-muted, #a39883); overflow-wrap: anywhere; }
+  .fishing-recipe-list .is-selected strong { color: #f3d28c; }
+  .fishing-recipe-list small { color: #c2b296; }
+  .fishing-recipe-picker { display: none; }
+  .fishing-recipe { min-width: 0; display: grid; gap: 16px; padding: 14px; border: 1px solid #53412b; background: rgba(10, 8, 6, .6); }
+  .fishing-recipe > header { display: grid; gap: 6px; padding-bottom: 12px; border-bottom: 1px solid #3a3024; }
+  .fishing-recipe > header small { color: #a8c6d1; }
+  #fishing-workshop h4 { margin: 0; color: #f3d28c; font-size: 12px; line-height: 1.5; }
+  .fishing-category-label { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 10px; }
+  .fishing-target { display: grid; gap: 10px; padding: 12px; border: 1px solid #3a3024; background: #151419; }
   .fishing-target.is-on { border-color: #4f8fb0; }
-  .fishing-target > div:first-child { display: grid; gap: 1px; min-width: 0; }
-  .fishing-target small { color: var(--px-copy-muted, #a39883); font-size: 12px; }
-  .fishing-target strong { font-size: 12px; font-weight: 400; }
-  .fishing-target span { color: var(--px-copy-muted, #a39883); font-size: 12px; }
-  .fishing-target > div:last-child { display: flex; flex: none; gap: 6px; }
-  .fishing-groups { display: grid; gap: 8px; }
-  .fishing-group { border: 1px solid #2a2218; background: rgba(10, 8, 6, .35); }
-  .fishing-group > summary { display: flex; align-items: center; gap: 8px; padding: 8px 10px; cursor: pointer; list-style: none; }
-  .fishing-group > summary::-webkit-details-marker { display: none; }
-  .fishing-group > summary::before { content: ''; flex: none; width: 6px; height: 6px; margin: 0 2px; border-right: 2px solid var(--px-copy-muted, #a39883);
-    border-bottom: 2px solid var(--px-copy-muted, #a39883); transform: rotate(-45deg); }
-  .fishing-group[open] > summary::before { transform: rotate(45deg); }
-  #map-tab-fishing .fishing-group > summary strong { color: var(--px-gold-bright, #e0c283); font-size: 12px; font-weight: 400; }
-  .fishing-group > summary em { padding: 0 5px; border: 1px solid #8a6a2e; color: #f3d28c; font-size: 12px; font-style: normal; }
-  .fishing-group > summary b { margin-left: auto; color: var(--px-copy-muted, #a39883); font-weight: 400; }
-  .fishing-recipes { display: grid; gap: 4px; padding: 0 8px 8px; }
-  .fishing-recipe { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 7px 10px; border: 1px solid #241d14; background: rgba(10, 8, 6, .5); }
-  .fishing-recipe.is-ready { border-color: #8a6a2e; background: linear-gradient(90deg, rgba(243, 210, 140, .08), rgba(10, 8, 6, .5) 60%); }
-  .fishing-recipe-copy { display: grid; gap: 3px; min-width: 0; }
-  .fishing-recipe-copy strong { color: var(--px-copy, #e8dcc0); font-size: 12px; font-weight: 400; }
-  .fishing-recipe.is-ready .fishing-recipe-copy strong { color: #f3d28c; }
-  .fishing-recipe-copy small { color: var(--px-copy-muted, #a39883); font-size: 12px; line-height: 1.4; }
-  .fishing-costs { display: flex; flex-wrap: wrap; gap: 4px 10px; }
-  .fishing-cost { display: inline-flex; align-items: center; gap: 4px; color: #8a7f6c; font-size: 12px; }
-  .fishing-cost .fishing-fish { width: 20px; height: 20px; }
-  .fishing-cost .fishing-fish-icon { width: 16px; height: 16px; }
-  .fishing-cost b { color: #ff9a76; font-weight: 400; }
-  .fishing-cost.is-ok { color: var(--px-copy, #e8dcc0); }
-  .fishing-cost.is-ok b { color: #9fd46a; }
-  .fishing-recipe-actions { display: flex; align-items: center; gap: 6px; }
-  .fishing-recipe-actions button { min-width: 84px; }
-  .fishing-recipe.is-ready .fishing-recipe-actions button { color: #f3d28c; box-shadow: inset 0 0 0 1px #8a6a2e; }
+  .fishing-target > div:first-child { display: grid; gap: 6px; min-width: 0; overflow-wrap: anywhere; }
+  .fishing-target small { color: var(--px-copy-muted, #a39883); }
+  .fishing-target-buttons { display: flex; flex-wrap: wrap; gap: 6px; }
+  .fishing-target-buttons button { flex: 1; min-height: 44px; }
+  .fishing-target-state { margin: 0; color: #9fd46a; }
+  .fishing-target-state.is-blocked { color: #ffb293; }
+  .fishing-target summary { cursor: pointer; padding: 4px 0; color: #aacbd8; }
+  .fishing-preview .fishing-lines { padding: 0; list-style: none; }
+  .fishing-preview li { display: grid; grid-template-columns: 106px minmax(0, 1fr); gap: 8px; padding: 7px 0; border-bottom: 1px solid #302c30; }
+  .fishing-preview li b { align-self: start; padding: 2px 4px; font-weight: 400; color: #b9b2a5; }
+  .fishing-preview .is-affected b { background: #3b3020; color: #f3d28c; }
+  .fishing-preview .is-risk b { background: #3b231e; color: #ffb293; }
+  .fishing-preview p { margin: 8px 0 0; line-height: 1.6; color: #aacbd8; }
+  .fishing-effect { border-left: 2px solid #6e9eaf; padding-left: 12px; }
+  .fishing-effect > strong { color: #aacbd8; }
+  .fishing-effect p { margin: 6px 0 0; color: var(--px-copy, #e8dcc0); line-height: 1.6; overflow-wrap: anywhere; }
+  .fishing-effect .fishing-effect-note { color: #c4b89f; }
+  .fishing-materials { display: grid; gap: 6px; }
+  .fishing-materials h4 { padding-bottom: 4px; }
+  .fishing-material { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 9px 0; border-bottom: 1px solid #30281c; }
+  .fishing-material > div { display: grid; gap: 4px; }
+  .fishing-material > div:last-child { text-align: right; }
+  .fishing-material strong { color: var(--px-copy, #e8dcc0); font-weight: 400; }
+  .fishing-material small { color: var(--px-copy-muted, #a39883); }
+  .fishing-material b { color: #ffb293; font-weight: 400; }
+  .fishing-material.is-ok b { color: #9fd46a; }
+  .fishing-craft-action { display: grid; gap: 8px; }
+  .fishing-craft-action p { margin: 0; color: #c4b89f; }
+  .fishing-craft-action button { min-height: 44px; width: 100%; }
+  .fishing-recipe.is-ready .fishing-craft-action button { color: #f3d28c; box-shadow: inset 0 0 0 1px #8a6a2e; }
+  .fishing-result:empty { display: none; }
+  .fishing-result:not(:empty) { border: 1px solid #647950; padding: 12px; background: #151b13; }
+  .fishing-result > strong { color: #c4e69d; }
+  .fishing-result p { margin: 8px 0; line-height: 1.6; }
+  .fishing-result small { display: block; margin-top: 10px; color: #c4b89f; }
+  .fishing-result-compare { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .fishing-result-compare > section { border-top: 1px solid #34412a; padding: 8px; background: #11150f; }
+  .fishing-result-compare .is-before { border-color: #79604a; }
+  .fishing-result-compare .is-after { border-color: #9fc96e; }
+  .fishing-result-compare .is-after li { color: #c4e69d; }
+  .fishing-kept { margin-top: 10px; }
+  .fishing-kept summary { display: list-item; cursor: pointer; padding: 12px 0; color: #c4b89f; }
+  .fishing-result-next { min-height: 44px; width: 100%; margin-top: 12px; }
+  .fishing-lines { margin: 8px 0 0; padding-left: 18px; }
+  .fishing-lines li { color: var(--px-copy, #e8dcc0); line-height: 1.6; overflow-wrap: anywhere; }
+  #fishing-workshop :is(button, select, input, summary):focus-visible { outline: 2px solid #f3d28c; outline-offset: 2px; }
 
-  /* 휴대폰의 재화 정제 보기에는 장비 가공 대상이 없다(css/mobile.css의 갈래 숨김과 같은 줄에 있던 규칙은 이 층의 display에 졌다) */
+  @container (max-width: 700px) {
+    .fishing-workshop-layout { grid-template-columns: minmax(0, 1fr); }
+    .fishing-recipe-list { display: none; }
+    .fishing-recipe-picker { display: grid; gap: 6px; margin-bottom: 12px; }
+  }
+
+  /* 지도 창의 쌓임 순서 뒤에 숨던 전투 단추를 제목 옆에 둔다. 펼친 미리보기도 본문을 덮지 않는다. */
   @media (max-width: 1080px) {
-    #fishing-workshop[data-recipe-group="supply"] .fishing-target { display: none; }
+    #mobile-battle-pip.is-workshop-docked { position: static; margin: 0; }
+    #mobile-battle-pip.is-workshop-docked.is-collapsed { padding: 0; border: 0; background: none; box-shadow: none; }
   }
 
   @container (max-width: 560px) {
@@ -124,8 +170,13 @@
     .fishing-meters { grid-template-columns: minmax(0, 1fr); }
     .fishing-reef { grid-template-columns: auto minmax(40px, 1fr) auto; }
     .fishing-reef button { grid-column: 1 / -1; }
-    .fishing-recipe { grid-template-columns: minmax(0, 1fr); }
-    .fishing-recipe-actions button { flex: 1; }
-    .fishing-target { flex-direction: column; align-items: stretch; }
+    .sea-gift-group-picker { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+    .fishing-workshop-toolbar { align-items: stretch; flex-direction: column; }
+    .fishing-recipe { padding: 10px; }
+    .fishing-preview li { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+    .fishing-preview li b { justify-self: start; }
+    .fishing-result-compare { grid-template-columns: minmax(0, 1fr); }
+    .fishing-material { grid-template-columns: 30px minmax(0, 1fr); }
+    .fishing-material > div:last-child { grid-column: 2; grid-template-columns: minmax(0, 1fr) auto; text-align: left; }
   }
 }

@@ -141,7 +141,7 @@ const stumpRipeningUi = (() => {
     function codexEntry(row, owned) {
         const on = owned.has(row.id);
         return `<li class="${on ? 'is-on' : ''}" title="${esc(on ? row.name : '아직 얻지 못함')}">`
-            + `<img src="assets/px/stump/${on ? 'talisman' : 'sealed'}-unique.png" alt="" draggable="false"><span>${esc(on ? row.name : '???')}</span></li>`;
+            + `<img src="assets/items/stump-pixel-v1/${on ? 'talisman' : 'sealed'}-unique.png" alt="" draggable="false"><span>${esc(on ? row.name : '???')}</span></li>`;
     }
     /** First finds of the unique and wild unique talismans (a progress bar, then the tiles); every few add storage. */
     function codexHtml() {

@@ -3,8 +3,7 @@
 (function () {
     'use strict';
     const root = 'assets/audio/game-sfx-v2/';
-    const tones = {open:[340,.018,.055], confirm:[520,.024,.07], cancel:[220,.018,.055],
-        danger:[145,.028,.09], success:[660,.022,.08]};
+    const uiKinds = {open:'uiSelect', confirm:'uiConfirm', cancel:'uiCancel', danger:'uiDanger', success:'uiSuccess'};
     let context = null, master = null, muffle = null, bank = null, loading = false, resuming = false;
     const buffers = new Map(), active = new Set(), lastPlayed = new Map(), warnings = new Set();
     const variations = new Map();
@@ -42,7 +41,7 @@
     }
 
     async function fetchFile(path) {
-        const response = await fetch(path + '?v=20261006-boss-stage');
+        const response = await fetch(path + '?v=20261023-selected-round7');
         if (!response.ok) throw Error(`Audio fetch failed: ${response.status} ${path}`);
         return response;
     }
@@ -172,37 +171,55 @@
         catch (error) { release(voice); throw error; }
     }
 
-    function playTone(kind) {
-        const spec = tones[kind];
-        if (throttled({group:'ui',cooldown:60}) || !makeRoom(1)) return;
-        const node = context.createOscillator(), gain = context.createGain();
-        const now = context.currentTime, end = now + spec[2];
-        node.type = kind === 'danger' ? 'triangle' : 'sine';
-        node.frequency.setValueAtTime(spec[0], now);
-        gain.gain.setValueAtTime(.0001, now);
-        gain.gain.linearRampToValueAtTime(spec[1], now + .004);
-        gain.gain.exponentialRampToValueAtTime(.0001, end);
-        const voice = attach(node, gain, 1);
-        try { node.start(now); node.stop(end); lastPlayed.set('ui', performance.now()); }
-        catch (error) { release(voice); throw error; }
+    function readyToPlay() {
+        return permitted() && context?.state === 'running';
     }
 
     function playUiFeedbackSound(kind) {
-        if (!permitted() || !context || context.state !== 'running') return;
+        if (!readyToPlay()) return;
         try {
-            if (tones[kind]) playTone(kind);
-            else if (bank?.[kind]) playSample(bank[kind]);
+            const spec = bank?.[uiKinds[kind] || kind];
+            if (!spec || spec.enabled === false) return;
+            playSample(spec);
         } catch (error) { failure(`play ${kind}`, error); }
     }
+
+    /** Presentation material only; no saved item fields or combat stats are changed. */
+    function itemSoundKind(item) {
+        if (['반지','목걸이','주얼','코어'].includes(item.slot)) return 'inventoryGem';
+        if (item.slot === '액막이') return 'inventoryWood';
+        if (item.slot === '허리띠') return 'inventoryLeather';
+        if (item.slot === '무기') {
+            const category = getWeaponCategoryId(item);
+            if (category === 'shortbow') return 'inventoryWood';
+            if (category === 'orb' || category === 'flask') return 'inventoryGem';
+            return 'inventoryMetal';
+        }
+        const types = getItemBaseDefenseTypes(item);
+        if (types.has('armor')) return 'inventoryMetal';
+        if (types.has('evasion')) return 'inventoryLeather';
+        return 'inventoryCloth';
+    }
+
+    // Pick and place use the same selected variations, with separate short throttles.
+    playUiFeedbackSound.inventory = (item, phase) => {
+        if (!item || !readyToPlay()) return;
+        if (phase === 'equip' && bagItems.isJewel(item)) return; // Socket confirmation owns this sound.
+        const kind = itemSoundKind(item), spec = bank?.[kind];
+        if (!spec || spec.enabled === false) return;
+        try { playSample({...spec, group:'inventory:' + phase}); }
+        catch (error) { failure(`inventory ${kind}`, error); }
+    };
 
     function playLootDropSound(major) {
         if (major) playUiFeedbackSound('lootMajor');
     }
 
-    // Mute preserves the chosen level; a zero level also stops all ongoing voices.
+    // Mute preserves the chosen level; a zero level also stops all ongoing voices. Settings sync runs at boot too, before any gesture:
+    // it only wakes an existing context, and the first pointerdown or keydown creates one (Chrome warned about a context made earlier).
     playUiFeedbackSound.syncSettings = () => {
         if (!permitted()) { updateMasterGain(); silence(); }
-        else unlock();
+        else if (context) unlock();
         syncVolumeControl();
     };
     document.addEventListener('input', event => {
@@ -214,7 +231,9 @@
         if (event.target.id === 'range-sound-volume') saveGame({ skipCloudSync: true });
     });
     document.addEventListener('click', event => {
-        if (event.target.id === 'btn-sound-preview') playUiFeedbackSound('confirm');
+        if (event.target.id === 'btn-sound-preview') playUiFeedbackSound('uiSelect');
+        const tab = event.target.closest?.('.tab-btn,.sub-tab-btn,[role="tab"]');
+        if (tab && !tab.disabled && tab.getAttribute('aria-disabled') !== 'true') playUiFeedbackSound('uiSelect');
     });
     window.addEventListener('project-idle:startup-visibility', syncVolumeControl);
     document.addEventListener('pointerdown', unlock, {passive:true});

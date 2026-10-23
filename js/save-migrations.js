@@ -162,6 +162,7 @@ function stripRemovedAuxSystems(merged) {
     // 장비 칸 '코어'로 옮긴다(js/colony-wards.js, js/bag-items.js migrate).
     colonyWards.migrate(merged);
     bagItems.migrate(merged);
+    refundRemovedAffixKeep(merged);
 }
 
 /** 7단계: 전문가 레벨로 이미 쓰던 기능은 새 해금 항목으로 이어 준다(포인트 없이 계승). 옛 최소 레벨 기준 —
@@ -177,6 +178,32 @@ function inheritRetiredExpertAccess(ledger, save) {
         const owned = ledger.unlocked.includes(id) || ledger.inherited.includes(id);
         if (!owned && (Number(levels[expert]) || 0) >= level) ledger.inherited.push(id);
     });
+}
+
+/** 2026-10-22: 거래소 특수 서비스(장비 옵션 제거, 접두 보존, 접미 보존)를 없앴다. 걸어 두고 아직 재굴림에 쓰지 않은 보존(item.affixKeep)은
+ * 지우고, 낸 황금률(장비마다 4개)을 돌려준다. 프리셋에 같은 장비가 또 있어도 한 번만 센다. 지운 뒤에는 셀 것이 없어 두 번 불러와도 같다. */
+const REMOVED_AFFIX_KEEP_REFUND = 4;
+function savedItemsOf(merged) {
+    const offline = merged.offlineProgress || {}, rift = merged.timeRift || {};
+    const presets = ((merged.equipmentLoadouts || {}).presets || []).filter(Boolean).flatMap(preset => Object.values(preset.slots || {}));
+    const listings = ((merged.playerStall || {}).listings || []).map(row => row && row.item);
+    return [merged.inventory, Object.values(merged.equipment || {}), merged.equipmentTemporaryStorage, offline.stash, offline.protectedOverflow,
+        rift.altarUnique, rift.altarRare, presets, listings].flat().filter(item => item && typeof item === 'object');
+}
+/** The kept side left in a waiting 성화 pick's saved results (they put their fields back on the item when picked). */
+function stripCraftChoiceAffixKeep(merged) {
+    ((merged.craftChoice || {}).options || []).forEach(fields => { if (fields && typeof fields === 'object') delete fields.affixKeep; });
+}
+function refundRemovedAffixKeep(merged) {
+    const refunded = new Set();
+    for (const item of savedItemsOf(merged)) {
+        if (!Object.hasOwn(item, 'affixKeep')) continue;
+        if (item.affixKeep === 'prefix' || item.affixKeep === 'suffix') refunded.add(String(item.id));
+        delete item.affixKeep;
+    }
+    stripCraftChoiceAffixKeep(merged);
+    if (!refunded.size || !merged.currencies || typeof merged.currencies !== 'object') return;
+    merged.currencies.goldenRule = Math.max(0, Math.floor(Number(merged.currencies.goldenRule) || 0)) + REMOVED_AFFIX_KEEP_REFUND * refunded.size;
 }
 
 /** 2단계(2026-10-01): 플라스크 삭제 — 물약 상태(연금 유리 포함) · 알림을 보상 없이 지운다(결정 4 · 7).
@@ -260,6 +287,37 @@ function markLegacyEquipmentGrace(equipment) {
     });
 }
 
+function normalizeCarriedEquipmentSave(state) {
+    state.inventory = (state.inventory || []).map(normalizeItem);
+    state.equipmentTemporaryStorage = Array.isArray(state.equipmentTemporaryStorage)
+        ? state.equipmentTemporaryStorage.map(normalizeItem) : [];
+    Object.keys(state.equipment).forEach(slot => state.equipment[slot] = normalizeItem(state.equipment[slot]));
+}
+
+/** Run after exploration restoration: retained floor loot and settled rewards now have their final owners. Preset references
+ * are not equipment; only actual gear is normalized. The woodsman snapshot must agree before its next locked-build tick. */
+function normalizeStoredEquipmentSave(state) {
+    const snapshots = [state, state.woodsmanBuildSnapshot].filter(row => row && typeof row === 'object');
+    const items = snapshots.flatMap(savedItemsOf).concat(actExplorationLoot.reservedItems(state), actExplorationState.groundLoot.reservedItems(state));
+    for (const item of new Set(items)) {
+        if (item && typeof item.slot === 'string' && Array.isArray(item.baseStats)) normalizeItem(item);
+    }
+}
+
+/** 성화 choices contain craft fields, not complete gear. Rename them with their owning base without rolling or replacing any
+ * result, so the first-choice identity check still recognizes the item after a shield base was renamed. */
+function normalizeEquipmentCraftChoiceSave(state) {
+    state.craftChoice = normalizeCraftChoice(state.craftChoice);
+    if (!state.craftChoice) return;
+    const item = savedItemsOf(state).find(row => row.id === state.craftChoice.itemId && ['방패', '무기'].includes(row.slot));
+    if (!item) return;
+    state.craftChoice.options.forEach(fields => {
+        const named = { ...fields, slot: item.slot, baseId: item.baseId, baseName: item.baseName };
+        normalizeArmGuardIdentity(named);
+        fields.name = named.name;
+    });
+}
+
 /** Save 19 (2026-10-07): rings, amulets and belts lost the void socket every one of them used to have (js/equipment-sockets.js).
  * An older save keeps that socket on every accessory it already owns, as an open record, so nothing loses a socket it had. The
  * stores are those js/save.js refreshItemIdCounter reads, less the drops still lying on a map floor: their readers expect a
@@ -283,26 +341,32 @@ function renameRetiredUniques(state) {
     const rename = item => {
         if (item && item.rarity === 'unique' && RENAMED_UNIQUES[item.name]) item.name = RENAMED_UNIQUES[item.name];
     };
-    Object.values(state.equipment).forEach(rename);
-    state.inventory.forEach(rename);
-    state.offlineProgress.stash.forEach(rename);
-    rename(state.timeRift.altarUnique);
+    savedItemsOf(state).forEach(rename);
     state.seasonChaseUniqueDrops = state.seasonChaseUniqueDrops.map(name => RENAMED_UNIQUES[name] || name);
-    (state.equipmentLoadouts?.presets || []).forEach(preset => Object.values(preset?.slots || {}).forEach(ref => {
-        if (ref && RENAMED_UNIQUES[ref.name]) ref.name = RENAMED_UNIQUES[ref.name];
+    // A preset ref has no rarity: '용비늘 방패' was both a base and a unique name, so a ref to owned gear takes that gear's name.
+    const owned = new Map(savedItemsOf(state).filter(item => item && Array.isArray(item.baseStats)).map(item => [item.id, item]));
+    (state.equipmentLoadouts?.presets || []).forEach(preset => Object.entries(preset?.slots || {}).forEach(([slot, ref]) => {
+        if (!ref) return;
+        if (owned.has(ref.id)) { ref.name = owned.get(ref.id).name; return; }
+        const named = { slot, name: RENAMED_UNIQUES[ref.name] || ref.name };
+        normalizeArmGuardIdentity(named);
+        ref.name = named.name;
     }));
 }
 
 function reconcileUniqueEquipmentSave(state) {
     renameRetiredUniques(state);
+    Object.values(state.npcShops || {}).forEach(shop => (Array.isArray(shop?.offers) ? shop.offers : []).forEach(ware => {
+        if (ware?.item) ware.item = normalizeItem(ware.item);
+    }));
     for (const [slot, item] of Object.entries(state.equipment)) {
         if (!item?.uniqueBaseLegacy || getEquipCandidateSlots(item, state).includes(slot)) continue;
         delete item.legacyRequirementGrace;
         state.inventory.push(item);
         state.equipment[slot] = null;
     }
+    // Jewels and cores have no baseStats, so normalizeStoredEquipmentSave skips them: the stash and the altar keep their own pass.
     state.offlineProgress.stash = state.offlineProgress.stash.map(normalizeItem);
-    state.inventory.forEach(item => { if (item?.rarity === 'unique') normalizeItem(item); });
     state.timeRift.altarUnique = normalizeItem(state.timeRift.altarUnique);
     migrateUniqueCodexKeys(state.uniqueCodex);
     migrateUniqueCodexKeys(state.codexNewlyRegistered);
@@ -376,14 +440,42 @@ function normalizeUniqueHuntSave(state) {
     if (typeof uniqueHuntRuntime !== 'undefined') uniqueHuntRuntime.ensureState(state);
 }
 
+function wasGrandBreachSurvivalStarted(run) {
+    // Before 2026-10-23 this field was inferred from the 35-second timer in a saved room chain.
+    return !!run.survivalStarted || (run.phase === 'survival' && Number.isFinite(run.timeLeft) && run.timeLeft < 35);
+}
+/** Missing legacy durability stays uninitialized (max 0); an explicitly destroyed core stays at 0 HP. */
+function normalizeColonyRunSave(colony, clampFiniteNumber) {
+    colony.wave = Math.floor(clampFiniteNumber(colony.wave, 0, 0));
+    colony.highestWave = Math.max(colony.wave, Math.floor(clampFiniteNumber(colony.highestWave, colony.wave, 0)));
+    colony.coreMaxHp = Math.floor(clampFiniteNumber(colony.coreMaxHp, 0, 0, Number.MAX_SAFE_INTEGER));
+    colony.coreHp = Math.floor(clampFiniteNumber(colony.coreHp, colony.coreMaxHp, 0, colony.coreMaxHp));
+    colony.failedWave = Math.floor(clampFiniteNumber(colony.failedWave, 0, 0, Number.MAX_SAFE_INTEGER));
+}
+/** Old kill-based runs retain the same percentage; new saves store integral half-percent gauge points. */
+function normalizeGrandBreachCounters(run) {
+    const savedKills = Number(run.kills);
+    run.kills = Number.isFinite(savedKills) ? Math.max(0, Math.floor(savedKills)) : 0;
+    const savedGauge = Number(run.gauge);
+    const legacyGauge = Math.min(GRAND_BREACH_ENCOUNTER.requiredGauge, run.kills * 2);
+    run.gauge = getGrandBreachProgress(run.gauge == null || !Number.isFinite(savedGauge) ? legacyGauge : savedGauge).gauge;
+    // Combat-clock deadline of the survival phase; a broken one is set again (full time) on the next tick
+    if (!Number.isFinite(run.survivalEndsAt)) delete run.survivalEndsAt;
+}
 /** Save boundary: an absent/invalid old receipt is unknown, never an inferred payout. */
 function normalizeVoidRiftSave(state) {
     state.voidRift = (state.voidRift && typeof state.voidRift === 'object') ? state.voidRift : {};
     state.voidRift.grandBreachCleared = !!state.voidRift.grandBreachCleared;
     const run = state.voidRift.grandRun;
     if (!run || typeof run !== 'object') return;
+    run.survivalStarted = wasGrandBreachSurvivalStarted(run);
+    normalizeGrandBreachCounters(run);
+    delete run.timeLeft;
+    delete run.lastTickAt;
     const paid = run.rewardVoidChisel;
     run.rewardVoidChisel = Number.isFinite(paid) && paid >= 0 ? Math.floor(paid) : null;
+    const shardPaid = run.rewardJewelShard;
+    run.rewardJewelShard = Number.isFinite(shardPaid) && shardPaid >= 0 ? Math.floor(shardPaid) : null;
 }
 
 /** A saved currency that is text other than a number, negative or not a number counts as none: such a value stayed and showed as
@@ -412,6 +504,37 @@ function normalizePlayerAilmentRow(row, clampFiniteNumber) { // clampFiniteNumbe
     if (row.sourceEnemyName) Object.assign(out, { sourceEnemyId: row.sourceEnemyId === undefined ? null : row.sourceEnemyId, sourceEnemyName: String(row.sourceEnemyName) });
     return out;
 }
+/** 변이시간선(js/loop-mutation.js): the marked loop number (else 0, so a broken one meets the rule from the next loop) and the first
+ * kill's pick (offered rune names that still exist, at most three, else none). */
+function normalizeLoopMutationState(merged) {
+    const season = Number(merged.loopMutationSeason);
+    merged.loopMutationSeason = Number.isInteger(season) && season > 0 ? season : 0;
+    const raw = merged.pendingStarterRuneChoice;
+    const gems = raw && Array.isArray(raw.gems) ? raw.gems.filter(name => typeof name === 'string' && SKILL_DB[name]).slice(0, 3) : [];
+    merged.pendingStarterRuneChoice = gems.length ? { gems } : null;
+}
+/** Removed support runes (data/skills.js RETIRED_SUPPORT_GEMS) leave every saved place before validation: their record, the run's
+ * rune rewards, rune rows on the floor and in encounter buffers, NPC shelves and the woodsman snapshot. The rune lists are filtered by
+ * SUPPORT_GEM_DB below. A saved row naming one failed the exploration loot check and with it the whole load. Idempotent. */
+function dropRetiredSupportGems(merged) {
+    const retired = name => RETIRED_SUPPORT_GEMS.includes(name);
+    const keepRune = row => !(row && row.gem && row.gem.kind === 'support' && retired(row.gem.name));
+    const filterRows = (owner, key) => { if (owner && Array.isArray(owner[key])) owner[key] = owner[key].filter(keepRune); };
+    if (merged.supportGemData && typeof merged.supportGemData === 'object') RETIRED_SUPPORT_GEMS.forEach(name => delete merged.supportGemData[name]);
+    const run = merged.actExploration;
+    if (run?.loot && Array.isArray(run.loot.gems)) run.loot.gems = run.loot.gems.filter(row => !(row && row.kind === 'support' && retired(row.name)));
+    filterRows(run, 'groundLoot');
+    filterRows(merged.colony, 'pendingLoot');
+    filterRows(merged.voidRift?.grandRun, 'pendingLoot');
+    Object.values(merged.npcShops && typeof merged.npcShops === 'object' ? merged.npcShops : {}).forEach(shop => filterRows(shop, 'offers'));
+    dropRetiredSupportsFrom(merged.woodsmanBuildSnapshot, retired);
+}
+function dropRetiredSupportsFrom(build, retired) {
+    if (!build || typeof build !== 'object') return;
+    ['supports', 'sealedSupports', 'equippedSupports'].forEach(key => { if (Array.isArray(build[key])) build[key] = build[key].filter(name => !retired(name)); });
+    if (build.supportGemData && typeof build.supportGemData === 'object') RETIRED_SUPPORT_GEMS.forEach(name => delete build.supportGemData[name]);
+}
+
 function mergeDefaults(save) {
     function clampFiniteNumber(value, fallback, min, max) {
         let num = Number(value);
@@ -702,6 +825,7 @@ function mergeDefaults(save) {
         equipment: { ...defaultGame.equipment, ...(save.equipment || {}) },
         saveMeta: { ...defaultGame.saveMeta, ...(save.saveMeta || {}) }
     };
+    dropRetiredSupportGems(merged);
     // Fields of removed systems (lastSkillHitElement: the old skill playback, 2026-10-18).
     ['hideout', 'abyssPassivePoints', 'abyssPassives', 'lastSkillHitElement'].forEach(key => delete merged[key]);
     delete merged.unlocks.hideout;
@@ -749,10 +873,7 @@ function mergeDefaults(save) {
     merged.equipment = normalizedEquipment;
     markLegacyEquipmentGrace(merged.equipment);
     if (window.equipmentLoadoutRuntime) window.equipmentLoadoutRuntime.ensureState(merged);
-    merged.inventory = (merged.inventory || []).map(normalizeItem);
-    merged.equipmentTemporaryStorage = Array.isArray(merged.equipmentTemporaryStorage)
-        ? merged.equipmentTemporaryStorage.map(normalizeItem) : [];
-    Object.keys(merged.equipment).forEach(slot => merged.equipment[slot] = normalizeItem(merged.equipment[slot]));
+    normalizeCarriedEquipmentSave(merged);
     if (typeof equipmentInventoryGridRuntime !== 'undefined') equipmentInventoryGridRuntime.ensureState(merged);
     merged.gemData = (merged.gemData && typeof merged.gemData === 'object') ? merged.gemData : {};
     merged.gemData['기본 공격'] = normalizeGemRecord(merged.gemData['기본 공격']);
@@ -983,8 +1104,7 @@ function mergeDefaults(save) {
     merged.inTicketBossFight = !!merged.inTicketBossFight;
     merged.beehive = (merged.beehive && typeof merged.beehive === 'object') ? merged.beehive : { unlockedPermanent:false, inRun:false, branchStep:0, cleared:false, routeSeed:0 };
     merged.colony = (merged.colony && typeof merged.colony === 'object') ? { ...defaultGame.colony, ...merged.colony } : { ...defaultGame.colony };
-    merged.colony.wave = Math.max(0, Math.floor(clampFiniteNumber(merged.colony.wave, 0, 0)));
-    merged.colony.highestWave = Math.max(merged.colony.wave, Math.floor(clampFiniteNumber(merged.colony.highestWave, merged.colony.wave, 0)));
+    normalizeColonyRunSave(merged.colony, clampFiniteNumber);
     merged.colony.wardInventory = Array.isArray(merged.colony.wardInventory) ? merged.colony.wardInventory.map(w => w && typeof w === 'object' ? { ...w, locked: !!w.locked } : w).filter(Boolean) : [];
     merged.colony.wardEquipped = Array.isArray(merged.colony.wardEquipped) ? merged.colony.wardEquipped.slice(0, 4) : [null,null,null,null];
     while (merged.colony.wardEquipped.length < 4) merged.colony.wardEquipped.push(null);
@@ -1116,6 +1236,7 @@ function mergeDefaults(save) {
     delete merged.discoveredHeroIds;
     delete merged.heroFreeSwitchUnlocked;
     merged.pendingLoopHeroSelection = !!merged.pendingLoopHeroSelection;
+    normalizeLoopMutationState(merged);
     merged.abyssClearedDepths = Array.isArray(merged.abyssClearedDepths) ? merged.abyssClearedDepths.map(v => Math.max(1, Math.floor(v || 1))).filter(v => v <= 20) : [];
     merged.playerAilments = Array.isArray(merged.playerAilments) ? merged.playerAilments.map(row => normalizePlayerAilmentRow(row, clampFiniteNumber)).filter(row => row.type) : [];
     merged.playerLeechInstances = Array.isArray(merged.playerLeechInstances) ? merged.playerLeechInstances.map(row => ({ remaining: Math.max(0, clampFiniteNumber(row.remaining, 0, 0)), rate: Math.max(0, clampFiniteNumber(row.rate, 0, 0)), target: row.target === 'energyShield' ? 'energyShield' : 'life' })).filter(row => row.remaining > 0 && row.rate > 0).slice(0, 80) : [];
@@ -1365,13 +1486,18 @@ function mergeDefaults(save) {
     reconcileUniqueEquipmentSave(merged);
     enforcePassiveEquipmentRestrictions(merged);
     const normalized = normalizeContentProgressionSave(normalizeSavedCombatRuntime(merged), save);
+    normalizeStoredEquipmentSave(normalized);
     // Escrow identity checks need the migrated exploration loot containers first.
     playerStall.restore(normalized);
-    Object.assign(normalized, { craftOmen: normalizeCraftOmen(normalized.craftOmen), craftChoice: normalizeCraftChoice(normalized.craftChoice) });
+    normalized.craftOmen = normalizeCraftOmen(normalized.craftOmen);
+    normalizeEquipmentCraftChoiceSave(normalized);
     return normalized;
 }
 
 function normalizeSavedCombatRuntime(state) {
+    // 지난 지도의 바닥 실타래는 아래 복원이 보관함에 넣는다: 손상된 보관함이면 그 전에 고친다
+    state.knitting = knitting.normalize(state.knitting, state.season);
+    actExplorationState.groundLoot.normalizeEncounter(state);
     actExplorationState.restore(state);
     combatLootReceipts.normalize(state);
     state.cosmosGravity = null;

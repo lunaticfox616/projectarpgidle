@@ -3,6 +3,7 @@
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const { buildCss } = require('./build-css');
+const { prepareRelease } = require('./lib/release-bundle');
 const root = path.resolve(__dirname, '..');
 const destination = path.join(root, 'dist');
 
@@ -27,8 +28,9 @@ async function buildWeb() {
     const stageArt = '<meta name="stage-art" content="probe">';
     if (!built.includes(stageArt)) throw new Error('index.html has no stage-art placeholder');
     const packed = await fs.access(path.join(destination, 'assets/playable/stage')).then(() => true, () => false);
-    const html = built.replace(placeholder, `<meta name="app-deploy" content="${build}">`)
-        .replace(stageArt, `<meta name="stage-art" content="${packed ? 'probe' : 'none'}">`);
+    // Release only: no test panel and no dev-only code (scripts/lib/release-bundle.js), checked before anything is written.
+    const html = await prepareRelease(destination, built.replace(placeholder, `<meta name="app-deploy" content="${build}">`)
+        .replace(stageArt, `<meta name="stage-art" content="${packed ? 'probe' : 'none'}">`));
     await fs.writeFile(path.join(destination, 'index.html'), html);
     await fs.writeFile(path.join(destination, 'version.json'), JSON.stringify({ build }) + '\n');
     await fs.writeFile(path.join(destination, '.nojekyll'), '');

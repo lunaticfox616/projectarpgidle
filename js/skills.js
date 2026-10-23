@@ -670,7 +670,6 @@ function applyFossilChaosCraft(fossilKey) {
 
     item.stats = newStats;
     item.rarity = 'rare';
-    delete item.affixKeep;
     if (typeof rerollChaosInfusionForItem === 'function') rerollChaosInfusionForItem(item, previousChaosInfusion);
     game.currencies[fossilKey]--;
     updateItemName(item);
@@ -878,7 +877,7 @@ function getEquippedWeaponStance() {
     return (category && SKILL_RUNE_STANCE_BY_CATEGORY[category]) || 'unarmed';
 }
 
-/** 태그 피해 계산 호출부(combat.js, gem-selection-ui.js)가 쓰는 태그: 방패를 들고 쓰는 근접 공격은 방패 스킬로 친다(방패 공명, 방패 스킬 피해).
+/** 태그 피해 계산 호출부(combat.js, gem-selection-ui.js)가 쓰는 태그: 완갑(방패 칸)을 끼고 쓰는 근접 공격은 방패 스킬로 친다(완갑 착용 근접 피해, shieldPctDmg).
  * 방패 태그 룬(방패 투척, 방패 돌진)이 2026-10-17 스킬룬 인계에서 빠져 방패 스킬 피해가 붙을 곳이 없었다. 자세가 아니라 든 방패를 본다
  * (방패를 그린 자세는 없다). */
 function getSkillDamageTagSet(skill) {
@@ -921,7 +920,7 @@ function getSkillRuneWeaponNote(name) {
     if (canUseSkillWithCurrentEquipment(name)) return '';
     const skill = SKILL_DB[name], family = SKILL_RUNE_FAMILY[name];
     if (isAttackRuneBlockedByMobilityBoots(name)) return `${MOBILITY_RUNE_ATTACK_UNIQUE} 착용 중, 이동 스킬룬만`;
-    if (skill && skill.requiresShield && !hasEquippedShield()) return '방패 필요';
+    if (skill && skill.requiresShield && !hasEquippedShield()) return '완갑 필요';
     return SKILL_RUNE_WEAPON_NOTES[family] || `${SKILL_RUNE_WEAPONS[family].map(stance => SKILL_RUNE_STANCE_LABELS[stance]).join(', ')} 필요`;
 }
 

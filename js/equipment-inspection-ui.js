@@ -41,6 +41,7 @@
         return {
             pane: root.querySelector('.eqw-compare-pane.active > h5')?.textContent,
             scroll: root.scrollTop,
+            bodyScroll: root.querySelector('.eqw-inspector-body')?.scrollTop || 0,
             panes: panes.map(pane => [pane.querySelector('h5').textContent, pane.lastElementChild.scrollTop]),
             deltas: [...root.querySelectorAll('.eqw-deltas[data-eqw-slot]')],
             focus: root.contains(document.activeElement) ? document.activeElement : null
@@ -53,6 +54,8 @@
             if (saved) pane.lastElementChild.scrollTop = saved[1];
         });
         root.scrollTop = view.scroll;
+        const body = root.querySelector('.eqw-inspector-body');
+        if (body) body.scrollTop = view.bodyScroll;
         // Restore a replaced control only when the update itself displaced focus.
         const action = view.focus?.getAttribute('onclick');
         if (!action || view.focus.isConnected || document.activeElement !== document.body) return;

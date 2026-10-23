@@ -105,6 +105,17 @@ const LOOP_STARTER_GEM_BY_HERO = {
     hero9: '서리바람 내지르기',    // 원소술사 (원소) — 원소 태그 중 하위권 화력
     hero10: '빙결 침식'    // 연금술사 (지속피해) — 지속피해 태그 중 하위권 화력
 };
+/** 변이 루프(data/maps.js LOOP_MUTATION)의 첫 처치 3택 후보: 직업마다 속성별 하나(js/loop-mutation.js starterChoices). 그 직업의 시작
+ * 무기, 영웅 Lv.1, 룬 Lv.1에서 시트 DPS가 그 직업 시작 룬(LOOP_STARTER_GEM_BY_HERO)과 가장 가까운 룬이다(2026-10-23 측정: 대부분
+ * 시작 룬의 ±20% 안, 연금술사의 번개는 플라스크로 쓸 번개 룬이 주문뿐이라 1.5배). 시작 룬은 자기 속성 칸에 그대로 둔다. */
+const LOOP_MUTATION_STARTER_GEMS = Object.freeze({
+    warrior: Object.freeze({ phys: '이중 베기', fire: '부싯돌 베기', cold: '혹한의 지진', light: '번개 타격', chaos: '심연 전염' }),
+    wanderer: Object.freeze({ phys: '흡혈 관통', fire: '폭열 창탄', cold: '빙결 침식', light: '피뢰침', chaos: '심연 전염' }),
+    archer: Object.freeze({ phys: '연발 사격', fire: '폭열 창탄', cold: '빙결 침식', light: '번개 창', chaos: '독창 투척' }),
+    occultist: Object.freeze({ phys: '대지의 함성', fire: '불씨의 함성', cold: '서리바람 내지르기', light: '번개 창', chaos: '독창 투척' }),
+    alchemist: Object.freeze({ phys: '빈 플라스크', fire: '불씨의 함성', cold: '빙결 침식', light: '신성한 기도', chaos: '심연 전염' }),
+    cleric: Object.freeze({ phys: '강타', fire: '화염 참격', cold: '얼어붙은 고리', light: '번개 타격', chaos: '심연 전염' })
+});
 
 // v3.38 gem balance: coefficients are per confirmed contact.
 Object.assign(SKILL_DB, {
@@ -167,7 +178,10 @@ const RETIRED_GEM_SUCCESSORS = Object.freeze({
     // 2026-10-20 스킬룬 인계(v42)가 지운 원소 포션 투척: 같은 플라스크 전용, 떨어진 자리를 치는 범위 룬
     '원소 포션 투척': '폭발 혼합물'
 });
-safeExposeData({ SKILL_DB, LOOP_STARTER_GEM_BY_HERO, PROJECTILE_PATTERN_MODE_DB, RETIRED_GEM_SUCCESSORS });
+/** 지운 보조스킬룬: 대신 받는 룬 없이 저장에서 걷어 낸다(js/save-migrations.js dropRetiredSupportGems).
+ * 2026-10-23 사용자 "방패 공명: 보조 스킬 룬 삭제"(방패가 완갑이 된 뒤). */
+const RETIRED_SUPPORT_GEMS = Object.freeze(['방패 공명']);
+safeExposeData({ SKILL_DB, LOOP_STARTER_GEM_BY_HERO, LOOP_MUTATION_STARTER_GEMS, PROJECTILE_PATTERN_MODE_DB, RETIRED_GEM_SUCCESSORS, RETIRED_SUPPORT_GEMS });
 
 // 각성 룬 효과(각성 룬 변환 뒤, 2026-10-18 사용자 결정으로 룬 Lv.20 특전을 옮김). 앞의 셋은 능력치에(getActiveSkillStats), 강타는
 // 치명타 적중에(getGemCritHitPerkMul) 붙는다. 룬 툴팁과 각성 룬 변환 칸도 이 표를 읽는다.

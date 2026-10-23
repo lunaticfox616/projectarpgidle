@@ -25,7 +25,7 @@ function getInventoryItemVisualAsset(item, kind) {
 function pickInventoryItemVisualAsset(item, kind) {
     let visuals = typeof ITEM_VISUAL_ASSET_DB !== 'undefined' ? ITEM_VISUAL_ASSET_DB : null;
     if (!visuals) return '';
-    if (kind === 'jewel') return visuals.jewel;
+    if (kind === 'jewel') return bagItems.jewelArt(item);
     if (kind === 'talisman') return item && item.family === 'talisman' ? stumpBox.iconPath(item) : visuals.talisman;
     if (kind === 'core') return coreItems.icon(item);
     return getEquipmentGridVisualAsset(item);
@@ -308,7 +308,7 @@ function getDualSlotDisplayLabel(targetSlot) {
     if (targetSlot === '장갑1') return '왼쪽 장갑';
     if (targetSlot === '장갑2') return '오른쪽 장갑';
     if (targetSlot === '무기') return '주 무기';
-    if (targetSlot === '방패') return '방패';
+    if (targetSlot === '방패') return '완갑';
     return targetSlot;
 }
 
@@ -728,81 +728,9 @@ function changeZone(id) {
 
 safeExposeGlobals({ selectForCrafting, equipItem, equipItemById, canEquipItemToSlot, equipSelectedCraftInventoryItem, unequipItem, unequipItemToGrid, salvageItemById, toggleItemLockById, getSelectedCraftItem, getCraftSelectionRef, isCraftSelectionEquip, clearCraftSelection, ensureCraftSelectionValid, tryAutoEquipEmptySlot, hasActiveBeehiveRuntimeState, clearBeehiveRuntimeState, reconcileBeehiveRunState, isBeehiveRunLockedForMapTravel, warnBeehiveMapTravelBlocked, getTimeRiftFusionMismatchReason, getTimeAltarItemIssue, craftingResultLedger });
 
-// Phase-3 extracted market/crafting service handlers.
-async function marketResetPassiveTreeByDivine() {
-    if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 패시브를 초기화할 수 없습니다.', 'attack-monster');
-    if (!isMarketUnlocked()) return addLog('장비 제련을 해금하면 거래소를 이용할 수 있습니다.', 'attack-monster');
-    if ((game.currencies.goldenRule || 0) < 1) return addLog('황금률이 부족합니다.', 'attack-monster');
-    let spentNodes = getPaidPassiveNodeIds(game.passives).length;
-    if (spentNodes <= 0) return addLog('초기화할 패시브 노드가 없습니다.', 'attack-monster');
-    let passiveSnapshot = game.passives.slice();
-    if (!await requestGameConfirmation(`황금률 1개를 사용해 패시브 트리를 초기화하고 포인트 ${spentNodes}점을 반환합니다.`, {
-        title: '패시브 트리 전체 초기화',
-        tone: 'danger',
-        confirmLabel: '초기화'
-    })) return;
-    if (!isMarketUnlocked() || game.woodsmanBuildLock || (game.currencies.goldenRule || 0) < 1
-        || game.passives.length !== passiveSnapshot.length || game.passives.some((nodeId, index) => nodeId !== passiveSnapshot[index])) {
-        return addLog('확인 중 패시브 또는 재화 상태가 변경되어 초기화를 취소했습니다.', 'attack-monster');
-    }
-    game.currencies.goldenRule -= 1;
-    // 직업 시작점은 소유 목록에 넣지 않아도 항상 무료 연결점으로 계산된다.
-    const grantedPoints = passiveRouting.paleBonus(game);
-    game.passives = [];
-    game.passiveAttributeChoices = {};
-    game.passivePoints = Math.max(0, game.passivePoints + spentNodes - grantedPoints);
-    calculateReachableNodes();
-    refreshPassiveVisibility();
-    addLog(`🧠 패시브 트리 초기화 완료! 포인트 ${spentNodes}점 반환`, 'season-up');
-    updateStaticUI();
-}
-
-async function marketAnnulSelectedStat(statIdx) {
-    if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 장비 옵션을 변경할 수 없습니다.', 'attack-monster');
-    if (!isMarketUnlocked()) return addLog('장비 제련을 해금하면 거래소를 이용할 수 있습니다.', 'attack-monster');
-    let item = getSelectedCraftItem();
-    if (!item) return addLog('먼저 제작 대상 장비를 선택하세요.', 'attack-monster');
-    let removable = getMarketAnnulRows(item);
-    if (item.rarity === 'normal' || removable.length <= 0) return addLog('소멸시킬 수 있는 옵션이 없습니다. 보호된 옵션은 제거할 수 없습니다.', 'attack-monster');
-    if ((game.currencies.goldenRule || 0) < 2) return addLog('황금률이 부족합니다. (필요: 2)', 'attack-monster');
-    let idx = Math.floor(Number(statIdx));
-    let selected = removable.find(row => row.index === idx);
-    if (!selected) return addLog('제거할 수 있는 옵션을 선택하세요. 밀랍/균열/잠식으로 보호된 옵션은 유지됩니다.', 'attack-monster');
-    let target = selected.stat;
-    let targetName = target.statName || getStatName(target.id);
-    if (!await requestGameConfirmation(`황금률 2개를 소모하여 [${item.name}]의 "${targetName}" 옵션을 제거합니다.`, {
-        title: '옵션 소멸',
-        tone: 'danger',
-        confirmLabel: '옵션 제거'
-    })) return;
-    if (!isMarketUnlocked() || game.woodsmanBuildLock || getSelectedCraftItem() !== item || !getMarketAnnulRows(item).some(row => row.stat === target) || item.stats[idx] !== target || (game.currencies.goldenRule || 0) < 2) {
-        return addLog('확인 중 장비 또는 재화 상태가 변경되어 옵션 소멸을 취소했습니다.', 'attack-monster');
-    }
-    game.currencies.goldenRule -= 2;
-    item.stats.splice(idx, 1);
-    updateItemName(item);
-    addLog(`💥 옵션 소멸 완료: [${item.name}] - ${targetName}`, 'loot-unique');
-    updateStaticUI();
-}
-
-/** Why the keep service cannot run now ('' when it can): build lock, market, the item (equipmentCrafting.getAffixKeepReason), gold. */
-function getAffixKeepServiceReason(item, kind) {
-    if (game.woodsmanBuildLock) return '☠️ 나무꾼 전투 중에는 장비 옵션을 변경할 수 없습니다.';
-    if (!isMarketUnlocked()) return '장비 제련을 해금하면 거래소를 이용할 수 있습니다.';
-    const reason = equipmentCrafting.getAffixKeepReason(item, kind);
-    if (reason) return reason;
-    return (game.currencies.goldenRule || 0) < AFFIX_KEEP_RULES.cost ? `황금률이 부족합니다. (필요: ${AFFIX_KEEP_RULES.cost})` : '';
-}
-
 function buildGoldenRuleSpendPrompt(message) {
     let owned = Math.max(0, Math.floor((game.currencies && game.currencies.goldenRule) || 0));
     return `${message}\n\n현재 보유: 황금률 ${owned}개`;
-}
-
-/** 거래소 '장비 옵션 제거'가 고를 수 있는 줄. 타락한 장비, 융합 유물, 전당 소장품은 옵션을 바꾸지 않는다(옵션 보존과 같다,
- * js/equipment-crafting.js getAffixKeepReason; 전에는 전정 가위가 거절하는 타락 장비의 줄도 지웠다). */
-function getMarketAnnulRows(item) {
-    return !item || item.corrupted || item.fusedRelic || item.hallReplica ? [] : getAnnulmentRemovableStats(item);
 }
 
 function getBaseDefenseProfile(base) {
@@ -1047,4 +975,4 @@ function confirmSelectedItemBaseUpgrade() {
     updateStaticUI();
 }
 
-safeExposeGlobals({ marketResetPassiveTreeByDivine, marketAnnulSelectedStat, upgradeSelectedItemBase, confirmSelectedItemBaseUpgrade, closeBaseUpgradeOverlay });
+safeExposeGlobals({ upgradeSelectedItemBase, confirmSelectedItemBaseUpgrade, closeBaseUpgradeOverlay });

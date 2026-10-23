@@ -29,7 +29,8 @@ const regionAffixEffects = (() => {
     function zoneTier() { return (getZone(game.currentZoneId) || {}).tier || 1; }
     /** Elemental damage to another enemy (its resistance counts), with its hit mark; a kill goes through the death handler. */
     function strike(target, pStats, element, raw, from) {
-        const damage = Math.max(1, Math.floor(raw * (1 - getEffectiveEnemyMitigation(element, zoneTier(), target, pStats) / 100)));
+        const damage = Math.floor(Math.max(1, Math.floor(raw * (1 - getEffectiveEnemyMitigation(element, zoneTier(), target, pStats) / 100)))
+            * loopMutation.takenMul(target, element));
         applyDamageToEnemyResource(target, damage);
         addBattleFx('hit', { enemyId: target.id, color: getElementColor(element), damage, element,
             ...(from ? { stageKind: 'chainJump', chainFromEnemyId: from.id } : {}) });

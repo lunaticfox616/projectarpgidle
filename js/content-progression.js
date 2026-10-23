@@ -49,6 +49,9 @@ const contentProgression = (() => {
     }
 
     function meetsUsageGate(def, owner) {
+        // 해금 루프를 늦춘 콘텐츠(def.hardMinLoop, 뜨개질 2026-10-22): 저장에 남은 구매·상속·자동·레거시 기록이 있어도 그 루프 전에는 닫는다.
+        // 기록은 지우지 않으므로 루프가 닿으면 그대로 다시 열린다.
+        if (def.hardMinLoop && !(owner.season >= def.minLoop)) return false;
         if (def.id !== 'battleTrials') return true;
         const state = owner.contentProgression;
         return owner.season >= def.minLoop && !!state
@@ -79,6 +82,9 @@ const contentProgression = (() => {
         const unlocks = ORB_DB[getCanonicalCurrencyKey(key)]?.dropUnlocks;
         return !unlocks || unlocks.some(id => isUnlocked(id, owner));
     }
+
+    /** Content-specific equipment becomes eligible only after its source content is open. */
+    const canDropUnique = (unique, owner = game) => !!unique && (!unique.contentUnlock || isUnlocked(unique.contentUnlock, owner));
 
     function canOpenMap(owner) {
         return owner.season >= 2 || owner.maxZoneId >= 1 || owner.unlocks.map || owner.contentProgression.legacy === true;
@@ -236,8 +242,8 @@ const contentProgression = (() => {
     }
 
     function legacyAccess(def, owner) {
-        // Newly gated simulator has no historical purchase to inherit from a pre-ledger save.
-        if (def.id === 'craftSimulator') return false;
+        // These features did not exist in a pre-ledger save; normal progress opens them.
+        if (['craftSimulator', 'knitting'].includes(def.id)) return false;
         // Saves predating the unlock ledger used act five for the market.
         if (def.id === 'market') return owner.maxZoneId >= 5;
         if ((def.routes || []).some(route => owner.unlockedMapContents.includes(route))) return true;
@@ -333,7 +339,7 @@ const contentProgression = (() => {
         if (owned.has('gemForge') && !owned.has('engraving')) next.inherited.push('engraving');
     }
 
-    return Object.freeze({ kind, npcName, isUnlocked, canDropCurrency, canOpen, earnedBy, points, overflow, balance, cheapestOpen, status, requirements, sync,
+    return Object.freeze({ kind, npcName, isUnlocked, canDropUnique, canDropCurrency, canOpen, earnedBy, points, overflow, balance, cheapestOpen, status, requirements, sync,
         purchase, gift, restore });
 })();
 safeExposeGlobals({ contentProgression });

@@ -3,9 +3,12 @@ const uiDisplay = (() => {
     let factor = 1;
     let percent = 100;
     let resolutionQuery;
+    let sideBattleHudQuery;
     const mediaRules = new Map();
     const visitedSheets = new WeakSet();
-    const mobileDevice = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    // iPadOS Safari asks for desktop pages and identifies as Mac; it still needs the mobile draw budget.
+    const mobileDevice = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+        || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     // Resting cadence: an idle game keeps fighting while nobody watches closely. After a quiet
     // period, or while another window has focus, the battlefield repaints less often.
     // Combat timing is unaffected; only drawing is spaced out. Any input restores full cadence.
@@ -83,6 +86,8 @@ const uiDisplay = (() => {
         const next = percent / 100 / deviceScale;
         const changed = Math.abs(next - factor) > 0.00001;
         factor = next;
+        // Reuse the MediaQueryList in drawing; its matches value follows resize without a frame-time DOM measure.
+        if (changed || !sideBattleHudQuery) sideBattleHudQuery = window.matchMedia(mediaText('(max-width: 1080px) and (orientation: landscape) and (max-height: 600px)'));
         document.documentElement.style.setProperty('--scale-display-factor', String(factor));
         document.documentElement.style.zoom = String(factor);
         registerStyles();
@@ -108,6 +113,7 @@ const uiDisplay = (() => {
     }
 
     return Object.freeze({ apply, init, matches, registerStyles, get factor() { return factor; },
+        get battleHudAtSide() { return !!sideBattleHudQuery && sideBattleHudQuery.matches; },
         // Time since the last input: a long gap means the player is away (an idle run must not stop on a reward window).
         get inputIdleMs() { return performance.now() - lastInputAt; },
         get battleFrameMs() { return Math.max(mobileDevice ? 1000 / 30 : 22, restingFrameMs()); },

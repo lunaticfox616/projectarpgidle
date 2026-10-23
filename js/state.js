@@ -345,6 +345,7 @@ function getOceanCurrentAffixes(depthTier) {
 function hasOceanCurrent(zone, currentId) {
     return !!(zone && Array.isArray(zone.currents) && zone.currents.some(current => current && current.id === currentId));
 }
+// 웨이브의 몬스터 수: 12마리부터 웨이브마다 2마리, 최대 36마리(2026-10-23 사용자: 방어전도 원래 수로)
 function getColonyWaveEnemyCount(wave) {
     return Math.max(12, Math.min(36, 10 + Math.max(1, Math.floor(wave || 1)) * 2));
 }
@@ -830,14 +831,26 @@ function createBeehiveZone(state) {
     };
 }
 
+/** Integer gauge points preserve half-percent gains and drive both the boss threshold and crowd stages. */
+function getGrandBreachProgress(value) {
+    const number = Number(value);
+    const requiredGauge = GRAND_BREACH_ENCOUNTER.requiredGauge;
+    const gauge = Number.isFinite(number) ? Math.min(requiredGauge, Math.max(0, Math.floor(number))) : 0;
+    return { gauge, requiredGauge, percent: gauge * 100 / requiredGauge,
+        stage: Number(gauge * 3 >= requiredGauge) + Number(gauge * 3 >= requiredGauge * 2),
+        complete: gauge >= requiredGauge };
+}
+
 /** The idle preview represents a fresh entry; active runs retain their paid entry depth. */
 function createColonyZone(state) {
     const colony = state.colony;
     const wave = colony.inRun ? Math.max(1,Math.floor(colony.wave||1)) : 1;
     const depth = colony.inRun ? Math.max(21,Math.floor(colony.entryDeepChaosDepth||21))
         : Math.max(21,Math.min(state.abyssEndlessDepth||21,state.loopProgressCurrent.bestAbyssDepth||21));
+    const wavePattern = ['charge', 'sharpshooters', 'carapace', 'mixed', 'overlord'][(wave - 1) % 5];
     return { id:'colony_run', name:`군락지 방어 ${wave}웨이브`, type:'colony', tier:depth+Math.floor(wave/2),
-        maxKills:1, ele:'chaos', entryDeepChaosDepth:depth };
+        maxKills:1, ele:'chaos', entryDeepChaosDepth:depth, wavePattern,
+        bossMods: { patternMode: 'slam' } };
 }
 
 function getUnderworldZone(floor) {
@@ -922,14 +935,19 @@ function getMeteorSiteZone() {
     let allowBeyond20 = !!star.skyRiftAllCosmos;
     let tierCap = allowBeyond20 ? 40 : 20;
     let tier = star.activeMeteorTier || Math.max(8, Math.min(tierCap, Math.floor(star.skyRiftMinTier || 13)));
+    const rooms = typeof actExplorationDoors === 'object' && actExplorationDoors.session();
     return {
         id: METEOR_FALL_ZONE_ID,
         name: '운석 낙하 지점',
         type: 'meteor',
         tier: tier,
+        rewardEquipmentCount: 1 + Math.min(2, Math.floor(tier / 20)),
         maxKills: 1,
-        ele: 'chaos',
-        bossMods: { hpMul: 2.2, atkMul: 1.1, damageMul: 1.4, patternMode: 'slam' }, exploration: contentMaps.arena('meteor', 'ruins')
+        ele: 'fire', bossVisualId: 'meteor-heart',
+        bossMods: { hpMul: 2.2, atkMul: 1.1, damageMul: 1.4, patternMode: 'slam' },
+        // 파편 무리 → 정예 호위 → 핵. 기존 운석 투기장은 핵만 세워 앞의 조우가 생략되었다.
+        exploration: rooms ? { style: 'act', act: contentMaps.actForBiome('ruins'), seed: `meteor:${tier}`, chain: 2 }
+            : contentMaps.arena('meteor', 'ruins')
     };
 }
 function getOceanZoneNow() {
@@ -1411,7 +1429,7 @@ const P_STATS = {
     aoePctDmg: { name: '범위 피해(%)', tiers: [1, 2, 3], s: 4, m: 8, k: 16, isPct: true },
     dotPctDmg: { name: '지속 피해 배율(%)', tiers: [1, 2, 3], s: 4, m: 8, k: 16, isPct: true },
     spellPctDmg: { name: '주문 피해(%)', tiers: [1, 2, 3], s: 4, m: 8, k: 16, isPct: true },
-    shieldPctDmg: { name: '방패 스킬 피해(%)', tiers: [1, 2, 3], s: 4, m: 8, k: 16, isPct: true },
+    shieldPctDmg: { name: '완갑 착용 근접 피해(%)', tiers: [1, 2, 3], s: 4, m: 8, k: 16, isPct: true },
     minePctDmg: { name: '지뢰 피해(%)', tiers: [1, 2, 3], s: 4, m: 8, k: 16, isPct: true },
     potionPctDmg: { name: '포션 스킬 피해(%)', tiers: [1, 2, 3], s: 4, m: 8, k: 16, isPct: true },
     mobilityPctDmg: { name: '기동 스킬 피해(%)', tiers: [1, 2, 3], s: 4, m: 8, k: 16, isPct: true },
@@ -1596,7 +1614,6 @@ const SUPPORT_GEM_DB = {
     '카오스 잠식': { baseVal: 1, scale: 0.05, stat: 'chaosErosion', name: '카오스 잠식', isPct: false, resonanceCosts: [9, 21, 33], capStat: 'chaosErosionCap', capBase: 20, capGrowAfterLevel: 20, capPerLevel: 1, desc: '카오스 피해로 적중할 때마다 적의 카오스 저항을 깎아 잠식시킵니다(중첩). 잠식 한도는 기본 20이며, 20레벨을 넘기면 레벨당 1.1씩 한도가 늘어납니다. 적이 죽거나 교체되면 잠식은 초기화됩니다.' },
     '분쇄의 일격': { baseVal: 9, scale: 2.8, stat: 'slamPctDmg', name: '강타 피해', isPct: true, resonanceCosts: [9, 21, 33], desc: '강타 태그 스킬의 피해를 강하게 증폭하는 상급 보조스킬룬입니다.' },
     '비전 증폭': { baseVal: 9, scale: 2.6, stat: 'spellFlatPct', name: '주문 내장 피해 증가', isPct: true, resonanceCosts: [9, 21, 33], desc: '주문 태그 스킬의 내장 피해 증가를 강하게 끌어올리는 상급 보조스킬룬입니다.' },
-    '방패 공명': { baseVal: 7, scale: 2.4, stat: 'shieldPctDmg', name: '방패 스킬 피해', isPct: true, resonanceCosts: [6, 12, 21], desc: '방패 스킬과 방패를 들고 쓰는 근접 공격의 피해를 높입니다.' },
     '지뢰 증폭': { baseVal: 8, scale: 2.5, stat: 'minePctDmg', name: '지뢰 피해', isPct: true, resonanceCosts: [6, 12, 21], desc: '지뢰 태그 스킬의 피해를 높입니다.' },
     '연금 촉매': { baseVal: 7, scale: 2.3, stat: 'potionPctDmg', name: '포션 투척 피해', isPct: true, resonanceCosts: [6, 12, 21], desc: '포션 태그 스킬의 피해를 높입니다.' },
     '기동 타격': { baseVal: 6, scale: 2.0, stat: 'mobilityPctDmg', name: '기동 스킬 피해', isPct: true, resonanceCosts: [6, 12, 21], desc: '기동 태그 스킬의 피해를 높입니다.' },
@@ -1735,7 +1752,7 @@ const FOSSIL_DB = [
     { key: 'fossilPrismatic', name: '프리즘 화석', desc: '저항/원소 계열 옵션 하나를 확정하여 희귀 아이템의 옵션을 다시 굴립니다.' },
     { key: 'fossilAbyssal', name: '심연 화석', desc: '카오스/흡혈/재생 계열 옵션 하나를 확정하여 희귀 아이템의 옵션을 다시 굴립니다.' },
     { key: 'fossilPrimordial', name: '태고 화석', desc: '원시 고대 화석 복원으로 얻습니다. 관통/카오스 계열 옵션 하나를 확정하여 희귀 아이템의 옵션을 다시 굴립니다.', ancientPrimalOnly: true },
-    { key: 'fossilBulwark', name: '방패 화석', desc: '최대 화염/냉기/번개 저항 계열 옵션 하나를 확정하여 희귀 아이템의 옵션을 다시 굴립니다. 방어구 전용: 투구/갑옷/장갑/신발/방패.' },
+    { key: 'fossilBulwark', name: '방패 화석', desc: '최대 화염/냉기/번개 저항 계열 옵션 하나를 확정하여 희귀 아이템의 옵션을 다시 굴립니다. 방어구 전용: 투구/갑옷/장갑/신발/완갑.' },
     { key: 'fossilWedge', name: '쐐기 화석', desc: '투사체/치명 계열 옵션 하나를 확정하여 희귀 아이템의 옵션을 다시 굴립니다.' },
     { key: 'fossilOld', name: '오래된 화석', desc: '화석 전용 옵션 하나를 확정하여 희귀 아이템의 옵션을 다시 굴립니다.' },
     { key: 'fossilRift', name: '균열 화석', desc: '희귀 아이템의 옵션을 다시 굴리고, 제거할 수 없는 균열 표식과 나머지 추가 옵션 50% 증폭 효과를 부여합니다.' }
@@ -1794,36 +1811,36 @@ const UNDERWORLD_RUNE_DB = [
 // Weapon flat damage was rebased on 2026-09-11: +20% at T1, rising to +140% at T20.
 // Values are baked into definitions; legacyDamageBase exists only for old-save conversion.
 const BASE_ITEM_DB = [
-    { id: 'rusted_blade', slot: '무기', name: '녹슨 검', reqTier: 1, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 5, legacyDamageBase: 4 }] },
-    { id: 'apprentice_familiar_wand', slot: '무기', name: '견습 사역봉', reqTier: 1, requirementWeights: { intelligence: 1 }, baseStats: [{ id: 'flatDmg', base: 6, legacyDamageBase: 5 }, { id: 'summonPctDmg', base: 10 }, { id: 'summonEfficiency', base: 4 }] },
-    { id: 'hunter_axe', slot: '무기', name: '사냥꾼의 도끼', reqTier: 3, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 11, legacyDamageBase: 9 }, { id: 'crit', base: 3 }] },
-    { id: 'pact_familiar_wand', slot: '무기', name: '계약 사역봉', reqTier: 4, requirementWeights: { intelligence: 1 }, baseStats: [{ id: 'flatDmg', base: 11, legacyDamageBase: 9 }, { id: 'summonPctDmg', base: 14 }, { id: 'summonEfficiency', base: 6 }] },
-    { id: 'abyss_spear', slot: '무기', name: '심연의 창', reqTier: 7, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 20, legacyDamageBase: 14 }, { id: 'aspd', base: 6 }] },
-    { id: 'bloodletter_blade', slot: '무기', name: '혈각 검', reqTier: 10, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 38, legacyDamageBase: 24 }, { id: 'crit', base: 5 }] },
-    { id: 'gale_fang_spear', slot: '무기', name: '질풍 송곳창', reqTier: 10, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 38, legacyDamageBase: 24 }, { id: 'aspd', base: 8 }] },
-    { id: 'executioner_blade', slot: '무기', name: '처형자의 검', reqTier: 14, requirementWeights: { strength: 1 }, baseStats: [{ id: 'flatDmg', base: 71, legacyDamageBase: 38 }, { id: 'crit', base: 8 }] },
-    { id: 'tempest_pike', slot: '무기', name: '폭풍 장창', reqTier: 15, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 82, legacyDamageBase: 42 }, { id: 'aspd', base: 10 }] },
-    { id: 'windlash_bow', slot: '무기', name: '돌풍 장궁', reqTier: 5, requirementWeights: { dexterity: 1 }, baseStats: [{ id: 'flatDmg', base: 14, legacyDamageBase: 11 }, { id: 'projectilePctDmg', base: 10 }] },
-    { id: 'stormbolt_launcher', slot: '무기', name: '폭전 발사기', reqTier: 10, requirementWeights: { dexterity: 1 }, baseStats: [{ id: 'flatDmg', base: 35, legacyDamageBase: 22 }, { id: 'projectilePctDmg', base: 18 }, { id: 'projectileExtraChance', base: 50 }] },
-    { id: 'starfall_ballista', slot: '무기', name: '유성 발리스타', reqTier: 15, requirementWeights: { dexterity: 1 }, baseStats: [{ id: 'flatDmg', base: 72, legacyDamageBase: 37 }, { id: 'projectilePctDmg', base: 26 }, { id: 'projectileExtraChance', base: 100 }] },
-    { id: 'needle_recurve', slot: '무기', name: '바늘 리커브', reqTier: 8, requirementWeights: { dexterity: 1 }, baseStats: [{ id: 'flatDmg', base: 26, legacyDamageBase: 18 }, { id: 'projectilePctDmg', base: 14 }] },
-    { id: 'spiritbound_wand', slot: '무기', name: '영혼 결속봉', reqTier: 8, requirementWeights: { intelligence: 1 }, baseStats: [{ id: 'flatDmg', base: 23, legacyDamageBase: 16 }, { id: 'summonPctDmg', base: 22 }, { id: 'summonEfficiency', base: 10 }] },
-    { id: 'seeker_railgun', slot: '무기', name: '추적 레일건', reqTier: 12, requirementWeights: { dexterity: 1 }, baseStats: [{ id: 'flatDmg', base: 48, legacyDamageBase: 28 }, { id: 'projectilePctDmg', base: 22 }, { id: 'projectileExtraChance', base: 100 }] },
-    { id: 'tempest_volley', slot: '무기', name: '폭풍 연사궁', reqTier: 15, requirementWeights: { dexterity: 1 }, baseStats: [{ id: 'flatDmg', base: 69, legacyDamageBase: 35 }, { id: 'projectilePctDmg', base: 30 }, { id: 'projectileExtraChance', base: 150 }] },
-    { id: 'nova_rod', slot: '무기', name: '노바 로드', reqTier: 5, requirementWeights: { intelligence: 1 }, baseStats: [{ id: 'flatDmg', base: 9, legacyDamageBase: 7 }, { id: 'spellFlatDmg', base: 26, legacyDamageBase: 20 }] },
-    { id: 'rift_scepter', slot: '무기', name: '균열 홀', reqTier: 10, requirementWeights: { intelligence: 1 }, baseStats: [{ id: 'flatDmg', base: 22, legacyDamageBase: 14 }, { id: 'spellFlatDmg', base: 60, legacyDamageBase: 38 }, { id: 'spellFlatPct', base: 12 }] },
-    { id: 'void_archon_staff', slot: '무기', name: '공허 대현자 지팡이', reqTier: 15, requirementWeights: { intelligence: 1 }, baseStats: [{ id: 'flatDmg', base: 47, legacyDamageBase: 24 }, { id: 'spellFlatDmg', base: 114, legacyDamageBase: 58 }, { id: 'spellFlatPct', base: 22 }] },
-    { id: 'ember_wand', slot: '무기', name: '잿불 완드', reqTier: 8, requirementWeights: { intelligence: 1 }, baseStats: [{ id: 'flatDmg', base: 16, legacyDamageBase: 11 }, { id: 'spellFlatDmg', base: 44, legacyDamageBase: 30 }] },
-    { id: 'echo_focus', slot: '무기', name: '메아리 초점봉', reqTier: 12, requirementWeights: { intelligence: 1 }, baseStats: [{ id: 'flatDmg', base: 29, legacyDamageBase: 17 }, { id: 'spellFlatDmg', base: 80, legacyDamageBase: 46 }, { id: 'spellFlatPct', base: 16 }] },
-    { id: 'ritual_familiar_staff', slot: '무기', name: '의식 사역마 지팡이', reqTier: 12, requirementWeights: { intelligence: 1 }, baseStats: [{ id: 'flatDmg', base: 41, legacyDamageBase: 24 }, { id: 'summonPctDmg', base: 30 }, { id: 'summonEfficiency', base: 14 }] },
-    { id: 'abyss_chant_staff', slot: '무기', name: '심연 창가 지팡이', reqTier: 15, requirementWeights: { intelligence: 1 }, baseStats: [{ id: 'flatDmg', base: 39, legacyDamageBase: 20 }, { id: 'spellFlatDmg', base: 125, legacyDamageBase: 64 }, { id: 'spellFlatPct', base: 26 }] },
-    { id: 'archon_familiar_staff', slot: '무기', name: '아콘 사역마 지팡이', reqTier: 20, requirementWeights: { intelligence: 1 }, baseStats: [{ id: 'flatDmg', base: 101, legacyDamageBase: 42 }, { id: 'summonPctDmg', base: 40 }, { id: 'summonEfficiency', base: 18 }] },
-    { id: 'doomcleaver_blade', slot: '무기', name: '파멸 대검', reqTier: 17, requirementWeights: { strength: 1 }, baseStats: [{ id: 'flatDmg', base: 113, legacyDamageBase: 53 }, { id: 'crit', base: 11 }] },
-    { id: 'apocalypse_greatblade', slot: '무기', name: '멸세 대검', reqTier: 20, requirementWeights: { strength: 1 }, baseStats: [{ id: 'flatDmg', base: 154, legacyDamageBase: 64 }, { id: 'crit', base: 14 }] },
-    { id: 'cyclone_glaive', slot: '무기', name: '회오리 글레이브', reqTier: 17, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 117, legacyDamageBase: 55 }, { id: 'aspd', base: 13 }] },
-    { id: 'tempestlord_lance', slot: '무기', name: '태풍군주 창', reqTier: 20, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 158, legacyDamageBase: 66 }, { id: 'aspd', base: 16 }] },
-    { id: 'meteor_repeater', slot: '무기', name: '유성 연사 발리스타', reqTier: 20, requirementWeights: { dexterity: 1 }, baseStats: [{ id: 'flatDmg', base: 132, legacyDamageBase: 55 }, { id: 'projectilePctDmg', base: 34 }, { id: 'projectileExtraChance', base: 150 }] },
-    { id: 'genesis_void_staff', slot: '무기', name: '창세 공허 지팡이', reqTier: 20, requirementWeights: { intelligence: 1 }, baseStats: [{ id: 'flatDmg', base: 82, legacyDamageBase: 34 }, { id: 'spellFlatDmg', base: 187, legacyDamageBase: 78 }, { id: 'spellFlatPct', base: 30 }] },
+    { id: 'rusted_blade', slot: '무기', name: '녹슨 곡도', reqTier: 1, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 5, legacyDamageBase: 4 }] },
+    { id: 'apprentice_familiar_wand', slot: '무기', name: '견습 사역 오브', reqTier: 1, requirementWeights: { intelligence: 1 }, baseStats: [{ id: 'flatDmg', base: 6, legacyDamageBase: 5 }, { id: 'summonPctDmg', base: 10 }, { id: 'summonEfficiency', base: 4 }] },
+    { id: 'hunter_axe', slot: '무기', name: '사냥꾼의 곡도', reqTier: 3, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 11, legacyDamageBase: 9 }, { id: 'crit', base: 3 }] },
+    { id: 'pact_familiar_wand', slot: '무기', name: '계약 사역 오브', reqTier: 4, requirementWeights: { intelligence: 1 }, baseStats: [{ id: 'flatDmg', base: 11, legacyDamageBase: 9 }, { id: 'summonPctDmg', base: 14 }, { id: 'summonEfficiency', base: 6 }] },
+    { id: 'abyss_spear', slot: '무기', name: '심연의 대검', reqTier: 7, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 20, legacyDamageBase: 14 }, { id: 'aspd', base: 6 }, { id: 'baseBlockChance', base: 5, baseMin: 5, baseMax: 5 }] },
+    { id: 'bloodletter_blade', slot: '무기', name: '혈각 곡도', reqTier: 10, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 38, legacyDamageBase: 24 }, { id: 'crit', base: 5 }] },
+    { id: 'gale_fang_spear', slot: '무기', name: '질풍 대검', reqTier: 10, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 38, legacyDamageBase: 24 }, { id: 'aspd', base: 8 }, { id: 'baseBlockChance', base: 5, baseMin: 5, baseMax: 5 }] },
+    { id: 'executioner_blade', slot: '무기', name: '처형자의 대검', reqTier: 14, requirementWeights: { strength: 1 }, baseStats: [{ id: 'flatDmg', base: 71, legacyDamageBase: 38 }, { id: 'crit', base: 8 }, { id: 'baseBlockChance', base: 5, baseMin: 5, baseMax: 5 }] },
+    { id: 'tempest_pike', slot: '무기', name: '폭풍 대검', reqTier: 15, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 82, legacyDamageBase: 42 }, { id: 'aspd', base: 10 }, { id: 'baseBlockChance', base: 5, baseMin: 5, baseMax: 5 }] },
+    { id: 'windlash_bow', slot: '무기', name: '돌풍 단궁', reqTier: 5, requirementWeights: { dexterity: 1 }, baseStats: [{ id: 'flatDmg', base: 14, legacyDamageBase: 11 }, { id: 'projectilePctDmg', base: 10 }] },
+    { id: 'stormbolt_launcher', slot: '무기', name: '폭전 단궁', reqTier: 10, requirementWeights: { dexterity: 1 }, baseStats: [{ id: 'flatDmg', base: 35, legacyDamageBase: 22 }, { id: 'projectilePctDmg', base: 18 }, { id: 'projectileExtraChance', base: 50 }] },
+    { id: 'starfall_ballista', slot: '무기', name: '유성 단궁', reqTier: 15, requirementWeights: { dexterity: 1 }, baseStats: [{ id: 'flatDmg', base: 72, legacyDamageBase: 37 }, { id: 'projectilePctDmg', base: 26 }, { id: 'projectileExtraChance', base: 100 }] },
+    { id: 'needle_recurve', slot: '무기', name: '바늘 단궁', reqTier: 8, requirementWeights: { dexterity: 1 }, baseStats: [{ id: 'flatDmg', base: 26, legacyDamageBase: 18 }, { id: 'projectilePctDmg', base: 14 }] },
+    { id: 'spiritbound_wand', slot: '무기', name: '영혼 결속 오브', reqTier: 8, requirementWeights: { intelligence: 1 }, baseStats: [{ id: 'flatDmg', base: 23, legacyDamageBase: 16 }, { id: 'summonPctDmg', base: 22 }, { id: 'summonEfficiency', base: 10 }] },
+    { id: 'seeker_railgun', slot: '무기', name: '추적 단궁', reqTier: 12, requirementWeights: { dexterity: 1 }, baseStats: [{ id: 'flatDmg', base: 48, legacyDamageBase: 28 }, { id: 'projectilePctDmg', base: 22 }, { id: 'projectileExtraChance', base: 100 }] },
+    { id: 'tempest_volley', slot: '무기', name: '폭풍 연사 단궁', reqTier: 15, requirementWeights: { dexterity: 1 }, baseStats: [{ id: 'flatDmg', base: 69, legacyDamageBase: 35 }, { id: 'projectilePctDmg', base: 30 }, { id: 'projectileExtraChance', base: 150 }] },
+    { id: 'nova_rod', slot: '무기', name: '노바 오브', reqTier: 5, requirementWeights: { intelligence: 1 }, baseStats: [{ id: 'flatDmg', base: 9, legacyDamageBase: 7 }, { id: 'spellFlatDmg', base: 26, legacyDamageBase: 20 }] },
+    { id: 'rift_scepter', slot: '무기', name: '균열 오브', reqTier: 10, requirementWeights: { intelligence: 1 }, baseStats: [{ id: 'flatDmg', base: 22, legacyDamageBase: 14 }, { id: 'spellFlatDmg', base: 60, legacyDamageBase: 38 }, { id: 'spellFlatPct', base: 12 }] },
+    { id: 'void_archon_staff', slot: '무기', name: '공허 대현자 오브', reqTier: 15, requirementWeights: { intelligence: 1 }, baseStats: [{ id: 'flatDmg', base: 47, legacyDamageBase: 24 }, { id: 'spellFlatDmg', base: 114, legacyDamageBase: 58 }, { id: 'spellFlatPct', base: 22 }] },
+    { id: 'ember_wand', slot: '무기', name: '잿불 오브', reqTier: 8, requirementWeights: { intelligence: 1 }, baseStats: [{ id: 'flatDmg', base: 16, legacyDamageBase: 11 }, { id: 'spellFlatDmg', base: 44, legacyDamageBase: 30 }] },
+    { id: 'echo_focus', slot: '무기', name: '메아리 수정 오브', reqTier: 12, requirementWeights: { intelligence: 1 }, baseStats: [{ id: 'flatDmg', base: 29, legacyDamageBase: 17 }, { id: 'spellFlatDmg', base: 80, legacyDamageBase: 46 }, { id: 'spellFlatPct', base: 16 }] },
+    { id: 'ritual_familiar_staff', slot: '무기', name: '의식 사역마 오브', reqTier: 12, requirementWeights: { intelligence: 1 }, baseStats: [{ id: 'flatDmg', base: 41, legacyDamageBase: 24 }, { id: 'summonPctDmg', base: 30 }, { id: 'summonEfficiency', base: 14 }] },
+    { id: 'abyss_chant_staff', slot: '무기', name: '심연 창가 오브', reqTier: 15, requirementWeights: { intelligence: 1 }, baseStats: [{ id: 'flatDmg', base: 39, legacyDamageBase: 20 }, { id: 'spellFlatDmg', base: 125, legacyDamageBase: 64 }, { id: 'spellFlatPct', base: 26 }] },
+    { id: 'archon_familiar_staff', slot: '무기', name: '아콘 사역마 오브', reqTier: 20, requirementWeights: { intelligence: 1 }, baseStats: [{ id: 'flatDmg', base: 101, legacyDamageBase: 42 }, { id: 'summonPctDmg', base: 40 }, { id: 'summonEfficiency', base: 18 }] },
+    { id: 'doomcleaver_blade', slot: '무기', name: '파멸 대검', reqTier: 17, requirementWeights: { strength: 1 }, baseStats: [{ id: 'flatDmg', base: 113, legacyDamageBase: 53 }, { id: 'crit', base: 11 }, { id: 'baseBlockChance', base: 5, baseMin: 5, baseMax: 5 }] },
+    { id: 'apocalypse_greatblade', slot: '무기', name: '멸세 대검', reqTier: 20, requirementWeights: { strength: 1 }, baseStats: [{ id: 'flatDmg', base: 154, legacyDamageBase: 64 }, { id: 'crit', base: 14 }, { id: 'baseBlockChance', base: 5, baseMin: 5, baseMax: 5 }] },
+    { id: 'cyclone_glaive', slot: '무기', name: '회오리 대검', reqTier: 17, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 117, legacyDamageBase: 55 }, { id: 'aspd', base: 13 }, { id: 'baseBlockChance', base: 5, baseMin: 5, baseMax: 5 }] },
+    { id: 'tempestlord_lance', slot: '무기', name: '태풍군주 대검', reqTier: 20, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 158, legacyDamageBase: 66 }, { id: 'aspd', base: 16 }, { id: 'baseBlockChance', base: 5, baseMin: 5, baseMax: 5 }] },
+    { id: 'meteor_repeater', slot: '무기', name: '유성 연사 단궁', reqTier: 20, requirementWeights: { dexterity: 1 }, baseStats: [{ id: 'flatDmg', base: 132, legacyDamageBase: 55 }, { id: 'projectilePctDmg', base: 34 }, { id: 'projectileExtraChance', base: 150 }] },
+    { id: 'genesis_void_staff', slot: '무기', name: '창세 공허 오브', reqTier: 20, requirementWeights: { intelligence: 1 }, baseStats: [{ id: 'flatDmg', base: 82, legacyDamageBase: 34 }, { id: 'spellFlatDmg', base: 187, legacyDamageBase: 78 }, { id: 'spellFlatPct', base: 30 }] },
     // 플라스크(연금술사가 던지는 병): 포션 스킬 · 범위 피해. 향로(사제가 휘두르는 사슬 향로): 번개(신성) 피해 · 초당 재생.
     { id: 'cracked_flask', slot: '무기', name: '금 간 플라스크', reqTier: 1, requirementWeights: { dexterity: 0.6, intelligence: 0.6 }, baseStats: [{ id: 'flatDmg', base: 6, legacyDamageBase: 5 }, { id: 'potionPctDmg', base: 10 }] },
     { id: 'catalyst_flask', slot: '무기', name: '촉매 플라스크', reqTier: 5, requirementWeights: { dexterity: 0.6, intelligence: 0.6 }, baseStats: [{ id: 'flatDmg', base: 14, legacyDamageBase: 11 }, { id: 'potionPctDmg', base: 14 }, { id: 'poisonChance', base: 5 }] },
@@ -1840,9 +1857,9 @@ const BASE_ITEM_DB = [
     { id: 'crescent_scimitar', slot: '무기', name: '초승 곡도', reqTier: 14, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 62, legacyDamageBase: 33 }, { id: 'crit', base: 8 }, { id: 'aspd', base: 5 }] },
     { id: 'blackiron_scimitar', slot: '무기', name: '흑철 곡도', reqTier: 17, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 100, legacyDamageBase: 47 }, { id: 'crit', base: 11 }, { id: 'aspd', base: 7 }] },
     { id: 'eclipse_scimitar', slot: '무기', name: '월식 곡도', reqTier: 20, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 134, legacyDamageBase: 56 }, { id: 'crit', base: 14 }, { id: 'aspd', base: 9 }] },
-    { id: 'dull_greatsword', slot: '무기', name: '무딘 대검', reqTier: 1, requirementWeights: { strength: 1 }, baseStats: [{ id: 'flatDmg', base: 6, legacyDamageBase: 5 }, { id: 'crit', base: 2 }] },
-    { id: 'iron_greatsword', slot: '무기', name: '무쇠 대검', reqTier: 4, requirementWeights: { strength: 1 }, baseStats: [{ id: 'flatDmg', base: 12, legacyDamageBase: 10 }, { id: 'crit', base: 4 }] },
-    { id: 'warden_greatsword', slot: '무기', name: '파수꾼 대검', reqTier: 10, requirementWeights: { strength: 1 }, baseStats: [{ id: 'flatDmg', base: 38, legacyDamageBase: 24 }, { id: 'crit', base: 6 }] },
+    { id: 'dull_greatsword', slot: '무기', name: '무딘 대검', reqTier: 1, requirementWeights: { strength: 1 }, baseStats: [{ id: 'flatDmg', base: 6, legacyDamageBase: 5 }, { id: 'crit', base: 2 }, { id: 'baseBlockChance', base: 5, baseMin: 5, baseMax: 5 }] },
+    { id: 'iron_greatsword', slot: '무기', name: '무쇠 대검', reqTier: 4, requirementWeights: { strength: 1 }, baseStats: [{ id: 'flatDmg', base: 12, legacyDamageBase: 10 }, { id: 'crit', base: 4 }, { id: 'baseBlockChance', base: 5, baseMin: 5, baseMax: 5 }] },
+    { id: 'warden_greatsword', slot: '무기', name: '파수꾼 대검', reqTier: 10, requirementWeights: { strength: 1 }, baseStats: [{ id: 'flatDmg', base: 38, legacyDamageBase: 24 }, { id: 'crit', base: 6 }, { id: 'baseBlockChance', base: 5, baseMin: 5, baseMax: 5 }] },
     { id: 'hunting_shortbow', slot: '무기', name: '사냥 단궁', reqTier: 1, requirementWeights: { dexterity: 1 }, baseStats: [{ id: 'flatDmg', base: 6, legacyDamageBase: 5 }, { id: 'projectilePctDmg', base: 6 }] },
     { id: 'cloth_hood', slot: '투구', name: '천 후드', reqTier: 1, baseStats: [{ id: 'flatHp', base: 12 }, { id: 'energyShield', base: 36 }] },
     { id: 'war_helm', slot: '투구', name: '전투 투구', reqTier: 4, baseStats: [{ id: 'flatHp', base: 28 }, { id: 'armor', base: 105 }, { id: 'dr', base: 2 }] },
@@ -1958,7 +1975,7 @@ const BASE_ITEM_DB = [
     { id: 'topaz_ring', slot: '반지', name: '황옥 반지', reqTier: 8, baseStats: [{ id: 'resL', base: 12 }] },
     { id: 'twin_stone_ring', slot: '반지', name: '쌍석 반지', reqTier: 14, baseStats: [{ id: 'resF', base: 12 }, { id: 'resL', base: 12 }] },
     { id: 'diamond_ring', slot: '반지', name: '금강석 반지', reqTier: 18, baseStats: [{ id: 'crit', base: 7 }, { id: 'critDmg', base: 18 }] },
-    { id: 'root_blade_fang', slot: '무기', name: '뿌리 송곳', reqTier: 6, dropOnly: { type: 'act' }, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 27, legacyDamageBase: 20 }, { id: 'physIgnore', base: 4 }, { id: 'leech', base: 0.8 }] },
+    { id: 'root_blade_fang', slot: '무기', name: '뿌리 곡도', reqTier: 6, dropOnly: { type: 'act' }, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 27, legacyDamageBase: 20 }, { id: 'physIgnore', base: 4 }, { id: 'leech', base: 0.8 }] },
     { id: 'beehive_stinger_mail', slot: '갑옷', name: '벌침 갑피', reqTier: 12, dropOnly: { type: 'beehive' }, baseStats: [{ id: 'flatHp', base: 88 }, { id: 'resChaos', base: 10 }, { id: 'evasion', base: 295 }, { id: 'poisonDamageMultiplierPct', base: 10 }] },
     // 재사용 대기시간 세팅(2026-10-21): 대균열 파편투구와 시련 감시자 장화의 저항 관통 줄을 재사용 대기시간 줄로 바꿨다. 장비는 베이스 줄을
     // 떨어질 때 제 몸에 적으므로(js/passives.js rollBaseStat) 이미 가진 장비는 그대로다.
@@ -1985,44 +2002,44 @@ const BASE_ITEM_DB = [
     { id: 'beastcall_band', slot: '반지', name: '야수 부름 반지', reqTier: 11, baseStats: [{ id: 'summonEfficiency', base: 12 }, { id: 'summonCrit', base: 4 }] },
     { id: 'overlord_ring', slot: '반지', name: '군주 반지', reqTier: 15, baseStats: [{ id: 'summonPctDmg', base: 18 }, { id: 'summonCap', base: 1 }] },
     { id: 'graveknot_belt', slot: '허리띠', name: '묘결 속박대', reqTier: 10, baseStats: [{ id: 'flatHp', base: 60 }, { id: 'resChaos', base: 9 }] },
-    { id: 'echo_lance', slot: '무기', name: '메아리 창', reqTier: 11, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 46, legacyDamageBase: 28 }, { id: 'aspd', base: 7 }] },
-    { id: 'spirit_call_wand', slot: '무기', name: '정령 소환봉', reqTier: 6, requirementWeights: { intelligence: 1 }, baseStats: [{ id: 'flatDmg', base: 16, legacyDamageBase: 12 }, { id: 'summonPctDmg', base: 18 }, { id: 'summonEfficiency', base: 8 }] },
-    { id: 'gravebind_scepter', slot: '무기', name: '묘지 결속 홀', reqTier: 10, requirementWeights: { intelligence: 1 }, baseStats: [{ id: 'flatDmg', base: 25, legacyDamageBase: 16 }, { id: 'summonPctDmg', base: 26 }, { id: 'summonHpPct', base: 18 }] },
-    { id: 'astral_familiar_staff', slot: '무기', name: '성운 사역마 지팡이', reqTier: 15, requirementWeights: { intelligence: 1 }, baseStats: [{ id: 'flatDmg', base: 43, legacyDamageBase: 22 }, { id: 'summonPctDmg', base: 36 }, { id: 'summonCritDmg', base: 24 }] },
+    { id: 'echo_lance', slot: '무기', name: '메아리 대검', reqTier: 11, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 46, legacyDamageBase: 28 }, { id: 'aspd', base: 7 }, { id: 'baseBlockChance', base: 5, baseMin: 5, baseMax: 5 }] },
+    { id: 'spirit_call_wand', slot: '무기', name: '정령 소환 오브', reqTier: 6, requirementWeights: { intelligence: 1 }, baseStats: [{ id: 'flatDmg', base: 16, legacyDamageBase: 12 }, { id: 'summonPctDmg', base: 18 }, { id: 'summonEfficiency', base: 8 }] },
+    { id: 'gravebind_scepter', slot: '무기', name: '묘지 결속 오브', reqTier: 10, requirementWeights: { intelligence: 1 }, baseStats: [{ id: 'flatDmg', base: 25, legacyDamageBase: 16 }, { id: 'summonPctDmg', base: 26 }, { id: 'summonHpPct', base: 18 }] },
+    { id: 'astral_familiar_staff', slot: '무기', name: '성운 사역마 오브', reqTier: 15, requirementWeights: { intelligence: 1 }, baseStats: [{ id: 'flatDmg', base: 43, legacyDamageBase: 22 }, { id: 'summonPctDmg', base: 36 }, { id: 'summonCritDmg', base: 24 }] },
     { id: 'ember_circlet', slot: '투구', name: '잿불 서클릿', reqTier: 12, baseStats: [{ id: 'energyShield', base: 126 }, { id: 'resF', base: 10 }] },
     { id: 'tidal_vest', slot: '갑옷', name: '조류의 흉갑', reqTier: 12, baseStats: [{ id: 'flatHp', base: 66 }, { id: 'resC', base: 10 }, { id: 'armor', base: 145 }, { id: 'evasion', base: 150 }] },
     { id: 'gale_treads', slot: '신발', name: '질풍 발굽', reqTier: 12, baseStats: [{ id: 'move', base: 16 }, { id: 'evasion', base: 94 }] },
-    { id: 'buckler_scrap', slot: '방패', name: '고철 버클러', reqTier: 1, baseStats: [{ id: 'armor', base: 46 }, { id: 'baseBlockChance', base: 5.5 }] },
-    { id: 'iron_buckler', slot: '방패', name: '철 버클러', reqTier: 4, baseStats: [{ id: 'armor', base: 78 }, { id: 'baseBlockChance', base: 5.5 }] },
-    { id: 'woven_guard', slot: '방패', name: '직조 가드', reqTier: 4, baseStats: [{ id: 'evasion', base: 78 }, { id: 'baseBlockChance', base: 6 }] },
-    { id: 'aegis_focus', slot: '방패', name: '아이기스 포커스', reqTier: 4, baseStats: [{ id: 'energyShield', base: 82 }, { id: 'baseBlockChance', base: 6.5 }] },
-    { id: 'scale_guard', slot: '방패', name: '비늘 방패', reqTier: 8, baseStats: [{ id: 'armor', base: 70 }, { id: 'evasion', base: 68 }, { id: 'baseBlockChance', base: 5 }] },
-    { id: 'ward_kite', slot: '방패', name: '수호 카이트', reqTier: 8, baseStats: [{ id: 'armor', base: 68 }, { id: 'energyShield', base: 66 }, { id: 'baseBlockChance', base: 5.8 }] },
-    { id: 'mist_guard', slot: '방패', name: '안개 수호패', reqTier: 8, baseStats: [{ id: 'evasion', base: 66 }, { id: 'energyShield', base: 64 }, { id: 'baseBlockChance', base: 5.2 }] },
-    { id: 'tower_wall', slot: '방패', name: '타워 월', reqTier: 8, baseStats: [{ id: 'armor', base: 124 }, { id: 'baseBlockChance', base: 5.5 }] },
-    { id: 'mirage_guard', slot: '방패', name: '신기루 가드', reqTier: 8, baseStats: [{ id: 'evasion', base: 122 }, { id: 'baseBlockChance', base: 6 }] },
-    { id: 'ether_focus', slot: '방패', name: '에테르 초점패', reqTier: 8, baseStats: [{ id: 'energyShield', base: 132 }, { id: 'baseBlockChance', base: 6.5 }] },
-    { id: 'drake_scale_guard', slot: '방패', name: '용비늘 방패', reqTier: 8, baseStats: [{ id: 'armor', base: 102 }, { id: 'evasion', base: 100 }, { id: 'baseBlockChance', base: 5 }] },
-    { id: 'temple_kite', slot: '방패', name: '사원 카이트', reqTier: 8, baseStats: [{ id: 'armor', base: 100 }, { id: 'energyShield', base: 98 }, { id: 'baseBlockChance', base: 5.8 }] },
-    { id: 'veil_guard', slot: '방패', name: '장막 수호패', reqTier: 8, baseStats: [{ id: 'evasion', base: 98 }, { id: 'energyShield', base: 96 }, { id: 'baseBlockChance', base: 5.2 }] },
-    { id: 'citadel_wall', slot: '방패', name: '성채 방벽', reqTier: 12, baseStats: [{ id: 'armor', base: 168 }, { id: 'baseBlockChance', base: 5.5 }] },
-    { id: 'phase_bulwark', slot: '방패', name: '위상 불워크', reqTier: 12, baseStats: [{ id: 'evasion', base: 165 }, { id: 'baseBlockChance', base: 6 }] },
-    { id: 'starlit_focus', slot: '방패', name: '성광 초점패', reqTier: 12, baseStats: [{ id: 'energyShield', base: 178 }, { id: 'baseBlockChance', base: 6.5 }] },
-    { id: 'runic_scale_guard', slot: '방패', name: '룬비늘 방패', reqTier: 12, baseStats: [{ id: 'armor', base: 132 }, { id: 'evasion', base: 128 }, { id: 'baseBlockChance', base: 5 }] },
-    { id: 'relic_kite', slot: '방패', name: '유물 카이트', reqTier: 12, baseStats: [{ id: 'armor', base: 130 }, { id: 'energyShield', base: 126 }, { id: 'baseBlockChance', base: 5.8 }] },
-    { id: 'moon_barrier', slot: '방패', name: '월영 배리어', reqTier: 12, baseStats: [{ id: 'evasion', base: 128 }, { id: 'energyShield', base: 124 }, { id: 'baseBlockChance', base: 5.2 }] },
-    { id: 'adamant_wall', slot: '방패', name: '금강 방벽', reqTier: 16, baseStats: [{ id: 'armor', base: 225 }, { id: 'baseBlockChance', base: 5.5 }] },
-    { id: 'nightveil_guard', slot: '방패', name: '밤장막 가드', reqTier: 16, baseStats: [{ id: 'evasion', base: 220 }, { id: 'baseBlockChance', base: 6 }] },
-    { id: 'archon_focus', slot: '방패', name: '아콘 초점패', reqTier: 16, baseStats: [{ id: 'energyShield', base: 238 }, { id: 'baseBlockChance', base: 6.5 }] },
-    { id: 'bastion_aegis', slot: '방패', name: '보루 이지스', reqTier: 16, baseStats: [{ id: 'armor', base: 168 }, { id: 'evasion', base: 162 }, { id: 'baseBlockChance', base: 5 }] },
-    { id: 'sanctum_aegis', slot: '방패', name: '성소 이지스', reqTier: 16, baseStats: [{ id: 'armor', base: 166 }, { id: 'energyShield', base: 160 }, { id: 'baseBlockChance', base: 5.8 }] },
-    { id: 'astral_barrier', slot: '방패', name: '성운 배리어', reqTier: 16, baseStats: [{ id: 'evasion', base: 162 }, { id: 'energyShield', base: 158 }, { id: 'baseBlockChance', base: 5.2 }] },
-    { id: 'parry_round_t1', slot: '방패', name: '결투 원형방패', reqTier: 1, shieldStyle: 'parry', baseStats: [{ id: 'armor', base: 14 }, { id: 'baseBlockChance', base: 10 }] },
-    { id: 'parry_iron_t4', slot: '방패', name: '응수 철방패', reqTier: 4, shieldStyle: 'parry', baseStats: [{ id: 'armor', base: 30 }, { id: 'baseBlockChance', base: 11 }] },
-    { id: 'parry_rune_t8', slot: '방패', name: '파수 룬방패', reqTier: 8, shieldStyle: 'parry', baseStats: [{ id: 'armor', base: 52 }, { id: 'baseBlockChance', base: 12 }] },
-    { id: 'parry_sentinel_t12', slot: '방패', name: '감시자의 방패', reqTier: 12, shieldStyle: 'parry', baseStats: [{ id: 'armor', base: 76 }, { id: 'baseBlockChance', base: 13 }] },
-    { id: 'parry_seraph_t16', slot: '방패', name: '세라프 방패', reqTier: 16, shieldStyle: 'parry', baseStats: [{ id: 'armor', base: 102 }, { id: 'baseBlockChance', base: 14 }] },
-    { id: 'parry_astral_t20', slot: '방패', name: '성계 응수방패', reqTier: 20, shieldStyle: 'parry', baseStats: [{ id: 'armor', base: 132 }, { id: 'baseBlockChance', base: 15 }, { id: 'resAll', base: 3 }] },
+    { id: 'buckler_scrap', slot: '방패', name: '고철 완갑', reqTier: 1, baseStats: [{ id: 'armor', base: 46 }] },
+    { id: 'iron_buckler', slot: '방패', name: '철제 완갑', reqTier: 4, baseStats: [{ id: 'armor', base: 78 }] },
+    { id: 'woven_guard', slot: '방패', name: '직조 완갑', reqTier: 4, baseStats: [{ id: 'evasion', base: 78 }] },
+    { id: 'aegis_focus', slot: '방패', name: '마력 집중 완갑', reqTier: 4, baseStats: [{ id: 'energyShield', base: 82 }, { id: 'baseBlockChance', base: 6.5 }] },
+    { id: 'scale_guard', slot: '방패', name: '비늘 완갑', reqTier: 8, baseStats: [{ id: 'armor', base: 70 }, { id: 'evasion', base: 68 }] },
+    { id: 'ward_kite', slot: '방패', name: '수호 완갑', reqTier: 8, baseStats: [{ id: 'armor', base: 68 }, { id: 'energyShield', base: 66 }] },
+    { id: 'mist_guard', slot: '방패', name: '안개 완갑', reqTier: 8, baseStats: [{ id: 'evasion', base: 66 }, { id: 'energyShield', base: 64 }] },
+    { id: 'tower_wall', slot: '방패', name: '중갑 완갑', reqTier: 8, baseStats: [{ id: 'armor', base: 124 }] },
+    { id: 'mirage_guard', slot: '방패', name: '신기루 완갑', reqTier: 8, baseStats: [{ id: 'evasion', base: 122 }] },
+    { id: 'ether_focus', slot: '방패', name: '에테르 완갑', reqTier: 8, baseStats: [{ id: 'energyShield', base: 132 }, { id: 'baseBlockChance', base: 6.5 }] },
+    { id: 'drake_scale_guard', slot: '방패', name: '용비늘 완갑', reqTier: 8, baseStats: [{ id: 'armor', base: 102 }, { id: 'evasion', base: 100 }] },
+    { id: 'temple_kite', slot: '방패', name: '사원 완갑', reqTier: 8, baseStats: [{ id: 'armor', base: 100 }, { id: 'energyShield', base: 98 }] },
+    { id: 'veil_guard', slot: '방패', name: '장막 완갑', reqTier: 8, baseStats: [{ id: 'evasion', base: 98 }, { id: 'energyShield', base: 96 }] },
+    { id: 'citadel_wall', slot: '방패', name: '성채 완갑', reqTier: 12, baseStats: [{ id: 'armor', base: 168 }] },
+    { id: 'phase_bulwark', slot: '방패', name: '위상 완갑', reqTier: 12, baseStats: [{ id: 'evasion', base: 165 }] },
+    { id: 'starlit_focus', slot: '방패', name: '성광 완갑', reqTier: 12, baseStats: [{ id: 'energyShield', base: 178 }, { id: 'baseBlockChance', base: 6.5 }] },
+    { id: 'runic_scale_guard', slot: '방패', name: '룬비늘 완갑', reqTier: 12, baseStats: [{ id: 'armor', base: 132 }, { id: 'evasion', base: 128 }] },
+    { id: 'relic_kite', slot: '방패', name: '유물 완갑', reqTier: 12, baseStats: [{ id: 'armor', base: 130 }, { id: 'energyShield', base: 126 }] },
+    { id: 'moon_barrier', slot: '방패', name: '월영 완갑', reqTier: 12, baseStats: [{ id: 'evasion', base: 128 }, { id: 'energyShield', base: 124 }] },
+    { id: 'adamant_wall', slot: '방패', name: '금강 완갑', reqTier: 16, baseStats: [{ id: 'armor', base: 225 }] },
+    { id: 'nightveil_guard', slot: '방패', name: '밤장막 완갑', reqTier: 16, baseStats: [{ id: 'evasion', base: 220 }] },
+    { id: 'archon_focus', slot: '방패', name: '집정관의 완갑', reqTier: 16, baseStats: [{ id: 'energyShield', base: 238 }, { id: 'baseBlockChance', base: 6.5 }] },
+    { id: 'bastion_aegis', slot: '방패', name: '보루 완갑', reqTier: 16, baseStats: [{ id: 'armor', base: 168 }, { id: 'evasion', base: 162 }] },
+    { id: 'sanctum_aegis', slot: '방패', name: '성소 완갑', reqTier: 16, baseStats: [{ id: 'armor', base: 166 }, { id: 'energyShield', base: 160 }] },
+    { id: 'astral_barrier', slot: '방패', name: '성운 완갑', reqTier: 16, baseStats: [{ id: 'evasion', base: 162 }, { id: 'energyShield', base: 158 }] },
+    { id: 'parry_round_t1', slot: '방패', name: '결투 완갑', reqTier: 1, shieldStyle: 'parry', baseStats: [{ id: 'armor', base: 14 }, { id: 'baseBlockChance', base: 10 }] },
+    { id: 'parry_iron_t4', slot: '방패', name: '응수 철제 완갑', reqTier: 4, shieldStyle: 'parry', baseStats: [{ id: 'armor', base: 30 }, { id: 'baseBlockChance', base: 11 }] },
+    { id: 'parry_rune_t8', slot: '방패', name: '파수 룬 완갑', reqTier: 8, shieldStyle: 'parry', baseStats: [{ id: 'armor', base: 52 }, { id: 'baseBlockChance', base: 12 }] },
+    { id: 'parry_sentinel_t12', slot: '방패', name: '감시자의 완갑', reqTier: 12, shieldStyle: 'parry', baseStats: [{ id: 'armor', base: 76 }, { id: 'baseBlockChance', base: 13 }] },
+    { id: 'parry_seraph_t16', slot: '방패', name: '세라프 완갑', reqTier: 16, shieldStyle: 'parry', baseStats: [{ id: 'armor', base: 102 }, { id: 'baseBlockChance', base: 14 }] },
+    { id: 'parry_astral_t20', slot: '방패', name: '성계 응수 완갑', reqTier: 20, shieldStyle: 'parry', baseStats: [{ id: 'armor', base: 132 }, { id: 'baseBlockChance', base: 15 }, { id: 'resAll', base: 3 }] },
     // 수평 베이스(2026-10-09 목표 "다양한 수평 베이스"): 같은 등급의 다른 베이스보다 세지 않고, 방어나 생명을 덜어 그 대신 다른 기본
     // 옵션을 준다. family가 같은 것끼리만 승급하고(js/items.js getBaseUpgradeCandidates), 기존 사슬의 승급 대상이 되지 않는다.
     // 이 자리(각 부위의 첫 베이스 뒤, 마지막 베이스 앞)에 둬서 부위별 첫 베이스와 마지막 베이스를 읽는 검사 고정 데이터가 그대로다.
@@ -2039,9 +2056,9 @@ const BASE_ITEM_DB = [
     { id: 'sentry_greaves', slot: '신발', name: '초병 각반', reqTier: 11, family: 'warden', baseStats: [{ id: 'move', base: 13 }, { id: 'armor', base: 120 }, { id: 'resF', base: 7 }, { id: 'resC', base: 7 }] },
     { id: 'shade_treads', slot: '신발', name: '그림자 걸음', reqTier: 11, family: 'phantom', baseStats: [{ id: 'move', base: 14 }, { id: 'evasion', base: 110 }, { id: 'deflectChance', base: 3 }] },
     { id: 'sprout_boots', slot: '신발', name: '새싹 장화', reqTier: 11, family: 'vigor', baseStats: [{ id: 'move', base: 13 }, { id: 'flatHp', base: 40 }, { id: 'regenFlat', base: 30 }] },
-    { id: 'spellbook_shield', slot: '방패', name: '주문서 방패', reqTier: 11, family: 'spellward', baseStats: [{ id: 'energyShield', base: 140 }, { id: 'baseBlockChance', base: 3.5 }, { id: 'spellPctDmg', base: 9 }] },
-    { id: 'vow_shield', slot: '방패', name: '서약 방패', reqTier: 12, family: 'oathshield', baseStats: [{ id: 'armor', base: 150 }, { id: 'baseBlockChance', base: 4.5 }, { id: 'maxResAll', base: 1, baseMin: 1, baseMax: 1 }] },
-    { id: 'moss_shield', slot: '방패', name: '이끼 방패', reqTier: 11, family: 'lifewall', baseStats: [{ id: 'armor', base: 110 }, { id: 'baseBlockChance', base: 4.5 }, { id: 'flatHp', base: 40 }, { id: 'regenFlat', base: 24 }] },
+    { id: 'spellbook_shield', slot: '방패', name: '주문 각인 완갑', reqTier: 11, family: 'spellward', baseStats: [{ id: 'energyShield', base: 140 }, { id: 'spellPctDmg', base: 9 }] },
+    { id: 'vow_shield', slot: '방패', name: '서약 완갑', reqTier: 12, family: 'oathshield', baseStats: [{ id: 'armor', base: 150 }, { id: 'maxResAll', base: 1, baseMin: 1, baseMax: 1 }] },
+    { id: 'moss_shield', slot: '방패', name: '이끼 완갑', reqTier: 11, family: 'lifewall', baseStats: [{ id: 'armor', base: 110 }, { id: 'flatHp', base: 40 }, { id: 'regenFlat', base: 24 }] },
     { id: 'strongman_amulet', slot: '목걸이', name: '장사 목걸이', reqTier: 11, family: 'giant', baseStats: [{ id: 'strength', base: 15 }, { id: 'meleePctDmg', base: 6 }] },
     { id: 'breeze_amulet', slot: '목걸이', name: '산들 목걸이', reqTier: 11, family: 'gale', baseStats: [{ id: 'dexterity', base: 15 }, { id: 'projectilePctDmg', base: 6 }] },
     { id: 'lore_amulet', slot: '목걸이', name: '학식 목걸이', reqTier: 11, family: 'wisdom', baseStats: [{ id: 'intelligence', base: 15 }, { id: 'spellPctDmg', base: 6 }] },
@@ -2057,10 +2074,10 @@ const BASE_ITEM_DB = [
     { id: 'herbalist_sash', slot: '허리띠', name: '약초꾼 띠', reqTier: 12, family: 'alchemist', baseStats: [{ id: 'flatHp', base: 55 }, { id: 'potionPctDmg', base: 9 }, { id: 'dotPctDmg', base: 5 }] },
     { id: 'tracker_baldric', slot: '허리띠', name: '추적자의 띠', reqTier: 12, family: 'hunter', baseStats: [{ id: 'flatHp', base: 55 }, { id: 'dexterity', base: 12 }, { id: 'projectilePctDmg', base: 8 }] },
     { id: 'scholar_sash', slot: '허리띠', name: '학자의 띠', reqTier: 12, family: 'scholar', baseStats: [{ id: 'flatHp', base: 55 }, { id: 'intelligence', base: 12 }, { id: 'spellPctDmg', base: 8 }] },
-    { id: 'bigtree_maul', slot: '무기', name: '거목 망치', reqTier: 12, family: 'maul', requirementWeights: { strength: 1 }, baseStats: [{ id: 'flatDmg', base: 52 }, { id: 'physPctDmg', base: 9 }] },
-    { id: 'fang_kris', slot: '무기', name: '뱀이빨 크리스', reqTier: 12, family: 'kris', requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 46 }, { id: 'chaosPctDmg', base: 10 }, { id: 'aspd', base: 4 }] },
-    { id: 'hunting_longbow', slot: '무기', name: '사냥 장궁', reqTier: 12, family: 'longbow', requirementWeights: { dexterity: 1 }, baseStats: [{ id: 'flatDmg', base: 44 }, { id: 'projectilePctDmg', base: 12 }, { id: 'crit', base: 4 }] },
-    { id: 'spark_rod', slot: '무기', name: '번개 로드', reqTier: 12, family: 'stormrod', requirementWeights: { intelligence: 1 }, baseStats: [{ id: 'flatDmg', base: 26 }, { id: 'spellFlatDmg', base: 72 }, { id: 'lightPctDmg', base: 12 }] },
+    { id: 'bigtree_maul', slot: '무기', name: '거목 대검', reqTier: 12, family: 'maul', requirementWeights: { strength: 1 }, baseStats: [{ id: 'flatDmg', base: 52 }, { id: 'physPctDmg', base: 9 }, { id: 'baseBlockChance', base: 5, baseMin: 5, baseMax: 5 }] },
+    { id: 'fang_kris', slot: '무기', name: '뱀이빨 곡도', reqTier: 12, family: 'kris', requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 46 }, { id: 'chaosPctDmg', base: 10 }, { id: 'aspd', base: 4 }] },
+    { id: 'hunting_longbow', slot: '무기', name: '숲사냥꾼 단궁', reqTier: 12, family: 'longbow', requirementWeights: { dexterity: 1 }, baseStats: [{ id: 'flatDmg', base: 44 }, { id: 'projectilePctDmg', base: 12 }, { id: 'crit', base: 4 }] },
+    { id: 'spark_rod', slot: '무기', name: '번개 오브', reqTier: 12, family: 'stormrod', requirementWeights: { intelligence: 1 }, baseStats: [{ id: 'flatDmg', base: 26 }, { id: 'spellFlatDmg', base: 72 }, { id: 'lightPctDmg', base: 12 }] },
     { id: 'herb_toxin_flask', slot: '무기', name: '독초 플라스크', reqTier: 12, family: 'toxin', requirementWeights: { dexterity: 0.6, intelligence: 0.6 }, baseStats: [{ id: 'flatDmg', base: 44 }, { id: 'potionPctDmg', base: 16 }, { id: 'dotPctDmg', base: 9 }] },
     { id: 'coal_censer', slot: '무기', name: '숯불 향로', reqTier: 12, family: 'pyre', requirementWeights: { strength: 0.6, intelligence: 0.6 }, baseStats: [{ id: 'flatDmg', base: 46 }, { id: 'firePctDmg', base: 13 }, { id: 'regen', base: 0.3 }] },
     { id: 'watchtower_helm', slot: '투구', name: '망루 투구', reqTier: 16, family: 'watch', baseStats: [{ id: 'flatHp', base: 66 }, { id: 'armor', base: 150 }, { id: 'evasion', base: 154 }, { id: 'sight', base: 1, baseMin: 1, baseMax: 1 }] },
@@ -2090,12 +2107,12 @@ const BASE_ITEM_DB = [
     { id: 'wraith_treads', slot: '신발', name: '원령 걸음', reqTier: 20, family: 'phantom', baseStats: [{ id: 'move', base: 21 }, { id: 'evasion', base: 200 }, { id: 'deflectChance', base: 6 }] },
     { id: 'vigor_boots', slot: '신발', name: '활력 장화', reqTier: 16, family: 'vigor', baseStats: [{ id: 'move', base: 16 }, { id: 'flatHp', base: 60 }, { id: 'regenFlat', base: 50 }] },
     { id: 'lifebloom_boots', slot: '신발', name: '생명꽃 장화', reqTier: 20, family: 'vigor', baseStats: [{ id: 'move', base: 20 }, { id: 'flatHp', base: 80 }, { id: 'regenFlat', base: 70 }] },
-    { id: 'spellward_tome', slot: '방패', name: '주문 수호서', reqTier: 16, family: 'spellward', baseStats: [{ id: 'energyShield', base: 200 }, { id: 'baseBlockChance', base: 4 }, { id: 'spellPctDmg', base: 14 }] },
-    { id: 'arcane_bulwark_tome', slot: '방패', name: '비전 방벽서', reqTier: 20, family: 'spellward', baseStats: [{ id: 'energyShield', base: 250 }, { id: 'baseBlockChance', base: 4.5 }, { id: 'spellPctDmg', base: 20 }] },
-    { id: 'oath_shield', slot: '방패', name: '맹세 방패', reqTier: 16, family: 'oathshield', baseStats: [{ id: 'armor', base: 190 }, { id: 'baseBlockChance', base: 5 }, { id: 'maxResAll', base: 1, baseMin: 1, baseMax: 1 }] },
-    { id: 'covenant_shield', slot: '방패', name: '성약 방패', reqTier: 20, family: 'oathshield', baseStats: [{ id: 'armor', base: 240 }, { id: 'baseBlockChance', base: 5.5 }, { id: 'maxResAll', base: 1, baseMin: 1, baseMax: 2 }] },
-    { id: 'lifewall_shield', slot: '방패', name: '생명벽 방패', reqTier: 16, family: 'lifewall', baseStats: [{ id: 'armor', base: 150 }, { id: 'baseBlockChance', base: 5 }, { id: 'flatHp', base: 60 }, { id: 'regenFlat', base: 40 }] },
-    { id: 'lifecitadel_shield', slot: '방패', name: '생명성벽 방패', reqTier: 20, family: 'lifewall', baseStats: [{ id: 'armor', base: 190 }, { id: 'baseBlockChance', base: 5.5 }, { id: 'flatHp', base: 80 }, { id: 'regenFlat', base: 60 }] },
+    { id: 'spellward_tome', slot: '방패', name: '주문 수호 완갑', reqTier: 16, family: 'spellward', baseStats: [{ id: 'energyShield', base: 200 }, { id: 'spellPctDmg', base: 14 }] },
+    { id: 'arcane_bulwark_tome', slot: '방패', name: '비전 완갑', reqTier: 20, family: 'spellward', baseStats: [{ id: 'energyShield', base: 250 }, { id: 'spellPctDmg', base: 20 }] },
+    { id: 'oath_shield', slot: '방패', name: '맹세 완갑', reqTier: 16, family: 'oathshield', baseStats: [{ id: 'armor', base: 190 }, { id: 'maxResAll', base: 1, baseMin: 1, baseMax: 1 }] },
+    { id: 'covenant_shield', slot: '방패', name: '성약 완갑', reqTier: 20, family: 'oathshield', baseStats: [{ id: 'armor', base: 240 }, { id: 'maxResAll', base: 1, baseMin: 1, baseMax: 2 }] },
+    { id: 'lifewall_shield', slot: '방패', name: '생명의 완갑', reqTier: 16, family: 'lifewall', baseStats: [{ id: 'armor', base: 150 }, { id: 'flatHp', base: 60 }, { id: 'regenFlat', base: 40 }] },
+    { id: 'lifecitadel_shield', slot: '방패', name: '생명결속 완갑', reqTier: 20, family: 'lifewall', baseStats: [{ id: 'armor', base: 190 }, { id: 'flatHp', base: 80 }, { id: 'regenFlat', base: 60 }] },
     { id: 'giant_amulet', slot: '목걸이', name: '거인 목걸이', reqTier: 16, family: 'giant', baseStats: [{ id: 'strength', base: 24 }, { id: 'meleePctDmg', base: 10 }] },
     { id: 'titan_amulet', slot: '목걸이', name: '거신 목걸이', reqTier: 20, family: 'giant', baseStats: [{ id: 'strength', base: 32 }, { id: 'meleePctDmg', base: 14 }] },
     { id: 'gale_amulet', slot: '목걸이', name: '바람 목걸이', reqTier: 16, family: 'gale', baseStats: [{ id: 'dexterity', base: 24 }, { id: 'projectilePctDmg', base: 10 }] },
@@ -2117,23 +2134,23 @@ const BASE_ITEM_DB = [
     { id: 'alchemist_sash', slot: '허리띠', name: '연금술사의 띠', reqTier: 20, family: 'alchemist', baseStats: [{ id: 'flatHp', base: 80 }, { id: 'potionPctDmg', base: 14 }, { id: 'dotPctDmg', base: 8 }] },
     { id: 'hunter_baldric', slot: '허리띠', name: '사냥꾼의 띠', reqTier: 20, family: 'hunter', baseStats: [{ id: 'flatHp', base: 80 }, { id: 'dexterity', base: 20 }, { id: 'projectilePctDmg', base: 12 }] },
     { id: 'archsage_sash', slot: '허리띠', name: '대현자의 띠', reqTier: 20, family: 'scholar', baseStats: [{ id: 'flatHp', base: 80 }, { id: 'intelligence', base: 20 }, { id: 'spellPctDmg', base: 12 }] },
-    { id: 'oak_maul', slot: '무기', name: '고목 대망치', reqTier: 17, family: 'maul', requirementWeights: { strength: 1 }, baseStats: [{ id: 'flatDmg', base: 112 }, { id: 'physPctDmg', base: 14 }] },
-    { id: 'worldbreaker_maul', slot: '무기', name: '세계파쇄 대망치', reqTier: 20, family: 'maul', requirementWeights: { strength: 1 }, baseStats: [{ id: 'flatDmg', base: 150 }, { id: 'physPctDmg', base: 20 }] },
-    { id: 'venom_kris', slot: '무기', name: '독니 크리스', reqTier: 17, family: 'kris', requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 98 }, { id: 'chaosPctDmg', base: 16 }, { id: 'aspd', base: 6 }] },
-    { id: 'serpent_kris', slot: '무기', name: '대사 크리스', reqTier: 20, family: 'kris', requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 130 }, { id: 'chaosPctDmg', base: 22 }, { id: 'aspd', base: 8 }] },
-    { id: 'hawk_longbow', slot: '무기', name: '매의 장궁', reqTier: 17, family: 'longbow', requirementWeights: { dexterity: 1 }, baseStats: [{ id: 'flatDmg', base: 98 }, { id: 'projectilePctDmg', base: 18 }, { id: 'crit', base: 6 }] },
-    { id: 'skyhunter_longbow', slot: '무기', name: '하늘사냥 장궁', reqTier: 20, family: 'longbow', requirementWeights: { dexterity: 1 }, baseStats: [{ id: 'flatDmg', base: 126 }, { id: 'projectilePctDmg', base: 24 }, { id: 'crit', base: 8 }] },
-    { id: 'storm_rod', slot: '무기', name: '폭풍 로드', reqTier: 17, family: 'stormrod', requirementWeights: { intelligence: 1 }, baseStats: [{ id: 'flatDmg', base: 50 }, { id: 'spellFlatDmg', base: 150 }, { id: 'lightPctDmg', base: 18 }] },
-    { id: 'tempest_scepter', slot: '무기', name: '뇌우 셉터', reqTier: 20, family: 'stormrod', requirementWeights: { intelligence: 1 }, baseStats: [{ id: 'flatDmg', base: 70 }, { id: 'spellFlatDmg', base: 180 }, { id: 'lightPctDmg', base: 26 }] },
+    { id: 'oak_maul', slot: '무기', name: '고목 대검', reqTier: 17, family: 'maul', requirementWeights: { strength: 1 }, baseStats: [{ id: 'flatDmg', base: 112 }, { id: 'physPctDmg', base: 14 }, { id: 'baseBlockChance', base: 5, baseMin: 5, baseMax: 5 }] },
+    { id: 'worldbreaker_maul', slot: '무기', name: '세계파쇄 대검', reqTier: 20, family: 'maul', requirementWeights: { strength: 1 }, baseStats: [{ id: 'flatDmg', base: 150 }, { id: 'physPctDmg', base: 20 }, { id: 'baseBlockChance', base: 5, baseMin: 5, baseMax: 5 }] },
+    { id: 'venom_kris', slot: '무기', name: '독니 곡도', reqTier: 17, family: 'kris', requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 98 }, { id: 'chaosPctDmg', base: 16 }, { id: 'aspd', base: 6 }] },
+    { id: 'serpent_kris', slot: '무기', name: '왕뱀 곡도', reqTier: 20, family: 'kris', requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 130 }, { id: 'chaosPctDmg', base: 22 }, { id: 'aspd', base: 8 }] },
+    { id: 'hawk_longbow', slot: '무기', name: '매의 단궁', reqTier: 17, family: 'longbow', requirementWeights: { dexterity: 1 }, baseStats: [{ id: 'flatDmg', base: 98 }, { id: 'projectilePctDmg', base: 18 }, { id: 'crit', base: 6 }] },
+    { id: 'skyhunter_longbow', slot: '무기', name: '하늘사냥 단궁', reqTier: 20, family: 'longbow', requirementWeights: { dexterity: 1 }, baseStats: [{ id: 'flatDmg', base: 126 }, { id: 'projectilePctDmg', base: 24 }, { id: 'crit', base: 8 }] },
+    { id: 'storm_rod', slot: '무기', name: '폭풍 오브', reqTier: 17, family: 'stormrod', requirementWeights: { intelligence: 1 }, baseStats: [{ id: 'flatDmg', base: 50 }, { id: 'spellFlatDmg', base: 150 }, { id: 'lightPctDmg', base: 18 }] },
+    { id: 'tempest_scepter', slot: '무기', name: '뇌우 오브', reqTier: 20, family: 'stormrod', requirementWeights: { intelligence: 1 }, baseStats: [{ id: 'flatDmg', base: 70 }, { id: 'spellFlatDmg', base: 180 }, { id: 'lightPctDmg', base: 26 }] },
     { id: 'toxin_flask', slot: '무기', name: '독액 플라스크', reqTier: 17, family: 'toxin', requirementWeights: { dexterity: 0.6, intelligence: 0.6 }, baseStats: [{ id: 'flatDmg', base: 100 }, { id: 'potionPctDmg', base: 24 }, { id: 'dotPctDmg', base: 14 }] },
     { id: 'plague_flask', slot: '무기', name: '역병 플라스크', reqTier: 20, family: 'toxin', requirementWeights: { dexterity: 0.6, intelligence: 0.6 }, baseStats: [{ id: 'flatDmg', base: 125 }, { id: 'potionPctDmg', base: 32 }, { id: 'dotPctDmg', base: 20 }] },
     { id: 'pyre_censer', slot: '무기', name: '화장 향로', reqTier: 17, family: 'pyre', requirementWeights: { strength: 0.6, intelligence: 0.6 }, baseStats: [{ id: 'flatDmg', base: 110 }, { id: 'firePctDmg', base: 20 }, { id: 'regen', base: 0.4 }] },
     { id: 'phoenix_censer', slot: '무기', name: '불사조 향로', reqTier: 20, family: 'pyre', requirementWeights: { strength: 0.6, intelligence: 0.6 }, baseStats: [{ id: 'flatDmg', base: 138 }, { id: 'firePctDmg', base: 26 }, { id: 'regen', base: 0.5 }] },
-    { id: 'chaos_realm_fang', slot: '무기', name: '혼돈계 균열 송곳', reqTier: 18, realmBase: 'chaos', dropOnly: { minTier: 15 }, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 93, legacyDamageBase: 42 }, { id: 'chaosPctDmg', base: 24 }, { id: 'resChaos', base: 8 }] },
+    { id: 'chaos_realm_fang', slot: '무기', name: '혼돈계 균열 곡도', reqTier: 18, realmBase: 'chaos', dropOnly: { minTier: 15 }, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 93, legacyDamageBase: 42 }, { id: 'chaosPctDmg', base: 24 }, { id: 'resChaos', base: 8 }] },
     { id: 'chaos_realm_coil', slot: '반지', name: '혼돈계 소용돌이 반지', reqTier: 18, realmBase: 'chaos', dropOnly: { minTier: 15 }, baseStats: [{ id: 'chaosPctDmg', base: 18 }, { id: 'resChaos', base: 10 }] },
     { id: 'underworld_bastion', slot: '갑옷', name: '지하계 철벽 흉갑', reqTier: 20, realmBase: 'underworld', dropOnly: { minTier: 15 }, baseStats: [{ id: 'flatHp', base: 120 }, { id: 'armor', base: 260 }, { id: 'dr', base: 8 }] },
     { id: 'underworld_chain', slot: '허리띠', name: '지하계 결속 허리띠', reqTier: 20, realmBase: 'underworld', dropOnly: { minTier: 15 }, baseStats: [{ id: 'flatHp', base: 110 }, { id: 'resAll', base: 10 }, { id: 'resChaos', base: 12 }] },
-    { id: 'cosmos_prism_lance', slot: '무기', name: '우주계 프리즘 랜스', reqTier: 22, realmBase: 'cosmos', dropOnly: { minTier: 20 }, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 125, legacyDamageBase: 52 }, { id: 'elementalPctDmg', base: 28 }, { id: 'resPen', base: 9 }] },
+    { id: 'cosmos_prism_lance', slot: '무기', name: '우주계 프리즘 대검', reqTier: 22, realmBase: 'cosmos', dropOnly: { minTier: 20 }, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 125, legacyDamageBase: 52 }, { id: 'elementalPctDmg', base: 28 }, { id: 'resPen', base: 9 }, { id: 'baseBlockChance', base: 5, baseMin: 5, baseMax: 5 }] },
     { id: 'cosmos_core_amulet', slot: '목걸이', name: '우주계 핵성 목걸이', reqTier: 22, realmBase: 'cosmos', dropOnly: { minTier: 20 }, baseStats: [{ id: 'gemLevel', base: 1 }, { id: 'suppCap', base: 1 }, { id: 'resAll', base: 10 }] },
     { id: 'gen__armor_t1', slot: '투구', name: '무쇠 투구', reqTier: 1, baseStats: [{ id: 'flatHp', base: 7 }, { id: 'armor', base: 26 }] },
     { id: 'gen__armor_t16', slot: '투구', name: '금강 투구', reqTier: 16, baseStats: [{ id: 'flatHp', base: 83 }, { id: 'armor', base: 307 }, { id: 'resAll', base: 6 }] },
@@ -2189,14 +2206,14 @@ const BASE_ITEM_DB = [
     { id: 'gen__armor_evasion_t20_3', slot: '신발', name: '신월 장화', reqTier: 20, baseStats: [{ id: 'move', base: 23 }, { id: 'armor', base: 128 }, { id: 'evasion', base: 136 }, { id: 'resAll', base: 9 }] },
     { id: 'gen__armor_energyShield_t20_3', slot: '신발', name: '성왕 장화', reqTier: 20, baseStats: [{ id: 'move', base: 23 }, { id: 'armor', base: 168 }, { id: 'energyShield', base: 163 }, { id: 'resAll', base: 9 }] },
     { id: 'gen__evasion_energyShield_t20_3', slot: '신발', name: '월식 장화', reqTier: 20, baseStats: [{ id: 'move', base: 23 }, { id: 'evasion', base: 136 }, { id: 'energyShield', base: 131 }, { id: 'resAll', base: 9 }] },
-    { id: 'gen__armor_t20_4', slot: '방패', name: '불멸 방패', reqTier: 20, baseStats: [{ id: 'baseBlockChance', base: 5.5 }, { id: 'armor', base: 300 }, { id: 'resAll', base: 9 }] },
-    { id: 'gen__evasion_t1_2', slot: '방패', name: '들바람 방패', reqTier: 1, baseStats: [{ id: 'baseBlockChance', base: 6 }, { id: 'evasion', base: 24 }] },
-    { id: 'gen__evasion_t20_4', slot: '방패', name: '표풍 방패', reqTier: 20, baseStats: [{ id: 'baseBlockChance', base: 6 }, { id: 'evasion', base: 292 }, { id: 'resAll', base: 9 }] },
-    { id: 'gen__energyShield_t1_2', slot: '방패', name: '수정 방패', reqTier: 1, baseStats: [{ id: 'baseBlockChance', base: 6.5 }, { id: 'energyShield', base: 25 }] },
-    { id: 'gen__energyShield_t20_4', slot: '방패', name: '천상 방패', reqTier: 20, baseStats: [{ id: 'baseBlockChance', base: 6.5 }, { id: 'energyShield', base: 315 }, { id: 'resAll', base: 9 }] },
-    { id: 'gen__armor_evasion_t20_4', slot: '방패', name: '신월 방패', reqTier: 20, baseStats: [{ id: 'baseBlockChance', base: 5 }, { id: 'armor', base: 220 }, { id: 'evasion', base: 212 }, { id: 'resAll', base: 9 }] },
-    { id: 'gen__armor_energyShield_t20_4', slot: '방패', name: '성왕 방패', reqTier: 20, baseStats: [{ id: 'baseBlockChance', base: 5.8 }, { id: 'armor', base: 218 }, { id: 'energyShield', base: 210 }, { id: 'resAll', base: 9 }] },
-    { id: 'gen__evasion_energyShield_t20_4', slot: '방패', name: '월식 방패', reqTier: 20, baseStats: [{ id: 'baseBlockChance', base: 5.2 }, { id: 'evasion', base: 212 }, { id: 'energyShield', base: 206 }, { id: 'resAll', base: 9 }] }
+    { id: 'gen__armor_t20_4', slot: '방패', name: '불멸 완갑', reqTier: 20, baseStats: [{ id: 'armor', base: 300 }, { id: 'resAll', base: 9 }] },
+    { id: 'gen__evasion_t1_2', slot: '방패', name: '들바람 완갑', reqTier: 1, baseStats: [{ id: 'evasion', base: 24 }] },
+    { id: 'gen__evasion_t20_4', slot: '방패', name: '표풍 완갑', reqTier: 20, baseStats: [{ id: 'evasion', base: 292 }, { id: 'resAll', base: 9 }] },
+    { id: 'gen__energyShield_t1_2', slot: '방패', name: '수정 완갑', reqTier: 1, baseStats: [{ id: 'baseBlockChance', base: 6.5 }, { id: 'energyShield', base: 25 }] },
+    { id: 'gen__energyShield_t20_4', slot: '방패', name: '천상 완갑', reqTier: 20, baseStats: [{ id: 'baseBlockChance', base: 6.5 }, { id: 'energyShield', base: 315 }, { id: 'resAll', base: 9 }] },
+    { id: 'gen__armor_evasion_t20_4', slot: '방패', name: '신월 완갑', reqTier: 20, baseStats: [{ id: 'armor', base: 220 }, { id: 'evasion', base: 212 }, { id: 'resAll', base: 9 }] },
+    { id: 'gen__armor_energyShield_t20_4', slot: '방패', name: '성왕 완갑', reqTier: 20, baseStats: [{ id: 'armor', base: 218 }, { id: 'energyShield', base: 210 }, { id: 'resAll', base: 9 }] },
+    { id: 'gen__evasion_energyShield_t20_4', slot: '방패', name: '월식 완갑', reqTier: 20, baseStats: [{ id: 'evasion', base: 212 }, { id: 'energyShield', base: 206 }, { id: 'resAll', base: 9 }] }
 ];
 
 
@@ -2333,7 +2350,7 @@ const defaultGame = {
     // passives: atlas passive ids (js/atlas-passives.js); fragments: {id: count} per loop; loadout: fragment ids the device uses.
     // seeds: world-tree seeds 0..4 (pinnacle); epoch: {count, essence, perks} of the atlas rebirth layer (js/atlas-epoch.js).
     // endgame: the awakened late atlas (js/atlas-endgame.js) — kills, materials, blight, witness; survives loops, not the epoch.
-    atlas: { version: 1, unlocked: false, completed: [], bonus: [], passives: [], seeds: 0, stash: [], fragments: {}, loadout: [], nextUid: 1, run: null, lastResult: null, autoMap: false, starterSeason: 0, epoch: { count: 0, essence: 0, perks: {} },
+    atlas: { version: 1, unlocked: false, completed: [], bonus: [], passives: [], seeds: 0, stash: [], fragments: {}, loadout: [], nextUid: 1, run: null, lastResult: null, autoMap: false, autoGuardians: true, starterSeason: 0, epoch: { count: 0, essence: 0, perks: {} },
         endgame: { kills: {}, items: {}, blight: {}, witness: 0, witnessed: [] }, leaves: { counts: {}, seen: [], woven: {} },
         tally: { maps: 0, treasure: 0, golden: 0 } },
     // Last map's committed combat receipts; display only, never a claimable reward.
@@ -2350,6 +2367,7 @@ const defaultGame = {
     saveVersion: 19,
     // Permanent ledger: income follows CONTENT_UNLOCK_POINT_AWARDS (contentProgression.earnedBy), starting at loop two. carry: points a
     // save from before 2026-10-21 keeps beyond those awards (the earlier table's), 0 for a new game.
+    knitting: { season: 1, counts: {}, seen: [], knitted: {}, once: [] },
     contentProgression: { version: 9, highestLoop: 1, carry: 0, unlocked: [], paidCosts: {}, inherited: [], automatic: [], grandfathered: [] },
     loopChallenge: null,
     loopChallengeHistory: [],
@@ -2371,6 +2389,9 @@ const defaultGame = {
     loopDeaths: 0,
     loopKills: 0,
     loopStarterGemGranted: false,
+    // 변이시간선(js/loop-mutation.js): 규칙이 걸린 루프 번호(0이면 없음)와 첫 처치 공격룬 3택({ gems: 룬 이름 }, 고를 때까지)
+    loopMutationSeason: 0,
+    pendingStarterRuneChoice: null,
     starterGemTutorialPending: null,
     settings: {
         // PC와 모바일 메뉴 편집은 서로의 순서·배치를 덮어쓰지 않는다.
@@ -2580,8 +2601,11 @@ const defaultGame = {
     // 가방의 새 아이템(빨간 점): id가 이보다 크면 새 것. 가방을 열었다가 닫으면 그때의 itemIdCounter가 된다(js/equipment-window-ui.js).
     bagSeenId: null,
     beehive: { unlockedPermanent: false, inRun: false, branchStep: 0, cleared: false, routeSeed: 0 },
-    colony: { inRun: false, wave: 0, highestWave: 0, kills: 0, requiredKills: 0, rewardPending: false, wardInventory: [], wardEquipped: [null,null,null,null], wardSlots: 1, wardSlotVersion: 1 },
-    // grandRun is created on entry. rewardVoidChisel: number|null is the actual paid integer,
+    // Core durability is an integer. A zero maximum means a new/legacy run needs initialization.
+    colony: { inRun: false, wave: 0, highestWave: 0, kills: 0, requiredKills: 0, coreMaxHp: 0, coreHp: 0, failedWave: 0, rewardPending: false,
+        pendingLoot: [], lootPending: false, bossLootCell: null, wardInventory: [], wardEquipped: [null,null,null,null], wardSlots: 1, wardSlotVersion: 1 },
+    // grandRun is created on entry; kills fills the gauge, phase bossPending queues the one-time boss spawn.
+    // rewardVoidChisel/rewardJewelShard: number|null are the actual paid integers,
     // null before settlement or for legacy receipts; retained until the next entry/loop reset.
     voidRift: { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, grandBreachCleared: false, activeKills: 0, requiredKills: 0 },
     sporeCraftModes: {},

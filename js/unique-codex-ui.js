@@ -51,7 +51,7 @@ const uniqueCodexUi = (() => {
         const list = entries.filter(entry => entry.slots[0] === slot), have = list.filter(entry => codex()[keyOf(entry)]).length;
         const cls = `codex-slot${slot === selected ? ' is-active' : ''}${have === list.length ? ' is-done' : ''}`;
         return `<button type="button" class="${cls}" data-codex-slot="${slot}" aria-pressed="${slot === selected}"><img src="${getEquipmentGridVisualAsset({ slot })}" alt="">`
-            + `<span>${slot}</span><b>${have}/${list.length}</b>${bar(have, list.length)}${list.some(isFresh) ? '<em>신규</em>' : ''}</button>`;
+            + `<span>${esc(getItemSlotDisplayLabel(null, slot))}</span><b>${have}/${list.length}</b>${bar(have, list.length)}${list.some(isFresh) ? '<em>신규</em>' : ''}</button>`;
     }
     function tileHtml(entry) {
         const key = keyOf(entry), stored = codex()[key], fresh = isFresh(entry), tracked = uniqueHuntRuntime.ensureState().includes(key);
@@ -89,7 +89,7 @@ const uniqueCodexUi = (() => {
     }
     function sheetHtml(entry) {
         const stored = codex()[keyOf(entry)];
-        const base = stored && stored.baseName ? `${esc(stored.baseName)}, 숨겨진 티어 ${getTierBadgeHtml(stored.hiddenTier || stored.itemTier || 1, 'T')}` : esc(entry.slots[0]);
+        const base = stored && stored.baseName ? `${esc(stored.baseName)}, 숨겨진 티어 ${getTierBadgeHtml(stored.hiddenTier || stored.itemTier || 1, 'T')}` : esc(getItemSlotDisplayLabel(null, entry.slots[0]));
         const body = stored ? statsHtml(entry, stored) : '<p class="codex-sheet-note">획득하면 옵션이 공개됩니다.</p>';
         return `<div class="codex-sheet${stored ? ' is-on' : ''}${isChase(entry) ? ' is-chase' : ''}"><div class="codex-sheet-head">`
             + `<span class="codex-art"><img src="${getUniqueEntryVisualAsset(entry)}" alt=""></span><div><strong>${esc(entry.name)}</strong><span>${base}</span>`

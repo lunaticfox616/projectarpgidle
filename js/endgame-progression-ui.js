@@ -106,17 +106,28 @@ function chooseBeyondBoundaryIntensity(intensityId) {
 }
 
 function enterBeyondBoundaryRun() {
-    const held = getHeldRunBlockReason();
+    if (game.pendingLoopDecision) return addLog('루프 정산 화면에서 먼저 결정하세요(루프 진행 또는 나중에 루프).', 'attack-monster');
+    const held = getZoneTravelBlockReason(BEYOND_BOUNDARY_ZONE_ID) || getHeldRunBlockReason();
     if (held) return addLog(held, 'attack-monster');
     let state = ensureBeyondBoundaryState(game);
+    const previousTier = state.selectedTier, previousRun = state.activeRun;
+    const wallet = getBeyondBoundaryIntensityCosts(state.selectedIntensityId).map(({ key }) => [key, game.currencies[key]]);
     let result = startBeyondBoundaryRun(state.selectedTier, game);
     if (!result.ok) {
-        let message = result.code === 'locked' ? '경계 너머가 아직 잠겨 있습니다.'
-            : result.code === 'cost' ? `조율 재화가 부족합니다. (필요: ${formatBeyondBoundaryCosts(result.costs)})`
-                : '이미 경계 너머에 도전 중입니다.';
-        return addLog(result.reason || message, 'attack-monster');
+        const messages = { locked: '경계 너머가 아직 잠겨 있습니다.', active: '이미 경계 너머에 도전 중입니다.',
+            cost: `조율 재화가 부족합니다. (필요: ${formatBeyondBoundaryCosts(result.costs)})` };
+        return addLog(result.reason || messages[result.code], 'attack-monster');
     }
-    changeZone(BEYOND_BOUNDARY_ZONE_ID);
+    // Entry owns its payment only after travel succeeds. A refusal keeps the exact prior wallet and selection.
+    try { changeZone(BEYOND_BOUNDARY_ZONE_ID); }
+    finally {
+        if (game.currentZoneId !== BEYOND_BOUNDARY_ZONE_ID) {
+            state.activeRun = previousRun;
+            state.selectedTier = previousTier;
+            wallet.forEach(([key, value]) => { game.currencies[key] = value; });
+        }
+    }
+    if (game.currentZoneId !== BEYOND_BOUNDARY_ZONE_ID) return;
     switchTab('tab-battle');
     if (typeof saveGame === 'function') saveGame();
 }

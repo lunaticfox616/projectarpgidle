@@ -91,7 +91,10 @@ safeExposeGlobals({ combatCurrencyHud });
         addLog('💠 '+message,kind==='attack'?'loot-magic':'loot-rare');
     }
     window.addEventListener('project-idle:currency-acquired',announce);
-    window.addEventListener('project-idle:gem-loot-received',event=>announceGemReward(event.detail));
+    window.addEventListener('project-idle:gem-loot-received',event=>{
+        if (event.detail?.deferred) checkUnlocks();
+        announceGemReward(event.detail);
+    });
     function announceJewelReward(receipt) {
         if(!game.settings.showLootLog)return;
         const {jewel,inventoryFull,protectOverflow,stored,shardGain}=receipt;

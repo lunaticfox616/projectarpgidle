@@ -1,0 +1,1205 @@
+{
+  "appliedAt": "2026-10-23T09:57:53.007Z",
+  "selection": {
+    "version": "sound-audition-20261023",
+    "candidateRevision": "round7",
+    "createdAt": "2026-10-23T09:51:37.914Z",
+    "productionApplied": false,
+    "purposes": [
+      {
+        "id": "hitPhysical",
+        "label": "근접 타격",
+        "decision": "selected",
+        "keepCurrent": false,
+        "candidates": [
+          {
+            "id": "A",
+            "file": "candidates/hitPhysical-A.wav",
+            "sha256": "e5455c015ce2ddf7a73a9741dbb3f6fcdb43466baf6375c42eb2e6859fffe052"
+          },
+          {
+            "id": "D",
+            "file": "candidates/hitPhysical-D.wav",
+            "sha256": "ad8d03fc3f817677e9f5ac2b8bbe9647f0e35f739e4044c1c34d2e9760df1fb8"
+          }
+        ]
+      },
+      {
+        "id": "hitProjectile",
+        "label": "화살·투사체 적중",
+        "decision": "selected",
+        "keepCurrent": true,
+        "currentSound": {
+          "bankKey": "hitProjectile",
+          "previewFile": "reference/hitProjectile.wav",
+          "previewSha256": "32b2261806a2c98dbba41fd67146694f3afadd2b4133440768fd38685455d701"
+        },
+        "candidates": [
+          {
+            "id": "A",
+            "file": "candidates/hitProjectile-A.wav",
+            "sha256": "2a30a3b5ebf6b4041b08693ea9ff8f6bcb1e944c590e593b96a9b00bb018aed4"
+          }
+        ]
+      },
+      {
+        "id": "hitMagic",
+        "label": "마법 탄 적중",
+        "decision": "selected",
+        "keepCurrent": true,
+        "currentSound": {
+          "bankKey": "hitMagic",
+          "previewFile": "reference/hitMagic.wav",
+          "previewSha256": "3c01f47448dae51938bac25562ced28569a5df882072082feb0efa138dcad8bc"
+        },
+        "candidates": [
+          {
+            "id": "B",
+            "file": "round2/candidates/hitMagic-B.wav",
+            "sha256": "53a8b81948662f8ff49e9d8fcc289cae9f1d3af83e686242594dff62bbf4a4cc"
+          }
+        ]
+      },
+      {
+        "id": "hitThrust",
+        "label": "찌르기",
+        "decision": "selected",
+        "keepCurrent": false,
+        "candidates": [
+          {
+            "id": "A",
+            "file": "candidates/hitThrust-A.wav",
+            "sha256": "4417a90cae7e8481024cc241c3e86cfc8a4b70734e6b63105f97ded4c74fe9a0"
+          }
+        ]
+      },
+      {
+        "id": "hitWhirl",
+        "label": "회전 공격",
+        "decision": "selected",
+        "keepCurrent": true,
+        "currentSound": {
+          "bankKey": "hitWhirl",
+          "previewFile": "reference/hitWhirl.wav",
+          "previewSha256": "4f59441fe63dd2366f2e1dd85a93aadab904d17768d5aa857acfcfd2fe63310c"
+        },
+        "candidates": [
+          {
+            "id": "B",
+            "file": "round2/candidates/hitWhirl-B.wav",
+            "sha256": "3f771b55841dbe92038a94d82ec1f1241828968d11cb4567cc33c9bd8328691b"
+          }
+        ]
+      },
+      {
+        "id": "hitSlam",
+        "label": "강타·지진",
+        "decision": "selected",
+        "keepCurrent": false,
+        "candidates": [
+          {
+            "id": "B",
+            "file": "round2/candidates/hitSlam-B.wav",
+            "sha256": "43477a65549e894b1868e928675b6296ad1dfd76f4cd67b76918e390657407c8"
+          }
+        ]
+      },
+      {
+        "id": "hitShield",
+        "label": "방패 막기·타격",
+        "decision": "selected",
+        "keepCurrent": true,
+        "currentSound": {
+          "bankKey": "hitShield",
+          "previewFile": "reference/hitShield.wav",
+          "previewSha256": "fd2afd809deac262ebbf6ab26865c416315dff816cc343b7612785c31ec5ab20"
+        },
+        "candidates": []
+      },
+      {
+        "id": "hitFireBlade",
+        "label": "화염 참격",
+        "decision": "selected",
+        "keepCurrent": true,
+        "currentSound": {
+          "bankKey": "hitFireBlade",
+          "previewFile": "reference/hitFireBlade.wav",
+          "previewSha256": "1980140793fd46661fff863616df35719d95c809ebe80a1a3d9f884dc36d14a1"
+        },
+        "candidates": []
+      },
+      {
+        "id": "hitFireBurst",
+        "label": "화염 폭발",
+        "decision": "selected",
+        "keepCurrent": true,
+        "currentSound": {
+          "bankKey": "hitFireBurst",
+          "previewFile": "reference/hitFireBurst.wav",
+          "previewSha256": "09f353fa31312af3591923f36679e2a1d455fa3222397ff96fe0aa6c169c71bd"
+        },
+        "candidates": []
+      },
+      {
+        "id": "hitFireBreath",
+        "label": "화염 숨결",
+        "decision": "selected",
+        "keepCurrent": true,
+        "currentSound": {
+          "bankKey": "hitFireBreath",
+          "previewFile": "reference/hitFireBreath.wav",
+          "previewSha256": "a1064dd5cc458562eff77a391f0d6b994a534ead11dde17bbe5dfaa522938682"
+        },
+        "candidates": []
+      },
+      {
+        "id": "hitColdPierce",
+        "label": "냉기 관통",
+        "decision": "selected",
+        "keepCurrent": false,
+        "candidates": [
+          {
+            "id": "A",
+            "file": "candidates/hitColdPierce-A.wav",
+            "sha256": "395c7c67c9fada568b152f1a40367ae253e0d0ceaca9f3ac6a09af6463df2ff5"
+          }
+        ]
+      },
+      {
+        "id": "hitColdBurst",
+        "label": "냉기 폭발",
+        "decision": "selected",
+        "keepCurrent": true,
+        "currentSound": {
+          "bankKey": "hitColdBurst",
+          "previewFile": "reference/hitColdBurst.wav",
+          "previewSha256": "58011344b427bc44cb6136ab126db0fe9edf7e810fb2529a92b38360ac9d45ce"
+        },
+        "candidates": [
+          {
+            "id": "C",
+            "file": "candidates/hitColdBurst-C.wav",
+            "sha256": "b84b4d2ea329fef44d844db8391860cb828cdab70b2430b2ff11f81d9f60af9b"
+          }
+        ]
+      },
+      {
+        "id": "hitLightArc",
+        "label": "번개·연쇄",
+        "decision": "selected",
+        "keepCurrent": true,
+        "currentSound": {
+          "bankKey": "hitLightArc",
+          "previewFile": "reference/hitLightArc.wav",
+          "previewSha256": "e1e9bb6a20e816c6d85d5df6b7786ce5feda1a6a2103c8f250d28cc9738e27ca"
+        },
+        "candidates": [
+          {
+            "id": "C",
+            "file": "candidates/hitLightArc-C.wav",
+            "sha256": "41a19e22b3b659369102a060f6e0a084494182da972516f6373562ea7c7875ce"
+          }
+        ]
+      },
+      {
+        "id": "hitLightBeam",
+        "label": "번개 광선",
+        "decision": "selected",
+        "keepCurrent": true,
+        "currentSound": {
+          "bankKey": "hitLightBeam",
+          "previewFile": "reference/hitLightBeam.wav",
+          "previewSha256": "af092cebfee2e369789e72c0098d07af3e1e8ce63d22b60e1443a38f57d037fc"
+        },
+        "candidates": [
+          {
+            "id": "C",
+            "file": "round2/candidates/hitLightBeam-C.wav",
+            "sha256": "6be4484ee6d37a4a0d45f23d76c9699b6c60616afe8a2aa54d58ebd4f11e079d"
+          }
+        ]
+      },
+      {
+        "id": "hitLightBurst",
+        "label": "낙뢰·룬 폭발",
+        "decision": "selected",
+        "keepCurrent": true,
+        "currentSound": {
+          "bankKey": "hitLightBurst",
+          "previewFile": "reference/hitLightBurst.wav",
+          "previewSha256": "8845f1a3c6acbaa50a8e9c51acf1858aa78e90df7aff2d1df8c26cc8b3797c85"
+        },
+        "candidates": [
+          {
+            "id": "A",
+            "file": "candidates/hitLightBurst-A.wav",
+            "sha256": "3829f5d4188763c64eeb11c345a06273a0ba6a8b3e397292eb5bba4b3b50e0b0"
+          }
+        ]
+      },
+      {
+        "id": "hitChaosCut",
+        "label": "공허 절단",
+        "decision": "selected",
+        "keepCurrent": true,
+        "currentSound": {
+          "bankKey": "hitChaosCut",
+          "previewFile": "reference/hitChaosCut.wav",
+          "previewSha256": "48ea0cc71430c0b06a488c7383915d010b2fd2448664d3b1fa453bab8ad8da77"
+        },
+        "candidates": [
+          {
+            "id": "C",
+            "file": "round2/candidates/hitChaosCut-C.wav",
+            "sha256": "b47d8d1a553d3223eb7930f7694347084c56c4bbe534eb11ad799f538fd0029c"
+          }
+        ]
+      },
+      {
+        "id": "hitChaosPulse",
+        "label": "공허 파열",
+        "decision": "selected",
+        "keepCurrent": false,
+        "candidates": [
+          {
+            "id": "A",
+            "file": "round2/candidates/hitChaosPulse-A.wav",
+            "sha256": "7ba23fbdc1a6816ba8e7fe227a2b54d5eed8c32e2e571910ec53c8ee2facc902"
+          }
+        ]
+      },
+      {
+        "id": "hitVenom",
+        "label": "독 투척·적중",
+        "decision": "selected",
+        "keepCurrent": true,
+        "currentSound": {
+          "bankKey": "hitVenom",
+          "previewFile": "reference/hitVenom.wav",
+          "previewSha256": "2416722c5de104e00967d4f0154ae7282d378323ecacff3465d2238f9fb74af4"
+        },
+        "candidates": []
+      },
+      {
+        "id": "hitFlask",
+        "label": "플라스크 충격",
+        "decision": "selected",
+        "keepCurrent": true,
+        "currentSound": {
+          "bankKey": "hitFlask",
+          "previewFile": "reference/hitFlask.wav",
+          "previewSha256": "c54fe8a2ebcb53803b07b5560af4e6416ba5b8e4839c15f59787552349a5d315"
+        },
+        "candidates": [
+          {
+            "id": "D",
+            "file": "candidates/hitFlask-D.wav",
+            "sha256": "08bfef8ab1edde7255a4bb7e940d01111850902c2dd77a81993847f5967718fa"
+          }
+        ]
+      },
+      {
+        "id": "hitSlash",
+        "label": "빠른 베기",
+        "decision": "selected",
+        "keepCurrent": true,
+        "currentSound": {
+          "bankKey": "hitSlash",
+          "previewFile": "reference/hitSlash.wav",
+          "previewSha256": "9516468aeb5a500abf703dccedf4dc5ed143df1cd9809d84b536ff807eff0d16"
+        },
+        "candidates": [
+          {
+            "id": "C",
+            "file": "candidates/hitSlash-C.wav",
+            "sha256": "1188556bdaf66bcd3ca8b5fbca2bd8e53412d7f89deeca393a7c04cdc179f15c"
+          },
+          {
+            "id": "D",
+            "file": "candidates/hitSlash-D.wav",
+            "sha256": "157829093c0fdf3d57cbb31e46d2f3359b07b664a7817fba2d301042fba42956"
+          }
+        ]
+      },
+      {
+        "id": "hitCritical",
+        "label": "치명타",
+        "decision": "selected",
+        "keepCurrent": false,
+        "candidates": [
+          {
+            "id": "A",
+            "file": "candidates/hitCritical-A.wav",
+            "sha256": "a3a7f1b2a582b6e5759b153f58a6648d58432fd7be8c14d77b9d04bd56632900"
+          }
+        ]
+      },
+      {
+        "id": "playerHurt",
+        "label": "플레이어 피격",
+        "decision": "selected",
+        "keepCurrent": true,
+        "currentSound": {
+          "bankKey": "playerHurt",
+          "previewFile": "reference/playerHurt.wav",
+          "previewSha256": "62d955ff681ad9d7009fa7a23828b17f1e185f2836cc4f173762d81942de007a"
+        },
+        "candidates": [
+          {
+            "id": "B",
+            "file": "candidates/playerHurt-B.wav",
+            "sha256": "2bd4e394681b1db347e4939e1b199619ff47dcc15067188f8401109d3cdbaf24"
+          }
+        ]
+      },
+      {
+        "id": "kill",
+        "label": "일반 몬스터 처치",
+        "decision": "selected",
+        "keepCurrent": true,
+        "currentSound": {
+          "bankKey": "kill",
+          "previewFile": "reference/kill.wav",
+          "previewSha256": "2b772ea4c3cfe8add2861520054c7b016ab65eccb4cc4845ba64991c0b2c228d"
+        },
+        "candidates": [
+          {
+            "id": "A",
+            "file": "candidates/kill-A.wav",
+            "sha256": "7d84c774e350563151924e5172bff8d68222e13a6b2ca682ac7913fc3fd87522"
+          }
+        ]
+      },
+      {
+        "id": "killElite",
+        "label": "정예 처치",
+        "decision": "reject",
+        "keepCurrent": false,
+        "candidates": []
+      },
+      {
+        "id": "killBoss",
+        "label": "보스 처치",
+        "decision": "reject",
+        "keepCurrent": false,
+        "candidates": []
+      },
+      {
+        "id": "chestOpen",
+        "label": "상자 개봉",
+        "decision": "selected",
+        "keepCurrent": true,
+        "currentSound": {
+          "bankKey": "chestOpen",
+          "previewFile": "reference/chestOpen.wav",
+          "previewSha256": "c4b9ba59fbffc2d68c8c3ae9690593c916a6c5e582f6611c901639c604c4969b"
+        },
+        "candidates": [
+          {
+            "id": "A",
+            "file": "round5/candidates/chestOpen-A-body.wav",
+            "sha256": "1932cfe79b36435c834322109c687ddb054c841ea5b5664a65038ff278f98dbb"
+          }
+        ]
+      },
+      {
+        "id": "lootMajor",
+        "label": "귀중품 드롭",
+        "decision": "selected",
+        "keepCurrent": true,
+        "currentSound": {
+          "bankKey": "lootMajor",
+          "previewFile": "reference/lootMajor.wav",
+          "previewSha256": "30a84c7a11d2c68302c4fbe79d765ff5ce8109762c1e117214ae2b27236bcfe7"
+        },
+        "candidates": [
+          {
+            "id": "C",
+            "file": "candidates/lootMajor-C.wav",
+            "sha256": "fbc10eea5ea7da35cacc87c89e4df80ed4b5e57fac9b885c5dfb955806fa5ec9"
+          }
+        ]
+      },
+      {
+        "id": "levelUp",
+        "label": "레벨업",
+        "decision": "selected",
+        "keepCurrent": false,
+        "candidates": [
+          {
+            "id": "baseline",
+            "file": "round3/candidates/levelUp-A.wav",
+            "sha256": "9cda3f22440f2a5e7d640375eb4eb0b8297909f145bb101377c5d63ef8949d85"
+          }
+        ]
+      },
+      {
+        "id": "stageClear",
+        "label": "맵 클리어",
+        "decision": "selected",
+        "keepCurrent": false,
+        "candidates": [
+          {
+            "id": "D",
+            "file": "round2/candidates/stageClear-D.wav",
+            "sha256": "9880bc598a37db29613c9a5256b354a877f3c0eabe1858798aa39543e2efb661"
+          }
+        ]
+      },
+      {
+        "id": "lootBurst",
+        "label": "보스 보상 한꺼번에 드롭",
+        "decision": "selected",
+        "keepCurrent": false,
+        "candidates": [
+          {
+            "id": "A",
+            "file": "candidates/lootBurst-A.wav",
+            "sha256": "7129f00b8d721b1d2d88e9e74ec0835883917ae7ab978ff66c8d7cc586abbb6d"
+          }
+        ]
+      },
+      {
+        "id": "craftStart",
+        "label": "제작 시작",
+        "decision": "reject",
+        "keepCurrent": false,
+        "candidates": []
+      },
+      {
+        "id": "craftSuccess",
+        "label": "제작 성공",
+        "decision": "reject",
+        "keepCurrent": false,
+        "candidates": []
+      },
+      {
+        "id": "craftFailure",
+        "label": "제작 실패·무효",
+        "decision": "reject",
+        "keepCurrent": false,
+        "candidates": []
+      },
+      {
+        "id": "gemSocket",
+        "label": "젬·룬 장착",
+        "decision": "selected",
+        "keepCurrent": false,
+        "candidates": [
+          {
+            "id": "A",
+            "file": "candidates/gemSocket-A.wav",
+            "sha256": "02f712ccfc8bbd705d91e0b131e102c267151e49f0bd2739e097c26ef026eb2b"
+          }
+        ]
+      },
+      {
+        "id": "itemEquip",
+        "label": "장비 착용",
+        "decision": "reject",
+        "keepCurrent": false,
+        "candidates": []
+      },
+      {
+        "id": "itemDismantle",
+        "label": "장비 분해",
+        "decision": "reject",
+        "keepCurrent": false,
+        "candidates": []
+      },
+      {
+        "id": "potBreak",
+        "label": "항아리 파괴",
+        "decision": "selected",
+        "keepCurrent": true,
+        "currentSound": {
+          "bankKey": "potBreak",
+          "previewFile": "reference/potBreak.wav",
+          "previewSha256": "0d46bb62f043648342601e29f53ee19ac4f1dc91f46792e667094b73eb1bb331"
+        },
+        "candidates": [
+          {
+            "id": "A",
+            "file": "candidates/potBreak-A.wav",
+            "sha256": "9de78bff260f9210567a055546ee3cfb1fc2845ae0eeedad00e49a2a4382ed58"
+          }
+        ]
+      },
+      {
+        "id": "woodBreak",
+        "label": "목재·상자 파괴",
+        "decision": "selected",
+        "keepCurrent": true,
+        "currentSound": {
+          "bankKey": "woodBreak",
+          "previewFile": "reference/woodBreak.wav",
+          "previewSha256": "59bf9b246b484976dd3a858a826885077bd9d86447a6a231b98b70e0b636b604"
+        },
+        "candidates": [
+          {
+            "id": "A",
+            "file": "candidates/woodBreak-A.wav",
+            "sha256": "3613b34126e9322febb6381b9f52a233cbdf93982f565dd59fe7e8a10afd6062"
+          }
+        ]
+      },
+      {
+        "id": "returnWarp",
+        "label": "귀환·포털 이동",
+        "decision": "selected",
+        "keepCurrent": false,
+        "candidates": [
+          {
+            "id": "A",
+            "file": "round2/candidates/returnWarp-A.wav",
+            "sha256": "4e904c2d529f01dc29be5c78d9f5ea4850fc5e1e0cffd9b644ed6507542ace67"
+          }
+        ]
+      },
+      {
+        "id": "bossEntrance",
+        "label": "보스 등장",
+        "decision": "selected",
+        "keepCurrent": false,
+        "candidates": [
+          {
+            "id": "A",
+            "file": "round2/candidates/bossEntrance-A.wav",
+            "sha256": "ab7c105763b5b8d442fd272a5211ccab5b38e3fc5f7681ee4bbb88a74e378e35"
+          }
+        ]
+      },
+      {
+        "id": "riftOpen",
+        "label": "대균열 개방",
+        "decision": "reject",
+        "keepCurrent": false,
+        "candidates": []
+      },
+      {
+        "id": "riftGaugeFull",
+        "label": "대균열 게이지 완성",
+        "decision": "reject",
+        "keepCurrent": false,
+        "candidates": []
+      },
+      {
+        "id": "colonyWave",
+        "label": "군락지 다음 공세",
+        "decision": "reject",
+        "keepCurrent": false,
+        "candidates": []
+      },
+      {
+        "id": "colonyCoreHit",
+        "label": "군락지 핵 피격",
+        "decision": "reject",
+        "keepCurrent": false,
+        "candidates": []
+      },
+      {
+        "id": "colonyFailure",
+        "label": "군락지 파괴·실패",
+        "decision": "reject",
+        "keepCurrent": false,
+        "candidates": []
+      },
+      {
+        "id": "fishBite",
+        "label": "낚시 입질",
+        "decision": "reject",
+        "keepCurrent": false,
+        "candidates": []
+      },
+      {
+        "id": "fishCatch",
+        "label": "낚시 성공",
+        "decision": "selected",
+        "keepCurrent": false,
+        "candidates": [
+          {
+            "id": "C",
+            "file": "candidates/fishCatch-C.wav",
+            "sha256": "e392d5aea83e2139521b49331ef0872f1eef3ac214619d70c967a6375d3563ad"
+          }
+        ]
+      },
+      {
+        "id": "uiSelect",
+        "label": "메뉴·탭 선택",
+        "decision": "selected",
+        "keepCurrent": false,
+        "candidates": [
+          {
+            "id": "A",
+            "file": "candidates/uiSelect-A.wav",
+            "sha256": "f953f9282de8213fb3db6df551624d8c2abc48da9aa7f143866a35b7cb30ff8c"
+          }
+        ]
+      },
+      {
+        "id": "uiConfirm",
+        "label": "확인·구매",
+        "decision": "reject",
+        "keepCurrent": false,
+        "candidates": []
+      },
+      {
+        "id": "uiCancel",
+        "label": "취소·닫기",
+        "decision": "reject",
+        "keepCurrent": false,
+        "candidates": []
+      },
+      {
+        "id": "uiDanger",
+        "label": "실행 불가·경고",
+        "decision": "reject",
+        "keepCurrent": false,
+        "candidates": []
+      },
+      {
+        "id": "uiSuccess",
+        "label": "해금·완료 알림",
+        "decision": "reject",
+        "keepCurrent": false,
+        "candidates": []
+      },
+      {
+        "id": "inventoryMetal",
+        "label": "금속 · 철걱",
+        "useFor": [
+          "pick",
+          "place"
+        ],
+        "material": "metal",
+        "decision": "selected",
+        "keepCurrent": false,
+        "candidates": [
+          {
+            "id": "B",
+            "file": "round6/candidates/inventoryMetal-B.wav",
+            "sha256": "a8eb6f3f39339abf57ec3ce74d24f5c18e2e2c37caccb1d76c1c860ad764cd71"
+          },
+          {
+            "id": "E",
+            "file": "round7/candidates/inventoryMetal-E.wav",
+            "sha256": "daf9fa0f54565a1c76d60acb96fcd83bac7458bf1c65fdd89fd4e186f878fafd"
+          }
+        ]
+      },
+      {
+        "id": "inventoryCloth",
+        "label": "천 · 펄럭",
+        "useFor": [
+          "pick",
+          "place"
+        ],
+        "material": "cloth",
+        "decision": "selected",
+        "keepCurrent": false,
+        "candidates": [
+          {
+            "id": "D",
+            "file": "round6/candidates/inventoryCloth-D.wav",
+            "sha256": "fd6bbd85bb6798742495f15f4b710c88c672ec8d2378b01cef95ca70f664c76f"
+          }
+        ]
+      },
+      {
+        "id": "inventoryLeather",
+        "label": "가죽 · 낮은 펄럭",
+        "useFor": [
+          "pick",
+          "place"
+        ],
+        "material": "leather",
+        "decision": "selected",
+        "keepCurrent": false,
+        "candidates": [
+          {
+            "id": "E",
+            "file": "round7/candidates/inventoryLeather-E.wav",
+            "sha256": "bc3c413e923ce8050fcab0bab1c8448f828255ea021a7bb28094711a3b9b4dae"
+          }
+        ]
+      },
+      {
+        "id": "inventoryGem",
+        "label": "장신구·수정 · 땡",
+        "useFor": [
+          "pick",
+          "place"
+        ],
+        "material": "gem",
+        "decision": "selected",
+        "keepCurrent": false,
+        "candidates": [
+          {
+            "id": "G",
+            "file": "round7/candidates/inventoryGem-G.wav",
+            "sha256": "0df473651f635def29df9e37a8f6ef77c5f42371a644a2142f5df301629c534e"
+          }
+        ]
+      },
+      {
+        "id": "inventoryWood",
+        "label": "목재 · 기존 선택",
+        "useFor": [
+          "pick",
+          "place"
+        ],
+        "material": "wood",
+        "decision": "selected",
+        "keepCurrent": false,
+        "candidates": [
+          {
+            "id": "A",
+            "file": "round4/candidates/inventoryPickWood-D.wav",
+            "sha256": "ce0237a1f24da887216b6c8a0f904e3090eaaf17c0f9a888ed235ce109435c2d"
+          },
+          {
+            "id": "C",
+            "file": "round5/candidates/inventoryPlaceWood-C-body.wav",
+            "sha256": "dd05c14ce58146101a8efdfed51762ebe03654ab7fe499f3bd51de7f483b2ceb"
+          }
+        ]
+      }
+    ]
+  },
+  "imported": [
+    {
+      "purpose": "hitPhysical",
+      "take": "A",
+      "file": "selected-20261023/hitPhysical-A-e5455c01.wav",
+      "sha256": "e5455c015ce2ddf7a73a9741dbb3f6fcdb43466baf6375c42eb2e6859fffe052",
+      "seconds": 0.9,
+      "sourceCandidate": "candidates/hitPhysical-A.wav",
+      "generationSource": "sources/hitPhysical-A.wav",
+      "sourceSha256": "d45394ae13bc350a71570c8b743798ebf98d3f69fd649b8887bad9ff88499c62",
+      "processing": "Distinct generated event; trim, endpoint fades and level matching. No pitch shift, EQ or reused game audio."
+    },
+    {
+      "purpose": "hitPhysical",
+      "take": "D",
+      "file": "selected-20261023/hitPhysical-D-ad8d03fc.wav",
+      "sha256": "ad8d03fc3f817677e9f5ac2b8bbe9647f0e35f739e4044c1c34d2e9760df1fb8",
+      "seconds": 0.559,
+      "sourceCandidate": "candidates/hitPhysical-D.wav",
+      "generationSource": "sources/hitPhysical-A.wav",
+      "sourceSha256": "d45394ae13bc350a71570c8b743798ebf98d3f69fd649b8887bad9ff88499c62",
+      "processing": "Distinct generated event; trim, endpoint fades and level matching. No pitch shift, EQ or reused game audio."
+    },
+    {
+      "purpose": "hitProjectile",
+      "take": "A",
+      "file": "selected-20261023/hitProjectile-A-2a30a3b5.wav",
+      "sha256": "2a30a3b5ebf6b4041b08693ea9ff8f6bcb1e944c590e593b96a9b00bb018aed4",
+      "seconds": 0.18,
+      "sourceCandidate": "candidates/hitProjectile-A.wav",
+      "generationSource": "sources/hitProjectile-A.wav",
+      "sourceSha256": "5f1cca59be2d02938ee2e3273ea50d9d2662d52987f06def1336a915d45c18ab",
+      "processing": "Distinct generated event; trim, endpoint fades and level matching. No pitch shift, EQ or reused game audio."
+    },
+    {
+      "purpose": "hitMagic",
+      "take": "B",
+      "file": "selected-20261023/hitMagic-B-53a8b819.wav",
+      "sha256": "53a8b81948662f8ff49e9d8fcc289cae9f1d3af83e686242594dff62bbf4a4cc",
+      "seconds": 1.1,
+      "sourceCandidate": "round2/candidates/hitMagic-B.wav",
+      "generationSource": "round2/sources/hitMagic-B.wav",
+      "sourceSha256": "7fbc973e04db51bda727bceb051d39a26a803c3cedd72203611b75c2233d3c4b",
+      "processing": "Distinct generated event; trim, endpoint fades and level matching. No pitch shift, EQ or reused game audio."
+    },
+    {
+      "purpose": "hitThrust",
+      "take": "A",
+      "file": "selected-20261023/hitThrust-A-4417a90c.wav",
+      "sha256": "4417a90cae7e8481024cc241c3e86cfc8a4b70734e6b63105f97ded4c74fe9a0",
+      "seconds": 0.429,
+      "sourceCandidate": "candidates/hitThrust-A.wav",
+      "generationSource": "sources/hitThrust-A.wav",
+      "sourceSha256": "8f4ced686259a2103faecba9c89fc17c51f28567007649049fa40a1694e9d8d1",
+      "processing": "Distinct generated event; trim, endpoint fades and level matching. No pitch shift, EQ or reused game audio."
+    },
+    {
+      "purpose": "hitWhirl",
+      "take": "B",
+      "file": "selected-20261023/hitWhirl-B-3f771b55.wav",
+      "sha256": "3f771b55841dbe92038a94d82ec1f1241828968d11cb4567cc33c9bd8328691b",
+      "seconds": 1.25,
+      "sourceCandidate": "round2/candidates/hitWhirl-B.wav",
+      "generationSource": "round2/sources/hitWhirl-B.wav",
+      "sourceSha256": "567d50d418565d96226e72366e13b1250fef7dd2da0ff9b34261e2f3cd8f49ef",
+      "processing": "Distinct generated event; trim, endpoint fades and level matching. No pitch shift, EQ or reused game audio."
+    },
+    {
+      "purpose": "hitSlam",
+      "take": "B",
+      "file": "selected-20261023/hitSlam-B-43477a65.wav",
+      "sha256": "43477a65549e894b1868e928675b6296ad1dfd76f4cd67b76918e390657407c8",
+      "seconds": 1.202,
+      "sourceCandidate": "round2/candidates/hitSlam-B.wav",
+      "generationSource": "round2/sources/hitSlam-B.wav",
+      "sourceSha256": "d48192bb86dcc26b7f8efe9de8e78b168515f942f13b54d27a170bc401f32d02",
+      "processing": "Distinct generated event; trim, endpoint fades and level matching. No pitch shift, EQ or reused game audio."
+    },
+    {
+      "purpose": "hitColdPierce",
+      "take": "A",
+      "file": "selected-20261023/hitColdPierce-A-395c7c67.wav",
+      "sha256": "395c7c67c9fada568b152f1a40367ae253e0d0ceaca9f3ac6a09af6463df2ff5",
+      "seconds": 1.05,
+      "sourceCandidate": "candidates/hitColdPierce-A.wav",
+      "generationSource": "sources/hitColdPierce-A.wav",
+      "sourceSha256": "0fc66e1b5f2ceafc08eb5e1c7eb2b595c679be6fb18a06b3fae156ed016cd919",
+      "processing": "Distinct generated event; trim, endpoint fades and level matching. No pitch shift, EQ or reused game audio."
+    },
+    {
+      "purpose": "hitColdBurst",
+      "take": "C",
+      "file": "selected-20261023/hitColdBurst-C-b84b4d2e.wav",
+      "sha256": "b84b4d2ea329fef44d844db8391860cb828cdab70b2430b2ff11f81d9f60af9b",
+      "seconds": 0.888,
+      "sourceCandidate": "candidates/hitColdBurst-C.wav",
+      "generationSource": "sources/hitColdBurst-B.wav",
+      "sourceSha256": "e919e15cd8e415e63ccda94d85dba9075af1133197c8755b4cc22829e804bce5",
+      "processing": "Distinct generated event; trim, endpoint fades and level matching. No pitch shift, EQ or reused game audio."
+    },
+    {
+      "purpose": "hitLightArc",
+      "take": "C",
+      "file": "selected-20261023/hitLightArc-C-41a19e22.wav",
+      "sha256": "41a19e22b3b659369102a060f6e0a084494182da972516f6373562ea7c7875ce",
+      "seconds": 0.195,
+      "sourceCandidate": "candidates/hitLightArc-C.wav",
+      "generationSource": "sources/hitLightArc-A.wav",
+      "sourceSha256": "7802390357ba9d126d16ba9e3690921e4c9598d063855f04e8ecf187f7eeebbd",
+      "processing": "Distinct generated event; trim, endpoint fades and level matching. No pitch shift, EQ or reused game audio."
+    },
+    {
+      "purpose": "hitLightBeam",
+      "take": "C",
+      "file": "selected-20261023/hitLightBeam-C-6be4484e.wav",
+      "sha256": "6be4484ee6d37a4a0d45f23d76c9699b6c60616afe8a2aa54d58ebd4f11e079d",
+      "seconds": 1.5,
+      "sourceCandidate": "round2/candidates/hitLightBeam-C.wav",
+      "generationSource": "round2/sources/hitLightBeam-C.wav",
+      "sourceSha256": "4c06b096b344d8a5e40ee5f06a0b92989534460b0753fb149e182cf1b288cd14",
+      "processing": "Distinct generated event; trim, endpoint fades and level matching. No pitch shift, EQ or reused game audio."
+    },
+    {
+      "purpose": "hitLightBurst",
+      "take": "A",
+      "file": "selected-20261023/hitLightBurst-A-3829f5d4.wav",
+      "sha256": "3829f5d4188763c64eeb11c345a06273a0ba6a8b3e397292eb5bba4b3b50e0b0",
+      "seconds": 1.606,
+      "sourceCandidate": "candidates/hitLightBurst-A.wav",
+      "generationSource": "sources/hitLightBurst-B.wav",
+      "sourceSha256": "749b979afef91c6f994489cccc6ff465b10e50f32613880ce4fab6e85e3a66cb",
+      "processing": "Distinct generated event; trim, endpoint fades and level matching. No pitch shift, EQ or reused game audio."
+    },
+    {
+      "purpose": "hitChaosCut",
+      "take": "C",
+      "file": "selected-20261023/hitChaosCut-C-b47d8d1a.wav",
+      "sha256": "b47d8d1a553d3223eb7930f7694347084c56c4bbe534eb11ad799f538fd0029c",
+      "seconds": 1.1,
+      "sourceCandidate": "round2/candidates/hitChaosCut-C.wav",
+      "generationSource": "round2/sources/hitChaosCut-C.wav",
+      "sourceSha256": "ba64b6ac9e8d1da933d850fffc0d21cde5c7dc58b05083bb300adab01c1e7ee6",
+      "processing": "Distinct generated event; trim, endpoint fades and level matching. No pitch shift, EQ or reused game audio."
+    },
+    {
+      "purpose": "hitChaosPulse",
+      "take": "A",
+      "file": "selected-20261023/hitChaosPulse-A-7ba23fbd.wav",
+      "sha256": "7ba23fbdc1a6816ba8e7fe227a2b54d5eed8c32e2e571910ec53c8ee2facc902",
+      "seconds": 1.5,
+      "sourceCandidate": "round2/candidates/hitChaosPulse-A.wav",
+      "generationSource": "round2/sources/hitChaosPulse-A.wav",
+      "sourceSha256": "db7994e32a980fd444ca64ce4d054fddf9698052ee762d958962cd36b2ee6382",
+      "processing": "Distinct generated event; trim, endpoint fades and level matching. No pitch shift, EQ or reused game audio."
+    },
+    {
+      "purpose": "hitFlask",
+      "take": "D",
+      "file": "selected-20261023/hitFlask-D-08bfef8a.wav",
+      "sha256": "08bfef8ab1edde7255a4bb7e940d01111850902c2dd77a81993847f5967718fa",
+      "seconds": 0.808,
+      "sourceCandidate": "candidates/hitFlask-D.wav",
+      "generationSource": "sources/hitFlask-A.wav",
+      "sourceSha256": "dfba776706df7ddada4961c5b83387f1b38040ff58d3a7123c75485e8a2a306a",
+      "processing": "Distinct generated event; trim, endpoint fades and level matching. No pitch shift, EQ or reused game audio."
+    },
+    {
+      "purpose": "hitSlash",
+      "take": "C",
+      "file": "selected-20261023/hitSlash-C-1188556b.wav",
+      "sha256": "1188556bdaf66bcd3ca8b5fbca2bd8e53412d7f89deeca393a7c04cdc179f15c",
+      "seconds": 0.3,
+      "sourceCandidate": "candidates/hitSlash-C.wav",
+      "generationSource": "sources/hitSlash-A.wav",
+      "sourceSha256": "cfd6d87663a2e146564c566c2b40e7ad2733e18305f5850269739c5575817675",
+      "processing": "Distinct generated event; trim, endpoint fades and level matching. No pitch shift, EQ or reused game audio."
+    },
+    {
+      "purpose": "hitSlash",
+      "take": "D",
+      "file": "selected-20261023/hitSlash-D-15782909.wav",
+      "sha256": "157829093c0fdf3d57cbb31e46d2f3359b07b664a7817fba2d301042fba42956",
+      "seconds": 0.325,
+      "sourceCandidate": "candidates/hitSlash-D.wav",
+      "generationSource": "sources/hitSlash-A.wav",
+      "sourceSha256": "cfd6d87663a2e146564c566c2b40e7ad2733e18305f5850269739c5575817675",
+      "processing": "Distinct generated event; trim, endpoint fades and level matching. No pitch shift, EQ or reused game audio."
+    },
+    {
+      "purpose": "hitCritical",
+      "take": "A",
+      "file": "selected-20261023/hitCritical-A-a3a7f1b2.wav",
+      "sha256": "a3a7f1b2a582b6e5759b153f58a6648d58432fd7be8c14d77b9d04bd56632900",
+      "seconds": 0.524,
+      "sourceCandidate": "candidates/hitCritical-A.wav",
+      "generationSource": "sources/hitCritical-A.wav",
+      "sourceSha256": "b9fde1cb8815f4f13dc93b8afdb850864235513293850edfed262d589902da5d",
+      "processing": "Distinct generated event; trim, endpoint fades and level matching. No pitch shift, EQ or reused game audio."
+    },
+    {
+      "purpose": "playerHurt",
+      "take": "B",
+      "file": "selected-20261023/playerHurt-B-2bd4e394.wav",
+      "sha256": "2bd4e394681b1db347e4939e1b199619ff47dcc15067188f8401109d3cdbaf24",
+      "seconds": 0.359,
+      "sourceCandidate": "candidates/playerHurt-B.wav",
+      "generationSource": "sources/playerHurt-A.wav",
+      "sourceSha256": "304091aa8e6ca7ed631202f055c7896c0359f3a525abe71f1b691008ab4a16cf",
+      "processing": "Distinct generated event; trim, endpoint fades and level matching. No pitch shift, EQ or reused game audio."
+    },
+    {
+      "purpose": "kill",
+      "take": "A",
+      "file": "selected-20261023/kill-A-7d84c774.wav",
+      "sha256": "7d84c774e350563151924e5172bff8d68222e13a6b2ca682ac7913fc3fd87522",
+      "seconds": 0.469,
+      "sourceCandidate": "candidates/kill-A.wav",
+      "generationSource": "sources/kill-B.wav",
+      "sourceSha256": "3bf9a4ef44592d41476b9c1d29198e1f10b08faafa46792466f654ad06ee6ca2",
+      "processing": "Distinct generated event; trim, endpoint fades and level matching. No pitch shift, EQ or reused game audio."
+    },
+    {
+      "purpose": "chestOpen",
+      "take": "A",
+      "file": "selected-20261023/chestOpen-A-1932cfe7.wav",
+      "sha256": "1932cfe79b36435c834322109c687ddb054c841ea5b5664a65038ff278f98dbb",
+      "seconds": 1.2,
+      "sourceCandidate": "round5/candidates/chestOpen-A-body.wav",
+      "generationSource": "round5/sources/chestOpen-A.wav",
+      "sourceSha256": "1facd1e80d60ce543d245de7ae707ecbf21e4cb9cc7a7ab117fa79dff33f8538",
+      "processing": "Main-peak-anchored event extraction; natural event boundaries, endpoint fades, maximum 2x gain. No pitch shift or synthetic audio."
+    },
+    {
+      "purpose": "lootMajor",
+      "take": "C",
+      "file": "selected-20261023/lootMajor-C-fbc10eea.wav",
+      "sha256": "fbc10eea5ea7da35cacc87c89e4df80ed4b5e57fac9b885c5dfb955806fa5ec9",
+      "seconds": 1.477,
+      "sourceCandidate": "candidates/lootMajor-C.wav",
+      "generationSource": "sources/lootMajor-C.wav",
+      "sourceSha256": "4eaebab1e941884cfff9e161a98911da1cc0fd6058e4f3aa39a60751fac366de",
+      "processing": "Distinct generated event; trim, endpoint fades and level matching. No pitch shift, EQ or reused game audio."
+    },
+    {
+      "purpose": "levelUp",
+      "take": "baseline",
+      "file": "selected-20261023/levelUp-baseline-9cda3f22.wav",
+      "sha256": "9cda3f22440f2a5e7d640375eb4eb0b8297909f145bb101377c5d63ef8949d85",
+      "seconds": 1.766,
+      "sourceCandidate": "round3/candidates/levelUp-A.wav",
+      "generationSource": "round3/sources/levelUp-A.wav",
+      "sourceSha256": "da7cee2ecbd57805ecc6e5e34828ad299131d36c46eb4a3450839c16945fdbe1",
+      "processing": "Distinct generated event; trim, endpoint fades and level matching. No pitch shift, EQ or reused game audio."
+    },
+    {
+      "purpose": "stageClear",
+      "take": "D",
+      "file": "selected-20261023/stageClear-D-9880bc59.wav",
+      "sha256": "9880bc598a37db29613c9a5256b354a877f3c0eabe1858798aa39543e2efb661",
+      "seconds": 2.055,
+      "sourceCandidate": "round2/candidates/stageClear-D.wav",
+      "generationSource": "round2/sources/stageClear-D.wav",
+      "sourceSha256": "f6c15ef068f2a6a1f8c31bedebcc9d1127480eae0d59378b15c8f2e67c62f4f2",
+      "processing": "Distinct generated event; trim, endpoint fades and level matching. No pitch shift, EQ or reused game audio."
+    },
+    {
+      "purpose": "lootBurst",
+      "take": "A",
+      "file": "selected-20261023/lootBurst-A-7129f00b.wav",
+      "sha256": "7129f00b8d721b1d2d88e9e74ec0835883917ae7ab978ff66c8d7cc586abbb6d",
+      "seconds": 1.178,
+      "sourceCandidate": "candidates/lootBurst-A.wav",
+      "generationSource": "sources/lootBurst-B.wav",
+      "sourceSha256": "d0afca6a1910c46dc2ff09666d833b13688bf96cb81f97100c2a208c7dc151de",
+      "processing": "Distinct generated event; trim, endpoint fades and level matching. No pitch shift, EQ or reused game audio."
+    },
+    {
+      "purpose": "gemSocket",
+      "take": "A",
+      "file": "selected-20261023/gemSocket-A-02f712cc.wav",
+      "sha256": "02f712ccfc8bbd705d91e0b131e102c267151e49f0bd2739e097c26ef026eb2b",
+      "seconds": 0.404,
+      "sourceCandidate": "candidates/gemSocket-A.wav",
+      "generationSource": "sources/gemSocket-A.wav",
+      "sourceSha256": "83666ff4762bbe02feb9c8ec0aff2a8897ce6b6beee307b9241bd8b5905d2f8d",
+      "processing": "Distinct generated event; trim, endpoint fades and level matching. No pitch shift, EQ or reused game audio."
+    },
+    {
+      "purpose": "potBreak",
+      "take": "A",
+      "file": "selected-20261023/potBreak-A-9de78bff.wav",
+      "sha256": "9de78bff260f9210567a055546ee3cfb1fc2845ae0eeedad00e49a2a4382ed58",
+      "seconds": 1.1,
+      "sourceCandidate": "candidates/potBreak-A.wav",
+      "generationSource": "sources/potBreak-A.wav",
+      "sourceSha256": "116e31ba4c95d113b18484b198d592c6be617f598265d03378b833654babc321",
+      "processing": "Distinct generated event; trim, endpoint fades and level matching. No pitch shift, EQ or reused game audio."
+    },
+    {
+      "purpose": "woodBreak",
+      "take": "A",
+      "file": "selected-20261023/woodBreak-A-3613b341.wav",
+      "sha256": "3613b34126e9322febb6381b9f52a233cbdf93982f565dd59fe7e8a10afd6062",
+      "seconds": 0.369,
+      "sourceCandidate": "candidates/woodBreak-A.wav",
+      "generationSource": "sources/woodBreak-A.wav",
+      "sourceSha256": "42b35ccadb1959ba47224848e887541a8f962e8c289c3c7f18a64fa91ff3d0a1",
+      "processing": "Distinct generated event; trim, endpoint fades and level matching. No pitch shift, EQ or reused game audio."
+    },
+    {
+      "purpose": "returnWarp",
+      "take": "A",
+      "file": "selected-20261023/returnWarp-A-4e904c2d.wav",
+      "sha256": "4e904c2d529f01dc29be5c78d9f5ea4850fc5e1e0cffd9b644ed6507542ace67",
+      "seconds": 1.362,
+      "sourceCandidate": "round2/candidates/returnWarp-A.wav",
+      "generationSource": "round2/sources/returnWarp-A.wav",
+      "sourceSha256": "0004ab5bbc5c46bd45c5bb3e7fc3b1cb8f17ca5bd62b4aedb4a81db5d32f0d44",
+      "processing": "Distinct generated event; trim, endpoint fades and level matching. No pitch shift, EQ or reused game audio."
+    },
+    {
+      "purpose": "bossEntrance",
+      "take": "A",
+      "file": "selected-20261023/bossEntrance-A-ab7c1057.wav",
+      "sha256": "ab7c105763b5b8d442fd272a5211ccab5b38e3fc5f7681ee4bbb88a74e378e35",
+      "seconds": 2.764,
+      "sourceCandidate": "round2/candidates/bossEntrance-A.wav",
+      "generationSource": "round2/sources/bossEntrance-A.wav",
+      "sourceSha256": "4d1bcfddec8a241094226ee466f5a289c0ad4dbd5b2bb7ebb5251b52e30b9d23",
+      "processing": "Distinct generated event; trim, endpoint fades and level matching. No pitch shift, EQ or reused game audio."
+    },
+    {
+      "purpose": "fishCatch",
+      "take": "C",
+      "file": "selected-20261023/fishCatch-C-e392d5ae.wav",
+      "sha256": "e392d5aea83e2139521b49331ef0872f1eef3ac214619d70c967a6375d3563ad",
+      "seconds": 1.612,
+      "sourceCandidate": "candidates/fishCatch-C.wav",
+      "generationSource": "sources/fishCatch-A.wav",
+      "sourceSha256": "016329b7e87af8ab69c3f7dcc7c201c6ef49e17724c1ca6711fd242d0cf08b87",
+      "processing": "Distinct generated event; trim, endpoint fades and level matching. No pitch shift, EQ or reused game audio."
+    },
+    {
+      "purpose": "uiSelect",
+      "take": "A",
+      "file": "selected-20261023/uiSelect-A-f953f928.wav",
+      "sha256": "f953f9282de8213fb3db6df551624d8c2abc48da9aa7f143866a35b7cb30ff8c",
+      "seconds": 0.245,
+      "sourceCandidate": "candidates/uiSelect-A.wav",
+      "generationSource": "sources/uiSelect-A.wav",
+      "sourceSha256": "e5442c5e93c3ab597c9397ec324303406f7c4ac214aec9b31910f186c91faf38",
+      "processing": "Distinct generated event; trim, endpoint fades and level matching. No pitch shift, EQ or reused game audio."
+    },
+    {
+      "purpose": "inventoryMetal",
+      "take": "B",
+      "file": "selected-20261023/inventoryMetal-B-a8eb6f3f.wav",
+      "sha256": "a8eb6f3f39339abf57ec3ce74d24f5c18e2e2c37caccb1d76c1c860ad764cd71",
+      "seconds": 0.369,
+      "sourceCandidate": "round6/candidates/inventoryMetal-B.wav",
+      "generationSource": "round6/sources/inventoryMetal-B.wav",
+      "sourceSha256": "965f6a0ffabd4741f9135aaf3c8a94594f9a8d96b8298ba50e045861a70fc811",
+      "processing": "Strongest complete gesture window, endpoint fades and level matching capped at 2x. No synthetic replacement or pitch shifting."
+    },
+    {
+      "purpose": "inventoryMetal",
+      "take": "E",
+      "file": "selected-20261023/inventoryMetal-E-daf9fa0f.wav",
+      "sha256": "daf9fa0f54565a1c76d60acb96fcd83bac7458bf1c65fdd89fd4e186f878fafd",
+      "seconds": 0.3,
+      "sourceCandidate": "round7/candidates/inventoryMetal-E.wav",
+      "generationSource": "round7/sources/inventoryMetal-E.wav",
+      "sourceSha256": "fbb36e9fc25ea4ab725e766942ac16f9506fa2b64c2bb91b73e8e83bc7bebbdf",
+      "processing": "Exact 300ms strongest-event cut with click-free endpoint fades; no speed or pitch change."
+    },
+    {
+      "purpose": "inventoryCloth",
+      "take": "D",
+      "file": "selected-20261023/inventoryCloth-D-fd6bbd85.wav",
+      "sha256": "fd6bbd85bb6798742495f15f4b710c88c672ec8d2378b01cef95ca70f664c76f",
+      "seconds": 0.305,
+      "sourceCandidate": "round6/candidates/inventoryCloth-D.wav",
+      "generationSource": "round6/sources/inventoryCloth-D.wav",
+      "sourceSha256": "315764071664eadcdb97ea7192238709766eee9e58d4d6823f139fc97730d987",
+      "processing": "Strongest complete gesture window, endpoint fades and level matching capped at 2x. No synthetic replacement or pitch shifting."
+    },
+    {
+      "purpose": "inventoryLeather",
+      "take": "E",
+      "file": "selected-20261023/inventoryLeather-E-bc3c413e.wav",
+      "sha256": "bc3c413e923ce8050fcab0bab1c8448f828255ea021a7bb28094711a3b9b4dae",
+      "seconds": 0.3,
+      "sourceCandidate": "round7/candidates/inventoryLeather-E.wav",
+      "generationSource": "round6/candidates/inventoryLeather-C.wav",
+      "sourceSha256": "82d7f3db2fe0e44984adc5b2df5528f7ae82b47cb0d5f8eb60f1d12b432f7eca",
+      "processing": "Exact 300ms strongest-event cut with click-free endpoint fades; no speed or pitch change."
+    },
+    {
+      "purpose": "inventoryGem",
+      "take": "G",
+      "file": "selected-20261023/inventoryGem-G-0df47365.wav",
+      "sha256": "0df473651f635def29df9e37a8f6ef77c5f42371a644a2142f5df301629c534e",
+      "seconds": 0.3,
+      "sourceCandidate": "round7/candidates/inventoryGem-G.wav",
+      "generationSource": "round7/sources/inventoryGem-G.wav",
+      "sourceSha256": "7dd1f4d97b10d406065fecf738cb74fa379cfed86f787ee8565c6f96a7ad5db3",
+      "processing": "Exact 300ms strongest-event cut with click-free endpoint fades; no speed or pitch change."
+    },
+    {
+      "purpose": "inventoryWood",
+      "take": "A",
+      "file": "selected-20261023/inventoryWood-A-ce0237a1.wav",
+      "sha256": "ce0237a1f24da887216b6c8a0f904e3090eaaf17c0f9a888ed235ce109435c2d",
+      "seconds": 0.5,
+      "sourceCandidate": "round4/candidates/inventoryPickWood-D.wav",
+      "generationSource": "round4/sources/inventoryPickWood-D.wav",
+      "sourceSha256": "b5f2f852c774ca4ae5c0b08f11b2f418a95360239b89d8baf6a8157c4de2e53a",
+      "processing": "Distinct generated event; trim, endpoint fades and level matching. No pitch shift, EQ or reused game audio."
+    },
+    {
+      "purpose": "inventoryWood",
+      "take": "C",
+      "file": "selected-20261023/inventoryWood-C-dd05c14c.wav",
+      "sha256": "dd05c14ce58146101a8efdfed51762ebe03654ab7fe499f3bd51de7f483b2ceb",
+      "seconds": 0.325,
+      "sourceCandidate": "round5/candidates/inventoryPlaceWood-C-body.wav",
+      "generationSource": "round4/sources/inventoryPlaceWood-C.wav",
+      "sourceSha256": "201df8d292c911dce951b36e199dabdeadba79e9947c226eb6d5445ef424ff8d",
+      "processing": "Main-peak-anchored event extraction; natural event boundaries, endpoint fades, maximum 2x gain. No pitch shift or synthetic audio."
+    }
+  ],
+  "selectedPurposes": 40,
+  "disabledPurposes": 17,
+  "activeFiles": 79,
+  "originalFilesPreserved": true
+}

@@ -237,6 +237,13 @@ const stageRoster = (() => {
         if (!scales.has(actor.id)) scales.set(actor.id, getStageLookScale(actor.id));
         return scales.get(actor.id);
     }
+    /** Stable body dimensions in screen pixels, excluding weapons, hopping and entrance scaling. */
+    function bodySize(enemy, tile) {
+        const actor = stageView.enabled() ? actorFor(enemy) : null;
+        if (!actor) return null;
+        const dot = stageActors.scaleFor(tile) * lookScale(actor);
+        return { halfW: actor.width * dot / 2, h: actor.height * dot };
+    }
     function shadow(ctx, actor, p, dot, hop) {
         const air = AIRBORNE.includes(actor.gait), rx = Math.round(actor.width * (air ? 0.26 : 0.38)) - Math.min(6, hop || 0);
         stageRings.shadow(ctx, { x: p.x, y: p.y, dot }, Math.max(6, rx), air ? 0.2 : 0.34);
@@ -309,6 +316,6 @@ const stageRoster = (() => {
         return placed && performance.now() - placed.at < 1000 ? placed : null;
     }
 
-    return Object.freeze({ draw, drawDeath, drawClip, looks, keepFor, placementOf });
+    return Object.freeze({ draw, drawDeath, drawClip, looks, keepFor, placementOf, bodySize });
 })();
 safeExposeGlobals({ stageRoster });

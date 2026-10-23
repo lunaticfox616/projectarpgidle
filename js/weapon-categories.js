@@ -29,7 +29,7 @@ function getWeaponCategoryName(item) {
 
 /** Item titles show a weapon's category (대검, 곡도 ...) where other items show their slot ([투구] ...). */
 function weaponCategorySlotLabel(item, slot) {
-    return (slot === '무기' && getWeaponCategoryName(item)) || slot;
+    return (slot === '무기' && getWeaponCategoryName(item)) || (slot === '방패' ? '완갑' : slot);
 }
 
 safeExposeGlobals({ getWeaponBaseId, getWeaponCategoryOfBase, getWeaponCategoryId, getWeaponCategoryName, weaponCategorySlotLabel });

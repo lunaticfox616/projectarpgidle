@@ -64,6 +64,13 @@ const bossMoves = (() => {
     }
     /** How many special shapes this boss takes turns with (BOSS_MOVE_INTRO by its fighting style). */
     function introCount(enemy) { return (BOSS_MOVE_INTRO[styleOf(enemy)] || BOSS_MOVE_INTRO.none).length; }
+    const FAMILIES = Object.freeze({ ray: ['fan', 'lane'], area: ['ring', 'pulse', 'wave', 'impact'] });
+    function familyShapes(enemy, family) {
+        const shapes = BOSS_MOVE_INTRO[styleOf(enemy)] || BOSS_MOVE_INTRO.none;
+        const allowed = FAMILIES[family], matched = shapes.filter(shape => allowed.includes(shape));
+        return matched.length ? matched : allowed;
+    }
+    function shapeLook(enemy, shape) { return { label: specialName(shape, styleOf(enemy)), telegraphKind: shape }; }
     function specialName(shape, style) {
         const names = BOSS_MOVE_NAMES[shape];
         return typeof names === 'string' ? names : names[style] || names.other;
@@ -73,6 +80,13 @@ const bossMoves = (() => {
         if (area.kind === 'fan') return ['melee', 'ground'].includes(style) ? 'chain' : 'volley';
         if (area.kind === 'line') return telegraph === 'beam' ? 'beam' : 'chain';
         return area.kind === 'blast' ? blastMove(area, style) : null;
+    }
+    /** First impact after release, for a cast bar that ends at the actual hit rather than a fixed half second. */
+    function firstImpactMs(state, enemy) {
+        const area = state.area || enemy.patternArea;
+        if (!area) return BOSS_ATTACK_IMPACT_DELAY_MS;
+        const kind = moveKind(area, state.telegraphKind, styleOf(enemy));
+        return kind ? BOSS_MOVE_RULES[kind].firstMs : BOSS_ATTACK_IMPACT_DELAY_MS;
     }
     function blastMove(area, style) {
         if (area.shape === 'cross') return 'cross';
@@ -192,7 +206,18 @@ const bossMoves = (() => {
         return live;
     }
 
+    /** Cancel only stages that have not landed. Already drawn impacts finish their short tail. */
+    function cutBossMove(move, now) {
+        if (!move) return;
+        move.stages = move.stages.slice(0, move.next);
+        move.cutAt = now;
+        const at = live.findIndex(row => row.move === move);
+        if (at < 0) return;
+        if (!move.stages.length) live.splice(at, 1);
+        else live[at].endsAt = Math.min(live[at].endsAt, now + LINGER_MS);
+    }
+
     return Object.freeze({ rules: BOSS_MOVE_RULES, fxOf: bossFxOf, styleOf, intro: introSpecial, introCount, plan: planBossMove, begin: beginBossMove,
-        takeStage: takeBossMoveStage, live: liveBossMoves });
+        takeStage: takeBossMoveStage, live: liveBossMoves, cut: cutBossMove, firstImpactMs, familyShapes, shapeLook });
 })();
 safeExposeGlobals({ BOSS_MOVE_RULES, bossMoves });

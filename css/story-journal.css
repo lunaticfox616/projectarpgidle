@@ -58,6 +58,10 @@ body #journal-reader.is-text-only { width:min(660px,calc((100vw - 24px) / var(--
     .journal-reader-head { padding:12px; }
     .journal-reader-pages { padding:12px; }
     .journal-reader-page { grid-template-columns:minmax(0,1fr); gap:16px; }
+}
+/* 낮은 화면(가로 휴대폰): 삽화를 글 옆 칸의 위에 붙인다. 화면보다 긴 글의 가운데에 맞추면 삽화가 칸 중간부터 시작해 화면 밖으로 나갔다 */
+@media (max-height:600px) {
+    .journal-reader-page { align-items:start; }
 } }
 
 @layer overrides {

@@ -19,8 +19,14 @@ const bagItems = (() => {
         locked: !!core.locked });
     const jewels = (state = game) => (state.inventory || []).filter(isJewel);
     const cores = (state = game) => (state.inventory || []).filter(isCore);
+    /** Unique jewel art uses its saved identity, including loose drops that do not have a bag slot yet. */
+    function jewelArt(item) {
+        const visuals = ITEM_VISUAL_ASSET_DB;
+        return item && item.rarity === 'unique' && Object.hasOwn(visuals.uniqueJewelAssets, item.uniqueId)
+            ? visuals.uniqueJewelAssets[item.uniqueId] : visuals.jewel;
+    }
     /** Picture in the bag grid (js/items.js getEquipmentGridVisualAsset); '' for gear. */
-    const artOf = item => (isJewel(item) ? ITEM_VISUAL_ASSET_DB.jewel : isCore(item) ? coreItems.icon(item) : '');
+    const artOf = item => (isJewel(item) ? jewelArt(item) : isCore(item) ? coreItems.icon(item) : '');
     /** Picked up whatever the pickup filter and the rarity auto-salvage say: jewels and cores always (they never had a filter),
      * wards while their always-pick chip is on. */
     const keptOnPickup = item => ownShape(item) || colonyWards.keptOnPickup(item);
@@ -147,7 +153,7 @@ const bagItems = (() => {
         migrateCores(state);
     }
 
-    return Object.freeze({ JEWEL, CORE, isJewel, isCore, ownShape, isSpecial, asJewel, asCore, jewels, cores, artOf, keptOnPickup, salvagedOnDrop, countNote, normalize, put,
+    return Object.freeze({ JEWEL, CORE, isJewel, isCore, ownShape, isSpecial, asJewel, asCore, jewels, cores, jewelArt, artOf, keptOnPickup, salvagedOnDrop, countNote, normalize, put,
         take, addJewel, addCore, jewelSlots, candidateSlots, socketFromBag, salvageProfile, migrate });
 })();
 safeExposeGlobals({ bagItems });

@@ -97,6 +97,12 @@ body:has(.tutorial-action-card:not([hidden])) :is(#info-tooltip, #canvas-tooltip
   /* 전투 로그 알림(아래 84px) 위로 쌓아 두 알림이 겹치지 않게. 좁은 화면이라 가장 최근 두 개만 보인다(체이싱 티어 알림은 남는다). */
   .game-toast-region { top: auto; right: 10px; bottom: calc(132px + env(safe-area-inset-bottom)); width: calc(100vw - 20px); }
   .game-toast-region > .game-toast:nth-last-child(n+3):not(.game-toast-chase) { display: none; }
+}
+@media (max-width: 1080px) and (orientation: landscape) and (max-height: 600px) {
+  /* 가로 휴대폰: 대화창 몸통이 157px쯤이라 선택지를 한 줄씩 쌓으면 하나 반만 보였고, 340px 선택지 칸이 몸통 스크롤 안에서 또 밀렸다.
+     나란히 놓고(힘, 민첩, 지능이 한 줄) 몸통만 민다 */
+  .game-choice-grid { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); max-height: none; overflow: visible; }
+  .game-choice-grid > .game-choice-option { align-content: start; }
 } }
 
 @layer overrides {
