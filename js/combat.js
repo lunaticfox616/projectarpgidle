@@ -1783,6 +1783,14 @@ function applySummonHitTargetScales(hit, ctx) {
     applySummonElementTaken(hit, ele, target, curseFx);
     applySummonLateScales(hit, ctx, curseFx);
 }
+/** 변이시간선의 피해 배율(js/loop-mutation.js takenMul). 면역이면 그 몬스터 위에 '면역'을 띄운다(몬스터마다 0.8초에 한 번). */
+function mutationHitScale(enemy, ele) {
+    const mul = loopMutation.takenMul(enemy, ele), now = getCombatTime();
+    if (mul > 0 || enemy.mutationImmuneFxAt > now) return mul;
+    enemy.mutationImmuneFxAt = now + 800;
+    addBattleFx('enemyEvade', { enemyId: enemy.id, text: '면역', color: getElementColor(ele), duration: 260 });
+    return mul;
+}
 /** An entropy dodge: the hit does nothing, with its dodge mark and log line. */
 function dodgeSummonHitByEntropy(hit, target) {
     if (!resolveEntropyEvasion(target, target.evasionChance || 0, getCombatTime())) return;
@@ -1796,6 +1804,7 @@ function applySummonLateScales(hit, ctx, curseFx) {
     const { s, pStats, target, ele, zone } = ctx;
     if (hit.crit) hit.dmg = Math.floor(hit.dmg * (curseFx.critDmgTakenMul || 1));
     if (target) scaleSummonHit(hit, getKeystoneEnemyTakenMultiplier(target, ele));
+    scaleSummonHit(hit, mutationHitScale(target, ele));
     scaleSummonHit(hit, getAbyssMonsterScales(zone).playerDamageMul || 1);
     if (target && target.isBoss && (pStats.damageScales || {}).talismanBossFinalDmgBonusPct) {
         scaleSummonHit(hit, 1 + ((pStats.damageScales.talismanBossFinalDmgBonusPct || 0) / 100));
@@ -7776,7 +7785,8 @@ function clearFlameDecay(enemy) {
     enemy.skillSlowPct = 0;
     enemy.ailments = Array.isArray(enemy.ailments) ? enemy.ailments.filter(ail => ail && ail.type !== 'flameDecay') : [];
 }
-const flameDecayMitigated = (enemy, damage, pStats) => Math.max(1, Math.floor(damage * (1 - getEffectiveEnemyMitigation('fire', (getZone(game.currentZoneId) || {}).tier || 1, enemy, pStats) / 100)));
+const flameDecayMitigated = (enemy, damage, pStats) => Math.floor(Math.max(1, Math.floor(damage * (1 - getEffectiveEnemyMitigation('fire', (getZone(game.currentZoneId) || {}).tier || 1, enemy, pStats) / 100)))
+    * loopMutation.takenMul(enemy, 'fire'));
 /** 터짐: 그 적 둘레(마름모 radius칸)의 다른 적에게 burst 피해를 준다. @returns {object[]} 휘말린 적(가까운 차례) */
 function burstFlameDecay(enemy, burstDamage, pStats) {
     const reach = cell => Math.abs(cell.gx - enemy.gx) + Math.abs(cell.gy - enemy.gy) <= FLAME_DECAY_BURST.radius;
@@ -8246,8 +8256,10 @@ function syncEnemyFlameDecayAilment(enemy, dotState, pStats) {
     let zoneTier = (zone && zone.tier) || 1;
     let abyssPlayerMul = (getAbyssMonsterScales(zone).playerDamageMul || 1);
     let tickInterval = Math.max(0.02, Number(dotState.tickInterval) || DOT_TICK_INTERVAL);
-    let enemyRes = getEffectiveEnemyMitigation(dotState.ele || 'fire', zoneTier, enemy, pStats);
-    let dps = Math.max(1, Math.floor(((dotState.rawTickDamage || 1) / tickInterval) * (1 - enemyRes / 100) * abyssPlayerMul));
+    let decayEle = dotState.ele || 'fire';
+    let enemyRes = getEffectiveEnemyMitigation(decayEle, zoneTier, enemy, pStats);
+    let dps = Math.floor(Math.max(1, Math.floor(((dotState.rawTickDamage || 1) / tickInterval) * (1 - enemyRes / 100) * abyssPlayerMul))
+        * loopMutation.takenMul(enemy, decayEle));
     let row = enemy.ailments.find(ail => ail && ail.type === 'flameDecay');
     let payload = {
         type: 'flameDecay',
@@ -8478,7 +8490,8 @@ function tickEnemyAilments(pStats, dt) {
                 let dps = getEnemyDamageAilmentDps(ail, pStats);
                 let igniteMul = (type === 'ignite' && (enemy.ailments || []).some(row => row && row.type === 'flameDecay' && (row.time || 0) > 0)) ? getFlameDecayIgniteTakenMultiplier(pStats) : 1;
                 let stackMul = Math.max(1, Math.floor(ail.stacks || 1));
-                let dotDmg = dps > 0 ? Math.max(1, Math.floor(dps * stackMul * dt * (1 - enemyRes / 100) * abyssPlayerMul * igniteMul)) : 0;
+                let dotDmg = dps > 0 ? Math.floor(Math.max(1, Math.floor(dps * stackMul * dt * (1 - enemyRes / 100) * abyssPlayerMul * igniteMul))
+                    * loopMutation.takenMul(enemy, ele)) : 0;
                 let dealt = applyDamageToEnemyResource(enemy, dotDmg);
                 // 출혈/점화/중독 도트는 0.1초마다 틱이 들어와 모바일에서 히트 FX가 과도하게 누적될 수 있다.
                 // 특히 출혈 빌드는 틱 빈도/대상 수가 높아 화면이 하얗게 번쩍이며 프레임이 급락하는 증상이 보고됨.
@@ -8517,7 +8530,7 @@ function tickEnemySkillPeriodicEffects(pStats, dt) {
                 effect.timer += effect.interval;
                 effect.hitsLeft--;
                 let mitigation = getEffectiveEnemyMitigation(effect.ele, zoneTier, enemy, pStats);
-                applyDamageToEnemyResource(enemy, Math.max(1, Math.floor(effect.damage * (1 - mitigation / 100))));
+                applyDamageToEnemyResource(enemy, Math.floor(Math.max(1, Math.floor(effect.damage * (1 - mitigation / 100))) * loopMutation.takenMul(enemy, effect.ele)));
                 addConfirmedSkillEffect('confirmedPeriodic',effect.visual,enemy,effect.ele);
             }
         });
@@ -8543,7 +8556,7 @@ function tickEnemyDotEffects(pStats, dt) {
             let dotEle = dotState.ele || 'chaos';
             let enemyRes = getEffectiveEnemyMitigation(dotEle, zoneTier, enemy, pStats);
             let dotDmg = Math.max(1, Math.floor((dotState.rawTickDamage || 1) * (1 - (enemyRes / 100))));
-            dotDmg = Math.max(1, Math.floor(dotDmg * abyssPlayerMul));
+            dotDmg = Math.floor(Math.max(1, Math.floor(dotDmg * abyssPlayerMul)) * loopMutation.takenMul(enemy, dotEle));
             let dealt = applyDamageToEnemyResource(enemy, dotDmg);
             addBattleFx('hit', { enemyId: enemy.id, color: getElementColor(dotEle), damage: dealt, duration: 240, element: dotEle, noLine: true, dot: true });
             if (enemy.hp <= 0) {
@@ -10064,7 +10077,23 @@ function receiveDeferredRune(row) {
 /** The loop's starter gem picked up from the floor: the gem goes in here; the log line and, in a first loop, the equip guide come
  * from the UI at once (js/content-progression-ui.js, event starter-gem-received): a floor gem misses the checks a kill runs. */
 function receiveStarterGemRow(row) {
+    const choices = Array.isArray(row.choices) ? row.choices.filter(name => SKILL_DB[name]) : [];
+    if (choices.length > 1 && !game.isBackgroundCalculation) {
+        // 변이 루프의 3택: 고를 때까지 저장에 남고 창은 js/loop-mutation-ui.js가 띄운다.
+        loopMutation.offerStarter(game, choices);
+        queueImportantSave(200);
+        return;
+    }
     if (receiveStarterGem(game, row.gem)) dispatchRuntimeEvent('starter-gem-received', { gem: row.gem });
+}
+/** The hero's pick among the first kill's runes (js/loop-mutation-ui.js): the named one, or the first when it was not offered. */
+function chooseStarterRune(name) {
+    const gem = loopMutation.takeStarter(game, name);
+    if (!gem) return;
+    if (receiveStarterGem(game, gem)) dispatchRuntimeEvent('starter-gem-received', { gem });
+    playerStatCache.invalidate();
+    pendingHeavyUiRefresh = true;
+    queueImportantSave(200);
 }
 
 /** Jewels, cores and wild talismans wait on the exploration floor like equipment (2026-10-06 user request). Returns whether the
@@ -10361,9 +10390,13 @@ function clearDotFxThrottleForEnemy(enemyId) {
 function grantLoopStarterGemOnFirstKill(enemy) {
     const gemName = takeLoopStarterGem();
     if (!gemName) return;
-    if (enemy && actExplorationState.groundLoot.reserve({ gx: enemy.gx, gy: enemy.gy, kind: 'gem', gem: gemName })) return;
+    // 변이 루프는 셋 중 하나를 고른다(js/loop-mutation.js starterChoices). 바닥 줄은 첫째 룬을 들고 있어 고르기 전에 정산되면 그 룬이 들어온다.
+    const choices = loopMutation.starterChoices(game.selectedClassId);
+    const row = choices && choices.length > 1 ? { kind: 'gem', gem: choices[0], choices } : { kind: 'gem', gem: gemName };
+    if (enemy && actExplorationState.groundLoot.reserve({ gx: enemy.gx, gy: enemy.gy, ...row })) return;
     const run = enemy ? explorationFloorFor(enemy) : null;
-    if (run) actExplorationState.groundLoot.placeGem(run, enemy, gemName);
+    if (run) actExplorationState.groundLoot.placeGem(run, enemy, row.gem, row.choices);
+    else if (row.choices) receiveStarterGemRow(row);
     else if (receiveStarterGem(game, gemName)) addLog(`스킬룬 [${gemName}] 획득`, 'loot-rare');
 }
 /** 이번 루프의 시작 룬 이름(한 번만): 이미 받았거나 기본 공격 밖의 스킬이 있으면 null. */
@@ -11951,7 +11984,7 @@ function applySkillGemDot(command,targets) {
     for (const enemy of targets) {
         const stats=command.stats,mitigation=getEffectiveEnemyMitigation('chaos',getZone(game.currentZoneId).tier,enemy,stats);
         const attackMultiplier=command.attackOptions?.attackDamageMultiplier ?? 1;
-        const damage=applyDamageToEnemyResource(enemy,Math.max(1,Math.floor(stats.baseDmg*stats.dotDamageScale*attackMultiplier*(1-mitigation/100))));
+        const damage=applyDamageToEnemyResource(enemy,Math.floor(Math.max(1,Math.floor(stats.baseDmg*stats.dotDamageScale*attackMultiplier*(1-mitigation/100)))*loopMutation.takenMul(enemy,'chaos')));
         addBattleFx('hit',{enemyId:enemy.id,damage,element:'chaos',color:getElementColor('chaos'),duration:240,
             noLine:true,dot:true,resolvedSkillContact:true});
         if (enemy.hp<=0) handleEnemyDeath(enemy,stats);
@@ -12179,7 +12212,7 @@ function performPlayerAttack(pStats, attackOptions) {
             visited.add(chainTarget.id);
             let zone = getZone(game.currentZoneId);
             let chainRes = getEffectiveEnemyMitigation(hitElement, zone.tier, chainTarget, pStats);
-            let chainDamage = Math.floor(remainingDamage * (1 - chainRes / 100));
+            let chainDamage = Math.floor(remainingDamage * (1 - chainRes / 100) * mutationHitScale(chainTarget, hitElement));
             if ((pStats.sSkill.tags || []).includes('projectile')) chainDamage = Math.floor(chainDamage * (chainTarget.projectileDamageTakenMul || 1));
             if (hitElement === 'phys') chainDamage = Math.floor(chainDamage * (chainTarget.physicalDamageTakenMul || 1));
             let dealtToChain = applyDamageToEnemyResource(chainTarget, Math.max(1, chainDamage));
@@ -12451,7 +12484,7 @@ function performPlayerAttack(pStats, attackOptions) {
                 : { mainPct: 1, added: {} };
             let wisdomMainMultiplier = getPassiveWisdomLeapDamageMultiplier(pStats, hitElement);
             dmg = Math.floor(dmg * Math.max(0, Number(talentConversion.mainPct) || 0)
-                * (1 - (enemyRes / 100)) * wisdomMainMultiplier);
+                * (1 - (enemyRes / 100)) * wisdomMainMultiplier * mutationHitScale(targetEnemy, hitElement));
             damageBeforeMitigation = Math.floor(damageBeforeMitigation * wisdomMainMultiplier);
             ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * wisdomMainMultiplier);
             // Resolve each element before combining the damage portions.
@@ -12498,7 +12531,7 @@ function performPlayerAttack(pStats, attackOptions) {
                 if (addEle === 'light') addRes -= (curseFx.resLShred || 0);
                 if (addEle === 'chaos') addRes -= (curseFx.resChaosShred || 0);
                 if (addEle === 'phys') addRes -= (curseFx.physDrShred || 0);
-                let mitigatedAdded = Math.floor(rawAdded * (1 - (addRes / 100)));
+                let mitigatedAdded = Math.floor(rawAdded * (1 - (addRes / 100)) * loopMutation.takenMul(targetEnemy, addEle));
                 if (addEle === 'phys') {
                     if (hitElement !== 'phys') mitigatedAdded = Math.floor(mitigatedAdded * Math.max(0, Number(pStats.warriorPhysDamageMultiplier) || 1));
                     mitigatedAdded = Math.floor(mitigatedAdded * (targetEnemy.physicalDamageTakenMul || 1) * Math.max(0.2, 1 - (targetEnemy.armorGuard || 0)));
@@ -12523,7 +12556,7 @@ function performPlayerAttack(pStats, attackOptions) {
                 if (addEle === 'light') addRes -= (curseFx.resLShred || 0);
                 if (addEle === 'chaos') addRes -= (curseFx.resChaosShred || 0);
                 if (addEle === 'phys') addRes -= (curseFx.physDrShred || 0);
-                let mitigatedFlat = Math.floor(flatPortion * (1 - (addRes / 100)));
+                let mitigatedFlat = Math.floor(flatPortion * (1 - (addRes / 100)) * loopMutation.takenMul(targetEnemy, addEle));
                 if (addEle === 'phys') {
                     mitigatedFlat = Math.floor(mitigatedFlat * Math.max(0, Number(pStats.warriorPhysDamageMultiplier) || 1));
                     mitigatedFlat = Math.floor(mitigatedFlat * (targetEnemy.physicalDamageTakenMul || 1) * Math.max(0.2, 1 - (targetEnemy.armorGuard || 0)));
@@ -14757,6 +14790,7 @@ function advanceLoopCounters(loopPath, say) {
     if (loopPath === 'cosmos') game.cosmosLoopCount = Math.max(0, Math.floor(game.cosmosLoopCount || 0)) + 1;
     game.lastLoopAdvancePath = loopPath;
     game.season++;
+    loopMutation.begin(game);
     game.loopCount = Math.max(0, Math.floor(game.loopCount || 0)) + 1;
     game.seasonPoints++;
     say(`🔁 ${getLoopAdvancePathLabel(loopPath)}로 다음 루프에 진입합니다.${loopPath === 'cosmos' ? ` (우주계 난이도 +${Math.max(0, Math.floor(game.cosmosLoopCount || 0))}단계)` : ''}`, 'season-up');
@@ -14812,6 +14846,7 @@ function resetLoopBuild() {
     game.weaponBlockedSkill = '';
     game.mobilitySkill = '';
     game.loopStarterGemGranted = false;
+    game.pendingStarterRuneChoice = null;
     game.gemData = { '기본 공격': { level: 1, exp: 0 } };
     game.skyGemEnhancements = {};
     game.supports = [];

@@ -32,14 +32,16 @@
         .combat-zone-actions button { margin-left: 0; }
         .combat-zone-row-title { display: flex; align-items: center; gap: 6px; min-width: 0; }
         .combat-zone-row-title > #ui-combat-zone-inline { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        /* 가진 기본 재화(js/currency-acquisition-ui.js combatCurrencyHud): 지역 이름 바로 아래에 띄워 지역 줄의 높이와 단추 자리는 그대로 둔다.
-           지역 이름 칸은 넘친 글을 자르므로 기준 상자는 지역 줄이고(PC absolute, 휴대폰 relative), 가로 자리는 이름 칸의 시작 그대로다.
-           오른쪽 56px은 휴대폰의 목표 단추 자리라 비우고, 넘치면 다음 줄로 넘긴다. 지역 줄은 누름을 전장으로 흘리지만 이 줄은 받아서
-           올리면 재화 이름이 뜬다 */
-        .combat-currencies { position: absolute; top: calc(100% - 6px); display: flex; flex-wrap: wrap; gap: 2px 10px; max-width: calc(100% - 56px);
-            color: #efe3c9; font-size: 12px; font-weight: 700; line-height: 16px; white-space: nowrap; text-shadow: 0 1px 0 #000, 0 0 6px #000; pointer-events: auto; }
+        /* 지역 이름 아래 줄: 변이시간선 칩(js/loop-mutation-ui.js)과 가진 기본 재화(js/currency-acquisition-ui.js combatCurrencyHud). 지역 줄의
+           높이와 단추 자리는 그대로 둔다. 지역 이름 칸은 넘친 글을 자르므로 기준 상자는 지역 줄이고(PC absolute, 휴대폰 relative), 가로 자리는
+           이름 칸의 시작 그대로다. 오른쪽 56px은 휴대폰의 목표 단추 자리라 비우고, 넘치면 다음 줄로 넘긴다. 지역 줄은 누름을 전장으로 흘리고
+           이 줄도 흘리지만 칩과 재화는 받아서 올리면 이름이 뜬다 */
+        .combat-zone-subline { position: absolute; top: calc(100% - 6px); display: flex; flex-wrap: wrap; align-items: center; gap: 2px 10px;
+            max-width: calc(100% - 56px); pointer-events: none; }
         /* 휴대폰은 자동, 귀환 단추가 지역 줄 아래 끝(2px 위)까지 내려와 그 밑에서 시작한다 */
-        body.mobile-battle-tab #tab-battle .combat-currencies { top: calc(100% - 2px); }
+        body.mobile-battle-tab #tab-battle .combat-zone-subline { top: calc(100% - 2px); }
+        .combat-currencies { display: flex; flex-wrap: wrap; gap: 2px 10px;
+            color: #efe3c9; font-size: 12px; font-weight: 700; line-height: 16px; white-space: nowrap; text-shadow: 0 1px 0 #000, 0 0 6px #000; pointer-events: auto; }
         .combat-currencies[hidden] { display: none; }
         .combat-currencies > span { display: inline-flex; align-items: center; gap: 3px; }
         .combat-currencies img { width: 16px; height: 16px; image-rendering: pixelated; }

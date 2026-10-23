@@ -211,6 +211,7 @@ function settlePlayerStall() {
 function refreshCombatTickUi() {
     cosmosRouteUi.updateVitals();
     combatCurrencyHud.update();
+    loopMutationUi.update();
     let recentStats = game.lastCombatStats && (getCombatTime() - (game.lastCombatStatsAt || 0) < 250) ? game.lastCombatStats : getUiPlayerStats();
     updateCombatUI(recentStats);
 }

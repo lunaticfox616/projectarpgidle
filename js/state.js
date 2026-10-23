@@ -2389,6 +2389,9 @@ const defaultGame = {
     loopDeaths: 0,
     loopKills: 0,
     loopStarterGemGranted: false,
+    // 변이시간선(js/loop-mutation.js): 규칙이 걸린 루프 번호(0이면 없음)와 첫 처치 공격룬 3택({ gems: 룬 이름 }, 고를 때까지)
+    loopMutationSeason: 0,
+    pendingStarterRuneChoice: null,
     starterGemTutorialPending: null,
     settings: {
         // PC와 모바일 메뉴 편집은 서로의 순서·배치를 덮어쓰지 않는다.

@@ -5149,7 +5149,9 @@ function isLoopHeroSelectOpen() {
 function buildHeroChoiceTooltipHtml(classId, experienced) {
     let def = PLAYER_CLASS_DEFS[classId];
     if (!def) return '';
-    const gem = LOOP_STARTER_GEM_BY_HERO[def.recommendedTalentHeroId] || '이중 베기';
+    // 변이 루프는 첫 처치에서 셋 중 하나를 고른다(js/loop-mutation.js starterChoices)
+    const choices = loopMutation.starterChoices(classId) || [];
+    const gem = choices.length > 1 ? `${choices.join(', ')} 중 하나` : LOOP_STARTER_GEM_BY_HERO[def.recommendedTalentHeroId] || '이중 베기';
     const gemLine = String((SKILL_DB[gem] || {}).desc || '').split('.')[0];
     return `<div class="tooltip-title">${escapeHTML(def.label)}${experienced ? ' <span style="color:#9fd8ff;">경험함</span>' : ''}</div>
         <div class="tooltip-line" style="color:#f6c461;">시작 스킬룬: ${escapeHTML(gem)}</div>
@@ -5190,6 +5192,11 @@ function pressLoopHeroChoice(classId, experienced) {
     renderLoopHeroChoiceDetail(classId, experienced);
 }
 
+/** The class screen's line for this loop's mutation (js/loop-mutation.js), empty outside a mutation loop. */
+function loopHeroMutationLine() {
+    const rule = loopMutation.current();
+    return rule ? `\n변이시간선: ${loopMutation.describe(rule)}` : '';
+}
 function openLoopHeroSelection(onSelect, options = {}) {
     let overlay = document.getElementById('loop-hero-select-overlay');
     let grid = document.getElementById('loop-hero-select-grid');
@@ -5203,7 +5210,7 @@ function openLoopHeroSelection(onSelect, options = {}) {
     loopHeroSelectionCallback = typeof onSelect === 'function' ? onSelect : null;
     if (kickerEl) kickerEl.innerText = options.kicker || '다음 루프';
     if (titleEl) titleEl.innerText = options.title || '다음 루프 직업 선택';
-    if (bodyEl) bodyEl.innerText = options.body || '이번 루프에서 사용할 직업을 선택하세요.';
+    if (bodyEl) bodyEl.innerText = (options.body || '이번 루프에서 사용할 직업을 선택하세요.') + loopHeroMutationLine();
     let experiencedSet = new Set(game.heroSelectionInitialized && Array.isArray(game.discoveredClassIds) ? game.discoveredClassIds : []);
     grid.innerHTML = PLAYER_CLASS_ORDER.map(id => {
         let def = PLAYER_CLASS_DEFS[id];

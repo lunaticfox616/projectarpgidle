@@ -17,8 +17,9 @@ actExplorationState.groundLoot = (() => {
      * @typedef {{gx:number, gy:number, kind:'talisman', item:object, overflow:string}} GroundLootTalismanRow a rolled wild
      *   talisman (its fields, no stump box id yet) and the shard currency given instead when the stump box storage is full.
      * @typedef {{gx:number, gy:number, kind:'leaf', leaf:string}} GroundLootLeafRow a memory leaf id (data/memory-leaves.js, 2026-10-09).
-     * @typedef {{gx:number, gy:number, kind:'gem', gem:string}} GroundLootGemRow the loop's starter gem by name (SKILL_DB), dropped by
-     *   the loop's first kill (js/combat.js grantLoopStarterGemOnFirstKill, 2026-10-15).
+     * @typedef {{gx:number, gy:number, kind:'gem', gem:string, choices?:string[]}} GroundLootGemRow the loop's starter gem by name
+     *   (SKILL_DB), dropped by the loop's first kill (js/combat.js grantLoopStarterGemOnFirstKill, 2026-10-15). In a mutation loop
+     *   choices are the three runes offered (js/loop-mutation.js starterChoices) and gem is the first, taken when the row is settled.
      * @typedef {{gx:number, gy:number, kind:'rune', gem:{kind:'attack'|'support',name:string,awakened?:boolean,tier?:number},
      *   shards:number}} GroundLootRuneRow an exact gem reward (gemDropRewards.validateGem).
      * @typedef {GroundLootEquipmentRow|GroundLootCurrencyRow|GroundLootStoreRow|GroundLootTalismanRow|GroundLootLeafRow|GroundLootGemRow|GroundLootRuneRow} GroundLootRow
@@ -82,12 +83,13 @@ actExplorationState.groundLoot = (() => {
     function placeLeaf(run, cell, leaf) {
         lay(run, { gx: cell.gx, gy: cell.gy, kind: 'leaf', leaf });
     }
-    /** Lays the loop's starter gem (its name) on a walkable cell. */
+    /** Lays a yarn (js/knitting.js) on a walkable cell. */
     function placeYarn(run, cell, yarn) {
         lay(run, { gx: cell.gx, gy: cell.gy, kind: 'yarn', yarn });
     }
-    function placeGem(run, cell, gem) {
-        lay(run, { gx: cell.gx, gy: cell.gy, kind: 'gem', gem });
+    /** Lays the loop's starter gem (its name; in a mutation loop also the runes offered) on a walkable cell. */
+    function placeGem(run, cell, gem, choices) {
+        lay(run, { gx: cell.gx, gy: cell.gy, kind: 'gem', gem, ...(choices ? { choices } : {}) });
     }
     /** Lays an already resolved currency gain on a walkable cell, joining the same currency already lying there. */
     function placeCurrency(run, at, currency, count) {

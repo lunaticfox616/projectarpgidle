@@ -270,6 +270,18 @@ const BOSS_DEFENSE_SPECIALTIES = Object.freeze({
     byElement: Object.freeze({ phys: 'dr', fire: 'resF', cold: 'resC', light: 'resL' })
 });
 
+// 변이시간선(2026-10-23 사용자 결정, js/loop-mutation.js): 루프 startLoop부터 그 루프의 모든 몬스터가 한 속성 피해에 면역이고(관통, 저항
+// 감소로도 뚫리지 않음) 다른 한 속성 피해를 weakTakenPct% 더 받는다. 루프 번호로 정해져 schedule을 10루프마다 되풀이한다([면역, 약점],
+// 첫 줄이 루프 5). 면역은 루프마다 바뀌고 약점은 면역과 겹치지 않는다.
+const LOOP_MUTATION = Object.freeze({
+    startLoop: 5,
+    weakTakenPct: 30,
+    schedule: Object.freeze([
+        ['fire', 'cold'], ['cold', 'light'], ['light', 'phys'], ['phys', 'chaos'], ['chaos', 'fire'],
+        ['fire', 'light'], ['cold', 'chaos'], ['light', 'fire'], ['phys', 'cold'], ['chaos', 'phys']
+    ].map(Object.freeze))
+});
+
 // 시간의 균열 (루프 13+): 과거에 심고, 미래에 거둔다 — 고유+희귀 융합 던전.
 //  - 과거 클리어 → 제단 개방 → 같은 부위의 고유 1개·희귀 1개를 올림 → 미래 클리어 → 융합 유물 획득.
 //  - 시간압(1~10)이 난이도이자 보상 손잡이: 높을수록 몬스터가 강해지고 '완벽한 융합' 확률이 오른다.
@@ -439,5 +451,5 @@ const JOURNAL_DB = {
 
 const JOURNAL_ENTRY_ORDER = ['prologue', 'act_1', 'act_2', 'act_3', 'act_4', 'act_5', 'act_6', 'act_7', 'act_8', 'act_9', 'act_10', 'woodsman', 'woodsman_echo', 'meteor_fall', 'beehive_queen', 'void_grand_breach', 'labyrinth_10', 'ocean_500', 'sky_tower_10', 'time_rift_fusion', 'colony_wave_10', 'immortal', 'level_200', 'passive_star_evolution', 'hidden_last_breath', 'hidden_unscarred', 'hidden_fourfold_affliction', 'rival_overheat', 'rival_dull', 'rival_glutton', 'rival_afterimage', 'rival_backedge', 'rival_masterwork', 'cosmos_astra', 'pinnacle_underking', 'pinnacle_leviathan', 'pinnacle_sky', 'pinnacle_observer'];
 
-safeExposeData({ MONSTER_LOOP_HP_CURVE, CHAOS_LOOP_RAMP_PER_DEPTH, MONSTER_LOOP_POWER_SCALE, ENEMY_DEFENSE_TIER20, BOSS_DEFENSE_SPECIALTIES, MONSTER_LOOP_GROWTH, LOOP_DEEP_STATS, WORLD_TREE_BARK, EXPLORATION_EVENT_LOOPS, EXPLORATION_EVENT_NOTICES, EXPLORATION_PROP_LOOT, EXPLORATION_CHEST_GRADES });
+safeExposeData({ MONSTER_LOOP_HP_CURVE, CHAOS_LOOP_RAMP_PER_DEPTH, MONSTER_LOOP_POWER_SCALE, ENEMY_DEFENSE_TIER20, BOSS_DEFENSE_SPECIALTIES, LOOP_MUTATION, MONSTER_LOOP_GROWTH, LOOP_DEEP_STATS, WORLD_TREE_BARK, EXPLORATION_EVENT_LOOPS, EXPLORATION_EVENT_NOTICES, EXPLORATION_PROP_LOOT, EXPLORATION_CHEST_GRADES });
 safeExposeData({ ACT_BATTLE_MAP_SOURCES, ACT_BATTLE_MAP_LAYOUT, STORY_ACTS, WORLD_MAP_HOTSPOTS, TRIAL_ZONES, METEOR_FALL_ZONE_ID, METEOR_SITE_UNLOCK_LOOP, METEOR_SITE_UNLOCK_ACT, METEOR_CONSTELLATION_POOL, SEASON_CONTENT_ROADMAP, SEASON_BOSS_ZONES, LABYRINTH_ZONE_ID, JOURNAL_DB, JOURNAL_ENTRY_ORDER, LOOP_GATE_ABYSS_DEPTH_CAP, LOOP_GATE_ALT_START_SEASON, LOOP_GATE_ALT_COSMOS_PLANET_ID, LOOP_GATE_ALT_COSMOS_PLANET_NAME, OCEAN_UNLOCK_LOOP, OCEAN_AUTO_REDIVE, OCEAN_ZONE_ID, MAP_PRIMARY_CONTENTS, COSMOS_MECHANIC_DB, COSMOS_GALAXY_ENVIRONMENT_DB, COSMOS_EXPEDITION_DIRECTIVE_DB });

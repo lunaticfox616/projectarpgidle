@@ -504,6 +504,15 @@ function normalizePlayerAilmentRow(row, clampFiniteNumber) { // clampFiniteNumbe
     if (row.sourceEnemyName) Object.assign(out, { sourceEnemyId: row.sourceEnemyId === undefined ? null : row.sourceEnemyId, sourceEnemyName: String(row.sourceEnemyName) });
     return out;
 }
+/** 변이시간선(js/loop-mutation.js): the marked loop number (else 0, so a broken one meets the rule from the next loop) and the first
+ * kill's pick (offered rune names that still exist, at most three, else none). */
+function normalizeLoopMutationState(merged) {
+    const season = Number(merged.loopMutationSeason);
+    merged.loopMutationSeason = Number.isInteger(season) && season > 0 ? season : 0;
+    const raw = merged.pendingStarterRuneChoice;
+    const gems = raw && Array.isArray(raw.gems) ? raw.gems.filter(name => typeof name === 'string' && SKILL_DB[name]).slice(0, 3) : [];
+    merged.pendingStarterRuneChoice = gems.length ? { gems } : null;
+}
 /** Removed support runes (data/skills.js RETIRED_SUPPORT_GEMS) leave every saved place before validation: their record, the run's
  * rune rewards, rune rows on the floor and in encounter buffers, NPC shelves and the woodsman snapshot. The rune lists are filtered by
  * SUPPORT_GEM_DB below. A saved row naming one failed the exploration loot check and with it the whole load. Idempotent. */
@@ -1227,6 +1236,7 @@ function mergeDefaults(save) {
     delete merged.discoveredHeroIds;
     delete merged.heroFreeSwitchUnlocked;
     merged.pendingLoopHeroSelection = !!merged.pendingLoopHeroSelection;
+    normalizeLoopMutationState(merged);
     merged.abyssClearedDepths = Array.isArray(merged.abyssClearedDepths) ? merged.abyssClearedDepths.map(v => Math.max(1, Math.floor(v || 1))).filter(v => v <= 20) : [];
     merged.playerAilments = Array.isArray(merged.playerAilments) ? merged.playerAilments.map(row => normalizePlayerAilmentRow(row, clampFiniteNumber)).filter(row => row.type) : [];
     merged.playerLeechInstances = Array.isArray(merged.playerLeechInstances) ? merged.playerLeechInstances.map(row => ({ remaining: Math.max(0, clampFiniteNumber(row.remaining, 0, 0)), rate: Math.max(0, clampFiniteNumber(row.rate, 0, 0)), target: row.target === 'energyShield' ? 'energyShield' : 'life' })).filter(row => row.remaining > 0 && row.rate > 0).slice(0, 80) : [];
