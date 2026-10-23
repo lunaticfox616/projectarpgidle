@@ -321,4 +321,35 @@ for (const value of [undefined, null, -1, 1.5, 'bad', Infinity, 0, 8]) {
         'a later craft removing the new innate block survives reload');
 }
 
+// A build preset stores choices, not a second copy of progression. Failed swaps cannot move any owned items.
+{
+    const run = code => vm.runInContext(code, ctx);
+    const plain = code => JSON.parse(run(`JSON.stringify(${code})`));
+    run(`game=cloneDefaultGame();window.game=game;game.level=100;game.resonancePower=50;
+        game.equipment['무기']=createItemFromBase(BASE_ITEM_DB.find(row=>row.id==='dull_greatsword'),'normal',1);
+        game.supports=['가속'];game.equippedSupports=['가속'];
+        game.supportGemData={'가속':{level:11,exp:321,unlockedTier:3,activeTier:2}};
+        equipmentLoadoutRuntime.save(0,'통합 세팅');
+        game=mergeDefaults(JSON.parse(JSON.stringify(game)));window.game=game;`);
+    assert.strictEqual(run('game.equipmentLoadouts.presets[0].runeLoadout.supportTiers["가속"]'), 2);
+    run('game.supportGemData["가속"].activeTier=1');
+    assert.strictEqual(run('equipmentLoadoutRuntime.apply(0).ok'), true);
+    assert.strictEqual(run('game.supportGemData["가속"].activeTier'), 2);
+    assert.strictEqual(run('game.supportGemData["가속"].exp'), 321, 'restoring choices retains current gem experience');
+    run(`game.inventory.push(game.equipment['무기']);
+        game.equipment['무기']=createItemFromBase(BASE_ITEM_DB.find(row=>row.id==='rusted_blade'),'normal',1);
+        game.supports=[];game.equippedSupports=[];`);
+    const before = plain('({equipment:game.equipment,inventory:game.inventory,supportGemData:game.supportGemData})');
+    assert.strictEqual(run('equipmentLoadoutRuntime.apply(0).ok'), false, 'an unavailable saved rune rejects the entire build');
+    assert.deepStrictEqual(plain('({equipment:game.equipment,inventory:game.inventory,supportGemData:game.supportGemData})'), before);
+    run(`delete game.equipmentLoadouts.presets[0].runeLoadout;
+        game=mergeDefaults(JSON.parse(JSON.stringify(game)));window.game=game;`);
+    assert.strictEqual(run('game.equipmentLoadouts.presets[0].runeLoadout'), null, 'old equipment presets remain equipment-only');
+    assert.strictEqual(run('equipmentLoadoutRuntime.apply(0).ok'), true);
+    assert.deepStrictEqual(plain('game.equippedSupports'), [], 'old presets do not restore discarded rune selections');
+    run(`game.equipmentLoadouts.presets[0].runeLoadout={version:99};
+        game=mergeDefaults(JSON.parse(JSON.stringify(game)));window.game=game;`);
+    assert.strictEqual(run('equipmentLoadoutRuntime.apply(0).ok'), false, 'damaged new presets cannot downgrade to equipment-only');
+}
+
 console.log('smoke-save-migration passed');

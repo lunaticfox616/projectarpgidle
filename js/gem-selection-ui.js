@@ -4,21 +4,78 @@
     /** px between the detail popover and its gem card / window edge. */
     const POPOVER_GAP = 8;
     let selection = null;
+    const totalDps = stats => stats.totalDps ?? stats.dps ?? 0;
 
-    function application(name, stats) {
+    const TARGET_LABELS = Object.freeze({ main: '주 공격', mobility: '이동', summon: '소환' });
+    const TARGET_STATES = Object.freeze({ on: '적용', off: '태그가 맞지 않음', empty: '장착한 스킬 없음', na: '소환수 대응 효과 없음', buff: '사역룬은 보조 대상 아님' });
+
+    function targetRows(name, replaced) {
+        const equippedSupports = game.equippedSupports.filter(gem => gem !== replaced && gem !== name).concat(name);
+        const result = window.GameModules.skills.supports.targets(name, { ...game, equippedSupports });
+        return [{ ...result.main, role: 'main' }, { ...result.mobility, role: 'mobility' },
+            ...result.summons.map(row => ({ ...row, role: 'summon' }))];
+    }
+
+    function targetCount(name, replaced) {
+        return targetRows(name, replaced).filter(row => row.status === 'on').length;
+    }
+
+    function application(name, stats, replaced) {
+        const roles = [...new Set(targetRows(name, replaced).filter(row => row.status === 'on').map(row => TARGET_LABELS[row.role]))];
+        return roles.length ? `적용: ${roles.join(' · ')}` : '맞는 스킬 없음';
+    }
+
+    function indicators(name, replaced) {
+        const rows = targetRows(name, replaced);
+        return '<span class="support-targets" aria-label="스킬별 적용">' + Object.entries(TARGET_LABELS).map(([role, label]) => {
+            const group = rows.filter(row => row.role === role);
+            const status = ['on', 'na', 'off', 'buff', 'empty'].find(key => group.some(row => row.status === key)) || 'empty';
+            const text = group.map(row => `${row.name || label}: ${row.reason || TARGET_STATES[row.status]}`).join(', ') || TARGET_STATES.empty;
+            return `<span class="support-target is-${status}" title="${escapeHTML(text)}" aria-label="${label}: ${escapeHTML(text)}"><i aria-hidden="true"></i>${label === '주 공격' ? '주' : label.slice(0, 1)}</span>`;
+        }).join('') + '</span>';
+    }
+
+    function effectText(name, tier, stats) {
         const def = SUPPORT_GEM_DB[name];
-        const tag = Object.keys(TAGGED_DAMAGE_STAT_BY_TAG).find(key => TAGGED_DAMAGE_STAT_BY_TAG[key] === def.stat);
-        if (!tag) return isSummonGuardSupport(name) ? '소환형 보조, 소환 한도 사용' : '캐릭터 효과, 상세에서 확인';
-        const applies = skill => getTaggedDamageBreakdown({ [def.stat]: 1 }, { ...skill, tags: [...getSkillDamageTagSet(skill)] }).total > 0;
-        const active = getUiGemPresentation(game.activeSkill || '기본 공격', false, stats).skill;
-        const targets = [];
-        if (applies(active)) targets.push('주 공격');
-        const mobility = mobilitySkill.equipped();
-        if (mobility && applies(getUiGemPresentation(mobility, false, stats).skill)) targets.push('이동 스킬');
-        const summons = (game.equippedSummonSkills || []).filter(gem => (SKILL_DB[gem]?.tags || []).includes(tag));
-        targets.push(...summons);
-        if (targets.length) return `적용: ${targets.join(', ')}`;
-        return '현재 주 공격/소환 룬에 적용되지 않음';
+        if (def.tierValues) return window.GameModules.skills.supports.describe(name, tier, game);
+        const info = getUiGemPresentation(name, true, stats);
+        const value = info.value / getSupportTierMultiplier(name, getSupportActiveTier(name)) * getSupportTierMultiplier(name, tier);
+        return `${info.statName} +${formatSupportGemEffectValue(value)}${def.isPct ? '%' : ''}`;
+    }
+
+    function targetDetails(name, stats, replaced) {
+        const effect = effectText(name, getSupportActiveTier(name), stats);
+        return `<div class="support-target-details">${targetRows(name, replaced).map(row =>
+            `<p class="is-${row.status}"><b>${TARGET_LABELS[row.role]}${row.name ? ` · ${escapeHTML(row.name)}` : ''}</b><span>${escapeHTML(row.status === 'on' ? effect : (row.reason || TARGET_STATES[row.status]))}</span></p>`).join('')}</div>`;
+    }
+
+    function summonEffect(name, stats) {
+        const def = SKILL_DB[name];
+        if (def.aura) {
+            const info = getUiGemPresentation(name, false, stats);
+            const steps = getGemLevelGrowthSteps(info.finalLevel);
+            const rows = def.aura.stats.slice();
+            if (def.aura.flatStat) rows.unshift({ stat: def.aura.flatStat, base: def.aura.flatBase, scale: def.aura.flatScale });
+            return rows.map(row => `${getStatName(row.stat).replace(/\(%\)$/, '')} +${formatSupportGemEffectValue(row.base + steps * row.scale)}${P_STATS[row.stat]?.isPct ? '%' : ''}`).join(' · ');
+        }
+        if (def.tags.includes('summon_guard')) {
+            const preview = getSummonTooltipPreview(name, stats);
+            return `생명력 ${Math.floor(preview.maxHp).toLocaleString()} · 적중 피해 ${preview.redirectPct}% 대신 받음`;
+        }
+        return '';
+    }
+
+    function skillSummary(role, name, stats) {
+        const key = role === 'active' ? 'main' : role;
+        const rows = game.equippedSupports.filter(support => targetRows(support).some(row => row.role === key && row.name === name && row.status === 'on'));
+        return `<div class="support-skill-summary"><b>${escapeHTML(name || TARGET_LABELS[key])} · 적용 보조 ${rows.length}개</b><span>${rows.map(support => escapeHTML(effectText(support, getSupportActiveTier(support), stats))).join(' · ') || '현재 적용되는 보조 효과가 없습니다.'}</span></div>`;
+    }
+
+    function migrationNotice() {
+        const migration = game.saveMeta?.supportRuneMigration;
+        if (!migration?.noticePending) return;
+        addLog(`보조룬 개편: ${migration.moved.map(escapeHTML).join(', ')} 이전 · 창공의 정수 ${migration.refund}개 환급. 소환 칸에서 사역룬을 확인하세요.`, 'loot-unique', { toast: true });
+        migration.noticePending = false;
     }
 
     function close() {
@@ -82,7 +139,7 @@
     function actions(type, name, anchor) {
         const support = type === 'support';
         const worn = anchor.classList.contains('active');
-        const canUnequip = support || (SKILL_DB[name].tags || []).includes('summon_attack') || mobilitySkill.isMobilityGem(name);
+        const canUnequip = support || skillGemBoardUi.kindOf(name) === 'summon' || mobilitySkill.isMobilityGem(name);
         const seal = !worn && name !== '기본 공격' ? '<button type="button" data-gem-action="seal" class="gem-selection-seal">봉인</button>' : '';
         return equipButton(anchor, canUnequip) + kindControls(type, name, worn) + seal + '<button type="button" data-gem-action="close" aria-label="룬 상세 닫기">닫기</button>';
     }
@@ -91,7 +148,7 @@
      * gem then keeps the replaced one's count. Without it the gem is added: once for a summon gem. */
     function wornWith(kind, name, replaced, saved) {
         const keep = list => list.filter(gem => gem !== replaced);
-        if (kind === 'support') return { equippedSupports: keep(saved.equippedSupports).concat(name) };
+        if (kind === 'support') return { equippedSupports: keep(saved.equippedSupports).filter(gem => gem !== name).concat(name) };
         if (kind === 'mobility') return { mobilitySkill: name };
         if (kind !== 'summon') return { activeSkill: name };
         const counts = { ...saved.summonSkillCounts, [name]: saved.summonSkillCounts[replaced] || 1 };
@@ -104,13 +161,7 @@
     function previewStats(type, name, replaced) {
         const saved = { activeSkill: game.activeSkill, mobilitySkill: game.mobilitySkill, equippedSupports: (game.equippedSupports || []).slice(),
             equippedSummonSkills: (game.equippedSummonSkills || []).slice(), summonSkillCounts: { ...(game.summonSkillCounts || {}) } };
-        const before = getUiPlayerStats({}, false);
-        try {
-            Object.assign(game, wornWith(type === 'support' ? 'support' : skillGemBoardUi.kindOf(name), name, replaced, saved));
-            return { before, after: getUiPlayerStats({}, false) };
-        } finally {
-            Object.assign(game, saved);
-        }
+        return previewBuildStats(copy => Object.assign(copy, wornWith(type === 'support' ? 'support' : skillGemBoardUi.kindOf(name), name, replaced, saved)));
     }
 
     function compareRow(label, before, after) {
@@ -131,7 +182,7 @@
      * @param {string} [replaced] the gem this one takes the place of (the slot dialog's tooltip, js/gem-slot-dialog-ui.js) */
     function compareHtml(type, name, replaced) {
         const { before, after } = previewStats(type, name, replaced);
-        const rows = [compareRow('DPS', before.dps || 0, after.dps || 0)].concat(packRows(before, after));
+        const rows = [compareRow('전체 DPS', totalDps(before), totalDps(after))].concat(packRows(before, after));
         if ((before.summonDps || 0) > 0 || (after.summonDps || 0) > 0) rows.push(compareRow('소환 DPS', before.summonDps || 0, after.summonDps || 0));
         return `<div class="gem-compare"><b>${replaced ? '바꾸면' : '장착하면'}</b><div class="gem-compare-grid">${rows.join('')}</div></div>`;
     }
@@ -145,6 +196,7 @@
     }
 
     function open(anchor, type, name) {
+        if (type === 'support') { close(); gemSlotDialog.open('support', game.equippedSupports.includes(name) ? name : '', name); return; }
         close();
         selection = { anchor, type, name };
         anchor.classList.add('is-gem-selected');
@@ -249,5 +301,6 @@
     document.addEventListener('scroll', position, true);
     document.addEventListener('dblclick', quickEquip);
     window.addEventListener('resize', position);
-    safeExposeGlobals({ gemSelectionUi: Object.freeze({ open, application, preview: previewStats, compareHtml }) });
+    safeExposeGlobals({ gemSelectionUi: Object.freeze({ open, application, preview: previewStats, compareHtml,
+        indicators, targetRows, targetCount, targetDetails, effectText, summonEffect, skillSummary, migrationNotice }) });
 })();

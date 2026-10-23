@@ -15,7 +15,7 @@
   --board-read: var(--font-pixel-read, 'Galmuri14', sans-serif);
   --board-label: var(--font-pixel, 'Galmuri11', sans-serif);
 }
-.skill-board-layout { display: grid; grid-template-columns: minmax(300px, 372px) minmax(0, 1fr); gap: 10px; align-items: start; }
+.skill-board-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; align-items: start; }
 .skill-board-column { display: grid; gap: 10px; min-width: 0; }
 :is(.skill-board, .support-slots, .skill-picker) {
   border: 1px solid var(--board-ink);
@@ -25,6 +25,12 @@
 
 /* ── 보드: 머리 줄 · 무대(빛 · 고리 · 팔각 핵 · 각인) · 위성 칸 ───────────────────────────── */
 .skill-board { padding: 10px 10px 12px; }
+.skill-board-linked-row { display: grid; grid-template-columns: minmax(76px, 1fr) minmax(250px, 2fr) minmax(76px, 1fr); align-items: center; gap: 12px; }
+.skill-board-main { min-width: 0; }
+.skill-board-mobility, .skill-board-summons { display: grid; justify-items: center; gap: 8px; min-width: 0; }
+.skill-board-summons { max-height: 300px; overflow-y: auto; padding: 4px; }
+.skill-board-summons > small, .skill-board-link-note { color: var(--board-muted); font: 12px/18px var(--board-label); text-align: center; }
+.skill-board-link-note { margin: 6px 0 0; padding-top: 8px; border-top: 1px solid #3a3040; }
 .skill-board-head { display: flex; align-items: baseline; gap: 7px; min-width: 0; padding: 0 2px; }
 .skill-board-head > span { color: var(--board-gold); font: 12px var(--board-label); }
 .skill-board-head > b { min-width: 0; overflow: hidden; color: #fff; font: 400 var(--font-size-reading) var(--board-read); text-overflow: ellipsis; white-space: nowrap; text-shadow: 1px 1px 0 #000; }
@@ -113,7 +119,6 @@
 .skill-board-engrave:hover > i, .skill-board-engrave:focus-visible > i { filter: brightness(1.25); }
 
 /* 위성 칸: 이동 · 소환 */
-.skill-board-satellites { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px 12px; margin-top: 4px; }
 .skill-board-satellite {
   --gem-accent: #a7b1bc;
   display: grid; justify-items: center; gap: 2px;
@@ -140,7 +145,7 @@
 /* ── 보조스킬룬 칸 줄 ─────────────────────────────────────────────────────────────── */
 /* 칸 줄의 칸 폭 계산(100cqw)이 이 칸의 내용 폭을 쓰도록 크기 기준으로 둔다. */
 .support-slots { padding: 10px; container-type: inline-size; }
-.support-slots-head { display: flex; align-items: baseline; gap: 7px; margin-bottom: 8px; }
+.support-slots-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 7px; margin-bottom: 8px; }
 .support-slots-head > span { color: var(--board-gold-hi); font: 400 var(--font-size-reading) var(--board-read); }
 .support-slots-head > em { color: var(--board-muted); font: normal 12px var(--board-label); }
 .support-resonance { display: flex; align-items: center; gap: 5px; margin-left: auto; }
@@ -148,10 +153,10 @@
 .support-resonance b { color: #f3e3a8; font: 400 var(--font-size-reading) var(--board-read); }
 .support-resonance-bar { position: relative; width: 64px; height: 7px; border: 1px solid var(--board-ink); background: #0d0b0f; box-shadow: inset 0 0 0 1px #2a2420; }
 .support-resonance-bar > i { position: absolute; inset: 1px auto 1px 1px; max-width: calc(100% - 2px); background: linear-gradient(180deg, #f1dc9c, #a28942); }
-.support-slots-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(62px, 1fr)); gap: 8px 6px; }
+.support-slots-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px 6px; }
 /* 칸 폭은 정수 px(남는 몇 px는 오른쪽 끝): 1fr 칸은 소수 폭이라 룬 이름이 번졌다(2026-10-21). */
 @supports (width: calc(1px / 1px * 1px)) {
-  .support-slots-row { --support-cols: max(1, round(down, (100cqw + 6px) / 68px, 1));
+  .support-slots-row { --support-cols: max(1, round(down, (100cqw + 6px) / 102px, 1));
     grid-template-columns: repeat(auto-fill, round(down, calc((100cqw - (var(--support-cols) - 1) * 6px) / var(--support-cols)), 1px)); }
 }
 .support-slot {
@@ -182,6 +187,8 @@
   box-shadow: 0 -6px 0 -2px #141116, 0 -6px 0 0 #4a414c;
 }
 .support-slot:not(.is-lock):hover > i { filter: brightness(1.2); }
+.support-slot.is-linked > .support-sigil { outline: 2px solid var(--board-gold-hi); outline-offset: 2px; }
+.support-slot.is-linked > b { color: var(--board-gold-hi); }
 #skill-tab-equip[data-picking="support"] .support-slots { box-shadow: inset 0 0 0 1px var(--board-gold), inset 0 1px 0 rgba(236, 196, 118, .12); }
 
 /* ── 고르기 목록 ─────────────────────────────────────────────────────────────── */
@@ -203,6 +210,10 @@
     grid-template-columns: repeat(auto-fill, round(down, calc((100cqw - (var(--gem-cols) - 1) * 6px) / var(--gem-cols)), 1px)); }
 }
 #tab-skills .skill-picker .skill-gem-library[hidden] { display: none; }
+#tab-skills .skill-picker #ui-support-list { grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); }
+.support-library-unmatched { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 6px; }
+.support-library-footer { grid-column: 1 / -1; padding-top: 12px; text-align: right; }
+#tab-skills .support-library-effect { color: var(--board-copy); font: 15px/24px var(--board-read); text-align: center; }
 /* 너비 100%(inline)에 여백과 테두리를 넣어 잰다: 그렇지 않으면 룬 목록보다 14px 넓어 오른쪽으로 삐져나왔다 */
 #tab-skills .skill-picker .search-filter-panel { box-sizing: border-box; margin-bottom: 4px; padding: 6px; border: 1px solid #2c2532; border-radius: 0; background: #120f14; }
 #tab-skills .skill-picker .search-filter-input { min-height: 30px; border: 1px solid var(--board-ink); border-radius: 0; background: #0d0b0f; color: var(--board-copy); font: 12px var(--board-label); }
@@ -285,5 +296,24 @@
   #tab-skills .skill-picker .skill-gem-library { grid-template-columns: minmax(0, 1fr) repeat(3, round(down, calc((100% - 18px) / 4), 1px)); }
   #tab-skills .gem-tile { padding: 11px 3px 6px; }
   #tab-skills .gem-tile .gem-tile-art { width: 40px; height: 40px; }
+}
+@media (max-width: 700px) {
+  .skill-board-linked-row { grid-template-columns: minmax(52px, 1fr) minmax(156px, 2fr) minmax(52px, 1fr); gap: 3px; }
+  .skill-board-head { flex-wrap: wrap; justify-content: center; gap: 2px 5px; }
+  .skill-board-head > em { margin-left: 0; }
+  .skill-board-stage.has-ring { height: 200px; }
+  .skill-board-stage.has-ring::before { width: 150px; height: 150px; background: radial-gradient(circle, transparent 61px, #715a36 62px, #715a36 63px, transparent 64px, transparent 72px, #352c22 73px, transparent 74px); }
+  .skill-board-core { width: 64px; height: 64px; }
+  .skill-board-core-art { width: 44px; height: 44px; }
+  .skill-board-engrave { left: calc(50% + var(--x) * .63 - 22px); top: calc(50% + var(--y) * .63 - 22px); }
+  .skill-board-engrave > i { left: 8px; top: 8px; width: 28px; height: 28px; }
+  .skill-board-engrave > span { top: 39px; font: 12px/18px var(--board-label); }
+  .skill-board-engrave[style*="--y:-"] > span { bottom: 39px; }
+  .skill-board-satellite { width: 100%; }
+  .skill-board-satellite > b { white-space: normal; overflow-wrap: anywhere; }
+  .skill-board-summons { max-height: 240px; padding: 0; }
+  .skill-board-summons > small { overflow-wrap: anywhere; }
+  .support-resonance { margin-left: 0; }
+  #tab-skills .skill-picker #ui-support-list, .support-library-unmatched { grid-template-columns: minmax(0, 1fr); }
 }
 }

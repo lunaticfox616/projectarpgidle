@@ -1,13 +1,14 @@
 /** 효과 확장 규칙 (data/skill-effect-expansion.js). The resolved active skill carries its level (skill.effectExpansion) and
  * every hit shape grows from it: grid profiles and authored stage grids here, native gem numbers in skill-gem-casts.js,
  * fixed-size redrawn art in canvas-redrawn-skill-fx.js. Items, inner growth and the keystone that grant the level are not
- * in the game yet, so it is 0 unless the local test panel sets one (kept in memory, never saved).
+ * in the game yet; 넓은 판정 supplies +1. The local test panel can also set a level (never saved).
  */
 const skillEffectExpansion = (() => {
     let testLevel = 0;
     const rules = () => SKILL_EFFECT_EXPANSION;
     function clampLevel(n) { return Math.max(0, Math.min(rules().max, Math.floor(Number(n) || 0))); }
     function kindOf(name) { return Object.hasOwn(rules().kinds, name) ? rules().kinds[name] : null; }
+    function resolvedKind(skill, name) { return skill.supportEffects?.spreadRadius ? 'radius' : kindOf(name); }
     /** The player's 효과 확장 level (0–2). */
     function level() { return testLevel; }
     /* @dev-only */
@@ -20,7 +21,8 @@ const skillEffectExpansion = (() => {
     /* @end-dev-only */
     /** Stamps +N on the resolved active skill: its level and kind, N more targets for target gems, the keystone's cost. */
     function applyToSkill(skill, name) {
-        const kind = kindOf(name), n = kind ? level() : 0;
+        const kind = resolvedKind(skill, name);
+        const n = kind ? Math.min(rules().max, Math.max(level(), skill.supportExpansion || 0)) : 0;
         skill.effectExpansion = n;
         skill.effectExpansionKind = kind;
         if (kind === 'targets' && n) skill.targets = Math.max(1, Math.floor(skill.targets || 1)) + n;

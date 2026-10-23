@@ -121,7 +121,8 @@ const mobilitySkill = (() => {
     function moving() { return busy(runtime) || (isMobilityGem(game.activeSkill) && busy(skillGemCombatRuntime)); }
     /** Remaining cooldown for the HUD (0 when ready). */
     function cooldownLeft(now = getCombatTime()) { return Math.max(0, cooldownUntil - now); }
-    function reset() { runtime = null; cooldownUntil = 0; lastStats = null; requestedAt = null; }
+    /** Build switches cancel the old cast while retaining its cooldown. Save/zone resets still clear everything. */
+    function reset(keepCooldown = false) { runtime = null; if (!keepCooldown) cooldownUntil = 0; lastStats = null; requestedAt = null; }
     /** The native cast state the renderer draws next to the main gem's. */
     function castState() { return runtime; }
     /** The pressed key rides in the snapshot too, so an offline replay cannot spend the live request. */

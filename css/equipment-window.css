@@ -87,13 +87,13 @@
 :root body #item-tab-equip .eqw-ehp > span b { color: var(--c); }
 :root body #item-tab-equip .eqw-ehp .eqw-ehp-label { color: #c9b48a; }
 
-/* 장착 장비 머리: 제목 오른쪽에 세팅 I, II, III, 저장, ⋯(이름 바꾸기, 비우기). 세팅을 누르면 그 세팅으로 바꾼다(빈 세팅은 고르기만).
+/* 장착 장비 머리: 제목 오른쪽에 세팅 I, II, III, 저장, ⋯(이름 바꾸기, 비우기). 번호를 누르면 저장된 빌드 비교 창을 연다.
    2026-10-21 사용자: 맨 밑의 세팅 칸을 '장착 장비' 있는 곳으로(js/equipment-loadouts-ui.js) */
-:root body #item-tab-equip .equipment-window .eqw-doll-head { align-items: center; padding-block: 3px; }
+:root body #item-tab-equip .equipment-window .eqw-doll-head { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 4px; align-items: center; padding-block: 3px; }
 :root body #item-tab-equip .eqw-doll-head > h4 { margin: 0; color: inherit; font: inherit; letter-spacing: inherit; }
-:root body #item-tab-equip .eqw-doll-head > #ui-equipment-presets { margin-left: auto; }
-:root body #item-tab-equip .equipment-preset-panel { display: block; margin: 0; padding: 0; border: 0; background: none; box-shadow: none; }
-:root body #item-tab-equip .equipment-preset-row { display: flex; gap: 3px; align-items: stretch; }
+:root body #item-tab-equip .eqw-doll-head > #ui-equipment-presets { display: contents; }
+:root body #item-tab-equip .equipment-preset-panel { display: contents; margin: 0; padding: 0; border: 0; background: none; box-shadow: none; }
+:root body #item-tab-equip .equipment-preset-row { display: flex; justify-content: flex-end; gap: 3px; align-items: stretch; }
 :root body #item-tab-equip .equipment-preset-row .equipment-preset-slot { display: block; min-width: 28px; min-height: 0; padding: 2px 6px;
   border: 1px solid #6b5431; border-radius: 0; background: linear-gradient(180deg, #241c14, #17120d); color: var(--eqw-ink); font-size: 12px; text-align: center; }
 :root body #item-tab-equip .equipment-preset-row .equipment-preset-slot.empty { color: var(--eqw-muted); }
@@ -107,6 +107,16 @@
 :root body #item-tab-equip .equipment-preset-more .eqw-more-panel { width: 150px; }
 :root body #item-tab-equip .equipment-preset-row .equipment-preset-save { flex: 0 0 auto; min-height: 0; padding: 2px 6px; border: 1px solid #4a3a22; border-radius: 0;
   background: transparent; color: var(--eqw-muted); font-size: 12px; }
+:root body #item-tab-equip .equipment-preset-detail { grid-column: 1 / -1; min-width: 0; padding: 6px 2px 3px; border-top: 1px solid #4a3a22;
+  color: var(--eqw-muted); font-size: 12px; line-height: 18px; font-weight: 400; letter-spacing: 0; }
+:root body #item-tab-equip .equipment-preset-caption { display: flex; flex-wrap: wrap; gap: 2px 8px; justify-content: space-between; }
+:root body #item-tab-equip .equipment-preset-caption b { color: var(--eqw-ink); overflow-wrap: anywhere; }
+:root body #item-tab-equip .equipment-preset-caption > span { color: #b8d59e; }
+:root body #item-tab-equip :is(.equipment-preset-note, .equipment-preset-notice) { margin: 4px 0 0; overflow-wrap: anywhere; }
+:root body #item-tab-equip .equipment-preset-notice.is-blocked { color: #ffac92; }
+:root body #item-tab-equip .equipment-preset-build-name { margin: 5px 0 0; color: var(--eqw-gold); overflow-wrap: anywhere; }
+:root body #item-tab-equip .equipment-preset-build-name > span { color: var(--eqw-ink); }
+:root body #item-tab-equip .equipment-preset-review-button { width: 100%; min-height: 36px; margin-top: 6px; padding: 5px; font-size: 12px; }
 
 /* 가방: 머리 한 줄(칸 수, 검색), 그 아래 쪽 단추 줄, 가방 오른쪽 도구 줄(2026-10-19 사용자 정리: 정렬 고르기 삭제, ⋯ 대신 도구 줄) */
 :root body #item-tab-equip .equipment-window .eqw-bag-card { padding: 8px 10px 10px; }
@@ -297,6 +307,8 @@
 
 /* 휴대폰: 요약 한 줄, 장착 장비 ▾로 장착 칸과 세팅을 펼친다. 선택한 장비는 아래에서 올라온다. */
 @media (max-width: 1080px) {
+  :root body #item-tab-equip .equipment-preset-row :is(.equipment-preset-slot, .equipment-preset-save, .equipment-preset-more > summary) { min-height: 44px; min-width: 36px; padding: 4px; }
+  :root body #item-tab-equip .equipment-preset-review-button { min-height: 44px; }
   :root body #item-tab-equip .equipment-window { grid-template-columns: minmax(0, 1fr); gap: 8px; }
   :root body #item-tab-equip .equipment-window .equipment-loadout-panel { display: contents; }
   :root body #item-tab-equip .equipment-window .eqw-summary-card { order: -3; padding: 7px 8px; }

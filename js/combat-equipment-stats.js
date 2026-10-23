@@ -120,6 +120,47 @@ const combatEquipmentStats = (() => {
         const disabled = evaluate(candidate).disabled;
         return Object.keys(disabled).length ? { ok: false, reason: '프리셋 적용 시 요구조건이 부족해지는 장비가 있습니다.' } : { ok: true };
     }
+    /** Equipment and runes are one transaction. Even old equipment-only presets keep the current runes valid. */
+    function validateBuildLoadout(equipment, config, owner) {
+        const runes = window.GameModules.skills.loadouts, selected = config || runes.capture(owner);
+        const candidate = permanentSnapshot(owner);
+        candidate.equipment = JSON.parse(JSON.stringify(equipment));
+        const structure = runes.inspect(selected, candidate);
+        if (!structure.ok) return structure;
+        runes.apply(selected, candidate);
+        candidate.weaponBlockedSkill = '';
+        const gear = validateLoadout(equipment, { ...candidate, equipment: owner.equipment });
+        if (!gear.ok) return gear;
+        return inspectBuildCandidate(candidate, selected);
+    }
+    function inspectBuildCandidate(candidate, selected) {
+        const live = game, bridge = window.GameState, windowGame = bridge.game;
+        try {
+            game = candidate;
+            bridge.game = candidate;
+            evaluating.add(candidate);
+            const blocked = [selected.activeSkill, selected.mobilitySkill, ...selected.equippedSummonSkills]
+                .filter(Boolean).find(name => !canUseSkillWithCurrentEquipment(name));
+            if (blocked) return { ok: false, reason: `${blocked}: ${getSkillRuneWeaponNote(blocked)}` };
+            const stats = getPlayerStats(false), runes = window.GameModules.skills.loadouts;
+            if (!runes.equals(selected, candidate)) return { ok: false, reason: '현재 장비로 저장된 룬 구성을 유지할 수 없습니다.' };
+            return runes.inspect(selected, candidate, stats);
+        } finally {
+            evaluating.delete(candidate);
+            game = live;
+            bridge.game = windowGame;
+        }
+    }
+    /** Retire attacks authored by the old build; retain cooldowns, summon health and respawn times. */
+    function finishBuildLoadout(owner) {
+        if (owner !== game) return;
+        playerStatCache.invalidate();
+        pendingSkillStageHits = [];
+        skillGemCombatRuntime = null;
+        resetCombatChannelRuntime();
+        mobilitySkill.reset(true);
+        wispSummons.reset();
+    }
     function read(includeBreakdowns) {
         const owner = game, status = evaluate(owner);
         const originalEquipment = owner.equipment;
@@ -140,5 +181,5 @@ const combatEquipmentStats = (() => {
         if (evaluating.has(owner)) return owner.equipment;
         return evaluate(owner).active;
     }
-    return Object.freeze({ evaluate, inspect, validateLoadout, read, activeEquipment, withinTick });
+    return Object.freeze({ evaluate, inspect, validateLoadout, validateBuildLoadout, finishBuildLoadout, read, activeEquipment, withinTick });
 })();

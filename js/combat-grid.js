@@ -625,7 +625,7 @@ function findGridTacticalDestination(unit,target,config) {
  * The resolved active skill's 효과 확장 grows it (js/skill-effect-expansion.js); at +0 the table row itself comes back. */
 function getSkillGridProfile(skillName, skillDef) {
     let profile = getAuthoredSkillGridProfile(skillName, skillDef) || getDefaultSkillGridProfile(skillDef);
-    return skillEffectExpansion.grid(profile, skillDef);
+    return window.GameModules.combat.supports.grid(skillEffectExpansion.grid(profile, skillDef), skillDef);
 }
 
 /** The SKILL_GRID_DB row, reshaped when an engraved projectile pattern changes its kind. */
@@ -1476,7 +1476,7 @@ function describeSkillGridProfile(skillName, skillDef) {
     if (shapeLabels[profile.shape]) parts.push(shapeLabels[profile.shape]);
     if (profile.kind === 'chain') parts.push(`연쇄 ${Math.max(1, profile.jump || COMBAT_GRID_CONFIG.chainJumpRange)}칸`);
     if (profile.kind === 'fan') parts.push(describeGridFanRays(profile));
-    if (tags.includes('projectile')) parts.push(skillDef.projectilePatternSource ? `적용: ${skillDef.projectilePatternSource}` : '발사 방식 변경 가능');
+    if (window.GameModules.combat.supports.playerProjectile({tags})) parts.push(skillDef.projectilePatternSource ? `적용: ${skillDef.projectilePatternSource}` : '발사 방식 변경 가능');
     parts.push(...describeWiderStageAreas(skillDef, profile));
     return [getSkillGridDescriptionText(skillDef, parts), describeMobilityRuneCooldown(skillName, skillDef)].filter(Boolean).join(', ');
 }
@@ -1494,7 +1494,7 @@ function describeMobilityRuneCooldown(skillName, skillDef) {
 /** 첫 줄: 투사체는 발사 방식, 그 밖은 공격 범위의 이름(옆으로만 치는 룬은 '옆으로 곧게'). */
 function describeGridAreaTitle(profile, tags, skillDef) {
     const kind = getSkillGridProfileKindLabel(profile.band ? 'band' : profile.kind);
-    if (!tags.includes('projectile')) return `공격 범위: ${kind}`;
+    if (!window.GameModules.combat.supports.playerProjectile({tags})) return `공격 범위: ${kind}`;
     const mode = skillDef.projectilePattern && skillDef.projectilePattern.mode;
     const modeDef = typeof PROJECTILE_PATTERN_MODE_DB !== 'undefined' && PROJECTILE_PATTERN_MODE_DB[mode];
     return `발사 방식: ${modeDef ? modeDef.label : kind}`;

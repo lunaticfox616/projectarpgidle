@@ -76,7 +76,7 @@ const ACT_REWARD_DB = {
         choices: [
             { kind: 'support', gem: '가속', fallbackKind: 'currency', currency: 'magicBud', fallbackValue: 2, label: '보조스킬룬 - 가속', desc: '공격 속도를 높이는 보조스킬룬을 얻습니다.' },
             { kind: 'support', gem: '무자비', fallbackKind: 'currency', currency: 'magicBud', fallbackValue: 2, label: '보조스킬룬 - 무자비', desc: '치명타 피해를 높이는 보조스킬룬을 얻습니다.' },
-            { kind: 'support', gem: '활력', fallbackKind: 'currency', currency: 'magicBud', fallbackValue: 2, label: '보조스킬룬 - 활력', desc: '생명력 재생을 제공하는 보조스킬룬을 얻습니다.' },
+            { kind: 'support', gem: '휩쓸기', fallbackKind: 'currency', currency: 'magicBud', fallbackValue: 2, label: '보조스킬룬 - 휩쓸기', desc: '근접 공격이 주변 적을 추가로 타격합니다.' },
             { kind: 'support', gem: '갑주 파쇄', fallbackKind: 'currency', currency: 'magicBud', fallbackValue: 2, label: '보조스킬룬 - 갑주 파쇄', desc: '물리 빌드가 적의 물리 피해 감소를 파고들 수 있게 합니다.' },
             { kind: 'support', gem: '저항 침식', fallbackKind: 'currency', currency: 'magicBud', fallbackValue: 2, label: '보조스킬룬 - 저항 침식', desc: '원소/카오스 빌드가 적 저항을 음수까지 깎아낼 수 있게 합니다.' }
         ]

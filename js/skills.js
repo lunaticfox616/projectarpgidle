@@ -732,9 +732,11 @@ function normalizeSupportLoadout(logChange, knownStats) {
         stats = statsProvider();
     }
     let cap = Math.max(0, Math.floor((stats || {}).suppCap || 0));
-    if ((game.equippedSupports || []).length <= cap) return false;
-    let removed = game.equippedSupports.splice(cap);
-    if (logChange && removed.length > 0) addLog("🟢 장착 한도가 줄어 보조스킬룬 일부가 자동 해제되었습니다.", "attack-monster");
+    const { equippedSupports, removed } = window.GameModules.skills.supports.normalize(game, cap);
+    if (!removed.length) return false;
+    game.equippedSupports = equippedSupports;
+    if (logChange) addLog(`🟢 장착 한도 또는 연결 제약으로 자동 해제: ${removed.join(', ')}`, "attack-monster");
+    playerStatCache.invalidate();
     return removed.length > 0;
 }
 
@@ -751,7 +753,7 @@ const GEM_LEVEL_TAG_RULES = [
     { stat: 'spellGemLevel', tag: 'spell' },
     { stat: 'dotGemLevel', tag: 'dot' },
     { stat: 'aoeGemLevel', tag: 'aoe' },
-    { stat: 'summonGemLevel', tag: 'summon_attack' }
+    { stat: 'summonGemLevel', tag: 'summon' }
 ];
 
 function getGemLevelTargetTags(target) {
@@ -986,10 +988,10 @@ function getGemSpellEarlyMultiplier(skill, level) {
 const isMobilityRuneName = name => (SKILL_DB[name]?.tags || []).includes('mobility');
 /** 주 공격 칸의 룬을 지금 무기에 맞춘다: 못 쓰면 기본 공격으로 바꿔 두고 그 룬을 game.weaponBlockedSkill에 적어 두며, 맞는 무기를 다시
  * 들면 그 룬으로 돌린다. 무기 자세를 보는 장비 평가가 getActiveSkillStats를 다시 부르므로 이름은 먼저 잡아 두고 확인 뒤에 쓴다. */
-function fitActiveSkillToWeapon() {
+function fitActiveSkillToWeapon(allowMobility = false) {
     // 이동 룬은 주 공격 칸으로 돌아오지 않는다(불러올 때 이동 칸으로, js/save-migrations.js keepBlockedMobilityGem).
     if (isMobilityRuneName(game.weaponBlockedSkill)) game.weaponBlockedSkill = '';
-    releaseMobilityRuneFromAttackSlot();
+    releaseMobilityRuneFromAttackSlot(allowMobility);
     const blocked = game.weaponBlockedSkill;
     if (game.activeSkill === '기본 공격' && blocked && (game.skills || []).includes(blocked) && canUseSkillWithCurrentEquipment(blocked)) {
         game.activeSkill = blocked;
@@ -1001,9 +1003,9 @@ function fitActiveSkillToWeapon() {
     game.activeSkill = '기본 공격';
 }
 /** 칼이 된 발걸음을 벗으면 주 공격 칸의 이동 룬은 이동 칸으로 간다(이동 칸이 차 있으면 내려 둔다). 막혀 있던 공격 룬은 위에서 돌아온다. */
-function releaseMobilityRuneFromAttackSlot() {
+function releaseMobilityRuneFromAttackSlot(allowMobility = false) {
     const worn = game.activeSkill;
-    if (!isMobilityRuneName(worn) || isMobilityRuneAttackWorn(game)) return;
+    if (allowMobility || !isMobilityRuneName(worn) || isMobilityRuneAttackWorn(game)) return;
     if (!isMobilityRuneName(game.mobilitySkill) || !(game.skills || []).includes(game.mobilitySkill)) game.mobilitySkill = worn;
     game.activeSkill = '기본 공격';
 }
@@ -1019,10 +1021,10 @@ function getGemCritHitPerkMul(skillName, pStats) {
     const perk = Object.hasOwn(GEM_AWAKENED_PERKS, skillName) ? GEM_AWAKENED_PERKS[skillName] : null;
     return perk && perk.critHitMul && pStats.sSkill.awakened ? perk.critHitMul : 1;
 }
-function getActiveSkillStats(bonusLevel) {
-    fitActiveSkillToWeapon();
+function getActiveSkillStats(bonusLevel, allowMobility) {
+    fitActiveSkillToWeapon(allowMobility);
     let skill = SKILL_DB[game.activeSkill] || SKILL_DB['기본 공격'];
-    if (skill && Array.isArray(skill.tags) && skill.tags.includes('summon_attack')) {
+    if (skill && Array.isArray(skill.tags) && skill.tags.includes('summon')) {
         game.activeSkill = '기본 공격';
         skill = SKILL_DB['기본 공격'];
     }

@@ -24,10 +24,25 @@
     /** 전령의 속성은 표시 이름의 첫 낱말이다('화염 플랫 피해'). */
     const HERALD_TONES = Object.freeze({ 물리: 'phys', 화염: 'fire', 냉기: 'cold', 번개: 'lightning', 카오스: 'chaos' });
     const FALLBACK = Object.freeze(['star', 'neutral']);
+    /** 체감형은 동작을 뜻하는 문양을 쓴다. 같은 속성이라도 주입/변환/점화의 문양은 다르다. */
+    const BEHAVIOR_LOOKS = Object.freeze({
+        '화염 변환': ['prism', 'fire'], '냉기 변환': ['prism', 'cold'], '번개 변환': ['prism', 'lightning'], '카오스 변환': ['prism', 'chaos'],
+        '이중 발동': ['twin', 'phys'], '이중 시전': ['twin', 'arcane'], '갈래 투사체': ['split', 'phys'], '연쇄 투사체': ['boomerang', 'lightning'],
+        '휩쓸기': ['wave', 'phys'], '꿰뚫기': ['pierce', 'crit'], '넓은 판정': ['burst', 'arcane'], '밀어내기': ['speed', 'guard'],
+        '투척': ['arrow', 'speed'], '지뢰 설치': ['bomb', 'arcane'], '강타화': ['hammer', 'crit'], '잔불': ['hourglass', 'fire'],
+        '유지 시전': ['reticle', 'speed'], '분산': ['fork', 'arcane'], '집속': ['reticle', 'crit'], '불붙이기': ['flame', 'life'],
+        '터지는 시체': ['skull', 'chaos'], '처형': ['down', 'crit'], '증원': ['split', 'summon']
+    });
+    const SUMMON_LOOKS = Object.freeze({
+        '물리 사역룬': ['orb', 'phys'], '화염 사역룬': ['orb', 'fire'], '냉기 사역룬': ['orb', 'cold'],
+        '번개 사역룬': ['orb', 'lightning'], '카오스 사역룬': ['orb', 'chaos'], '유틸리티 사역룬': ['leaf', 'life'],
+        '수액 골렘 소환': ['shield', 'summon']
+    });
 
     /** @param {string} name support gem name @returns {string[]} [icon, tone] */
     function sigilLook(name) {
         const def = SUPPORT_GEM_DB[name] || {};
+        if (BEHAVIOR_LOOKS[name]) return BEHAVIOR_LOOKS[name];
         if (Number.isFinite(def.heraldExplodeBase)) return ['skull', HERALD_TONES[String(def.name || '').split(' ')[0]] || 'phys'];
         const base = BY_STAT[def.stat] || FALLBACK;
         // 공명 룬은 같은 원소의 피해 룬과 색이 같으므로 그림을 소리굽쇠로 바꾼다.
@@ -47,5 +62,10 @@
         return `<span class="support-sigil is-tone-${tone} ${className || ''}" aria-hidden="true">${renderPixelIcon(icon, 'support-sigil-icon')}${sigilPips(tier)}</span>`;
     }
 
-    safeExposeGlobals({ supportGemSigil: Object.freeze({ html: sigilHtml, tone: name => sigilLook(name)[1] }) });
+    function summonHtml(name, className) {
+        const look = SUMMON_LOOKS[name];
+        return look ? `<span class="support-sigil is-tone-${look[1]} ${className}" aria-label="${escapeHTML(name)}">${renderPixelIcon(look[0], 'support-sigil-icon')}</span>` : '';
+    }
+
+    safeExposeGlobals({ supportGemSigil: Object.freeze({ html: sigilHtml, tone: name => sigilLook(name)[1], summonHtml }) });
 }());

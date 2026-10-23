@@ -42,6 +42,7 @@
             });
         const state = libraryPages[kind];
         state.total = records.length;
+        if (support) return renderSupportLibrary(records, stats, filter);
         const query = JSON.stringify([filter || '', !!fold, slotKind]);
         if (state.query !== query) { state.index = 0; state.query = query; }
         const mobile = uiDisplay.matches('(max-width: 1080px)');
@@ -57,6 +58,24 @@
         return renderLibraryPager(kind, state.index, count, records.length) + cards;
     }
 
+    function renderSupportLibrary(records, stats, filter) {
+        const full = game.equippedSupports.length >= Math.floor(stats.suppCap || 0);
+        const rows = records.map(record => supportLibraryRow(record, full));
+        rows.sort((a, b) => b.targets - a.targets || b.dps - a.dps);
+        const card = row => row.sealed ? renderSealedGemCard(row.name, window.highlightSearchText(row.name, filter), true)
+            : renderSupportGemCard(row.name, window.highlightSearchText(row.name, filter), stats);
+        const matched = rows.filter(row => row.targets > 0), unmatched = rows.filter(row => row.targets === 0);
+        const banner = full ? '<p class="support-full-banner">보조 칸이 찼습니다. 룬을 고른 뒤 바꿀 칸을 선택할 수 있습니다.</p>' : '';
+        return banner + matched.map(card).join('') + (unmatched.length ? `<details class="support-unmatched"><summary>지금 장착한 스킬에 안 맞음 (${unmatched.length})</summary><div class="support-library-unmatched">${unmatched.map(card).join('')}</div></details>` : '');
+    }
+
+    function supportLibraryRow(record, full) {
+        const targets = gemSelectionUi.targetCount(record.name);
+        const compare = !full && !record.sealed && !game.equippedSupports.includes(record.name) && targets > 0;
+        const preview = compare ? gemSelectionUi.preview('support', record.name) : null;
+        return { ...record, targets, dps: preview ? preview.after.totalDps - preview.before.totalDps : 0 };
+    }
+
     function renderLibraryPager(kind, index, count, total) {
         return '<nav class="gem-library-pager" aria-label="' + (kind === 'support' ? '보조' : '공격') + ' 룬 페이지">'
             + '<button type="button" data-gem-page="' + kind + '" data-step="-1"' + (index === 0 ? ' disabled' : '') + '>이전</button>'
@@ -65,11 +84,20 @@
     }
 
     document.addEventListener('click', event => {
+        if (event.target.closest('[data-support-bulk-seal]')) { confirmSupportSeal(); return; }
         const button = event.target.closest('[data-gem-page]');
         if (!button || button.disabled) return;
         libraryPages[button.dataset.gemPage].index += Number(button.dataset.step);
         updateStaticUI();
     });
+
+    async function confirmSupportSeal() {
+        const names = game.supports.filter(name => !game.equippedSupports.includes(name));
+        if (!names.length) return;
+        const accepted = await requestGameConfirmation(`장착하지 않은 보조스킬룬 ${names.length}개를 봉인하고 공명력 ${names.length}을 얻습니다. 봉인을 해제할 때는 룬마다 공명력 1을 사용합니다.`,
+            { title: '보조스킬룬 일괄 봉인', confirmLabel: `${names.length}개 봉인`, cancelLabel: '취소' });
+        if (accepted) names.forEach(name => { if (!game.equippedSupports.includes(name)) sealSupportGem(name); });
+    }
 
     function renderGemResearchCandidate(kind, name, cost, availableFragments) {
         let isSupport = kind === 'support';
@@ -209,10 +237,10 @@
 
         let supportHtml = renderGemLibrary('support', game.supports, sealedSupports, pStats, sf.support);
         let supportListEl = document.getElementById('ui-support-list');
-        let supportActions = foldSupportInactive ? '' : '<button onclick="sealAllInactiveSupportGems()">미사용 보조스킬룬 일괄 봉인</button>';
+        let supportActions = foldSupportInactive ? '' : '<div class="support-library-footer"><button type="button" data-support-bulk-seal>미사용 보조스킬룬 일괄 봉인</button></div>';
         let supportRenderSig = `${supportHtml}::${supportActions}`;
         if (supportListEl && supportListEl.dataset.renderSig !== supportRenderSig) {
-            renderSearchSection('ui-support-list', 'support', '보조스킬룬 이름/효과 검색', supportHtml, '', supportActions);
+            renderSearchSection('ui-support-list', 'support', '보조스킬룬 이름/효과 검색', supportHtml + supportActions, '', '');
             supportListEl = document.getElementById('ui-support-list');
             supportListEl.dataset.renderSig = supportRenderSig;
         }

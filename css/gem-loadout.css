@@ -64,7 +64,7 @@
 #info-tooltip .engrave-tooltip-group { color: var(--px-copy-muted, #9d927d); }
 #info-tooltip .engrave-tooltip-effect { margin-top: 6px; font-size: 15px; line-height: 1.45; }
 #info-tooltip .gem-tier-line { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; margin: 6px 0 2px; }
-#info-tooltip .gem-tier-cell { display: grid; justify-items: center; gap: 1px; padding: 4px 3px; border: 1px solid #2c2532; background: #110e13; white-space: nowrap; }
+#info-tooltip .gem-tier-cell { display: grid; justify-items: center; gap: 1px; padding: 4px 3px; border: 1px solid #2c2532; background: #110e13; white-space: normal; overflow-wrap: anywhere; }
 #info-tooltip .gem-tier-cell > b { color: var(--px-copy-muted, #9d927d); font-weight: 400; }
 #info-tooltip .gem-tier-cell > small { color: var(--px-copy-muted, #9d927d); font-size: 12px; }
 #info-tooltip .gem-tier-cell.is-active { border-color: var(--px-gold, #c69f5e); background: #2a2118; }
@@ -156,6 +156,65 @@
 .gem-slot-card-copy > em { overflow: hidden; color: var(--slot-muted); font: normal 12px var(--slot-label); text-overflow: ellipsis; white-space: nowrap; }
 .gem-slot-card.is-blocked .gem-slot-card-copy > em { color: #ff9b92; }
 
+/* 공용 보조: 적용 판정은 보드·목록·교체 창에서 동일한 세 표시등과 카드 본문으로 읽는다. */
+.support-targets { display: inline-flex; align-items: center; gap: 5px; }
+.support-target { display: inline-flex; align-items: center; gap: 2px; color: #8c8392; font: 12px/18px var(--font-pixel, 'Galmuri11', sans-serif); }
+.support-target > i { display: inline-block; width: 8px; height: 8px; border: 1px solid currentColor; border-radius: 50%; }
+.support-target.is-on { color: #8fe0a8; }
+.support-target.is-on > i { background: currentColor; box-shadow: 0 0 4px #8fe0a844; }
+.support-target.is-empty > i { border-style: dashed; }
+.support-target.is-na > i { background: repeating-linear-gradient(135deg, transparent 0 2px, #8c8392 2px 3px); }
+.support-target.is-buff > i { border-style: dotted; }
+.support-target-details { display: grid; gap: 2px; grid-column: 1 / -1; }
+.support-target-details > p { display: grid; grid-template-columns: minmax(90px, .8fr) minmax(0, 1.2fr); gap: 5px; margin: 0; color: #a49aab; font: 12px/18px var(--font-pixel, 'Galmuri11', sans-serif); }
+.support-target-details b { font-weight: 400; color: #a49aab; overflow-wrap: anywhere; }
+.support-target-details .is-on b { color: #8fe0a8; }
+.support-target-details .is-on span { color: #dbd0b9; }
+.support-skill-summary { display: grid; gap: 4px; grid-column: 1 / -1; margin-top: 10px; padding: 8px 10px; border-left: 2px solid #c69f5e; background: #201a16; }
+.support-skill-summary > b { color: #e0c283; font: 400 12px/18px var(--font-pixel, 'Galmuri11', sans-serif); }
+.support-skill-summary > span { color: #dbd0b9; font: 15px/24px var(--font-pixel-read, 'Galmuri14', sans-serif); overflow-wrap: anywhere; }
+.support-indicator-key { margin-top: 8px; color: #9d927d; font: 12px/18px var(--font-pixel, 'Galmuri11', sans-serif); }
+.support-full-banner { grid-column: 1 / -1; margin: 0; padding: 8px 10px; border: 1px solid #6b5434; background: #2a2118; color: #e0c283; font: 12px/18px var(--font-pixel, 'Galmuri11', sans-serif); }
+.support-unmatched { grid-column: 1 / -1; min-width: 0; }
+.support-unmatched > summary { padding: 10px; color: #9d927d; background: #120f14; cursor: pointer; font: 12px/18px var(--font-pixel, 'Galmuri11', sans-serif); }
+.support-unmatched-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; padding-top: 6px; }
+.support-unmatched .support-candidate-effect { color: #8c8392; }
+.gem-slot-panel.is-kind-support { width: min(930px, 94vw); }
+.gem-slot-panel.is-kind-support .gem-slot-grid { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; }
+.gem-slot-panel .support-candidate { display: flex; flex-direction: column; align-items: stretch; gap: 8px; padding: 10px; cursor: default; }
+.gem-slot-panel .support-candidate.is-preview { outline: 1px solid #e0c283; outline-offset: -2px; }
+.gem-slot-panel .support-candidate-heading { display: grid; grid-template-columns: 46px minmax(0, 1fr) auto; align-items: center; gap: 8px; min-width: 0; padding: 0; background: transparent; border: 0; text-align: left; box-shadow: none; }
+.support-candidate-heading > span:not(.support-sigil, .support-targets) { display: grid; gap: 3px; min-width: 0; }
+.support-candidate-heading strong { color: #fff; font: 400 15px/24px var(--slot-read); }
+.support-candidate-heading small { color: #b9a788; font: 12px/18px var(--slot-label); }
+.support-candidate-effect { margin: 0; color: #e5dacc; font: 15px/24px var(--slot-read); }
+.support-tradeoff { margin: 0; color: #d9a792; font: 12px/18px var(--slot-label); }
+.support-nondps { align-self: start; padding: 2px 6px; color: #afc7dd; border: 1px solid #40556b; font: 12px/18px var(--slot-label); }
+.support-compare-note { color: var(--slot-muted); font: 12px/18px var(--slot-label); }
+.support-candidate .gem-compare { padding: 7px; border: 1px solid #3c3240; background: #100e12; font: 12px/18px var(--slot-label); }
+.support-candidate .gem-compare > b { color: var(--slot-gold); font-weight: 400; }
+.support-candidate .gem-compare-grid { display: grid; grid-template-columns: auto 1fr auto 1fr; gap: 3px 5px; align-items: baseline; }
+.support-candidate .gem-compare-next.is-up { color: #8fe0a8; }
+.support-candidate .gem-compare-next.is-down { color: #ff9b92; }
+.support-candidate-tiers { display: flex; flex-wrap: wrap; gap: 5px; margin-top: auto; }
+.support-candidate-tiers button { display: grid; flex: 1 1 70px; gap: 2px; min-width: 0; padding: 5px 6px; }
+.support-candidate-tiers b, .support-candidate-tiers small { font: 12px/18px var(--slot-label); }
+.support-candidate-tiers .is-affordable small { color: #8fe0a8; }
+.support-candidate-tiers [aria-pressed="true"] { border-color: var(--slot-gold); background: #3d2e1b; }
+.support-candidate-bottom { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 5px; }
+.support-candidate-bottom > small { flex: 1 1 130px; color: var(--slot-muted); font: 12px/18px var(--slot-label); }
+.support-candidate-bottom > .is-short { color: #ff9b92; }
+.support-candidate-bottom button { min-height: 38px; min-width: 80px; }
+.support-budget-preview { display: grid; gap: 4px; }
+.support-budget-track { position: relative; height: 8px; background: #100d12; border: 1px solid #3d3242; overflow: hidden; }
+.support-budget-track > i, .support-budget-track > em { position: absolute; top: 0; bottom: 0; background: #b49a5a; }
+.support-budget-track > em { background: repeating-linear-gradient(135deg, #85c6b4 0 4px, #387b6f 4px 8px); }
+.support-budget-preview > small { color: var(--slot-gold); font: 12px/18px var(--slot-label); }
+.support-replacement { padding: 10px; border: 1px solid #ac8746; background: #2a2118; }
+.support-replacement > b { color: var(--slot-gold); font: 400 15px/24px var(--slot-read); }
+.support-replacement > div { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.support-replacement > div > button { display: grid; gap: 3px; }
+
 /* ── 각인 카드(전체 각인 목록, 각인 고르기 창): 그림 · 묶음 색 이름 · 읽을 만한 크기의 효과 · 상태 ─────────────── */
 :is(#tab-skills, .gem-engrave-slot-dialog) .gem-engrave-option {
   --engrave: #7aa4d6; --engrave-ink: #cfe2fb;
@@ -184,6 +243,12 @@
 .gem-engrave-slot-dialog header p > b { margin-right: 6px; color: #f0e8ff; font-weight: 400; }
 
 @media (max-width: 700px) {
+  #gem-slot-dialog { align-items: flex-end; padding: 8px 8px max(8px, env(safe-area-inset-bottom)); }
+  #gem-slot-dialog .gem-slot-panel { width: calc(100vw - 36px); max-height: 82dvh; padding: 10px; }
+  .gem-slot-panel.is-kind-support .gem-slot-grid, .support-unmatched-grid { grid-template-columns: minmax(0, 1fr); }
+  .support-candidate-heading { grid-template-columns: 40px minmax(0, 1fr) auto; gap: 5px; }
+  .support-target-details > p { grid-template-columns: minmax(80px, .9fr) minmax(0, 1.1fr); }
+  .support-candidate-tiers button { min-height: 44px; }
   .gem-slot-current { grid-template-columns: minmax(0, 1fr); }
   .gem-slot-controls { justify-items: stretch; }
   .gem-slot-tiers { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -209,6 +274,7 @@
 
 /* 탭 안의 small은 도트 테마(css/themes/pixel.css, overrides 층)가 12px 도트 글꼴로 묶는다. 각인 효과는 읽는 글이라 창과 같은 크기로 둔다. */
 @layer overrides {
+:root body[data-ui-skin] .support-target > i { border-radius: 50%; }
 #tab-skills #ui-gem-enhance-options .gem-engrave-copy > small { font: 14px/1.4 var(--font-pixel-read, 'Galmuri14', sans-serif); }
 /* 선택 창 안의 단추는 공용 단추 모양(css/ui-reliquary-shell.css, 같은 층)이 테와 바탕을 한 가지로 칠한다. 룬 카드는 계열 색 테와 빛,
    낀 등급은 금빛으로 다시 정한다. */

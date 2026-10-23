@@ -1,6 +1,8 @@
 /**
  * @typedef {{ id: number, instanceId: string|null, name: string }} EquipmentLoadoutItemReference
- * @typedef {{ name: string, slots: Object<string, EquipmentLoadoutItemReference|null>, savedAtLoop: number }} EquipmentLoadoutPreset
+ * @typedef {{ name: string, slots: Object<string, EquipmentLoadoutItemReference|null>, savedAtLoop: number, runeLoadout: object|null }} EquipmentLoadoutPreset
+ * runeLoadout is a versioned selection snapshot, never rune ownership, levels, experience or unlock progress.
+ * null preserves old equipment-only presets until the user saves over them.
  * @typedef {{ ok: boolean, reason?: string, preset?: EquipmentLoadoutPreset, count?: number }} EquipmentLoadoutResult
  */
 const EQUIPMENT_LOADOUT_PRESET_LIMIT = 3;
@@ -36,7 +38,8 @@ function normalizeEquipmentLoadoutPreset(preset, index) {
     EQUIPMENT_LOADOUT_SLOT_KEYS.forEach(slot => { slots[slot] = normalizeEquipmentLoadoutSlot(preset.slots[slot]); });
     let fallbackName = `세팅 ${index + 1}`;
     let name = typeof preset.name === 'string' && preset.name.trim() ? preset.name.trim().slice(0, 18) : fallbackName;
-    return { name, slots, savedAtLoop: Math.max(1, Math.floor(Number(preset.savedAtLoop) || 1)) };
+    return { name, slots, savedAtLoop: Math.max(1, Math.floor(Number(preset.savedAtLoop) || 1)),
+        runeLoadout: window.GameModules.skills.loadouts.normalize(preset.runeLoadout) };
 }
 
 /** True when a preset's item sits in temporary storage (a bag re-fit moved it there when its footprint grew). */
@@ -150,7 +153,7 @@ function getEquipmentLoadoutInspection(slotIndex, targetGame = game) {
             incompatible.push({ slot, name: saved.name });
         }
     });
-    return { exists: true, name: preset.name, count, missing, incompatible, applied };
+    return equipmentLoadoutRuntime.withRunes(preset, targetGame, { exists: true, name: preset.name, count, missing, incompatible, applied }, owned);
 }
 
 function saveEquipmentLoadoutPreset(slotIndex, name, targetGame = game) {
@@ -164,10 +167,10 @@ function saveEquipmentLoadoutPreset(slotIndex, name, targetGame = game) {
         slots[slot] = item ? { id: Math.floor(Number(item.id)), instanceId: ensureEquipmentLoadoutItemIdentity(item), name: String(item.name || '이름 없는 장비').slice(0, 40) } : null;
         if (item) count++;
     });
-    if (count === 0) return { ok: false, reason: '저장할 장착 장비가 없습니다.' };
     let previous = state.presets[index];
     let presetName = typeof name === 'string' && name.trim() ? name.trim().slice(0, 18) : (previous ? previous.name : `세팅 ${index + 1}`);
-    state.presets[index] = { name: presetName, slots, savedAtLoop: Math.max(1, Math.floor(Number(targetGame.season) || 1)) };
+    state.presets[index] = { name: presetName, slots, savedAtLoop: Math.max(1, Math.floor(Number(targetGame.season) || 1)),
+        runeLoadout: window.GameModules.skills.loadouts.capture(targetGame) };
     state.selectedSlot = index;
     return { ok: true, preset: state.presets[index], count };
 }
@@ -187,7 +190,7 @@ function buildEquipmentLoadoutSwap(preset, slotIndex, targetGame) {
         nextEquipment[slot] = saved ? owned.items.get(getEquipmentLoadoutSavedIdentity(saved)) : null;
     });
     let nextInventory = (targetGame.inventory || []).filter(item => item && !desiredIdentities.has(getEquipmentLoadoutItemIdentity(item)));
-    const eligibility = combatEquipmentStats.validateLoadout(nextEquipment, targetGame);
+    const eligibility = combatEquipmentStats.validateBuildLoadout(nextEquipment, preset.runeLoadout, targetGame);
     if (!eligibility.ok) return eligibility;
     let inventoryItems = new Set(nextInventory);
     let inventoryIdentities = new Set(nextInventory.map(getEquipmentLoadoutItemIdentity).filter(Boolean));
@@ -203,11 +206,11 @@ function buildEquipmentLoadoutSwap(preset, slotIndex, targetGame) {
 }
 
 function applyEquipmentLoadoutPreset(slotIndex, targetGame = game) {
+    if (targetGame.woodsmanBuildLock) return { ok: false, reason: '나무꾼 도전 중에는 빌드 세팅을 바꿀 수 없습니다.' };
     let state = ensureEquipmentLoadoutState(targetGame);
     let index = Math.floor(Number(slotIndex));
     let preset = state.presets[index];
-    if (!preset) return { ok: false, reason: '저장된 장비 세팅이 없습니다.' };
-    state.selectedSlot = index;
+    if (!preset) return { ok: false, reason: '저장된 빌드 세팅이 없습니다.' };
     let swap = buildEquipmentLoadoutSwap(preset, index, targetGame);
     if (!swap.ok) return swap;
     const kept = new Set(Object.values(targetGame.equipment));
@@ -215,6 +218,10 @@ function applyEquipmentLoadoutPreset(slotIndex, targetGame = game) {
     swap.inventory.forEach(item => { if (kept.has(item)) delete item.legacyRequirementGrace; });
     targetGame.equipment = swap.equipment;
     targetGame.inventory = swap.inventory;
+    window.GameModules.skills.loadouts.apply(preset.runeLoadout, targetGame);
+    targetGame.weaponBlockedSkill = '';
+    targetGame.equipmentLoadouts.selectedSlot = index;
+    combatEquipmentStats.finishBuildLoadout(targetGame);
     return { ok: true, preset, count: swap.inspection.count };
 }
 
@@ -244,7 +251,16 @@ function isEquipmentLoadoutItemReferenced(item, targetGame = game) {
         && EQUIPMENT_LOADOUT_SLOT_KEYS.some(slot => getEquipmentLoadoutSavedIdentity(preset.slots[slot]) === identity));
 }
 
-const equipmentLoadoutRuntime = Object.freeze({
+const equipmentLoadoutRuntime = (() => {
+    function withRunes(preset, owner, inspection, owned) {
+        const api = window.GameModules.skills.loadouts, config = preset.runeLoadout;
+        const equipment = Object.fromEntries(EQUIPMENT_LOADOUT_SLOT_KEYS.map(slot =>
+            [slot, owned.get(getEquipmentLoadoutSavedIdentity(preset.slots[slot])) || null]));
+        const runeApplied = api.equals(config, owner), result = api.inspect(config, { ...owner, equipment });
+        return { ...inspection, applied: inspection.applied && runeApplied, runeApplied,
+            runeLoadout: config, runeReason: result.reason || '', legacyEquipmentOnly: config === null };
+    }
+    return Object.freeze({
     limit: EQUIPMENT_LOADOUT_PRESET_LIMIT,
     slots: EQUIPMENT_LOADOUT_SLOT_KEYS,
     ensureState: ensureEquipmentLoadoutState,
@@ -255,7 +271,9 @@ const equipmentLoadoutRuntime = Object.freeze({
     clear: clearEquipmentLoadoutPreset,
     isReferenced: isEquipmentLoadoutItemReferenced,
     getItemIdentity: getEquipmentLoadoutItemIdentity,
-    ensureItemIdentity: ensureEquipmentLoadoutItemIdentity
-});
+    ensureItemIdentity: ensureEquipmentLoadoutItemIdentity,
+    withRunes
+    });
+})();
 
 safeExposeGlobals({ equipmentLoadoutRuntime });

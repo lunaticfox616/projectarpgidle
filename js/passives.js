@@ -2698,7 +2698,7 @@ function previewBuildStats(edit) {
         game.inventory = live.inventory;
         edit(game);
         const after = getPlayerStats(false);
-        return { dps: [before.dps || 0, after.dps || 0], life: [before.maxHp || 0, after.maxHp || 0] };
+        return { dps: [before.dps || 0, after.dps || 0], life: [before.maxHp || 0, after.maxHp || 0], before, after };
     } finally {
         game = live;
     }

@@ -233,4 +233,231 @@ assert.strictEqual(run('game.stumpBox.version'), 2);
 run('game = mergeDefaults(JSON.parse(serializeSaveState(game))); window.game = game;');
 assert.strictEqual(run('stumpBox.itemById(game, 1).xp'), STUMP_GROWTH_NEED.seed / 2, 'a version-2 box is not scaled again');
 
-console.log('stump box: grant, unlocks, placement, growth, suppression, resonance, drops, loop regression, bulk actions and saves: OK');
+// ── 배치 미리보기: 판·아이템·성장·재화는 그대로 두고 실제 이동과 같은 효과를 보여 준다 ──────────
+fresh({ season: 18 });
+run(`globalThis.previewFlowers = [6, 8, 12].map(cell => {
+        const item = stumpBox.createItem(game, { family: 'seed', color: 'fire', path: 'flower', roll: 1 });
+        item.ripe = true; item.xp = stumpBox.need(item); stumpBox.place(game, item.id, cell); return item.id;
+    });
+    globalThis.previewCold = stumpBox.createItem(game, { family: 'sap', color: 'cold', roll: 1 }).id;
+    globalThis.previewTalisman = stumpBox.addTalisman(game, talismans.rollNormal('sealShard', () => 0.5));
+    previewTalisman.ripe = true; previewTalisman.xp = stumpBox.need(previewTalisman);
+    stumpBox.place(game, previewTalisman.id, 16);
+    globalThis.previewRepulsion = stumpBox.addTalisman(game, talismans.fromCosmos(COSMOS_BOSS_REWARD_DB['planet-45'].talisman));
+    previewRepulsion.ripe = true; previewRepulsion.xp = stumpBox.need(previewRepulsion);
+    stumpBox.graftRaise(game, 7);
+    globalThis.previewEffects = state => JSON.stringify([stumpBox.evaluate(state), talismanEffects.summarize(state)],
+        (key, value) => value instanceof Set ? [...value].sort() : value);`);
+assert.strictEqual(run('stumpBox.evaluate(game).stats.firePctDmg'), 19.8, 'the live board starts with three resonating flowers');
+assert.ok(run('game.stumpBox.graft[7] > 0'), 'moving onto the graft also changes the calculated effect');
+const previewState = run('JSON.stringify(game)'), liveEffects = run('previewEffects(game)');
+for (const [id, cell] of json(`[
+    [previewFlowers[0], 7], [previewFlowers[0], 12], [previewCold, 7], [previewCold, 6],
+    [previewTalisman.id, 17], [previewRepulsion.id, 17], [previewRepulsion.id, 7]
+]`)) {
+    run(`globalThis.proposedBoard = stumpBox.previewMove(game, ${id}, ${cell});
+        globalThis.actualBoard = JSON.parse(JSON.stringify(game));`);
+    assert.ok(run('proposedBoard'), 'valid empty, occupied and storage moves can be previewed');
+    const proposedEffects = run('previewEffects(proposedBoard)');
+    assert.strictEqual(run('JSON.stringify(game)'), previewState, 'previewing and evaluating never spend, grow, place or save items');
+    assert.strictEqual(run('previewEffects(game)'), liveEffects, 'preview caches cannot replace the live board effects');
+    assert.strictEqual(run(`stumpBox.move(actualBoard, ${id}, ${cell})`), true);
+    assert.strictEqual(run('JSON.stringify(proposedBoard)'), run('JSON.stringify(actualBoard)'), 'preview agrees with the entire actual move state');
+    assert.strictEqual(proposedEffects, run('previewEffects(actualBoard)'), 'suppression, resonance, graft and talisman effects agree with the actual move');
+}
+assert.strictEqual(run('stumpBox.evaluate(stumpBox.previewMove(game, previewCold, 7)).suppressed.size'), 4,
+    'an unripe stored sap suppresses all three flowers when placed between them');
+assert.strictEqual(run('talismanEffects.summarize(stumpBox.previewMove(game, previewRepulsion.id, 17)).suppressed.has(previewTalisman.id)'), true,
+    'the preview shows an adjacent talisman losing its effect');
+assert.strictEqual(run('talismanEffects.summarize(stumpBox.previewMove(game, previewRepulsion.id, 7)).amplified.has(previewTalisman.id)'), true,
+    'the preview also shows a distant talisman gaining its amplification');
+fresh({ season: 2 });
+run(`globalThis.refusedPreview = stumpBox.createItem(game, { family: 'sap', color: 'cold', roll: 1 });
+    stumpBox.place(game, refusedPreview.id, 12);`);
+for (const cell of [12, 0, -1, 25, 7.5]) {
+    const before = run('JSON.stringify(game)');
+    assert.strictEqual(run(`stumpBox.previewMove(game, refusedPreview.id, ${cell})`), null, 'same, closed and invalid cells have no preview');
+    assert.strictEqual(run('JSON.stringify(game)'), before, 'a refused preview changes nothing');
+}
+run('game.woodsmanBuildLock = true;');
+const lockedPreviewState = run('JSON.stringify(game)');
+assert.strictEqual(run('stumpBox.previewMove(game, refusedPreview.id, 7)'), null, 'the woodsman challenge refuses a prospective build change');
+assert.strictEqual(run('JSON.stringify(game)'), lockedPreviewState);
+
+// ── 한 단계 배치 되돌리기: 좌표만 되돌리고 그 사이 성장·획득·지출을 취소하지 않는다 ───────────
+const preparePlacementUndo = () => {
+    fresh({ season: 18 });
+    run(`globalThis.undoFirst = stumpBox.createItem(game, { family: 'seed', color: 'fire', path: 'flower', roll: 1 });
+        globalThis.undoSecond = stumpBox.createItem(game, { family: 'sap', color: 'lightning', roll: 1 });
+        globalThis.undoStored = stumpBox.createItem(game, { family: 'sap', color: 'cold', roll: 1 });
+        stumpBox.place(game, undoFirst.id, 12); stumpBox.place(game, undoSecond.id, 16);`);
+};
+for (const action of [
+    'stumpBox.move(game, undoFirst.id, 7)', 'stumpBox.move(game, undoFirst.id, 16)',
+    'stumpBox.move(game, undoStored.id, 7)', 'stumpBox.move(game, undoStored.id, 12)',
+    'stumpBox.unplace(game, undoFirst.id)'
+]) {
+    preparePlacementUndo();
+    const before = run('JSON.stringify(game.stumpBox.board)');
+    assert.strictEqual(run(action), true);
+    assert.strictEqual(run('stumpBox.canUndoPlacement(game)'), true);
+    run(`stumpBox.previewMove(game, undoSecond.id, 8); stumpBox.move(game, undoSecond.id, 0.5);`);
+    assert.strictEqual(run('stumpBox.undoPlacement(game)'), true, 'previews and refused moves cannot replace the last successful move');
+    assert.strictEqual(run('JSON.stringify(game.stumpBox.board)'), before, 'empty, swap, storage and unplace moves restore exactly their positions');
+    assert.strictEqual(run('stumpBox.undoPlacement(game)'), false, 'undo is one step, with no redo or earlier history');
+}
+preparePlacementUndo();
+run(`stumpBox.move(game, undoFirst.id, 7); stumpBox.move(game, undoFirst.id, 8);
+    undoFirst.xp = stumpBox.need(undoFirst) - 1; stumpBox.grow(game, {});
+    stumpBox.toggleLock(game, undoFirst.id); game.currencies.formlessDew = 13;
+    stumpBox.createItem(game, { family: 'sap', color: 'chaos', roll: 1 });`);
+assert.strictEqual(run('undoFirst.ripe'), true);
+const afterGrowth = run('JSON.stringify([game.stumpBox.items, game.stumpBox.harvest, game.currencies])');
+assert.strictEqual(run('stumpBox.undoPlacement(game)'), true);
+assert.strictEqual(run('game.stumpBox.board[7]'), run('undoFirst.id'), 'two moves undo only the second move');
+assert.strictEqual(run('JSON.stringify([game.stumpBox.items, game.stumpBox.harvest, game.currencies])'), afterGrowth,
+    'ripening rolls, XP, new drops, locks, harvest records and currency all remain current');
+
+for (const invalidate of [
+    'stumpBox.discard(game, undoStored.id)', 'stumpBox.compost(game, undoStored.id)',
+    'stumpBox.place(game, undoSecond.id, 8)', 'stumpBox.regress(game)',
+    'stumpBox.restore(game)', 'game.season += 1', 'game.woodsmanBuildLock = true',
+    'game = mergeDefaults(JSON.parse(serializeSaveState(game))); window.game = game'
+]) {
+    preparePlacementUndo();
+    run('stumpBox.move(game, undoFirst.id, 7);');
+    run(invalidate);
+    const before = run('JSON.stringify(game)');
+    assert.strictEqual(run('stumpBox.undoPlacement(game)'), false, `undo expires after ${invalidate}`);
+    assert.strictEqual(run('JSON.stringify(game)'), before, 'an expired undo never resurrects or removes items');
+}
+preparePlacementUndo();
+run(`stumpBox.move(game, undoStored.id, 7);
+    while (stumpBox.createItem(game, { family: 'sap', color: 'chaos', roll: 1 })) {}`);
+const fullStorageState = run('JSON.stringify(game)');
+assert.strictEqual(run('stumpBox.undoPlacement(game)'), false, 'a new drop may fill the freed storage slot and block returning another item');
+assert.strictEqual(run('JSON.stringify(game)'), fullStorageState);
+run('stumpBox.move(game, undoFirst.id, 16);');
+assert.strictEqual(run('stumpBox.undoPlacement(game)'), true, 'a full storage still allows undoing a board swap');
+run('stumpBox.move(game, undoStored.id, 12);');
+assert.strictEqual(run('stumpBox.unplace(game, undoStored.id)'), false, 'a full storage refuses taking another item out');
+assert.strictEqual(run('stumpBox.undoPlacement(game)'), true, 'the failed take-out preserves the prior successful move');
+
+preparePlacementUndo();
+run(`stumpBox.move(game, undoFirst.id, 7);
+    globalThis.undoUnique = generateUniqueItem(1, '방패', null, {});
+    game.inventory.push(undoUnique, generateUniqueItem(1, '방패', undoUnique.name, {}));
+    game.inventory.slice(-2).forEach(item => stumpCube.put(game, 'equipment', item));`);
+assert.strictEqual(run('stumpCube.match().recipe.id'), 'equip_unique_remake');
+assert.strictEqual(run('stumpCube.transmute(game, () => 0.5).ok'), true);
+assert.strictEqual(run('stumpBox.canUndoPlacement(game)'), false, 'crafting expires placement history even without consuming a stump item');
+
+// ── 조합 잠금: 넣은 뒤 잠가도 다른 재료만으로 조합하지 않고, 불러오기와 화면 조회가 보호를 풀지 않는다 ──
+fresh({ season: 6 });
+run(`globalThis.cubeSeed = stumpBox.createItem(game, { family: 'seed', color: 'fire', path: 'flower', roll: 1 });
+    stumpBox.toggleLock(game, cubeSeed.id);`);
+assert.strictEqual(run('stumpCube.candidates("stump").some(item => item.id === cubeSeed.id)'), false, 'locked seeds are not candidates');
+assert.notStrictEqual(run('stumpCube.put(game, "stump", cubeSeed)'), '', 'direct placement also refuses a locked seed');
+run(`stumpBox.toggleLock(game, cubeSeed.id); stumpCube.put(game, 'stump', cubeSeed);
+    for (let i = 0; i < 3; i++) stumpCube.put(game, 'stump', stumpBox.createItem(game, { family: 'sap', color: 'cold', roll: 1 }));
+    stumpBox.toggleLock(game, cubeSeed.id);`);
+for (const restore of [false, true]) {
+    if (restore) run('game = mergeDefaults(JSON.parse(serializeSaveState(game))); window.game = game;');
+    const protectedState = run('JSON.stringify([game.stumpCube, game.stumpBox, game.currencies, game.inventory])');
+    assert.strictEqual(run('stumpCube.entries().length'), 4, 'a locked cell remains available to take out');
+    assert.strictEqual(run('stumpCube.match()'), null, 'three remaining saps must not become an alternative match');
+    assert.deepStrictEqual(json('stumpCube.missingRecipes()'), [], 'a protected input cannot suggest spending the other inputs');
+    assert.strictEqual(run('stumpCube.transmute().ok'), false, 'locking after placement blocks the whole transaction');
+    assert.strictEqual(run('JSON.stringify([game.stumpCube, game.stumpBox, game.currencies, game.inventory])'), protectedState,
+        'a refusal keeps references, all materials and the wallet, including after a save round trip');
+}
+assert.strictEqual(run('stumpCube.takeOut(game, 0)'), true, 'a locked cell can be explicitly taken out');
+assert.strictEqual(run('stumpCube.transmute().ok'), true, 'the three unlocked saps still combine normally');
+assert.strictEqual(run('stumpBox.itemById(game, cubeSeed.id).locked'), true, 'the protected seed remains owned and locked');
+
+fresh({ season: 6 });
+run(`globalThis.cubeTalismans = Array.from({ length: 3 }, () => stumpBox.addTalisman(game, talismans.roll('sealShard', () => 0.5)));
+    cubeTalismans.forEach(item => stumpCube.put(game, 'stump', item));
+    stumpBox.toggleLock(game, cubeTalismans[0].id);`);
+const talismanState = run('JSON.stringify([game.stumpBox, game.currencies, game.stumpCube])');
+assert.strictEqual(run('stumpCube.transmute().ok'), false, 'locked talismans cannot be consumed either');
+assert.strictEqual(run('JSON.stringify([game.stumpBox, game.currencies, game.stumpCube])'), talismanState);
+run('stumpCube.clear();');
+assert.strictEqual(run('stumpCube.candidates("stump").some(item => item.id === cubeTalismans[0].id)'), false);
+assert.notStrictEqual(run('stumpCube.put(game, "stump", cubeTalismans[0])'), '');
+run(`stumpBox.toggleLock(game,cubeTalismans[0].id);stumpCube.put(game,'stump',cubeTalismans[0]);
+    globalThis.paidAmber=stumpBox.createItem(game,{family:'sap',color:'fire',roll:1});paidAmber.ripe=true;
+    paidAmber.xp=stumpBox.need(paidAmber);stumpCube.put(game,'stump',paidAmber);game.currencies.sealShard=5;`);
+assert.strictEqual(run('stumpCube.match().recipe.id'), 'talisman_reroll_line', 'the protected paid recipe was valid before locking');
+run('stumpBox.toggleLock(game,cubeTalismans[0].id);');
+const paidState = run('JSON.stringify([game.stumpBox,game.stumpCube,game.currencies])');
+assert.strictEqual(run('stumpCube.transmute().ok'), false);
+assert.strictEqual(run('JSON.stringify([game.stumpBox,game.stumpCube,game.currencies])'), paidState, 'a blocked paid reroll keeps currency, amber and talisman lines');
+
+// ── 부족 재료 조회: 공개된 조합, 모든 현재 재료와 같은 조건만. 조회는 손상·빈 참조도 고쳐 쓰지 않는다 ──
+fresh({ season: 2 });
+assert.deepStrictEqual(json('stumpCube.missingRecipes()'), [], 'an empty cube reveals no hints');
+run(`globalThis.hintSeed = stumpBox.createItem(game, { family: 'seed', color: 'fire', path: 'flower', roll: 1 });
+    stumpCube.put(game, 'stump', hintSeed);`);
+assert.deepStrictEqual(json('stumpCube.missingRecipes().map(row => [row.recipe.id, row.missingCount, row.missing[0].picked[0].item.id])'),
+    [['stump_merge', 2, run('hintSeed.id')]], 'one seed needs two more of its existing family, path and colour');
+run(`game.stumpCube.slots.push({kind:'stump',id:999999,x:3,y:3});`);
+const hintState = run('JSON.stringify(game)');
+run('stumpCube.missingRecipes();');
+assert.strictEqual(run('JSON.stringify(game)'), hintState, 'the query never prunes references, learns recipes or changes state');
+for (const spec of [
+    { family: 'seed', color: 'cold', path: 'flower' },
+    { family: 'seed', color: 'fire', path: 'fruit' },
+    { family: 'sap', color: 'fire' }
+]) {
+    run(`stumpCube.clear();stumpCube.put(game,'stump',hintSeed);stumpCube.put(game,'stump',stumpBox.createItem(game,${JSON.stringify(spec)}));`);
+    assert.deepStrictEqual(json('stumpCube.missingRecipes()'), [], 'different same-rule values cannot be fixed just by adding materials');
+}
+run(`stumpCube.clear();
+    globalThis.hintSap = stumpBox.createItem(game, { family: 'sap', color: 'fire', roll: 1 });
+    hintSap.ripe = true; hintSap.xp = stumpBox.need(hintSap);stumpCube.put(game,'stump',hintSap);
+    game.stumpBox.harvest.grown=['amber-fire'];`);
+assert.strictEqual(run('stumpCube.missingRecipes().some(row => row.recipe.id === "amber_catalyst")'), false, 'an unrevealed loop-32 recipe stays hidden');
+run('game.season=32;');
+assert.strictEqual(run('stumpCube.missingRecipes().find(row => row.recipe.id === "amber_catalyst").missingCount'), 1);
+run(`globalThis.hintGear=createItemFromBase(BASE_ITEM_DB.find(row=>row.id==='buckler_scrap'),'rare',1,{});
+    game.inventory.push(hintGear);stumpCube.put(game,'equipment',hintGear);`);
+assert.deepStrictEqual(json('stumpCube.missingRecipes().map(row => [row.recipe.id,row.missing.map(part=>[part.rule.kind,part.rule.family,part.count])])'),
+    [['equip_rare_tier', [['stump', 'sap', 1]]]], 'rare equipment and one amber need one amber, not an unrelated recipe');
+run(`globalThis.secondAmber=stumpBox.createItem(game,{family:'sap',color:'cold',roll:1});
+    secondAmber.ripe=true;secondAmber.xp=stumpBox.need(secondAmber);stumpCube.put(game,'stump',secondAmber);`);
+assert.strictEqual(run('stumpCube.match().recipe.id'), 'equip_rare_tier', 'an input without same-colour restriction accepts both colours');
+assert.deepStrictEqual(json('stumpCube.missingRecipes()'), [], 'a complete recipe does not pretend to lack materials');
+run(`stumpCube.put(game,'stump',stumpBox.createItem(game,{family:'seed',color:'chaos',path:'fruit'}));`);
+assert.deepStrictEqual(json('stumpCube.missingRecipes()'), [], 'an incompatible extra material does not produce a misleading hint');
+
+// ── 이전 고유: 저장에 남은 이름이 현재 목록에 없어도 미리보기가 창을 막지 않고 기존 재조합을 보존한다 ──
+fresh({ season: 2 });
+run(`for (let i = 0; i < 2; i++) {
+    const item = createItemFromBase(BASE_ITEM_DB.find(row => row.id === 'buckler_scrap'), 'rare', 1, {});
+    item.rarity = 'unique'; item.name = '목록에서 사라진 옛 고유'; item.quality = 20;
+    game.inventory.push(normalizeItem(item));
+}
+game = mergeDefaults(JSON.parse(serializeSaveState(game))); window.game = game;
+game.inventory.forEach(item => stumpCube.put(game, 'equipment', item));`);
+assert.strictEqual(run('stumpCube.match().recipe.id'), 'equip_unique_remake');
+const legacyPreviewState = run('JSON.stringify([game, itemIdCounter])');
+run('globalThis.legacyPreviewRandom = Math.random; Math.random = () => { throw new Error("preview must not roll a replacement"); };');
+let legacyPreview;
+try {
+    legacyPreview = json('stumpCube.preview()');
+    assert.deepStrictEqual(json('stumpCube.preview()'), legacyPreview, 'an unknown old name still has a deterministic preview');
+} finally { run('Math.random = legacyPreviewRandom;'); }
+assert.strictEqual(legacyPreview.recipe.id, 'equip_unique_remake');
+assert.strictEqual(legacyPreview.quality, 0);
+assert.strictEqual(legacyPreview.tier, undefined, 'the replacement unique tier is not known before rolling');
+assert.strictEqual(legacyPreview.keep, '', 'an unknown unique name cannot be promised to survive');
+assert.strictEqual(run('JSON.stringify([game, itemIdCounter])'), legacyPreviewState, 'preview preserves the old items and save');
+assert.doesNotThrow(() => run('stumpCubeUi.cubeHtml()'), 'the cube remains viewable with legacy equipment');
+run('globalThis.legacyRemade = stumpCube.transmute(game, () => 0.5);');
+assert.strictEqual(run('legacyRemade.ok'), true, 'the existing random unique fallback remains craftable');
+assert.strictEqual(run('UNIQUE_DB.some(row => row.name === legacyRemade.outputs[0].item.name)'), true);
+assert.strictEqual(run('game.inventory.some(item => item.name === "목록에서 사라진 옛 고유")'), false, 'old inputs are consumed exactly once');
+assert.strictEqual(run('game.inventory.length'), 1, 'one actual unique replaces the pair');
+
+console.log('stump box: grant, unlocks, placement, growth, suppression, resonance, drops, loop regression, bulk actions, cube protection/hints and saves: OK');

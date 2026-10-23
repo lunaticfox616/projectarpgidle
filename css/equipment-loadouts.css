@@ -40,4 +40,96 @@
     font-size: 8px;
     line-height: 1.25;
 }
+
+}
+
+/* Shared selection buttons receive their theme in overrides; keep this panel's selection state in that same layer. */
+@layer overrides {
+/* Each card is a complete equipment + rune set; selectionDialog owns focus and dismissal. */
+:root body .selection-overlay-panel.build-preset-review {
+    width: min(1240px, 96vw);
+    max-height: calc(100dvh - 32px - 2 * var(--px-window-border, 0px));
+    box-sizing: border-box;
+    color: var(--color-text, #e9dfcc);
+    font-size: 12px;
+    line-height: 1.6;
+}
+.build-set-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+:root body .build-preset-review .build-set-tabs > button { min-height: 40px; padding: 5px; font-size: 12px; white-space: normal; }
+:root body .build-preset-review .build-set-tabs > button[aria-pressed="true"] { background: #463219; border-color: #e3bd72; color: #ffe0a2; }
+.build-set-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; align-items: stretch; }
+.build-set-card { min-width: 0; padding: 8px; background: #15120e; border: 1px solid #625038; border-radius: 4px; }
+.build-set-card.is-selected { border-color: #e3bd72; box-shadow: inset 0 0 0 1px #b58b48; background: #211a11; }
+.build-set-card.is-current { border-color: #71846f; background: #121813; }
+:root body .build-preset-review .build-set-heading {
+    display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 2px;
+    width: 100%; min-height: 42px; margin: 0 0 4px; padding: 4px 7px; box-sizing: border-box;
+    background: #272016; border: 0; border-bottom: 1px solid #80643b; color: #ffe0a2;
+    font-size: 12px; line-height: 1.5; text-align: left; white-space: normal; overflow-wrap: anywhere;
+}
+.build-set-heading small { color: #bcb19a; font-size: 10px; }
+.build-set-card.is-selected .build-set-heading small { color: #ffe0a2; }
+.build-set-card.is-current .build-set-heading { background: #1b271e; color: #b8d6b6; }
+.build-set-card :is(h3, h4) { margin: 0; font-size: 12px; line-height: 1.5; }
+.build-set-card h3 { display: flex; justify-content: space-between; align-items: center; margin: 3px 0; color: #e3bd72; }
+.build-set-card h3 small { color: #baac93; font-size: 10px; }
+.build-set-gear-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
+.build-set-gear-empty { display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 50px; min-width: 0; border: 1px dashed #443c2f; color: #9e927c; background: #100f0c; }
+.build-set-gear-empty i { display: grid; place-items: center; height: 30px; color: #5b5140; font-style: normal; }
+.build-set-gear-empty small { font-size: 10px; white-space: nowrap; }
+.build-set-runes { border-top: 1px solid #5f4b30; margin-top: 9px; padding-top: 2px; }
+.build-set-rune-groups { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; }
+.build-set-rune-group { grid-column: 1 / -1; min-width: 0; }
+.build-set-rune-group.is-primary { grid-column: auto; }
+.build-set-rune-group h4 { color: #bbaf96; font-size: 10px; line-height: 1.5; margin-bottom: 2px; }
+.build-set-rune-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
+.is-primary .build-set-rune-grid { grid-template-columns: minmax(0, 1fr); }
+.build-set-empty { display: grid; place-content: center; min-height: 280px; text-align: center; color: #bbae95; }
+.build-set-empty b { font-size: 15px; color: #d5bf96; }
+.build-set-legacy { margin-top: 12px; padding: 10px; border: 1px dashed #756345; color: #c9b48e; }
+.build-set-status { margin: 8px 0 0; color: #ffad94; font-size: 12px; overflow-wrap: anywhere; }
+.build-review-intent { flex: 1 1 310px; padding: 6px 9px; border-left: 3px solid #e3bd72; background: #282014; }
+.build-review-intent b { color: #ffe0a2; }
+.build-review-intent p { margin: 2px 0 0; overflow-wrap: anywhere; font-size: 10px; }
+.build-review-warning { padding: 8px 10px; color: #ffad94; border: 1px solid #834932; background: #2c1813; }
+.build-review-help { margin: 7px 0; color: #c7b899; font-size: 12px; }
+.build-review-empty { grid-column: 1 / -1; display: block; padding: 3px; color: #9f957f; font-size: 12px; }
+:root body .build-preset-review .build-review-asset {
+    position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; width: 100%; min-width: 0; min-height: 50px;
+    margin: 0; padding: 1px; text-align: center; white-space: normal; font-size: 12px; line-height: 1.5;
+    border: 1px solid #635038; background: #15120e; box-shadow: none;
+}
+:root body .build-preset-review .build-review-asset:is(:hover, :focus-visible) { border-color: #e3bd72; background: #35291b; outline: 2px solid #b78f50; outline-offset: 1px; }
+.build-review-icon { display: grid; place-items: center; flex: 0 0 28px; width: 28px; height: 28px; overflow: hidden; }
+.build-review-icon .build-review-art { display: grid; place-items: center; width: 28px; height: 28px; min-width: 0; object-fit: contain; image-rendering: pixelated; }
+.build-review-icon :is(img, svg) { width: 100%; height: 100%; object-fit: contain; }
+.build-review-icon .support-sigil-icon { width: 25px; height: 25px; }
+.build-review-copy { display: block; width: 100%; min-width: 0; }
+.build-review-copy b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 400; }
+.build-review-copy small { position: absolute; top: 1px; right: 1px; padding: 0 2px; background: #21180e; color: #f5d893; font-size: 10px; line-height: 1.2; }
+.build-set-gear-grid .build-review-copy small { display: none; }
+:root body .build-preset-review .is-primary .build-review-asset { flex-direction: row; text-align: left; gap: 5px; }
+.is-primary .build-review-copy b { white-space: normal; overflow-wrap: anywhere; }
+.build-review-note { color: #b8ab94; margin: 7px 0 0; overflow-wrap: anywhere; font-size: 10px; }
+:root body .selection-overlay-panel.build-preset-detail { width: min(460px, 92vw); max-height: calc(100dvh - 48px - 2 * var(--px-window-border, 0px)); box-sizing: border-box; overflow-wrap: anywhere; font-size: 15px; line-height: 1.6; }
+.build-detail-context { margin: 8px 0 12px; padding: 6px 9px; background: #302515; color: #ffe0a2; font-size: 12px; }
+.build-detail-tier { margin-top: 8px; color: #ffe0a2; }
+.build-review-footer { position: sticky; bottom: -14px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 0; margin-top: 8px; background: #17120e; border-top: 1px solid #6c5230; }
+.build-review-actions { display: flex; flex: 1 1 310px; justify-content: flex-end; gap: 8px; }
+:root body .build-preset-review .build-review-actions > button { min-height: 44px; padding: 8px 12px; font-size: 12px; white-space: normal; }
+:root body .build-preset-review button[data-build-confirm] { color: #ffebba; border-color: #c39a55; background: #4a341a; }
+:root body .build-preset-review button[data-build-confirm]:disabled { opacity: .45; }
+@media (min-width: 781px) and (max-width: 1100px) {
+    .build-set-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 780px) {
+    .build-set-grid { grid-template-columns: minmax(0, 1fr); }
+    .build-set-card[data-set-visible="false"] { display: none; }
+    .build-set-gear-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 3px; }
+    .build-review-help { font-size: 10px; }
+    .build-set-tabs { gap: 4px; }
+    :root body .build-preset-review .build-set-tabs > button { min-height: 44px; }
+    .build-review-actions > button { flex: 1; }
+    .build-review-footer { gap: 5px; }
+}
 }
