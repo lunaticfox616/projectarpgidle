@@ -541,6 +541,7 @@
         setFocusedKey(null);
         if (typeof hideInfoTooltip === 'function') hideInfoTooltip();
         updateCarry({ clientX, clientY });
+        playUiFeedbackSound.inventory(entry.item, 'pick');
         return true;
     }
 
@@ -597,6 +598,7 @@
             return false;
         }
         let itemKey = carryState.itemKey;
+        playUiFeedbackSound.inventory(carryState.entry.item, 'place');
         suppressClickUntil = Date.now() + 250;
         endCarry();
         focusedItemKey = itemKey;
@@ -619,6 +621,7 @@
         endCarry();
         let equipped = equipItemById(itemId, slot);
         if (!equipped) return false;
+        if (!bagItems.isJewel(item)) playUiFeedbackSound.inventory(item, 'place');
         suppressClickUntil = Date.now() + 250;
         focusedItemKey = null;
         if (typeof saveGame === 'function') saveGame({ skipCloudSync: true });
@@ -629,11 +632,15 @@
         if (!carryState) return false;
         if (carryState.mode === 'inventory') return commitInventoryCarry(column, row);
         let slot = carryState.sourceSlot;
+        let item = carryState.entry.item;
         suppressClickUntil = Date.now() + 250;
         endCarry();
         let moved = unequipItemToGrid(slot, column, row);
         if (!moved) notify('그 위치에는 장비를 놓을 수 없습니다.', 'warning');
-        else if (typeof saveGame === 'function') saveGame({ skipCloudSync: true });
+        else {
+            playUiFeedbackSound.inventory(item, 'place');
+            if (typeof saveGame === 'function') saveGame({ skipCloudSync: true });
+        }
         return moved;
     }
 
@@ -669,8 +676,10 @@
         if (carryState && carryState.itemKey !== itemKey) return false;
         doubleClickCandidateKey = null;
         endCarry();
+        const item = game.inventory.find(row => row.id === itemId);
         let equipped = equipItemById(itemId);
         if (!equipped) return false;
+        playUiFeedbackSound.inventory(item, 'equip');
         suppressClickUntil = Date.now() + 250;
         focusedItemKey = null;
         if (typeof saveGame === 'function') saveGame({ skipCloudSync: true });

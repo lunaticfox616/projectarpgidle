@@ -2922,6 +2922,7 @@ function catchOceanFish(depthTier) {
     let rarityRank = (OCEAN_FISH_RARITY_META[OCEAN_FISH_DB[picked].rarity] || {}).rank || 0;
     st.rareFishPity = rarityRank >= 2 ? 0 : Math.min(100, st.rareFishPity + Math.max(1, Number(strategy.pityGain) || 8));
     st.lastCatch = { key: picked, at: Date.now(), guaranteed };
+    addBattleFx('fishCatch', {duration:400, background:game.isBackgroundCalculation});
     let logType = rarityRank >= 4 ? 'loot-unique' : (rarityRank >= 2 ? 'loot-rare' : 'loot-magic');
     addLog(`${guaranteed ? '✨ 희귀 조짐 적중! ' : '🐟 '}${withObjectParticle(OCEAN_FISH_DB[picked].name)} 낚았습니다!`, logType);
     let discoveredCount = getOceanFishCollectionProgress(st).discoveredCount;

@@ -109,6 +109,8 @@ worldTreeSkillFx.feedback = (() => {
         enemySpawn: fx => { if (fx.boss) playUiFeedbackSound('bossEntrance'); },
         objectReward: fx => playUiFeedbackSound(({pot:'potBreak',crate:'woodBreak'})[fx.objectKind] || 'chestOpen'),
         levelUp: () => playUiFeedbackSound('levelUp'),
+        lootBurst: () => playUiFeedbackSound('lootBurst'),
+        fishCatch: fx => { if (!fx.background) playUiFeedbackSound('fishCatch'); },
         bossEntrance: () => playUiFeedbackSound('bossEntrance'),
         playerReturnDepart: () => playUiFeedbackSound('returnWarp')
     };

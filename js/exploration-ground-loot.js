@@ -174,7 +174,10 @@ actExplorationState.groundLoot = (() => {
         const run = actExplorationState.current(game);
         const cells = releaseCells(zoneId, run, cell);
         if (!cells.length) collectExplorationFloorLoot(pending);
-        else layEncounterRows(run, pending, cells);
+        else {
+            layEncounterRows(run, pending, cells);
+            addBattleFx('lootBurst', {duration:400});
+        }
         return pending.length;
     }
     function releaseCells(zoneId, run, cell) {

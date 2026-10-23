@@ -2,77 +2,83 @@
   "hitPhysical": {
     "label": "근접 타격",
     "files": [
-      "hitPhysical-a.wav",
-      "hitPhysical-b.wav",
-      "hitPhysical-c.wav"
+      "selected-20261023/hitPhysical-A-e5455c01.wav",
+      "selected-20261023/hitPhysical-D-ad8d03fc.wav"
     ],
     "gain": 0.32,
     "rate": 1,
     "group": "impact",
     "cooldown": 110,
-    "priority": 0
+    "priority": 0,
+    "enabled": true
   },
   "hitProjectile": {
     "label": "투사체 적중",
     "files": [
       "hitProjectile-a.wav",
       "hitProjectile-b.wav",
-      "hitProjectile-c.wav"
+      "hitProjectile-c.wav",
+      "selected-20261023/hitProjectile-A-2a30a3b5.wav"
     ],
     "gain": 0.32,
     "rate": 1,
     "group": "impact",
     "cooldown": 110,
-    "priority": 0
+    "priority": 0,
+    "enabled": true
   },
   "hitMagic": {
     "label": "마법 적중",
     "files": [
       "hitMagic-a.wav",
       "hitMagic-b.wav",
-      "hitMagic-c.wav"
+      "hitMagic-c.wav",
+      "selected-20261023/hitMagic-B-53a8b819.wav"
     ],
     "gain": 0.32,
     "rate": 1,
     "group": "impact",
     "cooldown": 110,
-    "priority": 0
+    "priority": 0,
+    "enabled": true
   },
   "hitThrust": {
     "label": "찌르기",
     "files": [
-      "hitThrust-a.wav",
-      "hitThrust-b.wav"
+      "selected-20261023/hitThrust-A-4417a90c.wav"
     ],
     "gain": 0.32,
     "rate": 1,
     "group": "impact",
     "cooldown": 110,
-    "priority": 0
+    "priority": 0,
+    "enabled": true
   },
   "hitWhirl": {
     "label": "회전·파동",
     "files": [
       "hitWhirl-a.wav",
-      "hitWhirl-b.wav"
+      "hitWhirl-b.wav",
+      "selected-20261023/hitWhirl-B-3f771b55.wav"
     ],
     "gain": 0.32,
     "rate": 1,
     "group": "impact",
     "cooldown": 110,
-    "priority": 0
+    "priority": 0,
+    "enabled": true
   },
   "hitSlam": {
     "label": "강타·지진",
     "files": [
-      "hitSlam-a.wav",
-      "hitSlam-b.wav"
+      "selected-20261023/hitSlam-B-43477a65.wav"
     ],
     "gain": 0.32,
     "rate": 1,
     "group": "impact",
     "cooldown": 110,
-    "priority": 0
+    "priority": 0,
+    "enabled": true
   },
   "hitShield": {
     "label": "방패",
@@ -84,7 +90,8 @@
     "rate": 1,
     "group": "impact",
     "cooldown": 110,
-    "priority": 0
+    "priority": 0,
+    "enabled": true
   },
   "hitFireBlade": {
     "label": "화염 참격",
@@ -96,7 +103,8 @@
     "rate": 1,
     "group": "impact",
     "cooldown": 110,
-    "priority": 0
+    "priority": 0,
+    "enabled": true
   },
   "hitFireBurst": {
     "label": "화염 폭발",
@@ -108,7 +116,8 @@
     "rate": 1,
     "group": "impact",
     "cooldown": 110,
-    "priority": 0
+    "priority": 0,
+    "enabled": true
   },
   "hitFireBreath": {
     "label": "화염 숨결·장판",
@@ -120,91 +129,102 @@
     "rate": 1,
     "group": "impact",
     "cooldown": 180,
-    "priority": 0
+    "priority": 0,
+    "enabled": true
   },
   "hitColdPierce": {
     "label": "냉기 관통",
     "files": [
-      "hitColdPierce-a.wav",
-      "hitColdPierce-b.wav"
+      "selected-20261023/hitColdPierce-A-395c7c67.wav"
     ],
     "gain": 0.32,
     "rate": 1,
     "group": "impact",
     "cooldown": 110,
-    "priority": 0
+    "priority": 0,
+    "enabled": true
   },
   "hitColdBurst": {
     "label": "냉기 폭발·파동",
     "files": [
       "hitColdBurst-a.wav",
-      "hitColdBurst-b.wav"
+      "hitColdBurst-b.wav",
+      "selected-20261023/hitColdBurst-C-b84b4d2e.wav"
     ],
     "gain": 0.32,
     "rate": 1,
     "group": "impact",
     "cooldown": 110,
-    "priority": 0
+    "priority": 0,
+    "enabled": true
   },
   "hitLightArc": {
     "label": "번개·연쇄",
     "files": [
       "hitLightArc-a.wav",
-      "hitLightArc-b.wav"
+      "hitLightArc-b.wav",
+      "selected-20261023/hitLightArc-C-41a19e22.wav"
     ],
     "gain": 0.32,
     "rate": 1,
     "group": "impact",
     "cooldown": 110,
-    "priority": 0
+    "priority": 0,
+    "enabled": true
   },
   "hitLightBeam": {
     "label": "번개 광선",
     "files": [
       "hitLightBeam-a.wav",
-      "hitLightBeam-b.wav"
+      "hitLightBeam-b.wav",
+      "selected-20261023/hitLightBeam-C-6be4484e.wav"
     ],
     "gain": 0.32,
     "rate": 1,
     "group": "impact",
     "cooldown": 180,
-    "priority": 0
+    "priority": 0,
+    "enabled": true
   },
   "hitLightBurst": {
     "label": "낙뢰·룬 폭발",
     "files": [
       "hitLightBurst-a.wav",
-      "hitLightBurst-b.wav"
+      "hitLightBurst-b.wav",
+      "selected-20261023/hitLightBurst-A-3829f5d4.wav"
     ],
     "gain": 0.32,
     "rate": 1,
     "group": "impact",
     "cooldown": 110,
-    "priority": 0
+    "priority": 0,
+    "enabled": true
   },
   "hitChaosCut": {
     "label": "공허 절단",
     "files": [
       "hitChaosCut-a.wav",
-      "hitChaosCut-b.wav"
+      "hitChaosCut-b.wav",
+      "selected-20261023/hitChaosCut-C-b47d8d1a.wav"
     ],
     "gain": 0.32,
     "rate": 1,
     "group": "impact",
     "cooldown": 110,
-    "priority": 0
+    "priority": 0,
+    "enabled": true
   },
   "hitChaosPulse": {
     "label": "카오스·공허 광선",
     "files": [
-      "hitChaosPulse-a.wav",
-      "hitChaosPulse-b.wav"
+      "selected-20261023/hitChaosPulse-A-7ba23fbd.wav"
     ],
     "gain": 0.32,
     "rate": 1,
     "group": "impact",
     "cooldown": 110,
-    "priority": 0
+    "priority": 0,
+    "enabled": true
   },
   "hitVenom": {
     "label": "독·카오스 투척",
@@ -216,177 +236,456 @@
     "rate": 1,
     "group": "impact",
     "cooldown": 110,
-    "priority": 0
+    "priority": 0,
+    "enabled": true
   },
   "hitFlask": {
     "label": "플라스크",
     "files": [
       "hitFlask-a.wav",
-      "hitFlask-b.wav"
+      "hitFlask-b.wav",
+      "selected-20261023/hitFlask-D-08bfef8a.wav"
     ],
     "gain": 0.32,
     "rate": 1,
     "group": "impact",
     "cooldown": 110,
-    "priority": 0
+    "priority": 0,
+    "enabled": true
   },
   "playerHurt": {
     "label": "플레이어 피격",
     "files": [
       "playerHurt-a.wav",
-      "playerHurt-b.wav"
+      "playerHurt-b.wav",
+      "selected-20261023/playerHurt-B-2bd4e394.wav"
     ],
     "gain": 0.48,
     "rate": 1,
     "group": "hurt",
     "cooldown": 220,
-    "priority": 1
+    "priority": 1,
+    "enabled": true
   },
   "kill": {
     "label": "일반 처치",
     "files": [
-      "kill-a.wav"
+      "kill-a.wav",
+      "selected-20261023/kill-A-7d84c774.wav"
     ],
     "gain": 0.32,
     "rate": 1,
     "group": "death",
     "cooldown": 160,
-    "priority": 0
+    "priority": 0,
+    "enabled": true
   },
   "potBreak": {
     "label": "항아리 파괴",
     "files": [
-      "potBreak-a.wav"
+      "potBreak-a.wav",
+      "selected-20261023/potBreak-A-9de78bff.wav"
     ],
     "gain": 0.4,
     "rate": 1,
     "group": "object",
     "cooldown": 100,
-    "priority": 1
+    "priority": 1,
+    "enabled": true
   },
   "woodBreak": {
     "label": "목재 파괴",
     "files": [
-      "woodBreak-a.wav"
+      "woodBreak-a.wav",
+      "selected-20261023/woodBreak-A-3613b341.wav"
     ],
     "gain": 0.4,
     "rate": 1,
     "group": "object",
     "cooldown": 100,
-    "priority": 1
+    "priority": 1,
+    "enabled": true
   },
   "chestOpen": {
     "label": "상자 개봉",
     "files": [
-      "chestOpen-a.wav"
+      "chestOpen-a.wav",
+      "selected-20261023/chestOpen-A-1932cfe7.wav"
     ],
     "gain": 0.4,
     "rate": 1,
     "group": "chest",
     "cooldown": 300,
-    "priority": 1
+    "priority": 1,
+    "enabled": true
   },
   "lootMajor": {
     "label": "귀중품 드롭",
     "files": [
-      "lootMajor-a.wav"
+      "lootMajor-a.wav",
+      "selected-20261023/lootMajor-C-fbc10eea.wav"
     ],
     "gain": 0.6,
     "rate": 1,
     "group": "lootMajor",
     "cooldown": 1600,
-    "priority": 2
+    "priority": 2,
+    "enabled": true
   },
   "levelUp": {
     "label": "레벨업",
     "files": [
-      "levelUp-a.wav"
+      "selected-20261023/levelUp-baseline-9cda3f22.wav"
     ],
     "gain": 0.4,
     "rate": 1,
     "group": "level",
     "cooldown": 2500,
-    "priority": 2
+    "priority": 2,
+    "enabled": true
   },
   "killBoss": {
     "label": "보스 처치",
-    "files": [
-      "kill-a.wav"
-    ],
+    "files": [],
     "gain": 0.5,
     "rate": 1,
     "group": "boss",
     "cooldown": 1600,
-    "priority": 2
+    "priority": 2,
+    "enabled": false
   },
   "returnWarp": {
     "label": "귀환",
     "files": [
-      "returnWarp-a.wav"
+      "selected-20261023/returnWarp-A-4e904c2d.wav"
     ],
     "gain": 0.4,
     "rate": 1,
     "group": "return",
     "cooldown": 1500,
-    "priority": 1
+    "priority": 1,
+    "enabled": true
   },
   "hitSlash": {
     "label": "베기",
     "files": [
       "hitPhysical-a.wav",
       "hitPhysical-b.wav",
-      "hitPhysical-c.wav"
+      "hitPhysical-c.wav",
+      "selected-20261023/hitSlash-C-1188556b.wav",
+      "selected-20261023/hitSlash-D-15782909.wav"
     ],
     "gain": 0.32,
     "rate": 1,
     "group": "impact",
     "cooldown": 110,
-    "priority": 0
+    "priority": 0,
+    "enabled": true
   },
   "hitCritical": {
     "label": "강한 타격",
     "files": [
-      "hitPhysical-a.wav",
-      "hitPhysical-b.wav",
-      "hitPhysical-c.wav"
+      "selected-20261023/hitCritical-A-a3a7f1b2.wav"
     ],
     "gain": 0.43,
     "rate": 1,
     "group": "impact",
     "cooldown": 110,
-    "priority": 0
+    "priority": 0,
+    "enabled": true
   },
   "killElite": {
     "label": "정예 처치",
-    "files": [
-      "kill-a.wav"
-    ],
+    "files": [],
     "gain": 0.42,
     "rate": 1,
     "group": "death",
     "cooldown": 160,
-    "priority": 1
+    "priority": 1,
+    "enabled": false
   },
   "bossEntrance": {
     "label": "보스 등장",
     "files": [
-      "bossEntrance-a.wav"
+      "selected-20261023/bossEntrance-A-ab7c1057.wav"
     ],
     "gain": 0.5,
     "rate": 1,
     "group": "bossEntrance",
     "cooldown": 3000,
-    "priority": 2
+    "priority": 2,
+    "enabled": true
   },
   "stageClear": {
     "label": "스테이지 클리어",
     "files": [
-      "stageClear-a.wav"
+      "selected-20261023/stageClear-D-9880bc59.wav"
     ],
     "gain": 0.44,
     "rate": 1,
     "group": "stageClear",
     "cooldown": 3000,
-    "priority": 2
+    "priority": 2,
+    "enabled": true
+  },
+  "lootBurst": {
+    "label": "보스 보상 한꺼번에 드롭",
+    "rate": 1,
+    "gain": 0.55,
+    "group": "lootBurst",
+    "cooldown": 1000,
+    "priority": 2,
+    "files": [
+      "selected-20261023/lootBurst-A-7129f00b.wav"
+    ],
+    "enabled": true
+  },
+  "craftStart": {
+    "label": "제작 시작",
+    "rate": 1,
+    "gain": 0.4,
+    "group": "craftStart",
+    "cooldown": 150,
+    "priority": 1,
+    "files": [],
+    "enabled": false
+  },
+  "craftSuccess": {
+    "label": "제작 성공",
+    "rate": 1,
+    "gain": 0.4,
+    "group": "craftSuccess",
+    "cooldown": 150,
+    "priority": 1,
+    "files": [],
+    "enabled": false
+  },
+  "craftFailure": {
+    "label": "제작 실패·무효",
+    "rate": 1,
+    "gain": 0.4,
+    "group": "craftFailure",
+    "cooldown": 150,
+    "priority": 1,
+    "files": [],
+    "enabled": false
+  },
+  "gemSocket": {
+    "label": "젬·룬 장착",
+    "rate": 1,
+    "gain": 0.65,
+    "group": "socket",
+    "cooldown": 150,
+    "priority": 1,
+    "files": [
+      "selected-20261023/gemSocket-A-02f712cc.wav"
+    ],
+    "enabled": true
+  },
+  "itemEquip": {
+    "label": "장비 착용",
+    "rate": 1,
+    "gain": 0.4,
+    "group": "itemEquip",
+    "cooldown": 150,
+    "priority": 1,
+    "files": [],
+    "enabled": false
+  },
+  "itemDismantle": {
+    "label": "장비 분해",
+    "rate": 1,
+    "gain": 0.4,
+    "group": "itemDismantle",
+    "cooldown": 150,
+    "priority": 1,
+    "files": [],
+    "enabled": false
+  },
+  "riftOpen": {
+    "label": "대균열 개방",
+    "rate": 1,
+    "gain": 0.4,
+    "group": "riftOpen",
+    "cooldown": 150,
+    "priority": 1,
+    "files": [],
+    "enabled": false
+  },
+  "riftGaugeFull": {
+    "label": "대균열 게이지 완성",
+    "rate": 1,
+    "gain": 0.4,
+    "group": "riftGaugeFull",
+    "cooldown": 150,
+    "priority": 1,
+    "files": [],
+    "enabled": false
+  },
+  "colonyWave": {
+    "label": "군락지 다음 공세",
+    "rate": 1,
+    "gain": 0.4,
+    "group": "colonyWave",
+    "cooldown": 150,
+    "priority": 1,
+    "files": [],
+    "enabled": false
+  },
+  "colonyCoreHit": {
+    "label": "군락지 핵 피격",
+    "rate": 1,
+    "gain": 0.4,
+    "group": "colonyCoreHit",
+    "cooldown": 150,
+    "priority": 1,
+    "files": [],
+    "enabled": false
+  },
+  "colonyFailure": {
+    "label": "군락지 파괴·실패",
+    "rate": 1,
+    "gain": 0.4,
+    "group": "colonyFailure",
+    "cooldown": 150,
+    "priority": 1,
+    "files": [],
+    "enabled": false
+  },
+  "fishBite": {
+    "label": "낚시 입질",
+    "rate": 1,
+    "gain": 0.4,
+    "group": "fishBite",
+    "cooldown": 150,
+    "priority": 1,
+    "files": [],
+    "enabled": false
+  },
+  "fishCatch": {
+    "label": "낚시 성공",
+    "rate": 1,
+    "gain": 0.5,
+    "group": "fishing",
+    "cooldown": 500,
+    "priority": 1,
+    "files": [
+      "selected-20261023/fishCatch-C-e392d5ae.wav"
+    ],
+    "enabled": true
+  },
+  "uiSelect": {
+    "label": "메뉴·탭 선택",
+    "rate": 1,
+    "gain": 0.5,
+    "group": "ui",
+    "cooldown": 60,
+    "priority": 1,
+    "files": [
+      "selected-20261023/uiSelect-A-f953f928.wav"
+    ],
+    "enabled": true
+  },
+  "uiConfirm": {
+    "label": "확인·구매",
+    "rate": 1,
+    "gain": 0.4,
+    "group": "uiConfirm",
+    "cooldown": 150,
+    "priority": 1,
+    "files": [],
+    "enabled": false
+  },
+  "uiCancel": {
+    "label": "취소·닫기",
+    "rate": 1,
+    "gain": 0.4,
+    "group": "uiCancel",
+    "cooldown": 150,
+    "priority": 1,
+    "files": [],
+    "enabled": false
+  },
+  "uiDanger": {
+    "label": "실행 불가·경고",
+    "rate": 1,
+    "gain": 0.4,
+    "group": "uiDanger",
+    "cooldown": 150,
+    "priority": 1,
+    "files": [],
+    "enabled": false
+  },
+  "uiSuccess": {
+    "label": "해금·완료 알림",
+    "rate": 1,
+    "gain": 0.4,
+    "group": "uiSuccess",
+    "cooldown": 150,
+    "priority": 1,
+    "files": [],
+    "enabled": false
+  },
+  "inventoryMetal": {
+    "label": "금속 · 철걱",
+    "rate": 1,
+    "gain": 0.7,
+    "group": "inventory",
+    "cooldown": 45,
+    "priority": 1,
+    "files": [
+      "selected-20261023/inventoryMetal-B-a8eb6f3f.wav",
+      "selected-20261023/inventoryMetal-E-daf9fa0f.wav"
+    ],
+    "enabled": true
+  },
+  "inventoryCloth": {
+    "label": "천 · 펄럭",
+    "rate": 1,
+    "gain": 0.7,
+    "group": "inventory",
+    "cooldown": 45,
+    "priority": 1,
+    "files": [
+      "selected-20261023/inventoryCloth-D-fd6bbd85.wav"
+    ],
+    "enabled": true
+  },
+  "inventoryLeather": {
+    "label": "가죽 · 낮은 펄럭",
+    "rate": 1,
+    "gain": 0.7,
+    "group": "inventory",
+    "cooldown": 45,
+    "priority": 1,
+    "files": [
+      "selected-20261023/inventoryLeather-E-bc3c413e.wav"
+    ],
+    "enabled": true
+  },
+  "inventoryGem": {
+    "label": "장신구·수정 · 땡",
+    "rate": 1,
+    "gain": 0.7,
+    "group": "inventory",
+    "cooldown": 45,
+    "priority": 1,
+    "files": [
+      "selected-20261023/inventoryGem-G-0df47365.wav"
+    ],
+    "enabled": true
+  },
+  "inventoryWood": {
+    "label": "목재 · 기존 선택",
+    "rate": 1,
+    "gain": 0.7,
+    "group": "inventory",
+    "cooldown": 45,
+    "priority": 1,
+    "files": [
+      "selected-20261023/inventoryWood-A-ce0237a1.wav",
+      "selected-20261023/inventoryWood-C-dd05c14c.wav"
+    ],
+    "enabled": true
   }
 }

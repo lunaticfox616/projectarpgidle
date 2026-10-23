@@ -4422,6 +4422,7 @@ function changeSummonSkillCount(name, delta) { if (!assertBuildEditable()) retur
         if (getEquippedSummonCount() >= cap) return addLog(`소환수 한도(${cap})로 인해 [${name}]${pickParticle(name, '을', '를')} 추가 소환할 수 없습니다.`, 'attack-monster');
         if (!game.equippedSummonSkills.includes(name)) game.equippedSummonSkills.push(name);
         game.summonSkillCounts[name] = current + 1;
+        playUiFeedbackSound('gemSocket');
         completeStarterGemTutorial(name);
         if (SKILL_DB[name] && SKILL_DB[name].isGem) game.gemEnhanceTargetSkill = name;
         if (game.activeSkill === name) game.activeSkill = '기본 공격';
@@ -4445,6 +4446,7 @@ function changeSkill(name, slotKind) { if (!assertBuildEditable()) return;
     }
     if ((SKILL_DB[name]?.tags || []).includes('summon_attack')) return toggleSummonAttackGem(name);
     if (mobilitySkill.isMobilityGem(name)) return wearMobilityRune(name, slotKind);
+    playUiFeedbackSound('gemSocket');
     game.activeSkill = name;
     completeStarterGemTutorial(name);
     if (SKILL_DB[name]?.isGem) game.gemEnhanceTargetSkill = name;
@@ -4464,6 +4466,7 @@ function toggleSummonAttackGem(name) {
 
 /** 이동 스킬 칸 (js/mobility-skill.js): a mobility gem is worn in its own slot next to the main gem ('' takes it off). */
 function wearMobilityGem(name) {
+    if (name && name !== game.mobilitySkill) playUiFeedbackSound('gemSocket');
     game.mobilitySkill = name;
     mobilitySkill.reset();
     if (name) { completeStarterGemTutorial(name); game.gemEnhanceTargetSkill = name; }
@@ -4484,6 +4487,7 @@ function wearMobilityRune(name, slotKind) {
     game.activeSkill = name;
     completeStarterGemTutorial(name);
     game.gemEnhanceTargetSkill = name;
+    playUiFeedbackSound('gemSocket');
     updateStaticUI();
 }
 
@@ -4566,6 +4570,7 @@ function toggleSupport(name) { if (!assertBuildEditable()) return;
         let cost = getSupportTierResonanceCost(name);
         if (remain < cost) return addLog(`공명력 부족 (${remain}/${cost})`, 'attack-monster', { toast: true });
         game.equippedSupports.push(name);
+        playUiFeedbackSound('gemSocket');
     }
     updateStaticUI();
 }
