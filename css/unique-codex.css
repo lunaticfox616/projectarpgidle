@@ -79,6 +79,8 @@
   .codex-sheet-head { display: grid; grid-template-columns: 88px minmax(0, 1fr); align-items: center; gap: 12px; }
   .codex-sheet-head .codex-art { width: 88px; height: 88px; }
   .codex-sheet-head .codex-art img { max-width: 76px; max-height: 76px; }
+  /* 장비 도트 그림은 3배(192px)로 저장해 두어 위 규칙만으로는 76px까지 커진다. 64도트 그림이던 때처럼 64px로 둔다. */
+  .codex-sheet-head .codex-art img:is([src*="assets/items/pixel-v1/"], [src*="assets/items/pixel-v2/"]) { max-width: 64px; max-height: 64px; }
   .codex-sheet:not(.is-on) .codex-art img { filter: brightness(0) drop-shadow(0 0 1px rgba(232, 194, 122, .6)); }
   .codex-sheet-head > div { display: grid; gap: 3px; min-width: 0; }
   .codex-sheet-head strong { color: #8a7f6c; font-size: 18px; font-weight: 400; }
