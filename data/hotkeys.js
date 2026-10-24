@@ -16,7 +16,12 @@ const HOTKEY_ACTIONS = Object.freeze([
     { id: 'move:up', kind: 'move', target: 'up', label: '위로 걷기', code: 'KeyW' },
     { id: 'move:left', kind: 'move', target: 'left', label: '왼쪽으로 걷기', code: 'KeyA' },
     { id: 'move:down', kind: 'move', target: 'down', label: '아래로 걷기', code: 'KeyS' },
-    { id: 'move:right', kind: 'move', target: 'right', label: '오른쪽으로 걷기', code: 'KeyD' }
+    { id: 'move:right', kind: 'move', target: 'right', label: '오른쪽으로 걷기', code: 'KeyD' },
+    // 2026-10-24 사용자: 그루터기 함 T, 설정 O, 루프 L. 목록 끝에 두어 이 키를 이미 다른 동작에 배정한 사람의 배정이 이긴다(충돌 시 앞선
+    // 동작). 설정 화면은 종류별로 묶어 보여 주므로 창 묶음의 끝에 나온다.
+    { id: 'window:tab-stump', kind: 'window', target: 'tab-stump', label: '그루터기 함', code: 'KeyT' },
+    { id: 'window:tab-settings', kind: 'window', target: 'tab-settings', label: '설정', code: 'KeyO' },
+    { id: 'window:tab-season', kind: 'window', target: 'tab-season', label: '루프', code: 'KeyL' }
 ].map(Object.freeze));
 
 // 바꿀 수 있는 키: 글자·숫자·숫자패드와 기호 몇 개. 브라우저 동작과 겹치는 Esc·Tab·Enter·Space·F키는 제외.

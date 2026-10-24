@@ -860,14 +860,17 @@ async function startBackgroundCombatReturn(nowMs) {
         updateBackgroundProgressOverlay(0, effectiveProgressMs, actualElapsedMs);
         await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0)));
         let result = await simulateBackgroundCombatChunked({
-            elapsedMs: effectiveProgressMs, snapshot, startNowMs: startedAtMs, project: true, abandonWhenPaused: true,
+            elapsedMs: effectiveProgressMs, snapshot, startNowMs: startedAtMs, project: true,
             isPaused: () => document.hidden || backgroundCombatRuntime.appInactive,
+            // Back after leaving again mid-settlement: the replay goes on and takes the time away since hiddenAtMs (it used to start
+            // over, and on a phone a long settlement could start over at every glance away).
+            getElapsedMs: () => {
+                actualElapsedMs = Math.max(actualElapsedMs, Date.now() - startedAtMs);
+                return calculateBackgroundProgressMs(actualElapsedMs, BACKGROUND_PROGRESS_MIN_REAL_MS, limits.efficiencyRate, limits.effectiveLimitMs);
+            },
             getControl: () => ({tier: backgroundCombatRuntime.accelerationTier, finish: backgroundCombatRuntime.finishRequested}),
             onProgress: (done, total, skipped, phase) => updateBackgroundProgressOverlay(done, total, actualElapsedMs, skipped, phase)
         });
-        // Left again mid-settlement: hiddenAtMs and the snapshot stay, so the next return settles the whole time away (the time
-        // spent away during a settlement used to count nowhere).
-        if (!result) return false;
         if (!shouldApplyBackgroundCombatResult(backgroundCombatRuntime.signature)) throw new Error('정산 중 사냥 상태가 변경되었습니다.');
         let summary = getBackgroundRewardSummary(snapshot, result.game, result.metrics, result.overflowSalvaged);
         commitBackgroundCombat(result, original);
@@ -1967,9 +1970,14 @@ function resolveRenderedTabId(tabId) {
 // 열기 전까지 계속 옛 내용이 남아 "탭이 고장난" 것처럼 보인다).
 function getRenderingUiTabIds() {
     let ids = new Set();
-    let activeId = getActiveUiTabId();
-    if (activeId) ids.add(activeId);
-    if (!document.body.classList.contains('desktop-windowed-ui')) return ids;
+    let desktop = document.body.classList.contains('desktop-windowed-ui');
+    let active = getActiveTopLevelTabElement();
+    // PC 창 모드에서는 창을 닫아도 그 탭이 active로 남는다. 닫히거나 접힌 창의 탭은 그리지 않는다(2026-10-25: 닫힌 스킬룬 화면을
+    // 처치마다 290ms씩 다시 그려 사냥이 끊겼다).
+    let closed = active && desktop && active.classList.contains('ui-window')
+        && (!active.classList.contains('ui-window-open') || active.classList.contains('ui-window-minimized'));
+    if (active && !closed) ids.add(resolveRenderedTabId(active.id));
+    if (!desktop) return ids;
     // ui-window-open은 창 관리자가 준비한 최상위 창에만 붙는다(하위 패널에는 붙지 않는다).
     document.querySelectorAll('.tab-content.ui-window-open:not(.ui-window-minimized)').forEach(el => {
         if (el.id) ids.add(resolveRenderedTabId(el.id));
@@ -9834,7 +9842,8 @@ function buildCraftActionButtons(item) {
     if (isTabRendering('tab-codex')) uniqueCodexUi.render();
     if (isTabRendering('tab-records') && typeof renderRecordsTab === 'function') renderRecordsTab();
 
-    if (isTabRendering('tab-skills') && typeof renderSkillGemScreen === 'function') renderSkillGemScreen({ pStats, searchFilters: sf });
+    // 룬 카드 140장 가까이가 같은 주얼과 고유 장비의 룬 레벨을 쓴다: 한 번 그리는 동안 빌드 메모를 나눠 쓴다(js/background-build-cache.js)
+    if (isTabRendering('tab-skills') && typeof renderSkillGemScreen === 'function') withBuildMemoPass(() => renderSkillGemScreen({ pStats, searchFilters: sf }));
 
     __mark('codex+skills');
     let journalList = isTabRendering('tab-journal') ? document.getElementById('ui-journal-list') : null;

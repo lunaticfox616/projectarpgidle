@@ -112,7 +112,7 @@ function advanceCombatReplay(replay, budgetMs) {
             const killsBefore = game.loopKills;
             // One build validation per tick, as the foreground tick does (js/main.js): the build signature was 13% of a settlement.
             combatEquipmentStats.withinTick(() => coreLoop(replay.simulatedNow));
-            if (game.loopKills !== killsBefore) getBackgroundBuildMemo(game).clear();
+            if (game.loopKills !== killsBefore) clearBackgroundBuildMemo(game);
             replay.processedMs += 100;
             updateBackgroundCombatMetrics(replay.metrics, game, replay.processedMs);
             if (replayProjection.observeReplayCycle(replay, game)) break;
@@ -155,12 +155,12 @@ function applyCombatReplayControl(replay, control) {
 
 /**
  * @typedef {{elapsedMs:number, snapshot:typeof defaultGame, startNowMs?:number, project?:boolean,
- * isPaused?:()=>boolean, abandonWhenPaused?:boolean, getControl?:()=>({tier:number,finish:boolean}),
+ * isPaused?:()=>boolean, getElapsedMs?:()=>number, getControl?:()=>({tier:number,finish:boolean}),
  * onProgress?:(doneMs:number,totalMs:number,skippedMs:number,phase:string)=>void}} CombatReplayOptions
  * snapshot must already have passed save migration. Durations are effective combat milliseconds.
  * project: measure the pace with real combat, then project the rest (js/combat-replay-projection.js). The settlement uses it.
- * abandonWhenPaused: the chunked replay gives up (null) once isPaused says the page went away again; the settlement then counts the
- * whole time away on the next return.
+ * getElapsedMs: read when the page comes back from a pause: the whole duration to settle by now. The replay goes on where it
+ * stopped and takes the new time away too (it used to give up and replay the whole time away from the start on the return).
  */
 /** @param {CombatReplayOptions} options Synchronous replay for diagnostics. Does not commit or persist. */
 function simulateBackgroundCombat(options) {
@@ -186,17 +186,32 @@ function waitBackgroundReplayFrame() {
     });
 }
 
-const replayAbandoned = options => !!options.abandonWhenPaused && !!options.isPaused?.();
+/** The new time away of a return mid-settlement joins what is left. Each speed-up the player chose keeps half of it, as it kept
+ * half of the time left then (applyCombatReplayControl). */
+function extendCombatReplay(replay, extraMs) {
+    if (!(extraMs > 0)) return;
+    const retained = Math.floor(extraMs / (2 ** replay.accelerationTier) / 100) * 100;
+    replay.skippedMs += extraMs - retained;
+    replay.elapsedMs += retained;
+}
+
+/** Waits while the page is away (no CPU while the app is inactive), then grows the replay to the duration due by now. */
+async function waitCombatReplayPause(replay, options, durationMs) {
+    if (!options.isPaused?.()) return durationMs;
+    while (options.isPaused()) await new Promise(resolve => setTimeout(resolve, 250));
+    const dueMs = Math.max(durationMs, options.getElapsedMs ? options.getElapsedMs() : durationMs);
+    // Whole 100 ms ticks, floored as createCombatReplay floors the first duration (the rest is not time given up).
+    extendCombatReplay(replay, Math.floor(dueMs / 100) * 100 - Math.floor(durationMs / 100) * 100);
+    return dueMs;
+}
 
 /** @param {CombatReplayOptions} options Progress callbacks run outside the replay state and may throw. */
 async function simulateBackgroundCombatChunked(options) {
     let replay = createCombatReplay(options.elapsedMs, options.snapshot, options.startNowMs);
     if (options.project) replayProjection.attachReplayProjection(replay);
-    let pending;
+    let pending, durationMs = options.elapsedMs;
     do {
-        // The UI supplies lifecycle state; do not burn CPU while the app is inactive.
-        if (replayAbandoned(options)) return null;
-        while (options.isPaused?.()) await new Promise(resolve => setTimeout(resolve, 250));
+        durationMs = await waitCombatReplayPause(replay, options, durationMs);
         applyCombatReplayControl(replay, options.getControl?.());
         pending = replayProjection.advanceProjectedReplay(replay, BACKGROUND_REPLAY_SLICE_MS);
         if (options.onProgress) options.onProgress(replay.processedMs + replay.skippedMs,

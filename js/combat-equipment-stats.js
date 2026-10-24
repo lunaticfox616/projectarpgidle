@@ -167,7 +167,7 @@ const combatEquipmentStats = (() => {
         const owner = game, status = evaluate(owner);
         const originalEquipment = owner.equipment;
         const equipment = status.active;
-        // The settlement memo of the real gear (the mask below would read as another revision).
+        // The settlement memo of the real gear (the masked gear keeps its own values).
         const memo = getBackgroundBuildMemo(owner);
         try {
             // Keep ordinary runtime normalization on the real state while masking disabled slots synchronously.

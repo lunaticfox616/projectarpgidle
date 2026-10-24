@@ -248,7 +248,7 @@ const replayProjection = (() => {
         if (!outcome.interrupted) outcome.interrupted = settleProjectedObjects(run, calibration, plan, pStats);
         if (!outcome.interrupted) finishProjectedCycle(plan, pStats);
         advanceProjectedClock(replay, projectedCycleMs(replay, calibration, plan, outcome));
-        getBackgroundBuildMemo(game).clear();
+        clearBackgroundBuildMemo(game);
         updateBackgroundCombatMetrics(replay.metrics, game, replay.processedMs);
         const reason = getOfflineSafetyStopReason(game, replay.metrics, replay.processedMs);
         if (reason) game.backgroundStopReason = reason;
