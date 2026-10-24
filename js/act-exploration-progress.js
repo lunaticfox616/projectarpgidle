@@ -12,6 +12,22 @@ const actExplorationProgress = (() => {
     const lootWalks=new WeakMap(); // run → {stalls, clearedAt} (transient, like the discovery memos)
     const walkedMs=new WeakMap(); // run → ms the hero walked since the last combat tick took it (takeWalkedMs, transient)
     const inscriptionVisits=new WeakMap(); // run → last settled cell/room checked, never part of a save
+    // 자동 이동의 유예(2026-10-24 사용자: "자동사냥 켰을때 이동하기까지 약간의 유예, 자동 상태에서 마우스나 wasd로 조작했을 때 다시
+    // 이동하기까지도 약간의 유예"): 자동을 켠 뒤 AUTO_START_GRACE_MS, 직접 내린 명령(클릭, WASD, 락온)이 끝난 뒤 AUTO_RESUME_GRACE_MS
+    // 동안은 자동으로 걷거나 다가가지 않고 제자리에서 사거리 안만 친다. 화면 앞의 조작에 맞춘 것이라 방치 정산에는 없다.
+    const AUTO_START_GRACE_MS=1000,AUTO_RESUME_GRACE_MS=1500;
+    const autoHolds=new WeakMap(); // run → movement-clock ms until which auto-move waits (transient, never saved)
+    const clockOf=run=>run.motionTimeMs||getCombatTime();
+    function holdAuto(run,ms) {autoHolds.set(run,Math.max(autoHolds.get(run)||0,clockOf(run)+ms));}
+    function autoHeld(run) {return !game.isBackgroundCalculation && (autoHolds.get(run)||0)>clockOf(run);}
+    /** While a manual order (click, WASD, lock-on) is under way the grace keeps moving on, so AUTO_RESUME_GRACE_MS counts from the
+     * moment it ends; with no order, auto-move waits out the grace. @returns {boolean} true while auto-move waits. */
+    function waitsForAutoGrace(run) {
+        if(run.destination || actExplorationState.lockedEnemy(run)){holdAuto(run,AUTO_RESUME_GRACE_MS);return false;}
+        return runMode(run)!=='manual' && autoHeld(run);
+    }
+    /** Auto-move was just turned on (js/act-exploration-ui.js toggleAuto, mode): it starts walking after the grace. */
+    function holdAutoStart(run) {if(run)holdAuto(run,AUTO_START_GRACE_MS);}
     const ground=actExplorationState.groundLoot;
     function advance(stats) {
         const run=actExplorationState.current(game);
@@ -118,6 +134,7 @@ const actExplorationProgress = (() => {
      * nothing fights, auto-move first walks to floor items. Returns whether this step's exploration walk is skipped. */
     function holdsOrDetours(run,entrance,stats) {
         if(entrance)return true;
+        if(waitsForAutoGrace(run))return true;
         if(run.destination)return false;
         if(actExplorationDoors.fightingHere(run))return true;
         return runMode(run)!=='manual' && walkToLoot(run,stats);
@@ -246,7 +263,10 @@ const actExplorationProgress = (() => {
      * (js/act-exploration-state.js lockOn)가 살아 있으면 그 명령으로 보고 다가가 싸운다. */
     function holdPosition(requested) {
         const run=actExplorationState.current(game);
-        return requested || !!(run && ((runMode(run)==='manual' && !actExplorationState.lockedEnemy(run)) || run.destination));
+        if(!run)return !!requested;
+        const locked=!!actExplorationState.lockedEnemy(run);
+        // 자동 이동의 유예 동안도 제자리(락온한 몬스터는 명령이라 다가간다)
+        return requested || (runMode(run)==='manual' && !locked) || !!run.destination || (autoHeld(run) && !locked);
     }
     function waiting(state) {
         const run=actExplorationState.current(state);
@@ -281,6 +301,6 @@ const actExplorationProgress = (() => {
         const run=actExplorationState.current(state);
         if(run && !run.completionApplied){actExplorationMotion.cancel(run);run.status='failed';}
     }
-    return {advance,tick,moving,takeWalkedMs,collectPile,canMove,canFinish,beginCompletion,shouldTrackStall,holdPosition,runMode,startMode,waiting,deferDeparture,stopAfterCompletion,depart,reconcileDeparture,defeat};
+    return {advance,tick,moving,takeWalkedMs,collectPile,canMove,canFinish,beginCompletion,shouldTrackStall,holdPosition,holdAutoStart,runMode,startMode,waiting,deferDeparture,stopAfterCompletion,depart,reconcileDeparture,defeat};
 })();
 safeExposeGlobals({actExplorationProgress});

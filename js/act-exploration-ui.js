@@ -183,6 +183,7 @@ const actExplorationUi=(()=>{
         if(value!=='manual' && autoLocked()){showGameToast('자동 사냥은 첫 스킬룬을 장착하면 열립니다',{tone:'warning',duration:2000});return;}
         run.mode=value;run.destination=null;
         game.settings.autoMove=value!=='manual';
+        if(value!=='manual')actExplorationProgress.holdAutoStart(run);
         if(value!=='manual')game.settings.actExplorationMode=value;
         render();
     }
@@ -193,7 +194,7 @@ const actExplorationUi=(()=>{
         if(autoLocked()){showGameToast('자동 사냥은 첫 스킬룬을 장착하면 열립니다',{tone:'warning',duration:2000});return false;}
         const on=game.settings.autoMove===false,run=actExplorationState.current(game);
         game.settings.autoMove=on;
-        if(run&&run.status==='active')run.mode=actExplorationProgress.startMode(game.settings);
+        if(run&&run.status==='active'){run.mode=actExplorationProgress.startMode(game.settings);if(on)actExplorationProgress.holdAutoStart(run);}
         showGameToast(on?'자동 이동을 켰습니다':'자동 이동을 껐습니다. 클릭한 곳으로만 움직입니다',{duration:1800});
         render();
         return on;
