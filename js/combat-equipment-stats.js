@@ -120,18 +120,19 @@ const combatEquipmentStats = (() => {
         const disabled = evaluate(candidate).disabled;
         return Object.keys(disabled).length ? { ok: false, reason: '프리셋 적용 시 요구조건이 부족해지는 장비가 있습니다.' } : { ok: true };
     }
-    /** Equipment and runes are one transaction. Even old equipment-only presets keep the current runes valid. */
+    /** Equipment and saved runes are one transaction. An old equipment-only preset (config null) checks only the gear:
+     * the current runes stay and adapt to it as after a manual equip (main rune rests, extra supports come off). */
     function validateBuildLoadout(equipment, config, owner) {
-        const runes = window.GameModules.skills.loadouts, selected = config || runes.capture(owner);
+        if (!config) return validateLoadout(equipment, owner);
+        const runes = window.GameModules.skills.loadouts;
         const candidate = permanentSnapshot(owner);
         candidate.equipment = JSON.parse(JSON.stringify(equipment));
-        const structure = runes.inspect(selected, candidate);
+        const structure = runes.inspect(config, candidate);
         if (!structure.ok) return structure;
-        runes.apply(selected, candidate);
-        candidate.weaponBlockedSkill = '';
+        runes.apply(config, candidate);
         const gear = validateLoadout(equipment, { ...candidate, equipment: owner.equipment });
         if (!gear.ok) return gear;
-        return inspectBuildCandidate(candidate, selected);
+        return inspectBuildCandidate(candidate, config);
     }
     function inspectBuildCandidate(candidate, selected) {
         const live = game, bridge = window.GameState, windowGame = bridge.game;
@@ -139,9 +140,10 @@ const combatEquipmentStats = (() => {
             game = candidate;
             bridge.game = candidate;
             evaluating.add(candidate);
-            const blocked = [selected.activeSkill, selected.mobilitySkill, ...selected.equippedSummonSkills]
-                .filter(Boolean).find(name => !canUseSkillWithCurrentEquipment(name));
-            if (blocked) return { ok: false, reason: `${blocked}: ${getSkillRuneWeaponNote(blocked)}` };
+            // Only the main rune must fit the weapon: mobility and summon runes stay worn and rest on a weapon they do not fit
+            // (mobilitySkill.ready, getActiveSummonGemDefs), so a build saved that way loads again.
+            const main = selected.activeSkill;
+            if (!canUseSkillWithCurrentEquipment(main)) return { ok: false, reason: `${main}: ${getSkillRuneWeaponNote(main)}` };
             const stats = getPlayerStats(false), runes = window.GameModules.skills.loadouts;
             if (!runes.equals(selected, candidate)) return { ok: false, reason: '현재 장비로 저장된 룬 구성을 유지할 수 없습니다.' };
             return runes.inspect(selected, candidate, stats);

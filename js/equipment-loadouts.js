@@ -153,7 +153,13 @@ function getEquipmentLoadoutInspection(slotIndex, targetGame = game) {
             incompatible.push({ slot, name: saved.name });
         }
     });
-    return equipmentLoadoutRuntime.withRunes(preset, targetGame, { exists: true, name: preset.name, count, missing, incompatible, applied }, owned);
+    // Rune ownership is read against the preset's own gear (a saved 칼이 된 발걸음 counts even when it is off now).
+    let runes = window.GameModules.skills.loadouts;
+    let presetEquipment = Object.fromEntries(EQUIPMENT_LOADOUT_SLOT_KEYS.map(slot =>
+        [slot, owned.get(getEquipmentLoadoutSavedIdentity(preset.slots[slot])) || null]));
+    let runeReason = runes.inspect(preset.runeLoadout, { ...targetGame, equipment: presetEquipment }).reason || '';
+    return { exists: true, name: preset.name, count, missing, incompatible,
+        applied: applied && runes.equals(preset.runeLoadout, targetGame), runeReason };
 }
 
 function saveEquipmentLoadoutPreset(slotIndex, name, targetGame = game) {
@@ -205,8 +211,10 @@ function buildEquipmentLoadoutSwap(preset, slotIndex, targetGame) {
     return { ok: true, equipment: nextEquipment, inventory: nextInventory, inspection };
 }
 
+/** Equipment and saved runes switch together. An old equipment-only preset (runeLoadout null) keeps the current runes:
+ * the stat pass rests a main rune the new weapon cannot use (weaponBlockedSkill) and supports over the new limit come off with a log. */
 function applyEquipmentLoadoutPreset(slotIndex, targetGame = game) {
-    if (targetGame.woodsmanBuildLock) return { ok: false, reason: '나무꾼 도전 중에는 빌드 세팅을 바꿀 수 없습니다.' };
+    if (targetGame.woodsmanBuildLock) return { ok: false, reason: '☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.' };
     let state = ensureEquipmentLoadoutState(targetGame);
     let index = Math.floor(Number(slotIndex));
     let preset = state.presets[index];
@@ -219,9 +227,9 @@ function applyEquipmentLoadoutPreset(slotIndex, targetGame = game) {
     targetGame.equipment = swap.equipment;
     targetGame.inventory = swap.inventory;
     window.GameModules.skills.loadouts.apply(preset.runeLoadout, targetGame);
-    targetGame.weaponBlockedSkill = '';
     targetGame.equipmentLoadouts.selectedSlot = index;
     combatEquipmentStats.finishBuildLoadout(targetGame);
+    if (targetGame === game) normalizeSupportLoadout(true);
     return { ok: true, preset, count: swap.inspection.count };
 }
 
@@ -251,16 +259,7 @@ function isEquipmentLoadoutItemReferenced(item, targetGame = game) {
         && EQUIPMENT_LOADOUT_SLOT_KEYS.some(slot => getEquipmentLoadoutSavedIdentity(preset.slots[slot]) === identity));
 }
 
-const equipmentLoadoutRuntime = (() => {
-    function withRunes(preset, owner, inspection, owned) {
-        const api = window.GameModules.skills.loadouts, config = preset.runeLoadout;
-        const equipment = Object.fromEntries(EQUIPMENT_LOADOUT_SLOT_KEYS.map(slot =>
-            [slot, owned.get(getEquipmentLoadoutSavedIdentity(preset.slots[slot])) || null]));
-        const runeApplied = api.equals(config, owner), result = api.inspect(config, { ...owner, equipment });
-        return { ...inspection, applied: inspection.applied && runeApplied, runeApplied,
-            runeLoadout: config, runeReason: result.reason || '', legacyEquipmentOnly: config === null };
-    }
-    return Object.freeze({
+const equipmentLoadoutRuntime = Object.freeze({
     limit: EQUIPMENT_LOADOUT_PRESET_LIMIT,
     slots: EQUIPMENT_LOADOUT_SLOT_KEYS,
     ensureState: ensureEquipmentLoadoutState,
@@ -271,9 +270,7 @@ const equipmentLoadoutRuntime = (() => {
     clear: clearEquipmentLoadoutPreset,
     isReferenced: isEquipmentLoadoutItemReferenced,
     getItemIdentity: getEquipmentLoadoutItemIdentity,
-    ensureItemIdentity: ensureEquipmentLoadoutItemIdentity,
-    withRunes
-    });
-})();
+    ensureItemIdentity: ensureEquipmentLoadoutItemIdentity
+});
 
 safeExposeGlobals({ equipmentLoadoutRuntime });

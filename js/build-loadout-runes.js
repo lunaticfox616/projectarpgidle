@@ -49,10 +49,12 @@
             equippedSupports: supports, supportTiers: Object.fromEntries(supports.map(name => [name, savedSupportTier(name, state)])) };
     }
 
-    /** Caller validates first; this copies choices and selected tiers, without replacing gem progression. */
+    /** Caller validates first; this copies choices and selected tiers, without replacing gem progression.
+     * The saved main rune also replaces a main rune the old weapon rested (weaponBlockedSkill). */
     function applyRuneLoadout(config, state = game) {
         if (!config) return;
         state.activeSkill = config.activeSkill;
+        state.weaponBlockedSkill = '';
         state.mobilitySkill = config.mobilitySkill;
         state.equippedSummonSkills = config.equippedSummonSkills.slice();
         state.summonSkillCounts = { ...config.summonSkillCounts };
@@ -145,7 +147,7 @@
     }
 
     function inspectRuneLoadout(config, state = game, stats) {
-        if (!config) return { ok: true, reason: '', equipmentOnly: true };
+        if (!config) return { ok: true, reason: '' };
         const shape = config.invalidReason || loadoutShapeReason(config);
         if (shape) return failure(shape);
         const reason = attackSlotReason(config, state) || mobilitySlotReason(config, state)
