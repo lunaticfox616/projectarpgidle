@@ -206,7 +206,8 @@ const atlasUi = (() => {
         const active = ledger().run?.map.node === node.id;
         const classes = ['atlas-node', `is-${status}`, `kind-${node.kind}`, node.id === selectedNode ? 'is-selected' : '', active ? 'is-running' : ''].join(' ');
         const tier = atlas.effectiveTier(game, node);
-        return `<button class="${classes}" style="--x:${x}%;--y:${y}%" data-atlas-node="${node.id}" aria-pressed="${node.id === selectedNode}"
+        // data-info-tooltip-anchor: js/ui.js의 mousemove 감시가 이 표시가 없는 곳의 툴팁을 바로 지워, 지도 이름이 뜨자마자 사라졌다(2026-10-25 사용자).
+        return `<button class="${classes}" style="--x:${x}%;--y:${y}%" data-atlas-node="${node.id}" data-info-tooltip-anchor="1" aria-pressed="${node.id === selectedNode}"
             aria-label="${escapeHTML(node.name)} ${tier}등급 ${STATUS[status]}" onclick="atlasUi.selectNode('${node.id}')"
             onmouseenter="atlasUi.hint(event,'${node.id}')" onmousemove="atlasUi.hint(event,'${node.id}')" onmouseleave="hideInfoTooltip()"><b>${tier}</b>${held ? `<i>${held}</i>` : ''}</button>`;
     }
@@ -414,12 +415,20 @@ const atlasUi = (() => {
         return `${lost.length ? `<div class="atlas-result-loss"><p>보류 보상 손실: ${escapeHTML(lost.join(', '))}</p></div>` : ''}
             ${!ledger().run && ledger().stash.length ? '<div class="atlas-actions"><button onclick="atlasUi.revealStash()">다음 지도석 고르기</button></div>' : ''}`;
     }
+    // 보기마다 이름 아래 한 줄로 무엇을 하는 곳인지(2026-10-25 사용자 "탭 구조를 좀 더 알기 쉽게").
+    const VIEW_TABS = Object.freeze([['maps', '지도', '지도 열기'], ['passives', '패시브', '포인트 쓰기'], ['late', '최종', '최종 보스'],
+        ['memory', '기억', '보스 다시'], ['epoch', '시대', '시대 재생'], ['board', '나이테 원정', '주사위 판']]);
     function headerHtml() {
         // 깨어난 아틀라스는 최종 보스와 리그 우두머리만큼 넓어진다(그 처치도 완료이자 아틀라스 포인트).
         const st = ledger(), total = atlas.nodes.length + (atlasEndgame.awakened(game) ? atlas.lateNodes.length : 0), free = atlasPassives.spendable(game);
-        const tab = (id, label) => `<button class="atlas-view${view === id ? ' is-on' : ''}" aria-pressed="${view === id}" onclick="atlasUi.setView('${id}')">${label}</button>`;
-        return `<header class="atlas-head"><div><h2>세계수 아틀라스</h2><span>완료 ${st.completed.length}/${total}, 보너스 ${st.bonus.length}, 씨앗 ${st.seeds}/${ATLAS.seeds.max}, 아틀라스 포인트 ${atlas.points(game)}${free ? ` (남음 ${free})` : ''}</span></div>
-            <nav class="atlas-views" aria-label="아틀라스 보기">${tab('maps', '지도')}${tab('passives', `패시브${free ? ` +${free}` : ''}`)}${tab('late', '최종')}${tab('memory', `기억${memoryDungeon.total(game) ? ` ${memoryDungeon.total(game)}` : ''}`)}${tab('epoch', '시대')}${tab('board', '나이테 원정')}</nav>
+        const badges = { passives: free ? `+${free}` : '', memory: memoryDungeon.total(game) ? String(memoryDungeon.total(game)) : '' };
+        const tab = ([id, label, purpose]) => `<button class="atlas-view${view === id ? ' is-on' : ''}" aria-pressed="${view === id}" onclick="atlasUi.setView('${id}')">`
+            + `<strong>${label}${badges[id] ? `<i>${badges[id]}</i>` : ''}</strong><small>${purpose}</small></button>`;
+        const stat = (label, value, tone) => `<span class="atlas-stat" style="--stat-tone:${tone}">${label} <b>${value}</b></span>`;
+        const stats = stat('완료', `${st.completed.length}/${total}`, '#d9b066') + stat('보너스', st.bonus.length, '#9fd46a')
+            + stat('씨앗', `${st.seeds}/${ATLAS.seeds.max}`, '#c9a0f0') + stat('포인트', `${atlas.points(game)}${free ? ` (남음 ${free})` : ''}`, '#7fd6cf');
+        return `<header class="atlas-head"><div><h2>세계수 아틀라스</h2><span class="atlas-stats">${stats}</span></div>
+            <nav class="atlas-views" aria-label="아틀라스 보기">${VIEW_TABS.map(tab).join('')}</nav>
             <label class="atlas-auto" title="완료하면 같은 등급 이하에서 다음 지도석을 연다"><input type="checkbox" ${st.autoMap ? 'checked' : ''} onchange="atlasUi.toggleAuto(this.checked)"><span>자동 지도</span>
             <small>완료하면 같은 등급 이하에서 다음 지도석을 연다</small></label></header>`;
     }

@@ -107,7 +107,8 @@ const atlasChartArt = (() => {
         }
         return points;
     }
-    const LINK_LOOK = Object.freeze({ done: { color: GOLD, shadow: true }, lit: { color: SAP, shadow: true }, dim: { color: DIM, dotted: true } });
+    // 아직 닿지 않은 길(dim)은 바탕보다 조금 밝게: 갈래마다 다른 줄기 모양이 찍기 전에도 보인다(2026-10-25 사용자 "구조 생긴 것도 다르게").
+    const LINK_LOOK = Object.freeze({ done: { color: GOLD, shadow: true }, lit: { color: SAP, shadow: true }, dim: { color: [88, 74, 52], dotted: true } });
     function paintLink(buf, link) {
         const look = LINK_LOOK[link.state] || LINK_LOOK.dim;
         const points = link.arc ? arcPoints(link.arc, buf) : linePoints(toDots(link.from, buf), toDots(link.to, buf));

@@ -51,11 +51,6 @@ const itemInfluencesUi = (() => {
         if (!row || !row.found) return '';
         return `<p class="infl-source"><span class="infl-tag" style="--infl:${row.tone}">${escapeHTML(row.label)}</span>${escapeHTML(row.found)}</p>`;
     }
-    /** That line on a final boss's card (js/atlas-endgame-ui.js) when its offering comes from an influence's content. '' for the rest. */
-    function fightSourceHtml(id) {
-        const key = Object.keys(ITEM_INFLUENCES).find(name => ITEM_INFLUENCES[name].feeds === id);
-        return key ? sourceHtml(key) : '';
-    }
     /** The mark after a line's value: an altar line, an exclusive line of guardian or blight, a swapped unique line (with what it
      * replaced). '' for an ordinary line. */
     function lineBadgeHtml(item, stat) {
@@ -86,7 +81,7 @@ const itemInfluencesUi = (() => {
         return true;
     }
 
-    return Object.freeze({ influenceClasses, influenceStyle, markFrame, markTooltip: markFrame, tagsHtml, tooltipHtml, sourceHtml, fightSourceHtml,
+    return Object.freeze({ influenceClasses, influenceStyle, markFrame, markTooltip: markFrame, tagsHtml, tooltipHtml, sourceHtml,
         lineBadgeHtml, useState, use });
 })();
 safeExposeGlobals({ itemInfluencesUi });

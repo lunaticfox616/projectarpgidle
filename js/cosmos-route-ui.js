@@ -1,5 +1,9 @@
 // Expedition planning. Atlas supplies read-only node views and legacy challenge details.
+// 2026-10-25 사용자 "우주계 탭도 뭐가 뭔지 전혀 알 수 없어서 간단하면서도 알기 쉽게, 색감": 은하는 색 단추 다섯, 위에 이번 탐사의
+// 출발과 목표, 구간과 행성 수, 보상, 그리고 행성 색이 뜻하는 것(군집, 수호, 폭풍, 보스). 행성 이름 아래에 그 행성의 종류를 적는다.
 const cosmosRouteUi = (() => {
+    const GALAXY_TONES = Object.freeze({ 1: '#7fd6cf', 2: '#a98fe8', 3: '#e8b45f', 4: '#e07a6a', 5: '#f3e3a8' });
+    const HABITAT_HINTS = Object.freeze({ swarm: '약한 무리 여럿', guard: '단단한 정예', storm: '빠른 번개' });
     let bound = null;
     let lastView = null;
     let lastHtml = '';
@@ -20,9 +24,11 @@ const cosmosRouteUi = (() => {
         const currentId = plan.queue[0] || plan.plan[index][0];
         const current = lastView.nodes.find(node => node.id === currentId);
         const boss = lastView.nodes.find(node => node.id === plan.plan.at(-1).at(-1));
+        const total = plan.plan.flat().length;
         return `<div class="cosmos-journey-heading"><small>${cosmosRouteRuntime.active(game) ? '현재 탐사 중' : '이번 탐사'}</small>
-            <strong>${escapeHTML(current.name)} <span>→</span> ${escapeHTML(boss.name)}</strong>
-            <span>${plan.history.length}/${plan.plan.flat().length}곳 탐사</span></div>
+            <strong>${escapeHTML(current.name)} <span>→</span> <em>${escapeHTML(boss.name)}</em></strong>
+            <div class="cosmos-goal-chips"><span>${plan.plan.length}구간</span><span>행성 ${total}곳</span><span>탐사 ${plan.history.length}/${total}</span>
+            <span class="is-reward">보상 창공의 정수</span></div></div>${legendHtml()}
             <div class="cosmos-expedition-map" role="group" aria-label="은하 탐사">
             ${plan.plan.map((leg,i) => expeditionStage(plan,i)).join('')}</div>`;
     }
@@ -45,9 +51,22 @@ const cosmosRouteUi = (() => {
         const current = plan.queue[0] === id;
         const boss = id === plan.plan.at(-1).at(-1);
         const habitat = cosmosRouteRuntime.planetHabitat(id);
-        const state = current ? '현재 위치' : done ? '탐사 완료' : boss ? '최종 보스' : '';
+        const state = current ? '현재 위치' : done ? '탐사 완료' : boss ? '최종 보스' : COSMOS_ROUTE_G1.habitats[habitat]?.name || '';
         return `<li class="cosmos-planet-stop ${node.kind} ${habitat} ${boss ? 'boss' : ''} ${current ? 'current' : ''} ${done ? 'done' : ''}" data-planned-node="${id}" ${current ? 'aria-current="step"' : ''}>
             <i aria-hidden="true"></i><b>${escapeHTML(node.name)}</b><small>${state}</small></li>`;
+    }
+
+    /** What the planet colours mean (the circles use the same tints, css/cosmos-route.css). */
+    function legendHtml() {
+        const rows = Object.entries(HABITAT_HINTS).map(([id, hint]) => `<span class="${id}"><i></i><b>${COSMOS_ROUTE_G1.habitats[id].name}</b> ${hint}</span>`);
+        return `<p class="cosmos-legend">${rows.join('')}<span class="boss"><i></i><b>보스</b> 은하의 끝</span></p>`;
+    }
+    function galaxyChipsHtml() {
+        return `<nav class="cosmos-galaxies" aria-label="은하">${[1, 2, 3, 4, 5].map(id => {
+            const open = cosmosRouteRuntime.unlocked(game, id);
+            return `<button type="button" style="--galaxy-tone:${GALAXY_TONES[id]}" data-route-action="galaxy" data-route-value="${id}" aria-pressed="${galaxy === id}"`
+                + `${open ? '' : ` title="${id - 1}은하 보스 격파 후 탐사"`} class="${open ? '' : 'is-locked'}">${id}은하</button>`;
+        }).join('')}</nav>`;
     }
 
     function routeFooter(plan, unlocked) {
@@ -70,21 +89,17 @@ const cosmosRouteUi = (() => {
         return `<p class="cosmos-route-outcome">${title}, 창공의 정수 +${route.dust} 확보</p>`;
     }
 
+    function onStarMapClick(event) {
+        const button = event.target.closest('[data-route-action]');
+        if (!button || button.disabled) return;
+        if (button.dataset.routeAction === 'galaxy') { galaxy = Number(button.dataset.routeValue); closeNode(); renderRouteView(lastView); return; }
+        lastView.onAction(button.dataset.routeAction, button.dataset.routeValue);
+    }
+
     function bindStarMapActions(host) {
         if (bound === host) return;
         bound = host;
-        host.addEventListener('click', event => {
-            const button = event.target.closest('[data-route-action]');
-            if (!button || button.disabled) return;
-            lastView.onAction(button.dataset.routeAction, button.dataset.routeValue);
-        });
-        host.addEventListener('change', changeStarMapSelection);
-    }
-
-    function changeStarMapSelection(event) {
-        if (event.target.id === 'cosmos-galaxy') {
-            galaxy = Number(event.target.value); closeNode(); renderRouteView(lastView);
-        }
+        host.addEventListener('click', onStarMapClick);
     }
 
     function renderRouteView(view) {
@@ -95,8 +110,7 @@ const cosmosRouteUi = (() => {
         const sameGalaxy = (game.cosmosRoute?.galaxy || 1) === galaxy;
         const plan = sameGalaxy && (cosmosRouteRuntime.active(game) || (game.cosmosRoute && cosmosRouteRuntime.retryRemaining(game) > 0))
             ? game.cosmosRoute : cosmosRouteRuntime.preview(game,galaxy);
-        const html = `<section class="cosmos-star-chart"><header class="cosmos-star-header"><label>은하<select id="cosmos-galaxy" aria-label="은하 선택">
-            ${[1,2,3,4,5].map(id => `<option value="${id}" ${galaxy === id ? 'selected' : ''}>${id}은하</option>`).join('')}</select></label>
+        const html = `<section class="cosmos-star-chart" style="--galaxy-tone:${GALAXY_TONES[galaxy]}"><header class="cosmos-star-header">${galaxyChipsHtml()}
             <button type="button" data-route-action="stones">우주석</button></header>
             ${branchMap(plan)}${routeFooter(plan, view.unlocked)}${outcomeLine(view.nodes)}</section>`;
         replaceRouteMarkup(host, html);

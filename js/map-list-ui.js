@@ -30,10 +30,12 @@ const mapListUi = (() => {
     }
 
     // ── 액트 카드 ──────────────────────────────────────────────────
-    function actArt(facts) {
-        if (facts.zone.type !== 'act') return '';
-        const key = getBossAssetKeyForZone({ type: 'act', id: facts.id }, 0, 0);
-        return key && BOSS_ASSET_MANIFEST[key] ? BOSS_ASSET_MANIFEST[key] : '';
+    /** The act's own region (data/exploration-regions.js actLandscapes), drawn faintly behind its card. No boss picture: the old boss
+     * art showed there (2026-10-25 사용자: 보스 이미지는 안 나오게, 지역 이미지만 어렴풋이). */
+    function actLandscape(facts) {
+        const path = facts.zone.type === 'act' ? EXPLORATION_REGIONS.actLandscapes[facts.id - 1] : '';
+        // A whole address: a relative url() in a custom property resolves against the stylesheet that uses it (css/), not the page.
+        return path ? new URL(path, document.baseURI).href : '';
     }
     function actTitle(zone) {
         const at = zone.name.indexOf(': ');
@@ -46,10 +48,9 @@ const mapListUi = (() => {
             enterLabel: facts.current ? '전투 보기' : '이동' });
     }
     function actCardHtml(facts, hideReward) {
-        const title = actTitle(facts.zone), story = facts.zone.type === 'act' ? getStoryActByZoneId(facts.id) : null, art = actArt(facts);
+        const title = actTitle(facts.zone), story = facts.zone.type === 'act' ? getStoryActByZoneId(facts.id) : null, land = actLandscape(facts);
         const cls = ['map-act-card', facts.current ? 'current' : '', facts.cleared ? 'is-cleared' : '', facts.recommended ? 'is-recommended' : '', facts.reveal ? 'map-unlock-reveal' : ''];
-        return `<div class="${cls.filter(Boolean).join(' ')}" role="group"${facts.current ? ' aria-current="true"' : ''}>`
-            + `<span class="map-act-art">${art ? `<img class="map-act-img" src="${art}" alt="" draggable="false">` : ''}</span>`
+        return `<div class="${cls.filter(Boolean).join(' ')}" role="group"${facts.current ? ' aria-current="true"' : ''}${land ? ` style="--act-land:url('${land}')"` : ''}>`
             + `<div class="map-act-body">${title.label ? `<small>${esc(title.label)}</small>` : ''}<strong>${esc(title.name)}</strong>`
             + `${story ? `<span class="map-act-boss">보스 ${esc(story.bossName)}</span>` : ''}${buildMapPowerEstimateHtml(facts.zone, { hideReward })}</div>`
             + `<div class="map-act-actions">${actActionsHtml(facts)}</div></div>`;
