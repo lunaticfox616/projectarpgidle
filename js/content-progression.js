@@ -77,6 +77,15 @@ const contentProgression = (() => {
         return !def.progress || progressChecks[def.progress](owner).every(row => row[1]);
     }
 
+    /** How many steps of a 강화 series (data/content-progression.js CONTENT_UNLOCK_SERIES) the ledger holds: bought or inherited.
+     * It reads the record as it is, so it also counts a saved one before the load restores it, and no record counts none. */
+    function rank(series, owner = game) {
+        const state = owner.contentProgression;
+        if (!state) return 0;
+        const owned = new Set([...(Array.isArray(state.unlocked) ? state.unlocked : []), ...(Array.isArray(state.inherited) ? state.inherited : [])]);
+        return CONTENT_UNLOCK_CATALOG.filter(def => def.series === series && owned.has(def.id)).length;
+    }
+
     /** Natural loot only: discovery prerequisites and shared combat keys must not depend on paid growth. */
     function canDropCurrency(key, owner = game) {
         const unlocks = ORB_DB[getCanonicalCurrencyKey(key)]?.dropUnlocks;
@@ -118,26 +127,31 @@ const contentProgression = (() => {
     // it by its highest loop (the ledger's carry), so loading never drops a paid unlock it bought nor a stump graft rank bought with
     // overflow points (js/stump-box.js restoreGraft).
     const AWARDS_BEFORE_NPC_SPLIT = Object.freeze({ early: Object.freeze([4, 4, 3, 3]), perLoop: 2 });
-    const LEDGER_VERSION = 9;
-    const carryGap = loop => Math.max(0, earnedBy(loop, AWARDS_BEFORE_NPC_SPLIT) - earnedBy(loop));
-    /** Points beyond the current awards: a ledger from before version 9 is owed the whole gap at the loop it reached; a current one
+    // The awards before the 강화 series joined the catalog (2026-10-25, ledger version 10): a record from before then is read with them.
+    const AWARDS_BEFORE_GROWTH = Object.freeze({ early: Object.freeze([2, 2, 3, 3, 2, 1, 1, 1, 2]), perLoop: 2 });
+    const NPC_SPLIT_VERSION = 9, LEDGER_VERSION = CONTENT_UNLOCK_SERIES_VERSION;
+    const carryGap = loop => Math.max(0, earnedBy(loop, AWARDS_BEFORE_NPC_SPLIT) - earnedBy(loop, AWARDS_BEFORE_GROWTH));
+    /** Points beyond the version-9 awards: a ledger from before version 9 is owed the whole gap at the loop it reached; a later one
      * keeps the carry fixed when it was first loaded (never more than that gap). */
     function carryOf(state, loop) {
-        if (!(Number(state.version) >= LEDGER_VERSION)) return carryGap(loop);
+        if (!(Number(state.version) >= NPC_SPLIT_VERSION)) return carryGap(loop);
         return Math.min(carryGap(loop), Math.max(0, Math.floor(Number(state.carry) || 0)));
     }
 
     /** Points earned by a loop, the points paid and what the catalog can still take (unbought paid unlocks). Only unlock-tab prices
      * count: points once paid for what is now an NPC unlock or automatic content come back. The record may still be the saved one: the
-     * stump box restores its graft ranks (overflow) before mergeDefaults normalizes this ledger. */
+     * stump box restores its graft ranks (overflow) before mergeDefaults normalizes this ledger, so a record from before version 10 is
+     * read as it was then (no 강화 rows, the old awards). */
     function ledger(state, loop) {
         const unlocked = Array.isArray(state.unlocked) ? state.unlocked : [], inherited = Array.isArray(state.inherited) ? state.inherited : [];
-        const paid = def => !!def && kind(def) === 'paid';
+        const before = !(Number(state.version) >= LEDGER_VERSION);
+        const paid = def => !!def && kind(def) === 'paid' && !(before && def.series);
         const remaining = CONTENT_UNLOCK_CATALOG.reduce((sum, def) =>
             sum + (paid(def) && !unlocked.includes(def.id) && !inherited.includes(def.id) ? def.cost : 0), 0);
         const spent = unlocked.reduce((sum, id) => sum + (paid(definitions.get(id)) ? Number((state.paidCosts || {})[id]) || 0 : 0), 0);
         const reached = Math.max(Number(state.highestLoop) || 1, loop);
-        return { remaining, spent, earned: earnedBy(reached) + carryOf(state, reached) };
+        const earned = earnedBy(reached, before ? AWARDS_BEFORE_GROWTH : CONTENT_UNLOCK_POINT_AWARDS) + carryOf(state, reached);
+        return { remaining, spent, earned };
     }
 
     /** Read-only point budget; future gated growth counts, automatic combat never costs points. */
@@ -155,18 +169,24 @@ const contentProgression = (() => {
      * (js/stump-box.js graftEarned, 2026-10-09: once the catalog was bought, about loop 20, the 2 points a loop were lost). */
     function overflow(owner = game) {
         const state = owner.contentProgression;
-        if (!state) return 0;
-        const { remaining, spent, earned } = ledger(state, owner.season);
-        return Math.max(0, earned - spent - remaining);
+        return state ? overflowOf(state, owner.season) : 0;
+    }
+    /** graftFloor: the overflow a save had when the 강화 rows joined (inheritGrowthSeries); it never reads less, so the graft ranks it
+     * bought stay. It adds no unlock points. */
+    function overflowOf(state, loop) {
+        const { remaining, spent, earned } = ledger(state, loop);
+        const floor = Number(state.version) >= LEDGER_VERSION ? Math.max(0, Math.floor(Number(state.graftFloor) || 0)) : 0;
+        return Math.max(floor, earned - spent - remaining, 0);
     }
 
     function balance(owner = game) {
         return points(owner).balance;
     }
 
-    /** The cheapest paid unlock whose conditions are met now, or null while every remaining one waits for a loop or progress. */
+    /** The cheapest paid unlock whose conditions are met now, or null while every remaining one waits for a loop or progress. The goal
+     * (js/content-unlock-guide.js) points at it; 강화 steps are left to their cards in the unlock tab. */
     function cheapestOpen(owner = game) {
-        return CONTENT_UNLOCK_CATALOG.filter(def => kind(def) === 'paid' && owner.season >= def.minLoop && !isUnlocked(def.id, owner)
+        return CONTENT_UNLOCK_CATALOG.filter(def => kind(def) === 'paid' && !def.series && owner.season >= def.minLoop && !isUnlocked(def.id, owner)
             && requirements(def.id, owner).every(row => row.met))
             .reduce((best, def) => (!best || def.cost < best.cost ? def : best), null);
     }
@@ -294,6 +314,12 @@ const contentProgression = (() => {
         next.inherited = [...new Set(next.inherited)];
     }
 
+    /** The record's purchases. 강화 steps did not exist before version 10: such a record cannot hold them (ledger reads it without them). */
+    function savedPurchases(record) {
+        const ids = savedIds(record.unlocked);
+        return Number(record.version) >= LEDGER_VERSION ? ids : ids.filter(id => !definitions.get(id).series);
+    }
+
     /** Only save-boundary arrays pass here; drop unknown/duplicate content IDs. */
     function savedIds(raw) {
         return [...new Set((Array.isArray(raw) ? raw : []).filter(id => definitions.has(id)))];
@@ -307,6 +333,7 @@ const contentProgression = (() => {
         const savedChoices = savedIds(record.unlocked);
         const grandfathered = Number(record.version) < 5 ? savedChoices : record.grandfathered;
         return { version: LEDGER_VERSION, highestLoop, legacy: legacy || record.legacy === true, carry: carryOf(record, highestLoop),
+            graftFloor: Number(record.version) >= LEDGER_VERSION ? Math.max(0, Math.floor(Number(record.graftFloor) || 0)) : 0,
             unlocked: [], paidCosts: {}, inherited: savedIds(inherited), grandfathered: savedIds(grandfathered),
             automatic: savedIds(record.automatic).filter(id => kind(definitions.get(id)) === 'auto') };
     }
@@ -317,12 +344,28 @@ const contentProgression = (() => {
         const next = restoredLedger(record, owner, raw === undefined && existingSave);
         inheritFormerTactics(record, next, owner, existingSave);
         inheritFormerFreeAccess(record, next, owner);
-        restorePurchases(savedIds(record.unlocked), next, record);
+        restorePurchases(savedPurchases(record), next, record);
         if (Number(record.version) < 5 && [...next.unlocked, ...next.inherited].some(id => kind(definitions.get(id)) !== 'auto')
             && ![...next.unlocked, ...next.inherited].includes('craft')) next.inherited.push('craft');
         next.grandfathered = next.grandfathered.filter(id => next.unlocked.includes(id));
         inheritSplitGrowth(record, next);
+        inheritGrowthSeries(record, next, owner, existingSave);
         return next;
+    }
+
+    // 강화가 해금 탭으로 들어오기 전(장부 버전 10 미만)의 저장: 그때 가진 것은 값을 치르지 않고 물려받는다. 가방은 그 루프에 저절로
+    // 늘어 있던 쪽 수(getEquipmentInventoryPageCount의 옛 셈), 시간 인식과 전투 효율은 시간의 잔재로 올린 단계(효율은 끝이 5단계로
+    // 줄었다). 그리고 그 장부가 접붙이기에 넘기던 점수(overflow)를 graftFloor로 남겨, 새 목록 때문에 넘치는 몫이 줄어도 접붙이기 단계가
+    // 깎이지 않게 한다(js/stump-box.js restoreGraft는 이 복원보다 먼저 옛 장부로 센다).
+    function inheritGrowthSeries(record, next, owner, existingSave) {
+        if (Number(record.version) >= LEDGER_VERSION || !existingSave) return;
+        const offline = owner.offlineProgress || {}, level = key => Math.max(0, Math.floor(Number(offline[key]) || 0));
+        const steps = { bagPage: getEquipmentInventoryPageCount({ ...owner, contentProgression: null }) - 1,
+            offlineHours: level('recognitionLevel'), offlineRate: level('efficiencyLevel') };
+        for (const def of CONTENT_UNLOCK_CATALOG) {
+            if (def.series && def.rank <= (steps[def.series] || 0) && !next.inherited.includes(def.id)) next.inherited.push(def.id);
+        }
+        next.graftFloor = overflowOf(record, next.highestLoop);
     }
 
     // 설정에서 쓰던 전술과 이전 유료 해금은 유지한다. 무료 전환된 구매 비용은 복원하지 않는다.
@@ -339,7 +382,7 @@ const contentProgression = (() => {
         if (owned.has('gemForge') && !owned.has('engraving')) next.inherited.push('engraving');
     }
 
-    return Object.freeze({ kind, npcName, isUnlocked, canDropUnique, canDropCurrency, canOpen, earnedBy, points, overflow, balance, cheapestOpen, status, requirements, sync,
+    return Object.freeze({ kind, npcName, rank, isUnlocked, canDropUnique, canDropCurrency, canOpen, earnedBy, points, overflow, balance, cheapestOpen, status, requirements, sync,
         purchase, gift, restore });
 })();
 safeExposeGlobals({ contentProgression });

@@ -479,6 +479,12 @@ const playerStall = (() => {
             listedAt: Number.isSafeInteger(sale.listedAt) && sale.listedAt <= sale.at && sale.listedAt >= 0 ? sale.listedAt : null }));
         stall.saleSequence = Math.max(stall.saleSequence, ...stall.sales.map(sale => sale.id));
     }
+    /** 옛 저장의 방치 보관함(2026-10-25에 없앴다): 그 장비는 불러오기 끝에 가방으로 돌아오므로(js/save-migrations.js retireOfflineGrowth)
+     * 가판대에 같이 걸려 있으면 안 된다. */
+    function legacyOfflineItems(owner) {
+        const offline = owner.offlineProgress || {};
+        return [offline.stash, offline.protectedOverflow].flat();
+    }
     function restore(owner) {
         const source = owner.playerStall;
         const stall = { ...JSON.parse(JSON.stringify(defaultGame.playerStall)), ...(source && typeof source === 'object' ? source : {}) };
@@ -497,7 +503,8 @@ const playerStall = (() => {
         restoreSales(stall, source);
         owner.playerStall = stall;
         const owned = [getEquipmentLoadoutOwnedItems(owner), owner.equipmentTemporaryStorage,
-            owner.timeRift.altarUnique, owner.timeRift.altarRare, owner.offlineProgress.stash, owner.offlineProgress.protectedOverflow,
+            owner.timeRift.altarUnique, owner.timeRift.altarRare,
+            legacyOfflineItems(owner),
             actExplorationLoot.reservedItems(owner), actExplorationState.groundLoot.reservedItems(owner)].flat().filter(Boolean);
         const seen = { items: new Set(owned.map(item => item.id)), listings: new Set() };
         stall.listings = (Array.isArray(stall.listings) ? stall.listings : []).filter(row => restoreListing(row, owner, seen));

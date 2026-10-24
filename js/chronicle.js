@@ -8,6 +8,11 @@ const chronicle = (() => {
     const count = (value, goal) => ({ count: Math.max(0, Math.floor(Number(value) || 0)), goal });
     // 비문은 선택해서 읽는 현장 기록: 연대기의 보상 목표나 완성도에는 포함하지 않는다.
     const journalIds = new Set(JOURNAL_ENTRY_ORDER.filter(id => !JOURNAL_DB[id].discoveryOnly));
+    /** Loops finished: the loop counter, or for a save without one the loop it reached less the one it is in. */
+    const completedLoops = state => {
+        const loops = Math.max(0, Math.floor(Number(state.loopCount) || 0));
+        return loops > 0 ? loops : Math.max(0, Math.floor(Number(state.season) || 1) - 1);
+    };
     // Each chapter's count and goal, read from a state (the live game or a settlement snapshot).
     const COUNTERS = Object.freeze({
         codex: state => count(keysOf(state.uniqueCodex).filter(key => UNIQUE_CODEX_KEYS.has(key)).length, UNIQUE_CODEX_KEYS.size),
@@ -15,7 +20,7 @@ const chronicle = (() => {
         talismans: state => count(list(state.stumpBox && state.stumpBox.codex).length, TALISMAN_UNIQUE_DB.length + TALISMAN_WILD_UNIQUE_DB.length),
         journal: state => count(list(state.journalEntries).filter(id => journalIds.has(id)).length, journalIds.size),
         depth: state => count(Math.max(0, (Number(state.records && state.records.best && state.records.best.abyssDepth) || 0) - 20), null),
-        loops: state => count(getOfflineCompletedLoopCount(state), null),
+        loops: state => count(completedLoops(state), null),
         harvest: state => count(list(state.stumpBox && state.stumpBox.harvest && state.stumpBox.harvest.grown).length,
             Object.keys(STUMP_BOX_HARVEST.rows).length * Object.keys(STUMP_BOX_COLORS).length),
         fishing: state => count(keysOf(state.ocean && state.ocean.fishCaughtTotal).filter(key => Object.hasOwn(OCEAN_FISH_DB, key)).length,

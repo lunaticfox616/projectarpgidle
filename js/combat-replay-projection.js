@@ -17,11 +17,10 @@ const replayProjection = (() => {
         if (zone.type === 'atlasMap') return `atlas|${state.atlas && state.atlas.run ? state.atlas.run.map.tier : 'closed'}`;
         return `${zone.id}|${zone.name}|${zone.tier}`;
     }
-    /** A fight or rule the projection does not model: an entry-ticket boss, the woodsman, a void rift, a hunt that stops. */
+    /** A fight or rule the projection does not model: an entry-ticket boss, the woodsman, a void rift, a hunt that stops at the map's end. */
     function isProjectionHeldBack(state) {
         const rift = !!(state.voidRift && state.voidRift.active);
-        return !!(state.inTicketBossFight || state.woodsmanBuildLock || rift || state.offlineHuntMode === 'stopBeforeBoss'
-            || state.settings.mapCompleteAction === 'stop');
+        return !!(state.inTicketBossFight || state.woodsmanBuildLock || rift || state.settings.mapCompleteAction === 'stop');
     }
     function isProjectionStopped(state) {
         return !!(shouldStopBackgroundReplay(state) || state.backgroundStopReason);
@@ -250,8 +249,6 @@ const replayProjection = (() => {
         advanceProjectedClock(replay, projectedCycleMs(replay, calibration, plan, outcome));
         clearBackgroundBuildMemo(game);
         updateBackgroundCombatMetrics(replay.metrics, game, replay.processedMs);
-        const reason = getOfflineSafetyStopReason(game, replay.metrics, replay.processedMs);
-        if (reason) game.backgroundStopReason = reason;
         return outcome.interrupted && !isProjectionStopped(game) ? 'middle' : '';
     }
     /** Real combat goes on from here. A map the projection had not touched yet is measured; one it was inside is not. */

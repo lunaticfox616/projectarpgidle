@@ -1,6 +1,5 @@
 function cloneBackgroundCombatState(state) {
     let snapshot = JSON.parse(JSON.stringify(state));
-    if (typeof applyOfflineHuntDirective === 'function') applyOfflineHuntDirective(snapshot);
     return snapshot;
 }
 
@@ -106,8 +105,6 @@ function advanceCombatReplay(replay, budgetMs) {
         restoreCombatRuntime(replay.runtime);
         do {
             if (replay.processedMs >= replay.elapsedMs || shouldStopBackgroundReplay(game)) break;
-            let reason = getOfflineSafetyStopReason(game, replay.metrics, replay.processedMs);
-            if (reason) { game.backgroundStopReason = reason; break; }
             replay.simulatedNow += 100;
             const killsBefore = game.loopKills;
             // One build validation per tick, as the foreground tick does (js/main.js): the build signature was 13% of a settlement.

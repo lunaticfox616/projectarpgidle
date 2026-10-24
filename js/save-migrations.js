@@ -267,9 +267,21 @@ function retireWoodMonsterVisual(enemy, zone) {
     ['attackKind', 'attackRange', 'attackDelivery', 'projectileToEdge', 'attackCastMs', 'attackLabel'].forEach(key => delete enemy[key]);
 }
 
+/** 2026-10-25 사용자: 영구 방치 성장을 해금 탭의 강화로 옮겼다. 시간 인식과 전투 효율 단계는 장부가 먼저 물려받고
+ * (js/content-progression.js inheritGrowthSeries), 여기서 방치 보관함의 장비를 가방으로 돌려보낸다(가방이 차면 임시 보관,
+ * equipmentInventoryGridRuntime). 시간의 잔재와 남은 필드는 지운다. 지운 뒤에는 할 것이 없어 두 번 불러와도 같다. */
+function retireOfflineGrowth(state) {
+    const offline = state.offlineProgress && typeof state.offlineProgress === 'object' ? state.offlineProgress : {};
+    const items = [offline.stash, offline.protectedOverflow].flat().filter(item => item && typeof item === 'object');
+    if (items.length) state.inventory.push(...items);
+    delete state.offlineProgress;
+    delete state.currencies.timeRemnant;
+}
+
 /** Save boundary: retain prior access except locked trial bypasses. */
 function normalizeContentProgressionSave(merged, save) {
     merged.contentProgression = contentProgression.restore(save.contentProgression, merged, Object.keys(save).length > 0);
+    retireOfflineGrowth(merged);
     inheritRetiredExpertAccess(merged.contentProgression, save);
     contentProgression.sync(merged);
     if (TRIAL_ZONES.some(zone => zone.id === merged.currentZoneId) && !contentProgression.isUnlocked('battleTrials', merged)) {
@@ -365,8 +377,7 @@ function reconcileUniqueEquipmentSave(state) {
         state.inventory.push(item);
         state.equipment[slot] = null;
     }
-    // Jewels and cores have no baseStats, so normalizeStoredEquipmentSave skips them: the stash and the altar keep their own pass.
-    state.offlineProgress.stash = state.offlineProgress.stash.map(normalizeItem);
+    // Jewels and cores have no baseStats, so normalizeStoredEquipmentSave skips them: the altar keeps its own pass.
     state.timeRift.altarUnique = normalizeItem(state.timeRift.altarUnique);
     migrateUniqueCodexKeys(state.uniqueCodex);
     migrateUniqueCodexKeys(state.codexNewlyRegistered);
@@ -1438,8 +1449,6 @@ function mergeDefaults(save) {
     merged.exp = Math.max(0, Math.floor(clampFiniteNumber(merged.exp, defaultGame.exp, 0)));
     merged.season = Math.max(1, Math.floor(clampFiniteNumber(merged.season, defaultGame.season, 1)));
     merged.loopCount = Math.max(0, Math.floor(clampFiniteNumber(merged.loopCount, defaultGame.loopCount, 0)));
-    if (typeof ensureOfflineProgressState === 'function') ensureOfflineProgressState(merged);
-    if (typeof syncOfflineProgressEntitlement === 'function') syncOfflineProgressEntitlement(merged);
     merged.woodsmanDefeatAttempts = Math.max(0, Math.floor(clampFiniteNumber(merged.woodsmanDefeatAttempts, defaultGame.woodsmanDefeatAttempts, 0)));
     merged.woodsmanSimulatorSeenLoop = !!merged.woodsmanSimulatorSeenLoop;
     merged.woodsmanEntrancePending = !!(merged.woodsmanEntrancePending && merged.currentZoneId === OUTSIDE_CHAOS_ZONE_ID);

@@ -6,10 +6,36 @@
 // unlocks (23P) ask 4, 2, 4, 2, 3 at loops 2~6, nothing at 7~9 and 4 at loop 10, so the points stay at most 3P (one unlock) behind and
 // meet the cost at loop 9. Before 2026-10-21 loops 2~5 gave 4, 4, 3, 3 and NPCs opened most paid unlocks for free: 6~12 points sat
 // unused from loop 3 (사용자 보고). Saves from then keep what that table gave (contentProgression ledger carry).
-const CONTENT_UNLOCK_POINT_AWARDS = Object.freeze({ early: Object.freeze([2, 2, 3, 3, 2, 1, 1, 1, 2]), perLoop: 2 });
+// 2026-10-25 the 강화 series (CONTENT_UNLOCK_SERIES below) joined: each early loop gives in addition exactly what its new steps cost
+// (loop 2: 시간 인식 1 + 그루터기 보관함 1, loop 3: 시간 인식 2 + 전투 효율 1, …, loop 10: 가방 2 + 그루터기 보관함 3), so the pace
+// above stays; later steps come from perLoop. Before then early was [2, 2, 3, 3, 2, 1, 1, 1, 2].
+const CONTENT_UNLOCK_POINT_AWARDS = Object.freeze({ early: Object.freeze([4, 4, 4, 5, 4, 1, 2, 3, 4]), perLoop: 2 });
+// 강화(2026-10-25 사용자: 영구 방치 성장의 시간 인식과 전투 효율, 가방 쪽, 그루터기 함 보관함을 해금 탭으로): 단계마다 해금 한 줄
+// (id = series + 단계, n단계는 n-1단계 뒤). ranks: [루프, 점수]. 효과는 단계 수로 읽는다(contentProgression.rank): 방치 시간과
+// 효율은 data/offline-progress.js의 표, 가방은 1쪽 + 단계, 그루터기 보관함은 단계마다 storage칸. 단계별 루프는 예전에 저절로 늘던
+// 루프와 같다(가방: 루프 5, 10, … 30, 40, … 80). 이 줄들이 들어오기 전의 장부(버전 10 미만)는 가진 것을 물려받는다(js/content-progression.js).
+const CONTENT_UNLOCK_SERIES_VERSION = 10;
+const CONTENT_UNLOCK_SERIES = Object.freeze([
+    { series: 'offlineHours', name: '시간 인식', art: 'ui/pixel/buttons/loop.png',
+        description: '자리를 비운 동안 방치 정산이 인정하는 시간이 늘어납니다.',
+        ranks: [[2, 1], [3, 1], [4, 1], [6, 1], [9, 2], [12, 2], [16, 2]] },
+    { series: 'offlineRate', name: '전투 효율', art: 'ui/currency/fairy-ring.png',
+        description: '방치 정산에서 인정한 시간 가운데 실제로 싸운 것으로 치는 몫이 늘어납니다.',
+        ranks: [[3, 1], [5, 1], [8, 1], [12, 2], [16, 2]] },
+    { series: 'bagPage', name: '가방 쪽', art: 'ui/pixel/buttons/bag.png',
+        description: '장비 가방에 한 쪽(100칸)을 더합니다.',
+        ranks: [[5, 1], [10, 1], [15, 1], [20, 1], [25, 1], [30, 1], [40, 1], [50, 1], [60, 1], [70, 1], [80, 1]] },
+    { series: 'stumpStorage', name: '그루터기 보관함', art: 'ui/pixel/buttons/stump.png', progress: 'stump', storage: 25,
+        description: '그루터기 함 보관함에 25칸을 더합니다.',
+        ranks: [[2, 1], [6, 1], [10, 1], [15, 1], [20, 2], [30, 2]] }
+]);
 // lifecycle describes loop transitions, not spending, deaths or individual expedition resets.
 // after: growth predecessor. progress: existing world condition. minLoop: earliest eligibility.
 const CONTENT_UNLOCK_CATALOG = Object.freeze([
+    ...CONTENT_UNLOCK_SERIES.flatMap(spec => spec.ranks.map(([minLoop, cost], index) => Object.freeze({
+        id: spec.series + (index + 1), series: spec.series, rank: index + 1, name: `${spec.name} ${index + 1}단계`, group: '강화', minLoop, cost,
+        ...(index ? { after: spec.series + index } : {}), ...(spec.progress ? { progress: spec.progress } : {}), description: spec.description, art: spec.art,
+        lifecycle: { label: '성장 영구 유지' } }))),
     { id: 'knitting', name: '뜨개질', group: '수집', minLoop: 40, hardMinLoop: true, cost: 0, after: 'craft',
         description: '같은 실타래를 모아 정해진 보상을 뜨개질합니다. 발견한 종류만 보관함에 나타납니다.', routes: ['item-tab-knitting'],
         action: { tab: 'tab-items', subtab: 'item-tab-knitting' },
@@ -55,4 +81,4 @@ const CONTENT_UNLOCK_CATALOG = Object.freeze([
     {"id":"meteorSite","name":"운석 낙하 지점","group":"전투","minLoop":7,"cost":0,"progress":"meteor","description":"사냥으로 하늘 균열 게이지를 채우면 한 번 들어가 희귀 이상 장비를 얻습니다. 운석 고유 장비도 이곳에서만 떨어집니다.","routes":["map-explore-meteor"]},
     {"id":"deepChaos","name":"심화 혼돈","group":"전투","minLoop":10,"cost":0,"progress":"deepChaos","description":"혼돈 20층 이후의 심화 등반이 열립니다.","routes":["map-explore-chaos"]}
 ]);
-safeExposeData({ CONTENT_UNLOCK_CATALOG, CONTENT_UNLOCK_POINT_AWARDS });
+safeExposeData({ CONTENT_UNLOCK_CATALOG, CONTENT_UNLOCK_POINT_AWARDS, CONTENT_UNLOCK_SERIES, CONTENT_UNLOCK_SERIES_VERSION });

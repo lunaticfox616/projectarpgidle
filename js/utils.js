@@ -106,10 +106,20 @@ function drawCrispCanvasText(ctx, text, x, y, method = 'fillText') {
     ctx[method](label, at.x, at.y);
     ctx.textAlign = align;
 }
+/** Bag pages: 1 plus the 가방 쪽 steps the unlock ledger holds (2026-10-25 사용자: 저절로 늘지 않고 해금 탭의 강화로). A state without
+ * a ledger, or with one saved before the steps existed (version below CONTENT_UNLOCK_SERIES_VERSION), counts by loop as before:
+ * loading fits the bag before it restores the ledger (js/save-migrations.js), and the restore turns those pages into owned steps. */
 function getEquipmentInventoryPageCount(targetGame) {
     let state = targetGame || game;
-    let loop = Math.max(1, Math.floor(Number(state.season) || 1), Math.floor(Number(state.loopCount) || 0) + 1);
-    let earnedPages = loop < 30 ? Math.floor(loop / 5) : 6 + Math.floor((loop - 30) / 10);
+    let ledger = state.contentProgression;
+    let earnedPages;
+    if (ledger && Number(ledger.version) >= CONTENT_UNLOCK_SERIES_VERSION) {
+        let owned = new Set([].concat(ledger.unlocked || [], ledger.inherited || []));
+        earnedPages = CONTENT_UNLOCK_CATALOG.filter(function (row) { return row.series === 'bagPage' && owned.has(row.id); }).length;
+    } else {
+        let loop = Math.max(1, Math.floor(Number(state.season) || 1), Math.floor(Number(state.loopCount) || 0) + 1);
+        earnedPages = loop < 30 ? Math.floor(loop / 5) : 6 + Math.floor((loop - 30) / 10);
+    }
     return Math.max(1, Math.min(EQUIPMENT_INVENTORY_MAX_PAGES, 1 + earnedPages));
 }
 function getInventoryLimit(targetGame) {

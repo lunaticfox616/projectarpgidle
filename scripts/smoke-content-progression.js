@@ -5,6 +5,9 @@ const runtime = buildGameRuntime();
 vm.runInContext(require('fs').readFileSync(require('path').join(__dirname, '../js/content-unlock-guide.js'), 'utf8'), runtime);
 const run = code => vm.runInContext(code, runtime);
 const json = code => JSON.parse(run(`JSON.stringify(${code})`));
+// 강화(2026-10-25): every early loop's award grew by exactly what its new 강화 steps cost. Buying the steps open now leaves the
+// content balances below as they were before the steps existed.
+const buySteps = () => run('CONTENT_UNLOCK_CATALOG.filter(def=>def.series&&contentProgression.status(def.id).available&&contentProgression.purchase(def.id).ok).length');
 run('game = mergeDefaults({})');
 assert.equal(run('contentProgression.balance()'), 0);
 assert(run("contentProgression.canOpen('tab-char')"));
@@ -43,13 +46,15 @@ let before = json('game');
 assert(!run("contentProgression.purchase('support').ok"));
 assert.deepEqual(json('game'), before);
 run('game.season=2;contentProgression.sync()');
-assert.deepEqual(json('CONTENT_UNLOCK_CATALOG.filter(def=>contentProgression.status(def.id).available).map(def=>def.id)'),[],'장비 제련 waits for its NPC');
+assert.deepEqual(json('CONTENT_UNLOCK_CATALOG.filter(def=>!def.series&&contentProgression.status(def.id).available).map(def=>def.id)'),[],'장비 제련 waits for its NPC');
+// 강화(2026-10-25): loop 2 already offers the first steps of 시간 인식 and 그루터기 보관함 for points.
+assert.deepEqual(json('CONTENT_UNLOCK_CATALOG.filter(def=>def.series&&contentProgression.status(def.id).available).map(def=>def.id)'),['offlineHours1','stumpStorage1']);
 assert.equal(run("contentProgression.status('craft').reason"),'오르가 조우 필요');
 before=json('game');
 assert(!run("contentProgression.gift('craft').ok"),'an NPC unlock needs its NPC met');
 assert.deepEqual(json('game'),before);
 run(meet('orga'));
-assert.deepEqual(json('CONTENT_UNLOCK_CATALOG.filter(def=>contentProgression.status(def.id).available).map(def=>def.id)'),['craft']);
+assert.deepEqual(json('CONTENT_UNLOCK_CATALOG.filter(def=>!def.series&&contentProgression.status(def.id).available).map(def=>def.id)'),['craft']);
 assert(run("contentProgression.isUnlocked('journal')"));
 before=json('game');
 assert(!run("contentProgression.purchase('journal').ok"),'automatic content cannot spend points');
@@ -60,6 +65,7 @@ assert.deepEqual(json('game'),before);
 const budBefore=run('game.currencies.magicBud');
 assert(run("contentProgression.gift('craft').ok"));
 assert.equal(run('game.currencies.magicBud'),budBefore+1);
+assert.equal(buySteps(),2,'loop 2 opens 시간 인식 1 and 그루터기 보관함 1');
 assert.equal(run('contentProgression.balance()'),2,'the NPC unlock takes none of the loop-2 points');
 assert(!run("contentProgression.purchase('flask').ok"),'the removed flask entry cannot be bought');
 assert.equal(run('contentProgression.balance()'),2);
@@ -79,6 +85,7 @@ assert(!run("contentProgression.isUnlocked('research')"),'reaching the stage ena
 assert(run("contentProgression.status('research').npc==='haken'"));
 assert(run("contentProgression.gift('research').ok"));
 run('game=mergeDefaults(JSON.parse(JSON.stringify(game)))');
+buySteps();
 assert.equal(run('contentProgression.balance()'),5,'loops 2~4 gave 2, 2 and 3 points; support cost 2, the NPC unlocks nothing');
 assert(run("contentProgression.isUnlocked('research')"));
 run(`game.season=5;${meet('bern')};contentProgression.sync()`);
@@ -87,12 +94,14 @@ assert(run("contentProgression.gift('fossil').ok"));
 for (const id of ['engraving','jewel']) assert(run(`contentProgression.purchase('${id}').ok`), id);
 for (const id of ['codex','fossilRestore']) assert(run(`contentProgression.gift('${id}').ok`), id);
 assert(run("contentProgression.purchase('loopTree').ok"));
+buySteps();
 assert.equal(run('contentProgression.balance()'),0);
 before=json('game');
 assert(!run("contentProgression.purchase('trials').ok"));
 assert.deepEqual(json('game'),before,'insufficient points must not grant anything or spend points');
 run('game=mergeDefaults({});game.season=10;contentProgression.sync()');
 for(const id of ['labyrinth','beehive','voidrift','duel'])assert(run(`contentProgression.isUnlocked('${id}')`));
+buySteps();
 assert.equal(run('contentProgression.balance()'),17,'all combat openings are free');
 assert(!run("contentProgression.isUnlocked('deepChaos')"));
 run('game.abyssClearedDepths=[20];contentProgression.sync()');
@@ -139,6 +148,7 @@ run("game=mergeDefaults({season:3,maxZoneId:4,journalEntries:['act_3'],contentPr
 assert(run('game.combatTacticsUnlocked'), 'act-three completion also opens tactics in current saves');
 run("game=mergeDefaults({season:2,contentProgression:{version:8,highestLoop:2,unlocked:['craft','tactics'],paidCosts:{craft:1,tactics:1},inherited:[]}})");
 assert(run("game.combatTacticsUnlocked && contentProgression.isUnlocked('craft')"), 'previous paid tactics remain available');
+buySteps();
 assert.equal(run('contentProgression.balance()'), 4, 'one-point tactics and crafting come back (crafting is an NPC unlock now); the 4 points loop 2 gave then stay');
 run('game=mergeDefaults(JSON.parse(JSON.stringify(game)))');
 assert.equal(run('contentProgression.balance()'), 4, 'refund is idempotent');
@@ -148,6 +158,7 @@ assert.deepEqual(json('game.skillAutoRules.map(rule=>rule.actionType)'),['return
 run("game=mergeDefaults({season:4,contentProgression:{version:3,highestLoop:4,unlocked:['support','bounty','labyrinth'],inherited:[]}})");
 assert(!json('[...game.contentProgression.unlocked,...game.contentProgression.inherited]').includes('bounty'),'removed content ids are dropped on load');
 assert(run("contentProgression.isUnlocked('research') && contentProgression.isUnlocked('gemForge')"));
+buySteps();
 assert.equal(run('contentProgression.balance()'),10,'free combat refunds old costs; prior bundled growth stays open');
 const migrated=json('game.contentProgression');
 run('game=mergeDefaults(JSON.parse(JSON.stringify(game)))');
@@ -156,6 +167,7 @@ run("game=mergeDefaults({season:2,contentProgression:{version:3,highestLoop:2,un
 assert(run("contentProgression.isUnlocked('trials')"));
 run('game=mergeDefaults(JSON.parse(JSON.stringify(game)))');
 assert(run("contentProgression.isUnlocked('trials')"),'old paid opening persists despite a new predecessor and later stage');
+buySteps();
 assert.equal(run('contentProgression.balance()'),3);
 run("game=mergeDefaults({season:3,contentProgression:{version:5,highestLoop:Infinity,inherited:['unknown'],unlocked:['fossil','support','support','unknown','craft','research']}})");
 assert.deepEqual(json('game.contentProgression.unlocked'),['craft']);
@@ -167,6 +179,7 @@ assert.deepEqual(json('game.contentProgression'),previousLedger);
 assert.equal(run('game.currencies.magicBud'),previousBud,'migration never replays the entry reward');
 run("game=mergeDefaults({season:4,contentProgression:{version:5,highestLoop:4,unlocked:['craft','support','research']}})");
 assert.deepEqual(json('game.contentProgression.paidCosts'),{craft:0,support:1,research:0},'existing purchases keep their actual old prices; NPC unlocks cost nothing');
+buySteps();
 assert.equal(run('contentProgression.balance()'),10,'previously reached loops receive the income');
 assert(run("contentProgression.purchase('gemForge').ok"));
 assert.equal(run('game.contentProgression.paidCosts.gemForge'),2);
@@ -263,6 +276,7 @@ run(`game=mergeDefaults({});game.season=4;${meet('orga')};${meet('haken')};conte
     game.skills=['이중 베기'];game.activeSkill='이중 베기';game.gemEnhanceTargetSkill='이중 베기';
     game.gemData['이중 베기']=normalizeGemRecord({});game.currencies.skyEssence=20;game.currencies.bossCore=20;
     game.skyGemEnhancements={'이중 베기':['sky_fury']};`);
+buySteps();
 assert.equal(run('contentProgression.balance()'),3);
 assert(!run("contentProgression.isUnlocked('engraving')"));
 before=json('[game.gemData,game.skyGemEnhancements,game.currencies]');
@@ -282,6 +296,7 @@ run(`game=mergeDefaults({});game.season=4;
         inherited:['support','research','gemForge'],grandfathered:[],automatic:[]};
     game=mergeDefaults(JSON.parse(JSON.stringify(game)));`);
 assert(run("contentProgression.isUnlocked('engraving')"));
+buySteps();
 assert.equal(run('contentProgression.balance()'),11,'the paid flask entry is gone and 장비 제련 is an NPC unlock, so their points come back');
 before=json('game.contentProgression');
 run('game=mergeDefaults(JSON.parse(JSON.stringify(game)))');
@@ -292,8 +307,8 @@ for (const id of ['timerift','colony','beehive','voidrift']) {
 // Point cap includes future gated choices and preserves the historical purchase ledger.
 run('game=mergeDefaults({})');
 const totalCost=run('CONTENT_UNLOCK_CATALOG.reduce((sum,def)=>sum+def.cost,0)');
-assert.deepEqual(json('contentProgression.points()'),{balance:0,remaining:totalCost,nextAward:2,complete:false});
-run('game.season=20;contentProgression.sync()');
+assert.deepEqual(json('contentProgression.points()'),{balance:0,remaining:totalCost,nextAward:runtime.CONTENT_UNLOCK_POINT_AWARDS.early[0],complete:false});
+run('game.season=30;contentProgression.sync()');
 assert.equal(run('contentProgression.balance()'),totalCost);
 assert(!run("contentProgression.status('beyond').available"),'future loop gates remain enforced after funding');
 before=json('game');
@@ -338,6 +353,7 @@ assert.equal(run("'bountyHunt' in game"),false,'removed treasure-hunt state is d
 // 루프 2의 목표는 먼저 오르가의 장비 제련(NPC 해금)을 가리키고, 그 뒤 2점으로 2점짜리 해금 하나를 고른다.
 // 목표는 고를 수 없는 선택을 재촉하지 않고 다음 해금까지 남은 점수를 센다(2026-10-04 사용자 보고).
 run(`game=mergeDefaults({});game.season=2;game.contentProgression.inherited=[];${meet('orga')};contentProgression.sync()`);
+buySteps();
 assert.equal(run('contentProgression.balance()'),2);
 assert.deepEqual(json('[getNextMajorContentUnlock(game).id,getNextMajorContentUnlock(game).actionTabId]'),['content-npc','tab-npcs'],'장비 제련 comes first, from 오르가');
 assert(run("contentProgression.gift('craft').ok"));
@@ -354,7 +370,8 @@ const catalogRow=id=>runtime.CONTENT_UNLOCK_CATALOG.find(def=>def.id===id);
 const inPurchaseOrder=ids=>{const out=[];while(out.length<ids.length){
     const id=ids.find(key=>!out.includes(key)&&[catalogRow(key).after,...(catalogRow(key).requires||[])].every(need=>!need||out.includes(need)));
     assert(id,'every listed unlock has its earlier unlocks listed');out.push(id);}return out;};
-const growthIds=runtime.CONTENT_UNLOCK_CATALOG.filter(def=>runtime.contentProgression.kind(def)!=='auto').map(def=>def.id);
+// 강화 steps (2026-10-25) did not exist in these saves.
+const growthIds=runtime.CONTENT_UNLOCK_CATALOG.filter(def=>runtime.contentProgression.kind(def)!=='auto'&&!def.series).map(def=>def.id);
 const boughtBy12=inPurchaseOrder(growthIds.filter(id=>catalogRow(id).minLoop<=12&&!catalogRow(id).progress));
 const oldPrices=Object.fromEntries(boughtBy12.map(id=>[id,catalogRow(id).npc?1:catalogRow(id).cost]));
 const oldSave={season:12,contentProgression:{version:8,highestLoop:12,unlocked:boughtBy12,paidCosts:oldPrices,inherited:[]}};
@@ -363,7 +380,8 @@ run(`game=mergeDefaults(${JSON.stringify(oldSave)})`);
 assert.deepEqual(json('game.contentProgression.unlocked'),boughtBy12,'every unlock bought under the earlier table survives loading');
 assert.equal(run('game.contentProgression.carry'),7);
 assert.equal(run("Object.values(game.contentProgression.paidCosts).reduce((a,b)=>a+b,0)"),17,'NPC unlocks bought for points are refunded');
-assert.equal(run('contentProgression.balance()'),6,'loop 12: 28 points from then, 17 paid; 재능, 룬 각성 and 코어 can take 6');
+assert.equal(buySteps(),13,'the 강화 steps open by loop 12, past the two 가방 쪽 steps the save already had');
+assert.equal(run('contentProgression.balance()'),9,'loop 12: 35 points from the awards and 7 carried, 17 paid, 16 for the steps; 재능, 룬 각성 and 코어 can take 6');
 const carried=json('game.contentProgression');
 run('game=mergeDefaults(JSON.parse(JSON.stringify(game)))');
 assert.deepEqual(json('game.contentProgression'),carried,'the carry is fixed once and never applied twice');

@@ -517,8 +517,6 @@ function getBackgroundRewardSummary(beforeState, afterState, combatMetrics, over
             beforeUniqueNames.splice(idx, 1);
             return false;
         });
-    let beforeStash = Array.isArray(beforeState && beforeState.offlineProgress && beforeState.offlineProgress.stash) ? beforeState.offlineProgress.stash.length : 0;
-    let afterStash = Array.isArray(afterState && afterState.offlineProgress && afterState.offlineProgress.stash) ? afterState.offlineProgress.stash.length : 0;
     return {
         kills: combatMetrics ? combatMetrics.kills : Math.max(0, Math.floor((afterState.loopKills || 0) - (beforeState.loopKills || 0))),
         exp: combatMetrics ? combatMetrics.exp : Math.max(0, getBackgroundTotalExperience(afterState) - getBackgroundTotalExperience(beforeState)),
@@ -529,8 +527,6 @@ function getBackgroundRewardSummary(beforeState, afterState, combatMetrics, over
         rarityGains,
         uniqueNames,
         highlights: equipmentLootPolicy.collectHighlights(beforeState, afterState),
-        stashItems: Math.max(0, afterStash - beforeStash),
-        stashTotal: afterStash,
         overflowSalvaged: Math.max(0, Math.floor(Number(overflowSalvaged) || 0)),
         masteryGains: getBackgroundMasteryGains(beforeState, afterState),
         knitting: knitting.gainedBetween(beforeState.knitting, afterState.knitting),
@@ -717,8 +713,7 @@ function renderBackgroundResultLoot(summary) {
     const gains = summary.rarityGains || {};
     const chips = ['unique', 'rare', 'magic', 'normal'].filter(rarity => gains[rarity] > 0)
         .map(rarity => `<span class="background-result-chip" style="--chip-tone:${getRarityColor(rarity)}">${ITEM_RARITY_LABELS[rarity]} <b>${gains[rarity]}</b></span>`);
-    const stash = Math.max(0, Number(summary.stashItems) || 0), salvaged = Math.max(0, Number(summary.overflowSalvaged) || 0);
-    if (stash > 0) chips.push(`<span class="background-result-chip quiet" title="방치 보관함에 모두 ${Math.max(0, Number(summary.stashTotal) || 0)}개">방치 보관함 <b>+${stash}</b></span>`);
+    const salvaged = Math.max(0, Number(summary.overflowSalvaged) || 0);
     if (salvaged > 0) chips.push(`<span class="background-result-chip quiet" title="가방이 차서 해체했습니다. 해체 보상은 재화에 들어 있습니다.">자동해체 <b>${salvaged}</b></span>`);
     const row = chips.length ? `<div class="background-result-chips">${chips.join('')}</div>` : '';
     return row + equipmentLootUi.renderHighlights(summary.highlights);
@@ -811,7 +806,6 @@ function commitBackgroundCombat(result, expectedGame) {
     let candidate = mergeDefaults(result.game);
     candidate.saveMeta = { ...expectedGame.saveMeta };
     candidate.settings.mapCompleteAction = expectedGame.settings.mapCompleteAction;
-    delete candidate.offlineHuntMode;
     game = candidate;
     backgroundCombatRuntime.processing = false;
     // The settled state is stamped now: a save made while hidden keeps hiddenAtMs (js/save.js getSaveModifiedAt), which would settle

@@ -9761,8 +9761,8 @@ function unlockLegacyCurrencyFeatures(currencyKey) {
 }
 
 // Explicit returns from crafting stay in inventory; ordinary drops keep the auto-equip setting.
-function getAcquiredItemAutoEquipSlot(item, options, offlineStashEnabled) {
-    if (offlineStashEnabled || options?.skipAutoEquip) return null;
+function getAcquiredItemAutoEquipSlot(item, options) {
+    if (options?.skipAutoEquip) return null;
     return typeof tryAutoEquipEmptySlot === 'function' ? tryAutoEquipEmptySlot(item) : null;
 }
 
@@ -9788,8 +9788,7 @@ function addItemToInventory(item, options) {
     let guaranteedKeep = isGuaranteedEquipmentPickup(item, options);
     let ignoreFilter = guaranteedKeep || !!(options && options.ignoreFilter);
     let ignoreAutoSalvage = guaranteedKeep || !!(options && options.ignoreAutoSalvage);
-    let offlineStashEnabled = game.isBackgroundCalculation && typeof routeOfflineItem === 'function' && game.offlineProgress && game.offlineProgress.stashLevel > 0;
-    let autoEquipSlot = getAcquiredItemAutoEquipSlot(item, options, offlineStashEnabled);
+    let autoEquipSlot = getAcquiredItemAutoEquipSlot(item, options);
     if (autoEquipSlot) {
         recordEquipmentAcquisition(item);
         if (logLoot) addLog(`🛡️ 빈 ${autoEquipSlot} 슬롯에 자동 장착: <span class='loot-${item.rarity}'>[${item.name}]</span>`, 'loot-rare', { item });
@@ -9799,12 +9798,6 @@ function addItemToInventory(item, options) {
     if (!ignoreFilter && !passesItemPickupFilter(item)) {
         if (logLoot) addLog(`🚫 아이템 필터로 미습득: <span class='loot-${item.rarity}'>[${item.name}]</span>`, 'attack-monster');
         return false;
-    }
-    if (offlineStashEnabled) {
-        const routed = routeOfflineStashPickup(item, guaranteedKeep);
-        if (routed.stored) { recordEquipmentAcquisition(item); checkUnlocks(); }
-        if (routed.done) return !!routed.stored;
-        if (routed.protect) { ignoreAutoSalvage = true; guaranteedKeep = true; }
     }
     const result = storeEquipmentPickup(item, { guaranteedKeep, ignoreAutoSalvage });
     if (result.accepted) { recordEquipmentAcquisition(item); checkUnlocks(); }
@@ -9826,32 +9819,10 @@ function stowBoughtItem(item, place = null) {
     return true;
 }
 
-/** Resolve capacity and auto-salvage at pickup time. */
-/** Offline with the stash bought (js/offline-progress.js routeOfflineItem): gear the bag can take goes to the bag, only the rest
- * goes through the stash (it took every pickup first and salvaged past its few cells, so buying it left a near-empty bag). Protected
- * gear (locked, unique, chase, a kept target) skips auto-salvage either way. @returns {{done?:boolean, stored?:boolean, protect?:boolean}}
- * done: settled here (stored in the stash, or salvaged); protect: store it whatever auto-salvage says */
 /** One more gear salvaged for room during an away settlement (the result's 자동해체 count, js/combat-replay.js finishCombatReplay). */
 const countBackgroundOverflowSalvage = () => { game.backgroundOverflowSalvageCount = Math.max(0, Math.floor(Number(game.backgroundOverflowSalvageCount) || 0)) + 1; };
-const isOfflineKeptPickup = (item, guaranteedKeep) => !!((typeof isChaseUniqueItem === 'function' && isChaseUniqueItem(item)) || item.locked || guaranteedKeep);
 
-function routeOfflineStashPickup(item, guaranteedKeep) {
-    const isProtected = isOfflineKeptPickup(item, guaranteedKeep);
-    if (canStoreEquipmentItems([item], game)) return { protect: isProtected || isOfflineProtectedItem(item) };
-    const route = routeOfflineItem(item, game, { protected: isProtected });
-    if (route.action === 'salvage') {
-        salvageItemObject(item, true, { noDivine: true });
-        countBackgroundOverflowSalvage();
-        return { done: true, stored: false };
-    }
-    if (route.action === 'stored') {
-        if (route.replacedItem) { salvageItemObject(route.replacedItem, true, { noDivine: true }); countBackgroundOverflowSalvage(); } // 밀려난 장비도 센다
-        return { done: true, stored: true };
-    }
-    if (route.protected) game.backgroundStopReason = 'protected-storage-full';
-    return { protect: !!route.protected };
-}
-
+/** Resolve capacity and auto-salvage at pickup time. */
 function storeEquipmentPickup(item, { guaranteedKeep, ignoreAutoSalvage }) {
     const fits = canStoreEquipmentItems([item], game);
     if (!fits && !guaranteedKeep) return salvageEquipmentPickup(item, true);

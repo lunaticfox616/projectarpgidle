@@ -892,7 +892,12 @@ const stumpBox = (() => {
     }
     /** The box's unlocks that hold now (none before the box). */
     function openUnlocks(state) { return of(state).acquired ? STUMP_BOX_UNLOCKS.filter(row => unlockMet(state, row.when)) : []; }
-    function storageLimit(state) { return openUnlocks(state).reduce((sum, row) => sum + (row.storage || 0), STUMP_BOX_STORAGE_BASE) + codexStorage(state); }
+    /** Base, the box's unlocks, the talisman codex and the unlock tab's 그루터기 보관함 steps (2026-10-25 사용자: 25칸씩 늘리는 해금). */
+    const SERIES_STORAGE = CONTENT_UNLOCK_SERIES.find(spec => spec.series === 'stumpStorage').storage;
+    function storageLimit(state) {
+        return openUnlocks(state).reduce((sum, row) => sum + (row.storage || 0), STUMP_BOX_STORAGE_BASE) + codexStorage(state)
+            + contentProgression.rank('stumpStorage', state) * SERIES_STORAGE;
+    }
     function storageFull(state) { return storage(state).length >= storageLimit(state); }
     /** Share of growth (%) a grown item keeps when a new loop starts (뿌리 기억). */
     function rootMemoryPct(state) { return Math.max(0, ...openUnlocks(state).map(row => row.keepPct || 0)); }

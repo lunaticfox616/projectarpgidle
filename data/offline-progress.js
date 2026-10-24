@@ -1,26 +1,13 @@
-const OFFLINE_PROGRESS_VERSION = 1;
-const OFFLINE_PROGRESS_CURRENCY_KEY = 'timeRemnant';
-const OFFLINE_PROGRESS_MAX_LIFETIME_GRANT = 281;
-const OFFLINE_PROGRESS_RECOGNITION_LEVELS = Object.freeze([
-    { hours: 3, cost: 0 }, { hours: 6, cost: 1 }, { hours: 9, cost: 2 },
-    { hours: 12, cost: 3 }, { hours: 15, cost: 8 }, { hours: 18, cost: 15 },
-    { hours: 21, cost: 25 }, { hours: 24, cost: 40 }
-]);
-// 방치 효율 2(2026-10-08): 빠른 계산이 루프 초반 액트도 맡게 되어(docs/offline-performance.md) 기본 10%에서 30%로, 잔재 강화 끝은
-// 50%로 올렸다. 비용은 그대로다.
-const OFFLINE_PROGRESS_EFFICIENCY_LEVELS = Object.freeze([
-    { rate: 0.30, cost: 0 }, { rate: 0.33, cost: 2 }, { rate: 0.36, cost: 4 },
-    { rate: 0.40, cost: 7 }, { rate: 0.43, cost: 12 }, { rate: 0.46, cost: 20 },
-    { rate: 0.50, cost: 32 }
-]);
-// 잔재 밖의 효율(잔재 효율에 더한다): 시대 특전 고요한 시대(data/atlas.js epoch.perks), 무기 숙련 합계(data/weapon-mastery.js),
+// 방치 정산이 인정하는 시간과 효율(2026-10-25 사용자: 영구 방치 성장을 해금에 통합). 단계는 해금 탭의 강화 시간 인식(offlineHours)과
+// 전투 효율(offlineRate)을 몇 단계 가졌는지다(data/content-progression.js CONTENT_UNLOCK_SERIES, js/offline-progress.js). 전에는 시간의
+// 잔재로 올렸고, 보관함과 방치 지시(사냥, 안전 귀환, 전리품)도 있었다(이날 없앴다).
+const OFFLINE_PROGRESS_RECOGNITION_HOURS = Object.freeze([3, 6, 9, 12, 15, 18, 21, 24]);
+// 효율: 2026-10-08 방치 효율 2에서 기본 30%, 끝 50%였다. 2026-10-25 사용자 "전투 효율 업그레이드의 성능을 더 줄여줘": 단계마다 +2%p,
+// 끝 40%(예전 6단계는 5단계로 옮긴다).
+const OFFLINE_PROGRESS_EFFICIENCY_RATES = Object.freeze([0.30, 0.32, 0.34, 0.36, 0.38, 0.40]);
+// 강화 밖의 효율(강화 효율에 더한다): 시대 특전 고요한 시대(data/atlas.js epoch.perks), 무기 숙련 합계(data/weapon-mastery.js),
 // 세계수 연대기 고리(data/chronicle.js). 합은 cap까지(24시간 × 75% = 18시간 정산: 휴대폰 속도 측정은 docs/offline-performance.md).
 const OFFLINE_PROGRESS_EFFICIENCY_CAP = 0.75;
-const OFFLINE_PROGRESS_STASH_LEVELS = Object.freeze([
-    { slots: 0, cost: 0 }, { slots: 8, cost: 3 }, { slots: 16, cost: 6 },
-    { slots: 32, cost: 12 }, { slots: 48, cost: 20 }, { slots: 72, cost: 32 }
-]);
-const OFFLINE_PROGRESS_DIRECTIVE_COSTS = Object.freeze({ hunt: 10, safety: 12, loot: 15 });
 // 방치 정산 가속(2026-10-07, js/combat-replay-projection.js): 실제 전투로 지도 한 바퀴(조우 시작부터 다음 조우 시작까지)를 재고
 // 나머지는 바퀴째 투영한다. minRealMs 첫 투영 전 실제 전투, minCycles와 minMeasuredMs 투영에 필요한 같은 지역의 온전한 바퀴
 // 수와 그 시간 합(한 바퀴만 재면 3분 반짜리 바퀴에서 우연히 안 죽어 사망률 0으로, 두 바퀴면 둘 다 보스 앞에서 죽어 보스를 한
@@ -35,24 +22,3 @@ const OFFLINE_PROGRESS_DIRECTIVE_COSTS = Object.freeze({ hunt: 10, safety: 12, l
 const OFFLINE_PROJECTION = Object.freeze({ minRealMs: 120000, minCycles: 3, minMeasuredMs: 180000, remeasureEveryMs: 1200000,
     realBudgetMs: 600000, realHoldMs: 1800000, realCapMs: 3600000, objectSampleMin: 6,
     timeScale: Object.freeze([0.5, 2]), zoneTypes: Object.freeze(['act', 'abyss', 'atlasMap']) });
-const OFFLINE_PROGRESS_HUNT_MODES = Object.freeze(['push', 'current', 'highestCleared', 'stopBeforeBoss']);
-const OFFLINE_PROGRESS_LOOT_MODES = Object.freeze(['rarity', 'itemLevel', 'baseTier']);
-const OFFLINE_PROGRESS_SAFETY_DEATHS = Object.freeze([3, 5, 10]);
-const OFFLINE_PROGRESS_SAFETY_NO_KILL_MINUTES = Object.freeze([5, 10, 20]);
-const OFFLINE_PROGRESS_DEFAULT_STATE = Object.freeze({
-    version: OFFLINE_PROGRESS_VERSION,
-    recognitionLevel: 0,
-    efficiencyLevel: 0,
-    stashLevel: 0,
-    huntDirectiveUnlocked: false,
-    safeReturnUnlocked: false,
-    lootDirectiveUnlocked: false,
-    rewardedThroughLoop: 0,
-    lifetimeGranted: 0,
-    huntMode: 'push',
-    safetyPolicy: { consecutiveDeaths: 5, noKillMinutes: 10, stopOnNegativeExp: false, stopWhenStorageFull: false },
-    lootPolicy: { mode: 'rarity', preferredSlots: [], searchText: '' },
-    stash: [],
-    // 구버전 보호 대기열 저장을 읽기 위한 호환 필드다. 현재 규칙에서는 항상 비운다.
-    protectedOverflow: []
-});

@@ -1,151 +1,51 @@
 const assert = require('assert');
+const vm = require('vm');
 const { buildGameRuntime } = require('./lib/game-runtime');
 
+// 방치 정산의 시간과 효율(2026-10-25 사용자: 영구 방치 성장을 해금에 통합): 해금 탭 강화의 시간 인식과 전투 효율 단계로 읽고,
+// 옛 저장은 잔재로 올린 단계를 물려받으며 방치 보관함의 장비는 가방으로 돌아온다. 보관함과 방치 지시는 없다.
 (async function runOfflineProgressSmoke() {
 
 const runtime = buildGameRuntime();
-const {
-    ensureOfflineProgressState,
-    getOfflineLifetimeEntitlement,
-    syncOfflineProgressEntitlement,
-    getOfflineProgressConfig,
-    getInventoryLimit,
-    purchaseOfflineProgressUpgrade,
-    purchaseOfflineDirective,
-    routeOfflineItem,
-    getOfflineProgressView,
-    buildOfflineProgressHtml,
-    getOfflineSafetyStopReason,
-    mergeDefaults,
-    simulateBackgroundCombat,
-    simulateBackgroundCombatChunked,
-    applyOfflineHuntDirective,
-    resetOfflineStashForLoop
-} = runtime;
+const run = code => vm.runInContext(code, runtime);
+const json = code => JSON.parse(run(`JSON.stringify(${code})`));
+const { mergeDefaults, simulateBackgroundCombat, simulateBackgroundCombatChunked } = runtime;
 
-function state(extra) {
-    return { loopCount: 0, currencies: { timeRemnant: 0 }, inventory: [], ...extra };
-}
+// A new game counts 3 hours at 30%; each step raises them, and the outside sources stop at the cap.
+run('game = mergeDefaults({})');
+assert.deepStrictEqual(json('[getOfflineProgressConfig(game).recognitionHours, getOfflineProgressConfig(game).baseEfficiencyRate]'), [3, 0.3]);
+run(`game.season = 5; contentProgression.sync();
+    for (const id of ['offlineHours1', 'offlineHours2', 'offlineRate1']) if (!contentProgression.purchase(id).ok) throw new Error(id);`);
+assert.deepStrictEqual(json('[getOfflineProgressConfig(game).recognitionHours, getOfflineProgressConfig(game).baseEfficiencyRate]'), [9, 0.32]);
+assert.strictEqual(run('getOfflineProgressConfig(game).effectiveLimitMs'), 9 * 3600000 * 0.32);
+run('game = mergeDefaults(JSON.parse(JSON.stringify(game)))');
+assert.strictEqual(run('getOfflineProgressConfig(game).recognitionHours'), 9, 'bought steps survive a reload');
+assert.strictEqual(run(`getOfflineProgressConfig({ ...game, atlas: { epoch: { perks: { calm: 99 } } } }).efficiencyRate <= OFFLINE_PROGRESS_EFFICIENCY_CAP`), true);
 
-assert.strictEqual(getOfflineLifetimeEntitlement(0), 0);
-assert.strictEqual(getOfflineLifetimeEntitlement(1), 1);
-assert.strictEqual(getOfflineLifetimeEntitlement(9), 9);
-assert.strictEqual(getOfflineLifetimeEntitlement(10), 11);
-assert.strictEqual(getOfflineLifetimeEntitlement(19), 29);
-assert.strictEqual(getOfflineLifetimeEntitlement(20), 32);
-assert.strictEqual(getOfflineLifetimeEntitlement(49), 149);
-assert.strictEqual(getOfflineLifetimeEntitlement(50), 155);
-assert.strictEqual(getOfflineLifetimeEntitlement(71), 281);
-assert.strictEqual(getOfflineLifetimeEntitlement(100), 281);
-let legacySave = mergeDefaults({ season: 40, loopCount: 0, currencies: { timeRemnant: 0 } });
-assert.strictEqual(legacySave.currencies.timeRemnant, 99, 'legacy season saves receive retroactive entitlement on load');
-assert.strictEqual(legacySave.offlineProgress.lifetimeGranted, 99);
+// An old save: its remnant levels become steps (efficiency's last level is now the 5th step), its stash gear comes back to the bag
+// and nothing of the old system is left; a second load changes nothing.
+const oldSave = {
+    season: 30, loopCount: 29, inventory: [],
+    contentProgression: { version: 9, highestLoop: 30, carry: 0, unlocked: [], paidCosts: {}, inherited: [] },
+    offlineProgress: { version: 1, recognitionLevel: 7, efficiencyLevel: 6, stashLevel: 2, huntDirectiveUnlocked: true, stash: [{ name: 'old-stash', rarity: 'rare', slot: '반지1', baseStats: [] }], protectedOverflow: [] },
+    currencies: { timeRemnant: 40 }
+};
+run(`game = mergeDefaults(${JSON.stringify(oldSave)})`);
+assert.deepStrictEqual(json('[getOfflineProgressConfig(game).recognitionHours, getOfflineProgressConfig(game).baseEfficiencyRate]'), [24, 0.4]);
+assert.strictEqual(run('getEquipmentInventoryPageCount(game)'), 7, 'loop 30 kept the 7 bag pages it had');
+assert.deepStrictEqual(json("[game.offlineProgress === undefined, game.currencies.timeRemnant === undefined, [...game.inventory, ...game.equipmentTemporaryStorage].filter(item => item.name === 'old-stash').length]"), [true, true, 1]);
+const loaded = run('JSON.stringify(game)');
+run('game = mergeDefaults(JSON.parse(JSON.stringify(game)))');
+assert.strictEqual(run('JSON.stringify(game.contentProgression)'), JSON.stringify(JSON.parse(loaded).contentProgression), 'the inheritance happens once');
 
-let rewardState = state({ loopCount: 10 });
-let first = syncOfflineProgressEntitlement(rewardState);
-let second = syncOfflineProgressEntitlement(rewardState);
-assert.strictEqual(first.grant, 11);
-assert.strictEqual(second.grant, 0);
-assert.strictEqual(rewardState.currencies.timeRemnant, 11);
-assert.strictEqual(rewardState.offlineProgress.lifetimeGranted, 11);
-
-let upgraded = state({ currencies: { timeRemnant: 10 } });
-assert.strictEqual(purchaseOfflineProgressUpgrade('recognition', upgraded).ok, true);
-assert.strictEqual(getOfflineProgressConfig(upgraded).recognitionHours, 6);
-assert.strictEqual(purchaseOfflineProgressUpgrade('efficiency', upgraded).ok, true);
-assert.strictEqual(purchaseOfflineDirective('hunt', upgraded).ok, false, 'remaining wallet cannot buy hunt after upgrades');
-assert.strictEqual(upgraded.currencies.timeRemnant, 7);
-let maxState = state({ currencies: { timeRemnant: 999 } });
-maxState.offlineProgress = { recognitionLevel: 7 };
-assert.strictEqual(purchaseOfflineProgressUpgrade('recognition', maxState).reason, 'max-level');
-assert.strictEqual(purchaseOfflineProgressUpgrade('recognition', { loopCount: 0 }).reason, 'insufficient');
-
-let stashState = state({ offlineProgress: { stashLevel: 1, lootPolicy: { mode: 'rarity', preferredSlots: [], searchText: '' }, stash: [] } });
-assert.strictEqual(routeOfflineItem({ name: 'common', rarity: 'normal' }, stashState, {}).action, 'stored');
-assert.strictEqual(routeOfflineItem({ name: 'unique', rarity: 'unique' }, stashState, { protected: true }).action, 'stored');
-stashState.offlineProgress.stash = Array.from({ length: 8 }, (_, index) => ({ name: `locked${index}`, rarity: 'unique' }));
-assert.strictEqual(routeOfflineItem({ name: 'ordinary', rarity: 'normal' }, stashState, {}).action, 'salvage');
-assert.strictEqual(routeOfflineItem({ name: 'chase', rarity: 'unique' }, stashState, { protected: true }).action, 'normal');
-assert.strictEqual(stashState.offlineProgress.stash.length, 8);
-assert.strictEqual(stashState.offlineProgress.protectedOverflow.length, 0,
-    '고유 아이템도 보관함 표시 한도를 넘는 별도 대기열에 쌓이면 안 된다');
-let lockedState = state({ offlineProgress: { stashLevel: 1, lootPolicy: { mode: 'rarity', preferredSlots: [], searchText: '' }, stash: [] } });
-routeOfflineItem({ name: 'locked', rarity: 'normal', locked: true }, lockedState, {});
-assert.strictEqual(lockedState.offlineProgress.stash[0].offlineProtected, true);
-let protectedOverflow = Array.from({ length: 129 }, (_, index) => ({ name: `u${index}`, rarity: 'unique', offlineProtected: true }));
-lockedState.offlineProgress.stash = protectedOverflow;
-ensureOfflineProgressState(lockedState);
-let lockedView = getOfflineProgressView(lockedState);
-assert.strictEqual(lockedView.stash.length, lockedView.stashSlots, 'main stash stays within capacity');
-assert.strictEqual(lockedState.offlineProgress.protectedOverflow.length, 0, 'legacy protected overflow is removed');
-assert.strictEqual(lockedState.inventory.length, protectedOverflow.length - lockedView.stashSlots,
-    'legacy overflow items move to regular inventory instead of being deleted');
-let protectedFallback = routeOfflineItem({ name: 'overflow-limit', rarity: 'unique' }, lockedState, {});
-assert.strictEqual(protectedFallback.action, 'normal', 'a protected item must fall back to regular inventory instead of salvage');
-assert.strictEqual(protectedFallback.protected, true);
-assert.strictEqual(lockedState.offlineProgress.stash.length, lockedView.stashSlots, 'stash remains at its visible capacity after fallback');
-let inventoryFallbackState = mergeDefaults({
-    inventory: [], offlineProgress: { stashLevel: 1 }
-});
-inventoryFallbackState.offlineProgress.stash = protectedOverflow.slice(0, 8);
-inventoryFallbackState.settings.autoSalvageEnabled = true;
-inventoryFallbackState.settings.autoSalvageRarities.unique = true;
-function addOfflineItem(target,item) {
-    const vm=require('vm'); const original=vm.runInContext('game',runtime);
-    runtime.testOfflineState=target;
-    vm.runInContext('game=testOfflineState; game.isBackgroundCalculation=true;',runtime);
-    try{return runtime.addItemToInventory(item);}
-    finally{runtime.testOfflineState=original;vm.runInContext('game=testOfflineState',runtime);}
-}
-assert.strictEqual(addOfflineItem(inventoryFallbackState,{name:'kept-unique',rarity:'unique'}),true);
-assert.deepStrictEqual(Array.from(inventoryFallbackState.inventory,item=>item.name),['kept-unique']);
-let fullInventoryState = mergeDefaults({ inventory: [], offlineProgress: { stashLevel: 1 } });
-fullInventoryState.inventory = Array.from({ length: getInventoryLimit(fullInventoryState) }, (_, index) => ({ name: `filled-${index}`, rarity: 'normal' }));
-fullInventoryState.offlineProgress.stash = protectedOverflow.slice(0, 8);
-assert.strictEqual(addOfflineItem(fullInventoryState,{name:'last-kept-unique',rarity:'unique'}),true);
-assert.strictEqual(fullInventoryState.inventory.at(-1).name,'last-kept-unique','protected item must remain owned');
-assert.strictEqual(fullInventoryState.backgroundStopReason,'protected-storage-full');
-assert.ok(!buildOfflineProgressHtml(getOfflineProgressView(stashState)).includes('보호 대기열'),
-    '방치 보관함 UI에 숨은 초과 대기열을 표시하면 안 된다');
-let loopResetState = state({ offlineProgress: { stashLevel: 1, stash: [{ name: 'old-loop-item', rarity: 'rare' }], protectedOverflow: [{ name: 'old-loop-unique', rarity: 'unique' }] } });
-resetOfflineStashForLoop(loopResetState);
-assert.strictEqual(loopResetState.offlineProgress.stash.length, 0, '루프를 시작하면 방치 보관함을 비워야 한다');
-assert.strictEqual(loopResetState.offlineProgress.protectedOverflow.length, 0, '루프를 시작하면 예전 보호 대기열도 비워야 한다');
-assert.strictEqual(loopResetState.inventory.length, 0, '루프 초기화 대상 아이템을 일반 인벤토리로 이관하면 안 된다');
-let legacyLockedState = state({ offlineProgress: { stashLevel: 1, stash: [{ name: 'legacy-locked', rarity: 'normal', locked: true }] } });
-ensureOfflineProgressState(legacyLockedState);
-assert.strictEqual(legacyLockedState.offlineProgress.stash[0].offlineProtected, true);
-
-let migrated = { loopCount: 3, currencies: { timeRemnant: 2 } };
-ensureOfflineProgressState(migrated);
-assert.strictEqual(migrated.offlineProgress.version, 1);
-assert.deepStrictEqual(migrated.offlineProgress.stash, []);
-let safe = state({ offlineProgress: { safeReturnUnlocked: true, safetyPolicy: { consecutiveDeaths: 3, noKillMinutes: 10, stopOnNegativeExp: false, stopWhenStorageFull: false }, huntMode: 'push', stash: [] } });
-assert.strictEqual(getOfflineSafetyStopReason(safe, { deaths: 3, consecutiveDeaths: 3, kills: 5 }, 1000), 'consecutive-deaths');
-assert.strictEqual(getOfflineSafetyStopReason(safe, { deaths: 0, consecutiveDeaths: 0, kills: 2, elapsedSinceLastKillMs: 10 * 60 * 1000 }, 10 * 60 * 1000), 'no-kill');
-assert.strictEqual(getOfflineSafetyStopReason(safe, { deaths: 3, consecutiveDeaths: 1, kills: 5, elapsedSinceLastKillMs: 1000 }, 1000), null);
-safe.offlineProgress.safetyPolicy.stopOnNegativeExp = true;
-assert.strictEqual(getOfflineSafetyStopReason(safe, { exp: 20, expLost: 5, consecutiveDeaths: 0, elapsedSinceLastKillMs: 1000 }, 1000), null);
-assert.strictEqual(getOfflineSafetyStopReason(safe, { exp: 5, expLost: 20, consecutiveDeaths: 0, elapsedSinceLastKillMs: 1000 }, 1000), 'negative-exp');
-
-let stopSnapshot=mergeDefaults(state({heroSelectionInitialized:true,playerHp:100,moveTimer:600,moveTotalTime:600,enemies:[],encounterPlan:[],offlineProgress:{safeReturnUnlocked:true,safetyPolicy:{consecutiveDeaths:5,noKillMinutes:5,stopOnNegativeExp:false,stopWhenStorageFull:false}}}));
-let syncResult=simulateBackgroundCombat({elapsedMs:360000,snapshot:stopSnapshot});
-assert.strictEqual(syncResult.processedMs,300000,'real combat must stop at the configured no-kill boundary');
-assert.strictEqual(syncResult.stopReason,'no-kill');
-runtime.setTimeout=fn=>setImmediate(fn);
-let asyncResult=await simulateBackgroundCombatChunked({elapsedMs:360000,snapshot:stopSnapshot});
-assert.strictEqual(asyncResult.stopReason,'no-kill');
-assert.strictEqual(asyncResult.processedMs,syncResult.processedMs);
-let huntState = state({ settings: { mapCompleteAction: 'nextZone' }, offlineProgress: { huntDirectiveUnlocked: true, huntMode: 'current', stash: [] } });
-applyOfflineHuntDirective(huntState);
-assert.strictEqual(huntState.settings.mapCompleteAction, 'repeatZone');
-huntState.offlineProgress.huntMode = 'highestCleared';
-applyOfflineHuntDirective(huntState);
-assert.strictEqual(huntState.settings.mapCompleteAction, 'nextLoopBestPlusOne');
-let bossState = state({ enemies: [{ isBoss: true, hp: 10 }], offlineProgress: { huntDirectiveUnlocked: true, huntMode: 'stopBeforeBoss', stash: [] } });
-assert.strictEqual(getOfflineSafetyStopReason(bossState, {}, 0), 'before-boss');
-let bossMarkerState = state({ runProgress: 79.95, encounterPlan: [{ at: 80, boss: true }], offlineProgress: { huntDirectiveUnlocked: true, huntMode: 'stopBeforeBoss', stash: [] } });
-assert.strictEqual(getOfflineSafetyStopReason(bossMarkerState, {}, 0), 'before-boss');
+// Away combat has no directive stops any more: a hunt that kills nothing still runs its whole time.
+const snapshot = mergeDefaults({ loopCount: 0, inventory: [], heroSelectionInitialized: true, playerHp: 100, moveTimer: 600, moveTotalTime: 600, enemies: [], encounterPlan: [] });
+const syncResult = simulateBackgroundCombat({ elapsedMs: 360000, snapshot });
+assert.strictEqual(syncResult.processedMs, 360000, 'the whole away time is settled');
+assert.strictEqual(syncResult.stopReason || null, null);
+runtime.setTimeout = fn => setImmediate(fn);
+const asyncResult = await simulateBackgroundCombatChunked({ elapsedMs: 360000, snapshot });
+assert.strictEqual(asyncResult.processedMs, syncResult.processedMs);
 
 console.log('smoke-offline-progress: ok');
 }()).catch(error => { console.error(error); process.exitCode = 1; });
