@@ -72,7 +72,9 @@ const tutorialActionUi = {
         },
         unlock_stump_box: {
             // 그루터기 함 시작 선물 놓기(2026-10-07): 보관함의 씨앗이나 수액을 고르면 판의 빈 칸이 빛나고, 그 칸을 누르면 놓인다.
-            selector: ['#stump-box-board .stump-cell.is-target', '#stump-box-storage .stump-item'],
+            // 휴대폰은 칸을 누르면 배치 미리보기가 먼저 뜨므로 그 [배치]를 가리킨다(2026-10-24).
+            selector: ['#stump-placement-preview:not([hidden]) [data-stump-action="placement-apply"]',
+                '#stump-box-board .stump-cell.is-target', '#stump-box-storage .stump-item'],
             title: '그루터기 함에 심기',
             body: '보관함의 씨앗을 누르고 그루터기 함의 빈 칸을 누르세요. 수액도 같은 방법으로 배치합니다.',
             read: () => [game.stumpBox.board.filter(id => id !== null).length, stumpBox.storage(game).filter(item => item.family !== 'talisman').length],

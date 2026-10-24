@@ -68,10 +68,9 @@ const stumpCube = (() => {
         core: (state, id) => bagItems.cores(state).find(item => item.id === id) || null
     });
 
-    /** Items the cube may take: stored, not locked, not kept by an equipment set. */
+    /** Items the cube may take: stored, not locked (equipment, stump items, jewels and cores alike), not kept by an equipment set. */
     function usable(kind, item, keepLocked = false) {
-        if (!item) return false;
-        if (!keepLocked && (kind === 'equipment' || kind === 'stump') && item.locked) return false;
+        if (!item || (!keepLocked && item.locked)) return false;
         return kind !== 'equipment' || !equipmentLoadoutRuntime.isReferenced(item);
     }
 
@@ -256,8 +255,7 @@ const stumpCube = (() => {
     }
 
     function hasLockedInput(state) {
-        return (state.stumpCube?.slots || []).some(({ kind, id }) =>
-            (kind === 'equipment' || kind === 'stump') && FINDERS[kind](state, id)?.locked);
+        return readContents(state).list.some(entry => entry.item.locked);
     }
 
     /** Runs the matching recipe: consumes its inputs, pays its cost, stores the results and shows them in the cube. */

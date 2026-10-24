@@ -15,7 +15,8 @@ const stumpBoxUi = (() => {
     let selectedId = null, selectedCell = null, moreTab = 'harvest', colorFilter = 'all', lastSignature = '', bound = false, ticker = null;
     let placement = null, placementKey = '';
     let storageSort = 'quality-desc', stateFilter = 'all', compareOpen = false, comparedId = null;
-    const STORAGE_STATES = { all: '모든 상태', ripe: '성장 완료', growing: '성장 중', locked: '잠금' };
+    // Storage items do not grow ("성장 중" means placed on the board), so an unripe stored item is "성장 전".
+    const STORAGE_STATES = { all: '모든 상태', ripe: '성장 완료', unripe: '성장 전', locked: '잠금' };
     const STORAGE_SORTS = { 'quality-desc': '품질 높은 순', 'quality-asc': '품질 낮은 순', name: '이름순', recent: '최근 획득순' };
 
     function escStump(text) { return escapeHTML(String(text)); }
@@ -318,7 +319,7 @@ const stumpBoxUi = (() => {
     function stumpStateMatch(item) {
         if (stateFilter === 'locked') return !!item.locked;
         if (stateFilter === 'ripe') return stumpBox.isMature(item);
-        if (stateFilter === 'growing') return !stumpBox.isMature(item);
+        if (stateFilter === 'unripe') return !stumpBox.isMature(item);
         return true;
     }
     function compareStorageItems(a, b) {
@@ -407,7 +408,7 @@ const stumpBoxUi = (() => {
         paintStumpPart('stump-box-more', stumpMoreHtml());
         renderPlacementPreview();
         // 따라 하기(시작 선물 놓기)는 고를 때마다 가리키는 칸을 옮긴다: 보관함의 씨앗 → 판의 빈 칸(룬 고르기 창과 같은 방식).
-        if (tutorialActionUi.active) tutorialActionUi.refresh();
+        refreshStumpTutorial();
     }
     function refreshStumpTabIfVisible() {
         if (typeof getRenderingUiTabIds === 'function' && getRenderingUiTabIds().has('tab-stump')) renderStumpBoxTab();
@@ -431,7 +432,7 @@ const stumpBoxUi = (() => {
         const rows = [], disabled = [...after.suppressed].filter(id => !before.suppressed.has(id));
         const enabled = [...before.suppressed].filter(id => after.board.includes(id) && !after.suppressed.has(id));
         if (disabled.length) rows.push(`<li class="is-bad">비활성화: ${escStump(placementItemNames(disabled))}</li>`);
-        if (enabled.length) rows.push(`<li class="is-good">억제 해제: ${escStump(placementItemNames(enabled))}</li>`);
+        if (enabled.length) rows.push(`<li class="is-good">비활성화 해제: ${escStump(placementItemNames(enabled))}</li>`);
         COLORS.forEach(color => {
             if (before.resonant.has(color) === after.resonant.has(color)) return;
             const on = after.resonant.has(color), bonus = `+${STUMP_BOX_RESONANCE.bonusPct}%`;
@@ -491,7 +492,7 @@ const stumpBoxUi = (() => {
             placementKey = key;
         }
         const item = stumpBox.itemById(game, placement.id), occupant = game.stumpBox.board[placement.cell];
-        const title = `${stumpBox.shortName(item)} · ${Math.floor(placement.cell / STUMP_BOX_SIZE) + 1}행 ${placement.cell % STUMP_BOX_SIZE + 1}열`;
+        const title = `${stumpBox.shortName(item)}, ${Math.floor(placement.cell / STUMP_BOX_SIZE) + 1}행 ${placement.cell % STUMP_BOX_SIZE + 1}열`;
         const verb = occupant === null ? '배치' : '자리 바꾸기';
         const buttons = placement.pinned ? `<div class="stump-actions"><button type="button" data-stump-action="placement-apply">${verb}</button>`
             + '<button type="button" data-stump-action="placement-cancel">취소</button></div>' : '';
@@ -513,6 +514,20 @@ const stumpBoxUi = (() => {
         hideInfoTooltip();
         const node = document.getElementById('stump-placement-preview');
         if (node) node.scrollIntoView({ block: 'nearest' });
+        refreshStumpTutorial();
+    }
+    /** Touch and keyboard: the first press on a cell pins its preview, a second press on the same cell applies it like [배치]. */
+    function confirmCell(id, cell) {
+        if (placement?.pinned && placement.id === id && placement.cell === cell) return applyPlacement();
+        previewCell(id, cell, true);
+    }
+    function cancelPlacement() {
+        clearPlacementPreview();
+        refreshStumpTutorial();
+    }
+    /** The planting guide moves with the screen: stored seed, then an empty cell, then the pinned preview's [배치]. */
+    function refreshStumpTutorial() {
+        if (tutorialActionUi.active) tutorialActionUi.refresh();
     }
     function hoverCell(cell) {
         if (selectedId !== null) previewCell(selectedId, cell);
@@ -542,7 +557,8 @@ const stumpBoxUi = (() => {
         selectedId = selectedId === id ? null : id;
         selectedCell = null;
         renderStumpBoxTab(true);
-        // Keep the board in view while choosing a destination on touch screens.
+        // A board item's detail (graft, back to storage) comes into view on phones; a stored item keeps the board in view to pick a cell.
+        if (selectedId !== null && game.stumpBox.board.includes(selectedId)) revealStumpDetailOnPhone();
     }
     function undoPlacement() {
         if (!stumpBox.undoPlacement(game)) {
@@ -604,7 +620,7 @@ const stumpBoxUi = (() => {
         const occupant = game.stumpBox.board[cell];
         if (!stumpBox.isOpen(game, cell)) return notifyStump(`이 칸은 루프 ${stumpBox.opensAt(game, cell)}에 열립니다.`);
         if (selectedId !== null && occupant === selectedId) return selectStumpItem(null);
-        if (selectedId !== null) return confirm ? previewCell(selectedId, cell, true) : dropOnCell(selectedId, cell);
+        if (selectedId !== null) return confirm ? confirmCell(selectedId, cell) : dropOnCell(selectedId, cell);
         if (occupant !== null) return selectStumpItem(occupant);
         if (stumpBox.graftOpen(game) || stumpBox.sealLimit(game)) selectStumpCell(cell);
     }
@@ -711,7 +727,7 @@ const stumpBoxUi = (() => {
         cell: (data, button, event) => clickStumpCell(Number(data.cell), event.pointerType === 'touch' || event.detail === 0
             || uiDisplay.matches('(hover: none), (max-width: 680px)')),
         'placement-apply': () => applyPlacement(),
-        'placement-cancel': () => clearPlacementPreview(),
+        'placement-cancel': () => cancelPlacement(),
         'placement-undo': () => undoPlacement(),
         compare: () => { compareOpen = !compareOpen; renderStumpBoxTab(true); },
         item: data => selectStumpItem(Number(data.item)),

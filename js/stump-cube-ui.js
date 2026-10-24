@@ -62,10 +62,9 @@ const stumpCubeUi = (() => {
     function statusHtml(found, list, matched) {
         // 비어 있으면 아무 말도 하지 않는다(빈 칸과 [재료 넣기]가 할 일을 보여 준다).
         if (!list.length) return '';
-        if (list.some(entry => ['equipment', 'stump'].includes(entry.kind) && entry.item.locked)) {
-            return '<p class="stump-line is-bad">잠긴 재료를 조합창에서 꺼내 주세요.</p>';
-        }
-        if (!found) return matched ? '<p class="stump-status">결과 미확인</p>' : missingRecipesHtml();
+        if (list.some(entry => entry.item.locked)) return '<p class="stump-line is-bad">잠긴 재료를 조합창에서 꺼내 주세요.</p>';
+        // A hidden recipe that happens to match says nothing about its result; the revealed hints come first.
+        if (!found) return missingRecipesHtml(matched);
         const lacking = stumpCube.missingCost(found.recipe).length > 0;
         return `<div class="stump-cube-status"><p class="stump-cube-preview-title">예상 결과 <span>${esc(found.recipe.name)}</span></p>`
             + previewFactsHtml(found) + (found.reason ? `<p class="stump-line is-bad">${esc(found.reason)}</p>` : '')
@@ -96,9 +95,9 @@ const stumpCubeUi = (() => {
         return (color ? STUMP_BOX_COLORS[color].label + ' ' : '') + rarity + names.join('/');
     }
 
-    function missingRecipesHtml() {
+    function missingRecipesHtml(matched) {
         const hints = stumpCube.missingRecipes().slice(0, 3);
-        if (!hints.length) return '<p class="stump-status">맞는 조합법 없음</p>';
+        if (!hints.length) return `<p class="stump-status">${matched ? '결과 미확인' : '맞는 조합법 없음'}</p>`;
         return '<ul class="stump-cube-missing">' + hints.map(hint => `<li><strong>${esc(hint.recipe.name)}</strong>`
             + `<span>${hint.missing.map(row => `${statToneText.html(missingMaterialLabel(row))} <b class="stump-cube-shortage">${row.count}개 부족</b>`).join(', ')}</span></li>`).join('') + '</ul>';
     }
@@ -116,7 +115,9 @@ const stumpCubeUi = (() => {
     /** The cube section under the stump box board. */
     function cubeHtml() {
         const list = stumpCube.entries(), found = stumpCube.preview(), matched = stumpCube.match();
-        const ready = !!matched && !found?.reason && !stumpCube.missingCost(matched.recipe).length && !game.woodsmanBuildLock;
+        // A hidden recipe stays craftable by experiment, except one still behind its loop.
+        const ready = !!matched && (found || !(matched.recipe.reveal?.loop > game.season)) && !found?.reason
+            && !stumpCube.missingCost(matched.recipe).length && !game.woodsmanBuildLock;
         return '<h3>조합창</h3>' + gridHtml(list) + statusHtml(found, list, matched)
             + `<div class="stump-actions"><button type="button" data-stump-action="cube-transmute"${ready ? '' : ' disabled'}>조합</button>`
             + '<button type="button" data-stump-action="cube-open">재료 넣기</button>'
@@ -137,7 +138,8 @@ const stumpCubeUi = (() => {
 
     // ── 재료 고르기 ─────────────────────────────────────────
     function candidateMeta(kind, item) {
-        if (kind === 'stump' && item.color) return `품질 ${Math.round(item.roll * 100)}%, ${stumpBox.isMature(item) ? '성장 완료' : '성장 중'}`;
+        // Candidates and results are stored, so an unripe one is not growing yet ("성장 중" means placed on the board).
+        if (kind === 'stump' && item.color) return `품질 ${Math.round(item.roll * 100)}%, ${stumpBox.isMature(item) ? '성장 완료' : '성장 전'}`;
         const rarity = ITEM_RARITY_LABELS[item.rarity] || '';
         if (kind === 'equipment') return equipmentMeta(item, rarity);
         if (kind === 'core') return item.perfect ? '완전한 코어' : `${rarity} 코어`;

@@ -162,7 +162,7 @@ const stumpCubeRecipes = (() => {
     }
 
     function uniqueRerollPreview([[{ item }]]) {
-        return { label: '새 고유 장비 1개', quality: 0, keep: '',
+        return { label: '새 고유 장비 1개', quality: 0, keep: '장비 부위',
             change: `T${topTier([item])} 기준으로 고유 종류와 옵션 새로 굴림`,
             note: '결과 티어는 고유 종류에 따라 결정, 동일 고유 가능, 품질과 제작 효과 초기화' };
     }

@@ -22,7 +22,7 @@ const STUMP_CUBE_RECIPES = Object.freeze([
         result: `같은 고유 장비 1(옵션 새로, ${Math.round(STUMP_CUBE_UNIQUE_EXCEPTIONAL_CHANCE * 100)}% 확률로 특출난 베이스)`,
         inputs: [{ kind: 'equipment', rarity: 'unique', count: 2, same: ['name'] }], cost: {} },
     { id: 'equip_unique_reroll', reveal: { harvest: ['flower', 'fruit'] }, group: '장비', need: '고유 장비 1 + 성장 완료된 씨앗(꽃, 열매) 3', name: '고유 장비 순환',
-        result: '재료 티어를 기준으로 고유 장비 1(결과 티어는 고유 종류에 따라 결정, 동일 고유 가능)',
+        result: '재료 티어를 기준으로 같은 부위의 고유 장비 1(결과 티어는 고유 종류에 따라 결정, 동일 고유 가능)',
         inputs: [{ kind: 'equipment', rarity: 'unique', count: 1 }, { kind: 'stump', family: 'seed', ripe: true, count: 3 }], cost: {} },
     { id: 'equip_socket_jewel', reveal: { content: 'jewel' }, group: '장비', need: '소켓을 뚫을 수 있는 장신구 1 + 주얼 1', name: '소켓 뚫어 끼우기', result: '장신구에 공허 소켓을 뚫고 그 주얼을 끼운다',
         inputs: [{ kind: 'equipment', socketable: true, count: 1 }, { kind: 'jewel', count: 1 }], cost: { voidChisel: 1 } },
