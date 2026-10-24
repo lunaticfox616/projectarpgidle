@@ -58,7 +58,11 @@ function refreshSalvageRecoveryShortcut() {
 
 function refreshSalvageRecoveryOverlay() {
     let overlay = document.getElementById('salvage-recovery-overlay');
-    if (overlay) overlay.innerHTML = renderSalvageRecoveryPanel();
+    if (overlay) {
+        overlay.innerHTML = renderSalvageRecoveryPanel();
+        // 다시 그리면 누른 복구 단추가 사라져 포커스가 body로 빠지고 Esc가 판에 닿지 않았다: 닫기 단추로 옮긴다(2026-10-24)
+        if (!overlay.contains(document.activeElement)) overlay.querySelector('[data-recovery-close]')?.focus();
+    }
     refreshSalvageRecoveryShortcut();
 }
 

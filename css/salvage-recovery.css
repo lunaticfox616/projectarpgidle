@@ -1,4 +1,8 @@
 @layer components {
+/* 복구함은 dialog가 아니라 body에 붙이는 고정 판이다(js/salvage-recovery-ui.js). 2026-10-23 제작 장비 고르기 창이 dialog가 되며
+   .craft-picker-overlay가 [open]일 때만 보이게 바뀌어, 복구 단추를 눌러도 판이 보이지 않았다(2026-10-24 사용자). 붙어 있는 동안 늘 보인다.
+   층은 창(#right-pane 1000)보다 위, 장비 툴팁(9999)보다 아래: 10000이면 장비에 마우스를 올려도 툴팁이 판 밑에 깔렸다. */
+.salvage-recovery-overlay { z-index: 9998; display: flex; }
 .salvage-recovery-panel { width: min(760px, 100%); }
 
 .salvage-recovery-grid {

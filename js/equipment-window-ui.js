@@ -1,7 +1,7 @@
 /**
  * 장비창(2026-10-10 개편, 사용자가 시안 6차에서 고른 고급 테마). 왼쪽은 장착 장비(인형 배치, 칸마다 그림과 칸 이름만, 머리에 세팅 I II III,
  * 2026-10-21)와 요약(DPS 하나만 크게, 그 아래 유효 생명력을 원소마다 제 색으로). 가운데는 가방이고 머리 한 줄에
- * 칸 수와 검색, 그 아래 쪽 단추, 가방 오른쪽에 도구 줄(정리, 판단, 필터, 해체, 복구, 터치 기기는 배치)을 둔다(2026-10-19).
+ * 칸 수와 검색, 그 아래 쪽 단추, 가방 오른쪽에 도구 줄(정리, 분석, 필터, 해체, 복구, 터치 기기는 배치)을 둔다(2026-10-19, 분석은 2026-10-24까지 판단).
  * 창이 넓으면 오른쪽에 선택한 장비(바꾸면 증감표, 단추, 툴팁)가 붙고, 좁으면 같은 내용이 떠서 나오며, 휴대폰은 요약을 한 줄로 접고
  * (장착 장비 ▾로 펼친다) 선택한 장비는 아래에서 올라온다. 배치와 모양은 css/equipment-window.css.
  * 새로 들어온 아이템은 빨간 점 하나: id가 game.bagSeenId보다 크면 새 것이고, 가방을 열었다가 닫으면 그때까지 들어온 것을 모두 본 것으로 친다.
@@ -61,7 +61,7 @@ const equipmentWindowUi = (() => {
         });
     }
 
-    // ---------------------------------------------------------------- 도구 줄(2026-10-19: 정리, 판단, 필터, 해체, 복구, 손가락 기기의 배치)
+    // ---------------------------------------------------------------- 도구 줄(2026-10-19: 정리, 분석, 필터, 해체, 복구, 손가락 기기의 배치)
     /** Each tool's pixel icon (index.html data-icon) goes in once, before its name. */
     function fillRailIcons() {
         document.querySelectorAll('#item-tab-equip .eqw-rail-tool[data-icon]').forEach(tool => {
@@ -69,7 +69,7 @@ const equipmentWindowUi = (() => {
         });
     }
     /** 필터 has a dot while a grade is hidden or one kind of slot is picked (a picked slot the bag no longer holds shows everything);
-     * 판단 has one while its filter dims the bag, so a closed panel still says why items are dimmed. */
+     * 분석 has one while its filter dims the bag, so a closed panel still says why items are dimmed. */
     function markFilter() {
         const summary = document.querySelector('#eqw-filter-menu > summary');
         if (!summary) return;
@@ -106,7 +106,7 @@ const equipmentWindowUi = (() => {
         event.stopPropagation();
     }
     /** A rail tool double-clicked does its main job at once, with no question and no panel (2026-10-21, the user's ask): 해체 salvages
-     * the whole bag (locked, set and priority-kept gear stays, as with the panel's 전체 해체), 판단 runs the analysis again (the bag
+     * the whole bag (locked, set and priority-kept gear stays, as with the panel's 전체 해체), 분석 runs the analysis again (the bag
      * marks show the results). Keyed by the panel's id; the two clicks before the double-click opened and closed it. */
     const RAIL_DOUBLE_CLICK = Object.freeze({
         'eqw-salvage-menu': () => bulkSalvageAllInventory({ ask: false }),
