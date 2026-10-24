@@ -45,9 +45,9 @@
 
 /* Shared selection buttons receive their theme in overrides; keep this panel's selection state in that same layer. */
 @layer overrides {
-/* Each card is a complete equipment + rune set; selectionDialog owns focus and dismissal. */
+/* One selected build: shared equipment paperdoll beside its runes. */
 :root body .selection-overlay-panel.build-preset-review {
-    width: min(1240px, 96vw);
+    width: min(940px, 96vw);
     max-height: calc(100dvh - 32px - 2 * var(--px-window-border, 0px));
     box-sizing: border-box;
     color: var(--color-text, #e9dfcc);
@@ -57,14 +57,14 @@
 .build-set-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
 :root body .build-preset-review .build-set-tabs > button { min-height: 40px; padding: 5px; font-size: 12px; white-space: normal; }
 :root body .build-preset-review .build-set-tabs > button[aria-pressed="true"] { background: #463219; border-color: #e3bd72; color: #ffe0a2; }
-.build-set-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; align-items: stretch; }
-.build-set-card { min-width: 0; padding: 8px; background: #15120e; border: 1px solid #625038; border-radius: 4px; }
-.build-set-card.is-selected { border-color: #e3bd72; box-shadow: inset 0 0 0 1px #b58b48; background: #211a11; }
+.build-set-card { min-width: 0; padding: 10px; background: #15120e; border: 1px solid #625038; border-radius: 4px; }
+.build-set-card.is-selected { border-color: #d9b16a; background: linear-gradient(125deg, #211b13, #111a20); }
 .build-set-card.is-current { border-color: #71846f; background: #121813; }
+.build-set-contents { display: grid; grid-template-columns: minmax(260px, .85fr) minmax(0, 1.15fr); gap: 18px; }
 :root body .build-preset-review .build-set-heading {
-    display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 2px;
-    width: 100%; min-height: 42px; margin: 0 0 4px; padding: 4px 7px; box-sizing: border-box;
-    background: #272016; border: 0; border-bottom: 1px solid #80643b; color: #ffe0a2;
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    width: 100%; min-height: 32px; margin: 0 0 8px; padding: 4px 8px; box-sizing: border-box;
+    background: linear-gradient(90deg, #49351d, #242c2e); border: 0; border-bottom: 1px solid #b88d4b; color: #ffe0a2;
     font-size: 12px; line-height: 1.5; text-align: left; white-space: normal; overflow-wrap: anywhere;
 }
 .build-set-heading small { color: #bcb19a; font-size: 10px; }
@@ -73,18 +73,21 @@
 .build-set-card :is(h3, h4) { margin: 0; font-size: 12px; line-height: 1.5; }
 .build-set-card h3 { display: flex; justify-content: space-between; align-items: center; margin: 3px 0; color: #e3bd72; }
 .build-set-card h3 small { color: #baac93; font-size: 10px; }
-.build-set-gear-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
-.build-set-gear-empty { display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 50px; min-width: 0; border: 1px dashed #443c2f; color: #9e927c; background: #100f0c; }
-.build-set-gear-empty i { display: grid; place-items: center; height: 30px; color: #5b5140; font-style: normal; }
+.build-set-paperdoll { --eqw-doll-row: 58px; }
+.build-set-wards { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 5px; }
+.build-set-card .build-set-wards-heading { margin: 5px 0 3px; color: #b2cbbe; font-size: 10px; }
+.build-set-gear-empty { position: relative; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 48px; min-width: 0; border: 1px dashed #4c4940; color: #9e927c; background: #121619; }
+.build-set-gear-empty i { color: #5b5140; font-style: normal; }
 .build-set-gear-empty small { font-size: 10px; white-space: nowrap; }
-.build-set-runes { border-top: 1px solid #5f4b30; margin-top: 9px; padding-top: 2px; }
-.build-set-rune-groups { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; }
-.build-set-rune-group { grid-column: 1 / -1; min-width: 0; }
+.build-set-runes { min-width: 0; border-left: 1px solid #4b5759; padding-left: 18px; }
+.build-set-card .build-set-runes h3 { color: #a7dfdd; }
+.build-set-rune-groups { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.build-set-rune-group { grid-column: 1 / -1; min-width: 0; padding: 8px; border: 1px solid #3e5158; background: #101b24; }
 .build-set-rune-group.is-primary { grid-column: auto; }
-.build-set-rune-group h4 { color: #bbaf96; font-size: 10px; line-height: 1.5; margin-bottom: 2px; }
-.build-set-rune-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
+.build-set-rune-group h4 { color: #b1cbd4; font-size: 12px; line-height: 1.5; margin-bottom: 5px; }
+.build-set-rune-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
 .is-primary .build-set-rune-grid { grid-template-columns: minmax(0, 1fr); }
-.build-set-empty { display: grid; place-content: center; min-height: 280px; text-align: center; color: #bbae95; }
+.build-set-empty { grid-column: 1 / -1; display: grid; place-content: center; min-height: 280px; text-align: center; color: #bbae95; }
 .build-set-empty b { font-size: 15px; color: #d5bf96; }
 .build-set-legacy { margin-top: 12px; padding: 10px; border: 1px dashed #756345; color: #c9b48e; }
 .build-set-status { margin: 8px 0 0; color: #ffad94; font-size: 12px; overflow-wrap: anywhere; }
@@ -95,21 +98,27 @@
 .build-review-help { margin: 7px 0; color: #c7b899; font-size: 12px; }
 .build-review-empty { grid-column: 1 / -1; display: block; padding: 3px; color: #9f957f; font-size: 12px; }
 :root body .build-preset-review .build-review-asset {
-    position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; width: 100%; min-width: 0; min-height: 50px;
-    margin: 0; padding: 1px; text-align: center; white-space: normal; font-size: 12px; line-height: 1.5;
-    border: 1px solid #635038; background: #15120e; box-shadow: none;
+    position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; width: 100%; min-width: 0; min-height: 0;
+    margin: 0; padding: 5px; text-align: center; white-space: normal; font-size: 12px; line-height: 1.25;
+    border: 1px solid color-mix(in srgb, var(--build-tone) 70%, #222); border-radius: 2px;
+    background: radial-gradient(ellipse at 50% 30%, color-mix(in srgb, var(--build-tone) 24%, #10151a), #101318);
+    box-shadow: inset 0 0 0 1px #0b0d10, inset 0 2px color-mix(in srgb, var(--build-tone) 45%, transparent);
 }
-:root body .build-preset-review .build-review-asset:is(:hover, :focus-visible) { border-color: #e3bd72; background: #35291b; outline: 2px solid #b78f50; outline-offset: 1px; }
-.build-review-icon { display: grid; place-items: center; flex: 0 0 28px; width: 28px; height: 28px; overflow: hidden; }
-.build-review-icon .build-review-art { display: grid; place-items: center; width: 28px; height: 28px; min-width: 0; object-fit: contain; image-rendering: pixelated; }
+:root body .build-preset-review .build-review-asset:is(:hover, :focus-visible) { border-color: var(--build-tone); outline: 2px solid var(--build-tone); outline-offset: 1px; filter: brightness(1.2); }
+.build-review-icon { display: grid; place-items: center; flex: 1 1 auto; width: 100%; min-height: 0; overflow: hidden; }
+.build-review-icon .build-review-art { display: grid; place-items: center; width: 100%; height: 100%; min-width: 0; min-height: 0; object-fit: contain; image-rendering: pixelated; }
 .build-review-icon :is(img, svg) { width: 100%; height: 100%; object-fit: contain; }
-.build-review-icon .support-sigil-icon { width: 25px; height: 25px; }
-.build-review-copy { display: block; width: 100%; min-width: 0; }
-.build-review-copy b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 400; }
-.build-review-copy small { position: absolute; top: 1px; right: 1px; padding: 0 2px; background: #21180e; color: #f5d893; font-size: 10px; line-height: 1.2; }
-.build-set-gear-grid .build-review-copy small { display: none; }
-:root body .build-preset-review .is-primary .build-review-asset { flex-direction: row; text-align: left; gap: 5px; }
-.is-primary .build-review-copy b { white-space: normal; overflow-wrap: anywhere; }
+.build-review-icon .support-sigil-icon { width: 33px; height: 33px; }
+.build-review-copy { display: block; flex: 0 0 auto; width: 100%; min-width: 0; }
+.build-review-copy b { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; font-size: 12px; font-weight: 400; color: var(--build-tone); }
+.build-review-copy small { display: block; color: #c9d7dc; font-size: 10px; line-height: 1.4; }
+.build-review-gear .build-review-copy small { position: absolute; top: 2px; left: 4px; color: #e0d9c9; text-shadow: 1px 1px #000; }
+:root body .build-preset-review .build-review-gear { padding: 13px 3px 3px; gap: 1px; }
+.build-review-gear.slot-장갑2 .build-review-art { transform: scaleX(-1); }
+:root body .build-preset-review .build-review-rune { min-height: 80px; padding: 7px 4px; }
+.build-review-rune .build-review-icon { flex: 0 0 40px; width: 40px; height: 40px; }
+.build-set-wards .build-review-icon { height: 26px; flex: 0 0 26px; }
+.build-set-wards .build-review-copy b { -webkit-line-clamp: 1; }
 .build-review-note { color: #b8ab94; margin: 7px 0 0; overflow-wrap: anywhere; font-size: 10px; }
 :root body .selection-overlay-panel.build-preset-detail { width: min(460px, 92vw); max-height: calc(100dvh - 48px - 2 * var(--px-window-border, 0px)); box-sizing: border-box; overflow-wrap: anywhere; font-size: 15px; line-height: 1.6; }
 .build-detail-context { margin: 8px 0 12px; padding: 6px 9px; background: #302515; color: #ffe0a2; font-size: 12px; }
@@ -119,13 +128,12 @@
 :root body .build-preset-review .build-review-actions > button { min-height: 44px; padding: 8px 12px; font-size: 12px; white-space: normal; }
 :root body .build-preset-review button[data-build-confirm] { color: #ffebba; border-color: #c39a55; background: #4a341a; }
 :root body .build-preset-review button[data-build-confirm]:disabled { opacity: .45; }
-@media (min-width: 781px) and (max-width: 1100px) {
-    .build-set-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-@media (max-width: 780px) {
-    .build-set-grid { grid-template-columns: minmax(0, 1fr); }
-    .build-set-card[data-set-visible="false"] { display: none; }
-    .build-set-gear-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 3px; }
+@media (max-width: 650px) {
+    .build-set-contents { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+    .build-set-runes { border-left: 0; border-top: 1px solid #4b5759; padding: 8px 0 0; }
+    .build-set-card { padding: 7px; }
+    .build-set-rune-groups { gap: 6px; }
+    .build-set-rune-group { padding: 5px; }
     .build-review-help { font-size: 10px; }
     .build-set-tabs { gap: 4px; }
     :root body .build-preset-review .build-set-tabs > button { min-height: 44px; }

@@ -3,24 +3,24 @@
    보드 자체의 배치는 css/skill-gem-board.css 그대로다. 계열 색 --sigil 하나로 문양 상자, 타일 윗줄, 창의 카드 테를 함께 칠한다. */
 @layer features {
 /* ── 계열 색: 보조스킬룬은 효과 계열, 공격 룬은 속성(창은 #tab-skills 밖이라 속성색을 여기서 다시 정한다) ───────────── */
-:is(.support-sigil, .gem-tile, .gem-slot-card, .gem-slot-current) { --sigil: #6fd3b0; }
-:is(.support-sigil, .gem-tile, .gem-slot-card, .gem-slot-current).is-tone-phys { --sigil: #e8c79a; }
-:is(.support-sigil, .gem-tile, .gem-slot-card, .gem-slot-current).is-tone-fire { --sigil: #ff9a76; }
-:is(.support-sigil, .gem-tile, .gem-slot-card, .gem-slot-current).is-tone-cold { --sigil: #8fd3ff; }
-:is(.support-sigil, .gem-tile, .gem-slot-card, .gem-slot-current).is-tone-lightning { --sigil: #ffe083; }
-:is(.support-sigil, .gem-tile, .gem-slot-card, .gem-slot-current).is-tone-chaos { --sigil: #c7a6ff; }
-:is(.support-sigil, .gem-tile, .gem-slot-card, .gem-slot-current).is-tone-elemental { --sigil: #f4efe2; }
-:is(.support-sigil, .gem-tile, .gem-slot-card, .gem-slot-current).is-tone-speed { --sigil: #d9f27e; }
-:is(.support-sigil, .gem-tile, .gem-slot-card, .gem-slot-current).is-tone-crit { --sigil: #ff9ed1; }
-:is(.support-sigil, .gem-tile, .gem-slot-card, .gem-slot-current).is-tone-life { --sigil: #ff8a8a; }
-:is(.support-sigil, .gem-tile, .gem-slot-card, .gem-slot-current).is-tone-guard { --sigil: #c9d3e2; }
-:is(.support-sigil, .gem-tile, .gem-slot-card, .gem-slot-current).is-tone-summon { --sigil: #7ce3d2; }
-:is(.support-sigil, .gem-tile, .gem-slot-card, .gem-slot-current).is-tone-arcane { --sigil: #a9b6ff; }
-:is(.gem-slot-card, .gem-slot-current).element-fire { --sigil: #ff9a76; }
-:is(.gem-slot-card, .gem-slot-current).element-cold { --sigil: #8fd3ff; }
-:is(.gem-slot-card, .gem-slot-current).element-lightning { --sigil: #ffe083; }
-:is(.gem-slot-card, .gem-slot-current).element-chaos { --sigil: #c7a6ff; }
-:is(.gem-slot-card, .gem-slot-current).element-physical { --sigil: #c9d3e2; }
+:is(.support-sigil, .gem-tile, .gem-slot-card, .gem-slot-current, .build-review-rune) { --sigil: #6fd3b0; }
+:is(.support-sigil, .gem-tile, .gem-slot-card, .gem-slot-current, .build-review-rune).is-tone-phys { --sigil: #e8c79a; }
+:is(.support-sigil, .gem-tile, .gem-slot-card, .gem-slot-current, .build-review-rune).is-tone-fire { --sigil: #ff9a76; }
+:is(.support-sigil, .gem-tile, .gem-slot-card, .gem-slot-current, .build-review-rune).is-tone-cold { --sigil: #8fd3ff; }
+:is(.support-sigil, .gem-tile, .gem-slot-card, .gem-slot-current, .build-review-rune).is-tone-lightning { --sigil: #ffe083; }
+:is(.support-sigil, .gem-tile, .gem-slot-card, .gem-slot-current, .build-review-rune).is-tone-chaos { --sigil: #c7a6ff; }
+:is(.support-sigil, .gem-tile, .gem-slot-card, .gem-slot-current, .build-review-rune).is-tone-elemental { --sigil: #f4efe2; }
+:is(.support-sigil, .gem-tile, .gem-slot-card, .gem-slot-current, .build-review-rune).is-tone-speed { --sigil: #d9f27e; }
+:is(.support-sigil, .gem-tile, .gem-slot-card, .gem-slot-current, .build-review-rune).is-tone-crit { --sigil: #ff9ed1; }
+:is(.support-sigil, .gem-tile, .gem-slot-card, .gem-slot-current, .build-review-rune).is-tone-life { --sigil: #ff8a8a; }
+:is(.support-sigil, .gem-tile, .gem-slot-card, .gem-slot-current, .build-review-rune).is-tone-guard { --sigil: #c9d3e2; }
+:is(.support-sigil, .gem-tile, .gem-slot-card, .gem-slot-current, .build-review-rune).is-tone-summon { --sigil: #7ce3d2; }
+:is(.support-sigil, .gem-tile, .gem-slot-card, .gem-slot-current, .build-review-rune).is-tone-arcane { --sigil: #a9b6ff; }
+:is(.gem-slot-card, .gem-slot-current, .build-review-rune).element-fire { --sigil: #ff9a76; }
+:is(.gem-slot-card, .gem-slot-current, .build-review-rune).element-cold { --sigil: #8fd3ff; }
+:is(.gem-slot-card, .gem-slot-current, .build-review-rune).element-lightning { --sigil: #ffe083; }
+:is(.gem-slot-card, .gem-slot-current, .build-review-rune).element-chaos { --sigil: #c7a6ff; }
+:is(.gem-slot-card, .gem-slot-current, .build-review-rune).element-physical { --sigil: #c9d3e2; }
 
 /* ── 보조스킬룬 문양: 계열 색 상자 + 효과 그림(11도트의 정수배) + 구석의 등급 점 ───────────────────────── */
 .support-sigil {

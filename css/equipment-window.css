@@ -21,30 +21,30 @@
    10px 흐린 글로 줄였더니 무엇을 꼈는지 칸마다 마우스를 올려야 알 수 있었다. 빼기는 두 번 누르기와 선택한 장비의 단추.
    2026-10-21: 옆 두 칸은 정수 px로 자른다(round). 1 : 1.16 : 1이 71.5px처럼 소수로 나뉘면 칸 이름과 아이템 이름이 화소 사이에서 시작해
    번졌다. 12px 이름이 기본 창의 옆 칸(72px)에서 두 줄에 들도록 칸 틈은 6px, 이름 좌우 여백은 2px. */
-:root body #item-tab-equip #ui-equip-list.equipment-paperdoll { display: grid; gap: 5px 6px; margin: 0; padding: 2px 0; border: 0;
+:root body :is(#item-tab-equip #ui-equip-list, .build-set-paperdoll).equipment-paperdoll { display: grid; gap: 5px 6px; margin: 0; padding: 2px 0; border: 0;
   --eqw-doll-side: round(down, calc((100% - 12px) / 3.16), 1px);
-  grid-template-columns: var(--eqw-doll-side) minmax(0, 1fr) var(--eqw-doll-side); grid-template-rows: repeat(5, 68px);
+  grid-template-columns: var(--eqw-doll-side) minmax(0, 1fr) var(--eqw-doll-side); grid-template-rows: repeat(5, var(--eqw-doll-row, 68px));
   grid-template-areas: "amulet helm core" "weapon body shield" "weapon body shield" "glove1 belt glove2" "ring1 boots ring2";
   background: radial-gradient(ellipse 50% 58% at 50% 46%, rgba(227, 189, 114, .16), transparent 72%); }
-:root body #item-tab-equip #ui-equip-list .slot-목걸이 { grid-area: amulet; }
-:root body #item-tab-equip #ui-equip-list .slot-투구 { grid-area: helm; }
-:root body #item-tab-equip #ui-equip-list .slot-코어 { grid-area: core; }
-:root body #item-tab-equip #ui-equip-list .slot-무기 { grid-area: weapon; }
-:root body #item-tab-equip #ui-equip-list .slot-갑옷 { grid-area: body; }
-:root body #item-tab-equip #ui-equip-list .slot-방패 { grid-area: shield; }
-:root body #item-tab-equip #ui-equip-list .slot-장갑1 { grid-area: glove1; }
-:root body #item-tab-equip #ui-equip-list .slot-허리띠 { grid-area: belt; }
-:root body #item-tab-equip #ui-equip-list .slot-장갑2 { grid-area: glove2; }
-:root body #item-tab-equip #ui-equip-list .slot-반지1 { grid-area: ring1; }
-:root body #item-tab-equip #ui-equip-list .slot-신발 { grid-area: boots; }
-:root body #item-tab-equip #ui-equip-list .slot-반지2 { grid-area: ring2; }
+:root body :is(#item-tab-equip #ui-equip-list, .build-set-paperdoll) .slot-목걸이 { grid-area: amulet; }
+:root body :is(#item-tab-equip #ui-equip-list, .build-set-paperdoll) .slot-투구 { grid-area: helm; }
+:root body :is(#item-tab-equip #ui-equip-list, .build-set-paperdoll) .slot-코어 { grid-area: core; }
+:root body :is(#item-tab-equip #ui-equip-list, .build-set-paperdoll) .slot-무기 { grid-area: weapon; }
+:root body :is(#item-tab-equip #ui-equip-list, .build-set-paperdoll) .slot-갑옷 { grid-area: body; }
+:root body :is(#item-tab-equip #ui-equip-list, .build-set-paperdoll) .slot-방패 { grid-area: shield; }
+:root body :is(#item-tab-equip #ui-equip-list, .build-set-paperdoll) .slot-장갑1 { grid-area: glove1; }
+:root body :is(#item-tab-equip #ui-equip-list, .build-set-paperdoll) .slot-허리띠 { grid-area: belt; }
+:root body :is(#item-tab-equip #ui-equip-list, .build-set-paperdoll) .slot-장갑2 { grid-area: glove2; }
+:root body :is(#item-tab-equip #ui-equip-list, .build-set-paperdoll) .slot-반지1 { grid-area: ring1; }
+:root body :is(#item-tab-equip #ui-equip-list, .build-set-paperdoll) .slot-신발 { grid-area: boots; }
+:root body :is(#item-tab-equip #ui-equip-list, .build-set-paperdoll) .slot-반지2 { grid-area: ring2; }
 /* 세 번째 반지(초월 공허 '세 번째 손가락', js/canvas-passive-tree.js getPaperdollSlots): 코어 칸이 없으면 그 자리, 코어가 있으면 신발 아래 줄. */
-:root body #item-tab-equip #ui-equip-list .slot-반지3 { grid-area: ring3; }
-:root body #item-tab-equip #ui-equip-list.equipment-paperdoll.has-ring3:not(.has-core) {
+:root body :is(#item-tab-equip #ui-equip-list, .build-set-paperdoll) .slot-반지3 { grid-area: ring3; }
+:root body :is(#item-tab-equip #ui-equip-list, .build-set-paperdoll).equipment-paperdoll.has-ring3:not(.has-core) {
   grid-template-areas: "amulet helm ring3" "weapon body shield" "weapon body shield" "glove1 belt glove2" "ring1 boots ring2"; }
-:root body #item-tab-equip #ui-equip-list.equipment-paperdoll.has-ring3.has-core { grid-template-rows: repeat(6, 68px);
+:root body :is(#item-tab-equip #ui-equip-list, .build-set-paperdoll).equipment-paperdoll.has-ring3.has-core { grid-template-rows: repeat(6, var(--eqw-doll-row, 68px));
   grid-template-areas: "amulet helm core" "weapon body shield" "weapon body shield" "glove1 belt glove2" "ring1 boots ring2" ". ring3 ."; }
-:root body #item-tab-equip #ui-equip-list > .equipment-slot.slot-반지3.is-off { opacity: .45; filter: grayscale(.6); }
+:root body :is(#item-tab-equip #ui-equip-list, .build-set-paperdoll) > .equipment-slot.slot-반지3.is-off { opacity: .45; filter: grayscale(.6); }
 :root body #item-tab-equip #ui-equip-list > .equipment-slot { --r: color-mix(in srgb, var(--equipment-rarity, #5d4a2e) 75%, #000); position: relative; display: grid;
   grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto;
   min-width: 0; min-height: 0; height: auto; margin: 0; padding: 0; overflow: visible; border: 1px solid var(--r); border-radius: 0;
@@ -107,16 +107,6 @@
 :root body #item-tab-equip .equipment-preset-more .eqw-more-panel { width: 150px; }
 :root body #item-tab-equip .equipment-preset-row .equipment-preset-save { flex: 0 0 auto; min-height: 0; padding: 2px 6px; border: 1px solid #4a3a22; border-radius: 0;
   background: transparent; color: var(--eqw-muted); font-size: 12px; }
-:root body #item-tab-equip .equipment-preset-detail { grid-column: 1 / -1; min-width: 0; padding: 6px 2px 3px; border-top: 1px solid #4a3a22;
-  color: var(--eqw-muted); font-size: 12px; line-height: 18px; font-weight: 400; letter-spacing: 0; }
-:root body #item-tab-equip .equipment-preset-caption { display: flex; flex-wrap: wrap; gap: 2px 8px; justify-content: space-between; }
-:root body #item-tab-equip .equipment-preset-caption b { color: var(--eqw-ink); overflow-wrap: anywhere; }
-:root body #item-tab-equip .equipment-preset-caption > span { color: #b8d59e; }
-:root body #item-tab-equip :is(.equipment-preset-note, .equipment-preset-notice) { margin: 4px 0 0; overflow-wrap: anywhere; }
-:root body #item-tab-equip .equipment-preset-notice.is-blocked { color: #ffac92; }
-:root body #item-tab-equip .equipment-preset-build-name { margin: 5px 0 0; color: var(--eqw-gold); overflow-wrap: anywhere; }
-:root body #item-tab-equip .equipment-preset-build-name > span { color: var(--eqw-ink); }
-:root body #item-tab-equip .equipment-preset-review-button { width: 100%; min-height: 36px; margin-top: 6px; padding: 5px; font-size: 12px; }
 
 /* 가방: 머리 한 줄(칸 수, 검색), 그 아래 쪽 단추 줄, 가방 오른쪽 도구 줄(2026-10-19 사용자 정리: 정렬 고르기 삭제, ⋯ 대신 도구 줄) */
 :root body #item-tab-equip .equipment-window .eqw-bag-card { padding: 8px 10px 10px; }
@@ -308,7 +298,6 @@
 /* 휴대폰: 요약 한 줄, 장착 장비 ▾로 장착 칸과 세팅을 펼친다. 선택한 장비는 아래에서 올라온다. */
 @media (max-width: 1080px) {
   :root body #item-tab-equip .equipment-preset-row :is(.equipment-preset-slot, .equipment-preset-save, .equipment-preset-more > summary) { min-height: 44px; min-width: 36px; padding: 4px; }
-  :root body #item-tab-equip .equipment-preset-review-button { min-height: 44px; }
   :root body #item-tab-equip .equipment-window { grid-template-columns: minmax(0, 1fr); gap: 8px; }
   :root body #item-tab-equip .equipment-window .equipment-loadout-panel { display: contents; }
   :root body #item-tab-equip .equipment-window .eqw-summary-card { order: -3; padding: 7px 8px; }
