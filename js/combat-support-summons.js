@@ -14,9 +14,18 @@
         return api().prepare({ ...def, tags, ele: summon.ele || def.ele });
     }
 
+    /** 능력치 → 소환수 갈래(룬과 속성)별 사본: 같은 능력치로 여러 소환수가 번갈아 치는 동안 매번 능력치 전체를 복사하지 않는다. */
+    const locals = new WeakMap();
+    const summonKey = summon => `${summon?.gemName || ''}:${summon?.ele || SKILL_DB[summon?.gemName]?.ele || ''}`;
     function localStats(summon, stats) {
-        const key = `${summon?.gemName || ''}:${summon?.ele || SKILL_DB[summon?.gemName]?.ele || ''}`;
+        const key = summonKey(summon);
         if (stats.summonSupportOwner === key) return stats;
+        let byKey = locals.get(stats);
+        if (!byKey) locals.set(stats, byKey = new Map());
+        if (!byKey.has(key)) byKey.set(key, buildLocalStats(summon, stats, key));
+        return byKey.get(key);
+    }
+    function buildLocalStats(summon, stats, key) {
         const prepared = skill(summon), result = { ...stats, summonSupportOwner: key,
             summonSupportSkill: prepared, summonSupportEffects: prepared.supportEffects, summonSupportApplied: {} };
         Object.entries(stats.summonSupportApplied || {}).forEach(([stat, amount]) => { result[stat] -= amount; });
@@ -47,11 +56,17 @@
         hit.parts.forEach(part => { part.damage *= multiplier; part.source *= multiplier; });
     }
 
+    /** 단 하나의 사역(soleMinion): 공격 소환수 하나와 수호 소환수(골렘)는 모두. 2026-10-23 전과 같다. */
+    function soleMinionDefs(defs) {
+        const attack = defs.find(row => row.db.tags.includes('summon_attack'));
+        return [...(attack ? [attack] : []), ...defs.filter(row => row.db.tags.includes('summon_guard'))];
+    }
     /** Auras reserve their normal slot first; reinforcement adds one physical summon per equipped attack rune. */
     function runtimeDefs(defs, stats) {
-        const base = defs.slice(0, getSummonRuntimeCap(stats)).filter(row => !row.db.tags.includes('summon_buff'));
+        const sole = !!stats?.passiveKeystoneFlags?.soleMinion;
+        const base = (sole ? soleMinionDefs(defs) : defs.slice(0, getSummonRuntimeCap(stats))).filter(row => !row.db.tags.includes('summon_buff'));
         const extra = [], reinforced = new Set();
-        if (!stats?.passiveKeystoneFlags?.soleMinion) base.forEach(row => {
+        if (!sole) base.forEach(row => {
             const bonus = api().prepare(row.db).supportEffects.summon?.extra || 0;
             if (!bonus || reinforced.has(row.name)) return;
             reinforced.add(row.name);

@@ -82,21 +82,23 @@ const SKILL_DB = {
     '서리바람 내지르기': { isGem: true, baseDmg: 1.24, baseSpd: 1.0, leech: 0, crit: 3, dmgScale: 0.062, spdScale: 0.015, ele: 'cold', targetMode: 'cleave', targets: 6, combatPattern: { kind: 'radialBurst', waveMsPerCell: 100 }, ailmentChanceBonus: { chill: 25 }, desc: '앞으로 내지른 냉기 파동이 앞 4칸과 그 위아래 한 줄로 퍼지며 닿는 적부터 맞습니다.', tags: ['attack', 'aoe', 'elemental', 'cold', 'shout'] },
     '화살비': { isGem: true, baseDmg: 1.0, baseSpd: 0.55, leech: 0, crit: 6, dmgScale: 0.05, spdScale: 0.01, ele: 'phys', targetMode: 'all', targets: 6, projectilePattern: { mode: 'lob', kind: 'blast', fixed: true }, rangeText: '발사 방식: 하늘로 쏘아 올림, 사거리 7칸, 대상 둘레 1칸, 고유 궤적', combatPattern: { kind: 'authored', stages: [{ label: '화살비', delayMs: 380, damagePct: 100 }, { label: '화살비', delayMs: 600, damagePct: 30 }, { label: '화살비', delayMs: 820, damagePct: 30 }, { label: '화살비', delayMs: 1040, damagePct: 30 }, { label: '화살비', delayMs: 1260, damagePct: 30 }] }, desc: '하늘로 화살을 쏘아 올려 7칸 안 대상 둘레에 화살비를 내립니다. 떨어질 때 100%, 0.22초마다 30%씩 4번 더.', tags: ['attack', 'projectile', 'physical', 'aoe'] },
     // 위습 정령 소환 6종 (스킬 변경분 2, 2026-09-30): 동물 소환 8종을 대신한다. 시트·비행 시간 data/wisp-summons.js, 수치 combat.js getSummonProfile.
-    '화염 위습 소환': { isGem: true, baseDmg: 0.1, baseSpd: 1.0, leech: 0, crit: 0, dmgScale: 0, spdScale: 0, ele: 'fire', targetMode: 'single', targets: 1, desc: '공격형 소환수 룬. 상하좌우로 불꽃 꼬리가 달린 화염 위습 정령을 소환합니다. 위습이 불덩이를 포물선으로 던져 화염 피해를 줍니다.', tags: ['summon', 'summon_attack', 'projectile', 'fire', 'elemental'] },
-    '냉기 위습 소환': { isGem: true, baseDmg: 0.1, baseSpd: 1.0, leech: 0, crit: 0, dmgScale: 0, spdScale: 0, ele: 'cold', targetMode: 'single', targets: 1, desc: '공격형 소환수 룬. 얼음 수정 모양의 냉기 위습 정령을 소환합니다. 위습이 얼음 조각을 곧게 던져 냉기 피해를 줍니다.', tags: ['summon', 'summon_attack', 'projectile', 'cold', 'elemental'] },
+    '화염 위습 소환': { isGem: true, baseDmg: 0.1, baseSpd: 1.0, leech: 0, crit: 0, dmgScale: 0, spdScale: 0, ele: 'fire', targetMode: 'single', targets: 1, desc: '공격형 소환수 룬. 상하좌우로 불꽃 꼬리가 달린 화염 위습 정령을 소환합니다. 위습이 불덩이를 포물선으로 던져 화염 피해를 줍니다.', tags: ['summon', 'summon_attack', 'fire', 'elemental'], supportTags: ['projectile'] },
+    '냉기 위습 소환': { isGem: true, baseDmg: 0.1, baseSpd: 1.0, leech: 0, crit: 0, dmgScale: 0, spdScale: 0, ele: 'cold', targetMode: 'single', targets: 1, desc: '공격형 소환수 룬. 얼음 수정 모양의 냉기 위습 정령을 소환합니다. 위습이 얼음 조각을 곧게 던져 냉기 피해를 줍니다.', tags: ['summon', 'summon_attack', 'cold', 'elemental'], supportTags: ['projectile'] },
     '번개 위습 소환': { isGem: true, baseDmg: 0.1, baseSpd: 1.0, leech: 0, crit: 0, dmgScale: 0, spdScale: 0, ele: 'light', targetMode: 'single', targets: 1, desc: '공격형 소환수 룬. 전기 구체 모양의 번개 위습 정령을 소환합니다. 위습이 대상에게 전류를 흘려 감전시키는 번개 피해를 줍니다.', tags: ['summon', 'summon_attack', 'lightning', 'elemental'] },
-    '물리 위습 소환': { isGem: true, baseDmg: 0.1, baseSpd: 1.0, leech: 0, crit: 0, dmgScale: 0, spdScale: 0, ele: 'phys', targetMode: 'single', targets: 1, desc: '공격형 소환수 룬. 고목 씨앗 모양의 물리 위습 정령을 소환합니다. 위습이 땅속으로 뿌리를 보내 대상을 옭아매는 물리 피해를 줍니다.', tags: ['summon', 'summon_attack', 'projectile', 'physical'] },
-    '카오스 위습 소환': { isGem: true, baseDmg: 0.1, baseSpd: 1.0, leech: 0, crit: 0, dmgScale: 0, spdScale: 0, ele: 'chaos', targetMode: 'single', targets: 1, desc: '공격형 소환수 룬. 눈이 하나 있는 보라빛 구체의 카오스 위습 정령을 소환합니다. 위습이 공허 구슬을 포물선으로 던지고 떨어진 자리에 카오스 안개를 남깁니다.', tags: ['summon', 'summon_attack', 'projectile', 'chaos'] },
+    '물리 위습 소환': { isGem: true, baseDmg: 0.1, baseSpd: 1.0, leech: 0, crit: 0, dmgScale: 0, spdScale: 0, ele: 'phys', targetMode: 'single', targets: 1, desc: '공격형 소환수 룬. 고목 씨앗 모양의 물리 위습 정령을 소환합니다. 위습이 땅속으로 뿌리를 보내 대상을 옭아매는 물리 피해를 줍니다.', tags: ['summon', 'summon_attack', 'physical'], supportTags: ['projectile'] },
+    '카오스 위습 소환': { isGem: true, baseDmg: 0.1, baseSpd: 1.0, leech: 0, crit: 0, dmgScale: 0, spdScale: 0, ele: 'chaos', targetMode: 'single', targets: 1, desc: '공격형 소환수 룬. 눈이 하나 있는 보라빛 구체의 카오스 위습 정령을 소환합니다. 위습이 공허 구슬을 포물선으로 던지고 떨어진 자리에 카오스 안개를 남깁니다.', tags: ['summon', 'summon_attack', 'chaos'], supportTags: ['projectile'] },
     '분광 위습 소환': { isGem: true, baseDmg: 0.1, baseSpd: 1.0, leech: 0, crit: 0, dmgScale: 0, spdScale: 0, ele: 'light', elementLabel: '삼원소', targetMode: 'single', targets: 1, desc: '공격형 소환수 룬. 화염/냉기/번개 세 구체가 서로 도는 분광 위습 정령을 소환합니다. 위습이 삼원소가 꼬인 광선을 쏘아 공격마다 화염/냉기/번개 중 하나로 피해를 줍니다.', tags: ['summon', 'summon_attack', 'elemental'] },
-    '수액 골렘 소환': { isGem: true, baseDmg: 0, baseSpd: 1, dmgScale: 0, spdScale: 0, leech: 0, crit: 0, ele: 'phys', targetMode: 'single', targets: 1, guardRedirectPct: 25, desc: '소환 한도 1을 사용합니다. 수액 골렘이 살아 있는 동안 최종 적중 피해의 25%를 대신 받습니다. 지속 피해는 대신 받지 않습니다.', tags: ['summon', 'summon_guard', 'physical'] },
-    // 2026-10-24 공용 보조 개편: 사역룬은 한도를 쓰지만 소환수를 생성하지 않는 버프형 스킬룬이다.
-    // 고정 피해는 기존 전령 하급의 절반인 시험값. 수비·유틸 수치와 레벨 성장은 이전 하급 값을 유지한다.
-    '물리 사역룬': { isGem: true, baseDmg: 0, baseSpd: 1, dmgScale: 0, spdScale: 0, ele: 'phys', tags: ['summon', 'summon_buff', 'physical'], aura: { flatStat: 'physFlatDmg', flatBase: 4, flatScale: 1.6, stats: [{ stat: 'dr', base: 2, scale: 0.5 }] }, desc: '소환 한도 1. 물리 고정 피해와 물리 피해 감소를 부여합니다. 보조룬 효과는 받지 않습니다.' },
-    '화염 사역룬': { isGem: true, baseDmg: 0, baseSpd: 1, dmgScale: 0, spdScale: 0, ele: 'fire', tags: ['summon', 'summon_buff', 'fire', 'elemental'], aura: { flatStat: 'fireFlatDmg', flatBase: 4, flatScale: 1.6, stats: [{ stat: 'resF', base: 4, scale: 1.2 }] }, desc: '소환 한도 1. 화염 고정 피해와 화염 저항을 부여합니다. 보조룬 효과는 받지 않습니다.' },
-    '냉기 사역룬': { isGem: true, baseDmg: 0, baseSpd: 1, dmgScale: 0, spdScale: 0, ele: 'cold', tags: ['summon', 'summon_buff', 'cold', 'elemental'], aura: { flatStat: 'coldFlatDmg', flatBase: 4, flatScale: 1.6, stats: [{ stat: 'resC', base: 4, scale: 1.2 }] }, desc: '소환 한도 1. 냉기 고정 피해와 냉기 저항을 부여합니다. 보조룬 효과는 받지 않습니다.' },
-    '번개 사역룬': { isGem: true, baseDmg: 0, baseSpd: 1, dmgScale: 0, spdScale: 0, ele: 'light', tags: ['summon', 'summon_buff', 'lightning', 'elemental'], aura: { flatStat: 'lightFlatDmg', flatBase: 4, flatScale: 1.6, stats: [{ stat: 'resL', base: 4, scale: 1.2 }] }, desc: '소환 한도 1. 번개 고정 피해와 번개 저항을 부여합니다. 보조룬 효과는 받지 않습니다.' },
-    '카오스 사역룬': { isGem: true, baseDmg: 0, baseSpd: 1, dmgScale: 0, spdScale: 0, ele: 'chaos', tags: ['summon', 'summon_buff', 'chaos'], aura: { flatStat: 'chaosFlatDmg', flatBase: 4, flatScale: 1.6, stats: [{ stat: 'resChaos', base: 3, scale: 1 }] }, desc: '소환 한도 1. 카오스 고정 피해와 카오스 저항을 부여합니다. 보조룬 효과는 받지 않습니다.' },
-    '유틸리티 사역룬': { isGem: true, baseDmg: 0, baseSpd: 1, dmgScale: 0, spdScale: 0, ele: 'phys', tags: ['summon', 'summon_buff'], aura: { stats: [{ stat: 'regen', base: 0.2, scale: 0.1 }, { stat: 'move', base: 1, scale: 1 }] }, desc: '소환 한도 1. 생명력 재생과 이동 속도를 부여합니다. 보조룬 효과는 받지 않습니다.' }
+    '수액 골렘 소환': { isGem: true, baseDmg: 0, baseSpd: 1, dmgScale: 0, spdScale: 0, leech: 0, crit: 0, ele: 'phys', targetMode: 'single', targets: 1, guardRedirectPct: 35, desc: '소환 한도 1을 사용합니다. 수액 골렘이 살아 있는 동안 최종 적중 피해의 35%를 대신 받습니다. 지속 피해는 대신 받지 않습니다.', tags: ['summon', 'summon_guard', 'physical'] },
+    // 사역룬(2026-10-24 공용 보조 개편, 같은 날 스킬룬 추가본 v54의 이름 "장군의 가호, 화염의 가호, 한기의 가호, 낙뢰의 가호, 심연의 가호"와
+    // 이름 제안 "수액의 가호"): 소환 칸에서 한도 1을 쓰지만 소환수를 만들지 않고 가호를 건다(js/combat-support-runes.js activeBlessing). 가호는
+    // 하나만, 보조룬은 받지 않는다. 수치는 인계 카드의 Lv.10(고정 피해 37, 물리 피해 감소 7%, 저항 16%, 카오스 저항 13%, 재생 1.2%, 이동 11%)에
+    // 맞췄다(레벨 단계 9). 인계는 12초 가호를 다시 거는 방식이지만 게임의 소환 칸 룬은 끼어 있는 동안 늘 서 있으므로(위습과 같다) 가호도 늘 걸린다.
+    '장군의 가호': { isGem: true, baseDmg: 0, baseSpd: 1, dmgScale: 0, spdScale: 0, ele: 'phys', tags: ['summon', 'summon_buff', 'physical'], aura: { flatStat: 'physFlatDmg', flatBase: 8, flatScale: 3.2, stats: [{ stat: 'dr', base: 2.5, scale: 0.5 }] }, desc: '세 스킬의 모든 타격에 물리 고정 피해가 더해지고 물리 피해 감소를 받습니다. 소환 한도 1을 쓰고, 가호는 하나만 걸립니다. 발밑에 ᚢ 룬이 떠오릅니다.' },
+    '화염의 가호': { isGem: true, baseDmg: 0, baseSpd: 1, dmgScale: 0, spdScale: 0, ele: 'fire', tags: ['summon', 'summon_buff', 'fire', 'elemental'], aura: { flatStat: 'fireFlatDmg', flatBase: 8, flatScale: 3.2, stats: [{ stat: 'resF', base: 5.2, scale: 1.2 }] }, desc: '세 스킬의 모든 타격에 화염 고정 피해가 더해지고 화염 저항을 받습니다. 소환 한도 1을 쓰고, 가호는 하나만 걸립니다. 발밑에 ᛝ 룬이 떠오릅니다.' },
+    '한기의 가호': { isGem: true, baseDmg: 0, baseSpd: 1, dmgScale: 0, spdScale: 0, ele: 'cold', tags: ['summon', 'summon_buff', 'cold', 'elemental'], aura: { flatStat: 'coldFlatDmg', flatBase: 8, flatScale: 3.2, stats: [{ stat: 'resC', base: 5.2, scale: 1.2 }] }, desc: '세 스킬의 모든 타격에 냉기 고정 피해가 더해지고 냉기 저항을 받습니다. 소환 한도 1을 쓰고, 가호는 하나만 걸립니다. 발밑에 ᛁ 룬이 떠오릅니다.' },
+    '낙뢰의 가호': { isGem: true, baseDmg: 0, baseSpd: 1, dmgScale: 0, spdScale: 0, ele: 'light', tags: ['summon', 'summon_buff', 'lightning', 'elemental'], aura: { flatStat: 'lightFlatDmg', flatBase: 8, flatScale: 3.2, stats: [{ stat: 'resL', base: 5.2, scale: 1.2 }] }, desc: '세 스킬의 모든 타격에 번개 고정 피해가 더해지고 번개 저항을 받습니다. 소환 한도 1을 쓰고, 가호는 하나만 걸립니다. 발밑에 ᛊ 룬이 떠오릅니다.' },
+    '심연의 가호': { isGem: true, baseDmg: 0, baseSpd: 1, dmgScale: 0, spdScale: 0, ele: 'chaos', tags: ['summon', 'summon_buff', 'chaos'], aura: { flatStat: 'chaosFlatDmg', flatBase: 8, flatScale: 3.2, stats: [{ stat: 'resChaos', base: 4, scale: 1 }] }, desc: '세 스킬의 모든 타격에 카오스 고정 피해가 더해지고 카오스 저항을 받습니다. 소환 한도 1을 쓰고, 가호는 하나만 걸립니다. 발밑에 ᛒ 룬이 떠오릅니다.' },
+    '수액의 가호': { isGem: true, baseDmg: 0, baseSpd: 1, dmgScale: 0, spdScale: 0, ele: 'phys', elementLabel: '피해 없음', tags: ['summon', 'summon_buff'], aura: { stats: [{ stat: 'regen', base: 0.3, scale: 0.1 }, { stat: 'move', base: 2, scale: 1 }] }, desc: '생명력이 천천히 차오르고 이동 속도가 오릅니다. 소환 한도 1을 쓰고, 가호는 하나만 걸립니다. 발밑에 ᛃ 룬이 떠오릅니다.' }
 };
 
 // 루프 시작 후 첫 처치에 재능(시작 캐릭터)별로 확정 지급되는 스킬룬.
@@ -213,6 +215,7 @@ const SKILL_RUNE_WEAPONS = Object.freeze({
     projectile: Object.freeze(['sword', 'bow', 'orb']),
     spell: Object.freeze(['greatsword', 'sword', 'bow', 'orb', 'flask', 'censer']),
     wisp: Object.freeze(['greatsword', 'sword', 'bow', 'orb', 'flask', 'censer']),
+    servant: Object.freeze(['greatsword', 'sword', 'bow', 'orb', 'flask', 'censer']),
     greatsword: Object.freeze(['greatsword']), bow: Object.freeze(['bow']), sword: Object.freeze(['sword']), orb: Object.freeze(['orb']),
     censer: Object.freeze(['censer']), flask: Object.freeze(['flask'])
 });
@@ -270,6 +273,13 @@ const SKILL_RUNE_FAMILY = Object.freeze({
     '물리 위습 소환': 'wisp',
     '카오스 위습 소환': 'wisp',
     '분광 위습 소환': 'wisp',
+    // servant(사역룬 가호, 2026-10-24 v54): 위습과 같이 맨손으로는 쓰지 못한다
+    '장군의 가호': 'servant',
+    '화염의 가호': 'servant',
+    '한기의 가호': 'servant',
+    '낙뢰의 가호': 'servant',
+    '심연의 가호': 'servant',
+    '수액의 가호': 'servant',
     // bow
     '관통 사격': 'bow',
     '연발 사격': 'bow',
@@ -300,7 +310,7 @@ const SKILL_RUNE_FAMILY = Object.freeze({
 const SKILL_RUNE_STANCE_BY_CATEGORY = Object.freeze({ greatsword: 'greatsword', scimitar: 'sword', shortbow: 'bow', orb: 'orb', flask: 'flask', censer: 'censer' });
 const SKILL_RUNE_STANCE_LABELS = Object.freeze({ unarmed: '맨손', greatsword: '대검', sword: '한손검', bow: '활', orb: '오브', flask: '플라스크', censer: '향로' });
 /** 지금 무기로 못 쓰는 룬의 카드와 알림에 붙는 이유(계열마다). 전용 계열은 그 무기 이름이 붙는다. */
-const SKILL_RUNE_WEAPON_NOTES = Object.freeze({ melee: '근접 무기 필요', projectile: '활, 오브, 한손검 필요', spell: '무기 필요', wisp: '무기 필요' });
+const SKILL_RUNE_WEAPON_NOTES = Object.freeze({ melee: '근접 무기 필요', projectile: '활, 오브, 한손검 필요', spell: '무기 필요', wisp: '무기 필요', servant: '무기 필요' });
 safeExposeData({ SKILL_RUNE_WEAPONS, SKILL_RUNE_FAMILY, SKILL_RUNE_STANCE_BY_CATEGORY, SKILL_RUNE_STANCE_LABELS, SKILL_RUNE_WEAPON_NOTES });
 
 
@@ -489,6 +499,13 @@ const SKILL_GEM_ART_PATHS = Object.freeze({
     '물리 위습 소환': 'assets/gems/runes/114_summon-iron-wisp.png',
     '카오스 위습 소환': 'assets/gems/runes/115_summon-void-wisp.png',
     '분광 위습 소환': 'assets/gems/runes/116_summon-prism-wisp.png',
+    // 사역룬 가호 6종: 인계 v54의 임시 아이콘(Claude가 코드로 그림, 정식 아이콘은 사용자 PixelLab 차례)
+    '장군의 가호': 'assets/gems/runes/121_generals-blessing.png',
+    '화염의 가호': 'assets/gems/runes/122_blessing-of-flame.png',
+    '한기의 가호': 'assets/gems/runes/123_blessing-of-frost.png',
+    '낙뢰의 가호': 'assets/gems/runes/124_blessing-of-thunder.png',
+    '심연의 가호': 'assets/gems/runes/125_blessing-of-the-abyss.png',
+    '수액의 가호': 'assets/gems/runes/126_blessing-of-sap.png',
     '차원찢기': 'assets/gems/runes/054_riftstep.png',
     '향로구름': 'assets/gems/runes/055_censer-cloud.png',
     '작살화살': 'assets/gems/runes/056_harpoon-arrow.png',

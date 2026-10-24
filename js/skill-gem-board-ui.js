@@ -82,7 +82,7 @@
             <div class="skill-board-stage element-${meta.className}${slots.length ? ' has-ring' : ''}">
                 ${renderEngraveRing(slots)}
                 <button type="button" class="skill-board-core active" data-board-pick="active" data-board-gem="${escapeHTML(main)}" ${hoverHint('active', main)} aria-label="주 공격: ${escapeHTML(main)}, 바꿀 룬 고르기">${gemArt(main, 'skill-board-core-art')}</button>
-            </div></div>${renderSummons(stats)}</div><p class="skill-board-link-note">세 스킬에 공용 보조 연결 · 태그가 맞는 스킬에만 적용</p>`;
+            </div></div>${renderSummons(stats)}</div>`;
     }
 
     /** 칸 아래 한 줄용 적용 대상(gemSelectionUi.application의 문장을 줄인 것). */
@@ -113,9 +113,9 @@
         const slots = worn.map(name => renderSupportSlot(name, stats));
         for (let i = worn.length; i < cap; i++) slots.push('<button type="button" class="support-slot is-empty" data-board-pick="support" aria-label="빈 보조스킬룬 칸, 룬 고르기"><i>+</i><b>빈 칸</b><small>&nbsp;</small></button>');
         slots.push('<div class="support-slot is-lock" aria-label="다음 보조스킬룬 칸은 장비, 패시브로 늘어납니다"><i></i><b>다음 칸</b><small>장비, 패시브</small></div>');
-        return `<div class="support-slots-head"><span>보조스킬룬 · 세 스킬 공용</span><em>칸 ${worn.length} / ${cap}</em>
+        return `<div class="support-slots-head"><span>보조스킬룬</span><em>칸 ${worn.length} / ${cap}</em>
                 <div class="support-resonance" title="장착 보조스킬룬이 쓰는 공명력"><small>공명력</small><span class="support-resonance-bar"><i style="width:${fill}%"></i></span><b>${used}</b><small>/ ${resonanceCap}</small></div></div>
-            <div class="support-slots-row">${slots.join('')}</div>${gemSelectionUi.skillSummary(focusedSkill.kind, focusedName(), stats)}<div class="support-indicator-key">● 적용 · ○ 태그 불일치 · ◌ 빈 칸 · ◉ 소환 대응 없음 · ⊙ 사역룬 제외</div>`;
+            <div class="support-slots-row">${slots.join('')}</div>${gemSelectionUi.skillSummary(focusedSkill.kind, focusedName(), stats)}<div class="support-indicator-key">● 적용, ○ 태그 불일치, ◌ 빈 칸, ◉ 소환 대응 없음, ⊙ 사역룬 제외</div>`;
     }
 
     /** @param {object} stats current player stats (getPlayerStats). Rewrites the board only when its HTML changed. */

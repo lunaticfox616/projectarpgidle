@@ -32,10 +32,10 @@ const ACT_REWARD_DB = {
             { kind: 'currency', currency: 'magicBud', value: 2, label: '마법의 새싹 2개', desc: '' }
         ],
         choices: [
-            { kind: 'support', gem: '가벼운 발걸음', fallbackKind: 'points', fallbackValue: 1, label: '보조스킬룬 - 가벼운 발걸음', desc: '이동 속도를 높여 맵 진행을 빠르게 합니다.' },
+            { kind: 'support', gem: '가속', fallbackKind: 'points', fallbackValue: 1, label: '보조스킬룬 - 가속', desc: '공격 속도를 높여 맵 진행을 빠르게 합니다.' },
             { kind: 'support', gem: '날카로움', fallbackKind: 'points', fallbackValue: 1, label: '보조스킬룬 - 날카로움', desc: '치명타 확률을 높이는 보조스킬룬을 얻습니다.' },
             { kind: 'support', gem: '정밀 하한', fallbackKind: 'points', fallbackValue: 1, label: '보조스킬룬 - 정밀 하한', desc: '피해 하한을 올려 딜 편차를 줄입니다.' },
-            { kind: 'support', gem: '방어 상승', fallbackKind: 'points', fallbackValue: 1, label: '보조스킬룬 - 방어 상승', desc: '물리 피해 감소를 올려 생존력을 보탭니다.' }
+            { kind: 'support', gem: '생명력 흡수', fallbackKind: 'points', fallbackValue: 1, label: '보조스킬룬 - 생명력 흡수', desc: '준 피해의 일부를 생명력으로 흡수해 생존력을 보탭니다.' }
         ]
     },
     2: {

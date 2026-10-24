@@ -21,8 +21,6 @@
         echoPower: ['wave', 'arcane'], spellFlatPct: ['orb', 'arcane'], channelingPctDmg: ['reticle', 'arcane'],
         minePctDmg: ['bomb', 'fire'], potionPctDmg: ['flask', 'life']
     });
-    /** 전령의 속성은 표시 이름의 첫 낱말이다('화염 플랫 피해'). */
-    const HERALD_TONES = Object.freeze({ 물리: 'phys', 화염: 'fire', 냉기: 'cold', 번개: 'lightning', 카오스: 'chaos' });
     const FALLBACK = Object.freeze(['star', 'neutral']);
     /** 체감형은 동작을 뜻하는 문양을 쓴다. 같은 속성이라도 주입/변환/점화의 문양은 다르다. */
     const BEHAVIOR_LOOKS = Object.freeze({
@@ -33,9 +31,8 @@
         '유지 시전': ['reticle', 'speed'], '분산': ['fork', 'arcane'], '집속': ['reticle', 'crit'], '불붙이기': ['flame', 'life'],
         '터지는 시체': ['skull', 'chaos'], '처형': ['down', 'crit'], '증원': ['split', 'summon']
     });
+    /** 룬 그림이 없는 소환 칸 룬의 문양(가호 6종은 룬 그림이 있다: data/skills.js SKILL_GEM_ART_PATHS). */
     const SUMMON_LOOKS = Object.freeze({
-        '물리 사역룬': ['orb', 'phys'], '화염 사역룬': ['orb', 'fire'], '냉기 사역룬': ['orb', 'cold'],
-        '번개 사역룬': ['orb', 'lightning'], '카오스 사역룬': ['orb', 'chaos'], '유틸리티 사역룬': ['leaf', 'life'],
         '수액 골렘 소환': ['shield', 'summon']
     });
 
@@ -43,7 +40,6 @@
     function sigilLook(name) {
         const def = SUPPORT_GEM_DB[name] || {};
         if (BEHAVIOR_LOOKS[name]) return BEHAVIOR_LOOKS[name];
-        if (Number.isFinite(def.heraldExplodeBase)) return ['skull', HERALD_TONES[String(def.name || '').split(' ')[0]] || 'phys'];
         const base = BY_STAT[def.stat] || FALLBACK;
         // 공명 룬은 같은 원소의 피해 룬과 색이 같으므로 그림을 소리굽쇠로 바꾼다.
         return def.scaleWithOwnStat ? ['fork', base[1]] : base;

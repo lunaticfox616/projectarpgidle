@@ -1173,6 +1173,7 @@ function drawBattleGroundLayer(ctx, effects, view) {
     trialTrapArt.drawGround(ctx, effects, view.now, view.gridProj); // trap cracks, glow, frost, rune, puddle, scorch
     fxRemake.begin(ctx, view.gridProj);
     if (typeof stageSkillVfx === 'object') stageSkillVfx.tick(view.now); // 무대의 새 스킬 이펙트(js/canvas-stage-skill-vfx.js): 프레임마다 시계를 맞춘다
+    if (typeof stageBlessing === 'object') stageBlessing.frame(view.now); // 사역룬 가호의 발밑(js/canvas-stage-blessing.js)
     worldTreeSkillFx.castFrame(ctx,view.gridProj,'ground');
     worldTreeSkillFx.drawQueued(ctx, battleVisualState.skillEffects || [], view.now, 'ground');
     for (let fx of effects) {
@@ -1183,6 +1184,7 @@ function drawBattleGroundLayer(ctx, effects, view) {
     wispSummonFx.drawLayer('ground', view.now);
     fxRemake.end();
     if (typeof stageSkillVfx === 'object') stageSkillVfx.draw(ctx, 'ground', view.gridProj);
+    if (typeof stageBlessing === 'object') stageBlessing.draw(ctx, view.gridProj);
     if (typeof stageOcean === 'object') stageOcean.ground(ctx, view); // 심해: 발밑 먼지와 공기 기둥
     if (typeof stageIncidents === 'object') stageIncidents.ground(ctx, view); // 잔잔한 사건: 별똥별
     drawActiveSummons(ctx, view.playerPos, view.now, view.gridProj);

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* 스킬룬 이펙트 묶음(2026-10-20 사용자가 준 "스킬룬 디렉터 전달" v42와 그 추가본 v44(바위 플라스크, 같은 경로에 덮어 쓴 폴더). 그 앞은 10-19 v36, 10-17 v32, 10-13 "스킬젬 리메이크 인계" v21:
+/* 스킬룬 이펙트 묶음(2026-10-20 사용자가 준 "스킬룬 디렉터 전달" v42와 그 추가본 v44(바위 플라스크), v54(2026-10-24 사역룬 가호, 같은 경로에 덮어 쓴 폴더). 그 앞은 10-19 v36, 10-17 v32, 10-13 "스킬젬 리메이크 인계" v21:
  * 구매 팩에서 고른 이펙트 그림과 룬마다의 연결표)을 게임이 읽는 모양으로 옮긴다(docs/stage-view-20261011.md).
  *
  *   node scripts/build-stage-skill-vfx.cjs <인계 폴더> [복사해 둘 폴더]
@@ -87,15 +87,17 @@ function readLiteral(text) {
     if (at < text.length && text[at] !== ';') fail('끝');
     return out;
 }
-/** `const 이름 = { … };` 의 묶음 글: 여는 괄호부터 줄 머리의 닫는 괄호까지(한 줄짜리는 그 줄 끝까지). */
+/** `const 이름 = { … };` 의 묶음 글: 여는 괄호부터 그 줄과 같은 들여쓰기의 닫는 괄호까지(한 줄짜리는 그 줄 끝까지, 줄 끝 주석은 뺀다).
+ * 들여 쓴 표(v54: OLDFX 안의 룬 획 RUNES)도 읽는다. */
 function tableText(name) {
     const start = template.indexOf(`const ${name} = {`);
     if (start < 0) throw new Error('표가 없다: ' + name);
+    const indent = template.slice(template.lastIndexOf('\n', start) + 1, start);
     const open = template.indexOf('{', start), lineEnd = template.indexOf('\n', open);
-    const oneLine = template.slice(open, lineEnd).trimEnd();
+    const oneLine = template.slice(open, lineEnd).replace(/\s*\/\/.*$/, '').trimEnd();
     if (oneLine.endsWith('};')) return oneLine.slice(0, -1);
-    const close = template.indexOf('\n};', open);
-    return template.slice(open, close + 2);
+    const close = template.indexOf('\n' + indent + '};', open);
+    return template.slice(open, close + indent.length + 2);
 }
 const table = name => readLiteral(tableText(name));
 
@@ -119,6 +121,14 @@ for (const line of tableText('CLIPS').split('\n')) {
 // 속성의 세 색(코드로 그리는 연출이 쓴다): 이름은 빼고 색만 옮긴다.
 const elements = Object.fromEntries(Object.entries(table('EL')).map(([key, row]) => [key, { c1: row.c1, c2: row.c2, c3: row.c3 }]));
 const hitPool = template.includes('const HIT_POOL = {') ? table('HIT_POOL') : {};
+/** 사역룬 가호의 발밑(v54, 2026-10-24 사역룬 추가본): 속성마다 바닥에 눕혀 도는 결정진 클립과 그 투명도, 돌기, 줄임(BLESS_VFX, none은 수액의
+ * 가호), 도는 빠르기(BLESS_SPIN, 초당 라디안), 속성 표에 없는 수액의 가호 색(BLESS_COL), 둘레에 찍는 룬 글자의 획(RUNES, 5×7 격자, 가호가 쓰는
+ * 글자만). v54 앞의 인계면 비운다. */
+const hasBless = template.includes('const BLESS_VFX = {');
+const blessFloors = hasBless ? table('BLESS_VFX') : {};
+const blessSpin = Number((/const BLESS_SPIN = ([\d.]+);/.exec(template) || [])[1]) || 0;
+const blessColours = hasBless && template.includes('const BLESS_COL = {') ? table('BLESS_COL') : {};
+const runeStrokes = hasBless ? table('RUNES') : {};
 /** 칸 표: 첫 장은 그대로, 둘째 장(vfx2)은 줄마다 im: 1을 붙여 합친다. */
 const SHEETS = ['vfx', 'vfx2'].filter(name => fs.existsSync(path.join(sim, `vfx/${name}.json`)));
 const atlasAll = {};
@@ -148,9 +158,20 @@ for (const [id, map] of Object.entries(gems)) for (const [hook, value] of Object
     if (hook === 'ramp' || hook === 'chop' || hook === 'old') continue;
     for (const ref of refsOf(value)) if (!SPECIAL.has(ref) && !clips[ref.split('@')[0]]) throw new Error(`룬 ${id}의 ${hook}: 없는 클립 ${ref}`);
 }
-/** 룬의 갈래: cast 시전 마법진을 띄운다(주문, 위습, 시전과 집중 슬롯), melee 근접 타격 모양을 쓴다(인계의 kind가 strike, whirl, move). */
+/** 룬의 갈래: cast 시전 마법진을 띄운다(주문, 위습, 사역룬, 시전과 집중 슬롯), melee 근접 타격 모양을 쓴다(인계의 kind가 strike, whirl, move),
+ * rune 사역룬이 발밑에 띄우는 룬 글자. */
 const meta = {};
-for (const gem of gemList) meta[gem.id] = { name: gem.n, el: gem.el, cast: /시전|집중/.test(gem.slot) || gem.fam === 'spell' || gem.fam === 'wisp', melee: ['strike', 'whirl', 'move'].includes(gem.kind), kind: gem.kind };
+for (const gem of gemList) {
+    meta[gem.id] = { name: gem.n, el: gem.el, cast: /시전|집중/.test(gem.slot) || ['spell', 'wisp', 'servant'].includes(gem.fam), melee: ['strike', 'whirl', 'move'].includes(gem.kind), kind: gem.kind,
+        ...(gem.fam === 'servant' ? { rune: gem.p.rune } : {}) };
+}
+const blessRunes = {};
+for (const row of Object.values(meta)) {
+    if (!row.rune) continue;
+    if (!runeStrokes[row.rune]) throw new Error(`사역룬 ${row.name}: 없는 룬 글자 ${row.rune}`);
+    blessRunes[row.rune] = runeStrokes[row.rune];
+}
+for (const [element, row] of Object.entries(blessFloors)) if (!clips[String(row.floor).split('@')[0]]) throw new Error(`가호 ${element}: 없는 클립 ${row.floor}`);
 /** 룬을 쓸 때 주인공이 하는 동작(v32부터의 motions): 룬 번호 → 직업 → 무기 자세 → data/stage-characters.js의 동작 이름('강타' → 'slam'). */
 const heroSets = (() => {
     const sandbox = { safeExposeData: data => Object.assign(sandbox, data) };
@@ -196,7 +217,7 @@ const megabytes = files.reduce((sum, file) => sum + fs.statSync(path.join(sim, '
 const q = value => JSON.stringify(value).replace(/"([A-Za-z_$][\w$]*)":/g, '$1:').replace(/"/g, '\'');
 const rows = (object, indent) => Object.entries(object).map(([key, value]) => `${indent}${/^[A-Za-z_$][\w$]*$/.test(key) ? key : `'${key}'`}: ${q(value)}`).join(',\n');
 const text = `// 스킬 이펙트 묶음 (js/canvas-stage-skill-vfx.js). scripts/build-stage-skill-vfx.cjs가 만든 표다: 손으로 고치지 않는다.
-// 2026-10-20 사용자가 준 "스킬룬 디렉터 전달"(v42, 추가본 v44)의 이펙트: 구매 팩에서 고른 이펙트 그림 두 장(assets/stage-vfx/vfx.png, vfx2.png,
+// 2026-10-20 사용자가 준 "스킬룬 디렉터 전달"(v42, 추가본 v44, v54)의 이펙트: 구매 팩에서 고른 이펙트 그림 두 장(assets/stage-vfx/vfx.png, vfx2.png,
 // 저장소에 넣지 않는다)과 룬마다 어느 클립을 어느 때 쓰는지, 룬을 쓸 때의 동작. 룬의 판정, 무기 조건, 수치는 data/skills.js가 갖는다.
 //   ramps   색 램프: 어두운 쪽에서 밝은 쪽으로 여섯 단계. 클립을 '이름@램프'로 부르면 그림의 밝기를 이 여섯 색으로 다시 칠한다('@='는 원래 색).
 //   elementRamp 속성 → 램프. 룬이 램프를 정하지 않은 클립은 룬의 속성 색으로 칠한다.
@@ -211,6 +232,9 @@ const text = `// 스킬 이펙트 묶음 (js/canvas-stage-skill-vfx.js). scripts
 //           after 여진, wave 나아가는 파동, zap 연쇄 번개, fall 낙하, tick 지속 타격, muzzle 발사 섬광, blast 착탄 … (인계의 02_이펙트_연결표.md).
 //   meta    룬 번호 → 인계의 룬 갈래: el 속성, cast 시전 마법진을 띄우는 룬, melee 근접 타격 모양을 쓰는 룬, kind 인계의 판정 갈래.
 //   motions 룬 번호 → 직업 → 무기 자세 → 그 룬을 쓸 때의 동작(data/stage-characters.js의 동작 이름).
+//   bless   사역룬 가호의 발밑(v54): spin 결정진과 룬 글자가 도는 빠르기(초당 라디안), floors 속성(none 수액) → 결정진 클립 floor, alpha 투명도
+//           (없으면 0.85), spin 그 결정진만의 빠르기(0이면 돌지 않는다), scale 부드럽게 줄이는 배율, colours 속성 표에 없는 가호의 세 색,
+//           runes 룬 글자의 획(5×7 격자의 선분 [x0, y0, x1, y1]).
 const STAGE_SKILL_VFX = Object.freeze({
     path: 'assets/stage-vfx/',
     files: Object.freeze(${q(files)}),
@@ -235,6 +259,12 @@ ${rows(meta, '        ')}
     }),
     motions: Object.freeze({
 ${rows(motions, '        ')}
+    }),
+    bless: Object.freeze({
+        spin: ${blessSpin},
+        floors: Object.freeze(${q(blessFloors)}),
+        colours: Object.freeze(${q(blessColours)}),
+        runes: Object.freeze(${q(blessRunes)})
     }),
     atlas: Object.freeze({
 ${rows(atlas, '        ')}

@@ -183,10 +183,8 @@ const shopView = (() => {
         return supportFits(gem) ? wearPreviewHtml(copy => wearSupportOnCopy(copy, gem)) : '';
     }
 
-    /** A free support place and enough 공명력 for the shelf tier, as toggleSupport checks (a worn one frees its own cost first).
-     * Summon guards also need room under the summon cap: left out. */
+    /** A free support place and enough 공명력 for the shelf tier, as toggleSupport checks (a worn one frees its own cost first). */
     function supportFits(gem) {
-        if (isSummonGuardSupport(gem.name)) return false;
         const worn = Array.isArray(game.equippedSupports) ? game.equippedSupports : [], wearing = worn.includes(gem.name);
         const stats = getUiPlayerStats(), used = worn.reduce((sum, name) => sum + getSupportTierResonanceCost(name), 0);
         if (!wearing && worn.length >= Math.floor(stats.suppCap || 0)) return false;

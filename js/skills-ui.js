@@ -60,20 +60,31 @@
 
     function renderSupportLibrary(records, stats, filter) {
         const full = game.equippedSupports.length >= Math.floor(stats.suppCap || 0);
-        const rows = records.map(record => supportLibraryRow(record, full));
+        const rows = records.map(record => supportLibraryRow(record, full, stats));
         rows.sort((a, b) => b.targets - a.targets || b.dps - a.dps);
         const card = row => row.sealed ? renderSealedGemCard(row.name, window.highlightSearchText(row.name, filter), true)
             : renderSupportGemCard(row.name, window.highlightSearchText(row.name, filter), stats);
         const matched = rows.filter(row => row.targets > 0), unmatched = rows.filter(row => row.targets === 0);
-        const banner = full ? '<p class="support-full-banner">보조 칸이 찼습니다. 룬을 고른 뒤 바꿀 칸을 선택할 수 있습니다.</p>' : '';
+        const banner = full ? '<p class="support-full-banner">보조 칸이 차서 룬을 고르면 바꿀 칸을 고릅니다.</p>' : '';
         return banner + matched.map(card).join('') + (unmatched.length ? `<details class="support-unmatched"><summary>지금 장착한 스킬에 안 맞음 (${unmatched.length})</summary><div class="support-library-unmatched">${unmatched.map(card).join('')}</div></details>` : '');
     }
 
-    function supportLibraryRow(record, full) {
+    function supportLibraryRow(record, full, stats) {
         const targets = gemSelectionUi.targetCount(record.name);
         const compare = !full && !record.sealed && !game.equippedSupports.includes(record.name) && targets > 0;
-        const preview = compare ? gemSelectionUi.preview('support', record.name) : null;
-        return { ...record, targets, dps: preview ? preview.after.totalDps - preview.before.totalDps : 0 };
+        return { ...record, targets, dps: compare ? supportDpsGain(record.name, stats) : 0 };
+    }
+    /** 끼우면 늘어나는 DPS(목록의 정렬). 미리보기 하나가 능력치 계산 두 번이라, 지금 DPS와 끼운 룬이 같으면 전에 잰 값을 쓴다: 목록은 처치마다
+     * (룬 경험치) 다시 그려진다. */
+    const supportDpsGains = new Map();
+    function supportDpsGain(name, stats) {
+        const key = [name, stats.totalDps, game.activeSkill, game.mobilitySkill, ...game.equippedSupports, '|', ...(game.equippedSummonSkills || [])].join(',');
+        if (!supportDpsGains.has(key)) {
+            if (supportDpsGains.size > 500) supportDpsGains.clear();
+            const preview = gemSelectionUi.preview('support', name);
+            supportDpsGains.set(key, preview.after.totalDps - preview.before.totalDps);
+        }
+        return supportDpsGains.get(key);
     }
 
     function renderLibraryPager(kind, index, count, total) {

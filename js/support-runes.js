@@ -28,8 +28,15 @@
         if (def.transform === 'embers' && tags.has('dot') && !tags.has('attack')) return false;
         return true;
     }
-    function tagMatches(def, skill) {
+    /** 보조룬을 고를 때의 태그: 룬의 태그에 보조 판정에만 붙는 태그(supportTags)를 더한다. 던지는 위습(화염, 냉기, 물리, 카오스)은 보조룬에게만
+     * 투사체다: 룬 태그에 넣으면 영웅의 투사체 피해와 투사체 룬 레벨이 위습에 붙었다(2026-10-24 검수). */
+    function matchTags(skill) {
         const tags = tagsOf(skill);
+        (skill.supportTags || []).forEach(tag => tags.add(tag));
+        return tags;
+    }
+    function tagMatches(def, skill) {
+        const tags = matchTags(skill);
         if (tags.has('summon_buff') || !behaviorMatches(def, skill, tags)) return false;
         return !def.requireTags.length || def.requireTags.some(tag => tags.has(tag));
     }
@@ -188,9 +195,9 @@
 
     const describeBehavior = {
         conversion: (def, val) => `피해 ${val}% ${def.name}`,
-        repeat: (def, val) => `한 번 더 발동 · 두 번째 피해 ${val}%`,
+        repeat: (def, val) => `한 번 더 발동, 두 번째 피해 ${val}%`,
         projectiles: (def, val) => `부채꼴 투사체 +${val}발`, chain: (def, val) => `추가 연쇄 ${val}회`,
-        sweep: (def, val) => `주변 ${val}기 추가 타격 · 추가 피해 70%`,
+        sweep: (def, val) => `주변 ${val}기 추가 타격, 추가 피해 70%`,
         transform: (def, val) => `${def.name} ${val > 0 ? '+' : ''}${val}${def.isPct ? '%' : '칸'}`
     };
     function describe(name, tier, state = game) {

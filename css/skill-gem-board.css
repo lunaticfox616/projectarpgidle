@@ -29,8 +29,7 @@
 .skill-board-main { min-width: 0; }
 .skill-board-mobility, .skill-board-summons { display: grid; justify-items: center; gap: 8px; min-width: 0; }
 .skill-board-summons { max-height: 300px; overflow-y: auto; padding: 4px; }
-.skill-board-summons > small, .skill-board-link-note { color: var(--board-muted); font: 12px/18px var(--board-label); text-align: center; }
-.skill-board-link-note { margin: 6px 0 0; padding-top: 8px; border-top: 1px solid #3a3040; }
+.skill-board-summons > small { color: var(--board-muted); font: 12px/18px var(--board-label); text-align: center; }
 .skill-board-head { display: flex; align-items: baseline; gap: 7px; min-width: 0; padding: 0 2px; }
 .skill-board-head > span { color: var(--board-gold); font: 12px var(--board-label); }
 .skill-board-head > b { min-width: 0; overflow: hidden; color: #fff; font: 400 var(--font-size-reading) var(--board-read); text-overflow: ellipsis; white-space: nowrap; text-shadow: 1px 1px 0 #000; }

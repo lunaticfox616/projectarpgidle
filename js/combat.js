@@ -1378,6 +1378,12 @@ function getSummonRuntimeCap(pStats) {
     return Math.max(1, Math.min(getSummonCapMaximum(), Math.floor((pStats && pStats.summonCap) || 1)));
 }
 
+/** 소환 한도(능력치의 summonCap): 버킷들의 summonCap 합(sum)에 소울바인더 키스톤 몫(sb4 +1, sb8 +3)을 더하고, sb9면 1.5배. 1부터 최대까지. */
+function getSummonCapFromSum(sum) {
+    const keystones = (hasKeystone('sb4') ? 1 : 0) + (hasKeystone('sb8') ? 3 : 0);
+    return Math.max(1, Math.min(getSummonCapMaximum(), Math.floor((1 + Math.floor(sum + keystones)) * (hasKeystone('sb9') ? 1.5 : 1))));
+}
+
 function getSummonCapMaximum() {
     return hasKeystone('sb9') ? 12 : 8;
 }
@@ -3534,7 +3540,11 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
 
     let constellation = game.meteorSite && game.meteorSite.constellationBuff;
     if (constellation && constellation.stat) addStatToBucket(reward, constellation.stat, constellation.val || 0);
-    const auraValues = window.GameModules.combat.supports.auraValues(game, name => getTargetGemBonusSources(name, undefined, resolvedStats, gemEvaluation).total);
+    // 가호는 소환 칸 차례대로 한도 안에 든 것만 걸린다(단 하나의 사역이면 한도 1). 가호는 summonCap을 바꾸지 않으므로 지금 버킷으로 센다.
+    const summonCapTotal = () => (gearBase.summonCap || 0) + (gearExplicit.summonCap || 0) + (passive.summonCap || 0) + (season.summonCap || 0) + (ascend.summonCap || 0) + (support.summonCap || 0) + (reward.summonCap || 0);
+    // 단 하나의 사역은 공격 소환수만 하나로 줄인다: 수호 골렘과 가호는 그대로(전령이 보조룬이던 때와 같다)
+    const blessingCap = findAllocatedPassiveKeystone('단 하나의 사역') ? Infinity : getSummonCapFromSum(summonCapTotal());
+    const auraValues = window.GameModules.combat.supports.auraValues(game, name => getTargetGemBonusSources(name, undefined, resolvedStats, gemEvaluation).total, blessingCap);
     Object.entries(auraValues).forEach(([stat, value]) => addStatToBucket(reward, stat, value));
     if (projectilePatternEffect && !skill.projectilePatternSource) skill = applyProjectilePatternMode(skill, projectilePatternEffect.mode, projectilePatternEffect.source, projectilePatternEffect.damageMultiplier);
     let authoredPassiveRules = typeof applyAuthoredPassiveStatRules === 'function'
@@ -3924,7 +3934,6 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     let guardianHitCapPct = 0;
     let guardianArmorDamageBonus = false;
     let sbSummonAspdBonus = 0;
-    let sbSummonCapBonus = 0;
     let sbPlayerAttackPower = 0;
     let sbSummonAttackPower = 0;
     let sbSummonShareToPlayer = 0;
@@ -4396,8 +4405,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     // 무한한 권능: 보조스킬룬 한도 증가(예전에는 무제한이었다. 보조스킬룬 칸이 인퀴지터 폭주의 원인)
     if (hasKeystone('iq9')) suppCap += ASCENDANCY_KEYSTONE_VALUES.iq9.extraSupports;
     // 소울바인더
-    if (hasKeystone('sb4')) { sbSummonAspdBonus += 25; sbSummonCapBonus += 1; }
-    if (hasKeystone('sb8')) sbSummonCapBonus += 3;
+    if (hasKeystone('sb4')) sbSummonAspdBonus += 25;   // 소환 한도 몫은 getSummonCapFromSum
     if (hasKeystone('sb6')) finalResPen += 25;
     if (hasKeystone('sb5')) {
         let sumFlat = Math.max(0, (gearBase.summonFlatDmg || 0) + (gearExplicit.summonFlatDmg || 0) + (passive.summonFlatDmg || 0) + (season.summonFlatDmg || 0) + (ascend.summonFlatDmg || 0) + (support.summonFlatDmg || 0) + (reward.summonFlatDmg || 0));
@@ -5401,7 +5409,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         summonHpPct: Math.max(0, (gearBase.summonHpPct || 0) + (gearExplicit.summonHpPct || 0) + (passive.summonHpPct || 0) + (season.summonHpPct || 0) + (ascend.summonHpPct || 0) + (support.summonHpPct || 0) + (reward.summonHpPct || 0)),
         summonCrit: Math.max(0, (gearBase.summonCrit || 0) + (gearExplicit.summonCrit || 0) + (passive.summonCrit || 0) + (season.summonCrit || 0) + (ascend.summonCrit || 0) + (support.summonCrit || 0) + (reward.summonCrit || 0)),
         summonCritDmg: Math.max(0, (gearBase.summonCritDmg || 0) + (gearExplicit.summonCritDmg || 0) + (passive.summonCritDmg || 0) + (season.summonCritDmg || 0) + (ascend.summonCritDmg || 0) + (support.summonCritDmg || 0) + (reward.summonCritDmg || 0)),
-        summonCap: Math.max(1, Math.min(getSummonCapMaximum(), Math.floor((1 + Math.floor((gearBase.summonCap || 0) + (gearExplicit.summonCap || 0) + (passive.summonCap || 0) + (season.summonCap || 0) + (ascend.summonCap || 0) + (support.summonCap || 0) + (reward.summonCap || 0) + sbSummonCapBonus)) * ((hasKeystone('sb9')) ? 1.5 : 1)))),
+        summonCap: getSummonCapFromSum(summonCapTotal()),
         curseCap: 1 + sumStatAcrossBuckets('curseCap') + ((hasKeystone('wlk9')) ? 1 : 0),
         summonEfficiency: Math.max(0, (gearBase.summonEfficiency || 0) + (gearExplicit.summonEfficiency || 0) + (passive.summonEfficiency || 0) + (season.summonEfficiency || 0) + (ascend.summonEfficiency || 0) + (support.summonEfficiency || 0) + (reward.summonEfficiency || 0)),
         summonResPen: Math.max(0, (gearBase.summonResPen || 0) + (gearExplicit.summonResPen || 0) + (passive.summonResPen || 0) + (season.summonResPen || 0) + (ascend.summonResPen || 0) + (support.summonResPen || 0) + (reward.summonResPen || 0)),
@@ -9861,7 +9869,8 @@ function grantExpAndGem(enemy, pStats) {
     game.equippedSummonSkills = Array.isArray(game.equippedSummonSkills) ? game.equippedSummonSkills : [];
     game.equippedSummonSkills.forEach(name => {
         let def = SKILL_DB[name] || {};
-        if (!def || !Array.isArray(def.tags) || !def.tags.includes('summon_attack')) return;
+        // 소환 칸의 룬은 모두(위습, 수액 골렘, 가호) 처치 경험치를 받는다: 옛 전령과 골렘은 보조룬 길로 받았다
+        if (!def || !Array.isArray(def.tags) || !def.tags.includes('summon')) return;
         game.gemData = game.gemData || {};
         game.gemData[name] = normalizeGemRecord(game.gemData[name]);
         let gem = game.gemData[name];
@@ -12455,9 +12464,9 @@ function performPlayerAttack(pStats, attackOptions) {
                 return;
             }
             if ((targetEnemy.hitRateGuard || 0) > 0) attackHitGuardCounts.set(targetEnemy.id, priorGuardedHits + 1);
-            let talentConversion = typeof getTalentDamageConversion === 'function'
+            let talentConversion = window.GameModules.combat.supports.splitConversion(typeof getTalentDamageConversion === 'function'
                 ? getTalentDamageConversion(hitElement)
-                : { mainPct: 1, added: {} };
+                : { mainPct: 1, added: {} }, pStats, hitElement);
             let wisdomMainMultiplier = getPassiveWisdomLeapDamageMultiplier(pStats, hitElement);
             dmg = Math.floor(dmg * Math.max(0, Number(talentConversion.mainPct) || 0)
                 * (1 - (enemyRes / 100)) * wisdomMainMultiplier * mutationHitScale(targetEnemy, hitElement));

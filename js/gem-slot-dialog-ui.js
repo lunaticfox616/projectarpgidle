@@ -117,8 +117,8 @@
         const level = getUiGemPresentation(name, true, stats).totalLevel;
         const def = SUPPORT_GEM_DB[name];
         return `<article class="gem-slot-card support-candidate${slotToneClass(name)}${slot.preview === name ? ' is-preview' : ''}" data-support-candidate="${escapeHTML(name)}">
-            <button type="button" class="support-candidate-heading" data-slot-action="preview" data-name="${escapeHTML(name)}">${slotArtHtml(name, 'gem-slot-card-art', false)}<span><strong>${escapeHTML(name)}</strong><small>Lv.${formatValue('', level)} · 공명 ${getSupportTierResonanceCost(name)}</small></span>${gemSelectionUi.indicators(name, slot.name)}</button>
-            <p class="support-candidate-effect">${gemNumbersHtml(name, stats)}</p>${def.tradeoff ? `<p class="support-tradeoff">대가 · ${escapeHTML(def.tradeoff)}</p>` : ''}
+            <button type="button" class="support-candidate-heading" data-slot-action="preview" data-name="${escapeHTML(name)}">${slotArtHtml(name, 'gem-slot-card-art', false)}<span><strong>${escapeHTML(name)}</strong><small>Lv.${formatValue('', level)}, 공명 ${getSupportTierResonanceCost(name)}</small></span>${gemSelectionUi.indicators(name, slot.name)}</button>
+            <p class="support-candidate-effect">${gemNumbersHtml(name, stats)}</p>${def.tradeoff ? `<p class="support-tradeoff">대가: ${escapeHTML(def.tradeoff)}</p>` : ''}
             ${gemSelectionUi.targetDetails(name, stats, slot.name)}${candidateComparison(name)}${candidateTierButtons(name, stats)}
             <div class="support-candidate-bottom"><small class="${state.blocked ? 'is-short' : ''}">${escapeHTML(state.note)}</small><button type="button" data-slot-action="choose" data-name="${escapeHTML(name)}" ${state.blocked ? 'disabled' : ''}>${slot.name || supportIsFull(stats) ? '바꾸기' : '장착'}</button></div></article>`;
     }
@@ -158,7 +158,7 @@
         if (rows.length < 2) return '';
         const buttons = rows.map(row => `<button type="button" class="gem-slot-tier" data-slot-action="tier" data-tier="${row.tier}" aria-pressed="${row.active}" ${row.open ? '' : 'disabled'}>
             <b>${row.label}</b><small>${row.open ? `공명 ${row.cost}` : '잠김'}</small></button>`).join('');
-        const note = rows.every(row => row.open) ? '' : `<button type="button" class="gem-slot-tier-note" data-slot-action="process" data-name="${escapeHTML(name)}">창공 가공으로 · 잠긴 등급 해금</button>`;
+        const note = rows.every(row => row.open) ? '' : `<button type="button" class="gem-slot-tier-note" data-slot-action="process" data-name="${escapeHTML(name)}">창공 가공으로 잠긴 등급 해금</button>`;
         return `<div class="gem-slot-tiers" role="group" aria-label="보조스킬룬 등급">${buttons}</div>${note}`;
     }
 
@@ -220,13 +220,13 @@
         const used = supportsInOtherSlots().reduce((sum, name) => sum + getSupportTierResonanceCost(name), 0);
         const cost = slot.preview ? getSupportTierResonanceCost(slot.preview) : 0;
         const width = value => cap ? Math.min(100, value / cap * 100) : 0;
-        const caption = slot.preview ? `${slot.preview} 선택 · ${used + cost}/${cap}${used + cost > cap ? ` · 공명력 ${used + cost - cap} 모자람` : ''}` : '후보 이름을 누르면 공명 비용을 미리 봅니다.';
+        const caption = slot.preview ? `${slot.preview} 선택, ${used + cost}/${cap}${used + cost > cap ? `, 공명력 ${used + cost - cap} 모자람` : ''}` : '후보 이름을 누르면 공명 비용을 미리 봅니다.';
         return `<div class="support-budget-preview"><div class="support-budget-track"><i style="width:${width(used)}%"></i><em style="left:${width(used)}%;width:${Math.min(100 - width(used), width(cost))}%"></em></div><small>${escapeHTML(caption)}</small></div>`;
     }
 
     function replacementHtml(stats) {
-        if (!slot.pending) return supportIsFull(stats) ? '<p class="support-full-banner">보조 칸이 찼습니다. 후보의 ‘바꾸기’를 눌러 교체할 칸을 고르세요.</p>' : '';
-        return `<section class="support-replacement"><b>${escapeHTML(slot.pending)} · 교체할 칸 선택</b><div>${game.equippedSupports.map(name => `<button type="button" data-slot-action="replace-slot" data-name="${escapeHTML(name)}">${escapeHTML(name)}<small>공명 ${getSupportTierResonanceCost(name)} 반환</small></button>`).join('')}</div><button type="button" data-slot-action="cancel-replace">취소</button></section>`;
+        if (!slot.pending) return supportIsFull(stats) ? '<p class="support-full-banner">보조 칸이 차서 후보의 ‘바꾸기’로 교체할 칸을 고릅니다.</p>' : '';
+        return `<section class="support-replacement"><b>${escapeHTML(slot.pending)}: 교체할 칸 선택</b><div>${game.equippedSupports.map(name => `<button type="button" data-slot-action="replace-slot" data-name="${escapeHTML(name)}">${escapeHTML(name)}<small>공명 ${getSupportTierResonanceCost(name)} 반환</small></button>`).join('')}</div><button type="button" data-slot-action="cancel-replace">취소</button></section>`;
     }
 
     function renderSlotDialog() {

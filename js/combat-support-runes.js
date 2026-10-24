@@ -163,18 +163,20 @@
         queuePendingSkillStageHits(rows,stats,{...command.attackOptions,skillName:command.name,baseDelayMs:0,
             forcedElement:command.attackOptions?.forcedElement || stats.sSkill.ele,damageTextGroupId:command.key});
     }
+    /** 속성을 모두(100%) 바꾸는 변환: 바뀐 속성으로 한 번 친다. 일부(50%, 75%)는 그대로 한 번 치고 적중 안에서 나눈다(splitConversion). */
     function conversionContacts(stats, options) {
         const fx=stats.sSkill.supportEffects?.conversion;
-        if (!options.stageReplay || options.supportConverted || !fx) return false;
-        const parts=[[fx.sourceElement,1-fx.pct/100],[fx.element,fx.pct/100]];
-        for (const [element,share] of parts) {
-            if (!share) continue;
-            const copy={...stats,baseDmg:stats.baseDmg*share,
-                flatElementHitDamage:Object.fromEntries(Object.entries(stats.flatElementHitDamage||{}).map(([key,val])=>[key,val*share])),
-                sSkill:{...stats.sSkill,ele:element}};
-            performPlayerAttack(copy,{...options,supportConverted:true,forcedElement:element});
-        }
+        if (!options.stageReplay || options.supportConverted || !fx || fx.pct < 100) return false;
+        performPlayerAttack({...stats,sSkill:{...stats.sSkill,ele:fx.element}},{...options,supportConverted:true,forcedElement:fx.element});
         return true;
+    }
+    /** 일부 속성 변환(50%, 75%): 원래 속성의 적중 하나를 원래 속성 몫과 바뀐 속성 몫으로 나눈다(원소 변환 재능 getTalentDamageConversion과 같은 길).
+     * 전에는 몫마다 따로 쳐서 적중, 상태 이상 판정, 적중 시 효과가 두 번이었다. conversion: { mainPct, added } */
+    function splitConversion(conversion, stats, hitElement) {
+        const fx=stats.sSkill?.supportEffects?.conversion;
+        if (!fx || fx.pct >= 100 || hitElement !== fx.sourceElement) return conversion;
+        const added={...conversion.added,[fx.element]:(conversion.added[fx.element] || 0)+fx.pct*conversion.mainPct};
+        return {...conversion,mainPct:conversion.mainPct*(1-fx.pct/100),added};
     }
     function afterHit(enemy, stats, damage) {
         if (damage<=0) return;
@@ -183,7 +185,7 @@
         if (!fx || enemy.hp<=0) return;
         const now=getCombatTime(), rows=enemy.supportDots || [];
         rows.push({remaining:damage*fx.damagePct/100,pending:0,until:now+fx.durationMs,at:now,stats,element:stats.sSkill.ele});
-        // Identical contacts can overlap; merge only identical expiry/source to bound burst allocations.
+        // 잔불은 적중마다 한 줄씩 쌓이고 지속 시간이 지나면 tickDots가 걷는다.
         enemy.supportDots=rows;
     }
     function tickDots() {
@@ -223,16 +225,35 @@
         }
         addBattleFx('corpseExplosion',{enemyId:enemy.id,sourceCell:{gx:enemy.gx,gy:enemy.gy},element:source.sSkill.ele,duration:400});
     }
-    function auraValues(state, bonus) {
-        const values={};
-        for(const name of state.equippedSummonSkills || []) {
-            const aura=SKILL_DB[name]?.aura;
-            if(!aura || !state.skills.includes(name))continue;
-            const lv=auraLevel(state,name,bonus(name));
-            const steps=getGemLevelGrowthSteps(lv);
-            if(aura.flatStat)values[aura.flatStat]=(values[aura.flatStat]||0)+aura.flatBase+steps*aura.flatScale;
-            for(const row of aura.stats)addAuraStat(values,row,steps);
+    /** 지금 걸린 가호(사역룬, 2026-10-24 스킬룬 추가본 v54): 소환 칸 차례대로 소환 한도(cap) 안에 든 룬 가운데 첫 가호 하나. 가호는 하나만 걸린다.
+     * 보유하지 않았거나 지금 무기로 못 쓰는(맨손) 룬은 자리를 차지하지 않는다(js/combat.js getActiveSummonGemDefs와 같은 차례). 없으면 null.
+     * cap을 주지 않으면(무대의 발밑 표시) 한도를 보지 않는다. */
+    function activeBlessing(state, cap = Infinity) {
+        let used = 0;
+        for (const name of state.equippedSummonSkills || []) {
+            const def = summonPlaceOf(state, name);
+            if (!def) continue;
+            if (used >= cap) return null;
+            if (def.aura) return name;
+            used += summonPlaces(state, name, def);
         }
+        return null;
+    }
+    /** 소환 칸에 끼운 룬이 자리를 차지하면 그 정의(보유하고 지금 무기로 쓸 수 있는 소환 룬), 아니면 null. */
+    function summonPlaceOf(state, name) {
+        const def = SKILL_DB[name];
+        return def && (def.tags || []).includes('summon') && state.skills.includes(name) && canUseSkillWithCurrentEquipment(name) ? def : null;
+    }
+    /** 소환 룬 하나가 차지하는 자리: 공격 소환수는 소환 수만큼, 그 밖에는 하나. */
+    function summonPlaces(state, name, def) {
+        return def.tags.includes('summon_attack') ? Math.max(1, Math.floor(Number((state.summonSkillCounts || {})[name]) || 1)) : 1;
+    }
+    function auraValues(state, bonus, cap) {
+        const values = {}, name = activeBlessing(state, cap), aura = name && SKILL_DB[name].aura;
+        if (!aura) return values;
+        const steps = getGemLevelGrowthSteps(auraLevel(state, name, bonus(name)));
+        if (aura.flatStat) values[aura.flatStat] = aura.flatBase + steps * aura.flatScale;
+        for (const row of aura.stats) addAuraStat(values, row, steps);
         return values;
     }
     function auraLevel(state,name,bonus) {
@@ -268,5 +289,5 @@
     }
     function capValue(def,level) { return (def.capBase||0)+getGemLevelGrowthSteps(level,def.capGrowAfterLevel||0)*(def.capPerLevel||0); }
     window.GameModules.combat.supports=Object.freeze({resolve,grid,stages,targetMultiplier,conversionContacts,afterHit,tickDots,onDeath,auraValues,
-        values,auraFlat,lockState,igniteDuration,dealHit,deferAttack,retire,expectedMultiplier,repeatNative,augmentNative,nativeDot,playerProjectile,activeSkillStats});
+        values,auraFlat,activeBlessing,splitConversion,lockState,igniteDuration,dealHit,deferAttack,retire,expectedMultiplier,repeatNative,augmentNative,nativeDot,playerProjectile,activeSkillStats});
 })();

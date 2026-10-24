@@ -22,7 +22,7 @@
 
     function application(name, stats, replaced) {
         const roles = [...new Set(targetRows(name, replaced).filter(row => row.status === 'on').map(row => TARGET_LABELS[row.role]))];
-        return roles.length ? `적용: ${roles.join(' · ')}` : '맞는 스킬 없음';
+        return roles.length ? `적용: ${roles.join(', ')}` : '맞는 스킬 없음';
     }
 
     function indicators(name, replaced) {
@@ -56,11 +56,11 @@
             const steps = getGemLevelGrowthSteps(info.finalLevel);
             const rows = def.aura.stats.slice();
             if (def.aura.flatStat) rows.unshift({ stat: def.aura.flatStat, base: def.aura.flatBase, scale: def.aura.flatScale });
-            return rows.map(row => `${getStatName(row.stat).replace(/\(%\)$/, '')} +${formatSupportGemEffectValue(row.base + steps * row.scale)}${P_STATS[row.stat]?.isPct ? '%' : ''}`).join(' · ');
+            return rows.map(row => `${getStatName(row.stat).replace(/\(%\)$/, '')} +${formatSupportGemEffectValue(row.base + steps * row.scale)}${P_STATS[row.stat]?.isPct ? '%' : ''}`).join(', ');
         }
         if (def.tags.includes('summon_guard')) {
             const preview = getSummonTooltipPreview(name, stats);
-            return `생명력 ${Math.floor(preview.maxHp).toLocaleString()} · 적중 피해 ${preview.redirectPct}% 대신 받음`;
+            return `생명력 ${Math.floor(preview.maxHp).toLocaleString()}, 적중 피해 ${preview.redirectPct}% 대신 받음`;
         }
         return '';
     }
@@ -68,13 +68,13 @@
     function skillSummary(role, name, stats) {
         const key = role === 'active' ? 'main' : role;
         const rows = game.equippedSupports.filter(support => targetRows(support).some(row => row.role === key && row.name === name && row.status === 'on'));
-        return `<div class="support-skill-summary"><b>${escapeHTML(name || TARGET_LABELS[key])} · 적용 보조 ${rows.length}개</b><span>${rows.map(support => escapeHTML(effectText(support, getSupportActiveTier(support), stats))).join(' · ') || '현재 적용되는 보조 효과가 없습니다.'}</span></div>`;
+        return `<div class="support-skill-summary"><b>${escapeHTML(name || TARGET_LABELS[key])}: 적용 보조 ${rows.length}개</b><span>${rows.map(support => escapeHTML(effectText(support, getSupportActiveTier(support), stats))).join(', ') || '현재 적용되는 보조 효과가 없습니다.'}</span></div>`;
     }
 
     function migrationNotice() {
         const migration = game.saveMeta?.supportRuneMigration;
         if (!migration?.noticePending) return;
-        addLog(`보조룬 개편: ${migration.moved.map(escapeHTML).join(', ')} 이전 · 창공의 정수 ${migration.refund}개 환급. 소환 칸에서 사역룬을 확인하세요.`, 'loot-unique', { toast: true });
+        addLog(`보조룬 개편: ${migration.moved.map(escapeHTML).join(', ')} 이전, 창공의 정수 ${migration.refund}개 환급. 소환 칸에서 사역룬을 확인하세요.`, 'loot-unique', { toast: true });
         migration.noticePending = false;
     }
 
@@ -253,11 +253,15 @@
     }
 
     /** 상세가 머무는 사각형: 룬이 든 관리 창(PC), 창이 없으면 화면 — 둘 다 하단 메뉴 띠 위까지. */
+    /** 상세가 들어갈 자리: 창과 그 안의 탭 내용(창 테두리 안쪽)이 겹치는 곳, 하단 메뉴 띠 위. 보조 비교 줄이 붙어 상세가 길어지면서 창 테두리에
+     * 닿도록 내려가 탭 내용 밖으로 나왔다(2026-10-24, 첫 세션 검사). */
     function popoverBounds(anchor) {
         const nav = document.getElementById('tab-header-bottom');
         const floor = nav?.getClientRects().length ? nav.getBoundingClientRect().top : innerHeight;
-        const frame = anchor.closest('.ui-window-open')?.getBoundingClientRect() || { left: 0, top: 0, right: innerWidth, bottom: innerHeight };
-        return { left: Math.max(0, frame.left), top: Math.max(0, frame.top), right: Math.min(innerWidth, frame.right), bottom: Math.min(floor, frame.bottom) };
+        const whole = { left: 0, top: 0, right: innerWidth, bottom: innerHeight };
+        const frame = anchor.closest('.ui-window-open')?.getBoundingClientRect() || whole, pane = anchor.closest('.tab-content')?.getBoundingClientRect() || whole;
+        return { left: Math.max(0, frame.left, pane.left), top: Math.max(0, frame.top, pane.top), right: Math.min(innerWidth, frame.right, pane.right),
+            bottom: Math.min(floor, frame.bottom, pane.bottom) };
     }
 
     /** 카드 오른쪽, 안 되면 왼쪽(세로는 창 안으로 당긴다), 둘 다 안 되면 아래 · 위. */

@@ -6115,6 +6115,7 @@ function grantActRewardEntry(zoneId, choice) {
         return;
     }
     if (choice.kind === 'support') {
+        if (!SUPPORT_GEM_DB[choice.gem]) throw new Error(`Unknown act reward support rune: ${choice.gem}`);
         if (!hasSupportGemOwned(choice.gem)) {
             game.supports.push(choice.gem);
             game.supportGemData[choice.gem] = game.supportGemData[choice.gem] || { level: 1, exp: 0 };

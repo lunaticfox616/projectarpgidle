@@ -4036,7 +4036,7 @@ function renderSupportGemCard(name, highlightedName, stats) {
     return `<article class="${classes}" ${getGemTileHandlers('support', name)} aria-label="${escapeHTML(name)}${active ? ', 장착 중' : (failure ? `, ${escapeHTML(failure)}` : '')}">
         ${renderGemTileLevel(gemInfo)}${active ? '<span class="gem-tile-worn">장착</span>' : ''}${supportGemSigil.html(name, 'gem-card-sigil gem-tile-art gem-tile-support-art', tier)}
         <strong class="gem-tile-name">${highlightedName}</strong>${gemSelectionUi.indicators(name)}<small class="gem-usage-state">${escapeHTML(state)}</small>
-        <span class="support-library-effect">${escapeHTML(gemSelectionUi.effectText(name, tier, stats))}</span><small>공명 ${getSupportTierResonanceCost(name)} · ${active ? '등급·교체 보기' : '후보 상세 보기'}</small>
+        <span class="support-library-effect">${escapeHTML(gemSelectionUi.effectText(name, tier, stats))}</span><small>공명 ${getSupportTierResonanceCost(name)}, ${active ? '등급과 교체 보기' : '후보 상세 보기'}</small>
     </article>`;
 }
 
@@ -4353,16 +4353,6 @@ function assertBuildEditable() {
     return true;
 }
 
-function isSummonGuardSupport(name) {
-    let def = SUPPORT_GEM_DB[name] || {};
-    return !!(def && Array.isArray(def.tags) && def.tags.includes('summon_guard'));
-}
-
-function getEquippedSummonGuardSupports() {
-    let supports = Array.isArray(game.equippedSupports) ? game.equippedSupports : [];
-    return supports.filter(name => isSummonGuardSupport(name));
-}
-
 function getStarterGemTutorialTarget() {
     let name = typeof game.starterGemTutorialPending === 'string' ? game.starterGemTutorialPending : '';
     if (!name || !Array.isArray(game.skills) || !game.skills.includes(name)) return null;
@@ -4385,6 +4375,9 @@ function normalizeEquippedSummonAttackSkills() {
     game.summonSkillCounts = (game.summonSkillCounts && typeof game.summonSkillCounts === 'object') ? game.summonSkillCounts : {};
     let owned = Array.isArray(game.skills) ? game.skills : [];
     game.equippedSummonSkills = Array.from(new Set(game.equippedSummonSkills.filter(gemName => isSummonAttackSkillGem(gemName) && owned.includes(gemName))));
+    // 가호(사역룬)는 하나만 걸린다: 전령 둘이 가호 둘로 이관된 저장은 첫 가호만 끼운 채로 둔다(나머지는 보유로 남는다)
+    let blessing = game.equippedSummonSkills.find(gemName => SKILL_DB[gemName].aura);
+    game.equippedSummonSkills = game.equippedSummonSkills.filter(gemName => !SKILL_DB[gemName].aura || gemName === blessing);
     Object.keys(game.summonSkillCounts).forEach(gemName => {
         if (!game.equippedSummonSkills.includes(gemName)) delete game.summonSkillCounts[gemName];
     });
@@ -4405,7 +4398,7 @@ function getEquippedSummonAttackCount() {
 }
 
 function getEquippedSummonCount() {
-    return getEquippedSummonAttackCount() + getEquippedSummonGuardSupports().length;
+    return getEquippedSummonAttackCount();
 }
 
 function getSummonEquipCapFromStats(stats) {
@@ -4415,6 +4408,19 @@ function getSummonEquipCapFromStats(stats) {
     return Math.max(1, Math.min(maximum, Math.floor((stats && stats.summonCap) || 1)));
 }
 
+/** 가호(사역룬)는 하나만 걸린다(2026-10-24 스킬룬 추가본 v54 "가호는 하나만(새로 쓰면 바뀜)"): name이 가호면 끼워져 있는 다른 가호, 아니면 null. */
+function getOtherWornBlessing(name) {
+    if (!SKILL_DB[name].aura) return null;
+    return game.equippedSummonSkills.find(gemName => gemName !== name && SKILL_DB[gemName]?.aura) || null;
+}
+/** 끼워져 있던 가호(replaced, 없으면 그대로)를 빼고 그 자리에 name이 들어간다고 알린다. */
+function takeOffWornBlessing(replaced, name) {
+    if (!replaced) return;
+    game.equippedSummonSkills = game.equippedSummonSkills.filter(gemName => gemName !== replaced);
+    delete game.summonSkillCounts[replaced];
+    addLog(`가호는 하나만 걸립니다. [${replaced}] 대신 [${name}]${pickParticle(name, '을', '를')} 끼웠습니다.`, 'season-up');
+}
+
 function changeSummonSkillCount(name, delta) { if (!assertBuildEditable()) return;
     if (!isSummonAttackSkillGem(name) || !Array.isArray(game.skills) || !game.skills.includes(name)) return;
     normalizeEquippedSummonAttackSkills();
@@ -4422,7 +4428,10 @@ function changeSummonSkillCount(name, delta) { if (!assertBuildEditable()) retur
     let current = getSummonSkillCount(name);
     if (delta > 0) {
         let cap = getSummonEquipCapFromStats(getUiPlayerStats(null));
-        if (getEquippedSummonCount() >= cap) return addLog(`소환수 한도(${cap})로 인해 [${name}]${pickParticle(name, '을', '를')} 추가 소환할 수 없습니다.`, 'attack-monster');
+        // 가호는 하나만: 다른 가호가 끼워져 있으면 그 자리에 새 가호가 들어간다
+        let replaced = getOtherWornBlessing(name);
+        if (getEquippedSummonCount() - Number(!!replaced) >= cap) return addLog(`소환수 한도(${cap})로 인해 [${name}]${pickParticle(name, '을', '를')} 추가 소환할 수 없습니다.`, 'attack-monster');
+        takeOffWornBlessing(replaced, name);
         if (!game.equippedSummonSkills.includes(name)) game.equippedSummonSkills.push(name);
         game.summonSkillCounts[name] = Number(SKILL_DB[name].tags.includes('summon_attack')) * current + 1;
         playUiFeedbackSound('gemSocket');
@@ -5573,11 +5582,6 @@ function showGemTooltip(event, type, name, target = null) {
             let ratioText = typeof formatSupportGemEffectValue === 'function' ? formatSupportGemEffectValue(info.scaleRatioPct) : Number(info.scaleRatioPct || 0).toFixed(1);
             html += `<div class="tooltip-line" style="color:#9fd4ff;">계산: 보조스킬룬 제외 ${info.statName} ${baseText}% × 공명 계수 ${ratioText}% = +${valueText}%</div>`;
             html += `<div class="tooltip-line" style="color:#b8a6ff;">제외: 이 보조스킬룬 및 다른 보조스킬룬으로 얻은 ${info.statName} 증가</div>`;
-        }
-        if (Number.isFinite(SUPPORT_GEM_DB[name].heraldExplodeBase)) {
-            let chancePct = Math.min(85, ((SUPPORT_GEM_DB[name].heraldExplodeBase + ((info.totalLevel - 1) * (SUPPORT_GEM_DB[name].heraldExplodeScale || 0))) * 100));
-            html += `<div class="tooltip-line">시체폭발: 처치 시 ${chancePct.toFixed(1)}% 확률 발동</div>`;
-            html += `<div class="tooltip-line">시체폭발 피해: 처치한 적 최대 생명력의 10%</div>`;
         }
         if (TAGGED_DAMAGE_STAT_BY_TAG && Object.values(TAGGED_DAMAGE_STAT_BY_TAG).includes(info.statId)) {
             let tag = Object.keys(TAGGED_DAMAGE_STAT_BY_TAG).find(key => TAGGED_DAMAGE_STAT_BY_TAG[key] === info.statId);

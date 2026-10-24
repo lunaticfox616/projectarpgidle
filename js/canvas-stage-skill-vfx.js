@@ -329,7 +329,18 @@ const stageSkillVfx = (() => {
     }
     /** 바로 그리는 클립의 램프: 클립이 정한 것, 없으면 부른 쪽이 준 것, 그것도 없으면 phys. */
     const vfxStampRamp = (rampName, at) => (rampName !== undefined ? rampName : (at.ramp || 'phys'));
-    /** 클립 원본의 한 칸을 그 자리에 바로 그린다(투사체처럼 매 프레임 자리가 바뀌는 것). */
+    /** 바로 그리는 클립의 붓을 그 자리와 모습으로 놓는다(vfxStamp). */
+    function vfxStampPlace(ctx, at) {
+        if (at.alpha !== undefined) ctx.globalAlpha *= at.alpha;
+        ctx.translate(Math.round(at.x), Math.round(at.y));
+        if (at.face < 0) ctx.scale(-1, 1);
+        if (at.rot) ctx.rotate(at.rot);
+        if (at.flat) ctx.scale(1, at.flat);
+        if (at.turn) ctx.rotate(at.turn);
+        ctx.imageSmoothingEnabled = !!at.smooth;
+    }
+    /** 클립 원본의 한 칸을 그 자리에 바로 그린다(투사체처럼 매 프레임 자리가 바뀌는 것). 바닥에 둘 때는 at.flat(눕히는 비율)과
+     * at.turn(누운 바닥 평면에서 돌리는 각, 라디안: 사역룬 가호의 결정진, js/canvas-stage-blessing.js), 그리고 at.alpha, at.smooth(줄일 때 부드럽게). */
     function vfxStamp(ctx, ref, t, at) {
         const [name, rampName] = String(ref).split('@'), clip = STAGE_SKILL_VFX.clips[name];
         if (!clip) return false;
@@ -338,10 +349,7 @@ const stageSkillVfx = (() => {
         const sheet = vfxSheetOf(clip.a, vfxStampRamp(rampName, at));
         if (!sheet) return true; // 띠를 만드는 중이다: 이 연출이 맡은 그림이므로 예전 그림으로 돌아가지 않고 그 프레임을 건너뛴다
         ctx.save();
-        ctx.translate(Math.round(at.x), Math.round(at.y));
-        if (at.face < 0) ctx.scale(-1, 1);
-        if (at.rot) ctx.rotate(at.rot);
-        ctx.imageSmoothingEnabled = false;
+        vfxStampPlace(ctx, at);
         ctx.drawImage(sheet, (box.f0 + index) * cell.w, 0, cell.w, cell.h,
             Math.round(-box.ax * size), Math.round(-box.ay * size), Math.round(cell.w * size), Math.round(cell.h * size));
         ctx.restore();
