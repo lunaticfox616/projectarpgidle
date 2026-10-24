@@ -692,8 +692,9 @@ body[data-ui-skin] :where(*), body[data-ui-skin] :where(*)::before, body[data-ui
 :root body[data-ui-skin] .market-tabs { display: grid; grid-template-columns: minmax(0, 1fr); grid-auto-flow: column; grid-auto-columns: round(down, calc((100% - 8px) / 3), 1px); }
 /* 가운데 맞춘 한 줄 글을 감싼 span: 감싼 칸의 가운데 맞춤은 그대로 두고, 칸 폭(left 50%)과 제 폭(translate 50%)이 홀수일 때 생기는
    반 화소를 되돌린다. 칸이 가운데로 맞출 때만 맞는 계산이라 그런 칸(단추, 아이템 툴팁의 제목과 구획 등)에서만 켠다. 왼쪽 맞춤인
-   장비 판의 같은 툴팁 글은 그대로 둔다. 두 줄로 접히면 줄마다의 가운데 맞춤은 여전히 반 화소에 놓일 수 있다(2026-10-21). */
-:root body[data-ui-skin] :is(button, .window-tab-key, .codex-hunt-empty, .player-exchange-empty, .cl-block, #item-tooltip-box :is(.tooltip-title, .tooltip-section)) > .px-center {
+   장비 판의 같은 툴팁 글은 그대로 둔다. 두 줄로 접히면 줄마다의 가운데 맞춤은 여전히 반 화소에 놓일 수 있다(2026-10-21).
+   장비 창 요약의 이름(DPS, 유효 생명력)도 가운데 맞춤이다: DPS가 반 화소에 놓여 흐렸다(2026-10-24 사용자). */
+:root body[data-ui-skin] :is(button, .window-tab-key, .codex-hunt-empty, .player-exchange-empty, .cl-block, #item-tooltip-box :is(.tooltip-title, .tooltip-section), #item-tab-equip .eqw-sum-label) > .px-center {
   display: inline-block; position: relative; left: calc(round(down, 50%, 1px) - 50%); translate: calc(round(up, 50%, 1px) - 50%); }
 /* 룬 창 하위 탭: 두 줄(이름, 설명) 묶음을 단추 폭 칸의 가운데에 두고, 묶음 안의 두 줄은 왼쪽 맞춤 그대로. */
 :root body[data-ui-skin] #tab-skills .skill-subtab-row .subtab-btn { justify-content: stretch; justify-items: center; }

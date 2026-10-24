@@ -35,8 +35,8 @@ const equipmentWindowUi = (() => {
      * Names in the left column, values in the right one (2026-10-24 사용자: the five values stay one group when they wrap). */
     function fullHtml(stats, dps) {
         const ehp = ehpItems(stats);
-        return `<div class="eqw-summary-full"><span class="eqw-sum-label">DPS</span><div class="eqw-sum-value eqw-dps" style="--c:${COLOR.dps}"><b>${dps}</b></div>`
-            + (ehp ? `<span class="eqw-sum-label">유효 생명력</span><div class="eqw-sum-value eqw-ehp">${ehp}</div>` : '') + '</div>';
+        return `<div class="eqw-summary-full"><span class="eqw-sum-label"><span class="px-center">DPS</span></span><div class="eqw-sum-value eqw-dps" style="--c:${COLOR.dps}"><b>${dps}</b></div>`
+            + (ehp ? `<span class="eqw-sum-label"><span class="px-center">유효 생명력</span></span><div class="eqw-sum-value eqw-ehp">${ehp}</div>` : '') + '</div>';
     }
     /** Phone: DPS and 유효 생명력 under a toggle that unfolds the equipped gear and the presets (game.settings.equipmentMobilePane). */
     function miniHtml(stats, dps) {
