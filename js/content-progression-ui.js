@@ -372,7 +372,8 @@ const contentUnlockUi = {
         const carded = this.announceContent(id);
         addLog(result.message, 'season-up', { toast: !carded, noToast: carded });
         this.announceOpenedSince(opened); // free content that comes with it (거래소 · 장비 전당 with 장비 제련)
-        game.noti.season = contentProgression.balance() > 0;
+        // 지금 살 수 있는 해금이 남았을 때만 알림: 뒤 루프의 강화 단계를 기다리는 포인트는 소식이 아니다(2026-10-25).
+        game.noti.season = CONTENT_UNLOCK_CATALOG.some(def => contentProgression.kind(def) === 'paid' && contentProgression.status(def.id).available);
         checkUnlocks();
         updateStaticUI();
         saveGame({ skipCloudSync: false });
@@ -402,7 +403,8 @@ const contentUnlockUi = {
     /** New content card: what it is (the catalog line) and where it lives. Once per content; returns true if queued. */
     announceContent(id) {
         const def = CONTENT_UNLOCK_CATALOG.find(row => row.id === id);
-        if (!def || (def.minLoop <= 1 && id !== 'tactics') || CONTENT_CARD_DEDICATED[id]) return false;
+        // 강화 단계(def.series)는 카드 없이 기록만 남긴다: 가방 쪽, 그루터기 보관함은 새 콘텐츠가 아니다.
+        if (!def || def.series || (def.minLoop <= 1 && id !== 'tactics') || CONTENT_CARD_DEDICATED[id]) return false;
         const action = this.routeAction(def), route = action ? this.routeKey(action) : null;
         const path = CONTENT_ROUTE_PATHS[route];
         const before = tutorialQueue.length;
