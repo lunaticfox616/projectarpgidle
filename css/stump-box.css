@@ -1,7 +1,6 @@
 /* 그루터기 함 화면 (js/stump-box-ui.js, 끌기 · 툴팁 js/stump-box-drag-ui.js).
-   판 그림은 256도트 원본의 2배(assets/ui/grove/stump-board-v1.png, 512px)다. 그림 둘레 32~36px는 투명해서, 상자는 그림의
-   보이는 부분(32,32에서 444px 정사각형)만 잡고 그림은 ::before로 그 바깥까지 그린다(판 위아래의 빈 띠가 사라지고 칸이 커진다).
-   칸 격자는 그림의 비율(시작 104·106, 칸 54, 틈 8 — assets/ui/grove/manifest.json)을 444px 기준으로 바꿔 겹친다.
+   판과 조합창은 한 틀에 번갈아 그린다(2026-10-25 사용자 그림, scripts/build-stump-frames.cjs: 223×227도트 틀 다섯 장을 칸 자리에
+   맞춰 2배로 옮겼다). 칸 격자 자리는 그 스크립트가 찍은 몫(446×454px 판에 대한 %)이다.
    칸·보관함 단추는 공용 단추 모양(components 층)을 쓰지 않으므로 features 층에서 모양을 다시 정한다. */
 @layer features {
   #tab-stump { container-type: inline-size; }
@@ -13,16 +12,15 @@
   .stump-box-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; padding-bottom: 4px; }
   .stump-box-head .stump-line { margin: 0; color: var(--px-copy-muted, #a39883); }
   #tab-stump .stump-rules-button { min-width: 26px; min-height: 26px; padding: 0 6px; line-height: 1; }
-  /* 한 열(휴대폰 · 좁은 창): 판 → 고른 것 → 받을 선물 → 보관함(판 가까이 있어야 끌어 옮기기 쉽다) → 조합창 → 옵션 합계 → 탭(수확 일지,
-     함 해금, 부적). 넓은 창은 왼쪽 판, 조합창, 옵션 합계와 오른쪽 나머지(2026-10-09 사용자: 옵션 합계는 조합창 밑) */
+  /* 한 열(휴대폰 · 좁은 창): 틀(판 또는 조합창) → 그 아래 옵션 합계나 조합 단추 → 고른 것 → 보관함(틀 가까이 있어야 끌어 옮기기
+     쉽다) → 탭(수확 일지, 함 해금, 부적). 넓은 창은 왼쪽 틀과 그 아래, 오른쪽 나머지 */
   .stump-box-screen { display: flex; flex-direction: column; gap: 10px; }
   .stump-box-pane { display: contents; }
   #stump-box-board { order: 0; }
-  #stump-box-detail { order: 1; }
+  #stump-cube, #stump-box-summary { order: 1; }
+  #stump-box-detail { order: 2; }
   #stump-box-storage { order: 3; }
-  #stump-cube { order: 4; }
-  #stump-box-summary { order: 5; }
-  #stump-box-more { order: 6; }
+  #stump-box-more { order: 4; }
   .stump-box-summary, .stump-box-detail, .stump-box-storage, .stump-box-more, .stump-cube {
     padding: 8px 10px;
     border: 2px solid #050404;
@@ -30,14 +28,20 @@
     box-shadow: inset 0 0 0 1px #3b2f1e;
   }
   /* 고른 것이 없으면 설명 칸은 자리를 차지하지 않는다(마우스를 올리면 같은 내용이 툴팁으로 나온다) */
-  .stump-box-detail:empty { display: none; }
-  .stump-box-more:empty { display: none; }
+  :is(.stump-box-detail, .stump-box-more, .stump-box-summary, .stump-cube):empty { display: none; }
   .stump-box-summary h3, .stump-box-more h3 { margin: 0 0 4px; font-size: 15px; }
   .stump-box-more h3 { margin-top: 8px; }
   .stump-box-more h3:first-child { margin-top: 0; }
   :is(.stump-box-summary, .stump-box-more) h3 small { color: var(--px-copy-muted, #a39883); font-size: 12px; font-weight: 400; }
   /* 탭: 고른 것만 밝게. 한 번에 하나만 보여 줘 줄지어 쌓이지 않는다 */
   .stump-more-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #2a2218; }
+  /* 접혀 있으면(누른 탭이 없으면) 탭 줄만 */
+  .stump-more-tabs:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: 0; }
+  /* 접는 칸(옵션 합계, 2026-10-25): 한 줄 단추, 펼치면 아래에 목록 */
+  #tab-stump .stump-fold { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 30px; padding: 2px 8px; font-size: 13px; }
+  #tab-stump .stump-fold small { margin-left: auto; color: var(--px-copy-muted, #a39883); font-size: 12px; }
+  #tab-stump .stump-fold::after { content: '▾'; color: #c9a55a; }
+  #tab-stump .stump-fold[aria-expanded="true"]::after { content: '▴'; }
   #tab-stump .stump-more-tab { font-size: 12px; color: var(--px-copy-muted, #a39883); }
   #tab-stump .stump-more-tab.is-on { box-shadow: inset 0 0 0 2px #f3d28c; color: #f3d28c; }
   /* 수확 일지(js/stump-harvest-ui.js): 줄마다 이름과 네 색, 아직 자라지 않은 것은 흐리게 */
@@ -64,35 +68,53 @@
   .stump-unlocks li.is-on .stump-unlock-arrow { color: #9fd46a; }
   .stump-unlocks li.is-on .stump-unlock-reward { color: #f3d28c; }
 
-  /* 판 */
+  /* 틀(판, 조합창). 어두운 틀은 판, 뼈빛 틀은 조합창. 판일 때 보석에 올리면 밝아진 붉은 보석, 누르면 빛나는 보석 두 장이
+     번갈아 보인 뒤(js/stump-box-ui.js FRAME_FLASH_MS) 다른 쪽으로 바뀐다. 조합창일 때 올리면 보랏빛이 번진다.
+     넓은 창은 틀을 도트 하나에 2화소 그대로(446px) 그린다(아래 넓은 창 규칙). 좁으면 폭에 맞춰 줄인다. */
   .stump-board {
     position: relative;
-    width: min(444px, 100%);
-    aspect-ratio: 1;
+    width: min(446px, 100%);
+    aspect-ratio: 446 / 454;
     margin: 0 auto;
-    /* 그림의 투명한 둘레(::before가 상자 밖으로 내민 부분)는 잘라 낸다: 판이 화면 폭을 채우는 휴대폰에서 그 둘레가
-       창을 가로로 넘쳐 옆으로 밀렸다(23px). 보이는 그림은 상자 안이라 그대로다. */
-    overflow: clip;
-  }
-  /* 투명한 둘레(왼쪽 · 위 32px, 오른쪽 · 아래 36px)를 상자 밖으로: 32/444, 36/444 */
-  .stump-board::before {
-    content: '';
-    position: absolute;
-    inset: -7.2072% -8.1081% -8.1081% -7.2072%;
-    background: url('../assets/ui/grove/stump-board-v1.png') 0 0 / 100% 100% no-repeat;
+    background: url('../assets/ui/grove/stump-frame-box.png') 0 0 / 100% 100% no-repeat;
     image-rendering: pixelated;
-    pointer-events: none;
   }
+  .stump-board.is-cube { background-image: url('../assets/ui/grove/stump-frame-cube.png'); }
+  .stump-board.is-box:has(.stump-frame-gem:hover) { background-image: url('../assets/ui/grove/stump-frame-box-hover.png'); }
+  .stump-board.is-switching { animation: stump-gem-flash .24s steps(1, end) both; }
+  @keyframes stump-gem-flash {
+    0% { background-image: url('../assets/ui/grove/stump-frame-box-glow.png'); }
+    50% { background-image: url('../assets/ui/grove/stump-frame-box-glow2.png'); }
+    100% { background-image: url('../assets/ui/grove/stump-frame-box-glow.png'); }
+  }
+  /* 보석 자리(빛 번짐까지 담은 상자, scripts/build-stump-frames.cjs의 gem) */
+  #tab-stump .stump-frame-gem {
+    position: absolute;
+    left: 36.771%;
+    top: 0;
+    width: 27.354%;
+    height: 18.943%;
+    min-width: 0;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: none;
+    box-shadow: none;
+    cursor: pointer;
+  }
+  #tab-stump .stump-board.is-cube .stump-frame-gem:hover { background: radial-gradient(circle at 50% 46%, rgba(190, 140, 255, .4), transparent 46%); }
   .stump-board-grid {
     position: absolute;
-    left: 16.2162%;
-    top: 16.6667%;
-    width: 68.018%;
-    height: 68.018%;
+    left: 16.143%;
+    top: 18.943%;
+    width: 67.713%;
+    height: 66.52%;
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
     grid-template-rows: repeat(5, minmax(0, 1fr));
-    gap: 2.649%;
+    gap: 1.987%;
   }
   /* 배치 전 비교: 판 자체는 다시 그리지 않아 드래그 중인 원본과 대상이 유지된다. */
   .stump-placement-preview { margin: 6px 0 0; padding: 8px 10px; border: 1px solid #8c7045; background: #17130e;
@@ -199,13 +221,22 @@
 
   /* 시작 선물·보관함 */
   .stump-storage-head h3 { margin: 0; font-size: 15px; }
-  .stump-storage-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; }
-  .stump-storage-tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; margin: 8px 0; }
-  .stump-storage-tools label, .stump-compare-choice { display: grid; gap: 4px; min-width: 0; color: #c9bda5; font-size: 12px; line-height: 1.5; }
-  .stump-storage-tools label { flex: 1 1 130px; }
-  #tab-stump :is(.stump-storage-tools, .stump-compare-choice) select { width: 100%; min-width: 0; min-height: 36px; padding: 6px 8px; border: 1px solid #73603d; background: #201b14; color: #e9ddc4; font: inherit; }
+  /* 보관함 머리(2026-10-25 사용자 "압축"): 첫 줄은 이름, 색 거르기, 쪽. 둘째 줄은 상태, 정렬, 일괄 거름 · 버리기를 한 줄로 */
+  .stump-storage-head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
+  .stump-storage-head h3 { margin-right: auto; }
+  .stump-storage-head .stump-filters { margin-top: 0; gap: 4px; }
+  #tab-stump .stump-filter { min-height: 28px; padding: 2px 8px; font-size: 12px; }
+  .stump-pages { display: flex; gap: 3px; }
+  #tab-stump .stump-pages button { min-width: 26px; min-height: 28px; padding: 0 6px; font-size: 12px; }
+  #tab-stump .stump-pages [aria-pressed="true"] { box-shadow: inset 0 0 0 2px #f3d28c; color: #f3d28c; }
+  .stump-storage-tools { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 6px 0 0; }
+  .stump-storage-tools .stump-bulk { display: contents; }
+  .stump-storage-tools .stump-hint { margin: 0 0 0 auto; }
+  .stump-compare-choice { display: grid; gap: 4px; min-width: 0; color: #c9bda5; font-size: 12px; line-height: 1.5; }
+  #tab-stump :is(.stump-storage-tools, .stump-compare-choice) select { min-width: 0; border: 1px solid #73603d; background: #201b14; color: #e9ddc4; font: inherit; }
+  #tab-stump .stump-compare-choice select { width: 100%; min-height: 36px; padding: 6px 8px; }
+  #tab-stump .stump-storage-tools select { min-height: 30px; padding: 3px 6px; font-size: 12px; }
   #tab-stump :is(.stump-storage-tools, .stump-compare-choice) select:focus-visible { outline: 2px solid #f3d28c; outline-offset: 2px; }
-  .stump-storage-tools .stump-hint { flex: 1 0 100%; margin: 0; }
   .stump-compare-toggle { margin-bottom: 8px; }
   .stump-compare-choice { margin-bottom: 8px; }
   .stump-comparison { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
@@ -214,9 +245,9 @@
   .stump-compare-card h4 small { display: block; color: #b7aa92; font-weight: var(--font-weight-regular); }
   .stump-compare-card .stump-detail-head { flex-wrap: wrap; gap: 6px; font-size: 12px; line-height: 1.5; }
   .stump-compare-card :is(.tooltip-line, .tooltip-section-title) { font-size: 12px; line-height: 1.5; }
-  /* 장비 가방처럼 10열에 한 칸 38px(창 크기와 상관없이 같다. 그루터기 탭이 520px보다 좁은 휴대폰만 32px, 장비 가방 칸처럼 손가락 크기 44px 규칙에서 빠진다: css/themes/pixel-mobile.css). 보관함 한도만큼 칸을 깔고
+  /* 장비 가방처럼 10열에 한 칸 36px(창 크기와 상관없이 같다. 2026-10-25에 38px에서 줄여 기본 창에서 틀을 도트 그대로 그릴 자리를 냈다. 그루터기 탭이 520px보다 좁은 휴대폰만 32px, 장비 가방 칸처럼 손가락 크기 44px 규칙에서 빠진다: css/themes/pixel-mobile.css). 보관함 한도만큼 칸을 깔고
      가진 것이 앞에서부터 한 칸씩 들어간다(js/stump-box-ui.js) */
-  .stump-storage-grid { --stump-cell: 38px; display: grid; grid-template-columns: repeat(10, var(--stump-cell)); justify-content: start; gap: 4px; margin-top: 6px; }
+  .stump-storage-grid { --stump-cell: 36px; display: grid; grid-template-columns: repeat(10, var(--stump-cell)); justify-content: start; gap: 4px; margin-top: 6px; }
   @container (max-width: 520px) { .stump-storage-grid { --stump-cell: 32px; gap: 3px; } }
   .stump-storage-grid.is-target { outline: 1px dashed rgba(243, 210, 140, .6); outline-offset: 2px; }
   .stump-storage-grid > .stump-hint { grid-column: 1 / -1; }
@@ -270,30 +301,19 @@
     .stump-exchange-bar { grid-column: 1 / 4; }
   }
 
-  /* 조합창(4×4): 판 바로 아래. 장비는 인벤토리 칸 크기대로 여러 칸을 차지하고, 빈 칸을 누르면 재료 고르기가 열린다 */
-  /* 격자는 왼쪽, 제목과 단추는 오른쪽. 재료 부족·완성 상태와 조합법은 아래 전체 폭으로 읽는다. */
-  .stump-cube { display: grid; grid-template-columns: auto minmax(0, 1fr); align-content: start; gap: 8px 10px; }
-  .stump-cube > * { grid-column: 2; }
-  .stump-cube > .stump-cube-grid { grid-column: 1; grid-row: 1 / span 2; align-self: start; }
-  .stump-cube > :is(.stump-cube-status, .stump-cube-missing, .stump-status, .stump-line) { grid-column: 1 / -1; grid-row: 3; }
-  .stump-cube > .stump-cube-result { grid-column: 1 / -1; grid-row: 4; }
-  .stump-cube > .stump-cube-book { grid-column: 1 / -1; grid-row: 5; }
-  .stump-cube h3 { grid-row: 1; margin: 0; font-size: 15px; }
-  /* 판 옆의 단추 넷(조합, 재료 넣기, 비우기, 조합법)은 같은 폭으로 쌓는다: 글자 폭대로 놓이면 휴대폰에서 들쭉날쭉한 계단이 되었다 */
-  .stump-cube .stump-actions { display: grid; grid-column: 2; grid-row: 2; grid-template-columns: minmax(0, 1fr); align-self: start; margin-top: 0; }
-  /* 조합창 4×4(2026-10-10, 2×3 대검 둘이 나란히): 한 칸 크기는 3×3 때와 같다. */
+  /* 조합창(틀이 조합창일 때 틀 아래): 맞는 조합법, 단추 넷(한 줄), 최근 결과, 조합법 목록. 칸은 틀 안에 있다(5×5, 2026-10-25).
+     장비는 인벤토리 칸 크기대로 여러 칸을 차지하고, 빈 칸을 누르면 재료 고르기가 열린다 */
+  .stump-cube { display: grid; align-content: start; gap: 8px; }
+  .stump-cube .stump-actions { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 0; }
+  @container (max-width: 520px) { .stump-cube .stump-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  /* 판 칸과 같은 자리를 채운다(틈은 틀 격자의 틈을 물려받는다) */
   .stump-cube-grid {
+    position: absolute;
+    inset: 0;
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    grid-template-rows: repeat(4, minmax(0, 1fr));
-    gap: 4px;
-    width: min(198px, 52vw);
-    aspect-ratio: 1;
-    margin: 0;
-    padding: 6px;
-    border: 2px solid #050404;
-    background: #0f0c09;
-    box-shadow: inset 0 0 0 1px #3b2f1e;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-rows: repeat(5, minmax(0, 1fr));
+    gap: inherit;
   }
   #tab-stump .stump-cube-cell { min-width: 0; min-height: 0; margin: 0; padding: 0; border: 0; border-radius: 0; background: rgba(40, 32, 22, .6); box-shadow: inset 0 0 0 1px #2a2218; }
   #tab-stump .stump-cube-item {
@@ -312,9 +332,17 @@
   }
   #tab-stump .stump-cube-item img { width: 80%; height: 80%; object-fit: contain; image-rendering: pixelated; pointer-events: none; }
   .stump-line.is-bad { color: #e0715f; }
-  .stump-cube-book { display: grid; gap: 6px; margin: 8px 0 0; padding: 0; list-style: none; font-size: 12px; }
-  .stump-cube-book li { display: grid; gap: 2px; padding: 4px 6px; border: 1px solid #2a2218; background: rgba(10, 8, 6, .4); }
-  .stump-cube-book small { color: var(--px-copy-muted, #a39883); }
+  /* 조합법 목록(2026-10-25 사용자 "색감"): 줄마다 분류 색 테와 분류 표, 이름은 금빛, 재료와 결과의 낱말은 제 색(js/stump-cube-ui.js) */
+  .stump-cube-book { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; font-size: 12px; }
+  .stump-cube-book li { display: grid; gap: 3px; padding: 5px 8px; border: 1px solid #2a2218; border-left: 3px solid var(--recipe-tone, #8c7043);
+    background: linear-gradient(90deg, color-mix(in srgb, var(--recipe-tone, #8c7043) 10%, transparent), rgba(10, 8, 6, .4) 55%); }
+  .stump-cube-book-head { display: flex; align-items: center; gap: 6px; }
+  .stump-cube-book-group { padding: 0 5px; border: 1px solid color-mix(in srgb, var(--recipe-tone) 60%, #050404);
+    background: color-mix(in srgb, var(--recipe-tone) 16%, #120f0b); color: var(--recipe-tone); font-size: 11px; }
+  .stump-cube-book strong { color: #f3d28c; }
+  .stump-cube-book-arrow { color: var(--recipe-tone); }
+  .stump-cube-book small, .stump-cube-have { color: var(--px-copy-muted, #a39883); }
+  .stump-cube-book li.is-hidden { border-left-color: #3b2f1e; background: rgba(10, 8, 6, .4); color: var(--px-copy-muted, #a39883); }
   .stump-cube-missing { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
   .stump-cube-missing li { display: grid; gap: 4px; padding: 4px 8px; border-left: 2px solid #715139; background: #1c1711; font-size: var(--font-size-ui); overflow-wrap: anywhere; }
   .stump-cube-missing strong { color: #e6c67f; }
@@ -369,11 +397,15 @@
     .stump-cube-material-detail { max-height: 40vh; }
   }
 
-  /* 넓은 창: 왼쪽 열은 판과 바로 아래 조합창(사용자 요청), 오른쪽 열은 고른 것 · 시작 선물 · 보관함 · 합계. 두 열은 따로
-     쌓여서 한쪽이 길어도 다른 쪽에 빈 줄이 생기지 않는다(예전 격자 영역은 줄 높이를 나눠 판과 조합창 사이가 크게 비었다). */
+  /* 넓은 창: 왼쪽 열은 틀과 그 아래(옵션 합계나 조합 단추), 오른쪽 열은 고른 것, 보관함, 탭. 두 열은 따로 쌓여서 한쪽이 길어도
+     다른 쪽에 빈 줄이 생기지 않는다. 오른쪽이 보관함 10칸(테 포함 420px)을 담을 만큼 넓으면 틀을 도트 그대로 446px로 그린다
+     (기본 940px 창의 안쪽 폭 880px). */
   @container (min-width: 761px) {
     .stump-box-screen { display: grid; grid-template-columns: minmax(280px, 390px) minmax(0, 1fr); gap: 12px; align-items: start; }
     .stump-box-pane { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+  }
+  @container (min-width: 878px) {
+    .stump-box-screen { grid-template-columns: 446px minmax(0, 1fr); }
   }
 
   /* 끌어 옮기기(js/stump-box-drag-ui.js): 길게 누르기 표시, 끄는 중인 원래 자리, 놓을 자리, 손끝을 따라오는 그림 */
@@ -444,7 +476,7 @@
   /* 일괄 거름 사용과 일괄 버리기(보관함 분류 아래, 누르면 쓸 것을 먼저 보여 준다), 씨앗 주머니(받을 선물, 셋 가운데 하나),
      부적 도감(부적 탭, 펼쳐 보기) */
   .stump-bulk { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
-  #tab-stump .stump-bulk button { font-size: 12px; }
+  #tab-stump .stump-bulk button { min-height: 30px; padding: 2px 8px; font-size: 12px; }
   #tab-stump .stump-bulk [data-kind="compost"]:not(.is-idle) { color: #b4e07e; }
   #tab-stump .stump-bulk [data-kind="discard"]:not(.is-idle) { color: #e0915f; }
   #tab-stump .stump-bulk .is-idle { color: var(--px-copy-muted, #a39883); opacity: .7; }

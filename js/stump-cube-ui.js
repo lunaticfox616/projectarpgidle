@@ -1,6 +1,6 @@
-// 조합창 화면: 그루터기 함 판 바로 아래 4×4 칸, 맞는 조합법과 비용, [조합] · [재료 넣기] · [비우기] · 조합법 목록.
-// 재료 고르기는 선택 대화 상자(장비 · 그루터기 · 주얼 · 코어). 칸 · 조합법 목록 단추는 stump-box-ui.js의 클릭 위임(data-stump-action)이
-// 이 모듈의 동작을 부르고, 대화 상자 단추는 직접 부른다. 규칙은 stump-cube.js.
+// 조합창 화면: 5×5 칸(그루터기 함 판과 같은 틀 자리, 틀 위 보석으로 서로 바꾼다: js/stump-box-ui.js), 틀 아래에 맞는 조합법과 비용,
+// [조합] · [재료 넣기] · [비우기] · 조합법 목록. 재료 고르기는 선택 대화 상자(장비 · 그루터기 · 주얼 · 코어). 칸 · 조합법 목록 단추는
+// stump-box-ui.js의 클릭 위임(data-stump-action)이 이 모듈의 동작을 부르고, 대화 상자 단추는 직접 부른다. 규칙은 stump-cube.js.
 const stumpCubeUi = (() => {
     const OVERLAY_ID = 'stump-cube-picker';
     const KIND_LABELS = { equipment: '장비', stump: '그루터기', jewel: '주얼', core: '코어' };
@@ -27,9 +27,32 @@ const stumpCubeUi = (() => {
         return getRarityColor(item.rarity || 'normal');
     }
 
-    function costText(cost) {
-        const rows = Object.entries(cost || {}).map(([key, need]) => `${ORB_DB[key].name} ${need} (보유 ${Math.floor(game.currencies[key] || 0)})`);
+    /** 비용 줄: 재화 이름은 제 색(getStyledOrbName), 모자라면 보유 수를 붉게. */
+    function costHtml(cost) {
+        const rows = Object.entries(cost || {}).map(([key, need]) => {
+            const have = Math.floor(game.currencies[key] || 0);
+            return `${getStyledOrbName(key)} ${need} <span class="${have < need ? 'is-bad' : 'stump-cube-have'}">(보유 ${have})</span>`;
+        });
         return rows.length ? rows.join(', ') : '비용 없음';
+    }
+
+    // 조합법 글의 색(2026-10-25 사용자 "조합법에도 색감 좀 넣어줘"): 희귀도는 그 등급 색, 재료 종류(장비, 씨앗, 꽃, 열매, 수액, 호박석,
+    // 부적, 주얼, 코어)는 제 색, 화염 · 냉기 · 번개 · 카오스는 그루터기 함의 색, 수치는 조금 밝게. 나머지 글은 그대로 둔다.
+    const GROUP_TONES = Object.freeze({ 장비: '#e6c67f', 그루터기: '#9fd46a', 부적: '#c9a0f0', 주얼: '#7fd6cf', 코어: '#f0a35a' });
+    const KIND_TONES = Object.freeze([['장신구', '#e6c67f'], ['장비', '#e6c67f'], ['씨앗', '#9fd46a'], ['꽃', '#f0a8c8'], ['열매', '#e8955a'],
+        ['호박석', '#f0c060'], ['수액', '#e0b04a'], ['부적', '#c9a0f0'], ['주얼', '#7fd6cf'], ['코어', '#f0a35a'], ['기폭제', '#f3d28c'], ['기름', '#f3d28c']]);
+    let recipeTone = null;
+    function recipeTones() {
+        if (recipeTone) return recipeTone;
+        const tones = new Map([...KIND_TONES, ...['unique', 'rare', 'magic'].map(key => [ITEM_RARITY_LABELS[key], getRarityColor(key)]),
+            ...Object.values(STUMP_BOX_COLORS).map(row => [row.label, row.tone])]);
+        const words = [...tones.keys()].sort((a, b) => b.length - a.length);
+        recipeTone = { tones, pattern: new RegExp(`(${words.join('|')})|(\\d+(?:%|개)?)`, 'g') };
+        return recipeTone;
+    }
+    function recipeToneHtml(text) {
+        const { tones, pattern } = recipeTones();
+        return esc(text).replace(pattern, (match, word) => `<span style="color:${word ? tones.get(word) : '#f6e7c1'}">${match}</span>`);
     }
 
     // ── 칸 ─────────────────────────────────────────────────
@@ -68,7 +91,7 @@ const stumpCubeUi = (() => {
         const lacking = stumpCube.missingCost(found.recipe).length > 0;
         return `<div class="stump-cube-status"><p class="stump-cube-preview-title">예상 결과 <span>${esc(found.recipe.name)}</span></p>`
             + previewFactsHtml(found) + (found.reason ? `<p class="stump-line is-bad">${esc(found.reason)}</p>` : '')
-            + `<p class="stump-line${lacking ? ' is-bad' : ''}">${esc(costText(found.recipe.cost))}</p></div>`;
+            + `<p class="stump-line${lacking ? ' is-bad' : ''}">${costHtml(found.recipe.cost)}</p></div>`;
     }
 
     function sharedMaterialValue({ rule, picked }, key) {
@@ -106,19 +129,24 @@ const stumpCubeUi = (() => {
     function recipeBookHtml() {
         if (!bookOpen) return '';
         const shown = stumpCube.revealed(game), hidden = STUMP_CUBE_RECIPES.length - shown.length;
-        const rows = shown.map(recipe => `<li><strong>${esc(recipe.name)} (${esc(recipe.group)})</strong>`
-            + `<span>${esc(recipe.need)} → ${esc(recipe.result)}${recipe.id === 'stump_merge' ? ` 현재 ${Math.round(stumpBox.rollCap(game) * 100)}%` : ''}</span><small>${esc(costText(recipe.cost))}</small></li>`).join('');
+        const rows = shown.map(recipe => `<li style="--recipe-tone:${GROUP_TONES[recipe.group] || '#e6c67f'}">`
+            + `<span class="stump-cube-book-head"><span class="stump-cube-book-group">${esc(recipe.group)}</span><strong>${esc(recipe.name)}</strong></span>`
+            + `<span>${recipeToneHtml(recipe.need)} <b class="stump-cube-book-arrow">→</b> ${recipeToneHtml(recipe.result)}`
+            + `${recipe.id === 'stump_merge' ? ` 현재 ${recipeToneHtml(Math.round(stumpBox.rollCap(game) * 100) + '%')}` : ''}</span><small>${costHtml(recipe.cost)}</small></li>`).join('');
         const more = hidden ? `<li class="is-hidden">아직 모르는 조합법 ${hidden}개 (새 재료가 성장 완료되거나 해금되면 공개)</li>` : '';
         return `<ul class="stump-cube-book">${rows}${more}</ul>`;
     }
 
-    /** The cube section under the stump box board. */
+    /** The cube's 5×5 cells, drawn inside the stump box frame when the frame shows the cube (js/stump-box-ui.js). */
+    function cubeGridHtml() { return gridHtml(stumpCube.entries()); }
+
+    /** Under the frame while it shows the cube: the matching recipe and cost, the buttons, the last result and the recipe list. */
     function cubeHtml() {
         const list = stumpCube.entries(), found = stumpCube.preview(), matched = stumpCube.match();
         // A hidden recipe stays craftable by experiment, except one still behind its loop.
         const ready = !!matched && (found || !(matched.recipe.reveal?.loop > game.season)) && !found?.reason
             && !stumpCube.missingCost(matched.recipe).length && !game.woodsmanBuildLock;
-        return '<h3>조합창</h3>' + gridHtml(list) + statusHtml(found, list, matched)
+        return statusHtml(found, list, matched)
             + `<div class="stump-actions"><button type="button" data-stump-action="cube-transmute"${ready ? '' : ' disabled'}>조합</button>`
             + '<button type="button" data-stump-action="cube-open">재료 넣기</button>'
             + `<button type="button" data-stump-action="cube-clear"${list.length ? '' : ' disabled'}>비우기</button>`
@@ -325,6 +353,6 @@ const stumpCubeUi = (() => {
         refreshCube();
     }
 
-    return Object.freeze({ cubeHtml, cubeSignature, openCubePicker, closeCubePicker, selectCubeItem, pickCubeItem, inspectCubeResult, takeOutCubeCell, transmuteCube, clearCube, toggleCubeBook });
+    return Object.freeze({ cubeHtml, cubeGridHtml, cubeSignature, openCubePicker, closeCubePicker, selectCubeItem, pickCubeItem, inspectCubeResult, takeOutCubeCell, transmuteCube, clearCube, toggleCubeBook });
 })();
 safeExposeGlobals({ stumpCubeUi });
