@@ -167,16 +167,45 @@
         return { ...rect, height: Math.max(rect.height, viewBottom - rect.top) };
     }
 
-    function getDockRect() {
+    // 도킹 창은 내용에 맞는 폭까지 좁아진다(2026-10-24 사용자: "창 기본 폭을 내용에 맞춰 줄여줘"). 창 안의 [data-dock-fit] 요소가 내용에
+    // 필요한 폭을 등록된 길이 --dock-fit-width로 알리고(css/equipment-window.css), 창은 그 폭에 테두리와 여백을 더한 폭을 넘지 않는다.
+    // 그 요소가 보이지 않으면(다른 탭, 닫힌 창) 기본 도킹 폭이다.
+    function getDockFitWidth(tabId) {
+        const el = tabId && document.getElementById(tabId), fit = el && el.querySelector('[data-dock-fit]');
+        if (!fit || !fit.getClientRects().length) return null;
+        const need = parseFloat(getComputedStyle(fit).getPropertyValue('--dock-fit-width'));
+        if (!(need > 0)) return null;
+        // 내용 바깥(테두리, 창 몸통 여백): 지금 창 폭에서 그 요소의 폭을 뺀 값이라 창 폭과 상관없다
+        return need + parseFloat(getComputedStyle(el).width) - parseFloat(getComputedStyle(fit).width);
+    }
+    // 창 높이, 임시 보관함, 탭이 바뀌어 필요한 폭이 달라지면 다음 그리기에서 다시 맞춘다(같은 그리기에서 고치면 ResizeObserver 고리 경고가 난다).
+    let dockFitWatch = null, dockFitFrame = 0;
+    function watchDockFit(el) {
+        const fit = el.querySelector('[data-dock-fit]');
+        if (!fit || typeof ResizeObserver !== 'function') return;
+        dockFitWatch = dockFitWatch || new ResizeObserver(() => {
+            if (dockFitFrame) return;
+            dockFitFrame = requestAnimationFrame(() => {
+                dockFitFrame = 0;
+                Object.keys(WINDOW_DEFS).forEach(id => { if (getWindowState(id).dockActive) applyWindowState(id); });
+                syncWorkspacePresentation();
+            });
+        });
+        dockFitWatch.observe(fit);
+    }
+
+    function getDockRect(tabId) {
         let rect = getWorkspaceRect();
         let width = clampNumberLocal(rect.width * DOCK_RATIO, DOCK_MIN_WIDTH, DOCK_MAX_WIDTH, DOCK_MIN_WIDTH);
+        let fit = getDockFitWidth(tabId);
+        if (fit) width = Math.max(DOCK_MIN_WIDTH, Math.min(width, Math.ceil(fit)));
         if (rect.width - width - WORKSPACE_GAP < DOCK_MIN_BATTLE_WIDTH) return null;
         return { x: rect.left + rect.width - width, y: rect.top, width, height: rect.height };
     }
 
     // 최대화 > 도킹 > 떠 있는 창 순. 도킹을 원하지만 전장 폭이 모자란 화면에서는 작업 영역 전체를 쓴다.
-    function resolveWindowPlacement(box, rect, maximized, docked) {
-        let dockRect = docked && !maximized ? getDockRect() : null;
+    function resolveWindowPlacement(box, rect, maximized, docked, tabId) {
+        let dockRect = docked && !maximized ? getDockRect(tabId) : null;
         if (dockRect) return { box: dockRect, dockActive: true };
         // 최대화는 HUD까지 다 덮는다. 붙이려는데 전장 폭이 모자란 창은 작업 영역 전체(HUD 판 윗변까지)다.
         let area = maximized ? getFreeWindowRect() : rect;
@@ -201,7 +230,7 @@
         let maximized = stored.maximized === undefined ? !!def.defaultMaximized : !!stored.maximized;
         let restoreRect = stored.restoreRect || (maximized ? { x, y, width, height } : null);
         let docked = isDockPreferred(tabId, stored);
-        let placement = resolveWindowPlacement({ x, y, width, height }, rect, maximized, docked);
+        let placement = resolveWindowPlacement({ x, y, width, height }, rect, maximized, docked, tabId);
         return { open: !!stored.open, minimized: !!stored.minimized, maximized, docked, dockActive: placement.dockActive, restoreRect, ...placement.box };
     }
 
@@ -257,6 +286,7 @@
                 if (el.style.cursor !== cursor) el.style.cursor = cursor;
             });
             el.addEventListener('click', event => handleWindowActionClick(event, tabId));
+            watchDockFit(el);
             el.dataset.windowInputBound = '1';
         }
     }
@@ -273,6 +303,11 @@
         el.classList.toggle('ui-window-minimized', st.minimized);
         el.classList.toggle('ui-window-maximized', st.maximized);
         el.classList.toggle('ui-window-docked', st.dockActive);
+        // 막 열린 도킹 창은 이제 보여서 내용에 맞는 폭을 잴 수 있다: 같은 그리기 안에서 한 번 더 맞춰 넓은 창이 한 번 비치지 않게 한다
+        if (st.dockActive && st.open && !st.minimized) {
+            let fitted = getWindowState(tabId);
+            if (fitted.width !== st.width) { el.style.left = `${fitted.x}px`; el.style.width = `${fitted.width}px`; }
+        }
         let btn = document.getElementById('btn-' + tabId);
         if (btn) {
             btn.classList.toggle('ui-window-open', st.open);
