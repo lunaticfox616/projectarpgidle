@@ -13,7 +13,8 @@ const weaponMastery = (() => {
         for (let at = 1; at < M.maxLevel; at++) reach.push(reach[at] + Math.round(curve.base * curve.growth ** (at - 1)));
         return reach;
     }
-    const REACH = reachTable(M.curve), V1_REACH = reachTable(M.v1Curve);
+    const REACH = reachTable(M.curve);
+    const PAST_REACH = Object.fromEntries(Object.entries(M.pastCurves).map(([version, curve]) => [version, reachTable(curve)]));
     const CAP = REACH[M.maxLevel];
     const levelOn = (reach, xp) => {
         let at = 1;
@@ -21,18 +22,20 @@ const weaponMastery = (() => {
         return at;
     };
 
-    /** Experience on the v1 curve moved to the current one: the same level, the same share of the way to the next. */
-    function upgradeXp(xp) {
-        const at = levelOn(V1_REACH, xp);
+    /** Experience on an earlier curve moved to the current one: the same level, the same share of the way to the next. */
+    function upgradeXp(xp, past) {
+        const at = levelOn(past, xp);
         if (at >= M.maxLevel) return CAP;
-        const share = (xp - V1_REACH[at]) / (V1_REACH[at + 1] - V1_REACH[at]);
+        const share = (xp - past[at]) / (past[at + 1] - past[at]);
         return Math.round(REACH[at] + share * (REACH[at + 1] - REACH[at]));
     }
-    /** A record kept before the harder curve (2026-10-09, data/weapon-mastery.js v1Curve) keeps its levels; once per save (book.v). */
+    /** A record kept on an earlier curve (data/weapon-mastery.js pastCurves; a record without v is from the first) keeps its levels;
+     * once per save (book.v). */
     function upgrade(book) {
+        const past = PAST_REACH[book.v] || PAST_REACH[1];
         Object.keys(book.xp).forEach(id => {
             const xp = Number(book.xp[id]);
-            if (Number.isFinite(xp) && xp > 0) book.xp[id] = upgradeXp(xp);
+            if (Number.isFinite(xp) && xp > 0) book.xp[id] = upgradeXp(xp, past);
         });
         book.v = M.curveVersion;
     }
