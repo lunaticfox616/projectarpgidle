@@ -120,8 +120,15 @@ body[data-ui-skin] #tree-container :is(.passive-overlay-node, .passive-reveal-bu
 }
 :root body[data-ui-skin] :is(#act-exploration-panel canvas, #act-exploration-map-large) { image-rendering: pixelated; }
 /* 도트로 다시 찍은 아이콘(assets/px/, scripts/build-pixel-icons.cjs), 32도트 세계수 룬, 처음부터 도트로 그린 장비 아이콘
-   (assets/items/illustrated/pixel/, pixel-v1, 2026-10-23 다시 그린 pixel-v2)도 확대할 때 번지지 않게 */
-body[data-ui-skin] :is(img[src*="assets/px/"], img[src*="assets/gems/runes/"], img[src*="assets/items/illustrated/pixel/"], img[src*="assets/items/pixel-v1/"], img[src*="assets/items/pixel-v2/"], img[src*="assets/items/stump-pixel-v1/"]) { image-rendering: pixelated; }
+   (assets/items/illustrated/pixel/), 그루터기 도트 아이콘(stump-pixel-v1)도 확대할 때 번지지 않게 */
+body[data-ui-skin] :is(img[src*="assets/px/"], img[src*="assets/gems/runes/"], img[src*="assets/items/illustrated/pixel/"], img[src*="assets/items/stump-pixel-v1/"]) { image-rendering: pixelated; }
+/* 장비 도트 그림(pixel-v1, pixel-v2)은 도트 하나를 3×3 점으로 저장해 두었다(큰 그림은 2×2나 1×1). 2026-10-24 사용자: 검과 활의 직선이
+   구불구불하다. 칸 크기가 그림의 정수배가 아니면(가방 무기 1.84배, 휴대폰 2.9배) 점을 그대로 키울 때 어떤 점은 2px, 어떤 점은 1px이 되어
+   곧은 선이 구불거렸다. 키워 둔 그림을 부드럽게 줄이면 모든 점이 같은 폭이다. */
+body[data-ui-skin] :is(img[src*="assets/items/pixel-v1/"], img[src*="assets/items/pixel-v2/"]) {
+  /* 장착 칸, 세트 창, 상점처럼 그림마다 픽셀 그대로(pixelated)를 준 규칙보다 앞서야 한다. */
+  image-rendering: auto !important;
+}
 
 /* 독립 제목: Galmuri11 Bold 24px. 문장 중간의 강조와 달리 한 줄 전체 역할이다. */
 body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutorial-title, .combat-zone-row-title, #ui-combat-zone-inline, .startup-title, .game-dialog-title) {

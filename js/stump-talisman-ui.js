@@ -15,12 +15,18 @@ const stumpTalismanUi = (() => {
         const def = talismans.conditionDef(line.id);
         return def && def.stat ? getItemStatToneColor(def.stat) : statToneText.lineColor(text, '');
     }
-    function lineRow(line) {
-        const text = talismans.describeLine(line), colour = lineTone(line, text);
-        return `<li class="${line.kind === 'condition' ? 'is-condition' : ''}"${colour ? ` style="color:${colour}"` : ''}>${esc(text)}</li>`;
+    /** One effect row: li in the detail panel, a tooltip-line div in the hover card. The card's text is Galmuri14 15px: the panel's
+     * 12px rows blurred there (2026-10-24 사용자: "부적 툴팁 글씨도 흐릿하게 보임"), so the card takes tooltip rows like the seeds. */
+    function effectRow(html, tooltip, cls = '', colour = '') {
+        const style = colour ? ` style="color:${colour}"` : '';
+        return tooltip ? `<div class="tooltip-line stump-tip-talisman ${cls}"${style}>${html}</div>` : `<li class="${cls}"${style}>${html}</li>`;
+    }
+    function lineRow(line, tooltip = false) {
+        const text = talismans.describeLine(line);
+        return effectRow(esc(text), tooltip, line.kind === 'condition' ? 'is-condition' : '', lineTone(line, text));
     }
     /** A line that does not work yet: grey with (비활성) (2026-10-09 사용자, the seeds' rule). */
-    function offRow(text) { return `<li class="is-off">${esc(text)} (비활성)</li>`; }
+    function offRow(text, tooltip = false) { return effectRow(`${esc(text)} (비활성)`, tooltip, 'is-off'); }
     /** What the board multiplies a working talisman's lines by (js/talisman-effects.js evaluate): its cell's graft with the ancient
      * seeds beside it, and a repulsion's +25%. The lines show these values, as the seeds show theirs (2026-10-20: 왕좌의 창끝 on a
      * rank 5 cell showed +18 and gave 27). */
@@ -28,11 +34,12 @@ const stumpTalismanUi = (() => {
         return stumpBox.graftMultiplier(game.stumpBox, cell) * (talismanEffects.summarize().amplified.has(item.id) ? 1.25 : 1);
     }
     const scaledLine = (line, mul) => ({ ...line, value: Math.round(line.value * mul * 100) / 100 });
-    function linesHtml(item, active, mul = 1) {
+    function linesHtml(item, active, mul, tooltip) {
         const moment = item.special === 'moment' ? `보스에게 주는 최종 피해 +${item.moment}%, 생명력 5% 이하 보스 처형` : '';
-        const rows = active ? item.lines.map(line => lineRow(scaledLine(line, mul))) : item.lines.map(line => offRow(talismans.describeLine(line)));
-        if (moment) rows.push(active ? `<li class="is-condition" style="color:${getItemStatToneColor('bossDamagePct')}">${moment}</li>` : offRow(moment));
-        return rows.length ? `<ul class="stump-talisman-lines">${rows.join('')}</ul>` : '';
+        const rows = active ? item.lines.map(line => lineRow(scaledLine(line, mul), tooltip)) : item.lines.map(line => offRow(talismans.describeLine(line), tooltip));
+        if (moment) rows.push(active ? effectRow(moment, tooltip, 'is-condition', getItemStatToneColor('bossDamagePct')) : offRow(moment, tooltip));
+        if (!rows.length) return '';
+        return tooltip ? rows.join('') : `<ul class="stump-talisman-lines">${rows.join('')}</ul>`;
     }
     /** Its lines work while it is awake on the board and not cancelled by a repulsion. */
     function isActive(item, cell) {
@@ -40,11 +47,12 @@ const stumpTalismanUi = (() => {
     }
 
     /** Only what changes the talisman's effect on the board: cancelled or amplified by a repulsion. */
-    function stateLine(item, cell) {
+    function stateLine(item, cell, tooltip) {
         const summary = talismanEffects.summarize();
         if (cell < 0 || !stumpBox.isMature(item)) return '';
-        if (summary.suppressed.has(item.id)) return '<p class="stump-status is-bad">비활성화: 척력 인접</p>';
-        return summary.amplified.has(item.id) ? '<p class="stump-status is-good">척력으로 효과 +25%</p>' : '';
+        const tag = tooltip ? 'div' : 'p', cls = tooltip ? 'tooltip-line stump-tip-status' : 'stump-status';
+        if (summary.suppressed.has(item.id)) return `<${tag} class="${cls} is-bad">비활성화: 척력 인접</${tag}>`;
+        return summary.amplified.has(item.id) ? `<${tag} class="${cls} is-good">척력으로 효과 +25%</${tag}>` : '';
     }
 
     function toolsHtml(item, cell) {
@@ -63,21 +71,25 @@ const stumpTalismanUi = (() => {
 
     /** Detail body for a selected talisman; the stump screen adds the head, growth bar and move buttons. */
     function detailHtml(item, cell) {
-        return tooltipHtml(item, cell) + toolsHtml(item, cell);
+        return bodyHtml(item, cell, false) + toolsHtml(item, cell);
     }
 
     /** A unique talisman's own effect: free text, its keywords and numbers in the stat colours (grey while it does not work). */
-    function uniqueEffectHtml(item, active) {
+    function uniqueEffectHtml(item, active, tooltip) {
         if (!item.uniqueEffect) return '';
-        return active ? `<p class="stump-yield">${statToneText.html(item.uniqueEffect)}</p>` : `<p class="stump-yield is-off">${esc(item.uniqueEffect)} (비활성)</p>`;
+        const tag = tooltip ? 'div' : 'p', cls = tooltip ? 'tooltip-line stump-tip-talisman' : 'stump-yield';
+        return active ? `<${tag} class="${cls}">${statToneText.html(item.uniqueEffect)}</${tag}>` : `<${tag} class="${cls} is-off">${esc(item.uniqueEffect)} (비활성)</${tag}>`;
     }
 
-    /** Hover card body for a talisman (rarity, effects, state) without the buttons the detail panel adds. */
-    function tooltipHtml(item, cell) {
-        const active = isActive(item, cell);
-        return `<p class="stump-talisman-rarity" style="--stump-tone:${tone(item)}">${RARITY_LABELS[item.rarity]} 부적</p>`
-            + uniqueEffectHtml(item, active) + linesHtml(item, active, active ? boardMul(item, cell) : 1) + stateLine(item, cell);
+    /** A talisman's rarity, effects and state: p and li rows in the detail panel, tooltip rows in the hover card. */
+    function bodyHtml(item, cell, tooltip) {
+        const active = isActive(item, cell), label = `${RARITY_LABELS[item.rarity]} 부적`;
+        const rarity = tooltip ? `<div class="tooltip-line" style="color:${tone(item)}">${label}</div>`
+            : `<p class="stump-talisman-rarity" style="--stump-tone:${tone(item)}">${label}</p>`;
+        return rarity + uniqueEffectHtml(item, active, tooltip) + linesHtml(item, active, active ? boardMul(item, cell) : 1, tooltip) + stateLine(item, cell, tooltip);
     }
+    /** Hover card body for a talisman without the buttons the detail panel adds. */
+    function tooltipHtml(item, cell) { return bodyHtml(item, cell, true); }
 
     function statRow(stat, value) {
         return `<li style="color:${getItemStatToneColor(stat)}">${esc(getStatName(stat))} ${value >= 0 ? '+' : '−'}${esc(formatValue(stat, Math.abs(value)))}</li>`;

@@ -195,7 +195,7 @@
   .stump-box-head .stump-line .is-bad { color: #e0715f; }
   .stump-box-head .stump-line .is-graft { color: #b4e07e; }
   /* 아직 효과가 없는 옵션(자라는 중, 보관함, 막힘, 잠든 부적): 회색에 "(비활성)" */
-  :is(.stump-yield, .stump-extra, .stump-tip-yield, .stump-tip-extra).is-off, .stump-talisman-lines .is-off { color: #8a8174; }
+  :is(.stump-yield, .stump-extra, .stump-tip-yield, .stump-tip-extra, .stump-tip-talisman).is-off, .stump-talisman-lines .is-off { color: #8a8174; }
 
   /* 시작 선물·보관함 */
   .stump-storage-head h3 { margin: 0; font-size: 15px; }
@@ -240,7 +240,7 @@
   /* 부적(색 없는 계열): 희귀도 색 글자, 조건부 줄은 따로 물들인다 */
   .stump-talisman-rarity { margin: 4px 0 0; color: var(--stump-tone); font-size: 12px; }
   .stump-talisman-lines { display: grid; gap: 2px; margin: 4px 0; padding: 0; list-style: none; font-size: 12px; }
-  :is(.stump-talisman-lines, .stump-stats) .is-condition { color: #c9b27a; }
+  :is(.stump-talisman-lines, .stump-stats) .is-condition, .stump-tip-talisman.is-condition { color: #c9b27a; }
   .stump-talisman-title { margin: 8px 0 2px; font-size: 13px; color: var(--px-copy, #e6dcc6); }
   /* 부적 탭(2026-10-09 사용자 "고급스럽게"): 편린 카드 셋(나오는 부적의 격 색 테와 빛, 잠든 부적 그림), 모은 정도가 보이는 교환 줄 */
   .stump-shard-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 2px 0 10px; }

@@ -765,15 +765,15 @@
                     </div>
                     <section id="ui-equipment-temporary-storage" class="equipment-temporary-storage" aria-live="polite" hidden></section>
                     <p id="ui-inventory-page-label" class="inventory-search-status" aria-live="polite" hidden></p>
-                    <!-- 2026-10-19 사용자: 쪽 단추는 가방 위, 가방 오른쪽은 도구 줄(정리, 판단, 필터, 해체, 복구). 단추와 창은 js/equipment-window-ui.js. -->
+                    <!-- 2026-10-19 사용자: 쪽 단추는 가방 위, 가방 오른쪽은 도구 줄(정리, 분석, 필터, 해체, 복구). 단추와 창은 js/equipment-window-ui.js. 2026-10-24 사용자: 판단을 분석으로. -->
                     <nav id="ui-equipment-inventory-pages" class="equipment-inventory-pages" aria-label="장비 인벤토리 페이지"></nav>
                     <div class="equipment-inventory-grid-shell">
                         <div class="inventory-grid equipment-inventory-grid" id="ui-inventory-list"></div>
                         <div class="eqw-rail" role="toolbar" aria-label="가방 도구">
                             <button type="button" class="eqw-rail-tool" data-icon="down" onclick="equipmentInventoryInteraction.autoArrange()" title="최근 장비부터 빈칸 없이 다시 배치합니다." aria-label="빈칸 정리"><span>정리</span></button>
                             <details class="eqw-rail-menu" id="eqw-judge-menu">
-                                <summary class="eqw-rail-tool" data-icon="eye" aria-label="장비 판단" title="빠르게 두 번 누르면 바로 다시 분석합니다."><span>판단</span></summary>
-                                <div class="eqw-rail-panel"><p class="eqw-rail-title">장비 판단</p><div id="ui-equipment-triage" class="equipment-triage-host"></div></div>
+                                <summary class="eqw-rail-tool" data-icon="eye" aria-label="장비 분석" title="빠르게 두 번 누르면 바로 다시 분석합니다."><span>분석</span></summary>
+                                <div class="eqw-rail-panel"><p class="eqw-rail-title">장비 분석</p><div id="ui-equipment-triage" class="equipment-triage-host"></div></div>
                             </details>
                             <details class="eqw-rail-menu" id="eqw-filter-menu">
                                 <summary class="eqw-rail-tool" data-icon="fork" aria-label="표시 필터"><span>필터</span></summary>
@@ -1665,10 +1665,10 @@
 <script defer src="js/item-influences.js?v=20261010-1&infl=20261010-3&tidy=20261018-1&codexreview=20261023-1"></script>
 <script defer src="js/item-influences-ui.js?v=20261010-1&infl=20261010-2&infl=20261010-3&infl=20261010-4&infl=20261010-5&infl=20261010-6"></script>
 <script defer src="js/colony-wards.js?v=20261010-1&beltward=20261011-1&beltpetal=20261011-1&beltnote=20261011-1&beltnote=20261011-2&tidy=20261018-1&chase=20261020-1&codexreview=20261023-1"></script>
-<script defer src="js/colony-wards-ui.js?v=20261010-1&beltward=20261011-1&uniqueward=20261020-1"></script>
+<script defer src="js/colony-wards-ui.js?v=20261010-1&beltward=20261011-1&uniqueward=20261020-1&uifit=20261024-1"></script>
 <script defer src="js/bag-items.js?v=20261010-1&salvage=20261012-1&codexreview=20261023-1"></script>
 <script defer src="js/bag-items-ui.js?v=20261010-1&beltward=20261011-1&tidy=20261018-1&sound=20261023-1&blessing=20261024-1"></script>
-<script defer src="js/equipment-window-ui.js?v=20261010-1&beltnote=20261011-1&beltnote=20261011-2&eqwcheck=20261011-1&winsize=20261011-1&bagrail=20261019-1&dblsalvage=20261021-1&uipass=20261022-1&codexreview=20261023-1"></script>
+<script defer src="js/equipment-window-ui.js?v=20261010-1&beltnote=20261011-1&beltnote=20261011-2&eqwcheck=20261011-1&winsize=20261011-1&bagrail=20261019-1&dblsalvage=20261021-1&uipass=20261022-1&codexreview=20261023-1&uifit=20261024-1"></script>
 <script defer src="js/ember-corruption.js?v=20261008-1"></script>
 <script defer src="js/memory-dungeon.js?v=20261008-1&goal=20261008-3&goal=20261008-7&fruit=20261009-1&tidy=20261018-1&codexreview=20261023-1"></script>
 <script defer src="js/boss-variants.js?v=20261008-1&fruit=20261009-1"></script>
@@ -1794,7 +1794,7 @@
 <script defer src="js/npc-shop-ui.js?v=20261016-1&runes=20261017-1&earn=20261017-6&shop=20261018-1&codexreview=20261023-1"></script>
 <script defer src="js/npc-roster-ui.js?v=20261016-1&ready=20261017-2"></script>
 <script defer src="js/opening-journey-ui.js?v=20261015-1&opening=20261015-2&rescueroom=20261015-1&runes=20261017-1&motion1020=20261020-1&guidehold=20261021-1"></script>
-<script defer src="js/salvage-recovery-ui.js?v=20260817-recovery1&equipment-inspection=20260908-1&release=20261003-1&uiwords=20261009-1&bagrail=20261019-1&codexreview=20261023-1"></script>
+<script defer src="js/salvage-recovery-ui.js?v=20260817-recovery1&equipment-inspection=20260908-1&release=20261003-1&uiwords=20261009-1&bagrail=20261019-1&codexreview=20261023-1&uifit=20261024-1"></script>
     <script defer src="js/unique-hunt-ui.js?v=20260817-hunt1&vfx-icons=20260901-1&treasure=20260907-1&late=20261002-2&review=20261002-1&review=20261002-2&uiwords=20261009-1&codex=20261009-1&tidy=20261018-1&crisp=20261022-1"></script>
     <script defer src="js/unique-codex-ui.js?v=20261009-1&leaves=20261009-1&tidy=20261018-1&codexreview=20261023-1"></script>
     <script defer src="js/memory-leaves-ui.js?v=20261009-1&drops=20261009-6&filter=20261010-1&cohesion=20261022-1"></script>
@@ -1803,7 +1803,7 @@
 <script defer src="js/equipment-loadouts-ui.js?v=20260817-loadout1&review=20260817-1&aux=20261001-2&realm=20261003-1&uiwords=20261009-1&eqw=20261010-1&eqwhead=20261021-1&crisp=20261022-1&buildreview=20261024-3&presetui=20261024-1"></script>
 <script defer src="js/playtest-telemetry.js?v=20260816-telemetry-separation1&login-idle=20260908-1&perf=20261013-5"></script>
 <script defer src="js/cloud-tools-ui.js?v=20260812-ops1&display=20260906-1&aux=20261001-2&aux=20261001-14&dbsave=20261003-1&uiwords=20261009-1&cheat=20261021-1"></script>
-<script defer src="js/stump-talisman-ui.js?v=20260930-6&aux=20260930-7&aux=20261002-3&review=20261003-1&drag=20261004-1&tone=20261006-1&stump=20261009-1&stumpwords=20261009-1&stumplayout=20261009-1&tidy=20261018-1&codexreview=20261023-1&bagswap=20261023-1"></script>
+<script defer src="js/stump-talisman-ui.js?v=20260930-6&aux=20260930-7&aux=20261002-3&review=20261003-1&drag=20261004-1&tone=20261006-1&stump=20261009-1&stumpwords=20261009-1&stumplayout=20261009-1&tidy=20261018-1&codexreview=20261023-1&bagswap=20261023-1&uifit=20261024-1"></script>
 <script defer src="js/stump-cube-ui.js?v=20260930-1&aux=20261002-3&dialog=20261003-1&drag=20261004-1&playtest=20261007-8&stump16=20261008-1&stump=20261009-1&stumpwords=20261009-1&stumpwords2=20261009-1&stumpwords3=20261009-1&filter=20261010-1&perfectcore=20261020-1&blessing=20261024-1"></script>
 <script defer src="js/stump-ripening-ui.js?v=20261008-1&goal=20261008-6&stump=20261009-1&stumpwords=20261009-1&stumpwords2=20261009-1&stumpwords3=20261009-1&stumplayout=20261009-1&bulkdiscard=20261018-1&codexreview=20261023-1&bagswap=20261023-1&blessing=20261024-1"></script>
 <script defer src="js/stump-harvest-ui.js?v=20261007-1&stump16=20261008-1&post50=20261009-1&stump=20261009-1&stumpwords=20261009-1&stumpwords2=20261009-1&stumpwords3=20261009-1&stumplayout=20261009-1&codexreview=20261023-1"></script>

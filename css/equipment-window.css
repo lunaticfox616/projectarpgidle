@@ -75,14 +75,17 @@
 :root body #item-tab-equip #ui-equip-list .ward-slot-cells .ward-slot img { width: 24px; height: 24px; }
 :root body #item-tab-equip #ui-equip-list .ward-slot-cells .ward-slot-line { font-size: var(--font-size-ui); line-height: 14px; }
 
-/* 요약: DPS 하나만 크게, 그 아래 유효 생명력 한 줄(2026-10-21 사용자: 저항과 그 밖의 능력치는 지웠다) */
+/* 요약: DPS 한 줄과 유효 생명력, 판 없이 장착 장비 판 바로 아래에 둔다(2026-10-24 사용자: "박스지우고 간결하게". 2026-10-21 사용자:
+   저항과 그 밖의 능력치는 지웠다). 휴대폰은 아래 휴대폰 규칙의 한 줄 요약이다. */
 :root body #item-tab-equip .equipment-window .equipment-loadout-summary { display: block; margin: 0; }
 :root body #item-tab-equip .eqw-summary-mini { display: none; }
-:root body #item-tab-equip .eqw-dps { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 6px; padding: 3px 8px;
-  background: linear-gradient(180deg, rgba(227, 189, 114, .07), transparent); border: 1px solid rgba(122, 95, 51, .45); }
-:root body #item-tab-equip .eqw-dps span { color: #c9b48a; font-size: 12px; letter-spacing: 1px; }
-:root body #item-tab-equip .eqw-dps b { color: var(--c); font-size: var(--font-size-heading); text-shadow: 0 0 10px color-mix(in srgb, var(--c) 45%, transparent); }
-:root body #item-tab-equip .eqw-ehp { display: flex; flex-wrap: wrap; gap: 2px 10px; margin-top: 6px; }
+@media (min-width: 1081px) {
+  :root body #item-tab-equip .equipment-window .eqw-summary-card { padding: 0 4px; border: 0; background: none; box-shadow: none; }
+}
+:root body #item-tab-equip .eqw-dps { display: flex; align-items: baseline; gap: 8px; }
+:root body #item-tab-equip .eqw-dps span { color: #c9b48a; font-size: var(--font-size-ui); }
+:root body #item-tab-equip .eqw-dps b { color: var(--c); font-size: var(--font-size-ui); }
+:root body #item-tab-equip .eqw-ehp { display: flex; flex-wrap: wrap; gap: 0 10px; margin-top: 2px; }
 :root body #item-tab-equip .eqw-ehp > span { color: var(--eqw-muted); font-size: var(--font-size-ui); }
 :root body #item-tab-equip .eqw-ehp > span b { color: var(--c); }
 :root body #item-tab-equip .eqw-ehp .eqw-ehp-label { color: #c9b48a; }
@@ -277,16 +280,34 @@
     :root body #item-tab-equip .equipment-window #ui-equipment-inventory-inspector .equipment-grid-inspector-empty { padding: 10px 0; color: var(--eqw-muted); font-size: 12px; text-align: left; }
     :root body #item-tab-equip .equipment-window .equipment-inspection-tooltip { max-height: 420px; overflow: auto; }
   }
+  @container eqw (1170px <= width < 1300px) {
+    :root body #item-tab-equip .equipment-window .equipment-inventory-grid-shell {
+      --equipment-grid-cell-size: round(down, clamp(16px, min(calc((100cqw - 58px) / 10), var(--eqw-cell-fit, 52px)), 52px), 1px); }
+  }
   @container eqw (min-width: 1300px) {
     :root body #item-tab-equip .equipment-window { grid-template-columns: clamp(276px, calc(100cqw - 974px), 330px) 680px minmax(270px, 1fr); }
-    :root body #item-tab-equip .equipment-window .equipment-inventory-grid-shell { --equipment-grid-cell-size: 60px; }
+    :root body #item-tab-equip .equipment-window .equipment-inventory-grid-shell { --equipment-grid-cell-size: clamp(24px, var(--eqw-cell-fit, 60px), 60px); }
   }
   @container eqw (760px <= width < 1170px) {
     /* 왼쪽 칸은 262px에서 330px까지, 나머지는 가방이다. 가방 칸은 판 폭을 채우게 64px까지 커진다(52px에서 멈추던 때는 1920x1080 기본 창에서
        106px가 비었다). 칸 폭은 정수 px로 내린다: 반 화소 칸에서는 칸 글자와 도구 줄 글이 번졌다. 세로는 요약이 DPS와 유효 생명력만 남아 남는다 */
     :root body #item-tab-equip .equipment-window { grid-template-columns: clamp(262px, calc(100cqw - 718px), 330px) minmax(0, 1fr); }
-    :root body #item-tab-equip .equipment-window .equipment-inventory-grid-shell { --equipment-grid-cell-size: round(down, clamp(24px, calc((100cqw - 58px) / 10), 64px), 1px); }
+    :root body #item-tab-equip .equipment-window .equipment-inventory-grid-shell {
+      --equipment-grid-cell-size: round(down, clamp(24px, min(calc((100cqw - 58px) / 10), var(--eqw-cell-fit, 64px)), 64px), 1px); }
   }
+  /* 장비 창은 스크롤 없이 한 화면에 든다(2026-10-24 사용자: "장비/인벤토리 창 전체가 스크롤 없이 한 화면에"). 스크롤 상자인 칸
+     (.merged-subtab-pane)을 세로 줄로 두고 장비 창이 위 줄(제작실, 거래소 탭)을 뺀 남은 높이를 갖는다. 그 높이에서 가방은 머리와 여백 104px을
+     뺀 1/10까지 칸을 줄이고(--eqw-cell-fit, 위 칸 크기 규칙의 min), 장착 칸 줄은 판 머리, 액막이 칸, 요약 200px을 뺀 1/5(코어와 세 번째
+     반지가 다 있으면 1/6)까지 줄인다. 더 낮은 창에서는 전처럼 칸이 스크롤된다. */
+  :root body.desktop-windowed-ui #tab-items .merged-subtab-pane.active[data-tab-id="tab-items"]:has(> #item-tab-equip.active) { display: flex; flex-direction: column; }
+  :root body.desktop-windowed-ui #tab-items .merged-subtab-pane[data-tab-id="tab-items"] > #item-tab-equip.active { flex: 1 0 0; container: eqw / size;
+    --eqw-cell-fit: round(down, calc((100cqh - 104px) / 10), 1px); }
+  /* 임시 보관함(넘친 장비, 루프가 끝나면 비워진다)이 보이는 동안은 그 높이와 위아래 여백 135px도 뺀다 */
+  :root body.desktop-windowed-ui #tab-items .merged-subtab-pane[data-tab-id="tab-items"] > #item-tab-equip.active:has(#ui-equipment-temporary-storage:not([hidden])) {
+    --eqw-cell-fit: round(down, calc((100cqh - 240px) / 10), 1px); }
+  :root body.desktop-windowed-ui #item-tab-equip #ui-equip-list.equipment-paperdoll { --eqw-doll-row: round(down, clamp(56px, calc((100cqh - 200px) / 5), 68px), 1px); }
+  :root body.desktop-windowed-ui #item-tab-equip #ui-equip-list.equipment-paperdoll.has-ring3.has-core {
+    --eqw-doll-row: round(down, clamp(56px, calc((100cqh - 205px) / 6), 68px), 1px); }
   /* 떠서 나오는 선택한 장비(두 칸 창) */
   :root body #item-tab-equip #ui-equipment-inventory-inspector:popover-open { display: block; width: 340px; padding: 10px 12px; overflow: auto; border: 1px solid #c79a4a; border-radius: 0;
     background: linear-gradient(180deg, #221a12, #120e0a); box-shadow: 0 0 0 1px #000, inset 0 0 0 3px #17120d, inset 0 0 0 4px rgba(227, 189, 114, .3), 0 12px 28px rgba(0, 0, 0, .8); }

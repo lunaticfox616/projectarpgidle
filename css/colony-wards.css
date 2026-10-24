@@ -3,9 +3,6 @@
    받고, 여기서는 크기와 한 줄 글만 정한다. */
 @layer features {
 .paperdoll .ward-slot-row { grid-column: 1 / -1; display: grid; gap: 6px; margin-top: 2px; }
-.ward-slot-row > header { display: flex; align-items: baseline; gap: 8px; }
-.ward-slot-row > header span { color: var(--px-gold, #c69f5e); font-weight: 700; }
-.ward-slot-row > header small { color: var(--px-copy-muted, #a39883); }
 /* 첫 칸만 남는 폭(1fr)을 받고 나머지는 정수 px: 소수 폭이면 칸 안의 글이 화소 사이에서 시작해 번졌다(2026-10-21). */
 .ward-slot-cells { display: grid; grid-template-columns: minmax(0, 1fr) repeat(4, round(down, calc((100% - 24px) / 5), 1px)); gap: 6px; }
 .ward-belt-line span { color: #c8b6ff; }

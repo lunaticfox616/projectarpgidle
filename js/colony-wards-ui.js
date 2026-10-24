@@ -35,8 +35,8 @@ const colonyWardsUi = (() => {
             if (equipment[slot]) return equippedCell(slot, equipment[slot], index < count);
             return index < count ? emptyCell(slot) : lockedCell();
         }).join('');
-        return `<section class="ward-slot-row" aria-label="액막이 칸"><header><span>액막이</span><small>${count ? `${count}/${R.maxSlots}칸` : NO_SLOT_HINT}</small></header>
-            <div class="ward-slot-cells">${cells}</div></section>`;
+        // 2026-10-24 사용자: 머리 줄("액막이 1/5칸")을 지웠다. 잠긴 칸의 자물쇠와 툴팁이 칸을 여는 방법을 알린다.
+        return `<section class="ward-slot-row" aria-label="액막이 칸"><div class="ward-slot-cells">${cells}</div></section>`;
     }
     /** 허리띠 툴팁의 베이스 옵션 머리 바로 아래 한 줄(군락지가 열린 뒤): 이 허리띠가 여는 액막이 칸 수와 굴림 범위. */
     function beltLineHtml(item) {
