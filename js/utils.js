@@ -106,6 +106,17 @@ function drawCrispCanvasText(ctx, text, x, y, method = 'fillText') {
     ctx[method](label, at.x, at.y);
     ctx.textAlign = align;
 }
+/**
+ * Writes html into a node only when it differs from what was last written there (node.__lastHtml, the convention other panels use).
+ * Comparing with node.innerHTML never matches: the browser serializes the parsed markup differently (2026-10-25 측정: 열린 장비 · 지도 ·
+ * 루프 창이 화면 갱신마다 같은 내용을 통째로 다시 써 갱신 한 번이 1.2ms에서 3~9ms로 늘었다). A missing node is skipped.
+ * @returns {boolean} whether it wrote.
+ */
+function writeHtmlIfChanged(node, html) {
+    if (!node || node.__lastHtml === html) return false;
+    node.innerHTML = node.__lastHtml = html;
+    return true;
+}
 /** Bag pages: 1 plus the 가방 쪽 steps the unlock ledger holds (2026-10-25 사용자: 저절로 늘지 않고 해금 탭의 강화로). A state without
  * a ledger, or with one saved before the steps existed (version below CONTENT_UNLOCK_SERIES_VERSION), counts by loop as before:
  * loading fits the bag before it restores the ledger (js/save-migrations.js), and the restore turns those pages into owned steps. */

@@ -4929,19 +4929,34 @@ drawDamageTexts.paint = (() => {
         const label = text.miss ? String(text.value) : getDamageTextLabel(text);
         return { font: font(text), align, pop, label };
     }
+    // 글자 크기: 같은 글꼴, 정렬, 글자가 매 프레임 되풀이된다(2026-10-25 측정: 초당 267번 재는데 서로 다른 것은 열 가지쯤). 잰 크기만
+    // 기억하고, 글꼴이 늦게 들어오면(document.fonts loadingdone) 다시 잰다.
+    const sizes = new Map();
+    if (typeof document === 'object' && document.fonts && document.fonts.addEventListener) document.fonts.addEventListener('loadingdone', () => sizes.clear());
+    function textSize(ctx, label) {
+        const key = `${ctx.font}|${ctx.textAlign}|${label}`;
+        let size = sizes.get(key);
+        if (!size) {
+            const m = ctx.measureText(label);
+            size = { left: m.actualBoundingBoxLeft, right: m.actualBoundingBoxRight, ascent: m.actualBoundingBoxAscent, descent: m.actualBoundingBoxDescent, width: m.width };
+            if (sizes.size >= 512) sizes.clear();
+            sizes.set(key, size);
+        }
+        return size;
+    }
     function measure(ctx, row) {
         const { text, pop } = row;
         ctx.font = row.font; ctx.textAlign = row.align;
-        const metrics = ctx.measureText(row.label);
+        const metrics = textSize(ctx, row.label);
         const count = !text.bodyCue && !text.miss && text.hitCount > 1 ? `${Math.floor(text.hitCount)}타` : '';
         // Korean unit glyphs can overhang their advance width; leave a real gap before the hit-count suffix.
-        const countX = metrics.actualBoundingBoxRight + GAP * 2;
+        const countX = metrics.right + GAP * 2;
         ctx.font = '10px "Galmuri9", "Galmuri11", "Malgun Gothic", sans-serif';
-        const right = Math.max(metrics.actualBoundingBoxRight, count ? countX + ctx.measureText(count).width : 0);
-        const box = { x: text.x - (metrics.actualBoundingBoxLeft + GAP) * pop,
-            y: row.y - (metrics.actualBoundingBoxAscent + GAP) * pop,
-            w: (metrics.actualBoundingBoxLeft + right + GAP * 2) * pop,
-            h: (metrics.actualBoundingBoxAscent + metrics.actualBoundingBoxDescent + GAP * 2) * pop };
+        const right = Math.max(metrics.right, count ? countX + textSize(ctx, count).width : 0);
+        const box = { x: text.x - (metrics.left + GAP) * pop,
+            y: row.y - (metrics.ascent + GAP) * pop,
+            w: (metrics.left + right + GAP * 2) * pop,
+            h: (metrics.ascent + metrics.descent + GAP * 2) * pop };
         return { ...row, count, countX, box };
     }
     function frame(ctx, text, now) {

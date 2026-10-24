@@ -229,13 +229,13 @@
         }
         renderTemporaryStorage();
         if (!root) return page;
-        root.innerHTML = Array.from({ length: layout.pageCount }, (_, index) => {
+        writeHtmlIfChanged(root, Array.from({ length: layout.pageCount }, (_, index) => {
             let matchCount = search.counts[index];
             let searchClass = search.active ? (matchCount > 0 ? ' search-match' : ' search-miss') : '';
             let searchText = search.active ? `, ${found} ${matchCount}개` : '';
             let badge = matchCount > 0 ? `<small>${matchCount}</small>` : '';
             return `<button type="button" class="${index === page ? 'active' : ''}${searchClass}" onclick="equipmentInventoryInteraction.setPage(${index})" aria-pressed="${index === page ? 'true' : 'false'}" aria-label="${index + 1}페이지${searchText}" title="${index + 1}페이지${searchText}"><span>${index + 1}</span>${badge}</button>`;
-        }).join('');
+        }).join(''));
         keepPageInView(root, page);
         return page;
     }
@@ -258,7 +258,7 @@
         let items = equipmentInventoryGridRuntime.getTemporaryItems(game);
         root.hidden = items.length === 0;
         if (items.length === 0) {
-            root.innerHTML = '';
+            writeHtmlIfChanged(root, '');
             return;
         }
         let cards = items.map(item => {
@@ -266,7 +266,7 @@
             let footprint = getEquipmentInventoryFootprint(item);
             return `<button type="button" class="equipment-temporary-item rarity-${item.rarity || 'normal'}${itemInfluencesUi.influenceClasses(item)}" style="${itemInfluencesUi.influenceStyle(item)}" data-temporary-key="${escapeHTML(key)}" onclick="equipmentInventoryInteraction.restoreTemporaryItem(this.dataset.temporaryKey)"><img src="${getEquipmentGridVisualAsset(item)}" alt="" draggable="false"><span>${escapeHTML(item.name || item.baseName || '장비')}</span><small>${footprint.columns}×${footprint.rows}, 회수</small></button>`;
         }).join('');
-        root.innerHTML = `<header><strong>임시 보관함</strong><span>${items.length}개</span></header><p>이전 배치에서 복구된 장비입니다. 빈칸을 확보한 뒤 눌러서 회수하세요. 루프가 끝나면 비워집니다.</p><div>${cards}</div>`;
+        writeHtmlIfChanged(root, `<header><strong>임시 보관함</strong><span>${items.length}개</span></header><p>이전 배치에서 복구된 장비입니다. 빈칸을 확보한 뒤 눌러서 회수하세요. 루프가 끝나면 비워집니다.</p><div>${cards}</div>`);
     }
 
     function restoreTemporaryItem(itemKey) {

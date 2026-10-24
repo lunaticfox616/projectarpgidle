@@ -829,7 +829,7 @@ function getPaperdollSlots(equipment = game.equipment) {
 /** 장착 칸을 그리고 배치를 고른다(css/equipment-window.css): 세 번째 반지는 코어 칸이 없으면 그 자리, 코어가 있으면 신발 아래 줄. */
 function setPaperdollHtml(targetId, html) {
     const list = document.getElementById(targetId);
-    list.innerHTML = html;
+    writeHtmlIfChanged(list, html);
     list.classList.toggle('has-ring3', !!list.querySelector('.slot-반지3'));
     list.classList.toggle('has-core', !!list.querySelector('.slot-코어'));
 }

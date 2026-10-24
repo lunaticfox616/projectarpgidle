@@ -225,8 +225,7 @@ const explorationAtlasUi = (() => {
         if (overview) return;
         const region = regionFor(route);
         if (region && region.routes.filter(available).length > 1) selected = region.id;
-        const html = locationHtml(region,route);
-        if (host.innerHTML !== html) host.innerHTML = html;
+        writeHtmlIfChanged(host, locationHtml(region,route));
         syncRegionBanner(region,route);
     }
     const regionLabel = region => (region.id === 'tree' ? '나무' : region.name);
@@ -250,7 +249,7 @@ const explorationAtlasUi = (() => {
             : `<p>${escapeHTML(sideStatus || regionProgress(region))}</p>`;
         const html = `<img class="atlas-landscape" src="${region.landscape}" alt="" decoding="async"><div>
             <h2>${escapeHTML(hunting ? '나무' : routeLabel(route))}</h2>${progress}</div>`;
-        if (banner.innerHTML !== html) {banner.className='atlas-theme-'+region.id;banner.innerHTML=html;}
+        if (writeHtmlIfChanged(banner, html)) banner.className='atlas-theme-'+region.id;
     }
     return {open,select,enter,hunt,render,syncLocation,bossRewardLabel,bossEntry,rewardTooltip};
 })();
