@@ -55,6 +55,10 @@ body[data-ui-skin] {
   /* 창 테: 모서리 매듭 조각 26도트를 한 도트 1px로(좁은 화면은 0.5px). 가벼운 판은 4도트 빗면, 판(HUD · 로고)은 창과 같은 테. */
   --px-window-border: 26px;
   --px-window-frame: var(--px-frame-heavy) 26 / var(--px-window-border) / 0 stretch;
+  /* 테가 차지하는 자리(레이아웃 테두리). 그림은 26도트로 그리고 내용은 16도트 안쪽부터 온다: 모서리 매듭은 모서리에서 x+y<28 삼각형이라
+     (16, 16)부터는 겹치지 않고, 가장자리는 금빛 선 6도트 뒤가 판과 같은 색의 어두운 채움이다(2026-10-24 사용자: 창 가장자리 빈 곳 줄이기,
+     "하나만 수정하면 다 수정되게"). 무거운 판을 쓰는 모든 창, 안내 카드, 대화 상자가 이 값 하나를 쓴다. */
+  --px-window-edge: 16px;
   --px-light-border: 4px;
   --px-light-frame: var(--px-frame-light) 4 / var(--px-light-border) / 0 stretch;
   --px-plate-border: 26px;
@@ -71,7 +75,7 @@ body[data-ui-skin] {
 }
 
 /* 좁은 화면과 가로로 눕힌 휴대폰(높이 600px 이하)은 테를 반 굵기로: 가로 휴대폰은 폭이 760px를 넘어도 높이가 293 ~ 393px뿐이다 */
-@media (max-width: 760px), (max-width: 1080px) and (orientation: landscape) and (max-height: 600px) { body[data-ui-skin] { --px-window-border: 13px; --px-plate-border: 13px; } }
+@media (max-width: 760px), (max-width: 1080px) and (orientation: landscape) and (max-height: 600px) { body[data-ui-skin] { --px-window-border: 13px; --px-window-edge: 8px; --px-plate-border: 13px; } }
 /* 세로로 쌓는 배치(1080px 이하 — 태블릿 · 좁은 PC 창 포함)의 HUD 돌판 · 하단 메뉴 띠도 반 굵기: 26px 테가 판 위로 26px 솟아
    바로 위 전투 기록 막대의 "전투 로그" 글씨를 덮었다(1024×768). */
 @media (max-width: 1080px) { body[data-ui-skin].mobile-battle-tab { --px-plate-border: 13px; } }
@@ -281,21 +285,23 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 :root body[data-ui-skin] :is(#tutorial-overlay, #death-overlay, #loop-hero-select-overlay, #loop-ready-overlay, #loop-decision-overlay, #reward-overlay, #patch-notes-overlay) .tutorial-card,
 :root body[data-ui-skin] :is(#act-exploration-dialog),
 :root body[data-ui-skin] :is(.game-dialog-card, .loading-card, .selection-overlay-panel, .void-craft-dialog) {
-  border: var(--px-window-border) solid transparent;
+  border: var(--px-window-edge) solid transparent;
   border-image: var(--px-window-frame);
   border-radius: 0;
   background: var(--px-wood), var(--px-stone);
   background-clip: padding-box;
-  box-shadow: var(--px-inner-shade), 6px 6px 0 rgba(0, 0, 0, .5);
+  /* 안쪽 그늘(--px-inner-shade)은 두지 않는다: 테 안쪽 끝에 투명한 경계선으로 남았다(2026-10-24 사용자) */
+  box-shadow: 6px 6px 0 rgba(0, 0, 0, .5);
   image-rendering: pixelated;
 }
-:root body[data-ui-skin].desktop-windowed-ui .ui-window-active { box-shadow: var(--px-inner-shade), 6px 6px 0 rgba(0, 0, 0, .58); }
+:root body[data-ui-skin].desktop-windowed-ui .ui-window-active { box-shadow: 6px 6px 0 rgba(0, 0, 0, .58); }
 :root body[data-ui-skin].desktop-windowed-ui :is(.ui-window-titlebar, .ui-window-active .ui-window-titlebar) {
   border-bottom: 1px solid var(--px-ink);
   background: var(--px-wood-dark), var(--px-stone-raised);
   box-shadow: inset 0 -1px 0 var(--px-bronze), inset 0 -2px 0 var(--px-ink);
 }
-:root body[data-ui-skin].desktop-windowed-ui .ui-window-body { background: transparent; }
+/* 창 몸통 여백 6px: 테 안쪽의 어두운 채움 10도트가 이미 금빛 선과 내용 사이를 띄운다(전: 화면 폭에 따라 12~18px) */
+:root body[data-ui-skin].desktop-windowed-ui .ui-window-body { padding: 6px; background: transparent; }
 /* 창 안 제목: 옛 남색 밑줄(ui-luxe) → 청동 선 위 먹선, 글은 휴대폰 창 제목과 같은 금빛 */
 :root body[data-ui-skin].desktop-windowed-ui .ui-window-body h2 { border-bottom: 1px solid var(--px-bronze); box-shadow: 0 1px 0 var(--px-ink); color: var(--px-gold-bright); font-size: 16px; text-shadow: var(--px-text-edge); }
 :root body[data-ui-skin].desktop-windowed-ui .ui-window-actions button,
@@ -686,8 +692,9 @@ body[data-ui-skin] :where(*), body[data-ui-skin] :where(*)::before, body[data-ui
 :root body[data-ui-skin] .market-tabs { display: grid; grid-template-columns: minmax(0, 1fr); grid-auto-flow: column; grid-auto-columns: round(down, calc((100% - 8px) / 3), 1px); }
 /* 가운데 맞춘 한 줄 글을 감싼 span: 감싼 칸의 가운데 맞춤은 그대로 두고, 칸 폭(left 50%)과 제 폭(translate 50%)이 홀수일 때 생기는
    반 화소를 되돌린다. 칸이 가운데로 맞출 때만 맞는 계산이라 그런 칸(단추, 아이템 툴팁의 제목과 구획 등)에서만 켠다. 왼쪽 맞춤인
-   장비 판의 같은 툴팁 글은 그대로 둔다. 두 줄로 접히면 줄마다의 가운데 맞춤은 여전히 반 화소에 놓일 수 있다(2026-10-21). */
-:root body[data-ui-skin] :is(button, .window-tab-key, .codex-hunt-empty, .player-exchange-empty, .cl-block, #item-tooltip-box :is(.tooltip-title, .tooltip-section)) > .px-center {
+   장비 판의 같은 툴팁 글은 그대로 둔다. 두 줄로 접히면 줄마다의 가운데 맞춤은 여전히 반 화소에 놓일 수 있다(2026-10-21).
+   장비 창 요약의 이름(DPS, 유효 생명력)도 가운데 맞춤이다: DPS가 반 화소에 놓여 흐렸다(2026-10-24 사용자). */
+:root body[data-ui-skin] :is(button, .window-tab-key, .codex-hunt-empty, .player-exchange-empty, .cl-block, #item-tooltip-box :is(.tooltip-title, .tooltip-section), #item-tab-equip .eqw-sum-label) > .px-center {
   display: inline-block; position: relative; left: calc(round(down, 50%, 1px) - 50%); translate: calc(round(up, 50%, 1px) - 50%); }
 /* 룬 창 하위 탭: 두 줄(이름, 설명) 묶음을 단추 폭 칸의 가운데에 두고, 묶음 안의 두 줄은 왼쪽 맞춤 그대로. */
 :root body[data-ui-skin] #tab-skills .skill-subtab-row .subtab-btn { justify-content: stretch; justify-items: center; }

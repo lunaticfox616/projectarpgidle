@@ -261,7 +261,7 @@
 }
 @media (max-width: 700px), (max-width: 1080px) and (orientation: landscape) and (max-height: 600px) {
   /* 높이 상한은 안쪽 높이라 도트 테두리와 여백이 더해져 화면을 넘었다(가로 휴대폰에서 위아래 3px) */
-  .selection-overlay-panel.gem-slot-panel { max-height: calc(100dvh - 16px - 2 * var(--px-window-border, 0px) - 28px); }
+  .selection-overlay-panel.gem-slot-panel { max-height: calc(100dvh - 16px - 2 * var(--px-window-edge, 0px) - 28px); }
 }
 @media (max-height: 600px) {
   /* 낮은 화면(가로 휴대폰, 화면 배율을 키운 휴대폰): 지금 낀 룬 카드까지 쌓으면 후보 목록이 틀 밖으로 잘리고 밀 수 없었다(틀은 overflow: hidden).
