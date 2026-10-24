@@ -48,7 +48,7 @@
 /* One selected build: shared equipment paperdoll beside its runes. */
 :root body .selection-overlay-panel.build-preset-review {
     width: min(940px, 96vw);
-    max-height: calc(100dvh - 32px - 2 * var(--px-window-border, 0px));
+    max-height: calc(100dvh - 32px - 2 * var(--px-window-edge, 0px));
     box-sizing: border-box;
     color: var(--color-text, #e9dfcc);
     font-size: 12px;
@@ -120,7 +120,7 @@
 .build-set-wards .build-review-icon { height: 26px; flex: 0 0 26px; }
 .build-set-wards .build-review-copy b { -webkit-line-clamp: 1; }
 .build-review-note { color: #b8ab94; margin: 7px 0 0; overflow-wrap: anywhere; font-size: 10px; }
-:root body .selection-overlay-panel.build-preset-detail { width: min(460px, 92vw); max-height: calc(100dvh - 48px - 2 * var(--px-window-border, 0px)); box-sizing: border-box; overflow-wrap: anywhere; font-size: 15px; line-height: 1.6; }
+:root body .selection-overlay-panel.build-preset-detail { width: min(460px, 92vw); max-height: calc(100dvh - 48px - 2 * var(--px-window-edge, 0px)); box-sizing: border-box; overflow-wrap: anywhere; font-size: 15px; line-height: 1.6; }
 .build-detail-context { margin: 8px 0 12px; padding: 6px 9px; background: #302515; color: #ffe0a2; font-size: 12px; }
 .build-detail-tier { margin-top: 8px; color: #ffe0a2; }
 .build-review-footer { position: sticky; bottom: -14px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 0; margin-top: 8px; background: #17120e; border-top: 1px solid #6c5230; }
