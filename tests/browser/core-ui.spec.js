@@ -456,7 +456,10 @@ test('equipment presets swap owned gear atomically and stay usable on narrow scr
     await expect(panel).toBeVisible();
     await expect(panel.locator('.equipment-preset-slot')).toHaveCount(3);
     // 세팅 한 줄(2026-10-10 장비창 개편): 저장 단추, 적용 중인 세팅은 .applied, 부위 수는 title.
+    // 저장과 번호는 세트 창을 열고, 창의 확인 단추로 저장하거나 바꾼다(2026-10-24 통합 빌드 세트).
+    const confirmSet = page.locator('#equipment-build-review [data-build-confirm]');
     await panel.getByRole('button', { name: '저장', exact: true }).click();
+    await confirmSet.click();
     await expect(panel.locator('.equipment-preset-slot').first()).toHaveClass(/applied/);
     await expect(panel.locator('.equipment-preset-slot').first()).toHaveAttribute('title', /2부위/);
 
@@ -490,7 +493,8 @@ test('equipment presets swap owned gear atomically and stay usable on narrow scr
     await expect(page.locator('#ui-inventory-list .equipment-grid-item')).toHaveCount(1);
     await dismissVisibleTutorials(page);
     await openLoadout();
-    await panel.locator('.equipment-preset-slot').first().click(); // 저장된 세팅을 누르면 바로 바꾼다
+    await panel.locator('.equipment-preset-slot').first().click(); // 저장된 세트를 누르면 세트가 크게 열린다
+    await confirmSet.click(); // 불러오기를 눌러야 바꾼다
 
     const applied = await page.evaluate(ids => ({
         weaponId: game.equipment['무기'] && game.equipment['무기'].id,

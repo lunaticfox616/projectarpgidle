@@ -3917,7 +3917,7 @@ function toggleGemFoldMode(mode) {
 }
 
 // The first matching tag names a gem card's kind (이동: worn in the 이동 스킬 slot, js/mobility-skill.js).
-const GEM_TYPE_LABELS = Object.freeze([['summon_attack', '소환'], ['mobility', '이동'], ['spell', '주문'], ['projectile', '투사체'], ['slam', '강타']]);
+const GEM_TYPE_LABELS = Object.freeze([['summon_buff', '사역'], ['summon_guard', '수호 소환'], ['summon_attack', '소환'], ['mobility', '이동'], ['spell', '주문'], ['projectile', '투사체'], ['slam', '강타']]);
 function getGemCardMeta(def) {
     let tags = Array.isArray(def && def.tags) ? def.tags : [];
     let element = String((def && def.ele) || (tags.includes('fire') ? 'fire' : tags.includes('cold') ? 'cold' : tags.includes('lightning') ? 'light' : tags.includes('chaos') ? 'chaos' : 'phys'));
@@ -3943,6 +3943,8 @@ function getSkillGemArtPath(name) {
 }
 
 function renderSkillGemArt(name, className, options) {
+    const summonArt = supportGemSigil.summonHtml(name, className);
+    if (summonArt) return summonArt;
     let def = SKILL_DB[name] || {};
     let meta = getGemCardMeta(def);
     let artPath = getSkillGemArtPath(name);
@@ -3975,7 +3977,7 @@ function renderGemTagChips(def, maxTags) {
 /** One line under a tile: how the gem attacks (range kind and reach), or the summon's element and kind. */
 function getGemTileSummary(name, def) {
     let meta = getGemCardMeta(def);
-    if ((def.tags || []).includes('summon_attack')) return `${meta.elementLabel} ${meta.typeLabel}`;
+    if ((def.tags || []).includes('summon')) return `${meta.elementLabel} ${meta.typeLabel}`;
     let profile = getSkillGridProfile(name, def);
     return `${getSkillGridProfileKindLabel(profile.band ? 'band' : profile.kind)}, ${Math.max(1, profile.range || 1)}칸`;
 }
@@ -3996,7 +3998,7 @@ function renderAttackGemCard(name, highlightedName, stats) {
     let def = SKILL_DB[name] || {};
     let gemInfo = getUiGemPresentation(name, false, stats);
     let meta = getGemCardMeta(def);
-    let summonEquipped = (def.tags || []).includes('summon_attack') && (game.equippedSummonSkills || []).includes(name);
+    let summonEquipped = (def.tags || []).includes('summon') && (game.equippedSummonSkills || []).includes(name);
     let active = summonEquipped || [game.activeSkill, game.mobilitySkill].includes(name);
     let equipmentReady = typeof canUseSkillWithCurrentEquipment !== 'function' || canUseSkillWithCurrentEquipment(name);
     let tutorialTarget = getStarterGemTutorialTarget() === name && !active;
@@ -4015,27 +4017,26 @@ function getSupportEquipFailure(name, stats) {
     if ((game.equippedSupports || []).includes(name)) return '';
     let equippedSupports = game.equippedSupports || [];
     let supportCap = Math.max(0, Math.floor((stats && stats.suppCap) || 0));
-    if (equippedSupports.length >= supportCap) return `장착 한도 부족 (${equippedSupports.length}/${supportCap})`;
-    if (isSummonGuardSupport(name) && getEquippedSummonCount() >= getSummonEquipCapFromStats(stats)) {
-        return `소환수 한도 부족 (${getEquippedSummonCount()}/${getSummonEquipCapFromStats(stats)})`;
-    }
+    if (equippedSupports.length >= supportCap) return '';
+    const conflict = window.GameModules.skills.supports.conflictReason(name, game);
+    if (conflict) return conflict;
     let used = equippedSupports.reduce((sum, supportName) => sum + getSupportTierResonanceCost(supportName), 0);
     let available = Math.max(0, getEffectiveResonanceCap(stats) - used);
     let cost = getSupportTierResonanceCost(name);
-    return available < cost ? `공명력 부족 (${available}/${cost})` : '';
+    return available < cost ? `공명력 ${cost - available} 모자람` : '';
 }
 
 function renderSupportGemCard(name, highlightedName, stats) {
-    let def = SUPPORT_GEM_DB[name] || {};
     let gemInfo = getUiGemPresentation(name, true, stats);
     let active = (game.equippedSupports || []).includes(name);
     let failure = getSupportEquipFailure(name, stats);
     let tier = getSupportActiveTier(name);
-    let state = failure || `${def.name || getStatName(def.stat || '')}, 공명 ${getSupportTierResonanceCost(name)}`;
+    let state = failure || gemSelectionUi.application(name, stats);
     let classes = ['skill-gem', 'support-gem', 'gem-library-card', 'gem-tile', `is-tone-${supportGemSigil.tone(name)}`, active ? 'active' : '', failure ? 'equipment-blocked' : ''].filter(Boolean).join(' ');
     return `<article class="${classes}" ${getGemTileHandlers('support', name)} aria-label="${escapeHTML(name)}${active ? ', 장착 중' : (failure ? `, ${escapeHTML(failure)}` : '')}">
         ${renderGemTileLevel(gemInfo)}${active ? '<span class="gem-tile-worn">장착</span>' : ''}${supportGemSigil.html(name, 'gem-card-sigil gem-tile-art gem-tile-support-art', tier)}
-        <strong class="gem-tile-name">${highlightedName}</strong><small class="gem-usage-state">${escapeHTML(state)}</small>
+        <strong class="gem-tile-name">${highlightedName}</strong>${gemSelectionUi.indicators(name)}<small class="gem-usage-state">${escapeHTML(state)}</small>
+        <span class="support-library-effect">${escapeHTML(gemSelectionUi.effectText(name, tier, stats))}</span><small>공명 ${getSupportTierResonanceCost(name)}, ${active ? '등급과 교체 보기' : '후보 상세 보기'}</small>
     </article>`;
 }
 
@@ -4352,16 +4353,6 @@ function assertBuildEditable() {
     return true;
 }
 
-function isSummonGuardSupport(name) {
-    let def = SUPPORT_GEM_DB[name] || {};
-    return !!(def && Array.isArray(def.tags) && def.tags.includes('summon_guard'));
-}
-
-function getEquippedSummonGuardSupports() {
-    let supports = Array.isArray(game.equippedSupports) ? game.equippedSupports : [];
-    return supports.filter(name => isSummonGuardSupport(name));
-}
-
 function getStarterGemTutorialTarget() {
     let name = typeof game.starterGemTutorialPending === 'string' ? game.starterGemTutorialPending : '';
     if (!name || !Array.isArray(game.skills) || !game.skills.includes(name)) return null;
@@ -4376,7 +4367,7 @@ function completeStarterGemTutorial(name) {
 
 function isSummonAttackSkillGem(name) {
     let gemDef = SKILL_DB[name] || {};
-    return !!(gemDef && Array.isArray(gemDef.tags) && gemDef.tags.includes('summon_attack'));
+    return !!(gemDef && Array.isArray(gemDef.tags) && gemDef.tags.includes('summon'));
 }
 
 function normalizeEquippedSummonAttackSkills() {
@@ -4384,12 +4375,15 @@ function normalizeEquippedSummonAttackSkills() {
     game.summonSkillCounts = (game.summonSkillCounts && typeof game.summonSkillCounts === 'object') ? game.summonSkillCounts : {};
     let owned = Array.isArray(game.skills) ? game.skills : [];
     game.equippedSummonSkills = Array.from(new Set(game.equippedSummonSkills.filter(gemName => isSummonAttackSkillGem(gemName) && owned.includes(gemName))));
+    // 가호(사역룬)는 하나만 걸린다: 전령 둘이 가호 둘로 이관된 저장은 첫 가호만 끼운 채로 둔다(나머지는 보유로 남는다)
+    let blessing = game.equippedSummonSkills.find(gemName => SKILL_DB[gemName].aura);
+    game.equippedSummonSkills = game.equippedSummonSkills.filter(gemName => !SKILL_DB[gemName].aura || gemName === blessing);
     Object.keys(game.summonSkillCounts).forEach(gemName => {
         if (!game.equippedSummonSkills.includes(gemName)) delete game.summonSkillCounts[gemName];
     });
     game.equippedSummonSkills.forEach(gemName => {
         let count = Math.max(1, Math.floor(Number(game.summonSkillCounts[gemName]) || 1));
-        game.summonSkillCounts[gemName] = count;
+        game.summonSkillCounts[gemName] = SKILL_DB[gemName].tags.includes('summon_attack') ? count : 1;
     });
     return game.equippedSummonSkills;
 }
@@ -4404,7 +4398,7 @@ function getEquippedSummonAttackCount() {
 }
 
 function getEquippedSummonCount() {
-    return getEquippedSummonAttackCount() + getEquippedSummonGuardSupports().length;
+    return getEquippedSummonAttackCount();
 }
 
 function getSummonEquipCapFromStats(stats) {
@@ -4414,6 +4408,19 @@ function getSummonEquipCapFromStats(stats) {
     return Math.max(1, Math.min(maximum, Math.floor((stats && stats.summonCap) || 1)));
 }
 
+/** 가호(사역룬)는 하나만 걸린다(2026-10-24 스킬룬 추가본 v54 "가호는 하나만(새로 쓰면 바뀜)"): name이 가호면 끼워져 있는 다른 가호, 아니면 null. */
+function getOtherWornBlessing(name) {
+    if (!SKILL_DB[name].aura) return null;
+    return game.equippedSummonSkills.find(gemName => gemName !== name && SKILL_DB[gemName]?.aura) || null;
+}
+/** 끼워져 있던 가호(replaced, 없으면 그대로)를 빼고 그 자리에 name이 들어간다고 알린다. */
+function takeOffWornBlessing(replaced, name) {
+    if (!replaced) return;
+    game.equippedSummonSkills = game.equippedSummonSkills.filter(gemName => gemName !== replaced);
+    delete game.summonSkillCounts[replaced];
+    addLog(`가호는 하나만 걸립니다. [${replaced}] 대신 [${name}]${pickParticle(name, '을', '를')} 끼웠습니다.`, 'season-up');
+}
+
 function changeSummonSkillCount(name, delta) { if (!assertBuildEditable()) return;
     if (!isSummonAttackSkillGem(name) || !Array.isArray(game.skills) || !game.skills.includes(name)) return;
     normalizeEquippedSummonAttackSkills();
@@ -4421,9 +4428,12 @@ function changeSummonSkillCount(name, delta) { if (!assertBuildEditable()) retur
     let current = getSummonSkillCount(name);
     if (delta > 0) {
         let cap = getSummonEquipCapFromStats(getUiPlayerStats(null));
-        if (getEquippedSummonCount() >= cap) return addLog(`소환수 한도(${cap})로 인해 [${name}]${pickParticle(name, '을', '를')} 추가 소환할 수 없습니다.`, 'attack-monster');
+        // 가호는 하나만: 다른 가호가 끼워져 있으면 그 자리에 새 가호가 들어간다
+        let replaced = getOtherWornBlessing(name);
+        if (getEquippedSummonCount() - Number(!!replaced) >= cap) return addLog(`소환수 한도(${cap})로 인해 [${name}]${pickParticle(name, '을', '를')} 추가 소환할 수 없습니다.`, 'attack-monster');
+        takeOffWornBlessing(replaced, name);
         if (!game.equippedSummonSkills.includes(name)) game.equippedSummonSkills.push(name);
-        game.summonSkillCounts[name] = current + 1;
+        game.summonSkillCounts[name] = Number(SKILL_DB[name].tags.includes('summon_attack')) * current + 1;
         playUiFeedbackSound('gemSocket');
         completeStarterGemTutorial(name);
         if (SKILL_DB[name] && SKILL_DB[name].isGem) game.gemEnhanceTargetSkill = name;
@@ -4446,7 +4456,7 @@ function changeSkill(name, slotKind) { if (!assertBuildEditable()) return;
     if (typeof canUseSkillWithCurrentEquipment === 'function' && !canUseSkillWithCurrentEquipment(name)) {
         return addLog(`[${name}]${pickParticle(name, '은', '는')} 지금 장비로 쓸 수 없습니다: ${getSkillRuneWeaponNote(name)}.`, 'attack-monster');
     }
-    if ((SKILL_DB[name]?.tags || []).includes('summon_attack')) return toggleSummonAttackGem(name);
+    if ((SKILL_DB[name]?.tags || []).includes('summon')) return toggleSummonAttackGem(name);
     if (mobilitySkill.isMobilityGem(name)) return wearMobilityRune(name, slotKind);
     playUiFeedbackSound('gemSocket');
     game.activeSkill = name;
@@ -4550,7 +4560,7 @@ function setSupportActiveTier(name, tier) { if (!assertBuildEditable()) return;
     updateStaticUI();
 }
 function toggleSupport(name) { if (!assertBuildEditable()) return;
-    if (!contentProgression.isUnlocked('support')) return;
+    if (![contentProgression.isUnlocked('support'), game.supports.includes(name), SUPPORT_GEM_DB[name]].every(Boolean)) return;
     normalizeSupportLoadout(false);
     game.equippedSupports = Array.isArray(game.equippedSupports) ? game.equippedSupports : [];
     let idx = game.equippedSupports.indexOf(name);
@@ -4562,13 +4572,10 @@ function toggleSupport(name) { if (!assertBuildEditable()) return;
             updateStaticUI();
             return;
         }
-        if (isSummonGuardSupport(name)) {
-            let cap = getSummonEquipCapFromStats(stats);
-            if (getEquippedSummonCount() >= cap) return addLog(`소환수 한도(${cap})로 인해 [${name}]${pickParticle(name, '은', '는')} 장착할 수 없습니다.`, 'attack-monster', { toast: true });
-        }
+        const conflict = window.GameModules.skills.supports.conflictReason(name, game);
+        if (conflict) return addLog(conflict, 'attack-monster', { toast: true });
         let used = game.equippedSupports.reduce((sum, n) => sum + getSupportTierResonanceCost(n), 0);
         let remain = Math.max(0, getEffectiveResonanceCap(stats) - used);
-        let activeTier = getSupportActiveTier(name);
         let cost = getSupportTierResonanceCost(name);
         if (remain < cost) return addLog(`공명력 부족 (${remain}/${cost})`, 'attack-monster', { toast: true });
         game.equippedSupports.push(name);
@@ -5569,17 +5576,12 @@ function showGemTooltip(event, type, name, target = null) {
         html += `<div class="tooltip-line">${keepKoreanUnitParticles(info.desc)}</div>`;
         let tierText = typeof getSupportTierLabel === 'function' ? getSupportTierLabel(name, info.activeTier) : (info.activeTier === 3 ? '상급' : info.activeTier === 2 ? '중급' : '하급');
         let valueText = typeof formatSupportGemEffectValue === 'function' ? formatSupportGemEffectValue(info.value) : Number(info.value || 0).toFixed(1);
-        html += `<div class="tooltip-line" style="margin-top:6px;">효과(${tierText}): ${info.statName} +${valueText}${SUPPORT_GEM_DB[name].isPct ? '%' : ''}</div>` + gemSlotDialog.tierLineHtml(name, stats);
+        html += `<div class="tooltip-line" style="margin-top:6px;">효과(${tierText}): ${escapeHTML(gemSelectionUi.effectText(name, info.activeTier, stats))}</div>` + gemSlotDialog.tierLineHtml(name, stats);
         if (info.scaleWithOwnStat) {
             let baseText = typeof formatSupportGemEffectValue === 'function' ? formatSupportGemEffectValue(info.scaleBase) : Number(info.scaleBase || 0).toFixed(1);
             let ratioText = typeof formatSupportGemEffectValue === 'function' ? formatSupportGemEffectValue(info.scaleRatioPct) : Number(info.scaleRatioPct || 0).toFixed(1);
             html += `<div class="tooltip-line" style="color:#9fd4ff;">계산: 보조스킬룬 제외 ${info.statName} ${baseText}% × 공명 계수 ${ratioText}% = +${valueText}%</div>`;
             html += `<div class="tooltip-line" style="color:#b8a6ff;">제외: 이 보조스킬룬 및 다른 보조스킬룬으로 얻은 ${info.statName} 증가</div>`;
-        }
-        if (Number.isFinite(SUPPORT_GEM_DB[name].heraldExplodeBase)) {
-            let chancePct = Math.min(85, ((SUPPORT_GEM_DB[name].heraldExplodeBase + ((info.totalLevel - 1) * (SUPPORT_GEM_DB[name].heraldExplodeScale || 0))) * 100));
-            html += `<div class="tooltip-line">시체폭발: 처치 시 ${chancePct.toFixed(1)}% 확률 발동</div>`;
-            html += `<div class="tooltip-line">시체폭발 피해: 처치한 적 최대 생명력의 10%</div>`;
         }
         if (TAGGED_DAMAGE_STAT_BY_TAG && Object.values(TAGGED_DAMAGE_STAT_BY_TAG).includes(info.statId)) {
             let tag = Object.keys(TAGGED_DAMAGE_STAT_BY_TAG).find(key => TAGGED_DAMAGE_STAT_BY_TAG[key] === info.statId);
@@ -5597,8 +5599,8 @@ function showGemTooltip(event, type, name, target = null) {
     } else {
         let skill = info.skill || SKILL_DB[name];
         let rawSkillTags = Array.isArray(skill.tags) ? skill.tags : [];
-        let isSummonAttackTooltip = rawSkillTags.includes('summon_attack');
-        html += `<div class="tooltip-line">${keepKoreanUnitParticles(info.desc)}</div>`;
+        let isSummonAttackTooltip = rawSkillTags.includes('summon');
+        html += `<div class="tooltip-line">${keepKoreanUnitParticles(info.desc)}</div><div class="tooltip-line">${escapeHTML(gemSelectionUi.summonEffect(name, stats))}</div>`;
         if (!isSummonAttackTooltip && typeof describeSkillGridProfile === 'function') {
             html += `<div class="tooltip-line" style="margin-top:6px;color:#7fffd4;">${describeSkillGridProfile(name, skill)}</div>`;
         }
@@ -5656,7 +5658,7 @@ function showGemTooltip(event, type, name, target = null) {
         if (skill.pierceOverkillCarry) html += `<div class="tooltip-line" style="color:#8fffe0;">특수 옵션: 각 원본 타겟의 초과 피해가 다른 적에게 연속 관통</div>`;
         if (skill.leech) html += `<div class="tooltip-line">추가 흡혈 +${skill.leech}%</div>`;
         if (skill.instantLeech) html += `<div class="tooltip-line" style="color:#ffb3d1;">특수 옵션: 이 룬을 사용해서 주는 피해에는 흡혈 즉시 적용</div>`;
-        if (rawSkillTags.includes('summon')) {
+        if (rawSkillTags.includes('summon_attack')) {
             const preview = (typeof getSummonTooltipPreview === 'function') ? getSummonTooltipPreview(name, stats) : null;
             if (preview) {
                 html += `<div class="tooltip-line" style="margin-top:6px;color:#9fd4ff;">소환수 유형: ${preview.roleLabel}${preview.trait ? `, 특징: ${preview.trait}` : ''}</div>`;

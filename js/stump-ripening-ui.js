@@ -99,10 +99,12 @@ const stumpRipeningUi = (() => {
     function bulkLines(items) {
         const groups = new Map();
         items.forEach(item => {
-            const name = item.family === 'sap' ? `${STUMP_BOX_COLORS[item.color].label} 수액` : seedName(item);
-            groups.set(name, (groups.get(name) || []).concat(Math.round(item.roll * 100)));
+            const name = item.family === 'seed' ? seedName(item)
+                : item.family === 'sap' ? `${STUMP_BOX_COLORS[item.color].label} 수액` : stumpBox.shortName(item);
+            groups.set(name, (groups.get(name) || []).concat(item));
         });
-        return [...groups].map(([name, rolls]) => `${name} ${rolls.length}개 (품질 ${rollRange(rolls)})`);
+        return [...groups].map(([name, rows]) => `${name} ${rows.length}개`
+            + (rows[0].color ? ` (품질 ${rollRange(rows.map(item => Math.round(item.roll * 100)))})` : ''));
     }
     /** What growing items the plan feeds: all of them, by the plan's whole growth. */
     function compostOutcome(plan) {
@@ -127,18 +129,32 @@ const stumpRipeningUi = (() => {
         const parts = DISCARD_KEEPS.filter(why => counts.has(why)).map(why => `${why} ${counts.get(why)}개`);
         return parts.length ? `남는 아이템: ${parts.join(', ')}` : '';
     }
-    /** Asks before a bulk action, naming what it will use; a refusal is a toast. @returns {Promise<boolean>} */
-    async function confirmBulk(kind, filter) {
+    /** Snapshot the exact consumed items and feeding outcome. Target XP alone is harmless while the same plan still applies. */
+    function bulkConfirmation(kind, filter) {
         const compost = kind === 'compost', reason = compost ? stumpBox.bulkCompostReason(game, filter) : stumpBox.bulkDiscardReason(game, filter);
+        const items = compost ? stumpBox.bulkCompostPlan(game, filter) : stumpBox.bulkDiscardItems(game, filter);
+        const targets = compost ? stumpBox.growingItems(game).map(item => item.id) : [];
+        const growth = compost ? items.reduce((sum, item) => sum + stumpBox.compostGrowth(item), 0) : 0;
+        const key = JSON.stringify([kind, filter, game.season, game.loopCount, items, targets, growth]);
+        return { reason, items, key };
+    }
+    /** Check immediately before the caller consumes anything; newly dropped, locked or changed materials require a new confirmation. */
+    function bulkConfirmationCurrent(kind, filter, key) {
+        const current = bulkConfirmation(kind, filter);
+        return !current.reason && typeof key === 'string' && key === current.key;
+    }
+    /** Asks before a bulk action. The caller must recheck the returned snapshot immediately before execution.
+     * @returns {Promise<string|null>} Approved snapshot key, or null for cancellation/refusal. */
+    async function confirmBulk(kind, filter) {
+        const compost = kind === 'compost', confirmation = bulkConfirmation(kind, filter), { reason, items } = confirmation;
         if (reason) {
             showGameToast(reason, { tone: 'warning' });
-            return false;
+            return null;
         }
-        const items = compost ? stumpBox.bulkCompostPlan(game, filter) : stumpBox.bulkDiscardItems(game, filter);
         const tail = compost ? compostOutcome(items) : [discardKeptLine(filter, items), '되돌릴 수 없습니다.'].filter(Boolean).join('\n');
         const options = { title: compost ? '일괄 거름 사용' : '일괄 버리기', tone: compost ? 'info' : 'danger',
             confirmLabel: `${items.length}개 ${compost ? '사용' : '버리기'}`, cancelLabel: '취소' };
-        return requestGameConfirmation(`${bulkLines(items).join('\n')}\n\n${tail}`, options);
+        return await requestGameConfirmation(`${bulkLines(items).join('\n')}\n\n${tail}`, options) ? confirmation.key : null;
     }
 
     // ── 부적 도감 ─────────────────────────────────────────
@@ -194,6 +210,6 @@ const stumpRipeningUi = (() => {
     }
 
     return Object.freeze({ lineText, isGolden, badgesHtml, extraLinesHtml, scarBodyHtml, discardScar, confirmDiscard, sealHtml, bulkHtml,
-        confirmBulk, codexHtml, rulesLines, ripenNote, regressLog });
+        confirmBulk, bulkConfirmationCurrent, codexHtml, rulesLines, ripenNote, regressLog });
 })();
 safeExposeGlobals({ stumpRipeningUi });

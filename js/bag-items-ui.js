@@ -4,17 +4,20 @@
  */
 const bagItemsUi = (() => {
     const hint = text => `<div class="tooltip-line" style="margin-top:6px; color:var(--copy-muted);">${text}</div>`;
-    const jewelHtml = jewel => window.createJewelRangeTooltipHtml(jewel) + hint('장비의 빈 소켓에 끼웁니다(두 번 누르거나 장착 칸에 끌어 놓기).');
-    function coreHtml(core) {
+    // bagHints: the bag's how-to-equip line. Inline cards (the cube's material and result panels, inspectors) leave it out.
+    const jewelHtml = (jewel, bagHints) => window.createJewelRangeTooltipHtml(jewel)
+        + (bagHints ? hint('장비의 빈 소켓에 끼웁니다(두 번 누르거나 장착 칸에 끌어 놓기).') : '');
+    function coreHtml(core, bagHints) {
         const lines = (core.lines || []).map(line => `<div class="tooltip-line">${escapeHTML(coreItems.describe(line))}</div>`).join('')
             + (core.perfect ? hint('한 계열의 네 줄이 모두 최대치입니다') : '');
         const worn = (game.equipment || {})[bagItems.CORE] === core;
-        return `<div class="tooltip-title" style="color:${getRarityColor(core.rarity || 'rare')}">[코어] ${escapeHTML(core.name)}</div>${lines}${worn ? '' : hint('장비창의 코어 칸에 끼웁니다(두 번 누르거나 코어 칸에 끌어 놓기).')}`;
+        return `<div class="tooltip-title" style="color:${getRarityColor(core.rarity || 'rare')}">[코어] ${escapeHTML(core.name)}</div>${lines}${worn || !bagHints ? '' : hint('장비창의 코어 칸에 끼웁니다(두 번 누르거나 코어 칸에 끌어 놓기).')}`;
     }
     /** js/ui.js prepareItemTooltip: a jewel or a core draws its own card and the equipment tooltip stops. true when drawn. */
     function presentTooltip(context, event, item) {
         if (!bagItems.ownShape(item)) return false;
-        presentItemTooltip(context, event, item, bagItems.isJewel(item) ? jewelHtml(item) : coreHtml(item), true);
+        const bagHints = !context.inline;
+        presentItemTooltip(context, event, item, bagItems.isJewel(item) ? jewelHtml(item, bagHints) : coreHtml(item, bagHints), true);
         return true;
     }
     /** js/items.js equipItem for a bag jewel: into the empty socket of the worn item in `slot` (or the first one). */

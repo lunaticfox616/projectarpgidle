@@ -8,6 +8,7 @@
 
     /** 목록이 보여 줄 칸 종류. 화면에만 있는 고르기 상태라 저장하지 않는다. @type {'active'|'mobility'|'summon'|'support'} */
     let pickerKind = 'active';
+    let focusedSkill = { kind: 'active', name: '' };
     const PICKER_TITLES = Object.freeze({ active: '주 공격 칸에 낄 룬', mobility: '이동 칸에 낄 룬', summon: '소환 칸에 낄 룬', support: '보조스킬룬 칸에 낄 룬' });
     const RING_RADIUS = 96;
     /** What a click on an engraving slot without an engraving does (the hover tooltip's second line). */
@@ -18,7 +19,7 @@
 
     /** @param {string} name skill gem name @returns {'active'|'mobility'|'summon'} the slot kind the gem is worn in (js/ui.js changeSkill) */
     function kindOf(name) {
-        if ((SKILL_DB[name]?.tags || []).includes('summon_attack')) return 'summon';
+        if ((SKILL_DB[name]?.tags || []).includes('summon')) return 'summon';
         return mobilitySkill.isMobilityGem(name) ? 'mobility' : 'active';
     }
 
@@ -62,20 +63,11 @@
         return `<button type="button" class="skill-board-satellite active element-${getGemCardMeta(SKILL_DB[name]).className}" data-board-pick="${kind}" data-board-gem="${escapeHTML(name)}" ${hoverHint('active', name)} aria-label="${label}: ${escapeHTML(name)}">${gemArt(name, 'skill-board-satellite-art')}<small>${label}${extra || ''}</small><b>${escapeHTML(name)}</b></button>`;
     }
 
-    function ownsKind(kind) {
-        return (game.skills || []).some(name => SKILL_DB[name]?.isGem && kindOf(name) === kind);
-    }
-
-    /** 이동 칸(이동 룬을 하나라도 가졌을 때)과 소환 칸(소환 룬을 가졌을 때: 장착한 소환 룬 + 한도가 남으면 빈 칸). */
-    function renderSatellites(stats) {
-        const parts = [];
-        if (ownsKind('mobility') || mobilitySkill.equipped()) parts.push(renderSatellite('mobility', '이동', mobilitySkill.equipped()));
-        if (ownsKind('summon')) {
-            const worn = Array.isArray(game.equippedSummonSkills) ? game.equippedSummonSkills : [];
-            worn.forEach(name => parts.push(renderSatellite('summon', '소환', name, ` ×${getSummonSkillCount(name)}`)));
-            if (getEquippedSummonCount() < getSummonEquipCapFromStats(stats)) parts.push(renderSatellite('summon', '소환', ''));
-        }
-        return parts.length ? `<div class="skill-board-satellites">${parts.join('')}</div>` : '';
+    function renderSummons(stats) {
+        const worn = game.equippedSummonSkills || [];
+        const parts = worn.map(name => renderSatellite('summon', '소환', name, ` ×${getSummonSkillCount(name)}`));
+        if (getEquippedSummonCount() < getSummonEquipCapFromStats(stats)) parts.push(renderSatellite('summon', '소환', ''));
+        return `<div class="skill-board-summons">${parts.join('')}<small>소환 한도 ${getEquippedSummonCount()}/${getSummonEquipCapFromStats(stats)}</small></div>`;
     }
 
     function renderBoard(stats) {
@@ -86,25 +78,30 @@
         const filled = slots.filter(slot => slot.state === 'full').length, open = slots.filter(slot => slot.state === 'full' || slot.state === 'open').length;
         const engraveNote = slots.length ? `<em>각인 ${filled} / ${open}칸</em>` : '';
         const level = info.totalLevel > info.baseLevel ? `<small class="is-boosted">Lv.${formatValue('', info.totalLevel)}</small>` : `<small>Lv.${info.totalLevel || 1}</small>`;
-        return `<div class="skill-board-head"><span>주 공격</span><b>${escapeHTML(main)}</b>${level}${engraveNote}</div>
+        return `<div class="skill-board-linked-row"><div class="skill-board-mobility">${renderSatellite('mobility', '이동', mobilitySkill.equipped())}</div><div class="skill-board-main"><div class="skill-board-head"><span>주 공격</span><b>${escapeHTML(main)}</b>${level}${engraveNote}</div>
             <div class="skill-board-stage element-${meta.className}${slots.length ? ' has-ring' : ''}">
                 ${renderEngraveRing(slots)}
                 <button type="button" class="skill-board-core active" data-board-pick="active" data-board-gem="${escapeHTML(main)}" ${hoverHint('active', main)} aria-label="주 공격: ${escapeHTML(main)}, 바꿀 룬 고르기">${gemArt(main, 'skill-board-core-art')}</button>
-            </div>
-            ${renderSatellites(stats)}`;
+            </div></div>${renderSummons(stats)}</div>`;
     }
 
     /** 칸 아래 한 줄용 적용 대상(gemSelectionUi.application의 문장을 줄인 것). */
     function shortTarget(text) {
         if (text.startsWith('적용: ')) return text.slice(4);
-        if (text.startsWith('소환형')) return '소환수';
-        if (text.startsWith('캐릭터')) return '캐릭터';
-        return '적용 대상 없음';
+        return '맞는 스킬 없음';
     }
 
     function renderSupportSlot(name, stats) {
         const target = shortTarget(gemSelectionUi.application(name, stats));
-        return `<button type="button" class="support-slot active" data-board-pick="support" data-board-gem="${escapeHTML(name)}" ${hoverHint('support', name)} aria-label="보조스킬룬: ${escapeHTML(name)}, ${escapeHTML(target)}">${supportGemSigil.html(name, 'support-slot-sigil', getSupportActiveTier(name))}<b>${escapeHTML(name)}</b><small>${escapeHTML(target)}</small></button>`;
+        const role = focusedSkill.kind === 'active' ? 'main' : focusedSkill.kind;
+        const lit = gemSelectionUi.targetRows(name).some(row => row.role === role && row.name === focusedName() && row.status === 'on');
+        return `<button type="button" class="support-slot active${lit ? ' is-linked' : ''}" data-board-pick="support" data-board-gem="${escapeHTML(name)}" ${hoverHint('support', name)} aria-label="보조스킬룬: ${escapeHTML(name)}, ${escapeHTML(target)}">${supportGemSigil.html(name, 'support-slot-sigil', getSupportActiveTier(name))}<b>${escapeHTML(name)}</b>${gemSelectionUi.indicators(name)}<small>${escapeHTML(target)}</small></button>`;
+    }
+
+    function focusedName() {
+        if (focusedSkill.kind === 'active') return game.activeSkill || '기본 공격';
+        if (focusedSkill.kind === 'mobility') return mobilitySkill.equipped();
+        return game.equippedSummonSkills.includes(focusedSkill.name) ? focusedSkill.name : (game.equippedSummonSkills[0] || '');
     }
 
     function renderSupports(stats) {
@@ -112,14 +109,13 @@
         const worn = (game.equippedSupports || []).slice(0, cap);
         const resonanceCap = getEffectiveResonanceCap(stats);
         const used = (game.equippedSupports || []).reduce((sum, name) => sum + getSupportTierResonanceCost(name), 0);
-        const left = Math.max(0, resonanceCap - used);
-        const fill = resonanceCap > 0 ? Math.round(Math.min(1, left / resonanceCap) * 100) : 0;
+        const fill = resonanceCap > 0 ? Math.round(Math.min(1, used / resonanceCap) * 100) : 0;
         const slots = worn.map(name => renderSupportSlot(name, stats));
         for (let i = worn.length; i < cap; i++) slots.push('<button type="button" class="support-slot is-empty" data-board-pick="support" aria-label="빈 보조스킬룬 칸, 룬 고르기"><i>+</i><b>빈 칸</b><small>&nbsp;</small></button>');
         slots.push('<div class="support-slot is-lock" aria-label="다음 보조스킬룬 칸은 장비, 패시브로 늘어납니다"><i></i><b>다음 칸</b><small>장비, 패시브</small></div>');
-        return `<div class="support-slots-head"><span>보조스킬룬</span><em>${worn.length} / ${cap}칸</em>
-                <div class="support-resonance" title="장착 보조스킬룬이 쓰는 공명력"><small>공명력</small><span class="support-resonance-bar"><i style="width:${fill}%"></i></span><b>${left}</b><small>/ ${resonanceCap}</small></div></div>
-            <div class="support-slots-row">${slots.join('')}</div>`;
+        return `<div class="support-slots-head"><span>보조스킬룬</span><em>칸 ${worn.length} / ${cap}</em>
+                <div class="support-resonance" title="장착 보조스킬룬이 쓰는 공명력"><small>공명력</small><span class="support-resonance-bar"><i style="width:${fill}%"></i></span><b>${used}</b><small>/ ${resonanceCap}</small></div></div>
+            <div class="support-slots-row">${slots.join('')}</div>${gemSelectionUi.skillSummary(focusedSkill.kind, focusedName(), stats)}<div class="support-indicator-key">● 적용, ○ 태그 불일치, ◌ 빈 칸, ◉ 소환 대응 없음, ⊙ 사역룬 제외</div>`;
     }
 
     /** @param {object} stats current player stats (getPlayerStats). Rewrites the board only when its HTML changed. */
@@ -174,6 +170,7 @@
         const slot = event.target.closest('[data-board-pick]');
         if (!slot) return;
         const kind = slot.dataset.boardPick;
+        if (kind !== 'support') { focusedSkill = { kind, name: slot.dataset.boardGem || '' }; render(getUiPlayerStats()); }
         // 칸을 누르면 룬 칸 창이 바로 뜬다(찬 칸: 등급, 해제, 바꿔 낄 룬 / 빈 칸: 낄 룬). 첫 룬 따라 하기 중에는 옆 목록의 표시를 따라가게 둔다.
         const guided = !!getStarterGemTutorialTarget();
         if (kind !== pickerKind) pick(kind, !guided);

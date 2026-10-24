@@ -264,9 +264,10 @@ const stageActors = (() => {
     function blit(ctx, source, clip, frame, dest) {
         stageDots.blit(ctx, source, { x: frame * clip.w, y: 0, w: clip.w, h: clip.h }, { x: Math.round(dest.x), y: Math.round(dest.y), scale: dest.scale });
     }
-    /** 시전 오라(js/canvas-stage-skill-sigil.js): 주문을 쓰는 예비 동작 동안 몸의 테두리에 속성 색이 돈다. 바깥 두 도트는 옅게, 안쪽 한 도트는 또렷하게. */
+    /** 시전 오라(js/canvas-stage-skill-sigil.js): 주문을 쓰는 예비 동작 동안 몸의 테두리에 속성 색이 돈다. 바깥 두 도트는 옅게, 안쪽 한 도트는 또렷하게.
+     * 사역룬 가호가 걸리는 순간에도 같은 테두리가 돈다(js/canvas-stage-blessing.js). */
     function drawAura(ctx, img, pose, dest) {
-        const colour = typeof stageSkillSigil === 'object' ? stageSkillSigil.aura() : null;
+        const colour = (typeof stageSkillSigil === 'object' ? stageSkillSigil.aura() : null) || (typeof stageBlessing === 'object' ? stageBlessing.aura() : null);
         if (!colour) return;
         const rim = silhouette(img, pose.clip, pose.frame, colour), alpha = ctx.globalAlpha;
         ctx.globalAlpha = alpha * 0.45;

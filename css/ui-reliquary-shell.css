@@ -2622,7 +2622,7 @@ body #tab-skills .gem-card-utility {
   .equipment-grid-inspector-actions button,
   .equipment-triage-controls button,
   .equipment-triage-controls select,
-  .selection-overlay-panel button,
+  .selection-overlay-panel button:not(.stump-cube-candidate, .stump-cube-material-add),
   .player-exchange-card button
 ) {
   border-color: var(--skin-line);

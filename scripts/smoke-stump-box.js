@@ -233,4 +233,64 @@ assert.strictEqual(run('game.stumpBox.version'), 2);
 run('game = mergeDefaults(JSON.parse(serializeSaveState(game))); window.game = game;');
 assert.strictEqual(run('stumpBox.itemById(game, 1).xp'), STUMP_GROWTH_NEED.seed / 2, 'a version-2 box is not scaled again');
 
-console.log('stump box: grant, unlocks, placement, growth, suppression, resonance, drops, loop regression, bulk actions and saves: OK');
+// ── 조합 잠금: 넣은 뒤 잠가도 다른 재료만으로 조합하지 않고, 불러오기와 화면 조회가 보호를 풀지 않는다 ──
+fresh({ season: 6 });
+run(`globalThis.cubeSeed = stumpBox.createItem(game, { family: 'seed', color: 'fire', path: 'flower', roll: 1 });
+    stumpBox.toggleLock(game, cubeSeed.id);`);
+assert.strictEqual(run('stumpCube.candidates("stump").some(item => item.id === cubeSeed.id)'), false, 'locked seeds are not candidates');
+assert.notStrictEqual(run('stumpCube.put(game, "stump", cubeSeed)'), '', 'direct placement also refuses a locked seed');
+run(`stumpBox.toggleLock(game, cubeSeed.id); stumpCube.put(game, 'stump', cubeSeed);
+    for (let i = 0; i < 3; i++) stumpCube.put(game, 'stump', stumpBox.createItem(game, { family: 'sap', color: 'cold', roll: 1 }));
+    stumpBox.toggleLock(game, cubeSeed.id);`);
+for (const restore of [false, true]) {
+    if (restore) run('game = mergeDefaults(JSON.parse(serializeSaveState(game))); window.game = game;');
+    const protectedState = run('JSON.stringify([game.stumpCube, game.stumpBox, game.currencies, game.inventory])');
+    assert.strictEqual(run('stumpCube.entries().length'), 4, 'a locked cell remains available to take out');
+    assert.strictEqual(run('stumpCube.match()'), null, 'three remaining saps must not become an alternative match');
+    assert.deepStrictEqual(json('stumpCube.missingRecipes()'), [], 'a protected input cannot suggest spending the other inputs');
+    assert.strictEqual(run('stumpCube.transmute().ok'), false, 'locking after placement blocks the whole transaction');
+    assert.strictEqual(run('JSON.stringify([game.stumpCube, game.stumpBox, game.currencies, game.inventory])'), protectedState,
+        'a refusal keeps references, all materials and the wallet, including after a save round trip');
+}
+assert.strictEqual(run('stumpCube.takeOut(game, 0)'), true, 'a locked cell can be explicitly taken out');
+assert.strictEqual(run('stumpCube.transmute().ok'), true, 'the three unlocked saps still combine normally');
+assert.strictEqual(run('stumpBox.itemById(game, cubeSeed.id).locked'), true, 'the protected seed remains owned and locked');
+
+fresh({ season: 6 });
+run(`globalThis.cubeTalismans = Array.from({ length: 3 }, () => stumpBox.addTalisman(game, talismans.roll('sealShard', () => 0.5)));
+    cubeTalismans.forEach(item => stumpCube.put(game, 'stump', item));
+    stumpBox.toggleLock(game, cubeTalismans[0].id);`);
+const talismanState = run('JSON.stringify([game.stumpBox, game.currencies, game.stumpCube])');
+assert.strictEqual(run('stumpCube.transmute().ok'), false, 'locked talismans cannot be consumed either');
+assert.strictEqual(run('JSON.stringify([game.stumpBox, game.currencies, game.stumpCube])'), talismanState);
+run('stumpCube.clear();');
+assert.strictEqual(run('stumpCube.candidates("stump").some(item => item.id === cubeTalismans[0].id)'), false);
+assert.notStrictEqual(run('stumpCube.put(game, "stump", cubeTalismans[0])'), '');
+run(`stumpBox.toggleLock(game,cubeTalismans[0].id);stumpCube.put(game,'stump',cubeTalismans[0]);
+    globalThis.paidAmber=stumpBox.createItem(game,{family:'sap',color:'fire',roll:1});paidAmber.ripe=true;
+    paidAmber.xp=stumpBox.need(paidAmber);stumpCube.put(game,'stump',paidAmber);game.currencies.sealShard=5;`);
+assert.strictEqual(run('stumpCube.match().recipe.id'), 'talisman_reroll_line', 'the protected paid recipe was valid before locking');
+run('stumpBox.toggleLock(game,cubeTalismans[0].id);');
+const paidState = run('JSON.stringify([game.stumpBox,game.stumpCube,game.currencies])');
+assert.strictEqual(run('stumpCube.transmute().ok'), false);
+assert.strictEqual(run('JSON.stringify([game.stumpBox,game.stumpCube,game.currencies])'), paidState, 'a blocked paid reroll keeps currency, amber and talisman lines');
+
+// 잠근 주얼과 코어도 재료로 쓰지 않는다(2026-10-24 검토: 잠금 확인이 장비와 그루터기 아이템에만 있었다).
+for (const kind of ['jewel', 'core']) {
+    fresh({ season: 6 });
+    run(`globalThis.lockedParts = [0, 1, 2].map(index => {
+            if ('${kind}' === 'core') { const core = coreItems.roll(); core.perfect = false; core.rarity = 'rare'; bagItems.addCore(core, game); return core; }
+            const jewel = bagItems.asJewel({ id: 990000 + index, name: '시험 주얼', tier: 1, hiddenTier: 3, rarity: 'rare', stats: [{ id: 'pctDmg', val: 5, tier: 3 }] });
+            bagItems.put(jewel, game, true); return jewel;
+        });
+        game.currencies.jewelShard = 50; lockedParts[0].locked = true;`);
+    assert.strictEqual(run(`stumpCube.candidates('${kind}').includes(lockedParts[0])`), false, `a locked ${kind} is not a candidate`);
+    run(`lockedParts[0].locked = false; lockedParts.forEach(item => stumpCube.put(game, '${kind}', item));`);
+    assert.ok(run('stumpCube.match()'), `three unlocked ${kind}s make a recipe`);
+    run('lockedParts[0].locked = true;');
+    const lockedState = run('JSON.stringify([game.inventory, game.currencies, game.stumpCube])');
+    assert.strictEqual(run('stumpCube.transmute(game, () => 0.5).ok'), false, `a ${kind} locked after placement blocks the craft`);
+    assert.strictEqual(run('JSON.stringify([game.inventory, game.currencies, game.stumpCube])'), lockedState, `the locked ${kind} and the other materials stay`);
+}
+
+console.log('stump box: grant, unlocks, placement, growth, suppression, resonance, drops, loop regression, bulk actions, cube lock protection and saves: OK');

@@ -378,7 +378,7 @@ function reconcileUniqueEquipmentSave(state) {
  * owned mobility gem. Idempotent. */
 function normalizeSkillSlotsSave(merged) {
     merged.activeSkill = SKILL_DB[merged.activeSkill] ? merged.activeSkill : (merged.skills[0] || '기본 공격');
-    if ((SKILL_DB[merged.activeSkill]?.tags || []).includes('summon_attack')) {
+    if (mergeDefaults.supportRunes.summon(merged.activeSkill)) {
         if (!merged.gemEnhanceTargetSkill) merged.gemEnhanceTargetSkill = merged.activeSkill;
         merged.activeSkill = '기본 공격';
     }
@@ -534,6 +534,184 @@ function dropRetiredSupportsFrom(build, retired) {
     ['supports', 'sealedSupports', 'equippedSupports'].forEach(key => { if (Array.isArray(build[key])) build[key] = build[key].filter(name => !retired(name)); });
     if (build.supportGemData && typeof build.supportGemData === 'object') RETIRED_SUPPORT_GEMS.forEach(name => delete build.supportGemData[name]);
 }
+
+/** 2026-10-24 공용 보조 개편. 이름을 지우는 것이 완료 표식이므로 재저장/재로드가 환급을 반복하지 않는다.
+ * 해금 이력에는 지급/가공 구분이 없으므로 기록된 등급의 옛 가공 비용(중급 2, 상급 3)을 보상한다.
+ * 보유·봉인·잠금 사본은 같은 룬 한 개의 이력이다. 환급은 이름별 최고 등급을 한 번만 세고,
+ * 합쳐지는 룬은 가장 높은 레벨/경험치와 각 강화의 최고 진척을 보존한다. */
+mergeDefaults.supportRunes = (() => {
+    const moved = Object.freeze({
+        '물리 전령': '장군의 가호', '방어 상승': '장군의 가호',
+        '화염 전령': '화염의 가호', '화염 장막': '화염의 가호',
+        '냉기 전령': '한기의 가호', '냉기 장막': '한기의 가호',
+        '번개 전령': '낙뢰의 가호', '번개 장막': '낙뢰의 가호',
+        '카오스 전령': '심연의 가호', '공허 장막': '심연의 가호',
+        '활력': '수액의 가호', '가벼운 발걸음': '수액의 가호', '수액 골렘 소환': '수액 골렘 소환'
+    });
+    const renamed = Object.freeze({ '범위 확장': '범위 피해', '사역 피해 증폭': '소환수 피해 증폭',
+        '사역 생명력': '소환수 생명력', '사역 가속': '소환수 가속', '사역 예리함': '소환수 예리함', '사역 무자비': '소환수 무자비' });
+    const list = value => Array.isArray(value) ? value : [];
+    const record = value => value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+    const unique = values => [...new Set(values)];
+    const successor = name => moved[name] || renamed[name] || name;
+    const summon = name => (SKILL_DB[name]?.tags || []).some(tag => ['summon_attack', 'summon_buff', 'summon_guard'].includes(tag));
+    const single = name => !(SKILL_DB[name]?.tags || []).includes('summon_attack');
+    const copy = value => JSON.parse(JSON.stringify(value));
+
+    function mergeRecords(a, b, skill) {
+        const rows = { a: normalizeGemRecord(a), b: normalizeGemRecord(b) };
+        const out = normalizeGemRecord(mergeGrownGemRecords(rows, ['a', 'b']));
+        if (skill) { out.unlockedTier = 1; out.activeTier = 1; }
+        return out;
+    }
+
+    function renameSupports(state) {
+        state.supportGemData = { ...record(state.supportGemData) };
+        Object.entries(renamed).forEach(([from, to]) => {
+            if (!Object.hasOwn(state.supportGemData, from)) return;
+            state.supportGemData[to] = mergeRecords(state.supportGemData[to], state.supportGemData[from], false);
+            delete state.supportGemData[from];
+        });
+        ['supports', 'sealedSupports', 'equippedSupports'].forEach(key => {
+            state[key] = unique(list(state[key]).map(name => renamed[name] || name));
+        });
+    }
+
+    function ownedSupportKind(state, name) {
+        if (state.supports.includes(name) || state.equippedSupports.includes(name)) return 'owned';
+        if (state.sealedSupports.includes(name)) return 'sealed';
+        return Object.hasOwn(state.supportGemData, name) ? 'owned' : null;
+    }
+
+    function moveOwned(state, name, report) {
+        const to = moved[name], source = state.supportGemData[name];
+        const holding = ownedSupportKind(state, name);
+        if (!holding) return;
+        state.gemData[to] = mergeRecords(state.gemData[to], source, true);
+        if (holding === 'owned') state.skills.push(to);
+        else state.sealedSkills.push(to);
+        const tier = name === '수액 골렘 소환' ? 1 : normalizeGemRecord(source).unlockedTier;
+        report.tiers[name] = Math.max(report.tiers[name] || 1, tier);
+        delete state.supportGemData[name];
+    }
+
+    function migrateLoadout(state) {
+        renameSupports(state);
+        const equip = state.equippedSupports.filter(name => Object.hasOwn(moved, name)
+            && (name.endsWith('전령') || name === '수액 골렘 소환')).map(name => moved[name]);
+        const report = { equip, tiers: {} };
+        state.skills = list(state.skills).slice(); state.sealedSkills = list(state.sealedSkills).slice();
+        state.gemData = { ...record(state.gemData) };
+        Object.keys(moved).forEach(name => moveOwned(state, name, report));
+        ['supports', 'sealedSupports', 'equippedSupports'].forEach(key => { state[key] = state[key].filter(name => !moved[name]); });
+        state.skills = unique(state.skills);
+        state.sealedSkills = unique(state.sealedSkills).filter(name => !state.skills.includes(name));
+        if (state.activeSkill === '수액 골렘 소환') {
+            state.activeSkill = '기본 공격'; report.equip.push('수액 골렘 소환');
+        }
+        if (state.mobilitySkill === '수액 골렘 소환') state.mobilitySkill = null;
+        report.equip = unique(report.equip);
+        return report;
+    }
+
+    function reward(row) {
+        if (!row || row.kind !== 'support') return row;
+        if (moved[row.name]) return { kind: 'attack', name: moved[row.name], awakened: row.awakened === true };
+        return { ...row, name: successor(row.name) };
+    }
+
+    function rewards(rows) {
+        const out = [];
+        list(rows).map(reward).forEach(row => {
+            const held = out.find(other => other?.kind === row?.kind && other?.name === row?.name);
+            if (!held) { out.push(row); return; }
+            if (row.kind === 'attack') held.awakened = held.awakened || row.awakened;
+            if (row.kind === 'support') held.tier = Math.max(held.tier, row.tier);
+        });
+        return out;
+    }
+
+    function renameRows(owner, key) {
+        if (!Array.isArray(owner?.[key])) return;
+        owner[key] = owner[key].map(row => row?.gem?.kind === 'support' ? { ...row, gem: reward(row.gem) } : row);
+    }
+
+    function holdings(state) {
+        const run = state.actExploration;
+        if (Array.isArray(run?.loot?.gems)) run.loot.gems = rewards(run.loot.gems);
+        renameRows(run, 'groundLoot');
+        if (state.colony) { state.colony = copy(state.colony); renameRows(state.colony, 'pendingLoot'); }
+        if (state.voidRift) { state.voidRift = copy(state.voidRift); renameRows(state.voidRift.grandRun, 'pendingLoot'); }
+        if (state.npcShops) {
+            state.npcShops = copy(state.npcShops);
+            Object.values(record(state.npcShops)).forEach(shop => renameRows(shop, 'offers'));
+        }
+    }
+
+    function normalizeSupportMigrationReceipt(meta) {
+        const previous = record(meta.supportRuneMigration);
+        const names = unique(list(previous.moved).filter(name => Object.hasOwn(moved, name)));
+        if (!names.length) { delete meta.supportRuneMigration; return; }
+        const refund = Number(previous.refund);
+        meta.supportRuneMigration = { version: 1, moved: names,
+            refund: Number.isFinite(refund) ? Math.min(60, Math.max(0, Math.floor(refund))) : 0,
+            noticePending: previous.noticePending === true };
+    }
+
+    function migrateLockedLoadout(state, saved) {
+        if (!state.woodsmanBuildSnapshot || typeof state.woodsmanBuildSnapshot !== 'object') return null;
+        const snapshot = copy(state.woodsmanBuildSnapshot);
+        // Earlier locks did not snapshot summon/sealed fields. They kept using the live fields; preserve those on upgrade.
+        ['sealedSkills', 'sealedSupports', 'equippedSummonSkills', 'summonSkillCounts'].forEach(key => {
+            if (!Object.hasOwn(snapshot, key) && Object.hasOwn(saved, key)) snapshot[key] = copy(saved[key]);
+        });
+        state.woodsmanBuildSnapshot = snapshot;
+        return migrateLoadout(snapshot);
+    }
+
+    function migrate(state, saved) {
+        normalizeSupportMigrationReceipt(state.saveMeta);
+        const root = migrateLoadout(state);
+        const locked = migrateLockedLoadout(state, saved);
+        holdings(state);
+        const tiers = { ...root.tiers };
+        Object.entries(locked?.tiers || {}).forEach(([name, tier]) => { tiers[name] = Math.max(tiers[name] || 1, tier); });
+        const names = Object.keys(tiers);
+        if (names.length) {
+            const refund = Object.values(tiers).reduce((sum, tier) => sum + [0, 0, 2, 5][tier], 0);
+            const balance = Number(state.currencies.skyEssence);
+            state.currencies.skyEssence = (Number.isFinite(balance) ? Math.max(0, Math.floor(balance)) : 0) + refund;
+            state.saveMeta.supportRuneMigration = { version: 1, moved: names, refund, noticePending: true };
+        }
+        return { root, locked };
+    }
+
+    /** Preserve old summon ordering and counts first; migrated heralds/guards only use genuinely free slots. */
+    function finishLoadout(state, cap, hasCounts, candidates) {
+        const names = unique(list(state.equippedSummonSkills)).filter(name => summon(name) && state.skills.includes(name));
+        const counts = {}, old = record(state.summonSkillCounts);
+        let remaining = cap;
+        names.forEach(name => {
+            const requested = hasCounts && !single(name) ? Math.max(1, Math.floor(Number(old[name]) || 1)) : 1;
+            const count = Math.min(remaining, requested);
+            if (count > 0) counts[name] = count;
+            remaining -= count;
+        });
+        list(candidates).forEach(name => {
+            if (remaining <= 0 || counts[name] || !state.skills.includes(name)) return;
+            counts[name] = 1; remaining--;
+        });
+        const attackers = names.filter(name => !single(name));
+        let cursor = 0;
+        while (!hasCounts && remaining > 0 && attackers.length) {
+            const name = attackers[cursor++ % attackers.length];
+            counts[name] = (counts[name] || 0) + 1; remaining--;
+        }
+        state.equippedSummonSkills = Object.keys(counts); state.summonSkillCounts = counts;
+    }
+
+    return { migrate, finishLoadout, summon };
+})();
 
 function mergeDefaults(save) {
     function clampFiniteNumber(value, fallback, min, max) {
@@ -825,6 +1003,7 @@ function mergeDefaults(save) {
         equipment: { ...defaultGame.equipment, ...(save.equipment || {}) },
         saveMeta: { ...defaultGame.saveMeta, ...(save.saveMeta || {}) }
     };
+    const supportRuneMigration = mergeDefaults.supportRunes.migrate(merged, save);
     dropRetiredSupportGems(merged);
     // Fields of removed systems (lastSkillHitElement: the old skill playback, 2026-10-18).
     ['hideout', 'abyssPassivePoints', 'abyssPassives', 'lastSkillHitElement'].forEach(key => delete merged[key]);
@@ -938,19 +1117,6 @@ function mergeDefaults(save) {
     // Old saves only had a boolean flag and could not identify which chase unique dropped.
     // Do not treat that unknown legacy flag as a full chase-unique blacklist.
     merged.seasonChaseUniqueDropped = merged.seasonChaseUniqueDrops.length > 0;
-    if (Array.isArray(merged.skills) && merged.skills.includes('수액 골렘 소환')) {
-        merged.supports = Array.isArray(merged.supports) ? merged.supports : [];
-        if (!merged.supports.includes('수액 골렘 소환')) merged.supports.push('수액 골렘 소환');
-        merged.supportGemData = (merged.supportGemData && typeof merged.supportGemData === 'object') ? merged.supportGemData : {};
-        if (!merged.supportGemData['수액 골렘 소환']) {
-            merged.supportGemData['수액 골렘 소환'] = normalizeGemRecord((merged.gemData || {})['수액 골렘 소환'] || { level: 1, exp: 0, unlockedTier: 1, activeTier: 1 });
-        }
-        merged.equippedSupports = Array.isArray(merged.equippedSupports) ? merged.equippedSupports : [];
-        if (!merged.equippedSupports.includes('수액 골렘 소환')) merged.equippedSupports.push('수액 골렘 소환');
-        if (merged.activeSkill === '수액 골렘 소환') {
-            merged.activeSkill = '기본 공격';
-        }
-    }
     merged.skills = dedupeList(Array.isArray(merged.skills) ? merged.skills.filter(name => !!SKILL_DB[name]) : []);
     if (!merged.skills.includes('기본 공격')) merged.skills.unshift('기본 공격');
     merged.sealedSkills = dedupeList(Array.isArray(merged.sealedSkills) ? merged.sealedSkills.filter(name => !!SKILL_DB[name] && name !== '기본 공격' && !merged.skills.includes(name)) : []);
@@ -1386,8 +1552,7 @@ function mergeDefaults(save) {
     if (Array.isArray(merged.woodsmanBuildSnapshot?.skills)) normalizeSkillSlotsSave(merged.woodsmanBuildSnapshot);
     merged.equippedSummonSkills = Array.isArray(merged.equippedSummonSkills)
         ? Array.from(new Set(merged.equippedSummonSkills.filter(name => {
-            let def = SKILL_DB[name] || {};
-            return !!(def && Array.isArray(def.tags) && def.tags.includes('summon_attack') && merged.skills.includes(name));
+            return mergeDefaults.supportRunes.summon(name) && merged.skills.includes(name);
         })))
         : [];
     let hasSavedSummonSkillCounts = !!(save && Object.prototype.hasOwnProperty.call(save, 'summonSkillCounts') && save.summonSkillCounts && typeof save.summonSkillCounts === 'object');
@@ -1403,23 +1568,11 @@ function mergeDefaults(save) {
         merged.equippedSummonSkills = ownedSummonAttackSkills.slice(0, saveSummonCap);
         if (hasSavedSummonSkillCounts) merged.equippedSummonSkills.forEach(name => { merged.summonSkillCounts[name] = Math.max(1, Math.floor(Number(merged.summonSkillCounts[name]) || 1)); });
     }
-    if (!hasSavedSummonSkillCounts) {
-        let legacySummonCounts = {};
-        let guardCount = (Array.isArray(merged.equippedSupports) ? merged.equippedSupports : []).filter(name => {
-            let def = SUPPORT_GEM_DB[name] || {};
-            return !!(def && Array.isArray(def.tags) && def.tags.includes('summon_guard'));
-        }).length;
-        let baseAttackSlots = Math.max(0, Math.min(merged.equippedSummonSkills.length, saveSummonCap - guardCount));
-        merged.equippedSummonSkills.slice(0, baseAttackSlots).forEach(name => { legacySummonCounts[name] = (legacySummonCounts[name] || 0) + 1; });
-        let usedSlots = Math.min(saveSummonCap, guardCount + baseAttackSlots);
-        let cursor = 0;
-        while (usedSlots < saveSummonCap && merged.equippedSummonSkills.length > 0) {
-            let name = merged.equippedSummonSkills[cursor % merged.equippedSummonSkills.length];
-            legacySummonCounts[name] = (legacySummonCounts[name] || 0) + 1;
-            usedSlots++;
-            cursor++;
-        }
-        merged.summonSkillCounts = legacySummonCounts;
+    mergeDefaults.supportRunes.finishLoadout(merged, saveSummonCap, hasSavedSummonSkillCounts, supportRuneMigration.root.equip);
+    if (supportRuneMigration.locked) {
+        const snapshot = merged.woodsmanBuildSnapshot;
+        const hadCounts = !!snapshot.summonSkillCounts;
+        mergeDefaults.supportRunes.finishLoadout(snapshot, estimateSummonEquipCapForMergedSave({ ...merged, ...snapshot }), hadCounts, supportRuneMigration.locked.equip);
     }
     merged.summonLoadoutInitialized = true;
     normalizeGemEnhanceTargetSave(merged);

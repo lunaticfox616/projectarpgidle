@@ -68,10 +68,10 @@ const stumpCube = (() => {
         core: (state, id) => bagItems.cores(state).find(item => item.id === id) || null
     });
 
-    /** Items the cube may take: stored, not locked, not kept by an equipment set. */
-    function usable(kind, item) {
-        if (!item) return false;
-        return kind !== 'equipment' || (!item.locked && !equipmentLoadoutRuntime.isReferenced(item));
+    /** Items the cube may take: stored, not locked (equipment, stump items, jewels and cores alike), not kept by an equipment set. */
+    function usable(kind, item, keepLocked = false) {
+        if (!item || (!keepLocked && item.locked)) return false;
+        return kind !== 'equipment' || !equipmentLoadoutRuntime.isReferenced(item);
     }
 
     function footprint(kind, item) {
@@ -81,19 +81,26 @@ const stumpCube = (() => {
     }
 
     // ── 칸 배치 ───────────────────────────────────────────
-    /** The cube's current contents; references that no longer point at a usable item (or overlap) are dropped. */
-    function entries(state = game) {
-        const cube = of(state), taken = new Set(), out = [];
-        cube.slots = cube.slots.filter(slot => {
+    /** Reads references without changing the save. Locked items keep their cells so they can be taken out explicitly. */
+    function readContents(state) {
+        const taken = new Set(), list = [];
+        const slots = (state.stumpCube?.slots || []).filter(slot => {
             const item = FINDERS[slot.kind](state, slot.id);
-            if (!usable(slot.kind, item)) return false;
+            if (!usable(slot.kind, item, true)) return false;
             const { w, h } = footprint(slot.kind, item), cells = coveredCells(slot.x, slot.y, w, h);
             if (!cells || cells.some(cell => taken.has(cell))) return false;
             cells.forEach(cell => taken.add(cell));
-            out.push({ kind: slot.kind, id: slot.id, item, x: slot.x, y: slot.y, w, h });
+            list.push({ kind: slot.kind, id: slot.id, item, x: slot.x, y: slot.y, w, h });
             return true;
         });
-        return out;
+        return { slots, list };
+    }
+
+    /** Drops missing, moved or overlapping references; a newly locked material remains until the player removes it. */
+    function entries(state = game) {
+        const cube = of(state), contents = readContents(state);
+        cube.slots = contents.slots;
+        return contents.list;
     }
 
     function coveredCells(x, y, w, h) {
@@ -163,11 +170,11 @@ const stumpCube = (() => {
     }
 
     /** Recipe rows are disjoint, so a greedy pick per row decides the match; nothing may be left over. */
-    function assign(recipe, list) {
+    function assign(recipe, list, partial = false) {
         const rest = list.slice(), groups = [];
         for (const rule of recipe.inputs) {
             const picked = rest.filter(entry => fitsRule(rule, entry)).slice(0, rule.count);
-            if (picked.length !== rule.count) return null;
+            if (!partial && picked.length !== rule.count) return null;
             if ((rule.same || []).some(key => new Set(picked.map(SAME_KEYS[key])).size > 1)) return null;
             picked.forEach(entry => rest.splice(rest.indexOf(entry), 1));
             groups.push(picked);
@@ -178,10 +185,34 @@ const stumpCube = (() => {
     /** @returns {?{ recipe: object, groups: object[][] }} the first recipe the cube's contents make exactly. */
     function match(state = game) {
         const list = entries(state);
-        if (!list.length) return null;
+        if (!list.length || list.some(entry => !usable(entry.kind, entry.item))) return null;
         for (const recipe of STUMP_CUBE_RECIPES) {
             const groups = assign(recipe, list);
             if (groups) return { recipe, groups };
+        }
+        return null;
+    }
+
+    /** Pure query: only revealed, incomplete recipes that accept every placed item, including their shared-value rules. */
+    function missingRecipes(state = game) {
+        const list = readContents(state).list;
+        if (!list.length || list.some(entry => !usable(entry.kind, entry.item))) return [];
+        return revealed(state).flatMap(recipe => {
+            const groups = assign(recipe, list, true);
+            if (!groups) return [];
+            const missing = recipe.inputs.map((rule, inputIndex) => ({ rule, inputIndex, picked: groups[inputIndex], count: rule.count - groups[inputIndex].length }))
+                .filter(row => row.count > 0);
+            return missing.length ? [{ recipe, missing, missingCount: missing.reduce((sum, row) => sum + row.count, 0) }] : [];
+        }).sort((a, b) => a.missingCount - b.missingCount);
+    }
+
+    /** Pure visible-outcome query: only a fully matched, revealed recipe; no cleanup, random rolls or item creation. */
+    function preview(state = game) {
+        const list = readContents(state).list;
+        if (!list.length || list.some(entry => !usable(entry.kind, entry.item))) return null;
+        for (const recipe of revealed(state)) {
+            const groups = assign(recipe, list);
+            if (groups) return { recipe, ...stumpCubeRecipes.preview(recipe.id, groups, state) };
         }
         return null;
     }
@@ -213,7 +244,7 @@ const stumpCube = (() => {
         jewel: (state, output) => { bagItems.put(bagItems.asJewel(output.item), state, true); return output.item; },
         core: (state, output) => { bagItems.addCore(output.item, state); return output.item; },
         // 재화 결과(호박석 기폭제): 지갑으로. 조합창 칸에는 놓지 않고 이름만 결과 기록에 남긴다.
-        currency: (state, output) => { awardCurrency(output.key, output.amount); return { name: `${ORB_DB[output.key].name} ${output.amount}`, currency: output.key }; }
+        currency: (state, output) => { awardCurrency(output.key, output.amount); return { name: `${ORB_DB[output.key].name} ${output.amount}`, currency: output.key, amount: output.amount }; }
     });
 
     function transmuteRefusal(found, state) {
@@ -223,8 +254,13 @@ const stumpCube = (() => {
         return lacking.length ? `${withSubjectParticle(ORB_DB[lacking[0]].name)} 부족합니다.` : '';
     }
 
+    function hasLockedInput(state) {
+        return readContents(state).list.some(entry => entry.item.locked);
+    }
+
     /** Runs the matching recipe: consumes its inputs, pays its cost, stores the results and shows them in the cube. */
     function transmute(state = game, random = Math.random) {
+        if (hasLockedInput(state)) return { ok: false, reason: '잠긴 아이템은 조합할 수 없습니다.' };
         const found = match(state), reason = transmuteRefusal(found, state);
         if (reason) return { ok: false, reason };
         const result = stumpCubeRecipes.run(found.recipe.id, found.groups, state, random);
@@ -234,6 +270,7 @@ const stumpCube = (() => {
         const made = result.outputs.map(output => ({ kind: output.kind, item: output.existing || STORERS[output.kind](state, output) }));
         clear(state);
         made.filter(row => row.item && row.kind !== 'currency').forEach(row => put(state, row.kind, row.item));
+        stumpBox.invalidatePlacementUndo(state);
         return { ok: true, recipe: found.recipe, outputs: made };
     }
 
@@ -249,7 +286,7 @@ const stumpCube = (() => {
         return pools[kind].filter(item => usable(kind, item) && !inside.has(kind === 'equipment' ? equipmentLoadoutRuntime.getItemIdentity(item) : item.id));
     }
 
-    return Object.freeze({ SIZE, KINDS, empty, normalize, of, entries, put, takeOut, clear, match, missingCost, transmute, candidates, footprint,
+    return Object.freeze({ SIZE, KINDS, empty, normalize, of, entries, put, takeOut, clear, match, missingRecipes, preview, missingCost, transmute, candidates, footprint,
         isRevealed, revealed, learn });
 })();
 safeExposeGlobals({ stumpCube });

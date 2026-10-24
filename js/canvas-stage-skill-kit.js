@@ -80,7 +80,7 @@ const stageSkillKit = (() => {
         ctx.rect(face < 0 ? x - span : x, -span, span, span * 2);
         ctx.clip();
     }
-    return Object.freeze({ WIDE, DEEP, BODY, HAND, gemOf: kitGemOf, ramp: kitRamp, ref: kitRef, onGround: kitOnGround, heroSpot: kitHeroSpot, enemy: kitEnemy,
+    return Object.freeze({ WIDE, DEEP, BODY, HAND, gemId: kitGemId, gemOf: kitGemOf, ramp: kitRamp, ref: kitRef, onGround: kitOnGround, heroSpot: kitHeroSpot, enemy: kitEnemy,
         heroDrawn: kitHeroDrawn, enemySpot: kitEnemySpot, heroFace: kitHeroFace, noteFace: kitNoteFace, lastFace: kitLastFace, at: kitAt, screen: kitScreen, along: kitAlong, emerge: kitEmerge });
 })();
 safeExposeGlobals({ stageSkillKit });

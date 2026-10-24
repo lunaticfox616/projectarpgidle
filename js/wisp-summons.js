@@ -39,10 +39,12 @@ const wispSummons = (() => {
      * One attack on targets (first = the aimed one): beams come back to hit now; thrown attacks wait in flight.
      * @returns {{ flight:number, now:Array<{ target:object, first:boolean, element:?string }> }}
      */
-    function launch(summon, targets, at) {
-        const flight = flightMs(summon.gemName, summon, targets[0]), element = rollElement(summon.gemName);
-        if (flight <= 0) return { flight, now: targets.map((target, index) => ({ target, first: index === 0, element })) };
-        inFlight.push(...targets.map((target, index) => ({ summonId: summon.id, enemyId: target.id, first: index === 0, element, landAt: at + flight })));
+    function launch(summon, targets, at, options = {}) {
+        const flight = flightMs(summon.gemName, summon, targets[0]) + Math.max(0, options.delayMs || 0), element = rollElement(summon.gemName);
+        const first = index => index === 0 && options.first !== false;
+        const multiplier = Math.max(0, Math.min(1, Number(options.multiplier ?? 1)));
+        if (flight <= 0) return { flight, now: targets.map((target, index) => ({ target, first: first(index), element, multiplier })) };
+        inFlight.push(...targets.map((target, index) => ({ summonId: summon.id, enemyId: target.id, first: first(index), element, multiplier, landAt: at + flight })));
         return { flight, now: [] };
     }
     /** Hits whose flight has ended by `at` (removed from the flight list). */

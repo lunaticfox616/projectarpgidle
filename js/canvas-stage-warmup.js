@@ -41,7 +41,7 @@ const stageWarmup = (() => {
         const key = worn.map(name => name + ':' + elementsOf(name).join('+')).join('|') + '|' + vfx;
         if (key === buildKey) return;
         buildKey = key;
-        if (vfx) stageSkillVfx.keepStrips(worn.flatMap(name => stageSkillRules.clipsOf(name, elementsOf(name))));
+        if (vfx) stageSkillVfx.keepStrips(worn.flatMap(name => stageSkillRules.clipsOf(name, elementsOf(name))).concat(stageBlessing.clipsOf(worn)));
         const tree = worn.some(name => SKILL_FX_ATLAS[name]), remade = fxRemake.isEnabled();
         sheetKeys = COMMON_SHEETS.concat(tree && !remade ? [WORLD_TREE_SHEET] : []);
         remakeDue = tree && remade;

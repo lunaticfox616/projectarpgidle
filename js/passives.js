@@ -2698,7 +2698,7 @@ function previewBuildStats(edit) {
         game.inventory = live.inventory;
         edit(game);
         const after = getPlayerStats(false);
-        return { dps: [before.dps || 0, after.dps || 0], life: [before.maxHp || 0, after.maxHp || 0] };
+        return { dps: [before.dps || 0, after.dps || 0], life: [before.maxHp || 0, after.maxHp || 0], before, after };
     } finally {
         game = live;
     }
@@ -6115,6 +6115,7 @@ function grantActRewardEntry(zoneId, choice) {
         return;
     }
     if (choice.kind === 'support') {
+        if (!SUPPORT_GEM_DB[choice.gem]) throw new Error(`Unknown act reward support rune: ${choice.gem}`);
         if (!hasSupportGemOwned(choice.gem)) {
             game.supports.push(choice.gem);
             game.supportGemData[choice.gem] = game.supportGemData[choice.gem] || { level: 1, exp: 0 };

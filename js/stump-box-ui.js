@@ -13,6 +13,11 @@ const stumpBoxUi = (() => {
     const COLORS = Object.keys(STUMP_BOX_COLORS);
     const TALISMAN_CURRENCIES = ['sealShard', 'strongSealShard', 'radiantSealShard', 'beeswax'];
     let selectedId = null, selectedCell = null, moreTab = 'harvest', colorFilter = 'all', lastSignature = '', bound = false, ticker = null;
+    let placement = null, placementKey = '';
+    let storageSort = 'quality-desc', stateFilter = 'all', compareOpen = false, comparedId = null;
+    // Storage items do not grow ("성장 중" means placed on the board), so an unripe stored item is "성장 전".
+    const STORAGE_STATES = { all: '모든 상태', ripe: '성장 완료', unripe: '성장 전', locked: '잠금' };
+    const STORAGE_SORTS = { 'quality-desc': '품질 높은 순', 'quality-asc': '품질 낮은 순', name: '이름순', recent: '최근 획득순' };
 
     function escStump(text) { return escapeHTML(String(text)); }
     function stumpTone(color) { return STUMP_BOX_COLORS[color].tone; }
@@ -89,7 +94,8 @@ const stumpBoxUi = (() => {
     }
     function stumpBoardHtml(result) {
         const cells = Array.from({ length: STUMP_BOX_SIZE * STUMP_BOX_SIZE }, (_, cell) => stumpCellHtml(cell, result)).join('');
-        return `<div class="stump-board" role="grid" aria-label="그루터기 함 판"><div class="stump-board-grid">${cells}</div></div>`;
+        return `<div class="stump-board" role="grid" aria-label="그루터기 함 판"><div class="stump-board-grid">${cells}</div></div>`
+            + '<div id="stump-placement-preview" class="stump-placement-preview" role="status" aria-live="polite" hidden></div>';
     }
 
     // ── 머리줄 · 요약 ───────────────────────────────────────
@@ -105,6 +111,7 @@ const stumpBoxUi = (() => {
             stumpBox.graftOpen(game) ? `<span class="is-graft">접붙이기 ${stumpBox.graftPoints(game).free}</span>` : ''].filter(Boolean);
         return `<div class="stump-chips">${chips}</div><span class="stump-line">${notes.join(', ')}</span>`
             + stumpHarvestUi.rewardButtonHtml()
+            + `<button type="button" data-stump-action="placement-undo"${stumpBox.canUndoPlacement(game) ? '' : ' disabled'}>배치 되돌리기</button>`
             + '<button type="button" class="stump-rules-button" data-stump-action="rules" data-stump-tip="rules" data-info-tooltip-anchor="1" aria-label="그루터기 함 규칙"><span class="px-center">?</span></button>';
     }
     /** 옵션 합계 under the cube: what the working items add up to, each line in its stat's colour (the item affix colours, 2026-10-06). */
@@ -219,8 +226,38 @@ const stumpBoxUi = (() => {
         const item = selectedItem();
         if (!item) return selectedCell === null ? '' : stumpCellDetailHtml(selectedCell);
         const cell = game.stumpBox.board.indexOf(item.id);
-        return stumpDetailHead(item) + stumpBodyHtml(item, result, cell) + stumpGraftHtml(cell) + stumpRipeningUi.sealHtml(cell)
+        const peers = comparisonItems(item), comparison = compareOpen && peers.length;
+        const toggle = peers.length ? `<button type="button" class="stump-compare-toggle" data-stump-action="compare" aria-expanded="${!!comparison}">${comparison ? '비교 닫기' : `같은 종류 비교 (${peers.length})`}</button>` : '';
+        return toggle + (comparison ? stumpComparisonHtml(item, peers, result) : stumpDetailHead(item) + stumpBodyHtml(item, result, cell))
+            + stumpGraftHtml(cell) + stumpRipeningUi.sealHtml(cell)
             + stumpActionsHtml(item, cell);
+    }
+    /** Compare the same growth target, not just the current seed/sprout/flower stage. */
+    function comparisonKey(item) {
+        if (item.family === 'talisman') return `talisman:${item.uniqueId || item.name}`;
+        return [item.family, item.color, item.path, !!item.ancient].join(':');
+    }
+    function comparisonItems(item) {
+        const key = comparisonKey(item);
+        return game.stumpBox.items.filter(other => other.id !== item.id && comparisonKey(other) === key)
+            .sort((a, b) => b.roll - a.roll || a.id - b.id);
+    }
+    function comparisonLabel(item) {
+        const place = game.stumpBox.board.includes(item.id) ? '배치 중' : '보관함';
+        const quality = item.color ? ` / ${Math.round(item.roll * 100)}%` : '';
+        return `${stumpBox.label(item)}${quality} / ${place}`;
+    }
+    function comparisonCard(item, title, result, interactive = false) {
+        const cell = game.stumpBox.board.indexOf(item.id), place = cell < 0 ? '보관함' : `${cell + 1}번 칸`;
+        const body = interactive ? stumpBodyHtml(item, result, cell) : stumpGrowthHtml(item) + stumpTipBody(item, result, cell);
+        return `<section class="stump-compare-card" style="--stump-tone:${itemTone(item)}"><h4>${title} <small>${place}</small></h4>`
+            + stumpDetailHead(item) + statToneText.markup(body) + '</section>';
+    }
+    function stumpComparisonHtml(item, peers, result) {
+        const other = peers.find(peer => peer.id === comparedId) || peers[0];
+        const options = peers.map((peer, index) => `<option value="${peer.id}"${peer.id === other.id ? ' selected' : ''}>${index + 1}. ${escStump(comparisonLabel(peer))}</option>`).join('');
+        return `<label class="stump-compare-choice">비교 대상<select data-stump-select="comparison" aria-label="비교 대상">${options}</select></label>`
+            + `<div class="stump-comparison">${comparisonCard(item, '선택한 아이템', result, true)}${comparisonCard(other, '비교 아이템', result)}</div>`;
     }
     function stumpGrowthTipLine(item) {
         const growth = stumpGrowthText(item);
@@ -237,8 +274,7 @@ const stumpBoxUi = (() => {
         if (item.family === 'talisman') return stumpTalismanUi.tooltipHtml(item, cell);
         return item.family === 'scar' ? stumpRipeningUi.scarBodyHtml(item, result, true) : stumpSeedRows(item, result, cell, true);
     }
-    function stumpItemTipHtml(item, result) {
-        const cell = game.stumpBox.board.indexOf(item.id);
+    function stumpItemTipHtml(item, result, cell = game.stumpBox.board.indexOf(item.id)) {
         const quality = item.color ? `<div class="tooltip-line tooltip-meta-base">품질 ${Math.round(item.roll * 100)}%${stumpRipeningUi.badgesHtml(item)}</div>` : '';
         return `<div class="tooltip-title" style="color:${itemTone(item)}">${escStump(stumpBox.label(item))}</div>`
             + quality + stumpGrowthTipLine(item) + stumpTipBody(item, result, cell) + stumpCellTipLines(cell);
@@ -270,7 +306,7 @@ const stumpBoxUi = (() => {
         const classes = `stump-item${item.id === selectedId ? ' is-selected' : ''}${stumpRipeningUi.isGolden(item) ? ' is-golden' : ''}${item.locked ? ' is-item-locked' : ''}`;
         return `<button type="button" class="${classes}" data-stump-action="item" data-item="${item.id}"`
             + ` data-stump-drag="${item.id}" data-stump-tip="item" data-info-tooltip-anchor="1"`
-            + ` aria-label="${escStump(stumpBox.label(item))}" style="--stump-tone:${itemTone(item)}">${stumpIcon(item)}${growing}${stumpLockMark(item)}</button>`;
+            + ` aria-label="${escStump(comparisonLabel(item))}${item.locked ? ', 잠금' : ''}" style="--stump-tone:${itemTone(item)}">${stumpIcon(item)}${growing}${stumpLockMark(item)}</button>`;
     }
     function stumpFilterLabel(key) {
         if (key === 'all') return '전체';
@@ -280,21 +316,43 @@ const stumpBoxUi = (() => {
         if (colorFilter === 'all') return true;
         return colorFilter === 'talisman' ? item.family === 'talisman' : item.color === colorFilter;
     }
+    function stumpStateMatch(item) {
+        if (stateFilter === 'locked') return !!item.locked;
+        if (stateFilter === 'ripe') return stumpBox.isMature(item);
+        if (stateFilter === 'unripe') return !stumpBox.isMature(item);
+        return true;
+    }
+    function compareStorageItems(a, b) {
+        if (storageSort === 'recent') return b.id - a.id;
+        if (storageSort === 'name') return stumpBox.label(a).localeCompare(stumpBox.label(b), 'ko') || a.id - b.id;
+        // Talismans and scars have no displayed quality, so keep them after the quality-bearing items.
+        if (!!a.color !== !!b.color) return a.color ? -1 : 1;
+        return (a.color ? (a.roll - b.roll) * (storageSort === 'quality-asc' ? 1 : -1) : 0) || a.id - b.id;
+    }
+    function storageSelect(key, label, value, choices) {
+        return `<label>${label}<select data-stump-select="${key}" aria-label="보관함 ${label}">`
+            + Object.entries(choices).map(([id, name]) => `<option value="${id}"${id === value ? ' selected' : ''}>${name}</option>`).join('') + '</select></label>';
+    }
+    function storageToolsHtml(count, total) {
+        return '<div class="stump-storage-tools">' + storageSelect('state', '상태', stateFilter, STORAGE_STATES)
+            + storageSelect('sort', '정렬', storageSort, STORAGE_SORTS) + `<span class="stump-hint">${count}/${total}개 표시</span></div>`;
+    }
     /** The empty slots after the owned items: the whole capacity is laid out like the equipment bag (2026-10-16 사용자 "창크기에따라
      * 아이템크기 변경시키지 말고, 장비 인벤토리처럼 칸을 놓고 하나씩 들어가게"; css/stump-box.css: 10 columns of cells up to 44px).
      * A colour filter shows only its items. */
     function stumpStorageSlots(count) {
-        return colorFilter === 'all' ? Math.max(0, stumpBox.storageLimit(game) - count) : 0;
+        return colorFilter === 'all' && stateFilter === 'all' ? Math.max(0, stumpBox.storageLimit(game) - count) : 0;
     }
     function stumpStorageHtml() {
-        const all = stumpBox.storage(game), items = all.filter(stumpFilterMatch);
+        const all = stumpBox.storage(game), items = all.filter(stumpFilterMatch).filter(stumpStateMatch).sort(compareStorageItems);
         const keys = ['all'].concat(COLORS, all.some(item => item.family === 'talisman') || colorFilter === 'talisman' ? ['talisman'] : []);
         const filters = all.length ? keys.map(key => `<button type="button" class="stump-filter${colorFilter === key ? ' is-on' : ''}" data-stump-action="filter"`
             + ` data-filter="${key}" aria-pressed="${colorFilter === key}">${stumpFilterLabel(key)}</button>`).join('') : '';
         const slots = '<span class="stump-slot" aria-hidden="true"></span>'.repeat(stumpStorageSlots(all.length));
         const target = selectedId !== null && game.stumpBox.board.includes(selectedId) ? ' is-target' : '';
         return `<div class="stump-storage-head"><h3>보관함 ${all.length}/${stumpBox.storageLimit(game)}</h3><div class="stump-filters">${filters}</div></div>`
-            + `${stumpRipeningUi.bulkHtml(colorFilter)}<div class="stump-storage-grid${target}" data-stump-action="storage" data-stump-drop-storage="1">`
+            + storageToolsHtml(items.length, all.length)
+            + `${stateFilter === 'all' ? stumpRipeningUi.bulkHtml(colorFilter) : ''}<div class="stump-storage-grid${target}" data-stump-action="storage" data-stump-drop-storage="1">`
             + `${items.map(stumpStorageCard).join('') || (all.length ? '<p class="stump-hint">이 분류는 비어 있습니다.</p>' : '')}${slots}</div>`;
     }
 
@@ -328,7 +386,8 @@ const stumpBoxUi = (() => {
         const graftInputs = [selectedCell, stumpBox.graftPoints(game).free, Math.floor(game.currencies.blightSpore || 0)];
         // 함 해금(보관함 한도, 뿌리 기억, 봉인 칸, 품질 상한, 씨앗 주머니 …)은 저널과 루프에서 계산된다(함이 그대로여도 바뀐다).
         const unlockInputs = [stumpBox.storageLimit(game), stumpBox.openUnlocks(game).map(row => row.id)];
-        return JSON.stringify([game.stumpBox, selectedId, moreTab, colorFilter, stumpBox.openCount(game), !!game.woodsmanBuildLock, talismanInputs,
+        return JSON.stringify([game.stumpBox, selectedId, moreTab, colorFilter, storageSort, stateFilter, compareOpen, comparedId,
+            stumpBox.canUndoPlacement(game), stumpBox.openCount(game), !!game.woodsmanBuildLock, talismanInputs,
             graftInputs, unlockInputs, stumpCubeUi.cubeSignature()]);
     }
     /** Called for the visible tab (renderVisibleManagementPanels) and once a second while it stays open. */
@@ -347,26 +406,169 @@ const stumpBoxUi = (() => {
         paintStumpPart('stump-box-detail', stumpDetailHtml(result));
         paintStumpPart('stump-box-storage', stumpStorageHtml());
         paintStumpPart('stump-box-more', stumpMoreHtml());
+        renderPlacementPreview();
         // 따라 하기(시작 선물 놓기)는 고를 때마다 가리키는 칸을 옮긴다: 보관함의 씨앗 → 판의 빈 칸(룬 고르기 창과 같은 방식).
-        if (tutorialActionUi.active) tutorialActionUi.refresh();
+        refreshStumpTutorial();
     }
     function refreshStumpTabIfVisible() {
         if (typeof getRenderingUiTabIds === 'function' && getRenderingUiTabIds().has('tab-stump')) renderStumpBoxTab();
     }
 
     // ── 조작 ───────────────────────────────────────────────
+    /** Compare only changed board effects. Both evaluators receive a copied board, never a temporarily edited game. */
+    function placementEffects(state) {
+        const seeds = stumpBox.evaluate(state), talismans = talismanEffects.summarize(state);
+        const stats = { ...seeds.stats }, conditions = {};
+        Object.entries(talismans.stats).forEach(([key, value]) => { stats[key] = (stats[key] || 0) + value; });
+        // The combat contract takes the strongest copy of each conditional effect, not their sum.
+        talismans.conditions.forEach(line => { conditions[line.id] = Math.max(conditions[line.id] || 0, line.value); });
+        return { stats, conditions, board: state.stumpBox.board, resonant: seeds.resonant, suppressed: new Set([...seeds.suppressed, ...talismans.suppressed]),
+            boss: talismans.bossFinalDmgBonusPct };
+    }
+    function placementItemNames(ids) {
+        return ids.map(id => stumpBox.itemById(game, id)).filter(Boolean).map(stumpBox.shortName).join(', ');
+    }
+    function placementStatusRows(before, after) {
+        const rows = [], disabled = [...after.suppressed].filter(id => !before.suppressed.has(id));
+        const enabled = [...before.suppressed].filter(id => after.board.includes(id) && !after.suppressed.has(id));
+        if (disabled.length) rows.push(`<li class="is-bad">비활성화: ${escStump(placementItemNames(disabled))}</li>`);
+        if (enabled.length) rows.push(`<li class="is-good">비활성화 해제: ${escStump(placementItemNames(enabled))}</li>`);
+        COLORS.forEach(color => {
+            if (before.resonant.has(color) === after.resonant.has(color)) return;
+            const on = after.resonant.has(color), bonus = `+${STUMP_BOX_RESONANCE.bonusPct}%`;
+            rows.push(`<li class="${on ? 'is-good' : 'is-bad'}">${STUMP_BOX_COLORS[color].label} 공명: ${on ? `없음 → ${bonus}` : `${bonus} → 없음`}</li>`);
+        });
+        return rows;
+    }
+    function placementValueRows(before, after, describe) {
+        return [...new Set([...Object.keys(before), ...Object.keys(after)])].flatMap(key => {
+            const from = Math.round((before[key] || 0) * 100) / 100, to = Math.round((after[key] || 0) * 100) / 100;
+            if (from === to) return [];
+            return [`<li><span class="stump-placement-before">${statToneText.html(describe(key, from))}</span> → <strong>${statToneText.html(describe(key, to))}</strong></li>`];
+        });
+    }
+    function placementRows(preview) {
+        const before = placementEffects(game), after = placementEffects(preview);
+        const rows = placementStatusRows(before, after);
+        rows.push(...placementValueRows(before.stats, after.stats, (id, value) => stumpBox.lineText(id, value).replace(/\+-/g, '−')));
+        rows.push(...placementValueRows(before.conditions, after.conditions,
+            (id, value) => talismans.describeLine({ kind: 'condition', id, value })));
+        if (before.boss !== after.boss) rows.push(`<li>보스 최종 피해: ${before.boss}% → <strong>${after.boss}%</strong></li>`);
+        return { rows, disabled: [...after.suppressed].filter(id => !before.suppressed.has(id)),
+            enabled: [...before.suppressed].filter(id => after.board.includes(id) && !after.suppressed.has(id)) };
+    }
+    function clearPlacementMarks() {
+        document.querySelectorAll('#stump-box-board .is-preview-target, #stump-box-board .is-preview-off, #stump-box-board .is-preview-on')
+            .forEach(node => node.classList.remove('is-preview-target', 'is-preview-off', 'is-preview-on'));
+    }
+    function markPlacement(result) {
+        clearPlacementMarks();
+        document.querySelectorAll('#stump-box-board [data-stump-drop-cell]').forEach(node => {
+            const cell = Number(node.dataset.stumpDropCell), id = result.board[cell];
+            node.classList.toggle('is-preview-target', cell === placement.cell);
+            node.classList.toggle('is-preview-off', result.disabled.includes(id));
+            node.classList.toggle('is-preview-on', result.enabled.includes(id));
+        });
+    }
+    function clearPlacementPreview(transientOnly = false) {
+        if (transientOnly && placement?.pinned) return;
+        placement = null;
+        placementKey = '';
+        clearPlacementMarks();
+        const node = document.getElementById('stump-placement-preview');
+        if (node) { node.hidden = true; node.replaceChildren(); }
+    }
+    /** Pointer movement updates this small region only; replacing the board would interrupt an active drag. */
+    function renderPlacementPreview() {
+        const node = document.getElementById('stump-placement-preview');
+        if (!placement || !node) return;
+        const key = JSON.stringify([game.stumpBox, !!game.woodsmanBuildLock, placement.id, placement.cell, placement.pinned]);
+        if (key !== placementKey) {
+            const preview = stumpBox.previewMove(game, placement.id, placement.cell);
+            if (!preview) return clearPlacementPreview();
+            const result = placementRows(preview);
+            placement.result = { ...result, board: preview.stumpBox.board };
+            placement.effectKey = JSON.stringify([game.stumpBox.board, result.rows, preview.stumpBox.board]);
+            placementKey = key;
+        }
+        const item = stumpBox.itemById(game, placement.id), occupant = game.stumpBox.board[placement.cell];
+        const title = `${stumpBox.shortName(item)}, ${Math.floor(placement.cell / STUMP_BOX_SIZE) + 1}행 ${placement.cell % STUMP_BOX_SIZE + 1}열`;
+        const verb = occupant === null ? '배치' : '자리 바꾸기';
+        const buttons = placement.pinned ? `<div class="stump-actions"><button type="button" data-stump-action="placement-apply">${verb}</button>`
+            + '<button type="button" data-stump-action="placement-cancel">취소</button></div>' : '';
+        const html = `<strong>${escStump(title)}</strong><span class="stump-placement-label">${verb} 미리보기</span>`
+            + (placement.result.rows.length ? `<ul>${placement.result.rows.join('')}</ul>` : '<p>효과 변화 없음</p>') + buttons;
+        if (node.__previewHtml !== html || node.hidden) { node.innerHTML = html; node.__previewHtml = html; }
+        node.hidden = false;
+        markPlacement(placement.result);
+    }
+    function previewCell(id, cell, pinned = false) {
+        if (placement) {
+            if (placement.pinned && !pinned) return;
+            if (placement.id === id && placement.cell === cell && placement.pinned === pinned) return;
+        }
+        placement = { id, cell, pinned };
+        placementKey = '';
+        renderPlacementPreview();
+        if (!pinned) return;
+        hideInfoTooltip();
+        const node = document.getElementById('stump-placement-preview');
+        if (node) node.scrollIntoView({ block: 'nearest' });
+        refreshStumpTutorial();
+    }
+    /** Touch and keyboard: the first press on a cell pins its preview, a second press on the same cell applies it like [배치]. */
+    function confirmCell(id, cell) {
+        if (placement?.pinned && placement.id === id && placement.cell === cell) return applyPlacement();
+        previewCell(id, cell, true);
+    }
+    function cancelPlacement() {
+        clearPlacementPreview();
+        refreshStumpTutorial();
+    }
+    /** The planting guide moves with the screen: stored seed, then an empty cell, then the pinned preview's [배치]. */
+    function refreshStumpTutorial() {
+        if (tutorialActionUi.active) tutorialActionUi.refresh();
+    }
+    function hoverCell(cell) {
+        if (selectedId !== null) previewCell(selectedId, cell);
+        return !!placement;
+    }
+    function applyPlacement() {
+        if (!placement) return;
+        // Re-evaluate on confirmation, including newly grown pieces or a challenge lock since the preview.
+        const key = placement.effectKey;
+        renderPlacementPreview();
+        if (!placement) return;
+        if (key !== placement.effectKey) return notifyStump('배치 효과가 바뀌었습니다. 확인 후 다시 눌러 주세요.');
+        dropOnCell(placement.id, placement.cell);
+    }
     function notifyStump(message) { showGameToast(message, { tone: 'info' }); }
     function commitStumpChange() {
+        clearPlacementPreview();
         lastSignature = '';
         queueImportantSave(300);
         renderStumpBoxTab(true);
         updateStaticUI();
     }
     function selectStumpItem(id) {
+        clearPlacementPreview();
+        compareOpen = false;
+        comparedId = null;
         selectedId = selectedId === id ? null : id;
         selectedCell = null;
         renderStumpBoxTab(true);
-        if (selectedItem()) revealStumpDetailOnPhone();
+        // A board item's detail (graft, back to storage) comes into view on phones; a stored item keeps the board in view to pick a cell.
+        if (selectedId !== null && game.stumpBox.board.includes(selectedId)) revealStumpDetailOnPhone();
+    }
+    function undoPlacement() {
+        if (!stumpBox.undoPlacement(game)) {
+            notifyStump('지금은 이전 배치로 되돌릴 수 없습니다.');
+            renderStumpBoxTab(true);
+            return;
+        }
+        selectedId = null;
+        selectedCell = null;
+        commitStumpChange();
     }
     function stumpRefusal(item) {
         if (game.woodsmanBuildLock) return '나무꾼 전투 중에는 그루터기 함 배치를 바꿀 수 없습니다.';
@@ -414,11 +616,11 @@ const stumpBoxUi = (() => {
         if (!uiDisplay.matches('(max-width: 1080px)')) return;
         document.getElementById('stump-box-detail')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     }
-    function clickStumpCell(cell) {
+    function clickStumpCell(cell, confirm) {
         const occupant = game.stumpBox.board[cell];
         if (!stumpBox.isOpen(game, cell)) return notifyStump(`이 칸은 루프 ${stumpBox.opensAt(game, cell)}에 열립니다.`);
         if (selectedId !== null && occupant === selectedId) return selectStumpItem(null);
-        if (selectedId !== null) return dropOnCell(selectedId, cell);
+        if (selectedId !== null) return confirm ? confirmCell(selectedId, cell) : dropOnCell(selectedId, cell);
         if (occupant !== null) return selectStumpItem(occupant);
         if (stumpBox.graftOpen(game) || stumpBox.sealLimit(game)) selectStumpCell(cell);
     }
@@ -502,8 +704,15 @@ const stumpBoxUi = (() => {
         return !!gone;
     }
     async function bulkStump(kind) {
+        if (stateFilter !== 'all') return;
         const filter = colorFilter;
-        if (!await stumpRipeningUi.confirmBulk(kind, filter)) return;
+        const approval = await stumpRipeningUi.confirmBulk(kind, filter);
+        if (!approval) return;
+        if (stateFilter !== 'all' || colorFilter !== filter || !stumpRipeningUi.bulkConfirmationCurrent(kind, filter, approval)) {
+            notifyStump('대상이 바뀌었습니다. 확인 후 다시 눌러 주세요.');
+            renderStumpBoxTab(true);
+            return;
+        }
         if (!(kind === 'compost' ? runBulkCompost(filter) : runBulkDiscard(filter))) return;
         if (selectedId !== null && !stumpBox.itemById(game, selectedId)) selectedId = null;
         commitStumpChange();
@@ -515,7 +724,12 @@ const stumpBoxUi = (() => {
     }
     const ACTIONS = {
         rules: (data, button) => showStumpRules(button),
-        cell: data => clickStumpCell(Number(data.cell)),
+        cell: (data, button, event) => clickStumpCell(Number(data.cell), event.pointerType === 'touch' || event.detail === 0
+            || uiDisplay.matches('(hover: none), (max-width: 680px)')),
+        'placement-apply': () => applyPlacement(),
+        'placement-cancel': () => cancelPlacement(),
+        'placement-undo': () => undoPlacement(),
+        compare: () => { compareOpen = !compareOpen; renderStumpBoxTab(true); },
         item: data => selectStumpItem(Number(data.item)),
         storage: () => { if (selectedId !== null) dropOnStorage(selectedId); },
         unplace: () => { if (selectedId !== null) dropOnStorage(selectedId); },
@@ -544,12 +758,23 @@ const stumpBoxUi = (() => {
     };
     function onStumpTabClick(event) {
         const target = event.target.closest('[data-stump-action]');
-        if (target && ACTIONS[target.dataset.stumpAction]) ACTIONS[target.dataset.stumpAction](target.dataset, target);
+        if (target && ACTIONS[target.dataset.stumpAction]) ACTIONS[target.dataset.stumpAction](target.dataset, target, event);
+    }
+    function onStumpSelectionChange(event) {
+        const key = event.target.dataset.stumpSelect, value = event.target.value;
+        if (key === 'state' && Object.hasOwn(STORAGE_STATES, value)) stateFilter = value;
+        else if (key === 'sort' && Object.hasOwn(STORAGE_SORTS, value)) storageSort = value;
+        else if (key === 'comparison') comparedId = Number(value);
+        else return;
+        clearPlacementPreview();
+        renderStumpBoxTab(true);
+        document.querySelector(`[data-stump-select="${key}"]`)?.focus({ preventScroll: true });
     }
     function bindStumpBoxTab(root) {
         if (bound) return;
         bound = true;
         root.addEventListener('click', onStumpTabClick);
+        root.addEventListener('change', onStumpSelectionChange);
         ticker = ticker || setInterval(refreshStumpTabIfVisible, 1000);
     }
 
@@ -659,6 +884,14 @@ const stumpBoxUi = (() => {
         else chooseStumpPouch(key, choice);
     }
 
-    return { renderStumpBoxTab, refreshStumpTabNow, checkStumpBoxUnlock, tipFor, dropOnCell, dropOnStorage, claimReward };
+    /** Result snapshots use their own item fields, without today's board bonuses or a reused item ID. */
+    function itemTipHtml(item, storedSnapshot = false) {
+        if (!storedSnapshot) return stumpItemTipHtml(item, stumpBox.evaluate(game));
+        const state = { ...game, stumpBox: { ...game.stumpBox, board: game.stumpBox.board.map(() => null) } };
+        return stumpItemTipHtml(item, stumpBox.evaluate(state), -1);
+    }
+
+    return { renderStumpBoxTab, refreshStumpTabNow, checkStumpBoxUnlock, tipFor, dropOnCell, dropOnStorage, claimReward,
+        itemTipHtml, previewCell, hoverCell, clearPlacementPreview };
 })();
 safeExposeGlobals({ stumpBoxUi });

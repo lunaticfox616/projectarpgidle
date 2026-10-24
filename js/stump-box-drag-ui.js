@@ -44,6 +44,7 @@
         return ghost;
     }
     function beginDrag(event) {
+        stumpBoxUi.clearPlacementPreview();
         drag = { id: press.id, source: press.source, ghost: ghostFor(press.source), zone: null };
         clearPress();
         drag.source.classList.add('is-dragging');
@@ -78,6 +79,8 @@
         drag.zone?.classList.remove('is-drop-ok', 'is-drop-bad');
         drag.zone = zone;
         if (zone) zone.classList.add(zoneAccepts(zone) ? 'is-drop-ok' : 'is-drop-bad');
+        if (zone && !zone.dataset.stumpDropStorage && zoneAccepts(zone)) stumpBoxUi.previewCell(drag.id, Number(zone.dataset.stumpDropCell));
+        else stumpBoxUi.clearPlacementPreview(true);
     }
     function follow(point) {
         if (!drag) return;
@@ -99,6 +102,7 @@
         drag.ghost.remove();
         document.getElementById('tab-stump')?.classList.remove('is-stump-dragging');
         drag = null;
+        stumpBoxUi.clearPlacementPreview();
     }
     function finishDrag(event) {
         const id = drag.id, zone = zoneAt(event.clientX, event.clientY);
@@ -108,6 +112,7 @@
         setTimeout(() => { swallowClick = false; }, 0);
         if (!zone) return;
         if (zone.dataset.stumpDropStorage) stumpBoxUi.dropOnStorage(id);
+        else if (event.pointerType === 'touch') stumpBoxUi.previewCell(id, Number(zone.dataset.stumpDropCell), true);
         else stumpBoxUi.dropOnCell(id, Number(zone.dataset.stumpDropCell));
     }
 
@@ -144,7 +149,9 @@
         }
     }
     function onKeydown(event) {
-        if (event.key !== 'Escape' || !drag) return;
+        if (event.key !== 'Escape') return;
+        stumpBoxUi.clearPlacementPreview();
+        if (!drag) return;
         event.preventDefault();
         event.stopImmediatePropagation();
         endDrag();
@@ -153,7 +160,9 @@
     // ── 마우스 툴팁 ────────────────────────────────────────
     function onHover(event) {
         if (event.pointerType !== 'mouse' || drag || press) return;
-        const target = stumpTarget(event), anchor = target && target.closest('[data-stump-tip]');
+        const target = stumpTarget(event), cell = target && target.closest('[data-stump-drop-cell]');
+        if (cell && stumpBoxUi.hoverCell(Number(cell.dataset.stumpDropCell))) return hideInfoTooltip();
+        const anchor = target && target.closest('[data-stump-tip]');
         if (!anchor) return;
         const tip = stumpBoxUi.tipFor(anchor);
         if (tip) showInfoTooltipHtml(event.clientX, event.clientY, tip.html, tip.tone);
@@ -162,10 +171,14 @@
     function onLeave(event) {
         const target = stumpTarget(event), anchor = target && target.closest('[data-stump-tip]');
         if (anchor && !anchor.contains(event.relatedTarget)) hideInfoTooltip();
+        const cell = target && target.closest('[data-stump-drop-cell]');
+        if (cell && !cell.contains(event.relatedTarget)) stumpBoxUi.clearPlacementPreview(true);
     }
     /** Keyboard users reach the rules by focusing the ? button (pressing it is handled by stumpBoxUi). */
     function onRulesFocus(event) {
         const target = stumpTarget(event), button = target && target.closest('[data-stump-tip="rules"]');
+        const cell = target && target.closest('[data-stump-drop-cell]');
+        if (cell?.matches(':focus-visible')) stumpBoxUi.hoverCell(Number(cell.dataset.stumpDropCell));
         if (!button || !button.matches(':focus-visible')) return;
         const rect = button.getBoundingClientRect(), tip = stumpBoxUi.tipFor(button);
         showInfoTooltipHtml(rect.left, rect.bottom, tip.html, tip.tone);

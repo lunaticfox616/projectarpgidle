@@ -1,5 +1,5 @@
 // 스킬 이펙트 묶음 (js/canvas-stage-skill-vfx.js). scripts/build-stage-skill-vfx.cjs가 만든 표다: 손으로 고치지 않는다.
-// 2026-10-20 사용자가 준 "스킬룬 디렉터 전달"(v42, 추가본 v44)의 이펙트: 구매 팩에서 고른 이펙트 그림 두 장(assets/stage-vfx/vfx.png, vfx2.png,
+// 2026-10-20 사용자가 준 "스킬룬 디렉터 전달"(v42, 추가본 v44, v54)의 이펙트: 구매 팩에서 고른 이펙트 그림 두 장(assets/stage-vfx/vfx.png, vfx2.png,
 // 저장소에 넣지 않는다)과 룬마다 어느 클립을 어느 때 쓰는지, 룬을 쓸 때의 동작. 룬의 판정, 무기 조건, 수치는 data/skills.js가 갖는다.
 //   ramps   색 램프: 어두운 쪽에서 밝은 쪽으로 여섯 단계. 클립을 '이름@램프'로 부르면 그림의 밝기를 이 여섯 색으로 다시 칠한다('@='는 원래 색).
 //   elementRamp 속성 → 램프. 룬이 램프를 정하지 않은 클립은 룬의 속성 색으로 칠한다.
@@ -14,10 +14,13 @@
 //           after 여진, wave 나아가는 파동, zap 연쇄 번개, fall 낙하, tick 지속 타격, muzzle 발사 섬광, blast 착탄 … (인계의 02_이펙트_연결표.md).
 //   meta    룬 번호 → 인계의 룬 갈래: el 속성, cast 시전 마법진을 띄우는 룬, melee 근접 타격 모양을 쓰는 룬, kind 인계의 판정 갈래.
 //   motions 룬 번호 → 직업 → 무기 자세 → 그 룬을 쓸 때의 동작(data/stage-characters.js의 동작 이름).
+//   bless   사역룬 가호의 발밑(v54): spin 결정진과 룬 글자가 도는 빠르기(초당 라디안), floors 속성(none 수액) → 결정진 클립 floor, alpha 투명도
+//           (없으면 0.85), spin 그 결정진만의 빠르기(0이면 돌지 않는다), scale 부드럽게 줄이는 배율, colours 속성 표에 없는 가호의 세 색,
+//           runes 룬 글자의 획(5×7 격자의 선분 [x0, y0, x1, y1]).
 const STAGE_SKILL_VFX = Object.freeze({
     path: 'assets/stage-vfx/',
     files: Object.freeze(['vfx.png','vfx2.png']),
-    version: '03cd60bb11',
+    version: '5d6580b6db',
     ramps: Object.freeze({
         phys: ['#22262e','#4b525e','#7e8794','#b4bcc8','#e0e5ec','#f7f9fb'],
         fire: ['#3a1208','#7a2a12','#c4521f','#f0843c','#ffc35a','#fff1c4'],
@@ -28,7 +31,8 @@ const STAGE_SKILL_VFX = Object.freeze({
         stone: ['#24201c','#4a4038','#776a5c','#a69886','#d2c7b6','#efe9df'],
         smoke: ['#2c2a2e','#55525a','#8a8690','#bcb6b0','#e4ddd2','#f8f4ec'],
         holy: ['#6b5a30','#9c8a55','#c9b98a','#e6dcc0','#f5efe0','#fdfbf4'],
-        frost: ['#3f78a4','#6aa6cc','#93cce6','#b9e5f4','#dcf5fc','#f4fdff']
+        frost: ['#3f78a4','#6aa6cc','#93cce6','#b9e5f4','#dcf5fc','#f4fdff'],
+        platinum: ['#3a3d47','#6b707c','#9aa1ad','#c5ccd6','#e6eaf0','#fbfcfe']
     }),
     elementRamp: Object.freeze({phys:'phys',fire:'fire',cold:'cold',light:'light',chaos:'chaos',none:'smoke',prism:'cold'}),
     elements: Object.freeze({
@@ -163,6 +167,16 @@ const STAGE_SKILL_VFX = Object.freeze({
         bz_burst: {a:'o_bz',an:'center',ms:55},
         rune_mine: {a:'o_rune',f:[0,1],an:'center',sc:1.5,ms:230,loop:true},
         rune_blast: {a:'o_rune',f:[2,8],an:'center',sc:1.5,ms:60},
+        bless_circle: {a:'pr5',f:[5,10],an:'center',sc:0.85,ms:110,loop:true,flat:0.5},
+        bless_portal: {a:'n_portal',an:'center',sc:1.25,ms:100,loop:true,flat:0.5},
+        bless_phys: {a:'fk7',f:[2,2],an:'center',sc:0.95,ms:120,loop:true,flat:0.5},
+        bless_fire: {a:'fi3',f:[4,9],an:'center',sc:0.95,ms:90,loop:true,flat:0.62},
+        bless_sun: {a:'pr_sun',f:[1,2],an:'center',sc:1,ms:160,loop:true,flat:0.5},
+        bless_tree: {a:'u_tree',an:'center',sc:1,ms:1000,loop:true,flat:0.5},
+        bless_cold: {a:'fm6',f:[4,5],an:'center',sc:0.9,ms:200,loop:true,flat:0.5},
+        bless_light: {a:'pr10',f:[16,18],an:'center',sc:1,ms:160,loop:true,flat:0.5},
+        bless_chaos: {a:'wl7',f:[4,5],an:'center',sc:0.9,ms:200,loop:true,flat:0.5},
+        bless_swords: {a:'pal2',f:[4,11],an:'center',ms:70},
         clock_face: {a:'o_clock',an:'center',sc:2.6,flat:0.5,loop:true,ms:100},
         clock_tick: {a:'o_ctick',an:'center',sc:2,ms:60,loop:true},
         rockfall: {a:'n_rock1d',f:[2,13],an:'bottom',sc:2,ms:60,one:true},
@@ -401,7 +415,13 @@ const STAGE_SKILL_VFX = Object.freeze({
         '113': {name:'번개 위습 소환',el:'light',cast:true,melee:false,kind:'wisp'},
         '114': {name:'물리 위습 소환',el:'phys',cast:true,melee:false,kind:'wisp'},
         '115': {name:'카오스 위습 소환',el:'chaos',cast:true,melee:false,kind:'wisp'},
-        '116': {name:'분광 위습 소환',el:'prism',cast:true,melee:false,kind:'wisp'}
+        '116': {name:'분광 위습 소환',el:'prism',cast:true,melee:false,kind:'wisp'},
+        '121': {name:'장군의 가호',el:'phys',cast:true,melee:false,kind:'servant',rune:'uruz'},
+        '122': {name:'화염의 가호',el:'fire',cast:true,melee:false,kind:'servant',rune:'ingwaz'},
+        '123': {name:'한기의 가호',el:'cold',cast:true,melee:false,kind:'servant',rune:'isa_'},
+        '124': {name:'낙뢰의 가호',el:'light',cast:true,melee:false,kind:'servant',rune:'sowilo'},
+        '125': {name:'심연의 가호',el:'chaos',cast:true,melee:false,kind:'servant',rune:'berkano'},
+        '126': {name:'수액의 가호',el:'none',cast:true,melee:false,kind:'servant',rune:'jera'}
     }),
     motions: Object.freeze({
         '1': {wanderer:{unarmed:'flurry',greatsword:'flurry',sword:'flurry',censer:'flurry'},warrior:{unarmed:'flurry',greatsword:'flurry',sword:'flurry',censer:'flurry'},archer:{unarmed:'flurry',greatsword:'flurry',sword:'flurry',censer:'flurry'},occultist:{unarmed:'flurry',greatsword:'flurry',sword:'flurry',censer:'flurry'},alchemist:{unarmed:'flurry',greatsword:'flurry',sword:'flurry',censer:'flurry'},cleric:{unarmed:'flurry',greatsword:'flurry',sword:'flurry',censer:'flurry'}},
@@ -468,7 +488,19 @@ const STAGE_SKILL_VFX = Object.freeze({
         '113': {wanderer:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},warrior:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},archer:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},occultist:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},alchemist:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},cleric:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'}},
         '114': {wanderer:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},warrior:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},archer:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},occultist:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},alchemist:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},cleric:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'}},
         '115': {wanderer:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},warrior:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},archer:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},occultist:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},alchemist:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},cleric:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'}},
-        '116': {wanderer:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},warrior:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},archer:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},occultist:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},alchemist:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},cleric:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'}}
+        '116': {wanderer:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},warrior:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},archer:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},occultist:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},alchemist:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},cleric:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'}},
+        '121': {wanderer:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},warrior:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},archer:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},occultist:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},alchemist:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},cleric:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'}},
+        '122': {wanderer:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},warrior:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},archer:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},occultist:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},alchemist:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},cleric:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'}},
+        '123': {wanderer:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},warrior:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},archer:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},occultist:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},alchemist:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},cleric:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'}},
+        '124': {wanderer:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},warrior:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},archer:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},occultist:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},alchemist:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},cleric:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'}},
+        '125': {wanderer:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},warrior:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},archer:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},occultist:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},alchemist:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},cleric:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'}},
+        '126': {wanderer:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},warrior:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},archer:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},occultist:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},alchemist:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},cleric:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'}}
+    }),
+    bless: Object.freeze({
+        spin: 1.05,
+        floors: Object.freeze({phys:{floor:'bless_phys@phys'},fire:{floor:'bless_sun@=',alpha:1},cold:{floor:'bless_cold@='},light:{floor:'bless_light@light'},chaos:{floor:'bless_chaos@chaos'},none:{floor:'bless_tree@platinum',alpha:1,spin:0,scale:0.7}}),
+        colours: Object.freeze({none:{c1:'#fbfcfe',c2:'#c5ccd6',c3:'#6b707c'}}),
+        runes: Object.freeze({uruz:[[0,6,0,0],[0,0,4,2],[4,2,4,6]],ingwaz:[[2,1,0,3],[0,3,2,5],[2,5,4,3],[4,3,2,1]],isa_:[[2,0,2,6],[1,0,3,0],[1,6,3,6]],sowilo:[[3,0,1,3],[1,3,3,3],[3,3,1,6]],berkano:[[1,0,1,6],[1,0,3,2],[3,2,1,3],[1,3,3,4],[3,4,1,6]],jera:[[1,0,3,1],[3,1,1,2],[3,4,1,5],[1,5,3,6]]})
     }),
     atlas: Object.freeze({
         bk1: {w:186,h:81,n:10,p:[19.2,255],fx:[[1122,5877],[1309,5877],[1496,5877],[1683,5877],[0,5959],[187,5959],[374,5959],[561,5959],[748,5959],[935,5959]],fb:[[0,44,55,72],[1,27,59,70],[2,11,71,69],[6,2,97,67],[10,1,143,64],[42,0,181,68],[47,0,185,81],[65,0,186,81],[104,2,186,81],[134,20,180,81]]},
@@ -611,6 +643,7 @@ const STAGE_SKILL_VFX = Object.freeze({
         pr6: {w:54,h:110,n:11,p:[145.9,240.2],fx:[[1205,3218],[1260,3218],[1315,3218],[1370,3218],[1425,3218],[1480,3218],[1535,3218],[1590,3218],[1645,3218],[1700,3218],[1755,3218]],fb:[[1,2,37,61],[2,2,37,86],[7,2,38,96],[7,4,38,97],[1,0,51,99],[1,3,54,102],[2,3,51,104],[2,4,54,109],[0,4,54,110],[0,4,54,110],[0,4,54,110]]},
         pr7: {w:101,h:106,n:7,p:[217.3,255],fx:[[1296,3773],[1398,3773],[1500,3773],[1602,3773],[1704,3773],[1806,3773],[1908,3773]],fb:[[13,24,101,106],[1,11,97,106],[0,0,99,101],[7,1,97,97],[12,11,91,90],[25,24,71,74],[34,27,70,60]]},
         pr9: {w:125,h:107,n:8,p:[145.9,254],fx:[[1392,3664],[1518,3664],[1644,3664],[1770,3664],[1896,3664],[0,3773],[126,3773],[252,3773]],fb:[[2,7,125,90],[1,1,124,85],[0,0,125,89],[0,1,125,86],[0,7,125,90],[4,11,124,103],[2,10,125,106],[2,12,125,107]]},
+        pr_sun: {w:123,h:123,n:3,p:[60,255],fx:[[0,7962],[123,7962],[246,7962]],fb:[[12,12,111,111],[6,1,117,122],[6,4,117,119]]},
         rogue1: {w:109,h:101,n:9,p:[42.3,255],fx:[[1098,4296],[1208,4296],[1318,4296],[1428,4296],[1538,4296],[1648,4296],[1758,4296],[1868,4296],[0,4399]],fb:[[64,90,74,101],[64,73,83,101],[64,45,92,101],[41,9,101,99],[6,0,109,94],[0,15,85,83],[3,17,84,62],[4,18,80,61],[6,20,61,61]]},
         rogue2: {w:151,h:68,n:6,p:[97.3,255],fx:[[768,7039],[920,7039],[1072,7039],[1224,7039],[1376,7039],[1528,7039]],fb:[[0,39,19,59],[5,20,98,63],[9,0,151,68],[30,0,150,66],[42,0,110,62],[47,0,108,21]]},
         rogue3: {w:88,h:98,n:9,p:[124.4,226],fx:[[1162,4501],[1251,4501],[1340,4501],[1429,4501],[1518,4501],[1607,4501],[1696,4501],[1785,4501],[1874,4501]],fb:[[25,58,45,88],[24,28,75,91],[22,12,87,90],[10,5,88,69],[14,8,84,97],[20,9,79,96],[0,0,77,98],[0,3,72,73],[0,4,70,72]]},
@@ -622,6 +655,7 @@ const STAGE_SKILL_VFX = Object.freeze({
         sc7: {w:95,h:98,n:10,p:[44.7,177.6],fx:[[0,4602],[96,4602],[192,4602],[288,4602],[384,4602],[480,4602],[576,4602],[672,4602],[768,4602],[864,4602]],fb:[[77,23,93,43],[68,23,93,52],[53,23,93,65],[24,23,93,76],[0,23,90,98],[0,0,88,94],[20,0,95,76],[20,0,95,76],[20,0,95,64],[53,0,95,42]]},
         sl2: {w:224,h:127,n:15,p:[108.7,255],fx:[[903,792],[1128,792],[1353,792],[1578,792],[1803,792],[0,921],[225,921],[450,921],[675,921],[900,921],[1125,921],[1350,921],[1575,921],[1800,921],[0,1049]],fb:[[42,87,92,123],[41,78,94,123],[34,48,97,124],[15,18,103,120],[4,5,100,114],[3,3,99,105],[2,2,98,97],[1,1,97,92],[0,0,96,89],[7,7,133,78],[9,7,151,114],[12,8,183,119],[32,17,211,123],[62,10,220,124],[80,6,224,127]]},
         sl4: {w:114,h:100,n:6,p:[108.7,199.8],fx:[[1154,4399],[1269,4399],[1384,4399],[1499,4399],[1614,4399],[1729,4399]],fb:[[11,54,59,100],[8,30,83,98],[0,10,104,98],[1,1,107,94],[11,0,112,89],[18,0,114,84]]},
+        u_tree: {w:164,h:177,n:1,p:[45,249.1],fx:[[0,8085]],fb:[[0,0,164,177]]},
         wl2: {w:187,h:41,n:13,p:[7.7,128.4],fx:[[162,7812],[350,7812],[538,7812],[726,7812],[914,7812],[1102,7812],[1290,7812],[1478,7812],[1666,7812],[1854,7812],[0,7856],[188,7856],[376,7856]],fb:[[12,2,88,34],[0,2,94,34],[1,2,101,33],[2,2,110,32],[2,0,126,36],[1,2,137,39],[1,1,150,41],[1,1,169,41],[3,1,183,41],[20,2,186,40],[41,1,186,39],[74,2,186,37],[100,3,187,37]]},
         wl3: {w:74,h:75,n:8,p:[6.3,77.6],fx:[[456,6596],[531,6596],[606,6596],[681,6596],[756,6596],[831,6596],[906,6596],[981,6596]],fb:[[10,12,60,64],[6,3,69,71],[6,3,69,71],[1,1,73,73],[1,1,73,73],[0,0,73,75],[0,0,73,75],[7,6,74,71]]},
         wl4: {w:103,h:92,n:8,p:[6.6,255],fx:[[101,5085],[205,5085],[309,5085],[413,5085],[517,5085],[621,5085],[725,5085],[829,5085]],fb:[[13,15,101,88],[10,15,100,86],[3,9,100,85],[0,0,103,92],[12,0,100,92],[10,0,100,92],[3,0,100,92],[0,11,103,78]]},

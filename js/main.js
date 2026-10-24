@@ -270,6 +270,7 @@ function bootGame() {
             throw new Error('필수 런타임 모듈이 아직 실제 구현으로 교체되지 않았습니다. 새로고침 후에도 반복되면 캐시가 꼬인 상태입니다.');
         }
         init();
+        gemSelectionUi.migrationNotice();
     } catch (error) {
         gameBooted = false;
         reportFatalError('init', error);

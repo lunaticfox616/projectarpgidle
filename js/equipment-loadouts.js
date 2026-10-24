@@ -1,6 +1,8 @@
 /**
  * @typedef {{ id: number, instanceId: string|null, name: string }} EquipmentLoadoutItemReference
- * @typedef {{ name: string, slots: Object<string, EquipmentLoadoutItemReference|null>, savedAtLoop: number }} EquipmentLoadoutPreset
+ * @typedef {{ name: string, slots: Object<string, EquipmentLoadoutItemReference|null>, savedAtLoop: number, runeLoadout: object|null }} EquipmentLoadoutPreset
+ * runeLoadout is a versioned selection snapshot, never rune ownership, levels, experience or unlock progress.
+ * null preserves old equipment-only presets until the user saves over them.
  * @typedef {{ ok: boolean, reason?: string, preset?: EquipmentLoadoutPreset, count?: number }} EquipmentLoadoutResult
  */
 const EQUIPMENT_LOADOUT_PRESET_LIMIT = 3;
@@ -36,7 +38,8 @@ function normalizeEquipmentLoadoutPreset(preset, index) {
     EQUIPMENT_LOADOUT_SLOT_KEYS.forEach(slot => { slots[slot] = normalizeEquipmentLoadoutSlot(preset.slots[slot]); });
     let fallbackName = `세팅 ${index + 1}`;
     let name = typeof preset.name === 'string' && preset.name.trim() ? preset.name.trim().slice(0, 18) : fallbackName;
-    return { name, slots, savedAtLoop: Math.max(1, Math.floor(Number(preset.savedAtLoop) || 1)) };
+    return { name, slots, savedAtLoop: Math.max(1, Math.floor(Number(preset.savedAtLoop) || 1)),
+        runeLoadout: window.GameModules.skills.loadouts.normalize(preset.runeLoadout) };
 }
 
 /** True when a preset's item sits in temporary storage (a bag re-fit moved it there when its footprint grew). */
@@ -150,7 +153,13 @@ function getEquipmentLoadoutInspection(slotIndex, targetGame = game) {
             incompatible.push({ slot, name: saved.name });
         }
     });
-    return { exists: true, name: preset.name, count, missing, incompatible, applied };
+    // Rune ownership is read against the preset's own gear (a saved 칼이 된 발걸음 counts even when it is off now).
+    let runes = window.GameModules.skills.loadouts;
+    let presetEquipment = Object.fromEntries(EQUIPMENT_LOADOUT_SLOT_KEYS.map(slot =>
+        [slot, owned.get(getEquipmentLoadoutSavedIdentity(preset.slots[slot])) || null]));
+    let runeReason = runes.inspect(preset.runeLoadout, { ...targetGame, equipment: presetEquipment }).reason || '';
+    return { exists: true, name: preset.name, count, missing, incompatible,
+        applied: applied && runes.equals(preset.runeLoadout, targetGame), runeReason };
 }
 
 function saveEquipmentLoadoutPreset(slotIndex, name, targetGame = game) {
@@ -164,10 +173,10 @@ function saveEquipmentLoadoutPreset(slotIndex, name, targetGame = game) {
         slots[slot] = item ? { id: Math.floor(Number(item.id)), instanceId: ensureEquipmentLoadoutItemIdentity(item), name: String(item.name || '이름 없는 장비').slice(0, 40) } : null;
         if (item) count++;
     });
-    if (count === 0) return { ok: false, reason: '저장할 장착 장비가 없습니다.' };
     let previous = state.presets[index];
     let presetName = typeof name === 'string' && name.trim() ? name.trim().slice(0, 18) : (previous ? previous.name : `세팅 ${index + 1}`);
-    state.presets[index] = { name: presetName, slots, savedAtLoop: Math.max(1, Math.floor(Number(targetGame.season) || 1)) };
+    state.presets[index] = { name: presetName, slots, savedAtLoop: Math.max(1, Math.floor(Number(targetGame.season) || 1)),
+        runeLoadout: window.GameModules.skills.loadouts.capture(targetGame) };
     state.selectedSlot = index;
     return { ok: true, preset: state.presets[index], count };
 }
@@ -187,7 +196,7 @@ function buildEquipmentLoadoutSwap(preset, slotIndex, targetGame) {
         nextEquipment[slot] = saved ? owned.items.get(getEquipmentLoadoutSavedIdentity(saved)) : null;
     });
     let nextInventory = (targetGame.inventory || []).filter(item => item && !desiredIdentities.has(getEquipmentLoadoutItemIdentity(item)));
-    const eligibility = combatEquipmentStats.validateLoadout(nextEquipment, targetGame);
+    const eligibility = combatEquipmentStats.validateBuildLoadout(nextEquipment, preset.runeLoadout, targetGame);
     if (!eligibility.ok) return eligibility;
     let inventoryItems = new Set(nextInventory);
     let inventoryIdentities = new Set(nextInventory.map(getEquipmentLoadoutItemIdentity).filter(Boolean));
@@ -202,12 +211,14 @@ function buildEquipmentLoadoutSwap(preset, slotIndex, targetGame) {
     return { ok: true, equipment: nextEquipment, inventory: nextInventory, inspection };
 }
 
+/** Equipment and saved runes switch together. An old equipment-only preset (runeLoadout null) keeps the current runes:
+ * the stat pass rests a main rune the new weapon cannot use (weaponBlockedSkill) and supports over the new limit come off with a log. */
 function applyEquipmentLoadoutPreset(slotIndex, targetGame = game) {
+    if (targetGame.woodsmanBuildLock) return { ok: false, reason: '☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.' };
     let state = ensureEquipmentLoadoutState(targetGame);
     let index = Math.floor(Number(slotIndex));
     let preset = state.presets[index];
-    if (!preset) return { ok: false, reason: '저장된 장비 세팅이 없습니다.' };
-    state.selectedSlot = index;
+    if (!preset) return { ok: false, reason: '저장된 빌드 세팅이 없습니다.' };
     let swap = buildEquipmentLoadoutSwap(preset, index, targetGame);
     if (!swap.ok) return swap;
     const kept = new Set(Object.values(targetGame.equipment));
@@ -215,6 +226,10 @@ function applyEquipmentLoadoutPreset(slotIndex, targetGame = game) {
     swap.inventory.forEach(item => { if (kept.has(item)) delete item.legacyRequirementGrace; });
     targetGame.equipment = swap.equipment;
     targetGame.inventory = swap.inventory;
+    window.GameModules.skills.loadouts.apply(preset.runeLoadout, targetGame);
+    targetGame.equipmentLoadouts.selectedSlot = index;
+    combatEquipmentStats.finishBuildLoadout(targetGame);
+    if (targetGame === game) normalizeSupportLoadout(true);
     return { ok: true, preset, count: swap.inspection.count };
 }
 

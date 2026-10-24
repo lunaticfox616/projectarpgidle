@@ -39,11 +39,15 @@ const stumpCubeRecipes = (() => {
     }
 
     // Capped by what the player's level can already drop, so repeated tempering cannot outrun progress.
-    function rareTier(groups, state) {
-        const gear = groups[0][0].item, top = topTier([gear]);
+    function rareTierTarget(gear, state) {
+        const top = topTier([gear]);
         const level = Math.max(Math.floor(Number(state.level) || 1), Math.floor(Number(gear.itemLevel) || 1));
-        const tier = Math.max(top, Math.min(top + 1, levelProgression.maxDropTier(level)));
-        return equipmentResult(groups, makeEquipment(baseSlot(gear), tier, 'rare'));
+        return Math.max(top, Math.min(top + 1, levelProgression.maxDropTier(level)));
+    }
+
+    function rareTier(groups, state) {
+        const gear = groups[0][0].item;
+        return equipmentResult(groups, makeEquipment(baseSlot(gear), rareTierTarget(gear, state), 'rare'));
     }
 
     /** Another unique of the same slot and tier (a few tries to avoid handing back the same one). */
@@ -74,17 +78,22 @@ const stumpCubeRecipes = (() => {
 
     /** Best quality + a step, up to the box's quality cap (130%, 140% and 150% with the loop 35 and 45 unlocks); golden if any was
      * golden, ancient (고대 씨앗) if any was ancient. */
-    function stumpMerge([group], state) {
-        const list = items(group);
+    function stumpMergeSpec(list, state) {
         const roll = Math.min(stumpBox.rollCap(state), Math.max(...list.map(item => Number(item.roll) || 1)) + STUMP_CUBE_STUMP_ROLL_STEP);
-        const spec = { family: list[0].family, color: list[0].color, path: list[0].path, roll, golden: list.some(item => item.golden === true),
+        return { family: list[0].family, color: list[0].color, path: list[0].path, roll, golden: list.some(item => item.golden === true),
             ancient: list.some(item => item.ancient === true) };
-        return { ok: true, consumed: group, outputs: [{ kind: 'stump', spec }] };
+    }
+
+    function stumpMerge([group], state) {
+        return { ok: true, consumed: group, outputs: [{ kind: 'stump', spec: stumpMergeSpec(items(group), state) }] };
+    }
+
+    function talismanSource(group) {
+        return items(group).every(item => item.rarity === 'rare') ? 'radiantSealShard' : 'strongSealShard';
     }
 
     function talismanUpgrade([group], state, random) {
-        const source = items(group).every(item => item.rarity === 'rare') ? 'radiantSealShard' : 'strongSealShard';
-        return { ok: true, consumed: group, outputs: [{ kind: 'stump', talisman: talismans.roll(source, random) }] };
+        return { ok: true, consumed: group, outputs: [{ kind: 'stump', talisman: talismans.roll(talismanSource(group), random) }] };
     }
 
     function talismanRerollLine([[talisman], [amber]], state, random) {
@@ -97,9 +106,13 @@ const stumpCubeRecipes = (() => {
         return { ok: true, consumed: group, outputs: [{ kind: 'stump', talisman }] };
     }
 
-    function jewelFuse([group], state, random) {
+    function jewelTierRange(group) {
         const top = Math.max(1, ...items(group).map(item => Math.floor(Number(item.hiddenTier) || 1)));
-        const stats = rollJewelCraftStats(3 + (random() < 0.35 ? 1 : 0), null, { min: Math.max(1, top - 1), max: top });
+        return { min: Math.max(1, top - 1), max: top };
+    }
+
+    function jewelFuse([group], state, random) {
+        const stats = rollJewelCraftStats(3 + (random() < 0.35 ? 1 : 0), null, jewelTierRange(group));
         if (!stats.length) return { ok: false, reason: '주얼 옵션을 굴리지 못했습니다.' };
         itemIdCounter += 1;
         const jewel = { id: itemIdCounter, name: `${getStatName(stats[0].id)} 주얼`, tier: 1,
@@ -127,6 +140,86 @@ const stumpCubeRecipes = (() => {
         return handler ? handler(groups, state, random) : { ok: false, reason: '알 수 없는 조합법입니다.' };
     }
 
-    return Object.freeze({ run, baseSlot, has: id => !!HANDLERS[id] });
+    // Preview reads only guaranteed facts. It never invokes a random generator, allocates an item ID or edits materials.
+    function magicPreview([[{ item }]]) {
+        const base = BASE_ITEM_DB.find(row => row.id === item.baseId);
+        return { label: `희귀 ${base ? base.name : item.name}`, tier: topTier([item]), quality: 0,
+            keep: '베이스와 티어', change: '베이스 수치와 추가 옵션 새로 굴림', note: '품질과 제작 효과 초기화' };
+    }
+
+    function rarePreview([[{ item }]], state) {
+        const tier = rareTierTarget(item, state), capped = tier === topTier([item]);
+        return { label: '희귀 장비 1개', tier, quality: 0, keep: '장비 부위',
+            change: '베이스와 옵션 새로 굴림', note: capped ? '현재 티어 상한에 도달함, 품질과 제작 효과 초기화' : '품질과 제작 효과 초기화' };
+    }
+
+    function uniqueRemakePreview([group]) {
+        const item = group[0].item, unique = UNIQUE_DB.find(row => row.name === (RENAMED_UNIQUES[item.name] || item.name));
+        if (!unique) return { label: '새 고유 장비 1개', quality: 0, keep: '', change: '현재 목록에서 고유 종류와 옵션 새로 굴림',
+            note: '이전 고유 정보 없음, 결과 티어는 고유 종류에 따라 결정, 품질과 제작 효과 초기화' };
+        return { label: item.name, tier: unique.reqTier || topTier(items(group)), quality: 0, keep: '고유 종류',
+            change: '베이스 수치와 옵션 새로 굴림', note: '특출난 베이스 가능, 품질과 제작 효과 초기화' };
+    }
+
+    function uniqueRerollPreview([[{ item }]]) {
+        return { label: '새 고유 장비 1개', quality: 0, keep: '장비 부위',
+            change: `T${topTier([item])} 기준으로 고유 종류와 옵션 새로 굴림`,
+            note: '결과 티어는 고유 종류에 따라 결정, 동일 고유 가능, 품질과 제작 효과 초기화' };
+    }
+
+    function socketPreview([[{ item }], [{ item: jewel }]]) {
+        return { label: item.name, tier: topTier([item]), quality: Math.max(0, Math.floor(Number(item.quality) || 0)),
+            keep: '장비와 기존 옵션, 품질', change: `공허 소켓에 ${jewel.name} 장착` };
+    }
+
+    function mergePreview([group], state) {
+        const spec = stumpMergeSpec(items(group), state), color = STUMP_BOX_COLORS[spec.color].label;
+        const label = spec.family === 'sap' ? `${color} 수액` : `${color} ${STUMP_BOX_STAGES[spec.path].label} 씨앗`;
+        const marks = [spec.golden ? '황금' : '', spec.ancient ? '고대' : ''].filter(Boolean);
+        return { label, quality: Math.round(spec.roll * 100), qualityCap: Math.round(stumpBox.rollCap(state) * 100),
+            keep: ['색과 종류', ...marks].join(', '), change: '성장 경험치와 수확 옵션 초기화', note: '새 재료 1개로 합쳐짐' };
+    }
+
+    function talismanUpgradePreview([group]) {
+        const source = talismanSource(group), rule = TALISMAN_UNSEAL_RULES[source], [low, high] = rule.lines;
+        return { label: '새 부적 1개', keep: '', change: `일반 부적 옵션 ${low === high ? low : `${low}~${high}`}줄 새로 굴림, 성장 초기화`,
+            note: `${ORB_DB[source].name} 등급, 고유 부적 가능` };
+    }
+
+    function talismanLinePreview([[{ item }]]) {
+        const possible = item.lines.some(line => line.kind === 'stat' && !line.wax);
+        return { label: item.name, keep: '부적과 나머지 옵션, 성장', change: '일반 옵션 1줄의 종류와 수치 새로 굴림',
+            reason: possible ? '' : '다시 쓸 일반 줄이 없는 부적입니다.' };
+    }
+
+    function jewelPreview([group]) {
+        const range = jewelTierRange(group);
+        return { label: '희귀 주얼 1개', keep: '', change: `옵션 3~4줄 새로 굴림 (T${range.min}~T${range.max})` };
+    }
+
+    function currencyPreview(make, groups, state) {
+        const result = make(groups, state);
+        if (!result.ok) return { label: '', reason: result.reason };
+        const output = result.outputs[0];
+        return { label: `${ORB_DB[output.key].name} ${output.amount}개`, keep: '재료의 속성', change: '재료 2개를 재화로 변환' };
+    }
+
+    const PREVIEWS = Object.freeze({
+        equip_magic_upgrade: magicPreview, equip_rare_tier: rarePreview, equip_unique_remake: uniqueRemakePreview,
+        equip_unique_reroll: uniqueRerollPreview, equip_socket_jewel: socketPreview, stump_merge: mergePreview,
+        talisman_upgrade: talismanUpgradePreview, talisman_reroll_line: talismanLinePreview,
+        talisman_unique_reroll: () => ({ label: '고유 부적 1개', keep: '', change: '고유 종류와 옵션 새로 굴림, 성장 초기화' }),
+        jewel_fuse: jewelPreview,
+        core_reroll: () => ({ label: '새 코어 1개', keep: '', change: `옵션 ${CORE_ITEM_RULES.lines}줄 새로 굴림`, note: '완전한 코어 가능' }),
+        amber_catalyst: (groups, state) => currencyPreview(sapCatalysts.amberRecipe, groups, state),
+        fruit_oil: (groups, state) => currencyPreview(gardenOils.fruitRecipe, groups, state)
+    });
+
+    function preview(recipeId, groups, state = game) {
+        const handler = PREVIEWS[recipeId];
+        return handler ? handler(groups, state) : null;
+    }
+
+    return Object.freeze({ run, preview, baseSlot, has: id => !!HANDLERS[id] });
 })();
 safeExposeGlobals({ stumpCubeRecipes });

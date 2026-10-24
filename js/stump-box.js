@@ -30,6 +30,8 @@ const stumpBox = (() => {
     // 판 2(2026-10-09): 성장 필요량 8배(data/stump-box.js STUMP_BOX_GROWTH). 판 1 저장은 restore가 한 번 옮긴다(upgradeGrowth).
     const BOX_VERSION = 2;
     let memo = { key: null, box: null, value: null };
+    // Session-only position history. Growth, item fields, grafts and currency are never rolled back.
+    const placementUndos = new WeakMap();
 
     function emptyHarvest() {
         return { grown: [], gifts: Object.fromEntries(HARVEST_ROWS.map(row => [row, false])) };
@@ -174,8 +176,7 @@ const stumpBox = (() => {
 
     // ── 배치(나무꾼 전투 중에는 세팅을 바꾸지 않는다) ─────────────
     function editable(state) { return of(state).acquired && !state.woodsmanBuildLock; }
-    /** Places (or moves) an item onto an open, empty cell. */
-    function place(state, id, cell) {
+    function placeOnBoard(state, id, cell) {
         const box = of(state), item = findItem(box, id);
         if (!editable(state) || !item || !isOpen(state, cell) || box.board[cell] !== null) return false;
         const from = box.board.indexOf(id);
@@ -183,24 +184,78 @@ const stumpBox = (() => {
         box.board[cell] = id;
         return true;
     }
+    /** Direct placements (starter gifts and other domain actions) supersede any manual move history. */
+    function place(state, id, cell) {
+        if (!placeOnBoard(state, id, cell)) return false;
+        invalidatePlacementUndo(state);
+        return true;
+    }
     /**
      * Moves an item onto an open cell, empty or not. An item already there trades places: it takes the mover's old
      * cell, or goes to storage when the mover came from storage (storage size stays the same). Returns false and
      * changes nothing when the move is not allowed or goes nowhere.
      */
-    function move(state, id, cell) {
+    function moveOnBoard(state, id, cell) {
         const box = of(state), item = findItem(box, id), from = box.board.indexOf(id), occupant = box.board[cell];
         if (!editable(state) || !item || !isOpen(state, cell) || from === cell) return false;
-        if (occupant === null) return place(state, id, cell);
+        if (occupant === null) return placeOnBoard(state, id, cell);
         box.board[cell] = id;
         if (from >= 0) box.board[from] = occupant;
+        return true;
+    }
+    function rememberPlacement(state, before) {
+        const box = state.stumpBox;
+        placementUndos.set(state, { box, items: box.items, season: state.season, before, after: box.board.slice() });
+    }
+    /** Manual moves, including swaps and moves from storage, keep exactly one position-only undo. */
+    function move(state, id, cell) {
+        const before = of(state).board.slice();
+        if (!moveOnBoard(state, id, cell)) return false;
+        rememberPlacement(state, before);
         return true;
     }
     function unplace(state, id) {
         const box = of(state), from = box.board.indexOf(id);
         if (!editable(state) || from < 0 || storageFull(state)) return false;
+        const before = box.board.slice();
         box.board[from] = null;
+        rememberPlacement(state, before);
         return true;
+    }
+
+    function invalidatePlacementUndo(state) { placementUndos.delete(state); }
+    function placementUnchanged(state, record) {
+        const box = state.stumpBox;
+        // Removing/consuming an item replaces items; new drops append and can keep a valid position undo.
+        return box === record.box && box.items === record.items && state.season === record.season
+            && box.acquired && !state.woodsmanBuildLock && record.after.every((id, cell) => box.board[cell] === id);
+    }
+    /** No persistent writes. A full storage only blocks undo when it would put another item there. */
+    function canUndoPlacement(state) {
+        const record = placementUndos.get(state);
+        if (!record) return false;
+        if (!placementUnchanged(state, record) || !record.before.every((id, cell) => id === null || isOpen(state, cell))) {
+            invalidatePlacementUndo(state);
+            return false;
+        }
+        const placedBefore = record.before.filter(id => id !== null).length;
+        const placedAfter = record.after.filter(id => id !== null).length;
+        return placedBefore >= placedAfter || state.stumpBox.items.length - placedBefore <= storageLimit(state);
+    }
+    /** Restores positions once; current XP, ripening rolls, item locks and currency stay untouched. */
+    function undoPlacement(state) {
+        if (!canUndoPlacement(state)) return false;
+        state.stumpBox.board = placementUndos.get(state).before.slice();
+        invalidatePlacementUndo(state);
+        return true;
+    }
+
+    /** A prospective move on a copied board. Shared items are read-only; no saves, growth or live state writes.
+     * @returns {object|null} A state for evaluate/talismanEffects.summarize, or null for a refused/no-op move. */
+    function previewMove(state, id, cell) {
+        if (!state.stumpBox || !Number.isInteger(cell)) return null;
+        const preview = { ...state, stumpBox: { ...state.stumpBox, board: state.stumpBox.board.slice() } };
+        return moveOnBoard(preview, id, cell) ? preview : null;
     }
 
     // ── 판정(계산만, 저장하지 않음) ─────────────────────────
@@ -750,6 +805,7 @@ const stumpBox = (() => {
     /** New loop: awake scars bite (포식), grown fruits are noted for breeding, grown items go back (봉인 칸 aside), then the bred
      * seeds arrive. Placements and unripe progress stay. @returns {number} how many went back. */
     function regress(state, random = Math.random) {
+        invalidatePlacementUndo(state);
         const box = state.stumpBox;
         if (!box || !Array.isArray(box.items)) return 0;
         if (!Array.isArray(box.sealed)) box.sealed = [];
@@ -961,6 +1017,7 @@ const stumpBox = (() => {
      * then grants it to saves that already cleared act 10 or reached loop 2. The repaired box is in place first, because
      * the unlocks (seal cells, graft ranks) read its journal. */
     function restore(state) {
+        invalidatePlacementUndo(state);
         const raw = state.stumpBox, box = empty();
         state.stumpBox = box;
         if (raw && typeof raw === 'object') {
@@ -981,7 +1038,8 @@ const stumpBox = (() => {
     }
 
     return {
-        empty, of, restore, sync, eligible, claimStarter, starterChoice, grantStarter, plantStored, createItem, addTalisman, discard, storage, place, move, unplace,
+        empty, of, restore, sync, eligible, claimStarter, starterChoice, grantStarter, plantStored, createItem, addTalisman, discard, storage, place, move, previewMove, unplace,
+        canUndoPlacement, undoPlacement, invalidatePlacementUndo,
         evaluate, applyStats, onEnemyKilled, grow, ancientRanks, rollDrop, regress, compost, compostReason, compostGrowth, compostOverflow, feedAsh, growingItems, openCount, isOpen, opensAt, nextOpening, neighbors,
         stageOf, isMature, need, yieldOf, targetStage, label, shortName, lineText, extraLinesOf, iconPath, cellOf, editable, highestLoop,
         graftRank, graftMultiplier, graftOpen, graftPoints, graftJournalPoints, graftOverflowPoints, graftRaiseReason, graftRaise, graftLowerReason, graftLower,

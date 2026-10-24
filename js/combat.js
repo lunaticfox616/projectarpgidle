@@ -1050,6 +1050,7 @@ function snapshotWoodsmanBuildState() {
         activeSkill: game.activeSkill || '기본 공격', mobilitySkill: game.mobilitySkill,
         supports: game.supports || [],
         equippedSupports: game.equippedSupports || [],
+        ...window.GameModules.combat.supports.lockState(game),
         supportGemData: game.supportGemData || {},
         playerLeechInstances: game.playerLeechInstances || [],
         playerRecoupInstances: game.playerRecoupInstances || [],
@@ -1089,6 +1090,7 @@ function enforceWoodsmanBuildLock() {
     game.mobilitySkill = snap.mobilitySkill;
     game.supports = JSON.parse(JSON.stringify(snap.supports));
     game.equippedSupports = JSON.parse(JSON.stringify(snap.equippedSupports));
+    Object.assign(game, JSON.parse(JSON.stringify(window.GameModules.combat.supports.lockState(snap))));
     game.supportGemData = JSON.parse(JSON.stringify(snap.supportGemData));
     game.playerLeechInstances = JSON.parse(JSON.stringify(snap.playerLeechInstances || []));
     game.playerRecoupInstances = JSON.parse(JSON.stringify(snap.playerRecoupInstances || []));
@@ -1339,21 +1341,18 @@ function getActiveSummonGemDefs() {
     let equippedSummonAttack = Array.isArray(game.equippedSummonSkills) ? game.equippedSummonSkills : [];
     let attackNames = Array.from(new Set(equippedSummonAttack.filter(name => {
         let db = SKILL_DB[name];
-        return owned.includes(name) && db && Array.isArray(db.tags) && db.tags.includes('summon_attack');
+        return owned.includes(name) && db && Array.isArray(db.tags) && db.tags.includes('summon');
     })));
     let defs = [];
     // 무기가 맞지 않는 소환 룬(위습은 맨손으로 못 쓴다)은 장착된 채 소환하지 않는다
     attackNames.filter(name => canUseSkillWithCurrentEquipment(name)).forEach(name => {
-        let count = Math.max(1, Math.floor(Number(game.summonSkillCounts[name]) || 1));
+        let count = SKILL_DB[name].tags.includes('summon_attack') ? Math.max(1, Math.floor(Number(game.summonSkillCounts[name]) || 1)) : 1;
         game.summonSkillCounts[name] = count;
         for (let i = 0; i < count; i++) defs.push({ name, db: SKILL_DB[name], source: 'skill', duplicateIndex: i });
     });
     game.equippedSummonSkills = attackNames;
     Object.keys(game.summonSkillCounts).forEach(name => { if (!attackNames.includes(name)) delete game.summonSkillCounts[name]; });
-    let supportSummons = (game.equippedSupports || [])
-        .map(name => ({ name, db: SUPPORT_GEM_DB[name], source: 'support', duplicateIndex: 0 }))
-        .filter(row => row.db && Array.isArray(row.db.tags) && row.db.tags.includes('summon_guard'));
-    return supportSummons.concat(defs);
+    return defs;
 }
 
 function getSummonProfile(gemName) {
@@ -1379,6 +1378,12 @@ function getSummonRuntimeCap(pStats) {
     return Math.max(1, Math.min(getSummonCapMaximum(), Math.floor((pStats && pStats.summonCap) || 1)));
 }
 
+/** 소환 한도(능력치의 summonCap): 버킷들의 summonCap 합(sum)에 소울바인더 키스톤 몫(sb4 +1, sb8 +3)을 더하고, sb9면 1.5배. 1부터 최대까지. */
+function getSummonCapFromSum(sum) {
+    const keystones = (hasKeystone('sb4') ? 1 : 0) + (hasKeystone('sb8') ? 3 : 0);
+    return Math.max(1, Math.min(getSummonCapMaximum(), Math.floor((1 + Math.floor(sum + keystones)) * (hasKeystone('sb9') ? 1.5 : 1))));
+}
+
 function getSummonCapMaximum() {
     return hasKeystone('sb9') ? 12 : 8;
 }
@@ -1400,22 +1405,14 @@ function applyGrandlordGhostState() {
 }
 
 function buildActiveSummonRuntimeDefs(pStats) {
-    let maxCap = getSummonRuntimeCap(pStats);
-    let defs = getActiveSummonGemDefs();
-    if (pStats && pStats.passiveKeystoneFlags && pStats.passiveKeystoneFlags.soleMinion) {
-        let guardDefs = defs.filter(row => getSummonProfile(row.name).role === 'guard');
-        let attackDef = defs.find(row => getSummonProfile(row.name).role === 'attack');
-        defs = [...(attackDef ? [attackDef] : []), ...guardDefs];
-        return defs.map((row, idx) => ({ ...row, slotIdx: idx, duplicateIndex: row.duplicateIndex || 0 }));
-    }
-    return defs.slice(0, maxCap).map((row, idx) => ({ ...row, slotIdx: idx, duplicateIndex: row.duplicateIndex || 0 }));
+    return window.GameModules.combat.summonSupports.runtimeDefs(getActiveSummonGemDefs(), pStats);
 }
 
 function getEquippedJewelGemLevelBonusSources(target) {
     let gear = 0;
     let activeTags = typeof getGemLevelTargetTags === 'function' ? getGemLevelTargetTags(target) : [];
     // A settlement reads this for every summon every tick; it depends only on the socketed jewels (static build input).
-    const memo = getBackgroundBuildMemo(game), memoKey = `jewel-gem-level:${activeTags.includes('summon_attack')}`;
+    const memo = getBackgroundBuildMemo(game), memoKey = `jewel-gem-level:${activeTags.includes('summon')}`;
     if (memo?.has(memoKey)) return memo.get(memoKey);
     let addJewelGemLevels = (jewel, multiplier) => {
         if (!jewel || typeof getJewelStats !== 'function') return;
@@ -1424,7 +1421,7 @@ function getEquippedJewelGemLevelBonusSources(target) {
             if (!stat) return;
             let value = Number(stat.val || 0) * mul;
             if (stat.id === 'gemLevel') gear += value;
-            if (stat.id === 'summonGemLevel' && activeTags.includes('summon_attack')) gear += value;
+            if (stat.id === 'summonGemLevel' && activeTags.includes('summon')) gear += value;
         });
     };
     let socketMultiplier = getSocketJewelMultiplier();
@@ -1530,10 +1527,11 @@ function getRepresentativeSummonAttackPower(summonStats, evaluation) {
     names.forEach(name => {
         let profile = getSummonProfile(name);
         if (profile.role === 'guard') return;
+        const local = window.GameModules.combat.summonSupports.localStats({ gemName: name }, summonStats);
         let gemLv = getSummonGemLevel(name, 'skill', summonStats, evaluation);
-        let base = getSummonScaledBaseDamage(profile, gemLv, summonStats);
-        let sharedInc = getSummonAverageSharedIncreasePct({ gemName: name }, summonStats);
-        let ownMul = (1 + ((summonStats.summonPctDmg || 0) + sharedInc) / 100) * (1 + ((summonStats.summonEfficiency || 0) / 100));
+        let base = getSummonScaledBaseDamage(profile, gemLv, local);
+        let sharedInc = getSummonAverageSharedIncreasePct({ gemName: name }, local);
+        let ownMul = (1 + ((local.summonPctDmg || 0) + sharedInc) / 100) * (1 + ((local.summonEfficiency || 0) / 100)) * local.summonSupportEffects.damageMultiplier;
         best = Math.max(best, base * ownMul * gemCoreForge.effects(game.gemData?.[name]).damage);
     });
     return Math.max(0, best);
@@ -1573,12 +1571,13 @@ function getSummonRegenPerSec(maxHp) {
 }
 
 function buildSummonRuntimeStats(row, pStats, now, gemLv = getSummonGemLevel(row.name, row.source, pStats)) {
+    pStats = window.GameModules.combat.summonSupports.localStats({ gemName: row.name }, pStats);
     let profile = getSummonProfile(row.name);
     let isGuard = profile.role === 'guard';
     let levelSteps = getSummonLevelGrowthSteps(profile, gemLv);
     const exponent = profile.armorScaleExp || 1.1;
     let armorGrowth = 1 + getGemHighLevelGrowth(Math.pow(levelSteps, exponent), Math.pow(getSummonLevelGrowthSteps(profile, 19), exponent)) * (profile.armorScaleBase || 0.015);
-    let maxHp = getSummonMaxHp(profile, gemLv, pStats);
+    let maxHp = Math.max(1, Math.floor(getSummonMaxHp(profile, gemLv, pStats) * window.GameModules.combat.summonSupports.hpMultiplier(pStats)));
     return {
         gemName: row.name,
         slotIdx: row.slotIdx,
@@ -1615,9 +1614,11 @@ function buildSummonRuntimeStats(row, pStats, now, gemLv = getSummonGemLevel(row
 }
 
 function getLimitedSummonPenetrationStats(pStats, summon) {
+    pStats = window.GameModules.combat.summonSupports.localStats(summon, pStats);
     let fullPen = hasKeystone('sb6');
-    let baseResPen = fullPen ? Math.max(0, pStats.resPen || 0) : Math.min(40, Math.max(0, pStats.resPen || 0) * 0.55);
-    let basePhysIgnore = Math.min(30, Math.max(0, pStats.physIgnore || 0) * 0.55);
+    const inheritedResPen = Math.max(0, (pStats.resPen || 0) - window.GameModules.combat.summonSupports.playerSupportValue(pStats, 'resPen'));
+    let baseResPen = fullPen ? inheritedResPen : Math.min(40, inheritedResPen * 0.55);
+    let basePhysIgnore = Math.min(30, Math.max(0, (pStats.physIgnore || 0) - window.GameModules.combat.summonSupports.playerSupportValue(pStats, 'physIgnore')) * 0.55);
     return {
         // Only these flags are consumed by getEffectiveEnemyMitigation. Avoid copying the entire
         // player stat sheet for every summon hit and every DPS estimate.
@@ -1651,22 +1652,20 @@ function getLimitedSummonBossDamageMultiplier(pStats, target) {
 }
 
 function getSummonAttackIntervalMs(pStats, summon) {
+    pStats = window.GameModules.combat.summonSupports.localStats(summon, pStats);
     const forgeSpeed = gemCoreForge.forSkill(summon && summon.gemName).speed;
     if (typeof getPreciseTalentLevel === 'function' && getPreciseTalentLevel('hero3__soulbinder')) {
         return Math.max(120, Math.floor(1000 / (Math.max(0.1, Number(pStats && pStats.aspd) || 1) * forgeSpeed)));
     }
     let profileMul = Math.max(0.1, Number((summon && summon.attackSpeedMul) || 1));
     let summonAspdMul = 1 + Math.max(0, ((pStats && pStats.summonAspd) || 0) / 100);
-    return Math.max(120, Math.floor(1000 / (summonAspdMul * profileMul * forgeSpeed)));
+    return Math.max(120, Math.floor(1000 / (summonAspdMul * profileMul * forgeSpeed * pStats.summonSupportEffects.speedMultiplier)));
 }
 
 /** The gem's tags, plus the element a rolling wisp (분광) hits with on this attack. */
 function getSummonDamageTags(summon) {
-    const skillDef = summon && summon.gemName && typeof SKILL_DB !== 'undefined' ? SKILL_DB[summon.gemName] : null;
-    const tags = new Set((skillDef && Array.isArray(skillDef.tags)) ? skillDef.tags : []);
-    const rolled = wispSummons.elementTag(summon);
-    if (rolled) tags.add(rolled);
-    return tags;
+    const skillDef = window.GameModules.combat.summonSupports.skill(summon);
+    return new Set(skillDef.tags);
 }
 
 function getSummonSharedDamageIncreasePct(summon, pStats) {
@@ -1692,14 +1691,16 @@ function getSummonAverageSharedIncreasePct(summon, pStats) {
  * roll and the crit; rollOverridePct and forceCrit fix them. Split into its stages on 2026-10-18; the damage and the ailment source
  * damage change in the same order. */
 function getSummonHitDamageInfo(s, pStats, target, options) {
+    pStats = window.GameModules.combat.summonSupports.localStats(s, pStats);
     let expected = !!(options && options.expected);
     let ele = s.ele || 'phys';
     let zone = getZone(game.currentZoneId) || getZone(0);
     let zoneTier = (zone && zone.tier) || 1;
     const hit = getSummonBaseHit(s, pStats, options, expected);
     applySummonHitCrit(hit, pStats, options, expected);
-    applySummonHitTargetScales(hit, { s, pStats, target, ele, zone, zoneTier, expected });
-    return { damage: Math.max(0, Math.floor(hit.dmg)), ailmentSourceDamage: Math.max(0, Math.floor(hit.ailmentSourceDmg)), crit: hit.crit, critChance: hit.critChance, element: ele };
+    window.GameModules.combat.summonSupports.scaleHit(hit, { s, pStats, target, ele, zone, zoneTier, expected });
+    const converted = pStats.summonSupportEffects.conversion;
+    return { damage: Math.max(0, Math.floor(hit.dmg)), ailmentSourceDamage: Math.max(0, Math.floor(hit.ailmentSourceDmg)), crit: hit.crit, critChance: hit.critChance, element: converted?.pct === 100 ? converted.element : ele, parts: hit.parts };
 }
 /** The hit before crits: base damage (keystone sb1 more), increases and efficiency, the summon's roll and keystone sb7's share of the
  * hero's attack power. */
@@ -1724,11 +1725,13 @@ function getSummonBaseHit(s, pStats, options, expected) {
 }
 /** Crit chance 5% to 95% and crit damage at least 120%: the summon's own plus the hero's summon crit stats. */
 function getSummonCritProfile(s, pStats) {
+    pStats = window.GameModules.combat.summonSupports.localStats(s, pStats);
     let critChance = Math.max(0.05, Math.min(0.95, ((s.crit || 0) + (pStats.summonCrit || 0)) / 100));
     let critMul = Math.max(1.2, ((s.critDmg || 140) + (pStats.summonCritDmg || 0)) / 100);
     return { critChance, critMul };
 }
 function getSummonHitDamageMultiplier(s, pStats) {
+    pStats = window.GameModules.combat.summonSupports.localStats(s, pStats);
     let sharedIncreasePct = getSummonSharedDamageIncreasePct(s, pStats);
     // 소환수 효율은 피해 증가(소환수 피해/공유)와 합산이 아니라 별도 곱연산으로 적용합니다.
     let dmgMul = (1 + ((pStats.summonPctDmg || 0) + sharedIncreasePct) / 100)
@@ -1736,7 +1739,7 @@ function getSummonHitDamageMultiplier(s, pStats) {
     if (s.role === 'attack' && pStats.passiveKeystoneFlags && pStats.passiveKeystoneFlags.soleMinion) {
         dmgMul *= 1 + Math.max(0, Number(pStats.passiveSoleMinionLostCap) || 0) * 0.75;
     }
-    return dmgMul;
+    return dmgMul * pStats.summonSupportEffects.damageMultiplier;
 }
 /** 소환수마다 다른 일격 편차(dmgRollMinPct~100%): 버스트형(화염 위습 등)은 편차가 크고 연사형(냉기 위습 등)은 작아, "최소 피해"가
  * 최대 피해 대비 지나치게 미미해지지 않게 한다. An estimate takes the middle; rollOverridePct fixes it. */
@@ -1879,7 +1882,8 @@ function calculateSummonDpsRow(row, pStats, target) {
     };
     let intervalSec = getSummonAttackIntervalMs(pStats, s) / 1000;
     let hit = getSummonExpectedHit(s, pStats, target);
-    let dps = hit.damage / intervalSec;
+    let dps = hit.damage / intervalSec
+        * window.GameModules.combat.supports.expectedMultiplier(window.GameModules.combat.summonSupports.skill(s));
     return { s, hit, dps };
 }
 
@@ -1915,8 +1919,10 @@ function estimateSummonDps(pStats, includeBreakdowns = true, evaluation) {
 
 function buildSummonDpsDescriptionGroup(row, pStats, estimate, sbShare) {
     const { s, hit, dps } = estimate;
+    pStats = window.GameModules.combat.summonSupports.localStats(s, pStats);
     const sharedInc = getSummonAverageSharedIncreasePct(s, pStats);
-    const dmgMul = (1 + (((pStats.summonPctDmg || 0) + sharedInc) / 100)) * (1 + ((pStats.summonEfficiency || 0) / 100));
+    const dmgMul = (1 + (((pStats.summonPctDmg || 0) + sharedInc) / 100)) * (1 + ((pStats.summonEfficiency || 0) / 100))
+        * pStats.summonSupportEffects.damageMultiplier;
     const ownAttackPower = (s.baseDamage * dmgMul * gemCoreForge.effects(game.gemData?.[s.gemName]).damage) + sbShare;
     const critChance = Math.max(0.05, Math.min(0.95, ((s.crit || 0) + (pStats.summonCrit || 0)) / 100));
     const critMul = Math.max(1.2, ((s.critDmg || 140) + (pStats.summonCritDmg || 0)) / 100);
@@ -1970,6 +1976,7 @@ function getSummonTooltipHitRange(hitProfile, stats) {
 
 function getSummonTooltipPreview(gemName, pStats) {
     let stats = pStats || (typeof getPlayerStats === 'function' ? getPlayerStats() : null) || {};
+    stats = window.GameModules.combat.summonSupports.localStats({ gemName }, stats);
     let profile = getSummonProfile(gemName);
     let gemLv = getSummonGemLevel(gemName, SUPPORT_GEM_DB[gemName] ? 'support' : 'skill', stats);
     let hitProfile = {
@@ -1986,7 +1993,7 @@ function getSummonTooltipPreview(gemName, pStats) {
     // 실제 전투에서 나올 수 있는 진짜 최소(편차 하한 · 비치명타)~최대(편차 상한 · 치명타) 피해를
     // 그대로 보여준다(이전에는 배율 적용 전 원시 기본값을 "최소"로 잘못 표시했음).
     let hitRange = getSummonTooltipHitRange(hitProfile, stats);
-    let maxHp = getSummonMaxHp(profile, gemLv, stats);
+    let maxHp = Math.max(1, Math.floor(getSummonMaxHp(profile, gemLv, stats) * window.GameModules.combat.summonSupports.hpMultiplier(stats)));
     let evasion = getSummonEvasionRating(profile, gemLv, stats);
     const crit = getSummonCritProfile(hitProfile, stats);
     return {
@@ -2011,7 +2018,8 @@ function getSummonTooltipPreview(gemName, pStats) {
 /** The share of a hit the summons take for the hero: the guard redirect stat rounded down, at least 50 with 나눠갖기 (sb2, the closest
  * summon of any role takes it then; otherwise the living guards). */
 function getSummonRedirectPct(pStats) {
-    const pct = Math.max(0, Math.min(100, Math.floor(pStats.summonGuardRedirectPct || 0)));
+    const golem = buildActiveSummonRuntimeDefs(pStats).some(row => row.db.tags.includes('summon_guard'));
+    const pct = Math.max(0, Math.min(100, Math.floor((pStats.summonGuardRedirectPct || 0) + (golem ? SKILL_DB['수액 골렘 소환'].guardRedirectPct : 0))));
     return hasKeystone('sb2') ? Math.max(pct, 50) : pct;
 }
 function ensureSummonRuntime(pStats) {
@@ -2073,11 +2081,12 @@ function tickSummonRecovery() {
     });
 }
 
-function resolveSummonHit(summon, pStats, target, canGrantCritStack) {
+function resolveSummonHit(summon, pStats, target, canGrantCritStack, multiplier) {
     let hit = getSummonHitDamageInfo(summon, pStats, target);
+    window.GameModules.combat.summonSupports.scaleContact(hit, multiplier);
     let damage = Math.max(0, hit.damage || 0);
     let dealt = applyDamageToEnemyResource(target, damage);
-    let leech = Math.max(0, Number(pStats.leech) || 0);
+    let leech = window.GameModules.combat.summonSupports.inheritedLeech(pStats);
     if (dealt > 0 && leech > 0) summon.hp = Math.min(summon.maxHp || 1, summon.hp + (dealt * leech / 100));
     if (canGrantCritStack && hit.crit && pStats.uniqueSummonCritAspdStacks) {
         let cfg = pStats.uniqueSummonCritAspdStacks || {};
@@ -2088,7 +2097,7 @@ function resolveSummonHit(summon, pStats, target, canGrantCritStack) {
         game.summonCritAspdPerStack = Math.max(0, Number(cfg.aspd || 10));
         game.summonCritAspdExpiresAt = now + Math.max(1, Number(cfg.duration || 4)) * 1000;
     }
-    applySummonAilmentFromHit(target, pStats, hit.element, damage, hit.crit, hit.ailmentSourceDamage);
+    window.GameModules.combat.summonSupports.afterHit(summon, pStats, target, hit);
     addBattleFx('hit', { enemyId: target.id, color: getElementColor(hit.element), damage: damage, crit: hit.crit, duration: 220, element: hit.element, skillName: summon.gemName, summon: true, syncToSwing: false });
     if (target.hp <= 0) handleEnemyDeath(target, pStats);
 }
@@ -2126,12 +2135,14 @@ function runSummonAttackTick(pStats) {
 
 /** One wisp attack (js/wisp-summons.js): the strike frame now; the hits now, or — a thrown orb, shard or root — when it lands. */
 function launchSummonAttack(summon, pStats, targets, now) {
-    const shot = wispSummons.launch(summon, targets, now), target = targets[0];
-    addBattleFx('summonAttack', {
-        summonId: summon.id, gemName: summon.gemName, targetEnemyId: target.id, targetGx: target.gx, targetGy: target.gy,
-        sourceGx: summon.gx, sourceGy: summon.gy, duration: Math.max(220, wispSummons.artMs(summon.gemName, shot.flight))
+    window.GameModules.combat.summonSupports.attackPlan(summon, targets, pStats).forEach((contact, index) => {
+        const { target } = contact, shot = wispSummons.launch(summon, [target], now, { ...contact, first: index === 0 });
+        addBattleFx('summonAttack', {
+            summonId: summon.id, gemName: summon.gemName, targetEnemyId: target.id, targetGx: target.gx, targetGy: target.gy,
+            sourceGx: summon.gx, sourceGy: summon.gy, duration: Math.max(220, wispSummons.artMs(summon.gemName, shot.flight))
+        });
+        shot.now.forEach(hit => resolveSummonStrike(summon, pStats, hit));
     });
-    shot.now.forEach(hit => resolveSummonStrike(summon, pStats, hit));
 }
 
 /** Thrown wisp attacks whose flight ended: they hit if the wisp still stands and the target still lives. */
@@ -2147,7 +2158,7 @@ function landSummonAttacks(pStats, now) {
 function resolveSummonStrike(summon, pStats, hit) {
     const own = summon.ele;
     if (hit.element) summon.ele = hit.element;
-    resolveSummonHit(summon, pStats, hit.target, hit.first);
+    resolveSummonHit(summon, pStats, hit.target, hit.first, hit.multiplier ?? 1);
     summon.ele = own;
 }
 
@@ -2838,6 +2849,7 @@ function getAttackMotionMs(tags) {
  *   landingMs: actual airborne movement duration in combat milliseconds; zero when this attack did not move the hero.
  */
 function queuePlayerAttackSequence(pStats, stages, context) {
+    stages = window.GameModules.combat.supports.stages(stages, pStats.sSkill);
     if (pStats.sSkill.nativeCastId) return startSkillGemCombat(pStats, context);
     let tags = pStats.sSkill.tags || [], now = getCombatTime();
     let motionMs = getAttackMotionMs(tags);
@@ -3521,37 +3533,20 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     // Offline replay already owns a build memo. Foreground inputs live only through this call.
     const gemEvaluation = getBackgroundBuildMemo(game) ? undefined : createGemBonusEvaluation(resolvedStats);
     let gemSources = getTargetGemBonusSources(game.activeSkill, undefined, resolvedStats, gemEvaluation);
-    safeEquippedSupports.forEach(name => {
-        let gem = normalizeGemRecord((game.supportGemData || {})[name]);
-        let db = SUPPORT_GEM_DB[name];
-        if (!db) return;
-        const { tierMul } = getSupportGemTier(name, gem, typeof getSupportActiveTier === 'function' ? getSupportActiveTier : null);
-        let supportGemSources = getTargetGemBonusSources(name, undefined, resolvedStats, gemEvaluation);
-        let effectiveLevel = Math.max(1, gem.level + supportGemSources.total);
-        let val;
-        if (db.scaleWithOwnStat) {
-            let ownStatTotal = sumNonSupportStat(db.scaleWithOwnStat);
-            let ratioPct = (db.baseVal + (getGemLevelGrowthSteps(effectiveLevel) * db.scale)) * tierMul;
-            val = Math.max(0, ownStatTotal) * (ratioPct / 100);
-        } else {
-            val = (db.baseVal + (getGemLevelGrowthSteps(effectiveLevel) * db.scale)) * tierMul;
-        }
-        addStatToBucket(support, db.stat, val);
-        if (db.capStat) {
-            let capVal = (db.capBase || 0) + getGemLevelGrowthSteps(effectiveLevel, db.capGrowAfterLevel || 0) * (db.capPerLevel || 0);
-            addStatToBucket(support, db.capStat, capVal);
-        }
-    });
+    let skill = window.GameModules.combat.supports.activeSkillStats(gemSources.total);
+    const supportValues = window.GameModules.combat.supports.values(skill, {names:safeEquippedSupports,
+        bonus:name=>getTargetGemBonusSources(name, undefined, resolvedStats, gemEvaluation).total,
+        ownStat:sumNonSupportStat, add:(stat,value)=>addStatToBucket(support,stat,value)});
 
     let constellation = game.meteorSite && game.meteorSite.constellationBuff;
     if (constellation && constellation.stat) addStatToBucket(reward, constellation.stat, constellation.val || 0);
-    let skill = getActiveSkillStats(gemSources.total);
+    // 가호는 소환 칸 차례대로 한도 안에 든 것만 걸린다(단 하나의 사역이면 한도 1). 가호는 summonCap을 바꾸지 않으므로 지금 버킷으로 센다.
+    const summonCapTotal = () => (gearBase.summonCap || 0) + (gearExplicit.summonCap || 0) + (passive.summonCap || 0) + (season.summonCap || 0) + (ascend.summonCap || 0) + (support.summonCap || 0) + (reward.summonCap || 0);
+    // 단 하나의 사역은 공격 소환수만 하나로 줄인다: 수호 골렘과 가호는 그대로(전령이 보조룬이던 때와 같다)
+    const blessingCap = findAllocatedPassiveKeystone('단 하나의 사역') ? Infinity : getSummonCapFromSum(summonCapTotal());
+    const auraValues = window.GameModules.combat.supports.auraValues(game, name => getTargetGemBonusSources(name, undefined, resolvedStats, gemEvaluation).total, blessingCap);
+    Object.entries(auraValues).forEach(([stat, value]) => addStatToBucket(reward, stat, value));
     if (projectilePatternEffect && !skill.projectilePatternSource) skill = applyProjectilePatternMode(skill, projectilePatternEffect.mode, projectilePatternEffect.source, projectilePatternEffect.damageMultiplier);
-    if (hasKeystone('wlk1')) skill = convertSkillDamageToChaos(skill);
-    if (hasKeystone('e4')) {
-        skill = { ...skill, ele: 'fire', randomElementPool: ['fire', 'cold', 'light'] };
-        skill.tags = Array.from(new Set([...(skill.tags || []), 'elemental']));
-    }
     let authoredPassiveRules = typeof applyAuthoredPassiveStatRules === 'function'
         ? applyAuthoredPassiveStatRules({
             buckets: { gearBase, gearExplicit, passive, support, season, ascend, reward, starBlessing },
@@ -3689,7 +3684,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     finalBleedChance *= bleedChanceMultiplier;
     ailmentCritChance.bleed *= bleedChanceMultiplier;
     let isSpellSkill = Array.isArray(skill.tags) && skill.tags.includes('spell');
-    let isDotSkill = Array.isArray(skill.tags) && skill.tags.includes('dot');
+    let isDotSkill = window.GameModules.combat.supports.nativeDot(skill);
     let spellFlatDmg = 0;
     if (isSpellSkill) {
         let skillLevel = Number.isFinite(skill.finalLevel) ? skill.finalLevel : 1;
@@ -3939,7 +3934,6 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     let guardianHitCapPct = 0;
     let guardianArmorDamageBonus = false;
     let sbSummonAspdBonus = 0;
-    let sbSummonCapBonus = 0;
     let sbPlayerAttackPower = 0;
     let sbSummonAttackPower = 0;
     let sbSummonShareToPlayer = 0;
@@ -4411,8 +4405,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     // 무한한 권능: 보조스킬룬 한도 증가(예전에는 무제한이었다. 보조스킬룬 칸이 인퀴지터 폭주의 원인)
     if (hasKeystone('iq9')) suppCap += ASCENDANCY_KEYSTONE_VALUES.iq9.extraSupports;
     // 소울바인더
-    if (hasKeystone('sb4')) { sbSummonAspdBonus += 25; sbSummonCapBonus += 1; }
-    if (hasKeystone('sb8')) sbSummonCapBonus += 3;
+    if (hasKeystone('sb4')) sbSummonAspdBonus += 25;   // 소환 한도 몫은 getSummonCapFromSum
     if (hasKeystone('sb6')) finalResPen += 25;
     if (hasKeystone('sb5')) {
         let sumFlat = Math.max(0, (gearBase.summonFlatDmg || 0) + (gearExplicit.summonFlatDmg || 0) + (passive.summonFlatDmg || 0) + (season.summonFlatDmg || 0) + (ascend.summonFlatDmg || 0) + (support.summonFlatDmg || 0) + (reward.summonFlatDmg || 0));
@@ -4584,7 +4577,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     // 부채꼴(연발 사격)은 한 대상이 받는 몫만 DPS로 센다. 옆 화살까지 다 맞을 때는 packDps(js/combat-grid.js splitFanSpreadDps).
     const fanSpread = splitFanSpreadDps(skill, projectileExtraShotDpsMul, skillSequenceDpsMultiplier);
     skillSequenceDpsMultiplier = fanSpread.sequenceDpsMul;
-    let finalDpsWithProjectileShots = finalDpsAdjusted * fanSpread.extraShotDpsMul;
+    let finalDpsWithProjectileShots = finalDpsAdjusted * fanSpread.extraShotDpsMul * window.GameModules.combat.supports.expectedMultiplier(skill);
     if (skillSequenceDpsMultiplier > 1) damageScales.skillSequenceMultiplier = skillSequenceDpsMultiplier;
     // Native clock contacts use baseDmg * dotDamageScale, without generic hit/stack effects.
     // The active clock cannot overlap another cast; speed cannot accelerate its ticks.
@@ -5208,6 +5201,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         regen: finalRegen,
         regenSuppress: finalRegenSuppress,
         leech: finalLeech,
+        summonInheritedLeech: finalLeech * (applyLeechSoftcap(rawLeech - wildnessLeech - support.leech) + wildnessLeech) / Math.max(0.0001, applyLeechSoftcap(rawLeech - wildnessLeech) + wildnessLeech),
         spellLeech: finalSpellLeech,
         leechRateCap: finalLeechRateCap,
         leechTotalCap: finalLeechTotalCap,
@@ -5408,12 +5402,14 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         summonFlatDmg: Math.max(0, (gearBase.summonFlatDmg || 0) + (gearExplicit.summonFlatDmg || 0) + (passive.summonFlatDmg || 0) + (season.summonFlatDmg || 0) + (ascend.summonFlatDmg || 0) + (support.summonFlatDmg || 0) + (reward.summonFlatDmg || 0)),
         summonPctDmg: Math.max(0, (gearBase.summonPctDmg || 0) + (gearExplicit.summonPctDmg || 0) + (passive.summonPctDmg || 0) + (season.summonPctDmg || 0) + (ascend.summonPctDmg || 0) + (support.summonPctDmg || 0) + (reward.summonPctDmg || 0) + tick.get('summonDeathDamagePct')),
         summonSharedPctDmg: summonSharedGeneralPctDmg,
-        summonSharedTaggedPctDmg: Object.fromEntries(Array.from(new Set(Object.values(TAGGED_DAMAGE_STAT_BY_TAG))).map(statId => [statId, Math.max(0, sumStatAcrossBuckets(statId))])),
+        supportValues,
+        supportAuraFlat: window.GameModules.combat.supports.auraFlat(auraValues),
+        summonSharedTaggedPctDmg: Object.fromEntries(Array.from(new Set(Object.values(TAGGED_DAMAGE_STAT_BY_TAG))).map(statId => [statId, Math.max(0, sumStatAcrossBuckets(statId) - (support[statId] || 0))])),
         summonAspd: Math.max(0, (gearBase.summonAspd || 0) + (gearExplicit.summonAspd || 0) + (passive.summonAspd || 0) + (season.summonAspd || 0) + (ascend.summonAspd || 0) + (support.summonAspd || 0) + (reward.summonAspd || 0) + sbSummonAspdBonus + tick.get('summonCritAspd')),
         summonHpPct: Math.max(0, (gearBase.summonHpPct || 0) + (gearExplicit.summonHpPct || 0) + (passive.summonHpPct || 0) + (season.summonHpPct || 0) + (ascend.summonHpPct || 0) + (support.summonHpPct || 0) + (reward.summonHpPct || 0)),
         summonCrit: Math.max(0, (gearBase.summonCrit || 0) + (gearExplicit.summonCrit || 0) + (passive.summonCrit || 0) + (season.summonCrit || 0) + (ascend.summonCrit || 0) + (support.summonCrit || 0) + (reward.summonCrit || 0)),
         summonCritDmg: Math.max(0, (gearBase.summonCritDmg || 0) + (gearExplicit.summonCritDmg || 0) + (passive.summonCritDmg || 0) + (season.summonCritDmg || 0) + (ascend.summonCritDmg || 0) + (support.summonCritDmg || 0) + (reward.summonCritDmg || 0)),
-        summonCap: Math.max(1, Math.min(getSummonCapMaximum(), Math.floor((1 + Math.floor((gearBase.summonCap || 0) + (gearExplicit.summonCap || 0) + (passive.summonCap || 0) + (season.summonCap || 0) + (ascend.summonCap || 0) + (support.summonCap || 0) + (reward.summonCap || 0) + sbSummonCapBonus)) * ((hasKeystone('sb9')) ? 1.5 : 1)))),
+        summonCap: getSummonCapFromSum(summonCapTotal()),
         curseCap: 1 + sumStatAcrossBuckets('curseCap') + ((hasKeystone('wlk9')) ? 1 : 0),
         summonEfficiency: Math.max(0, (gearBase.summonEfficiency || 0) + (gearExplicit.summonEfficiency || 0) + (passive.summonEfficiency || 0) + (season.summonEfficiency || 0) + (ascend.summonEfficiency || 0) + (support.summonEfficiency || 0) + (reward.summonEfficiency || 0)),
         summonResPen: Math.max(0, (gearBase.summonResPen || 0) + (gearExplicit.summonResPen || 0) + (passive.summonResPen || 0) + (season.summonResPen || 0) + (ascend.summonResPen || 0) + (support.summonResPen || 0) + (reward.summonResPen || 0)),
@@ -5533,7 +5529,7 @@ function getSupportGemPresentation(name, stats, targetGemSources, activeTierOf) 
     let totalLevel = Math.max(1, gem.level + targetGemSources.total);
     let val = db.baseVal + (getGemLevelGrowthSteps(totalLevel) * db.scale);
     const { activeTier, tierMul } = getSupportGemTier(name, gem, activeTierOf);
-    let ratioPct = val * tierMul;
+    let ratioPct = db.tierValues ? db.tierValues[activeTier - 1] : val * tierMul;
     let scaleBase = db.scaleWithOwnStat ? Math.max(0, Number(stats.supportScaleBases && stats.supportScaleBases[db.scaleWithOwnStat]) || 0) : 0;
     let value = db.scaleWithOwnStat ? scaleBase * (ratioPct / 100) : ratioPct;
     return { baseLevel: gem.level, totalLevel: totalLevel, value: value, desc: db.desc, statName: db.name, statId: db.stat, activeTier: activeTier, gemBonusSources: targetGemSources, scaleWithOwnStat: db.scaleWithOwnStat || null, scaleBase: scaleBase, scaleRatioPct: ratioPct };
@@ -5553,7 +5549,7 @@ function getSkillGemPresentation(name, stats, targetGemSources) {
     let gem = normalizeGemRecord((game.gemData || {})[name]);
     if (db.levelable) game.gemData[name] = gem;
     const levels = getSkillGemLevels(name, db, gem, targetGemSources);
-    let skill = applyGemPresentationPattern(name, getLeveledGemSkill(db, gem, levels.finalLevel), stats);
+    let skill = window.GameModules.combat.supports.resolve(applyGemPresentationPattern(name, getLeveledGemSkill(db, gem, levels.finalLevel), stats));
     return {
         baseLevel: gem.level, totalLevel: levels.totalLevel, finalLevel: levels.finalLevel, materialBonus: levels.materialBonus, permanentSkyBonus: levels.permanentSkyBonus, engraveLevel: levels.engraveLevel,
         ...getSkillGemCoreFields(gem), desc: db.desc, skill: skill, tags: getSkillTagList(skill), gemBonusSources: targetGemSources
@@ -8072,7 +8068,8 @@ function getPassiveBleedMultiplier(pStats) {
 function getPlayerAilmentProcChance(pStats, type, isCrit, forcedChance) {
     const multiplier = type === 'bleed' ? getPassiveBleedMultiplier(pStats) : 1;
     const base = Number.isFinite(forcedChance) ? forcedChance * multiplier : getPlayerAilmentChance(pStats, type);
-    return Math.max(0, Math.min(1, base + (isCrit ? 0.25 * multiplier : 0)));
+    const supportChance = type === 'ignite' ? (pStats.sSkill?.supportEffects?.ignite?.chancePct || 0) / 100 : 0;
+    return Math.max(0, Math.min(1, base + supportChance + (isCrit ? 0.25 * multiplier : 0)));
 }
 
 function getFreezeApplyChanceFromHitRatio(hitRatio, enemyMaxHp) {
@@ -8328,7 +8325,7 @@ function applyHitAilment(hit, sourceType, forceChance, manifestation) {
     let power = getHitAilmentPower(hit, type, damageAilment, gate);
     let row = enemy.ailments.find(a => a.type === type);
     let durationMul = getAilmentDurationMultiplier(type, damageAilment, pStats);
-    let dur = (damageAilment ? 3 : (type === 'freeze' ? (0.8 + hit.hitRatio * 4) : (2 + hit.hitRatio * 10))) * durationMul;
+    let dur = window.GameModules.combat.supports.igniteDuration(pStats, type, (damageAilment ? 3 : (type === 'freeze' ? (0.8 + hit.hitRatio * 4) : (2 + hit.hitRatio * 10))) * durationMul);
     let payload = { type: type, time: dur, duration: dur, power: power, stacks: 1 };
     if (damageAilment) fillDamageAilmentPayload(hit, payload, { type, gate });
     if (typeof decorateTalentAilmentPayload === 'function') decorateTalentAilmentPayload(type, payload, pStats);
@@ -9872,7 +9869,8 @@ function grantExpAndGem(enemy, pStats) {
     game.equippedSummonSkills = Array.isArray(game.equippedSummonSkills) ? game.equippedSummonSkills : [];
     game.equippedSummonSkills.forEach(name => {
         let def = SKILL_DB[name] || {};
-        if (!def || !Array.isArray(def.tags) || !def.tags.includes('summon_attack')) return;
+        // 소환 칸의 룬은 모두(위습, 수액 골렘, 가호) 처치 경험치를 받는다: 옛 전령과 골렘은 보조룬 길로 받았다
+        if (!def || !Array.isArray(def.tags) || !def.tags.includes('summon')) return;
         game.gemData = game.gemData || {};
         game.gemData[name] = normalizeGemRecord(game.gemData[name]);
         let gem = game.gemData[name];
@@ -10449,7 +10447,7 @@ function handleEnemyDeath(enemy, pStats) {
     playerStatCache.beginEvent();
     // Retire the victim before rewards or corpse explosions can recursively report it again.
     game.enemies = game.enemies.filter(entry => entry.id !== enemy.id);
-    retireDeadEnemyAttacks(enemy);
+    window.GameModules.combat.supports.retire(enemy);
     if (pStats && pStats.passiveKeystoneFlags && pStats.passiveKeystoneFlags.erosionLegacy) {
         let inheritedErosion = Math.floor(Math.max(0, Number(enemy.chaosErosionShred) || 0) * 0.5);
         if (inheritedErosion > 0) game.passiveChaosErosionTransfer = inheritedErosion;
@@ -10564,32 +10562,16 @@ function rollRandomVoidRiftOnKill(enemy, zone, say) {
     say('🕳️ 공허의 구멍이 랜덤으로 열렸습니다!', 'attack-monster', { noToast: true });
 }
 
-/** The equipped herald supports' summed chance to explode a corpse (each by its gem level), capped at 85%; 0 without one. */
-function getHeraldExplodeChance(pStats) {
-    const chances = (game.equippedSupports || []).map(name => {
-        const db = SUPPORT_GEM_DB[name];
-        if (!db || !Number.isFinite(db.heraldExplodeBase)) return null;
-        const gem = normalizeGemRecord((game.supportGemData || {})[name]);
-        const lvl = Math.max(1, gem.level + ((pStats && pStats.gemLv) || 0));
-        return db.heraldExplodeBase + ((lvl - 1) * (db.heraldExplodeScale || 0));
-    }).filter(Boolean);
-    return chances.length ? clampNumber(chances.reduce((a, b) => a + b, 0), 0, 0.85) : 0;
-}
 const corpseExplosionSplash = (enemy, lifePct) => Math.max(1, Math.floor((enemy.maxHp || 0) * (Math.max(0, Number(lifePct || 0)) / 100)));
 const corpseExplosionChance = pct => Math.max(0, Math.min(1, Number(pct || 0) / 100));
-/** Corpse explosions a kill may set off, each rolled in turn: heralds, rune corpses, 종말의 논리, 시체 역병. chain kills what a blast
+/** Corpse explosions a kill may set off, each rolled in turn: rune corpses, 종말의 논리, 시체 역병. chain kills what a blast
  * brings to 0, log writes a blast's line. */
 function explodeCorpsesOnKill(enemy, pStats, say) {
     const chain = target => handleEnemyDeath(target, pStats);
     const log = line => { if (line && game.settings.showCombatLog) say(line, 'attack-player'); };
-    explodeHeraldCorpse(enemy, pStats, chain, log);
     explodeRuneCorpse(enemy, pStats, chain, log);
     explodeUniqueCorpse(enemy, pStats, chain, log);
     explodePlagueCorpse(enemy, chain, log);
-}
-function explodeHeraldCorpse(enemy, pStats, chain, log) {
-    const chance = getHeraldExplodeChance(pStats);
-    if (chance > 0 && Math.random() < chance) log(explodeCorpse(enemy, Math.floor((enemy.maxHp || enemy.hp || 0) * 0.10), '전령 시체 폭발', chain));
 }
 function explodeRuneCorpse(enemy, pStats, chain, log) {
     if (!pStats || !((pStats.runeCorpseExplodeChance || 0) > 0) || Math.random() >= corpseExplosionChance(pStats.runeCorpseExplodeChance)) return;
@@ -11946,6 +11928,7 @@ function updateSkillGemCombat(stats) {
 
 /** The main gem's native casts, then the mobility slot's own (js/mobility-skill.js). */
 function advanceSkillGemCasts(stats) {
+    window.GameModules.combat.supports.tickDots();
     updateSkillGemCombat(stats);
     mobilitySkill.advance();
 }
@@ -11998,6 +11981,8 @@ function applySkillGemContact(command,targets) {
         sourceCell:command.sourceCell,targetEntries:targets.map(e=>({enemyId:e.id,mult:1})),stageRepeatOnce:true,
         restrictRandomTargets:true,skipSlamEcho:true,skipGridControl:true,
         hitDamageMultiplier:(command.bonus?PROJECTILE_BONUS_SHOT_DAMAGE_PCT/100:1)*(command.damagePct??100)/100,damageTextGroupId:command.key});
+    window.GameModules.combat.supports.repeatNative(command, targets);
+    window.GameModules.combat.supports.augmentNative(command, targets);
     if (!command.ailment) return;
     targets.forEach((enemy,i)=>{
         if (enemy.hp<=0 || enemy.hp+(enemy.energyShield||0)>=before[i]) return;
@@ -12008,7 +11993,7 @@ function applySkillGemContact(command,targets) {
 
 function performPlayerAttack(pStats, attackOptions) {
     let options = attackOptions || {};
-    if (shouldDeferNativeGemCast(pStats, options)) return;
+    if (window.GameModules.combat.supports.deferAttack(pStats, options)) return;
     // 예약된 시간차 타격은 같은 카운터를 공유하되, 다음 공격은 항상 새 카운터로 시작한다.
     let attackHitGuardCounts = options.attackHitGuardCounts instanceof Map ? options.attackHitGuardCounts : new Map();
     let isStageReplay = !!options.stageReplay;
@@ -12070,7 +12055,7 @@ function performPlayerAttack(pStats, attackOptions) {
             pendingStages = sequence;
         }
     }
-    let isDotSkill = Array.isArray(pStats.sSkill.tags) && pStats.sSkill.tags.includes('dot');
+    let isDotSkill = window.GameModules.combat.supports.nativeDot(pStats.sSkill);
     let previousFanaticismStacks = Math.max(0, Number(pStats.passiveFanaticismStacks) || 0);
     let currentFanaticismStacks = !isStageReplay && typeof recordPassiveFanaticSkillUse === 'function'
         ? recordPassiveFanaticSkillUse(skillName, pStats.devotion) : previousFanaticismStacks;
@@ -12479,9 +12464,9 @@ function performPlayerAttack(pStats, attackOptions) {
                 return;
             }
             if ((targetEnemy.hitRateGuard || 0) > 0) attackHitGuardCounts.set(targetEnemy.id, priorGuardedHits + 1);
-            let talentConversion = typeof getTalentDamageConversion === 'function'
+            let talentConversion = window.GameModules.combat.supports.splitConversion(typeof getTalentDamageConversion === 'function'
                 ? getTalentDamageConversion(hitElement)
-                : { mainPct: 1, added: {} };
+                : { mainPct: 1, added: {} }, pStats, hitElement);
             let wisdomMainMultiplier = getPassiveWisdomLeapDamageMultiplier(pStats, hitElement);
             dmg = Math.floor(dmg * Math.max(0, Number(talentConversion.mainPct) || 0)
                 * (1 - (enemyRes / 100)) * wisdomMainMultiplier * mutationHitScale(targetEnemy, hitElement));
@@ -12667,7 +12652,7 @@ function performPlayerAttack(pStats, attackOptions) {
             let moonShadowRatio = hitCrit && typeof getPreciseTalentRatio === 'function'
                 ? 0.20 * getPreciseTalentRatio('hero3__assassin') : 0;
             let normalDamage = moonShadowRatio > 0 ? Math.floor(dmg * (1 - moonShadowRatio)) : dmg;
-            let dealtToEnemy = applyDamageToEnemyResource(targetEnemy, normalDamage);
+            let dealtToEnemy = window.GameModules.combat.supports.dealHit(targetEnemy, pStats, normalDamage);
             if (dealtToEnemy > 0) {
                 if (skillConditionalCues) skillConditionalCues.forEach(cue => showAttackFeedback(targetEnemy, cue));
                 if (stageKind === 'slamAftershock') {

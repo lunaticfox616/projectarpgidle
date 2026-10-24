@@ -822,9 +822,9 @@ const isThirdRingOpen = () => typeof getTranscendentVoidPassiveCount === 'functi
 /** 세 번째 손가락이 없는데 세 번째 반지 칸에 남은 반지: 흐리게(효과가 꺼져 있다, js/combat-equipment-stats.js). */
 const thirdRingOffClass = slot => (slot === '반지3' && !isThirdRingOpen() ? ' is-off' : '');
 /** 장착 칸 목록: 세 번째 반지 칸은 세 번째 손가락이 있을 때, 또는 그 칸에 반지가 남아 있을 때만(꺼진 채, 두 번 눌러 뺀다). */
-function getPaperdollSlots() {
+function getPaperdollSlots(equipment = game.equipment) {
     const slots = ['무기', '투구', '목걸이', '장갑1', '갑옷', '방패', '반지1', '허리띠', '반지2', '신발', '장갑2'];
-    return isThirdRingOpen() || (game.equipment || {})['반지3'] ? [...slots, '반지3'] : slots;
+    return isThirdRingOpen() || (equipment || {})['반지3'] ? [...slots, '반지3'] : slots;
 }
 /** 장착 칸을 그리고 배치를 고른다(css/equipment-window.css): 세 번째 반지는 코어 칸이 없으면 그 자리, 코어가 있으면 신발 아래 줄. */
 function setPaperdollHtml(targetId, html) {

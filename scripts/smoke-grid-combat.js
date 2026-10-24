@@ -43,7 +43,7 @@ const files = [
   'js/unique-hunt.js',
   'js/background-build-cache.js',
   'js/equipment-stat-resolution.js',
-  'js/gem-core-forge.js', 'js/skills.js',
+  'js/gem-core-forge.js', 'js/skills.js', 'js/support-runes.js', 'js/combat-support-runes.js', 'js/combat-support-summons.js',
   'js/core-items.js', 'js/talismans.js', 'js/talisman-effects.js', 'js/talisman-combat.js', 'js/stump-cube-recipes.js', 'js/stump-cube.js',
   'js/skill-effect-expansion.js', 'js/combat-grid.js',
   'js/act-exploration-progress.js', 'js/exploration-object-combat.js',
@@ -840,7 +840,8 @@ assert(fs.statSync(context.ACT_BATTLE_MAP_SOURCES.bgAct1).size + Math.max(...act
   '처음 시작하는 맵과 목적지 맵의 로딩 합계는 기존 2.2MB 예산을 넘지 않아야 한다');
 const validKinds = new Set(['melee', 'arc', 'nova', 'line', 'chain', 'blast', 'fan', 'cone', 'summon']);
 const validShapes = new Set(['circle', 'diamond', 'square', 'cross', 'diagonal', 'ring']);
-Object.keys(context.SKILL_DB).forEach(name => {
+// Auras and damage-redirecting guards have no attack footprint; only attacking runes need one.
+Object.keys(context.SKILL_DB).filter(name => !context.SKILL_DB[name].tags.some(tag => ['summon_buff', 'summon_guard'].includes(tag))).forEach(name => {
   const profile = context.SKILL_GRID_DB[name];
   assert.ok(profile, `스킬 '${name}'의 그리드 범위 프로필이 SKILL_GRID_DB에 없어야 하면 안 된다`);
   assert.ok(validKinds.has(profile.kind), `스킬 '${name}'의 kind가 유효하지 않다: ${profile.kind}`);
@@ -854,7 +855,8 @@ assert.strictEqual(context.describeSkillGridProfile('공허 가르기', context.
 assert.strictEqual(context.describeSkillGridProfile('심연 전염', context.SKILL_DB['심연 전염']), '공격 범위: 연쇄, 사거리 5칸, 연쇄 2칸');
 assert.strictEqual(context.describeSkillGridProfile('물리 위습 소환', context.SKILL_DB['물리 위습 소환']), '공격 범위: 소환수 공격, 사거리 3칸');
 assert.strictEqual(context.describeSkillGridProfile('연발 사격', context.SKILL_DB['연발 사격']), '발사 방식: 부채꼴 연사, 사거리 6칸, 5방향(20도 간격), 발사 방식 변경 가능');
-const projectileGems = Object.entries(context.SKILL_DB).filter(([, skill]) => skill.isGem && skill.tags.includes('projectile'));
+// Thrown wisp attacks use WISP_SUMMONS flight profiles rather than the player's projectile pattern table.
+const projectileGems = Object.entries(context.SKILL_DB).filter(([, skill]) => skill.isGem && skill.tags.includes('projectile') && !skill.tags.includes('summon'));
 assert.ok(projectileGems.every(([, skill]) => skill.projectilePattern && skill.projectilePattern.mode), '모든 투사체 룬은 툴팁에 표시할 기본 발사 방식을 가져야 한다');
 assert.ok(projectileGems.every(([name, skill]) => context.describeSkillGridProfile(name, skill).startsWith('발사 방식:')), '모든 투사체 룬 툴팁은 공격 범위 대신 발사 방식을 표시해야 한다');
 assert.ok(Math.max(...Object.values(context.SKILL_GRID_DB).map(profile => profile.range)) <= Math.hypot(8,7), '스킬 최대 사거리는 9x8 전장의 대각선 길이를 넘지 않아야 한다');
