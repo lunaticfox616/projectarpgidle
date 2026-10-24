@@ -39,8 +39,7 @@ test('finishing a pending settlement commits once and clears the replayable abse
         backgroundCombatRuntime.signature=getBackgroundCombatSignature(game);
         window.settlementReviewTask=startBackgroundCombatReturn(Date.now());
     });
-    // The controls are pressed while the settlement runs: pausing the app now abandons it on purpose (js/ui.js
-    // startBackgroundCombatReturn, abandonWhenPaused: the next return settles the whole time away).
+    // The controls are pressed while the settlement runs.
     await page.locator('#background-combat-fast-button').click();
     await page.locator('#background-combat-finish-button').click();
     expect(await page.evaluate(()=>window.settlementReviewTask)).toBe(true);

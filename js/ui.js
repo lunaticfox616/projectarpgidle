@@ -860,14 +860,17 @@ async function startBackgroundCombatReturn(nowMs) {
         updateBackgroundProgressOverlay(0, effectiveProgressMs, actualElapsedMs);
         await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0)));
         let result = await simulateBackgroundCombatChunked({
-            elapsedMs: effectiveProgressMs, snapshot, startNowMs: startedAtMs, project: true, abandonWhenPaused: true,
+            elapsedMs: effectiveProgressMs, snapshot, startNowMs: startedAtMs, project: true,
             isPaused: () => document.hidden || backgroundCombatRuntime.appInactive,
+            // Back after leaving again mid-settlement: the replay goes on and takes the time away since hiddenAtMs (it used to start
+            // over, and on a phone a long settlement could start over at every glance away).
+            getElapsedMs: () => {
+                actualElapsedMs = Math.max(actualElapsedMs, Date.now() - startedAtMs);
+                return calculateBackgroundProgressMs(actualElapsedMs, BACKGROUND_PROGRESS_MIN_REAL_MS, limits.efficiencyRate, limits.effectiveLimitMs);
+            },
             getControl: () => ({tier: backgroundCombatRuntime.accelerationTier, finish: backgroundCombatRuntime.finishRequested}),
             onProgress: (done, total, skipped, phase) => updateBackgroundProgressOverlay(done, total, actualElapsedMs, skipped, phase)
         });
-        // Left again mid-settlement: hiddenAtMs and the snapshot stay, so the next return settles the whole time away (the time
-        // spent away during a settlement used to count nowhere).
-        if (!result) return false;
         if (!shouldApplyBackgroundCombatResult(backgroundCombatRuntime.signature)) throw new Error('정산 중 사냥 상태가 변경되었습니다.');
         let summary = getBackgroundRewardSummary(snapshot, result.game, result.metrics, result.overflowSalvaged);
         commitBackgroundCombat(result, original);
