@@ -13110,11 +13110,12 @@ function defeatAtMeteor(zone, message, opts, ui) {
     game.killsInZone = 0;
     clearDefeatedEncounter();
 }
-/** A defeat in the time rift, past or future, shatters the altar's items and closes the altar, so the past must be cleared again
- * (2026-10-26 사용자: 실패 시 아이템 파괴 패널티). The line is the user's own, whatever killed the hero (the death record keeps the cause). */
+/** A defeat in the time rift shatters the altar's items and closes the altar, so the past must be cleared again (2026-10-26 사용자:
+ * 실패 시 아이템 파괴 패널티). The altar is empty in the past (items go on it once the past is cleared), so its line names no items.
+ * The lines are the user's own, whatever killed the hero (the death record keeps the cause). */
 function defeatInTimeRift(zone, message, opts, ui) {
     Object.assign(ensureTimeRiftState(), { altarOpen: false, altarUnique: null, altarRare: null, activePressure: null });
-    ui.say(`시간의 균열(${zone.riftPhase === 'past' ? '과거' : '미래'})에서 사망했습니다. 제단의 아이템이 산산조각났습니다.`, 'death', { noToast: !!opts.noToast });
+    ui.say(zone.riftPhase === 'past' ? '시간의 균열(과거)에서 사망했습니다.' : '시간의 균열(미래)에서 사망했습니다. 제단의 아이템이 산산조각났습니다.', 'death', { noToast: !!opts.noToast });
     game.currentZoneId = getDefeatRecoveryZoneId();
     game.killsInZone = 0;
     clearDefeatedEncounter();
