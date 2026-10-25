@@ -25,8 +25,10 @@ const atlasUi = (() => {
         render();
         updateStaticUI();
     }
+    /** 나이테 원정 쪽은 열린 뒤에만 있다(2026-10-26 사용자, atlasBoard.unlocked). */
+    const viewOpen = id => id !== 'board' || atlasBoard.unlocked(game);
     function setView(next) {
-        view = ['passives', 'epoch', 'late', 'memory', 'board'].includes(next) ? next : 'maps';
+        view = ['passives', 'epoch', 'late', 'memory', 'board'].includes(next) && viewOpen(next) ? next : 'maps';
         refresh();
     }
     function selectNode(id, reveal = false) {
@@ -418,7 +420,7 @@ const atlasUi = (() => {
     function pages() {
         const free = atlasPassives.spendable(game), memories = memoryDungeon.total(game);
         const badges = { passives: free ? `+${free}` : '', memory: memories ? String(memories) : '' };
-        return { select: setView, items: VIEW_TABS.map(([id, label]) => ({ id, label, badge: badges[id], on: view === id })) };
+        return { select: setView, items: VIEW_TABS.filter(([id]) => viewOpen(id)).map(([id, label]) => ({ id, label, badge: badges[id], on: view === id })) };
     }
     /** The region banner's line: the open map, the lock, or the stones in hand. */
     function progressLine() {
@@ -493,6 +495,7 @@ const atlasUi = (() => {
         atlas.sync(game);
         atlasBoard.sync(game);
         const wallet = [...CRAFT_ORDER, ...ATLAS.pinnacle.tickets].map(key => game.currencies[key] || 0);
+        if (!viewOpen(view)) view = 'maps'; // 다른 저장을 불러와 원정이 닫힌 뒤
         const key = JSON.stringify([view, ledger(), selectedNode, selectedUid, wallet, atlasRun.blockReason(), game.currentZoneId, game.maxZoneId, game.settings.mapCompleteAction, getPersistentBuildSignature(game)]);
         if (key === signature && panel.innerHTML) return;
         signature = key;

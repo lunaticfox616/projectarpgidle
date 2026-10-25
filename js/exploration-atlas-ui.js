@@ -80,18 +80,19 @@ const explorationAtlasUi = (() => {
             .filter(([,entries]) => entries.length).map(([label,entries]) =>
                 `<section class="atlas-destinations" aria-label="${region.name}의 ${label}">${region.id === 'trail' ? '' : `<h3>${label}</h3>`}${entries.map(routeHtml).join('')}</section>`).join('');
     }
+    /** 권역의 갈 곳 카드. 권역 이름과 진행은 위 권역 띠(syncRegionBanner), 현재 위치는 그 아래 줄이 보여 준다. */
     function regionDetailHtml(region) {
-        return `<div class="atlas-region-detail atlas-theme-${region.id}"><header class="atlas-region-hero">
-            <img class="atlas-landscape" src="${region.landscape}" alt="" decoding="async"><div><small>탐험 권역</small><h2>${region.name}</h2>
-            <p>${escapeHTML(regionProgress(region))}</p></div></header>${currentHuntHtml()}<div class="atlas-region-routes">${destinationGroupsHtml(region)}</div></div>`;
+        return `<div class="atlas-region-detail atlas-theme-${region.id}"><div class="atlas-region-routes">${destinationGroupsHtml(region)}</div></div>`;
     }
     function routeHtml(route) {
         const condition = document.getElementById('btn-' + route).dataset.entryCondition || '';
         const summary = routeSummary(route);
         const activity = EXPLORATION_REGIONS.activities[route];
         const status = route === 'map-explore-root-boss' ? '' : condition || summary.status;
+        // 카드 뒤에 그 콘텐츠의 지도 그림이 오른쪽에서 비친다(2026-10-26 사용자).
+        const land = activity.landscape ? `<img class="atlas-landscape" src="${activity.landscape}" alt="" loading="lazy" decoding="async">` : '';
         return `<button class="atlas-destination${summary.attention ? ' has-new-challenge' : ''}" data-atlas-route="${route}" data-atlas-tone="${activity.tone}" onclick="explorationAtlasUi.enter('${route}')">
-            <strong>${escapeHTML(routeLabel(route))}</strong>${activity.kind ? `<span class="atlas-activity-kind">${escapeHTML(activity.kind)}</span>` : ''}
+            ${land}<strong>${escapeHTML(routeLabel(route))}</strong>${activity.kind ? `<span class="atlas-activity-kind">${escapeHTML(activity.kind)}</span>` : ''}
             ${summary.target ? `<span class="atlas-route-target">${escapeHTML(summary.target)}</span>` : ''}
             ${rewardNamesHtml(route)}${trackedRewardHtml(route)}
             ${status ? `<span class="atlas-route-status">${escapeHTML(status)}</span>` : ''}<small class="atlas-route-action">이동</small></button>`;
@@ -190,11 +191,11 @@ const explorationAtlasUi = (() => {
             <button data-atlas-current onclick="switchTab('tab-battle')">전투로 돌아가기</button></div>`;
     }
     function render() {
-        syncLocation();
         const host = document.getElementById('ui-exploration-atlas');
-        if (!host || game.mapSubtab !== 'map-tab-zones' || game.mapExploreSubtab !== 'map-explore-atlas') return;
         const regions = EXPLORATION_REGIONS.regions.filter(region => region.routes.some(route => route !== 'map-explore-hunting' && available(route)));
         if (!regions.some(region => region.id === selected)) selected = null;
+        syncLocation();
+        if (!host || game.mapSubtab !== 'map-tab-zones' || game.mapExploreSubtab !== 'map-explore-atlas') return;
         const region = regions.find(entry => entry.id === selected);
         const arena = available('map-tab-pvp') ? '<button class="atlas-arena" onclick="explorationAtlasUi.enter(\'map-tab-pvp\')">대전</button>' : '';
         const body = region ? regionDetailHtml(region) : currentHuntHtml() + overviewHtml(regions);
@@ -209,24 +210,26 @@ const explorationAtlasUi = (() => {
     }
     function updateOverview(host,body,region,arena) {
         const focus = host.contains(document.activeElement) ? document.activeElement.getAttribute('onclick') : null;
-        const title = region ? `<nav class="atlas-breadcrumb" aria-label="탐험 위치"><button class="atlas-back" onclick="explorationAtlasUi.open()">전체 탐험</button><span>${region.name}</span></nav>` : '<h2>탐험</h2>';
-        host.innerHTML = `<header class="atlas-heading">${title}${arena}</header>` + body;
+        host.innerHTML = (region ? '' : `<header class="atlas-heading"><h2>탐험</h2>${arena}</header>`) + body;
         if (focus) [...host.querySelectorAll('button')].find(button => button.getAttribute('onclick') === focus)?.focus({preventScroll:true});
     }
     /** 지도 창 위 길잡이(2026-10-25 사용자 "지도 탭의 구조 자체의 개편"): 첫 줄은 전체 탐험과 권역(그 권역 그림이 어렴풋이 깔린
      * 단추), 둘째 줄은 지금 권역에서 갈 수 있는 곳. 고르던 드롭다운과 경로 표시를 대신한다(드롭다운은 좁은 휴대폰 화면에만 남는다). */
+    // 길이 여럿인 권역을 고른 화면(권역 고르기)도 위 두 줄과 권역 띠를 쓴다(2026-10-26 사용자: 이 중간 화면에만 위 탭이 없었다).
+    // 그때 둘째 줄은 그 권역의 길들이고 눌린 것이 없다.
+    const hubRegion = () => EXPLORATION_REGIONS.regions.find(region => region.id === selected && region.routes.filter(available).length > 1) || null;
     function syncLocation() {
         const host = document.getElementById('exploration-location');
         if (!host) return;
         const route = game.mapSubtab === 'map-tab-zones' ? game.mapExploreSubtab : game.mapSubtab;
-        const overview = route === 'map-explore-atlas';
+        const hub = route === 'map-explore-atlas' ? hubRegion() : null, overview = route === 'map-explore-atlas' && !hub;
         host.hidden = overview;
         document.getElementById('tab-map').classList.toggle('is-atlas-overview',overview);
         if (overview) return;
-        const region = regionFor(route);
+        const region = hub || regionFor(route), shown = hub ? null : route;
         if (region && region.routes.filter(available).length > 1) selected = region.id;
-        writeHtmlIfChanged(host, locationHtml(region,route));
-        syncRegionBanner(region,route);
+        writeHtmlIfChanged(host, locationHtml(region,shown));
+        syncRegionBanner(region,shown);
     }
     // 둘째 줄은 어느 화면에서나 보인다(2026-10-25 사용자: 어떤 권역은 위 탭이 나오고 어떤 권역은 안 나왔다). 길이 여럿인 권역은 그
     // 길들, 길이 하나인 권역은 그 화면의 쪽(아틀라스 보기, 우주계 화면, 지하계 쪽)이고, 쪽이 없는 화면은 제 이름 하나다.
@@ -261,17 +264,18 @@ const explorationAtlasUi = (() => {
         return `<div class="exploration-regions"><button class="exploration-home" onclick="explorationAtlasUi.open()">전체 탐험</button>${tabs}</div>`
             + `<div class="exploration-routes" role="group" aria-label="${current ? current.name : '대전'}의 쪽">${chips}</div>`;
     }
+    /** route: the open place, or null on the region's own page (its name and progress). */
     function syncRegionBanner(region,route) {
         const banner = document.getElementById('exploration-region-banner');
         banner.hidden = !region;
         if (banner.hidden) return;
         const hunting = route === 'map-explore-hunting';
         // 주변 콘텐츠(운석 낙하 · 벌집 …)는 지역 층수 대신 그 콘텐츠의 진행을 보여 준다.
-        const sideStatus = region.sideRoutes.includes(route) && routeSummary(route).status;
+        const sideStatus = !!route && region.sideRoutes.includes(route) && routeSummary(route).status;
         const progress = hunting ? `<div class="atlas-hunt-destination">${buildMapRouteSummaryHtml(getZone(game.currentZoneId),getZone(Math.min(STORY_ACTS.length-1,game.maxZoneId)))}</div>`
             : `<p>${escapeHTML(sideStatus || regionProgress(region))}</p>`;
         const html = `<img class="atlas-landscape" src="${region.landscape}" alt="" decoding="async"><div>
-            <h2>${escapeHTML(hunting ? '나무' : routeLabel(route))}</h2>${progress}</div>`;
+            <h2>${escapeHTML(!route ? region.name : hunting ? '나무' : routeLabel(route))}</h2>${progress}</div>`;
         if (writeHtmlIfChanged(banner, html)) banner.className='atlas-theme-'+region.id;
     }
     return {open,select,enter,page,hunt,render,syncLocation,bossRewardLabel,bossEntry,rewardTooltip};

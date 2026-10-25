@@ -352,7 +352,7 @@ const sideEncounterUi = (() => {
             ${buildMapPowerEstimateHtml(getZone(TIME_RIFT_FUTURE_ZONE_ID))}<p>${escapeHTML(issue||'융합 준비 완료')}</p>
             <details class="map-expedition-details" id="time-rift-fusion-rules"><summary>융합 규칙</summary>
             <p>미래 클리어 시 두 장비를 소모해 융합 유물 1개를 만듭니다. 희귀 옵션은 하나씩 시간압의 확률로 남고(${TIME_RIFT_KEEP_CAP}개가 남은 뒤로는 훨씬 낮은 확률), 나머지는 사라집니다.</p>
-            <p>융합 후에는 황금률/잿불가지/축복의 꽃잎만 사용할 수 있습니다. 실패해도 제단 장비는 남고, 루프를 건너도 보존됩니다.</p></details>
+            <p>융합 후에는 황금률/잿불가지/축복의 꽃잎만 사용할 수 있습니다.</p></details>
             <div class="map-expedition-actions">${action}</div></div>`;
     }
 

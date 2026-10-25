@@ -1520,7 +1520,7 @@
         if (!ATLAS.installed) { installCosmosAtlas(); return; }
         syncCosmosTabVisibility();
         cosmosRouteUi.render({ nodes: ATLAS.nodes.map(cosmosStarView), edges: ATLAS.edges,
-            unlocked: isCosmosUnlocked(), onAction: handleCosmosRouteAction, floorOf: getCosmosNodeFloor, readinessOf: getCosmosNodeReadiness });
+            unlocked: isCosmosUnlocked(), onAction: handleCosmosRouteAction, zoneOf: getCosmosNodeEstimateZone });
         window.captureUiDisclosureState(ATLAS.detail);
         window.captureUiDisclosureState(ATLAS.summary);
         if (document.getElementById('cosmos-node-detail').open) renderDetail();
@@ -2004,16 +2004,11 @@
         document.getElementById('cosmos-inner-mastery').style.display = mastery ? '' : 'none';
         renderCosmosAtlas();
     }
-    /** The underworld floor a planet's fight equals (the route planner's 난이도, js/cosmos-route-ui.js). */
-    function getCosmosNodeFloor(id) {
+    /** The zone a planet's fight is (the route planner's 권장 전투력 chip, js/cosmos-route-ui.js), or null. */
+    function getCosmosNodeEstimateZone(id) {
         buildCosmosAtlasData();
         const node = ATLAS.byId.get(id);
-        return node ? getCosmosEquivalentUnderworldFloor(node) : null;
-    }
-    /** The hero's readiness against a planet (getMapPowerReadiness: dps and ehp grades), or null. */
-    function getCosmosNodeReadiness(id) {
-        const recommendation = getCosmosNodeRecommendation(id);
-        return recommendation ? recommendation.readiness : null;
+        return node ? createCosmosEstimateZone(node, getCosmosNodeMechanic(node)) : null;
     }
 
     window.renderCosmosAtlas = renderCosmosAtlas;

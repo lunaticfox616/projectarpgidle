@@ -450,8 +450,8 @@
         if (!placement || !moveResult.entry) return;
         let targetClass = moveResult.ok ? 'drop-valid' : 'drop-invalid';
         paintFootprint(grid, moveResult.placement || placement, moveResult.entry, targetClass);
-        // 자리 맞바꾸기: 밑에 있던 장비가 갈 자리(이 쪽에 있을 때만)
-        if (moveResult.swap) paintFootprint(grid, moveResult.swap.placement, moveResult.swap.entry, 'drop-swap');
+        // 자리 맞바꾸기: 밑에 있던 장비들이 갈 자리(이 쪽에 있을 때만)
+        (moveResult.swaps || []).forEach(move => paintFootprint(grid, move.placement, move.entry, 'drop-swap'));
         let targetPlacement = moveResult.placement || placement;
         let preview = carryState && carryState.preview;
         if (preview) {
@@ -476,7 +476,7 @@
         let rowStart = activePage * equipmentInventoryGridRuntime.rowsPerPage;
         let localized = { ...result };
         if (result.placement) localized.placement = { ...result.placement, row: result.placement.row - rowStart };
-        if (result.swap) localized.swap = { ...result.swap, placement: { ...result.swap.placement, row: result.swap.placement.row - rowStart } };
+        if (result.swaps) localized.swaps = result.swaps.map(move => ({ ...move, placement: { ...move.placement, row: move.placement.row - rowStart } }));
         return localized;
     }
 
