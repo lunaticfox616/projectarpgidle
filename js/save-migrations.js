@@ -420,6 +420,17 @@ function normalizeStarterGemTutorialSave(state) {
     state.seenTutorials = state.seenTutorials.filter(key => key !== 'tutorial_starter_gem_equip' && key !== 'action_tutorial_starter_gem_equip');
 }
 
+/** Ownership lists and the base resonance capacity are normalized together before rune operations. Zero is a valid capacity. */
+function normalizeOwnedGemLibrariesSave(state) {
+    state.skills = dedupeList(Array.isArray(state.skills) ? state.skills.filter(name => !!SKILL_DB[name]) : []);
+    if (!state.skills.includes('기본 공격')) state.skills.unshift('기본 공격');
+    state.sealedSkills = dedupeList(Array.isArray(state.sealedSkills) ? state.sealedSkills.filter(name => !!SKILL_DB[name] && name !== '기본 공격' && !state.skills.includes(name)) : []);
+    state.supports = dedupeList(Array.isArray(state.supports) ? state.supports.filter(name => !!SUPPORT_GEM_DB[name]) : []);
+    state.sealedSupports = dedupeList(Array.isArray(state.sealedSupports) ? state.sealedSupports.filter(name => !!SUPPORT_GEM_DB[name] && !state.supports.includes(name)) : []);
+    state.equippedSupports = Array.isArray(state.equippedSupports) ? dedupeList(state.equippedSupports.filter(name => state.supports.includes(name))) : [];
+    state.resonancePower = Number.isFinite(state.resonancePower) ? Math.max(0, Math.floor(state.resonancePower)) : defaultGame.resonancePower;
+}
+
 /** A mobility gem in the main slot goes to the empty mobility slot, unless the save wears 칼이 된 발걸음 (data/items.js), which keeps
  * it there as the attack gem. Idempotent. */
 function moveAttackSlotMobilityGem(merged, worn) {
@@ -1150,12 +1161,7 @@ function mergeDefaults(save) {
     // Old saves only had a boolean flag and could not identify which chase unique dropped.
     // Do not treat that unknown legacy flag as a full chase-unique blacklist.
     merged.seasonChaseUniqueDropped = merged.seasonChaseUniqueDrops.length > 0;
-    merged.skills = dedupeList(Array.isArray(merged.skills) ? merged.skills.filter(name => !!SKILL_DB[name]) : []);
-    if (!merged.skills.includes('기본 공격')) merged.skills.unshift('기본 공격');
-    merged.sealedSkills = dedupeList(Array.isArray(merged.sealedSkills) ? merged.sealedSkills.filter(name => !!SKILL_DB[name] && name !== '기본 공격' && !merged.skills.includes(name)) : []);
-    merged.supports = dedupeList(Array.isArray(merged.supports) ? merged.supports.filter(name => !!SUPPORT_GEM_DB[name]) : []);
-    merged.sealedSupports = dedupeList(Array.isArray(merged.sealedSupports) ? merged.sealedSupports.filter(name => !!SUPPORT_GEM_DB[name] && !merged.supports.includes(name)) : []);
-    merged.equippedSupports = Array.isArray(merged.equippedSupports) ? dedupeList(merged.equippedSupports.filter(name => merged.supports.includes(name))) : [];
+    normalizeOwnedGemLibrariesSave(merged);
     merged.seasonNodes = Array.isArray(merged.seasonNodes) ? merged.seasonNodes.filter(id => !!getSeasonPassiveNodeDef(id)) : [];
     merged.seasonNodeLevels = (merged.seasonNodeLevels && typeof merged.seasonNodeLevels === 'object') ? merged.seasonNodeLevels : {};
     merged.seasonNodes.forEach(id => {

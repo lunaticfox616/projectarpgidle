@@ -786,4 +786,14 @@ assert.deepEqual(json('[game.skills,game.sealedSkills,game.resonancePower,game.g
 assert(run("tutorialQueue.some(row=>row.key==='tutorial_starter_gem_equip')"),'an unfinished equip guide resumes after loading');
 run("equipSkippedStarterGem('tutorial_starter_gem_equip')");
 assert(run("game.activeSkill==='이중 베기' && !game.starterGemTutorialPending"),'closing the resumed guide still equips its rune');
+// A zero resonance capacity is a balance, not a missing default: one seal grants one, and restoration costs one.
+for (const [type,name] of [['Skill','서리바람 내지르기'],['Support','가속']]) {
+    run("game=mergeDefaults({skills:['기본 공격','서리바람 내지르기'],supports:['가속'],resonancePower:0,gemData:{'서리바람 내지르기':{level:7,exp:23}},supportGemData:{'가속':{level:6,exp:19,unlockedTier:2}}})");
+    const runeGrowth=json('[game.gemData,game.supportGemData]');
+    run(`seal${type}Gem('${name}');seal${type}Gem('${name}')`);
+    assert.equal(run('game.resonancePower'),1,'sealing one rune cannot refill the starting capacity or pay twice');
+    run(`game=mergeDefaults(JSON.parse(serializeSaveState(game)));unseal${type}Gem('${name}');unseal${type}Gem('${name}')`);
+    assert.equal(run('game.resonancePower'),0,'restoring a rune spends exactly its one seal reward');
+    assert.deepEqual(json('[game.gemData,game.supportGemData]'),runeGrowth,'sealing, reload and restoration preserve rune growth');
+}
 console.log('smoke-content-progression passed');

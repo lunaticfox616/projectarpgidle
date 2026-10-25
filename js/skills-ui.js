@@ -14,6 +14,7 @@
     let lastSkillPanelRenderSignature = '';
     /** Per library: phone page, the filter it was paged for, and how many gems the filter lists (the picker head count). */
     const libraryPages = { skill: { index: 0, query: '', total: 0 }, support: { index: 0, query: '', total: 0 } };
+    let sealConfirmationPending = false;
 
     /** @param {{title: string, action: string, done: boolean, ready: boolean, details: string, gain?: number}} upgrade
      * @param {number} currentLevel Displayed total gem level, including equipment and passives. */
@@ -95,19 +96,41 @@
     }
 
     document.addEventListener('click', event => {
-        if (event.target.closest('[data-support-bulk-seal]')) { confirmSupportSeal(); return; }
+        const sealButton = event.target.closest('[data-gem-bulk-seal]');
+        if (sealButton && !sealButton.disabled) { confirmLibrarySeal(sealButton.dataset.gemBulkSeal); return; }
         const button = event.target.closest('[data-gem-page]');
         if (!button || button.disabled) return;
         libraryPages[button.dataset.gemPage].index += Number(button.dataset.step);
         updateStaticUI();
     });
 
-    async function confirmSupportSeal() {
-        const names = game.supports.filter(name => !game.equippedSupports.includes(name));
+    async function confirmLibrarySeal(kind) {
+        if (sealConfirmationPending) return;
+        const names = window.GameModules.skills.sealableNames(kind);
         if (!names.length) return;
-        const accepted = await requestGameConfirmation(`장착하지 않은 보조스킬룬 ${names.length}개를 봉인하고 공명력 ${names.length}을 얻습니다. 봉인을 해제할 때는 룬마다 공명력 1을 사용합니다.`,
-            { title: '보조스킬룬 일괄 봉인', confirmLabel: `${names.length}개 봉인`, cancelLabel: '취소' });
-        if (accepted) names.forEach(name => { if (!game.equippedSupports.includes(name)) sealSupportGem(name); });
+        const state = game, season = game.season, label = kind === 'support' ? '보조스킬룬' : '공격 룬';
+        sealConfirmationPending = true;
+        try {
+            const accepted = await requestGameConfirmation(`${label} ${names.length}개, 공명력 +${names.length}\n봉인 해제에는 룬마다 공명력 1이 필요합니다.`,
+                { title: `${label} 일괄 봉인`, confirmLabel: `${names.length}개 봉인`, cancelLabel: '취소' });
+            if (!accepted || game !== state || game.season !== season) return;
+            if (JSON.stringify(names) !== JSON.stringify(window.GameModules.skills.sealableNames(kind))) {
+                showGameToast('룬 목록이 바뀌었습니다. 다시 확인하세요.', { tone: 'warning' });
+                return;
+            }
+            if (kind === 'support') sealAllInactiveSupportGems();
+            else sealAllInactiveSkillGems();
+        } finally {
+            sealConfirmationPending = false;
+        }
+    }
+
+    function renderLibrarySealAction(kind, fold) {
+        if (fold) return '';
+        const label = kind === 'support' ? '보조스킬룬' : '공격 룬';
+        const disabled = window.GameModules.skills.sealableNames(kind).length ? '' : 'disabled';
+        const button = `<button type="button" data-gem-bulk-seal="${kind}" ${disabled}>미사용 ${label} 일괄 봉인</button>`;
+        return kind === 'support' ? `<div class="support-library-footer">${button}</div>` : button;
     }
 
     function renderGemResearchCandidate(kind, name, cost, availableFragments) {
@@ -188,8 +211,7 @@
     function renderAttackGemLibrary(stats, filter, fold) {
         const sealed = Array.isArray(game.sealedSkills) ? game.sealedSkills : [];
         const html = renderGemLibrary('skill', game.skills, sealed, stats, filter);
-        const canSeal = game.skills.some(name => !getSkillGemSealRefusal(name));
-        const actions = fold ? '' : `<button type="button" onclick="sealAllInactiveSkillGems()" ${canSeal ? '' : 'disabled'}>미사용 공격 룬 일괄 봉인</button>`;
+        const actions = renderLibrarySealAction('skill', fold);
         let list = document.getElementById('ui-skills-list');
         const signature = `${html}::${actions}`;
         if (!list || list.dataset.renderSig === signature) return;
@@ -254,7 +276,7 @@
 
         let supportHtml = renderGemLibrary('support', game.supports, sealedSupports, pStats, sf.support);
         let supportListEl = document.getElementById('ui-support-list');
-        let supportActions = foldSupportInactive ? '' : '<div class="support-library-footer"><button type="button" data-support-bulk-seal>미사용 보조스킬룬 일괄 봉인</button></div>';
+        let supportActions = renderLibrarySealAction('support', foldSupportInactive);
         let supportRenderSig = `${supportHtml}::${supportActions}`;
         if (supportListEl && supportListEl.dataset.renderSig !== supportRenderSig) {
             renderSearchSection('ui-support-list', 'support', '보조스킬룬 이름/효과 검색', supportHtml + supportActions, '', '');
