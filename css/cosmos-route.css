@@ -32,13 +32,9 @@ body.desktop-windowed-ui .map-progress-row:has(#ui-cosmos-route-progress:not([hi
 .cosmos-goal-chips .is-reward { border-color:#b79b63; color:#f0d58a; }
 /* 난이도 줄(js/cosmos-route-ui.js difficultyHtml): 지하계 층 상당, 다음 행성과 보스의 공격 · 생존 여유(부족 붉게, 적정 금빛, 여유 푸르게). */
 .cosmos-difficulty { display:flex; flex-wrap:wrap; align-items:center; gap:4px 10px; flex-basis:100%; font-size:12px; color:var(--color-text-secondary); }
-.cosmos-difficulty .cosmos-level { padding:2px 8px; border:1px solid #8d7a52; color:#ead09a; }
-.cosmos-ready { display:inline; }
-.cosmos-ready b { margin-right:5px; font-weight:600; color:var(--color-text); }
-.cosmos-ready em { font-style:normal; }
-.cosmos-ready .grade-low { color:#e88a74; }
-.cosmos-ready .grade-fit { color:#e8c66f; }
-.cosmos-ready .grade-high { color:#8fd6a0; }
+.cosmos-ready { display:inline-flex; align-items:center; gap:6px; }
+.cosmos-ready b { font-weight:600; color:var(--color-text); }
+.cosmos-ready .map-power-estimate { font-size:12px; }
 .cosmos-journey-heading strong em { font-style:normal; color:#f0b07a; }
 .cosmos-legend { display:flex; flex-wrap:wrap; gap:4px 14px; margin:0; padding:0 18px 12px; font-size:12px; color:var(--copy-muted); }
 .cosmos-legend span { display:inline-flex; align-items:center; gap:5px; }

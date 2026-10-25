@@ -183,6 +183,11 @@ function buildMapCardActionsHtml(options) {
     return stateBadge + rewardButton + enterButton;
 }
 
+/** 시련 카드 제목: "1차 전직 시련 (칼날 회랑)"을 두 줄로, 1차 전직 시련과 그 아래 -칼날 회랑(2026-10-26 사용자). */
+function buildTrialTitleHtml(name) {
+    const parts = /^(.*?)\s*\((.+)\)$/.exec(name);
+    return parts ? `<strong>${parts[1]}<small class="trial-place">-${parts[2]}</small></strong>` : `<strong>${name}</strong>`;
+}
 function buildTrialMapItemHtml(trial) {
     if (trial.bloomTrial) {
         let isCurrent = game.currentZoneId === trial.id;
@@ -194,7 +199,7 @@ function buildTrialMapItemHtml(trial) {
         else if (chaosKeys < 1 || coreKeys < 1) hint = `카오스 ${chaosKeys}/1, 코어 ${coreKeys}/1`;
         else if (!isWoodsmanEchoUnlocked()) hint = '나무꾼의 잔상 필요';
         else if (!game.ascendClass) hint = '직업(전직) 필요';
-        return `<div class="map-item encounter-card ${isCurrent ? 'current' : 'trial'}"><div class="encounter-heading"><strong>${trial.name}</strong><span class="encounter-state">재능 개화</span></div><p>${trial.trialDesc}</p>${buildMapPowerEstimateHtml(trial)}<div class="encounter-footer"><span>${hint}</span><button ${ready ? 'data-exploration-departure onclick="enterTalentBloomTrial()"' : 'disabled'}>개화 도전</button></div></div>`;
+        return `<div class="map-item encounter-card ${isCurrent ? 'current' : 'trial'}"><div class="encounter-heading">${buildTrialTitleHtml(trial.name)}<span class="encounter-state">재능 개화</span></div>${buildMapPowerEstimateHtml(trial)}<div class="encounter-footer"><span>${hint}</span><button ${ready ? 'data-exploration-departure onclick="enterTalentBloomTrial()"' : 'disabled'}>개화 도전</button></div></div>`;
     }
     let isCurrent = game.currentZoneId === trial.id;
     let isCompleted = game.completedTrials.includes(trial.id);
@@ -204,11 +209,11 @@ function buildTrialMapItemHtml(trial) {
     let action = (isCompleted && needsTicket) ? `enterTrialWithTicket('${trial.id}')` : `changeZone('${trial.id}')`;
     let repeatGemChance = typeof getTrialSkillGemRewardChance === 'function' ? getTrialSkillGemRewardChance(trial, false) : 0;
     let repeatReward = repeatGemChance >= 1 ? '룬 확정' : `룬 ${Math.round(repeatGemChance * 100)}%`;
-    let status = isCompleted ? (needsTicket ? `재도전권 ${game.currencies.trialKey3 || 0}개, 입장 시 1개` : '무료 재도전') : '첫 도전, 입장권 불필요';
+    let status = isCompleted ? (needsTicket ? `재도전권 ${game.currencies.trialKey3 || 0}개, 입장 시 1개` : '무료 재도전') : '';
     let state = isCompleted ? '완료' : '미완료';
-    return `<div class="map-item encounter-card ${cls}" data-trial-id="${trial.id}"><div class="encounter-heading"><strong>${trial.name}</strong><span class="encounter-state trial-state-badge">${state}</span></div>
-        <p>${trial.trialDesc || '수호자와 함정을 돌파하세요'}</p>${buildMapPowerEstimateHtml(trial)}
-        <div class="encounter-reward"><small>${isCompleted ? '재도전 보상' : '첫 격파 보상'}</small><span>${isCompleted ? repeatReward : '전직 포인트'}</span></div>
+    return `<div class="map-item encounter-card ${cls}" data-trial-id="${trial.id}"><div class="encounter-heading">${buildTrialTitleHtml(trial.name)}<span class="encounter-state trial-state-badge">${state}</span></div>
+        ${buildMapPowerEstimateHtml(trial)}
+        ${isCompleted ? `<div class="encounter-reward"><small>재도전 보상</small><span>${repeatReward}</span></div>` : ''}
         <div class="encounter-footer"><span>${status}</span><button data-exploration-departure ${(isCompleted && needsTicket && !hasTicket) ? 'disabled' : `onclick="${action}"`}>${isCurrent ? '다시 시작' : isCompleted ? '재도전' : '도전'}</button></div></div>`;
 }
 

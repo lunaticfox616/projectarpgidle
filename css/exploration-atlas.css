@@ -13,13 +13,23 @@
 /* 길잡이(2026-10-25, js/exploration-atlas-ui.js locationHtml): 권역 단추 줄과 그 권역의 갈 곳 줄. 드롭다운은 휴대폰에만 */
 #exploration-location{flex-direction:column;align-items:stretch;gap:6px;flex:1 1 auto;min-width:0}
 #exploration-location .exploration-regions,#exploration-location .exploration-routes{display:flex;flex-wrap:wrap;gap:4px}
-#exploration-location .exploration-region-tab{position:relative;isolation:isolate;overflow:hidden;min-height:30px;padding:4px 12px;border:1px solid #3d3423;border-radius:0;
-  background:#0f0d09;color:#d8c9a6;font-size:12px}
-#exploration-location .exploration-region-tab::before{content:'';position:absolute;inset:0;z-index:-1;background:var(--land) center 60%/cover no-repeat;opacity:.35;image-rendering:pixelated}
-#exploration-location .exploration-region-tab[aria-pressed="true"]{border-color:#e2c27a;color:#f3d28c;box-shadow:inset 0 0 0 1px rgba(226,194,122,.35)}
-#exploration-location .exploration-region-tab[aria-pressed="true"]::before{opacity:.6}
-#exploration-location .exploration-routes button{min-height:26px;padding:2px 10px;border:1px solid #2f2a1d;border-radius:0;border-bottom-width:1px;background:#14110b;color:#b7a985;font-size:12px}
-#exploration-location .exploration-routes button[aria-pressed="true"]{border-color:#9c885c;color:#ead09a;background:#221c11}
+/* 탭마다 구분이 서게(2026-10-26 사용자): 권역 단추는 그 권역의 색(아래 띠와 글자), 둘째 줄 단추는 하나씩 다른 색이다. 눌린 단추는
+   제 색 테와 옅은 제 색 바탕이다. */
+#exploration-location .exploration-region-tab{position:relative;isolation:isolate;overflow:hidden;min-height:30px;padding:4px 12px;border:1px solid color-mix(in srgb,var(--region-tint) 30%,#0c0a07);border-radius:0;
+  background:var(--region-shade);color:color-mix(in srgb,var(--region-tint) 80%,#fff);font-size:12px;box-shadow:inset 0 -2px 0 color-mix(in srgb,var(--region-tint) 55%,transparent);text-shadow:0 1px 2px #000}
+#exploration-location .exploration-region-tab::before{content:'';position:absolute;inset:0;z-index:-1;background:var(--land) center 60%/cover no-repeat;opacity:.3;image-rendering:pixelated}
+#exploration-location .exploration-region-tab:hover{border-color:color-mix(in srgb,var(--region-tint) 65%,#0c0a07)}
+#exploration-location .exploration-region-tab[aria-pressed="true"]{border-color:var(--region-tint);color:#fff4dc;box-shadow:inset 0 -3px 0 var(--region-tint),inset 0 0 0 1px color-mix(in srgb,var(--region-tint) 40%,transparent)}
+#exploration-location .exploration-region-tab[aria-pressed="true"]::before{opacity:.65}
+#exploration-location .exploration-routes button{--chip-tone:#d5ba78;min-height:26px;padding:2px 10px;border:1px solid color-mix(in srgb,var(--chip-tone) 28%,#0c0a07);border-radius:0;
+  background:color-mix(in srgb,var(--chip-tone) 7%,#12100b);color:color-mix(in srgb,var(--chip-tone) 75%,#cfc6ae);font-size:12px;box-shadow:inset 3px 0 0 color-mix(in srgb,var(--chip-tone) 60%,transparent)}
+#exploration-location .exploration-routes button:nth-child(6n+2){--chip-tone:#9fc48f}
+#exploration-location .exploration-routes button:nth-child(6n+3){--chip-tone:#b7a3dc}
+#exploration-location .exploration-routes button:nth-child(6n+4){--chip-tone:#8fc5d3}
+#exploration-location .exploration-routes button:nth-child(6n+5){--chip-tone:#d9a08d}
+#exploration-location .exploration-routes button:nth-child(6n){--chip-tone:#cfc59a}
+#exploration-location .exploration-routes button:hover{border-color:color-mix(in srgb,var(--chip-tone) 60%,#0c0a07)}
+#exploration-location .exploration-routes button[aria-pressed="true"]{border-color:var(--chip-tone);color:#fff1d4;background:color-mix(in srgb,var(--chip-tone) 22%,#14110b);box-shadow:inset 3px 0 0 var(--chip-tone)}
 #exploration-location .exploration-routes button i{margin-left:5px;padding:0 4px;font-style:normal;font-size:11px;color:#16110a;background:#f3d28c}
 @media(min-width:701px){#tab-map #mobile-map-navigation{display:none}}
 /* 권역 화면에서는 위 두 줄 탭이 모든 곳을 보여 주므로 휴대폰의 목적지 고르기는 전체 탐험 화면에만 둔다(2026-10-25). */
@@ -43,22 +53,25 @@
 #tab-map .atlas-theme-sea{--region-tint:#8fc5d3;--region-shade:#10232c}
 #tab-map .atlas-theme-cosmos{--region-tint:#aaa6e6;--region-shade:#19172e}
 #ui-exploration-atlas .atlas-region{position:relative;isolation:isolate;overflow:hidden;display:flex;align-items:flex-end;justify-content:space-between;gap:12px;min-width:0;min-height:126px;padding:16px;text-align:left;border:1px solid #b6a57850;border-radius:4px;background:var(--region-shade);color:#efecdf}
-#ui-exploration-atlas .atlas-region img,#ui-exploration-atlas .atlas-region-hero img,#exploration-region-banner img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 25%;z-index:-2;opacity:.8}
-#ui-exploration-atlas .atlas-region::before,#ui-exploration-atlas .atlas-region-hero::before,#exploration-region-banner::before{content:'';position:absolute;inset:0;z-index:-1;background:linear-gradient(90deg,var(--region-shade),transparent 95%),linear-gradient(0deg,#050908c9,transparent 90%)}
+#ui-exploration-atlas .atlas-region img,#exploration-region-banner img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 25%;z-index:-2;opacity:.8}
+#ui-exploration-atlas .atlas-region::before,#exploration-region-banner::before{content:'';position:absolute;inset:0;z-index:-1;background:linear-gradient(90deg,var(--region-shade),transparent 95%),linear-gradient(0deg,#050908c9,transparent 90%)}
 #ui-exploration-atlas .atlas-region:hover{border-color:var(--region-tint)}
 #ui-exploration-atlas .atlas-region-copy{display:flex;flex-direction:column;gap:8px;min-width:0;text-shadow:0 2px 4px #000}
 #ui-exploration-atlas .atlas-region-copy strong{font-size:24px;font-weight:500;line-height:1.25}
 #ui-exploration-atlas .atlas-region-copy>span{font-size:12px;color:#ccc9bd;line-height:1.5}
 #ui-exploration-atlas .atlas-region-enter{flex-shrink:0;font-size:12px;color:var(--region-tint);padding-bottom:3px;border-bottom:1px solid}
-#ui-exploration-atlas .atlas-region-hero{position:relative;isolation:isolate;overflow:hidden;min-height:48px;padding:8px 18px;display:flex;align-items:center;background:var(--region-shade)}
-#tab-map .atlas-region-hero h2,#exploration-region-banner h2{margin:2px 0;padding:0;font-size:23px;line-height:1.3;font-weight:500;color:#f2e9d5;border:0;box-shadow:none}
-#tab-map .atlas-region-hero p,#exploration-region-banner p{margin:0;color:#d0c9b9;font-size:12px}
-#tab-map .atlas-region-hero small,#exploration-region-banner small{display:none}
+#exploration-region-banner h2{margin:2px 0;padding:0;font-size:23px;line-height:1.3;font-weight:500;color:#f2e9d5;border:0;box-shadow:none}
+#exploration-region-banner p{margin:0;color:#d0c9b9;font-size:12px}
+#exploration-region-banner small{display:none}
 #ui-exploration-atlas .atlas-region-routes{display:grid;grid-template-columns:minmax(0,1fr) round(down,calc((100% - 14px) / 2),1px);gap:14px;padding:12px 18px 18px;align-items:start}
 #ui-exploration-atlas .atlas-destinations{min-width:0;display:grid;grid-template-columns:minmax(0,1fr);gap:10px;align-items:start}
 #ui-exploration-atlas .atlas-destinations:only-child{grid-column:1/-1;grid-template-columns:repeat(auto-fit,minmax(min(100%,310px),1fr))}
 #ui-exploration-atlas .atlas-destinations h3{grid-column:1/-1;margin:0;color:#dccc9f;font-size:18px;font-weight:500}
-#ui-exploration-atlas .atlas-destination{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:baseline;width:100%;gap:7px 10px;text-align:left;padding:14px 16px;margin:0;border:1px solid #a3b59030;border-left:3px solid var(--content-accent);border-radius:4px;background:linear-gradient(115deg,var(--content-wash),#08100c 75%);color:#e8e9dd;min-height:55px}
+#ui-exploration-atlas .atlas-destination{position:relative;isolation:isolate;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:baseline;width:100%;gap:7px 10px;text-align:left;padding:14px 16px;margin:0;border:1px solid #a3b59030;border-left:3px solid var(--content-accent);border-radius:4px;background:linear-gradient(115deg,var(--content-wash),#08100c 75%);color:#e8e9dd;min-height:55px;text-shadow:0 1px 3px #000}
+/* 카드의 지도 그림(data/exploration-regions.js activities.landscape): 글이 있는 왼쪽은 비우고 오른쪽에서 비친다. */
+#ui-exploration-atlas .atlas-destination>.atlas-landscape{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 30%;z-index:-1;border-radius:inherit;opacity:.6;pointer-events:none;
+  -webkit-mask-image:linear-gradient(90deg,transparent 20%,#000 90%);mask-image:linear-gradient(90deg,transparent 20%,#000 90%)}
+#ui-exploration-atlas .atlas-destination:hover>.atlas-landscape{opacity:.8}
 #ui-exploration-atlas .atlas-destination>span{grid-column:1/-1;min-width:0;overflow-wrap:anywhere}
 #ui-exploration-atlas .atlas-destination>strong{grid-column:1;grid-row:1;font-size:24px;font-weight:600;line-height:1.3;color:#f2eee1}
 #ui-exploration-atlas .atlas-destination span{font-size:12px;line-height:1.45;color:#aeb8a4}
@@ -109,7 +122,7 @@
 @container(max-width:450px){#ui-exploration-atlas .atlas-hunting{padding:12px;flex-direction:column;align-items:stretch;gap:10px}#ui-exploration-atlas .atlas-hunting-action{justify-content:flex-start;max-width:none}#ui-exploration-atlas .atlas-hunting-action button{min-height:36px}#ui-exploration-atlas .atlas-current-hunt{padding:8px 12px}#ui-exploration-atlas .atlas-current-hunt>div{gap:4px 8px}}
 #exploration-region-banner[hidden]{display:none}
 #exploration-region-banner{position:relative;isolation:isolate;overflow:hidden;min-height:48px;margin-bottom:0;padding:8px 18px;border:1px solid #ac9a623e;border-top:0;border-radius:0 0 6px 6px;background:var(--region-shade);color:#ede7d9}
-@container(max-width:650px){#ui-exploration-atlas .atlas-regions{grid-template-columns:1fr;padding:10px;gap:8px}#ui-exploration-atlas .atlas-region{min-height:104px;padding:14px}#ui-exploration-atlas .atlas-region-copy strong{font-size:24px}#ui-exploration-atlas .atlas-region-routes{grid-template-columns:1fr;padding:10px 12px 12px;gap:14px}#ui-exploration-atlas .atlas-destinations{grid-template-columns:1fr}#ui-exploration-atlas .atlas-region-hero{min-height:48px;padding:8px 18px}#ui-exploration-atlas .atlas-heading{padding:8px 12px}}
+@container(max-width:650px){#ui-exploration-atlas .atlas-regions{grid-template-columns:1fr;padding:10px;gap:8px}#ui-exploration-atlas .atlas-region{min-height:104px;padding:14px}#ui-exploration-atlas .atlas-region-copy strong{font-size:24px}#ui-exploration-atlas .atlas-region-routes{grid-template-columns:1fr;padding:10px 12px 12px;gap:14px}#ui-exploration-atlas .atlas-destinations{grid-template-columns:1fr}#ui-exploration-atlas .atlas-heading{padding:8px 12px}}
 @media(max-width:700px){#tab-map .exploration-toolbar{padding:8px 12px;flex-wrap:wrap;gap:8px}#exploration-location{gap:8px;flex-wrap:wrap;font-size:12px}#tab-map #mobile-map-navigation{width:40%;max-width:150px;margin-left:auto}#tab-map #mobile-map-navigation select{font-size:12px}}}
 @layer overrides{
 #tab-map .map-primary-tabs,#tab-map .map-explore-layout>.vertical-tab-sidebar{display:none}
@@ -121,5 +134,5 @@
 #tab-map:has(#exploration-region-banner:not([hidden]) .atlas-hunt-destination) #map-ready-destinations>.map-ready-current{display:none}
 #tab-map:has(#exploration-region-banner:not([hidden]) .atlas-hunt-destination) #map-ready-destinations:not(:has(details)){display:none}
 #ui-exploration-atlas .atlas-heading h2{background:none}
-#tab-map .atlas-region-hero h2,#exploration-region-banner h2{background:none}
+#exploration-region-banner h2{background:none}
 #ui-exploration-atlas .atlas-tracked-reward{color:#e1b7f0;font-size:12px}}

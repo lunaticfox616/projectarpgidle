@@ -16,24 +16,25 @@ const EXPLORATION_REGIONS = Object.freeze({
     ],
     /** 나무 띠의 그림: 액트 순서(1부터)마다 하나. */
     actLandscapes: Object.freeze(Array.from({ length: 10 }, (_, i) => 'assets/ui/region-cards/act-' + String(i + 1).padStart(2, '0') + '.webp')),
-    // Short activity identities for the region chooser; entry/rewards stay in their domains.
+    // Short activity identities for the region chooser; entry/rewards stay in their domains. landscape: the card's picture, cut from
+    // the stage region picture of that content like the region cards (2026-10-26 사용자: 권역 고르기 카드에 지도 그림).
     activities: {
-        'map-explore-root-boss': {kind:'보스전',tone:'boss'},
-        'map-explore-trials': {kind:'전직 도전',tone:'trial'},
-        'map-explore-beehive': {kind:'',tone:'choice'},
-        'map-explore-colony': {kind:'',tone:'survival'},
+        'map-explore-root-boss': {kind:'보스전',tone:'boss',landscape:'assets/ui/region-cards/act-07.webp'},
+        'map-explore-trials': {kind:'전직 도전',tone:'trial',landscape:'assets/ui/region-cards/trial-01.webp'},
+        'map-explore-beehive': {kind:'',tone:'choice',landscape:'assets/ui/region-cards/beehive.webp'},
+        'map-explore-colony': {kind:'',tone:'survival',landscape:'assets/ui/region-cards/colony.webp'},
         'map-explore-worldtree': {kind:'지도 공략',tone:'choice'},
-        'map-explore-chaos': {kind:'루프 등반',tone:'climb'},
-        'map-tab-chaos-realm': {kind:'영구 등반',tone:'climb'},
-        'map-explore-labyrinth': {kind:'미궁 등반',tone:'trial'},
-        'map-explore-voidrift': {kind:'대량 섬멸',tone:'survival'},
-        'map-explore-timerift': {kind:'시간압 전투',tone:'survival'},
-        'map-explore-beyond': {kind:'최종 도전',tone:'boss'},
+        'map-explore-chaos': {kind:'루프 등반',tone:'climb',landscape:'assets/ui/region-cards/chaos.webp'},
+        'map-tab-chaos-realm': {kind:'영구 등반',tone:'climb',landscape:'assets/ui/region-cards/roots.webp'},
+        'map-explore-labyrinth': {kind:'미궁 등반',tone:'trial',landscape:'assets/ui/region-cards/labyrinth.webp'},
+        'map-explore-voidrift': {kind:'대량 섬멸',tone:'survival',landscape:'assets/ui/region-cards/void.webp'},
+        'map-explore-timerift': {kind:'시간압 전투',tone:'survival',landscape:'assets/ui/region-cards/rift-past.webp'},
+        'map-explore-beyond': {kind:'최종 도전',tone:'boss',landscape:'assets/ui/region-cards/beyond.webp'},
         'map-tab-underworld': {kind:'지하 탐사',tone:'climb'},
-        'map-tab-sky': {kind:'탑 등반',tone:'climb'},
-        'map-explore-meteor': {kind:'운석 원정',tone:'boss'},
-        'map-tab-ocean': {kind:'심도 탐사',tone:'climb'},
-        'map-tab-fishing': {kind:'낚시',tone:'rest'},
+        'map-tab-sky': {kind:'탑 등반',tone:'climb',landscape:'assets/ui/region-cards/sky.webp'},
+        'map-explore-meteor': {kind:'운석 원정',tone:'boss',landscape:'assets/ui/region-cards/meteor.webp'},
+        'map-tab-ocean': {kind:'심도 탐사',tone:'climb',landscape:'assets/ui/region-cards/sea.webp'},
+        'map-tab-fishing': {kind:'낚시',tone:'rest',landscape:'assets/ui/region-cards/fishing.webp'},
         'map-tab-cosmos': {kind:'항로 탐사',tone:'choice'}
     }
 });

@@ -3,12 +3,11 @@
 #tab-map .vertical-tab-panel>h2>button{border-radius:4px;color:#ddd3b5;min-height:34px}
 #tab-map #map-ready-destinations{display:flex;align-items:center;flex-wrap:wrap;margin:0 0 14px;border:0;border-bottom:1px solid #b6a57833;padding:6px 0;background:none;gap:6px;overflow:visible}
 #tab-map #map-ready-destinations>button{min-width:0;max-width:100%;white-space:normal;text-align:left;border:0;border-radius:0;font-size:12px;padding:6px 0}
-#tab-map #map-ready-destinations>details{margin-left:auto;font-size:12px;color:#d0bd92;max-width:100%}
+#tab-map #map-ready-destinations>details{position:relative;margin-left:auto;font-size:12px;color:#d0bd92;max-width:100%}
 #tab-map #map-ready-destinations summary{list-style:none;cursor:pointer;padding:6px 8px;border:1px solid #a9976d50;border-radius:4px}
 #tab-map #map-ready-destinations summary::-webkit-details-marker{display:none}
-#tab-map #map-ready-destinations details>div{display:flex;flex-wrap:wrap;gap:6px;padding-top:8px}
-#tab-map #map-ready-destinations details[open]{flex-basis:100%;margin-left:0}
-#tab-map #map-ready-destinations details[open]>summary{width:fit-content}
+/* 펼친 목록은 단추 아래에 떠서 열린다: 줄을 다시 짜면 단추가 왼쪽 끝으로 옮겨 갔다(2026-10-26 사용자). */
+#tab-map #map-ready-destinations details>div{position:absolute;top:calc(100% + 4px);right:0;z-index:5;display:flex;flex-direction:column;gap:4px;min-width:180px;padding:6px;border:1px solid #a9976d70;border-radius:4px;background:#0e130f;box-shadow:0 8px 18px #000a}
 #tab-map #map-ready-destinations details button{font-size:12px;padding:8px 10px}
 #tab-map .encounter-empty{padding:12px 14px;background:#172019;color:#c7cabb;border:1px solid #a9976d40;border-radius:4px;font-size:12px}
 #tab-map .encounter-pending-title{margin:18px 0 8px;font-size:12px;color:#b7b7a7;font-weight:500}
@@ -35,6 +34,8 @@
 #tab-map .encounter-card.trial-completed{border-left:3px solid #6d926e;background:var(--color-surface-raised)}
 #tab-map .encounter-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;min-width:0}
 #tab-map .encounter-heading>strong{font-size:24px;font-weight:600;line-height:1.5;overflow-wrap:anywhere;word-break:keep-all;color:var(--color-text)}
+/* 시련 카드 제목의 둘째 줄(js/ui.js buildTrialTitleHtml): -칼날 회랑 */
+#tab-map .encounter-heading>strong>.trial-place{display:block;font-size:15px;font-weight:500;line-height:1.4;color:var(--color-text-secondary)}
 #tab-map .encounter-state{font-size:12px;white-space:nowrap;color:var(--color-text-secondary);flex-shrink:0}
 #tab-map .encounter-card p{margin:0;font-size:15px;color:var(--color-text);line-height:1.6;word-break:keep-all;overflow-wrap:anywhere}
 #tab-map .encounter-card .map-power-estimate{display:flex;flex-wrap:wrap;gap:6px 16px;align-self:flex-start;font-size:12px;line-height:1.6;margin:0;padding:0}
