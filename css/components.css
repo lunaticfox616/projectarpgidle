@@ -957,8 +957,41 @@
   border-radius: 6px;
   background: var(--color-surface-raised);
 }
-.underworld-inventory-card summary { color: var(--color-text-secondary); cursor: pointer; font-weight: 700; }
-.underworld-inventory-card p { margin: 7px 0 0; color: var(--color-text-secondary); font-size: .78em; }
+/* 지하계 쪽(js/underworld-rune-ui.js, 2026-10-25): 잠긴 까닭, 입장권과 비용 줄, 지하석 동작 넷, 장비 인챈트 카드 셋, 한계돌파 대상. */
+.underworld-inventory-card { margin-top: 9px; }
+.underworld-inventory-card > strong { display: block; margin-bottom: 6px; font-size: 15px; }
+.underworld-lock { color: #e0a36b; font-size: 14px; }
+.underworld-reward-card { flex-direction: column; align-items: stretch; }
+/* 혼돈계(js/ui.js renderChaosRealmMapPanel)는 지하계 카드를 함께 쓴다: 카드 사이 간격과 아직 0인 보너스. */
+.chaos-realm-body { display: grid; gap: 8px; }
+.underworld-ticket-strip span.is-zero { opacity: .55; }
+/* 카드의 칸(div)은 세로 격자지만 칩 줄은 가로로 흐른다. */
+.underworld-upgrade-card > .underworld-ticket-strip,
+.underworld-ticket-strip { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
+.underworld-ticket-strip small { color: var(--color-text-secondary); font-size: 13px; }
+.underworld-ticket-strip span { padding: 3px 7px; border: 1px solid var(--color-line); background: var(--color-surface); color: var(--color-text-secondary); font-size: 13px; }
+.underworld-ticket-strip b { color: var(--color-text); }
+.underworld-stone-actions { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.underworld-stone-actions button { align-content: start; padding: 8px 10px; text-align: left; }
+.underworld-stone-actions button small { color: #d9b066; font-size: 13px; }
+.underworld-enchant-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 9px; }
+.underworld-enchant-card { display: grid; align-content: start; gap: 6px; min-width: 0; padding: 9px; border: 1px solid var(--color-line); border-radius: 6px; background: var(--color-surface-raised); }
+.underworld-enchant-card header { display: grid; gap: 1px; min-width: 0; }
+.underworld-enchant-card header span { overflow: hidden; color: var(--color-text-secondary); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.underworld-enchant-card p { margin: 0; color: var(--color-text-secondary); font-size: 14px; }
+.underworld-enchant-card p.is-on { color: #9fd46a; }
+.underworld-enchant-card ul { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.underworld-enchant-card li { display: flex; justify-content: space-between; gap: 6px; color: var(--color-text); font-size: 13px; }
+.underworld-enchant-card li small { color: #d9b066; font-size: 12px; white-space: nowrap; }
+.underworld-enchant-card li.is-head { padding-bottom: 2px; border-bottom: 1px solid var(--color-line); color: var(--color-text-secondary); }
+.underworld-enchant-card li.is-head small { color: var(--color-text-secondary); }
+.underworld-limit-break { align-items: flex-start; margin-top: 9px; }
+.underworld-limit-targets { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+@media (max-width: 700px) {
+  .underworld-stone-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .underworld-enchant-grid { grid-template-columns: minmax(0, 1fr); }
+  .underworld-limit-break { flex-direction: column; align-items: stretch; }
+}
 
 .underworld-rune-slots {
   display: grid;

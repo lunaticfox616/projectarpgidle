@@ -1408,10 +1408,6 @@
             panel.id = 'map-tab-cosmos'; panel.className = 'subtab-content cosmos-atlas-tab';
             panel.innerHTML = `
                 <div id="ui-cosmos-panel" class="cosmos-panel">
-                    <nav class="cosmos-mode-tabs" aria-label="우주계 화면 선택">
-                        <button type="button" class="cosmos-mode-tab active" id="btn-cosmos-sub-route" onclick="switchCosmosInnerTab('route')">별 지도</button>
-                        <button type="button" class="cosmos-mode-tab" id="btn-cosmos-sub-mastery" onclick="switchCosmosInnerTab('mastery')">성도술</button>
-                    </nav>
                     <div id="cosmos-unified-map" class="cosmos-unified-map">
                         <div id="cosmos-inner-route"></div>
                         <details id="cosmos-node-detail"><summary>선택한 별</summary><div class="cosmos-detail" id="ui-cosmos-detail"></div></details>
@@ -1524,7 +1520,7 @@
         if (!ATLAS.installed) { installCosmosAtlas(); return; }
         syncCosmosTabVisibility();
         cosmosRouteUi.render({ nodes: ATLAS.nodes.map(cosmosStarView), edges: ATLAS.edges,
-            unlocked: isCosmosUnlocked(), onAction: handleCosmosRouteAction });
+            unlocked: isCosmosUnlocked(), onAction: handleCosmosRouteAction, floorOf: getCosmosNodeFloor, readinessOf: getCosmosNodeReadiness });
         window.captureUiDisclosureState(ATLAS.detail);
         window.captureUiDisclosureState(ATLAS.summary);
         if (document.getElementById('cosmos-node-detail').open) renderDetail();
@@ -2000,14 +1996,24 @@
             el.__masteryHtml = html;
         }
     }
+    // 별 지도와 성도술은 지도 창 위 둘째 줄(js/exploration-atlas-ui.js, cosmosRouteUi.pages)에서 고른다(2026-10-25 사용자: 위 탭 일관성).
     function switchCosmosInnerTab(tab) {
         const mastery = tab === 'mastery';
         document.getElementById('cosmos-unified-map').style.display = mastery ? 'none' : '';
         document.getElementById('cosmos-inner-route').style.display = mastery ? 'none' : '';
         document.getElementById('cosmos-inner-mastery').style.display = mastery ? '' : 'none';
-        document.getElementById('btn-cosmos-sub-route').classList.toggle('active', !mastery);
-        document.getElementById('btn-cosmos-sub-mastery').classList.toggle('active', mastery);
         renderCosmosAtlas();
+    }
+    /** The underworld floor a planet's fight equals (the route planner's 난이도, js/cosmos-route-ui.js). */
+    function getCosmosNodeFloor(id) {
+        buildCosmosAtlasData();
+        const node = ATLAS.byId.get(id);
+        return node ? getCosmosEquivalentUnderworldFloor(node) : null;
+    }
+    /** The hero's readiness against a planet (getMapPowerReadiness: dps and ehp grades), or null. */
+    function getCosmosNodeReadiness(id) {
+        const recommendation = getCosmosNodeRecommendation(id);
+        return recommendation ? recommendation.readiness : null;
     }
 
     window.renderCosmosAtlas = renderCosmosAtlas;

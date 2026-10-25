@@ -26,11 +26,8 @@ const atlasUi = (() => {
         updateStaticUI();
     }
     function setView(next) {
-        const keyboard = document.activeElement && document.activeElement.closest ? document.activeElement.closest('#ui-atlas') : null;
         view = ['passives', 'epoch', 'late', 'memory', 'board'].includes(next) ? next : 'maps';
         refresh();
-        // The panel is rebuilt: a tab pressed from inside it keeps the focus on the (new) pressed tab.
-        if (keyboard) document.querySelector('#ui-atlas .atlas-view.is-on')?.focus();
     }
     function selectNode(id, reveal = false) {
         if (!atlas.node(id)) return;
@@ -415,20 +412,27 @@ const atlasUi = (() => {
         return `${lost.length ? `<div class="atlas-result-loss"><p>보류 보상 손실: ${escapeHTML(lost.join(', '))}</p></div>` : ''}
             ${!ledger().run && ledger().stash.length ? '<div class="atlas-actions"><button onclick="atlasUi.revealStash()">다음 지도석 고르기</button></div>' : ''}`;
     }
-    // 보기마다 이름 아래 한 줄로 무엇을 하는 곳인지(2026-10-25 사용자 "탭 구조를 좀 더 알기 쉽게").
-    const VIEW_TABS = Object.freeze([['maps', '지도', '지도 열기'], ['passives', '패시브', '포인트 쓰기'], ['late', '최종', '최종 보스'],
-        ['memory', '기억', '보스 다시'], ['epoch', '시대', '시대 재생'], ['board', '나이테 원정', '주사위 판']]);
+    // 보기는 지도 창 위 둘째 줄(js/exploration-atlas-ui.js)이 고른다. 2026-10-25 사용자: 세계수 아틀라스를 따로 탭으로, 위 탭 일관성.
+    const VIEW_TABS = Object.freeze([['maps', '지도'], ['passives', '패시브'], ['late', '최종'], ['memory', '기억'], ['epoch', '시대'], ['board', '나이테 원정']]);
+    /** The views for the map window's second tab row: { select(id), items: [{ id, label, badge, on }] }. */
+    function pages() {
+        const free = atlasPassives.spendable(game), memories = memoryDungeon.total(game);
+        const badges = { passives: free ? `+${free}` : '', memory: memories ? String(memories) : '' };
+        return { select: setView, items: VIEW_TABS.map(([id, label]) => ({ id, label, badge: badges[id], on: view === id })) };
+    }
+    /** The region banner's line: the open map, the lock, or the stones in hand. */
+    function progressLine() {
+        const st = ledger();
+        if (st.run) return `열린 지도: ${nodeName(st.run.map.node)}`;
+        return (!st.unlocked && atlas.lockReason(game)) || `지도석 ${st.stash.length}개, 완료 ${st.completed.length}곳`;
+    }
     function headerHtml() {
         // 깨어난 아틀라스는 최종 보스와 리그 우두머리만큼 넓어진다(그 처치도 완료이자 아틀라스 포인트).
         const st = ledger(), total = atlas.nodes.length + (atlasEndgame.awakened(game) ? atlas.lateNodes.length : 0), free = atlasPassives.spendable(game);
-        const badges = { passives: free ? `+${free}` : '', memory: memoryDungeon.total(game) ? String(memoryDungeon.total(game)) : '' };
-        const tab = ([id, label, purpose]) => `<button class="atlas-view${view === id ? ' is-on' : ''}" aria-pressed="${view === id}" onclick="atlasUi.setView('${id}')">`
-            + `<strong>${label}${badges[id] ? `<i>${badges[id]}</i>` : ''}</strong><small>${purpose}</small></button>`;
         const stat = (label, value, tone) => `<span class="atlas-stat" style="--stat-tone:${tone}">${label} <b>${value}</b></span>`;
         const stats = stat('완료', `${st.completed.length}/${total}`, '#d9b066') + stat('보너스', st.bonus.length, '#9fd46a')
             + stat('씨앗', `${st.seeds}/${ATLAS.seeds.max}`, '#c9a0f0') + stat('포인트', `${atlas.points(game)}${free ? ` (남음 ${free})` : ''}`, '#7fd6cf');
-        return `<header class="atlas-head"><div><h2>세계수 아틀라스</h2><span class="atlas-stats">${stats}</span></div>
-            <nav class="atlas-views" aria-label="아틀라스 보기">${VIEW_TABS.map(tab).join('')}</nav>
+        return `<header class="atlas-head"><span class="atlas-stats">${stats}</span>
             <label class="atlas-auto" title="완료하면 같은 등급 이하에서 다음 지도석을 연다"><input type="checkbox" ${st.autoMap ? 'checked' : ''} onchange="atlasUi.toggleAuto(this.checked)"><span>자동 지도</span>
             <small>완료하면 같은 등급 이하에서 다음 지도석을 연다</small></label></header>`;
     }
@@ -573,6 +577,6 @@ const atlasUi = (() => {
         signature = '';
     }
     window.addEventListener('project-idle:atlas-map', event => announce(event.detail));
-    return Object.freeze({ render, refresh, updateHud, openPanel, setView, selectNode, selectMap, revealDevice, revealStash, hint, craft, discard, toggleFragment, open, openPinnacle, reenter, abandon, toggleAuto, toggleAutoGuardians });
+    return Object.freeze({ render, refresh, updateHud, openPanel, setView, pages, progressLine, selectNode, selectMap, revealDevice, revealStash, hint, craft, discard, toggleFragment, open, openPinnacle, reenter, abandon, toggleAuto, toggleAutoGuardians });
 })();
 safeExposeGlobals({ atlasUi });

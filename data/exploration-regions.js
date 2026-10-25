@@ -3,8 +3,12 @@
 // (assets/ui/region-cards, 2026-10-21: 예전 전장의 판 그림을 뺐다).
 const EXPLORATION_REGIONS = Object.freeze({
     regions: [
-        {id:'tree',name:'나무',landscape:'assets/ui/region-cards/act-01.webp',routes:['map-explore-hunting','map-explore-root-boss','map-explore-trials','map-explore-beehive','map-explore-colony'],sideRoutes:['map-explore-beehive','map-explore-colony']},
-        {id:'roots',name:'혼돈의 뿌리',landscape:'assets/ui/region-cards/roots.webp',routes:['map-explore-worldtree','map-explore-chaos','map-tab-chaos-realm','map-explore-labyrinth','map-explore-voidrift','map-explore-timerift','map-explore-beyond'],sideRoutes:['map-explore-voidrift','map-explore-timerift']},
+        // 2026-10-25 사용자: 나무(사냥)와 탐험이 허브에서는 따로인데 안의 위 탭에서는 하나였다. 세계수 아틀라스도 따로 탭을 쓴다.
+        {id:'tree',name:'나무',landscape:'assets/ui/region-cards/act-01.webp',routes:['map-explore-hunting'],sideRoutes:[]},
+        {id:'trail',name:'탐험',landscape:'assets/ui/region-cards/act-01.webp',routes:['map-explore-root-boss','map-explore-trials','map-explore-beehive','map-explore-colony'],sideRoutes:['map-explore-beehive','map-explore-colony']},
+        // 세계수 아틀라스의 그림은 타이틀의 세계수(assets/background/title-worldtree-v1.webp)를 다른 권역 카드와 같은 1200x430으로 잘랐다.
+        {id:'worldtree',name:'세계수 아틀라스',landscape:'assets/ui/region-cards/worldtree.webp',routes:['map-explore-worldtree'],sideRoutes:[]},
+        {id:'roots',name:'혼돈의 뿌리',landscape:'assets/ui/region-cards/roots.webp',routes:['map-explore-chaos','map-tab-chaos-realm','map-explore-labyrinth','map-explore-voidrift','map-explore-timerift','map-explore-beyond'],sideRoutes:['map-explore-voidrift','map-explore-timerift']},
         {id:'underworld',name:'지하계',landscape:'assets/ui/region-cards/underworld.webp',routes:['map-tab-underworld'],sideRoutes:[]},
         {id:'sky',name:'창공',landscape:'assets/ui/region-cards/sky.webp',routes:['map-tab-sky','map-explore-meteor'],sideRoutes:['map-explore-meteor']},
         {id:'sea',name:'심해',landscape:'assets/ui/region-cards/sea.webp',routes:['map-tab-ocean','map-tab-fishing'],sideRoutes:['map-tab-fishing']},
