@@ -670,6 +670,10 @@ function getZoneTravelBlockReason(id) {
     if (game.pendingLoopReady) {
         return '⏸️ 루프 진행 대기 중에는 사냥터로 이동할 수 없습니다. [루프 진행] 버튼으로 다음 루프를 시작하세요.';
     }
+    if (id === LABYRINTH_ZONE_ID) {
+        if (game.season < 3) return '고대 미궁은 루프3부터 개방됩니다.';
+        if (game.maxZoneId < 5) return '액트 5를 먼저 클리어해야 미궁에 입장할 수 있습니다.';
+    }
     return null;
 }
 
@@ -718,10 +722,6 @@ function changeZone(id) {
         if (!canEnterChaosRealm()) return addLog('혼돈계 입장은 이번 루프에서 혼돈 20을 클리어해야 가능합니다.', 'attack-monster');
         let maxFloor = Math.max(1, Math.floor(realm.highestFloor || 1));
         realm.currentFloor = Math.max(1, Math.min(maxFloor, Math.floor(realm.currentFloor || 1)));
-    }
-    if (id === LABYRINTH_ZONE_ID) {
-        if ((game.season || 1) < 3) return addLog('고대 미궁은 루프3부터 개방됩니다.', 'attack-monster');
-        if ((game.maxZoneId || 0) < 5) return addLog('액트 5를 먼저 클리어해야 미궁에 입장할 수 있습니다.', 'attack-monster');
     }
     if (typeof id === 'number' && id >= ABYSS_START_ZONE_ID) {
         let depth = Math.max(1, Math.floor(getAbyssDepthFromZoneId(id) || 1));

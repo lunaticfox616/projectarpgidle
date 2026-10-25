@@ -740,4 +740,16 @@ for (const [action,wave] of [['stop',5],['nextZone',5],['stop',1]]) {
     run(`finishBeyondBoundaryEncounter(getZone(game.currentZoneId),'${action}',{say:addLog,unlocks:checkUnlocks,redraw:updateStaticUI})`);
     assert.deepEqual(json('[game.beyondBoundary,game.currencies]'),settled,'a completed tier cannot pay twice');
 }
+// Floor entry refusal must not change progress; a completion receipt is display-only.
+for (const [prepare, floor] of [['game.maxZoneId=4;',5],['game.pendingLoopReady=true;',5],['',11],['',Infinity]]) {
+    run(`game=mergeDefaults({season:6,maxZoneId:9,labyrinthFloor:3,labyrinthUnlockedMaxFloor:10});${prepare}`);
+    const previous=json('[game.currentZoneId,game.labyrinthFloor,game.killsInZone,game.inTicketBossFight]');
+    run(`enterLabyrinthFloor(${floor})`);
+    assert.deepEqual(json('[game.currentZoneId,game.labyrinthFloor,game.killsInZone,game.inTicketBossFight]'),previous,'refused labyrinth entry preserves the active run');
+}
+run("game=mergeDefaults({season:6,maxZoneId:9,labyrinthFloor:8,labyrinthUnlockedMaxFloor:10,currencies:{fossil:3},labyrinthLastResult:{season:6,floor:7,currencies:{fossil:1}}})");
+const labyrinthStored=json('[game.currencies,game.labyrinthLastResult]');
+run('getLabyrinthZoneNow(5);game=mergeDefaults(JSON.parse(JSON.stringify(game)));');
+assert.equal(run('game.labyrinthFloor'),8,'previewing another floor does not change the active floor');
+assert.deepEqual(json('[game.currencies,game.labyrinthLastResult]'),labyrinthStored,'loading a floor receipt does not pay it again');
 console.log('smoke-content-progression passed');

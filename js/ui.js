@@ -1028,11 +1028,13 @@ function dockMobileBattlePip(host) {
             }
             host.dataset.compactContext = context;
         }
-        const atlasPanel = document.getElementById('map-explore-worldtree');
-        if (!atlasPanel) return;
-        const hasPip = context === 'atlas' && game.settings.showMobileBattlePip !== false;
-        atlasPanel.classList.toggle('has-battle-pip', hasPip);
-        atlasPanel.classList.toggle('is-pip-expanded', hasPip && !host.classList.contains('is-collapsed'));
+        for (const [name, id] of [['atlas', 'map-explore-worldtree'], ['labyrinth', 'map-explore-labyrinth']]) {
+            const panel = document.getElementById(id);
+            if (!panel) continue;
+            const hasPip = context === name && game.settings.showMobileBattlePip !== false;
+            panel.classList.toggle('has-battle-pip', hasPip);
+            panel.classList.toggle('is-pip-expanded', hasPip && !host.classList.contains('is-collapsed'));
+        }
     }
     function battlePipDockTarget() {
         if (!uiDisplay.matches('(max-width: 1080px)')) return { context: '', anchor: null };
@@ -1042,6 +1044,7 @@ function dockMobileBattlePip(host) {
             ? document.querySelector('#tab-char.active .merged-tab-shell:not(:has(> .window-tab-strip:not([hidden]))) .h2-right') : null;
         if (title) return { context: 'tree', anchor: title };
         if (document.querySelector('#tab-map.active #map-explore-worldtree.active')) return { context: 'atlas', anchor: null };
+        if (document.querySelector('#tab-map.active #map-explore-labyrinth.active')) return { context: 'labyrinth', anchor: null };
         // The bag fills the equipment tab to the menu: the preview starts folded there (opened, it covered the last rows and tools)
         return { context: document.querySelector('#tab-items.active') ? 'items' : '', anchor: null };
     }
@@ -3655,7 +3658,17 @@ function setExploreSubtabAvailable(subtabId, available) {
     if (btn) btn.style.display = available ? '' : 'none';
     if (!available && game.mapExploreSubtab === subtabId) switchMapExploreSubtab('map-explore-hunting');
 }
-function enterLabyrinthFloor(floor){ if (typeof isBeehiveRunLockedForMapTravel === 'function' && isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked(); game.labyrinthFloor=Math.max(1,Math.floor(floor||1)); changeZone(LABYRINTH_ZONE_ID); updateStaticUI(); }
+function enterLabyrinthFloor(requestedFloor) {
+    const blocked = getZoneTravelBlockReason(LABYRINTH_ZONE_ID) || getHeldRunBlockReason();
+    if (blocked) return addLog(blocked, 'attack-monster');
+    const max = Math.max(1, Math.floor(game.labyrinthUnlockedMaxFloor || game.labyrinthFloor || 1));
+    const floor = Number(requestedFloor);
+    if (!Number.isInteger(floor) || floor < 1 || floor > max) {
+        return addLog(`1~${max} 범위의 층수를 입력하세요.`, 'attack-monster');
+    }
+    game.labyrinthFloor = floor;
+    changeZone(LABYRINTH_ZONE_ID);
+}
 
 async function confirmSkyTowerEntry() {
     if (getSkyTowerRemainingClears() === 0) return requestGameConfirmation('이번 루프의 등반 기록과 응축 보상은 더 늘지 않습니다.', {
@@ -3681,23 +3694,22 @@ async function selectSkyTowerFloor(tower, selectedFloor) {
     addLog(`1~${max} 범위의 층수를 입력하세요.`, 'attack-monster');
     return null;
 }
-function skyEntryStillCurrent(tower, season, zoneId) {
-    return game.skyTower === tower && game.season === season &&
-        game.currentZoneId === zoneId && canEnterSkyTower();
+function floorEntryStillCurrent(context, canEnter) {
+    return game === context.owner && game[context.field] === context.progress && game.season === context.season
+        && game.currentZoneId === context.zoneId && canEnter();
 }
 async function enterSkyTowerPrompt(selectedFloor) {
-    const held = getHeldRunBlockReason();
+    const held = getContentStartBlockReason();
     if (held) return addLog(held, 'attack-monster');
     const st = ensureSkyTowerState();
     if (!st.unlocked) return addLog('창공의 탑은 루프 15 이후 이번 루프 혼돈 20층 클리어 시 해금됩니다.', 'attack-monster');
     if (!canEnterSkyTower()) return addLog('창공의 탑은 영구 해금 후 해당 루프에서 혼돈에 입성하면 입장할 수 있습니다.', 'attack-monster');
-    const season = game.season;
-    const zoneId = game.currentZoneId;
+    const context = { owner: game, progress: st, field: 'skyTower', season: game.season, zoneId: game.currentZoneId };
     if (!await confirmSkyTowerEntry()) return;
     const floor = await selectSkyTowerFloor(st, selectedFloor);
     if (floor === null) return;
-    if (!skyEntryStillCurrent(st, season, zoneId)) return;
-    const stillHeld = getHeldRunBlockReason();
+    if (!floorEntryStillCurrent(context, canEnterSkyTower)) return;
+    const stillHeld = getContentStartBlockReason();
     if (stillHeld) return addLog(stillHeld, 'attack-monster');
     if (floor > st.highestFloor) return;
     st.currentFloor = floor;
@@ -3723,12 +3735,13 @@ function upgradeSkyStone() {
 }
 
 async function enterChaosRealmPrompt(){
-    const held = getHeldRunBlockReason();
+    const held = getContentStartBlockReason();
     if (held) return addLog(held, 'attack-monster');
     let st = ensureChaosRealmState();
     if (!st.unlocked) return addLog('혼돈계는 혼돈 밖 나무꾼에게 최대 생명력 10% 이상의 피해를 준 전투 종료 시 해금됩니다.', 'attack-monster');
     if (!canEnterChaosRealm()) return addLog('혼돈계 입장은 이번 루프에서 혼돈 20을 클리어해야 가능합니다.', 'attack-monster');
-    let max = Math.max(1, Math.floor(st.highestFloor || 1));
+    const context = { owner: game, progress: st, field: 'chaosRealm', season: game.season, zoneId: game.currentZoneId };
+    const max = st.highestFloor;
     let v = await requestGameNumber({
         title: '혼돈계 층 선택',
         message: `입장 가능한 최고 층은 ${max}층입니다.`,
@@ -3737,33 +3750,36 @@ async function enterChaosRealmPrompt(){
         value: max,
         confirmLabel: '입장'
     });
-    if (v === null) return;
-    let floor = Math.floor(Number(v) || 0);
-    if (floor < 1 || floor > max) return addLog(`1~${max} 범위의 층수를 입력하세요.`, 'attack-monster');
+    if (v === null || !floorEntryStillCurrent(context, canEnterChaosRealm)) return;
+    const blocked = getContentStartBlockReason();
+    if (blocked) return addLog(blocked, 'attack-monster');
+    let floor = Number(v);
+    if (!Number.isInteger(floor) || floor < 1 || floor > st.highestFloor) return addLog(`1~${st.highestFloor} 범위의 층수를 입력하세요.`, 'attack-monster');
     st.currentFloor = floor;
     changeZone(CHAOS_REALM_ZONE_ID);
     updateStaticUI();
 }
 function enterUnderworldFloor(requestedFloor) {
-    const held = getHeldRunBlockReason();
+    const held = getContentStartBlockReason();
     if (held) return addLog(held, 'attack-monster');
     if (!(typeof canEnterUnderworld === 'function' && canEnterUnderworld())) return addLog('지하계 입장 조건: 야수왕 케르베로스 클리어 + 혼돈 심화 30층 + 고대 미궁 100층 + 이번 루프 혼돈20 클리어', 'attack-monster');
     let uw = (game.underworldProgress && typeof game.underworldProgress === 'object') ? game.underworldProgress : { highestFloor: 1, currentFloor: 1 };
     game.underworldProgress = uw;
     let max = Math.max(1, Math.floor(uw.highestFloor || 1));
-    let floor = Math.floor(Number(requestedFloor) || 0);
-    if (floor < 1 || floor > max) return addLog(`1~${max} 범위의 층수를 입력하세요.`, 'attack-monster');
+    let floor = Number(requestedFloor);
+    if (!Number.isInteger(floor) || floor < 1 || floor > max) return addLog(`1~${max} 범위의 층수를 입력하세요.`, 'attack-monster');
     uw.currentFloor = floor;
     changeZone(UNDERWORLD_ZONE_ID);
     updateStaticUI();
 }
 
 async function enterUnderworldPrompt(){
-    const held = getHeldRunBlockReason();
+    const held = getContentStartBlockReason();
     if (held) return addLog(held, 'attack-monster');
     if (!(typeof canEnterUnderworld === 'function' && canEnterUnderworld())) return enterUnderworldFloor(1);
     let uw = (game.underworldProgress && typeof game.underworldProgress === 'object') ? game.underworldProgress : { highestFloor: 1, currentFloor: 1 };
     game.underworldProgress = uw;
+    const context = { owner: game, progress: uw, field: 'underworldProgress', season: game.season, zoneId: game.currentZoneId };
     let max = Math.max(1, Math.floor(uw.highestFloor || 1));
     let v = await requestGameNumber({
         title: '지하계 층 선택',
@@ -3773,7 +3789,7 @@ async function enterUnderworldPrompt(){
         value: max,
         confirmLabel: '입장'
     });
-    if (v === null) return;
+    if (v === null || !floorEntryStillCurrent(context, canEnterUnderworld)) return;
     enterUnderworldFloor(v);
 }
 
@@ -3861,8 +3877,9 @@ function getDeepChaosMapEntryHtml() {
     </div>`;
 }
 async function enterLabyrinthPrompt(){
-    const held = getHeldRunBlockReason();
+    const held = getZoneTravelBlockReason(LABYRINTH_ZONE_ID) || getHeldRunBlockReason();
     if (held) return addLog(held, 'attack-monster');
+    const owner = game, season = game.season, zoneId = game.currentZoneId;
     let max = Math.max(1, Math.floor(game.labyrinthUnlockedMaxFloor || game.labyrinthFloor || 1));
     let floor = await requestGameNumber({
         title: '고대 미궁 층 선택',
@@ -3872,8 +3889,8 @@ async function enterLabyrinthPrompt(){
         value: max,
         confirmLabel: '입장'
     });
-    if (floor === null) return;
-    enterLabyrinthFloor(Math.floor(Number(floor) || 1));
+    if (floor === null || game !== owner || game.season !== season || game.currentZoneId !== zoneId) return;
+    enterLabyrinthFloor(floor);
 }
 
 
@@ -9658,8 +9675,7 @@ function buildCraftActionButtons(item) {
     document.getElementById('ui-labyrinth-header').style.display = labyrinthOpen ? 'block' : 'none';
     setExploreSubtabAvailable('map-explore-labyrinth', labyrinthOpen);
     if (labyrinthOpen) {
-        let powerEstimate = buildMapPowerEstimateHtml(getZone(LABYRINTH_ZONE_ID));
-        sideEncounterUi.renderPanel(document.getElementById('ui-labyrinth-list'), sideEncounterUi.labyrinthPanel(powerEstimate));
+        sideEncounterUi.renderPanel(document.getElementById('ui-labyrinth-list'), sideEncounterUi.labyrinthPanel());
     } else sideEncounterUi.renderPanel(document.getElementById('ui-labyrinth-list'), '');
 
     // 혼돈 심화 입장은 혼돈 탭의 카드 목록으로 노출한다.

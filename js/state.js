@@ -957,8 +957,8 @@ function getOceanZoneNow() {
     let depthTier = getOceanDepthTier(depthM);
     return contentMaps.withRooms({ id: OCEAN_ZONE_ID, name: `심해 ${depthM}m`, type: 'oceanDepth', tier: getChaosRealmTier(21) + depthTier, maxKills: 1, ele: 'chaos', depthM: depthM, depthTier: depthTier, currents: getOceanCurrentAffixes(depthTier) });
 }
-function getLabyrinthZoneNow() {
-    let floor = Math.max(1, game.labyrinthFloor || 1);
+function getLabyrinthZoneNow(requestedFloor = game.labyrinthFloor) {
+    let floor = Math.max(1, Math.floor(requestedFloor || 1));
     let baseTier = Math.min(20, 7 + Math.floor(floor / 3));
     let over50 = Math.max(0, floor - 50);
     let over100 = Math.max(0, floor - 100);
@@ -2627,6 +2627,8 @@ const defaultGame = {
     seasonNodes: [],
     seasonNodeLevels: {},
     labyrinthFloor: 1,
+    /** @type {{season:number,floor:number,currencies:Record<string,number>}|null} Display-only completion receipt; never paid on load. */
+    labyrinthLastResult: null,
     jewelInventory: [],
     // 가방의 새 아이템(빨간 점): id가 이보다 크면 새 것. 가방을 열었다가 닫으면 그때의 itemIdCounter가 된다(js/equipment-window-ui.js).
     bagSeenId: null,

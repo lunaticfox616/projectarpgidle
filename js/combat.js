@@ -11530,12 +11530,16 @@ function departSeasonBoss(zone, ui) {
 
 function finishLabyrinthEncounter(zone, mapAction, ui) {
     let clearedFloor = Math.max(1, Math.floor(game.labyrinthFloor || zone.floor || 1));
+    const currenciesBefore = { ...game.currencies };
     if (clearedFloor >= 10) unlockJournalEntry('labyrinth_10');
     recordLoopBestFloor('bestLabyrinthFloor', clearedFloor);
     game.labyrinthUnlockedMaxFloor = Math.max(game.labyrinthUnlockedMaxFloor || 1, clearedFloor + 1);
     game.labyrinthFloor = ['repeatZone', 'stop'].includes(mapAction) ? clearedFloor : clearedFloor + 1;
     let fossilSummary = rollLabyrinthFossils(clearedFloor, ui);
     rollLabyrinthSealShards(clearedFloor);
+    game.labyrinthLastResult = { season: game.season, floor: clearedFloor,
+        currencies: Object.fromEntries(Object.keys(ORB_DB).map(key => [key, (game.currencies[key] || 0) - (currenciesBefore[key] || 0)])
+            .filter(([, gain]) => gain > 0)) };
     ui.say(`🏛️ 미궁 ${clearedFloor}층 돌파!${labyrinthFossilNote(fossilSummary)}`, 'season-up');
     if (mapAction === 'nextLoopBestPlusOne') {
         let nextZone = resolveNextLoopBestPlusOneZone(zone);
@@ -14880,6 +14884,7 @@ function resetLoopItems(kept, codexReveal) {
     if (preservedWoodsmanTouch > 0) game.currencies.ouroboros = preservedWoodsmanTouch;
     game.woodsmanTouchSeen = preservedWoodsmanTouchSeen;
     game.labyrinthFloor = 1;
+    game.labyrinthLastResult = null;
     game.labyrinthUnlockedMaxFloor = Math.max(1, Math.floor(prevLabMax || 1));
     game.jewelInventory = [];
     game.abyssClearedDepths = [];

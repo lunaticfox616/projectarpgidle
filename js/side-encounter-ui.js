@@ -1,6 +1,7 @@
 // Read-only summaries; choices and payouts stay in their existing owners.
 const sideEncounterUi = (() => {
     let lastHudHtml = '';
+    let labyrinthChoice = { owner: null, season: 0, floor: 1, current: 1 };
 
     // Keep the action row connected while combat estimates and countdowns change.
     function renderPanel(panel, html) {
@@ -273,24 +274,77 @@ const sideEncounterUi = (() => {
             `<button type="button" data-exploration-departure onclick="changeZone('${METEOR_FALL_ZONE_ID}')" ${ready?'':'disabled'}>운석 원정 입장</button>${ready?'':'<span>충전을 완료하면 1회 입장할 수 있습니다.</span>'}`}</div></div>`;
     }
 
-    function labyrinthPanel(power) {
-        const floor = Math.max(1,Math.floor(game.labyrinthFloor||1));
-        const max = Math.max(floor,Math.floor(game.labyrinthUnlockedMaxFloor||1));
-        // 지도 완료 행동 '중단'으로 멈춘 미궁은 탐험 중이 아니다: 그 층에 다시 들어가는 단추를 보인다
-        const current = game.currentZoneId === LABYRINTH_ZONE_ID && !game.combatHalted;
-        const fossils = contentProgression.isUnlocked('fossil');
-        const reward = fossils ? '미궁 화석, 속성 화석' : '화석 제작 해금 후 전리품 획득';
-        const owned = fossils ? `<small>미궁 화석 ${game.currencies.fossil||0}개 보유</small>` : '';
-        const lock = labyrinthLock();
-        const action = current ? '<button type="button" onclick="switchTab(\'tab-battle\')">전투 보기</button>' : `<button type="button" data-exploration-departure onclick="enterLabyrinthFloor(${floor})"${lock.attr}>${floor}층 입장</button>`;
-        return `<div class="map-expedition-intro"><div class="map-expedition-heading"><strong>${floor}층 ${current?'탐험 중':'입장 준비'}</strong>${power}</div>
-            <dl><div><dt>층 돌파</dt><dd>다음 층 개방<small>입장 가능 1 ~ ${max}층</small></dd></div>
-            <div><dt>층 완료 시 확률 획득</dt><dd>${reward}${owned}</dd></div></dl>
-            <div class="map-expedition-actions">${action}${max>1?`<button type="button" data-exploration-departure onclick="enterLabyrinthPrompt()"${lock.attr}>층 선택</button>`:''}${lock.note}</div></div>`;
+    function labyrinthSelectedFloor() {
+        const current = Math.max(1, Math.floor(game.labyrinthFloor || 1));
+        const max = Math.max(current, Math.floor(game.labyrinthUnlockedMaxFloor || 1));
+        const choice = labyrinthChoice;
+        if (choice.owner !== game || choice.season !== game.season) {
+            labyrinthChoice = { owner: game, season: game.season, floor: current, current };
+        } else {
+            if (choice.floor === choice.current) choice.floor = current;
+            choice.current = current;
+            choice.floor = Math.min(max, choice.floor);
+        }
+        return labyrinthChoice.floor;
     }
-    /** 액트 5를 깨기 전에는 미궁에 들어갈 수 없다(js/items.js가 이동을 거절한다): 단추를 끄고 까닭을 적는다. 루프가 바뀌면 다시 잠긴다. */
-    function labyrinthLock() {
-        return (game.maxZoneId||0) < 5 ? {attr:' disabled',note:'<span>액트 5를 클리어하면 입장할 수 있습니다.</span>'} : {attr:'',note:''};
+    function selectLabyrinthFloor(floor) {
+        labyrinthSelectedFloor();
+        const max = Math.max(1, Math.floor(game.labyrinthUnlockedMaxFloor || game.labyrinthFloor || 1));
+        if (!Number.isInteger(floor) || floor < 1 || floor > max) return;
+        labyrinthChoice.floor = floor;
+        renderPanel(document.getElementById('ui-labyrinth-list'), labyrinthPanel());
+    }
+    async function chooseLabyrinthFloor() {
+        const owner = game, season = game.season;
+        const max = Math.max(1, Math.floor(game.labyrinthUnlockedMaxFloor || game.labyrinthFloor || 1));
+        const floor = await requestGameNumber({ title: '고대 미궁 층 선택', min: 1, max,
+            value: labyrinthSelectedFloor(), confirmLabel: '살펴보기' });
+        if (game !== owner || game.season !== season || floor === null) return;
+        selectLabyrinthFloor(Number(floor));
+    }
+    function labyrinthRewards(floor) {
+        const rows = [];
+        if (contentProgression.isUnlocked('fossil')) rows.push(['화석', '미궁 화석, 속성 화석, 심연 화석']);
+        if (contentProgression.isUnlocked('fossilRestore')) rows.push(['복원용 화석', '원시 화석, 원시 고대 화석']);
+        if ((game.season || 1) >= 6 && contentProgression.canDropCurrency('sealShard')) {
+            rows.push(['부적 재료', `봉인편린, 강력한 기운의 봉인편린${floor >= 30 ? ', 찬란한 봉인편린' : ''}`]);
+        }
+        return rows.length ? rows.map(([title, text]) => `<div><dt>${title}</dt><dd>${text}</dd></div>`).join('')
+            : '<div><dd>화석 제작 미해금</dd></div>';
+    }
+    function labyrinthUniques(zone) {
+        const tier = Math.min(getRealmEquipmentHiddenTierCap(zone),
+            levelProgression.maxDropTier(levelProgression.itemLevel(zone, { isBoss: true }, () => 1 - Number.EPSILON)));
+        const names = UNIQUE_DB.filter(item => item.dropOnly?.type === 'labyrinth' && uniqueDropsInZone(item, zone)
+            && uniqueMeetsTier(item, tier)).map(item => escapeHTML(item.name));
+        return names.length ? `<div class="labyrinth-unique-pool"><span>전용 고유</span>${names.map(name => `<b>${name}</b>`).join('')}</div>` : '';
+    }
+    function labyrinthResult() {
+        const result = game.labyrinthLastResult;
+        if (!result || result.season !== game.season) return '';
+        const rewards = Object.entries(result.currencies).filter(([key, count]) => ORB_DB[key] && count > 0)
+            .map(([key, count]) => `<span>${escapeHTML(ORB_DB[key].name)} <b>+${count}</b></span>`).join('');
+        return `<div class="map-expedition-result labyrinth-result"><strong>${result.floor}층 돌파 보상</strong>${rewards || '<span>추가 재료 없음</span>'}</div>`;
+    }
+    function labyrinthEntryActions(floor, max, current, blocked) {
+        const action = current ? '<button type="button" onclick="switchTab(\'tab-battle\')">전투 보기</button>'
+            : `<button type="button" data-exploration-departure onclick="enterLabyrinthFloor(${floor})" ${blocked ? 'disabled' : ''}>${floor}층 입장</button>`;
+        const picks = [...new Set([1, Math.max(1, floor - 1), Math.min(max, floor + 1), max])].filter(value => value !== floor);
+        const navigation = picks.map(value => `<button type="button" class="labyrinth-floor-link" onclick="sideEncounterUi.selectLabyrinthFloor(${value})">${value === max ? '최고 ' : ''}${value}층</button>`).join('');
+        return `<div class="map-expedition-actions">${action}${navigation}${max > 1 ? '<button type="button" onclick="sideEncounterUi.chooseLabyrinthFloor()">층 선택</button>' : ''}
+            ${blocked ? `<span>${escapeHTML(blocked)}</span>` : ''}</div>`;
+    }
+    function labyrinthPanel() {
+        const floor = labyrinthSelectedFloor(), zone = getLabyrinthZoneNow(floor);
+        const max = Math.max(1, Math.floor(game.labyrinthUnlockedMaxFloor || game.labyrinthFloor || 1));
+        const active = game.currentZoneId === LABYRINTH_ZONE_ID && !game.combatHalted;
+        const current = active && game.labyrinthFloor === floor;
+        const blocked = getZoneTravelBlockReason(LABYRINTH_ZONE_ID) || getHeldRunBlockReason();
+        return `<div class="map-expedition-intro labyrinth-panel"><div class="map-expedition-heading"><strong>${floor}층 ${current ? '탐험 중' : '입장 준비'}</strong>
+            <span class="labyrinth-floor-record">입장 가능 1 ~ ${max}층</span>${buildMapPowerEstimateHtml(zone)}</div>
+            <div class="labyrinth-rewards"><small>확률 전리품</small><dl>${labyrinthRewards(floor)}</dl>${labyrinthUniques(zone)}</div>
+            ${labyrinthResult()}${active && !current ? `<p class="labyrinth-current">${game.labyrinthFloor}층 탐험 중</p>` : ''}
+            ${labyrinthEntryActions(floor, max, current, blocked)}</div>`;
     }
 
     function timePressure(rift) {
@@ -441,5 +495,5 @@ const sideEncounterUi = (() => {
             <button onclick="switchTab('tab-skills'); switchSkillSubtab('skill-tab-enhance')" ${gemUnlocked?'':'disabled'}>룬 강화로 이동</button></div></div>`;
     }
 
-    return { hiveSummary, updateHud, refreshDestinations, hivePanel, grandPanel, meteorPanel, labyrinthPanel, timeRiftPanel, colonyPanel, skyPanel, skyGrowth, renderPanel };
+    return { hiveSummary, updateHud, refreshDestinations, hivePanel, grandPanel, meteorPanel, labyrinthPanel, selectLabyrinthFloor, chooseLabyrinthFloor, timeRiftPanel, colonyPanel, skyPanel, skyGrowth, renderPanel };
 })();

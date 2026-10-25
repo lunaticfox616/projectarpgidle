@@ -1148,6 +1148,13 @@ function mergeDefaults(save) {
         merged.labyrinthFloor,
         Math.floor(clampFiniteNumber(merged.labyrinthUnlockedMaxFloor, defaultGame.labyrinthUnlockedMaxFloor || 1, 1))
     );
+    const lastLabyrinth = merged.labyrinthLastResult;
+    merged.labyrinthLastResult = lastLabyrinth && Number.isInteger(lastLabyrinth.season) && lastLabyrinth.season > 0
+        && Number.isInteger(lastLabyrinth.floor) && lastLabyrinth.floor > 0 ? {
+            season: lastLabyrinth.season, floor: lastLabyrinth.floor,
+            currencies: Object.fromEntries(Object.keys(ORB_DB).filter(key => Number.isFinite(lastLabyrinth.currencies?.[key])
+                && lastLabyrinth.currencies[key] > 0).map(key => [key, Math.min(1000000, Math.floor(lastLabyrinth.currencies[key]))]))
+        } : null;
     merged.abyssEndlessDepth = Math.max(20, Math.floor(clampFiniteNumber(merged.abyssEndlessDepth, defaultGame.abyssEndlessDepth || 20, 20)));
     merged.abyssUnlockedDepths = Array.isArray(merged.abyssUnlockedDepths)
         ? Array.from(new Set(merged.abyssUnlockedDepths.map(v => Math.floor(v || 0)).filter(v => v >= 20))).sort((a, b) => a - b)
