@@ -13,7 +13,7 @@
 //           family 재질, sky와 earth 그림 맨 위와 맨 아래의 색, normal, elite, boss 그 구실의 방에 놓는 소품 번호, bossSide 보스 방의 큰 구조물이 서는 쪽.
 const STAGE_REGIONS = Object.freeze({
     path: 'assets/stage-scenes/regions/',
-    version: 'e283485d50',
+    version: '0d04f89831',
     fit: Object.freeze({ width: 1280, height: 720, floorBottom: 536, margin: 192 }),
     families: Object.freeze({
         F01: Object.freeze({
@@ -61,10 +61,12 @@ const STAGE_REGIONS = Object.freeze({
     }),
     regions: Object.freeze({
         'act-02': Object.freeze({ name: '액트 2, 가지치기의 중정', width: 1672, height: 941, ground: 392, door: 0.5, family: 'F01', sky: '#5e4c3a', earth: '#262321', normal: Object.freeze([0, 6]), elite: Object.freeze([2, 0]), boss: Object.freeze([3]), bossSide: 'east' }),
+        'rift-past': Object.freeze({ name: '시간의 균열, 과거', width: 1672, height: 941, ground: 392, door: 0.5, family: 'F01', sky: '#7a5f44', earth: '#2c2724', normal: Object.freeze([0, 6]), elite: Object.freeze([2, 0]), boss: Object.freeze([3]), bossSide: 'east' }),
         'act-03': Object.freeze({ name: '액트 3, 허공뿌리 현수림', width: 1672, height: 941, ground: 418, door: 0.5, family: 'F02', sky: '#585f73', earth: '#4d3f3c', normal: Object.freeze([1, 6]), elite: Object.freeze([2, 0]), boss: Object.freeze([3]), bossSide: 'east' }),
         'act-04': Object.freeze({ name: '액트 4, 갈림뿌리 미궁', width: 1671, height: 941, ground: 392, door: 0.27, family: 'F03', sky: '#52423f', earth: '#44322e', normal: Object.freeze([1, 6]), elite: Object.freeze([2, 0]), boss: Object.freeze([3]), bossSide: 'east' }),
         'act-05': Object.freeze({ name: '액트 5, 지주근의 침묵 성소', width: 1672, height: 941, ground: 398, door: 0.62, family: 'F04', sky: '#2e2d37', earth: '#2c2b33', normal: Object.freeze([0, 6]), elite: Object.freeze([2, 1]), boss: Object.freeze([3]), bossSide: 'west' }),
         'act-06': Object.freeze({ name: '액트 6, 가지치기의 중정, 재방문', width: 1672, height: 941, ground: 392, door: 0.5, family: 'F01', sky: '#4a404a', earth: '#282021', normal: Object.freeze([1, 7]), elite: Object.freeze([2, 1]), boss: Object.freeze([3]), bossSide: 'east' }),
+        'rift-future': Object.freeze({ name: '시간의 균열, 미래', width: 1672, height: 941, ground: 392, door: 0.5, family: 'F01', sky: '#594f5e', earth: '#2f2524', normal: Object.freeze([1, 7]), elite: Object.freeze([2, 1]), boss: Object.freeze([3]), bossSide: 'east' }),
         'act-07': Object.freeze({ name: '액트 7, 말라가는 큰 줄기', width: 1672, height: 941, ground: 453, door: 0.5, family: 'F02', sky: '#75625d', earth: '#63524d', normal: Object.freeze([0, 1]), elite: Object.freeze([2, 6]), boss: Object.freeze([3]), bossSide: 'west' }),
         'act-08': Object.freeze({ name: '액트 8, 끝없는 장막의 줄기', width: 1672, height: 941, ground: 405, door: 0.38, family: 'F03', sky: '#534045', earth: '#6b5a59', normal: Object.freeze([0]), elite: Object.freeze([2, 6]), boss: Object.freeze([3]), bossSide: 'west' }),
         'act-09': Object.freeze({ name: '액트 9, 비탄의 교차', width: 1672, height: 941, ground: 449, door: 0.27, family: 'F05', sky: '#664839', earth: '#4a3a3b', normal: Object.freeze([1, 6]), elite: Object.freeze([2, 0]), boss: Object.freeze([3]), bossSide: 'east' }),

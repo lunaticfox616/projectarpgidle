@@ -3358,7 +3358,7 @@ function getUnderworldRuneOverlayOptionsHtml(slotIndex, runeCountMap) {
         let no = Number(key);
         let def = getUnderworldRuneDef(no);
         let title = def ? def.name : `지하석${no}`;
-        return `<button type="button" class="underworld-rune-option" data-info-tooltip-anchor="1" onmouseenter="showUnderworldRuneTooltip(event,${no})" onmousemove="showUnderworldRuneTooltip(event,${no})" onmouseleave="hideInfoTooltip()" onclick="equipUnderworldRuneToSlot(${slotIndex},${no})"><strong>${title}</strong><span>보유 ${runeCountMap[key]}개, ${getUnderworldRuneEffectHtml(no)}</span></button>`;
+        return `<button type="button" class="underworld-rune-option" data-info-tooltip-anchor="1" onmouseenter="showUnderworldRuneTooltip(event,${no})" onmousemove="showUnderworldRuneTooltip(event,${no})" onmouseleave="hideInfoTooltip()" onclick="equipUnderworldRuneToSlot(${slotIndex},${no})">${underworldRuneUi.iconHtml(no)}<strong>${title}</strong><span>보유 ${runeCountMap[key]}개, ${getUnderworldRuneEffectHtml(no)}</span></button>`;
     }).join('');
 }
 function openUnderworldRuneOverlay(slotIndex) {
@@ -3401,7 +3401,7 @@ function getUnderworldRuneUpgradeOptionHtml(no, count, unlockedMax) {
     let status = canUpgrade ? `${withDirectionParticle(`지하석${target}`)} 승급, 지하석 조각 ${shardNeed}` : (no >= unlockedMax ? `지하석${target} 해금 필요` : `지하석 조각 부족 (${shardNeed})`);
     let title = def ? `${def.name} 지하석${no}` : `지하석${no}`;
     let targetName = toDef ? `${toDef.name} 지하석${target}` : `지하석${target}`;
-    return `<button type="button" class="underworld-rune-option" data-info-tooltip-anchor="1" onmouseenter="showUnderworldRuneTooltip(event,${no})" onmousemove="showUnderworldRuneTooltip(event,${no})" onmouseleave="hideInfoTooltip()" onclick="upgradeUnderworldRune(${no})" ${canUpgrade ? '' : 'disabled'}><strong>${title} ×${count}</strong><span>${getUnderworldRuneEffectHtml(no)}</span><span>→ ${targetName}, ${status}</span></button>`;
+    return `<button type="button" class="underworld-rune-option" data-info-tooltip-anchor="1" onmouseenter="showUnderworldRuneTooltip(event,${no})" onmousemove="showUnderworldRuneTooltip(event,${no})" onmouseleave="hideInfoTooltip()" onclick="upgradeUnderworldRune(${no})" ${canUpgrade ? '' : 'disabled'}>${underworldRuneUi.iconHtml(no)}<strong>${title} ×${count}</strong><span>${getUnderworldRuneEffectHtml(no)}</span><span>→ ${targetName}, ${status}</span></button>`;
 }
 function openUnderworldRuneUpgradeOverlay() {
     closeUnderworldRuneOverlay();

@@ -1035,6 +1035,17 @@
   color: var(--copy-bright);
   font-weight: 900;
 }
+/* 빈 칸과 잠긴 칸도 같은 자리를 두어 여섯 칸의 높이가 같다. */
+.underworld-rune-slot .underworld-rune-slot-art {
+  display: grid;
+  place-items: center;
+  height: 44px;
+  margin-top: 2px;
+}
+.underworld-rune-slot-art .underworld-stone-icon {
+  width: 44px;
+  height: 44px;
+}
 .underworld-rune-slot strong {
   margin-top: 2px;
   font-size: 16px;
@@ -1052,12 +1063,29 @@
   margin-top: 5px;
 }
 .underworld-rune-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   border: 1px solid var(--color-line);
   border-radius: 999px;
-  padding: 4px 8px;
+  padding: 3px 10px 3px 4px;
   background: var(--color-surface-raised);
   color: var(--color-text);
   cursor: help;
+}
+.underworld-rune-chip .underworld-stone-icon {
+  width: 28px;
+  height: 28px;
+}
+.underworld-rune-chip b {
+  color: var(--copy-bright);
+}
+/* 지하석 그림(js/underworld-rune-ui.js iconHtml)은 도트 하나가 1px인 그림(65~140px)이다. 부드럽게 줄여야 점 폭이 고르다. */
+.underworld-stone-icon {
+  display: block;
+  flex: none;
+  object-fit: contain;
+  image-rendering: auto;
 }
 .underworld-rune-overlay {
   position: fixed;
@@ -1123,6 +1151,10 @@
   gap: 8px;
 }
 .underworld-rune-option {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  align-content: start;
+  column-gap: 9px;
   min-height: 72px;
   padding: 9px;
   text-align: left;
@@ -1140,6 +1172,12 @@
 .underworld-rune-option strong,
 .underworld-rune-option span {
   display: block;
+  grid-column: 2;
+}
+.underworld-rune-option .underworld-stone-icon {
+  grid-row: 1 / span 3;
+  width: 40px;
+  height: 40px;
 }
 .underworld-rune-option span {
   margin-top: 5px;

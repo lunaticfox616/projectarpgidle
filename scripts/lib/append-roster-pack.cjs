@@ -32,16 +32,19 @@ function pack(clip, box) {
     }
     return encodePng(w*clip.count,h,data);
 }
+// A boss may bring a second attack (actions.special): its specials play it (js/canvas-stage-roster.js). It shares the cell and feet.
 function actorRow(meta, dir, output, stamp) {
-    const walk=readClip(dir,meta.actions.walk), attack=readClip(dir,meta.actions.attack);
-    const a=bounds(walk), b=bounds(attack), box=[Math.min(a[0],b[0])-2,Math.min(a[1],b[1])-2,Math.max(a[2],b[2])+2,Math.max(a[3],b[3])+2];
-    for(const [action,clip] of [['walk',walk],['attack',attack]]) {
+    const walk=readClip(dir,meta.actions.walk), attack=readClip(dir,meta.actions.attack), special=meta.actions.special?readClip(dir,meta.actions.special):null;
+    const clips=[['walk',walk],['attack',attack]].concat(special?[['special',special]]:[]), all=clips.map(([,clip])=>bounds(clip)), a=all[0];
+    const box=[Math.min(...all.map(b=>b[0]))-2,Math.min(...all.map(b=>b[1]))-2,Math.max(...all.map(b=>b[2]))+2,Math.max(...all.map(b=>b[3]))+2];
+    for(const [action,clip] of clips) {
         const file=meta.id+'-'+action+'.png', bytes=pack(clip,box);
         fs.writeFileSync(path.join(output,file),bytes); stamp.update(file).update(bytes);
     }
-    const gait=GAITS[meta.id] || 'legs', pace=['fly','float','swim'].includes(gait)?'time':'stride';
+    const gait=meta.gait || GAITS[meta.id] || 'legs', pace=['fly','float','swim'].includes(gait)?'time':'stride';
     return [meta.id,meta.name,box[2]-box[0]+1,box[3]-box[1]+1,-box[0],-box[1],-a[1],a[2]-a[0]+1,gait,
-        [walk.count,walk.cols,walk.durationsMs,pace],[attack.count,attack.cols,attack.durationsMs,attack.impactFrame],[-a[0],a[2]],null];
+        [walk.count,walk.cols,walk.durationsMs,pace],[attack.count,attack.cols,attack.durationsMs,attack.impactFrame],[-a[0],a[2]],null]
+        .concat(special?[[special.count,special.cols,special.durationsMs,special.impactFrame]]:[]);
 }
 module.exports = function appendPack(root, dir) {
     const file=path.join(root,'data/monster-stage-roster.js'), old=fs.readFileSync(file,'utf8');

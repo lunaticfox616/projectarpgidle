@@ -147,6 +147,24 @@ const REALM_MONSTER_VISUAL_SETS = Object.freeze({
             ['breach-venom', '독낭 파열체', 'elite', 'melee'],
             ['grand_breach_guardian', '대균열의 지배자', 'boss', 'ranged']
         ].map(([id, name, role, attack]) => Object.freeze({ id, name, role, attack })))
+    }),
+    // 시간의 균열(2026-10-25 Codex 그림): 과거와 미래가 제 무리를 쓰고 지배자는 같다. 정예는 일반 외형을 쓴다.
+    riftPast: Object.freeze({
+        id: 'riftPast',
+        zoneTypes: Object.freeze([]), zoneIds: Object.freeze(['time_rift_past']),
+        members: Object.freeze([
+            ['rift-oath-warden', '멈춘 서약의 파수병', 'normal', 'melee'], ['rift-seed-lantern', '멈춘 씨앗 등불', 'normal', 'ranged'],
+            ['time_rift_guardian', '시간의 균열 지배자', 'boss', 'melee']
+        ].map(([id, name, role, attack]) => Object.freeze({ id, name, role, attack })))
+    }),
+    riftFuture: Object.freeze({
+        id: 'riftFuture',
+        zoneTypes: Object.freeze([]), zoneIds: Object.freeze(['time_rift_future']),
+        members: Object.freeze([
+            ['rift-ashen-hound', '퇴색한 순찰수', 'normal', 'melee'], ['rift-archive-moth', '갈라진 기록나방', 'normal', 'ranged'],
+            ['rift-seed-lantern', '멈춘 씨앗 등불', 'normal', 'ranged'],
+            ['time_rift_guardian', '시간의 균열 지배자', 'boss', 'melee']
+        ].map(([id, name, role, attack]) => Object.freeze({ id, name, role, attack })))
     })
 });
 

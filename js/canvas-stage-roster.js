@@ -8,6 +8,7 @@
  * 서 있을 때는 서 있는 그림에 숨을 쉬듯 윗몸만 한 도트 오르내린다.
  * 보스 입장(js/canvas-boss-entrance.js) 동안에는 검은 형체에 속성 색 테만 두른 모습으로 그린다(p.shade, p.rim).
  * 쓰러짐 그림이 있는 스토리 보스는 쓰러질 때 그 그림을 끝까지 그리고 마지막 장에 멈춘다(drawDeath, 2026-10-17 장면 상태 그림).
+ * 특수 공격 그림이 있는 보스(시간의 균열 지배자)는 특수 패턴의 예고와 공격에 그 그림을 쓴다(monsterActors.attackFrame).
  * 그림은 지금 지도의 무리와 화면에 나와 있는 몬스터 것만 들고 있는다(keepFor). 시트는 메인 스레드 밖에서 미리 풀어 둔 것이라
  * (js/canvas-stage-pictures.js) 몬스터가 처음 화면에 나올 때 그림을 푸느라 멈추지 않는다. 그리기만 하고 전투 상태는 바꾸지 않는다.
  */
@@ -53,6 +54,7 @@ const stageRoster = (() => {
     function letGo(id, pair) {
         stagePictures.closePicture(pair.walk);
         if (pair.attack) stagePictures.closePicture(pair.attack);
+        if (pair.special) stagePictures.closePicture(pair.special);
         if (pair.death) stagePictures.closePicture(pair.death);
         sheets.delete(id);
     }
@@ -82,7 +84,8 @@ const stageRoster = (() => {
         sweepAt = 0;
         for (const entry of [...sheets]) if (idlePair(entry)) letGo(entry[0], entry[1]);
     }
-    /** { walk, attack, death } once the sheets decode (attack is null for an actor without attack art), 'loading' meanwhile, null
+    const failedSheet = sheet => !!sheet && sheet.failed, readySheet = sheet => !sheet || sheet.ready;
+    /** { walk, attack, special, death } once the sheets decode (attack and special are null for an actor without that art), 'loading' meanwhile, null
      * when a file is missing (the older art draws instead). The defeat sheet (death, story bosses) is not waited for: a deploy
      * without it draws the old death (drawDeath reads its own readiness). */
     function pairOf(actor) {
@@ -90,14 +93,19 @@ const stageRoster = (() => {
         if (!pair) {
             // 쓴 때를 적고 나서 묶음을 줄인다: 0으로 넣고 줄이면 방금 넣은 묶음이 가장 오래된 것으로 뽑혀 바로 버려졌고, 그림을 비운
             // 묶음은 '불러오지 못함'으로 읽혀 그 몬스터가 예전 그림으로 그려졌다(2026-10-13: 한 번의 플레이에서 열다섯 번째 모습부터 모두).
-            pair = { walk: load(actor.id + '-walk.png', actor.version), attack: actor.attackMs ? load(actor.id + '-attack.png', actor.version) : null,
-                death: actor.death ? load(actor.id + '-death.png', actor.version) : null, at: tick };
+            pair = openPair(actor);
             sheets.set(actor.id, pair);
             trim();
         }
         pair.at = tick;
-        if (pair.walk.failed || (pair.attack && pair.attack.failed)) return null;
-        return pair.walk.ready && (!pair.attack || pair.attack.ready) ? pair : 'loading';
+        if (pair.walk.failed || failedSheet(pair.attack) || failedSheet(pair.special)) return null;
+        return pair.walk.ready && readySheet(pair.attack) && readySheet(pair.special) ? pair : 'loading';
+    }
+
+    /** Starts decoding the actor's sheets; the ones it has no art for are null. */
+    function openPair(actor) {
+        const sheet = (has, clip) => (has ? load(actor.id + '-' + clip + '.png', actor.version) : null);
+        return { walk: sheet(true, 'walk'), attack: sheet(actor.attackMs, 'attack'), special: sheet(actor.special, 'special'), death: sheet(actor.death, 'death'), at: tick };
     }
 
     /** The frame an actor stands on: its attack's first frame (the ready pose), or its walk's when it has no attack art. */
@@ -108,10 +116,11 @@ const stageRoster = (() => {
         if (AIRBORNE.includes(actor.gait) || actor.pace === 'time') return monsterActors.frameAt(actor.walkMs, (p.now + seedOf(enemy) * 137) % sum(actor.walkMs));
         return Math.floor(frac(stageStride.walked(enemy, p.now) / actor.stride) * actor.walkMs.length);
     }
-    /** The strike or its wind-up from the attack sheet. A monster without attack art keeps its standing picture. */
+    /** The strike or its wind-up from the attack sheet (a boss's special from its special sheet). A monster without attack art
+     * keeps its standing picture. */
     function striking(enemy, actor, p) {
         const strike = actor.attackMs ? monsterActors.attackFrame(enemy, actor, p.now, p.moving) : null;
-        return strike ? { clip: 'attack', index: strike.index, hop: strike.bob } : null;
+        return strike ? { clip: strike.clip, index: strike.index, hop: strike.bob } : null;
     }
     /** An airborne actor with one picture has no wing or drift clip to run: it hangs in the air, rising and sinking a few dots. */
     const hangs = actor => actor.still && AIRBORNE.includes(actor.gait);
@@ -172,7 +181,7 @@ const stageRoster = (() => {
     }
     /** Where a clip's frame sits in its sheet (a grid, `cols` to a row). */
     function cellOf(actor, pose) {
-        const cols = pose.clip === 'attack' ? actor.attackCols : actor.walkCols;
+        const cols = pose.clip === 'attack' ? actor.attackCols : (pose.clip === 'special' ? actor.special.cols : actor.walkCols);
         return { x: (pose.index % cols) * actor.w, y: Math.floor(pose.index / cols) * actor.h };
     }
     /** The pose on the working surface: the rim (the silhouette a dot out on four sides), the frame, over it the dark of a

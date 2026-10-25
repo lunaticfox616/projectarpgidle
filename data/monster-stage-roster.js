@@ -8,13 +8,14 @@
 // 공격 [프레임 수, cols, 프레임 시간, 타격 프레임] 또는 null(공격 그림이 없다: 서 있는 그림으로 때린다).
 // 품 [왼쪽, 오른쪽]: 서 있는 그림이 발에서 양옆으로 뻗은 도트(보스가 차지하는 칸 너비, js/combat-grid.js fitBossFootprint).
 // 쓰러짐 [프레임 수, cols, 프레임 시간, 칸 가로, 칸 세로, 발 x, 발 y] 또는 null: 스토리 보스가 쓰러지는 그림(<id>-death.png, 제 칸, 마지막 장에 멈춘다).
+// 특수 공격 [프레임 수, cols, 프레임 시간, 타격 프레임] 또는 없음: 보스의 두 번째 공격(<id>-special.png, 걷기와 같은 칸). 특수 패턴의 예고와 공격에 쓴다.
 const MONSTER_STAGE_ROSTER = Object.freeze({
     path: 'assets/enemies/roster/',
     /** 그림 묶음의 지문: 그림을 이 값과 함께 불러, 칸이 바뀐 그림을 브라우저가 예전 것으로 쓰지 않게 한다. */
-    version: '72eade745e',
+    version: 'f5377bd07f',
     /** 제 새 그림이 아직 없어 다른 외형의 그림을 빌려 입는 외형(위습: 같은 속성의 새 그림). */
     wears: Object.freeze({ 'meteor-shard': 'cosmos-star', 'meteor-melt': 'cosmos-ooze', 'meteor-sentinel': 'cosmos-sentinel' }),
-    // [id, 이름, 칸 가로, 칸 세로, 발 x, 발 y, 몸 높이, 몸 너비, 걸음새, 걷기, 공격, 품, 쓰러짐]
+    // [id, 이름, 칸 가로, 칸 세로, 발 x, 발 y, 몸 높이, 몸 너비, 걸음새, 걷기, 공격, 품, 쓰러짐, 특수 공격]
     actors: Object.freeze(Object.fromEntries([
         ['famine_beast', '기근의 맹수', 226, 140, 114, 135, 133, 201, 'legs', [6, 6, [133.33, 133.33, 133.33, 133.33, 133.33, 133.33], 'stride'], [6, 6, [200, 166.67, 166.67, 83.33, 116.67, 200], 3], [100, 101], null],
         ['league_nursery', '묘목장의 어미나무', 284, 185, 91, 183, 180, 234, 'legs', [8, 8, [110, 110, 110, 110, 110, 110, 110, 110], 'stride'], [6, 6, [160, 130, 170, 70, 110, 220], 3], [74, 150], null],
@@ -152,7 +153,7 @@ const MONSTER_STAGE_ROSTER = Object.freeze({
         ['trial_4', '십자 회랑의 수호자', 183, 177, 90, 182, 168, 153, 'float', [6, 6, [133.33, 133.33, 133.33, 133.33, 133.33, 133.33], 'time'], [6, 6, [200, 166.67, 166.67, 83.33, 116.67, 200], 3], [82, 70], null],
         ['trial_5', '혹독한 겨울의 미궁 수호자', 203, 159, 104, 154, 129, 182, 'legs', [6, 6, [133.33, 133.33, 133.33, 133.33, 133.33, 133.33], 'stride'], [6, 6, [200, 166.67, 166.67, 83.33, 116.67, 200], 3], [94, 87], null],
         ['labyrinth_guardian', '고대 미궁의 지배자', 258, 216, 131, 211, 149, 244, 'legs', [6, 6, [133.33, 133.33, 133.33, 133.33, 133.33, 133.33], 'stride'], [6, 6, [200, 166.67, 166.67, 83.33, 116.67, 200], 3], [128, 116], null],
-        ['time_rift_guardian', '시간의 균열 지배자', 205, 183, 105, 177, 149, 176, 'legs', [6, 6, [133.33, 133.33, 133.33, 133.33, 133.33, 133.33], 'stride'], [6, 6, [200, 166.67, 166.67, 83.33, 116.67, 200], 3], [88, 85], null],
+        ["time_rift_guardian","시간의 균열 지배자",285,204,118,202,182,212,"legs",[16,16,[83,83,84,83,83,84,83,83,84,83,83,84,83,83,84,83],"stride"],[6,6,[240,210,75,110,140,220],3],[116,95],null,[6,6,[240,260,80,130,160,230],3]],
         ['grand_breach_guardian', '대균열의 지배자', 279, 171, 117, 162, 138, 151, 'float', [6, 6, [133.33, 133.33, 133.33, 133.33, 133.33, 133.33], 'time'], [6, 6, [200, 166.67, 166.67, 83.33, 116.67, 200], 3], [81, 69], null],
         ['realm_underking', '지저 군주', 219, 171, 109, 165, 134, 184, 'legs', [6, 6, [133.33, 133.33, 133.33, 133.33, 133.33, 133.33], 'stride'], [6, 6, [200, 166.67, 166.67, 83.33, 116.67, 200], 3], [103, 86], null],
         ['pinnacle_underking', '지핵군주 모르그란', 227, 206, 110, 195, 163, 196, 'legs', [6, 6, [133.33, 133.33, 133.33, 133.33, 133.33, 133.33], 'stride'], [6, 6, [200, 166.67, 166.67, 83.33, 116.67, 200], 3], [107, 92], null],
@@ -182,14 +183,19 @@ const MONSTER_STAGE_ROSTER = Object.freeze({
         ["atlas-garden-2","분수의 망령",175,182,77,179,177,148,"float",[6,6,[120,120,120,120,120,120],"time"],[6,6,[160,130,150,70,120,210],3],[68,79],null],
         ["atlas-sanctum-5","빙결 재판관",175,199,84,197,192,160,"float",[6,6,[120,120,120,120,120,120],"time"],[6,6,[160,130,150,70,120,210],3],[79,80],null],
         ["atlas-sanctum-4","서고 사서",249,232,105,225,172,172,"legs",[6,6,[120,120,120,120,120,120],"stride"],[6,6,[160,130,150,70,120,210],3],[90,81],null],
-        ["colony-boss","군락지 지배체",310,197,157,190,152,288,"crawl",[6,6,[120,120,120,120,120,120],"stride"],[6,6,[160,130,150,70,120,210],3],[137,150],null]
-    ].map(([id, name, w, h, feetX, feetY, height, width, gait, walk, attack, reach, death]) => {
+        ["colony-boss","군락지 지배체",310,197,157,190,152,288,"crawl",[6,6,[120,120,120,120,120,120],"stride"],[6,6,[160,130,150,70,120,210],3],[137,150],null],
+        ["rift-oath-warden","멈춘 서약의 파수병",160,151,68,148,109,104,"legs",[24,24,[56,55,56,55,56,55,56,55,56,56,55,56,55,56,55,56,55,56,56,55,56,55,56,55],"stride"],[6,6,[160,180,160,83,117,200],3],[37,66],null],
+        ["rift-ashen-hound","퇴색한 순찰수",171,84,78,82,80,141,"legs",[8,8,[83,83,83,83,83,83,83,83],"stride"],[6,6,[160,180,160,83,117,200],3],[68,72],null],
+        ["rift-seed-lantern","멈춘 씨앗 등불",74,82,35,77,75,55,"float",[8,8,[100,100,100,100,100,100,100,100],"time"],[6,6,[160,180,160,83,117,200],3],[28,26],null],
+        ["rift-archive-moth","갈라진 기록나방",122,120,58,116,103,113,"fly",[8,8,[100,100,100,100,100,100,100,100],"time"],[6,6,[160,180,160,83,117,200],3],[54,58],null]
+    ].map(([id, name, w, h, feetX, feetY, height, width, gait, walk, attack, reach, death, special]) => {
         const times = clip => Object.freeze(Array.isArray(clip[2]) ? clip[2] : Array(clip[0]).fill(clip[2]));
         return [id, Object.freeze({
             id, name, w, h, feet: Object.freeze([feetX, feetY]), height, width, gait, stride: Math.max(24, Math.round(width * 0.7)),
             walkMs: times(walk), walkCols: walk[1], pace: walk[3], still: walk[0] === 1,
             attackMs: attack ? times(attack) : null, attackCols: attack ? attack[1] : 0, impactFrame: attack ? attack[3] : 0, reach: Object.freeze(reach),
-            death: death ? Object.freeze({ ms: times(death), cols: death[1], w: death[3], h: death[4], feet: Object.freeze([death[5], death[6]]) }) : null
+            death: death ? Object.freeze({ ms: times(death), cols: death[1], w: death[3], h: death[4], feet: Object.freeze([death[5], death[6]]) }) : null,
+            special: special ? Object.freeze({ attackMs: times(special), cols: special[1], impactFrame: special[3] }) : null
         })];
     })))
 });

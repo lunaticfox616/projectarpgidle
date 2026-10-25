@@ -71,11 +71,12 @@ const monsterActors = (() => {
         if (fx.type === 'combatTravel') return fx.owner === 'enemy' && fx.sourceId === enemy.id;
         return fx.type === 'enemyAttack' && fx.enemyId === enemy.id;
     }
+    /** The latest release effect inside the clip's length, or null. */
     function lastRelease(enemy, now, clipMs) {
         let found = null;
         for (const fx of battleFx) {
             if (!fx || now - fx.start > clipMs || !isRelease(fx, enemy)) continue;
-            if (found === null || fx.start > found) found = fx.start;
+            if (found === null || fx.start > found.start) found = fx;
         }
         return found;
     }
@@ -92,14 +93,21 @@ const monsterActors = (() => {
     /** { clip: 'attack', index, bob } while the strike (on the hit or release) or its wind-up (the gauge's last fifth) shows,
      * else null. kind = { attackMs, impactFrame }: a sheet kind, or a roster actor (js/canvas-stage-roster.js). */
     function attackFrame(enemy, kind, now, moving) {
-        const attackMs = sum(kind.attackMs), impactMs = sum(kind.attackMs.slice(0, kind.impactFrame));
+        const longest = Math.max(sum(kind.attackMs), kind.special ? sum(kind.special.attackMs) : 0);
         // A boss holding a beam keeps its strike frame until the beam ends (js/canvas-boss-moves.js strikeHoldMs), then finishes the clip.
-        const hold = enemy.isBoss ? bossMoveView.strikeHoldMs(enemy) : 0, release = lastRelease(enemy, now, attackMs + hold);
-        const since = release === null ? null : Math.max(0, now - release - hold);
-        if (since !== null && since + impactMs < attackMs) return { clip: 'attack', index: frameAt(kind.attackMs, since + impactMs), bob: 0 };
+        const hold = enemy.isBoss ? bossMoveView.strikeHoldMs(enemy) : 0, release = lastRelease(enemy, now, longest + hold);
+        if (release) {
+            const clip = clipOf(kind, release.special), impactMs = sum(clip.attackMs.slice(0, clip.impactFrame)), since = Math.max(0, now - release.start - hold);
+            if (since + impactMs < sum(clip.attackMs)) return { clip: clip === kind ? 'attack' : 'special', index: frameAt(clip.attackMs, since + impactMs), bob: 0 };
+        }
         const wind = windUp(enemy, moving, now);
-        return wind ? { clip: 'attack', index: frameAt(kind.attackMs, wind.share * impactMs), bob: wind.bob } : null;
+        if (!wind) return null;
+        const clip = clipOf(kind, enemy.isBoss && enemy.nextPatternState?.isSpecial);
+        return { clip: clip === kind ? 'attack' : 'special', index: frameAt(clip.attackMs, wind.share * sum(clip.attackMs.slice(0, clip.impactFrame))), bob: wind.bob };
     }
+    /** A roster boss with a second attack (kind.special, data/monster-stage-roster.js) plays it for its specials: the release
+     * tells which attack it let go, a wind-up follows the pattern coming next. */
+    const clipOf = (kind, special) => (special && kind.special ? kind.special : kind);
     /** { clip, index, bob }: the strike or its wind-up, else idle (faster with a hop when walking). */
     function clipFrame(enemy, kind, now, moving) {
         const strike = attackFrame(enemy, kind, now, moving);

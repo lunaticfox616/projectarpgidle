@@ -13537,11 +13537,12 @@ function queueEnemyCombatAttack(enemy, target, bossPattern, delivery) {
     return true;
 }
 
-/** The moment a boss lets an attack go (js/canvas-boss-attacks.js): area specials hop and slam, shots and lines thrust. */
+/** The moment a boss lets an attack go (js/canvas-boss-attacks.js): area specials hop and slam, shots, lines and hits up close
+ * thrust. special: a special pattern (a roster boss with a second attack clip plays it, js/canvas-monster-actors.js). */
 function announceBossRelease(enemy, bossPattern, delivery) {
     if (!enemy.isBoss) return;
     const slam = delivery === 'patternArea' && !['line', 'fan'].includes(bossPattern.area.kind);
-    addBattleFx('bossRelease', { enemyId: enemy.id, slam, duration: 560 });
+    addBattleFx('bossRelease', { enemyId: enemy.id, slam, special: !!(bossPattern && bossPattern.isSpecial), duration: 560 });
 }
 
 /** A dead enemy attacks no more. A boss's released area ends with the boss: enemyAttackRules.cancelPending drops it on the
@@ -13731,6 +13732,8 @@ function performMonsterAttacks(pStats) {
                 enemy.attackTimer -= 1;
                 let delivery = getEnemyCombatDelivery(enemy, bossPattern);
                 if (delivery !== 'instantTarget' && queueEnemyCombatAttack(enemy, attackTarget, bossPattern, delivery)) break;
+                // 붙어서 바로 치는 보스도 놓는 순간을 알린다: 그림 보스의 공격 동작이 이때 타격 프레임을 친다(js/canvas-monster-actors.js).
+                announceBossRelease(enemy, bossPattern, 'instantTarget');
             } else pendingAttack = null;
             if (attackTarget === game.gridPlayer) {
                 if (skillGemCombatRuntime) enemy.facingDirection=skillGemCasts.facing(enemy,game.gridPlayer);

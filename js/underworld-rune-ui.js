@@ -15,6 +15,8 @@ const underworldRuneUi = (() => {
         return Number.isInteger(index) && index >= 0 && index < Math.min(6, state.unlockedSlots);
     }
     const updateMarkup = updateGamePanelMarkup;
+    /** 지하석 그림(assets/items/underworld-stones, 2026-10-25 Codex): 번호마다 한 장, 도트 하나가 1px이고 줄여서 부드럽게 그린다. */
+    const iconHtml = no => (getUnderworldRuneDef(no) ? `<img class="underworld-stone-icon" src="assets/items/underworld-stones/uw_rune_${no}.png" alt="" draggable="false" decoding="async">` : '');
 
     function progressLabel(state) {
         const slots = Math.max(0, Math.floor(state.unlockedSlots || 0));
@@ -141,7 +143,7 @@ const underworldRuneUi = (() => {
         const owned = Object.values(counts).reduce((sum, count) => sum + count, 0);
         const chips = Object.keys(counts).map(Number).sort((a, b) => a - b).map(no => {
             const tip = `showUnderworldRuneTooltip(event,${no})`;
-            return `<button type="button" class="underworld-rune-chip" onclick="${tip}" data-info-tooltip-anchor="1" onmouseenter="${tip}" onmousemove="${tip}" onmouseleave="hideInfoTooltip()">${getUnderworldRuneDef(no)?.name || `지하석${no}`}×${counts[no]}</button>`;
+            return `<button type="button" class="underworld-rune-chip" onclick="${tip}" data-info-tooltip-anchor="1" onmouseenter="${tip}" onmousemove="${tip}" onmouseleave="hideInfoTooltip()">${iconHtml(no)}<span>${getUnderworldRuneDef(no)?.name || `지하석${no}`}</span><b>×${counts[no]}</b></button>`;
         }).join('');
         return `<div class="underworld-panel-head"><div><strong>지하석</strong><span>${progressLabel(state)}</span></div>${resourcesHtml(RESOURCES.map(([key]) => key))}</div>`
             + `<section class="underworld-rune-console"><div class="underworld-rune-slots">${slotsHtml(state)}</div></section>${stoneActionsHtml(state)}`
@@ -150,12 +152,16 @@ const underworldRuneUi = (() => {
     function slotsHtml(state) {
         return Array.from({length: 6}, (_, index) => {
             const no = state.equippedRunes[index], unlocked = index < Math.max(0, Math.floor(state.unlockedSlots || 0)), def = no ? getUnderworldRuneDef(no) : null;
-            const label = unlocked ? (def ? def.name : '비어 있음') : '잠김';
+            const label = unlocked ? (def ? def.name : '비어 있음') : '잠김', art = unlocked ? iconHtml(no) : '';
             const effect = unlocked ? (def ? getUnderworldRuneEffectHtml(no) : '눌러서 장착') : `${(index + 1) * 10}층 격파`;
-            const tip = no ? `showUnderworldRuneTooltip(event,${no})` : '';
-            const attrs = unlocked ? `onclick="openUnderworldRuneOverlay(${index})" data-info-tooltip-anchor="1" onmouseenter="${tip}" onmousemove="${tip}" onmouseleave="hideInfoTooltip()"` : 'disabled';
-            return `<button type="button" class="underworld-rune-slot ${unlocked ? 'unlocked' : 'locked'}" ${attrs}><span class="underworld-rune-slot-no">${index + 1}</span><strong>${label}</strong><small>${effect}</small></button>`;
+            return `<button type="button" class="underworld-rune-slot ${unlocked ? 'unlocked' : 'locked'}" ${slotAttrs(no, index, unlocked)}><span class="underworld-rune-slot-no">${index + 1}</span>`
+                + `<span class="underworld-rune-slot-art">${art}</span><strong>${label}</strong><small>${effect}</small></button>`;
         }).join('');
+    }
+    function slotAttrs(no, index, unlocked) {
+        if (!unlocked) return 'disabled';
+        const tip = no ? `showUnderworldRuneTooltip(event,${no})` : '';
+        return `onclick="openUnderworldRuneOverlay(${index})" data-info-tooltip-anchor="1" onmouseenter="${tip}" onmousemove="${tip}" onmouseleave="hideInfoTooltip()"`;
     }
     function stoneActionsHtml(state) {
         const blocked = held('runeShard') < 10 || !state.unlockedRunesMaxNumber || game.woodsmanBuildLock;
@@ -195,6 +201,6 @@ const underworldRuneUi = (() => {
             + `<div class="underworld-ticket-strip">${costs}</div></div><div class="underworld-limit-targets">${buttons}</div></section>`;
     }
 
-    return {updateMarkup,progressLabel,chooseGrowth,mountOverlay,closeOverlay,validSlot,pages,render,enchantCost,limitBreakCost};
+    return {updateMarkup,progressLabel,chooseGrowth,mountOverlay,closeOverlay,validSlot,pages,render,enchantCost,limitBreakCost,iconHtml};
 })();
 safeExposeGlobals({underworldRuneUi});
