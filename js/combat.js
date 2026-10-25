@@ -13110,14 +13110,11 @@ function defeatAtMeteor(zone, message, opts, ui) {
     game.killsInZone = 0;
     clearDefeatedEncounter();
 }
-/** A defeat in the future returns the altar's items and closes the altar, so the past must be cleared again (2026-10-26 사용자). */
+/** A defeat in the time rift, past or future, shatters the altar's items and closes the altar, so the past must be cleared again
+ * (2026-10-26 사용자: 실패 시 아이템 파괴 패널티). The line is the user's own, whatever killed the hero (the death record keeps the cause). */
 function defeatInTimeRift(zone, message, opts, ui) {
-    let rift = ensureTimeRiftState();
-    rift.activePressure = null;
-    const future = zone.riftPhase === 'future';
-    ui.say(message || (future ? '☠️ 시간의 균열(미래)에서 밀려났습니다.' : '☠️ 시간의 균열(과거)에서 밀려났습니다. 제단에 맡긴 아이템은 보존됩니다.'), 'death', { noToast: !!opts.noToast });
-    const returned = future ? returnTimeAltarItems(rift) : 0;
-    if (future) ui.say(`⏳ ${returned ? `제단의 장비 ${returned}개가 돌아왔습니다. ` : ''}제단이 닫혀 과거부터 다시 깨야 합니다.`, 'season-up');
+    Object.assign(ensureTimeRiftState(), { altarOpen: false, altarUnique: null, altarRare: null, activePressure: null });
+    ui.say(`시간의 균열(${zone.riftPhase === 'past' ? '과거' : '미래'})에서 사망했습니다. 제단의 아이템이 산산조각났습니다.`, 'death', { noToast: !!opts.noToast });
     game.currentZoneId = getDefeatRecoveryZoneId();
     game.killsInZone = 0;
     clearDefeatedEncounter();
@@ -14745,7 +14742,7 @@ function getLoopCodexReveal() {
 function captureLoopKeptState() {
     return { ...captureLoopKeptContents(), ...captureLoopKeptItems() };
 }
-/** The constellation buff, labyrinth floor, chaos realm, time rift altar, sky tower, ocean and rune enhancement the loop keeps. */
+/** The constellation buff, labyrinth floor, chaos realm, time rift, sky tower, ocean and rune enhancement the loop keeps. */
 function captureLoopKeptContents() {
     let prevMeteorSite = ensureMeteorSiteState();
     let preservedConstellationBuff = (prevMeteorSite.constellationBuff && prevMeteorSite.constellationBuff.permanent)
@@ -14753,7 +14750,7 @@ function captureLoopKeptContents() {
         : null;
     let prevLabMax = Math.max(1, Math.floor(game.labyrinthUnlockedMaxFloor || game.labyrinthFloor || 1));
     let preservedChaosRealm = JSON.parse(JSON.stringify(ensureChaosRealmState()));
-    // 시간의 균열 제단은 루프를 건너 보존된다 — 과거에 심은 것은 몇 루프가 지나도 미래에서 거둘 수 있다.
+    // 시간의 균열은 시간압 기록만 루프를 건넌다: 제단은 정산이 비운다(resetLoopContents, 2026-10-20 사용자).
     let preservedTimeRift = JSON.parse(JSON.stringify(ensureTimeRiftState()));
     let preservedSkyTower = JSON.parse(JSON.stringify(ensureSkyTowerState()));
     let preservedOcean = JSON.parse(JSON.stringify(ensureOceanState()));
