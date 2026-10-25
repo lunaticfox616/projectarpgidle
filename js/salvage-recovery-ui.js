@@ -1,9 +1,10 @@
 let salvageRecoveryReturnFocus = null;
 
-function getSalvageRecoveryCurrencyText(rewards) {
+/** "name N개, ..." of a recovery price; the log passes getStyledOrbName for the coloured names. */
+function getSalvageRecoveryCurrencyText(rewards, nameOf = key => getCurrencyInfo(key).name) {
     let rows = Object.entries(rewards || {}).filter(([, amount]) => Number(amount) > 0);
     if (rows.length === 0) return '반환 재화 없음';
-    return rows.map(([key, amount]) => `${(ORB_DB[key] && ORB_DB[key].name) || key} ${Math.floor(amount)}개`).join(', ');
+    return rows.map(([key, amount]) => `${nameOf(key)} ${Math.floor(amount)}개`).join(', ');
 }
 
 function getSalvageRecoveryRarityLabel(rarity) {
@@ -97,7 +98,7 @@ function restoreSalvageRecoveryEntry(entryId) {
         refreshSalvageRecoveryOverlay();
         return false;
     }
-    addLog(`♻️ 해체 장비 복구: <span class='loot-${result.item.rarity}'>[${result.item.name}]</span>, ${getSalvageRecoveryCurrencyText(result.returned)} 반환`, 'loot-rare', { item: result.item });
+    addLog(`♻️ 해체 장비 복구: <span class='loot-${result.item.rarity}'>[${result.item.name}]</span>, ${getSalvageRecoveryCurrencyText(result.returned, getStyledOrbName)} 반환`, 'loot-rare', { item: result.item });
     if (typeof queueImportantSave === 'function') queueImportantSave(200);
     updateStaticUI();
     refreshSalvageRecoveryOverlay();

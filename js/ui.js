@@ -475,8 +475,7 @@ function recordOfflineCombatEntry(nowMs) {
 }
 
 function getBackgroundCurrencyLabel(key) {
-    let def = (typeof ORB_DB !== 'undefined' && ORB_DB) ? ORB_DB[key] : null;
-    return (def && def.name) ? def.name : key;
+    return getCurrencyInfo(key).name;
 }
 
 function countInventoryByRarity(list) {
@@ -2960,7 +2959,7 @@ function applyBeehiveChoiceReward(pick) {
         let merged = Object.entries(CURRENCY_LEGACY_MERGE || {}).find(([, legacyKeys]) => legacyKeys.includes(pick.effect));
         let currencyKey = merged ? merged[0] : pick.effect;
         game.currencies[currencyKey] = (game.currencies[currencyKey] || 0) + amount;
-        return `${ORB_DB[currencyKey] ? ORB_DB[currencyKey].name : currencyKey} +${amount}`;
+        return `${getCurrencyInfo(currencyKey).name} +${amount}`;
     }
     return '';
 }

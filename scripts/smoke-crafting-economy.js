@@ -39,6 +39,7 @@ const salvageContext = {
 };
 salvageContext.Math.random = () => 0.99;
 vm.createContext(salvageContext);
+vm.runInContext(extract(fs.readFileSync('data/items.js', 'utf8'), 'const WALLET_CURRENCY_INFO =', '// Natural drops require'), salvageContext, { filename: 'currency-display.js' });
 // Salvage hands socketed jewels back first (js/equipment-sockets.js returnJewels).
 vm.runInContext(fs.readFileSync('js/equipment-sockets.js', 'utf8'), salvageContext, { filename: 'equipment-sockets.js' });
 vm.runInContext(salvageBlock, salvageContext, { filename: 'salvage-economy.js' });
@@ -58,7 +59,7 @@ assert.strictEqual(rewards.formlessDew, 2, 'unique salvage should always return 
 assert.strictEqual(rewards.sapBud, 1);
 assert.strictEqual(rewards.goldenRule, undefined, 'inventory overflow salvage must not roll golden rule currency');
 assert(salvageContext.getItemSalvagePreviewText({ rarity: 'rare', stats: [], hiddenTier: 10 }, true).includes('형체 없는 이슬'), 'salvage preview must use the consolidated currency name');
-assert.strictEqual(salvageContext.formatSalvageRewardSummary({ alteration: 1, transmute: 2 }), '마법의 새싹 +3', 'legacy reward keys must be consolidated before display');
+assert.strictEqual(salvageContext.formatSalvageRewardSummary({ alteration: 1, transmute: 2 }).replace(/<[^>]+>/g, ''), '마법의 새싹 +3', 'legacy reward keys must be consolidated before display');
 
 // Confirmation-time target changes are exercised against the full runtime below.
 
@@ -179,6 +180,22 @@ const jewelSalvageBlock = extract(passiveSource, 'async function salvageJewel(je
         if(preview.rows.length||!preview.reason)failures.push('unregistered currency advertised a fallback pool');
         return failures;})()`);
     assert.deepStrictEqual(Array.from(studyFailures),[],'research candidates and rehearsal must agree for every registered basic currency/root');
+    // A ward's wallet-only shards are part of the recovery price, including after saving/loading the record.
+    assert.strictEqual(runGame(`(()=>{
+        game=mergeDefaults({season:40,loopCount:39});window.game=game;game.inventory=[];game.currencies.colonyShard=0;
+        const ward=colonyWards.create(()=>0,5);bagItems.put(ward,game);salvageItem(0);
+        const gained=game.currencies.colonyShard, entry=salvageRecoveryRuntime.getEntries()[0];
+        if(!(gained>0)||entry.rewards.colonyShard!==gained)return false;
+        game.salvageRecovery=JSON.parse(JSON.stringify(game.salvageRecovery));
+        game.currencies.colonyShard=gained-1;
+        const before=JSON.stringify([game.inventory,game.currencies,game.salvageRecovery]);
+        if(salvageRecoveryRuntime.restore(entry.id).restored||JSON.stringify([game.inventory,game.currencies,game.salvageRecovery])!==before)return false;
+        game.currencies.colonyShard=gained;const restored=salvageRecoveryRuntime.restore(entry.id);
+        if(!restored.restored||restored.returned.colonyShard!==gained||game.currencies.colonyShard!==0||game.inventory.length!==1)return false;
+        if(salvageRecoveryRuntime.restore(entry.id).restored)return false;
+        salvageItem(0);
+        return game.currencies.colonyShard===gained&&salvageRecoveryRuntime.getEntries()[0].rewards.colonyShard===gained;
+    })()`),true,'ward recovery returns the exact shards, refuses insufficient funds, and keeps repeat salvage balanced');
     console.log('smoke-crafting-economy passed');
 })().catch(error => {
     console.error(error);
