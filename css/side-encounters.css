@@ -42,21 +42,28 @@
 .time-rift-stages .map-expedition-actions { margin-top:auto; padding-top:12px; }
 .time-rift-stages .map-expedition-actions button { flex:1 1 auto; padding:8px 10px; }
 .time-rift-stages .time-rift-selected { color:var(--color-text); }
-/* 융합 결과 확률(2026-10-09): 한 줄 막대(완벽 금빛, 보통 파랑, 불안정 빨강)와 손실 설명 */
+/* 융합 결과 확률(2026-10-25): 희귀 옵션 6개일 때 잃는 개수 0~6의 한 줄 막대(0개 금빛에서 6개 빨강까지)와 개수마다의 확률 */
 .time-rift-odds { display:grid; gap:8px; margin-top:12px; }
+.time-rift-odds > p { margin:0; color:var(--color-text-secondary); font-size:13px; }
+.time-rift-odds > p b { color:#f3d28c; font-weight:400; }
 .time-rift-oddsbar { display:flex; height:10px; overflow:hidden; background:#050404; box-shadow:0 0 0 1px #2a2218; }
 .time-rift-oddsbar > i { display:block; height:100%; }
-.time-rift-oddsbar > .is-perfect, .time-rift-legend .is-perfect::before { background:#e8c27a; }
-.time-rift-oddsbar > .is-normal, .time-rift-legend .is-normal::before { background:#5f9fd0; }
-.time-rift-oddsbar > .is-unstable, .time-rift-legend .is-unstable::before { background:#c0504a; }
-.time-rift-legend { display:flex; flex-wrap:wrap; gap:8px 24px; }
+.time-rift-oddsbar > .loss-0, .time-rift-legend .loss-0::before { background:#e8c27a; }
+.time-rift-oddsbar > .loss-1, .time-rift-legend .loss-1::before { background:#b9c26e; }
+.time-rift-oddsbar > .loss-2, .time-rift-legend .loss-2::before { background:#7fb59a; }
+.time-rift-oddsbar > .loss-3, .time-rift-legend .loss-3::before { background:#5f9fd0; }
+.time-rift-oddsbar > .loss-4, .time-rift-legend .loss-4::before { background:#8a7fc4; }
+.time-rift-oddsbar > .loss-5, .time-rift-legend .loss-5::before { background:#b0608a; }
+.time-rift-oddsbar > .loss-6, .time-rift-legend .loss-6::before { background:#c0504a; }
+.time-rift-legend { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:6px; }
 .time-rift-legend > span { display:grid; grid-template-columns:10px auto; align-items:baseline; gap:2px 6px; }
 .time-rift-legend > span::before { content:''; width:10px; height:10px; grid-row:1 / span 2; align-self:center; }
 .time-rift-legend b { color:var(--color-text); font-weight:400; }
-.time-rift-legend .is-perfect b { color:#f3d28c; }
+.time-rift-legend .loss-0 b { color:#f3d28c; }
 .time-rift-legend small { color:var(--color-text-secondary); font-size:12px; }
 .time-rift-stepper > b { min-width:28px; color:#f3d28c; text-align:center; }
 @container time-rift (max-width:780px) { .time-rift-stages { grid-template-columns:1fr; } }
+@container time-rift (max-width:520px) { .time-rift-legend { grid-template-columns:repeat(4,minmax(0,1fr)); } }
 .map-expedition-intro:has(.map-hive-choices) { container:hive-choices / inline-size; }
 .map-hive-choices { display:grid; grid-template-columns:minmax(0,1fr) repeat(2,round(down,calc((100% - 16px) / 3),1px)); gap:8px; margin-top:12px; }
 .map-hive-choices > strong { grid-column:1/-1; color:var(--color-accent); font-size:12px; font-weight:500; }

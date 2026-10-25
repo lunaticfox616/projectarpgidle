@@ -295,21 +295,23 @@ const sideEncounterUi = (() => {
 
     function timePressure(rift) {
         const pressure = rift.pressure;
-        const odds = getTimeRiftFusionOdds(pressure);
         const locked = rift.altarOpen || [TIME_RIFT_PAST_ZONE_ID,TIME_RIFT_FUTURE_ZONE_ID].includes(game.currentZoneId);
         return `<div class="map-expedition-intro"><div class="map-expedition-heading"><strong>시간압 ${pressure}</strong>
-            <span>혼돈 ${getTimeRiftEquivalentChaosDepth(pressure)} 상당, 전투 난이도 ${getTimeRiftDifficultyTier(pressure)}</span></div>
-            ${timeOddsHtml(odds)}
+            <span>혼돈 심화 ${getTimeRiftEquivalentChaosDepth(pressure)} 상당, 루프 ${getTimeRiftFixedSeason(pressure)} 기준</span></div>
+            ${timeOddsHtml(pressure)}
             <div class="map-expedition-actions time-rift-stepper"><button type="button" aria-label="시간압 낮추기" onclick="setTimeRiftPressure(-1)" ${locked||pressure<=1?'disabled':''}>−</button>
-            <b>${pressure}</b><button type="button" aria-label="시간압 높이기" onclick="setTimeRiftPressure(1)" ${locked||pressure>=TIME_RIFT_MAX_PRESSURE?'disabled':''}>+</button><span>${locked?'이번 제단의 시간압 고정':'높일수록 전투가 어렵고 완벽 확률이 오릅니다.'}</span></div></div>`;
+            <b>${pressure}</b><button type="button" aria-label="시간압 높이기" onclick="setTimeRiftPressure(1)" ${locked||pressure>=TIME_RIFT_MAX_PRESSURE?'disabled':''}>+</button><span>${locked?'이번 제단의 시간압 고정':'높일수록 전투가 어렵고 옵션이 더 많이 남습니다.'}</span></div></div>`;
     }
 
-    /** The three fusion outcomes as one stacked bar (gold, blue, red) and a legend with what each one loses (2026-10-09). */
-    function timeOddsHtml(odds) {
-        const rows = [['perfect', '완벽', odds.perfect, '옵션 손실 없음'], ['normal', '보통', odds.normal, '희귀 옵션 1개 손실'], ['unstable', '불안정', odds.unstable, '희귀 옵션 2개 손실']];
-        const bar = rows.map(([key, , value]) => `<i class="is-${key}" style="width:${(value * 100).toFixed(1)}%"></i>`).join('');
-        const legend = rows.map(([key, label, value, loss]) => `<span class="is-${key}"><b>${label} ${Math.round(value * 100)}%</b><small>${loss}</small></span>`).join('');
-        return `<div class="time-rift-odds"><div class="time-rift-oddsbar" aria-hidden="true">${bar}</div><div class="time-rift-legend">${legend}</div></div>`;
+    /** Fusion outcomes for a six-option rare (2026-10-25): each option survives on its own, the bar runs from none lost (gold) to all
+     * six lost (red) and the legend gives each count's chance. */
+    function timeOddsHtml(pressure) {
+        const odds = getTimeRiftLossOdds(pressure, 6);
+        const percent = value => (value >= 0.1 ? `${Math.round(value * 100)}%` : `${(value * 100).toFixed(value >= 0.001 ? 1 : 2)}%`);
+        const bar = odds.map((value, lost) => `<i class="loss-${lost}" style="width:${(value * 100).toFixed(2)}%"></i>`).join('');
+        const legend = odds.map((value, lost) => `<span class="loss-${lost}"><b>${lost}개</b><small>${percent(value)}</small></span>`).join('');
+        return `<div class="time-rift-odds"><p>희귀 옵션 하나가 남을 확률 <b>${Math.round(getTimeRiftOptionKeepChance(pressure) * 100)}%</b>, 옵션 6개일 때 잃는 개수</p>
+            <div class="time-rift-oddsbar" aria-hidden="true">${bar}</div><div class="time-rift-legend">${legend}</div></div>`;
     }
 
     function timePast(rift) {
@@ -350,7 +352,7 @@ const sideEncounterUi = (() => {
         return `<div class="map-expedition-intro"><h3>3. 미래</h3><strong>희귀 옵션을 고유에 계승</strong>
             ${buildMapPowerEstimateHtml(getZone(TIME_RIFT_FUTURE_ZONE_ID))}<p>${escapeHTML(issue||'융합 준비 완료')}</p>
             <details class="map-expedition-details" id="time-rift-fusion-rules"><summary>융합 규칙</summary>
-            <p>미래 클리어 시 두 장비를 소모해 융합 유물 1개를 만듭니다. 등급에 따라 희귀 옵션 0~2개가 사라집니다.</p>
+            <p>미래 클리어 시 두 장비를 소모해 융합 유물 1개를 만듭니다. 희귀 옵션은 하나씩 시간압의 확률로 남고, 나머지는 사라집니다.</p>
             <p>융합 후에는 황금률/잿불가지/축복의 꽃잎만 사용할 수 있습니다. 실패해도 제단 장비는 남고, 루프를 건너도 보존됩니다.</p></details>
             <div class="map-expedition-actions">${action}</div></div>`;
     }

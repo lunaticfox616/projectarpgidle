@@ -611,19 +611,21 @@ function resolveTimeRiftFusion() {
         addLog('⌛ 융합이 보류되었습니다: 인벤토리 공간이 필요합니다. (제단은 유지됩니다. 공간 확보 후 미래를 다시 클리어하세요)', 'attack-monster');
         return null;
     }
-    let odds = getTimeRiftFusionOdds(rift.pressure);
-    let roll = Math.random();
-    let grade = roll < odds.perfect ? 'perfect' : (roll < odds.perfect + odds.normal ? 'normal' : 'unstable');
-    let lost = grade === 'perfect' ? 0 : (grade === 'normal' ? 1 : 2);
+    // 희귀 옵션 하나하나가 시간압의 확률로 남는다(data/maps.js TIME_RIFT_OPTION_KEEP, 2026-10-25: 전에는 0~2개만 잃었다).
+    let keep = getTimeRiftOptionKeepChance(rift.pressure);
     let fused = JSON.parse(JSON.stringify(rift.altarUnique));
     itemIdCounter++;
     fused.id = itemIdCounter;
-    let rareStats = Array.isArray(rift.altarRare.stats) ? JSON.parse(JSON.stringify(rift.altarRare.stats)) : [];
-    for (let i = 0; i < lost && rareStats.length > 0; i++) rareStats.splice(Math.floor(Math.random() * rareStats.length), 1);
+    let rareStats = (Array.isArray(rift.altarRare.stats) ? JSON.parse(JSON.stringify(rift.altarRare.stats)) : []).filter(Boolean);
+    let kept = rareStats.filter(() => Math.random() < keep);
+    let lost = rareStats.length - kept.length;
+    let grade = getTimeRiftFusionGrade(lost, rareStats.length);
+    rareStats = kept;
     fused.stats = Array.isArray(fused.stats) ? fused.stats : [];
-    rareStats.forEach(stat => { if (stat) { stat.fusedFromRare = true; fused.stats.push(stat); } });
+    rareStats.forEach(stat => { stat.fusedFromRare = true; fused.stats.push(stat); });
     fused.fusedRelic = true;
     fused.fusionGrade = grade;
+    fused.fusionLost = lost;
     fused.fusedRareName = rift.altarRare.name || '';
     equipmentSockets.returnJewels(rift.altarRare); // the consumed rare's jewels stay the player's
     rift.altarUnique = null;

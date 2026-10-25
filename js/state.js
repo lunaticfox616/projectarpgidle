@@ -640,9 +640,9 @@ function getTimeRiftEquivalentChaosDepth(pressure) {
     return TIME_RIFT_EQUIVALENT_CHAOS_DEPTHS[safePressure - 1];
 }
 
-function getTimeRiftDifficultyTier(pressure) {
-    let equivalentDepth = getTimeRiftEquivalentChaosDepth(pressure);
-    return getAbyssZoneTier(1) + equivalentDepth - 1;
+/** The loop whose monsters a pressure's fight uses (data/maps.js TIME_RIFT_LOOP_BEHIND_DEPTH, like an atlas map's fixedSeason). */
+function getTimeRiftFixedSeason(pressure) {
+    return getTimeRiftEquivalentChaosDepth(pressure) - TIME_RIFT_LOOP_BEHIND_DEPTH;
 }
 
 
@@ -922,13 +922,14 @@ function getSkyTowerZoneNow() {
 function getTimeRiftZone(id) {
     let rift = ensureTimeRiftState();
     let phase = id === TIME_RIFT_PAST_ZONE_ID ? 'past' : 'future';
-    // 시간압이 유일한 난이도 손잡이 — 루프 인플레이션 대신 fixedDifficultyMul로만 세진다.
+    // 시간압이 유일한 난이도 손잡이: 세계수 아틀라스 지도처럼 그 혼돈 깊이 · 고정 루프의 몬스터다(js/combat.js getLoopDifficultyInputs,
+    // getAbyssMonsterScales). 지역 레벨도 아틀라스와 같은 셈(깊이 2마다 3, data/atlas.js)이다. 미래는 같은 시간압에서 생명력이 18% 더 많다.
     let activePressure = game.currentZoneId === id && rift.activePressure ? rift.activePressure : rift.pressure;
-    let equivalentChaosDepth = getTimeRiftEquivalentChaosDepth(activePressure);
-    let difficultyTier = getTimeRiftDifficultyTier(activePressure);
-    // 과거 시간압 1은 혼돈 1과 같은 기준이며, 미래는 같은 시간압에서도 조금 더 어렵다.
-    let pressureMul = phase === 'past' ? 1 : 1.18;
-    return { id: id, name: `시간의 균열, ${phase === 'past' ? '과거' : '미래'} (시간압 ${activePressure})`, type: 'timeRift', riftPhase: phase, tier: difficultyTier, maxKills: 1, ele: 'chaos', loopScaleExempt: true, fixedDifficultyMul: pressureMul, pressure: activePressure, equivalentChaosDepth: equivalentChaosDepth, ...contentMaps.timeRift(phase, activePressure) };
+    let depth = getTimeRiftEquivalentChaosDepth(activePressure);
+    let areaLevel = Math.round(ATLAS.areaLevel.base + (depth - ATLAS.difficulty.baseDepth) * ATLAS.areaLevel.perTier / ATLAS.difficulty.depthPerTier);
+    return { id: id, name: `시간의 균열, ${phase === 'past' ? '과거' : '미래'} (시간압 ${activePressure})`, type: 'timeRift', riftPhase: phase, tier: getAbyssZoneTier(depth), maxKills: 1, ele: 'chaos',
+        fixedSeason: getTimeRiftFixedSeason(activePressure), equivalentDepth: depth, equivalentChaosDepth: depth, areaLevel: areaLevel, mapHpMul: phase === 'past' ? 1 : 1.18,
+        pressure: activePressure, ...contentMaps.timeRift(phase, activePressure) };
 }
 function getMeteorSiteZone() {
     let star = (game && game.meteorSite) || {};
@@ -995,13 +996,21 @@ function ensureTimeRiftState() {
     return st;
 }
 
-// 시간압별 융합 등급 확률. perfect(유실 0)/normal(유실 1)/unstable(유실 2), 합계 1.
-function getTimeRiftFusionOdds(pressure) {
+/** The chance one rare option survives the fusion at a pressure (data/maps.js TIME_RIFT_OPTION_KEEP). */
+function getTimeRiftOptionKeepChance(pressure) {
     let p = Math.max(1, Math.min(TIME_RIFT_MAX_PRESSURE, Math.floor(pressure || 1)));
-    let perfect = Math.min(0.75, TIME_RIFT_FUSION_ODDS.perfectBase + TIME_RIFT_FUSION_ODDS.perfectPerPressure * (p - 1));
-    let unstable = Math.max(TIME_RIFT_FUSION_ODDS.unstableMin, TIME_RIFT_FUSION_ODDS.unstableBase - TIME_RIFT_FUSION_ODDS.unstablePerPressure * (p - 1));
-    let normal = Math.max(0, 1 - perfect - unstable);
-    return { perfect: perfect, normal: normal, unstable: unstable };
+    return TIME_RIFT_OPTION_KEEP[p - 1];
+}
+/** Odds of losing 0..count rare options at a pressure (each option survives on its own), index = options lost, sum 1. */
+function getTimeRiftLossOdds(pressure, count = 6) {
+    let keep = getTimeRiftOptionKeepChance(pressure), n = Math.max(0, Math.floor(count));
+    let choose = k => { let c = 1; for (let i = 1; i <= k; i++) c = c * (n - k + i) / i; return c; };
+    return Array.from({ length: n + 1 }, (_, lost) => choose(lost) * Math.pow(1 - keep, lost) * Math.pow(keep, n - lost));
+}
+/** A fusion's grade from the options it lost: perfect (none), normal (half or fewer), unstable (more than half). */
+function getTimeRiftFusionGrade(lost, count) {
+    if (lost <= 0) return 'perfect';
+    return lost * 2 <= count ? 'normal' : 'unstable';
 }
 
 function getSeasonAbyssDepthCap(seasonValue) {
@@ -1115,9 +1124,9 @@ function getAutoProgressZoneId(fallbackZoneId) {
 
 
 
-// 세계수 아틀라스 지도는 등급이 정한 혼돈 깊이 · 루프에서 같은 배율을 받는다(js/atlas.js buildZone).
+// 세계수 아틀라스 지도는 등급이, 시간의 균열은 시간압이 정한 혼돈 깊이 · 루프에서 같은 배율을 받는다(js/atlas.js buildZone, getTimeRiftZone).
 function getAbyssMonsterScales(zone) {
-    if (zone && zone.type === 'atlasMap') return getChaosDepthScales(zone.equivalentDepth);
+    if (zone && (zone.type === 'atlasMap' || zone.type === 'timeRift')) return getChaosDepthScales(zone.equivalentDepth);
     if (!zone || zone.type !== 'abyss') return { dmgMul: 1, hpMul: 1, hordeMul: 1, dropMul: 1, expMul: 1, playerTakenMul: 1, playerDamageMul: 1, resistBonus: 0, eliteBonus: 0, bossMul: 1, bossExtraCurrencyChance: 0, mapProgressMul: 1, mapLengthMul: 1 };
     let depth = Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1));
     // 난이도는 그 층의 깊이만 따른다(2026-10-11): 예전에는 심화층(21+)에 지난 루프의 기록(game.abyssEndlessDepth)을 겹쳐 읽어
