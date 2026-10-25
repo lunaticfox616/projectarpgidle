@@ -206,6 +206,12 @@
 :root body #item-tab-equip .equipment-grid-cell.drop-swap { border-color: #e3bd72; background: rgba(227, 189, 114, .28); }
 :root body #item-tab-equip .equipment-grid-item { outline: 1px solid #050403; outline-offset: -1px; border-radius: 0;
   box-shadow: inset 0 0 0 2px rgba(255, 226, 160, .07), inset 0 0 14px rgba(0, 0, 0, .55); }
+/* 등급은 칸 바탕색으로 보인다(2026-10-26 사용자: 등급별로 아이템 배경 색을 바꾸는 방식): 위가 조금 밝은 제 색이고 일반은 옅은 회색이라
+   다른 등급이 먼저 눈에 띈다. 모든 단추에 돌 바탕을 칠하는 규칙(css/components/tabs.css)을 이기려고 이 창의 선택자로 칠한다. */
+:root body #item-tab-equip .equipment-grid-item { border-color: color-mix(in srgb, var(--item-rarity) 55%, #050403); color: inherit;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--item-rarity) var(--rarity-fill), #0c0b09), color-mix(in srgb, var(--item-rarity) calc(var(--rarity-fill) * .55), #060504)); }
+:root body #item-tab-equip .equipment-grid-item:hover:not(:disabled) { border-color: color-mix(in srgb, var(--item-rarity) 85%, #fff);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--item-rarity) calc(var(--rarity-fill) + 8%), #0c0b09), color-mix(in srgb, var(--item-rarity) var(--rarity-fill), #060504)); }
 :root body #item-tab-equip .equipment-grid-item.selected { outline: 2px solid #ffd27a; outline-offset: -2px; box-shadow: 0 0 14px rgba(255, 210, 122, .75); z-index: 3; }
 :root body #item-tab-equip .eqw-new-dot { position: absolute; top: 2px; right: 2px; z-index: 6; width: 6px; height: 6px; border-radius: 50%; background: #ff3b30;
   box-shadow: 0 0 0 1px #000; pointer-events: none; }
