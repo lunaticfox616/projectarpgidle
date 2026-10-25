@@ -534,6 +534,7 @@ function createDefaultSkyTowerState() {
         clearedThisLoop: 0,
         clearedFloors: [],
         loopSeason: 1,
+        lastResult: null,
         condensedPower: 0,
         skyStone: { crafted: false, level: 0 },
         gemBoosts: {}
@@ -550,6 +551,7 @@ function ensureSkyTowerState() {
         st.loopSeason = currentSeason;
         st.clearedThisLoop = 0;
     }
+    st.lastResult = normalizeSkyTowerResult(st.lastResult, currentSeason);
     st.clearedThisLoop = Math.max(0, Math.min(getSkyTowerLoopClearLimit(), Math.floor(st.clearedThisLoop || 0)));
     st.clearedFloors = Array.isArray(st.clearedFloors) ? Array.from(new Set(st.clearedFloors.map(v => Math.floor(v || 0)).filter(v => v >= 1))).sort((a, b) => a - b) : [];
     st.condensedPower = Math.max(0, Math.floor(st.condensedPower || 0));
@@ -566,9 +568,19 @@ function ensureSkyTowerState() {
     return st;
 }
 function getSkyTowerLoopClearLimit() { return 25; }
+/** Display-only receipt for this loop; loading it never grants its reward again. */
+function normalizeSkyTowerResult(result, season) {
+    if (!result || result.season !== season || !Number.isSafeInteger(result.floor) || result.floor < 1
+        || !Number.isSafeInteger(result.condensedPower) || result.condensedPower < 0
+        || !['first', 'repeat', 'practice'].includes(result.kind)) return null;
+    return { season, floor: result.floor, kind: result.kind, condensedPower: result.condensedPower };
+}
 function getSkyTowerRemainingClears() {
     let st = ensureSkyTowerState();
     return Math.max(0, getSkyTowerLoopClearLimit() - Math.max(0, Math.floor(st.clearedThisLoop || 0)));
+}
+function isSkyTowerAtRewardLimit(zone) {
+    return zone?.type === 'skyTower' && getSkyTowerRemainingClears() === 0;
 }
 function hasCurrentLoopChaosAccess(source) {
     let state = source || game;

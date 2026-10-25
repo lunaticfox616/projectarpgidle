@@ -237,6 +237,7 @@ run(`game=mergeDefaults({}); game.season=25; ${meet('orga')}; contentProgression
     game.underworldRunes.enhanceLvByNo={1:2}; game.underworldRunes.equippedRunes[0]=1;
     game.timeRift={pressure:2,fusionCount:3,altarUnique:{id:'altar-kept'},altarRare:null};
     game.skyTower.unlocked=true; game.skyTower.condensedPower=7; game.skyTower.gemBoosts={'이중 베기':2};
+    game.skyTower.lastResult={season:25,floor:1,kind:'first',condensedPower:3};
     game.ocean.fishStock={[OCEAN_STATE_FISH_KEYS[0]]:4}; game.ocean.fishCaughtTotal={[OCEAN_STATE_FISH_KEYS[0]]:8}; game.ocean.reefInstalled=2;
     game.colony.wave=7; game.colony.wardInventory=[{id:'ward-reset'}];
     game.talentCards={hero1__warrior:{level:3,score:45,count:2}};
@@ -256,6 +257,7 @@ assert(!run("game.gemData['이중 베기']"));
 assert.deepEqual(json('game.skyGemEnhancements'),{});
 assert.deepEqual(json('[game.timeRift.pressure,game.timeRift.fusionCount,game.timeRift.altarUnique,game.timeRift.altarOpen]'),[2,3,null,false],'the altar empties at the loop (user decision 2026-10-20)');
 assert.deepEqual(json("[game.skyTower.condensedPower,game.skyTower.gemBoosts['이중 베기']]"),[7,2]);
+assert.equal(run('game.skyTower.lastResult'),null,'a new loop clears the display receipt while preserving permanent sky growth');
 assert.equal(run('game.ocean.reefInstalled'),2);
 assert.deepEqual(json('[game.ocean.fishStock[OCEAN_STATE_FISH_KEYS[0]],game.ocean.fishCaughtTotal[OCEAN_STATE_FISH_KEYS[0]]]'),[4,8]);
 assert.equal(run('game.colony.wave'),run('defaultGame.colony.wave'));
@@ -764,4 +766,13 @@ assert.deepEqual(json('[game.currentZoneId,game.records.echo]'),practiceRecord,'
 run("game.currentZoneId=WOODSMAN_ECHO_ZONE_ID;game.settings.townReturnAction='stop';Object.assign(game.woodsmanEchoRun,{active:true,timeLeft:25,lastTickAt:getCombatTime(),returnZoneId:0});returnToTown();for(let i=0;i<30;i++)advanceTravelTick();finishWoodsmanEchoRun()");
 assert(run('game.currentZoneId===0 && game.combatHalted && !game.woodsmanEchoRun.active'),'returning from practice cancels the measurement and stops in the original zone');
 assert.deepEqual(json('game.records.echo'),practiceRecord[1],'cancelled practice cannot add a record');
+// The last sky reward stops automatic practice; restoration keeps that stop and cannot repay the receipt.
+run("game=mergeDefaults({season:20,maxZoneId:9,loopProgressCurrent:{chaos20Cleared:true},skyTower:{unlocked:true,loopSeason:20,currentFloor:1,highestFloor:1,clearedThisLoop:24,condensedPower:10}});game.currentZoneId=SKY_TOWER_ZONE_ID;game.settings.mapCompleteAction='nextZone';finishEncounterRun()");
+assert(run('game.combatHalted && game.skyTower.condensedPower===13 && game.skyTower.lastResult.floor===1'),'the final sky reward is paid before the climb stops');
+const skyFinished=json('game.skyTower');
+run('game=mergeDefaults(JSON.parse(serializeSaveState(game)));normalizeLocalRuntimeAfterLoad();ensureEncounterRun();reconcileMapProgressRuntimeState();for(let i=0;i<10;i++)coreLoop(getCombatTime()+100)');
+assert(run('game.combatHalted'),'loading a completed sky allowance cannot restart an endless practice loop');
+assert.deepEqual(json('game.skyTower'),skyFinished,'a sky receipt is restored without paying again');
+run('game.skyTower.currentFloor=2;game.actExploration=null;finishEncounterRun()');
+assert(run("game.loopProgressCurrent.bestSkyFloor===1 && game.skyTower.lastResult.kind==='practice' && game.skyTower.condensedPower===13"),'practice cannot advance this loop\'s sky record or grant essence');
 console.log('smoke-content-progression passed');

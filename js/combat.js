@@ -2378,12 +2378,15 @@ function resumeHaltedCombat() {
         ? isBeehiveRunLockedForMapTravel()
         : (!!beehive.inRun && game.currentZoneId === 'beehive_run');
     const beehivePause = !!(beehiveLocked && game.currentZoneId === 'beehive_run' && !beehive.awaitingClear);
-    if (beehivePause || game.inTicketBossFight || isManualCombatStop()) return false;
+    if (beehivePause || game.inTicketBossFight || isCombatProgressStopped()) return false;
     game.combatHalted = false;
     return true;
 }
-const isManualCombatStop = () => (game.settings.mapCompleteAction || 'nextZone') === 'stop' || (game.settings.townReturnAction || 'retry') === 'stop'
-    || !!game.pendingLoopDecision || !!game.pendingLoopReady;
+function isCombatProgressStopped(zone = getZone(game.currentZoneId)) {
+    const settings = game.settings || {};
+    return settings.mapCompleteAction === 'stop' || settings.townReturnAction === 'stop'
+        || !!game.pendingLoopDecision || !!game.pendingLoopReady || isSkyTowerAtRewardLimit(zone);
+}
 
 /** The tick's recovery: life regen (under a bloom trial's suppression), act rest, the delayed guard heal, leech, recoup, and the
  * energy shield. */
@@ -9522,6 +9525,10 @@ function runReturnRules(pStats, now = getCombatTime()) {
 
 function ensureEncounterRun() {
     if(actExplorationState.current(game))return;
+    if(game.combatHalted) {
+        if(isSkyTowerAtRewardLimit(getZone(game.currentZoneId)))prepareActExplorationArrival();
+        return;
+    }
     if (game.moveTimer <= 0 && (!game.encounterPlan || game.encounterPlan.length === 0)) startEncounterRun();
 }
 
@@ -9531,14 +9538,13 @@ function isRegularAutoProgressZone(zone) {
     if (typeof zone.id === 'string' && zone.id.includes('_boss_')) return false;
     return ['act', 'abyss', 'trial', 'meteor', 'labyrinth', 'chaosRealm', 'skyTower'].includes(zone.type);
 }
-
 function reconcileMapProgressRuntimeState() {
     if(actExplorationState.current(game))return false;
     if (typeof reconcileBeehiveRunState === 'function') reconcileBeehiveRunState();
     let zone = getZone(game.currentZoneId) || getZone(0);
     if (!isRegularAutoProgressZone(zone)) return false;
     let changed = false;
-    let explicitStop = (game.settings && ((game.settings.mapCompleteAction || 'nextZone') === 'stop' || (game.settings.townReturnAction || 'retry') === 'stop')) || !!game.pendingLoopDecision || !!game.pendingLoopReady;
+    let explicitStop = isCombatProgressStopped(zone);
     if (game.inTicketBossFight) {
         game.inTicketBossFight = false;
         changed = true;
@@ -11012,6 +11018,11 @@ function resolvePlayerApproachTarget(alive) {
 }
 // Called only after a map/floor payout, never between waves of a committed expedition.
 function continueMapAfterClear(zone) {
+    if (isSkyTowerAtRewardLimit(zone)) {
+        actExplorationProgress.stopAfterCompletion(game);
+        game.moveTimer = 0;
+        return;
+    }
     if (game.settings.mapCompleteAction === 'stop') {
         game.combatHalted = true;
         game.moveTimer = 0;
@@ -11378,10 +11389,11 @@ function finishChaosRealmEncounter(zone, mapAction, ui) {
 function finishSkyTowerEncounter(zone, mapAction, ui) {
     let st = ensureSkyTowerState();
     let floor = Math.max(1, Math.floor(zone.floor || st.currentFloor || 1));
-    game.loopProgressCurrent.bestSkyFloor = Math.max(game.loopProgressCurrent.bestSkyFloor || 0, floor);
     let remainingBefore = getSkyTowerRemainingClears();
-    if (remainingBefore > 0) clearSkyTowerFloor(st, floor, mapAction, ui);
-    else ui.say(`☁️ 창공의 탑 ${floor}층 도전 완료. 이번 루프의 클리어 보상/진행 한도는 모두 사용했습니다.`, 'attack-monster');
+    const kind = remainingBefore === 0 ? 'practice' : st.clearedFloors.includes(floor) ? 'repeat' : 'first';
+    const reward = remainingBefore > 0 ? clearSkyTowerFloor(st, floor, mapAction, ui) : 0;
+    if (remainingBefore === 0) ui.say(`☁️ 창공의 탑 ${floor}층 연습 완료.`, 'season-up');
+    st.lastResult = { season: game.season, floor, kind, condensedPower: reward };
     game.killsInZone = 0;
     game.currentZoneId = SKY_TOWER_ZONE_ID;
     continueMapAfterClear(zone);
@@ -11390,6 +11402,7 @@ function finishSkyTowerEncounter(zone, mapAction, ui) {
 }
 /** A sky tower floor within this loop's clear limit: a first clear's reward and the next floor, else a 16% repeat reward. */
 function clearSkyTowerFloor(st, floor, mapAction, ui) {
+    game.loopProgressCurrent.bestSkyFloor = Math.max(game.loopProgressCurrent.bestSkyFloor || 0, floor);
     st.clearedFloors = Array.isArray(st.clearedFloors) ? st.clearedFloors : [];
     let firstClear = !st.clearedFloors.includes(floor);
     let reward = firstClear ? firstSkyTowerClear(st, floor, mapAction) : repeatSkyTowerClear(st, floor, mapAction);
@@ -11399,6 +11412,7 @@ function clearSkyTowerFloor(st, floor, mapAction, ui) {
         ? `최초 클리어 보상: 응축된 창공의 정수 +${reward}`
         : (reward > 0 ? `반복 클리어 보상: 응축된 창공의 정수 +${reward}` : '반복 클리어: 응축된 창공의 정수 미발견');
     ui.say(`☁️ 창공의 탑 ${floor}층 돌파! ${rewardText}, 이번 루프 잔여 클리어 ${getSkyTowerRemainingClears()}/${getSkyTowerLoopClearLimit()}`, reward > 0 ? 'loot-unique' : 'season-up');
+    return reward;
 }
 function firstSkyTowerClear(st, floor, mapAction) {
     let reward = getSkyTowerRewardAmount(floor);
@@ -14962,6 +14976,7 @@ function resetLoopContents(kept) {
     forgetOceanAutoDive(game.ocean);
     game.skyTower.loopSeason = Math.max(1, Math.floor(game.season || 1));
     game.skyTower.clearedThisLoop = 0;
+    game.skyTower.lastResult = null;
     game.gemEnhanceUnlocked = preservedGemEnhanceUnlocked;
     game.inTicketBossFight = false;
 }

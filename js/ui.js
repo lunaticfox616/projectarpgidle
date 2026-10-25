@@ -1016,7 +1016,7 @@ function setMobileBattlePipCollapsed(host, collapsed) {
 
 /** Dense map/crafting views and early landscape trees start folded; leaving restores the previous PiP choice. */
 function dockMobileBattlePip(host) {
-    const mapContexts = [['atlas', 'map-explore-worldtree'], ['labyrinth', 'map-explore-labyrinth'], ['chaosRealm', 'map-tab-chaos-realm']];
+    const mapContexts = [['atlas', 'map-explore-worldtree'], ['labyrinth', 'map-explore-labyrinth'], ['chaosRealm', 'map-tab-chaos-realm'], ['sky', 'map-tab-sky']];
     function syncContext(context) {
         if ((host.dataset.compactContext || '') !== context) {
             if (host.hasAttribute('data-context-collapsed')) {
@@ -3676,8 +3676,8 @@ function enterLabyrinthFloor(requestedFloor) {
 }
 
 async function confirmSkyTowerEntry() {
-    if (getSkyTowerRemainingClears() === 0) return requestGameConfirmation('이번 루프의 등반 기록과 응축 보상은 더 늘지 않습니다.', {
-        title: '보상 없는 연습 전투', tone: 'warning', confirmLabel: '연습 입장'
+    if (getSkyTowerRemainingClears() === 0) return requestGameConfirmation('등반 보상 없이 한 층을 연습합니다.', {
+        title: '연습 전투', tone: 'warning', confirmLabel: '연습 입장'
     });
     if (game.settings.mapCompleteAction !== 'repeatZone') return true;
     return requestGameConfirmation("현재 맵 완료 행동이 '같은 지역 반복'입니다. 돌파 후 같은 층에 머무릅니다.", {

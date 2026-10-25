@@ -465,15 +465,26 @@ const sideEncounterUi = (() => {
         const current = game.currentZoneId === SKY_TOWER_ZONE_ID && !game.combatHalted;
         const ready = canEnterSkyTower();
         const rewardText = first ? `${reward}개 확정` : `${Math.max(1,Math.floor(reward*.35))}개, 16% 확률`;
-        return `<div class="map-expedition-intro"><div class="map-expedition-heading"><strong>${floor}층 ${current?'탐험 중':'입장 준비'}</strong>${buildMapPowerEstimateHtml(getZone(SKY_TOWER_ZONE_ID))}</div>
+        const title = !remaining ? (current ? `${floor}층 연습 중` : '이번 루프 보상 완료') : `${floor}층 ${current?'탐험 중':'입장 준비'}`;
+        return `<div class="map-expedition-intro"><div class="map-expedition-heading"><strong>${title}</strong>${buildMapPowerEstimateHtml(getZone(SKY_TOWER_ZONE_ID))}</div>
             <dl><div><dt>${first?'첫 돌파 보상':'반복 돌파 보상'}</dt><dd>응축된 창공의 정수<small>${remaining?rewardText:'이번 루프 보상 소진, 다음 루프에 재개'}</small></dd></div>
             <div><dt>이번 루프 남은 보상 전투</dt><dd>${remaining} / ${getSkyTowerLoopClearLimit()}회<small>첫 돌파/반복 돌파 모두 1회 사용</small></dd></div></dl>
             <div class="map-expedition-result"><span>영구 기록</span><strong>${tower.clearedFloors.length}개 층 돌파</strong><span>최고 입장 ${tower.highestFloor}층</span></div>
+            ${skyLastResult(tower)}
             ${ready?'':'<p>이번 루프 혼돈 입성 후 입장할 수 있습니다.</p>'}
             <details class="map-expedition-details" id="sky-tower-guide"><summary>등반, 보상 규칙</summary>
-            <p>새 층을 돌파하면 다음 층이 열립니다. 25회 소진 후에는 등반 기록과 응축 보상이 늘지 않습니다.</p>
+            <p>보상 25회를 마치면 멈춥니다. 이후 연습은 한 층씩 진행합니다.</p>
             <p>돌파 기록/응축된 창공의 정수/영구 강화는 루프를 넘어 유지됩니다. 보상 전투 횟수만 루프마다 회복됩니다.</p></details>
             <div class="map-expedition-actions">${skyEntryActions(tower,remaining)}</div></div>`;
+    }
+
+    function skyLastResult(tower) {
+        const result = tower.lastResult;
+        if (!result) return '';
+        const title = result.kind === 'practice' ? '연습 완료' : result.kind === 'first' ? '첫 돌파' : '반복 돌파';
+        const reward = result.kind === 'practice' ? '등반 보상 없음' : result.condensedPower > 0
+            ? `응축된 창공의 정수 +${result.condensedPower}` : '정수 미발견';
+        return `<div class="map-expedition-result"><strong>${result.floor}층 ${title}</strong><span>${reward}</span></div>`;
     }
 
     function skyEntryActions(tower,remaining) {

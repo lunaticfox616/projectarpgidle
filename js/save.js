@@ -272,6 +272,11 @@ function persistLocalSave(options = {}) {
 }
 
 
+/** Recover an empty ordinary encounter, without restarting a completed sky allowance. */
+function resumeEmptyEncounterAfterLoad(zone) {
+    if (game.actExploration || game.settings.mapCompleteAction === 'stop' || isSkyTowerAtRewardLimit(zone)) return;
+    if (game.enemies.length === 0 && game.encounterPlan.length === 0) game.combatHalted = false;
+}
 function normalizeLocalRuntimeAfterLoad() {
     if (!game) return;
     if (typeof normalizeCombatTacticsSettings === 'function') {
@@ -285,7 +290,7 @@ function normalizeLocalRuntimeAfterLoad() {
     }
     // loadGame supplies cloneDefaultGame or mergeDefaults; both own these array shapes.
     if (!Number.isFinite(game.moveTimer)) game.moveTimer = 0;
-    if (!game.actExploration && game.settings.mapCompleteAction !== 'stop' && game.enemies.length === 0 && game.encounterPlan.length === 0) game.combatHalted = false;
+    resumeEmptyEncounterAfterLoad(zone);
     if (!game.realmDeathWard || typeof game.realmDeathWard !== 'object') game.realmDeathWard = null;
     else {
         game.realmDeathWard.amount = Math.max(0, Math.floor(Number(game.realmDeathWard.amount) || 0));

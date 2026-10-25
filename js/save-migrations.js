@@ -1538,6 +1538,7 @@ function mergeDefaults(save) {
     merged.skyTower.loopSeason = Math.max(1, Math.floor(clampFiniteNumber(merged.skyTower.loopSeason, merged.season || 1, 1)));
     if (merged.skyTower.loopSeason !== Math.max(1, Math.floor(merged.season || 1))) { merged.skyTower.loopSeason = Math.max(1, Math.floor(merged.season || 1)); merged.skyTower.clearedThisLoop = 0; }
     merged.skyTower.clearedThisLoop = Math.max(0, Math.min(getSkyTowerLoopClearLimit(), Math.floor(clampFiniteNumber(merged.skyTower.clearedThisLoop, 0, 0))));
+    merged.skyTower.lastResult = normalizeSkyTowerResult(merged.skyTower.lastResult, merged.season);
     merged.skyTower.clearedFloors = Array.isArray(merged.skyTower.clearedFloors) ? Array.from(new Set(merged.skyTower.clearedFloors.map(v => Math.floor(v || 0)).filter(v => v >= 1))).sort((a, b) => a - b) : [];
     merged.skyTower.condensedPower = Math.max(0, Math.floor(clampFiniteNumber(merged.skyTower.condensedPower, 0, 0)));
     merged.skyTower.skyStone.level = Math.max(0, Math.min(getSkyStoneMaxLevel(), Math.floor(clampFiniteNumber(merged.skyTower.skyStone.level, 0, 0))));
