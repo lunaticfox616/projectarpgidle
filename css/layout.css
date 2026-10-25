@@ -223,4 +223,4 @@
         min-width: 0;
     }
 } }        @layer overrides {
-        #tab-map img:not(.atlas-landscape, .map-act-img, .atlas-find-icon) { display: none; } }
+        #tab-map img:not(.atlas-landscape, .atlas-find-icon) { display: none; } }

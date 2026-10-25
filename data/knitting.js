@@ -261,10 +261,10 @@ const KNITTING = (() => {
             reward: { uniquePool: 'oceanDepth', tier: 13 }, label: '심해 전용 고유 장비 1개' },
         // 시간의 균열
         { id: 'sand-grain', name: "멈춘 회중시계", grade: 2, set: 5, source: { types: ['timeRift'] }, homes: ['type:timeRift'], unlocks: ['timerift'], found: '시간의 균열',
-            reward: { currencies: [['timeRemnant', 4]] }, label: '시간의 잔재 4개' },
+            reward: { currencies: [['formlessDew', 2]] }, label: '형체 없는 이슬 2개' },
 
         { id: 'still-hour', name: "박자 틀린 초침", grade: 3, set: 5, source: { types: ['timeRift'], elite: true }, homes: [], unlocks: ['timerift'], found: '시간의 균열 정예와 보스',
-            reward: { currencies: [['timeRemnant', 6], ['formlessDew', 1]] }, label: '시간의 잔재 6개와 형체 없는 이슬 1개' },
+            reward: { currencies: [['goldenRule', 1], ['formlessDew', 1]] }, label: '황금률 1개와 형체 없는 이슬 1개' },
         // 군락지
         { id: 'watch-cord', name: "비어 있는 군량함", grade: 2, set: 5, source: { types: ['colony'] }, homes: ['type:colony'], unlocks: ['colony'], found: '군락지',
             reward: { gear: { slots: ['투구', '방패'] }, tier: 12 }, label: '12등급 희귀 투구, 완갑 중 1개' },

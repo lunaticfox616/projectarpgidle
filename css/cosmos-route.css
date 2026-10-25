@@ -21,7 +21,24 @@ body.desktop-windowed-ui .map-progress-row:has(#ui-cosmos-route-progress:not([hi
 .cosmos-unified-map .cosmos-stone-overlay { position:absolute; inset:0; z-index:10; overflow:auto; }
 
 
-.cosmos-journey-heading { display:flex; flex-wrap:wrap; align-items:baseline; gap:8px 16px; padding:14px 18px 20px; }
+/* 은하 단추(2026-10-25): 은하마다 제 색. 고른 은하의 색이 탐사 머리와 테에 번진다 */
+.cosmos-galaxies { display:flex; flex-wrap:wrap; gap:4px; }
+#cosmos-inner-route .cosmos-galaxies button { padding:5px 12px; border-color:color-mix(in srgb,var(--galaxy-tone) 35%,var(--color-line)); color:color-mix(in srgb,var(--galaxy-tone) 70%,#d8d2c2); }
+#cosmos-inner-route .cosmos-galaxies button[aria-pressed="true"] { border-color:var(--galaxy-tone); color:#16120c; background:var(--galaxy-tone); }
+#cosmos-inner-route .cosmos-galaxies button.is-locked:not([aria-pressed="true"]) { opacity:.55; }
+.cosmos-star-chart { border-color:color-mix(in srgb,var(--galaxy-tone) 30%,var(--color-line)); background:linear-gradient(180deg,color-mix(in srgb,var(--galaxy-tone) 9%,transparent),transparent 160px),var(--color-surface); }
+.cosmos-goal-chips { display:flex; flex-wrap:wrap; gap:4px; flex-basis:100%; }
+.cosmos-goal-chips span { padding:2px 8px; border:1px solid color-mix(in srgb,var(--galaxy-tone) 35%,var(--color-line)); font-size:12px; color:var(--color-text-secondary); }
+.cosmos-goal-chips .is-reward { border-color:#b79b63; color:#f0d58a; }
+.cosmos-journey-heading strong em { font-style:normal; color:#f0b07a; }
+.cosmos-legend { display:flex; flex-wrap:wrap; gap:4px 14px; margin:0; padding:0 18px 12px; font-size:12px; color:var(--copy-muted); }
+.cosmos-legend span { display:inline-flex; align-items:center; gap:5px; }
+.cosmos-legend b { font-weight:600; color:var(--color-text); }
+.cosmos-legend i { width:10px; height:10px; border-radius:50%; background:#668797; }
+.cosmos-legend .guard i { background:#b1a08b; }
+.cosmos-legend .storm i { background:#8f86d6; }
+.cosmos-legend .boss i { background:#e2b975; }
+.cosmos-journey-heading { display:flex; flex-wrap:wrap; align-items:baseline; gap:8px 16px; padding:14px 18px 12px; }
 .cosmos-journey-heading>small { flex-basis:100%; color:var(--copy-muted); }
 .cosmos-journey-heading strong { font-size:20px; font-weight:600; }
 .cosmos-journey-heading strong span { color:#bca575; margin-inline:8px; }
@@ -45,7 +62,10 @@ body.desktop-windowed-ui .map-progress-row:has(#ui-cosmos-route-progress:not([hi
 .cosmos-planet-stop.asteroid i { border-radius:32% 55% 35% 45%; transform:rotate(-16deg); }
 .cosmos-planet-stop.boss i { border-color:#e2b975; background:radial-gradient(circle at 30% 25%,#efd390,#926443 35%,#32223b 80%); box-shadow:0 0 18px #d4a96633; }
 .cosmos-planet-stop b { font-size:11px; font-weight:500; overflow-wrap:anywhere; line-height:1.45; }
-.cosmos-planet-stop small { min-height:14px; font-size:10px; color:#bfaf84; }
+.cosmos-planet-stop small { min-height:14px; font-size:10px; color:#8fb3c0; }
+.cosmos-planet-stop.guard small { color:#cdb994; }
+.cosmos-planet-stop.storm small { color:#aea6ea; }
+.cosmos-planet-stop.boss small { color:#f0b07a; }
 .cosmos-planet-stop.current i { outline:2px solid #ebcf82; outline-offset:4px; }
 .cosmos-planet-stop.current small { color:#f3d690; }
 .cosmos-planet-stop.done { opacity:.65; }

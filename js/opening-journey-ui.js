@@ -241,13 +241,15 @@ const openingJourney = (() => {
             hintEl.setAttribute('role', 'status');
             document.body.appendChild(hintEl);
         }
-        hintEl.hidden = !step;
+        // 같은 값이면 쓰지 않는다: 이 확인은 150ms마다 돌고, 쓸 때마다 body의 :has() 규칙까지 다시 계산했다(2026-10-25 측정).
+        if (hintEl.hidden !== !step) hintEl.hidden = !step;
         document.getElementById('btn-act-exploration-auto')?.classList.toggle('is-opening-glow', step === 'auto');
         if (!step) return;
         const [name, arg] = step.split(':');
         if (hintEl.dataset.step !== step) { hintEl.dataset.step = step; hintEl.innerHTML = HINTS[name](arg); }
         const box = document.getElementById('battlefield-canvas').getBoundingClientRect();
-        hintEl.style.left = `${Math.round(box.left + box.width / 2)}px`;
+        const left = `${Math.round(box.left + box.width / 2)}px`;
+        if (hintEl.style.left !== left) hintEl.style.left = left;
         hintEl.style.top = `${Math.round(box.top + box.height * 0.12)}px`;
     }
 

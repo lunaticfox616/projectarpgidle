@@ -16,4 +16,9 @@
 }
 @layer overrides {
     html.app-preload body > :not(#startup-overlay) { visibility: hidden; }
+    :focus-visible {
+        /* 키보드 초점의 네모난 테두리는 그리지 않는다(2026-10-25 사용자 "TAB 키 누르면 네모나게 표시되는 것 없애줘", Tab은 채팅 입력으로만:
+           js/hotkeys-ui.js routeTabToChat). !important: 창마다 :focus-visible에 테두리를 준 규칙(여러 층, 더 높은 선택자)을 모두 이긴다. */
+        outline: none !important;
+    }
     html.app-preload #startup-overlay > * { visibility: hidden; } }

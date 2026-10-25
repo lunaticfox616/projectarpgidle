@@ -104,13 +104,11 @@ function resetLocalSave(snapshot) {
 }
 
 function refreshItemIdCounter() {
-    // Every owned or pending item reserves its id, including offline overflow.
+    // Every owned or pending item reserves its id.
     const rift = game.timeRift || {};
-    const offline = game.offlineProgress || {};
     const presets = ((game.equipmentLoadouts || {}).presets || []).filter(Boolean)
         .flatMap(preset => Object.values(preset.slots || {}));
     const items = [game.inventory, Object.values(game.equipment || {}), rift.altarUnique, rift.altarRare,
-        offline.stash, offline.protectedOverflow,
         game.equipmentTemporaryStorage, presets,
         actExplorationLoot.reservedItems(game), actExplorationState.groundLoot.reservedItems(game), coreItems.ownedItems(game), (game.playerStall?.listings || []).map(row => row.item)].flat().filter(Boolean);
     const jewels=[game.jewelInventory,items.flatMap(item=>equipmentSockets.jewels(item).map(row=>row.jewel))].flat().filter(Boolean);

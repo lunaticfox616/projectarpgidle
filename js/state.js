@@ -2377,7 +2377,9 @@ const defaultGame = {
     chronicle: { rings: 0 },
     saveVersion: 19,
     // Permanent ledger: income follows CONTENT_UNLOCK_POINT_AWARDS (contentProgression.earnedBy), starting at loop two. carry: points a
-    // save from before 2026-10-21 keeps beyond those awards (the earlier table's), 0 for a new game.
+    // save from before 2026-10-21 keeps beyond those awards (the earlier table's), 0 for a new game. The default stays version 9: a save
+    // without a ledger takes it during the load, and the bag counts its pages by loop until contentProgression.restore makes the ledger
+    // (version 10 with graftFloor, js/content-progression.js) and turns those pages into owned 가방 쪽 steps.
     knitting: { season: 1, counts: {}, seen: [], knitted: {}, once: [] },
     contentProgression: { version: 9, highestLoop: 1, carry: 0, unlocked: [], paidCosts: {}, inherited: [], automatic: [], grandfathered: [] },
     loopChallenge: null,
@@ -2580,7 +2582,7 @@ const defaultGame = {
         '액막이1': null, '액막이2': null, '액막이3': null, '액막이4': null, '액막이5': null, '코어': null },
     equipmentLoadouts: { identityVersion: 1, selectedSlot: 0, presets: [null, null, null] },
     equipmentInventoryPlacements: {},
-    // 그루터기 함 아래 4×4 조합창: 재료를 가리키기만 한다(js/stump-cube.js).
+    // 그루터기 함 5×5 조합창: 재료를 가리키기만 한다(js/stump-cube.js).
     stumpCube: { slots: [], known: null },
     equipmentTemporaryStorage: [],
     inventory: [],
@@ -2588,8 +2590,7 @@ const defaultGame = {
     chaosInfuserUnlocked: false,
     abyssClearedDepths: [],
     craftingWorkspace: { discovered: [], pins: ['formlessDew','sapBud','goldenRule','blightSpore'], goal: { statId: '', minTier: 0 } },
-    currencies: { timeRemnant: 0, magicBud: 0, sapBud: 0, formlessDew: 0, goldenRule: 0, emberBranch: 0, burningEmberBranch: 0, catalystFire: 0, catalystCold: 0, catalystLight: 0, catalystChaos: 0, catalystCrit: 0, catalystSummon: 0, oilFire: 0, oilCold: 0, oilLight: 0, oilChaos: 0, ouroboros: 0, blightSpore: 0, pruningShears: 0, fairyRing: 0, blessing: 0, bossKeyFlame: 0, bossKeyFrost: 0, bossKeyStorm: 0, beastKeyCerberus: 0, bossCore: 0, fossil: 0, fossilPrimal: 0, fossilAncientPrimal: 0, fossilPrimordial: 0, fossilJagged: 0, fossilBound: 0, fossilGale: 0, fossilPrismatic: 0, fossilAbyssal: 0, fossilBulwark: 0, fossilWedge: 0, fossilOld: 0, fossilRift: 0, deepWhetstone: 0, rootIron: 0, jewelPolish: 0, abyssCatalyst: 0, uberRootTicketFlame: 0, uberRootTicketFrost: 0, uberRootTicketStorm: 0, uberRootTicketChaos: 0, runeShard: 0, skyEssence: 0, gemShard: 0, jewelCore: 0, jewelShard: 0, sealShard: 0, strongSealShard: 0, radiantSealShard: 0, hiveKey: 0, colonyTrace: 0, colonyShard: 0, enchantedHoney: 0, venomStinger: 0, pollen: 0, beeswax: 0, starDust: 0, awakenedEcho: 0, voidChisel: 0, sporeFire: 0, sporeCold: 0, sporeLight: 0, underCopper: 0, underSilver: 0, underGold: 0 },
-        offlineProgress: { version: 1, recognitionLevel: 0, efficiencyLevel: 0, stashLevel: 0, huntDirectiveUnlocked: false, safeReturnUnlocked: false, lootDirectiveUnlocked: false, rewardedThroughLoop: 0, lifetimeGranted: 0, huntMode: 'push', safetyPolicy: { consecutiveDeaths: 5, noKillMinutes: 10, stopOnNegativeExp: false, stopWhenStorageFull: false }, lootPolicy: { mode: 'rarity', preferredSlots: [], searchText: '' }, stash: [], protectedOverflow: [] },
+    currencies: { magicBud: 0, sapBud: 0, formlessDew: 0, goldenRule: 0, emberBranch: 0, burningEmberBranch: 0, catalystFire: 0, catalystCold: 0, catalystLight: 0, catalystChaos: 0, catalystCrit: 0, catalystSummon: 0, oilFire: 0, oilCold: 0, oilLight: 0, oilChaos: 0, ouroboros: 0, blightSpore: 0, pruningShears: 0, fairyRing: 0, blessing: 0, bossKeyFlame: 0, bossKeyFrost: 0, bossKeyStorm: 0, beastKeyCerberus: 0, bossCore: 0, fossil: 0, fossilPrimal: 0, fossilAncientPrimal: 0, fossilPrimordial: 0, fossilJagged: 0, fossilBound: 0, fossilGale: 0, fossilPrismatic: 0, fossilAbyssal: 0, fossilBulwark: 0, fossilWedge: 0, fossilOld: 0, fossilRift: 0, deepWhetstone: 0, rootIron: 0, jewelPolish: 0, abyssCatalyst: 0, uberRootTicketFlame: 0, uberRootTicketFrost: 0, uberRootTicketStorm: 0, uberRootTicketChaos: 0, runeShard: 0, skyEssence: 0, gemShard: 0, jewelCore: 0, jewelShard: 0, sealShard: 0, strongSealShard: 0, radiantSealShard: 0, hiveKey: 0, colonyTrace: 0, colonyShard: 0, enchantedHoney: 0, venomStinger: 0, pollen: 0, beeswax: 0, starDust: 0, awakenedEcho: 0, voidChisel: 0, sporeFire: 0, sporeCold: 0, sporeLight: 0, underCopper: 0, underSilver: 0, underGold: 0 },
     ascendClass: null,
     lastLoopAscendPlan: null,
     ascendPoints: 0,

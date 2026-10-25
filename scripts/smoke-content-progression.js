@@ -43,13 +43,15 @@ let before = json('game');
 assert(!run("contentProgression.purchase('support').ok"));
 assert.deepEqual(json('game'), before);
 run('game.season=2;contentProgression.sync()');
-assert.deepEqual(json('CONTENT_UNLOCK_CATALOG.filter(def=>contentProgression.status(def.id).available).map(def=>def.id)'),[],'장비 제련 waits for its NPC');
+assert.deepEqual(json('CONTENT_UNLOCK_CATALOG.filter(def=>!def.series&&contentProgression.status(def.id).available).map(def=>def.id)'),[],'장비 제련 waits for its NPC');
+// 강화(2026-10-25): loop 2 already offers the first steps of 시간 인식 and 그루터기 보관함 for points.
+assert.deepEqual(json('CONTENT_UNLOCK_CATALOG.filter(def=>def.series&&contentProgression.status(def.id).available).map(def=>def.id)'),['offlineHours1','stumpStorage1']);
 assert.equal(run("contentProgression.status('craft').reason"),'오르가 조우 필요');
 before=json('game');
 assert(!run("contentProgression.gift('craft').ok"),'an NPC unlock needs its NPC met');
 assert.deepEqual(json('game'),before);
 run(meet('orga'));
-assert.deepEqual(json('CONTENT_UNLOCK_CATALOG.filter(def=>contentProgression.status(def.id).available).map(def=>def.id)'),['craft']);
+assert.deepEqual(json('CONTENT_UNLOCK_CATALOG.filter(def=>!def.series&&contentProgression.status(def.id).available).map(def=>def.id)'),['craft']);
 assert(run("contentProgression.isUnlocked('journal')"));
 before=json('game');
 assert(!run("contentProgression.purchase('journal').ok"),'automatic content cannot spend points');
@@ -79,9 +81,9 @@ assert(!run("contentProgression.isUnlocked('research')"),'reaching the stage ena
 assert(run("contentProgression.status('research').npc==='haken'"));
 assert(run("contentProgression.gift('research').ok"));
 run('game=mergeDefaults(JSON.parse(JSON.stringify(game)))');
-assert.equal(run('contentProgression.balance()'),5,'loops 2~4 gave 2, 2 and 3 points; support cost 2, the NPC unlocks nothing');
+assert.equal(run('contentProgression.balance()'),4,'loops 2~4 gave 2 points each; support cost 2, the NPC unlocks nothing');
 assert(run("contentProgression.isUnlocked('research')"));
-run(`game.season=5;${meet('bern')};contentProgression.sync()`);
+run(`game.season=6;${meet('bern')};contentProgression.sync()`);
 assert(run("contentProgression.purchase('gemForge').ok"));
 assert(run("contentProgression.gift('fossil').ok"));
 for (const id of ['engraving','jewel']) assert(run(`contentProgression.purchase('${id}').ok`), id);
@@ -93,7 +95,7 @@ assert(!run("contentProgression.purchase('trials').ok"));
 assert.deepEqual(json('game'),before,'insufficient points must not grant anything or spend points');
 run('game=mergeDefaults({});game.season=10;contentProgression.sync()');
 for(const id of ['labyrinth','beehive','voidrift','duel'])assert(run(`contentProgression.isUnlocked('${id}')`));
-assert.equal(run('contentProgression.balance()'),17,'all combat openings are free');
+assert.equal(run('contentProgression.balance()'),18,'all combat openings are free');
 assert(!run("contentProgression.isUnlocked('deepChaos')"));
 run('game.abyssClearedDepths=[20];contentProgression.sync()');
 assert(run("contentProgression.isUnlocked('deepChaos')"));
@@ -222,6 +224,8 @@ assert(run('coreItems.canDrop()'));
 run(`game=mergeDefaults({}); game.season=25; ${meet('orga')}; contentProgression.sync();
     contentProgression.gift('craft');
     game.contentProgression.inherited.push('talisman');
+    // 2 points a loop: with the 강화 steps owned, loop 25 funds the rest of the catalog
+    game.contentProgression.inherited.push(...CONTENT_UNLOCK_CATALOG.filter(def=>def.series).map(def=>def.id));
     game.currencies.bossCore=7; game.currencies.skyEssence=8; game.currencies.sporeFire=9;
     game.currencies.runeShard=10; game.currencies.underCopper=11; game.currencies.enchantedHoney=12;
     game.currencies.voidChisel=13; game.currencies.colonyShard=14;
@@ -263,7 +267,7 @@ run(`game=mergeDefaults({});game.season=4;${meet('orga')};${meet('haken')};conte
     game.skills=['이중 베기'];game.activeSkill='이중 베기';game.gemEnhanceTargetSkill='이중 베기';
     game.gemData['이중 베기']=normalizeGemRecord({});game.currencies.skyEssence=20;game.currencies.bossCore=20;
     game.skyGemEnhancements={'이중 베기':['sky_fury']};`);
-assert.equal(run('contentProgression.balance()'),3);
+assert.equal(run('contentProgression.balance()'),2);
 assert(!run("contentProgression.isUnlocked('engraving')"));
 before=json('[game.gemData,game.skyGemEnhancements,game.currencies]');
 assert.deepEqual(json("getSkyEnhancementForSkill('이중 베기')"),[]);
@@ -292,8 +296,8 @@ for (const id of ['timerift','colony','beehive','voidrift']) {
 // Point cap includes future gated choices and preserves the historical purchase ledger.
 run('game=mergeDefaults({})');
 const totalCost=run('CONTENT_UNLOCK_CATALOG.reduce((sum,def)=>sum+def.cost,0)');
-assert.deepEqual(json('contentProgression.points()'),{balance:0,remaining:totalCost,nextAward:2,complete:false});
-run('game.season=20;contentProgression.sync()');
+assert.deepEqual(json('contentProgression.points()'),{balance:0,remaining:totalCost,nextAward:runtime.CONTENT_UNLOCK_POINT_AWARDS.perLoop,complete:false});
+run('game.season=31;contentProgression.sync()');
 assert.equal(run('contentProgression.balance()'),totalCost);
 assert(!run("contentProgression.status('beyond').available"),'future loop gates remain enforced after funding');
 before=json('game');
@@ -354,7 +358,8 @@ const catalogRow=id=>runtime.CONTENT_UNLOCK_CATALOG.find(def=>def.id===id);
 const inPurchaseOrder=ids=>{const out=[];while(out.length<ids.length){
     const id=ids.find(key=>!out.includes(key)&&[catalogRow(key).after,...(catalogRow(key).requires||[])].every(need=>!need||out.includes(need)));
     assert(id,'every listed unlock has its earlier unlocks listed');out.push(id);}return out;};
-const growthIds=runtime.CONTENT_UNLOCK_CATALOG.filter(def=>runtime.contentProgression.kind(def)!=='auto').map(def=>def.id);
+// 강화 steps (2026-10-25) did not exist in these saves.
+const growthIds=runtime.CONTENT_UNLOCK_CATALOG.filter(def=>runtime.contentProgression.kind(def)!=='auto'&&!def.series).map(def=>def.id);
 const boughtBy12=inPurchaseOrder(growthIds.filter(id=>catalogRow(id).minLoop<=12&&!catalogRow(id).progress));
 const oldPrices=Object.fromEntries(boughtBy12.map(id=>[id,catalogRow(id).npc?1:catalogRow(id).cost]));
 const oldSave={season:12,contentProgression:{version:8,highestLoop:12,unlocked:boughtBy12,paidCosts:oldPrices,inherited:[]}};
@@ -363,7 +368,7 @@ run(`game=mergeDefaults(${JSON.stringify(oldSave)})`);
 assert.deepEqual(json('game.contentProgression.unlocked'),boughtBy12,'every unlock bought under the earlier table survives loading');
 assert.equal(run('game.contentProgression.carry'),7);
 assert.equal(run("Object.values(game.contentProgression.paidCosts).reduce((a,b)=>a+b,0)"),17,'NPC unlocks bought for points are refunded');
-assert.equal(run('contentProgression.balance()'),6,'loop 12: 28 points from then, 17 paid; 재능, 룬 각성 and 코어 can take 6');
+assert.equal(run('contentProgression.balance()'),12,'loop 12: 22 points from the awards and 7 carried, 17 paid; the 강화 steps, 재능, 룬 각성 and 코어 can take them');
 const carried=json('game.contentProgression');
 run('game=mergeDefaults(JSON.parse(JSON.stringify(game)))');
 assert.deepEqual(json('game.contentProgression'),carried,'the carry is fixed once and never applied twice');

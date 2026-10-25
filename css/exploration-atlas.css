@@ -10,6 +10,17 @@
 #exploration-location{display:flex;align-items:center;gap:12px;padding:0;color:#b7b6a3;font-size:12px;flex-shrink:0}
 #exploration-location button,#ui-exploration-atlas .atlas-back{border:0;border-bottom:1px solid #9c885c;border-radius:6px;background:none;color:#ead09a;padding:5px 1px;font:inherit;cursor:pointer;white-space:nowrap}
 #exploration-location span{padding-left:12px;border-left:1px solid #8d825044}
+/* 길잡이(2026-10-25, js/exploration-atlas-ui.js locationHtml): 권역 단추 줄과 그 권역의 갈 곳 줄. 드롭다운은 휴대폰에만 */
+#exploration-location{flex-direction:column;align-items:stretch;gap:6px;flex:1 1 auto;min-width:0}
+#exploration-location .exploration-regions,#exploration-location .exploration-routes{display:flex;flex-wrap:wrap;gap:4px}
+#exploration-location .exploration-region-tab{position:relative;isolation:isolate;overflow:hidden;min-height:30px;padding:4px 12px;border:1px solid #3d3423;border-radius:0;
+  background:#0f0d09;color:#d8c9a6;font-size:12px}
+#exploration-location .exploration-region-tab::before{content:'';position:absolute;inset:0;z-index:-1;background:var(--land) center 60%/cover no-repeat;opacity:.35;image-rendering:pixelated}
+#exploration-location .exploration-region-tab[aria-pressed="true"]{border-color:#e2c27a;color:#f3d28c;box-shadow:inset 0 0 0 1px rgba(226,194,122,.35)}
+#exploration-location .exploration-region-tab[aria-pressed="true"]::before{opacity:.6}
+#exploration-location .exploration-routes button{min-height:26px;padding:2px 10px;border:1px solid #2f2a1d;border-radius:0;border-bottom-width:1px;background:#14110b;color:#b7a985;font-size:12px}
+#exploration-location .exploration-routes button[aria-pressed="true"]{border-color:#9c885c;color:#ead09a;background:#221c11}
+@media(min-width:701px){#tab-map #mobile-map-navigation{display:none}}
 #ui-exploration-atlas{container-type:inline-size;border:1px solid #ac9a623e;border-radius:6px;overflow:hidden;background:#101913;color:#ecebdd}
 #ui-exploration-atlas .atlas-heading{display:flex;align-items:center;justify-content:space-between;padding:8px 18px;min-height:36px;box-sizing:content-box;background:#101913;border-bottom:1px solid #c7ac632b;gap:10px}
 #ui-exploration-atlas .atlas-breadcrumb{display:flex;align-items:center;gap:12px;font-size:12px}

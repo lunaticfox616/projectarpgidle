@@ -530,7 +530,8 @@ function showPlayerHallTooltip(event, tipKey) {
 
 function hallTipAttrs(key) {
     let arg = escapeHTML(key);
-    return `onmouseenter="showPlayerHallTooltip(event,'${arg}')" onmousemove="showPlayerHallTooltip(event,'${arg}')" onmouseleave="hideInfoTooltip()"`;
+    // data-info-tooltip-anchor: without it js/ui.js's mousemove guard hid the card on every move (2026-10-25)
+    return `data-info-tooltip-anchor="1" onmouseenter="showPlayerHallTooltip(event,'${arg}')" onmousemove="showPlayerHallTooltip(event,'${arg}')" onmouseleave="hideInfoTooltip()"`;
 }
 
 /** An item's name with its slot, rarity and tier, and metaHtml under them. */

@@ -14763,11 +14763,9 @@ function captureLoopKeptItems() {
     });
     let preservedSealedInventory = collectLoopSealedBagItems(game);
     let preservedWoodsmanTouch = Math.max(0, Math.floor((game.currencies && game.currencies.ouroboros) || 0));
-    let preservedTimeRemnant = Math.max(0, Math.floor((game.currencies && game.currencies.timeRemnant) || 0));
     let preservedAltarMaterials = atlasEndgame.loopKeptCurrencies(game);
-    let preservedOfflineProgress = typeof ensureOfflineProgressState === 'function' ? JSON.parse(JSON.stringify(ensureOfflineProgressState(game))) : null;
     let preservedWoodsmanTouchSeen = !!game.woodsmanTouchSeen;
-    return { preservedSealedEquipment, preservedSealedInventory, preservedWoodsmanTouch, preservedTimeRemnant, preservedAltarMaterials, preservedOfflineProgress, preservedWoodsmanTouchSeen };
+    return { preservedSealedEquipment, preservedSealedInventory, preservedWoodsmanTouch, preservedAltarMaterials, preservedWoodsmanTouchSeen };
 }
 const loopDeepPointsNow = () => Math.max(0, Math.floor(game.loopDeepPoints || 0));
 /** The loop counters: the cosmos path count, the path, the season, the loop count and the loop point, with the arrival line. */
@@ -14865,16 +14863,12 @@ function resetLoopBuild() {
 /** Items and rewards: loop storage, gear and currencies emptied, then what the loop keeps restored; act rewards, chase uniques and
  * the codex for the new loop. */
 function resetLoopItems(kept, codexReveal) {
-    const { preservedTimeRemnant, preservedAltarMaterials, preservedOfflineProgress, preservedSealedEquipment, preservedSealedInventory, preservedWoodsmanTouch, preservedWoodsmanTouchSeen, prevLabMax } = kept;
+    const { preservedAltarMaterials, preservedSealedEquipment, preservedSealedInventory, preservedWoodsmanTouch, preservedWoodsmanTouchSeen, prevLabMax } = kept;
     clearLoopItemStorage(game);
     game.equipment = { ...defaultGame.equipment };
     craftingWorkspaceState.capture(game);
     game.currencies = { ...defaultGame.currencies };
-    game.currencies.timeRemnant = preservedTimeRemnant;
     preservedAltarMaterials.forEach(([key, value]) => { game.currencies[key] = value; });
-    if (preservedOfflineProgress && typeof ensureOfflineProgressState === 'function') game.offlineProgress = preservedOfflineProgress;
-    if (typeof resetOfflineStashForLoop === 'function') resetOfflineStashForLoop(game);
-    if (typeof syncOfflineProgressEntitlement === 'function') syncOfflineProgressEntitlement(game);
     // 봉인된 장비/나무꾼의 손길 복원(루프 유지)
     Object.keys(preservedSealedEquipment).forEach(slot => { game.equipment[slot] = Object.assign(preservedSealedEquipment[slot], { inheritedLevelExempt: true }); });
     if (preservedSealedInventory.length > 0) game.inventory.push(...preservedSealedInventory.map(item => Object.assign(item, { inheritedLevelExempt: true })));

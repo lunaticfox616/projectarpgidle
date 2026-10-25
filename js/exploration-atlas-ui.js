@@ -213,6 +213,8 @@ const explorationAtlasUi = (() => {
         host.innerHTML = `<header class="atlas-heading">${title}${arena}</header>` + body;
         if (focus) [...host.querySelectorAll('button')].find(button => button.getAttribute('onclick') === focus)?.focus({preventScroll:true});
     }
+    /** 지도 창 위 길잡이(2026-10-25 사용자 "지도 탭의 구조 자체의 개편"): 첫 줄은 전체 탐험과 권역(그 권역 그림이 어렴풋이 깔린
+     * 단추), 둘째 줄은 지금 권역에서 갈 수 있는 곳. 고르던 드롭다운과 경로 표시를 대신한다(드롭다운은 좁은 휴대폰 화면에만 남는다). */
     function syncLocation() {
         const host = document.getElementById('exploration-location');
         if (!host) return;
@@ -223,10 +225,18 @@ const explorationAtlasUi = (() => {
         if (overview) return;
         const region = regionFor(route);
         if (region && region.routes.filter(available).length > 1) selected = region.id;
-        const html = '<button onclick="explorationAtlasUi.open()">전체 탐험</button>' + (region && route !== 'map-explore-hunting'
-            ? `<button class="exploration-region-name" onclick="explorationAtlasUi.select('${region.id}')">${region.id === 'tree' ? '탐험' : region.name}</button>` : '');
-        if (host.innerHTML !== html) host.innerHTML = html;
+        writeHtmlIfChanged(host, locationHtml(region,route));
         syncRegionBanner(region,route);
+    }
+    const regionLabel = region => (region.id === 'tree' ? '나무' : region.name);
+    function locationHtml(current,route) {
+        const regions = EXPLORATION_REGIONS.regions.filter(region => region.routes.some(available));
+        const tabs = regions.map(region => `<button class="exploration-region-tab atlas-theme-${region.id}" aria-pressed="${region === current}"`
+            + ` style="--land:url('${new URL(region.landscape, document.baseURI).href}')" onclick="explorationAtlasUi.select('${region.id}')">${regionLabel(region)}</button>`).join('');
+        const routes = current ? current.routes.filter(available) : [];
+        const chips = routes.length > 1 ? `<div class="exploration-routes" role="group" aria-label="${regionLabel(current)}에서 갈 곳">${routes.map(entry =>
+            `<button aria-pressed="${entry === route}" onclick="explorationAtlasUi.enter('${entry}')">${escapeHTML(entry === 'map-explore-hunting' ? '나무' : routeLabel(entry))}</button>`).join('')}</div>` : '';
+        return `<div class="exploration-regions"><button class="exploration-home" onclick="explorationAtlasUi.open()">전체 탐험</button>${tabs}</div>${chips}`;
     }
     function syncRegionBanner(region,route) {
         const banner = document.getElementById('exploration-region-banner');
@@ -239,7 +249,7 @@ const explorationAtlasUi = (() => {
             : `<p>${escapeHTML(sideStatus || regionProgress(region))}</p>`;
         const html = `<img class="atlas-landscape" src="${region.landscape}" alt="" decoding="async"><div>
             <h2>${escapeHTML(hunting ? '나무' : routeLabel(route))}</h2>${progress}</div>`;
-        if (banner.innerHTML !== html) {banner.className='atlas-theme-'+region.id;banner.innerHTML=html;}
+        if (writeHtmlIfChanged(banner, html)) banner.className='atlas-theme-'+region.id;
     }
     return {open,select,enter,hunt,render,syncLocation,bossRewardLabel,bossEntry,rewardTooltip};
 })();

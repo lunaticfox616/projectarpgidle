@@ -185,7 +185,6 @@ const actExplorationState = (() => {
         if(o.pack.stage===null || o.pack.quiet)return false;
         // Stop before transferring a visible boss: a strong build could otherwise kill it
         // in this same tick, before the replay's next safety-policy check can see it.
-        if(state.isBackgroundCalculation && state.offlineHuntMode==='stopBeforeBoss'){state.backgroundStopReason='before-boss';return true;}
         return !bossAwake(state,run,o);
     }
     /** @returns {?{key:string, at:number, holdMs:number}} The boss entrance in progress (combat ms), if any. */

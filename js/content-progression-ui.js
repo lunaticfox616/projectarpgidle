@@ -99,8 +99,32 @@ const contentUnlockUi = {
         if (!status.available) return status.reason;
         return status.npc ? status.reason : `선택 가능, ${def.cost}P`;
     },
-    /** A growth choice of the tree: bought in this tab or given by an NPC, not content that opens by itself (contentProgression.kind). */
-    growth: def => contentProgression.kind(def) !== 'auto',
+    /** A growth choice of the tree: bought in this tab or given by an NPC, not content that opens by itself (contentProgression.kind).
+     * 강화 steps have their own cards (upgradesHtml). */
+    growth: def => contentProgression.kind(def) !== 'auto' && !def.series,
+    /** What a loop's milestone lists: its unlocks without the 강화 steps (their cards say when the next step opens). */
+    listed: loop => CONTENT_UNLOCK_CATALOG.filter(row => row.minLoop === loop && !row.series),
+    /** 강화(2026-10-25 사용자: 영구 방치 성장, 가방 쪽, 그루터기 보관함을 해금으로): 시리즈마다 한 장. 지금 효과 → 다음 단계, 그리고
+     * 다음 단계를 사는 단추(값 또는 아직 모자란 조건). 다 사면 최대. */
+    upgradesHtml() {
+        const cards = CONTENT_UNLOCK_SERIES.map(spec => {
+            const rows = CONTENT_UNLOCK_CATALOG.filter(row => row.series === spec.series), rank = contentProgression.rank(spec.series);
+            const next = rows[rank] || null, status = next && contentProgression.status(next.id);
+            const now = this.upgradeEffect(spec, rank), then = next ? ` → <b>${escapeHTML(this.upgradeEffect(spec, rank + 1))}</b>` : '';
+            const action = !next ? '<span class="unlock-upgrade-max">최대</span>'
+                : `<button type="button" data-unlock-content="${next.id}"${status.available ? '' : ' disabled'}><span class="px-center">${escapeHTML(status.available ? next.cost + 'P' : status.reason)}</span></button>`;
+            return `<article class="unlock-upgrade${next && status.available ? ' is-ready' : ''}${next ? '' : ' is-max'}" title="${escapeHTML(spec.description)}">`
+                + `<img src="assets/${spec.art}" alt=""><div><strong>${escapeHTML(spec.name)}<small>${rank}/${rows.length}</small></strong>`
+                + `<span>${escapeHTML(now)}${then}</span></div>${action}</article>`;
+        }).join('');
+        return `<section class="unlock-upgrades" aria-label="강화"><h3>강화</h3><div class="unlock-upgrade-list">${cards}</div></section>`;
+    },
+    upgradeEffect(spec, rank) {
+        if (spec.series === 'offlineHours') return `${OFFLINE_PROGRESS_RECOGNITION_HOURS[rank]}시간`;
+        if (spec.series === 'offlineRate') return `${Math.round(OFFLINE_PROGRESS_EFFICIENCY_RATES[rank] * 100)}%`;
+        if (spec.series === 'bagPage') return `${1 + rank}쪽`;
+        return `+${rank * spec.storage}칸`;
+    },
     /** An NPC unlock's mark: the face of the NPC who gives it, on the corner of its picture (stage art; a missing one is dropped). */
     npcFace(def) {
         if (!def.npc) return '';
@@ -134,7 +158,7 @@ const contentUnlockUi = {
     },
     choiceMap() {
         const starter = CONTENT_UNLOCK_CATALOG.find(row => row.id === 'craft');
-        if (!contentProgression.isUnlocked('craft')) return `<div class="unlock-start"><span class="unlock-eyebrow">첫 성장</span>${this.node(starter)}<p>${escapeHTML(contentProgression.npcName(starter.npc))}에게서 장비 제련을 받으면<br>다음 성장 갈래가 열립니다.</p></div>`;
+        if (!contentProgression.isUnlocked('craft')) return this.upgradesHtml() + `<div class="unlock-start"><span class="unlock-eyebrow">첫 성장</span>${this.node(starter)}<p>${escapeHTML(contentProgression.npcName(starter.npc))}에게서 장비 제련을 받으면<br>다음 성장 갈래가 열립니다.</p></div>`;
         const roots = CONTENT_UNLOCK_CATALOG.filter(row => this.growth(row) && (!row.after || row.branchStart));
         const filters = roots.map(row => `<button type="button" data-unlock-group="${row.id}" aria-pressed="${this.group === row.id}">${escapeHTML(row.group)}</button>`).join('');
         const branches = roots.filter(row => this.group === 'all' || row.id === this.group).map(root => {
@@ -143,7 +167,7 @@ const contentUnlockUi = {
             const columns = depths.map(depth => `<div class="unlock-depth"><span class="unlock-depth-label">${depths.indexOf(depth) + 2}단계</span>${nodes.filter(row => this.depth(row) === depth).map(row => this.node(row)).join('')}</div>`).join('');
             return `<section class="unlock-branch" aria-label="${escapeHTML(root.group)}"><span class="unlock-trunk" aria-hidden="true"></span><h3>${escapeHTML(root.group)}</h3><div class="unlock-path">${this.connections(nodes, depths)}${columns}</div></section>`;
         }).join('');
-        return `<nav class="unlock-filters" aria-label="성장 분야"><button type="button" data-unlock-group="all" aria-pressed="${this.group === 'all'}">전체</button>${filters}</nav>
+        return this.upgradesHtml() + `<nav class="unlock-filters" aria-label="성장 분야"><button type="button" data-unlock-group="all" aria-pressed="${this.group === 'all'}">전체</button>${filters}</nav>
             <div class="unlock-map" tabindex="0" aria-label="성장 해금 연결도"><button type="button" class="unlock-origin" data-unlock-select="craft" aria-pressed="${this.selectedId === 'craft'}"><span class="unlock-node-art"><img src="${this.art(starter)}" alt="">${this.npcFace(starter)}</span><span class="unlock-origin-label">장비 제련 <small>해금 완료, 이어지는 성장 선택</small></span></button>${branches}</div>`;
     },
     /** A one-time visual transition from the existing starter; never stored in the progression ledger. */
@@ -173,7 +197,7 @@ const contentUnlockUi = {
         return (SEASON_CONTENT_ROADMAP[loop]?.features || []).filter(text => /심화:|그루터기 함|아틀라스:|야생 부적|전환점:|전술 조건|버려진 날붙이|최종 관문|세계수 껍질/.test(text));
     },
     milestone(loop, end = loop) {
-        const rows = CONTENT_UNLOCK_CATALOG.filter(row => row.minLoop === loop);
+        const rows = this.listed(loop);
         const of = kind => rows.filter(row => contentProgression.kind(row) === kind);
         const additions = this.roadmapAdditions(loop);
         return `<details id="unlock-milestone-${loop}" class="unlock-milestone" ${loop === game.season ? 'open' : ''}>
@@ -185,7 +209,7 @@ const contentUnlockUi = {
     /** 같은 예고만 이어지는 앞날의 루프는 한 줄로 묶는다(루프 21 ~ 24가 "심화: 혼돈 단계 상승" 네 줄이었다 — 검토 5차). */
     milestoneRuns(loops) {
         return loops.reduce((runs, loop) => {
-            const plain = loop > game.season && !CONTENT_UNLOCK_CATALOG.some(row => row.minLoop === loop);
+            const plain = loop > game.season && !this.listed(loop).length;
             const key = plain ? this.milestoneTeaser(loop) : null, last = runs[runs.length - 1];
             if (key && last && last.key === key && last.end === loop - 1) last.end = loop;
             else runs.push({ start: loop, end: loop, key });
@@ -195,7 +219,7 @@ const contentUnlockUi = {
     /** 접힌 이정표 줄에도 그 루프에 열리는 것을 한두 개 보인다(빈 "예정" 줄만 늘어서 있었다 — 검토 4차). */
     milestoneTeaser(loop) {
         if (loop === game.season) return '';
-        const names = CONTENT_UNLOCK_CATALOG.filter(row => row.minLoop === loop).map(row => row.name);
+        const names = this.listed(loop).map(row => row.name);
         const first = names.length ? names.slice(0, 2).join(', ') + (names.length > 2 ? ` 외 ${names.length - 2}` : '')
             : (SEASON_CONTENT_ROADMAP[loop]?.features || [])[0];
         return first ? `, ${escapeHTML(first)}` : '';
@@ -291,9 +315,8 @@ const contentUnlockUi = {
     pointBalanceHtml() {
         const points = contentProgression.points();
         if (points.complete) return '<div class="content-unlock-balance" title="넘치는 해금 포인트는 그루터기 함 접붙이기 점수가 됩니다.">전체 해금 완료</div>';
-        const { early, perLoop } = CONTENT_UNLOCK_POINT_AWARDS;
         const title = points.balance === points.remaining ? '남은 해금에 필요한 포인트를 모두 모았습니다. 넘치는 몫은 그루터기 함 접붙이기 점수가 됩니다.'
-            : `루프 2~${early.length + 1}에 ${early.join(', ')}P, 그 뒤 매 루프 ${perLoop}P. 남은 해금 비용을 넘는 몫은 그루터기 함 접붙이기 점수. NPC 해금은 포인트 없이 그 NPC에게서 받습니다.`;
+            : `루프마다 ${CONTENT_UNLOCK_POINT_AWARDS.perLoop}P. 남은 해금 비용을 넘는 몫은 그루터기 함 접붙이기 점수. NPC 해금은 포인트 없이 그 NPC에게서 받습니다.`;
         return `<div class="content-unlock-balance" title="${title}"><span>해금</span><strong>${points.balance}</strong><span>P</span></div>`;
     },
     render() {
@@ -348,7 +371,8 @@ const contentUnlockUi = {
         const carded = this.announceContent(id);
         addLog(result.message, 'season-up', { toast: !carded, noToast: carded });
         this.announceOpenedSince(opened); // free content that comes with it (거래소 · 장비 전당 with 장비 제련)
-        game.noti.season = contentProgression.balance() > 0;
+        // 지금 살 수 있는 해금이 남았을 때만 알림: 뒤 루프의 강화 단계를 기다리는 포인트는 소식이 아니다(2026-10-25).
+        game.noti.season = CONTENT_UNLOCK_CATALOG.some(def => contentProgression.kind(def) === 'paid' && contentProgression.status(def.id).available);
         checkUnlocks();
         updateStaticUI();
         saveGame({ skipCloudSync: false });
@@ -378,7 +402,8 @@ const contentUnlockUi = {
     /** New content card: what it is (the catalog line) and where it lives. Once per content; returns true if queued. */
     announceContent(id) {
         const def = CONTENT_UNLOCK_CATALOG.find(row => row.id === id);
-        if (!def || (def.minLoop <= 1 && id !== 'tactics') || CONTENT_CARD_DEDICATED[id]) return false;
+        // 강화 단계(def.series)는 카드 없이 기록만 남긴다: 가방 쪽, 그루터기 보관함은 새 콘텐츠가 아니다.
+        if (!def || def.series || (def.minLoop <= 1 && id !== 'tactics') || CONTENT_CARD_DEDICATED[id]) return false;
         const action = this.routeAction(def), route = action ? this.routeKey(action) : null;
         const path = CONTENT_ROUTE_PATHS[route];
         const before = tutorialQueue.length;

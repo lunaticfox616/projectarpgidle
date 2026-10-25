@@ -1,6 +1,5 @@
 // Phase-2 extracted UI/tab/render helper block.
 let lastHeavyUiRefreshAt = 0;
-let lastPassiveTreeDrawAt = 0;
 // 전장 캔버스 렌더 주기를 제한해 고주사율 모니터에서의 과도한 재계산/렉을 완화한다.
 // (idle ARPG 특성상 30fps 부근이면 충분히 부드럽고, 메인 스레드 여유를 확보해 끊김을 줄인다.)
 let lastBattlefieldRenderAt = 0;
@@ -517,8 +516,6 @@ function getBackgroundRewardSummary(beforeState, afterState, combatMetrics, over
             beforeUniqueNames.splice(idx, 1);
             return false;
         });
-    let beforeStash = Array.isArray(beforeState && beforeState.offlineProgress && beforeState.offlineProgress.stash) ? beforeState.offlineProgress.stash.length : 0;
-    let afterStash = Array.isArray(afterState && afterState.offlineProgress && afterState.offlineProgress.stash) ? afterState.offlineProgress.stash.length : 0;
     return {
         kills: combatMetrics ? combatMetrics.kills : Math.max(0, Math.floor((afterState.loopKills || 0) - (beforeState.loopKills || 0))),
         exp: combatMetrics ? combatMetrics.exp : Math.max(0, getBackgroundTotalExperience(afterState) - getBackgroundTotalExperience(beforeState)),
@@ -529,8 +526,6 @@ function getBackgroundRewardSummary(beforeState, afterState, combatMetrics, over
         rarityGains,
         uniqueNames,
         highlights: equipmentLootPolicy.collectHighlights(beforeState, afterState),
-        stashItems: Math.max(0, afterStash - beforeStash),
-        stashTotal: afterStash,
         overflowSalvaged: Math.max(0, Math.floor(Number(overflowSalvaged) || 0)),
         masteryGains: getBackgroundMasteryGains(beforeState, afterState),
         knitting: knitting.gainedBetween(beforeState.knitting, afterState.knitting),
@@ -717,8 +712,7 @@ function renderBackgroundResultLoot(summary) {
     const gains = summary.rarityGains || {};
     const chips = ['unique', 'rare', 'magic', 'normal'].filter(rarity => gains[rarity] > 0)
         .map(rarity => `<span class="background-result-chip" style="--chip-tone:${getRarityColor(rarity)}">${ITEM_RARITY_LABELS[rarity]} <b>${gains[rarity]}</b></span>`);
-    const stash = Math.max(0, Number(summary.stashItems) || 0), salvaged = Math.max(0, Number(summary.overflowSalvaged) || 0);
-    if (stash > 0) chips.push(`<span class="background-result-chip quiet" title="방치 보관함에 모두 ${Math.max(0, Number(summary.stashTotal) || 0)}개">방치 보관함 <b>+${stash}</b></span>`);
+    const salvaged = Math.max(0, Number(summary.overflowSalvaged) || 0);
     if (salvaged > 0) chips.push(`<span class="background-result-chip quiet" title="가방이 차서 해체했습니다. 해체 보상은 재화에 들어 있습니다.">자동해체 <b>${salvaged}</b></span>`);
     const row = chips.length ? `<div class="background-result-chips">${chips.join('')}</div>` : '';
     return row + equipmentLootUi.renderHighlights(summary.highlights);
@@ -811,7 +805,6 @@ function commitBackgroundCombat(result, expectedGame) {
     let candidate = mergeDefaults(result.game);
     candidate.saveMeta = { ...expectedGame.saveMeta };
     candidate.settings.mapCompleteAction = expectedGame.settings.mapCompleteAction;
-    delete candidate.offlineHuntMode;
     game = candidate;
     backgroundCombatRuntime.processing = false;
     // The settled state is stamped now: a save made while hidden keeps hiddenAtMs (js/save.js getSaveModifiedAt), which would settle
@@ -3205,8 +3198,8 @@ function renderChaosRealmMapPanel() {
     let st = ensureChaosRealmState();
     let best = Math.max(0, Number(st.woodsmanBestDamagePct || 0));
     if (!st.unlocked) {
-        panel.innerHTML = `<div style="font-weight:700; color:#e9d7ff; margin-bottom:6px;">해금 조건</div><div>혼돈 밖 최종보스 나무꾼에게 <strong style="color:#ffd36b;">최대 생명력 10% 이상</strong>의 피해를 준 전투 종료 시 해금됩니다.</div><div style="margin-top:6px; color:var(--copy-bright);">현재 최고 피해율: <strong style="color:${best >= 10 ? '#7dffb2' : '#ffd36b'};">${best.toFixed(1)}%</strong></div>`;
-        list.innerHTML = `<div class="map-item"><div class="map-item-main"><span>🔒</span><span>혼돈계 봉인<br><span class="map-zone-status">나무꾼 피해율 10% 이상 필요</span></span></div><div class="map-item-actions"><span class="map-zone-status">${best.toFixed(1)} / 10%</span></div></div>`;
+        writeHtmlIfChanged(panel, `<div style="font-weight:700; color:#e9d7ff; margin-bottom:6px;">해금 조건</div><div>혼돈 밖 최종보스 나무꾼에게 <strong style="color:#ffd36b;">최대 생명력 10% 이상</strong>의 피해를 준 전투 종료 시 해금됩니다.</div><div style="margin-top:6px; color:var(--copy-bright);">현재 최고 피해율: <strong style="color:${best >= 10 ? '#7dffb2' : '#ffd36b'};">${best.toFixed(1)}%</strong></div>`);
+        writeHtmlIfChanged(list, `<div class="map-item"><div class="map-item-main"><span>🔒</span><span>혼돈계 봉인<br><span class="map-zone-status">나무꾼 피해율 10% 이상 필요</span></span></div><div class="map-item-actions"><span class="map-zone-status">${best.toFixed(1)} / 10%</span></div></div>`);
         return;
     }
     let entryReady = canEnterChaosRealm();
@@ -3215,12 +3208,12 @@ function renderChaosRealmMapPanel() {
     let affixes = getChaosRealmAffixes(floor);
     let bonus = st.permanentBonuses || {};
     let bonusLine = [`피해 +${(bonus.pctDmg||0).toFixed(1)}%`, `이속 +${(bonus.move||0).toFixed(1)}%`, `생명력 +${(bonus.pctHp||0).toFixed(1)}%`, `카오스저항 +${Math.floor(bonus.resChaos||0)}%`, `치명 +${Math.floor(bonus.crit||0)}%`, `관통 +${Math.floor(bonus.resPen||0)}%`, `방어/회피/보호막 +${Math.floor(bonus.armorPct||0)}%`, `치피 +${Math.floor(bonus.critDmg||0)}%`, `공속 +${Math.floor(bonus.aspd||0)}%`].join(', ');
-    panel.innerHTML = `<div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-start; flex-wrap:wrap;"><div><div style="font-weight:800; color:#efd6ff; font-size:15px;">혼돈계 영구 레이어</div><div style="color:var(--copy-bright); margin-top:4px;">루프로 초기화되지 않습니다. 최고 입장층 <strong style="color:#ffd36b;">${highest}층</strong>, 클리어 ${st.clearedFloors.length}층, 나무꾼 최고 피해율 ${best.toFixed(1)}%</div></div><button data-exploration-departure onclick="enterChaosRealmPrompt()" ${entryReady ? '' : 'disabled'}>층 선택 입장</button></div><div style="margin-top:8px; color:${entryReady ? '#d6e4ff' : '#ffcf8a'};">${entryReady ? `영구 보너스: ${bonusLine}` : '입장 조건: 이번 루프에서 혼돈 20 클리어 필요, 진행도/보너스는 보존됨'}</div><div style="margin-top:8px; color:#bda8ff;">현재 선택층 특징: ${affixes.map(a => `${a.name}(${a.desc})`).join(', ')}</div>`;
+    writeHtmlIfChanged(panel, `<div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-start; flex-wrap:wrap;"><div><div style="font-weight:800; color:#efd6ff; font-size:15px;">혼돈계 영구 레이어</div><div style="color:var(--copy-bright); margin-top:4px;">루프로 초기화되지 않습니다. 최고 입장층 <strong style="color:#ffd36b;">${highest}층</strong>, 클리어 ${st.clearedFloors.length}층, 나무꾼 최고 피해율 ${best.toFixed(1)}%</div></div><button data-exploration-departure onclick="enterChaosRealmPrompt()" ${entryReady ? '' : 'disabled'}>층 선택 입장</button></div><div style="margin-top:8px; color:${entryReady ? '#d6e4ff' : '#ffcf8a'};">${entryReady ? `영구 보너스: ${bonusLine}` : '입장 조건: 이번 루프에서 혼돈 20 클리어 필요, 진행도/보너스는 보존됨'}</div><div style="margin-top:8px; color:#bda8ff;">현재 선택층 특징: ${affixes.map(a => `${a.name}(${a.desc})`).join(', ')}</div>`);
     let zone = getZone(CHAOS_REALM_ZONE_ID);
     let echo = (game.woodsmanEchoRun && typeof game.woodsmanEchoRun === 'object') ? game.woodsmanEchoRun : { bestDps: 0 };
     let woodsmanEchoUnlocked = Array.isArray(game.journalEntries) && game.journalEntries.includes('woodsman_echo');
-    list.innerHTML = `<div class="map-item ${game.currentZoneId === CHAOS_REALM_ZONE_ID ? 'current' : ''}" ${entryReady ? 'data-exploration-departure onclick="enterChaosRealmPrompt()"' : ''}><div class="map-item-main"><span>🌌</span><span>혼돈계 ${floor}층<br><span class="map-zone-status">난이도 기준: 혼돈 심화 ${zone ? zone.tier : getChaosRealmTier(floor)}급, 특징 ${affixes.length}개</span><br>${buildMapPowerEstimateHtml(zone)}</span></div><div class="map-item-actions"><span class="map-zone-status">${entryReady ? `입장 가능: 1 ~ ${highest}` : '혼돈 20 필요'}</span></div></div>`
-        + (woodsmanEchoUnlocked ? `<div class="map-item ${game.currentZoneId === WOODSMAN_ECHO_ZONE_ID ? 'current' : ''}" data-exploration-departure onclick="enterWoodsmanEchoChallenge()"><div class="map-item-main"><span>🪵</span><span>나무꾼의 잔상 (전투력 측정)<br><span class="map-zone-status">30초 전투, 체력 ?, 공격하지 않는 허수아비(실체력 1000배)</span></span></div><div class="map-item-actions"><span class="map-zone-status">최고 DPS ${Math.floor(echo.bestDps || 0).toLocaleString()}</span></div></div>` : '');
+    writeHtmlIfChanged(list, `<div class="map-item ${game.currentZoneId === CHAOS_REALM_ZONE_ID ? 'current' : ''}" ${entryReady ? 'data-exploration-departure onclick="enterChaosRealmPrompt()"' : ''}><div class="map-item-main"><span>🌌</span><span>혼돈계 ${floor}층<br><span class="map-zone-status">난이도 기준: 혼돈 심화 ${zone ? zone.tier : getChaosRealmTier(floor)}급, 특징 ${affixes.length}개</span><br>${buildMapPowerEstimateHtml(zone)}</span></div><div class="map-item-actions"><span class="map-zone-status">${entryReady ? `입장 가능: 1 ~ ${highest}` : '혼돈 20 필요'}</span></div></div>`
+        + (woodsmanEchoUnlocked ? `<div class="map-item ${game.currentZoneId === WOODSMAN_ECHO_ZONE_ID ? 'current' : ''}" data-exploration-departure onclick="enterWoodsmanEchoChallenge()"><div class="map-item-main"><span>🪵</span><span>나무꾼의 잔상 (전투력 측정)<br><span class="map-zone-status">30초 전투, 체력 ?, 공격하지 않는 허수아비(실체력 1000배)</span></span></div><div class="map-item-actions"><span class="map-zone-status">최고 DPS ${Math.floor(echo.bestDps || 0).toLocaleString()}</span></div></div>` : ''));
 }
 function renderSkyTowerMapPanel() {
     const panel = document.getElementById('ui-sky-tower-panel');
@@ -8338,7 +8331,8 @@ function updateCombatUI(pStats) {
         let focusedKey = String(focusedEnemy.id) + '|' + enemyHudTier;
         // 2026-10-04 visibility: an ordinary monster's HP already rides over its head on the field, so the big top card
         // (name · bar) only shows for elites and bosses — on phones it covered the ground ahead where packs come from.
-        enemyListEl.hidden = enemyHudTier === 'mob';
+        // 같은 값이면 쓰지 않는다: 쓸 때마다 body의 :has() 규칙까지 스타일을 다시 계산했다(2026-10-25 측정, 일반 몹을 겨눈 동안 틱마다).
+        if (enemyListEl.hidden !== (enemyHudTier === 'mob')) enemyListEl.hidden = enemyHudTier === 'mob';
         if (enemyListEl.dataset.enemyId !== focusedKey || !enemyListEl.querySelector('.enemy-card.targeted')) {
             clearUiEnemyTraitRotation(enemyListEl.querySelector('.enemy-traits'));
             enemyListEl.dataset.enemyId = focusedKey;
@@ -8710,7 +8704,10 @@ function processQueuedUIRefresh() {
     }
 }
 
-function shouldRedrawPassiveTree(now) {
+/** Whether the skill tree canvas needs a new draw: its state, its box or the pixel ratio changed. Nothing in it moves by itself
+ * (pointer, zoom and selection redraw at once in js/passive-selection-ui.js), so it is not redrawn every 500ms any more
+ * (2026-10-25 측정: 바뀐 것 없이 8초에 16번 1454×699 캔버스를 다시 그렸다). */
+function shouldRedrawPassiveTree() {
     let signature = [
         game.passivePoints || 0,
         (game.passives || []).length,
@@ -8720,12 +8717,18 @@ function shouldRedrawPassiveTree(now) {
         game.season || 1,
         (game.settings && game.settings.passiveTreeSearch) || '',
         (game.settings && game.settings.passiveTreeFilter) || 'all',
-        game.settings && game.settings.passiveTreeShowLabels === false ? 'labels-off' : 'labels-on'
+        game.settings && game.settings.passiveTreeShowLabels === false ? 'labels-off' : 'labels-on',
+        passiveTreeBoxKey()
     ].join('|');
     let changed = signature !== lastPassiveTreeSignature;
-    let due = (now - lastPassiveTreeDrawAt) >= 500;
     if (changed) lastPassiveTreeSignature = signature;
-    return changed || due;
+    return changed;
+}
+
+/** The tree canvas box and pixel ratio: a resize or a zoom change needs a new draw. */
+function passiveTreeBoxKey() {
+    const canvas = document.getElementById('tree-canvas'), box = canvas && canvas.parentElement;
+    return box ? `${box.clientWidth}x${box.clientHeight}@${passiveSelectionUi.pixelRatio()}` : '';
 }
 
 function getPlayerEhpCardsHtml(pStats, cardClass) {
@@ -8925,11 +8928,9 @@ return function performUpdateStaticUI() {
     if (combatLoopBtn) combatLoopBtn.style.display = canShowCombatLoopAdvanceButton() ? 'inline-flex' : 'none';
     let charTabActive = getRenderingUiTabIds().has('tab-char');
     if (charTabActive) {
-        let drawNow = Date.now();
-        if (shouldRedrawPassiveTree(drawNow)) {
+        if (shouldRedrawPassiveTree()) {
             resizePassiveTreeCanvas(false);
             drawPassiveTree();
-            lastPassiveTreeDrawAt = drawNow;
         }
     }
     __mark('tree');
@@ -8987,7 +8988,7 @@ return function performUpdateStaticUI() {
     renderPaperdoll('ui-equip-list', false);
     renderCraftTargetLibrary(isItemRarityVisible);
     let invRarityFilterHost = document.getElementById('ui-inventory-rarity-filter');
-    if (invRarityFilterHost) invRarityFilterHost.innerHTML = renderRarityFilterChips('inventory');
+    if (invRarityFilterHost) writeHtmlIfChanged(invRarityFilterHost, renderRarityFilterChips('inventory'));
     if (window.equipmentTriage) {
         window.equipmentTriage.autoStart();
         window.equipmentTriage.render();
@@ -9623,7 +9624,7 @@ function buildCraftActionButtons(item) {
             details=selectedUniqueEffectHtml+'<div class="craft-actions">'+equipSelectedButtonHtml+buildCraftActionButtons(selectedItem)+'</div>';
         }
         craftingWorkspaceUi.render(false,{details,useState:getMobileCraftCurrencyUseState,targetControls:getCraftTargetControlsHtml,emptyState:getCraftEmptyStateHtml});
-        document.getElementById('ui-craft-spore-actions').innerHTML=buildSporeSummaryHtml();
+        writeHtmlIfChanged(document.getElementById('ui-craft-spore-actions'), buildSporeSummaryHtml());
     }
     let marketTabBtn = document.getElementById('btn-item-tab-market');
     if (marketTabBtn) marketTabBtn.style.display = isMarketUnlocked() ? 'block' : 'none';
@@ -9649,7 +9650,7 @@ function buildCraftActionButtons(item) {
     let recommendedHuntingZoneId = recommendedHuntingZone ? Number(recommendedHuntingZone.id) : null;
     let mapRouteSummary = document.getElementById('ui-map-route-summary');
     let routeSummaryHtml = buildMapRouteSummaryHtml(getZone(game.currentZoneId), recommendedHuntingZone);
-    if (mapRouteSummary && mapRouteSummary.innerHTML !== routeSummaryHtml) mapRouteSummary.innerHTML = routeSummaryHtml;
+    writeHtmlIfChanged(mapRouteSummary, routeSummaryHtml);
     // 나무(일반 사냥터)와 혼돈을 탐험 좌측 세부 탭으로 나눠 그린다(js/map-list-ui.js: 액트 카드, 혼돈 층 타일).
     setExploreSubtabAvailable('map-explore-chaos', mapListUi.render(mapZones, recommendedHuntingZoneId) > 0);
     setExploreSubtabAvailable('map-explore-beehive', (game.season || 1) >= 8);
@@ -9688,7 +9689,7 @@ function buildCraftActionButtons(item) {
     // 혼돈 심화 입장은 혼돈 탭의 카드 목록으로 노출한다.
     // 기존 전용 섹션/사이드 탭은 중복 표시를 피하기 위해 비우고 숨긴다.
     document.getElementById('ui-deep-chaos-header').style.display = 'none';
-    document.getElementById('ui-deep-chaos-list').innerHTML = '';
+    writeHtmlIfChanged(document.getElementById('ui-deep-chaos-list'), '');
     let deepChaosTabBtn = document.getElementById('btn-map-explore-deep-chaos');
     if (deepChaosTabBtn) deepChaosTabBtn.style.display = 'none';
     if (game.mapExploreSubtab === 'map-explore-deep-chaos') switchMapExploreSubtab('map-explore-hunting');
@@ -9763,8 +9764,8 @@ function buildCraftActionButtons(item) {
             <div style="color:var(--copy-bright); font-size:12px; line-height:1.5;">• ${reqText}<br>${(def.features || []).map(v => `• ${v}`).join('<br>')}</div>
         </div>`;
     }).join('');
-    document.getElementById('ui-season-content-roadmap').innerHTML = collapsedRoadmapSummary + roadmapCards
-        || `<div style="color:var(--copy-muted);">루프 1을 클리어하면 루프 이정표가 열립니다.</div>`;
+    writeHtmlIfChanged(document.getElementById('ui-season-content-roadmap'), collapsedRoadmapSummary + roadmapCards
+        || `<div style="color:var(--copy-muted);">루프 1을 클리어하면 루프 이정표가 열립니다.</div>`);
     // 노드 한가운데 도트 그림(능력치 종류): 한 글자("관" · "피")는 읽히지 않고 어수선했다(2026-10-06 사용자 요청).
     // 전체 효과는 이름표 · 툴팁이 말한다. 그림은 각인과 같은 11도트 묶음(PIXEL_ICONS)을 쓴다.
     const seasonNodeIcons = {
@@ -9812,7 +9813,7 @@ function buildCraftActionButtons(item) {
         return renderSeasonNode(id, 'inner-node', 50 + Math.cos(angle) * 17.2, 50 + Math.sin(angle) * 17.2);
     }).join('') : '';
     let innerCircle = seasonEvolved ? '<div class="loop-magic-circle" aria-hidden="true"><span class="loop-magic-runes"></span><span class="loop-magic-core"></span></div>' : '';
-    document.getElementById('ui-season-tree').innerHTML = `${seasonSummary}<div class="loop-passive-orbit ${seasonEvolved ? 'complete' : ''}"><div class="loop-orbit-ambient" aria-hidden="true"></div><span class="loop-ouroboros-silhouette" aria-hidden="true"></span>${innerCircle}${loopOrbitCenterHtml()}${ringNodes}${innerNodes}</div>`;
+    writeHtmlIfChanged(document.getElementById('ui-season-tree'), `${seasonSummary}<div class="loop-passive-orbit ${seasonEvolved ? 'complete' : ''}"><div class="loop-orbit-ambient" aria-hidden="true"></div><span class="loop-ouroboros-silhouette" aria-hidden="true"></span>${innerCircle}${loopOrbitCenterHtml()}${ringNodes}${innerNodes}</div>`);
     }
 
 
@@ -10060,7 +10061,6 @@ function setPassiveTreeSearchState(next) {
     if (document.getElementById('tab-char') && document.getElementById('tab-char').classList.contains('active')) {
         resizePassiveTreeCanvas(false);
         drawPassiveTree();
-        lastPassiveTreeDrawAt = Date.now();
     }
 }
 
@@ -10175,7 +10175,7 @@ function renderPassiveInvestmentSummary() {
     const specials = summary.specialEffects.length
         ? `<div class="passive-summary-specials">조건부 효과, ${summary.specialEffects.join(', ')}</div>`
         : '';
-    body.innerHTML = `<div class="passive-summary-meta">투자 ${summary.allocatedCount}개${summary.voidCount ? `, 공허 ${summary.voidCount}개` : ''}</div>${renderPassiveSpecializationControls()}<div class="passive-summary-grid">${rows}</div>${specials}`;
+    writeHtmlIfChanged(body, `<div class="passive-summary-meta">투자 ${summary.allocatedCount}개${summary.voidCount ? `, 공허 ${summary.voidCount}개` : ''}</div>${renderPassiveSpecializationControls()}<div class="passive-summary-grid">${rows}</div>${specials}`);
     renderPassiveTreePlannerPanel();
 }
 
@@ -13199,22 +13199,18 @@ function gameLoop(frameNow = performance.now()) {
         let tutorialPause = isTutorialPausingCombat();
         if (tutorialPause || isRewardOpen() || isLoopHeroSelectOpen()) {
             if (document.getElementById('tab-char').classList.contains('active')) {
-                let passiveNow = Date.now();
-                if (shouldRedrawPassiveTree(passiveNow)) {
+                if (shouldRedrawPassiveTree()) {
                     resizePassiveTreeCanvas(false);
                     drawPassiveTree();
-                    lastPassiveTreeDrawAt = passiveNow;
                 }
             }
             renderBattlefieldThrottled(frameNow);
             return;
         }
         if (document.getElementById('tab-char').classList.contains('active')) {
-            let passiveNow = Date.now();
-            if (shouldRedrawPassiveTree(passiveNow)) {
+            if (shouldRedrawPassiveTree()) {
                 resizePassiveTreeCanvas(false);
                 drawPassiveTree();
-                lastPassiveTreeDrawAt = passiveNow;
             }
         }
         renderBattlefieldThrottled(frameNow);

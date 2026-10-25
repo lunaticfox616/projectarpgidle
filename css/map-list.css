@@ -18,14 +18,15 @@
     .map-act-grid { --map-act-cols: max(1, round(down, (100cqw + 8px) / 308px, 1));
       grid-template-columns: repeat(auto-fill, round(down, calc((100cqw - (var(--map-act-cols) - 1) * 8px) / var(--map-act-cols)), 1px)); }
   }
-  .map-act-card { display: grid; grid-template-columns: 88px minmax(0, 1fr); grid-template-areas: 'art body' 'art actions'; gap: 6px 12px; min-width: 0; padding: 8px;
-    border: 1px solid #2a2218; background: linear-gradient(90deg, rgba(40, 30, 18, .85), rgba(10, 8, 6, .55)); }
+  /* 액트 카드(2026-10-25): 보스 그림 대신 그 액트의 지역 그림을 카드 뒤에 어렴풋이(--act-land, js/map-list-ui.js actLandscape) */
+  .map-act-card { position: relative; isolation: isolate; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-areas: 'body' 'actions'; gap: 6px 12px;
+    min-width: 0; padding: 10px 12px; overflow: hidden; border: 1px solid #2a2218; background: #0e0b08; }
+  .map-act-card::before { content: ''; position: absolute; inset: 0; z-index: -1; background: var(--act-land, none) center 60% / cover no-repeat;
+    image-rendering: pixelated; opacity: .32; }
+  .map-act-card::after { content: ''; position: absolute; inset: 0; z-index: -1; background: linear-gradient(90deg, rgba(14, 11, 8, .92) 18%, rgba(14, 11, 8, .45)); }
+  .map-act-card.is-cleared:not(.current)::before { filter: saturate(.6); }
   .map-act-card.is-recommended { border-color: #8a6a2e; }
   .map-act-card.current { border-color: #c69f5e; box-shadow: 0 0 0 1px rgba(198, 159, 94, .3), 0 0 12px rgba(198, 159, 94, .16); }
-  .map-act-art { grid-area: art; display: grid; place-items: center; width: 88px; height: 88px; overflow: hidden; border: 1px solid #3a2e20;
-    background: radial-gradient(circle at 50% 62%, rgba(150, 56, 40, .26), transparent 70%), #0b0907; }
-  .map-act-art img { width: 88px; height: 88px; object-fit: contain; image-rendering: pixelated; }
-  .map-act-card.is-cleared:not(.current) .map-act-art img { filter: saturate(.6) brightness(.82); }
   .map-act-body { grid-area: body; display: grid; align-content: start; gap: 2px; min-width: 0; }
   .map-act-body small { color: var(--px-copy-muted, #a39883); font-size: 12px; }
   #tab-map .map-act-body strong { color: var(--px-copy, #e8dcc0); font-size: var(--font-size-reading); font-weight: 400; }
@@ -92,8 +93,6 @@
 
   @container (max-width: 600px) {
     .map-act-grid { grid-template-columns: minmax(0, 1fr); }
-    .map-act-card { grid-template-columns: 64px minmax(0, 1fr); }
-    .map-act-art, .map-act-art img { width: 64px; height: 64px; }
     .map-chaos-board { grid-template-columns: minmax(0, 1fr) repeat(3, round(down, calc((100% - 18px) / 4), 1px)); }
   }
 }

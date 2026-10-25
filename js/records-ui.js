@@ -206,8 +206,6 @@
     }
 
     function buildRecordsHtml(view) {
-        let offlineHtml = typeof buildOfflineProgressHtml === 'function' && typeof getOfflineProgressView === 'function'
-            ? buildOfflineProgressHtml(getOfflineProgressView()) : '';
         return renderHeader(view)
             + (typeof chronicleUi === 'object' ? chronicleUi.sectionHtml() : '')
             + (typeof weaponMasteryUi === 'object' ? weaponMasteryUi.sectionHtml() : '')
@@ -215,7 +213,6 @@
             + renderBestSection(view)
             + renderIncidentSection(view)
             + renderLoopSection(view)
-            + `<details class="records-offline"><summary>영구 방치 성장<span>강화, 방치 지시, 보관함</span></summary>${offlineHtml}</details>`
             + renderEchoSection(view);
     }
 

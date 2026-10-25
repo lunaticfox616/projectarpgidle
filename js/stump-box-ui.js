@@ -1,8 +1,11 @@
-// 그루터기 함 화면: 5×5 판(유물 그림 위의 칸 단추), 머리줄(색 개수, 열린 칸, 규칙 ?), 고른 것의 설명, 받을 선물, 보관함.
+// 그루터기 함 화면: 5×5 판(틀 그림 위의 칸 단추), 머리줄(색 개수, 열린 칸, 규칙 ?), 고른 것의 설명, 받을 선물, 보관함.
 // 옮기기는 두 가지(2026-10-04 사용자 요청, 장비 창과 같게): 누르기 — 아이템을 고르고 판의 칸(빈 칸이면 옮기고, 찬 칸이면 자리를
 // 바꾼다)이나 보관함을 누른다. 끌기 — js/stump-box-drag-ui.js가 이 모듈의 dropOnCell · dropOnStorage를 부른다.
 // 마우스를 올리면 게임 툴팁(tipFor)이 나온다. 규칙 · 계산은 js/stump-box.js.
-// 부적(색 없는 세 번째 계열)의 설명 · 합계 · 봉인 풀기 조각은 js/stump-talisman-ui.js가, 4×4 조합창은 js/stump-cube-ui.js가 준다.
+// 부적(색 없는 세 번째 계열)의 설명 · 합계 · 봉인 풀기 조각은 js/stump-talisman-ui.js가, 5×5 조합창은 js/stump-cube-ui.js가 준다.
+// 틀(2026-10-25 사용자 그림, scripts/build-stump-frames.cjs): 어두운 틀은 판, 뼈빛 틀은 조합창이고 틀 위 보석을 누르면 서로 바뀐다
+// (전에는 판 아래에 조합창이 따로 있었다). 옵션 합계와 아래 탭(수확 일지, 함 해금, 부적)은 접혀 있다가 누르면 펼친다: 기본 화면에
+// 스크롤이 생기지 않게(사용자). 보관함은 100칸씩 쪽으로 나눈다.
 // 접붙이기(루프 18부터): 판의 칸(빈 칸도 누르면 고른다)을 골라 [접붙이기]로 단계를 올린다. 단계는 칸 왼쪽 위 숫자로 보인다.
 // 수확 일지, 줄 선물, 함 해금 목록과 그 알림은 js/stump-harvest-ui.js가 준다(2026-10-07 해금 1차).
 // 다 자라는 순간의 굴림(추가 줄, 풍작, 황금), 불씨의 흉터, 봉인 칸, 씨앗 주머니, 일괄 거름 사용과 일괄 버리기 조각은 js/stump-ripening-ui.js가 준다(16번).
@@ -15,6 +18,11 @@ const stumpBoxUi = (() => {
     let selectedId = null, selectedCell = null, moreTab = 'harvest', colorFilter = 'all', lastSignature = '', bound = false, ticker = null;
     let placement = null, placementKey = '';
     let storageSort = 'quality-desc', stateFilter = 'all', compareOpen = false, comparedId = null;
+    // 틀이 보여 주는 것('box' 판, 'cube' 조합창), 접는 칸, 보관함 쪽: 화면만의 상태다(저장하지 않는다).
+    let frameView = 'box', frameSwitching = false, summaryOpen = false, moreOpen = false, storagePage = 0;
+    /** 보석을 누른 뒤 빛나는 보석 두 장이 번갈아 보이는 시간(css/stump-box.css stump-gem-flash와 같다). */
+    const FRAME_FLASH_MS = 240;
+    const STORAGE_PAGE_CELLS = 100;
     // Storage items do not grow ("성장 중" means placed on the board), so an unripe stored item is "성장 전".
     const STORAGE_STATES = { all: '모든 상태', ripe: '성장 완료', unripe: '성장 전', locked: '잠금' };
     const STORAGE_SORTS = { 'quality-desc': '품질 높은 순', 'quality-asc': '품질 낮은 순', name: '이름순', recent: '최근 획득순' };
@@ -92,10 +100,31 @@ const stumpBoxUi = (() => {
             + ` aria-label="${escStump(stumpCellLabel(cell, item, open))}"${open ? '' : ' aria-disabled="true"'}`
             + ` style="--stump-tone:${item ? itemTone(item) : 'transparent'}">${body}</button>`;
     }
+    /** The frame: the dark one holds the board, the bone one the cube; its gem switches them (aria names the other side). */
     function stumpBoardHtml(result) {
-        const cells = Array.from({ length: STUMP_BOX_SIZE * STUMP_BOX_SIZE }, (_, cell) => stumpCellHtml(cell, result)).join('');
-        return `<div class="stump-board" role="grid" aria-label="그루터기 함 판"><div class="stump-board-grid">${cells}</div></div>`
+        const cube = frameView === 'cube';
+        const grid = cube ? stumpCubeUi.cubeGridHtml()
+            : Array.from({ length: STUMP_BOX_SIZE * STUMP_BOX_SIZE }, (_, cell) => stumpCellHtml(cell, result)).join('');
+        const other = cube ? '그루터기 함' : '조합창';
+        return `<div class="stump-board is-${frameView}${frameSwitching ? ' is-switching' : ''}"${cube ? '' : ' role="grid" aria-label="그루터기 함 판"'}>`
+            + `<button type="button" class="stump-frame-gem" data-stump-action="frame-gem" aria-label="${other}으로 바꾸기" title="${other}으로 바꾸기"></button>`
+            + `<div class="stump-board-grid">${grid}</div></div>`
             + '<div id="stump-placement-preview" class="stump-placement-preview" role="status" aria-live="polite" hidden></div>';
+    }
+    /** The gem: the two glowing frames take turns for a moment, then the frame shows the other side. */
+    function switchFrame(button) {
+        if (frameSwitching) return;
+        const finish = () => {
+            frameSwitching = false;
+            frameView = frameView === 'box' ? 'cube' : 'box';
+            clearPlacementPreview();
+            renderStumpBoxTab(true);
+            document.querySelector('#tab-stump .stump-frame-gem')?.focus({ preventScroll: true });
+        };
+        if (uiDisplay.matches('(prefers-reduced-motion: reduce)')) return finish();
+        frameSwitching = true;
+        button.closest('.stump-board')?.classList.add('is-switching');
+        setTimeout(finish, FRAME_FLASH_MS);
     }
 
     // ── 머리줄 · 요약 ───────────────────────────────────────
@@ -114,10 +143,15 @@ const stumpBoxUi = (() => {
             + `<button type="button" data-stump-action="placement-undo"${stumpBox.canUndoPlacement(game) ? '' : ' disabled'}>배치 되돌리기</button>`
             + '<button type="button" class="stump-rules-button" data-stump-action="rules" data-stump-tip="rules" data-info-tooltip-anchor="1" aria-label="그루터기 함 규칙"><span class="px-center">?</span></button>';
     }
-    /** 옵션 합계 under the cube: what the working items add up to, each line in its stat's colour (the item affix colours, 2026-10-06). */
+    /** 옵션 합계 under the board: what the working items add up to, each line in its stat's colour (the item affix colours, 2026-10-06).
+     * Folded to one line until pressed (2026-10-25 사용자: 접을 수 있게, 기본 화면에 스크롤 없게). */
     function stumpSummaryHtml(result) {
-        const stats = Object.keys(result.stats).map(stat => `<li style="color:${getItemStatToneColor(stat)}">${escStump(stumpStatText(stat, result.stats[stat]))}</li>`).join('');
-        return `<h3>옵션 합계</h3><ul class="stump-stats">${stats || '<li class="is-empty">아직 없음</li>'}</ul>` + stumpTalismanUi.summaryHtml();
+        const keys = Object.keys(result.stats);
+        const head = `<button type="button" class="stump-fold" data-stump-action="summary" aria-expanded="${summaryOpen}">`
+            + `<span>옵션 합계</span><small>${keys.length ? `${keys.length}줄` : '아직 없음'}</small></button>`;
+        if (!summaryOpen) return head;
+        const stats = keys.map(stat => `<li style="color:${getItemStatToneColor(stat)}">${escStump(stumpStatText(stat, result.stats[stat]))}</li>`).join('');
+        return head + `<ul class="stump-stats">${stats || '<li class="is-empty">아직 없음</li>'}</ul>` + stumpTalismanUi.summaryHtml();
     }
     /** 루프가 바뀔 때: 성장 완료된 그루터기 아이템의 경험치가 초기화된다(뿌리 기억은 그만큼 남긴다). */
     function stumpLoopRule() {
@@ -330,30 +364,40 @@ const stumpBoxUi = (() => {
         return (a.color ? (a.roll - b.roll) * (storageSort === 'quality-asc' ? 1 : -1) : 0) || a.id - b.id;
     }
     function storageSelect(key, label, value, choices) {
-        return `<label>${label}<select data-stump-select="${key}" aria-label="보관함 ${label}">`
-            + Object.entries(choices).map(([id, name]) => `<option value="${id}"${id === value ? ' selected' : ''}>${name}</option>`).join('') + '</select></label>';
+        return `<select data-stump-select="${key}" aria-label="보관함 ${label}" title="${label}">`
+            + Object.entries(choices).map(([id, name]) => `<option value="${id}"${id === value ? ' selected' : ''}>${name}</option>`).join('') + '</select>';
     }
+    /** One row (2026-10-25 사용자 "압축할 수 있는 부분 압축"): 상태, 정렬, 일괄 거름 · 버리기, 거른 것이 있을 때만 몇 개 보이는지. */
     function storageToolsHtml(count, total) {
+        const shown = count < total ? `<span class="stump-hint">${count}/${total}개</span>` : '';
         return '<div class="stump-storage-tools">' + storageSelect('state', '상태', stateFilter, STORAGE_STATES)
-            + storageSelect('sort', '정렬', storageSort, STORAGE_SORTS) + `<span class="stump-hint">${count}/${total}개 표시</span></div>`;
+            + storageSelect('sort', '정렬', storageSort, STORAGE_SORTS) + (stateFilter === 'all' ? stumpRipeningUi.bulkHtml(colorFilter) : '') + shown + '</div>';
     }
-    /** The empty slots after the owned items: the whole capacity is laid out like the equipment bag (2026-10-16 사용자 "창크기에따라
-     * 아이템크기 변경시키지 말고, 장비 인벤토리처럼 칸을 놓고 하나씩 들어가게"; css/stump-box.css: 10 columns of cells up to 44px).
-     * A colour filter shows only its items. */
-    function stumpStorageSlots(count) {
-        return colorFilter === 'all' && stateFilter === 'all' ? Math.max(0, stumpBox.storageLimit(game) - count) : 0;
+    /** Cells to lay out on the shown page: the whole capacity like the equipment bag (2026-10-16 사용자 "창크기에따라 아이템크기 변경시키지
+     * 말고, 장비 인벤토리처럼 칸을 놓고 하나씩 들어가게"; css/stump-box.css: 10 columns), 100 a page (2026-10-25 사용자). A filter shows only
+     * its items. */
+    function stumpStorageCells(count) {
+        return colorFilter === 'all' && stateFilter === 'all' ? Math.max(count, stumpBox.storageLimit(game)) : count;
+    }
+    function storagePagesHtml(pages) {
+        if (pages <= 1) return '';
+        return '<div class="stump-pages" role="group" aria-label="보관함 쪽">' + Array.from({ length: pages }, (_, page) => `<button type="button"`
+            + ` data-stump-action="storage-page" data-page="${page}" aria-pressed="${page === storagePage}">${page + 1}</button>`).join('') + '</div>';
     }
     function stumpStorageHtml() {
         const all = stumpBox.storage(game), items = all.filter(stumpFilterMatch).filter(stumpStateMatch).sort(compareStorageItems);
         const keys = ['all'].concat(COLORS, all.some(item => item.family === 'talisman') || colorFilter === 'talisman' ? ['talisman'] : []);
         const filters = all.length ? keys.map(key => `<button type="button" class="stump-filter${colorFilter === key ? ' is-on' : ''}" data-stump-action="filter"`
             + ` data-filter="${key}" aria-pressed="${colorFilter === key}">${stumpFilterLabel(key)}</button>`).join('') : '';
-        const slots = '<span class="stump-slot" aria-hidden="true"></span>'.repeat(stumpStorageSlots(all.length));
+        const cells = stumpStorageCells(items.length), pages = Math.max(1, Math.ceil(cells / STORAGE_PAGE_CELLS));
+        storagePage = Math.min(storagePage, pages - 1);
+        const from = storagePage * STORAGE_PAGE_CELLS, shown = items.slice(from, from + STORAGE_PAGE_CELLS);
+        const slots = '<span class="stump-slot" aria-hidden="true"></span>'.repeat(Math.max(0, Math.min(STORAGE_PAGE_CELLS, cells - from) - shown.length));
         const target = selectedId !== null && game.stumpBox.board.includes(selectedId) ? ' is-target' : '';
-        return `<div class="stump-storage-head"><h3>보관함 ${all.length}/${stumpBox.storageLimit(game)}</h3><div class="stump-filters">${filters}</div></div>`
-            + storageToolsHtml(items.length, all.length)
-            + `${stateFilter === 'all' ? stumpRipeningUi.bulkHtml(colorFilter) : ''}<div class="stump-storage-grid${target}" data-stump-action="storage" data-stump-drop-storage="1">`
-            + `${items.map(stumpStorageCard).join('') || (all.length ? '<p class="stump-hint">이 분류는 비어 있습니다.</p>' : '')}${slots}</div>`;
+        return `<div class="stump-storage-head"><h3>보관함 ${all.length}/${stumpBox.storageLimit(game)}</h3><div class="stump-filters">${filters}</div>${storagePagesHtml(pages)}</div>`
+            + (all.length ? storageToolsHtml(items.length, all.length) : '')
+            + `<div class="stump-storage-grid${target}" data-stump-action="storage" data-stump-drop-storage="1">`
+            + `${shown.map(stumpStorageCard).join('') || (all.length ? '<p class="stump-hint">이 분류는 비어 있습니다.</p>' : '')}${slots}</div>`;
     }
 
     // ── 수확 일지 · 함 해금 · 부적: 한 번에 하나씩 보는 탭(2026-10-09, 전에는 줄지어 쌓여 무엇이 무엇인지 몰랐다) ──────────
@@ -368,12 +412,17 @@ const stumpBoxUi = (() => {
         unlocks: () => stumpHarvestUi.unlocksHtml(),
         talisman: () => stumpTalismanUi.unsealHtml() + stumpRipeningUi.codexHtml()
     });
+    /** The tab row alone until one is pressed; pressing the open tab folds it again (2026-10-25: no scroll on the first view). */
     function stumpMoreHtml() {
         const tabs = stumpMoreTabs();
         if (!tabs.some(([id]) => id === moreTab)) moreTab = tabs[0][0];
-        const buttons = tabs.map(([id, label]) => `<button type="button" role="tab" class="stump-more-tab${id === moreTab ? ' is-on' : ''}"`
-            + ` data-stump-action="more-tab" data-tab="${id}" aria-selected="${id === moreTab}">${label}</button>`).join('');
-        return `<div class="stump-more-tabs" role="tablist">${buttons}</div><div class="stump-more-body" role="tabpanel">${STUMP_MORE_BODIES[moreTab]()}</div>`;
+        const buttons = tabs.map(([id, label]) => {
+            const on = moreOpen && id === moreTab;
+            return `<button type="button" role="tab" class="stump-more-tab${on ? ' is-on' : ''}" data-stump-action="more-tab" data-tab="${id}"`
+                + ` aria-selected="${on}" aria-expanded="${on}">${label}</button>`;
+        }).join('');
+        return `<div class="stump-more-tabs" role="tablist">${buttons}</div>`
+            + (moreOpen ? `<div class="stump-more-body" role="tabpanel">${STUMP_MORE_BODIES[moreTab]()}</div>` : '');
     }
 
     // ── 그리기 ─────────────────────────────────────────────
@@ -386,9 +435,9 @@ const stumpBoxUi = (() => {
         const graftInputs = [selectedCell, stumpBox.graftPoints(game).free, Math.floor(game.currencies.blightSpore || 0)];
         // 함 해금(보관함 한도, 뿌리 기억, 봉인 칸, 품질 상한, 씨앗 주머니 …)은 저널과 루프에서 계산된다(함이 그대로여도 바뀐다).
         const unlockInputs = [stumpBox.storageLimit(game), stumpBox.openUnlocks(game).map(row => row.id)];
-        return JSON.stringify([game.stumpBox, selectedId, moreTab, colorFilter, storageSort, stateFilter, compareOpen, comparedId,
+        return JSON.stringify([game.stumpBox, selectedId, moreTab, moreOpen, colorFilter, storageSort, stateFilter, compareOpen, comparedId,
             stumpBox.canUndoPlacement(game), stumpBox.openCount(game), !!game.woodsmanBuildLock, talismanInputs,
-            graftInputs, unlockInputs, stumpCubeUi.cubeSignature()]);
+            graftInputs, unlockInputs, frameView, summaryOpen, storagePage, stumpCubeUi.cubeSignature()]);
     }
     /** Called for the visible tab (renderVisibleManagementPanels) and once a second while it stays open. */
     function renderStumpBoxTab(force) {
@@ -401,8 +450,9 @@ const stumpBoxUi = (() => {
         const result = stumpBox.evaluate(game);
         paintStumpPart('stump-box-head', stumpHeadHtml(result));
         paintStumpPart('stump-box-board', stumpBoardHtml(result));
-        paintStumpPart('stump-cube', stumpCubeUi.cubeHtml());
-        paintStumpPart('stump-box-summary', stumpSummaryHtml(result));
+        // 틀 아래: 판이면 옵션 합계, 조합창이면 조합 단추와 조합법(빈 칸은 CSS가 숨긴다)
+        paintStumpPart('stump-cube', frameView === 'cube' ? stumpCubeUi.cubeHtml() : '');
+        paintStumpPart('stump-box-summary', frameView === 'box' ? stumpSummaryHtml(result) : '');
         paintStumpPart('stump-box-detail', stumpDetailHtml(result));
         paintStumpPart('stump-box-storage', stumpStorageHtml());
         paintStumpPart('stump-box-more', stumpMoreHtml());
@@ -737,10 +787,13 @@ const stumpBoxUi = (() => {
         discard: () => discardStumpSeed(),
         lock: () => toggleStumpLock(),
         bulk: data => bulkStump(data.kind),
-        'more-tab': data => { moreTab = data.tab; renderStumpBoxTab(true); },
+        'more-tab': data => { moreOpen = !(moreOpen && moreTab === data.tab); moreTab = data.tab; renderStumpBoxTab(true); },
+        'frame-gem': (data, button) => switchFrame(button),
+        summary: () => { summaryOpen = !summaryOpen; renderStumpBoxTab(true); },
+        'storage-page': data => { storagePage = Number(data.page) || 0; renderStumpBoxTab(true); },
         deselect: () => selectStumpItem(null),
         rewards: () => stumpHarvestUi.openRewards(),
-        filter: data => { colorFilter = data.filter; renderStumpBoxTab(true); },
+        filter: data => { colorFilter = data.filter; storagePage = 0; renderStumpBoxTab(true); },
         'talisman-unseal': data => unsealTalisman(data.source),
         'talisman-exchange': data => { if (stumpTalismanUi.exchange(Number(data.index))) commitStumpChange(); },
         'talisman-wax': () => { if (stumpTalismanUi.wax(selectedId)) commitStumpChange(); },
@@ -766,6 +819,7 @@ const stumpBoxUi = (() => {
         else if (key === 'sort' && Object.hasOwn(STORAGE_SORTS, value)) storageSort = value;
         else if (key === 'comparison') comparedId = Number(value);
         else return;
+        if (key !== 'comparison') storagePage = 0;
         clearPlacementPreview();
         renderStumpBoxTab(true);
         document.querySelector(`[data-stump-select="${key}"]`)?.focus({ preventScroll: true });

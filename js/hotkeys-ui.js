@@ -64,6 +64,29 @@ const hotkeysUi = (() => {
         return (!!modal && modal.id !== 'act-exploration-dialog') || !!document.querySelector('.tutorial-overlay.active, .selection-overlay');
     }
 
+    /** Tab only reaches the chat input (2026-10-25 사용자: Tab이 화면 곳곳에 네모난 표시를 옮겨 다녔다. 채팅 입력으로 가는 것만
+     *둔다). Modal windows, the start screen (login fields) and forms keep their own Tab (js/ui-feedback.js, js/selection-dialog-ui.js). */
+    function keepsOwnTab(event) {
+        const body = document.body.classList;
+        if (body.contains('startup-active') || body.contains('mobile-tab-drawer-open')) return true;
+        return !!(document.querySelector('dialog:modal, .selection-overlay') || event.target.closest?.('form, dialog'));
+    }
+    /** Tab in an input field leaves it, which commits its value (change): only blocking Tab left a number field (the crafting
+     * workspace's auto-use count) unchanged. The chat input stays. */
+    function leaveField(target) {
+        const field = target.closest ? target.closest('input, select, textarea') : null;
+        if (field && field.id !== 'social-chat-input') field.blur();
+    }
+    function routeTabToChat(event) {
+        if (event.key !== 'Tab' || capturing || keepsOwnTab(event)) return;
+        event.preventDefault();
+        leaveField(event.target);
+        let input = document.getElementById('social-chat-input');
+        // PC 메시지 창이 전투 기록을 보이고 있으면 채팅 탭으로 바꾼 뒤 입력으로 간다(js/message-frames-ui.js).
+        if (input && !input.getClientRects().length && messageFrames.isActive()) { messageFrames.showTab('chat'); input = document.getElementById('social-chat-input'); }
+        if (input && !input.disabled && input.getClientRects().length) input.focus({ preventScroll: true });
+    }
+
     function onKeydown(event) {
         if (capturing) { captureKey(event); return; }
         const direction = moveDirection(event.code);
@@ -190,6 +213,7 @@ const hotkeysUi = (() => {
 
     function init() {
         document.addEventListener('keydown', onKeydown, true);
+        document.addEventListener('keydown', routeTabToChat, true);
         document.addEventListener('keyup', onKeyup, true);
         window.addEventListener('blur', () => actExplorationUi.holdMove(null, false));
         document.addEventListener('pointerdown', cancelCaptureOutside, true);

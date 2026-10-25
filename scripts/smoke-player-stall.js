@@ -115,8 +115,9 @@ assert.deepStrictEqual(json('[game.inventory.length,game.playerStall.listings.le
 run('game=mergeDefaults(JSON.parse(JSON.stringify(game)))');
 assert.strictEqual(run('game.inventory.length'), 1);
 fresh(); list();
-run('game.offlineProgress.stash=[JSON.parse(JSON.stringify(game.playerStall.listings[0].item))];game=mergeDefaults(JSON.parse(JSON.stringify(game)))');
-assert.strictEqual(run('game.playerStall.listings.length'), 0, 'an item in offline storage cannot also be sold');
+run('game.offlineProgress={stash:[JSON.parse(JSON.stringify(game.playerStall.listings[0].item))]};game=mergeDefaults(JSON.parse(JSON.stringify(game)))');
+assert.strictEqual(run('game.playerStall.listings.length'), 0, 'an item in the offline storage of an old save cannot also be sold');
+assert.strictEqual(run('game.inventory.length'), 1, 'the old offline storage item comes back to the bag once');
 fresh(); list();
 run(`game.inventory=Array.from({length:250},()=>createItemFromBase(BASE_ITEM_DB.find(base=>base.slot==='갑옷'),'normal',1))`);
 assert.strictEqual(run('playerStall.withdraw(game,1).ok'), false);

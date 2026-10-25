@@ -2107,16 +2107,13 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   );
 }
 
-// ── 3-4. 루프 리셋: 방치 보관함 · 루프 후 완료 행동 · 자동관리 설정 ──
+// ── 3-4. 루프 리셋: 루프 후 완료 행동 · 자동관리 설정(방치 보관함은 2026-10-25에 없앴다) ──
 {
   resetGame();
-  // 루프(환생) 시 방치 보관함 · 완료 행동 리셋
+  // 루프(환생) 시 완료 행동 리셋
   context.game.season = 1;
   context.game.settings.mapCompleteAction = 'nextZone';
   context.game.settings.postLoopMapCompleteAction = 'nextLoopBestPlusOne';
-  context.game.offlineProgress.stashLevel = 1;
-  context.game.offlineProgress.stash = [{ name: '지난 루프 장비', rarity: 'rare' }];
-  context.game.offlineProgress.protectedOverflow = [{ name: '지난 루프 고유', rarity: 'unique' }];
   // 루프 리셋이 부르는 UI/코스모스 경계 함수는 Node 하네스에 없으므로 무해한 스텁으로 대체
   ['grantCodexLegacyStarterUniques', 'renderCosmosAtlas', 'updateStaticUI', 'renderPassiveTree', 'checkUnlocks', 'renderSkills', 'renderInventory', 'renderEquipment', 'updateCombatUI', 'renderMapList', 'syncBattleTabLayout', 'renderTalentCards', 'closeRewardOverlay', 'updateCloudSaveUI', 'renderConditionGems', 'renderSupports', 'updateHeroSelectionUI', 'renderCoreCube'].forEach(name => {
     if (typeof context[name] !== 'function') context[name] = () => {};
@@ -2124,8 +2121,6 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   const tutorialNotices = [];
   context.queueTutorialNotice = (...args) => tutorialNotices.push(args);
   context.triggerSeasonReset();
-  assert.strictEqual(context.game.offlineProgress.stash.length, 0, '루프 시 방치 보관함이 초기화되어야 한다');
-  assert.strictEqual(context.game.offlineProgress.protectedOverflow.length, 0, '루프 시 방치 보호 대기열도 초기화되어야 한다');
   assert.strictEqual(context.game.settings.mapCompleteAction, 'nextLoopBestPlusOne', '루프 후 전투 완료 행동은 기본적으로 최고층으로 변경되어야 한다');
   assert.ok(tutorialNotices.some(args => args[0] === 'unlock_spore_crafting'), '루프 2 진입 즉시 홀씨 제작 해금 안내가 표시되어야 한다');
 

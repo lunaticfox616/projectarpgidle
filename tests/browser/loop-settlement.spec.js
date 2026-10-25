@@ -20,6 +20,7 @@ test('loop settlement shows real progress and preserves preparation and deferral
     await expect(ready).toBeVisible();
     await expect(ready).toContainText('루프 1 달성');
     await expect(ready).toContainText('1시간 0분');
+    // 루프 2의 해금 포인트: 루프마다 2(data/content-progression.js CONTENT_UNLOCK_POINT_AWARDS)
     await expect(ready).toContainText('해금 포인트 +2');
     await expect(ready.getByText('나중에 루프', { exact: true })).toHaveCount(0);
     await page.screenshot({ path: testInfo.outputPath('loop-earned.png'), animations: 'disabled' });
