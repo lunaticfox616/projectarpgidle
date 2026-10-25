@@ -19,7 +19,9 @@ function normalizeSalvageRecoveryRewards(rewards) {
         let gain = Math.max(0, Math.floor(Number(amount) || 0));
         if (gain <= 0) return;
         let currencyKey = typeof getCanonicalCurrencyKey === 'function' ? getCanonicalCurrencyKey(key) : key;
-        if (typeof ORB_DB === 'undefined' || !ORB_DB[currencyKey]) return;
+        // A salvaged ward pays wallet-only colony shards (WALLET_CURRENCY_INFO): its recovery takes them back too (2026-10-25: they were
+        // left out, so salvaging and recovering a ward again and again made shards).
+        if (!Object.hasOwn(ORB_DB, currencyKey) && !Object.hasOwn(WALLET_CURRENCY_INFO, currencyKey)) return;
         normalized[currencyKey] = (normalized[currencyKey] || 0) + gain;
     });
     return normalized;

@@ -714,20 +714,18 @@ body[data-ui-skin] :where(*), body[data-ui-skin] :where(*)::before, body[data-ui
 :root body[data-ui-skin] #ui-goal-drawer :is(.ui-goal-title, .ui-goal-notice-action, .ui-goal-notice-text)::before { content: none; }
 :root body[data-ui-skin] #ui-goal-drawer .ui-goal-title { padding-left: 0; }
 :root body[data-ui-skin] #ui-goal-drawer .ui-goal-desc { margin-left: 0; }
-/* 세계수 아틀라스: 머리 제목에 판 테가 겹쳐 입력 칸처럼 보였다 → 맨 글자. 원판 · 패시브 바퀴는 PC 창 높이에 맞춰
-   줄여 반쯤 잘리지 않게(기본 창 본문 약 550px — 검토 4차) */
-:root body[data-ui-skin] #ui-atlas .atlas-head h2 { padding: 0; border: 0; background: none; box-shadow: none; }
-/* 창 높이(HUD 위 약 550px 본문)에 원판이 다 들어오게: 세계수 화면에서는 위 지역 띠(같은 이름을 한 번 더 썼다)를 숨기고,
-   자동 지도 설명은 단추 설명(title)으로, 지역 범례는 원판 아래로 */
+/* 세계수 아틀라스: 원판 · 패시브 바퀴는 PC 창 높이에 맞춰 줄여 반쯤 잘리지 않게(기본 창 본문 약 550px — 검토 4차). 위 지역 띠(같은
+   이름을 한 번 더 썼다)는 숨기고, 자동 지도 설명은 단추 설명(title)으로, 지역 범례는 원판 아래로. 보기 단추가 지도 창 위 둘째 줄로
+   가며(2026-10-25) 원판이 그만큼 커진다. */
 :root body[data-ui-skin] #tab-map:has(#map-explore-worldtree.active) #exploration-region-banner { display: none; }
 :root body[data-ui-skin] #ui-atlas .atlas-auto small { display: none; }
 :root body[data-ui-skin] #ui-atlas .atlas-chart-column { display: flex; flex-direction: column; }
 :root body[data-ui-skin] #ui-atlas .atlas-chart-column > .atlas-legend { order: 1; margin-top: 8px; }
 @media (min-width: 1081px) {
   /* 원판 폭은 짝수 px, 가운데는 정수 px로 옮겨 맞춘다: 노드와 숫자가 반 화소에 놓였다(2026-10-21). */
-  :root body[data-ui-skin] #ui-atlas .atlas-chart { width: round(down, min(100%, 660px, max(320px, calc(100dvh - 524px))), 2px);
+  :root body[data-ui-skin] #ui-atlas .atlas-chart { width: round(down, min(100%, 660px, max(320px, calc(100dvh - 460px))), 2px);
     margin: 0; align-self: flex-start; left: round(down, 50%, 1px); translate: round(up, -50%, 1px); }
-  :root body[data-ui-skin] #ui-atlas .atlas-wheel-art { width: min(100%, 360px, max(240px, calc(100dvh - 636px))); }
+  :root body[data-ui-skin] #ui-atlas .atlas-wheel-art { width: min(100%, 360px, max(240px, calc(100dvh - 572px))); }
 }
 /* 고른 쪽이 보이게: 휴대폰 구역 단추(판/보관함 등)와 탐험 지도의 방식(보스 직행 · 전체 탐색 · 직접 이동) — 도트 단추 재질이
    고른 표시를 덮어 고른 것과 아닌 것이 똑같았다(검토 4차) */

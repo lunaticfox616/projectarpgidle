@@ -143,7 +143,7 @@ const atlasBoardUi = (() => {
     }
     function bankHtml(b) {
         const rows = Object.entries(b.bank).filter(([, n]) => n > 0)
-            .map(([key, n]) => `<li><span>${esc(ORB_DB[key]?.name ?? key)}</span><b>${n}</b></li>`);
+            .map(([key, n]) => `<li><span>${esc(getCurrencyInfo(key).name)}</span><b>${n}</b></li>`);
         if (b.gear) rows.push(`<li class="is-gear"><span>${esc(T.gear)}</span><b>${b.gear}</b></li>`);
         return `<section class="ab-bank" aria-labelledby="ab-bank-title">
             <header><h4 id="ab-bank-title">${esc(T.bankTitle)}</h4><small${b.promise ? ' class="is-oath"' : ''}>${esc(b.promise ? T.bankOath(B.promise.rewardPct) : T.bankHint)}</small></header>

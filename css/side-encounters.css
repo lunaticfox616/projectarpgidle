@@ -42,21 +42,25 @@
 .time-rift-stages .map-expedition-actions { margin-top:auto; padding-top:12px; }
 .time-rift-stages .map-expedition-actions button { flex:1 1 auto; padding:8px 10px; }
 .time-rift-stages .time-rift-selected { color:var(--color-text); }
-/* 융합 결과 확률(2026-10-09): 한 줄 막대(완벽 금빛, 보통 파랑, 불안정 빨강)와 손실 설명 */
-.time-rift-odds { display:grid; gap:8px; margin-top:12px; }
-.time-rift-oddsbar { display:flex; height:10px; overflow:hidden; background:#050404; box-shadow:0 0 0 1px #2a2218; }
-.time-rift-oddsbar > i { display:block; height:100%; }
-.time-rift-oddsbar > .is-perfect, .time-rift-legend .is-perfect::before { background:#e8c27a; }
-.time-rift-oddsbar > .is-normal, .time-rift-legend .is-normal::before { background:#5f9fd0; }
-.time-rift-oddsbar > .is-unstable, .time-rift-legend .is-unstable::before { background:#c0504a; }
-.time-rift-legend { display:flex; flex-wrap:wrap; gap:8px 24px; }
-.time-rift-legend > span { display:grid; grid-template-columns:10px auto; align-items:baseline; gap:2px 6px; }
-.time-rift-legend > span::before { content:''; width:10px; height:10px; grid-row:1 / span 2; align-self:center; }
-.time-rift-legend b { color:var(--color-text); font-weight:400; }
-.time-rift-legend .is-perfect b { color:#f3d28c; }
-.time-rift-legend small { color:var(--color-text-secondary); font-size:12px; }
+/* 융합 결과 확률(2026-10-25): 희귀 옵션 6개일 때 남는 개수(0~6)마다 기둥 하나, 위에 확률. loss-N은 잃은 개수다(6개 남음 금빛,
+   하나도 안 남음 빨강). */
+.time-rift-odds { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:6px; margin-top:12px; }
+.time-rift-column { display:flex; flex-direction:column; align-items:center; gap:3px; min-width:0; }
+.time-rift-column > span { display:flex; align-items:flex-end; width:100%; height:64px; background:#0b0908; box-shadow:0 0 0 1px #2a2218; }
+.time-rift-column i { display:block; width:100%; min-height:1px; }
+.time-rift-column small { color:var(--color-text-secondary); font-size:12px; white-space:nowrap; }
+.time-rift-column b { color:var(--color-text); font-size:13px; font-weight:400; }
+.time-rift-column.loss-0 i { background:#e8c27a; }
+.time-rift-column.loss-1 i { background:#b9c26e; }
+.time-rift-column.loss-2 i { background:#7fb59a; }
+.time-rift-column.loss-3 i { background:#5f9fd0; }
+.time-rift-column.loss-4 i { background:#8a7fc4; }
+.time-rift-column.loss-5 i { background:#b0608a; }
+.time-rift-column.loss-6 i { background:#c0504a; }
+.time-rift-column.loss-0 b { color:#f3d28c; }
 .time-rift-stepper > b { min-width:28px; color:#f3d28c; text-align:center; }
 @container time-rift (max-width:780px) { .time-rift-stages { grid-template-columns:1fr; } }
+@container time-rift (max-width:420px) { .time-rift-odds { gap:3px; } .time-rift-column small { font-size:11px; } }
 .map-expedition-intro:has(.map-hive-choices) { container:hive-choices / inline-size; }
 .map-hive-choices { display:grid; grid-template-columns:minmax(0,1fr) repeat(2,round(down,calc((100% - 16px) / 3),1px)); gap:8px; margin-top:12px; }
 .map-hive-choices > strong { grid-column:1/-1; color:var(--color-accent); font-size:12px; font-weight:500; }

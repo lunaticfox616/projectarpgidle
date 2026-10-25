@@ -88,6 +88,18 @@ const UNDERWORLD_DIFFICULTY_CONFIG = Object.freeze({
 // 지하계 깊은 층 보상(2026-10-09, 루프 50 이후 레벨 디자인): 지하석 슬롯과 번호는 300층에서 끝난다. 그 아래로는 every층마다 지하석 강화
 // 재료 한 묶음: [기본, 300층 아래로 한 층마다 더함]. 310층 지하석 조각 70과 금 24, 400층 160과 60(js/combat.js grantUnderworldFloorMilestone).
 const UNDERWORLD_DEEP_FLOOR_REWARD = Object.freeze({ fromFloor: 300, every: 10, runeShard: Object.freeze([60, 1]), underGold: Object.freeze([20, 0.4]) });
+// 지하계 장비 인챈트(js/ui.js applyUnderworldEnchant): 부위마다 [능력치, 최소, 최대, 세기] 가운데 한 줄이 무작위로 붙는다(이미 있던
+// 인챈트는 바뀐다). 세기가 그 줄의 비용을 정한다: 구리 세기×6(최소 4), 은 세기×3(최소 2), 금 세기−1(최소 1). 지하계 화면이 이 표로
+// 나올 수 있는 효과와 값을 보여 준다(2026-10-25 사용자: 지하계 인챈트가 어떤 효과인지 알 수 없음).
+const UNDERWORLD_ENCHANT_POOLS = Object.freeze({
+    '무기': [['pctDmg', 8, 24, 2], ['spellFlatPct', 6, 18, 2], ['projectileExtraChance', 50, 50, 3], ['resPen', 5, 14, 2], ['physIgnore', 5, 14, 2], ['flatDmg', 12, 38, 1]],
+    '갑옷': [['pctHp', 4, 12, 1], ['flatHp', 45, 140, 1], ['armorPct', 8, 24, 1], ['evasionPct', 8, 24, 1], ['energyShieldPct', 8, 24, 1], ['maxResF', 1, 2, 3], ['maxResC', 1, 2, 3], ['maxResL', 1, 2, 3], ['resChaos', 4, 10, 2]],
+    '투구': [['targetAny', 1, 1, 3], ['critDmg', 18, 25, 2], ['armor', 40, 120, 1], ['evasion', 40, 120, 1], ['energyShield', 35, 105, 1], ['crit', 2, 6, 2]]
+});
+// 한계돌파(js/ui.js attemptUnderworldLimitBreak): 퀄리티 quality%인 장비의 퀄리티가 −swing~+swing만큼 바뀌고(cap까지) 다시 바꿀 수 없다.
+// 비용 [구리, 은, 금]: 무기, 장신구(반지, 목걸이, 허리띠), 그 밖의 방어구.
+const UNDERWORLD_LIMIT_BREAK = Object.freeze({ quality: 20, swing: 10, cap: 30,
+    costs: Object.freeze({ weapon: Object.freeze([30, 16, 6]), accessory: Object.freeze([24, 12, 4]), armour: Object.freeze([28, 14, 5]) }) });
 const DAMAGE_ELEMENT_LABELS = {
     phys: '물리',
     fire: '화염',
@@ -159,7 +171,7 @@ const COMBAT_GRID_CONFIG = {
 safeExposeData({
   PASSIVE_LAYOUT_VERSION, LOCAL_SAVE_KEY, LEGACY_SAVE_KEY_PATTERN, CLOUD_SESSION_STORAGE_KEY, LEGACY_CLOUD_SESSION_KEY_PATTERN,
   CLOUD_SYNC_MIN_INTERVAL_MS, CLOUD_REMOTE_TIME_SKEW_MS, CLOUD_STALE_OVERWRITE_GUARD_MS, CLOUD_KEEPALIVE_BODY_LIMIT, CLOUD_EXIT_UPLOAD_MIN_GAP_MS, HERO_SIZE_SCALE, HERO_RUN_RATE_MAX, PROJECTILE_FLIGHT_LIFT, PROJECTILE_HAND_REACH, PROJECTILE_SPRITE_SCALE, GUEST_SAVE_CHECK, DAMAGE_ELEMENT_LABELS, DAMAGE_ELEMENT_ICONS, DEATH_REASON_TEXT,
-  COMBAT_GRID_CONFIG, ENEMY_CRITICAL_DAMAGE_MULTIPLIER, BATTLE_SPRITE_OUTLINES, BOSS_DRAW_SCALE, EMPTY_TRAVEL_PROGRESS_MULTIPLIER, ACT_REST_RECOVERY_PCT_PER_SEC, ACT_RETREAT_LEVELS, CAMPAIGN_RESIST_PENALTY, UNDERWORLD_DIFFICULTY_CONFIG, UNDERWORLD_DEEP_FLOOR_REWARD,
+  COMBAT_GRID_CONFIG, ENEMY_CRITICAL_DAMAGE_MULTIPLIER, BATTLE_SPRITE_OUTLINES, BOSS_DRAW_SCALE, EMPTY_TRAVEL_PROGRESS_MULTIPLIER, ACT_REST_RECOVERY_PCT_PER_SEC, ACT_RETREAT_LEVELS, CAMPAIGN_RESIST_PENALTY, UNDERWORLD_DIFFICULTY_CONFIG, UNDERWORLD_DEEP_FLOOR_REWARD, UNDERWORLD_ENCHANT_POOLS, UNDERWORLD_LIMIT_BREAK,
   EQUIPMENT_INVENTORY_COLUMNS, EQUIPMENT_INVENTORY_ROWS_PER_PAGE, EQUIPMENT_INVENTORY_MAX_PAGES,
   EQUIPMENT_INVENTORY_CELLS_PER_PAGE
 });

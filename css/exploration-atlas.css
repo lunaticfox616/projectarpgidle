@@ -20,7 +20,10 @@
 #exploration-location .exploration-region-tab[aria-pressed="true"]::before{opacity:.6}
 #exploration-location .exploration-routes button{min-height:26px;padding:2px 10px;border:1px solid #2f2a1d;border-radius:0;border-bottom-width:1px;background:#14110b;color:#b7a985;font-size:12px}
 #exploration-location .exploration-routes button[aria-pressed="true"]{border-color:#9c885c;color:#ead09a;background:#221c11}
+#exploration-location .exploration-routes button i{margin-left:5px;padding:0 4px;font-style:normal;font-size:11px;color:#16110a;background:#f3d28c}
 @media(min-width:701px){#tab-map #mobile-map-navigation{display:none}}
+/* 권역 화면에서는 위 두 줄 탭이 모든 곳을 보여 주므로 휴대폰의 목적지 고르기는 전체 탐험 화면에만 둔다(2026-10-25). */
+#tab-map:not(.is-atlas-overview) #mobile-map-navigation{display:none}
 #ui-exploration-atlas{container-type:inline-size;border:1px solid #ac9a623e;border-radius:6px;overflow:hidden;background:#101913;color:#ecebdd}
 #ui-exploration-atlas .atlas-heading{display:flex;align-items:center;justify-content:space-between;padding:8px 18px;min-height:36px;box-sizing:content-box;background:#101913;border-bottom:1px solid #c7ac632b;gap:10px}
 #ui-exploration-atlas .atlas-breadcrumb{display:flex;align-items:center;gap:12px;font-size:12px}
@@ -32,6 +35,8 @@
 #ui-exploration-atlas button{font:inherit;cursor:pointer;box-shadow:none}
 #ui-exploration-atlas button:focus-visible{outline:2px solid #efd6a2;outline-offset:2px}
 #tab-map .atlas-theme-tree{--region-tint:#a4b57d;--region-shade:#142015}
+#tab-map .atlas-theme-trail{--region-tint:#c6b07a;--region-shade:#1d1a10}
+#tab-map .atlas-theme-worldtree{--region-tint:#e2c27a;--region-shade:#241b0e}
 #tab-map .atlas-theme-roots{--region-tint:#baa0cc;--region-shade:#1b1224}
 #tab-map .atlas-theme-underworld{--region-tint:#d5a16f;--region-shade:#291b12}
 #tab-map .atlas-theme-sky{--region-tint:#dbcf9b;--region-shade:#282616}

@@ -1540,6 +1540,7 @@ function getStyledOrbName(orbKey) {
     const tones = {
         magicBud: '--orb-tone:#9fd3ff;', sapBud: '--orb-tone:#ffe07a;', blightSpore: '--orb-tone:#ffe07a;', blessing: '--orb-tone:#ffe07a;',
         formlessDew: '--orb-tone:#ffbc8a;', pruningShears: '--orb-tone:#ffbc8a;',
+        jewelShard: '--orb-tone:#97dbd8;', colonyShard: '--orb-tone:#b4dba0;', colonyTrace: '--orb-tone:#c2a8e8;',
         goldenRule: '--orb-tone:#ffffff; border:1px solid #7a1f1f; border-radius:4px; padding:0 4px; background:#0f1116;',
         emberBranch: '--orb-tone:#8a2f3f;', burningEmberBranch: '--orb-tone:#ff8a3d; text-shadow:0 0 7px rgba(255,138,61,.45);',
         fairyRing: '--orb-tone:#82dc8b; text-shadow:0 0 7px rgba(105,238,143,.35);', voidChisel: '--orb-tone:#d7a6ff; text-shadow:0 0 7px rgba(192,125,255,.4);',

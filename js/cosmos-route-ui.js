@@ -28,7 +28,7 @@ const cosmosRouteUi = (() => {
         return `<div class="cosmos-journey-heading"><small>${cosmosRouteRuntime.active(game) ? '현재 탐사 중' : '이번 탐사'}</small>
             <strong>${escapeHTML(current.name)} <span>→</span> <em>${escapeHTML(boss.name)}</em></strong>
             <div class="cosmos-goal-chips"><span>${plan.plan.length}구간</span><span>행성 ${total}곳</span><span>탐사 ${plan.history.length}/${total}</span>
-            <span class="is-reward">보상 창공의 정수</span></div></div>${legendHtml()}
+            <span class="is-reward">보상 창공의 정수</span></div>${difficultyHtml(plan, currentId, boss.id)}</div>${legendHtml()}
             <div class="cosmos-expedition-map" role="group" aria-label="은하 탐사">
             ${plan.plan.map((leg,i) => expeditionStage(plan,i)).join('')}</div>`;
     }
@@ -54,6 +54,19 @@ const cosmosRouteUi = (() => {
         const state = current ? '현재 위치' : done ? '탐사 완료' : boss ? '최종 보스' : COSMOS_ROUTE_G1.habitats[habitat]?.name || '';
         return `<li class="cosmos-planet-stop ${node.kind} ${habitat} ${boss ? 'boss' : ''} ${current ? 'current' : ''} ${done ? 'done' : ''}" data-planned-node="${id}" ${current ? 'aria-current="step"' : ''}>
             <i aria-hidden="true"></i><b>${escapeHTML(node.name)}</b><small>${state}</small></li>`;
+    }
+
+    /** 난이도(2026-10-25 사용자: 우주계는 여전히 난이도가 어느 정도인지 알 수 없다): 이번 탐사의 행성들이 지하계 몇 층과 같은지, 다음
+     * 행성과 보스에 대한 공격과 생존의 여유(권장 전투력, getMapPowerReadiness 등급). */
+    function difficultyHtml(plan, currentId, bossId) {
+        const floors = plan.plan.flat().map(id => lastView.floorOf(id)).filter(Number.isFinite);
+        const level = floors.length ? `<span class="cosmos-level">지하계 ${Math.min(...floors)}~${Math.max(...floors)}층 상당</span>` : '';
+        const grade = (label, row) => `<em class="grade-${row.id}">${label} ${row.label}</em>`;
+        const ready = (label, id) => {
+            const readiness = lastView.readinessOf(id);
+            return readiness ? `<span class="cosmos-ready${readiness.meetsRecommendation ? ' is-met' : ''}"><b>${label}</b>${grade('공격', readiness.dps)}, ${grade('생존', readiness.ehp)}</span>` : '';
+        };
+        return `<div class="cosmos-difficulty">${level}${ready('다음 행성', currentId)}${currentId === bossId ? '' : ready('보스', bossId)}</div>`;
     }
 
     /** What the planet colours mean (the circles use the same tints, css/cosmos-route.css). */
@@ -177,6 +190,14 @@ const cosmosRouteUi = (() => {
         label.setAttribute('aria-label',`${route.galaxy || 1}은하 ${text}`);
     }
 
-    return { render: renderRouteView, updateVitals: updateRouteVitals, updateHud, focus, closeNode };
+    /** The cosmos screens for the map window's second tab row (js/exploration-atlas-ui.js): 별 지도 and 성도술 (js/cosmos-atlas.js
+     * switchCosmosInnerTab shows one of them). */
+    function pages() {
+        const mastery = document.getElementById('cosmos-inner-mastery');
+        const onMastery = !!mastery && mastery.style.display !== 'none';
+        return { select: id => window.switchCosmosInnerTab(id), items: [{ id: 'route', label: '별 지도', on: !onMastery }, { id: 'mastery', label: '성도술', on: onMastery }] };
+    }
+
+    return { render: renderRouteView, updateVitals: updateRouteVitals, updateHud, focus, closeNode, pages };
 })();
 safeExposeGlobals({ cosmosRouteUi });

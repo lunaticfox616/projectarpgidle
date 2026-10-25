@@ -573,22 +573,24 @@ const text = `// 옆에서 보는 무대의 몬스터 새 그림(docs/stage-view
 // 공격 [프레임 수, cols, 프레임 시간, 타격 프레임] 또는 null(공격 그림이 없다: 서 있는 그림으로 때린다).
 // 품 [왼쪽, 오른쪽]: 서 있는 그림이 발에서 양옆으로 뻗은 도트(보스가 차지하는 칸 너비, js/combat-grid.js fitBossFootprint).
 // 쓰러짐 [프레임 수, cols, 프레임 시간, 칸 가로, 칸 세로, 발 x, 발 y] 또는 null: 스토리 보스가 쓰러지는 그림(<id>-death.png, 제 칸, 마지막 장에 멈춘다).
+// 특수 공격 [프레임 수, cols, 프레임 시간, 타격 프레임] 또는 없음: 보스의 두 번째 공격(<id>-special.png, 걷기와 같은 칸). 특수 패턴의 예고와 공격에 쓴다.
 const MONSTER_STAGE_ROSTER = Object.freeze({
     path: 'assets/enemies/roster/',
     /** 그림 묶음의 지문: 그림을 이 값과 함께 불러, 칸이 바뀐 그림을 브라우저가 예전 것으로 쓰지 않게 한다. */
     version: '${version}',
     /** 제 새 그림이 아직 없어 다른 외형의 그림을 빌려 입는 외형(위습: 같은 속성의 새 그림). */
     wears: Object.freeze({ ${wears.map(([id, other]) => `'${id}': '${other}'`).join(', ')} }),
-    // [id, 이름, 칸 가로, 칸 세로, 발 x, 발 y, 몸 높이, 몸 너비, 걸음새, 걷기, 공격, 품, 쓰러짐]
+    // [id, 이름, 칸 가로, 칸 세로, 발 x, 발 y, 몸 높이, 몸 너비, 걸음새, 걷기, 공격, 품, 쓰러짐, 특수 공격]
     actors: Object.freeze(Object.fromEntries([
 ${rows.join(',\n')}
-    ].map(([id, name, w, h, feetX, feetY, height, width, gait, walk, attack, reach, death]) => {
+    ].map(([id, name, w, h, feetX, feetY, height, width, gait, walk, attack, reach, death, special]) => {
         const times = clip => Object.freeze(Array.isArray(clip[2]) ? clip[2] : Array(clip[0]).fill(clip[2]));
         return [id, Object.freeze({
             id, name, w, h, feet: Object.freeze([feetX, feetY]), height, width, gait, stride: Math.max(24, Math.round(width * 0.7)),
             walkMs: times(walk), walkCols: walk[1], pace: walk[3], still: walk[0] === 1,
             attackMs: attack ? times(attack) : null, attackCols: attack ? attack[1] : 0, impactFrame: attack ? attack[3] : 0, reach: Object.freeze(reach),
-            death: death ? Object.freeze({ ms: times(death), cols: death[1], w: death[3], h: death[4], feet: Object.freeze([death[5], death[6]]) }) : null
+            death: death ? Object.freeze({ ms: times(death), cols: death[1], w: death[3], h: death[4], feet: Object.freeze([death[5], death[6]]) }) : null,
+            special: special ? Object.freeze({ attackMs: times(special), cols: special[1], impactFrame: special[3] }) : null
         })];
     })))
 });

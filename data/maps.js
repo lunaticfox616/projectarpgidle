@@ -284,17 +284,25 @@ const LOOP_MUTATION = Object.freeze({
 
 // 시간의 균열 (루프 13+): 과거에 심고, 미래에 거둔다 — 고유+희귀 융합 던전.
 //  - 과거 클리어 → 제단 개방 → 같은 부위의 고유 1개·희귀 1개를 올림 → 미래 클리어 → 융합 유물 획득.
-//  - 시간압(1~10)이 난이도이자 보상 손잡이: 높을수록 몬스터가 강해지고 '완벽한 융합' 확률이 오른다.
+//  - 시간압(1~10)이 난이도이자 보상 손잡이: 높을수록 몬스터가 강해지고 희귀 옵션이 더 많이 남는다.
 //  - 융합 유물은 황금률, 잿불가지, 축복의 꽃잎 외의 제작 재화를 받지 않는다.
 const TIME_RIFT_UNLOCK_LOOP = 13;
 const TIME_RIFT_PAST_ZONE_ID = 'time_rift_past';
 const TIME_RIFT_FUTURE_ZONE_ID = 'time_rift_future';
 const TIME_RIFT_MAX_PRESSURE = 10;
-// 시간압별 혼돈 환산 깊이. 초반은 약 5단계씩 오르며, 9→10은 의도적으로 큰 벽이다.
-const TIME_RIFT_EQUIVALENT_CHAOS_DEPTHS = Object.freeze([1, 6, 11, 16, 22, 29, 37, 47, 62, 90]);
-// 완벽(유실 0) = perfectBase + perfectPerPressure×(시간압-1) — 기본은 매우 낮게.
-// 불안정(유실 2) = max(unstableMin, unstableBase - unstablePerPressure×(시간압-1)). 나머지는 보통(유실 1).
-const TIME_RIFT_FUSION_ODDS = { perfectBase: 0.03, perfectPerPressure: 0.045, unstableBase: 0.42, unstablePerPressure: 0.035, unstableMin: 0.08 };
+// 시간압별 혼돈 환산 깊이(2026-10-25 사용자: 희귀에 고유 효과를 합치는 최종 콘텐츠감인데 너무 쉽다, 시간압 1부터 대폭 상승). 세계수
+// 아틀라스 지도처럼 그 깊이를 관문으로 만나는 루프(깊이 − TIME_RIFT_LOOP_BEHIND_DEPTH)의 몬스터로 고정된다(js/state.js getTimeRiftZone):
+// 시간압 1은 시간의 균열이 열리는 루프 13의 혼돈 심화 23, 7은 아틀라스 16등급과 같은 루프 40의 심화 50, 10은 루프 62의 심화 72.
+// 예전에는 혼돈 1, 6, 11, … 90을 루프 상승 없이 써서, 권장 전투력이 시간압 1은 혼돈 1, 10도 루프 30 혼돈 40의 4분의 1이었다.
+const TIME_RIFT_EQUIVALENT_CHAOS_DEPTHS = Object.freeze([23, 27, 31, 35, 40, 45, 50, 56, 63, 72]);
+const TIME_RIFT_LOOP_BEHIND_DEPTH = 10;
+// 융합: 희귀 옵션을 무작위 차례로 하나씩 굴린다. 남은 옵션이 TIME_RIFT_KEEP_CAP개가 되기 전에는 TIME_RIFT_OPTION_KEEP으로, 그 뒤로는
+// TIME_RIFT_OPTION_KEEP_PAST_CAP(시간압 1에서 3%, 10에서 10%)으로만 남는다(2026-10-25 사용자: 옵션 6개 손실부터 확률을, 시간압 10에서도
+// 그렇게 높지 않게, 4개는 얼추 나오고 5개와 6개는 훨씬 드물게). 옵션 6개, 시간압 10: 4개 49.9%, 5개 4.4%, 6개 0.13%(전: 31%, 19%, 4.7%).
+// 시간압 1: 모두 잃을 확률 약 18%, 4개 3.7%. 예전에는 완벽(0개), 보통(1개), 불안정(2개)뿐이었다.
+const TIME_RIFT_OPTION_KEEP = Object.freeze([0.25, 0.29, 0.33, 0.37, 0.41, 0.45, 0.49, 0.53, 0.56, 0.60]);
+const TIME_RIFT_KEEP_CAP = 4;
+const TIME_RIFT_OPTION_KEEP_PAST_CAP = Object.freeze([0.03, 0.038, 0.046, 0.053, 0.061, 0.069, 0.077, 0.084, 0.092, 0.10]);
 
 const SEASON_CONTENT_ROADMAP = {
     1: { title: '루프 1', features: ['시작: 기본 전투/장비/지도', '액트 3 클리어: 전투 전술 무료 해금 (스킬룬 → 전술 규칙)'] },

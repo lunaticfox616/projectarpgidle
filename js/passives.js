@@ -2953,7 +2953,7 @@ function getOceanUpgradeCostText(cost) {
     if (!cost) return '최대';
     return Object.keys(cost)
         .filter(key => (cost[key] || 0) > 0)
-        .map(key => `${ORB_DB[key] ? ORB_DB[key].name : key} ${cost[key]}`)
+        .map(key => `${getCurrencyInfo(key).name} ${cost[key]}`)
         .join(' / ');
 }
 function canPayOceanUpgradeCost(cost) {
@@ -10232,7 +10232,7 @@ function salvageJewelObject(jewel, silent) {
     let shardGain = getJewelSalvageShardGain(jewel);
     if (shardGain <= 0) return 0;
     awardCurrency('jewelShard', shardGain, 'reward');
-    if (!silent) addLog(`💠 [${jewel.name}] 주얼 해체 (+주얼 결정 ${shardGain})`, 'loot-normal');
+    if (!silent) addLog(`💠 [${jewel.name}] 주얼 해체 (${formatSalvageRewardSummary({ jewelShard: shardGain })})`, 'loot-normal');
     return shardGain;
 }
 
@@ -10334,7 +10334,7 @@ function formatSalvageRewardSummary(rewards) {
     let normalized = mergeSalvageRewards({}, rewards);
     let entries = Object.entries(normalized).filter(([, amount]) => Number(amount) > 0);
     if (entries.length <= 0) return '회수 재화 없음';
-    return entries.map(([key, amount]) => `${(ORB_DB[key] && ORB_DB[key].name) || key} +${Math.floor(amount)}`).join(', ');
+    return entries.map(([key, amount]) => `${getStyledOrbName(key)} +${Math.floor(amount)}`).join(', ');
 }
 
 function getItemSalvagePreviewText(item, compact) {
@@ -10342,14 +10342,14 @@ function getItemSalvagePreviewText(item, compact) {
     let guaranteed = Object.entries(profile.guaranteed)
         .filter(([, amount]) => amount > 0)
         .map(([key, amount]) => {
-            let label = (ORB_DB[key] && ORB_DB[key].name) || key;
+            let label = getCurrencyInfo(key).name;
             return `${label} ${amount}`;
         });
     let chances = profile.chances
         .filter(row => row && row.chance > 0)
         .map(row => compact && item && item.rarity === 'unique'
             ? null
-            : `${(ORB_DB[row.key] && ORB_DB[row.key].name) || row.key} ${Math.round(row.chance * 100)}%`)
+            : `${getCurrencyInfo(row.key).name} ${Math.round(row.chance * 100)}%`)
         .filter(Boolean);
     if (compact && item && item.rarity === 'unique' && profile.chances.length > 0) chances.push('고급 재화 확률');
     return `해체 ${guaranteed.concat(chances).join(', ') || '보상 없음'}`;
@@ -10378,7 +10378,7 @@ function salvageItemObject(item, silent, options) {
     let rewards = rollItemSalvageRewards(item, options);
     Object.entries(rewards).forEach(([key, amount]) => awardCurrency(key, amount, 'reward'));
     if (typeof salvageRecoveryRuntime !== 'undefined') salvageRecoveryRuntime.record(item, rewards);
-    if (!silent) addLog(`🧪 [${item.name}] 해체, ${formatSalvageRewardSummary(rewards)}`, "loot-normal");
+    if (!silent) addLog(`🧪 <span class='loot-${item.rarity}'>[${item.name}]</span> 해체, ${formatSalvageRewardSummary(rewards)}`, "loot-normal");
     return rewards;
 }
 
