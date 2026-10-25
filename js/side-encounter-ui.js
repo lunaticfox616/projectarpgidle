@@ -303,16 +303,14 @@ const sideEncounterUi = (() => {
             <b>${pressure}</b><button type="button" aria-label="시간압 높이기" onclick="setTimeRiftPressure(1)" ${locked||pressure>=TIME_RIFT_MAX_PRESSURE?'disabled':''}>+</button><span>${locked?'이번 제단의 시간압 고정':'높일수록 전투가 어렵고 옵션이 더 많이 남습니다.'}</span></div></div>`;
     }
 
-    /** Fusion outcomes for a six-option rare (2026-10-25): the bar runs from all six kept (gold) to none kept (red) and the legend
-     * gives each kept count's chance (the user reads them as options kept). */
+    /** Fusion outcomes for a six-option rare as a column graph: one column per kept count (0 to 6), its height against the likeliest
+     * count and its chance on top (2026-10-25 사용자: 자잘한 설명 말고 개수별 확률만 그래프로). */
     function timeOddsHtml(pressure) {
-        const odds = getTimeRiftLossOdds(pressure, 6);
+        const kept = getTimeRiftLossOdds(pressure, 6).reverse(), top = Math.max(...kept);
         const percent = value => `${(value * 100).toFixed(value >= 0.1 ? 0 : value >= 0.01 ? 1 : 2)}%`;
-        const bar = odds.map((value, lost) => `<i class="loss-${lost}" style="width:${(value * 100).toFixed(2)}%"></i>`).join('');
-        const legend = odds.map((value, lost) => `<span class="loss-${lost}"><b>${6 - lost}개</b><small>${percent(value)}</small></span>`).join('');
-        const keep = keptSoFar => `${Math.round(getTimeRiftOptionKeepChance(pressure, keptSoFar) * 1000) / 10}%`;
-        return `<div class="time-rift-odds"><p>희귀 옵션 하나가 남을 확률 <b>${keep(0)}</b>, ${TIME_RIFT_KEEP_CAP}개가 남은 뒤로는 <b>${keep(TIME_RIFT_KEEP_CAP)}</b>. 옵션 6개일 때 남는 개수</p>
-            <div class="time-rift-oddsbar" aria-hidden="true">${bar}</div><div class="time-rift-legend">${legend}</div></div>`;
+        const columns = kept.map((value, count) => `<div class="time-rift-column loss-${6 - count}"><small>${percent(value)}</small>`
+            + `<span><i style="height:${(value / top * 100).toFixed(1)}%"></i></span><b>${count}개</b></div>`).join('');
+        return `<div class="time-rift-odds" role="img" aria-label="남는 옵션 개수별 확률: ${kept.map((value, count) => `${count}개 ${percent(value)}`).join(', ')}">${columns}</div>`;
     }
 
     function timePast(rift) {
