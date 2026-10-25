@@ -2,14 +2,11 @@
 // cost: the 해금 points the unlock tab takes. cost 0 with npc (a data/story-journal.js STORY_NPCS id): an NPC unlock, opened for no points
 // only in that NPC's window once the hero has met it (2026-10-21 사용자: NPC 해금과 일반 해금 분리, NPC와 어울리는 초기 해금 몇 개만).
 // cost 0 without npc: it opens by itself once its conditions are met.
-// Points a loop gives from loop 2 (js/content-progression.js earnedBy): loop L gives early[L - 2], every later loop perLoop. The paid
-// unlocks (23P) ask 4, 2, 4, 2, 3 at loops 2~6, nothing at 7~9 and 4 at loop 10, so the points stay at most 3P (one unlock) behind and
-// meet the cost at loop 9. Before 2026-10-21 loops 2~5 gave 4, 4, 3, 3 and NPCs opened most paid unlocks for free: 6~12 points sat
-// unused from loop 3 (사용자 보고). Saves from then keep what that table gave (contentProgression ledger carry).
-// 2026-10-25 the 강화 series (CONTENT_UNLOCK_SERIES below) joined: each early loop gives in addition exactly what its new steps cost
-// (loop 2: 시간 인식 1 + 그루터기 보관함 1, loop 3: 시간 인식 2 + 전투 효율 1, …, loop 10: 가방 2 + 그루터기 보관함 3), so the pace
-// above stays; later steps come from perLoop. Before then early was [2, 2, 3, 3, 2, 1, 1, 1, 2].
-const CONTENT_UNLOCK_POINT_AWARDS = Object.freeze({ early: Object.freeze([4, 4, 4, 5, 4, 1, 2, 3, 4]), perLoop: 2 });
+// Points a loop gives from loop 2 (js/content-progression.js earnedBy): loop L gives early[L - 2], every later loop perLoop.
+// 2026-10-25 사용자: 해금 포인트는 루프마다 일관되게 2점, so early is empty. Before then loops 2~10 gave 2, 2, 3, 3, 2, 1, 1, 1, 2
+// (paced to the paid unlocks 4, 2, 4, 2, 3 at loops 2~6 and 4 at loop 10), and before 2026-10-21 loops 2~5 gave 4, 4, 3, 3. Saves from
+// then keep what those tables gave them (contentProgression ledger carry and paceCarry).
+const CONTENT_UNLOCK_POINT_AWARDS = Object.freeze({ early: Object.freeze([]), perLoop: 2 });
 // 강화(2026-10-25 사용자: 영구 방치 성장의 시간 인식과 전투 효율, 가방 쪽, 그루터기 함 보관함을 해금 탭으로): 단계마다 해금 한 줄
 // (id = series + 단계, n단계는 n-1단계 뒤). ranks: [루프, 점수]. 효과는 단계 수로 읽는다(contentProgression.rank): 방치 시간과
 // 효율은 data/offline-progress.js의 표, 가방은 1쪽 + 단계, 그루터기 보관함은 단계마다 storage칸. 단계별 루프는 예전에 저절로 늘던

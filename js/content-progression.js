@@ -137,6 +137,14 @@ const contentProgression = (() => {
         if (!(Number(state.version) >= NPC_SPLIT_VERSION)) return carryGap(loop);
         return Math.min(carryGap(loop), Math.max(0, Math.floor(Number(state.carry) || 0)));
     }
+    // 2026-10-25 사용자: 2 a loop from loop 2. The version-9 table was ahead of that at loops 4~7 (by up to 2), so a ledger from then gets
+    // paceCarry: that lead at the loop it reached, read back never above the lead left at a later loop (none from loop 8). A purchase
+    // made with those points survives the load; nobody earns more than either table gave.
+    const paceGap = loop => Math.max(0, earnedBy(loop, AWARDS_BEFORE_GROWTH) - earnedBy(loop));
+    function paceCarryOf(state, loop) {
+        if (!(Number(state.version) >= LEDGER_VERSION)) return 0;
+        return Math.min(paceGap(loop), Math.max(0, Math.floor(Number(state.paceCarry) || 0)));
+    }
 
     /** Points earned by a loop, the points paid and what the catalog can still take (unbought paid unlocks). Only unlock-tab prices
      * count: points once paid for what is now an NPC unlock or automatic content come back. The record may still be the saved one: the
@@ -150,7 +158,8 @@ const contentProgression = (() => {
             sum + (paid(def) && !unlocked.includes(def.id) && !inherited.includes(def.id) ? def.cost : 0), 0);
         const spent = unlocked.reduce((sum, id) => sum + (paid(definitions.get(id)) ? Number((state.paidCosts || {})[id]) || 0 : 0), 0);
         const reached = Math.max(Number(state.highestLoop) || 1, loop);
-        const earned = earnedBy(reached, before ? AWARDS_BEFORE_GROWTH : CONTENT_UNLOCK_POINT_AWARDS) + carryOf(state, reached);
+        const earned = earnedBy(reached, before ? AWARDS_BEFORE_GROWTH : CONTENT_UNLOCK_POINT_AWARDS) + carryOf(state, reached)
+            + paceCarryOf(state, reached);
         return { remaining, spent, earned };
     }
 
@@ -275,7 +284,7 @@ const contentProgression = (() => {
 
     function restorePurchases(purchased, next, record) {
         const version = Number(record.version) || 0;
-        let remaining = earnedBy(next.highestLoop) + next.carry;
+        let remaining = earnedBy(next.highestLoop) + next.carry + paceCarryOf(next, next.highestLoop);
         for (const id of purchased) {
             const def = definitions.get(id);
             if (!def || kind(def) === 'auto' || next.inherited.includes(id)) continue;
@@ -334,6 +343,7 @@ const contentProgression = (() => {
         const grandfathered = Number(record.version) < 5 ? savedChoices : record.grandfathered;
         return { version: LEDGER_VERSION, highestLoop, legacy: legacy || record.legacy === true, carry: carryOf(record, highestLoop),
             graftFloor: Number(record.version) >= LEDGER_VERSION ? Math.max(0, Math.floor(Number(record.graftFloor) || 0)) : 0,
+            paceCarry: Number(record.version) >= LEDGER_VERSION ? Math.max(0, Math.floor(Number(record.paceCarry) || 0)) : paceGap(highestLoop),
             unlocked: [], paidCosts: {}, inherited: savedIds(inherited), grandfathered: savedIds(grandfathered),
             automatic: savedIds(record.automatic).filter(id => kind(definitions.get(id)) === 'auto') };
     }
