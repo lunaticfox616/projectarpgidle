@@ -399,6 +399,27 @@ function normalizeSkillSlotsSave(merged) {
     merged.mobilitySkill = worn(merged.mobilitySkill) ? merged.mobilitySkill : '';
 }
 
+/** An unfinished starter equip guide survives reload. Old versions let bulk sealing consume its target: undo that
+ * seal and its one resonance reward, keeping the gem's growth. A deliberately sealed gem without a pending guide stays sealed. */
+function normalizeStarterGemTutorialSave(state) {
+    const name = state.starterGemTutorialPending;
+    const owned = state.skills.concat(state.sealedSkills);
+    state.starterGemTutorialPending = typeof name === 'string' && SKILL_DB[name]?.isGem && owned.includes(name) ? name : null;
+    if (!state.starterGemTutorialPending) return;
+    if (state.sealedSkills.includes(name)) {
+        state.skills.push(name);
+        state.sealedSkills = state.sealedSkills.filter(gem => gem !== name);
+        const power = Number.isFinite(state.resonancePower) ? state.resonancePower : defaultGame.resonancePower;
+        state.resonancePower = Math.max(0, power - 1);
+    }
+    const summons = Array.isArray(state.equippedSummonSkills) ? state.equippedSummonSkills : [];
+    if ([state.activeSkill, state.mobilitySkill, ...summons].includes(name)) {
+        state.starterGemTutorialPending = null;
+        return;
+    }
+    state.seenTutorials = state.seenTutorials.filter(key => key !== 'tutorial_starter_gem_equip' && key !== 'action_tutorial_starter_gem_equip');
+}
+
 /** A mobility gem in the main slot goes to the empty mobility slot, unless the save wears 칼이 된 발걸음 (data/items.js), which keeps
  * it there as the attack gem. Idempotent. */
 function moveAttackSlotMobilityGem(merged, worn) {
@@ -1325,10 +1346,7 @@ function mergeDefaults(save) {
     const record = value => (value && typeof value === 'object' && !Array.isArray(value) ? value : {});
     merged.npcMet = record(merged.npcMet);
     merged.npcShops = record(merged.npcShops);
-    merged.starterGemTutorialPending = typeof merged.starterGemTutorialPending === 'string'
-        && Array.isArray(merged.skills) && merged.skills.includes(merged.starterGemTutorialPending)
-        ? merged.starterGemTutorialPending
-        : null;
+    normalizeStarterGemTutorialSave(merged);
     merged.journalEntries = Array.isArray(merged.journalEntries) ? Array.from(new Set(merged.journalEntries.filter(id => typeof id === 'string' && JOURNAL_DB[id]))) : ['prologue'];
     // 보스 도전 추적은 저장 복원 후 이어 붙이지 않는다. 탭이 닫힌 동안의 피해를
     // 잃은 기록으로 업적을 잘못 판정하지 않도록 새 조우에서만 다시 시작한다.

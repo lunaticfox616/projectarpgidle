@@ -775,4 +775,15 @@ assert(run('game.combatHalted'),'loading a completed sky allowance cannot restar
 assert.deepEqual(json('game.skyTower'),skyFinished,'a sky receipt is restored without paying again');
 run('game.skyTower.currentFloor=2;game.actExploration=null;finishEncounterRun()');
 assert(run("game.loopProgressCurrent.bestSkyFloor===1 && game.skyTower.lastResult.kind==='practice' && game.skyTower.condensedPower===13"),'practice cannot advance this loop\'s sky record or grant essence');
+// The first rune cannot disappear into bulk sealing while the player is learning to equip it.
+run("game=mergeDefaults({skills:['기본 공격','이중 베기','서리바람 내지르기'],starterGemTutorialPending:'이중 베기',resonancePower:10});sealSkillGem('이중 베기');sealAllInactiveSkillGems()");
+assert.deepEqual(json('[game.skills,game.sealedSkills,game.resonancePower]'),[['기본 공격','이중 베기'],['서리바람 내지르기'],11],'only an eligible spare rune can be sealed during the starter guide');
+run("game=mergeDefaults({skills:['기본 공격'],sealedSkills:['이중 베기'],starterGemTutorialPending:'이중 베기',resonancePower:11,seenTutorials:['tutorial_starter_gem_equip'],gemData:{'이중 베기':{level:2,exp:17}}})");
+assert(run("getStarterGemTutorialTarget()==='이중 베기' && game.resonancePower===10 && !game.sealedSkills.includes('이중 베기')"),'an old sealed guide target is restored without keeping its seal reward');
+const starterRestored=json('[game.skills,game.sealedSkills,game.resonancePower,game.gemData]');
+run('game=mergeDefaults(JSON.parse(serializeSaveState(game)));tutorialQueue=[];contentUnlockUi.announceStarterGem(getStarterGemTutorialTarget())');
+assert.deepEqual(json('[game.skills,game.sealedSkills,game.resonancePower,game.gemData]'),starterRestored,'reloading the repaired guide cannot charge resonance again or reset rune growth');
+assert(run("tutorialQueue.some(row=>row.key==='tutorial_starter_gem_equip')"),'an unfinished equip guide resumes after loading');
+run("equipSkippedStarterGem('tutorial_starter_gem_equip')");
+assert(run("game.activeSkill==='이중 베기' && !game.starterGemTutorialPending"),'closing the resumed guide still equips its rune');
 console.log('smoke-content-progression passed');

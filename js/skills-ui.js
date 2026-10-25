@@ -185,6 +185,19 @@
         document.getElementById('ui-support-list').hidden = kind !== 'support';
     }
 
+    function renderAttackGemLibrary(stats, filter, fold) {
+        const sealed = Array.isArray(game.sealedSkills) ? game.sealedSkills : [];
+        const html = renderGemLibrary('skill', game.skills, sealed, stats, filter);
+        const canSeal = game.skills.some(name => !getSkillGemSealRefusal(name));
+        const actions = fold ? '' : `<button type="button" onclick="sealAllInactiveSkillGems()" ${canSeal ? '' : 'disabled'}>미사용 공격 룬 일괄 봉인</button>`;
+        let list = document.getElementById('ui-skills-list');
+        const signature = `${html}::${actions}`;
+        if (!list || list.dataset.renderSig === signature) return;
+        renderSearchSection('ui-skills-list', 'skill', '공격 룬 이름/태그 검색', html, '', actions);
+        list = document.getElementById('ui-skills-list');
+        list.dataset.renderSig = signature;
+    }
+
     function renderSkillGemScreen(context) {
         let ctx = context || {};
         let pStats = ctx.pStats || (typeof getPlayerStats === 'function' ? getPlayerStats() : {});
@@ -200,6 +213,8 @@
             engraving: contentProgression.isUnlocked('engraving'),
             mobileLibrary: uiDisplay.matches('(max-width: 1080px)'),
             activeSkill: game.activeSkill || '', mobilitySkill: game.mobilitySkill,
+            starterGemTutorialPending: game.starterGemTutorialPending,
+            buildLocked: !!game.woodsmanBuildLock,
             skills: game.skills || [],
             supports: game.supports || [],
             equippedSupports: game.equippedSupports || [],
@@ -234,17 +249,8 @@
             lastSkillPanelRenderSignature = skillPanelRenderSignature;
         skillGemBoardUi.render(pStats);
         renderGemResearchPanel();
-        let sealedSkills = Array.isArray(game.sealedSkills) ? game.sealedSkills : [];
         let sealedSupports = Array.isArray(game.sealedSupports) ? game.sealedSupports : [];
-        let skillsHtml = renderGemLibrary('skill', game.skills, sealedSkills, pStats, sf.skill);
-        let skillsListEl = document.getElementById('ui-skills-list');
-        let skillActions = foldAttackInactive ? '' : '<button onclick="sealAllInactiveSkillGems()">미사용 공격 룬 일괄 봉인</button>';
-        let skillsRenderSig = `${skillsHtml}::${skillActions}`;
-        if (skillsListEl && skillsListEl.dataset.renderSig !== skillsRenderSig) {
-            renderSearchSection('ui-skills-list', 'skill', '공격 룬 이름/태그 검색', skillsHtml, '', skillActions);
-            skillsListEl = document.getElementById('ui-skills-list');
-            skillsListEl.dataset.renderSig = skillsRenderSig;
-        }
+        renderAttackGemLibrary(pStats, sf.skill, foldAttackInactive);
 
         let supportHtml = renderGemLibrary('support', game.supports, sealedSupports, pStats, sf.support);
         let supportListEl = document.getElementById('ui-support-list');
