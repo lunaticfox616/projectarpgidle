@@ -880,13 +880,6 @@ function renderPaperdoll(targetId, forCrafting) {
     if (targetId === 'ui-equip-list') equipmentAuxUi.render();
 }
 
-/** Only two-column or wider bag items reserve a strip for the slot/category; narrow items retain their tooltip and ARIA name. */
-function equipmentGridSlotLabelHtml(item, columns) {
-    if (columns < 2) return '';
-    const label = getItemSlotDisplayLabel(item);
-    return `<span class="equipment-grid-slot-label" aria-hidden="true">${escapeHTML(label)}</span>`;
-}
-
 function renderEquipmentGridItem(item, idx, triageResult, placement, filterState) {
     let size = getEquipmentInventoryFootprint(item);
     let footprint = placement || { column: 0, row: 0, columns: size.columns, rows: size.rows };
@@ -915,7 +908,7 @@ function renderEquipmentGridItem(item, idx, triageResult, placement, filterState
         onclick="equipmentInventoryInteraction.handleItemClick(event,this.dataset.equipmentGridKey,${idx})"
         ondblclick="equipmentInventoryInteraction.handleItemDoubleClick(event,this.dataset.equipmentGridKey,${item.id})"
         onmouseenter="${preview}" onmousemove="${preview}" onmouseleave="hideItemTooltip(event)">
-        <img class="equipment-grid-item-art" src="${asset}" alt="" aria-hidden="true" draggable="false">${equipmentGridSlotLabelHtml(item, footprint.columns)}${equipmentWindowUi.newDotHtml(item)}
+        <img class="equipment-grid-item-art" src="${asset}" alt="" aria-hidden="true" draggable="false">${equipmentWindowUi.newDotHtml(item)}
         <span class="equipment-grid-item-badges">${badges}</span>
     </button>`;
 }

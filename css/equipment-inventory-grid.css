@@ -352,11 +352,6 @@
     pointer-events: none;
     filter: none;
 }
-.equipment-grid-item:has(> .equipment-grid-slot-label) > .equipment-grid-item-art {
-    bottom: 13px;
-    height: calc(100% - 15px);
-}
-
 .equipment-grid-item-badges {
     position: absolute;
     top: 2px;
@@ -474,9 +469,6 @@
     .equipment-grid-item-badges span { padding-inline: 2px; }
 }
 
-/* Opus 4차 검수: 가로 두 칸 이상만 12px 전용 띠를 쓴다. 전체 이름은 툴팁/선택 상세/ARIA로 읽는다. */
-.equipment-grid-slot-label { position: absolute; bottom: 0; left: 0; right: 0; height: 12px; color: #eee5d7; background: #151008;
-    font-family: var(--font-pixel-meta); font-size: 10px; font-weight: 400; line-height: 12px; text-align: center; white-space: nowrap; pointer-events: none; }
 .equipment-slot.equipment-requirements-unmet { filter: saturate(.3); }
 .equipment-requirement-badge { position:absolute; right:3px; top:3px; padding:1px 4px; border:1px solid #ad7162; background:#291d19; color:#f0b4a2; font-size:var(--font-size-meta); line-height:1.4; pointer-events:none; }
 }
