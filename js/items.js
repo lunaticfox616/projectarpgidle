@@ -600,6 +600,19 @@ function retrieveTimeAltarItems() {
     queueImportantSave(200);
 }
 
+/** The rare options a fusion keeps, in their order: they roll one by one in a random order with the pressure's chance, which drops
+ * once TIME_RIFT_KEEP_CAP have survived (data/maps.js, 2026-10-25: 전에는 0~2개만 잃었다). */
+function rollTimeRiftKeptOptions(stats, pressure) {
+    const order = stats.map((_, index) => index);
+    for (let i = order.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [order[i], order[j]] = [order[j], order[i]];
+    }
+    const kept = new Set();
+    order.forEach(index => { if (Math.random() < getTimeRiftOptionKeepChance(pressure, kept.size)) kept.add(index); });
+    return stats.filter((_, index) => kept.has(index));
+}
+
 // 미래 클리어 시 호출: 등급 판정 → 희귀의 추가 옵션을 (유실분 제외하고) 고유에 이식.
 function resolveTimeRiftFusion() {
     let rift = ensureTimeRiftState();
@@ -611,13 +624,11 @@ function resolveTimeRiftFusion() {
         addLog('⌛ 융합이 보류되었습니다: 인벤토리 공간이 필요합니다. (제단은 유지됩니다. 공간 확보 후 미래를 다시 클리어하세요)', 'attack-monster');
         return null;
     }
-    // 희귀 옵션 하나하나가 시간압의 확률로 남는다(data/maps.js TIME_RIFT_OPTION_KEEP, 2026-10-25: 전에는 0~2개만 잃었다).
-    let keep = getTimeRiftOptionKeepChance(rift.pressure);
     let fused = JSON.parse(JSON.stringify(rift.altarUnique));
     itemIdCounter++;
     fused.id = itemIdCounter;
     let rareStats = (Array.isArray(rift.altarRare.stats) ? JSON.parse(JSON.stringify(rift.altarRare.stats)) : []).filter(Boolean);
-    let kept = rareStats.filter(() => Math.random() < keep);
+    let kept = rollTimeRiftKeptOptions(rareStats, rift.pressure);
     let lost = rareStats.length - kept.length;
     let grade = getTimeRiftFusionGrade(lost, rareStats.length);
     rareStats = kept;

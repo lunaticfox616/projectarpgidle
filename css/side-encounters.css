@@ -42,7 +42,8 @@
 .time-rift-stages .map-expedition-actions { margin-top:auto; padding-top:12px; }
 .time-rift-stages .map-expedition-actions button { flex:1 1 auto; padding:8px 10px; }
 .time-rift-stages .time-rift-selected { color:var(--color-text); }
-/* 융합 결과 확률(2026-10-25): 희귀 옵션 6개일 때 잃는 개수 0~6의 한 줄 막대(0개 금빛에서 6개 빨강까지)와 개수마다의 확률 */
+/* 융합 결과 확률(2026-10-25): 희귀 옵션 6개일 때 남는 개수의 한 줄 막대(6개 남음 금빛에서 하나도 안 남음 빨강까지)와 개수마다의 확률.
+   loss-N은 잃은 개수다. */
 .time-rift-odds { display:grid; gap:8px; margin-top:12px; }
 .time-rift-odds > p { margin:0; color:var(--color-text-secondary); font-size:13px; }
 .time-rift-odds > p b { color:#f3d28c; font-weight:400; }

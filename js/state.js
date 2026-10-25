@@ -997,15 +997,24 @@ function ensureTimeRiftState() {
 }
 
 /** The chance one rare option survives the fusion at a pressure (data/maps.js TIME_RIFT_OPTION_KEEP). */
-function getTimeRiftOptionKeepChance(pressure) {
+function getTimeRiftOptionKeepChance(pressure, keptSoFar = 0) {
     let p = Math.max(1, Math.min(TIME_RIFT_MAX_PRESSURE, Math.floor(pressure || 1)));
-    return TIME_RIFT_OPTION_KEEP[p - 1];
+    return (keptSoFar < TIME_RIFT_KEEP_CAP ? TIME_RIFT_OPTION_KEEP : TIME_RIFT_OPTION_KEEP_PAST_CAP)[p - 1];
 }
-/** Odds of losing 0..count rare options at a pressure (each option survives on its own), index = options lost, sum 1. */
+/** Odds of losing 0..count rare options at a pressure, index = options lost, sum 1. The options roll one after another; once
+ * TIME_RIFT_KEEP_CAP have survived, the rest roll the lower chance (getTimeRiftOptionKeepChance). */
 function getTimeRiftLossOdds(pressure, count = 6) {
-    let keep = getTimeRiftOptionKeepChance(pressure), n = Math.max(0, Math.floor(count));
-    let choose = k => { let c = 1; for (let i = 1; i <= k; i++) c = c * (n - k + i) / i; return c; };
-    return Array.from({ length: n + 1 }, (_, lost) => choose(lost) * Math.pow(1 - keep, lost) * Math.pow(keep, n - lost));
+    let n = Math.max(0, Math.floor(count)), kept = [1];
+    for (let i = 0; i < n; i++) {
+        let next = Array(kept.length + 1).fill(0);
+        kept.forEach((chance, k) => {
+            let keep = getTimeRiftOptionKeepChance(pressure, k);
+            next[k + 1] += chance * keep;
+            next[k] += chance * (1 - keep);
+        });
+        kept = next;
+    }
+    return kept.map((_, lost) => kept[n - lost]);
 }
 /** A fusion's grade from the options it lost: perfect (none), normal (half or fewer), unstable (more than half). */
 function getTimeRiftFusionGrade(lost, count) {

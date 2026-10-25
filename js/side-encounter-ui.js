@@ -303,14 +303,15 @@ const sideEncounterUi = (() => {
             <b>${pressure}</b><button type="button" aria-label="시간압 높이기" onclick="setTimeRiftPressure(1)" ${locked||pressure>=TIME_RIFT_MAX_PRESSURE?'disabled':''}>+</button><span>${locked?'이번 제단의 시간압 고정':'높일수록 전투가 어렵고 옵션이 더 많이 남습니다.'}</span></div></div>`;
     }
 
-    /** Fusion outcomes for a six-option rare (2026-10-25): each option survives on its own, the bar runs from none lost (gold) to all
-     * six lost (red) and the legend gives each count's chance. */
+    /** Fusion outcomes for a six-option rare (2026-10-25): the bar runs from all six kept (gold) to none kept (red) and the legend
+     * gives each kept count's chance (the user reads them as options kept). */
     function timeOddsHtml(pressure) {
         const odds = getTimeRiftLossOdds(pressure, 6);
-        const percent = value => (value >= 0.1 ? `${Math.round(value * 100)}%` : `${(value * 100).toFixed(value >= 0.001 ? 1 : 2)}%`);
+        const percent = value => `${(value * 100).toFixed(value >= 0.1 ? 0 : value >= 0.01 ? 1 : 2)}%`;
         const bar = odds.map((value, lost) => `<i class="loss-${lost}" style="width:${(value * 100).toFixed(2)}%"></i>`).join('');
-        const legend = odds.map((value, lost) => `<span class="loss-${lost}"><b>${lost}개</b><small>${percent(value)}</small></span>`).join('');
-        return `<div class="time-rift-odds"><p>희귀 옵션 하나가 남을 확률 <b>${Math.round(getTimeRiftOptionKeepChance(pressure) * 100)}%</b>, 옵션 6개일 때 잃는 개수</p>
+        const legend = odds.map((value, lost) => `<span class="loss-${lost}"><b>${6 - lost}개</b><small>${percent(value)}</small></span>`).join('');
+        const keep = keptSoFar => `${Math.round(getTimeRiftOptionKeepChance(pressure, keptSoFar) * 1000) / 10}%`;
+        return `<div class="time-rift-odds"><p>희귀 옵션 하나가 남을 확률 <b>${keep(0)}</b>, ${TIME_RIFT_KEEP_CAP}개가 남은 뒤로는 <b>${keep(TIME_RIFT_KEEP_CAP)}</b>. 옵션 6개일 때 남는 개수</p>
             <div class="time-rift-oddsbar" aria-hidden="true">${bar}</div><div class="time-rift-legend">${legend}</div></div>`;
     }
 
@@ -352,7 +353,7 @@ const sideEncounterUi = (() => {
         return `<div class="map-expedition-intro"><h3>3. 미래</h3><strong>희귀 옵션을 고유에 계승</strong>
             ${buildMapPowerEstimateHtml(getZone(TIME_RIFT_FUTURE_ZONE_ID))}<p>${escapeHTML(issue||'융합 준비 완료')}</p>
             <details class="map-expedition-details" id="time-rift-fusion-rules"><summary>융합 규칙</summary>
-            <p>미래 클리어 시 두 장비를 소모해 융합 유물 1개를 만듭니다. 희귀 옵션은 하나씩 시간압의 확률로 남고, 나머지는 사라집니다.</p>
+            <p>미래 클리어 시 두 장비를 소모해 융합 유물 1개를 만듭니다. 희귀 옵션은 하나씩 시간압의 확률로 남고(${TIME_RIFT_KEEP_CAP}개가 남은 뒤로는 훨씬 낮은 확률), 나머지는 사라집니다.</p>
             <p>융합 후에는 황금률/잿불가지/축복의 꽃잎만 사용할 수 있습니다. 실패해도 제단 장비는 남고, 루프를 건너도 보존됩니다.</p></details>
             <div class="map-expedition-actions">${action}</div></div>`;
     }
