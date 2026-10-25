@@ -2780,7 +2780,8 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
     Object.assign(game.colony,{inRun:true,wave:5,kills:0,requiredKills:8,returnZoneId:0});
     spawnColonyWave();
     const enemy=game.enemies.find(row=>!row.isBoss);
-    const item=generateEquipmentDrop(enemy,{zone:getZone('colony_run'),minimumRarity:'rare'});
+    // This contract needs an ordinary rare. A minimum rarity can still roll a unique, which is paid immediately.
+    const item=createItemFromBase(chooseItemBase('무기',10,getZone('colony_run')),'rare',10);
     keepEquipmentDrop(enemy,item); // an ordinary rare waits (guaranteed and unique drops are never held)
     const held=game.colony.pendingLoot.some(row=>row.item?.id===item.id)
       && !game.inventory.some(row=>row.id===item.id)
@@ -2807,7 +2808,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
     game.settings.stageRooms='on';game.season=15;game.level=100;game.currentZoneId='colony_run';
     Object.assign(game.colony,{inRun:true,wave:1,kills:0,requiredKills:6,returnZoneId:0});
     spawnColonyWave();
-    const enemy=game.enemies[0],item=generateEquipmentDrop(enemy,{zone:getZone('colony_run'),minimumRarity:'rare'});
+    const enemy=game.enemies[0],item=createItemFromBase(chooseItemBase('무기',10,getZone('colony_run')),'rare',10);
     keepEquipmentDrop(enemy,item); // an ordinary rare waits (guaranteed and unique drops are never held)
     const held=game.colony.pendingLoot.some(row=>row.item?.id===item.id);
     forfeitColonyRun();

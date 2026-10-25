@@ -804,6 +804,7 @@ function mergeDefaults(save) {
         if (!Number.isFinite(hp)) hp = maxHp;
         return normalizeEnemyGridFields({
             ...enemy,
+            ...(merged.currentZoneId === WOODSMAN_ECHO_ZONE_ID ? { noAttack: true, regenRate: 0 } : {}),
             id: Math.max(1, Math.floor(clampFiniteNumber(enemy.id, 1, 1))),
             hp: Math.min(maxHp, hp),
             maxHp: maxHp,
@@ -1547,11 +1548,12 @@ function mergeDefaults(save) {
     merged.woodsmanLifetimeScore = Math.max(0, Math.floor(clampFiniteNumber(merged.woodsmanLifetimeScore, defaultGame.woodsmanLifetimeScore || 0, 0)));
     merged.woodsmanSettledScore = Math.max(0, Math.floor(clampFiniteNumber(merged.woodsmanSettledScore, defaultGame.woodsmanSettledScore || 0, 0)));
     merged.woodsmanEchoRun = (merged.woodsmanEchoRun && typeof merged.woodsmanEchoRun === 'object') ? merged.woodsmanEchoRun : { active:false, timeLeft:0, duration:30, lastTickAt:0, totalDamage:0, bestDps:0 };
-    merged.woodsmanEchoRun.active = !!merged.woodsmanEchoRun.active;
-    merged.woodsmanEchoRun.timeLeft = Math.max(0, Number(merged.woodsmanEchoRun.timeLeft || 0));
+    merged.woodsmanEchoRun.active = !!merged.woodsmanEchoRun.active && merged.currentZoneId === WOODSMAN_ECHO_ZONE_ID;
+    merged.woodsmanEchoRun.timeLeft = clampFiniteNumber(merged.woodsmanEchoRun.timeLeft, 0, 0, 30);
     merged.woodsmanEchoRun.duration = 30;
-    merged.woodsmanEchoRun.totalDamage = Math.max(0, Math.floor(Number(merged.woodsmanEchoRun.totalDamage || 0)));
-    merged.woodsmanEchoRun.bestDps = Math.max(0, Number(merged.woodsmanEchoRun.bestDps || 0));
+    merged.woodsmanEchoRun.lastTickAt = clampFiniteNumber(merged.woodsmanEchoRun.lastTickAt, 0, 0);
+    merged.woodsmanEchoRun.totalDamage = Math.floor(clampFiniteNumber(merged.woodsmanEchoRun.totalDamage, 0, 0));
+    merged.woodsmanEchoRun.bestDps = clampFiniteNumber(merged.woodsmanEchoRun.bestDps, 0, 0);
     merged.loopProgressBase = { ...(defaultGame.loopProgressBase || {}), ...(merged.loopProgressBase || {}) };
     merged.loopProgressCurrent = { ...(defaultGame.loopProgressCurrent || {}), ...(merged.loopProgressCurrent || {}), ...Object.fromEntries(['bestSkyFloor','bestUnderworldFloor'].map(key => [key, Number.isFinite(save?.loopProgressCurrent?.[key]) ? Math.max(0,Math.floor(save.loopProgressCurrent[key])) : null])) };
     merged.loopProgressBase.specialBosses = Array.isArray(merged.loopProgressBase.specialBosses) ? merged.loopProgressBase.specialBosses : [];

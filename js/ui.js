@@ -1016,6 +1016,7 @@ function setMobileBattlePipCollapsed(host, collapsed) {
 
 /** Dense map/crafting views and early landscape trees start folded; leaving restores the previous PiP choice. */
 function dockMobileBattlePip(host) {
+    const mapContexts = [['atlas', 'map-explore-worldtree'], ['labyrinth', 'map-explore-labyrinth'], ['chaosRealm', 'map-tab-chaos-realm']];
     function syncContext(context) {
         if ((host.dataset.compactContext || '') !== context) {
             if (host.hasAttribute('data-context-collapsed')) {
@@ -1028,7 +1029,7 @@ function dockMobileBattlePip(host) {
             }
             host.dataset.compactContext = context;
         }
-        for (const [name, id] of [['atlas', 'map-explore-worldtree'], ['labyrinth', 'map-explore-labyrinth']]) {
+        for (const [name, id] of mapContexts) {
             const panel = document.getElementById(id);
             if (!panel) continue;
             const hasPip = context === name && game.settings.showMobileBattlePip !== false;
@@ -1043,8 +1044,8 @@ function dockMobileBattlePip(host) {
         const title = uiDisplay.matches('(orientation: landscape) and (max-height: 600px)')
             ? document.querySelector('#tab-char.active .merged-tab-shell:not(:has(> .window-tab-strip:not([hidden]))) .h2-right') : null;
         if (title) return { context: 'tree', anchor: title };
-        if (document.querySelector('#tab-map.active #map-explore-worldtree.active')) return { context: 'atlas', anchor: null };
-        if (document.querySelector('#tab-map.active #map-explore-labyrinth.active')) return { context: 'labyrinth', anchor: null };
+        const mapContext = mapContexts.find(([, id]) => document.querySelector(`#tab-map.active #${id}.active`));
+        if (mapContext) return { context: mapContext[0], anchor: null };
         // The bag fills the equipment tab to the menu: the preview starts folded there (opened, it covered the last rows and tools)
         return { context: document.querySelector('#tab-items.active') ? 'items' : '', anchor: null };
     }
@@ -3236,9 +3237,13 @@ function chaosRealmDetailHtml(st, best) {
 }
 function woodsmanEchoCardHtml() {
     if (!(Array.isArray(game.journalEntries) && game.journalEntries.includes('woodsman_echo'))) return '';
-    let echo = (game.woodsmanEchoRun && typeof game.woodsmanEchoRun === 'object') ? game.woodsmanEchoRun : { bestDps: 0 };
-    return `<section class="underworld-upgrade-card"><div><strong>나무꾼의 잔상</strong><span>30초 전투력 측정, 공격하지 않는 허수아비</span></div>`
-        + `<div><span>최고 DPS ${Math.floor(echo.bestDps || 0).toLocaleString()}</span><button type="button" data-exploration-departure onclick="enterWoodsmanEchoChallenge()">측정</button></div></section>`;
+    const echo = getRecordsView(game).echo;
+    const recent = echo.last ? `<span>최근 DPS <b>${Math.floor(echo.last.dps).toLocaleString()}</b></span>` : '';
+    const change = echo.changePct === null ? '' : `<span>이전 대비 <b>${echo.changePct >= 0 ? '+' : ''}${echo.changePct.toFixed(1)}%</b></span>`;
+    const best = Math.max(echo.bestDps, game.woodsmanEchoRun.bestDps);
+    return `<section class="underworld-upgrade-card"><div><strong>나무꾼의 잔상</strong><span>30초 피해 측정</span>`
+        + `<div class="underworld-ticket-strip">${recent}${change}<span>최고 DPS <b>${Math.floor(best).toLocaleString()}</b></span></div></div>`
+        + '<button type="button" data-exploration-departure onclick="enterWoodsmanEchoChallenge()">측정</button></section>';
 }
 function renderSkyTowerMapPanel() {
     const panel = document.getElementById('ui-sky-tower-panel');
@@ -8010,7 +8015,7 @@ function updateFocusedEnemyTraitPanel(traitEl, enemy, tags) {
     const traits = getUiEnemyTraitLabels(tags);
     const labels = cast?.label ? [cast.label] : traits;
     const display = getUiEnemyTraitDisplayText(labels);
-    const pattern = enemy.patternMode ? getBossPatternDescription(enemy.patternMode) : '';
+    const pattern = enemy.noAttack ? '' : getBossPatternDescription(enemy.patternMode);
     const tooltip = [cast?.label, traits.join(', '), pattern].filter(Boolean).join('\n');
     traitEl.classList.toggle('is-casting', !!cast?.label);
     updateUiEnemyTraitPanel(traitEl, labels, display, tooltip, isBoss);

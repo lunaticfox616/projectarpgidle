@@ -752,4 +752,16 @@ const labyrinthStored=json('[game.currencies,game.labyrinthLastResult]');
 run('getLabyrinthZoneNow(5);game=mergeDefaults(JSON.parse(JSON.stringify(game)));');
 assert.equal(run('game.labyrinthFloor'),8,'previewing another floor does not change the active floor');
 assert.deepEqual(json('[game.currencies,game.labyrinthLastResult]'),labyrinthStored,'loading a floor receipt does not pay it again');
+// A defeated training target cannot farm combat rewards or record the same measurement twice.
+run("game=mergeDefaults({season:20,maxZoneId:9,selectedClassId:'warrior',loopStarterGemGranted:true});game.currentZoneId=WOODSMAN_ECHO_ZONE_ID;game.combatTimeMs=100000;Object.assign(game.woodsmanEchoRun,{active:true,timeLeft:20,lastTickAt:100000,returnZoneId:9});game.enemies=[dressWoodsmanEchoDummy(createEnemy(getZone(OUTSIDE_CHAOS_ZONE_ID),{at:0,count:1,boss:true},0))]");
+const practiceOwned=json('[game.exp,game.loopKills,game.currencies,game.inventory,game.weaponMastery]');
+run('game.enemies[0].hp=0;handleEnemyDeath(game.enemies[0],getPlayerStats())');
+assert.deepEqual(json('[game.exp,game.loopKills,game.currencies,game.inventory,game.weaponMastery]'),practiceOwned,'a training target grants no kill rewards');
+assert(run('game.records.echo.last.damage>0 && game.records.echo.runs===1'),'the final blow is measured once');
+const practiceRecord=json('[game.currentZoneId,game.records.echo]');
+run('finishWoodsmanEchoRun();game=mergeDefaults(JSON.parse(JSON.stringify(game)))');
+assert.deepEqual(json('[game.currentZoneId,game.records.echo]'),practiceRecord,'repeated finish and restoration cannot duplicate a measurement');
+run("game.currentZoneId=WOODSMAN_ECHO_ZONE_ID;game.settings.townReturnAction='stop';Object.assign(game.woodsmanEchoRun,{active:true,timeLeft:25,lastTickAt:getCombatTime(),returnZoneId:0});returnToTown();for(let i=0;i<30;i++)advanceTravelTick();finishWoodsmanEchoRun()");
+assert(run('game.currentZoneId===0 && game.combatHalted && !game.woodsmanEchoRun.active'),'returning from practice cancels the measurement and stops in the original zone');
+assert.deepEqual(json('game.records.echo'),practiceRecord[1],'cancelled practice cannot add a record');
 console.log('smoke-content-progression passed');

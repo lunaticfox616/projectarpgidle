@@ -1140,6 +1140,12 @@ function holdZoneBoundRuns(say) {
     if (game.colony?.inRun && game.currentZoneId !== 'colony_run') endColonyRunLeftBehind(say);
     const grand = game.voidRift?.grandRun;
     if (grand?.inRun && game.currentZoneId !== 'grand_breach_run') endGrandBreachLeftBehind(grand, say);
+    holdWoodsmanEchoRun();
+}
+function holdWoodsmanEchoRun() {
+    if (game.woodsmanEchoRun?.active && game.currentZoneId !== WOODSMAN_ECHO_ZONE_ID) {
+        Object.assign(game.woodsmanEchoRun, { active: false, timeLeft: 0, returnZoneId: null });
+    }
 }
 
 
@@ -9484,6 +9490,7 @@ function finishTownReturnAction() {
 
 function returnToTown() {
     if (game.isTownReturning && game.moveTimer > 0) return;
+    leaveWoodsmanEchoForTown();
     atlasRun.leave('마을 귀환');
     cosmosRouteRuntime.leave(game);
     let pStats = getPlayerStats();
@@ -9648,9 +9655,20 @@ function takeWoodsmanEchoReturnZone(run) {
     run.returnZoneId = null;
     return back !== undefined && back !== null ? back : getAutoProgressZoneId(game.maxZoneId);
 }
+/** 귀환은 측정 완료가 아니다. 기록을 남기지 않고 출발한 지역의 재정비 흐름으로 돌아간다. */
+function leaveWoodsmanEchoForTown() {
+    if (game.currentZoneId !== WOODSMAN_ECHO_ZONE_ID) return;
+    const run = ensureWoodsmanEchoRunState();
+    run.active = false;
+    run.timeLeft = 0;
+    actExplorationProgress.depart(game);
+    game.currentZoneId = takeWoodsmanEchoReturnZone(run);
+}
 function finishWoodsmanEchoRun() {
     let run = ensureWoodsmanEchoRunState();
-    let elapsed = Math.max(0.001, run.duration - Math.max(0, run.timeLeft || 0));
+    if (!run.active || game.currentZoneId !== WOODSMAN_ECHO_ZONE_ID) return;
+    run.timeLeft = Math.max(0, run.timeLeft - Math.max(0, (getCombatTime() - run.lastTickAt) / 1000));
+    let elapsed = Math.max(0.1, run.duration - run.timeLeft);
     let dps = run.totalDamage / elapsed;
     run.bestDps = Math.max(run.bestDps || 0, dps);
     run.active = false;
@@ -9659,7 +9677,7 @@ function finishWoodsmanEchoRun() {
     game.combatHalted = false;
     actExplorationProgress.depart(game);
     game.currentZoneId = takeWoodsmanEchoReturnZone(run);
-    if (typeof recordWoodsmanEchoRun === 'function') recordWoodsmanEchoRun(run.totalDamage, dps);
+    recordWoodsmanEchoRun(run.totalDamage, dps, game, elapsed);
     addLog(`🪵 나무꾼의 잔상: 총 피해 ${Math.floor(run.totalDamage).toLocaleString()}, 최종 DPS ${Math.floor(dps).toLocaleString()} (최고 ${Math.floor(run.bestDps).toLocaleString()})`, 'season-up');
     updateStaticUI();
 }
@@ -10434,15 +10452,28 @@ function wearStarterGemWithoutGuide(state, gemName) {
 }
 
 
+/** Resolve a live victim once; a defeated training target finishes its measurement without becoming a rewarded kill. */
+function resolveEnemyDeath(enemy) {
+    if (!enemy || !Number.isFinite(enemy.id)) return null;
+    const liveRef = (game.enemies || []).find(entry => entry && entry.id === enemy.id);
+    // 이미 처리되어 enemies 배열에서 제거된 적(중복 재귀 호출)은 무시한다.
+    if (!liveRef || liveRef.hp > 0) return null;
+    enemy = liveRef;
+    // A training target is not a kill: no experience, loot, growth or on-kill rewards.
+    if (game.currentZoneId === WOODSMAN_ECHO_ZONE_ID) {
+        const run = ensureWoodsmanEchoRunState();
+        run.totalDamage = Math.max(run.totalDamage, Math.floor(enemy.echoStartHp || enemy.maxHp));
+        finishWoodsmanEchoRun();
+        return null;
+    }
+    return enemy;
+}
 /** A monster's death, once: it leaves the field, the kill is counted, rewards are given, kill effects and content runs advance, and
  * monsters a kill effect brought to 0 die in turn. 2026-10-18 split into the steps below (it was one function of complexity 151);
  * the order of every random roll is kept. */
 function handleEnemyDeath(enemy, pStats) {
-    if (!enemy || !Number.isFinite(enemy.id)) return;
-    let liveRef = (game.enemies || []).find(entry => entry && entry.id === enemy.id);
-    // 이미 처리되어 enemies 배열에서 제거된 적(중복 재귀 호출)은 무시한다.
-    if (!liveRef || liveRef.hp > 0) return;
-    enemy = liveRef;
+    enemy = resolveEnemyDeath(enemy);
+    if (!enemy) return;
     // Rewards below change build inputs under one settlement memo revision: stats asked for until the end are not kept.
     playerStatCache.beginEvent();
     // Retire the victim before rewards or corpse explosions can recursively report it again.
@@ -14555,6 +14586,8 @@ function dressWoodsmanEchoDummy(dummy) {
     dummy.hp = dummy.maxHp;
     dummy.echoStartHp = dummy.maxHp;
     dummy.noAttack = true;
+    dummy.regenRate = 0;
+    dummy.regenBank = 0;
     return dummy;
 }
 

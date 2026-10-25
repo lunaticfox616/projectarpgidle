@@ -195,11 +195,14 @@
     function renderEchoSection(view) {
         let echo = view.echo;
         if (!echo.runs) return '';
+        const recent = echo.last ? statCard('attack', '최근 DPS', formatCount(echo.last.dps),
+            echo.changePct === null ? `${echo.last.seconds.toFixed(1)}초 측정` : `이전 대비 ${echo.changePct >= 0 ? '+' : ''}${echo.changePct.toFixed(1)}%`, TONE.damage) : '';
         return `<section class="records-section">
             <div class="records-section-title">나무꾼의 잔상<span>30초 허수아비 측정</span></div>
             <div class="records-stat-row">
+                ${recent}
                 ${statCard('attack', '최고 DPS', formatCount(echo.bestDps), '', TONE.damage)}
-                ${statCard('attack', '최고 총 피해', formatCount(echo.bestDamage), '30초 누적', TONE.damage)}
+                ${statCard('attack', '최고 총 피해', formatCount(echo.bestDamage), '', TONE.damage)}
                 ${statCard('', '측정 횟수', `${formatCount(echo.runs)}회`, `마지막 ${formatDate(echo.lastAt)}`, TONE.time)}
             </div>
         </section>`;
