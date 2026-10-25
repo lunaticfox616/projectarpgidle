@@ -3271,19 +3271,51 @@ const SEA_GIFT_RECIPES = [
 ];
 const SEA_GIFT_ITEM_EFFECT_TYPES = new Set(['guaranteedMod', 'guaranteedTaggedMod', 'removeMod', 'upgradeRarity', 'lockMod', 'taggedReroll', 'fixedBenchOption', 'safeReroll', 'twinReroll', 'tierStepUp', 'convertCategoryMod', 'echoMod']);
 
-function getSeaGiftRecipeStatus(recipeId, targetItem, category) {
-    let recipe = SEA_GIFT_RECIPES.find(r => r.id === recipeId);
-    if (!recipe) return null;
-    let st = ensureOceanState();
-    const materialReady = Object.keys(recipe.requires).every(key => (st.fishStock[key] || 0) >= recipe.requires[key]);
-    const needsItem = SEA_GIFT_ITEM_EFFECT_TYPES.has(recipe.effect.type);
-    const item = needsItem ? (targetItem || getSelectedCraftItem()) : null;
-    let reason = '';
-    if (!st.unlocked) reason = '심해 해금 필요';
-    else if (!materialReady) reason = '재료 부족';
-    else if (needsItem) reason = getSeaGiftTargetBlockReason(item) || getSeaGiftEffectBlockReason(item, recipe.effect, category);
-    return { recipe, ready: !reason, materialReady, reason, item, owned: st.fishStock };
-}
+const { getSeaGiftRecipeStatus, craftSeaGift } = (() => {
+    /** Equipment always advances one visible result; currency batches are bounded and fully funded before any roll. */
+    function quantityOf(recipe, stock, count) {
+        const batchLimit = ['currency', 'randomCurrency'].includes(recipe.effect.type) ? 100 : 1;
+        const maxCrafts = Math.min(batchLimit, ...Object.entries(recipe.requires).map(([key, need]) => Math.floor((stock[key] || 0) / need)));
+        const valid = Number.isInteger(count) && count >= 1 && count <= batchLimit;
+        return { count, batchLimit, maxCrafts, valid, materialReady: valid && maxCrafts >= count };
+    }
+    function getSeaGiftRecipeStatus(recipeId, targetItem, category, count = 1) {
+        const recipe = SEA_GIFT_RECIPES.find(r => r.id === recipeId);
+        if (!recipe) return null;
+        const st = ensureOceanState(), quantity = quantityOf(recipe, st.fishStock, count);
+        const needsItem = SEA_GIFT_ITEM_EFFECT_TYPES.has(recipe.effect.type);
+        const item = needsItem ? (targetItem || getSelectedCraftItem()) : null;
+        let reason = '';
+        if (!quantity.valid) reason = '제작 횟수를 확인하세요.';
+        else if (!st.unlocked) reason = '심해 해금 필요';
+        else if (!quantity.materialReady) reason = '재료 부족';
+        else if (needsItem) reason = getSeaGiftTargetBlockReason(item) || getSeaGiftEffectBlockReason(item, recipe.effect, category);
+        return { recipe, ready: !reason, ...quantity, reason, item, owned: st.fishStock };
+    }
+    function applyEffect(status, options) {
+        let effect = status.recipe.effect;
+        if (status.count > 1) effect = { ...effect, amount: effect.amount * status.count };
+        const craft = { category: options?.category, options, say: addLog };
+        const apply = Object.hasOwn(SEA_GIFT_EFFECTS, effect.type) ? SEA_GIFT_EFFECTS[effect.type] : null;
+        if (!apply) return refuseSeaGift(craft, '이 제작법을 적용할 수 없습니다.');
+        return apply(status.item, effect, craft) !== false;
+    }
+    /** Resolve the whole request before effects, then charge exactly the approved quantity and queue one save. */
+    function craftSeaGift(recipeId, targetItem, options) {
+        const status = getSeaGiftRecipeStatus(recipeId, targetItem, options?.category, options?.count);
+        if (!status) return false;
+        if (!status.ready) { addLog(`바다의 선물: ${status.reason}`, 'attack-monster'); return false; }
+        const st = ensureOceanState(), recipe = status.recipe;
+        if (!applyEffect(status, options)) return false;
+        Object.keys(recipe.requires).forEach(key => { st.fishStock[key] = Math.max(0, Math.floor(st.fishStock[key] || 0) - recipe.requires[key] * status.count); });
+        addLog(`🎁 바다의 선물 ${status.count}회 제작`, 'loot-rare');
+        if (status.item && typeof normalizeItem === 'function') normalizeItem(status.item);
+        queueImportantSave(200);
+        return true;
+    }
+    return { getSeaGiftRecipeStatus, craftSeaGift };
+})();
+safeExposeGlobals({ getSeaGiftRecipeStatus, craftSeaGift });
 
 function getSeaGiftTargetBlockReason(item) {
     if (!item) return '대상 선택 필요';
@@ -3504,26 +3536,6 @@ function getSelectedSeaGiftEquipmentTarget() {
     return isSeaGiftEquipmentTarget(item) ? item : null;
 }
 
-/** Makes a sea gift recipe: its effect from SEA_GIFT_EFFECTS on the item (a refusal logs why and keeps the fish), then the fish are
- * taken. Effects as a table on 2026-10-18, each in its old order. */
-function craftSeaGift(recipeId, targetItem, options) {
-    const category = options && options.category;
-    const status = getSeaGiftRecipeStatus(recipeId, targetItem, category);
-    if (!status) return false;
-    if (!status.ready) { addLog(`바다의 선물: ${status.reason}`, 'attack-monster'); return false; }
-    let recipe = status.recipe;
-    let st = ensureOceanState();
-    let effect = recipe.effect;
-    let item = status.item;
-    const craft = { category, options, say: addLog };
-    const apply = Object.hasOwn(SEA_GIFT_EFFECTS, effect.type) ? SEA_GIFT_EFFECTS[effect.type] : null;
-    if (apply && apply(item, effect, craft) === false) return false;
-    Object.keys(recipe.requires).forEach(key => { st.fishStock[key] = Math.max(0, Math.floor(st.fishStock[key] || 0) - recipe.requires[key]); });
-    addLog(`🎁 [바다의 선물] 제작이 완료되었습니다.`, 'loot-rare');
-    if (item && typeof normalizeItem === 'function') normalizeItem(item);
-    queueImportantSave(200);
-    return true;
-}
 /** Logs why a sea gift was refused; false for the handler to return. */
 function refuseSeaGift(craft, message) {
     craft.say(message, 'attack-monster');
@@ -3562,11 +3574,13 @@ const SEA_GIFT_EFFECTS = Object.freeze({
     currency: (item, effect) => { awardCurrency(effect.key, effect.amount || 1); },
     randomCurrency: (item, effect, craft) => {
         let count = Math.max(1, Math.floor(effect.amount || 1));
+        const gains = new Map();
         for (let i = 0; i < count; i++) {
             let key = SEA_GIFT_RANDOM_ORB_KEYS[Math.floor(Math.random() * SEA_GIFT_RANDOM_ORB_KEYS.length)];
             awardCurrency(key, 1);
-            craft.say(`🎲 무작위 제작 재화: ${(ORB_DB[key] || {}).name || key} +1`, 'loot-rare');
+            gains.set(key, (gains.get(key) || 0) + 1);
         }
+        gains.forEach((amount, key) => craft.say(`🎲 ${(ORB_DB[key] || {}).name || key} +${amount}`, 'loot-rare'));
     },
     safeReroll: (item, effect, craft) => {
         let rows = getSeaGiftRerollRows(item);
