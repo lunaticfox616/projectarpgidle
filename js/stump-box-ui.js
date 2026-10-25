@@ -412,6 +412,14 @@ const stumpBoxUi = (() => {
         unlocks: () => stumpHarvestUi.unlocksHtml(),
         talisman: () => stumpTalismanUi.unsealHtml() + stumpRipeningUi.codexHtml()
     });
+    /** A records shortcut reveals its journal without toggling a previously open tab shut. */
+    function revealMoreTab(id) {
+        if (!stumpMoreTabs().some(([key]) => key === id)) return false;
+        moreTab = id;
+        moreOpen = true;
+        renderStumpBoxTab(true);
+        return true;
+    }
     /** The tab row alone until one is pressed; pressing the open tab folds it again (2026-10-25: no scroll on the first view). */
     function stumpMoreHtml() {
         const tabs = stumpMoreTabs();
@@ -945,7 +953,7 @@ const stumpBoxUi = (() => {
         return stumpItemTipHtml(item, stumpBox.evaluate(state), -1);
     }
 
-    return { renderStumpBoxTab, refreshStumpTabNow, checkStumpBoxUnlock, tipFor, dropOnCell, dropOnStorage, claimReward,
+    return { renderStumpBoxTab, refreshStumpTabNow, revealMoreTab, checkStumpBoxUnlock, tipFor, dropOnCell, dropOnStorage, claimReward,
         itemTipHtml, previewCell, hoverCell, clearPlacementPreview };
 })();
 safeExposeGlobals({ stumpBoxUi });

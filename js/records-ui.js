@@ -99,7 +99,7 @@
         </div>`;
 
         if (!view.loops.length) {
-            return `<section class="records-section">
+            return `<section class="records-section records-loop-history">
                 <div class="records-section-title">최근 루프</div>
                 <p class="records-empty">아직 완료한 루프가 없습니다. 루프를 한 번 넘기면 여기에 소요 시간이 남습니다.</p>
             </section>`;
@@ -115,7 +115,7 @@
             <td class="records-num${row.deaths > 0 ? ' is-deaths' : ''}">${formatCount(row.deaths)}</td>
         </tr>`).join('');
 
-        return `<section class="records-section">
+        return `<section class="records-section records-loop-history">
             <div class="records-section-title">최근 루프<span>${formatCount(view.loops.length)}개 보관</span></div>
             ${summaryRow}
             <div class="records-table-scroll">

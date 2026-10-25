@@ -38,9 +38,11 @@
 .chronicle-rings text { fill: #ffd36b; font-size: var(--font-size-ui); font-weight: 700; }
 .chronicle-chapters { list-style: none; margin: 8px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 6px 10px; }
 .chronicle-chapter { display: grid; gap: 3px; padding-left: 8px; border-left: 2px solid color-mix(in srgb, var(--chapter-tone, #e8c27a) 35%, transparent); }
-.chronicle-chapter > div:first-child { display: flex; justify-content: space-between; gap: 6px; }
-.chronicle-chapter strong { color: color-mix(in srgb, var(--chapter-tone, #e8c27a) 55%, var(--copy-muted)); }
-.chronicle-chapter span { color: var(--copy-muted); font-size: .8rem; }
+.chronicle-chapter > div:first-child { display: flex; align-items: center; gap: 6px; }
+.chronicle-chapter strong { flex: 1; min-width: 0; color: color-mix(in srgb, var(--chapter-tone, #e8c27a) 55%, var(--copy-muted)); }
+.chronicle-chapter span { color: var(--copy-muted); font-size: .8rem; white-space: nowrap; }
+.chronicle-chapter .chronicle-open { flex: none; min-width: 44px; min-height: 32px; padding: var(--space-1) var(--space-2); font-size: var(--font-size-ui); }
+.chronicle-open:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
 .chronicle-chapter small { color: var(--copy-muted); font-size: .78rem; }
 .chronicle-chapter .mastery-bar > i { background: var(--chapter-tone, #ffd36b); }
 .chronicle-chapter:is(.is-started, .is-done) { border-left-color: var(--chapter-tone, #e8c27a); }
