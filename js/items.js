@@ -590,14 +590,23 @@ function retrieveTimeAltarItems() {
     }
     let altarItems = [rift.altarUnique, rift.altarRare].filter(Boolean);
     if (!canStoreEquipmentItems(altarItems, game)) return addLog('인벤토리 공간이 부족합니다.', 'attack-monster');
-    // guaranteedKeep: 회수 아이템이 습득 필터/자동해체에 걸려 유실되는 것을 방지한다.
-    if (rift.altarUnique) { addItemToInventory(rift.altarUnique, { guaranteedKeep: true, skipAutoEquip: true }); rift.altarUnique = null; }
-    if (rift.altarRare) { addItemToInventory(rift.altarRare, { guaranteedKeep: true, skipAutoEquip: true }); rift.altarRare = null; }
-    rift.altarOpen = false;
-    rift.activePressure = null;
+    returnTimeAltarItems(rift);
     addLog('⏳ 제단의 아이템을 회수했습니다.', 'season-up');
     updateStaticUI();
     queueImportantSave(200);
+}
+
+/** Puts the altar's items back in the bag and closes the altar: a recall, or a defeat in the future (2026-10-26 사용자: 아이템이
+ * 다시 회수되며 과거부터 다시 클리어). guaranteedKeep: the pickup filter and auto-salvage never take them, and a full bag keeps them
+ * in the temporary storage. @returns {number} the items returned (0 the second time) */
+function returnTimeAltarItems(rift) {
+    const items = [rift.altarUnique, rift.altarRare].filter(Boolean);
+    rift.altarUnique = null;
+    rift.altarRare = null;
+    rift.altarOpen = false;
+    rift.activePressure = null;
+    items.forEach(item => addItemToInventory(item, { guaranteedKeep: true, skipAutoEquip: true }));
+    return items.length;
 }
 
 /** The rare options a fusion keeps, in their order: they roll one by one in a random order with the pressure's chance, which drops

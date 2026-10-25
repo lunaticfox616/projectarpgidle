@@ -13110,10 +13110,14 @@ function defeatAtMeteor(zone, message, opts, ui) {
     game.killsInZone = 0;
     clearDefeatedEncounter();
 }
+/** A defeat in the future returns the altar's items and closes the altar, so the past must be cleared again (2026-10-26 사용자). */
 function defeatInTimeRift(zone, message, opts, ui) {
     let rift = ensureTimeRiftState();
     rift.activePressure = null;
-    ui.say(message || `☠️ 시간의 균열(${zone.riftPhase === 'past' ? '과거' : '미래'})에서 밀려났습니다. 제단에 맡긴 아이템은 보존됩니다.`, 'death', { noToast: !!opts.noToast });
+    const future = zone.riftPhase === 'future';
+    ui.say(message || (future ? '☠️ 시간의 균열(미래)에서 밀려났습니다.' : '☠️ 시간의 균열(과거)에서 밀려났습니다. 제단에 맡긴 아이템은 보존됩니다.'), 'death', { noToast: !!opts.noToast });
+    const returned = future ? returnTimeAltarItems(rift) : 0;
+    if (future) ui.say(`⏳ ${returned ? `제단의 장비 ${returned}개가 돌아왔습니다. ` : ''}제단이 닫혀 과거부터 다시 깨야 합니다.`, 'season-up');
     game.currentZoneId = getDefeatRecoveryZoneId();
     game.killsInZone = 0;
     clearDefeatedEncounter();
