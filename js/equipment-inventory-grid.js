@@ -260,20 +260,32 @@
     const overlapsSpot = (other, placement, size) => other.column < placement.column + size.columns && placement.column < other.column + other.columns
         && other.row < placement.row + size.rows && placement.row < other.row + other.rows;
 
-    /** A drop on one other item trades places with it (2026-10-23 사용자 "드래그 앤 드랍으로 자연스럽게 위치 교환"): the carried item
-     * takes the spot and the other goes where the carried one stood, else to the first free spot on the drop's page.
-     * @returns {?{entry:EquipmentInventoryGridEntry, placement:EquipmentInventoryPlacement}} null under several items or with no room */
+    /** A drop on other items moves them out of the way (2026-10-23 사용자 "드래그 앤 드랍으로 자연스럽게 위치 교환"; 2026-10-26 여러 개를
+     * 덮어도 모두 옮길 자리가 있으면): the carried item takes the spot and each item under it, the biggest first, goes where it lay
+     * inside the carried item's old spot, else to that spot's corner, else the first free spot on the drop's page, else anywhere.
+     * @returns {?{entry:EquipmentInventoryGridEntry, placement:EquipmentInventoryPlacement}[]} null when one of them has no room */
     function findSwapInLayout(layout, entry, placement) {
         const blockers = layout.entries.filter(other => other.key !== entry.key && overlapsSpot(other, placement, entry));
-        if (blockers.length !== 1) return null;
-        const other = blockers[0], occupied = getOccupied(layout, new Set([entry.key, other.key]));
+        if (!blockers.length) return null;
+        const occupied = getOccupied(layout, new Set([entry.key, ...blockers.map(other => other.key)]));
         if (!canFit(occupied, placement, entry, layout.rows)) return null;
         occupy(occupied, placement, entry);
-        const home = { column: entry.column, row: entry.row };
-        if (canFit(occupied, home, other, layout.rows)) return { entry: other, placement: home };
+        const area = other => other.columns * other.rows, moves = [];
+        for (const other of blockers.slice().sort((a, b) => area(b) - area(a))) {
+            const spot = swapSpot(occupied, layout.rows, entry, placement, other);
+            if (!spot) return null;
+            occupy(occupied, spot, other);
+            moves.push({ entry: other, placement: spot });
+        }
+        return moves;
+    }
+    /** Where one item under the drop goes (findSwapInLayout), or null. */
+    function swapSpot(occupied, rowCount, entry, placement, other) {
         const pageStart = Math.floor(placement.row / GRID_ROWS_PER_PAGE) * GRID_ROWS_PER_PAGE;
-        const spot = findFirstFitInRows(occupied, other, layout.rows, pageStart, pageStart + GRID_ROWS_PER_PAGE);
-        return spot ? { entry: other, placement: spot } : null;
+        const kept = { column: entry.column + other.column - placement.column, row: entry.row + other.row - placement.row };
+        const home = { column: entry.column, row: entry.row };
+        for (const spot of [kept, home]) if (normalizePlacement(spot) && canFit(occupied, spot, other, rowCount)) return spot;
+        return findFirstFitInRows(occupied, other, rowCount, pageStart, pageStart + GRID_ROWS_PER_PAGE) || findFirstFit(occupied, other, rowCount);
     }
 
     function evaluateMoveInLayout(itemKey, column, row, layout) {
@@ -283,8 +295,8 @@
         if (!placement) return { ok: false, reason: '인벤토리 칸을 벗어났습니다.', entry, layout };
         let occupied = getOccupied(layout, new Set([itemKey]));
         if (canFit(occupied, placement, entry, layout.rows)) return { ok: true, placement, entry, layout };
-        const swap = findSwapInLayout(layout, entry, placement);
-        if (swap) return { ok: true, placement, entry, layout, swap };
+        const swaps = findSwapInLayout(layout, entry, placement);
+        if (swaps) return { ok: true, placement, entry, layout, swaps };
         return { ok: false, reason: '그 위치에는 장비를 놓을 수 없습니다.', entry, layout };
     }
 
@@ -292,7 +304,7 @@
         let state = targetGame || game;
         let result = evaluateMoveInLayout(itemKey, column, row, ensureState(state));
         if (!result.ok) return result;
-        const swapped = result.swap ? { [result.swap.entry.key]: result.swap.placement } : {};
+        const swapped = Object.fromEntries((result.swaps || []).map(move => [move.entry.key, move.placement]));
         state.equipmentInventoryPlacements = { ...result.layout.placements, [itemKey]: result.placement, ...swapped };
         return { ...result, layout: ensureState(state) };
     }
