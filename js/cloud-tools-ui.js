@@ -276,11 +276,13 @@ function renderChatReports(data) {
         { label: '풀리는 시각', render: row => new Date(row.until_at).toLocaleString('ko-KR') }, { key: 'note', label: '메모' },
         { label: '조치', html: row => muteButtons(row) }
     ], Array.isArray(data.mutes) ? data.mutes : []);
-    return html + renderBannedTerms(Array.isArray(data.terms) ? data.terms : []);
+    return html + renderBannedTerms(Array.isArray(data.terms) ? data.terms : null);
 }
 
-/** The admin's extra banned terms (chat_banned_terms): a list with 빼기 buttons and a row to add one; the server lowercases and trims. */
+/** The admin's extra banned terms (chat_banned_terms): a list with 빼기 buttons and a row to add one; the server trims the term the
+ * way the check normalises text. terms is null when the server has no such function yet. */
 function renderBannedTerms(terms) {
+    if (!terms) return '<section><h3>금칙어(관리자 추가)</h3><p class="cloud-tools-note">Supabase에서 db/multiplayer-hardening-20261027.sql을 실행하면 보입니다.</p></section>';
     let html = renderOpsTable('금칙어(관리자 추가)', [
         { key: 'term', label: '낱말' },
         { label: '찾는 글', render: row => row.spaced === false ? '띄어쓰기 지운 글' : '띄어쓰기 남긴 글' },
@@ -296,7 +298,7 @@ function renderBannedTerms(terms) {
 
 /** The term a click refers to: the row's own term for 빼기, else the input row's text. */
 function bannedTermOf(button, remove) {
-    if (remove) return button.dataset.termRemove;
+    if (remove) return String(button.dataset.termRemove || '');
     let input = document.getElementById('banned-term-input');
     return String((input && input.value) || '').trim();
 }
@@ -307,7 +309,7 @@ function bannedTermSpaced() {
 /** Adds (from the input row) or removes (a row's button) one banned term after a confirmation, then reloads the section. */
 async function setBannedTerm(button, remove) {
     let term = bannedTermOf(button, remove);
-    if (!term) return showGameToast('낱말을 넣어 주세요.', 'warning');
+    if (term.length < 2) return showGameToast('낱말은 2~40자여야 합니다.', 'warning');
     let confirmed = await requestGameConfirmation(`금칙어 "${term}"${remove ? '을 뺄까요?' : '을 더할까요?'}`, {
         title: '금칙어', tone: 'warning', confirmLabel: remove ? '빼기' : '더하기'
     });
@@ -329,7 +331,7 @@ async function loadChatReports() {
     if (!box) return;
     try {
         let data = await cloudJsonRequest('/rest/v1/rpc/admin_get_chat_reports', { method: 'POST', body: {} });
-        let terms = await cloudJsonRequest('/rest/v1/rpc/admin_get_banned_terms', { method: 'POST', body: {} }).catch(() => []);
+        let terms = await cloudJsonRequest('/rest/v1/rpc/admin_get_banned_terms', { method: 'POST', body: {} }).catch(() => null);
         box.innerHTML = renderChatReports(Object.assign({}, data || {}, { terms }));
     } catch (error) {
         let text = String(error && error.message || error);

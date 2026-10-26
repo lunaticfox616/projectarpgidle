@@ -5,8 +5,9 @@
 // 그대로 담아, 기존 프로젝트에 묶음을 돌린 결과와 새로 설치한 결과가 같아야 한다. 2026-10-27 검토에서 사람이 스크립트로
 // 비교해 확인했는데, 그 확인을 여기 둬서 다음 변경이 한쪽만 고치면 바로 드러나게 한다.
 //
-// 비교 단위: `create or replace function public.이름(...)`부터 그 함수를 닫는 `$$;`까지, `create policy "이름"`부터 `;`까지.
-// 주석(--)과 공백 차이는 무시한다. 종료 코드 0 = 같음, 1 = 다른 곳이 있음.
+// 비교 단위: `create or replace function public.이름(...)`부터 그 함수를 닫는 첫 `$$;`까지, `create policy "이름"`부터 `;`까지.
+// 주석(--)은 자르기 전에 지우고 공백 차이는 무시한다. 종료 코드 0 = 같음, 1 = 다른 곳이 있음.
+// 한 번 실행하는 묶음 파일도 거울로 남는다: 원본 함수를 나중에 정당하게 고치면 묶음 파일의 사본도 같이 고치거나 OVERRIDDEN에 적는다.
 'use strict';
 
 const fs = require('fs');
@@ -23,7 +24,7 @@ function stripComments(text) {
 function normalize(text) {
     return stripComments(text).replace(/\s+/g, ' ').trim();
 }
-/** 함수 머리부터 그 본문을 닫는 `$$;`까지. 본문 안의 `$$`는 짝으로 세어 안쪽 블록을 건너뛴다. */
+/** 함수 머리부터 그 본문을 닫는 첫 `$$;`까지(주석은 이미 지워진 글을 받는다). */
 function functionBlocks(text) {
     const blocks = [];
     const head = /create or replace function public\.([a-z_0-9]+)\s*\(/g;
@@ -53,7 +54,7 @@ function policyBlocks(text) {
 
 const seen = new Map();   // kind:name -> [{ file, body }]
 for (const file of files) {
-    const text = fs.readFileSync(path.join(dbDir, file), 'utf8').replace(/\r\n/g, '\n');
+    const text = stripComments(fs.readFileSync(path.join(dbDir, file), 'utf8').replace(/\r\n/g, '\n'));
     for (const block of [...functionBlocks(text), ...policyBlocks(text)]) {
         const key = `${block.kind}:${block.name}`;
         if ((OVERRIDDEN[key] || []).includes(file)) continue;

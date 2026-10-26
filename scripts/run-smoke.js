@@ -130,9 +130,9 @@ async function main() {
 // 전체 실행의 마지막에 구조·복잡도 래칫과 db 거울 검사를 함께 돈다(2026-10-27 회고: 한 줄 JS 수정이 래칫에 걸린 채 커밋됐다.
 // CI는 잡지만 커밋 전에 `npm test`만 돌린 쪽은 몰랐다). 이름을 골라 돌릴 때는 빠른 반복이라 건너뛴다.
 function runFinalChecks() {
-    for (const [title, script] of [['구조·복잡도 래칫(check:architecture)', 'scripts/check-runtime-architecture.js'], ['db 거울 검사(check:db)', 'scripts/check-db-mirror.js']]) {
+    for (const [title, script] of [['구조·복잡도 래칫(check:architecture)', 'check-runtime-architecture.js'], ['db 거울 검사(check:db)', 'check-db-mirror.js']]) {
         console.log(`\n${title}`);
-        let result = require('child_process').spawnSync(process.execPath, [script], { stdio: 'inherit' });
+        let result = require('child_process').spawnSync(process.execPath, [path.join(SCRIPT_DIR, script)], { stdio: 'inherit', cwd: REPO_ROOT });
         if (result.status !== 0) process.exit(result.status || 1);
     }
 }

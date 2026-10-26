@@ -814,12 +814,15 @@ begin
                    case when match_row.challenger_id = account_id then match_row.result
                         when match_row.result = 'win' then 'loss'
                         when match_row.result = 'loss' then 'win' else 'draw' end as result,
-                   case when match_row.challenger_id = account_id then defender.nickname else challenger.nickname end as opponent,
+                   case when match_row.challenger_id = account_id then coalesce(defender_profile.nickname, defender.nickname)
+                        else coalesce(challenger_profile.nickname, challenger.nickname) end as opponent,   -- 지금 닉네임(2026-10-27)
                    case when match_row.challenger_id = account_id then match_row.challenger_rating_after - match_row.challenger_rating_before
                         else match_row.defender_rating_after - match_row.defender_rating_before end as rating_delta
               from public.ghost_matches match_row
               join public.ghost_profiles challenger on challenger.user_id = match_row.challenger_id
               join public.ghost_profiles defender on defender.user_id = match_row.defender_id
+              left join public.player_profiles challenger_profile on challenger_profile.user_id = match_row.challenger_id
+              left join public.player_profiles defender_profile on defender_profile.user_id = match_row.defender_id
              where match_row.challenger_id = account_id or match_row.defender_id = account_id
              order by match_row.created_at desc limit 10
         ) recent_match), '[]'::jsonb)
@@ -866,7 +869,8 @@ $$;
 create or replace function public.admin_set_banned_term(p_term text, p_spaced boolean default true, p_remove boolean default false)
 returns jsonb language plpgsql security definer set search_path = public as $$
 declare
-    term_value text := lower(trim(coalesce(p_term, '')));
+    -- 검사 글과 같은 방식으로 다듬어 넣는다(숫자와 기호는 빠진다): 그래야 position()이 맞는다(검토 지적 2026-10-27).
+    term_value text := trim(case when coalesce(p_spaced, true) then public.chat_text_spaced(p_term) else public.chat_text_normalized(p_term) end);
 begin
     if not public.is_project_admin() then raise exception 'ADMIN_REQUIRED'; end if;
     if char_length(term_value) not between 2 and 40 then raise exception 'INVALID_REQUEST'; end if;
@@ -887,7 +891,7 @@ grant execute on function public.admin_set_banned_term(text, boolean, boolean) t
 -- 긴 줄기(3음절 이상과 fuck, bitch)는 띄어쓰기를 다 지운 글에서, 짧은 줄기(2음절, 자모 두 글자, shit)는 띄어쓰기를 남긴 글에서 찾는다.
 -- "혹시 발사체", "3개 새로", "기존 나온", "ㅂㅂ ㅅㄱ", "sushi time" 같은 평범한 말이 걸리지 않게(검토 지적 2026-10-27). 그 뒤 금칙어 표를 본다.
 create or replace function public.chat_text_is_offensive(p_text text)
-returns boolean language sql stable set search_path = public as $$
+returns boolean language sql stable security definer set search_path = public as $$
     select public.chat_text_normalized(p_text) ~ '(개새끼|미친놈|미친년|새끼야|새끼들|병신|븅신|지랄|느금|엠창|섹스|fuck|bitch)'
         or public.chat_text_spaced(p_text) ~ '(시발|씨발|시팔|씨팔|씨바|개새|미친새|존나|애미|좆|ㅅㅂ|ㅆㅂ|ㅂㅅ|ㅈㄴ|ㅈㄹ|창녀|창놈|\mshit\M)'
         or exists (select 1 from public.chat_banned_terms banned

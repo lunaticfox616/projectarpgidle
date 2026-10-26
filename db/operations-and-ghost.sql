@@ -794,12 +794,15 @@ begin
                    case when match_row.challenger_id = account_id then match_row.result
                         when match_row.result = 'win' then 'loss'
                         when match_row.result = 'loss' then 'win' else 'draw' end as result,
-                   case when match_row.challenger_id = account_id then defender.nickname else challenger.nickname end as opponent,
+                   case when match_row.challenger_id = account_id then coalesce(defender_profile.nickname, defender.nickname)
+                        else coalesce(challenger_profile.nickname, challenger.nickname) end as opponent,   -- 지금 닉네임(2026-10-27)
                    case when match_row.challenger_id = account_id then match_row.challenger_rating_after - match_row.challenger_rating_before
                         else match_row.defender_rating_after - match_row.defender_rating_before end as rating_delta
               from public.ghost_matches match_row
               join public.ghost_profiles challenger on challenger.user_id = match_row.challenger_id
               join public.ghost_profiles defender on defender.user_id = match_row.defender_id
+              left join public.player_profiles challenger_profile on challenger_profile.user_id = match_row.challenger_id
+              left join public.player_profiles defender_profile on defender_profile.user_id = match_row.defender_id
              where match_row.challenger_id = account_id or match_row.defender_id = account_id
              order by match_row.created_at desc limit 10
         ) recent_match), '[]'::jsonb)
