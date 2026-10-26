@@ -263,6 +263,7 @@ function renderChatReports(data) {
         { label: '시각', render: row => new Date(row.created_at).toLocaleString('ko-KR') },
         { label: '신고자', render: row => row.reporter_nickname || '' },
         { label: '대상', render: row => row.nickname || String(row.target_user_id || '').slice(0, 8) },
+        { label: '24시간 신고', render: row => cloudToolsNumber(row.reports_24h) },
         { key: 'reason', label: '사유' },
         { label: '채팅', render: row => row.body ? (row.body.length > 60 ? `${row.body.slice(0, 60)}…` : row.body) : '' },
         { label: '상태', render: row => row.muted_until ? `금지 중, ${new Date(row.muted_until).toLocaleString('ko-KR')}까지` : (row.message_id && !row.message_exists ? '줄 지워짐' : '') },

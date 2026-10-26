@@ -1149,7 +1149,7 @@ const SOCIAL_CHAT_ERROR_TEXTS = [
     [/SPAM_DUPLICATE/, '같은 메시지를 연속으로 보낼 수 없습니다.'],
     [/SPAM_REPEAT/, '같은 메시지를 5분 안에 세 번 보낼 수 없습니다.'],
     [/SPAM_FLOOD/, '같은 글자를 너무 많이 반복했습니다.'],
-    [/CHAT_MUTED/, '채팅이 금지된 상태입니다. 잠시 뒤 다시 시도해주세요.'],
+    [/CHAT_MUTED/, msg => msg.replace(/^[\s\S]*?CHAT_MUTED:\s*/, '')],   // 서버 문구에 남은 시간이 있다: "채팅이 금지된 상태입니다. N분 뒤 풀립니다."
     [/CHAT_PROFANITY/, '비속어가 들어 있어 보낼 수 없습니다.'],
     [/CHAT_LINK/, '링크는 보낼 수 없습니다.'],
     [/CHAT_PAYLOAD_INVALID/, `아이템 링크는 메시지마다 ${SOCIAL_MAX_ITEMS_PER_MSG}개까지입니다.`],
@@ -1159,7 +1159,8 @@ const SOCIAL_CHAT_ERROR_TEXTS = [
 ];
 function translateSpamError(msg) {
     let hit = SOCIAL_CHAT_ERROR_TEXTS.find(([pattern]) => pattern.test(msg));
-    return hit ? hit[1] : msg;
+    if (!hit) return msg;
+    return typeof hit[1] === 'function' ? hit[1](msg) : hit[1];
 }
 async function prepareChatSender(senderId) {
     await restoreNicknameFromServer();

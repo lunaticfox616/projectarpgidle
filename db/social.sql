@@ -269,7 +269,8 @@ declare
 begin
     new.created_at := now();
     if public.chat_muted_until(new.user_id) is not null then
-        raise exception 'CHAT_MUTED: 채팅이 금지된 상태입니다.';
+        raise exception 'CHAT_MUTED: 채팅이 금지된 상태입니다. %분 뒤 풀립니다.',
+            greatest(1, ceil(extract(epoch from (public.chat_muted_until(new.user_id) - now())) / 60));
     end if;
     if new.payload is not null then
         if jsonb_typeof(new.payload) <> 'object' or pg_column_size(new.payload) > 8192
@@ -463,6 +464,8 @@ begin
         'reports', coalesce((select jsonb_agg(to_jsonb(row_data) order by row_data.created_at desc) from (
             select report.id, report.created_at, report.target_user_id, report.nickname, report.message_id, report.body, report.reason,
                    reporter.nickname as reporter_nickname,
+                   (select count(*) from public.chat_reports same where same.target_user_id = report.target_user_id
+                      and same.created_at >= now() - interval '1 day') as reports_24h,
                    public.chat_muted_until(report.target_user_id) as muted_until,
                    exists (select 1 from public.chat_messages message where message.id = report.message_id) as message_exists
               from public.chat_reports report
