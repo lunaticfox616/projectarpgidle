@@ -3,7 +3,7 @@
 // 양옆, 네 모서리)로 크기를 바꾼다. 범위는 떠 있는 관리 창과 같아서(js/ui-window-manager.js getFreeWindowRect) 하단 HUD를 덮고
 // 화면 아래 끝까지 둘 수 있고(2026-10-03, 2026-10-04 사용자 요청), 관리 창보다는 아래에 깔린다.
 // 전투 기록(#log)과 채팅(#tab-social)은 원래 요소를 창으로 옮겨 쓰고, 휴대폰 배치에서는 원래 자리로 돌려놓는다.
-// 채팅 설정(닉네임, 프로필, 동기화, 접속자)은 ⚙ 하나(social.js openChatSettings)에 모았다.
+// 채팅 설정(닉네임, 프로필, 동기화, 차단한 사람, 접속자)은 ⚙ 하나(social.js openChatSettings)에 모았다.
 const messageFrames = (() => {
     const STORAGE_KEY = 'rignin-message-frames-v1';
     const TABS = Object.freeze({ log: { label: '전투', paneId: 'log' }, chat: { label: '채팅', paneId: 'tab-social' } });

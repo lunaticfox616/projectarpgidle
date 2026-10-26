@@ -2322,7 +2322,7 @@ function renderSocialTab() {
         stopChatPolling();
         return;
     }
-    // 채팅 창에는 대화와 입력 줄만 둔다. 닉네임, 프로필, 동기화, 접속자는 ⚙ 창(openChatSettings, 2026-10-03).
+    // 채팅 창에는 대화와 입력 줄만 둔다. 닉네임, 프로필, 동기화, 차단한 사람, 접속자는 ⚙ 창(openChatSettings, 2026-10-03).
     let draft = takeChatDraft();
     root.innerHTML = `
         ${nickname ? '' : '<div class="social-notice social-nickname-notice">닉네임을 정하면 채팅할 수 있습니다. <button type="button" onclick="promptAndSetNickname()">닉네임 정하기</button></div>'}
@@ -2352,7 +2352,7 @@ function renderSocialTab() {
 }
 
 // ============================================================================
-// 채팅 설정 창(2026-10-03 사용자 요청): 닉네임, 공개 프로필 보기와 동기화, 접속자 목록을 ⚙ 하나로 연다.
+// 채팅 설정 창(2026-10-03 사용자 요청): 닉네임, 공개 프로필 보기와 동기화, 차단한 사람(2026-10-27), 접속자 목록을 ⚙ 하나로 연다.
 // ============================================================================
 const CHAT_SETTINGS_ID = 'chat-settings-overlay';
 
