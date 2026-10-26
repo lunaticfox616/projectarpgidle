@@ -21,7 +21,7 @@ $$;
 
 drop policy if exists "cloud_saves_select_own" on public.cloud_saves;
 create policy "cloud_saves_select_own" on public.cloud_saves
-    for select to authenticated using (auth.uid() = user_id);
+    for select to authenticated using ((select auth.uid()) = user_id);
 
 -- 세이브 쓰기는 commit_cloud_save(보안 정의자 함수)로만 한다(2026-10-03). 예전에는 자기 행을 직접 쓸 수 있어서
 -- 리비전 확인과 크기 상한을 건너뛸 수 있었다.
@@ -104,17 +104,26 @@ alter table public.playtest_runs enable row level security;
 
 drop policy if exists "playtest_runs_insert_own" on public.playtest_runs;
 create policy "playtest_runs_insert_own" on public.playtest_runs
-    for insert to authenticated with check (auth.uid() = user_id);
+    for insert to authenticated with check ((select auth.uid()) = user_id);
 
+-- 시각은 서버가 정한다(2026-10-27: 클라이언트가 과거 시각을 넣어 일일 한도를 비켜 갔다). 열마다 크기 상한을 둔다
+-- (content_context는 db/operations-and-ghost.sql이 더한 열이라 to_jsonb로 있을 때만 본다). db/multiplayer-hardening-20261027.sql과 같다.
 create or replace function public.guard_playtest_run_insert()
 returns trigger language plpgsql security definer set search_path = public as $$
 begin
+    new.created_at := now();
+    if jsonb_typeof(new.ghost_snapshot) <> 'object' or pg_column_size(new.ghost_snapshot) > 8192 then
+        raise exception 'INVALID_GHOST_SNAPSHOT';
+    end if;
+    if pg_column_size(new.ehp_by_element) > 2048 or coalesce(pg_column_size(to_jsonb(new) -> 'content_context'), 0) > 4096
+       or char_length(new.zone_id) > 120 or char_length(new.zone_type) > 60 or char_length(coalesce(new.ascend_class, '')) > 80
+       or char_length(coalesce(new.hero_id, '')) > 80 or char_length(coalesce(new.active_skill, '')) > 120
+       or char_length(new.app_version) > 60 or char_length(new.platform) > 60 then
+        raise exception 'PLAYTEST_RUN_TOO_LARGE';
+    end if;
     delete from public.playtest_runs where created_at < now() - interval '30 days';
     if (select count(*) from public.playtest_runs where user_id = new.user_id and created_at >= now() - interval '1 day') >= 60 then
         raise exception 'PLAYTEST_DAILY_LIMIT';
-    end if;
-    if jsonb_typeof(new.ghost_snapshot) <> 'object' or pg_column_size(new.ghost_snapshot) > 8192 then
-        raise exception 'INVALID_GHOST_SNAPSHOT';
     end if;
     return new;
 end;
@@ -140,11 +149,15 @@ alter table public.client_error_reports enable row level security;
 
 drop policy if exists "client_error_reports_insert_own" on public.client_error_reports;
 create policy "client_error_reports_insert_own" on public.client_error_reports
-    for insert to authenticated with check (auth.uid() = user_id);
+    for insert to authenticated with check ((select auth.uid()) = user_id);
 
 create or replace function public.guard_client_error_insert()
 returns trigger language plpgsql security definer set search_path = public as $$
 begin
+    new.created_at := now();
+    if pg_column_size(new.context) > 8192 or char_length(new.fingerprint) > 200 or char_length(new.app_version) > 60 then
+        raise exception 'ERROR_REPORT_TOO_LARGE';
+    end if;
     delete from public.client_error_reports where created_at < now() - interval '30 days';
     if exists (
         select 1 from public.client_error_reports
@@ -181,3 +194,6 @@ having count(distinct user_id) >= 3;
 revoke all on public.playtest_runs, public.client_error_reports, public.playtest_class_stats_30d from anon, authenticated;
 grant insert on public.playtest_runs, public.client_error_reports to authenticated;
 grant usage, select on sequence public.playtest_runs_id_seq, public.client_error_reports_id_seq to authenticated;
+-- 트리거 함수는 RPC로 부를 수 없게 한다(Supabase 보안 권고). 트리거는 호출자의 실행 권한을 보지 않으므로 회수해도 그대로 돈다.
+revoke all on function public.guard_playtest_run_insert() from public, anon, authenticated;
+revoke all on function public.guard_client_error_insert() from public, anon, authenticated;

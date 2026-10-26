@@ -66,6 +66,7 @@ create table if not exists public.hall_item_registry (
     source_listing_id bigint,
     updated_at timestamptz not null default now()
 );
+create index if not exists hall_item_registry_owner_idx on public.hall_item_registry (owner_id);
 
 alter table public.hall_item_registry drop constraint if exists hall_item_registry_state_check;
 alter table public.hall_item_registry add constraint hall_item_registry_state_check

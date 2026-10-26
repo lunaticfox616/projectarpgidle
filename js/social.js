@@ -1927,7 +1927,8 @@ function renderProfileIdentityChips(p) {
 
 function renderProfileGemRow(label, gem, extra) {
     if (!gem || !gem.name) return '';
-    let quality = gem.quality ? ` 품질 ${gem.quality}` : '';
+    // 남의 프로필 값이라 품질도 다른 칸처럼 이스케이프한다(2026-10-27 검토: 이 한 칸만 날것으로 들어가 저장형 XSS가 됐다).
+    let quality = gem.quality ? ` 품질 ${socialEscape(gem.quality)}` : '';
     return `<div class="social-skill-row"><span class="social-skill-label">${socialEscape(label)}</span>`
         + `<strong>${socialEscape(gem.name)}</strong><span class="social-skill-level">Lv.${socialEscape(gem.level || 1)}${quality}${extra || ''}</span></div>`;
 }
@@ -1938,7 +1939,7 @@ function renderProfileSkills(skills) {
     let rows = [renderProfileGemRow('주 스킬', skills.active)]
         .concat((skills.supports || []).map(gem => renderProfileGemRow('보조', gem)))
         .concat([renderProfileGemRow('이동', skills.mobility)])
-        .concat((skills.summons || []).map(gem => renderProfileGemRow('소환', gem, gem.count > 1 ? ` ${gem.count}마리` : '')));
+        .concat((skills.summons || []).map(gem => renderProfileGemRow('소환', gem, Math.floor(Number(gem.count)) > 1 ? ` ${Math.floor(Number(gem.count))}마리` : '')));
     return `<div class="social-skill-list">${rows.join('')}</div>`;
 }
 

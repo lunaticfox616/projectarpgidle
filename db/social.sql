@@ -58,12 +58,31 @@ create index if not exists player_profiles_last_seen_idx
 alter table public.player_profiles
     add column if not exists nickname_updated_at timestamptz;
 
--- 닉네임은 하루(24시간)에 한 번만 변경할 수 있다.
-create or replace function public.player_profiles_nickname_guard()
+-- 넣고 고칠 때(2026-10-27, db/multiplayer-hardening-20261027.sql과 같다): last_seen과 nickname_updated_at은 서버가 정한다
+-- (하트비트 PATCH는 보낸 값과 상관없이 now()가 된다). 닉네임은 클라이언트 규칙과 같은 글자(한글, 영문, 숫자, _ -)만, 하루 한 번만
+-- 바뀐다. profile_data는 512KB까지. updated_at은 그림(profile_data)이나 닉네임이 바뀔 때만 움직인다(전: 하트비트마다 바뀌어
+-- 프로필의 갱신 시각이 접속 시각이 됐다). 예전 트리거 둘(nickname_guard, updated_at)을 이 하나로 합쳤다.
+create or replace function public.player_profiles_guard()
 returns trigger
 language plpgsql
+set search_path = public
 as $$
 begin
+    if pg_column_size(new.profile_data) > 524288 then
+        raise exception 'PROFILE_TOO_LARGE: 공개 프로필이 너무 큽니다.';
+    end if;
+    if tg_op = 'INSERT' or new.nickname is distinct from old.nickname then
+        if new.nickname !~ '^[0-9A-Za-z가-힣ㄱ-ㅎㅏ-ㅣ_-]+$' then
+            raise exception 'NICK_INVALID: 닉네임은 한글, 영문, 숫자, _ - 만 쓸 수 있습니다.';
+        end if;
+    end if;
+    if tg_op = 'INSERT' then
+        new.last_seen := now();
+        new.nickname_updated_at := null;
+        new.updated_at := now();
+        return new;
+    end if;
+    new.nickname_updated_at := old.nickname_updated_at;
     if new.nickname is distinct from old.nickname then
         if old.nickname_updated_at is not null
            and old.nickname_updated_at > now() - interval '24 hours' then
@@ -71,19 +90,20 @@ begin
         end if;
         new.nickname_updated_at := now();
     end if;
+    new.last_seen := case when new.last_seen is distinct from old.last_seen then now() else old.last_seen end;
+    new.updated_at := case when new.profile_data is distinct from old.profile_data or new.nickname is distinct from old.nickname
+                           then now() else old.updated_at end;
     return new;
 end;
 $$;
 
 drop trigger if exists trg_player_profiles_nickname_guard on public.player_profiles;
-create trigger trg_player_profiles_nickname_guard
-    before update on public.player_profiles
-    for each row execute function public.player_profiles_nickname_guard();
-
 drop trigger if exists trg_player_profiles_updated_at on public.player_profiles;
-create trigger trg_player_profiles_updated_at
-    before update on public.player_profiles
-    for each row execute function public.social_set_updated_at();
+drop trigger if exists trg_player_profiles_guard on public.player_profiles;
+create trigger trg_player_profiles_guard
+    before insert or update on public.player_profiles
+    for each row execute function public.player_profiles_guard();
+drop function if exists public.player_profiles_nickname_guard();
 
 alter table public.player_profiles enable row level security;
 
@@ -94,19 +114,19 @@ create policy "player_profiles_select"
     to authenticated
     using (true);
 
--- 자기 자신의 프로필만 생성/수정할 수 있다.
+-- 자기 자신의 프로필만 생성/수정할 수 있다. (select auth.uid())는 행마다 다시 계산하지 않기 위한 것이다(Supabase 성능 권고).
 drop policy if exists "player_profiles_insert_own" on public.player_profiles;
 create policy "player_profiles_insert_own"
     on public.player_profiles for insert
     to authenticated
-    with check (auth.uid() = user_id);
+    with check ((select auth.uid()) = user_id);
 
 drop policy if exists "player_profiles_update_own" on public.player_profiles;
 create policy "player_profiles_update_own"
     on public.player_profiles for update
     to authenticated
-    using (auth.uid() = user_id)
-    with check (auth.uid() = user_id);
+    using ((select auth.uid()) = user_id)
+    with check ((select auth.uid()) = user_id);
 
 -- ============================================================================
 -- 2) 채팅 메시지
@@ -138,28 +158,53 @@ create policy "chat_messages_insert_own"
     on public.chat_messages for insert
     to authenticated
     with check (
-        auth.uid() = user_id
+        (select auth.uid()) = user_id
         and lower(nickname) = (
             select lower(profile.nickname)
             from public.player_profiles profile
-            where profile.user_id = auth.uid()
+            where profile.user_id = (select auth.uid())
         )
     );
 
--- 자기 메시지는 수정 가능(닉네임 변경 시 과거 채팅 닉네임 일괄 갱신용).
+-- 자기 메시지는 수정 가능(닉네임 변경 시 과거 채팅 닉네임 일괄 갱신용). 무엇을 고칠 수 있는지는 아래 update 가드가 정한다.
 drop policy if exists "chat_messages_update_own" on public.chat_messages;
 create policy "chat_messages_update_own"
     on public.chat_messages for update
     to authenticated
-    using (auth.uid() = user_id)
-    with check (auth.uid() = user_id);
+    using ((select auth.uid()) = user_id)
+    with check ((select auth.uid()) = user_id);
+
+-- 고칠 때(2026-10-27): 닉네임만 바뀐다. 새 닉네임은 자기 프로필의 닉네임이어야 한다(전: 본문, 시각, 닉네임을 마음대로 바꿀 수 있었다).
+create or replace function public.chat_messages_update_guard()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+    if new.id <> old.id or new.user_id <> old.user_id or new.body <> old.body
+       or new.payload is distinct from old.payload or new.created_at <> old.created_at then
+        raise exception 'CHAT_UPDATE_FORBIDDEN: 지난 채팅은 닉네임 표기만 고칠 수 있습니다.';
+    end if;
+    if new.nickname is distinct from old.nickname and lower(new.nickname) is distinct from
+       (select lower(profile.nickname) from public.player_profiles profile where profile.user_id = new.user_id) then
+        raise exception 'CHAT_NICKNAME_MISMATCH: 채팅 닉네임은 프로필 닉네임과 같아야 합니다.';
+    end if;
+    return new;
+end;
+$$;
+
+drop trigger if exists trg_chat_messages_update_guard on public.chat_messages;
+create trigger trg_chat_messages_update_guard
+    before update on public.chat_messages
+    for each row execute function public.chat_messages_update_guard();
 
 -- (선택) 자기 메시지는 본인이 삭제 가능.
 drop policy if exists "chat_messages_delete_own" on public.chat_messages;
 create policy "chat_messages_delete_own"
     on public.chat_messages for delete
     to authenticated
-    using (auth.uid() = user_id);
+    using ((select auth.uid()) = user_id);
 
 -- 실시간 채팅(2026-10-21): 새 채팅을 Supabase Realtime(postgres_changes)으로 보낸다(js/social.js syncLiveChat).
 -- 읽을 수 있는 사람은 위 chat_messages_select 정책 그대로 로그인한 사용자뿐이다. 이미 설치한 프로젝트는 db/chat-realtime-20261021.sql.
@@ -179,6 +224,7 @@ $$;
 --   * 같은 사용자가 최근 60초 동안 15개 초과 전송 → 차단
 --   * 직전 메시지와 완전히 동일한 본문 연속 전송 → 차단
 -- SECURITY DEFINER 로 RLS 우회하여 본인 최근 메시지를 집계한다.
+--   * 시각은 서버가 정한다(2026-10-27: 클라이언트가 과거 시각을 넣어 이 제한을 비켜 갔다). payload는 8KB와 아이템 3개까지.
 create or replace function public.chat_messages_rate_limit()
 returns trigger
 language plpgsql
@@ -190,6 +236,14 @@ declare
     last_at      timestamptz;
     last_body    text;
 begin
+    new.created_at := now();
+    if new.payload is not null then
+        if jsonb_typeof(new.payload) <> 'object' or pg_column_size(new.payload) > 8192
+           or jsonb_typeof(new.payload -> 'items') <> 'array' or jsonb_array_length(new.payload -> 'items') > 3 then
+            raise exception 'CHAT_PAYLOAD_INVALID: 아이템 링크는 메시지마다 3개, 8KB까지입니다.';
+        end if;
+    end if;
+
     select count(*), max(created_at)
       into recent_count, last_at
       from public.chat_messages
@@ -228,6 +282,10 @@ create trigger trg_chat_messages_rate_limit
     before insert on public.chat_messages
     for each row execute function public.chat_messages_rate_limit();
 
+-- 속도 제한이 보는 (user_id, created_at)에 색인을 건다(외래키 user_id에 색인이 없었다).
+create index if not exists chat_messages_user_created_idx
+    on public.chat_messages (user_id, created_at desc);
+
 -- 저장 공간 보호: 채팅 로그 자동 정리 -----------------------------------------
 -- 새 메시지가 들어올 때마다 3일이 지난 메시지를 지우고, 짧은 기간에 메시지가
 -- 몰리는 경우에도 최신 CHAT_KEEP개만 남긴다.
@@ -265,6 +323,13 @@ drop trigger if exists trg_chat_messages_prune on public.chat_messages;
 create trigger trg_chat_messages_prune
     after insert on public.chat_messages
     for each row execute function public.chat_messages_prune();
+
+-- 트리거 함수는 RPC로 부를 수 없게 한다(Supabase 보안 권고). 트리거는 호출자의 실행 권한을 보지 않으므로 회수해도 그대로 돈다.
+revoke all on function public.chat_messages_rate_limit() from public, anon, authenticated;
+revoke all on function public.chat_messages_prune() from public, anon, authenticated;
+revoke all on function public.chat_messages_update_guard() from public, anon, authenticated;
+revoke all on function public.player_profiles_guard() from public, anon, authenticated;
+revoke all on function public.social_set_updated_at() from public, anon, authenticated;
 
 -- ============================================================================
 -- 끝. player_profiles / chat_messages 두 테이블과 RLS·스팸방지·자동정리가 준비되었습니다.

@@ -11503,6 +11503,12 @@ function notifyCloudSessionExpired(message) {
     cloudState.tokenExpiryWarned = true;
 }
 
+/** 갱신 요청을 서버가 거절했는가(토큰이 틀리거나 만료: 400 invalid_grant, 401, 403). 망 오류, 5xx, 429는 거절이 아니라 잠시 못 닿은 것이다. */
+function isCloudAuthRejection(error) {
+    let status = Number(error && error.status);
+    return status === 400 || status === 401 || status === 403;
+}
+
 async function refreshCloudSession(reason) {
     if (!cloudState.session || !cloudState.session.refresh_token) {
         notifyCloudSessionExpired('클라우드 로그인 갱신 정보가 없습니다. 다시 로그인해주세요.');
@@ -11522,8 +11528,13 @@ async function refreshCloudSession(reason) {
             return true;
         } catch (error) {
             console.warn('cloud token refresh failed:', error);
-            applyCloudSession(null);
-            notifyCloudSessionExpired('클라우드 로그인 세션이 만료되었습니다. 다시 로그인해주세요.');
+            if (isCloudAuthRejection(error)) {
+                applyCloudSession(null);
+                notifyCloudSessionExpired('클라우드 로그인 세션이 만료되었습니다. 다시 로그인해주세요.');
+            } else {
+                // 망이 끊기거나 서버가 잠시 답하지 않은 것: 세션을 지우지 않는다(전: 어떤 오류든 로그아웃). 다음 요청 전에 다시 갱신한다.
+                setCloudMessage('클라우드 로그인 갱신을 못 했습니다(연결 상태). 잠시 뒤 다시 시도합니다.');
+            }
             return false;
         } finally {
             cloudState.tokenRefreshPromise = null;
@@ -11556,7 +11567,7 @@ async function cloudJsonRequest(path, options = {}) {
     if (!config.enabled) throw new Error('cloud-save-config.js 설정이 비어 있습니다.');
     if (options.useAuth !== false) {
         let fresh = await ensureCloudSessionFresh('요청 전 확인');
-        if (!fresh) throw new Error('클라우드 로그인 세션이 만료되었습니다. 다시 로그인해주세요.');
+        if (!fresh) throw new Error(cloudState.session ? '클라우드 로그인 갱신을 못 했습니다. 연결을 확인한 뒤 다시 시도해주세요.' : '클라우드 로그인 세션이 만료되었습니다. 다시 로그인해주세요.');
     }
     if (options.expectedUserId && options.expectedUserId !== getActiveCloudUserId()) throw new Error('로그인 계정이 변경되어 작업을 중단했습니다.');
     let body = options.body, headers = cloudRequestHeaders(config, options, body);
@@ -12026,7 +12037,18 @@ async function restoreCloudSession() {
     if (stored.refresh_token) {
         cloudState.session = stored;
         cloudState.user = stored.user || null;
-        return await refreshCloudSession('저장된 세션 복원');
+        if (await refreshCloudSession('저장된 세션 복원')) return true;
+        if (!cloudState.session) return false;   // 서버가 거절해 지웠다
+        // 갱신에 못 닿았지만 세션은 남겼다: 토큰이 아직 살아 있으면 그대로 쓰고, 끝났으면 이번 실행은 로그인 없이 가되
+        // 저장된 세션은 두어 다음 실행 때 다시 시도한다(전: 망이 끊긴 채 켜면 로그아웃).
+        if (getCloudSessionExpiresAtMs() - Date.now() > CLOUD_TOKEN_REFRESH_LEEWAY_MS) {
+            setCloudMessage('클라우드 로그인 갱신은 못 했지만 기존 로그인으로 계속합니다.');
+            return true;
+        }
+        cloudState.session = null;
+        cloudState.user = null;
+        setCloudMessage('연결이 없어 저장된 로그인을 확인하지 못했습니다. 다음 실행 때 다시 시도합니다.');
+        return false;
     }
     clearCloudSessionStorage();
     setCloudMessage('저장된 클라우드 세션에 갱신 토큰이 없습니다. 다시 로그인해주세요.');
@@ -12670,7 +12692,8 @@ async function initializeCloudSave() {
         }
     } catch (error) {
         console.warn('cloud init failed:', error);
-        applyCloudSession(null);
+        // 서버가 세션을 거절했을 때만 로그아웃한다. 망 오류로 복원이나 대조가 실패하면 로그인은 두고 다음 동기화 때 다시 맞춘다.
+        if (isCloudAuthRejection(error)) applyCloudSession(null);
         setCloudMessage('클라우드 세션 복원 실패: ' + (error.message || error));
     } finally {
         cloudState.busy = false;
