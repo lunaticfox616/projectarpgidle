@@ -11509,6 +11509,22 @@ function isCloudAuthRejection(error) {
     return status === 400 || status === 401 || status === 403;
 }
 
+/** supabase-js(persistSession + autoRefreshToken)가 들고 있는 세션. 없거나 게임과 같은 refresh_token이면 null: 게임의 갱신이
+ * 거절됐을 때(400 invalid_grant) 그쪽이 먼저 갱신한 새 토큰을 이어받아 로그아웃을 피한다(2026-10-27 검토의 경쟁 기록). */
+async function readSupabaseClientSession() {
+    let client = getSupabaseClient();
+    if (!client || !client.auth) return null;
+    try {
+        let { data } = await client.auth.getSession();
+        let session = data && data.session;
+        if (!session || !session.access_token || !session.refresh_token) return null;
+        return cloudState.session && session.refresh_token === cloudState.session.refresh_token ? null : session;
+    } catch (error) {
+        console.warn('supabase-js 세션 읽기 실패:', error);
+        return null;
+    }
+}
+
 async function refreshCloudSession(reason) {
     if (!cloudState.session || !cloudState.session.refresh_token) {
         notifyCloudSessionExpired('클라우드 로그인 갱신 정보가 없습니다. 다시 로그인해주세요.');
@@ -11529,6 +11545,9 @@ async function refreshCloudSession(reason) {
         } catch (error) {
             console.warn('cloud token refresh failed:', error);
             if (isCloudAuthRejection(error)) {
+                // 같은 refresh_token을 supabase-js(autoRefreshToken)가 먼저 써서 거절된 경우: 그쪽의 새 세션을 이어받는다.
+                let adopted = await readSupabaseClientSession();
+                if (adopted) { applyCloudSession(adopted); setCloudMessage('클라우드 로그인 세션을 이어받았습니다.'); return true; }
                 applyCloudSession(null);
                 notifyCloudSessionExpired('클라우드 로그인 세션이 만료되었습니다. 다시 로그인해주세요.');
             } else {
