@@ -64,6 +64,7 @@
 .time-rift-item-body .equipment-inspection-tooltip { min-width:0; max-width:100%; }
 .time-rift-result-card { margin-top:12px; }
 .time-rift-result-card dl { margin-bottom:0; }
+.time-rift-stages .time-rift-risk { color:var(--color-danger); }
 .time-rift-column { display:flex; flex-direction:column; align-items:center; gap:3px; min-width:0; }
 .time-rift-column > span { display:flex; align-items:flex-end; width:100%; height:64px; background:#0b0908; box-shadow:0 0 0 1px #2a2218; }
 .time-rift-column i { display:block; width:100%; min-height:1px; }
