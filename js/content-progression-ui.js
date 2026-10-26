@@ -30,12 +30,23 @@ const contentUnlockUi = {
         queueTutorialNotice('tutorial_starter_gem_equip', '첫 스킬룬 장착',
             `[${name}] 룬을 얻었습니다.\n‘스킬룬’에서 빛나는 룬을 누르고 ‘장착’을 누르세요.\n장착한 룬으로 자동 전투의 공격이 바뀝니다.`, 'tab-skills');
     },
+    /** The loop card: the points, then the unlocks this loop adds to the tab, by name only (2026-10-27 사용자: 짧게, 필요한 것만).
+     * Free contents are left out: each gets its own card when it opens (announceContent). */
     announceLoop() {
-        if (game.contentProgression && contentProgression.points().complete) return;
-        const body = game.contentProgression
-            ? `루프 ${game.season}에 도달해 해금 포인트 ${contentProgression.balance()}P가 생겼습니다.\n‘해금’에서 원하는 콘텐츠를 골라 여세요.\n한 번 연 콘텐츠는 루프가 바뀌어도 열려 있습니다.`
-            : `루프 ${game.season}에 도달했습니다!\n루프 이정표와 루프 패시브 트리를 루프 탭에서 확인할 수 있습니다.`;
-        queueTutorialNotice('unlock_content_loop_' + game.season, '다음 콘텐츠 선택', body, 'tab-unlocks');
+        if (!game.contentProgression) {
+            queueTutorialNotice('unlock_content_loop_' + game.season, '다음 콘텐츠 선택',
+                `루프 ${game.season}에 도달했습니다!\n루프 이정표와 루프 패시브 트리를 루프 탭에서 확인할 수 있습니다.`, 'tab-unlocks');
+            return;
+        }
+        const added = this.listed(game.season).filter(def => contentProgression.kind(def) !== 'auto' && !contentProgression.isUnlocked(def.id));
+        const paid = added.filter(def => contentProgression.kind(def) === 'paid').map(def => `[${def.name}]`);
+        const byNpc = new Map();
+        added.filter(def => def.npc).forEach(def => byNpc.set(def.npc, [...(byNpc.get(def.npc) || []), `[${def.name}]`]));
+        if (contentProgression.points().complete && !added.length) return;
+        const lines = [`해금 포인트 ${contentProgression.balance()}P`];
+        if (paid.length) lines.push(`새 해금: ${paid.join(', ')}`);
+        byNpc.forEach((names, npc) => lines.push(`${contentProgression.npcName(npc)}: ${names.join(', ')}`));
+        queueTutorialNotice('unlock_content_loop_' + game.season, `루프 ${game.season}`, lines.join('\n'), 'tab-unlocks');
     },
     sync() {
         if (!game.contentProgression) return;
