@@ -497,7 +497,7 @@ function getProfileUploadError(error) {
         translated.socialCode = 'nickname_invalid';
     }
     if (/PROFILE_TOO_LARGE/.test(message)) translated = new Error('공개 프로필이 너무 커서 서버가 받지 않았습니다.');
-    if (/duplicate|unique|nickname/i.test(message)) {
+    if (translated === error && /duplicate|unique|nickname/i.test(message)) {   // 앞에서 옮긴 문구는 다시 바꾸지 않는다
         translated = new Error('이미 사용 중인 닉네임입니다. 다른 닉네임을 선택해주세요.');
         translated.socialCode = 'nickname_conflict';
     }
@@ -805,7 +805,9 @@ function renderOnlineUsers(users, now = Date.now()) {
         + `<div class="social-online-list">${chips}</div>`;
 }
 async function refreshOnlineUsers() {
-    if (socialState.onlineLoading || !socialState.onlineSupported) return;
+    if (!socialState.onlineSupported) return;
+    // 인원 수만 묻는 조회가 도는 사이에 설정 창을 열었으면(목록이 필요해졌으면) 그 조회가 끝난 뒤 한 번 더 읽는다.
+    if (socialState.onlineLoading) { socialState.onlineRefreshAgain = !!document.getElementById('social-online'); return; }
     socialState.onlineLoading = true;
     socialState.lastOnlineLoadAt = Date.now();
     // 접속자 목록(채팅 설정 창)이 열려 있을 때만 줄을 받고, 그 밖에는 배지의 인원 수만 묻는다.
@@ -814,6 +816,7 @@ async function refreshOnlineUsers() {
         let result = await loadOnlineUsers(!listOpen);
         if (result && result.counts) renderOnlineCounts(result.counts); else renderOnlineUsers(result);
     } catch { /* 무시 */ } finally { socialState.onlineLoading = false; }
+    if (socialState.onlineRefreshAgain) { socialState.onlineRefreshAgain = false; socialOnlineChat.refresh(true); }
 }
 /** 새 채팅이 뜬 순간 접속 인원도 다시 읽는다(2026-10-11 사용자: "내가 채팅 쳤을때 혹은 다른 사람이 새로운 채팅을 쳤을 때 접속자 수 갱신이
  * 필요해"). 남의 채팅은 SOCIAL_ONLINE_CHAT_REFRESH_MS에 한 번만 읽고 그 사이에 온 채팅은 간격 끝에 한 번 읽는다. 내가 보낸 뒤(force)에는

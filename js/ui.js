@@ -12041,7 +12041,7 @@ async function restoreCloudSession() {
         if (!cloudState.session) return false;   // 서버가 거절해 지웠다
         // 갱신에 못 닿았지만 세션은 남겼다: 토큰이 아직 살아 있으면 그대로 쓰고, 끝났으면 이번 실행은 로그인 없이 가되
         // 저장된 세션은 두어 다음 실행 때 다시 시도한다(전: 망이 끊긴 채 켜면 로그아웃).
-        if (getCloudSessionExpiresAtMs() - Date.now() > CLOUD_TOKEN_REFRESH_LEEWAY_MS) {
+        if (cloudState.user && getCloudSessionExpiresAtMs() - Date.now() > CLOUD_TOKEN_REFRESH_LEEWAY_MS) {
             setCloudMessage('클라우드 로그인 갱신은 못 했지만 기존 로그인으로 계속합니다.');
             return true;
         }
@@ -12286,6 +12286,7 @@ function rememberCloudUpload(saveData, syncedAt) {
     cloudState.lastRemoteUpdatedAt = syncedAt;
     cloudState.lastRemoteLoop = getSaveLoopNumber(game);
     cloudState.lastCloudCommitAt = Date.now();
+    cloudState.autoSyncConflictNoticed = false;   // 다시 충돌하면 다시 알린다
     cloudState.lastUploadedFingerprint = cloudSaveFingerprint(saveData);
 }
 
@@ -12663,6 +12664,13 @@ function noteAutoCloudSyncFailure(error) {
     showGameToast('다른 기기에서 서버 저장이 바뀌어 이 기기의 자동 저장이 멈췄습니다. 서버 저장을 불러오면 이어집니다.', { tone: 'warning', duration: 9000 });
 }
 
+/** 부팅 복원이나 대조의 실패: 서버가 토큰을 거절했을 때(401)만 로그아웃한다. 업무 오류(400, 예: SAVE_TOO_LARGE)나 망 오류면
+ * 로그인은 두고 다음 동기화 때 다시 맞춘다(2026-10-27). */
+function noteCloudInitFailure(error) {
+    if (Number(error && error.status) === 401) applyCloudSession(null);
+    setCloudMessage((cloudState.user ? '서버 대조를 못 했습니다. 다음 동기화 때 다시 맞춥니다: ' : '클라우드 세션 복원 실패: ') + (error.message || error));
+}
+
 async function initializeCloudSave() {
     cloudState.initialized = true;
     cloudState.configured = getCloudConfig().enabled;
@@ -12697,14 +12705,12 @@ async function initializeCloudSave() {
                 setCloudMessage('이전 로그인 세션을 복원했습니다.');
                 await reconcileCloudSaveState({ silent: true, strictRemoteResume: true });
             }
-        } else {
+        } else if (!loadStoredCloudSession()) {
             setCloudMessage('로그인하면 클라우드 저장을 사용할 수 있습니다.');
         }
     } catch (error) {
         console.warn('cloud init failed:', error);
-        // 서버가 세션을 거절했을 때만 로그아웃한다. 망 오류로 복원이나 대조가 실패하면 로그인은 두고 다음 동기화 때 다시 맞춘다.
-        if (isCloudAuthRejection(error)) applyCloudSession(null);
-        setCloudMessage('클라우드 세션 복원 실패: ' + (error.message || error));
+        noteCloudInitFailure(error);
     } finally {
         cloudState.busy = false;
         updateCloudSaveUI();
@@ -12905,6 +12911,7 @@ function applyPageExitCloudSaveResult(text, exitSave, fingerprint) {
     cloudState.lastRemoteRevision = game.saveMeta.cloudRevision;
     cloudState.lastSyncedLocalModifiedAt = Math.max(0, Number(game.saveMeta.lastModifiedAt || 0));
     cloudState.lastCloudCommitAt = Date.now();
+    cloudState.autoSyncConflictNoticed = false;   // 다시 충돌하면 다시 알린다
     cloudState.lastUploadedFingerprint = fingerprint;
     persistLocalSave({ touchModifiedAt: false });
 }

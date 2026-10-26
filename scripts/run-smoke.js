@@ -123,8 +123,9 @@ async function main() {
         console.log(`실패 ${failed.length}개: ${failed.map(r => r.file).join(', ')}`);
         process.exit(1);
     }
-    console.log('전부 통과');
+    console.log('스모크 전부 통과');
     if (!filters.length) runFinalChecks();
+    console.log('전부 통과');
 }
 
 // 전체 실행의 마지막에 구조·복잡도 래칫과 db 거울 검사를 함께 돈다(2026-10-27 회고: 한 줄 JS 수정이 래칫에 걸린 채 커밋됐다.

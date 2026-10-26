@@ -31,13 +31,20 @@ function functionBlocks(text) {
     let match;
     while ((match = head.exec(text)) !== null) {
         let open = text.indexOf('$$', match.index);
-        if (open < 0) break;
-        let close = text.indexOf('$$;', open + 2);
-        if (close < 0) break;
+        let close = open < 0 ? -1 : text.indexOf('$$;', open + 2);
+        if (close < 0) {   // $$가 아닌 태그($body$ 등)를 쓴 함수: 비교하지 못하므로 알리고 다음 머리로 간다
+            console.warn(`db 거울 검사: ${match[1]}는 $$ 본문이 아니라 비교하지 않는다`);
+            continue;
+        }
         blocks.push({ kind: 'function', name: match[1], body: normalize(text.slice(match.index, close + 3)) });
         head.lastIndex = close + 3;
     }
     return blocks;
+}
+/** 정책과 트리거 이름은 표마다 따로이므로 `on public.표` 를 키에 붙인다. */
+function tableSuffix(statement) {
+    const on = /\son\s+public\.([a-z_0-9]+)/.exec(statement);
+    return on ? `@${on[1]}` : '';
 }
 function policyBlocks(text) {
     const blocks = [];
@@ -46,7 +53,8 @@ function policyBlocks(text) {
     while ((match = head.exec(text)) !== null) {
         let end = text.indexOf(';', match.index);
         if (end < 0) break;
-        blocks.push({ kind: 'policy', name: match[1], body: normalize(text.slice(match.index, end + 1)) });
+        const statement = text.slice(match.index, end + 1);
+        blocks.push({ kind: 'policy', name: match[1] + tableSuffix(statement), body: normalize(statement) });
         head.lastIndex = end + 1;
     }
     return blocks;
@@ -59,7 +67,8 @@ function triggerBlocks(text) {
     while ((match = head.exec(text)) !== null) {
         let end = text.indexOf(';', match.index);
         if (end < 0) break;
-        blocks.push({ kind: 'trigger', name: match[1], body: normalize(text.slice(match.index, end + 1)) });
+        const statement = text.slice(match.index, end + 1);
+        blocks.push({ kind: 'trigger', name: match[1] + tableSuffix(statement), body: normalize(statement) });
         head.lastIndex = end + 1;
     }
     return blocks;

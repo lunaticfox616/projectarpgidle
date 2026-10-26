@@ -380,8 +380,8 @@ function describeMuteError(error) {
 async function peekPlayerChat(button) {
     let box = document.getElementById('chat-peek');
     if (!box) return;
-    box.dataset.chatPeek = button.dataset.chatPeek;   // 줄을 지운 뒤 같은 사람의 목록을 다시 그린다(deleteChatMessage)
-    box.dataset.chatName = button.dataset.chatName || '';
+    box.dataset.peekUser = button.dataset.chatPeek;   // 줄을 지운 뒤 같은 사람의 목록을 다시 그린다(deleteChatMessage). 클릭 선택자와 다른 이름.
+    box.dataset.peekName = button.dataset.chatName || '';
     box.innerHTML = '<p class="cloud-tools-empty">불러오는 중…</p>';
     try {
         let rows = await cloudJsonRequest(`/rest/v1/chat_messages?select=id,body,created_at&user_id=eq.${encodeURIComponent(button.dataset.chatPeek)}&order=id.desc&limit=15`, {});
@@ -431,7 +431,7 @@ async function deleteChatMessage(button) {
         showGameToast(`줄을 지우지 못했습니다: ${error.message || error}`, 'danger');
     }
     await loadChatReports();
-    if (peek) await peekPlayerChat({ dataset: { chatPeek: peek.dataset.chatPeek, chatName: peek.dataset.chatName } });
+    if (peek) await peekPlayerChat({ dataset: { chatPeek: peek.dataset.peekUser, chatName: peek.dataset.peekName } });
 }
 
 async function openOpsDashboard() {
