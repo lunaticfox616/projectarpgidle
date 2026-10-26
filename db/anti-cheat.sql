@@ -168,10 +168,11 @@ create or replace function public.guard_ghost_profile()
 returns trigger language plpgsql security definer set search_path = public as $$
 begin
     if new.active and public.cheat_account_held(new.user_id) then raise exception 'GHOST_ACCOUNT_HELD'; end if;
-    if new.dps > 10000000000
+    -- 등록(active를 켜는 쓰기)에만 건다. 보류가 active를 끄는 갱신은 값이 커도 들어가야 한다(검토 지적 2026-10-27).
+    if new.active and (new.dps > 10000000000
        or public.cheat_number(new.combat_snapshot -> 'maxHp') > 1000000000
        or public.cheat_number(new.combat_snapshot -> 'energyShield') > 1000000000
-       or exists (select 1 from jsonb_each(new.ehp_by_element) element where public.cheat_number(element.value) > 10000000000) then
+       or exists (select 1 from jsonb_each(new.ehp_by_element) element where public.cheat_number(element.value) > 10000000000)) then
         raise exception 'GHOST_SNAPSHOT_IMPLAUSIBLE';
     end if;
     return new;

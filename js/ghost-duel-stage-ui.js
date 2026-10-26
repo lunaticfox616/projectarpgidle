@@ -440,7 +440,8 @@ const ghostDuelStage = (() => {
             drawScene(scene.clock);
             updateHud(scene.clock);
         } catch (error) {
-            console.warn('ghost duel replay frame failed:', error);
+            if (!scene.drawFailed) console.warn('ghost duel replay frame failed:', error);   // 한 장면에 한 번만 적는다
+            scene.drawFailed = true;
         }
         if (scene.clock >= scene.endAt + OUTRO_MS) showResult();
         scene.frame = requestAnimationFrame(tick);

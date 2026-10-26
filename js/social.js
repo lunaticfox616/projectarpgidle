@@ -492,6 +492,10 @@ function getProfileUploadError(error) {
         translated = new Error(`닉네임은 ${SOCIAL_NICK_MIN}~${SOCIAL_NICK_MAX}자의 한글, 영문, 숫자, _ - 만 쓸 수 있습니다.`);
         translated.socialCode = 'nickname_invalid';
     }
+    if (/NICK_PROFANITY/.test(message)) {
+        translated = new Error('닉네임에 비속어를 쓸 수 없습니다.');
+        translated.socialCode = 'nickname_invalid';
+    }
     if (/PROFILE_TOO_LARGE/.test(message)) translated = new Error('공개 프로필이 너무 커서 서버가 받지 않았습니다.');
     if (/duplicate|unique|nickname/i.test(message)) {
         translated = new Error('이미 사용 중인 닉네임입니다. 다른 닉네임을 선택해주세요.');
@@ -1138,16 +1142,24 @@ function setUserBlocked(userId, blocked) {
     if (blocked) list.push(String(userId));
     try { localStorage.setItem(SOCIAL_BLOCKED_KEY, JSON.stringify(list.slice(-200))); } catch { /* 무시 */ }
 }
+/** 서버가 채팅을 거절한 까닭(db/social.sql chat_messages_rate_limit의 오류 코드)을 플레이어 문구로. 첫 줄부터 맞는 것 하나. */
+const SOCIAL_CHAT_ERROR_TEXTS = [
+    [/SPAM_TOO_FAST/, '메시지를 너무 빠르게 보냈습니다.'],
+    [/SPAM_RATE_LIMIT/, '너무 많이 보냈습니다. 잠시 후 다시 시도해주세요.'],
+    [/SPAM_DUPLICATE/, '같은 메시지를 연속으로 보낼 수 없습니다.'],
+    [/SPAM_REPEAT/, '같은 메시지를 5분 안에 세 번 보낼 수 없습니다.'],
+    [/SPAM_FLOOD/, '같은 글자를 너무 많이 반복했습니다.'],
+    [/CHAT_MUTED/, '채팅이 금지된 상태입니다. 잠시 뒤 다시 시도해주세요.'],
+    [/CHAT_PROFANITY/, '비속어가 들어 있어 보낼 수 없습니다.'],
+    [/CHAT_LINK/, '링크는 보낼 수 없습니다.'],
+    [/CHAT_PAYLOAD_INVALID/, `아이템 링크는 메시지마다 ${SOCIAL_MAX_ITEMS_PER_MSG}개까지입니다.`],
+    [/CHAT_NICKNAME_MISMATCH|CHAT_UPDATE_FORBIDDEN/, '채팅 닉네임은 프로필 닉네임과 같아야 합니다.'],
+    [/char_length|_body_check|violates check/, `메시지는 1~${SOCIAL_MSG_MAX}자여야 합니다.`],
+    [/row-level security/i, '닉네임 확인에 실패했습니다. 잠시 후 다시 보내 주세요.']
+];
 function translateSpamError(msg) {
-    if (/SPAM_TOO_FAST/.test(msg)) return '메시지를 너무 빠르게 보냈습니다.';
-    if (/CHAT_MUTED/.test(msg)) return '관리자가 채팅을 금지한 상태입니다.';
-    if (/CHAT_PAYLOAD_INVALID/.test(msg)) return `아이템 링크는 메시지마다 ${SOCIAL_MAX_ITEMS_PER_MSG}개까지입니다.`;
-    if (/CHAT_NICKNAME_MISMATCH|CHAT_UPDATE_FORBIDDEN/.test(msg)) return '채팅 닉네임은 프로필 닉네임과 같아야 합니다.';
-    if (/SPAM_RATE_LIMIT/.test(msg)) return '너무 많이 보냈습니다. 잠시 후 다시 시도해주세요.';
-    if (/SPAM_DUPLICATE/.test(msg)) return '같은 메시지를 연속으로 보낼 수 없습니다.';
-    if (/char_length|_body_check|violates check/.test(msg)) return `메시지는 1~${SOCIAL_MSG_MAX}자여야 합니다.`;
-    if (/row-level security/i.test(msg)) return '닉네임 확인에 실패했습니다. 잠시 후 다시 보내 주세요.';
-    return msg;
+    let hit = SOCIAL_CHAT_ERROR_TEXTS.find(([pattern]) => pattern.test(msg));
+    return hit ? hit[1] : msg;
 }
 async function prepareChatSender(senderId) {
     await restoreNicknameFromServer();
@@ -2214,7 +2226,8 @@ function toggleProfileBlock() {
     setUserBlocked(target, blocked);
     socialState.lastChatRenderKey = '';
     renderChatMessages(socialState.chatMessages || [], false);
-    if (socialState.currentProfile) renderProfileData(socialState.currentProfile);
+    let tab = socialState.profileTab;   // 다시 그리면 장비 탭으로 돌아가므로 보던 탭을 되살린다
+    if (socialState.currentProfile) { renderProfileData(socialState.currentProfile); if (tab) switchProfileTab(tab); }
     showGameToast(blocked ? '이 사람의 채팅을 이 기기에서 숨깁니다.' : '차단을 풀었습니다.', 'info');
 }
 // 신고 보내기(reportCurrentProfile)는 서버를 부르므로 js/cloud-tools-ui.js에 있다(이 파일은 ui 파일을 새로 부르지 않는다는 계층 규칙).

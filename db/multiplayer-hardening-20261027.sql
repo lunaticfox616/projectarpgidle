@@ -24,6 +24,7 @@
 --      접속 인원만 돌려주는 get_online_counts(채팅 창 배지가 80줄 대신 이것을 묻는다).
 --  11. 권고에 걸린 함수 9개의 search_path를 public으로 고정한다.
 --  12. get_ghost_arena가 underReview를 돌려주어 대전 탭이 점수가 멈춘 까닭을 보여 준다.
+--  13. 채팅과 닉네임의 가벼운 한국어 비속어 필터, 링크와 글자 반복과 5분 안 같은 메시지 세 번 차단, 60초 안 12개면 10분 자동 금지.
 
 begin;
 
@@ -52,6 +53,15 @@ begin
             raise exception 'CHAT_PAYLOAD_INVALID: 아이템 링크는 메시지마다 3개, 8KB까지입니다.';
         end if;
     end if;
+    if public.chat_text_is_offensive(new.body) then
+        raise exception 'CHAT_PROFANITY: 비속어가 들어 있어 보낼 수 없습니다.';
+    end if;
+    if lower(new.body) ~ '(https?://|www\.|discord\.gg|t\.me/|bit\.ly)' then
+        raise exception 'CHAT_LINK: 링크는 보낼 수 없습니다.';
+    end if;
+    if new.body ~ '(.)\1{24,}' then
+        raise exception 'SPAM_FLOOD: 같은 글자를 너무 많이 반복했습니다.';
+    end if;
 
     select count(*), max(created_at)
       into recent_count, last_at
@@ -65,6 +75,12 @@ begin
 
     if recent_count >= 15 then
         raise exception 'SPAM_RATE_LIMIT: 잠시 후 다시 시도해주세요.';
+    end if;
+
+    -- 5분 안에 같은 본문을 세 번째 보내면 막는다(연속이 아니어도).
+    if new.payload is null and (select count(*) from public.chat_messages
+         where user_id = new.user_id and payload is null and body = new.body and created_at > now() - interval '5 minutes') >= 2 then
+        raise exception 'SPAM_REPEAT: 같은 메시지를 5분 안에 세 번 보낼 수 없습니다.';
     end if;
 
     -- 아이템 링크가 포함된 메시지(payload 존재)는 본문 토큰이 같을 수 있으므로
@@ -163,9 +179,15 @@ begin
     if pg_column_size(new.profile_data) > 524288 then
         raise exception 'PROFILE_TOO_LARGE: 공개 프로필이 너무 큽니다.';
     end if;
-    if tg_op = 'INSERT' or new.nickname is distinct from old.nickname then
+    -- 글자 규칙은 새 닉네임에만 건다. 클라이언트의 줄 쓰기는 upsert라 기존 줄에도 INSERT 트리거가 먼저 도는데, 예전 닉네임이
+    -- 규칙 밖이어도 그 계정의 동기화를 막지 않는다(검토 지적 2026-10-27).
+    if (tg_op = 'INSERT' and not exists (select 1 from public.player_profiles existing where existing.user_id = new.user_id))
+       or (tg_op = 'UPDATE' and new.nickname is distinct from old.nickname) then
         if new.nickname !~ '^[0-9A-Za-z가-힣ㄱ-ㅎㅏ-ㅣ_-]+$' then
             raise exception 'NICK_INVALID: 닉네임은 한글, 영문, 숫자, _ - 만 쓸 수 있습니다.';
+        end if;
+        if public.chat_text_is_offensive(new.nickname) then
+            raise exception 'NICK_PROFANITY: 닉네임에 비속어를 쓸 수 없습니다.';
         end if;
     end if;
     if tg_op = 'INSERT' then
@@ -196,6 +218,15 @@ create trigger trg_player_profiles_guard
     before insert or update on public.player_profiles
     for each row execute function public.player_profiles_guard();
 drop function if exists public.player_profiles_nickname_guard();
+-- 예전 updated_at 트리거 함수는 player_profiles_guard가 대신하므로, 다른 트리거가 쓰지 않으면 지운다.
+do $$
+begin
+    if to_regprocedure('public.social_set_updated_at()') is not null
+       and not exists (select 1 from pg_trigger where tgfoid = 'public.social_set_updated_at()'::regprocedure) then
+        execute 'drop function public.social_set_updated_at()';
+    end if;
+end
+$$;
 
 drop policy if exists "player_profiles_insert_own" on public.player_profiles;
 create policy "player_profiles_insert_own"
@@ -283,7 +314,6 @@ revoke all on function public.chat_messages_rate_limit() from public, anon, auth
 revoke all on function public.chat_messages_prune() from public, anon, authenticated;
 revoke all on function public.chat_messages_update_guard() from public, anon, authenticated;
 revoke all on function public.player_profiles_guard() from public, anon, authenticated;
-revoke all on function public.social_set_updated_at() from public, anon, authenticated;
 revoke all on function public.guard_playtest_run_insert() from public, anon, authenticated;
 revoke all on function public.guard_client_error_insert() from public, anon, authenticated;
 
@@ -451,10 +481,11 @@ create or replace function public.guard_ghost_profile()
 returns trigger language plpgsql security definer set search_path = public as $$
 begin
     if new.active and public.cheat_account_held(new.user_id) then raise exception 'GHOST_ACCOUNT_HELD'; end if;
-    if new.dps > 10000000000
+    -- 등록(active를 켜는 쓰기)에만 건다. 보류가 active를 끄는 갱신은 값이 커도 들어가야 한다(검토 지적 2026-10-27).
+    if new.active and (new.dps > 10000000000
        or public.cheat_number(new.combat_snapshot -> 'maxHp') > 1000000000
        or public.cheat_number(new.combat_snapshot -> 'energyShield') > 1000000000
-       or exists (select 1 from jsonb_each(new.ehp_by_element) element where public.cheat_number(element.value) > 10000000000) then
+       or exists (select 1 from jsonb_each(new.ehp_by_element) element where public.cheat_number(element.value) > 10000000000)) then
         raise exception 'GHOST_SNAPSHOT_IMPLAUSIBLE';
     end if;
     return new;
@@ -720,12 +751,12 @@ grant execute on function public.get_online_counts() to authenticated;
 
 
 -- ============================================================================
--- 8) 함수의 search_path 고정 (Supabase 보안 권고 "Function Search Path Mutable"; 원본 파일에서는 함수 머리에 set search_path = public)
+-- 8) 함수의 search_path 고정 (Supabase 보안 권고 "Function Search Path Mutable"; 원본 파일에서는 함수 머리에 set search_path = public.
+--    touch_cloud_save_updated_at는 저장소에 없는 라이브 DB의 함수라 있을 때만 바꾼다)
 -- ============================================================================
 do $$
 begin
     if to_regprocedure('public.touch_cloud_save_updated_at()') is not null then execute 'alter function public.touch_cloud_save_updated_at() set search_path = public'; end if;
-    if to_regprocedure('public.social_set_updated_at()') is not null then execute 'alter function public.social_set_updated_at() set search_path = public'; end if;
     if to_regprocedure('public.normalize_ghost_combat_snapshot(jsonb, numeric, jsonb)') is not null then execute 'alter function public.normalize_ghost_combat_snapshot(jsonb, numeric, jsonb) set search_path = public'; end if;
     if to_regprocedure('public.ghost_snapshot_number(jsonb, text, numeric, numeric, numeric)') is not null then execute 'alter function public.ghost_snapshot_number(jsonb, text, numeric, numeric, numeric) set search_path = public'; end if;
     if to_regprocedure('public.ghost_duel_roll(text, text)') is not null then execute 'alter function public.ghost_duel_roll(text, text) set search_path = public'; end if;
@@ -781,5 +812,44 @@ begin
     return payload;
 end;
 $$;
+
+-- ============================================================================
+-- 10) 비속어 필터, 도배와 스팸 차단 (db/social.sql과 같다; 1절의 chat_messages_rate_limit와 2절의 player_profiles_guard가 쓴다)
+-- ============================================================================
+-- 가벼운 비속어 필터(2026-10-27): 띄어쓰기, 기호, 숫자를 빼고 소문자로 바꾼 뒤 자주 쓰는 욕설 줄기를 찾는다. 돌려 쓰는 말은
+-- 다 잡지 못하고, 흔한 말과 겹치는 줄기(보지, 자지, 미친)는 일부러 넣지 않았다. 목록을 고칠 때는 chat_text_is_offensive만 고친다.
+-- 채팅 본문(chat_messages_rate_limit)과 닉네임(player_profiles_guard)이 같이 쓴다.
+create or replace function public.chat_text_normalized(p_text text)
+returns text language sql immutable set search_path = public as $$
+    select regexp_replace(lower(coalesce(p_text, '')), '[^a-z가-힣ㄱ-ㅎㅏ-ㅣ]', '', 'g');
+$$;
+create or replace function public.chat_text_is_offensive(p_text text)
+returns boolean language sql immutable set search_path = public as $$
+    select public.chat_text_normalized(p_text) ~
+        '(시발|씨발|시팔|씨팔|씨바|ㅅㅂ|ㅆㅂ|병신|븅신|ㅂㅅ|개새끼|개새|새끼야|새끼들|미친놈|미친년|미친새|좆|존나|ㅈㄴ|지랄|ㅈㄹ|느금|엠창|애미|창녀|창놈|섹스|fuck|shit|bitch)';
+$$;
+
+-- 도배 자동 금지(2026-10-27): 성공한 메시지 뒤에 60초 안 12개째면 10분 금지를 건다(한도 15개보다 앞). 관리자가 건 더 긴 금지는 줄이지 않는다.
+create or replace function public.chat_messages_auto_mute()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+    if (select count(*) from public.chat_messages where user_id = new.user_id and created_at > now() - interval '60 seconds') >= 12 then
+        insert into public.chat_mutes (user_id, until_at, note) values (new.user_id, now() + interval '10 minutes', '자동: 60초 안 12개')
+        on conflict (user_id) do update
+            set until_at = greatest(chat_mutes.until_at, excluded.until_at),
+                note = case when chat_mutes.until_at > excluded.until_at then chat_mutes.note else excluded.note end;
+    end if;
+    return null;
+end;
+$$;
+
+drop trigger if exists trg_chat_messages_auto_mute on public.chat_messages;
+create trigger trg_chat_messages_auto_mute
+    after insert on public.chat_messages
+    for each row execute function public.chat_messages_auto_mute();
+
+revoke all on function public.chat_text_normalized(text) from public, anon, authenticated;
+revoke all on function public.chat_text_is_offensive(text) from public, anon, authenticated;
+revoke all on function public.chat_messages_auto_mute() from public, anon, authenticated;
 
 commit;

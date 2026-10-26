@@ -10,18 +10,6 @@
 --    로그인된 상태에서 실행되므로 별도의 키가 필요하지 않습니다.
 -- ============================================================================
 
--- updated_at 자동 갱신용 트리거 함수 -----------------------------------------
-create or replace function public.social_set_updated_at()
-returns trigger
-language plpgsql
-set search_path = public
-as $$
-begin
-    new.updated_at := now();
-    return new;
-end;
-$$;
-
 -- ============================================================================
 -- 1) 공개 프로필: 다른 플레이어가 장비/스탯을 구경할 수 있도록 하는 스냅샷
 -- ============================================================================
@@ -72,9 +60,15 @@ begin
     if pg_column_size(new.profile_data) > 524288 then
         raise exception 'PROFILE_TOO_LARGE: 공개 프로필이 너무 큽니다.';
     end if;
-    if tg_op = 'INSERT' or new.nickname is distinct from old.nickname then
+    -- 글자 규칙은 새 닉네임에만 건다. 클라이언트의 줄 쓰기는 upsert라 기존 줄에도 INSERT 트리거가 먼저 도는데, 예전 닉네임이
+    -- 규칙 밖이어도 그 계정의 동기화를 막지 않는다(검토 지적 2026-10-27).
+    if (tg_op = 'INSERT' and not exists (select 1 from public.player_profiles existing where existing.user_id = new.user_id))
+       or (tg_op = 'UPDATE' and new.nickname is distinct from old.nickname) then
         if new.nickname !~ '^[0-9A-Za-z가-힣ㄱ-ㅎㅏ-ㅣ_-]+$' then
             raise exception 'NICK_INVALID: 닉네임은 한글, 영문, 숫자, _ - 만 쓸 수 있습니다.';
+        end if;
+        if public.chat_text_is_offensive(new.nickname) then
+            raise exception 'NICK_PROFANITY: 닉네임에 비속어를 쓸 수 없습니다.';
         end if;
     end if;
     if tg_op = 'INSERT' then
@@ -220,6 +214,19 @@ begin
 end
 $$;
 
+-- 가벼운 비속어 필터(2026-10-27): 띄어쓰기, 기호, 숫자를 빼고 소문자로 바꾼 뒤 자주 쓰는 욕설 줄기를 찾는다. 돌려 쓰는 말은
+-- 다 잡지 못하고, 흔한 말과 겹치는 줄기(보지, 자지, 미친)는 일부러 넣지 않았다. 목록을 고칠 때는 chat_text_is_offensive만 고친다.
+-- 채팅 본문(chat_messages_rate_limit)과 닉네임(player_profiles_guard)이 같이 쓴다.
+create or replace function public.chat_text_normalized(p_text text)
+returns text language sql immutable set search_path = public as $$
+    select regexp_replace(lower(coalesce(p_text, '')), '[^a-z가-힣ㄱ-ㅎㅏ-ㅣ]', '', 'g');
+$$;
+create or replace function public.chat_text_is_offensive(p_text text)
+returns boolean language sql immutable set search_path = public as $$
+    select public.chat_text_normalized(p_text) ~
+        '(시발|씨발|시팔|씨팔|씨바|ㅅㅂ|ㅆㅂ|병신|븅신|ㅂㅅ|개새끼|개새|새끼야|새끼들|미친놈|미친년|미친새|좆|존나|ㅈㄴ|지랄|ㅈㄹ|느금|엠창|애미|창녀|창놈|섹스|fuck|shit|bitch)';
+$$;
+
 -- 스팸 방지: 서버 측 속도 제한 트리거 -----------------------------------------
 --   * 같은 사용자가 1.5초 안에 연속 전송 → 차단
 --   * 같은 사용자가 최근 60초 동안 15개 초과 전송 → 차단
@@ -247,6 +254,15 @@ begin
             raise exception 'CHAT_PAYLOAD_INVALID: 아이템 링크는 메시지마다 3개, 8KB까지입니다.';
         end if;
     end if;
+    if public.chat_text_is_offensive(new.body) then
+        raise exception 'CHAT_PROFANITY: 비속어가 들어 있어 보낼 수 없습니다.';
+    end if;
+    if lower(new.body) ~ '(https?://|www\.|discord\.gg|t\.me/|bit\.ly)' then
+        raise exception 'CHAT_LINK: 링크는 보낼 수 없습니다.';
+    end if;
+    if new.body ~ '(.)\1{24,}' then
+        raise exception 'SPAM_FLOOD: 같은 글자를 너무 많이 반복했습니다.';
+    end if;
 
     select count(*), max(created_at)
       into recent_count, last_at
@@ -260,6 +276,12 @@ begin
 
     if recent_count >= 15 then
         raise exception 'SPAM_RATE_LIMIT: 잠시 후 다시 시도해주세요.';
+    end if;
+
+    -- 5분 안에 같은 본문을 세 번째 보내면 막는다(연속이 아니어도).
+    if new.payload is null and (select count(*) from public.chat_messages
+         where user_id = new.user_id and payload is null and body = new.body and created_at > now() - interval '5 minutes') >= 2 then
+        raise exception 'SPAM_REPEAT: 같은 메시지를 5분 안에 세 번 보낼 수 없습니다.';
     end if;
 
     -- 아이템 링크가 포함된 메시지(payload 존재)는 본문 토큰이 같을 수 있으므로
@@ -327,6 +349,26 @@ drop trigger if exists trg_chat_messages_prune on public.chat_messages;
 create trigger trg_chat_messages_prune
     after insert on public.chat_messages
     for each row execute function public.chat_messages_prune();
+
+-- 도배 자동 금지(2026-10-27): 성공한 메시지 뒤에 60초 안 12개째면 10분 금지를 건다(한도 15개보다 앞). 관리자가 건 더 긴 금지는 줄이지 않는다.
+create or replace function public.chat_messages_auto_mute()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+    if (select count(*) from public.chat_messages where user_id = new.user_id and created_at > now() - interval '60 seconds') >= 12 then
+        insert into public.chat_mutes (user_id, until_at, note) values (new.user_id, now() + interval '10 minutes', '자동: 60초 안 12개')
+        on conflict (user_id) do update
+            set until_at = greatest(chat_mutes.until_at, excluded.until_at),
+                note = case when chat_mutes.until_at > excluded.until_at then chat_mutes.note else excluded.note end;
+    end if;
+    return null;
+end;
+$$;
+
+drop trigger if exists trg_chat_messages_auto_mute on public.chat_messages;
+create trigger trg_chat_messages_auto_mute
+    after insert on public.chat_messages
+    for each row execute function public.chat_messages_auto_mute();
+
 
 -- ============================================================================
 -- 채팅 운영(2026-10-27): 금지와 신고. 금지한 계정은 채팅을 보낼 수 없다(chat_messages_rate_limit). 신고는 쌓아 두고 관리자가
@@ -464,12 +506,15 @@ $$;
 revoke all on function public.get_online_counts() from public, anon;
 grant execute on function public.get_online_counts() to authenticated;
 
+revoke all on function public.chat_text_normalized(text) from public, anon, authenticated;
+revoke all on function public.chat_text_is_offensive(text) from public, anon, authenticated;
+revoke all on function public.chat_messages_auto_mute() from public, anon, authenticated;
+
 -- 트리거 함수는 RPC로 부를 수 없게 한다(Supabase 보안 권고). 트리거는 호출자의 실행 권한을 보지 않으므로 회수해도 그대로 돈다.
 revoke all on function public.chat_messages_rate_limit() from public, anon, authenticated;
 revoke all on function public.chat_messages_prune() from public, anon, authenticated;
 revoke all on function public.chat_messages_update_guard() from public, anon, authenticated;
 revoke all on function public.player_profiles_guard() from public, anon, authenticated;
-revoke all on function public.social_set_updated_at() from public, anon, authenticated;
 
 -- ============================================================================
 -- 끝. player_profiles / chat_messages 두 테이블과 RLS·스팸방지·자동정리가 준비되었습니다.
