@@ -20,6 +20,8 @@
 --   8. 채팅 금지와 신고(chat_mutes, chat_reports, report_player_chat, 관리자 RPC). 금지한 계정은 채팅을 보낼 수 없다.
 --   9. 고스트: 나올 수 없는 크기(DPS와 EHP 100억, 생명력과 보호막 10억 초과)는 등록을 거절한다. EHP 이상치도 기록한다.
 --      7일 안에 기록된 고스트는 순위전에서 점수가 움직이지 않고 상대도 잃지 않는다(ghost_under_review). 관리자가 기록을 지울 수 있다.
+--  10. 전당: 고유 효과 값(uniqueEffectParams)과 품질의 크기를 본다. 90일 지난 대전 기록과 30일 지난 팔린 적 없는 내린 전시는 지운다.
+--      접속 인원만 돌려주는 get_online_counts(채팅 창 배지가 80줄 대신 이것을 묻는다).
 
 begin;
 
@@ -550,6 +552,8 @@ begin
          where challenger_id = account_id and ranked and created_at >= now() - interval '1 day') >= 20 then
         raise exception 'GHOST_DAILY_LIMIT';
     end if;
+    -- 90일 지난 대전 기록은 지운다(2026-10-27: 정리가 없어 계정당 하루 50행까지 쌓였다).
+    delete from public.ghost_matches where created_at < now() - interval '90 days';
     select * into challenger from public.ghost_profiles
      where user_id = account_id and active and combat_version = p_combat_version for update;
     if not found then raise exception 'GHOST_REGISTRATION_REQUIRED'; end if;
@@ -636,5 +640,81 @@ revoke all on function public.ghost_min_ehp(jsonb) from public, anon, authentica
 revoke all on function public.admin_clear_cheat_flags(uuid, text) from public, anon;
 grant execute on function public.admin_clear_cheat_flags(uuid, text) to authenticated;
 revoke all on function public.ghost_under_review(uuid) from public, anon, authenticated;
+
+-- ============================================================================
+-- 7) 전당 값 상한, 기록 정리, 접속 인원 (db/anti-cheat.sql, db/operations-and-ghost.sql, db/equipment-hall.sql, db/social.sql과 같다)
+-- ============================================================================
+-- 고유 효과의 값(uniqueEffectParams)과 품질: 클라이언트가 상한 없이 곱하는 칸이라 서버가 크기를 본다(2026-10-27).
+-- 배율(mul, explicitStatMultiplier)과 젬 레벨 보너스(level)는 10까지, 그 밖의 숫자 값은 100000까지(데이터의 가장 큰 값은 sleepMs 10000),
+-- 품질은 30까지(한계 돌파와 타락의 상한).
+create or replace function public.hall_item_params_out_of_range(item_data jsonb)
+returns boolean language sql immutable set search_path = public as $$
+    select public.cheat_number(item_data -> 'quality') > 30
+        or (jsonb_typeof(item_data -> 'uniqueEffectParams') = 'object' and exists (
+            select 1 from jsonb_each(item_data -> 'uniqueEffectParams') param
+             where jsonb_typeof(param.value) = 'number'
+               and (abs(public.cheat_number(param.value)) > 100000
+                    or (param.key in ('mul', 'explicitStatMultiplier', 'level') and public.cheat_number(param.value) > 10))));
+$$;
+
+create or replace function public.guard_hall_listing()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+    if public.cheat_account_held(new.curator_id) then raise exception 'HALL_ACCOUNT_HELD'; end if;
+    if public.hall_item_out_of_range(new.item_snapshot) then raise exception 'HALL_ITEM_OUT_OF_RANGE'; end if;
+    if public.hall_item_params_out_of_range(new.item_snapshot) then raise exception 'HALL_ITEM_OUT_OF_RANGE'; end if;
+    return new;
+end;
+$$;
+revoke all on function public.hall_item_params_out_of_range(jsonb) from public, anon, authenticated;
+
+create index if not exists ghost_matches_created_idx
+    on public.ghost_matches(created_at);
+
+create or replace function public.get_player_hall()
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare
+    account_id uuid := auth.uid();
+begin
+    if account_id is null then raise exception 'AUTH_REQUIRED'; end if;
+    -- 내린 뒤 30일 지난, 팔린 적 없는 전시는 지운다(2026-10-27: 영구 보관으로 표가 계속 컸다). 팔린 전시는 복제품이 가리키므로 둔다.
+    delete from public.hall_listings where status = 'withdrawn' and copies_sold = 0 and retired_at < now() - interval '30 days';
+    return jsonb_build_object(
+        'listings', coalesce((select jsonb_agg(row_data order by (row_data ->> 'score')::bigint desc, (row_data ->> 'createdAt') desc) from (
+            select jsonb_build_object('id', listing.id, 'curatorName', listing.curator_name,
+                'item', listing.item_snapshot, 'score', listing.item_score, 'price', listing.price,
+                'honorPerCopy', listing.honor_per_copy, 'copiesSold', listing.copies_sold,
+                'copyCap', listing.copy_cap, 'createdAt', listing.created_at,
+                'isMine', listing.curator_id = account_id,
+                'alreadyCollected', exists(select 1 from public.hall_purchases purchase
+                    where purchase.listing_id = listing.id and purchase.buyer_id = account_id)) row_data
+              from public.hall_listings listing where listing.status = 'open'
+             order by listing.item_score desc, listing.created_at desc limit 80) open_rows), '[]'::jsonb),
+        'mine', coalesce((select jsonb_agg(row_data order by (row_data ->> 'createdAt') desc) from (
+            select jsonb_build_object('id', listing.id, 'item', listing.item_snapshot,
+                'score', listing.item_score, 'price', listing.price, 'status', listing.status,
+                'copiesSold', listing.copies_sold, 'copyCap', listing.copy_cap, 'createdAt', listing.created_at) row_data
+              from public.hall_listings listing where listing.curator_id = account_id
+                and listing.status in ('open','sold_out')
+             order by listing.created_at desc limit 20) mine_rows), '[]'::jsonb),
+        'honor', coalesce((select honor from public.hall_curator_profiles where user_id = account_id), 0),
+        'copiesShared', coalesce((select copies_shared from public.hall_curator_profiles where user_id = account_id), 0),
+        'collectionCount', (select count(*) from public.hall_purchases where buyer_id = account_id)
+    );
+end;
+$$;
+
+-- 접속 인원만(채팅 창 배지): 접속자 목록이 닫혀 있을 때 80줄을 받지 않고 수만 묻는다(2026-10-27, 내려받기 용량. js/social.js loadOnlineUsers).
+create or replace function public.get_online_counts()
+returns jsonb language sql stable security definer set search_path = public as $$
+    select jsonb_build_object(
+        'active', count(*) filter (where profile.last_seen >= now() - interval '5 minutes'),
+        'recent', count(*) filter (where profile.last_seen < now() - interval '5 minutes'))
+      from public.player_profiles profile
+     where profile.last_seen >= now() - interval '30 minutes';
+$$;
+revoke all on function public.get_online_counts() from public, anon;
+grant execute on function public.get_online_counts() to authenticated;
+
 
 commit;

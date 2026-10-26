@@ -12598,7 +12598,7 @@ function scheduleCloudAutoSync() {
         if (isCloudSaveUnchangedSinceUpload()) return markCloudSaveUnchanged();
         syncCloudSave({ automatic: true }).catch(error => {
             console.warn('auto cloud sync failed:', error);
-            setCloudMessage('자동 클라우드 저장 실패: ' + (error.message || error));
+            noteAutoCloudSyncFailure(error);
         });
     }, 5000);
 }
@@ -12651,6 +12651,16 @@ async function syncCloudSave(options = {}) {
         updateCloudSaveUI();
         if (cloudState.pendingForcedSyncOptions) schedulePendingForcedCloudSyncDrain();
     }
+}
+
+/** An auto upload that lost to another device stops every later auto upload, so the player hears it once as a toast and not only
+ * in the cloud panel line (2026-10-27 review: the losing device played on without knowing its progress stayed local). */
+function noteAutoCloudSyncFailure(error) {
+    let text = String(error && error.message || error);
+    setCloudMessage('자동 클라우드 저장 실패: ' + text);
+    if (!/다른 기기에서/.test(text) || cloudState.autoSyncConflictNoticed || typeof showGameToast !== 'function') return;
+    cloudState.autoSyncConflictNoticed = true;
+    showGameToast('다른 기기에서 서버 저장이 바뀌어 이 기기의 자동 저장이 멈췄습니다. 서버 저장을 불러오면 이어집니다.', { tone: 'warning', duration: 9000 });
 }
 
 async function initializeCloudSave() {

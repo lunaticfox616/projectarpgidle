@@ -711,16 +711,36 @@ function stopHeartbeat() {
     clearInterval(socialState.heartbeatTimer);
     socialState.heartbeatTimer = null;
 }
-async function loadOnlineUsers() {
+/** 접속자 조회. 목록이 닫혀 있고 배지만 필요하면(countsOnly) 80줄 대신 인원 수만 묻는다(get_online_counts, 2026-10-27: 배지 하나에
+ * 30초마다 약 9KB를 받았다). 서버에 그 함수가 없으면 이 세션은 예전처럼 줄을 받는다. */
+async function loadOnlineUsers(countsOnly) {
     if (!socialCloudReady() || !socialState.onlineSupported) return [];
-    let cutoff = new Date(Date.now() - SOCIAL_RECENT_WINDOW_S * 1000).toISOString();
+    let countsPath = !!countsOnly && socialState.onlineCountsSupported !== false;
+    let result;
     try {
-        let rows = await cloudJsonRequest(`/rest/v1/player_profiles?select=user_id,nickname,last_seen&last_seen=gte.${encodeURIComponent(cutoff)}&order=last_seen.desc&limit=80`, {});
-        return Array.isArray(rows) ? rows : [];
+        result = await cloudJsonRequest(...onlineUsersQuery(countsPath));
     } catch (e) {
-        if (/last_seen/i.test(String(e && e.message || e))) socialState.onlineSupported = false;
-        return [];
+        if (!noteOnlineLoadError(String(e && e.message || e), countsPath)) return [];
+        countsPath = false;   // 인원 수 함수가 서버에 없다: 이번부터 줄을 받는다
+        try { result = await cloudJsonRequest(...onlineUsersQuery(false)); } catch { return []; }
     }
+    return shapeOnlineUsers(result, countsPath);
+}
+function onlineUsersQuery(countsPath) {
+    if (countsPath) return ['/rest/v1/rpc/get_online_counts', { method: 'POST', body: {} }];
+    let cutoff = new Date(Date.now() - SOCIAL_RECENT_WINDOW_S * 1000).toISOString();
+    return [`/rest/v1/player_profiles?select=user_id,nickname,last_seen&last_seen=gte.${encodeURIComponent(cutoff)}&order=last_seen.desc&limit=80`, {}];
+}
+function shapeOnlineUsers(result, countsPath) {
+    if (countsPath) return { counts: result && typeof result === 'object' ? result : {} };
+    return Array.isArray(result) ? result : [];
+}
+/** 조회 오류를 상태에 남긴다. 인원 수 함수가 서버에 없을 때만 true(줄 조회로 다시 간다). */
+function noteOnlineLoadError(text, countsPath) {
+    if (/last_seen/i.test(text)) socialState.onlineSupported = false;
+    if (!countsPath || !/schema cache|could not find|does not exist/i.test(text)) return false;
+    socialState.onlineCountsSupported = false;
+    return true;
 }
 function getSocialPresenceState(lastSeen, now = Date.now()) {
     let seenAt = new Date(lastSeen).getTime();
@@ -731,21 +751,24 @@ function getSocialPresenceState(lastSeen, now = Date.now()) {
 }
 /** 채팅 창 오른쪽 위의 작은 접속 인원(2026-10-11 사용자: "채팅창에 기본적으로 작게 몇명 온라인인지"): 5분 안에 신호가 온 사람 수.
  * 접속자 목록과 같은 조회 결과를 쓴다(30초 주기, 새 채팅이 뜨면 socialOnlineChat.refresh가 한 번 더 읽는다). 아직 모르거나 0명이면 숨긴다. */
-function renderChatOnlineCount(visible) {
+function renderChatOnlineCount(active, recent) {
     let badge = document.getElementById('social-chat-online');
     if (!badge) return;
-    let active = visible.filter(row => row.state === 'active').length;
     badge.hidden = !socialState.onlineSupported || active <= 0;
     let text = `접속 ${active}명`;
     if (badge.dataset.text !== text) {
         badge.dataset.text = text;
         badge.innerHTML = `<i class="social-presence-dot active" aria-hidden="true"></i>${text}`;
     }
-    badge.title = `지금 접속 ${active}명, 30분 안에 다녀간 사람 ${visible.length - active}명`;
+    badge.title = `지금 접속 ${active}명, 30분 안에 다녀간 사람 ${recent}명`;
+}
+/** 인원 수만 받았을 때(loadOnlineUsers의 { counts }): 배지만 그린다. */
+function renderOnlineCounts(counts) {
+    renderChatOnlineCount(Math.max(0, Math.floor(Number(counts.active) || 0)), Math.max(0, Math.floor(Number(counts.recent) || 0)));
 }
 function renderOnlineUsers(users, now = Date.now()) {
     let visible = (users || []).map(user => ({ user, state: getSocialPresenceState(user.last_seen, now) })).filter(row => row.state);
-    renderChatOnlineCount(visible);
+    renderChatOnlineCount(visible.filter(row => row.state === 'active').length, visible.filter(row => row.state !== 'active').length);
     let host = document.getElementById('social-online');
     if (!host) return;
     if (!socialState.onlineSupported) { host.style.display = 'none'; return; }
@@ -776,7 +799,12 @@ async function refreshOnlineUsers() {
     if (socialState.onlineLoading || !socialState.onlineSupported) return;
     socialState.onlineLoading = true;
     socialState.lastOnlineLoadAt = Date.now();
-    try { renderOnlineUsers(await loadOnlineUsers()); } catch (e) { /* 무시 */ } finally { socialState.onlineLoading = false; }
+    // 접속자 목록(채팅 설정 창)이 열려 있을 때만 줄을 받고, 그 밖에는 배지의 인원 수만 묻는다.
+    let listOpen = !!document.getElementById('social-online');
+    try {
+        let result = await loadOnlineUsers(!listOpen);
+        if (result && result.counts) renderOnlineCounts(result.counts); else renderOnlineUsers(result);
+    } catch { /* 무시 */ } finally { socialState.onlineLoading = false; }
 }
 /** 새 채팅이 뜬 순간 접속 인원도 다시 읽는다(2026-10-11 사용자: "내가 채팅 쳤을때 혹은 다른 사람이 새로운 채팅을 쳤을 때 접속자 수 갱신이
  * 필요해"). 남의 채팅은 SOCIAL_ONLINE_CHAT_REFRESH_MS에 한 번만 읽고 그 사이에 온 채팅은 간격 끝에 한 번 읽는다. 내가 보낸 뒤(force)에는

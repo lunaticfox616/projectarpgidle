@@ -471,6 +471,8 @@ declare
     account_id uuid := auth.uid();
 begin
     if account_id is null then raise exception 'AUTH_REQUIRED'; end if;
+    -- 내린 뒤 30일 지난, 팔린 적 없는 전시는 지운다(2026-10-27: 영구 보관으로 표가 계속 컸다). 팔린 전시는 복제품이 가리키므로 둔다.
+    delete from public.hall_listings where status = 'withdrawn' and copies_sold = 0 and retired_at < now() - interval '30 days';
     return jsonb_build_object(
         'listings', coalesce((select jsonb_agg(row_data order by (row_data ->> 'score')::bigint desc, (row_data ->> 'createdAt') desc) from (
             select jsonb_build_object('id', listing.id, 'curatorName', listing.curator_name,

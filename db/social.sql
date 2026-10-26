@@ -451,6 +451,18 @@ grant execute on function public.admin_get_chat_reports() to authenticated;
 grant execute on function public.admin_set_chat_mute(uuid, integer, text) to authenticated;
 grant execute on function public.admin_delete_chat_message(bigint) to authenticated;
 
+-- 접속 인원만(채팅 창 배지): 접속자 목록이 닫혀 있을 때 80줄을 받지 않고 수만 묻는다(2026-10-27, 내려받기 용량. js/social.js loadOnlineUsers).
+create or replace function public.get_online_counts()
+returns jsonb language sql stable security definer set search_path = public as $$
+    select jsonb_build_object(
+        'active', count(*) filter (where profile.last_seen >= now() - interval '5 minutes'),
+        'recent', count(*) filter (where profile.last_seen < now() - interval '5 minutes'))
+      from public.player_profiles profile
+     where profile.last_seen >= now() - interval '30 minutes';
+$$;
+revoke all on function public.get_online_counts() from public, anon;
+grant execute on function public.get_online_counts() to authenticated;
+
 -- 트리거 함수는 RPC로 부를 수 없게 한다(Supabase 보안 권고). 트리거는 호출자의 실행 권한을 보지 않으므로 회수해도 그대로 돈다.
 revoke all on function public.chat_messages_rate_limit() from public, anon, authenticated;
 revoke all on function public.chat_messages_prune() from public, anon, authenticated;

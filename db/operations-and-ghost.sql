@@ -312,6 +312,8 @@ create index if not exists ghost_matches_challenger_created_idx
     on public.ghost_matches(challenger_id, created_at desc);
 create index if not exists ghost_matches_defender_created_idx
     on public.ghost_matches(defender_id, created_at desc);
+create index if not exists ghost_matches_created_idx
+    on public.ghost_matches(created_at);
 create index if not exists ghost_profiles_rating_idx
     on public.ghost_profiles(combat_version, rating desc);
 alter table public.ghost_profiles enable row level security;
@@ -839,6 +841,8 @@ begin
          where challenger_id = account_id and ranked and created_at >= now() - interval '1 day') >= 20 then
         raise exception 'GHOST_DAILY_LIMIT';
     end if;
+    -- 90일 지난 대전 기록은 지운다(2026-10-27: 정리가 없어 계정당 하루 50행까지 쌓였다).
+    delete from public.ghost_matches where created_at < now() - interval '90 days';
     select * into challenger from public.ghost_profiles
      where user_id = account_id and active and combat_version = p_combat_version for update;
     if not found then raise exception 'GHOST_REGISTRATION_REQUIRED'; end if;

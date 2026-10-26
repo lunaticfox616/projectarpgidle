@@ -435,8 +435,13 @@ const ghostDuelStage = (() => {
         scene.last = now;
         if (!scene.started && (sheetsSettled() || now - scene.opened > LOAD_WAIT_MS)) scene.started = true;
         if (scene.started && !scene.paused) scene.clock += step * scene.speed;
-        drawScene(scene.clock);
-        updateHud(scene.clock);
+        // 그리다 오류가 나도 시계는 계속 간다: 예전에는 한 프레임의 오류가 다시 보기와 게임을 나가기 전까지 멈추게 했다(2026-10-27).
+        try {
+            drawScene(scene.clock);
+            updateHud(scene.clock);
+        } catch (error) {
+            console.warn('ghost duel replay frame failed:', error);
+        }
         if (scene.clock >= scene.endAt + OUTRO_MS) showResult();
         scene.frame = requestAnimationFrame(tick);
     }

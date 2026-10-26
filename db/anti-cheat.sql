@@ -116,12 +116,26 @@ returns boolean language sql immutable set search_path = public as $$
     );
 $$;
 
+-- 고유 효과의 값(uniqueEffectParams)과 품질: 클라이언트가 상한 없이 곱하는 칸이라 서버가 크기를 본다(2026-10-27).
+-- 배율(mul, explicitStatMultiplier)과 젬 레벨 보너스(level)는 10까지, 그 밖의 숫자 값은 100000까지(데이터의 가장 큰 값은 sleepMs 10000),
+-- 품질은 30까지(한계 돌파와 타락의 상한).
+create or replace function public.hall_item_params_out_of_range(item_data jsonb)
+returns boolean language sql immutable set search_path = public as $$
+    select public.cheat_number(item_data -> 'quality') > 30
+        or (jsonb_typeof(item_data -> 'uniqueEffectParams') = 'object' and exists (
+            select 1 from jsonb_each(item_data -> 'uniqueEffectParams') param
+             where jsonb_typeof(param.value) = 'number'
+               and (abs(public.cheat_number(param.value)) > 100000
+                    or (param.key in ('mul', 'explicitStatMultiplier', 'level') and public.cheat_number(param.value) > 10))));
+$$;
+
 -- create_hall_listing이 전시를 넣을 때 돈다. 오류가 나면 등록 전체가 되돌아가 장비는 가방에 그대로 남는다.
 create or replace function public.guard_hall_listing()
 returns trigger language plpgsql security definer set search_path = public as $$
 begin
     if public.cheat_account_held(new.curator_id) then raise exception 'HALL_ACCOUNT_HELD'; end if;
     if public.hall_item_out_of_range(new.item_snapshot) then raise exception 'HALL_ITEM_OUT_OF_RANGE'; end if;
+    if public.hall_item_params_out_of_range(new.item_snapshot) then raise exception 'HALL_ITEM_OUT_OF_RANGE'; end if;
     return new;
 end;
 $$;
@@ -395,6 +409,7 @@ revoke all on function public.cheat_save_digest(jsonb) from public, anon, authen
 revoke all on function public.note_cheat_flag(uuid, text, jsonb) from public, anon, authenticated;
 revoke all on function public.cheat_account_held(uuid) from public, anon, authenticated;
 revoke all on function public.hall_item_out_of_range(jsonb) from public, anon, authenticated;
+revoke all on function public.hall_item_params_out_of_range(jsonb) from public, anon, authenticated;
 revoke all on function public.guard_hall_listing() from public, anon, authenticated;
 revoke all on function public.guard_hall_purchase() from public, anon, authenticated;
 revoke all on function public.guard_ghost_profile() from public, anon, authenticated;
