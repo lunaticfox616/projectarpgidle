@@ -155,7 +155,7 @@ create or replace function public.guard_client_error_insert()
 returns trigger language plpgsql security definer set search_path = public as $$
 begin
     new.created_at := now();
-    if pg_column_size(new.context) > 8192 or char_length(new.fingerprint) > 200 or char_length(new.app_version) > 60 then
+    if pg_column_size(new.context) > 8192 or char_length(new.fingerprint) > 500 or char_length(new.app_version) > 60 then
         raise exception 'ERROR_REPORT_TOO_LARGE';
     end if;
     delete from public.client_error_reports where created_at < now() - interval '30 days';
