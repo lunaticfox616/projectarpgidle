@@ -272,7 +272,7 @@ function renderChatReports(data) {
         { label: '채팅', render: row => row.body ? (row.body.length > 60 ? `${row.body.slice(0, 60)}…` : row.body) : '' },
         { label: '상태', render: row => row.muted_until ? `금지 중, ${new Date(row.muted_until).toLocaleString('ko-KR')}까지` : (row.message_id && !row.message_exists ? '줄 지워짐' : '') },
         { label: '조치', html: row => muteButtons(row) + (row.message_id && row.message_exists ? `<button type="button" data-chat-delete="${cloudToolsEscape(row.message_id)}">줄 지우기</button>` : '')
-            + `<button type="button" data-chat-peek="${cloudToolsEscape(row.target_user_id)}" data-chat-name="${cloudToolsEscape(row.nickname || '')}">최근 채팅</button>` }
+            + peekButton(row.target_user_id, row.nickname) }
     ], Array.isArray(data.reports) ? data.reports : []);
     html += '<div id="chat-peek"></div>';
     html += '<div class="ops-summary"><input id="chat-mute-nickname" type="text" maxlength="16" placeholder="닉네임으로 금지">'
@@ -281,9 +281,13 @@ function renderChatReports(data) {
     html += renderOpsTable('금지 중인 계정', [
         { label: '계정', render: row => row.nickname || String(row.user_id || '').slice(0, 8) },
         { label: '풀리는 시각', render: row => new Date(row.until_at).toLocaleString('ko-KR') }, { key: 'note', label: '메모' },
-        { label: '조치', html: row => muteButtons(row) }
+        { label: '조치', html: row => muteButtons(row) + peekButton(row.user_id, row.nickname) }
     ], Array.isArray(data.mutes) ? data.mutes : []);
     return html + renderBannedTerms(Array.isArray(data.terms) ? data.terms : null);
+}
+/** The 최근 채팅 button of one player (peekPlayerChat). */
+function peekButton(userId, name) {
+    return `<button type="button" data-chat-peek="${cloudToolsEscape(userId)}" data-chat-name="${cloudToolsEscape(name || '')}">최근 채팅</button>`;
 }
 
 /** The admin's extra banned terms (chat_banned_terms): a list with 빼기 buttons and a row to add one; the server trims the term the
