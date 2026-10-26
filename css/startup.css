@@ -73,6 +73,8 @@
 /* 저장이 없을 때 "새 모험" 아래 한 줄 — 제목만 있는 빈 상자처럼 보였다 */
 #startup-overlay .startup-summary-hint { margin: 8px 0 0; color: var(--entry-muted); font-size: 12px; line-height: 1.5; }
 #startup-overlay .startup-summary-hint[hidden] { display: none; }
+/* 저장을 읽지 못했을 때(js/ui.js renderStartupLocalSave) */
+#startup-overlay .startup-summary-hint.is-warning { color: var(--color-danger); }
 #startup-overlay .startup-panel.auth {
   align-self: center; width: 100%; padding: 30px; gap: 15px; box-sizing: border-box;
   border: 1px solid rgba(169,160,120,.29); border-top-color: rgba(217,189,130,.65); border-radius: 3px;

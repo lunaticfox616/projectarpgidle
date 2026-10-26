@@ -56,6 +56,20 @@ for(let act=1;act<=10;act++) {
     assert.equal(run('game.runProgress'),100,'completion progress survives reconnect');
 }
 
+// The loop gate stops a fight on an exploration map; the save written on the loop-end screen loads again (2026-10-27: emptying the
+// fight left the packs counting monsters the save no longer held, "탐험 저장에서 살아 있는 적이 누락", and a reload showed a new game).
+start(10,'direct');
+while(tick<600 && !run('game.enemies.some(enemy=>enemy.hp>0&&enemy.explorationPack)'))advance();
+assert.ok(run('game.enemies.some(enemy=>enemy.hp>0&&enemy.explorationPack)'),'a fight is under way at the gate');
+run('handleSeasonLoopConditionMet();');
+assert.equal(run('game.enemies.length'),0,'the loop gate stops the fight');
+run('game=mergeDefaults(JSON.parse(serializeSaveState(game)));');
+assert.equal(run('game.pendingLoopReady'),true,'the loop-end screen comes back after the reload');
+// Any encounter cleared mid-fight (clearDefeatedEncounter: defeats, the loop gate) leaves a save that loads.
+start(10,'direct');
+while(tick<600 && !run('game.enemies.some(enemy=>enemy.hp>0&&enemy.explorationPack)'))advance();
+run('clearDefeatedEncounter();game=mergeDefaults(JSON.parse(serializeSaveState(game)));');
+
 // Manual mode waits for a destination, stops there, and resumes when switched to full exploration.
 start(1,'manual');
 const entry=copy('game.gridPlayer');
