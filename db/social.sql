@@ -239,6 +239,35 @@ alter table public.chat_banned_terms enable row level security;
 -- 정책을 두지 않는다. 아래 검사 함수가 보안 정의자 트리거 안에서만 읽는다.
 revoke all on public.chat_banned_terms from anon, authenticated;
 
+-- 관리자: 금칙어 보기와 넣기/빼기(운영 통계 창의 채팅 신고 절, js/cloud-tools-ui.js). 낱말은 소문자로 다듬어 넣는다.
+create or replace function public.admin_get_banned_terms()
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+    if not public.is_project_admin() then raise exception 'ADMIN_REQUIRED'; end if;
+    return coalesce((select jsonb_agg(to_jsonb(term_row) order by term_row.created_at desc) from public.chat_banned_terms term_row), '[]'::jsonb);
+end;
+$$;
+create or replace function public.admin_set_banned_term(p_term text, p_spaced boolean default true, p_remove boolean default false)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare
+    term_value text := lower(trim(coalesce(p_term, '')));
+begin
+    if not public.is_project_admin() then raise exception 'ADMIN_REQUIRED'; end if;
+    if char_length(term_value) not between 2 and 40 then raise exception 'INVALID_REQUEST'; end if;
+    if p_remove then
+        delete from public.chat_banned_terms where term = term_value;
+    else
+        insert into public.chat_banned_terms (term, spaced) values (term_value, coalesce(p_spaced, true))
+        on conflict (term) do update set spaced = excluded.spaced;
+    end if;
+    return jsonb_build_object('term', term_value, 'removed', p_remove);
+end;
+$$;
+revoke all on function public.admin_get_banned_terms() from public, anon;
+revoke all on function public.admin_set_banned_term(text, boolean, boolean) from public, anon;
+grant execute on function public.admin_get_banned_terms() to authenticated;
+grant execute on function public.admin_set_banned_term(text, boolean, boolean) to authenticated;
+
 -- 긴 줄기(3음절 이상과 fuck, bitch)는 띄어쓰기를 다 지운 글에서, 짧은 줄기(2음절, 자모 두 글자, shit)는 띄어쓰기를 남긴 글에서 찾는다.
 -- "혹시 발사체", "3개 새로", "기존 나온", "ㅂㅂ ㅅㄱ", "sushi time" 같은 평범한 말이 걸리지 않게(검토 지적 2026-10-27). 그 뒤 금칙어 표를 본다.
 create or replace function public.chat_text_is_offensive(p_text text)

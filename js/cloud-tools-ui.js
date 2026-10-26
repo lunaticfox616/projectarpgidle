@@ -16,12 +16,14 @@ function ensureCloudToolsDialog() {
     dialog.className = 'cloud-tools-dialog';
     dialog.innerHTML = `<div class="cloud-tools-head"><strong id="cloud-tools-title"></strong><button type="button" onclick="closeCloudToolsDialog()" aria-label="닫기">✕</button></div><div id="cloud-tools-body" class="cloud-tools-body"></div>`;
     dialog.addEventListener('click', event => {
-        let button = event.target.closest('[data-cheat-hold], [data-cheat-clear], [data-chat-mute], [data-chat-delete]');
+        let button = event.target.closest('[data-cheat-hold], [data-cheat-clear], [data-chat-mute], [data-chat-delete], [data-term-add], [data-term-remove]');
         if (!button) return;
         if (button.dataset.cheatHold) setCheatHold(button);
         else if (button.dataset.cheatClear) clearCheatFlags(button);
         else if (button.dataset.chatMute) setChatMute(button);
         else if (button.dataset.chatDelete) deleteChatMessage(button);
+        else if (button.dataset.termAdd) setBannedTerm(button, false);
+        else if (button.dataset.termRemove) setBannedTerm(button, true);
     });
     document.body.appendChild(dialog);
     return dialog;
@@ -274,7 +276,51 @@ function renderChatReports(data) {
         { label: '풀리는 시각', render: row => new Date(row.until_at).toLocaleString('ko-KR') }, { key: 'note', label: '메모' },
         { label: '조치', html: row => muteButtons(row) }
     ], Array.isArray(data.mutes) ? data.mutes : []);
-    return html;
+    return html + renderBannedTerms(Array.isArray(data.terms) ? data.terms : []);
+}
+
+/** The admin's extra banned terms (chat_banned_terms): a list with 빼기 buttons and a row to add one; the server lowercases and trims. */
+function renderBannedTerms(terms) {
+    let html = renderOpsTable('금칙어(관리자 추가)', [
+        { key: 'term', label: '낱말' },
+        { label: '찾는 글', render: row => row.spaced === false ? '띄어쓰기 지운 글' : '띄어쓰기 남긴 글' },
+        { label: '시각', render: row => new Date(row.created_at).toLocaleString('ko-KR') },
+        { label: '조치', html: row => `<button type="button" data-term-remove="${cloudToolsEscape(row.term)}">빼기</button>` }
+    ], terms);
+    return html + '<p class="cloud-tools-note">기본 목록은 서버 함수(chat_text_is_offensive)에 있고, 여기 더한 낱말은 바로 적용됩니다. '
+        + '짧은 낱말은 띄어쓰기를 남긴 글에서 찾아야 "혹시 발사체" 같은 말이 걸리지 않습니다.</p>'
+        + '<div class="ops-summary"><input id="banned-term-input" type="text" maxlength="40" placeholder="낱말(2~40자)">'
+        + '<label><input id="banned-term-spaced" type="checkbox" checked> 띄어쓰기 남긴 글에서 찾기</label>'
+        + '<button type="button" data-term-add="1">더하기</button></div>';
+}
+
+/** The term a click refers to: the row's own term for 빼기, else the input row's text. */
+function bannedTermOf(button, remove) {
+    if (remove) return button.dataset.termRemove;
+    let input = document.getElementById('banned-term-input');
+    return String((input && input.value) || '').trim();
+}
+function bannedTermSpaced() {
+    let box = document.getElementById('banned-term-spaced');
+    return !box || box.checked;
+}
+/** Adds (from the input row) or removes (a row's button) one banned term after a confirmation, then reloads the section. */
+async function setBannedTerm(button, remove) {
+    let term = bannedTermOf(button, remove);
+    if (!term) return showGameToast('낱말을 넣어 주세요.', 'warning');
+    let confirmed = await requestGameConfirmation(`금칙어 "${term}"${remove ? '을 뺄까요?' : '을 더할까요?'}`, {
+        title: '금칙어', tone: 'warning', confirmLabel: remove ? '빼기' : '더하기'
+    });
+    if (!confirmed) return;
+    try {
+        await cloudJsonRequest('/rest/v1/rpc/admin_set_banned_term', {
+            method: 'POST', body: { p_term: term, p_spaced: bannedTermSpaced(), p_remove: !!remove }
+        });
+        showGameToast(remove ? '금칙어를 뺐습니다.' : '금칙어를 더했습니다.', 'success');
+    } catch (error) {
+        showGameToast(`금칙어를 바꾸지 못했습니다: ${error.message || error}`, 'danger');
+    }
+    await loadChatReports();
 }
 
 /** Fills the chat reports under the watch. Before db/multiplayer-hardening-20261027.sql runs, the server has no such function and a note says so. */
@@ -283,7 +329,8 @@ async function loadChatReports() {
     if (!box) return;
     try {
         let data = await cloudJsonRequest('/rest/v1/rpc/admin_get_chat_reports', { method: 'POST', body: {} });
-        box.innerHTML = renderChatReports(data || {});
+        let terms = await cloudJsonRequest('/rest/v1/rpc/admin_get_banned_terms', { method: 'POST', body: {} }).catch(() => []);
+        box.innerHTML = renderChatReports(Object.assign({}, data || {}, { terms }));
     } catch (error) {
         let text = String(error && error.message || error);
         box.innerHTML = /schema cache|could not find|does not exist/i.test(text)
