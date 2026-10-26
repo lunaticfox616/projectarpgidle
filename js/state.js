@@ -860,7 +860,8 @@ function createColonyZone(state) {
     const depth = colony.inRun ? Math.max(21,Math.floor(colony.entryDeepChaosDepth||21))
         : Math.max(21,Math.min(state.abyssEndlessDepth||21,state.loopProgressCurrent.bestAbyssDepth||21));
     const wavePattern = ['charge', 'sharpshooters', 'carapace', 'mixed', 'overlord'][(wave - 1) % 5];
-    return { id:'colony_run', name:`군락지 방어 ${wave}웨이브`, type:'colony', tier:depth+Math.floor(wave/2),
+    const name = colony.inRun && colony.lootPending ? `군락지 ${wave - 1}웨이브 전리품 수거` : `군락지 방어 ${wave}웨이브`;
+    return { id:'colony_run', name, type:'colony', tier:depth+Math.floor(wave/2),
         maxKills:1, ele:'chaos', entryDeepChaosDepth:depth, wavePattern,
         bossMods: { patternMode: 'slam' } };
 }
@@ -2646,8 +2647,9 @@ const defaultGame = {
     bagSeenId: null,
     beehive: { unlockedPermanent: false, inRun: false, branchStep: 0, cleared: false, routeSeed: 0 },
     // Core durability is an integer. A zero maximum means a new/legacy run needs initialization.
+    // returnAfterWave: 0 or a boss-wave integer (multiple of 5). lastResult: null or {kind, wave, completed, lostHeld} integer counts.
     colony: { inRun: false, wave: 0, highestWave: 0, kills: 0, requiredKills: 0, coreMaxHp: 0, coreHp: 0, failedWave: 0, rewardPending: false,
-        pendingLoot: [], lootPending: false, bossLootCell: null, wardInventory: [], wardEquipped: [null,null,null,null], wardSlots: 1, wardSlotVersion: 1 },
+        returnAfterWave: 0, lastResult: null, pendingLoot: [], lootPending: false, bossLootCell: null, wardInventory: [], wardEquipped: [null,null,null,null], wardSlots: 1, wardSlotVersion: 1 },
     // grandRun is created on entry; kills fills the gauge, phase bossPending queues the one-time boss spawn.
     // rewardVoidChisel/rewardJewelShard: number|null are the actual paid integers,
     // null before settlement or for legacy receipts; retained until the next entry/loop reset.

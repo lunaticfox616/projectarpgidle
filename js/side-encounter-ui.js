@@ -2,6 +2,7 @@
 const sideEncounterUi = (() => {
     let lastHudHtml = '';
     let labyrinthChoice = { owner: null, season: 0, floor: 1, current: 1 };
+    let colonyWithdrawPending = false;
 
     // Keep the action row connected while combat estimates and countdowns change.
     function renderPanel(panel, html) {
@@ -35,7 +36,10 @@ const sideEncounterUi = (() => {
         [...next.children].forEach((child, index) => {
             const target = current.children[index];
             if (target.textContent !== child.textContent) target.textContent = child.textContent;
-            if (child.tagName === 'BUTTON') target.disabled = child.disabled;
+            if (child.tagName === 'BUTTON') {
+                target.disabled = child.disabled;
+                if (child.hasAttribute('aria-pressed')) target.setAttribute('aria-pressed', child.getAttribute('aria-pressed'));
+            }
         });
     }
 
@@ -108,6 +112,8 @@ const sideEncounterUi = (() => {
     }
 
     function updateHud(zone) {
+        // Colony withdrawal owns its loot-loss dialog; other travel keeps the exploration confirmation.
+        document.getElementById('btn-combat-return')?.toggleAttribute('data-exploration-departure', zone.type !== 'colony' || !game.colony.inRun);
         updateMeteorProgress(zone);
         updateColonyProgress(zone);
         updateEchoProgress(zone);
@@ -140,6 +146,7 @@ const sideEncounterUi = (() => {
 
     function updateColonyProgress(zone) {
         if (zone.type !== 'colony' || !game.colony.inRun) return;
+        setTextById('btn-combat-return', '철수');
         if (game.colony.lootPending) { updateLootCollectionProgress(); return; }
         const {wave, kills, requiredKills, coreHp, coreMaxHp} = game.colony;
         if (!coreMaxHp) {
@@ -423,7 +430,7 @@ const sideEncounterUi = (() => {
         return patterns[zone.wavePattern] || '군락 방어전';
     }
     function colonyNextBossReward(colony) {
-        const wave = Math.ceil(Math.max(1,colony.wave||1) / 5) * 5;
+        const wave = window.GameModules.colonyRun.nextBossWave(colony.inRun ? colony : { wave: 1 });
         const rule = COLONY_WARD_RULES.colonyWave;
         const floor = Math.min(rule.maxRollFloor, rule.bossRollFloor + (wave / rule.every - 1) * rule.bossRollStep);
         return `5웨이브마다 액막이 확정, 다음 지배체의 일반 액막이 최소 굴림 ${Math.round(floor*100)}%`;
@@ -431,25 +438,68 @@ const sideEncounterUi = (() => {
     function colonyPanelActions(colony, traces) {
         const entryDisabled = traces <= 0 || colony.inRun ? 'disabled' : '';
         const withdrawDisabled = colony.inRun ? '' : 'disabled';
+        const scheduled = colony.inRun ? `<button type="button" aria-pressed="${!!colony.returnAfterWave}" onclick="sideEncounterUi.toggleColonyReturn()">${colony.returnAfterWave ? '철수 예약 취소' : `${window.GameModules.colonyRun.returnWave(colony)}웨이브 후 철수`}</button>` : '';
         return `<div class="map-expedition-actions"><button type="button" data-exploration-departure onclick="startColonyRun()" ${entryDisabled}>군락지 입장</button>
-            <button type="button" onclick="forfeitColonyRun()" ${withdrawDisabled}>철수</button>
+            <button type="button" onclick="sideEncounterUi.withdrawColony()" ${withdrawDisabled}>지금 철수</button>${scheduled}
             <button type="button" onclick="document.getElementById('ui-colony-ward-panel')?.scrollIntoView({ block: 'start', behavior: 'smooth' })">액막이 관리</button>
             <span>액막이 칸 ${colonyWards.slotCount()}/${COLONY_WARD_RULES.maxSlots}, 편린 ${game.currencies.colonyShard||0}개</span></div>`;
     }
+    function toggleColonyReturn() {
+        if (window.GameModules.colonyRun.toggleReturn()) updateStaticUI();
+    }
+    function returnFromBattle() {
+        if (game.currentZoneId === 'colony_run' && game.colony.inRun) return withdrawColony();
+        return returnToTown();
+    }
+    function colonyWithdrawalCurrent(view) {
+        return game === view.owner && game.colony === view.colony && game.colony.inRun && game.currentZoneId === 'colony_run'
+            && game.actExploration === view.run && game.colony.wave === view.wave && JSON.stringify(game.colony.pendingLoot) === view.held;
+    }
+    async function withdrawColony() {
+        const colony = game.colony;
+        if (colonyWithdrawPending || !colony.inRun || game.currentZoneId !== 'colony_run') return false;
+        if (!colony.pendingLoot.length) { forfeitColonyRun(); return true; }
+        const view = { owner: game, colony, run: game.actExploration, wave: colony.wave, held: JSON.stringify(colony.pendingLoot) };
+        colonyWithdrawPending = true;
+        try {
+            const accepted = await requestGameConfirmation(`보관 전리품 ${colony.pendingLoot.length}묶음을 포기하고 철수할까요?`,
+                { title: '군락지 철수', confirmLabel: '철수', cancelLabel: '취소', dismissOnBackdrop: false });
+            if (!accepted) return false;
+            if (!colonyWithdrawalCurrent(view)) { addLog('군락지 원정이 바뀌었습니다. 다시 확인하세요.', 'attack-monster'); return false; }
+            forfeitColonyRun();
+            return true;
+        } finally { colonyWithdrawPending = false; }
+    }
+    function colonyStage(colony) {
+        if (colony.inRun) return colony.lootPending ? `${colony.wave - 1}웨이브 전리품 수거 중` : `${colony.wave}웨이브, ${colony.kills}/${colony.requiredKills}처치`;
+        const result = colony.lastResult;
+        const labels = { left: '지역 이동', core: '군락 핵 파괴', defeat: '전투 불능' };
+        if (result && ['scheduled', 'withdraw'].includes(result.kind)) return result.completed ? `${result.completed}웨이브 방어 후 철수` : '철수 완료';
+        if (result) return `${result.wave}웨이브, ${labels[result.kind]}`;
+        return colony.failedWave > 0 ? `${colony.failedWave}웨이브, 군락 핵 파괴` : '방어전 입장 준비';
+    }
+    function colonyResultHtml(colony) {
+        const completed = Math.max(0,Math.floor(colony.wave||0)-1);
+        const returnNote = colony.inRun ? '현재 원정' : '최근 원정';
+        return `<div class="map-expedition-result"><span>${returnNote}</span><strong>완료 ${completed}웨이브</strong><span>최고 도달 ${Math.max(0,colony.highestWave||0)}웨이브</span>
+            ${colony.returnAfterWave ? `<span>${colony.returnAfterWave}웨이브 후 철수</span>` : ''}
+            ${!colony.inRun && colony.lastResult?.lostHeld ? `<span>보관 전리품 ${colony.lastResult.lostHeld}묶음 소멸</span>` : ''}</div>`;
+    }
     function colonyPanel(colony,zone) {
         const traces = Math.max(0,game.currencies.colonyTrace||0);
-        const completed = Math.max(0,Math.floor(colony.wave||0)-1);
-        const stage = colony.inRun ? `${colony.wave}웨이브, ${colony.kills}/${colony.requiredKills}처치` : colony.failedWave > 0 ? `${colony.failedWave}웨이브, 군락 핵 파괴` : '방어전 입장 준비';
-        const returnNote = colony.inRun ? '현재 원정' : '최근 원정';
+        const loot = window.GameModules.colonyRun.uncollected();
+        const stage = colonyStage(colony);
         return `<div class="map-expedition-intro"><div class="map-expedition-heading"><strong>${stage}</strong>${buildMapPowerEstimateHtml(zone)}</div>
             <dl><div><dt>입장 비용</dt><dd>군락지 흔적 1개<small>보유 ${traces}개, 기준 혼돈 심화 ${zone.entryDeepChaosDepth}</small></dd></div>
-            <div><dt>현재 적 무리</dt><dd>${colonyWavePattern(zone)}</dd></div>
+            <div><dt>${colony.lootPending ? '다음 적 무리' : '현재 적 무리'}</dt><dd>${colonyWavePattern(zone)}</dd></div>
             <div><dt>방어 목표</dt><dd>군락 핵 보호<small>${colony.coreMaxHp > 0 ? `${Math.ceil(colony.coreHp).toLocaleString()} / ${colony.coreMaxHp.toLocaleString()} 내구도` : '입장 시 핵 내구도 충전'}, 파괴되면 실패</small></dd></div>
-            <div><dt>웨이브 돌파 보상</dt><dd>군락지 편린, 액막이 부적<small>${colonyNextBossReward(colony)}</small></dd></div></dl>
-            <div class="map-expedition-result"><span>${returnNote}</span><strong>완료 ${completed}웨이브</strong><span>최고 도달 ${Math.max(0,colony.highestWave||0)}웨이브</span></div>
+            <div><dt>웨이브 돌파 보상</dt><dd>군락지 편린, 액막이 부적<small>${colonyNextBossReward(colony)}</small></dd></div>
+            ${loot.held ? `<div><dt>보관 전리품</dt><dd>${loot.held}묶음<small>지배체 처치 전 철수하면 소멸</small></dd></div>` : ''}
+            ${loot.floor ? `<div><dt>바닥 전리품</dt><dd>${loot.floor}묶음<small>${colony.returnAfterWave && colony.wave > colony.returnAfterWave ? '수거 후 철수' : '수거 후 다음 웨이브'}</small></dd></div>` : ''}</dl>
+            ${colonyResultHtml(colony)}
             <details class="map-expedition-details" id="colony-entry-guide"><summary>입장권 획득처, 진행 규칙</summary>
-            <p>혼돈 심화 21층 이상/벌집/대균열에서 군락지 흔적을 얻습니다. 웨이브를 돌파하면 보상을 즉시 받고 다음 무리가 시작됩니다.</p>
-            <p>철수해도 받은 보상은 유지됩니다. 새 도전은 1웨이브부터 시작합니다.</p></details>
+            <p>혼돈 심화 21층 이상/벌집/대균열에서 군락지 흔적을 얻습니다. 웨이브 보상은 바로 받고, 보관 전리품은 지배체를 처치해야 떨어집니다.</p>
+            <p>철수 시 보관 전리품은 사라지고, 바닥 전리품은 받습니다. 새 도전은 1웨이브부터 시작합니다.</p></details>
             ${colonyPanelActions(colony, traces)}</div>`;
     }
 
@@ -506,5 +556,5 @@ const sideEncounterUi = (() => {
             <button onclick="switchTab('tab-skills'); switchSkillSubtab('skill-tab-enhance')" ${gemUnlocked?'':'disabled'}>룬 강화로 이동</button></div></div>`;
     }
 
-    return { hiveSummary, updateHud, refreshDestinations, hivePanel, grandPanel, meteorPanel, labyrinthPanel, selectLabyrinthFloor, chooseLabyrinthFloor, timeRiftPanel, colonyPanel, skyPanel, skyGrowth, renderPanel };
+    return { hiveSummary, updateHud, refreshDestinations, hivePanel, grandPanel, meteorPanel, labyrinthPanel, selectLabyrinthFloor, chooseLabyrinthFloor, timeRiftPanel, colonyPanel, toggleColonyReturn, withdrawColony, returnFromBattle, skyPanel, skyGrowth, renderPanel };
 })();

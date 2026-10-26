@@ -1115,16 +1115,62 @@ function holdWoodsmanBuildLock(say) {
     clearWoodsmanBuildLock();
     say('☠️ 혼돈 밖을 떠나 나무꾼 전투를 중단했습니다. 세팅 잠금이 해제되었습니다.', 'season-up');
 }
+/** Colony attempt controls live with combat. Wards and their reward rolls stay in colonyWards. */
+window.GameModules.colonyRun = (() => {
+    const nextBossWave = colony => Math.ceil(Math.max(1, colony.wave) / 5) * 5;
+    const returnWave = colony => colony.lootPending ? Math.max(5, colony.wave - 1) : nextBossWave(colony);
+    function uncollected() {
+        const run = getColonyRoomRun();
+        return { held: game.colony.pendingLoot.length, floor: run ? run.groundLoot.length : 0 };
+    }
+    function toggleReturn() {
+        const colony = game.colony;
+        if (!colony.inRun || game.currentZoneId !== 'colony_run') return false;
+        colony.returnAfterWave = colony.returnAfterWave ? 0 : returnWave(colony);
+        queueImportantSave(200);
+        return true;
+    }
+    /** End receipts record completed waves and only the unreleased loot that is actually forfeited. */
+    function recordEnd(kind) {
+        const colony = game.colony;
+        if (!colony.inRun || !['withdraw', 'scheduled', 'left', 'core', 'defeat'].includes(kind)) return null;
+        colony.lastResult = { kind, wave: colony.wave, completed: Math.max(0, colony.wave - 1), lostHeld: colony.pendingLoot.length };
+        colony.returnAfterWave = 0;
+        return colony.lastResult;
+    }
+    function finish(kind = 'withdraw', move = true, say = addLog) {
+        const colony = game.colony;
+        if (move && game.currentZoneId !== 'colony_run') return false;
+        const result = recordEnd(kind);
+        if (!result) return false;
+        const returnZone = colony.returnZoneId ?? getAutoProgressZoneId(game.maxZoneId);
+        // Won floor loot is settled by this existing owner; the unreleased buffer is forfeited.
+        actExplorationState.groundLoot.discardEncounter(game, 'colony_run');
+        Object.assign(colony, { inRun: false, lootPending: false, bossLootCell: null, returnZoneId: null });
+        if (move) {
+            game.currentZoneId = returnZone;
+            game.enemies = []; game.encounterPlan = []; game.encounterIndex = 0; game.runProgress = 0;
+            actExplorationProgress.depart(game);
+        }
+        say(result.completed ? `🪲 군락지 ${result.completed}웨이브를 마치고 철수했습니다.` : '🪲 군락지에서 철수했습니다.', 'season-up');
+        pendingHeavyUiRefresh = true;
+        queueImportantSave(200);
+        return true;
+    }
+    function finishScheduled(run) {
+        const colony = game.colony;
+        if (!colony.inRun || !colony.returnAfterWave || colony.wave <= colony.returnAfterWave || colony.lootPending) return false;
+        const floor = run ? run.groundLoot.length : 0;
+        if (colony.pendingLoot.length || floor || countColonyWaveAlive()) return false;
+        return finish('scheduled');
+    }
+    return Object.freeze({ nextBossWave, returnWave, uncollected, toggleReturn, recordEnd, finish, finishScheduled });
+})();
+
 /** A colony run goes on only in 군락지: a hero who left it (travel, a map, the deep sea) ended the run there, rewards kept, and the next
  * entry starts at wave 1. Unlike 철수 it moves nobody. */
 function endColonyRunLeftBehind(say) {
-    const c = game.colony;
-    actExplorationState.groundLoot.discardEncounter(game,'colony_run');
-    c.inRun = false;
-    c.lootPending = false;
-    c.bossLootCell = null;
-    c.returnZoneId = null;
-    say(`🪲 군락지를 떠나 원정을 마쳤습니다(완료 ${Math.max(0, Math.floor(c.wave || 1) - 1)}웨이브). 획득 보상은 유지됩니다.`, 'season-up');
+    window.GameModules.colonyRun.finish('left', false, say);
 }
 /** A grand breach run goes on only in its own zone: a hero who left it lost the run, as a defeat does (nobody moved). Left on, the
  * panel showed no entry for the next breach and auto entry (breach and meteor) waited for the loop to end. */
@@ -1298,6 +1344,7 @@ function tickColonyRun(pStats) {
         return;
     }
     finishColonyLootWait(run);
+    if (window.GameModules.colonyRun.finishScheduled(run)) return;
     if(!settling && !game.colony.lootPending && countColonyWaveAlive()===0)spawnColonyWave();
     if(getColonyRoomRun())actExplorationProgress.advance(pStats);
 }
@@ -1325,6 +1372,7 @@ function failColonyDefense() {
     if(!colony?.inRun)return;
     const failedWave=Math.max(1,Math.floor(colony.wave || 1));
     const returnZoneId=defeatReturnZone(colony.returnZoneId);
+    window.GameModules.colonyRun.recordEnd('core');
     Object.assign(colony,{coreHp:0,failedWave,inRun:false,returnZoneId:null});
     colony.lootPending=false;
     colony.bossLootCell=null;
@@ -9385,6 +9433,8 @@ function seatOceanGuardianArena(zone, run) {
 
 function startMoving(isTown) {
     cosmosRouteRuntime.reconcileDeparture(game);
+    // End a run left behind before its floor owner clears unreleased loot and opens the destination.
+    holdZoneBoundRuns(addLog);
     let returnDepartureCell = isTown && hasGridCell(game.gridPlayer)
         ? copyCombatGridCell(game.gridPlayer)
         : null;
@@ -10706,7 +10756,7 @@ function completeColonyWave(zone, say, lastEnemy) {
     repairColonyDefenseCore();
     // The same arena raises the next wave on the next tick; a legacy board still spawns now.
     if (!getColonyRoomRun() && !game.colony.lootPending) spawnColonyWave();
-    say(`🪲 군락지 ${completedWave}웨이브 완료! 군락지 편린 +${shardReward}${completedWave % 10 === 0 ? ', 군락지 흔적 +1' : ''}, 다음 웨이브 ${game.colony.wave} 시작.`, 'loot-magic');
+    say(`🪲 군락지 ${completedWave}웨이브 완료. 군락지 편린 +${shardReward}${completedWave % 10 === 0 ? ', 군락지 흔적 +1' : ''}`, 'loot-magic');
     queueImportantSave(200);
 }
 function releaseCompletedColonyWaveLoot(completedWave,lastEnemy) {
@@ -13108,6 +13158,7 @@ function defeatAgainstWoodsman(zone, message, opts, ui) {
 }
 function defeatInColony(zone, message, opts, ui) {
     ui.say(message || "☠️ 군락지 방어전에서 패배했습니다.", "death", { noToast: !!opts.noToast });
+    window.GameModules.colonyRun.recordEnd('defeat');
     actExplorationState.groundLoot.discardEncounter(game,'colony_run');
     game.colony.inRun = false;
     game.colony.lootPending = false;

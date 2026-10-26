@@ -1,7 +1,7 @@
 // Loot lying on an exploration map's floor until the hero picks it up (2026-10-05 user request: equipment; 2026-10-06: currency,
 // jewels, cores and wild talismans too): a kill or a chest drops it on the cell, the hero collects it by stepping onto it, and a
 // click on the pile collects it at once. The run owns the rows (saved with it as run.groundLoot). Ordinary maps settle what is left
-// on departure; colony and grand breach floor loot belongs to that attempt and is lost when the encounter is abandoned.
+// on departure; colony and grand breach discard only unreleased loot when abandoned and settle what the boss already dropped.
 actExplorationState.groundLoot = (() => {
     // The hero picks a pile up by stepping onto its cell: drops beside a melee fight stay until it walks over.
     const PICKUP_RANGE = 0;
@@ -207,7 +207,7 @@ actExplorationState.groundLoot = (() => {
         if (state === game) { if (won.length) collectExplorationFloorLoot(won); }
         else won.forEach(row => settleRow[kindOf(row)](state, row));
     }
-    /** Validate pending rows before a restored encounter can resume; stale owners lose their floor too. */
+    /** Validate pending rows before a restored encounter resumes; stale owners settle their won floor. */
     function normalizeEncounter(state) {
         const activeFloor = state.actExploration?.zoneId === state.currentZoneId ? rows(state.actExploration) : [];
         const ids = new Set(activeFloor.map(row => row?.item?.id).filter(Number.isSafeInteger));

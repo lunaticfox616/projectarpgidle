@@ -162,6 +162,7 @@ const explorationAtlasUi = (() => {
         return {status:game.beehive.inRun ? `원정 중, ${step}` : `벌집 열쇠 ${game.currencies.hiveKey}개`};
     }
     function colonyRouteSummary() {
+        if (game.colony.inRun && game.colony.lootPending) return {status:getZone('colony_run').name};
         return {status:game.colony.inRun ? `방어 중, ${game.colony.wave}웨이브` : `최고 도달 ${game.colony.highestWave}웨이브, 흔적 ${game.currencies.colonyTrace}개`};
     }
     function bossSummary() {

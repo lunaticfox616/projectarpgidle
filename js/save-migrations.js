@@ -494,6 +494,14 @@ function normalizeColonyRunSave(colony, clampFiniteNumber) {
     colony.coreMaxHp = Math.floor(clampFiniteNumber(colony.coreMaxHp, 0, 0, Number.MAX_SAFE_INTEGER));
     colony.coreHp = Math.floor(clampFiniteNumber(colony.coreHp, colony.coreMaxHp, 0, colony.coreMaxHp));
     colony.failedWave = Math.floor(clampFiniteNumber(colony.failedWave, 0, 0, Number.MAX_SAFE_INTEGER));
+    colony.returnAfterWave = Math.floor(clampFiniteNumber(colony.returnAfterWave, 0, 0, Number.MAX_SAFE_INTEGER));
+    if (!colony.inRun || colony.returnAfterWave % 5 !== 0) colony.returnAfterWave = 0;
+    const result = colony.lastResult;
+    if (result && ['withdraw', 'scheduled', 'left', 'core', 'defeat'].includes(result.kind)) {
+        const wave = Math.floor(clampFiniteNumber(result.wave, 1, 1, Number.MAX_SAFE_INTEGER));
+        colony.lastResult = { kind: result.kind, wave, completed: Math.min(wave - 1, Math.floor(clampFiniteNumber(result.completed, 0, 0))),
+            lostHeld: Math.floor(clampFiniteNumber(result.lostHeld, 0, 0, Number.MAX_SAFE_INTEGER)) };
+    } else colony.lastResult = null;
 }
 /** Old kill-based runs retain the same percentage; new saves store integral half-percent gauge points. */
 function normalizeGrandBreachCounters(run) {

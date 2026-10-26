@@ -1016,7 +1016,7 @@ function setMobileBattlePipCollapsed(host, collapsed) {
 
 /** Dense map/crafting views and early landscape trees start folded; leaving restores the previous PiP choice. */
 function dockMobileBattlePip(host) {
-    const mapContexts = [['atlas', 'map-explore-worldtree'], ['labyrinth', 'map-explore-labyrinth'], ['chaosRealm', 'map-tab-chaos-realm'], ['sky', 'map-tab-sky']];
+    const mapContexts = [['atlas', 'map-explore-worldtree'], ['labyrinth', 'map-explore-labyrinth'], ['chaosRealm', 'map-tab-chaos-realm'], ['sky', 'map-tab-sky'], ['colony', 'map-explore-colony']];
     function syncContext(context) {
         if ((host.dataset.compactContext || '') !== context) {
             if (host.hasAttribute('data-context-collapsed')) {
@@ -2739,6 +2739,7 @@ function startColonyRun(){
     c.entryDeepChaosDepth = getZone('colony_run').entryDeepChaosDepth;
     c.inRun = true; c.wave = 1; c.kills = 0; c.requiredKills = getColonyWaveEnemyCount(1);
     c.coreMaxHp = 0; c.coreHp = 0; c.failedWave = 0;
+    c.returnAfterWave = 0; c.lastResult = null;
     c.pendingLoot = []; c.lootPending = false; c.bossLootCell = null;
     c.returnZoneId = getContentReturnZoneId();
     actExplorationProgress.depart(game);
@@ -2751,20 +2752,7 @@ function startColonyRun(){
     queueImportantSave(200);
 }
 function forfeitColonyRun(){
-    let c = game.colony || {};
-    if (!c.inRun) return;
-    actExplorationState.groundLoot.discardEncounter(game, 'colony_run');
-    c.inRun = false;
-    game.currentZoneId = c.returnZoneId !== undefined && c.returnZoneId !== null ? c.returnZoneId : getAutoProgressZoneId(game.maxZoneId);
-    c.returnZoneId = null;
-    game.enemies = [];
-    game.encounterPlan = [];
-    game.encounterIndex = 0;
-    game.runProgress = 0;
-    actExplorationProgress.depart(game);
-    addLog('🪲 군락지에서 철수했습니다. 보관 중이거나 바닥에 남은 전리품은 사라지고, 이미 주운 보상은 유지됩니다.', 'season-up');
-    updateStaticUI();
-    queueImportantSave(200);
+    if (window.GameModules.colonyRun.finish()) updateStaticUI();
 }
 function renderLoop9VoidRiftPanel(){
     let open = (game.season || 1) >= 9;
