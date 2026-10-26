@@ -1136,7 +1136,7 @@ function checkSendRateLimit() {
 function getBlockedUsers() {
     try {
         let list = JSON.parse(localStorage.getItem(SOCIAL_BLOCKED_KEY) || '[]');
-        return Array.isArray(list) ? list.map(entry => entry && typeof entry === 'object' ? { id: String(entry.id || ''), name: String(entry.name || '') } : { id: String(entry), name: '' }).filter(entry => entry.id) : [];
+        return Array.isArray(list) ? list.map(entry => entry && typeof entry === 'object' ? { id: String(entry.id || ''), name: String(entry.name || '') } : { id: String(entry || ''), name: '' }).filter(entry => entry.id && entry.id !== 'null') : [];
     } catch { return []; }
 }
 function getBlockedUserIds() { return getBlockedUsers().map(entry => entry.id); }
@@ -1465,7 +1465,8 @@ function renderChatMessages(messages, forceScroll) {
     if (maxId > 0) setLastSeenChatId(maxId);
     if (typeof game !== 'undefined' && game && game.noti) game.noti.social = false;
     refreshSocialNotificationDots();
-    messages = messages.filter(m => !isUserBlocked(m.user_id));   // 차단한 사람의 줄은 이 기기에서 그리지 않는다
+    let blocked = new Set(getBlockedUserIds());   // 차단한 사람의 줄은 이 기기에서 그리지 않는다(목록은 한 번만 읽는다)
+    messages = messages.filter(m => !blocked.has(String(m.user_id)));
     let nearBottom = (listEl.scrollHeight - listEl.scrollTop - listEl.clientHeight) < 60;
     let shouldScroll = !!forceScroll || socialState.scrollChatToLatestOnNextRender || nearBottom;
     let key = messages.map(m => `${m.id}:${m.nickname}`).join(',');
@@ -2372,7 +2373,7 @@ function chatSettingsBody() {
 function renderBlockedUsersRow() {
     let blocked = getBlockedUsers();
     if (!blocked.length) return '';
-    let chips = blocked.map(entry => `<button type="button" onclick="unblockUser('${socialEscape(entry.id)}')" title="차단 풀기">${socialEscape(entry.name || entry.id.slice(0, 8))} 풀기</button>`).join('');
+    let chips = blocked.map(entry => `<button type="button" data-user-id="${socialEscape(entry.id)}" onclick="unblockUser(this.dataset.userId)" title="차단 풀기">${socialEscape(entry.name || entry.id.slice(0, 8))} 풀기</button>`).join('');
     return `<div class="chat-settings-row"><span>차단한 사람</span>${chips}</div>`;
 }
 

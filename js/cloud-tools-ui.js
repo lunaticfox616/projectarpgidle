@@ -359,10 +359,10 @@ async function setChatMuteByNickname(button) {
     try {
         await cloudJsonRequest('/rest/v1/rpc/admin_set_chat_mute_by_nickname', { method: 'POST', body: { p_nickname: nickname, p_minutes: minutes, p_note: '' } });
         showGameToast(minutes ? '채팅을 금지했습니다.' : '채팅 금지를 풀었습니다.', 'success');
+        await loadChatReports();   // 실패했을 때는 다시 그리지 않아 입력한 닉네임이 남는다
     } catch (error) {
         showGameToast(describeMuteError(error), 'danger');
     }
-    await loadChatReports();
 }
 function muteConfirmText(name, minutes) {
     return minutes ? `${name} 계정의 채팅을 ${minutes >= 10080 ? '7일' : '1일'} 동안 금지할까요?` : `${name} 계정의 채팅 금지를 풀까요?`;
@@ -376,6 +376,8 @@ function describeMuteError(error) {
 async function peekPlayerChat(button) {
     let box = document.getElementById('chat-peek');
     if (!box) return;
+    box.dataset.chatPeek = button.dataset.chatPeek;   // 줄을 지운 뒤 같은 사람의 목록을 다시 그린다(deleteChatMessage)
+    box.dataset.chatName = button.dataset.chatName || '';
     box.innerHTML = '<p class="cloud-tools-empty">불러오는 중…</p>';
     try {
         let rows = await cloudJsonRequest(`/rest/v1/chat_messages?select=id,body,created_at&user_id=eq.${encodeURIComponent(button.dataset.chatPeek)}&order=id.desc&limit=15`, {});
@@ -385,7 +387,7 @@ async function peekPlayerChat(button) {
     }
 }
 function renderChatPeek(name, rows) {
-    return renderOpsTable(`${name || '이 플레이어'}의 최근 채팅`, [
+    return renderOpsTable(`${cloudToolsEscape(name || '이 플레이어')}의 최근 채팅`, [
         { label: '시각', render: row => new Date(row.created_at).toLocaleString('ko-KR') },
         { key: 'body', label: '채팅' },
         { label: '조치', html: row => `<button type="button" data-chat-delete="${cloudToolsEscape(row.id)}">줄 지우기</button>` }
@@ -417,6 +419,7 @@ async function deleteChatMessage(button) {
         title: '채팅 신고', tone: 'warning', confirmLabel: '지우기'
     });
     if (!confirmed) return;
+    let peek = button.closest('#chat-peek');   // 최근 채팅 목록 안의 단추였으면 다시 그린 뒤 그 목록을 되살린다
     try {
         await cloudJsonRequest('/rest/v1/rpc/admin_delete_chat_message', { method: 'POST', body: { p_message_id: Number(button.dataset.chatDelete) } });
         showGameToast('채팅 줄을 지웠습니다.', 'success');
@@ -424,6 +427,7 @@ async function deleteChatMessage(button) {
         showGameToast(`줄을 지우지 못했습니다: ${error.message || error}`, 'danger');
     }
     await loadChatReports();
+    if (peek) await peekPlayerChat({ dataset: { chatPeek: peek.dataset.chatPeek, chatName: peek.dataset.chatName } });
 }
 
 async function openOpsDashboard() {

@@ -54,7 +54,7 @@ function policyBlocks(text) {
 /** `create trigger 이름 ...;`: 이벤트 목록(before insert or update of a, b)과 함수가 같아야 한다. */
 function triggerBlocks(text) {
     const blocks = [];
-    const head = /create trigger ([a-z_0-9]+)/g;
+    const head = /create (?:or replace )?(?:constraint )?trigger ([a-z_0-9]+)/g;
     let match;
     while ((match = head.exec(text)) !== null) {
         let end = text.indexOf(';', match.index);
