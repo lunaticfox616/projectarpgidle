@@ -19,7 +19,11 @@ const loopSettlementUi = {
         return `${this.storyHtml()}
             <h2>루프 ${loop} 달성</h2>
             <dl class="loop-settlement-stats"><div><dt>도달 레벨</dt><dd>${game.level}</dd></div><div><dt>처치</dt><dd>${Number(game.loopKills || 0).toLocaleString()}</dd></div><div><dt>활동 시간</dt><dd>${time}</dd></div></dl>${this.barkHtml(loop)}
-            <section class="loop-settlement-next"><h3>다음 루프 ${loop + 1}</h3><ul>${features.concat(loopMutationUi.nextLoopLines(loop + 1)).map(row => `<li>${escapeHTML(row)}</li>`).join('')}</ul><p>진행 시 루프 포인트 1점 획득</p></section>${this.explainHtml(loop)}${this.stallWarningHtml()}${loopAutomationUi.controlsHtml()}`;
+            <section class="loop-settlement-next"><h3>다음 루프 ${loop + 1}</h3><ul>${features.concat(loopMutationUi.nextLoopLines(loop + 1)).map(row => `<li>${escapeHTML(row)}</li>`).join('')}</ul><p>진행 시 루프 포인트 1점 획득${this.loopPointLockText()}</p></section>${this.explainHtml(loop)}${this.stallWarningHtml()}${loopAutomationUi.controlsHtml()}`;
+    },
+    /** Until 루프 패시브 is bought the loop point only piles up: say where it goes (2026-10-27). */
+    loopPointLockText() {
+        return game.contentProgression && !contentProgression.isUnlocked('loopTree') ? ' (루프 패시브 해금 후 사용)' : '';
     },
     /** The loop's close (data/story-journal.js STORY_LOOP_MILESTONES.default): the narration, then the woodsman's words. */
     storyHtml() {
