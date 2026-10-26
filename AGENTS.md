@@ -51,7 +51,7 @@ CSS 전역 기본값은 `css/tokens.css`만 소유한다. 레이어 순서는
 | `js/canvas-*.js` | 읽기 전용 도메인 결과의 캔버스 표현 |
 | `js/ui.js`, `js/*-ui.js`, `js/cosmos-atlas.js` | DOM 조립과 사용자 이벤트 경계 |
 | `js/main.js` | 최종 부트스트랩과 최상위 오케스트레이션 |
-| `scripts/` | Node 기반 회귀·스모크 검사; 프로덕션에서 로드하지 않음 |
+| `scripts/` | Node 기반 검사(스모크, 구조 검사)와 개발 도구(시험 도구, 편집기 서버, 작업본 준비); 프로덕션에서 로드하지 않음 |
 | `tests/browser/` | Playwright 기반 실제 브라우저 행동 검사 |
 | `artifacts/` | 시안·비교 화면·측정 결과; 실제 게임 반영 여부를 구분 |
 | 저장소 밖 그림 | Hana 그림과 구입한 무대 이펙트 그림(`assets/stage-vfx/vfx.png`, `vfx2.png`)은 커밋하거나 공개하지 않는다(`.gitignore`, 비공개 저장소에서 배포에 들어간다). 나머지 무대 그림은 저장소에 있다 |
@@ -114,23 +114,10 @@ data -> utils -> state/save -> domain(items/skills/passives/core-cube)
   `safeExposeGlobals({ name })`를 사용하고, 이름 충돌·모든 소비자·로드 순서를 검사한다.
 - 저장 shape 변경에는 기본값, 이전 저장 마이그레이션, 손상 데이터 처리, 중복 적용 방지가 함께 있어야
   한다. 단위(ms/초, 비율/퍼센트)와 nullable 필드는 JSDoc 또는 기존 typedef로 명확히 한다.
-- 파일 수정은 `apply_patch`를 사용한다. 파괴적 Git 명령과 광범위한 삭제는 명시적 요청 없이는 금지한다.
-- 능력치 계산(`getPlayerStats`)은 정산과 평소 플레이에서 다시 쓰인다(`js/player-stat-cache.js`). 계산에 새 입력을 더할 때
-  싸우는 동안 바뀌는 값은 `playerStatTick` 읽기 함수로 읽고(경계값과 비교만 하면 `tick.when`), 빌드 값은
-  `data/build-stat-inputs.js`의 `BUILD_STAT_FIELDS`나 `BUILD_STAT_PARTS`에, 그 밖의 값은 `PLAYER_STAT_CONTEXT_FIELDS`에 이유와
-  함께 넣는다. 계산 안에서 `game`에 쓰는 값은 `PLAYER_STAT_DERIVED_WRITES`만 되고, 매 호출 처리는 `finishPlayerStats`에 둔다.
-  플레이어 입력, 처치, 지도 완료 밖에서 빌드나 계산이 읽는 모듈 상태를 바꾸는 코드는 `playerStatCache.invalidate()`를 부른다.
-  받은 능력치의 안쪽 객체(`sSkill`, `breakdowns` 말고)는 복사한 뒤 고친다. `scripts/smoke-player-stat-cache.js`가 이 규칙을
-  검사하고, 실패 메시지가 고칠 곳을 알려 준다.
-  찍거나 장착하기 전에 보여 줄 값(스킬트리, 전직, 상점 미리보기)은 `previewBuildStats(edit)`(`js/passives.js`)로 게임 사본에서 잰다.
-  살아 있는 `game`의 빌드를 잠시 바꿨다 되돌리면 계산이 쓴 칸(`PLAYER_STAT_DERIVED_WRITES`)이 남을 수 있다.
-- 나무꾼 전투 중(`game.woodsmanBuildLock`)에는 장비, 가방, 룬 기록, 패시브가 매 틱 전투 전으로 돌아가고 재화는 그대로다
-  (`enforceWoodsmanBuildLock`). 값을 치르고 이것들을 바꾸는 동작은 잠금 중에 거절한다(제작은 `equipmentCrafting.buildLockReason`).
-  혼돈 밖, 군락지, 대균열을 떠나면 다음 틱에 그 도전이 끝난다(`holdZoneBoundRuns`, 나무꾼 잠금도 이때 풀린다).
-- 현재 지역을 직접 바꾸는 콘텐츠 시작(군락지, 벌집, 혼돈 밖, 심해, 잔상, 대균열 같은)은 값을 치르기 전에 `getContentStartBlockReason`(`js/items.js`)을 묻는다.
-  벌집 원정과 경계 너머 안에서, 아틀라스 지도 안에서(지도를 포털 없이 빠져나가지 않게), 루프 진행 대기(시간 정지) 중에는 거절한다. `changeZone`을 거치는 입장은 `getHeldRunBlockReason`만 묻는다.
-  루프 정산은 진행 중인 도전(벌집, 군락지, 대균열, 경계 너머)을 끝낸다(`resetLoopContents`).
-- 콘텐츠 전용 고유(dropOnly.type)는 그 지역에서 고유를 굴릴 때만 나온다. 장비가 드문 콘텐츠는 `REALM_BOSS_UNIQUE_DROP_RULES.chance`(data/items.js)에 그 지역 종류를 넣어 보스 처치 때 굴리게 한다.
+- 파일은 에이전트의 편집 도구(Codex는 `apply_patch`)로 고친다. 파괴적 Git 명령과 광범위한 삭제는 명시적 요청 없이는 금지한다.
+- `getPlayerStats`에 입력을 더하거나, 그 계산이 읽는 모듈 상태를 바꾸거나, 찍기 전 미리보기 값을 보이면
+  [능력치 파이프라인의 작업 규칙](docs/player-stats-pipeline.md#계산에-입력을-더할-때-작업-규칙)을 따른다(`scripts/smoke-player-stat-cache.js`가 검사한다).
+- 나무꾼 전투 잠금, 지역을 바꾸는 콘텐츠 시작(군락지, 벌집, 대균열 같은), 콘텐츠 전용 고유를 고치면 [콘텐츠 도전 계약](docs/content-runs.md)을 먼저 읽는다.
 
 새 함수는 원칙적으로 60줄, 중첩 깊이 3, 순환 복잡도 10, 매개변수 5개를 넘지 않는다. 새 소스 파일은
 500줄 이하를 권장한다. 기존 거대 파일을 수정할 때는 작업과 무관한 대규모 분리를 섞지 않되, 수정한
@@ -171,6 +158,8 @@ mock은 시간·난수, 네트워크, 브라우저 스토리지, DOM/canvas 같�
 ```powershell
 npm test
 ```
+
+게임을 정해진 저장 상태와 화면 크기로 띄워 스크립트를 돌리거나 스크린숏을 찍을 때는 `npm run probe`(`scripts/probe-save.js` 머리말)를 쓴다.
 
 `npm test` 진입점이 사용할 수 없는 특별한 상황에서는 모든 `scripts/smoke-*.js`를 중단 없이 실행하고
 그 이유를 변경 설명에 남긴다. UI, 이벤트, 스크롤, 드래그, 캔버스, 스크립트 순서가 달라졌다면 Node
