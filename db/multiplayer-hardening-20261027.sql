@@ -413,6 +413,8 @@ create or replace function public.admin_get_chat_reports()
 returns jsonb language plpgsql security definer set search_path = public as $$
 begin
     if not public.is_project_admin() then raise exception 'ADMIN_REQUIRED'; end if;
+    -- 풀린 지 30일 지난 금지 줄은 관리자가 열 때 지운다(표가 계속 크지 않게).
+    delete from public.chat_mutes where until_at < now() - interval '30 days';
     return jsonb_build_object(
         'reports', coalesce((select jsonb_agg(to_jsonb(row_data) order by row_data.created_at desc) from (
             select report.id, report.created_at, report.target_user_id, report.nickname, report.message_id, report.body, report.reason,
