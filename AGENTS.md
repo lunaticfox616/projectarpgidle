@@ -66,7 +66,8 @@ data -> utils -> state/save -> domain(items/skills/passives/core-cube)
 오른쪽 계층은 왼쪽을 사용할 수 있지만 반대 방향 의존은 금지한다. 도메인은 UI 전용 함수나 DOM에
 의존하지 않는다. 양방향 호출과 이벤트·콜백으로 숨긴 순환 의존도 금지한다. 공통 shape는 가장 낮은
 공통 계층이 소유한다: 정적 정의는 `data/`, 런타임 상태는 `js/state.js`, 도메인 비종속 변환은
-`js/utils.js`가 단일 출처다.
+`js/utils.js`가 단일 출처다. 서버 호출 함수 `cloudJsonRequest`는 `js/ui.js`에 있어, 도메인 파일(`js/social.js`,
+`js/ghost-pvp.js`)의 새 함수가 부르면 래칫의 layer 위반이다. 새 서버 호출은 ui 파일(`js/cloud-tools-ui.js` 등)에 둔다.
 
 `index.html`의 스크립트 순서를 바꾸거나 새 소비자를 추가하면 생산자가 먼저 로드되는지 확인하고,
 저장 로드부터 첫 렌더까지 실제 브라우저에서 검증한다.
@@ -166,7 +167,8 @@ mock은 시간·난수, 네트워크, 브라우저 스토리지, DOM/canvas 같�
 
 실행 코드·게임 데이터·UI 자산·스타일·로드 순서·검사 코드를 변경하면 관련 검사를 먼저 실행하고,
 마무리에 전체 스모크를 실행한다. 구현 중에는 관련 검사로 반복하고, 통과 후 변경이나 새로운
-우려가 없으면 같은 전체 검사를 반복하지 않는다. JS 구조 변경은 `npm run check:architecture`도 실행한다.
+우려가 없으면 같은 전체 검사를 반복하지 않는다. JS를 고친 커밋은 커밋 전에 구조·복잡도 래칫
+(`npm run check:architecture`, 필터 없는 `npm test`의 끝에도 돈다)을 통과해야 한다. 한 줄 수정도 복잡도와 계층 규칙에 걸린다.
 
 ```powershell
 npm test

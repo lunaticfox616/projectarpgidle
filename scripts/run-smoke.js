@@ -11,8 +11,8 @@
 //   - 무한 대기하는 스크립트는 타임아웃으로 실패 처리한다(CI가 매달리지 않게)
 //
 // 사용:
-//   npm test                 전부 실행
-//   npm test -- merged-tab   이름에 'merged-tab'이 들어간 것만 (개발 중 빠른 반복용)
+//   npm test                 전부 실행(끝에 구조·복잡도 래칫 check:architecture도 돈다)
+//   npm test -- merged-tab   이름에 'merged-tab'이 들어간 것만 (개발 중 빠른 반복용, 래칫은 건너뛴다)
 //   SMOKE_TIMEOUT_MS=60000 npm test
 //   SMOKE_CONCURRENCY=1 npm test    순차 실행(출력 순서를 고정하고 싶을 때)
 'use strict';
@@ -124,6 +124,15 @@ async function main() {
         process.exit(1);
     }
     console.log('전부 통과');
+    if (!filters.length) runArchitectureRatchet();
+}
+
+// 전체 실행의 마지막에 구조·복잡도 래칫을 함께 돈다(2026-10-27 회고: 한 줄 JS 수정이 래칫에 걸린 채 커밋됐다. CI는 잡지만
+// 커밋 전에 `npm test`만 돌린 쪽은 몰랐다). 이름을 골라 돌릴 때는 빠른 반복이라 건너뛴다.
+function runArchitectureRatchet() {
+    console.log('\n구조·복잡도 래칫(check:architecture)');
+    let result = require('child_process').spawnSync(process.execPath, ['scripts/check-runtime-architecture.js'], { stdio: 'inherit' });
+    if (result.status !== 0) process.exit(result.status || 1);
 }
 
 main().catch(error => {
