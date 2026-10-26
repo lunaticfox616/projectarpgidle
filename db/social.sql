@@ -255,7 +255,7 @@ $$;
 --   * 같은 사용자가 최근 60초 동안 15개 초과 전송 → 차단
 --   * 직전 메시지와 완전히 동일한 본문 연속 전송 → 차단
 -- SECURITY DEFINER 로 RLS 우회하여 본인 최근 메시지를 집계한다.
---   * 시각은 서버가 정한다(2026-10-27: 클라이언트가 과거 시각을 넣어 이 제한을 비켜 갔다). payload는 8KB와 아이템 3개까지.
+--   * 시각은 서버가 정한다(2026-10-27: 클라이언트가 과거 시각을 넣어 이 제한을 비켜 갔다). payload는 64KB와 아이템 3개까지(끝판 장비 셋이 jsonb로 약 20KB).
 create or replace function public.chat_messages_rate_limit()
 returns trigger
 language plpgsql
@@ -273,9 +273,9 @@ begin
             greatest(1, ceil(extract(epoch from (public.chat_muted_until(new.user_id) - now())) / 60));
     end if;
     if new.payload is not null then
-        if jsonb_typeof(new.payload) <> 'object' or pg_column_size(new.payload) > 8192
+        if jsonb_typeof(new.payload) <> 'object' or pg_column_size(new.payload) > 65536
            or jsonb_typeof(new.payload -> 'items') <> 'array' or jsonb_array_length(new.payload -> 'items') > 3 then
-            raise exception 'CHAT_PAYLOAD_INVALID: 아이템 링크는 메시지마다 3개, 8KB까지입니다.';
+            raise exception 'CHAT_PAYLOAD_INVALID: 아이템 링크는 메시지마다 3개까지입니다.';
         end if;
     end if;
     if public.chat_text_is_offensive(new.body) then

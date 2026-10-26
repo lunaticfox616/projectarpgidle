@@ -10,7 +10,7 @@
 --      직접 쓸 수 있었다. 채팅 도배 제한과 원격 측정 일일 한도가 그 열로 세어 과거 시각을 넣으면 비켜 갔고, 미래 시각을 넣으면
 --      늘 접속 중으로 보였고, 닉네임 하루 1회 제한도 풀렸다. 이제 트리거가 서버 시각으로 덮어쓴다.
 --   2. 채팅 UPDATE 정책이 user_id만 봐서 지난 메시지의 본문, 시각, 닉네임을 바꿀 수 있었다. 이제 닉네임만, 자기 프로필의 닉네임으로만 바뀐다.
---   3. 채팅 payload와 공개 프로필 profile_data에 크기 상한이 없었다(payload 8KB와 아이템 3개, profile_data 512KB).
+--   3. 채팅 payload와 공개 프로필 profile_data에 크기 상한이 없었다(payload 64KB와 아이템 3개, profile_data 512KB).
 --   4. 원격 측정 표(playtest_runs, client_error_reports)의 jsonb와 글 열에 크기 상한이 없었다.
 --   5. 닉네임 글자 규칙(한글, 영문, 숫자, _ -)이 클라이언트에만 있었다. 공개 프로필의 updated_at이 하트비트마다 바뀌어
 --      프로필의 갱신 시각이 접속 시각이 됐다. 이제 그림이나 닉네임이 바뀔 때만 움직인다.
@@ -33,7 +33,7 @@ begin;
 -- ============================================================================
 -- 1) 채팅
 -- ============================================================================
--- 넣을 때: 시각은 서버가 정하고 payload는 8KB와 아이템 3개까지. 그 뒤 기존 속도 제한(1.5초, 60초 15개, 연속 중복).
+-- 넣을 때: 시각은 서버가 정하고 payload는 64KB와 아이템 3개까지(끝판 장비 셋이 jsonb로 약 20KB). 그 뒤 기존 속도 제한(1.5초, 60초 15개, 연속 중복).
 create or replace function public.chat_messages_rate_limit()
 returns trigger
 language plpgsql
@@ -51,9 +51,9 @@ begin
             greatest(1, ceil(extract(epoch from (public.chat_muted_until(new.user_id) - now())) / 60));
     end if;
     if new.payload is not null then
-        if jsonb_typeof(new.payload) <> 'object' or pg_column_size(new.payload) > 8192
+        if jsonb_typeof(new.payload) <> 'object' or pg_column_size(new.payload) > 65536
            or jsonb_typeof(new.payload -> 'items') <> 'array' or jsonb_array_length(new.payload -> 'items') > 3 then
-            raise exception 'CHAT_PAYLOAD_INVALID: 아이템 링크는 메시지마다 3개, 8KB까지입니다.';
+            raise exception 'CHAT_PAYLOAD_INVALID: 아이템 링크는 메시지마다 3개까지입니다.';
         end if;
     end if;
     if public.chat_text_is_offensive(new.body) then
