@@ -470,6 +470,7 @@ declare
 begin
     if account_id is null then raise exception 'AUTH_REQUIRED'; end if;
     if p_target_user_id is null or p_target_user_id = account_id then raise exception 'REPORT_INVALID_TARGET'; end if;
+    if not exists (select 1 from public.player_profiles target where target.user_id = p_target_user_id) then raise exception 'REPORT_INVALID_TARGET'; end if;
     if p_reason is null or char_length(trim(p_reason)) not between 1 and 200 then raise exception 'REPORT_INVALID_REASON'; end if;
     if exists (select 1 from public.chat_reports where reporter_id = account_id and target_user_id = p_target_user_id
                   and created_at >= now() - interval '1 day') then raise exception 'REPORT_ALREADY_SENT'; end if;
