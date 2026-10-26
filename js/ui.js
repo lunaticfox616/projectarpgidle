@@ -11279,9 +11279,22 @@ document.addEventListener('visibilitychange', () => {
     if (!document.hidden) recoverBusyStateAfterOAuthBack();
 });
 
+/** 라이브러리가 토큰을 갱신하면(autoRefreshToken) 게임 세션도 그 토큰으로 맞춘다: 둘이 같은 refresh_token을 따로 갱신하다 늦은 쪽이
+ * 거절되는 일을 줄인다(2026-10-27). 거절된 뒤의 이어받기는 refreshCloudSession이 따로 한다. 한 클라이언트에 한 번만 건다. */
+function watchSupabaseTokenRefresh(client) {
+    if (client.__rigninTokenWatch || !client.auth || typeof client.auth.onAuthStateChange !== 'function') return;
+    client.__rigninTokenWatch = true;
+    client.auth.onAuthStateChange((event, session) => {
+        if (event !== 'TOKEN_REFRESHED' || !session || !session.access_token) return;
+        if (cloudState.session && cloudState.session.refresh_token === session.refresh_token) return;
+        applyCloudSession(session);
+    });
+}
+
 async function tryRestoreSupabaseOAuthSession() {
     let client = getSupabaseClient();
     if (!client) return false;
+    watchSupabaseTokenRefresh(client);
     try {
         let { data, error } = await client.auth.getSession();
         if (error) throw error;
