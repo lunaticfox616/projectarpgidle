@@ -15,6 +15,7 @@ create or replace function public.normalize_ghost_combat_snapshot(payload jsonb,
 returns jsonb
 language plpgsql
 immutable
+set search_path = public
 as $$
 declare
     source jsonb := coalesce(payload, '{}'::jsonb);
@@ -72,6 +73,7 @@ create or replace function public.prepare_ghost_duel_fighter(snapshot jsonb, ene
 returns jsonb
 language sql
 immutable
+set search_path = public
 as $$
     select snapshot || jsonb_build_object(
         'maxVitality', public.ghost_snapshot_number(coalesce(snapshot -> 'directEhpByElement', fallback_ehp), enemy_element,
@@ -98,6 +100,7 @@ create or replace function public.simulate_ghost_duel(left_snapshot jsonb, right
 returns jsonb
 language plpgsql
 immutable
+set search_path = public
 as $$
 -- 움직이며 싸우는 대결(2026-10-22 사용자: "실제 전투처럼 (몬스터와 전투하는것처럼) 범위,이동속도 등이 영향이 있도록 서로 움직이면서").
 -- 두 고스트는 게임의 주인공처럼 움직인다(js/combat.js updatePlayerGridEngagement). 12칸 줄에서 7칸 떨어져 선다.

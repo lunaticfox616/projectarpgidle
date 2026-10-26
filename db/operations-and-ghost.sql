@@ -324,6 +324,7 @@ create or replace function public.ghost_ehp_for_element(values_json jsonb, eleme
 returns numeric
 language sql
 immutable
+set search_path = public
 as $$
     select greatest(1, least(9000000000000000::numeric,
         coalesce(case when jsonb_typeof(values_json -> element_key) = 'number'
@@ -338,6 +339,7 @@ create or replace function public.ghost_snapshot_number(
 returns numeric
 language sql
 immutable
+set search_path = public
 as $$
     select greatest(minimum, least(maximum, coalesce(
         case when jsonb_typeof(payload -> field_name) = 'number'
@@ -348,6 +350,7 @@ create or replace function public.normalize_ghost_combat_snapshot(payload jsonb,
 returns jsonb
 language plpgsql
 immutable
+set search_path = public
 as $$
 declare
     source jsonb := coalesce(payload, '{}'::jsonb);
@@ -405,6 +408,7 @@ create or replace function public.ghost_duel_roll(seed_value text, roll_key text
 returns numeric
 language sql
 immutable
+set search_path = public
 as $$
     select abs(mod(hashtextextended(seed_value || ':' || roll_key, 0), 1000001)) / 1000000.0;
 $$;
@@ -413,6 +417,7 @@ create or replace function public.prepare_ghost_duel_fighter(snapshot jsonb, ene
 returns jsonb
 language sql
 immutable
+set search_path = public
 as $$
     select snapshot || jsonb_build_object(
         'maxVitality', public.ghost_snapshot_number(coalesce(snapshot -> 'directEhpByElement', fallback_ehp), enemy_element,
@@ -439,6 +444,7 @@ create or replace function public.resolve_ghost_duel_attack(attacker jsonb, defe
 returns jsonb
 language plpgsql
 immutable
+set search_path = public
 as $$
 declare
     seed_value text := attack_context ->> 'seed'; key_value text := attack_context ->> 'key';
@@ -480,6 +486,7 @@ create or replace function public.simulate_ghost_duel(left_snapshot jsonb, right
 returns jsonb
 language plpgsql
 immutable
+set search_path = public
 as $$
 -- 움직이며 싸우는 대결(2026-10-22 사용자: "실제 전투처럼 (몬스터와 전투하는것처럼) 범위,이동속도 등이 영향이 있도록 서로 움직이면서").
 -- 두 고스트는 게임의 주인공처럼 움직인다(js/combat.js updatePlayerGridEngagement). 12칸 줄에서 7칸 떨어져 선다.

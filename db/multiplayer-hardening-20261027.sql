@@ -22,6 +22,7 @@
 --      7일 안에 기록된 고스트는 순위전에서 점수가 움직이지 않고 상대도 잃지 않는다(ghost_under_review). 관리자가 기록을 지울 수 있다.
 --  10. 전당: 고유 효과 값(uniqueEffectParams)과 품질의 크기를 본다. 90일 지난 대전 기록과 30일 지난 팔린 적 없는 내린 전시는 지운다.
 --      접속 인원만 돌려주는 get_online_counts(채팅 창 배지가 80줄 대신 이것을 묻는다).
+--  11. 권고에 걸린 함수 9개의 search_path를 public으로 고정한다.
 
 begin;
 
@@ -716,5 +717,22 @@ $$;
 revoke all on function public.get_online_counts() from public, anon;
 grant execute on function public.get_online_counts() to authenticated;
 
+
+-- ============================================================================
+-- 8) 함수의 search_path 고정 (Supabase 보안 권고 "Function Search Path Mutable"; 원본 파일에서는 함수 머리에 set search_path = public)
+-- ============================================================================
+do $$
+begin
+    if to_regprocedure('public.touch_cloud_save_updated_at()') is not null then execute 'alter function public.touch_cloud_save_updated_at() set search_path = public'; end if;
+    if to_regprocedure('public.social_set_updated_at()') is not null then execute 'alter function public.social_set_updated_at() set search_path = public'; end if;
+    if to_regprocedure('public.normalize_ghost_combat_snapshot(jsonb, numeric, jsonb)') is not null then execute 'alter function public.normalize_ghost_combat_snapshot(jsonb, numeric, jsonb) set search_path = public'; end if;
+    if to_regprocedure('public.ghost_snapshot_number(jsonb, text, numeric, numeric, numeric)') is not null then execute 'alter function public.ghost_snapshot_number(jsonb, text, numeric, numeric, numeric) set search_path = public'; end if;
+    if to_regprocedure('public.ghost_duel_roll(text, text)') is not null then execute 'alter function public.ghost_duel_roll(text, text) set search_path = public'; end if;
+    if to_regprocedure('public.ghost_ehp_for_element(jsonb, text)') is not null then execute 'alter function public.ghost_ehp_for_element(jsonb, text) set search_path = public'; end if;
+    if to_regprocedure('public.prepare_ghost_duel_fighter(jsonb, text, jsonb)') is not null then execute 'alter function public.prepare_ghost_duel_fighter(jsonb, text, jsonb) set search_path = public'; end if;
+    if to_regprocedure('public.simulate_ghost_duel(jsonb, jsonb, text)') is not null then execute 'alter function public.simulate_ghost_duel(jsonb, jsonb, text) set search_path = public'; end if;
+    if to_regprocedure('public.resolve_ghost_duel_attack(jsonb, jsonb, jsonb, numeric)') is not null then execute 'alter function public.resolve_ghost_duel_attack(jsonb, jsonb, jsonb, numeric) set search_path = public'; end if;
+end
+$$;
 
 commit;
