@@ -5,6 +5,8 @@
   "description": "브라우저 방치형 ARPG. CSS는 PostCSS로 번들링하고 JS는 index.html의 클래식 스크립트 순서를 유지한다.",
   "scripts": {
     "dev": "node scripts/serve-test.js",
+    "setup:worktree": "node scripts/setup-worktree.js",
+    "probe": "node scripts/probe-save.js",
     "build": "node scripts/build-web.js",
     "review:css": "node scripts/review-css.cjs",
     "check:css": "node scripts/check-css.js",
