@@ -1132,15 +1132,27 @@ function checkSendRateLimit() {
     return true;
 }
 // 차단(2026-10-27): 이 기기에서만 그 사람의 채팅을 숨긴다(기기마다 따로, 서버에는 남기지 않는다). 신고는 서버(report_player_chat)로 간다.
-function getBlockedUserIds() {
-    try { let list = JSON.parse(localStorage.getItem(SOCIAL_BLOCKED_KEY) || '[]'); return Array.isArray(list) ? list.map(String) : []; }
-    catch { return []; }
+/** 차단 목록: [{ id, name }]. 예전 저장(id 문자열 배열)도 읽는다. 이름은 채팅 설정 창의 풀기 줄에 쓴다(숨긴 사람의 채팅은 눌러 열 수 없으니). */
+function getBlockedUsers() {
+    try {
+        let list = JSON.parse(localStorage.getItem(SOCIAL_BLOCKED_KEY) || '[]');
+        return Array.isArray(list) ? list.map(entry => entry && typeof entry === 'object' ? { id: String(entry.id || ''), name: String(entry.name || '') } : { id: String(entry), name: '' }).filter(entry => entry.id) : [];
+    } catch { return []; }
 }
+function getBlockedUserIds() { return getBlockedUsers().map(entry => entry.id); }
 function isUserBlocked(userId) { return !!userId && getBlockedUserIds().includes(String(userId)); }
-function setUserBlocked(userId, blocked) {
-    let list = getBlockedUserIds().filter(id => id !== String(userId));
-    if (blocked) list.push(String(userId));
+function setUserBlocked(userId, blocked, name) {
+    let list = getBlockedUsers().filter(entry => entry.id !== String(userId));
+    if (blocked) list.push({ id: String(userId), name: String(name || '').slice(0, 16) });
     try { localStorage.setItem(SOCIAL_BLOCKED_KEY, JSON.stringify(list.slice(-200))); } catch { /* 무시 */ }
+}
+/** 채팅 설정 창의 풀기 단추(renderBlockedUsersRow). */
+function unblockUser(userId) {
+    setUserBlocked(userId, false);
+    socialState.lastChatRenderKey = '';
+    renderChatMessages(socialState.chatMessages || [], false);
+    refreshChatSettings();
+    showGameToast('차단을 풀었습니다.', 'info');
 }
 /** 서버가 채팅을 거절한 까닭(db/social.sql chat_messages_rate_limit의 오류 코드)을 플레이어 문구로. 첫 줄부터 맞는 것 하나. */
 const SOCIAL_CHAT_ERROR_TEXTS = [
@@ -2224,7 +2236,7 @@ function toggleProfileBlock() {
     let target = socialState.currentProfileUserId;
     if (!target || target === socialLoggedInUserId()) return;
     let blocked = !isUserBlocked(target);
-    setUserBlocked(target, blocked);
+    setUserBlocked(target, blocked, socialState.currentProfile && socialState.currentProfile.nickname);
     socialState.lastChatRenderKey = '';
     renderChatMessages(socialState.chatMessages || [], false);
     let tab = socialState.profileTab;   // 다시 그리면 장비 탭으로 돌아가므로 보던 탭을 되살린다
@@ -2352,8 +2364,16 @@ function chatSettingsBody() {
         <div class="chat-settings-row"><span>공개 프로필</span>
             <button type="button" onclick="openMyProfilePreview()">보기</button>
             <button type="button" onclick="syncPlayerProfile()" title="지금 장비와 능력치를 공개 프로필에 올립니다">동기화</button></div>
+        ${renderBlockedUsersRow()}
         <div id="social-online" class="social-online" style="display:none;"></div>
     </div>`;
+}
+/** 이 기기에서 차단한 사람들: 이름과 풀기 단추. 없으면 줄을 두지 않는다. */
+function renderBlockedUsersRow() {
+    let blocked = getBlockedUsers();
+    if (!blocked.length) return '';
+    let chips = blocked.map(entry => `<button type="button" onclick="unblockUser('${socialEscape(entry.id)}')" title="차단 풀기">${socialEscape(entry.name || entry.id.slice(0, 8))} 풀기</button>`).join('');
+    return `<div class="chat-settings-row"><span>차단한 사람</span>${chips}</div>`;
 }
 
 function openChatSettings() {
@@ -2493,6 +2513,6 @@ if (typeof safeExposeGlobals === 'function') {
         openPlayerProfile, openMyProfilePreview, closePlayerProfile, renderSocialTab, socialLoggedInUserId, restoreNicknameFromServer,
         attachChatItem, removePendingChatItem, openItemPicker, closeItemPicker, openTipModal, updateChatCounter,
         showSocialTip, moveSocialTip, hideSocialTip, switchProfileTab, sendPresenceHeartbeat, refreshOnlineUsers,
-        checkSocialChatNotification, syncSocialChatNotificationSetting, syncSocialBackgroundTasks, toggleProfileBlock
+        checkSocialChatNotification, syncSocialChatNotificationSetting, syncSocialBackgroundTasks, toggleProfileBlock, unblockUser
     });
 }
