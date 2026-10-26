@@ -3,6 +3,7 @@ const sideEncounterUi = (() => {
     let lastHudHtml = '';
     let labyrinthChoice = { owner: null, season: 0, floor: 1, current: 1 };
     let colonyWithdrawPending = false;
+    let grandWithdrawPending = false;
 
     // Keep the action row connected while combat estimates and countdowns change.
     function renderPanel(panel, html) {
@@ -98,7 +99,7 @@ const sideEncounterUi = (() => {
             ? `<span>현장 적 <b>${game.enemies.filter(enemy => enemy.hp > 0).length}/${config.capacities[progress.stage]}</b></span>` : '';
         return `<strong>${heading}</strong><span>게이지 <b>${progress.percent}%</b></span>
             <span>군주 압박 <b>${pressure}단계</b></span>
-            ${crowd}<span class="grand-breach-reward">격파 보상 <b>${grandRewardPreview(reward)}</b></span><small>${next}</small>`;
+            ${crowd}<span>보관 전리품 <b>${run.pendingLoot?.length || 0}묶음</b></span><span class="grand-breach-reward">격파 보상 <b>${grandRewardPreview(reward)}</b></span><small>${next}</small>`;
     }
 
     function updateGrandBreachGauge(run) {
@@ -111,9 +112,17 @@ const sideEncounterUi = (() => {
         setCombatProgressGaugePercent(survival ? progress.percent : 100);
     }
 
+    function updateReturnAction(zone) {
+        const grand = game.voidRift.grandRun;
+        const inGrand = zone.type === 'grandBreach' && grand?.inRun;
+        const inColony = zone.type === 'colony' && game.colony.inRun;
+        // These runs own one loss dialog; other travel keeps the exploration confirmation.
+        document.getElementById('btn-combat-return')?.toggleAttribute('data-exploration-departure', !inGrand && !inColony);
+        if (inGrand) setTextById('btn-combat-return', grand.phase === 'loot' ? '귀환' : '원정 포기');
+    }
+
     function updateHud(zone) {
-        // Colony withdrawal owns its loot-loss dialog; other travel keeps the exploration confirmation.
-        document.getElementById('btn-combat-return')?.toggleAttribute('data-exploration-departure', zone.type !== 'colony' || !game.colony.inRun);
+        updateReturnAction(zone);
         updateMeteorProgress(zone);
         updateColonyProgress(zone);
         updateEchoProgress(zone);
@@ -210,7 +219,8 @@ const sideEncounterUi = (() => {
     }
 
     function grandActions(rift) {
-        if (rift.grandRun?.inRun) return '<button type="button" onclick="switchTab(\'tab-battle\')">전투 보기</button>';
+        if (rift.grandRun?.inRun) return `<button type="button" onclick="switchTab('tab-battle')">전투 보기</button>
+            <button type="button" onclick="sideEncounterUi.withdrawGrandBreach()">${rift.grandRun.phase === 'loot' ? '귀환' : '원정 포기'}</button>`;
         const hint = rift.grandBreachUnlock ? '' : `<span>공허 균열 완료 시 ${Math.round(GRAND_BREACH_ENCOUNTER.unlockChance * 100)}% 확률로 열립니다.</span>`;
         return `<button type="button" data-exploration-departure onclick="enterGrandBreach()" ${rift.grandBreachUnlock?'':'disabled'}>대균열 입장</button>${hint}`;
     }
@@ -490,23 +500,41 @@ const sideEncounterUi = (() => {
     }
     function returnFromBattle() {
         if (game.currentZoneId === 'colony_run' && game.colony.inRun) return withdrawColony();
+        if (game.currentZoneId === 'grand_breach_run' && game.voidRift.grandRun?.inRun) return withdrawGrandBreach();
         return returnToTown();
     }
-    function colonyWithdrawalCurrent(view) {
-        return game === view.owner && game.colony === view.colony && game.colony.inRun && game.currentZoneId === 'colony_run'
-            && game.actExploration === view.run && game.colony.wave === view.wave && JSON.stringify(game.colony.pendingLoot) === view.held;
+    function withdrawalCurrent(view, encounter, zoneId, stage) {
+        return game === view.owner && encounter === view.encounter && encounter.inRun && game.currentZoneId === zoneId
+            && game.actExploration === view.run && stage === view.stage && JSON.stringify(encounter.pendingLoot) === view.held;
+    }
+    async function withdrawGrandBreach() {
+        const grand = game.voidRift.grandRun;
+        if (grandWithdrawPending || !grand?.inRun || game.currentZoneId !== 'grand_breach_run') return false;
+        if (grand.phase === 'loot') { returnToTown(); return true; }
+        const view = { owner: game, encounter: grand, run: game.actExploration, stage: grand.phase, held: JSON.stringify(grand.pendingLoot) };
+        const message = grand.pendingLoot.length ? `보관 전리품 ${grand.pendingLoot.length}묶음을 포기하고 귀환할까요?` : '대균열을 포기하고 귀환할까요?';
+        grandWithdrawPending = true;
+        try {
+            const accepted = await requestGameConfirmation(message, { kicker: '대균열', title: '원정 포기', tone: 'danger', confirmLabel: '포기', cancelLabel: '계속 전투', dismissOnBackdrop: false });
+            if (!accepted) return false;
+            if (!withdrawalCurrent(view, game.voidRift.grandRun, 'grand_breach_run', game.voidRift.grandRun?.phase)) {
+                addLog('원정 상태가 바뀌었습니다. 다시 확인하세요.', 'attack-monster'); return false;
+            }
+            returnToTown();
+            return true;
+        } finally { grandWithdrawPending = false; }
     }
     async function withdrawColony() {
         const colony = game.colony;
         if (colonyWithdrawPending || !colony.inRun || game.currentZoneId !== 'colony_run') return false;
         if (!colony.pendingLoot.length) { forfeitColonyRun(); return true; }
-        const view = { owner: game, colony, run: game.actExploration, wave: colony.wave, held: JSON.stringify(colony.pendingLoot) };
+        const view = { owner: game, encounter: colony, run: game.actExploration, stage: colony.wave, held: JSON.stringify(colony.pendingLoot) };
         colonyWithdrawPending = true;
         try {
             const accepted = await requestGameConfirmation(`보관 전리품 ${colony.pendingLoot.length}묶음을 포기하고 철수할까요?`,
                 { title: '군락지 철수', confirmLabel: '철수', cancelLabel: '취소', dismissOnBackdrop: false });
             if (!accepted) return false;
-            if (!colonyWithdrawalCurrent(view)) { addLog('군락지 원정이 바뀌었습니다. 다시 확인하세요.', 'attack-monster'); return false; }
+            if (!withdrawalCurrent(view, game.colony, 'colony_run', game.colony.wave)) { addLog('군락지 원정이 바뀌었습니다. 다시 확인하세요.', 'attack-monster'); return false; }
             forfeitColonyRun();
             return true;
         } finally { colonyWithdrawPending = false; }
@@ -597,5 +625,5 @@ const sideEncounterUi = (() => {
             <button onclick="switchTab('tab-skills'); switchSkillSubtab('skill-tab-enhance')" ${gemUnlocked?'':'disabled'}>룬 강화로 이동</button></div></div>`;
     }
 
-    return { hiveSummary, updateHud, refreshDestinations, hivePanel, grandPanel, meteorPanel, labyrinthPanel, selectLabyrinthFloor, chooseLabyrinthFloor, timeRiftPanel, inspectTimeItem, colonyPanel, toggleColonyReturn, withdrawColony, returnFromBattle, skyPanel, skyGrowth, renderPanel };
+    return { hiveSummary, updateHud, refreshDestinations, hivePanel, grandPanel, meteorPanel, labyrinthPanel, selectLabyrinthFloor, chooseLabyrinthFloor, timeRiftPanel, inspectTimeItem, colonyPanel, toggleColonyReturn, withdrawColony, withdrawGrandBreach, returnFromBattle, skyPanel, skyGrowth, renderPanel };
 })();

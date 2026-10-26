@@ -3192,6 +3192,7 @@ function enterGrandBreach(options){
     game.combatHalted = false;
     if (!options || !options.automatic) addLog('🌌 대균열 진입! 일반 몬스터 0.5%, 정예 3%씩 게이지를 채워 균열 군주를 소환합니다. 전리품은 군주 처치 시 쏟아집니다.', 'season-up');
     updateStaticUI();
+    queueImportantSave(200);
 }
 
 function toggleMeteorAutoEnter(){ game.settings = game.settings || {}; game.settings.autoEnterMeteor = !game.settings.autoEnterMeteor; addLog(`☄️ 운석 낙하 자동입장 ${game.settings.autoEnterMeteor ? '켜짐' : '꺼짐'}`, 'season-up'); updateStaticUI(); }

@@ -9543,6 +9543,9 @@ function finishTownReturnAction() {
 
 function returnToTown() {
     if (game.isTownReturning && game.moveTimer > 0) return;
+    const returningFromRun = ['grand_breach_run', 'colony_run'].includes(game.currentZoneId);
+    const run = game.currentZoneId === 'grand_breach_run' ? game.voidRift.grandRun : game.colony;
+    if (returningFromRun) game.currentZoneId = run?.returnZoneId ?? getAutoProgressZoneId(game.maxZoneId);
     leaveWoodsmanEchoForTown();
     atlasRun.leave('마을 귀환');
     cosmosRouteRuntime.leave(game);
@@ -9554,6 +9557,7 @@ function returnToTown() {
     addLog('⛺ 마을 귀환', "season-up");
     startMoving(true);
     updateStaticUI();
+    if (returningFromRun) queueImportantSave(200);
 }
 
 /** 전술 규칙의 마을 귀환(예전 귀환 룬): 규칙은 열린 지도의 마지막 포털을 쓰지 않는다(죽지 않고 지도가 닫히므로). */

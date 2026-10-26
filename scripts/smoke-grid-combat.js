@@ -2866,4 +2866,32 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   }
 }
 
+// Town return must leave a one-use breach, rather than reset its sealed arena while retaining the boss phase.
+{
+  const runtime = buildGameRuntime();
+  runtime.Math = Object.create(Math);runtime.Math.random=()=>0.999999;
+  for (const file of ['data/stage-room-plans.js','data/stage-regions.js','js/stage-region-fit.js','js/act-exploration-room-plans.js'])
+    vm.runInContext(fs.readFileSync(file,'utf8'),runtime,{filename:file});
+  for (const won of [false,true]) {
+    runtime.lordAlreadyDown=won;
+    const result=JSON.parse(vm.runInContext(`JSON.stringify((()=>{
+      game=mergeDefaults({season:9,loopCount:8});stageActors.available=()=>true;game.settings.stageRooms='on';
+      game.voidRift.grandBreachUnlock=true;enterGrandBreach();startEncounterRun();
+      const grand=game.voidRift.grandRun;grand.gauge=200;grand.kills=70;tickGrandBreachRun(getZone('grand_breach_run'));
+      actExplorationState.groundLoot.reserve({currency:'formlessDew',count:3});
+      if(lordAlreadyDown){const boss=game.actExploration.packs.flatMap(pack=>pack.waiting).find(enemy=>enemy.isBoss);
+        Object.assign(game.gridPlayer,{gx:boss.gx-1,gy:boss.gy});
+        actExplorationState.engage(game,0);actExplorationState.engage(game,10000);
+        boss.hp=0;handleEnemyDeath(boss,getPlayerStats());
+        game=mergeDefaults(JSON.parse(serializeSaveState(game)));}
+      returnToTown();
+      const paid=game.currencies.formlessDew;
+      game=mergeDefaults(JSON.parse(serializeSaveState(game)));
+      return {returned:game.currentZoneId===0,finished:!game.voidRift.grandRun.inRun,
+        phase:game.voidRift.grandRun.phase,paid,held:game.voidRift.grandRun.pendingLoot.length,entry:game.voidRift.grandBreachUnlock};
+    })())`,runtime));
+    assert.deepStrictEqual(result,{returned:true,finished:true,phase:won?'done':'failed',paid:won?3:0,held:0,entry:false},
+      'town return abandons unreleased loot, collects won loot once and persists a closed challenge');
+  }
+}
 console.log('smoke-grid-combat passed');
