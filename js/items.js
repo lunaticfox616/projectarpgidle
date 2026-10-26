@@ -645,6 +645,8 @@ function resolveTimeRiftFusion() {
     rift.activePressure = null;
     // guaranteedKeep: 융합 결과물이 습득 필터/자동해체에 걸려 유실되는 것을 방지한다.
     addItemToInventory(fused, { guaranteedKeep: true, skipAutoEquip: true });
+    rift.lastFusion = { id: fused.id, instanceId: ensureEquipmentLoadoutItemIdentity(fused), name: fused.name,
+        pressure: rift.pressure, inherited: rareStats.length, lost, season: game.season };
     return { fused: fused, grade: grade, lost: lost, inherited: rareStats.length };
 }
 

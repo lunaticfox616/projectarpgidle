@@ -1372,6 +1372,7 @@ function mergeDefaults(save) {
     normalizeVoidRiftSave(merged);
     merged.timeRift = (merged.timeRift && typeof merged.timeRift === 'object') ? { ...defaultGame.timeRift, ...merged.timeRift } : { ...defaultGame.timeRift };
     merged.timeRift.fusionCount = Math.max(0, Math.floor(clampFiniteNumber(merged.timeRift.fusionCount, 0, 0)));
+    merged.timeRift.lastFusion = window.GameModules.state.normalizeTimeRiftResult(merged.timeRift.lastFusion);
     repairJournalEntriesFromProgress(merged);
     // 저널 보너스는 기록 정의에서 항상 재구축한다. 저장 배열을 그대로 신뢰하면
     // 클라우드 병합·구버전 이관 과정에서 같은 기록이 중복되어 능력치가 누적될 수 있다.

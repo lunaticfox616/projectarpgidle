@@ -42,7 +42,7 @@
 .map-expedition-details { margin:12px 0; color:var(--color-text-secondary); }
 .map-expedition-details summary { cursor:pointer; }
 #ui-timerift-panel { container:time-rift / inline-size; }
-.time-rift-stages { display:grid; grid-template-columns:minmax(0,1fr) repeat(2,round(down,calc((100% - 20px) / 3),1px)); gap:10px; margin-top:12px; }
+.time-rift-stages { display:grid; grid-template-columns:1fr; gap:10px; margin-top:12px; }
 .time-rift-stages > section { min-width:0; }
 .time-rift-stages .map-expedition-intro { display:flex; flex-direction:column; box-sizing:border-box; height:100%; }
 .time-rift-stages h3 { margin:0 0 8px; color:var(--color-accent); font-size:15px; border:0; }
@@ -52,9 +52,20 @@
 .time-rift-stages .map-expedition-actions { margin-top:auto; padding-top:12px; }
 .time-rift-stages .map-expedition-actions button { flex:1 1 auto; padding:8px 10px; }
 .time-rift-stages .time-rift-selected { color:var(--color-text); }
-/* 융합 결과 확률(2026-10-25): 희귀 옵션 6개일 때 남는 개수(0~6)마다 기둥 하나, 위에 확률. loss-N은 잃은 개수다(6개 남음 금빛,
-   하나도 안 남음 빨강). */
-.time-rift-odds { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:6px; margin-top:12px; }
+/* Options on the altar determine the column count; loss-N retains the existing loss colors. */
+.time-rift-odds { display:grid; grid-template-columns:repeat(var(--time-rift-columns,7),minmax(0,1fr)); gap:6px; margin-top:8px; }
+.time-rift-odds-basis { display:block; margin-top:12px; color:var(--color-text-secondary); }
+.time-rift-items { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin-top:12px; }
+.time-rift-item { min-width:0; border:1px solid var(--color-line-strong); background:var(--color-surface-raised); }
+.time-rift-item summary { padding:10px; cursor:pointer; overflow-wrap:anywhere; }
+.time-rift-item summary span { margin-right:8px; color:var(--color-text-secondary); }
+.time-rift-item summary strong { font-weight:500; color:var(--color-accent); }
+.time-rift-item-empty { display:flex; justify-content:space-between; gap:8px; padding:10px; border:1px solid var(--color-line-strong); color:var(--color-text-secondary); }
+.time-rift-item-body { padding:0 10px 10px; overflow-wrap:anywhere; }
+.time-rift-item-body .equipment-inspection-tooltip { min-width:0; max-width:100%; }
+.time-rift-result-card { margin-top:12px; }
+.time-rift-result-card dl { margin-bottom:0; }
+.time-rift-stages .time-rift-risk { color:var(--color-danger); }
 .time-rift-column { display:flex; flex-direction:column; align-items:center; gap:3px; min-width:0; }
 .time-rift-column > span { display:flex; align-items:flex-end; width:100%; height:64px; background:#0b0908; box-shadow:0 0 0 1px #2a2218; }
 .time-rift-column i { display:block; width:100%; min-height:1px; }
@@ -69,7 +80,13 @@
 .time-rift-column.loss-6 i { background:#c0504a; }
 .time-rift-column.loss-0 b { color:#f3d28c; }
 .time-rift-stepper > b { min-width:28px; color:#f3d28c; text-align:center; }
-@container time-rift (max-width:780px) { .time-rift-stages { grid-template-columns:1fr; } }
+@container time-rift (min-width:580px) {
+    .time-rift-stages > :is([data-rift-stage="past"],[data-rift-stage="future"]) .map-expedition-intro { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px 16px; align-items:start; }
+    .time-rift-stages > :is([data-rift-stage="past"],[data-rift-stage="future"]) h3 { grid-column:1/-1; margin-bottom:0; }
+    .time-rift-stages > :is([data-rift-stage="past"],[data-rift-stage="future"]) p { margin:0; }
+    .time-rift-stages > :is([data-rift-stage="past"],[data-rift-stage="future"]) .map-expedition-actions { margin-top:0; padding-top:0; justify-content:flex-end; }
+}
+@container time-rift (max-width:579px) { .time-rift-items { grid-template-columns:1fr; } }
 @container time-rift (max-width:420px) { .time-rift-odds { gap:3px; } .time-rift-column small { font-size:11px; } }
 .map-expedition-intro:has(.map-hive-choices) { container:hive-choices / inline-size; }
 .map-hive-choices { display:grid; grid-template-columns:minmax(0,1fr) repeat(2,round(down,calc((100% - 16px) / 3),1px)); gap:8px; margin-top:12px; }

@@ -61,6 +61,19 @@ window.GameState = window.GameState || {
 };
 window.GameModules.state = window.GameState;
 
+/** Compact receipt only; equipment ownership remains in the inventory. Counts are nonnegative integers, pressure 1..10. */
+window.GameModules.state.normalizeTimeRiftResult = function (value) {
+    if (!value || typeof value !== 'object') return null;
+    const numbers = ['id', 'pressure', 'inherited', 'lost', 'season'];
+    if (!numbers.every(key => Number.isSafeInteger(value[key]) && value[key] >= 0)) return null;
+    if (![value.id, value.season, value.pressure].every(number => number > 0)) return null;
+    if (value.pressure > TIME_RIFT_MAX_PRESSURE) return null;
+    if (!Number.isSafeInteger(value.inherited + value.lost)) return null;
+    if (typeof value.name !== 'string' || typeof value.instanceId !== 'string' || !value.instanceId.trim()) return null;
+    return { id: value.id, name: value.name.slice(0, 100), instanceId: value.instanceId.trim().slice(0, 96),
+        pressure: value.pressure, inherited: value.inherited, lost: value.lost, season: value.season };
+};
+
 // Transient notices: domains enqueue data; the foreground UI decides when to present it.
 let tutorialQueue = [];
 // 같은 안내의 두 이름: 새 캐릭터의 시작 안내(tutorial_first_*)를 본 사람에게 루프 2의 탭 해금 안내(unlock_*)가 '처음 얻었습니다'를
@@ -2599,7 +2612,7 @@ const defaultGame = {
         activeRun: null
     },
     clearedRootBosses: [],
-    timeRift: { pressure: 1, activePressure: null, altarOpen: false, altarUnique: null, altarRare: null, fusionCount: 0 },
+    timeRift: { pressure: 1, activePressure: null, altarOpen: false, altarUnique: null, altarRare: null, fusionCount: 0, lastFusion: null },
     mapSubtab: 'map-tab-zones',
     unlockedMapContents: ['map-tab-zones'],
     mapExploreSubtab: 'map-explore-hunting',

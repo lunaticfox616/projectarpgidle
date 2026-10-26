@@ -1016,7 +1016,7 @@ function setMobileBattlePipCollapsed(host, collapsed) {
 
 /** Dense map/crafting views and early landscape trees start folded; leaving restores the previous PiP choice. */
 function dockMobileBattlePip(host) {
-    const mapContexts = [['atlas', 'map-explore-worldtree'], ['labyrinth', 'map-explore-labyrinth'], ['chaosRealm', 'map-tab-chaos-realm'], ['sky', 'map-tab-sky'], ['colony', 'map-explore-colony'], ['beehive', 'map-explore-beehive']];
+    const mapContexts = [['atlas', 'map-explore-worldtree'], ['labyrinth', 'map-explore-labyrinth'], ['chaosRealm', 'map-tab-chaos-realm'], ['sky', 'map-tab-sky'], ['colony', 'map-explore-colony'], ['beehive', 'map-explore-beehive'], ['timerift', 'map-explore-timerift']];
     function syncContext(context) {
         if ((host.dataset.compactContext || '') !== context) {
             if (host.hasAttribute('data-context-collapsed')) {
@@ -6055,7 +6055,9 @@ function getItemAffixTierHtml(stat) {
  * 장비는 머리말을 경고색으로, 아래에 한 줄 안내. */
 function itemExplicitAffixHeaderHtml(item, count) {
     const used = EXPLICIT_AFFIX_RULES[item.rarity] ? equipmentCrafting.affixCounts(item) : null;
-    const header = equipmentCrafting.affixHeader(item.rarity, count, used);
+    const header = item.fusedRelic
+        ? { text: `추가 옵션 ${count}개 (계승 ${item.stats.filter(stat => stat.fusedFromRare).length}개)`, over: false }
+        : equipmentCrafting.affixHeader(item.rarity, count, used);
     const style = header.over ? ' style="color:#ffb454;"' : '';
     const note = header.over ? '<div class="tooltip-line" style="color:#ffb454;">예전 규칙으로 한도를 넘은 장비: 넘친 종류에는 더 붙지 않습니다.</div>' : '';
     return `<div class="tooltip-line tooltip-section tooltip-section-explicit"${style}><span class="px-center">${header.text}</span></div>${note}`;

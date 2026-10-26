@@ -104,8 +104,8 @@
   body:has(#tab-items.active) #mobile-battle-pip.is-collapsed [data-pip-toggle] { min-height: 34px; }
   #mobile-battle-pip.is-tree-docked { position: static; width: auto; padding: 0; border: 0; background: none; box-shadow: none; }
   /* Keep map preparation actions clear of the floating preview, including an explicitly expanded one. */
-  #tab-map :is(#map-explore-worldtree, #map-explore-labyrinth, #map-tab-chaos-realm, #map-tab-sky, #map-explore-colony, #map-explore-beehive).has-battle-pip { padding-bottom: 64px; }
-  #tab-map :is(#map-explore-worldtree, #map-explore-labyrinth, #map-tab-chaos-realm, #map-tab-sky, #map-explore-colony, #map-explore-beehive).has-battle-pip.is-pip-expanded { padding-bottom: 180px; }
+  #tab-map :is(#map-explore-worldtree, #map-explore-labyrinth, #map-tab-chaos-realm, #map-tab-sky, #map-explore-colony, #map-explore-beehive, #map-explore-timerift).has-battle-pip { padding-bottom: 64px; }
+  #tab-map :is(#map-explore-worldtree, #map-explore-labyrinth, #map-tab-chaos-realm, #map-tab-sky, #map-explore-colony, #map-explore-beehive, #map-explore-timerift).has-battle-pip.is-pip-expanded { padding-bottom: 180px; }
   /* The tree camera owns the lower right corner; detail sheets suspend PiP in the UI controller. */
   body:has(#tab-char.active) #mobile-battle-pip { right: auto; left: max(8px, env(safe-area-inset-left)); }
   .mobile-battle-dock-label { overflow: hidden; font-size: 12px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }

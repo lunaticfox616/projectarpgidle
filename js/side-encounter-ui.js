@@ -359,19 +359,22 @@ const sideEncounterUi = (() => {
         const locked = rift.altarOpen || [TIME_RIFT_PAST_ZONE_ID,TIME_RIFT_FUTURE_ZONE_ID].includes(game.currentZoneId);
         return `<div class="map-expedition-intro"><div class="map-expedition-heading"><strong>시간압 ${pressure}</strong>
             <span>혼돈 심화 ${getTimeRiftEquivalentChaosDepth(pressure)} 상당, 루프 ${getTimeRiftFixedSeason(pressure)} 기준</span></div>
-            ${timeOddsHtml(pressure)}
+            ${timeOddsHtml(rift)}
             <div class="map-expedition-actions time-rift-stepper"><button type="button" aria-label="시간압 낮추기" onclick="setTimeRiftPressure(-1)" ${locked||pressure<=1?'disabled':''}>−</button>
             <b>${pressure}</b><button type="button" aria-label="시간압 높이기" onclick="setTimeRiftPressure(1)" ${locked||pressure>=TIME_RIFT_MAX_PRESSURE?'disabled':''}>+</button><span>${locked?'이번 제단의 시간압 고정':'높일수록 전투가 어렵고 옵션이 더 많이 남습니다.'}</span></div></div>`;
     }
 
-    /** Fusion outcomes for a six-option rare as a column graph: one column per kept count (0 to 6), its height against the likeliest
+    /** Fusion outcomes for the actual rare (six options before selection): one column per kept count, its height against the likeliest
      * count and its chance on top (2026-10-25 사용자: 자잘한 설명 말고 개수별 확률만 그래프로). */
-    function timeOddsHtml(pressure) {
-        const kept = getTimeRiftLossOdds(pressure, 6).reverse(), top = Math.max(...kept);
+    function timeOddsHtml(rift) {
+        const stats = Array.isArray(rift.altarRare?.stats) ? rift.altarRare.stats : [];
+        const count = rift.altarRare ? stats.filter(Boolean).length : 6;
+        const kept = getTimeRiftLossOdds(rift.pressure, count).reverse(), top = Math.max(...kept);
         const percent = value => `${(value * 100).toFixed(value >= 0.1 ? 0 : value >= 0.01 ? 1 : 2)}%`;
-        const columns = kept.map((value, count) => `<div class="time-rift-column loss-${6 - count}"><small>${percent(value)}</small>`
-            + `<span><i style="height:${(value / top * 100).toFixed(1)}%"></i></span><b>${count}개</b></div>`).join('');
-        return `<div class="time-rift-odds" role="img" aria-label="남는 옵션 개수별 확률: ${kept.map((value, count) => `${count}개 ${percent(value)}`).join(', ')}">${columns}</div>`;
+        const columns = kept.map((value, keptCount) => `<div class="time-rift-column loss-${count - keptCount}"><small>${percent(value)}</small>`
+            + `<span><i style="height:${(value / top * 100).toFixed(1)}%"></i></span><b>${keptCount}개</b></div>`).join('');
+        return `<small class="time-rift-odds-basis">${rift.altarRare ? '제단 희귀' : '희귀'} 옵션 ${count}개 기준</small>`
+            + `<div class="time-rift-odds" style="--time-rift-columns:${count + 1}" role="img" aria-label="남는 옵션 개수별 확률: ${kept.map((value, keptCount) => `${keptCount}개 ${percent(value)}`).join(', ')}">${columns}</div>`;
     }
 
     function timePast(rift) {
@@ -390,8 +393,7 @@ const sideEncounterUi = (() => {
         const ready = [rift.altarUnique,rift.altarRare].every(Boolean);
         const selection = timeAltarSelection(selected,issue,ready);
         return `<div class="map-expedition-intro"><h3>2. 제단</h3><strong>같은 부위의 고유 + 희귀</strong>
-            <dl><div><dt>고유</dt><dd>${rift.altarUnique?escapeHTML(rift.altarUnique.name):'비어 있음'}</dd></div>
-            <div><dt>희귀</dt><dd>${rift.altarRare?escapeHTML(rift.altarRare.name):'비어 있음'}</dd></div></dl>
+            <div class="time-rift-items">${timeItemDetails(rift.altarUnique,'altarUnique','고유')}${timeItemDetails(rift.altarRare,'altarRare','희귀')}</div>
             ${selection}
             <div class="map-expedition-actions"><button type="button" onclick="openCraftItemPickerOverlay('altar')" ${!rift.altarOpen||ready?'disabled':''}>장비 고르기</button>
             <button type="button" onclick="placeItemOnTimeAltar()" ${issue?'disabled':''}>선택 장비 올리기</button>
@@ -404,6 +406,41 @@ const sideEncounterUi = (() => {
         return `${name}<p>${escapeHTML(issue||'이 장비를 제단에 올릴 수 있습니다.')}</p>`;
     }
 
+    function timeItemDetails(item, source, label) {
+        if (!item) return `<div class="time-rift-item-empty"><span>${label}</span><span>비어 있음</span></div>`;
+        return `<details class="time-rift-item" id="time-rift-item-${source}" data-rift-inspect="${source}" ontoggle="sideEncounterUi.inspectTimeItem(this)">
+            <summary><span>${label}</span><strong>${escapeHTML(item.name)}</strong></summary><div class="time-rift-item-body"></div></details>`;
+    }
+
+    function timeResultItem(rift) {
+        const result = rift.lastFusion;
+        if (!result) return null;
+        return getEquipmentLoadoutOwnedItems(game).find(item => item.fusedRelic && item.id === result.id
+            && getEquipmentLoadoutItemIdentity(item) === result.instanceId) || null;
+    }
+
+    function inspectTimeItem(details) {
+        if (!details.open || !details.isConnected) return;
+        const source = details.dataset.riftInspect, rift = ensureTimeRiftState();
+        const item = source === 'lastFusion' ? timeResultItem(rift)
+            : ['altarUnique','altarRare'].includes(source) ? rift[source] : null;
+        const body = details.querySelector('.time-rift-item-body');
+        const signature = JSON.stringify(item);
+        if (body.dataset.signature === signature) return;
+        body.replaceChildren(...(item ? [equipmentInspectionUi.tooltipBox(item, null, false)] : []));
+        body.dataset.signature = signature;
+    }
+
+    function timeResult(rift) {
+        const result = rift.lastFusion;
+        if (!result) return '';
+        const item = timeResultItem(rift);
+        const equipment = item ? timeItemDetails(item,'lastFusion','융합 유물') : `<strong>${escapeHTML(result.name)}</strong>`;
+        return `<div class="map-expedition-intro time-rift-result-card"><div class="map-expedition-heading"><strong>최근 융합</strong>
+            <span>루프 ${result.season}, 시간압 ${result.pressure}</span></div>${equipment}
+            <dl><div><dt>계승</dt><dd>${result.inherited}개</dd></div><div><dt>유실</dt><dd>${result.lost}개</dd></div></dl><div class="map-expedition-actions"></div></div>`;
+    }
+
     function timeFuture(rift) {
         const current = game.currentZoneId === TIME_RIFT_FUTURE_ZONE_ID;
         const issue = getTimeRiftFutureEntryReason(rift); // 입장과 같은 까닭(가방 자리도)
@@ -411,6 +448,7 @@ const sideEncounterUi = (() => {
             `<button type="button" data-exploration-departure onclick="changeZone('${TIME_RIFT_FUTURE_ZONE_ID}')" ${issue?'disabled':''}>미래 입장</button>`;
         return `<div class="map-expedition-intro"><h3>3. 미래</h3><strong>희귀 옵션을 고유에 계승</strong>
             ${buildMapPowerEstimateHtml(getZone(TIME_RIFT_FUTURE_ZONE_ID))}<p>${escapeHTML(issue||'융합 준비 완료')}</p>
+            <p class="time-rift-risk">실패하면 제단 장비가 파괴됩니다.</p>
             <details class="map-expedition-details" id="time-rift-fusion-rules"><summary>융합 규칙</summary>
             <p>미래 클리어 시 두 장비를 소모해 융합 유물 1개를 만듭니다. 희귀 옵션은 하나씩 시간압의 확률로 남고(${TIME_RIFT_KEEP_CAP}개가 남은 뒤로는 훨씬 낮은 확률), 나머지는 사라집니다.</p>
             <p>융합 후에는 황금률/잿불가지/축복의 꽃잎만 사용할 수 있습니다.</p></details>
@@ -418,11 +456,14 @@ const sideEncounterUi = (() => {
     }
 
     function timeRiftPanel(host,rift) {
-        if (!host.querySelector('.time-rift-stages')) host.innerHTML = '<div class="time-rift-pressure"></div><div class="time-rift-stages"><section aria-label="과거" data-rift-stage="past"></section><section aria-label="제단" data-rift-stage="altar"></section><section aria-label="미래" data-rift-stage="future"></section></div>';
+        if (!host.querySelector('.time-rift-stages')) host.innerHTML = '<div class="time-rift-pressure"></div><section class="time-rift-result" aria-label="최근 융합"></section><div class="time-rift-stages"><section aria-label="과거" data-rift-stage="past"></section><section aria-label="제단" data-rift-stage="altar"></section><section aria-label="미래" data-rift-stage="future"></section></div>';
         renderPanel(host.querySelector('.time-rift-pressure'),timePressure(rift));
+        host.querySelector('.time-rift-result').hidden = !rift.lastFusion;
+        renderPanel(host.querySelector('.time-rift-result'),timeResult(rift));
         renderPanel(host.querySelector('[data-rift-stage="past"]'),timePast(rift));
         renderPanel(host.querySelector('[data-rift-stage="altar"]'),timeAltar(rift));
         renderPanel(host.querySelector('[data-rift-stage="future"]'),timeFuture(rift));
+        host.querySelectorAll('[data-rift-inspect][open]').forEach(inspectTimeItem);
     }
 
     function colonyWavePattern(zone) {
@@ -556,5 +597,5 @@ const sideEncounterUi = (() => {
             <button onclick="switchTab('tab-skills'); switchSkillSubtab('skill-tab-enhance')" ${gemUnlocked?'':'disabled'}>룬 강화로 이동</button></div></div>`;
     }
 
-    return { hiveSummary, updateHud, refreshDestinations, hivePanel, grandPanel, meteorPanel, labyrinthPanel, selectLabyrinthFloor, chooseLabyrinthFloor, timeRiftPanel, colonyPanel, toggleColonyReturn, withdrawColony, returnFromBattle, skyPanel, skyGrowth, renderPanel };
+    return { hiveSummary, updateHud, refreshDestinations, hivePanel, grandPanel, meteorPanel, labyrinthPanel, selectLabyrinthFloor, chooseLabyrinthFloor, timeRiftPanel, inspectTimeItem, colonyPanel, toggleColonyReturn, withdrawColony, returnFromBattle, skyPanel, skyGrowth, renderPanel };
 })();
