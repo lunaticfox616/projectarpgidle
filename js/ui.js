@@ -12955,13 +12955,19 @@ function sendPageExitCloudSave(request, reason, exitSave) {
     });
 }
 
+/** A session whose access token has not expired: on page exit there is no time to refresh, and an expired token only failed
+ * with 401 in the console (2026-10-27). */
+function hasUsableCloudSessionToken() {
+    if (!cloudState.session || !cloudState.session.access_token) return false;
+    let expiresAtMs = getCloudSessionExpiresAtMs();
+    return !expiresAtMs || expiresAtMs > Date.now();
+}
+
 function pushCloudSaveOnPageExit(reason) {
     let config = getCloudConfig();
     if (cloudState.busy || cloudState.lastRemoteResetRevision > (game.saveMeta.cloudResetRevision || 0)) return false;
     if (typeof canPersistLocalSave === 'function' && !canPersistLocalSave()) return false;
-    if (!config.enabled || !cloudState.user || !cloudState.user.id || !cloudState.session || !cloudState.session.access_token) return false;
-    // 토큰이 이미 끝났으면 보내지 않는다: 떠나는 순간에는 갱신을 기다릴 수 없고, 보내도 401로 조용히 실패했다(2026-10-27).
-    if (getCloudSessionExpiresAtMs() && getCloudSessionExpiresAtMs() <= Date.now()) return false;
+    if (!config.enabled || !cloudState.user || !cloudState.user.id || !hasUsableCloudSessionToken()) return false;
     if (typeof isStartupOverlayOpen === 'function' && isStartupOverlayOpen()) return false;
     if (!gameplayStarted) return false;
     if (getCloudSaveOwnerId() !== getActiveCloudUserId()) return false;

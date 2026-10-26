@@ -23,6 +23,7 @@
 --  10. 전당: 고유 효과 값(uniqueEffectParams)과 품질의 크기를 본다. 90일 지난 대전 기록과 30일 지난 팔린 적 없는 내린 전시는 지운다.
 --      접속 인원만 돌려주는 get_online_counts(채팅 창 배지가 80줄 대신 이것을 묻는다).
 --  11. 권고에 걸린 함수 9개의 search_path를 public으로 고정한다.
+--  12. get_ghost_arena가 underReview를 돌려주어 대전 탭이 점수가 멈춘 까닭을 보여 준다.
 
 begin;
 
@@ -733,6 +734,52 @@ begin
     if to_regprocedure('public.simulate_ghost_duel(jsonb, jsonb, text)') is not null then execute 'alter function public.simulate_ghost_duel(jsonb, jsonb, text) set search_path = public'; end if;
     if to_regprocedure('public.resolve_ghost_duel_attack(jsonb, jsonb, jsonb, numeric)') is not null then execute 'alter function public.resolve_ghost_duel_attack(jsonb, jsonb, jsonb, numeric) set search_path = public'; end if;
 end
+$$;
+
+-- ============================================================================
+-- 9) 대전 탭에 검토 중 표시 (db/operations-and-ghost.sql의 get_ghost_arena와 같다; underReview 한 칸이 늘었다)
+-- ============================================================================
+create or replace function public.get_ghost_arena(p_combat_version text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+    account_id uuid := auth.uid();
+    payload jsonb;
+begin
+    if account_id is null then raise exception 'AUTH_REQUIRED'; end if;
+    select jsonb_build_object(
+        -- 5: 움직이며 싸우는 대결(simulate_ghost_duel의 arena, 사건의 lx, rx)
+        'combatProtocolVersion', 5,
+        'underReview', public.ghost_under_review(account_id),   -- 7일 안의 수치 기록: 순위전 점수가 멈춰 있다(2026-10-27)
+        'me', (select to_jsonb(me) - 'user_id' - 'combat_snapshot' from public.ghost_profiles me where me.user_id = account_id),
+        'leaderboard', coalesce((select jsonb_agg(to_jsonb(board)) from (
+            select row_number() over (order by rating desc, wins desc, updated_at asc) as rank,
+                   nickname, ascend_class, active_skill, rating, wins, losses, draws, matches,
+                   case when matches < 10 then true else false end as provisional
+              from public.ghost_profiles
+             where active and combat_version = p_combat_version
+             order by rating desc, wins desc, updated_at asc limit 50
+        ) board), '[]'::jsonb),
+        'recent', coalesce((select jsonb_agg(to_jsonb(recent_match)) from (
+            select match_row.created_at, match_row.ranked,
+                   case when match_row.challenger_id = account_id then match_row.result
+                        when match_row.result = 'win' then 'loss'
+                        when match_row.result = 'loss' then 'win' else 'draw' end as result,
+                   case when match_row.challenger_id = account_id then defender.nickname else challenger.nickname end as opponent,
+                   case when match_row.challenger_id = account_id then match_row.challenger_rating_after - match_row.challenger_rating_before
+                        else match_row.defender_rating_after - match_row.defender_rating_before end as rating_delta
+              from public.ghost_matches match_row
+              join public.ghost_profiles challenger on challenger.user_id = match_row.challenger_id
+              join public.ghost_profiles defender on defender.user_id = match_row.defender_id
+             where match_row.challenger_id = account_id or match_row.defender_id = account_id
+             order by match_row.created_at desc limit 10
+        ) recent_match), '[]'::jsonb)
+    ) into payload;
+    return payload;
+end;
 $$;
 
 commit;

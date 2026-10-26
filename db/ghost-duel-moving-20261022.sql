@@ -327,6 +327,7 @@ begin
     select jsonb_build_object(
         -- 5: 움직이며 싸우는 대결(simulate_ghost_duel의 arena, 사건의 lx, rx)
         'combatProtocolVersion', 5,
+        'underReview', public.ghost_under_review(account_id),   -- 7일 안의 수치 기록: 순위전 점수가 멈춰 있다(2026-10-27)
         'me', (select to_jsonb(me) - 'user_id' - 'combat_snapshot' from public.ghost_profiles me where me.user_id = account_id),
         'leaderboard', coalesce((select jsonb_agg(to_jsonb(board)) from (
             select row_number() over (order by rating desc, wins desc, updated_at asc) as rank,
