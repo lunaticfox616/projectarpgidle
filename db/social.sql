@@ -307,7 +307,10 @@ begin
             raise exception 'CHAT_PAYLOAD_INVALID: 아이템 링크는 메시지마다 3개까지입니다.';
         end if;
     end if;
-    if public.chat_text_is_offensive(new.body) then
+    -- 본문과, 붙인 아이템 링크의 이름(남의 화면에 그대로 보인다)을 본다.
+    if public.chat_text_is_offensive(new.body)
+       or (new.payload is not null and exists (select 1 from jsonb_array_elements(new.payload -> 'items') linked
+                                                where public.chat_text_is_offensive(linked ->> 'name'))) then
         raise exception 'CHAT_PROFANITY: 비속어가 들어 있어 보낼 수 없습니다.';
     end if;
     if lower(new.body) ~ '(https?://|www\.|discord\.gg|t\.me/|bit\.ly)' then

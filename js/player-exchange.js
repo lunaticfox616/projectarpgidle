@@ -31,6 +31,7 @@ function getPlayerExchangeError(error) {
         HALL_RATE_LIMIT: '요청이 너무 빠릅니다. 잠시 후 다시 시도해주세요.', HALL_LISTING_DAILY_LIMIT: '오늘의 전당 등록 한도에 도달했습니다.',
         HALL_DAILY_LIMIT: '오늘의 전당 구매 한도에 도달했습니다.',
         HALL_ITEM_NOT_FOUND: '서버 저장에서 장비를 찾지 못했습니다.', HALL_ITEM_REJECTED: '전당 등록 규칙에 맞지 않는 장비입니다.',
+        HALL_ITEM_NAME_REJECTED: '장비 이름에 비속어가 있어 전당에 올릴 수 없습니다.',
         HALL_ITEM_KEY_CONFLICT: '같은 서버 식별자를 가진 장비가 둘 이상 발견되어 등록을 중단했습니다.',
         HALL_RELIST_BLOCKED: '한 번이라도 복제된 원본은 전당에 다시 등록할 수 없습니다.',
         HALL_SOCKET_NOT_EMPTY: '소켓에 주얼을 끼운 장비는 전당에 등록할 수 없습니다.', HALL_ITEM_OWNERSHIP: '장비의 서버 소유권을 확인할 수 없습니다.',

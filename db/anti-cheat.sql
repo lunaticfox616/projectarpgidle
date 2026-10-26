@@ -136,6 +136,8 @@ begin
     if public.cheat_account_held(new.curator_id) then raise exception 'HALL_ACCOUNT_HELD'; end if;
     if public.hall_item_out_of_range(new.item_snapshot) then raise exception 'HALL_ITEM_OUT_OF_RANGE'; end if;
     if public.hall_item_params_out_of_range(new.item_snapshot) then raise exception 'HALL_ITEM_OUT_OF_RANGE'; end if;
+    -- 전시 이름은 전당을 여는 모두에게 보인다: 채팅과 같은 비속어 검사(db/social.sql chat_text_is_offensive).
+    if public.chat_text_is_offensive(new.item_snapshot ->> 'name') then raise exception 'HALL_ITEM_NAME_REJECTED'; end if;
     return new;
 end;
 $$;
