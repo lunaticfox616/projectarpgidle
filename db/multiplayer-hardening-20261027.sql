@@ -658,7 +658,8 @@ begin
         seed_value, p_combat_version
     );
     return jsonb_build_object(
-        'opponent', defender.nickname, 'opponentClass', defender.ascend_class,
+        'opponent', coalesce((select profile.nickname from public.player_profiles profile where profile.user_id = defender_id), defender.nickname),
+        'opponentClass', defender.ascend_class,
         'opponentSkill', defender.active_skill, 'result', result_value,
         'ratingBefore', challenger.rating,
         'ratingAfter', greatest(100, least(4000, challenger.rating + challenger_delta)),
