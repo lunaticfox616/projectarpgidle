@@ -1,8 +1,9 @@
 -- 멀티 요소 보강(2026-10-27). Supabase 대시보드 > SQL Editor > New query에 이 파일 내용을 전부 붙여 넣고 Run.
 -- db/cloud-and-playtest.sql, db/operations-and-ghost.sql, db/social.sql, db/equipment-hall.sql, db/anti-cheat.sql을 실행한 프로젝트에 쓴다.
--- 같은 내용이 db/social.sql, db/cloud-and-playtest.sql, db/equipment-hall.sql에도 들어 있어, 나중에 처음부터 다시 설치해도 같은 상태가 된다.
+-- 같은 내용이 db/social.sql, db/cloud-and-playtest.sql, db/equipment-hall.sql, db/anti-cheat.sql, db/operations-and-ghost.sql,
+-- db/ghost-duel-moving-20261022.sql에도 들어 있어, 나중에 처음부터 다시 설치해도 같은 상태가 된다.
 -- 여러 번 실행해도 안전하다. 기존 데이터는 지우거나 고치지 않는다(지우는 것은 쓰지 않는 예전 순위표 player_rankings뿐이다).
--- 한 묶음이라 중간에 오류가 나면 아무것도 바뀌지 않는다.
+-- 한 묶음이라 중간에 오류가 나면 아무것도 바뀌지 않는다. 먼저 오류만 보고 싶으면 맨 끝의 commit;을 rollback;으로 바꿔 한 번 돌려 본다.
 --
 -- 2026-10-27 검토에서 찾은 것과 고친 방향:
 --   1. 시각 열(chat_messages.created_at, player_profiles.last_seen과 nickname_updated_at, 원격 측정 표의 created_at)을 클라이언트가
