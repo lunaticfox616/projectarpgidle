@@ -277,7 +277,7 @@ const fishingUi = (() => {
     function recipeHtml(recipe, st) {
         const count = selectedCount(recipe), status = getSeaGiftRecipeStatus(recipe.id, null, categoryOf(recipe), count);
         const needsItem = SEA_GIFT_ITEM_EFFECT_TYPES.has(recipe.effect.type);
-        const title = count > 1 ? `${recipe.effect.type === 'currency' ? getCurrencyInfo(recipe.effect.key).name : '무작위 재화'} ${recipe.effect.amount * count}개` : TITLES[recipe.id];
+        const title = count > 1 ? TITLES[recipe.id].replace(/\d+개/, `${recipe.effect.amount * count}개`) : TITLES[recipe.id];
         return `<article data-sea-recipe="${recipe.id}" class="fishing-recipe${status.ready ? ' is-ready' : ''}"><header><small>${needsItem ? '선택한 장비를 가공' : '장비 선택 없이 제작'}</small><h4>${esc(title)}</h4></header>`
             + `${quantityHtml(status)}${categoryHtml(recipe)}${needsItem ? targetHtml(recipe) : ''}${guideHtml(recipe, count)}`
             + `<section class="fishing-materials"><h4>사용할 물고기</h4>${costHtml(recipe, st, count)}</section>`
@@ -352,6 +352,8 @@ const fishingUi = (() => {
         const balances = Object.fromEntries(keys.map(key => [key, game.currencies[key] || 0]));
         const before = itemSnapshot(status.item);
         const ok = craftSeaGift(recipeId, null, { category: categoryOf(recipe), count });
+        // 고른 횟수는 남은 재료로 만들 수 있는 만큼으로 줄인다: 다 쓰고 나면 결과 옆에 '재료 부족'이 떴다.
+        if (batchChoice) batchChoice.count = Math.max(1, Math.min(batchChoice.count, getSeaGiftRecipeStatus(recipeId, null, categoryOf(recipe), 1).maxCrafts || 1));
         lastResult = { recipeId, count, owner: game, target: status.item, ok, before, after: itemSnapshot(status.item), name: status.item && status.item.name,
             gains: keys.filter(key => game.currencies[key] > balances[key]).map(key => ({ key, amount: game.currencies[key] - balances[key] })) };
         render();

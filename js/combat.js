@@ -1138,6 +1138,11 @@ window.GameModules.colonyRun = (() => {
         colony.returnAfterWave = 0;
         return colony.lastResult;
     }
+    /** The log line for a colony run's end: leaving by travel is not a withdrawal. */
+    function endLine(kind, result) {
+        if (kind === 'left') return '🪲 군락지를 떠났습니다.';
+        return result.completed ? `🪲 군락지 ${result.completed}웨이브를 마치고 철수했습니다.` : '🪲 군락지에서 철수했습니다.';
+    }
     function finish(kind = 'withdraw', move = true, say = addLog) {
         const colony = game.colony;
         if (move && game.currentZoneId !== 'colony_run') return false;
@@ -1152,7 +1157,7 @@ window.GameModules.colonyRun = (() => {
             game.enemies = []; game.encounterPlan = []; game.encounterIndex = 0; game.runProgress = 0;
             actExplorationProgress.depart(game);
         }
-        say(result.completed ? `🪲 군락지 ${result.completed}웨이브를 마치고 철수했습니다.` : '🪲 군락지에서 철수했습니다.', 'season-up');
+        say(endLine(kind, result), 'season-up');
         pendingHeavyUiRefresh = true;
         queueImportantSave(200);
         return true;
@@ -1164,7 +1169,7 @@ window.GameModules.colonyRun = (() => {
         if (colony.pendingLoot.length || floor || countColonyWaveAlive()) return false;
         return finish('scheduled');
     }
-    return Object.freeze({ nextBossWave, returnWave, uncollected, toggleReturn, recordEnd, finish, finishScheduled });
+    return Object.freeze({ returnWave, uncollected, toggleReturn, recordEnd, finish, finishScheduled });
 })();
 
 /** A colony run goes on only in 군락지: a hero who left it (travel, a map, the deep sea) ended the run there, rewards kept, and the next
@@ -9579,8 +9584,8 @@ function runReturnRules(pStats, now = getCombatTime()) {
 
 function ensureEncounterRun() {
     if(actExplorationState.current(game))return;
-    if(game.combatHalted) {
-        if(isSkyTowerAtRewardLimit(getZone(game.currentZoneId)))prepareActExplorationArrival();
+    if(game.combatHalted && isSkyTowerAtRewardLimit(getZone(game.currentZoneId))) {
+        prepareActExplorationArrival();
         return;
     }
     if (game.moveTimer <= 0 && (!game.encounterPlan || game.encounterPlan.length === 0)) startEncounterRun();
@@ -10494,7 +10499,7 @@ function loopStarterGemName() {
 /** The starter gem reaches the hero (picked up, or settled from a dropped map's floor): the gem, its record, the gem tab, and in a
  * first loop the pending equip guide (js/content-progression-ui.js announceStarterGem). @returns {boolean} whether it went in. */
 function receiveStarterGem(state, gemName) {
-    if (!SKILL_DB[gemName] || state.skills.includes(gemName)) return false;
+    if (!SKILL_DB[gemName] || hasSkillGemOwned(gemName, state)) return false; // 봉인해 둔 같은 룬이 있으면 두 목록에 겹쳤다
     state.skills.push(gemName);
     state.gemData[gemName] = state.gemData[gemName] || { level: 1, exp: 0 };
     state.unlocks.skills = true;
@@ -14945,6 +14950,7 @@ function resetLoopBuild() {
     game.mobilitySkill = '';
     game.loopStarterGemGranted = false;
     game.pendingStarterRuneChoice = null;
+    game.starterGemTutorialPending = null; // 루프 1의 장착 안내 표시가 남아 다음 루프의 그 룬 봉인을 막았다
     game.gemData = { '기본 공격': { level: 1, exp: 0 } };
     game.skyGemEnhancements = {};
     game.supports = [];

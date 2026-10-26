@@ -196,7 +196,7 @@
         let echo = view.echo;
         if (!echo.runs) return '';
         const recent = echo.last ? statCard('attack', '최근 DPS', formatCount(echo.last.dps),
-            echo.changePct === null ? `${echo.last.seconds.toFixed(1)}초 측정` : `이전 대비 ${echo.changePct >= 0 ? '+' : ''}${echo.changePct.toFixed(1)}%`, TONE.damage) : '';
+            echo.changePct === null ? `${echo.last.seconds % 1 < 0.05 ? Math.round(echo.last.seconds) : echo.last.seconds.toFixed(1)}초 측정` : `이전 대비 ${echo.changePct >= 0 ? '+' : ''}${echo.changePct.toFixed(1)}%`, TONE.damage) : '';
         return `<section class="records-section">
             <div class="records-section-title">나무꾼의 잔상<span>30초 허수아비 측정</span></div>
             <div class="records-stat-row">

@@ -146,9 +146,14 @@ const explorationAtlasUi = (() => {
         if (route === 'map-explore-colony') return colonyRouteSummary();
         if (route === 'map-explore-labyrinth') return {status:`최고 입장 ${game.labyrinthUnlockedMaxFloor}층`};
         if (route === 'map-tab-chaos-realm') return {status:`최고 입장 ${game.chaosRealm.highestFloor}층`};
-        if (route === 'map-explore-chaos') return {status:`이번 루프 심화 ${game.loopProgressCurrent.bestAbyssDepth}층`};
+        if (route === 'map-explore-chaos') return {status:chaosDepthLine()};
         if (route === 'map-explore-meteor') return {status:game.meteorSite.skyRiftReady ? '하늘의 균열 충전 완료' : `하늘의 균열 ${Math.min(100,Math.floor(game.meteorSite.skyRiftGauge))}%`};
         return {status:''};
+    }
+    /** This loop's deep chaos floor; nothing before the first one (every loop starts at 0). */
+    function chaosDepthLine() {
+        const depth = game.loopProgressCurrent.bestAbyssDepth;
+        return depth > 0 ? `이번 루프 심화 ${depth}층` : '';
     }
     function trialRouteSummary() {
         // The existing trial list owns unlock/completion eligibility and renders before this chooser.
@@ -268,16 +273,24 @@ const explorationAtlasUi = (() => {
         return `<div class="exploration-regions"><button class="exploration-home" onclick="explorationAtlasUi.open()">전체 탐험</button>${tabs}</div>`
             + `<div class="exploration-routes" role="group" aria-label="${current ? current.name : '대전'}의 쪽">${chips}</div>`;
     }
+    /** Regions whose progress line is the list of their places (regionProgress). */
+    const LISTING_REGIONS = new Set(['trail', 'roots']);
+    /** The banner's line: the open place's progress first (the labyrinth page does not carry an unopened 혼돈계 0층); a place with
+     * none in a listing region says its kind; else the region's progress. */
+    function bannerLine(region, route) {
+        const status = route && routeSummary(route).status;
+        if (status) return status;
+        const kind = route && LISTING_REGIONS.has(region.id) && EXPLORATION_REGIONS.activities[route]?.kind;
+        return kind || regionProgress(region);
+    }
     /** route: the open place, or null on the region's own page (its name and progress). */
     function syncRegionBanner(region,route) {
         const banner = document.getElementById('exploration-region-banner');
         banner.hidden = !region;
         if (banner.hidden) return;
         const hunting = route === 'map-explore-hunting';
-        // 열린 콘텐츠의 진행을 먼저 쓴다. 미궁 화면에 아직 열리지 않은 혼돈계 0층을 붙이지 않는다.
-        const routeStatus = !!route && routeSummary(route).status;
         const progress = hunting ? `<div class="atlas-hunt-destination">${buildMapRouteSummaryHtml(getZone(game.currentZoneId),getZone(Math.min(STORY_ACTS.length-1,game.maxZoneId)))}</div>`
-            : `<p>${escapeHTML(routeStatus || regionProgress(region))}</p>`;
+            : `<p>${escapeHTML(bannerLine(region, route))}</p>`;
         const html = `<img class="atlas-landscape" src="${region.landscape}" alt="" decoding="async"><div>
             <h2>${escapeHTML(!route ? region.name : hunting ? '나무' : routeLabel(route))}</h2>${progress}</div>`;
         if (writeHtmlIfChanged(banner, html)) banner.className='atlas-theme-'+region.id;

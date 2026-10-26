@@ -400,22 +400,28 @@ function normalizeSkillSlotsSave(merged) {
 }
 
 /** An unfinished starter equip guide survives reload. Old versions let bulk sealing consume its target: undo that
- * seal and its one resonance reward, keeping the gem's growth. A deliberately sealed gem without a pending guide stays sealed. */
+ * seal and its one resonance reward, keeping the gem's growth. A deliberately sealed gem without a pending guide stays sealed.
+ * A guide is unfinished only while the hero still fights with 기본 공격: a save that wears another attack rune (the guide's mark
+ * left from an earlier loop, or a rune the weapon refused) just loses the mark, and its seals stay (2026-10-26 review). */
+/** The guide's rune is worn, or the hero already fights with another attack rune. */
+function starterGuideFinished(state, name) {
+    const summons = Array.isArray(state.equippedSummonSkills) ? state.equippedSummonSkills : [];
+    return [state.activeSkill, state.mobilitySkill, ...summons].includes(name) || state.activeSkill !== '기본 공격';
+}
 function normalizeStarterGemTutorialSave(state) {
     const name = state.starterGemTutorialPending;
     const owned = state.skills.concat(state.sealedSkills);
     state.starterGemTutorialPending = typeof name === 'string' && SKILL_DB[name]?.isGem && owned.includes(name) ? name : null;
     if (!state.starterGemTutorialPending) return;
+    if (starterGuideFinished(state, name)) {
+        state.starterGemTutorialPending = null;
+        return;
+    }
     if (state.sealedSkills.includes(name)) {
         state.skills.push(name);
         state.sealedSkills = state.sealedSkills.filter(gem => gem !== name);
         const power = Number.isFinite(state.resonancePower) ? state.resonancePower : defaultGame.resonancePower;
         state.resonancePower = Math.max(0, power - 1);
-    }
-    const summons = Array.isArray(state.equippedSummonSkills) ? state.equippedSummonSkills : [];
-    if ([state.activeSkill, state.mobilitySkill, ...summons].includes(name)) {
-        state.starterGemTutorialPending = null;
-        return;
     }
     state.seenTutorials = state.seenTutorials.filter(key => key !== 'tutorial_starter_gem_equip' && key !== 'action_tutorial_starter_gem_equip');
 }
@@ -495,7 +501,7 @@ function normalizeColonyRunSave(colony, clampFiniteNumber) {
     colony.coreHp = Math.floor(clampFiniteNumber(colony.coreHp, colony.coreMaxHp, 0, colony.coreMaxHp));
     colony.failedWave = Math.floor(clampFiniteNumber(colony.failedWave, 0, 0, Number.MAX_SAFE_INTEGER));
     colony.returnAfterWave = Math.floor(clampFiniteNumber(colony.returnAfterWave, 0, 0, Number.MAX_SAFE_INTEGER));
-    if (!colony.inRun || colony.returnAfterWave % 5 !== 0) colony.returnAfterWave = 0;
+    if (!colony.inRun || colony.returnAfterWave % 5 !== 0 || colony.returnAfterWave < colony.wave - 1) colony.returnAfterWave = 0;
     const result = colony.lastResult;
     if (result && ['withdraw', 'scheduled', 'left', 'core', 'defeat'].includes(result.kind)) {
         const wave = Math.floor(clampFiniteNumber(result.wave, 1, 1, Number.MAX_SAFE_INTEGER));

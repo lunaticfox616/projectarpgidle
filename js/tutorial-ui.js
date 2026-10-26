@@ -623,9 +623,11 @@ function advanceTutorial() {
  * 쓰러졌다(검토 2026-10-01). 바꾸고 싶으면 '스킬룬'에서 언제든 바꾼다. */
 function equipSkippedStarterGem(key) {
     const name = game.starterGemTutorialPending;
-    if (key !== 'tutorial_starter_gem_equip' || typeof name !== 'string' || game.activeSkill !== '기본 공격') return;
-    changeSkill(name);
+    if (key !== 'tutorial_starter_gem_equip' || typeof name !== 'string') return;
+    if (game.activeSkill === '기본 공격') changeSkill(name);
     if (game.activeSkill === name) showGameToast(`[${name}] 룬을 장착했습니다, '스킬룬'에서 바꿀 수 있습니다`, { tone: 'success' });
+    // 닫은 안내는 끝난다: 무기가 그 룬을 받지 않거나 다른 룬을 이미 꼈어도 표시가 남아 그 룬의 봉인을 막았다.
+    game.starterGemTutorialPending = null;
 }
 
 /** 따라 하기를 하지 않고 닫은 안내의 뒷정리: 첫 스킬룬은 장착하고, 그루터기 함 시작 선물은 판에 놓는다. */

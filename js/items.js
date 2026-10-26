@@ -468,6 +468,7 @@ function clearBeehiveRuntimeState(b) {
     b.rewardLedger = [];
     b.pendingWaveReward = null;
     b.pendingWaveRewardText = '';
+    b.waveExtra = 0;
     b.pendingQueenRewards = [];
     b.queenActive = false;
 }

@@ -111,7 +111,7 @@
         const state = game, season = game.season, label = kind === 'support' ? '보조스킬룬' : '공격 룬';
         sealConfirmationPending = true;
         try {
-            const accepted = await requestGameConfirmation(`${label} ${names.length}개, 공명력 +${names.length}\n봉인 해제에는 룬마다 공명력 1이 필요합니다.`,
+            const accepted = await requestGameConfirmation(`${label} ${names.length}개를 봉인합니다. 공명력 +${names.length}\n다시 풀 때는 룬마다 공명력 1이 듭니다.`,
                 { title: `${label} 일괄 봉인`, confirmLabel: `${names.length}개 봉인`, cancelLabel: '취소' });
             if (!accepted || game !== state || game.season !== season) return;
             if (JSON.stringify(names) !== JSON.stringify(window.GameModules.skills.sealableNames(kind))) {

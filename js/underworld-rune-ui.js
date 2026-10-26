@@ -141,9 +141,9 @@ const underworldRuneUi = (() => {
         const reward = window.GameModules.state.underworldMilestoneReward(floor);
         const slots = reward.slots > state.unlockedSlots ? `<span>지하석 슬롯 ${reward.slots}/6</span>` : '';
         const stone = reward.rune ? `<div class="underworld-next-stone">${iconHtml(reward.rune.no)}<div><strong>${escapeHTML(reward.rune.name)} 지하석 1개</strong>
-            <small>${getUnderworldRuneEffectHtml(reward.rune.no)}</small><span>지하석 ${reward.rune.no}번 가공 해금</span>${slots}</div></div>` : '';
+            <small>${getUnderworldRuneEffectHtml(reward.rune.no)}</small><span>지하석 1~${reward.rune.no} 해금</span>${slots}</div></div>` : '';
         const materials = RESOURCES.filter(([key]) => reward.currencies[key]).map(([key, name]) => `<span>${name} <b>${reward.currencies[key]}개</b></span>`).join('');
-        return `<div><strong>다음 층 보상, ${floor}층</strong>${stone}<div class="underworld-ticket-strip">${materials}</div><small>15층부터 지속 피해</small></div>`;
+        return `<div><strong>${floor}층 보상</strong>${stone}<div class="underworld-ticket-strip">${materials}</div><small>15층부터 지속 피해</small></div>`;
     }
     function skyStoneHtml() {
         const tower = ensureSkyTowerState(), level = Math.max(0, Math.floor((tower.skyStone || {}).level || 0));

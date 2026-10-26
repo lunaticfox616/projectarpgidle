@@ -118,7 +118,11 @@ const sideEncounterUi = (() => {
         const inColony = zone.type === 'colony' && game.colony.inRun;
         // These runs own one loss dialog; other travel keeps the exploration confirmation.
         document.getElementById('btn-combat-return')?.toggleAttribute('data-exploration-departure', !inGrand && !inColony);
-        if (inGrand) setTextById('btn-combat-return', grand.phase === 'loot' ? '귀환' : '원정 포기');
+    }
+    /** The HUD return button's word: 원정 포기 in a grand breach fight, 철수 in a colony run, else 귀환. */
+    function returnLabel(zone) {
+        if (zone.type === 'grandBreach' && game.voidRift.grandRun?.inRun) return game.voidRift.grandRun.phase === 'loot' ? '귀환' : '원정 포기';
+        return zone.type === 'colony' && game.colony.inRun ? '철수' : '귀환';
     }
 
     function updateHud(zone) {
@@ -155,7 +159,6 @@ const sideEncounterUi = (() => {
 
     function updateColonyProgress(zone) {
         if (zone.type !== 'colony' || !game.colony.inRun) return;
-        setTextById('btn-combat-return', '철수');
         if (game.colony.lootPending) { updateLootCollectionProgress(); return; }
         const {wave, kills, requiredKills, coreHp, coreMaxHp} = game.colony;
         if (!coreMaxHp) {
@@ -327,7 +330,7 @@ const sideEncounterUi = (() => {
             rows.push(['부적 재료', `봉인편린, 강력한 기운의 봉인편린${floor >= 30 ? ', 찬란한 봉인편린' : ''}`]);
         }
         return rows.length ? rows.map(([title, text]) => `<div><dt>${title}</dt><dd>${text}</dd></div>`).join('')
-            : '<div><dd>화석 제작 미해금</dd></div>';
+            : '<div><dd>화석 제작 해금 후 획득</dd></div>';
     }
     function labyrinthUniques(zone) {
         const tier = Math.min(getRealmEquipmentHiddenTierCap(zone),
@@ -341,15 +344,14 @@ const sideEncounterUi = (() => {
         if (!result || result.season !== game.season) return '';
         const rewards = Object.entries(result.currencies).filter(([key, count]) => ORB_DB[key] && count > 0)
             .map(([key, count]) => `<span>${escapeHTML(ORB_DB[key].name)} <b>+${count}</b></span>`).join('');
-        return `<div class="map-expedition-result labyrinth-result"><strong>${result.floor}층 돌파 보상</strong>${rewards || '<span>추가 재료 없음</span>'}</div>`;
+        return `<div class="map-expedition-result labyrinth-result"><strong>${result.floor}층 돌파 보상</strong>${rewards || '<span>재료 없음</span>'}</div>`;
     }
     function labyrinthEntryActions(floor, max, current, blocked) {
         const action = current ? '<button type="button" onclick="switchTab(\'tab-battle\')">전투 보기</button>'
-            : `<button type="button" data-exploration-departure onclick="enterLabyrinthFloor(${floor})" ${blocked ? 'disabled' : ''}>${floor}층 입장</button>`;
+            : `<button type="button" data-exploration-departure onclick="enterLabyrinthFloor(${floor})" ${blocked ? `disabled title="${escapeHTML(blocked)}"` : ''}>${floor}층 입장</button>`;
         const picks = [...new Set([1, Math.max(1, floor - 1), Math.min(max, floor + 1), max])].filter(value => value !== floor);
         const navigation = picks.map(value => `<button type="button" class="labyrinth-floor-link" onclick="sideEncounterUi.selectLabyrinthFloor(${value})">${value === max ? '최고 ' : ''}${value}층</button>`).join('');
-        return `<div class="map-expedition-actions">${action}${navigation}${max > 1 ? '<button type="button" onclick="sideEncounterUi.chooseLabyrinthFloor()">층 선택</button>' : ''}
-            ${blocked ? `<span>${escapeHTML(blocked)}</span>` : ''}</div>`;
+        return `<div class="map-expedition-actions">${action}${navigation}${max > 1 ? '<button type="button" onclick="sideEncounterUi.chooseLabyrinthFloor()">층 선택</button>' : ''}</div>`;
     }
     function labyrinthPanel() {
         const floor = labyrinthSelectedFloor(), zone = getLabyrinthZoneNow(floor);
@@ -359,7 +361,7 @@ const sideEncounterUi = (() => {
         const blocked = getZoneTravelBlockReason(LABYRINTH_ZONE_ID) || getHeldRunBlockReason();
         return `<div class="map-expedition-intro labyrinth-panel"><div class="map-expedition-heading"><strong>${floor}층 ${current ? '탐험 중' : '입장 준비'}</strong>
             <span class="labyrinth-floor-record">입장 가능 1 ~ ${max}층</span>${buildMapPowerEstimateHtml(zone)}</div>
-            <div class="labyrinth-rewards"><small>확률 전리품</small><dl>${labyrinthRewards(floor)}</dl>${labyrinthUniques(zone)}</div>
+            <div class="labyrinth-rewards"><small>나올 수 있는 전리품</small><dl>${labyrinthRewards(floor)}</dl>${labyrinthUniques(zone)}</div>
             ${labyrinthResult()}${active && !current ? `<p class="labyrinth-current">${game.labyrinthFloor}층 탐험 중</p>` : ''}
             ${labyrinthEntryActions(floor, max, current, blocked)}</div>`;
     }
@@ -383,8 +385,7 @@ const sideEncounterUi = (() => {
         const percent = value => `${(value * 100).toFixed(value >= 0.1 ? 0 : value >= 0.01 ? 1 : 2)}%`;
         const columns = kept.map((value, keptCount) => `<div class="time-rift-column loss-${count - keptCount}"><small>${percent(value)}</small>`
             + `<span><i style="height:${(value / top * 100).toFixed(1)}%"></i></span><b>${keptCount}개</b></div>`).join('');
-        return `<small class="time-rift-odds-basis">${rift.altarRare ? '제단 희귀' : '희귀'} 옵션 ${count}개 기준</small>`
-            + `<div class="time-rift-odds" style="--time-rift-columns:${count + 1}" role="img" aria-label="남는 옵션 개수별 확률: ${kept.map((value, keptCount) => `${keptCount}개 ${percent(value)}`).join(', ')}">${columns}</div>`;
+        return `<div class="time-rift-odds" style="--time-rift-columns:${count + 1}" role="img" aria-label="남는 옵션 개수별 확률: ${kept.map((value, keptCount) => `${keptCount}개 ${percent(value)}`).join(', ')}">${columns}</div>`;
     }
 
     function timePast(rift) {
@@ -458,7 +459,6 @@ const sideEncounterUi = (() => {
             `<button type="button" data-exploration-departure onclick="changeZone('${TIME_RIFT_FUTURE_ZONE_ID}')" ${issue?'disabled':''}>미래 입장</button>`;
         return `<div class="map-expedition-intro"><h3>3. 미래</h3><strong>희귀 옵션을 고유에 계승</strong>
             ${buildMapPowerEstimateHtml(getZone(TIME_RIFT_FUTURE_ZONE_ID))}<p>${escapeHTML(issue||'융합 준비 완료')}</p>
-            <p class="time-rift-risk">실패하면 제단 장비가 파괴됩니다.</p>
             <details class="map-expedition-details" id="time-rift-fusion-rules"><summary>융합 규칙</summary>
             <p>미래 클리어 시 두 장비를 소모해 융합 유물 1개를 만듭니다. 희귀 옵션은 하나씩 시간압의 확률로 남고(${TIME_RIFT_KEEP_CAP}개가 남은 뒤로는 훨씬 낮은 확률), 나머지는 사라집니다.</p>
             <p>융합 후에는 황금률/잿불가지/축복의 꽃잎만 사용할 수 있습니다.</p></details>
@@ -480,12 +480,6 @@ const sideEncounterUi = (() => {
         const patterns = {charge:'굴착 돌격 (근접 무리)',sharpshooters:'독침 사격 (예고 관통탄)',carapace:'갑각 호위 (높은 방어)',mixed:'혼합 파상 (여러 역할)',overlord:'지배체 (예고 강타)'};
         return patterns[zone.wavePattern] || '군락 방어전';
     }
-    function colonyNextBossReward(colony) {
-        const wave = window.GameModules.colonyRun.nextBossWave(colony.inRun ? colony : { wave: 1 });
-        const rule = COLONY_WARD_RULES.colonyWave;
-        const floor = Math.min(rule.maxRollFloor, rule.bossRollFloor + (wave / rule.every - 1) * rule.bossRollStep);
-        return `5웨이브마다 액막이 확정, 다음 지배체의 일반 액막이 최소 굴림 ${Math.round(floor*100)}%`;
-    }
     function colonyPanelActions(colony, traces) {
         const entryDisabled = traces <= 0 || colony.inRun ? 'disabled' : '';
         const withdrawDisabled = colony.inRun ? '' : 'disabled';
@@ -503,6 +497,8 @@ const sideEncounterUi = (() => {
         if (game.currentZoneId === 'grand_breach_run' && game.voidRift.grandRun?.inRun) return withdrawGrandBreach();
         return returnToTown();
     }
+    /** A withdraw dialog is up: the game waits (js/ui.js isForegroundGameplayPausedForBackground), as for the departure dialog. */
+    const withdrawalPending = () => colonyWithdrawPending || grandWithdrawPending;
     function withdrawalCurrent(view, encounter, zoneId, stage) {
         return game === view.owner && encounter === view.encounter && encounter.inRun && game.currentZoneId === zoneId
             && game.actExploration === view.run && stage === view.stage && JSON.stringify(encounter.pendingLoot) === view.held;
@@ -527,11 +523,11 @@ const sideEncounterUi = (() => {
     async function withdrawColony() {
         const colony = game.colony;
         if (colonyWithdrawPending || !colony.inRun || game.currentZoneId !== 'colony_run') return false;
-        if (!colony.pendingLoot.length) { forfeitColonyRun(); return true; }
         const view = { owner: game, encounter: colony, run: game.actExploration, stage: colony.wave, held: JSON.stringify(colony.pendingLoot) };
+        const message = colony.pendingLoot.length ? `보관 전리품 ${colony.pendingLoot.length}묶음을 포기하고 철수할까요?` : '군락지에서 철수할까요?';
         colonyWithdrawPending = true;
         try {
-            const accepted = await requestGameConfirmation(`보관 전리품 ${colony.pendingLoot.length}묶음을 포기하고 철수할까요?`,
+            const accepted = await requestGameConfirmation(message,
                 { title: '군락지 철수', confirmLabel: '철수', cancelLabel: '취소', dismissOnBackdrop: false });
             if (!accepted) return false;
             if (!withdrawalCurrent(view, game.colony, 'colony_run', game.colony.wave)) { addLog('군락지 원정이 바뀌었습니다. 다시 확인하세요.', 'attack-monster'); return false; }
@@ -562,7 +558,7 @@ const sideEncounterUi = (() => {
             <dl><div><dt>입장 비용</dt><dd>군락지 흔적 1개<small>보유 ${traces}개, 기준 혼돈 심화 ${zone.entryDeepChaosDepth}</small></dd></div>
             <div><dt>${colony.lootPending ? '다음 적 무리' : '현재 적 무리'}</dt><dd>${colonyWavePattern(zone)}</dd></div>
             <div><dt>방어 목표</dt><dd>군락 핵 보호<small>${colony.coreMaxHp > 0 ? `${Math.ceil(colony.coreHp).toLocaleString()} / ${colony.coreMaxHp.toLocaleString()} 내구도` : '입장 시 핵 내구도 충전'}, 파괴되면 실패</small></dd></div>
-            <div><dt>웨이브 돌파 보상</dt><dd>군락지 편린, 액막이 부적<small>${colonyNextBossReward(colony)}</small></dd></div>
+            <div><dt>웨이브 돌파 보상</dt><dd>군락지 편린, 액막이 부적<small>${COLONY_WARD_RULES.colonyWave.every}웨이브마다 액막이 확정</small></dd></div>
             ${loot.held ? `<div><dt>보관 전리품</dt><dd>${loot.held}묶음<small>지배체 처치 전 철수하면 소멸</small></dd></div>` : ''}
             ${loot.floor ? `<div><dt>바닥 전리품</dt><dd>${loot.floor}묶음<small>${colony.returnAfterWave && colony.wave > colony.returnAfterWave ? '수거 후 철수' : '수거 후 다음 웨이브'}</small></dd></div>` : ''}</dl>
             ${colonyResultHtml(colony)}
@@ -592,7 +588,7 @@ const sideEncounterUi = (() => {
             ${skyLastResult(tower)}
             ${ready?'':'<p>이번 루프 혼돈 입성 후 입장할 수 있습니다.</p>'}
             <details class="map-expedition-details" id="sky-tower-guide"><summary>등반, 보상 규칙</summary>
-            <p>보상 25회를 마치면 멈춥니다. 이후 연습은 한 층씩 진행합니다.</p>
+            <p>새 층을 돌파하면 다음 층이 열립니다. 25회 소진 후에는 등반 기록과 응축 보상이 늘지 않습니다.</p>
             <p>돌파 기록/응축된 창공의 정수/영구 강화는 루프를 넘어 유지됩니다. 보상 전투 횟수만 루프마다 회복됩니다.</p></details>
             <div class="map-expedition-actions">${skyEntryActions(tower,remaining)}</div></div>`;
     }
@@ -602,7 +598,7 @@ const sideEncounterUi = (() => {
         if (!result) return '';
         const title = result.kind === 'practice' ? '연습 완료' : result.kind === 'first' ? '첫 돌파' : '반복 돌파';
         const reward = result.kind === 'practice' ? '등반 보상 없음' : result.condensedPower > 0
-            ? `응축된 창공의 정수 +${result.condensedPower}` : '정수 미발견';
+            ? `응축된 창공의 정수 +${result.condensedPower}` : '정수 없음';
         return `<div class="map-expedition-result"><strong>${result.floor}층 ${title}</strong><span>${reward}</span></div>`;
     }
 
@@ -625,5 +621,5 @@ const sideEncounterUi = (() => {
             <button onclick="switchTab('tab-skills'); switchSkillSubtab('skill-tab-enhance')" ${gemUnlocked?'':'disabled'}>룬 강화로 이동</button></div></div>`;
     }
 
-    return { hiveSummary, updateHud, refreshDestinations, hivePanel, grandPanel, meteorPanel, labyrinthPanel, selectLabyrinthFloor, chooseLabyrinthFloor, timeRiftPanel, inspectTimeItem, colonyPanel, toggleColonyReturn, withdrawColony, withdrawGrandBreach, returnFromBattle, skyPanel, skyGrowth, renderPanel };
+    return { hiveSummary, updateHud, returnLabel, withdrawalPending, refreshDestinations, hivePanel, grandPanel, meteorPanel, labyrinthPanel, selectLabyrinthFloor, chooseLabyrinthFloor, timeRiftPanel, inspectTimeItem, colonyPanel, toggleColonyReturn, withdrawColony, withdrawGrandBreach, returnFromBattle, skyPanel, skyGrowth, renderPanel };
 })();
