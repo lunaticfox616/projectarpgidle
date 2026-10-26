@@ -63,10 +63,22 @@ function readLocalSaveString() {
     return result.save;
 }
 
+const CORRUPT_SAVE_BACKUP_PREFIX = `${LOCAL_SAVE_KEY}_corrupt_`;
+/** The corrupt save's backups, newest first. */
+function corruptSaveBackupKeys() {
+    return Object.keys(localStorage).filter(key => key.startsWith(CORRUPT_SAVE_BACKUP_PREFIX))
+        .sort((a, b) => Number(b.slice(CORRUPT_SAVE_BACKUP_PREFIX.length)) - Number(a.slice(CORRUPT_SAVE_BACKUP_PREFIX.length)));
+}
+/** Keeps a copy of a save that failed to load. The same corrupt save is kept once, and only the two newest copies stay (2026-10-26:
+ * every page load with the corrupt save still in place wrote another full copy, until the storage quota was used up). */
 function preserveCorruptLocalSave(rawSave) {
     if (!rawSave) return null;
-    let backupKey = `${LOCAL_SAVE_KEY}_corrupt_${Date.now()}`;
     try {
+        const kept = corruptSaveBackupKeys();
+        const same = kept.find(key => localStorage.getItem(key) === rawSave);
+        if (same) return same;
+        kept.slice(1).forEach(key => localStorage.removeItem(key));
+        let backupKey = `${CORRUPT_SAVE_BACKUP_PREFIX}${Date.now()}`;
         localStorage.setItem(backupKey, rawSave);
         return backupKey;
     } catch (error) {

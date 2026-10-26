@@ -317,7 +317,10 @@ const stageRoster = (() => {
     const looks = () => (table() ? Object.values(table().actors).map(actor => [actor.id, actor.name]).sort((a, b) => a[1].localeCompare(b[1], 'ko')) : []);
 
     function notePlacement(enemy, actor, p, dot, west) {
-        if (enemy.isBoss) placements.set(enemy.id, { x: p.x, y: p.y, dot, west, strikeFrame: actor.impactFrame || 0, at: tick });
+        if (!enemy.isBoss) return;
+        placements.set(enemy.id, { x: p.x, y: p.y, dot, west, strikeFrame: actor.impactFrame || 0, at: tick });
+        // 쓰러진 보스의 자리는 지운다(2026-10-26: 한 판에 만난 보스마다 하나씩 남았다). placementOf는 1초 안의 자리만 돌려준다.
+        if (placements.size > 8) for (const [id, placed] of placements) if (tick - placed.at > 1000) placements.delete(id);
     }
     /** Where a boss was last drawn (this second): { x, y (feet), dot, west, strikeFrame }, or null. */
     function placementOf(id) {
