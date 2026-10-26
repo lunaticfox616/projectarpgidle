@@ -725,14 +725,16 @@ begin
     delete from public.hall_listings where status = 'withdrawn' and copies_sold = 0 and retired_at < now() - interval '30 days';
     return jsonb_build_object(
         'listings', coalesce((select jsonb_agg(row_data order by (row_data ->> 'score')::bigint desc, (row_data ->> 'createdAt') desc) from (
-            select jsonb_build_object('id', listing.id, 'curatorName', listing.curator_name,
+            select jsonb_build_object('id', listing.id, 'curatorName', coalesce(curator.nickname, listing.curator_name),
                 'item', listing.item_snapshot, 'score', listing.item_score, 'price', listing.price,
                 'honorPerCopy', listing.honor_per_copy, 'copiesSold', listing.copies_sold,
                 'copyCap', listing.copy_cap, 'createdAt', listing.created_at,
                 'isMine', listing.curator_id = account_id,
                 'alreadyCollected', exists(select 1 from public.hall_purchases purchase
                     where purchase.listing_id = listing.id and purchase.buyer_id = account_id)) row_data
-              from public.hall_listings listing where listing.status = 'open'
+              from public.hall_listings listing
+              left join public.player_profiles curator on curator.user_id = listing.curator_id   -- 전시자의 지금 닉네임(2026-10-27)
+             where listing.status = 'open'
              order by listing.item_score desc, listing.created_at desc limit 80) open_rows), '[]'::jsonb),
         'mine', coalesce((select jsonb_agg(row_data order by (row_data ->> 'createdAt') desc) from (
             select jsonb_build_object('id', listing.id, 'item', listing.item_snapshot,
@@ -798,12 +800,14 @@ begin
         'underReview', public.ghost_under_review(account_id),   -- 7일 안의 수치 기록: 순위전 점수가 멈춰 있다(2026-10-27)
         'me', (select to_jsonb(me) - 'user_id' - 'combat_snapshot' from public.ghost_profiles me where me.user_id = account_id),
         'leaderboard', coalesce((select jsonb_agg(to_jsonb(board)) from (
-            select row_number() over (order by rating desc, wins desc, updated_at asc) as rank,
-                   nickname, ascend_class, active_skill, rating, wins, losses, draws, matches,
-                   case when matches < 10 then true else false end as provisional
-              from public.ghost_profiles
-             where active and combat_version = p_combat_version
-             order by rating desc, wins desc, updated_at asc limit 50
+            select row_number() over (order by ghost.rating desc, ghost.wins desc, ghost.updated_at asc) as rank,
+                   coalesce(profile.nickname, ghost.nickname) as nickname,   -- 닉네임을 바꾸면 순위표도 따라간다(2026-10-27)
+                   ghost.ascend_class, ghost.active_skill, ghost.rating, ghost.wins, ghost.losses, ghost.draws, ghost.matches,
+                   case when ghost.matches < 10 then true else false end as provisional
+              from public.ghost_profiles ghost
+              left join public.player_profiles profile on profile.user_id = ghost.user_id
+             where ghost.active and ghost.combat_version = p_combat_version
+             order by ghost.rating desc, ghost.wins desc, ghost.updated_at asc limit 50
         ) board), '[]'::jsonb),
         'recent', coalesce((select jsonb_agg(to_jsonb(recent_match)) from (
             select match_row.created_at, match_row.ranked,

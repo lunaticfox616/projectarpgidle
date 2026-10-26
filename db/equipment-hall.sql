@@ -475,14 +475,16 @@ begin
     delete from public.hall_listings where status = 'withdrawn' and copies_sold = 0 and retired_at < now() - interval '30 days';
     return jsonb_build_object(
         'listings', coalesce((select jsonb_agg(row_data order by (row_data ->> 'score')::bigint desc, (row_data ->> 'createdAt') desc) from (
-            select jsonb_build_object('id', listing.id, 'curatorName', listing.curator_name,
+            select jsonb_build_object('id', listing.id, 'curatorName', coalesce(curator.nickname, listing.curator_name),
                 'item', listing.item_snapshot, 'score', listing.item_score, 'price', listing.price,
                 'honorPerCopy', listing.honor_per_copy, 'copiesSold', listing.copies_sold,
                 'copyCap', listing.copy_cap, 'createdAt', listing.created_at,
                 'isMine', listing.curator_id = account_id,
                 'alreadyCollected', exists(select 1 from public.hall_purchases purchase
                     where purchase.listing_id = listing.id and purchase.buyer_id = account_id)) row_data
-              from public.hall_listings listing where listing.status = 'open'
+              from public.hall_listings listing
+              left join public.player_profiles curator on curator.user_id = listing.curator_id   -- 전시자의 지금 닉네임(2026-10-27)
+             where listing.status = 'open'
              order by listing.item_score desc, listing.created_at desc limit 80) open_rows), '[]'::jsonb),
         'mine', coalesce((select jsonb_agg(row_data order by (row_data ->> 'createdAt') desc) from (
             select jsonb_build_object('id', listing.id, 'item', listing.item_snapshot,
