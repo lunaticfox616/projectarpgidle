@@ -227,12 +227,27 @@ create or replace function public.chat_text_spaced(p_text text)
 returns text language sql immutable set search_path = public as $$
     select regexp_replace(regexp_replace(lower(coalesce(p_text, '')), '[^a-z가-힣ㄱ-ㅎㅏ-ㅣ ]', '', 'g'), ' +', ' ', 'g');
 $$;
+-- 관리자가 더하는 금칙어: 이 표에 줄을 넣으면 바로 적용된다(대시보드 SQL Editor에서 insert into public.chat_banned_terms(term) values ('낱말')).
+-- 소문자로 넣는다. spaced가 true면 띄어쓰기를 남긴 글에서(짧은 말, 기본), false면 띄어쓰기를 지운 글에서 찾는다.
+create table if not exists public.chat_banned_terms (
+    term       text primary key check (char_length(term) between 2 and 40),
+    spaced     boolean not null default true,
+    note       text not null default '',
+    created_at timestamptz not null default now()
+);
+alter table public.chat_banned_terms enable row level security;
+-- 정책을 두지 않는다. 아래 검사 함수가 보안 정의자 트리거 안에서만 읽는다.
+revoke all on public.chat_banned_terms from anon, authenticated;
+
 -- 긴 줄기(3음절 이상과 fuck, bitch)는 띄어쓰기를 다 지운 글에서, 짧은 줄기(2음절, 자모 두 글자, shit)는 띄어쓰기를 남긴 글에서 찾는다.
--- "혹시 발사체", "3개 새로", "기존 나온", "ㅂㅂ ㅅㄱ", "sushi time" 같은 평범한 말이 걸리지 않게(검토 지적 2026-10-27).
+-- "혹시 발사체", "3개 새로", "기존 나온", "ㅂㅂ ㅅㄱ", "sushi time" 같은 평범한 말이 걸리지 않게(검토 지적 2026-10-27). 그 뒤 금칙어 표를 본다.
 create or replace function public.chat_text_is_offensive(p_text text)
-returns boolean language sql immutable set search_path = public as $$
+returns boolean language sql stable set search_path = public as $$
     select public.chat_text_normalized(p_text) ~ '(개새끼|미친놈|미친년|새끼야|새끼들|병신|븅신|지랄|느금|엠창|섹스|fuck|bitch)'
-        or public.chat_text_spaced(p_text) ~ '(시발|씨발|시팔|씨팔|씨바|개새|미친새|존나|애미|좆|ㅅㅂ|ㅆㅂ|ㅂㅅ|ㅈㄴ|ㅈㄹ|창녀|창놈|\mshit\M)';
+        or public.chat_text_spaced(p_text) ~ '(시발|씨발|시팔|씨팔|씨바|개새|미친새|존나|애미|좆|ㅅㅂ|ㅆㅂ|ㅂㅅ|ㅈㄴ|ㅈㄹ|창녀|창놈|\mshit\M)'
+        or exists (select 1 from public.chat_banned_terms banned
+                    where position(lower(banned.term) in case when banned.spaced then public.chat_text_spaced(p_text)
+                                                                 else public.chat_text_normalized(p_text) end) > 0);
 $$;
 
 -- 스팸 방지: 서버 측 속도 제한 트리거 -----------------------------------------
