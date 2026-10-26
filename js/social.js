@@ -488,6 +488,11 @@ function getProfileUploadError(error) {
         translated = new Error('닉네임은 하루에 한 번만 변경할 수 있습니다.');
         translated.socialCode = 'nickname_cooldown';
     }
+    if (/NICK_INVALID/.test(message)) {
+        translated = new Error(`닉네임은 ${SOCIAL_NICK_MIN}~${SOCIAL_NICK_MAX}자의 한글, 영문, 숫자, _ - 만 쓸 수 있습니다.`);
+        translated.socialCode = 'nickname_invalid';
+    }
+    if (/PROFILE_TOO_LARGE/.test(message)) translated = new Error('공개 프로필이 너무 커서 서버가 받지 않았습니다.');
     if (/duplicate|unique|nickname/i.test(message)) {
         translated = new Error('이미 사용 중인 닉네임입니다. 다른 닉네임을 선택해주세요.');
         translated.socialCode = 'nickname_conflict';

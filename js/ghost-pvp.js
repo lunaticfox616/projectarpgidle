@@ -28,6 +28,7 @@ function getGhostArenaError(error) {
     let texts = [
         [/GHOST_SNAPSHOT_UNAVAILABLE|INVALID_GHOST_SNAPSHOT/, '현재 세팅의 전투 능력치를 불러오지 못했습니다.'],
         [/GHOST_ACCOUNT_HELD/, '운영 검토 중인 계정이라 고스트 대결에 참여할 수 없습니다.'],
+        [/GHOST_SNAPSHOT_IMPLAUSIBLE/, '게임에서 나올 수 없는 수치라 서버가 고스트 등록을 거절했습니다.'],
         [/GHOST_OPPONENT_NOT_FOUND/, '대결 가능한 상대가 아직 없습니다.'],
         [/GHOST_TARGET_NOT_REGISTERED/, '상대가 현재 버전의 고스트를 등록하지 않았습니다.'],
         [/GHOST_REGISTRATION_REQUIRED/, '먼저 내 고스트를 등록하세요.'],
