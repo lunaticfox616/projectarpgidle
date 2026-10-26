@@ -407,12 +407,12 @@ create trigger trg_chat_messages_prune
     after insert on public.chat_messages
     for each row execute function public.chat_messages_prune();
 
--- 도배 자동 금지(2026-10-27): 성공한 메시지 뒤에 60초 안 12개째면 10분 금지를 건다(한도 15개보다 앞). 관리자가 건 더 긴 금지는 줄이지 않는다.
+-- 도배 자동 금지(2026-10-27): 성공한 메시지 뒤에 60초 안 15개째면 10분 금지를 건다(한도와 같다: 클라이언트는 1분에 12개까지만 보내므로 정상 플레이는 닿지 않고, 우회한 쪽만 걸린다). 관리자가 건 더 긴 금지는 줄이지 않는다.
 create or replace function public.chat_messages_auto_mute()
 returns trigger language plpgsql security definer set search_path = public as $$
 begin
-    if (select count(*) from public.chat_messages where user_id = new.user_id and created_at > now() - interval '60 seconds') >= 12 then
-        insert into public.chat_mutes (user_id, until_at, note) values (new.user_id, now() + interval '10 minutes', '자동: 60초 안 12개')
+    if (select count(*) from public.chat_messages where user_id = new.user_id and created_at > now() - interval '60 seconds') >= 15 then
+        insert into public.chat_mutes (user_id, until_at, note) values (new.user_id, now() + interval '10 minutes', '자동: 60초 안 15개')
         on conflict (user_id) do update
             set until_at = greatest(chat_mutes.until_at, excluded.until_at),
                 note = case when chat_mutes.until_at > excluded.until_at then chat_mutes.note else excluded.note end;

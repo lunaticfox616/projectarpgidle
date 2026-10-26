@@ -27,7 +27,7 @@
 --  11. 권고에 걸린 함수 8개의 search_path를 public으로 고정한다(social_set_updated_at는 2절에서 지운다).
 --  12. get_ghost_arena가 underReview를 돌려주어 대전 탭이 점수가 멈춘 까닭을 보여 준다. 순위표, 최근 대전, 전당 전시자는 지금 닉네임으로 보인다.
 --  13. 채팅 본문, 닉네임, 채팅에 붙인 장비 이름, 전당 전시 이름의 가벼운 한국어 비속어 필터(관리자가 운영 창이나 chat_banned_terms 표에
---      낱말을 더할 수 있다), 링크와 글자 반복과 5분 안 같은 메시지 세 번 차단, 60초 안 12개면 10분 자동 금지.
+--      낱말을 더할 수 있다), 링크와 글자 반복과 5분 안 같은 메시지 세 번 차단, 60초 안 15개면 10분 자동 금지.
 
 begin;
 
@@ -920,12 +920,12 @@ returns boolean language sql stable security definer set search_path = public as
                                                                  else public.chat_text_normalized(p_text) end) > 0);
 $$;
 
--- 도배 자동 금지(2026-10-27): 성공한 메시지 뒤에 60초 안 12개째면 10분 금지를 건다(한도 15개보다 앞). 관리자가 건 더 긴 금지는 줄이지 않는다.
+-- 도배 자동 금지(2026-10-27): 성공한 메시지 뒤에 60초 안 15개째면 10분 금지를 건다(한도와 같다: 클라이언트는 1분에 12개까지만 보내므로 정상 플레이는 닿지 않고, 우회한 쪽만 걸린다). 관리자가 건 더 긴 금지는 줄이지 않는다.
 create or replace function public.chat_messages_auto_mute()
 returns trigger language plpgsql security definer set search_path = public as $$
 begin
-    if (select count(*) from public.chat_messages where user_id = new.user_id and created_at > now() - interval '60 seconds') >= 12 then
-        insert into public.chat_mutes (user_id, until_at, note) values (new.user_id, now() + interval '10 minutes', '자동: 60초 안 12개')
+    if (select count(*) from public.chat_messages where user_id = new.user_id and created_at > now() - interval '60 seconds') >= 15 then
+        insert into public.chat_mutes (user_id, until_at, note) values (new.user_id, now() + interval '10 minutes', '자동: 60초 안 15개')
         on conflict (user_id) do update
             set until_at = greatest(chat_mutes.until_at, excluded.until_at),
                 note = case when chat_mutes.until_at > excluded.until_at then chat_mutes.note else excluded.note end;
