@@ -16,7 +16,7 @@ function ensureCloudToolsDialog() {
     dialog.className = 'cloud-tools-dialog';
     dialog.innerHTML = `<div class="cloud-tools-head"><strong id="cloud-tools-title"></strong><button type="button" onclick="closeCloudToolsDialog()" aria-label="닫기">✕</button></div><div id="cloud-tools-body" class="cloud-tools-body"></div>`;
     dialog.addEventListener('click', event => {
-        let button = event.target.closest('[data-cheat-hold], [data-cheat-clear], [data-chat-mute], [data-chat-delete], [data-term-add], [data-term-remove]');
+        let button = event.target.closest('[data-cheat-hold], [data-cheat-clear], [data-chat-mute], [data-chat-delete], [data-term-add], [data-term-remove], [data-mute-nick], [data-chat-peek]');
         if (!button) return;
         if (button.dataset.cheatHold) setCheatHold(button);
         else if (button.dataset.cheatClear) clearCheatFlags(button);
@@ -24,6 +24,8 @@ function ensureCloudToolsDialog() {
         else if (button.dataset.chatDelete) deleteChatMessage(button);
         else if (button.dataset.termAdd) setBannedTerm(button, false);
         else if (button.dataset.termRemove) setBannedTerm(button, true);
+        else if (button.dataset.muteNick) setChatMuteByNickname(button);
+        else if (button.dataset.chatPeek) peekPlayerChat(button);
     });
     document.body.appendChild(dialog);
     return dialog;
@@ -269,8 +271,13 @@ function renderChatReports(data) {
         { key: 'reason', label: '사유' },
         { label: '채팅', render: row => row.body ? (row.body.length > 60 ? `${row.body.slice(0, 60)}…` : row.body) : '' },
         { label: '상태', render: row => row.muted_until ? `금지 중, ${new Date(row.muted_until).toLocaleString('ko-KR')}까지` : (row.message_id && !row.message_exists ? '줄 지워짐' : '') },
-        { label: '조치', html: row => muteButtons(row) + (row.message_id && row.message_exists ? `<button type="button" data-chat-delete="${cloudToolsEscape(row.message_id)}">줄 지우기</button>` : '') }
+        { label: '조치', html: row => muteButtons(row) + (row.message_id && row.message_exists ? `<button type="button" data-chat-delete="${cloudToolsEscape(row.message_id)}">줄 지우기</button>` : '')
+            + `<button type="button" data-chat-peek="${cloudToolsEscape(row.target_user_id)}" data-chat-name="${cloudToolsEscape(row.nickname || '')}">최근 채팅</button>` }
     ], Array.isArray(data.reports) ? data.reports : []);
+    html += '<div id="chat-peek"></div>';
+    html += '<div class="ops-summary"><input id="chat-mute-nickname" type="text" maxlength="16" placeholder="닉네임으로 금지">'
+        + '<button type="button" data-mute-nick="1440">1일 금지</button><button type="button" data-mute-nick="10080">7일 금지</button>'
+        + '<button type="button" data-mute-nick="0">금지 풀기</button></div>';
     html += renderOpsTable('금지 중인 계정', [
         { label: '계정', render: row => row.nickname || String(row.user_id || '').slice(0, 8) },
         { label: '풀리는 시각', render: row => new Date(row.until_at).toLocaleString('ko-KR') }, { key: 'note', label: '메모' },
@@ -339,6 +346,50 @@ async function loadChatReports() {
             ? '<section><h3>채팅 신고</h3><p class="cloud-tools-note">Supabase에서 db/multiplayer-hardening-20261027.sql을 실행하면 보입니다.</p></section>'
             : `<section><h3>채팅 신고</h3><p class="cloud-tools-error">불러올 수 없습니다: ${cloudToolsEscape(text)}</p></section>`;
     }
+}
+
+/** Mutes or unmutes the account whose nickname is in the input row (admin_set_chat_mute_by_nickname): accounts without a report row. */
+async function setChatMuteByNickname(button) {
+    let input = document.getElementById('chat-mute-nickname');
+    let nickname = String((input && input.value) || '').trim();
+    if (!nickname) return showGameToast('닉네임을 넣어 주세요.', 'warning');
+    let minutes = Math.max(0, Math.floor(Number(button.dataset.muteNick) || 0));
+    let confirmed = await requestGameConfirmation(muteConfirmText(nickname, minutes), { title: '채팅 신고', tone: 'warning', confirmLabel: minutes ? '금지' : '풀기' });
+    if (!confirmed) return;
+    try {
+        await cloudJsonRequest('/rest/v1/rpc/admin_set_chat_mute_by_nickname', { method: 'POST', body: { p_nickname: nickname, p_minutes: minutes, p_note: '' } });
+        showGameToast(minutes ? '채팅을 금지했습니다.' : '채팅 금지를 풀었습니다.', 'success');
+    } catch (error) {
+        showGameToast(describeMuteError(error), 'danger');
+    }
+    await loadChatReports();
+}
+function muteConfirmText(name, minutes) {
+    return minutes ? `${name} 계정의 채팅을 ${minutes >= 10080 ? '7일' : '1일'} 동안 금지할까요?` : `${name} 계정의 채팅 금지를 풀까요?`;
+}
+function describeMuteError(error) {
+    let text = String(error && error.message || error);
+    return /PLAYER_NOT_FOUND/.test(text) ? '그 닉네임의 플레이어가 없습니다.' : `금지를 바꾸지 못했습니다: ${text}`;
+}
+
+/** The reported player's newest chat rows (readable by any signed-in user) under the report table, with 줄 지우기 buttons. */
+async function peekPlayerChat(button) {
+    let box = document.getElementById('chat-peek');
+    if (!box) return;
+    box.innerHTML = '<p class="cloud-tools-empty">불러오는 중…</p>';
+    try {
+        let rows = await cloudJsonRequest(`/rest/v1/chat_messages?select=id,body,created_at&user_id=eq.${encodeURIComponent(button.dataset.chatPeek)}&order=id.desc&limit=15`, {});
+        box.innerHTML = renderChatPeek(button.dataset.chatName || '', Array.isArray(rows) ? rows : []);
+    } catch (error) {
+        box.innerHTML = `<p class="cloud-tools-error">최근 채팅을 불러오지 못했습니다: ${cloudToolsEscape(error.message || error)}</p>`;
+    }
+}
+function renderChatPeek(name, rows) {
+    return renderOpsTable(`${name || '이 플레이어'}의 최근 채팅`, [
+        { label: '시각', render: row => new Date(row.created_at).toLocaleString('ko-KR') },
+        { key: 'body', label: '채팅' },
+        { label: '조치', html: row => `<button type="button" data-chat-delete="${cloudToolsEscape(row.id)}">줄 지우기</button>` }
+    ], rows);
 }
 
 /** Mutes (1 or 7 days) or unmutes one account after a confirmation (admin_set_chat_mute), then reloads the reports. */

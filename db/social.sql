@@ -543,6 +543,19 @@ begin
 end;
 $$;
 
+-- 관리자: 닉네임으로 금지(신고 줄이 없는 계정도 운영 창에서 금지할 수 있게). 대소문자는 무시한다.
+create or replace function public.admin_set_chat_mute_by_nickname(p_nickname text, p_minutes integer, p_note text default '')
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare
+    target_id uuid;
+begin
+    if not public.is_project_admin() then raise exception 'ADMIN_REQUIRED'; end if;
+    select user_id into target_id from public.player_profiles where lower(nickname) = lower(trim(coalesce(p_nickname, '')));
+    if target_id is null then raise exception 'PLAYER_NOT_FOUND'; end if;
+    return public.admin_set_chat_mute(target_id, p_minutes, p_note);
+end;
+$$;
+
 revoke all on function public.chat_muted_until(uuid) from public, anon, authenticated;
 revoke all on function public.report_player_chat(uuid, text, bigint) from public, anon;
 revoke all on function public.admin_get_chat_reports() from public, anon;
@@ -552,6 +565,8 @@ grant execute on function public.report_player_chat(uuid, text, bigint) to authe
 grant execute on function public.admin_get_chat_reports() to authenticated;
 grant execute on function public.admin_set_chat_mute(uuid, integer, text) to authenticated;
 grant execute on function public.admin_delete_chat_message(bigint) to authenticated;
+revoke all on function public.admin_set_chat_mute_by_nickname(text, integer, text) from public, anon;
+grant execute on function public.admin_set_chat_mute_by_nickname(text, integer, text) to authenticated;
 
 -- 접속 인원만(채팅 창 배지): 접속자 목록이 닫혀 있을 때 80줄을 받지 않고 수만 묻는다(2026-10-27, 내려받기 용량. js/social.js loadOnlineUsers).
 create or replace function public.get_online_counts()

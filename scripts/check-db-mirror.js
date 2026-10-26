@@ -5,7 +5,7 @@
 // 그대로 담아, 기존 프로젝트에 묶음을 돌린 결과와 새로 설치한 결과가 같아야 한다. 2026-10-27 검토에서 사람이 스크립트로
 // 비교해 확인했는데, 그 확인을 여기 둬서 다음 변경이 한쪽만 고치면 바로 드러나게 한다.
 //
-// 비교 단위: `create or replace function public.이름(...)`부터 그 함수를 닫는 첫 `$$;`까지, `create policy "이름"`부터 `;`까지.
+// 비교 단위: `create or replace function public.이름(...)`부터 그 함수를 닫는 첫 `$$;`까지, `create policy "이름"`과 `create trigger 이름`부터 `;`까지.
 // 주석(--)은 자르기 전에 지우고 공백 차이는 무시한다. 종료 코드 0 = 같음, 1 = 다른 곳이 있음.
 // 한 번 실행하는 묶음 파일도 거울로 남는다: 원본 함수를 나중에 정당하게 고치면 묶음 파일의 사본도 같이 고치거나 OVERRIDDEN에 적는다.
 'use strict';
@@ -51,11 +51,24 @@ function policyBlocks(text) {
     }
     return blocks;
 }
+/** `create trigger 이름 ...;`: 이벤트 목록(before insert or update of a, b)과 함수가 같아야 한다. */
+function triggerBlocks(text) {
+    const blocks = [];
+    const head = /create trigger ([a-z_0-9]+)/g;
+    let match;
+    while ((match = head.exec(text)) !== null) {
+        let end = text.indexOf(';', match.index);
+        if (end < 0) break;
+        blocks.push({ kind: 'trigger', name: match[1], body: normalize(text.slice(match.index, end + 1)) });
+        head.lastIndex = end + 1;
+    }
+    return blocks;
+}
 
 const seen = new Map();   // kind:name -> [{ file, body }]
 for (const file of files) {
     const text = stripComments(fs.readFileSync(path.join(dbDir, file), 'utf8').replace(/\r\n/g, '\n'));
-    for (const block of [...functionBlocks(text), ...policyBlocks(text)]) {
+    for (const block of [...functionBlocks(text), ...policyBlocks(text), ...triggerBlocks(text)]) {
         const key = `${block.kind}:${block.name}`;
         if ((OVERRIDDEN[key] || []).includes(file)) continue;
         if (!seen.has(key)) seen.set(key, []);
