@@ -804,4 +804,18 @@ assert(run("getBeehiveRewardPool(1).some(row=>row.type==='bundle') && !getBeehiv
     'basic crafting rewards can appear before fossil and jewel rewards');
 run("contentProgression.gift('fossil');contentProgression.purchase('jewel')");
 assert.equal(run('getBeehiveRewardPool(1).length'),9,'the existing full reward pool returns after the corresponding unlocks');
+// A newly opened underground stone number grants its first usable copy once; claim flags survive loading and loops.
+run('game=mergeDefaults({season:13,loopCount:12});grantUnderworldFloorMilestone(10,game.underworldProgress)');
+assert.deepEqual(json('game.underworldRunes.obtainedRunes'),[1],'opening the first slot must also grant its first stone');
+run('game=mergeDefaults(JSON.parse(serializeSaveState(game)));grantUnderworldFloorMilestone(10,game.underworldProgress)');
+assert.deepEqual(json('game.underworldRunes.obtainedRunes'),[1],'re-clearing after load cannot duplicate a milestone stone');
+run('grantUnderworldFloorMilestone(20,game.underworldProgress)');
+assert.deepEqual(json('game.underworldRunes.obtainedRunes'),[1,2],'the next milestone grants its newly opened number');
+const milestoneRunes=json('game.underworldRunes');
+run('triggerSeasonReset();grantUnderworldFloorMilestone(20,game.underworldProgress)');
+assert.deepEqual(json('game.underworldRunes'),milestoneRunes,'a new loop keeps stones and cannot reclaim a permanent milestone');
+run('game.currencies.runeShard=0;game.currencies.underGold=0;grantUnderworldFloorMilestone(310,game.underworldProgress)');
+assert.deepEqual(json('[game.currencies.runeShard,game.currencies.underGold]'),[70,24],'deep floors keep their material rewards');
+run('game=mergeDefaults(JSON.parse(serializeSaveState(game)));grantUnderworldFloorMilestone(310,game.underworldProgress)');
+assert.deepEqual(json('[game.currencies.runeShard,game.currencies.underGold]'),[70,24],'deep-floor material claims persist across loading');
 console.log('smoke-content-progression passed');

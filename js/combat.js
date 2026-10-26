@@ -11185,27 +11185,31 @@ function getBeyondBoundaryCompletionRewardContext(result) {
 
 /** Every 10 underworld floors: rune slots (to 6) and rune numbers (to 30) through floor 300; past it, rune growth materials. */
 function grantUnderworldFloorMilestone(floor, progress) {
-    if (floor > UNDERWORLD_DEEP_FLOOR_REWARD.fromFloor) return grantUnderworldDeepFloorReward(floor, progress);
-    if (floor % 10 !== 0) return;
+    const reward = window.GameModules.state.underworldMilestoneReward(floor);
+    if (!reward) return;
+    if (!reward.rune) return grantUnderworldDeepFloorReward(floor, progress);
     let runeState = game.underworldRunes;
-    let unlockTier = Math.floor(floor / 10);
     let prevSlots = Math.max(0, Math.floor(runeState.unlockedSlots || 0));
     let prevMaxRuneNo = Math.max(0, Math.floor(runeState.unlockedRunesMaxNumber || 0));
-    runeState.unlockedSlots = Math.min(6, Math.max(prevSlots, unlockTier));
-    runeState.unlockedRunesMaxNumber = Math.min(30, Math.max(prevMaxRuneNo, unlockTier));
-    if (runeState.unlockedSlots > prevSlots || runeState.unlockedRunesMaxNumber > prevMaxRuneNo) {
-        dispatchRuntimeEvent('underworld-milestone', { floor, text: `🧿 지하계 ${floor}층 보상: 지하석 슬롯 ${runeState.unlockedSlots}/6, 지하석 번호 1~${runeState.unlockedRunesMaxNumber} 해금` });
+    runeState.unlockedSlots = Math.min(6, Math.max(prevSlots, reward.slots));
+    runeState.unlockedRunesMaxNumber = Math.min(30, Math.max(prevMaxRuneNo, reward.rune.no));
+    const lines = [];
+    if (runeState.unlockedRunesMaxNumber > prevMaxRuneNo) {
+        runeState.obtainedRunes.push(reward.rune.no);
+        lines.push(`${reward.rune.name} 지하석 1개`);
     }
+    if (runeState.unlockedSlots > prevSlots) lines.push(`지하석 슬롯 ${runeState.unlockedSlots}/6`);
+    if (lines.length) dispatchRuntimeEvent('underworld-milestone', { floor, text: `🧿 지하계 ${floor}층 보상: ${lines.join(', ')}` });
 }
 
 /** Past floor 300 (data/constants.js UNDERWORLD_DEEP_FLOOR_REWARD), each `every`-th floor pays rune materials once:
  * progress.deepRewardFloor keeps the deepest paid floor, so repeating a floor pays nothing. */
 function grantUnderworldDeepFloorReward(floor, progress) {
-    const rule = UNDERWORLD_DEEP_FLOOR_REWARD, depth = floor - rule.fromFloor;
-    const paid = Math.max(rule.fromFloor, Math.floor(Number(progress.deepRewardFloor) || 0));
-    if (depth % rule.every !== 0 || floor <= paid) return;
+    const reward = window.GameModules.state.underworldMilestoneReward(floor);
+    const paid = Math.max(UNDERWORLD_DEEP_FLOOR_REWARD.fromFloor, Math.floor(Number(progress.deepRewardFloor) || 0));
+    if (!reward || floor <= paid) return;
     progress.deepRewardFloor = floor;
-    const shards = Math.floor(rule.runeShard[0] + rule.runeShard[1] * depth), gold = Math.floor(rule.underGold[0] + rule.underGold[1] * depth);
+    const { runeShard: shards, underGold: gold } = reward.currencies;
     awardCurrency('runeShard', shards);
     awardCurrency('underGold', gold);
     dispatchRuntimeEvent('underworld-milestone', { floor, text: `🧿 지하계 ${floor}층 보상: 지하석 조각 ${shards}, 금 ${gold}` });

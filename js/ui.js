@@ -1016,7 +1016,7 @@ function setMobileBattlePipCollapsed(host, collapsed) {
 
 /** Dense map/crafting views and early landscape trees start folded; leaving restores the previous PiP choice. */
 function dockMobileBattlePip(host) {
-    const mapContexts = [['atlas', 'map-explore-worldtree'], ['labyrinth', 'map-explore-labyrinth'], ['chaosRealm', 'map-tab-chaos-realm'], ['sky', 'map-tab-sky'], ['colony', 'map-explore-colony'], ['beehive', 'map-explore-beehive'], ['timerift', 'map-explore-timerift']];
+    const mapContexts = [['atlas', 'map-explore-worldtree'], ['labyrinth', 'map-explore-labyrinth'], ['chaosRealm', 'map-tab-chaos-realm'], ['sky', 'map-tab-sky'], ['colony', 'map-explore-colony'], ['beehive', 'map-explore-beehive'], ['timerift', 'map-explore-timerift'], ['underworld', 'map-tab-underworld']];
     function syncContext(context) {
         if ((host.dataset.compactContext || '') !== context) {
             if (host.hasAttribute('data-context-collapsed')) {

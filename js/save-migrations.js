@@ -1553,6 +1553,7 @@ function mergeDefaults(save) {
     merged.underworldProgress = { ...(defaultGame.underworldProgress || { highestFloor: 1, currentFloor: 1 }), ...(merged.underworldProgress || {}) };
     merged.underworldProgress.highestFloor = Math.max(1, Math.floor(clampFiniteNumber(merged.underworldProgress.highestFloor, 1, 1)));
     merged.underworldProgress.currentFloor = Math.max(1, Math.floor(clampFiniteNumber(merged.underworldProgress.currentFloor, 1, 1)));
+    merged.underworldProgress.deepRewardFloor = Math.floor(clampFiniteNumber(merged.underworldProgress.deepRewardFloor, 0, 0, Number.MAX_SAFE_INTEGER - UNDERWORLD_DEEP_FLOOR_REWARD.every));
     let savedRunes = (merged.underworldRunes && typeof merged.underworldRunes === 'object') ? merged.underworldRunes : {};
     let underworld10ClearCredit = !!merged.underworldProgress.floor10Cleared
         || Math.max(0, Math.floor(Number(savedRunes.unlockedSlots) || 0)) >= 1

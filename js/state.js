@@ -74,6 +74,22 @@ window.GameModules.state.normalizeTimeRiftResult = function (value) {
         pressure: value.pressure, inherited: value.inherited, lost: value.lost, season: value.season };
 };
 
+/** The first-clear reward of a milestone floor. Claim state stays in unlocked rune numbers and deepRewardFloor. */
+window.GameModules.state.underworldMilestoneReward = function (floor) {
+    const rule = UNDERWORLD_DEEP_FLOOR_REWARD;
+    if (!Number.isSafeInteger(floor) || floor < 10) return null;
+    if (floor <= rule.fromFloor) {
+        if (floor % 10 !== 0) return null;
+        return { floor, slots: Math.min(6, floor / 10), rune: UNDERWORLD_RUNE_DB.find(row => row.no === floor / 10), currencies: {} };
+    }
+    const depth = floor - rule.fromFloor;
+    if (depth % rule.every !== 0) return null;
+    return { floor, slots: 0, rune: null, currencies: {
+        runeShard: Math.floor(rule.runeShard[0] + rule.runeShard[1] * depth),
+        underGold: Math.floor(rule.underGold[0] + rule.underGold[1] * depth)
+    } };
+};
+
 // Transient notices: domains enqueue data; the foreground UI decides when to present it.
 let tutorialQueue = [];
 // 같은 안내의 두 이름: 새 캐릭터의 시작 안내(tutorial_first_*)를 본 사람에게 루프 2의 탭 해금 안내(unlock_*)가 '처음 얻었습니다'를
