@@ -3,6 +3,7 @@ function resetBeehiveRunModifiers(b) {
     b.pendingChoice = null;
     b.awaitingClear = false;
     b.enemyEmpower = 0;
+    b.waveExtra = 0;
     b.rewardMomentum = 0;
     b.penaltyLedger = [];
     b.rewardLedger = [];

@@ -59,7 +59,7 @@ const sideEncounterUi = (() => {
         const wax = 1 + Math.floor(Math.min(30, power) / 6);
         const stinger = 1 + Math.floor(Math.min(30, power) / 10);
         return `<section class="expedition-ledger" aria-label="벌집 위험과 보상">
-            <div class="expedition-ledger-risk"><h3>누적 위험 <b>군체 강화 ${power}</b></h3><ul>${rows(penalties,'선택한 위험 없음')}</ul></div>
+            <div class="expedition-ledger-risk"><h3>누적 대가 <b>군체 강화 ${power}</b></h3><ul>${rows(penalties,'선택한 대가 없음')}</ul></div>
             <div><h3>확보 보상 <b>이미 지급됨</b></h3><ul>${rows(rewards,'아직 없음')}</ul>
                 ${hive.pendingWaveRewardText ? `<p>이번 무리 처치 후, ${escapeHTML(hive.pendingWaveRewardText)}</p>` : ''}</div>
             <div class="expedition-ledger-queen"><h3>여왕 처치 시 <b>보류 중</b></h3>

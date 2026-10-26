@@ -796,4 +796,12 @@ for (const [type,name] of [['Skill','서리바람 내지르기'],['Support','가
     assert.equal(run('game.resonancePower'),0,'restoring a rune spends exactly its one seal reward');
     assert.deepEqual(json('[game.gemData,game.supportGemData]'),runeGrowth,'sealing, reload and restoration preserve rune growth');
 }
+// New hive offers follow actual crafting access; an old promised offer is not rerolled here.
+run('game=mergeDefaults({});game.season=8;contentProgression.sync()');
+assert.deepEqual(json('getBeehiveRewardPool(1).map(row=>row.type)'),['pollen','beeswax']);
+run(`${meet('orga')};contentProgression.gift('craft')`);
+assert(run("getBeehiveRewardPool(1).some(row=>row.type==='bundle') && !getBeehiveRewardPool(1).some(row=>row.type==='jewelShard'||row.type==='spore')"),
+    'basic crafting rewards can appear before fossil and jewel rewards');
+run("contentProgression.gift('fossil');contentProgression.purchase('jewel')");
+assert.equal(run('getBeehiveRewardPool(1).length'),9,'the existing full reward pool returns after the corresponding unlocks');
 console.log('smoke-content-progression passed');

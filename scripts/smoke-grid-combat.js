@@ -2768,6 +2768,36 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   assert(held,'blocked locked target must hold both grid position and interpolated movement');
 }
 
+// A pursuit is one wave's two extra bees, not a permanent army multiplier or a second payment after loading.
+{
+  const runtime = buildGameRuntime();
+  runtime.Math = Object.create(Math);
+  runtime.Math.random = () => 0.75;
+  runtime.document.body.insertAdjacentHTML = () => {}; // DOM boundary; choices and combat remain real.
+  const settled = JSON.parse(JSON.stringify(vm.runInContext(`(() => {
+    game=mergeDefaults({});window.game=game;game.season=8;game.level=100;
+    game.settings.stageRooms='off';game.currencies.hiveKey=1;startBeehiveRun();
+    const wax=game.currencies.beeswax,hp=game.playerHp;
+    const choice=game.beehive.pendingChoice.b;
+    resolveBeehiveChoice('b',choice.penalty.key);
+    const extra=game.beehive.waveExtra===2&&countBeehiveWaveAlive()===8&&game.playerHp===hp&&game.beehive.enemyEmpower===0;
+    const before=JSON.stringify([game.currencies,game.beehive.branchStep,game.enemies]);
+    resolveBeehiveChoice('b',choice.penalty.key);
+    const once=before===JSON.stringify([game.currencies,game.beehive.branchStep,game.enemies]);
+    game=mergeDefaults(JSON.parse(serializeSaveState(game)));window.game=game;
+    const restored=game.beehive.waveExtra===2&&countBeehiveWaveAlive()===8;
+    for(const enemy of [...game.enemies]){enemy.hp=0;handleEnemyDeath(enemy,getPlayerStats());}
+    const cleared=game.beehive.waveExtra===0&&game.currencies.beeswax===wax+1;
+    const next=game.beehive.pendingChoice.b;
+    resolveBeehiveChoice('b',next.penalty.key);
+    const repeated=game.beehive.waveExtra===2&&countBeehiveWaveAlive()===8;
+    exitBeehiveRun('','attack-monster');
+    return {extra,once,restored,cleared,repeated,exited:!game.beehive.inRun&&game.beehive.waveExtra===0&&game.currencies.hiveKey===0};
+  })()`, runtime)));
+  assert.deepStrictEqual(settled,{extra:true,once:true,restored:true,cleared:true,repeated:true,exited:true},
+    'pursuit survives a save, pays one completed-wave reward, never accumulates, and clears on exit');
+}
+
 // Special encounter loot is owned by the run until its boss dies. A saved floor must still block the next wave.
 {
   const runtime = buildGameRuntime();

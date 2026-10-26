@@ -2645,7 +2645,8 @@ const defaultGame = {
     jewelInventory: [],
     // 가방의 새 아이템(빨간 점): id가 이보다 크면 새 것. 가방을 열었다가 닫으면 그때의 itemIdCounter가 된다(js/equipment-window-ui.js).
     bagSeenId: null,
-    beehive: { unlockedPermanent: false, inRun: false, branchStep: 0, cleared: false, routeSeed: 0 },
+    // waveExtra: 0..2 extra normal enemies for the selected wave only; cleared before the next choice or queen.
+    beehive: { unlockedPermanent: false, inRun: false, branchStep: 0, cleared: false, routeSeed: 0, waveExtra: 0 },
     // Core durability is an integer. A zero maximum means a new/legacy run needs initialization.
     // returnAfterWave: 0 or a boss-wave integer (multiple of 5). lastResult: null or {kind, wave, completed, lostHeld} integer counts.
     colony: { inRun: false, wave: 0, highestWave: 0, kills: 0, requiredKills: 0, coreMaxHp: 0, coreHp: 0, failedWave: 0, rewardPending: false,

@@ -1016,7 +1016,7 @@ function setMobileBattlePipCollapsed(host, collapsed) {
 
 /** Dense map/crafting views and early landscape trees start folded; leaving restores the previous PiP choice. */
 function dockMobileBattlePip(host) {
-    const mapContexts = [['atlas', 'map-explore-worldtree'], ['labyrinth', 'map-explore-labyrinth'], ['chaosRealm', 'map-tab-chaos-realm'], ['sky', 'map-tab-sky'], ['colony', 'map-explore-colony']];
+    const mapContexts = [['atlas', 'map-explore-worldtree'], ['labyrinth', 'map-explore-labyrinth'], ['chaosRealm', 'map-tab-chaos-realm'], ['sky', 'map-tab-sky'], ['colony', 'map-explore-colony'], ['beehive', 'map-explore-beehive']];
     function syncContext(context) {
         if ((host.dataset.compactContext || '') !== context) {
             if (host.hasAttribute('data-context-collapsed')) {
@@ -2782,7 +2782,7 @@ function spawnBeehiveWave(isBoss){
     let b = game.beehive || {};
     let zone = getZone('beehive_run') || getZone(0);
     let step = Math.max(1, Math.floor(b.branchStep || 1));
-    let count = isBoss ? 1 : Math.min(8, 6 + Math.floor((step - 1) / 4));
+    let count = isBoss ? 1 : Math.min(8, 6 + Math.floor((step - 1) / 4)) + (b.waveExtra || 0);
     let eliteCount = step >= 6 ? 3 : 2;
     game.enemies = [];
     game.encounterPlan = [];
@@ -2809,7 +2809,7 @@ function getBeehivePenaltyPool(branchStep) {
     let depth = Math.max(1, Math.floor(branchStep || 1));
     let pool = [
         { key: 'swarm', text: '군체 분노 +1', power: 1 },
-        { key: 'sting', text: '독침 상처(체력 -5%)', power: 1 },
+        { key: 'pursuit', text: '추격벌 +2 (이번 무리)', power: 2 },
         { key: 'pollen_tax', text: '꽃가루 -6', power: 1 }
     ];
     if (depth >= 4) pool.push({ key: 'deep_swarm', text: '심층 군체 분노 +2', power: 2 });
@@ -2831,7 +2831,7 @@ function canPayBeehivePenalty(penalty) {
     if (!penalty) return false;
     const cost = getBeehivePenaltyCost(penalty);
     if (cost) return (game.currencies[cost.key] || 0) >= cost.amount;
-    return ['swarm', 'sting', 'deep_swarm', 'royal_swarm'].includes(penalty.key);
+    return ['swarm', 'sting', 'pursuit', 'deep_swarm', 'royal_swarm'].includes(penalty.key);
 }
 function getBeehiveSelectableChoice(choices, key) {
     if (!['a', 'b', 'c'].includes(key)) return null;
@@ -2842,12 +2842,15 @@ function getBeehiveSelectableChoice(choices, key) {
     return { ...pick, penalty: { key: 'swarm', text: '군체 분노 +1', power: 1 } };
 }
 function getBeehiveRewardPool(branchStep) {
+    // Filter new offers only; already saved choices and promised rewards retain their original payouts.
     let depth = Math.max(1, Math.floor(branchStep || 1));
+    const currencies = { honey: ['enchantedHoney'], stinger: ['venomStinger'],
+        spore: ['sporeFire', 'sporeCold', 'sporeLight'], bundle: ['pollen', 'venomStinger', 'formlessDew'] };
     return [
         { type: 'pollen', weight: 42 }, { type: 'honey', weight: 18 }, { type: 'stinger', weight: 16 },
         { type: 'formlessDew', weight: 14 + Math.min(8, depth) }, { type: 'goldenRule', weight: 2 + Math.floor(depth / 4) },
         { type: 'jewelShard', weight: 10 }, { type: 'spore', weight: 8 }, { type: 'beeswax', weight: 10 }, { type: 'bundle', weight: 4 }
-    ];
+    ].filter(row => (currencies[row.type] || [row.type]).every(key => contentProgression.canDropCurrency(key)));
 }
 function pickWeightedBeehiveReward(branchStep, usedTypes) {
     let used = usedTypes || new Set();
@@ -2921,13 +2924,14 @@ function buildBeehiveChoiceOption(type, branchStep, timing = 'wave') {
     }
     if (type === 'bundle') {
         let amount = scaleBeehiveRewardAmount(1, timing);
-        return mk(amount > 1 ? `중첩 보상 x${amount}: 꽃가루 + 독벌침 + 형체 없는 이슬` : '중첩 보상: 꽃가루 + 독벌침 + 형체 없는 이슬', 'bundle', amount);
+        return mk(`꽃가루 +${20 * amount}, 독벌침 +${amount}, 형체 없는 이슬 +${amount}`, 'bundle', amount);
     }
     let amount = scaleBeehiveRewardAmount(10, timing);
     return mk(`꽃가루 +${amount}`, 'pollen', amount);
 }
 function applyBeehiveChoicePenalty(penalty, b) {
     if (!canPayBeehivePenalty(penalty)) return null;
+    b.waveExtra = Number(penalty.key === 'pursuit') * 2;
     const cost = getBeehivePenaltyCost(penalty);
     if (cost) {
         if (cost.chance < 1 && Math.random() >= cost.chance) return `${cost.name} 소모 없음`;
@@ -2986,6 +2990,7 @@ function startBeehiveRun(){
     prepareBeehiveBranchChoices(b);
     addLog(`🐝 벌집 원정 시작! 기준 난이도: 혼돈 심화 ${Math.max(21, Math.floor(b.entryDeepChaosDepth || 21))}, 갈림길을 선택하면 즉시 벌떼 웨이브가 시작됩니다.`, 'season-up');
     updateStaticUI();
+    queueImportantSave(200);
 }
 function canResolveBeehiveChoice(b) {
     return !!b?.inRun && !!b.pendingChoice && !b.awaitingClear
@@ -3035,6 +3040,7 @@ function resolveBeehiveChoice(key, displayedPenalty){
     addLog(`🐝 갈림길 ${b.branchStep}/10 선택 완료: ${timingText}, 대가: ${penaltyText || '없음'}, 벌떼 웨이브 시작`, 'loot-magic');
     spawnBeehiveWave(false);
     updateStaticUI();
+    queueImportantSave(200);
 }
 function exitBeehiveRun(message, logType){
     closeBeehiveChoiceOverlay();
@@ -3052,6 +3058,7 @@ function exitBeehiveRun(message, logType){
     game.combatHalted = false;
     if (message) addLog(message, logType || 'attack-monster');
     updateStaticUI();
+    queueImportantSave(200);
 }
 function completeBeehiveRun(){
     let b = game.beehive || {};
@@ -3091,10 +3098,12 @@ function completeBeehiveRun(){
     }
     addLog(`👑 여왕벌 처치! 밀랍 +${wax}, 독벌침 +${stinger} (군체 강화 ${risk} 정산).${queenRewardResults.length ? ` 여왕벌 선택 보상: ${queenRewardResults.join(' / ')}` : ''}`, 'level-up');
     updateStaticUI();
+    queueImportantSave(200);
 }
 function onBeehiveWaveCleared(){
     let b = game.beehive || {};
     if (!b.inRun || !b.awaitingClear) return;
+    b.waveExtra = 0;
     game.enemies = [];
     game.encounterPlan = [];
     game.encounterIndex = 0;
@@ -3111,6 +3120,7 @@ function onBeehiveWaveCleared(){
     b.awaitingClear = false;
     game.combatHalted = true;
     game.runProgress = Math.min(100, Math.max(0, Math.floor(b.branchStep || 0)) * 10);
+    queueImportantSave(200);
     if ((b.branchStep || 0) >= 10) {
         b.awaitingClear = true;
         b.queenActive = true;
