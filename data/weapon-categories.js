@@ -1,11 +1,11 @@
-// 무기 대분류 여섯 (docs/weapon-categories-20261001.md): 대검 · 곡도 · 단궁 · 오브 · 플라스크 · 향로.
-// id는 주인공 그림의 무기(data/hana-weapon-combos.js weapons)와 같다. 무기 이름은 대분류의 이름(대검, 곡도, 단궁, 오브, 플라스크,
-// 향로)을 따른다(2026-10-23 사용자 결정, 옛 이름은 data/items.js WEAPON_BASE_LEGACY_NAMES). 직업과 묶지 않는다: 요구 능력치만 맞으면
+// 무기 대분류 여섯 (docs/weapon-categories-20261001.md): 대검 · 한손검 · 단궁 · 오브 · 플라스크 · 향로.
+// id는 주인공 그림의 무기(data/hana-weapon-combos.js weapons)와 같다. 무기 이름은 대분류의 이름(대검, 한손검, 단궁, 오브, 플라스크,
+// 향로)을 따른다(2026-10-23 사용자 결정, 2026-10-26 곡도는 한손검으로, 옛 이름은 data/items.js WEAPON_BASE_LEGACY_NAMES). 직업과 묶지 않는다: 요구 능력치만 맞으면
 // 어느 직업이든 끼고, 주인공 그림은 낀 무기의 대분류를 든다.
 // root: 그 대분류를 든 뿌리 촉수 몬스터(assets/enemies/roots/{root}-*.png, data/bosses.js ROOT_MONSTER_VISUALS).
 const WEAPON_CATEGORIES = Object.freeze({
     greatsword: Object.freeze({ name: '대검', root: 'greatsword' }),
-    scimitar: Object.freeze({ name: '곡도', root: 'curvedblade' }),
+    scimitar: Object.freeze({ name: '한손검', root: 'curvedblade' }),
     shortbow: Object.freeze({ name: '단궁', root: 'shortbow' }),
     orb: Object.freeze({ name: '오브', root: 'orb' }),
     flask: Object.freeze({ name: '플라스크', root: 'flask' }),
@@ -13,7 +13,7 @@ const WEAPON_CATEGORIES = Object.freeze({
 });
 
 // 무기 바탕(js/state.js BASE_ITEM_DB, slot '무기') → 대분류. 새 무기 바탕은 반드시 여기에 넣는다.
-// 대검: 양손 대검(예전의 창, 글레이브, 랜스, 망치 바탕 포함). 곡도: 한손 곡도(힘과 민첩). 단궁: 활.
+// 대검: 양손 대검(예전의 창, 글레이브, 랜스, 망치 바탕 포함). 한손검(id scimitar): 한손 검(힘과 민첩). 단궁: 활.
 // 바탕 승급은 같은 대분류 안에서만 한다(js/items.js getBaseUpgradeCandidates).
 // 오브: 주문 무기와 소환 무기 전부(예전의 완드, 로드, 홀, 초점봉, 지팡이, 사역봉 바탕 포함).
 const WEAPON_BASE_CATEGORIES = Object.freeze({
@@ -36,7 +36,10 @@ const WEAPON_BASE_CATEGORIES = Object.freeze({
     herb_toxin_flask: 'flask', toxin_flask: 'flask', plague_flask: 'flask', coal_censer: 'censer', pyre_censer: 'censer', phoenix_censer: 'censer'
 });
 
-safeExposeData({ WEAPON_CATEGORIES, WEAPON_BASE_CATEGORIES });
+// 날이 가는 대검(2026-10-26 새 그림, 창 · 장창 · 글레이브 · 랜스 바탕): 가방 1×4, 나머지 대검은 2×4(js/items.js getWeaponInventoryFootprint).
+const SLENDER_GREATSWORD_BASES = Object.freeze(['gale_fang_spear', 'echo_lance', 'tempest_pike', 'cyclone_glaive', 'tempestlord_lance', 'cosmos_prism_lance']);
+
+safeExposeData({ WEAPON_CATEGORIES, WEAPON_BASE_CATEGORIES, SLENDER_GREATSWORD_BASES });
 
 // 대분류에 어울리지 않는 무기 추가 옵션(js/state.js MOD_DB id): 그 대분류 무기에서는 weight배로 덜 붙는다(2026-10-07 드랍 풀 1단계,
 // js/passives.js getAvailableMods). 스킬은 무기를 가리지 않으므로 막지 않고 줄이기만 한다. 대분류 전용 줄은 MOD_DB weaponCategories.

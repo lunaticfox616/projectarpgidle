@@ -2568,7 +2568,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   assert.strictEqual(context.canUseSkillWithCurrentEquipment('이중 베기'), false, '활로는 근접 룬을 쓸 수 없다');
   assert.strictEqual(context.getSkillRuneWeaponNote('이중 베기'), '근접 무기 필요');
   context.game.equipment['무기'] = weaponOf('scimitar', 9912);
-  assert.strictEqual(context.getEquippedWeaponStance(), 'sword', '곡도는 한손검 자세다');
+  assert.strictEqual(context.getEquippedWeaponStance(), 'sword', '한손검은 한손검 자세다');
   assert.strictEqual(context.getSkillRuneWeaponNote('연발 사격'), '활 필요', '전용 룬의 이유에는 그 무기 이름이 붙는다');
   assert.strictEqual(context.canUseSkillWithCurrentEquipment('도약 강타'), false, '돌진, 도약 강타, 섬머솔트 슬래시는 대검 전용이다');
   assert.strictEqual(context.getSkillRuneWeaponNote('섬머솔트 슬래시'), '대검 필요');
@@ -2577,7 +2577,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   assert.strictEqual(context.canUseSkillWithCurrentEquipment('돌진'), true, '대검으로는 대검 전용 이동기를 쓴다');
   context.game.equipment['무기'] = weaponOf('scimitar', 9912);
   context.game.equipment['방패'] = { id: 9913, slot: '방패', name: '시험 방패', rarity: 'normal', baseStats: [], stats: [] };
-  assert.strictEqual(context.getEquippedWeaponStance(), 'sword', '방패를 함께 껴도 곡도는 한손검 자세다(방패를 든 그림이 없다)');
+  assert.strictEqual(context.getEquippedWeaponStance(), 'sword', '방패를 함께 껴도 한손검 자세다(방패를 든 그림이 없다)');
   context.game.equipment['방패'] = null;
 
   // 낀 주 공격 룬을 못 쓰는 무기로 바꾸면 기본 공격으로 싸우고, 맞는 무기를 다시 들면 그 룬으로 돌아온다

@@ -189,7 +189,7 @@ function snapAffixKind(item, st) {
     const kind = typeof equipmentCrafting === 'object' ? equipmentCrafting.storedAffixKind(item, st) : 'special';
     return kind === 'prefix' || kind === 'suffix' ? { kind } : {};
 }
-/** A weapon's category (대검, 곡도 ...) for its title tag, as item text shows it in the game (js/weapon-categories.js). It reads
+/** A weapon's category (대검, 한손검 ...) for its title tag, as item text shows it in the game (js/weapon-categories.js). It reads
  * the item's own slot: a weapon worn in the shield slot (쌍수 훈련) was tagged [방패]. */
 function profileItemCategory(item) {
     return item.slot === '무기' && typeof getWeaponCategoryName === 'function' ? getWeaponCategoryName(item) || undefined : undefined;

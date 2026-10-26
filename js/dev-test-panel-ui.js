@@ -5,7 +5,7 @@
 const devTestPanel = (() => {
     const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]', '::1']);
     const SPEEDS = [1, 2, 4, 8];
-    const WEAPON_MODES = [['auto', '착용 무기'], ['class', '직업 기본'], ['greatsword', '대검'], ['scimitar', '곡도'],
+    const WEAPON_MODES = [['auto', '착용 무기'], ['class', '직업 기본'], ['greatsword', '대검'], ['scimitar', '한손검'],
         ['shortbow', '단궁'], ['orb', '오브'], ['flask', '플라스크'], ['censer', '향로']];
     const STAGE_STANCES = [['auto', '착용 무기'], ['unarmed', '맨손'], ['greatsword', '대검'], ['sword', '한손검'], ['bow', '활'],
         ['orb', '오브'], ['flask', '플라스크'], ['censer', '향로']];
@@ -358,7 +358,7 @@ const devTestPanel = (() => {
     }
     function weaponLabel() {
         const weapon = hanaActors.weaponFor(getHeroAppearanceId(), game.equipment['무기'], game.settings.heroWeaponMode || 'auto');
-        return HANA_WEAPON_COMBOS.weapons[weapon]?.label || '-';
+        return WEAPON_CATEGORIES[weapon]?.name || '-'; // 게임의 대분류 이름(Hana 묶음의 이름표는 옛 곡도 그대로)
     }
 
     function mount() {

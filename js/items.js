@@ -67,11 +67,17 @@ function getEquipmentInventoryFootprint(item) {
     if (slot === '허리띠') return { columns: 2, rows: 1 };
     if (slot === '투구' || slot === '장갑' || slot === '신발' || slot === '방패') return { columns: 2, rows: 2 };
     if (slot === '갑옷') return { columns: 2, rows: 2 };
-    if (slot !== '무기') return { columns: 1, rows: 1 };
-    // 무기(2026-10-23 사용자, 도트 그림이 정사각형이라): 대검과 단궁은 2×3, 나머지(곡도, 오브, 플라스크, 향로)는 2×2.
-    // 전에는 대검 2×3, 완드 · 로드 · 홀 · 초점봉 1×2, 나머지 1×3이라 그림이 칸의 20% 안팎만 채웠다.
+    return slot === '무기' ? getWeaponInventoryFootprint(item) : { columns: 1, rows: 1 };
+}
+
+/** 무기 칸 크기(2026-10-26 사용자, 세로로 긴 새 검 그림): 한손검 1×3, 대검은 가는 날 1×4(data/weapon-categories.js
+ * SLENDER_GREATSWORD_BASES)와 넓은 날 2×4, 단궁 2×3, 나머지(오브, 플라스크, 향로) 2×2. 전(2026-10-23, 그림이 정사각형이라): 대검과
+ * 단궁 2×3, 나머지 2×2. 놓인 자리에서 커져 겹치는 장비는 불러올 때 빈자리로 옮긴다(js/equipment-inventory-grid.js). */
+function getWeaponInventoryFootprint(item) {
     const category = getWeaponCategoryId(item);
-    return category === 'greatsword' || category === 'shortbow' ? { columns: 2, rows: 3 } : { columns: 2, rows: 2 };
+    if (category === 'scimitar') return { columns: 1, rows: 3 };
+    if (category === 'greatsword') return { columns: SLENDER_GREATSWORD_BASES.includes(getWeaponBaseId(item)) ? 1 : 2, rows: 4 };
+    return category === 'shortbow' ? { columns: 2, rows: 3 } : { columns: 2, rows: 2 };
 }
 
 /** A unique's picture from its definition, before one drops (the codex and the hunt targets, js/unique-codex-ui.js). */
@@ -807,7 +813,7 @@ function getBaseUpgradeCandidates(currentBase) {
         .filter(base => base.slot === currentBase.slot && base.reqTier > currentBase.reqTier && !base.dropOnly && !base.realmBase && !base.family)
         .filter(base => isArmorSlot ? getBaseDefenseProfile(base) === currentProfile : true)
         .filter(base => getBaseBuildArchetype(base) === currentArchetype)
-        // 무기는 같은 대분류 안에서만 승급한다(곡도가 대검이 되지 않게).
+        // 무기는 같은 대분류 안에서만 승급한다(한손검이 대검이 되지 않게).
         .filter(base => getWeaponCategoryOfBase(base.id) === currentCategory)
         .sort((a,b)=>a.reqTier-b.reqTier);
     // 방어구는 방어 프로파일(방어도/회피/보호막)이 정체성이다. 저항 같은 부가 옵션은
