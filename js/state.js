@@ -2509,6 +2509,7 @@ const defaultGame = {
         autoSalvageEnabled: false,
         autoSalvageRarities: { normal: true, magic: true, rare: false, unique: false },
         inventoryViewRarities: { normal: true, magic: true, rare: true, unique: true },
+        bagArrangeOrder: 'recent', // 가방 정리 기준(js/equipment-inventory-grid.js ARRANGE_ORDERS): 정리 단추를 두 번 누르면 이 기준
         equipmentMobilePane: 'inventory',
         itemFilterEnabled: false,
         itemFilterRarities: { normal: true, magic: true, rare: true, unique: true },

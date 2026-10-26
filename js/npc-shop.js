@@ -18,6 +18,10 @@ const npcShop = (() => {
     // Prices: normal and magic gear in 마법의 새싹 (what their salvage gives), rare gear and gems in 형체 없는 이슬, uniques in
     // 황금률 as at the black market (js/items.js createBlackMarketUniqueOffer). tierStep: one more per this many item tiers.
     const PRICE = Object.freeze({ normal: 1, magic: 2, rare: 1, tierStep: 4, rareTierStep: 6, attackGem: 3, supportGem: 1 });
+    // 상점 장비에는 저항 옵션이 다른 옵션보다 조금 더 자주 붙는다(2026-10-26 사용자): 'resistance' 태그 옵션의 무게를 곱한다.
+    const RESISTANCE_WEIGHT = 1.5;
+    const weighShopMods = pool => pool.map(mod => getAffixTags(mod).includes('resistance')
+        ? { ...mod, weight: (Number(mod.weight) || 1) * RESISTANCE_WEIGHT } : mod);
 
     /** One meeting with npc ({ id, tone }) in zoneId: counted (kept across loops), and the stock rolled anew ('npc-shop-stocked'
      * tells an open shop window). */
@@ -62,7 +66,7 @@ const npcShop = (() => {
     function rollGearPiece(slot, zone) {
         const dice = Math.random(), minimumRarity = dice < RARITY.rare ? 'rare' : dice < RARITY.rare + RARITY.magic ? 'magic' : null;
         for (let tries = 0; tries < 6; tries++) {
-            const item = generateEquipmentDrop({}, { zone, slot, minimumRarity });
+            const item = generateEquipmentDrop({}, { zone, slot, minimumRarity, weigh: weighShopMods });
             if (item && item.rarity !== 'unique') return item;
         }
         return null;

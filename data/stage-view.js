@@ -130,6 +130,9 @@ const STAGE_ROOMS = Object.freeze({
     /** 바닥의 앞쪽 끝 아래(걸어갈 수 없는 자리)를 덮는 어둠 (2026-10-14 사용자: "바닥 중 아래쪽의 못 가는 영역은 약간 그라데이션으로
      * 어둡게"). 앞쪽 끝에서 아래로 띠(bandDots 도트)마다 한 단씩 짙어져 bands번째 띠부터 alpha에 머문다. */
     frontShade: Object.freeze({ colour: '#06050a', alpha: 0.6, bands: 12, bandDots: 4 }),
+    /** 혼돈 층계의 깊이 안개(2026-10-26 사용자: "혼돈 1~10의 배경은 숫자가 높아질수록 더 혼돈스럽게 살짝씩만"): 혼돈 2부터 floors층까지
+     * 고르게 짙어져 floors층에서 화면 전체에 colour를 wash만큼, 가장자리에 edge만큼 더 얹는다. 혼돈 1은 그림 그대로다. */
+    chaosHaze: Object.freeze({ colour: '#3a0b26', wash: 0.24, edge: 0.5, floors: 20 }),
     /** 문을 지난 뒤 화면이 어둠에서 밝아지는 시간(ms). */
     fadeMs: 280,
     /** 문의 회백색 뿌리 봉인(2026-10-21 사용자가 만든 그림): 앞뒤 문은 정면(front, 풀리면 뿌리가 갈라진 아치가 남는다), 좌우 문은 옆에서 본

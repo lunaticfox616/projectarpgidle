@@ -328,7 +328,9 @@ const ACT_MONSTER_POOLS = (() => {
         8: Object.freeze([...deacons(8), 'act8-veil-moth', 'act8-shroud-toad']),
         9: Object.freeze([...deacons(8), 'act9-dirge-crane', 'act9-chorus-bulbs']),
         10: Object.freeze(['deacon-act8-melee', 'act10-graft-beast', 'act9-chorus-bulbs']),
-        postChaos: Object.freeze([... [2, 6, 7, 8].flatMap(deacons), 'postchaos-inverted-sapling'])
+        // 2026-10-26 사용자(혼돈 1~10에서 맞힌 적의 절반 넘게가 부제 계열): "몬스터 무리도 몇몇개를 추가해서 랜덤으로". 액트 7~10의 일곱을 섞는다.
+        postChaos: Object.freeze([... [2, 6, 7, 8].flatMap(deacons), 'postchaos-inverted-sapling', 'act7-husk-stag', 'act7-crackback-tick',
+            'act8-veil-moth', 'act8-shroud-toad', 'act9-dirge-crane', 'act9-chorus-bulbs', 'act10-graft-beast'])
     });
 })();
 
@@ -359,7 +361,7 @@ function getWispMonsterVisualDefinition(variantSeed, element) {
     return candidates[Math.floor(seed / WISP_ENEMY_RULES.spawnOneIn) % candidates.length];
 }
 
-/** 이 지역의 일반·정예 외형 목록: 스토리 액트는 그 액트 몫, 나머지(혼돈 이후)는 부제 네 팔레트. */
+/** 이 지역의 일반·정예 외형 목록: 스토리 액트는 그 액트 몫, 나머지(혼돈 이후)는 부제 네 팔레트와 액트 7~10의 몬스터. */
 function getActMonsterPool(zone) {
     const act = zone && zone.type === 'act' && Number.isInteger(Number(zone.id)) ? Number(zone.id) + 1 : 0;
     if (zone?.atlasRegion === 'canopy') return ['atlas-canopy-leafglider', 'act8-veil-moth', 'deacon-act8-ranged'];

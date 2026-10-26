@@ -22,14 +22,14 @@ const tutorialActionUi = {
     requiresAttention(notice) {
         return !!notice && (TUTORIAL_START_KEYS.has(notice.key) || TUTORIAL_GUIDED_CONTENT_KEYS.has(notice.key) || String(notice.key).startsWith('story_'));
     },
+    /** 새 콘텐츠 카드도 본문을 펼쳐 보인다(2026-10-26 사용자: 접힌 '자세히'는 빈 카드처럼 보였다). */
     noticeBody(notice, controls) {
-        const body = tutorialQuoteHtml(notice.quote) + tutorialBodyHtml(notice.body) + controls.trim();
-        return this.requiresAttention(notice) ? body : `<details class="tutorial-notice-details"><summary>자세히</summary>${body}</details>`;
+        return tutorialQuoteHtml(notice.quote) + tutorialBodyHtml(notice.body) + controls.trim();
     },
     expireNotice(now) {
         if (!activeTutorial || this.requiresAttention(activeTutorial) || now < this.noticeUntil) return;
         const card = document.querySelector('#tutorial-overlay .tutorial-card');
-        if (card?.matches(':hover, :focus-within') || card?.querySelector('details[open]')) return;
+        if (card?.matches(':hover, :focus-within')) return;
         dismissTutorial(false);
     },
     active: null,

@@ -682,7 +682,7 @@ function renderBackgroundResultHeader(result, limits) {
     const fought = formatBackgroundResultTime(result.effectiveProgressMs);
     return `<header><h2 id="background-result-title">방치 결과</h2><p class="background-result-times"><span>자리 비움 <strong>${away}</strong></span>`
         + `<span class="background-result-arrow" aria-hidden="true">→</span><span class="fought">전투 진행 <strong>${fought}</strong></span></p>`
-        + `<p class="background-result-formula">효율 ${Math.round(limits.efficiencyRate * 100)}%, 한도 ${limits.recognitionHours}시간. 기록 창에서 올릴 수 있습니다.</p></header>`;
+        + `<p class="background-result-formula">효율 ${Math.round(limits.efficiencyRate * 100)}%, 한도 ${limits.recognitionHours}시간.</p></header>`;
 }
 
 /** 결과 창의 시간은 분까지 적는다(정산 중 창은 초까지 센다). */
@@ -1896,7 +1896,14 @@ function getTabNotiSignature() {
     return TAB_HEADER_NOTI_KEYS.map(key => (noti[key] && filters[key] !== false ? 1 : 0)).join('');
 }
 
+/** 쓸 포인트가 남은 동안 스킬트리와 전직 알림 점을 켜 둔다(2026-10-26 사용자: "1포인트라도 있으면"). 그 화면을 보는 동안은 끈다. */
+function applyStandingTabNotices() {
+    const standing = { char: game.passivePoints > 0, traits: !!game.unlocks.traits && (game.ascendPoints > 0 || game.ascendKeystonePoints > 0) };
+    Object.entries(standing).forEach(([key, on]) => { if (on && lastActiveTabId !== 'tab-' + key) game.noti[key] = true; });
+}
+
 function refreshTabHeaderUiIfNeeded() {
+    applyStandingTabNotices();
     let signature = getTabHeaderUiSignature();
     if (signature === lastTabHeaderUiSignature) {
         if (getTabNotiSignature() === lastTabNotiSignature) return false;
@@ -8876,6 +8883,7 @@ return function performUpdateStaticUI() {
     const __mark = (n) => __pm.push([n, __perfNow()]);
 
     tryUnlockMeteorContentByProgress();
+    if (window.equipmentTriage) window.equipmentTriage.checkFreshGear();
     // 목표 선정은 js/goal-system.js가 담당한다(디바운스 포함).
     if (typeof requestGoalSystemRefresh === 'function') requestGoalSystemRefresh();
     validateItemTooltipAnchor();

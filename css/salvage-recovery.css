@@ -14,21 +14,34 @@
     overflow: auto;
 }
 
+/* 장비마다 왼쪽에 가방에서처럼 생긴 그림(2026-10-26 사용자: "해체복구함에서 아이템 실물로 보여줘"), 오른쪽에 이름과 반환 비용, 아래에 복구 단추. */
 .salvage-recovery-entry {
     position: relative;
     display: grid;
-    gap: 8px;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+    gap: 8px 10px;
     min-width: 0;
     padding: 12px;
     border: 1px solid var(--color-line);
     border-radius: var(--radius-sm);
     background: var(--color-surface-raised);
-    box-shadow: inset 3px 0 0 rgba(132, 153, 180, .46);
 }
 
-.salvage-recovery-entry.rarity-magic { box-shadow: inset 3px 0 0 #4a9bd9; }
-.salvage-recovery-entry.rarity-rare { box-shadow: inset 3px 0 0 #d6b538; }
-.salvage-recovery-entry.rarity-unique { box-shadow: inset 3px 0 0 #d4853f; }
+.salvage-recovery-info { display: grid; gap: 8px; min-width: 0; }
+
+/* 가방 칸 수(한 칸 30px)와 등급 바탕(색은 css/equipment-inventory-grid.css, 칠하는 식은 css/equipment-window.css의 가방 칸과 같다) */
+.salvage-recovery-art {
+    --recovery-cell: 30px;
+    position: relative;
+    width: calc(var(--recovery-cell) * var(--art-columns, 1));
+    height: calc(var(--recovery-cell) * var(--art-rows, 1));
+    border: 1px solid color-mix(in srgb, var(--item-rarity) 55%, #050403);
+    background: linear-gradient(180deg, color-mix(in srgb, var(--item-rarity) var(--rarity-fill), #0c0b09), color-mix(in srgb, var(--item-rarity) calc(var(--rarity-fill) * .55), #060504));
+    box-shadow: inset 0 0 0 2px rgba(255, 226, 160, .07), inset 0 0 14px rgba(0, 0, 0, .55);
+}
+
+.salvage-recovery-art img { position: absolute; inset: 2px; width: calc(100% - 4px); height: calc(100% - 4px); object-fit: contain; pointer-events: none; user-select: none; }
 
 .salvage-recovery-item-head {
     display: flex;
@@ -60,7 +73,7 @@
 
 .salvage-recovery-cost span { color: var(--color-text-secondary); font-size: .7rem; }
 .salvage-recovery-cost strong { color: var(--color-success); font-size: .78rem; line-height: 1.35; }
-.salvage-recovery-entry > button { width: 100%; }
+.salvage-recovery-entry > button { grid-column: 1 / -1; width: 100%; }
 .salvage-recovery-entry > button:not(:disabled) { border-color: #438b69; background: #255840; color: #d9f8e8; }
 
 .salvage-recovery-empty {
