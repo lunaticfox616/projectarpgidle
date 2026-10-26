@@ -9,6 +9,7 @@
     "review:css": "node scripts/review-css.cjs",
     "check:css": "node scripts/check-css.js",
     "check:architecture": "node scripts/check-runtime-architecture.js",
+    "check:db": "node scripts/check-db-mirror.js",
     "test": "node scripts/run-smoke.js",
     "benchmark:balance": "node scripts/benchmark-loop-balance.js && node scripts/benchmark-loop-loot.js",
     "test:browser": "playwright test",
