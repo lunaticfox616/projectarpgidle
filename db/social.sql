@@ -523,6 +523,7 @@ returns jsonb language plpgsql security definer set search_path = public as $$
 begin
     if not public.is_project_admin() then raise exception 'ADMIN_REQUIRED'; end if;
     if p_user_id is null or p_minutes is null or p_minutes < 0 then raise exception 'INVALID_REQUEST'; end if;
+    if not exists (select 1 from public.player_profiles target where target.user_id = p_user_id) then raise exception 'PLAYER_NOT_FOUND'; end if;
     if p_minutes = 0 then
         delete from public.chat_mutes where user_id = p_user_id;
     else
