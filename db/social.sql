@@ -227,7 +227,7 @@ create or replace function public.chat_text_spaced(p_text text)
 returns text language sql immutable set search_path = public as $$
     select regexp_replace(regexp_replace(lower(coalesce(p_text, '')), '[^a-z가-힣ㄱ-ㅎㅏ-ㅣ ]', '', 'g'), ' +', ' ', 'g');
 $$;
--- 관리자가 더하는 금칙어: 이 표에 줄을 넣으면 바로 적용된다(대시보드 SQL Editor에서 insert into public.chat_banned_terms(term) values ('낱말')).
+-- 관리자가 더하는 금칙어: 운영 창(?admin=1)의 금칙어 칸이나 아래 admin_set_banned_term으로 넣으면 바로 적용된다.
 -- 소문자로 넣는다. spaced가 true면 띄어쓰기를 남긴 글에서(짧은 말, 기본), false면 띄어쓰기를 지운 글에서 찾는다.
 create table if not exists public.chat_banned_terms (
     term       text primary key check (char_length(term) between 2 and 40),
@@ -304,7 +304,7 @@ begin
     end if;
     if new.payload is not null then
         if jsonb_typeof(new.payload) <> 'object' or pg_column_size(new.payload) > 65536
-           or jsonb_typeof(new.payload -> 'items') <> 'array' or jsonb_array_length(new.payload -> 'items') > 3 then
+           or coalesce(jsonb_typeof(new.payload -> 'items'), '') <> 'array' or jsonb_array_length(new.payload -> 'items') not between 1 and 3 then
             raise exception 'CHAT_PAYLOAD_INVALID: 아이템 링크는 메시지마다 3개까지입니다.';
         end if;
     end if;

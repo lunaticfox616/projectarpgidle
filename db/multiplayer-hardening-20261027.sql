@@ -1,5 +1,6 @@
 -- 멀티 요소 보강(2026-10-27). Supabase 대시보드 > SQL Editor > New query에 이 파일 내용을 전부 붙여 넣고 Run.
--- db/cloud-and-playtest.sql, db/operations-and-ghost.sql, db/social.sql, db/equipment-hall.sql, db/anti-cheat.sql을 실행한 프로젝트에 쓴다.
+-- db/cloud-and-playtest.sql, db/operations-and-ghost.sql, db/social.sql, db/equipment-hall.sql, db/anti-cheat.sql,
+-- db/ghost-duel-moving-20261022.sql을 실행한 프로젝트에 쓴다.
 -- 같은 내용이 db/social.sql, db/cloud-and-playtest.sql, db/equipment-hall.sql, db/anti-cheat.sql, db/operations-and-ghost.sql,
 -- db/ghost-duel-moving-20261022.sql에도 들어 있어, 나중에 처음부터 다시 설치해도 같은 상태가 된다.
 -- 여러 번 실행해도 안전하다. 기존 데이터는 지우거나 고치지 않는다(지우는 것은 쓰지 않는 예전 순위표 player_rankings뿐이다).
@@ -23,10 +24,10 @@
 --      7일 안에 기록된 고스트는 순위전에서 점수가 움직이지 않고 상대도 잃지 않는다(ghost_under_review). 관리자가 기록을 지울 수 있다.
 --  10. 전당: 고유 효과 값(uniqueEffectParams)과 품질의 크기를 본다. 90일 지난 대전 기록과 30일 지난 팔린 적 없는 내린 전시는 지운다.
 --      접속 인원만 돌려주는 get_online_counts(채팅 창 배지가 80줄 대신 이것을 묻는다).
---  11. 권고에 걸린 함수 9개의 search_path를 public으로 고정한다.
---  12. get_ghost_arena가 underReview를 돌려주어 대전 탭이 점수가 멈춘 까닭을 보여 준다.
---  13. 채팅과 닉네임의 가벼운 한국어 비속어 필터(관리자가 chat_banned_terms 표에 낱말을 더할 수 있다), 링크와 글자 반복과
---      5분 안 같은 메시지 세 번 차단, 60초 안 12개면 10분 자동 금지.
+--  11. 권고에 걸린 함수 8개의 search_path를 public으로 고정한다(social_set_updated_at는 2절에서 지운다).
+--  12. get_ghost_arena가 underReview를 돌려주어 대전 탭이 점수가 멈춘 까닭을 보여 준다. 순위표, 최근 대전, 전당 전시자는 지금 닉네임으로 보인다.
+--  13. 채팅 본문, 닉네임, 채팅에 붙인 장비 이름, 전당 전시 이름의 가벼운 한국어 비속어 필터(관리자가 운영 창이나 chat_banned_terms 표에
+--      낱말을 더할 수 있다), 링크와 글자 반복과 5분 안 같은 메시지 세 번 차단, 60초 안 12개면 10분 자동 금지.
 
 begin;
 
@@ -52,7 +53,7 @@ begin
     end if;
     if new.payload is not null then
         if jsonb_typeof(new.payload) <> 'object' or pg_column_size(new.payload) > 65536
-           or jsonb_typeof(new.payload -> 'items') <> 'array' or jsonb_array_length(new.payload -> 'items') > 3 then
+           or coalesce(jsonb_typeof(new.payload -> 'items'), '') <> 'array' or jsonb_array_length(new.payload -> 'items') not between 1 and 3 then
             raise exception 'CHAT_PAYLOAD_INVALID: 아이템 링크는 메시지마다 3개까지입니다.';
         end if;
     end if;
@@ -330,6 +331,10 @@ begin
     if to_regprocedure('public.rls_auto_enable()') is not null then
         execute 'revoke all on function public.rls_auto_enable() from public, anon, authenticated';
     end if;
+    -- 저장소에 없는 라이브 트리거 함수(cloud_saves의 updated_at): 트리거는 실행 권한을 보지 않으므로 회수해도 돈다.
+    if to_regprocedure('public.touch_cloud_save_updated_at()') is not null then
+        execute 'revoke all on function public.touch_cloud_save_updated_at() from public, anon, authenticated';
+    end if;
 end
 $$;
 
@@ -344,10 +349,8 @@ create index if not exists hall_item_registry_owner_idx
 -- ============================================================================
 -- 5) 채팅 금지와 신고 (db/social.sql과 같다)
 -- ============================================================================
--- ============================================================================
 -- 채팅 운영(2026-10-27): 금지와 신고. 금지한 계정은 채팅을 보낼 수 없다(chat_messages_rate_limit). 신고는 쌓아 두고 관리자가
 -- 운영 통계 창(?admin=1, js/cloud-tools-ui.js)에서 보고 금지하거나 줄을 지운다. 차단(남의 채팅 숨기기)은 기기 안에서만 한다.
--- ============================================================================
 create table if not exists public.chat_mutes (
     user_id    uuid primary key references auth.users(id) on delete cascade,
     until_at   timestamptz not null,
@@ -846,7 +849,7 @@ create or replace function public.chat_text_spaced(p_text text)
 returns text language sql immutable set search_path = public as $$
     select regexp_replace(regexp_replace(lower(coalesce(p_text, '')), '[^a-z가-힣ㄱ-ㅎㅏ-ㅣ ]', '', 'g'), ' +', ' ', 'g');
 $$;
--- 관리자가 더하는 금칙어: 이 표에 줄을 넣으면 바로 적용된다(대시보드 SQL Editor에서 insert into public.chat_banned_terms(term) values ('낱말')).
+-- 관리자가 더하는 금칙어: 운영 창(?admin=1)의 금칙어 칸이나 아래 admin_set_banned_term으로 넣으면 바로 적용된다.
 -- 소문자로 넣는다. spaced가 true면 띄어쓰기를 남긴 글에서(짧은 말, 기본), false면 띄어쓰기를 지운 글에서 찾는다.
 create table if not exists public.chat_banned_terms (
     term       text primary key check (char_length(term) between 2 and 40),
