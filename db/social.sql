@@ -237,6 +237,9 @@ declare
     last_body    text;
 begin
     new.created_at := now();
+    if public.chat_muted_until(new.user_id) is not null then
+        raise exception 'CHAT_MUTED: 관리자가 채팅을 금지한 상태입니다.';
+    end if;
     if new.payload is not null then
         if jsonb_typeof(new.payload) <> 'object' or pg_column_size(new.payload) > 8192
            or jsonb_typeof(new.payload -> 'items') <> 'array' or jsonb_array_length(new.payload -> 'items') > 3 then
@@ -323,6 +326,130 @@ drop trigger if exists trg_chat_messages_prune on public.chat_messages;
 create trigger trg_chat_messages_prune
     after insert on public.chat_messages
     for each row execute function public.chat_messages_prune();
+
+-- ============================================================================
+-- 채팅 운영(2026-10-27): 금지와 신고. 금지한 계정은 채팅을 보낼 수 없다(chat_messages_rate_limit). 신고는 쌓아 두고 관리자가
+-- 운영 통계 창(?admin=1, js/cloud-tools-ui.js)에서 보고 금지하거나 줄을 지운다. 차단(남의 채팅 숨기기)은 기기 안에서만 한다.
+-- ============================================================================
+create table if not exists public.chat_mutes (
+    user_id    uuid primary key references auth.users(id) on delete cascade,
+    until_at   timestamptz not null,
+    note       text not null default '',
+    created_at timestamptz not null default now()
+);
+create table if not exists public.chat_reports (
+    id             bigint generated always as identity primary key,
+    reporter_id    uuid not null references auth.users(id) on delete cascade,
+    target_user_id uuid not null references auth.users(id) on delete cascade,
+    message_id     bigint,
+    nickname       text not null default '',
+    body           text,
+    reason         text not null,
+    created_at     timestamptz not null default now()
+);
+create index if not exists chat_reports_created_idx on public.chat_reports (created_at desc);
+create index if not exists chat_reports_reporter_created_idx on public.chat_reports (reporter_id, created_at desc);
+create index if not exists chat_reports_target_idx on public.chat_reports (target_user_id);
+alter table public.chat_mutes enable row level security;
+alter table public.chat_reports enable row level security;
+-- 정책을 두지 않는다. 아래 보안 정의자 함수만 쓰고 읽는다.
+revoke all on public.chat_mutes, public.chat_reports from anon, authenticated;
+
+create or replace function public.chat_muted_until(p_user_id uuid)
+returns timestamptz language sql stable security definer set search_path = public as $$
+    select mute.until_at from public.chat_mutes mute where mute.user_id = p_user_id and mute.until_at > now();
+$$;
+
+-- 신고: 상대와 사유, 있으면 그 사람의 채팅 한 줄(본문은 그때 그대로 남긴다). 같은 사람은 하루 한 번, 하루 20건까지. 90일 뒤 지운다.
+create or replace function public.report_player_chat(p_target_user_id uuid, p_reason text, p_message_id bigint default null)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare
+    account_id uuid := auth.uid();
+    message_row public.chat_messages%rowtype;
+    target_name text;
+begin
+    if account_id is null then raise exception 'AUTH_REQUIRED'; end if;
+    if p_target_user_id is null or p_target_user_id = account_id then raise exception 'REPORT_INVALID_TARGET'; end if;
+    if p_reason is null or char_length(trim(p_reason)) not between 1 and 200 then raise exception 'REPORT_INVALID_REASON'; end if;
+    if exists (select 1 from public.chat_reports where reporter_id = account_id and target_user_id = p_target_user_id
+                  and created_at >= now() - interval '1 day') then raise exception 'REPORT_ALREADY_SENT'; end if;
+    if (select count(*) from public.chat_reports where reporter_id = account_id and created_at >= now() - interval '1 day') >= 20 then
+        raise exception 'REPORT_DAILY_LIMIT';
+    end if;
+    if p_message_id is not null then
+        select * into message_row from public.chat_messages where id = p_message_id and user_id = p_target_user_id;
+    end if;
+    select nickname into target_name from public.player_profiles where user_id = p_target_user_id;
+    insert into public.chat_reports (reporter_id, target_user_id, message_id, nickname, body, reason)
+    values (account_id, p_target_user_id, message_row.id, coalesce(target_name, message_row.nickname, ''),
+            left(message_row.body, 500), left(trim(p_reason), 200));
+    delete from public.chat_reports where created_at < now() - interval '90 days';
+    return jsonb_build_object('reported', true);
+end;
+$$;
+
+-- 관리자: 최근 신고 200건과 지금 금지 중인 계정.
+create or replace function public.admin_get_chat_reports()
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+    if not public.is_project_admin() then raise exception 'ADMIN_REQUIRED'; end if;
+    return jsonb_build_object(
+        'reports', coalesce((select jsonb_agg(to_jsonb(row_data) order by row_data.created_at desc) from (
+            select report.id, report.created_at, report.target_user_id, report.nickname, report.message_id, report.body, report.reason,
+                   reporter.nickname as reporter_nickname,
+                   public.chat_muted_until(report.target_user_id) as muted_until,
+                   exists (select 1 from public.chat_messages message where message.id = report.message_id) as message_exists
+              from public.chat_reports report
+              left join public.player_profiles reporter on reporter.user_id = report.reporter_id
+             order by report.created_at desc limit 200) row_data), '[]'::jsonb),
+        'mutes', coalesce((select jsonb_agg(to_jsonb(row_data) order by row_data.until_at desc) from (
+            select mute.user_id, profile.nickname, mute.until_at, mute.note, mute.created_at
+              from public.chat_mutes mute
+              left join public.player_profiles profile on profile.user_id = mute.user_id
+             where mute.until_at > now()
+             order by mute.until_at desc) row_data), '[]'::jsonb)
+    );
+end;
+$$;
+
+-- 관리자: 금지(분 단위, 최대 366일). 0이면 푼다.
+create or replace function public.admin_set_chat_mute(p_user_id uuid, p_minutes integer, p_note text default '')
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+    if not public.is_project_admin() then raise exception 'ADMIN_REQUIRED'; end if;
+    if p_user_id is null or p_minutes is null or p_minutes < 0 then raise exception 'INVALID_REQUEST'; end if;
+    if p_minutes = 0 then
+        delete from public.chat_mutes where user_id = p_user_id;
+    else
+        insert into public.chat_mutes (user_id, until_at, note)
+        values (p_user_id, now() + make_interval(mins => least(p_minutes, 527040)), left(coalesce(p_note, ''), 200))
+        on conflict (user_id) do update set until_at = excluded.until_at, note = excluded.note, created_at = now();
+    end if;
+    return jsonb_build_object('userId', p_user_id, 'mutedUntil', public.chat_muted_until(p_user_id));
+end;
+$$;
+
+-- 관리자: 채팅 한 줄 삭제(실시간으로는 빠지지 않고 다음 전체 조회에서 사라진다).
+create or replace function public.admin_delete_chat_message(p_message_id bigint)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare removed integer;
+begin
+    if not public.is_project_admin() then raise exception 'ADMIN_REQUIRED'; end if;
+    delete from public.chat_messages where id = p_message_id;
+    get diagnostics removed = row_count;
+    return jsonb_build_object('deleted', removed > 0);
+end;
+$$;
+
+revoke all on function public.chat_muted_until(uuid) from public, anon, authenticated;
+revoke all on function public.report_player_chat(uuid, text, bigint) from public, anon;
+revoke all on function public.admin_get_chat_reports() from public, anon;
+revoke all on function public.admin_set_chat_mute(uuid, integer, text) from public, anon;
+revoke all on function public.admin_delete_chat_message(bigint) from public, anon;
+grant execute on function public.report_player_chat(uuid, text, bigint) to authenticated;
+grant execute on function public.admin_get_chat_reports() to authenticated;
+grant execute on function public.admin_set_chat_mute(uuid, integer, text) to authenticated;
+grant execute on function public.admin_delete_chat_message(bigint) to authenticated;
 
 -- 트리거 함수는 RPC로 부를 수 없게 한다(Supabase 보안 권고). 트리거는 호출자의 실행 권한을 보지 않으므로 회수해도 그대로 돈다.
 revoke all on function public.chat_messages_rate_limit() from public, anon, authenticated;

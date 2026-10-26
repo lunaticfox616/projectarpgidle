@@ -16,8 +16,12 @@ function ensureCloudToolsDialog() {
     dialog.className = 'cloud-tools-dialog';
     dialog.innerHTML = `<div class="cloud-tools-head"><strong id="cloud-tools-title"></strong><button type="button" onclick="closeCloudToolsDialog()" aria-label="닫기">✕</button></div><div id="cloud-tools-body" class="cloud-tools-body"></div>`;
     dialog.addEventListener('click', event => {
-        let button = event.target.closest('[data-cheat-hold]');
-        if (button) setCheatHold(button);
+        let button = event.target.closest('[data-cheat-hold], [data-cheat-clear], [data-chat-mute], [data-chat-delete]');
+        if (!button) return;
+        if (button.dataset.cheatHold) setCheatHold(button);
+        else if (button.dataset.cheatClear) clearCheatFlags(button);
+        else if (button.dataset.chatMute) setChatMute(button);
+        else if (button.dataset.chatDelete) deleteChatMessage(button);
     });
     document.body.appendChild(dialog);
     return dialog;
@@ -116,13 +120,14 @@ function renderCheatHoldButton(userId, held, note) {
 
 /** The anti-cheat watch (db/anti-cheat.sql admin_get_cheat_watch): flags, growth per hour, held accounts. */
 function renderCheatWatch(data) {
-    const kinds = { clock: '기기 시계', currency: '화폐', level: '레벨', ghost_dps: '고스트 DPS' };
+    const kinds = { clock: '기기 시계', currency: '화폐', level: '레벨', ghost_dps: '고스트 DPS', ghost_ehp: '고스트 EHP' };
     const account = { label: '계정', render: row => row.nickname || String(row.user_id || '').slice(0, 8) };
     const hold = note => ({ label: '보류', html: row => renderCheatHoldButton(row.user_id, row.held === true, note(row)) });
-    let html = '<section><h3>치트 감시</h3><p class="cloud-tools-note">감시는 기록만 하고 막지 않습니다. 보류한 계정은 전당과 고스트 대결에서 빠지고, 저장과 혼자 하는 플레이는 그대로입니다.</p></section>';
+    let html = '<section><h3>치트 감시</h3><p class="cloud-tools-note">감시는 기록만 하고 막지 않습니다. 보류한 계정은 전당과 고스트 대결에서 빠지고, 저장과 혼자 하는 플레이는 그대로입니다. 고스트 기록(DPS, EHP)은 7일 동안 순위전 점수를 멈추고, 지우면 바로 풀립니다.</p></section>';
     html += renderOpsTable('감시 기록, 최근 90일', [
         account, { label: '종류', render: row => kinds[row.kind] || row.kind }, { key: 'seen_on', label: '날짜' }, { key: 'hits', label: '횟수' },
-        { label: '내용', render: row => JSON.stringify(row.detail || {}) }, hold(row => `${kinds[row.kind] || row.kind} ${row.seen_on}`)
+        { label: '내용', render: row => JSON.stringify(row.detail || {}) }, hold(row => `${kinds[row.kind] || row.kind} ${row.seen_on}`),
+        { label: '기록', html: row => `<button type="button" data-cheat-clear="${cloudToolsEscape(row.user_id)}" data-cheat-kind="${cloudToolsEscape(row.kind)}">지우기</button>` }
     ], Array.isArray(data.flags) ? data.flags : []);
     html += renderOpsTable('성장 속도, 최근 7일', [
         account, { key: 'seen_on', label: '날짜' }, { key: 'samples', label: '저장' }, { key: 'hours', label: '시간' },
@@ -172,14 +177,157 @@ async function setCheatHold(button) {
     await loadCheatWatch();
 }
 
+/** The profile window's 신고 button (js/social.js renderProfileModerationRow): the chosen reason and that player's newest chat row
+ * held on this device go to the server (report_player_chat, one report per player per day). Lives here because social.js must not
+ * reach the cloud through a ui file. */
+async function reportCurrentProfile() {
+    let target = reportTargetUserId();
+    if (!target) return;
+    let reason = reportReasonValue();
+    let confirmed = await requestGameConfirmation(`${reportTargetName()} 님을 ${reason} 사유로 신고할까요?\n그 사람의 최근 채팅 한 줄이 함께 운영자에게 갑니다.`, {
+        title: '신고', tone: 'warning', confirmLabel: '신고'
+    });
+    if (!confirmed) return;
+    try {
+        await cloudJsonRequest('/rest/v1/rpc/report_player_chat', {
+            method: 'POST', body: { p_target_user_id: target, p_reason: reason, p_message_id: latestChatRowId(target) }
+        });
+        showGameToast('신고를 보냈습니다. 운영자가 확인합니다.', 'success');
+    } catch (error) {
+        showGameToast('신고 실패: ' + translateReportError(error), 'danger');
+    }
+}
+/** The shown profile's player, or null when it is mine or there is no login. */
+function reportTargetUserId() {
+    let target = socialState && socialState.currentProfileUserId;
+    if (!target || !cloudState || !cloudState.user || target === cloudState.user.id) return null;
+    return target;
+}
+function reportReasonValue() {
+    let reasonEl = document.getElementById('social-report-reason');
+    return reasonEl ? String(reasonEl.value || '기타') : '기타';
+}
+function reportTargetName() {
+    return (socialState.currentProfile && socialState.currentProfile.nickname) || '이 플레이어';
+}
+/** The newest chat row of that player among the rows this device holds, or null. */
+function latestChatRowId(userId) {
+    let latest = (socialState.chatMessages || []).filter(m => m && String(m.user_id) === String(userId))
+        .reduce((best, m) => (!best || Number(m.id) > Number(best.id)) ? m : best, null);
+    return latest ? Number(latest.id) : null;
+}
+function translateReportError(error) {
+    let msg = String(error && error.message || error);
+    if (/REPORT_ALREADY_SENT/.test(msg)) return '같은 사람은 하루에 한 번만 신고할 수 있습니다.';
+    if (/REPORT_DAILY_LIMIT/.test(msg)) return '오늘은 더 신고할 수 없습니다.';
+    if (/REPORT_INVALID_TARGET/.test(msg)) return '자기 자신은 신고할 수 없습니다.';
+    if (/schema cache|could not find|does not exist/i.test(msg)) return '서버에 신고 기능이 아직 없습니다.';
+    return msg;
+}
+
+/** Clears one account's watch rows of one kind after a confirmation (admin_clear_cheat_flags), then reloads the watch. */
+async function clearCheatFlags(button) {
+    let confirmed = await requestGameConfirmation('이 계정의 이 종류 감시 기록을 지울까요?\n고스트 기록이면 순위전 점수가 다시 움직입니다.', {
+        title: '치트 감시', tone: 'warning', confirmLabel: '지우기'
+    });
+    if (!confirmed) return;
+    try {
+        await cloudJsonRequest('/rest/v1/rpc/admin_clear_cheat_flags', {
+            method: 'POST', body: { p_user_id: button.dataset.cheatClear, p_kind: button.dataset.cheatKind || null }
+        });
+        showGameToast('감시 기록을 지웠습니다.', 'success');
+    } catch (error) {
+        showGameToast(`기록을 지우지 못했습니다: ${error.message || error}`, 'danger');
+    }
+    await loadCheatWatch();
+}
+
+/** Chat reports and mutes (db/social.sql admin_get_chat_reports); the dialog's click handler sends the mute and delete buttons. */
+function renderChatReports(data) {
+    const muteButtons = row => {
+        let id = cloudToolsEscape(row.target_user_id || row.user_id), name = cloudToolsEscape(row.nickname || '');
+        let muted = row.muted_until || row.until_at;
+        return (muted ? `<button type="button" data-chat-mute="${id}" data-chat-minutes="0" data-chat-name="${name}">금지 풀기</button>` : '')
+            + `<button type="button" data-chat-mute="${id}" data-chat-minutes="1440" data-chat-name="${name}">1일 금지</button>`
+            + `<button type="button" data-chat-mute="${id}" data-chat-minutes="10080" data-chat-name="${name}">7일 금지</button>`;
+    };
+    let html = '<section><h3>채팅 신고</h3><p class="cloud-tools-note">신고는 플레이어가 프로필 창에서 보냅니다. 금지한 계정은 풀릴 때까지 채팅을 보낼 수 없고, 지운 줄은 다음 전체 조회부터 사라집니다.</p></section>';
+    html += renderOpsTable('신고, 최근 200건', [
+        { label: '시각', render: row => new Date(row.created_at).toLocaleString('ko-KR') },
+        { label: '신고자', render: row => row.reporter_nickname || '' },
+        { label: '대상', render: row => row.nickname || String(row.target_user_id || '').slice(0, 8) },
+        { key: 'reason', label: '사유' },
+        { label: '채팅', render: row => row.body ? (row.body.length > 60 ? `${row.body.slice(0, 60)}…` : row.body) : '' },
+        { label: '상태', render: row => row.muted_until ? `금지 중, ${new Date(row.muted_until).toLocaleString('ko-KR')}까지` : (row.message_id && !row.message_exists ? '줄 지워짐' : '') },
+        { label: '조치', html: row => muteButtons(row) + (row.message_id && row.message_exists ? `<button type="button" data-chat-delete="${cloudToolsEscape(row.message_id)}">줄 지우기</button>` : '') }
+    ], Array.isArray(data.reports) ? data.reports : []);
+    html += renderOpsTable('금지 중인 계정', [
+        { label: '계정', render: row => row.nickname || String(row.user_id || '').slice(0, 8) },
+        { label: '풀리는 시각', render: row => new Date(row.until_at).toLocaleString('ko-KR') }, { key: 'note', label: '메모' },
+        { label: '조치', html: row => muteButtons(row) }
+    ], Array.isArray(data.mutes) ? data.mutes : []);
+    return html;
+}
+
+/** Fills the chat reports under the watch. Before db/multiplayer-hardening-20261027.sql runs, the server has no such function and a note says so. */
+async function loadChatReports() {
+    let box = document.getElementById('chat-reports');
+    if (!box) return;
+    try {
+        let data = await cloudJsonRequest('/rest/v1/rpc/admin_get_chat_reports', { method: 'POST', body: {} });
+        box.innerHTML = renderChatReports(data || {});
+    } catch (error) {
+        let text = String(error && error.message || error);
+        box.innerHTML = /schema cache|could not find|does not exist/i.test(text)
+            ? '<section><h3>채팅 신고</h3><p class="cloud-tools-note">Supabase에서 db/multiplayer-hardening-20261027.sql을 실행하면 보입니다.</p></section>'
+            : `<section><h3>채팅 신고</h3><p class="cloud-tools-error">불러올 수 없습니다: ${cloudToolsEscape(text)}</p></section>`;
+    }
+}
+
+/** Mutes (1 or 7 days) or unmutes one account after a confirmation (admin_set_chat_mute), then reloads the reports. */
+async function setChatMute(button) {
+    let minutes = Math.max(0, Math.floor(Number(button.dataset.chatMinutes) || 0));
+    let name = button.dataset.chatName || '이 계정';
+    let confirmed = await requestGameConfirmation(minutes
+        ? `${name} 계정의 채팅을 ${minutes >= 10080 ? '7일' : '1일'} 동안 금지할까요?`
+        : `${name} 계정의 채팅 금지를 풀까요?`, { title: '채팅 신고', tone: 'warning', confirmLabel: minutes ? '금지' : '풀기' });
+    if (!confirmed) return;
+    try {
+        await cloudJsonRequest('/rest/v1/rpc/admin_set_chat_mute', {
+            method: 'POST', body: { p_user_id: button.dataset.chatMute, p_minutes: minutes, p_note: '' }
+        });
+        showGameToast(minutes ? '채팅을 금지했습니다.' : '채팅 금지를 풀었습니다.', 'success');
+    } catch (error) {
+        showGameToast(`금지를 바꾸지 못했습니다: ${error.message || error}`, 'danger');
+    }
+    await loadChatReports();
+}
+
+/** Deletes one reported chat row after a confirmation (admin_delete_chat_message), then reloads the reports. */
+async function deleteChatMessage(button) {
+    let confirmed = await requestGameConfirmation('이 채팅 줄을 지울까요?\n다른 플레이어의 화면에서는 다음 전체 조회부터 사라집니다.', {
+        title: '채팅 신고', tone: 'warning', confirmLabel: '지우기'
+    });
+    if (!confirmed) return;
+    try {
+        await cloudJsonRequest('/rest/v1/rpc/admin_delete_chat_message', { method: 'POST', body: { p_message_id: Number(button.dataset.chatDelete) } });
+        showGameToast('채팅 줄을 지웠습니다.', 'success');
+    } catch (error) {
+        showGameToast(`줄을 지우지 못했습니다: ${error.message || error}`, 'danger');
+    }
+    await loadChatReports();
+}
+
 async function openOpsDashboard() {
     if (!cloudState || !cloudState.user) return showGameToast('관리자 로그인이 필요합니다.', 'warning');
     openCloudToolsDialog('운영 통계, 최근 30일', '<p class="cloud-tools-empty">집계 중…</p>');
     try {
         let data = await cloudJsonRequest('/rest/v1/rpc/admin_get_ops_dashboard', { method: 'POST', body: {} });
         document.getElementById('cloud-tools-body').innerHTML = renderOpsDashboard(data || {})
-            + '<div id="cheat-watch"><section><h3>치트 감시</h3><p class="cloud-tools-empty">불러오는 중…</p></section></div>';
+            + '<div id="cheat-watch"><section><h3>치트 감시</h3><p class="cloud-tools-empty">불러오는 중…</p></section></div>'
+            + '<div id="chat-reports"><section><h3>채팅 신고</h3><p class="cloud-tools-empty">불러오는 중…</p></section></div>';
         await loadCheatWatch();
+        await loadChatReports();
     } catch (error) {
         document.getElementById('cloud-tools-body').innerHTML = `<p class="cloud-tools-error">관리자 통계를 불러올 수 없습니다: ${cloudToolsEscape(error.message || error)}</p>`;
     }
@@ -215,4 +363,4 @@ function initializeCloudTools() {
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initializeCloudTools);
 else initializeCloudTools();
 
-safeExposeGlobals({ openCloudSaveHistory, restoreCloudSaveVersion, openOpsDashboard, closeCloudToolsDialog });
+safeExposeGlobals({ openCloudSaveHistory, restoreCloudSaveVersion, openOpsDashboard, closeCloudToolsDialog, reportCurrentProfile });

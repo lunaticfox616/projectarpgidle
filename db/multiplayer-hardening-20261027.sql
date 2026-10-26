@@ -17,6 +17,9 @@
 --      저장소에서 지운 예전 순위표 함수와 표가 라이브 DB에 남아 있었다. 저장소에 없는 rls_auto_enable()은 지우지 않고 권한만 회수한다.
 --   7. RLS 정책의 auth.uid()를 (select auth.uid())로 바꿔 행마다 다시 계산하지 않는다(Supabase 성능 권고).
 --      채팅 속도 제한이 보는 (user_id, created_at)과 전당 등록부의 owner_id에 색인을 건다.
+--   8. 채팅 금지와 신고(chat_mutes, chat_reports, report_player_chat, 관리자 RPC). 금지한 계정은 채팅을 보낼 수 없다.
+--   9. 고스트: 나올 수 없는 크기(DPS와 EHP 100억, 생명력과 보호막 10억 초과)는 등록을 거절한다. EHP 이상치도 기록한다.
+--      7일 안에 기록된 고스트는 순위전에서 점수가 움직이지 않고 상대도 잃지 않는다(ghost_under_review). 관리자가 기록을 지울 수 있다.
 
 begin;
 
@@ -36,6 +39,9 @@ declare
     last_body    text;
 begin
     new.created_at := now();
+    if public.chat_muted_until(new.user_id) is not null then
+        raise exception 'CHAT_MUTED: 관리자가 채팅을 금지한 상태입니다.';
+    end if;
     if new.payload is not null then
         if jsonb_typeof(new.payload) <> 'object' or pg_column_size(new.payload) > 8192
            or jsonb_typeof(new.payload -> 'items') <> 'array' or jsonb_array_length(new.payload -> 'items') > 3 then
@@ -293,5 +299,342 @@ drop table if exists public.player_rankings;
 -- 전당 등록부의 owner_id 외래키 색인.
 create index if not exists hall_item_registry_owner_idx
     on public.hall_item_registry (owner_id);
+
+-- ============================================================================
+-- 5) 채팅 금지와 신고 (db/social.sql과 같다)
+-- ============================================================================
+-- ============================================================================
+-- 채팅 운영(2026-10-27): 금지와 신고. 금지한 계정은 채팅을 보낼 수 없다(chat_messages_rate_limit). 신고는 쌓아 두고 관리자가
+-- 운영 통계 창(?admin=1, js/cloud-tools-ui.js)에서 보고 금지하거나 줄을 지운다. 차단(남의 채팅 숨기기)은 기기 안에서만 한다.
+-- ============================================================================
+create table if not exists public.chat_mutes (
+    user_id    uuid primary key references auth.users(id) on delete cascade,
+    until_at   timestamptz not null,
+    note       text not null default '',
+    created_at timestamptz not null default now()
+);
+create table if not exists public.chat_reports (
+    id             bigint generated always as identity primary key,
+    reporter_id    uuid not null references auth.users(id) on delete cascade,
+    target_user_id uuid not null references auth.users(id) on delete cascade,
+    message_id     bigint,
+    nickname       text not null default '',
+    body           text,
+    reason         text not null,
+    created_at     timestamptz not null default now()
+);
+create index if not exists chat_reports_created_idx on public.chat_reports (created_at desc);
+create index if not exists chat_reports_reporter_created_idx on public.chat_reports (reporter_id, created_at desc);
+create index if not exists chat_reports_target_idx on public.chat_reports (target_user_id);
+alter table public.chat_mutes enable row level security;
+alter table public.chat_reports enable row level security;
+-- 정책을 두지 않는다. 아래 보안 정의자 함수만 쓰고 읽는다.
+revoke all on public.chat_mutes, public.chat_reports from anon, authenticated;
+
+create or replace function public.chat_muted_until(p_user_id uuid)
+returns timestamptz language sql stable security definer set search_path = public as $$
+    select mute.until_at from public.chat_mutes mute where mute.user_id = p_user_id and mute.until_at > now();
+$$;
+
+-- 신고: 상대와 사유, 있으면 그 사람의 채팅 한 줄(본문은 그때 그대로 남긴다). 같은 사람은 하루 한 번, 하루 20건까지. 90일 뒤 지운다.
+create or replace function public.report_player_chat(p_target_user_id uuid, p_reason text, p_message_id bigint default null)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare
+    account_id uuid := auth.uid();
+    message_row public.chat_messages%rowtype;
+    target_name text;
+begin
+    if account_id is null then raise exception 'AUTH_REQUIRED'; end if;
+    if p_target_user_id is null or p_target_user_id = account_id then raise exception 'REPORT_INVALID_TARGET'; end if;
+    if p_reason is null or char_length(trim(p_reason)) not between 1 and 200 then raise exception 'REPORT_INVALID_REASON'; end if;
+    if exists (select 1 from public.chat_reports where reporter_id = account_id and target_user_id = p_target_user_id
+                  and created_at >= now() - interval '1 day') then raise exception 'REPORT_ALREADY_SENT'; end if;
+    if (select count(*) from public.chat_reports where reporter_id = account_id and created_at >= now() - interval '1 day') >= 20 then
+        raise exception 'REPORT_DAILY_LIMIT';
+    end if;
+    if p_message_id is not null then
+        select * into message_row from public.chat_messages where id = p_message_id and user_id = p_target_user_id;
+    end if;
+    select nickname into target_name from public.player_profiles where user_id = p_target_user_id;
+    insert into public.chat_reports (reporter_id, target_user_id, message_id, nickname, body, reason)
+    values (account_id, p_target_user_id, message_row.id, coalesce(target_name, message_row.nickname, ''),
+            left(message_row.body, 500), left(trim(p_reason), 200));
+    delete from public.chat_reports where created_at < now() - interval '90 days';
+    return jsonb_build_object('reported', true);
+end;
+$$;
+
+-- 관리자: 최근 신고 200건과 지금 금지 중인 계정.
+create or replace function public.admin_get_chat_reports()
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+    if not public.is_project_admin() then raise exception 'ADMIN_REQUIRED'; end if;
+    return jsonb_build_object(
+        'reports', coalesce((select jsonb_agg(to_jsonb(row_data) order by row_data.created_at desc) from (
+            select report.id, report.created_at, report.target_user_id, report.nickname, report.message_id, report.body, report.reason,
+                   reporter.nickname as reporter_nickname,
+                   public.chat_muted_until(report.target_user_id) as muted_until,
+                   exists (select 1 from public.chat_messages message where message.id = report.message_id) as message_exists
+              from public.chat_reports report
+              left join public.player_profiles reporter on reporter.user_id = report.reporter_id
+             order by report.created_at desc limit 200) row_data), '[]'::jsonb),
+        'mutes', coalesce((select jsonb_agg(to_jsonb(row_data) order by row_data.until_at desc) from (
+            select mute.user_id, profile.nickname, mute.until_at, mute.note, mute.created_at
+              from public.chat_mutes mute
+              left join public.player_profiles profile on profile.user_id = mute.user_id
+             where mute.until_at > now()
+             order by mute.until_at desc) row_data), '[]'::jsonb)
+    );
+end;
+$$;
+
+-- 관리자: 금지(분 단위, 최대 366일). 0이면 푼다.
+create or replace function public.admin_set_chat_mute(p_user_id uuid, p_minutes integer, p_note text default '')
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+    if not public.is_project_admin() then raise exception 'ADMIN_REQUIRED'; end if;
+    if p_user_id is null or p_minutes is null or p_minutes < 0 then raise exception 'INVALID_REQUEST'; end if;
+    if p_minutes = 0 then
+        delete from public.chat_mutes where user_id = p_user_id;
+    else
+        insert into public.chat_mutes (user_id, until_at, note)
+        values (p_user_id, now() + make_interval(mins => least(p_minutes, 527040)), left(coalesce(p_note, ''), 200))
+        on conflict (user_id) do update set until_at = excluded.until_at, note = excluded.note, created_at = now();
+    end if;
+    return jsonb_build_object('userId', p_user_id, 'mutedUntil', public.chat_muted_until(p_user_id));
+end;
+$$;
+
+-- 관리자: 채팅 한 줄 삭제(실시간으로는 빠지지 않고 다음 전체 조회에서 사라진다).
+create or replace function public.admin_delete_chat_message(p_message_id bigint)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare removed integer;
+begin
+    if not public.is_project_admin() then raise exception 'ADMIN_REQUIRED'; end if;
+    delete from public.chat_messages where id = p_message_id;
+    get diagnostics removed = row_count;
+    return jsonb_build_object('deleted', removed > 0);
+end;
+$$;
+
+revoke all on function public.chat_muted_until(uuid) from public, anon, authenticated;
+revoke all on function public.report_player_chat(uuid, text, bigint) from public, anon;
+revoke all on function public.admin_get_chat_reports() from public, anon;
+revoke all on function public.admin_set_chat_mute(uuid, integer, text) from public, anon;
+revoke all on function public.admin_delete_chat_message(bigint) from public, anon;
+grant execute on function public.report_player_chat(uuid, text, bigint) to authenticated;
+grant execute on function public.admin_get_chat_reports() to authenticated;
+grant execute on function public.admin_set_chat_mute(uuid, integer, text) to authenticated;
+grant execute on function public.admin_delete_chat_message(bigint) to authenticated;
+
+-- ============================================================================
+-- 6) 고스트 수치 검사와 검토 중 점수 멈춤 (db/anti-cheat.sql, db/operations-and-ghost.sql과 같다)
+-- ============================================================================
+alter table public.cheat_flags drop constraint if exists cheat_flags_kind_check;
+alter table public.cheat_flags add constraint cheat_flags_kind_check check (kind in ('clock', 'currency', 'level', 'ghost_dps', 'ghost_ehp'));
+
+-- 원소별 EHP 가운데 가장 작은 값(감시와 기록이 보는 한 수).
+create or replace function public.ghost_min_ehp(ehp_data jsonb)
+returns numeric language sql immutable set search_path = public as $$
+    select coalesce(min(public.cheat_number(element.value)), 0) from jsonb_each(coalesce(ehp_data, '{}'::jsonb)) element;
+$$;
+
+-- register_my_ghost는 등록할 때마다 active를 켠다. 보류한 계정이면 등록을 거절한다(대전 결과로 점수만 바뀔 때는 돌지 않는다).
+-- 보류를 걸 때 active를 끄는 갱신은 그대로 들어간다.
+-- 수치 상한(2026-10-27): 게임에서 나올 수 없는 크기는 막는다. 문서와 측정에 남은 가장 큰 DPS가 천만 자리라 DPS와 EHP는 100억,
+-- 생명력과 보호막은 10억까지 받는다(틀릴 수 없는 검사만 막는다는 원칙). 그 아래의 이상치는 watch_ghost_dps가 기록만 한다.
+create or replace function public.guard_ghost_profile()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+    if new.active and public.cheat_account_held(new.user_id) then raise exception 'GHOST_ACCOUNT_HELD'; end if;
+    if new.dps > 10000000000
+       or public.cheat_number(new.combat_snapshot -> 'maxHp') > 1000000000
+       or public.cheat_number(new.combat_snapshot -> 'energyShield') > 1000000000
+       or exists (select 1 from jsonb_each(new.ehp_by_element) element where public.cheat_number(element.value) > 10000000000) then
+        raise exception 'GHOST_SNAPSHOT_IMPLAUSIBLE';
+    end if;
+    return new;
+end;
+$$;
+
+drop trigger if exists trg_guard_ghost_profile on public.ghost_profiles;
+create trigger trg_guard_ghost_profile before insert or update of active on public.ghost_profiles
+    for each row execute function public.guard_ghost_profile();
+
+-- 같은 전투 판에서 DPS 상위 20명(자기 빼고)의 가운데 값보다 10배 넘게 크면 기록한다. 20명이 안 되면 보지 않는다.
+-- EHP(원소별 가장 작은 값)도 같은 규칙으로 기록한다(2026-10-27). 7일 안의 기록은 순위전 점수를 멈춘다(ghost_under_review).
+-- 실제로 들어간 등록에만 한 번 돈다(AFTER). 기록이 실패해도 등록은 막지 않는다. 잠금을 2초 넘게 기다리면 그 오류도 잡히도록
+-- lock_timeout을 둔다(요청 시간 제한으로 끊기면 예외 블록이 잡지 못해 등록까지 실패한다).
+create or replace function public.watch_ghost_dps()
+returns trigger language plpgsql security definer set search_path = public set lock_timeout = '2s' as $$
+declare
+    peers integer;
+    top_median numeric;
+    ehp_peers integer;
+    ehp_median numeric;
+    new_ehp numeric := public.ghost_min_ehp(new.ehp_by_element);
+begin
+    if tg_op = 'UPDATE' and new.dps is not distinct from old.dps and new.ehp_by_element is not distinct from old.ehp_by_element then
+        return null;
+    end if;
+    begin
+        select count(*), percentile_cont(0.5) within group (order by top.dps)
+          into peers, top_median
+          from (select profile.dps from public.ghost_profiles profile
+                 where profile.combat_version = new.combat_version and profile.user_id <> new.user_id and profile.active
+                 order by profile.dps desc limit 20) top;
+        if peers >= 20 and top_median > 0 and new.dps > top_median * 10 then
+            perform public.note_cheat_flag(new.user_id, 'ghost_dps',
+                jsonb_build_object('dps', new.dps, 'topMedian', round(top_median), 'combatVersion', new.combat_version));
+        end if;
+        select count(*), percentile_cont(0.5) within group (order by top.ehp)
+          into ehp_peers, ehp_median
+          from (select public.ghost_min_ehp(profile.ehp_by_element) as ehp from public.ghost_profiles profile
+                 where profile.combat_version = new.combat_version and profile.user_id <> new.user_id and profile.active
+                 order by public.ghost_min_ehp(profile.ehp_by_element) desc limit 20) top;
+        if ehp_peers >= 20 and ehp_median > 0 and new_ehp > ehp_median * 10 then
+            perform public.note_cheat_flag(new.user_id, 'ghost_ehp',
+                jsonb_build_object('ehp', round(new_ehp), 'topMedian', round(ehp_median), 'combatVersion', new.combat_version));
+        end if;
+    exception when others then
+        raise warning 'watch_ghost_dps: %', sqlerrm;
+    end;
+    return null;
+end;
+$$;
+
+drop trigger if exists trg_watch_ghost_dps on public.ghost_profiles;
+create trigger trg_watch_ghost_dps after insert or update of dps, ehp_by_element on public.ghost_profiles
+    for each row execute function public.watch_ghost_dps();
+
+-- 검토 중인 고스트(db/anti-cheat.sql의 감시가 7일 안에 DPS나 EHP 이상치로 기록한 계정): 순위전에서 점수를 얻지 못하고,
+-- 상대도 그 고스트에게 점수를 잃지 않는다. 친선전은 그대로다. 감시 표가 아직 없는 설치에서는 늘 false다.
+create or replace function public.ghost_under_review(p_user_id uuid)
+returns boolean language plpgsql stable security definer set search_path = public as $$
+begin
+    if to_regclass('public.cheat_flags') is null then return false; end if;
+    return exists (select 1 from public.cheat_flags flag
+                    where flag.user_id = p_user_id and flag.kind in ('ghost_dps', 'ghost_ehp')
+                      and flag.last_at >= now() - interval '7 days');
+end;
+$$;
+
+create or replace function public.fight_ghost(p_combat_version text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+    account_id uuid := auth.uid();
+    challenger public.ghost_profiles%rowtype;
+    defender public.ghost_profiles%rowtype;
+    defender_id uuid;
+    seed_value text;
+    duel jsonb;
+    result_value text;
+    challenger_score numeric;
+    expected_score numeric;
+    rating_delta integer;
+    challenger_delta integer;
+    defender_delta integer;
+begin
+    if account_id is null then raise exception 'AUTH_REQUIRED'; end if;
+    -- ponytail: 테스터 규모에서는 전역 매치 잠금이 가장 안전하다. 동시 매치가 병목이 될 때 계정 순서 잠금으로 교체한다.
+    perform pg_advisory_xact_lock(937041);
+    if exists (select 1 from public.ghost_matches
+                where challenger_id = account_id and created_at >= now() - interval '20 seconds') then
+        raise exception 'GHOST_DUEL_COOLDOWN';
+    end if;
+    if (select count(*) from public.ghost_matches
+         where challenger_id = account_id and ranked and created_at >= now() - interval '1 day') >= 20 then
+        raise exception 'GHOST_DAILY_LIMIT';
+    end if;
+    select * into challenger from public.ghost_profiles
+     where user_id = account_id and active and combat_version = p_combat_version for update;
+    if not found then raise exception 'GHOST_REGISTRATION_REQUIRED'; end if;
+
+    select candidate.user_id into defender_id
+      from public.ghost_profiles candidate
+     where candidate.user_id <> account_id and candidate.active
+       and candidate.combat_version = p_combat_version
+       and (select count(*) from public.ghost_matches previous
+             where ((previous.challenger_id = account_id and previous.defender_id = candidate.user_id)
+                 or (previous.challenger_id = candidate.user_id and previous.defender_id = account_id))
+               and previous.ranked
+               and previous.created_at >= now() - interval '1 day') < 5
+     order by abs(candidate.rating - challenger.rating), random() limit 1;
+    if defender_id is null then raise exception 'GHOST_OPPONENT_NOT_FOUND'; end if;
+    select * into defender from public.ghost_profiles where user_id = defender_id for update;
+
+    seed_value := md5(account_id::text || defender_id::text || clock_timestamp()::text || random()::text);
+    duel := public.simulate_ghost_duel(challenger.combat_snapshot, defender.combat_snapshot, seed_value);
+    result_value := case duel ->> 'winner' when 'left' then 'win' when 'right' then 'loss' else 'draw' end;
+    challenger_score := case result_value when 'win' then 1 when 'loss' then 0 else 0.5 end;
+    duel := duel || jsonb_build_object('seed',seed_value,
+        'left', jsonb_build_object('nickname',challenger.nickname,'ascendClass',challenger.ascend_class,'snapshot',challenger.combat_snapshot),
+        'right', jsonb_build_object('nickname',defender.nickname,'ascendClass',defender.ascend_class,'snapshot',defender.combat_snapshot));
+    expected_score := 1 / (1 + power(10::numeric, (defender.rating - challenger.rating) / 400.0));
+    rating_delta := round(24 * (challenger_score - expected_score));
+    if rating_delta = 0 and result_value <> 'draw' then rating_delta := case when result_value = 'win' then 1 else -1 end; end if;
+    -- 검토 중인 고스트(ghost_under_review)는 점수가 움직이지 않고, 그 상대는 잃지 않는다(얻는 것은 그대로).
+    challenger_delta := rating_delta;
+    defender_delta := -rating_delta;
+    if public.ghost_under_review(account_id) then challenger_delta := 0; defender_delta := greatest(defender_delta, 0); end if;
+    if public.ghost_under_review(defender_id) then defender_delta := 0; challenger_delta := greatest(challenger_delta, 0); end if;
+
+    update public.ghost_profiles set
+        rating = greatest(100, least(4000, rating + challenger_delta)),
+        wins = wins + case when result_value = 'win' then 1 else 0 end,
+        losses = losses + case when result_value = 'loss' then 1 else 0 end,
+        draws = draws + case when result_value = 'draw' then 1 else 0 end,
+        matches = matches + 1
+     where user_id = account_id;
+    update public.ghost_profiles set
+        rating = greatest(100, least(4000, rating + defender_delta)),
+        wins = wins + case when result_value = 'loss' then 1 else 0 end,
+        losses = losses + case when result_value = 'win' then 1 else 0 end,
+        draws = draws + case when result_value = 'draw' then 1 else 0 end,
+        matches = matches + 1
+     where user_id = defender_id;
+
+    insert into public.ghost_matches(
+        challenger_id, defender_id, result,
+        challenger_rating_before, challenger_rating_after,
+        defender_rating_before, defender_rating_after, seed, combat_version
+    ) values (
+        account_id, defender_id, result_value,
+        challenger.rating, greatest(100, least(4000, challenger.rating + challenger_delta)),
+        defender.rating, greatest(100, least(4000, defender.rating + defender_delta)),
+        seed_value, p_combat_version
+    );
+    return jsonb_build_object(
+        'opponent', defender.nickname, 'opponentClass', defender.ascend_class,
+        'opponentSkill', defender.active_skill, 'result', result_value,
+        'ratingBefore', challenger.rating,
+        'ratingAfter', greatest(100, least(4000, challenger.rating + challenger_delta)),
+        'ratingDelta', greatest(100, least(4000, challenger.rating + challenger_delta)) - challenger.rating,
+        'seed', seed_value, 'duel', duel
+    );
+end;
+$$;
+
+-- 관리자: 한 계정의 감시 기록을 지운다(종류를 주면 그 종류만). 순위전의 검토 중 상태(ghost_under_review)도 함께 풀린다.
+create or replace function public.admin_clear_cheat_flags(p_user_id uuid, p_kind text default null)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare removed integer;
+begin
+    if not public.is_project_admin() then raise exception 'ADMIN_REQUIRED'; end if;
+    if p_user_id is null then raise exception 'INVALID_REQUEST'; end if;
+    delete from public.cheat_flags where user_id = p_user_id and (p_kind is null or kind = p_kind);
+    get diagnostics removed = row_count;
+    return jsonb_build_object('userId', p_user_id, 'removed', removed);
+end;
+$$;
+
+revoke all on function public.ghost_min_ehp(jsonb) from public, anon, authenticated;
+revoke all on function public.admin_clear_cheat_flags(uuid, text) from public, anon;
+grant execute on function public.admin_clear_cheat_flags(uuid, text) to authenticated;
+revoke all on function public.ghost_under_review(uuid) from public, anon, authenticated;
 
 commit;

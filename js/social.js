@@ -42,6 +42,7 @@ const SOCIAL_CHAT_RETENTION_MS = 3 * 24 * 60 * 60 * 1000;
 const SOCIAL_ITEM_TOKEN_RE = /⟦(\d+)⟧/g;
 const SOCIAL_NICK_RE = /^[0-9A-Za-z가-힣ㄱ-ㅎㅏ-ㅣ_\-]+$/;
 const SOCIAL_EQUIP_SLOTS = ['무기', '투구', '목걸이', '장갑1', '갑옷', '방패', '반지1', '허리띠', '반지2', '신발', '장갑2'];
+const SOCIAL_BLOCKED_KEY = 'arpg_social_blocked_users';
 
 let socialState = {
     nickname: '',
@@ -843,7 +844,7 @@ function noteIncomingChats(rows) {
         refreshSocialNotificationDots();
         return;
     }
-    let incoming = rows.find(row => row && row.user_id !== socialLoggedInUserId());
+    let incoming = rows.find(row => row && row.user_id !== socialLoggedInUserId() && !isUserBlocked(row.user_id));
     if (!incoming) {
         setLastSeenChatId(latest);
         return;
@@ -1093,8 +1094,22 @@ function checkSendRateLimit() {
     if (socialState.sendTimestamps.length >= SOCIAL_SEND_MAX_PER_MIN) return `1분에 최대 ${SOCIAL_SEND_MAX_PER_MIN}개까지 보낼 수 있습니다. 잠시 후 다시 시도해주세요.`;
     return true;
 }
+// 차단(2026-10-27): 이 기기에서만 그 사람의 채팅을 숨긴다(기기마다 따로, 서버에는 남기지 않는다). 신고는 서버(report_player_chat)로 간다.
+function getBlockedUserIds() {
+    try { let list = JSON.parse(localStorage.getItem(SOCIAL_BLOCKED_KEY) || '[]'); return Array.isArray(list) ? list.map(String) : []; }
+    catch { return []; }
+}
+function isUserBlocked(userId) { return !!userId && getBlockedUserIds().includes(String(userId)); }
+function setUserBlocked(userId, blocked) {
+    let list = getBlockedUserIds().filter(id => id !== String(userId));
+    if (blocked) list.push(String(userId));
+    try { localStorage.setItem(SOCIAL_BLOCKED_KEY, JSON.stringify(list.slice(-200))); } catch { /* 무시 */ }
+}
 function translateSpamError(msg) {
     if (/SPAM_TOO_FAST/.test(msg)) return '메시지를 너무 빠르게 보냈습니다.';
+    if (/CHAT_MUTED/.test(msg)) return '관리자가 채팅을 금지한 상태입니다.';
+    if (/CHAT_PAYLOAD_INVALID/.test(msg)) return `아이템 링크는 메시지마다 ${SOCIAL_MAX_ITEMS_PER_MSG}개까지입니다.`;
+    if (/CHAT_NICKNAME_MISMATCH|CHAT_UPDATE_FORBIDDEN/.test(msg)) return '채팅 닉네임은 프로필 닉네임과 같아야 합니다.';
     if (/SPAM_RATE_LIMIT/.test(msg)) return '너무 많이 보냈습니다. 잠시 후 다시 시도해주세요.';
     if (/SPAM_DUPLICATE/.test(msg)) return '같은 메시지를 연속으로 보낼 수 없습니다.';
     if (/char_length|_body_check|violates check/.test(msg)) return `메시지는 1~${SOCIAL_MSG_MAX}자여야 합니다.`;
@@ -1392,6 +1407,7 @@ function renderChatMessages(messages, forceScroll) {
     if (maxId > 0) setLastSeenChatId(maxId);
     if (typeof game !== 'undefined' && game && game.noti) game.noti.social = false;
     refreshSocialNotificationDots();
+    messages = messages.filter(m => !isUserBlocked(m.user_id));   // 차단한 사람의 줄은 이 기기에서 그리지 않는다
     let nearBottom = (listEl.scrollHeight - listEl.scrollTop - listEl.clientHeight) < 60;
     let shouldScroll = !!forceScroll || socialState.scrollChatToLatestOnNextRender || nearBottom;
     let key = messages.map(m => `${m.id}:${m.nickname}`).join(',');
@@ -2116,6 +2132,7 @@ function renderProfileData(profile) {
     let updatedAt = p.updatedAt ? new Date(p.updatedAt) : null;
     let updated = (updatedAt && Number.isFinite(updatedAt.getTime())) ? updatedAt.toLocaleString('ko-KR') : '';
     let duelAction = canDuelFromProfile() ? `<div class="social-profile-duel"><button type="button" onclick="fightCurrentProfileGhost()">대전 탭에서 친선전</button><small>상대를 지정해 지도 창의 대전 탭으로 이동합니다.</small></div>` : '';
+    duelAction += renderProfileModerationRow();
     // 고급 테마(2026-10-11, css/social-profile.css): 머리 띠에 이름과 큰 총 DPS, 제목 띠가 있는 두 판(능력치 묶음, 장착 구성).
     body.innerHTML = `
         <div class="social-profile-header">
@@ -2146,6 +2163,28 @@ function canDuelFromProfile() {
     if (!target || target === socialLoggedInUserId()) return false;
     return contentProgression.canOpen('map-tab-pvp') && isMapPrimaryContentUnlocked(game, 'map-tab-pvp');
 }
+/** 남의 프로필 아래 줄(2026-10-27): 차단(이 기기에서 채팅 숨김)과 신고(사유를 골라 서버에 남김). 내 프로필에는 없다. */
+function renderProfileModerationRow() {
+    let target = socialState.currentProfileUserId;
+    if (!target || target === socialLoggedInUserId()) return '';
+    let blocked = isUserBlocked(target);
+    return `<div class="social-profile-duel social-profile-moderation">`
+        + `<button type="button" onclick="toggleProfileBlock()">${blocked ? '차단 해제' : '차단'}</button>`
+        + `<select id="social-report-reason" aria-label="신고 사유"><option value="욕설">욕설</option><option value="도배">도배</option><option value="사칭">사칭</option><option value="기타">기타</option></select>`
+        + `<button type="button" onclick="reportCurrentProfile()">신고</button>`
+        + `<small>${blocked ? '이 기기에서 이 사람의 채팅을 숨기는 중' : '차단은 이 기기에서 채팅을 숨기고, 신고는 운영자에게 갑니다'}</small></div>`;
+}
+function toggleProfileBlock() {
+    let target = socialState.currentProfileUserId;
+    if (!target || target === socialLoggedInUserId()) return;
+    let blocked = !isUserBlocked(target);
+    setUserBlocked(target, blocked);
+    socialState.lastChatRenderKey = '';
+    renderChatMessages(socialState.chatMessages || [], false);
+    if (socialState.currentProfile) renderProfileData(socialState.currentProfile);
+    showGameToast(blocked ? '이 사람의 채팅을 이 기기에서 숨깁니다.' : '차단을 풀었습니다.', 'info');
+}
+// 신고 보내기(reportCurrentProfile)는 서버를 부르므로 js/cloud-tools-ui.js에 있다(이 파일은 ui 파일을 새로 부르지 않는다는 계층 규칙).
 /** 읽어 온 프로필 줄을 그린다. 줄이 없으면 빈 프로필이고, 이름이 없는 예전 프로필은 줄의 닉네임을 쓴다. */
 function showFetchedProfile(rows) {
     let row = Array.isArray(rows) ? rows[0] : null;
@@ -2345,7 +2384,7 @@ function injectSocialStyles() {
     .social-profile-name{font-size:1.4em;font-weight:800;color:var(--color-accent);}
     .social-profile-sub{color:var(--copy-bright);margin-top:4px;}
     .social-profile-updated{color:var(--copy-muted);font-size:12px;margin-top:4px;}
-    .social-profile-duel{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:9px;}.social-profile-duel small{color:var(--copy-muted);}
+    .social-profile-duel{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:9px;}.social-profile-duel small{color:var(--copy-muted);}.social-profile-moderation select{min-width:72px;padding:2px 6px;}
     .social-profile-col{min-width:0;}.social-profile-cols{display:grid;grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);gap:16px;}
     @media(max-width:640px){.social-profile-cols{grid-template-columns:1fr;}}
     .social-profile-col h3{color:var(--copy-bright);font-size:1em;margin:0 0 8px;}
@@ -2407,6 +2446,6 @@ if (typeof safeExposeGlobals === 'function') {
         openPlayerProfile, openMyProfilePreview, closePlayerProfile, renderSocialTab, socialLoggedInUserId, restoreNicknameFromServer,
         attachChatItem, removePendingChatItem, openItemPicker, closeItemPicker, openTipModal, updateChatCounter,
         showSocialTip, moveSocialTip, hideSocialTip, switchProfileTab, sendPresenceHeartbeat, refreshOnlineUsers,
-        checkSocialChatNotification, syncSocialChatNotificationSetting, syncSocialBackgroundTasks
+        checkSocialChatNotification, syncSocialChatNotificationSetting, syncSocialBackgroundTasks, toggleProfileBlock
     });
 }

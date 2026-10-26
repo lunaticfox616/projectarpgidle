@@ -796,6 +796,18 @@ begin
 end;
 $$;
 
+-- 검토 중인 고스트(db/anti-cheat.sql의 감시가 7일 안에 DPS나 EHP 이상치로 기록한 계정): 순위전에서 점수를 얻지 못하고,
+-- 상대도 그 고스트에게 점수를 잃지 않는다. 친선전은 그대로다. 감시 표가 아직 없는 설치에서는 늘 false다.
+create or replace function public.ghost_under_review(p_user_id uuid)
+returns boolean language plpgsql stable security definer set search_path = public as $$
+begin
+    if to_regclass('public.cheat_flags') is null then return false; end if;
+    return exists (select 1 from public.cheat_flags flag
+                    where flag.user_id = p_user_id and flag.kind in ('ghost_dps', 'ghost_ehp')
+                      and flag.last_at >= now() - interval '7 days');
+end;
+$$;
+
 create or replace function public.fight_ghost(p_combat_version text)
 returns jsonb
 language plpgsql
@@ -813,6 +825,8 @@ declare
     challenger_score numeric;
     expected_score numeric;
     rating_delta integer;
+    challenger_delta integer;
+    defender_delta integer;
 begin
     if account_id is null then raise exception 'AUTH_REQUIRED'; end if;
     -- ponytail: 테스터 규모에서는 전역 매치 잠금이 가장 안전하다. 동시 매치가 병목이 될 때 계정 순서 잠금으로 교체한다.
@@ -852,16 +866,21 @@ begin
     expected_score := 1 / (1 + power(10::numeric, (defender.rating - challenger.rating) / 400.0));
     rating_delta := round(24 * (challenger_score - expected_score));
     if rating_delta = 0 and result_value <> 'draw' then rating_delta := case when result_value = 'win' then 1 else -1 end; end if;
+    -- 검토 중인 고스트(ghost_under_review)는 점수가 움직이지 않고, 그 상대는 잃지 않는다(얻는 것은 그대로).
+    challenger_delta := rating_delta;
+    defender_delta := -rating_delta;
+    if public.ghost_under_review(account_id) then challenger_delta := 0; defender_delta := greatest(defender_delta, 0); end if;
+    if public.ghost_under_review(defender_id) then defender_delta := 0; challenger_delta := greatest(challenger_delta, 0); end if;
 
     update public.ghost_profiles set
-        rating = greatest(100, least(4000, rating + rating_delta)),
+        rating = greatest(100, least(4000, rating + challenger_delta)),
         wins = wins + case when result_value = 'win' then 1 else 0 end,
         losses = losses + case when result_value = 'loss' then 1 else 0 end,
         draws = draws + case when result_value = 'draw' then 1 else 0 end,
         matches = matches + 1
      where user_id = account_id;
     update public.ghost_profiles set
-        rating = greatest(100, least(4000, rating - rating_delta)),
+        rating = greatest(100, least(4000, rating + defender_delta)),
         wins = wins + case when result_value = 'loss' then 1 else 0 end,
         losses = losses + case when result_value = 'win' then 1 else 0 end,
         draws = draws + case when result_value = 'draw' then 1 else 0 end,
@@ -874,16 +893,16 @@ begin
         defender_rating_before, defender_rating_after, seed, combat_version
     ) values (
         account_id, defender_id, result_value,
-        challenger.rating, greatest(100, least(4000, challenger.rating + rating_delta)),
-        defender.rating, greatest(100, least(4000, defender.rating - rating_delta)),
+        challenger.rating, greatest(100, least(4000, challenger.rating + challenger_delta)),
+        defender.rating, greatest(100, least(4000, defender.rating + defender_delta)),
         seed_value, p_combat_version
     );
     return jsonb_build_object(
         'opponent', defender.nickname, 'opponentClass', defender.ascend_class,
         'opponentSkill', defender.active_skill, 'result', result_value,
         'ratingBefore', challenger.rating,
-        'ratingAfter', greatest(100, least(4000, challenger.rating + rating_delta)),
-        'ratingDelta', greatest(100, least(4000, challenger.rating + rating_delta)) - challenger.rating,
+        'ratingAfter', greatest(100, least(4000, challenger.rating + challenger_delta)),
+        'ratingDelta', greatest(100, least(4000, challenger.rating + challenger_delta)) - challenger.rating,
         'seed', seed_value, 'duel', duel
     );
 end;
@@ -965,6 +984,7 @@ revoke all on function public.ghost_duel_roll(text, text) from public, anon, aut
 revoke all on function public.prepare_ghost_duel_fighter(jsonb, text, jsonb) from public, anon, authenticated;
 revoke all on function public.resolve_ghost_duel_attack(jsonb, jsonb, jsonb, numeric) from public, anon, authenticated;
 revoke all on function public.simulate_ghost_duel(jsonb, jsonb, text) from public, anon, authenticated;
+revoke all on function public.ghost_under_review(uuid) from public, anon, authenticated;
 grant execute on function public.register_my_ghost(text, jsonb) to authenticated;
 grant execute on function public.get_ghost_arena(text) to authenticated;
 grant execute on function public.fight_ghost(text) to authenticated;
