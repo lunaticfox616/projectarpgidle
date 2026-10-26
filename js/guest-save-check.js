@@ -77,8 +77,17 @@ const guestSaveCheck = (() => {
             item.underEnchant, item.chaosInfusion, item.encroached && item.encroached.chosen].filter(line => line && typeof line === 'object');
     }
 
+    /** 고유 효과 값과 품질: 클라이언트가 상한 없이 곱하는 칸이라 크기를 본다. 서버의 전당 검사(hall_item_params_out_of_range)와 같은 기준. */
+    function paramsProblem(item) {
+        if (Number(item.quality) > GUEST_SAVE_CHECK.itemQualityMax) return true;
+        const params = item.uniqueEffectParams;
+        if (!params || typeof params !== 'object') return false;
+        return Object.entries(params).some(([key, value]) => typeof value === 'number' && (Math.abs(value) > GUEST_SAVE_CHECK.uniqueParamMax
+            || (['mul', 'explicitStatMultiplier', 'level'].includes(key) && value > GUEST_SAVE_CHECK.uniqueMultiplierMax)));
+    }
+
     function itemLinesProblem(item) {
-        return item.stats.length > GUEST_SAVE_CHECK.statLinesMax || itemLines(item).some(statProblem);
+        return item.stats.length > GUEST_SAVE_CHECK.statLinesMax || itemLines(item).some(statProblem) || paramsProblem(item);
     }
 
     /** Every item anywhere in the save: bag, worn, stashes, codex copies, sockets. Walked with a stack, not recursion. */
