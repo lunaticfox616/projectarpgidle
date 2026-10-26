@@ -45,7 +45,7 @@ declare
 begin
     new.created_at := now();
     if public.chat_muted_until(new.user_id) is not null then
-        raise exception 'CHAT_MUTED: 관리자가 채팅을 금지한 상태입니다.';
+        raise exception 'CHAT_MUTED: 채팅이 금지된 상태입니다.';
     end if;
     if new.payload is not null then
         if jsonb_typeof(new.payload) <> 'object' or pg_column_size(new.payload) > 8192
@@ -77,8 +77,8 @@ begin
         raise exception 'SPAM_RATE_LIMIT: 잠시 후 다시 시도해주세요.';
     end if;
 
-    -- 5분 안에 같은 본문을 세 번째 보내면 막는다(연속이 아니어도).
-    if new.payload is null and (select count(*) from public.chat_messages
+    -- 5분 안에 같은 본문을 세 번째 보내면 막는다(연속이 아니어도). "ㅇㅇ", "ㅋㅋ" 같은 짧은 반응(6자 미만)은 둔다.
+    if new.payload is null and char_length(new.body) >= 6 and (select count(*) from public.chat_messages
          where user_id = new.user_id and payload is null and body = new.body and created_at > now() - interval '5 minutes') >= 2 then
         raise exception 'SPAM_REPEAT: 같은 메시지를 5분 안에 세 번 보낼 수 없습니다.';
     end if;
@@ -173,6 +173,7 @@ create policy "chat_messages_delete_own"
 create or replace function public.player_profiles_guard()
 returns trigger
 language plpgsql
+security definer   -- 실행 권한을 회수한 chat_text_is_offensive를 부르므로(검토 지적 2026-10-27). 자기 줄만 다룬다.
 set search_path = public
 as $$
 begin
@@ -222,7 +223,7 @@ drop function if exists public.player_profiles_nickname_guard();
 do $$
 begin
     if to_regprocedure('public.social_set_updated_at()') is not null
-       and not exists (select 1 from pg_trigger where tgfoid = 'public.social_set_updated_at()'::regprocedure) then
+       and not exists (select 1 from pg_trigger where tgfoid = to_regprocedure('public.social_set_updated_at()')) then
         execute 'drop function public.social_set_updated_at()';
     end if;
 end
@@ -823,10 +824,17 @@ create or replace function public.chat_text_normalized(p_text text)
 returns text language sql immutable set search_path = public as $$
     select regexp_replace(lower(coalesce(p_text, '')), '[^a-z가-힣ㄱ-ㅎㅏ-ㅣ]', '', 'g');
 $$;
+-- 띄어쓰기는 남기고(여러 칸은 한 칸) 기호와 숫자만 뺀 글: 낱말 사이를 넘어 걸리면 안 되는 짧은 줄기가 본다.
+create or replace function public.chat_text_spaced(p_text text)
+returns text language sql immutable set search_path = public as $$
+    select regexp_replace(regexp_replace(lower(coalesce(p_text, '')), '[^a-z가-힣ㄱ-ㅎㅏ-ㅣ ]', '', 'g'), ' +', ' ', 'g');
+$$;
+-- 긴 줄기(3음절 이상과 fuck, bitch)는 띄어쓰기를 다 지운 글에서, 짧은 줄기(2음절, 자모 두 글자, shit)는 띄어쓰기를 남긴 글에서 찾는다.
+-- "혹시 발사체", "3개 새로", "기존 나온", "ㅂㅂ ㅅㄱ", "sushi time" 같은 평범한 말이 걸리지 않게(검토 지적 2026-10-27).
 create or replace function public.chat_text_is_offensive(p_text text)
 returns boolean language sql immutable set search_path = public as $$
-    select public.chat_text_normalized(p_text) ~
-        '(시발|씨발|시팔|씨팔|씨바|ㅅㅂ|ㅆㅂ|병신|븅신|ㅂㅅ|개새끼|개새|새끼야|새끼들|미친놈|미친년|미친새|좆|존나|ㅈㄴ|지랄|ㅈㄹ|느금|엠창|애미|창녀|창놈|섹스|fuck|shit|bitch)';
+    select public.chat_text_normalized(p_text) ~ '(개새끼|미친놈|미친년|새끼야|새끼들|병신|븅신|지랄|느금|엠창|섹스|fuck|bitch)'
+        or public.chat_text_spaced(p_text) ~ '(시발|씨발|시팔|씨팔|씨바|개새|미친새|존나|애미|좆|ㅅㅂ|ㅆㅂ|ㅂㅅ|ㅈㄴ|ㅈㄹ|창녀|창놈|\mshit\M)';
 $$;
 
 -- 도배 자동 금지(2026-10-27): 성공한 메시지 뒤에 60초 안 12개째면 10분 금지를 건다(한도 15개보다 앞). 관리자가 건 더 긴 금지는 줄이지 않는다.
@@ -849,6 +857,7 @@ create trigger trg_chat_messages_auto_mute
     for each row execute function public.chat_messages_auto_mute();
 
 revoke all on function public.chat_text_normalized(text) from public, anon, authenticated;
+revoke all on function public.chat_text_spaced(text) from public, anon, authenticated;
 revoke all on function public.chat_text_is_offensive(text) from public, anon, authenticated;
 revoke all on function public.chat_messages_auto_mute() from public, anon, authenticated;
 
