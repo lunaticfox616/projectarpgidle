@@ -360,45 +360,72 @@ function gridProjectedLineEnd(ax, ay, tx, ty, range) {
     return { gx: ax + Math.round(dx * scale), gy: ay + Math.round(dy * scale) };
 }
 
+/** The blocked cell keys ("gx,gy") as row-major indices of the map. A key outside the map never matches a searched cell, so it is left out
+ * (its index could collide with a cell inside). */
+function gridBlockedIndexSet(blocked, width, height) {
+    const out = new Set();
+    for (const key of blocked) {
+        const comma = key.indexOf(','), gx = Number(key.slice(0, comma)), gy = Number(key.slice(comma + 1));
+        if (gx >= 0 && gy >= 0 && gx < width && gy < height) out.add(gy * width + gx);
+    }
+    return out;
+}
+
+/** One step search's fixed parts: the map, the mover's footprint, the blocked cells as indices and the visited marks. cheb is the
+ * distance from the target by the placement rule (a boss scores with the configured boss size, not its saved footprint), man the
+ * distance of the footprint's middle. */
+function createGridStepSearch(unit, tx, ty, blocked) {
+    const footprint = getGridUnitFootprint(unit), cols = footprint.columns, rows = footprint.rows;
+    const scoring = getGridUnitFootprint({ isBoss: cols > 1 || rows > 1 });
+    const terrain = getGridPlacementTerrain(), map = terrain.map, width = map.columns, height = map.rows;
+    const blockedAt = gridBlockedIndexSet(blocked, width, height), visited = new Uint8Array(width * height), cell = { gx: 0, gy: 0 };
+    visited[unit.gy * width + unit.gx] = 1;
+    /** No cell of the footprint at (gx, gy) is blocked or unwalkable (the sealed gate counts as a wall). All of them are inside the map. */
+    const free = (gx, gy) => {
+        for (let dx = 0; dx < cols; dx++) for (let dy = 0; dy < rows; dy++) {
+            cell.gx = gx + dx; cell.gy = gy + dy;
+            if (blockedAt.has(cell.gy * width + cell.gx) || (map.tiles && !actExplorationMap.walkable(map, cell, terrain.sealed))) return false;
+        }
+        return true;
+    };
+    return {
+        cheb: (gx, gy) => Math.max(0, gx - tx, tx - (gx + scoring.columns - 1), gy - ty, ty - (gy + scoring.rows - 1)),
+        man: (gx, gy) => Math.abs(gx + (cols - 1) / 2 - tx) + Math.abs(gy + (rows - 1) / 2 - ty),
+        /** True the first time the footprint can stand with its top-left on (gx, gy): every cell inside the map and free. Marks the cell. */
+        enter(gx, gy) {
+            if (gx < 0 || gy < 0 || gx + cols > width || gy + rows > height) return false;
+            const at = gy * width + gx;
+            if (visited[at] || !free(gx, gy)) return false;
+            visited[at] = 1;
+            return true;
+        }
+    };
+}
+
 /**
  * 목표 칸을 향한 최단 우회로를 찾아 상하좌우로 한 칸 전진시킨다.
  * 점유 칸은 통과하지 못하고 대각선 이동은 허용하지 않는다.
+ * 닿을 수 있는 칸을 모두 훑어 (발 거리, 중심 거리) 순으로 가장 가까운 칸을 고르고 그쪽 첫걸음을 뗀다. 칸마다 발자국 셀 배열과
+ * 문자열 열쇠를 만들지 않는다(2026-10-27: 방치 정산 8시간의 23%가 이 탐색이었다). 고르는 칸은 전과 같다.
  * @returns {boolean} 실제로 이동했는지
  */
 function gridStepToward(unit, tx, ty, blocked) {
     if (!hasGridCell(unit)) return false;
-    let footprint = getGridUnitFootprint(unit);
-    // 접근 점수는 저장된 footprint 없이 설정 보스 크기로 매기는 기존 규칙이다. 충돌·중심 거리는 실제 footprint를 쓴다.
-    let scoring = getGridUnitFootprint({ isBoss: footprint.columns > 1 || footprint.rows > 1 });
-    let distanceFromPlacement = (gx, gy) => Math.max(0,
-        gx - tx, tx - (gx + scoring.columns - 1),
-        gy - ty, ty - (gy + scoring.rows - 1));
-    let start = { gx: unit.gx, gy: unit.gy, first: null };
-    let best = start;
-    let bestCheb = distanceFromPlacement(start.gx, start.gy);
-    let bestMan = Math.abs(getGridUnitCenter(unit).gx - tx) + Math.abs(getGridUnitCenter(unit).gy - ty);
-    let queue = [start], head = 0, terrain = getGridPlacementTerrain();
-    let visited = new Set([gridCellKey(start.gx, start.gy)]);
-    while (head < queue.length) {
-        let current = queue[head++];
-        GRID_CARDINAL_STEPS.forEach(direction => {
-            let gx = current.gx + direction.dx, gy = current.gy + direction.dy;
-            let key = gridCellKey(gx, gy);
-            if (visited.has(key) || !canPlaceGridFootprint(blocked, gx, gy, footprint, terrain)) return;
-            let next = { gx, gy, first: current.first || { gx, gy } };
-            let cheb = distanceFromPlacement(gx, gy);
-            let man = Math.abs(gx + (footprint.columns - 1) / 2 - tx)
-                + Math.abs(gy + (footprint.rows - 1) / 2 - ty);
-            if (cheb < bestCheb || (cheb === bestCheb && man < bestMan)) {
-                best = next; bestCheb = cheb; bestMan = man;
-            }
-            visited.add(key);
-            queue.push(next);
-        });
+    const search = createGridStepSearch(unit, tx, ty, blocked);
+    const qx = [unit.gx], qy = [unit.gy], qf = [-1]; // 큐: 칸과, 그 칸에 이르는 첫걸음의 큐 번호(시작 칸은 -1)
+    let best = 0, bestCheb = search.cheb(unit.gx, unit.gy), bestMan = search.man(unit.gx, unit.gy);
+    for (let head = 0; head < qx.length; head++) {
+        for (const direction of GRID_CARDINAL_STEPS) {
+            const gx = qx[head] + direction.dx, gy = qy[head] + direction.dy;
+            if (!search.enter(gx, gy)) continue;
+            const cheb = search.cheb(gx, gy), man = search.man(gx, gy), index = qx.length;
+            qx.push(gx); qy.push(gy); qf.push(qf[head] < 0 ? index : qf[head]);
+            if (cheb < bestCheb || (cheb === bestCheb && man < bestMan)) { best = index; bestCheb = cheb; bestMan = man; }
+        }
     }
-    if (!best.first) return false;
-    unit.gx = best.first.gx;
-    unit.gy = best.first.gy;
+    if (qf[best] < 0) return false;
+    unit.gx = qx[qf[best]];
+    unit.gy = qy[qf[best]];
     return true;
 }
 
