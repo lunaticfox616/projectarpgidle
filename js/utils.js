@@ -326,6 +326,8 @@ const TENTH_STAT_IDS = Object.freeze(['leech', 'spellLeech', 'regen', 'regenSupp
 function isTenthStat(statId) {
     return TENTH_STAT_IDS.includes(statId);
 }
+// 정수로만 굴리는 옵션(2026-10-27 사용자: "회피같은건 정수로만"): 방어도, 회피, 에너지 보호막과 그 증가, 무기의 기본 피해 증가.
+const WHOLE_ROLL_STAT_IDS = Object.freeze(['armor', 'evasion', 'energyShield', 'armorPct', 'evasionPct', 'energyShieldPct', 'weaponFlatDmgPct']);
 function formatValue(statId, value) {
     const numeric = Number(value);
     if (!Number.isFinite(numeric)) return '0';

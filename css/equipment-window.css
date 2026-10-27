@@ -218,6 +218,10 @@
   background: linear-gradient(180deg, color-mix(in srgb, var(--item-rarity) var(--rarity-fill), #0c0b09), color-mix(in srgb, var(--item-rarity) calc(var(--rarity-fill) * .55), #060504)); }
 :root body #item-tab-equip .equipment-grid-item:hover:not(:disabled) { border-color: color-mix(in srgb, var(--item-rarity) 85%, #fff);
   background: linear-gradient(180deg, color-mix(in srgb, var(--item-rarity) calc(var(--rarity-fill) + 8%), #0c0b09), color-mix(in srgb, var(--item-rarity) var(--rarity-fill), #060504)); }
+/* 타락 장비는 바깥 테두리도 붉다(css/item-influences.css의 붉은 테와 함께). 위의 등급 테두리와 마우스 올림 규칙을 같은 선택자로 이긴다. */
+:root body #item-tab-equip .equipment-grid-item.is-corrupted,
+:root body #item-tab-equip .equipment-grid-item.is-corrupted:hover:not(:disabled) { border-color: #e0463c; }
+:root body #item-tab-equip #ui-equip-list > .equipment-slot.is-corrupted { --r: #e0463c; }
 :root body #item-tab-equip .equipment-grid-item.selected { outline: 2px solid #ffd27a; outline-offset: -2px; box-shadow: 0 0 14px rgba(255, 210, 122, .75); z-index: 3; }
 :root body #item-tab-equip .eqw-new-dot { position: absolute; top: 2px; right: 2px; z-index: 6; width: 6px; height: 6px; border-radius: 50%; background: #ff3b30;
   box-shadow: 0 0 0 1px #000; pointer-events: none; }

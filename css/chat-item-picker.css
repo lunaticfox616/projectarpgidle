@@ -1,0 +1,54 @@
+@layer overrides {
+/* 채팅 아이템 첨부 창(js/chat-item-picker-ui.js): 장착 장비, 인벤토리, 그루터기 함 세 쪽. 칸은 가방 칸과 같은 등급 바탕색
+   (일반 회색, 마법 파랑, 희귀 노랑, 고유 주황)과 타락 장비의 붉은 테를 쓴다. 장착 칸 배치는 css/equipment-window.css의 .build-set-paperdoll이다. */
+#social-item-picker-modal .chat-pick-box { width: min(560px, calc(100vw - 24px)); max-width: none; }
+#social-item-picker-modal .chat-pick-title { margin: 0 0 8px; color: var(--copy-bright, #efe7d6); font-size: 12px; font-weight: 700; line-height: 18px; }
+
+.chat-pick-tabs { display: flex; gap: 4px; margin: 0 0 10px; }
+.chat-pick-tabs .chat-pick-tab { flex: 1 1 0; min-height: 30px; padding: 4px 8px; font-size: 12px; }
+.chat-pick-tabs .chat-pick-tab[aria-pressed="true"] { border-color: #d7ad5d; color: #ffe3a0; background: linear-gradient(180deg, #3a2c17, #19150e); }
+.chat-pick-page { max-height: calc(70dvh / var(--scale-display-factor, 1)); overflow: auto; overscroll-behavior: contain; }
+
+/* 칸 하나: 그림이 칸을 채우고, 장착 칸은 위에 부위 이름. 붙일 수 없는 아이템은 흐리게. */
+.chat-pick-cell { --item-rarity: #7d8996; --rarity-fill: 14%; position: relative; display: block; box-sizing: border-box; min-width: 0; min-height: 0; margin: 0; padding: 2px;
+  overflow: hidden; border: 1px solid color-mix(in srgb, var(--item-rarity) 55%, #050403); border-radius: 0; color: inherit; font: inherit;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--item-rarity) var(--rarity-fill), #0c0b09), color-mix(in srgb, var(--item-rarity) calc(var(--rarity-fill) * .55), #060504));
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .7); }
+.chat-pick-cell.rarity-magic { --item-rarity: #5fb4ec; --rarity-fill: 32%; }
+.chat-pick-cell.rarity-rare { --item-rarity: #e9c355; --rarity-fill: 30%; }
+.chat-pick-cell.rarity-unique { --item-rarity: #f26a2a; --rarity-fill: 42%; }
+.chat-pick-cell.is-corrupted { border-color: #e0463c; box-shadow: inset 0 0 0 2px #e0463c; }
+.chat-pick-cell img { display: block; width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; pointer-events: none; }
+button.chat-pick-cell { cursor: pointer; }
+button.chat-pick-cell:hover { border-color: color-mix(in srgb, var(--item-rarity) 85%, #fff); background: linear-gradient(180deg,
+  color-mix(in srgb, var(--item-rarity) calc(var(--rarity-fill) + 10%), #0c0b09), color-mix(in srgb, var(--item-rarity) var(--rarity-fill), #060504)); }
+.chat-pick-cell.is-locked { opacity: .38; filter: grayscale(.7); cursor: default; }
+.chat-pick-slot-name { position: absolute; top: 1px; left: 3px; z-index: 1; color: #d9cdb4; font-size: 10px; line-height: 12px; text-shadow: 1px 1px 0 #000; pointer-events: none; }
+
+/* 장착 장비: 장비 창과 같은 배치(칸 높이만 이 창에 맞게). */
+.chat-pick-doll { --eqw-doll-row: 62px; max-width: 360px; margin: 0 auto; }
+.chat-pick-doll .chat-pick-slot img { padding: 12px 4px 2px; box-sizing: border-box; }
+.chat-pick-slot.is-empty { position: relative; display: block; border: 1px dashed #4c4940; background: #0d0f10; }
+
+/* 인벤토리: 가방 쪽과 같은 칸 수와 자리(정수 칸 32px). */
+.chat-pick-pages { display: flex; flex-wrap: wrap; gap: 4px; margin: 0 0 6px; }
+.chat-pick-pages button { min-width: 30px; min-height: 24px; padding: 2px 6px; font-size: 12px; }
+.chat-pick-pages button[aria-pressed="true"] { border-color: #d7ad5d; color: #ffe3a0; }
+.chat-pick-bag { display: grid; grid-template-columns: repeat(var(--cols), 32px); grid-template-rows: repeat(var(--rows), 32px); gap: 2px; width: max-content; margin: 0 auto;
+  padding: 4px; border: 1px solid #2c2a24; background-color: #080807;
+  background-image: linear-gradient(#15140f 0 0); background-size: 32px 32px; background-position: 4px 4px; }
+.chat-pick-bag > .chat-pick-cell { width: auto; height: auto; }
+
+/* 그루터기 함: 5×5 판(닫힌 칸은 어둡게)과 보관함. */
+.chat-pick-stump-board { display: grid; grid-template-columns: repeat(5, 44px); grid-template-rows: repeat(5, 44px); gap: 3px; width: max-content; margin: 0 auto;
+  padding: 6px; border: 1px solid #4a3a24; background: radial-gradient(circle at 50% 50%, #2a2014, #100d08 75%); }
+.chat-pick-cell.is-blank { border: 1px solid #3a3022; background: #16120c; }
+.chat-pick-cell.is-closed { border: 1px solid #1b1712; background: repeating-linear-gradient(45deg, #0b0907 0 4px, #120e0a 4px 8px); }
+.chat-pick-sub { margin: 10px 0 6px; color: #d9b066; font-size: 12px; font-weight: 700; }
+.chat-pick-stump-store { display: grid; grid-template-columns: repeat(auto-fill, 36px); grid-auto-rows: 36px; gap: 3px; }
+.chat-pick-empty { margin: 8px 0; color: var(--copy-muted, #9e927c); font-size: 12px; }
+@media (max-width: 700px) {
+  .chat-pick-bag { grid-template-columns: repeat(var(--cols), 26px); grid-template-rows: repeat(var(--rows), 26px); background-size: 26px 26px; }
+  .chat-pick-stump-board { grid-template-columns: repeat(5, 40px); grid-template-rows: repeat(5, 40px); }
+}
+}

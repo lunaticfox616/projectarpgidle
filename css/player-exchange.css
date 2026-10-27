@@ -1,7 +1,9 @@
 @layer components{.player-exchange-card{margin:0 0 12px;border:1px solid var(--color-line,#40392e);border-radius:4px;background:linear-gradient(145deg,var(--color-surface-raised,#15140f),var(--color-surface,#0c0e0c));overflow:hidden}
 .player-exchange-card>header{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border-bottom:1px solid var(--color-line,#40392e);background:color-mix(in srgb,var(--color-surface-raised,#15140f),var(--color-accent,#d7b36f) 5%)}
 .player-exchange-card header>div{display:flex;flex-direction:column;gap:2px}.player-exchange-card small{color:var(--color-text-tertiary,#91897d);font-size:12px}
-.player-trade-register{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:end;padding:10px}
+/* 등록 단추 칸은 폭을 고정한다: 단추 글이 불러오는 동안(처리 중)과 끝난 뒤, 고른 장비 이름으로 바뀔 때마다 옆 장비 목록의 폭이 달라져
+   카드가 줄을 바꿔 다시 늘어섰다(2026-10-27 사용자: 장비 전당을 열 때 순간 재정렬). 긴 글은 단추 안에서 줄을 바꾼다. */
+.player-trade-register{display:grid;grid-template-columns:minmax(0,1fr) 200px;gap:10px;align-items:end;padding:10px}.player-trade-register>button{width:100%;white-space:normal}
 .player-trade-picker,.player-trade-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:7px;max-height:260px;overflow:auto;scrollbar-gutter:stable}.player-trade-picker{max-height:180px}
 .player-trade-grid{padding:10px}.player-trade-grid.compact{max-height:190px}
 .player-trade-item{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0;padding:8px;border:1px solid color-mix(in srgb,var(--trade-rarity),var(--color-line,#40392e) 62%);border-left:3px solid var(--trade-rarity);border-radius:3px;background:var(--color-surface,#0c0e0c)}.player-trade-item>div:first-child{display:flex;flex-direction:column;min-width:0}.player-trade-item strong,.player-trade-item small{overflow-wrap:anywhere;word-break:keep-all;white-space:normal}.player-trade-item button{flex:none;min-height:30px;padding:4px 8px}.player-trade-item button.active{border-color:var(--color-line-strong,#705938);color:#fff0d2}
