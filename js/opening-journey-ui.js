@@ -281,7 +281,10 @@ const openingJourney = (() => {
     else if (typeof document === 'object') document.addEventListener('DOMContentLoaded', init, { once: true });
     // 인트로가 떠 있거나 곧 뜰 때(직업을 고른 뒤 첫 확인 주기까지, fresh): 2026-10-16 사용자 "인트로 연출 나올때 예전에 뜨는 창이 잠깐 나왔다가
     // 사라져": 그 틈에 예전 프롤로그 창(story_prologue, 인트로가 대신하는 안내)이 먼저 떴다가 인트로가 닫았다.
-    return Object.freeze({ holds, hushes, lying, autoLocked: active, lesson, introOpen: () => !!intro || fresh() });
+    /** The start class pick (js/ui.js ensureInitialHeroSelection) starts the intro in the same moment the pick closes: waiting for the next
+     * tick drew the room for a few frames first (2026-10-27 사용자: 직업을 빨리 고르면 스토리 연출 전에 방 그림이 보였다). */
+    function afterStartPick() { if (ticking()) followGame(); }
+    return Object.freeze({ holds, hushes, lying, afterStartPick, autoLocked: active, lesson, introOpen: () => !!intro || fresh() });
 })();
 /** Guide cards wait for the intro, also while it is about to start (js/tutorial-ui.js isTutorialPresentationBlocked asks window functions by name). */
 const isOpeningIntroOpen = () => openingJourney.introOpen();

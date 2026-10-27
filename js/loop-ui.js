@@ -1,56 +1,114 @@
 // Presentation only: opening or closing the settlement never awards points or rewrites a loop.
+/** The roadmap's per-loop stump line (data/maps.js, loop 2): the screen says this loop's count instead (loopSettlementUi.stumpCellLine). */
+const LOOP_STUMP_ROADMAP_LINE = /^그루터기 함: 루프마다/;
 const loopSettlementUi = {
     renderedKey: '',
     dismissedReadyLoop: 0,
+    revealLoop: 0,
+    revealStep: 3,
+    freshTimer: 0,
+    rolledLoop: 0,
     unlockRewardText() {
         const points = contentProgression.points();
         // 넘치는 해금 포인트는 그루터기 함 접붙이기 점수가 된다(contentProgression.overflow, js/stump-box.js graftEarned).
         const overflow = `넘치는 해금 포인트는 루프마다 그루터기 함 접붙이기 점수 +${CONTENT_UNLOCK_POINT_AWARDS.perLoop}가 됩니다.`;
         if (points.complete) return `전체 해금 완료. ${overflow}`;
         if (!points.nextAward) return `남은 해금에 필요한 포인트를 모두 모았습니다. ${overflow}`;
-        return `해금 포인트 +${points.nextAward}. 해금 탭에서 다음 콘텐츠를 직접 선택하세요.`;
+        return `해금 포인트 +${points.nextAward}`;
     },
+    /** Three parts, shown one press at a time like the opening (2026-10-27 사용자: 이야기 / 루프 달성과 다음 루프 / 설정과 단추가 확실하게
+     * 갈라지고 누를 때마다 한 칸씩): data-loop-section 1~3, the card's data-loop-step says how many show (reveal). The overlay's note and
+     * buttons (index.html) are part 3. */
     summaryHtml() {
         const loop = game.season || 1;
         const record = game.records && game.records.currentLoop;
         const time = record ? formatRecordDuration(record.activeMs) : '기록 없음';
-        const features = game.contentProgression ? [this.unlockRewardText(), ...this.milestoneLines(loop + 1)]
-            : (SEASON_CONTENT_ROADMAP[loop + 1] || { features: ['심화 도전을 이어갑니다.'] }).features;
-        return `${this.storyHtml()}
-            <h2>루프 ${loop} 달성</h2>
+        return `<section class="loop-settlement-story" data-loop-section="1">${this.storyHtml()}</section>
+            <section class="loop-settlement-result" data-loop-section="2"><h2 aria-label="루프 ${loop + 1} 달성">루프 <span class="loop-settlement-count${this.rolledLoop === loop ? ' is-rolled' : ''}" data-loop-count aria-hidden="true"><span><b>${loop}</b><b>${loop + 1}</b></span></span> 달성</h2>
             <dl class="loop-settlement-stats"><div><dt>도달 레벨</dt><dd>${game.level}</dd></div><div><dt>처치</dt><dd>${Number(game.loopKills || 0).toLocaleString()}</dd></div><div><dt>활동 시간</dt><dd>${time}</dd></div></dl>${this.barkHtml(loop)}
-            <section class="loop-settlement-next"><h3>다음 루프 ${loop + 1}</h3><ul>${features.concat(loopMutationUi.nextLoopLines(loop + 1)).map(row => `<li>${escapeHTML(row)}</li>`).join('')}</ul><p>진행 시 루프 포인트 1점 획득${this.loopPointLockText()}</p></section>${this.explainHtml(loop)}${this.stallWarningHtml()}${loopAutomationUi.controlsHtml()}`;
+            <div class="loop-settlement-next"><ul>${this.nextLoopLines(loop).map(row => `<li class="is-${row.kind}">${escapeHTML(row.text).replace(/\+\d+/g, gain => `<b>${gain}</b>`)}</li>`).join('')}</ul></div>
+            <p class="loop-settlement-reset">루프 시 레벨, 장비 및 재화를 포함한 대부분의 진행도가 초기화됩니다.</p></section>
+            <section class="loop-settlement-controls" data-loop-section="3">${this.stallWarningHtml()}${loopAutomationUi.controlsHtml()}</section>
+            <button type="button" class="loop-settlement-continue" data-loop-continue>눌러서 계속</button>`;
     },
-    /** Until 루프 패시브 is bought the loop point only piles up: say where it goes (2026-10-27). */
+    /** What the next loop brings (2026-10-27 사용자: 짧게), each with its kind for its colour (css/ui-polish.css .loop-settlement-next):
+     * unlock points, the stump box's next cell, the loop point, the roadmap lines, the next loop's mutations. */
+    nextLoopLines(loop) {
+        const roadmap = game.contentProgression ? this.milestoneLines(loop + 1)
+            : (SEASON_CONTENT_ROADMAP[loop + 1] || { features: ['심화 도전을 이어갑니다.'] }).features.filter(text => !LOOP_STUMP_ROADMAP_LINE.test(text));
+        return [
+            { kind: 'unlock', text: game.contentProgression ? this.unlockRewardText() : '' },
+            { kind: 'stump', text: this.stumpCellLine() },
+            { kind: 'loop', text: `루프 포인트 +1${this.loopPointLockText()}` },
+            ...roadmap.map(text => ({ kind: 'road', text })),
+            ...loopMutationUi.nextLoopLines(loop + 1).map(text => ({ kind: 'mutation', text }))
+        ].filter(row => row.text);
+    },
+    /** The stump box's cells the next loop opens (js/stump-box.js openCount: one a loop up to 25), none before the box or at 25. */
+    stumpCellLine() {
+        const now = stumpBox.openCount(game), next = stumpBox.openCount({ ...game, season: (game.season || 1) + 1 });
+        return next > now ? `그루터기 함 슬롯 +${next - now} (현재 ${now}칸)` : '';
+    },
+    /** Until 루프 패시브 is bought the loop point only piles up (2026-10-27). */
     loopPointLockText() {
-        return game.contentProgression && !contentProgression.isUnlocked('loopTree') ? ' (루프 패시브 해금 후 사용)' : '';
+        return game.contentProgression && !contentProgression.isUnlocked('loopTree') ? ' (해금 후 사용 가능)' : '';
     },
-    /** The loop's close (data/story-journal.js STORY_LOOP_MILESTONES.default): the narration, then the woodsman's words. */
+    /** The loop's close (data/story-journal.js STORY_LOOP_MILESTONES.default): the narration only. Its woodsman line is not shown
+     * (2026-10-27 사용자: 지금 이야기와 맞지 않는다); the story pack keeps the field. */
     storyHtml() {
-        const lore = STORY_LOOP_MILESTONES.default;
-        return `<p class="loop-settlement-story">${lore.narration.map(escapeHTML).join('<br>')}</p>
-            <blockquote class="story-scene-quote"><p><strong>${escapeHTML(lore.speaker)}</strong> ${escapeHTML(lore.quote)}</p></blockquote>`;
+        return `<p>${STORY_LOOP_MILESTONES.default.narration.map(escapeHTML).join('<br>')}</p>`;
+    },
+    /** A new loop's screen shows part 1 (all three with 자동 루프 진행 on: its countdown is in part 3); the same loop drawn again keeps
+     * its step. */
+    startReveal() {
+        if (this.revealLoop === game.season) return false;
+        this.revealLoop = game.season;
+        this.revealStep = game.settings.autoLoop ? 3 : 1;
+        return true;
+    },
+    /** fresh: the part that fades in now ('1', '2', '3' or 'all'), cleared once it has (a redraw does not fade it again). */
+    showReveal(fresh) {
+        const cards = document.querySelectorAll('#loop-ready-overlay .loop-settlement-card, #loop-decision-overlay .loop-settlement-card');
+        cards.forEach(card => {
+            card.dataset.loopStep = String(this.revealStep);
+            if (fresh) card.dataset.loopFresh = fresh;
+        });
+        if (!fresh) return;
+        clearTimeout(this.freshTimer);
+        this.freshTimer = setTimeout(() => cards.forEach(card => delete card.dataset.loopFresh), 800);
+    },
+    /** A press on the card shows the next part; presses on its controls stay theirs (눌러서 계속 is the keyboard's way). */
+    advanceReveal(event) {
+        if (this.revealStep >= 3) return;
+        if (!event.target.closest('[data-loop-continue]') && event.target.closest('button, select, input, label, a, summary')) return;
+        this.revealStep += 1;
+        this.showReveal(String(this.revealStep));
+        if (this.revealStep === 2) this.rollLoop();
+        // 새로 나타난 칸의 끝(셋째 칸이면 단추 줄)이 카드 안에 보이게 내린다
+        const card = event.currentTarget.querySelector('.loop-settlement-card');
+        const parts = card ? card.querySelectorAll(`[data-loop-section="${this.revealStep}"]`) : [];
+        if (parts.length) parts[parts.length - 1].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        card?.querySelector('[data-loop-continue]')?.focus({ preventScroll: true });
+    },
+    /** 제목의 루프 숫자가 지금 루프에서 들어갈 루프로 한 번 굴러 바뀐다(2026-10-27 사용자: 루프 1을 끝내면 "루프 2 달성", 1에서 2로 바뀌는
+     * 연출): 둘째 칸이 나타나고 지금 번호를 잠깐 보인 뒤 위로 민다(css/ui-polish.css .loop-settlement-count). 한 루프에 한 번이고, 그 뒤로
+     * 다시 그린 화면은 들어갈 번호로 그린다. 그 아래 목록이 들어갈 루프에서 생기는 것이라 "다음 루프 N" 제목줄은 없다. */
+    rollLoop() {
+        if (this.rolledLoop === game.season) return;
+        this.rolledLoop = game.season;
+        const roll = () => document.querySelectorAll('.loop-settlement-card [data-loop-count]').forEach(node => node.classList.add('is-rolled'));
+        if (typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches) roll();
+        else setTimeout(roll, 650);
     },
     /** 세계수 껍질 the hero wears at this loop (data/maps.js WORLD_TREE_BARK), nothing before loop 55. */
     barkHtml(loop) {
         const layers = getWorldTreeBarkLayers(loop);
         return layers ? `<p class="loop-settlement-bark">세계수 껍질 ${layers}겹: 최대 생명력 +${layers * WORLD_TREE_BARK.pctHp}%, 받는 피해 -${layers * WORLD_TREE_BARK.taken}%</p>` : '';
     },
-    /** What the next loop adds beside unlock points (the unlock map's roadmap lines); with none, the nearest milestone ahead and how far
-     * it is, so the screen keeps a goal past loop 50 (세계수 껍질 up to loop 200). */
+    /** What the next loop adds beside unlock points (the unlock map's roadmap lines), only that loop's: the nearest milestone ahead
+     * ("루프 N까지 M루프 남음") is not shown (2026-10-27 사용자). */
     milestoneLines(next) {
-        const lines = contentUnlockUi.roadmapAdditions(next);
-        if (lines.length) return lines;
-        const ahead = Object.keys(SEASON_CONTENT_ROADMAP).map(Number).sort((a, b) => a - b)
-            .find(loop => loop > next && contentUnlockUi.roadmapAdditions(loop).length);
-        return ahead ? [`루프 ${ahead}까지 ${ahead - next}루프 남음: ${contentUnlockUi.roadmapAdditions(ahead)[0]}`] : [];
-    },
-    /** 루프가 무엇인지(2026-10-07 사용자: 루프 정산 카드와 함께): 처음부터 다시 하는 것과 남는 것. 첫 루프는 펼친다. */
-    explainHtml(loop) {
-        return `<details class="loop-settlement-explain"${loop <= 1 ? ' open' : ''}><summary>루프를 넘기면</summary><ul>
-            <li>초기화: 레벨, 액트 진행, 장비와 가방, 재화, 스킬룬, 스킬트리, 전직, 실타래 수량</li>
-            <li>유지: 해금한 콘텐츠, 루프 패시브, 그루터기 함, 저널과 도감, 실타래 발견과 뜨개질 기록, 아틀라스, 혼돈계와 탑과 바다의 기록, 봉인한 장비</li>
-            <li>해금 포인트와 루프 포인트로 더 강해진 채 다시 오릅니다.</li></ul></details>`;
+        return contentUnlockUi.roadmapAdditions(next).filter(text => !LOOP_STUMP_ROADMAP_LINE.test(text));
     },
     /** A loop button that resets at once (loop-10 panel): disabled until ready, and while the stall still holds gear or dew or the hall shows an original. */
     resetButtonAttr(ready) {
@@ -85,6 +143,13 @@ const loopSettlementUi = {
         const html = this.summaryHtml();
         document.getElementById('loop-ready-summary').innerHTML = html;
         document.getElementById('loop-decision-summary').innerHTML = html;
+        this.showFreshReveal();
+    },
+    /** After a redraw: a new loop's screen starts its reveal (part 1, or all three with 자동 루프 진행 on); the same loop keeps its step. */
+    showFreshReveal() {
+        if (!this.startReveal()) return this.showReveal('');
+        this.showReveal(this.revealStep === 3 ? 'all' : '1');
+        if (this.revealStep >= 2) this.rollLoop();
     },
     organize() {
         this.dismissedReadyLoop = game.season;
@@ -99,6 +164,8 @@ const loopSettlementUi = {
         this.render();
     }
 };
+
+['loop-ready-overlay', 'loop-decision-overlay'].forEach(id => document.getElementById(id)?.addEventListener('click', event => loopSettlementUi.advanceReveal(event)));
 
 (function () {
     'use strict';

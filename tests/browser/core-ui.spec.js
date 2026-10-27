@@ -1,5 +1,5 @@
 const { test, expect } = require('@playwright/test');
-const { pickClass } = require('./helpers');
+const { pickClass, revealLoopScreen } = require('./helpers');
 const TEST_ORIGIN = `http://127.0.0.1:${Math.max(1, Number(process.env.PLAYWRIGHT_PORT) || 4173)}/`;
 
 async function openLocalGame(page, path = '/') {
@@ -402,6 +402,7 @@ test('manual loop advance asks once and cancel preserves the ready state', async
         game.combatHalted = true;
         updateStaticUI();
     });
+    await revealLoopScreen(page.locator('#loop-ready-overlay'));
     await page.locator('#loop-ready-overlay').getByRole('button', { name: '장비 정리', exact: true }).click();
     const equipmentClose=page.locator('#tab-items [data-window-action="close"]');
     if (await equipmentClose.isVisible()) await equipmentClose.click();
