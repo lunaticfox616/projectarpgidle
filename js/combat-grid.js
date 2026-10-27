@@ -8,8 +8,8 @@ const GRID_CARDINAL_STEPS = Object.freeze([
     Object.freeze({ dx: 0, dy: -1 }), Object.freeze({ dx: 0, dy: 1 })
 ]);
 
-function isGridCellInBounds(gx, gy) {
-    const size=getCombatGridSize();
+/** @param {{columns:number, rows:number}} [size] The map, when the caller already read it (a loop over many cells reads it once). */
+function isGridCellInBounds(gx, gy, size = getCombatGridSize()) {
     return Number.isInteger(gx) && Number.isInteger(gy)
         && gx >= 0 && gy >= 0
         && gx < size.columns && gy < size.rows;
@@ -70,25 +70,41 @@ function fitBossFootprint(enemy) {
     if (columns > 2) enemy.footprint = { columns, rows: 2 };
 }
 
-function getGridFootprintCells(gx, gy, footprint) {
+function getGridFootprintCells(gx, gy, footprint, size = getCombatGridSize()) {
     let cells = [];
     for (let dx = 0; dx < footprint.columns; dx++) {
         for (let dy = 0; dy < footprint.rows; dy++) {
-            if (isGridCellInBounds(gx + dx, gy + dy)) cells.push({ gx: gx + dx, gy: gy + dy });
+            if (isGridCellInBounds(gx + dx, gy + dy, size)) cells.push({ gx: gx + dx, gy: gy + dy });
         }
     }
     return cells;
 }
 
-/** 유닛이 유효한 그리드 칸을 가졌는지 확인한다. */
-function hasGridCell(unit) {
-    if (!unit || !Number.isInteger(unit.gx) || !Number.isInteger(unit.gy)) return false;
-    let footprint = getGridUnitFootprint(unit);
-    return getGridFootprintCells(unit.gx, unit.gy, footprint).length === footprint.columns * footprint.rows;
+/** 유닛이 유효한 그리드 칸을 가졌는지 확인한다: 정수 칸이고 발자국 전체가 전장 안이다. 칸 목록을 만들지 않는다(2026-10-27: 방치 정산의
+ * 걸음마다 기다리는 무리 전체를 이 판정으로 훑는다). 두 번째 인자는 이미 읽은 전장 크기다(배열 콜백이 넘기는 번호는 무시한다). */
+function hasGridCell(unit, size) {
+    if (!unit) return false;
+    return isGridFootprintInside(unit.gx, unit.gy, getGridUnitFootprint(unit), size && typeof size === 'object' ? size : getCombatGridSize());
+}
+
+/** Whether a footprint with its top-left on the integer cell (gx, gy) lies entirely inside map. */
+function isGridFootprintInside(gx, gy, footprint, map) {
+    return Number.isInteger(gx) && Number.isInteger(gy) && gx >= 0 && gy >= 0
+        && gx + footprint.columns <= map.columns && gy + footprint.rows <= map.rows;
 }
 
 function getGridUnitCells(unit) {
-    return hasGridCell(unit) ? getGridFootprintCells(unit.gx, unit.gy, getGridUnitFootprint(unit)) : [];
+    const size = getCombatGridSize();
+    return hasGridCell(unit, size) ? getGridFootprintCells(unit.gx, unit.gy, getGridUnitFootprint(unit), size) : [];
+}
+
+/** The keys (gridCellKey) of the cells a unit stands on, in getGridUnitCells order; none when it has no valid cell. The occupied
+ * sets below are built from these without a cell object per key. size: the map, when the caller already read it. */
+function getGridUnitKeys(unit, size = getCombatGridSize()) {
+    if (!hasGridCell(unit, size)) return [];
+    const footprint = getGridUnitFootprint(unit), keys = [];
+    for (let dx = 0; dx < footprint.columns; dx++) for (let dy = 0; dy < footprint.rows; dy++) keys.push(gridCellKey(unit.gx + dx, unit.gy + dy));
+    return keys;
 }
 
 function getGridUnitCenter(unit) {
@@ -131,15 +147,39 @@ function getGridPlacementTerrain() {
     return { map: getCombatGridSize(), sealed: !!run && actExplorationState.gateSealed(run) };
 }
 
+/** Whether a footprint can stand with its top-left on (gx, gy): every cell inside the map, none blocked, none unwalkable (the sealed
+ * gate counts as a wall). No cell list: findFreeGridCell asks this for every tile of the map. */
 function canPlaceGridFootprint(blocked, gx, gy, footprint, terrain = getGridPlacementTerrain()) {
-    let cells = getGridFootprintCells(gx, gy, footprint);
-    if (cells.length !== footprint.columns * footprint.rows) return false;
-    return cells.every(cell => !blocked.has(gridCellKey(cell.gx, cell.gy))
-        && (!terrain.map.tiles || actExplorationMap.walkable(terrain.map,cell,terrain.sealed)));
+    const map = terrain.map;
+    if (!isGridFootprintInside(gx, gy, footprint, map)) return false;
+    const walk = map.tiles ? gridWalkMask(map, terrain.sealed) : null;
+    for (let dx = 0; dx < footprint.columns; dx++) for (let dy = 0; dy < footprint.rows; dy++) {
+        const cx = gx + dx, cy = gy + dy;
+        if (blocked.has(gridCellKey(cx, cy)) || (walk && !walk[cy * map.columns + cx])) return false;
+    }
+    return true;
+}
+
+const gridWalkMasks = new WeakMap(); // map -> [mask with the gate open, mask with the gate sealed]
+/** 1 for each cell a unit may stand on by actExplorationMap.walkable (row-major), with the gate open or sealed; built once per map
+ * and gate state (a map's tiles and gates are fixed once laid out). The step search asked walkable for every cell it reached, with
+ * a bounds check and a gate list each time (2026-10-27: 6% of an 8-hour offline settlement). */
+function gridWalkMask(map, sealed) {
+    let masks = gridWalkMasks.get(map);
+    if (!masks) gridWalkMasks.set(map, masks = [null, null]);
+    const slot = sealed ? 1 : 0;
+    if (masks[slot]) return masks[slot];
+    const mask = new Uint8Array(map.columns * map.rows), cell = { gx: 0, gy: 0 };
+    for (let at = 0; at < mask.length; at++) {
+        cell.gx = at % map.columns; cell.gy = Math.floor(at / map.columns);
+        mask[at] = actExplorationMap.walkable(map, cell, sealed) ? 1 : 0;
+    }
+    masks[slot] = mask;
+    return mask;
 }
 
 function isGridUnitInCellSet(unit, cellKeys) {
-    return getGridUnitCells(unit).some(cell => cellKeys.has(gridCellKey(cell.gx, cell.gy)));
+    return getGridUnitKeys(unit).some(key => cellKeys.has(key));
 }
 
 /**
@@ -148,10 +188,10 @@ function isGridUnitInCellSet(unit, cellKeys) {
  * @returns {Set<string>}
  */
 function getGridBlockedCells(excludeUnit) {
-    let blocked = new Set();
+    let blocked = new Set(), size = getCombatGridSize();
     let addUnit = unit => {
-        if (unit === excludeUnit || !hasGridCell(unit)) return;
-        getGridUnitCells(unit).forEach(cell => blocked.add(gridCellKey(cell.gx, cell.gy)));
+        if (unit === excludeUnit) return;
+        for (const key of getGridUnitKeys(unit, size)) blocked.add(key);
     };
     addUnit(game.gridPlayer);
     (game.enemies || []).forEach(enemy => { if (enemy && enemy.hp > 0) addUnit(enemy); });
@@ -167,9 +207,9 @@ function addExplorationGridReservations(blocked,excludeUnit) {
     reserveColonyDefenseCore(blocked,run);
     // 기다리는 무리의 자리는 비워 둔다. 다만 그 자리에 이미 서 있는 유닛(같은 자리에서 차례를 기다리는 다음 단계의 보스 위에 선 지금의
     // 보스: 액트 4)은 가두지 않는다. 가두면 어느 쪽으로 한 칸을 가도 그 자리와 겹쳐 한 걸음도 떼지 못했다(2026-10-14, 보스가 걷게 되며 드러남).
-    const own=excludeUnit && hasGridCell(excludeUnit)?new Set(getGridUnitCells(excludeUnit).map(cell=>gridCellKey(cell.gx,cell.gy))):new Set();
+    const size=getCombatGridSize(),own=new Set(excludeUnit?getGridUnitKeys(excludeUnit,size):[]);
     run.packs.forEach(pack=>pack.waiting.forEach(enemy=>{
-        const keys=getGridUnitCells(enemy).map(cell=>gridCellKey(cell.gx,cell.gy));
+        const keys=getGridUnitKeys(enemy,size);
         if(!keys.some(key=>own.has(key)))keys.forEach(key=>blocked.add(key));
     }));
     if(run.motion && excludeUnit!==game.gridPlayer)blocked.add(gridCellKey(run.motion.to.gx,run.motion.to.gy));
@@ -313,16 +353,19 @@ function resetPlayerGridPosition() {
  */
 function ensureCombatGridRuntime() {
     if (!hasGridCell(game.gridPlayer)) resetPlayerGridPosition();
-    let blocked = getGridBlockedCells();
+    // The occupied set only once a unit needs a cell: every combat tick and every target search comes through here, and almost
+    // every unit already stands somewhere (2026-10-27: a tenth of an 8-hour offline settlement built this set for nothing).
+    let blocked = null;
+    const occupied = () => blocked || (blocked = getGridBlockedCells());
     (game.enemies || []).forEach(enemy => {
         if (!enemy || enemy.hp <= 0) return;
         if (!enemy.attackKind || !Number.isFinite(enemy.attackRange)) assignEnemyGridCombatProfile(enemy);
         if (hasGridCell(enemy)) return;
-        assignEnemyGridSpawn(enemy, blocked);
+        assignEnemyGridSpawn(enemy, occupied());
     });
     (game.summons || []).forEach(summon => {
         if (!summon || !summon.alive || (summon.hp || 0) <= 0 || hasGridCell(summon)) return;
-        let cell = findFreeGridCell(blocked, game.gridPlayer);
+        let cell = findFreeGridCell(occupied(), game.gridPlayer);
         if (!cell) return;
         summon.gx = cell.gx;
         summon.gy = cell.gy;
@@ -378,13 +421,14 @@ function createGridStepSearch(unit, tx, ty, blocked) {
     const footprint = getGridUnitFootprint(unit), cols = footprint.columns, rows = footprint.rows;
     const scoring = getGridUnitFootprint({ isBoss: cols > 1 || rows > 1 });
     const terrain = getGridPlacementTerrain(), map = terrain.map, width = map.columns, height = map.rows;
-    const blockedAt = gridBlockedIndexSet(blocked, width, height), visited = new Uint8Array(width * height), cell = { gx: 0, gy: 0 };
+    const blockedAt = gridBlockedIndexSet(blocked, width, height), visited = new Uint8Array(width * height);
+    const walk = map.tiles ? gridWalkMask(map, terrain.sealed) : null;
     visited[unit.gy * width + unit.gx] = 1;
     /** No cell of the footprint at (gx, gy) is blocked or unwalkable (the sealed gate counts as a wall). All of them are inside the map. */
     const free = (gx, gy) => {
         for (let dx = 0; dx < cols; dx++) for (let dy = 0; dy < rows; dy++) {
-            cell.gx = gx + dx; cell.gy = gy + dy;
-            if (blockedAt.has(cell.gy * width + cell.gx) || (map.tiles && !actExplorationMap.walkable(map, cell, terrain.sealed))) return false;
+            const at = (gy + dy) * width + gx + dx;
+            if (blockedAt.has(at) || (walk && !walk[at])) return false;
         }
         return true;
     };
@@ -418,9 +462,11 @@ function gridStepToward(unit, tx, ty, blocked) {
         for (const direction of GRID_CARDINAL_STEPS) {
             const gx = qx[head] + direction.dx, gy = qy[head] + direction.dy;
             if (!search.enter(gx, gy)) continue;
-            const cheb = search.cheb(gx, gy), man = search.man(gx, gy), index = qx.length;
+            const cheb = search.cheb(gx, gy), index = qx.length;
             qx.push(gx); qy.push(gy); qf.push(qf[head] < 0 ? index : qf[head]);
-            if (cheb < bestCheb || (cheb === bestCheb && man < bestMan)) { best = index; bestCheb = cheb; bestMan = man; }
+            if (cheb > bestCheb) continue;
+            const man = search.man(gx, gy);
+            if (cheb < bestCheb || man < bestMan) { best = index; bestCheb = cheb; bestMan = man; }
         }
     }
     if (qf[best] < 0) return false;
@@ -499,15 +545,15 @@ function getGridApproachStep(unit, target, avoid) {
  * stand still with nothing to fight, and eight idle wisps once shut a summoner in a side room for good (2026-10-08); the hero
  * walks through and the summon takes the tile it left (swapSummonOutOfHeroTile). */
 function getExplorationPlanningBlockedCells(run) {
-    const blocked=getHeroStepBlockedCells();
-    run.packs.forEach(pack=>pack.waiting.forEach(enemy=>getGridUnitCells(enemy).forEach(cell=>blocked.delete(gridCellKey(cell.gx,cell.gy)))));
+    const blocked=getHeroStepBlockedCells(),size=getCombatGridSize();
+    run.packs.forEach(pack=>pack.waiting.forEach(enemy=>getGridUnitKeys(enemy,size).forEach(key=>blocked.delete(key))));
     return blocked;
 }
 
 /** Cells the hero cannot step into: everything getGridBlockedCells holds except the hero's own summons. */
 function getHeroStepBlockedCells() {
-    const blocked=getGridBlockedCells(game.gridPlayer);
-    (game.summons||[]).forEach(summon=>{if(summon && hasGridCell(summon))getGridUnitCells(summon).forEach(cell=>blocked.delete(gridCellKey(cell.gx,cell.gy)));});
+    const blocked=getGridBlockedCells(game.gridPlayer),size=getCombatGridSize();
+    (game.summons||[]).forEach(summon=>{if(summon)getGridUnitKeys(summon,size).forEach(key=>blocked.delete(key));});
     return blocked;
 }
 

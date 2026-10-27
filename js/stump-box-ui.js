@@ -852,7 +852,8 @@ const stumpBoxUi = (() => {
     }
     /** 시작 선물은 함을 얻으면 바로 준다(2026-10-07 사용자 결정): 씨앗은 지금 룬의 원소 꽃(물리면 화염 열매), 수액은 약한 저항. */
     function grantStumpStarter() {
-        const given = stumpBox.grantStarter(game, getUiPlayerStats());
+        // The stats (the weakest resistance picks the sap) only when a starter is still owed: this runs on every map completion.
+        const given = stumpBox.starterOwed(game) ? stumpBox.grantStarter(game, getUiPlayerStats()) : [];
         if (!given.length) return given;
         game.noti.stump = true;
         lastSignature = '';

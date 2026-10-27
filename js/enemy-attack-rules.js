@@ -51,8 +51,8 @@ const enemyAttackRules = (() => {
     function flightEnd(source, target, toEdge) {
         const dx = target.gx-source.gx, dy = target.gy-source.gy;
         if (!toEdge || (!dx && !dy)) return {...target};
-        const xLimit = dx > 0 ? getCombatGridSize().columns-1 : 0;
-        const yLimit = dy > 0 ? getCombatGridSize().rows-1 : 0;
+        const size = getCombatGridSize(), xLimit = dx > 0 ? size.columns-1 : 0;
+        const yLimit = dy > 0 ? size.rows-1 : 0;
         const scale = Math.min(dx ? (xLimit-source.gx)/dx : Infinity,
             dy ? (yLimit-source.gy)/dy : Infinity);
         return {gx:source.gx+dx*scale,gy:source.gy+dy*scale};
@@ -75,9 +75,9 @@ const enemyAttackRules = (() => {
     }
 
     function flightCells(source, end) {
-        const cells = [];
-        for (let gy=0;gy<getCombatGridSize().rows;gy++) {
-            for (let gx=0;gx<getCombatGridSize().columns;gx++) {
+        const cells = [], size = getCombatGridSize();
+        for (let gy=0;gy<size.rows;gy++) {
+            for (let gx=0;gx<size.columns;gx++) {
                 if (gx === source.gx && gy === source.gy) continue;
                 const progress = cellProgress(source,end,{gx,gy});
                 if (progress !== null) cells.push({gx,gy,progress});

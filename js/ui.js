@@ -7201,7 +7201,8 @@ function updatePlayerHpDamageGhost(actualPct) {
 }
 
 function primeEnemyHpDamageGhost(enemyId, actualPct) {
-    if (enemyId === null || enemyId === undefined) return;
+    // A settlement's monsters are never drawn: their entries stayed in the table until the next frame pruned it (2026-10-27).
+    if (enemyId === null || enemyId === undefined || game.isBackgroundCalculation) return;
     let key = String(enemyId);
     if (enemyHpDamageGhostStates.has(key)) return;
     enemyHpDamageGhostStates.set(key, updateHpDamageGhostState(null, actualPct === undefined ? 100 : actualPct, Date.now()));

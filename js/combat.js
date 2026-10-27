@@ -6123,8 +6123,19 @@ function getZoneDefenseVariance(zone) {
     return (seed - 3) * 0.02;
 }
 
+const zoneElementWardProfiles = new Map(); // zone type, id and name -> the profile below (read only by applyZoneElementWard)
+/** A zone's element ward (the resistance its monsters share), fixed by the zone's id or name; built once per zone (two string hashes
+ * for every spawned monster before). */
 function getZoneElementWardProfile(zone) {
     if (!zone) return null;
+    const cacheKey = zone.type + '|' + zone.id + '|' + zone.name;
+    if (zoneElementWardProfiles.has(cacheKey)) return zoneElementWardProfiles.get(cacheKey);
+    if (zoneElementWardProfiles.size >= 512) zoneElementWardProfiles.clear();
+    const profile = rollZoneElementWardProfile(zone);
+    zoneElementWardProfiles.set(cacheKey, profile);
+    return profile;
+}
+function rollZoneElementWardProfile(zone) {
     let specialBossZone = zone.type === 'outsideChaos'
         || zone.id === 'beehive_run'
         || zone.id === 'grand_breach_run'
