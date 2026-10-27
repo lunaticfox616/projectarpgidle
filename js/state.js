@@ -2496,6 +2496,7 @@ const defaultGame = {
         showEnemyHpComma: true,
         showCharacterComma: true,
         uiScale: 100,
+        uiScaleChosen: null,   // 사용자가 배율을 고른 적이 있는가(null: 모름 → 100이면 화면에 맞춰 고른다, js/ui-display.js applySaved)
         uiSkin: 'rift',
         highContrast: false,
         /** PC 단축키 중 기본값과 다른 것만: { 동작 id: KeyboardEvent.code | '' } (data/hotkeys.js) */

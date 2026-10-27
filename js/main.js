@@ -57,7 +57,7 @@ function init() {
     applyUiSkin(game.settings.uiSkin);
     applyHighContrast(game.settings.highContrast);
     hotkeysUi.init();
-    uiDisplay.apply(game.settings.uiScale);
+    uiDisplay.applySaved(game.settings);
     syncMapCompleteActionQuickControl();
     ensureInitialHeroSelection();
     settingsUi.sync();
