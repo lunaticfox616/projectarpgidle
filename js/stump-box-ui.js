@@ -20,8 +20,8 @@ const stumpBoxUi = (() => {
     let storageSort = 'quality-desc', stateFilter = 'all', compareOpen = false, comparedId = null;
     // 틀이 보여 주는 것('box' 판, 'cube' 조합창), 접는 칸, 보관함 쪽: 화면만의 상태다(저장하지 않는다).
     let frameView = 'box', frameSwitching = false, summaryOpen = false, moreOpen = false, storagePage = 0;
-    /** 보석을 누른 뒤 빛나는 보석 두 장이 번갈아 보이는 시간(css/stump-box.css stump-gem-flash와 같다). */
-    const FRAME_FLASH_MS = 240;
+    /** 보석을 누른 뒤 빛의 고리가 판을 지나가는 시간(css/stump-box.css stump-reveal과 같다). */
+    const FRAME_REVEAL_MS = 700;
     const STORAGE_PAGE_CELLS = 100;
     // Storage items do not grow ("성장 중" means placed on the board), so an unripe stored item is "성장 전".
     const STORAGE_STATES = { all: '모든 상태', ripe: '성장 완료', unripe: '성장 전', locked: '잠금' };
@@ -98,33 +98,49 @@ const stumpBoxUi = (() => {
         const classes = stumpCellClasses(item, open, result, cell), body = stumpCellBody(cell, item, open);
         return `<button type="button" class="${classes.join(' ')}" data-stump-action="cell" data-cell="${cell}"${stumpCellHooks(cell, item, open)}`
             + ` aria-label="${escStump(stumpCellLabel(cell, item, open))}"${open ? '' : ' aria-disabled="true"'}`
-            + ` style="--stump-tone:${item ? itemTone(item) : 'transparent'}">${body}</button>`;
+            + ` style="--stump-tone:${item ? itemTone(item) : 'transparent'};${stumpCellPlace(cell)}">${body}</button>`;
     }
+    /** The cell's place on the board grid: the odd tracks are the frame's holes, the even ones its bars (css/stump-box.css). */
+    const stumpCellPlace = cell => `grid-column:${cell % STUMP_BOX_SIZE * 2 + 1};grid-row:${Math.floor(cell / STUMP_BOX_SIZE) * 2 + 1}`;
     /** The frame: the dark one holds the board, the bone one the cube; its gem switches them (aria names the other side). */
     function stumpBoardHtml(result) {
         const cube = frameView === 'cube';
         const grid = cube ? stumpCubeUi.cubeGridHtml()
             : Array.from({ length: STUMP_BOX_SIZE * STUMP_BOX_SIZE }, (_, cell) => stumpCellHtml(cell, result)).join('');
         const other = cube ? '그루터기 함' : '조합창';
-        return `<div class="stump-board is-${frameView}${frameSwitching ? ' is-switching' : ''}"${cube ? '' : ' role="grid" aria-label="그루터기 함 판"'}>`
+        return `<div class="stump-board is-${frameView}"${cube ? '' : ' role="grid" aria-label="그루터기 함 판"'}>`
             + `<button type="button" class="stump-frame-gem" data-stump-action="frame-gem" aria-label="${other}으로 바꾸기" title="${other}으로 바꾸기"></button>`
             + `<div class="stump-board-grid">${grid}</div></div>`
             + '<div id="stump-placement-preview" class="stump-placement-preview" role="status" aria-live="polite" hidden></div>';
     }
-    /** The gem: the two glowing frames take turns for a moment, then the frame shows the other side. */
+    /** The gem: the wood latch sounds, the frame shows the other side at once under a copy of the old board, and a ring of light
+     * spreads from the gem uncovering it (2026-10-27 사용자: 보석 빛 번짐, 그루터기 함 안에서만, 목재 장치 소리; css/stump-box.css). */
     function switchFrame(button) {
         if (frameSwitching) return;
-        const finish = () => {
-            frameSwitching = false;
-            frameView = frameView === 'box' ? 'cube' : 'box';
-            clearPlacementPreview();
-            renderStumpBoxTab(true);
-            document.querySelector('#tab-stump .stump-frame-gem')?.focus({ preventScroll: true });
-        };
-        if (uiDisplay.matches('(prefers-reduced-motion: reduce)')) return finish();
+        playUiFeedbackSound('stumpFrameSwitch');
+        const ghost = uiDisplay.matches('(prefers-reduced-motion: reduce)') ? null : frameGhost(button.closest('.stump-board'));
+        frameView = frameView === 'box' ? 'cube' : 'box';
+        clearPlacementPreview();
+        renderStumpBoxTab(true);
+        const board = document.querySelector('#stump-box-board .stump-board');
+        board?.querySelector('.stump-frame-gem')?.focus({ preventScroll: true });
+        if (!ghost) return;
         frameSwitching = true;
-        button.closest('.stump-board')?.classList.add('is-switching');
-        setTimeout(finish, FRAME_FLASH_MS);
+        board?.classList.add('is-revealing');
+        setTimeout(() => { ghost.remove(); board?.classList.remove('is-revealing'); frameSwitching = false; }, FRAME_REVEAL_MS);
+    }
+    /** A still copy of the board before the switch, laid over its place in the board section (#stump-board-section is the offset parent). */
+    function frameGhost(board) {
+        const section = document.getElementById('stump-board-section');
+        if (!board || !section) return null;
+        const ghost = board.cloneNode(true);
+        ghost.classList.add('stump-board-ghost');
+        ghost.removeAttribute('role');
+        ghost.setAttribute('aria-hidden', 'true');
+        ghost.inert = true;
+        ghost.style.cssText = `left:${board.offsetLeft}px;top:${board.offsetTop}px;width:${board.offsetWidth}px;height:${board.offsetHeight}px`;
+        section.appendChild(ghost);
+        return ghost;
     }
 
     // ── 머리줄 · 요약 ───────────────────────────────────────

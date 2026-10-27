@@ -687,5 +687,17 @@
       "selected-20261023/inventoryWood-C-dd05c14c.wav"
     ],
     "enabled": true
+  },
+  "stumpFrameSwitch": {
+    "label": "그루터기 함 보석(목재 장치)",
+    "files": [
+      "stump-frame-wood.wav"
+    ],
+    "gain": 0.6,
+    "rate": 1,
+    "group": "stumpFrame",
+    "cooldown": 300,
+    "priority": 1,
+    "enabled": true
   }
 }
