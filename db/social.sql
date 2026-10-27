@@ -591,6 +591,11 @@ revoke all on function public.chat_text_is_offensive(text) from public, anon, au
 revoke all on function public.chat_messages_auto_mute() from public, anon, authenticated;
 
 -- 트리거 함수는 RPC로 부를 수 없게 한다(Supabase 보안 권고). 트리거는 호출자의 실행 권한을 보지 않으므로 회수해도 그대로 돈다.
+-- 가장 오래된 두 표(chat_messages, player_profiles)는 Supabase 기본 권한(anon과 authenticated에 ALL)이 그대로였다(2026-10-27 점검).
+-- RLS 정책이 authenticated에게만 있어 anon은 어차피 줄을 못 보지만, 쓰지 않는 권한은 걷는다. TRUNCATE는 RLS를 거치지 않는다.
+revoke all on public.chat_messages, public.player_profiles from anon;
+revoke truncate, references, trigger on public.chat_messages, public.player_profiles from authenticated;
+
 revoke all on function public.chat_messages_rate_limit() from public, anon, authenticated;
 revoke all on function public.chat_messages_prune() from public, anon, authenticated;
 revoke all on function public.chat_messages_update_guard() from public, anon, authenticated;

@@ -14,7 +14,7 @@ const CLOUD_TOOLS_ACTIONS = [
     ['termAdd', button => setBannedTerm(button, false)], ['termRemove', button => setBannedTerm(button, true)],
     ['muteNick', setChatMuteByNickname], ['chatPeek', peekPlayerChat],
     ['feedbackSend', submitPlayerFeedback], ['feedbackFilter', setAdminFeedbackFilter], ['feedbackStatus', setFeedbackStatus], ['feedbackReply', replyFeedback],
-    ['playerSearch', searchPlayers], ['playerDetail', openPlayerDetail], ['playerSave', downloadPlayerSave]
+    ['playerSearch', searchPlayers], ['playerDetail', openPlayerDetail], ['playerSave', downloadPlayerSave], ['opsJump', jumpToOpsSection]
 ];
 /** 보류와 금지, 기록 지우기는 플레이어 표와 자세히 보기에도 보이는 상태라, 끝난 뒤 그 둘을 다시 그린다(refreshPlayerViews). */
 const PLAYER_STATE_ACTIONS = new Set(['cheatHold', 'cheatClear', 'chatMute', 'muteNick']);
@@ -169,35 +169,48 @@ async function forgetDeletedAccountSession() {
 
 /** A titled table. A column shows row[key], or render(row) as text, or html(row) as markup the column escapes itself (buttons). */
 function renderOpsTable(title, columns, rows) {
-    if (!rows.length) return `<section><h3>${title}</h3><p class="cloud-tools-empty">표본 없음</p></section>`;
+    let safeTitle = cloudToolsEscape(title);   // 제목에 닉네임이 들어오는 호출자가 있다(검토 지적 2026-10-27)
+    if (!rows.length) return `<section><h3>${safeTitle}</h3><p class="cloud-tools-empty">표본 없음</p></section>`;
     let head = columns.map(column => `<th>${cloudToolsEscape(column.label)}</th>`).join('');
     let cell = (column, row) => column.html ? column.html(row) : cloudToolsEscape(column.render ? column.render(row) : row[column.key]);
     let body = rows.map(row => `<tr>${columns.map(column => `<td>${cell(column, row)}</td>`).join('')}</tr>`).join('');
-    return `<section><h3>${title}</h3><div class="cloud-tools-table-wrap"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div></section>`;
+    return `<section><h3>${safeTitle}</h3><div class="cloud-tools-table-wrap"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div></section>`;
 }
 
-function renderOpsDashboard(data) {
-    let overview = data.overview || {};
-    let alerts = Array.isArray(data.alerts) ? data.alerts : [];
-    let html = `<div class="ops-summary"><span>플레이어 <strong>${cloudToolsNumber(overview.players)}</strong></span><span>전투 <strong>${cloudToolsNumber(overview.runs)}</strong></span><span>오류 <strong>${cloudToolsNumber(overview.errors)}</strong></span></div>`;
-    html += renderOpsTable('자동 경고', [
-        { key: 'severity', label: '등급' }, { key: 'zone_id', label: '지역' }, { key: 'message', label: '판정' }, { key: 'runs', label: '표본' }
-    ], alerts);
-    html += renderOpsTable('지역 통계', [
-        { key: 'zone_id', label: '지역' }, { key: 'content_stage', label: '단계' }, { key: 'runs', label: '전투' }, { key: 'clear_rate_pct', label: '클리어율', render: row => `${row.clear_rate_pct || 0}%` },
-        { key: 'median_dps', label: 'DPS', render: row => cloudToolsNumber(row.median_dps) }, { key: 'median_ehp', label: 'EHP', render: row => cloudToolsNumber(row.median_ehp) },
-        { key: 'p95_frame_ms', label: 'p95', render: row => `${row.p95_frame_ms || 0}ms` }, { key: 'peak_fx', label: '최대 FX' }
+/** 전투 통계 절의 몸통(admin_get_ops_dashboard의 zones, builds): 지역과 직업을 한글로. 머리 숫자와 오류는 admin_get_ops_overview가 맡는다(2026-10-27). */
+function renderOpsStats(data) {
+    let html = renderOpsTable('지역 통계, 최근 30일', [
+        { label: '지역', render: row => opsZoneLabel(row.zone_type, row.zone_id, row.content_stage) }, { key: 'players', label: '사람' }, { key: 'runs', label: '전투' },
+        { label: '클리어율', render: row => `${row.clear_rate_pct || 0}%` },
+        { label: 'DPS', render: row => cloudToolsNumber(row.median_dps) }, { label: 'EHP', render: row => cloudToolsNumber(row.median_ehp) },
+        { label: 'p95', render: row => `${row.p95_frame_ms || 0}ms` }, { key: 'peak_fx', label: '최대 FX' }
     ], Array.isArray(data.zones) ? data.zones : []);
-    html += renderOpsTable('직업/스킬 통계', [
-        { key: 'ascend_class', label: '직업' }, { key: 'active_skill', label: '스킬' }, { key: 'runs', label: '전투' },
-        { key: 'clear_rate_pct', label: '클리어율', render: row => `${row.clear_rate_pct || 0}%` },
-        { key: 'median_dps', label: 'DPS', render: row => cloudToolsNumber(row.median_dps) }, { key: 'median_ehp', label: 'EHP', render: row => cloudToolsNumber(row.median_ehp) }
+    html += renderOpsTable('직업/스킬 통계, 최근 30일', [
+        { label: '직업', render: row => opsClassLabel(row.ascend_class) }, { key: 'active_skill', label: '스킬' }, { key: 'players', label: '사람' }, { key: 'runs', label: '전투' },
+        { label: '클리어율', render: row => `${row.clear_rate_pct || 0}%` },
+        { label: 'DPS', render: row => cloudToolsNumber(row.median_dps) }, { label: 'EHP', render: row => cloudToolsNumber(row.median_ehp) }
     ], Array.isArray(data.builds) ? data.builds : []);
-    html += renderOpsTable('최근 오류', [
-        { key: 'created_at', label: '시각', render: row => new Date(row.created_at).toLocaleString('ko-KR') },
-        { key: 'message', label: '오류' }, { key: 'app_version', label: '버전' }
-    ], Array.isArray(data.errors) ? data.errors : []);
     return html;
+}
+
+const OPS_ZONE_TYPE_LABELS = {
+    abyss: '심연', act: '막', meteor: '유성 낙하지', labyrinth: '고대 미궁', cosmos: '우주', trial: '시련', timeRift: '시간 균열',
+    atlasMap: '지도', ocean: '심해', hunting: '사냥터', breach: '균열', colony: '군락', incident: '사건', duel: '대결', unknown: '알 수 없음'
+};
+const OPS_ZONE_ID_LABELS = {
+    meteor_fall_site: '유성 낙하지', labyrinth_endless: '끝없는 미궁', cosmos_challenge: '우주 도전', time_rift_past: '과거 균열'
+};
+/** 원격 측정의 zone_type, zone_id, 단계를 한 줄 한글로: "심연 22층", "유성 낙하지 14단계", "막 9". */
+function opsZoneLabel(type, id, stage) {
+    let typeLabel = OPS_ZONE_TYPE_LABELS[type] || String(type || '');
+    let idText = String(id == null ? '' : id);
+    let place = OPS_ZONE_ID_LABELS[idText] || (/^\d+$/.test(idText) ? `${typeLabel} ${idText}${type === 'abyss' ? '층' : ''}` : `${typeLabel} ${idText}`.trim());
+    return stage ? `${place} ${/^\d+$/.test(String(stage)) ? `${stage}단계` : stage}` : place;
+}
+
+function opsClassLabel(ascendClass) {
+    if (!ascendClass || ascendClass === 'unascended') return '미전직';
+    return typeof CLASS_TEMPLATES !== 'undefined' && CLASS_TEMPLATES[ascendClass] ? CLASS_TEMPLATES[ascendClass].name : String(ascendClass);
 }
 
 /** A hold or release button for one account; the dialog's click handler sends it (setCheatHold). */
@@ -476,7 +489,7 @@ async function peekPlayerChat(button) {
     }
 }
 function renderChatPeek(name, rows) {
-    return renderOpsTable(`${cloudToolsEscape(name || '이 플레이어')}의 최근 채팅`, [
+    return renderOpsTable(`${name || '이 플레이어'}의 최근 채팅`, [
         { label: '시각', render: row => new Date(row.created_at).toLocaleString('ko-KR') },
         { key: 'body', label: '채팅' },
         { label: '조치', html: row => `<button type="button" data-chat-delete="${cloudToolsEscape(row.id)}">줄 지우기</button>` }
@@ -519,23 +532,130 @@ async function deleteChatMessage(button) {
     if (peek) await peekPlayerChat({ dataset: { chatPeek: peek.dataset.peekUser, chatName: peek.dataset.peekName } });
 }
 
+/** 운영 창. 뼈대(할 일 띠, 지표, 경고 자리와 접힌 절들)를 먼저 그리고 RPC 여섯을 한꺼번에 불러 채운다(전: 하나씩 차례로).
+ * 할 일이 있는 절만 펼쳐진 채 열린다. */
 async function openOpsDashboard() {
     if (!cloudState || !cloudState.user) return showGameToast('관리자 로그인이 필요합니다.', 'warning');
-    openCloudToolsDialog('운영 창: 통계, 감시, 신고, 문의, 플레이어', '<p class="cloud-tools-empty">집계 중…</p>');
-    try {
-        let data = await cloudJsonRequest('/rest/v1/rpc/admin_get_ops_dashboard', { method: 'POST', body: {} });
-        document.getElementById('cloud-tools-body').innerHTML = renderOpsDashboard(data || {})
-            + '<div id="cheat-watch"><section><h3>치트 감시</h3><p class="cloud-tools-empty">불러오는 중…</p></section></div>'
-            + '<div id="chat-reports"><section><h3>채팅 신고</h3><p class="cloud-tools-empty">불러오는 중…</p></section></div>'
-            + '<div id="admin-feedback"><section><h3>문의와 제보</h3><p class="cloud-tools-empty">불러오는 중…</p></section></div>'
-            + renderPlayerLookupShell();
-        await loadCheatWatch();
-        await loadChatReports();
-        await loadAdminFeedback();
-        await searchPlayers();
-    } catch (error) {
-        document.getElementById('cloud-tools-body').innerHTML = `<p class="cloud-tools-error">관리자 통계를 불러올 수 없습니다: ${cloudToolsEscape(error.message || error)}</p>`;
+    openCloudToolsDialog('운영 창', renderOpsShell());
+    let [overview, dashboard] = await Promise.all([
+        cloudJsonRequest('/rest/v1/rpc/admin_get_ops_overview', { method: 'POST', body: {} }).catch(error => ({ error })),
+        cloudJsonRequest('/rest/v1/rpc/admin_get_ops_dashboard', { method: 'POST', body: {} }).catch(error => ({ error })),
+        loadCheatWatch(), loadChatReports(), loadAdminFeedback(), searchPlayers()
+    ]);
+    renderOpsTop(overview || {}, dashboard || {});
+}
+
+const OPS_SECTIONS = [
+    ['ops-stats', '전투 통계', '지역, 직업과 스킬'], ['ops-cheat', '치트 감시', '감시 기록, 성장 속도, 보류'], ['ops-chat', '채팅 신고', '신고, 금지, 금칙어'],
+    ['ops-feedback', '문의와 제보', '플레이어가 보낸 글과 답변'], ['ops-players', '플레이어', '찾기, 자세히 보기, 저장 내려받기']
+];
+function renderOpsShell() {
+    let nav = OPS_SECTIONS.map(([id, title]) => `<button type="button" data-ops-jump="${id}">${title}</button>`).join('');
+    let section = (id, body) => {
+        let [, title, hint] = OPS_SECTIONS.find(entry => entry[0] === id);
+        return `<details class="ops-section" id="${id}"><summary><strong>${title}</strong><small>${hint}</small></summary><div class="ops-section-body">${body}</div></details>`;
+    };
+    let loading = title => `<section><h3>${title}</h3><p class="cloud-tools-empty">불러오는 중…</p></section>`;
+    return '<div id="ops-top"><p class="cloud-tools-empty">집계 중…</p></div>'
+        + `<nav class="ops-nav">${nav}</nav>`
+        + section('ops-stats', '<div id="ops-stats-body"><p class="cloud-tools-empty">집계 중…</p></div>')
+        + section('ops-cheat', `<div id="cheat-watch">${loading('치트 감시')}</div>`)
+        + section('ops-chat', `<div id="chat-reports">${loading('채팅 신고')}</div>`)
+        + section('ops-feedback', `<div id="admin-feedback">${loading('문의와 제보')}</div>`)
+        + section('ops-players', renderPlayerLookupShell());
+}
+
+/** 절 이동 칩과 할 일 띠의 단추: 접힌 절을 펼치고 거기로 내린다. */
+function jumpToOpsSection(button) {
+    let section = document.getElementById(button.dataset.opsJump);
+    if (!section) return;
+    section.open = true;
+    section.scrollIntoView({ block: 'start', behavior: 'smooth' });
+}
+
+/** 맨 위: 할 일 띠, 지표 카드, 경고 표, 묶은 오류. 통계 절의 몸통도 여기서 채운다. 할 일이 있는 절은 펼쳐 둔다. */
+function renderOpsTop(overview, dashboard) {
+    let top = document.getElementById('ops-top');
+    if (!top) return;
+    top.innerHTML = renderOpsHead(overview) + renderOpsAlertBlock(overview, dashboard);
+    let stats = document.getElementById('ops-stats-body');
+    if (stats) stats.innerHTML = dashboard.error ? renderSectionError('전투 통계', dashboard.error) : renderOpsStats(dashboard);
+    openSectionsWithTodo(overview.todo || {});
+}
+
+function renderOpsHead(overview) {
+    if (overview.error) return renderSectionError('운영 지표', overview.error, 'db/ops-overview-20261027.sql');
+    return renderTodoStrip(overview.todo || {}) + renderKpiCards(overview);
+}
+
+function renderOpsAlertBlock(overview, dashboard) {
+    let alerts = dashboard.error ? renderSectionError('경고', dashboard.error) : renderOpsAlerts(Array.isArray(dashboard.alerts) ? dashboard.alerts : []);
+    return alerts + (overview.error ? '' : renderErrorGroups(Array.isArray(overview.errors) ? overview.errors : []));
+}
+
+const OPS_TODO_ITEMS = [
+    ['feedbackNew', '새 문의', 'ops-feedback'], ['reports24h', '24시간 신고', 'ops-chat'], ['mutesActive', '금지 중', 'ops-chat'],
+    ['ghostsUnderReview', '검토 중 고스트', 'ops-cheat'], ['holds', '보류 계정', 'ops-cheat'], ['errors24h', '24시간 오류', 'ops-stats']
+];
+function renderTodoStrip(todo) {
+    let chips = OPS_TODO_ITEMS.map(([key, label, section]) => {
+        let count = Number(todo[key]) || 0;
+        return `<button type="button" class="ops-todo${count ? '' : ' is-zero'}" data-ops-jump="${section}"><strong>${cloudToolsNumber(count)}</strong>${label}</button>`;
+    }).join('');
+    return `<section class="ops-todo-strip"><h3>할 일</h3><div class="ops-todo-row">${chips}</div></section>`;
+}
+
+function openSectionsWithTodo(todo) {
+    let open = new Set(OPS_TODO_ITEMS.filter(([key]) => Number(todo[key]) > 0).map(([, , section]) => section));
+    for (const [id] of OPS_SECTIONS) {
+        let section = document.getElementById(id);
+        if (section) section.open = open.has(id);
     }
+}
+
+/** 이번 7일과 그 전 7일: "162 (전주 230)". */
+function opsWeekPair(current, previous) {
+    return `${cloudToolsNumber(current)} <small>(전주 ${cloudToolsNumber(previous)})</small>`;
+}
+
+function renderKpiCards(overview) {
+    let accounts = overview.accounts || {}, play = overview.play || {}, social = overview.social || {}, server = overview.server || {};
+    let dbMb = Math.round((Number(server.dbBytes) || 0) / 1048576), dbLimitMb = Math.round((Number(server.dbLimitBytes) || 524288000) / 1048576);
+    let cards = [
+        ['계정', [['가입', cloudToolsNumber(accounts.total)], ['7일 새 가입', opsWeekPair(accounts.new7d, accounts.newPrev7d)], ['7일 로그인', cloudToolsNumber(accounts.signedIn7d)],
+            ['24시간 접속', cloudToolsNumber(accounts.seen24h)], ['공개 프로필', cloudToolsNumber(accounts.profiles)]]],
+        ['전투', [['30일 전투', cloudToolsNumber(play.runs30d)], ['7일 전투', opsWeekPair(play.runs7d, play.runsPrev7d)], ['7일 전투한 사람', opsWeekPair(play.players7d, play.playersPrev7d)],
+            ['30일 클리어율', `${play.clearRate30d == null ? '-' : play.clearRate30d}%`], ['30일 중단', cloudToolsNumber(play.abandons30d)]]],
+        ['멀티', [['7일 채팅', opsWeekPair(social.chat7d, social.chatPrev7d)], ['고스트 등록', cloudToolsNumber(social.ghostsActive)], ['30일 대전', cloudToolsNumber(social.ghostMatches30d)],
+            ['전시 중', cloudToolsNumber(social.hallOpen)], ['30일 구매', cloudToolsNumber(social.hallPurchases30d)]]],
+        ['서버', [['DB 크기', `${dbMb}MB / ${dbLimitMb}MB`], ['저장', `${cloudToolsNumber(server.saves)}개, ${Math.round((Number(server.saveBytes) || 0) / 1048576)}MB`],
+            ['저장 이력', cloudToolsNumber(server.saveVersions)], ['30일 오류', cloudToolsNumber(server.errors30d)], ['마지막 전투 기록', cloudToolsTime(play.lastRunAt)]]]
+    ];
+    let html = cards.map(([title, rows]) => `<div class="ops-kpi"><h4>${title}</h4><dl>${rows.map(([label, value]) => `<div><dt>${label}</dt><dd>${value}</dd></div>`).join('')}</dl></div>`).join('');
+    return `<section><h3>지표</h3><div class="ops-kpi-row">${html}</div></section>`;
+}
+
+function renderOpsAlerts(alerts) {
+    let order = { critical: 0, warning: 1 };
+    let rows = alerts.slice().sort((a, b) => (order[a.severity] ?? 2) - (order[b.severity] ?? 2) || (Number(b.runs) || 0) - (Number(a.runs) || 0));
+    return renderOpsTable('경고, 최근 30일', [
+        { label: '등급', render: row => row.severity === 'critical' ? '심각' : '주의' },
+        { label: '지역', render: row => row.zone_type === 'build' ? opsBuildLabel(row.zone_id) : opsZoneLabel(row.zone_type, row.zone_id, row.content_stage) },
+        { key: 'message', label: '판정' }, { key: 'runs', label: '전투' }, { label: '사람', render: row => row.players == null ? '' : cloudToolsNumber(row.players) }
+    ], rows);
+}
+
+/** 빌드 경고의 zone_id는 서버가 "직업id · 스킬"로 붙인 글: 직업을 한글로, 가운뎃점 없이. */
+function opsBuildLabel(text) {
+    let [ascendClass, ...skill] = String(text || '').split(' · ');
+    return skill.length ? `${opsClassLabel(ascendClass)}, ${skill.join(' ')}` : opsClassLabel(ascendClass);
+}
+
+function renderErrorGroups(errors) {
+    return renderOpsTable('오류, 최근 30일(같은 오류는 묶음)', [
+        { label: '오류', html: row => `<div class="feedback-cell">${cloudToolsEscape(row.message || row.fingerprint)}</div>` },
+        { key: 'hits', label: '횟수' }, { key: 'users', label: '사람' }, { label: '마지막', render: row => cloudToolsTime(row.last_at) }, { key: 'app_version', label: '버전' }
+    ], errors);
 }
 
 // ---------------------------------------------------------------------------
@@ -639,11 +759,11 @@ async function loadAdminFeedback() {
     }
 }
 
-/** 새 RPC가 아직 서버에 없을 때(묶음 SQL 미실행)와 그 밖의 오류를 가른다. */
-function renderSectionError(title, error) {
+/** 새 RPC가 아직 서버에 없을 때(묶음 SQL 미실행)와 그 밖의 오류를 가른다. sqlFile은 그 절을 만드는 묶음 파일. */
+function renderSectionError(title, error, sqlFile = 'db/feedback-and-admin-players-20261027.sql') {
     let text = String((error && error.message) || error);
     return /schema cache|could not find|does not exist/i.test(text)
-        ? `<section><h3>${title}</h3><p class="cloud-tools-note">Supabase에서 db/feedback-and-admin-players-20261027.sql을 실행하면 보입니다.</p></section>`
+        ? `<section><h3>${title}</h3><p class="cloud-tools-note">Supabase에서 ${sqlFile}을 실행하면 보입니다.</p></section>`
         : `<section><h3>${title}</h3><p class="cloud-tools-error">불러올 수 없습니다: ${cloudToolsEscape(text)}</p></section>`;
 }
 
@@ -866,7 +986,7 @@ function injectCloudToolsStyles() {
     let style = document.createElement('style');
     style.id = 'cloud-tools-styles';
     // 레이어 안에 둔다(레이어 밖 CSS는 스킨 규칙을 모두 이긴다).
-    style.textContent = `@layer components{.cloud-tools-dialog{width:min(980px,calc(94vw / var(--scale-display-factor, 1)));max-height:calc(88vh / var(--scale-display-factor, 1));padding:0;border:1px solid #445b78;border-radius:12px;background:#0d1623;color:#eef6ff}.cloud-tools-dialog::backdrop{background:rgba(0,0,0,.72)}.cloud-tools-head{position:sticky;top:0;z-index:2;display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:#142238;border-bottom:1px solid #304765}.cloud-tools-head button{margin:0}.cloud-tools-body{padding:14px;overflow:auto}.cloud-history-list{display:grid;gap:7px}.cloud-history-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px;border:1px solid #2b405d;border-radius:8px;background:#111e30}.cloud-history-row small{display:block;color:#9eb0c8;margin-top:3px}.cloud-current-badge{color:#8be5aa;font-weight:700}.cloud-tools-note,.cloud-tools-empty{color:#a9b8cc}.cloud-tools-error{color:#ff9b9b}.ops-summary{display:flex;gap:8px;flex-wrap:wrap}.ops-summary span{padding:8px 12px;border:1px solid #304765;border-radius:8px;background:#142238}.cloud-tools-body section{margin-top:18px}.cloud-tools-table-wrap{overflow:auto}.cloud-tools-table-wrap table{width:100%;border-collapse:collapse;font-size:12px}.cloud-tools-table-wrap th,.cloud-tools-table-wrap td{padding:7px;border-bottom:1px solid #263a54;text-align:left;white-space:nowrap}.feedback-form{display:grid;gap:8px}.feedback-form textarea,.feedback-form input,.feedback-form select,.feedback-actions textarea,#player-query{box-sizing:border-box;background:#111e30;color:#eef6ff;border:1px solid #2b405d;border-radius:6px;padding:6px;font:inherit}.feedback-form textarea,.feedback-form input,.feedback-form select,.feedback-actions textarea{width:100%}#player-query{flex:1;min-width:200px}.feedback-list{display:grid;gap:8px}.feedback-item{padding:10px;border:1px solid #2b405d;border-radius:8px;background:#111e30}.feedback-meta{display:flex;flex-wrap:wrap;gap:10px;color:#9eb0c8;font-size:12px}.feedback-body{white-space:pre-wrap;margin-top:4px}.feedback-reply{margin-top:6px;padding:6px 8px;border-left:3px solid #8be5aa;white-space:pre-wrap}.feedback-cell{white-space:normal;min-width:220px;max-width:380px}.feedback-actions{display:grid;gap:4px;min-width:220px}.player-facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:4px 16px;margin:8px 0}.player-facts dt{color:#9eb0c8;font-size:12px}.player-facts dd{margin:0;overflow-wrap:anywhere}.player-json{max-height:320px;overflow:auto;font-size:11px;white-space:pre-wrap}}`;
+    style.textContent = `@layer components{.cloud-tools-dialog{width:min(980px,calc(94vw / var(--scale-display-factor, 1)));max-height:calc(88vh / var(--scale-display-factor, 1));padding:0;border:1px solid #445b78;border-radius:12px;background:#0d1623;color:#eef6ff}.cloud-tools-dialog::backdrop{background:rgba(0,0,0,.72)}.cloud-tools-head{position:sticky;top:0;z-index:2;display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:#142238;border-bottom:1px solid #304765}.cloud-tools-head button{margin:0}.cloud-tools-body{padding:14px;overflow:auto}.cloud-history-list{display:grid;gap:7px}.cloud-history-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px;border:1px solid #2b405d;border-radius:8px;background:#111e30}.cloud-history-row small{display:block;color:#9eb0c8;margin-top:3px}.cloud-current-badge{color:#8be5aa;font-weight:700}.cloud-tools-note,.cloud-tools-empty{color:#a9b8cc}.cloud-tools-error{color:#ff9b9b}.ops-summary{display:flex;gap:8px;flex-wrap:wrap}.ops-summary span{padding:8px 12px;border:1px solid #304765;border-radius:8px;background:#142238}.cloud-tools-body section{margin-top:18px}.cloud-tools-table-wrap{overflow:auto}.cloud-tools-table-wrap table{width:100%;border-collapse:collapse;font-size:12px}.cloud-tools-table-wrap th,.cloud-tools-table-wrap td{padding:7px;border-bottom:1px solid #263a54;text-align:left;white-space:nowrap}.feedback-form{display:grid;gap:8px}.feedback-form textarea,.feedback-form input,.feedback-form select,.feedback-actions textarea,#player-query{box-sizing:border-box;background:#111e30;color:#eef6ff;border:1px solid #2b405d;border-radius:6px;padding:6px;font:inherit}.feedback-form textarea,.feedback-form input,.feedback-form select,.feedback-actions textarea{width:100%}#player-query{flex:1;min-width:200px}.feedback-list{display:grid;gap:8px}.feedback-item{padding:10px;border:1px solid #2b405d;border-radius:8px;background:#111e30}.feedback-meta{display:flex;flex-wrap:wrap;gap:10px;color:#9eb0c8;font-size:12px}.feedback-body{white-space:pre-wrap;margin-top:4px}.feedback-reply{margin-top:6px;padding:6px 8px;border-left:3px solid #8be5aa;white-space:pre-wrap}.feedback-cell{white-space:normal;min-width:220px;max-width:380px}.feedback-actions{display:grid;gap:4px;min-width:220px}.player-facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:4px 16px;margin:8px 0}.player-facts dt{color:#9eb0c8;font-size:12px}.player-facts dd{margin:0;overflow-wrap:anywhere}.player-json{max-height:320px;overflow:auto;font-size:11px;white-space:pre-wrap}.ops-nav{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0 4px;position:sticky;top:46px;z-index:1;padding:6px 0;background:#0d1623}.ops-nav button{margin:0}.ops-section{margin-top:10px;border:1px solid #2b405d;border-radius:8px;background:#0f1a2b}.ops-section>summary{display:flex;align-items:baseline;gap:10px;padding:10px 14px;cursor:pointer;list-style:none}.ops-section>summary::-webkit-details-marker{display:none}.ops-section>summary::before{content:"▸";color:#9eb0c8}.ops-section[open]>summary::before{content:"▾"}.ops-section>summary small{color:#9eb0c8}.ops-section-body{padding:0 14px 12px}.ops-section-body section:first-child{margin-top:4px}.ops-todo-strip h3,.ops-kpi-row+h3{margin-top:0}.ops-todo-row{display:flex;flex-wrap:wrap;gap:8px}.ops-todo{display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-width:112px;padding:8px 12px;border:1px solid #304765;border-radius:8px;background:#142238;color:#eef6ff;text-align:left}.ops-todo strong{font-size:20px;color:#ffd27a}.ops-todo.is-zero{opacity:.55}.ops-todo.is-zero strong{color:#9eb0c8}.ops-kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px}.ops-kpi{padding:10px 12px;border:1px solid #304765;border-radius:8px;background:#142238}.ops-kpi h4{margin:0 0 6px;color:#ffd27a;font-size:13px}.ops-kpi dl{margin:0;display:grid;gap:3px}.ops-kpi dl div{display:flex;justify-content:space-between;gap:8px;font-size:12px}.ops-kpi dt{color:#9eb0c8}.ops-kpi dd{margin:0;text-align:right}.ops-kpi dd small{color:#9eb0c8}}`;
     document.head.appendChild(style);
 }
 

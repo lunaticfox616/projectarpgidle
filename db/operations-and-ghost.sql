@@ -216,7 +216,7 @@ begin
           from recent group by coalesce(ascend_class, 'unascended'), coalesce(active_skill, 'unknown')
          order by runs desc limit 100
     ), alerts as (
-        select zone_type, zone_id, runs,
+        select zone_type, zone_id, runs, players,
                case
                    when runs >= 5 and p95_frame_ms >= 50 then 'critical'
                    when runs >= 5 and clear_rate_pct < 30 then 'critical'
@@ -233,7 +233,7 @@ begin
                end as message
           from zone_rows
         union all
-        select 'build', ascend_class || ' · ' || active_skill, runs,
+        select 'build', ascend_class || ' · ' || active_skill, runs, players,
                case
                    when runs >= 5 and clear_rate_pct < 30 then 'critical'
                    when runs >= 5 and clear_rate_pct > 95 then 'warning'
@@ -255,12 +255,8 @@ begin
         ),
         'zones', coalesce((select jsonb_agg(to_jsonb(z)) from zone_rows z), '[]'::jsonb),
         'builds', coalesce((select jsonb_agg(to_jsonb(b)) from build_rows b), '[]'::jsonb),
-        'alerts', coalesce((select jsonb_agg(to_jsonb(a)) from alerts a where severity is not null), '[]'::jsonb),
-        'errors', coalesce((select jsonb_agg(to_jsonb(e)) from (
-            select created_at, message, stack, context, app_version
-              from public.client_error_reports order by created_at desc limit 50
-        ) e), '[]'::jsonb)
-    ) into payload;
+        'alerts', coalesce((select jsonb_agg(to_jsonb(a)) from alerts a where severity is not null), '[]'::jsonb)
+    ) into payload;   -- 오류 50건의 stack과 context(최대 700KB)는 더 보내지 않는다: 운영 창은 admin_get_ops_overview의 묶음을 그린다(2026-10-27)
     return payload;
 end;
 $$;
@@ -1048,6 +1044,7 @@ begin
     perform pg_advisory_xact_lock(hashtext('player_feedback:' || uid::text));   -- 같은 계정의 동시 요청이 하루 한도를 넘지 못하게
     select count(*) into today_count from public.player_feedback where user_id = uid and created_at >= now() - interval '1 day';
     if today_count >= 5 then raise exception 'FEEDBACK_DAILY_LIMIT'; end if;
+    delete from public.player_feedback where status = 'done' and updated_at < now() - interval '180 days';   -- 처리한 글은 180일 뒤 지운다
     insert into public.player_feedback (user_id, kind, body, contact, context, app_version)
     values (uid, p_kind, body, left(btrim(coalesce(p_contact, '')), 120), coalesce(p_context, '{}'::jsonb), left(coalesce(p_app_version, ''), 40))
     returning id into new_id;
@@ -1097,7 +1094,8 @@ begin
 end;
 $$;
 
--- 관리자: 플레이어 찾기. 닉네임, 이메일, user_id 앞부분으로 찾고(비우면 최근 활동순), 한 줄에 계정, 프로필 요약, 저장, 고스트, 전당,
+-- 관리자: 플레이어 찾기. 닉네임과 이메일은 글자 그대로(LIKE 와일드카드 없음, 검토 지적 2026-10-27), user_id는 앞부분으로 찾고(비우면 최근 활동순),
+-- 한 줄에 계정, 프로필 요약, 저장, 고스트, 전당,
 -- 보류, 금지, 기록과 신고와 문의 수를 모은다. 최대 200명. save_bytes는 디스크의 압축 크기(JSON 글자 수는 자세히 보기가 센다).
 create or replace function public.admin_search_players(p_query text default '', p_limit integer default 50)
 returns jsonb language plpgsql security definer set search_path = public as $$
@@ -1125,7 +1123,8 @@ begin
           left join public.cloud_saves s on s.user_id = u.id
           left join public.ghost_profiles g on g.user_id = u.id
           left join public.hall_curator_profiles h on h.user_id = u.id
-         where q is null or p.nickname ilike '%' || q || '%' or u.email ilike '%' || q || '%' or starts_with(u.id::text, lower(q))
+         where q is null or position(lower(q) in lower(coalesce(p.nickname, ''))) > 0 or position(lower(q) in lower(coalesce(u.email, ''))) > 0
+            or starts_with(u.id::text, lower(q))
          order by greatest(p.last_seen, s.updated_at, u.last_sign_in_at) desc nulls last
          limit lim) r), '[]'::jsonb);
 end;
@@ -1197,5 +1196,83 @@ grant execute on function public.admin_set_feedback(bigint, text, text) to authe
 grant execute on function public.admin_search_players(text, integer) to authenticated;
 grant execute on function public.admin_get_player(uuid) to authenticated;
 grant execute on function public.admin_get_player_save(uuid) to authenticated;
+
+-- ============================================================================
+-- 운영 창 머리: 할 일과 지표 (2026-10-27)
+-- ============================================================================
+-- 브라우저 확장 프로그램이 남기는 오류 보고(게임 오류가 아님). 묶음과 수에서 뺀다.
+create or replace function public.ops_error_is_noise(p_message text)
+returns boolean language sql immutable set search_path = public as $$
+    select coalesce(p_message, '') ilike any (array['%chrome: call method%', '%chrome-extension://%', '%moz-extension://%', '%ResizeObserver loop%', '%Script error.%']);
+$$;
+
+-- 운영 창(js/cloud-tools-ui.js openOpsDashboard)이 맨 위에 보이는 숫자들: 할 일(새 문의, 24시간 신고, 검토 중 고스트, 보류, 금지, 24시간 오류),
+-- 계정과 접속, 전투, 멀티, 서버. 원격 측정의 추정치가 아니라 각 표의 실제 줄 수를 세고, 7일 전 7일과 비교할 값도 준다.
+-- 오류는 같은 지문끼리 묶어 30일 상위 20개.
+create or replace function public.admin_get_ops_overview()
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare
+    day_ago timestamptz := now() - interval '1 day';
+    week_ago timestamptz := now() - interval '7 days';
+    two_weeks_ago timestamptz := now() - interval '14 days';
+    month_ago timestamptz := now() - interval '30 days';
+begin
+    if not public.is_project_admin() then raise exception 'ADMIN_REQUIRED'; end if;
+    return jsonb_build_object(
+        'generatedAt', now(),
+        'todo', jsonb_build_object(
+            'feedbackNew', (select count(*) from public.player_feedback where status = 'new'),
+            'reports24h', (select count(*) from public.chat_reports where created_at >= day_ago),
+            'ghostsUnderReview', (select count(distinct user_id) from public.cheat_flags where kind like 'ghost_%' and last_at >= week_ago),
+            'holds', (select count(*) from public.cheat_holds),
+            'mutesActive', (select count(*) from public.chat_mutes where until_at > now()),
+            'errors24h', (select count(*) from public.client_error_reports where created_at >= day_ago and not public.ops_error_is_noise(message))),
+        'accounts', jsonb_build_object(
+            'total', (select count(*) from auth.users),
+            'new7d', (select count(*) from auth.users where created_at >= week_ago),
+            'newPrev7d', (select count(*) from auth.users where created_at >= two_weeks_ago and created_at < week_ago),
+            'signedIn7d', (select count(*) from auth.users where last_sign_in_at >= week_ago),
+            'signedIn24h', (select count(*) from auth.users where last_sign_in_at >= day_ago),
+            'profiles', (select count(*) from public.player_profiles),
+            'seen24h', (select count(*) from public.player_profiles where last_seen >= day_ago),
+            'seen7d', (select count(*) from public.player_profiles where last_seen >= week_ago)),
+        'play', jsonb_build_object(
+            'runs30d', (select count(*) from public.playtest_runs where created_at >= month_ago),
+            'runs7d', (select count(*) from public.playtest_runs where created_at >= week_ago),
+            'runsPrev7d', (select count(*) from public.playtest_runs where created_at >= two_weeks_ago and created_at < week_ago),
+            'players7d', (select count(distinct user_id) from public.playtest_runs where created_at >= week_ago),
+            'playersPrev7d', (select count(distinct user_id) from public.playtest_runs where created_at >= two_weeks_ago and created_at < week_ago),
+            'clearRate30d', (select round(100.0 * count(*) filter (where result = 'clear') / nullif(count(*), 0), 1) from public.playtest_runs where created_at >= month_ago),
+            'abandons30d', (select count(*) from public.playtest_runs where created_at >= month_ago and result = 'abandon'),
+            'lastRunAt', (select max(created_at) from public.playtest_runs)),
+        'social', jsonb_build_object(
+            'chat7d', (select count(*) from public.chat_messages where created_at >= week_ago),
+            'chatPrev7d', (select count(*) from public.chat_messages where created_at >= two_weeks_ago and created_at < week_ago),
+            'ghostsActive', (select count(*) from public.ghost_profiles where active),
+            'ghostMatches30d', (select count(*) from public.ghost_matches where created_at >= month_ago),
+            'hallOpen', (select count(*) from public.hall_listings where status = 'open'),
+            'hallPurchases30d', (select count(*) from public.hall_purchases where purchased_at >= month_ago),
+            'feedback30d', (select count(*) from public.player_feedback where created_at >= month_ago)),
+        'server', jsonb_build_object(
+            'dbBytes', pg_database_size(current_database()),
+            'dbLimitBytes', 524288000,
+            'saves', (select count(*) from public.cloud_saves),
+            'saveBytes', (select coalesce(sum(pg_column_size(save_data)), 0) from public.cloud_saves),
+            'saveVersions', (select count(*) from public.cloud_save_versions),
+            'errors30d', (select count(*) from public.client_error_reports where created_at >= month_ago and not public.ops_error_is_noise(message)),
+            'lastErrorAt', (select max(created_at) from public.client_error_reports)),
+        'errors', coalesce((select jsonb_agg(to_jsonb(e) order by e.hits desc) from (
+            select left(fingerprint, 160) as fingerprint, left(max(message), 200) as message, count(*) as hits, count(distinct user_id) as users,
+                   max(created_at) as last_at, max(app_version) as app_version
+              from public.client_error_reports
+             where created_at >= month_ago and not public.ops_error_is_noise(message)
+             group by left(fingerprint, 160) order by hits desc limit 20) e), '[]'::jsonb)
+    );
+end;
+$$;
+
+revoke all on function public.ops_error_is_noise(text) from public, anon, authenticated;
+revoke all on function public.admin_get_ops_overview() from public, anon;
+grant execute on function public.admin_get_ops_overview() to authenticated;
 
 commit;

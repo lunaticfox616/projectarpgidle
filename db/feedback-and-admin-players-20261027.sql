@@ -71,6 +71,7 @@ begin
     perform pg_advisory_xact_lock(hashtext('player_feedback:' || uid::text));   -- 같은 계정의 동시 요청이 하루 한도를 넘지 못하게
     select count(*) into today_count from public.player_feedback where user_id = uid and created_at >= now() - interval '1 day';
     if today_count >= 5 then raise exception 'FEEDBACK_DAILY_LIMIT'; end if;
+    delete from public.player_feedback where status = 'done' and updated_at < now() - interval '180 days';   -- 처리한 글은 180일 뒤 지운다
     insert into public.player_feedback (user_id, kind, body, contact, context, app_version)
     values (uid, p_kind, body, left(btrim(coalesce(p_contact, '')), 120), coalesce(p_context, '{}'::jsonb), left(coalesce(p_app_version, ''), 40))
     returning id into new_id;
@@ -120,7 +121,8 @@ begin
 end;
 $$;
 
--- 관리자: 플레이어 찾기. 닉네임, 이메일, user_id 앞부분으로 찾고(비우면 최근 활동순), 한 줄에 계정, 프로필 요약, 저장, 고스트, 전당,
+-- 관리자: 플레이어 찾기. 닉네임과 이메일은 글자 그대로(LIKE 와일드카드 없음, 검토 지적 2026-10-27), user_id는 앞부분으로 찾고(비우면 최근 활동순),
+-- 한 줄에 계정, 프로필 요약, 저장, 고스트, 전당,
 -- 보류, 금지, 기록과 신고와 문의 수를 모은다. 최대 200명. save_bytes는 디스크의 압축 크기(JSON 글자 수는 자세히 보기가 센다).
 create or replace function public.admin_search_players(p_query text default '', p_limit integer default 50)
 returns jsonb language plpgsql security definer set search_path = public as $$
@@ -148,7 +150,8 @@ begin
           left join public.cloud_saves s on s.user_id = u.id
           left join public.ghost_profiles g on g.user_id = u.id
           left join public.hall_curator_profiles h on h.user_id = u.id
-         where q is null or p.nickname ilike '%' || q || '%' or u.email ilike '%' || q || '%' or starts_with(u.id::text, lower(q))
+         where q is null or position(lower(q) in lower(coalesce(p.nickname, ''))) > 0 or position(lower(q) in lower(coalesce(u.email, ''))) > 0
+            or starts_with(u.id::text, lower(q))
          order by greatest(p.last_seen, s.updated_at, u.last_sign_in_at) desc nulls last
          limit lim) r), '[]'::jsonb);
 end;
