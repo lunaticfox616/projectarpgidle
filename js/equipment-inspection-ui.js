@@ -114,5 +114,5 @@
         previousEquipment = current;
     }
 
-    safeExposeGlobals({ equipmentInspectionUi: Object.freeze({ render, decorateLoadout, getInactiveAffixIds }) });
+    safeExposeGlobals({ equipmentInspectionUi: Object.freeze({ render, decorateLoadout, getInactiveAffixIds, tooltipBox }) });
 })();

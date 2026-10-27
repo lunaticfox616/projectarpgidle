@@ -292,12 +292,12 @@ const ENEMY_TRAIT_POOL = [
 // 무기 뿌리촉수(rignin-weapon-root-tentacles-idle-attack-v1): 뿌리가 무기 대분류(data/weapon-categories.js) 하나를 든 몬스터.
 // 영역 세트가 아닌 모든 지역에서 적 spawnOneIn에 하나꼴로 나오고, 처치마다 weaponDropChance 확률로 제 대분류 무기를 하나
 // 떨군다(보통 장비 드랍과 따로, js/combat.js grantRootWeaponPick). 그 무기와 보통 드랍의 무기는 제 대분류 바탕에서 고른다
-// (js/passives.js chooseItemBase). 대검 · 곡도 · 향로는 근접, 나머지는 원거리.
+// (js/passives.js chooseItemBase). 대검 · 한손검 · 향로는 근접, 나머지는 원거리.
 // 2026-10-07 사용자 요청: 너무 자주 나와(위습이 아닌 적 여덟에 하나) 흔하고, 무기는 거의 주지 않았다(장비 드랍의 절반이 무기였지만
 // 장비 드랍 자체가 처치의 1% 안팎). 마흔에 하나로 드물게 하고, 대신 제 무기를 넷에 하나꼴로 떨군다.
 const ROOT_MONSTER_RULES = Object.freeze({ spawnOneIn: 40, weaponDropChance: 0.25 });
 const ROOT_MONSTER_VISUALS = Object.freeze([
-    ['greatsword', '대검 뿌리촉수', 'melee'], ['scimitar', '곡도 뿌리촉수', 'melee'], ['shortbow', '단궁 뿌리촉수', 'ranged'],
+    ['greatsword', '대검 뿌리촉수', 'melee'], ['scimitar', '한손검 뿌리촉수', 'melee'], ['shortbow', '단궁 뿌리촉수', 'ranged'],
     ['orb', '오브 뿌리촉수', 'ranged'], ['flask', '플라스크 뿌리촉수', 'ranged'], ['censer', '향로 뿌리촉수', 'melee']
 ].map(([weapon, name, attack]) => Object.freeze({ id: `root-${weapon}`, name, attack, weapon })));
 const ACT_MONSTER_VISUALS = Object.freeze([
@@ -328,7 +328,9 @@ const ACT_MONSTER_POOLS = (() => {
         8: Object.freeze([...deacons(8), 'act8-veil-moth', 'act8-shroud-toad']),
         9: Object.freeze([...deacons(8), 'act9-dirge-crane', 'act9-chorus-bulbs']),
         10: Object.freeze(['deacon-act8-melee', 'act10-graft-beast', 'act9-chorus-bulbs']),
-        postChaos: Object.freeze([... [2, 6, 7, 8].flatMap(deacons), 'postchaos-inverted-sapling'])
+        // 2026-10-26 사용자(혼돈 1~10에서 맞힌 적의 절반 넘게가 부제 계열): "몬스터 무리도 몇몇개를 추가해서 랜덤으로". 액트 7~10의 일곱을 섞는다.
+        postChaos: Object.freeze([... [2, 6, 7, 8].flatMap(deacons), 'postchaos-inverted-sapling', 'act7-husk-stag', 'act7-crackback-tick',
+            'act8-veil-moth', 'act8-shroud-toad', 'act9-dirge-crane', 'act9-chorus-bulbs', 'act10-graft-beast'])
     });
 })();
 
@@ -359,7 +361,7 @@ function getWispMonsterVisualDefinition(variantSeed, element) {
     return candidates[Math.floor(seed / WISP_ENEMY_RULES.spawnOneIn) % candidates.length];
 }
 
-/** 이 지역의 일반·정예 외형 목록: 스토리 액트는 그 액트 몫, 나머지(혼돈 이후)는 부제 네 팔레트. */
+/** 이 지역의 일반·정예 외형 목록: 스토리 액트는 그 액트 몫, 나머지(혼돈 이후)는 부제 네 팔레트와 액트 7~10의 몬스터. */
 function getActMonsterPool(zone) {
     const act = zone && zone.type === 'act' && Number.isInteger(Number(zone.id)) ? Number(zone.id) + 1 : 0;
     if (zone?.atlasRegion === 'canopy') return ['atlas-canopy-leafglider', 'act8-veil-moth', 'deacon-act8-ranged'];

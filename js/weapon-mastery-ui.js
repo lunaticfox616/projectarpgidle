@@ -9,7 +9,7 @@ const weaponMasteryUi = (() => {
     const lineHtml = (stat, val) => `<span style="color:${getItemStatToneColor(stat)}">${esc(lineText(stat, val))}</span>`;
     const stepHtml = step => step.map(([stat, val]) => lineHtml(stat, val)).join(', ');
     const percent = rate => `${Math.round(rate * 100)}%p`;
-    // 무기 갈래마다 색(2026-10-09 사용자 "기록 색감"): 대검 붉은색, 곡도 주황, 단궁 초록, 오브 파랑, 플라스크 보라, 향로 번개 노랑.
+    // 무기 갈래마다 색(2026-10-09 사용자 "기록 색감"): 대검 붉은색, 한손검 주황, 단궁 초록, 오브 파랑, 플라스크 보라, 향로 번개 노랑.
     const TONES = Object.freeze({ greatsword: '#ff7a59', scimitar: '#ffb35c', shortbow: '#8fe07a', orb: '#8fb8ff', flask: '#c98cff', censer: '#f0d24a' });
     /** The next milestone of a category at a level, coloured ('' at the top). */
     function nextStepHtml(id, level) {

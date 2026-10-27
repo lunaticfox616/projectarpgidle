@@ -29,9 +29,10 @@ const memoryDungeonUi = (() => {
         atlasUi.refresh();
         switchTab('tab-battle');
     }
-    function setFilter(value) {
+    function setFilter(value, clearSearch = false) {
         if (!['held', 'records'].includes(value)) return;
         filter = value; selection = null;
+        if (clearSearch) query = '';
         atlasUi.refresh();
         document.querySelector(`#ui-atlas [data-memory-filter="${filter}"]`)?.focus({ preventScroll: true });
     }

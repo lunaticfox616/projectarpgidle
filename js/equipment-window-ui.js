@@ -87,6 +87,10 @@ const equipmentWindowUi = (() => {
         summary.dataset.active = String(slotPicked || gradeHidden);
         const judge = document.querySelector('#eqw-judge-menu > summary');
         if (judge) judge.dataset.active = String(equipmentTriage.currentFilter() !== 'all');
+        const order = settings.bagArrangeOrder || 'recent';
+        document.querySelectorAll('#eqw-arrange-menu [data-arrange-order]').forEach(button => {
+            button.setAttribute('aria-pressed', String(button.dataset.arrangeOrder === order));
+        });
     }
     /** 검색 항목 해체 and 미검색 항목 해체 wait for a search word: with none, the first took the whole bag and the second nothing. */
     function markSearchSalvage() {
@@ -112,10 +116,12 @@ const equipmentWindowUi = (() => {
         event.preventDefault();
         event.stopPropagation();
     }
-    /** A rail tool double-clicked does its main job at once, with no question and no panel (2026-10-21, the user's ask): 해체 salvages
+    /** A rail tool double-clicked does its main job at once, with no question and no panel (2026-10-21, the user's ask; 정리 2026-10-26,
+     * in the order picked last in its panel): 해체 salvages
      * the whole bag (locked, set and priority-kept gear stays, as with the panel's 전체 해체), 분석 runs the analysis again (the bag
      * marks show the results). Keyed by the panel's id; the two clicks before the double-click opened and closed it. */
     const RAIL_DOUBLE_CLICK = Object.freeze({
+        'eqw-arrange-menu': () => equipmentInventoryInteraction.autoArrange(),
         'eqw-salvage-menu': () => bulkSalvageAllInventory({ ask: false }),
         'eqw-judge-menu': () => equipmentTriage.start()
     });

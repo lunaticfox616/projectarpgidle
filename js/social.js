@@ -42,6 +42,7 @@ const SOCIAL_CHAT_RETENTION_MS = 3 * 24 * 60 * 60 * 1000;
 const SOCIAL_ITEM_TOKEN_RE = /⟦(\d+)⟧/g;
 const SOCIAL_NICK_RE = /^[0-9A-Za-z가-힣ㄱ-ㅎㅏ-ㅣ_\-]+$/;
 const SOCIAL_EQUIP_SLOTS = ['무기', '투구', '목걸이', '장갑1', '갑옷', '방패', '반지1', '허리띠', '반지2', '신발', '장갑2'];
+const SOCIAL_BLOCKED_KEY = 'arpg_social_blocked_users';
 
 let socialState = {
     nickname: '',
@@ -189,7 +190,7 @@ function snapAffixKind(item, st) {
     const kind = typeof equipmentCrafting === 'object' ? equipmentCrafting.storedAffixKind(item, st) : 'special';
     return kind === 'prefix' || kind === 'suffix' ? { kind } : {};
 }
-/** A weapon's category (대검, 곡도 ...) for its title tag, as item text shows it in the game (js/weapon-categories.js). It reads
+/** A weapon's category (대검, 한손검 ...) for its title tag, as item text shows it in the game (js/weapon-categories.js). It reads
  * the item's own slot: a weapon worn in the shield slot (쌍수 훈련) was tagged [방패]. */
 function profileItemCategory(item) {
     return item.slot === '무기' && typeof getWeaponCategoryName === 'function' ? getWeaponCategoryName(item) || undefined : undefined;
@@ -487,7 +488,16 @@ function getProfileUploadError(error) {
         translated = new Error('닉네임은 하루에 한 번만 변경할 수 있습니다.');
         translated.socialCode = 'nickname_cooldown';
     }
-    if (/duplicate|unique|nickname/i.test(message)) {
+    if (/NICK_INVALID/.test(message)) {
+        translated = new Error(`닉네임은 ${SOCIAL_NICK_MIN}~${SOCIAL_NICK_MAX}자의 한글, 영문, 숫자, _ - 만 쓸 수 있습니다.`);
+        translated.socialCode = 'nickname_invalid';
+    }
+    if (/NICK_PROFANITY/.test(message)) {
+        translated = new Error('닉네임에 비속어를 쓸 수 없습니다.');
+        translated.socialCode = 'nickname_invalid';
+    }
+    if (/PROFILE_TOO_LARGE/.test(message)) translated = new Error('공개 프로필이 너무 커서 서버가 받지 않았습니다.');
+    if (translated === error && /duplicate|unique|nickname/i.test(message)) {   // 앞에서 옮긴 문구는 다시 바꾸지 않는다
         translated = new Error('이미 사용 중인 닉네임입니다. 다른 닉네임을 선택해주세요.');
         translated.socialCode = 'nickname_conflict';
     }
@@ -710,16 +720,36 @@ function stopHeartbeat() {
     clearInterval(socialState.heartbeatTimer);
     socialState.heartbeatTimer = null;
 }
-async function loadOnlineUsers() {
+/** 접속자 조회. 목록이 닫혀 있고 배지만 필요하면(countsOnly) 80줄 대신 인원 수만 묻는다(get_online_counts, 2026-10-27: 배지 하나에
+ * 30초마다 약 9KB를 받았다). 서버에 그 함수가 없으면 이 세션은 예전처럼 줄을 받는다. */
+async function loadOnlineUsers(countsOnly) {
     if (!socialCloudReady() || !socialState.onlineSupported) return [];
-    let cutoff = new Date(Date.now() - SOCIAL_RECENT_WINDOW_S * 1000).toISOString();
+    let countsPath = !!countsOnly && socialState.onlineCountsSupported !== false;
+    let result;
     try {
-        let rows = await cloudJsonRequest(`/rest/v1/player_profiles?select=user_id,nickname,last_seen&last_seen=gte.${encodeURIComponent(cutoff)}&order=last_seen.desc&limit=80`, {});
-        return Array.isArray(rows) ? rows : [];
+        result = await cloudJsonRequest(...onlineUsersQuery(countsPath));
     } catch (e) {
-        if (/last_seen/i.test(String(e && e.message || e))) socialState.onlineSupported = false;
-        return [];
+        if (!noteOnlineLoadError(String(e && e.message || e), countsPath)) return [];
+        countsPath = false;   // 인원 수 함수가 서버에 없다: 이번부터 줄을 받는다
+        try { result = await cloudJsonRequest(...onlineUsersQuery(false)); } catch { return []; }
     }
+    return shapeOnlineUsers(result, countsPath);
+}
+function onlineUsersQuery(countsPath) {
+    if (countsPath) return ['/rest/v1/rpc/get_online_counts', { method: 'POST', body: {} }];
+    let cutoff = new Date(Date.now() - SOCIAL_RECENT_WINDOW_S * 1000).toISOString();
+    return [`/rest/v1/player_profiles?select=user_id,nickname,last_seen&last_seen=gte.${encodeURIComponent(cutoff)}&order=last_seen.desc&limit=80`, {}];
+}
+function shapeOnlineUsers(result, countsPath) {
+    if (countsPath) return { counts: result && typeof result === 'object' ? result : {} };
+    return Array.isArray(result) ? result : [];
+}
+/** 조회 오류를 상태에 남긴다. 인원 수 함수가 서버에 없을 때만 true(줄 조회로 다시 간다). */
+function noteOnlineLoadError(text, countsPath) {
+    if (/last_seen/i.test(text)) socialState.onlineSupported = false;
+    if (!countsPath || !/schema cache|could not find|does not exist/i.test(text)) return false;
+    socialState.onlineCountsSupported = false;
+    return true;
 }
 function getSocialPresenceState(lastSeen, now = Date.now()) {
     let seenAt = new Date(lastSeen).getTime();
@@ -730,21 +760,24 @@ function getSocialPresenceState(lastSeen, now = Date.now()) {
 }
 /** 채팅 창 오른쪽 위의 작은 접속 인원(2026-10-11 사용자: "채팅창에 기본적으로 작게 몇명 온라인인지"): 5분 안에 신호가 온 사람 수.
  * 접속자 목록과 같은 조회 결과를 쓴다(30초 주기, 새 채팅이 뜨면 socialOnlineChat.refresh가 한 번 더 읽는다). 아직 모르거나 0명이면 숨긴다. */
-function renderChatOnlineCount(visible) {
+function renderChatOnlineCount(active, recent) {
     let badge = document.getElementById('social-chat-online');
     if (!badge) return;
-    let active = visible.filter(row => row.state === 'active').length;
     badge.hidden = !socialState.onlineSupported || active <= 0;
     let text = `접속 ${active}명`;
     if (badge.dataset.text !== text) {
         badge.dataset.text = text;
         badge.innerHTML = `<i class="social-presence-dot active" aria-hidden="true"></i>${text}`;
     }
-    badge.title = `지금 접속 ${active}명, 30분 안에 다녀간 사람 ${visible.length - active}명`;
+    badge.title = `지금 접속 ${active}명, 30분 안에 다녀간 사람 ${recent}명`;
+}
+/** 인원 수만 받았을 때(loadOnlineUsers의 { counts }): 배지만 그린다. */
+function renderOnlineCounts(counts) {
+    renderChatOnlineCount(Math.max(0, Math.floor(Number(counts.active) || 0)), Math.max(0, Math.floor(Number(counts.recent) || 0)));
 }
 function renderOnlineUsers(users, now = Date.now()) {
     let visible = (users || []).map(user => ({ user, state: getSocialPresenceState(user.last_seen, now) })).filter(row => row.state);
-    renderChatOnlineCount(visible);
+    renderChatOnlineCount(visible.filter(row => row.state === 'active').length, visible.filter(row => row.state !== 'active').length);
     let host = document.getElementById('social-online');
     if (!host) return;
     if (!socialState.onlineSupported) { host.style.display = 'none'; return; }
@@ -772,10 +805,18 @@ function renderOnlineUsers(users, now = Date.now()) {
         + `<div class="social-online-list">${chips}</div>`;
 }
 async function refreshOnlineUsers() {
-    if (socialState.onlineLoading || !socialState.onlineSupported) return;
+    if (!socialState.onlineSupported) return;
+    // 인원 수만 묻는 조회가 도는 사이에 설정 창을 열었으면(목록이 필요해졌으면) 그 조회가 끝난 뒤 한 번 더 읽는다.
+    if (socialState.onlineLoading) { socialState.onlineRefreshAgain = !!document.getElementById('social-online'); return; }
     socialState.onlineLoading = true;
     socialState.lastOnlineLoadAt = Date.now();
-    try { renderOnlineUsers(await loadOnlineUsers()); } catch (e) { /* 무시 */ } finally { socialState.onlineLoading = false; }
+    // 접속자 목록(채팅 설정 창)이 열려 있을 때만 줄을 받고, 그 밖에는 배지의 인원 수만 묻는다.
+    let listOpen = !!document.getElementById('social-online');
+    try {
+        let result = await loadOnlineUsers(!listOpen);
+        if (result && result.counts) renderOnlineCounts(result.counts); else renderOnlineUsers(result);
+    } catch { /* 무시 */ } finally { socialState.onlineLoading = false; }
+    if (socialState.onlineRefreshAgain) { socialState.onlineRefreshAgain = false; socialOnlineChat.refresh(true); }
 }
 /** 새 채팅이 뜬 순간 접속 인원도 다시 읽는다(2026-10-11 사용자: "내가 채팅 쳤을때 혹은 다른 사람이 새로운 채팅을 쳤을 때 접속자 수 갱신이
  * 필요해"). 남의 채팅은 SOCIAL_ONLINE_CHAT_REFRESH_MS에 한 번만 읽고 그 사이에 온 채팅은 간격 끝에 한 번 읽는다. 내가 보낸 뒤(force)에는
@@ -843,7 +884,7 @@ function noteIncomingChats(rows) {
         refreshSocialNotificationDots();
         return;
     }
-    let incoming = rows.find(row => row && row.user_id !== socialLoggedInUserId());
+    let incoming = rows.find(row => row && row.user_id !== socialLoggedInUserId() && !isUserBlocked(row.user_id));
     if (!incoming) {
         setLastSeenChatId(latest);
         return;
@@ -1093,13 +1134,49 @@ function checkSendRateLimit() {
     if (socialState.sendTimestamps.length >= SOCIAL_SEND_MAX_PER_MIN) return `1분에 최대 ${SOCIAL_SEND_MAX_PER_MIN}개까지 보낼 수 있습니다. 잠시 후 다시 시도해주세요.`;
     return true;
 }
+// 차단(2026-10-27): 이 기기에서만 그 사람의 채팅을 숨긴다(기기마다 따로, 서버에는 남기지 않는다). 신고는 서버(report_player_chat)로 간다.
+/** 차단 목록: [{ id, name }]. 예전 저장(id 문자열 배열)도 읽는다. 이름은 채팅 설정 창의 풀기 줄에 쓴다(숨긴 사람의 채팅은 눌러 열 수 없으니). */
+function getBlockedUsers() {
+    try {
+        let list = JSON.parse(localStorage.getItem(SOCIAL_BLOCKED_KEY) || '[]');
+        return Array.isArray(list) ? list.map(entry => entry && typeof entry === 'object' ? { id: String(entry.id || ''), name: String(entry.name || '') } : { id: String(entry || ''), name: '' }).filter(entry => entry.id && entry.id !== 'null') : [];
+    } catch { return []; }
+}
+function getBlockedUserIds() { return getBlockedUsers().map(entry => entry.id); }
+function isUserBlocked(userId) { return !!userId && getBlockedUserIds().includes(String(userId)); }
+function setUserBlocked(userId, blocked, name) {
+    let list = getBlockedUsers().filter(entry => entry.id !== String(userId));
+    if (blocked) list.push({ id: String(userId), name: String(name || '').slice(0, 16) });
+    try { localStorage.setItem(SOCIAL_BLOCKED_KEY, JSON.stringify(list.slice(-200))); } catch { /* 무시 */ }
+}
+/** 채팅 설정 창의 풀기 단추(renderBlockedUsersRow). */
+function unblockUser(userId) {
+    setUserBlocked(userId, false);
+    socialState.lastChatRenderKey = '';
+    renderChatMessages(socialState.chatMessages || [], false);
+    refreshChatSettings();
+    showGameToast('차단을 풀었습니다.', 'info');
+}
+/** 서버가 채팅을 거절한 까닭(db/social.sql chat_messages_rate_limit의 오류 코드)을 플레이어 문구로. 첫 줄부터 맞는 것 하나. */
+const SOCIAL_CHAT_ERROR_TEXTS = [
+    [/SPAM_TOO_FAST/, '메시지를 너무 빠르게 보냈습니다.'],
+    [/SPAM_RATE_LIMIT/, '너무 많이 보냈습니다. 잠시 후 다시 시도해주세요.'],
+    [/SPAM_DUPLICATE/, '같은 메시지를 연속으로 보낼 수 없습니다.'],
+    [/SPAM_REPEAT/, '같은 메시지를 5분 안에 세 번 보낼 수 없습니다.'],
+    [/SPAM_FLOOD/, '같은 글자를 너무 많이 반복했습니다.'],
+    [/CHAT_ACCOUNT_HELD/, '운영 검토 중인 계정이라 채팅을 보낼 수 없습니다.'],   // 관리자 보류(db/anti-cheat.sql 5절)
+    [/CHAT_MUTED/, msg => msg.replace(/^[\s\S]*?CHAT_MUTED:\s*/, '')],   // 서버 문구에 남은 시간이 있다: "채팅이 금지된 상태입니다. N분 뒤 풀립니다."
+    [/CHAT_PROFANITY/, '비속어가 들어 있어 보낼 수 없습니다.'],
+    [/CHAT_LINK/, '링크는 보낼 수 없습니다.'],
+    [/CHAT_PAYLOAD_INVALID/, `아이템 링크는 메시지마다 ${SOCIAL_MAX_ITEMS_PER_MSG}개까지입니다.`],
+    [/CHAT_NICKNAME_MISMATCH|CHAT_UPDATE_FORBIDDEN/, '채팅 닉네임은 프로필 닉네임과 같아야 합니다.'],
+    [/char_length|_body_check|violates check/, `메시지는 1~${SOCIAL_MSG_MAX}자여야 합니다.`],
+    [/row-level security/i, '닉네임 확인에 실패했습니다. 잠시 후 다시 보내 주세요.']
+];
 function translateSpamError(msg) {
-    if (/SPAM_TOO_FAST/.test(msg)) return '메시지를 너무 빠르게 보냈습니다.';
-    if (/SPAM_RATE_LIMIT/.test(msg)) return '너무 많이 보냈습니다. 잠시 후 다시 시도해주세요.';
-    if (/SPAM_DUPLICATE/.test(msg)) return '같은 메시지를 연속으로 보낼 수 없습니다.';
-    if (/char_length|_body_check|violates check/.test(msg)) return `메시지는 1~${SOCIAL_MSG_MAX}자여야 합니다.`;
-    if (/row-level security/i.test(msg)) return '닉네임 확인에 실패했습니다. 잠시 후 다시 보내 주세요.';
-    return msg;
+    let hit = SOCIAL_CHAT_ERROR_TEXTS.find(([pattern]) => pattern.test(msg));
+    if (!hit) return msg;
+    return typeof hit[1] === 'function' ? hit[1](msg) : hit[1];
 }
 async function prepareChatSender(senderId) {
     await restoreNicknameFromServer();
@@ -1392,6 +1469,8 @@ function renderChatMessages(messages, forceScroll) {
     if (maxId > 0) setLastSeenChatId(maxId);
     if (typeof game !== 'undefined' && game && game.noti) game.noti.social = false;
     refreshSocialNotificationDots();
+    let blocked = new Set(getBlockedUserIds());   // 차단한 사람의 줄은 이 기기에서 그리지 않는다(목록은 한 번만 읽는다)
+    messages = messages.filter(m => !blocked.has(String(m.user_id)));
     let nearBottom = (listEl.scrollHeight - listEl.scrollTop - listEl.clientHeight) < 60;
     let shouldScroll = !!forceScroll || socialState.scrollChatToLatestOnNextRender || nearBottom;
     let key = messages.map(m => `${m.id}:${m.nickname}`).join(',');
@@ -1927,7 +2006,8 @@ function renderProfileIdentityChips(p) {
 
 function renderProfileGemRow(label, gem, extra) {
     if (!gem || !gem.name) return '';
-    let quality = gem.quality ? ` 품질 ${gem.quality}` : '';
+    // 남의 프로필 값이라 품질도 다른 칸처럼 이스케이프한다(2026-10-27 검토: 이 한 칸만 날것으로 들어가 저장형 XSS가 됐다).
+    let quality = gem.quality ? ` 품질 ${socialEscape(gem.quality)}` : '';
     return `<div class="social-skill-row"><span class="social-skill-label">${socialEscape(label)}</span>`
         + `<strong>${socialEscape(gem.name)}</strong><span class="social-skill-level">Lv.${socialEscape(gem.level || 1)}${quality}${extra || ''}</span></div>`;
 }
@@ -1938,7 +2018,7 @@ function renderProfileSkills(skills) {
     let rows = [renderProfileGemRow('주 스킬', skills.active)]
         .concat((skills.supports || []).map(gem => renderProfileGemRow('보조', gem)))
         .concat([renderProfileGemRow('이동', skills.mobility)])
-        .concat((skills.summons || []).map(gem => renderProfileGemRow('소환', gem, gem.count > 1 ? ` ${gem.count}마리` : '')));
+        .concat((skills.summons || []).map(gem => renderProfileGemRow('소환', gem, Math.floor(Number(gem.count)) > 1 ? ` ${Math.floor(Number(gem.count))}마리` : '')));
     return `<div class="social-skill-list">${rows.join('')}</div>`;
 }
 
@@ -2115,6 +2195,7 @@ function renderProfileData(profile) {
     let updatedAt = p.updatedAt ? new Date(p.updatedAt) : null;
     let updated = (updatedAt && Number.isFinite(updatedAt.getTime())) ? updatedAt.toLocaleString('ko-KR') : '';
     let duelAction = canDuelFromProfile() ? `<div class="social-profile-duel"><button type="button" onclick="fightCurrentProfileGhost()">대전 탭에서 친선전</button><small>상대를 지정해 지도 창의 대전 탭으로 이동합니다.</small></div>` : '';
+    duelAction += renderProfileModerationRow();
     // 고급 테마(2026-10-11, css/social-profile.css): 머리 띠에 이름과 큰 총 DPS, 제목 띠가 있는 두 판(능력치 묶음, 장착 구성).
     body.innerHTML = `
         <div class="social-profile-header">
@@ -2145,6 +2226,29 @@ function canDuelFromProfile() {
     if (!target || target === socialLoggedInUserId()) return false;
     return contentProgression.canOpen('map-tab-pvp') && isMapPrimaryContentUnlocked(game, 'map-tab-pvp');
 }
+/** 남의 프로필 아래 줄(2026-10-27): 차단(이 기기에서 채팅 숨김)과 신고(사유를 골라 서버에 남김). 내 프로필에는 없다. */
+function renderProfileModerationRow() {
+    let target = socialState.currentProfileUserId;
+    if (!target || target === socialLoggedInUserId()) return '';
+    let blocked = isUserBlocked(target);
+    return `<div class="social-profile-duel social-profile-moderation">`
+        + `<button type="button" onclick="toggleProfileBlock()">${blocked ? '차단 해제' : '차단'}</button>`
+        + `<select id="social-report-reason" aria-label="신고 사유"><option value="욕설">욕설</option><option value="도배">도배</option><option value="사칭">사칭</option><option value="기타">기타</option></select>`
+        + `<button type="button" onclick="reportCurrentProfile()">신고</button>`
+        + `<small>${blocked ? '이 기기에서 이 사람의 채팅을 숨기는 중' : '차단은 이 기기에서 채팅을 숨기고, 신고는 운영자에게 갑니다'}</small></div>`;
+}
+function toggleProfileBlock() {
+    let target = socialState.currentProfileUserId;
+    if (!target || target === socialLoggedInUserId()) return;
+    let blocked = !isUserBlocked(target);
+    setUserBlocked(target, blocked, socialState.currentProfile && socialState.currentProfile.nickname);
+    socialState.lastChatRenderKey = '';
+    renderChatMessages(socialState.chatMessages || [], false);
+    let tab = socialState.profileTab;   // 다시 그리면 장비 탭으로 돌아가므로 보던 탭을 되살린다
+    if (socialState.currentProfile) { renderProfileData(socialState.currentProfile); if (tab) switchProfileTab(tab); }
+    showGameToast(blocked ? '이 사람의 채팅을 이 기기에서 숨깁니다.' : '차단을 풀었습니다.', 'info');
+}
+// 신고 보내기(reportCurrentProfile)는 서버를 부르므로 js/cloud-tools-ui.js에 있다(이 파일은 ui 파일을 새로 부르지 않는다는 계층 규칙).
 /** 읽어 온 프로필 줄을 그린다. 줄이 없으면 빈 프로필이고, 이름이 없는 예전 프로필은 줄의 닉네임을 쓴다. */
 function showFetchedProfile(rows) {
     let row = Array.isArray(rows) ? rows[0] : null;
@@ -2219,7 +2323,7 @@ function renderSocialTab() {
         stopChatPolling();
         return;
     }
-    // 채팅 창에는 대화와 입력 줄만 둔다. 닉네임, 프로필, 동기화, 접속자는 ⚙ 창(openChatSettings, 2026-10-03).
+    // 채팅 창에는 대화와 입력 줄만 둔다. 닉네임, 프로필, 동기화, 차단한 사람, 접속자는 ⚙ 창(openChatSettings, 2026-10-03).
     let draft = takeChatDraft();
     root.innerHTML = `
         ${nickname ? '' : '<div class="social-notice social-nickname-notice">닉네임을 정하면 채팅할 수 있습니다. <button type="button" onclick="promptAndSetNickname()">닉네임 정하기</button></div>'}
@@ -2249,7 +2353,7 @@ function renderSocialTab() {
 }
 
 // ============================================================================
-// 채팅 설정 창(2026-10-03 사용자 요청): 닉네임, 공개 프로필 보기와 동기화, 접속자 목록을 ⚙ 하나로 연다.
+// 채팅 설정 창(2026-10-03 사용자 요청): 닉네임, 공개 프로필 보기와 동기화, 차단한 사람(2026-10-27), 접속자 목록을 ⚙ 하나로 연다.
 // ============================================================================
 const CHAT_SETTINGS_ID = 'chat-settings-overlay';
 
@@ -2265,8 +2369,16 @@ function chatSettingsBody() {
         <div class="chat-settings-row"><span>공개 프로필</span>
             <button type="button" onclick="openMyProfilePreview()">보기</button>
             <button type="button" onclick="syncPlayerProfile()" title="지금 장비와 능력치를 공개 프로필에 올립니다">동기화</button></div>
+        ${renderBlockedUsersRow()}
         <div id="social-online" class="social-online" style="display:none;"></div>
     </div>`;
+}
+/** 이 기기에서 차단한 사람들: 이름과 풀기 단추. 없으면 줄을 두지 않는다. */
+function renderBlockedUsersRow() {
+    let blocked = getBlockedUsers();
+    if (!blocked.length) return '';
+    let chips = blocked.map(entry => `<button type="button" data-user-id="${socialEscape(entry.id)}" onclick="unblockUser(this.dataset.userId)" title="차단 풀기">${socialEscape(entry.name || entry.id.slice(0, 8))} 풀기</button>`).join('');
+    return `<div class="chat-settings-row"><span>차단한 사람</span>${chips}</div>`;
 }
 
 function openChatSettings() {
@@ -2344,7 +2456,7 @@ function injectSocialStyles() {
     .social-profile-name{font-size:1.4em;font-weight:800;color:var(--color-accent);}
     .social-profile-sub{color:var(--copy-bright);margin-top:4px;}
     .social-profile-updated{color:var(--copy-muted);font-size:12px;margin-top:4px;}
-    .social-profile-duel{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:9px;}.social-profile-duel small{color:var(--copy-muted);}
+    .social-profile-duel{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:9px;}.social-profile-duel small{color:var(--copy-muted);}.social-profile-moderation select{min-width:72px;padding:2px 6px;}
     .social-profile-col{min-width:0;}.social-profile-cols{display:grid;grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);gap:16px;}
     @media(max-width:640px){.social-profile-cols{grid-template-columns:1fr;}}
     .social-profile-col h3{color:var(--copy-bright);font-size:1em;margin:0 0 8px;}
@@ -2406,6 +2518,6 @@ if (typeof safeExposeGlobals === 'function') {
         openPlayerProfile, openMyProfilePreview, closePlayerProfile, renderSocialTab, socialLoggedInUserId, restoreNicknameFromServer,
         attachChatItem, removePendingChatItem, openItemPicker, closeItemPicker, openTipModal, updateChatCounter,
         showSocialTip, moveSocialTip, hideSocialTip, switchProfileTab, sendPresenceHeartbeat, refreshOnlineUsers,
-        checkSocialChatNotification, syncSocialChatNotificationSetting, syncSocialBackgroundTasks
+        checkSocialChatNotification, syncSocialChatNotificationSetting, syncSocialBackgroundTasks, toggleProfileBlock, unblockUser
     });
 }

@@ -412,6 +412,14 @@ const stumpBoxUi = (() => {
         unlocks: () => stumpHarvestUi.unlocksHtml(),
         talisman: () => stumpTalismanUi.unsealHtml() + stumpRipeningUi.codexHtml()
     });
+    /** A records shortcut reveals its journal without toggling a previously open tab shut. */
+    function revealMoreTab(id) {
+        if (!stumpMoreTabs().some(([key]) => key === id)) return false;
+        moreTab = id;
+        moreOpen = true;
+        renderStumpBoxTab(true);
+        return true;
+    }
     /** The tab row alone until one is pressed; pressing the open tab folds it again (2026-10-25: no scroll on the first view). */
     function stumpMoreHtml() {
         const tabs = stumpMoreTabs();
@@ -852,7 +860,8 @@ const stumpBoxUi = (() => {
     }
     /** 시작 선물은 함을 얻으면 바로 준다(2026-10-07 사용자 결정): 씨앗은 지금 룬의 원소 꽃(물리면 화염 열매), 수액은 약한 저항. */
     function grantStumpStarter() {
-        const given = stumpBox.grantStarter(game, getUiPlayerStats());
+        // The stats (the weakest resistance picks the sap) only when a starter is still owed: this runs on every map completion.
+        const given = stumpBox.starterOwed(game) ? stumpBox.grantStarter(game, getUiPlayerStats()) : [];
         if (!given.length) return given;
         game.noti.stump = true;
         lastSignature = '';
@@ -945,7 +954,7 @@ const stumpBoxUi = (() => {
         return stumpItemTipHtml(item, stumpBox.evaluate(state), -1);
     }
 
-    return { renderStumpBoxTab, refreshStumpTabNow, checkStumpBoxUnlock, tipFor, dropOnCell, dropOnStorage, claimReward,
+    return { renderStumpBoxTab, refreshStumpTabNow, revealMoreTab, checkStumpBoxUnlock, tipFor, dropOnCell, dropOnStorage, claimReward,
         itemTipHtml, previewCell, hoverCell, clearPlacementPreview };
 })();
 safeExposeGlobals({ stumpBoxUi });

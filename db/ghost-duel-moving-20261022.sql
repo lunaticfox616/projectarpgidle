@@ -15,6 +15,7 @@ create or replace function public.normalize_ghost_combat_snapshot(payload jsonb,
 returns jsonb
 language plpgsql
 immutable
+set search_path = public
 as $$
 declare
     source jsonb := coalesce(payload, '{}'::jsonb);
@@ -72,6 +73,7 @@ create or replace function public.prepare_ghost_duel_fighter(snapshot jsonb, ene
 returns jsonb
 language sql
 immutable
+set search_path = public
 as $$
     select snapshot || jsonb_build_object(
         'maxVitality', public.ghost_snapshot_number(coalesce(snapshot -> 'directEhpByElement', fallback_ehp), enemy_element,
@@ -98,6 +100,7 @@ create or replace function public.simulate_ghost_duel(left_snapshot jsonb, right
 returns jsonb
 language plpgsql
 immutable
+set search_path = public
 as $$
 -- 움직이며 싸우는 대결(2026-10-22 사용자: "실제 전투처럼 (몬스터와 전투하는것처럼) 범위,이동속도 등이 영향이 있도록 서로 움직이면서").
 -- 두 고스트는 게임의 주인공처럼 움직인다(js/combat.js updatePlayerGridEngagement). 12칸 줄에서 7칸 떨어져 선다.
@@ -324,26 +327,32 @@ begin
     select jsonb_build_object(
         -- 5: 움직이며 싸우는 대결(simulate_ghost_duel의 arena, 사건의 lx, rx)
         'combatProtocolVersion', 5,
+        'underReview', public.ghost_under_review(account_id),   -- 7일 안의 수치 기록: 순위전 점수가 멈춰 있다(2026-10-27)
         'me', (select to_jsonb(me) - 'user_id' - 'combat_snapshot' from public.ghost_profiles me where me.user_id = account_id),
         'leaderboard', coalesce((select jsonb_agg(to_jsonb(board)) from (
-            select row_number() over (order by rating desc, wins desc, updated_at asc) as rank,
-                   nickname, ascend_class, active_skill, rating, wins, losses, draws, matches,
-                   case when matches < 10 then true else false end as provisional
-              from public.ghost_profiles
-             where active and combat_version = p_combat_version
-             order by rating desc, wins desc, updated_at asc limit 50
+            select row_number() over (order by ghost.rating desc, ghost.wins desc, ghost.updated_at asc) as rank,
+                   coalesce(profile.nickname, ghost.nickname) as nickname,   -- 닉네임을 바꾸면 순위표도 따라간다(2026-10-27)
+                   ghost.ascend_class, ghost.active_skill, ghost.rating, ghost.wins, ghost.losses, ghost.draws, ghost.matches,
+                   case when ghost.matches < 10 then true else false end as provisional
+              from public.ghost_profiles ghost
+              left join public.player_profiles profile on profile.user_id = ghost.user_id
+             where ghost.active and ghost.combat_version = p_combat_version
+             order by ghost.rating desc, ghost.wins desc, ghost.updated_at asc limit 50
         ) board), '[]'::jsonb),
         'recent', coalesce((select jsonb_agg(to_jsonb(recent_match)) from (
             select match_row.created_at, match_row.ranked,
                    case when match_row.challenger_id = account_id then match_row.result
                         when match_row.result = 'win' then 'loss'
                         when match_row.result = 'loss' then 'win' else 'draw' end as result,
-                   case when match_row.challenger_id = account_id then defender.nickname else challenger.nickname end as opponent,
+                   case when match_row.challenger_id = account_id then coalesce(defender_profile.nickname, defender.nickname)
+                        else coalesce(challenger_profile.nickname, challenger.nickname) end as opponent,   -- 지금 닉네임(2026-10-27)
                    case when match_row.challenger_id = account_id then match_row.challenger_rating_after - match_row.challenger_rating_before
                         else match_row.defender_rating_after - match_row.defender_rating_before end as rating_delta
               from public.ghost_matches match_row
               join public.ghost_profiles challenger on challenger.user_id = match_row.challenger_id
               join public.ghost_profiles defender on defender.user_id = match_row.defender_id
+              left join public.player_profiles challenger_profile on challenger_profile.user_id = match_row.challenger_id
+              left join public.player_profiles defender_profile on defender_profile.user_id = match_row.defender_id
              where match_row.challenger_id = account_id or match_row.defender_id = account_id
              order by match_row.created_at desc limit 10
         ) recent_match), '[]'::jsonb)

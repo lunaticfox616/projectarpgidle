@@ -28,7 +28,7 @@ function createDefaultRecordsState(now) {
         currentLoop: null,
         loops: [],
         actBest: {},
-        echo: { bestDps: 0, bestDamage: 0, runs: 0, lastAt: 0 },
+        echo: { bestDps: 0, bestDamage: 0, runs: 0, lastAt: 0, last: null, previous: null },
         best: {},
         clearedFloorBests: true,
         clearedColonyBests: true,
@@ -59,6 +59,14 @@ function toPositiveInt(value) {
     return num > 0 ? num : 0;
 }
 
+/** @returns {{damage:number,dps:number,seconds:number}|null} Recent measurement, or null for older/invalid records. */
+function normalizeEchoMeasurement(raw) {
+    if (!raw || !Number.isFinite(raw.damage) || raw.damage < 0 || !Number.isFinite(raw.seconds) || raw.seconds <= 0 || raw.seconds > 30) return null;
+    const damage = Math.floor(raw.damage);
+    const dps = damage / raw.seconds;
+    return Number.isFinite(dps) ? { damage, seconds: raw.seconds, dps } : null;
+}
+
 function ensureRecordsState(state) {
     let g = state || (typeof game !== 'undefined' ? game : null);
     if (!g) return createDefaultRecordsState(Date.now());
@@ -78,6 +86,8 @@ function ensureRecordsState(state) {
     r.echo.bestDamage = Math.max(0, Number(r.echo.bestDamage) || 0);
     r.echo.runs = toPositiveInt(r.echo.runs);
     r.echo.lastAt = toPositiveInt(r.echo.lastAt);
+    r.echo.last = normalizeEchoMeasurement(r.echo.last);
+    r.echo.previous = normalizeEchoMeasurement(r.echo.previous);
     if (r.currentLoop && typeof r.currentLoop === 'object') {
         r.currentLoop.startedAt = toPositiveInt(r.currentLoop.startedAt) || now;
         r.currentLoop.actClears = (r.currentLoop.actClears && typeof r.currentLoop.actClears === 'object')
@@ -174,10 +184,12 @@ function recordActClear(zoneId, state) {
 // ── 나무꾼의 잔상 ───────────────────────────────────────────────────
 // 잔상은 이미 자체 최고 DPS를 들고 있지만 그건 현재 판 상태다. 전적에는 시도 횟수와
 // 마지막 측정 시각까지 남겨, 빌드를 바꿔가며 잰 흐름을 볼 수 있게 한다.
-function recordWoodsmanEchoRun(totalDamage, dps, state) {
+function recordWoodsmanEchoRun(totalDamage, dps, state, seconds = 30) {
     let g = state || (typeof game !== 'undefined' ? game : null);
     if (!g) return;
     let r = ensureRecordsState(g);
+    r.echo.previous = r.echo.last;
+    r.echo.last = normalizeEchoMeasurement({ damage: totalDamage, seconds });
     r.echo.runs = toPositiveInt(r.echo.runs) + 1;
     r.echo.lastAt = Date.now();
     r.echo.bestDps = Math.max(r.echo.bestDps, Math.max(0, Number(dps) || 0));
@@ -227,6 +239,17 @@ function closeLoopRecord(path, state) {
 // ── 화면이 쓰는 읽기 모델 ───────────────────────────────────────────
 // UI는 이 결과만 읽는다. 화면이 게임 상태를 직접 훑지 않게 해서, 표시 형식이 바뀌어도
 // 기록 규칙은 그대로 두고, 기록 규칙이 바뀌어도 화면은 한 곳만 고치면 되게 한다.
+/** Compare two full 30-second measurements only; an early target defeat has a different time window. */
+function echoMeasurementChange(echo) {
+    const { last, previous } = echo;
+    if (!last || !previous || last.seconds !== 30 || previous.seconds !== 30 || previous.dps <= 0) return null;
+    const change = (last.dps / previous.dps - 1) * 100;
+    return Number.isFinite(change) ? change : null;
+}
+function echoRecordsView(echo) {
+    return { ...echo, last: echo.last && { ...echo.last }, previous: echo.previous && { ...echo.previous }, changePct: echoMeasurementChange(echo) };
+}
+
 function getRecordsView(state) {
     let g = state || (typeof game !== 'undefined' ? game : null);
     if (!g) return null;
@@ -256,7 +279,7 @@ function getRecordsView(state) {
             averageMs
         },
         actBest: { ...r.actBest },
-        echo: { ...r.echo },
+        echo: echoRecordsView(r.echo),
         best: getAchievedRecordBests(r.best),
         incidents: ACT_EXPLORATION_INCIDENTS.records.map(([key, name, hidden]) => ({ key, name, hidden, count: toPositiveInt(r.incidents[key]) }))
     };

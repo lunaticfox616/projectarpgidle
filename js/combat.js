@@ -1069,33 +1069,44 @@ function keepEarnedWoodsmanPoints(snap) {
     }
 }
 
+/** The build fields the lock holds: [field, default]. The support lock state (sealed and summon gems) is read through lockState below. */
+const WOODSMAN_LOCKED_FIELDS = Object.freeze([
+    ['passives', []], ['passiveAttributeChoices', {}], ['ascendNodes', []], ['ascendKeystones', []], ['equipment', {}], ['inventory', []],
+    ['skills', []], ['supports', []], ['equippedSupports', []], ['supportGemData', {}], ['playerLeechInstances', []],
+    ['playerRecoupInstances', []], ['gemData', {}], ['jewelInventory', []]
+]);
+const WOODSMAN_LOCKED_POINTS = Object.freeze(['passivePoints', 'seasonPoints', 'ascendPoints', 'ascendKeystonePoints', 'scour']);
+/** The snapshot's fields as JSON, built once per snapshot object (the lock runs every tick). */
+const woodsmanSnapshotPrints = new WeakMap();
+function woodsmanSnapshotPrint(snap) {
+    let prints = woodsmanSnapshotPrints.get(snap);
+    if (prints) return prints;
+    prints = {};
+    for (const [field, fallback] of WOODSMAN_LOCKED_FIELDS) prints[field] = JSON.stringify(snap[field] || fallback);
+    const lock = window.GameModules.combat.supports.lockState(snap);
+    for (const key of Object.keys(lock)) prints[key] = JSON.stringify(lock[key]);
+    woodsmanSnapshotPrints.set(snap, prints);
+    return prints;
+}
+/** Every tick of the fight: a field that drifted from the entry snapshot goes back to it. Only the drifted field is copied back
+ * (2026-10-26: the whole build was deep-cloned into game ten times a second, so during the fight the bag, gear and gems were fresh
+ * objects every tick, the per-object stat memos never hit, and a big bag made a few hundred KB of garbage per tick). */
 function enforceWoodsmanBuildLock() {
     if (!game.woodsmanBuildLock || !game.woodsmanBuildSnapshot) return;
     let snap = game.woodsmanBuildSnapshot;
     keepEarnedWoodsmanPoints(snap);
-    game.passives = JSON.parse(JSON.stringify(snap.passives));
+    const prints = woodsmanSnapshotPrint(snap);
     game.passiveAttributePreference = snap.passiveAttributePreference || 'strength';
-    game.passiveAttributeChoices = JSON.parse(JSON.stringify(snap.passiveAttributeChoices || {}));
-    game.ascendNodes = JSON.parse(JSON.stringify(snap.ascendNodes));
-    game.ascendKeystones = JSON.parse(JSON.stringify(snap.ascendKeystones));
-    game.passivePoints = Math.floor(snap.passivePoints || 0);
-    game.seasonPoints = Math.floor(snap.seasonPoints || 0);
-    game.ascendPoints = Math.floor(snap.ascendPoints || 0);
-    game.ascendKeystonePoints = Math.floor(snap.ascendKeystonePoints || 0);
-    game.scour = Math.floor(snap.scour || 0);
-    game.equipment = JSON.parse(JSON.stringify(snap.equipment));
-    game.inventory = JSON.parse(JSON.stringify(snap.inventory));
-    game.skills = JSON.parse(JSON.stringify(snap.skills));
+    for (const key of WOODSMAN_LOCKED_POINTS) game[key] = Math.floor(snap[key] || 0);
     game.activeSkill = snap.activeSkill;
     game.mobilitySkill = snap.mobilitySkill;
-    game.supports = JSON.parse(JSON.stringify(snap.supports));
-    game.equippedSupports = JSON.parse(JSON.stringify(snap.equippedSupports));
-    Object.assign(game, JSON.parse(JSON.stringify(window.GameModules.combat.supports.lockState(snap))));
-    game.supportGemData = JSON.parse(JSON.stringify(snap.supportGemData));
-    game.playerLeechInstances = JSON.parse(JSON.stringify(snap.playerLeechInstances || []));
-    game.playerRecoupInstances = JSON.parse(JSON.stringify(snap.playerRecoupInstances || []));
-    game.gemData = JSON.parse(JSON.stringify(snap.gemData));
-    game.jewelInventory = JSON.parse(JSON.stringify(snap.jewelInventory));
+    for (const [field, fallback] of WOODSMAN_LOCKED_FIELDS) {
+        if (JSON.stringify(game[field] || fallback) !== prints[field]) game[field] = JSON.parse(prints[field]);
+    }
+    const lock = window.GameModules.combat.supports.lockState(game);
+    for (const key of Object.keys(lock)) {
+        if (JSON.stringify(lock[key]) !== prints[key]) game[key] = JSON.parse(prints[key]);
+    }
 }
 
 function clearWoodsmanBuildLock() {
@@ -1115,16 +1126,67 @@ function holdWoodsmanBuildLock(say) {
     clearWoodsmanBuildLock();
     say('☠️ 혼돈 밖을 떠나 나무꾼 전투를 중단했습니다. 세팅 잠금이 해제되었습니다.', 'season-up');
 }
+/** Colony attempt controls live with combat. Wards and their reward rolls stay in colonyWards. */
+window.GameModules.colonyRun = (() => {
+    const nextBossWave = colony => Math.ceil(Math.max(1, colony.wave) / 5) * 5;
+    const returnWave = colony => colony.lootPending ? Math.max(5, colony.wave - 1) : nextBossWave(colony);
+    function uncollected() {
+        const run = getColonyRoomRun();
+        return { held: game.colony.pendingLoot.length, floor: run ? run.groundLoot.length : 0 };
+    }
+    function toggleReturn() {
+        const colony = game.colony;
+        if (!colony.inRun || game.currentZoneId !== 'colony_run') return false;
+        colony.returnAfterWave = colony.returnAfterWave ? 0 : returnWave(colony);
+        queueImportantSave(200);
+        return true;
+    }
+    /** End receipts record completed waves and only the unreleased loot that is actually forfeited. */
+    function recordEnd(kind) {
+        const colony = game.colony;
+        if (!colony.inRun || !['withdraw', 'scheduled', 'left', 'core', 'defeat'].includes(kind)) return null;
+        colony.lastResult = { kind, wave: colony.wave, completed: Math.max(0, colony.wave - 1), lostHeld: colony.pendingLoot.length };
+        colony.returnAfterWave = 0;
+        return colony.lastResult;
+    }
+    /** The log line for a colony run's end: leaving by travel is not a withdrawal. */
+    function endLine(kind, result) {
+        if (kind === 'left') return '🪲 군락지를 떠났습니다.';
+        return result.completed ? `🪲 군락지 ${result.completed}웨이브를 마치고 철수했습니다.` : '🪲 군락지에서 철수했습니다.';
+    }
+    function finish(kind = 'withdraw', move = true, say = addLog) {
+        const colony = game.colony;
+        if (move && game.currentZoneId !== 'colony_run') return false;
+        const result = recordEnd(kind);
+        if (!result) return false;
+        const returnZone = colony.returnZoneId ?? getAutoProgressZoneId(game.maxZoneId);
+        // Won floor loot is settled by this existing owner; the unreleased buffer is forfeited.
+        actExplorationState.groundLoot.discardEncounter(game, 'colony_run');
+        Object.assign(colony, { inRun: false, lootPending: false, bossLootCell: null, returnZoneId: null });
+        if (move) {
+            game.currentZoneId = returnZone;
+            game.enemies = []; game.encounterPlan = []; game.encounterIndex = 0; game.runProgress = 0;
+            actExplorationProgress.depart(game);
+        }
+        say(endLine(kind, result), 'season-up');
+        pendingHeavyUiRefresh = true;
+        queueImportantSave(200);
+        return true;
+    }
+    function finishScheduled(run) {
+        const colony = game.colony;
+        if (!colony.inRun || !colony.returnAfterWave || colony.wave <= colony.returnAfterWave || colony.lootPending) return false;
+        const floor = run ? run.groundLoot.length : 0;
+        if (colony.pendingLoot.length || floor || countColonyWaveAlive()) return false;
+        return finish('scheduled');
+    }
+    return Object.freeze({ returnWave, uncollected, toggleReturn, recordEnd, finish, finishScheduled });
+})();
+
 /** A colony run goes on only in 군락지: a hero who left it (travel, a map, the deep sea) ended the run there, rewards kept, and the next
  * entry starts at wave 1. Unlike 철수 it moves nobody. */
 function endColonyRunLeftBehind(say) {
-    const c = game.colony;
-    actExplorationState.groundLoot.discardEncounter(game,'colony_run');
-    c.inRun = false;
-    c.lootPending = false;
-    c.bossLootCell = null;
-    c.returnZoneId = null;
-    say(`🪲 군락지를 떠나 원정을 마쳤습니다(완료 ${Math.max(0, Math.floor(c.wave || 1) - 1)}웨이브). 획득 보상은 유지됩니다.`, 'season-up');
+    window.GameModules.colonyRun.finish('left', false, say);
 }
 /** A grand breach run goes on only in its own zone: a hero who left it lost the run, as a defeat does (nobody moved). Left on, the
  * panel showed no entry for the next breach and auto entry (breach and meteor) waited for the loop to end. */
@@ -1140,6 +1202,12 @@ function holdZoneBoundRuns(say) {
     if (game.colony?.inRun && game.currentZoneId !== 'colony_run') endColonyRunLeftBehind(say);
     const grand = game.voidRift?.grandRun;
     if (grand?.inRun && game.currentZoneId !== 'grand_breach_run') endGrandBreachLeftBehind(grand, say);
+    holdWoodsmanEchoRun();
+}
+function holdWoodsmanEchoRun() {
+    if (game.woodsmanEchoRun?.active && game.currentZoneId !== WOODSMAN_ECHO_ZONE_ID) {
+        Object.assign(game.woodsmanEchoRun, { active: false, timeLeft: 0, returnZoneId: null });
+    }
 }
 
 
@@ -1292,6 +1360,7 @@ function tickColonyRun(pStats) {
         return;
     }
     finishColonyLootWait(run);
+    if (window.GameModules.colonyRun.finishScheduled(run)) return;
     if(!settling && !game.colony.lootPending && countColonyWaveAlive()===0)spawnColonyWave();
     if(getColonyRoomRun())actExplorationProgress.advance(pStats);
 }
@@ -1319,6 +1388,7 @@ function failColonyDefense() {
     if(!colony?.inRun)return;
     const failedWave=Math.max(1,Math.floor(colony.wave || 1));
     const returnZoneId=defeatReturnZone(colony.returnZoneId);
+    window.GameModules.colonyRun.recordEnd('core');
     Object.assign(colony,{coreHp:0,failedWave,inRun:false,returnZoneId:null});
     colony.lootPending=false;
     colony.bossLootCell=null;
@@ -2372,12 +2442,15 @@ function resumeHaltedCombat() {
         ? isBeehiveRunLockedForMapTravel()
         : (!!beehive.inRun && game.currentZoneId === 'beehive_run');
     const beehivePause = !!(beehiveLocked && game.currentZoneId === 'beehive_run' && !beehive.awaitingClear);
-    if (beehivePause || game.inTicketBossFight || isManualCombatStop()) return false;
+    if (beehivePause || game.inTicketBossFight || isCombatProgressStopped()) return false;
     game.combatHalted = false;
     return true;
 }
-const isManualCombatStop = () => (game.settings.mapCompleteAction || 'nextZone') === 'stop' || (game.settings.townReturnAction || 'retry') === 'stop'
-    || !!game.pendingLoopDecision || !!game.pendingLoopReady;
+function isCombatProgressStopped(zone = getZone(game.currentZoneId)) {
+    const settings = game.settings || {};
+    return settings.mapCompleteAction === 'stop' || settings.townReturnAction === 'stop'
+        || !!game.pendingLoopDecision || !!game.pendingLoopReady || isSkyTowerAtRewardLimit(zone);
+}
 
 /** The tick's recovery: life regen (under a bloom trial's suppression), act rest, the delayed guard heal, leech, recoup, and the
  * energy shield. */
@@ -6112,8 +6185,19 @@ function getZoneDefenseVariance(zone) {
     return (seed - 3) * 0.02;
 }
 
+const zoneElementWardProfiles = new Map(); // zone type, id and name -> the profile below (read only by applyZoneElementWard)
+/** A zone's element ward (the resistance its monsters share), fixed by the zone's id or name; built once per zone (two string hashes
+ * for every spawned monster before). */
 function getZoneElementWardProfile(zone) {
     if (!zone) return null;
+    const cacheKey = zone.type + '|' + zone.id + '|' + zone.name;
+    if (zoneElementWardProfiles.has(cacheKey)) return zoneElementWardProfiles.get(cacheKey);
+    if (zoneElementWardProfiles.size >= 512) zoneElementWardProfiles.clear();
+    const profile = rollZoneElementWardProfile(zone);
+    zoneElementWardProfiles.set(cacheKey, profile);
+    return profile;
+}
+function rollZoneElementWardProfile(zone) {
     let specialBossZone = zone.type === 'outsideChaos'
         || zone.id === 'beehive_run'
         || zone.id === 'grand_breach_run'
@@ -9376,6 +9460,8 @@ function seatOceanGuardianArena(zone, run) {
 
 function startMoving(isTown) {
     cosmosRouteRuntime.reconcileDeparture(game);
+    // End a run left behind before its floor owner clears unreleased loot and opens the destination.
+    holdZoneBoundRuns(addLog);
     let returnDepartureCell = isTown && hasGridCell(game.gridPlayer)
         ? copyCombatGridCell(game.gridPlayer)
         : null;
@@ -9484,6 +9570,10 @@ function finishTownReturnAction() {
 
 function returnToTown() {
     if (game.isTownReturning && game.moveTimer > 0) return;
+    const returningFromRun = ['grand_breach_run', 'colony_run'].includes(game.currentZoneId);
+    const run = game.currentZoneId === 'grand_breach_run' ? game.voidRift.grandRun : game.colony;
+    if (returningFromRun) game.currentZoneId = run?.returnZoneId ?? getAutoProgressZoneId(game.maxZoneId);
+    leaveWoodsmanEchoForTown();
     atlasRun.leave('마을 귀환');
     cosmosRouteRuntime.leave(game);
     let pStats = getPlayerStats();
@@ -9494,6 +9584,7 @@ function returnToTown() {
     addLog('⛺ 마을 귀환', "season-up");
     startMoving(true);
     updateStaticUI();
+    if (returningFromRun) queueImportantSave(200);
 }
 
 /** 전술 규칙의 마을 귀환(예전 귀환 룬): 규칙은 열린 지도의 마지막 포털을 쓰지 않는다(죽지 않고 지도가 닫히므로). */
@@ -9515,6 +9606,10 @@ function runReturnRules(pStats, now = getCombatTime()) {
 
 function ensureEncounterRun() {
     if(actExplorationState.current(game))return;
+    if(game.combatHalted && isSkyTowerAtRewardLimit(getZone(game.currentZoneId))) {
+        prepareActExplorationArrival();
+        return;
+    }
     if (game.moveTimer <= 0 && (!game.encounterPlan || game.encounterPlan.length === 0)) startEncounterRun();
 }
 
@@ -9524,14 +9619,13 @@ function isRegularAutoProgressZone(zone) {
     if (typeof zone.id === 'string' && zone.id.includes('_boss_')) return false;
     return ['act', 'abyss', 'trial', 'meteor', 'labyrinth', 'chaosRealm', 'skyTower'].includes(zone.type);
 }
-
 function reconcileMapProgressRuntimeState() {
     if(actExplorationState.current(game))return false;
     if (typeof reconcileBeehiveRunState === 'function') reconcileBeehiveRunState();
     let zone = getZone(game.currentZoneId) || getZone(0);
     if (!isRegularAutoProgressZone(zone)) return false;
     let changed = false;
-    let explicitStop = (game.settings && ((game.settings.mapCompleteAction || 'nextZone') === 'stop' || (game.settings.townReturnAction || 'retry') === 'stop')) || !!game.pendingLoopDecision || !!game.pendingLoopReady;
+    let explicitStop = isCombatProgressStopped(zone);
     if (game.inTicketBossFight) {
         game.inTicketBossFight = false;
         changed = true;
@@ -9648,9 +9742,20 @@ function takeWoodsmanEchoReturnZone(run) {
     run.returnZoneId = null;
     return back !== undefined && back !== null ? back : getAutoProgressZoneId(game.maxZoneId);
 }
+/** 귀환은 측정 완료가 아니다. 기록을 남기지 않고 출발한 지역의 재정비 흐름으로 돌아간다. */
+function leaveWoodsmanEchoForTown() {
+    if (game.currentZoneId !== WOODSMAN_ECHO_ZONE_ID) return;
+    const run = ensureWoodsmanEchoRunState();
+    run.active = false;
+    run.timeLeft = 0;
+    actExplorationProgress.depart(game);
+    game.currentZoneId = takeWoodsmanEchoReturnZone(run);
+}
 function finishWoodsmanEchoRun() {
     let run = ensureWoodsmanEchoRunState();
-    let elapsed = Math.max(0.001, run.duration - Math.max(0, run.timeLeft || 0));
+    if (!run.active || game.currentZoneId !== WOODSMAN_ECHO_ZONE_ID) return;
+    run.timeLeft = Math.max(0, run.timeLeft - Math.max(0, (getCombatTime() - run.lastTickAt) / 1000));
+    let elapsed = Math.max(0.1, run.duration - run.timeLeft);
     let dps = run.totalDamage / elapsed;
     run.bestDps = Math.max(run.bestDps || 0, dps);
     run.active = false;
@@ -9659,7 +9764,7 @@ function finishWoodsmanEchoRun() {
     game.combatHalted = false;
     actExplorationProgress.depart(game);
     game.currentZoneId = takeWoodsmanEchoReturnZone(run);
-    if (typeof recordWoodsmanEchoRun === 'function') recordWoodsmanEchoRun(run.totalDamage, dps);
+    recordWoodsmanEchoRun(run.totalDamage, dps, game, elapsed);
     addLog(`🪵 나무꾼의 잔상: 총 피해 ${Math.floor(run.totalDamage).toLocaleString()}, 최종 DPS ${Math.floor(dps).toLocaleString()} (최고 ${Math.floor(run.bestDps).toLocaleString()})`, 'season-up');
     updateStaticUI();
 }
@@ -10416,7 +10521,7 @@ function loopStarterGemName() {
 /** The starter gem reaches the hero (picked up, or settled from a dropped map's floor): the gem, its record, the gem tab, and in a
  * first loop the pending equip guide (js/content-progression-ui.js announceStarterGem). @returns {boolean} whether it went in. */
 function receiveStarterGem(state, gemName) {
-    if (!SKILL_DB[gemName] || state.skills.includes(gemName)) return false;
+    if (!SKILL_DB[gemName] || hasSkillGemOwned(gemName, state)) return false; // 봉인해 둔 같은 룬이 있으면 두 목록에 겹쳤다
     state.skills.push(gemName);
     state.gemData[gemName] = state.gemData[gemName] || { level: 1, exp: 0 };
     state.unlocks.skills = true;
@@ -10434,15 +10539,28 @@ function wearStarterGemWithoutGuide(state, gemName) {
 }
 
 
+/** Resolve a live victim once; a defeated training target finishes its measurement without becoming a rewarded kill. */
+function resolveEnemyDeath(enemy) {
+    if (!enemy || !Number.isFinite(enemy.id)) return null;
+    const liveRef = (game.enemies || []).find(entry => entry && entry.id === enemy.id);
+    // 이미 처리되어 enemies 배열에서 제거된 적(중복 재귀 호출)은 무시한다.
+    if (!liveRef || liveRef.hp > 0) return null;
+    enemy = liveRef;
+    // A training target is not a kill: no experience, loot, growth or on-kill rewards.
+    if (game.currentZoneId === WOODSMAN_ECHO_ZONE_ID) {
+        const run = ensureWoodsmanEchoRunState();
+        run.totalDamage = Math.max(run.totalDamage, Math.floor(enemy.echoStartHp || enemy.maxHp));
+        finishWoodsmanEchoRun();
+        return null;
+    }
+    return enemy;
+}
 /** A monster's death, once: it leaves the field, the kill is counted, rewards are given, kill effects and content runs advance, and
  * monsters a kill effect brought to 0 die in turn. 2026-10-18 split into the steps below (it was one function of complexity 151);
  * the order of every random roll is kept. */
 function handleEnemyDeath(enemy, pStats) {
-    if (!enemy || !Number.isFinite(enemy.id)) return;
-    let liveRef = (game.enemies || []).find(entry => entry && entry.id === enemy.id);
-    // 이미 처리되어 enemies 배열에서 제거된 적(중복 재귀 호출)은 무시한다.
-    if (!liveRef || liveRef.hp > 0) return;
-    enemy = liveRef;
+    enemy = resolveEnemyDeath(enemy);
+    if (!enemy) return;
     // Rewards below change build inputs under one settlement memo revision: stats asked for until the end are not kept.
     playerStatCache.beginEvent();
     // Retire the victim before rewards or corpse explosions can recursively report it again.
@@ -10669,7 +10787,7 @@ function completeColonyWave(zone, say, lastEnemy) {
     repairColonyDefenseCore();
     // The same arena raises the next wave on the next tick; a legacy board still spawns now.
     if (!getColonyRoomRun() && !game.colony.lootPending) spawnColonyWave();
-    say(`🪲 군락지 ${completedWave}웨이브 완료! 군락지 편린 +${shardReward}${completedWave % 10 === 0 ? ', 군락지 흔적 +1' : ''}, 다음 웨이브 ${game.colony.wave} 시작.`, 'loot-magic');
+    say(`🪲 군락지 ${completedWave}웨이브 완료. 군락지 편린 +${shardReward}${completedWave % 10 === 0 ? ', 군락지 흔적 +1' : ''}`, 'loot-magic');
     queueImportantSave(200);
 }
 function releaseCompletedColonyWaveLoot(completedWave,lastEnemy) {
@@ -10981,6 +11099,11 @@ function resolvePlayerApproachTarget(alive) {
 }
 // Called only after a map/floor payout, never between waves of a committed expedition.
 function continueMapAfterClear(zone) {
+    if (isSkyTowerAtRewardLimit(zone)) {
+        actExplorationProgress.stopAfterCompletion(game);
+        game.moveTimer = 0;
+        return;
+    }
     if (game.settings.mapCompleteAction === 'stop') {
         game.combatHalted = true;
         game.moveTimer = 0;
@@ -11093,27 +11216,31 @@ function getBeyondBoundaryCompletionRewardContext(result) {
 
 /** Every 10 underworld floors: rune slots (to 6) and rune numbers (to 30) through floor 300; past it, rune growth materials. */
 function grantUnderworldFloorMilestone(floor, progress) {
-    if (floor > UNDERWORLD_DEEP_FLOOR_REWARD.fromFloor) return grantUnderworldDeepFloorReward(floor, progress);
-    if (floor % 10 !== 0) return;
+    const reward = window.GameModules.state.underworldMilestoneReward(floor);
+    if (!reward) return;
+    if (!reward.rune) return grantUnderworldDeepFloorReward(floor, progress);
     let runeState = game.underworldRunes;
-    let unlockTier = Math.floor(floor / 10);
     let prevSlots = Math.max(0, Math.floor(runeState.unlockedSlots || 0));
     let prevMaxRuneNo = Math.max(0, Math.floor(runeState.unlockedRunesMaxNumber || 0));
-    runeState.unlockedSlots = Math.min(6, Math.max(prevSlots, unlockTier));
-    runeState.unlockedRunesMaxNumber = Math.min(30, Math.max(prevMaxRuneNo, unlockTier));
-    if (runeState.unlockedSlots > prevSlots || runeState.unlockedRunesMaxNumber > prevMaxRuneNo) {
-        dispatchRuntimeEvent('underworld-milestone', { floor, text: `🧿 지하계 ${floor}층 보상: 지하석 슬롯 ${runeState.unlockedSlots}/6, 지하석 번호 1~${runeState.unlockedRunesMaxNumber} 해금` });
+    runeState.unlockedSlots = Math.min(6, Math.max(prevSlots, reward.slots));
+    runeState.unlockedRunesMaxNumber = Math.min(30, Math.max(prevMaxRuneNo, reward.rune.no));
+    const lines = [];
+    if (runeState.unlockedRunesMaxNumber > prevMaxRuneNo) {
+        runeState.obtainedRunes.push(reward.rune.no);
+        lines.push(`${reward.rune.name} 지하석 1개`);
     }
+    if (runeState.unlockedSlots > prevSlots) lines.push(`지하석 슬롯 ${runeState.unlockedSlots}/6`);
+    if (lines.length) dispatchRuntimeEvent('underworld-milestone', { floor, text: `🧿 지하계 ${floor}층 보상: ${lines.join(', ')}` });
 }
 
 /** Past floor 300 (data/constants.js UNDERWORLD_DEEP_FLOOR_REWARD), each `every`-th floor pays rune materials once:
  * progress.deepRewardFloor keeps the deepest paid floor, so repeating a floor pays nothing. */
 function grantUnderworldDeepFloorReward(floor, progress) {
-    const rule = UNDERWORLD_DEEP_FLOOR_REWARD, depth = floor - rule.fromFloor;
-    const paid = Math.max(rule.fromFloor, Math.floor(Number(progress.deepRewardFloor) || 0));
-    if (depth % rule.every !== 0 || floor <= paid) return;
+    const reward = window.GameModules.state.underworldMilestoneReward(floor);
+    const paid = Math.max(UNDERWORLD_DEEP_FLOOR_REWARD.fromFloor, Math.floor(Number(progress.deepRewardFloor) || 0));
+    if (!reward || floor <= paid) return;
     progress.deepRewardFloor = floor;
-    const shards = Math.floor(rule.runeShard[0] + rule.runeShard[1] * depth), gold = Math.floor(rule.underGold[0] + rule.underGold[1] * depth);
+    const { runeShard: shards, underGold: gold } = reward.currencies;
     awardCurrency('runeShard', shards);
     awardCurrency('underGold', gold);
     dispatchRuntimeEvent('underworld-milestone', { floor, text: `🧿 지하계 ${floor}층 보상: 지하석 조각 ${shards}, 금 ${gold}` });
@@ -11347,10 +11474,11 @@ function finishChaosRealmEncounter(zone, mapAction, ui) {
 function finishSkyTowerEncounter(zone, mapAction, ui) {
     let st = ensureSkyTowerState();
     let floor = Math.max(1, Math.floor(zone.floor || st.currentFloor || 1));
-    game.loopProgressCurrent.bestSkyFloor = Math.max(game.loopProgressCurrent.bestSkyFloor || 0, floor);
     let remainingBefore = getSkyTowerRemainingClears();
-    if (remainingBefore > 0) clearSkyTowerFloor(st, floor, mapAction, ui);
-    else ui.say(`☁️ 창공의 탑 ${floor}층 도전 완료. 이번 루프의 클리어 보상/진행 한도는 모두 사용했습니다.`, 'attack-monster');
+    const kind = remainingBefore === 0 ? 'practice' : st.clearedFloors.includes(floor) ? 'repeat' : 'first';
+    const reward = remainingBefore > 0 ? clearSkyTowerFloor(st, floor, mapAction, ui) : 0;
+    if (remainingBefore === 0) ui.say(`☁️ 창공의 탑 ${floor}층 연습 완료.`, 'season-up');
+    st.lastResult = { season: game.season, floor, kind, condensedPower: reward };
     game.killsInZone = 0;
     game.currentZoneId = SKY_TOWER_ZONE_ID;
     continueMapAfterClear(zone);
@@ -11359,6 +11487,7 @@ function finishSkyTowerEncounter(zone, mapAction, ui) {
 }
 /** A sky tower floor within this loop's clear limit: a first clear's reward and the next floor, else a 16% repeat reward. */
 function clearSkyTowerFloor(st, floor, mapAction, ui) {
+    game.loopProgressCurrent.bestSkyFloor = Math.max(game.loopProgressCurrent.bestSkyFloor || 0, floor);
     st.clearedFloors = Array.isArray(st.clearedFloors) ? st.clearedFloors : [];
     let firstClear = !st.clearedFloors.includes(floor);
     let reward = firstClear ? firstSkyTowerClear(st, floor, mapAction) : repeatSkyTowerClear(st, floor, mapAction);
@@ -11368,6 +11497,7 @@ function clearSkyTowerFloor(st, floor, mapAction, ui) {
         ? `최초 클리어 보상: 응축된 창공의 정수 +${reward}`
         : (reward > 0 ? `반복 클리어 보상: 응축된 창공의 정수 +${reward}` : '반복 클리어: 응축된 창공의 정수 미발견');
     ui.say(`☁️ 창공의 탑 ${floor}층 돌파! ${rewardText}, 이번 루프 잔여 클리어 ${getSkyTowerRemainingClears()}/${getSkyTowerLoopClearLimit()}`, reward > 0 ? 'loot-unique' : 'season-up');
+    return reward;
 }
 function firstSkyTowerClear(st, floor, mapAction) {
     let reward = getSkyTowerRewardAmount(floor);
@@ -11530,12 +11660,16 @@ function departSeasonBoss(zone, ui) {
 
 function finishLabyrinthEncounter(zone, mapAction, ui) {
     let clearedFloor = Math.max(1, Math.floor(game.labyrinthFloor || zone.floor || 1));
+    const currenciesBefore = { ...game.currencies };
     if (clearedFloor >= 10) unlockJournalEntry('labyrinth_10');
     recordLoopBestFloor('bestLabyrinthFloor', clearedFloor);
     game.labyrinthUnlockedMaxFloor = Math.max(game.labyrinthUnlockedMaxFloor || 1, clearedFloor + 1);
     game.labyrinthFloor = ['repeatZone', 'stop'].includes(mapAction) ? clearedFloor : clearedFloor + 1;
     let fossilSummary = rollLabyrinthFossils(clearedFloor, ui);
     rollLabyrinthSealShards(clearedFloor);
+    game.labyrinthLastResult = { season: game.season, floor: clearedFloor,
+        currencies: Object.fromEntries(Object.keys(ORB_DB).map(key => [key, (game.currencies[key] || 0) - (currenciesBefore[key] || 0)])
+            .filter(([, gain]) => gain > 0)) };
     ui.say(`🏛️ 미궁 ${clearedFloor}층 돌파!${labyrinthFossilNote(fossilSummary)}`, 'season-up');
     if (mapAction === 'nextLoopBestPlusOne') {
         let nextZone = resolveNextLoopBestPlusOneZone(zone);
@@ -13035,9 +13169,12 @@ function defeatInOceanDive(zone, message, opts, ui) {
     clearDefeatedEncounter();
     forceSurfaceOcean(guardian ? 'guardian' : 'defeat');
 }
-/** Leaves the encounter: no enemies, plan or progress left. */
+/** Leaves the encounter (a defeat, the loop gate): no enemies, plan or progress left. On an exploration map the fighters go back to
+ * their packs (waiting), as when a hunt leaves the map: emptying the list alone left the packs counting monsters the save no longer held,
+ * and that save would not load (2026-10-27, the loop gate and a save round-trip sweep). */
 function clearDefeatedEncounter() {
-    game.enemies = [];
+    if (actExplorationState.current(game)) actExplorationState.retireCombat(game);
+    else game.enemies = [];
     game.encounterPlan = [];
     game.encounterIndex = 0;
     game.runProgress = 0;
@@ -13059,6 +13196,7 @@ function defeatAgainstWoodsman(zone, message, opts, ui) {
 }
 function defeatInColony(zone, message, opts, ui) {
     ui.say(message || "☠️ 군락지 방어전에서 패배했습니다.", "death", { noToast: !!opts.noToast });
+    window.GameModules.colonyRun.recordEnd('defeat');
     actExplorationState.groundLoot.discardEncounter(game,'colony_run');
     game.colony.inRun = false;
     game.colony.lootPending = false;
@@ -14551,6 +14689,8 @@ function dressWoodsmanEchoDummy(dummy) {
     dummy.hp = dummy.maxHp;
     dummy.echoStartHp = dummy.maxHp;
     dummy.noAttack = true;
+    dummy.regenRate = 0;
+    dummy.regenBank = 0;
     return dummy;
 }
 
@@ -14835,6 +14975,7 @@ function resetLoopBuild() {
     game.mobilitySkill = '';
     game.loopStarterGemGranted = false;
     game.pendingStarterRuneChoice = null;
+    game.starterGemTutorialPending = null; // 루프 1의 장착 안내 표시가 남아 다음 루프의 그 룬 봉인을 막았다
     game.gemData = { '기본 공격': { level: 1, exp: 0 } };
     game.skyGemEnhancements = {};
     game.supports = [];
@@ -14880,6 +15021,7 @@ function resetLoopItems(kept, codexReveal) {
     if (preservedWoodsmanTouch > 0) game.currencies.ouroboros = preservedWoodsmanTouch;
     game.woodsmanTouchSeen = preservedWoodsmanTouchSeen;
     game.labyrinthFloor = 1;
+    game.labyrinthLastResult = null;
     game.labyrinthUnlockedMaxFloor = Math.max(1, Math.floor(prevLabMax || 1));
     game.jewelInventory = [];
     game.abyssClearedDepths = [];
@@ -14924,6 +15066,7 @@ function resetLoopContents(kept) {
     forgetOceanAutoDive(game.ocean);
     game.skyTower.loopSeason = Math.max(1, Math.floor(game.season || 1));
     game.skyTower.clearedThisLoop = 0;
+    game.skyTower.lastResult = null;
     game.gemEnhanceUnlocked = preservedGemEnhanceUnlocked;
     game.inTicketBossFight = false;
 }
@@ -14951,10 +15094,7 @@ function handleSeasonLoopConditionMet() {
     // Reached while nobody watched (offline / hidden-tab replay): the auto-loop leaves this gate to the player.
     game.loopGateOffline = !!game.isBackgroundCalculation;
     game.combatHalted = true;
-    game.enemies = [];
-    game.encounterPlan = [];
-    game.encounterIndex = 0;
-    game.runProgress = 0;
+    clearDefeatedEncounter();
     addLog(`루프 ${game.season || 1} 달성. 이번 여정의 기록과 다음 해금 요소를 확인하세요.`, 'season-up');
     updateStaticUI();
 }

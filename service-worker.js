@@ -11,6 +11,14 @@ function shouldRefreshFromNetwork(request) {
     return request.mode === 'navigate' || NETWORK_FIRST_DESTINATIONS.has(request.destination);
 }
 
+/** Older copies of the same file (other ?v= keys from earlier releases) go once the new one is stored. The cache kept one entry per
+ * release of every script and style, so it grew by the changed files on each deploy and was never trimmed (2026-10-26). */
+async function dropOtherVersions(cache, request) {
+    for (const stored of await cache.keys(request, { ignoreSearch: true })) {
+        if (stored.url !== request.url) await cache.delete(stored);
+    }
+}
+
 async function fetchLatestOrCached(request) {
     const cache = await caches.open(RUNTIME_CACHE_NAME);
     try {
@@ -18,6 +26,7 @@ async function fetchLatestOrCached(request) {
         if (response.ok) {
             try {
                 await cache.put(request, response.clone());
+                await dropOtherVersions(cache, request);
             } catch (error) {
                 console.warn('[app-update] 최신 파일의 오프라인 사본을 저장하지 못했습니다.', error);
             }

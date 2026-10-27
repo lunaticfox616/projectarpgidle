@@ -61,6 +61,35 @@ window.GameState = window.GameState || {
 };
 window.GameModules.state = window.GameState;
 
+/** Compact receipt only; equipment ownership remains in the inventory. Counts are nonnegative integers, pressure 1..10. */
+window.GameModules.state.normalizeTimeRiftResult = function (value) {
+    if (!value || typeof value !== 'object') return null;
+    const numbers = ['id', 'pressure', 'inherited', 'lost', 'season'];
+    if (!numbers.every(key => Number.isSafeInteger(value[key]) && value[key] >= 0)) return null;
+    if (![value.id, value.season, value.pressure].every(number => number > 0)) return null;
+    if (value.pressure > TIME_RIFT_MAX_PRESSURE) return null;
+    if (!Number.isSafeInteger(value.inherited + value.lost)) return null;
+    if (typeof value.name !== 'string' || typeof value.instanceId !== 'string' || !value.instanceId.trim()) return null;
+    return { id: value.id, name: value.name.slice(0, 100), instanceId: value.instanceId.trim().slice(0, 96),
+        pressure: value.pressure, inherited: value.inherited, lost: value.lost, season: value.season };
+};
+
+/** The first-clear reward of a milestone floor. Claim state stays in unlocked rune numbers and deepRewardFloor. */
+window.GameModules.state.underworldMilestoneReward = function (floor) {
+    const rule = UNDERWORLD_DEEP_FLOOR_REWARD;
+    if (!Number.isSafeInteger(floor) || floor < 10) return null;
+    if (floor <= rule.fromFloor) {
+        if (floor % 10 !== 0) return null;
+        return { floor, slots: Math.min(6, floor / 10), rune: UNDERWORLD_RUNE_DB.find(row => row.no === floor / 10), currencies: {} };
+    }
+    const depth = floor - rule.fromFloor;
+    if (depth % rule.every !== 0) return null;
+    return { floor, slots: 0, rune: null, currencies: {
+        runeShard: Math.floor(rule.runeShard[0] + rule.runeShard[1] * depth),
+        underGold: Math.floor(rule.underGold[0] + rule.underGold[1] * depth)
+    } };
+};
+
 // Transient notices: domains enqueue data; the foreground UI decides when to present it.
 let tutorialQueue = [];
 // 같은 안내의 두 이름: 새 캐릭터의 시작 안내(tutorial_first_*)를 본 사람에게 루프 2의 탭 해금 안내(unlock_*)가 '처음 얻었습니다'를
@@ -534,6 +563,7 @@ function createDefaultSkyTowerState() {
         clearedThisLoop: 0,
         clearedFloors: [],
         loopSeason: 1,
+        lastResult: null,
         condensedPower: 0,
         skyStone: { crafted: false, level: 0 },
         gemBoosts: {}
@@ -550,6 +580,7 @@ function ensureSkyTowerState() {
         st.loopSeason = currentSeason;
         st.clearedThisLoop = 0;
     }
+    st.lastResult = normalizeSkyTowerResult(st.lastResult, currentSeason);
     st.clearedThisLoop = Math.max(0, Math.min(getSkyTowerLoopClearLimit(), Math.floor(st.clearedThisLoop || 0)));
     st.clearedFloors = Array.isArray(st.clearedFloors) ? Array.from(new Set(st.clearedFloors.map(v => Math.floor(v || 0)).filter(v => v >= 1))).sort((a, b) => a - b) : [];
     st.condensedPower = Math.max(0, Math.floor(st.condensedPower || 0));
@@ -566,9 +597,19 @@ function ensureSkyTowerState() {
     return st;
 }
 function getSkyTowerLoopClearLimit() { return 25; }
+/** Display-only receipt for this loop; loading it never grants its reward again. */
+function normalizeSkyTowerResult(result, season) {
+    if (!result || result.season !== season || !Number.isSafeInteger(result.floor) || result.floor < 1
+        || !Number.isSafeInteger(result.condensedPower) || result.condensedPower < 0
+        || !['first', 'repeat', 'practice'].includes(result.kind)) return null;
+    return { season, floor: result.floor, kind: result.kind, condensedPower: result.condensedPower };
+}
 function getSkyTowerRemainingClears() {
     let st = ensureSkyTowerState();
     return Math.max(0, getSkyTowerLoopClearLimit() - Math.max(0, Math.floor(st.clearedThisLoop || 0)));
+}
+function isSkyTowerAtRewardLimit(zone) {
+    return zone?.type === 'skyTower' && getSkyTowerRemainingClears() === 0;
 }
 function hasCurrentLoopChaosAccess(source) {
     let state = source || game;
@@ -848,7 +889,8 @@ function createColonyZone(state) {
     const depth = colony.inRun ? Math.max(21,Math.floor(colony.entryDeepChaosDepth||21))
         : Math.max(21,Math.min(state.abyssEndlessDepth||21,state.loopProgressCurrent.bestAbyssDepth||21));
     const wavePattern = ['charge', 'sharpshooters', 'carapace', 'mixed', 'overlord'][(wave - 1) % 5];
-    return { id:'colony_run', name:`군락지 방어 ${wave}웨이브`, type:'colony', tier:depth+Math.floor(wave/2),
+    const name = colony.inRun && colony.lootPending ? `군락지 ${wave - 1}웨이브 전리품 수거` : `군락지 방어 ${wave}웨이브`;
+    return { id:'colony_run', name, type:'colony', tier:depth+Math.floor(wave/2),
         maxKills:1, ele:'chaos', entryDeepChaosDepth:depth, wavePattern,
         bossMods: { patternMode: 'slam' } };
 }
@@ -957,8 +999,8 @@ function getOceanZoneNow() {
     let depthTier = getOceanDepthTier(depthM);
     return contentMaps.withRooms({ id: OCEAN_ZONE_ID, name: `심해 ${depthM}m`, type: 'oceanDepth', tier: getChaosRealmTier(21) + depthTier, maxKills: 1, ele: 'chaos', depthM: depthM, depthTier: depthTier, currents: getOceanCurrentAffixes(depthTier) });
 }
-function getLabyrinthZoneNow() {
-    let floor = Math.max(1, game.labyrinthFloor || 1);
+function getLabyrinthZoneNow(requestedFloor = game.labyrinthFloor) {
+    let floor = Math.max(1, Math.floor(requestedFloor || 1));
     let baseTier = Math.min(20, 7 + Math.floor(floor / 3));
     let over50 = Math.max(0, floor - 50);
     let over100 = Math.max(0, floor - 100);
@@ -1840,12 +1882,12 @@ const UNDERWORLD_RUNE_DB = [
 // Weapon flat damage was rebased on 2026-09-11: +20% at T1, rising to +140% at T20.
 // Values are baked into definitions; legacyDamageBase exists only for old-save conversion.
 const BASE_ITEM_DB = [
-    { id: 'rusted_blade', slot: '무기', name: '녹슨 곡도', reqTier: 1, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 5, legacyDamageBase: 4 }] },
+    { id: 'rusted_blade', slot: '무기', name: '녹슨 한손검', reqTier: 1, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 5, legacyDamageBase: 4 }] },
     { id: 'apprentice_familiar_wand', slot: '무기', name: '견습 사역 오브', reqTier: 1, requirementWeights: { intelligence: 1 }, baseStats: [{ id: 'flatDmg', base: 6, legacyDamageBase: 5 }, { id: 'summonPctDmg', base: 10 }, { id: 'summonEfficiency', base: 4 }] },
-    { id: 'hunter_axe', slot: '무기', name: '사냥꾼의 곡도', reqTier: 3, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 11, legacyDamageBase: 9 }, { id: 'crit', base: 3 }] },
+    { id: 'hunter_axe', slot: '무기', name: '사냥꾼의 한손검', reqTier: 3, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 11, legacyDamageBase: 9 }, { id: 'crit', base: 3 }] },
     { id: 'pact_familiar_wand', slot: '무기', name: '계약 사역 오브', reqTier: 4, requirementWeights: { intelligence: 1 }, baseStats: [{ id: 'flatDmg', base: 11, legacyDamageBase: 9 }, { id: 'summonPctDmg', base: 14 }, { id: 'summonEfficiency', base: 6 }] },
     { id: 'abyss_spear', slot: '무기', name: '심연의 대검', reqTier: 7, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 20, legacyDamageBase: 14 }, { id: 'aspd', base: 6 }, { id: 'baseBlockChance', base: 5, baseMin: 5, baseMax: 5 }] },
-    { id: 'bloodletter_blade', slot: '무기', name: '혈각 곡도', reqTier: 10, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 38, legacyDamageBase: 24 }, { id: 'crit', base: 5 }] },
+    { id: 'bloodletter_blade', slot: '무기', name: '혈각 한손검', reqTier: 10, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 38, legacyDamageBase: 24 }, { id: 'crit', base: 5 }] },
     { id: 'gale_fang_spear', slot: '무기', name: '질풍 대검', reqTier: 10, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 38, legacyDamageBase: 24 }, { id: 'aspd', base: 8 }, { id: 'baseBlockChance', base: 5, baseMin: 5, baseMax: 5 }] },
     { id: 'executioner_blade', slot: '무기', name: '처형자의 대검', reqTier: 14, requirementWeights: { strength: 1 }, baseStats: [{ id: 'flatDmg', base: 71, legacyDamageBase: 38 }, { id: 'crit', base: 8 }, { id: 'baseBlockChance', base: 5, baseMin: 5, baseMax: 5 }] },
     { id: 'tempest_pike', slot: '무기', name: '폭풍 대검', reqTier: 15, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 82, legacyDamageBase: 42 }, { id: 'aspd', base: 10 }, { id: 'baseBlockChance', base: 5, baseMin: 5, baseMax: 5 }] },
@@ -1881,11 +1923,11 @@ const BASE_ITEM_DB = [
     { id: 'ember_censer', slot: '무기', name: '잉걸 향로', reqTier: 10, requirementWeights: { strength: 0.6, intelligence: 0.6 }, baseStats: [{ id: 'flatDmg', base: 36, legacyDamageBase: 23 }, { id: 'lightPctDmg', base: 14 }, { id: 'regen', base: 0.4 }] },
     { id: 'chapel_censer', slot: '무기', name: '성당 향로', reqTier: 15, requirementWeights: { strength: 0.6, intelligence: 0.6 }, baseStats: [{ id: 'flatDmg', base: 70, legacyDamageBase: 36 }, { id: 'lightPctDmg', base: 20 }, { id: 'regen', base: 0.5 }] },
     { id: 'sunrise_censer', slot: '무기', name: '해돋이 향로', reqTier: 20, requirementWeights: { strength: 0.6, intelligence: 0.6 }, baseStats: [{ id: 'flatDmg', base: 140, legacyDamageBase: 58 }, { id: 'lightPctDmg', base: 28 }, { id: 'regen', base: 0.6 }] },
-    // 무기 대분류 구멍 메우기(2026-10-03): 곡도 14 · 17 · 20단계(힘과 민첩, 치명타 · 공격 속도), 대검 1 · 4 · 10단계(힘, 치명타),
-    // 단궁 1단계(민첩, 투사체). 액트 1부터 여섯 대분류가 다 떨어지고, 곡도도 20단계까지 제 대분류 안에서 승급한다.
-    { id: 'crescent_scimitar', slot: '무기', name: '초승 곡도', reqTier: 14, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 62, legacyDamageBase: 33 }, { id: 'crit', base: 8 }, { id: 'aspd', base: 5 }] },
-    { id: 'blackiron_scimitar', slot: '무기', name: '흑철 곡도', reqTier: 17, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 100, legacyDamageBase: 47 }, { id: 'crit', base: 11 }, { id: 'aspd', base: 7 }] },
-    { id: 'eclipse_scimitar', slot: '무기', name: '월식 곡도', reqTier: 20, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 134, legacyDamageBase: 56 }, { id: 'crit', base: 14 }, { id: 'aspd', base: 9 }] },
+    // 무기 대분류 구멍 메우기(2026-10-03): 한손검 14 · 17 · 20단계(힘과 민첩, 치명타 · 공격 속도), 대검 1 · 4 · 10단계(힘, 치명타),
+    // 단궁 1단계(민첩, 투사체). 액트 1부터 여섯 대분류가 다 떨어지고, 한손검도 20단계까지 제 대분류 안에서 승급한다.
+    { id: 'crescent_scimitar', slot: '무기', name: '초승 한손검', reqTier: 14, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 62, legacyDamageBase: 33 }, { id: 'crit', base: 8 }, { id: 'aspd', base: 5 }] },
+    { id: 'blackiron_scimitar', slot: '무기', name: '흑철 한손검', reqTier: 17, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 100, legacyDamageBase: 47 }, { id: 'crit', base: 11 }, { id: 'aspd', base: 7 }] },
+    { id: 'eclipse_scimitar', slot: '무기', name: '월식 한손검', reqTier: 20, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 134, legacyDamageBase: 56 }, { id: 'crit', base: 14 }, { id: 'aspd', base: 9 }] },
     { id: 'dull_greatsword', slot: '무기', name: '무딘 대검', reqTier: 1, requirementWeights: { strength: 1 }, baseStats: [{ id: 'flatDmg', base: 6, legacyDamageBase: 5 }, { id: 'crit', base: 2 }, { id: 'baseBlockChance', base: 5, baseMin: 5, baseMax: 5 }] },
     { id: 'iron_greatsword', slot: '무기', name: '무쇠 대검', reqTier: 4, requirementWeights: { strength: 1 }, baseStats: [{ id: 'flatDmg', base: 12, legacyDamageBase: 10 }, { id: 'crit', base: 4 }, { id: 'baseBlockChance', base: 5, baseMin: 5, baseMax: 5 }] },
     { id: 'warden_greatsword', slot: '무기', name: '파수꾼 대검', reqTier: 10, requirementWeights: { strength: 1 }, baseStats: [{ id: 'flatDmg', base: 38, legacyDamageBase: 24 }, { id: 'crit', base: 6 }, { id: 'baseBlockChance', base: 5, baseMin: 5, baseMax: 5 }] },
@@ -2004,7 +2046,7 @@ const BASE_ITEM_DB = [
     { id: 'topaz_ring', slot: '반지', name: '황옥 반지', reqTier: 8, baseStats: [{ id: 'resL', base: 12 }] },
     { id: 'twin_stone_ring', slot: '반지', name: '쌍석 반지', reqTier: 14, baseStats: [{ id: 'resF', base: 12 }, { id: 'resL', base: 12 }] },
     { id: 'diamond_ring', slot: '반지', name: '금강석 반지', reqTier: 18, baseStats: [{ id: 'crit', base: 7 }, { id: 'critDmg', base: 18 }] },
-    { id: 'root_blade_fang', slot: '무기', name: '뿌리 곡도', reqTier: 6, dropOnly: { type: 'act' }, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 27, legacyDamageBase: 20 }, { id: 'physIgnore', base: 4 }, { id: 'leech', base: 0.8 }] },
+    { id: 'root_blade_fang', slot: '무기', name: '뿌리 한손검', reqTier: 6, dropOnly: { type: 'act' }, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 27, legacyDamageBase: 20 }, { id: 'physIgnore', base: 4 }, { id: 'leech', base: 0.8 }] },
     { id: 'beehive_stinger_mail', slot: '갑옷', name: '벌침 갑피', reqTier: 12, dropOnly: { type: 'beehive' }, baseStats: [{ id: 'flatHp', base: 88 }, { id: 'resChaos', base: 10 }, { id: 'evasion', base: 295 }, { id: 'poisonDamageMultiplierPct', base: 10 }] },
     // 재사용 대기시간 세팅(2026-10-21): 대균열 파편투구와 시련 감시자 장화의 저항 관통 줄을 재사용 대기시간 줄로 바꿨다. 장비는 베이스 줄을
     // 떨어질 때 제 몸에 적으므로(js/passives.js rollBaseStat) 이미 가진 장비는 그대로다.
@@ -2104,7 +2146,7 @@ const BASE_ITEM_DB = [
     { id: 'tracker_baldric', slot: '허리띠', name: '추적자의 띠', reqTier: 12, family: 'hunter', baseStats: [{ id: 'flatHp', base: 55 }, { id: 'dexterity', base: 12 }, { id: 'projectilePctDmg', base: 8 }] },
     { id: 'scholar_sash', slot: '허리띠', name: '학자의 띠', reqTier: 12, family: 'scholar', baseStats: [{ id: 'flatHp', base: 55 }, { id: 'intelligence', base: 12 }, { id: 'spellPctDmg', base: 8 }] },
     { id: 'bigtree_maul', slot: '무기', name: '거목 대검', reqTier: 12, family: 'maul', requirementWeights: { strength: 1 }, baseStats: [{ id: 'flatDmg', base: 52 }, { id: 'physPctDmg', base: 9 }, { id: 'baseBlockChance', base: 5, baseMin: 5, baseMax: 5 }] },
-    { id: 'fang_kris', slot: '무기', name: '뱀이빨 곡도', reqTier: 12, family: 'kris', requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 46 }, { id: 'chaosPctDmg', base: 10 }, { id: 'aspd', base: 4 }] },
+    { id: 'fang_kris', slot: '무기', name: '뱀이빨 한손검', reqTier: 12, family: 'kris', requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 46 }, { id: 'chaosPctDmg', base: 10 }, { id: 'aspd', base: 4 }] },
     { id: 'hunting_longbow', slot: '무기', name: '숲사냥꾼 단궁', reqTier: 12, family: 'longbow', requirementWeights: { dexterity: 1 }, baseStats: [{ id: 'flatDmg', base: 44 }, { id: 'projectilePctDmg', base: 12 }, { id: 'crit', base: 4 }] },
     { id: 'spark_rod', slot: '무기', name: '번개 오브', reqTier: 12, family: 'stormrod', requirementWeights: { intelligence: 1 }, baseStats: [{ id: 'flatDmg', base: 26 }, { id: 'spellFlatDmg', base: 72 }, { id: 'lightPctDmg', base: 12 }] },
     { id: 'herb_toxin_flask', slot: '무기', name: '독초 플라스크', reqTier: 12, family: 'toxin', requirementWeights: { dexterity: 0.6, intelligence: 0.6 }, baseStats: [{ id: 'flatDmg', base: 44 }, { id: 'potionPctDmg', base: 16 }, { id: 'dotPctDmg', base: 9 }] },
@@ -2165,8 +2207,8 @@ const BASE_ITEM_DB = [
     { id: 'archsage_sash', slot: '허리띠', name: '대현자의 띠', reqTier: 20, family: 'scholar', baseStats: [{ id: 'flatHp', base: 80 }, { id: 'intelligence', base: 20 }, { id: 'spellPctDmg', base: 12 }] },
     { id: 'oak_maul', slot: '무기', name: '고목 대검', reqTier: 17, family: 'maul', requirementWeights: { strength: 1 }, baseStats: [{ id: 'flatDmg', base: 112 }, { id: 'physPctDmg', base: 14 }, { id: 'baseBlockChance', base: 5, baseMin: 5, baseMax: 5 }] },
     { id: 'worldbreaker_maul', slot: '무기', name: '세계파쇄 대검', reqTier: 20, family: 'maul', requirementWeights: { strength: 1 }, baseStats: [{ id: 'flatDmg', base: 150 }, { id: 'physPctDmg', base: 20 }, { id: 'baseBlockChance', base: 5, baseMin: 5, baseMax: 5 }] },
-    { id: 'venom_kris', slot: '무기', name: '독니 곡도', reqTier: 17, family: 'kris', requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 98 }, { id: 'chaosPctDmg', base: 16 }, { id: 'aspd', base: 6 }] },
-    { id: 'serpent_kris', slot: '무기', name: '왕뱀 곡도', reqTier: 20, family: 'kris', requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 130 }, { id: 'chaosPctDmg', base: 22 }, { id: 'aspd', base: 8 }] },
+    { id: 'venom_kris', slot: '무기', name: '독니 한손검', reqTier: 17, family: 'kris', requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 98 }, { id: 'chaosPctDmg', base: 16 }, { id: 'aspd', base: 6 }] },
+    { id: 'serpent_kris', slot: '무기', name: '왕뱀 한손검', reqTier: 20, family: 'kris', requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 130 }, { id: 'chaosPctDmg', base: 22 }, { id: 'aspd', base: 8 }] },
     { id: 'hawk_longbow', slot: '무기', name: '매의 단궁', reqTier: 17, family: 'longbow', requirementWeights: { dexterity: 1 }, baseStats: [{ id: 'flatDmg', base: 98 }, { id: 'projectilePctDmg', base: 18 }, { id: 'crit', base: 6 }] },
     { id: 'skyhunter_longbow', slot: '무기', name: '하늘사냥 단궁', reqTier: 20, family: 'longbow', requirementWeights: { dexterity: 1 }, baseStats: [{ id: 'flatDmg', base: 126 }, { id: 'projectilePctDmg', base: 24 }, { id: 'crit', base: 8 }] },
     { id: 'storm_rod', slot: '무기', name: '폭풍 오브', reqTier: 17, family: 'stormrod', requirementWeights: { intelligence: 1 }, baseStats: [{ id: 'flatDmg', base: 50 }, { id: 'spellFlatDmg', base: 150 }, { id: 'lightPctDmg', base: 18 }] },
@@ -2175,7 +2217,7 @@ const BASE_ITEM_DB = [
     { id: 'plague_flask', slot: '무기', name: '역병 플라스크', reqTier: 20, family: 'toxin', requirementWeights: { dexterity: 0.6, intelligence: 0.6 }, baseStats: [{ id: 'flatDmg', base: 125 }, { id: 'potionPctDmg', base: 32 }, { id: 'dotPctDmg', base: 20 }] },
     { id: 'pyre_censer', slot: '무기', name: '화장 향로', reqTier: 17, family: 'pyre', requirementWeights: { strength: 0.6, intelligence: 0.6 }, baseStats: [{ id: 'flatDmg', base: 110 }, { id: 'firePctDmg', base: 20 }, { id: 'regen', base: 0.4 }] },
     { id: 'phoenix_censer', slot: '무기', name: '불사조 향로', reqTier: 20, family: 'pyre', requirementWeights: { strength: 0.6, intelligence: 0.6 }, baseStats: [{ id: 'flatDmg', base: 138 }, { id: 'firePctDmg', base: 26 }, { id: 'regen', base: 0.5 }] },
-    { id: 'chaos_realm_fang', slot: '무기', name: '혼돈계 균열 곡도', reqTier: 18, realmBase: 'chaos', dropOnly: { minTier: 15 }, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 93, legacyDamageBase: 42 }, { id: 'chaosPctDmg', base: 24 }, { id: 'resChaos', base: 8 }] },
+    { id: 'chaos_realm_fang', slot: '무기', name: '혼돈계 균열 한손검', reqTier: 18, realmBase: 'chaos', dropOnly: { minTier: 15 }, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 93, legacyDamageBase: 42 }, { id: 'chaosPctDmg', base: 24 }, { id: 'resChaos', base: 8 }] },
     { id: 'chaos_realm_coil', slot: '반지', name: '혼돈계 소용돌이 반지', reqTier: 18, realmBase: 'chaos', dropOnly: { minTier: 15 }, baseStats: [{ id: 'chaosPctDmg', base: 18 }, { id: 'resChaos', base: 10 }] },
     { id: 'underworld_bastion', slot: '갑옷', name: '지하계 철벽 흉갑', reqTier: 20, realmBase: 'underworld', dropOnly: { minTier: 15 }, baseStats: [{ id: 'flatHp', base: 120 }, { id: 'armor', base: 260 }, { id: 'dr', base: 8 }] },
     { id: 'underworld_chain', slot: '허리띠', name: '지하계 결속 허리띠', reqTier: 20, realmBase: 'underworld', dropOnly: { minTier: 15 }, baseStats: [{ id: 'flatHp', base: 110 }, { id: 'resAll', base: 10 }, { id: 'resChaos', base: 12 }] },
@@ -2454,6 +2496,7 @@ const defaultGame = {
         showEnemyHpComma: true,
         showCharacterComma: true,
         uiScale: 100,
+        uiScaleChosen: null,   // 사용자가 배율을 고른 적이 있는가(null: 모름 → 100이면 화면에 맞춰 고른다, js/ui-display.js applySaved)
         uiSkin: 'rift',
         highContrast: false,
         /** PC 단축키 중 기본값과 다른 것만: { 동작 id: KeyboardEvent.code | '' } (data/hotkeys.js) */
@@ -2467,6 +2510,7 @@ const defaultGame = {
         autoSalvageEnabled: false,
         autoSalvageRarities: { normal: true, magic: true, rare: false, unique: false },
         inventoryViewRarities: { normal: true, magic: true, rare: true, unique: true },
+        bagArrangeOrder: 'recent', // 가방 정리 기준(js/equipment-inventory-grid.js ARRANGE_ORDERS): 정리 단추를 두 번 누르면 이 기준
         equipmentMobilePane: 'inventory',
         itemFilterEnabled: false,
         itemFilterRarities: { normal: true, magic: true, rare: true, unique: true },
@@ -2586,7 +2630,7 @@ const defaultGame = {
         activeRun: null
     },
     clearedRootBosses: [],
-    timeRift: { pressure: 1, activePressure: null, altarOpen: false, altarUnique: null, altarRare: null, fusionCount: 0 },
+    timeRift: { pressure: 1, activePressure: null, altarOpen: false, altarUnique: null, altarRare: null, fusionCount: 0, lastFusion: null },
     mapSubtab: 'map-tab-zones',
     unlockedMapContents: ['map-tab-zones'],
     mapExploreSubtab: 'map-explore-hunting',
@@ -2627,13 +2671,17 @@ const defaultGame = {
     seasonNodes: [],
     seasonNodeLevels: {},
     labyrinthFloor: 1,
+    /** @type {{season:number,floor:number,currencies:Record<string,number>}|null} Display-only completion receipt; never paid on load. */
+    labyrinthLastResult: null,
     jewelInventory: [],
     // 가방의 새 아이템(빨간 점): id가 이보다 크면 새 것. 가방을 열었다가 닫으면 그때의 itemIdCounter가 된다(js/equipment-window-ui.js).
     bagSeenId: null,
-    beehive: { unlockedPermanent: false, inRun: false, branchStep: 0, cleared: false, routeSeed: 0 },
+    // waveExtra: 0..2 extra normal enemies for the selected wave only; cleared before the next choice or queen.
+    beehive: { unlockedPermanent: false, inRun: false, branchStep: 0, cleared: false, routeSeed: 0, waveExtra: 0 },
     // Core durability is an integer. A zero maximum means a new/legacy run needs initialization.
+    // returnAfterWave: 0 or a boss-wave integer (multiple of 5). lastResult: null or {kind, wave, completed, lostHeld} integer counts.
     colony: { inRun: false, wave: 0, highestWave: 0, kills: 0, requiredKills: 0, coreMaxHp: 0, coreHp: 0, failedWave: 0, rewardPending: false,
-        pendingLoot: [], lootPending: false, bossLootCell: null, wardInventory: [], wardEquipped: [null,null,null,null], wardSlots: 1, wardSlotVersion: 1 },
+        returnAfterWave: 0, lastResult: null, pendingLoot: [], lootPending: false, bossLootCell: null, wardInventory: [], wardEquipped: [null,null,null,null], wardSlots: 1, wardSlotVersion: 1 },
     // grandRun is created on entry; kills fills the gauge, phase bossPending queues the one-time boss spawn.
     // rewardVoidChisel/rewardJewelShard: number|null are the actual paid integers,
     // null before settlement or for legacy receipts; retained until the next entry/loop reset.

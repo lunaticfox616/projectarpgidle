@@ -1,6 +1,7 @@
 const assert = require('assert');
 const vm = require('vm');
 const { buildGameRuntime } = require('./lib/game-runtime');
+const screenText = require('./lib/screen-text');
 const runtime = buildGameRuntime();
 vm.runInContext(require('fs').readFileSync(require('path').join(__dirname, '../js/content-unlock-guide.js'), 'utf8'), runtime);
 const run = code => vm.runInContext(code, runtime);
@@ -237,6 +238,7 @@ run(`game=mergeDefaults({}); game.season=25; ${meet('orga')}; contentProgression
     game.underworldRunes.enhanceLvByNo={1:2}; game.underworldRunes.equippedRunes[0]=1;
     game.timeRift={pressure:2,fusionCount:3,altarUnique:{id:'altar-kept'},altarRare:null};
     game.skyTower.unlocked=true; game.skyTower.condensedPower=7; game.skyTower.gemBoosts={'이중 베기':2};
+    game.skyTower.lastResult={season:25,floor:1,kind:'first',condensedPower:3};
     game.ocean.fishStock={[OCEAN_STATE_FISH_KEYS[0]]:4}; game.ocean.fishCaughtTotal={[OCEAN_STATE_FISH_KEYS[0]]:8}; game.ocean.reefInstalled=2;
     game.colony.wave=7; game.colony.wardInventory=[{id:'ward-reset'}];
     game.talentCards={hero1__warrior:{level:3,score:45,count:2}};
@@ -256,6 +258,7 @@ assert(!run("game.gemData['이중 베기']"));
 assert.deepEqual(json('game.skyGemEnhancements'),{});
 assert.deepEqual(json('[game.timeRift.pressure,game.timeRift.fusionCount,game.timeRift.altarUnique,game.timeRift.altarOpen]'),[2,3,null,false],'the altar empties at the loop (user decision 2026-10-20)');
 assert.deepEqual(json("[game.skyTower.condensedPower,game.skyTower.gemBoosts['이중 베기']]"),[7,2]);
+assert.equal(run('game.skyTower.lastResult'),null,'a new loop clears the display receipt while preserving permanent sky growth');
 assert.equal(run('game.ocean.reefInstalled'),2);
 assert.deepEqual(json('[game.ocean.fishStock[OCEAN_STATE_FISH_KEYS[0]],game.ocean.fishCaughtTotal[OCEAN_STATE_FISH_KEYS[0]]]'),[4,8]);
 assert.equal(run('game.colony.wave'),run('defaultGame.colony.wave'));
@@ -314,7 +317,8 @@ run(`game=mergeDefaults({});
     game.contentProgression.inherited=CONTENT_UNLOCK_CATALOG.filter(def=>contentProgression.kind(def)!=='auto'&&def.id!=='craftSimulator').map(def=>def.id);
     game.seasonPoints=7;game.currencies.magicBud=9;`);
 assert.deepEqual(json('contentProgression.points()'),{balance:0,remaining:1,nextAward:1,complete:false});
-assert(run("loopSettlementUi.summaryHtml().includes('해금 포인트 +1')"));
+const loopSummary = () => screenText(run('loopSettlementUi.summaryHtml()'));
+assert(loopSummary().includes('해금 포인트 +1'));
 assert(run("getNextMajorContentUnlock(game).description.includes('1점')"));
 run('game.season=6;contentProgression.sync()');
 assert.equal(run('contentProgression.balance()'),1);
@@ -322,8 +326,8 @@ assert.equal(run('contentProgression.points().nextAward'),0);
 assert(run("contentProgression.purchase('craftSimulator').ok"));
 assert.deepEqual(json('contentProgression.points()'),{balance:0,remaining:0,nextAward:0,complete:true});
 assert.equal(run('getNextMajorContentUnlock(game)'),null);
-assert(run("loopSettlementUi.summaryHtml().includes('전체 해금 완료')"));
-assert(!run("loopSettlementUi.summaryHtml().includes('해금 포인트 +')"));
+assert(loopSummary().includes('전체 해금 완료'));
+assert(!loopSummary().includes('해금 포인트 +'));
 assert(!run("contentProgression.isUnlocked('cosmos')"),'automatic world progress is independent of paid completion');
 const ownedBefore=json('game.contentProgression.inherited');
 const resourcesBefore=json('[game.currencies.magicBud,game.currencies.goldenRule,game.seasonPoints]');
@@ -740,4 +744,80 @@ for (const [action,wave] of [['stop',5],['nextZone',5],['stop',1]]) {
     run(`finishBeyondBoundaryEncounter(getZone(game.currentZoneId),'${action}',{say:addLog,unlocks:checkUnlocks,redraw:updateStaticUI})`);
     assert.deepEqual(json('[game.beyondBoundary,game.currencies]'),settled,'a completed tier cannot pay twice');
 }
+// Floor entry refusal must not change progress; a completion receipt is display-only.
+for (const [prepare, floor] of [['game.maxZoneId=4;',5],['game.pendingLoopReady=true;',5],['',11],['',Infinity]]) {
+    run(`game=mergeDefaults({season:6,maxZoneId:9,labyrinthFloor:3,labyrinthUnlockedMaxFloor:10});${prepare}`);
+    const previous=json('[game.currentZoneId,game.labyrinthFloor,game.killsInZone,game.inTicketBossFight]');
+    run(`enterLabyrinthFloor(${floor})`);
+    assert.deepEqual(json('[game.currentZoneId,game.labyrinthFloor,game.killsInZone,game.inTicketBossFight]'),previous,'refused labyrinth entry preserves the active run');
+}
+run("game=mergeDefaults({season:6,maxZoneId:9,labyrinthFloor:8,labyrinthUnlockedMaxFloor:10,currencies:{fossil:3},labyrinthLastResult:{season:6,floor:7,currencies:{fossil:1}}})");
+const labyrinthStored=json('[game.currencies,game.labyrinthLastResult]');
+run('getLabyrinthZoneNow(5);game=mergeDefaults(JSON.parse(JSON.stringify(game)));');
+assert.equal(run('game.labyrinthFloor'),8,'previewing another floor does not change the active floor');
+assert.deepEqual(json('[game.currencies,game.labyrinthLastResult]'),labyrinthStored,'loading a floor receipt does not pay it again');
+// A defeated training target cannot farm combat rewards or record the same measurement twice.
+run("game=mergeDefaults({season:20,maxZoneId:9,selectedClassId:'warrior',loopStarterGemGranted:true});game.currentZoneId=WOODSMAN_ECHO_ZONE_ID;game.combatTimeMs=100000;Object.assign(game.woodsmanEchoRun,{active:true,timeLeft:20,lastTickAt:100000,returnZoneId:9});game.enemies=[dressWoodsmanEchoDummy(createEnemy(getZone(OUTSIDE_CHAOS_ZONE_ID),{at:0,count:1,boss:true},0))]");
+const practiceOwned=json('[game.exp,game.loopKills,game.currencies,game.inventory,game.weaponMastery]');
+run('game.enemies[0].hp=0;handleEnemyDeath(game.enemies[0],getPlayerStats())');
+assert.deepEqual(json('[game.exp,game.loopKills,game.currencies,game.inventory,game.weaponMastery]'),practiceOwned,'a training target grants no kill rewards');
+assert(run('game.records.echo.last.damage>0 && game.records.echo.runs===1'),'the final blow is measured once');
+const practiceRecord=json('[game.currentZoneId,game.records.echo]');
+run('finishWoodsmanEchoRun();game=mergeDefaults(JSON.parse(JSON.stringify(game)))');
+assert.deepEqual(json('[game.currentZoneId,game.records.echo]'),practiceRecord,'repeated finish and restoration cannot duplicate a measurement');
+run("game.currentZoneId=WOODSMAN_ECHO_ZONE_ID;game.settings.townReturnAction='stop';Object.assign(game.woodsmanEchoRun,{active:true,timeLeft:25,lastTickAt:getCombatTime(),returnZoneId:0});returnToTown();for(let i=0;i<30;i++)advanceTravelTick();finishWoodsmanEchoRun()");
+assert(run('game.currentZoneId===0 && game.combatHalted && !game.woodsmanEchoRun.active'),'returning from practice cancels the measurement and stops in the original zone');
+assert.deepEqual(json('game.records.echo'),practiceRecord[1],'cancelled practice cannot add a record');
+// The last sky reward stops automatic practice; restoration keeps that stop and cannot repay the receipt.
+run("game=mergeDefaults({season:20,maxZoneId:9,loopProgressCurrent:{chaos20Cleared:true},skyTower:{unlocked:true,loopSeason:20,currentFloor:1,highestFloor:1,clearedThisLoop:24,condensedPower:10}});game.currentZoneId=SKY_TOWER_ZONE_ID;game.settings.mapCompleteAction='nextZone';finishEncounterRun()");
+assert(run('game.combatHalted && game.skyTower.condensedPower===13 && game.skyTower.lastResult.floor===1'),'the final sky reward is paid before the climb stops');
+const skyFinished=json('game.skyTower');
+run('game=mergeDefaults(JSON.parse(serializeSaveState(game)));normalizeLocalRuntimeAfterLoad();ensureEncounterRun();reconcileMapProgressRuntimeState();for(let i=0;i<10;i++)coreLoop(getCombatTime()+100)');
+assert(run('game.combatHalted'),'loading a completed sky allowance cannot restart an endless practice loop');
+assert.deepEqual(json('game.skyTower'),skyFinished,'a sky receipt is restored without paying again');
+run('game.skyTower.currentFloor=2;game.actExploration=null;finishEncounterRun()');
+assert(run("game.loopProgressCurrent.bestSkyFloor===1 && game.skyTower.lastResult.kind==='practice' && game.skyTower.condensedPower===13"),'practice cannot advance this loop\'s sky record or grant essence');
+// The first rune cannot disappear into bulk sealing while the player is learning to equip it.
+run("game=mergeDefaults({skills:['기본 공격','이중 베기','서리바람 내지르기'],starterGemTutorialPending:'이중 베기',resonancePower:10});sealSkillGem('이중 베기');sealAllInactiveSkillGems()");
+assert.deepEqual(json('[game.skills,game.sealedSkills,game.resonancePower]'),[['기본 공격','이중 베기'],['서리바람 내지르기'],11],'only an eligible spare rune can be sealed during the starter guide');
+run("game=mergeDefaults({skills:['기본 공격'],sealedSkills:['이중 베기'],starterGemTutorialPending:'이중 베기',resonancePower:11,seenTutorials:['tutorial_starter_gem_equip'],gemData:{'이중 베기':{level:2,exp:17}}})");
+assert(run("getStarterGemTutorialTarget()==='이중 베기' && game.resonancePower===10 && !game.sealedSkills.includes('이중 베기')"),'an old sealed guide target is restored without keeping its seal reward');
+const starterRestored=json('[game.skills,game.sealedSkills,game.resonancePower,game.gemData]');
+run('game=mergeDefaults(JSON.parse(serializeSaveState(game)));tutorialQueue=[];contentUnlockUi.announceStarterGem(getStarterGemTutorialTarget())');
+assert.deepEqual(json('[game.skills,game.sealedSkills,game.resonancePower,game.gemData]'),starterRestored,'reloading the repaired guide cannot charge resonance again or reset rune growth');
+assert(run("tutorialQueue.some(row=>row.key==='tutorial_starter_gem_equip')"),'an unfinished equip guide resumes after loading');
+run("equipSkippedStarterGem('tutorial_starter_gem_equip')");
+assert(run("game.activeSkill==='이중 베기' && !game.starterGemTutorialPending"),'closing the resumed guide still equips its rune');
+// A zero resonance capacity is a balance, not a missing default: one seal grants one, and restoration costs one.
+for (const [type,name] of [['Skill','서리바람 내지르기'],['Support','가속']]) {
+    run("game=mergeDefaults({skills:['기본 공격','서리바람 내지르기'],supports:['가속'],resonancePower:0,gemData:{'서리바람 내지르기':{level:7,exp:23}},supportGemData:{'가속':{level:6,exp:19,unlockedTier:2}}})");
+    const runeGrowth=json('[game.gemData,game.supportGemData]');
+    run(`seal${type}Gem('${name}');seal${type}Gem('${name}')`);
+    assert.equal(run('game.resonancePower'),1,'sealing one rune cannot refill the starting capacity or pay twice');
+    run(`game=mergeDefaults(JSON.parse(serializeSaveState(game)));unseal${type}Gem('${name}');unseal${type}Gem('${name}')`);
+    assert.equal(run('game.resonancePower'),0,'restoring a rune spends exactly its one seal reward');
+    assert.deepEqual(json('[game.gemData,game.supportGemData]'),runeGrowth,'sealing, reload and restoration preserve rune growth');
+}
+// New hive offers follow actual crafting access; an old promised offer is not rerolled here.
+run('game=mergeDefaults({});game.season=8;contentProgression.sync()');
+assert.deepEqual(json('getBeehiveRewardPool(1).map(row=>row.type)'),['pollen','beeswax']);
+run(`${meet('orga')};contentProgression.gift('craft')`);
+assert(run("getBeehiveRewardPool(1).some(row=>row.type==='bundle') && !getBeehiveRewardPool(1).some(row=>row.type==='jewelShard'||row.type==='spore')"),
+    'basic crafting rewards can appear before fossil and jewel rewards');
+run("contentProgression.gift('fossil');contentProgression.purchase('jewel')");
+assert.equal(run('getBeehiveRewardPool(1).length'),9,'the existing full reward pool returns after the corresponding unlocks');
+// A newly opened underground stone number grants its first usable copy once; claim flags survive loading and loops.
+run('game=mergeDefaults({season:13,loopCount:12});grantUnderworldFloorMilestone(10,game.underworldProgress)');
+assert.deepEqual(json('game.underworldRunes.obtainedRunes'),[1],'opening the first slot must also grant its first stone');
+run('game=mergeDefaults(JSON.parse(serializeSaveState(game)));grantUnderworldFloorMilestone(10,game.underworldProgress)');
+assert.deepEqual(json('game.underworldRunes.obtainedRunes'),[1],'re-clearing after load cannot duplicate a milestone stone');
+run('grantUnderworldFloorMilestone(20,game.underworldProgress)');
+assert.deepEqual(json('game.underworldRunes.obtainedRunes'),[1,2],'the next milestone grants its newly opened number');
+const milestoneRunes=json('game.underworldRunes');
+run('triggerSeasonReset();grantUnderworldFloorMilestone(20,game.underworldProgress)');
+assert.deepEqual(json('game.underworldRunes'),milestoneRunes,'a new loop keeps stones and cannot reclaim a permanent milestone');
+run('game.currencies.runeShard=0;game.currencies.underGold=0;grantUnderworldFloorMilestone(310,game.underworldProgress)');
+assert.deepEqual(json('[game.currencies.runeShard,game.currencies.underGold]'),[70,24],'deep floors keep their material rewards');
+run('game=mergeDefaults(JSON.parse(serializeSaveState(game)));grantUnderworldFloorMilestone(310,game.underworldProgress)');
+assert.deepEqual(json('[game.currencies.runeShard,game.currencies.underGold]'),[70,24],'deep-floor material claims persist across loading');
 console.log('smoke-content-progression passed');

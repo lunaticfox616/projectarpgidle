@@ -20,4 +20,14 @@ async function pickClass(page, classId, { tap = false, opening = false } = {}) {
     if (await start.isVisible()) await press(start);
 }
 
-module.exports = { pickClass };
+/**
+ * The loop-end screen shows its parts one press at a time (js/loop-ui.js advanceReveal): presses 눌러서 계속 until the buttons show.
+ * @param {import('@playwright/test').Locator} overlay #loop-ready-overlay or #loop-decision-overlay
+ */
+async function revealLoopScreen(overlay) {
+    await overlay.locator('[data-loop-section="1"]').waitFor();
+    const next = overlay.locator('[data-loop-continue]');
+    for (let i = 0; i < 2 && await next.isVisible(); i++) await next.click();
+}
+
+module.exports = { pickClass, revealLoopScreen };

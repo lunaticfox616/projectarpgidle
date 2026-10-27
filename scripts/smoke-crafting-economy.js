@@ -196,6 +196,21 @@ const jewelSalvageBlock = extract(passiveSource, 'async function salvageJewel(je
         salvageItem(0);
         return game.currencies.colonyShard===gained&&salvageRecoveryRuntime.getEntries()[0].rewards.colonyShard===gained;
     })()`),true,'ward recovery returns the exact shards, refuses insufficient funds, and keeps repeat salvage balanced');
+    assert.strictEqual(runGame(`(()=>{
+        game=mergeDefaults({season:13,loopCount:12});refreshItemIdCounter();game.inventory=[];
+        const unique=generateUniqueItem(20),rare=createItemFromBase(BASE_ITEM_DB.find(base=>base.slot===unique.slot),'rare',20);
+        const count=rare.stats.filter(Boolean).length;
+        game.timeRift={pressure:3,altarOpen:true,altarUnique:unique,altarRare:rare,fusionCount:0};
+        finishTimeRiftFusion(ensureTimeRiftState(),{say:addLog});
+        const result=game.timeRift.lastFusion,item=game.inventory.find(row=>row.id===result?.id);
+        if(!item?.fusedRelic || item.instanceId!==result.instanceId || result.inherited+result.lost!==count) return false;
+        const before=JSON.stringify([game.inventory,game.timeRift,game.currencies]);
+        finishTimeRiftFusion(ensureTimeRiftState(),{say:addLog});
+        if(JSON.stringify([game.inventory,game.timeRift,game.currencies])!==before) return false;
+        game=mergeDefaults(JSON.parse(serializeSaveState(game)));
+        return game.timeRift.fusionCount===1 && Object.keys(result).every(key=>game.timeRift.lastFusion?.[key]===result[key])
+            && game.inventory.filter(row=>row.fusedRelic).length===1 && !game.timeRift.altarUnique && !game.timeRift.altarRare;
+    })()`),true,'fusion consumes the altar once, preserves the actual result receipt, and never repeats rewards on load');
     console.log('smoke-crafting-economy passed');
 })().catch(error => {
     console.error(error);

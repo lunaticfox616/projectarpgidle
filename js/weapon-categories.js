@@ -1,4 +1,4 @@
-// 무기 대분류(data/weapon-categories.js): 낀 무기 → 대검 · 곡도 · 단궁 · 오브 · 플라스크 · 향로.
+// 무기 대분류(data/weapon-categories.js): 낀 무기 → 대검 · 한손검 · 단궁 · 오브 · 플라스크 · 향로.
 // 주인공 그림(js/canvas-hana-actors.js weaponFor), 아이템 설명, 뿌리 촉수의 드랍 쏠림이 같이 쓴다.
 
 /** The weapon base an item was made from (uniques name theirs in UNIQUE_EQUIPMENT_RULES, old items only a base name). */
@@ -27,7 +27,7 @@ function getWeaponCategoryName(item) {
     return id ? WEAPON_CATEGORIES[id].name : '';
 }
 
-/** Item titles show a weapon's category (대검, 곡도 ...) where other items show their slot ([투구] ...). */
+/** Item titles show a weapon's category (대검, 한손검 ...) where other items show their slot ([투구] ...). */
 function weaponCategorySlotLabel(item, slot) {
     return (slot === '무기' && getWeaponCategoryName(item)) || (slot === '방패' ? '완갑' : slot);
 }

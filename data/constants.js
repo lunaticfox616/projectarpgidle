@@ -43,6 +43,10 @@ const GUEST_SAVE_CHECK = Object.freeze({
     statValueMax: 10000000,
     statTierMax: 20,
     statLinesMax: 12,
+    // 고유 효과 값과 품질(db/anti-cheat.sql hall_item_params_out_of_range와 같은 기준, 2026-10-27): 배율·젬 레벨 보너스 10, 그 밖의 숫자 값 100000, 품질 30.
+    uniqueMultiplierMax: 10,
+    uniqueParamMax: 100000,
+    itemQualityMax: 30,
     passivePerPaleVoid: 10,
     passiveSlack: 5,
     clockSlackMs: 10 * 60 * 1000

@@ -16,7 +16,7 @@ const bossVariantsUi = (() => {
         const rows = bossVariants.records(game);
         if (!bossVariants.open(game) && !rows.some(row => row.kills > 0)) return '';
         const chips = rows.map(row => `<span class="${row.kills ? 'is-on' : ''}" style="--tint:${row.kind.outline}"><i></i>${esc(row.kind.name)} ${row.kills}</span>`).join('');
-        return `<section class="atlas-late-group"><h3>변이체 기록</h3><p class="atlas-muted">루프 ${BOSS_VARIANTS.minLoop}부터 보스가 드물게 변이체로 나옵니다.
+        return `<section class="atlas-late-group boss-variant-records"><h3>변이체 기록</h3><p class="atlas-muted">루프 ${BOSS_VARIANTS.minLoop}부터 보스가 드물게 변이체로 나옵니다.
             처음 잡은 변이마다 황금률, 아틀라스의 보스였다면 그 보스의 기억 ${BOSS_VARIANTS.reward.memoryTier}단계.</p><div class="atlas-late-blight">${chips}</div></section>`;
     }
     window.addEventListener('project-idle:boss-variant', event => announce(event.detail || {}));

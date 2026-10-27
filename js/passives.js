@@ -3,6 +3,7 @@ function resetBeehiveRunModifiers(b) {
     b.pendingChoice = null;
     b.awaitingClear = false;
     b.enemyEmpower = 0;
+    b.waveExtra = 0;
     b.rewardMomentum = 0;
     b.penaltyLedger = [];
     b.rewardLedger = [];
@@ -3271,19 +3272,51 @@ const SEA_GIFT_RECIPES = [
 ];
 const SEA_GIFT_ITEM_EFFECT_TYPES = new Set(['guaranteedMod', 'guaranteedTaggedMod', 'removeMod', 'upgradeRarity', 'lockMod', 'taggedReroll', 'fixedBenchOption', 'safeReroll', 'twinReroll', 'tierStepUp', 'convertCategoryMod', 'echoMod']);
 
-function getSeaGiftRecipeStatus(recipeId, targetItem, category) {
-    let recipe = SEA_GIFT_RECIPES.find(r => r.id === recipeId);
-    if (!recipe) return null;
-    let st = ensureOceanState();
-    const materialReady = Object.keys(recipe.requires).every(key => (st.fishStock[key] || 0) >= recipe.requires[key]);
-    const needsItem = SEA_GIFT_ITEM_EFFECT_TYPES.has(recipe.effect.type);
-    const item = needsItem ? (targetItem || getSelectedCraftItem()) : null;
-    let reason = '';
-    if (!st.unlocked) reason = '심해 해금 필요';
-    else if (!materialReady) reason = '재료 부족';
-    else if (needsItem) reason = getSeaGiftTargetBlockReason(item) || getSeaGiftEffectBlockReason(item, recipe.effect, category);
-    return { recipe, ready: !reason, materialReady, reason, item, owned: st.fishStock };
-}
+const { getSeaGiftRecipeStatus, craftSeaGift } = (() => {
+    /** Equipment always advances one visible result; currency batches are bounded and fully funded before any roll. */
+    function quantityOf(recipe, stock, count) {
+        const batchLimit = ['currency', 'randomCurrency'].includes(recipe.effect.type) ? 100 : 1;
+        const maxCrafts = Math.min(batchLimit, ...Object.entries(recipe.requires).map(([key, need]) => Math.floor((stock[key] || 0) / need)));
+        const valid = Number.isInteger(count) && count >= 1 && count <= batchLimit;
+        return { count, batchLimit, maxCrafts, valid, materialReady: valid && maxCrafts >= count };
+    }
+    function getSeaGiftRecipeStatus(recipeId, targetItem, category, count = 1) {
+        const recipe = SEA_GIFT_RECIPES.find(r => r.id === recipeId);
+        if (!recipe) return null;
+        const st = ensureOceanState(), quantity = quantityOf(recipe, st.fishStock, count);
+        const needsItem = SEA_GIFT_ITEM_EFFECT_TYPES.has(recipe.effect.type);
+        const item = needsItem ? (targetItem || getSelectedCraftItem()) : null;
+        let reason = '';
+        if (!quantity.valid) reason = '제작 횟수를 확인하세요.';
+        else if (!st.unlocked) reason = '심해 해금 필요';
+        else if (!quantity.materialReady) reason = '재료 부족';
+        else if (needsItem) reason = getSeaGiftTargetBlockReason(item) || getSeaGiftEffectBlockReason(item, recipe.effect, category);
+        return { recipe, ready: !reason, ...quantity, reason, item, owned: st.fishStock };
+    }
+    function applyEffect(status, options) {
+        let effect = status.recipe.effect;
+        if (status.count > 1) effect = { ...effect, amount: effect.amount * status.count };
+        const craft = { category: options?.category, options, say: addLog };
+        const apply = Object.hasOwn(SEA_GIFT_EFFECTS, effect.type) ? SEA_GIFT_EFFECTS[effect.type] : null;
+        if (!apply) return refuseSeaGift(craft, '이 제작법을 적용할 수 없습니다.');
+        return apply(status.item, effect, craft) !== false;
+    }
+    /** Resolve the whole request before effects, then charge exactly the approved quantity and queue one save. */
+    function craftSeaGift(recipeId, targetItem, options) {
+        const status = getSeaGiftRecipeStatus(recipeId, targetItem, options?.category, options?.count);
+        if (!status) return false;
+        if (!status.ready) { addLog(`바다의 선물: ${status.reason}`, 'attack-monster'); return false; }
+        const st = ensureOceanState(), recipe = status.recipe;
+        if (!applyEffect(status, options)) return false;
+        Object.keys(recipe.requires).forEach(key => { st.fishStock[key] = Math.max(0, Math.floor(st.fishStock[key] || 0) - recipe.requires[key] * status.count); });
+        addLog(`🎁 바다의 선물 ${status.count}회 제작`, 'loot-rare');
+        if (status.item && typeof normalizeItem === 'function') normalizeItem(status.item);
+        queueImportantSave(200);
+        return true;
+    }
+    return { getSeaGiftRecipeStatus, craftSeaGift };
+})();
+safeExposeGlobals({ getSeaGiftRecipeStatus, craftSeaGift });
 
 function getSeaGiftTargetBlockReason(item) {
     if (!item) return '대상 선택 필요';
@@ -3504,26 +3537,6 @@ function getSelectedSeaGiftEquipmentTarget() {
     return isSeaGiftEquipmentTarget(item) ? item : null;
 }
 
-/** Makes a sea gift recipe: its effect from SEA_GIFT_EFFECTS on the item (a refusal logs why and keeps the fish), then the fish are
- * taken. Effects as a table on 2026-10-18, each in its old order. */
-function craftSeaGift(recipeId, targetItem, options) {
-    const category = options && options.category;
-    const status = getSeaGiftRecipeStatus(recipeId, targetItem, category);
-    if (!status) return false;
-    if (!status.ready) { addLog(`바다의 선물: ${status.reason}`, 'attack-monster'); return false; }
-    let recipe = status.recipe;
-    let st = ensureOceanState();
-    let effect = recipe.effect;
-    let item = status.item;
-    const craft = { category, options, say: addLog };
-    const apply = Object.hasOwn(SEA_GIFT_EFFECTS, effect.type) ? SEA_GIFT_EFFECTS[effect.type] : null;
-    if (apply && apply(item, effect, craft) === false) return false;
-    Object.keys(recipe.requires).forEach(key => { st.fishStock[key] = Math.max(0, Math.floor(st.fishStock[key] || 0) - recipe.requires[key]); });
-    addLog(`🎁 [바다의 선물] 제작이 완료되었습니다.`, 'loot-rare');
-    if (item && typeof normalizeItem === 'function') normalizeItem(item);
-    queueImportantSave(200);
-    return true;
-}
 /** Logs why a sea gift was refused; false for the handler to return. */
 function refuseSeaGift(craft, message) {
     craft.say(message, 'attack-monster');
@@ -3562,11 +3575,13 @@ const SEA_GIFT_EFFECTS = Object.freeze({
     currency: (item, effect) => { awardCurrency(effect.key, effect.amount || 1); },
     randomCurrency: (item, effect, craft) => {
         let count = Math.max(1, Math.floor(effect.amount || 1));
+        const gains = new Map();
         for (let i = 0; i < count; i++) {
             let key = SEA_GIFT_RANDOM_ORB_KEYS[Math.floor(Math.random() * SEA_GIFT_RANDOM_ORB_KEYS.length)];
             awardCurrency(key, 1);
-            craft.say(`🎲 무작위 제작 재화: ${(ORB_DB[key] || {}).name || key} +1`, 'loot-rare');
+            gains.set(key, (gains.get(key) || 0) + 1);
         }
+        gains.forEach((amount, key) => craft.say(`🎲 ${(ORB_DB[key] || {}).name || key} +${amount}`, 'loot-rare'));
     },
     safeReroll: (item, effect, craft) => {
         let rows = getSeaGiftRerollRows(item);
@@ -4913,15 +4928,11 @@ function drawDamageTexts(ctx, now, protectedBoxes = []) {
  * All categories share this layout, including incoming damage and block/evade cues. No combat or saved state is changed. */
 drawDamageTexts.paint = (() => {
     const MAX_LIFT = 207, GAP = 3;
-    // 좁은 전장(휴대폰 세로, 칸이 PC의 절반인 48px)은 한 단계 작은 제 크기를 쓴다: 보통 12px, 최대 타격 24px(2026-10-22: 24px 숫자 여럿이
-    // 쌓여 주인공과 몬스터를 덮었다). render가 그 프레임의 전장 캔버스(#battlefield-canvas) 폭으로 정한다: 그리는 판은 화면 밖 캔버스일 수 있다.
-    const COMPACT_CANVAS_PX = 600;
-    let compact = false;
-    // 크기는 갈무리11 Bold의 제 크기(12, 24, 36px)만 쓴다: 사이 크기(16 ~ 32px)는 도트가 번졌다(2026-10-21). 치명타와 큰 타격은 색, 빛,
-    // 튀는 크기로 구별하고 지속 피해와 빗나감은 작은 크기다.
+    // 크기는 갈무리11 Bold의 제 크기만 쓴다: 사이 크기(16 ~ 32px)는 도트가 번졌다(2026-10-21). 보통 숫자와 회피 같은 글은 12px, 최대 타격만
+    // 24px이다(휴대폰 2026-10-22, PC와 스팀 덱 2026-10-26 사용자: 24px 숫자 여럿이 쌓여 주인공과 몬스터를 덮었다). 치명타와 큰 타격은 색, 빛,
+    // 튀는 크기로 구별한다.
     function font(text) {
-        const size = text.bodyCue ? 24 : (text.impactTier === 'annihilate' ? 36 : (text.miss || text.dot ? 12 : 24));
-        return `800 ${compact ? Math.max(12, size - 12) : size}px "Galmuri11", "Malgun Gothic", sans-serif`;
+        return `800 ${text.impactTier === 'annihilate' ? 24 : 12}px "Galmuri11", "Malgun Gothic", sans-serif`;
     }
     function appearance(text, t) {
         const align = text.side > 0 ? 'left' : (text.side < 0 ? 'right' : 'center');
@@ -5036,10 +5047,6 @@ drawDamageTexts.paint = (() => {
         ctx.restore();
     }
     return function render(ctx, now, protectedBoxes) {
-        // 폭은 크기가 바뀔 때만 잰 값(js/canvas-battlefield.js battleCanvasBox): 매 프레임 clientWidth를 읽으면 그 프레임에 화면이 바뀐 때마다 배치를 다시 계산했다
-        const field = typeof document === 'object' && typeof battleCanvasBox === 'object' ? document.getElementById('battlefield-canvas') : null;
-        const width = field ? battleCanvasBox.read(field).width : 0;
-        compact = width > 0 && width < COMPACT_CANVAS_PX;
         ctx.save();
         try {
             const rows = (battleVisualState.damageTexts || []).map(text => frame(ctx, text, now)).filter(Boolean);
@@ -9486,7 +9493,8 @@ function createItemFromBase(base, rarity, zoneTier, origin) {
     };
     if (rarity === 'magic' || rarity === 'rare') rerollExplicitMods(item, rarity, affixTierCap, {
         minTier: affixTierFloor,
-        tierWeightFalloff: origin.tierWeightFalloff
+        tierWeightFalloff: origin.tierWeightFalloff,
+        weigh: origin.weigh
     });
     return item;
 }
@@ -9680,17 +9688,17 @@ function generateEquipmentDrop(enemy, options) {
     if (rarity === 'unique') return levelProgression.stampItem(generateUniqueItem(hiddenTierCap, slot, null, zone), itemLevel);
     let minimumRarity = options && ['normal', 'magic', 'rare'].includes(options.minimumRarity) ? options.minimumRarity : null;
     if (minimumRarity && getRarityRank(rarity) < getRarityRank(minimumRarity)) rarity = minimumRarity;
-    let item = createItemFromBase(base, rarity, dropTier, {
-        dropRealm: zone.type || null,
-        dropRegion: getEquipmentDropRegion(zone),
-        affixTierCap,
-        affixTierFloor: affixTierRange.min,
-        tierWeightFalloff: DROPPED_AFFIX_TIER_WEIGHT_FALLOFF
-    });
+    let item = createItemFromBase(base, rarity, dropTier, getEquipmentDropOrigin(zone, affixTierCap, affixTierRange, options));
     maybeApplyExceptionalBase(item);
     equipmentSockets.rollDropSocket(item);
     item = maybeApplyDroppedFossilExclusiveAffix(item, enemy, dropTier);
     return levelProgression.stampItem(itemInfluences.onDrop(maybeApplyChaosRealmEncroachment(item, enemy, zone), enemy, zone), itemLevel);
+}
+
+/** createItemFromBase's origin for a drop in zone; options.weigh reweighs the explicit lines (the NPC shops, js/npc-shop.js). */
+function getEquipmentDropOrigin(zone, affixTierCap, affixTierRange, options) {
+    return { dropRealm: zone.type || null, dropRegion: getEquipmentDropRegion(zone), affixTierCap, affixTierFloor: affixTierRange.min,
+        tierWeightFalloff: DROPPED_AFFIX_TIER_WEIGHT_FALLOFF, weigh: options && options.weigh };
 }
 
 /** A base stat value scaled by factor, kept on its own grid: 0.1 steps for leech/regen lines, whole numbers (at least 1) otherwise. */
@@ -9853,11 +9861,19 @@ function salvageEquipmentPickup(item, overflow) {
     return { accepted: false, kind: overflow ? 'overflow' : 'salvaged', rewards, log: !overflow || !game.isBackgroundCalculation };
 }
 
+/** Gear ids picked up since the 장비 button last rated them (js/equipment-triage.js checkFreshGear), oldest first, at most 40.
+ * Gear worn on pickup is noted too and dropped there (only bag gear is rated). */
+const freshGearIds = [];
+
 function recordEquipmentAcquisition(item) {
-    game.noti.items=true;
+    freshGearIds.push(item.id);
+    if (freshGearIds.length > 40) freshGearIds.shift();
     combatLootReceipts.item(game,item);
     return recordUniqueAcquisition(item);
 }
+
+/** Takes up to `limit` of the gear ids noted above, oldest first. */
+const takeFreshGearIds = limit => freshGearIds.splice(0, limit);
 
 function recordUniqueAcquisition(item) {
     if (item.rarity !== 'unique') return false;
@@ -9878,7 +9894,7 @@ function passesPickupTierCount(item, settings) {
     return (item.stats || []).filter(stat => Number.isFinite(stat.tier) && stat.tier >= tierThreshold).length >= minTierCount;
 }
 
-/** 항상 줍기(2026-10-10): 특출난 베이스, 좋은 희귀(data/loot-omens.js fineRare), 소켓, 타락, 도감에 없는 고유는 다른 조건과 상관없이 줍는다. */
+/** 항상 줍기(2026-10-10): 특출난 베이스, 상급 옵션 희귀(data/loot-omens.js fineRare), 소켓, 타락, 도감에 없는 고유는 다른 조건과 상관없이 줍는다. */
 const PICKUP_EXCEPTIONS = Object.freeze({
     exceptional: item => !!item.exceptionalBase,
     fineRare: item => item.rarity === 'rare' && lootMoments.fineLines(item) >= LOOT_OMENS.fineRare.good,

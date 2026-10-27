@@ -63,10 +63,22 @@ function readLocalSaveString() {
     return result.save;
 }
 
+const CORRUPT_SAVE_BACKUP_PREFIX = `${LOCAL_SAVE_KEY}_corrupt_`;
+/** The corrupt save's backups, newest first. */
+function corruptSaveBackupKeys() {
+    return Object.keys(localStorage).filter(key => key.startsWith(CORRUPT_SAVE_BACKUP_PREFIX))
+        .sort((a, b) => Number(b.slice(CORRUPT_SAVE_BACKUP_PREFIX.length)) - Number(a.slice(CORRUPT_SAVE_BACKUP_PREFIX.length)));
+}
+/** Keeps a copy of a save that failed to load. The same corrupt save is kept once, and only the two newest copies stay (2026-10-26:
+ * every page load with the corrupt save still in place wrote another full copy, until the storage quota was used up). */
 function preserveCorruptLocalSave(rawSave) {
     if (!rawSave) return null;
-    let backupKey = `${LOCAL_SAVE_KEY}_corrupt_${Date.now()}`;
     try {
+        const kept = corruptSaveBackupKeys();
+        const same = kept.find(key => localStorage.getItem(key) === rawSave);
+        if (same) return same;
+        kept.slice(1).forEach(key => localStorage.removeItem(key));
+        let backupKey = `${CORRUPT_SAVE_BACKUP_PREFIX}${Date.now()}`;
         localStorage.setItem(backupKey, rawSave);
         return backupKey;
     } catch (error) {
@@ -272,6 +284,11 @@ function persistLocalSave(options = {}) {
 }
 
 
+/** Recover an empty ordinary encounter, without restarting a completed sky allowance. */
+function resumeEmptyEncounterAfterLoad(zone) {
+    if (game.actExploration || game.settings.mapCompleteAction === 'stop' || isSkyTowerAtRewardLimit(zone)) return;
+    if (game.enemies.length === 0 && game.encounterPlan.length === 0) game.combatHalted = false;
+}
 function normalizeLocalRuntimeAfterLoad() {
     if (!game) return;
     if (typeof normalizeCombatTacticsSettings === 'function') {
@@ -285,7 +302,7 @@ function normalizeLocalRuntimeAfterLoad() {
     }
     // loadGame supplies cloneDefaultGame or mergeDefaults; both own these array shapes.
     if (!Number.isFinite(game.moveTimer)) game.moveTimer = 0;
-    if (!game.actExploration && game.settings.mapCompleteAction !== 'stop' && game.enemies.length === 0 && game.encounterPlan.length === 0) game.combatHalted = false;
+    resumeEmptyEncounterAfterLoad(zone);
     if (!game.realmDeathWard || typeof game.realmDeathWard !== 'object') game.realmDeathWard = null;
     else {
         game.realmDeathWard.amount = Math.max(0, Math.floor(Number(game.realmDeathWard.amount) || 0));

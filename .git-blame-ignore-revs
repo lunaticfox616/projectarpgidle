@@ -1,0 +1,3 @@
+# Commits that only change formatting or line endings; git blame --ignore-revs-file .git-blame-ignore-revs skips them (GitHub does by itself).
+# 2026-10-27 Line endings: text files stored as LF
+6394d98e4cae88883ecd3b9cd425701f0e736f8d

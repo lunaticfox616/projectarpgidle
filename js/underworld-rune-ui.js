@@ -16,7 +16,10 @@ const underworldRuneUi = (() => {
     }
     const updateMarkup = updateGamePanelMarkup;
     /** 지하석 그림(assets/items/underworld-stones, 2026-10-25 Codex): 번호마다 한 장, 도트 하나가 1px이고 줄여서 부드럽게 그린다. */
-    const iconHtml = no => (getUnderworldRuneDef(no) ? `<img class="underworld-stone-icon" src="assets/items/underworld-stones/uw_rune_${no}.png" alt="" draggable="false" decoding="async">` : '');
+    const iconHtml = no => {
+        const value = Number(no), def = Number.isInteger(value) && value > 0 ? getUnderworldRuneDef(value) : null;
+        return def ? `<img class="underworld-stone-icon" src="assets/items/underworld-stones/uw_rune_${def.no}.png" alt="" draggable="false" decoding="async">` : '';
+    };
 
     function progressLabel(state) {
         const slots = Math.max(0, Math.floor(state.unlockedSlots || 0));
@@ -121,15 +124,26 @@ const underworldRuneUi = (() => {
         const lock = open ? '' : `<small class="underworld-lock">${escapeHTML(getUnderworldEntryLockReason(game))}</small>`;
         const other = floor === highest ? '' : `<button type="button" data-exploration-departure onclick="enterUnderworldFloor(${floor})" ${off}>${floor}층 입장</button>`;
         return `<section class="underworld-entry-card ${game.currentZoneId === UNDERWORLD_ZONE_ID ? 'current' : ''}"><div class="underworld-entry-copy">`
-            + `<span>최고층 도전 기준, 현재 선택 ${floor}층</span><strong>도달 최고 ${highest}층</strong><div>${buildMapPowerEstimateHtml(getUnderworldZone(highest))}</div>${lock}</div>`
+            + `<span>최고층 도전 기준, 현재 선택 ${floor}층</span><strong>입장 가능 ${highest}층</strong><div>${buildMapPowerEstimateHtml(getUnderworldZone(highest))}</div>${lock}</div>`
             + `<div class="underworld-entry-actions"><button type="button" class="underworld-primary-action" data-exploration-departure onclick="enterUnderworldFloor(${highest})" ${off}>최고층 ${highest} 입장</button>`
             + `${other}<button type="button" data-exploration-departure onclick="enterUnderworldPrompt()" ${off}>다른 층…</button></div></section>`;
     }
     function entryPageHtml() {
         const tickets = [['uberRootTicketFlame', '화염'], ['uberRootTicketFrost', '냉기'], ['uberRootTicketStorm', '번개'], ['uberRootTicketChaos', '카오스']];
-        return `<div class="underworld-lower-grid">${skyStoneHtml()}<section class="underworld-upgrade-card underworld-reward-card"><div><strong>층 보상</strong>`
-            + `<span>${progressLabel(ensureUnderworldRuneState())}</span><span>15층부터 지속 피해</span></div>`
+        return `<div class="underworld-lower-grid">${skyStoneHtml()}<section class="underworld-upgrade-card underworld-reward-card">${nextRewardHtml()}`
             + `<div class="underworld-ticket-strip"><small>그림자 뿌리 입장권</small>${tickets.map(([key, name]) => `<span>${name} <b>${held(key)}</b></span>`).join('')}</div></section></div>`;
+    }
+    function nextRewardHtml() {
+        const state = ensureUnderworldRuneState(), rule = UNDERWORLD_DEEP_FLOOR_REWARD;
+        const nextNo = Math.min(30, Math.max(0, Math.floor(state.unlockedRunesMaxNumber || 0))) + 1;
+        const paid = Math.max(rule.fromFloor, Math.floor(game.underworldProgress.deepRewardFloor || 0));
+        const floor = nextNo <= 30 ? nextNo * 10 : rule.fromFloor + (Math.floor((paid - rule.fromFloor) / rule.every) + 1) * rule.every;
+        const reward = window.GameModules.state.underworldMilestoneReward(floor);
+        const slots = reward.slots > state.unlockedSlots ? `<span>지하석 슬롯 ${reward.slots}/6</span>` : '';
+        const stone = reward.rune ? `<div class="underworld-next-stone">${iconHtml(reward.rune.no)}<div><strong>${escapeHTML(reward.rune.name)} 지하석 1개</strong>
+            <small>${getUnderworldRuneEffectHtml(reward.rune.no)}</small><span>지하석 1~${reward.rune.no} 해금</span>${slots}</div></div>` : '';
+        const materials = RESOURCES.filter(([key]) => reward.currencies[key]).map(([key, name]) => `<span>${name} <b>${reward.currencies[key]}개</b></span>`).join('');
+        return `<div><strong>${floor}층 보상</strong>${stone}<div class="underworld-ticket-strip">${materials}</div><small>15층부터 지속 피해</small></div>`;
     }
     function skyStoneHtml() {
         const tower = ensureSkyTowerState(), level = Math.max(0, Math.floor((tower.skyStone || {}).level || 0));

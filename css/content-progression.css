@@ -48,7 +48,7 @@
 .unlock-connections{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;fill:none;stroke:var(--skin-line-strong);stroke-width:1}
 .unlock-depth{width:136px;position:relative;display:flex;flex-direction:column;align-items:center;gap:20px;flex-shrink:0}
 .unlock-depth-label{font-size:10px;line-height:16px;color:var(--color-text-tertiary);letter-spacing:2px}
-#content-unlock-panel .unlock-node{display:flex;flex-direction:column;align-items:flex-start;gap:5px;background:none;border:0;box-shadow:none;padding:0 3px;width:100%;height:136px;flex-shrink:0;white-space:normal}
+#content-unlock-panel .unlock-node{display:flex;flex-direction:column;align-items:flex-start;gap:5px;background:none;border:0;box-shadow:none;padding:0 3px;width:100%;height:150px;flex-shrink:0;white-space:normal}
 /* 노드 그림과 이름은 노드 왼쪽에서 정수 px로 가운데에 놓는다(가운데 맞춤은 반 화소에 놓였다, 2026-10-21). */
 #content-unlock-panel .unlock-node>*{position:relative;left:round(down,50%,1px);translate:round(up,-50%,1px)}
 .unlock-node-art{position:relative;width:66px;height:66px;display:grid;place-items:center;border:1px solid var(--skin-line-strong);background:var(--skin-panel-raised);box-shadow:inset 0 0 0 4px var(--skin-panel)}
@@ -60,6 +60,11 @@
 .unlock-node strong{font-size:12px;font-weight:500;color:var(--color-text)}
 .unlock-node small{font-size:10px;color:var(--color-text-tertiary);line-height:1.6}
 .unlock-lifetime-tag{display:block;font-size:10px;line-height:1.4;color:var(--color-text-secondary);letter-spacing:0}
+/* 해금이 주는 것(data/content-progression.js gain), 이름 바로 아래. 상세에서는 설명 위. */
+.unlock-gain{display:block;font-size:10px;line-height:1.4;color:var(--skin-accent)}
+.unlock-detail .unlock-gain{font-size:12px;margin:2px 0 6px}
+/* 이번 루프에 새로 고를 수 있게 된 해금: 그림 오른쪽 위의 점. */
+.unlock-node.is-new .unlock-node-art:after{content:'';position:absolute;top:-4px;right:-4px;width:8px;height:8px;border-radius:50%;background:var(--skin-accent);box-shadow:0 0 6px var(--skin-accent)}
 .unlock-milestone-item .unlock-lifetime-tag{margin-top:4px}
 .unlock-lifetime{border-top:1px solid var(--skin-line);padding-top:12px}
 .unlock-lifetime summary{font-size:11px;font-weight:500;color:var(--skin-accent);cursor:pointer;padding:4px 0;line-height:1.6}
@@ -123,7 +128,7 @@
  .unlock-map{padding:0 12px 14px}
  .unlock-path{gap:12px}
  .unlock-depth{width:96px;gap:14px}
- #content-unlock-panel .unlock-node{height:118px;padding:0}
+ #content-unlock-panel .unlock-node{height:132px;padding:0}
  .unlock-node-art{width:54px;height:54px}
  .unlock-node-art:before{left:22px}
  .unlock-node-art img{width:40px;height:40px}
@@ -150,7 +155,7 @@
  .unlock-depth-label{text-align:left}
  /* 노드는 그림 왼쪽 · 이름과 상태 오른쪽의 한 줄 목록으로 */
  #content-unlock-panel .unlock-node{display:grid;grid-template-columns:54px minmax(0,1fr);column-gap:12px;align-items:center;justify-items:start;width:100%;height:auto;min-height:62px;text-align:left}
- #content-unlock-panel .unlock-node>.unlock-node-art{grid-row:1/span 3}
+ #content-unlock-panel .unlock-node>.unlock-node-art{grid-row:1/span 4}
  #content-unlock-panel .unlock-node>*{left:0;translate:none}
  .unlock-milestone-intro{align-items:flex-start;flex-direction:column}
  .unlock-toolbar{padding:0 14px}

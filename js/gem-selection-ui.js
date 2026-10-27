@@ -140,7 +140,8 @@
         const support = type === 'support';
         const worn = anchor.classList.contains('active');
         const canUnequip = support || skillGemBoardUi.kindOf(name) === 'summon' || mobilitySkill.isMobilityGem(name);
-        const seal = !worn && name !== '기본 공격' ? '<button type="button" data-gem-action="seal" class="gem-selection-seal">봉인</button>' : '';
+        const refusal = getSkillGemSealRefusal(name, support);
+        const seal = !worn && name !== '기본 공격' ? `<button type="button" data-gem-action="seal" class="gem-selection-seal" ${refusal ? `disabled title="${escapeHTML(refusal)}"` : ''}>봉인</button>` : '';
         return equipButton(anchor, canUnequip) + kindControls(type, name, worn) + seal + '<button type="button" data-gem-action="close" aria-label="룬 상세 닫기">닫기</button>';
     }
 

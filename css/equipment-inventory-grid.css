@@ -234,7 +234,7 @@
     user-select: none;
 }
 
-/* 장착 칸의 등급 구석 삼각형. 가방 칸과 끌고 가는 장비는 바탕색이 등급을 알려 두지 않는다(2026-10-26). */
+/* 장착 칸의 등급 구석 삼각형. 가방 칸, 끌고 가는 장비, 장비 창의 장착 칸은 바탕색이 등급을 알려 두지 않는다(2026-10-26). */
 .equipment-slot:not(.equipment-slot-empty) .equipment-slot-visual::after {
     content: '';
     position: absolute;
@@ -249,10 +249,12 @@
     pointer-events: none;
     z-index: 3;
 }
-.equipment-grid-item.rarity-magic { --item-rarity: #5fb4ec; --rarity-fill: 32%; }
-.equipment-grid-item.rarity-rare { --item-rarity: #e9c355; --rarity-fill: 30%; }
-.equipment-grid-item.rarity-unique { --item-rarity: #ff9f43; --rarity-fill: 34%; }
-.equipment-grid-item.rarity-normal { --item-rarity: #7d8996; --rarity-fill: 14%; }
+/* 가방 칸, 끌고 가는 장비, 해체 복구함의 장비 그림(css/salvage-recovery.css)이 같은 등급 색을 쓴다.
+   고유는 희귀(올리브빛 금색)와 확실히 갈리게 붉은 주황을 더 짙게 섞는다(2026-10-26 사용자: 전에는 #ff9f43 34%로 둘 다 갈색으로 보였다). */
+:is(.equipment-grid-item, .equipment-grid-cursor-item, .salvage-recovery-art).rarity-magic { --item-rarity: #5fb4ec; --rarity-fill: 32%; }
+:is(.equipment-grid-item, .equipment-grid-cursor-item, .salvage-recovery-art).rarity-rare { --item-rarity: #e9c355; --rarity-fill: 30%; }
+:is(.equipment-grid-item, .equipment-grid-cursor-item, .salvage-recovery-art).rarity-unique { --item-rarity: #f26a2a; --rarity-fill: 42%; }
+:is(.equipment-grid-item, .equipment-grid-cursor-item, .salvage-recovery-art).rarity-normal { --item-rarity: #7d8996; --rarity-fill: 14%; }
 
 .equipment-grid-item.is-filter-muted {
     opacity: .48;
@@ -314,10 +316,6 @@
     will-change: transform;
 }
 
-.equipment-grid-cursor-item.rarity-magic { --item-rarity: #5fb4ec; --rarity-fill: 32%; }
-.equipment-grid-cursor-item.rarity-rare { --item-rarity: #e9c355; --rarity-fill: 30%; }
-.equipment-grid-cursor-item.rarity-unique { --item-rarity: #ff9f43; --rarity-fill: 34%; }
-.equipment-grid-cursor-item.rarity-normal { --item-rarity: #7d8996; --rarity-fill: 14%; }
 .equipment-grid-cursor-item.can-drop { border-color: #78e1a0; }
 .equipment-grid-cursor-item.cannot-drop { border-color: #f07878; opacity: .72; }
 
@@ -403,10 +401,11 @@
 .equipment-slot-empty .equipment-empty-label { margin: 3px auto auto; }
 .equipment-slot-name { text-align: center; }
 
-#item-tab-equip .equipment-slot.rarity-normal { --equipment-rarity: #7d8996; }
-#item-tab-equip .equipment-slot.rarity-magic { --equipment-rarity: #5fb4ec; }
-#item-tab-equip .equipment-slot.rarity-rare { --equipment-rarity: #e9c355; }
-#item-tab-equip .equipment-slot.rarity-unique { --equipment-rarity: #ff9f43; }
+/* 장비 창의 장착 칸은 가방 칸과 같은 색과 몫으로 바탕을 칠한다(css/equipment-window.css) */
+#item-tab-equip .equipment-slot.rarity-normal { --equipment-rarity: #7d8996; --rarity-fill: 14%; }
+#item-tab-equip .equipment-slot.rarity-magic { --equipment-rarity: #5fb4ec; --rarity-fill: 32%; }
+#item-tab-equip .equipment-slot.rarity-rare { --equipment-rarity: #e9c355; --rarity-fill: 30%; }
+#item-tab-equip .equipment-slot.rarity-unique { --equipment-rarity: #f26a2a; --rarity-fill: 42%; }
 
 .equipment-temporary-storage {
     margin: 8px 0;
@@ -443,7 +442,7 @@
 .equipment-temporary-item.rarity-normal { --item-rarity: #7d8996; }
 .equipment-temporary-item.rarity-magic { --item-rarity: #5fb4ec; }
 .equipment-temporary-item.rarity-rare { --item-rarity: #e9c355; }
-.equipment-temporary-item.rarity-unique { --item-rarity: #ff9f43; }
+.equipment-temporary-item.rarity-unique { --item-rarity: #f26a2a; }
 
 @media (max-width: 640px) {
     :root body #item-tab-equip .equipment-inventory-panel { padding: 8px; }

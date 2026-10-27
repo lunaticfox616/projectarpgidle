@@ -28,6 +28,7 @@ function getGhostArenaError(error) {
     let texts = [
         [/GHOST_SNAPSHOT_UNAVAILABLE|INVALID_GHOST_SNAPSHOT/, '현재 세팅의 전투 능력치를 불러오지 못했습니다.'],
         [/GHOST_ACCOUNT_HELD/, '운영 검토 중인 계정이라 고스트 대결에 참여할 수 없습니다.'],
+        [/GHOST_SNAPSHOT_IMPLAUSIBLE/, '게임에서 나올 수 없는 수치라 서버가 고스트 등록을 거절했습니다.'],
         [/GHOST_OPPONENT_NOT_FOUND/, '대결 가능한 상대가 아직 없습니다.'],
         [/GHOST_TARGET_NOT_REGISTERED/, '상대가 현재 버전의 고스트를 등록하지 않았습니다.'],
         [/GHOST_REGISTRATION_REQUIRED/, '먼저 내 고스트를 등록하세요.'],
@@ -201,6 +202,11 @@ function renderGhostResult(result) {
     return `<div class="ghost-result ${tone}" data-ghost-duel-result><strong>${labels[result.result] || result.result}</strong>, ${ghostArenaEscape(result.opponent)} (${ghostArenaEscape(result.opponentSkill)})<span>레이팅 ${ghostArenaEscape(result.ratingBefore)} → ${ghostArenaEscape(result.ratingAfter)} (${delta >= 0 ? '+' : ''}${delta})</span></div>`;
 }
 
+/** 서버가 내 고스트를 검토 중(7일 안의 수치 기록, get_ghost_arena underReview)이라고 하면 한 줄: 그동안 순위전 점수가 움직이지 않는다. */
+function renderGhostReviewNotice(data) {
+    return data && data.underReview === true ? '<p class="ghost-error">검토 중인 고스트: 순위전 점수가 멈춰 있습니다.</p>' : '';
+}
+
 function renderGhostLeaderboard(rows) {
     if (!rows.length) return '<p class="ghost-empty">등록된 고스트가 없습니다.</p>';
     return `<div class="ghost-board">${rows.slice(0, 10).map(row => `<div class="ghost-rank"><b>${row.rank}</b><span>${ghostArenaEscape(row.nickname)}<small>${ghostArenaEscape(socialClassLabel(row.ascend_class))}, ${ghostArenaEscape(row.active_skill)}</small></span><strong>${row.rating}${row.provisional ? '*' : ''}</strong><em>${row.wins}승 ${row.losses}패 ${row.draws}무</em></div>`).join('')}</div>`;
@@ -259,7 +265,7 @@ function renderGhostArena() {
     let status = me
         ? `<span>내 레이팅 <strong>${me.rating}</strong>, ${me.wins}승 ${me.losses}패 ${me.draws}무${me.matches < 10 ? ', 배치 중' : ''}</span>`
         : '<span>등록된 고스트 없음</span>';
-    let html = `<section class="ghost-arena"><header><div><strong>고스트 실전투</strong><small>보상 없음, 점수는 서버 모의 전투로 판정</small></div></header><div class="ghost-toolbar">${status}<button onclick="registerMyGhost()" ${ghostArenaState.loading || !serverReady ? 'disabled' : ''}>${me ? '고스트 갱신' : '고스트 등록'}</button><button onclick="fightRandomGhost()" ${!me || ghostArenaState.loading || !serverReady ? 'disabled' : ''}>상대 찾기</button></div><p class="ghost-help">등록 시 현재 세팅을 즉시 반영합니다. 대전 간 20초, 랭크 20회/24시간, 친선 30회/24시간 제한이 서버에서 적용됩니다.</p>${visibleMessage ? `<p class="ghost-error">${ghostArenaEscape(visibleMessage)}</p>` : ''}${renderGhostArenaRetry()}${renderFriendlyGhostChallenge()}${renderActiveGhostResult()}${renderActiveGhostDuel()}${renderGhostLeaderboard(Array.isArray(data.leaderboard) ? data.leaderboard : [])}</section>`;
+    let html = `<section class="ghost-arena"><header><div><strong>고스트 실전투</strong><small>보상 없음, 점수는 서버 모의 전투로 판정</small></div></header><div class="ghost-toolbar">${status}<button onclick="registerMyGhost()" ${ghostArenaState.loading || !serverReady ? 'disabled' : ''}>${me ? '고스트 갱신' : '고스트 등록'}</button><button onclick="fightRandomGhost()" ${!me || ghostArenaState.loading || !serverReady ? 'disabled' : ''}>상대 찾기</button></div><p class="ghost-help">등록 시 현재 세팅을 즉시 반영합니다. 대전 간 20초, 랭크 20회/24시간, 친선 30회/24시간 제한이 서버에서 적용됩니다.</p>${visibleMessage ? `<p class="ghost-error">${ghostArenaEscape(visibleMessage)}</p>` : ''}${renderGhostReviewNotice(data)}${renderGhostArenaRetry()}${renderFriendlyGhostChallenge()}${renderActiveGhostResult()}${renderActiveGhostDuel()}${renderGhostLeaderboard(Array.isArray(data.leaderboard) ? data.leaderboard : [])}</section>`;
     updateGhostArenaMarkup(host, html);
     if (ghostArenaLoadDue()) Promise.resolve(loadGhostArena()).catch(() => {});
 }

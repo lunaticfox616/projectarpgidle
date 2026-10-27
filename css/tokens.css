@@ -94,4 +94,12 @@
   --image-window-frame: url('../assets/ui/reliquary/window-frame-v1.svg');
   --font-size-chat: 12px;
 }
+/* 정수배가 아닌 PC 배율(1080p·QHD의 150%)에서는 도트 글꼴이 번져 글자만 일반 글꼴로 바꾼다. js/ui-display.js가 html에 ui-smooth-text를 붙인다(2026-10-27).
+   도트 테마의 글꼴 역할은 전부 이 세 토큰을 읽고, body의 Galmuri11은 base.css에 박혀 있어 함께 바꾼다. */
+:root.ui-smooth-text {
+  --font-pixel: 'IBM Plex Sans KR', 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+  --font-pixel-read: 'IBM Plex Sans KR', 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+  --font-pixel-meta: 'IBM Plex Sans KR', 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+}
+:root.ui-smooth-text body { font-family: var(--font-pixel); }
 }

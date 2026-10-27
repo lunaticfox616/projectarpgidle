@@ -706,17 +706,25 @@
         return true;
     }
 
-    function autoArrange() {
+    /** 정리 단추의 기준 이름(js/equipment-inventory-grid.js ARRANGE_ORDERS) */
+    const ARRANGE_LABELS = Object.freeze({ recent: '최근 획득순', rarity: '등급순', slot: '부위순', size: '크기순' });
+    /** 빈칸 정리. order: 정리 패널에서 고른 기준(기억해 두고 단추를 두 번 누르면 그 기준을 쓴다), 없으면 마지막에 고른 기준. */
+    function autoArrange(order) {
         cancelCarry();
-        let order = equipmentInventoryGridRuntime.autoArrange(game);
-        if (!order) {
+        const last = game.settings.bagArrangeOrder;
+        const wanted = ARRANGE_LABELS[order] ? order : (ARRANGE_LABELS[last] ? last : 'recent');
+        game.settings.bagArrangeOrder = wanted;
+        document.getElementById('eqw-arrange-menu')?.removeAttribute('open');
+        let used = equipmentInventoryGridRuntime.autoArrange(game, wanted);
+        if (!used) {
             notify('가방이 거의 차서 빈칸 없이 다시 놓을 수 없습니다. 그대로 두었습니다.', 'warning');
             return;
         }
         activePage = 0;
         if (typeof saveGame === 'function') saveGame({ skipCloudSync: true });
         if (typeof updateStaticUI === 'function') updateStaticUI();
-        notify(order === 'recent' ? '최근 장비부터 빈칸 없이 배치했습니다.' : '최근 장비부터는 다 들어가지 않아 큰 장비부터 빈칸 없이 배치했습니다.', 'success');
+        notify(used === wanted ? `${ARRANGE_LABELS[wanted]}으로 빈칸 없이 배치했습니다.`
+            : `${ARRANGE_LABELS[wanted]}으로는 다 들어가지 않아 크기순으로 빈칸 없이 배치했습니다.`, 'success');
     }
 
     /** equipmentInventoryGridRuntime packed the bag again so an item with no free cell fits instead of going to the temporary storage. */

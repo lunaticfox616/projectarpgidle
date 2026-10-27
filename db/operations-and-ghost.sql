@@ -1,4 +1,4 @@
--- Project ARPG Idle: 운영 도구, 저장 이력, 고스트 대결
+-- Project ARPG Idle: 운영 도구, 저장 이력, 고스트 대결, 문의와 제보, 관리자 플레이어 조회
 -- db/cloud-and-playtest.sql 및 db/social.sql 실행 후 Supabase SQL Editor에서 실행한다.
 -- Supabase의 "destructive operations" 경고는 아래 제약조건·함수 시그니처 교체, 권한 REVOKE 및
 -- 함수 본문 안의 오래된 저장 이력 정리 DELETE 때문에 표시된다. 이 스크립트를 실행하는
@@ -216,7 +216,7 @@ begin
           from recent group by coalesce(ascend_class, 'unascended'), coalesce(active_skill, 'unknown')
          order by runs desc limit 100
     ), alerts as (
-        select zone_type, zone_id, runs,
+        select zone_type, zone_id, runs, players,
                case
                    when runs >= 5 and p95_frame_ms >= 50 then 'critical'
                    when runs >= 5 and clear_rate_pct < 30 then 'critical'
@@ -233,7 +233,7 @@ begin
                end as message
           from zone_rows
         union all
-        select 'build', ascend_class || ' · ' || active_skill, runs,
+        select 'build', ascend_class || ' · ' || active_skill, runs, players,
                case
                    when runs >= 5 and clear_rate_pct < 30 then 'critical'
                    when runs >= 5 and clear_rate_pct > 95 then 'warning'
@@ -255,12 +255,8 @@ begin
         ),
         'zones', coalesce((select jsonb_agg(to_jsonb(z)) from zone_rows z), '[]'::jsonb),
         'builds', coalesce((select jsonb_agg(to_jsonb(b)) from build_rows b), '[]'::jsonb),
-        'alerts', coalesce((select jsonb_agg(to_jsonb(a)) from alerts a where severity is not null), '[]'::jsonb),
-        'errors', coalesce((select jsonb_agg(to_jsonb(e)) from (
-            select created_at, message, stack, context, app_version
-              from public.client_error_reports order by created_at desc limit 50
-        ) e), '[]'::jsonb)
-    ) into payload;
+        'alerts', coalesce((select jsonb_agg(to_jsonb(a)) from alerts a where severity is not null), '[]'::jsonb)
+    ) into payload;   -- 오류 50건의 stack과 context(최대 700KB)는 더 보내지 않는다: 운영 창은 admin_get_ops_overview의 묶음을 그린다(2026-10-27)
     return payload;
 end;
 $$;
@@ -312,6 +308,8 @@ create index if not exists ghost_matches_challenger_created_idx
     on public.ghost_matches(challenger_id, created_at desc);
 create index if not exists ghost_matches_defender_created_idx
     on public.ghost_matches(defender_id, created_at desc);
+create index if not exists ghost_matches_created_idx
+    on public.ghost_matches(created_at);
 create index if not exists ghost_profiles_rating_idx
     on public.ghost_profiles(combat_version, rating desc);
 alter table public.ghost_profiles enable row level security;
@@ -322,6 +320,7 @@ create or replace function public.ghost_ehp_for_element(values_json jsonb, eleme
 returns numeric
 language sql
 immutable
+set search_path = public
 as $$
     select greatest(1, least(9000000000000000::numeric,
         coalesce(case when jsonb_typeof(values_json -> element_key) = 'number'
@@ -336,6 +335,7 @@ create or replace function public.ghost_snapshot_number(
 returns numeric
 language sql
 immutable
+set search_path = public
 as $$
     select greatest(minimum, least(maximum, coalesce(
         case when jsonb_typeof(payload -> field_name) = 'number'
@@ -346,6 +346,7 @@ create or replace function public.normalize_ghost_combat_snapshot(payload jsonb,
 returns jsonb
 language plpgsql
 immutable
+set search_path = public
 as $$
 declare
     source jsonb := coalesce(payload, '{}'::jsonb);
@@ -403,6 +404,7 @@ create or replace function public.ghost_duel_roll(seed_value text, roll_key text
 returns numeric
 language sql
 immutable
+set search_path = public
 as $$
     select abs(mod(hashtextextended(seed_value || ':' || roll_key, 0), 1000001)) / 1000000.0;
 $$;
@@ -411,6 +413,7 @@ create or replace function public.prepare_ghost_duel_fighter(snapshot jsonb, ene
 returns jsonb
 language sql
 immutable
+set search_path = public
 as $$
     select snapshot || jsonb_build_object(
         'maxVitality', public.ghost_snapshot_number(coalesce(snapshot -> 'directEhpByElement', fallback_ehp), enemy_element,
@@ -437,6 +440,7 @@ create or replace function public.resolve_ghost_duel_attack(attacker jsonb, defe
 returns jsonb
 language plpgsql
 immutable
+set search_path = public
 as $$
 declare
     seed_value text := attack_context ->> 'seed'; key_value text := attack_context ->> 'key';
@@ -478,6 +482,7 @@ create or replace function public.simulate_ghost_duel(left_snapshot jsonb, right
 returns jsonb
 language plpgsql
 immutable
+set search_path = public
 as $$
 -- 움직이며 싸우는 대결(2026-10-22 사용자: "실제 전투처럼 (몬스터와 전투하는것처럼) 범위,이동속도 등이 영향이 있도록 서로 움직이면서").
 -- 두 고스트는 게임의 주인공처럼 움직인다(js/combat.js updatePlayerGridEngagement). 12칸 줄에서 7칸 떨어져 선다.
@@ -768,31 +773,49 @@ begin
     select jsonb_build_object(
         -- 5: 움직이며 싸우는 대결(simulate_ghost_duel의 arena, 사건의 lx, rx)
         'combatProtocolVersion', 5,
+        'underReview', public.ghost_under_review(account_id),   -- 7일 안의 수치 기록: 순위전 점수가 멈춰 있다(2026-10-27)
         'me', (select to_jsonb(me) - 'user_id' - 'combat_snapshot' from public.ghost_profiles me where me.user_id = account_id),
         'leaderboard', coalesce((select jsonb_agg(to_jsonb(board)) from (
-            select row_number() over (order by rating desc, wins desc, updated_at asc) as rank,
-                   nickname, ascend_class, active_skill, rating, wins, losses, draws, matches,
-                   case when matches < 10 then true else false end as provisional
-              from public.ghost_profiles
-             where active and combat_version = p_combat_version
-             order by rating desc, wins desc, updated_at asc limit 50
+            select row_number() over (order by ghost.rating desc, ghost.wins desc, ghost.updated_at asc) as rank,
+                   coalesce(profile.nickname, ghost.nickname) as nickname,   -- 닉네임을 바꾸면 순위표도 따라간다(2026-10-27)
+                   ghost.ascend_class, ghost.active_skill, ghost.rating, ghost.wins, ghost.losses, ghost.draws, ghost.matches,
+                   case when ghost.matches < 10 then true else false end as provisional
+              from public.ghost_profiles ghost
+              left join public.player_profiles profile on profile.user_id = ghost.user_id
+             where ghost.active and ghost.combat_version = p_combat_version
+             order by ghost.rating desc, ghost.wins desc, ghost.updated_at asc limit 50
         ) board), '[]'::jsonb),
         'recent', coalesce((select jsonb_agg(to_jsonb(recent_match)) from (
             select match_row.created_at, match_row.ranked,
                    case when match_row.challenger_id = account_id then match_row.result
                         when match_row.result = 'win' then 'loss'
                         when match_row.result = 'loss' then 'win' else 'draw' end as result,
-                   case when match_row.challenger_id = account_id then defender.nickname else challenger.nickname end as opponent,
+                   case when match_row.challenger_id = account_id then coalesce(defender_profile.nickname, defender.nickname)
+                        else coalesce(challenger_profile.nickname, challenger.nickname) end as opponent,   -- 지금 닉네임(2026-10-27)
                    case when match_row.challenger_id = account_id then match_row.challenger_rating_after - match_row.challenger_rating_before
                         else match_row.defender_rating_after - match_row.defender_rating_before end as rating_delta
               from public.ghost_matches match_row
               join public.ghost_profiles challenger on challenger.user_id = match_row.challenger_id
               join public.ghost_profiles defender on defender.user_id = match_row.defender_id
+              left join public.player_profiles challenger_profile on challenger_profile.user_id = match_row.challenger_id
+              left join public.player_profiles defender_profile on defender_profile.user_id = match_row.defender_id
              where match_row.challenger_id = account_id or match_row.defender_id = account_id
              order by match_row.created_at desc limit 10
         ) recent_match), '[]'::jsonb)
     ) into payload;
     return payload;
+end;
+$$;
+
+-- 검토 중인 고스트(db/anti-cheat.sql의 감시가 7일 안에 DPS나 EHP 이상치로 기록한 계정): 순위전에서 점수를 얻지 못하고,
+-- 상대도 그 고스트에게 점수를 잃지 않는다. 친선전은 그대로다. 감시 표가 아직 없는 설치에서는 늘 false다.
+create or replace function public.ghost_under_review(p_user_id uuid)
+returns boolean language plpgsql stable security definer set search_path = public as $$
+begin
+    if to_regclass('public.cheat_flags') is null then return false; end if;
+    return exists (select 1 from public.cheat_flags flag
+                    where flag.user_id = p_user_id and flag.kind in ('ghost_dps', 'ghost_ehp')
+                      and flag.last_at >= now() - interval '7 days');
 end;
 $$;
 
@@ -813,6 +836,8 @@ declare
     challenger_score numeric;
     expected_score numeric;
     rating_delta integer;
+    challenger_delta integer;
+    defender_delta integer;
 begin
     if account_id is null then raise exception 'AUTH_REQUIRED'; end if;
     -- ponytail: 테스터 규모에서는 전역 매치 잠금이 가장 안전하다. 동시 매치가 병목이 될 때 계정 순서 잠금으로 교체한다.
@@ -825,6 +850,8 @@ begin
          where challenger_id = account_id and ranked and created_at >= now() - interval '1 day') >= 20 then
         raise exception 'GHOST_DAILY_LIMIT';
     end if;
+    -- 90일 지난 대전 기록은 지운다(2026-10-27: 정리가 없어 계정당 하루 50행까지 쌓였다).
+    delete from public.ghost_matches where created_at < now() - interval '90 days';
     select * into challenger from public.ghost_profiles
      where user_id = account_id and active and combat_version = p_combat_version for update;
     if not found then raise exception 'GHOST_REGISTRATION_REQUIRED'; end if;
@@ -852,16 +879,21 @@ begin
     expected_score := 1 / (1 + power(10::numeric, (defender.rating - challenger.rating) / 400.0));
     rating_delta := round(24 * (challenger_score - expected_score));
     if rating_delta = 0 and result_value <> 'draw' then rating_delta := case when result_value = 'win' then 1 else -1 end; end if;
+    -- 검토 중인 고스트(ghost_under_review)는 점수가 움직이지 않고, 그 상대는 잃지 않는다(얻는 것은 그대로).
+    challenger_delta := rating_delta;
+    defender_delta := -rating_delta;
+    if public.ghost_under_review(account_id) then challenger_delta := 0; defender_delta := greatest(defender_delta, 0); end if;
+    if public.ghost_under_review(defender_id) then defender_delta := 0; challenger_delta := greatest(challenger_delta, 0); end if;
 
     update public.ghost_profiles set
-        rating = greatest(100, least(4000, rating + rating_delta)),
+        rating = greatest(100, least(4000, rating + challenger_delta)),
         wins = wins + case when result_value = 'win' then 1 else 0 end,
         losses = losses + case when result_value = 'loss' then 1 else 0 end,
         draws = draws + case when result_value = 'draw' then 1 else 0 end,
         matches = matches + 1
      where user_id = account_id;
     update public.ghost_profiles set
-        rating = greatest(100, least(4000, rating - rating_delta)),
+        rating = greatest(100, least(4000, rating + defender_delta)),
         wins = wins + case when result_value = 'loss' then 1 else 0 end,
         losses = losses + case when result_value = 'win' then 1 else 0 end,
         draws = draws + case when result_value = 'draw' then 1 else 0 end,
@@ -874,16 +906,17 @@ begin
         defender_rating_before, defender_rating_after, seed, combat_version
     ) values (
         account_id, defender_id, result_value,
-        challenger.rating, greatest(100, least(4000, challenger.rating + rating_delta)),
-        defender.rating, greatest(100, least(4000, defender.rating - rating_delta)),
+        challenger.rating, greatest(100, least(4000, challenger.rating + challenger_delta)),
+        defender.rating, greatest(100, least(4000, defender.rating + defender_delta)),
         seed_value, p_combat_version
     );
     return jsonb_build_object(
-        'opponent', defender.nickname, 'opponentClass', defender.ascend_class,
+        'opponent', coalesce((select profile.nickname from public.player_profiles profile where profile.user_id = defender_id), defender.nickname),
+        'opponentClass', defender.ascend_class,
         'opponentSkill', defender.active_skill, 'result', result_value,
         'ratingBefore', challenger.rating,
-        'ratingAfter', greatest(100, least(4000, challenger.rating + rating_delta)),
-        'ratingDelta', greatest(100, least(4000, challenger.rating + rating_delta)) - challenger.rating,
+        'ratingAfter', greatest(100, least(4000, challenger.rating + challenger_delta)),
+        'ratingDelta', greatest(100, least(4000, challenger.rating + challenger_delta)) - challenger.rating,
         'seed', seed_value, 'duel', duel
     );
 end;
@@ -965,9 +998,281 @@ revoke all on function public.ghost_duel_roll(text, text) from public, anon, aut
 revoke all on function public.prepare_ghost_duel_fighter(jsonb, text, jsonb) from public, anon, authenticated;
 revoke all on function public.resolve_ghost_duel_attack(jsonb, jsonb, jsonb, numeric) from public, anon, authenticated;
 revoke all on function public.simulate_ghost_duel(jsonb, jsonb, text) from public, anon, authenticated;
+revoke all on function public.ghost_under_review(uuid) from public, anon, authenticated;
 grant execute on function public.register_my_ghost(text, jsonb) to authenticated;
 grant execute on function public.get_ghost_arena(text) to authenticated;
 grant execute on function public.fight_ghost(text) to authenticated;
 grant execute on function public.fight_ghost_target(uuid, text) to authenticated;
+
+-- ============================================================================
+-- 문의와 제보, 관리자 플레이어 조회 (2026-10-27)
+-- ============================================================================
+-- 플레이어가 설정 > 문의와 제보에서 보낸 글(버그, 문의, 건의)과 운영자의 답변. 표는 RPC로만 다룬다(정책 없음).
+-- 운영 창(js/cloud-tools-ui.js, ?admin=1)에서 읽고 상태와 답변을 적는다. 계정이 지워지면 글도 함께 지워진다.
+create table if not exists public.player_feedback (
+    id          bigint generated always as identity primary key,
+    user_id     uuid not null references auth.users(id) on delete cascade,
+    kind        text not null check (kind in ('bug', 'question', 'suggestion')),
+    body        text not null check (char_length(body) between 5 and 2000),
+    contact     text not null default '' check (char_length(contact) <= 120),
+    context     jsonb not null default '{}'::jsonb,
+    app_version text not null default '',
+    status      text not null default 'new' check (status in ('new', 'seen', 'done')),
+    reply       text not null default '' check (char_length(reply) <= 2000),
+    replied_at  timestamptz,
+    created_at  timestamptz not null default now(),
+    updated_at  timestamptz not null default now()
+);
+create index if not exists player_feedback_status_created_idx on public.player_feedback (status, created_at desc);
+create index if not exists player_feedback_user_created_idx on public.player_feedback (user_id, created_at desc);
+alter table public.player_feedback enable row level security;
+revoke all on public.player_feedback from anon, authenticated;
+
+-- 보내기: 로그인한 계정만, 하루 5건, 본문 5~2000자, 연락처 120자, 상황 정보(게임 버전, 지역, 루프, 직업, 기기)는 8KB까지.
+create or replace function public.submit_player_feedback(p_kind text, p_body text, p_contact text default '', p_context jsonb default '{}'::jsonb, p_app_version text default '')
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare
+    uid uuid := auth.uid();
+    body text := left(btrim(coalesce(p_body, '')), 2000);
+    today_count integer;
+    new_id bigint;
+begin
+    if uid is null then raise exception 'AUTH_REQUIRED'; end if;
+    if p_kind is null or p_kind not in ('bug', 'question', 'suggestion') then raise exception 'FEEDBACK_KIND_INVALID'; end if;
+    if char_length(body) < 5 then raise exception 'FEEDBACK_TOO_SHORT'; end if;
+    if pg_column_size(coalesce(p_context, '{}'::jsonb)) > 8192 then raise exception 'FEEDBACK_CONTEXT_TOO_LARGE'; end if;
+    perform pg_advisory_xact_lock(hashtext('player_feedback:' || uid::text));   -- 같은 계정의 동시 요청이 하루 한도를 넘지 못하게
+    select count(*) into today_count from public.player_feedback where user_id = uid and created_at >= now() - interval '1 day';
+    if today_count >= 5 then raise exception 'FEEDBACK_DAILY_LIMIT'; end if;
+    delete from public.player_feedback where status = 'done' and updated_at < now() - interval '180 days';   -- 처리한 글은 180일 뒤 지운다
+    insert into public.player_feedback (user_id, kind, body, contact, context, app_version)
+    values (uid, p_kind, body, left(btrim(coalesce(p_contact, '')), 120), coalesce(p_context, '{}'::jsonb), left(coalesce(p_app_version, ''), 40))
+    returning id into new_id;
+    return jsonb_build_object('id', new_id);
+end;
+$$;
+
+-- 내가 보낸 글과 답변(최근 20건). 문의 창을 열 때마다 읽는다.
+create or replace function public.get_my_feedback()
+returns jsonb language sql stable security definer set search_path = public as $$
+    select coalesce(jsonb_agg(to_jsonb(f) order by f.created_at desc), '[]'::jsonb)
+      from (select id, kind, body, status, reply, replied_at, created_at
+              from public.player_feedback where user_id = auth.uid()
+             order by created_at desc limit 20) f;
+$$;
+
+-- 관리자: 글 목록(상태를 주면 그 상태만, 최근 300건). 지금 닉네임과 이메일을 붙인다.
+create or replace function public.admin_get_feedback(p_status text default null)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+    if not public.is_project_admin() then raise exception 'ADMIN_REQUIRED'; end if;
+    return coalesce((select jsonb_agg(to_jsonb(f) order by f.created_at desc) from (
+        select fb.id, fb.user_id, fb.kind, fb.body, fb.contact, fb.context, fb.app_version, fb.status, fb.reply, fb.replied_at, fb.created_at,
+               p.nickname, u.email
+          from public.player_feedback fb
+          left join public.player_profiles p on p.user_id = fb.user_id
+          left join auth.users u on u.id = fb.user_id
+         where p_status is null or fb.status = p_status
+         order by fb.created_at desc limit 300) f), '[]'::jsonb);
+end;
+$$;
+
+-- 관리자: 상태(new, seen, done)와 답변을 적는다. 답변은 플레이어가 문의 창에서 본다. null로 준 칸은 그대로 둔다.
+create or replace function public.admin_set_feedback(p_id bigint, p_status text default null, p_reply text default null)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+    if not public.is_project_admin() then raise exception 'ADMIN_REQUIRED'; end if;
+    if p_status is not null and p_status not in ('new', 'seen', 'done') then raise exception 'FEEDBACK_STATUS_INVALID'; end if;
+    update public.player_feedback
+       set status = coalesce(p_status, status),
+           reply = case when p_reply is null then reply else left(btrim(p_reply), 2000) end,
+           replied_at = case when p_reply is null then replied_at when btrim(p_reply) = '' then null else now() end,
+           updated_at = now()
+     where id = p_id;
+    if not found then raise exception 'FEEDBACK_NOT_FOUND'; end if;
+    return jsonb_build_object('id', p_id);
+end;
+$$;
+
+-- 관리자: 플레이어 찾기. 닉네임과 이메일은 글자 그대로(LIKE 와일드카드 없음, 검토 지적 2026-10-27), user_id는 앞부분으로 찾고(비우면 최근 활동순),
+-- 한 줄에 계정, 프로필 요약, 저장, 고스트, 전당,
+-- 보류, 금지, 기록과 신고와 문의 수를 모은다. 최대 200명. save_bytes는 디스크의 압축 크기(JSON 글자 수는 자세히 보기가 센다).
+create or replace function public.admin_search_players(p_query text default '', p_limit integer default 50)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare
+    q text := nullif(btrim(coalesce(p_query, '')), '');
+    lim integer := least(greatest(coalesce(p_limit, 50), 1), 200);
+begin
+    if not public.is_project_admin() then raise exception 'ADMIN_REQUIRED'; end if;
+    return coalesce((select jsonb_agg(to_jsonb(r) order by r.last_active desc nulls last) from (
+        select u.id as user_id, u.email, u.created_at as joined_at, u.last_sign_in_at,
+               p.nickname, p.last_seen,
+               p.profile_data ->> 'level' as level, p.profile_data ->> 'loop' as loop, p.profile_data ->> 'power' as power,
+               s.revision as save_revision, s.updated_at as save_updated_at, pg_column_size(s.save_data) as save_bytes,
+               g.rating as ghost_rating, g.active as ghost_active,
+               h.honor as hall_honor,
+               (select count(*) from public.hall_listings l where l.curator_id = u.id and l.status = 'open') as hall_open,
+               exists (select 1 from public.cheat_holds c where c.user_id = u.id) as held,
+               (select m.until_at from public.chat_mutes m where m.user_id = u.id and m.until_at > now()) as muted_until,
+               (select count(*) from public.cheat_flags f where f.user_id = u.id) as flag_count,
+               (select count(*) from public.chat_reports cr where cr.target_user_id = u.id) as report_count,
+               (select count(*) from public.player_feedback fb where fb.user_id = u.id) as feedback_count,
+               greatest(p.last_seen, s.updated_at, u.last_sign_in_at) as last_active
+          from auth.users u
+          left join public.player_profiles p on p.user_id = u.id
+          left join public.cloud_saves s on s.user_id = u.id
+          left join public.ghost_profiles g on g.user_id = u.id
+          left join public.hall_curator_profiles h on h.user_id = u.id
+         where q is null or position(lower(q) in lower(coalesce(p.nickname, ''))) > 0 or position(lower(q) in lower(coalesce(u.email, ''))) > 0
+            or starts_with(u.id::text, lower(q))
+         order by greatest(p.last_seen, s.updated_at, u.last_sign_in_at) desc nulls last
+         limit lim) r), '[]'::jsonb);
+end;
+$$;
+
+-- 관리자: 한 플레이어의 자세한 정보. 계정, 공개 프로필 전체, 저장 요약(cheat_save_digest의 네 칸과 크기), 고스트, 전당과 전시, 보류, 금지,
+-- 기록, 받은 신고, 최근 채팅, 보낸 문의. 저장 JSON 전체는 admin_get_player_save로 따로 받는다(크기).
+create or replace function public.admin_get_player(p_user_id uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+    if not public.is_project_admin() then raise exception 'ADMIN_REQUIRED'; end if;
+    if p_user_id is null then raise exception 'INVALID_REQUEST'; end if;
+    if not exists (select 1 from auth.users where id = p_user_id) then raise exception 'PLAYER_NOT_FOUND'; end if;
+    return jsonb_build_object(
+        'account', (select to_jsonb(a) from (
+            select u.id as user_id, u.email, u.created_at as joined_at, u.last_sign_in_at, u.raw_app_meta_data -> 'providers' as providers,
+                   p.nickname, p.last_seen, p.nickname_updated_at, p.updated_at as profile_updated_at
+              from auth.users u left join public.player_profiles p on p.user_id = u.id where u.id = p_user_id) a),
+        'profile', coalesce((select p.profile_data from public.player_profiles p where p.user_id = p_user_id), '{}'::jsonb),
+        'save', (select to_jsonb(s) from (
+            select revision, updated_at, octet_length(save_data::text) as bytes, public.cheat_save_digest(save_data) as digest
+              from public.cloud_saves where user_id = p_user_id) s),
+        'saveVersions', (select count(*) from public.cloud_save_versions where user_id = p_user_id),
+        'ghost', (select to_jsonb(g) from (
+            select rating, dps, wins, losses, draws, matches, active, ascend_class, active_skill, updated_at
+              from public.ghost_profiles where user_id = p_user_id) g),
+        'hall', (select to_jsonb(h) from (select honor, copies_shared from public.hall_curator_profiles where user_id = p_user_id) h),
+        'listings', coalesce((select jsonb_agg(to_jsonb(l) order by l.created_at desc) from (
+            select id, status, item_snapshot ->> 'name' as name, item_score, created_at
+              from public.hall_listings where curator_id = p_user_id order by created_at desc limit 20) l), '[]'::jsonb),
+        'hold', (select to_jsonb(c) from (select note, created_at from public.cheat_holds where user_id = p_user_id) c),
+        'mute', (select to_jsonb(m) from (select until_at, note, created_at from public.chat_mutes where user_id = p_user_id) m),
+        'flags', coalesce((select jsonb_agg(to_jsonb(f) order by f.last_at desc) from (
+            select kind, seen_on, hits, detail, last_at from public.cheat_flags where user_id = p_user_id order by last_at desc limit 30) f), '[]'::jsonb),
+        'reports', coalesce((select jsonb_agg(to_jsonb(r) order by r.created_at desc) from (
+            select reason, body, created_at from public.chat_reports where target_user_id = p_user_id order by created_at desc limit 20) r), '[]'::jsonb),
+        'chat', coalesce((select jsonb_agg(to_jsonb(c) order by c.created_at desc) from (
+            select id, body, created_at from public.chat_messages where user_id = p_user_id order by created_at desc limit 20) c), '[]'::jsonb),
+        'feedback', coalesce((select jsonb_agg(to_jsonb(fb) order by fb.created_at desc) from (
+            select id, kind, body, status, reply, created_at from public.player_feedback where user_id = p_user_id order by created_at desc limit 20) fb), '[]'::jsonb)
+    );
+end;
+$$;
+
+-- 관리자: 저장 JSON 전체(버그 재현용 내려받기). 수백 KB가 될 수 있어 자세히 보기와 따로 둔다.
+create or replace function public.admin_get_player_save(p_user_id uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare
+    data jsonb;
+begin
+    if not public.is_project_admin() then raise exception 'ADMIN_REQUIRED'; end if;
+    select save_data into data from public.cloud_saves where user_id = p_user_id;
+    if data is null then raise exception 'SAVE_NOT_FOUND'; end if;
+    return data;
+end;
+$$;
+
+revoke all on function public.submit_player_feedback(text, text, text, jsonb, text) from public, anon;
+revoke all on function public.get_my_feedback() from public, anon;
+revoke all on function public.admin_get_feedback(text) from public, anon;
+revoke all on function public.admin_set_feedback(bigint, text, text) from public, anon;
+revoke all on function public.admin_search_players(text, integer) from public, anon;
+revoke all on function public.admin_get_player(uuid) from public, anon;
+revoke all on function public.admin_get_player_save(uuid) from public, anon;
+grant execute on function public.submit_player_feedback(text, text, text, jsonb, text) to authenticated;
+grant execute on function public.get_my_feedback() to authenticated;
+grant execute on function public.admin_get_feedback(text) to authenticated;
+grant execute on function public.admin_set_feedback(bigint, text, text) to authenticated;
+grant execute on function public.admin_search_players(text, integer) to authenticated;
+grant execute on function public.admin_get_player(uuid) to authenticated;
+grant execute on function public.admin_get_player_save(uuid) to authenticated;
+
+-- ============================================================================
+-- 운영 창 머리: 할 일과 지표 (2026-10-27)
+-- ============================================================================
+-- 브라우저 확장 프로그램이 남기는 오류 보고(게임 오류가 아님). 묶음과 수에서 뺀다.
+create or replace function public.ops_error_is_noise(p_message text)
+returns boolean language sql immutable set search_path = public as $$
+    select coalesce(p_message, '') ilike any (array['%chrome: call method%', '%chrome-extension://%', '%moz-extension://%', '%ResizeObserver loop%', '%Script error.%']);
+$$;
+
+-- 운영 창(js/cloud-tools-ui.js openOpsDashboard)이 맨 위에 보이는 숫자들: 할 일(새 문의, 24시간 신고, 검토 중 고스트, 보류, 금지, 24시간 오류),
+-- 계정과 접속, 전투, 멀티, 서버. 원격 측정의 추정치가 아니라 각 표의 실제 줄 수를 세고, 7일 전 7일과 비교할 값도 준다.
+-- 오류는 같은 지문끼리 묶어 30일 상위 20개.
+create or replace function public.admin_get_ops_overview()
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare
+    day_ago timestamptz := now() - interval '1 day';
+    week_ago timestamptz := now() - interval '7 days';
+    two_weeks_ago timestamptz := now() - interval '14 days';
+    month_ago timestamptz := now() - interval '30 days';
+begin
+    if not public.is_project_admin() then raise exception 'ADMIN_REQUIRED'; end if;
+    return jsonb_build_object(
+        'generatedAt', now(),
+        'todo', jsonb_build_object(
+            'feedbackNew', (select count(*) from public.player_feedback where status = 'new'),
+            'reports24h', (select count(*) from public.chat_reports where created_at >= day_ago),
+            'ghostsUnderReview', (select count(distinct user_id) from public.cheat_flags where kind like 'ghost_%' and last_at >= week_ago),
+            'holds', (select count(*) from public.cheat_holds),
+            'mutesActive', (select count(*) from public.chat_mutes where until_at > now()),
+            'errors24h', (select count(*) from public.client_error_reports where created_at >= day_ago and not public.ops_error_is_noise(message))),
+        'accounts', jsonb_build_object(
+            'total', (select count(*) from auth.users),
+            'new7d', (select count(*) from auth.users where created_at >= week_ago),
+            'newPrev7d', (select count(*) from auth.users where created_at >= two_weeks_ago and created_at < week_ago),
+            'signedIn7d', (select count(*) from auth.users where last_sign_in_at >= week_ago),
+            'signedIn24h', (select count(*) from auth.users where last_sign_in_at >= day_ago),
+            'profiles', (select count(*) from public.player_profiles),
+            'seen24h', (select count(*) from public.player_profiles where last_seen >= day_ago),
+            'seen7d', (select count(*) from public.player_profiles where last_seen >= week_ago)),
+        'play', jsonb_build_object(
+            'runs30d', (select count(*) from public.playtest_runs where created_at >= month_ago),
+            'runs7d', (select count(*) from public.playtest_runs where created_at >= week_ago),
+            'runsPrev7d', (select count(*) from public.playtest_runs where created_at >= two_weeks_ago and created_at < week_ago),
+            'players7d', (select count(distinct user_id) from public.playtest_runs where created_at >= week_ago),
+            'playersPrev7d', (select count(distinct user_id) from public.playtest_runs where created_at >= two_weeks_ago and created_at < week_ago),
+            'clearRate30d', (select round(100.0 * count(*) filter (where result = 'clear') / nullif(count(*), 0), 1) from public.playtest_runs where created_at >= month_ago),
+            'abandons30d', (select count(*) from public.playtest_runs where created_at >= month_ago and result = 'abandon'),
+            'lastRunAt', (select max(created_at) from public.playtest_runs)),
+        'social', jsonb_build_object(
+            'chat7d', (select count(*) from public.chat_messages where created_at >= week_ago),
+            'chatPrev7d', (select count(*) from public.chat_messages where created_at >= two_weeks_ago and created_at < week_ago),
+            'ghostsActive', (select count(*) from public.ghost_profiles where active),
+            'ghostMatches30d', (select count(*) from public.ghost_matches where created_at >= month_ago),
+            'hallOpen', (select count(*) from public.hall_listings where status = 'open'),
+            'hallPurchases30d', (select count(*) from public.hall_purchases where purchased_at >= month_ago),
+            'feedback30d', (select count(*) from public.player_feedback where created_at >= month_ago)),
+        'server', jsonb_build_object(
+            'dbBytes', pg_database_size(current_database()),
+            'dbLimitBytes', 524288000,
+            'saves', (select count(*) from public.cloud_saves),
+            'saveBytes', (select coalesce(sum(pg_column_size(save_data)), 0) from public.cloud_saves),
+            'saveVersions', (select count(*) from public.cloud_save_versions),
+            'errors30d', (select count(*) from public.client_error_reports where created_at >= month_ago and not public.ops_error_is_noise(message)),
+            'lastErrorAt', (select max(created_at) from public.client_error_reports)),
+        'errors', coalesce((select jsonb_agg(to_jsonb(e) order by e.hits desc) from (
+            select left(fingerprint, 160) as fingerprint, left(max(message), 200) as message, count(*) as hits, count(distinct user_id) as users,
+                   max(created_at) as last_at, max(app_version) as app_version
+              from public.client_error_reports
+             where created_at >= month_ago and not public.ops_error_is_noise(message)
+             group by left(fingerprint, 160) order by hits desc limit 20) e), '[]'::jsonb)
+    );
+end;
+$$;
+
+revoke all on function public.ops_error_is_noise(text) from public, anon, authenticated;
+revoke all on function public.admin_get_ops_overview() from public, anon;
+grant execute on function public.admin_get_ops_overview() to authenticated;
 
 commit;

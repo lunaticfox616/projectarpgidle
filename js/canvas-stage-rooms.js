@@ -210,11 +210,31 @@ const stageRoomsView = (() => {
         else drawWallDark(ctx, map, area);
         ctx.imageSmoothingEnabled = false;
         ctx.drawImage(view.canvas, p.mapX + box.x * p.tileW, p.mapY + box.y * p.tileH, box.columns * p.tileW, box.rows * p.tileH);
+        drawChaosHaze(ctx, map, area);
         drawSpecialGround(ctx, map, p);
         for (const row of actExplorationDoors.doorsHere(run)) drawDoor(ctx, row, p, { run, kit: view.kit });
         drawFrontShade(ctx, view, p, area);
         if (view.kit && typeof stageOcean === 'object') stageOcean.back(ctx, view, p, area); // 심해: 먼 입자와 가디언 방의 리프트
         return true;
+    }
+    /** 혼돈 층계는 깊을수록 붉은 보랏빛이 조금씩 짙어진다(STAGE_ROOMS.chaosHaze): 방 그림과 소품 위, 문과 배우 아래에 화면 전체로 한 번,
+     * 가장자리에 한 번 더 덮는다. */
+    function drawChaosHaze(ctx, map, area) {
+        const rule = STAGE_ROOMS.chaosHaze, zone = map.region === 'chaos' ? getZone(game.currentZoneId) : null;
+        const floor = zone && zone.type === 'abyss' ? Math.min(rule.floors, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1)) : 1;
+        if (floor < 2) return;
+        const share = (floor - 1) / (rule.floors - 1), cx = area.width / 2, cy = area.height / 2;
+        const edge = ctx.createRadialGradient(cx, cy, Math.min(cx, cy) * 0.7, cx, cy, Math.hypot(cx, cy));
+        edge.addColorStop(0, 'rgba(0, 0, 0, 0)');
+        edge.addColorStop(1, rule.colour);
+        ctx.save();
+        ctx.fillStyle = rule.colour;
+        ctx.globalAlpha = share * rule.wash;
+        ctx.fillRect(0, 0, area.width, area.height);
+        ctx.fillStyle = edge;
+        ctx.globalAlpha = share * rule.edge;
+        ctx.fillRect(0, 0, area.width, area.height);
+        ctx.restore();
     }
     /** 바닥의 앞쪽 끝 아래는 걸어갈 수 없는 자리다: 아래로 갈수록 어둡게 덮어 걸을 수 있는 바닥과 가른다(STAGE_ROOMS.frontShade).
      * 그림의 도트 줄에 맞춘 띠로 짙어진다. 앞쪽 문의 그림은 이 뒤에 깊이 순서로 그려져 덮이지 않는다(문 칸의 바닥만 따로 밝히면

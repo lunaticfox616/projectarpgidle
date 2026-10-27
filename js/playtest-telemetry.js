@@ -29,7 +29,12 @@ function createPlaytestSessionId() {
     return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
+/** 오류 보고와 문의에 붙는 버전. 배포 표식(scripts/build-web.js가 적는 app-deploy)이 있으면 그것, 개발 중('dev')이면 app-build.
+ * 2026-10-27까지 app-build만 보내 모든 보고의 버전이 9월 값에 멈춰 있었다. */
 function getPlaytestBuildVersion() {
+    let deploy = document.querySelector('meta[name="app-deploy"]');
+    let stamp = deploy ? String(deploy.content || '').trim() : '';
+    if (stamp && stamp !== 'dev') return stamp;
     let meta = document.querySelector('meta[name="app-build"]');
     return meta ? String(meta.content || 'unknown') : 'unknown';
 }

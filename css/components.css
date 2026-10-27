@@ -962,6 +962,11 @@
 .underworld-inventory-card > strong { display: block; margin-bottom: 6px; font-size: 15px; }
 .underworld-lock { color: #e0a36b; font-size: 14px; }
 .underworld-reward-card { flex-direction: column; align-items: stretch; }
+.underworld-next-stone { display:flex; align-items:center; gap:10px; padding:8px 0; }
+.underworld-next-stone > .underworld-stone-icon { width:48px; height:48px; object-fit:contain; flex-shrink:0; }
+.underworld-next-stone > div { display:grid; gap:4px; min-width:0; }
+.underworld-next-stone strong { color:var(--color-accent); font-weight:500; }
+.underworld-next-stone :is(small,span) { color:var(--color-text-secondary); font-size:13px; overflow-wrap:anywhere; }
 /* 혼돈계(js/ui.js renderChaosRealmMapPanel)는 지하계 카드를 함께 쓴다: 카드 사이 간격과 아직 0인 보너스. */
 .chaos-realm-body { display: grid; gap: 8px; }
 .underworld-ticket-strip span.is-zero { opacity: .55; }

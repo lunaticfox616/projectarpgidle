@@ -15,7 +15,7 @@ const WEAPON_MASTERY = Object.freeze({
     killXp: Object.freeze({ boss: 20, elite: 4, normal: 1 }),
     // 레벨 2부터 레벨마다 그 무기를 들었을 때(50에서 피해 +24.5%). 경험치가 없는 레벨 1은 아무것도 붙지 않는다.
     perLevel: Object.freeze({ stat: 'pctDmg', val: 0.5 }),
-    // 레벨 10, 20, 30, 40, 50의 특전. 그 무기를 들었을 때만 붙는다. 무기 바탕의 성격을 따른다(곡도 치명타와 공격 속도, 단궁 투사체,
+    // 레벨 10, 20, 30, 40, 50의 특전. 그 무기를 들었을 때만 붙는다. 무기 바탕의 성격을 따른다(한손검 치명타와 공격 속도, 단궁 투사체,
     // 오브 주문과 소환, 플라스크 포션과 중독, 향로 번개와 재생).
     milestones: Object.freeze({
         greatsword: Object.freeze([[['meleePctDmg', 8]], [['pctHp', 5]], [['aoePctDmg', 10]], [['dr', 3]], [['meleeGemLevel', 1]]]),

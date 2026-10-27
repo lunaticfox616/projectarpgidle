@@ -399,6 +399,44 @@ function normalizeSkillSlotsSave(merged) {
     merged.mobilitySkill = worn(merged.mobilitySkill) ? merged.mobilitySkill : '';
 }
 
+/** An unfinished starter equip guide survives reload. Old versions let bulk sealing consume its target: undo that
+ * seal and its one resonance reward, keeping the gem's growth. A deliberately sealed gem without a pending guide stays sealed.
+ * A guide is unfinished only while the hero still fights with 기본 공격: a save that wears another attack rune (the guide's mark
+ * left from an earlier loop, or a rune the weapon refused) just loses the mark, and its seals stay (2026-10-26 review). */
+/** The guide's rune is worn, or the hero already fights with another attack rune. */
+function starterGuideFinished(state, name) {
+    const summons = Array.isArray(state.equippedSummonSkills) ? state.equippedSummonSkills : [];
+    return [state.activeSkill, state.mobilitySkill, ...summons].includes(name) || state.activeSkill !== '기본 공격';
+}
+function normalizeStarterGemTutorialSave(state) {
+    const name = state.starterGemTutorialPending;
+    const owned = state.skills.concat(state.sealedSkills);
+    state.starterGemTutorialPending = typeof name === 'string' && SKILL_DB[name]?.isGem && owned.includes(name) ? name : null;
+    if (!state.starterGemTutorialPending) return;
+    if (starterGuideFinished(state, name)) {
+        state.starterGemTutorialPending = null;
+        return;
+    }
+    if (state.sealedSkills.includes(name)) {
+        state.skills.push(name);
+        state.sealedSkills = state.sealedSkills.filter(gem => gem !== name);
+        const power = Number.isFinite(state.resonancePower) ? state.resonancePower : defaultGame.resonancePower;
+        state.resonancePower = Math.max(0, power - 1);
+    }
+    state.seenTutorials = state.seenTutorials.filter(key => key !== 'tutorial_starter_gem_equip' && key !== 'action_tutorial_starter_gem_equip');
+}
+
+/** Ownership lists and the base resonance capacity are normalized together before rune operations. Zero is a valid capacity. */
+function normalizeOwnedGemLibrariesSave(state) {
+    state.skills = dedupeList(Array.isArray(state.skills) ? state.skills.filter(name => !!SKILL_DB[name]) : []);
+    if (!state.skills.includes('기본 공격')) state.skills.unshift('기본 공격');
+    state.sealedSkills = dedupeList(Array.isArray(state.sealedSkills) ? state.sealedSkills.filter(name => !!SKILL_DB[name] && name !== '기본 공격' && !state.skills.includes(name)) : []);
+    state.supports = dedupeList(Array.isArray(state.supports) ? state.supports.filter(name => !!SUPPORT_GEM_DB[name]) : []);
+    state.sealedSupports = dedupeList(Array.isArray(state.sealedSupports) ? state.sealedSupports.filter(name => !!SUPPORT_GEM_DB[name] && !state.supports.includes(name)) : []);
+    state.equippedSupports = Array.isArray(state.equippedSupports) ? dedupeList(state.equippedSupports.filter(name => state.supports.includes(name))) : [];
+    state.resonancePower = Number.isFinite(state.resonancePower) ? Math.max(0, Math.floor(state.resonancePower)) : defaultGame.resonancePower;
+}
+
 /** A mobility gem in the main slot goes to the empty mobility slot, unless the save wears 칼이 된 발걸음 (data/items.js), which keeps
  * it there as the attack gem. Idempotent. */
 function moveAttackSlotMobilityGem(merged, worn) {
@@ -462,6 +500,14 @@ function normalizeColonyRunSave(colony, clampFiniteNumber) {
     colony.coreMaxHp = Math.floor(clampFiniteNumber(colony.coreMaxHp, 0, 0, Number.MAX_SAFE_INTEGER));
     colony.coreHp = Math.floor(clampFiniteNumber(colony.coreHp, colony.coreMaxHp, 0, colony.coreMaxHp));
     colony.failedWave = Math.floor(clampFiniteNumber(colony.failedWave, 0, 0, Number.MAX_SAFE_INTEGER));
+    colony.returnAfterWave = Math.floor(clampFiniteNumber(colony.returnAfterWave, 0, 0, Number.MAX_SAFE_INTEGER));
+    if (!colony.inRun || colony.returnAfterWave % 5 !== 0 || colony.returnAfterWave < colony.wave - 1) colony.returnAfterWave = 0;
+    const result = colony.lastResult;
+    if (result && ['withdraw', 'scheduled', 'left', 'core', 'defeat'].includes(result.kind)) {
+        const wave = Math.floor(clampFiniteNumber(result.wave, 1, 1, Number.MAX_SAFE_INTEGER));
+        colony.lastResult = { kind: result.kind, wave, completed: Math.min(wave - 1, Math.floor(clampFiniteNumber(result.completed, 0, 0))),
+            lostHeld: Math.floor(clampFiniteNumber(result.lostHeld, 0, 0, Number.MAX_SAFE_INTEGER)) };
+    } else colony.lastResult = null;
 }
 /** Old kill-based runs retain the same percentage; new saves store integral half-percent gauge points. */
 function normalizeGrandBreachCounters(run) {
@@ -804,6 +850,7 @@ function mergeDefaults(save) {
         if (!Number.isFinite(hp)) hp = maxHp;
         return normalizeEnemyGridFields({
             ...enemy,
+            ...(merged.currentZoneId === WOODSMAN_ECHO_ZONE_ID ? { noAttack: true, regenRate: 0 } : {}),
             id: Math.max(1, Math.floor(clampFiniteNumber(enemy.id, 1, 1))),
             hp: Math.min(maxHp, hp),
             maxHp: maxHp,
@@ -1128,12 +1175,7 @@ function mergeDefaults(save) {
     // Old saves only had a boolean flag and could not identify which chase unique dropped.
     // Do not treat that unknown legacy flag as a full chase-unique blacklist.
     merged.seasonChaseUniqueDropped = merged.seasonChaseUniqueDrops.length > 0;
-    merged.skills = dedupeList(Array.isArray(merged.skills) ? merged.skills.filter(name => !!SKILL_DB[name]) : []);
-    if (!merged.skills.includes('기본 공격')) merged.skills.unshift('기본 공격');
-    merged.sealedSkills = dedupeList(Array.isArray(merged.sealedSkills) ? merged.sealedSkills.filter(name => !!SKILL_DB[name] && name !== '기본 공격' && !merged.skills.includes(name)) : []);
-    merged.supports = dedupeList(Array.isArray(merged.supports) ? merged.supports.filter(name => !!SUPPORT_GEM_DB[name]) : []);
-    merged.sealedSupports = dedupeList(Array.isArray(merged.sealedSupports) ? merged.sealedSupports.filter(name => !!SUPPORT_GEM_DB[name] && !merged.supports.includes(name)) : []);
-    merged.equippedSupports = Array.isArray(merged.equippedSupports) ? dedupeList(merged.equippedSupports.filter(name => merged.supports.includes(name))) : [];
+    normalizeOwnedGemLibrariesSave(merged);
     merged.seasonNodes = Array.isArray(merged.seasonNodes) ? merged.seasonNodes.filter(id => !!getSeasonPassiveNodeDef(id)) : [];
     merged.seasonNodeLevels = (merged.seasonNodeLevels && typeof merged.seasonNodeLevels === 'object') ? merged.seasonNodeLevels : {};
     merged.seasonNodes.forEach(id => {
@@ -1148,6 +1190,13 @@ function mergeDefaults(save) {
         merged.labyrinthFloor,
         Math.floor(clampFiniteNumber(merged.labyrinthUnlockedMaxFloor, defaultGame.labyrinthUnlockedMaxFloor || 1, 1))
     );
+    const lastLabyrinth = merged.labyrinthLastResult;
+    merged.labyrinthLastResult = lastLabyrinth && Number.isInteger(lastLabyrinth.season) && lastLabyrinth.season > 0
+        && Number.isInteger(lastLabyrinth.floor) && lastLabyrinth.floor > 0 ? {
+            season: lastLabyrinth.season, floor: lastLabyrinth.floor,
+            currencies: Object.fromEntries(Object.keys(ORB_DB).filter(key => Number.isFinite(lastLabyrinth.currencies?.[key])
+                && lastLabyrinth.currencies[key] > 0).map(key => [key, Math.min(1000000, Math.floor(lastLabyrinth.currencies[key]))]))
+        } : null;
     merged.abyssEndlessDepth = Math.max(20, Math.floor(clampFiniteNumber(merged.abyssEndlessDepth, defaultGame.abyssEndlessDepth || 20, 20)));
     merged.abyssUnlockedDepths = Array.isArray(merged.abyssUnlockedDepths)
         ? Array.from(new Set(merged.abyssUnlockedDepths.map(v => Math.floor(v || 0)).filter(v => v >= 20))).sort((a, b) => a - b)
@@ -1280,6 +1329,7 @@ function mergeDefaults(save) {
     if (!merged.gemEnhanceUnlocked && (((merged.currencies || {}).bossCore || 0) > 0 || ((merged.currencies || {}).skyEssence || 0) > 0)) merged.gemEnhanceUnlocked = true;
     merged.inTicketBossFight = !!merged.inTicketBossFight;
     merged.beehive = (merged.beehive && typeof merged.beehive === 'object') ? merged.beehive : { unlockedPermanent:false, inRun:false, branchStep:0, cleared:false, routeSeed:0 };
+    merged.beehive.waveExtra = Math.floor(clampFiniteNumber(merged.beehive.waveExtra, 0, 0, 2));
     merged.colony = (merged.colony && typeof merged.colony === 'object') ? { ...defaultGame.colony, ...merged.colony } : { ...defaultGame.colony };
     normalizeColonyRunSave(merged.colony, clampFiniteNumber);
     merged.colony.wardInventory = Array.isArray(merged.colony.wardInventory) ? merged.colony.wardInventory.map(w => w && typeof w === 'object' ? { ...w, locked: !!w.locked } : w).filter(Boolean) : [];
@@ -1317,10 +1367,7 @@ function mergeDefaults(save) {
     const record = value => (value && typeof value === 'object' && !Array.isArray(value) ? value : {});
     merged.npcMet = record(merged.npcMet);
     merged.npcShops = record(merged.npcShops);
-    merged.starterGemTutorialPending = typeof merged.starterGemTutorialPending === 'string'
-        && Array.isArray(merged.skills) && merged.skills.includes(merged.starterGemTutorialPending)
-        ? merged.starterGemTutorialPending
-        : null;
+    normalizeStarterGemTutorialSave(merged);
     merged.journalEntries = Array.isArray(merged.journalEntries) ? Array.from(new Set(merged.journalEntries.filter(id => typeof id === 'string' && JOURNAL_DB[id]))) : ['prologue'];
     // 보스 도전 추적은 저장 복원 후 이어 붙이지 않는다. 탭이 닫힌 동안의 피해를
     // 잃은 기록으로 업적을 잘못 판정하지 않도록 새 조우에서만 다시 시작한다.
@@ -1331,6 +1378,7 @@ function mergeDefaults(save) {
     normalizeVoidRiftSave(merged);
     merged.timeRift = (merged.timeRift && typeof merged.timeRift === 'object') ? { ...defaultGame.timeRift, ...merged.timeRift } : { ...defaultGame.timeRift };
     merged.timeRift.fusionCount = Math.max(0, Math.floor(clampFiniteNumber(merged.timeRift.fusionCount, 0, 0)));
+    merged.timeRift.lastFusion = window.GameModules.state.normalizeTimeRiftResult(merged.timeRift.lastFusion);
     repairJournalEntriesFromProgress(merged);
     // 저널 보너스는 기록 정의에서 항상 재구축한다. 저장 배열을 그대로 신뢰하면
     // 클라우드 병합·구버전 이관 과정에서 같은 기록이 중복되어 능력치가 누적될 수 있다.
@@ -1351,6 +1399,7 @@ function mergeDefaults(save) {
     merged.settings.highContrast = merged.settings.highContrast === true;
     merged.settings.hotkeyOverrides = hotkeyBindings.normalize(merged.settings.hotkeyOverrides);
     merged.settings.uiScale = normalizeUiScale(merged.settings.uiScale);
+    merged.settings.uiScaleChosen = merged.settings.uiScaleChosen === true ? true : null;
     // 표현 선택은 폐기: 갈무리·원화·플레이어 외형으로 고정한다. 획득 기록은 보존한다.
     delete merged.settings.uiFont;
     delete merged.settings.iconArtStyle;
@@ -1511,6 +1560,7 @@ function mergeDefaults(save) {
     merged.underworldProgress = { ...(defaultGame.underworldProgress || { highestFloor: 1, currentFloor: 1 }), ...(merged.underworldProgress || {}) };
     merged.underworldProgress.highestFloor = Math.max(1, Math.floor(clampFiniteNumber(merged.underworldProgress.highestFloor, 1, 1)));
     merged.underworldProgress.currentFloor = Math.max(1, Math.floor(clampFiniteNumber(merged.underworldProgress.currentFloor, 1, 1)));
+    merged.underworldProgress.deepRewardFloor = Math.floor(clampFiniteNumber(merged.underworldProgress.deepRewardFloor, 0, 0, Number.MAX_SAFE_INTEGER - UNDERWORLD_DEEP_FLOOR_REWARD.every));
     let savedRunes = (merged.underworldRunes && typeof merged.underworldRunes === 'object') ? merged.underworldRunes : {};
     let underworld10ClearCredit = !!merged.underworldProgress.floor10Cleared
         || Math.max(0, Math.floor(Number(savedRunes.unlockedSlots) || 0)) >= 1
@@ -1530,6 +1580,7 @@ function mergeDefaults(save) {
     merged.skyTower.loopSeason = Math.max(1, Math.floor(clampFiniteNumber(merged.skyTower.loopSeason, merged.season || 1, 1)));
     if (merged.skyTower.loopSeason !== Math.max(1, Math.floor(merged.season || 1))) { merged.skyTower.loopSeason = Math.max(1, Math.floor(merged.season || 1)); merged.skyTower.clearedThisLoop = 0; }
     merged.skyTower.clearedThisLoop = Math.max(0, Math.min(getSkyTowerLoopClearLimit(), Math.floor(clampFiniteNumber(merged.skyTower.clearedThisLoop, 0, 0))));
+    merged.skyTower.lastResult = normalizeSkyTowerResult(merged.skyTower.lastResult, merged.season);
     merged.skyTower.clearedFloors = Array.isArray(merged.skyTower.clearedFloors) ? Array.from(new Set(merged.skyTower.clearedFloors.map(v => Math.floor(v || 0)).filter(v => v >= 1))).sort((a, b) => a - b) : [];
     merged.skyTower.condensedPower = Math.max(0, Math.floor(clampFiniteNumber(merged.skyTower.condensedPower, 0, 0)));
     merged.skyTower.skyStone.level = Math.max(0, Math.min(getSkyStoneMaxLevel(), Math.floor(clampFiniteNumber(merged.skyTower.skyStone.level, 0, 0))));
@@ -1540,11 +1591,12 @@ function mergeDefaults(save) {
     merged.woodsmanLifetimeScore = Math.max(0, Math.floor(clampFiniteNumber(merged.woodsmanLifetimeScore, defaultGame.woodsmanLifetimeScore || 0, 0)));
     merged.woodsmanSettledScore = Math.max(0, Math.floor(clampFiniteNumber(merged.woodsmanSettledScore, defaultGame.woodsmanSettledScore || 0, 0)));
     merged.woodsmanEchoRun = (merged.woodsmanEchoRun && typeof merged.woodsmanEchoRun === 'object') ? merged.woodsmanEchoRun : { active:false, timeLeft:0, duration:30, lastTickAt:0, totalDamage:0, bestDps:0 };
-    merged.woodsmanEchoRun.active = !!merged.woodsmanEchoRun.active;
-    merged.woodsmanEchoRun.timeLeft = Math.max(0, Number(merged.woodsmanEchoRun.timeLeft || 0));
+    merged.woodsmanEchoRun.active = !!merged.woodsmanEchoRun.active && merged.currentZoneId === WOODSMAN_ECHO_ZONE_ID;
+    merged.woodsmanEchoRun.timeLeft = clampFiniteNumber(merged.woodsmanEchoRun.timeLeft, 0, 0, 30);
     merged.woodsmanEchoRun.duration = 30;
-    merged.woodsmanEchoRun.totalDamage = Math.max(0, Math.floor(Number(merged.woodsmanEchoRun.totalDamage || 0)));
-    merged.woodsmanEchoRun.bestDps = Math.max(0, Number(merged.woodsmanEchoRun.bestDps || 0));
+    merged.woodsmanEchoRun.lastTickAt = clampFiniteNumber(merged.woodsmanEchoRun.lastTickAt, 0, 0);
+    merged.woodsmanEchoRun.totalDamage = Math.floor(clampFiniteNumber(merged.woodsmanEchoRun.totalDamage, 0, 0));
+    merged.woodsmanEchoRun.bestDps = clampFiniteNumber(merged.woodsmanEchoRun.bestDps, 0, 0);
     merged.loopProgressBase = { ...(defaultGame.loopProgressBase || {}), ...(merged.loopProgressBase || {}) };
     merged.loopProgressCurrent = { ...(defaultGame.loopProgressCurrent || {}), ...(merged.loopProgressCurrent || {}), ...Object.fromEntries(['bestSkyFloor','bestUnderworldFloor'].map(key => [key, Number.isFinite(save?.loopProgressCurrent?.[key]) ? Math.max(0,Math.floor(save.loopProgressCurrent[key])) : null])) };
     merged.loopProgressBase.specialBosses = Array.isArray(merged.loopProgressBase.specialBosses) ? merged.loopProgressBase.specialBosses : [];

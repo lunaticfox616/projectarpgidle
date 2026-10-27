@@ -19,7 +19,7 @@ function walk(node, visit, parent = null) {
 function readSources(head) {
     const html = head ? cp.execFileSync('git', ['show', 'HEAD:index.html'], {encoding:'utf8'}) : fs.readFileSync('index.html','utf8');
     const files = [...html.matchAll(/<script\b[^>]*\bsrc="([^"?]+)(?:\?[^" ]*)?"/g)]
-        .map(match => match[1]).filter(file => !/^https?:/.test(file));
+        .map(match => match[1]).filter(file => !/^https?:/.test(file) && !file.startsWith('vendor/'));   // vendor/: 남의 라이브러리 사본, 우리 규칙 대상이 아니다
     return files.map(file => {
         const source = head ? cp.execFileSync('git',['show',`HEAD:${file}`],{encoding:'utf8',maxBuffer:16*1024*1024}) : fs.readFileSync(file,'utf8');
         return {file,source,ast:espree.parse(source,{ecmaVersion:'latest',sourceType:'script',loc:true,range:true})};
@@ -115,9 +115,13 @@ function compare(current,baseline) {
     const allowedEdges=new Set(baseline.edges), calls=callGraph(current.edges);
     for(const edge of current.edges) {
         if (!edge.startsWith('dependency:') && !allowedEdges.has(edge)) failures.push(edge);
-        // Reject a newly introduced edge that closes an existing reverse path.
-        if (edge.startsWith('dependency:') && !allowedEdges.has(edge) && closesCycle(edge,calls)) failures.push(`cycle ${edge}`);
+        // Reject a newly introduced edge that closes an existing reverse path; the path is printed so the cycle can be read.
+        const path = edge.startsWith('dependency:') && !allowedEdges.has(edge) ? cyclePath(edge,calls) : null;
+        if (path) failures.push(`cycle ${edge} (${path.join(' -> ')})`);
     }
+    // Calls are joined by bare function names, so a same-named function in another file can close a cycle that the code does not
+    // have (2026-10-27: an object method named follow). Renaming the new function settles it.
+    if (failures.some(row => row.startsWith('cycle '))) failures.push('cycle note: functions are matched by name across files; a cycle through a common name (an object method like follow, init, render) may be a name clash, and renaming the new function settles it.');
     return failures;
 }
 
@@ -132,15 +136,23 @@ function callGraph(edges) {
     return calls;
 }
 
-function closesCycle(edge,calls) {
+/** The call path the new edge from->to closes (from, to, ..., from), or null when it closes none. */
+function cyclePath(edge,calls) {
     if(Array.isArray(calls))calls=callGraph(calls);
-    const [from,to]=edge.slice(11).split('->'), pending=[to], seen=new Set();
-    while(pending.length){
-        const next=pending.pop(); if(next===from)return true; if(seen.has(next))continue; seen.add(next);
-        pending.push(...(calls.get(next) || []));
+    const [from,to]=edge.slice(11).split('->'), pending=[to], prev=new Map([[to,null]]);
+    for(let i=0;i<pending.length;i++){
+        const next=pending[i];
+        if(next===from){
+            const back=[];
+            for(let at=next; at!==null; at=prev.get(at)) back.push(at);
+            return [from,...back.reverse()];
+        }
+        for(const callee of calls.get(next) || []) if(!prev.has(callee)) { prev.set(callee,next); pending.push(callee); }
     }
-    return false;
+    return null;
 }
+
+const closesCycle=(edge,calls)=>!!cyclePath(edge,calls);
 
 if(require.main===module){
     if(process.argv.includes('--baseline-from-head')) {

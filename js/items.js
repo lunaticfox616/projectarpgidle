@@ -67,11 +67,17 @@ function getEquipmentInventoryFootprint(item) {
     if (slot === '허리띠') return { columns: 2, rows: 1 };
     if (slot === '투구' || slot === '장갑' || slot === '신발' || slot === '방패') return { columns: 2, rows: 2 };
     if (slot === '갑옷') return { columns: 2, rows: 2 };
-    if (slot !== '무기') return { columns: 1, rows: 1 };
-    // 무기(2026-10-23 사용자, 도트 그림이 정사각형이라): 대검과 단궁은 2×3, 나머지(곡도, 오브, 플라스크, 향로)는 2×2.
-    // 전에는 대검 2×3, 완드 · 로드 · 홀 · 초점봉 1×2, 나머지 1×3이라 그림이 칸의 20% 안팎만 채웠다.
+    return slot === '무기' ? getWeaponInventoryFootprint(item) : { columns: 1, rows: 1 };
+}
+
+/** 무기 칸 크기(2026-10-26 사용자, 세로로 긴 새 검 그림): 한손검 1×3, 대검은 가는 날 1×4(data/weapon-categories.js
+ * SLENDER_GREATSWORD_BASES)와 넓은 날 2×4, 단궁 2×3, 나머지(오브, 플라스크, 향로) 2×2. 전(2026-10-23, 그림이 정사각형이라): 대검과
+ * 단궁 2×3, 나머지 2×2. 놓인 자리에서 커져 겹치는 장비는 불러올 때 빈자리로 옮긴다(js/equipment-inventory-grid.js). */
+function getWeaponInventoryFootprint(item) {
     const category = getWeaponCategoryId(item);
-    return category === 'greatsword' || category === 'shortbow' ? { columns: 2, rows: 3 } : { columns: 2, rows: 2 };
+    if (category === 'scimitar') return { columns: 1, rows: 3 };
+    if (category === 'greatsword') return { columns: SLENDER_GREATSWORD_BASES.includes(getWeaponBaseId(item)) ? 1 : 2, rows: 4 };
+    return category === 'shortbow' ? { columns: 2, rows: 3 } : { columns: 2, rows: 2 };
 }
 
 /** A unique's picture from its definition, before one drops (the codex and the hunt targets, js/unique-codex-ui.js). */
@@ -468,6 +474,7 @@ function clearBeehiveRuntimeState(b) {
     b.rewardLedger = [];
     b.pendingWaveReward = null;
     b.pendingWaveRewardText = '';
+    b.waveExtra = 0;
     b.pendingQueenRewards = [];
     b.queenActive = false;
 }
@@ -645,6 +652,8 @@ function resolveTimeRiftFusion() {
     rift.activePressure = null;
     // guaranteedKeep: 융합 결과물이 습득 필터/자동해체에 걸려 유실되는 것을 방지한다.
     addItemToInventory(fused, { guaranteedKeep: true, skipAutoEquip: true });
+    rift.lastFusion = { id: fused.id, instanceId: ensureEquipmentLoadoutItemIdentity(fused), name: fused.name,
+        pressure: rift.pressure, inherited: rareStats.length, lost, season: game.season };
     return { fused: fused, grade: grade, lost: lost, inherited: rareStats.length };
 }
 
@@ -669,6 +678,10 @@ function getZoneTravelBlockReason(id) {
     }
     if (game.pendingLoopReady) {
         return '⏸️ 루프 진행 대기 중에는 사냥터로 이동할 수 없습니다. [루프 진행] 버튼으로 다음 루프를 시작하세요.';
+    }
+    if (id === LABYRINTH_ZONE_ID) {
+        if (game.season < 3) return '고대 미궁은 루프3부터 개방됩니다.';
+        if (game.maxZoneId < 5) return '액트 5를 먼저 클리어해야 미궁에 입장할 수 있습니다.';
     }
     return null;
 }
@@ -718,10 +731,6 @@ function changeZone(id) {
         if (!canEnterChaosRealm()) return addLog('혼돈계 입장은 이번 루프에서 혼돈 20을 클리어해야 가능합니다.', 'attack-monster');
         let maxFloor = Math.max(1, Math.floor(realm.highestFloor || 1));
         realm.currentFloor = Math.max(1, Math.min(maxFloor, Math.floor(realm.currentFloor || 1)));
-    }
-    if (id === LABYRINTH_ZONE_ID) {
-        if ((game.season || 1) < 3) return addLog('고대 미궁은 루프3부터 개방됩니다.', 'attack-monster');
-        if ((game.maxZoneId || 0) < 5) return addLog('액트 5를 먼저 클리어해야 미궁에 입장할 수 있습니다.', 'attack-monster');
     }
     if (typeof id === 'number' && id >= ABYSS_START_ZONE_ID) {
         let depth = Math.max(1, Math.floor(getAbyssDepthFromZoneId(id) || 1));
@@ -804,7 +813,7 @@ function getBaseUpgradeCandidates(currentBase) {
         .filter(base => base.slot === currentBase.slot && base.reqTier > currentBase.reqTier && !base.dropOnly && !base.realmBase && !base.family)
         .filter(base => isArmorSlot ? getBaseDefenseProfile(base) === currentProfile : true)
         .filter(base => getBaseBuildArchetype(base) === currentArchetype)
-        // 무기는 같은 대분류 안에서만 승급한다(곡도가 대검이 되지 않게).
+        // 무기는 같은 대분류 안에서만 승급한다(한손검이 대검이 되지 않게).
         .filter(base => getWeaponCategoryOfBase(base.id) === currentCategory)
         .sort((a,b)=>a.reqTier-b.reqTier);
     // 방어구는 방어 프로파일(방어도/회피/보호막)이 정체성이다. 저항 같은 부가 옵션은

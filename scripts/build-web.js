@@ -14,7 +14,7 @@ async function buildWeb() {
     }
     await fs.rm(destination, { recursive: true, force: true });
     await fs.mkdir(destination);
-    for (const name of ['assets', 'data', 'js', 'legal', 'cloud-save-config.js', 'changelog.md', 'service-worker.js']) {
+    for (const name of ['assets', 'data', 'js', 'legal', 'vendor', 'cloud-save-config.js', 'changelog.md', 'service-worker.js']) {
         await fs.cp(path.join(root, name), path.join(destination, name), { recursive: true });
     }
     // 배포마다 달라지는 표식: index.html과 version.json에 같은 값을 적어, 열려 있는 게임이 새 배포를 알아채게 한다(js/app-update-ui.js).

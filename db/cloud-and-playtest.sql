@@ -1,4 +1,4 @@
--- 로그인 계정 저장과 최소 플레이테스트 계측.
+-- 로그인 계정 저장, 계정 삭제와 최소 플레이테스트 계측.
 -- Supabase SQL Editor에서 한 번 실행한다. 반복 실행해도 안전하다.
 
 create table if not exists public.cloud_saves (
@@ -21,7 +21,7 @@ $$;
 
 drop policy if exists "cloud_saves_select_own" on public.cloud_saves;
 create policy "cloud_saves_select_own" on public.cloud_saves
-    for select to authenticated using (auth.uid() = user_id);
+    for select to authenticated using ((select auth.uid()) = user_id);
 
 -- 세이브 쓰기는 commit_cloud_save(보안 정의자 함수)로만 한다(2026-10-03). 예전에는 자기 행을 직접 쓸 수 있어서
 -- 리비전 확인과 크기 상한을 건너뛸 수 있었다.
@@ -72,6 +72,28 @@ $$;
 revoke all on function public.commit_cloud_save(bigint, jsonb) from public, anon;
 grant execute on function public.commit_cloud_save(bigint, jsonb) to authenticated;
 
+-- 계정 삭제(2026-10-27): 로그인한 사람이 자기 계정을 지운다(설정 > 클라우드 세이브 > 계정 삭제, js/cloud-tools-ui.js deleteCloudAccount).
+-- auth.users 한 줄을 지우면 public의 모든 표가 외래키(on delete cascade)로 함께 지워진다(라이브 DB의 외래키 20개를 2026-10-27 확인):
+-- 클라우드 저장과 버전, 공개 프로필(닉네임도 풀린다), 채팅과 금지, 신고, 치트 기록과 보류, 전당 등록부와 전시와 구매, 고스트 프로필과
+-- 대전 기록, 원격 측정. 남이 이 계정의 전시에서 산 구매 기록과 남의 대전 기록 중 이 계정이 상대인 줄도 함께 지워진다.
+-- 이 기기의 게스트 저장은 서버와 무관해 남는다. postgres 소유의 보안 정의자라야 auth.users를 지울 수 있다.
+-- 보류 중인 계정도 지울 수 있다(스토어의 계정 삭제 정책). 그 보류 기록은 함께 사라진다.
+-- 남는 것: auth.audit_log_entries의 로그인 기록(GoTrue가 이메일을 jsonb로 남기고 외래키가 없다)과 다른 기기 저장의 cloudUserId 메모.
+create or replace function public.delete_my_account()
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare
+    uid uuid := auth.uid();
+begin
+    if uid is null then raise exception 'AUTH_REQUIRED'; end if;
+    delete from auth.users where id = uid;
+    if not found then raise exception 'ACCOUNT_NOT_FOUND'; end if;
+    return jsonb_build_object('deleted', true);
+end;
+$$;
+
+revoke all on function public.delete_my_account() from public, anon;
+grant execute on function public.delete_my_account() to authenticated;
+
 create table if not exists public.playtest_runs (
     id bigint generated always as identity primary key,
     user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
@@ -104,17 +126,26 @@ alter table public.playtest_runs enable row level security;
 
 drop policy if exists "playtest_runs_insert_own" on public.playtest_runs;
 create policy "playtest_runs_insert_own" on public.playtest_runs
-    for insert to authenticated with check (auth.uid() = user_id);
+    for insert to authenticated with check ((select auth.uid()) = user_id);
 
+-- 시각은 서버가 정한다(2026-10-27: 클라이언트가 과거 시각을 넣어 일일 한도를 비켜 갔다). 열마다 크기 상한을 둔다
+-- (content_context는 db/operations-and-ghost.sql이 더한 열이라 to_jsonb로 있을 때만 본다). db/multiplayer-hardening-20261027.sql과 같다.
 create or replace function public.guard_playtest_run_insert()
 returns trigger language plpgsql security definer set search_path = public as $$
 begin
+    new.created_at := now();
+    if jsonb_typeof(new.ghost_snapshot) <> 'object' or pg_column_size(new.ghost_snapshot) > 8192 then
+        raise exception 'INVALID_GHOST_SNAPSHOT';
+    end if;
+    if pg_column_size(new.ehp_by_element) > 2048 or coalesce(pg_column_size(to_jsonb(new) -> 'content_context'), 0) > 4096
+       or char_length(new.zone_id) > 120 or char_length(new.zone_type) > 60 or char_length(coalesce(new.ascend_class, '')) > 80
+       or char_length(coalesce(new.hero_id, '')) > 80 or char_length(coalesce(new.active_skill, '')) > 120
+       or char_length(new.app_version) > 60 or char_length(new.platform) > 60 then
+        raise exception 'PLAYTEST_RUN_TOO_LARGE';
+    end if;
     delete from public.playtest_runs where created_at < now() - interval '30 days';
     if (select count(*) from public.playtest_runs where user_id = new.user_id and created_at >= now() - interval '1 day') >= 60 then
         raise exception 'PLAYTEST_DAILY_LIMIT';
-    end if;
-    if jsonb_typeof(new.ghost_snapshot) <> 'object' or pg_column_size(new.ghost_snapshot) > 8192 then
-        raise exception 'INVALID_GHOST_SNAPSHOT';
     end if;
     return new;
 end;
@@ -140,11 +171,15 @@ alter table public.client_error_reports enable row level security;
 
 drop policy if exists "client_error_reports_insert_own" on public.client_error_reports;
 create policy "client_error_reports_insert_own" on public.client_error_reports
-    for insert to authenticated with check (auth.uid() = user_id);
+    for insert to authenticated with check ((select auth.uid()) = user_id);
 
 create or replace function public.guard_client_error_insert()
 returns trigger language plpgsql security definer set search_path = public as $$
 begin
+    new.created_at := now();
+    if pg_column_size(new.context) > 8192 or char_length(new.fingerprint) > 500 or char_length(new.app_version) > 60 then
+        raise exception 'ERROR_REPORT_TOO_LARGE';
+    end if;
     delete from public.client_error_reports where created_at < now() - interval '30 days';
     if exists (
         select 1 from public.client_error_reports
@@ -181,3 +216,6 @@ having count(distinct user_id) >= 3;
 revoke all on public.playtest_runs, public.client_error_reports, public.playtest_class_stats_30d from anon, authenticated;
 grant insert on public.playtest_runs, public.client_error_reports to authenticated;
 grant usage, select on sequence public.playtest_runs_id_seq, public.client_error_reports_id_seq to authenticated;
+-- 트리거 함수는 RPC로 부를 수 없게 한다(Supabase 보안 권고). 트리거는 호출자의 실행 권한을 보지 않으므로 회수해도 그대로 돈다.
+revoke all on function public.guard_playtest_run_insert() from public, anon, authenticated;
+revoke all on function public.guard_client_error_insert() from public, anon, authenticated;

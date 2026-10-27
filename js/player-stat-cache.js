@@ -133,6 +133,14 @@ const playerStatTick = (() => {
 const playerStatCache = (() => {
     const CONTEXT_NAMES = Object.keys(PLAYER_STAT_CONTEXT_FIELDS);
     const kept = new WeakMap(); // state -> [lean entry, entry with breakdowns]
+    // Inside a kill or a map completion (eventDepth > 0) the key above cannot tell whether the build changed since the last call,
+    // and after one it has moved on (generation, memo, status) whether the build changed or not. A settlement state's calculation
+    // is also kept under the whole build signature (getPersistentBuildSignature: every build field) with the context fields and the
+    // zone: inside an event, and for the first call after one, a calculation whose signature and tick reads still hold is the
+    // answer. A projected map's completion asked for the same stats four times (startMoving twice, the arrival, the chest rules)
+    // and the next map's start once more, each a full calculation (2026-10-27: 8% of an 8-hour settlement). The signature costs a
+    // tenth of a calculation, so it is compared last, after the cheap context and the tick reads. Normal play is unchanged.
+    const signed = new WeakMap(); // settlement state -> [lean entry, entry with breakdowns]
     // Settlement replay states (js/combat-replay.js createCombatReplay): only game logic edits them, between bracketed events.
     const settlementStates = new WeakSet();
     // answers: kept calculations handed out; misses: calculations kept for later; bypassed: calculated without keeping.
@@ -146,9 +154,14 @@ const playerStatCache = (() => {
     function usable(state) {
         return !disabled && eventDepth === 0 && (settlementStates.has(state) || !state.isBackgroundCalculation);
     }
+    /** The zone the hero fights in, without its map layout block: exploration carries the run seed (js/content-maps.js runSeed, with
+     * the next monster id), so with it every spawn and every new map made a kept calculation look stale; no stat reads it. */
+    function zonePrint(state) {
+        return JSON.stringify(getZone(state.currentZoneId) || null, (key, value) => (key === 'exploration' ? undefined : value));
+    }
     function context(includeBreakdowns, memo, status) {
         return { includeBreakdowns: !!includeBreakdowns, memo, status, generation, activeSkill: game.activeSkill,
-            zone: JSON.stringify(getZone(game.currentZoneId) || null), fields: JSON.stringify(CONTEXT_NAMES.map(name => game[name])) };
+            zone: zonePrint(game), fields: JSON.stringify(CONTEXT_NAMES.map(name => game[name])) };
     }
     function sameContext(a, b) {
         return Object.keys(a).every(key => a[key] === b[key]);
@@ -172,16 +185,48 @@ const playerStatCache = (() => {
     function read(includeBreakdowns, memo, status) {
         const tick = playerStatTick.create(), state = game;
         if (!usable(state)) {
+            if (!disabled && settlementStates.has(state)) return readSigned(includeBreakdowns, tick, state, null);
             health.bypassed++;
             return finishPlayerStats(calculate(includeBreakdowns, tick), includeBreakdowns);
         }
         const slots = slotsOf(state), slot = includeBreakdowns ? 1 : 0, current = context(includeBreakdowns, memo, status);
         const entry = slots[slot];
         if (entry && sameContext(entry.context, current) && playerStatTick.matches(tick, entry.reads)) return answer(entry, includeBreakdowns);
+        if (settlementStates.has(state)) return readSigned(includeBreakdowns, tick, state, current);
         health.misses++;
         tick.restart();
         const core = calculate(includeBreakdowns, tick);
         slots[slot] = { context: current, core, reads: tick.reads(), answers: 0 };
+        return finishPlayerStats(core, includeBreakdowns);
+    }
+    /** The cheap part of a signed entry's key: breakdowns or not, the zone the hero fights in and the context fields. */
+    function settlementContext(includeBreakdowns, state) {
+        return JSON.stringify([!!includeBreakdowns, CONTEXT_NAMES.map(name => state[name])]) + zonePrint(state);
+    }
+    /** Whether a signed entry answers this call: its cheap context and tick reads first, the whole build signature last. */
+    function matchesSigned(entry, settlement, tick, state) {
+        return !!entry && entry.settlement === settlement && playerStatTick.matches(tick, entry.reads)
+            && entry.signature === getPersistentBuildSignature(state);
+    }
+    /**
+     * A settlement state's stats by the signed key: inside an event (current null; a fresh calculation counts as bypassed and is
+     * signed), or on the first call after one (current: the normal key the answer is then kept under, so the calls that follow need
+     * no signature; a fresh calculation counts as a miss and is not signed). The signature is read after the calculation, whose
+     * normalising writes (PLAYER_STAT_DERIVED_WRITES) may reshape a build field.
+     */
+    function readSigned(includeBreakdowns, tick, state, current) {
+        let slots = signed.get(state);
+        if (!slots) signed.set(state, slots = [null, null]);
+        const slot = includeBreakdowns ? 1 : 0, settlement = settlementContext(includeBreakdowns, state), entry = slots[slot];
+        if (matchesSigned(entry, settlement, tick, state)) {
+            if (current) slotsOf(state)[slot] = { context: current, core: entry.core, reads: entry.reads, answers: 0 };
+            return answer(entry, includeBreakdowns);
+        }
+        if (current) health.misses++; else health.bypassed++;
+        tick.restart();
+        const core = calculate(includeBreakdowns, tick), reads = tick.reads();
+        if (current) slotsOf(state)[slot] = { context: current, core, reads, answers: 0 };
+        else slots[slot] = { settlement, signature: getPersistentBuildSignature(state), core, reads, answers: 0 };
         return finishPlayerStats(core, includeBreakdowns);
     }
     function answer(entry, includeBreakdowns) {

@@ -89,7 +89,9 @@ test('a new warrior earns and equips the first gem through visible controls', as
     const apart = (a, b) => a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top;
     const opening = await layout();
     if (desktop) expect(apart(opening.card, opening.target)).toBe(true);
+    await expect(page.getByRole('button', { name: '미사용 공격 룬 일괄 봉인', exact: true })).toBeDisabled();
     await page.locator('.starter-gem-tutorial-target').click();
+    await expect(page.locator('#gem-selection').getByRole('button', { name: '봉인', exact: true })).toBeDisabled();
     // The coach mark follows into the detail popover: its 장착 button is what the player presses next.
     await expect(page.locator('#gem-selection .gem-equip-primary')).toHaveClass(/tutorial-action-target/);
     if (desktop) {

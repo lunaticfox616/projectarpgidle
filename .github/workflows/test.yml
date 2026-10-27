@@ -21,6 +21,9 @@ jobs:
     timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
+      # 저장소의 텍스트 파일은 LF다(.gitattributes). CRLF나 섞인 줄 끝으로 들어간 파일이 있으면 이름을 찍고 멈춘다.
+      - name: 줄 끝 검사
+        run: "! git ls-files --eol | grep -E '^i/(crlf|mixed)'"
       - uses: actions/setup-node@v4
         with:
           # package.json의 engines(>=20.9) 범위 안에서 Node 22로 검사한다.
@@ -30,7 +33,7 @@ jobs:
         run: npm ci
       - name: 스모크 검사 실행
         run: npm test
-      - name: CSS 구조와 배포 빌드 검증
-        run: npm run check:css && npm run build
+      - name: CSS 구조, db 거울, 배포 빌드 검증
+        run: npm run check:css && npm run check:db && npm run build
       - name: 구조 및 복잡도 래칫 검사
         run: npm run check:architecture

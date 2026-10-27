@@ -18,10 +18,7 @@ const PRIVATE_URL = 'https://github.com/lunaticfox616/projectarpgidle-assets.git
 const PRIVATE_BRANCH = 'main';
 // Public main when the split started (2026-10-01). History up to here is already public and holds no licensed files.
 const PUBLIC_BASE = '98bc57a481906e8b5de697ece8eccf240a015af5';
-// Changing this list rewrites public history: the next run then stops and needs --force-public.
-const PRIVATE_PATHS = ['assets/playable/hana', 'assets/summon/hana', 'docs/skill-assets-hana/reference'];
-// Files put into the private repo by hand (never in any public commit, so never in rignin-next): kept as they are on every sync.
-const HAND_PRIVATE_PATHS = ['assets/stage-vfx/vfx.png', 'assets/stage-vfx/vfx2.png'];
+const { PRIVATE_PATHS, HAND_PRIVATE_PATHS } = require('./lib/private-paths');
 // Safety net for licensed art added somewhere new: any image whose path looks like it blocks the public push.
 const LICENSED_ART = /hana|caraka/i;
 const IMAGE = /\.(png|jpe?g|gif|webp|bmp|psd|aseprite)$/i;

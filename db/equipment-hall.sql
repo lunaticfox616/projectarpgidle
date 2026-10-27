@@ -66,6 +66,7 @@ create table if not exists public.hall_item_registry (
     source_listing_id bigint,
     updated_at timestamptz not null default now()
 );
+create index if not exists hall_item_registry_owner_idx on public.hall_item_registry (owner_id);
 
 alter table public.hall_item_registry drop constraint if exists hall_item_registry_state_check;
 alter table public.hall_item_registry add constraint hall_item_registry_state_check
@@ -470,16 +471,20 @@ declare
     account_id uuid := auth.uid();
 begin
     if account_id is null then raise exception 'AUTH_REQUIRED'; end if;
+    -- 내린 뒤 30일 지난, 팔린 적 없는 전시는 지운다(2026-10-27: 영구 보관으로 표가 계속 컸다). 팔린 전시는 복제품이 가리키므로 둔다.
+    delete from public.hall_listings where status = 'withdrawn' and copies_sold = 0 and retired_at < now() - interval '30 days';
     return jsonb_build_object(
         'listings', coalesce((select jsonb_agg(row_data order by (row_data ->> 'score')::bigint desc, (row_data ->> 'createdAt') desc) from (
-            select jsonb_build_object('id', listing.id, 'curatorName', listing.curator_name,
+            select jsonb_build_object('id', listing.id, 'curatorName', coalesce(curator.nickname, listing.curator_name),
                 'item', listing.item_snapshot, 'score', listing.item_score, 'price', listing.price,
                 'honorPerCopy', listing.honor_per_copy, 'copiesSold', listing.copies_sold,
                 'copyCap', listing.copy_cap, 'createdAt', listing.created_at,
                 'isMine', listing.curator_id = account_id,
                 'alreadyCollected', exists(select 1 from public.hall_purchases purchase
                     where purchase.listing_id = listing.id and purchase.buyer_id = account_id)) row_data
-              from public.hall_listings listing where listing.status = 'open'
+              from public.hall_listings listing
+              left join public.player_profiles curator on curator.user_id = listing.curator_id   -- 전시자의 지금 닉네임(2026-10-27)
+             where listing.status = 'open'
              order by listing.item_score desc, listing.created_at desc limit 80) open_rows), '[]'::jsonb),
         'mine', coalesce((select jsonb_agg(row_data order by (row_data ->> 'createdAt') desc) from (
             select jsonb_build_object('id', listing.id, 'item', listing.item_snapshot,

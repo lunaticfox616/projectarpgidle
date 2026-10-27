@@ -305,7 +305,7 @@ const SKILL_RUNE_FAMILY = Object.freeze({
     '빈 플라스크': 'flask',
     '바위 플라스크': 'flask',
 });
-/** 낀 무기의 대분류(data/weapon-categories.js) → 무기 자세. 곡도는 방패를 함께 껴도 한손검이다(2026-10-20 새 그림에는 방패를 든 자세가 없다).
+/** 낀 무기의 대분류(data/weapon-categories.js) → 무기 자세. 한손검(scimitar)은 방패를 함께 껴도 한손검 자세다(2026-10-20 새 그림에는 방패를 든 자세가 없다).
  * 무대의 주인공 그림(js/canvas-stage-actors.js)도 이 표로 자세를 정한다. */
 const SKILL_RUNE_STANCE_BY_CATEGORY = Object.freeze({ greatsword: 'greatsword', scimitar: 'sword', shortbow: 'bow', orb: 'orb', flask: 'flask', censer: 'censer' });
 const SKILL_RUNE_STANCE_LABELS = Object.freeze({ unarmed: '맨손', greatsword: '대검', sword: '한손검', bow: '활', orb: '오브', flask: '플라스크', censer: '향로' });

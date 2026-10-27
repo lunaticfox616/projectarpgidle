@@ -12,6 +12,7 @@ const fishingUi = (() => {
     const selectedRecipes = {};
     let lastResult = null;
     let materialsOnly = false;
+    let batchChoice = null;
     const TITLES = Object.freeze({
         reefBundle: '암초 조각 2개', tidalCharm: '심해의 파편 1개', glowfinEssence: '심해의 파편 2개',
         tidalFortune: '무작위 재화 1개 (장어)', glowingFortune: '무작위 재화 1개 (송어)',
@@ -102,9 +103,33 @@ const fishingUi = (() => {
         return (item && CATEGORY_OPTIONS.find(cat => !getSeaGiftEffectBlockReason(item, recipe.effect, cat))) || CATEGORY_OPTIONS[0];
     }
     const statusOf = recipe => getSeaGiftRecipeStatus(recipe.id, null, categoryOf(recipe));
-    function costHtml(recipe, st) {
+    function selectedCount(recipe) {
+        if (SEA_GIFT_ITEM_EFFECT_TYPES.has(recipe.effect.type)) return 1;
+        if (!batchChoice || batchChoice.owner !== game || batchChoice.season !== game.season || batchChoice.recipe !== recipe.id) {
+            batchChoice = { owner: game, season: game.season, recipe: recipe.id, count: 1 };
+        }
+        return batchChoice.count;
+    }
+    function quantityHtml(status) {
+        if (status.batchLimit === 1 || (status.maxCrafts <= 1 && status.count === 1)) return '';
+        const counts = [...new Set([1, ...[5, 10, 25, 50, 100].filter(n => n <= status.maxCrafts), Math.max(1, status.maxCrafts), status.count])].sort((a, b) => a - b);
+        return `<label class="fishing-quantity">제작 횟수<select aria-label="제작 횟수" onchange="fishingUi.setCount(this.value)">${counts.map(count =>
+            `<option value="${count}"${count === status.count ? ' selected' : ''}${count > status.maxCrafts && count !== 1 ? ' disabled' : ''}>${count === status.maxCrafts && count > 1 ? '최대 ' : ''}${count}회</option>`).join('')}</select></label>`;
+    }
+    function setCount(value) {
+        const id = document.querySelector('#ui-sea-gift-panel [data-sea-recipe]')?.dataset.seaRecipe;
+        const recipe = SEA_GIFT_RECIPES.find(row => row.id === id), count = Number(value);
+        if (!recipe) return;
+        const status = getSeaGiftRecipeStatus(id, null, categoryOf(recipe), count);
+        if (status.batchLimit === 1 || !status.valid) return;
+        selectedCount(recipe);
+        batchChoice.count = count;
+        lastResult = null;
+        render();
+    }
+    function costHtml(recipe, st, count) {
         return Object.keys(recipe.requires).map(key => {
-            const have = Math.floor(st.fishStock[key] || 0), need = recipe.requires[key], fish = OCEAN_FISH_DB[key];
+            const have = Math.floor(st.fishStock[key] || 0), need = recipe.requires[key] * count, fish = OCEAN_FISH_DB[key];
             return `<div class="fishing-material${have >= need ? ' is-ok' : ''}">${fishIcon(key)}<div><strong>${esc(fish.name)}</strong>`
                 + `<small>${fish.depthTier * 100}m 이상에서 낚시</small></div><div><span>보유 ${have} / 필요 ${need}</span>`
                 + `<b>${have >= need ? '재료 충분' : `${need - have}마리 부족`}</b></div></div>`;
@@ -234,8 +259,9 @@ const fishingUi = (() => {
         guaranteedMod: guaranteedGuide, guaranteedTaggedMod: guaranteedGuide, fixedBenchOption: benchGuide, lockMod: sealGuide,
         currency: currencyGuide, randomCurrency: currencyGuide
     });
-    function guideHtml(recipe) {
-        const [summary, detail] = EFFECT_GUIDES[recipe.effect.type](recipe.effect, getSelectedSeaGiftEquipmentTarget());
+    function guideHtml(recipe, count) {
+        const effect = count > 1 ? { ...recipe.effect, amount: recipe.effect.amount * count } : recipe.effect;
+        const [summary, detail] = EFFECT_GUIDES[effect.type](effect, getSelectedSeaGiftEquipmentTarget());
         return `<div class="fishing-effect"><strong>어떻게 바뀌나요?</strong><p>${esc(summary)}</p><p class="fishing-effect-note">${esc(detail)}</p></div>`;
     }
     function categoryHtml(recipe) {
@@ -249,12 +275,14 @@ const fishingUi = (() => {
             }).join('') + '</select></label>';
     }
     function recipeHtml(recipe, st) {
-        const status = statusOf(recipe), needsItem = SEA_GIFT_ITEM_EFFECT_TYPES.has(recipe.effect.type);
-        return `<article data-sea-recipe="${recipe.id}" class="fishing-recipe${status.ready ? ' is-ready' : ''}"><header><small>${needsItem ? '선택한 장비를 가공' : '장비 선택 없이 제작'}</small><h4>${esc(TITLES[recipe.id])}</h4></header>`
-            + `${categoryHtml(recipe)}${needsItem ? targetHtml(recipe) : ''}${guideHtml(recipe)}`
-            + `<section class="fishing-materials"><h4>1회에 사용할 물고기</h4>${costHtml(recipe, st)}</section>`
-            + `<div class="fishing-craft-action"><p>${esc(status.reason || '준비 완료, 누르면 물고기를 씁니다.')}</p>`
-            + `<button type="button" data-sea-craft onclick="fishingUi.craft('${recipe.id}')"${status.ready ? '' : ' disabled'}>물고기를 사용해 1회 제작</button></div>`
+        const count = selectedCount(recipe), status = getSeaGiftRecipeStatus(recipe.id, null, categoryOf(recipe), count);
+        const needsItem = SEA_GIFT_ITEM_EFFECT_TYPES.has(recipe.effect.type);
+        const title = count > 1 ? TITLES[recipe.id].replace(/\d+개/, `${recipe.effect.amount * count}개`) : TITLES[recipe.id];
+        return `<article data-sea-recipe="${recipe.id}" class="fishing-recipe${status.ready ? ' is-ready' : ''}"><header><small>${needsItem ? '선택한 장비를 가공' : '장비 선택 없이 제작'}</small><h4>${esc(title)}</h4></header>`
+            + `${quantityHtml(status)}${categoryHtml(recipe)}${needsItem ? targetHtml(recipe) : ''}${guideHtml(recipe, count)}`
+            + `<section class="fishing-materials"><h4>사용할 물고기</h4>${costHtml(recipe, st, count)}</section>`
+            + `<div class="fishing-craft-action"><p${status.ready ? '' : ' class="is-blocked"'}>${esc(status.reason || '준비 완료, 누르면 물고기를 씁니다.')}</p>`
+            + `<button type="button" data-sea-craft onclick="fishingUi.craft('${recipe.id}')"${status.ready ? '' : ' disabled'}>${count}회 제작</button></div>`
             + `<div class="fishing-result" role="status" aria-live="polite">${resultHtml(recipe, status.item)}</div></article>`;
     }
     function recipeListHtml(recipes, recipe) {
@@ -284,7 +312,7 @@ const fishingUi = (() => {
     function resultHtml(recipe, item) {
         if (!resultIsCurrent(recipe, item)) return '';
         if (!lastResult.ok) return '<strong>제작하지 못했습니다</strong><p>현재 장비에 이 제작법을 적용할 수 없습니다. 물고기는 소모되지 않았습니다.</p>';
-        const spent = Object.entries(recipe.requires).map(([key, count]) => `${OCEAN_FISH_DB[key].name} ${count}마리`).join(', ');
+        const spent = Object.entries(recipe.requires).map(([key, count]) => `${OCEAN_FISH_DB[key].name} ${count * lastResult.count}마리`).join(', ');
         if (!item) return currencyResultHtml(recipe) + `<small>사용한 재료: ${esc(spent)}</small>`;
         const unchanged = JSON.stringify(lastResult.before) === JSON.stringify(lastResult.after);
         return `<strong>제작 완료: ${esc(lastResult.name)}</strong><p>${unchanged ? '옵션이 그대로 유지되었습니다. 물고기는 소모되었습니다.' : '바뀐 부분만 모았습니다.'}</p>`
@@ -312,19 +340,21 @@ const fishingUi = (() => {
             action = canOpen ? `<button type="button" class="fishing-result-next" onclick="fishingUi.openRewardUse('${recipe.effect.key}')">${reef ? '채집 전략에서 암초 설치하기' : '제작실에서 심해의 파편 보기'}</button>`
                 : '<p>장비 제작실을 해금하면 심해의 파편을 사용할 수 있습니다.</p>';
         }
-        return `<strong>제작 완료: 실제 획득</strong>${linesHtml(gains)}${action}`;
+        return `<strong>제작 완료: ${lastResult.count}회</strong>${linesHtml(gains)}${action}`;
     }
     const itemSnapshot = item => item && ({ rarity: ITEM_RARITY_LABELS[item.rarity], lines: item.stats.map(lineText) });
     function craft(recipeId) {
         const recipe = SEA_GIFT_RECIPES.find(row => row.id === recipeId);
         if (!recipe) return;
-        const status = statusOf(recipe);
+        const count = selectedCount(recipe), status = getSeaGiftRecipeStatus(recipeId, null, categoryOf(recipe), count);
         if (!status.ready) { render(); return; }
         const keys = recipe.effect.type === 'currency' ? [recipe.effect.key] : SEA_GIFT_RANDOM_ORB_KEYS;
         const balances = Object.fromEntries(keys.map(key => [key, game.currencies[key] || 0]));
         const before = itemSnapshot(status.item);
-        const ok = craftSeaGift(recipeId, null, { category: categoryOf(recipe) });
-        lastResult = { recipeId, owner: game, target: status.item, ok, before, after: itemSnapshot(status.item), name: status.item && status.item.name,
+        const ok = craftSeaGift(recipeId, null, { category: categoryOf(recipe), count });
+        // 고른 횟수는 남은 재료로 만들 수 있는 만큼으로 줄인다: 다 쓰고 나면 결과 옆에 '재료 부족'이 떴다.
+        if (batchChoice) batchChoice.count = Math.max(1, Math.min(batchChoice.count, getSeaGiftRecipeStatus(recipeId, null, categoryOf(recipe), 1).maxCrafts || 1));
+        lastResult = { recipeId, count, owner: game, target: status.item, ok, before, after: itemSnapshot(status.item), name: status.item && status.item.name,
             gains: keys.filter(key => game.currencies[key] > balances[key]).map(key => ({ key, amount: game.currencies[key] - balances[key] })) };
         render();
         document.querySelector('#ui-sea-gift-panel .fishing-result').scrollIntoView({ block: 'nearest' });
@@ -346,6 +376,7 @@ const fishingUi = (() => {
     }
     function selectGroup(group, clearResult = true) {
         if (!Object.hasOwn(GROUPS, group)) return;
+        batchChoice = null;
         document.getElementById('fishing-workshop').dataset.recipeGroup = group;
         document.querySelector('.sea-gift-group-picker select').value = group;
         if (clearResult) lastResult = null;
@@ -390,6 +421,8 @@ const fishingUi = (() => {
         const recipeId = gifts.querySelector('[data-sea-recipe]')?.dataset.seaRecipe;
         if (picker) picker.value = recipeId;
         if (category) category.value = categoryOf(SEA_GIFT_RECIPES.find(row => row.id === recipeId));
+        const quantity = gifts.querySelector('.fishing-quantity select');
+        if (quantity) quantity.value = selectedCount(SEA_GIFT_RECIPES.find(row => row.id === recipeId));
     }
     function render() {
         const panel = document.getElementById('ui-fishing-panel'), gifts = document.getElementById('ui-sea-gift-panel');
@@ -406,7 +439,7 @@ const fishingUi = (() => {
         updateGamePanelMarkup(gifts, giftsHtml(st));
         syncWorkshopControls(gifts);
     }
-    return Object.freeze({ render, craft, pick, choose, selectGroup, filterMaterials, openRewardUse, pickTarget, openWorkshop });
+    return Object.freeze({ render, craft, pick, choose, selectGroup, setCount, filterMaterials, openRewardUse, pickTarget, openWorkshop });
 })();
 
 safeExposeGlobals({ fishingUi });

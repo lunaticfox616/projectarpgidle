@@ -579,9 +579,10 @@
         label.className = 'ui-rail-label';
         label.textContent = textNodes.map(node => node.textContent.trim()).join(' ');
         button.dataset.caption = railCaption(button.id, label.textContent);
-        // 화면 여럿을 여는 단추(장비 단추는 장비와 스킬룬)는 올렸을 때의 이름표에 그 화면들을 모두 적는다. 아래의 짧은 이름은 그대로다.
+        // 화면 여럿을 여는 단추(장비 단추는 장비와 스킬룬)는 묶음 이름 하나만 적는다(스킬트리, 장비, 루프, 기록). 화면들을 모두 나열하면
+        // 좁은 화면의 아래 탭에 "스킬트리, 전직, 재능"처럼 길게 보였다(사용자 2026-10-27). 안의 화면은 창 머리의 탭에서 고른다.
         let merged = button.dataset.mergedTabLauncher && typeof MERGED_TAB_GROUPS === 'object' ? MERGED_TAB_GROUPS[button.dataset.mergedTabLauncher] : null;
-        if (merged) label.textContent = merged.tabs.map(tab => tab.label).join(', ');
+        if (merged) label.textContent = merged.title;
         if (button.dataset.hotkey) label.dataset.hotkey = button.dataset.hotkey;
         textNodes.forEach(node => button.removeChild(node));
         button.insertBefore(label, button.firstChild);

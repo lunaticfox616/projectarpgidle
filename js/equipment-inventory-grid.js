@@ -176,13 +176,23 @@
         return normalized;
     }
 
+    // 정리 기준(2026-10-26 사용자: "정리 버튼 누르면 어떤 기준으로 정리할지 나오게"): 최근 획득, 등급(고유부터), 부위(무기부터, 같은 부위는
+    // 등급 순), 크기(큰 장비부터). 같은 자리는 최근 장비가 앞이다. 부위 목록에 없는 것(주얼, 코어, 액막이)은 뒤로 간다.
+    const ARRANGE_ORDERS = Object.freeze(['recent', 'rarity', 'slot', 'size']);
+    const ARRANGE_SLOT_ORDER = Object.freeze(['무기', '방패', '투구', '갑옷', '장갑', '신발', '허리띠', '목걸이', '반지']);
     /** Gapless layouts of `items` (inventory order, the newest last) tried in the given orders: 'recent' the newest first, 'size' the
      * biggest first, 'stored' inventory order (the one canStoreItems checks). @returns {?{order:string, layout:EquipmentInventoryGridLayout}} */
     function findPackedLayout(items, targetGame, orderNames) {
         let recent = items.slice().reverse();
         let area = item => getFootprint(item).columns * getFootprint(item).rows;
+        let slotRank = item => {
+            const at = ARRANGE_SLOT_ORDER.indexOf(String(item.slot || '').replace(/d+$/, ''));
+            return at < 0 ? ARRANGE_SLOT_ORDER.length : at;
+        };
         let orders = {
             recent: () => recent,
+            rarity: () => recent.slice().sort((a, b) => getRarityRank(b.rarity) - getRarityRank(a.rarity)),
+            slot: () => recent.slice().sort((a, b) => slotRank(a) - slotRank(b) || getRarityRank(b.rarity) - getRarityRank(a.rarity)),
             size: () => recent.slice().sort((a, b) => area(b) - area(a) || getFootprint(b).rows - getFootprint(a).rows),
             stored: () => items
         };
@@ -227,9 +237,8 @@
         return state.equipmentTemporaryStorage.slice();
     }
 
-    function canPackItems(items, targetGame) {
-        let occupied = new Set();
-        let rowCount = getUnlockedRowCount(targetGame);
+    /** Packs items first-fit into occupied, in order; false at the first item with no place. */
+    function packItems(items, occupied, rowCount) {
         for (let item of items) {
             let footprint = getFootprint(item);
             let placement = findFirstFit(occupied, footprint, rowCount);
@@ -239,10 +248,30 @@
         return true;
     }
 
+    function canPackItems(items, targetGame) {
+        return packItems(items, new Set(), getUnlockedRowCount(targetGame));
+    }
+
+    // The bag's own packing, kept while the bag array, its items (by reference: an item's footprint follows its slot and base,
+    // which never change in place) and the page count stay the same. Each drop used to pack the whole bag again to learn whether
+    // it fits (2026-10-27: 5% of an 8-hour offline settlement with a bag of 89).
+    const packedBags = new WeakMap(); // inventory array -> { items, rowCount, occupied, ok }
+    /** The cells the bag's items take in first-fit order, and whether every one of them found a place. */
+    function packedBag(state) {
+        const inventory = Array.isArray(state.inventory) ? state.inventory : [], rowCount = getUnlockedRowCount(state);
+        const kept = packedBags.get(inventory);
+        if (kept && kept.rowCount === rowCount && kept.items.length === inventory.length && kept.items.every((item, index) => item === inventory[index])) return kept;
+        const occupied = new Set(), packed = { items: inventory.slice(), rowCount, occupied, ok: packItems(inventory, occupied, rowCount) };
+        packedBags.set(inventory, packed);
+        return packed;
+    }
+
+    /** Whether the bag's items and then the incoming ones all pack first-fit into the unlocked pages. */
     function canStoreItems(items, targetGame) {
         let state = targetGame || game;
         let incoming = (Array.isArray(items) ? items : [items]).filter(Boolean);
-        return canPackItems((state.inventory || []).concat(incoming), state);
+        const bag = packedBag(state);
+        return bag.ok && packItems(incoming, new Set(bag.occupied), bag.rowCount);
     }
 
     function canFitItems(items, targetGame) {
@@ -358,12 +387,12 @@
         return { ...layout, rows: GRID_ROWS_PER_PAGE, page, entries };
     }
 
-    /** 빈칸 정리: the newest item first, no gaps (the sort select is gone since 2026-10-19). A nearly full bag that does not fit in that
-     * order puts the biggest items first. @returns {'recent'|'size'|null} the order used; null when neither fits (the bag stays as it was) */
-    function autoArrange(targetGame) {
+    /** 빈칸 정리 in `order` (ARRANGE_ORDERS), no gaps. A nearly full bag that does not fit in that order puts the biggest items first.
+     * @returns {string|null} the order used; null when neither fits (the bag stays as it was) */
+    function autoArrange(targetGame, order = 'recent') {
         let state = targetGame || game;
         ensureState(state);
-        let packed = findPackedLayout(state.inventory, state, ['recent', 'size']);
+        let packed = findPackedLayout(state.inventory, state, [...new Set([ARRANGE_ORDERS.includes(order) ? order : 'recent', 'size'])]);
         if (!packed) return null;
         state.equipmentInventoryPlacements = packed.layout.placements;
         ensureState(state);

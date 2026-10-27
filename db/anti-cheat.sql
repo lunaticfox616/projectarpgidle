@@ -8,8 +8,8 @@
 -- 원칙:
 --   1. 틀릴 수 없는 검사만 막는다: 전당에 올리는 장비의 수치(게스트 세이브 검사 js/guest-save-check.js와 같은 기준).
 --   2. 어림 검사는 막지 않고 기록만 한다: 클라우드 저장의 기기 시계, 나올 수 없는 값, 성장 속도, 고스트 DPS 이상치.
---   3. 관리자가 기록을 보고 직접 보류한 계정만 남과 나누는 곳(전당 등록과 구매, 고스트 순위와 대전)에서 뺀다. 저장은 언제나 받는다.
--- 성능: 검사는 저장(몇 분에 한 번), 전당 등록과 구매, 고스트 등록 때만 돈다. 저장 감시는 세이브에서 네 칸만 꺼내 보고,
+--   3. 관리자가 기록을 보고 직접 보류한 계정만 남과 나누는 곳(전당 등록과 구매, 고스트 순위와 대전, 채팅)에서 뺀다. 저장은 언제나 받는다.
+-- 성능: 검사는 저장(몇 분에 한 번), 전당 등록과 구매, 고스트 등록, 채팅 한 줄(보류 조회 하나) 때만 돈다. 저장 감시는 세이브에서 네 칸만 꺼내 보고,
 --   지난 세이브는 한 번만 읽는다. 감시가 실패해도 저장은 그대로 들어간다.
 -- ============================================================================
 
@@ -30,7 +30,7 @@ create table if not exists public.cheat_flags (
 create index if not exists cheat_flags_last_at_idx on public.cheat_flags (last_at desc);
 -- 종류 목록은 다시 실행할 때마다 새로 건다(create table if not exists는 예전 제약을 그대로 둔다).
 alter table public.cheat_flags drop constraint if exists cheat_flags_kind_check;
-alter table public.cheat_flags add constraint cheat_flags_kind_check check (kind in ('clock', 'currency', 'level', 'ghost_dps'));
+alter table public.cheat_flags add constraint cheat_flags_kind_check check (kind in ('clock', 'currency', 'level', 'ghost_dps', 'ghost_ehp'));
 
 -- 관리자가 건 보류: 이 계정은 전당에 올리거나 살 수 없고, 고스트는 순위와 대전에서 빠지며 다시 등록할 수 없다.
 create table if not exists public.cheat_holds (
@@ -116,12 +116,28 @@ returns boolean language sql immutable set search_path = public as $$
     );
 $$;
 
+-- 고유 효과의 값(uniqueEffectParams)과 품질: 클라이언트가 상한 없이 곱하는 칸이라 서버가 크기를 본다(2026-10-27).
+-- 배율(mul, explicitStatMultiplier)과 젬 레벨 보너스(level)는 10까지, 그 밖의 숫자 값은 100000까지(데이터의 가장 큰 값은 sleepMs 10000),
+-- 품질은 30까지(한계 돌파와 타락의 상한).
+create or replace function public.hall_item_params_out_of_range(item_data jsonb)
+returns boolean language sql immutable set search_path = public as $$
+    select public.cheat_number(item_data -> 'quality') > 30
+        or (jsonb_typeof(item_data -> 'uniqueEffectParams') = 'object' and exists (
+            select 1 from jsonb_each(item_data -> 'uniqueEffectParams') param
+             where jsonb_typeof(param.value) = 'number'
+               and (abs(public.cheat_number(param.value)) > 100000
+                    or (param.key in ('mul', 'explicitStatMultiplier', 'level') and public.cheat_number(param.value) > 10))));
+$$;
+
 -- create_hall_listing이 전시를 넣을 때 돈다. 오류가 나면 등록 전체가 되돌아가 장비는 가방에 그대로 남는다.
 create or replace function public.guard_hall_listing()
 returns trigger language plpgsql security definer set search_path = public as $$
 begin
     if public.cheat_account_held(new.curator_id) then raise exception 'HALL_ACCOUNT_HELD'; end if;
     if public.hall_item_out_of_range(new.item_snapshot) then raise exception 'HALL_ITEM_OUT_OF_RANGE'; end if;
+    if public.hall_item_params_out_of_range(new.item_snapshot) then raise exception 'HALL_ITEM_OUT_OF_RANGE'; end if;
+    -- 전시 이름은 전당을 여는 모두에게 보인다: 채팅과 같은 비속어 검사(db/social.sql chat_text_is_offensive).
+    if public.chat_text_is_offensive(new.item_snapshot ->> 'name') then raise exception 'HALL_ITEM_NAME_REJECTED'; end if;
     return new;
 end;
 $$;
@@ -148,10 +164,19 @@ create trigger trg_guard_hall_purchase before insert on public.hall_purchases
 -- ---------------------------------------------------------------------------
 -- register_my_ghost는 등록할 때마다 active를 켠다. 보류한 계정이면 등록을 거절한다(대전 결과로 점수만 바뀔 때는 돌지 않는다).
 -- 보류를 걸 때 active를 끄는 갱신은 그대로 들어간다.
+-- 수치 상한(2026-10-27): 게임에서 나올 수 없는 크기는 막는다. 문서와 측정에 남은 가장 큰 DPS가 천만 자리라 DPS와 EHP는 100억,
+-- 생명력과 보호막은 10억까지 받는다(틀릴 수 없는 검사만 막는다는 원칙). 그 아래의 이상치는 watch_ghost_dps가 기록만 한다.
 create or replace function public.guard_ghost_profile()
 returns trigger language plpgsql security definer set search_path = public as $$
 begin
     if new.active and public.cheat_account_held(new.user_id) then raise exception 'GHOST_ACCOUNT_HELD'; end if;
+    -- 등록(active를 켜는 쓰기)에만 건다. 보류가 active를 끄는 갱신은 값이 커도 들어가야 한다(검토 지적 2026-10-27).
+    if new.active and (new.dps > 10000000000
+       or public.cheat_number(new.combat_snapshot -> 'maxHp') > 1000000000
+       or public.cheat_number(new.combat_snapshot -> 'energyShield') > 1000000000
+       or exists (select 1 from jsonb_each(new.ehp_by_element) element where public.cheat_number(element.value) > 10000000000)) then
+        raise exception 'GHOST_SNAPSHOT_IMPLAUSIBLE';
+    end if;
     return new;
 end;
 $$;
@@ -160,7 +185,14 @@ drop trigger if exists trg_guard_ghost_profile on public.ghost_profiles;
 create trigger trg_guard_ghost_profile before insert or update of active on public.ghost_profiles
     for each row execute function public.guard_ghost_profile();
 
+-- 원소별 EHP 가운데 가장 작은 값(감시와 기록이 보는 한 수).
+create or replace function public.ghost_min_ehp(ehp_data jsonb)
+returns numeric language sql immutable set search_path = public as $$
+    select coalesce(min(public.cheat_number(element.value)), 0) from jsonb_each(coalesce(ehp_data, '{}'::jsonb)) element;
+$$;
+
 -- 같은 전투 판에서 DPS 상위 20명(자기 빼고)의 가운데 값보다 10배 넘게 크면 기록한다. 20명이 안 되면 보지 않는다.
+-- EHP(원소별 가장 작은 값)도 같은 규칙으로 기록한다(2026-10-27). 7일 안의 기록은 순위전 점수를 멈춘다(ghost_under_review).
 -- 실제로 들어간 등록에만 한 번 돈다(AFTER). 기록이 실패해도 등록은 막지 않는다. 잠금을 2초 넘게 기다리면 그 오류도 잡히도록
 -- lock_timeout을 둔다(요청 시간 제한으로 끊기면 예외 블록이 잡지 못해 등록까지 실패한다).
 create or replace function public.watch_ghost_dps()
@@ -168,9 +200,12 @@ returns trigger language plpgsql security definer set search_path = public set l
 declare
     peers integer;
     top_median numeric;
+    ehp_peers integer;
+    ehp_median numeric;
+    new_ehp numeric := public.ghost_min_ehp(new.ehp_by_element);
 begin
-    if tg_op = 'UPDATE' then
-        if new.dps is not distinct from old.dps then return null; end if;
+    if tg_op = 'UPDATE' and new.dps is not distinct from old.dps and new.ehp_by_element is not distinct from old.ehp_by_element then
+        return null;
     end if;
     begin
         select count(*), percentile_cont(0.5) within group (order by top.dps)
@@ -182,6 +217,15 @@ begin
             perform public.note_cheat_flag(new.user_id, 'ghost_dps',
                 jsonb_build_object('dps', new.dps, 'topMedian', round(top_median), 'combatVersion', new.combat_version));
         end if;
+        select count(*), percentile_cont(0.5) within group (order by top.ehp)
+          into ehp_peers, ehp_median
+          from (select public.ghost_min_ehp(profile.ehp_by_element) as ehp from public.ghost_profiles profile
+                 where profile.combat_version = new.combat_version and profile.user_id <> new.user_id and profile.active
+                 order by public.ghost_min_ehp(profile.ehp_by_element) desc limit 20) top;
+        if ehp_peers >= 20 and ehp_median > 0 and new_ehp > ehp_median * 10 then
+            perform public.note_cheat_flag(new.user_id, 'ghost_ehp',
+                jsonb_build_object('ehp', round(new_ehp), 'topMedian', round(ehp_median), 'combatVersion', new.combat_version));
+        end if;
     exception when others then
         raise warning 'watch_ghost_dps: %', sqlerrm;
     end;
@@ -190,7 +234,7 @@ end;
 $$;
 
 drop trigger if exists trg_watch_ghost_dps on public.ghost_profiles;
-create trigger trg_watch_ghost_dps after insert or update of dps on public.ghost_profiles
+create trigger trg_watch_ghost_dps after insert or update of dps, ehp_by_element on public.ghost_profiles
     for each row execute function public.watch_ghost_dps();
 
 -- ---------------------------------------------------------------------------
@@ -368,6 +412,7 @@ revoke all on function public.cheat_save_digest(jsonb) from public, anon, authen
 revoke all on function public.note_cheat_flag(uuid, text, jsonb) from public, anon, authenticated;
 revoke all on function public.cheat_account_held(uuid) from public, anon, authenticated;
 revoke all on function public.hall_item_out_of_range(jsonb) from public, anon, authenticated;
+revoke all on function public.hall_item_params_out_of_range(jsonb) from public, anon, authenticated;
 revoke all on function public.guard_hall_listing() from public, anon, authenticated;
 revoke all on function public.guard_hall_purchase() from public, anon, authenticated;
 revoke all on function public.guard_ghost_profile() from public, anon, authenticated;
@@ -380,5 +425,42 @@ revoke all on function public.admin_get_cheat_watch() from public, anon;
 revoke all on function public.admin_set_cheat_hold(uuid, boolean, text) from public, anon;
 grant execute on function public.admin_get_cheat_watch() to authenticated;
 grant execute on function public.admin_set_cheat_hold(uuid, boolean, text) to authenticated;
+
+-- 관리자: 한 계정의 감시 기록을 지운다(종류를 주면 그 종류만). 순위전의 검토 중 상태(ghost_under_review)도 함께 풀린다.
+create or replace function public.admin_clear_cheat_flags(p_user_id uuid, p_kind text default null)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare removed integer;
+begin
+    if not public.is_project_admin() then raise exception 'ADMIN_REQUIRED'; end if;
+    if p_user_id is null then raise exception 'INVALID_REQUEST'; end if;
+    delete from public.cheat_flags where user_id = p_user_id and (p_kind is null or kind = p_kind);
+    get diagnostics removed = row_count;
+    return jsonb_build_object('userId', p_user_id, 'removed', removed);
+end;
+$$;
+
+revoke all on function public.ghost_min_ehp(jsonb) from public, anon, authenticated;
+revoke all on function public.admin_clear_cheat_flags(uuid, text) from public, anon;
+grant execute on function public.admin_clear_cheat_flags(uuid, text) to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- 5) 채팅: 보류한 계정은 채팅을 보내지 못한다 (2026-10-27)
+-- ---------------------------------------------------------------------------
+-- 보류는 남과 나누는 곳에서 빼는 조치(원칙 3)인데 채팅은 그 안에 없었다. chat_messages의 넣기 트리거(db/social.sql의 속도 제한) 다음에
+-- 돌고(이름 순), 어느 쪽 오류든 메시지는 들어가지 않는다. 오류 문구는 js/social.js SOCIAL_CHAT_ERROR_TEXTS의 CHAT_ACCOUNT_HELD.
+-- 보류를 풀면 바로 다시 보낼 수 있다(채팅 금지 chat_mutes와는 따로 간다). 실행 권한을 회수한 cheat_account_held를 부르므로 보안 정의자.
+create or replace function public.guard_chat_message()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+    if public.cheat_account_held(new.user_id) then raise exception 'CHAT_ACCOUNT_HELD'; end if;
+    return new;
+end;
+$$;
+
+drop trigger if exists trg_guard_chat_message on public.chat_messages;
+create trigger trg_guard_chat_message before insert on public.chat_messages
+    for each row execute function public.guard_chat_message();
+
+revoke all on function public.guard_chat_message() from public, anon, authenticated;
 
 commit;

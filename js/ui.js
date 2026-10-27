@@ -406,7 +406,7 @@ function isForegroundGameplayPausedForBackground() {
     if (typeof isRewardOpen === 'function' && isRewardOpen()) return true;
     // 사망 기록은 읽을거리일 뿐 — 열려 있어도 방치 진행은 멈추지 않는다(예전에는 닫을 때까지 전투 시간이 멈췄다).
     if (typeof isLoopHeroSelectOpen === 'function' && isLoopHeroSelectOpen()) return true;
-    if (actExplorationUi.departurePending()) return true;
+    if (actExplorationUi.departurePending() || sideEncounterUi.withdrawalPending()) return true;
     // 입구 방의 인사나 고스트 대결처럼 주인공이 장면 앞에 서 있는 동안(isHeroHeldByScene)
     if (isHeroHeldByScene()) return true;
     // "창을 열면 전투 일시정지"가 꺼져 있으면 아래 창 검사의 답은 쓰이지 않는다: 묻지 않는다(2026-10-17 측정: 8초에 2,083번 검사).
@@ -682,7 +682,7 @@ function renderBackgroundResultHeader(result, limits) {
     const fought = formatBackgroundResultTime(result.effectiveProgressMs);
     return `<header><h2 id="background-result-title">방치 결과</h2><p class="background-result-times"><span>자리 비움 <strong>${away}</strong></span>`
         + `<span class="background-result-arrow" aria-hidden="true">→</span><span class="fought">전투 진행 <strong>${fought}</strong></span></p>`
-        + `<p class="background-result-formula">효율 ${Math.round(limits.efficiencyRate * 100)}%, 한도 ${limits.recognitionHours}시간. 기록 창에서 올릴 수 있습니다.</p></header>`;
+        + `<p class="background-result-formula">효율 ${Math.round(limits.efficiencyRate * 100)}%, 한도 ${limits.recognitionHours}시간.</p></header>`;
 }
 
 /** 결과 창의 시간은 분까지 적는다(정산 중 창은 초까지 센다). */
@@ -1016,6 +1016,7 @@ function setMobileBattlePipCollapsed(host, collapsed) {
 
 /** Dense map/crafting views and early landscape trees start folded; leaving restores the previous PiP choice. */
 function dockMobileBattlePip(host) {
+    const mapContexts = [['atlas', 'map-explore-worldtree'], ['labyrinth', 'map-explore-labyrinth'], ['chaosRealm', 'map-tab-chaos-realm'], ['sky', 'map-tab-sky'], ['colony', 'map-explore-colony'], ['beehive', 'map-explore-beehive'], ['timerift', 'map-explore-timerift'], ['underworld', 'map-tab-underworld']];
     function syncContext(context) {
         if ((host.dataset.compactContext || '') !== context) {
             if (host.hasAttribute('data-context-collapsed')) {
@@ -1028,11 +1029,13 @@ function dockMobileBattlePip(host) {
             }
             host.dataset.compactContext = context;
         }
-        const atlasPanel = document.getElementById('map-explore-worldtree');
-        if (!atlasPanel) return;
-        const hasPip = context === 'atlas' && game.settings.showMobileBattlePip !== false;
-        atlasPanel.classList.toggle('has-battle-pip', hasPip);
-        atlasPanel.classList.toggle('is-pip-expanded', hasPip && !host.classList.contains('is-collapsed'));
+        for (const [name, id] of mapContexts) {
+            const panel = document.getElementById(id);
+            if (!panel) continue;
+            const hasPip = context === name && game.settings.showMobileBattlePip !== false;
+            panel.classList.toggle('has-battle-pip', hasPip);
+            panel.classList.toggle('is-pip-expanded', hasPip && !host.classList.contains('is-collapsed'));
+        }
     }
     function battlePipDockTarget() {
         if (!uiDisplay.matches('(max-width: 1080px)')) return { context: '', anchor: null };
@@ -1041,7 +1044,8 @@ function dockMobileBattlePip(host) {
         const title = uiDisplay.matches('(orientation: landscape) and (max-height: 600px)')
             ? document.querySelector('#tab-char.active .merged-tab-shell:not(:has(> .window-tab-strip:not([hidden]))) .h2-right') : null;
         if (title) return { context: 'tree', anchor: title };
-        if (document.querySelector('#tab-map.active #map-explore-worldtree.active')) return { context: 'atlas', anchor: null };
+        const mapContext = mapContexts.find(([, id]) => document.querySelector(`#tab-map.active #${id}.active`));
+        if (mapContext) return { context: mapContext[0], anchor: null };
         // The bag fills the equipment tab to the menu: the preview starts folded there (opened, it covered the last rows and tools)
         return { context: document.querySelector('#tab-items.active') ? 'items' : '', anchor: null };
     }
@@ -1407,7 +1411,7 @@ const MERGED_TAB_GROUPS = Object.freeze({
     growth: { launcher: 'tab-char', title: '스킬트리', tabs: [{ id: 'tab-char', label: '스킬트리', icon: 2, count: () => game.passivePoints, detail: '스킬트리 노드에 포인트를 씁니다.' }, { id: 'tab-traits', label: '전직', icon: 16, detail: '전직과 키스톤을 선택합니다.' }, { id: 'tab-talent', gate: 'talent', label: '재능', icon: 17, detail: '재능 개화 카드를 고르고 키웁니다.' }] },
     gear: { launcher: 'tab-items', title: '장비', tabs: [{ id: 'tab-items', label: '장비', icon: 6, detail: '장비와 가방을 봅니다.' }, { id: 'tab-skills', label: '스킬룬', icon: 9, detail: '룬을 장착하고 키웁니다.' }] },
     loop: { launcher: 'tab-season', title: '루프', tabs: [{ id: 'tab-season', label: '루프 패시브', icon: 4, count: () => game.seasonPoints, detail: '루프 포인트로 영구 노드에 투자합니다.' }, { id: 'tab-unlocks', label: '해금', icon: 3, count: () => contentProgression.points(game).balance, detail: '해금 포인트로 다음 콘텐츠를 고릅니다.' }] },
-    records: { launcher: 'tab-journal', title: '기록', tabs: [{ id: 'tab-journal', gate: 'journal', label: '저널', icon: 10, detail: '진행 기록과 안내를 확인합니다.' }, { id: 'tab-codex', gate: 'codex', label: '도감', icon: 13, detail: '발견한 항목과 수집 현황을 확인합니다.' }, { id: 'tab-records', gate: 'journal', label: '기록', icon: 20, detail: '루프 소요 시간과 최고 기록을 확인합니다.' }, { id: 'tab-npcs', gate: 'npcs', label: 'NPC', icon: 16, detail: '만난 NPC의 해금과 상점을 봅니다.' }] }
+    records: { launcher: 'tab-journal', title: '기록', tabs: [{ id: 'tab-journal', gate: 'journal', label: '이야기 저널', icon: 10, detail: '진행 기록과 안내를 확인합니다.' }, { id: 'tab-codex', gate: 'codex', label: '도감', icon: 13, detail: '발견한 항목과 수집 현황을 확인합니다.' }, { id: 'tab-records', gate: 'journal', label: '기록', icon: 20, detail: '루프 소요 시간과 최고 기록을 확인합니다.' }, { id: 'tab-npcs', gate: 'npcs', label: 'NPC', icon: 16, detail: '만난 NPC의 해금과 상점을 봅니다.' }] }
 });
 
 // 탭 2단 그룹핑: 상단 카테고리 바에서 그룹을 고르면 해당 그룹의 탭만 보인다.
@@ -1892,7 +1896,14 @@ function getTabNotiSignature() {
     return TAB_HEADER_NOTI_KEYS.map(key => (noti[key] && filters[key] !== false ? 1 : 0)).join('');
 }
 
+/** 쓸 포인트가 남은 동안 스킬트리와 전직 알림 점을 켜 둔다(2026-10-26 사용자: "1포인트라도 있으면"). 그 화면을 보는 동안은 끈다. */
+function applyStandingTabNotices() {
+    const standing = { char: game.passivePoints > 0, traits: !!game.unlocks.traits && (game.ascendPoints > 0 || game.ascendKeystonePoints > 0) };
+    Object.entries(standing).forEach(([key, on]) => { if (on && lastActiveTabId !== 'tab-' + key) game.noti[key] = true; });
+}
+
 function refreshTabHeaderUiIfNeeded() {
+    applyStandingTabNotices();
     let signature = getTabHeaderUiSignature();
     if (signature === lastTabHeaderUiSignature) {
         if (getTabNotiSignature() === lastTabNotiSignature) return false;
@@ -2735,6 +2746,7 @@ function startColonyRun(){
     c.entryDeepChaosDepth = getZone('colony_run').entryDeepChaosDepth;
     c.inRun = true; c.wave = 1; c.kills = 0; c.requiredKills = getColonyWaveEnemyCount(1);
     c.coreMaxHp = 0; c.coreHp = 0; c.failedWave = 0;
+    c.returnAfterWave = 0; c.lastResult = null;
     c.pendingLoot = []; c.lootPending = false; c.bossLootCell = null;
     c.returnZoneId = getContentReturnZoneId();
     actExplorationProgress.depart(game);
@@ -2747,20 +2759,7 @@ function startColonyRun(){
     queueImportantSave(200);
 }
 function forfeitColonyRun(){
-    let c = game.colony || {};
-    if (!c.inRun) return;
-    actExplorationState.groundLoot.discardEncounter(game, 'colony_run');
-    c.inRun = false;
-    game.currentZoneId = c.returnZoneId !== undefined && c.returnZoneId !== null ? c.returnZoneId : getAutoProgressZoneId(game.maxZoneId);
-    c.returnZoneId = null;
-    game.enemies = [];
-    game.encounterPlan = [];
-    game.encounterIndex = 0;
-    game.runProgress = 0;
-    actExplorationProgress.depart(game);
-    addLog('🪲 군락지에서 철수했습니다. 보관 중이거나 바닥에 남은 전리품은 사라지고, 이미 주운 보상은 유지됩니다.', 'season-up');
-    updateStaticUI();
-    queueImportantSave(200);
+    if (window.GameModules.colonyRun.finish()) updateStaticUI();
 }
 function renderLoop9VoidRiftPanel(){
     let open = (game.season || 1) >= 9;
@@ -2790,7 +2789,7 @@ function spawnBeehiveWave(isBoss){
     let b = game.beehive || {};
     let zone = getZone('beehive_run') || getZone(0);
     let step = Math.max(1, Math.floor(b.branchStep || 1));
-    let count = isBoss ? 1 : Math.min(8, 6 + Math.floor((step - 1) / 4));
+    let count = isBoss ? 1 : Math.min(8, 6 + Math.floor((step - 1) / 4)) + (b.waveExtra || 0);
     let eliteCount = step >= 6 ? 3 : 2;
     game.enemies = [];
     game.encounterPlan = [];
@@ -2817,7 +2816,7 @@ function getBeehivePenaltyPool(branchStep) {
     let depth = Math.max(1, Math.floor(branchStep || 1));
     let pool = [
         { key: 'swarm', text: '군체 분노 +1', power: 1 },
-        { key: 'sting', text: '독침 상처(체력 -5%)', power: 1 },
+        { key: 'pursuit', text: '이번 무리 벌 +2마리', power: 2 },
         { key: 'pollen_tax', text: '꽃가루 -6', power: 1 }
     ];
     if (depth >= 4) pool.push({ key: 'deep_swarm', text: '심층 군체 분노 +2', power: 2 });
@@ -2839,7 +2838,7 @@ function canPayBeehivePenalty(penalty) {
     if (!penalty) return false;
     const cost = getBeehivePenaltyCost(penalty);
     if (cost) return (game.currencies[cost.key] || 0) >= cost.amount;
-    return ['swarm', 'sting', 'deep_swarm', 'royal_swarm'].includes(penalty.key);
+    return ['swarm', 'sting', 'pursuit', 'deep_swarm', 'royal_swarm'].includes(penalty.key);
 }
 function getBeehiveSelectableChoice(choices, key) {
     if (!['a', 'b', 'c'].includes(key)) return null;
@@ -2850,12 +2849,15 @@ function getBeehiveSelectableChoice(choices, key) {
     return { ...pick, penalty: { key: 'swarm', text: '군체 분노 +1', power: 1 } };
 }
 function getBeehiveRewardPool(branchStep) {
+    // Filter new offers only; already saved choices and promised rewards retain their original payouts.
     let depth = Math.max(1, Math.floor(branchStep || 1));
+    const currencies = { honey: ['enchantedHoney'], stinger: ['venomStinger'],
+        spore: ['sporeFire', 'sporeCold', 'sporeLight'], bundle: ['pollen', 'venomStinger', 'formlessDew'] };
     return [
         { type: 'pollen', weight: 42 }, { type: 'honey', weight: 18 }, { type: 'stinger', weight: 16 },
         { type: 'formlessDew', weight: 14 + Math.min(8, depth) }, { type: 'goldenRule', weight: 2 + Math.floor(depth / 4) },
         { type: 'jewelShard', weight: 10 }, { type: 'spore', weight: 8 }, { type: 'beeswax', weight: 10 }, { type: 'bundle', weight: 4 }
-    ];
+    ].filter(row => (currencies[row.type] || [row.type]).every(key => contentProgression.canDropCurrency(key)));
 }
 function pickWeightedBeehiveReward(branchStep, usedTypes) {
     let used = usedTypes || new Set();
@@ -2929,13 +2931,14 @@ function buildBeehiveChoiceOption(type, branchStep, timing = 'wave') {
     }
     if (type === 'bundle') {
         let amount = scaleBeehiveRewardAmount(1, timing);
-        return mk(amount > 1 ? `중첩 보상 x${amount}: 꽃가루 + 독벌침 + 형체 없는 이슬` : '중첩 보상: 꽃가루 + 독벌침 + 형체 없는 이슬', 'bundle', amount);
+        return mk(`꽃가루 +${20 * amount}, 독벌침 +${amount}, 형체 없는 이슬 +${amount}`, 'bundle', amount);
     }
     let amount = scaleBeehiveRewardAmount(10, timing);
     return mk(`꽃가루 +${amount}`, 'pollen', amount);
 }
 function applyBeehiveChoicePenalty(penalty, b) {
     if (!canPayBeehivePenalty(penalty)) return null;
+    b.waveExtra = Number(penalty.key === 'pursuit') * 2;
     const cost = getBeehivePenaltyCost(penalty);
     if (cost) {
         if (cost.chance < 1 && Math.random() >= cost.chance) return `${cost.name} 소모 없음`;
@@ -2994,6 +2997,7 @@ function startBeehiveRun(){
     prepareBeehiveBranchChoices(b);
     addLog(`🐝 벌집 원정 시작! 기준 난이도: 혼돈 심화 ${Math.max(21, Math.floor(b.entryDeepChaosDepth || 21))}, 갈림길을 선택하면 즉시 벌떼 웨이브가 시작됩니다.`, 'season-up');
     updateStaticUI();
+    queueImportantSave(200);
 }
 function canResolveBeehiveChoice(b) {
     return !!b?.inRun && !!b.pendingChoice && !b.awaitingClear
@@ -3043,6 +3047,7 @@ function resolveBeehiveChoice(key, displayedPenalty){
     addLog(`🐝 갈림길 ${b.branchStep}/10 선택 완료: ${timingText}, 대가: ${penaltyText || '없음'}, 벌떼 웨이브 시작`, 'loot-magic');
     spawnBeehiveWave(false);
     updateStaticUI();
+    queueImportantSave(200);
 }
 function exitBeehiveRun(message, logType){
     closeBeehiveChoiceOverlay();
@@ -3060,6 +3065,7 @@ function exitBeehiveRun(message, logType){
     game.combatHalted = false;
     if (message) addLog(message, logType || 'attack-monster');
     updateStaticUI();
+    queueImportantSave(200);
 }
 function completeBeehiveRun(){
     let b = game.beehive || {};
@@ -3099,10 +3105,12 @@ function completeBeehiveRun(){
     }
     addLog(`👑 여왕벌 처치! 밀랍 +${wax}, 독벌침 +${stinger} (군체 강화 ${risk} 정산).${queenRewardResults.length ? ` 여왕벌 선택 보상: ${queenRewardResults.join(' / ')}` : ''}`, 'level-up');
     updateStaticUI();
+    queueImportantSave(200);
 }
 function onBeehiveWaveCleared(){
     let b = game.beehive || {};
     if (!b.inRun || !b.awaitingClear) return;
+    b.waveExtra = 0;
     game.enemies = [];
     game.encounterPlan = [];
     game.encounterIndex = 0;
@@ -3119,6 +3127,7 @@ function onBeehiveWaveCleared(){
     b.awaitingClear = false;
     game.combatHalted = true;
     game.runProgress = Math.min(100, Math.max(0, Math.floor(b.branchStep || 0)) * 10);
+    queueImportantSave(200);
     if ((b.branchStep || 0) >= 10) {
         b.awaitingClear = true;
         b.queenActive = true;
@@ -3190,6 +3199,7 @@ function enterGrandBreach(options){
     game.combatHalted = false;
     if (!options || !options.automatic) addLog('🌌 대균열 진입! 일반 몬스터 0.5%, 정예 3%씩 게이지를 채워 균열 군주를 소환합니다. 전리품은 군주 처치 시 쏟아집니다.', 'season-up');
     updateStaticUI();
+    queueImportantSave(200);
 }
 
 function toggleMeteorAutoEnter(){ game.settings = game.settings || {}; game.settings.autoEnterMeteor = !game.settings.autoEnterMeteor; addLog(`☄️ 운석 낙하 자동입장 ${game.settings.autoEnterMeteor ? '켜짐' : '꺼짐'}`, 'season-up'); updateStaticUI(); }
@@ -3233,9 +3243,13 @@ function chaosRealmDetailHtml(st, best) {
 }
 function woodsmanEchoCardHtml() {
     if (!(Array.isArray(game.journalEntries) && game.journalEntries.includes('woodsman_echo'))) return '';
-    let echo = (game.woodsmanEchoRun && typeof game.woodsmanEchoRun === 'object') ? game.woodsmanEchoRun : { bestDps: 0 };
-    return `<section class="underworld-upgrade-card"><div><strong>나무꾼의 잔상</strong><span>30초 전투력 측정, 공격하지 않는 허수아비</span></div>`
-        + `<div><span>최고 DPS ${Math.floor(echo.bestDps || 0).toLocaleString()}</span><button type="button" data-exploration-departure onclick="enterWoodsmanEchoChallenge()">측정</button></div></section>`;
+    const echo = getRecordsView(game).echo;
+    const recent = echo.last ? `<span>최근 DPS <b>${Math.floor(echo.last.dps).toLocaleString()}</b></span>` : '';
+    const change = echo.changePct === null ? '' : `<span>이전 대비 <b>${echo.changePct >= 0 ? '+' : ''}${echo.changePct.toFixed(1)}%</b></span>`;
+    const best = Math.max(echo.bestDps, game.woodsmanEchoRun.bestDps);
+    return `<section class="underworld-upgrade-card"><div><strong>나무꾼의 잔상</strong><span>30초 피해 측정</span>`
+        + `<div class="underworld-ticket-strip">${recent}${change}<span>최고 DPS <b>${Math.floor(best).toLocaleString()}</b></span></div></div>`
+        + '<button type="button" data-exploration-departure onclick="enterWoodsmanEchoChallenge()">측정</button></section>';
 }
 function renderSkyTowerMapPanel() {
     const panel = document.getElementById('ui-sky-tower-panel');
@@ -3655,11 +3669,21 @@ function setExploreSubtabAvailable(subtabId, available) {
     if (btn) btn.style.display = available ? '' : 'none';
     if (!available && game.mapExploreSubtab === subtabId) switchMapExploreSubtab('map-explore-hunting');
 }
-function enterLabyrinthFloor(floor){ if (typeof isBeehiveRunLockedForMapTravel === 'function' && isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked(); game.labyrinthFloor=Math.max(1,Math.floor(floor||1)); changeZone(LABYRINTH_ZONE_ID); updateStaticUI(); }
+function enterLabyrinthFloor(requestedFloor) {
+    const blocked = floorEntryBlockReason(LABYRINTH_ZONE_ID);
+    if (blocked) return addLog(blocked, 'attack-monster');
+    const max = Math.max(1, Math.floor(game.labyrinthUnlockedMaxFloor || game.labyrinthFloor || 1));
+    const floor = Number(requestedFloor);
+    if (!Number.isInteger(floor) || floor < 1 || floor > max) {
+        return addLog(`1~${max} 범위의 층수를 입력하세요.`, 'attack-monster');
+    }
+    game.labyrinthFloor = floor;
+    changeZone(LABYRINTH_ZONE_ID);
+}
 
 async function confirmSkyTowerEntry() {
-    if (getSkyTowerRemainingClears() === 0) return requestGameConfirmation('이번 루프의 등반 기록과 응축 보상은 더 늘지 않습니다.', {
-        title: '보상 없는 연습 전투', tone: 'warning', confirmLabel: '연습 입장'
+    if (getSkyTowerRemainingClears() === 0) return requestGameConfirmation('등반 보상 없이 한 층을 연습합니다.', {
+        title: '연습 전투', tone: 'warning', confirmLabel: '연습 입장'
     });
     if (game.settings.mapCompleteAction !== 'repeatZone') return true;
     return requestGameConfirmation("현재 맵 완료 행동이 '같은 지역 반복'입니다. 돌파 후 같은 층에 머무릅니다.", {
@@ -3681,23 +3705,25 @@ async function selectSkyTowerFloor(tower, selectedFloor) {
     addLog(`1~${max} 범위의 층수를 입력하세요.`, 'attack-monster');
     return null;
 }
-function skyEntryStillCurrent(tower, season, zoneId) {
-    return game.skyTower === tower && game.season === season &&
-        game.currentZoneId === zoneId && canEnterSkyTower();
+/** What changeZone would refuse for a floor prompt's zone (its travel rule, then a held run), asked before the prompt opens. */
+function floorEntryBlockReason(zoneId) {
+    return getZoneTravelBlockReason(zoneId) || getHeldRunBlockReason();
+}
+function floorEntryStillCurrent(context, canEnter) {
+    return game === context.owner && game[context.field] === context.progress && game.season === context.season && canEnter();
 }
 async function enterSkyTowerPrompt(selectedFloor) {
-    const held = getHeldRunBlockReason();
+    const held = floorEntryBlockReason(SKY_TOWER_ZONE_ID);
     if (held) return addLog(held, 'attack-monster');
     const st = ensureSkyTowerState();
     if (!st.unlocked) return addLog('창공의 탑은 루프 15 이후 이번 루프 혼돈 20층 클리어 시 해금됩니다.', 'attack-monster');
     if (!canEnterSkyTower()) return addLog('창공의 탑은 영구 해금 후 해당 루프에서 혼돈에 입성하면 입장할 수 있습니다.', 'attack-monster');
-    const season = game.season;
-    const zoneId = game.currentZoneId;
+    const context = { owner: game, progress: st, field: 'skyTower', season: game.season };
     if (!await confirmSkyTowerEntry()) return;
     const floor = await selectSkyTowerFloor(st, selectedFloor);
     if (floor === null) return;
-    if (!skyEntryStillCurrent(st, season, zoneId)) return;
-    const stillHeld = getHeldRunBlockReason();
+    if (!floorEntryStillCurrent(context, canEnterSkyTower)) return;
+    const stillHeld = floorEntryBlockReason(SKY_TOWER_ZONE_ID);
     if (stillHeld) return addLog(stillHeld, 'attack-monster');
     if (floor > st.highestFloor) return;
     st.currentFloor = floor;
@@ -3723,12 +3749,13 @@ function upgradeSkyStone() {
 }
 
 async function enterChaosRealmPrompt(){
-    const held = getHeldRunBlockReason();
+    const held = floorEntryBlockReason(CHAOS_REALM_ZONE_ID);
     if (held) return addLog(held, 'attack-monster');
     let st = ensureChaosRealmState();
     if (!st.unlocked) return addLog('혼돈계는 혼돈 밖 나무꾼에게 최대 생명력 10% 이상의 피해를 준 전투 종료 시 해금됩니다.', 'attack-monster');
     if (!canEnterChaosRealm()) return addLog('혼돈계 입장은 이번 루프에서 혼돈 20을 클리어해야 가능합니다.', 'attack-monster');
-    let max = Math.max(1, Math.floor(st.highestFloor || 1));
+    const context = { owner: game, progress: st, field: 'chaosRealm', season: game.season };
+    const max = st.highestFloor;
     let v = await requestGameNumber({
         title: '혼돈계 층 선택',
         message: `입장 가능한 최고 층은 ${max}층입니다.`,
@@ -3737,33 +3764,36 @@ async function enterChaosRealmPrompt(){
         value: max,
         confirmLabel: '입장'
     });
-    if (v === null) return;
-    let floor = Math.floor(Number(v) || 0);
-    if (floor < 1 || floor > max) return addLog(`1~${max} 범위의 층수를 입력하세요.`, 'attack-monster');
+    if (v === null || !floorEntryStillCurrent(context, canEnterChaosRealm)) return;
+    const blocked = floorEntryBlockReason(CHAOS_REALM_ZONE_ID);
+    if (blocked) return addLog(blocked, 'attack-monster');
+    let floor = Number(v);
+    if (!Number.isInteger(floor) || floor < 1 || floor > st.highestFloor) return addLog(`1~${st.highestFloor} 범위의 층수를 입력하세요.`, 'attack-monster');
     st.currentFloor = floor;
     changeZone(CHAOS_REALM_ZONE_ID);
     updateStaticUI();
 }
 function enterUnderworldFloor(requestedFloor) {
-    const held = getHeldRunBlockReason();
+    const held = floorEntryBlockReason(UNDERWORLD_ZONE_ID);
     if (held) return addLog(held, 'attack-monster');
     if (!(typeof canEnterUnderworld === 'function' && canEnterUnderworld())) return addLog('지하계 입장 조건: 야수왕 케르베로스 클리어 + 혼돈 심화 30층 + 고대 미궁 100층 + 이번 루프 혼돈20 클리어', 'attack-monster');
     let uw = (game.underworldProgress && typeof game.underworldProgress === 'object') ? game.underworldProgress : { highestFloor: 1, currentFloor: 1 };
     game.underworldProgress = uw;
     let max = Math.max(1, Math.floor(uw.highestFloor || 1));
-    let floor = Math.floor(Number(requestedFloor) || 0);
-    if (floor < 1 || floor > max) return addLog(`1~${max} 범위의 층수를 입력하세요.`, 'attack-monster');
+    let floor = Number(requestedFloor);
+    if (!Number.isInteger(floor) || floor < 1 || floor > max) return addLog(`1~${max} 범위의 층수를 입력하세요.`, 'attack-monster');
     uw.currentFloor = floor;
     changeZone(UNDERWORLD_ZONE_ID);
     updateStaticUI();
 }
 
 async function enterUnderworldPrompt(){
-    const held = getHeldRunBlockReason();
+    const held = floorEntryBlockReason(UNDERWORLD_ZONE_ID);
     if (held) return addLog(held, 'attack-monster');
     if (!(typeof canEnterUnderworld === 'function' && canEnterUnderworld())) return enterUnderworldFloor(1);
     let uw = (game.underworldProgress && typeof game.underworldProgress === 'object') ? game.underworldProgress : { highestFloor: 1, currentFloor: 1 };
     game.underworldProgress = uw;
+    const context = { owner: game, progress: uw, field: 'underworldProgress', season: game.season };
     let max = Math.max(1, Math.floor(uw.highestFloor || 1));
     let v = await requestGameNumber({
         title: '지하계 층 선택',
@@ -3773,7 +3803,7 @@ async function enterUnderworldPrompt(){
         value: max,
         confirmLabel: '입장'
     });
-    if (v === null) return;
+    if (v === null || !floorEntryStillCurrent(context, canEnterUnderworld)) return;
     enterUnderworldFloor(v);
 }
 
@@ -3859,21 +3889,6 @@ function getDeepChaosMapEntryHtml() {
         <div class="map-item-main"><span>♾️</span><span>혼돈 심화층<br><span class="map-zone-status">현재 심화층: ${state.currentDepth}층, 최고 기록: ${state.highestDepth}층</span><br>${powerEstimate}</span></div>
         <div class="map-item-actions"><span class="map-zone-status">입장 가능: 21 ~ ${state.highestDepth}</span></div>
     </div>`;
-}
-async function enterLabyrinthPrompt(){
-    const held = getHeldRunBlockReason();
-    if (held) return addLog(held, 'attack-monster');
-    let max = Math.max(1, Math.floor(game.labyrinthUnlockedMaxFloor || game.labyrinthFloor || 1));
-    let floor = await requestGameNumber({
-        title: '고대 미궁 층 선택',
-        message: `입장 가능한 최고 층은 ${max}층입니다.`,
-        min: 1,
-        max,
-        value: max,
-        confirmLabel: '입장'
-    });
-    if (floor === null) return;
-    enterLabyrinthFloor(Math.floor(Number(floor) || 1));
 }
 
 
@@ -4026,7 +4041,8 @@ function showGemCardHint(event, type, name) {
 function renderSealedGemCard(name, highlightedName, isSupport) {
     let releaseCall = isSupport ? `unsealSupportGem('${name}')` : `unsealSkillGem('${name}')`;
     let art = isSupport ? supportGemSigil.html(name, 'gem-card-sigil gem-tile-art gem-tile-support-art', 0) : renderSkillGemArt(name, 'gem-card-sigil gem-card-art gem-tile-art');
-    return `<article class="skill-gem gem-library-card gem-tile sealed-gem-card">${art}<strong class="gem-tile-name">${highlightedName}</strong><small class="gem-usage-state">봉인됨, 공명력 1로 복원</small><button type="button" class="gem-card-utility" onclick="${releaseCall}">봉인 해제</button></article>`;
+    const refusal = game.woodsmanBuildLock ? getSkillGemSealRefusal(name, isSupport) : (game.resonancePower < 1 ? '공명력이 부족합니다.' : '');
+    return `<article class="skill-gem gem-library-card gem-tile sealed-gem-card">${art}<strong class="gem-tile-name">${highlightedName}</strong><small class="gem-usage-state">봉인됨, 공명력 1로 복원</small><button type="button" class="gem-card-utility" onclick="${releaseCall}" ${refusal ? `disabled title="${escapeHTML(refusal)}"` : ''}>봉인 해제</button></article>`;
 }
 
 /** 룬 레벨 구성(2026-10-09): 최종 레벨을 크게, 기본/재료와 각성/장비와 패시브를 한 막대에 나눠 칠하고, 그 아래 전투 수치 칩. 작은 4칸 표였다. */
@@ -4851,6 +4867,44 @@ function isCombatLogRateLimited(opts, settings, now) {
     return false;
 }
 
+/** One line into the log queue. The queue is trimmed while drawing is paused (a hidden tab): only 60 lines are ever shown. */
+function pushCombatLogLine(msg, cls) {
+    logQueue.push({ msg, cls });
+    if (logQueue.length > 240) logQueue = logQueue.slice(-60);
+    if (!logFlushRaf) logFlushRaf = requestAnimationFrame(flushLogQueue);
+}
+
+function mergedCombatLogLine(state) {
+    return state.count > 1 ? `${state.msg} <span style="color:var(--copy-bright);">x${state.count}</span>` : state.msg;
+}
+
+/** Flushes a merged log line once its window has passed quietly. A line hit again inside the window waits for the rest of the
+ * window (the timer re-arms), so the last line of a burst always shows and the entry is freed (2026-10-26: it used to stay, one per
+ * enemy ever hit, until that enemy was hit again). */
+function flushCombatLogAggregate(key, winMs) {
+    let state = combatLogAggregateState[key];
+    if (!state) return;
+    let quiet = performance.now() - state.lastAt;
+    if (quiet < winMs) { setTimeout(flushCombatLogAggregate, winMs - quiet + 10, key, winMs); return; }
+    pushCombatLogLine(mergedCombatLogLine(state), state.cls);
+    delete combatLogAggregateState[key];
+}
+
+/** Lines with an aggregateKey merge inside their window into one line with a count. */
+function queueAggregatedCombatLog(msg, cls, opts, now) {
+    let key = `${opts.aggregateKey}:${cls || ''}`;
+    let state = combatLogAggregateState[key];
+    let winMs = Math.max(120, Number(opts.aggregateWindowMs || 500));
+    if (state && (now - state.lastAt) <= winMs) {
+        state.count++;
+        state.lastAt = now;
+        state.msg = msg;
+        return;
+    }
+    if (state) pushCombatLogLine(mergedCombatLogLine(state), state.cls);
+    combatLogAggregateState[key] = { msg: msg, cls: cls, count: 1, lastAt: now };
+    setTimeout(flushCombatLogAggregate, winMs + 10, key, winMs);
+}
 function addLog(msg, cls, opts = {}) {
     if (game.isBackgroundCalculation) return;
     let now = performance.now();
@@ -4858,40 +4912,12 @@ function addLog(msg, cls, opts = {}) {
     if (isCombatLogRateLimited(opts, settings, now)) return;
     if (opts.item) msg = decorateCombatLogItemMessage(msg, opts.item);
     msg = decorateCombatLogMessage(msg, cls, opts);
-    if (opts.aggregateKey && settings.combatLogAggregate !== false) {
-        let key = `${opts.aggregateKey}:${cls || ''}`;
-        let state = combatLogAggregateState[key];
-        let winMs = Math.max(120, Number(opts.aggregateWindowMs || 500));
-        if (state && (now - state.lastAt) <= winMs) {
-            state.count++;
-            state.lastAt = now;
-            state.msg = msg;
-            return;
-        }
-        if (state && state.count > 0) {
-            let merged = state.count > 1 ? `${state.msg} <span style="color:var(--copy-bright);">x${state.count}</span>` : state.msg;
-            logQueue.push({ msg: merged, cls: state.cls });
-        }
-        combatLogAggregateState[key] = { msg: msg, cls: cls, count: 1, lastAt: now };
-        setTimeout(() => {
-            let s = combatLogAggregateState[key];
-            if (!s) return;
-            if ((performance.now() - s.lastAt) >= winMs) {
-                let merged = s.count > 1 ? `${s.msg} <span style="color:var(--copy-bright);">x${s.count}</span>` : s.msg;
-                logQueue.push({ msg: merged, cls: s.cls });
-                delete combatLogAggregateState[key];
-                if (!logFlushRaf) logFlushRaf = requestAnimationFrame(flushLogQueue);
-            }
-        }, winMs + 10);
-        if (!logFlushRaf) logFlushRaf = requestAnimationFrame(flushLogQueue);
-        return;
-    }
-    logQueue.push({ msg, cls });
+    if (opts.aggregateKey && settings.combatLogAggregate !== false) return queueAggregatedCombatLog(msg, cls, opts, now);
+    pushCombatLogLine(msg, cls);
     if (opts.toast && typeof showGameToast === 'function') {
         let tone = opts.toastTone || (cls === 'loot-unique' ? 'success' : (cls === 'attack-monster' ? 'warning' : 'info'));
         showGameToast(stripHtmlMessage(msg) || String(msg || ''), { tone: tone });
     } else if (shouldShowMobileToast(msg, cls, opts)) enqueueMobileToast(msg, cls);
-    if (!logFlushRaf) logFlushRaf = requestAnimationFrame(flushLogQueue);
 }
 
 function applyUiSkin(skin) {
@@ -5062,6 +5088,7 @@ function ensureInitialHeroSelection() {
         updateCombatUI(stats);
         addLog(`시작 직업을 선택했습니다: ${PLAYER_CLASS_DEFS[pickedId].blindLabel}`, 'season-up');
         persistHeroSelectionChange('시작 직업 선택');
+        openingJourney.afterStartPick();
     }, {
         kicker: '첫 루프',
         title: '시작 직업 선택',
@@ -5138,7 +5165,7 @@ function getMapCompleteActionOptions() {
     return [
         { value: 'repeatZone', label: '반복', detail: '현재 지역 또는 층을 다시 진행합니다.' },
         { value: 'nextZone', label: '다음 지역', detail: '일반 자동 진행 규칙에 따라 다음 지역으로 이동합니다.' },
-        { value: 'nextLoopBestPlusOne', label: '최고층', detail: '이번 루프의 최고 심화/미궁 기록 다음 층으로 이동합니다.' },
+        { value: 'nextLoopBestPlusOne', label: '최고 기록 다음 층', detail: '이번 루프의 최고 심화/미궁 기록 다음 층으로 이동합니다.' },
         { value: 'stop', label: '중단', detail: '전투를 멈추고 현재 위치에서 대기합니다.' }
     ];
 }
@@ -6034,7 +6061,9 @@ function getItemAffixTierHtml(stat) {
  * 장비는 머리말을 경고색으로, 아래에 한 줄 안내. */
 function itemExplicitAffixHeaderHtml(item, count) {
     const used = EXPLICIT_AFFIX_RULES[item.rarity] ? equipmentCrafting.affixCounts(item) : null;
-    const header = equipmentCrafting.affixHeader(item.rarity, count, used);
+    const header = item.fusedRelic
+        ? { text: `추가 옵션 ${count}개 (계승 ${item.stats.filter(stat => stat.fusedFromRare).length}개)`, over: false }
+        : equipmentCrafting.affixHeader(item.rarity, count, used);
     const style = header.over ? ' style="color:#ffb454;"' : '';
     const note = header.over ? '<div class="tooltip-line" style="color:#ffb454;">예전 규칙으로 한도를 넘은 장비: 넘친 종류에는 더 붙지 않습니다.</div>' : '';
     return `<div class="tooltip-line tooltip-section tooltip-section-explicit"${style}><span class="px-center">${header.text}</span></div>${note}`;
@@ -7191,7 +7220,8 @@ function updatePlayerHpDamageGhost(actualPct) {
 }
 
 function primeEnemyHpDamageGhost(enemyId, actualPct) {
-    if (enemyId === null || enemyId === undefined) return;
+    // A settlement's monsters are never drawn: their entries stayed in the table until the next frame pruned it (2026-10-27).
+    if (enemyId === null || enemyId === undefined || game.isBackgroundCalculation) return;
     let key = String(enemyId);
     if (enemyHpDamageGhostStates.has(key)) return;
     enemyHpDamageGhostStates.set(key, updateHpDamageGhostState(null, actualPct === undefined ? 100 : actualPct, Date.now()));
@@ -7993,7 +8023,7 @@ function updateFocusedEnemyTraitPanel(traitEl, enemy, tags) {
     const traits = getUiEnemyTraitLabels(tags);
     const labels = cast?.label ? [cast.label] : traits;
     const display = getUiEnemyTraitDisplayText(labels);
-    const pattern = enemy.patternMode ? getBossPatternDescription(enemy.patternMode) : '';
+    const pattern = enemy.noAttack ? '' : getBossPatternDescription(enemy.patternMode);
     const tooltip = [cast?.label, traits.join(', '), pattern].filter(Boolean).join('\n');
     traitEl.classList.toggle('is-casting', !!cast?.label);
     updateUiEnemyTraitPanel(traitEl, labels, display, tooltip, isBoss);
@@ -8230,7 +8260,7 @@ function updateCombatUI(pStats) {
     // 레벨·직업은 경험치바 왼쪽(ui-exp-level-label)으로 이동했으므로 여기는 지역 이름만 표기한다.
     setTextById('ui-combat-zone-inline', compactZoneText);
     cosmosRouteUi.updateHud();
-    setTextById('btn-combat-return', '귀환');
+    setTextById('btn-combat-return', sideEncounterUi.returnLabel(zone));
     let pendingWoodsmanEntrance = !!game.woodsmanEntrancePending && zone && zone.type === 'outsideChaos';
     if (pendingWoodsmanEntrance) {
         let totalTime = Math.max(0.1, Number(game.moveTotalTime) || 3);
@@ -8571,7 +8601,7 @@ function getJournalEntryAction(entryId) {
         return mapUnlocked && loop >= 8 ? { label: '벌집 원정 보기', tabId: 'tab-map', subtabId: 'map-explore-beehive' } : null;
     }
     if (entryId === 'void_grand_breach') {
-        return mapUnlocked && loop >= 9 ? { label: '공허 균열 보기', tabId: 'tab-map', subtabId: 'map-explore-voidrift' } : null;
+        return mapUnlocked && loop >= 9 ? { label: '대균열 보기', tabId: 'tab-map', subtabId: 'map-explore-voidrift' } : null;
     }
     if (entryId === 'labyrinth_10') return mapUnlocked && loop >= 3 && maxZoneId >= 5 ? { label: '고대 미궁 보기', tabId: 'tab-map', subtabId: 'map-explore-labyrinth' } : null;
     if (entryId === 'ocean_500') return mapUnlocked && loop >= OCEAN_UNLOCK_LOOP ? { label: '심해 보기', tabId: 'tab-map', subtabId: 'map-tab-ocean' } : null;
@@ -8865,6 +8895,7 @@ return function performUpdateStaticUI() {
     const __mark = (n) => __pm.push([n, __perfNow()]);
 
     tryUnlockMeteorContentByProgress();
+    if (window.equipmentTriage) window.equipmentTriage.checkFreshGear();
     // 목표 선정은 js/goal-system.js가 담당한다(디바운스 포함).
     if (typeof requestGoalSystemRefresh === 'function') requestGoalSystemRefresh();
     validateItemTooltipAnchor();
@@ -9658,8 +9689,7 @@ function buildCraftActionButtons(item) {
     document.getElementById('ui-labyrinth-header').style.display = labyrinthOpen ? 'block' : 'none';
     setExploreSubtabAvailable('map-explore-labyrinth', labyrinthOpen);
     if (labyrinthOpen) {
-        let powerEstimate = buildMapPowerEstimateHtml(getZone(LABYRINTH_ZONE_ID));
-        sideEncounterUi.renderPanel(document.getElementById('ui-labyrinth-list'), sideEncounterUi.labyrinthPanel(powerEstimate));
+        sideEncounterUi.renderPanel(document.getElementById('ui-labyrinth-list'), sideEncounterUi.labyrinthPanel());
     } else sideEncounterUi.renderPanel(document.getElementById('ui-labyrinth-list'), '');
 
     // 혼돈 심화 입장은 혼돈 탭의 카드 목록으로 노출한다.
@@ -11034,8 +11064,19 @@ function renderStartupLocalSave(timeEl, guestBtn, localStamp) {
     const card = document.querySelector('.startup-summary-card');
     if (!card) return;
     card.querySelector('.startup-summary-grid').hidden = !hasSave;
-    card.querySelector('.startup-summary-hint')?.toggleAttribute('hidden', hasSave);
-    card.querySelector('.startup-summary-title').textContent = hasSave ? '이 기기 저장' : '새 모험';
+    const corrupt = getLocalSaveStatus().status === 'corrupt';
+    renderStartupSaveHint(card.querySelector('.startup-summary-hint'), hasSave, corrupt);
+    card.querySelector('.startup-summary-title').textContent = corrupt ? '저장을 읽지 못했습니다' : (hasSave ? '이 기기 저장' : '새 모험');
+}
+
+/** 요약 칸 아래 한 줄. 저장을 읽지 못하면(js/save.js loadGame의 corrupt: 원래 저장은 따로 보관하고 이 기기 저장을 멈춘다) "저장된 모험이
+ * 없습니다" 대신 그렇게 알린다(2026-10-27: 새 모험으로 보여 시작한 진행이 말없이 저장되지 않았다). */
+function renderStartupSaveHint(hint, hasSave, corrupt) {
+    if (!hint) return;
+    hint.dataset.emptyText ??= hint.textContent;
+    hint.textContent = corrupt ? '저장을 읽지 못해 원래 저장을 따로 보관했습니다. 이대로 시작하면 진행이 저장되지 않습니다.' : hint.dataset.emptyText;
+    hint.classList.toggle('is-warning', corrupt);
+    hint.hidden = hasSave && !corrupt;
 }
 
 function updateStartupScreenUI() {
@@ -11261,9 +11302,22 @@ document.addEventListener('visibilitychange', () => {
     if (!document.hidden) recoverBusyStateAfterOAuthBack();
 });
 
+/** 라이브러리가 토큰을 갱신하면(autoRefreshToken) 게임 세션도 그 토큰으로 맞춘다: 둘이 같은 refresh_token을 따로 갱신하다 늦은 쪽이
+ * 거절되는 일을 줄인다(2026-10-27). 거절된 뒤의 이어받기는 refreshCloudSession이 따로 한다. 한 클라이언트에 한 번만 건다. */
+function watchSupabaseTokenRefresh(client) {
+    if (client.__rigninTokenWatch || !client.auth || typeof client.auth.onAuthStateChange !== 'function') return;
+    client.__rigninTokenWatch = true;
+    client.auth.onAuthStateChange((event, session) => {
+        if (event !== 'TOKEN_REFRESHED' || !session || !session.access_token) return;
+        if (cloudState.session && cloudState.session.refresh_token === session.refresh_token) return;
+        applyCloudSession(session);
+    });
+}
+
 async function tryRestoreSupabaseOAuthSession() {
     let client = getSupabaseClient();
     if (!client) return false;
+    watchSupabaseTokenRefresh(client);
     try {
         let { data, error } = await client.auth.getSession();
         if (error) throw error;
@@ -11485,6 +11539,28 @@ function notifyCloudSessionExpired(message) {
     cloudState.tokenExpiryWarned = true;
 }
 
+/** 갱신 요청을 서버가 거절했는가(토큰이 틀리거나 만료: 400 invalid_grant, 401, 403). 망 오류, 5xx, 429는 거절이 아니라 잠시 못 닿은 것이다. */
+function isCloudAuthRejection(error) {
+    let status = Number(error && error.status);
+    return status === 400 || status === 401 || status === 403;
+}
+
+/** supabase-js(persistSession + autoRefreshToken)가 들고 있는 세션. 없거나 게임과 같은 refresh_token이면 null: 게임의 갱신이
+ * 거절됐을 때(400 invalid_grant) 그쪽이 먼저 갱신한 새 토큰을 이어받아 로그아웃을 피한다(2026-10-27 검토의 경쟁 기록). */
+async function readSupabaseClientSession() {
+    let client = getSupabaseClient();
+    if (!client || !client.auth) return null;
+    try {
+        let { data } = await client.auth.getSession();
+        let session = data && data.session;
+        if (!session || !session.access_token || !session.refresh_token) return null;
+        return cloudState.session && session.refresh_token === cloudState.session.refresh_token ? null : session;
+    } catch (error) {
+        console.warn('supabase-js 세션 읽기 실패:', error);
+        return null;
+    }
+}
+
 async function refreshCloudSession(reason) {
     if (!cloudState.session || !cloudState.session.refresh_token) {
         notifyCloudSessionExpired('클라우드 로그인 갱신 정보가 없습니다. 다시 로그인해주세요.');
@@ -11504,8 +11580,16 @@ async function refreshCloudSession(reason) {
             return true;
         } catch (error) {
             console.warn('cloud token refresh failed:', error);
-            applyCloudSession(null);
-            notifyCloudSessionExpired('클라우드 로그인 세션이 만료되었습니다. 다시 로그인해주세요.');
+            if (isCloudAuthRejection(error)) {
+                // 같은 refresh_token을 supabase-js(autoRefreshToken)가 먼저 써서 거절된 경우: 그쪽의 새 세션을 이어받는다.
+                let adopted = await readSupabaseClientSession();
+                if (adopted) { applyCloudSession(adopted); setCloudMessage('클라우드 로그인 세션을 이어받았습니다.'); return true; }
+                applyCloudSession(null);
+                notifyCloudSessionExpired('클라우드 로그인 세션이 만료되었습니다. 다시 로그인해주세요.');
+            } else {
+                // 망이 끊기거나 서버가 잠시 답하지 않은 것: 세션을 지우지 않는다(전: 어떤 오류든 로그아웃). 다음 요청 전에 다시 갱신한다.
+                setCloudMessage('클라우드 로그인 갱신을 못 했습니다(연결 상태). 잠시 뒤 다시 시도합니다.');
+            }
             return false;
         } finally {
             cloudState.tokenRefreshPromise = null;
@@ -11538,7 +11622,7 @@ async function cloudJsonRequest(path, options = {}) {
     if (!config.enabled) throw new Error('cloud-save-config.js 설정이 비어 있습니다.');
     if (options.useAuth !== false) {
         let fresh = await ensureCloudSessionFresh('요청 전 확인');
-        if (!fresh) throw new Error('클라우드 로그인 세션이 만료되었습니다. 다시 로그인해주세요.');
+        if (!fresh) throw new Error(cloudState.session ? '클라우드 로그인 갱신을 못 했습니다. 연결을 확인한 뒤 다시 시도해주세요.' : '클라우드 로그인 세션이 만료되었습니다. 다시 로그인해주세요.');
     }
     if (options.expectedUserId && options.expectedUserId !== getActiveCloudUserId()) throw new Error('로그인 계정이 변경되어 작업을 중단했습니다.');
     let body = options.body, headers = cloudRequestHeaders(config, options, body);
@@ -11869,7 +11953,7 @@ function updateCloudSaveUI() {
     if (pill && cloudState.lastMessage && /실패|오류/.test(cloudState.lastMessage) && !cloudState.busy) pill.classList.add('error');
 
     if (openGateBtn) openGateBtn.disabled = cloudState.busy;
-    ['btn-cloud-logout', 'btn-cloud-push', 'btn-cloud-pull'].forEach(id => {
+    ['btn-cloud-logout', 'btn-cloud-push', 'btn-cloud-pull', 'btn-cloud-delete'].forEach(id => {
         let el = document.getElementById(id);
         if (el) el.disabled = !canSync;
     });
@@ -12008,7 +12092,18 @@ async function restoreCloudSession() {
     if (stored.refresh_token) {
         cloudState.session = stored;
         cloudState.user = stored.user || null;
-        return await refreshCloudSession('저장된 세션 복원');
+        if (await refreshCloudSession('저장된 세션 복원')) return true;
+        if (!cloudState.session) return false;   // 서버가 거절해 지웠다
+        // 갱신에 못 닿았지만 세션은 남겼다: 토큰이 아직 살아 있으면 그대로 쓰고, 끝났으면 이번 실행은 로그인 없이 가되
+        // 저장된 세션은 두어 다음 실행 때 다시 시도한다(전: 망이 끊긴 채 켜면 로그아웃).
+        if (cloudState.user && getCloudSessionExpiresAtMs() - Date.now() > CLOUD_TOKEN_REFRESH_LEEWAY_MS) {
+            setCloudMessage('클라우드 로그인 갱신은 못 했지만 기존 로그인으로 계속합니다.');
+            return true;
+        }
+        cloudState.session = null;
+        cloudState.user = null;
+        setCloudMessage('연결이 없어 저장된 로그인을 확인하지 못했습니다. 다음 실행 때 다시 시도합니다.');
+        return false;
     }
     clearCloudSessionStorage();
     setCloudMessage('저장된 클라우드 세션에 갱신 토큰이 없습니다. 다시 로그인해주세요.');
@@ -12246,6 +12341,7 @@ function rememberCloudUpload(saveData, syncedAt) {
     cloudState.lastRemoteUpdatedAt = syncedAt;
     cloudState.lastRemoteLoop = getSaveLoopNumber(game);
     cloudState.lastCloudCommitAt = Date.now();
+    cloudState.autoSyncConflictNoticed = false;   // 다시 충돌하면 다시 알린다
     cloudState.lastUploadedFingerprint = cloudSaveFingerprint(saveData);
 }
 
@@ -12558,7 +12654,7 @@ function scheduleCloudAutoSync() {
         if (isCloudSaveUnchangedSinceUpload()) return markCloudSaveUnchanged();
         syncCloudSave({ automatic: true }).catch(error => {
             console.warn('auto cloud sync failed:', error);
-            setCloudMessage('자동 클라우드 저장 실패: ' + (error.message || error));
+            noteAutoCloudSyncFailure(error);
         });
     }, 5000);
 }
@@ -12613,6 +12709,23 @@ async function syncCloudSave(options = {}) {
     }
 }
 
+/** An auto upload that lost to another device stops every later auto upload, so the player hears it once as a toast and not only
+ * in the cloud panel line (2026-10-27 review: the losing device played on without knowing its progress stayed local). */
+function noteAutoCloudSyncFailure(error) {
+    let text = String(error && error.message || error);
+    setCloudMessage('자동 클라우드 저장 실패: ' + text);
+    if (!/다른 기기에서/.test(text) || cloudState.autoSyncConflictNoticed || typeof showGameToast !== 'function') return;
+    cloudState.autoSyncConflictNoticed = true;
+    showGameToast('다른 기기에서 서버 저장이 바뀌어 이 기기의 자동 저장이 멈췄습니다. 서버 저장을 불러오면 이어집니다.', { tone: 'warning', duration: 9000 });
+}
+
+/** 부팅 복원이나 대조의 실패: 서버가 토큰을 거절했을 때(401)만 로그아웃한다. 업무 오류(400, 예: SAVE_TOO_LARGE)나 망 오류면
+ * 로그인은 두고 다음 동기화 때 다시 맞춘다(2026-10-27). */
+function noteCloudInitFailure(error) {
+    if (Number(error && error.status) === 401) applyCloudSession(null);
+    setCloudMessage((cloudState.user ? '서버 대조를 못 했습니다. 다음 동기화 때 다시 맞춥니다: ' : '클라우드 세션 복원 실패: ') + (error.message || error));
+}
+
 async function initializeCloudSave() {
     cloudState.initialized = true;
     cloudState.configured = getCloudConfig().enabled;
@@ -12647,13 +12760,12 @@ async function initializeCloudSave() {
                 setCloudMessage('이전 로그인 세션을 복원했습니다.');
                 await reconcileCloudSaveState({ silent: true, strictRemoteResume: true });
             }
-        } else {
+        } else if (!loadStoredCloudSession()) {
             setCloudMessage('로그인하면 클라우드 저장을 사용할 수 있습니다.');
         }
     } catch (error) {
         console.warn('cloud init failed:', error);
-        applyCloudSession(null);
-        setCloudMessage('클라우드 세션 복원 실패: ' + (error.message || error));
+        noteCloudInitFailure(error);
     } finally {
         cloudState.busy = false;
         updateCloudSaveUI();
@@ -12803,6 +12915,15 @@ async function cloudLogin(options = {}) {
     }
 }
 
+/** 이 기기의 클라우드 로그인 흔적을 치운다: 세션과 사용자, 자동 저장 대기와 타이머(applyCloudSession), 원격 기록 메모.
+ * 로그아웃과 계정 삭제(js/cloud-tools-ui.js forgetDeletedAccountSession)가 같이 쓴다. 서버에는 아무것도 묻지 않는다. */
+function clearCloudSessionLocally() {
+    applyCloudSession(null);
+    cloudState.linkedProviders = [];
+    cloudState.lastRemoteUpdatedAt = 0;
+    cloudState.lastRemoteLoop = 0;
+}
+
 async function cloudLogout() {
     if (!cloudState.user) return setCloudMessage('이미 로그아웃 상태입니다.');
     cloudState.busy = true;
@@ -12820,10 +12941,7 @@ async function cloudLogout() {
                 console.warn('cloud logout request failed:', logoutError);
             }
         }
-        applyCloudSession(null);
-        cloudState.linkedProviders = [];
-        cloudState.lastRemoteUpdatedAt = 0;
-        cloudState.lastRemoteLoop = 0;
+        clearCloudSessionLocally();
         setCloudMessage('클라우드 계정에서 로그아웃했습니다.');
     } finally {
         cloudState.busy = false;
@@ -12854,6 +12972,7 @@ function applyPageExitCloudSaveResult(text, exitSave, fingerprint) {
     cloudState.lastRemoteRevision = game.saveMeta.cloudRevision;
     cloudState.lastSyncedLocalModifiedAt = Math.max(0, Number(game.saveMeta.lastModifiedAt || 0));
     cloudState.lastCloudCommitAt = Date.now();
+    cloudState.autoSyncConflictNoticed = false;   // 다시 충돌하면 다시 알린다
     cloudState.lastUploadedFingerprint = fingerprint;
     persistLocalSave({ touchModifiedAt: false });
 }
@@ -12904,11 +13023,19 @@ function sendPageExitCloudSave(request, reason, exitSave) {
     });
 }
 
+/** A session whose access token has not expired: on page exit there is no time to refresh, and an expired token only failed
+ * with 401 in the console (2026-10-27). */
+function hasUsableCloudSessionToken() {
+    if (!cloudState.session || !cloudState.session.access_token) return false;
+    let expiresAtMs = getCloudSessionExpiresAtMs();
+    return !expiresAtMs || expiresAtMs > Date.now();
+}
+
 function pushCloudSaveOnPageExit(reason) {
     let config = getCloudConfig();
     if (cloudState.busy || cloudState.lastRemoteResetRevision > (game.saveMeta.cloudResetRevision || 0)) return false;
     if (typeof canPersistLocalSave === 'function' && !canPersistLocalSave()) return false;
-    if (!config.enabled || !cloudState.user || !cloudState.user.id || !cloudState.session || !cloudState.session.access_token) return false;
+    if (!config.enabled || !cloudState.user || !cloudState.user.id || !hasUsableCloudSessionToken()) return false;
     if (typeof isStartupOverlayOpen === 'function' && isStartupOverlayOpen()) return false;
     if (!gameplayStarted) return false;
     if (getCloudSaveOwnerId() !== getActiveCloudUserId()) return false;

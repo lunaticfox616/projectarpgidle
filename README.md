@@ -53,6 +53,7 @@ npm run test:browser        # tests/browser/ Playwright 검사
 
 ## 현재 작업을 이어받을 때
 
+새 작업본에서는 먼저 `npm run setup:worktree`로 `node_modules` 연결과 비공개 그림(Hana, 구입한 무대 이펙트)을 준비합니다.
 먼저 `git status --short --branch`로 브랜치와 기존 변경을 확인하세요. 여러 worktree가 있으므로
 다른 사본의 코드·문서·로컬 체험 주소를 이 사본의 현재 상태로 간주하지 않습니다.
 [문서 색인](docs/README.md)에서 해당 기능만 찾아 읽고, 연결된 코드·행동 검사를 대조합니다.

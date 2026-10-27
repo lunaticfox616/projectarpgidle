@@ -99,7 +99,7 @@
         </div>`;
 
         if (!view.loops.length) {
-            return `<section class="records-section">
+            return `<section class="records-section records-loop-history">
                 <div class="records-section-title">최근 루프</div>
                 <p class="records-empty">아직 완료한 루프가 없습니다. 루프를 한 번 넘기면 여기에 소요 시간이 남습니다.</p>
             </section>`;
@@ -115,7 +115,7 @@
             <td class="records-num${row.deaths > 0 ? ' is-deaths' : ''}">${formatCount(row.deaths)}</td>
         </tr>`).join('');
 
-        return `<section class="records-section">
+        return `<section class="records-section records-loop-history">
             <div class="records-section-title">최근 루프<span>${formatCount(view.loops.length)}개 보관</span></div>
             ${summaryRow}
             <div class="records-table-scroll">
@@ -195,11 +195,14 @@
     function renderEchoSection(view) {
         let echo = view.echo;
         if (!echo.runs) return '';
+        const recent = echo.last ? statCard('attack', '최근 DPS', formatCount(echo.last.dps),
+            echo.changePct === null ? `${echo.last.seconds % 1 < 0.05 ? Math.round(echo.last.seconds) : echo.last.seconds.toFixed(1)}초 측정` : `이전 대비 ${echo.changePct >= 0 ? '+' : ''}${echo.changePct.toFixed(1)}%`, TONE.damage) : '';
         return `<section class="records-section">
             <div class="records-section-title">나무꾼의 잔상<span>30초 허수아비 측정</span></div>
             <div class="records-stat-row">
+                ${recent}
                 ${statCard('attack', '최고 DPS', formatCount(echo.bestDps), '', TONE.damage)}
-                ${statCard('attack', '최고 총 피해', formatCount(echo.bestDamage), '30초 누적', TONE.damage)}
+                ${statCard('attack', '최고 총 피해', formatCount(echo.bestDamage), '', TONE.damage)}
                 ${statCard('', '측정 횟수', `${formatCount(echo.runs)}회`, `마지막 ${formatDate(echo.lastAt)}`, TONE.time)}
             </div>
         </section>`;

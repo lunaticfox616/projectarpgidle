@@ -104,6 +104,8 @@
   .fishing-recipe > header small { color: #a8c6d1; }
   #fishing-workshop h4 { margin: 0; color: #f3d28c; font-size: 12px; line-height: 1.5; }
   .fishing-category-label { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 10px; }
+  .fishing-quantity { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 10px; }
+  .fishing-quantity select { width: 100%; min-width: 0; min-height: 44px; }
   .fishing-target { display: grid; gap: 10px; padding: 12px; border: 1px solid #3a3024; background: #151419; }
   .fishing-target.is-on { border-color: #4f8fb0; }
   .fishing-target > div:first-child { display: grid; gap: 6px; min-width: 0; overflow-wrap: anywhere; }
@@ -134,6 +136,7 @@
   .fishing-material.is-ok b { color: #9fd46a; }
   .fishing-craft-action { display: grid; gap: 8px; }
   .fishing-craft-action p { margin: 0; color: #c4b89f; }
+  .fishing-craft-action p.is-blocked { color: var(--color-danger); }
   .fishing-craft-action button { min-height: 44px; width: 100%; }
   .fishing-recipe.is-ready .fishing-craft-action button { color: #f3d28c; box-shadow: inset 0 0 0 1px #8a6a2e; }
   .fishing-result:empty { display: none; }

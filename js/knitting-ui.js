@@ -13,8 +13,8 @@ const knittingUi = (() => {
             + (reason && ready ? `<p class="knit-warning">${esc(reason)}</p>` : '') + '</article>';
     }
     function header(seen, ready) {
-        return `<header class="knit-head"><div><h3>실타래 보관함</h3></div>${ready ? `<strong>완성 ${ready}</strong>` : ''}</header>`
-            + (seen.length > 6 ? `<div class="knit-toolbar"><button type="button" data-knit-filter="all" aria-pressed="${!ownedOnly}">발견 기록 ${seen.length}</button><button type="button" data-knit-filter="owned" aria-pressed="${ownedOnly}">보유한 실타래</button></div>` : '');
+        return `<header class="knit-head"><div><h3>실타래 보관함</h3></div>${ready ? `<strong>필요 수량 충족 ${ready}</strong>` : ''}</header>`
+            + (seen.length > 6 ? `<div class="knit-toolbar"><button type="button" data-knit-filter="all" aria-pressed="${!ownedOnly}">발견한 종류 ${seen.length}</button><button type="button" data-knit-filter="owned" aria-pressed="${ownedOnly}">현재 보유 중</button></div>` : '');
     }
     function render() {
         const panel = document.getElementById('item-tab-knitting'), button = document.getElementById('btn-item-tab-knitting');

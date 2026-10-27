@@ -22,14 +22,14 @@ const tutorialActionUi = {
     requiresAttention(notice) {
         return !!notice && (TUTORIAL_START_KEYS.has(notice.key) || TUTORIAL_GUIDED_CONTENT_KEYS.has(notice.key) || String(notice.key).startsWith('story_'));
     },
+    /** 새 콘텐츠 카드도 본문을 펼쳐 보인다(2026-10-26 사용자: 접힌 '자세히'는 빈 카드처럼 보였다). */
     noticeBody(notice, controls) {
-        const body = tutorialQuoteHtml(notice.quote) + tutorialBodyHtml(notice.body) + controls.trim();
-        return this.requiresAttention(notice) ? body : `<details class="tutorial-notice-details"><summary>자세히</summary>${body}</details>`;
+        return tutorialQuoteHtml(notice.quote) + tutorialBodyHtml(notice.body) + controls.trim();
     },
     expireNotice(now) {
         if (!activeTutorial || this.requiresAttention(activeTutorial) || now < this.noticeUntil) return;
         const card = document.querySelector('#tutorial-overlay .tutorial-card');
-        if (card?.matches(':hover, :focus-within') || card?.querySelector('details[open]')) return;
+        if (card?.matches(':hover, :focus-within')) return;
         dismissTutorial(false);
     },
     active: null,
@@ -565,7 +565,7 @@ const TUTORIAL_STARTER_GUIDES = Object.freeze([
         body: '레벨이 올라 스킬트리 포인트를 얻었습니다.\n‘스킬트리’에서 시작 지점과 이어진 노드를 골라 찍으세요.\n오른 능력치는 ‘캐릭터’에서 확인할 수 있습니다.',
         starterDue: state => state.level >= 2 && state.passivePoints > 0 },
     { key: 'tutorial_first_gear', seenAs: 'unlock_items', tabId: 'tab-items', title: '첫 장비',
-        body: '장비를 얻었습니다. 빈 칸에 맞는 장비는 바로 착용합니다.\n‘장비’에서 착용한 장비의 효과를 확인하고, 보관 중인 장비와 비교하세요.\n바꿔 입으면 전투 화면의 생명 구슬 위에 DPS 변화가 뜹니다.',
+        body: '장비를 얻었습니다. 자동 장착이 켜져 있으면 빈 칸에 맞는 장비를 바로 착용합니다.\n‘장비’에서 착용한 장비의 효과를 확인하고, 보관 중인 장비와 비교하세요.\n바꿔 입으면 전투 화면의 생명 구슬 위에 DPS 변화가 뜹니다.',
         // 빈 칸에 바로 입은 장비도 첫 장비다: 초반 드랍은 가방을 거치지 않아 안내가 끝내 뜨지 않았다(검토 7차). 무기 칸은 세지 않는다:
         // 직업을 고를 때 쥐여 주는 대표 무기(js/passives.js grantClassStarterWeapon) 때문에 첫 장면 끝에 스킬룬, 장비, 자동 사냥 카드가
         // 잇달아 떴다(2026-10-21). 떨어진 무기는 무기 칸이 차 있어 가방으로 가므로 그때 뜬다.
@@ -623,9 +623,11 @@ function advanceTutorial() {
  * 쓰러졌다(검토 2026-10-01). 바꾸고 싶으면 '스킬룬'에서 언제든 바꾼다. */
 function equipSkippedStarterGem(key) {
     const name = game.starterGemTutorialPending;
-    if (key !== 'tutorial_starter_gem_equip' || typeof name !== 'string' || game.activeSkill !== '기본 공격') return;
-    changeSkill(name);
+    if (key !== 'tutorial_starter_gem_equip' || typeof name !== 'string') return;
+    if (game.activeSkill === '기본 공격') changeSkill(name);
     if (game.activeSkill === name) showGameToast(`[${name}] 룬을 장착했습니다, '스킬룬'에서 바꿀 수 있습니다`, { tone: 'success' });
+    // 닫은 안내는 끝난다: 무기가 그 룬을 받지 않거나 다른 룬을 이미 꼈어도 표시가 남아 그 룬의 봉인을 막았다.
+    game.starterGemTutorialPending = null;
 }
 
 /** 따라 하기를 하지 않고 닫은 안내의 뒷정리: 첫 스킬룬은 장착하고, 그루터기 함 시작 선물은 판에 놓는다. */

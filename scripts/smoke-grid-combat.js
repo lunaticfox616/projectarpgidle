@@ -2568,7 +2568,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   assert.strictEqual(context.canUseSkillWithCurrentEquipment('이중 베기'), false, '활로는 근접 룬을 쓸 수 없다');
   assert.strictEqual(context.getSkillRuneWeaponNote('이중 베기'), '근접 무기 필요');
   context.game.equipment['무기'] = weaponOf('scimitar', 9912);
-  assert.strictEqual(context.getEquippedWeaponStance(), 'sword', '곡도는 한손검 자세다');
+  assert.strictEqual(context.getEquippedWeaponStance(), 'sword', '한손검은 한손검 자세다');
   assert.strictEqual(context.getSkillRuneWeaponNote('연발 사격'), '활 필요', '전용 룬의 이유에는 그 무기 이름이 붙는다');
   assert.strictEqual(context.canUseSkillWithCurrentEquipment('도약 강타'), false, '돌진, 도약 강타, 섬머솔트 슬래시는 대검 전용이다');
   assert.strictEqual(context.getSkillRuneWeaponNote('섬머솔트 슬래시'), '대검 필요');
@@ -2577,7 +2577,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   assert.strictEqual(context.canUseSkillWithCurrentEquipment('돌진'), true, '대검으로는 대검 전용 이동기를 쓴다');
   context.game.equipment['무기'] = weaponOf('scimitar', 9912);
   context.game.equipment['방패'] = { id: 9913, slot: '방패', name: '시험 방패', rarity: 'normal', baseStats: [], stats: [] };
-  assert.strictEqual(context.getEquippedWeaponStance(), 'sword', '방패를 함께 껴도 곡도는 한손검 자세다(방패를 든 그림이 없다)');
+  assert.strictEqual(context.getEquippedWeaponStance(), 'sword', '방패를 함께 껴도 한손검 자세다(방패를 든 그림이 없다)');
   context.game.equipment['방패'] = null;
 
   // 낀 주 공격 룬을 못 쓰는 무기로 바꾸면 기본 공격으로 싸우고, 맞는 무기를 다시 들면 그 룬으로 돌아온다
@@ -2768,19 +2768,53 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   assert(held,'blocked locked target must hold both grid position and interpolated movement');
 }
 
+// A pursuit is one wave's two extra bees, not a permanent army multiplier or a second payment after loading.
+{
+  const runtime = buildGameRuntime();
+  runtime.Math = Object.create(Math);
+  runtime.Math.random = () => 0.75;
+  runtime.document.body.insertAdjacentHTML = () => {}; // DOM boundary; choices and combat remain real.
+  const settled = JSON.parse(JSON.stringify(vm.runInContext(`(() => {
+    game=mergeDefaults({});window.game=game;game.season=8;game.level=100;
+    game.settings.stageRooms='off';game.currencies.hiveKey=1;startBeehiveRun();
+    const wax=game.currencies.beeswax,hp=game.playerHp;
+    const choice=game.beehive.pendingChoice.b;
+    resolveBeehiveChoice('b',choice.penalty.key);
+    const extra=game.beehive.waveExtra===2&&countBeehiveWaveAlive()===8&&game.playerHp===hp&&game.beehive.enemyEmpower===0;
+    const before=JSON.stringify([game.currencies,game.beehive.branchStep,game.enemies]);
+    resolveBeehiveChoice('b',choice.penalty.key);
+    const once=before===JSON.stringify([game.currencies,game.beehive.branchStep,game.enemies]);
+    game=mergeDefaults(JSON.parse(serializeSaveState(game)));window.game=game;
+    const restored=game.beehive.waveExtra===2&&countBeehiveWaveAlive()===8;
+    for(const enemy of [...game.enemies]){enemy.hp=0;handleEnemyDeath(enemy,getPlayerStats());}
+    const cleared=game.beehive.waveExtra===0&&game.currencies.beeswax===wax+1;
+    const next=game.beehive.pendingChoice.b;
+    resolveBeehiveChoice('b',next.penalty.key);
+    const repeated=game.beehive.waveExtra===2&&countBeehiveWaveAlive()===8;
+    exitBeehiveRun('','attack-monster');
+    return {extra,once,restored,cleared,repeated,exited:!game.beehive.inRun&&game.beehive.waveExtra===0&&game.currencies.hiveKey===0};
+  })()`, runtime)));
+  assert.deepStrictEqual(settled,{extra:true,once:true,restored:true,cleared:true,repeated:true,exited:true},
+    'pursuit survives a save, pays one completed-wave reward, never accumulates, and clears on exit');
+}
+
 // Special encounter loot is owned by the run until its boss dies. A saved floor must still block the next wave.
 {
   const runtime = buildGameRuntime();
   for (const file of ['data/stage-room-plans.js', 'data/stage-regions.js', 'js/act-exploration-room-plans.js'])
     vm.runInContext(fs.readFileSync(file, 'utf8'), runtime, { filename: file });
-  const settled = JSON.parse(JSON.stringify(vm.runInContext(`(() => {
+  for (const scheduled of [false, true]) {
+    runtime.requestColonyReturn = scheduled;
+    const settled = JSON.parse(JSON.stringify(vm.runInContext(`(() => {
     game=mergeDefaults({});window.game=game;stageActors.available=()=>true;
     game.settings.stageRooms='on';game.settings.autoEquipEmptySlots=false;
     game.season=15;game.level=100;game.currentZoneId='colony_run';
     Object.assign(game.colony,{inRun:true,wave:5,kills:0,requiredKills:8,returnZoneId:0});
     spawnColonyWave();
+    if(requestColonyReturn)window.GameModules.colonyRun.toggleReturn();
     const enemy=game.enemies.find(row=>!row.isBoss);
-    const item=generateEquipmentDrop(enemy,{zone:getZone('colony_run'),minimumRarity:'rare'});
+    // This contract needs an ordinary rare. A minimum rarity can still roll a unique, which is paid immediately.
+    const item=createItemFromBase(chooseItemBase('무기',10,getZone('colony_run')),'rare',10);
     keepEquipmentDrop(enemy,item); // an ordinary rare waits (guaranteed and unique drops are never held)
     const held=game.colony.pendingLoot.some(row=>row.item?.id===item.id)
       && !game.inventory.some(row=>row.id===item.id)
@@ -2789,33 +2823,75 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
     const released=game.actExploration.groundLoot.some(row=>row.item?.id===item.id)
       && !game.colony.pendingLoot.some(row=>row.item?.id===item.id);
     game=mergeDefaults(JSON.parse(JSON.stringify(game)));window.game=game;
-    const saved=game.colony.lootPending&&game.actExploration.groundLoot.some(row=>row.item?.id===item.id);
+    ensureEncounterRun();
+    const saved=game.colony.lootPending&&game.actExploration.groundLoot.some(row=>row.item?.id===item.id)
+      && game.colony.returnAfterWave===(requestColonyReturn?5:0);
     game.combatHalted=true;game.combatTimeMs+=15000;tickColonyRun(getPlayerStats());
     const heldFloor=game.enemies.length===0&&game.colony.wave===6;
     game.combatHalted=false;
     for(const pile of actExplorationState.groundLoot.piles(game.actExploration))
       actExplorationProgress.collectPile(pile);
+    game=mergeDefaults(JSON.parse(JSON.stringify(game)));window.game=game;
+    ensureEncounterRun();
     tickColonyRun(getPlayerStats());
     return {held,released,saved,heldFloor,received:game.inventory.some(row=>row.id===item.id),
-      resumed:game.enemies.length>0&&!game.colony.lootPending};
+      resumed:game.enemies.length>0&&!game.colony.lootPending,
+      returned:!game.colony.inRun&&game.currentZoneId===0&&game.colony.lastResult?.completed===5};
   })()`, runtime)));
-  assert.deepStrictEqual(settled,{held:true,released:true,saved:true,heldFloor:true,received:true,resumed:true},
-    'colony boss releases reserved gear once, and a saved floor blocks the next wave until pickup');
+    assert.deepStrictEqual(settled,{held:true,released:true,saved:true,heldFloor:true,received:true,resumed:!scheduled,returned:scheduled},
+      'colony boss releases reserved gear once; saved pickup resumes or returns at the chosen checkpoint');
+  }
 
-  const forfeited = JSON.parse(JSON.stringify(vm.runInContext(`(() => {
+  for (const left of [false, true]) {
+    runtime.leaveColonyForZone = left;
+    const forfeited = JSON.parse(JSON.stringify(vm.runInContext(`(() => {
     game=mergeDefaults({});window.game=game;stageActors.available=()=>true;
     game.settings.stageRooms='on';game.season=15;game.level=100;game.currentZoneId='colony_run';
     Object.assign(game.colony,{inRun:true,wave:1,kills:0,requiredKills:6,returnZoneId:0});
     spawnColonyWave();
-    const enemy=game.enemies[0],item=generateEquipmentDrop(enemy,{zone:getZone('colony_run'),minimumRarity:'rare'});
+    const enemy=game.enemies[0],item=createItemFromBase(chooseItemBase('무기',10,getZone('colony_run')),'rare',10);
     keepEquipmentDrop(enemy,item); // an ordinary rare waits (guaranteed and unique drops are never held)
     const held=game.colony.pendingLoot.some(row=>row.item?.id===item.id);
-    forfeitColonyRun();
+    actExplorationState.groundLoot.placeCurrency(game.actExploration,game.gridPlayer,'colonyShard',3);
+    if(leaveColonyForZone)changeZone(0);else forfeitColonyRun();
+    const settled=game.currencies.colonyShard===3;
+    holdZoneBoundRuns(addLog);forfeitColonyRun();
     return {held,lost:game.colony.pendingLoot.length===0&&!game.inventory.some(row=>row.id===item.id),
-      returned:game.currentZoneId===0&&game.actExploration===null};
+      returned:game.currentZoneId===0&&game.actExploration?.zoneId!=='colony_run',settled,
+      once:game.currencies.colonyShard===3,
+      recorded:game.colony.lastResult?.lostHeld===1&&game.colony.lastResult.kind===(leaveColonyForZone?'left':'withdraw')};
   })()`, runtime)));
-  assert.deepStrictEqual(forfeited,{held:true,lost:true,returned:true},
-    'forfeiting a colony run discards reserved gear without paying it');
+    assert.deepStrictEqual(forfeited,{held:true,lost:true,returned:true,settled:true,once:true,recorded:true},
+      'withdrawal and real zone travel settle won floor once, forfeit reserved gear and record the loss before opening the destination');
+  }
 }
 
+// Town return must leave a one-use breach, rather than reset its sealed arena while retaining the boss phase.
+{
+  const runtime = buildGameRuntime();
+  runtime.Math = Object.create(Math);runtime.Math.random=()=>0.999999;
+  for (const file of ['data/stage-room-plans.js','data/stage-regions.js','js/stage-region-fit.js','js/act-exploration-room-plans.js'])
+    vm.runInContext(fs.readFileSync(file,'utf8'),runtime,{filename:file});
+  for (const won of [false,true]) {
+    runtime.lordAlreadyDown=won;
+    const result=JSON.parse(vm.runInContext(`JSON.stringify((()=>{
+      game=mergeDefaults({season:9,loopCount:8});stageActors.available=()=>true;game.settings.stageRooms='on';
+      game.voidRift.grandBreachUnlock=true;enterGrandBreach();startEncounterRun();
+      const grand=game.voidRift.grandRun;grand.gauge=200;grand.kills=70;tickGrandBreachRun(getZone('grand_breach_run'));
+      actExplorationState.groundLoot.reserve({currency:'formlessDew',count:3});
+      if(lordAlreadyDown){const boss=game.actExploration.packs.flatMap(pack=>pack.waiting).find(enemy=>enemy.isBoss);
+        Object.assign(game.gridPlayer,{gx:boss.gx-1,gy:boss.gy});
+        actExplorationState.engage(game,0);actExplorationState.engage(game,10000);
+        boss.hp=0;handleEnemyDeath(boss,getPlayerStats());
+        game=mergeDefaults(JSON.parse(serializeSaveState(game)));}
+      returnToTown();
+      const paid=game.currencies.formlessDew;
+      game=mergeDefaults(JSON.parse(serializeSaveState(game)));
+      return {returned:game.currentZoneId===0,finished:!game.voidRift.grandRun.inRun,
+        phase:game.voidRift.grandRun.phase,paid,held:game.voidRift.grandRun.pendingLoot.length,entry:game.voidRift.grandBreachUnlock};
+    })())`,runtime));
+    assert.deepStrictEqual(result,{returned:true,finished:true,phase:won?'done':'failed',paid:won?3:0,held:0,entry:false},
+      'town return abandons unreleased loot, collects won loot once and persists a closed challenge');
+  }
+}
 console.log('smoke-grid-combat passed');

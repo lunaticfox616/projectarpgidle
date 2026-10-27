@@ -9,7 +9,8 @@
 | 주제 | 시작 문서 |
 | --- | --- |
 | 콘텐츠 진행·해금 | [현재 진행 구조](content-progression.md), 정의는 [해금 카탈로그](../data/content-progression.js) |
-| 능력치 계산 | [플레이어 능력치 파이프라인](player-stats-pipeline.md) |
+| 능력치 계산 | [플레이어 능력치 파이프라인](player-stats-pipeline.md), 계산에 입력을 더할 때는 그 문서의 작업 규칙 |
+| 나무꾼 전투 잠금, 콘텐츠 시작 거절, 콘텐츠 전용 고유 | [콘텐츠 도전 계약](content-runs.md) |
 | NPC 가판대 | [현재 거래 규칙과 변경 이력](balance-and-player-stall-20260929.md) |
 | 그루터기 함·조합창 | [현재 구조와 초기 설계 이력](stump-cube-game-design.md), [보조 콘텐츠 통합 이력](aux-consolidation-20260930.md) |
 | 루프 밸런스·경험치 | [루프 난이도 곡선 재조율](loop-difficulty-20261006.md), [전투·보상 조정](loop-balance-20261004.md), [몹팩·요구 경험치](pack-balance-20261004.md). 측정치는 해당 실험 조건에 한정 |
@@ -33,7 +34,7 @@
 | 브라우저 검사·CI | [현재 실행 방법](browser-ci.md) |
 | Android 검사 | [빌드 경로와 과거 시험판 기록](android-testing.md) |
 | 공개·비공개 자산 | [배포 경계](github-publish-20261001.md) |
-| 치트 방지 | [서버 검사와 감시](../db/anti-cheat.sql)의 머리말(막는 검사, 기록만 하는 검사, 관리자 보류), 게스트 저장 검사는 [guest-save-check.js](../js/guest-save-check.js) |
+| 치트 방지·멀티 보강 | [서버 검사와 감시](../db/anti-cheat.sql)의 머리말(막는 검사, 기록만 하는 검사, 관리자 보류), [멀티 보강 묶음](../db/multiplayer-hardening-20261027.sql)의 머리말(서버가 정하는 시각 열, 채팅 금지와 신고, 고스트 수치 검사, 기록 정리), [계정 삭제 묶음](../db/account-deletion-hold-chat-20261027.sql)(자기 계정 삭제 RPC, 보류 계정의 채팅 금지), [문의와 플레이어 조회 묶음](../db/feedback-and-admin-players-20261027.sql)(문의 표와 RPC, 운영 창의 플레이어 찾기), [운영 창 머리 묶음](../db/ops-overview-20261027.sql)(할 일과 지표 RPC, 오래된 두 표의 권한 정리), 게스트 저장 검사는 [guest-save-check.js](../js/guest-save-check.js) |
 | 최근 플레이테스트 | [2026-10-06 보고서](main-playtest-20261006.json). 실행 기준·수동 확인 범위·미검증 항목 포함 |
 
 ## 현재 규칙과 이력을 구분하기

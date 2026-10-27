@@ -11,6 +11,7 @@
      * @property {boolean} special
      * @property {string} dpsSlot
      * @property {string} ehpSlot
+     * @property {boolean} upgrade one slot gains over 1% on one side (attack or survival) and the other side keeps 99%
      */
     const state = {
         status: 'idle', filter: 'all', results: new Map(), signature: '', token: 0, work: null,
@@ -110,8 +111,9 @@
         const dpsGainPct = percentGain(bestDps.dpsRatio);
         const ehpGainPct = percentGain(bestEhp.ehpRatio);
         let kind = balanced ? 'balanced' : (dpsGainPct >= 1 ? 'damage' : (ehpGainPct >= 1 ? 'defense' : 'keep'));
+        const upgrade = rows.some(row => (row.dpsRatio >= 1.01 && row.ehpRatio >= 0.99) || (row.ehpRatio >= 1.01 && row.dpsRatio >= 0.99));
         const result = {
-            kind, dpsGainPct, ehpGainPct, special: isSpecialCandidate(item),
+            kind, dpsGainPct, ehpGainPct, upgrade, special: isSpecialCandidate(item),
             dpsSlot: balanced ? balanced.slot : bestDps.slot,
             ehpSlot: balanced ? balanced.slot : bestEhp.slot
         };
@@ -397,6 +399,24 @@
         return analyzable(item) ? classifyCandidate({ item, slots: getCandidateSlots(item), key: '' }, createAnalysisWork(new Set())) : null;
     }
 
+    // 더 좋은 장비 알림(2026-10-26 사용자: "더 좋은 장비 획득 시 장비 탭에 알람"): 주운 장비를 몇 개씩 지금 세팅에 대어 보고(4초에 4개까지),
+    // 하나라도 upgrade면 장비 단추에 점을 켠다. 결과가 지금 세팅의 분석과 같으면 그 결과에도 넣어 창을 열 때 다시 재지 않는다.
+    const FRESH_GEAR_BATCH = 4, FRESH_GEAR_GAP_MS = 4000;
+    let freshGearAt = 0;
+    /** The UI refresh (js/ui.js performUpdateStaticUI); does nothing during an away settlement. */
+    function checkFreshGear() {
+        const now = Date.now();
+        if (now < freshGearAt || game.isBackgroundCalculation) return;
+        freshGearAt = now + FRESH_GEAR_GAP_MS;
+        const ids = new Set(takeFreshGearIds(FRESH_GEAR_BATCH).map(String));
+        if (!ids.size) return;
+        const work = createAnalysisWork(ids);
+        const keep = state.status === 'ready' && !state.work && getBuildSignature() === state.signature;
+        const results = work.items.map(candidate => [String(candidate.item.id), classifyCandidate(candidate, work)]);
+        if (keep) results.forEach(([id, result]) => state.results.set(id, result));
+        if (results.some(([, result]) => result.upgrade)) game.noti.items = true;
+    }
+
     function equipRecommended() {
         sync(true);
         const recommendation = getRecommendedCandidate();
@@ -415,6 +435,6 @@
         return state.status === 'ready' ? state.filter : 'all';
     }
 
-    const equipmentTriage = Object.freeze({ render, start, cancel, autoStart, onOpen, setFilter, filterRows, currentFilter, getResult, equipRecommended, rate });
+    const equipmentTriage = Object.freeze({ render, start, cancel, autoStart, onOpen, setFilter, filterRows, currentFilter, getResult, equipRecommended, rate, checkFreshGear });
     safeExposeGlobals({ equipmentTriage });
 }());
