@@ -41,7 +41,7 @@
     }
 
     async function fetchFile(path) {
-        const response = await fetch(path + '?v=20261023-selected-round7');
+        const response = await fetch(path + '?v=20261027-stump-wood');
         if (!response.ok) throw Error(`Audio fetch failed: ${response.status} ${path}`);
         return response;
     }

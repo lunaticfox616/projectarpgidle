@@ -121,6 +121,15 @@ async function deleteCloudAccount() {
     showGameToast('계정을 지웠습니다.', 'success');
 }
 
+/** 설정 > 클라우드 세이브의 "계정과 데이터 삭제 요청" 링크(2026-10-27 사용자: 로그인한 계정은 게임 안 계정 삭제 창이 바로 열리게): 로그인했으면
+ * 메일 대신 계정 삭제(deleteCloudAccount)를 연다. 메일 앱이 없는 PC에서는 메일 링크가 아무 일도 하지 않았다. 로그인하지 않았으면 메일 링크
+ * 그대로 간다(서버에 지울 계정이 없다). */
+function openAccountDeletionRequest(event) {
+    if (!cloudState || !cloudState.user) return;
+    event.preventDefault();
+    deleteCloudAccount();
+}
+
 const ACCOUNT_DELETE_ERROR_TEXTS = [
     [/AUTH_REQUIRED/, '로그인이 풀렸습니다. 다시 로그인한 뒤 눌러 주세요.'],
     [/schema cache|could not find|does not exist/i, '서버에 계정 삭제 기능이 아직 없습니다. db/account-deletion-hold-chat-20261027.sql을 실행해야 합니다.']
@@ -1037,4 +1046,5 @@ function initializeCloudTools() {
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initializeCloudTools);
 else initializeCloudTools();
 
-safeExposeGlobals({ openCloudSaveHistory, restoreCloudSaveVersion, openOpsDashboard, closeCloudToolsDialog, reportCurrentProfile, openFeedbackDialog });
+safeExposeGlobals({ openCloudSaveHistory, restoreCloudSaveVersion, openOpsDashboard, closeCloudToolsDialog, reportCurrentProfile, openFeedbackDialog,
+    openAccountDeletionRequest });

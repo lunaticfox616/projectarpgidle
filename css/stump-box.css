@@ -1,6 +1,6 @@
 /* 그루터기 함 화면 (js/stump-box-ui.js, 끌기 · 툴팁 js/stump-box-drag-ui.js).
-   판과 조합창은 한 틀에 번갈아 그린다(2026-10-25 사용자 그림, scripts/build-stump-frames.cjs: 223×227도트 틀 다섯 장을 칸 자리에
-   맞춰 2배로 옮겼다). 칸 격자 자리는 그 스크립트가 찍은 몫(446×454px 판에 대한 %)이다.
+   판과 조합창은 한 틀에 번갈아 그린다(2026-10-27 Codex 그림, scripts/build-stump-frames.cjs: 틀을 칸 자리에 맞춰 444×458px 판에
+   옮겼다). 칸 격자 자리와 줄은 그 스크립트가 찍은 몫(판에 대한 %)과 화소다.
    칸·보관함 단추는 공용 단추 모양(components 층)을 쓰지 않으므로 features 층에서 모양을 다시 정한다. */
 @layer features {
   #tab-stump { container-type: inline-size; }
@@ -68,32 +68,37 @@
   .stump-unlocks li.is-on .stump-unlock-arrow { color: #9fd46a; }
   .stump-unlocks li.is-on .stump-unlock-reward { color: #f3d28c; }
 
-  /* 틀(판, 조합창). 어두운 틀은 판, 뼈빛 틀은 조합창. 판일 때 보석에 올리면 밝아진 붉은 보석, 누르면 빛나는 보석 두 장이
-     번갈아 보인 뒤(js/stump-box-ui.js FRAME_FLASH_MS) 다른 쪽으로 바뀐다. 조합창일 때 올리면 보랏빛이 번진다.
-     넓은 창은 틀을 도트 하나에 2화소 그대로(446px) 그린다(아래 넓은 창 규칙). 좁으면 폭에 맞춰 줄인다. */
+  /* 틀(판, 조합창). 어두운 틀은 판, 뼈빛 틀은 조합창. 틀 그림은 칸 위에 얹는다(::after): 칸 가장자리는 틀의 살이 덮고, 판 안쪽은
+     어두운 바탕이라 칸 사이로 창 바탕색이 비치지 않는다(2026-10-27 사용자: 칸 사이 틈에 이상한 색). 판일 때 보석에 올리면 밝아진 붉은
+     보석, 조합창일 때 올리면 보랏빛이 번진다. 누르면 보석에서 빛의 고리가 번지며 다른 쪽으로 바뀐다(아래 전환).
+     넓은 창은 틀을 그림 크기 그대로(444px) 그린다(아래 넓은 창 규칙). 좁으면 폭에 맞춰 줄인다. */
   .stump-board {
     position: relative;
-    width: min(446px, 100%);
-    aspect-ratio: 446 / 454;
+    width: min(444px, 100%);
+    aspect-ratio: 444 / 458;
     margin: 0 auto;
+    /* 판 안쪽의 어두운 바탕(칸 격자 자리): 위치 %는 남는 폭에 대한 몫이라 격자 자리(왼쪽 16.216%, 위 19.651%)에서 거꾸로 셈했다 */
+    background: linear-gradient(#0c0a07 0 0) 49.65% 57.33% / 67.342% 65.721% no-repeat;
+  }
+  .stump-board::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
     background: url('../assets/ui/grove/stump-frame-box.png') 0 0 / 100% 100% no-repeat;
     image-rendering: pixelated;
   }
-  .stump-board.is-cube { background-image: url('../assets/ui/grove/stump-frame-cube.png'); }
-  .stump-board.is-box:has(.stump-frame-gem:hover) { background-image: url('../assets/ui/grove/stump-frame-box-hover.png'); }
-  .stump-board.is-switching { animation: stump-gem-flash .24s steps(1, end) both; }
-  @keyframes stump-gem-flash {
-    0% { background-image: url('../assets/ui/grove/stump-frame-box-glow.png'); }
-    50% { background-image: url('../assets/ui/grove/stump-frame-box-glow2.png'); }
-    100% { background-image: url('../assets/ui/grove/stump-frame-box-glow.png'); }
-  }
-  /* 보석 자리(빛 번짐까지 담은 상자, scripts/build-stump-frames.cjs의 gem) */
+  .stump-board.is-cube::after { background-image: url('../assets/ui/grove/stump-frame-cube.png'); }
+  .stump-board.is-box:has(.stump-frame-gem:hover)::after { background-image: url('../assets/ui/grove/stump-frame-box-hover.png'); }
+  /* 보석 자리(빛 번짐까지 담은 상자, scripts/build-stump-frames.cjs의 gem). 틀 그림 위에서 눌린다. */
   #tab-stump .stump-frame-gem {
     position: absolute;
-    left: 36.771%;
-    top: 0;
-    width: 27.354%;
-    height: 18.943%;
+    z-index: 3;
+    left: 35.811%;
+    top: 1.092%;
+    width: 27.703%;
+    height: 18.559%;
     min-width: 0;
     min-height: 0;
     margin: 0;
@@ -105,17 +110,49 @@
     cursor: pointer;
   }
   #tab-stump .stump-board.is-cube .stump-frame-gem:hover { background: radial-gradient(circle at 50% 46%, rgba(190, 140, 255, .4), transparent 46%); }
+  /* 칸 격자: 틀의 구멍에 맞춘 줄(scripts/build-stump-frames.cjs의 columns, rows: 구멍과 그 사이 틀의 살, 화소). 칸 25개는 홀수 줄에
+     놓인다(js/stump-box-ui.js stumpCellHtml의 grid-column, grid-row). */
   .stump-board-grid {
     position: absolute;
-    left: 16.143%;
-    top: 18.943%;
-    width: 67.713%;
-    height: 66.52%;
+    left: 16.216%;
+    top: 19.651%;
+    width: 67.342%;
+    height: 65.721%;
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-    grid-template-rows: repeat(5, minmax(0, 1fr));
-    gap: 1.987%;
+    grid-template-columns: 51fr 11fr 51fr 11fr 51fr 11fr 51fr 11fr 51fr;
+    grid-template-rows: 53fr 10fr 52fr 11fr 52fr 10fr 52fr 10fr 51fr;
   }
+  /* 보석을 누르면(js/stump-box-ui.js switchFrame): 누르기 전의 판을 복제한 그림(.stump-board-ghost)이 위를 덮고, 보석에서 퍼지는 원
+     안쪽부터 걷혀 새 판이 드러난다. 그 가장자리를 빛의 고리(.is-revealing::before)가 지나간다. 고리는 그루터기 함 모양 안에서만
+     보인다(stump-frame-mask.png: 틀 모양에 칸 자리를 채운 가림판; 2026-10-27 사용자: 보석 빛 번짐, 그루터기 함 부분에만). */
+  @property --stump-reveal { syntax: '<length>'; inherits: false; initial-value: 0px; }
+  #stump-board-section { position: relative; }
+  #stump-board-section > .stump-board-ghost {
+    position: absolute;
+    z-index: 6;
+    margin: 0;
+    pointer-events: none;
+    -webkit-mask-image: radial-gradient(circle at 50% 9%, transparent var(--stump-reveal), #000 calc(var(--stump-reveal) + 28px));
+    mask-image: radial-gradient(circle at 50% 9%, transparent var(--stump-reveal), #000 calc(var(--stump-reveal) + 28px));
+    animation: stump-reveal .7s cubic-bezier(.3, 0, .2, 1) forwards;
+  }
+  #tab-stump .stump-board.is-revealing::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+    pointer-events: none;
+    mix-blend-mode: screen;
+    background: radial-gradient(circle at 50% 9%, transparent calc(var(--stump-reveal) - 10px), rgba(255, 222, 150, .55) calc(var(--stump-reveal) + 6px), transparent calc(var(--stump-reveal) + 30px));
+    -webkit-mask: url('../assets/ui/grove/stump-frame-mask.png') 0 0 / 100% 100% no-repeat;
+    mask: url('../assets/ui/grove/stump-frame-mask.png') 0 0 / 100% 100% no-repeat;
+    animation: stump-reveal .7s cubic-bezier(.3, 0, .2, 1) both, stump-ring-fade .7s ease-in both;
+  }
+  #tab-stump .stump-board.is-cube.is-revealing::before {
+    background: radial-gradient(circle at 50% 9%, transparent calc(var(--stump-reveal) - 10px), rgba(206, 170, 255, .55) calc(var(--stump-reveal) + 6px), transparent calc(var(--stump-reveal) + 30px));
+  }
+  @keyframes stump-reveal { from { --stump-reveal: 0px; } to { --stump-reveal: 560px; } }
+  @keyframes stump-ring-fade { 0%, 60% { opacity: 1; } 100% { opacity: 0; } }
   /* 배치 전 비교: 판 자체는 다시 그리지 않아 드래그 중인 원본과 대상이 유지된다. */
   .stump-placement-preview { margin: 6px 0 0; padding: 8px 10px; border: 1px solid #8c7045; background: #17130e;
     color: var(--px-copy, #e8dcc0); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
@@ -138,8 +175,9 @@
     padding: 0;
     border: 0;
     border-radius: 0;
-    background: rgba(10, 8, 6, .35);
-    box-shadow: none;
+    /* 판에 파인 홈: 위는 그늘, 아래는 옅은 빛(2026-10-27 사용자가 고른 시안). 고른 칸, 공명, 놓을 자리 표시는 아래 규칙이 덮는다. */
+    background: linear-gradient(#050403, #110d09 40%, #15100b);
+    box-shadow: inset 0 3px 0 rgba(0, 0, 0, .7), inset 0 -1px 0 rgba(243, 210, 140, .14), inset 1px 0 0 rgba(0, 0, 0, .45), inset -1px 0 0 rgba(0, 0, 0, .45);
     color: var(--px-copy, #e6dcc6);
     cursor: pointer;
     overflow: visible;
@@ -312,10 +350,11 @@
     inset: 0;
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
-    grid-template-rows: repeat(5, minmax(0, 1fr));
-    gap: inherit;
+    /* 조합창은 아이템이 여러 칸을 차지해 판처럼 사이를 줄로 둘 수 없다: 판의 구멍 크기와 고른 틈(살 평균 11, 10.25화소) */
+    grid-template-rows: 53fr 52fr 52fr 52fr 51fr;
+    gap: 3.405% 3.679%;
   }
-  #tab-stump .stump-cube-cell { min-width: 0; min-height: 0; margin: 0; padding: 0; border: 0; border-radius: 0; background: rgba(40, 32, 22, .6); box-shadow: inset 0 0 0 1px #2a2218; }
+  #tab-stump .stump-cube-cell { min-width: 0; min-height: 0; margin: 0; padding: 0; border: 0; border-radius: 0; background: linear-gradient(#050403, #110d09 40%, #15100b); box-shadow: inset 0 3px 0 rgba(0, 0, 0, .7), inset 0 -1px 0 rgba(243, 210, 140, .14); }
   #tab-stump .stump-cube-item {
     position: relative;
     z-index: 1;
@@ -398,14 +437,14 @@
   }
 
   /* 넓은 창: 왼쪽 열은 틀과 그 아래(옵션 합계나 조합 단추), 오른쪽 열은 고른 것, 보관함, 탭. 두 열은 따로 쌓여서 한쪽이 길어도
-     다른 쪽에 빈 줄이 생기지 않는다. 오른쪽이 보관함 10칸(테 포함 420px)을 담을 만큼 넓으면 틀을 도트 그대로 446px로 그린다
+     다른 쪽에 빈 줄이 생기지 않는다. 오른쪽이 보관함 10칸(테 포함 420px)을 담을 만큼 넓으면 틀을 그림 크기 그대로 444px로 그린다
      (기본 940px 창의 안쪽 폭 880px). */
   @container (min-width: 761px) {
     .stump-box-screen { display: grid; grid-template-columns: minmax(280px, 390px) minmax(0, 1fr); gap: 12px; align-items: start; }
     .stump-box-pane { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
   }
   @container (min-width: 878px) {
-    .stump-box-screen { grid-template-columns: 446px minmax(0, 1fr); }
+    .stump-box-screen { grid-template-columns: 444px minmax(0, 1fr); }
   }
 
   /* 끌어 옮기기(js/stump-box-drag-ui.js): 길게 누르기 표시, 끄는 중인 원래 자리, 놓을 자리, 손끝을 따라오는 그림 */
