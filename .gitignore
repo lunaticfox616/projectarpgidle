@@ -7,6 +7,8 @@ node_modules/
 .npm-cache/
 playwright-report/
 test-results/
+# npm run probe(scripts/probe-save.js)의 기본 스크린숏 자리
+probe-output/
 debug.log
 
 # Local reviews, captures and backups are retained on disk, not shipped in PRs.

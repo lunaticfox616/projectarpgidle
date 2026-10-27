@@ -1,5 +1,8 @@
 const { test, expect } = require('@playwright/test');
 const { pickClass } = require('./helpers');
+const { PRIVATE_PATHS, HAND_PRIVATE_PATHS } = require('../../scripts/lib/private-paths');
+// A 404 on private art means a worktree that was not readied (scripts/setup-worktree.js), not a game fault: the failure says so.
+const PRIVATE_URL_PATHS = [...PRIVATE_PATHS, ...HAND_PRIVATE_PATHS].map(rel => '/' + rel);
 const TEST_ORIGIN = `http://127.0.0.1:${Math.max(1, Number(process.env.PLAYWRIGHT_PORT) || 4173)}/`;
 
 async function openLocalGame(page, path = '/') {
@@ -37,7 +40,8 @@ function watchRuntimeFailures(page) {
     });
     page.on('response', response => {
         if (response.status() < 400 || !response.url().startsWith(TEST_ORIGIN)) return;
-        failures.push(`${response.status()} ${response.url()}`);
+        const unready = PRIVATE_URL_PATHS.some(rel => new URL(response.url()).pathname.startsWith(rel));
+        failures.push(`${response.status()} ${response.url()}${unready ? ' (비공개 그림 없음: npm run setup:worktree)' : ''}`);
     });
     page.on('requestfailed', request => {
         if (!request.url().startsWith(TEST_ORIGIN)) return;

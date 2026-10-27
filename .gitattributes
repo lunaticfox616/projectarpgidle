@@ -1,2 +1,6 @@
+# 줄 끝(2026-10-27 회고): 텍스트 파일은 저장소에 LF로 둔다. 작업본의 줄 끝은 각자의 core.autocrlf를 따른다.
+# js/ui.js가 CRLF와 LF가 섞인 채 들어가 있어, 편집 도구 대신 바이트를 고치는 스크립트로 손봐야 했다.
+# CI(.github/workflows/test.yml)가 CRLF나 섞인 줄 끝으로 들어간 파일을 막는다.
+* text=auto
 # vendor/: 남의 라이브러리 사본은 줄끝을 바꾸지 않는다(npm이 설치한 파일과 바이트가 같아야 한다, 2026-10-27).
 vendor/* -text

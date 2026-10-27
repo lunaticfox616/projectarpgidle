@@ -9,7 +9,8 @@
 | 주제 | 시작 문서 |
 | --- | --- |
 | 콘텐츠 진행·해금 | [현재 진행 구조](content-progression.md), 정의는 [해금 카탈로그](../data/content-progression.js) |
-| 능력치 계산 | [플레이어 능력치 파이프라인](player-stats-pipeline.md) |
+| 능력치 계산 | [플레이어 능력치 파이프라인](player-stats-pipeline.md), 계산에 입력을 더할 때는 그 문서의 작업 규칙 |
+| 나무꾼 전투 잠금, 콘텐츠 시작 거절, 콘텐츠 전용 고유 | [콘텐츠 도전 계약](content-runs.md) |
 | NPC 가판대 | [현재 거래 규칙과 변경 이력](balance-and-player-stall-20260929.md) |
 | 그루터기 함·조합창 | [현재 구조와 초기 설계 이력](stump-cube-game-design.md), [보조 콘텐츠 통합 이력](aux-consolidation-20260930.md) |
 | 루프 밸런스·경험치 | [루프 난이도 곡선 재조율](loop-difficulty-20261006.md), [전투·보상 조정](loop-balance-20261004.md), [몹팩·요구 경험치](pack-balance-20261004.md). 측정치는 해당 실험 조건에 한정 |

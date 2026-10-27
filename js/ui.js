@@ -11052,8 +11052,19 @@ function renderStartupLocalSave(timeEl, guestBtn, localStamp) {
     const card = document.querySelector('.startup-summary-card');
     if (!card) return;
     card.querySelector('.startup-summary-grid').hidden = !hasSave;
-    card.querySelector('.startup-summary-hint')?.toggleAttribute('hidden', hasSave);
-    card.querySelector('.startup-summary-title').textContent = hasSave ? '이 기기 저장' : '새 모험';
+    const corrupt = getLocalSaveStatus().status === 'corrupt';
+    renderStartupSaveHint(card.querySelector('.startup-summary-hint'), hasSave, corrupt);
+    card.querySelector('.startup-summary-title').textContent = corrupt ? '저장을 읽지 못했습니다' : (hasSave ? '이 기기 저장' : '새 모험');
+}
+
+/** 요약 칸 아래 한 줄. 저장을 읽지 못하면(js/save.js loadGame의 corrupt: 원래 저장은 따로 보관하고 이 기기 저장을 멈춘다) "저장된 모험이
+ * 없습니다" 대신 그렇게 알린다(2026-10-27: 새 모험으로 보여 시작한 진행이 말없이 저장되지 않았다). */
+function renderStartupSaveHint(hint, hasSave, corrupt) {
+    if (!hint) return;
+    hint.dataset.emptyText ??= hint.textContent;
+    hint.textContent = corrupt ? '저장을 읽지 못해 원래 저장을 따로 보관했습니다. 이대로 시작하면 진행이 저장되지 않습니다.' : hint.dataset.emptyText;
+    hint.classList.toggle('is-warning', corrupt);
+    hint.hidden = hasSave && !corrupt;
 }
 
 function updateStartupScreenUI() {

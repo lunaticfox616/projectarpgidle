@@ -13147,9 +13147,12 @@ function defeatInOceanDive(zone, message, opts, ui) {
     clearDefeatedEncounter();
     forceSurfaceOcean(guardian ? 'guardian' : 'defeat');
 }
-/** Leaves the encounter: no enemies, plan or progress left. */
+/** Leaves the encounter (a defeat, the loop gate): no enemies, plan or progress left. On an exploration map the fighters go back to
+ * their packs (waiting), as when a hunt leaves the map: emptying the list alone left the packs counting monsters the save no longer held,
+ * and that save would not load (2026-10-27, the loop gate and a save round-trip sweep). */
 function clearDefeatedEncounter() {
-    game.enemies = [];
+    if (actExplorationState.current(game)) actExplorationState.retireCombat(game);
+    else game.enemies = [];
     game.encounterPlan = [];
     game.encounterIndex = 0;
     game.runProgress = 0;
@@ -15069,10 +15072,7 @@ function handleSeasonLoopConditionMet() {
     // Reached while nobody watched (offline / hidden-tab replay): the auto-loop leaves this gate to the player.
     game.loopGateOffline = !!game.isBackgroundCalculation;
     game.combatHalted = true;
-    game.enemies = [];
-    game.encounterPlan = [];
-    game.encounterIndex = 0;
-    game.runProgress = 0;
+    clearDefeatedEncounter();
     addLog(`루프 ${game.season || 1} 달성. 이번 여정의 기록과 다음 해금 요소를 확인하세요.`, 'season-up');
     updateStaticUI();
 }

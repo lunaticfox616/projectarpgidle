@@ -71,8 +71,22 @@ pixel-v1, pixel-v2의 PNG는 도트 하나를 3×3 점으로 키운 파일이고
   대상·플레이어 스탯·시간은 이 평가에 공통이다. 다음 호출에는 새 Map을 사용한다.
   같은 피해를 소환수 수만큼 더하는 순서는 유지한다. 실제 공격 판정/난수에는 사용하지 않는다.
 - 소환 설명은 수치 계산 뒤 별도 함수에서 생성한다. 설명의 기존 표기식도 보존한다.
-- 총 결과를 장기 캐시하지 않는다. HP/ES·버프 만료·적 저항·젬 강화·장비 비교·방치 스냅샷 교체를
-  모두 포괄하는 갱신 계약 없이 장기 캐시를 추가하면 오래된 값으로 싸우거나 보상을 계산할 수 있다.
+- 총 결과의 재사용은 `js/player-stat-cache.js`가 맡는다. 새 입력과 상태 변경은 아래 작업 규칙을 따라야 캐시가 낡은 값을
+  돌려주지 않는다(2026-10-27: 전에는 "총 결과를 장기 캐시하지 않는다"고 적혀 있었으나 그 뒤 캐시가 생겼다).
+
+## 계산에 입력을 더할 때 (작업 규칙)
+
+2026-10-27 회고에서 `AGENTS.md`에 있던 규칙을 그대로 옮겼다.
+
+능력치 계산(`getPlayerStats`)은 정산과 평소 플레이에서 다시 쓰인다(`js/player-stat-cache.js`). 계산에 새 입력을 더할 때
+싸우는 동안 바뀌는 값은 `playerStatTick` 읽기 함수로 읽고(경계값과 비교만 하면 `tick.when`), 빌드 값은
+`data/build-stat-inputs.js`의 `BUILD_STAT_FIELDS`나 `BUILD_STAT_PARTS`에, 그 밖의 값은 `PLAYER_STAT_CONTEXT_FIELDS`에 이유와
+함께 넣는다. 계산 안에서 `game`에 쓰는 값은 `PLAYER_STAT_DERIVED_WRITES`만 되고, 매 호출 처리는 `finishPlayerStats`에 둔다.
+플레이어 입력, 처치, 지도 완료 밖에서 빌드나 계산이 읽는 모듈 상태를 바꾸는 코드는 `playerStatCache.invalidate()`를 부른다.
+받은 능력치의 안쪽 객체(`sSkill`, `breakdowns` 말고)는 복사한 뒤 고친다. `scripts/smoke-player-stat-cache.js`가 이 규칙을
+검사하고, 실패 메시지가 고칠 곳을 알려 준다.
+찍거나 장착하기 전에 보여 줄 값(스킬트리, 전직, 상점 미리보기)은 `previewBuildStats(edit)`(`js/passives.js`)로 게임 사본에서 잰다.
+살아 있는 `game`의 빌드를 잠시 바꿨다 되돌리면 계산이 쓴 칸(`PLAYER_STAT_DERIVED_WRITES`)이 남을 수 있다.
 
 ## 검사와 과거 측정
 
