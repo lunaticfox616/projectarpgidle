@@ -19,7 +19,7 @@ function walk(node, visit, parent = null) {
 function readSources(head) {
     const html = head ? cp.execFileSync('git', ['show', 'HEAD:index.html'], {encoding:'utf8'}) : fs.readFileSync('index.html','utf8');
     const files = [...html.matchAll(/<script\b[^>]*\bsrc="([^"?]+)(?:\?[^" ]*)?"/g)]
-        .map(match => match[1]).filter(file => !/^https?:/.test(file));
+        .map(match => match[1]).filter(file => !/^https?:/.test(file) && !file.startsWith('vendor/'));   // vendor/: 남의 라이브러리 사본, 우리 규칙 대상이 아니다
     return files.map(file => {
         const source = head ? cp.execFileSync('git',['show',`HEAD:${file}`],{encoding:'utf8',maxBuffer:16*1024*1024}) : fs.readFileSync(file,'utf8');
         return {file,source,ast:espree.parse(source,{ecmaVersion:'latest',sourceType:'script',loc:true,range:true})};

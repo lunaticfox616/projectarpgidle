@@ -12,17 +12,14 @@ async function buildMobile() {
     fs.rmSync(destination, { recursive: true, force: true });
     fs.mkdirSync(destination);
     const files = cp.execFileSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard',
-        '--', 'assets', 'data', 'js', 'legal'], { cwd: root, encoding: 'utf8' }).split('\0').filter(Boolean);
+        '--', 'assets', 'data', 'js', 'legal', 'vendor'], { cwd: root, encoding: 'utf8' }).split('\0').filter(Boolean);
     files.push('cloud-save-config.js', 'changelog.md');
     for (const file of new Set(files)) copy(file, file);
+    // supabase-js는 저장소의 vendor/ 사본이 그대로 들어간다(2026-10-27부터 웹도 같은 사본을 쓴다); Capacitor만 node_modules에서 가져온다.
     copy('node_modules/@capacitor/core/dist/capacitor.js', 'vendor/capacitor.js');
-    copy('node_modules/@supabase/supabase-js/dist/umd/supabase.js', 'vendor/supabase.js');
     copy('node_modules/@capacitor/core/LICENSE', 'vendor/capacitor-LICENSE.txt');
-    copy('node_modules/@supabase/supabase-js/LICENSE', 'vendor/supabase-LICENSE.txt');
     const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8')
-        .replace('<script id="app-update-registration">', '<script src="vendor/capacitor.js"></script>\n    <script id="app-update-registration">')
-        // the page pins the version package.json installs (@2.115.0); any pin becomes the bundled copy
-        .replace(/https:\/\/cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js@[0-9.]+/, 'vendor/supabase.js');
+        .replace('<script id="app-update-registration">', '<script src="vendor/capacitor.js"></script>\n    <script id="app-update-registration">');
     const { buildCss } = require('./build-css');
     const { prepareRelease } = require('./lib/release-bundle');
     const bundled = await buildCss(destination, html);

@@ -1517,7 +1517,8 @@
 
 <script src="js/bootstrap.js?v=20260603-runtime-coherent2"></script>
 <!-- package.json의 판과 같게 고정한다(실시간 채팅은 이 판에서 맞춰 확인했다. @2는 새 판으로 바뀐다). -->
-<script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.115.0"></script>
+<!-- supabase-js는 저장소의 사본을 쓴다(vendor/README.md). 전에는 jsDelivr CDN에서 받아 바깥 사고 하나가 모든 세션에 닿을 수 있었다(2026-10-27). -->
+<script defer src="vendor/supabase.js?v=2.115.0"></script>
 <script defer src="cloud-save-config.js?v=20260513-gemfix1"></script>
 <script defer src="data/constants.js?v=20260718-regional-passive1&ehp=20260811-bosspeak1&underworld=20260819-depth1&inventory-pages=20260827-1&square-map=20260901-3&boss-footprint=20260902-1&combat-overhaul=20260905-2&aux=20261001-3&aux=20261002-21&touch=20261002-1&traffic=20261003-1&herosize=20261003-1&guest=20261003-1&sight=20261004-1&feel=20261004-1&playtest=20261007-1&playtest=20261007-9&names=20261008-1&deep=20261009-1&boss=20261014-1&runes=20261017-1&resist=20261017-1&bosses=20261018-1&bagrail=20261019-1&cheat=20261021-1&maptabs=20261025-1"></script>
 <script defer src="data/level-progression.js?v=20260911-1&requirements-review=20260911-1&review=20260912-v338&unique-equipment=20260913-1&experience-curve=20260914-1&gem-growth=20260914-1&aux=20260930-3&drops=20261005-9&goal=20261008-1&goal=20261008-4&goal=20261008-5&runegap=20261018-1"></script>
