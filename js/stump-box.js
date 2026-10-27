@@ -656,6 +656,11 @@ const stumpBox = (() => {
         const sap = colors.reduce((low, color) => ((stats[RESIST_STATS[color]] || 0) < (stats[RESIST_STATS[low]] || 0) ? color : low));
         return { seed, sap };
     }
+    /** Whether a starter seed or sap is still owed (grantStarter would give one): the box is held and a receipt is missing. */
+    function starterOwed(state) {
+        const box = of(state);
+        return box.acquired && FAMILIES.some(family => !box.starter[family]);
+    }
     /** Gives the starter seed (with its path) and sap that are still owed. @returns {object[]} the new items. */
     function grantStarter(state, stats) {
         const choice = starterChoice(state, stats), given = [];
@@ -1043,7 +1048,7 @@ const stumpBox = (() => {
     }
 
     return {
-        empty, of, restore, sync, eligible, claimStarter, starterChoice, grantStarter, plantStored, createItem, addTalisman, discard, storage, place, move, previewMove, unplace,
+        empty, of, restore, sync, eligible, claimStarter, starterChoice, starterOwed, grantStarter, plantStored, createItem, addTalisman, discard, storage, place, move, previewMove, unplace,
         canUndoPlacement, undoPlacement, invalidatePlacementUndo,
         evaluate, applyStats, onEnemyKilled, grow, ancientRanks, rollDrop, regress, compost, compostReason, compostGrowth, compostOverflow, feedAsh, growingItems, openCount, isOpen, opensAt, nextOpening, neighbors,
         stageOf, isMature, need, yieldOf, targetStage, label, shortName, lineText, extraLinesOf, iconPath, cellOf, editable, highestLoop,

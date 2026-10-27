@@ -4867,6 +4867,44 @@ function isCombatLogRateLimited(opts, settings, now) {
     return false;
 }
 
+/** One line into the log queue. The queue is trimmed while drawing is paused (a hidden tab): only 60 lines are ever shown. */
+function pushCombatLogLine(msg, cls) {
+    logQueue.push({ msg, cls });
+    if (logQueue.length > 240) logQueue = logQueue.slice(-60);
+    if (!logFlushRaf) logFlushRaf = requestAnimationFrame(flushLogQueue);
+}
+
+function mergedCombatLogLine(state) {
+    return state.count > 1 ? `${state.msg} <span style="color:var(--copy-bright);">x${state.count}</span>` : state.msg;
+}
+
+/** Flushes a merged log line once its window has passed quietly. A line hit again inside the window waits for the rest of the
+ * window (the timer re-arms), so the last line of a burst always shows and the entry is freed (2026-10-26: it used to stay, one per
+ * enemy ever hit, until that enemy was hit again). */
+function flushCombatLogAggregate(key, winMs) {
+    let state = combatLogAggregateState[key];
+    if (!state) return;
+    let quiet = performance.now() - state.lastAt;
+    if (quiet < winMs) { setTimeout(flushCombatLogAggregate, winMs - quiet + 10, key, winMs); return; }
+    pushCombatLogLine(mergedCombatLogLine(state), state.cls);
+    delete combatLogAggregateState[key];
+}
+
+/** Lines with an aggregateKey merge inside their window into one line with a count. */
+function queueAggregatedCombatLog(msg, cls, opts, now) {
+    let key = `${opts.aggregateKey}:${cls || ''}`;
+    let state = combatLogAggregateState[key];
+    let winMs = Math.max(120, Number(opts.aggregateWindowMs || 500));
+    if (state && (now - state.lastAt) <= winMs) {
+        state.count++;
+        state.lastAt = now;
+        state.msg = msg;
+        return;
+    }
+    if (state) pushCombatLogLine(mergedCombatLogLine(state), state.cls);
+    combatLogAggregateState[key] = { msg: msg, cls: cls, count: 1, lastAt: now };
+    setTimeout(flushCombatLogAggregate, winMs + 10, key, winMs);
+}
 function addLog(msg, cls, opts = {}) {
     if (game.isBackgroundCalculation) return;
     let now = performance.now();
@@ -4874,40 +4912,12 @@ function addLog(msg, cls, opts = {}) {
     if (isCombatLogRateLimited(opts, settings, now)) return;
     if (opts.item) msg = decorateCombatLogItemMessage(msg, opts.item);
     msg = decorateCombatLogMessage(msg, cls, opts);
-    if (opts.aggregateKey && settings.combatLogAggregate !== false) {
-        let key = `${opts.aggregateKey}:${cls || ''}`;
-        let state = combatLogAggregateState[key];
-        let winMs = Math.max(120, Number(opts.aggregateWindowMs || 500));
-        if (state && (now - state.lastAt) <= winMs) {
-            state.count++;
-            state.lastAt = now;
-            state.msg = msg;
-            return;
-        }
-        if (state && state.count > 0) {
-            let merged = state.count > 1 ? `${state.msg} <span style="color:var(--copy-bright);">x${state.count}</span>` : state.msg;
-            logQueue.push({ msg: merged, cls: state.cls });
-        }
-        combatLogAggregateState[key] = { msg: msg, cls: cls, count: 1, lastAt: now };
-        setTimeout(() => {
-            let s = combatLogAggregateState[key];
-            if (!s) return;
-            if ((performance.now() - s.lastAt) >= winMs) {
-                let merged = s.count > 1 ? `${s.msg} <span style="color:var(--copy-bright);">x${s.count}</span>` : s.msg;
-                logQueue.push({ msg: merged, cls: s.cls });
-                delete combatLogAggregateState[key];
-                if (!logFlushRaf) logFlushRaf = requestAnimationFrame(flushLogQueue);
-            }
-        }, winMs + 10);
-        if (!logFlushRaf) logFlushRaf = requestAnimationFrame(flushLogQueue);
-        return;
-    }
-    logQueue.push({ msg, cls });
+    if (opts.aggregateKey && settings.combatLogAggregate !== false) return queueAggregatedCombatLog(msg, cls, opts, now);
+    pushCombatLogLine(msg, cls);
     if (opts.toast && typeof showGameToast === 'function') {
         let tone = opts.toastTone || (cls === 'loot-unique' ? 'success' : (cls === 'attack-monster' ? 'warning' : 'info'));
         showGameToast(stripHtmlMessage(msg) || String(msg || ''), { tone: tone });
     } else if (shouldShowMobileToast(msg, cls, opts)) enqueueMobileToast(msg, cls);
-    if (!logFlushRaf) logFlushRaf = requestAnimationFrame(flushLogQueue);
 }
 
 function applyUiSkin(skin) {
@@ -7209,7 +7219,8 @@ function updatePlayerHpDamageGhost(actualPct) {
 }
 
 function primeEnemyHpDamageGhost(enemyId, actualPct) {
-    if (enemyId === null || enemyId === undefined) return;
+    // A settlement's monsters are never drawn: their entries stayed in the table until the next frame pruned it (2026-10-27).
+    if (enemyId === null || enemyId === undefined || game.isBackgroundCalculation) return;
     let key = String(enemyId);
     if (enemyHpDamageGhostStates.has(key)) return;
     enemyHpDamageGhostStates.set(key, updateHpDamageGhostState(null, actualPct === undefined ? 100 : actualPct, Date.now()));

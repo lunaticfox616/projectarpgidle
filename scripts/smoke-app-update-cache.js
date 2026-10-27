@@ -135,6 +135,11 @@ let latestFetchOptions = null;
 
 const runtimeCache = {
     async put(request, response) { storedResponses.set(request.url, response); },
+    async keys(request, options) {
+        const pathName = new URL(request.url).pathname;
+        return [...storedResponses.keys()].filter(url => url === request.url || (options?.ignoreSearch && new URL(url).pathname === pathName)).map(url => ({ url }));
+    },
+    async delete(request) { return storedResponses.delete(request.url); },
     async match(request, options) {
         if (storedResponses.has(request.url)) return storedResponses.get(request.url);
         if (!options?.ignoreSearch) return undefined;
@@ -198,6 +203,12 @@ async function requestThroughWorker(request) {
     await assert.rejects(requestThroughWorker(offlineRequest), /offline/, 'a missing version must not execute older bytecode');
     const offlineResponse = await requestThroughWorker(scriptRequest);
     assert.strictEqual(offlineResponse.marker, 'network', 'the exact cached release remains usable offline');
+
+    networkMode = 'success';
+    await requestThroughWorker(offlineRequest);
+    assert.deepStrictEqual([...storedResponses.keys()], ['https://game.example/js/ui.js?v=new'], 'storing a new release drops the older copies of the same file');
+    networkMode = 'failure';
+    await assert.rejects(requestThroughWorker(scriptRequest), /offline/, 'the replaced release is gone from the cache');
 
     const externalRequest = { method: 'GET', url: 'https://api.example/data', mode: 'cors', destination: 'script' };
     assert.strictEqual(await requestThroughWorker(externalRequest), null, 'cross-origin requests must remain outside app caching');

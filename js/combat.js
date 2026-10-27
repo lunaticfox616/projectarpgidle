@@ -1069,33 +1069,44 @@ function keepEarnedWoodsmanPoints(snap) {
     }
 }
 
+/** The build fields the lock holds: [field, default]. The support lock state (sealed and summon gems) is read through lockState below. */
+const WOODSMAN_LOCKED_FIELDS = Object.freeze([
+    ['passives', []], ['passiveAttributeChoices', {}], ['ascendNodes', []], ['ascendKeystones', []], ['equipment', {}], ['inventory', []],
+    ['skills', []], ['supports', []], ['equippedSupports', []], ['supportGemData', {}], ['playerLeechInstances', []],
+    ['playerRecoupInstances', []], ['gemData', {}], ['jewelInventory', []]
+]);
+const WOODSMAN_LOCKED_POINTS = Object.freeze(['passivePoints', 'seasonPoints', 'ascendPoints', 'ascendKeystonePoints', 'scour']);
+/** The snapshot's fields as JSON, built once per snapshot object (the lock runs every tick). */
+const woodsmanSnapshotPrints = new WeakMap();
+function woodsmanSnapshotPrint(snap) {
+    let prints = woodsmanSnapshotPrints.get(snap);
+    if (prints) return prints;
+    prints = {};
+    for (const [field, fallback] of WOODSMAN_LOCKED_FIELDS) prints[field] = JSON.stringify(snap[field] || fallback);
+    const lock = window.GameModules.combat.supports.lockState(snap);
+    for (const key of Object.keys(lock)) prints[key] = JSON.stringify(lock[key]);
+    woodsmanSnapshotPrints.set(snap, prints);
+    return prints;
+}
+/** Every tick of the fight: a field that drifted from the entry snapshot goes back to it. Only the drifted field is copied back
+ * (2026-10-26: the whole build was deep-cloned into game ten times a second, so during the fight the bag, gear and gems were fresh
+ * objects every tick, the per-object stat memos never hit, and a big bag made a few hundred KB of garbage per tick). */
 function enforceWoodsmanBuildLock() {
     if (!game.woodsmanBuildLock || !game.woodsmanBuildSnapshot) return;
     let snap = game.woodsmanBuildSnapshot;
     keepEarnedWoodsmanPoints(snap);
-    game.passives = JSON.parse(JSON.stringify(snap.passives));
+    const prints = woodsmanSnapshotPrint(snap);
     game.passiveAttributePreference = snap.passiveAttributePreference || 'strength';
-    game.passiveAttributeChoices = JSON.parse(JSON.stringify(snap.passiveAttributeChoices || {}));
-    game.ascendNodes = JSON.parse(JSON.stringify(snap.ascendNodes));
-    game.ascendKeystones = JSON.parse(JSON.stringify(snap.ascendKeystones));
-    game.passivePoints = Math.floor(snap.passivePoints || 0);
-    game.seasonPoints = Math.floor(snap.seasonPoints || 0);
-    game.ascendPoints = Math.floor(snap.ascendPoints || 0);
-    game.ascendKeystonePoints = Math.floor(snap.ascendKeystonePoints || 0);
-    game.scour = Math.floor(snap.scour || 0);
-    game.equipment = JSON.parse(JSON.stringify(snap.equipment));
-    game.inventory = JSON.parse(JSON.stringify(snap.inventory));
-    game.skills = JSON.parse(JSON.stringify(snap.skills));
+    for (const key of WOODSMAN_LOCKED_POINTS) game[key] = Math.floor(snap[key] || 0);
     game.activeSkill = snap.activeSkill;
     game.mobilitySkill = snap.mobilitySkill;
-    game.supports = JSON.parse(JSON.stringify(snap.supports));
-    game.equippedSupports = JSON.parse(JSON.stringify(snap.equippedSupports));
-    Object.assign(game, JSON.parse(JSON.stringify(window.GameModules.combat.supports.lockState(snap))));
-    game.supportGemData = JSON.parse(JSON.stringify(snap.supportGemData));
-    game.playerLeechInstances = JSON.parse(JSON.stringify(snap.playerLeechInstances || []));
-    game.playerRecoupInstances = JSON.parse(JSON.stringify(snap.playerRecoupInstances || []));
-    game.gemData = JSON.parse(JSON.stringify(snap.gemData));
-    game.jewelInventory = JSON.parse(JSON.stringify(snap.jewelInventory));
+    for (const [field, fallback] of WOODSMAN_LOCKED_FIELDS) {
+        if (JSON.stringify(game[field] || fallback) !== prints[field]) game[field] = JSON.parse(prints[field]);
+    }
+    const lock = window.GameModules.combat.supports.lockState(game);
+    for (const key of Object.keys(lock)) {
+        if (JSON.stringify(lock[key]) !== prints[key]) game[key] = JSON.parse(prints[key]);
+    }
 }
 
 function clearWoodsmanBuildLock() {
@@ -6174,8 +6185,19 @@ function getZoneDefenseVariance(zone) {
     return (seed - 3) * 0.02;
 }
 
+const zoneElementWardProfiles = new Map(); // zone type, id and name -> the profile below (read only by applyZoneElementWard)
+/** A zone's element ward (the resistance its monsters share), fixed by the zone's id or name; built once per zone (two string hashes
+ * for every spawned monster before). */
 function getZoneElementWardProfile(zone) {
     if (!zone) return null;
+    const cacheKey = zone.type + '|' + zone.id + '|' + zone.name;
+    if (zoneElementWardProfiles.has(cacheKey)) return zoneElementWardProfiles.get(cacheKey);
+    if (zoneElementWardProfiles.size >= 512) zoneElementWardProfiles.clear();
+    const profile = rollZoneElementWardProfile(zone);
+    zoneElementWardProfiles.set(cacheKey, profile);
+    return profile;
+}
+function rollZoneElementWardProfile(zone) {
     let specialBossZone = zone.type === 'outsideChaos'
         || zone.id === 'beehive_run'
         || zone.id === 'grand_breach_run'
