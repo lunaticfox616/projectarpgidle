@@ -74,10 +74,10 @@ const ITEM_RARITY_LABELS = Object.freeze({ normal: '일반', magic: '마법', ra
 // late.tierBelowZoneCap: 지금 지역 일반 몬스터가 떨구는 가장 높은 장비 티어보다 이만큼 낮은 티어부터 줍는다. 실측(혼돈 10, 20,
 // 40)으로 희귀의 약 40%가 남고, 액트에서는 티어 폭이 좁아 모두 남는다.
 const ITEM_PICKUP_PRESETS = Object.freeze({
-    growth: Object.freeze({ label: '성장', note: '일반 장비만 거릅니다.', rarities: Object.freeze({ normal: false, magic: true, rare: true, unique: true }) }),
-    late: Object.freeze({ label: '후반', note: '희귀와 고유 가운데 지금 지역 티어에 가까운 장비만 줍습니다.',
+    growth: Object.freeze({ label: '성장', note: '기본 조건에서 일반 장비를 거릅니다.', rarities: Object.freeze({ normal: false, magic: true, rare: true, unique: true }) }),
+    late: Object.freeze({ label: '후반', note: '기본 조건을 희귀와 고유 가운데 지금 지역 티어에 가까운 장비로 설정합니다.',
         rarities: Object.freeze({ normal: false, magic: false, rare: true, unique: true }), tierBelowZoneCap: 2 }),
-    collect: Object.freeze({ label: '수집', note: '도감에 없는 고유 장비만 줍습니다.',
+    collect: Object.freeze({ label: '수집', note: '기본 조건을 도감에 없는 고유 장비로 설정합니다.',
         rarities: Object.freeze({ normal: false, magic: false, rare: false, unique: true }), onlyNewCodexUnique: true })
 });
 

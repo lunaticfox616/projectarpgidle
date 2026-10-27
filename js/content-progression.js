@@ -9,8 +9,8 @@ const contentProgression = (() => {
     // Predicates only read normalized save state; unlocking a menu never grants world progress.
     const progressChecks = {
         tactics: owner => [['액트 3 클리어', hasCombatTacticsUnlockProgress(owner)]],
-        trials: owner => [['액트 3 도달', owner.maxZoneId >= 3 || owner.completedTrials.length > 0]],
-        meteor: owner => [['액트 7 도달', owner.maxZoneId >= 7]],
+        trials: owner => [['액트 3 클리어', owner.maxZoneId >= 3 || owner.completedTrials.length > 0]],
+        meteor: owner => [['루프 7에서 액트 7 클리어', owner.maxZoneId >= 7]],
         deepChaos: owner => [['혼돈 20층 클리어', hasCurrentLoopChaos20Clear(owner)]],
         chaosRealm: owner => [['나무꾼에게 10% 피해 후 전투 종료', !!owner.chaosRealm.unlocked]],
         underworld: owner => [['혼돈계, 케르베로스, 심화 30층, 미궁 100층', isUnderworldUnlockReady(owner)]],

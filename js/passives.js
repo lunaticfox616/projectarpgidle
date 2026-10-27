@@ -9878,7 +9878,7 @@ function passesPickupTierCount(item, settings) {
     return (item.stats || []).filter(stat => Number.isFinite(stat.tier) && stat.tier >= tierThreshold).length >= minTierCount;
 }
 
-/** 항상 줍기(2026-10-10): 특출난 베이스, 좋은 희귀(data/loot-omens.js fineRare), 소켓, 타락, 도감에 없는 고유는 다른 조건과 상관없이 줍는다. */
+/** 항상 줍기(2026-10-10): 특출난 베이스, 상급 옵션 희귀(data/loot-omens.js fineRare), 소켓, 타락, 도감에 없는 고유는 다른 조건과 상관없이 줍는다. */
 const PICKUP_EXCEPTIONS = Object.freeze({
     exceptional: item => !!item.exceptionalBase,
     fineRare: item => item.rarity === 'rare' && lootMoments.fineLines(item) >= LOOT_OMENS.fineRare.good,

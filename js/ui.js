@@ -1407,7 +1407,7 @@ const MERGED_TAB_GROUPS = Object.freeze({
     growth: { launcher: 'tab-char', title: '스킬트리', tabs: [{ id: 'tab-char', label: '스킬트리', icon: 2, count: () => game.passivePoints, detail: '스킬트리 노드에 포인트를 씁니다.' }, { id: 'tab-traits', label: '전직', icon: 16, detail: '전직과 키스톤을 선택합니다.' }, { id: 'tab-talent', gate: 'talent', label: '재능', icon: 17, detail: '재능 개화 카드를 고르고 키웁니다.' }] },
     gear: { launcher: 'tab-items', title: '장비', tabs: [{ id: 'tab-items', label: '장비', icon: 6, detail: '장비와 가방을 봅니다.' }, { id: 'tab-skills', label: '스킬룬', icon: 9, detail: '룬을 장착하고 키웁니다.' }] },
     loop: { launcher: 'tab-season', title: '루프', tabs: [{ id: 'tab-season', label: '루프 패시브', icon: 4, count: () => game.seasonPoints, detail: '루프 포인트로 영구 노드에 투자합니다.' }, { id: 'tab-unlocks', label: '해금', icon: 3, count: () => contentProgression.points(game).balance, detail: '해금 포인트로 다음 콘텐츠를 고릅니다.' }] },
-    records: { launcher: 'tab-journal', title: '기록', tabs: [{ id: 'tab-journal', gate: 'journal', label: '저널', icon: 10, detail: '진행 기록과 안내를 확인합니다.' }, { id: 'tab-codex', gate: 'codex', label: '도감', icon: 13, detail: '발견한 항목과 수집 현황을 확인합니다.' }, { id: 'tab-records', gate: 'journal', label: '기록', icon: 20, detail: '루프 소요 시간과 최고 기록을 확인합니다.' }, { id: 'tab-npcs', gate: 'npcs', label: 'NPC', icon: 16, detail: '만난 NPC의 해금과 상점을 봅니다.' }] }
+    records: { launcher: 'tab-journal', title: '기록', tabs: [{ id: 'tab-journal', gate: 'journal', label: '이야기 저널', icon: 10, detail: '진행 기록과 안내를 확인합니다.' }, { id: 'tab-codex', gate: 'codex', label: '도감', icon: 13, detail: '발견한 항목과 수집 현황을 확인합니다.' }, { id: 'tab-records', gate: 'journal', label: '기록', icon: 20, detail: '루프 소요 시간과 최고 기록을 확인합니다.' }, { id: 'tab-npcs', gate: 'npcs', label: 'NPC', icon: 16, detail: '만난 NPC의 해금과 상점을 봅니다.' }] }
 });
 
 // 탭 2단 그룹핑: 상단 카테고리 바에서 그룹을 고르면 해당 그룹의 탭만 보인다.
@@ -5138,7 +5138,7 @@ function getMapCompleteActionOptions() {
     return [
         { value: 'repeatZone', label: '반복', detail: '현재 지역 또는 층을 다시 진행합니다.' },
         { value: 'nextZone', label: '다음 지역', detail: '일반 자동 진행 규칙에 따라 다음 지역으로 이동합니다.' },
-        { value: 'nextLoopBestPlusOne', label: '최고층', detail: '이번 루프의 최고 심화/미궁 기록 다음 층으로 이동합니다.' },
+        { value: 'nextLoopBestPlusOne', label: '최고 기록 다음 층', detail: '이번 루프의 최고 심화/미궁 기록 다음 층으로 이동합니다.' },
         { value: 'stop', label: '중단', detail: '전투를 멈추고 현재 위치에서 대기합니다.' }
     ];
 }

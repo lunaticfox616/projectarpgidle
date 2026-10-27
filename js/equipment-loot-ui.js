@@ -14,10 +14,10 @@
         weapon: settings => settings.itemFilterWeaponCategories, always: settings => settings.itemFilterAlways,
         beams: settings => settings.lootFx.beams, notices: settings => settings.lootFx.notices
     });
-    const ALWAYS_CHIPS = Object.freeze([['exceptional', '특출난 베이스', '#9fe0c0'], ['fineRare', '좋은 희귀', '#f3d28c'], ['socket', '소켓', '#d7a6ff'],
+    const ALWAYS_CHIPS = Object.freeze([['exceptional', '특출난 베이스', '#9fe0c0'], ['fineRare', '상급 옵션 희귀', '#f3d28c'], ['socket', '소켓', '#d7a6ff'],
         ['corrupted', '타락', '#e7685c'], ['newUnique', '도감에 없는 고유', '#ffb469'], ['influenced', '영향 장비', '#ff9a6a'], ['ward', '액막이', '#c8b6ff']]);
-    const BEAM_CHIPS = Object.freeze([['jackpot', '체이싱 티어', '#ff6b6b'], ['great', '큰 발견', '#f3d28c'], ['good', '좋은 발견 반짝임', '#e8c27a']]);
-    const NOTICE_CHIPS = Object.freeze([['chase', '체이싱 티어', '#ff6b6b'], ['goldenRule', '황금률', '#f7d66a'], ['treasure', '보물', '#ffd75e'],
+    const BEAM_CHIPS = Object.freeze([['jackpot', '최상급 발견', '#ff6b6b'], ['great', '큰 발견', '#f3d28c'], ['good', '좋은 발견 반짝임', '#e8c27a']]);
+    const NOTICE_CHIPS = Object.freeze([['chase', '최상급 발견', '#ff6b6b'], ['goldenRule', '황금률', '#f7d66a'], ['treasure', '보물', '#ffd75e'],
         ['codex', '도감 등록', '#ffb469'], ['leaf', '기억의 잎', '#9fe0c0']]);
 
     function pickChip(group, key, label, tone) {
