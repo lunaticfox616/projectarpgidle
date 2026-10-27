@@ -1052,6 +1052,11 @@ function openLiveChat() {
     let channel = client.channel('social-chat')
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, change => {
             try { receiveLiveChat(change && change.new); } catch (error) { console.warn('실시간 채팅 한 줄을 처리하지 못했습니다:', error); }
+        })
+        // 운영자가 지운 줄(한 줄 지우기, 전체 비우기): 삭제 알림은 지운 줄의 id만 싣는다. 실시간이 아닌 창은 5분 전체 조회에서 빠진다.
+        .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'chat_messages' }, change => {
+            let id = change && change.old && change.old.id;
+            if (id != null) forgetSocialChatMessages([id]);
         });
     socialState.chatChannel = channel;
     // 토큰을 먼저 건다: 구독 요청이 이 토큰을 싣고 나가야 처음부터 로그인한 사용자로 읽는다(라이브러리는 토큰을 한 박자 늦게 넣는다).
@@ -1441,17 +1446,35 @@ function renderChatMessages(messages, forceScroll) {
         return;
     }
     socialState.chatTips = {};
+    let admin = socialAdminView();
     listEl.innerHTML = messages.map(m => {
         let mine = m.user_id === myId;
         let nickname = String(m.nickname || '익명');
         return `<article class="social-chat-msg${mine ? ' mine' : ''}">`
             + `<header class="social-chat-head"><button type="button" class="social-chat-author" onclick="openPlayerProfile('${socialEscape(m.user_id)}')">`
             + `<span class="social-chat-nick">${socialEscape(nickname)}</span></button>`
-            + `${mine ? '<span class="social-chat-self">나</span>' : ''}<time class="social-chat-time">${formatChatTime(m.created_at)}</time></header>`
+            + `${mine ? '<span class="social-chat-self">나</span>' : ''}<time class="social-chat-time">${formatChatTime(m.created_at)}</time>`
+            + `${admin ? `<button type="button" class="social-chat-delete" data-chat-delete="${socialEscape(m.id)}" onclick="deleteChatMessage(this)">지우기</button>` : ''}</header>`
             + `<div class="social-chat-body">${renderChatBody(m)}</div></article>`;
     }).join('');
     if (shouldScroll) scrollSocialChatToLatest(listEl);
     socialState.scrollChatToLatestOnNextRender = false;
+}
+/** 운영자 화면(?admin=1, 운영 통계 단추와 같은 조건): 채팅 줄마다 지우기 단추가 붙는다. 지우기는 서버가 관리자만 받는다. */
+function socialAdminView() {
+    return typeof location === 'object' && new URLSearchParams(location.search).get('admin') === '1';
+}
+/** Drops chat rows the server deleted (an admin's 지우기 or 전체 비우기, or the live DELETE note); no ids = every row. A bulk delete
+ * sends one note per row, so the list is drawn again once, on the next tick, and only while the chat is on screen (as showLiveChat). */
+function forgetSocialChatMessages(ids) {
+    let before = socialState.chatMessages || [], gone = new Set((ids || []).map(String));
+    socialState.chatMessages = ids ? before.filter(row => !gone.has(String(row.id))) : [];
+    if (socialState.chatMessages.length === before.length || socialState.chatForgetQueued) return;
+    socialState.chatForgetQueued = true;
+    setTimeout(() => {
+        socialState.chatForgetQueued = false;
+        if (socialState.chatInitialized && isSocialTabActive()) renderChatMessages(socialState.chatMessages, false);
+    }, 0);
 }
 const socialChatMaxId = rows => rows.reduce((max, row) => Math.max(max, Number(row.id) || 0), 0);
 async function refreshChatPanel(forceScroll) {
@@ -2384,7 +2407,7 @@ function injectSocialStyles() {
     .social-chat-head{display:flex;align-items:center;gap:6px;min-width:0;}.social-chat-author{display:inline-flex;align-items:center;min-width:0;padding:0;border:0;background:none;color:inherit;cursor:pointer;}.social-chat-self{padding:1px 4px;border:1px solid #675132;border-radius:2px;color:#c9aa70;font-size:12px;}
     .social-chat-nick{overflow:hidden;color:#d6b572;font-weight:700;font-size:12px;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;}
     .social-chat-nick:hover{text-decoration:underline;}
-    .social-chat-time{margin-left:auto;color:var(--copy-muted);font-size:12px;white-space:nowrap;}
+    .social-chat-time{margin-left:auto;color:var(--copy-muted);font-size:12px;white-space:nowrap;}.social-chat-delete{flex:none;min-height:0;padding:0 6px;font-size:12px;line-height:16px;color:#f0b4a0;background:#2a1714;border:1px solid #6a3a30;border-radius:3px;cursor:pointer;}
     .social-chat-body{color:var(--copy-bright);margin:4px 0 0;white-space:pre-wrap;word-break:break-word;font-size:var(--font-size-chat,12px);line-height:1.5;}
     .social-chat-inputbar{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:7px;align-items:stretch;}
     .social-chat-input-shell{position:relative;min-width:0;}

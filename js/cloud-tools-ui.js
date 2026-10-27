@@ -10,7 +10,7 @@ function cloudToolsNumber(value) {
 
 /** 운영 창과 문의 창의 단추들: data-* 이름 → 처리 함수. 단추 하나에 이 이름은 하나만 붙인다(값은 보통 대상 id). */
 const CLOUD_TOOLS_ACTIONS = [
-    ['cheatHold', setCheatHold], ['cheatClear', clearCheatFlags], ['chatMute', setChatMute], ['chatDelete', deleteChatMessage],
+    ['cheatHold', setCheatHold], ['cheatClear', clearCheatFlags], ['chatMute', setChatMute], ['chatDelete', deleteChatMessage], ['chatClear', clearAllChat],
     ['termAdd', button => setBannedTerm(button, false)], ['termRemove', button => setBannedTerm(button, true)],
     ['muteNick', setChatMuteByNickname], ['chatPeek', peekPlayerChat],
     ['feedbackSend', submitPlayerFeedback], ['feedbackFilter', setAdminFeedbackFilter], ['feedbackStatus', setFeedbackStatus], ['feedbackReply', replyFeedback],
@@ -360,7 +360,7 @@ function renderMuteButtons(userId, nickname, muted) {
 /** Chat reports and mutes (db/social.sql admin_get_chat_reports); the dialog's click handler sends the mute and delete buttons. */
 function renderChatReports(data) {
     const muteButtons = row => renderMuteButtons(row.target_user_id || row.user_id, row.nickname, row.muted_until || row.until_at);
-    let html = '<section><h3>채팅 신고</h3><p class="cloud-tools-note">신고는 플레이어가 프로필 창에서 보냅니다. 금지한 계정은 풀릴 때까지 채팅을 보낼 수 없고, 지운 줄은 다음 전체 조회부터 사라집니다.</p></section>';
+    let html = '<section><h3>채팅 신고</h3><p class="cloud-tools-note">신고는 플레이어가 프로필 창에서 보냅니다. 금지한 계정은 풀릴 때까지 채팅을 보낼 수 없고, 지운 줄은 모든 플레이어의 채팅창에서 사라집니다.</p></section>';
     html += renderOpsTable('신고, 최근 200건', [
         { label: '시각', render: row => new Date(row.created_at).toLocaleString('ko-KR') },
         { label: '신고자', render: row => row.reporter_nickname || '' },
@@ -375,7 +375,7 @@ function renderChatReports(data) {
     html += '<div id="chat-peek"></div>';
     html += '<div class="ops-summary"><input id="chat-mute-nickname" type="text" maxlength="16" placeholder="닉네임으로 금지">'
         + '<button type="button" data-mute-nick="1440">1일 금지</button><button type="button" data-mute-nick="10080">7일 금지</button>'
-        + '<button type="button" data-mute-nick="0">금지 풀기</button></div>';
+        + '<button type="button" data-mute-nick="0">금지 풀기</button><button type="button" data-chat-clear="1">채팅 전체 비우기</button></div>';
     html += renderOpsTable('금지 중인 계정', [
         { label: '계정', render: row => row.nickname || String(row.user_id || '').slice(0, 8) },
         { label: '풀리는 시각', render: row => new Date(row.until_at).toLocaleString('ko-KR') }, { key: 'note', label: '메모' },
@@ -515,21 +515,46 @@ async function setChatMute(button) {
     await loadChatReports();
 }
 
-/** Deletes one reported chat row after a confirmation (admin_delete_chat_message), then reloads the reports. */
+/** Deletes one chat row after a confirmation (admin_delete_chat_message): from the ops window's reports and peek lists, or from a line
+ * of the chat window in the admin view (js/social.js renderChatMessages). The row leaves this chat at once; the ops lists reload. */
 async function deleteChatMessage(button) {
-    let confirmed = await requestGameConfirmation('이 채팅 줄을 지울까요?\n다른 플레이어의 화면에서는 다음 전체 조회부터 사라집니다.', {
-        title: '채팅 신고', tone: 'warning', confirmLabel: '지우기'
+    let inOps = !!button.closest('#cloud-tools-dialog');
+    let confirmed = await requestGameConfirmation('이 채팅 줄을 지울까요?\n모든 플레이어의 채팅창에서 사라집니다.', {
+        title: inOps ? '채팅 신고' : '채팅', tone: 'warning', confirmLabel: '지우기'
     });
     if (!confirmed) return;
-    let peek = button.closest('#chat-peek');   // 최근 채팅 목록 안의 단추였으면 다시 그린 뒤 그 목록을 되살린다
+    let id = Number(button.dataset.chatDelete), peek = button.closest('#chat-peek');   // 최근 채팅 목록 안의 단추였으면 다시 그린 뒤 그 목록을 되살린다
     try {
-        await cloudJsonRequest('/rest/v1/rpc/admin_delete_chat_message', { method: 'POST', body: { p_message_id: Number(button.dataset.chatDelete) } });
+        await cloudJsonRequest('/rest/v1/rpc/admin_delete_chat_message', { method: 'POST', body: { p_message_id: id } });
+        forgetSocialChatMessages([id]);
         showGameToast('채팅 줄을 지웠습니다.', 'success');
     } catch (error) {
         showGameToast(`줄을 지우지 못했습니다: ${error.message || error}`, 'danger');
     }
+    if (!inOps) return;
     await loadChatReports();
     if (peek) await peekPlayerChat({ dataset: { chatPeek: peek.dataset.peekUser, chatName: peek.dataset.peekName } });
+}
+
+/** Empties the whole chat after a confirmation (db/admin-gate-chat-clear-20261027.sql admin_clear_chat). Report rows keep their own
+ * copy of the reported lines; the reports and peek lists reload so no 줄 지우기 button points at a row that is gone. */
+async function clearAllChat() {
+    let confirmed = await requestGameConfirmation('채팅을 모두 지울까요?\n모든 플레이어의 채팅창이 비고, 되돌릴 수 없습니다.', {
+        title: '채팅 전체 비우기', tone: 'danger', confirmLabel: '모두 지우기'
+    });
+    if (!confirmed) return;
+    try {
+        let result = await cloudJsonRequest('/rest/v1/rpc/admin_clear_chat', { method: 'POST', body: {} });
+        forgetSocialChatMessages();
+        showGameToast(`채팅 ${cloudToolsNumber(result && result.deleted)}줄을 지웠습니다.`, 'success');
+    } catch (error) {
+        let text = String((error && error.message) || error);
+        showGameToast(/schema cache|could not find|does not exist/i.test(text)
+            ? '서버에 채팅 비우기 기능이 아직 없습니다. db/admin-gate-chat-clear-20261027.sql을 실행해야 합니다.'
+            : `채팅을 비우지 못했습니다: ${text}`, 'danger');
+        return;
+    }
+    await loadChatReports();
 }
 
 /** 운영 창. 뼈대(할 일 띠, 지표, 경고 자리와 접힌 절들)를 먼저 그리고 RPC 여섯을 한꺼번에 불러 채운다(전: 하나씩 차례로).

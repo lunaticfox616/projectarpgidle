@@ -536,7 +536,7 @@ begin
 end;
 $$;
 
--- 관리자: 채팅 한 줄 삭제(실시간으로는 빠지지 않고 다음 전체 조회에서 사라진다).
+-- 관리자: 채팅 한 줄 삭제. 실시간 삭제 알림으로 열려 있는 채팅창에서 빠지고, 실시간이 아닌 창은 다음 전체 조회에서 사라진다.
 create or replace function public.admin_delete_chat_message(p_message_id bigint)
 returns jsonb language plpgsql security definer set search_path = public as $$
 declare removed integer;
@@ -545,6 +545,19 @@ begin
     delete from public.chat_messages where id = p_message_id;
     get diagnostics removed = row_count;
     return jsonb_build_object('deleted', removed > 0);
+end;
+$$;
+
+-- 관리자: 채팅 전체 비우기(운영 창). 줄마다 실시간 삭제 알림이 가서 열려 있는 채팅창에서도 빠진다.
+-- where true: Supabase의 pg-safeupdate가 WHERE 없는 DELETE를 막는다.
+create or replace function public.admin_clear_chat()
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare removed integer;
+begin
+    if not public.is_project_admin() then raise exception 'ADMIN_REQUIRED'; end if;
+    delete from public.chat_messages where true;
+    get diagnostics removed = row_count;
+    return jsonb_build_object('deleted', removed);
 end;
 $$;
 
@@ -570,6 +583,8 @@ grant execute on function public.report_player_chat(uuid, text, bigint) to authe
 grant execute on function public.admin_get_chat_reports() to authenticated;
 grant execute on function public.admin_set_chat_mute(uuid, integer, text) to authenticated;
 grant execute on function public.admin_delete_chat_message(bigint) to authenticated;
+revoke all on function public.admin_clear_chat() from public, anon;
+grant execute on function public.admin_clear_chat() to authenticated;
 revoke all on function public.admin_set_chat_mute_by_nickname(text, integer, text) from public, anon;
 grant execute on function public.admin_set_chat_mute_by_nickname(text, integer, text) to authenticated;
 
