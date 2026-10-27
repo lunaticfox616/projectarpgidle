@@ -72,8 +72,8 @@
         let meteorUnlocked = !!(state.meteorSite && state.meteorSite.unlocked);
         if (loop >= 7 && !meteorUnlocked) return guide({
             id: 'meteor-site', title: '운석 낙하 지점',
-            description: '루프 7에서 액트 7에 도달하면 하늘 균열 게이지가 차기 시작합니다.',
-            requirements: [requirement('루프 7', true), requirement('액트 7 도달', count(state.maxZoneId) >= 7, count(state.maxZoneId), 7)],
+            description: '루프 7에서 액트 7을 클리어하면 하늘 균열 게이지가 차기 시작합니다.',
+            requirements: [requirement('루프 7', true), requirement('액트 7 클리어', count(state.maxZoneId) >= 7, count(state.maxZoneId), 7)],
             actionLabel: '사냥터 보기', actionTabId: 'tab-map', actionSubtabId: 'map-explore-hunting'
         });
         return null;

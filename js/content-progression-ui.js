@@ -3,7 +3,7 @@
 const CONTENT_ROUTE_PATHS = Object.freeze({
     'item-tab-equip': '장비 → 장비 창', 'item-tab-craft': '장비 → 제작실', 'item-tab-fossil': '장비 → 제작실', 'item-tab-market': '장비 → 거래소',
     'item-tab-hall': '장비 → 장비 전당',
-    'skill-tab-equip': '스킬룬 → 장착, 보조', 'skill-tab-enhance': '스킬룬 → 성장, 각인', 'skill-tab-research': '스킬룬 → 룬 연구',
+    'skill-tab-equip': '스킬룬 → 장착과 보조', 'skill-tab-enhance': '스킬룬 → 성장과 각인', 'skill-tab-research': '스킬룬 → 룬 연구',
     'skill-tab-condition': '스킬룬 → 전술 규칙',
     'tab-codex': '기록 → 도감', 'tab-traits': '스킬트리 → 전직', 'tab-char': '스킬트리',
     'tab-season': '루프 패시브', 'tab-stump': '그루터기 함', 'tab-talent': '재능',
