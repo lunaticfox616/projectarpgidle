@@ -1,5 +1,5 @@
 const { test, expect } = require('@playwright/test');
-const { pickClass } = require('./helpers');
+const { pickClass, revealLoopScreen } = require('./helpers');
 
 test('loop settlement shows real progress and preserves preparation and deferral', async ({ page }, testInfo) => {
     const errors = [];
@@ -18,11 +18,14 @@ test('loop settlement shows real progress and preserves preparation and deferral
     });
     const ready = page.locator('#loop-ready-overlay');
     await expect(ready).toBeVisible();
-    await expect(ready).toContainText('루프 1 달성');
+    // 제목 숫자는 앞 번호에서 굴러 바뀌어(js/loop-ui.js rollLoop) 글자에는 두 번호가 다 있다: 읽히는 이름으로 본다
+    await expect(ready.locator('h2')).toHaveAttribute('aria-label', '루프 2 달성');
     await expect(ready).toContainText('1시간 0분');
     // 루프 2의 해금 포인트: 루프마다 2(data/content-progression.js CONTENT_UNLOCK_POINT_AWARDS)
     await expect(ready).toContainText('해금 포인트 +2');
     await expect(ready.getByText('나중에 루프', { exact: true })).toHaveCount(0);
+    await expect(ready.getByRole('button', { name: '다음 루프 진행' })).toBeHidden();
+    await revealLoopScreen(ready);
     await page.screenshot({ path: testInfo.outputPath('loop-earned.png'), animations: 'disabled' });
     await ready.getByRole('button', { name: '장비 정리', exact: true }).click();
     await expect(ready).not.toBeVisible();
@@ -57,7 +60,8 @@ test('loop settlement shows real progress and preserves preparation and deferral
     });
     const decision = page.locator('#loop-decision-overlay');
     await expect(decision).toBeVisible();
-    await expect(decision).toContainText('다음 콘텐츠를 직접 선택');
+    await expect(decision).toContainText('루프 포인트 +1');
+    await revealLoopScreen(decision);
     await page.screenshot({ path: testInfo.outputPath('loop-defer.png'), animations: 'disabled' });
     await decision.getByRole('button', { name: '나중에 루프' }).click();
     await expect(decision).not.toBeVisible();

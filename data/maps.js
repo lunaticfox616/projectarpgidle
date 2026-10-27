@@ -306,17 +306,18 @@ const TIME_RIFT_OPTION_KEEP = Object.freeze([0.25, 0.29, 0.33, 0.37, 0.41, 0.45,
 const TIME_RIFT_KEEP_CAP = 4;
 const TIME_RIFT_OPTION_KEEP_PAST_CAP = Object.freeze([0.03, 0.038, 0.046, 0.053, 0.061, 0.069, 0.077, 0.084, 0.092, 0.10]);
 
+// 루프 1~10의 해금 줄은 data/content-progression.js CONTENT_UNLOCK_CATALOG의 minLoop와 맞춘다(2026-10-27).
 const SEASON_CONTENT_ROADMAP = {
     1: { title: '루프 1', features: ['시작: 기본 전투/장비/지도', '액트 3 클리어: 전투 전술 무료 해금 (스킬룬 → 전술 규칙)'] },
-    2: { title: '루프 2', features: ['해금: 홀씨 제작', '그루터기 함: 루프마다 한 칸씩 열림 (9칸 → 루프 17에 25칸)'] },
-    3: { title: '루프 3', features: ['해금: 고대 미궁(화석) / 대전'] },
-    4: { title: '루프 4', features: ['해금: 창공 강화'] },
-    5: { title: '루프 5', features: ['해금: 루프 패시브 확장 + 주얼'] },
-    6: { title: '루프 6', features: ['해금: 부적 시스템'] },
+    2: { title: '루프 2', features: ['해금: 장비 제련 / 보조스킬룬 / 루프 패시브', '그루터기 함: 루프마다 한 칸씩 열림 (9칸 → 루프 17에 25칸)'] },
+    3: { title: '루프 3', features: ['해금: 고대 미궁 / 대전 / 전직 / 화석 제작 / 룬 연구'] },
+    4: { title: '루프 4', features: ['해금: 룬 강화 / 룬 각인'] },
+    5: { title: '루프 5', features: ['해금: 주얼 / 고유 도감 / 화석 복원'] },
+    6: { title: '루프 6', features: ['해금: 부적 / 제작 시뮬레이터'] },
     7: { title: '루프 7', features: ['해금: 운석 낙하 지점'] },
-    8: { title: '루프 8', features: ['해금: 벌집'] },
-    9: { title: '루프 9', features: ['해금: 균열'] },
-    10: { title: '루프 10', features: ['해금: 심화 혼돈', '그루터기 함: 뿌리 기억 25% (루프가 바뀌어도 경험치 25% 유지)'] },
+    8: { title: '루프 8', features: ['해금: 벌집 / 고급 홀씨'] },
+    9: { title: '루프 9', features: ['해금: 공허 균열'] },
+    10: { title: '루프 10', features: ['해금: 심화 혼돈 / 재능 / 심화 패시브', '그루터기 함: 뿌리 기억 25% (루프가 바뀌어도 경험치 25% 유지)'] },
     11: { title: '루프 11', features: ['해금: 심해 / 낚시', '심화: 혼돈 단계 상승'] },
     12: { title: '루프 12', features: ['심화: 혼돈 단계 상승'] },
     13: { title: '루프 13', features: ['해금: 시간의 균열 (융합 제단)', '심화: 혼돈 단계 상승'] },

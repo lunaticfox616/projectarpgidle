@@ -1,5 +1,5 @@
 const { test, expect } = require('@playwright/test');
-const { pickClass } = require('./helpers');
+const { pickClass, revealLoopScreen } = require('./helpers');
 const { PRIVATE_PATHS, HAND_PRIVATE_PATHS } = require('../../scripts/lib/private-paths');
 // A 404 on private art means a worktree that was not readied (scripts/setup-worktree.js), not a game fault: the failure says so.
 const PRIVATE_URL_PATHS = [...PRIVATE_PATHS, ...HAND_PRIVATE_PATHS].map(rel => '/' + rel);
@@ -406,6 +406,7 @@ test('manual loop advance asks once and cancel preserves the ready state', async
         game.combatHalted = true;
         updateStaticUI();
     });
+    await revealLoopScreen(page.locator('#loop-ready-overlay'));
     await page.locator('#loop-ready-overlay').getByRole('button', { name: '장비 정리', exact: true }).click();
     const equipmentClose=page.locator('#tab-items [data-window-action="close"]');
     if (await equipmentClose.isVisible()) await equipmentClose.click();

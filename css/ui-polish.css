@@ -186,12 +186,36 @@ input[data-search-key]:focus {
   background: var(--color-surface); border: 1px solid var(--color-line-strong); border-radius: 12px;
   font-family: var(--font-body, 'Malgun Gothic', sans-serif); font-size: 13px; line-height: 1.6;
 }
-.loop-settlement-card h2 { margin: 16px 0; color: var(--color-accent-gold); font-size: 26px; border: 0; }
-.loop-settlement-story { margin: 0; color: var(--color-text-secondary); animation: loop-settlement-in .6s ease both; }
+/* 셋으로 갈라 보인다(2026-10-27 사용자): 이야기(금빛 줄 옆의 흐린 글), 루프 달성과 다음 루프, 설정과 단추. 새 루프의 정산은 이야기만 보이고
+   누를 때마다 한 칸씩 서서히 나타난다(js/loop-ui.js advanceReveal, data-loop-step). 칸 사이는 금빛 실선. */
+.loop-settlement-story p { margin: 0; padding: 6px 0 6px 16px; border-left: 1px solid rgba(215, 179, 111, .55); color: var(--color-text-secondary); line-height: 1.85;
+  background: linear-gradient(90deg, rgba(215, 179, 111, .1), transparent 85%); }
+.loop-settlement-result, .loop-settlement-controls { margin-top: 20px; border-top: 1px solid rgba(215, 179, 111, .38); }
+.loop-settlement-card[data-loop-step="1"] [data-loop-section]:not([data-loop-section="1"]),
+.loop-settlement-card[data-loop-step="2"] [data-loop-section="3"],
+.tutorial-overlay .loop-settlement-card[data-loop-step="3"] .loop-settlement-continue { display: none; }
+.loop-settlement-card[data-loop-fresh="all"] [data-loop-section], .loop-settlement-card[data-loop-fresh="1"] [data-loop-section="1"],
+.loop-settlement-card[data-loop-fresh="2"] [data-loop-section="2"], .loop-settlement-card[data-loop-fresh="3"] [data-loop-section="3"] { animation: loop-settlement-in .7s ease both; }
+.tutorial-overlay .loop-settlement-card .loop-settlement-continue { display: block; min-height: 0; margin: 18px auto 0; padding: 4px 12px; border: 0; background: none; box-shadow: none;
+  color: var(--color-accent-gold); font-size: 12px; letter-spacing: .12em; cursor: pointer; }
+/* 숫자가 따로 도는 칸(data-loop-count)이라 바탕 h2의 flex(양끝 맞춤)를 풀어 한 줄 글로 둔다 */
+.loop-settlement-card h2 { display: block; margin: 16px 0; color: var(--color-accent-gold); font-size: 26px; line-height: 34px; border: 0;
+  text-shadow: 0 0 14px rgba(240, 200, 120, .35); }
+/* 루프 숫자: 앞 번호와 이번 번호를 위아래로 쌓고 한 줄(34px)만 보이게 해, 한 줄만큼 위로 밀어 바꾼다(js/loop-ui.js rollLoop).
+   민 거리를 정수 px로 둔다: 글자가 화소 사이에 멈추면 도트가 번졌다. */
+.loop-settlement-count { display: inline-block; height: 34px; overflow: hidden; vertical-align: top; }
+.loop-settlement-count > span { display: block; transition: transform .5s cubic-bezier(.2, .8, .2, 1); }
+.loop-settlement-count b { display: block; height: 34px; font-weight: inherit; text-align: center; }
+.loop-settlement-count.is-rolled > span { transform: translateY(-34px); }
 .loop-settlement-stats { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.6fr); gap: 8px; margin: 0 0 18px; }
 .loop-settlement-stats > div { padding: 12px 8px; background: var(--color-surface-raised); border: 1px solid var(--color-line); border-radius: 6px; }
 .loop-settlement-stats dt { color: var(--color-text-secondary); font-size: 12px; }
-.loop-settlement-stats dd { margin: 3px 0 0; font-size: 19px; color: var(--color-text); }
+.loop-settlement-stats dd { margin: 3px 0 0; font-size: 19px; color: var(--stat, var(--color-text)); }
+/* 기록 세 칸은 칸마다 제 색(2026-10-27 사용자: "색감좀"): 도달 레벨 금빛, 처치 붉은빛, 활동 시간 청록. 위 테에 같은 색을 얇게 */
+.loop-settlement-stats > div { border-top: 2px solid color-mix(in srgb, var(--stat) 70%, transparent); }
+.loop-settlement-stats > div:nth-child(1) { --stat: #efcd85; }
+.loop-settlement-stats > div:nth-child(2) { --stat: #e8907e; }
+.loop-settlement-stats > div:nth-child(3) { --stat: #7fcbbd; }
 .loop-settlement-stats > div:last-child dd { font-size: 16px; word-break: keep-all; }
 .loop-settlement-bark { margin: -8px 0 16px; color: var(--color-accent-gold); }
 .loop-settlement-next { border-block: 1px solid var(--color-line); padding: 14px 0; }
@@ -200,14 +224,20 @@ input[data-search-key]:focus {
 .loop-automation small { color: var(--copy-muted, #a9ab9c); }
 .loop-automation select { font: inherit; }
 .loop-automation-status { flex-basis: 100%; margin: 0; min-height: 1.2em; color: var(--color-accent-gold); }
-.loop-settlement-next h3 { margin: 0 0 8px; color: var(--color-accent-gold); font-size: 14px; }
-.loop-settlement-next ul { padding-left: 20px; margin: 0; }
-.loop-settlement-next p { margin: 10px 0 0; color: var(--color-accent-gold); }
-.loop-settlement-explain { padding: 10px 0 12px; border-bottom: 1px solid var(--color-line); }
-.loop-settlement-explain summary { cursor: pointer; color: var(--color-accent-gold); font-size: 14px; }
-.loop-settlement-explain ul { padding-left: 20px; margin: 8px 0 0; color: var(--color-text-secondary); }
+/* 다음 루프 줄은 종류마다 제 색의 표식, 옅은 바탕, 수치(js/loop-ui.js nextLoopLines): 해금 포인트 금빛, 그루터기 함 초록, 루프 포인트 보라,
+   이정표 파랑, 변이 붉은빛. 초기화 안내는 옅은 붉은 글 */
+.loop-settlement-next ul { display: grid; gap: 5px; margin: 0; padding: 0; list-style: none; }
+.loop-settlement-next li { --kind: #e6c06b; position: relative; padding: 4px 8px 4px 22px; border-radius: 4px; background: color-mix(in srgb, var(--kind) 10%, transparent); }
+.loop-settlement-next li::before { content: ''; position: absolute; left: 8px; top: 50%; width: 6px; height: 6px; margin-top: -3px; background: var(--kind); box-shadow: 0 0 6px var(--kind); }
+.loop-settlement-next li b { color: var(--kind); font-weight: 700; }
+.loop-settlement-next li.is-stump { --kind: #8fcf7a; }
+.loop-settlement-next li.is-loop { --kind: #b893f2; }
+.loop-settlement-next li.is-road { --kind: #7fb6e6; }
+.loop-settlement-next li.is-mutation { --kind: #e08a6f; }
+.loop-settlement-reset { margin: 12px 0 0; color: #d99a8a; font-size: 12px; }
 .loop-settlement-note, .loop-settlement-card .tutorial-body { font-size: 12px; color: var(--color-text-secondary); line-height: 1.6; }
 .loop-settlement-actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+#loop-decision-actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 10px; }
 .loop-settlement-actions button, #loop-decision-actions button { min-height: 40px; }
 @keyframes loop-settlement-in { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 /* 알림과 DPS 변화 표시는 루프 창, 루프 시작 영웅 고르기, 액트 보상 창(고를 칸을 가렸다), 패치 노트 뒤로 숨는다. 사망 창은 모달 dialog라 이미 그 위에 그려진다 */
@@ -220,7 +250,7 @@ body:has(:is(#loop-ready-overlay, #loop-decision-overlay, #loop-hero-select-over
   .loop-settlement-card :is(.loop-settlement-actions, #loop-decision-actions) { position: sticky; bottom: calc(-1 * var(--loop-card-pad)); z-index: 1; margin-bottom: calc(-1 * var(--loop-card-pad)); padding: 10px 0 var(--loop-card-pad); background: inherit; box-shadow: 0 -10px 12px -4px rgb(30 28 34); }
 }
 @media (max-width: 600px) { .loop-settlement-card { --loop-card-pad: 20px; } }
-@media (prefers-reduced-motion: reduce) { .loop-settlement-story, .loop-settlement-next { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .loop-settlement-card [data-loop-section] { animation: none; } .loop-settlement-count > span { transition: none; } }
 .loop-ready-banner {
   display: none;
   align-items: center;

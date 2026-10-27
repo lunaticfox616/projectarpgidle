@@ -30,12 +30,28 @@ const contentUnlockUi = {
         queueTutorialNotice('tutorial_starter_gem_equip', '첫 스킬룬 장착',
             `[${name}] 룬을 얻었습니다.\n‘스킬룬’에서 빛나는 룬을 누르고 ‘장착’을 누르세요.\n장착한 룬으로 자동 전투의 공격이 바뀝니다.`, 'tab-skills');
     },
+    /** The loop card: the points, then the unlocks this loop adds to the tab, by name only (2026-10-27 사용자: 짧게, 필요한 것만).
+     * Free contents are left out: each gets its own card when it opens (announceContent). A loop that adds none names the next one. */
     announceLoop() {
-        if (game.contentProgression && contentProgression.points().complete) return;
-        const body = game.contentProgression
-            ? `루프 ${game.season}에 도달해 해금 포인트 ${contentProgression.balance()}P가 생겼습니다.\n‘해금’에서 원하는 콘텐츠를 골라 여세요.\n한 번 연 콘텐츠는 루프가 바뀌어도 열려 있습니다.`
-            : `루프 ${game.season}에 도달했습니다!\n루프 이정표와 루프 패시브 트리를 루프 탭에서 확인할 수 있습니다.`;
-        queueTutorialNotice('unlock_content_loop_' + game.season, '다음 콘텐츠 선택', body, 'tab-unlocks');
+        if (!game.contentProgression) {
+            queueTutorialNotice('unlock_content_loop_' + game.season, '다음 콘텐츠 선택',
+                `루프 ${game.season}에 도달했습니다!\n루프 이정표와 루프 패시브 트리를 루프 탭에서 확인할 수 있습니다.`, 'tab-unlocks');
+            return;
+        }
+        const added = this.listed(game.season).filter(def => contentProgression.kind(def) !== 'auto' && !contentProgression.isUnlocked(def.id));
+        const paid = added.filter(def => contentProgression.kind(def) === 'paid').map(def => `[${def.name}]`);
+        const byNpc = new Map();
+        added.filter(def => def.npc).forEach(def => byNpc.set(def.npc, [...(byNpc.get(def.npc) || []), `[${def.name}]`]));
+        if (contentProgression.points().complete && !added.length) return;
+        const lines = [`해금 포인트 ${contentProgression.balance()}P`];
+        if (paid.length) lines.push(`새 해금: ${paid.join(', ')}`);
+        byNpc.forEach((names, npc) => lines.push(`${contentProgression.npcName(npc)}: ${names.join(', ')}`));
+        // 고를 것이 새로 없는 루프(7, 9)는 다음에 열리는 루프를 한 줄 미리 보인다.
+        if (!added.length) {
+            const ahead = CONTENT_UNLOCK_CATALOG.filter(def => !def.series && def.minLoop > game.season).reduce((min, def) => Math.min(min, def.minLoop), Infinity);
+            if (Number.isFinite(ahead)) lines.push(`루프 ${ahead}: ${this.listed(ahead).map(def => `[${def.name}]`).join(', ')}`);
+        }
+        queueTutorialNotice('unlock_content_loop_' + game.season, `루프 ${game.season}`, lines.join('\n'), 'tab-unlocks');
     },
     sync() {
         if (!game.contentProgression) return;
@@ -89,9 +105,11 @@ const contentUnlockUi = {
     node(def) {
         const status = contentProgression.status(def.id);
         const state = status.unlocked ? 'owned' : status.available ? 'ready' : 'locked';
-        return `<button type="button" class="unlock-node is-${state}" data-unlock-select="${def.id}" aria-pressed="${this.selectedId === def.id}">
+        // 이번 루프에 새로 고를 수 있게 된 해금은 그림 모서리 점으로만 표시한다(루프 2 · 3에 한꺼번에 몰린다, 2026-10-27).
+        const fresh = !status.unlocked && def.minLoop === game.season && def.minLoop > 1 ? ' is-new' : '';
+        return `<button type="button" class="unlock-node is-${state}${fresh}" data-unlock-select="${def.id}" aria-pressed="${this.selectedId === def.id}">
             <span class="unlock-node-art"><img src="${this.art(def)}" alt="" loading="lazy">${this.npcFace(def)}</span>
-            <strong>${escapeHTML(def.name)}</strong><small>${escapeHTML(this.caption(def, status))}</small><span class="unlock-lifetime-tag">${escapeHTML(def.lifecycle?.label || '해금 영구 유지')}</span></button>`;
+            <strong>${escapeHTML(def.name)}</strong>${def.gain ? `<span class="unlock-gain">${escapeHTML(def.gain)}</span>` : ''}<small>${escapeHTML(this.caption(def, status))}</small><span class="unlock-lifetime-tag">${escapeHTML(def.lifecycle?.label || '해금 영구 유지')}</span></button>`;
     },
     /** The line under an unlock: done, how it opens now (its price or its NPC) or what it still needs. */
     caption(def, status) {
@@ -143,10 +161,10 @@ const contentUnlockUi = {
         return depth;
     },
     connections(nodes, depths) {
-        // Coordinates match the fixed node columns; SVG scales with the compact mobile grid.
+        // Coordinates match the fixed node columns (136px wide, 150px node + 20px gap); SVG scales with the compact mobile grid.
         const columns = depths.map(depth => nodes.filter(row => this.depth(row) === depth));
         const position = def => ({ x:depths.indexOf(this.depth(def)) * 160 + 68,
-            y:columns[depths.indexOf(this.depth(def))].findIndex(row => row.id === def.id) * 156 + 69 });
+            y:columns[depths.indexOf(this.depth(def))].findIndex(row => row.id === def.id) * 170 + 69 });
         const entries = nodes.filter(row => row.after === 'craft').map(def =>
             `<path pathLength="1" d="M-15,${position(def).y} H${position(def).x - 34}"/>`).join('');
         const paths = nodes.filter(row => nodes.some(parent => parent.id === row.after)).map(def => {
@@ -154,7 +172,7 @@ const contentUnlockUi = {
             const start = from.x + 34, end = to.x - 34, middle = (start + end) / 2;
             return `<path pathLength="1" d="M${start},${from.y} C${middle},${from.y} ${middle},${to.y} ${end},${to.y}"/>`;
         }).join('');
-        return `<svg class="unlock-connections" viewBox="0 0 ${columns.length * 160 - 24} ${Math.max(...columns.map(rows => rows.length)) * 156 + 16}" preserveAspectRatio="none" aria-hidden="true">${entries}${paths}</svg>`;
+        return `<svg class="unlock-connections" viewBox="0 0 ${columns.length * 160 - 24} ${Math.max(...columns.map(rows => rows.length)) * 170 + 16}" preserveAspectRatio="none" aria-hidden="true">${entries}${paths}</svg>`;
     },
     choiceMap() {
         const starter = CONTENT_UNLOCK_CATALOG.find(row => row.id === 'craft');
@@ -284,7 +302,7 @@ const contentUnlockUi = {
         // 첫 보상은 설명 바로 아래, 해금 단추는 맨 아래에서 창 본문 아래쪽에 붙어(sticky) 늘 보인다 — 작은 창(1366×768 ·
         // HUD 위 작업 영역)에서 단추가 스크롤 밖으로 밀려났다.
         return `<div class="unlock-detail-top"><span class="unlock-eyebrow">${escapeHTML(def.group)}, ${{ paid: '선택 해금', npc: 'NPC 해금', auto: '자동 개방' }[kind]}</span>
-            <div class="unlock-detail-art"><img src="${this.art(def)}" alt=""></div><h3>${escapeHTML(def.name)}</h3><p>${escapeHTML(def.description)}</p>${this.loreHtml(def.id)}</div>
+            <div class="unlock-detail-art"><img src="${this.art(def)}" alt=""></div><h3>${escapeHTML(def.name)}</h3>${def.gain ? `<p class="unlock-gain">${escapeHTML(def.gain)}</p>` : ''}<p>${escapeHTML(def.description)}</p>${this.loreHtml(def.id)}</div>
             <div class="unlock-detail-reward">${this.entryReward(def, status)}</div>
             ${this.lifecycle(def)}${this.relatedFeatures(def)}
             <div class="unlock-requirements"><h4>${status.unlocked ? '해금 완료' : `해금 조건${kind === 'paid' ? ', ' + def.cost + 'P' : ''}`}</h4>${conditions.map(row => `<div class="${row.met ? 'is-met' : ''}"><span>${escapeHTML(row.label)}</span><small>${row.met ? '달성' : '미달성'}</small></div>`).join('')}</div>

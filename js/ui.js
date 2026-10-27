@@ -5088,6 +5088,7 @@ function ensureInitialHeroSelection() {
         updateCombatUI(stats);
         addLog(`시작 직업을 선택했습니다: ${PLAYER_CLASS_DEFS[pickedId].blindLabel}`, 'season-up');
         persistHeroSelectionChange('시작 직업 선택');
+        openingJourney.afterStartPick();
     }, {
         kicker: '첫 루프',
         title: '시작 직업 선택',
