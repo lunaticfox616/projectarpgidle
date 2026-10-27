@@ -15,6 +15,8 @@ const SOCIAL_ONLINE_POLL_MS = 30000;
 // 새 채팅이 들어올 때 접속 인원을 다시 읽는 가장 짧은 간격(socialOnlineChat.refresh). 채팅이 몰려도 이 간격에 한 번만 읽는다.
 const SOCIAL_ONLINE_CHAT_REFRESH_MS = 10000;
 const SOCIAL_CHAT_FULL_SYNC_MS = 5 * 60 * 1000;
+// 운영자가 지운 줄은 1분 동안 조회 결과에서도 거른다: 지우기 전에 떠난 조회가 그 줄을 되살리지 않게(forgetSocialChatMessages).
+const SOCIAL_CHAT_FORGET_MS = 60 * 1000;
 // 채팅이 실시간으로 오는 동안(syncLiveChat) 채팅 조회와 새 채팅 알림 조회가 도는 간격: 실시간이 놓친 틈을 메우는 안전 조회다.
 const SOCIAL_CHAT_LIVE_POLL_MS = 60000;
 // 페이지를 가리거나, 채팅이 화면에 없고 새 채팅 알림도 끈 뒤 실시간 연결을 놓기까지: 방치형이라 가린 탭이 오래 열려 있고, 무료 요금제는
@@ -1464,10 +1466,15 @@ function renderChatMessages(messages, forceScroll) {
 function socialAdminView() {
     return typeof location === 'object' && new URLSearchParams(location.search).get('admin') === '1';
 }
-/** Drops chat rows the server deleted (an admin's 지우기 or 전체 비우기, or the live DELETE note); no ids = every row. A bulk delete
- * sends one note per row, so the list is drawn again once, on the next tick, and only while the chat is on screen (as showLiveChat). */
+/** Drops chat rows the server deleted (an admin's 지우기 or 전체 비우기, or the live DELETE note); no ids = every row. The rows stay
+ * forgotten for SOCIAL_CHAT_FORGET_MS, so a poll that left before the delete cannot bring them back (isForgottenSocialChat). The
+ * list is drawn again on a later tick and only while the chat is on screen (as showLiveChat); notes that arrive together share it. */
 function forgetSocialChatMessages(ids) {
-    let before = socialState.chatMessages || [], gone = new Set((ids || []).map(String));
+    let before = socialState.chatMessages || [], gone = new Set((ids || []).map(String)), now = Date.now();
+    let forgotten = socialState.chatForgotten || (socialState.chatForgotten = { ids: new Map(), through: 0, until: 0 });
+    forgotten.ids.forEach((until, id) => { if (until <= now) forgotten.ids.delete(id); });
+    if (ids) gone.forEach(id => forgotten.ids.set(id, now + SOCIAL_CHAT_FORGET_MS));
+    else Object.assign(forgotten, { through: socialChatMaxId(before), until: now + SOCIAL_CHAT_FORGET_MS });
     socialState.chatMessages = ids ? before.filter(row => !gone.has(String(row.id))) : [];
     if (socialState.chatMessages.length === before.length || socialState.chatForgetQueued) return;
     socialState.chatForgetQueued = true;
@@ -1475,6 +1482,12 @@ function forgetSocialChatMessages(ids) {
         socialState.chatForgetQueued = false;
         if (socialState.chatInitialized && isSocialTabActive()) renderChatMessages(socialState.chatMessages, false);
     }, 0);
+}
+/** True for a row an admin deleted within SOCIAL_CHAT_FORGET_MS (one id, or every id up to a 전체 비우기). */
+function isForgottenSocialChat(row, now) {
+    let forgotten = socialState.chatForgotten;
+    if (!forgotten) return false;
+    return (now < forgotten.until && Number(row.id) <= forgotten.through) || (forgotten.ids.get(String(row.id)) || 0) > now;
 }
 const socialChatMaxId = rows => rows.reduce((max, row) => Math.max(max, Number(row.id) || 0), 0);
 async function refreshChatPanel(forceScroll) {
@@ -1485,7 +1498,7 @@ async function refreshChatPanel(forceScroll) {
         let fullSync = !socialState.chatInitialized || now - socialState.lastChatFullSyncAt >= SOCIAL_CHAT_FULL_SYNC_MS;
         let knownId = socialChatMaxId(socialState.chatMessages), wasReady = socialState.chatInitialized;
         socialState.lastChatPollAt = now;
-        let incoming = await loadChatMessages(fullSync ? null : knownId, now);
+        let incoming = (await loadChatMessages(fullSync ? null : knownId, now)).filter(row => !isForgottenSocialChat(row, now));
         noteLiveChatGap(incoming, fullSync, wasReady);
         socialState.chatMessages = fullSync ? incoming : mergeSocialChatMessages(socialState.chatMessages, incoming, now);
         socialState.chatInitialized = true;

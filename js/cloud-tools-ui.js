@@ -525,9 +525,10 @@ async function deleteChatMessage(button) {
     if (!confirmed) return;
     let id = Number(button.dataset.chatDelete), peek = button.closest('#chat-peek');   // 최근 채팅 목록 안의 단추였으면 다시 그린 뒤 그 목록을 되살린다
     try {
-        await cloudJsonRequest('/rest/v1/rpc/admin_delete_chat_message', { method: 'POST', body: { p_message_id: id } });
+        let result = await cloudJsonRequest('/rest/v1/rpc/admin_delete_chat_message', { method: 'POST', body: { p_message_id: id } });
+        let gone = result && result.deleted === false;   // 다른 운영자나 전체 비우기가 먼저 지운 줄
         forgetSocialChatMessages([id]);
-        showGameToast('채팅 줄을 지웠습니다.', 'success');
+        showGameToast(gone ? '이미 지워진 줄입니다.' : '채팅 줄을 지웠습니다.', gone ? 'warning' : 'success');
     } catch (error) {
         showGameToast(`줄을 지우지 못했습니다: ${error.message || error}`, 'danger');
     }
