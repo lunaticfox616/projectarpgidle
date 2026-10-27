@@ -59,8 +59,10 @@ const coreItems = (() => {
         return { equipped, owned };
     }
 
+    /** A value on the line's own step: whole numbers, or 0.1 steps for a decimals: 1 line (2026-10-27: no longer any value in between). */
     function rollValue(min, max, decimals, random) {
-        return decimals ? min + random() * (max - min) : min + Math.floor(random() * (max - min + 1));
+        const unit = decimals ? 10 ** -decimals : 1;
+        return Number((min + Math.floor(random() * (Math.round((max - min) / unit) + 1)) * unit).toFixed(decimals || 0));
     }
 
     /** 완전한 코어: a group with four lines or more, four distinct lines of it, each at its max. */

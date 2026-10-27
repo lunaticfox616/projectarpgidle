@@ -334,7 +334,7 @@ finally { r.Math.random=originalRandom; }
 assert.deepEqual(json('({main:compoundWeapon.stats[1].val,extra:compoundWeapon.stats[1].extraStats[0].val,kind:compoundWeapon.stats[1].echoKind})'),
     {main:9,extra:4.555,kind:'prefix'},'echo halves every part of a compound line without losing its affix kind');
 assert.deepEqual(json('({main:[compoundWeapon.stats[1].valMin,compoundWeapon.stats[1].valMax],extra:[compoundWeapon.stats[1].extraStats[0].valMin,compoundWeapon.stats[1].extraStats[0].valMax]})'),
-    {main:[8,9.5],extra:[4.255,4.85]},'echo halves primary and side-stat ranges with decimal precision');
+    {main:[8,9.5],extra:[4.5,5]},'echo halves primary and side-stat ranges with decimal precision');   // side stat 9 to 10: whole steps since 2026-10-27
 assert.equal(run('normalizeItem(JSON.parse(JSON.stringify(compoundWeapon))).stats[1].extraStats[0].val'),4.555,
     'save normalization preserves the echoed side stat');
 run(`game=mergeDefaults({});game.level=100;

@@ -1184,12 +1184,18 @@ function setupBattlefieldMovementInteraction() {
 function commandBattlefieldMove(canvas, event) {
     let point = getBattlefieldClientPoint(canvas, event.clientX, event.clientY);
     let npc = actTitleCard.npcAt(point);
-    if (npc && contentUnlockUi.openNpc(npc)) return;
+    if (npc && contentUnlockUi.openNpc(npc)) { faceBattlefieldPoint(point); return; }
     const door = stageDoorMarks.targetAt(point);
     if (door) { actExplorationUi.commandMove(door); return; }
     if (actExplorationUi.lockOnAt(point)) return;
     let cell = actExplorationView.cellAt(point);
     if (cell) actExplorationUi.commandMove(cell);
+}
+/** A press on an NPC turns the hero toward the pressed point (2026-10-27 사용자: npc 클릭 시 캐릭터 방향도 그쪽으로). The facing holds
+ * until the hero moves or strikes (js/canvas-battlefield.js). */
+function faceBattlefieldPoint(point) {
+    const hero = battleVisualState.playerPos;
+    if (hero && Math.abs(point.x - hero.x) > 4) battleVisualState.playerFacingDirection = point.x < hero.x ? 'west' : 'east';
 }
 
 let mobileNavigationKeyBound = false;
@@ -2371,12 +2377,18 @@ function switchItemSubtab(subtabId) {
     }
     game.itemSubtab = subtabId;
     if (subtabId === 'item-tab-equip' && window.equipmentTriage) window.equipmentTriage.onOpen();
+    showItemSubtabPanel(subtabId);
+    if (subtabId === 'item-tab-hall' && typeof loadPlayerExchange === 'function') loadPlayerExchange();
+    updateStaticUI();
+}
+
+/** The chosen item subtab's panel and button, and the docked window fitted to it before anything draws in it (js/ui-window-manager.js). */
+function showItemSubtabPanel(subtabId) {
     document.querySelectorAll('#tab-items .subtab-content').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('#tab-items .subtab-btn').forEach(el => el.classList.remove('active'));
     document.getElementById(subtabId).classList.add('active');
     document.getElementById('btn-' + subtabId).classList.add('active');
-    if (subtabId === 'item-tab-hall' && typeof loadPlayerExchange === 'function') loadPlayerExchange();
-    updateStaticUI();
+    if (typeof refitDockedWindows === 'function') refitDockedWindows();
 }
 
 function getDefaultSkillAutoRule() {
@@ -11966,13 +11978,13 @@ function updateCloudSaveUI() {
         linkGoogleBtn.disabled = !canSync || isGoogleLinked;
         linkGoogleBtn.innerHTML = isGoogleLinked
             ? '<span>Google 연동됨</span>'
-            : '<img src="assets/google_login.png" alt="Google 계정 연결">';
+            : '<img src="assets/ui/login-google-mark.png" alt="" width="20" height="20"><span>Google 계정 연결</span>';
     }
     if (linkKakaoBtn) {
         linkKakaoBtn.disabled = !canSync || isKakaoLinked;
         linkKakaoBtn.innerHTML = isKakaoLinked
             ? '<span>카카오 연동됨</span>'
-            : '<img src="assets/kakao_login.png" alt="카카오 계정 연결">';
+            : '<img src="assets/ui/login-kakao.png" alt="카카오 계정 연결" width="366" height="90">';
     }
     if (userEl) userEl.innerText = cloudState.user && cloudState.user.email ? cloudState.user.email : (cloudState.user && cloudState.user.id ? cloudState.user.id : (config.enabled ? '로그인 안 됨' : '설정 필요'));
     if (localEl) localEl.innerText = formatCloudTime(game && game.saveMeta ? game.saveMeta.lastModifiedAt : 0);

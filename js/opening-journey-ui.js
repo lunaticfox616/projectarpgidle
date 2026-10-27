@@ -17,8 +17,8 @@ const openingJourney = (() => {
     // card (by the lessons). The top-down field (a build without the stage art) keeps those two and has no lessons: after the intro
     // it plays as before, auto hunt and all.
     const REPLACED = Object.freeze(['story_prologue']), STAGE_REPLACED = Object.freeze(['story_act_1_start', 'tutorial_battle_basics']);
-    const TICK_MS = 150, LEAVE_MS = 900, REVEAL_MS = 1100, AUTO_HINT_MS = 45000;
-    let intro = null, rising = null, movedFrom = null, hintEl = null, autoHintUntil = 0, heldAuto = null;
+    const TICK_MS = 150, LEAVE_MS = 900, REVEAL_MS = 1100, AUTO_HINT_MS = 45000, CARD_GAP = 8;
+    let intro = null, rising = null, movedFrom = null, hintEl = null, hintTop = 0, hintBelow = false, wakeEl = null, autoHintUntil = 0, heldAuto = null;
 
     const seen = key => Array.isArray(game.seenTutorials) && game.seenTutorials.includes(key);
     const mark = key => { if (!seen(key)) game.seenTutorials.push(key); };
@@ -208,15 +208,21 @@ const openingJourney = (() => {
         attack: side => `${side ? `${SIDES[side]}으로 가서 하켄을 구하세요` : '하켄을 치는 괴물에게 다가가세요'}. 가까이 가면 자동으로 공격합니다`,
         go: side => `${SIDES[side] || '앞쪽'} 문으로 나아가세요`,
         pickup: () => '떨어진 룬을 누르거나 그 위로 걸어가 주우세요',
+        gem: () => '스킬룬 창에서 주운 룬을 장착하세요',
         auto: () => '오른쪽 위 자동 단추를 눌러 자동 사냥을 켜세요'
     };
+    /** The card stays through the story lines, the guide cards and the rune window (2026-10-27 사용자: 대사나 첫 스킬룬 장착 창이 떠도
+     * 계속 켜져 있게, 스킬룬 창보다는 밑에): it lives in the battlefield box, so windows over the battlefield cover it. */
     function hintFor(now) {
-        if (hintHidden()) return null;
+        if (intro) return null;
         const step = lesson();
         if (step === 'rise') return lying() ? 'rise' : null;
-        if (step && step !== 'gem') return storyTold() ? null : lessonHint(step);
+        if (step === 'gem') return gemInHand() ? 'gem' : lessonHint('attack');
+        if (step) return lessonHint(step);
         return autoHintDue(now) ? 'auto' : null;
     }
+    /** The gem step starts with the strike on Haken's monster: until the starter gem is picked up the fight goes on (rescue card). */
+    const gemInHand = () => !!game.starterGemTutorialPending || seen('tutorial_starter_gem_equip');
     /** Before Haken's room is reached the attack lesson names the door to take; inside it, while the monster is beyond a phone's few
      * cells of view, the side to walk to. */
     function lessonHint(step) {
@@ -228,29 +234,82 @@ const openingJourney = (() => {
         const enemy = game.enemies.find(row => row && row.rescue), dx = enemy ? enemy.gx - game.gridPlayer.gx : 0;
         return Math.abs(dx) > 3 ? (dx > 0 ? 'east' : 'west') : null;
     }
-    const hintHidden = () => !!intro || !!rising || tutorialOpen() || !!document.querySelector('dialog[open]');
+    // 배우기 카드(2026-10-27 사용자: 안내 방식과 창이 구리고 글이 흐릿하다, 새 콘텐츠 카드와 이어지게): 시작 안내 카드와 같은 틀과 머리말
+    // 색, 단계 점, 단계 이름, 할 일 한 줄(얼굴 그림은 빼기로 했다). 이름은 LESSON_TITLES, 순서는 LESSON_ORDER(문으로 가는 줄은 구하기 단계).
+    const LESSON_ORDER = Object.freeze(['rise', 'move', 'attack', 'pickup', 'gem', 'auto']);
+    const LESSON_TITLES = Object.freeze({ rise: '깨어나기', move: '움직이기', attack: '하켄 구하기', go: '하켄 구하기', pickup: '룬 줍기', gem: '룬 장착하기', auto: '자동 사냥' });
+    function lessonCardHtml(name, arg) {
+        const at = LESSON_ORDER.indexOf(name === 'go' ? 'attack' : name);
+        const dots = LESSON_ORDER.map((_, i) => `<i class="${i < at ? 'is-done' : i === at ? 'is-now' : ''}"></i>`).join('');
+        return `<div class="opening-lesson-head"><span class="opening-lesson-kicker">시작 안내 ${at + 1}/${LESSON_ORDER.length}</span><span class="opening-lesson-dots" aria-hidden="true">${dots}</span></div>`
+            + `<strong class="opening-lesson-title">${LESSON_TITLES[name]}</strong><p class="opening-lesson-text">${HINTS[name](arg)}</p>`;
+    }
     /** The auto button's line: for a while after the opening ends, until the auto hunt is switched on. */
     const autoHintDue = now => seen(KEY.done) && now < autoHintUntil && game.settings.autoMove === false;
-    /** A story line waits or shows on the stage: the lesson line steps aside for it. */
-    const storyTold = () => actTitleCard.greeting() || actTitleCard.speaking();
-    /** One line over the battlefield's top middle (over the names on the back row), placed on the canvas each tick (the battlefield moves with the layout). */
+    /** The card and the arrow live in the battlefield box and are placed in its own pixels each tick, from the canvas offsets: page
+     * pixels went off under the UI scale (the root zoom) and on other screen sizes (2026-10-27 사용자: 화면 크기에 따라 창과 화살표
+     * 자리를 맞추게). Whole pixels: a translate(-50%) put the pixel font on half pixels and blurred it. */
+    function fieldMark(el, className, attr) {
+        const wrap = document.getElementById('battlefield-wrap');
+        if (el && el.parentElement === wrap) return el;
+        if (!el) { el = document.createElement('div'); el.className = className; el.setAttribute(...attr); }
+        if (wrap) wrap.appendChild(el);
+        return el;
+    }
+    // 같은 값이면 쓰지 않는다: 이 확인은 150ms마다 돌고, 쓸 때마다 body의 :has() 규칙까지 다시 계산했다(2026-10-25 측정).
+    function place(el, left, top) {
+        const x = `${Math.round(left)}px`, y = `${Math.round(top)}px`;
+        if (el.style.left !== x) el.style.left = x;
+        if (el.style.top !== y) el.style.top = y;
+    }
+    /** The lesson card over the battlefield's top middle. */
     function showHint(step) {
-        if (!hintEl) {
-            hintEl = document.createElement('div');
-            hintEl.className = 'opening-hint';
-            hintEl.setAttribute('role', 'status');
-            document.body.appendChild(hintEl);
-        }
-        // 같은 값이면 쓰지 않는다: 이 확인은 150ms마다 돌고, 쓸 때마다 body의 :has() 규칙까지 다시 계산했다(2026-10-25 측정).
+        hintEl = fieldMark(hintEl, 'opening-lesson', ['role', 'status']);
         if (hintEl.hidden !== !step) hintEl.hidden = !step;
         document.getElementById('btn-act-exploration-auto')?.classList.toggle('is-opening-glow', step === 'auto');
-        if (!step) return;
-        const [name, arg] = step.split(':');
-        if (hintEl.dataset.step !== step) { hintEl.dataset.step = step; hintEl.innerHTML = HINTS[name](arg); }
-        const box = document.getElementById('battlefield-canvas').getBoundingClientRect();
-        const left = `${Math.round(box.left + box.width / 2)}px`;
-        if (hintEl.style.left !== left) hintEl.style.left = left;
-        hintEl.style.top = `${Math.round(box.top + box.height * 0.12)}px`;
+        const canvas = document.getElementById('battlefield-canvas');
+        showWakeMark(step === 'rise' && !rising, canvas);
+        if (!step || !canvas) return;
+        const fresh = hintEl.dataset.step !== step;
+        if (fresh) {
+            const [name, arg] = step.split(':');
+            hintEl.dataset.step = step;
+            hintEl.classList.remove('is-compact');
+            hintEl.innerHTML = lessonCardHtml(name, arg);
+        }
+        const top = cardTop(canvas, fresh);
+        place(hintEl, canvas.offsetLeft + (canvas.offsetWidth - hintEl.offsetWidth) / 2, canvas.offsetTop + top);
+    }
+    /** The card's top in canvas pixels: 6% down, raised while its bottom would reach the standing hero's head (a short battlefield such as
+     * 800×662 put it over the head), compact (is-compact) when even the top edge cannot clear it, and under the hero's feet when the
+     * compact card still cannot (a phone on its side). Within a step it moves only away from the hero, so walking the rows does not
+     * shake it. */
+    function cardTop(canvas, fresh) {
+        const room = headRoom();
+        if (!hintEl.classList.contains('is-compact') && room - hintEl.offsetHeight < CARD_GAP) hintEl.classList.add('is-compact');
+        const height = hintEl.offsetHeight, fits = room - height >= CARD_GAP;
+        hintBelow = fresh ? !fits : hintBelow || !fits;
+        const want = hintBelow ? Math.min(battleVisualState.playerPos.y + CARD_GAP * 2, canvas.offsetHeight - height - CARD_GAP)
+            : Math.max(CARD_GAP, Math.min(canvas.offsetHeight * 0.06, room - height));
+        hintTop = fresh ? want : (hintBelow ? Math.max : Math.min)(hintTop, want);
+        return hintTop;
+    }
+    /** Canvas pixels above the standing hero's head the card may reach (js/canvas-stage-actors.js headY; Infinity before it is drawn). */
+    function headRoom() {
+        const hero = battleVisualState.playerPos, head = hero ? getHeroHeadY(battleVisualState.visualNow) : null;
+        return head === null ? Infinity : head - CARD_GAP * 2;
+    }
+    /** A bobbing arrow just over the lying hero while the rise lesson waits for a press (canvas pixels are the box's pixels). The body
+     * lies about a quarter of the standing height (feet to head, js/canvas-stage-actors.js headY) above the feet: the stage scale changes
+     * with the screen size, so a fixed offset floated off the body or sank into it. */
+    function showWakeMark(show, canvas) {
+        const hero = show && canvas && battleVisualState.playerPos;
+        if (!wakeEl && !hero) return;
+        wakeEl = fieldMark(wakeEl, 'opening-wake-mark', ['aria-hidden', 'true']);
+        if (wakeEl.hidden !== !hero) wakeEl.hidden = !hero;
+        if (!hero) return;
+        const head = getHeroHeadY(battleVisualState.visualNow), stand = head === null ? 160 : hero.y - head;
+        place(wakeEl, canvas.offsetLeft + hero.x, canvas.offsetTop + hero.y - stand / 4);
     }
 
     const ticking = () => typeof game === 'object' && !!game && Array.isArray(game.seenTutorials) && !game.isBackgroundCalculation;

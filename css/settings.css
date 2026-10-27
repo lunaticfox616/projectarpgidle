@@ -166,7 +166,6 @@
 .cloud-meta dd { margin: 0; color: var(--color-text); font-size: 12px; overflow-wrap: anywhere; }
 .cloud-link { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 0 6px; }
 .cloud-link > span { margin-right: auto; color: #eee4cf; font-size: 14px; }
-#tab-settings .cloud-link .social-login-image-btn img { height: 36px; border-radius: 6px; }
 .cloud-panel > .cfg-disclosure { margin-top: 6px; border-top: 1px solid rgba(255, 255, 255, .06); }
 .cloud-panel:has(#ui-cloud-status-pill:not(.online, .syncing)) :is(#btn-cloud-logout, #btn-cloud-pull, #btn-cloud-delete, .cloud-link) { display: none; }
 /* 계정 삭제: 보통 동작과 떨어진 오른쪽 자리. 글자색은 아래 overrides 층에 있다. */
@@ -213,4 +212,15 @@
   /* 계정 삭제 단추의 붉은 글자(초기화 판 제목과 같은 색). 클라우드 패널 단추의 글자색을 ui-reliquary-shell.css가 이 층에서 정하므로
      features 층에 두면 밀린다(2026-10-27). */
   #tab-settings .cloud-actions > #btn-cloud-delete { color: #e09a88; }
+  /* 계정 연결 단추: 시작 화면과 같은 공식 로고(큰 원본을 줄여 그린다). 도트 그림 확대 규칙이 닿으면 로고 가장자리가 계단처럼 깨져
+     부드럽게 그린다(2026-10-27 사용자: "구글 이미지랑 카카오 이미지가 깨져보이는데"). 연동된 뒤에는 글자 한 줄만 남는다. */
+  #tab-settings .cloud-link .social-login-image-btn { display: inline-flex; align-items: center; justify-content: center; height: 36px;
+    box-sizing: border-box; line-height: 20px; overflow: hidden; }
+  #tab-settings .cloud-link .social-login-image-btn img { image-rendering: auto; border-radius: 0; max-width: none; }
+  #tab-settings #btn-cloud-link-google { gap: 8px; padding: 0 12px; border: 1px solid #747775; border-radius: 4px; background: #fff;
+    color: #1f1f1f; font: 500 13px/20px 'Google Sans', sans-serif; }
+  #tab-settings #btn-cloud-link-google img { width: 18px; height: 18px; }
+  #tab-settings #btn-cloud-link-kakao { padding: 0; border: 0; border-radius: 6px; background: #fee500; color: #191919; font-size: 13px; }
+  #tab-settings #btn-cloud-link-kakao img { width: auto; height: 36px; }
+  #tab-settings #btn-cloud-link-kakao > span { padding: 0 12px; }
 }

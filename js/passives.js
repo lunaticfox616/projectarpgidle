@@ -8737,7 +8737,23 @@ function getListedAffixTierRange(mod, tier) {
     if (!Number.isFinite(min)) min = Number(mod.base) || 0;
     if (!Number.isFinite(max)) max = min;
     [min, max] = [Math.min(min, max), Math.max(min, max)];
-    return { min, max, step: mod.valueStep || (Number.isInteger(min) && Number.isInteger(max) ? 1 : 0.01), tier: effectiveTier };
+    const step = mod.valueStep >= 1 ? mod.valueStep : getAffixRollStep(mod.statId || mod.id, [min, max]);
+    [min, max] = snapAffixRange(min, max, step);
+    return { min, max, step, tier: effectiveTier };
+}
+
+/** The step a listed option range rolls on (2026-10-27 사용자: 회피 같은 옵션은 정수로만, 저항 관통, 흡혈 캡, 공격 속도 같은 강한 옵션은
+ * 소수 한 자리까지, "애초에 그 단위로만"): whole numbers for a WHOLE_ROLL_STAT_IDS stat or ranges of whole numbers, else 0.1. */
+function getAffixRollStep(statId, values) {
+    return WHOLE_ROLL_STAT_IDS.includes(statId) || values.every(Number.isInteger) ? 1 : 0.1;
+}
+
+/** [min, max] with each end on the nearest step (8.51 to 9.7 rolls 9 to 10 on whole steps): a narrow tier keeps some spread,
+ * where cutting inward left one value per tier. */
+function snapAffixRange(min, max, step) {
+    const onStep = value => Number((Math.round(value / step + 1e-9) * step).toFixed(1));
+    const low = onStep(min);
+    return [low, Math.max(low, onStep(max))];
 }
 
 /** One roll inside a base/step range from getAffixTierRange (0.1 or whole-number steps). */
@@ -8762,7 +8778,11 @@ function rerollStoredAffixValue(stat) {
     if (!Number.isFinite(min) || !Number.isFinite(max)) return;
     if (max < min) { let tmp = min; min = max; max = tmp; }
     if (stat.valueStep) {
-        stat.val = Number((min + Math.floor(Math.random() * (Math.round((max - min) / stat.valueStep) + 1)) * stat.valueStep).toFixed(2));
+        // A line rolled before 2026-10-27 may carry 0.01 steps: it rerolls on the option's own step, inside its old range.
+        const step = stat.valueStep >= 1 ? stat.valueStep : getAffixRollStep(stat.id, [min, max]);
+        [min, max] = snapAffixRange(min, max, step);
+        Object.assign(stat, { valMin: min, valMax: max, valueStep: step });
+        stat.val = Number((min + Math.floor(Math.random() * (Math.round((max - min) / step) + 1)) * step).toFixed(2));
         return;
     }
     if (isTenthStat(stat.id)) {
@@ -9018,7 +9038,7 @@ function getDefenseTypeForAffixStat(statId) {
 function scaleDefenseCompoundStat(source, statId) {
     const scaledRanges = source.tierValues?.map(range => (Array.isArray(range) ? range : [range, range])
         .map(value => Number((value * DUAL_DEFENSE_AFFIX_RATIO).toFixed(2))));
-    const valueStep = scaledRanges?.flat().every(Number.isInteger) ? 1 : 0.01;
+    const valueStep = getAffixRollStep(statId, scaledRanges ? scaledRanges.flat() : []);
     return {
         statId: statId,
         statName: getStatName(statId),

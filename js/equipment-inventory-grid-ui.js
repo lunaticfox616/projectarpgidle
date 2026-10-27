@@ -229,15 +229,34 @@
         }
         renderTemporaryStorage();
         if (!root) return page;
-        writeHtmlIfChanged(root, Array.from({ length: layout.pageCount }, (_, index) => {
-            let matchCount = search.counts[index];
-            let searchClass = search.active ? (matchCount > 0 ? ' search-match' : ' search-miss') : '';
-            let searchText = search.active ? `, ${found} ${matchCount}개` : '';
-            let badge = matchCount > 0 ? `<small>${matchCount}</small>` : '';
-            return `<button type="button" class="${index === page ? 'active' : ''}${searchClass}" onclick="equipmentInventoryInteraction.setPage(${index})" aria-pressed="${index === page ? 'true' : 'false'}" aria-label="${index + 1}페이지${searchText}" title="${index + 1}페이지${searchText}"><span>${index + 1}</span>${badge}</button>`;
-        }).join(''));
+        let used = getPageCellsUsed(layout), cells = layout.columns * layout.rowsPerPage;
+        writeHtmlIfChanged(root, Array.from({ length: layout.pageCount }, (_, index) =>
+            pageButtonHtml(index, index === page, search, found, { used: used[index], cells })).join(''));
         keepPageInView(root, page);
         return page;
+    }
+
+    /** The cells each page's items cover (2026-10-27 사용자: 쪽 단추가 차오르게 해 눌러 보지 않고도 얼마나 찼는지 알게). */
+    function getPageCellsUsed(layout) {
+        let used = Array(layout.pageCount).fill(0);
+        layout.entries.forEach(entry => {
+            let index = Math.floor(entry.row / layout.rowsPerPage);
+            if (index < used.length) used[index] += entry.columns * entry.rows;
+        });
+        return used;
+    }
+
+    /** One page button: its number, the search count, and a fill that rises with the cells in use (orange from 75%, red when full).
+     * fill: { used, cells } of that page. */
+    function pageButtonHtml(index, active, search, found, { used, cells }) {
+        let matchCount = search.counts[index];
+        let searchClass = search.active ? (matchCount > 0 ? ' search-match' : ' search-miss') : '';
+        let searchText = search.active ? `, ${found} ${matchCount}개` : '';
+        let badge = matchCount > 0 ? `<small>${matchCount}</small>` : '';
+        let share = Math.min(1, used / cells), fillClass = share >= 1 ? ' is-full' : share >= 0.75 ? ' is-high' : '';
+        let text = `${index + 1}페이지, ${used}/${cells}칸${searchText}`;
+        return `<button type="button" class="${active ? 'active' : ''}${searchClass}${fillClass}" onclick="equipmentInventoryInteraction.setPage(${index})" aria-pressed="${active ? 'true' : 'false'}" aria-label="${text}" title="${text}">`
+            + `<i class="page-fill" style="height:${Math.round(share * 100)}%" aria-hidden="true"></i><span>${index + 1}</span>${badge}</button>`;
     }
 
     // 휴대폰에서는 쪽 단추가 옆으로 미는 한 줄이다(css/equipment-inventory-grid.css): 쪽이 바뀌면 그 단추를 가운데로 옮기고,

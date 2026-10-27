@@ -108,6 +108,23 @@
     line-height: 1;
 }
 
+/* 쪽이 찬 만큼 아래에서 차오르는 칸(js/equipment-inventory-grid-ui.js pageButtonHtml, 2026-10-27 사용자: 눌러 보지 않고도 얼마나 찼는지).
+   75%부터 주황, 가득 차면 빨강. 번호와 검색 개수는 그 위에 그린다. */
+.equipment-inventory-pages button { overflow: hidden; }
+.equipment-inventory-pages button .page-fill {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    background: linear-gradient(180deg, rgba(214, 176, 96, .5), rgba(150, 112, 46, .38));
+    box-shadow: inset 0 1px rgba(255, 228, 160, .55);
+    pointer-events: none;
+}
+.equipment-inventory-pages button.is-high .page-fill { background: linear-gradient(180deg, rgba(236, 140, 60, .58), rgba(170, 88, 30, .42)); }
+.equipment-inventory-pages button.is-full .page-fill { background: linear-gradient(180deg, rgba(226, 70, 60, .62), rgba(150, 34, 30, .46)); box-shadow: inset 0 1px rgba(255, 170, 150, .6); }
+.equipment-inventory-pages button > span,
+.equipment-inventory-pages button > small { z-index: 1; }
+.equipment-inventory-pages button > span { position: relative; text-shadow: 0 1px 0 #000, 0 0 3px #000; }
 .equipment-inventory-pages button.search-match { border-color: rgba(117, 213, 161, .8); color: #d9ffe9; }
 .equipment-inventory-pages button.search-miss { opacity: .48; }
 

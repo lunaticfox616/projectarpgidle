@@ -187,11 +187,16 @@
             if (dockFitFrame) return;
             dockFitFrame = requestAnimationFrame(() => {
                 dockFitFrame = 0;
-                Object.keys(WINDOW_DEFS).forEach(id => { if (getWindowState(id).dockActive) applyWindowState(id); });
-                syncWorkspacePresentation();
+                refitDockedWindows();
             });
         });
         dockFitWatch.observe(fit);
+    }
+    /** Fits every docked window to what it shows now. A subtab switch calls it at once: left to the watcher, the new subtab drew once
+     * at the old width and its cards lined up again a frame later (2026-10-27 사용자: 장비 전당을 열 때 카드가 순간 재정렬). */
+    function refitDockedWindows() {
+        Object.keys(WINDOW_DEFS).forEach(id => { if (getWindowState(id).dockActive) applyWindowState(id); });
+        syncWorkspacePresentation();
     }
 
     function getDockRect(tabId) {
@@ -1081,9 +1086,18 @@
         setGoalDrawerText('ui-goal-handle-title', '목표');
         setGoalDrawerBar('ui-goal-handle-bar', 'ui-goal-handle-fill', pct);
         let drawer = document.getElementById('ui-goal-drawer');
-        if (drawer) drawer.classList.toggle('ui-goal-mandatory', !!goal.mandatory);
+        if (drawer) {
+            drawer.classList.toggle('ui-goal-mandatory', !!goal.mandatory);
+            drawer.style.setProperty('--goal-tone', goalTone(goal));
+        }
         syncGoalAccessButtons(goal);
     }
+
+    // 목표 판의 빛깔(2026-10-27 사용자: "목표 탭 눌러서 나오는 카드에 색감좀넣어"): 머리 꼬리표(categoryLabel)마다 하나, 반드시 고를 목표는
+    // 주황, 그 밖은 금색. 판 바탕, 위 띠, 꼬리표, 제목, 진행 막대, 이동 단추가 이 빛깔을 쓴다(css/themes/pixel.css).
+    const GOAL_TONES = Object.freeze({ '필수 선택': '#f0a04a', '첫 빌드 선택': '#f0a04a', '재도전 준비': '#e8c15a', '보상': '#8fd17a', '스토리': '#d6a8ff',
+        '루프': '#b7a3e0', '루프 조건': '#b7a3e0', '다음 주요 해금': '#7fd1c4', '기록 갱신': '#7fb6ef', '새 기록': '#7fb6ef', '엔드게임': '#ff8a5c', '우주계': '#8fb8ff' });
+    const goalTone = goal => GOAL_TONES[stripDecorativeEmoji(goal.categoryLabel || '')] || (goal.mandatory ? '#f0a04a' : '#d9b066');
 
     /**
      * 목표 안내 서랍의 단일 진입점. 목표 선정 로직(후속 PR)이 결과를 전달하는 마운트 지점이다.
@@ -1369,5 +1383,5 @@
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initWindowManager);
     else initWindowManager();
 
-    safeExposeGlobals({ toggleWindowFromHotkey, openWindow, closeWindow, closeAllWindows, minimizeWindow, toggleMaximizeWindow, resetWindowLayout, openCommunityDock, closeCommunityDock, toggleGoalDrawer, presentGoalDrawer, openGoalNoticeTarget, syncDesktopRailGroups, syncWorkspacePresentation });
+    safeExposeGlobals({ toggleWindowFromHotkey, openWindow, closeWindow, closeAllWindows, minimizeWindow, toggleMaximizeWindow, resetWindowLayout, openCommunityDock, closeCommunityDock, toggleGoalDrawer, presentGoalDrawer, openGoalNoticeTarget, syncDesktopRailGroups, syncWorkspacePresentation, refitDockedWindows });
 }());

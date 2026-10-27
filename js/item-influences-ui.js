@@ -10,11 +10,12 @@ const itemInfluencesUi = (() => {
     const replacedLine = (key, text, replaced) => `<span class="infl-replaced is-${key}" style="--infl:${meta(key).tone}">${chip(key, text)}${
         replaced ? `기존 ${escapeHTML(replaced.statName || getStatName(replaced.id))}` : ''}</span>`;
 
-    /** Classes for an item's frame: has-influence, and has-influence-2 when two colours share it. '' for an ordinary item. */
+    /** Classes for an item's frame: has-influence, and has-influence-2 when two colours share it; is-corrupted for a corrupted item
+     * (a red frame, css/item-influences.css). '' for an ordinary item. */
     function influenceClasses(item) {
-        const keys = itemInfluences.influenceKeys(item);
-        if (!keys.length) return '';
-        return ` has-influence${keys.length > 1 ? ' has-influence-2' : ''} ${keys.map(key => `infl-${key}`).join(' ')}`;
+        const keys = itemInfluences.influenceKeys(item), corrupted = item && item.corrupted ? ' is-corrupted' : '';
+        if (!keys.length) return corrupted;
+        return ` has-influence${keys.length > 1 ? ' has-influence-2' : ''} ${keys.map(key => `infl-${key}`).join(' ')}${corrupted}`;
     }
     /** The frame colours as custom properties: the left half and the right half (the same colour for one influence). */
     function influenceStyle(item) {

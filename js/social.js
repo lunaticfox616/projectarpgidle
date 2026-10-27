@@ -1319,14 +1319,15 @@ function insertChatItemLabel(inputEl, label) {
     inputEl.focus();
     inputEl.setSelectionRange(caret, caret);
 }
+/** Puts one item card in the message being written; false when the message already holds the most it can. */
 function attachChatSnapshot(snap) {
-    if (socialState.pendingChatItems.length >= SOCIAL_MAX_ITEMS_PER_MSG) { showGameToast(`메시지당 최대 ${SOCIAL_MAX_ITEMS_PER_MSG}개의 아이템만 첨부할 수 있습니다.`, 'warning'); return; }
+    if (socialState.pendingChatItems.length >= SOCIAL_MAX_ITEMS_PER_MSG) { showGameToast(`메시지당 최대 ${SOCIAL_MAX_ITEMS_PER_MSG}개의 아이템만 첨부할 수 있습니다.`, 'warning'); return false; }
     socialState.pendingChatItems.push(snap);
     let inputEl = document.getElementById('social-chat-input');
     if (inputEl) insertChatItemLabel(inputEl, chatItemLabel(snap));
     renderPendingChatItems();
     updateChatCounter();
-    closeItemPicker();
+    return true;
 }
 function attachChatItem(source, idx) {
     let snap = getChatAttachSnapshot(source, idx);
@@ -1365,52 +1366,6 @@ function updateChatCounter() {
     counterEl.textContent = `${len}/${SOCIAL_MSG_MAX}`;
     counterEl.style.color = len > SOCIAL_MSG_MAX ? '#e88' : 'var(--copy-muted)';
 }
-function getChatItemPickerGroups() {
-    let state = typeof game !== 'undefined' && game ? game : {};
-    let entries = (source, rows, label) => (rows || []).map((item, index) => item ? { source, key: index, label: label(item, index) } : null).filter(Boolean);
-    let equipment = Object.keys(state.equipment || {}).filter(slot => state.equipment[slot] && !bagItems.isSpecial(state.equipment[slot]))
-        .map(slot => ({ source: 'equip', key: slot, label: `[${weaponCategorySlotLabel(null, slot)}]` }));
-    let jewels = entries('jewel', bagItems.jewels(state), () => '[가방]');
-    let gear = entries('inv', (state.inventory || []).slice(0, 300), item => `[${weaponCategorySlotLabel(item, item.slot || '장비')}]`).filter(entry => !bagItems.isSpecial(state.inventory[entry.key]));
-    let stump = state.stumpBox || { items: [], board: [] };
-    let talismanEntries = stump.items.filter(item => item.family === 'talisman')
-        .map(item => ({ source: 'talisman', key: item.id, label: stump.board.includes(item.id) ? '[판]' : '[보관]' }));
-    return [
-        { title: '장착 장비', entries: equipment },
-        { title: '장비 인벤토리', entries: gear },
-        { title: '주얼', entries: jewels.slice(0, 300) },
-        { title: '부적', entries: talismanEntries.slice(0, 300) }
-    ];
-}
-function renderChatItemPickerGroup(group) {
-    let cards = group.entries.map(entry => {
-        let snap = getChatAttachSnapshot(entry.source, entry.key);
-        if (!snap) return '';
-        let tipKey = `${entry.source}:${entry.key}`;
-        let color = socialRarityColor(snap.rarity);
-        let keyArg = socialEscape(JSON.stringify(entry.key));
-        socialState.pickTips[tipKey] = renderProfileItemCard(snap);
-        return `<div class="social-pick-item" style="border-color:${color};" onclick="attachChatItem('${entry.source}',${keyArg})" onmouseenter="showSocialTip(event,'pick','${socialEscape(tipKey)}')" onmousemove="moveSocialTip(event)" onmouseleave="hideSocialTip()"><span style="color:${color};">${socialEscape(entry.label)} ${socialEscape(snap.name)}</span></div>`;
-    }).join('') || `<div class="social-profile-empty">보유 아이템 없음</div>`;
-    return `<h4 class="social-pick-sub">${socialEscape(group.title)}</h4><div class="social-pick-grid">${cards}</div>`;
-}
-function openItemPicker() {
-    if (!socialCloudReady()) { showGameToast('먼저 클라우드 로그인이 필요합니다.', 'warning'); return; }
-    let modal = document.getElementById('social-item-picker-modal');
-    if (!modal) {
-        modal = document.createElement('div');
-        modal.id = 'social-item-picker-modal';
-        modal.className = 'social-modal-overlay';
-        modal.onclick = function (e) { if (e.target === modal) closeItemPicker(); };
-        document.body.appendChild(modal);
-    }
-    socialState.pickTips = {};
-    let groups = getChatItemPickerGroups().map(renderChatItemPickerGroup).join('');
-    modal.innerHTML = `<div class="social-modal-box"><button class="social-modal-close" onclick="closeItemPicker()" aria-label="닫기">✕</button>
-        <div class="social-modal-content"><h3 style="color:var(--copy-bright);margin-top:0;">첨부할 아이템 선택 (최대 ${SOCIAL_MAX_ITEMS_PER_MSG}개), 마우스를 올리면 옵션 표시</h3>${groups}</div></div>`;
-    modal.style.display = 'flex';
-}
-function closeItemPicker() { hideSocialTip(); let m = document.getElementById('social-item-picker-modal'); if (m) m.style.display = 'none'; }
 
 function renderChatBody(m) {
     let body = String(m.body || '');
@@ -2493,10 +2448,6 @@ function injectSocialStyles() {
     .social-item-stat{color:var(--copy-bright);font-size:12px;line-height:1.4;}
     .social-item-stat.base{color:#f1c40f;}
     .social-roll{color:var(--copy-muted);font-size:12px;}
-    .social-pick-sub{color:var(--copy-bright);margin:14px 0 6px;font-size:12px;}
-    .social-pick-grid{display:flex;flex-direction:column;gap:6px;max-height:calc(30vh / var(--scale-display-factor, 1));overflow-y:auto;}
-    .social-pick-item{background:#0f1a28;border:1px solid;border-left-width:3px;border-radius:7px;padding:7px 10px;cursor:pointer;font-size:12px;}
-    .social-pick-item:hover{background:#16243a;}
     .social-tooltip{position:fixed;z-index:10001;max-width:320px;pointer-events:none;display:none;filter:drop-shadow(0 6px 18px rgba(0,0,0,0.6));}
     .social-tooltip .social-item-card{background:#0c1421;border-width:1px;border-left-width:3px;}
     }`;
@@ -2516,7 +2467,7 @@ if (typeof safeExposeGlobals === 'function') {
         socialState, getMyNickname, promptAndSetNickname, uploadPlayerProfile, syncPlayerProfileQuiet, syncPlayerProfile,
         sendChatMessage, onSocialChatKeydown, refreshChatPanel, startChatPolling, stopChatPolling, syncSocialChatPolling,
         openPlayerProfile, openMyProfilePreview, closePlayerProfile, renderSocialTab, socialLoggedInUserId, restoreNicknameFromServer,
-        attachChatItem, removePendingChatItem, openItemPicker, closeItemPicker, openTipModal, updateChatCounter,
+        attachChatItem, removePendingChatItem, attachChatSnapshot, openTipModal, updateChatCounter,
         showSocialTip, moveSocialTip, hideSocialTip, switchProfileTab, sendPresenceHeartbeat, refreshOnlineUsers,
         checkSocialChatNotification, syncSocialChatNotificationSetting, syncSocialBackgroundTasks, toggleProfileBlock, unblockUser
     });

@@ -52,10 +52,45 @@
   .opening-intro .opening-intro-next { animation:none; }
 }
 
-.opening-hint { position:fixed; z-index:990; max-width:min(560px, calc(100vw - 32px)); padding:9px 18px; transform:translate(-50%, -50%); border:1px solid rgba(215,179,111,.45); border-radius:3px; background:rgba(8,9,12,.84); box-shadow:0 6px 24px rgba(0,0,0,.5); color:#efe3c8; font-size:14px; line-height:1.5; text-align:center; word-break:keep-all; pointer-events:none; animation:opening-hint-in .5s ease; }
-.opening-hint[hidden] { display:none; }
-.opening-hint kbd { display:inline-block; min-width:1.7em; margin:0 2px; padding:0 5px; border:1px solid rgba(215,179,111,.6); border-bottom-width:2px; border-radius:3px; background:#17140f; color:var(--color-accent-gold); font:inherit; font-size:12px; line-height:1.5; }
-@keyframes opening-hint-in { from { opacity:0; } }
+/* 배우기 카드(js/opening-journey-ui.js lessonCardHtml): 시작 안내 카드(css/ui-game-overhaul.css, 이끼색 머리말과 위 띠)와 같은 도트 틀.
+   "시작 안내 n/6"과 단계 점, 큰 단계 이름, 할 일 한 줄. 전장 상자(#battlefield-wrap) 안에 있어 전장 위의 창이 덮는다(스킬룬 창보다
+   밑). 자리는 스크립트가 상자의 정수 화소로 놓는다(translate(-50%)와 14px 글은 도트 글꼴이 번졌다: 이름은 갈무리11 굵게 24px, 할 일은
+   갈무리14 15px, css/themes/pixel.css). 전장 그림과 떨어진 룬 위, 목표 단추(45) 밑. */
+.opening-lesson { --lesson-kind:#9cc98a; position:absolute; z-index:20; box-sizing:border-box; width:max-content; min-width:300px; max-width:min(540px, calc(100% - 16px));
+  padding:10px 18px; border:var(--px-window-edge, 2px) solid transparent; border-image:var(--px-window-frame, none); background:var(--px-wood, #15110c), var(--px-stone, #0b0a08);
+  background-clip:padding-box; box-shadow:6px 6px 0 rgba(0,0,0,.5); color:#efe3c8; text-align:left; word-break:keep-all; pointer-events:none; animation:opening-lesson-in .32s steps(4, jump-end); }
+.opening-lesson::after { content:''; position:absolute; top:0; right:16px; left:16px; height:2px; background:var(--lesson-kind); opacity:.8; pointer-events:none; }
+.opening-lesson[hidden] { display:none; }
+.opening-lesson-head { display:flex; align-items:center; gap:10px; }
+.opening-lesson-kicker { color:var(--lesson-kind); font-size:12px; font-weight:700; line-height:16px; }
+.opening-lesson-dots { display:flex; gap:4px; }
+.opening-lesson-dots i { width:6px; height:6px; background:#3a3428; box-shadow:1px 1px 0 #000; }
+.opening-lesson-dots i.is-done { background:color-mix(in srgb, var(--lesson-kind) 70%, #000); }
+.opening-lesson-dots i.is-now { background:#f0d080; }
+.opening-lesson-title { display:block; margin:2px 0 0; color:#f0d9a0; font-size:24px; font-weight:700; line-height:30px; text-shadow:2px 2px 0 #000; }
+.opening-lesson-text { margin:2px 0 0; color:#efe3c8; }
+.opening-lesson kbd { display:inline-block; min-width:20px; margin:0 2px; padding:0 4px; box-sizing:border-box; border:1px solid color-mix(in srgb, var(--lesson-kind) 70%, #000); border-bottom-width:3px;
+  background:#17140f; color:#f0d080; font:inherit; font-size:12px; line-height:18px; text-align:center; vertical-align:1px; }
+@keyframes opening-lesson-in { from { opacity:0; transform:translateY(-8px); } }
+/* 낮은 전장(800×662 같은): 주인공 머리 위 자리가 모자라면 틀을 휴대폰 두께로 줄이고 이름을 머리말 줄에 올린다(js cardTop,
+   그래도 모자라면 발 밑으로). */
+.opening-lesson.is-compact { display:grid; grid-template-columns:auto auto; justify-content:start; align-items:center; column-gap:10px; padding:6px 12px; border-width:8px; border-image-width:13px; }
+.opening-lesson.is-compact .opening-lesson-title { grid-row:1; grid-column:1; margin:0; font-size:12px; line-height:16px; }
+.opening-lesson.is-compact .opening-lesson-head { grid-row:1; grid-column:2; }
+.opening-lesson.is-compact .opening-lesson-text { grid-column:1 / -1; }
+
+/* 쓰러진 주인공의 머리 위에서 누를 곳을 가리키는 화살표(showWakeMark): 깨어나기 단계에서만, 카드와 같은 전장 상자 안. */
+.opening-wake-mark { position:absolute; z-index:19; width:0; height:0; pointer-events:none; }
+.opening-wake-mark[hidden] { display:none; }
+.opening-wake-mark::before { content:''; position:absolute; top:-22px; left:-10px; width:20px; height:14px; background:#f0d080; clip-path:polygon(0 0, 100% 0, 50% 100%);
+  filter:drop-shadow(2px 2px 0 #000); animation:opening-wake-bob .9s steps(2, jump-none) infinite; }
+@keyframes opening-wake-bob { 50% { transform:translateY(-6px); } }
+@media (prefers-reduced-motion: reduce) { .opening-lesson, .opening-wake-mark::before { animation:none; } }
+/* 휴대폰: 카드는 좁게, 이름은 갈무리11 12px. */
+@media (max-width: 700px) {
+  .opening-lesson { min-width:0; padding:8px 12px; }
+  .opening-lesson-title { font-size:12px; line-height:16px; }
+}
 
 #btn-act-exploration-auto.is-locked { opacity:.55; cursor:not-allowed; }
 #btn-act-exploration-auto.is-locked::before { background:#3a3428; }
