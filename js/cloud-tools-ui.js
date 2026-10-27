@@ -8,6 +8,18 @@ function cloudToolsNumber(value) {
     return Math.floor(Number(value) || 0).toLocaleString('ko-KR');
 }
 
+/** 운영 창과 문의 창의 단추들: data-* 이름 → 처리 함수. 단추 하나에 이 이름은 하나만 붙인다(값은 보통 대상 id). */
+const CLOUD_TOOLS_ACTIONS = [
+    ['cheatHold', setCheatHold], ['cheatClear', clearCheatFlags], ['chatMute', setChatMute], ['chatDelete', deleteChatMessage],
+    ['termAdd', button => setBannedTerm(button, false)], ['termRemove', button => setBannedTerm(button, true)],
+    ['muteNick', setChatMuteByNickname], ['chatPeek', peekPlayerChat],
+    ['feedbackSend', submitPlayerFeedback], ['feedbackFilter', setAdminFeedbackFilter], ['feedbackStatus', setFeedbackStatus], ['feedbackReply', replyFeedback],
+    ['playerSearch', searchPlayers], ['playerDetail', openPlayerDetail], ['playerSave', downloadPlayerSave]
+];
+/** 보류와 금지, 기록 지우기는 플레이어 표와 자세히 보기에도 보이는 상태라, 끝난 뒤 그 둘을 다시 그린다(refreshPlayerViews). */
+const PLAYER_STATE_ACTIONS = new Set(['cheatHold', 'cheatClear', 'chatMute', 'muteNick']);
+const CLOUD_TOOLS_ACTION_SELECTOR = CLOUD_TOOLS_ACTIONS.map(([key]) => `[data-${key.replace(/[A-Z]/g, letter => '-' + letter.toLowerCase())}]`).join(', ');
+
 function ensureCloudToolsDialog() {
     let dialog = document.getElementById('cloud-tools-dialog');
     if (dialog) return dialog;
@@ -16,16 +28,16 @@ function ensureCloudToolsDialog() {
     dialog.className = 'cloud-tools-dialog';
     dialog.innerHTML = `<div class="cloud-tools-head"><strong id="cloud-tools-title"></strong><button type="button" onclick="closeCloudToolsDialog()" aria-label="닫기">✕</button></div><div id="cloud-tools-body" class="cloud-tools-body"></div>`;
     dialog.addEventListener('click', event => {
-        let button = event.target.closest('[data-cheat-hold], [data-cheat-clear], [data-chat-mute], [data-chat-delete], [data-term-add], [data-term-remove], [data-mute-nick], [data-chat-peek]');
+        let button = event.target.closest(CLOUD_TOOLS_ACTION_SELECTOR);
         if (!button) return;
-        if (button.dataset.cheatHold) setCheatHold(button);
-        else if (button.dataset.cheatClear) clearCheatFlags(button);
-        else if (button.dataset.chatMute) setChatMute(button);
-        else if (button.dataset.chatDelete) deleteChatMessage(button);
-        else if (button.dataset.termAdd) setBannedTerm(button, false);
-        else if (button.dataset.termRemove) setBannedTerm(button, true);
-        else if (button.dataset.muteNick) setChatMuteByNickname(button);
-        else if (button.dataset.chatPeek) peekPlayerChat(button);
+        let action = CLOUD_TOOLS_ACTIONS.find(([key]) => button.dataset[key] !== undefined);
+        if (!action) return;
+        Promise.resolve(action[1](button))
+            .then(() => (PLAYER_STATE_ACTIONS.has(action[0]) ? refreshPlayerViews() : null))
+            .catch(error => console.warn('cloud tools action failed:', error));
+    });
+    dialog.addEventListener('keydown', event => {
+        if (event.key === 'Enter' && !event.isComposing && event.target && event.target.id === 'player-query') searchPlayers();
     });
     document.body.appendChild(dialog);
     return dialog;
@@ -324,15 +336,17 @@ async function clearCheatFlags(button) {
     await loadCheatWatch();
 }
 
+/** 금지 풀기(금지 중일 때), 1일, 7일 금지 단추(setChatMute). 신고 표, 금지 표, 플레이어 자세히 보기가 같이 쓴다. */
+function renderMuteButtons(userId, nickname, muted) {
+    let id = cloudToolsEscape(userId), name = cloudToolsEscape(nickname || '');
+    return (muted ? `<button type="button" data-chat-mute="${id}" data-chat-minutes="0" data-chat-name="${name}">금지 풀기</button>` : '')
+        + `<button type="button" data-chat-mute="${id}" data-chat-minutes="1440" data-chat-name="${name}">1일 금지</button>`
+        + `<button type="button" data-chat-mute="${id}" data-chat-minutes="10080" data-chat-name="${name}">7일 금지</button>`;
+}
+
 /** Chat reports and mutes (db/social.sql admin_get_chat_reports); the dialog's click handler sends the mute and delete buttons. */
 function renderChatReports(data) {
-    const muteButtons = row => {
-        let id = cloudToolsEscape(row.target_user_id || row.user_id), name = cloudToolsEscape(row.nickname || '');
-        let muted = row.muted_until || row.until_at;
-        return (muted ? `<button type="button" data-chat-mute="${id}" data-chat-minutes="0" data-chat-name="${name}">금지 풀기</button>` : '')
-            + `<button type="button" data-chat-mute="${id}" data-chat-minutes="1440" data-chat-name="${name}">1일 금지</button>`
-            + `<button type="button" data-chat-mute="${id}" data-chat-minutes="10080" data-chat-name="${name}">7일 금지</button>`;
-    };
+    const muteButtons = row => renderMuteButtons(row.target_user_id || row.user_id, row.nickname, row.muted_until || row.until_at);
     let html = '<section><h3>채팅 신고</h3><p class="cloud-tools-note">신고는 플레이어가 프로필 창에서 보냅니다. 금지한 계정은 풀릴 때까지 채팅을 보낼 수 없고, 지운 줄은 다음 전체 조회부터 사라집니다.</p></section>';
     html += renderOpsTable('신고, 최근 200건', [
         { label: '시각', render: row => new Date(row.created_at).toLocaleString('ko-KR') },
@@ -507,16 +521,343 @@ async function deleteChatMessage(button) {
 
 async function openOpsDashboard() {
     if (!cloudState || !cloudState.user) return showGameToast('관리자 로그인이 필요합니다.', 'warning');
-    openCloudToolsDialog('운영 통계, 최근 30일', '<p class="cloud-tools-empty">집계 중…</p>');
+    openCloudToolsDialog('운영 창: 통계, 감시, 신고, 문의, 플레이어', '<p class="cloud-tools-empty">집계 중…</p>');
     try {
         let data = await cloudJsonRequest('/rest/v1/rpc/admin_get_ops_dashboard', { method: 'POST', body: {} });
         document.getElementById('cloud-tools-body').innerHTML = renderOpsDashboard(data || {})
             + '<div id="cheat-watch"><section><h3>치트 감시</h3><p class="cloud-tools-empty">불러오는 중…</p></section></div>'
-            + '<div id="chat-reports"><section><h3>채팅 신고</h3><p class="cloud-tools-empty">불러오는 중…</p></section></div>';
+            + '<div id="chat-reports"><section><h3>채팅 신고</h3><p class="cloud-tools-empty">불러오는 중…</p></section></div>'
+            + '<div id="admin-feedback"><section><h3>문의와 제보</h3><p class="cloud-tools-empty">불러오는 중…</p></section></div>'
+            + renderPlayerLookupShell();
         await loadCheatWatch();
         await loadChatReports();
+        await loadAdminFeedback();
+        await searchPlayers();
     } catch (error) {
         document.getElementById('cloud-tools-body').innerHTML = `<p class="cloud-tools-error">관리자 통계를 불러올 수 없습니다: ${cloudToolsEscape(error.message || error)}</p>`;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// 문의와 제보 (db/operations-and-ghost.sql player_feedback): 플레이어의 문의 창과 운영 창의 목록
+// ---------------------------------------------------------------------------
+const FEEDBACK_KIND_LABELS = { bug: '버그 제보', question: '문의', suggestion: '건의' };
+const FEEDBACK_STATUS_LABELS = { new: '새 글', seen: '확인함', done: '처리함' };
+const FEEDBACK_ERROR_TEXTS = [
+    [/FEEDBACK_DAILY_LIMIT/, '24시간 안에 5건까지 보낼 수 있습니다. 잠시 뒤 다시 보내 주세요.'],
+    [/FEEDBACK_TOO_SHORT/, '내용을 5자 이상 적어 주세요.'],
+    [/AUTH_REQUIRED/, '로그인이 풀렸습니다. 다시 로그인한 뒤 보내 주세요.'],
+    [/schema cache|could not find|does not exist/i, '서버에 문의 기능이 아직 없습니다. 잠시 뒤 다시 시도해 주세요.']
+];
+let adminFeedbackFilter = '';
+let playerDetailUserId = null;   // 자세히 보기가 열려 있는 플레이어(조치 뒤 다시 그릴 때)
+
+function cloudToolsTime(value) {
+    return value ? new Date(value).toLocaleString('ko-KR') : '';
+}
+
+/** 설정 > 문의와 제보의 단추. 보내는 칸과 내가 보낸 글(운영자 답변 포함)을 한 창에 보인다. 로그인한 계정만 보낼 수 있다. */
+async function openFeedbackDialog() {
+    openCloudToolsDialog('문의와 제보', renderFeedbackForm());
+    if (cloudState && cloudState.user) await loadMyFeedback();
+}
+
+function renderFeedbackForm() {
+    if (!cloudState || !cloudState.user) {
+        return '<section><p class="cloud-tools-note">로그인한 계정으로만 보낼 수 있습니다. 설정의 클라우드 세이브에서 로그인한 뒤 다시 열어 주세요.</p></section>';
+    }
+    let kinds = Object.entries(FEEDBACK_KIND_LABELS).map(([value, label]) => `<option value="${value}">${label}</option>`).join('');
+    return '<section><p class="cloud-tools-note">게임 버전, 현재 지역과 루프, 직업, 기기 종류가 함께 갑니다. 답변은 이 창에서 봅니다.</p>'
+        + `<div class="feedback-form"><select id="feedback-kind">${kinds}</select>`
+        + '<textarea id="feedback-body" rows="6" maxlength="2000" placeholder="무슨 일이 있었는지, 어디서, 어떤 순서로 눌렀는지 적어 주세요."></textarea>'
+        + '<input id="feedback-contact" type="text" maxlength="120" placeholder="연락처(선택): 이메일이나 디스코드 이름">'
+        + '<button type="button" data-feedback-send="1">보내기</button></div></section><div id="my-feedback"></div>';
+}
+
+/** 상황 정보: 오류 보고와 같은 묶음(js/playtest-telemetry.js getClientDiagnosticContext)에 화면 크기와 브라우저를 더한다. */
+function feedbackContext() {
+    let context = typeof getClientDiagnosticContext === 'function' ? getClientDiagnosticContext() : {};
+    return Object.assign({}, context, { screen: `${window.innerWidth}x${window.innerHeight}`, userAgent: String(navigator.userAgent || '').slice(0, 200) });
+}
+
+async function submitPlayerFeedback(button) {
+    let body = document.getElementById('feedback-body').value.trim();
+    if (body.length < 5) return showGameToast('내용을 5자 이상 적어 주세요.', 'warning');
+    button.disabled = true;
+    try {
+        await cloudJsonRequest('/rest/v1/rpc/submit_player_feedback', { method: 'POST', body: {
+            p_kind: document.getElementById('feedback-kind').value, p_body: body,
+            p_contact: document.getElementById('feedback-contact').value.trim(), p_context: feedbackContext(),
+            p_app_version: typeof getPlaytestBuildVersion === 'function' ? getPlaytestBuildVersion() : ''
+        } });
+        let input = document.getElementById('feedback-body');
+        if (input) input.value = '';   // 요청 중에 다른 창으로 바꿨을 수 있다
+        showGameToast('보냈습니다. 답변은 이 창에서 볼 수 있습니다.', 'success');
+        await loadMyFeedback();
+    } catch (error) {
+        showGameToast(describeFeedbackError(error), 'danger');
+    } finally {
+        button.disabled = false;
+    }
+}
+
+function describeFeedbackError(error) {
+    let message = String((error && error.message) || error);
+    let known = FEEDBACK_ERROR_TEXTS.find(([pattern]) => pattern.test(message));
+    return known ? known[1] : `보내지 못했습니다: ${message}`;
+}
+
+async function loadMyFeedback() {
+    let box = document.getElementById('my-feedback');
+    if (!box) return;
+    try {
+        let rows = await cloudJsonRequest('/rest/v1/rpc/get_my_feedback', { method: 'POST', body: {} });
+        box.innerHTML = renderMyFeedback(Array.isArray(rows) ? rows : []);
+    } catch (error) {
+        box.innerHTML = `<section><h3>내가 보낸 글</h3><p class="cloud-tools-error">불러올 수 없습니다: ${cloudToolsEscape(error.message || error)}</p></section>`;
+    }
+}
+
+function renderMyFeedback(rows) {
+    if (!rows.length) return '<section><h3>내가 보낸 글</h3><p class="cloud-tools-empty">아직 없습니다.</p></section>';
+    let items = rows.map(row => `<div class="feedback-item"><div class="feedback-meta"><span>${cloudToolsEscape(FEEDBACK_KIND_LABELS[row.kind] || row.kind)}</span>`
+        + `<span>${cloudToolsTime(row.created_at)}</span><span>${cloudToolsEscape(FEEDBACK_STATUS_LABELS[row.status] || row.status)}</span></div>`
+        + `<div class="feedback-body">${cloudToolsEscape(row.body)}</div>`
+        + (row.reply ? `<div class="feedback-reply"><strong>운영자 답변</strong> ${cloudToolsEscape(row.reply)}</div>` : '') + '</div>').join('');
+    return `<section><h3>내가 보낸 글</h3><div class="feedback-list">${items}</div></section>`;
+}
+
+/** 운영 창의 문의 목록(admin_get_feedback). 상태 필터는 adminFeedbackFilter에 남아 저장 뒤에도 같은 목록을 다시 보인다. */
+async function loadAdminFeedback() {
+    let box = document.getElementById('admin-feedback');
+    if (!box) return;
+    try {
+        let rows = await cloudJsonRequest('/rest/v1/rpc/admin_get_feedback', { method: 'POST', body: { p_status: adminFeedbackFilter || null } });
+        box.innerHTML = renderAdminFeedback(Array.isArray(rows) ? rows : []);
+    } catch (error) {
+        box.innerHTML = renderSectionError('문의와 제보', error);
+    }
+}
+
+/** 새 RPC가 아직 서버에 없을 때(묶음 SQL 미실행)와 그 밖의 오류를 가른다. */
+function renderSectionError(title, error) {
+    let text = String((error && error.message) || error);
+    return /schema cache|could not find|does not exist/i.test(text)
+        ? `<section><h3>${title}</h3><p class="cloud-tools-note">Supabase에서 db/feedback-and-admin-players-20261027.sql을 실행하면 보입니다.</p></section>`
+        : `<section><h3>${title}</h3><p class="cloud-tools-error">불러올 수 없습니다: ${cloudToolsEscape(text)}</p></section>`;
+}
+
+function renderAdminFeedback(rows) {
+    let filters = [['all', '전체'], ['new', '새 글'], ['seen', '확인함'], ['done', '처리함']].map(([value, label]) =>
+        `<button type="button" data-feedback-filter="${value}"${(value === 'all' ? '' : value) === adminFeedbackFilter ? ' disabled' : ''}>${label}</button>`).join('');
+    let html = '<section><h3>문의와 제보</h3><p class="cloud-tools-note">플레이어가 설정 > 문의와 제보에서 보낸 글입니다. 답변을 적어 저장하면 플레이어가 같은 창에서 보고, 새 글은 확인함이 됩니다.</p>'
+        + `<div class="ops-summary">${filters}</div></section>`;
+    return html + renderOpsTable('글, 최근 300건', [
+        { label: '시각', render: row => cloudToolsTime(row.created_at) },
+        { label: '종류', render: row => FEEDBACK_KIND_LABELS[row.kind] || row.kind },
+        { label: '보낸 사람', html: row => `${cloudToolsEscape(row.nickname || String(row.user_id || '').slice(0, 8))}<br><small>${cloudToolsEscape(row.email || '')}</small>` + playerDetailButton(row.user_id, row.nickname) },
+        { label: '내용', html: row => `<div class="feedback-cell">${cloudToolsEscape(row.body)}</div>` + (row.contact ? `<small>연락처: ${cloudToolsEscape(row.contact)}</small>` : '') },
+        { label: '상황', render: row => feedbackContextSummary(row) },
+        { label: '상태', render: row => FEEDBACK_STATUS_LABELS[row.status] || row.status },
+        { label: '조치', html: row => renderFeedbackActions(row) }
+    ], rows);
+}
+
+function feedbackContextSummary(row) {
+    let context = row.context || {};
+    return [row.app_version, context.zoneId, context.loop ? `루프 ${context.loop}` : '', context.ascendClass, context.platform, context.screen].filter(Boolean).join(' ');
+}
+
+function renderFeedbackActions(row) {
+    let id = cloudToolsEscape(row.id);
+    let statusButtons = Object.entries(FEEDBACK_STATUS_LABELS).filter(([value]) => value !== row.status)
+        .map(([value, label]) => `<button type="button" data-feedback-status="${id}" data-status="${value}">${label}</button>`).join('');
+    return `<div class="feedback-actions"><div>${statusButtons}</div><textarea id="feedback-reply-${id}" rows="2" maxlength="2000" placeholder="답변">${cloudToolsEscape(row.reply || '')}</textarea>`
+        + `<button type="button" data-feedback-reply="${id}" data-status-now="${cloudToolsEscape(row.status)}">답변 저장</button></div>`;
+}
+
+function setAdminFeedbackFilter(button) {
+    adminFeedbackFilter = button.dataset.feedbackFilter === 'all' ? '' : button.dataset.feedbackFilter;
+    return loadAdminFeedback();
+}
+
+function setFeedbackStatus(button) {
+    return updateFeedback({ p_id: Number(button.dataset.feedbackStatus), p_status: button.dataset.status });
+}
+
+/** 답변 저장. 새 글이었으면 확인함으로 넘긴다(답변을 봤다는 뜻). */
+function replyFeedback(button) {
+    let id = Number(button.dataset.feedbackReply);
+    let reply = document.getElementById(`feedback-reply-${id}`).value.trim();
+    return updateFeedback({ p_id: id, p_reply: reply, p_status: button.dataset.statusNow === 'new' ? 'seen' : null });
+}
+
+async function updateFeedback(body) {
+    try {
+        await cloudJsonRequest('/rest/v1/rpc/admin_set_feedback', { method: 'POST', body });
+        showGameToast('저장했습니다.', 'success');
+    } catch (error) {
+        showGameToast(`저장하지 못했습니다: ${error.message || error}`, 'danger');
+    }
+    await loadAdminFeedback();
+}
+
+// ---------------------------------------------------------------------------
+// 플레이어 찾기와 자세히 보기 (admin_search_players, admin_get_player, admin_get_player_save)
+// ---------------------------------------------------------------------------
+function renderPlayerLookupShell() {
+    return '<section><h3>플레이어</h3><p class="cloud-tools-note">닉네임, 이메일, 계정 id 앞부분으로 찾습니다. 비워 두면 최근 활동순 50명입니다.</p>'
+        + '<div class="ops-summary"><input id="player-query" type="text" maxlength="80" placeholder="닉네임, 이메일, id"><button type="button" data-player-search="1">찾기</button></div></section>'
+        + '<div id="player-results"></div><div id="player-detail"></div>';
+}
+
+async function searchPlayers() {
+    let box = document.getElementById('player-results');
+    if (!box) return;
+    let input = document.getElementById('player-query');
+    box.innerHTML = '<p class="cloud-tools-empty">찾는 중…</p>';
+    try {
+        let rows = await cloudJsonRequest('/rest/v1/rpc/admin_search_players', { method: 'POST', body: { p_query: input ? input.value.trim() : '', p_limit: 50 } });
+        box.innerHTML = renderPlayerRows(Array.isArray(rows) ? rows : []);
+    } catch (error) {
+        box.innerHTML = renderSectionError('플레이어', error);
+    }
+}
+
+function renderPlayerRows(rows) {
+    return renderOpsTable(`플레이어 ${rows.length}명`, [
+        { label: '닉네임', html: row => `${cloudToolsEscape(row.nickname || '(프로필 없음)')}<br><small>${cloudToolsEscape(row.email || '')}</small>` },
+        { label: '레벨', render: row => `${row.level || '-'}, 루프 ${row.loop || '-'}` },
+        { label: '전투력', render: row => cloudToolsNumber(row.power) },
+        { label: '마지막 활동', render: row => cloudToolsTime(row.last_active) },
+        { label: '저장', render: row => row.save_revision == null ? '없음' : `r${row.save_revision}, 압축 ${Math.round((row.save_bytes || 0) / 1024)}KB` },
+        { label: '고스트', render: row => row.ghost_rating == null ? '' : `${row.ghost_rating}${row.ghost_active ? '' : ' (꺼짐)'}` },
+        { label: '전당', render: row => row.hall_honor == null ? '' : `명예 ${cloudToolsNumber(row.hall_honor)}, 전시 ${row.hall_open || 0}` },
+        { label: '상태', render: row => playerStatusText(row) },
+        { label: '조치', html: row => playerDetailButton(row.user_id, row.nickname) + renderCheatHoldButton(row.user_id, row.held, '') + peekButton(row.user_id, row.nickname) }
+    ], rows);
+}
+
+function playerStatusText(row) {
+    let parts = [];
+    if (row.held) parts.push('보류');
+    if (row.muted_until) parts.push(`채팅 금지 ${cloudToolsTime(row.muted_until)}까지`);
+    if (Number(row.flag_count)) parts.push(`기록 ${row.flag_count}`);
+    if (Number(row.report_count)) parts.push(`신고 ${row.report_count}`);
+    if (Number(row.feedback_count)) parts.push(`문의 ${row.feedback_count}`);
+    return parts.join(', ');
+}
+
+function playerDetailButton(userId, name) {
+    return `<button type="button" data-player-detail="${cloudToolsEscape(userId)}" data-player-name="${cloudToolsEscape(name || '')}">자세히</button>`;
+}
+
+async function openPlayerDetail(button) {
+    let box = document.getElementById('player-detail');
+    if (!box) return;
+    playerDetailUserId = button.dataset.playerDetail;
+    box.innerHTML = '<section><h3>자세히</h3><p class="cloud-tools-empty">불러오는 중…</p></section>';
+    try {
+        let data = await cloudJsonRequest('/rest/v1/rpc/admin_get_player', { method: 'POST', body: { p_user_id: button.dataset.playerDetail } });
+        box.innerHTML = renderPlayerDetail(data || {});
+        box.scrollIntoView({ block: 'start' });
+    } catch (error) {
+        box.innerHTML = `<section><h3>자세히</h3><p class="cloud-tools-error">불러올 수 없습니다: ${cloudToolsEscape(error.message || error)}</p></section>`;
+    }
+}
+
+function renderPlayerDetail(data) {
+    let account = data.account || {};
+    let name = account.nickname || String(account.user_id || '').slice(0, 8);
+    let muted = !!(data.mute && new Date(data.mute.until_at).getTime() > Date.now());
+    let actions = renderCheatHoldButton(account.user_id, !!data.hold, data.hold ? data.hold.note : '')
+        + renderMuteButtons(account.user_id, name, muted) + peekButton(account.user_id, name)
+        + `<button type="button" data-player-save="${cloudToolsEscape(account.user_id)}" data-player-name="${cloudToolsEscape(name)}">저장 JSON 내려받기</button>`;
+    let facts = [...accountFacts(data), ...saveFacts(data), ...standingFacts(data)].map(([label, value]) => `<div><dt>${label}</dt><dd>${cloudToolsEscape(value)}</dd></div>`).join('');
+    return `<section><h3>자세히: ${cloudToolsEscape(name)}</h3><div class="ops-summary">${actions}</div><dl class="player-facts">${facts}</dl></section>`
+        + renderPlayerTables(data)
+        + `<section><h3>공개 프로필 JSON</h3><details><summary>펼치기</summary><pre class="player-json">${cloudToolsEscape(JSON.stringify(data.profile || {}, null, 2))}</pre></details></section>`;
+}
+
+function accountFacts(data) {
+    let account = data.account || {}, profile = data.profile || {};
+    return [
+        ['계정', `${account.email || ''} ${account.user_id || ''}`],
+        ['가입', cloudToolsTime(account.joined_at)],
+        ['마지막 로그인', cloudToolsTime(account.last_sign_in_at)],
+        ['마지막 접속', cloudToolsTime(account.last_seen)],
+        ['로그인 방식', Array.isArray(account.providers) ? account.providers.join(', ') : ''],
+        ['닉네임 바꾼 때', cloudToolsTime(account.nickname_updated_at)],
+        ['캐릭터', `${profile.className || profile.heroClassName || ''} 레벨 ${profile.level || '-'}, 루프 ${profile.loop || '-'}, 전투력 ${cloudToolsNumber(profile.power)}`]
+    ];
+}
+
+function saveFacts(data) {
+    let save = data.save;
+    return [
+        ['저장', save ? `r${save.revision}, ${Math.round((save.bytes || 0) / 1024)}KB, ${cloudToolsTime(save.updated_at)}, 이력 ${data.saveVersions || 0}개` : '없음'],
+        ['저장 요약', save && save.digest ? saveDigestText(save.digest) : '']
+    ];
+}
+
+function standingFacts(data) {
+    let ghost = data.ghost;
+    return [
+        ['고스트', ghost ? `점수 ${ghost.rating}, DPS ${cloudToolsNumber(ghost.dps)}, ${ghost.wins}승 ${ghost.losses}패 ${ghost.draws}무${ghost.active ? '' : ', 꺼짐'}` : '없음'],
+        ['전당', data.hall ? `명예 ${cloudToolsNumber(data.hall.honor)}, 나눠 준 복제품 ${data.hall.copies_shared}` : '없음'],
+        ['보류', data.hold ? `${cloudToolsTime(data.hold.created_at)} ${data.hold.note || ''}` : '없음'],
+        ['채팅 금지', data.mute ? `${cloudToolsTime(data.mute.until_at)}까지 ${data.mute.note || ''}` : '없음']
+    ];
+}
+
+/** cheat_save_digest의 네 칸(level, season, currencies, saveMeta)을 한 줄로. */
+function saveDigestText(digest) {
+    let currencies = digest.currencies && typeof digest.currencies === 'object' ? Object.keys(digest.currencies).length : 0;
+    let modified = digest.saveMeta && digest.saveMeta.lastModifiedAt ? cloudToolsTime(digest.saveMeta.lastModifiedAt) : '';
+    return `레벨 ${digest.level == null ? '-' : digest.level}, 루프 ${digest.season == null ? '-' : digest.season}, 재화 ${currencies}종${modified ? `, 기기 저장 ${modified}` : ''}`;
+}
+
+function renderPlayerTables(data) {
+    return renderOpsTable('감시 기록', [
+            { label: '종류', key: 'kind' }, { label: '날짜', key: 'seen_on' }, { label: '횟수', key: 'hits' },
+            { label: '마지막', render: row => cloudToolsTime(row.last_at) }, { label: '내용', render: row => JSON.stringify(row.detail || {}).slice(0, 120) }
+        ], Array.isArray(data.flags) ? data.flags : [])
+        + renderOpsTable('받은 신고', [
+            { label: '시각', render: row => cloudToolsTime(row.created_at) }, { label: '사유', key: 'reason' }, { label: '채팅', render: row => row.body || '' }
+        ], Array.isArray(data.reports) ? data.reports : [])
+        + renderOpsTable('최근 채팅', [
+            { label: '시각', render: row => cloudToolsTime(row.created_at) }, { label: '내용', key: 'body' }
+        ], Array.isArray(data.chat) ? data.chat : [])
+        + renderOpsTable('전당 전시', [
+            { label: '시각', render: row => cloudToolsTime(row.created_at) }, { label: '이름', render: row => row.name || '' },
+            { label: '점수', render: row => cloudToolsNumber(row.item_score) }, { label: '상태', key: 'status' }
+        ], Array.isArray(data.listings) ? data.listings : [])
+        + renderOpsTable('보낸 문의', [
+            { label: '시각', render: row => cloudToolsTime(row.created_at) }, { label: '종류', render: row => FEEDBACK_KIND_LABELS[row.kind] || row.kind },
+            { label: '내용', key: 'body' }, { label: '상태', render: row => FEEDBACK_STATUS_LABELS[row.status] || row.status }
+        ], Array.isArray(data.feedback) ? data.feedback : []);
+}
+
+/** 보류, 금지, 기록 지우기 뒤: 플레이어 표가 있으면 다시 찾고, 자세히 보기가 열려 있으면 다시 불러온다. */
+async function refreshPlayerViews() {
+    if (document.getElementById('player-results')) await searchPlayers();
+    if (playerDetailUserId && document.getElementById('player-detail')) await openPlayerDetail({ dataset: { playerDetail: playerDetailUserId } });
+}
+
+/** 저장 JSON 전체를 파일로 내려받는다(버그 재현용). */
+async function downloadPlayerSave(button) {
+    try {
+        let data = await cloudJsonRequest('/rest/v1/rpc/admin_get_player_save', { method: 'POST', body: { p_user_id: button.dataset.playerSave } });
+        let link = document.createElement('a');
+        link.href = URL.createObjectURL(new Blob([JSON.stringify(data)], { type: 'application/json' }));
+        link.download = `rignin-save-${String(button.dataset.playerName || button.dataset.playerSave).replace(/[^\w가-힣-]+/g, '_')}-${new Date().toISOString().slice(0, 10)}.json`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+        showGameToast('저장 파일을 내려받았습니다.', 'success');
+    } catch (error) {
+        showGameToast(`저장을 받지 못했습니다: ${error.message || error}`, 'danger');
     }
 }
 
@@ -525,7 +866,7 @@ function injectCloudToolsStyles() {
     let style = document.createElement('style');
     style.id = 'cloud-tools-styles';
     // 레이어 안에 둔다(레이어 밖 CSS는 스킨 규칙을 모두 이긴다).
-    style.textContent = `@layer components{.cloud-tools-dialog{width:min(980px,calc(94vw / var(--scale-display-factor, 1)));max-height:calc(88vh / var(--scale-display-factor, 1));padding:0;border:1px solid #445b78;border-radius:12px;background:#0d1623;color:#eef6ff}.cloud-tools-dialog::backdrop{background:rgba(0,0,0,.72)}.cloud-tools-head{position:sticky;top:0;z-index:2;display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:#142238;border-bottom:1px solid #304765}.cloud-tools-head button{margin:0}.cloud-tools-body{padding:14px;overflow:auto}.cloud-history-list{display:grid;gap:7px}.cloud-history-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px;border:1px solid #2b405d;border-radius:8px;background:#111e30}.cloud-history-row small{display:block;color:#9eb0c8;margin-top:3px}.cloud-current-badge{color:#8be5aa;font-weight:700}.cloud-tools-note,.cloud-tools-empty{color:#a9b8cc}.cloud-tools-error{color:#ff9b9b}.ops-summary{display:flex;gap:8px;flex-wrap:wrap}.ops-summary span{padding:8px 12px;border:1px solid #304765;border-radius:8px;background:#142238}.cloud-tools-body section{margin-top:18px}.cloud-tools-table-wrap{overflow:auto}.cloud-tools-table-wrap table{width:100%;border-collapse:collapse;font-size:12px}.cloud-tools-table-wrap th,.cloud-tools-table-wrap td{padding:7px;border-bottom:1px solid #263a54;text-align:left;white-space:nowrap}}`;
+    style.textContent = `@layer components{.cloud-tools-dialog{width:min(980px,calc(94vw / var(--scale-display-factor, 1)));max-height:calc(88vh / var(--scale-display-factor, 1));padding:0;border:1px solid #445b78;border-radius:12px;background:#0d1623;color:#eef6ff}.cloud-tools-dialog::backdrop{background:rgba(0,0,0,.72)}.cloud-tools-head{position:sticky;top:0;z-index:2;display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:#142238;border-bottom:1px solid #304765}.cloud-tools-head button{margin:0}.cloud-tools-body{padding:14px;overflow:auto}.cloud-history-list{display:grid;gap:7px}.cloud-history-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px;border:1px solid #2b405d;border-radius:8px;background:#111e30}.cloud-history-row small{display:block;color:#9eb0c8;margin-top:3px}.cloud-current-badge{color:#8be5aa;font-weight:700}.cloud-tools-note,.cloud-tools-empty{color:#a9b8cc}.cloud-tools-error{color:#ff9b9b}.ops-summary{display:flex;gap:8px;flex-wrap:wrap}.ops-summary span{padding:8px 12px;border:1px solid #304765;border-radius:8px;background:#142238}.cloud-tools-body section{margin-top:18px}.cloud-tools-table-wrap{overflow:auto}.cloud-tools-table-wrap table{width:100%;border-collapse:collapse;font-size:12px}.cloud-tools-table-wrap th,.cloud-tools-table-wrap td{padding:7px;border-bottom:1px solid #263a54;text-align:left;white-space:nowrap}.feedback-form{display:grid;gap:8px}.feedback-form textarea,.feedback-form input,.feedback-form select,.feedback-actions textarea,#player-query{box-sizing:border-box;background:#111e30;color:#eef6ff;border:1px solid #2b405d;border-radius:6px;padding:6px;font:inherit}.feedback-form textarea,.feedback-form input,.feedback-form select,.feedback-actions textarea{width:100%}#player-query{flex:1;min-width:200px}.feedback-list{display:grid;gap:8px}.feedback-item{padding:10px;border:1px solid #2b405d;border-radius:8px;background:#111e30}.feedback-meta{display:flex;flex-wrap:wrap;gap:10px;color:#9eb0c8;font-size:12px}.feedback-body{white-space:pre-wrap;margin-top:4px}.feedback-reply{margin-top:6px;padding:6px 8px;border-left:3px solid #8be5aa;white-space:pre-wrap}.feedback-cell{white-space:normal;min-width:220px;max-width:380px}.feedback-actions{display:grid;gap:4px;min-width:220px}.player-facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:4px 16px;margin:8px 0}.player-facts dt{color:#9eb0c8;font-size:12px}.player-facts dd{margin:0;overflow-wrap:anywhere}.player-json{max-height:320px;overflow:auto;font-size:11px;white-space:pre-wrap}}`;
     document.head.appendChild(style);
 }
 
@@ -550,4 +891,4 @@ function initializeCloudTools() {
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initializeCloudTools);
 else initializeCloudTools();
 
-safeExposeGlobals({ openCloudSaveHistory, restoreCloudSaveVersion, openOpsDashboard, closeCloudToolsDialog, reportCurrentProfile });
+safeExposeGlobals({ openCloudSaveHistory, restoreCloudSaveVersion, openOpsDashboard, closeCloudToolsDialog, reportCurrentProfile, openFeedbackDialog });
