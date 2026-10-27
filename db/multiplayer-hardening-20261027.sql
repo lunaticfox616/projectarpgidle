@@ -456,7 +456,7 @@ begin
 end;
 $$;
 
--- 관리자: 채팅 한 줄 삭제(실시간으로는 빠지지 않고 다음 전체 조회에서 사라진다).
+-- 관리자: 채팅 한 줄 삭제. 실시간 삭제 알림으로 열려 있는 채팅창에서 빠지고, 실시간이 아닌 창은 다음 전체 조회에서 사라진다(2026-10-27 클라이언트부터).
 create or replace function public.admin_delete_chat_message(p_message_id bigint)
 returns jsonb language plpgsql security definer set search_path = public as $$
 declare removed integer;

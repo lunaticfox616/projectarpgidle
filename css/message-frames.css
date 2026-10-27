@@ -165,6 +165,7 @@ body[data-ui-skin] .message-frame-actions [data-message-action="settings"]::befo
 .message-frame .social-chat-msg.mine .social-chat-nick { color: var(--px-gold-bright, #e0c283); }
 .message-frame .social-chat-self { display: none; }
 .message-frame .social-chat-time { float: right; margin: 2px 0 0 6px; }
+.message-frame .social-chat-delete { float: right; margin: 1px 0 0 6px; }
 .message-frame .social-chat-body { display: inline; margin: 0 0 0 4px; }
 .message-frame .social-chat-inputbar { gap: 4px; padding-top: 4px; }
 /* 입력 줄은 마우스로 쓰는 PC 창이라 낮게(30px). 글자 수 칸이 없으니 오른쪽 여백을 줄여 안내 글이 다 보이고, 전송은 테마의 청동 단추. */

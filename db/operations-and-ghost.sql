@@ -172,10 +172,12 @@ stable
 security definer
 set search_path = public
 as $$
-    select auth.uid() is not null and (
+    -- coalesce: a player without either key gets NULL from the comparisons, and `if not NULL` in the admin RPCs skips the raise
+    -- (2026-10-27 review: every admin RPC was open to any logged-in player). The gate must be a plain true or false.
+    select coalesce(auth.uid() is not null and (
         auth.jwt() -> 'app_metadata' ->> 'project_admin' = 'true'
         or auth.jwt() -> 'app_metadata' ->> 'role' = 'admin'
-    );
+    ), false);
 $$;
 
 create or replace function public.admin_get_ops_dashboard()

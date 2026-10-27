@@ -15,6 +15,8 @@ const SOCIAL_ONLINE_POLL_MS = 30000;
 // 새 채팅이 들어올 때 접속 인원을 다시 읽는 가장 짧은 간격(socialOnlineChat.refresh). 채팅이 몰려도 이 간격에 한 번만 읽는다.
 const SOCIAL_ONLINE_CHAT_REFRESH_MS = 10000;
 const SOCIAL_CHAT_FULL_SYNC_MS = 5 * 60 * 1000;
+// 운영자가 지운 줄은 1분 동안 조회 결과에서도 거른다: 지우기 전에 떠난 조회가 그 줄을 되살리지 않게(forgetSocialChatMessages).
+const SOCIAL_CHAT_FORGET_MS = 60 * 1000;
 // 채팅이 실시간으로 오는 동안(syncLiveChat) 채팅 조회와 새 채팅 알림 조회가 도는 간격: 실시간이 놓친 틈을 메우는 안전 조회다.
 const SOCIAL_CHAT_LIVE_POLL_MS = 60000;
 // 페이지를 가리거나, 채팅이 화면에 없고 새 채팅 알림도 끈 뒤 실시간 연결을 놓기까지: 방치형이라 가린 탭이 오래 열려 있고, 무료 요금제는
@@ -422,7 +424,11 @@ function buildProfileGear(state) {
 function buildCoreSnapshot(state) {
     let core = (state.equipment || {})['코어'];
     if (!core || typeof coreItems !== 'object' || !contentProgression.isUnlocked('cube', state)) return undefined;
-    return { kind: 'core', name: core.name, lines: core.lines.map(line => coreItems.describe(line)) };
+    return buildCoreCard(core);
+}
+/** 코어 하나의 카드(게임 코어 툴팁과 같은 이름과 줄): 장착 구성의 코어 칸과 채팅 첨부. */
+function buildCoreCard(core) {
+    return { kind: 'core', name: core.name, lines: (core.lines || []).map(line => coreItems.describe(line)) };
 }
 
 /** 그루터기 함 판(2026-10-03): 함을 얻고 판에 하나라도 놓았을 때만. 칸마다 열림, 접붙이기 단계, 놓인 것과 그 성장. */
@@ -438,11 +444,16 @@ function buildStumpCellSnapshot(state, result, id, cell) {
     if (!stumpBox.isOpen(state, cell)) return null;
     let rank = stumpBox.graftRank(state.stumpBox, cell);
     let row = rank ? { graft: rank, graftPct: rank * STUMP_BOX_GRAFT.pctPerRank } : {};
-    let item = id === null ? null : stumpBox.itemById(state, id);
-    if (!item) return row;
-    let card = item.family === 'talisman' ? buildTalismanSnapshot(item) : buildStumpItemSnapshot(item, result);
-    row.item = Object.assign(card, { stage: stumpBox.stageOf(item), ripe: stumpBox.isMature(item), xp: Math.floor(item.xp), need: stumpBox.need(item) });
+    let card = id === null ? null : buildStumpItemCard(stumpBox.itemById(state, id), result);
+    if (card) row.item = card;
     return row;
+}
+/** 그루터기 함 아이템 하나의 카드(판 위든 보관함이든): 부적은 부적 카드, 씨앗과 수액과 흉터는 그루터기 카드, 거기에 그림 단계와 성장.
+ * 장착 구성의 판 칸과 채팅 첨부가 쓴다. */
+function buildStumpItemCard(item, result) {
+    let card = !item ? null : item.family === 'talisman' ? buildTalismanSnapshot(item) : buildStumpItemSnapshot(item, result);
+    if (!card) return null;
+    return Object.assign(card, { stage: stumpBox.stageOf(item), ripe: stumpBox.isMature(item), xp: Math.floor(item.xp), need: stumpBox.need(item) });
 }
 
 /** 씨앗과 수액(게임 그루터기 함의 아이템 설명과 같은 내용): 이름(색과 단계), 품질, 효과, 추가 줄, 황금, 비활성화와 공명.
@@ -1052,6 +1063,11 @@ function openLiveChat() {
     let channel = client.channel('social-chat')
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, change => {
             try { receiveLiveChat(change && change.new); } catch (error) { console.warn('실시간 채팅 한 줄을 처리하지 못했습니다:', error); }
+        })
+        // 운영자가 지운 줄(한 줄 지우기, 전체 비우기): 삭제 알림은 지운 줄의 id만 싣는다. 실시간이 아닌 창은 5분 전체 조회에서 빠진다.
+        .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'chat_messages' }, change => {
+            let id = change && change.old && change.old.id;
+            if (id != null) forgetSocialChatMessages([id]);
         });
     socialState.chatChannel = channel;
     // 토큰을 먼저 건다: 구독 요청이 이 토큰을 싣고 나가야 처음부터 로그인한 사용자로 읽는다(라이브러리는 토큰을 한 박자 늦게 넣는다).
@@ -1288,11 +1304,19 @@ async function sendChatMessage() {
 // --- 아이템 링크 첨부 ------------------------------------------------------
 function getChatAttachSnapshot(source, key) {
     let state = typeof game !== 'undefined' && game ? game : {};
-    if (source === 'equip') return buildItemSnapshot((state.equipment || {})[key], key);
-    if (source === 'inv') return buildItemSnapshot((state.inventory || [])[Number(key)]);
-    if (source === 'jewel') return buildJewelSnapshot(bagItems.jewels(state)[Number(key)]);
-    if (source === 'talisman') return buildTalismanSnapshot(state.stumpBox ? stumpBox.itemById(state, Number(key)) : null);
+    if (source === 'equip') return buildChatItemSnapshot((state.equipment || {})[key], key);
+    if (source === 'inv') return buildChatItemSnapshot((state.inventory || [])[Number(key)]);
+    if (source === 'stump' && state.stumpBox) return buildStumpItemCard(stumpBox.itemById(state, Number(key)), stumpBox.evaluate(state));
     return null;
+}
+/** 채팅에 붙는 장비 창과 가방의 아이템(2026-10-27 사용자: 액막이 부적과, 장비 창과 그루터기 함에 들어가는 아이템 모두): 주얼은
+ * 주얼 카드, 코어는 코어 카드, 장비와 액막이는 장비 카드(액막이의 줄은 베이스 옵션 자리에). */
+function buildChatItemSnapshot(item, slot) {
+    if (!item) return null;
+    if (bagItems.isJewel(item)) return buildJewelSnapshot(item);
+    if (bagItems.isCore(item)) return buildCoreCard(item);
+    // 끼운 액막이도 칸 이름(액막이1..) 대신 액막이로 적는다: 카드가 그 이름으로 액막이를 알아본다(profileItemOptionsHtml).
+    return buildItemSnapshot(item, colonyWards.isWard(item) ? undefined : slot);
 }
 /** 입력 칸에서 첨부 아이템이 보이는 글: [이름](2026-10-22 사용자 "창과 채팅에 나오는 표기 개선": 예전에는 ⟦0⟧이 보였다). */
 function chatItemLabel(snap) {
@@ -1334,10 +1358,10 @@ function attachChatItem(source, idx) {
     if (snap) attachChatSnapshot(snap);
 }
 /** 들고 있던 장비를 채팅 입력 줄에 놓았다(js/equipment-inventory-grid-ui.js, 2026-10-22 사용자 "아이템을 직접 채팅창에 끌어다가 놓아도
- * 가능하게"). 주얼은 주얼 카드로 붙는다. 코어와 액막이는 채팅 카드가 아직 그리지 못해 붙이지 않는다. */
+ * 가능하게"). 주얼, 코어, 액막이도 제 카드로 붙는다(buildChatItemSnapshot). */
 function attachChatItemOf(item, slot) {
     if (!getMyNickname()) return showGameToast('닉네임을 정하면 아이템을 채팅에 붙일 수 있습니다.', 'warning');
-    let snap = !item ? null : bagItems.isJewel(item) ? buildJewelSnapshot(item) : bagItems.isSpecial(item) ? null : buildItemSnapshot(item, slot);
+    let snap = buildChatItemSnapshot(item, slot);
     if (!snap) return showGameToast('이 아이템은 채팅에 붙일 수 없습니다.', 'warning');
     attachChatSnapshot(snap);
 }
@@ -1441,17 +1465,46 @@ function renderChatMessages(messages, forceScroll) {
         return;
     }
     socialState.chatTips = {};
+    let admin = socialAdminView();
     listEl.innerHTML = messages.map(m => {
         let mine = m.user_id === myId;
         let nickname = String(m.nickname || '익명');
         return `<article class="social-chat-msg${mine ? ' mine' : ''}">`
             + `<header class="social-chat-head"><button type="button" class="social-chat-author" onclick="openPlayerProfile('${socialEscape(m.user_id)}')">`
             + `<span class="social-chat-nick">${socialEscape(nickname)}</span></button>`
-            + `${mine ? '<span class="social-chat-self">나</span>' : ''}<time class="social-chat-time">${formatChatTime(m.created_at)}</time></header>`
+            + `${mine ? '<span class="social-chat-self">나</span>' : ''}<time class="social-chat-time">${formatChatTime(m.created_at)}</time>`
+            + `${admin ? `<button type="button" class="social-chat-delete" data-chat-delete="${socialEscape(m.id)}" onclick="deleteChatMessage(this)">지우기</button>` : ''}</header>`
             + `<div class="social-chat-body">${renderChatBody(m)}</div></article>`;
     }).join('');
     if (shouldScroll) scrollSocialChatToLatest(listEl);
     socialState.scrollChatToLatestOnNextRender = false;
+}
+/** 운영자 화면(?admin=1, 운영 통계 단추와 같은 조건): 채팅 줄마다 지우기 단추가 붙는다. 지우기는 서버가 관리자만 받는다. */
+function socialAdminView() {
+    return typeof location === 'object' && new URLSearchParams(location.search).get('admin') === '1';
+}
+/** Drops chat rows the server deleted (an admin's 지우기 or 전체 비우기, or the live DELETE note); no ids = every row. The rows stay
+ * forgotten for SOCIAL_CHAT_FORGET_MS, so a poll that left before the delete cannot bring them back (isForgottenSocialChat). The
+ * list is drawn again on a later tick and only while the chat is on screen (as showLiveChat); notes that arrive together share it. */
+function forgetSocialChatMessages(ids) {
+    let before = socialState.chatMessages || [], gone = new Set((ids || []).map(String)), now = Date.now();
+    let forgotten = socialState.chatForgotten || (socialState.chatForgotten = { ids: new Map(), through: 0, until: 0 });
+    forgotten.ids.forEach((until, id) => { if (until <= now) forgotten.ids.delete(id); });
+    if (ids) gone.forEach(id => forgotten.ids.set(id, now + SOCIAL_CHAT_FORGET_MS));
+    else Object.assign(forgotten, { through: socialChatMaxId(before), until: now + SOCIAL_CHAT_FORGET_MS });
+    socialState.chatMessages = ids ? before.filter(row => !gone.has(String(row.id))) : [];
+    if (socialState.chatMessages.length === before.length || socialState.chatForgetQueued) return;
+    socialState.chatForgetQueued = true;
+    setTimeout(() => {
+        socialState.chatForgetQueued = false;
+        if (socialState.chatInitialized && isSocialTabActive()) renderChatMessages(socialState.chatMessages, false);
+    }, 0);
+}
+/** True for a row an admin deleted within SOCIAL_CHAT_FORGET_MS (one id, or every id up to a 전체 비우기). */
+function isForgottenSocialChat(row, now) {
+    let forgotten = socialState.chatForgotten;
+    if (!forgotten) return false;
+    return (now < forgotten.until && Number(row.id) <= forgotten.through) || (forgotten.ids.get(String(row.id)) || 0) > now;
 }
 const socialChatMaxId = rows => rows.reduce((max, row) => Math.max(max, Number(row.id) || 0), 0);
 async function refreshChatPanel(forceScroll) {
@@ -1462,7 +1515,7 @@ async function refreshChatPanel(forceScroll) {
         let fullSync = !socialState.chatInitialized || now - socialState.lastChatFullSyncAt >= SOCIAL_CHAT_FULL_SYNC_MS;
         let knownId = socialChatMaxId(socialState.chatMessages), wasReady = socialState.chatInitialized;
         socialState.lastChatPollAt = now;
-        let incoming = await loadChatMessages(fullSync ? null : knownId, now);
+        let incoming = (await loadChatMessages(fullSync ? null : knownId, now)).filter(row => !isForgottenSocialChat(row, now));
         noteLiveChatGap(incoming, fullSync, wasReady);
         socialState.chatMessages = fullSync ? incoming : mergeSocialChatMessages(socialState.chatMessages, incoming, now);
         socialState.chatInitialized = true;
@@ -1658,9 +1711,11 @@ function profileItemFusionHtml(item) {
 /** 게임 툴팁처럼 "베이스 옵션"(방어도, 회피, 에너지 보호막은 최종값과 베이스), "추가 옵션 (n/6)"(게임과 같은 순서, 혼돈 주입 포함), 잠식. */
 function profileItemOptionsHtml(item) {
     let explicit = profileExplicitStats(item);
+    // 줄이 없는 아이템의 한 줄은 게임 툴팁과 같다(itemTooltipRules.emptyExplicitHtml): 액막이는 끼울 곳, 그 밖에는 일반 아이템.
+    let empty = typeof colonyWards === 'object' && colonyWards.isWard(item) ? '장비창의 액막이 칸에 끼웁니다' : '일반 아이템: 추가 옵션 없음';
     let html = explicit.length
         ? `<div class="social-item-section">${profileAffixHeaderText(item, explicit)}</div>${explicit.map(profileExplicitLineHtml).join('')}`
-        : '<div class="social-item-stat" style="color:var(--copy-muted);">일반 아이템: 추가 옵션 없음</div>';
+        : `<div class="social-item-stat" style="color:var(--copy-muted);">${empty}</div>`;
     return profileBaseOptionsHtml(item) + html + profileItemEncroachHtml(item) + profileItemAnointHtml(item) + profileItemEmberHtml(item);
 }
 
@@ -2384,7 +2439,7 @@ function injectSocialStyles() {
     .social-chat-head{display:flex;align-items:center;gap:6px;min-width:0;}.social-chat-author{display:inline-flex;align-items:center;min-width:0;padding:0;border:0;background:none;color:inherit;cursor:pointer;}.social-chat-self{padding:1px 4px;border:1px solid #675132;border-radius:2px;color:#c9aa70;font-size:12px;}
     .social-chat-nick{overflow:hidden;color:#d6b572;font-weight:700;font-size:12px;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;}
     .social-chat-nick:hover{text-decoration:underline;}
-    .social-chat-time{margin-left:auto;color:var(--copy-muted);font-size:12px;white-space:nowrap;}
+    .social-chat-time{margin-left:auto;color:var(--copy-muted);font-size:12px;white-space:nowrap;}.social-chat-delete{flex:none;min-height:0;padding:0 6px;font-size:12px;line-height:16px;color:#f0b4a0;background:#2a1714;border:1px solid #6a3a30;border-radius:3px;cursor:pointer;}
     .social-chat-body{color:var(--copy-bright);margin:4px 0 0;white-space:pre-wrap;word-break:break-word;font-size:var(--font-size-chat,12px);line-height:1.5;}
     .social-chat-inputbar{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:7px;align-items:stretch;}
     .social-chat-input-shell{position:relative;min-width:0;}
