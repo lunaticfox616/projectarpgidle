@@ -424,7 +424,11 @@ function buildProfileGear(state) {
 function buildCoreSnapshot(state) {
     let core = (state.equipment || {})['코어'];
     if (!core || typeof coreItems !== 'object' || !contentProgression.isUnlocked('cube', state)) return undefined;
-    return { kind: 'core', name: core.name, lines: core.lines.map(line => coreItems.describe(line)) };
+    return buildCoreCard(core);
+}
+/** 코어 하나의 카드(게임 코어 툴팁과 같은 이름과 줄): 장착 구성의 코어 칸과 채팅 첨부. */
+function buildCoreCard(core) {
+    return { kind: 'core', name: core.name, lines: (core.lines || []).map(line => coreItems.describe(line)) };
 }
 
 /** 그루터기 함 판(2026-10-03): 함을 얻고 판에 하나라도 놓았을 때만. 칸마다 열림, 접붙이기 단계, 놓인 것과 그 성장. */
@@ -440,11 +444,16 @@ function buildStumpCellSnapshot(state, result, id, cell) {
     if (!stumpBox.isOpen(state, cell)) return null;
     let rank = stumpBox.graftRank(state.stumpBox, cell);
     let row = rank ? { graft: rank, graftPct: rank * STUMP_BOX_GRAFT.pctPerRank } : {};
-    let item = id === null ? null : stumpBox.itemById(state, id);
-    if (!item) return row;
-    let card = item.family === 'talisman' ? buildTalismanSnapshot(item) : buildStumpItemSnapshot(item, result);
-    row.item = Object.assign(card, { stage: stumpBox.stageOf(item), ripe: stumpBox.isMature(item), xp: Math.floor(item.xp), need: stumpBox.need(item) });
+    let card = id === null ? null : buildStumpItemCard(stumpBox.itemById(state, id), result);
+    if (card) row.item = card;
     return row;
+}
+/** 그루터기 함 아이템 하나의 카드(판 위든 보관함이든): 부적은 부적 카드, 씨앗과 수액과 흉터는 그루터기 카드, 거기에 그림 단계와 성장.
+ * 장착 구성의 판 칸과 채팅 첨부가 쓴다. */
+function buildStumpItemCard(item, result) {
+    let card = !item ? null : item.family === 'talisman' ? buildTalismanSnapshot(item) : buildStumpItemSnapshot(item, result);
+    if (!card) return null;
+    return Object.assign(card, { stage: stumpBox.stageOf(item), ripe: stumpBox.isMature(item), xp: Math.floor(item.xp), need: stumpBox.need(item) });
 }
 
 /** 씨앗과 수액(게임 그루터기 함의 아이템 설명과 같은 내용): 이름(색과 단계), 품질, 효과, 추가 줄, 황금, 비활성화와 공명.
@@ -1295,11 +1304,19 @@ async function sendChatMessage() {
 // --- 아이템 링크 첨부 ------------------------------------------------------
 function getChatAttachSnapshot(source, key) {
     let state = typeof game !== 'undefined' && game ? game : {};
-    if (source === 'equip') return buildItemSnapshot((state.equipment || {})[key], key);
-    if (source === 'inv') return buildItemSnapshot((state.inventory || [])[Number(key)]);
-    if (source === 'jewel') return buildJewelSnapshot(bagItems.jewels(state)[Number(key)]);
-    if (source === 'talisman') return buildTalismanSnapshot(state.stumpBox ? stumpBox.itemById(state, Number(key)) : null);
+    if (source === 'equip') return buildChatItemSnapshot((state.equipment || {})[key], key);
+    if (source === 'inv') return buildChatItemSnapshot((state.inventory || [])[Number(key)]);
+    if (source === 'stump' && state.stumpBox) return buildStumpItemCard(stumpBox.itemById(state, Number(key)), stumpBox.evaluate(state));
     return null;
+}
+/** 채팅에 붙는 장비 창과 가방의 아이템(2026-10-27 사용자: 액막이 부적과, 장비 창과 그루터기 함에 들어가는 아이템 모두): 주얼은
+ * 주얼 카드, 코어는 코어 카드, 장비와 액막이는 장비 카드(액막이의 줄은 베이스 옵션 자리에). */
+function buildChatItemSnapshot(item, slot) {
+    if (!item) return null;
+    if (bagItems.isJewel(item)) return buildJewelSnapshot(item);
+    if (bagItems.isCore(item)) return buildCoreCard(item);
+    // 끼운 액막이도 칸 이름(액막이1..) 대신 액막이로 적는다: 카드가 그 이름으로 액막이를 알아본다(profileItemOptionsHtml).
+    return buildItemSnapshot(item, colonyWards.isWard(item) ? undefined : slot);
 }
 /** 입력 칸에서 첨부 아이템이 보이는 글: [이름](2026-10-22 사용자 "창과 채팅에 나오는 표기 개선": 예전에는 ⟦0⟧이 보였다). */
 function chatItemLabel(snap) {
@@ -1341,10 +1358,10 @@ function attachChatItem(source, idx) {
     if (snap) attachChatSnapshot(snap);
 }
 /** 들고 있던 장비를 채팅 입력 줄에 놓았다(js/equipment-inventory-grid-ui.js, 2026-10-22 사용자 "아이템을 직접 채팅창에 끌어다가 놓아도
- * 가능하게"). 주얼은 주얼 카드로 붙는다. 코어와 액막이는 채팅 카드가 아직 그리지 못해 붙이지 않는다. */
+ * 가능하게"). 주얼, 코어, 액막이도 제 카드로 붙는다(buildChatItemSnapshot). */
 function attachChatItemOf(item, slot) {
     if (!getMyNickname()) return showGameToast('닉네임을 정하면 아이템을 채팅에 붙일 수 있습니다.', 'warning');
-    let snap = !item ? null : bagItems.isJewel(item) ? buildJewelSnapshot(item) : bagItems.isSpecial(item) ? null : buildItemSnapshot(item, slot);
+    let snap = buildChatItemSnapshot(item, slot);
     if (!snap) return showGameToast('이 아이템은 채팅에 붙일 수 없습니다.', 'warning');
     attachChatSnapshot(snap);
 }
@@ -1694,9 +1711,11 @@ function profileItemFusionHtml(item) {
 /** 게임 툴팁처럼 "베이스 옵션"(방어도, 회피, 에너지 보호막은 최종값과 베이스), "추가 옵션 (n/6)"(게임과 같은 순서, 혼돈 주입 포함), 잠식. */
 function profileItemOptionsHtml(item) {
     let explicit = profileExplicitStats(item);
+    // 줄이 없는 아이템의 한 줄은 게임 툴팁과 같다(itemTooltipRules.emptyExplicitHtml): 액막이는 끼울 곳, 그 밖에는 일반 아이템.
+    let empty = typeof colonyWards === 'object' && colonyWards.isWard(item) ? '장비창의 액막이 칸에 끼웁니다' : '일반 아이템: 추가 옵션 없음';
     let html = explicit.length
         ? `<div class="social-item-section">${profileAffixHeaderText(item, explicit)}</div>${explicit.map(profileExplicitLineHtml).join('')}`
-        : '<div class="social-item-stat" style="color:var(--copy-muted);">일반 아이템: 추가 옵션 없음</div>';
+        : `<div class="social-item-stat" style="color:var(--copy-muted);">${empty}</div>`;
     return profileBaseOptionsHtml(item) + html + profileItemEncroachHtml(item) + profileItemAnointHtml(item) + profileItemEmberHtml(item);
 }
 

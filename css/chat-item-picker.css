@@ -29,6 +29,10 @@ button.chat-pick-cell:hover { border-color: color-mix(in srgb, var(--item-rarity
 .chat-pick-doll { --eqw-doll-row: 62px; max-width: 360px; margin: 0 auto; }
 .chat-pick-doll .chat-pick-slot img { padding: 12px 4px 2px; box-sizing: border-box; }
 .chat-pick-slot.is-empty { position: relative; display: block; border: 1px dashed #4c4940; background: #0d0f10; }
+/* 장착 장비 아래 액막이 칸 줄(장비 창의 .ward-slot-row처럼 끼운 액막이와 열린 빈 칸만). */
+.chat-pick-wards { display: flex; justify-content: center; gap: 4px; }
+.chat-pick-wards .chat-pick-ward { width: 44px; height: 44px; }
+.chat-pick-page.is-equip .chat-pick-sub { max-width: 360px; margin-inline: auto; text-align: center; }
 
 /* 인벤토리: 가방 쪽과 같은 칸 수와 자리(정수 칸 32px). */
 .chat-pick-pages { display: flex; flex-wrap: wrap; gap: 4px; margin: 0 0 6px; }
