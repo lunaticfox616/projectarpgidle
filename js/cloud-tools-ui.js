@@ -84,6 +84,77 @@ async function restoreCloudSaveVersion(revision) {
     }
 }
 
+/** 설정 > 클라우드 세이브의 계정 삭제 단추. 지워지는 것을 알린 뒤 "삭제"를 그대로 쳐야 delete_my_account(db/cloud-and-playtest.sql)를 부른다.
+ * 서버가 auth.users 한 줄을 지우면 모든 표가 외래키로 따라 지워지므로 이쪽은 이 기기의 토큰만 치운다. 이 기기의 저장은 남는다. */
+async function deleteCloudAccount() {
+    if (!cloudState || !cloudState.user) return setCloudMessage('로그인한 계정이 없습니다.');
+    if (cloudState.busy) return setCloudMessage('클라우드 작업이 끝난 뒤 다시 눌러 주세요.');
+    if (!(await confirmAccountDeletion())) return;
+    cloudState.busy = true;
+    setCloudMessage('계정을 지우는 중입니다...');
+    updateCloudSaveUI();
+    let outcome = await requestAccountDeletion();
+    if (outcome.failed) {
+        cloudState.busy = false;
+        updateCloudSaveUI();
+        setCloudMessage(`계정을 지우지 못했습니다: ${outcome.failed}`);
+        return showGameToast('계정을 지우지 못했습니다.', 'danger');
+    }
+    await forgetDeletedAccountSession();
+    cloudState.busy = false;
+    updateCloudSaveUI();
+    setCloudMessage(outcome.alreadyGone
+        ? '이미 지워진 계정이라 이 기기의 로그인 정보만 치웠습니다. 이 기기의 저장은 그대로 있습니다.'
+        : '계정과 클라우드 자료를 지웠습니다. 이 기기의 저장은 그대로 있습니다.');
+    showGameToast('계정을 지웠습니다.', 'success');
+}
+
+const ACCOUNT_DELETE_ERROR_TEXTS = [
+    [/AUTH_REQUIRED/, '로그인이 풀렸습니다. 다시 로그인한 뒤 눌러 주세요.'],
+    [/schema cache|could not find|does not exist/i, '서버에 계정 삭제 기능이 아직 없습니다. db/account-deletion-hold-chat-20261027.sql을 실행해야 합니다.']
+];
+/** delete_my_account를 부른다. 다른 기기에서 이미 지운 계정(ACCOUNT_NOT_FOUND)은 성공으로 본다: 이 기기의 로그인 정보만 치우면 된다(검토 지적 2026-10-27). */
+async function requestAccountDeletion() {
+    try {
+        await cloudJsonRequest('/rest/v1/rpc/delete_my_account', { method: 'POST', body: {} });
+        return { alreadyGone: false };
+    } catch (error) {
+        let message = String((error && error.message) || error);
+        if (/ACCOUNT_NOT_FOUND/.test(message)) return { alreadyGone: true };
+        let known = ACCOUNT_DELETE_ERROR_TEXTS.find(([pattern]) => pattern.test(message));
+        return { failed: known ? known[1] : message };
+    }
+}
+
+/** 두 단계 확인: 지워지는 것의 목록, 그 다음 "삭제"를 그대로 쳐야 한다(다른 글은 입력 칸 아래 안내로 막힌다). */
+async function confirmAccountDeletion() {
+    let agreed = await requestGameConfirmation(
+        '이 계정을 지울까요?\n클라우드 저장과 저장 이력, 공개 프로필과 닉네임, 채팅, 전당 전시와 구매, 고스트 기록이 모두 지워지고 되돌릴 수 없습니다.\n이 기기의 저장은 남습니다.',
+        { title: '계정 삭제', tone: 'danger', confirmLabel: '계속' });
+    if (!agreed) return false;
+    let typed = await requestGameText({
+        title: '계정 삭제', tone: 'danger', message: '정말 지우려면 삭제 라고 입력해 주세요.', placeholder: '삭제', maxLength: 10,
+        confirmLabel: '영구 삭제', validate: value => String(value || '').trim() === '삭제' ? true : '삭제 라고 입력해야 지워집니다.'
+    });
+    return typeof typed === 'string';
+}
+
+/** 지워진 계정의 흔적을 이 기기에서 치운다. 먼저 게임 세션을 기다림 없이 비워(clearCloudSessionLocally: 사용자, 토큰, 자동 저장 대기와 타이머)
+ * 죽은 토큰으로 나가는 저장이나 갱신이 없게 하고, 그 다음 supabase-js의 세션을 서버에 묻지 않고(local) 지운다. 서버 로그아웃은 부르지 않는다:
+ * 계정이 없어 세션도 함께 사라졌고, 부르면 만료 직전 토큰을 갱신하려다 "세션 만료" 경고를 남긴다(검토 지적 2026-10-27).
+ * supabase-js의 signOut은 던지지 않고 { error }를 돌려준다. */
+async function forgetDeletedAccountSession() {
+    clearCloudSessionLocally();
+    let client = typeof getSupabaseClient === 'function' ? getSupabaseClient() : null;
+    if (!client) return;
+    try {
+        let result = await client.auth.signOut({ scope: 'local' });
+        if (result && result.error) console.warn('supabase local sign-out after deletion failed:', result.error);
+    } catch (error) {
+        console.warn('supabase local sign-out after deletion failed:', error);
+    }
+}
+
 /** A titled table. A column shows row[key], or render(row) as text, or html(row) as markup the column escapes itself (buttons). */
 function renderOpsTable(title, columns, rows) {
     if (!rows.length) return `<section><h3>${title}</h3><p class="cloud-tools-empty">표본 없음</p></section>`;
@@ -173,7 +244,7 @@ async function setCheatHold(button) {
     let held = button.dataset.cheatHeld === '1';
     let confirmed = await requestGameConfirmation(held
         ? '이 계정의 보류를 풀까요?\n다음 고스트 등록부터 다시 순위에 듭니다.\n닫은 전시는 닫힌 채로 둡니다.'
-        : '이 계정을 보류할까요?\n전당 등록과 구매, 고스트 대결에서 빠집니다.\n열린 전시는 더 팔리지 않습니다.', {
+        : '이 계정을 보류할까요?\n전당 등록과 구매, 고스트 대결, 채팅에서 빠집니다.\n열린 전시는 더 팔리지 않습니다.', {
         title: '치트 감시', tone: 'warning', confirmLabel: held ? '보류 풀기' : '보류'
     });
     if (!confirmed) return;

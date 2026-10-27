@@ -1164,6 +1164,7 @@ const SOCIAL_CHAT_ERROR_TEXTS = [
     [/SPAM_DUPLICATE/, '같은 메시지를 연속으로 보낼 수 없습니다.'],
     [/SPAM_REPEAT/, '같은 메시지를 5분 안에 세 번 보낼 수 없습니다.'],
     [/SPAM_FLOOD/, '같은 글자를 너무 많이 반복했습니다.'],
+    [/CHAT_ACCOUNT_HELD/, '운영 검토 중인 계정이라 채팅을 보낼 수 없습니다.'],   // 관리자 보류(db/anti-cheat.sql 5절)
     [/CHAT_MUTED/, msg => msg.replace(/^[\s\S]*?CHAT_MUTED:\s*/, '')],   // 서버 문구에 남은 시간이 있다: "채팅이 금지된 상태입니다. N분 뒤 풀립니다."
     [/CHAT_PROFANITY/, '비속어가 들어 있어 보낼 수 없습니다.'],
     [/CHAT_LINK/, '링크는 보낼 수 없습니다.'],

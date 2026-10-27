@@ -11930,7 +11930,7 @@ function updateCloudSaveUI() {
     if (pill && cloudState.lastMessage && /실패|오류/.test(cloudState.lastMessage) && !cloudState.busy) pill.classList.add('error');
 
     if (openGateBtn) openGateBtn.disabled = cloudState.busy;
-    ['btn-cloud-logout', 'btn-cloud-push', 'btn-cloud-pull'].forEach(id => {
+    ['btn-cloud-logout', 'btn-cloud-push', 'btn-cloud-pull', 'btn-cloud-delete'].forEach(id => {
         let el = document.getElementById(id);
         if (el) el.disabled = !canSync;
     });
@@ -12892,6 +12892,15 @@ async function cloudLogin(options = {}) {
     }
 }
 
+/** 이 기기의 클라우드 로그인 흔적을 치운다: 세션과 사용자, 자동 저장 대기와 타이머(applyCloudSession), 원격 기록 메모.
+ * 로그아웃과 계정 삭제(js/cloud-tools-ui.js forgetDeletedAccountSession)가 같이 쓴다. 서버에는 아무것도 묻지 않는다. */
+function clearCloudSessionLocally() {
+    applyCloudSession(null);
+    cloudState.linkedProviders = [];
+    cloudState.lastRemoteUpdatedAt = 0;
+    cloudState.lastRemoteLoop = 0;
+}
+
 async function cloudLogout() {
     if (!cloudState.user) return setCloudMessage('이미 로그아웃 상태입니다.');
     cloudState.busy = true;
@@ -12909,10 +12918,7 @@ async function cloudLogout() {
                 console.warn('cloud logout request failed:', logoutError);
             }
         }
-        applyCloudSession(null);
-        cloudState.linkedProviders = [];
-        cloudState.lastRemoteUpdatedAt = 0;
-        cloudState.lastRemoteLoop = 0;
+        clearCloudSessionLocally();
         setCloudMessage('클라우드 계정에서 로그아웃했습니다.');
     } finally {
         cloudState.busy = false;

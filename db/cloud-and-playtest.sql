@@ -1,4 +1,4 @@
--- 로그인 계정 저장과 최소 플레이테스트 계측.
+-- 로그인 계정 저장, 계정 삭제와 최소 플레이테스트 계측.
 -- Supabase SQL Editor에서 한 번 실행한다. 반복 실행해도 안전하다.
 
 create table if not exists public.cloud_saves (
@@ -71,6 +71,28 @@ $$;
 
 revoke all on function public.commit_cloud_save(bigint, jsonb) from public, anon;
 grant execute on function public.commit_cloud_save(bigint, jsonb) to authenticated;
+
+-- 계정 삭제(2026-10-27): 로그인한 사람이 자기 계정을 지운다(설정 > 클라우드 세이브 > 계정 삭제, js/cloud-tools-ui.js deleteCloudAccount).
+-- auth.users 한 줄을 지우면 public의 모든 표가 외래키(on delete cascade)로 함께 지워진다(라이브 DB의 외래키 20개를 2026-10-27 확인):
+-- 클라우드 저장과 버전, 공개 프로필(닉네임도 풀린다), 채팅과 금지, 신고, 치트 기록과 보류, 전당 등록부와 전시와 구매, 고스트 프로필과
+-- 대전 기록, 원격 측정. 남이 이 계정의 전시에서 산 구매 기록과 남의 대전 기록 중 이 계정이 상대인 줄도 함께 지워진다.
+-- 이 기기의 게스트 저장은 서버와 무관해 남는다. postgres 소유의 보안 정의자라야 auth.users를 지울 수 있다.
+-- 보류 중인 계정도 지울 수 있다(스토어의 계정 삭제 정책). 그 보류 기록은 함께 사라진다.
+-- 남는 것: auth.audit_log_entries의 로그인 기록(GoTrue가 이메일을 jsonb로 남기고 외래키가 없다)과 다른 기기 저장의 cloudUserId 메모.
+create or replace function public.delete_my_account()
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare
+    uid uuid := auth.uid();
+begin
+    if uid is null then raise exception 'AUTH_REQUIRED'; end if;
+    delete from auth.users where id = uid;
+    if not found then raise exception 'ACCOUNT_NOT_FOUND'; end if;
+    return jsonb_build_object('deleted', true);
+end;
+$$;
+
+revoke all on function public.delete_my_account() from public, anon;
+grant execute on function public.delete_my_account() to authenticated;
 
 create table if not exists public.playtest_runs (
     id bigint generated always as identity primary key,

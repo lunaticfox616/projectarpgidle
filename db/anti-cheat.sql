@@ -8,8 +8,8 @@
 -- 원칙:
 --   1. 틀릴 수 없는 검사만 막는다: 전당에 올리는 장비의 수치(게스트 세이브 검사 js/guest-save-check.js와 같은 기준).
 --   2. 어림 검사는 막지 않고 기록만 한다: 클라우드 저장의 기기 시계, 나올 수 없는 값, 성장 속도, 고스트 DPS 이상치.
---   3. 관리자가 기록을 보고 직접 보류한 계정만 남과 나누는 곳(전당 등록과 구매, 고스트 순위와 대전)에서 뺀다. 저장은 언제나 받는다.
--- 성능: 검사는 저장(몇 분에 한 번), 전당 등록과 구매, 고스트 등록 때만 돈다. 저장 감시는 세이브에서 네 칸만 꺼내 보고,
+--   3. 관리자가 기록을 보고 직접 보류한 계정만 남과 나누는 곳(전당 등록과 구매, 고스트 순위와 대전, 채팅)에서 뺀다. 저장은 언제나 받는다.
+-- 성능: 검사는 저장(몇 분에 한 번), 전당 등록과 구매, 고스트 등록, 채팅 한 줄(보류 조회 하나) 때만 돈다. 저장 감시는 세이브에서 네 칸만 꺼내 보고,
 --   지난 세이브는 한 번만 읽는다. 감시가 실패해도 저장은 그대로 들어간다.
 -- ============================================================================
 
@@ -442,5 +442,25 @@ $$;
 revoke all on function public.ghost_min_ehp(jsonb) from public, anon, authenticated;
 revoke all on function public.admin_clear_cheat_flags(uuid, text) from public, anon;
 grant execute on function public.admin_clear_cheat_flags(uuid, text) to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- 5) 채팅: 보류한 계정은 채팅을 보내지 못한다 (2026-10-27)
+-- ---------------------------------------------------------------------------
+-- 보류는 남과 나누는 곳에서 빼는 조치(원칙 3)인데 채팅은 그 안에 없었다. chat_messages의 넣기 트리거(db/social.sql의 속도 제한) 다음에
+-- 돌고(이름 순), 어느 쪽 오류든 메시지는 들어가지 않는다. 오류 문구는 js/social.js SOCIAL_CHAT_ERROR_TEXTS의 CHAT_ACCOUNT_HELD.
+-- 보류를 풀면 바로 다시 보낼 수 있다(채팅 금지 chat_mutes와는 따로 간다). 실행 권한을 회수한 cheat_account_held를 부르므로 보안 정의자.
+create or replace function public.guard_chat_message()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+    if public.cheat_account_held(new.user_id) then raise exception 'CHAT_ACCOUNT_HELD'; end if;
+    return new;
+end;
+$$;
+
+drop trigger if exists trg_guard_chat_message on public.chat_messages;
+create trigger trg_guard_chat_message before insert on public.chat_messages
+    for each row execute function public.guard_chat_message();
+
+revoke all on function public.guard_chat_message() from public, anon, authenticated;
 
 commit;

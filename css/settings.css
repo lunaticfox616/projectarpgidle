@@ -168,7 +168,9 @@
 .cloud-link > span { margin-right: auto; color: #eee4cf; font-size: 14px; }
 #tab-settings .cloud-link .social-login-image-btn img { height: 36px; border-radius: 6px; }
 .cloud-panel > .cfg-disclosure { margin-top: 6px; border-top: 1px solid rgba(255, 255, 255, .06); }
-.cloud-panel:has(#ui-cloud-status-pill:not(.online, .syncing)) :is(#btn-cloud-logout, #btn-cloud-pull, .cloud-link) { display: none; }
+.cloud-panel:has(#ui-cloud-status-pill:not(.online, .syncing)) :is(#btn-cloud-logout, #btn-cloud-pull, #btn-cloud-delete, .cloud-link) { display: none; }
+/* 계정 삭제: 보통 동작과 떨어진 오른쪽 자리. 글자색은 아래 overrides 층에 있다. */
+#tab-settings .cloud-actions > #btn-cloud-delete { margin-left: auto; }
 .cloud-policy-links { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 4px 0 6px; font-size: 12px; }
 
 /* 초기화: 붉은 기가 도는 판. */
@@ -208,4 +210,7 @@
   /* PC 창: 도트 테마는 창 안을 비워 나무결 판이 비치게 한다. 설정 창 안은 휴대폰 설정과 같은 무늬 없는 검정(rgb 8, 10, 9):
      나무결 판 위에서는 글의 대비가 낮고 무늬가 눈을 끌었다(2026-10-16). 제목 줄과 테는 다른 창과 같다. */
   :root body[data-ui-skin].desktop-windowed-ui #tab-settings > .ui-window-body { background: #080a09; }
+  /* 계정 삭제 단추의 붉은 글자(초기화 판 제목과 같은 색). 클라우드 패널 단추의 글자색을 ui-reliquary-shell.css가 이 층에서 정하므로
+     features 층에 두면 밀린다(2026-10-27). */
+  #tab-settings .cloud-actions > #btn-cloud-delete { color: #e09a88; }
 }
