@@ -354,7 +354,33 @@ const stumpCube = (() => {
         return '';
     }
 
+    // ── 바로 합치기(2026-10-29 사용자: 그루터기 함 틀의 아래 보석, 즉석 씨앗과 수액 합치기) ─────────────
+    const MERGE_ID = 'stump_merge';
+    /** Three stored seeds or saps alike (colour, family, path) for 씨앗과 수액 합치기, the plainest first (cubeSpendOrder). With pickId
+     * (a stored item the player picked) the three include it; otherwise the first set of three. Items in the cube stay there. */
+    function mergeSet(state, pickId) {
+        const rule = STUMP_CUBE_RECIPES.find(recipe => recipe.id === MERGE_ID).inputs[0];
+        const fitting = candidates('stump', state).map(item => ({ kind: 'stump', item })).filter(entry => fitsRule(rule, entry)).sort(cubeSpendOrder);
+        const picked = fitting.find(entry => entry.item.id === pickId);
+        if (!picked) return pickCubeRow(rule, fitting);
+        const key = entry => rule.same.map(name => SAME_KEYS[name](entry)).join('|');
+        const alike = fitting.filter(entry => entry !== picked && key(entry) === key(picked)).slice(0, rule.count - 1);
+        return alike.length === rule.count - 1 ? [picked, ...alike] : null;
+    }
+    /** Merges three stored seeds or saps now (mergeSet). @returns {{ok: boolean, reason?: string, recipe?: object, item?: object}} */
+    function mergeNow(state = game, pickId = null, random = Math.random) {
+        if (state.woodsmanBuildLock) return { ok: false, reason: LOCK_REASON };
+        const set = mergeSet(state, pickId);
+        if (!set) return { ok: false, reason: '같은 색, 같은 종류의 씨앗이나 수액 3개가 보관함에 없습니다.' };
+        const result = stumpCubeRecipes.run(MERGE_ID, [set], state, random);
+        if (!result.ok) return result;
+        result.consumed.forEach(entry => REMOVERS.stump(state, entry.item));
+        const item = storeStump(state, result.outputs[0]);
+        stumpBox.invalidatePlacementUndo(state);
+        return { ok: true, recipe: STUMP_CUBE_RECIPES.find(recipe => recipe.id === MERGE_ID), item };
+    }
+
     return Object.freeze({ SIZE, KINDS, empty, normalize, of, entries, put, takeOut, clear, match, missingRecipes, preview, missingCost, transmute, candidates, footprint,
-        isRevealed, revealed, learn, readyCubeSets, fillCubeRecipe });
+        isRevealed, revealed, learn, readyCubeSets, fillCubeRecipe, mergeNow });
 })();
 safeExposeGlobals({ stumpCube });

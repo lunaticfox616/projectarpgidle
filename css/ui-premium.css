@@ -136,7 +136,7 @@
 }
 
 /* 장비 탭(slot) 가독성/분리감 강화 */
-:root body #item-tab-equip .paperdoll {
+:root body :is(#item-tab-equip, #stump-equip-host) .paperdoll {
   padding: 10px;
   border-radius: 12px;
   border-width: 1px;
@@ -144,16 +144,16 @@
 }
 
 /* 장비 탭(slot) 가독성/분리감 강화 */
-:root body #item-tab-equip .paperdoll {
+:root body :is(#item-tab-equip, #stump-equip-host) .paperdoll {
   background: linear-gradient(180deg, var(--skin-panel) 0%, var(--skin-canvas) 100%);
   border-color: var(--skin-line);
 }
-:root body #item-tab-equip .slot-box {
+:root body :is(#item-tab-equip, #stump-equip-host) .slot-box {
   background: linear-gradient(180deg, var(--skin-control) 0%, var(--skin-panel) 100%);
   border-color: var(--skin-line);
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 0 0 1px color-mix(in srgb, var(--skin-accent), transparent 88%), 0 3px 10px rgba(0,0,0,0.35);
 }
-:root body #item-tab-equip .slot-box:hover {
+:root body :is(#item-tab-equip, #stump-equip-host) .slot-box:hover {
   background: linear-gradient(180deg, color-mix(in srgb, var(--skin-control), var(--skin-accent) 8%) 0%, var(--skin-panel-raised) 100%);
   border-color: var(--skin-line-strong);
 }

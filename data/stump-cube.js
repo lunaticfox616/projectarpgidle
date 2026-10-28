@@ -10,7 +10,9 @@
 //   same: 그 줄의 재료끼리 같아야 하는 것(slot 부위 · color 색 · family 계열 · path 씨앗이 자랄 길 · name 고유 이름).
 //   need · result는 화면에 쓰는 문장.
 const STUMP_CUBE_SIZE = 5;
-const STUMP_CUBE_STUMP_ROLL_STEP = 0.1;
+// 씨앗과 수액 합치기의 품질(2026-10-29 사용자): 보통은 세 재료의 평균 품질에 1~10%를 더한다(해금된 품질 상한까지). bestChance의 확률로
+// 가장 높은 품질에 1~10%(상한까지), overChance의 확률로 평균 품질에 over를 더하고 이때는 상한을 넘을 수 있다(상한 + over까지).
+const STUMP_CUBE_MERGE = Object.freeze({ step: Object.freeze([1, 10]), bestChance: 0.1, overChance: 0.05, over: 0.11 });
 // 고유 장비 다시 빚기: 새 고유가 특출난 베이스(베이스 줄 하나가 최고 굴림의 120%)가 될 확률.
 const STUMP_CUBE_UNIQUE_EXCEPTIONAL_CHANCE = 0.15;
 const STUMP_CUBE_RECIPES = Object.freeze([
@@ -28,7 +30,8 @@ const STUMP_CUBE_RECIPES = Object.freeze([
         inputs: [{ kind: 'equipment', rarity: 'unique', count: 1 }, { kind: 'stump', family: 'seed', ripe: true, count: 3 }], cost: {} },
     { id: 'equip_socket_jewel', reveal: { content: 'jewel' }, group: '장비', need: '소켓을 뚫을 수 있는 장신구 1 + 주얼 1', name: '소켓 뚫어 끼우기', result: '장신구에 공허 소켓을 뚫고 그 주얼을 끼운다',
         inputs: [{ kind: 'equipment', socketable: true, count: 1 }, { kind: 'jewel', count: 1 }], cost: { voidChisel: 1 } },
-    { id: 'stump_merge', group: '그루터기', need: '같은 색, 같은 종류(꽃 씨앗, 열매 씨앗, 수액) 3', name: '씨앗과 수액 합치기', result: '같은 색과 종류 1, 품질 = 가장 높은 품질 +10%(해금된 품질 상한까지)',
+    { id: 'stump_merge', group: '그루터기', need: '같은 색, 같은 종류(꽃 씨앗, 열매 씨앗, 수액) 3', name: '씨앗과 수액 합치기',
+        result: '같은 색과 종류 1, 품질 = 평균 품질 +1~10%(해금된 품질 상한까지). 10% 확률로 가장 높은 품질 +1~10%(상한까지), 5% 확률로 평균 품질 +11%(상한을 넘을 수 있음)',
         inputs: [{ kind: 'stump', family: ['seed', 'sap'], count: 3, same: ['color', 'family', 'path'] }], cost: {} },
     { id: 'amber_catalyst', reveal: { harvest: ['amber'], loop: 32 }, group: '그루터기', need: '같은 색 호박석(성장 완료된 수액) 2', name: '호박석 기폭제',
         result: '그 색의 기폭제 1(화염, 냉기, 번개, 카오스: 장비 품질 속성, 루프 32부터)',
@@ -49,4 +52,4 @@ const STUMP_CUBE_RECIPES = Object.freeze([
         inputs: [{ kind: 'core', rarity: ['rare'], count: 3 }], cost: {} }
 ]);
 
-safeExposeData({ STUMP_CUBE_SIZE, STUMP_CUBE_STUMP_ROLL_STEP, STUMP_CUBE_UNIQUE_EXCEPTIONAL_CHANCE, STUMP_CUBE_RECIPES });
+safeExposeData({ STUMP_CUBE_SIZE, STUMP_CUBE_MERGE, STUMP_CUBE_UNIQUE_EXCEPTIONAL_CHANCE, STUMP_CUBE_RECIPES });

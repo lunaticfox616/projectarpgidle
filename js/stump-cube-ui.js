@@ -1,10 +1,11 @@
-// 조합창 화면: 5×5 칸(그루터기 함 판과 같은 틀 자리, 틀 위 보석으로 서로 바꾼다: js/stump-box-ui.js), 틀 아래에 맞는 조합법과 비용,
-// [조합] · [재료 넣기] · [비우기] · 조합법 목록. 재료 고르기는 선택 대화 상자(장비 · 그루터기 · 주얼 · 코어). 칸 · 조합법 목록 단추는
-// stump-box-ui.js의 클릭 위임(data-stump-action)이 이 모듈의 동작을 부르고, 대화 상자 단추는 직접 부른다. 규칙은 stump-cube.js.
+// 조합창 화면: 5×5 칸(그루터기 함 판과 같은 틀 자리, 틀 위 생명의 나무로 서로 바꾼다: js/stump-box-ui.js), 틀 아래에 맞는 조합법과 비용,
+// 바로 넣기, 최근 결과. 조합은 틀의 아래 보석, 비우기는 오른쪽 보석이 한다(2026-10-29 사용자: 틀 아래 단추 넷을 지웠다). 빈 칸을 누르면
+// 재료 고르기(선택 대화 상자: 장비 · 그루터기 · 주얼 · 코어)가 열린다. 조합법은 틀 아래의 책: 누르면 책이 화면 가운데로 커지며 펼쳐진다.
+// 칸과 책 단추는 stump-box-ui.js의 클릭 위임(data-stump-action)이 이 모듈의 동작을 부르고, 대화 상자 단추는 직접 부른다. 규칙은 stump-cube.js.
 const stumpCubeUi = (() => {
     const OVERLAY_ID = 'stump-cube-picker';
     const KIND_LABELS = { equipment: '장비', stump: '그루터기', jewel: '주얼', core: '코어' };
-    let bookOpen = false, pickerKind = 'equipment';
+    let pickerKind = 'equipment';
     let pickerItems = [], pickerSelection = null, lastResult = null;
 
     function esc(text) { return escapeHTML(String(text)); }
@@ -50,24 +51,36 @@ const stumpCubeUi = (() => {
         recipeTone = { tones, pattern: new RegExp(`(${words.join('|')})|(\\d+(?:%|개)?)`, 'g') };
         return recipeTone;
     }
+    /** The book is parchment: each word keeps its tone as --ink, which css/stump-box.css mixes with ink brown; numbers are rubric red. */
     function recipeToneHtml(text) {
         const { tones, pattern } = recipeTones();
-        return esc(text).replace(pattern, (match, word) => `<span style="color:${word ? tones.get(word) : '#f6e7c1'}">${match}</span>`);
+        return esc(text).replace(pattern, (match, word) => (word ? `<span class="stump-ink" style="--ink:${tones.get(word)}">${match}</span>`
+            : `<span class="stump-ink is-num">${match}</span>`));
+    }
+    /** A recipe's cost in the book: plain names (the styled currency names are drawn for dark windows), the held count red when short. */
+    function bookCostHtml(cost) {
+        const rows = Object.entries(cost || {}).map(([key, need]) => {
+            const have = Math.floor(game.currencies[key] || 0);
+            return `${esc(ORB_DB[key].name)} ${need} <span class="${have < need ? 'is-short' : ''}">(보유 ${have})</span>`;
+        });
+        return rows.length ? rows.join(', ') : '비용 없음';
     }
 
     // ── 칸 ─────────────────────────────────────────────────
-    // 칸과 넣은 재료는 그루터기 함 보관함에서 끌어 놓는 자리다(data-stump-drop-cube, js/stump-box-drag-ui.js). 여러 칸 재료는 틀의 살 위에
-    // 그려 한 덩어리로 보인다(2026-10-28 사용자: 중앙의 선을 가리도록, css/stump-box.css .is-multi).
+    // 칸과 넣은 재료는 그루터기 함 보관함이나 장비 가방(왼쪽 보석으로 띄운 가방)에서 끌어 놓는 자리다(data-stump-drop-cube,
+    // js/stump-box-drag-ui.js, js/equipment-inventory-grid-ui.js). 칸은 판처럼 틀의 구멍(홀수 줄)에 놓고, 여러 칸 재료는 그 사이 살까지
+    // 덮어 한 덩어리로 보인다(2026-10-28 사용자: 중앙의 선을 가리도록, css/stump-box.css .is-multi).
+    const track = (at, span = 1) => `${at * 2 + 1} / span ${span * 2 - 1}`;
     function entryHtml(entry) {
         const name = itemName(entry.kind, entry.item), cell = entry.y * stumpCube.SIZE + entry.x;
         return `<button type="button" class="stump-cube-item${entry.w * entry.h > 1 ? ' is-multi' : ''}" data-stump-action="cube-cell" data-cell="${cell}" data-stump-drop-cube="${cell}"`
-            + ` style="grid-column:${entry.x + 1} / span ${entry.w};grid-row:${entry.y + 1} / span ${entry.h};--cube-tone:${itemTone(entry.kind, entry.item)}"`
+            + ` style="grid-column:${track(entry.x, entry.w)};grid-row:${track(entry.y, entry.h)};--cube-tone:${itemTone(entry.kind, entry.item)}"`
             + ` title="${esc(name)}, 누르면 꺼냅니다" aria-label="${esc(name)} 꺼내기"><img src="${ICONS[entry.kind](entry.item)}" alt="" draggable="false"></button>`;
     }
 
     function gridHtml(list) {
         const cells = Array.from({ length: stumpCube.SIZE * stumpCube.SIZE }, (_, cell) => `<button type="button" class="stump-cube-cell"`
-            + ` data-stump-action="cube-open" data-stump-drop-cube="${cell}" style="grid-column:${cell % stumpCube.SIZE + 1};grid-row:${Math.floor(cell / stumpCube.SIZE) + 1}"`
+            + ` data-stump-action="cube-open" data-stump-drop-cube="${cell}" style="grid-column:${track(cell % stumpCube.SIZE)};grid-row:${track(Math.floor(cell / stumpCube.SIZE))}"`
             + ` aria-label="빈 칸, 재료 넣기"></button>`).join('');
         return `<div class="stump-cube-grid" role="grid" aria-label="조합창 ${stumpCube.SIZE}×${stumpCube.SIZE}">${cells}${list.map(entryHtml).join('')}</div>`;
     }
@@ -127,33 +140,25 @@ const stumpCubeUi = (() => {
             + `<span>${hint.missing.map(row => `${statToneText.html(missingMaterialLabel(row))} <b class="stump-cube-shortage">${row.count}개 부족</b>`).join(', ')}</span></li>`).join('') + '</ul>';
     }
 
-    /** 조합법 책: 재료가 생길 수 있게 된 조합법만(조합법 발견, stumpCube.revealed). 나머지는 개수만 알린다. */
+    /** 조합법 책의 글: 재료가 생길 수 있게 된 조합법만(조합법 발견, stumpCube.revealed). 나머지는 개수만 알린다. 양피지 위라 낱말 색은
+     * 먹빛으로 어둡게 섞는다(css/stump-box.css .stump-book). */
     function recipeBookHtml() {
-        if (!bookOpen) return '';
         const shown = stumpCube.revealed(game), hidden = STUMP_CUBE_RECIPES.length - shown.length;
         const rows = shown.map(recipe => `<li style="--recipe-tone:${GROUP_TONES[recipe.group] || '#e6c67f'}">`
-            + `<span class="stump-cube-book-head"><span class="stump-cube-book-group">${esc(recipe.group)}</span><strong>${esc(recipe.name)}</strong></span>`
-            + `<span>${recipeToneHtml(recipe.need)} <b class="stump-cube-book-arrow">→</b> ${recipeToneHtml(recipe.result)}`
-            + `${recipe.id === 'stump_merge' ? ` 현재 ${recipeToneHtml(Math.round(stumpBox.rollCap(game) * 100) + '%')}` : ''}</span><small>${costHtml(recipe.cost)}</small></li>`).join('');
+            + `<span class="stump-book-entry-head"><span class="stump-book-group">${esc(recipe.group)}</span><strong>${esc(recipe.name)}</strong></span>`
+            + `<span>${recipeToneHtml(recipe.need)} <b class="stump-book-arrow">→</b> ${recipeToneHtml(recipe.result)}`
+            + `${recipe.id === 'stump_merge' ? ` 현재 ${recipeToneHtml(Math.round(stumpBox.rollCap(game) * 100) + '%')}` : ''}</span><small>${bookCostHtml(recipe.cost)}</small></li>`).join('');
         const more = hidden ? `<li class="is-hidden">아직 모르는 조합법 ${hidden}개 (새 재료가 성장 완료되거나 해금되면 공개)</li>` : '';
-        return `<ul class="stump-cube-book">${rows}${more}</ul>`;
+        return `<h3 class="stump-book-title">조합법</h3><ul class="stump-book-list">${rows}${more}</ul>`;
     }
 
     /** The cube's 5×5 cells, drawn inside the stump box frame when the frame shows the cube (js/stump-box-ui.js). */
     function cubeGridHtml() { return gridHtml(stumpCube.entries()); }
 
-    /** Under the frame while it shows the cube: the matching recipe and cost, the buttons, the last result and the recipe list. */
+    /** Under the frame while it shows the cube: the matching recipe and cost, the quick fill and the last result. */
     function cubeHtml() {
         const list = stumpCube.entries(), found = stumpCube.preview(), matched = stumpCube.match();
-        // A hidden recipe stays craftable by experiment, except one still behind its loop.
-        const ready = !!matched && (found || !(matched.recipe.reveal?.loop > game.season)) && !found?.reason
-            && !stumpCube.missingCost(matched.recipe).length && !game.woodsmanBuildLock;
-        return statusHtml(found, list, matched)
-            + `<div class="stump-actions"><button type="button" data-stump-action="cube-transmute"${ready ? '' : ' disabled'}>조합</button>`
-            + '<button type="button" data-stump-action="cube-open">재료 넣기</button>'
-            + `<button type="button" data-stump-action="cube-clear"${list.length ? '' : ' disabled'}>비우기</button>`
-            + `<button type="button" data-stump-action="cube-book" aria-pressed="${bookOpen}">조합법 ${stumpCube.revealed(game).length}/${STUMP_CUBE_RECIPES.length}</button></div>`
-            + quickFillHtml() + resultHtml() + recipeBookHtml();
+        return statusHtml(found, list, matched) + quickFillHtml() + resultHtml();
     }
 
     /** 바로 넣기: one button per revealed recipe the stored items make now (not the one already in the cube). Pressing it empties the cube
@@ -173,10 +178,9 @@ const stumpCubeUi = (() => {
     /** What the screen shows depends on these, so the stump tab repaints when they change. */
     function cubeSignature() {
         const found = stumpCube.preview(), matched = stumpCube.match(), revealed = stumpCube.revealed(game);
-        const costRecipes = bookOpen ? revealed : (matched ? [matched.recipe] : []);
-        const costs = [...new Set(costRecipes.flatMap(recipe => Object.keys(recipe.cost || {})))];
+        const costs = Object.keys((matched && matched.recipe.cost) || {});
         return JSON.stringify([stumpCube.entries().map(entry => [entry.kind, entry.id, entry.x, entry.y, entry.item]), found,
-            costs.map(key => [key, game.currencies[key] || 0]), !!game.woodsmanBuildLock, bookOpen, stumpBox.rollCap(game),
+            costs.map(key => [key, game.currencies[key] || 0]), !!game.woodsmanBuildLock, stumpBox.rollCap(game),
             revealed.map(recipe => recipe.id), currentResult()?.outputs, quickFillRecipes().map(recipe => recipe.id)]);
     }
 
@@ -360,8 +364,10 @@ const stumpCubeUi = (() => {
         refreshCube();
     }
 
+    /** 아래 보석(조합창): 맞는 조합법대로 조합한다. */
     function transmuteCube() {
         const result = stumpCube.transmute();
+        playUiFeedbackSound(result.ok ? 'craftSuccess' : 'craftFailure');
         if (!result.ok) return showGameToast(result.reason, { tone: 'warning' });
         lastResult = { state: game, season: game.season, outputs: JSON.parse(JSON.stringify(result.outputs)) };
         const names = result.outputs.map(row => itemName(row.kind, row.item)).join(', ');
@@ -374,17 +380,111 @@ const stumpCubeUi = (() => {
         refreshCube();
     }
 
-    function clearCube() {
-        stumpCube.clear();
+    /** Bag gear into the cube (a drop on a cube cell, or a double-click while the frame shows the cube). @returns {boolean} true when the
+     * frame shows the cube (the bag then does nothing else with it), whether or not it went in. */
+    function putBagItem(item, cell) {
+        if (!stumpBoxUi.frameShowsCube()) return false;
+        const usable = stumpCube.candidates('equipment').includes(item);
+        const reason = usable ? stumpCube.put(game, 'equipment', item, cell) : '조합창에 넣을 수 없는 장비입니다.';
+        if (reason) showGameToast(reason, { tone: 'warning' });
         refreshCube();
+        return true;
     }
 
-    function toggleCubeBook() {
-        bookOpen = !bookOpen;
-        refreshCube();
+    // ── 조합법 책(2026-10-29 사용자: 책 모양을 누르면 책이 화면에 커지면서 펼쳐지고 그 안에 쓰여 있게) ─────────────
+    // 닫힌 책(assets/ui/grove/recipe-book.png)이 단추 자리에서 화면 가운데로 커지고, 겉표지가 등을 축으로 넘어가며 두 쪽이 펼쳐진다.
+    // 글은 두 쪽에 걸쳐 흐르는 단(css columns)이고, 넘치면 아래 모서리의 화살표로 장을 넘긴다. 휴대폰은 한 쪽씩 본다.
+    // 움직임을 줄이는 설정이면 바로 펼친 책을 보인다.
+    let bookDialog = null, bookSpread = 0;
+    const BOOK_GROW_MS = 360, BOOK_OPEN_MS = 560, BOOK_CLOSE_MS = 160;
+    const bookCount = () => `${stumpCube.revealed(game).length}/${STUMP_CUBE_RECIPES.length}`;
+    /** The closed book under the frame (both sides of the frame: the board's bottom gem merges by one of its recipes). */
+    function bookButtonHtml() {
+        return `<button type="button" class="stump-recipe-book" data-stump-action="recipe-book" aria-haspopup="dialog" title="조합법 ${bookCount()}">`
+            + `<img src="assets/ui/grove/recipe-book.png" alt="" draggable="false"><span>조합법 ${bookCount()}</span></button>`;
+    }
+    function bookMarkup() {
+        return '<div class="stump-book-volume"><div class="stump-book-spread"><div class="stump-book-paper is-left"></div><div class="stump-book-paper is-right"></div>'
+            + `<div class="stump-book-text">${recipeBookHtml()}</div></div>`
+            + '<div class="stump-book-cover" aria-hidden="true"><div class="stump-book-cover-front"></div><div class="stump-book-cover-back"></div></div>'
+            + '<button type="button" class="stump-book-turn is-prev" aria-label="앞 장" data-book-turn="-1">◀</button>'
+            + '<button type="button" class="stump-book-turn is-next" aria-label="다음 장" data-book-turn="1">▶</button>'
+            + '<button type="button" class="stump-book-close" aria-label="책 덮기" data-book-close>✕</button></div>';
+    }
+    function ensureBookDialog() {
+        if (bookDialog) return bookDialog;
+        bookDialog = document.createElement('dialog');
+        bookDialog.className = 'stump-book';
+        bookDialog.setAttribute('aria-label', '조합법');
+        bookDialog.addEventListener('click', onBookClick);
+        bookDialog.addEventListener('cancel', event => { event.preventDefault(); closeRecipeBook(); });
+        document.body.appendChild(bookDialog);
+        return bookDialog;
+    }
+    function onBookClick(event) {
+        const turn = event.target.closest('[data-book-turn]');
+        if (turn) return turnBookPage(Number(turn.dataset.bookTurn));
+        if (event.target === bookDialog || event.target.closest('[data-book-close]')) closeRecipeBook();
+    }
+    /** How far one spread (two pages, or one on a phone) moves the text, and how many there are. */
+    function bookSteps(text) {
+        const gap = parseFloat(getComputedStyle(text).columnGap) || 0, step = text.clientWidth + gap;
+        return { step, count: Math.max(1, Math.round((text.scrollWidth + gap) / step)) };
+    }
+    function turnBookPage(delta) {
+        const text = bookDialog?.querySelector('.stump-book-text');
+        if (!text) return;
+        const { step, count } = bookSteps(text);
+        bookSpread = Math.max(0, Math.min(count - 1, bookSpread + delta));
+        text.scrollLeft = bookSpread * step;
+        markBookTurns(count);
+        if (delta) playUiFeedbackSound('uiSelect');
+    }
+    function markBookTurns(count) {
+        bookDialog.querySelector('.is-prev').disabled = bookSpread === 0;
+        bookDialog.querySelector('.is-next').disabled = bookSpread >= count - 1;
+    }
+    function openRecipeBook(button) {
+        const dialog = ensureBookDialog();
+        dialog.innerHTML = bookMarkup();
+        bookSpread = 0;
+        dialog.classList.add('is-closed');
+        dialog.showModal();
+        playUiFeedbackSound('stumpFrameSwitch');
+        turnBookPage(0);
+        const volume = dialog.querySelector('.stump-book-volume');
+        if (uiDisplay.matches('(prefers-reduced-motion: reduce)') || !volume.animate) return dialog.classList.replace('is-closed', 'is-open');
+        growBook(volume, button.querySelector('img') || button);
+    }
+    /** The closed book (the cover over the right page) flies from its button to the middle, then the cover turns over the spine. */
+    function growBook(volume, from) {
+        const box = volume.getBoundingClientRect(), single = uiDisplay.matches('(max-width: 640px)');
+        const cover = volume.querySelector('.stump-book-cover').getBoundingClientRect(), start = from.getBoundingClientRect();
+        const shift = single ? 0 : -(cover.left + cover.width / 2 - (box.left + box.width / 2));
+        const scale = Math.max(0.05, start.width / cover.width);
+        const dx = start.left + start.width / 2 - (cover.left + cover.width / 2), dy = start.top + start.height / 2 - (cover.top + cover.height / 2);
+        const fly = volume.animate([{ transform: `translate(${dx}px, ${dy}px) scale(${scale})`, transformOrigin: `${cover.left + cover.width / 2 - box.left}px 50%` },
+            { transform: `translate(${shift}px, 0) scale(1)`, transformOrigin: `${cover.left + cover.width / 2 - box.left}px 50%` }],
+            { duration: BOOK_GROW_MS, easing: 'cubic-bezier(.2, .7, .2, 1)', fill: 'both' });
+        fly.finished.then(() => openBookCover(volume, shift), () => {});
+    }
+    /** The left page shows once the cover is over it (past the spine), and the cover fades off it at the end. */
+    function openBookCover(volume, shift) {
+        volume.animate([{ transform: `translate(${shift}px, 0)` }, { transform: 'translate(0, 0)' }], { duration: BOOK_OPEN_MS, easing: 'ease-in-out', fill: 'both' });
+        const turn = volume.querySelector('.stump-book-cover').animate([{ transform: 'rotateY(0deg)' }, { transform: 'rotateY(-180deg)' }],
+            { duration: BOOK_OPEN_MS, easing: 'ease-in-out', fill: 'both' });
+        setTimeout(() => bookDialog.classList.remove('is-closed'), BOOK_OPEN_MS / 2);
+        turn.finished.then(() => bookDialog.classList.add('is-open'), () => {});
+    }
+    function closeRecipeBook() {
+        if (!bookDialog?.open) return;
+        const volume = bookDialog.querySelector('.stump-book-volume'), done = () => { bookDialog.close(); bookDialog.classList.remove('is-open', 'is-closed'); };
+        if (uiDisplay.matches('(prefers-reduced-motion: reduce)') || !volume.animate) return done();
+        volume.animate([{ opacity: 1, transform: 'scale(1)' }, { opacity: 0, transform: 'scale(.94)' }], { duration: BOOK_CLOSE_MS, easing: 'ease-in', fill: 'both' })
+            .finished.then(done, done);
     }
 
-    return Object.freeze({ cubeHtml, cubeGridHtml, cubeSignature, openCubePicker, closeCubePicker, selectCubeItem, pickCubeItem, inspectCubeResult, takeOutCubeCell, transmuteCube, clearCube, toggleCubeBook,
-        putStumpItem, quickFillCube });
+    return Object.freeze({ cubeHtml, cubeGridHtml, cubeSignature, openCubePicker, closeCubePicker, selectCubeItem, pickCubeItem, inspectCubeResult, takeOutCubeCell, transmuteCube,
+        putStumpItem, quickFillCube, putBagItem, bookButtonHtml, openRecipeBook });
 })();
 safeExposeGlobals({ stumpCubeUi });

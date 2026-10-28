@@ -111,103 +111,103 @@ body select:focus-visible { outline: 2px solid var(--color-accent-gold); outline
 
 
 /* Equipment is the reference management screen: compare, equip, then manage. */
-#item-tab-equip .equipment-workspace {
+:is(#item-tab-equip, #stump-equip-host) .equipment-workspace {
   gap: var(--space-3);
 }
 
-:root body #item-tab-equip .equipment-loadout-panel,:root 
-body #item-tab-equip .equipment-inventory-panel {
+:root body :is(#item-tab-equip, #stump-equip-host) .equipment-loadout-panel,:root 
+body :is(#item-tab-equip, #stump-equip-host) .equipment-inventory-panel {
   padding: var(--space-3);
   border-radius: var(--radius-lg);
 }
 
-:root body #item-tab-equip .equipment-loadout-panel,:root 
-body #item-tab-equip .equipment-inventory-panel {
+:root body :is(#item-tab-equip, #stump-equip-host) .equipment-loadout-panel,:root 
+body :is(#item-tab-equip, #stump-equip-host) .equipment-inventory-panel {
   border-color: var(--color-line);
   background: linear-gradient(180deg, rgba(21, 20, 16, .99), rgba(8, 9, 8, .995));
   box-shadow: inset 0 1px rgba(255, 255, 255, .035), 0 12px 30px rgba(0, 0, 0, .22);
 }
 
-#item-tab-equip .equipment-loadout-summary {
+:is(#item-tab-equip, #stump-equip-host) .equipment-loadout-summary {
   gap: var(--space-2);
   margin: 12px 0;
   padding-top: 12px;
   border-top: 1px solid var(--color-line);
 }
 
-#item-tab-equip .equipment-summary-stat {
+:is(#item-tab-equip, #stump-equip-host) .equipment-summary-stat {
   min-height: 44px;
   padding: 7px 6px;
   border-color: rgba(83, 70, 52, .74);
   background: rgba(8, 9, 8, .76);
 }
 
-#item-tab-equip .equipment-summary-stat span {
+:is(#item-tab-equip, #stump-equip-host) .equipment-summary-stat span {
   color: var(--color-text-tertiary);
   font-size: 9px;
 }
 
-#item-tab-equip .equipment-summary-stat strong {
+:is(#item-tab-equip, #stump-equip-host) .equipment-summary-stat strong {
   font-size: 13px;
 }
 
-#item-tab-equip .equipment-triage-controls select {
+:is(#item-tab-equip, #stump-equip-host) .equipment-triage-controls select {
   min-height: var(--size-control-sm);
   border-color: var(--color-line);
   color: var(--color-text);
   background: var(--color-surface);
 }
 
-#item-tab-equip .equipment-triage-host {
+:is(#item-tab-equip, #stump-equip-host) .equipment-triage-host {
   min-height: var(--size-control-md);
   padding-left: var(--space-3);
   border-left-color: var(--color-line);
 }
 
-#item-tab-equip .equipment-triage-copy strong {
+:is(#item-tab-equip, #stump-equip-host) .equipment-triage-copy strong {
   color: var(--color-accent-gold);
   font-size: 11px;
 }
 
-#item-tab-equip .equipment-triage-copy small {
+:is(#item-tab-equip, #stump-equip-host) .equipment-triage-copy small {
   color: var(--color-text-tertiary);
   font-size: 9px;
 }
 
-#item-tab-equip .equipment-salvage-actions {
+:is(#item-tab-equip, #stump-equip-host) .equipment-salvage-actions {
   gap: var(--space-2);
 }
 
-#item-tab-equip .equipment-salvage-actions button {
+:is(#item-tab-equip, #stump-equip-host) .equipment-salvage-actions button {
   min-height: var(--size-control-sm);
   border-color: var(--color-line);
   color: var(--color-text-secondary);
   background: var(--color-surface-raised);
 }
 
-#item-tab-equip .equipment-salvage-actions button:hover:not(:disabled) {
+:is(#item-tab-equip, #stump-equip-host) .equipment-salvage-actions button:hover:not(:disabled) {
   border-color: var(--color-line-strong);
   color: var(--color-text);
   background: var(--color-control);
 }
 
-#item-tab-equip .search-filter-panel {
+:is(#item-tab-equip, #stump-equip-host) .search-filter-panel {
   padding: 0;
   border: 0;
   background: transparent;
 }
 
-#item-tab-equip .search-filter-input {
+:is(#item-tab-equip, #stump-equip-host) .search-filter-input {
   min-height: var(--size-control-md);
 }
 
-#item-tab-equip .search-action-row button {
+:is(#item-tab-equip, #stump-equip-host) .search-action-row button {
   min-height: var(--size-control-sm);
   border-radius: var(--radius-sm);
 }
 
-#item-tab-equip #ui-inventory-list:empty::before,
-#item-tab-equip .search-result-list:empty::before {
+:is(#item-tab-equip, #stump-equip-host) #ui-inventory-list:empty::before,
+:is(#item-tab-equip, #stump-equip-host) .search-result-list:empty::before {
   content: '◇\A보관 중인 장비가 없습니다\A전투와 제작으로 얻은 장비가 여기에 표시됩니다.';
   grid-column: 1 / -1;
   display: grid;
@@ -225,14 +225,14 @@ body #item-tab-equip .equipment-inventory-panel {
   white-space: pre-line;
 }
 
-#item-tab-equip .equipment-card-actions .equipment-card-primary {
+:is(#item-tab-equip, #stump-equip-host) .equipment-card-actions .equipment-card-primary {
   position: relative;
   border-color: #95703c;
   color: #f6e5c8;
   background: linear-gradient(180deg, #60451f, #2c2114);
 }
 
-#item-tab-equip .equipment-card-actions .equipment-card-primary::before {
+:is(#item-tab-equip, #stump-equip-host) .equipment-card-actions .equipment-card-primary::before {
   content: '✓';
   margin-right: 4px;
 }
@@ -244,13 +244,13 @@ body #item-tab-equip .equipment-inventory-panel {
   .ui-goal-drawer:not(.expanded) .ui-goal-panel { width: 44px; }
   .ui-goal-drawer:not(.expanded) #ui-goal-toggle { width: 44px; min-height: 44px; }
 
-:root body #item-tab-equip .equipment-loadout-panel,:root 
-  body #item-tab-equip .equipment-inventory-panel {
+:root body :is(#item-tab-equip, #stump-equip-host) .equipment-loadout-panel,:root 
+  body :is(#item-tab-equip, #stump-equip-host) .equipment-inventory-panel {
   padding: 11px;
   border-radius: var(--radius-md);
 }
 
-  #item-tab-equip .equipment-triage-host {
+  :is(#item-tab-equip, #stump-equip-host) .equipment-triage-host {
     grid-column: 1 / -1;
     min-height: auto;
     padding: var(--space-2) 0 0;
@@ -258,31 +258,31 @@ body #item-tab-equip .equipment-inventory-panel {
     border-left: 0;
   }
 
-  #item-tab-equip .equipment-triage-controls :where(select, button) {
+  :is(#item-tab-equip, #stump-equip-host) .equipment-triage-controls :where(select, button) {
     min-height: var(--size-control-touch);
   }
 
-  #item-tab-equip .equipment-salvage-actions {
+  :is(#item-tab-equip, #stump-equip-host) .equipment-salvage-actions {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  #item-tab-equip .equipment-salvage-actions button,
-  #item-tab-equip .search-action-row button {
+  :is(#item-tab-equip, #stump-equip-host) .equipment-salvage-actions button,
+  :is(#item-tab-equip, #stump-equip-host) .search-action-row button {
     min-height: var(--size-control-touch);
   }
 
-  #item-tab-equip .search-filter-panel {
+  :is(#item-tab-equip, #stump-equip-host) .search-filter-panel {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: stretch;
     gap: var(--space-1);
   }
 
-  #item-tab-equip .search-action-row {
+  :is(#item-tab-equip, #stump-equip-host) .search-action-row {
     grid-column: 2;
   }
 
-  #item-tab-equip .search-action-row button {
+  :is(#item-tab-equip, #stump-equip-host) .search-action-row button {
     width: auto;
     min-width: 82px;
   }
@@ -309,39 +309,39 @@ body #item-tab-equip .equipment-inventory-panel {
 }
 
 @media (min-width: 1081px) {
-  #item-tab-equip .equipment-workspace {
+  :is(#item-tab-equip, #stump-equip-host) .equipment-workspace {
     grid-template-columns: minmax(240px, .76fr) minmax(0, 1.35fr);
   }
 
-  #item-tab-equip .equipment-loadout-summary {
+  :is(#item-tab-equip, #stump-equip-host) .equipment-loadout-summary {
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 4px;
   }
 
-  #item-tab-equip .equipment-summary-stat {
+  :is(#item-tab-equip, #stump-equip-host) .equipment-summary-stat {
     min-height: 36px;
     padding: 5px 3px;
   }
 
-  #item-tab-equip .equipment-summary-stat span {
+  :is(#item-tab-equip, #stump-equip-host) .equipment-summary-stat span {
     font-size: 8px;
   }
 
-  #item-tab-equip .equipment-summary-stat strong {
+  :is(#item-tab-equip, #stump-equip-host) .equipment-summary-stat strong {
     font-size: 12px;
   }
 
-:root body #item-tab-equip .equipment-paperdoll {
+:root body :is(#item-tab-equip, #stump-equip-host) .equipment-paperdoll {
   padding: 5px;
   gap: 4px;
 }
 
-:root body #item-tab-equip .equipment-slot {
+:root body :is(#item-tab-equip, #stump-equip-host) .equipment-slot {
   min-height: 74px;
   padding: 4px;
 }
 
-  #item-tab-equip .equipment-slot-action {
+  :is(#item-tab-equip, #stump-equip-host) .equipment-slot-action {
     min-height: 24px;
     padding: 3px 1px;
     font-size: 10px;
@@ -376,7 +376,7 @@ body #item-tab-equip .equipment-inventory-panel {
   }
 
   #tab-map .vertical-tab-panels { min-width: 0; }
-  #item-tab-equip .equipment-loadout-summary {
+  :is(#item-tab-equip, #stump-equip-host) .equipment-loadout-summary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -406,30 +406,30 @@ body select {
   .mobile-section-panel > summary {/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */ display: none !important; }
 }
 
-#item-tab-equip .search-filter-panel {
+:is(#item-tab-equip, #stump-equip-host) .search-filter-panel {
   margin-bottom: var(--space-2);
 }
 
-#item-tab-equip .search-filter-input {
+:is(#item-tab-equip, #stump-equip-host) .search-filter-input {
   padding-inline: 11px;
   border-color: var(--color-line);
   border-radius: var(--radius-sm);
   background: var(--color-surface);
 }
 
-#item-tab-equip .search-action-row {
+:is(#item-tab-equip, #stump-equip-host) .search-action-row {
   margin-top: var(--space-1);
   overflow: visible;
 }
 @media (max-width: 1080px) {
 
-  #item-tab-equip .search-action-row {
+  :is(#item-tab-equip, #stump-equip-host) .search-action-row {
     display: flex;
     margin-top: 0;
     overflow: visible;
   }
 
-  #item-tab-equip .search-action-row button {
+  :is(#item-tab-equip, #stump-equip-host) .search-action-row button {
     padding-inline: 10px;
   }
 
@@ -448,8 +448,8 @@ body select {
 
 @media (max-width: 480px) {
 
-  #item-tab-equip .equipment-salvage-actions,
-  #item-tab-equip .search-action-row {
+  :is(#item-tab-equip, #stump-equip-host) .equipment-salvage-actions,
+  :is(#item-tab-equip, #stump-equip-host) .search-action-row {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

@@ -63,7 +63,7 @@ const equipmentWindowUi = (() => {
     }
     /** ⋯ and the rail's panels close when the pointer goes down anywhere outside them. */
     function closeMenus(event) {
-        document.querySelectorAll('#item-tab-equip details:is(.eqw-more, .eqw-rail-menu)[open]').forEach(menu => {
+        document.querySelectorAll(':is(#item-tab-equip, #stump-equip-host) details:is(.eqw-more, .eqw-rail-menu)[open]').forEach(menu => {
             if (!menu.contains(event.target)) menu.removeAttribute('open');
         });
     }
@@ -71,7 +71,7 @@ const equipmentWindowUi = (() => {
     // ---------------------------------------------------------------- 도구 줄(2026-10-19: 정리, 분석, 필터, 해체, 복구, 손가락 기기의 배치)
     /** Each tool's pixel icon (index.html data-icon) goes in once, before its name. */
     function fillRailIcons() {
-        document.querySelectorAll('#item-tab-equip .eqw-rail-tool[data-icon]').forEach(tool => {
+        document.querySelectorAll(':is(#item-tab-equip, #stump-equip-host) .eqw-rail-tool[data-icon]').forEach(tool => {
             if (!tool.querySelector('svg')) tool.insertAdjacentHTML('afterbegin', renderPixelIcon(tool.dataset.icon, 'eqw-rail-icon'));
         });
     }
@@ -95,7 +95,7 @@ const equipmentWindowUi = (() => {
     /** 검색 항목 해체 and 미검색 항목 해체 wait for a search word: with none, the first took the whole bag and the second nothing. */
     function markSearchSalvage() {
         const empty = !getSearchFilterState().equip.trim();
-        document.querySelectorAll('#item-tab-equip [data-search-salvage]').forEach(button => {
+        document.querySelectorAll(':is(#item-tab-equip, #stump-equip-host) [data-search-salvage]').forEach(button => {
             button.disabled = empty;
             button.title = empty ? '가방 검색어를 먼저 입력하세요.' : '';
         });
@@ -103,13 +103,13 @@ const equipmentWindowUi = (() => {
     /** Opening one panel closes the others (the toggle event does not bubble, so the document listens in the capture phase). */
     function keepOnePanel(event) {
         const menu = event.target;
-        if (!menu.matches || !menu.matches('#item-tab-equip .eqw-rail-menu') || !menu.open) return;
-        document.querySelectorAll('#item-tab-equip .eqw-rail-menu[open]').forEach(other => { if (other !== menu) other.removeAttribute('open'); });
+        if (!menu.matches || !menu.matches(':is(#item-tab-equip, #stump-equip-host) .eqw-rail-menu') || !menu.open) return;
+        document.querySelectorAll(':is(#item-tab-equip, #stump-equip-host) .eqw-rail-menu[open]').forEach(other => { if (other !== menu) other.removeAttribute('open'); });
     }
     /** Esc, and the Android back key (it sends one, js/android-app-ui.js), closes an open panel before the window. */
     function closePanelOnEscape(event) {
         if (event.key !== 'Escape') return;
-        const menu = document.querySelector('#item-tab-equip details:is(.eqw-more, .eqw-rail-menu)[open]');
+        const menu = document.querySelector(':is(#item-tab-equip, #stump-equip-host) details:is(.eqw-more, .eqw-rail-menu)[open]');
         if (!menu || !menu.getClientRects().length) return;
         menu.removeAttribute('open');
         menu.querySelector('summary').focus();
@@ -126,7 +126,7 @@ const equipmentWindowUi = (() => {
         'eqw-judge-menu': () => equipmentTriage.start()
     });
     function runRailToolOnDoubleClick(event) {
-        const summary = event.target.closest && event.target.closest('#item-tab-equip .eqw-rail-menu > summary');
+        const summary = event.target.closest && event.target.closest(':is(#item-tab-equip, #stump-equip-host) .eqw-rail-menu > summary');
         const action = summary && RAIL_DOUBLE_CLICK[summary.parentElement.id];
         if (!action) return;
         event.preventDefault();
@@ -155,7 +155,7 @@ const equipmentWindowUi = (() => {
     let watched = null, bagShown = false;
     /** The bag counts as opened while its grid is on screen; when it leaves the screen everything that came in so far is seen. */
     function watchBag() {
-        const target = document.querySelector('#item-tab-equip .equipment-inventory-grid-shell');
+        const target = document.querySelector(':is(#item-tab-equip, #stump-equip-host) .equipment-inventory-grid-shell');
         if (!target || watched === target || typeof IntersectionObserver !== 'function') return;
         watched = target;
         new IntersectionObserver(entries => {
@@ -167,10 +167,14 @@ const equipmentWindowUi = (() => {
         }).observe(target);
     }
 
-    /** Items-tab refresh (js/ui.js renderEquipmentLoadoutSummary): the summary, the bag head and the new-item watch. */
+    /** Items-tab refresh (js/ui.js renderEquipmentLoadoutSummary): the summary. */
     function render(stats) {
         const dps = fmt(stats.totalDps || stats.dps);
         setHtml(document.getElementById('ui-equipment-loadout-summary'), fullHtml(stats, dps) + miniHtml(stats, dps));
+    }
+    /** Bag refresh (js/ui.js renderEquipmentBagPanel: the equipment window, or the stump tab's left gem): the bag head, the rail and the
+     * new-item watch. */
+    function renderBag() {
         renderHead();
         fillRailIcons();
         markFilter();
@@ -351,7 +355,7 @@ const equipmentWindowUi = (() => {
         document.addEventListener('keydown', closePanelOnEscape, true);
         document.addEventListener('dblclick', runRailToolOnDoubleClick, true);
     }
-    return Object.freeze({ render, toggleLoadout, newDotHtml, inspectorDock, inspectorHtml, emptyHtml, fillDeltas, wornSlots, compareNode, showPane, toggleDeltas,
+    return Object.freeze({ render, renderBag, toggleLoadout, newDotHtml, inspectorDock, inspectorHtml, emptyHtml, fillDeltas, wornSlots, compareNode, showPane, toggleDeltas,
         openSalvage, openItemFilter, toggleTools });
 })();
 safeExposeGlobals({ equipmentWindowUi });

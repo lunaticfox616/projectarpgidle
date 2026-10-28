@@ -645,7 +645,7 @@
 .equipment-ehp-stat[data-ehp-element="chaos"] { --ehp-color: #d5a2ff; }
 .equipment-ehp-stat strong { color: var(--ehp-color); }
 
-:root body #item-tab-equip .equipment-paperdoll {
+:root body :is(#item-tab-equip, #stump-equip-host) .equipment-paperdoll {
   position: relative;
   margin: 0;
   padding: 10px;
@@ -655,14 +655,14 @@
   border-radius: 10px;
 }
 
-:root body #item-tab-equip .equipment-paperdoll {
+:root body :is(#item-tab-equip, #stump-equip-host) .equipment-paperdoll {
   border-color: rgba(43, 65, 91, .82);
   background:
     radial-gradient(ellipse at 50% 44%, rgba(58, 87, 116, .16), transparent 47%),
     linear-gradient(180deg, rgba(5, 10, 17, .88), rgba(9, 15, 24, .92));
 }
 
-:root body #item-tab-equip .equipment-slot {
+:root body :is(#item-tab-equip, #stump-equip-host) .equipment-slot {
   position: relative;
   min-width: 0;
   min-height: 91px;
@@ -671,7 +671,7 @@
   overflow: hidden;
 }
 
-:root body #item-tab-equip .equipment-slot {
+:root body :is(#item-tab-equip, #stump-equip-host) .equipment-slot {
   border-color: rgba(55, 78, 104, .82);
   background: linear-gradient(155deg, rgba(23, 36, 52, .96), rgba(10, 17, 27, .98));
 }
@@ -720,12 +720,12 @@
 .equipment-salvage-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
 .equipment-salvage-actions button { min-width: 0; min-height: 29px; padding: 5px 7px; font-size: 10px; }
 
-:root body #item-tab-equip .equipment-inventory-grid {
+:root body :is(#item-tab-equip, #stump-equip-host) .equipment-inventory-grid {
   grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
   gap: 7px;
 }
 
-:root body #item-tab-equip .equipment-item-card {
+:root body :is(#item-tab-equip, #stump-equip-host) .equipment-item-card {
   position: relative;
   min-width: 0;
   min-height: 118px;
@@ -733,11 +733,11 @@
   overflow: hidden;
 }
 
-:root body #item-tab-equip .equipment-item-card {
+:root body :is(#item-tab-equip, #stump-equip-host) .equipment-item-card {
   border-left: 1px solid #314359;
 }
 
-:root body #item-tab-equip .equipment-item-card::before {
+:root body :is(#item-tab-equip, #stump-equip-host) .equipment-item-card::before {
   content: '';
   position: absolute;
   left: 0; top: 0; bottom: 0;
@@ -907,14 +907,14 @@
 
 @container (max-width: 860px) {
   .equipment-workspace { grid-template-columns: 1fr; }
-:root body #item-tab-equip .equipment-inventory-grid {
+:root body :is(#item-tab-equip, #stump-equip-host) .equipment-inventory-grid {
   grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
 }
 }
 
 @container (max-width: 560px) {
   .equipment-loadout-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-:root body #item-tab-equip .equipment-inventory-grid {
+:root body :is(#item-tab-equip, #stump-equip-host) .equipment-inventory-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
   .equipment-salvage-actions { grid-template-columns: 1fr; }
@@ -923,7 +923,7 @@
 @media (max-width: 1080px) {
   .equipment-workspace { grid-template-columns: 1fr; }
   .equipment-loadout-panel, .equipment-inventory-panel { padding: 12px; }
-:root body #item-tab-equip .equipment-inventory-grid {
+:root body :is(#item-tab-equip, #stump-equip-host) .equipment-inventory-grid {
   grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
 }
 }

@@ -108,6 +108,10 @@ const stumpBox = (() => {
     }
     /** Highest stored quality: 130%, raised by the box's unlocks (qualityCap, loops 35 and 45). */
     function rollCap(state) { return Math.max(STUMP_BOX_ROLL_LIMIT.max, ...openUnlocks(state).map(row => row.qualityCap || 0)); }
+    /** The most a quality can be: the cap, or past it by the rare merge that may (data/stump-cube.js STUMP_CUBE_MERGE.over). */
+    function rollCeiling(state) { return Math.round((rollCap(state) + STUMP_CUBE_MERGE.over) * 100) / 100; }
+    /** The cap a new item's quality is held to: the ceiling for the rare merge past the cap (spec.overCap), else the cap. */
+    const specRollCap = (state, spec) => (spec.overCap === true ? rollCeiling(state) : rollCap(state));
     /** Adds a new item to storage; null when storage is full or the input is invalid. spec.golden makes a golden seed or sap.
      * A seed grows into spec.path (꽃, 열매) when given, otherwise into one rolled now. force: a result or reward that must not be
      * lost to a full storage (a cube merge, an ancient seed), as addTalisman and addScar take it. */
@@ -116,7 +120,7 @@ const stumpBox = (() => {
         if (!FAMILIES.includes(spec.family) || !COLORS.includes(spec.color)) return null;
         if (!force && storageFull(state)) return null;
         const path = spec.family === 'seed' ? (PATHS.includes(spec.path) ? spec.path : seedPath()) : null;
-        const item = { id: box.nextId++, family: spec.family, color: spec.color, path, xp: 0, ripe: false, roll: clampRoll(spec.roll, rollCap(state)) };
+        const item = { id: box.nextId++, family: spec.family, color: spec.color, path, xp: 0, ripe: false, roll: clampRoll(spec.roll, specRollCap(state, spec)) };
         if (spec.golden === true) item.golden = true;
         if (spec.ancient === true && spec.family === 'seed') item.ancient = true;
         box.items.push(item);
@@ -958,7 +962,7 @@ const stumpBox = (() => {
         if (raw.golden === true) item.golden = true;
         if (raw.ancient === true && raw.family === 'seed') item.ancient = true;
     }
-    /** cap: the quality cap the save has reached (rollCap), so a restored roll never tops what it could have been made at. */
+    /** cap: the most the save could have made (rollCeiling), so a restored roll never tops what it could have been made at. */
     /** A saved item read back, keeping its lock (toggleLock). */
     function cleanItem(raw, cap) {
         const item = cleanItemFields(raw, cap);
@@ -1050,7 +1054,7 @@ const stumpBox = (() => {
             box.acquired = raw.acquired === true;
             box.via = typeof raw.via === 'string' ? raw.via : null;
             box.starter = { seed: !!(raw.starter && raw.starter.seed), sap: !!(raw.starter && raw.starter.sap) };
-            restoreItems(raw, box, rollCap(state));
+            restoreItems(raw, box, rollCeiling(state));
             box.nextId = Math.max(Number.isSafeInteger(raw.nextId) ? raw.nextId : 1, ...box.items.map(item => item.id + 1), 1);
             restoreHarvest(raw.harvest, box);
             box.codex = restoreCodex(raw.codex, box);

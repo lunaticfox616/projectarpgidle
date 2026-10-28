@@ -8798,6 +8798,7 @@ function renderEquipmentLoadoutSummary(pStats) {
     knittingUi.render();
 }
 
+
 function updateInventoryFullWarnings() {
     let changed = false;
     // 장비 인벤토리가 가득 차면 켜고, 몇 칸인지는 툴팁으로 알린다(주얼 보관함은 장비창의 단추가 알린다).
@@ -8894,6 +8895,33 @@ function prepareCraftItemPickerDialog(overlay, kind, closePicker) {
         target?.focus({ preventScroll: true });
     };
 }
+
+    /** The equipment bag (head, rail, filters, analysis, pages, picked gear, grid): drawn with the equipment window, or alone when the stump
+     * tab's left gem shows it there (js/stump-box-ui.js syncEquipmentBag). The rarity helpers are performUpdateStaticUI's own. */
+    function renderEquipmentBagPanel(sf, isItemRarityVisible, renderRarityFilterChips) {
+        syncSalvageControlsFromSettings();
+        if (typeof salvageRecoveryUi !== 'undefined') salvageRecoveryUi.refreshShortcut();
+        equipmentWindowUi.renderBag();
+        let invRarityFilterHost = document.getElementById('ui-inventory-rarity-filter');
+        if (invRarityFilterHost) writeHtmlIfChanged(invRarityFilterHost, renderRarityFilterChips('inventory'));
+        if (window.equipmentTriage) {
+            window.equipmentTriage.autoStart();
+            window.equipmentTriage.render();
+        }
+        const equipInvRows = getSortedEquipmentInventoryRows(sf.equip, isItemRarityVisible);
+        const equipmentGridLayout = equipmentInventoryGridRuntime.ensureState(game);
+        const equipmentPage = equipmentInventoryInteraction.renderPageControls(equipmentGridLayout, equipInvRows, sf.equip);
+        const equipmentPageLayout = equipmentInventoryGridRuntime.getPageLayout(equipmentGridLayout, equipmentPage);
+        const equipmentPageKeys = new Set(equipmentPageLayout.entries.map(entry => entry.key));
+        const equipmentPageRows = equipInvRows.filter(row => equipmentPageKeys.has(equipmentInventoryGridRuntime.getItemKey(row.item)));
+        renderEquipmentInventoryInspector(equipmentPageRows);
+        // 드래그 중에는 포인터 캡처 중인 DOM을 유지하고, 놓을 때 배치를 갱신한다.
+        if (!equipmentInventoryInteraction.isCarrying()) {
+            renderSearchSection('ui-inventory-list', 'equip', '장비 검색 (이름/슬롯/옵션)', renderEquipmentInventoryGrid(equipmentPageLayout, equipmentPageRows), '', '');
+            let equipmentGridElement = document.querySelector('#ui-inventory-list > .search-result-list');
+            if (equipmentGridElement) equipmentGridElement.dataset.equipmentGridRows = String(equipmentPageLayout.rows);
+        }
+    }
 
 return function performUpdateStaticUI() {
     craftingWorkspaceState.capture(game);
@@ -8999,33 +9027,14 @@ return function performUpdateStaticUI() {
     }
 
     if (itemsTabActive) {
-    syncSalvageControlsFromSettings();
-    if (typeof salvageRecoveryUi !== 'undefined') salvageRecoveryUi.refreshShortcut();
     syncEquipmentMobilePane();
     renderEquipmentLoadoutSummary(pStats);
     if (window.equipmentLoadoutUi) window.equipmentLoadoutUi.render();
     renderPaperdoll('ui-equip-list', false);
     renderCraftTargetLibrary(isItemRarityVisible);
-    let invRarityFilterHost = document.getElementById('ui-inventory-rarity-filter');
-    if (invRarityFilterHost) writeHtmlIfChanged(invRarityFilterHost, renderRarityFilterChips('inventory'));
-    if (window.equipmentTriage) {
-        window.equipmentTriage.autoStart();
-        window.equipmentTriage.render();
     }
-    const equipInvRows = getSortedEquipmentInventoryRows(sf.equip, isItemRarityVisible);
-    const equipmentGridLayout = equipmentInventoryGridRuntime.ensureState(game);
-    const equipmentPage = equipmentInventoryInteraction.renderPageControls(equipmentGridLayout, equipInvRows, sf.equip);
-    const equipmentPageLayout = equipmentInventoryGridRuntime.getPageLayout(equipmentGridLayout, equipmentPage);
-    const equipmentPageKeys = new Set(equipmentPageLayout.entries.map(entry => entry.key));
-    const equipmentPageRows = equipInvRows.filter(row => equipmentPageKeys.has(equipmentInventoryGridRuntime.getItemKey(row.item)));
-    renderEquipmentInventoryInspector(equipmentPageRows);
-    // 드래그 중에는 포인터 캡처 중인 DOM을 유지하고, 놓을 때 배치를 갱신한다.
-    if (!equipmentInventoryInteraction.isCarrying()) {
-        renderSearchSection('ui-inventory-list', 'equip', '장비 검색 (이름/슬롯/옵션)', renderEquipmentInventoryGrid(equipmentPageLayout, equipmentPageRows), '', '');
-        let equipmentGridElement = document.querySelector('#ui-inventory-list > .search-result-list');
-        if (equipmentGridElement) equipmentGridElement.dataset.equipmentGridRows = String(equipmentPageLayout.rows);
-    }
-    }
+    // 가방은 장비 창, 또는 그루터기 함 탭의 왼쪽 보석이 띄운 자리에 그린다(그 자리로 옮기는 것은 syncEquipmentBag).
+    if (stumpBoxUi.syncEquipmentBag(itemsTabActive) || itemsTabActive) renderEquipmentBagPanel(sf, isItemRarityVisible, renderRarityFilterChips);
 
 function getJewelStatToneColor(statId) {
     if (!statId) return '#d7e9ff';
