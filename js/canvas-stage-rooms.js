@@ -9,6 +9,7 @@
 const stageRoomsView = (() => {
     const WIDE = 64;                             // 방 그림에서 한 칸의 가로 도트(js/canvas-stage-terrain.js와 같다)
     const AHEAD_MS = 250;                        // 걸어가는 문 너머의 방을 다시 묻는 간격
+    const RIFT_EDGE_INSET = 14;                  // CSS px: chevron radius plus clearance from canvas/HUD edges
     let shown = { run: null, room: null, at: 0 }; // 마지막으로 그린 방과 그 방에 들어선 시각(화면 밝아지기)
     let ahead = { run: null, room: null, at: 0, next: null };
     let bossCamera = { run: null, room: null, view: {}, row: Infinity };
@@ -152,13 +153,13 @@ const stageRoomsView = (() => {
         ctx.beginPath(); ctx.ellipse(core.x, core.y + p.tileH * .18, p.tileW * .84, p.tileH * .85, 0, 0, Math.PI * 2); ctx.stroke();
     }
     function riftWarningActive(run) {
-        const progress = getGrandBreachProgress(run?.gauge),config=GRAND_BREACH_ENCOUNTER.arena;
-        const capacity = config.capacities[progress.stage];
-        const alive = game.enemies.filter(enemy => enemy.hp > 0).length;
+        if (!run?.inRun || run.phase !== 'survival') return false;
+        const progress = getGrandBreachProgress(run.gauge), config = GRAND_BREACH_ENCOUNTER.arena;
+        const remaining = run.nextRefillAt - getCombatTime();
+        if (progress.complete || remaining < 0 || remaining > config.warningMs) return false;
         // Announced mouths stay lit even at capacity: a last-moment kill must not create an unannounced refill.
-        const announced=!!run?.refillPlan || alive < capacity;
-        return run?.inRun && run.phase === 'survival' && !progress.complete && announced
-            && run.nextRefillAt - getCombatTime() <= config.warningMs;
+        if (run.refillPlan) return true;
+        return game.enemies.filter(enemy => enemy.hp > 0).length < config.capacities[progress.stage];
     }
     function drawRiftMarks(ctx, breach, p) {
         const run=game.voidRift?.grandRun,plan=run?.refillPlan,warning=riftWarningActive(run);
@@ -171,6 +172,64 @@ const stageRoomsView = (() => {
             ctx.fillStyle = active ? 'rgba(199, 95, 255, .29)' : 'rgba(112, 60, 148, .15)';
             ctx.fillRect(at.x - p.tileW * .4, at.y - p.tileH * .35, p.tileW * .8, p.tileH * .7);
         });
+    }
+    /** Ray parameters inside a screen rectangle. Keeping one ray preserves the actual direction near corners. */
+    function riftRayBox(origin, direction, box) {
+        let near = -Infinity, far = Infinity;
+        for (const [axis, size] of [['x', 'w'], ['y', 'h']]) {
+            const low = box[axis], high = low + box[size], step = direction[axis];
+            if (step === 0) {
+                if (origin[axis] < low || origin[axis] > high) return null;
+                continue;
+            }
+            const a = (low - origin[axis]) / step, b = (high - origin[axis]) / step;
+            near = Math.max(near, Math.min(a, b)); far = Math.min(far, Math.max(a, b));
+        }
+        return far >= near ? { near, far } : null;
+    }
+    /** Pull back only when the rim point is covered. Descending entries also handle overlapping HUD rectangles. */
+    function riftUncoveredReach(origin, direction, overlays, reach) {
+        const inset = RIFT_EDGE_INSET;
+        const covered = overlays.map(rect => riftRayBox(origin, direction,
+            { x: rect.x - inset, y: rect.y - inset, w: rect.w + inset * 2, h: rect.h + inset * 2 }))
+            .filter(Boolean).sort((a, b) => b.near - a.near);
+        for (const span of covered) if (span.near <= reach && span.far >= reach) reach = span.near;
+        return reach;
+    }
+    const riftOnscreen = (point, area) => point.x >= 0 && point.x <= area.width && point.y >= 0 && point.y <= area.height;
+    /** Canvas CSS pixels only; HUD bounds were measured by battleCanvasBox, never during this draw. */
+    function riftEdgePoint(origin, target, area) {
+        const inset = RIFT_EDGE_INSET;
+        if (riftOnscreen(target, area) || area.width <= inset * 2 || area.height <= inset * 2) return null;
+        const direction = { x: target.x - origin.x, y: target.y - origin.y };
+        const visible = riftRayBox(origin, direction, { x: inset, y: inset, w: area.width - inset * 2, h: area.height - inset * 2 });
+        if (!visible || visible.far <= 0) return null;
+        const reach = riftUncoveredReach(origin, direction, area.enemyOverlays, visible.far);
+        if (reach <= Math.max(0, visible.near)) return null;
+        return { x: origin.x + direction.x * reach, y: origin.y + direction.y * reach, angle: Math.atan2(direction.y, direction.x) };
+    }
+    /** Two purple notches have no door hit target or movement meaning. The dark outline survives bright floors. */
+    function drawRiftChevron(ctx, point) {
+        ctx.save(); ctx.translate(point.x, point.y); ctx.rotate(point.angle);
+        ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(-6, -5); ctx.lineTo(0, 0); ctx.lineTo(-6, 5);
+        ctx.moveTo(1, -5); ctx.lineTo(7, 0); ctx.lineTo(1, 5);
+        ctx.strokeStyle = '#190c26'; ctx.lineWidth = 6; ctx.stroke();
+        ctx.strokeStyle = '#e3a0ff'; ctx.lineWidth = 2.5; ctx.stroke();
+        ctx.restore();
+    }
+    function drawRiftEdges(ctx, p, area) {
+        const run = game.voidRift?.grandRun;
+        if (!run?.refillPlan || !riftWarningActive(run)) return;
+        const map = mapOf(actExplorationState.current(game));
+        if (!map?.grandBreach) return;
+        const origin = p.cellToScreen(game.gridPlayer.gx, game.gridPlayer.gy);
+        for (const index of run.refillPlan.portalIndices) {
+            const cell = map.grandBreach.riftCells[index], target = p.cellToScreen(cell.gx, cell.gy);
+            const point = riftEdgePoint(origin, target, area);
+            if (point) drawRiftChevron(ctx, point);
+        }
     }
     /** 방이 바뀐 순간을 기억한다(밝아지기의 시작). 탐험이 바뀐 첫 방은 밝아지지 않고 바로 보인다. waiting: 방 그림이 아직 준비되지
      * 않았다. 그동안은 어둠을 지키고(밝아지기의 시작을 뒤로 민다) 그림이 온 때부터 밝아진다. */
@@ -287,6 +346,11 @@ const stageRoomsView = (() => {
         ctx.fillRect(0, 0, area.width, area.height);
         ctx.restore();
     }
-    return Object.freeze({ focus, background, drawFade });
+    /** Fixed screen hints follow lighting and hurt shading; room transitions still fade over them. */
+    function drawOverlay(ctx, area, p) {
+        drawRiftEdges(ctx, p, area);
+        drawFade(ctx, area);
+    }
+    return Object.freeze({ focus, background, drawOverlay });
 })();
 safeExposeGlobals({ stageRoomsView });

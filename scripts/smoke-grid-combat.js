@@ -3043,6 +3043,57 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
     'saved warnings retain their two mouths until release; the following wave adopts the new gauge stage without changing its budget');
   }
 }
+// Object waves survive a fresh recovery and finish once; a nest must not turn a whole wave into wisps through correlated indices.
+for (const kind of ['nest', 'ambush']) {
+  const env = require('./lib/replay-fixture')(701);
+  env.runtime.Math.random = () => 0.66;
+  env.runtime.objectKind = kind;
+  env.run(`game=mergeDefaults({heroSelectionInitialized:true,selectedHeroId:'hero1',selectedClassId:'warrior',
+    season:5,currentZoneId:4,maxZoneId:9,level:100,settings:{stageRooms:false,pauseGameOnOverlay:false,autoMove:false}});
+    startEncounterRun();game.actExploration.mode='manual';game.playerHp=getPlayerStats().maxHp;game.combatHalted=false;
+    const objectRun=game.actExploration;
+    objectRun.objects=actExplorationState.objects.create(objectRun,{seed:objectKind==='nest'?36:0,loop:5,
+      allowEvent:true,excludedRooms:[],quantity:1,rarity:0,chest:null});
+    window.eventRow=objectRun.objects.entries.find(row=>row.kind===objectKind);
+    if(!eventRow)throw Error('Object fixture did not generate its event');
+    const objectMap=actExplorationMap.forRun(objectRun),objectBlocked=getGridBlockedCells();
+    const beside=actExplorationMap.neighbors(objectMap,eventRow).find(cell=>!objectBlocked.has(cell.gx+','+cell.gy));
+    Object.assign(game.gridPlayer,beside);actExplorationState.discover(objectRun,beside);
+    if(objectKind==='nest'&&!actExplorationProgress.objects.request(eventRow.id))throw Error('Nest click rejected');
+    actExplorationProgress.objects.step(objectRun,objectKind==='nest'?900:1200);`);
+  const initial = JSON.parse(env.run('JSON.stringify(game.enemies.map(enemy=>[enemy.id,enemy.variantSeed,enemy.spriteVariantId,enemy.attackDelivery,enemy.gx,enemy.gy]))'));
+  assert.strictEqual(initial.length, kind === 'nest' ? 3 : 4);
+  assert(new Set(initial.map(enemy => enemy[1] % 5)).size > 1, 'one object wave cannot share a wisp residue from a duplicated index');
+  const recoverObject = () => {
+    env.runtime.objectSave = env.run('serializeSaveState(game)');
+    const restored = buildGameRuntime();restored.objectSave = env.runtime.objectSave;
+    vm.runInContext('game=JSON.parse(objectSave);recoverRuntimeState();', restored);
+    const before = JSON.parse(env.runtime.objectSave), after = JSON.parse(vm.runInContext('serializeSaveState(game)', restored));
+    assert.deepStrictEqual(after.actExploration.objects, before.actExploration.objects, 'object phase and wave survive a fresh boot');
+    assert.deepStrictEqual(after.actExploration.packs, before.actExploration.packs, 'event pack IDs and ownership survive a fresh boot');
+    assert.deepStrictEqual(after.enemies.map(({spawnStamp,...enemy})=>enemy), before.enemies.map(({spawnStamp,...enemy})=>enemy),
+      'saved enemies keep health, appearance, aim and placement; only the entrance animation clock resets');
+    env.run('game=JSON.parse(objectSave);recoverRuntimeState();window.eventRow=game.actExploration.objects.entries.find(row=>row.kind===objectKind);');
+  };
+  recoverObject();
+  for (let wave = 0; wave < (kind === 'nest' ? 2 : 1); wave++) {
+    env.run(`for(const enemy of [...game.enemies].filter(enemy=>enemy.explorationPack?.startsWith(eventRow.id+':'))){
+      enemy.hp=0;handleEnemyDeath(enemy,getPlayerStats());}`);
+    if (kind === 'nest' && wave === 0) {
+      assert.strictEqual(env.run('eventRow.phase'), 'warning');
+      recoverObject();
+      env.run('actExplorationProgress.objects.step(game.actExploration,900);');
+      assert.strictEqual(env.run('game.enemies.length'), 3, 'the resumed nest emits exactly its remaining wave');
+    }
+  }
+  assert.strictEqual(env.run('eventRow.phase'), 'spent');
+  assert.strictEqual(env.run('eventRow.wave'), kind === 'nest' ? 2 : 1);
+  const settled = env.run('serializeSaveState(game)');
+  env.run('actExplorationProgress.objects.afterDeath(game.actExploration);actExplorationProgress.objects.afterDeath(game.actExploration);');
+  assert.strictEqual(env.run('serializeSaveState(game)'), settled, 'repeated event completion cannot duplicate rewards');
+  recoverObject();
+}
+
 // Species change the fight through approach, reach and aim, without adding damage or persistent role state.
 {
   const roleEnemy = (id, visual, gx = 5, gy = 3) => {

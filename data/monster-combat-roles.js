@@ -24,6 +24,24 @@ const MONSTER_COMBAT_ROLES = (() => {
         ['bombardier', ['act9-chorus-bulbs', 'postchaos-inverted-sapling', 'root-orb', 'root-flask']]
     ].flatMap(([role, ids]) => ids.map(id => [id, role]))));
     const hiveByVisual = Object.freeze({ 'hive-scout': 'hiveMarksman', 'hive-nurse': 'hiveBombardier' });
+    /** Optional nests use egg-bearing creatures, even in courts whose ordinary pool contains only deacons.
+     * Nest rows are the two waves of three; ambush rows include the optional fifth member. Rare rolls still take precedence. */
+    const burrow = act => [[`act${act}-worm`, `act${act}-worm`, `act${act}-ant`], [`act${act}-worm`, `act${act}-ant`, `act${act}-ant`]];
+    const bugs = act => ({ nest: burrow(act), ambush: [`act${act}-worm`, `act${act}-ant`, `act${act}-ant`, `act${act}-slime`, `act${act}-ant`] });
+    const objectEncounters = Object.freeze(Object.fromEntries(Object.entries({
+        1: bugs(1),
+        2: { nest: burrow(1), ambush: ['deacon-act2-melee', 'deacon-act2-melee', 'deacon-act2-ranged', 'deacon-act2-ranged', 'deacon-act2-melee'] },
+        3: bugs(3), 4: bugs(4), 5: bugs(5),
+        6: { nest: burrow(5), ambush: ['deacon-act6-melee', 'deacon-act6-melee', 'deacon-act6-ranged', 'act7-husk-stag', 'act7-husk-stag'] },
+        7: { nest: [['act5-worm', 'act5-worm', 'act7-crackback-tick'], ['act5-worm', 'act7-crackback-tick', 'act7-crackback-tick']],
+            ambush: ['deacon-act7-melee', 'act7-crackback-tick', 'act7-crackback-tick', 'deacon-act7-ranged', 'act7-crackback-tick'] },
+        8: { nest: [['act7-crackback-tick', 'act7-crackback-tick', 'act8-veil-moth'], ['act7-crackback-tick', 'act8-veil-moth', 'act8-veil-moth']],
+            ambush: ['deacon-act8-melee', 'act8-shroud-toad', 'act8-veil-moth', 'act8-veil-moth', 'act8-shroud-toad'] },
+        9: { nest: [['act3-worm', 'act3-worm', 'act8-veil-moth'], ['act7-crackback-tick', 'act7-crackback-tick', 'act8-veil-moth']],
+            ambush: ['deacon-act8-melee', 'deacon-act8-melee', 'act9-dirge-crane', 'act9-chorus-bulbs', 'deacon-act8-melee'] },
+        10: { nest: [['act5-worm', 'act5-worm', 'act8-veil-moth'], ['act7-crackback-tick', 'act8-veil-moth', 'act8-veil-moth']],
+            ambush: ['act10-graft-beast', 'act10-graft-beast', 'act10-graft-beast', 'act9-chorus-bulbs', 'act10-graft-beast'] }
+    }).map(([act, row]) => [act, Object.freeze({ nest: Object.freeze(row.nest.map(wave => Object.freeze(wave))), ambush: Object.freeze(row.ambush) })])));
     /** Only the hive expedition opts in: colony/atlas bees and other realms keep their own attacks and movement. */
     function of(enemy) {
         if (!enemy || enemy.isBoss || enemy.isSeveredWanderer) return null;
@@ -40,6 +58,6 @@ const MONSTER_COMBAT_ROLES = (() => {
             attackCastMs: enemy.isElite && role.eliteCastMs || role.castMs, attackCastSpecial: !!role.special,
             attackLabel: role.label || (role.toEdge ? '관통 사격' : '') };
     }
-    return Object.freeze({ profiles, byVisual, of, profile });
+    return Object.freeze({ profiles, byVisual, objectEncounters, of, profile });
 })();
 safeExposeData({ MONSTER_COMBAT_ROLES });
