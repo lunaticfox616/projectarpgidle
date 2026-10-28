@@ -16,7 +16,10 @@ function stampGameBuild(html, root) {
     if (!html.includes(PLACEHOLDER)) throw new Error('index.html has no game-build placeholder');
     const seconds = Number(cp.execFileSync('git', ['show', '-s', '--format=%ct', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim());
     if (!Number.isSafeInteger(seconds) || seconds <= 0) throw new Error('git gave no commit time for the game build');
-    return html.replace(PLACEHOLDER, `<meta name="game-build" content="${new Date(seconds * 1000).toISOString()}">`);
+    const stamp = new Date(seconds * 1000).toISOString();
+    // A commit from a machine whose clock runs ahead would stamp saves that every later (correctly timed) release refuses.
+    if (seconds * 1000 > Date.now() + 10 * 60 * 1000) throw new Error(`HEAD commit time ${stamp} is in the future; commit again with a correct clock`);
+    return html.replace(PLACEHOLDER, `<meta name="game-build" content="${stamp}">`);
 }
 
 module.exports = { stampGameBuild };

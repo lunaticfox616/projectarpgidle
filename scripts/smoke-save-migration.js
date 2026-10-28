@@ -286,6 +286,7 @@ const merge = save => ctx.mergeDefaults(JSON.parse(JSON.stringify(save)));
 
 // Release stamp (2026-10-28): a release names itself in every save it writes and never loads or writes over a later release's
 // save, from this device or the server; its own and earlier releases' saves load and take its stamp.
+let laterReleaseResetOutcome = 'not run';
 {
     const build = '2026-10-28T00:00:00.000Z', later = '2026-10-29T00:00:00.000Z';
     const runtime = buildGameRuntime({}, null, { querySelector: selector => (selector === 'meta[name="game-build"]' ? { content: build } : null) });
@@ -306,6 +307,8 @@ const merge = save => ctx.mergeDefaults(JSON.parse(JSON.stringify(save)));
     assert.strictEqual(runtime.saveGame({ manual: true, skipCloudSync: true }), false, 'a later release save is never written over');
     assert.strictEqual(runtime.canPersistLocalSave({ allowRecoveryWrite: true }), false, 'not even by a server copy repairing it');
     assert.throws(() => runtime.applyExternalSave({ level: 9, saveMeta: { gameBuild: build } }), error => error.code === 'GAME_BUILD_OUTDATED');
+    // The progress reset writes past the save guard (resetLocalSave): refused too, checked at the end of this file.
+    runtime.resetProgressStorage(null).then(() => { laterReleaseResetOutcome = 'reset'; }, error => { laterReleaseResetOutcome = error.message; });
     assert.strictEqual(storage.get(key), laterSave);
 
     storage.set(key, JSON.stringify({ level: 21, saveMeta: {} }));
@@ -384,4 +387,7 @@ for (const value of [undefined, null, -1, 1.5, 'bad', Infinity, 0, 8]) {
     assert.strictEqual(run('equipmentLoadoutRuntime.apply(0).ok'), false, 'damaged new presets cannot downgrade to equipment-only');
 }
 
-console.log('smoke-save-migration passed');
+Promise.resolve().then(() => {
+    assert.match(laterReleaseResetOutcome, /더 새 버전의 게임/, 'a later release save is not reset away either');
+    console.log('smoke-save-migration passed');
+});

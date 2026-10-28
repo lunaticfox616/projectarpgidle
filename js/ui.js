@@ -13230,6 +13230,8 @@ async function resetCloudSaveProgress(userId, freshGame) {
 
 async function resetProgressStorage(userId) {
     let previousStatus = getLocalSaveStatus();
+    // resetLocalSave writes past the save guard, so a later release's save (loadGame 'newer-build') is refused here, before the server reset.
+    if (previousStatus.status === 'newer-build') throw new Error(previousStatus.message);
     let previousSkipUnload = window.__skipUnloadSaveOnce;
     let serverCommitted = false;
     let freshGame = cloneDefaultGame();
