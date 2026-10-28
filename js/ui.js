@@ -11076,19 +11076,27 @@ function renderStartupLocalSave(timeEl, guestBtn, localStamp) {
     const card = document.querySelector('.startup-summary-card');
     if (!card) return;
     card.querySelector('.startup-summary-grid').hidden = !hasSave;
-    const corrupt = getLocalSaveStatus().status === 'corrupt';
-    renderStartupSaveHint(card.querySelector('.startup-summary-hint'), hasSave, corrupt);
-    card.querySelector('.startup-summary-title').textContent = corrupt ? '저장을 읽지 못했습니다' : (hasSave ? '이 기기 저장' : '새 모험');
+    const blocked = getStartupBlockedSaveNotice(getLocalSaveStatus());
+    renderStartupSaveHint(card.querySelector('.startup-summary-hint'), hasSave, blocked && blocked.hint);
+    card.querySelector('.startup-summary-title').textContent = blocked ? blocked.title : (hasSave ? '이 기기 저장' : '새 모험');
 }
 
-/** 요약 칸 아래 한 줄. 저장을 읽지 못하면(js/save.js loadGame의 corrupt: 원래 저장은 따로 보관하고 이 기기 저장을 멈춘다) "저장된 모험이
- * 없습니다" 대신 그렇게 알린다(2026-10-27: 새 모험으로 보여 시작한 진행이 말없이 저장되지 않았다). */
-function renderStartupSaveHint(hint, hasSave, corrupt) {
+/** 이 기기 저장을 쓸 수 없어 멈춘 경우의 제목과 안내(js/save.js loadGame): 읽지 못한 저장(corrupt, 원래 저장은 따로 보관한다)과
+ * 더 새 판의 게임이 남긴 저장(newer-build, 2026-10-28: 그 판에서 열도록 그대로 둔다). 그 밖에는 null. */
+function getStartupBlockedSaveNotice(status) {
+    if (status.status === 'corrupt') return { title: '저장을 읽지 못했습니다', hint: '저장을 읽지 못해 원래 저장을 따로 보관했습니다. 이대로 시작하면 진행이 저장되지 않습니다.' };
+    if (status.status === 'newer-build') return { title: '새 버전의 저장입니다', hint: `${status.message} 이대로 시작하면 진행이 저장되지 않습니다.` };
+    return null;
+}
+
+/** 요약 칸 아래 한 줄. 이 기기 저장을 쓸 수 없으면(warning) "저장된 모험이 없습니다" 대신 그 까닭을 알린다(2026-10-27: 새 모험으로 보여
+ * 시작한 진행이 말없이 저장되지 않았다). */
+function renderStartupSaveHint(hint, hasSave, warning) {
     if (!hint) return;
     hint.dataset.emptyText ??= hint.textContent;
-    hint.textContent = corrupt ? '저장을 읽지 못해 원래 저장을 따로 보관했습니다. 이대로 시작하면 진행이 저장되지 않습니다.' : hint.dataset.emptyText;
-    hint.classList.toggle('is-warning', corrupt);
-    hint.hidden = hasSave && !corrupt;
+    hint.textContent = warning || hint.dataset.emptyText;
+    hint.classList.toggle('is-warning', !!warning);
+    hint.hidden = hasSave && !warning;
 }
 
 function updateStartupScreenUI() {
@@ -12061,6 +12069,7 @@ function prepareLocalSaveForCloudSession(options = {}) {
 }
 
 function applyExternalSave(snapshot, sourceStamp) {
+    assertSaveFromKnownBuild(snapshot);
     game = mergeDefaults(snapshot || {});
     applySeasonContentProgression({ silent: true });
     ensureSaveMeta();
@@ -12372,6 +12381,7 @@ async function pushCloudSave(options = {}) {
         console.warn('cloud push preflight remote load failed:', loadError);
         throw new Error('클라우드 상태를 확인할 수 없어 업로드를 중단했습니다: ' + (loadError.message || loadError));
     }
+    cloudRecordForThisBuild(remoteRecord);   // never upload over a later release's save
     let tFetch = Date.now();
     checkCloudUploadOwner(uploadOwner, uploadUserId);
     let loopGuard = shouldBlockLocalPushForRemoteLoop(remoteRecord);
@@ -12412,6 +12422,13 @@ async function pushCloudSave(options = {}) {
     updateCloudSaveUI();
     if (typeof syncPlayerProfileQuiet === 'function') syncPlayerProfileQuiet();
     return row;
+}
+
+/** The cloud record (a full row or a summary, both carry saveMeta), passed through; throws when this page is an older release than the
+ * one that wrote it (js/save.js outdatedBuildError), before any pull, upload or conflict question. */
+function cloudRecordForThisBuild(record) {
+    assertSaveFromKnownBuild(record && record.save_data);
+    return record;
 }
 
 /** A preflight/upload may finish after logout or a different save load. Never commit that upload into the new session. */
@@ -12486,7 +12503,7 @@ async function reconcileCloudSaveState(options = {}) {
     let preferRemoteOnResume = options.preferRemoteOnResume === true;
     // Keep the previous local cache intact until the active account's remote row is confirmed.
     // A temporary network failure must not erase an otherwise recoverable local cache.
-    let record = await fetchCloudSaveRecord();
+    let record = cloudRecordForThisBuild(await fetchCloudSaveRecord());
     let localPreparation = prepareLocalSaveForCloudSession({
         allowUnownedLocal: await settleUnlinkedLocalSave(record, options)
     });
@@ -12722,13 +12739,16 @@ async function syncCloudSave(options = {}) {
 }
 
 /** An auto upload that lost to another device stops every later auto upload, so the player hears it once as a toast and not only
- * in the cloud panel line (2026-10-27 review: the losing device played on without knowing its progress stayed local). */
+ * in the cloud panel line (2026-10-27 review: the losing device played on without knowing its progress stayed local). So does a
+ * server save from a later release (2026-10-28), whose toast says to update instead (loading it here is refused too). */
 function noteAutoCloudSyncFailure(error) {
     let text = String(error && error.message || error);
     setCloudMessage('자동 클라우드 저장 실패: ' + text);
-    if (!/다른 기기에서/.test(text) || cloudState.autoSyncConflictNoticed || typeof showGameToast !== 'function') return;
+    const outdated = error && error.code === OUTDATED_BUILD_ERROR_CODE;
+    if (!(outdated || /다른 기기에서/.test(text)) || cloudState.autoSyncConflictNoticed || typeof showGameToast !== 'function') return;
     cloudState.autoSyncConflictNoticed = true;
-    showGameToast('다른 기기에서 서버 저장이 바뀌어 이 기기의 자동 저장이 멈췄습니다. 서버 저장을 불러오면 이어집니다.', { tone: 'warning', duration: 9000 });
+    showGameToast(outdated ? `${text} 그때까지 이 기기의 진행은 서버에 올리지 않습니다.`
+        : '다른 기기에서 서버 저장이 바뀌어 이 기기의 자동 저장이 멈췄습니다. 서버 저장을 불러오면 이어집니다.', { tone: 'warning', duration: 9000 });
 }
 
 /** 부팅 복원이나 대조의 실패: 서버가 토큰을 거절했을 때(401)만 로그아웃한다. 업무 오류(400, 예: SAVE_TOO_LARGE)나 망 오류면
@@ -13210,6 +13230,8 @@ async function resetCloudSaveProgress(userId, freshGame) {
 
 async function resetProgressStorage(userId) {
     let previousStatus = getLocalSaveStatus();
+    // resetLocalSave writes past the save guard, so a later release's save (loadGame 'newer-build') is refused here, before the server reset.
+    if (previousStatus.status === 'newer-build') throw new Error(previousStatus.message);
     let previousSkipUnload = window.__skipUnloadSaveOnce;
     let serverCommitted = false;
     let freshGame = cloneDefaultGame();

@@ -3,15 +3,21 @@ const fs = require('fs');
 const vm = require('vm');
 
 const source = fs.readFileSync('js/ui.js', 'utf8');
+const saveSource = fs.readFileSync('js/save.js', 'utf8');
 const indexSource = fs.readFileSync('index.html', 'utf8');
 assert.match(indexSource, /js\/ui\.js[^\"]*save-guard=20260826-1/, 'save rollback guard must invalidate cached cloud reconciliation code');
 
-function sourceBetween(startMarker, endMarker) {
-  const start = source.indexOf(startMarker);
-  const end = source.indexOf(endMarker, start);
+function sourceBetween(startMarker, endMarker, text = source) {
+  const start = text.indexOf(startMarker);
+  const end = text.indexOf(endMarker, start);
   assert(start >= 0 && end > start, `Could not extract ${startMarker}`);
-  return source.slice(start, end);
+  return text.slice(start, end);
 }
+
+// The release check (js/save.js) runs as written, on a page that is the release RUNNING_BUILD (2026-10-28).
+const RUNNING_BUILD = '2026-10-28T00:00:00.000Z';
+const buildCheckSource = sourceBetween('/** The release this page runs', 'function canPersistLocalSave', saveSource);
+const buildRecordSource = sourceBetween('function cloudRecordForThisBuild', '/** A preflight/upload');
 
 const ownershipSource = sourceBetween('function getCloudSaveOwnerId', 'function applyExternalSave');
 const loopGuardSource = sourceBetween('function getSaveLoopNumber', 'function shouldPreferRemoteOverBootstrapLocal');
@@ -84,9 +90,13 @@ function createContext(localSave, remoteRecord, flow = {}) {
     setCloudMessage() {},
     addLog() {},
     CLOUD_REMOTE_TIME_SKEW_MS: 0,
-    CLOUD_STALE_OVERWRITE_GUARD_MS: 5000
+    CLOUD_STALE_OVERWRITE_GUARD_MS: 5000,
+    localSaveRuntimeState: { status: 'ok' },
+    document: { querySelector: selector => (selector === 'meta[name="game-build"]' ? { content: RUNNING_BUILD } : null) }
   };
   vm.createContext(context);
+  vm.runInContext(buildCheckSource, context, { filename: 'save-build-check.js' });
+  vm.runInContext(buildRecordSource, context, { filename: 'cloud-build-record.js' });
   vm.runInContext(ownershipSource, context, { filename: 'cloud-ownership.js' });
   vm.runInContext(loopGuardSource, context, { filename: 'cloud-loop-guards.js' });
   vm.runInContext(staleGuardSource, context, { filename: 'cloud-stale-guard.js' });
@@ -140,6 +150,19 @@ async function run() {
   // 따로 남기는 사본은 없어서 게스트 저장 하나가 두 계정으로 갈 수 없다.
   const loginOptions = '{ preferRemoteOnResume: true, strictRemoteResume: true }';
   const login = made => vm.runInContext(`reconcileCloudSaveState(${loginOptions})`, made.context);
+
+  // A server save from a later release (2026-10-28) stops the login before any question, pull, write or upload; this release's
+  // own and earlier releases' saves load as before.
+  const stamped = gameBuild => ({ ...remoteRecord, save_data: { ...remoteRecord.save_data, saveMeta: { lastModifiedAt: 100, gameBuild } } });
+  const laterCase = createContext(guestLocal, stamped('2026-10-29T00:00:00.000Z'), { fate: 'move', confirm: true });
+  await assert.rejects(login(laterCase), error => error.code === 'GAME_BUILD_OUTDATED' && /더 새 버전의 게임/.test(error.message));
+  assert.strictEqual(laterCase.context.game.level, 42, 'the device save stays as it was');
+  assert.deepStrictEqual([laterCase.writes.length, laterCase.getPushes(), laterCase.confirmations.length, laterCase.choices.length], [0, 0, 0, 0]);
+  for (const gameBuild of [RUNNING_BUILD, '2026-10-27T00:00:00.000Z']) {
+    const loadable = createContext(foreignLocal, stamped(gameBuild));
+    assert.strictEqual(await vm.runInContext('reconcileCloudSaveState({ strictRemoteResume: true })', loadable.context), 'pulled-remote-strict-resume');
+    assert.strictEqual(loadable.context.game.level, 7);
+  }
 
   const moveCase = createContext(guestLocal, null, { fate: 'move' });
   assert.strictEqual(await login(moveCase), 'pushed-local');
