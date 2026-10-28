@@ -1,6 +1,6 @@
 /** 방 단위 무대를 그리는 쪽 (2026-10-11 사용자: "던파처럼 방 하나마다 이동하는 방식"). 지도는 js/act-exploration-rooms.js,
  * 문을 지나는 규칙은 js/act-exploration-doors.js에 있고 여기는 그리기만 한다.
- * - 방이 화면보다 좁으면 가운데에 두고, 넓으면 방 끝에서 멈추며 주인공을 따라간다. 세로는 주인공 머리와 짧은 가로 화면의 보스 시전 표시를 보호한다.
+ * - 방이 화면보다 좁으면 가운데에 두고, 넓으면 방 끝에서 멈추며 주인공을 따라간다. 짧은 가로 화면에서는 주인공과 공격을 준비하는 적의 머리를 보호한다.
  * - 방 그림은 그리기 밖에서 준비해 둔 것을 쓴다(js/canvas-stage-room-pictures.js): 지금 방과 걸어가는 문 너머의 방.
  *   아직 준비되지 않은 방은 어둠으로 두고, 그림이 오면 그때부터 밝아진다(다른 방의 그림을 잠깐 쓰지 않는다).
  * - 문: 잠긴 문은 회백색 뿌리 봉인, 풀릴 때 아래로 접히며 열린 문에는 방향 화살표가 선다. 보스 방의 표시는 붉다.
@@ -12,7 +12,7 @@ const stageRoomsView = (() => {
     const RIFT_EDGE_INSET = 14;                  // CSS px: chevron radius plus clearance from canvas/HUD edges
     let shown = { run: null, room: null, at: 0 }; // 마지막으로 그린 방과 그 방에 들어선 시각(화면 밝아지기)
     let ahead = { run: null, room: null, at: 0, next: null };
-    let bossCamera = { run: null, room: null, view: {}, row: Infinity };
+    let roomCamera = { run: null, room: null, view: {} };
 
     const mapOf = run => actExplorationDoors.stageMap(run);
     /** The room the camera holds: the hero's (the one being left until the step's half-way point moves the hero). */
@@ -31,9 +31,9 @@ const stageRoomsView = (() => {
             : isOpen(map) ? openFocusRow(room, view) : focusRow(room, view);
         if (!stageView.enabled()) return { gx, gy: row };
         const base = Math.min(row, heroRow(room, cell, view));
-        if (!uiDisplay.battleHudAtSide) { bossCamera.room = null; return { gx, gy: base }; }
-        const top = Math.min(base, heldBossRow(run, room, view, gx));
-        return { gx, gy: Math.max(top, heroFeetRow(room, cell, view)) };
+        if (!uiDisplay.battleHudAtSide) { roomCamera.room = null; return { gx, gy: base }; }
+        const frame = { gx, gy: base, min: heroFeetRow(room, cell, view) };
+        return { gx, gy: Math.max(heldCombatRow(run, room, view, frame), frame.min) };
     }
     /** On a narrow screen, keep the nearby defense core inside the frame beside the hero. */
     function coreViewLean(map, cell, view) {
@@ -47,37 +47,59 @@ const stageRoomsView = (() => {
         const high = room.y1 + 2 - (1 - anchor) * view.rows;
         return low > high ? (low + high) / 2 : Math.max(low, Math.min(high, cell.gy + .5));
     }
-    /** Keep a room's acquired boss headroom after death or horizontal departure, so the loot floor does not jump back.
-     * The hero-foot bound below still overrides it. A room or projection change starts a fresh frame. */
-    function heldBossRow(run, room, view, gx) {
-        const prior = bossCamera.view;
-        if (bossCamera.run !== run || bossCamera.room !== room || prior.width !== view.width || prior.height !== view.height
-            || prior.columns !== view.columns || prior.rows !== view.rows) bossCamera = { run, room, view: { ...view }, row: Infinity };
-        bossCamera.row = Math.min(bossCamera.row, bossRow(room, view, gx, mapOf(run)));
-        return bossCamera.row;
+    /** Hold acquired headroom until room/viewport changes; never snap the loot floor back after a cast or death.
+     * Bosses retain their existing absolute bound. Ordinary casters reserve an offset that still follows the hero. */
+    function heldCombatRow(run, room, view, frame) {
+        const prior = roomCamera.view, now = performance.now();
+        if (roomCamera.run !== run || roomCamera.room !== room || prior.width !== view.width || prior.height !== view.height
+            || prior.columns !== view.columns || prior.rows !== view.rows) {
+            roomCamera = { run, room, view: { ...view }, bossRow: Infinity, casterRows: 0, casterFrom: 0, casterAt: now };
+        }
+        const needed = combatRows(room, view, frame, mapOf(run)), extra = casterOffset(now);
+        const target = Math.max(0, Math.min(frame.gy - needed.caster, frame.gy - frame.min));
+        if (target > roomCamera.casterRows) {
+            roomCamera.casterFrom = extra;
+            roomCamera.casterRows = target;
+            roomCamera.casterAt = now;
+        }
+        roomCamera.bossRow = Math.min(roomCamera.bossRow, needed.boss);
+        return Math.min(frame.gy - extra, roomCamera.bossRow);
+    }
+    function casterOffset(now) {
+        const progress = Math.max(0, Math.min(1, (now - roomCamera.casterAt) / 200));
+        return roomCamera.casterFrom + (roomCamera.casterRows - roomCamera.casterFrom) * (1 - (1 - progress) ** 3);
     }
     /** In a view too short for hero and boss together, retain the hero's feet, ring and one warning row below them. */
     function heroFeetRow(room, cell, view) {
         const deep = view.height / view.rows, gy = Math.max(room.y0, Math.min(room.y1, cell.gy));
         return gy + .5 + 1 / 6 + 1 - (1 - stageView.anchorY()) * view.rows + STAGE_ROOMS.sideHudGap / deep;
     }
-    /** Short side-HUD views also keep the visible boss's cast bar below the upper edge. The same bound as the hero's;
-     * no boss following unless its bar would clip. Read stable roster dimensions, not last frame's scale after a resize. */
-    function bossRow(room, view, gx, map) {
-        const deep = view.height / view.rows, tile = view.width / view.columns;
-        let limit = Infinity;
+    /** One enemy scan, with no per-enemy cache. Visibility uses the unadjusted camera to avoid acquiring ever farther rows. */
+    function combatRows(room, view, frame, map) {
+        const limits = { boss: Infinity, caster: Infinity }, clock = { render: performance.now(), combat: getCombatTime() };
         for (const enemy of game.enemies) {
-            if (!enemy.isBoss || enemy.hp <= 0 || !hasGridCell(enemy)) continue;
-            const center = getGridUnitCenter(enemy);
+            if (enemy.hp <= 0 || !hasGridCell(enemy)) continue;
+            if (!enemy.isBoss && !activeCast(enemy, clock.combat)) continue;
             if (actExplorationRooms.roomAt(map, enemy) !== room) continue;
-            if (Math.abs(center.gx + .5 - gx) > view.columns / 2) continue;
-            const size = stageRoster.bodySize(enemy, tile), lift = getEnemyFieldBarLift(enemy, size?.h);
-            const stride = stageStride.read(enemy, performance.now());
-            const feet = enemy.gy + getGridUnitFootprint(enemy).rows - .5 + (stride?.dy || 0) + 1 / 6;
-            // 16 px for cast-bar decoration and 24 px of visible space above it.
-            limit = Math.min(limit, feet + (stageView.anchorY() * view.height - lift - 40) / deep);
+            if (Math.abs(getGridUnitCenter(enemy).gx + .5 - frame.gx) > view.columns / 2) continue;
+            const key = enemy.isBoss ? 'boss' : 'caster';
+            limits[key] = Math.min(limits[key], enemyHeadRow(enemy, view, frame, clock.render));
         }
-        return limit;
+        return limits;
+    }
+    function activeCast(enemy, now) {
+        const cast = enemy.attackCast;
+        return cast && cast.startAt <= now && now < cast.finishAt;
+    }
+    /** Stable roster dimensions, not last frame's scale. Ordinary casters must already have visible feet. */
+    function enemyHeadRow(enemy, view, frame, now) {
+        const deep = view.height / view.rows, stride = stageStride.read(enemy, now);
+        const feet = enemy.gy + getGridUnitFootprint(enemy).rows - .5 + (stride?.dy || 0) + 1 / 6;
+        const screenY = (feet - frame.gy) * deep + stageView.anchorY() * view.height;
+        if (!enemy.isBoss && (screenY < 0 || screenY > view.height)) return Infinity;
+        const size = stageRoster.bodySize(enemy, view.width / view.columns), lift = getEnemyFieldBarLift(enemy, size?.h);
+        // Boss: 16 px decoration + 24 px space. Casters: compact headroom; hero-foot safety still wins.
+        return feet + (stageView.anchorY() * view.height - lift - (enemy.isBoss ? 40 : 8)) / deep;
     }
     /** A short view keeps the minimum-sized hero's head below the top margin. In a view that fits the room this limit leaves
      * its fixed row unchanged. Follow fractional walking positions, clamped to the room's end rows during a door crossing. */
