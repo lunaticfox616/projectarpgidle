@@ -132,7 +132,7 @@ const REALM_MONSTER_VISUAL_SETS = Object.freeze({
         zoneTypes: Object.freeze(['skyTower']), pinnacleTracks: Object.freeze(['sky']),
         members: Object.freeze([
             ['sky-imp', '구름 도깨비', 'normal', 'ranged'], ['sky-roc', '어린 뇌조', 'normal', 'melee'],
-            ['sky-harpy', '질풍 하피', 'normal', 'ranged'],
+            ['sky-harpy', '질풍 하피', 'normal', 'melee'],
             ['sky-griffin', '태양 그리핀', 'elite', 'melee'],
             ['sky-titan', '창공 거신', 'boss', 'melee']
         ].map(([id, name, role, attack]) => Object.freeze({ id, name, role, attack })))

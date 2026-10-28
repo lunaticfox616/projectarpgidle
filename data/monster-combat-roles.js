@@ -1,6 +1,7 @@
 /** Species fighting roles. Distances are grid cells, stepSec is seconds and castMs/flightMs are milliseconds.
  * These change movement and delivery only: damage, life, rewards and boss/content tuning keep their owners.
- * Existing enemies keep their saved attack profile; movement reads the same species rule as the drawn stride.
+ * Saves keep valid profiles unless a visual's melee/ranged kind changed (the existing migration resets those profiles).
+ * Movement reads the same species rule as the drawn stride.
  */
 const MONSTER_COMBAT_ROLES = (() => {
     const profiles = Object.freeze({
@@ -28,6 +29,7 @@ const MONSTER_COMBAT_ROLES = (() => {
     ].flatMap(([role, ids]) => ids.map(id => [id, role]))));
     const byRealm = Object.freeze({
         hive: Object.freeze({ 'hive-scout': 'hiveMarksman', 'hive-nurse': 'hiveBombardier' }),
+        sky: Object.freeze({ 'sky-harpy': 'pursuer' }),
         ocean: Object.freeze({ 'ocean-angler': 'pursuer', 'ocean-crab': 'frontline',
             'ocean-shell': 'oceanCarrier', 'ocean-oracle': 'oceanOracle' })
     });

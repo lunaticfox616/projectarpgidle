@@ -9116,7 +9116,7 @@ function strikeRescueTarget(enemy) {
     if(enemy.attackTimer<1)return true;
     enemy.attackTimer-=1;
     npc.strikes++;
-    addBattleFx('enemyAttack',{enemyId:enemy.id,duration:220});
+    announceEnemyAttackRelease(enemy, null, 'instantTarget', npc);
     addBattleFx('npcStruck',{gx:npc.gx,gy:npc.gy,duration:RESCUE_STRIKE.fxMs});
     return true;
 }
@@ -13772,29 +13772,31 @@ function queueEnemyCombatAttack(enemy, target, bossPattern, delivery) {
     travelMs = flight.duration;
     pendingEnemyCombatAttacks.push(attack);
     bossMoves.begin(attack, now);
-    announceEnemyAttackRelease(enemy, bossPattern, delivery, target);
+    const releaseMs = announceEnemyAttackRelease(enemy, bossPattern, delivery, target);
     if (delivery === 'patternArea') return true;
     addBattleFx('combatTravel', {
         owner: 'enemy', sourceId: enemy.id, sourceCell, targetCells: [attack.targetCell], travelPath:flight.path, enemyFlight:attack,
         targetType, targetId: attack.targetId,
         delivery, element: enemy.ele || 'phys', releaseDelayMs: 0,
-        flightMs: travelMs, duration: travelMs + 260
+        flightMs: travelMs, duration: Math.max(travelMs + 260, releaseMs)
     });
     return true;
 }
 
-/** Boss releases keep their slam/strike signal. An instant core bite keeps its actual target and complete post-impact clip;
- * motionMs limits the small lunge independently of the sprite's remaining frames. Released flights announce themselves. */
+/** Keep the complete post-impact clip for every instant target, including summons, the core and the rescued NPC.
+ * motionMs limits the legacy lunge to 220ms. Flights carry their own release; return their minimum visual lifetime
+ * without changing flightMs or the hit time. Boss animation continues to use its existing bossRelease signal. */
 function announceEnemyAttackRelease(enemy, bossPattern, delivery, target) {
     if (enemy.isBoss) {
         const slam = delivery === 'patternArea' && !['line', 'fan'].includes(bossPattern.area.kind);
         addBattleFx('bossRelease', { enemyId: enemy.id, slam, special: !!(bossPattern && bossPattern.isSpecial), duration: 560 });
     }
-    if (delivery !== 'instantTarget' || !target.isColonyCore) return;
     const actor = getBossStageActor(enemy);
     const remaining = actor?.attackMs ? actor.attackMs.slice(actor.impactFrame).reduce((sum, ms) => sum + ms, 0) : 0;
-    addBattleFx('enemyAttack', { enemyId: enemy.id, duration: Math.max(220,remaining), motionMs: 220,
-        targetType: 'colonyCore', targetCell: copyCombatGridCell(target) });
+    const duration = Math.max(220, remaining);
+    if (delivery === 'instantTarget') addBattleFx('enemyAttack', { enemyId: enemy.id, duration, motionMs: 220,
+        targetType: target === enemy.rescue ? 'rescue' : getEnemyCombatTargetType(target), targetCell: copyCombatGridCell(target) });
+    return enemy.isBoss ? 0 : duration;
 }
 
 /** A dead enemy attacks no more. A boss's released area ends with the boss: enemyAttackRules.cancelPending drops it on the
@@ -13990,7 +13992,6 @@ function performMonsterAttacks(pStats) {
             } else pendingAttack = null;
             if (attackTarget === game.gridPlayer) {
                 if (skillGemCombatRuntime) enemy.facingDirection=skillGemCasts.facing(enemy,game.gridPlayer);
-                addBattleFx('enemyAttack', { enemyId: enemy.id, duration: 220 });
             }
             let dmg = getMonsterBaseHitDamage(zone, seasonDepth, tierPressure, benchmarkProfile);
             dmg = Math.floor(dmg * enemyDmgMul * (enemy.damageMul || 1));
