@@ -133,6 +133,8 @@ let claimCount = 0;
 let networkMode = 'success';
 let latestFetchOptions = null;
 let fetchCount = 0;
+let networkBody = 'release bytes';
+const nameOf = text => require('crypto').createHash('sha256').update(text).digest('hex').slice(0, 10);
 
 const runtimeCache = {
     async put(request, response) { storedResponses.set(request.url, response); },
@@ -154,6 +156,7 @@ const context = {
     Set,
     Promise,
     console,
+    crypto: require('crypto').webcrypto,
     self: {
         location: { origin: 'https://game.example' },
         clients: { async claim() { claimCount += 1; } },
@@ -169,7 +172,8 @@ const context = {
         latestFetchOptions = options;
         fetchCount += 1;
         if (networkMode === 'failure') throw new Error('offline');
-        return { ok: true, marker: 'network', clone() { return this; } };
+        const body = networkBody;
+        return { ok: true, marker: 'network', clone() { return this; }, async arrayBuffer() { return new TextEncoder().encode(body).buffer; } };
     }
 };
 vm.createContext(context);
@@ -219,7 +223,7 @@ async function requestThroughWorker(request) {
 
     // A release names scripts and styles by content (?h=, scripts/lib/immutable-urls.js): downloaded on the first visit, then served
     // from the stored copy without the network, and never answered with another release's bytes (2026-10-28).
-    const releaseUrl = 'https://game.example/js/ui.js?v=new&h=abcdef0123';
+    const releaseUrl = `https://game.example/js/ui.js?v=new&h=${nameOf(networkBody)}`;
     const releaseRequest = { method: 'GET', url: releaseUrl, mode: 'cors', destination: 'script' };
     networkMode = 'success';
     const fetchesBefore = fetchCount;
@@ -232,6 +236,14 @@ async function requestThroughWorker(request) {
     assert.strictEqual(fetchCount, fetchesBefore + 1, 'without asking the network');
     await assert.rejects(requestThroughWorker({ ...releaseRequest, url: 'https://game.example/js/ui.js?v=new&h=0000000000' }), /offline/,
         'a release not stored yet is never answered with another release\'s bytes');
+    // The server ignores the query: an older page that asks during a deploy gets the newer bytes under its old name. They reach that
+    // page once and are not kept, so a revert that brings the old name back downloads the right bytes.
+    const oldNameUrl = `https://game.example/js/save.js?h=${nameOf('older release bytes')}`;
+    networkMode = 'success';
+    networkBody = 'newer release bytes';
+    assert.strictEqual((await requestThroughWorker({ ...releaseRequest, url: oldNameUrl })).marker, 'network');
+    assert(!storedResponses.has(oldNameUrl), 'bytes that do not match the content name are never stored');
+    networkBody = 'release bytes';
     const pageRequest = { method: 'GET', url: 'https://game.example/?h=abcdef0123', mode: 'navigate', destination: 'document' };
     networkMode = 'success';
     await requestThroughWorker(pageRequest);

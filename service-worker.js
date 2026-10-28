@@ -61,8 +61,27 @@ async function cachedOrFetch(event, cache) {
     const cached = await cache.match(event.request, { ignoreVary: true });
     if (cached) return cached;
     const response = await fetch(event.request);
-    if (response.ok) event.waitUntil(store(cache, event.request, response.clone()));
+    if (response.ok) event.waitUntil(storeIfNamed(cache, event.request, response.clone()));
     return response;
+}
+
+/** Whether the bytes are the ones the URL's h= names (the first 10 hex of their SHA-256, scripts/lib/immutable-urls.js). The server
+ * ignores the query: a page of an older release that asks during a deploy gets the newer file under the old name, and a stored copy of
+ * that would be served for good, even after a revert brings the old name back (2026-10-28 review). No crypto.subtle (an insecure
+ * origin) keeps nothing. */
+async function bytesMatchName(request, response) {
+    const name = new URL(request.url).searchParams.get('h');
+    if (!name || typeof crypto !== 'object' || !crypto.subtle) return false;
+    const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', await response.arrayBuffer()));
+    return Array.from(digest, byte => byte.toString(16).padStart(2, '0')).join('').startsWith(name);
+}
+/** Keeps a content-named copy only when its bytes match the name; other bytes reach the page this once and are not kept. */
+async function storeIfNamed(cache, request, response) {
+    try {
+        if (await bytesMatchName(request, response.clone())) await store(cache, request, response);
+    } catch (error) {
+        console.warn('[app-update] 받은 파일의 내용을 확인하지 못해 오프라인 사본을 두지 않았습니다.', error);
+    }
 }
 
 /** The network's copy, never the browser HTTP cache (an unkeyed file may have changed in place), stored before the page gets it so an
