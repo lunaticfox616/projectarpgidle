@@ -12,38 +12,213 @@
             <strong>패시브 트리 편집기</strong>
             <span id="source-label">원본 불러오는 중…</span>
         </div>
+        <div id="together-peers" class="together-peers" hidden></div>
         <div class="header-actions">
             <button id="undo-button" type="button" title="Ctrl+Z">실행 취소</button>
-            <button id="redo-button" type="button" title="Ctrl+Shift+Z">다시 실행</button>
+            <button id="redo-button" type="button" title="Ctrl+Shift+Z / Ctrl+Y">다시 실행</button>
+            <label class="file-button header-file-button" title="편집기에서 내보낸 파일이나 패시브 트리 설계자 파일">파일 불러오기<input id="import-input" type="file" accept="application/json,.json"></label>
+            <button id="export-button" type="button" title="저장하지 않은 변경까지 담습니다">파일로 내보내기</button>
             <button id="save-button" type="button">원본 저장</button>
             <button id="apply-button" type="button" class="primary">게임에 적용</button>
-            <a class="button-link" href="/game/index.html" target="_blank">게임 열기</a>
+            <a id="open-game-link" class="button-link" href="/game/index.html" target="_blank">게임 열기</a>
         </div>
     </header>
 
+    <!-- 1줄: 편집 모드와 그 설정, 격자와 이동. 2줄: 보기(검색, 확대, 시점, 색, 겹쳐 보기, 문양, 구역) -->
     <section class="editor-toolbar" aria-label="편집 도구">
-        <label class="search-field"><span>검색</span><input id="search-input" type="search" placeholder="이름, ID, 효과"></label>
-        <button id="add-node-button" type="button">노드 추가</button>
-        <button id="connect-button" type="button" aria-pressed="false">연결 편집</button>
-        <button id="delete-button" type="button" class="danger" disabled>선택 삭제</button>
-        <label class="compact-field">격자 <input id="grid-size-input" type="number" min="5" max="200" step="5" value="20"></label>
-        <label class="toggle-field"><input id="snap-input" type="checkbox" checked> 격자 맞춤</label>
-        <button id="fit-button" type="button">전체 보기</button>
+        <span class="toolbar-group mode-group" role="group" aria-label="편집 모드">
+            <button type="button" data-mode="select" aria-pressed="true" title="노드를 고르고 끌어 옮깁니다 (Esc)">선택</button>
+            <button type="button" data-mode="add" aria-pressed="false" title="고른 등급의 노드를 클릭한 자리에 만듭니다">노드 추가</button>
+            <button type="button" data-mode="shape" aria-pressed="false" title="원, 사각형, 삼각형 모양으로 노드를 한 번에 만듭니다">도형 배치</button>
+            <button id="connect-button" type="button" data-mode="connect" aria-pressed="false" title="노드 둘을 차례로 눌러 잇거나 끊습니다">연결 편집</button>
+            <button type="button" data-mode="allocate" aria-pressed="false" title="시작점부터 찍어 보며 포인트와 효과 합계를 봅니다">찍어 보기</button>
+        </span>
+        <span id="add-options" class="toolbar-group mode-options" hidden>
+            <select id="place-type" aria-label="새 노드 등급"></select>
+            <span id="shape-options" class="mode-options" hidden>
+                <select id="shape-kind" aria-label="도형"></select>
+                <label class="compact-field">개수 <input id="shape-count" type="number" min="3" max="200" value="12"></label>
+                <label class="compact-field">크기 <input id="shape-size" type="number" min="30" max="5000" step="10" value="300"></label>
+                <label class="toggle-field" title="도형 테두리를 따라 노드를 차례로 잇습니다"><input id="shape-outline" type="checkbox" checked> 외곽 연결</label>
+            </span>
+        </span>
+        <span class="toolbar-group">
+            <label class="compact-field">격자 <input id="grid-size-input" type="number" min="5" max="200" step="5" value="20"></label>
+            <label class="toggle-field" title="새 노드와 끌어 놓는 자리를 격자에 맞춥니다. 여러 노드는 잡은 노드만 맞춰 모양이 그대로입니다"><input id="snap-input" type="checkbox" checked> 격자 맞춤</label>
+            <label class="toggle-field" title="끌어 옮길 때 격자를 무시합니다. Alt를 누른 채 끌어도 같습니다"><input id="free-drag-input" type="checkbox"> 자유 드래그</label>
+            <label class="compact-field" title="방향키로 고른 노드를 옮길 거리(Shift: 격자 크기)">이동 <input id="nudge-input" type="number" min="0.1" max="500" step="1" value="10"></label>
+        </span>
+        <button id="delete-button" type="button" class="danger" disabled title="Delete / Backspace">선택 삭제</button>
+        <button id="regions-button" type="button" aria-pressed="false" title="설계자에서 그린 계획 영역을 보고 고칩니다">계획 영역</button>
         <div class="tree-summary" id="tree-summary"></div>
+    </section>
+    <section class="editor-toolbar view-toolbar" aria-label="보기 도구">
+        <label class="search-field"><span>검색</span><input id="search-input" type="search" placeholder="이름, ID, 효과"></label>
+        <span class="toolbar-group">
+            <button id="fit-button" type="button">전체 보기</button>
+            <button id="zoom-in-button" type="button" aria-label="확대">＋</button>
+            <button id="zoom-out-button" type="button" aria-label="축소">－</button>
+        </span>
+        <span class="toolbar-group view-angle-group">
+            <button id="rotate-left-button" type="button" title="트리 시점을 15° 반시계 방향으로 회전 (Q)">시점↶</button>
+            <button id="rotate-right-button" type="button" title="트리 시점을 15° 시계 방향으로 회전 (E)">시점↷</button>
+            <button id="rotate-reset-button" type="button" title="트리 시점을 정면으로 초기화" disabled>정면</button>
+            <span id="rotation-label" class="rotation-label">시점 0°</span>
+        </span>
+        <label class="compact-field toolbar-group" title="노드 테두리 색을 등급으로 칠할지, 분류(힘, 지능, 민첩...)로 칠할지">노드 색
+            <select id="color-mode"><option value="type">등급</option><option value="category">분류</option></select></label>
+        <span class="toolbar-group">
+            <label class="toggle-field"><input id="zones-input" type="checkbox"> 직업 구역</label>
+            <label class="toggle-field"><input id="weak-input" type="checkbox"> 약한 노드 <span id="weak-count"></span></label>
+        </span>
+        <span class="toolbar-group">
+            <label class="toggle-field"><input id="backgrounds-input" type="checkbox" checked> 배경 문양</label>
+            <select id="motif-choice" class="motif-choice" aria-label="놓을 배경 문양"></select>
+            <button id="add-motif-button" type="button">문양 놓기</button>
+        </span>
+        <span class="toolbar-group" role="group" aria-label="구역 작업">
+            <select id="area-select" class="area-select" aria-label="작업할 구역"></select>
+            <button id="export-area-button" type="button" title="이 구역의 노드, 연결, 배경 문양을 파일로">구역 내보내기</button>
+            <label class="file-button header-file-button" title="구역 파일을 그 구역 자리에 불러옵니다(저장하지 않음)">구역 불러오기<input id="import-area-input" type="file" accept="application/json,.json"></label>
+            <button id="apply-area-button" type="button" class="primary" title="이 구역만 원본과 게임에 반영합니다. 다른 구역은 저장된 그대로입니다">이 구역만 적용</button>
+        </span>
     </section>
 
     <main class="editor-main">
         <section class="canvas-shell">
             <canvas id="tree-editor-canvas"></canvas>
-            <div class="canvas-help">빈 공간 드래그: 이동 · 휠: 확대 · 노드 드래그: 배치 · Shift: 다중 선택</div>
+            <div id="canvas-help" class="canvas-help"></div>
             <div id="connection-hint" class="connection-hint" hidden>연결할 첫 노드를 선택하세요.</div>
+            <div id="node-hover-tip" class="node-hover-tip" hidden></div>
         </section>
 
         <aside class="inspector" id="inspector">
+            <section id="region-panel" class="side-panel" hidden aria-labelledby="region-panel-title">
+                <div class="inspector-heading"><div><small>설계자와 같은 모양</small><strong id="region-panel-title">계획 영역</strong></div>
+                    <label class="toggle-field"><input id="regions-visible" type="checkbox" checked> 보이기</label></div>
+                <div id="region-list" class="region-list"></div>
+                <button id="region-create-button" type="button">고른 노드로 영역 만들기</button>
+                <form id="region-form" hidden autocomplete="off">
+                    <fieldset>
+                        <legend>고른 영역</legend>
+                        <label>이름 <input id="region-name"></label>
+                        <div class="two-columns">
+                            <label>색 <input id="region-color" type="color"></label>
+                            <label>진하기 <input id="region-opacity" type="number" min="0.04" max="0.6" step="0.02"></label>
+                        </div>
+                        <label>중심 노드 <select id="region-focus"></select></label>
+                        <button id="region-focus-selected" type="button">고른 노드를 중심으로</button>
+                        <label>메모 <textarea id="region-note" rows="3"></textarea></label>
+                        <div class="inline-actions">
+                            <label><input id="region-show-label" type="checkbox"> 이름 보이기</label>
+                            <label><input id="region-visible" type="checkbox"> 보이기</label>
+                        </div>
+                        <div class="inline-actions">
+                            <button id="region-select-nodes" type="button">영역 노드 고르기</button>
+                            <button id="region-replace-button" type="button">고른 노드로 범위 바꾸기</button>
+                            <button id="region-show-button" type="button">영역 보기</button>
+                            <button id="region-delete-button" type="button" class="danger">영역 지우기</button>
+                        </div>
+                    </fieldset>
+                </form>
+            </section>
+
+            <section id="allocation-panel" class="side-panel" hidden aria-labelledby="allocation-title">
+                <div class="inspector-heading"><div><small>트리에는 쓰지 않습니다</small><strong id="allocation-title">찍어 보기</strong></div></div>
+                <p id="allocation-summary" class="allocation-summary"></p>
+                <ul id="allocation-totals" class="allocation-totals"></ul>
+                <button id="allocation-clear-button" type="button">모두 지우기</button>
+            </section>
+
             <div class="empty-inspector" id="empty-inspector">
                 <strong>노드를 선택하세요</strong>
-                <p>캔버스의 노드를 클릭하면 구조, 효과, 이미지와 원본 메타데이터를 수정할 수 있습니다.</p>
+                <p>노드를 클릭하면 구조와 효과를 고치고, 여럿을 고르면 한꺼번에 바꿉니다.</p>
+                <div id="tree-info" class="tree-info"></div>
+                <ul class="shortcut-list">
+                    <li><kbd>Shift</kbd>+드래그 범위 선택 · <kbd>Shift</kbd>/<kbd>Ctrl</kbd>+클릭 여럿 고르기 · <kbd>Ctrl</kbd>+<kbd>A</kbd> 모두</li>
+                    <li>방향키 고른 노드 옮기기(<kbd>Shift</kbd> 격자만큼) · 고른 것이 없거나 <kbd>Ctrl</kbd>+방향키 화면 이동</li>
+                    <li><kbd>Ctrl</kbd>+<kbd>C</kbd>/<kbd>X</kbd>/<kbd>V</kbd> 복사·잘라내기·마우스 자리에 붙여넣기 · <kbd>Ctrl</kbd>+<kbd>D</kbd> 복제</li>
+                    <li><kbd>Delete</kbd>/<kbd>Backspace</kbd> 지우기 · <kbd>Esc</kbd> 선택 해제, 모드 끝내기 · <kbd>Q</kbd>/<kbd>E</kbd> 시점 돌리기</li>
+                    <li>노드를 끌 때 <kbd>Alt</kbd> 격자 무시 · 빈 곳의 연결선을 누르면 그 연결을 고릅니다</li>
+                </ul>
             </div>
+
+            <form id="multi-form" hidden autocomplete="off">
+                <div class="inspector-heading"><div><small>여러 노드</small><strong id="multi-title"></strong></div></div>
+                <p id="multi-counts" class="field-help"></p>
+                <fieldset>
+                    <legend>한꺼번에 바꾸기</legend>
+                    <div class="two-columns">
+                        <label>등급 <select id="bulk-type"></select></label>
+                        <label>분류 <select id="bulk-cat"></select></label>
+                    </div>
+                    <label>옵션 <select id="bulk-stat"></select></label>
+                    <div class="two-columns">
+                        <label>값 <input id="bulk-value" type="number" step="0.1" value="5"></label>
+                        <label>넣는 법 <select id="bulk-mode"><option value="replace">전체 교체</option><option value="first">첫 옵션 교체</option><option value="add">옵션 추가</option></select></label>
+                    </div>
+                    <div class="inline-actions">
+                        <button id="bulk-apply-button" type="button" class="primary">고른 노드에 적용</button>
+                        <button id="bulk-clear-button" type="button" class="danger">옵션 비우기</button>
+                    </div>
+                </fieldset>
+                <fieldset>
+                    <legend>모양</legend>
+                    <div class="inline-actions">
+                        <button type="button" data-arrange="left" title="고른 노드의 가운데를 축으로 15° 반시계 방향">↶ 15°</button>
+                        <button type="button" data-arrange="right" title="고른 노드의 가운데를 축으로 15° 시계 방향">↷ 15°</button>
+                        <button type="button" data-arrange="horizontal">좌우 반전</button>
+                        <button type="button" data-arrange="vertical">상하 반전</button>
+                        <select id="mirror-basis" aria-label="반전 기준" title="화면 기준: 돌린 시점에서 보이는 대로 뒤집습니다"><option value="screen">화면 기준</option><option value="tree">트리 기준</option></select>
+                    </div>
+                    <div class="inline-actions">
+                        <button type="button" data-arrange="rowH" title="화면에서 보이는 대로 가로 한 줄에">가로 줄 맞춤</button>
+                        <button type="button" data-arrange="rowV" title="화면에서 보이는 대로 세로 한 줄에">세로 줄 맞춤</button>
+                        <button type="button" data-arrange="spreadH" title="양 끝은 그대로, 사이를 같은 간격으로">가로 고르게</button>
+                        <button type="button" data-arrange="spreadV" title="양 끝은 그대로, 사이를 같은 간격으로">세로 고르게</button>
+                        <button type="button" data-arrange="circle" title="가운데를 둘러 같은 간격의 원으로(지금 순서대로)">원으로 펴기</button>
+                    </div>
+                    <small class="field-help">고른 노드 하나를 끌면 모두 모양 그대로 따라오고, 격자에는 잡은 노드만 맞춥니다.</small>
+                </fieldset>
+                <fieldset>
+                    <legend>연결</legend>
+                    <div class="inline-actions">
+                        <button type="button" data-relink="ring" title="가운데를 둘러 도는 순서대로 이웃끼리 잇습니다(있던 연결은 그대로)">고리로 잇기</button>
+                        <button type="button" data-relink="cut" class="danger" title="고른 노드 둘을 잇는 연결을 모두 끊습니다">서로 끊기</button>
+                    </div>
+                </fieldset>
+                <div class="inline-actions">
+                    <button id="bulk-copy-button" type="button" title="Ctrl+C">복사</button>
+                    <button id="bulk-duplicate-button" type="button" title="Ctrl+D">복제</button>
+                    <button id="bulk-delete-button" type="button" class="danger" title="Delete">삭제</button>
+                </div>
+            </form>
+
+            <form id="edge-form" hidden autocomplete="off">
+                <div class="inspector-heading"><div><small>고른 연결</small><strong>연결</strong></div></div>
+                <p id="edge-ends" class="edge-ends"></p>
+                <button id="edge-delete-button" type="button" class="danger" title="Delete">연결 끊기</button>
+            </form>
+
+            <form id="motif-form" hidden autocomplete="off">
+                <div class="inspector-heading">
+                    <div><small>선택한 배경 문양</small><strong id="motif-title"></strong></div>
+                </div>
+                <fieldset>
+                    <legend>배치</legend>
+                    <small class="field-help">노드 뒤에 그려지고, 게임에 적용하면 게임 스킬트리에도 같은 자리에 나옵니다. 캔버스에서 끌어 옮깁니다.</small>
+                    <div class="two-columns">
+                        <label>크기 <input id="motif-size" type="number" min="10" max="5000" step="10"></label>
+                        <label>회전(도) <input id="motif-rotation" type="number" min="-360" max="360" step="5"></label>
+                    </div>
+                    <label>진하기(0~1) <input id="motif-opacity" type="number" min="0" max="1" step="0.05"></label>
+                    <div class="inline-actions">
+                        <label><input id="motif-visible" type="checkbox"> 보이기</label>
+                        <label><input id="motif-locked" type="checkbox"> 잠금(끌어도 안 움직임)</label>
+                    </div>
+                    <button id="delete-motif-button" type="button" class="danger">이 문양 지우기</button>
+                </fieldset>
+            </form>
             <form id="node-form" hidden autocomplete="off">
                 <div class="inspector-heading">
                     <div><small>선택한 노드</small><strong id="selected-node-title"></strong></div>
@@ -59,10 +234,11 @@
                     </div>
                     <div class="two-columns">
                         <label>종류 <select id="node-type"></select></label>
-                        <label>분류 <input id="node-cat" list="category-list"></label>
+                        <label>분류 <select id="node-cat"></select></label>
                     </div>
                     <label>이름 <input id="node-name"></label>
-                    <label>아키타입 <input id="node-archetype"></label>
+                    <label>주제(아키타입) <select id="node-archetype"></select></label>
+                    <small class="field-help">노드의 계열입니다. 아래 옵션 꾸러미 목록에서 이 주제가 맨 앞에 나오고, 효과로 아이콘을 정하지 못하면 이 주제의 아이콘을 씁니다. 꾸러미를 채우면 그 꾸러미의 주제로 바뀝니다.</small>
                     <label>선택지/뭉치 성격 <input id="node-option-profile"></label>
                     <label>설명 <textarea id="node-desc" rows="4"></textarea></label>
                     <div class="inline-actions">
@@ -76,6 +252,14 @@
                     <legend>효과</legend>
                     <div id="effect-list" class="effect-list"></div>
                     <button id="add-effect-button" type="button">효과 줄 추가</button>
+                </fieldset>
+                <fieldset>
+                    <legend>옵션 꾸러미</legend>
+                    <p id="node-power" class="node-power"></p>
+                    <label>꾸러미 <select id="bundle-select"></select></label>
+                    <p id="bundle-preview" class="bundle-preview"></p>
+                    <button id="apply-bundle-button" type="button">꾸러미로 효과 채우기</button>
+                    <p class="bundle-note">값은 노드 종류와 시작점에서의 거리 구간에 맞춰 정해집니다(작은 노드 1줄, 중간 노드 2줄, 주요 노드 최대 3줄).</p>
                 </fieldset>
 
                 <fieldset>
@@ -102,16 +286,24 @@
         </aside>
     </main>
 
+    <dialog id="together-join" class="import-report together-join" aria-labelledby="together-join-title">
+        <h2 id="together-join-title">함께 편집</h2>
+        <form method="dialog">
+            <label>다른 사람에게 보일 이름<input id="together-name" maxlength="20" autocomplete="nickname" required></label>
+            <button type="submit" class="primary">들어가기</button>
+        </form>
+    </dialog>
+
+    <dialog id="import-report" class="import-report" aria-labelledby="import-report-title">
+        <h2 id="import-report-title">불러온 파일</h2>
+        <div id="import-report-body"></div>
+        <form method="dialog"><button type="submit" class="primary">닫기</button></form>
+    </dialog>
+
     <footer class="status-bar">
         <span id="status-message">준비 중…</span>
         <span id="dirty-state">저장됨</span>
     </footer>
-
-    <datalist id="category-list">
-        <option value="atk"><option value="def"><option value="int"><option value="dex"><option value="str">
-        <option value="physical"><option value="spell"><option value="projectile"><option value="ailment">
-        <option value="mystique"><option value="devotion"><option value="cycle"><option value="none">
-    </datalist>
     <script type="module" src="editor.js"></script>
 </body>
 </html>
