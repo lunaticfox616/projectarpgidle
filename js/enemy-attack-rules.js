@@ -6,6 +6,27 @@
  * attackCastSpecial; transient attackCast.isSpecial shares the boss-pattern distinction.
  */
 const enemyAttackRules = (() => {
+    // A live colony defense's chosen target, shared with drawing without saving or retargeting in the renderer.
+    const aims = new WeakMap();
+    const aimRun = () => game.currentZoneId === 'colony_run' && game.colony?.inRun
+        ? actExplorationState.current(game) : null;
+    /** Called by combat only when a real defense core exists; null clears an obsolete aim. */
+    function noteAim(enemy, target) {
+        const run = target && aimRun();
+        if (!run) { aims.delete(enemy); return; }
+        const cell = enemy.attackCast?.targetCell || target;
+        // Assassination reads cardinal facing in combat too; recompute when the enemy moved even if its aim stayed put.
+        enemy.facingDirection = skillGemCasts.facing(enemy, cell);
+        const previous = aims.get(enemy);
+        if (previous?.run === run && previous.cell.gx === cell.gx && previous.cell.gy === cell.gy) return;
+        aims.set(enemy, { run, cell: { gx: cell.gx, gy: cell.gy } });
+    }
+    /** Read-only cell snapshot. A finished defense, replaced run or restored enemy cannot inherit an old aim. */
+    function aimCell(enemy) {
+        const run = aimRun(), aim = run && aims.get(enemy);
+        return aim?.run === run ? aim.cell : null;
+    }
+
     function controls(enemy) {
         const active = new Set((enemy.ailments || []).filter(ail => ail.time > 0).map(ail => ail.type));
         return {hard: active.has('freeze') || active.has('stun'), silence: active.has('silence')};
@@ -229,6 +250,6 @@ const enemyAttackRules = (() => {
         return special && pattern.label ? `${enemy.name} (${pattern.label})` : enemy.name;
     }
 
-    return {delivery,impactTargets,trajectory,advanceFlight,interrupt,cancelPending,ready,castBar,damageName,meleeReach};
+    return {delivery,impactTargets,trajectory,advanceFlight,interrupt,cancelPending,ready,castBar,damageName,meleeReach,noteAim,aimCell};
 })();
 safeExposeGlobals({enemyAttackRules});

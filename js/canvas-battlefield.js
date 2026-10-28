@@ -2122,9 +2122,9 @@ function drawBattlePlayerBody(ctx,state,position) {
 
 function getEnemyAttackMotion(fx, enemyPos, playerPos, now, distance) {
     if (!fx || !enemyPos || !playerPos) return null;
-    let duration = Math.max(1, Number(fx.duration) || 220);
+    let duration = Math.max(1, Number(fx.motionMs) || Number(fx.duration) || 220);
     let progress = (Number(now) - Number(fx.start)) / duration;
-    if (!Number.isFinite(progress) || progress < 0 || progress > 1) return null;
+    if (!(progress >= 0 && progress <= 1)) return null;
     let dx = Number(playerPos.x) - Number(enemyPos.x);
     let dy = Number(playerPos.y) - Number(enemyPos.y);
     let length = Math.hypot(dx, dy);
@@ -2247,14 +2247,24 @@ function getPlayerHurtPosition(state) {
     return offset ? { ...at, x: at.x + offset.x, y: at.y + offset.y } : at;
 }
 
-function buildEnemyAttackMotionMap(effects, enemyPosMap, playerPos, now) {
+function buildEnemyAttackMotionMap(effects, enemyPosMap, playerPos, now, gridProj) {
     let result = {};
+    // A release keeps its fixed aim for the whole attack clip, even after its short legacy lunge ends.
+    function releaseAim(fx, entry) {
+        if (now < fx.start || now - fx.start > fx.duration) return null;
+        const cell = fx.targetCell, point = cell && gridProj ? gridProj.cellToScreen(cell.gx, cell.gy) : null;
+        if (point) point.y += Number(gridProj.actorGroundOffsetY) || 0;
+        entry.actualAim = point || playerPos;
+        const ghost = battleVisualState.enemyGhostPos[entry.enemy.id];
+        if (ghost) ghost.actualAim = { ...entry.actualAim };
+        return entry.actualAim;
+    }
     (effects || []).forEach(fx => {
         if (!fx || fx.type !== 'enemyAttack' || fx.enemyId == null) return;
         let entry = enemyPosMap[fx.enemyId];
         if (!entry) return;
         let distance = entry.enemy.isBoss ? 10 : (entry.enemy.isElite ? 8 : 6);
-        let motion = getEnemyAttackMotion(fx, entry, playerPos, now, distance);
+        let motion = getEnemyAttackMotion(fx, entry, releaseAim(fx, entry) || playerPos, now, distance);
         if (motion) result[fx.enemyId] = motion;
     });
     return result;
@@ -2262,7 +2272,7 @@ function buildEnemyAttackMotionMap(effects, enemyPosMap, playerPos, now) {
 
 /** 옆에서 보는 무대의 몬스터는 왼쪽이나 오른쪽만 본다(2026-10-13 사용자: 걸어올 때 좌우가 맞지 않는다. 전에는 주인공이 위아래로 더
  * 멀면 위나 아래를 본다고 답했고, 무대는 그때 직전 방향을 지켜서 처음 나온 몬스터가 등을 보이며 걸어왔다).
- * 걷는 동안에는 가는 쪽(enemyPos.heading, glideBattleEnemy), 서 있거나 때릴 때는 주인공이 있는 쪽을 본다. 위아래로만 걷거나
+ * 걷는 동안에는 가는 쪽(enemyPos.heading, glideBattleEnemy), 서 있거나 때릴 때는 기록된 실제 목표(없으면 주인공)를 본다. 위아래로만 걷거나
  * 주인공과 거의 같은 세로줄에 서 있으면 'south'를 답한다: 무대는 그때 직전 방향을 지킨다(stageView.facing). */
 const STAGE_SIDE_DEAD_PX = 10;
 function resolveStageEnemySide(enemyPos, playerPos) {
@@ -2270,7 +2280,7 @@ function resolveStageEnemySide(enemyPos, playerPos) {
     // 액트 1 입구 방의 첫 몬스터는 하켄을 치는 동안 하켄 쪽을 본다(js/combat.js strikeRescueTarget).
     const rescue = enemyPos.enemy && enemyPos.enemy.rescue;
     if (rescue) return rescue.gx < enemyPos.enemy.gx ? 'west' : 'east';
-    const dx = Number(playerPos.x) - Number(enemyPos.x);
+    const target = enemyPos.actualAim || playerPos, dx = Number(target.x) - Number(enemyPos.x);
     if (Math.abs(dx) <= STAGE_SIDE_DEAD_PX) return 'south';
     return dx < 0 ? 'west' : 'east';
 }
@@ -2279,10 +2289,12 @@ function resolveEnemyFacingDirection(enemyPos, playerPos) {
     if (!enemyPos || !playerPos) return 'south';
     if (mobilitySkill.equipped()==='암살' && enemyPos.enemy?.facingDirection) return ({2:'south',4:'west',6:'east',8:'north'})[enemyPos.enemy.facingDirection];
     if (stageView.enabled()) return resolveStageEnemySide(enemyPos, playerPos);
-    const dx = Number(playerPos.x) - Number(enemyPos.x);
-    const dy = Number(playerPos.y) - Number(enemyPos.y);
-    if (Math.abs(dx) > Math.abs(dy)) return dx < 0 ? 'west' : 'east';
-    return dy < 0 ? 'north' : 'south';
+    function cardinal(target) {
+        const dx = Number(target.x) - Number(enemyPos.x), dy = Number(target.y) - Number(enemyPos.y);
+        if (Math.abs(dx) > Math.abs(dy)) return dx < 0 ? 'west' : 'east';
+        return dy < 0 ? 'north' : 'south';
+    }
+    return cardinal(enemyPos.actualAim || playerPos);
 }
 
 // 왼쪽을 보고 그린 보스 그림(data BOSS_ASSET_FRONT_FACING 밖)은 주인공이 오른쪽에 서면 좌우를 뒤집는다.
@@ -2292,7 +2304,7 @@ const ENEMY_SPRITE_SIDE_DEAD_ZONE = 0.25;
 const enemySpriteSides = new WeakMap();
 function noteEnemySpriteSide(enemy, enemyPos, playerPos, tile) {
     if (!enemy || !enemy.bossAssetKey || !enemyPos || !playerPos) return;
-    const dx = Number(playerPos.x) - Number(enemyPos.x);
+    const dx = Number((enemyPos.actualAim || playerPos).x) - Number(enemyPos.x);
     if (Math.abs(dx) > (Number(tile) || 0) * ENEMY_SPRITE_SIDE_DEAD_ZONE) enemySpriteSides.set(enemy, dx > 0 ? 'east' : 'west');
 }
 
@@ -2441,16 +2453,22 @@ function drawEnemyActorSprite(ctx, entry, state, pose) {
  * gets no ghost, and its one-time combat text (hit numbers, evades, the alert "!") is skipped: a monster running in from the fog
  * stays unseen until it steps into sight (2026-10-09 사용자). */
 const SIGHT_GATED_FX = new Set(['hit', 'enemyEvade', 'statusText']);
-function buildBattleEnemyPosMap(layout, fxList, now) {
+function buildBattleEnemyPosMap(layout, fxList, now, gridProj) {
     const map = {}, hidden = new Set();
     layout.forEach(entry => {
         map[entry.enemy.id] = entry;
+        const cell = enemyAttackRules.aimCell(entry.enemy);
+        if (cell && gridProj) {
+            entry.actualAim = gridProj.cellToScreen(cell.gx, cell.gy);
+            entry.actualAim.y += Number(gridProj.actorGroundOffsetY) || 0;
+        }
         if (!entry.seen) {
             hidden.add(entry.enemy.id);
             delete battleVisualState.enemyGhostPos[entry.enemy.id];
             return;
         }
-        battleVisualState.enemyGhostPos[entry.enemy.id] = { x: entry.x, y: entry.y, stamp: now, enemy: copyEnemySpriteSide(entry.enemy, { ...entry.enemy }) };
+        battleVisualState.enemyGhostPos[entry.enemy.id] = { x: entry.x, y: entry.y, actualAim: entry.actualAim && { ...entry.actualAim },
+            stamp: now, enemy: copyEnemySpriteSide(entry.enemy, { ...entry.enemy }) };
     });
     if (hidden.size) fxList.forEach(fx => { if (fx && SIGHT_GATED_FX.has(fx.type) && hidden.has(fx.enemyId)) battleVisualState.processedFxIds.add(fx.id); });
     return map;
@@ -2830,7 +2848,7 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
     const glideFrame = { now, deltaSec, gridProj };
     // 자리 목록은 모든 적을 담고, 그릴 적은 따로 가른다(js/canvas-battle-draw-list.js: 보이는 적, 그 가운데 그림이 화면에 걸치는 적).
     let dynamicLayout = battleDrawList.markDrawn(layout.map(entry => glideBattleEnemy(entry, glideFrame)), { width, height, tile: gridProj.tileW });
-    let enemyPosMap = buildBattleEnemyPosMap(dynamicLayout, battleFx, now);
+    let enemyPosMap = buildBattleEnemyPosMap(dynamicLayout, battleFx, now, gridProj);
     playerMotionState.attackDirection = resolvePlayerAttackDirection(playerPos, currentTargets, enemyPosMap);
     const stageStrikeSide = stageView.enabled() ? resolveStageStrikeSide(now) : null;
     if (playerMotion.animating) battleVisualState.playerFacingDirection = playerMotion.direction;
@@ -2925,7 +2943,7 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
     ctx = battleGroundLoot.actorContext(canvas, ctx, now, gridProj);
     (battleVisualState.projectiles || []).forEach(projectile => drawVisualProjectile(ctx, projectile, now));
     drawEnemyAttackTelegraphs(ctx, dynamicLayout, gridUnitScale, gridProj, pendingEnemyCombatAttacks);
-    let enemyAttackMotions = bossAttackView.addMotions(buildEnemyAttackMotionMap(battleFx, enemyPosMap, playerPos, now), dynamicLayout, playerPos, now, gridProj.tileW);
+    let enemyAttackMotions = bossAttackView.addMotions(buildEnemyAttackMotionMap(battleFx, enemyPosMap, playerPos, now, gridProj), dynamicLayout, playerPos, now, gridProj.tileW);
     let attachGridEffectPosition = effect => {
         if (!effect) return null;
         let cell = hasGridCell(effect.cell) ? effect.cell : COMBAT_GRID_CONFIG.playerSpawn;
@@ -2982,7 +3000,7 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
         let t = clampNumber((now - fx.start) / fx.duration, 0, 1);
         let ghostEnemy = (fx.enemyId && !enemyPosMap[fx.enemyId]) ? battleVisualState.enemyGhostPos[fx.enemyId] : null;
         if (ghostEnemy && !enemyPosMap[fx.enemyId]) {
-            enemyPosMap[fx.enemyId] = { enemy: ghostEnemy.enemy || { id: fx.enemyId, hp: 0, maxHp: 1 }, x: ghostEnemy.x, y: ghostEnemy.y };
+            enemyPosMap[fx.enemyId] = { enemy: ghostEnemy.enemy || { id: fx.enemyId, hp: 0, maxHp: 1 }, x: ghostEnemy.x, y: ghostEnemy.y, actualAim: ghostEnemy.actualAim };
         }
         if (fx.type === 'playerSwing') {
             worldTreeSkillFx.swing(ctx, fx, now, gridProj);

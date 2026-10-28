@@ -9686,13 +9686,17 @@ function runReturnRules(pStats, now = getCombatTime()) {
 
 function ensureEncounterRun() {
     if(actExplorationState.current(game))return;
-    // Board-mode hive choices and waves own their empty progress plan. Reconcile stale flags before keeping a live run.
-    if(game.currentZoneId==='beehive_run' && isBeehiveRunLockedForMapTravel())return;
+    if(waveOwnsProgressPlan())return;
     if(game.combatHalted && isSkyTowerAtRewardLimit(getZone(game.currentZoneId))) {
         prepareActExplorationArrival();
         return;
     }
     if (game.moveTimer <= 0 && (!game.encounterPlan || game.encounterPlan.length === 0)) startEncounterRun();
+    // Board waves own an empty plan. The hive reconciles stale flags; the colony resumes or fills its wave in tickColonyRun.
+    function waveOwnsProgressPlan() {
+        if(game.currentZoneId==='colony_run')return !!game.colony?.inRun;
+        return game.currentZoneId==='beehive_run' && isBeehiveRunLockedForMapTravel();
+    }
 }
 
 function isRegularAutoProgressZone(zone) {
@@ -13633,8 +13637,12 @@ function getEnemyPreferredGridTarget(enemy) {
     const player=game.gridPlayer;
     if(!hasGridCell(enemy) || !hasGridCell(player))return player;
     const core=getColonyDefenseCoreTarget();
-    const reach=core ? Math.max(2,Math.min(5,Number(enemy.attackRange)||1)) : Infinity;
-    return nearestEnemyCombatTarget(enemy,core || player,reach);
+    if(!core)return nearestEnemyCombatTarget(enemy,player,Infinity);
+    // Borers keep heading for the core until a closer body is within their ordinary melee reach.
+    if(!enemy.isBoss && !enemy.isSeveredWanderer && enemy.monsterVisualSetId==='colony' && enemy.monsterVisualId==='colony-borer-grub')
+        return nearestEnemyCombatTarget(enemy,core,1);
+    const reach=Math.max(2,Math.min(5,Number(enemy.attackRange)||1));
+    return nearestEnemyCombatTarget(enemy,core,reach);
 }
 
 /** 적이 자기 사거리(근접 1칸/원거리 3~5칸/보스는 data/bosses.js BOSS_REACH) 안에 선택한 목표를 두고 있는지 판정한다. */
@@ -13764,7 +13772,7 @@ function queueEnemyCombatAttack(enemy, target, bossPattern, delivery) {
     travelMs = flight.duration;
     pendingEnemyCombatAttacks.push(attack);
     bossMoves.begin(attack, now);
-    announceBossRelease(enemy, bossPattern, delivery);
+    announceEnemyAttackRelease(enemy, bossPattern, delivery, target);
     if (delivery === 'patternArea') return true;
     addBattleFx('combatTravel', {
         owner: 'enemy', sourceId: enemy.id, sourceCell, targetCells: [attack.targetCell], travelPath:flight.path, enemyFlight:attack,
@@ -13775,12 +13783,18 @@ function queueEnemyCombatAttack(enemy, target, bossPattern, delivery) {
     return true;
 }
 
-/** The moment a boss lets an attack go (js/canvas-boss-attacks.js): area specials hop and slam, shots, lines and hits up close
- * thrust. special: a special pattern (a roster boss with a second attack clip plays it, js/canvas-monster-actors.js). */
-function announceBossRelease(enemy, bossPattern, delivery) {
-    if (!enemy.isBoss) return;
-    const slam = delivery === 'patternArea' && !['line', 'fan'].includes(bossPattern.area.kind);
-    addBattleFx('bossRelease', { enemyId: enemy.id, slam, special: !!(bossPattern && bossPattern.isSpecial), duration: 560 });
+/** Boss releases keep their slam/strike signal. An instant core bite keeps its actual target and complete post-impact clip;
+ * motionMs limits the small lunge independently of the sprite's remaining frames. Released flights announce themselves. */
+function announceEnemyAttackRelease(enemy, bossPattern, delivery, target) {
+    if (enemy.isBoss) {
+        const slam = delivery === 'patternArea' && !['line', 'fan'].includes(bossPattern.area.kind);
+        addBattleFx('bossRelease', { enemyId: enemy.id, slam, special: !!(bossPattern && bossPattern.isSpecial), duration: 560 });
+    }
+    if (delivery !== 'instantTarget' || !target.isColonyCore) return;
+    const actor = getBossStageActor(enemy);
+    const remaining = actor?.attackMs ? actor.attackMs.slice(actor.impactFrame).reduce((sum, ms) => sum + ms, 0) : 0;
+    addBattleFx('enemyAttack', { enemyId: enemy.id, duration: Math.max(220,remaining), motionMs: 220,
+        targetType: 'colonyCore', targetCell: copyCombatGridCell(target) });
 }
 
 /** A dead enemy attacks no more. A boss's released area ends with the boss: enemyAttackRules.cancelPending drops it on the
@@ -13915,6 +13929,7 @@ function performMonsterAttacks(pStats) {
         if (!pendingAttack && (enemy.apexRecoveryUntil || 0) > getCombatTime()) continue;
         let impactTargets = pendingAttack ? getEnemyCombatImpactTargets(pendingAttack) : [getEnemyPreferredGridTarget(enemy)];
         let attackTarget = impactTargets[0];
+        enemyAttackRules.noteAim(enemy,getColonyDefenseCoreTarget() ? attackTarget : null);
         if (!attackTarget) continue;
         // 그리드 사거리 밖이면 공격 대신 선택한 목표에게 접근한다(냉각/둔화는 이동도 늦춘다).
         // 공격 게이지는 1회분까지만 유지해 도착 직후 바로 공격하게 한다.
@@ -13971,7 +13986,7 @@ function performMonsterAttacks(pStats) {
                 let delivery = getEnemyCombatDelivery(enemy, bossPattern);
                 if (delivery !== 'instantTarget' && queueEnemyCombatAttack(enemy, attackTarget, bossPattern, delivery)) break;
                 // 붙어서 바로 치는 보스도 놓는 순간을 알린다: 그림 보스의 공격 동작이 이때 타격 프레임을 친다(js/canvas-monster-actors.js).
-                announceBossRelease(enemy, bossPattern, 'instantTarget');
+                announceEnemyAttackRelease(enemy, bossPattern, 'instantTarget', attackTarget);
             } else pendingAttack = null;
             if (attackTarget === game.gridPlayer) {
                 if (skillGemCombatRuntime) enemy.facingDirection=skillGemCasts.facing(enemy,game.gridPlayer);
