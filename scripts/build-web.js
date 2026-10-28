@@ -4,6 +4,7 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const { buildCss } = require('./build-css');
 const { prepareRelease } = require('./lib/release-bundle');
+const { stampGameBuild } = require('./lib/game-build');
 const root = path.resolve(__dirname, '..');
 const destination = path.join(root, 'dist');
 
@@ -21,7 +22,7 @@ async function buildWeb() {
     // Actions에서는 커밋, 그 밖에서는 묶음을 만든 시각이다.
     const build = (process.env.GITHUB_SHA || '').slice(0, 12) || `local-${Date.now()}`;
     const placeholder = '<meta name="app-deploy" content="dev">';
-    const built = await buildCss(destination, await fs.readFile(path.join(root, 'index.html'), 'utf8'));
+    const built = stampGameBuild(await buildCss(destination, await fs.readFile(path.join(root, 'index.html'), 'utf8')), root);
     if (!built.includes(placeholder)) throw new Error('index.html has no app-deploy placeholder');
     // 무대 그림(assets/playable/stage: 저장소에 없고 묶음을 만드는 자리에 있을 때만 들어간다)이 이 묶음에 없으면 그렇다고 적어 둔다.
     // 게임은 작은 그림 하나를 물어서 그림이 있는지 아는데(js/canvas-stage-actors.js available), 없는 묶음에서는 열 때마다 404가 난다.

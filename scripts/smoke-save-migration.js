@@ -284,6 +284,38 @@ const merge = save => ctx.mergeDefaults(JSON.parse(JSON.stringify(save)));
     assert.strictEqual(storage.get(key), '{invalid save');
 }
 
+// Release stamp (2026-10-28): a release names itself in every save it writes and never loads or writes over a later release's
+// save, from this device or the server; its own and earlier releases' saves load and take its stamp.
+{
+    const build = '2026-10-28T00:00:00.000Z', later = '2026-10-29T00:00:00.000Z';
+    const runtime = buildGameRuntime({}, null, { querySelector: selector => (selector === 'meta[name="game-build"]' ? { content: build } : null) });
+    const storage = new Map(), key = vm.runInContext('LOCAL_SAVE_KEY', runtime);
+    runtime.localStorage = { getItem: name => storage.get(name) || null, setItem: (name, value) => storage.set(name, value), removeItem: name => storage.delete(name) };
+    const stored = () => JSON.parse(storage.get(key));
+    for (const gameBuild of [undefined, '2026-10-27T00:00:00.000Z', build]) {
+        storage.set(key, JSON.stringify({ level: 21, saveMeta: { lastModifiedAt: 5, gameBuild } }));
+        assert.strictEqual(runtime.loadGame().status, 'ok');
+        assert.strictEqual(runtime.saveGame({ skipCloudSync: true }), true);
+        assert.deepStrictEqual([stored().level, stored().saveMeta.gameBuild], [21, build], 'an earlier save loads and takes this release');
+    }
+    const laterSave = JSON.stringify({ level: 40, saveMeta: { lastModifiedAt: 5, gameBuild: later } });
+    storage.set(key, laterSave);
+    const status = runtime.loadGame();
+    assert.deepStrictEqual([status.status, status.writable, vm.runInContext('game.level', runtime)], ['newer-build', false, 1]);
+    assert.match(status.message, /더 새 버전의 게임/);
+    assert.strictEqual(runtime.saveGame({ manual: true, skipCloudSync: true }), false, 'a later release save is never written over');
+    assert.strictEqual(runtime.canPersistLocalSave({ allowRecoveryWrite: true }), false, 'not even by a server copy repairing it');
+    assert.throws(() => runtime.applyExternalSave({ level: 9, saveMeta: { gameBuild: build } }), error => error.code === 'GAME_BUILD_OUTDATED');
+    assert.strictEqual(storage.get(key), laterSave);
+
+    storage.set(key, JSON.stringify({ level: 21, saveMeta: {} }));
+    runtime.loadGame();
+    assert.throws(() => runtime.applyExternalSave({ level: 40, saveMeta: { gameBuild: later } }), error => error.code === 'GAME_BUILD_OUTDATED');
+    assert.strictEqual(vm.runInContext('game.level', runtime), 21, 'a refused server save leaves the game as it was');
+    // An unbuilt page (development server, this runtime) stamps nothing and refuses nothing.
+    assert.strictEqual(ctx.outdatedBuildError({ saveMeta: { gameBuild: later } }), null);
+}
+
 // An explicit account reset marker survives reloads; old/invalid metadata cannot become a reset.
 for (const value of [undefined, null, -1, 1.5, 'bad', Infinity, 0, 8]) {
     ctx.__loaded = merge({ saveMeta: { cloudResetRevision: value } });

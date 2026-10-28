@@ -22,7 +22,9 @@ async function buildMobile() {
         .replace('<script id="app-update-registration">', '<script src="vendor/capacitor.js"></script>\n    <script id="app-update-registration">');
     const { buildCss } = require('./build-css');
     const { prepareRelease } = require('./lib/release-bundle');
-    const bundled = await buildCss(destination, html);
+    const { stampGameBuild } = require('./lib/game-build');
+    // The web build stamps the same way: a save from the web's later release is not loaded or overwritten by an older app.
+    const bundled = stampGameBuild(await buildCss(destination, html), root);
     // Same release rules as the web build: no test panel and no dev-only code in the APK.
     fs.writeFileSync(path.join(destination, 'index.html'), await prepareRelease(destination, bundled));
     fs.writeFileSync(path.join(destination, 'mobile-build.json'), JSON.stringify({

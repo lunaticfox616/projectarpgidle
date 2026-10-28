@@ -32,8 +32,53 @@ function getLocalSaveStatus() {
     return { ...localSaveRuntimeState };
 }
 
+/** The release this page runs: the time of the commit it was built from (ISO), which scripts/lib/game-build.js writes into
+ * <meta name="game-build"> of a release (dist/, www/). An unbuilt page (development server, smoke runtime) has 'dev' or no tag and
+ * gets null: it stamps no save and refuses none. */
+const RUNNING_GAME_BUILD = (() => {
+    const meta = typeof document === 'object' && typeof document.querySelector === 'function' ? document.querySelector('meta[name="game-build"]') : null;
+    return gameBuildTime(meta && meta.content) ? meta.content : null;
+})();
+const OUTDATED_BUILD_ERROR_CODE = 'GAME_BUILD_OUTDATED';
+
+/** A game build stamp's time in ms, or 0 for anything else (no stamp, 'dev', a damaged value). */
+function gameBuildTime(stamp) {
+    const time = typeof stamp === 'string' ? Date.parse(stamp) : NaN;
+    return Number.isFinite(time) && time > 0 ? time : 0;
+}
+
+/** Every save a release writes names that release, so an older release can tell it apart (outdatedBuildError). */
+function stampGameBuild(meta) {
+    if (RUNNING_GAME_BUILD) meta.gameBuild = RUNNING_GAME_BUILD;
+}
+
+/** Why this page must not take saveData (a device or cloud save) in, or null when it may: a later release wrote it, and may have
+ * reshaped it or added things this release does not know, which loading here would drop and the next write would carry back
+ * (2026-10-28: a store app trails the web by days). Everything is refused while this device's own save is from a later release
+ * (loadGame 'newer-build'). The error's code is OUTDATED_BUILD_ERROR_CODE. */
+function outdatedBuildError(saveData) {
+    if (localSaveRuntimeState.status === 'newer-build') return outdatedBuildRefusal(localSaveRuntimeState.message);
+    return laterBuildSaveError(saveData);
+}
+/** The refusal for saveData written by a later release than this page's, or null; this device's save status is not read (loadGame). */
+function laterBuildSaveError(saveData) {
+    const saved = gameBuildTime(saveData?.saveMeta?.gameBuild), running = gameBuildTime(RUNNING_GAME_BUILD);
+    if (!running || !saved || saved <= running) return null;
+    return outdatedBuildRefusal(`이 저장은 더 새 버전의 게임(${formatCloudTime(saved)} 판)에서 저장됐습니다. 새로고침하거나 앱을 업데이트한 뒤 이어 하세요.`);
+}
+function outdatedBuildRefusal(message) {
+    return Object.assign(new Error(message), { code: OUTDATED_BUILD_ERROR_CODE });
+}
+/** Throws outdatedBuildError(saveData) when there is one. */
+function assertSaveFromKnownBuild(saveData) {
+    const refusal = outdatedBuildError(saveData);
+    if (refusal) throw refusal;
+}
+
 function canPersistLocalSave(options = {}) {
-    return (localSaveRuntimeState.writable !== false || options.allowRecoveryWrite === true) && !(game && game.isBackgroundCalculation)
+    // A save from a later release is never written over, not even to repair it from the server (applyExternalSave).
+    const recovery = options.allowRecoveryWrite === true && localSaveRuntimeState.status !== 'newer-build';
+    return (localSaveRuntimeState.writable !== false || recovery) && !(game && game.isBackgroundCalculation)
         && !(typeof backgroundCombatRuntime !== 'undefined' && (backgroundCombatRuntime.processing || backgroundCombatRuntime.failed));
 }
 
@@ -257,6 +302,7 @@ function persistLocalSave(options = {}) {
     if (!canPersistLocalSave(options)) return false;
     ensureSaveMeta();
     noteSaveClock(game.saveMeta);
+    stampGameBuild(game.saveMeta);
     if (options.touchModifiedAt !== false) game.saveMeta.lastModifiedAt = getSaveModifiedAt();
     try {
         localStorage.setItem(LOCAL_SAVE_KEY, serializeSaveState(game));
@@ -326,8 +372,15 @@ function loadGame() {
         game = cloneDefaultGame();
     } else {
         try {
-            game = mergeDefaults(JSON.parse(result.save));
-            setLocalSaveRuntimeState('ok', { writable: true, sourceKey: result.sourceKey });
+            const saved = JSON.parse(result.save), refusal = laterBuildSaveError(saved);
+            if (refusal) {
+                // A later release's save stays as it is for that release: this page starts empty and writes nothing (canPersistLocalSave).
+                setLocalSaveRuntimeState('newer-build', { writable: false, sourceKey: result.sourceKey, message: refusal.message });
+                game = cloneDefaultGame();
+            } else {
+                game = mergeDefaults(saved);
+                setLocalSaveRuntimeState('ok', { writable: true, sourceKey: result.sourceKey });
+            }
         } catch (error) {
             let backupKey = preserveCorruptLocalSave(result.save);
             console.error('local save is corrupt; automatic writes are blocked:', error);
