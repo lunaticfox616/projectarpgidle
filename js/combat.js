@@ -9283,9 +9283,9 @@ function placeBeehiveRoomWave(run,enemies,step,isBoss) {
     Object.assign(pack,{waiting:enemies,aliveIds:enemies.map(enemy=>enemy.id),eliteIds:enemies.filter(enemy=>enemy.isElite).map(enemy=>enemy.id)});
     if(isBoss)placeExplorationBoss(map,room,pack);
 }
-/** 살아 있는 벌집의 적: 싸우는 것과, 방 단위 지도에서 다음 방에 서서 기다리는 것(여왕은 제 차례가 되어야 센다). */
+/** 아직 정산하지 않은 벌집의 적: 체력 0도 사망 정산 전에는 남겨 센다. 방에서 기다리는 여왕은 제 차례에 센다. */
 function countBeehiveWaveAlive() {
-    const fighting=(game.enemies||[]).filter(enemy=>enemy && enemy.hp>0).length,run=getBeehiveRoomRun();
+    const fighting=(game.enemies||[]).length,run=getBeehiveRoomRun();
     if(!run)return fighting;
     return fighting+run.packs.filter(pack=>pack.stage===null || game.beehive.queenActive).reduce((sum,pack)=>sum+pack.waiting.length,0);
 }

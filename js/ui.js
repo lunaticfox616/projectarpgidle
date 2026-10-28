@@ -3122,6 +3122,8 @@ function completeBeehiveRun(){
 function onBeehiveWaveCleared(){
     let b = game.beehive || {};
     if (!b.inRun || !b.awaitingClear) return;
+    // HP 0 victims still in the field need their own loot and pack death records before the wave can advance.
+    if (countBeehiveWaveAlive() > 0) return;
     b.waveExtra = 0;
     game.enemies = [];
     game.encounterPlan = [];
@@ -3140,7 +3142,7 @@ function onBeehiveWaveCleared(){
     game.combatHalted = true;
     game.runProgress = Math.min(100, Math.max(0, Math.floor(b.branchStep || 0)) * 10);
     queueImportantSave(200);
-    if ((b.branchStep || 0) >= 10) {
+    if (b.branchStep >= 10) {
         b.awaitingClear = true;
         b.queenActive = true;
         game.combatHalted = false;

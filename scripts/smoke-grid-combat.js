@@ -2798,6 +2798,73 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
     'pursuit survives a save, pays one completed-wave reward, never accumulates, and clears on exit');
 }
 
+// An area hit settles every dead bee before clearing the wave or preparing another choice.
+{
+  for (const stage of [false, true]) {
+    const runtime = buildGameRuntime({'data/constants.js':fs.readFileSync('data/constants.js','utf8')
+      +'\nwindow.Image=function(){this.complete=true;this.naturalWidth=1;this.naturalHeight=1;this.addEventListener=()=>{};};'});
+    runtime.Math = Object.create(Math);
+    runtime.Math.random = () => 0.75;
+    runtime.document.body.insertAdjacentHTML = () => {};
+    for (const file of ['data/stage-room-plans.js','data/stage-regions.js','data/monster-stage-roster.js',
+      'js/stage-region-fit.js','js/act-exploration-room-plans.js'])
+      vm.runInContext(fs.readFileSync(file,'utf8'),runtime,{filename:file});
+    runtime.hiveStage = stage;
+    for (const lastTwo of [true, false]) {
+      runtime.hiveLastTwo = lastTwo;
+      const settled = JSON.parse(JSON.stringify(vm.runInContext(`(() => {
+        game=mergeDefaults({season:8,level:100,selectedClassId:'warrior',combatTimeMs:1800000000000,
+          settings:{stageRooms:hiveStage?'on':'off',stageRoomPlan:'1',autoMove:true,pauseGameOnOverlay:false}});
+        window.game=game;gameplayStarted=true;startupOverlayActive=false;
+        resetCombatRuntimesForLoadedSave();lastTime=game.combatTimeMs;
+        game.currencies.hiveKey=1;startBeehiveRun();
+        const stage=!!getBeehiveRoomRun()&&!!actExplorationMap.forRun(game.actExploration).stage;
+        const results=[];
+        for(let step=1;step<=10;step++) {
+          const choice=game.beehive.pendingChoice.b;
+          resolveBeehiveChoice('b',choice.penalty.key);
+          if(hiveStage)game.actExploration.mode='full';
+          const start=game.combatTimeMs;
+          for(let ms=100;ms<=30000&&!game.enemies.length;ms+=100) {
+            advancePlayerExplorationFrame(start+ms,getPlayerStats(false));
+            combatEquipmentStats.withinTick(()=>coreLoop(start+ms));
+          }
+          const wave=[...game.enemies],stats=getPlayerStats(false);
+          if(wave.length<2)throw Error('Hive wave '+step+' did not reach the actual battlefield');
+          const before=JSON.stringify([game.enemies,game.beehive,game.currencies]);
+          onBeehiveWaveCleared();
+          const held=before===JSON.stringify([game.enemies,game.beehive,game.currencies]);
+          if(hiveLastTwo)for(const enemy of wave.slice(0,-2)){enemy.hp=0;handleEnemyDeath(enemy,stats);}
+          const victims=[...game.enemies],kills=game.loopKills||0;
+          const dew=game.currencies.formlessDew,ledger=game.beehive.rewardLedger.length;
+          for(const enemy of victims)enemy.hp=0;
+          handleEnemyDeath(victims[0],stats);
+          const packs=game.actExploration?.packs.filter(pack=>wave.some(enemy=>enemy.explorationPack===pack.key))||[];
+          const cleared=packs.every(pack=>pack.aliveIds.length===0&&pack.waiting.length===0);
+          const credited=(game.loopKills||0)-kills===victims.length;
+          const rewarded=game.beehive.pendingWaveReward===null&&game.beehive.rewardLedger.length===ledger+1
+            &&(step!==1||game.currencies.formlessDew===dew+1);
+          const snapshot=JSON.stringify([game.loopKills,game.currencies,game.beehive.rewardLedger]);
+          for(const enemy of victims)handleEnemyDeath(enemy,stats);
+          onBeehiveWaveCleared();
+          game=mergeDefaults(JSON.parse(serializeSaveState(game)));window.game=game;recoverRuntimeState();
+          onBeehiveWaveCleared();
+          const once=snapshot===JSON.stringify([game.loopKills,game.currencies,game.beehive.rewardLedger]);
+          const records=[...game.enemies,...(game.actExploration?.packs.flatMap(pack=>pack.waiting)||[])];
+          const next=step<10 ? !!game.beehive.pendingChoice&&!game.beehive.awaitingClear&&game.enemies.length===0&&countBeehiveWaveAlive()===0
+            : game.beehive.queenActive&&game.beehive.awaitingClear&&records.length===1&&records[0].isBoss;
+          results.push({held,credited,rewarded,cleared,once,next});
+        }
+        return {stage,results};
+      })()`, runtime)));
+      const label = `${stage?'stage':'board'} / ${lastTwo?'last two':'whole wave'}`;
+      assert.strictEqual(settled.stage,stage,`${label}: use the requested production battlefield`);
+      assert.deepStrictEqual(settled.results,Array.from({length:10},()=>({held:true,credited:true,rewarded:true,cleared:true,once:true,next:true})),
+        `${label}: every victim settles once, dead pack ids survive no save, and ten waves reach the queen`);
+    }
+  }
+}
+
 // The expedition's real bees aim once, can be dodged, and keep the old wave's saved attacks intact.
 {
   const { runtime, run } = require('./lib/replay-fixture')(77);
