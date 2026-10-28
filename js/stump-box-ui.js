@@ -10,8 +10,10 @@
 // 수확 일지, 줄 선물, 함 해금 목록과 그 알림은 js/stump-harvest-ui.js가 준다(2026-10-07 해금 1차).
 // 다 자라는 순간의 굴림(추가 줄, 풍작, 황금), 불씨의 흉터, 봉인 칸, 씨앗 주머니, 일괄 거름 사용과 일괄 버리기 조각은 js/stump-ripening-ui.js가 준다(16번).
 // 2026-10-09 사용자 "씨앗주머니, 부적풀기, 수확일지, 함해금, 목록이 줄지어 있어서 뭐가 뭔지 모르겠음": 왼쪽 열은 판, 조합창, 옵션 합계,
-// 오른쪽 열은 고른 것, 받을 선물, 보관함, 그리고 수확 일지 · 함 해금 · 부적을 한 번에 하나씩 보는 탭이다. 툴팁과 도움말은 꼭 필요한 줄만
+// 오른쪽 열은 보관함, 그리고 수확 일지 · 함 해금 · 부적을 한 번에 하나씩 보는 탭이다. 툴팁과 도움말은 꼭 필요한 줄만
 // 남기고, 아직 효과가 없는 옵션은 "다 자라면" 대신 회색 "(비활성)"으로 적는다.
+// 2026-10-28 사용자(장비 창처럼): 고른 것의 설명은 흐름 밖에 떠서(placeStumpDetail) 보관함을 밀지 않는다. 두 번 누르면 판의 아이템은
+// 보관함으로, 보관함의 아이템은 판의 빈 칸으로(조합창이 보이면 조합창으로) 가고, 머리줄의 [전체 해제]는 판을 한 번에 비운다.
 const stumpBoxUi = (() => {
     const COLORS = Object.keys(STUMP_BOX_COLORS);
     const TALISMAN_CURRENCIES = ['sealShard', 'strongSealShard', 'radiantSealShard', 'beeswax'];
@@ -20,6 +22,10 @@ const stumpBoxUi = (() => {
     let storageSort = 'quality-desc', stateFilter = 'all', compareOpen = false, comparedId = null;
     // 틀이 보여 주는 것('box' 판, 'cube' 조합창), 접는 칸, 보관함 쪽: 화면만의 상태다(저장하지 않는다).
     let frameView = 'box', frameSwitching = false, summaryOpen = false, moreOpen = false, storagePage = 0;
+    // A double-click acts only when its first click picked nothing up: with something picked, that click already moved it.
+    let firstClickFree = true, detailGuard = 0;
+    /** How long a just-opened detail panel lets presses through (longer than a double-click's gap). */
+    const DETAIL_GUARD_MS = 450;
     /** 보석을 누른 뒤 빛의 고리가 판을 지나가는 시간(css/stump-box.css stump-reveal과 같다). */
     const FRAME_REVEAL_MS = 700;
     const STORAGE_PAGE_CELLS = 100;
@@ -156,6 +162,7 @@ const stumpBoxUi = (() => {
             stumpBox.graftOpen(game) ? `<span class="is-graft">접붙이기 ${stumpBox.graftPoints(game).free}</span>` : ''].filter(Boolean);
         return `<div class="stump-chips">${chips}</div><span class="stump-line">${notes.join(', ')}</span>`
             + stumpHarvestUi.rewardButtonHtml()
+            + (frameView === 'box' ? `<button type="button" data-stump-action="unplace-all"${game.stumpBox.board.some(id => id !== null) ? '' : ' disabled'}>전체 해제</button>` : '')
             + `<button type="button" data-stump-action="placement-undo"${stumpBox.canUndoPlacement(game) ? '' : ' disabled'}>배치 되돌리기</button>`
             + '<button type="button" class="stump-rules-button" data-stump-action="rules" data-stump-tip="rules" data-info-tooltip-anchor="1" aria-label="그루터기 함 규칙"><span class="px-center">?</span></button>';
     }
@@ -480,6 +487,7 @@ const stumpBoxUi = (() => {
         paintStumpPart('stump-box-detail', stumpDetailHtml(result));
         paintStumpPart('stump-box-storage', stumpStorageHtml());
         paintStumpPart('stump-box-more', stumpMoreHtml());
+        placeStumpDetail();
         renderPlacementPreview();
         // 따라 하기(시작 선물 놓기)는 고를 때마다 가리키는 칸을 옮긴다: 보관함의 씨앗 → 판의 빈 칸(룬 고르기 창과 같은 방식).
         refreshStumpTutorial();
@@ -631,8 +639,6 @@ const stumpBoxUi = (() => {
         selectedId = selectedId === id ? null : id;
         selectedCell = null;
         renderStumpBoxTab(true);
-        // A board item's detail (graft, back to storage) comes into view on phones; a stored item keeps the board in view to pick a cell.
-        if (selectedId !== null && game.stumpBox.board.includes(selectedId)) revealStumpDetailOnPhone();
     }
     function undoPlacement() {
         if (!stumpBox.undoPlacement(game)) {
@@ -683,12 +689,6 @@ const stumpBoxUi = (() => {
     function selectStumpCell(cell) {
         selectedCell = selectedCell === cell ? null : cell;
         renderStumpBoxTab(true);
-        if (selectedCell !== null) revealStumpDetailOnPhone();
-    }
-    /** 휴대폰: 판에서 고르면 바로 아래 설명(접붙이기 단추)을 화면 안으로 — 화면 밖 한참 아래에 떠서 누른 반응이 없는 것처럼 보였다(검토 4차). */
-    function revealStumpDetailOnPhone() {
-        if (!uiDisplay.matches('(max-width: 1080px)')) return;
-        document.getElementById('stump-box-detail')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     }
     function clickStumpCell(cell, confirm) {
         const occupant = game.stumpBox.board[cell];
@@ -796,6 +796,127 @@ const stumpBoxUi = (() => {
         const rect = button.getBoundingClientRect();
         showInfoTooltipHtml(rect.left, rect.bottom, stumpRulesTipHtml(), '#c9a45c');
     }
+
+    // ── 두 번 누르기 · 전체 해제(2026-10-28 사용자, 장비 창처럼) ─────────────────
+    /** The empty open cell where the item turns off the fewest board items (opposite colours touching), the earliest opened first. */
+    function bestStumpCell(id) {
+        let best = null;
+        for (const cell of STUMP_BOX_CELL_ORDER) {
+            const preview = game.stumpBox.board[cell] === null ? stumpBox.previewMove(game, id, cell) : null;
+            const off = preview ? stumpBox.evaluate(preview).suppressed.size : Infinity;
+            if (off < (best ? best.off : Infinity)) best = { cell, off };
+        }
+        return best ? best.cell : null;
+    }
+    /** A stored item into the cube (double-click while the frame shows it, or a drop on a cube cell); the cube says why when it cannot. */
+    function dropOnCube(id, cell) {
+        selectedId = null;
+        return stumpCubeUi.putStumpItem(id, cell);
+    }
+    /** A board item goes to storage; a stored one onto the best empty cell, or into the cube while the frame shows it. */
+    function quickMoveStumpItem(id) {
+        const item = stumpBox.itemById(game, id);
+        if (!item) return;
+        clearPlacementPreview();
+        if (game.stumpBox.board.includes(id)) return dropOnStorage(id);
+        if (frameView === 'cube') return dropOnCube(id);
+        if (game.woodsmanBuildLock) return notifyStump(stumpRefusal(item));
+        const cell = bestStumpCell(id);
+        if (cell === null) return notifyStump('그루터기 함에 빈 칸이 없습니다.');
+        dropOnCell(id, cell);
+    }
+    /** The item a storage card or a board cell holds (null for an empty cell). */
+    function stumpTargetItem(target) {
+        if (target.dataset.stumpAction === 'item') return Number(target.dataset.item);
+        const id = game.stumpBox.board[Number(target.dataset.cell)];
+        return id === undefined ? null : id;
+    }
+    /** The second click of a double-click on an item or a cell is left to the double-click: no toggling the first click's pick back. */
+    function isSecondPress(target, event) {
+        const pick = target.dataset.stumpAction === 'item' || target.dataset.stumpAction === 'cell';
+        if (event.detail > 1) return pick && firstClickFree;
+        if (pick) firstClickFree = selectedId === null || selectedId === stumpTargetItem(target);
+        return false;
+    }
+    function onStumpTabDoubleClick(event) {
+        const target = event.target.closest('[data-stump-action="item"], [data-stump-action="cell"]');
+        const id = target && firstClickFree ? stumpTargetItem(target) : null;
+        if (id === null) return;
+        event.preventDefault();
+        quickMoveStumpItem(id);
+    }
+    function unplaceAllStump() {
+        const reason = stumpBox.unplaceAllReason(game);
+        if (reason) return notifyStump(reason);
+        const count = stumpBox.unplaceAll(game);
+        selectedId = null;
+        selectedCell = null;
+        notifyStump(`전체 해제: ${count}개를 보관함으로 옮겼습니다.`);
+        commitStumpChange();
+    }
+
+    // ── 고른 것의 설명 창(2026-10-28 사용자: 누르면 보관함이 밀려서, 장비 창처럼) ─────────────
+    /** The panel floats in the top layer (index.html popover="manual"): beside the window on a PC (right, else left, else next to the
+     * picked item), a sheet above the bottom bar up to 1080px wide (css/stump-box.css). It hides under a selection overlay, and a
+     * window or tab that closes drops its pick. */
+    function placeStumpDetail() {
+        const panel = document.getElementById('stump-box-detail'), tab = document.getElementById('tab-stump');
+        if (!panel || typeof panel.showPopover !== 'function') return;
+        if (!stumpDetailWanted(panel, tab)) {
+            if (panel.matches(':popover-open')) panel.hidePopover();
+            return;
+        }
+        if (!panel.matches(':popover-open')) openStumpDetail(panel);
+        if (uiDisplay.matches('(max-width: 1080px)')) ['left', 'top', 'max-height'].forEach(name => panel.style.removeProperty(name));
+        else floatStumpDetail(panel, tab);
+    }
+    /** The box is on screen, something is picked and no selection overlay is up. A box that left the screen drops its pick. */
+    function stumpDetailWanted(panel, tab) {
+        const visible = !!tab?.getClientRects().length, picked = selectedId !== null || selectedCell !== null;
+        if (!visible && picked) forgetStumpSelection();
+        return visible && picked && panel.childElementCount > 0 && !document.querySelector('body > .selection-overlay');
+    }
+    /** Just opened, the panel lets presses through (inert) for a moment: the second press of a double-click or double-tap reaches the
+     * item under a phone's sheet instead of the sheet's [버리기]. */
+    function openStumpDetail(panel) {
+        panel.showPopover();
+        panel.inert = true;
+        clearTimeout(detailGuard);
+        detailGuard = setTimeout(() => { panel.inert = false; }, DETAIL_GUARD_MS);
+    }
+    /** No repaint here: the next render reads the cleared pick. */
+    function forgetStumpSelection() {
+        selectedId = null;
+        selectedCell = null;
+        compareOpen = false;
+        lastSignature = '';
+    }
+    function floatStumpDetail(panel, tab) {
+        const scale = uiDisplay.factor || 1, gap = 8, nav = document.getElementById('tab-header-bottom');
+        const bottom = nav?.getClientRects().length ? nav.getBoundingClientRect().top : innerHeight;
+        panel.style.maxHeight = `${Math.max(160, bottom - gap * 2) / scale}px`;
+        const size = panel.getBoundingClientRect(), spot = besideStumpWindow(tab, size, gap) || besideStumpPick(tab, size, gap);
+        panel.style.left = `${spot.x / scale}px`;
+        panel.style.top = `${Math.max(gap, Math.min(bottom - size.height - gap, spot.y)) / scale}px`;
+    }
+    /** Right of the window, else left of it, level with the storage. */
+    function besideStumpWindow(tab, size, gap) {
+        const win = tab.getBoundingClientRect(), y = document.getElementById('stump-box-storage')?.getBoundingClientRect().top ?? win.top;
+        if (win.right + gap + size.width <= innerWidth - gap) return { x: win.right + gap, y };
+        return win.left - gap - size.width >= gap ? { x: win.left - gap - size.width, y } : null;
+    }
+    /** No room beside the window (a maximized one): next to the picked item, over the box. */
+    function besideStumpPick(tab, size, gap) {
+        const pick = (tab.querySelector('.stump-item.is-selected, .stump-cell.is-selected') || tab).getBoundingClientRect();
+        const x = pick.right + gap + size.width <= innerWidth - gap ? pick.right + gap : pick.left - gap - size.width;
+        return { x: Math.max(gap, Math.min(innerWidth - gap - size.width, x)), y: pick.top };
+    }
+    /** A press outside the box (another window, the battle) drops the pick and its panel, as the equipment window does. */
+    function onStumpOutsidePress(event) {
+        if (selectedId === null && selectedCell === null) return;
+        if (document.querySelector('dialog:modal') || event.target.closest?.('#tab-stump, body > .selection-overlay, #info-tooltip')) return;
+        selectStumpItem(null);
+    }
     const ACTIONS = {
         rules: (data, button) => showStumpRules(button),
         cell: (data, button, event) => clickStumpCell(Number(data.cell), event.pointerType === 'touch' || event.detail === 0
@@ -803,6 +924,7 @@ const stumpBoxUi = (() => {
         'placement-apply': () => applyPlacement(),
         'placement-cancel': () => cancelPlacement(),
         'placement-undo': () => undoPlacement(),
+        'unplace-all': () => unplaceAllStump(),
         compare: () => { compareOpen = !compareOpen; renderStumpBoxTab(true); },
         item: data => selectStumpItem(Number(data.item)),
         storage: () => { if (selectedId !== null) dropOnStorage(selectedId); },
@@ -828,14 +950,17 @@ const stumpBoxUi = (() => {
         seal: data => sealStumpCell(Number(data.cell)),
         'scar-discard': () => discardScar(),
         'cube-cell': data => stumpCubeUi.takeOutCubeCell(Number(data.cell)),
-        'cube-open': () => stumpCubeUi.openCubePicker(),
+        // The second click of a double-click that took an item out lands on the emptied cell: it does not open the picker.
+        'cube-open': (data, button, event) => { if (event.detail < 2) stumpCubeUi.openCubePicker(); },
+        'cube-quick': data => stumpCubeUi.quickFillCube(data.recipe),
         'cube-transmute': () => stumpCubeUi.transmuteCube(),
         'cube-clear': () => stumpCubeUi.clearCube(),
         'cube-book': () => stumpCubeUi.toggleCubeBook()
     };
     function onStumpTabClick(event) {
         const target = event.target.closest('[data-stump-action]');
-        if (target && ACTIONS[target.dataset.stumpAction]) ACTIONS[target.dataset.stumpAction](target.dataset, target, event);
+        if (!target || !ACTIONS[target.dataset.stumpAction] || isSecondPress(target, event)) return;
+        ACTIONS[target.dataset.stumpAction](target.dataset, target, event);
     }
     function onStumpSelectionChange(event) {
         const key = event.target.dataset.stumpSelect, value = event.target.value;
@@ -852,8 +977,14 @@ const stumpBoxUi = (() => {
         if (bound) return;
         bound = true;
         root.addEventListener('click', onStumpTabClick);
+        root.addEventListener('dblclick', onStumpTabDoubleClick);
         root.addEventListener('change', onStumpSelectionChange);
         ticker = ticker || setInterval(refreshStumpTabIfVisible, 1000);
+        // The floating detail follows the window (moved, resized, closed) and steps aside for selection overlays.
+        new MutationObserver(placeStumpDetail).observe(root, { attributes: true, attributeFilter: ['class', 'style'] });
+        new MutationObserver(placeStumpDetail).observe(document.body, { childList: true });
+        window.addEventListener('resize', placeStumpDetail);
+        document.addEventListener('pointerdown', onStumpOutsidePress, true);
     }
 
     // ── 획득 안내·처치 소식 ─────────────────────────────────
@@ -970,7 +1101,7 @@ const stumpBoxUi = (() => {
         return stumpItemTipHtml(item, stumpBox.evaluate(state), -1);
     }
 
-    return { renderStumpBoxTab, refreshStumpTabNow, revealMoreTab, checkStumpBoxUnlock, tipFor, dropOnCell, dropOnStorage, claimReward,
+    return { renderStumpBoxTab, refreshStumpTabNow, revealMoreTab, checkStumpBoxUnlock, tipFor, dropOnCell, dropOnStorage, dropOnCube, claimReward,
         itemTipHtml, previewCell, hoverCell, clearPlacementPreview };
 })();
 safeExposeGlobals({ stumpBoxUi });

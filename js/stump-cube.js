@@ -110,24 +110,30 @@ const stumpCube = (() => {
         return cells;
     }
 
-    function freeSpot(list, w, h) {
+    function spotFits(taken, x, y, w, h) {
+        const cells = coveredCells(x, y, w, h);
+        return !!cells && !cells.some(cell => taken.has(cell));
+    }
+
+    /** The spot whose top left is the cell `at` when the item fits there (a drop), otherwise the first free spot that fits it. */
+    function freeSpot(list, w, h, at) {
         const taken = new Set(list.flatMap(entry => coveredCells(entry.x, entry.y, entry.w, entry.h)));
+        if (Number.isInteger(at) && spotFits(taken, at % SIZE, Math.floor(at / SIZE), w, h)) return { x: at % SIZE, y: Math.floor(at / SIZE) };
         for (let y = 0; y < SIZE; y++) {
             for (let x = 0; x < SIZE; x++) {
-                const cells = coveredCells(x, y, w, h);
-                if (cells && !cells.some(cell => taken.has(cell))) return { x, y };
+                if (spotFits(taken, x, y, w, h)) return { x, y };
             }
         }
         return null;
     }
 
-    /** Puts an item into the first free spot that fits it. @returns {string} '' on success, else the reason. */
-    function put(state, kind, item) {
+    /** Puts an item at the cell `at` (a drop) when it fits there, otherwise into the first free spot. @returns {string} '' on success, else the reason. */
+    function put(state, kind, item, at) {
         if (!KINDS.includes(kind) || !usable(kind, item)) return '넣을 수 없는 아이템입니다.';
         const id = identity(kind, item), list = entries(state);
         if (FINDERS[kind](state, id) !== item) return '보관 중인 아이템만 넣을 수 있습니다.';
         if (list.some(entry => entry.kind === kind && entry.id === id)) return '이미 조합창에 있습니다.';
-        const { w, h } = footprint(kind, item), spot = freeSpot(list, w, h);
+        const { w, h } = footprint(kind, item), spot = freeSpot(list, w, h, at);
         if (!spot) return '조합창에 자리가 없습니다.';
         of(state).slots.push({ kind, id, x: spot.x, y: spot.y });
         return '';
@@ -274,19 +280,81 @@ const stumpCube = (() => {
         return { ok: true, recipe: found.recipe, outputs: made };
     }
 
+    /** Stored items of one kind the cube may take (bag gear, stump storage, jewels, cores), whether inside the cube or not. */
+    function storedUsable(kind, state) {
+        const pools = {
+            equipment: () => (state.inventory || []).filter(item => !bagItems.isSpecial(item)),
+            stump: () => ((state.stumpBox && state.stumpBox.items) || []).filter(item => !state.stumpBox.board.includes(item.id)),
+            jewel: () => bagItems.jewels(state),
+            core: () => bagItems.cores(state)
+        };
+        return pools[kind]().filter(item => usable(kind, item));
+    }
+
     /** Items of one kind that could go in now (not already inside, not locked or placed). */
     function candidates(kind, state = game) {
         const inside = new Set(entries(state).filter(entry => entry.kind === kind).map(entry => entry.id));
-        const pools = {
-            equipment: (state.inventory || []).filter(item => !bagItems.isSpecial(item)),
-            stump: ((state.stumpBox && state.stumpBox.items) || []).filter(item => !state.stumpBox.board.includes(item.id)),
-            jewel: bagItems.jewels(state),
-            core: bagItems.cores(state)
-        };
-        return pools[kind].filter(item => usable(kind, item) && !inside.has(kind === 'equipment' ? equipmentLoadoutRuntime.getItemIdentity(item) : item.id));
+        return storedUsable(kind, state).filter(item => !inside.has(kind === 'equipment' ? equipmentLoadoutRuntime.getItemIdentity(item) : item.id));
+    }
+
+    // ── 바로 넣기(2026-10-28 사용자: 조합법 가운데 가능한 세트가 있으면 빠르게 넣기) ─────────────
+    /** The plainest go first: golden and ancient stump items last, then lower quality (stump roll, gear quality) before higher. */
+    function cubeSpendOrder(a, b) {
+        const kept = entry => (entry.item.golden || entry.item.ancient ? 1 : 0);
+        return kept(a) - kept(b) || (Number(a.item.roll) || 0) - (Number(b.item.roll) || 0) || (Number(a.item.quality) || 0) - (Number(b.item.quality) || 0);
+    }
+
+    /** One row's materials: the first `count` that fit, or with `same` the first group of that many alike. */
+    function pickCubeRow(rule, fitting) {
+        if (!rule.same) return fitting.length >= rule.count ? fitting.slice(0, rule.count) : null;
+        const groups = new Map();
+        for (const entry of fitting) {
+            const key = rule.same.map(name => SAME_KEYS[name](entry)).join('|'), group = groups.get(key) || [];
+            group.push(entry);
+            if (group.length === rule.count) return group;
+            groups.set(key, group);
+        }
+        return null;
+    }
+
+    /** Largest first, as the fill puts them; null when the set does not fit the empty cube together. */
+    function packCubeSet(set) {
+        const placed = [];
+        for (const entry of set.map(row => ({ ...row, ...footprint(row.kind, row.item) })).sort((a, b) => b.w * b.h - a.w * a.h)) {
+            const spot = freeSpot(placed, entry.w, entry.h);
+            if (!spot) return null;
+            placed.push({ ...entry, ...spot });
+        }
+        return placed;
+    }
+
+    /** Stored materials that make this recipe exactly and fit the empty cube, largest first; null when there are none. */
+    function readyCubeSet(recipe, stock) {
+        const rest = stock.slice(), set = [];
+        for (const rule of recipe.inputs) {
+            const picked = pickCubeRow(rule, rest.filter(entry => fitsRule(rule, entry)));
+            if (!picked) return null;
+            picked.forEach(entry => { rest.splice(rest.indexOf(entry), 1); set.push(entry); });
+        }
+        return packCubeSet(set);
+    }
+
+    /** Revealed recipes the stored items make now ({ recipe, set }), the cube's own contents counted as stored. */
+    function readyCubeSets(state = game) {
+        const stock = KINDS.flatMap(kind => storedUsable(kind, state).map(item => ({ kind, item }))).sort(cubeSpendOrder);
+        return revealed(state).map(recipe => ({ recipe, set: readyCubeSet(recipe, stock) })).filter(row => row.set);
+    }
+
+    /** Empties the cube and puts the recipe's set in. @returns {string} '' on success, else the reason. */
+    function fillCubeRecipe(state, recipeId) {
+        const ready = readyCubeSets(state).find(row => row.recipe.id === recipeId);
+        if (!ready) return '이 조합법의 재료가 모자랍니다.';
+        clear(state);
+        of(state).slots = ready.set.map(entry => ({ kind: entry.kind, id: identity(entry.kind, entry.item), x: entry.x, y: entry.y }));
+        return '';
     }
 
     return Object.freeze({ SIZE, KINDS, empty, normalize, of, entries, put, takeOut, clear, match, missingRecipes, preview, missingCost, transmute, candidates, footprint,
-        isRevealed, revealed, learn });
+        isRevealed, revealed, learn, readyCubeSets, fillCubeRecipe });
 })();
 safeExposeGlobals({ stumpCube });

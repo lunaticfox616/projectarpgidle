@@ -222,6 +222,22 @@ const stumpBox = (() => {
         rememberPlacement(state, before);
         return true;
     }
+    /** '' when every board item can go back to storage at once (전체 해제), otherwise why not. */
+    function unplaceAllReason(state) {
+        const placed = of(state).board.filter(id => id !== null).length;
+        if (!editable(state)) return '나무꾼 전투 중에는 그루터기 함 배치를 바꿀 수 없습니다.';
+        if (!placed) return '그루터기 함에 놓인 아이템이 없습니다.';
+        const room = storageLimit(state) - storage(state).length;
+        return room < placed ? `보관함에 ${placed - room}칸이 더 필요합니다.` : '';
+    }
+    /** Every board item back to storage as one move ([배치 되돌리기] puts them back). @returns {number} how many moved (0 when refused). */
+    function unplaceAll(state) {
+        if (unplaceAllReason(state)) return 0;
+        const box = of(state), before = box.board.slice();
+        box.board = before.map(() => null);
+        rememberPlacement(state, before);
+        return before.filter(id => id !== null).length;
+    }
 
     function invalidatePlacementUndo(state) { placementUndos.delete(state); }
     function placementUnchanged(state, record) {
@@ -1049,7 +1065,7 @@ const stumpBox = (() => {
 
     return {
         empty, of, restore, sync, eligible, claimStarter, starterChoice, starterOwed, grantStarter, plantStored, createItem, addTalisman, discard, storage, place, move, previewMove, unplace,
-        canUndoPlacement, undoPlacement, invalidatePlacementUndo,
+        unplaceAll, unplaceAllReason, canUndoPlacement, undoPlacement, invalidatePlacementUndo,
         evaluate, applyStats, onEnemyKilled, grow, ancientRanks, rollDrop, regress, compost, compostReason, compostGrowth, compostOverflow, feedAsh, growingItems, openCount, isOpen, opensAt, nextOpening, neighbors,
         stageOf, isMature, need, yieldOf, targetStage, label, shortName, lineText, extraLinesOf, iconPath, cellOf, editable, highestLoop,
         graftRank, graftMultiplier, graftOpen, graftPoints, graftJournalPoints, graftOverflowPoints, graftRaiseReason, graftRaise, graftLowerReason, graftLower,
