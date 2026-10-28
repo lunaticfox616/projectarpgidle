@@ -13,7 +13,10 @@ const MONSTER_COMBAT_ROLES = (() => {
             special: true, label: '집중 포격' }),
         hiveMarksman: Object.freeze({ range: 3, delivery: 'projectileCell', castMs: 450 }),
         hiveBombardier: Object.freeze({ range: 3, delivery: 'magicCell', castMs: 650, flightMs: 900,
-            special: true, label: '꿀주머니 투척' })
+            special: true, label: '꿀주머니 투척' }),
+        oceanCarrier: Object.freeze({ stepSec: 0.7, range: 1, delivery: 'instantTarget', castMs: 0 }),
+        oceanOracle: Object.freeze({ stepSec: 0.6, range: 4, delivery: 'magicCell', castMs: 650, flightMs: 900,
+            special: true, label: '수압 응집' })
     });
     const byVisual = Object.freeze(Object.fromEntries([
         ['pursuer', ['act1-ant', 'act3-ant', 'act4-ant', 'act5-ant', 'act7-crackback-tick', 'act7-husk-stag', 'atlas-canopy-leafglider', 'root-scimitar']],
@@ -23,7 +26,11 @@ const MONSTER_COMBAT_ROLES = (() => {
         ['piercer', ['deacon-act2-ranged', 'deacon-act8-ranged']],
         ['bombardier', ['act9-chorus-bulbs', 'postchaos-inverted-sapling', 'root-orb', 'root-flask']]
     ].flatMap(([role, ids]) => ids.map(id => [id, role]))));
-    const hiveByVisual = Object.freeze({ 'hive-scout': 'hiveMarksman', 'hive-nurse': 'hiveBombardier' });
+    const byRealm = Object.freeze({
+        hive: Object.freeze({ 'hive-scout': 'hiveMarksman', 'hive-nurse': 'hiveBombardier' }),
+        ocean: Object.freeze({ 'ocean-angler': 'pursuer', 'ocean-crab': 'frontline',
+            'ocean-shell': 'oceanCarrier', 'ocean-oracle': 'oceanOracle' })
+    });
     /** Optional nests use egg-bearing creatures, even in courts whose ordinary pool contains only deacons.
      * Nest rows are the two waves of three; ambush rows include the optional fifth member. Rare rolls still take precedence. */
     const burrow = act => [[`act${act}-worm`, `act${act}-worm`, `act${act}-ant`], [`act${act}-worm`, `act${act}-ant`, `act${act}-ant`]];
@@ -42,13 +49,12 @@ const MONSTER_COMBAT_ROLES = (() => {
         10: { nest: [['act5-worm', 'act5-worm', 'act8-veil-moth'], ['act7-crackback-tick', 'act8-veil-moth', 'act8-veil-moth']],
             ambush: ['act10-graft-beast', 'act10-graft-beast', 'act10-graft-beast', 'act9-chorus-bulbs', 'act10-graft-beast'] }
     }).map(([act, row]) => [act, Object.freeze({ nest: Object.freeze(row.nest.map(wave => Object.freeze(wave))), ambush: Object.freeze(row.ambush) })])));
-    /** Only the hive expedition opts in: colony/atlas bees and other realms keep their own attacks and movement. */
+    /** Realm opt-ins are explicit: colony/atlas bees and bosses keep their own attacks and movement. */
     function of(enemy) {
         if (!enemy || enemy.isBoss || enemy.isSeveredWanderer) return null;
         const visual = enemy.spriteVariantId || enemy.monsterVisualId;
-        const role = enemy.monsterVisualSetId === 'hive' ? hiveByVisual[visual]
-            : !enemy.monsterVisualSetId ? byVisual[visual] : null;
-        return profiles[role] || null;
+        const roles = enemy.monsterVisualSetId ? byRealm[enemy.monsterVisualSetId] : byVisual;
+        return profiles[roles?.[visual]] || null;
     }
     /** Existing enemy attack fields only; applying this after a picture change never multiplies stats. */
     function profile(enemy) {

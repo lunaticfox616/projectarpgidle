@@ -9166,6 +9166,7 @@ function createMarkerRoomPacks(zone,map) {
         return createRoomPackOf(map,room,enemies,index===last?null:arranger.cells(room,0,enemies.length));
     });
     if(zone.type==='meteor')mixMeteorRooms();
+    if(zone.type==='oceanDepth')mixOceanRooms();
     return packs;
 
     /** 새 운석 지도의 앞 두 방만 섞는다. 모든 생성·배치 추첨 뒤 기존 개체와 칸의 소유권만 교환한다. */
@@ -9175,15 +9176,31 @@ function createMarkerRoomPacks(zone,map) {
         const guard=first.waiting.find(enemy=>enemy.monsterVisualId==='meteor-melt') || first.waiting.find(enemy=>!enemy.isElite && !enemy.isBoss);
         const shooter=second.waiting.find(enemy=>enemy.isElite && enemy.monsterVisualId==='meteor-sentinel');
         if(!guard || !shooter)return;
+        swapRoomEnemies(first,second,guard,shooter);
+    }
+    /** 새 심해 지도만 섞는다. 마지막 quiet 방도 포함하되 보스와 이미 섞인 방은 기증 후보가 아니다. */
+    function mixOceanRooms() {
+        const ordinary=packs.filter(pack=>pack.waiting.length>1 && !pack.waiting.some(enemy=>enemy.isBoss));
+        const receivers=ordinary.filter(pack=>pack.waiting.every(enemy=>!enemy.isElite && enemy.attackKind==='melee'));
+        const donors=ordinary.filter(pack=>pack.waiting.every(enemy=>enemy.isElite && enemy.monsterVisualId==='ocean-oracle'));
+        for(const first of receivers){
+            const second=donors.find(pack=>pack.waiting.filter(enemy=>enemy.monsterVisualId==='ocean-oracle').length>1);
+            if(!second)break;
+            const guard=first.waiting.find(enemy=>enemy.monsterVisualId==='ocean-crab') || first.waiting[0];
+            const shooter=second.waiting.find(enemy=>enemy.monsterVisualId==='ocean-oracle');
+            swapRoomEnemies(first,second,guard,shooter);
+        }
+    }
+    function swapRoomEnemies(first,second,guard,shooter) {
         const guardCell={gx:guard.gx,gy:guard.gy},shooterCell={gx:shooter.gx,gy:shooter.gy};
         first.waiting[first.waiting.indexOf(guard)]=shooter;
         second.waiting[second.waiting.indexOf(shooter)]=guard;
         Object.assign(shooter,guardCell,{explorationPack:first.key});
         Object.assign(guard,shooterCell,{explorationPack:second.key});
-        [first,second].forEach((pack,index)=>{
+        [first,second].forEach(pack=>{
             pack.aliveIds=pack.waiting.map(enemy=>enemy.id);
             pack.eliteIds=pack.waiting.filter(enemy=>enemy.isElite).map(enemy=>enemy.id);
-            explorationPackFormation.placeRanks(pack.waiting,{front:arranger.front(rooms[index])});
+            explorationPackFormation.placeRanks(pack.waiting,{front:arranger.front(rooms[packs.indexOf(pack)])});
         });
     }
 }

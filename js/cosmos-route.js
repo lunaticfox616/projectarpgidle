@@ -180,20 +180,41 @@ const cosmosRouteRuntime = (() => {
         state.combatHalted = true;
     }
 
+    /** Domain floor center shared by warning and pull; the classic board keeps its authored center. */
+    function gravityAnchor() {
+        const run = actExplorationState.current(game);
+        if (!run?.rooms) return { gx:COSMOS_GRAVITY_FIELD.gx, gy:COSMOS_GRAVITY_FIELD.gy, roomId:null };
+        const map = actExplorationMap.forRun(run), room = actExplorationRooms.roomAt(map,game.gridPlayer);
+        if (!room || !actExplorationMap.walkable(map,room)) return null;
+        return { gx:room.gx, gy:room.gy, roomId:room.id, map };
+    }
+
+    function gravityTarget(enemy,anchor) {
+        if (enemy.hp<=0 || enemy.isBoss || !hasGridCell(enemy)) return false;
+        return !anchor.map || actExplorationRooms.roomAt(anchor.map,enemy)?.id === anchor.roomId;
+    }
+
+    function gravityMatchesRoom(field,anchor) {
+        return !!field && (field.roomId || null) === anchor.roomId;
+    }
+
     /** Combat-time scheduling, shared by live combat and isolated background replay. */
     function tickGravity() {
-        const config = COSMOS_GRAVITY_FIELD;
-        if (!gravityActive() || !game.enemies.some(enemy=>enemy.hp>0 && !enemy.isBoss)) {
+        const config = COSMOS_GRAVITY_FIELD, anchor = gravityActive() ? gravityAnchor() : null;
+        if (!anchor || !game.enemies.some(enemy=>gravityTarget(enemy,anchor))) {
             game.cosmosGravity = null;
             return;
         }
         const now = getCombatTime();
-        if (!game.cosmosGravity) game.cosmosGravity = {nextPulseAt:now+config.warningMs,steps:0};
+        // This optional room identity is transient too: save recovery already discards the whole pulse.
+        if (!gravityMatchesRoom(game.cosmosGravity,anchor)) {
+            game.cosmosGravity = {nextPulseAt:now+config.warningMs,steps:0,roomId:anchor.roomId};
+        }
         const field = game.cosmosGravity;
         if (now < field.nextPulseAt) return;
         for (const enemy of game.enemies) {
-            if (enemy.hp<=0 || enemy.isBoss || !hasGridCell(enemy)) continue;
-            gridStepToward(enemy,config.gx,config.gy,getGridBlockedCells(enemy));
+            if (!gravityTarget(enemy,anchor)) continue;
+            gridStepToward(enemy,anchor.gx,anchor.gy,getGridBlockedCells(enemy));
         }
         field.steps = (field.steps+1)%config.steps;
         field.nextPulseAt = now + (field.steps === 0 ? config.restMs : config.intervalMs);
@@ -207,8 +228,11 @@ const cosmosRouteRuntime = (() => {
 
     function gravityView() {
         if (!game.cosmosGravity || !gravityActive()) return null;
+        const anchor = gravityAnchor();
+        if (!anchor || !gravityMatchesRoom(game.cosmosGravity,anchor)) return null;
         const until = game.cosmosGravity.nextPulseAt-getCombatTime();
-        return { ...COSMOS_GRAVITY_FIELD, progress:1-Math.max(0,Math.min(1,until/COSMOS_GRAVITY_FIELD.warningMs)) };
+        return { ...COSMOS_GRAVITY_FIELD, gx:anchor.gx, gy:anchor.gy,
+            progress:1-Math.max(0,Math.min(1,until/COSMOS_GRAVITY_FIELD.warningMs)) };
     }
 
     return { active, current, start, preview, retryRemaining, upgrade, unlocked, planetHabitat, tickGravity, gravityView,
