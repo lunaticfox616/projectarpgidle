@@ -4,6 +4,8 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const { buildCss } = require('./build-css');
 const { prepareRelease } = require('./lib/release-bundle');
+const { stampGameBuild } = require('./lib/game-build');
+const { markImmutableUrls } = require('./lib/immutable-urls');
 const root = path.resolve(__dirname, '..');
 const destination = path.join(root, 'dist');
 
@@ -21,7 +23,7 @@ async function buildWeb() {
     // Actions에서는 커밋, 그 밖에서는 묶음을 만든 시각이다.
     const build = (process.env.GITHUB_SHA || '').slice(0, 12) || `local-${Date.now()}`;
     const placeholder = '<meta name="app-deploy" content="dev">';
-    const built = await buildCss(destination, await fs.readFile(path.join(root, 'index.html'), 'utf8'));
+    const built = stampGameBuild(await buildCss(destination, await fs.readFile(path.join(root, 'index.html'), 'utf8')), root);
     if (!built.includes(placeholder)) throw new Error('index.html has no app-deploy placeholder');
     // 무대 그림(assets/playable/stage: 저장소에 없고 묶음을 만드는 자리에 있을 때만 들어간다)이 이 묶음에 없으면 그렇다고 적어 둔다.
     // 게임은 작은 그림 하나를 물어서 그림이 있는지 아는데(js/canvas-stage-actors.js available), 없는 묶음에서는 열 때마다 404가 난다.
@@ -29,12 +31,13 @@ async function buildWeb() {
     if (!built.includes(stageArt)) throw new Error('index.html has no stage-art placeholder');
     const packed = await fs.access(path.join(destination, 'assets/playable/stage')).then(() => true, () => false);
     // Release only: no test panel and no dev-only code (scripts/lib/release-bundle.js), checked before anything is written.
-    const html = await prepareRelease(destination, built.replace(placeholder, `<meta name="app-deploy" content="${build}">`)
+    const released = await prepareRelease(destination, built.replace(placeholder, `<meta name="app-deploy" content="${build}">`)
         .replace(stageArt, `<meta name="stage-art" content="${packed ? 'probe' : 'none'}">`));
-    await fs.writeFile(path.join(destination, 'index.html'), html);
+    // Content-named script and style URLs (scripts/lib/immutable-urls.js), hashed after the release strip changed the files.
+    await fs.writeFile(path.join(destination, 'index.html'), await markImmutableUrls(destination, released));
     await fs.writeFile(path.join(destination, 'version.json'), JSON.stringify({ build }) + '\n');
     await fs.writeFile(path.join(destination, '.nojekyll'), '');
-    console.log('Web bundle: dist/index.html (one content-hashed CSS file)');
+    console.log('Web bundle: dist/index.html (one content-hashed CSS file, content-named script and style URLs)');
 }
 
 buildWeb().catch(error => { console.error(error); process.exitCode = 1; });

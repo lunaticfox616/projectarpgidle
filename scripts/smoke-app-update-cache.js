@@ -132,10 +132,14 @@ let skipWaitingCount = 0;
 let claimCount = 0;
 let networkMode = 'success';
 let latestFetchOptions = null;
+let fetchCount = 0;
+let networkBody = 'release bytes';
+const nameOf = text => require('crypto').createHash('sha256').update(text).digest('hex').slice(0, 10);
 
 const runtimeCache = {
     async put(request, response) { storedResponses.set(request.url, response); },
     async keys(request, options) {
+        if (!request) return [...storedResponses.keys()].map(url => ({ url }));
         const pathName = new URL(request.url).pathname;
         return [...storedResponses.keys()].filter(url => url === request.url || (options?.ignoreSearch && new URL(url).pathname === pathName)).map(url => ({ url }));
     },
@@ -152,6 +156,7 @@ const context = {
     Set,
     Promise,
     console,
+    crypto: require('crypto').webcrypto,
     self: {
         location: { origin: 'https://game.example' },
         clients: { async claim() { claimCount += 1; } },
@@ -165,8 +170,10 @@ const context = {
     },
     async fetch(request, options) {
         latestFetchOptions = options;
+        fetchCount += 1;
         if (networkMode === 'failure') throw new Error('offline');
-        return { ok: true, marker: 'network', clone() { return this; } };
+        const body = networkBody;
+        return { ok: true, marker: 'network', clone() { return this; }, async arrayBuffer() { return new TextEncoder().encode(body).buffer; } };
     }
 };
 vm.createContext(context);
@@ -180,8 +187,12 @@ async function dispatchLifecycle(type) {
 
 async function requestThroughWorker(request) {
     let responsePromise;
-    listeners.fetch({ request, respondWith(promise) { responsePromise = promise; } });
-    return responsePromise ? responsePromise : null;
+    const pending = [];
+    listeners.fetch({ request, respondWith(promise) { responsePromise = promise; }, waitUntil(promise) { pending.push(promise); } });
+    if (!responsePromise) return null;
+    const response = await responsePromise;
+    await Promise.all(pending);   // the stored copy is written after the page has its bytes (event.waitUntil)
+    return response;
 }
 
 (async () => {
@@ -209,6 +220,34 @@ async function requestThroughWorker(request) {
     assert.deepStrictEqual([...storedResponses.keys()], ['https://game.example/js/ui.js?v=new'], 'storing a new release drops the older copies of the same file');
     networkMode = 'failure';
     await assert.rejects(requestThroughWorker(scriptRequest), /offline/, 'the replaced release is gone from the cache');
+
+    // A release names scripts and styles by content (?h=, scripts/lib/immutable-urls.js): downloaded on the first visit, then served
+    // from the stored copy without the network, and never answered with another release's bytes (2026-10-28).
+    const releaseUrl = `https://game.example/js/ui.js?v=new&h=${nameOf(networkBody)}`;
+    const releaseRequest = { method: 'GET', url: releaseUrl, mode: 'cors', destination: 'script' };
+    networkMode = 'success';
+    const fetchesBefore = fetchCount;
+    assert.strictEqual((await requestThroughWorker(releaseRequest)).marker, 'network', 'the first visit downloads a content-named file');
+    assert.strictEqual(fetchCount, fetchesBefore + 1);
+    assert.notStrictEqual(latestFetchOptions && latestFetchOptions.cache, 'no-store', 'the browser HTTP cache may answer a content-named file');
+    assert.deepStrictEqual([...storedResponses.keys()], [releaseUrl], 'the stored copy replaces the file\'s other versions');
+    networkMode = 'failure';
+    assert.strictEqual((await requestThroughWorker(releaseRequest)).marker, 'network', 'later visits, online or not, serve the stored copy');
+    assert.strictEqual(fetchCount, fetchesBefore + 1, 'without asking the network');
+    await assert.rejects(requestThroughWorker({ ...releaseRequest, url: 'https://game.example/js/ui.js?v=new&h=0000000000' }), /offline/,
+        'a release not stored yet is never answered with another release\'s bytes');
+    // The server ignores the query: an older page that asks during a deploy gets the newer bytes under its old name. They reach that
+    // page once and are not kept, so a revert that brings the old name back downloads the right bytes.
+    const oldNameUrl = `https://game.example/js/save.js?h=${nameOf('older release bytes')}`;
+    networkMode = 'success';
+    networkBody = 'newer release bytes';
+    assert.strictEqual((await requestThroughWorker({ ...releaseRequest, url: oldNameUrl })).marker, 'network');
+    assert(!storedResponses.has(oldNameUrl), 'bytes that do not match the content name are never stored');
+    networkBody = 'release bytes';
+    const pageRequest = { method: 'GET', url: 'https://game.example/?h=abcdef0123', mode: 'navigate', destination: 'document' };
+    networkMode = 'success';
+    await requestThroughWorker(pageRequest);
+    assert.strictEqual(latestFetchOptions.cache, 'no-store', 'the page itself is always the latest, whatever its query says');
 
     const externalRequest = { method: 'GET', url: 'https://api.example/data', mode: 'cors', destination: 'script' };
     assert.strictEqual(await requestThroughWorker(externalRequest), null, 'cross-origin requests must remain outside app caching');
