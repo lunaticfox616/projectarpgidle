@@ -3933,7 +3933,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     let finalEvasion = Math.max(0, Math.floor(gearEvasion * (1 + totalEvasionPct / 100)));
     let finalEnergyShield = Math.max(0, Math.floor(gearEnergyShield * (1 + totalEnergyShieldPct / 100)));
     let omniscientKeystone = typeof findAllocatedPassiveKeystone === 'function' && findAllocatedPassiveKeystone('사중합일');
-    let omniscientActive = !!omniscientKeystone && totalStrength >= 20 && totalStrength === totalDexterity
+    let omniscientActive = !!omniscientKeystone && totalStrength >= 14 && totalStrength === totalDexterity
         && totalDexterity === totalIntelligence && totalIntelligence === Math.max(0, passive.mystique);
     if (omniscientActive) finalEnergyShield += Math.floor((totalStrength + totalDexterity + totalIntelligence + passive.mystique) * 2);
     if (uniqueGrandBreachCrown) finalEnergyShield = Math.max(0, Math.floor(finalEnergyShield * (1 + Math.max(0, uniqueGrandBreachCrown.esPct || 30) / 100)));
@@ -4457,7 +4457,8 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     }
     // 9) 무한한 권능: 확보한 보조스킬룬 한도 1당 공명력(ASCENDANCY_KEYSTONE_VALUES.iq9), 한도를 늘리기 전의 '획득' 한도 기준
     if (hasKeystone('iq9')) inquisitorResonanceBonus += ASCENDANCY_KEYSTONE_VALUES.iq9.resonancePerSupport * Math.max(0, suppCap);
-    let inquisitorResonancePower = Math.max(0, Math.floor((game.resonancePower || 0) + runeResonancePower + (reward.runeResonancePower || 0) + inquisitorResonanceBonus));
+    const bonusResonancePower = getBonusResonancePower(runeResonancePower, reward, passive);
+    let inquisitorResonancePower = Math.max(0, Math.floor((game.resonancePower || 0) + bonusResonancePower + inquisitorResonanceBonus));
     if (cosmosTwinStarResonance) inquisitorResonancePower = Math.floor(inquisitorResonancePower * Math.max(0, cosmosTwinStarResonance.resonanceMul || 1.5));
     let inquisitorElementalSkill = ['fire', 'cold', 'light'].includes(skill.ele) || (Array.isArray(skill.randomElementPool) && skill.randomElementPool.length > 0);
     if (hasKeystone('iq1') && inquisitorElementalSkill) finalBaseDmg = Math.floor(finalBaseDmg * (1 + (inquisitorResonancePower * ASCENDANCY_KEYSTONE_VALUES.iq1.resonancePct / 100) / 100));
@@ -5470,7 +5471,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         uniquePoisonExtraStacks: uniqueVenomStride ? Math.max(0, Math.floor(uniqueVenomStride.poisonExtraStack || 0)) : 0,
         runeCorpseExplodeChance: runeCorpseExplodeChance,
         runeCorpseExplodeLifePct: runeCorpseExplodeLifePct,
-        runeResonancePower: runeResonancePower + Math.max(0, Number(reward.runeResonancePower) || 0),
+        runeResonancePower: bonusResonancePower,
         supportScaleBases: Object.fromEntries(Array.from(new Set(Object.values(TAGGED_DAMAGE_STAT_BY_TAG))).map(statId => [statId, Math.max(0, sumNonSupportStat(statId))])),
         summonFlatDmg: Math.max(0, (gearBase.summonFlatDmg || 0) + (gearExplicit.summonFlatDmg || 0) + (passive.summonFlatDmg || 0) + (season.summonFlatDmg || 0) + (ascend.summonFlatDmg || 0) + (support.summonFlatDmg || 0) + (reward.summonFlatDmg || 0)),
         summonPctDmg: Math.max(0, (gearBase.summonPctDmg || 0) + (gearExplicit.summonPctDmg || 0) + (passive.summonPctDmg || 0) + (season.summonPctDmg || 0) + (ascend.summonPctDmg || 0) + (support.summonPctDmg || 0) + (reward.summonPctDmg || 0) + tick.get('summonDeathDamagePct')),

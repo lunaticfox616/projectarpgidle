@@ -10867,7 +10867,7 @@ function setupCanvasEvents() {
         let worldX = (localX - centerX - camX) / camZoom;
         let worldY = (localY - centerY - camY) / camZoom;
         camZoom *= (e.deltaY > 0 ? 0.74 : 1.32);
-        camZoom = clampNumber(camZoom, 0.12, 2.5);
+        camZoom = clampNumber(camZoom, 0.09, 2.5);
         camX = localX - centerX - worldX * camZoom;
         camY = localY - centerY - worldY * camZoom;
         clampPassiveCamera();

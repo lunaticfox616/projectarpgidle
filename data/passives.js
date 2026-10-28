@@ -246,13 +246,13 @@ const PASSIVE_TREE = { nodes: {}, edges: [] };
 
 const PASSIVE_TARGET_NODES = 1230;
 
-const PASSIVE_DISCOVERY_RADIUS = 155;
+const PASSIVE_DISCOVERY_RADIUS = 209;
 
 const PASSIVE_ROOT_DISCOVERY_EDGE_DEPTH = 1;
 
 const PASSIVE_DISCOVERY_EDGE_DEPTH = 1;
 
-const PASSIVE_PREVIEW_RADIUS = 105;
+const PASSIVE_PREVIEW_RADIUS = 142;
 
 const PASSIVE_PREVIEW_EDGE_DEPTH = 1;
 
@@ -281,8 +281,9 @@ const PASSIVE_STAR_BLESSING = { flatHp: 140, pctDmg: 24, move: 10 };
 
 // 별쐐기를 대신한 초월 공허 패시브의 반경(트리 좌표). 안드로메다: 이 거리 안의 노드는 연결 없이 할당.
 // 소행성대: 이 거리 안에 할당한 패시브 하나마다 피해(js/combat.js). 9단계 균형에서 다시 잰다.
-const TRANSCENDENT_ANDROMEDA_RADIUS = 320;
-const TRANSCENDENT_ASTEROID_RADIUS = 300;
+// 2026-10-28 v23 개편에서 트리 좌표를 1.35배로 넓혀 두 반경도 같은 배율로 늘렸다(320, 300에서).
+const TRANSCENDENT_ANDROMEDA_RADIUS = 432;
+const TRANSCENDENT_ASTEROID_RADIUS = 405;
 
 const PASSIVE_APEX_CONFIGS = [
     {
