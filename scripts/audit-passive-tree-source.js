@@ -29,10 +29,13 @@ function normalizedAngle(node) {
     return angle < 0 ? angle + 360 : angle;
 }
 
+// The centre where every special stat may sit: 450 before the v23 spacing (coordinates ×1.35, scripts/rework-passive-tree-v23.js).
+const SPECIAL_CENTRE_RADIUS = 608;
+
 function isIntendedSpecial(node) {
     if (!SPECIAL_CATEGORIES.has(node.cat)) return false;
     const radius = Math.hypot(Number(node.x) || 0, Number(node.y) || 0);
-    if (radius <= 450) return true;
+    if (radius <= SPECIAL_CENTRE_RADIUS) return true;
     const angle = normalizedAngle(node);
     if (node.cat === 'mystique') return angle >= 180 && angle <= 250;
     if (node.cat === 'devotion') return angle >= 300 || angle <= 10;

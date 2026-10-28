@@ -16,7 +16,7 @@ const STAT_META = Object.freeze({
     slamPctDmg: ['강타 피해', '%'], projectilePctDmg: ['투사체 피해', '%'], physPctDmg: ['물리 피해', '%'],
     elementalPctDmg: ['원소 피해', '%'], firePctDmg: ['화염 피해', '%'], coldPctDmg: ['냉기 피해', '%'],
     lightPctDmg: ['번개 피해', '%'], chaosPctDmg: ['카오스 피해', '%'], aoePctDmg: ['범위 피해', '%'],
-    dotPctDmg: ['지속 피해 배율', '%'], spellPctDmg: ['주문 피해', '%'], shieldPctDmg: ['방패 스킬 피해', '%'],
+    dotPctDmg: ['지속 피해 배율', '%'], spellPctDmg: ['주문 피해', '%'], shieldPctDmg: ['완갑 착용 근접 피해', '%'],
     potionPctDmg: ['포션 스킬 피해', '%'], minePctDmg: ['지뢰 피해', '%'],
     mobilityPctDmg: ['기동 스킬 피해', '%'], channelingPctDmg: ['채널링 피해', '%'],
     ailmentDamagePct: ['상태이상 피해', '%'], ailmentPotencyPct: ['상태이상 위력', '%'],
@@ -56,7 +56,8 @@ const STAT_META = Object.freeze({
     physGemLevel: ['물리 스킬룬 레벨', ''], projectileGemLevel: ['투사체 스킬룬 레벨', ''],
     meleeGemLevel: ['근접 스킬룬 레벨', ''], slamGemLevel: ['강타 스킬룬 레벨', ''],
     spellGemLevel: ['주문 스킬룬 레벨', ''], dotGemLevel: ['지속 스킬룬 레벨', ''],
-    aoeGemLevel: ['범위 스킬룬 레벨', ''],
+    aoeGemLevel: ['범위 스킬룬 레벨', ''], strGemLevel: ['힘 스킬룬 레벨', ''], dexGemLevel: ['민첩 스킬룬 레벨', ''],
+    intGemLevel: ['지능 스킬룬 레벨', ''], runeResonancePower: ['공명력', ''],
     suppCap: ['보조스킬룬 한도', ''], projectileExtraShots: ['추가 투사체', '개'],
     targetProjectile: ['투사체 스킬 타겟 수', ''],
     summonPctDmg: ['소환수 피해', '%'], summonAspd: ['소환수 공격 속도', '%'], summonHpPct: ['소환수 생명력', '%'],
@@ -276,6 +277,6 @@ const CATEGORY_NOUNS = Object.freeze({
 });
 
 module.exports = {
-    ARCHETYPE_PROFILES, CATEGORY_NOUNS, STAT_META, ZONE_ADJECTIVES, ZONE_PALETTES,
+    ARCHETYPE_PROFILES, CATEGORY_NOUNS, PASSIVE_TYPE_MULTIPLIER, STAT_META, ZONE_ADJECTIVES, ZONE_PALETTES,
     isAllAttributesEffects, isReadablePassiveValue, normalizePassiveValue, passiveValueStep, scalePassiveLine
 };

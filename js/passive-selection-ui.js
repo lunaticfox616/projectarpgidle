@@ -147,7 +147,7 @@ const passiveSelectionUi = (() => {
             hide();
             if (button.dataset.treeView === 'fit') fitPassiveCameraToBounds(true);
             else {
-                const zoom = clampNumber(camZoom * (button.dataset.treeView === 'in' ? 1.3 : 1 / 1.3), 0.12, 2.5);
+                const zoom = clampNumber(camZoom * (button.dataset.treeView === 'in' ? 1.3 : 1 / 1.3), 0.09, 2.5);
                 camX *= zoom / camZoom; camY *= zoom / camZoom; camZoom = zoom;
                 clampPassiveCamera();
             }
@@ -187,7 +187,7 @@ const passiveSelectionUi = (() => {
             if (!gesture.distance) startPinch(canvas, event.touches, gesture);
             const point = pinchPoint(canvas, event.touches);
             if (!gesture.distance) return;
-            camZoom = clampNumber(gesture.zoom * point.distance / gesture.distance, 0.12, 2.5);
+            camZoom = clampNumber(gesture.zoom * point.distance / gesture.distance, 0.09, 2.5);
             camX = point.x - gesture.anchorX * camZoom; camY = point.y - gesture.anchorY * camZoom;
             clampPassiveCamera(); drawPassiveTree(); handlers.hideTooltip();
             return;

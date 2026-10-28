@@ -135,6 +135,11 @@ function accumulateCombatRuneEntry(bucket, result, state, no) {
     if (Array.isArray(lines)) lines.forEach(line => { if (line && line.stat) addStatToBucket(bucket, line.stat, Number(line.val || 0)); });
 }
 
+/** 공명력 on top of the base: 지하석 runes, relic stones (reward bucket) and passive tree nodes (2026-10-28 사용자: 공명력 옵션). */
+function getBonusResonancePower(runePower, reward, passive) {
+    return runePower + Math.max(0, Number(reward.runeResonancePower) || 0) + Math.max(0, Number(passive.runeResonancePower) || 0);
+}
+
 function getCombatEquipmentContributions(resolvedSources, excludedSlots) {
     const memo = getBackgroundBuildMemo(game);
     let result = memo?.get('combat-equipment');

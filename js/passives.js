@@ -52,10 +52,13 @@ function getPassiveEffectLabel(node) {
     if (Array.isArray(node.effects) && node.effects.length > 0) {
         const effects = node.connectedDevotionPenalty ? getEffectivePassiveNodeEffects(node) : node.effects;
         const labels = effects.map(effect => {
-            const statInfo = P_STATS[effect.stat] || {};
+            // Passive-only options (감전 효율, 냉각 효율, 감전된 적에게 주는 명중 피해) have no item stat; their name and % come from
+            // STAT_DISPLAY_NAMES (2026-10-28: the tooltip showed "shockEffect +15").
+            const statInfo = P_STATS[effect.stat] || {}, rawName = statInfo.name || getStatName(effect.stat);
             const sign = Number(effect.val) >= 0 ? '+' : '';
-            const statName = String(statInfo.name || effect.stat).replace(/\s*\(%\)\s*/g, '').trim();
-            return `${statName} ${sign}${formatValue(effect.stat, effect.val)}${statInfo.isPct ? '%' : ''}`;
+            const statName = String(rawName).replace(/\s*\(%\)\s*/g, '').trim();
+            const isPct = statInfo.name ? statInfo.isPct : /\(%\)/.test(rawName);
+            return `${statName} ${sign}${formatValue(effect.stat, effect.val)}${isPct ? '%' : ''}`;
         });
         if (node.connectedDevotionPenalty) {
             labels.push(`기본 +${node.val}%에서 직접 연결된 헌신 1개 할당마다 각각 ${node.connectedDevotionPenalty}%p 감소`);
@@ -103,32 +106,34 @@ function angleDistance(a, b) {
     return Math.abs(diff);
 }
 
+// Node radii in tree units (v23, 2026-10-28: the tree spread ×1.35 while small nodes grew 7 → 9 and notables 21 → 24, so the gaps
+// between nodes widened; scripts/lib/passive-tree-v23-layout.js NODE_RADIUS keeps the same numbers for the layout checks).
 const PASSIVE_NODE_KIND_RADIUS = Object.freeze({
-    start: 30,
-    transcendent: 28,
-    keystone: 27,
-    void: 26,
-    apex: 24,
-    core: 22,
-    deadend: 21,
-    evolved: 21,
-    major: 21,
-    assist: 7
+    start: 34,
+    transcendent: 30,
+    keystone: 31,
+    void: 28,
+    apex: 26,
+    core: 24,
+    deadend: 24,
+    evolved: 24,
+    major: 24,
+    assist: 9
 });
 
-const PASSIVE_NODE_SOURCE_RADIUS = Object.freeze({ major: 21, normal: 13.5, assist: 7, minor: 7 });
+const PASSIVE_NODE_SOURCE_RADIUS = Object.freeze({ major: 24, normal: 14, assist: 9, minor: 9 });
 
 function getPassiveNodeVisualRadius(node) {
     if (!node) return 6;
-    if (node.kind === 'hub') return 23;
+    if (node.kind === 'hub') return 26;
     const kindRadius = PASSIVE_NODE_KIND_RADIUS[node.kind];
     if (kindRadius) return kindRadius;
     const sourceRadius = PASSIVE_NODE_SOURCE_RADIUS[node.sourceType];
     if (sourceRadius) return sourceRadius;
-    if (node.tier === 0) return 30;
-    if (node.tier >= 3) return 21;
-    if (node.tier === 2 || node.kind === 'ring' || node.kind === 'inner') return 13.5;
-    return 7;
+    if (node.tier === 0) return 34;
+    if (node.tier >= 3) return 24;
+    if (node.tier === 2 || node.kind === 'ring' || node.kind === 'inner') return 14;
+    return 9;
 }
 
 function getPassiveStatAccent(statId) {
@@ -183,82 +188,6 @@ function getPassiveStatAccent(statId) {
     return base;
 }
 
-// Warm iron/bronze states that match the pixel UI: gold = allocated, pale bronze = can be taken next, dim iron = locked.
-function getPassiveNodePalette(node, active, reachable, visibility) {
-    if (node && node.kind === 'void') {
-        return active
-            ? { outer: '#c7f7ff', mid: '#22566b', inner: '#06151d', glow: 'rgba(79,209,255,0.45)', text: '#dcfbff' }
-            : { outer: '#72b8d0', mid: '#173345', inner: '#081019', glow: 'rgba(79,209,255,0.20)', text: '#c5efff' };
-    }
-    const special = node && (node.kind === 'apex' || node.kind === 'evolved' || node.kind === 'transcendent');
-    const accent = getPassiveStatAccent(node && node.stat);
-    if (special && active) {
-        return {
-            outer: node.kind === 'transcendent' ? '#fff1b2' : '#f4d788',
-            mid: node.kind === 'transcendent' ? '#b17836' : '#8a6130',
-            inner: '#fff8e7',
-            glow: 'rgba(247,223,155,0.45)',
-            text: '#fff0c6'
-        };
-    }
-    if (special && reachable) {
-        return {
-            outer: node.kind === 'transcendent' ? '#d1b778' : '#a88b5f',
-            mid: '#251b14',
-            inner: '#2c3642',
-            glow: null,
-            text: '#e1cfaa'
-        };
-    }
-    if (special && visibility === 'preview') {
-        return {
-            outer: 'rgba(156,140,104,0.58)',
-            mid: 'rgba(20,18,16,0.86)',
-            inner: 'rgba(45,49,55,0.94)',
-            glow: 'rgba(143,158,183,0.14)',
-            text: '#aeb5bf'
-        };
-    }
-    if (active) {
-        return {
-            outer: '#e9be67',
-            mid: '#3a2b14',
-            inner: '#1a130a',
-            icon: accent.activeOuter,
-            glow: 'rgba(233,190,103,0.17)',
-            text: accent.text
-        };
-    }
-    if (reachable) {
-        return {
-            outer: '#cdb88c',
-            mid: '#231c13',
-            inner: '#120e09',
-            icon: accent.reachOuter,
-            glow: 'rgba(215,179,111,0.08)',
-            text: accent.text
-        };
-    }
-    if (visibility === 'preview') {
-        return {
-            outer: 'rgba(118,99,72,0.55)',
-            mid: 'rgba(17,14,10,0.9)',
-            inner: 'rgba(9,7,5,0.94)',
-            icon: 'rgba(124,110,90,0.62)',
-            glow: null,
-            text: accent.text
-        };
-    }
-    return {
-        outer: 'rgba(122,103,76,0.86)',
-        mid: 'rgba(17,14,10,0.96)',
-        inner: 'rgba(9,7,5,0.98)',
-        icon: 'rgba(136,121,98,0.86)',
-        glow: null,
-        text: '#b9ad99'
-    };
-}
-
 // Canvas line widths that stay readable at any camera zoom: `px` screen pixels, never thinner than `minWorld`.
 function passiveTreeScreenWidth(px, minWorld) {
     const zoom = typeof camZoom === 'number' && camZoom > 0 ? camZoom : 1;
@@ -279,30 +208,6 @@ function tracePassiveLinkSegment(ctx, a, b) {
     ctx.moveTo(a.x + ux * startInset, a.y + uy * startInset);
     ctx.lineTo(b.x - ux * endInset, b.y - uy * endInset);
     return true;
-}
-
-// Circles for path/normal nodes and class emblems, flat-topped octagons for notables and keystones
-// (the pixel UI's chamfered frame), diamonds for socket slots.
-function tracePassiveNodeFramePath(ctx, node, radius) {
-    const x = node.x;
-    const y = node.y;
-    let sides = 0;
-    let rotation = Math.PI / 8;
-    if (node.kind === 'hub' || node.kind === 'void') { sides = 4; rotation = Math.PI / 4; }
-    else if (node.kind === 'keystone' || node.kind === 'major' || node.kind === 'core' || node.tier >= 3) sides = 8;
-    ctx.beginPath();
-    if (!sides) {
-        ctx.arc(x, y, radius, 0, Math.PI * 2);
-        return;
-    }
-    for (let i = 0; i < sides; i++) {
-        const angle = rotation + i * Math.PI * 2 / sides;
-        const px = x + Math.cos(angle) * radius;
-        const py = y + Math.sin(angle) * radius;
-        if (i === 0) ctx.moveTo(px, py);
-        else ctx.lineTo(px, py);
-    }
-    ctx.closePath();
 }
 
 const PASSIVE_ICON_FAMILY = Object.freeze({
@@ -361,7 +266,8 @@ const PASSIVE_NOTABLE_ICON_FAMILY_BY_STAT = Object.freeze({
     lightGemLevel: 'notableGem', chaosGemLevel: 'notableGem', physGemLevel: 'notableGem',
     projectileGemLevel: 'notableGem', meleeGemLevel: 'notableGem', slamGemLevel: 'notableGem',
     spellGemLevel: 'notableGem', dotGemLevel: 'notableGem', aoeGemLevel: 'notableGem',
-    elementalGemLevel: 'notableGem', summonGemLevel: 'notableGem',
+    elementalGemLevel: 'notableGem', summonGemLevel: 'notableGem', strGemLevel: 'notableGem', dexGemLevel: 'notableGem',
+    intGemLevel: 'notableGem', runeResonancePower: 'notableGem',
     aspd: 'notableAttackSpeed', move: 'notableMoveSpeed',
     flatHp: 'notableLife', pctHp: 'notableLife', regen: 'notableLife',
     spellFlatDmg: 'notableSpellInherent', spellFlatPct: 'notableSpellInherent'
@@ -387,8 +293,13 @@ const PASSIVE_KEYSTONE_ICON_CELL_BY_ID = Object.freeze({
     backbone_branch_archer_outer_4_archer_physical_keystone: [2, 4],
     backbone_branch_alchemist_outer_1_universal_flask_keystone: [3, 4],
     backbone_branch_alchemist_outer_2_universal_summon_keystone: [4, 4],
-    backbone_branch_alchemist_outer_4_alchemist_resist_keystone: [5, 4]
+    backbone_branch_alchemist_outer_4_alchemist_resist_keystone: [5, 4],
+    pt_warrior_blood_cradle: [0, 5]
 });
+const PASSIVE_KEYSTONE_ICON_ATLAS_ROWS = 6;
+/** Node frames (Codex 2026-10-28: grey-white antique wood, the void a ring of black flame), one strip, [x, size] per look at y 0. The
+ * icon atlases and this strip are built by scripts/build-passive-tree-art.js from the same tables. */
+const PASSIVE_TREE_FRAME_SHEET = Object.freeze({ small: [0, 24], medium: [26, 40], notable: [68, 56], keystone: [126, 72], void: [200, 56] });
 
 function getPassiveNodeIconFamily(node) {
     if (!node) return null;
@@ -410,7 +321,7 @@ function getPassiveTreeArtImage(key) {
 function getPassiveNodeAtlasArt(node) {
     let keystoneCell = node && node.kind === 'keystone' ? PASSIVE_KEYSTONE_ICON_CELL_BY_ID[node.id] : null;
     let keystoneImage = keystoneCell && getPassiveTreeArtImage('passiveTreeKeystoneIcons');
-    if (keystoneImage) return { image: keystoneImage, cell: keystoneCell, columns: 6, rows: 5 };
+    if (keystoneImage) return { image: keystoneImage, cell: keystoneCell, columns: 6, rows: PASSIVE_KEYSTONE_ICON_ATLAS_ROWS };
     let family = node && (PASSIVE_NOTABLE_ICON_ATLAS_CELL[node.iconFamily]
         ? node.iconFamily
         : PASSIVE_NOTABLE_ICON_FAMILY_BY_STAT[node.stat]);
@@ -422,11 +333,6 @@ function getPassiveNodeAtlasArt(node) {
     return baseImage ? { image: baseImage, cell: baseCell, columns: PASSIVE_ICON_ATLAS_COLUMNS, rows: PASSIVE_ICON_ATLAS_ROWS } : null;
 }
 
-function canUsePassiveNodeImageArt(node) {
-    if (getPassiveTreeArtImage(`passiveTreeCustom_${node && node.id}`)) return true;
-    return !!getPassiveNodeAtlasArt(node);
-}
-
 function isPassiveFramedNode(node) {
     if (!node) return false;
     return node.kind === 'start' || node.kind === 'keystone' || node.kind === 'void'
@@ -436,73 +342,6 @@ function isPassiveFramedNode(node) {
 
 function isPassiveImageSlotNode(node) {
     return !!node && node.kind === 'void';
-}
-
-function getPassiveNodeSlotImage(node) {
-    return isPassiveImageSlotNode(node) ? getPassiveTreeArtImage('passiveTreeVoidSlot') : null;
-}
-
-function drawPassiveNodeImageArt(ctx, node, radius, opacity) {
-    const slotImage = getPassiveNodeSlotImage(node);
-    const customImage = getPassiveTreeArtImage(`passiveTreeCustom_${node && node.id}`);
-    const standaloneImage = customImage || slotImage;
-    const atlasArt = standaloneImage ? null : getPassiveNodeAtlasArt(node);
-    const image = standaloneImage || (atlasArt && atlasArt.image);
-    if (!image) return false;
-    const halfSize = radius * (slotImage ? 1.12 : (node.kind === 'start' ? 0.58 : 0.78));
-    const drawY = node.y - halfSize - (slotImage ? 0 : radius * 0.06);
-    ctx.save();
-    ctx.globalAlpha = Math.max(0, Math.min(1, opacity));
-    ctx.imageSmoothingEnabled = true;
-    if (standaloneImage) {
-        ctx.drawImage(image, node.x - halfSize, drawY, halfSize * 2, halfSize * 2);
-    } else {
-        const sourceWidth = (image.naturalWidth || image.width) / atlasArt.columns;
-        const sourceHeight = (image.naturalHeight || image.height) / atlasArt.rows;
-        ctx.drawImage(image, atlasArt.cell[0] * sourceWidth, atlasArt.cell[1] * sourceHeight, sourceWidth, sourceHeight,
-            node.x - halfSize, drawY, halfSize * 2, halfSize * 2);
-    }
-    ctx.restore();
-    return true;
-}
-
-// Medallion frames are drawn as flat bronze bands (no points or spikes): a dark rim, the state band and a thin
-// inner line. Keystones and class starts get a second outer line so they stay the strongest landmarks.
-const PASSIVE_FRAME_TONES = Object.freeze({
-    active: Object.freeze({ band: '#e9be67', inner: 'rgba(255,236,190,0.78)' }),
-    reachable: Object.freeze({ band: '#cdb88c', inner: 'rgba(236,222,190,0.5)' }),
-    idle: Object.freeze({ band: '#8d7249', inner: 'rgba(141,114,73,0.55)' })
-});
-const PASSIVE_FRAME_RIM = '#0c0905';
-
-function getPassiveFrameTone(node, active) {
-    if (active || (node.kind === 'start' && node.id === getPassiveTreeRootNodeId())) return PASSIVE_FRAME_TONES.active;
-    return reachableNodes.has(node.id) ? PASSIVE_FRAME_TONES.reachable : PASSIVE_FRAME_TONES.idle;
-}
-
-function strokePassiveFrameRing(ctx, node, radius, color, width) {
-    tracePassiveNodeFramePath(ctx, node, radius);
-    ctx.strokeStyle = color;
-    ctx.lineWidth = width;
-    ctx.stroke();
-}
-
-function drawPassiveNodeFrameArt(ctx, node, radius, active, opacity) {
-    if (!isPassiveFramedNode(node) || isPassiveImageSlotNode(node)) return false;
-    const tone = getPassiveFrameTone(node, active);
-    const landmark = node.kind === 'keystone' || node.kind === 'start';
-    ctx.save();
-    ctx.globalAlpha = Math.max(0, Math.min(1, opacity));
-    strokePassiveFrameRing(ctx, node, radius + 1.6, PASSIVE_FRAME_RIM, passiveTreeScreenWidth(1.6, 3.2));
-    strokePassiveFrameRing(ctx, node, radius, tone.band, passiveTreeScreenWidth(1.2, landmark ? 3 : 2.4));
-    strokePassiveFrameRing(ctx, node, radius - (landmark ? 4.5 : 3.4), tone.inner, passiveTreeScreenWidth(0.7, 1));
-    if (landmark) strokePassiveFrameRing(ctx, node, radius + 5.5, tone.inner, passiveTreeScreenWidth(0.7, 1));
-    if (!canUsePassiveNodeImageArt(node)) {
-        ctx.translate(node.x, node.y);
-        drawPassiveNodeIcon(ctx, node, radius, tone.band);
-    }
-    ctx.restore();
-    return true;
 }
 
 function tracePassiveBladeIcon(ctx, r) {
@@ -622,76 +461,6 @@ function drawPassiveNodeIcon(ctx, node, radius, color) {
     ctx.beginPath();
     tracer(ctx, radius * 0.48);
     ctx.stroke();
-    ctx.restore();
-}
-
-// Unframed nodes: normal-size nodes get a thin inner line (a double ring); slot nodes keep their fallback marks
-// for when the slot art is missing; any node without atlas art falls back to its vector glyph.
-function drawNodeOrnament(ctx, node, radius, palette, active, lightweightMode) {
-    if (lightweightMode) return;
-    ctx.save();
-    ctx.translate(node.x, node.y);
-    ctx.strokeStyle = active ? '#f6e3b0' : palette.outer;
-    ctx.lineWidth = passiveTreeScreenWidth(0.6, 1);
-    if (node.kind === 'void') {
-        ctx.strokeRect(-radius * 0.34, -radius * 0.34, radius * 0.68, radius * 0.68);
-    } else if (node.kind === 'hub') {
-        const span = radius * 0.5;
-        ctx.beginPath();
-        ctx.moveTo(-span, 0); ctx.lineTo(span, 0);
-        ctx.moveTo(0, -span); ctx.lineTo(0, span);
-        ctx.stroke();
-    } else if (radius >= 12) {
-        ctx.beginPath();
-        ctx.arc(0, 0, radius * 0.8, 0, Math.PI * 2);
-        ctx.stroke();
-    }
-    if (node.kind !== 'void' && node.kind !== 'hub' && !canUsePassiveNodeImageArt(node)) {
-        drawPassiveNodeIcon(ctx, node, radius, palette.icon || palette.outer);
-    }
-    ctx.restore();
-}
-
-function fillPassiveNodeHalo(ctx, node, radius, palette) {
-    if (!palette.glow) return;
-    ctx.beginPath();
-    ctx.arc(node.x, node.y, radius + Math.max(3.5, radius * 0.32), 0, Math.PI * 2);
-    ctx.fillStyle = palette.glow;
-    ctx.fill();
-}
-
-function getPassiveNodeOutlineWidth(active, reachable) {
-    if (active) return passiveTreeScreenWidth(1.4, 2.2);
-    return reachable ? passiveTreeScreenWidth(1.1, 1.7) : passiveTreeScreenWidth(0.8, 1.1);
-}
-
-function drawPassiveNodeHoverRing(ctx, node, radius, active) {
-    if (!hoverNode || hoverNode.id !== node.id) return;
-    tracePassiveNodeFramePath(ctx, node, radius + 6);
-    ctx.strokeStyle = active ? 'rgba(255,241,205,0.9)' : 'rgba(233,210,160,0.72)';
-    ctx.lineWidth = passiveTreeScreenWidth(1.2, 1.5);
-    ctx.stroke();
-}
-
-// Framed nodes (notables, keystones, class starts) only get their base fill here; the medallion itself is
-// drawn by drawPassiveNodeFrameArt so its lines sit above the icon plate.
-function drawPassiveNodeShape(ctx, node, radius, palette, active, reachable, visibility, revealAlpha, renderOptions) {
-    const options = renderOptions && typeof renderOptions === 'object' ? renderOptions : { lightweight: !!renderOptions };
-    ctx.save();
-    ctx.globalAlpha = revealAlpha;
-    if (!options.imageSlot) {
-        if (!options.lightweight) fillPassiveNodeHalo(ctx, node, radius, palette);
-        tracePassiveNodeFramePath(ctx, node, radius);
-        ctx.fillStyle = palette.mid;
-        ctx.fill();
-        if (!options.framed) {
-            ctx.strokeStyle = palette.outer;
-            ctx.lineWidth = getPassiveNodeOutlineWidth(active, reachable);
-            ctx.stroke();
-            drawNodeOrnament(ctx, node, radius, palette, active, !!options.lightweight);
-        }
-        drawPassiveNodeHoverRing(ctx, node, radius, active);
-    }
     ctx.restore();
 }
 
@@ -4453,7 +4222,7 @@ function fitPassiveCameraToBounds(force) {
     const spanX = Math.max(1, (bounds.maxX - bounds.minX) + viewPadding * 2);
     const spanY = Math.max(1, (bounds.maxY - bounds.minY) + viewPadding * 2);
     const defaultZoom = Math.min((width - 64) / spanX, (height - 72) / spanY);
-    camZoom = clampNumber(defaultZoom, 0.14, 0.72);
+    camZoom = clampNumber(defaultZoom, 0.1, 0.72);
     const toolbarOffsetY = invested ? 0 : 56;
     camX = -(bounds.minX + bounds.maxX) * 0.5 * camZoom;
     camY = -(bounds.minY + bounds.maxY) * 0.5 * camZoom + toolbarOffsetY;
@@ -6434,10 +6203,10 @@ function initBattleAssets() {
         skillFxEarthSpike: 'assets/effects/pixel-earth-spike-v1.png',
         skillFxDotField: 'assets/effects/skill-dot-field-v2.png',
         skillFxSummonStrike: 'assets/effects/skill-summon-strike-v1.png',
-        passiveTreeIcons: 'assets/ui/passive-tree-icons-v3.webp',
-        passiveTreeKeystoneIcons: 'assets/ui/passive-tree-keystone-icons-v1.webp',
-        passiveTreeNotableIcons: 'assets/ui/passive-tree-notable-icons-v4.webp',
-        passiveTreeVoidSlot: 'assets/ui/passive-tree-slot-void-v3.webp',
+        passiveTreeIcons: 'assets/ui/passive-tree-icons-v4.png',
+        passiveTreeKeystoneIcons: 'assets/ui/passive-tree-keystone-icons-v2.png',
+        passiveTreeNotableIcons: 'assets/ui/passive-tree-notable-icons-v5.png',
+        passiveTreeFrames: 'assets/ui/passive-tree-frames-v1.png',
         backdropAct1: 'assets/battlefield-act1.png',
         backdropAct2_6: 'assets/battlefield-act2-6.png',
         backdropAct3_7: 'assets/battlefield-act3-7.png',

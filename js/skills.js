@@ -757,7 +757,11 @@ const GEM_LEVEL_TAG_RULES = [
     { stat: 'spellGemLevel', tag: 'spell' },
     { stat: 'dotGemLevel', tag: 'dot' },
     { stat: 'aoeGemLevel', tag: 'aoe' },
-    { stat: 'summonGemLevel', tag: 'summon' }
+    { stat: 'summonGemLevel', tag: 'summon' },
+    // 능력치 태그(2026-10-28 사용자: 설계자의 힘/민첩/지능 스킬 젬 레벨). 룬마다 data/skills.js tags에 하나나 둘이 붙는다.
+    { stat: 'strGemLevel', tag: 'strength' },
+    { stat: 'dexGemLevel', tag: 'dexterity' },
+    { stat: 'intGemLevel', tag: 'intelligence' }
 ];
 
 function getGemLevelTargetTags(target) {
