@@ -1,7 +1,8 @@
 // 그루터기 함: 끌어 옮기기와 마우스 툴팁(2026-10-04 사용자 요청, 장비 창 js/equipment-inventory-grid-ui.js와 같은 손맛).
 // 마우스 · 펜은 6px 움직이면 끌기가 시작되고, 손가락은 0.28초 누르고 있어야 시작된다(그 전에 움직이면 화면이 스크롤된다).
-// 판의 칸(빈 칸이면 옮기고, 찬 칸이면 자리를 바꾼다)이나 보관함에 놓는다. 판정 · 다시 그리기 · 툴팁 내용은 stumpBoxUi가 맡고
-// (dropOnCell · dropOnStorage · tipFor), 이 모듈은 포인터 상태와 끌리는 그림, 놓을 자리 표시만 다룬다.
+// 판의 칸(빈 칸이면 옮기고, 찬 칸이면 자리를 바꾼다)이나 보관함, 틀이 조합창이면 조합창 칸(2026-10-28 사용자)에 놓는다. 판정 · 다시
+// 그리기 · 툴팁 내용은 stumpBoxUi가 맡고(dropOnCell · dropOnStorage · dropOnCube · tipFor), 이 모듈은 포인터 상태와 끌리는 그림,
+// 놓을 자리 표시만 다룬다.
 (function () {
     'use strict';
     const DRAG_PX = 6, HOLD_MS = 280, TOUCH_SLOP_PX = 10;
@@ -66,11 +67,13 @@
     // ── 끄는 중 ────────────────────────────────────────────
     function zoneAt(x, y) {
         const hit = document.elementFromPoint(x, y);
-        return hit && hit.closest ? hit.closest('#tab-stump [data-stump-drop-cell], #tab-stump [data-stump-drop-storage]') : null;
+        return hit && hit.closest ? hit.closest('#tab-stump [data-stump-drop-cell], #tab-stump [data-stump-drop-storage], #tab-stump [data-stump-drop-cube]') : null;
     }
-    /** Whether dropping here would do anything: another open cell, or storage for an item that is on the board. */
+    /** Whether dropping here would do anything: another open cell, storage for an item that is on the board, or the cube for a stored
+     * item it can take. */
     function zoneAccepts(zone) {
         if (zone.dataset.stumpDropStorage) return game.stumpBox.board.includes(drag.id);
+        if (zone.dataset.stumpDropCube !== undefined) return stumpCube.candidates('stump').some(item => item.id === drag.id);
         const cell = Number(zone.dataset.stumpDropCell);
         return stumpBox.isOpen(game, cell) && game.stumpBox.board[cell] !== drag.id;
     }
@@ -79,7 +82,7 @@
         drag.zone?.classList.remove('is-drop-ok', 'is-drop-bad');
         drag.zone = zone;
         if (zone) zone.classList.add(zoneAccepts(zone) ? 'is-drop-ok' : 'is-drop-bad');
-        if (zone && !zone.dataset.stumpDropStorage && zoneAccepts(zone)) stumpBoxUi.previewCell(drag.id, Number(zone.dataset.stumpDropCell));
+        if (zone?.dataset.stumpDropCell !== undefined && zoneAccepts(zone)) stumpBoxUi.previewCell(drag.id, Number(zone.dataset.stumpDropCell));
         else stumpBoxUi.clearPlacementPreview(true);
     }
     function follow(point) {
@@ -112,6 +115,7 @@
         setTimeout(() => { swallowClick = false; }, 0);
         if (!zone) return;
         if (zone.dataset.stumpDropStorage) stumpBoxUi.dropOnStorage(id);
+        else if (zone.dataset.stumpDropCube !== undefined) stumpBoxUi.dropOnCube(id, Number(zone.dataset.stumpDropCube));
         else if (event.pointerType === 'touch') stumpBoxUi.previewCell(id, Number(zone.dataset.stumpDropCell), true);
         else stumpBoxUi.dropOnCell(id, Number(zone.dataset.stumpDropCell));
     }

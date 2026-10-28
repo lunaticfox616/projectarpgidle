@@ -29,6 +29,28 @@
   }
   /* 고른 것이 없으면 설명 칸은 자리를 차지하지 않는다(마우스를 올리면 같은 내용이 툴팁으로 나온다) */
   :is(.stump-box-detail, .stump-box-more, .stump-box-summary, .stump-cube):empty { display: none; }
+  /* 고른 것의 설명은 흐름 밖에 뜬다(2026-10-28 사용자: 누르면 보관함이 밀려서, 장비 창처럼; js/stump-box-ui.js placeStumpDetail).
+     PC는 창 옆(자리가 없으면 고른 아이템 옆), 1080px까지는 아래 띠 위의 시트다. 떠서 나오는 장비 창 설명과 같은 테두리. */
+  #tab-stump #stump-box-detail:popover-open {
+    position: fixed;
+    inset: auto;
+    box-sizing: border-box;
+    /* 기본 창(1536px 화면에서 오른쪽 끝 1178px) 옆에 들어가는 폭 */
+    width: 320px;
+    max-width: calc(100vw - 16px);
+    margin: 0;
+    padding: 10px 12px;
+    overflow: auto;
+    overscroll-behavior: contain;
+    color: var(--px-copy, #e8dcc0);
+    border: 1px solid #c79a4a;
+    background: linear-gradient(180deg, #221a12, #120e0a);
+    box-shadow: 0 0 0 1px #000, inset 0 0 0 3px #17120d, inset 0 0 0 4px rgba(227, 189, 114, .3), 0 12px 28px rgba(0, 0, 0, .8);
+  }
+  #tab-stump #stump-box-detail:popover-open:has(.stump-comparison) { width: 560px; }
+  @media (max-width: 1080px) {
+    #tab-stump #stump-box-detail:popover-open { inset: auto 8px calc(var(--mobile-nav-height, 64px) + 12px) 8px; width: auto; max-height: 45vh; }
+  }
   .stump-box-summary h3, .stump-box-more h3 { margin: 0 0 4px; font-size: 15px; }
   .stump-box-more h3 { margin-top: 8px; }
   .stump-box-more h3:first-child { margin-top: 0; }
@@ -369,7 +391,15 @@
     background: color-mix(in srgb, var(--cube-tone) 16%, #1a1510);
     box-shadow: inset 0 0 0 1px var(--cube-tone);
   }
+  /* 여러 칸 재료(장비)는 틀 그림(::after, 층 2) 위에 그려 칸 사이 살을 가리고 한 덩어리로 보인다(2026-10-28 사용자). 한 칸 재료는
+     전처럼 가장자리를 틀의 살이 덮는다. 보석 전환의 빛 고리(4)와 옛 판 그림(6)은 그 위다. */
+  #tab-stump .stump-cube-item.is-multi { z-index: 3; }
   #tab-stump .stump-cube-item img { width: 80%; height: 80%; object-fit: contain; image-rendering: pixelated; pointer-events: none; }
+  /* 바로 넣기: 지금 보관한 재료로 만들 수 있는 조합법마다 단추 하나(분류 색), 누르면 조합창을 비우고 그 재료를 넣는다 */
+  .stump-cube-quick { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .stump-cube-quick > span { color: var(--px-copy-muted, #a39883); font-size: 12px; }
+  #tab-stump .stump-cube-quick button { min-height: 28px; padding: 2px 8px; color: var(--recipe-tone); font-size: 12px;
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--recipe-tone) 55%, #050404); }
   .stump-line.is-bad { color: #e0715f; }
   /* 조합법 목록(2026-10-25 사용자 "색감"): 줄마다 분류 색 테와 분류 표, 이름은 금빛, 재료와 결과의 낱말은 제 색(js/stump-cube-ui.js) */
   .stump-cube-book { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; font-size: 12px; }
@@ -433,7 +463,8 @@
   @media (max-width: 680px) {
     .stump-cube-picker-layout { grid-template-columns: minmax(0, 1fr); gap: 8px; min-height: 0; }
     .stump-cube-candidates { max-height: 28vh; }
-    .stump-cube-material-detail { max-height: 40vh; }
+    /* 고르기 전에도 같은 높이: 고르면 설명이 늘어 가운데 놓인 창이 커지면서 목록이 위로 밀렸다(2026-10-28, 두 번 눌러 넣기가 빗나갔다) */
+    .stump-cube-material-detail { height: 40vh; }
   }
 
   /* 넓은 창: 왼쪽 열은 틀과 그 아래(옵션 합계나 조합 단추), 오른쪽 열은 고른 것, 보관함, 탭. 두 열은 따로 쌓여서 한쪽이 길어도

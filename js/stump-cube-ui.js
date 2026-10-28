@@ -56,16 +56,18 @@ const stumpCubeUi = (() => {
     }
 
     // ── 칸 ─────────────────────────────────────────────────
+    // 칸과 넣은 재료는 그루터기 함 보관함에서 끌어 놓는 자리다(data-stump-drop-cube, js/stump-box-drag-ui.js). 여러 칸 재료는 틀의 살 위에
+    // 그려 한 덩어리로 보인다(2026-10-28 사용자: 중앙의 선을 가리도록, css/stump-box.css .is-multi).
     function entryHtml(entry) {
-        const name = itemName(entry.kind, entry.item);
-        return `<button type="button" class="stump-cube-item" data-stump-action="cube-cell" data-cell="${entry.y * stumpCube.SIZE + entry.x}"`
+        const name = itemName(entry.kind, entry.item), cell = entry.y * stumpCube.SIZE + entry.x;
+        return `<button type="button" class="stump-cube-item${entry.w * entry.h > 1 ? ' is-multi' : ''}" data-stump-action="cube-cell" data-cell="${cell}" data-stump-drop-cube="${cell}"`
             + ` style="grid-column:${entry.x + 1} / span ${entry.w};grid-row:${entry.y + 1} / span ${entry.h};--cube-tone:${itemTone(entry.kind, entry.item)}"`
             + ` title="${esc(name)}, 누르면 꺼냅니다" aria-label="${esc(name)} 꺼내기"><img src="${ICONS[entry.kind](entry.item)}" alt="" draggable="false"></button>`;
     }
 
     function gridHtml(list) {
         const cells = Array.from({ length: stumpCube.SIZE * stumpCube.SIZE }, (_, cell) => `<button type="button" class="stump-cube-cell"`
-            + ` data-stump-action="cube-open" style="grid-column:${cell % stumpCube.SIZE + 1};grid-row:${Math.floor(cell / stumpCube.SIZE) + 1}"`
+            + ` data-stump-action="cube-open" data-stump-drop-cube="${cell}" style="grid-column:${cell % stumpCube.SIZE + 1};grid-row:${Math.floor(cell / stumpCube.SIZE) + 1}"`
             + ` aria-label="빈 칸, 재료 넣기"></button>`).join('');
         return `<div class="stump-cube-grid" role="grid" aria-label="조합창 ${stumpCube.SIZE}×${stumpCube.SIZE}">${cells}${list.map(entryHtml).join('')}</div>`;
     }
@@ -151,7 +153,21 @@ const stumpCubeUi = (() => {
             + '<button type="button" data-stump-action="cube-open">재료 넣기</button>'
             + `<button type="button" data-stump-action="cube-clear"${list.length ? '' : ' disabled'}>비우기</button>`
             + `<button type="button" data-stump-action="cube-book" aria-pressed="${bookOpen}">조합법 ${stumpCube.revealed(game).length}/${STUMP_CUBE_RECIPES.length}</button></div>`
-            + resultHtml() + recipeBookHtml();
+            + quickFillHtml() + resultHtml() + recipeBookHtml();
+    }
+
+    /** 바로 넣기: one button per revealed recipe the stored items make now (not the one already in the cube). Pressing it empties the cube
+     * and puts that set in, the plainest materials first (stumpCube.readyCubeSets). */
+    function quickFillRecipes() {
+        const current = stumpCube.match()?.recipe.id;
+        return stumpCube.readyCubeSets().map(row => row.recipe).filter(recipe => recipe.id !== current);
+    }
+
+    function quickFillHtml() {
+        const recipes = quickFillRecipes();
+        if (!recipes.length) return '';
+        return '<div class="stump-cube-quick" role="group" aria-label="바로 넣기"><span>바로 넣기</span>' + recipes.map(recipe => `<button type="button"`
+            + ` data-stump-action="cube-quick" data-recipe="${recipe.id}" style="--recipe-tone:${GROUP_TONES[recipe.group] || '#e6c67f'}">${esc(recipe.name)}</button>`).join('') + '</div>';
     }
 
     /** What the screen shows depends on these, so the stump tab repaints when they change. */
@@ -161,7 +177,7 @@ const stumpCubeUi = (() => {
         const costs = [...new Set(costRecipes.flatMap(recipe => Object.keys(recipe.cost || {})))];
         return JSON.stringify([stumpCube.entries().map(entry => [entry.kind, entry.id, entry.x, entry.y, entry.item]), found,
             costs.map(key => [key, game.currencies[key] || 0]), !!game.woodsmanBuildLock, bookOpen, stumpBox.rollCap(game),
-            revealed.map(recipe => recipe.id), currentResult()?.outputs]);
+            revealed.map(recipe => recipe.id), currentResult()?.outputs, quickFillRecipes().map(recipe => recipe.id)]);
     }
 
     // ── 재료 고르기 ─────────────────────────────────────────
@@ -280,7 +296,7 @@ const stumpCubeUi = (() => {
     function candidateHtml(kind, item, index) {
         const name = itemName(kind, item), selected = pickerSelection?.item === item, option = firstOption(kind, item);
         return `<button type="button" class="stump-cube-candidate${selected ? ' is-selected' : ''}" data-cube-candidate="${index}"`
-            + ` onclick="stumpCubeUi.selectCubeItem(${index})" aria-pressed="${selected}" style="--cube-tone:${itemTone(kind, item)}">`
+            + ` onclick="stumpCubeUi.selectCubeItem(${index})" ondblclick="stumpCubeUi.pickCubeItem()" aria-pressed="${selected}" style="--cube-tone:${itemTone(kind, item)}">`
             + `<img src="${ICONS[kind](item)}" alt="" draggable="false"><span class="stump-cube-candidate-copy"><strong>${esc(name)}</strong>`
             + `<span class="stump-cube-candidate-meta">${statToneText.html(candidateMeta(kind, item))}</span>`
             + `${option ? `<span class="stump-cube-candidate-option">${statToneText.html(option)}</span>` : ''}</span></button>`;
@@ -329,6 +345,21 @@ const stumpCubeUi = (() => {
         if (stumpCube.takeOut(game, cell)) refreshCube();
     }
 
+    /** A stored stump item into the cube: double-clicked in storage, or dropped on a cube cell (it goes there when it fits). */
+    function putStumpItem(id, cell) {
+        const item = stumpBox.itemById(game, id);
+        const reason = item ? stumpCube.put(game, 'stump', item, cell) : '재료 상태가 바뀌었습니다. 다시 선택해 주세요.';
+        if (reason) showGameToast(reason, { tone: 'warning' });
+        refreshCube();
+        return !reason;
+    }
+
+    function quickFillCube(recipeId) {
+        const reason = stumpCube.fillCubeRecipe(game, recipeId);
+        if (reason) showGameToast(reason, { tone: 'warning' });
+        refreshCube();
+    }
+
     function transmuteCube() {
         const result = stumpCube.transmute();
         if (!result.ok) return showGameToast(result.reason, { tone: 'warning' });
@@ -353,6 +384,7 @@ const stumpCubeUi = (() => {
         refreshCube();
     }
 
-    return Object.freeze({ cubeHtml, cubeGridHtml, cubeSignature, openCubePicker, closeCubePicker, selectCubeItem, pickCubeItem, inspectCubeResult, takeOutCubeCell, transmuteCube, clearCube, toggleCubeBook });
+    return Object.freeze({ cubeHtml, cubeGridHtml, cubeSignature, openCubePicker, closeCubePicker, selectCubeItem, pickCubeItem, inspectCubeResult, takeOutCubeCell, transmuteCube, clearCube, toggleCubeBook,
+        putStumpItem, quickFillCube });
 })();
 safeExposeGlobals({ stumpCubeUi });
