@@ -151,19 +151,24 @@ const stageRoomsView = (() => {
         ctx.lineWidth = Math.max(2, p.tileH * .16);
         ctx.beginPath(); ctx.ellipse(core.x, core.y + p.tileH * .18, p.tileW * .84, p.tileH * .85, 0, 0, Math.PI * 2); ctx.stroke();
     }
-    function drawRiftMarks(ctx, breach, p) {
-        const run = game.voidRift?.grandRun;
-        const stage = getGrandBreachProgress(run?.gauge).stage;
-        const capacity = GRAND_BREACH_ENCOUNTER.arena.capacities[stage];
+    function riftWarningActive(run) {
+        const progress = getGrandBreachProgress(run?.gauge),config=GRAND_BREACH_ENCOUNTER.arena;
+        const capacity = config.capacities[progress.stage];
         const alive = game.enemies.filter(enemy => enemy.hp > 0).length;
-        const warning = run?.inRun && run.phase === 'survival' && alive < capacity
-            && run.nextRefillAt - getCombatTime() <= 650;
-        breach.riftCells.forEach(cell => {
-            const at = p.cellToScreen(cell.gx, cell.gy), radius = p.tileW * (warning ? .9 : .68);
-            ctx.strokeStyle = warning ? '#de8eff' : '#9e6ebe';
-            ctx.lineWidth = Math.max(2, p.tileH * (warning ? .2 : .13));
-            ctx.beginPath(); ctx.ellipse(at.x, at.y + p.tileH * .22, radius, p.tileH * (warning ? 1 : .75), 0, 0, Math.PI * 2); ctx.stroke();
-            ctx.fillStyle = warning ? 'rgba(199, 95, 255, .29)' : 'rgba(112, 60, 148, .15)';
+        // Announced mouths stay lit even at capacity: a last-moment kill must not create an unannounced refill.
+        const announced=!!run?.refillPlan || alive < capacity;
+        return run?.inRun && run.phase === 'survival' && !progress.complete && announced
+            && run.nextRefillAt - getCombatTime() <= config.warningMs;
+    }
+    function drawRiftMarks(ctx, breach, p) {
+        const run=game.voidRift?.grandRun,plan=run?.refillPlan,warning=riftWarningActive(run);
+        breach.riftCells.forEach((cell,index) => {
+            const active=warning && (!plan || plan.portalIndices.includes(index));
+            const at = p.cellToScreen(cell.gx, cell.gy), radius = p.tileW * (active ? .9 : .68);
+            ctx.strokeStyle = active ? '#de8eff' : '#9e6ebe';
+            ctx.lineWidth = Math.max(2, p.tileH * (active ? .2 : .13));
+            ctx.beginPath(); ctx.ellipse(at.x, at.y + p.tileH * .22, radius, p.tileH * (active ? 1 : .75), 0, 0, Math.PI * 2); ctx.stroke();
+            ctx.fillStyle = active ? 'rgba(199, 95, 255, .29)' : 'rgba(112, 60, 148, .15)';
             ctx.fillRect(at.x - p.tileW * .4, at.y - p.tileH * .35, p.tileW * .8, p.tileH * .7);
         });
     }

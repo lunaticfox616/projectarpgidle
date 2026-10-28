@@ -1150,7 +1150,7 @@ function drawCombatTravelFx(ctx, fx, now, gridProj, playerPos, enemyPosMap) {
     if (fx.delivery === 'magicCell') {
         fx.screenSource = source;
         fx.screenAim = getCombatTravelScreenPos(gridProj, fx.aimCell, targets[0]);
-        fx.screenFootprint = projectSkillFootprint(fx.attackFootprint, gridProj);
+        fx.screenFootprint = projectSkillFootprint(enemyProjectileSprites.groundArea(fx), gridProj);
         if (fx.patternKind === 'radialBurst') fx.screenRadius = getRadialBurstScreenRadius(fx, gridProj);
         drawFootprintCombatCell(ctx, fx, { now, arriveAt, targets, imageKey, element, playerPoint: playerPos });
     }
@@ -1160,6 +1160,7 @@ function drawCombatTravelFx(ctx, fx, now, gridProj, playerPos, enemyPosMap) {
 /** Ground spells belong below actors; vertical fire remains in the foreground. */
 function isGroundSkillCast(fx) {
     if (fx.type !== 'combatTravel' || fx.delivery !== 'magicCell') return false;
+    if (enemyProjectileSprites.isGround(fx)) return true;
     if ([10, 28, 29, 32].includes(SKILL_FX_ATLAS[fx.skillName]?.id)) return true;
     let profile = getSkillGemVfxProfile(fx.skillName);
     return ['gravity', 'erosion', 'decay', 'resonance', 'mine'].includes(profile?.signature);
@@ -1195,6 +1196,7 @@ function drawFootprintCombatCell(ctx, fx, view) {
     let { now, arriveAt, targets, imageKey, element } = view;
     let footprint = fx.screenFootprint;
     if (!footprint) return drawCombatCellFx(ctx, fx, now, arriveAt, targets, imageKey, element);
+    if (enemyProjectileSprites.isGround(fx)) return enemyProjectileSprites.drawGround(ctx, fx, footprint, view);
     if (fx.patternKind === 'earthSpikes') return drawEarthSpikeField(ctx, footprint, { now, arriveAt, start: fx.start, end: fx.start + fx.duration, playerPoint: view.playerPoint }, { spike: getSkillGemVfxImage('skillFxEarthSpike'), crack: getSkillGemVfxImage('skillFxEarthCrack') });
     ctx.save();
     let fade = clampNumber((fx.start + fx.duration - now) / 180, 0, 1);

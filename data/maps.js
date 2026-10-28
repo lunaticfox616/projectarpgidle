@@ -79,8 +79,13 @@ const GRAND_BREACH_ENCOUNTER = Object.freeze({
     portals: Object.freeze([{gx:0,gy:1}, {gx:8,gy:1}, {gx:4,gy:7}]),
     capacities: Object.freeze([16,24,32]),
     // The stage arena has nearly three times the walkable floor of a standard stage room.
-    arena: Object.freeze({intervalMs: 900, openingPack: 24, refillPack: 10, eliteLimit: 6,
-        spawnRadius: 3, capacities: Object.freeze([30,36,40])})
+    arena: Object.freeze({intervalMs: 900, warningMs: 650, openingPack: 24, refillPack: 10, eliteLimit: 6,
+        spawnRadius: 3, capacities: Object.freeze([30,36,40]),
+        // Stage rifts: left-top, left-bottom, top-middle, right-top, right-bottom, bottom-middle.
+        // Progress thirds change the approach: neighbouring mouths, opposite sides, then a rotating pair.
+        portalPairs: Object.freeze([
+            [[0,1],[2,3],[4,5]], [[0,4],[1,3],[2,5]], [[0,2],[2,3],[3,4],[4,5],[5,1],[1,0]]
+        ].map(pairs=>Object.freeze(pairs.map(Object.freeze))))})
 });
 
 // 운석 낙하 지점: 루프 7에서 액트 7에 닿으면 하늘 균열 게이지가 차기 시작한다.

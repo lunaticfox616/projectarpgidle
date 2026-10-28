@@ -74,6 +74,28 @@ const enemyAttackRules = (() => {
         return lengthSq ? clampNumber(projection/lengthSq,enter,leave) : 1;
     }
 
+    /** Only the few cells between a long melee strike's endpoints; corner-only contacts follow projectile geometry. */
+    function openMeleeLine(source, end, terrain) {
+        for (let gy = Math.min(source.gy,end.gy); gy <= Math.max(source.gy,end.gy); gy++) {
+            for (let gx = Math.min(source.gx,end.gx); gx <= Math.max(source.gx,end.gx); gx++) {
+                if (terrain.mask[gy*terrain.map.columns+gx]) continue;
+                if (cellProgress(source,end,{gx,gy}) !== null) return false;
+            }
+        }
+        return true;
+    }
+
+    /** Long normal melee cannot reach through a wall or sealed gate; any in-range pair of occupied body cells may connect. */
+    function meleeReach(enemy, target) {
+        if (enemy.isBoss || enemy.attackKind !== 'melee' || enemy.attackRange <= 1) return true;
+        const terrain = getGridPlacementTerrain();
+        if (!terrain.map.tiles) return true;
+        terrain.mask = gridWalkMask(terrain.map,terrain.sealed);
+        const targets = getGridUnitCells(target);
+        return getGridUnitCells(enemy).some(source => targets.some(end =>
+            gridChebyshevDist(source.gx,source.gy,end.gx,end.gy) <= enemy.attackRange && openMeleeLine(source,end,terrain)));
+    }
+
     function flightCells(source, end) {
         const cells = [], size = getCombatGridSize();
         for (let gy=0;gy<size.rows;gy++) {
@@ -99,7 +121,15 @@ const enemyAttackRules = (() => {
         if (Number.isFinite(attack.bossPattern?.castStartedAt)) attack.castStartAt = attack.bossPattern.castStartedAt;
         enemy.attackCast = attack.delivery === 'patternArea' ? {startAt:attack.castStartAt,finishAt:attack.at,
             isSpecial:attack.bossPattern.isSpecial !== false,label:attack.bossPattern.label} : null;
-        if (attack.delivery !== 'projectileCell') return {duration};
+        if (attack.delivery !== 'projectileCell') {
+            const role = MONSTER_COMBAT_ROLES.of(enemy);
+            if (attack.delivery === 'magicCell' && role?.flightMs) {
+                duration = Math.max(duration, role.flightMs);
+                attack.at = getCombatTime() + duration;
+                attack.groundCell = true; // Transient rendering marker: this authored shot warns exactly its one impact tile.
+            }
+            return {duration};
+        }
         attack.targetCell = flightEnd(attack.sourceCell,attack.targetCell,enemy.projectileToEdge);
         let cells = flightCells(attack.sourceCell,attack.targetCell);
         if (!cells.length) cells = [{...attack.targetCell,progress:1}];
@@ -199,6 +229,6 @@ const enemyAttackRules = (() => {
         return special && pattern.label ? `${enemy.name} (${pattern.label})` : enemy.name;
     }
 
-    return {delivery,impactTargets,trajectory,advanceFlight,interrupt,cancelPending,ready,castBar,damageName};
+    return {delivery,impactTargets,trajectory,advanceFlight,interrupt,cancelPending,ready,castBar,damageName,meleeReach};
 })();
 safeExposeGlobals({enemyAttackRules});

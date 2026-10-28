@@ -84,11 +84,25 @@ const monsterActors = (() => {
      * so it fell back to idle before), trembling a dot at the end. null → not winding up. */
     function windUp(enemy, moving, now) {
         if (moving) return null;
-        const warning = enemy.isBoss ? bossAttackView.warningShare(enemy) : null;
+        if (enemy.isBoss) return bossWindUp(enemy, now);
+        return castWindUp(enemy) || gaugeWindUp(enemy);
+    }
+    function bossWindUp(enemy, now) {
+        const warning = bossAttackView.warningShare(enemy);
         if (warning !== null) return { share: Math.min(0.999, warning), bob: warning > 0.6 ? Math.floor(now / 70) % 2 : 0 };
-        if (enemy.isBoss && enemy.nextPatternState?.isSpecial) return null; // A slow special winds up only once its warning starts.
+        if (enemy.nextPatternState?.isSpecial) return null; // A slow special winds up only once its warning starts.
+        return gaugeWindUp(enemy);
+    }
+    function gaugeWindUp(enemy) {
         const gauge = Number(enemy.attackTimer);
         return gauge >= WIND_UP_FROM && gauge < 1 ? { share: (gauge - WIND_UP_FROM) / (1 - WIND_UP_FROM), bob: 0 } : null;
+    }
+    /** Normal aimed attacks hold their preparation while their gauge waits at 1; the simulation clock owns release. */
+    function castWindUp(enemy) {
+        const cast = enemy.attackCast;
+        if (!cast || enemy.isBoss) return null;
+        const share = (getCombatTime() - cast.startAt) / Math.max(1,cast.finishAt - cast.startAt);
+        return { share: clampNumber(share,0,0.999), bob: 0 };
     }
     /** { clip: 'attack', index, bob } while the strike (on the hit or release) or its wind-up (the gauge's last fifth) shows,
      * else null. kind = { attackMs, impactFrame }: a sheet kind, or a roster actor (js/canvas-stage-roster.js). */

@@ -519,6 +519,25 @@ function normalizeGrandBreachCounters(run) {
     // Combat-clock deadline of the survival phase; a broken one is set again (full time) on the next tick
     if (!Number.isFinite(run.survivalEndsAt)) delete run.survivalEndsAt;
 }
+/** A wave's announced mouths and clock survive a reload together. Old or damaged plans fall back to one bounded old-style refill. */
+function normalizeGrandBreachRefillPlan(run) {
+    if (!Number.isFinite(run.nextRefillAt) || run.nextRefillAt < 0) run.nextRefillAt=0;
+    const plan=run.refillPlan;
+    if (!run.inRun || run.phase!=='survival' || getGrandBreachProgress(run.gauge).complete
+        || !isSavedGrandBreachRefillPlan(plan,run.nextRefillAt)) {
+        delete run.refillPlan;
+        return;
+    }
+    run.refillPlan={portalIndices:[...plan.portalIndices],at:plan.at,turn:plan.turn};
+}
+function isSavedGrandBreachRefillPlan(plan, at) {
+    return !!plan && Number.isFinite(plan.at) && plan.at===at && Number.isSafeInteger(plan.turn) && plan.turn>=0
+        && isSavedGrandBreachPortalPair(plan.portalIndices);
+}
+function isSavedGrandBreachPortalPair(indices) {
+    return Array.isArray(indices) && indices.length===2 && indices[0]!==indices[1]
+        && indices.every(index=>Number.isInteger(index) && index>=0 && index<6);
+}
 /** Save boundary: an absent/invalid old receipt is unknown, never an inferred payout. */
 function normalizeVoidRiftSave(state) {
     state.voidRift = (state.voidRift && typeof state.voidRift === 'object') ? state.voidRift : {};
@@ -527,6 +546,7 @@ function normalizeVoidRiftSave(state) {
     if (!run || typeof run !== 'object') return;
     run.survivalStarted = wasGrandBreachSurvivalStarted(run);
     normalizeGrandBreachCounters(run);
+    normalizeGrandBreachRefillPlan(run);
     delete run.timeLeft;
     delete run.lastTickAt;
     const paid = run.rewardVoidChisel;

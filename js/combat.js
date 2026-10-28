@@ -8849,7 +8849,29 @@ const explorationPackFormation=(()=>{
     }
     /** 그 방의 무리가 설 수(자리를 따로 정하는 쪽이 쓴다: stageRoomArranger). */
     const count=(zone,encounter,shape)=>roomCount(zone,null,encounter,shape||{});
-    return {prepare,plan,spots,around,count};
+    /** 보통 무리는 두 종을 중심으로 전열·지원 비중이 다르다. 희귀 위습/무기 뿌리 굴림과 별도 콘텐츠 배역은 그대로다. */
+    function rosterPair(zone,seed) {
+        const pool=getActMonsterPool(zone);
+        const melee=pool.filter(id=>getMonsterVisualAttackKind(id)==='melee'),ranged=pool.filter(id=>getMonsterVisualAttackKind(id)==='ranged');
+        const front=melee.length?melee:pool,back=ranged.length?ranged:pool;
+        return [front[seed%front.length],back[Math.floor(seed/7)%back.length]];
+    }
+    function roster(zone,stage,encounter,shape,formation) {
+        if(stage!==null || encounter || formation?.cast || formation?.rescue)return [];
+        if(!['act','abyss','atlasMap'].includes(zone.type) || getRealmMonsterVisualSet(zone))return [];
+        const seed=Math.abs(hashSeed(`${zone.atlasSeed || zone.id}:${shape.key}:roster`)),pair=rosterPair(zone,seed);
+        const pattern=[[0,0,1],[0,0,1],[0,0,0,1],[0,1,1]][seed%4];
+        return shape.cells.map((_,index)=>pair[pattern[index%pattern.length]]);
+    }
+    /** 이미 확보한 칸의 주인만 바꾼다. 몬스터 수, 칸 점유, 무리의 열쇠와 목록 순서를 바꾸지 않는다. */
+    function placeRanks(waiting,formation) {
+        if(!formation?.front || formation.cast || formation.rescue)return;
+        const front=formation.front,depth=cell=>Math.abs(cell.gx-front.gx)+Math.abs(cell.gy-front.gy);
+        const cells=waiting.map(({gx,gy})=>({gx,gy})).sort((a,b)=>depth(a)-depth(b));
+        const rank=enemy=>enemy.attackKind==='ranged'?10+enemy.attackRange:-enemy.attackRange;
+        [...waiting].sort((a,b)=>rank(a)-rank(b)).forEach((enemy,index)=>Object.assign(enemy,cells[index]));
+    }
+    return {prepare,plan,spots,around,count,roster,placeRanks};
 })();
 /** encounter: an atlas content room (js/atlas-encounters.js) — elite-led, larger and tuned, rewarding when emptied. */
 const explorationPackKey=(room,stage)=>room.id+':'+(stage===null?'pack':stage);
@@ -8870,19 +8892,27 @@ function createExplorationPackEnemy(zone,marker,index,role) {
     if(role)role.dress(enemy);
     return enemy;
 }
+/** 콘텐츠 외형을 최종 확정한 뒤 그 몸에 맞는 공격 방식을 적용한다. 수치 보정은 한 번만 한다. */
+function tuneExplorationEncounterEnemy(enemy,encounter,zone) {
+    if(!encounter)return;
+    atlasEncounters.tuneEnemy(enemy,encounter,zone);
+    if(atlasEncounters.hasOwnLook(encounter))assignEnemyGridCombatProfile(enemy);
+}
 function createActExplorationPack(zone,room,stage,encounter=null,formation=null) {
     const shape=explorationPackFormation.prepare(zone,room,stage,encounter,formation),{key,at,cells,elite}=shape,waiting=[];
     const cast=(formation && formation.cast) || [];
+    const roster=explorationPackFormation.roster(zone,stage,encounter,shape,formation);
     cells.forEach((cell,index)=>{
-        const marker={at,count:1,boss:stage!==null,elite:elite && index===0,storyStage:stage,ownLook:atlasEncounters.hasOwnLook(encounter)};
+        const marker={at,count:1,boss:stage!==null,elite:elite && index===0,storyStage:stage,ownLook:atlasEncounters.hasOwnLook(encounter),packVisualId:roster[index]};
         const enemy=createExplorationPackEnemy(zone,marker,index,cast[index]);
-        if(encounter)atlasEncounters.tuneEnemy(enemy,encounter,zone);
+        tuneExplorationEncounterEnemy(enemy,encounter,zone);
         if(stage!==null && zone.atlasStages)atlasEndgame.tuneStage(enemy,zone,stage);
         if(stage!==null && zone.memoryTier)memoryDungeon.tuneBoss(enemy,zone.memoryTier);
         if(stage!==null && typeof bossVariants==='object')bossVariants.dress(enemy);
         Object.assign(enemy,cell,{gridMoveTimer:0,regenBank:0,spawnStamp:0,explorationPack:key});
         waiting.push(enemy);
     });
+    explorationPackFormation.placeRanks(waiting,formation);
     const pack={key,roomId:room.id,stage,waiting,aliveIds:waiting.map(enemy=>enemy.id),eliteIds:waiting.filter(enemy=>enemy.isElite).map(enemy=>enemy.id)};
     markExplorationPackShape(pack,encounter,shape,formation);
     markExplorationAlertPack(pack);
@@ -9243,6 +9273,13 @@ function placeBeehiveRoomWave(run,enemies,step,isBoss) {
     const room=map.rooms.find(row=>row.id===roomId),pack=run.packs.find(row=>row.roomId===roomId);
     const cells=explorationPackFormation.spots(room,enemies.length);
     enemies.forEach((enemy,index)=>Object.assign(enemy,cells[index],{gridMoveTimer:0,regenBank:0,spawnStamp:0,explorationPack:pack.key}));
+    if(!isBoss) {
+        const entry=stageRoomArranger.forMap(map).front(room),flank=[0,-1,1][(step-1)%3];
+        const dx=entry.gx-room.gx,dy=entry.gy-room.gy;
+        const [fx,fy]=Math.abs(dx)>=Math.abs(dy)?[Math.sign(dx),0]:[0,Math.sign(dy)];
+        // A ranking anchor, never a spawn cell: alternate the rear flank without moving or adding any occupied tile.
+        explorationPackFormation.placeRanks(enemies,{front:{gx:room.gx+3*(fx-fy*flank),gy:room.gy+3*(fy+fx*flank)}});
+    }
     Object.assign(pack,{waiting:enemies,aliveIds:enemies.map(enemy=>enemy.id),eliteIds:enemies.filter(enemy=>enemy.isElite).map(enemy=>enemy.id)});
     if(isBoss)placeExplorationBoss(map,room,pack);
 }
@@ -9349,14 +9386,18 @@ const stageRoomArranger=(()=>{
     function forMap(map) {
         const states=new Map();
         const stateOf=room=>states.get(room.id) || states.set(room.id,openRoom(map,room)).get(room.id);
-        return {cells:(room,slot,count)=>(map.stage?packCells(stateOf(room),slot,count):null)};
+        return {cells:(room,slot,count)=>(map.stage?packCells(stateOf(room),slot,count):null),front:room=>approach(map,room)};
+    }
+    /** 입구로 돌아가는 문을 전열 기준으로 삼는다. 새 경로 탐색 없이 지도의 기존 hops를 사용한다. */
+    function approach(map,room) {
+        return map.hops[room.index][map.entry.index]?.landing || map.entry;
     }
     return {forMap};
 })();
 /** 방의 원래 무리가 설 자리: 방 단위 무대에서는 그 방의 자리 묶음을 따른다(stageRoomArranger). 이어진 지도에서는 전의 자리 그대로다. */
 function arrangedRoomFormation(arranger,zone,room,encounter,formation) {
     const cells=arranger.cells(room,0,explorationPackFormation.count(zone,encounter,formation));
-    return cells ? {...formation,cells} : formation;
+    return cells ? {...formation,cells,front:arranger.front(room)} : formation;
 }
 
 /** Packs beside the one each room has: the quiet-road group, and on a room-by-room stage the packs added to every room. */
@@ -9375,7 +9416,7 @@ function createStageExtraPacks(zone,map,arranger,keep) {
         const more=rule.always+(Math.random()<rule.chance?1:0);
         // 자리는 그 방의 자리 묶음에서(2026-10-13 밤부터: 전에는 늘 방 가운데의 양옆이었다)
         for(let extra=1;extra<=more;extra++) {
-            packs.push(createActExplorationPack(zone,room,null,null,{extra,cells:arranger.cells(room,extra,explorationPackFormation.count(zone,null,{extra}))}));
+            packs.push(createActExplorationPack(zone,room,null,null,{extra,cells:arranger.cells(room,extra,explorationPackFormation.count(zone,null,{extra})),front:arranger.front(room)}));
         }
     }
     return packs;
@@ -9607,6 +9648,8 @@ function runReturnRules(pStats, now = getCombatTime()) {
 
 function ensureEncounterRun() {
     if(actExplorationState.current(game))return;
+    // Board-mode hive choices and waves own their empty progress plan. Reconcile stale flags before keeping a live run.
+    if(game.currentZoneId==='beehive_run' && isBeehiveRunLockedForMapTravel())return;
     if(game.combatHalted && isSkyTowerAtRewardLimit(getZone(game.currentZoneId))) {
         prepareActExplorationArrival();
         return;
@@ -9847,9 +9890,21 @@ function deployGrandBreachWave(zone, deployment, config, alive, count) {
         elites += Number(elite);
     }
 }
+/** The next arena wave keeps its two announced mouths until release, even across a gauge-stage boundary.
+ * First entries and old saves without a plan use their existing all-mouth wave once. The old three-room route has no plan. */
+function planGrandBreachRefill(run, battlefield, previous) {
+    if (!battlefield?.singleRoom) { delete run.refillPlan; return; }
+    const pairs=GRAND_BREACH_ENCOUNTER.arena.portalPairs[getGrandBreachProgress(run.gauge).stage];
+    const turn=previous && previous.turn < Number.MAX_SAFE_INTEGER ? previous.turn+1 : 0;
+    run.refillPlan={portalIndices:[...pairs[turn%pairs.length]],at:run.nextRefillAt,turn};
+}
+function grandBreachWaveDeployment(battlefield, plan, radius) {
+    const portals=battlefield?.portals || GRAND_BREACH_ENCOUNTER.portals;
+    return {portals:plan ? plan.portalIndices.map(index=>portals[index]) : portals,arena:battlefield?.arena,radius};
+}
 /** Append one bounded pack. Missed refill intervals are not replayed as a burst.
  * @param {ReturnType<typeof getZone>} zone
- * @param {{kills:number,nextRefillAt?:number}} run Kills and next combat-clock refill time; mutated in place.
+ * @param {{kills:number,nextRefillAt?:number,refillPlan?:{portalIndices:number[],at:number,turn:number}}} run Combat-clock wave plan; mutated in place.
  * @param {number} now Combat clock milliseconds.
  * @param {?object} battlefield 단일 아레나 또는 구 저장의 전투 공간. 판 전투면 null.
  */
@@ -9857,12 +9912,13 @@ function refillGrandBreachWave(zone, run, now, battlefield) {
     if (!grandBreachRefillReady(run,now)) return;
     const config = battlefield?.singleRoom ? GRAND_BREACH_ENCOUNTER.arena : GRAND_BREACH_ENCOUNTER;
     const alive = game.enemies.filter(e => e.hp > 0);
-    run.nextRefillAt = now + config.intervalMs;
     const count = grandBreachWaveSize(run, config, alive);
-    if (count <= 0) return;
-    const deployment={portals:battlefield?.portals || GRAND_BREACH_ENCOUNTER.portals,
-        arena:battlefield?.arena,radius:config.spawnRadius};
-    deployGrandBreachWave(zone,deployment,config,alive,count);
+    const plan=battlefield?.singleRoom ? run.refillPlan : null;
+    const deployment=grandBreachWaveDeployment(battlefield,plan,config.spawnRadius);
+    if (count > 0) deployGrandBreachWave(zone,deployment,config,alive,count);
+    // Saturated or blocked waves expire too: no spawn debt, and the warning is inside the same 900 ms interval.
+    run.nextRefillAt = now + config.intervalMs;
+    planGrandBreachRefill(run,battlefield,plan);
 }
 function grandBreachRefillReady(run,now) {
     return run.phase==='survival' && !getGrandBreachProgress(run.gauge).complete && now>=(run.nextRefillAt||0);
@@ -9874,6 +9930,7 @@ function grandBreachSurvivalReady(run, battlefield) {
     return run.survivalStarted;
 }
 function summonGrandBreachLord(zone, run, battlefield) {
+    delete run.refillPlan;
     const boss=createEnemy(zone,{boss:true,count:1},0),soul=Math.max(0,Math.floor(run.kills||0));
     tuneGrandBreachLord(boss,soul);
     if(battlefield)placeGrandBreachBoss(battlefield,boss);
@@ -9888,6 +9945,7 @@ function grandBreachTimeUp(run, now) {
 }
 /** The lord was not called in time: the attempt fails as a defeat does (its held loot is lost), without a death or its penalty. */
 function failGrandBreachTimeUp(zone) {
+    delete game.voidRift.grandRun.refillPlan;
     actExplorationProgress.defeat(game);
     defeatInGrandBreach(zone, `⌛ ${GRAND_BREACH_ENCOUNTER.survivalLimitSeconds / 60}분 안에 균열 군주를 부르지 못해 대균열이 닫혔습니다.`, {}, { say: addLog });
     actExplorationProgress.depart(game);
@@ -9899,6 +9957,7 @@ function failGrandBreachTimeUp(zone) {
 function tickGrandBreachRun(zone) {
     let v = game.voidRift || (game.voidRift = { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0 });
     let g = v.grandRun;
+    if (g && (g.phase!=='survival' || !g.inRun)) delete g.refillPlan;
     if (!g || !g.inRun) return;
     let now = getCombatTime();
     const battlefield = getGrandBreachArena(zone);
@@ -13546,7 +13605,7 @@ function isEnemyInGridAttackRange(enemy, target) {
     target = target || game.gridPlayer;
     if (!hasGridCell(enemy) || !hasGridCell(target)) return true;
     let range = Number.isFinite(enemy.attackRange) ? enemy.attackRange : COMBAT_GRID_CONFIG.bossAttackRange;
-    return getGridUnitDistance(enemy, target) <= range;
+    return getGridUnitDistance(enemy, target) <= range && enemyAttackRules.meleeReach(enemy, target);
 }
 
 /** 사거리 밖에서도 그 자리에서 쓰는 공격인가: 보스의 다음 공격이 예고하는 특수기이고 대상이 BOSS_REACH.castRange칸 안일 때.
@@ -13821,7 +13880,7 @@ function performMonsterAttacks(pStats) {
         if (!attackTarget) continue;
         // 그리드 사거리 밖이면 공격 대신 선택한 목표에게 접근한다(냉각/둔화는 이동도 늦춘다).
         // 공격 게이지는 1회분까지만 유지해 도착 직후 바로 공격하게 한다.
-        if (!pendingAttack && !enemy.patternArea && !canEnemyAttackFromHere(enemy, attackTarget)) {
+        if (!pendingAttack && !enemy.patternArea && !enemy.attackCast && !canEnemyAttackFromHere(enemy, attackTarget)) {
             advanceEnemyGridApproach(enemy, attackTarget, chillSlow);
             enemy.attackTimer = Math.min(Number(enemy.attackTimer) || 0, 1);
             continue;

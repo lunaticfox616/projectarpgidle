@@ -1,0 +1,45 @@
+/** Species fighting roles. Distances are grid cells, stepSec is seconds and castMs/flightMs are milliseconds.
+ * These change movement and delivery only: damage, life, rewards and boss/content tuning keep their owners.
+ * Existing enemies keep their saved attack profile; movement reads the same species rule as the drawn stride.
+ */
+const MONSTER_COMBAT_ROLES = (() => {
+    const profiles = Object.freeze({
+        pursuer: Object.freeze({ stepSec: 0.4, range: 1, delivery: 'instantTarget', castMs: 0 }),
+        frontline: Object.freeze({ stepSec: 0.6, range: 2, delivery: 'instantTarget', castMs: 0 }),
+        heavy: Object.freeze({ stepSec: 0.6, range: 1, delivery: 'instantTarget', castMs: 0 }),
+        marksman: Object.freeze({ stepSec: 0.5, range: 4, delivery: 'projectileCell', castMs: 450 }),
+        piercer: Object.freeze({ stepSec: 0.5, range: 5, delivery: 'projectileCell', castMs: 450, eliteCastMs: 900, toEdge: true }),
+        bombardier: Object.freeze({ stepSec: 0.6, range: 4, delivery: 'magicCell', castMs: 650, flightMs: 900,
+            special: true, label: '집중 포격' }),
+        hiveMarksman: Object.freeze({ range: 3, delivery: 'projectileCell', castMs: 450 }),
+        hiveBombardier: Object.freeze({ range: 3, delivery: 'magicCell', castMs: 650, flightMs: 900,
+            special: true, label: '꿀주머니 투척' })
+    });
+    const byVisual = Object.freeze(Object.fromEntries([
+        ['pursuer', ['act1-ant', 'act3-ant', 'act4-ant', 'act5-ant', 'act7-crackback-tick', 'act7-husk-stag', 'atlas-canopy-leafglider', 'root-scimitar']],
+        ['frontline', ['act1-worm', 'act3-worm', 'act4-worm', 'act5-worm', 'deacon-act2-melee', 'deacon-act6-melee', 'deacon-act7-melee', 'deacon-act8-melee', 'act10-graft-beast', 'root-greatsword']],
+        ['heavy', ['act1-slime', 'act3-slime', 'act4-slime', 'act5-slime', 'atlas-garden-bonsai-snail']],
+        ['marksman', ['act8-veil-moth', 'act9-dirge-crane', 'deacon-act6-ranged', 'deacon-act7-ranged', 'root-shortbow']],
+        ['piercer', ['deacon-act2-ranged', 'deacon-act8-ranged']],
+        ['bombardier', ['act9-chorus-bulbs', 'postchaos-inverted-sapling', 'root-orb', 'root-flask']]
+    ].flatMap(([role, ids]) => ids.map(id => [id, role]))));
+    const hiveByVisual = Object.freeze({ 'hive-scout': 'hiveMarksman', 'hive-nurse': 'hiveBombardier' });
+    /** Only the hive expedition opts in: colony/atlas bees and other realms keep their own attacks and movement. */
+    function of(enemy) {
+        if (!enemy || enemy.isBoss || enemy.isSeveredWanderer) return null;
+        const visual = enemy.spriteVariantId || enemy.monsterVisualId;
+        const role = enemy.monsterVisualSetId === 'hive' ? hiveByVisual[visual]
+            : !enemy.monsterVisualSetId ? byVisual[visual] : null;
+        return profiles[role] || null;
+    }
+    /** Existing enemy attack fields only; applying this after a picture change never multiplies stats. */
+    function profile(enemy) {
+        const role = of(enemy);
+        if (!role) return null;
+        return { attackRange: role.range, attackDelivery: role.delivery, projectileToEdge: !!role.toEdge,
+            attackCastMs: enemy.isElite && role.eliteCastMs || role.castMs, attackCastSpecial: !!role.special,
+            attackLabel: role.label || (role.toEdge ? '관통 사격' : '') };
+    }
+    return Object.freeze({ profiles, byVisual, of, profile });
+})();
+safeExposeData({ MONSTER_COMBAT_ROLES });

@@ -361,11 +361,18 @@ function getWispMonsterVisualDefinition(variantSeed, element) {
     return candidates[Math.floor(seed / WISP_ENEMY_RULES.spawnOneIn) % candidates.length];
 }
 
-/** 이 지역의 일반·정예 외형 목록: 스토리 액트는 그 액트 몫, 나머지(혼돈 이후)는 부제 네 팔레트와 액트 7~10의 몬스터. */
+/** 아틀라스는 지역의 생물군을 쓴다. 위습과 무기 뿌리는 기존 희귀 등장 굴림에서만 고른다. */
+const ATLAS_MONSTER_POOLS = Object.freeze({
+    roots: Object.freeze(['act1-ant', 'act3-worm', 'act3-slime', 'postchaos-inverted-sapling']),
+    trunk: Object.freeze(['act7-husk-stag', 'act7-crackback-tick', 'act8-shroud-toad', 'postchaos-inverted-sapling']),
+    canopy: Object.freeze(['atlas-canopy-leafglider', 'act8-veil-moth', 'act9-dirge-crane']),
+    garden: Object.freeze(['atlas-garden-bonsai-snail', 'act7-husk-stag', 'act9-chorus-bulbs']),
+    sanctum: Object.freeze(['deacon-act8-melee', 'deacon-act8-ranged', 'act10-graft-beast', 'act9-chorus-bulbs'])
+});
+/** 이 지역의 일반·정예 외형 목록: 스토리 액트와 아틀라스는 지역 몫, 그 밖은 혼돈 목록. */
 function getActMonsterPool(zone) {
     const act = zone && zone.type === 'act' && Number.isInteger(Number(zone.id)) ? Number(zone.id) + 1 : 0;
-    if (zone?.atlasRegion === 'canopy') return ['atlas-canopy-leafglider', 'act8-veil-moth', 'deacon-act8-ranged'];
-    if (zone?.atlasRegion === 'garden') return ['atlas-garden-bonsai-snail', 'act7-husk-stag', 'act9-chorus-bulbs'];
+    if (ATLAS_MONSTER_POOLS[zone?.atlasRegion]) return ATLAS_MONSTER_POOLS[zone.atlasRegion];
     return ACT_MONSTER_POOLS[act] || ACT_MONSTER_POOLS.postChaos;
 }
 
@@ -389,7 +396,9 @@ function getMonsterVariantDefinition(variantSeed, element, zone, marker) {
     if (seed % WISP_ENEMY_RULES.spawnOneIn === 0) return getWispMonsterVisualDefinition(seed, element);
     const root = getRootMonsterVisualDefinition(seed);
     if (root) return root;
-    const elementOffset = element === 'fire' ? 1 : (element === 'cold' ? 2 : (element === 'light' ? 3 : (element === 'chaos' ? 4 : 0)));
+    // 무리의 일반 배역만 지정한다. 위습/무기 뿌리와 그 방어·드랍 규칙은 위의 기존 굴림을 따른다.
+    if (marker?.packVisualId) return ACT_MONSTER_VISUAL_BY_ID[marker.packVisualId];
+    const elementOffset = Math.max(0, ['phys', 'fire', 'cold', 'light', 'chaos'].indexOf(element));
     const pool = getActMonsterPool(zone);
     return ACT_MONSTER_VISUAL_BY_ID[pool[(seed + elementOffset) % pool.length]];
 }
