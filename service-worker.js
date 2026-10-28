@@ -2,39 +2,79 @@
 
 const RUNTIME_CACHE_PREFIX = 'project-arpg-runtime-';
 const RUNTIME_CACHE_NAME = `${RUNTIME_CACHE_PREFIX}v1`;
-const NETWORK_FIRST_DESTINATIONS = new Set(['document', 'script', 'style', 'worker']);
+const APP_DESTINATIONS = new Set(['document', 'script', 'style', 'worker']);
 
-function shouldRefreshFromNetwork(request) {
+/** Same-origin page, script, style and worker requests: the files whose release the page must agree on. */
+function isAppRequest(request) {
     if (request.method !== 'GET') return false;
     const url = new URL(request.url);
     if (url.origin !== self.location.origin) return false;
-    return request.mode === 'navigate' || NETWORK_FIRST_DESTINATIONS.has(request.destination);
+    return request.mode === 'navigate' || APP_DESTINATIONS.has(request.destination);
 }
 
-/** Older copies of the same file (other ?v= keys from earlier releases) go once the new one is stored. The cache kept one entry per
- * release of every script and style, so it grew by the changed files on each deploy and was never trimmed (2026-10-26). */
-async function dropOtherVersions(cache, request) {
-    for (const stored of await cache.keys(request, { ignoreSearch: true })) {
-        if (stored.url !== request.url) await cache.delete(stored);
+/** A release build names every script and style by its content (?…h=<hash>, scripts/lib/immutable-urls.js): that URL is always the
+ * same bytes, so a stored copy is served without asking the network. Until 2026-10-28 every visit downloaded all 367 scripts again
+ * (2.7MB gzipped) and the page stayed black until the last one arrived. The development tree's hand-kept ?v= keys stay network-first,
+ * and so does the page itself, whatever its query says. */
+function isImmutable(request) {
+    if (request.mode === 'navigate' || request.destination === 'document') return false;
+    return new URL(request.url).searchParams.has('h');
+}
+
+// The URL stored last for each file path, during this worker's life: the trim keeps it and drops the path's other versions.
+const latestByPath = new Map();
+let trimming = null, trimAgain = false;
+
+/** Older copies of stored files (other query keys from earlier releases) go in one pass over the cache index. The cache kept one
+ * entry per release of every script and style, so it grew by the changed files on each deploy and was never trimmed (2026-10-26).
+ * One pass per burst of stores, not one index scan per stored file: 367 scans of 450 entries after every cold load kept the cache
+ * busy for tens of seconds, and every later lookup (the next visit, an offline reload) waited behind them (2026-10-28). */
+async function trimOtherVersions(cache) {
+    for (const stored of await cache.keys()) {
+        const latest = latestByPath.get(new URL(stored.url).pathname);
+        if (latest && stored.url !== latest) await cache.delete(stored);
+    }
+}
+/** The trim in flight, or a new one; a store that lands during a trim gets one more pass after it. */
+function scheduleTrim(cache) {
+    if (trimming) { trimAgain = true; return trimming; }
+    trimming = (async () => {
+        do { trimAgain = false; await trimOtherVersions(cache); } while (trimAgain);
+    })().finally(() => { trimming = null; });
+    return trimming;
+}
+
+/** Keeps a successful response's clone and trims the file's other versions; a failed write only loses the offline copy. */
+async function store(cache, request, response) {
+    try {
+        latestByPath.set(new URL(request.url).pathname, request.url);
+        await cache.put(request, response);
+        await scheduleTrim(cache);
+    } catch (error) {
+        console.warn('[app-update] 최신 파일의 오프라인 사본을 저장하지 못했습니다.', error);
     }
 }
 
-async function fetchLatestOrCached(request) {
-    const cache = await caches.open(RUNTIME_CACHE_NAME);
+/** The stored copy of this exact URL, else the network's (which the browser HTTP cache may answer), stored in the background: the
+ * page gets the bytes as they arrive, not after the write. */
+async function cachedOrFetch(event, cache) {
+    const cached = await cache.match(event.request, { ignoreVary: true });
+    if (cached) return cached;
+    const response = await fetch(event.request);
+    if (response.ok) event.waitUntil(store(cache, event.request, response.clone()));
+    return response;
+}
+
+/** The network's copy, never the browser HTTP cache (an unkeyed file may have changed in place), stored before the page gets it so an
+ * offline reload right after a load finds every file; offline, the stored copy of this exact URL. A versioned script never falls back
+ * to a different release's bytecode. */
+async function fetchLatestOrCached(event, cache) {
     try {
-        const response = await fetch(request, { cache: 'no-store' });
-        if (response.ok) {
-            try {
-                await cache.put(request, response.clone());
-                await dropOtherVersions(cache, request);
-            } catch (error) {
-                console.warn('[app-update] 최신 파일의 오프라인 사본을 저장하지 못했습니다.', error);
-            }
-        }
+        const response = await fetch(event.request, { cache: 'no-store' });
+        if (response.ok) await store(cache, event.request, response.clone());
         return response;
     } catch (networkError) {
-        // Versioned scripts must never fall back to a different release's bytecode.
-        const cached = await cache.match(request);
+        const cached = await cache.match(event.request, { ignoreVary: true });
         if (cached) return cached;
         throw networkError;
     }
@@ -54,6 +94,9 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('fetch', event => {
-    if (!shouldRefreshFromNetwork(event.request)) return;
-    event.respondWith(fetchLatestOrCached(event.request));
+    if (!isAppRequest(event.request)) return;
+    event.respondWith((async () => {
+        const cache = await caches.open(RUNTIME_CACHE_NAME);
+        return isImmutable(event.request) ? cachedOrFetch(event, cache) : fetchLatestOrCached(event, cache);
+    })());
 });

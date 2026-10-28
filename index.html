@@ -35,6 +35,8 @@
 
     <link rel="preload" as="image" href="assets/background/title-worldtree-v1.webp">
 
+    <!-- 받는 동안의 덮개(html.app-preload)는 보통 js/main.js revealStartupScreen이 시작 화면을 그리고 글꼴이 오면 걷는다. 여기의 load는
+         스크립트가 실패한 페이지를 위한 마지막 수단이다(load는 부팅이 시작한 모든 그림까지 기다린다, 2026-10-28). -->
     <script>
     window.addEventListener('load', function revealStyledApp() {
         requestAnimationFrame(function revealAfterFirstStyledFrame() {
@@ -51,6 +53,8 @@
 <div id="canvas-tooltip"></div>
 <div id="info-tooltip"></div>
 <div id="startup-overlay" class="startup-overlay active">
+    <!-- 게임 파일을 받는 동안의 한 줄(html.app-preload인 동안만, css/document.css): 2026-10-28까지는 마지막 스크립트가 올 때까지 검은 화면이었다. -->
+    <div id="startup-preload" aria-hidden="true"><img src="assets/ui/pixel/rignin-logo-120.png" alt="" width="120" height="120"><p>게임 파일을 받는 중…</p></div>
     <div class="startup-shell">
         <div class="startup-panel hero">
             <div class="startup-hero-grid">

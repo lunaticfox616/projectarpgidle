@@ -26,6 +26,17 @@ function runForegroundExplorationFrame(nowMs) {
     advancePlayerExplorationFrame(motionNow, stats);
 }
 safeExposeGlobals({runForegroundExplorationFrame});
+/** The styled start screen (index.html html.app-preload) as soon as it is drawn and its fonts are in, so the pixel font does not swap
+ * in after it shows. Until 2026-10-28 only the head script revealed it, on `load`, which also waits for every image the boot starts
+ * (stage scenes, effect and enemy sheets: 19MB, a hundred seconds of black on a slow line). That `load` reveal stays as the fallback
+ * for a page whose scripts failed. Resolves once the screen is visible. */
+function revealStartupScreen() {
+    const fontsReady = typeof document.fonts === 'object' && document.fonts.ready ? document.fonts.ready : Promise.resolve();
+    return fontsReady.then(() => new Promise(shown => requestAnimationFrame(() => {
+        document.documentElement.classList.remove('app-preload');
+        shown();
+    })));
+}
 // Bootstrap and scheduling own orchestration; render functions remain in ui.js.
 function init() {
     if (!window.__startupFirstPaintDone) {
@@ -41,9 +52,10 @@ function init() {
             addLog(`⚠️ ${localSaveStatus.message}`, 'loot-rare');
         }
         updateCloudSaveUI();
-        setTimeout(() => {
+        // The battle sheets start only once the start screen is up, so they do not compete with its fonts (19MB on a slow line).
+        revealStartupScreen().then(() => setTimeout(() => {
             if (!document.hidden && !navigator.connection?.saveData) initBattleAssets();
-        }, 1800);
+        }, 1800));
         setTimeout(init, 0);
         return;
     }
