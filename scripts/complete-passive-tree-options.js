@@ -119,7 +119,8 @@ function convertLegacyEffects(node) {
 }
 
 function hasMeaningfulVerticalOption(node) {
-    if (node.type !== 'major' || Math.abs(Number(node.x) || 0) > 750 || Math.abs(Number(node.y) || 0) < 1200) return false;
+    // 750 and 1200 before the v23 spacing (coordinates ×1.35, scripts/rework-passive-tree-v23.js).
+    if (node.type !== 'major' || Math.abs(Number(node.x) || 0) > 1013 || Math.abs(Number(node.y) || 0) < 1620) return false;
     const mods = Array.isArray(node.mods) ? node.mods : [node.mods].filter(Boolean);
     return mods.length >= 2 && mods.some(mod => Number(mod.value) < 0 || ['additional_projectiles', 'life_leech'].includes(mod.statId));
 }
@@ -388,6 +389,6 @@ function main() {
 if (require.main === module) main();
 
 module.exports = {
-    ACTIONABLE_TYPES, completeTree, completeTreeData, formatEffect, shouldPreserveAuthoredOption,
+    ACTIONABLE_TYPES, CLASS_ID_BY_NAME, completeTree, completeTreeData, formatEffect, shouldPreserveAuthoredOption,
     stableHash, writeJson, zoneForPosition
 };

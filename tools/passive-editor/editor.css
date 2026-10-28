@@ -14,7 +14,7 @@
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
-body { display: grid; grid-template-rows: auto auto 1fr auto; background: var(--bg); color: var(--text); font: 14px/1.45 system-ui, sans-serif; }
+body { display: grid; grid-template-rows: auto auto auto 1fr auto; background: var(--bg); color: var(--text); font: 14px/1.45 system-ui, sans-serif; }
 button, input, select, textarea, .button-link { font: inherit; }
 button, .button-link {
     border: 1px solid #3a4b5e; border-radius: 7px; background: #172331; color: var(--text);
@@ -37,7 +37,9 @@ label { display: grid; gap: 4px; color: #b6c2ce; font-size: 12px; }
 .brand-block strong { color: #f1d69f; font-size: 17px; }
 .brand-block span { color: var(--muted); font-size: 12px; }
 .header-actions { display: flex; gap: 7px; }
-.editor-toolbar { padding: 8px 12px; border-bottom: 1px solid var(--line); }
+/* 문양 칸이 더해진 뒤로 한 줄에 다 들어가지 않으면 다음 줄로 내린다(단추 글이 두 줄로 깨졌다) */
+.editor-toolbar { flex-wrap: wrap; padding: 8px 12px; border-bottom: 1px solid var(--line); }
+.editor-toolbar :is(button, label, span) { white-space: nowrap; }
 .search-field { display: flex; align-items: center; gap: 7px; width: min(330px, 28vw); }
 .search-field input { min-width: 180px; }
 .compact-field { display: flex; align-items: center; gap: 6px; }
@@ -54,6 +56,20 @@ label { display: grid; gap: 4px; color: #b6c2ce; font-size: 12px; }
     border-radius: 7px; background: rgba(5, 9, 14, .78); color: #a9b8c7; font-size: 12px; pointer-events: none;
 }
 .connection-hint { left: 50%; bottom: auto; top: 12px; transform: translateX(-50%); color: #d8f1ff; border-color: #4c91b8; }
+/* 노드에 마우스를 올리면 뜨는 카드(js editor.js showNodeHover): 이름, 종류와 주제, 효과나 규칙, id */
+.node-hover-tip { position: absolute; z-index: 3; display: grid; gap: 2px; max-width: 320px; padding: 8px 10px; border: 1px solid #b58a48;
+    border-radius: 8px; background: rgba(9, 14, 21, .95); box-shadow: 0 8px 20px rgba(0, 0, 0, .5); pointer-events: none; font-size: 12px; }
+.node-hover-tip strong { color: #f1d69f; font-size: 14px; }
+.node-hover-tip small { color: var(--muted); margin-bottom: 3px; }
+.node-hover-tip span { color: var(--text); white-space: pre-line; }
+.node-hover-tip code { margin-top: 4px; color: #6f8296; font-size: 11px; }
+.field-help { display: block; margin: -2px 0 6px; color: var(--muted); font-size: 11px; line-height: 1.5; }
+.motif-choice { width: auto; max-width: 180px; padding: 6px 8px; }
+/* 구역 작업 묶음: 구역 고르기, 내보내기, 불러오기, 이 구역만 적용 */
+.toolbar-group { display: flex; align-items: center; gap: 6px; padding-left: 9px; border-left: 1px solid var(--line); }
+.area-select { width: auto; padding: 6px 8px; }
+/* 시점 회전: 단추 둘, 정면, 지금 각도(설계자와 같은 글) */
+.rotation-label { min-width: 62px; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
 
 .inspector { min-width: 0; overflow: auto; border-left: 1px solid var(--line); background: var(--panel); padding: 13px; }
 .empty-inspector { min-height: 220px; display: grid; place-content: center; text-align: center; color: var(--muted); padding: 30px; }
@@ -75,13 +91,33 @@ fieldset > label, fieldset > .two-columns { margin-bottom: 9px; }
 .effect-row { display: grid; grid-template-columns: minmax(0, 1fr) 88px 32px; gap: 6px; }
 .effect-row button { padding: 5px; color: #ffb2b9; }
 .icon-family-gallery { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin: 8px 0 10px; }
-.icon-choice { aspect-ratio: 1; padding: 0; background-color: #09111a; background-image: url('/assets/ui/passive-tree-icons-v3.webp'); background-size: 500% 400%; }
+.icon-choice { aspect-ratio: 1; padding: 0; background-color: #09111a; background-image: url('/assets/ui/passive-tree-icons-v4.png'); background-size: 500% 400%; }
 .icon-choice.selected { border-color: #e1bd72; box-shadow: 0 0 0 2px rgba(225, 189, 114, .22); }
 .custom-icon-row { display: grid; grid-template-columns: 92px 1fr; align-items: center; gap: 10px; }
 .custom-icon-preview { width: 88px; height: 88px; display: grid; place-items: center; border: 1px dashed #40536a; border-radius: 9px; color: var(--muted); background-size: contain; background-position: center; background-repeat: no-repeat; }
 .custom-icon-row > div:last-child { display: grid; gap: 7px; }
 .file-button { display: block; border: 1px solid #3a4b5e; border-radius: 7px; background: #172331; padding: 7px 10px; text-align: center; cursor: pointer; color: var(--text); }
 .file-button input { display: none; }
+.header-file-button { display: inline-flex; align-items: center; padding: 7px 11px; font-size: 14px; }
+.header-file-button:hover { border-color: #6d8da9; background: #1c2c3d; }
+/* 파일 불러오기 결과: 바꾼 옵션, 게임에 없는 옵션, 시작점과 키스톤, 검사 결과 */
+.import-report { width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 64px); border: 1px solid #b58a48; border-radius: 10px;
+    background: var(--panel); color: var(--text); padding: 16px 18px; }
+.import-report::backdrop { background: rgba(3, 6, 10, .7); }
+.import-report h2 { margin: 0 0 10px; color: #f1d69f; font-size: 16px; }
+.import-report h3 { margin: 12px 0 4px; color: var(--gold); font-size: 13px; }
+.import-report p, .import-report ul { margin: 0 0 4px; }
+.import-report ul { padding-left: 18px; }
+.import-report .is-bad { color: var(--danger); }
+.import-report .is-note { color: var(--muted); font-size: 12px; }
+.import-report form { display: flex; justify-content: flex-end; margin-top: 14px; }
+/* 함께 편집: 들어와 있는 사람(색은 캔버스의 마우스와 고른 노드 고리와 같다)과 손님의 이름 묻기 */
+.together-peers { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-right: auto; margin-left: 18px; font-size: 12px; }
+.together-label { color: var(--muted); }
+.together-peer { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px; border: 1px solid var(--peer); border-radius: 999px; color: var(--text); white-space: nowrap; }
+.together-peer::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--peer); }
+.together-join { width: min(360px, calc(100vw - 32px)); }
+.together-join form { display: grid; gap: 12px; justify-content: stretch; }
 .advanced-panel { border: 1px solid #293a4a; border-radius: 9px; padding: 10px; }
 .advanced-panel summary { cursor: pointer; color: #b7c7d6; }
 .advanced-panel p { color: var(--muted); font-size: 12px; }
@@ -101,3 +137,29 @@ code { color: #b4d8ef; }
     .header-actions { flex-wrap: wrap; }
     .tree-summary { width: 100%; margin-left: 0; }
 }
+
+/* 옵션 꾸러미: 노드의 구역, 거리 구간, 힘과 고른 꾸러미의 실제 값 */
+.node-power { margin: 0 0 8px; color: #e8d5ab; font-size: 12px; line-height: 1.5; }
+.bundle-preview { min-height: 18px; margin: 6px 0 8px; color: #b9c9d6; font-size: 12px; line-height: 1.5; }
+#weak-count { color: #ff8a7d; font-weight: 700; }
+.bundle-note { margin: 8px 0 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
+
+/* 설계자 기능(2026-10-28): 두 줄 도구 막대, 모드 단추, 오른쪽 패널(계획 영역, 찍어 보기, 여러 노드, 연결, 트리 셈과 단축키) */
+.view-toolbar { padding-top: 6px; }
+.mode-group button[aria-pressed="true"] { border-color: #e1bd72; background: #5c431f; color: #fff2cf; box-shadow: none; }
+.mode-options { display: inline-flex; align-items: center; gap: 6px; }
+.mode-options select { width: auto; padding: 6px 8px; }
+.side-panel { margin: 0 0 12px; padding: 11px; border: 1px solid #3b4b5c; border-radius: 9px; background: var(--panel-2); display: grid; gap: 8px; }
+.region-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.region-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-color: var(--region); border-radius: 999px; }
+.region-chip::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--region); }
+.region-chip small { color: var(--muted); }
+.region-chip.selected { background: #1c4c68; }
+.allocation-summary { margin: 0; color: #f1d69f; font-weight: 700; }
+.allocation-totals { margin: 0; padding: 0; list-style: none; display: grid; gap: 3px; font-size: 12px; max-height: 40vh; overflow: auto; }
+.allocation-totals li { display: flex; justify-content: space-between; gap: 10px; border-bottom: 1px solid #223142; padding: 2px 0; }
+.tree-info { margin-top: 10px; color: #b9c9d6; font-size: 12px; line-height: 1.6; text-align: left; }
+.tree-info p { margin: 0 0 6px; }
+.shortcut-list { margin: 10px 0 0; padding-left: 16px; color: var(--muted); font-size: 12px; line-height: 1.7; text-align: left; }
+kbd { padding: 0 4px; border: 1px solid #3a4b5e; border-bottom-width: 2px; border-radius: 4px; background: #0f1823; color: var(--text); font: 11px ui-monospace, Consolas, monospace; }
+.edge-ends { margin: 0 0 10px; color: var(--text); }

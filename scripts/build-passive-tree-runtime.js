@@ -5,6 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const { readTree } = require('./audit-passive-tree-source');
 const { resolvePassiveNodeName } = require('./lib/passive-tree-naming');
+const { runtimeBackgrounds } = require('./lib/passive-tree-background-motifs');
 
 const TYPE_RUNTIME = Object.freeze({
     minor: { kind: 'path', tier: 1 }, assist: { kind: 'assist', tier: 1 }, normal: { kind: 'node', tier: 2 },
@@ -40,7 +41,9 @@ function buildRuntimeTree(tree) {
     const edges = tree.edges.map(edge => runtimeEdge(edge, nodes));
     const classStarts = Object.fromEntries(Object.values(nodes).filter(node => node.startClassId)
         .map(node => [node.startClassId, node.id]));
-    return { version: 22, nodes, edges, classStarts };
+    // 노드 뒤 배경 문양(scripts/lib/passive-tree-background-motifs.js): 놓인 것이 있을 때만 쓰인 문양 그림과 함께 들어간다.
+    const backgrounds = runtimeBackgrounds(tree);
+    return { version: 22, nodes, edges, classStarts, ...(backgrounds ? { backgrounds } : {}) };
 }
 
 function writeRuntimeModule(file, runtime) {
