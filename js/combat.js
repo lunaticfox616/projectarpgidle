@@ -9159,12 +9159,33 @@ const chainRoomsOf=map=>map.route.slice(1).map(id=>map.rooms.find(room=>room.id=
 function createMarkerRoomPacks(zone,map) {
     const markers=generateEncounterPlan(zone),rooms=chainRoomsOf(map),last=rooms.length-1,groups=rooms.map(()=>[]),arranger=stageRoomArranger.forMap(map);
     markers.forEach((marker,index)=>groups[index===markers.length-1?last:Math.min(index,last-1)].push(marker));
-    return rooms.map((room,index)=>{
+    const packs=rooms.map((room,index)=>{
         if(!groups[index].length && index!==last)return emptiedExplorationPack(room);
         const enemies=groups[index].flatMap(marker=>createMarkerEnemies(zone,marker));
         // 끝 방의 무리(보스가 있으면 보스 둘레)는 방 가운데에, 그 앞의 방들은 방마다 다른 자리에 선다
         return createRoomPackOf(map,room,enemies,index===last?null:arranger.cells(room,0,enemies.length));
     });
+    if(zone.type==='meteor')mixMeteorRooms();
+    return packs;
+
+    /** 새 운석 지도의 앞 두 방만 섞는다. 모든 생성·배치 추첨 뒤 기존 개체와 칸의 소유권만 교환한다. */
+    function mixMeteorRooms() {
+        const [first,second]=packs;
+        if(first?.stage!==null || second?.stage!==null)return;
+        const guard=first.waiting.find(enemy=>enemy.monsterVisualId==='meteor-melt') || first.waiting.find(enemy=>!enemy.isElite && !enemy.isBoss);
+        const shooter=second.waiting.find(enemy=>enemy.isElite && enemy.monsterVisualId==='meteor-sentinel');
+        if(!guard || !shooter)return;
+        const guardCell={gx:guard.gx,gy:guard.gy},shooterCell={gx:shooter.gx,gy:shooter.gy};
+        first.waiting[first.waiting.indexOf(guard)]=shooter;
+        second.waiting[second.waiting.indexOf(shooter)]=guard;
+        Object.assign(shooter,guardCell,{explorationPack:first.key});
+        Object.assign(guard,shooterCell,{explorationPack:second.key});
+        [first,second].forEach((pack,index)=>{
+            pack.aliveIds=pack.waiting.map(enemy=>enemy.id);
+            pack.eliteIds=pack.waiting.filter(enemy=>enemy.isElite).map(enemy=>enemy.id);
+            explorationPackFormation.placeRanks(pack.waiting,{front:arranger.front(rooms[index])});
+        });
+    }
 }
 /** 전용 전투 지도를 걷는 콘텐츠면 그 콘텐츠가 무리를 세우는 함수, 아니면 null. */
 const ownRoomPackBuilder=zone=>(zone.exploration && (zone.exploration.chain || zone.type==='grandBreach' || zone.type==='colony')

@@ -3253,4 +3253,26 @@ for (const kind of ['nest', 'ambush']) {
   context.assignEnemyGridCombatProfile(realm);
   assert.strictEqual(context.getGridUnitStepSec(realm), cfg.enemyMoveIntervalSec, 'dedicated content keeps its own movement rules');
 }
+// A meteor sentinel moved into the first room must retain its owner and keep the boss gate shut after startup recovery.
+{
+  const runtime=buildGameRuntime();
+  for(const file of ['data/stage-room-plans.js','data/stage-regions.js','js/stage-region-fit.js','js/act-exploration-room-plans.js'])
+    vm.runInContext(fs.readFileSync(file,'utf8'),runtime,{filename:file});
+  const result=JSON.parse(JSON.stringify(vm.runInContext(`(()=>{
+    game=mergeDefaults({season:15,loopCount:14,level:100,currentZoneId:'meteor_fall_site',settings:{stageRooms:'on'}});window.game=game;
+    stageActors.available=()=>true;game.meteorSite.activeMeteorTier=20;startEncounterRun();
+    const [first,second]=game.actExploration.packs;
+    const mixed=[first,second].every(pack=>pack.waiting.some(enemy=>enemy.attackKind==='melee')&&pack.waiting.some(enemy=>enemy.attackKind==='ranged'));
+    const sentinelId=first.waiting.find(enemy=>enemy.monsterVisualId==='meteor-sentinel').id;
+    for(const pack of [first,second])actExplorationState.wake(game,[...pack.waiting]);
+    for(const enemy of [...game.enemies].filter(enemy=>enemy.id!==sentinelId)){enemy.hp=0;handleEnemyDeath(enemy,getPlayerStats());}
+    const saved=serializeSaveState(game);game=JSON.parse(saved);window.game=game;recoverRuntimeState();
+    const enemy=game.enemies.find(row=>row.id===sentinelId),run=game.actExploration;
+    const owner=enemy.explorationPack===run.packs[0].key&&run.packs[0].aliveIds.includes(enemy.id)&&run.packs[0].eliteIds.includes(enemy.id);
+    const held=actExplorationState.gateSealed(run);enemy.hp=0;handleEnemyDeath(enemy,getPlayerStats());
+    return {mixed,owner,held,opened:!actExplorationState.gateSealed(run),unpaid:game.meteorSite.entriesCleared===0};
+  })()`,runtime)));
+  assert.deepStrictEqual(result,{mixed:true,owner:true,held:true,opened:true,unpaid:true},
+    'mixed meteor rooms preserve ownership, gate progress and the boss-only encounter settlement across a save');
+}
 console.log('smoke-grid-combat passed');
