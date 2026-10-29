@@ -17,7 +17,9 @@ const MONSTER_COMBAT_ROLES = (() => {
             special: true, label: '꿀주머니 투척' }),
         oceanCarrier: Object.freeze({ stepSec: 0.7, range: 1, delivery: 'instantTarget', castMs: 0 }),
         oceanOracle: Object.freeze({ stepSec: 0.6, range: 4, delivery: 'magicCell', castMs: 650, flightMs: 900,
-            special: true, label: '수압 응집' })
+            special: true, label: '수압 응집' }),
+        riftArchiveMoth: Object.freeze({ stepSec: 0.6, range: 4, delivery: 'magicCell', castMs: 650, flightMs: 900,
+            special: true, label: '기록 파열' })
     });
     const byVisual = Object.freeze(Object.fromEntries([
         ['pursuer', ['act1-ant', 'act3-ant', 'act4-ant', 'act5-ant', 'act7-crackback-tick', 'act7-husk-stag', 'atlas-canopy-leafglider', 'root-scimitar']],
@@ -30,6 +32,7 @@ const MONSTER_COMBAT_ROLES = (() => {
     const byRealm = Object.freeze({
         hive: Object.freeze({ 'hive-scout': 'hiveMarksman', 'hive-nurse': 'hiveBombardier' }),
         sky: Object.freeze({ 'sky-harpy': 'pursuer' }),
+        riftFuture: Object.freeze({ 'rift-archive-moth': 'riftArchiveMoth' }),
         ocean: Object.freeze({ 'ocean-angler': 'pursuer', 'ocean-crab': 'frontline',
             'ocean-shell': 'oceanCarrier', 'ocean-oracle': 'oceanOracle' })
     });

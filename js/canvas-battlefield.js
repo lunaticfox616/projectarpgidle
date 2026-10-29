@@ -1684,7 +1684,10 @@ function drawBattlefieldEnemyHealthBars(ctx, layout, targetIds, tileW) {
     bossTextExclusions.length = 0;
     (layout || []).forEach(entry => {
         let enemy = entry.enemy;
-        if (!isEnemyFieldBarShown(enemy, targetIds.includes(enemy.id))) return;
+        if (!isEnemyFieldBarShown(enemy, targetIds.includes(enemy.id))) {
+            drawBossPatternLabel(ctx, entry, enemy);
+            return;
+        }
         let pct = clampNumber(enemy.hp / enemy.maxHp, 0, 1);
         let width = getEnemyFieldBarWidth(enemy, tileW);
         let x = Math.round(entry.x - width / 2);

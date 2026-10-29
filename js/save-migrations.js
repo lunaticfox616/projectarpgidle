@@ -790,6 +790,25 @@ mergeDefaults.supportRunes = (() => {
     return { migrate, finishLoadout, summon };
 })();
 
+/** Restore only valid ordinary windups. Boss pattern casts have a different shape (no targetCell).
+ * Bad windups restart from an empty gauge; never turn a broken ranged cast into an instant hit. */
+mergeDefaults.enemyCasts = function (state) {
+    // The exploration owner has already unsealed, retired and validated the saved map.
+    const map = state.actExploration ? actExplorationMap.forRun(state.actExploration) : COMBAT_GRID_CONFIG;
+    const packs = state.actExploration?.packs || [];
+    [state.enemies, ...packs.map(pack => pack.waiting)].flat().forEach(enemy => {
+        const cast = enemy.attackCast;
+        if (!cast || enemy.isBoss) return;
+        const validClock = [cast.startAt, cast.finishAt].every(at => Number.isFinite(at) && at >= 0)
+            && cast.finishAt > cast.startAt;
+        const validTarget = [[cast.targetCell?.gx, map.columns], [cast.targetCell?.gy, map.rows]]
+            .every(([cell, limit]) => Number.isInteger(cell) && cell >= 0 && cell < limit);
+        if (validClock && validTarget) return;
+        console.warn('Invalid enemy cast discarded on load:', enemy.id);
+        Object.assign(enemy, { attackCast: null, attackTimer: 0 });
+    });
+};
+
 function mergeDefaults(save) {
     function clampFiniteNumber(value, fallback, min, max) {
         let num = Number(value);
@@ -1497,6 +1516,7 @@ function mergeDefaults(save) {
         actExplorationState.validate(merged.actExploration, save.enemies || []);
         merged.actExploration.packs.forEach(pack=>{pack.waiting=pack.waiting.map(normalizeEnemyRecord);});
     }
+    mergeDefaults.enemyCasts(merged);
     let aliveEnemyIds = new Set((merged.enemies || []).map(enemy => String(enemy.id)));
     function pruneEnemyRuntimeMap(rawMap, options = {}) {
         let map = (rawMap && typeof rawMap === 'object') ? rawMap : {};
