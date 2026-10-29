@@ -301,8 +301,6 @@ const ROOT_MONSTER_VISUALS = Object.freeze([
     ['orb', '오브 뿌리촉수', 'ranged'], ['flask', '플라스크 뿌리촉수', 'ranged'], ['censer', '향로 뿌리촉수', 'melee']
 ].map(([weapon, name, attack]) => Object.freeze({ id: `root-${weapon}`, name, attack, weapon })));
 const ACT_MONSTER_VISUALS = Object.freeze([
-    // 단계 생성기가 직접 배정하며 ACT_MONSTER_POOLS에는 넣지 않는다.
-    ['cerberus-head', '케르베로스의 원소 머리', 'ranged'], ['cerberus-fang', '케르베로스의 송곳니', 'melee'],
     ['act7-crackback-tick', '균열등 진드기', 'melee'], ['act7-husk-stag', '껍질마른 사슴', 'melee'],
     ['act8-veil-moth', '장막나방', 'ranged'], ['act8-shroud-toad', '장막 두꺼비', 'melee'],
     ['act9-dirge-crane', '만가 두루미', 'ranged'], ['act9-chorus-bulbs', '합창 구근', 'ranged'],

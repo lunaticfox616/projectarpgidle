@@ -9386,55 +9386,42 @@ function countBeehiveWaveAlive() {
     return fighting+run.packs.filter(pack=>pack.stage===null || game.beehive.queenActive).reduce((sum,pack)=>sum+pack.waiting.length,0);
 }
 
-/** 케르베로스의 세 단계: 원소 머리 셋(냉기 하나, 화염 둘), 물리 머리 둘, 봉인이 풀린 본체.
- * 단계마다 마지막 하나가 보스이고 나머지는 같이 일어서는 정예 머리다. */
+/** 케르베로스의 세 단계. 머리의 기존 생명력·경험치·드랍 몫을 먼저 굴린 뒤 한 몸에 합친다. */
 const CERBERUS_STAGES=Object.freeze([
-    Object.freeze({heads:['cold','fire'],boss:'fire',name:'👿 케르베로스 머리',atk:1.7,crit:0}),
-    Object.freeze({heads:['phys'],boss:'phys',name:'👿 케르베로스 머리',atk:1.7,crit:14,headCrit:10}),
-    Object.freeze({heads:[],boss:'phys',name:'👿 케르베로스 본체',atk:2.1,crit:14,hybrid:'chaos'})
+    Object.freeze({heads:['cold','fire'],boss:'fire',atk:1.7,crit:0}),
+    Object.freeze({heads:['phys'],boss:'phys',atk:1.7,crit:14,headCrit:10}),
+    Object.freeze({heads:[],boss:'phys',atk:2.1,crit:14,hybrid:'chaos'})
 ]);
-/** 케르베로스 한 단계의 배역: 머리들(정예)과 그 단계의 보스. */
+/** 머리의 수치·보상 기록과 본체를 만든다. 정예 기록은 전투에 올리지 않고 joinCerberus가 합친다. */
 function cerberusStageCast(stage) {
     const dressCerberus=(enemy,ele,body=false)=>{
         const visual=body?'s6_beast_cerberus':ele==='phys'?'cerberus-fang':'cerberus-head';
         Object.assign(enemy,{monsterVisualId:visual,spriteVariantId:null,bossAssetKey:null,monsterVisualSetId:null,ele});
         assignEnemyGridCombatProfile(enemy);
-        // 처음 굴린 위습 방어·보상 수치는 보존하되, 머리의 공격 방식은 단계가 정한다.
-        enemy.attackKind=ele==='phys'?'melee':'ranged';
         // 근접 보스는 기존 투사체 대기 시간이 없어져 빨라지는 충전 속도를 보정한다.
         if(enemy.isBoss && enemy.attackKind==='melee')enemy.attackSpeedVar*=0.8;
     };
     const rule=CERBERUS_STAGES[stage];
     const heads=rule.heads.map((ele,i)=>({marker:{boss:false,elite:true,storyStage:null},dress:enemy=>{
-        Object.assign(enemy,{name:`👿 케르베로스 머리 ${rule.heads.length+1-i}`});
-        dressCerberus(enemy,ele);
+        Object.assign(enemy,{name:`👿 케르베로스 머리 ${rule.heads.length+1-i}`,ele});
         enemy.atkMul*=1.55;enemy.penetration+=12;enemy.critChance+=rule.headCrit||0;
     }}));
     return heads.concat({marker:{boss:true},dress:enemy=>{
-        Object.assign(enemy,{name:rule.name,ele:rule.boss,hybridElement:rule.hybrid||enemy.hybridElement});
+        Object.assign(enemy,{name:'👿 야수왕 케르베로스',ele:rule.boss,hybridElement:rule.hybrid||enemy.hybridElement});
         dressCerberus(enemy,rule.boss,stage===2);
         enemy.atkMul*=rule.atk;enemy.penetration+=18;enemy.critChance+=rule.crit;
     }});
 }
-/** 머리들이 서는 칸: 보스(방 가운데의 2×2) 앞쪽, 관문이 있는 쪽으로 세 칸 떨어진 위아래. 걸을 수 없는 칸이면 가운데 줄로 당긴다. */
-function cerberusHeadCells(map,room,count) {
-    const side=Math.sign(map.gate.gx-room.gx)||-1,forward=map.gate.gx!==room.gx;
-    return [-2,2].slice(0,count).map(offset=>{
-        const cell=forward?{gx:room.gx+side*3,gy:room.gy+offset}:{gx:room.gx+offset,gy:room.gy+(Math.sign(map.gate.gy-room.gy)||-1)*3};
-        return actExplorationMap.walkable(map,cell)?cell:{gx:Math.round((cell.gx+room.gx)/2),gy:Math.round((cell.gy+room.gy)/2)};
-    });
-}
-/** 보스 방의 한 단계. 케르베로스만 여럿이 함께 일어선다: 머리들은 제 칸에, 보스는 다른 보스처럼 방 가운데에. */
+/** 보스 방의 한 단계. 케르베로스도 몸·이동·타격 판정이 하나인 보스다. */
 function createExplorationBossStage(zone,map,room,stage) {
     // 나무꾼의 잔상: 보스 방에 서는 것은 혼돈 밖의 나무꾼으로 만든 허수아비다(판에서와 같다)
     if(zone.type==='woodsmanEcho')return placeExplorationBoss(map,room,createActExplorationPack(zone,room,stage,null,
         {cells:[{gx:room.gx,gy:room.gy}],cast:[{zone:getZone(OUTSIDE_CHAOS_ZONE_ID),marker:{at:0,boss:true},dress:dressWoodsmanEchoDummy}]}));
     if(zone.id!=='s6_beast_cerberus')return placeExplorationBoss(map,room,createActExplorationPack(zone,room,stage));
-    const cast=cerberusStageCast(stage),heads=cerberusHeadCells(map,room,cast.length-1);
-    const pack=createActExplorationPack(zone,room,stage,null,{cells:heads.concat({gx:room.gx,gy:room.gy}),cast});
-    const body=pack.waiting[pack.waiting.length-1];
-    placeExplorationBoss(map,room,{waiting:[body]});
-    return pack;
+    const cast=cerberusStageCast(stage),cells=cast.map(()=>({gx:room.gx,gy:room.gy}));
+    const pack=createActExplorationPack(zone,room,stage,null,{cells,cast});
+    actExplorationState.joinCerberus(pack,[],map);
+    return placeExplorationBoss(map,room,pack);
 }
 
 /** 방 단위 무대의 방 하나에 무리들이 서는 자리 (data/stage-view.js STAGE_ROOMS.layouts와 packShapes. 2026-10-13 밤, 검토: "추가 몹팩 위치도
@@ -10132,12 +10119,14 @@ function grantWornGemExp(gemExp, pStats) {
 
 function grantExpAndGem(enemy, pStats) {
     let gemLeveled = false;
-    let exp = getEnemyExperienceReward(enemy, pStats);
+    const experience=(kind,scale=1)=>[enemy,...(enemy.cerberusRewards||[])].reduce(
+        (sum,part)=>sum+Math.floor(getEnemyExperienceReward(part,pStats,kind)*scale),0);
+    let exp = experience('experience');
     game.exp += exp;
     // 낮은 지역에서 처치마다 쌓이던 '경험치 +0' 줄은 남기지 않는다(검토 4차).
     if (game.settings.showExpLog && exp > 0) addLog(`✨ 경험치 +${exp}`, "exp-txt");
 
-    let gemExp = Math.floor(getEnemyExperienceReward(enemy, pStats, 'gemExperience') * 0.45);
+    let gemExp = experience('gemExperience',0.45);
     for (const name of grantWornGemExp(gemExp, pStats)) {
         gemLeveled = true;
         addLog(`✨ ${SKILL_DB[name]?.isGem ? '룬' : '스킬'} [${name}] 레벨업!`, "loot-unique");
@@ -10440,7 +10429,11 @@ function grantRealmBossUniqueLoot(enemy, zone) {
 
 /** Ordinary kills grant drops now; special encounters reserve the rolled drops until their boss falls. */
 function grantEnemyLoot(enemy) {
-    return combatLootReceipts.capture(game,()=>{atlasRun.onKill(enemy);return rollLootForEnemy(enemy,addLog);});
+    return combatLootReceipts.capture(game,()=>{
+        // 한 몸의 처치에서 기존 정예 머리 몫도 한 번만 지급한다. 떨어지는 자리는 본체의 발밑이다.
+        for(const part of enemy.cerberusRewards||[])rollLootForEnemy({...part,gx:enemy.gx,gy:enemy.gy},addLog);
+        atlasRun.onKill(enemy);return rollLootForEnemy(enemy,addLog);
+    });
 }
 
 function awardEnemyLootCurrency(key,amount,source='reward') {

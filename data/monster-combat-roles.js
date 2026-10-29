@@ -5,7 +5,6 @@
  */
 const MONSTER_COMBAT_ROLES = (() => {
     const profiles = Object.freeze({
-        cerberusFang: Object.freeze({ stepSec: 0.6, range: 1, delivery: 'instantTarget', castMs: 900 }),
         pursuer: Object.freeze({ stepSec: 0.4, range: 1, delivery: 'instantTarget', castMs: 0 }),
         frontline: Object.freeze({ stepSec: 0.6, range: 2, delivery: 'instantTarget', castMs: 0 }),
         heavy: Object.freeze({ stepSec: 0.6, range: 1, delivery: 'instantTarget', castMs: 0 }),
@@ -23,11 +22,10 @@ const MONSTER_COMBAT_ROLES = (() => {
             special: true, label: '기록 파열' })
     });
     const byVisual = Object.freeze(Object.fromEntries([
-        ['cerberusFang', ['cerberus-fang']],
         ['pursuer', ['act1-ant', 'act3-ant', 'act4-ant', 'act5-ant', 'act7-crackback-tick', 'act7-husk-stag', 'atlas-canopy-leafglider', 'root-scimitar']],
         ['frontline', ['act1-worm', 'act3-worm', 'act4-worm', 'act5-worm', 'deacon-act2-melee', 'deacon-act6-melee', 'deacon-act7-melee', 'deacon-act8-melee', 'act10-graft-beast', 'root-greatsword']],
         ['heavy', ['act1-slime', 'act3-slime', 'act4-slime', 'act5-slime', 'atlas-garden-bonsai-snail']],
-        ['marksman', ['cerberus-head', 'act8-veil-moth', 'act9-dirge-crane', 'deacon-act6-ranged', 'deacon-act7-ranged', 'root-shortbow']],
+        ['marksman', ['act8-veil-moth', 'act9-dirge-crane', 'deacon-act6-ranged', 'deacon-act7-ranged', 'root-shortbow']],
         ['piercer', ['deacon-act2-ranged', 'deacon-act8-ranged']],
         ['bombardier', ['act9-chorus-bulbs', 'postchaos-inverted-sapling', 'root-orb', 'root-flask']]
     ].flatMap(([role, ids]) => ids.map(id => [id, role]))));

@@ -427,6 +427,7 @@ const actExplorationState = (() => {
     function validateEnemy(map,enemy,pack,context) {
         if(!enemy || !pack || !pack.aliveIds.includes(enemy.id) || enemy.explorationPack!==pack.key || context.records.has(enemy.id))throw Error('탐험 저장의 적 소유권이 일치하지 않습니다.');
         validateEnemyBody(map,enemy);
+        validateCerberusRewards(map,enemy,pack);
         if(!!enemy.isElite!==pack.eliteIds.includes(enemy.id))throw Error('탐험 저장의 정예 판정이 일치하지 않습니다.');
         context.records.add(enemy.id);
     }
@@ -434,6 +435,19 @@ const actExplorationState = (() => {
         if(!Number.isFinite(enemy.hp) || !Number.isFinite(enemy.maxHp) || enemy.hp<=0 || enemy.hp>enemy.maxHp)throw Error('탐험 저장의 적 생명력이 잘못되었습니다.');
         validCell(map,enemy);
         if(enemy.isBoss)validCell(map,{gx:enemy.gx+1,gy:enemy.gy+1});
+    }
+    function validateCerberusRewards(map,enemy,pack) {
+        const parts=enemy.cerberusRewards;
+        if(parts===undefined)return;
+        if(!Array.isArray(parts)||pack.stage===null||parts.length>2-pack.stage)
+            throw Error('케르베로스의 남은 보상 기록이 잘못되었습니다.');
+        const ids=new Set([enemy.id]);
+        parts.forEach(part=>{
+            if(!part||!part.isElite||part.isBoss||part.cerberusRewards!==undefined
+                ||part.explorationPack!==pack.key||ids.has(part.id))
+                throw Error('케르베로스의 남은 보상 기록이 중복되거나 잘못되었습니다.');
+            validateEnemyBody(map,part);ids.add(part.id);
+        });
     }
     /** Save boundary rejects corrupt runs rather than resetting enemies or granting their loot. */
     function validate(run,enemies) {
@@ -528,6 +542,30 @@ const actExplorationState = (() => {
         run.rotation=map.rotation;
         return true;
     }
+    /** 케르베로스 한 단계의 기록을 한 몸으로 합친다. cerberusRewards는 아직 처치하지 않은 정예의
+     * 경험치·드랍 기록(최대 둘)이며 AI나 점유 칸으로 쓰지 않는다. 남은 HP만 합쳐 저장 복원 시 회복하지 않는다. */
+    function joinCerberus(pack,enemies,map) {
+        const members=pack.waiting.concat(enemies.filter(enemy=>enemy.explorationPack===pack.key));
+        if(!members.length)return;
+        const body=members.find(enemy=>enemy.isBoss)||members[0],parts=members.filter(enemy=>enemy!==body);
+        if(parts.some(enemy=>enemy.isBoss)||parts.length>2)throw Error('케르베로스 단계의 배역이 잘못되었습니다.');
+        const removed=new Set(parts.map(enemy=>enemy.id));
+        body.hp+=parts.reduce((sum,enemy)=>sum+enemy.hp,0);
+        body.maxHp+=parts.reduce((sum,enemy)=>sum+enemy.maxHp,0);
+        if(parts.length)body.cerberusRewards=(body.cerberusRewards||[]).concat(parts);
+        fitCerberusBody(body,pack.stage,map);
+        pack.waiting=pack.waiting.filter(enemy=>!removed.has(enemy.id));
+        pack.aliveIds=pack.aliveIds.filter(id=>!removed.has(id));
+        pack.eliteIds=pack.eliteIds.filter(id=>!removed.has(id));
+        for(let i=enemies.length-1;i>=0;i--)if(removed.has(enemies[i].id))enemies.splice(i,1);
+    }
+    function fitCerberusBody(body,stage,map) {
+        Object.assign(body,{name:'👿 야수왕 케르베로스',spriteVariantId:null,bossAssetKey:null,bossVisualTint:null,
+            monsterVisualSetId:null,monsterVisualId:['cerberus-head','cerberus-fang','s6_beast_cerberus'][stage]});
+        const footprint={columns:3,rows:2};
+        const cells=getGridFootprintCells(body.gx,body.gy,footprint,map);
+        if(body.isBoss&&cells.length===6&&cells.every(cell=>actExplorationMap.walkable(map,cell)))body.footprint=footprint;
+    }
     function restore(state) {
         const run=state.actExploration;if(run===null || run===undefined)return null;
         actExplorationLoot.restore(state,run);
@@ -540,6 +578,11 @@ const actExplorationState = (() => {
             return null;
         }
         validate(run,state.enemies);validCell(actExplorationMap.forRun(run),state.gridPlayer);
+        if(run.zoneId==='s6_beast_cerberus') {
+            const map=actExplorationMap.forRun(run);
+            run.packs.filter(pack=>pack.stage!==null).forEach(pack=>joinCerberus(pack,state.enemies,map));
+            validate(run,state.enemies);
+        }
         actExplorationState.groundLoot.validate(run);
         actExplorationMotion.validate(run,state.gridPlayer,actExplorationMap.forRun(run));
         if(run.departure===undefined)run.departure=null;
@@ -558,6 +601,6 @@ const actExplorationState = (() => {
         // Older saves may be partway through the former 5.5 second presentation.
         exit.remainingMs=Math.min(exit.remainingMs,settlementMs);
     }
-    return {settlementMs,current,create,arrive,inArrivalGrace,packRooms,packPosition,sightRadius,sight,inSight,fogDistance,discover,engage,dormantNear,wake,alerted,entrance,bossRoomAt,recordDeath,retireCombat,remainingElites,gateSealed,selectDestination,markedDestination,lockOn,lockedEnemy,destination,validate,restore,dropRetired,upgradeRotation};
+    return {settlementMs,current,create,arrive,inArrivalGrace,packRooms,packPosition,sightRadius,sight,inSight,fogDistance,discover,engage,dormantNear,wake,alerted,entrance,bossRoomAt,recordDeath,retireCombat,remainingElites,gateSealed,selectDestination,markedDestination,lockOn,lockedEnemy,destination,validate,restore,joinCerberus,dropRetired,upgradeRotation};
 })();
 safeExposeGlobals({actExplorationState});
