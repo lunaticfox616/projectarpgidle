@@ -6875,7 +6875,7 @@ function getEnemyLook(zone, marker, ctx) {
     const art = getEnemyBossArt(zone, marker, isBoss, variantSeed);
     const trait = rollEnemyTrait(zone, isElite, isBoss, variantSeed);
     const realmVisualSet = typeof getRealmMonsterVisualSet === 'function' ? getRealmMonsterVisualSet(zone) : null;
-    const realmVisual = getRealmVisualFor(realmVisualSet, isBoss, isElite, variantSeed);
+    const realmVisual = getRealmVisualFor(realmVisualSet, isBoss, isElite, variantSeed, marker.packVisualId);
     const monsterVariant = !realmVisual && !isBoss && typeof getMonsterVariantDefinition === 'function'
         ? getMonsterVariantDefinition(variantSeed, enemyEle, zone, marker)
         : null;
@@ -6889,7 +6889,10 @@ function getEnemyBossArt(zone, marker, isBoss, variantSeed) {
     const bossVisualId = isBoss ? zone.bossVisualId || null : null;
     return { chaosBossVisual: bossVisualId ? null : chaosBossVisual, bossAssetKey, bossVisualId };
 }
-function getRealmVisualFor(realmVisualSet, isBoss, isElite, variantSeed) {
+/** A pack may choose a nonboss body from its own realm without changing the member's elite rank or trait roll. */
+function getRealmVisualFor(realmVisualSet, isBoss, isElite, variantSeed, packVisualId) {
+    const requested = !isBoss && realmVisualSet?.members.find(member => member.id === packVisualId && member.role !== 'boss');
+    if (requested) return requested;
     const realmVisualRole = isBoss ? 'boss' : (isElite ? 'elite' : 'normal');
     return typeof getRealmMonsterVisualDefinition === 'function' ? getRealmMonsterVisualDefinition(realmVisualSet, realmVisualRole, variantSeed) : null;
 }
@@ -7028,10 +7031,13 @@ function getEnemyResistRecord(defence, trait, abyssScale, wispDefense) {
 function getEnemyOffenceRecord(zone, mods, spawn) {
     const { trait, cosmosMods, cosmosExclusiveTrait } = mods;
     const woodsman = zone.type === 'outsideChaos';
+    const guardEscort = zone.type === 'cosmos' && zone.cosmosHabitat === 'guard' && spawn.isElite && spawn.look.realmVisual?.id === 'cosmos-ooze';
+    // Replaces the former ranged windup with slower charge, without changing movement or damage per hit.
+    const escortAttackSpeed = guardEscort ? COSMOS_ROUTE_G1.habitats.guard.escortAttackSpeed : 1;
     return {
         atkMul: enemyBonus(trait, 'atkMul', 1) * enemyBonus(cosmosMods, 'atkMul', 1) * enemyBonus(cosmosExclusiveTrait, 'atkMul', 1),
         damageMul: (zone.mapDamageMul || 1) * (woodsman ? 2 : 1) * enemyBonus(cosmosMods, 'damageMul', 1) * enemyBonus(cosmosExclusiveTrait, 'damageMul', 1) * boundaryMul(zone, 'boundaryDamageMul'),
-        attackSpeedVar: (0.85 + (((spawn.variantSeed % 11) / 10) * 0.5)) * enemyBonus(trait, 'attackSpeedVarMul', 1) * (woodsman ? 1.5 : 1) * enemyBonus(cosmosMods, 'attackSpeedMul', 1) * enemyBonus(cosmosExclusiveTrait, 'attackSpeedVarMul', 1) * boundaryMul(zone, 'boundaryAttackSpeedMul'),
+        attackSpeedVar: (0.85 + (((spawn.variantSeed % 11) / 10) * 0.5)) * enemyBonus(trait, 'attackSpeedVarMul', 1) * (woodsman ? 1.5 : 1) * enemyBonus(cosmosMods, 'attackSpeedMul', 1) * enemyBonus(cosmosExclusiveTrait, 'attackSpeedVarMul', 1) * boundaryMul(zone, 'boundaryAttackSpeedMul') * escortAttackSpeed,
         critChance: fromLoopOn(2, byEnemyRank(spawn, [16, 10, 4])) + enemyBonus(trait, 'critChanceBonus') + enemyBonus(cosmosMods, 'critChanceBonus') + enemyBonus(cosmosExclusiveTrait, 'critChanceBonus')
     };
 }
@@ -9156,9 +9162,13 @@ function countEncounterMarkers(zone) {
 /** 판의 표식 하나가 부르던 적들(spawnEncounterMarker와 같은 표식, 같은 차례로 만든다): 보스 표식은 곁의 정예들과 보스. */
 function createMarkerEnemies(zone,marker) {
     const count=marker.count||1;
-    if(!marker.boss)return Array.from({length:count},(_,index)=>createEnemy(zone,marker,index));
-    const adds=Array.from({length:count-1},(_,index)=>createEnemy(zone,{...marker,boss:false,elite:true},index));
-    return adds.concat(createEnemy(zone,{...marker,count:1,storyStage:game.killsInZone},count));
+    if(marker.boss){
+        const adds=Array.from({length:count-1},(_,index)=>createEnemy(zone,{...marker,boss:false,elite:true},index));
+        return adds.concat(createEnemy(zone,{...marker,count:1,storyStage:game.killsInZone},count));
+    }
+    const escort=zone.type==='cosmos' && zone.cosmosHabitat==='guard' && marker.elite && count===2;
+    return Array.from({length:count},(_,index)=>createEnemy(zone,
+        escort && index===0?{...marker,packVisualId:'cosmos-ooze'}:marker,index));
 }
 /** 이미 만든 적들을 방의 무리에 세운다: 보스는 방 가운데, 나머지는 그 둘레(보스가 없으면 가운데부터). 주인공이 그 방에 들어서면 덤빈다. */
 function fillRoomPack(map,room,pack,enemies,places) {
@@ -9183,12 +9193,17 @@ const chainRoomsOf=map=>map.route.slice(1).map(id=>map.rooms.find(room=>room.id=
  * 하나씩 서고, 마지막 무리는 끝 방에 선다. 방보다 무리가 많으면(STAGE_BOARD_ROOMS.chainMax) 끝 방 앞의 방에 겹쳐 선다. */
 function createMarkerRoomPacks(zone,map) {
     const markers=generateEncounterPlan(zone),rooms=chainRoomsOf(map),last=rooms.length-1,groups=rooms.map(()=>[]),arranger=stageRoomArranger.forMap(map);
+    const guard=zone.type==='cosmos' && zone.cosmosHabitat==='guard';
     markers.forEach((marker,index)=>groups[index===markers.length-1?last:Math.min(index,last-1)].push(marker));
     const packs=rooms.map((room,index)=>{
         if(!groups[index].length && index!==last)return emptiedExplorationPack(room);
         const enemies=groups[index].flatMap(marker=>createMarkerEnemies(zone,marker));
         // 끝 방의 무리(보스가 있으면 보스 둘레)는 방 가운데에, 그 앞의 방들은 방마다 다른 자리에 선다
-        return createRoomPackOf(map,room,enemies,index===last?null:arranger.cells(room,0,enemies.length));
+        const pack=createRoomPackOf(map,room,enemies,index===last?null:arranger.cells(room,0,enemies.length));
+        // Only a new two-member guard marker trades its existing cells; saved packs and boss escorts keep their placement.
+        if(guard && groups[index].length===1 && !groups[index][0].boss && groups[index][0].elite && enemies.length===2)
+            explorationPackFormation.placeRanks(enemies,{front:arranger.front(room)});
+        return pack;
     });
     if(zone.type==='meteor')mixMeteorRooms();
     if(zone.type==='oceanDepth')mixOceanRooms();
