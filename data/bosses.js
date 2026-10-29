@@ -430,7 +430,9 @@ const BOSS_REACH = Object.freeze({
         bossAct10_1: 'far', bossAct10_2: 'far', bossAct10_3: 'far', bossAct10_4: 'far', bossAct10_5: 'far'
     }),
     byVisual: Object.freeze({ 'atlas-garden-1': 'melee', 'atlas-garden-2': 'ranged', 'atlas-sanctum-4': 'ranged',
-        'atlas-sanctum-5': 'far', 'colony-boss': 'melee' }),
+        'atlas-sanctum-5': 'far', 'colony-boss': 'melee',
+        // 칼날 앞다리와 겨울 짐승의 발구르기는 붙어서 친다. 예고 특수기는 castRange를 그대로 쓴다.
+        trial_1: 'melee', trial_5: 'melee' }),
     /** 예고하는 특수기(지면 강타, 충격파 등)는 대상이 이 칸 수 안이면 사거리 밖이어도 그 자리에서 쓴다: 근접 보스에게서 달아나기만
      * 하면 아무것도 맞지 않는 싸움이 되지 않게. */
     castRange: 6,

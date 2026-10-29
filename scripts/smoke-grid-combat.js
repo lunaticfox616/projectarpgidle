@@ -339,8 +339,14 @@ const cfg = context.COMBAT_GRID_CONFIG;
     '지하계 1층을 통과할 때 사용한 중력 완화 수단은 5차 전직 시련에서도 유효해야 한다');
   assert.ok(bloomEstimate.dps >= underworldEntry.dps * 0.9 && bloomEstimate.dps <= underworldEntry.dps,
     '5차 전직 보스의 권장 DPS는 지하계 1층의 90~100% 범위여야 한다');
-  assert.ok(bloomEstimate.ehp >= underworldEntry.ehp * 0.9 && bloomEstimate.ehp <= underworldEntry.ehp,
-    '함정 압박을 고려해 5차 전직 보스의 권장 EHP는 지하계 1층보다 약간 낮아야 한다');
+  // 근접 전환 뒤 충전 속도를 낮췄다. 비행 대기를 세지 않는 기존 추정식의 90% 하한 대신 최대 한 방과 연타를 따로 지킨다.
+  assert.ok(bloomEstimate.ehp >= bloomEstimate.peakHit && bloomEstimate.ehp <= underworldEntry.ehp,
+    '5차 전직 보스의 권장 EHP는 최대 한 방 이상이며 함정 압박을 고려해 지하계 1층 이하여야 한다');
+  const fasterBloom = context.estimateMapZonePowerRequirements({ ...bloomTrial,
+    bossMods: { ...bloomTrial.bossMods, attackSpeedMul: 1 } });
+  assert.ok(fasterBloom.ehp > bloomEstimate.ehp, '더 긴 공격 간격은 연속 피격의 권장 EHP를 낮춰야 한다');
+  assert.strictEqual(fasterBloom.dps, bloomEstimate.dps, '공격 간격은 요구 DPS를 바꾸면 안 된다');
+  assert.strictEqual(fasterBloom.peakHit, bloomEstimate.peakHit, '공격 간격은 최대 한 방의 피해를 바꾸면 안 된다');
   assert.ok(bloomEstimate.peakHit >= underworldEntry.peakHit * 0.9 && bloomEstimate.peakHit <= underworldEntry.peakHit,
     '5차 전직 보스의 파쇄 강타는 지하계 1층 최대 피격량을 넘으면 안 된다');
   assert.strictEqual(bloomTrial.bossMods.patternMode, 'slam', '5차 전직 보스는 고정된 강공격 패턴을 가져야 한다');
