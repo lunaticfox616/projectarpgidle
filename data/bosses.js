@@ -433,7 +433,7 @@ const BOSS_REACH = Object.freeze({
     byVisual: Object.freeze({ 'atlas-garden-1': 'melee', 'atlas-garden-2': 'ranged', 'atlas-sanctum-4': 'ranged',
         'atlas-sanctum-5': 'far', 'colony-boss': 'melee',
         // 칼날 앞다리와 겨울 짐승의 발구르기는 붙어서 친다. 예고 특수기는 castRange를 그대로 쓴다.
-        trial_1: 'melee', trial_5: 'melee',
+        trial_1: 'melee', trial_5: 'melee', labyrinth_guardian: 'melee',
         // 불칼은 붙어서 베고, 얼음 지팡이는 주문을 쏘며, 장창은 두 칸 앞까지 찌른다.
         s2_boss_flame: 'melee', s2_boss_frost: 'ranged', s2_boss_storm: 'polearm',
         'cerberus-head': 'ranged', 'cerberus-fang': 'melee', s6_beast_cerberus: 'melee' }),
