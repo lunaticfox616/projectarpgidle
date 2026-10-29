@@ -21,7 +21,7 @@ const playerStall = (() => {
     function validPrice(price) { return Number.isSafeInteger(price) && price >= 1 && price <= rules.maxAsk; }
     function validCurrency(currency) { return rules.currencies.includes(currency); }
     function bankKey(currency) { return rules.proceedsKeys[currency]; }
-    function validClock(stall, now) { return Number.isSafeInteger(now) && now >= 0 && now >= stall.lastAt; }
+    function validClock(now) { return Number.isSafeInteger(now) && now >= 0; }
     function validSlot(slot) { return Number.isInteger(slot) && slot >= 0 && slot < rules.slots; }
     function firstEmptySlot(occupied) {
         for (let slot = 0; slot < rules.slots; slot++) if (!occupied.has(slot)) return slot;
@@ -200,14 +200,20 @@ const playerStall = (() => {
         // Discard excess absence once. Never replay the capped tail on reload.
         else if (now > end) stall.nextVisitAt = now + visitDelay(stall);
     }
+    /** The stall's clock for a request at wall time now: never behind the settlement watermark. A device clock set back (put right
+     * after running ahead, or a save from a device that ran ahead) still manages the stall at once, dated at the watermark, so nothing
+     * is backdated or replayed; visits resume when the clock reaches the watermark again. */
+    function stallClock(stall, now) { return Math.max(now, stall.lastAt); }
     function advance(owner, now) {
         const stall = owner.playerStall;
-        if (!validClock(stall, now) || owner.isBackgroundCalculation || now === stall.lastAt) return 0;
+        if (!validClock(now) || owner.isBackgroundCalculation) return 0;
+        const clock = stallClock(stall, now);
+        if (clock === stall.lastAt) return 0;
         if (!stall.lastAt || !unlocked(owner)) {
-            stall.lastAt = now; stall.nextVisitAt = stall.listings.length ? now + visitDelay(stall) : 0;
+            stall.lastAt = clock; stall.nextVisitAt = stall.listings.length ? clock + visitDelay(stall) : 0;
             return 0;
         }
-        const end = Math.min(now, stall.lastAt + rules.offlineLimitMs);
+        const end = Math.min(clock, stall.lastAt + rules.offlineLimitMs);
         const first = Math.max(stall.nextVisitAt, stall.lastAt + 1);
         const appraisals = first <= end ? appraiseListings(stall) : [];
         let paid = 0;
@@ -215,7 +221,7 @@ const playerStall = (() => {
             paid += arrival(stall, at, appraisals);
             stall.nextVisitAt = at + visitDelay(stall);
         }
-        finishVisits(stall, now, end);
+        finishVisits(stall, clock, end);
         return paid;
     }
     /** Lists bag item itemId at price. options: { slot, currency, negotiate } (a bare boolean is the old negotiate flag). */
@@ -228,13 +234,14 @@ const playerStall = (() => {
         if (stall.listings.length >= rules.slots) return { ok: false, reason: '가판대가 가득 찼습니다.' };
         const placement = listingPlacement(stall, options);
         if (!placement.available) return { ok: false, reason: '판매 재화와 진열할 빈칸을 확인해 주세요.' };
-        if (!validClock(stall, now)) return { ok: false, reason: '기기의 시간을 확인해 주세요.' };
+        if (!validClock(now)) return { ok: false, reason: '기기의 시간을 확인해 주세요.' };
+        const clock = stallClock(stall, now);
         // Visits only remove listings, so a validated empty position stays empty during this synchronous settlement.
-        advance(owner, now);
+        advance(owner, clock);
         stall.sequence++;
         owner.inventory.splice(owner.inventory.indexOf(item), 1);
-        stall.listings.push({ id: stall.sequence, item, price, currency: placement.currency, listedAt: now, priceChangedAt: now, slot: placement.slot, negotiate: placement.negotiate, offer: null });
-        if (stall.listings.length === 1) stall.nextVisitAt = now + visitDelay(stall);
+        stall.listings.push({ id: stall.sequence, item, price, currency: placement.currency, listedAt: clock, priceChangedAt: clock, slot: placement.slot, negotiate: placement.negotiate, offer: null });
+        if (stall.listings.length === 1) stall.nextVisitAt = clock + visitDelay(stall);
         return { ok: true };
     }
     /** Move only the display position: this never restarts viewing time, visits, or a pending price offer. */
@@ -265,16 +272,17 @@ const playerStall = (() => {
     }
     function reprice(owner, listingId, price, now, currency) {
         if (!canManage(owner) || !unlocked(owner)) return false;
-        if (!validPrice(price) || !validClock(owner.playerStall, now)) return false;
+        if (!validPrice(price) || !validClock(now)) return false;
         const row = owner.playerStall.listings.find(entry => entry.id === listingId);
         if (!row) return false;
         const nextCurrency = currency === undefined ? row.currency : currency;
         if (!validCurrency(nextCurrency)) return false;
-        advance(owner, now);
+        const clock = stallClock(owner.playerStall, now);
+        advance(owner, clock);
         if (!owner.playerStall.listings.includes(row)) return false;
         if (`${row.price}:${row.currency}` === `${price}:${nextCurrency}`) return true;
-        releaseOffer(owner.playerStall, row, now);
-        row.price = price; row.currency = nextCurrency; row.priceChangedAt = now;
+        releaseOffer(owner.playerStall, row, clock);
+        row.price = price; row.currency = nextCurrency; row.priceChangedAt = clock;
         return true;
     }
     /** One counter per offer. Invalid/stale actions cannot draw RNG; refusal and a final bid consume the opportunity. */
@@ -287,7 +295,7 @@ const playerStall = (() => {
         const live = actionableOffer(owner, listingId, offerId, now);
         if (!live) return { ok: false, reason: '이미 처리되었거나 기한이 지난 제안입니다.' };
         if (!Number.isSafeInteger(owner.playerStall[bankKey(live.currency)] + amount)) return { ok: false, reason: '판매 대금을 먼저 수령해 주세요.' };
-        return resolveCounter(owner.playerStall, live, amount, now);
+        return resolveCounter(owner.playerStall, live, amount, stallClock(owner.playerStall, now));
     }
     function resolveCounter(stall, row, amount, now) {
         const offer = row.offer, customer = PLAYER_STALL_CUSTOMERS[offer.customerId];
@@ -313,35 +321,38 @@ const playerStall = (() => {
     }
     /** Settle wall time once at this transaction boundary, then resolve the exact still-live proposal. */
     function actionableOffer(owner, listingId, offerId, now) {
-        if (!canManage(owner) || !unlocked(owner) || !validClock(owner.playerStall, now)) return null;
+        if (!canManage(owner) || !unlocked(owner) || !validClock(now)) return null;
         const row = owner.playerStall.listings.find(entry => entry.id === listingId);
         const offer = row?.offer;
         if (!offer || offer.id !== offerId) return null;
-        advance(owner, now);
-        return owner.playerStall.listings.includes(row) && row.offer === offer && offer.expiresAt > now ? row : null;
+        const clock = stallClock(owner.playerStall, now);
+        advance(owner, clock);
+        return owner.playerStall.listings.includes(row) && row.offer === offer && offer.expiresAt > clock ? row : null;
     }
     function acceptOffer(owner, listingId, offerId, now) {
         const row = actionableOffer(owner, listingId, offerId, now);
         if (!row) return { ok: false, reason: '이미 처리되었거나 기한이 지난 제안입니다.' };
         const offer = row.offer;
         if (offer.amount >= row.price || offer.amount > itemAppraisal.quote(row.item, row.currency).ceiling) return { ok: false, reason: '제안의 금액을 확인해 주세요.' };
-        const paid = sell(owner.playerStall, row, now, PLAYER_STALL_CUSTOMERS[offer.customerId].name, offer.amount);
+        const paid = sell(owner.playerStall, row, stallClock(owner.playerStall, now), PLAYER_STALL_CUSTOMERS[offer.customerId].name, offer.amount);
         return { ok: paid > 0, reason: paid ? `제안을 수락했습니다. 판매 대금에 ${ORB_DB[row.currency].name} ${offer.amount}개가 적립되었습니다.` : '판매 대금을 먼저 수령해 주세요.' };
     }
     function rejectOffer(owner, listingId, offerId, now) {
         const row = actionableOffer(owner, listingId, offerId, now);
         if (!row) return { ok: false, reason: '이미 처리되었거나 기한이 지난 제안입니다.' };
-        record(owner.playerStall, { at: now, currency: row.currency, customer: PLAYER_STALL_CUSTOMERS[row.offer.customerId].name,
+        const clock = stallClock(owner.playerStall, now);
+        record(owner.playerStall, { at: clock, currency: row.currency, customer: PLAYER_STALL_CUSTOMERS[row.offer.customerId].name,
             sold: false, reason: `${row.item.name}의 가격 제안을 거절했습니다.` });
-        releaseOffer(owner.playerStall, row, now);
+        releaseOffer(owner.playerStall, row, clock);
         return { ok: true, reason: '제안을 거절했습니다. 물건은 계속 진열됩니다.' };
     }
     function setNegotiation(owner, listingId, enabled, now) {
-        if (!canManage(owner) || !unlocked(owner) || !validClock(owner.playerStall, now) || typeof enabled !== 'boolean') return false;
-        advance(owner, now);
+        if (!canManage(owner) || !unlocked(owner) || !validClock(now) || typeof enabled !== 'boolean') return false;
+        const clock = stallClock(owner.playerStall, now);
+        advance(owner, clock);
         const row = owner.playerStall.listings.find(entry => entry.id === listingId);
         if (!row) return false;
-        if (!enabled) releaseOffer(owner.playerStall, row, now);
+        if (!enabled) releaseOffer(owner.playerStall, row, clock);
         row.negotiate = enabled;
         return true;
     }

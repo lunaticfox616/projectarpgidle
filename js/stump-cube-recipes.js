@@ -58,22 +58,38 @@ const stumpCubeRecipes = (() => {
         return equipmentResult(groups, item ? levelProgression.stampItem(item, levelProgression.tierLevel(tier)) : null);
     }
 
+    /** Now and then one base line of the new item turns exceptional (최고 굴림의 120%), unless it already has one. */
+    function maybeExceptional(item, chance, random) {
+        const base = item && !item.exceptionalBase && Array.isArray(item.baseStats) ? item.baseStats.filter(Boolean) : [];
+        if (base.length && random() < chance) boostExceptionalBaseLine(item, base[Math.floor(random() * base.length)]);
+    }
+
     /** 같은 고유 2: a fresh copy of that unique at the better tier, its lines rolled again, sometimes on an exceptional base line. */
     function uniqueRemake([group], state, random) {
         const gear = group[0].item, tier = topTier(items(group)), item = generateUniqueItem(tier, baseSlot(gear), gear.name, {});
-        const base = item && !item.exceptionalBase && Array.isArray(item.baseStats) ? item.baseStats.filter(Boolean) : [];
-        if (base.length && random() < STUMP_CUBE_UNIQUE_EXCEPTIONAL_CHANCE) boostExceptionalBaseLine(item, base[Math.floor(random() * base.length)]);
+        maybeExceptional(item, STUMP_CUBE_UNIQUE_EXCEPTIONAL_CHANCE, random);
         return equipmentResult([group], item ? levelProgression.stampItem(item, levelProgression.tierLevel(tier)) : null);
     }
 
-    function socketJewel([[equipment], [jewel]], state) {
+    /** 같은 베이스 희귀 3: that base as a fresh rare at their best tier, sometimes on an exceptional base line. */
+    function rareExceptional([group], state, random) {
+        const gear = group[0].item, item = makeEquipment(baseSlot(gear), topTier(items(group)), 'rare', gear.baseId);
+        maybeExceptional(item, STUMP_CUBE_RARE_EXCEPTIONAL_CHANCE, random);
+        return equipmentResult([group], item);
+    }
+
+    /** 장신구 주얼 융합(2026-10-30 사용자): one of the three jewels, at random, is fused into a new void socket; the other two are used up.
+     * A fused jewel never comes out (js/equipment-sockets.js fuse). */
+    function socketJewel([[equipment], jewels], state, random) {
         if (!equipmentSockets.openVoidSocket(equipment.item)) return { ok: false, reason: '이 장비에는 소켓을 더 뚫을 수 없습니다.' };
-        const result = equipmentSockets.insert(equipment.item, jewel.item.id, state);
+        const kept = jewels[Math.floor(random() * jewels.length)];
+        const result = equipmentSockets.insert(equipment.item, kept.item.id, state);
         if (!result.ok) {
             delete equipment.item.voidSocket;
             return result;
         }
-        return { ok: true, consumed: [], outputs: [{ kind: 'equipment', existing: equipment.item }] };
+        equipmentSockets.fuse(equipment.item);
+        return { ok: true, consumed: jewels.filter(entry => entry !== kept), outputs: [{ kind: 'equipment', existing: equipment.item }] };
     }
 
     /** The merged quality (data/stump-cube.js STUMP_CUBE_MERGE): the inputs' average + 1~10% up to the box's quality cap (130%, raised by
@@ -94,6 +110,14 @@ const stumpCubeRecipes = (() => {
 
     function stumpMerge([group], state, random) {
         return { ok: true, consumed: group, outputs: [{ kind: 'stump', spec: stumpMergeSpec(items(group), state, random) }] };
+    }
+
+    /** Two saps of one colour turn a seed or sap of another colour into theirs: quality, golden and ancient stay, growth starts over. */
+    function stumpRecolor([saps, [target]], state) {
+        const item = target.item, roll = Number(item.roll) || 1;
+        const spec = { family: item.family, color: saps[0].item.color, path: item.path, roll, overCap: roll > stumpBox.rollCap(state),
+            golden: item.golden === true, ancient: item.ancient === true };
+        return { ok: true, consumed: [...saps, target], outputs: [{ kind: 'stump', spec }] };
     }
 
     function talismanSource(group) {
@@ -128,19 +152,26 @@ const stumpCubeRecipes = (() => {
         return { ok: true, consumed: group, outputs: [{ kind: 'jewel', item: jewel }] };
     }
 
+    function coreRerollLine([[core], [amber]], state, random) {
+        if (!coreItems.rerollLine(core.item, random)) return { ok: false, reason: '다시 굴릴 수 없는 코어입니다.' };
+        return { ok: true, consumed: [amber], outputs: [{ kind: 'core', existing: core.item }] };
+    }
+
     function coreReroll([group]) {
         return { ok: true, consumed: group, outputs: [{ kind: 'core', item: coreItems.roll() }] };
     }
 
     const HANDLERS = Object.freeze({
         equip_magic_upgrade: magicUpgrade, equip_rare_tier: rareTier, equip_unique_remake: uniqueRemake, equip_unique_reroll: uniqueReroll,
-        equip_socket_jewel: socketJewel,
-        stump_merge: stumpMerge, talisman_upgrade: talismanUpgrade, talisman_reroll_line: talismanRerollLine,
-        talisman_unique_reroll: talismanUniqueReroll, jewel_fuse: jewelFuse, core_reroll: coreReroll,
+        equip_socket_jewel: socketJewel, equip_rare_exceptional: rareExceptional,
+        stump_merge: stumpMerge, stump_recolor: stumpRecolor, talisman_upgrade: talismanUpgrade, talisman_reroll_line: talismanRerollLine,
+        talisman_unique_reroll: talismanUniqueReroll, jewel_fuse: jewelFuse, core_reroll: coreReroll, core_reroll_line: coreRerollLine,
         // 호박석 기폭제(12번 루프 32): 결과는 재화(stump-cube.js STORERS.currency).
         amber_catalyst: (groups, state) => sapCatalysts.amberRecipe(groups, state),
         // 열매 기름(12번 루프 36): 결과는 재화.
-        fruit_oil: (groups, state) => gardenOils.fruitRecipe(groups, state)
+        fruit_oil: (groups, state) => gardenOils.fruitRecipe(groups, state),
+        // 기폭제 바꾸기: 결과는 재화, 비용은 조합할 때 무작위로 정한다(result.paid).
+        catalyst_exchange: (groups, state, random) => sapCatalysts.exchangeRecipe(groups, state, random)
     });
 
     function run(recipeId, groups, state = game, random = Math.random) {
@@ -169,15 +200,21 @@ const stumpCubeRecipes = (() => {
             change: '베이스 수치와 옵션 새로 굴림', note: '특출난 베이스 가능, 품질과 제작 효과 초기화' };
     }
 
+    function rareExceptionalPreview([group]) {
+        const item = group[0].item, base = BASE_ITEM_DB.find(row => row.id === item.baseId);
+        return { label: `희귀 ${base ? base.name : item.name}`, tier: topTier(items(group)), quality: 0, keep: '베이스',
+            change: '베이스 수치와 옵션 새로 굴림', note: '특출난 베이스 가능, 품질과 제작 효과 초기화' };
+    }
+
     function uniqueRerollPreview([[{ item }]]) {
         return { label: '새 고유 장비 1개', quality: 0, keep: '장비 부위',
             change: `T${topTier([item])} 기준으로 고유 종류와 옵션 새로 굴림`,
             note: '결과 티어는 고유 종류에 따라 결정, 동일 고유 가능, 품질과 제작 효과 초기화' };
     }
 
-    function socketPreview([[{ item }], [{ item: jewel }]]) {
+    function socketPreview([[{ item }]]) {
         return { label: item.name, tier: topTier([item]), quality: Math.max(0, Math.floor(Number(item.quality) || 0)),
-            keep: '장비와 기존 옵션, 품질', change: `공허 소켓에 ${jewel.name} 장착` };
+            keep: '장비와 기존 옵션, 품질', change: '세 주얼 중 하나를 공허 소켓에 융합', note: '주얼 해제 불가능' };
     }
 
     /** The usual result's quality range (average + 1~10%, to the cap), in whole percent. */
@@ -193,6 +230,13 @@ const stumpCubeRecipes = (() => {
         const marks = [list.some(item => item.golden === true) ? '황금' : '', list.some(item => item.ancient === true) ? '고대' : ''].filter(Boolean);
         return { label, quality: mergeRange(list, state), qualityCap: Math.round(stumpBox.rollCap(state) * 100),
             keep: ['색과 종류', ...marks].join(', '), change: '성장 경험치와 수확 옵션 초기화', note: '새 재료 1개로 합쳐짐' };
+    }
+
+    function recolorPreview([saps, [{ item }]], state) {
+        const color = STUMP_BOX_COLORS[saps[0].item.color].label;
+        const label = item.family === 'sap' ? `${color} 수액` : `${color} ${STUMP_BOX_STAGES[item.path].label} 씨앗`;
+        return { label, quality: Math.round((Number(item.roll) || 1) * 100), qualityCap: Math.round(stumpBox.rollCap(state) * 100),
+            keep: '품질과 종류', change: '색 바뀜, 성장 경험치와 수확 옵션 초기화' };
     }
 
     function talismanUpgradePreview([group]) {
@@ -221,13 +265,20 @@ const stumpCubeRecipes = (() => {
 
     const PREVIEWS = Object.freeze({
         equip_magic_upgrade: magicPreview, equip_rare_tier: rarePreview, equip_unique_remake: uniqueRemakePreview,
-        equip_unique_reroll: uniqueRerollPreview, equip_socket_jewel: socketPreview, stump_merge: mergePreview,
+        equip_unique_reroll: uniqueRerollPreview, equip_socket_jewel: socketPreview, equip_rare_exceptional: rareExceptionalPreview,
+        stump_merge: mergePreview, stump_recolor: recolorPreview,
         talisman_upgrade: talismanUpgradePreview, talisman_reroll_line: talismanLinePreview,
         talisman_unique_reroll: () => ({ label: '고유 부적 1개', keep: '', change: '고유 종류와 옵션 새로 굴림, 성장 초기화' }),
         jewel_fuse: jewelPreview,
         core_reroll: () => ({ label: '새 코어 1개', keep: '', change: `옵션 ${CORE_ITEM_RULES.lines}줄 새로 굴림`, note: '완전한 코어 가능' }),
+        core_reroll_line: ([[{ item }]]) => ({ label: item.name, keep: '코어와 나머지 옵션', change: '옵션 1줄의 종류와 수치 새로 굴림' }),
         amber_catalyst: (groups, state) => currencyPreview(sapCatalysts.amberRecipe, groups, state),
-        fruit_oil: (groups, state) => currencyPreview(gardenOils.fruitRecipe, groups, state)
+        fruit_oil: (groups, state) => currencyPreview(gardenOils.fruitRecipe, groups, state),
+        catalyst_exchange: ([[{ item }]], state) => {
+            const plan = sapCatalysts.exchangePlan(item, state);
+            return plan.reason ? { label: '', reason: plan.reason }
+                : { label: `${ORB_DB[plan.kind.key].name} ${STUMP_CUBE_CATALYST_EXCHANGE}개`, keep: '', change: `다른 기폭제 ${STUMP_CUBE_CATALYST_EXCHANGE}개를 호박석 색으로 변환` };
+        }
     });
 
     function preview(recipeId, groups, state = game) {

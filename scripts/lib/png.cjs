@@ -25,16 +25,18 @@ function chunk(type, data) {
 
 /** PNG → { width, height, data } with data = RGBA bytes, row by row. */
 function decodePng(buffer) {
-    let width = 0, height = 0, bpp = 4;
+    let width = 0, height = 0, bpp = 4, palette = null, alpha = null;
     const idat = [];
     for (let at = 8; at < buffer.length;) {
         const length = buffer.readUInt32BE(at), type = buffer.toString('ascii', at + 4, at + 8), data = buffer.subarray(at + 8, at + 8 + length);
         if (type === 'IHDR') {
             width = data.readUInt32BE(0);
             height = data.readUInt32BE(4);
-            if (data[8] !== 8 || (data[9] !== 6 && data[9] !== 2) || data[12] !== 0) throw new Error('RGBA or RGB 8-bit non-interlaced PNG only');
-            bpp = data[9] === 6 ? 4 : 3;
-        } else if (type === 'IDAT') idat.push(data);
+            if (data[8] !== 8 || ![2, 3, 6].includes(data[9]) || data[12] !== 0) throw new Error('RGBA, RGB or palette 8-bit non-interlaced PNG only');
+            bpp = { 2: 3, 3: 1, 6: 4 }[data[9]];
+        } else if (type === 'PLTE') palette = data;
+        else if (type === 'tRNS') alpha = data;
+        else if (type === 'IDAT') idat.push(data);
         at += 12 + length;
     }
     const raw = zlib.inflateSync(Buffer.concat(idat)), stride = width * bpp, out = Buffer.alloc(stride * height);
@@ -47,7 +49,17 @@ function decodePng(buffer) {
             out[row + x] = (raw[line + x] + predictor) & 255;
         }
     }
-    return { width, height, data: bpp === 4 ? out : opaque(out, width * height) };
+    return { width, height, data: bpp === 4 ? out : bpp === 1 ? unpalette(out, palette, alpha) : opaque(out, width * height) };
+}
+/** Palette indices → RGBA bytes; entries past the tRNS list are opaque. */
+function unpalette(indices, palette, alpha) {
+    const out = Buffer.alloc(indices.length * 4);
+    for (let i = 0; i < indices.length; i++) {
+        const entry = indices[i];
+        palette.copy(out, i * 4, entry * 3, entry * 3 + 3);
+        out[i * 4 + 3] = alpha && entry < alpha.length ? alpha[entry] : 255;
+    }
+    return out;
 }
 /** RGB bytes → RGBA bytes with full alpha. */
 function opaque(rgb, pixels) {

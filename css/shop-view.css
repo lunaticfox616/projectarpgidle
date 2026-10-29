@@ -59,7 +59,8 @@
 .shop-lock { position: absolute; top: 6px; right: 3px; width: 9px; height: 7px; border-radius: 1px; background: #e0c27e; pointer-events: none; }
 .shop-lock::before { content: ''; position: absolute; top: -5px; left: 2px; width: 5px; height: 6px; box-sizing: border-box; border: 2px solid #e0c27e; border-bottom: 0; border-radius: 3px 3px 0 0; }
 /* body에 붙는 끌기 그림도 장비창 위에 둔다(장비 가방의 drag ghost와 같은 층). NPC dialog에서는 top layer 안이다. */
-.shop-ghost { position: fixed; top: 0; left: 0; z-index: 2147482500; margin: 0; pointer-events: none; opacity: .92; }
+/* 끌리는 가방 장비의 그림은 is-pick(pointer-events: auto)을 그대로 복제하므로 그 짝까지 적는다: 포인터 아래에서 진열칸을 가리면 안 된다. */
+.shop-ghost, .shop-bag-item.is-pick.shop-ghost { position: fixed; top: 0; left: 0; z-index: 2147482500; margin: 0; pointer-events: none; opacity: .92; }
 .shop-empty { margin: 0; padding: 14px; border: 1px solid var(--skin-line); color: var(--color-text-secondary); font-size: 12px; }
 /* 고른 물건의 시트: 거래 줄(.shop-info-deal: 값, 보유와 거래 뒤, 구매·닫기, 못 사는 까닭)과 물건 카드(.shop-info-card). 높이는 창의
    절반 남짓(낮은 화면은 더). 거래 줄은 줄지 않고 온전히 보이며, 남는 높이를 카드가 받아 그 안에서 민다. 가판대의 거래 폼은 길어서

@@ -1005,7 +1005,7 @@ function getLabyrinthZoneNow(requestedFloor = game.labyrinthFloor) {
     let over50 = Math.max(0, floor - 50);
     let over100 = Math.max(0, floor - 100);
     let extraTier = Math.floor(over50 / 5) + Math.floor(over100 / 3);
-    return { id: LABYRINTH_ZONE_ID, name: `고대 미궁 ${floor}층`, type: 'labyrinth', tier: baseTier + extraTier, maxKills: 1, ele: 'chaos', floor: floor, exploration: contentMaps.labyrinth(floor) };
+    return { id: LABYRINTH_ZONE_ID, name: `고대 미궁 ${floor}층`, type: 'labyrinth', bossVisualId: 'labyrinth_guardian', tier: baseTier + extraTier, maxKills: 1, ele: 'chaos', floor: floor, exploration: contentMaps.labyrinth(floor) };
 }
 function getChaosDepthZone(id) {
     let depth = getAbyssDepthFromZoneId(id);

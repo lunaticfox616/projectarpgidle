@@ -240,8 +240,75 @@ begin
 end;
 $$;
 
+-- 추가 옵션 표(2026-10-30): 게임이 굴릴 수 있는 추가 옵션 한 줄의 능력치 id, 티어, 값 범위, 슬롯. scripts/export-hall-affix-table.cjs가
+-- MOD_DB와 화석 전용 줄, 바다의 작업대 줄에서 db/hall-affix-table-20261030.sql로 만들고, 사용자가 그 파일을 실행해 채운다. 여기서는 빈 표만 만든다.
+create table if not exists public.hall_affix_table (
+    mod_id  text not null,
+    stat_id text not null,
+    tier    integer not null check (tier between 1 and 20),
+    min_val numeric not null,
+    max_val numeric not null,
+    slots   text[] not null,
+    primary key (mod_id, tier)
+);
+create index if not exists hall_affix_table_stat_idx on public.hall_affix_table (stat_id);
+alter table public.hall_affix_table enable row level security;
+revoke all on public.hall_affix_table from anon, authenticated;
+
+-- 추가 옵션 한 줄이 표와 맞지 않는가: 표에 그 능력치가 있는데 이 슬롯에 주는 행이 없다, 티어가 그 능력치의 티어 범위 밖이다, 값이 그 티어의
+-- 최솟값과 최댓값 밖이다. 표에 없는 능력치(고유 전용 줄처럼 특수한 줄)는 걸리지 않고 기존 범위 검사(db/anti-cheat.sql)로 넘어간다.
+-- p_scale은 잿불 타락이 저장한 배율(emberScale 0.8~1.2), p_top_tier는 타락(corrupted) 장비의 티어 상한(값이 그 티어의 최댓값까지 오른다,
+-- js/loot.js corruptedValue). 반올림 여유는 표의 범위나 값이 정수면 0.5(잿불 배율은 정수 값을 정수로 반올림한다, js/ember-corruption.js rescale), 아니면 0.01.
+create or replace function public.hall_affix_line_rejected(p_stat_id text, p_slot text, p_tier numeric, p_val numeric, p_scale numeric, p_top_tier numeric)
+returns boolean language plpgsql stable set search_path = public as $$
+declare
+    low_tier integer;
+    high_tier integer;
+    low_val numeric;
+    high_val numeric;
+    whole boolean;
+    slack numeric;
+begin
+    if not exists (select 1 from public.hall_affix_table where stat_id = p_stat_id) then return false; end if;
+    select min(tier), max(tier) into low_tier, high_tier from public.hall_affix_table where stat_id = p_stat_id and p_slot = any(slots);
+    if low_tier is null or p_tier < low_tier or p_tier > high_tier then return true; end if;
+    select min(min_val), bool_and(min_val = trunc(min_val) and max_val = trunc(max_val)) into low_val, whole
+      from public.hall_affix_table where stat_id = p_stat_id and p_slot = any(slots) and tier = p_tier;
+    if low_val is null then return true; end if;
+    select max(max_val) into high_val
+      from public.hall_affix_table where stat_id = p_stat_id and p_slot = any(slots) and tier between p_tier and greatest(p_tier, p_top_tier);
+    slack := case when whole or p_val = trunc(p_val) then 0.5 else 0.01 end + 0.000001;
+    return p_val < low_val * p_scale - slack or p_val > high_val * p_scale + slack;
+end;
+$$;
+
+-- 희귀 장비의 추가 옵션(stats)을 표와 맞춰 본다. 표가 비어 있으면(db/hall-affix-table-20261030.sql을 아직 돌리지 않은 DB) 보지 않는다.
+-- 값과 티어가 숫자인 줄만 본다(그 밖의 줄은 validate_hall_item의 앞 검사가 거른다). 메아리 줄(isEchoMod)은 원본과 같은 id라 앞의 중복 id 검사가
+-- 먼저 거르므로 따로 두지 않는다(표식만 붙인 줄이 검사를 비켜 가지 않게). 잿불 배율(emberScale)은 잿불 타락한 장비(burned)에서만 본다.
+-- 복합 옵션의 둘째 수치(extraStats)와 고유 장비의 줄(고유마다 정한 범위)은 표에 없어 기존 범위 검사로 간다.
+-- 표는 RLS만 켜고 정책이 없어 보안 정의자 함수(quote_hall_item, create_hall_listing)에서만 보인다: authenticated로 도는 곳에서 부르면 빈 표로 보여 검사가 꺼진다.
+create or replace function public.hall_affix_table_rejects(item_data jsonb)
+returns boolean language plpgsql stable set search_path = public as $$
+declare
+    slot_name text := coalesce(item_data ->> 'slot', '');
+    top_tier numeric := case when lower(coalesce(item_data ->> 'corrupted', 'false')) = 'true'
+                             then public.hall_number(coalesce(item_data -> 'affixTierCap', item_data -> 'hiddenTier'), 1, 1, 20) else 0 end;
+    burned boolean := lower(coalesce(item_data ->> 'burned', 'false')) = 'true';
+begin
+    if coalesce(item_data ->> 'rarity', '') <> 'rare' or not exists (select 1 from public.hall_affix_table) then return false; end if;
+    return exists (
+        select 1 from jsonb_array_elements(public.hall_array(item_data -> 'stats')) line
+         where jsonb_typeof(line -> 'val') = 'number' and jsonb_typeof(line -> 'tier') = 'number'
+           and public.hall_affix_line_rejected(coalesce(line ->> 'id', ''), slot_name,
+                   public.hall_number(line -> 'tier', 0, 0, 100), public.hall_number(line -> 'val', 0, -9000000000000, 9000000000000),
+                   case when burned then public.hall_number(line -> 'emberScale', 1, 0.8, 1.2) else 1 end, top_tier));
+end;
+$$;
+
+-- 등록할 장비의 모양 검사. 추가 옵션의 티어 상한은 장비가 들고 온 affixTierCap으로 보고, 2026-10-30부터 능력치 id, 티어, 값, 슬롯은
+-- 추가 옵션 표(hall_affix_table_rejects)로도 본다. 표를 읽으므로 immutable이 아니라 stable이다.
 create or replace function public.validate_hall_item(item_data jsonb)
-returns void language plpgsql immutable set search_path = public as $$
+returns void language plpgsql stable set search_path = public as $$
 begin
     if jsonb_typeof(item_data) is distinct from 'object'
        or length(coalesce(item_data ->> 'name', '')) not between 1 and 80
@@ -285,6 +352,7 @@ begin
         or exists (select 1 from jsonb_array_elements(public.hall_array(item_data -> 'stats')) stat
                     group by stat ->> 'id' having count(*) > 1)
     ) then raise exception 'HALL_ITEM_REJECTED'; end if;
+    if public.hall_affix_table_rejects(item_data) then raise exception 'HALL_ITEM_REJECTED'; end if;
 end;
 $$;
 
@@ -509,6 +577,8 @@ revoke all on function public.hall_base_stat_weight(text) from public, anon, aut
 revoke all on function public.hall_item_score(jsonb) from public, anon, authenticated;
 revoke all on function public.hall_item_price(jsonb) from public, anon, authenticated;
 revoke all on function public.validate_hall_item(jsonb) from public, anon, authenticated;
+revoke all on function public.hall_affix_line_rejected(text, text, numeric, numeric, numeric, numeric) from public, anon, authenticated;
+revoke all on function public.hall_affix_table_rejects(jsonb) from public, anon, authenticated;
 revoke all on function public.get_hall_item_from_save(jsonb, uuid) from public, anon, authenticated;
 revoke all on function public.quote_hall_item(uuid, bigint) from public, anon;
 revoke all on function public.create_hall_listing(uuid, bigint) from public, anon;

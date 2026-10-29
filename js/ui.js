@@ -11565,6 +11565,7 @@ function applyCloudSession(session) {
         clearCloudSessionStorage();
         updateCloudSaveUI();
         if (previousUserId) refreshSocialAfterCloudStateChange();
+        cloudSessionGuard.syncSession();
         return;
     }
     let expiresAt = Number(session.expires_at) || 0;
@@ -11582,6 +11583,7 @@ function applyCloudSession(session) {
     persistCloudSession(cloudState.session);
     updateCloudSaveUI();
     if (previousUserId !== (cloudState.user && cloudState.user.id)) refreshSocialAfterCloudStateChange();
+    cloudSessionGuard.syncSession();   // 계정이 바뀌면 이 화면의 접속 표를 서버에 적는다(js/cloud-session-guard-ui.js)
 }
 
 function getCloudSessionExpiresAtMs() {
@@ -11668,7 +11670,8 @@ async function ensureCloudSessionFresh(reason) {
 
 /** A cloud request's headers: the anon key, the session token unless useAuth is false, and JSON for an object body. */
 function cloudRequestHeaders(config, options, body) {
-    let headers = { apikey: config.supabaseAnonKey, ...(options.headers || {}) };
+    // x-rignin-session: 이 화면의 접속 표(js/cloud-session-guard-ui.js). 다른 기기가 그 뒤에 접속했으면 서버가 저장과 전당 요청을 거절한다.
+    let headers = { apikey: config.supabaseAnonKey, ...cloudSessionGuard.requestHeaders(options), ...(options.headers || {}) };
     if (options.useAuth !== false && cloudState.session && cloudState.session.access_token) headers.Authorization = `Bearer ${cloudState.session.access_token}`;
     if (body !== undefined && typeof body !== 'string' && !headers['Content-Type']) headers['Content-Type'] = 'application/json';
     return headers;
@@ -11681,6 +11684,7 @@ async function cloudJsonRequest(path, options = {}) {
         let fresh = await ensureCloudSessionFresh('요청 전 확인');
         if (!fresh) throw new Error(cloudState.session ? '클라우드 로그인 갱신을 못 했습니다. 연결을 확인한 뒤 다시 시도해주세요.' : '클라우드 로그인 세션이 만료되었습니다. 다시 로그인해주세요.');
     }
+    cloudSessionGuard.assertActive();
     if (options.expectedUserId && options.expectedUserId !== getActiveCloudUserId()) throw new Error('로그인 계정이 변경되어 작업을 중단했습니다.');
     let body = options.body, headers = cloudRequestHeaders(config, options, body);
     // onSend: the request is about to leave (after the token and account checks above), for callers that must know it went out
@@ -11699,13 +11703,17 @@ async function cloudJsonRequest(path, options = {}) {
             data = text;
         }
     }
-    if (!response.ok) throw Object.assign(new Error(describeCloudServerError(data, response.status)), { status: response.status });
+    if (!response.ok) {
+        cloudSessionGuard.noteServerRefusal(data);   // 다른 기기의 접속에 밀려난 거절이면 이 화면은 바로 멈춘다
+        throw Object.assign(new Error(describeCloudServerError(data, response.status)), { status: response.status });
+    }
     return data;
 }
 
-// 서버 오류 코드 중 플레이어가 알아야 할 것은 문구로 바꾼다(db/operations-and-ghost.sql의 commit_cloud_save).
+// 서버 오류 코드 중 플레이어가 알아야 할 것은 문구로 바꾼다(db/operations-and-ghost.sql의 commit_cloud_save, db/hall-watch-20261030.sql의 접속 표).
 const CLOUD_SERVER_ERROR_TEXT = Object.freeze({
-    SAVE_TOO_LARGE: '클라우드 저장이 너무 커서 서버가 받지 않았습니다(8MB). 가방과 보관함을 정리한 뒤 다시 저장해 주세요.'
+    SAVE_TOO_LARGE: '클라우드 저장이 너무 커서 서버가 받지 않았습니다(8MB). 가방과 보관함을 정리한 뒤 다시 저장해 주세요.',
+    CLOUD_SESSION_SUPERSEDED: '다른 기기에서 이 계정으로 접속해 이 화면의 요청을 서버가 받지 않았습니다.'
 });
 
 function describeCloudServerError(data, status) {
@@ -13055,6 +13063,7 @@ function buildPageExitCloudRequest(config) {
         : { user_id: cloudState.user.id, save_data: payload });
     let headers = {
         apikey: config.supabaseAnonKey,
+        ...cloudSessionGuard.requestHeaders(),
         Authorization: `Bearer ${cloudState.session.access_token}`,
         'Content-Type': 'application/json',
         Prefer: revisionEnabled ? 'return=representation' : 'resolution=merge-duplicates,return=minimal'

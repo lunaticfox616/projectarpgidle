@@ -109,7 +109,7 @@ const stumpCubeUi = (() => {
         const lacking = stumpCube.missingCost(found.recipe).length > 0;
         return `<div class="stump-cube-status"><p class="stump-cube-preview-title">예상 결과 <span>${esc(found.recipe.name)}</span></p>`
             + previewFactsHtml(found) + (found.reason ? `<p class="stump-line is-bad">${esc(found.reason)}</p>` : '')
-            + `<p class="stump-line${lacking ? ' is-bad' : ''}">${costHtml(found.recipe.cost)}</p></div>`;
+            + `<p class="stump-line${lacking ? ' is-bad' : ''}">${found.recipe.costText ? recipeToneHtml(found.recipe.costText) : costHtml(found.recipe.cost)}</p></div>`;
     }
 
     function sharedMaterialValue({ rule, picked }, key) {
@@ -151,10 +151,14 @@ const stumpCubeUi = (() => {
         const rows = shown.map(recipe => `<li style="--recipe-tone:${GROUP_TONES[recipe.group] || '#e6c67f'}">`
             + `<span class="stump-book-entry-head"><span class="stump-book-group">${esc(recipe.group)}</span><strong>${recipeToneHtml(recipe.name)}</strong></span>`
             + bookLineHtml('재료', recipeToneHtml(recipe.need)) + bookLineHtml('결과', recipeToneHtml(recipe.result) + bookCapHtml(recipe))
-            + (recipe.note ? `<small class="stump-book-note">${keepBracketsHtml(recipeToneHtml(recipe.note))}</small>` : '')
-            + (Object.keys(recipe.cost || {}).length ? bookLineHtml('비용', bookCostHtml(recipe.cost)) : '') + '</li>').join('');
+            + (recipe.note ? `<small class="stump-book-note">${keepBracketsHtml(recipeToneHtml(recipe.note))}${bookTierCapHtml(recipe)}</small>` : '')
+            + bookCostLineHtml(recipe) + '</li>').join('');
         const more = hidden ? `<li class="is-hidden">아직 모르는 조합법 ${hidden}개 (새 재료가 성장 완료되거나 해금되면 공개)</li>` : '';
         return `<ul class="stump-book-list stump-book-page">${rows}${more}</ul>`;
+    }
+    function bookCostLineHtml(recipe) {
+        if (recipe.costText) return bookLineHtml('비용', recipeToneHtml(recipe.costText));
+        return Object.keys(recipe.cost || {}).length ? bookLineHtml('비용', bookCostHtml(recipe.cost)) : '';
     }
     const bookLineHtml = (label, html) => `<span class="stump-book-line"><b>${label}</b><span>${keepBracketsHtml(html)}</span></span>`;
     /** A short bracket ("(꽃 씨앗, 열매 씨앗, 수액)") moves to the next line whole instead of breaking inside (2026-10-29 사용자: 설명 도중에
@@ -165,6 +169,10 @@ const stumpCubeUi = (() => {
     /** 합치기의 품질 상한(해금으로 오른다): 결과 줄 끝에 지금 값을 붙인다. */
     function bookCapHtml(recipe) {
         return recipe.id === 'stump_merge' ? ` (상한 ${recipeToneHtml(Math.round(stumpBox.rollCap(game) * 100) + '%')})` : '';
+    }
+    /** 단련의 티어 상한(지금 레벨에서 떨어지는 티어, js/stump-cube-recipes.js rareTierTarget): 덧붙임 끝에 지금 값을 붙인다. */
+    function bookTierCapHtml(recipe) {
+        return recipe.id === 'equip_rare_tier' ? ` T${levelProgression.maxDropTier(Math.floor(Number(game.level) || 1))}` : '';
     }
 
     /** The cube's 5×5 cells, drawn inside the stump box frame when the frame shows the cube (js/stump-box-ui.js). */
@@ -392,7 +400,8 @@ const stumpCubeUi = (() => {
         if (!result.ok) return showGameToast(result.reason, { tone: 'warning' });
         lastResult = { state: game, season: game.season, outputs: JSON.parse(JSON.stringify(result.outputs)) };
         const names = result.outputs.map(row => itemName(row.kind, row.item)).join(', ');
-        addLog(`🧩 조합창 ${result.recipe.name}: ${names}`, 'loot-rare');
+        const paid = Object.entries(result.paid).map(([key, need]) => `${ORB_DB[key].name} ${need}개`).join(', ');
+        addLog(`🧩 조합창 ${result.recipe.name}: ${names}${paid ? ` (${paid} 사용)` : ''}`, 'loot-rare');
         // 완전한 코어(js/core-items.js rollPerfect)는 드랍처럼 체이싱 티어 알림도
         result.outputs.filter(row => row.kind === 'core' && row.item && row.item.perfect)
             .forEach(row => dispatchRuntimeEvent('incident', { text: `체이싱 코어를 획득했습니다. 「${row.item.name}」`, tone: 'chase', chase: true }));
