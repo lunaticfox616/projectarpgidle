@@ -916,6 +916,11 @@ function mergeDefaults(save) {
     // 그리드 필드 정리: 잘못된 좌표/유형은 버려서 다음 전투 틱의 그리드 복구가 다시 배치하게 한다.
     function normalizeEnemyGridFields(record) {
         delete record.battleSlot;
+        // The labyrinth's delivered guardian was never selected on its zone. Repair both active and waiting bosses.
+        if (record.isBoss && merged.currentZoneId === LABYRINTH_ZONE_ID) {
+            record.monsterVisualId = getLabyrinthZoneNow(merged.labyrinthFloor).bossVisualId;
+            assignEnemyGridCombatProfile(record);
+        }
         // Exploration coordinates are validated against their own saved map below; never
         // silently move a saved enemy to another tile or into a wall by clamping it.
         const exploration=merged.actExploration;
