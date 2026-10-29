@@ -33,6 +33,8 @@ const MONSTER_COMBAT_ROLES = (() => {
         hive: Object.freeze({ 'hive-scout': 'hiveMarksman', 'hive-nurse': 'hiveBombardier' }),
         sky: Object.freeze({ 'sky-harpy': 'pursuer' }),
         riftFuture: Object.freeze({ 'rift-archive-moth': 'riftArchiveMoth' }),
+        underworld: Object.freeze({ 'underworld-hound': 'pursuer', 'underworld-beetle': 'heavy',
+            'underworld-obsidian-centipede': 'frontline' }),
         ocean: Object.freeze({ 'ocean-angler': 'pursuer', 'ocean-crab': 'frontline',
             'ocean-shell': 'oceanCarrier', 'ocean-oracle': 'oceanOracle' })
     });
