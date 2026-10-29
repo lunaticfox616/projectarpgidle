@@ -380,6 +380,12 @@
   line-height: 14px;
   text-overflow: ellipsis;
   white-space: nowrap;
+  cursor: help;
+}
+
+#enemy-area .enemy-traits:focus-visible {
+  outline: 1px solid var(--color-accent, #d6bc80);
+  outline-offset: 1px;
 }
 
 #enemy-area .enemy-card.enemy-elite .enemy-traits {

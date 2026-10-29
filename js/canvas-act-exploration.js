@@ -114,7 +114,10 @@ const actExplorationView=(()=>{
     function shiftCachedAnchors(dx,dy) {
         if(!dx && !dy)return;
         for(const bank of [battleVisualState.enemySmoothPos,battleVisualState.enemyGhostPos]) {
-            for(const point of Object.values(bank||{})){point.x+=dx;point.y+=dy;}
+            for(const point of Object.values(bank||{})){
+                point.x+=dx;point.y+=dy;
+                if(point.actualAim){point.actualAim.x+=dx;point.actualAim.y+=dy;}
+            }
         }
         for(const text of battleVisualState.damageTexts||[]){text.x+=dx;text.y+=dy;}
     }

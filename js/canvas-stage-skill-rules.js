@@ -122,12 +122,22 @@ const stageSkillRules = (() => {
     }
 
     // ---------------------------------------------------------------- per victim
+    /** 공용 물리 접촉 섬광만 몸 안쪽 크기로 맞춘다. 큰 휘두름과 보스·속성 클립은 유지한다.
+     * 재생 승인 뒤 크기만 바꾸므로 클립 추첨, 간격, 동시 수 제한은 그대로다. 단위는 캐릭터 그림의 도트. */
+    function ruleFitContact(played, fx) {
+        if (!played || played.ramp !== 'phys' || !/^(h_x|h_xs|m_hit)$/.test(played.name)) return;
+        const enemy = K.enemy(fx.enemyId);
+        if (enemy && enemy.isBoss) return;
+        const width = played.box.w * (played.clip.sc || 1), limit = fx.crit ? 64 : 48;
+        played.scale = Math.min(played.scale, limit / width);
+    }
     /** 맞은 적의 타격 클립: 같은 적에게는 간격을 두고 붙인다(연타에 화면이 덮이지 않게). 클립은 룬이 정한 것, 없으면 속성의 묶음에서
      * 맞을 때마다 하나, 활로 쏜 화살 룬이면 마법 화살의 터짐(js/canvas-stage-skill-runes.js hitRef). */
     function rulePlayHit(gem, hit) {
         const ref = stageSkillRunes.hitRef(gem, hit.fx.element), last = struck.has(hit.fx.enemyId) ? struck.get(hit.fx.enemyId) : -1e9;
         if (!ref || hit.now - last < stageSkillVfx.HIT.gap) return;
         const played = stageSkillVfx.play(ref, K.at(hit.victim, -hit.look.face * 8, K.onGround(ref) ? 2 : BODY), { face: hit.look.face, ramp: hit.look.ramp, hit: true });
+        ruleFitContact(played, hit.fx);
         if (played) struck.set(hit.fx.enemyId, hit.now);
     }
     /** 두 자리 사이를 클립으로 잇는다(연쇄 번개): 길이에 맞춰 몇 개를 돌려 늘어놓는다. */

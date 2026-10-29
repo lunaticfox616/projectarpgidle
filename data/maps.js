@@ -61,12 +61,13 @@ const WORLD_MAP_HOTSPOTS = [
 
 // bossVisualId: 시련 수호자의 무대 그림(data/monster-stage-roster.js의 trial_1~5, 2026-10-21 Codex 6장 제작본). 2026-10-26 전에는 표에 있어도
 // 이어지지 않아 예전 그림으로 섰다(사용자: 전직 시련 보스가 구 이미지를 쓴다).
+// 칼날/겨울 수호자는 근접으로 전환해 보통 공격의 500ms 비행 대기가 없다. 낮춘 공격 충전 속도로 연타 증가를 상쇄한다.
 const TRIAL_ZONES = [
-    { id: 'trial_1', name: "1차 전직 시련 (칼날 회랑)", type: "trial", bossVisualId: 'trial_1', tier: 3, maxKills: 1, reqZone: 3, ele: 'phys', repeatGemChance: 0.05, fixedDifficultyMul: 1, trapElements: ['phys'], trialHazard: { pattern: 'line', warningMs: 1800, intervalMs: 6800, initialDelayMs: 2400, avoidThresholdMul: 1.1 }, trialDesc: '초벌 벼림의 칼날 직선 함정, 한 칸 회피와 방어도 점검' },
+    { id: 'trial_1', name: "1차 전직 시련 (칼날 회랑)", type: "trial", bossVisualId: 'trial_1', tier: 3, maxKills: 1, reqZone: 3, ele: 'phys', repeatGemChance: 0.05, fixedDifficultyMul: 1, trapElements: ['phys'], trialHazard: { pattern: 'line', warningMs: 1800, intervalMs: 6800, initialDelayMs: 2400, avoidThresholdMul: 1.1 }, trialDesc: '초벌 벼림의 칼날 직선 함정, 한 칸 회피와 방어도 점검', bossMods: { attackSpeedMul: 0.8 } },
     { id: 'trial_2', name: "2차 전직 시련 (삼원 제단)", type: "trial", bossVisualId: 'trial_2', tier: 6, maxKills: 1, reqZone: 8, ele: 'fire', repeatGemChance: 0.08, fixedDifficultyMul: 1, trapElements: ['fire', 'cold', 'light'], trialHazard: { pattern: 'doubleLine', warningMs: 1750, intervalMs: 6200, initialDelayMs: 2300, avoidThresholdMul: 1 }, trialDesc: '화염, 냉기, 번개 삼원 담금질 함정, 경고 속성과 저항 점검' },
     { id: 'trial_3', name: "3차 전직 시련 (독무 정원)", type: "trial", bossVisualId: 'trial_3', tier: 15, maxKills: 1, reqZone: -1, key: 'trialKey3', ele: 'chaos', repeatGemChance: 1, fixedDifficultyMul: 1, trapElements: ['chaos'], trialHazard: { pattern: 'pool', warningMs: 1650, intervalMs: 5600, initialDelayMs: 2200, avoidThresholdMul: 0.9 }, trialDesc: '부식 수액의 독무 정원, 오염 지대를 벗어나 회복할 자리 확보' },
     { id: 'trial_4', name: "4차 전직 미궁 시련 (십자 회랑)", type: "trial", bossVisualId: 'trial_4', tier: 20, maxKills: 1, reqZone: -1, key: 'trialKey3', ele: 'chaos', repeatGemChance: 1, fixedDifficultyMul: 1, trapElements: ['phys', 'chaos'], trialHazard: { pattern: 'cross', warningMs: 1550, intervalMs: 5000, initialDelayMs: 2100, avoidThresholdMul: 0.8 }, trialDesc: '피와 공허의 십자 회랑, 대각선 탈출과 복합 방어 점검' },
-    { id: 'trial_5', name: "혹독한 겨울의 미궁 (재능 개화)", type: "trial", bossVisualId: 'trial_5', tier: 57, maxKills: 1, reqZone: -1, bloomTrial: true, difficultyBenchmark: 'underworld1', underworldPenaltyFloor: 1, trapDamageMul: 0.72, trapRegenSuppressPct: 1, trapRegenSuppressCap: 0.3, ele: 'cold', fixedDifficultyMul: 1, trapElements: ['cold'], trialHazard: { pattern: 'block', warningMs: 1550, intervalMs: 4600, initialDelayMs: 2000, avoidThresholdMul: 0.7 }, trialDesc: '영구동토의 혹한 봉쇄, 두 칸 탈출과 지하계 1층급 수호자 점검', bossMods: { hpMul: 0.9, damageMul: 0.84, patternMode: 'slam', traitName: '백야의 심장: 파쇄 강타를 버티고 함정 사이에 회복하세요' } }
+    { id: 'trial_5', name: "혹독한 겨울의 미궁 (재능 개화)", type: "trial", bossVisualId: 'trial_5', tier: 57, maxKills: 1, reqZone: -1, bloomTrial: true, difficultyBenchmark: 'underworld1', underworldPenaltyFloor: 1, trapDamageMul: 0.72, trapRegenSuppressPct: 1, trapRegenSuppressCap: 0.3, ele: 'cold', fixedDifficultyMul: 1, trapElements: ['cold'], trialHazard: { pattern: 'block', warningMs: 1550, intervalMs: 4600, initialDelayMs: 2000, avoidThresholdMul: 0.7 }, trialDesc: '영구동토의 혹한 봉쇄, 두 칸 탈출과 지하계 1층급 수호자 점검', bossMods: { hpMul: 0.9, damageMul: 0.84, attackSpeedMul: 0.55, patternMode: 'slam', traitName: '백야의 심장: 파쇄 강타를 버티고 함정 사이에 회복하세요' } }
 ];
 
 const METEOR_FALL_ZONE_ID = 'meteor_fall_site';
@@ -79,8 +80,13 @@ const GRAND_BREACH_ENCOUNTER = Object.freeze({
     portals: Object.freeze([{gx:0,gy:1}, {gx:8,gy:1}, {gx:4,gy:7}]),
     capacities: Object.freeze([16,24,32]),
     // The stage arena has nearly three times the walkable floor of a standard stage room.
-    arena: Object.freeze({intervalMs: 900, openingPack: 24, refillPack: 10, eliteLimit: 6,
-        spawnRadius: 3, capacities: Object.freeze([30,36,40])})
+    arena: Object.freeze({intervalMs: 900, warningMs: 650, openingPack: 24, refillPack: 10, eliteLimit: 6,
+        spawnRadius: 3, capacities: Object.freeze([30,36,40]),
+        // Stage rifts: left-top, left-bottom, top-middle, right-top, right-bottom, bottom-middle.
+        // Progress thirds change the approach: neighbouring mouths, opposite sides, then a rotating pair.
+        portalPairs: Object.freeze([
+            [[0,1],[2,3],[4,5]], [[0,4],[1,3],[2,5]], [[0,2],[2,3],[3,4],[4,5],[5,1],[1,0]]
+        ].map(pairs=>Object.freeze(pairs.map(Object.freeze))))})
 });
 
 // 운석 낙하 지점: 루프 7에서 액트 7에 닿으면 하늘 균열 게이지가 차기 시작한다.
@@ -373,12 +379,12 @@ const SEASON_CONTENT_ROADMAP = {
 })();
 
 const SEASON_BOSS_ZONES = [
-    { id: 's2_boss_flame', name: '화염 군주 이그니스', signatureUnique: '화염 군주의 숨결', type: 'seasonBoss', tier: 12, key: 'bossKeyFlame', reqSeason: 2, ele: 'fire', reward: 'bossCore' },
-    { id: 's2_boss_frost', name: '서리 여제 글라시아', signatureUnique: '서리 여제의 인장', type: 'seasonBoss', tier: 12, key: 'bossKeyFrost', reqSeason: 2, ele: 'cold', reward: 'bossCore' },
-    { id: 's2_boss_storm', name: '폭풍 군단장 볼타', signatureUnique: '폭풍 군단장의 칼날', type: 'seasonBoss', tier: 13, key: 'bossKeyStorm', reqSeason: 2, ele: 'light', reward: 'bossCore' },
+    { id: 's2_boss_flame', name: '화염 군주 이그니스', bossVisualId: 's2_boss_flame', signatureUnique: '화염 군주의 숨결', type: 'seasonBoss', tier: 12, key: 'bossKeyFlame', reqSeason: 2, ele: 'fire', reward: 'bossCore', bossMods: { attackSpeedMul: 0.8 } },
+    { id: 's2_boss_frost', name: '서리 여제 글라시아', bossVisualId: 's2_boss_frost', signatureUnique: '서리 여제의 인장', type: 'seasonBoss', tier: 12, key: 'bossKeyFrost', reqSeason: 2, ele: 'cold', reward: 'bossCore' },
+    { id: 's2_boss_storm', name: '폭풍 군단장 볼타', bossVisualId: 's2_boss_storm', signatureUnique: '폭풍 군단장의 칼날', type: 'seasonBoss', tier: 13, key: 'bossKeyStorm', reqSeason: 2, ele: 'light', reward: 'bossCore', bossMods: { attackSpeedMul: 0.8 } },
     // bossStages: the arena's boss rises three times (js/combat.js CERBERUS_STAGES: three heads, two heads, the body). Until 2026-10-13 it
     // was the one boss kept on the 9×8 board (user: "보스전은 방 두개 해서 다음 방에 바로 보스만 나오게 해").
-    { id: 's6_beast_cerberus', name: '야수왕 케르베로스', signatureUnique: '야수왕의 세 목줄', type: 'seasonBoss', tier: 18, key: 'beastKeyCerberus', reqSeason: 6, ele: 'chaos', reward: 'bossCore', bossStages: 3 },
+    { id: 's6_beast_cerberus', name: '야수왕 케르베로스', bossVisualId: 's6_beast_cerberus', signatureUnique: '야수왕의 세 목줄', type: 'seasonBoss', tier: 18, key: 'beastKeyCerberus', reqSeason: 6, ele: 'chaos', reward: 'bossCore', bossStages: 3 },
     // 버려진 날붙이들 (루프 31+): 나무꾼이 벼리다 버린 다른 날들. 플레이어(첫 번째 날붙이)를 시험하러 온다.
     //  - 매 루프 다시 도전하는 고정 난이도 결투 — 루프 31 진입 시점의 성장 배율에 고정하고 bossMods로 개성을 조절한다.
     //  - bossMods shape는 createEnemy의 cosmosMods와 동일: *Mul(hp/damage/attackSpeed/armor/evasion/regen)은 배율, 나머지는 가산.

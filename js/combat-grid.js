@@ -334,10 +334,14 @@ function assignEnemyGridCombatProfile(enemy) {
     const {melee,range} = rollEnemyGridCombatProfile(enemy);
     enemy.attackKind = melee ? 'melee' : 'ranged';
     enemy.attackRange = range;
-    enemy.attackDelivery = melee ? 'instantTarget' : (enemy.attackRange === cfg.rangedEnemyMinRange ? 'projectileTarget' : 'projectileCell');
-    enemy.projectileToEdge = !melee && enemy.attackRange === cfg.rangedEnemyMaxRange;
+    enemy.attackDelivery = melee ? 'instantTarget' : (range === cfg.rangedEnemyMinRange ? 'projectileTarget' : 'projectileCell');
+    enemy.projectileToEdge = !melee && range === cfg.rangedEnemyMaxRange;
     enemy.attackCastMs = enemy.isElite && enemy.projectileToEdge ? 900 : 0;
-    if (enemy.attackCastMs) enemy.attackLabel = '관통 사격';
+    enemy.attackCastSpecial = false;
+    enemy.attackLabel = enemy.attackCastMs ? '관통 사격' : '';
+    Object.assign(enemy, MONSTER_COMBAT_ROLES.profile(enemy));
+    enemy.attackCast = null;
+    enemy.castInterruptedUntil = 0;
 }
 
 /** 플레이어를 스폰 칸으로 되돌린다(조우 시작/전장 리셋 시). */
@@ -450,16 +454,21 @@ function createGridStepSearch(unit, tx, ty, blocked) {
  * 목표 칸을 향한 최단 우회로를 찾아 상하좌우로 한 칸 전진시킨다.
  * 점유 칸은 통과하지 못하고 대각선 이동은 허용하지 않는다.
  * 닿을 수 있는 칸을 모두 훑어 (발 거리, 중심 거리) 순으로 가장 가까운 칸을 고르고 그쪽 첫걸음을 뗀다. 칸마다 발자국 셀 배열과
- * 문자열 열쇠를 만들지 않는다(2026-10-27: 방치 정산 8시간의 23%가 이 탐색이었다). 고르는 칸은 전과 같다.
+ * 문자열 열쇠를 만들지 않는다(2026-10-27: 방치 정산 8시간의 23%가 이 탐색이었다). 동률 경로는 첫걸음의 거리가 줄어드는 쪽을 먼저 고른다.
  * @returns {boolean} 실제로 이동했는지
  */
 function gridStepToward(unit, tx, ty, blocked) {
     if (!hasGridCell(unit)) return false;
     const search = createGridStepSearch(unit, tx, ty, blocked);
+    // Equal shortest routes first close the distance. A fixed horizontal tie made equally fast melee actors
+    // swap columns forever while two rows apart (2026-10-29: the act-one slime stopped real progression).
+    const directions = [...GRID_CARDINAL_STEPS].sort((a, b) =>
+        search.cheb(unit.gx + a.dx, unit.gy + a.dy) - search.cheb(unit.gx + b.dx, unit.gy + b.dy) ||
+        search.man(unit.gx + a.dx, unit.gy + a.dy) - search.man(unit.gx + b.dx, unit.gy + b.dy));
     const qx = [unit.gx], qy = [unit.gy], qf = [-1]; // 큐: 칸과, 그 칸에 이르는 첫걸음의 큐 번호(시작 칸은 -1)
     let best = 0, bestCheb = search.cheb(unit.gx, unit.gy), bestMan = search.man(unit.gx, unit.gy);
     for (let head = 0; head < qx.length; head++) {
-        for (const direction of GRID_CARDINAL_STEPS) {
+        for (const direction of directions) {
             const gx = qx[head] + direction.dx, gy = qy[head] + direction.dy;
             if (!search.enter(gx, gy)) continue;
             const cheb = search.cheb(gx, gy), index = qx.length;
@@ -500,7 +509,8 @@ function advanceGridUnitMovement(unit, target, dtSec, intervalSec, avoid) {
 /** 적이 한 칸을 걷는 데 걸리는 기본 시간(초): 보스는 BOSS_REACH.stepSec, 그 밖에는 enemyMoveIntervalSec. 다가가는 규칙(js/combat.js)과
  * 걷는 모습(js/canvas-stage-stride.js)이 같은 값을 읽는다. */
 function getGridUnitStepSec(unit) {
-    return unit && unit.isBoss ? BOSS_REACH.stepSec : COMBAT_GRID_CONFIG.enemyMoveIntervalSec;
+    if (unit && unit.isBoss) return BOSS_REACH.stepSec;
+    return MONSTER_COMBAT_ROLES.of(unit)?.stepSec || COMBAT_GRID_CONFIG.enemyMoveIntervalSec;
 }
 
 /** A unit that stepped remembers the cell it left and when: the drawn unit glides between the two for a moment (getGridUnitDrawnDelta). */

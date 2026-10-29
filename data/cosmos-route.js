@@ -13,7 +13,7 @@ const COSMOS_ROUTE_G1 = Object.freeze({
     }),
     habitats: Object.freeze({
         swarm: Object.freeze({ name: '군집', markerCount: 3, minPack: 7, maxPack: 8, eliteChance: .06, bossAdds: 0, hp: .55, damage: .5, speed: 1, trait: null }),
-        guard: Object.freeze({ name: '수호', markerCount: 6, minPack: 1, maxPack: 2, eliteChance: .8, bossAdds: 0, hp: 1.5, damage: 1, speed: .85, trait: 'energyShield' }),
+        guard: Object.freeze({ name: '수호', markerCount: 6, minPack: 1, maxPack: 2, eliteChance: .8, bossAdds: 0, hp: 1.5, damage: 1, speed: .85, escortAttackSpeed: .3, trait: 'energyShield' }),
         storm: Object.freeze({ name: '폭풍', markerCount: 4, minPack: 3, maxPack: 4, eliteChance: .25, bossAdds: 0, hp: .85, damage: .65, speed: 1.55, trait: null, element: 'light' })
     }),
     planets: Object.freeze([1, 6, 11, 16, 21, 26, 31, 36, 41].map(n => `planet-${n}`)),

@@ -4572,8 +4572,11 @@ function formatDamageNumberForDisplay(value, format) {
 const MAX_BATTLE_DAMAGE_TEXTS = 48;
 
 function mergeDamageTextByKey(activeTexts, config, start, x, y) {
-    if (!config.aggregateKey || config.bodyCue || config.dot || config.miss) return false;
-    let text = activeTexts.find(row => row && row.aggregateKey === config.aggregateKey);
+    if (config.bodyCue || config.miss) return mergeDamageTextByKey.bodyCue(activeTexts, config, start, x, y);
+    if (!config.aggregateKey) return false;
+    // DoT labels share only the first 350 visual ms; continuous ticks must still create fresh, readable sums.
+    let text = activeTexts.find(row => row && row.aggregateKey === config.aggregateKey
+        && !!row.dot === !!config.dot && (!config.dot || (start >= row.start && start - row.start <= 350)));
     let nextValue = Number(config.value);
     if (!text || !Number.isFinite(nextValue)) return false;
     text.value = Math.max(0, Number(text.value) || 0) + Math.max(0, nextValue);
@@ -4585,11 +4588,23 @@ function mergeDamageTextByKey(activeTexts, config, start, x, y) {
     text.x = x;
     text.y = y;
     text.duration = Math.max(text.duration, Number(config.duration) || 0);
+    if (config.dot) return true;
     text.damageRatio = Math.max(0, Number(text.damageRatio) || 0) + Math.max(0, Number(config.damageRatio) || 0);
     if (text.damageRatio >= 1 || config.impactTier === 'annihilate') text.impactTier = 'annihilate';
     else if (text.damageRatio >= 0.3 || config.impactTier === 'heavy' || text.impactTier === 'heavy') text.impactTier = 'heavy';
     return true;
 }
+/** Repeated identical judgments share their existing visible lifetime; they never become a number or renew their stay. */
+mergeDamageTextByKey.bodyCue = function (activeTexts, config, start, x, y) {
+    if (!config.aggregateKey || !config.bodyCue || !config.miss || typeof config.value !== 'string') return false;
+    const text = activeTexts.find(row => row && row.bodyCue && row.miss && row.aggregateKey === config.aggregateKey
+        && row.value === config.value && row.color === (config.color || '')
+        && start >= row.start && start - row.start <= row.duration);
+    if (!text) return false;
+    text.x = x;
+    text.y = y;
+    return true;
+};
 
 function getDamageTextDuration(config) {
     if (config.duration) return config.duration;
@@ -4639,6 +4654,18 @@ function spawnDamageText(config) {
         activeTexts.splice(0, activeTexts.length - MAX_BATTLE_DAMAGE_TEXTS);
     }
 }
+/** Display-only hit translation; actual damage and FX throttling remain with combat. */
+spawnDamageText.fromHit = function (fx, x, y, start) {
+    spawnDamageText({
+        start, x, y,
+        value: Number.isFinite(Number(fx.rawDamage)) ? Number(fx.rawDamage) : fx.damage,
+        crit: !!fx.crit, dot: !!fx.dot, dotType: fx.element || '',
+        impactTier: fx.impactTier || 'normal', damageRatio: fx.damageRatio || 0,
+        // Direct hits retain their skill bucket; DoT sums use the first label's visual time.
+        aggregateKey: fx.dot ? `dot:${fx.enemyId}:${fx.element || ''}`
+            : `${fx.skillName}:${fx.enemyId}:${Math.floor(fx.start / 250)}`
+    });
+};
 function drawVisualProjectile(ctx, projectile, now) {
     let t = clampNumber((now - projectile.start) / projectile.duration, 0, 1);
     let arcLift = projectile.enemyShot ? -2.5 : 7;
@@ -4728,7 +4755,7 @@ drawDamageTexts.paint = (() => {
         const { text, pop } = row;
         ctx.font = row.font; ctx.textAlign = row.align;
         const metrics = textSize(ctx, row.label);
-        const count = !text.bodyCue && !text.miss && text.hitCount > 1 ? `${Math.floor(text.hitCount)}타` : '';
+        const count = !text.bodyCue && !text.miss && !text.dot && text.hitCount > 1 ? `${Math.floor(text.hitCount)}타` : '';
         // Korean unit glyphs can overhang their advance width; leave a real gap before the hit-count suffix.
         const countX = metrics.right + GAP * 2;
         ctx.font = '10px "Galmuri9", "Galmuri11", "Malgun Gothic", sans-serif';
@@ -4779,6 +4806,7 @@ drawDamageTexts.paint = (() => {
     }
     function crowdFade(row) {
         const { text, now, y } = row;
+        if (text.enemyHit) return 1;
         // If obstacles force a number a full row below its body anchor, retire it without moving other rows.
         // Keep the last value for at least 350 visual ms; once fading, it cannot reappear just because the HUD moved.
         if (!text.bodyCue && !text.miss && y - text.y >= row.box.h && !Number.isFinite(text.readabilityFadeStart)) {
@@ -4821,7 +4849,9 @@ drawDamageTexts.paint = (() => {
             const rows = (battleVisualState.damageTexts || []).map(text => frame(ctx, text, now)).filter(Boolean);
             const taken = [];
             const bars = [...protectedBoxes].sort((a, b) => a.y - b.y);
-            for (let i = rows.length - 1; i >= 0; i--) place(rows[i], taken, bars);
+            // Incoming damage keeps its place before other feedback; stable sorting preserves every category's newest-first order.
+            const placement = [...rows].sort((a, b) => Number(a.text.enemyHit) - Number(b.text.enemyHit));
+            for (let i = placement.length - 1; i >= 0; i--) place(placement[i], taken, bars);
             rows.forEach(row => paint(ctx, row));
         } finally { ctx.restore(); }
     };
