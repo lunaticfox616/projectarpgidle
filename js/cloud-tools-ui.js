@@ -234,7 +234,8 @@ function isGhostFlagUnderReview(row) {
 
 /** The anti-cheat watch (db/anti-cheat.sql admin_get_cheat_watch): flags, growth per hour, held accounts. */
 function renderCheatWatch(data) {
-    const kinds = { clock: '기기 시계', currency: '화폐', level: '레벨', ghost_dps: '고스트 DPS', ghost_ehp: '고스트 EHP' };
+    const kinds = { clock: '기기 시계', currency: '화폐', level: '레벨', ghost_dps: '고스트 DPS', ghost_ehp: '고스트 EHP',
+        golden_rule: '황금률 잔액', hall_buy: '전당 구매', hall_list: '전당 등록' };
     const account = { label: '계정', render: row => row.nickname || String(row.user_id || '').slice(0, 8) };
     const hold = note => ({ label: '보류', html: row => renderCheatHoldButton(row.user_id, row.held === true, note(row)) });
     let html = '<section><h3>치트 감시</h3><p class="cloud-tools-note">감시는 기록만 하고 막지 않습니다. 보류한 계정은 전당과 고스트 대결에서 빠지고, 저장과 혼자 하는 플레이는 그대로입니다. 고스트 기록(DPS, EHP)은 7일 동안 순위전 점수를 멈추고, 지우면 바로 풀립니다.</p></section>';

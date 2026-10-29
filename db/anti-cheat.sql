@@ -7,7 +7,8 @@
 --   여러 번 실행해도 안전하고, 기존 데이터는 지우거나 고치지 않는다. 한 묶음이라 중간에 오류가 나면 아무것도 바뀌지 않는다.
 -- 원칙:
 --   1. 틀릴 수 없는 검사만 막는다: 전당에 올리는 장비의 수치(게스트 세이브 검사 js/guest-save-check.js와 같은 기준).
---   2. 어림 검사는 막지 않고 기록만 한다: 클라우드 저장의 기기 시계, 나올 수 없는 값, 성장 속도, 고스트 DPS 이상치.
+--   2. 어림 검사는 막지 않고 기록만 한다: 클라우드 저장의 기기 시계, 나올 수 없는 값, 성장 속도, 고스트 DPS 이상치, 황금률 잔액(2026-10-30).
+--      전당의 하루 구매와 등록 이상치, 추가 옵션 표 검사, 중복 접속 차단은 db/hall-watch-20261030.sql에 있다.
 --   3. 관리자가 기록을 보고 직접 보류한 계정만 남과 나누는 곳(전당 등록과 구매, 고스트 순위와 대전, 채팅)에서 뺀다. 저장은 언제나 받는다.
 -- 성능: 검사는 저장(몇 분에 한 번), 전당 등록과 구매, 고스트 등록, 채팅 한 줄(보류 조회 하나) 때만 돈다. 저장 감시는 세이브에서 네 칸만 꺼내 보고,
 --   지난 세이브는 한 번만 읽는다. 감시가 실패해도 저장은 그대로 들어간다.
@@ -30,7 +31,7 @@ create table if not exists public.cheat_flags (
 create index if not exists cheat_flags_last_at_idx on public.cheat_flags (last_at desc);
 -- 종류 목록은 다시 실행할 때마다 새로 건다(create table if not exists는 예전 제약을 그대로 둔다).
 alter table public.cheat_flags drop constraint if exists cheat_flags_kind_check;
-alter table public.cheat_flags add constraint cheat_flags_kind_check check (kind in ('clock', 'currency', 'level', 'ghost_dps', 'ghost_ehp'));
+alter table public.cheat_flags add constraint cheat_flags_kind_check check (kind in ('clock', 'currency', 'level', 'ghost_dps', 'ghost_ehp', 'golden_rule', 'hall_buy', 'hall_list'));
 
 -- 관리자가 건 보류: 이 계정은 전당에 올리거나 살 수 없고, 고스트는 순위와 대전에서 빠지며 다시 등록할 수 없다.
 create table if not exists public.cheat_holds (
@@ -242,6 +243,8 @@ create trigger trg_watch_ghost_dps after insert or update of dps, ehp_by_element
 -- ---------------------------------------------------------------------------
 -- 기기 시계: 세이브가 본 가장 늦은 시각(saveMeta.maxSeenAt, lastModifiedAt)이 서버 시각보다 10분 넘게 앞선다.
 -- 나올 수 없는 값: 화폐가 천만을 넘거나 음수다(GUEST_SAVE_CHECK.currencyMax). 레벨이 200을 넘는다(MAX_PLAYER_LEVEL).
+-- 황금률(전당의 지불 재화, 2026-10-30): 잔액이 10만을 넘으면 따로 기록한다(전당의 가장 비싼 전시 25,000의 4배). 전당은 클라이언트 저장의 황금률을
+-- 읽어 깎으므로 보장이 아니라 감시다. 임계는 실제 플레이 자료를 보고 바꾼다(db/hall-watch-20261030.sql의 사본과 함께).
 create or replace function public.watch_cloud_save_values(p_user_id uuid, p_digest jsonb)
 returns void language plpgsql security definer set search_path = public as $$
 declare
@@ -261,6 +264,9 @@ begin
     select min(public.cheat_number(entry.value)) into low_value from jsonb_each(wallet) entry;
     if coalesce(top_value, 0) > 10000000 or coalesce(low_value, 0) < 0 then
         perform public.note_cheat_flag(p_user_id, 'currency', jsonb_build_object('key', top_key, 'value', top_value, 'lowest', low_value));
+    end if;
+    if public.cheat_number(wallet -> 'goldenRule') > 100000 then
+        perform public.note_cheat_flag(p_user_id, 'golden_rule', jsonb_build_object('value', public.cheat_number(wallet -> 'goldenRule')));
     end if;
     if level_value > 200 then
         perform public.note_cheat_flag(p_user_id, 'level', jsonb_build_object('level', level_value));

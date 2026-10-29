@@ -26,7 +26,7 @@ const LOAD_ORDER = [
     'js/gem-selection-ui.js', 'js/support-gem-sigil-ui.js', 'js/gem-slot-dialog-ui.js', 'js/gem-core-forge-ui.js', 'js/skill-gem-board-ui.js', 'js/skills-ui.js',   'js/equipment-sockets-ui.js', 'js/equipment-aux-ui.js', 'js/records-ui.js',
     'js/knitting.js', 'js/knitting-rewards.js', 'js/knitting-ui.js',
     'js/talent-cards.js', 'js/talent-precise.js',
-    'js/cosmos-route-ui.js', 'js/canvas-atlas-chart.js', 'js/atlas-board-ui.js', 'js/atlas-ui.js', 'js/atlas-passives-ui.js', 'js/ascendancy-tree-ui.js', 'js/atlas-epoch-ui.js', 'js/atlas-endgame-ui.js', 'js/exploration-atlas-ui.js', 'js/canvas-side-encounters.js', 'js/side-encounter-ui.js', 'js/save-migration-wisp-summons.js', 'js/save-migrations.js', 'js/build-feedback-ui.js', 'js/combat-replay.js', 'js/combat-replay-projection.js', 'js/settings-ui.js', 'js/game-tab-guard-ui.js', 'js/main.js'
+    'js/cosmos-route-ui.js', 'js/canvas-atlas-chart.js', 'js/atlas-board-ui.js', 'js/atlas-ui.js', 'js/atlas-passives-ui.js', 'js/ascendancy-tree-ui.js', 'js/atlas-epoch-ui.js', 'js/atlas-endgame-ui.js', 'js/exploration-atlas-ui.js', 'js/canvas-side-encounters.js', 'js/side-encounter-ui.js', 'js/save-migration-wisp-summons.js', 'js/save-migrations.js', 'js/build-feedback-ui.js', 'js/combat-replay.js', 'js/combat-replay-projection.js', 'js/settings-ui.js', 'js/game-tab-guard-ui.js', 'js/cloud-session-guard-ui.js', 'js/main.js'
 ];
 // main의 실제 스케줄러까지 읽지만 setTimeout/DOM 이벤트 shim은 자동 부팅을 실행하지 않는다.
 // UI-window-manager·goal-system 등 DOM 조립 모듈은 실제 브라우저 검사에서 검증한다.
