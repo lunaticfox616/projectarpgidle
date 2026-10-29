@@ -4572,7 +4572,8 @@ function formatDamageNumberForDisplay(value, format) {
 const MAX_BATTLE_DAMAGE_TEXTS = 48;
 
 function mergeDamageTextByKey(activeTexts, config, start, x, y) {
-    if (!config.aggregateKey || config.bodyCue || config.miss) return false;
+    if (config.bodyCue || config.miss) return mergeDamageTextByKey.bodyCue(activeTexts, config, start, x, y);
+    if (!config.aggregateKey) return false;
     // DoT labels share only the first 350 visual ms; continuous ticks must still create fresh, readable sums.
     let text = activeTexts.find(row => row && row.aggregateKey === config.aggregateKey
         && !!row.dot === !!config.dot && (!config.dot || (start >= row.start && start - row.start <= 350)));
@@ -4593,6 +4594,17 @@ function mergeDamageTextByKey(activeTexts, config, start, x, y) {
     else if (text.damageRatio >= 0.3 || config.impactTier === 'heavy' || text.impactTier === 'heavy') text.impactTier = 'heavy';
     return true;
 }
+/** Repeated identical judgments share their existing visible lifetime; they never become a number or renew their stay. */
+mergeDamageTextByKey.bodyCue = function (activeTexts, config, start, x, y) {
+    if (!config.aggregateKey || !config.bodyCue || !config.miss || typeof config.value !== 'string') return false;
+    const text = activeTexts.find(row => row && row.bodyCue && row.miss && row.aggregateKey === config.aggregateKey
+        && row.value === config.value && row.color === (config.color || '')
+        && start >= row.start && start - row.start <= row.duration);
+    if (!text) return false;
+    text.x = x;
+    text.y = y;
+    return true;
+};
 
 function getDamageTextDuration(config) {
     if (config.duration) return config.duration;
@@ -4794,6 +4806,7 @@ drawDamageTexts.paint = (() => {
     }
     function crowdFade(row) {
         const { text, now, y } = row;
+        if (text.enemyHit) return 1;
         // If obstacles force a number a full row below its body anchor, retire it without moving other rows.
         // Keep the last value for at least 350 visual ms; once fading, it cannot reappear just because the HUD moved.
         if (!text.bodyCue && !text.miss && y - text.y >= row.box.h && !Number.isFinite(text.readabilityFadeStart)) {
@@ -4836,7 +4849,9 @@ drawDamageTexts.paint = (() => {
             const rows = (battleVisualState.damageTexts || []).map(text => frame(ctx, text, now)).filter(Boolean);
             const taken = [];
             const bars = [...protectedBoxes].sort((a, b) => a.y - b.y);
-            for (let i = rows.length - 1; i >= 0; i--) place(rows[i], taken, bars);
+            // Incoming damage keeps its place before other feedback; stable sorting preserves every category's newest-first order.
+            const placement = [...rows].sort((a, b) => Number(a.text.enemyHit) - Number(b.text.enemyHit));
+            for (let i = placement.length - 1; i >= 0; i--) place(placement[i], taken, bars);
             rows.forEach(row => paint(ctx, row));
         } finally { ctx.restore(); }
     };

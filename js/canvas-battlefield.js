@@ -1695,6 +1695,14 @@ function getDamageTextBodyY(feetY, bodyHeight) {
 function getBodyCueAnchor(pos, bodyHeight) {
     return { x: Math.round(pos.x), y: Math.round(pos.y - bodyHeight * (pos.enemy?.isBoss ? 0.64 : 0.92)) };
 }
+/** Only repeated body judgments share a lifetime; alerts and different actors keep their own labels. */
+getBodyCueAnchor.fromFx = function (fx, pos, bodyHeight, start) {
+    const value = fx.text || '회피!', color = fx.color || '#c4e2ff';
+    const bodyCue = fx.type === 'enemyEvade' || fx.bodyCue === true;
+    const actor = fx.enemyId == null ? 'hero' : 'enemy:' + fx.enemyId;
+    return { start, ...getBodyCueAnchor(pos, bodyHeight), value, miss: true, bodyCue, color,
+        aggregateKey: bodyCue ? `cue:${actor}:${value}:${color}` : '' };
+};
 
 /** The drawn body height an enemy's numbers and cues centre on: its bar lift less the gap (46 for a ghost left without its enemy). */
 function getEnemyBodyHeight(enemyPos) {
@@ -2261,6 +2269,43 @@ function buildEnemyHitFlashMap(effects, now) {
     return result;
 }
 
+/** Overlapping hit silhouettes should still read as a pack of monsters. Latch per pulse so a neighbour's
+ * flash ending cannot make this body brighten again. The original FX, pulse timing and entrance veil stay intact. */
+buildEnemyHitFlashMap.crowd = (() => {
+    const softened = new WeakSet();
+    function body(entry, tile) {
+        const size = (stageView.enabled() && stageRoster.bodySize(entry.enemy, tile))
+            || { halfW: tile * .45 * getGridUnitFootprint(entry.enemy).columns, h: getEnemyBodyHeight(entry) };
+        return { id: entry.enemy.id, x: entry.x, top: entry.y - size.h, bottom: entry.y, halfW: size.halfW,
+            pulse: battleVisualState.enemyHitPulses.get(entry.enemy.id) };
+    }
+    function overlaps(a, b) {
+        return Math.abs(a.x - b.x) < a.halfW + b.halfW && a.top < b.bottom && b.top < a.bottom;
+    }
+    function markGroups(bodies) {
+        const remaining = new Set(bodies);
+        for (const first of remaining) {
+            const group = [first];
+            remaining.delete(first);
+            for (let i = 0; i < group.length; i++) {
+                remaining.forEach(other => {
+                    if (!overlaps(group[i], other)) return;
+                    group.push(other);
+                    remaining.delete(other);
+                });
+            }
+            if (group.length >= 3) group.forEach(row => softened.add(row.pulse));
+        }
+    }
+    return function (flashes, entries, tile) {
+        const targets = entries.filter(entry => entry.enemy.hp > 0 && !entry.enemy.isBoss && flashes.get(entry.enemy.id) > 0);
+        if (targets.length >= 3) markGroups(targets.map(entry => body(entry, tile)));
+        for (const { enemy } of targets) if (softened.has(battleVisualState.enemyHitPulses.get(enemy.id))) {
+            flashes.set(enemy.id, flashes.get(enemy.id) * .4);
+        }
+    };
+})();
+
 /** Each enemy's flinch this frame, from its latest direct hit (damage over time does not flinch). */
 function buildEnemyHitRecoilMap(effects, state) {
     const result = {}, tile = state.gridProj ? state.gridProj.tileW : 48;
@@ -2543,6 +2588,7 @@ function drawBattleActorLayer(ctx, enemyEntries, state) {
         if (entry.drawn) seen.push(entry);
         else if (entry.seen) battleDrawList.keepFacing(entry, state.playerPos, view.tile);
     }
+    buildEnemyHitFlashMap.crowd(state.enemyHitFlashes, seen, view.tile);
     battleDrawList.noteDrawn(seen.concat(waiting), state.gridProj.tileW); // 누른 몬스터 찾기(락온)와 락온 표시의 자리
     let actors = seen.concat(waiting).map(entry => ({
         kind: 'enemy', id: entry.enemy.id, y: entry.y, entry
@@ -2948,8 +2994,7 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
             handled = true;
         } else if (fx.type === 'enemyEvade') {
             let enemyPos = enemyPosMap[fx.enemyId] || battleVisualState.enemyGhostPos[fx.enemyId] || { x: width * 0.72, y: height * 0.58 };
-            spawnDamageText({ start: now, ...getBodyCueAnchor(enemyPos, getEnemyBodyHeight(enemyPos)),
-                value: fx.text || '회피!', miss: true, bodyCue: true, color: fx.color || '#c4e2ff' });
+            spawnDamageText(getBodyCueAnchor.fromFx(fx, enemyPos, getEnemyBodyHeight(enemyPos), now));
             handled = true;
         } else if (fx.type === 'statusText') {
             let enemyPos = fx.enemyId ? (enemyPosMap[fx.enemyId] || battleVisualState.enemyGhostPos[fx.enemyId]) : null;
@@ -2958,8 +3003,7 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
             // 사용자 요청: 몸 옆에 11px로 작게 떴다). 2026-10-19: 나머지(무효, 죽음 저항, 밀려남, 경계하는 무리의 "!")도 발에서 40px 위
             // 몸 오른쪽을 떠나 머리 위로 왔다. "!"는 달려오는 몬스터의 머리 위에 서야 했다.
             const bodyHeight = enemyPos ? getEnemyBodyHeight(enemyPos) : getHeroBodyHeight(playerPos, now);
-            spawnDamageText({ start: now, ...getBodyCueAnchor(anchorPos, bodyHeight), value: fx.text || '회피!', miss: true,
-                bodyCue: fx.bodyCue === true, color: fx.color || '#c4e2ff' });
+            spawnDamageText(getBodyCueAnchor.fromFx(fx, anchorPos, bodyHeight, now));
             handled = true;
         } else if (fx.type === 'enemyDeath') {
             if (now - fx.start < 500 && typeof playUiFeedbackSound === 'function') {
