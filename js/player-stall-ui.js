@@ -1,8 +1,9 @@
 /** 거래소 → 나의 가판대 as a shop (2026-10-18 사용자: "가판대, 암거래상 등도 상점 인터페이스로"): the four stands of the stall beside the
  * hero's bag, and the chosen gear's sheet (its sale terms, then its card). A mouse over a listing or a bag gear shows its floating card
  * (a listing with the price the seller set; unlisted gear has no price and no appraisal): looking never selects, so a typed price stays. Gear the stall takes can be dragged from the
- * bag onto an empty stand (or chosen, then an empty stand pressed) and priced; a listing can be dragged to another stand, or back onto
- * the bag to take it back there. The screen and the pointer are js/shop-view-ui.js's. Pricing, escrow and sales are js/player-stall.js's;
+ * bag onto an empty stand, where it is listed at once at its suggested price (or chosen, then an empty stand pressed, and priced);
+ * a listing can be dragged to another stand, or back onto the bag to take it back there. Under every price input a line says how
+ * visitors will take that price (quick, fair, slow, never), in words: the appraisal's numbers stay private. The screen and the pointer are js/shop-view-ui.js's. Pricing, escrow and sales are js/player-stall.js's;
  * this is the input, notice and save boundary, and the settlement notices main's tick asks for (settleSales). */
 const playerStallUi = {
     selectedId: null, selectedListingId: null, pendingSlot: null,
@@ -34,8 +35,9 @@ const playerStallUi = {
         this.render(true);
     },
     inspect(id) { this.selectedId = null; this.selectedListingId = id; this.resetDraft(); this.message = ''; this.render(true); this.revealTerms(); },
+    /** The newest offer's listing (the stand button counts them all). */
     openOffers() {
-        const row = game.playerStall.listings.find(entry => entry.offer);
+        const row = game.playerStall.listings.filter(entry => entry.offer).sort((a, b) => b.offer.id - a.offer.id)[0];
         if (row) this.inspect(row.id);
         document.querySelector('#market-panel-stall .shop-info')?.scrollIntoView({ block: 'nearest' });
     },
@@ -51,21 +53,47 @@ const playerStallUi = {
         const source = this.selectedListingId ? { kind: 'listing', id: this.selectedListingId } : { kind: 'inventory', id: this.selectedId };
         this.place(source, slot);
     },
-    /** source ({ kind: 'inventory' | 'listing', id }) onto empty stand slot: bag gear waits there for its price, a listing moves. */
-    place(source, slot) {
+    /** source ({ kind: 'inventory' | 'listing', id }) onto empty stand slot: a listing moves; bag gear dropped there (quick) is listed at
+     * once at its suggested price, bag gear chosen then placed by a tap waits there for its price. */
+    place(source, slot, quick = false) {
         if (this.blocked()) return;
-        if (!Number.isInteger(slot) || slot < 0 || slot >= PLAYER_STALL_RULES.slots || game.playerStall.listings.some(row => row.slot === slot)) {
-            this.finish({ ok: false, reason: '비어 있는 진열칸을 골라 주세요.' }); return;
-        }
+        if (!this.standFree(slot)) { this.finish({ ok: false, reason: '비어 있는 진열칸을 골라 주세요.' }); return; }
         if (source.kind === 'listing') { this.moveListing(source.id, slot); return; }
         const item = this.items().find(entry => entry.id === source.id);
         if (!item) { this.finish({ ok: false, reason: '가방에서 진열할 장비를 먼저 고르세요.' }); return; }
+        if (quick) this.quickList(item, slot);
+        else this.stage(item, slot);
+    },
+    standFree(slot) {
+        return Number.isInteger(slot) && slot >= 0 && slot < PLAYER_STALL_RULES.slots && !game.playerStall.listings.some(row => row.slot === slot);
+    },
+    /** Bag gear waits on stand slot for its price. */
+    stage(item, slot) {
         if (item.id !== this.selectedId || this.selectedListingId) this.resetDraft();
         this.selectedId = item.id; this.selectedListingId = null;
         this.pendingSlot = slot;
         this.message = `${slot + 1}번 칸: 가격을 적고 진열하세요.`;
         this.render(true);
         this.revealTerms();
+    },
+    /** Dropped onto a stand: listed there at the price typed for it, else its suggested price, in the chosen or suggested currency; its
+     * sheet opens with the price ready to change. */
+    quickList(item, slot) {
+        const currency = (item.id === this.selectedId && this.draftCurrency) || itemAppraisal.quote(item).recommendedCurrency;
+        const price = (item.id === this.selectedId && this.askValue(this.draftAsk)) || this.suggestedPrice(item, currency);
+        const now = Date.now(), settled = this.settleSales(now) > 0;
+        const result = playerStall.list(game, item.id, price, now, { slot, currency, negotiate: this.draftNegotiate });
+        if (result.ok) {
+            this.selectedListingId = game.playerStall.listings.find(row => row.item.id === item.id).id;
+            this.selectedId = null; this.resetDraft();
+            result.reason = `${slot + 1}번 칸에 진열했습니다. 가격은 바로 바꿀 수 있습니다.`;
+        }
+        this.finish(result, settled);
+        this.revealTerms();
+    },
+    /** The price the stall suggests for gear in currency: what visitors think it is worth (js/item-appraisal.js). */
+    suggestedPrice(item, currency) {
+        return itemAppraisal.quote(item, currency)?.fair || 1;
     },
     moveListing(id, slot) {
         const result = playerStall.moveListing(game, id, slot);
@@ -150,7 +178,9 @@ const playerStallUi = {
     },
     counter(id, offerId) {
         if (this.blocked()) return;
-        const amount = Number(document.getElementById(`stall-counter-${offerId}`).value), now = Date.now();
+        const input = document.getElementById(`stall-counter-${offerId}`);
+        if (!input) { this.finish({ ok: false, reason: '이미 처리되었거나 기한이 지난 제안입니다.' }); return; }
+        const amount = Number(input.value), now = Date.now();
         const settled = this.settleSales(now) > 0;
         const row = game.playerStall.listings.find(entry => entry.id === id), item = row?.item, currency = row?.currency;
         const result = playerStall.counterOffer(game, { listingId: id, offerId, amount }, now);
@@ -195,21 +225,41 @@ const playerStallUi = {
     priceHint(price) {
         return price === '' || this.askValue(price) !== null ? '' : '1~1,000,000 사이의 정수를 입력하세요.';
     },
-    preview() {
-        const host = document.getElementById('stall-price-hint'), input = document.getElementById('stall-ask');
-        if (!host || !input || !this.selected()) return;
-        this.draftAsk = input.value;
-        const hint = this.priceHint(input.value);
-        host.textContent = hint;
-        host.classList.toggle('stall-warning', !!hint);
-        input.setAttribute('aria-invalid', String(!!hint));
+    /** How visitors will take a well-formed price for item in currency, in words without the appraisal's numbers: above what any
+     * visitor pays it never sells (js/player-stall.js purchaseChance), above the fair value it sells slowly, well under it quickly. */
+    priceBand(item, currency, text) {
+        const price = this.askValue(text), value = item && itemAppraisal.quote(item, currency);
+        if (price === null || !value) return '';
+        if (!value.eligible || price > value.ceiling) return '손님이 사지 않는 가격';
+        if (price > value.fair) return '오래 걸리는 가격';
+        return price < value.fair * 0.75 ? '금방 팔리는 가격' : '적당한 가격';
     },
-    /** A listing's price being typed: kept as the draft, its format checked at once (it used to wait for the next redraw). */
+    /** The line under a price input: a format warning, else the price band. */
+    priceNote(item, currency, text) {
+        const warning = this.priceHint(text);
+        return { text: warning || this.priceBand(item, currency, text), warning: !!warning };
+    },
+    noteHtml(id, item, currency, text) {
+        const note = this.priceNote(item, currency, text);
+        return `<p id="${id}" class="stall-price-hint${note.warning ? ' stall-warning' : ''}">${note.text}</p>`;
+    },
+    paintNote(input, host, item, currency) {
+        const note = this.priceNote(item, currency, input.value);
+        if (host) { host.textContent = note.text; host.classList.toggle('stall-warning', note.warning); }
+        input.setAttribute('aria-invalid', String(note.warning));
+    },
+    preview() {
+        const host = document.getElementById('stall-price-hint'), input = document.getElementById('stall-ask'), item = this.selected();
+        if (!host || !input || !item) return;
+        this.draftAsk = input.value;
+        this.paintNote(input, host, item, document.getElementById('stall-currency')?.value);
+    },
+    /** A listing's price being typed: kept as the draft, its format and band shown at once (it used to wait for the next redraw). */
     editListingPrice(input) {
         this.draftAsk = input.value;
-        const hint = this.priceHint(input.value), host = document.getElementById(input.id.replace('stall-price-', 'stall-price-hint-'));
-        if (host) { host.textContent = hint; host.classList.toggle('stall-warning', !!hint); }
-        input.setAttribute('aria-invalid', String(!!hint));
+        const row = game.playerStall.listings.find(entry => `stall-price-${entry.id}` === input.id);
+        const host = document.getElementById(input.id.replace('stall-price-', 'stall-price-hint-'));
+        this.paintNote(input, host, row?.item, document.getElementById('stall-currency')?.value || row?.currency);
     },
     /** A new currency empties the price (2026-10-18: 50 황금률 switched to 새싹 stayed 50 and sold for 50 새싹). */
     changeCurrency(currency) {
@@ -266,14 +316,15 @@ const playerStallUi = {
         const message = this.message ? `<p role="status" class="stall-message">${escapeHTML(this.message)}</p>` : '';
         if (!item) return message;
         const currency = this.draftCurrency || listing?.currency || itemAppraisal.quote(item).recommendedCurrency;
-        const terms = this.currencySelector(item, currency) + (listing ? this.listing(listing, currency) : this.newListingForm(currency));
+        const terms = this.currencySelector(item, currency) + (listing ? this.listing(listing, currency) : this.newListingForm(item, currency));
         return `<div class="shop-info-deal">${message}<div class="stall-terms-box">${terms}</div>
             <button type="button" class="shop-info-close" data-shop-unchoose>닫기</button></div><div class="shop-info-card">${shopView.itemCardHtml(item)}</div>`;
     },
-    newListingForm(currency) {
-        const price = this.draftAsk, full = game.playerStall.listings.length >= PLAYER_STALL_RULES.slots;
+    /** The new listing's form, its price starting at the suggested one (so Enter or the button lists as it stands). */
+    newListingForm(item, currency) {
+        const price = this.draftAsk || String(this.suggestedPrice(item, currency)), full = game.playerStall.listings.length >= PLAYER_STALL_RULES.slots;
         return `<label class="stall-price-label" for="stall-ask">판매 희망가 (${ORB_DB[currency].name})</label><input id="stall-ask" type="number" min="1" max="1000000" step="1" value="${escapeHTML(price)}" placeholder="가격을 정해 주세요" aria-describedby="stall-price-hint" oninput="playerStallUi.preview()" onkeydown="if(event.key==='Enter'){event.preventDefault();playerStallUi.list()}">
-            <p id="stall-price-hint" class="stall-price-hint">${this.priceHint(price)}</p>
+            ${this.noteHtml('stall-price-hint', item, currency, price)}
             <label class="stall-check"><input id="stall-negotiate" type="checkbox" ${this.draftNegotiate ? 'checked' : ''} onchange="playerStallUi.draftNegotiate=this.checked"><span>다른 가격 제안 받기</span></label>
             <button type="button" class="stall-primary" data-stall-list onclick="playerStallUi.list()" ${full ? 'disabled' : ''}>${full ? '진열대가 가득 찼습니다' : this.pendingSlot === null ? '첫 빈칸에 진열' : `${this.pendingSlot + 1}번 칸에 진열 확정`}</button>
             ${this.pendingSlot === null ? '' : '<button type="button" class="stall-cancel" onclick="playerStallUi.cancelPlacement()">놓기 취소</button>'}`;
@@ -297,7 +348,7 @@ const playerStallUi = {
         return `<article class="stall-listing ${row.offer ? 'has-offer' : ''}" data-stall-listing="${row.id}"><p class="stall-note">${row.slot + 1}번 칸에서 판매 중</p>
             ${this.offer(row)}<label class="stall-price-label" for="stall-price-${row.id}">판매 희망가 (${ORB_DB[currency].name})</label><div class="stall-price-edit"><input id="stall-price-${row.id}" type="number" min="1" max="1000000" step="1" value="${escapeHTML(price)}" placeholder="새 가격" aria-describedby="stall-price-hint-${row.id}" oninput="playerStallUi.editListingPrice(this)" onkeydown="if(event.key==='Enter'){event.preventDefault();playerStallUi.reprice(${row.id})}">
             <button type="button" onclick="playerStallUi.reprice(${row.id})">가격 변경</button></div>
-            <p id="stall-price-hint-${row.id}" class="stall-price-hint">${this.priceHint(price)}</p>
+            ${this.noteHtml(`stall-price-hint-${row.id}`, row.item, currency, price)}
             ${currency !== row.currency ? `<p class="stall-note">${ORB_DB[currency].name} 가격을 새로 적어 주세요.</p>` : ''}
             <div class="stall-listing-footer"><label class="stall-check"><input type="checkbox" aria-label="${escapeHTML(row.item.name)} 가격 제안 허용" ${row.negotiate ? 'checked' : ''} onchange="playerStallUi.negotiate(${row.id},this.checked)"><span>제안 허용</span></label>
             <button type="button" onclick="playerStallUi.withdraw(${row.id})">물건 회수</button></div></article>`;
@@ -461,11 +512,11 @@ shopView.registerShop('stall', {
         if (there && kind === 'listing' && there.id === Number(id)) return null;
         return !there;
     },
-    /** Onto a stand: bag gear waits there for its price, a listing moves there. Onto the bag: the listing comes back there. */
+    /** Onto a stand: bag gear is listed there at once, a listing moves there. Onto the bag: the listing comes back there. */
     shopDrop(root, pick, target) {
         const [kind, id] = pick.split(':');
         if (target.area === 'bag') { playerStallUi.withdraw(Number(id), { column: target.column, row: target.row }); return; }
-        playerStallUi.place({ kind: kind === 'bag' ? 'inventory' : 'listing', id: Number(id) }, Number(target.key));
+        playerStallUi.place({ kind: kind === 'bag' ? 'inventory' : 'listing', id: Number(id) }, Number(target.key), kind === 'bag');
     },
     shopRedraw: () => playerStallUi.render(true)
 });
