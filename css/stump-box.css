@@ -12,6 +12,10 @@
   .stump-box-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; padding-bottom: 4px; }
   .stump-box-head .stump-line { margin: 0; color: var(--px-copy-muted, #a39883); }
   #tab-stump .stump-rules-button { min-width: 26px; min-height: 26px; padding: 0 6px; line-height: 1; }
+  /* ? 규칙 카드(#info-tooltip, js/stump-box-ui.js stumpRuleLineHtml): 규칙 이름은 금빛, 그루터기 낱말은 제 색, 수치는 밝게 */
+  .stump-rules-tip .stump-rules-head { color: #e8c872; }
+  .stump-rules-tip .stump-ink { color: var(--ink); }
+  .stump-rules-tip .stump-ink.is-num { color: #f6e7c1; }
   /* 한 열(휴대폰 · 좁은 창): 틀(판 또는 조합창) → 그 아래 옵션 합계나 조합 단추 → 고른 것 → 보관함(틀 가까이 있어야 끌어 옮기기
      쉽다) → 탭(수확 일지, 함 해금, 부적). 넓은 창은 왼쪽 틀과 그 아래, 오른쪽 나머지 */
   .stump-box-screen { display: flex; flex-direction: column; gap: 10px; }
@@ -188,7 +192,7 @@
   .stump-board-foot { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
   #tab-stump .stump-recipe-book { display: inline-flex; align-items: center; gap: 8px; min-height: 0; margin: 0; padding: 2px 10px 2px 4px; border: 0;
     background: none; box-shadow: none; color: #e6c67f; font-size: var(--font-size-ui); cursor: pointer; }
-  .stump-recipe-book img { width: 30px; height: 40px; image-rendering: pixelated; filter: drop-shadow(2px 2px 0 #050302); transition: transform .12s ease-out; }
+  .stump-recipe-book img { width: 44px; height: 56px; image-rendering: pixelated; filter: drop-shadow(2px 2px 0 #050302); transition: transform .12s ease-out; }
   #tab-stump .stump-recipe-book:is(:hover, :focus-visible) img { transform: translateY(-2px); }
   #tab-stump .stump-recipe-book:is(:hover, :focus-visible) { color: #f6e2a8; }
   /* 보석을 누르면(js/stump-box-ui.js switchFrame): 누르기 전의 판을 복제한 그림(.stump-board-ghost)이 위를 덮고, 보석에서 퍼지는 원
@@ -624,13 +628,15 @@
   #stump-equip-host[hidden] { display: none; }
 
   /* 조합법 책(2026-10-29 사용자: 책 모양을 누르면 책이 화면에 커지면서 펼쳐지고 그 안에 쓰여 있게, js/stump-cube-ui.js openRecipeBook).
-     가죽 장정 위의 양피지 두 쪽, 가운데 등. 글은 두 쪽에 걸쳐 흐르는 단이고 넘치면 아래 모서리 화살표로 장을 넘긴다. 휴대폰은 한 쪽.
-     닫힌 책(겉표지 = assets/ui/grove/recipe-book.png)이 단추에서 날아와 커진 뒤 겉표지가 등을 축으로 넘어간다. */
+     그림은 PixelLab으로 그린 192×128 한 장씩 5장을 가로로 이은 띠(assets/ui/grove/recipe-book-open.png): 오른쪽 반에 놓인 닫힌 책,
+     들리는 표지, 등 위에 선 표지, 왼쪽으로 내려오는 표지 안쪽, 펼친 두 쪽. 오른쪽 쪽은 다섯 장 모두 같은 도트라 책이 제자리에서
+     펼쳐진다(2026-10-29 사용자: 한 번에 그린 펼침은 책이 오른쪽으로 옮겨 가는 모양이었다). 도트가 번지지 않게 정수 배율(--k)로만 키운다. 글은 두 쪽에 걸쳐 흐르는 단이고, 넘치면 아래
+     모서리 화살표로 장을 넘긴다. 글 자리는 그림의 종이(왼쪽 15~91, 오른쪽 99~176, 위아래 5~113 도트) 안쪽이다. 휴대폰은 오른쪽 한 쪽. */
+  /* 책 글은 끌어서 고르지 않는다(2026-10-29 사용자: 텍스트 드래그 안 되게) */
   .stump-book {
-    --book-h: min(540px, 80vh);
-    --page-w: calc(var(--book-h) * .72);
-    --spine: 28px;
-    --pad: 26px;
+    --k: 4;
+    user-select: none;
+    -webkit-user-select: none;
     position: fixed;
     inset: 0;
     width: 100vw;
@@ -642,82 +648,82 @@
     border: 0;
     background: none;
     overflow: hidden;
-    color: #2b1a0e;
+    color: #1a0d05;
   }
   .stump-book[open] { display: grid; place-items: center; }
   .stump-book::backdrop { background: rgba(6, 4, 2, .66); }
-  .stump-book-volume { position: relative; width: calc(var(--page-w) * 2 + var(--spine)); height: var(--book-h); perspective: 2400px; }
-  /* 가죽 장정: 쪽보다 조금 크게, 도트처럼 각진 두 겹 테 */
-  .stump-book-volume::before {
-    content: '';
-    position: absolute;
-    inset: -12px -14px;
-    background: linear-gradient(90deg, #4a1b10, #6b2818 46%, #2b0f08 50%, #6b2818 54%, #4a1b10);
-    box-shadow: 0 0 0 2px #170c07, inset 0 0 0 3px #8a3a22, inset 0 0 0 5px #170c07, 0 18px 40px rgba(0, 0, 0, .6);
-  }
-  .stump-book-spread { position: absolute; inset: 0; }
-  .stump-book-paper { position: absolute; top: 0; bottom: 0; width: var(--page-w); }
-  .stump-book-paper.is-left { left: 0; background: linear-gradient(90deg, #cdb582, #e8d9b0 7%, #efe3c1 60%, #e3d2a5 92%, #b99f6c);
-    box-shadow: -3px 3px 0 #cbb68a, -6px 6px 0 #9c8458, 0 0 0 2px #3b2414; }
-  .stump-book-paper.is-right { right: 0; background: linear-gradient(90deg, #b99f6c, #e3d2a5 8%, #efe3c1 40%, #e8d9b0 93%, #cdb582);
-    box-shadow: 3px 3px 0 #cbb68a, 6px 6px 0 #9c8458, 0 0 0 2px #3b2414; }
+  .stump-book-volume { position: relative; width: calc(192px * var(--k)); height: calc(128px * var(--k)); filter: drop-shadow(0 18px 30px rgba(0, 0, 0, .6)); }
+  /* 8장 띠(js/stump-cube-ui.js 조합법 책): 0~4 펼침, 5~7 책장 넘김. 펼친 동안은 4번 그림 */
+  .stump-book-art { position: absolute; inset: 0; background: url('../assets/ui/grove/recipe-book-open.png') 0 0 / 800% 100% no-repeat; image-rendering: pixelated; }
+  .stump-book.is-open .stump-book-art { background-position: calc(400% / 7) 0; }
+  /* 첫 그림의 닫힌 책 자리(96~181, 7~121 도트): 단추에서 날아올 때 이 상자를 단추에 맞춘다 */
+  .stump-book-cover { position: absolute; left: calc(96px * var(--k)); top: calc(7px * var(--k)); width: calc(86px * var(--k)); height: calc(115px * var(--k)); pointer-events: none; }
+  /* 글은 종이 안쪽을 쓴다: 왼쪽 단 18~87, 오른쪽 단 104~173 도트. 위아래는 종이 끝(5, 113)에서 9도트씩 띄우고(2026-10-29 사용자:
+     상하 여백) 아래 여백에 장 넘김 단추가 앉는다 */
   .stump-book-text {
     position: absolute;
-    left: var(--pad);
-    right: var(--pad);
-    top: var(--pad);
-    bottom: 52px;
+    left: calc(18px * var(--k));
+    right: calc(19px * var(--k));
+    top: calc(14px * var(--k));
+    bottom: calc(25px * var(--k));
     z-index: 1;
-    columns: 2;
-    column-gap: calc(var(--spine) + var(--pad) * 2);
-    column-fill: auto;
     overflow: hidden;
-    font-size: 13px;
-    line-height: 1.55;
+    transition: opacity .2s ease-out;
   }
-  .stump-book-title { margin: 0 0 12px; color: #5a2410; font-size: 18px; text-align: center; letter-spacing: 4px; }
-  .stump-book-title::before, .stump-book-title::after { content: '❦'; margin: 0 10px; color: #8a5a22; font-size: 13px; letter-spacing: 0; }
+  /* 쪽(.stump-book-page)은 조합법을 통째로 담아(js/stump-cube-ui.js paginateBook) 책 밖으로 이어지고, 장을 넘기면 한 펼침만큼 옮긴다
+     (turnBookPage). 한 쪽에 담긴 조합법은 세로 가운데에 놓인다(2026-10-29 사용자: 남는 공간은 적당히 가운데 정렬) */
+  .stump-book-flow { display: flex; gap: calc(17px * var(--k)); height: 100%; }
+  .stump-book-page { flex: 0 0 calc((100% - 17px * var(--k)) / 2); display: flex; flex-direction: column; justify-content: center; gap: 12px; height: 100%; }
+  .stump-book.is-closed .stump-book-text { opacity: 0; }
+  /* 책장이 넘어가는 동안 글은 잠깐 걷힌다 */
+  .stump-book.is-turning .stump-book-text { opacity: 0; transition-duration: .08s; }
   .stump-book-list { margin: 0; padding: 0; list-style: none; }
-  .stump-book-list li { display: grid; gap: 3px; margin-bottom: 12px; padding: 0 0 10px 9px; break-inside: avoid;
+  /* 줄은 낱말 사이에서만 바뀌고(한국어 keep-all) 짧은 괄호는 통째로 다음 줄로 간다(.stump-book-keep) */
+  .stump-book-list li { display: block; margin: 0; padding: 0 0 10px 9px; word-break: keep-all; text-wrap: pretty;
     border-left: 3px solid color-mix(in srgb, var(--recipe-tone, #8c7043) 55%, #3b2414); border-bottom: 1px dashed rgba(90, 58, 26, .35); }
-  .stump-book-entry-head { display: flex; align-items: center; gap: 6px; }
-  .stump-book-entry-head strong { color: #4a1e0c; font-size: 14px; }
-  .stump-book-group { padding: 0 5px; border: 1px solid color-mix(in srgb, var(--recipe-tone) 45%, #3b2414); color: color-mix(in srgb, var(--recipe-tone) 45%, #2a1408);
-    background: color-mix(in srgb, var(--recipe-tone) 18%, #efe3c1); font-size: 11px; }
+  .stump-book-keep { white-space: nowrap; }
+  /* 재료, 결과, 비용 줄: 앞에 짧은 이름표, 내용은 그 옆에서 줄바꿈한다. 덧붙임은 그 아래 작은 줄 */
+  /* 재료, 결과, 비용 줄과 덧붙임은 이름보다 들여 쓴다(2026-10-29 사용자) */
+  .stump-book-line { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px; margin: 4px 0 0 12px; }
+  .stump-book-line > b { padding: 0 4px; background: #5a3a1c; color: #f6e6c0; line-height: 18px; align-self: start; margin-top: 3px; }
+  .stump-book-note { display: block; margin: 3px 0 0 12px; }
+  .stump-book-entry-head { display: flex; align-items: center; gap: 6px; break-after: avoid; }
+  .stump-book-entry-head strong { color: #3a1406; }
+  .stump-book-group { padding: 0 5px; border: 1px solid color-mix(in srgb, var(--recipe-tone) 45%, #3b2414); color: color-mix(in oklch, var(--recipe-tone) 50%, #000);
+    color: oklch(from var(--recipe-tone) .46 clamp(.12, c, .16) h);
+    background: color-mix(in srgb, var(--recipe-tone) 18%, #efe3c1); }
   .stump-book-arrow { color: #8a5a22; }
-  .stump-book .stump-ink { color: color-mix(in srgb, var(--ink) 48%, #2a1408); }
-  .stump-book .stump-ink.is-num { color: #8e2c14; }
-  .stump-book-list small { color: #6b5236; }
+  /* 색 낱말은 게임의 제 색 그대로(희귀도, 재료 종류, 원소), 먹 테두리 1px로 밝은 종이에서 떠 보인다. 어둡게 섞으면 종이에 묻히거나
+     색감이 바랬다(2026-10-29 사용자: 색이 종이에 묻혀요, 희귀나 마법, 고유 색감이 바래 있음, 다른 색들도). 숫자는 붉은 먹 */
+  .stump-book .stump-ink { color: var(--ink); text-shadow: 1px 0 0 #2a1408, -1px 0 0 #2a1408, 0 1px 0 #2a1408, 0 -1px 0 #2a1408; }
+  .stump-book .stump-ink.is-num { color: #7e2410; text-shadow: none; }
+  .stump-book-list small { color: #3f2c18; }
   .stump-book-list .is-short { color: #a3261a; }
-  .stump-book-list li.is-hidden { border-left-color: #a08a5e; color: #7a6446; font-style: italic; }
-  /* 겉표지: 오른쪽 쪽을 덮었다가 등(두 쪽 사이의 가운데)을 축으로 왼쪽으로 넘어간다. 안쪽은 면지 */
-  .stump-book-cover { position: absolute; top: 0; bottom: 0; right: 0; z-index: 3; width: var(--page-w);
-    transform-origin: calc(var(--spine) / -2) 50%; transform-style: preserve-3d; }
-  .stump-book-cover-front, .stump-book-cover-back { position: absolute; inset: 0; backface-visibility: hidden; }
-  .stump-book-cover-front { background: url('../assets/ui/grove/recipe-book.png') 0 0 / 100% 100% no-repeat; image-rendering: pixelated; }
-  .stump-book-cover-back { transform: rotateY(180deg); background: #d2bd8c; box-shadow: inset 0 0 0 8px #6b2818, inset 0 0 0 10px #170c07; }
-  /* 펼친 뒤 겉표지(왼쪽 쪽 위의 면지)는 걷히듯 사라진다. 닫힌 동안은 왼쪽 쪽을 가린다(js/stump-cube-ui.js openBookCover) */
-  .stump-book-cover { transition: opacity .22s ease-out; }
-  .stump-book.is-open .stump-book-cover { opacity: 0; pointer-events: none; }
-  @media (min-width: 641px) { .stump-book.is-closed .stump-book-spread { clip-path: inset(0 0 0 calc(var(--page-w) + var(--spine))); } }
+  .stump-book-list li.is-hidden { border-left-color: #a08a5e; color: #4f3c24; font-style: italic; }
   dialog.stump-book :is(.stump-book-turn, .stump-book-close) { position: absolute; z-index: 4; min-width: 0; min-height: 0; margin: 0; padding: 0; border: 0;
     background: none; box-shadow: none; color: #6b3a16; cursor: pointer; opacity: 0; pointer-events: none; transition: opacity .2s; }
   dialog.stump-book.is-open :is(.stump-book-turn, .stump-book-close) { opacity: 1; pointer-events: auto; }
-  dialog.stump-book .stump-book-turn { bottom: 10px; width: 40px; height: 32px; font-size: 18px; }
-  dialog.stump-book .stump-book-turn:is(:hover, :focus-visible) { color: #a3261a; }
+  /* 장 넘김 단추(2026-10-29 사용자: 더 잘 보이게, 책 같게 입체감 없이): 종이에 찍힌 듯한 납작한 먹색 판에 밝은 화살표, 테두리와 그림자 없음 */
+  /* 종이 느낌(2026-10-29 사용자): 종이보다 한 톤 짙은 양피지 조각에 먹선 테와 먹으로 그린 화살표, 도트처럼 깎인 모서리 */
+  dialog.stump-book .stump-book-turn { bottom: calc(15px * var(--k)); width: 40px; height: 28px; font-size: 16px; color: #3a1a0a;
+    background: #cdb27c; box-shadow: inset 0 0 0 2px #7a5a30;
+    clip-path: polygon(2px 0, calc(100% - 2px) 0, 100% 2px, 100% calc(100% - 2px), calc(100% - 2px) 100%, 2px 100%, 0 calc(100% - 2px), 0 2px); }
+  dialog.stump-book .stump-book-turn:is(:hover, :focus-visible) { background: #b8975c; color: #1c0d05; }
   /* 넘길 장이 없는 쪽의 화살표는 보이지 않는다 */
   dialog.stump-book.is-open .stump-book-turn:disabled { visibility: hidden; }
-  .stump-book-turn.is-prev { left: calc(var(--pad) - 10px); }
-  .stump-book-turn.is-next { right: calc(var(--pad) - 10px); }
-  dialog.stump-book .stump-book-close { top: -44px; right: -16px; width: 36px; height: 36px; color: #f3d28c; font-size: 20px; }
+  .stump-book-turn.is-prev { left: calc(17px * var(--k)); }
+  .stump-book-turn.is-next { right: calc(18px * var(--k)); }
+  dialog.stump-book .stump-book-close { top: -40px; right: 0; width: 36px; height: 36px; color: #f3d28c; font-size: 20px; }
   dialog.stump-book :is(.stump-book-turn, .stump-book-close):focus-visible { outline: 2px solid #8a5a22; outline-offset: -2px; }
-  /* 휴대폰: 한 쪽씩(겉표지는 그 쪽을 덮었다가 넘어간다) */
+  /* 작은 화면은 3배(576×384). 휴대폰은 그림의 오른쪽 반(닫힌 책과 오른쪽 쪽)만 보이는 한 쪽 책이다 */
+  @media (max-width: 820px), (max-height: 620px) { .stump-book { --k: 3; } }
   @media (max-width: 640px) {
-    .stump-book { --book-h: min(560px, 78vh); --page-w: min(calc(100vw - 40px), calc(var(--book-h) * .72)); --pad: 20px; }
-    .stump-book-volume { width: var(--page-w); }
-    .stump-book-paper.is-left { display: none; }
-    .stump-book-text { columns: 1; column-gap: calc(var(--pad) * 2); }
-    .stump-book-cover { transform-origin: 0 50%; }
+    .stump-book-volume { width: calc(96px * var(--k)); }
+    .stump-book-art { left: calc(-96px * var(--k)); width: calc(192px * var(--k)); right: auto; clip-path: inset(0 0 0 50%); }
+    .stump-book-cover { left: 0; }
+    .stump-book-text { left: calc(7px * var(--k)); }
+    .stump-book-page { flex-basis: 100%; }
+    .stump-book-turn.is-prev { left: calc(3px * var(--k)); }
   }
 }
 

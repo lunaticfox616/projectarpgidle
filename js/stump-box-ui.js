@@ -258,7 +258,14 @@ const stumpBoxUi = (() => {
             stumpLoopRule()];
         if (stumpBox.graftOpen(game)) rules.push(`접붙이기: 단계마다 그 칸의 효과 +${STUMP_BOX_GRAFT.pctPerRank}%`);
         rules.push(...stumpRipeningUi.rulesLines());
-        return '<div class="tooltip-title">그루터기 함</div>' + rules.map(rule => `<div class="tooltip-line">${escStump(rule)}</div>`).join('');
+        return '<div class="tooltip-title">그루터기 함</div><div class="stump-rules-tip">' + rules.map(stumpRuleLineHtml).join('') + '</div>';
+    }
+    /** One rule in colour (2026-10-29 사용자: ? 도움말에 색감): the name before ':' in gold, stump words (화염, 씨앗, 수액, 호박석...) in their
+     * own colours as in the recipe book, then the game's stat words and numbers (경험치, +25%) as everywhere else. */
+    function stumpRuleLineHtml(rule) {
+        const at = rule.indexOf(': '), head = at > 0 ? rule.slice(0, at) : '', body = at > 0 ? rule.slice(at + 2) : rule;
+        const lead = head ? `<span class="stump-rules-head">${escStump(head)}</span>: ` : '';
+        return `<div class="tooltip-line">${lead}${statToneText.markup(stumpCubeUi.recipeToneHtml(body))}</div>`;
     }
 
     // ── 접붙이기 ───────────────────────────────────────────
@@ -929,6 +936,10 @@ const stumpBoxUi = (() => {
         selectedId = null;
         return stumpCubeUi.putStumpItem(id, cell);
     }
+    /** A cube item dragged to another cube cell moves there (to = its new top left); dragged to the storage or the bag (to = null) it comes out. */
+    function dropCubeItem(from, to) {
+        return to === null ? stumpCubeUi.takeOutCubeCell(from) : stumpCubeUi.moveCubeItem(from, to);
+    }
     /** A board item goes to storage; a stored one onto the best empty cell, or into the cube while the frame shows it. */
     function quickMoveStumpItem(id) {
         const item = stumpBox.itemById(game, id);
@@ -1217,7 +1228,7 @@ const stumpBoxUi = (() => {
         return stumpItemTipHtml(item, stumpBox.evaluate(state), -1);
     }
 
-    return { renderStumpBoxTab, refreshStumpTabNow, revealMoreTab, checkStumpBoxUnlock, tipFor, dropOnCell, dropOnStorage, dropOnCube, claimReward,
+    return { renderStumpBoxTab, refreshStumpTabNow, revealMoreTab, checkStumpBoxUnlock, tipFor, dropOnCell, dropOnStorage, dropOnCube, dropCubeItem, claimReward,
         itemTipHtml, previewCell, hoverCell, clearPlacementPreview, syncEquipmentBag, frameShowsCube };
 })();
 safeExposeGlobals({ stumpBoxUi });
