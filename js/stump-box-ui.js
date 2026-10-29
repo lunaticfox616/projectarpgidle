@@ -160,6 +160,9 @@ const stumpBoxUi = (() => {
     function emptyBoardAndCube() {
         const placed = game.stumpBox.board.some(id => id !== null), inCube = stumpCube.entries().length > 0;
         if (!placed && !inCube) return notifyStump('그루터기 함과 조합창이 비어 있습니다.');
+        // A board that may not be emptied (full storage, woodsman fight) keeps the cube as it is too.
+        const refusal = placed ? stumpBox.unplaceAllReason(game) : '';
+        if (refusal) return notifyStump(refusal);
         playUiFeedbackSound('uiCancel');
         if (inCube) stumpCube.clear();
         if (placed) return unplaceAllStump();

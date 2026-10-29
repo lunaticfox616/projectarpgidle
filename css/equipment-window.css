@@ -6,6 +6,9 @@
 @property --dock-fit-width { syntax: '<length>'; inherits: false; initial-value: 0px; }
 @layer overrides {
 :root body :is(#item-tab-equip, #stump-equip-host) { --eqw-gold: #ecc982; --eqw-muted: #a39883; --eqw-ink: #e6dcc6; --eqw-edge: #8a6a36; container: eqw / inline-size; }
+/* 그루터기 함의 오른쪽 열에는 가방만 온다(장착 칸이 없다). 넓은 장비 창의 두세 칸 규칙(@container eqw)이 걸리면 최대화한 그루터기 창에서
+   가방이 좁은 첫 칸에 들어가 칸이 작아지고 도구 줄이 판을 덮었다 */
+:root body #stump-equip-host { container-name: stump-bag; }
 :root body :is(#item-tab-equip, #stump-equip-host) .equipment-window { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; align-items: start; }
 :root body :is(#item-tab-equip, #stump-equip-host) .equipment-window .equipment-loadout-panel { display: flex; flex-direction: column; gap: 8px; min-width: 0; padding: 0; border: 0;
   background: none; box-shadow: none; }

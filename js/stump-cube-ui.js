@@ -395,7 +395,8 @@ const stumpCubeUi = (() => {
     // 닫힌 책(assets/ui/grove/recipe-book.png)이 단추 자리에서 화면 가운데로 커지고, 겉표지가 등을 축으로 넘어가며 두 쪽이 펼쳐진다.
     // 글은 두 쪽에 걸쳐 흐르는 단(css columns)이고, 넘치면 아래 모서리의 화살표로 장을 넘긴다. 휴대폰은 한 쪽씩 본다.
     // 움직임을 줄이는 설정이면 바로 펼친 책을 보인다.
-    let bookDialog = null, bookSpread = 0;
+    // bookOpening counts each open and close, so a cover turn still running when the book closes leaves the next opening alone.
+    let bookDialog = null, bookSpread = 0, bookOpening = 0;
     const BOOK_GROW_MS = 360, BOOK_OPEN_MS = 560, BOOK_CLOSE_MS = 160;
     const bookCount = () => `${stumpCube.revealed(game).length}/${STUMP_CUBE_RECIPES.length}`;
     /** The closed book under the frame (both sides of the frame: the board's bottom gem merges by one of its recipes). */
@@ -448,6 +449,8 @@ const stumpCubeUi = (() => {
         const dialog = ensureBookDialog();
         dialog.innerHTML = bookMarkup();
         bookSpread = 0;
+        bookOpening += 1;
+        dialog.classList.remove('is-open');
         dialog.classList.add('is-closed');
         dialog.showModal();
         playUiFeedbackSound('stumpFrameSwitch');
@@ -466,18 +469,21 @@ const stumpCubeUi = (() => {
         const fly = volume.animate([{ transform: `translate(${dx}px, ${dy}px) scale(${scale})`, transformOrigin: `${cover.left + cover.width / 2 - box.left}px 50%` },
             { transform: `translate(${shift}px, 0) scale(1)`, transformOrigin: `${cover.left + cover.width / 2 - box.left}px 50%` }],
             { duration: BOOK_GROW_MS, easing: 'cubic-bezier(.2, .7, .2, 1)', fill: 'both' });
-        fly.finished.then(() => openBookCover(volume, shift), () => {});
+        const opening = bookOpening;
+        fly.finished.then(() => opening === bookOpening && openBookCover(volume, shift), () => {});
     }
     /** The left page shows once the cover is over it (past the spine), and the cover fades off it at the end. */
     function openBookCover(volume, shift) {
         volume.animate([{ transform: `translate(${shift}px, 0)` }, { transform: 'translate(0, 0)' }], { duration: BOOK_OPEN_MS, easing: 'ease-in-out', fill: 'both' });
         const turn = volume.querySelector('.stump-book-cover').animate([{ transform: 'rotateY(0deg)' }, { transform: 'rotateY(-180deg)' }],
             { duration: BOOK_OPEN_MS, easing: 'ease-in-out', fill: 'both' });
-        setTimeout(() => bookDialog.classList.remove('is-closed'), BOOK_OPEN_MS / 2);
-        turn.finished.then(() => bookDialog.classList.add('is-open'), () => {});
+        const opening = bookOpening;
+        setTimeout(() => opening === bookOpening && bookDialog.classList.remove('is-closed'), BOOK_OPEN_MS / 2);
+        turn.finished.then(() => opening === bookOpening && bookDialog.classList.add('is-open'), () => {});
     }
     function closeRecipeBook() {
         if (!bookDialog?.open) return;
+        bookOpening += 1;
         const volume = bookDialog.querySelector('.stump-book-volume'), done = () => { bookDialog.close(); bookDialog.classList.remove('is-open', 'is-closed'); };
         if (uiDisplay.matches('(prefers-reduced-motion: reduce)') || !volume.animate) return done();
         volume.animate([{ opacity: 1, transform: 'scale(1)' }, { opacity: 0, transform: 'scale(.94)' }], { duration: BOOK_CLOSE_MS, easing: 'ease-in', fill: 'both' })
