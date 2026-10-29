@@ -158,6 +158,7 @@ const ATLAS = Object.freeze({
         // 묘목장(12번 루프 39, data/stump-nursery.js): 묘목 무리(초록 테와 잎사귀)가 그 지도 지역 색의 씨앗과 수액을 떨어뜨리고, 방을 비우면
         // 하나는 반드시(js/atlas-run.js clearRoom). 루프 39부터, 하늘 가지 지도에서 두 배.
         nursery: Object.freeze({ name: '묘목장', chance: 8, packExtra: 2, prefix: '묘목', minLoop: 39, regionChance: Object.freeze({ canopy: 2 }),
+            ordinaryRoster: Object.freeze(['atlas-canopy-leafglider', 'atlas-canopy-leafglider', 'postchaos-inverted-sapling']),
             outline: '#7fd99a', sparks: '#b8f0a0', enemy: Object.freeze({ hp: 1.3, damage: 1.1, attack: 1.05, exp: 1.5 }),
             rewards: Object.freeze([['magicBud', 3, 0.2]]), mapChance: 0.15 }),
         witheredGarden: Object.freeze({ name: '시든 정원', chance: 8, packExtra: 3, prefix: '시든', minLoop: 36, regionChance: Object.freeze({ roots: 2 }),
