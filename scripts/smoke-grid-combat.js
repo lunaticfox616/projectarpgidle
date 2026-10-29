@@ -3204,8 +3204,14 @@ for (const kind of ['nest', 'ambush']) {
   assert(!context.isEnemyInGridAttackRange(wallWorm), 'two-cell melee requires an open strike line through terrain');
   context.performMonsterAttacks(defense);
   assert.strictEqual(context.game.playerHp, 1000, 'a nearby worm approaches instead of hitting through the wall');
+  const spearBoss = { ...wallWorm, isBoss: true, spriteVariantId: null, monsterVisualId: 's2_boss_storm' };
+  context.assignEnemyGridCombatProfile(spearBoss);
+  assert.strictEqual(spearBoss.attackRange, 2, 'the storm commander thrusts at two cells');
+  assert(!context.isEnemyInGridAttackRange(spearBoss), 'a boss spear cannot bypass the same terrain wall');
   const room = wallMap.rooms.find(row => row.radiusX >= 2 && row.radiusY >= 2);
   Object.assign(wallWorm, { gx: room.gx - 2, gy: room.gy });
+  Object.assign(spearBoss, { gx: room.gx - 2, gy: room.gy });
+  assert(context.isEnemyInGridAttackRange(spearBoss, { gx: room.gx, gy: room.gy }), 'the same spear reaches across an open two-cell gap');
   assert(context.isEnemyInGridAttackRange(wallWorm, { gx: room.gx, gy: room.gy, isBoss: true, footprint: { columns: 2, rows: 2 } }),
     'long melee measures the near cells of a multi-cell target');
 

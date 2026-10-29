@@ -106,9 +106,9 @@ const enemyAttackRules = (() => {
         return true;
     }
 
-    /** Long normal melee cannot reach through a wall or sealed gate; any in-range pair of occupied body cells may connect. */
+    /** Long melee cannot reach through a wall or sealed gate; any in-range pair of occupied body cells may connect. */
     function meleeReach(enemy, target) {
-        if (enemy.isBoss || enemy.attackKind !== 'melee' || enemy.attackRange <= 1) return true;
+        if (enemy.attackKind !== 'melee' || enemy.attackRange <= 1) return true;
         const terrain = getGridPlacementTerrain();
         if (!terrain.map.tiles) return true;
         terrain.mask = gridWalkMask(terrain.map,terrain.sealed);

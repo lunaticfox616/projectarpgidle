@@ -9386,7 +9386,7 @@ function countBeehiveWaveAlive() {
     return fighting+run.packs.filter(pack=>pack.stage===null || game.beehive.queenActive).reduce((sum,pack)=>sum+pack.waiting.length,0);
 }
 
-/** 케르베로스의 세 단계(2026-10-13까지 9×8 판에서 싸우던 세 페이즈): 머리 셋(냉기, 화염, 번개), 물리 머리 둘, 본체.
+/** 케르베로스의 세 단계: 원소 머리 셋(냉기 하나, 화염 둘), 물리 머리 둘, 봉인이 풀린 본체.
  * 단계마다 마지막 하나가 보스이고 나머지는 같이 일어서는 정예 머리다. */
 const CERBERUS_STAGES=Object.freeze([
     Object.freeze({heads:['cold','fire'],boss:'fire',name:'👿 케르베로스 머리',atk:1.7,crit:0}),
@@ -9395,13 +9395,24 @@ const CERBERUS_STAGES=Object.freeze([
 ]);
 /** 케르베로스 한 단계의 배역: 머리들(정예)과 그 단계의 보스. */
 function cerberusStageCast(stage) {
+    const dressCerberus=(enemy,ele,body=false)=>{
+        const visual=body?'s6_beast_cerberus':ele==='phys'?'cerberus-fang':'cerberus-head';
+        Object.assign(enemy,{monsterVisualId:visual,spriteVariantId:null,bossAssetKey:null,monsterVisualSetId:null,ele});
+        assignEnemyGridCombatProfile(enemy);
+        // 처음 굴린 위습 방어·보상 수치는 보존하되, 머리의 공격 방식은 단계가 정한다.
+        enemy.attackKind=ele==='phys'?'melee':'ranged';
+        // 근접 보스는 기존 투사체 대기 시간이 없어져 빨라지는 충전 속도를 보정한다.
+        if(enemy.isBoss && enemy.attackKind==='melee')enemy.attackSpeedVar*=0.8;
+    };
     const rule=CERBERUS_STAGES[stage];
     const heads=rule.heads.map((ele,i)=>({marker:{boss:false,elite:true,storyStage:null},dress:enemy=>{
-        Object.assign(enemy,{name:`👿 케르베로스 머리 ${rule.heads.length+1-i}`,ele});
+        Object.assign(enemy,{name:`👿 케르베로스 머리 ${rule.heads.length+1-i}`});
+        dressCerberus(enemy,ele);
         enemy.atkMul*=1.55;enemy.penetration+=12;enemy.critChance+=rule.headCrit||0;
     }}));
     return heads.concat({marker:{boss:true},dress:enemy=>{
         Object.assign(enemy,{name:rule.name,ele:rule.boss,hybridElement:rule.hybrid||enemy.hybridElement});
+        dressCerberus(enemy,rule.boss,stage===2);
         enemy.atkMul*=rule.atk;enemy.penetration+=18;enemy.critChance+=rule.crit;
     }});
 }

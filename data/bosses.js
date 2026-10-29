@@ -301,6 +301,8 @@ const ROOT_MONSTER_VISUALS = Object.freeze([
     ['orb', '오브 뿌리촉수', 'ranged'], ['flask', '플라스크 뿌리촉수', 'ranged'], ['censer', '향로 뿌리촉수', 'melee']
 ].map(([weapon, name, attack]) => Object.freeze({ id: `root-${weapon}`, name, attack, weapon })));
 const ACT_MONSTER_VISUALS = Object.freeze([
+    // 단계 생성기가 직접 배정하며 ACT_MONSTER_POOLS에는 넣지 않는다.
+    ['cerberus-head', '케르베로스의 원소 머리', 'ranged'], ['cerberus-fang', '케르베로스의 송곳니', 'melee'],
     ['act7-crackback-tick', '균열등 진드기', 'melee'], ['act7-husk-stag', '껍질마른 사슴', 'melee'],
     ['act8-veil-moth', '장막나방', 'ranged'], ['act8-shroud-toad', '장막 두꺼비', 'melee'],
     ['act9-dirge-crane', '만가 두루미', 'ranged'], ['act9-chorus-bulbs', '합창 구근', 'ranged'],
@@ -419,6 +421,7 @@ function getMonsterVisualAttackKind(visualId) {
 const BOSS_REACH = Object.freeze({
     kinds: Object.freeze({
         melee: Object.freeze({ id: 'melee', label: '근접', range: COMBAT_GRID_CONFIG.meleeAttackRange }),
+        polearm: Object.freeze({ id: 'melee', label: '장병기', range: 2 }),
         ranged: Object.freeze({ id: 'ranged', label: '원거리', range: 4 }),
         far: Object.freeze({ id: 'far', label: '사거리 무한', range: COMBAT_GRID_CONFIG.bossAttackRange })
     }),
@@ -432,7 +435,10 @@ const BOSS_REACH = Object.freeze({
     byVisual: Object.freeze({ 'atlas-garden-1': 'melee', 'atlas-garden-2': 'ranged', 'atlas-sanctum-4': 'ranged',
         'atlas-sanctum-5': 'far', 'colony-boss': 'melee',
         // 칼날 앞다리와 겨울 짐승의 발구르기는 붙어서 친다. 예고 특수기는 castRange를 그대로 쓴다.
-        trial_1: 'melee', trial_5: 'melee' }),
+        trial_1: 'melee', trial_5: 'melee',
+        // 불칼은 붙어서 베고, 얼음 지팡이는 주문을 쏘며, 장창은 두 칸 앞까지 찌른다.
+        s2_boss_flame: 'melee', s2_boss_frost: 'ranged', s2_boss_storm: 'polearm',
+        'cerberus-head': 'ranged', 'cerberus-fang': 'melee', s6_beast_cerberus: 'melee' }),
     /** 예고하는 특수기(지면 강타, 충격파 등)는 대상이 이 칸 수 안이면 사거리 밖이어도 그 자리에서 쓴다: 근접 보스에게서 달아나기만
      * 하면 아무것도 맞지 않는 싸움이 되지 않게. */
     castRange: 6,
