@@ -53,7 +53,10 @@ run('game.equipmentLoadouts.presets=[]');
 assert(list());
 assert.deepStrictEqual(json('[game.inventory.length, game.playerStall.listings.length]'), [0,1], 'one exclusive escrow owner');
 assert.strictEqual(run(`playerStall.reprice(game,1,1,NaN)`), false);
-assert.strictEqual(run(`playerStall.reprice(game,1,1,${start-1})`), false, 'clock rollback cannot reset aging');
+// A clock behind the stall still manages it, dated at the watermark (js/player-stall.js stallClock): nothing is backdated.
+assert.strictEqual(run(`playerStall.reprice(game,1,2,${start-1})`), true, 'a clock behind the stall still reprices');
+assert.strictEqual(run('game.playerStall.listings[0].priceChangedAt'), start, 'clock rollback cannot reset aging');
+assert.strictEqual(run(`playerStall.reprice(game,1,1,${start})`), true);
 run(`playerStall.advance(game,${start + 59999})`);
 assert.strictEqual(run('game.playerStall.proceeds'), 0, 'a minimum wait is mandatory');
 run(`playerStall.advance(game,${start + 4*hour})`);

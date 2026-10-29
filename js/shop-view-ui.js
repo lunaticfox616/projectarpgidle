@@ -306,7 +306,9 @@ const shopView = (() => {
     /** What the carried thing is over: a drop place under the pointer, else the bag place under its top-left cell; with the adapter's
      * verdict as ok, or null when the adapter takes neither. */
     function targetAt(event) {
-        const drop = document.elementFromPoint(event.clientX, event.clientY)?.closest?.('[data-shop-drop]');
+        // The carried ghost sits under the pointer: look past it to the stand or cell beneath.
+        const under = document.elementsFromPoint(event.clientX, event.clientY).find(node => !press.ghost?.contains(node));
+        const drop = under?.closest?.('[data-shop-drop]');
         const size = press.adapter.shopSize ? press.adapter.shopSize(press.root, press.pick) : null;
         const target = drop && press.root.contains(drop) ? { area: 'drop', key: drop.dataset.shopDrop, el: drop } : size ? bagTarget(event, size) : null;
         const ok = target ? press.adapter.shopAccepts(press.root, press.pick, target) : null;
@@ -345,9 +347,11 @@ const shopView = (() => {
         return holding;
     }
 
-    /** Let go: a drag gives its target to the adapter (a red one too: the adapter says why); a press without a drag is a tap. */
+    /** Let go: a drag gives its target to the adapter (a red one too: the adapter says why); a press without a drag is a tap.
+     * The target is read where the pointer lets go, not where it last moved (a fast flick's last move can trail behind). */
     function releasePick(event) {
         if (!press || press.pointerId !== event.pointerId) return;
+        if (press.ghost) press.target = targetAt(event);
         const holding = endPress();
         if (holding.ghost) { if (holding.target) holding.adapter.shopDrop(holding.root, holding.pick, holding.target); return; }
         holding.adapter.shopTap(holding.root, holding.pick, { touch: holding.touch, keyboard: false });
