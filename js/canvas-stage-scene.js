@@ -33,7 +33,9 @@ const stageScene = (() => {
         const image = images.get(path);
         return image.complete && image.naturalWidth > 0 ? image : null;
     }
-    const filesOf = kit => [kit.far.file, kit.back.file, ...kit.floor.files, ...Object.keys(kit.pieces).map(name => name + '.png')];
+    const filesOf = kit => [kit.far.file, ...Object.values(kit.far.rooms || {}), kit.back.file, ...kit.floor.files, ...Object.keys(kit.pieces).map(name => name + '.png')];
+    /** 그 방의 먼 배경: 구실(정예, 보스)에 따로 그린 것이 있으면 그것. */
+    const farFile = (kit, room) => (kit.far.rooms && kit.far.rooms[room.role]) || kit.far.file;
     /** 지역 무대 그림의 형편: 'ready', 'pending'(불러오는 중), 'failed'(그림이 없다), 지역이 없는 지도면 null. */
     const regionState = map => (typeof stageRegion === 'object' ? stageRegion.status(map) : null);
     /** 이 지형의 조각 묶음 그림이 모두 불러와졌는가. 처음 물을 때 불러오기를 시작한다. */
@@ -75,7 +77,7 @@ const stageScene = (() => {
         const y = Math.round(p.mapY + view.room.y0 * p.tileH + far.bottom * dot - h);
         const centre = p.mapX + (view.room.x0 + view.room.x1 + 1) * p.tileW / 2;
         const origin = (area.width - w) / 2 + (centre - area.width / 2) * far.parallax + far.shift * dot;
-        const offset = ((origin % w) + w) % w, image = fitted(kit, far.file, dot);
+        const offset = ((origin % w) + w) % w, image = fitted(kit, farFile(kit, view.room), dot);
         ctx.fillStyle = kit.fill;
         ctx.fillRect(0, 0, area.width, area.height);
         ctx.fillStyle = kit.sky;
@@ -156,7 +158,9 @@ const stageScene = (() => {
     /** 방 하나에 놓이는 조각의 자리(도트, 지도 좌표). y는 그림의 맨 아래 줄이 놓이는 줄이다. 문은 따로 센다(doorsOf). */
     function layoutOf(map, room, kit) {
         const span = { left: room.x0 * WIDE, right: (room.x1 + 1) * WIDE, top: room.y0 * DEEP }, list = [], rows = kit.rows;
+        const boss = room.role === 'boss' && rows.boss ? { name: rows.boss.name, x: Math.round((span.left + span.right) / 2), y: span.top + rows.boss.drop } : null;
         rowOf(list, rows.back, span, doorSpots(map, room, 'north'));
+        if (boss) list.splice(0, list.length, ...list.filter(piece => Math.abs(piece.x - boss.x) > rows.boss.clear), boss);
         rowOf(list, rows.inner, span, doorSpots(map, room, 'south'));
         rowOf(list, rows.front, span, doorSpots(map, room, 'south'));
         list.push({ name: rows.corners.left[0], x: span.left + rows.corners.left[1], y: span.top + rows.corners.left[2] });
@@ -183,7 +187,7 @@ const stageScene = (() => {
         if (mode !== 'scene') return [];
         const kit = kitOf(map);
         const names = [...new Set(piecesOf(map, room, kit).map(piece => piece.name))].filter(name => kit.pieces[name]);
-        return [kit.far.file].concat(names.map(name => name + '.png')).map(file => () => fitted(kit, file, dot));
+        return [farFile(kit, room)].concat(names.map(name => name + '.png')).map(file => () => fitted(kit, file, dot));
     }
     /** 전장 그리기의 배우 목록에 이 방의 소품과 문을 끼운다(깊이 순서는 그림 맨 아래 줄의 화면 y). */
     /** 주인공이 선 방과 그 방을 그릴 묶음(mode: 'region', 'scene', false). 방 단위 무대가 아니면 mode가 false다. */

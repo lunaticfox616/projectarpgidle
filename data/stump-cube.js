@@ -7,49 +7,68 @@
 // 다른 장비 조합법은 "장비 1 + 촉매(다 자란 씨앗 · 호박석 · 주얼)"다.
 // inputs의 각 줄은 서로 겹치지 않는 조건이다. kind: equipment | stump | jewel | core.
 //   rarity: 희귀도(목록이면 그 가운데 하나) · family: 그루터기 계열 · ripe: 다 자란 것만 · socketable: 공허 소켓을 뚫을 수 있는 장신구
-//   same: 그 줄의 재료끼리 같아야 하는 것(slot 부위 · color 색 · family 계열 · path 씨앗이 자랄 길 · name 고유 이름).
+//   same: 그 줄의 재료끼리 같아야 하는 것(slot 부위 · color 색 · family 계열 · path 씨앗이 자랄 길 · name 고유 이름 · base 베이스).
+//   unlike: 그 줄의 재료가 앞 줄 재료와 달라야 하는 것(color).
 //   need · result · note는 조합법 책에 쓰는 문장(재료, 결과, 덧붙임 한 줄).
 const STUMP_CUBE_SIZE = 5;
 // 씨앗과 수액 합치기의 품질(2026-10-29 사용자): 보통은 세 재료의 평균 품질에 1~10%를 더한다(해금된 품질 상한까지). bestChance의 확률로
 // 가장 높은 품질에 1~10%(상한까지), overChance의 확률로 평균 품질에 over를 더하고 이때는 상한을 넘을 수 있다(상한 + over까지).
 const STUMP_CUBE_MERGE = Object.freeze({ step: Object.freeze([1, 10]), bestChance: 0.1, overChance: 0.05, over: 0.11 });
-// 고유 장비 다시 빚기: 새 고유가 특출난 베이스(베이스 줄 하나가 최고 굴림의 120%)가 될 확률.
-const STUMP_CUBE_UNIQUE_EXCEPTIONAL_CHANCE = 0.15;
+// 고유 장비 리롤(2026-10-30 사용자: 15%에서 10%로): 새 고유가 특출난 베이스(베이스 줄 하나가 최고 굴림의 120%)가 될 확률.
+const STUMP_CUBE_UNIQUE_EXCEPTIONAL_CHANCE = 0.1;
+// 희귀 장비 특출 베이스(2026-10-30 사용자): 같은 베이스 희귀 3개로 만든 희귀가 특출난 베이스가 될 확률.
+const STUMP_CUBE_RARE_EXCEPTIONAL_CHANCE = 0.1;
+// 기폭제 바꾸기(2026-10-30 사용자): 호박석 하나로 다른 기폭제 셋을 호박석 색의 기폭제 셋으로 바꾼다(js/sap-catalysts.js).
+const STUMP_CUBE_CATALYST_EXCHANGE = 3;
 const STUMP_CUBE_RECIPES = Object.freeze([
     { id: 'equip_magic_upgrade', reveal: { harvest: ['flower', 'fruit'] }, group: '장비', need: '마법 장비 1 + 꽃이나 열매 1', name: '마법 장비 승급',
-        result: '희귀 장비 1', note: '베이스와 티어는 그대로, 옵션은 새로',
+        result: '희귀 장비 1', note: '베이스 유지 및 옵션 리롤',
         inputs: [{ kind: 'equipment', rarity: 'magic', count: 1 }, { kind: 'stump', family: 'seed', ripe: true, count: 1 }], cost: {} },
     { id: 'equip_rare_tier', reveal: { harvest: ['amber'] }, group: '장비', need: '희귀 장비 1 + 호박석 2', name: '희귀 장비 단련',
-        result: '티어 +1 희귀 장비 1', note: '같은 부위, 지금 레벨에서 떨어지는 티어까지',
+        result: '같은 부위의 티어 +1 희귀 장비', note: '티어 상한: 현재',
         inputs: [{ kind: 'equipment', rarity: 'rare', count: 1 }, { kind: 'stump', family: 'sap', ripe: true, count: 2 }], cost: { formlessDew: 1 } },
-    { id: 'equip_unique_remake', group: '장비', need: '같은 고유 장비 2', name: '고유 장비 다시 빚기',
-        result: '같은 고유 장비 1', note: `옵션은 새로, ${Math.round(STUMP_CUBE_UNIQUE_EXCEPTIONAL_CHANCE * 100)}% 확률로 특출난 베이스`,
+    { id: 'equip_rare_exceptional', group: '장비', need: '같은 베이스 희귀 장비 3', name: '희귀 장비 특출 베이스',
+        result: '같은 베이스 희귀 장비 1', note: `옵션 리롤 (특출난 베이스가 될 확률 ${Math.round(STUMP_CUBE_RARE_EXCEPTIONAL_CHANCE * 100)}%)`,
+        inputs: [{ kind: 'equipment', rarity: 'rare', count: 3, same: ['base'] }], cost: {} },
+    { id: 'equip_unique_remake', group: '장비', need: '같은 고유 장비 2', name: '고유 장비 리롤',
+        result: '같은 고유 장비 1', note: `옵션 리롤 (특출난 베이스가 될 확률 ${Math.round(STUMP_CUBE_UNIQUE_EXCEPTIONAL_CHANCE * 100)}%)`,
         inputs: [{ kind: 'equipment', rarity: 'unique', count: 2, same: ['name'] }], cost: {} },
     { id: 'equip_unique_reroll', reveal: { harvest: ['flower', 'fruit'] }, group: '장비', need: '고유 장비 1 + 꽃이나 열매 3', name: '고유 장비 순환',
-        result: '같은 부위 고유 장비 1', note: '고유 종류는 무작위(같은 고유도 나옴), 티어는 재료 기준',
+        result: '같은 부위의 무작위 고유 장비로 변환',
         inputs: [{ kind: 'equipment', rarity: 'unique', count: 1 }, { kind: 'stump', family: 'seed', ripe: true, count: 3 }], cost: {} },
-    { id: 'equip_socket_jewel', reveal: { content: 'jewel' }, group: '장비', need: '장신구 1 + 주얼 1', name: '소켓 뚫어 끼우기', result: '주얼이 끼워진 장신구', note: '공허 소켓을 하나 뚫어 끼움(뚫을 수 있는 장신구만)',
-        inputs: [{ kind: 'equipment', socketable: true, count: 1 }, { kind: 'jewel', count: 1 }], cost: { voidChisel: 1 } },
+    { id: 'equip_socket_jewel', reveal: { content: 'jewel' }, group: '장비', need: '장신구 1 + 주얼 3', name: '장신구 주얼 융합',
+        result: '세 개의 주얼 중 하나가 끼워진 장신구, 주얼 해제 불가능', note: '공허 소켓을 하나 뚫어 끼움(뚫을 수 있는 장신구만)',
+        inputs: [{ kind: 'equipment', socketable: true, count: 1 }, { kind: 'jewel', count: 3 }], cost: {} },
     { id: 'stump_merge', group: '그루터기', need: '같은 색, 같은 종류 3(꽃 씨앗, 열매 씨앗, 수액)', name: '씨앗과 수액 합치기',
-        result: '같은 색과 종류 1, 품질은 평균 +1~10%', note: '10% 확률로 가장 높은 품질 +1~10%, 5% 확률로 평균 +11%(상한을 넘음)',
+        result: '같은 색과 종류 1, 품질은 평균 +1~10%', note: '낮은 확률로 더 좋은 결과 가능',
         inputs: [{ kind: 'stump', family: ['seed', 'sap'], count: 3, same: ['color', 'family', 'path'] }], cost: {} },
+    { id: 'stump_recolor', group: '그루터기', need: '씨앗이나 수액 1 + 다른 색 수액 2', name: '씨앗 색 바꾸기',
+        result: '수액 색의 씨앗이나 수액 1', note: '품질 유지, 성장 초기화',
+        inputs: [{ kind: 'stump', family: 'sap', count: 2, same: ['color'] }, { kind: 'stump', family: ['seed', 'sap'], count: 1, unlike: 'color' }], cost: {} },
     { id: 'amber_catalyst', reveal: { harvest: ['amber'], loop: 32 }, group: '그루터기', need: '같은 색 호박석 2', name: '호박석 기폭제',
         result: '그 색의 기폭제 1', note: '장비 품질 속성(화염, 냉기, 번개, 카오스), 루프 32부터',
         inputs: [{ kind: 'stump', family: 'sap', ripe: true, count: 2, same: ['color'] }], cost: {} },
     { id: 'fruit_oil', reveal: { harvest: ['fruit'], loop: 36 }, group: '그루터기', need: '같은 색 열매 2', name: '열매 기름',
         result: '그 색의 정원 기름 1', note: '목걸이에 바르는 기름, 루프 36부터',
         inputs: [{ kind: 'stump', family: 'seed', path: 'fruit', ripe: true, count: 2, same: ['color'] }], cost: {} },
-    { id: 'talisman_upgrade', reveal: { content: 'talisman' }, group: '부적', need: '부적 3(고유 제외)', name: '부적 거듭 풀기', result: '새 부적 1', note: '강력한 기운의 봉인편린 등급, 셋 다 희귀면 찬란한 봉인편린 등급',
+    // costText: 조합할 때 정해지는 비용의 글(기폭제 바꾸기는 호박석 색이 아닌 기폭제 셋을 무작위로 낸다, js/sap-catalysts.js).
+    { id: 'catalyst_exchange', reveal: { harvest: ['amber'], loop: 32 }, group: '그루터기', need: '호박석 1', name: '기폭제 바꾸기',
+        result: `그 색의 기폭제 ${STUMP_CUBE_CATALYST_EXCHANGE}`, costText: `호박석 색이 아닌 기폭제 ${STUMP_CUBE_CATALYST_EXCHANGE} (무작위)`,
+        inputs: [{ kind: 'stump', family: 'sap', ripe: true, count: 1 }], cost: {} },
+    { id: 'talisman_upgrade', reveal: { content: 'talisman' }, group: '부적', need: '부적 3(고유 제외)', name: '부적 리롤', result: '새 부적 1', note: '강력한 기운의 봉인편린 등급, 셋 다 희귀면 찬란한 봉인편린 등급',
         inputs: [{ kind: 'stump', family: 'talisman', rarity: ['magic', 'rare'], count: 3 }], cost: {} },
-    { id: 'talisman_reroll_line', reveal: { content: 'talisman', harvest: ['amber'] }, group: '부적', need: '부적 1(고유 제외) + 호박석 1', name: '부적 줄 다시 쓰기', result: '부적의 일반 옵션 1줄 다시 굴림', note: '강력한 기운의 봉인편린 배율',
+    { id: 'talisman_reroll_line', reveal: { content: 'talisman', harvest: ['amber'] }, group: '부적', need: '부적 1(고유 제외) + 호박석 1', name: '부적 옵션 리롤', result: '부적의 일반 옵션 1줄 다시 굴림', note: '강력한 기운의 봉인편린 배율',
         inputs: [{ kind: 'stump', family: 'talisman', rarity: ['magic', 'rare'], count: 1 }, { kind: 'stump', family: 'sap', ripe: true, count: 1 }],
         cost: { sealShard: 1 } },
     { id: 'talisman_unique_reroll', reveal: { content: 'talisman' }, group: '부적', need: '고유 부적 2', name: '고유 부적 순환', result: '다른 고유 부적 1',
         inputs: [{ kind: 'stump', family: 'talisman', rarity: 'unique', count: 2 }], cost: { strongSealShard: 1 } },
     { id: 'jewel_fuse', reveal: { content: 'jewel' }, group: '주얼', need: '주얼 3(고유 제외)', name: '주얼 융합', result: '희귀 주얼 1(옵션 3~4줄)', note: '재료 가운데 가장 높은 등급 범위',
         inputs: [{ kind: 'jewel', rarity: ['magic', 'rare'], count: 3 }], cost: { jewelShard: 10 } },
-    { id: 'core_reroll', reveal: { content: 'cube' }, group: '코어', need: '코어 3(완전한 코어 제외)', name: '코어 다시 빚기', result: '새 코어 1',
-        inputs: [{ kind: 'core', rarity: ['rare'], count: 3 }], cost: {} }
+    { id: 'core_reroll', reveal: { content: 'cube' }, group: '코어', need: '코어 3(완전한 코어 제외)', name: '코어 리롤', result: '새 코어 1',
+        inputs: [{ kind: 'core', rarity: ['rare'], count: 3 }], cost: {} },
+    { id: 'core_reroll_line', reveal: { content: 'cube', harvest: ['amber'] }, group: '코어', need: '코어 1(완전한 코어 제외) + 호박석 1', name: '코어 옵션 리롤',
+        result: '코어의 옵션 1줄 다시 굴림',
+        inputs: [{ kind: 'core', rarity: ['rare'], count: 1 }, { kind: 'stump', family: 'sap', ripe: true, count: 1 }], cost: {} }
 ]);
 
-safeExposeData({ STUMP_CUBE_SIZE, STUMP_CUBE_MERGE, STUMP_CUBE_UNIQUE_EXCEPTIONAL_CHANCE, STUMP_CUBE_RECIPES });
+safeExposeData({ STUMP_CUBE_SIZE, STUMP_CUBE_MERGE, STUMP_CUBE_UNIQUE_EXCEPTIONAL_CHANCE, STUMP_CUBE_RARE_EXCEPTIONAL_CHANCE, STUMP_CUBE_CATALYST_EXCHANGE, STUMP_CUBE_RECIPES });

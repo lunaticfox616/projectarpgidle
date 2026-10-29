@@ -6,6 +6,8 @@
 // 장신구가 아닌 부위에는 이것이 유일한 소켓이다. 주얼을 해금한 뒤에만 나오는 결과다(js/passives.js canApplyTaintedOutcome).
 // 뺀 주얼은 가방으로 돌아간다(가방에 자리가 없으면 뺄 수 없다, js/bag-items.js). 능력치 합산은 combat-build-stats.js, 화면은 equipment-sockets-ui.js.
 // 주얼을 읽는 곳은 모두 jewels(item)을 써서 소켓 종류가 늘어도 빠지는 곳이 없게 한다.
+// 융합(2026-10-30 사용자, 그루터기 조합 장신구 주얼 융합): 공허 소켓의 주얼이 장비에 녹아 붙는다(voidSocket.fused). 뺄 수 없고,
+// 장비가 해체되거나 바뀌면 함께 없어진다.
 const equipmentSockets = (() => {
     const ACCESSORY_SLOTS = new Set(['반지', '목걸이', '허리띠']);
     const SOCKETABLE_SLOTS = new Set(['무기', '투구', '갑옷', '방패', '장갑', '신발', '반지', '목걸이', '허리띠']);
@@ -34,7 +36,7 @@ const equipmentSockets = (() => {
      * listed even when the record lost its open flag, so no reader can let it go with the item. */
     function storedRows(item) {
         const voidJewel = (item.voidSocket && item.voidSocket.jewel) || null;
-        const rows = hasVoidSocket(item) || voidJewel ? [{ kind: 'void', index: 0, jewel: voidJewel }] : [];
+        const rows = hasVoidSocket(item) || voidJewel ? [{ kind: 'void', index: 0, jewel: voidJewel, fused: item.voidSocket.fused === true }] : [];
         if (item.corruptionSocket) rows.push({ kind: 'corrupt', index: 0, jewel: item.corruptionSocket.jewel || null });
         const abyss = Array.isArray(item.abyssSockets) ? item.abyssSockets : [];
         abyss.forEach((socket, index) => rows.push({ kind: 'abyss', index, jewel: (socket && socket.jewel) || null }));
@@ -59,7 +61,7 @@ const equipmentSockets = (() => {
      * @returns {number} jewels returned
      */
     function returnJewels(item, state = game) {
-        const rows = jewels(item);
+        const rows = jewels(item).filter(row => !row.fused);
         rows.forEach(row => {
             bagItems.put(bagItems.asJewel(row.jewel), state, true);
             socketRecord(item, row.kind, row.index).jewel = null;
@@ -72,7 +74,7 @@ const equipmentSockets = (() => {
     }
 
     function label(row) {
-        if (row.kind === 'void') return '공허 소켓';
+        if (row.kind === 'void') return row.fused ? '융합 소켓' : '공허 소켓';
         return row.kind === 'corrupt' ? '타락 소켓' : `심연 소켓 ${row.index + 1}`;
     }
 
@@ -96,6 +98,11 @@ const equipmentSockets = (() => {
         if (!canChisel(item)) return false;
         item.voidSocket = { open: true, jewel: null };
         return true;
+    }
+
+    /** The void socket's jewel becomes part of the item: it can no longer come out. */
+    function fuse(item) {
+        if (item.voidSocket && item.voidSocket.jewel) item.voidSocket.fused = true;
     }
 
     /** A dropped accessory comes with its void socket open on SOCKETED_ACCESSORY_DROP_CHANCE of drops, once jewels are unlocked. */
@@ -149,13 +156,14 @@ const equipmentSockets = (() => {
         if (state.woodsmanBuildLock) return { ok: false, reason: LOCK_REASON };
         const record = item ? socketRecord(item, kind, index) : null;
         if (!record || !record.jewel) return { ok: false, reason: '빈 소켓입니다.' };
+        if (record.fused) return { ok: false, reason: '융합된 주얼은 뺄 수 없습니다.' };
         const jewel = record.jewel;
         if (!bagItems.put(bagItems.asJewel(jewel), state)) return { ok: false, reason: '가방에 자리가 없습니다.' };
         record.jewel = null;
         return { ok: true, jewel };
     }
 
-    return Object.freeze({ isSocketable, isAccessory, hasVoidSocket, list, jewels, returnJewels, count, label, canChisel, openVoidSocket,
+    return Object.freeze({ isSocketable, isAccessory, hasVoidSocket, list, jewels, returnJewels, count, label, canChisel, openVoidSocket, fuse,
         rollDropSocket, keepLegacySocket, canAddCorruptionSocket, addCorruptionSocket, chisel, insert, remove });
 })();
 safeExposeGlobals({ equipmentSockets });
