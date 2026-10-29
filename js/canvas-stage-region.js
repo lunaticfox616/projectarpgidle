@@ -49,15 +49,21 @@ const stageRegion = (() => {
         return pictures.get(file);
     }
     const pictureLoaded = row => row.image.complete && row.image.naturalWidth > 0;
+    /** 방 그림 이름: 그 구실의 방 그림(region.rooms: general 입구와 전투 방과 곁방, elite, boss)이 있으면 그것, 없으면 지역 그림. */
+    const roomPictureName = (id, region, room) => (region.rooms && region.rooms[room.role === 'boss' || room.role === 'elite' ? room.role : 'general']) || id;
+    const pictureNames = (id, region) => [id, ...Object.values(region.rooms || {})];
     function regionFiles(id, region) {
         const family = regionFamily(region);
-        return [id + '.png', ...Object.keys(family.pieces).map(name => regionPieceFile(region, name))];
+        return [...pictureNames(id, region).map(name => name + '.png'), ...Object.keys(family.pieces).map(name => regionPieceFile(region, name))];
     }
     /** 지금 쓰는 지역을 맨 앞에 두고, KEEP장을 넘긴 오래된 방 그림은 놓아 준다. */
     function touchRegion(id) {
         if (recent[0] === id) return;
         recent.splice(0, recent.length, id, ...recent.filter(other => other !== id));
-        for (const old of recent.splice(KEEP)) { pictures.delete(old + '.png'); settled.delete(old); }
+        for (const old of recent.splice(KEEP)) {
+            for (const name of pictureNames(old, STAGE_REGIONS.regions[old] || {})) pictures.delete(name + '.png');
+            settled.delete(old);
+        }
     }
     /** @returns {?string} 'ready' 그림이 모두 왔다, 'pending' 불러오는 중, 'failed' 그림이 없다. 지역 그림이 없는 지도면 null. */
     function regionStatus(map) {
@@ -93,7 +99,7 @@ const stageRegion = (() => {
         ctx.imageSmoothingEnabled = false;
         // 이웃한 방이 똑같아 보이지 않게, 정해진 방은 좌우로 뒤집어 그린다(js/act-exploration-rooms.js roomMirrored)
         if (room.mirror) { ctx.save(); ctx.translate(x * 2 + Math.round(w), 0); ctx.scale(-1, 1); }
-        ctx.drawImage(regionPicture(view.map.region + '.png').image, x, y, Math.round(w), Math.round(h));
+        ctx.drawImage(regionPicture(roomPictureName(view.map.region, region, room) + '.png').image, x, y, Math.round(w), Math.round(h));
         if (typeof stageOcean === 'object') stageOcean.light(ctx, view.map.region, { x, y, w: Math.round(w), h: Math.round(h) }); // 심해 띠의 빛줄기, 같은 뒤집기
         if (room.mirror) ctx.restore();
         blendPictureEdges(ctx, region, { y, h: Math.round(h), reach: Math.round(BLEND_DOTS * dot) }, area);
@@ -194,8 +200,9 @@ const stageRegion = (() => {
         const marks = [{ name: 'prop-2', ...backPropSpot(map, room, 'west', 120) }, { name: 'prop-2', flip: true, ...backPropSpot(map, room, 'east', 120) }];
         return low === undefined ? marks : [...marks, { name: 'prop-' + low, ...frontPropSpot(room, side) }];
     }
-    /** 보스 방: 큰 구조물 하나가 들어온 문의 맞은편 뒤쪽 구석에 선다. */
+    /** 보스 방: 큰 구조물 하나가 들어온 문의 맞은편 뒤쪽 구석에 선다. 보스 방 그림의 가운데에 구조물이 그려진 지역(boss가 빈 목록)은 세우지 않는다. */
     function bossRoomProps(map, room, region) {
+        if (!region.boss.length) return [];
         const sideHasDoor = side => !!roomDoorOn(map, room, side), side = sideHasDoor(region.bossSide) && !sideHasDoor(region.bossSide === 'east' ? 'west' : 'east')
             ? (region.bossSide === 'east' ? 'west' : 'east') : region.bossSide;
         const spot = backPropSpot(map, room, side, 170);
@@ -346,7 +353,8 @@ const stageRegion = (() => {
     }
     /** 곧 쓸 지역의 방 그림을 미리 불러 둔다(그림이 없는 지역이면 아무 일도 없다). */
     function warmRegion(id) {
-        if (stageView.backdrops() && stageRegionFit.of(id)) regionPicture(id + '.png');
+        const region = stageView.backdrops() && stageRegionFit.of(id);
+        if (region) pictureNames(id, region).forEach(name => regionPicture(name + '.png'));
     }
     return Object.freeze({ warm: warmRegion, status: regionStatus, rise: pictureRise, drawFar: drawRoomPicture, paintRoom: paintRoomShade, append: appendRegionPieces, draw: drawRegionPiece,
         drawMarks: drawRegionSideMarks, drawObject: drawRegionObject, outlineObject: outlineRegionObject, objectTop: regionObjectTop, fitJobs: regionFitJobs });

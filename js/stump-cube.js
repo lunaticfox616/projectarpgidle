@@ -188,7 +188,9 @@ const stumpCube = (() => {
         // 씨앗이 자랄 길(꽃, 열매): 생길 때 정해지므로 합치기는 같은 길끼리만(2026-10-09).
         path: entry => entry.item.path || '',
         // 고유 이름: 같은 고유 2개 다시 빚기(2026-10-10).
-        name: entry => entry.item.name
+        name: entry => entry.item.name,
+        // 베이스: 같은 베이스 희귀 3개 특출 베이스(2026-10-30).
+        base: entry => entry.item.baseId
     });
 
     function oneOf(value, allowed) {
@@ -202,13 +204,28 @@ const stumpCube = (() => {
         return !rule.socketable || equipmentSockets.canChisel(entry.item);
     }
 
-    /** Recipe rows are disjoint, so a greedy pick per row decides the match; nothing may be left over. */
+    /** A row's picks: with same keys, the biggest set of fitting entries that agree on them (so two saps of one colour are found among
+     * three in any order), otherwise the first ones. */
+    function pickAlike(rule, fitting) {
+        if (!rule.same) return fitting.slice(0, rule.count);
+        const sets = new Map();
+        fitting.forEach(entry => {
+            const key = rule.same.map(name => SAME_KEYS[name](entry)).join('|');
+            sets.set(key, [...(sets.get(key) || []), entry]);
+        });
+        return [...sets.values()].reduce((best, set) => (set.length > best.length ? set : best), []).slice(0, rule.count);
+    }
+    /** unlike: the row's picks must differ from every earlier pick on that key (씨앗 색 바꾸기: another colour than the saps). */
+    const clashes = (rule, picked, groups) => !!rule.unlike
+        && picked.some(entry => groups.flat().some(other => SAME_KEYS[rule.unlike](other) === SAME_KEYS[rule.unlike](entry)));
+
+    /** Recipe rows are disjoint, so a pick per row decides the match; nothing may be left over. */
     function assign(recipe, list, partial = false) {
         const rest = list.slice(), groups = [];
         for (const rule of recipe.inputs) {
-            const picked = rest.filter(entry => fitsRule(rule, entry)).slice(0, rule.count);
+            const picked = pickAlike(rule, rest.filter(entry => fitsRule(rule, entry)));
             if (!partial && picked.length !== rule.count) return null;
-            if ((rule.same || []).some(key => new Set(picked.map(SAME_KEYS[key])).size > 1)) return null;
+            if (clashes(rule, picked, groups)) return null;
             picked.forEach(entry => rest.splice(rest.indexOf(entry), 1));
             groups.push(picked);
         }
@@ -300,11 +317,13 @@ const stumpCube = (() => {
         if (!result.ok) return result;
         result.consumed.forEach(entry => REMOVERS[entry.kind](state, entry.item));
         Object.entries(found.recipe.cost || {}).forEach(([key, need]) => { state.currencies[key] -= need; });
+        // paid: a cost the recipe picks as it runs (기폭제 바꾸기 pays one catalyst of another kind at random).
+        Object.entries(result.paid || {}).forEach(([key, need]) => { state.currencies[key] -= need; });
         const made = result.outputs.map(output => ({ kind: output.kind, item: output.existing || STORERS[output.kind](state, output) }));
         clear(state);
         made.filter(row => row.item && row.kind !== 'currency').forEach(row => put(state, row.kind, row.item));
         stumpBox.invalidatePlacementUndo(state);
-        return { ok: true, recipe: found.recipe, outputs: made };
+        return { ok: true, recipe: found.recipe, outputs: made, paid: result.paid || {} };
     }
 
     /** Stored items of one kind the cube may take (bag gear, stump storage, jewels, cores), whether inside the cube or not. */
@@ -366,10 +385,11 @@ const stumpCube = (() => {
         return packCubeSet(set);
     }
 
-    /** Revealed recipes the stored items make now ({ recipe, set }), the cube's own contents counted as stored. */
+    /** Revealed recipes the stored items make now ({ recipe, set }), the cube's own contents counted as stored. A recipe that changes
+     * one item the player chooses (unlike: 씨앗 색 바꾸기) is left to the player. */
     function readyCubeSets(state = game) {
         const stock = KINDS.flatMap(kind => storedUsable(kind, state).map(item => ({ kind, item }))).sort(cubeSpendOrder);
-        return revealed(state).map(recipe => ({ recipe, set: readyCubeSet(recipe, stock) })).filter(row => row.set);
+        return revealed(state).filter(recipe => !recipe.inputs.some(rule => rule.unlike)).map(recipe => ({ recipe, set: readyCubeSet(recipe, stock) })).filter(row => row.set);
     }
 
     /** Empties the cube and puts the recipe's set in. @returns {string} '' on success, else the reason. */

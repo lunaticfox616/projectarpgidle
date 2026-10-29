@@ -83,13 +83,23 @@ const coreItems = (() => {
         if (random() < CORE_ITEM_RULES.perfect.chance) return rollPerfect(random);
         const defs = [...CORE_OPTION_POOL];
         const lines = [];
-        while (lines.length < CORE_ITEM_RULES.lines && defs.length) {
-            const def = defs.splice(Math.floor(random() * defs.length), 1)[0];
-            const extra = def.extraMin ? rollValue(def.extraMin, def.extraMax, 0, random) : undefined;
-            lines.push(makeLine(def, rollValue(def.min, def.max, def.decimals, random), extra));
-        }
+        while (lines.length < CORE_ITEM_RULES.lines && defs.length) lines.push(rollLine(defs.splice(Math.floor(random() * defs.length), 1)[0], random));
         itemIdCounter += 1;
         return { id: itemIdCounter, name: nameFor(lines), lines };
+    }
+    function rollLine(def, random) {
+        const extra = def.extraMin ? rollValue(def.extraMin, def.extraMax, 0, random) : undefined;
+        return makeLine(def, rollValue(def.min, def.max, def.decimals, random), extra);
+    }
+    /** 그루터기 조합 코어 옵션 리롤(2026-10-30): one line of a core (never a 완전한 코어) becomes a line of the pool the other lines do not
+     * hold, its value rolled inside its range. The name follows the first line. @returns {boolean} */
+    function rerollLine(core, random = Math.random) {
+        if (!core || core.perfect || !Array.isArray(core.lines) || !core.lines.length) return false;
+        const index = Math.floor(random() * core.lines.length), held = new Set(core.lines.filter((line, at) => at !== index).map(line => line.id));
+        const defs = CORE_OPTION_POOL.filter(def => !held.has(def.id));
+        core.lines[index] = rollLine(defs[Math.floor(random() * defs.length)], random);
+        core.name = nameFor(core.lines);
+        return true;
     }
 
     /** Pixel icon by the first line's group; ground loot and log rows carry only the lines. */
@@ -138,6 +148,6 @@ const coreItems = (() => {
         return [store.equipped, ...(Array.isArray(store.owned) ? store.owned : [])].filter(Boolean);
     }
 
-    return Object.freeze({ defaultState, normalize, normalizeCore, roll, rollPerfect, describe, stats, canDrop, keep, resetForLoop, ownedItems, icon });
+    return Object.freeze({ defaultState, normalize, normalizeCore, roll, rollPerfect, rerollLine, describe, stats, canDrop, keep, resetForLoop, ownedItems, icon });
 })();
 safeExposeGlobals({ coreItems });

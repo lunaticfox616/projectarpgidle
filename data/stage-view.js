@@ -257,14 +257,19 @@ const STAGE_PROPS = Object.freeze({
 //          corners = 방의 왼쪽 앞, 오른쪽 앞 구석에 하나씩 [이름, 가로 자리, 깊이].
 //   doors  문의 뿌리 봉인(rootSeal)이 서는 자리: 방향 → 뒤쪽과 앞쪽 문은 발 자리의 깊이, 좌우 문은 방 끝에서 바깥으로 나가는 거리다.
 //   fill 그림이 닿지 않는 땅의 색, sky 먼 배경 위쪽의 색, beyond 방의 옆쪽 바깥을 누르는 어둠의 세기.
+//   far.rooms 그 구실의 방(elite, boss)에만 쓰는 먼 배경. rows.boss 보스 방의 뒤쪽 가운데에 서는 큰 구조물(drop = 발 자리의 깊이,
+//          뒤쪽 줄 소품은 그 둘레 clear만큼 비운다).
+// 2026-10-30 PixelLab Pro로 다시 그린 액트 1~10 배포(scripts/build-stage-regions.cjs --act-rework): 먼 배경, 뒤쪽 띠, 바닥 셋과 정예, 보스 방의
+// 먼 배경, 보스 구조물이 그 배포의 그림이다. 작은 소품과 앞쪽 소품은 배포에 없어 예전 그림이다.
 // 물을 제거한 뿌리끝 성소 v5 시안 기준 조각. 캐릭터 원본과 별도 경로에 보관한다.
 const STAGE_SCENES = Object.freeze({
-    version: 'ashwood-20261017',
+    version: 'pixellab-20261030',
     path: 'assets/stage-scenes/',
     biomes: Object.freeze({
         root: Object.freeze({
             dir: 'root-end-v5/', fill: '#4c3530', sky: '#241e22', beyond: 0.26,
-            far: Object.freeze({ file: 'backdrop.png', width: 1536, height: 384, bottom: 19, parallax: 0.4, shift: 0 }),
+            far: Object.freeze({ file: 'backdrop.png', rooms: Object.freeze({ elite: 'backdrop-elite.png', boss: 'backdrop-boss.png' }),
+                width: 1536, height: 384, bottom: 19, parallax: 0.4, shift: 0 }),
             back: Object.freeze({ file: 'rear-strip.png', width: 1024, height: 192, bottom: 20, shift: -207 }),
             floor: Object.freeze({ files: Object.freeze(['floor-a.png', 'floor-b.png', 'floor-c.png']), width: 1536, height: 320, top: -24 }),
             pieces: Object.freeze({
@@ -274,14 +279,16 @@ const STAGE_SCENES = Object.freeze({
                 'root-broken': Object.freeze([96, 80, 4, 35, 88, 41]), 'mushrooms': Object.freeze([64, 48, 4, 8, 56, 36]),
                 'sanctum-slab': Object.freeze([208, 128, 4, 40, 200, 84]), 'sanctum-pillar': Object.freeze([80, 112, 7, 4, 65, 104]),
                 'front-bark': Object.freeze([256, 160, 4, 84, 248, 72]), 'front-root-low': Object.freeze([256, 160, 4, 97, 248, 59]),
-                'front-root': Object.freeze([384, 192, 4, 17, 376, 171]), 'front-root-stone': Object.freeze([384, 192, 4, 37, 376, 151])
+                'front-root': Object.freeze([384, 192, 4, 17, 376, 171]), 'front-root-stone': Object.freeze([384, 192, 4, 37, 376, 151]),
+                'boss-object': Object.freeze([320, 320, 60, 74, 200, 196])
             }),
             rows: Object.freeze({
                 back: Object.freeze({ names: Object.freeze(['root-low', 'sanctum-slab', 'root-broken', 'sanctum-pillar', 'root-stump', 'rock-low', 'mushrooms', 'rock-tall']),
                     from: 51, until: 65, gaps: Object.freeze([213, 271, 229]), drops: Object.freeze([4, 8, 12]), clear: 163 }),
                 inner: Object.freeze({ names: Object.freeze(['bark-chip', 'rock-small', 'mushrooms']), from: 184, until: 104, gaps: Object.freeze([473]), drops: Object.freeze([188, 216]), clear: 133 }),
                 front: Object.freeze({ names: Object.freeze(['front-bark', 'front-root-low']), from: 451, until: 337, gaps: Object.freeze([653, 547]), drops: Object.freeze([332]), clear: 160 }),
-                corners: Object.freeze({ left: Object.freeze(['front-root-stone', 27, 327]), right: Object.freeze(['front-root', -64, 325]) })
+                corners: Object.freeze({ left: Object.freeze(['front-root-stone', 27, 327]), right: Object.freeze(['front-root', -64, 325]) }),
+                boss: Object.freeze({ name: 'boss-object', drop: -19, clear: 200 })
             }),
             doors: Object.freeze({ north: 13, south: 293, west: 1, east: -1 })
         })

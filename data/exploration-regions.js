@@ -4,8 +4,8 @@
 const EXPLORATION_REGIONS = Object.freeze({
     regions: [
         // 2026-10-25 사용자: 나무(사냥)와 탐험이 허브에서는 따로인데 안의 위 탭에서는 하나였다. 세계수 아틀라스도 따로 탭을 쓴다.
-        {id:'tree',name:'나무',landscape:'assets/ui/region-cards/act-01.webp',routes:['map-explore-hunting'],sideRoutes:[]},
-        {id:'trail',name:'탐험',landscape:'assets/ui/region-cards/act-01.webp',routes:['map-explore-root-boss','map-explore-trials','map-explore-beehive','map-explore-colony'],sideRoutes:['map-explore-beehive','map-explore-colony']},
+        {id:'tree',name:'나무',landscape:'assets/ui/region-cards/act-01.webp?v=20261030',routes:['map-explore-hunting'],sideRoutes:[]},
+        {id:'trail',name:'탐험',landscape:'assets/ui/region-cards/act-01.webp?v=20261030',routes:['map-explore-root-boss','map-explore-trials','map-explore-beehive','map-explore-colony'],sideRoutes:['map-explore-beehive','map-explore-colony']},
         // 세계수 아틀라스의 그림은 타이틀의 세계수(assets/background/title-worldtree-v1.webp)를 다른 권역 카드와 같은 1200x430으로 잘랐다.
         {id:'worldtree',name:'세계수 아틀라스',landscape:'assets/ui/region-cards/worldtree.webp',routes:['map-explore-worldtree'],sideRoutes:[]},
         {id:'roots',name:'혼돈의 뿌리',landscape:'assets/ui/region-cards/roots.webp',routes:['map-explore-chaos','map-tab-chaos-realm','map-explore-labyrinth','map-explore-voidrift','map-explore-timerift','map-explore-beyond'],sideRoutes:['map-explore-voidrift','map-explore-timerift']},
@@ -15,11 +15,11 @@ const EXPLORATION_REGIONS = Object.freeze({
         {id:'cosmos',name:'우주계',landscape:'assets/ui/region-cards/cosmos.webp',routes:['map-tab-cosmos'],sideRoutes:[]}
     ],
     /** 나무 띠의 그림: 액트 순서(1부터)마다 하나. */
-    actLandscapes: Object.freeze(Array.from({ length: 10 }, (_, i) => 'assets/ui/region-cards/act-' + String(i + 1).padStart(2, '0') + '.webp')),
+    actLandscapes: Object.freeze(Array.from({ length: 10 }, (_, i) => 'assets/ui/region-cards/act-' + String(i + 1).padStart(2, '0') + '.webp?v=20261030')),
     // Short activity identities for the region chooser; entry/rewards stay in their domains. landscape: the card's picture, cut from
     // the stage region picture of that content like the region cards (2026-10-26 사용자: 권역 고르기 카드에 지도 그림).
     activities: {
-        'map-explore-root-boss': {kind:'보스전',tone:'boss',landscape:'assets/ui/region-cards/act-07.webp'},
+        'map-explore-root-boss': {kind:'보스전',tone:'boss',landscape:'assets/ui/region-cards/act-07.webp?v=20261030'},
         'map-explore-trials': {kind:'전직 도전',tone:'trial',landscape:'assets/ui/region-cards/trial-01.webp'},
         'map-explore-beehive': {kind:'',tone:'choice',landscape:'assets/ui/region-cards/beehive.webp'},
         'map-explore-colony': {kind:'',tone:'survival',landscape:'assets/ui/region-cards/colony.webp'},

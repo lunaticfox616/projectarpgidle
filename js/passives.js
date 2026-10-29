@@ -9529,7 +9529,7 @@ function boostItemStatValue(statId, value, factor) {
 // 장비 드랍 시, 각 베이스 옵션 줄마다 독립적으로 1% 확률로 '특출'해진다(최대 롤 +20%).
 // 줄마다 따로 굴리므로 모든 줄이 동시에 특출날 확률은 1%^(줄 수)로 극악이다.
 /** One base line raised to 120% of its best roll and marked exceptional; the item's exceptional fields then list every such line
- * (a drop's 1% per line below, and the cube's 고유 장비 다시 빚기, js/stump-cube-recipes.js). */
+ * (a drop's 1% per line below, and the cube's 고유 장비 리롤, js/stump-cube-recipes.js). */
 function boostExceptionalBaseLine(item, stat) {
     let max = Number.isFinite(stat.baseRollMax) ? stat.baseRollMax
         : (Number.isFinite(stat.valMax) ? stat.valMax : Number(stat.val) || 0);

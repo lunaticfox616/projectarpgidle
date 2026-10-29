@@ -47,7 +47,7 @@ const equipmentSocketsUi = (() => {
     function socketsHtml(item) {
         const rows = equipmentSockets.list(item).map(row => `<div class="socket-row${row.jewel ? '' : ' is-empty'}${row.kind === 'corrupt' ? ' is-corrupt' : ''}"><span class="socket-row-label">${socketLabel(row)}</span>
             <div class="socket-row-jewel">${row.jewel ? jewelHtml(row.jewel) : '<span>빈 소켓</span>'}</div>
-            ${row.jewel ? `<button type="button" onclick="equipmentSocketsUi.remove('${row.kind}',${row.index})">빼기</button>` : ''}</div>`).join('');
+            ${row.jewel && !row.fused ? `<button type="button" onclick="equipmentSocketsUi.remove('${row.kind}',${row.index})">빼기</button>` : ''}</div>`).join('');
         const chisels = game.currencies.voidChisel || 0;
         const chisel = equipmentSockets.canChisel(item)
             ? `<button type="button" class="socket-chisel" onclick="equipmentSocketsUi.chisel()" ${chisels > 0 ? '' : 'disabled'}>공허의 끌로 소켓 뚫기 (보유 ${chisels})</button>` : '';

@@ -41,7 +41,30 @@ const sapCatalysts = (() => {
         if (!kind) return { ok: false, reason: '이 색의 기폭제는 없습니다.' };
         return { ok: true, consumed: group, outputs: [{ kind: 'currency', key: kind.key, amount: 1 }] };
     }
-    return Object.freeze({ keys: KEYS, open, useReason, apply, killDrops, amberRecipe, kind: key => BY_KEY.get(key) || null,
+    /** 기폭제 바꾸기(data/stump-cube.js catalyst_exchange, 2026-10-30 사용자): the sap colour's catalyst, and the held catalysts of
+     * other kinds that may be turned into it (STUMP_CUBE_CATALYST_EXCHANGE of them), or why it cannot be made. */
+    function exchangePlan(amber, state) {
+        if (!open(state)) return { reason: `루프 ${C.minLoop}부터 만들 수 있습니다.` };
+        const kind = BY_COLOR.get(amber && amber.color);
+        if (!kind) return { reason: '이 색의 기폭제는 없습니다.' };
+        const held = KEYS.filter(key => key !== kind.key && (state.currencies[key] || 0) > 0);
+        const total = held.reduce((sum, key) => sum + Math.floor(state.currencies[key] || 0), 0);
+        return total >= STUMP_CUBE_CATALYST_EXCHANGE ? { kind, held } : { reason: `바꿀 다른 기폭제가 ${STUMP_CUBE_CATALYST_EXCHANGE}개 필요합니다.` };
+    }
+    /** A ripe sap turns STUMP_CUBE_CATALYST_EXCHANGE held catalysts of other kinds, each picked at random among the kinds still held, into as many of
+     * the sap colour's catalyst. */
+    function exchangeRecipe([[amber]], state, random = Math.random) {
+        const plan = exchangePlan(amber.item, state);
+        if (plan.reason) return { ok: false, reason: plan.reason };
+        const paid = {};
+        for (let i = 0; i < STUMP_CUBE_CATALYST_EXCHANGE; i++) {
+            const left = plan.held.filter(key => Math.floor(state.currencies[key] || 0) > (paid[key] || 0));
+            const key = left[Math.min(left.length - 1, Math.floor(random() * left.length))];
+            paid[key] = (paid[key] || 0) + 1;
+        }
+        return { ok: true, consumed: [amber], paid, outputs: [{ kind: 'currency', key: plan.kind.key, amount: STUMP_CUBE_CATALYST_EXCHANGE }] };
+    }
+    return Object.freeze({ keys: KEYS, open, useReason, apply, killDrops, amberRecipe, exchangePlan, exchangeRecipe, kind: key => BY_KEY.get(key) || null,
         isCatalyst: key => BY_KEY.has(key) });
 })();
 safeExposeGlobals({ sapCatalysts });

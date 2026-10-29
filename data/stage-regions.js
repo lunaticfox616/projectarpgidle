@@ -10,10 +10,12 @@
 //           prop-0, prop-1 낮은 소품, prop-2 정예 방의 높은 표식, prop-3 보스 방의 큰 구조물, prop-4와 5 상자의 닫힌 모습과 열린 모습,
 //           prop-6과 7 깨지는 물건의 깨지기 전과 뒤.
 //   regions 지역 → 방 그림(<지역>.png)의 가로와 세로, ground 바닥이 시작하는 줄, door 뒤쪽 문이 서는 가로 자리(그림 너비의 비율, 없으면 null),
-//           family 재질, sky와 earth 그림 맨 위와 맨 아래의 색, normal, elite, boss 그 구실의 방에 놓는 소품 번호, bossSide 보스 방의 큰 구조물이 서는 쪽.
+//           family 재질, sky와 earth 그림 맨 위와 맨 아래의 색, normal, elite, boss 그 구실의 방에 놓는 소품 번호, bossSide 보스 방의 큰 구조물이 서는 쪽,
+//           rooms(있으면) 방 구실 → 그 방에만 쓰는 방 그림(<이름>.png, 크기와 바닥 줄은 지역과 같다): general 입구와 전투 방과 곁방, elite, boss.
+//           2026-10-30 액트 2~10은 PixelLab Pro로 다시 그린 묶음(재질 A02~A10, 정예와 보스 방 그림)이다(--act-rework).
 const STAGE_REGIONS = Object.freeze({
     path: 'assets/stage-scenes/regions/',
-    version: '0d04f89831',
+    version: 'bc1e50c714',
     fit: Object.freeze({ width: 1280, height: 720, floorBottom: 536, margin: 192 }),
     families: Object.freeze({
         F01: Object.freeze({
@@ -22,14 +24,8 @@ const STAGE_REGIONS = Object.freeze({
         F02: Object.freeze({
             pieces: Object.freeze({ 'prop-0': Object.freeze([96, 56, 48, 52, 4, 4, 87, 48]), 'prop-1': Object.freeze([96, 56, 48, 52, 4, 13, 88, 39]), 'prop-2': Object.freeze([104, 144, 52, 140, 20, 4, 64, 136]), 'prop-3': Object.freeze([224, 240, 112, 236, 6, 4, 213, 232]), 'prop-4': Object.freeze([88, 64, 44, 60, 4, 12, 80, 48]), 'prop-5': Object.freeze([88, 88, 44, 84, 4, 11, 80, 73]), 'prop-6': Object.freeze([64, 72, 32, 68, 6, 4, 52, 64]), 'prop-7': Object.freeze([72, 48, 36, 44, 7, 4, 57, 40]) })
         }),
-        F03: Object.freeze({
-            pieces: Object.freeze({ 'prop-0': Object.freeze([96, 56, 48, 52, 15, 4, 66, 48]), 'prop-1': Object.freeze([96, 56, 48, 52, 5, 20, 87, 32]), 'prop-2': Object.freeze([104, 144, 52, 140, 16, 4, 71, 136]), 'prop-3': Object.freeze([224, 240, 112, 236, 4, 81, 216, 155]), 'prop-4': Object.freeze([88, 64, 44, 60, 4, 9, 80, 51]), 'prop-5': Object.freeze([88, 88, 44, 84, 4, 18, 79, 66]), 'prop-6': Object.freeze([64, 72, 32, 68, 5, 4, 53, 64]), 'prop-7': Object.freeze([72, 48, 36, 44, 4, 15, 64, 29]) })
-        }),
         F04: Object.freeze({
             pieces: Object.freeze({ 'prop-0': Object.freeze([96, 56, 48, 52, 4, 12, 88, 40]), 'prop-1': Object.freeze([96, 56, 48, 52, 12, 4, 71, 48]), 'prop-2': Object.freeze([104, 144, 52, 140, 7, 4, 89, 136]), 'prop-3': Object.freeze([224, 240, 112, 236, 4, 61, 216, 175]), 'prop-4': Object.freeze([88, 64, 44, 60, 4, 12, 80, 48]), 'prop-5': Object.freeze([88, 88, 44, 84, 4, 39, 80, 45]), 'prop-6': Object.freeze([64, 72, 32, 68, 8, 4, 47, 64]), 'prop-7': Object.freeze([72, 48, 36, 44, 4, 14, 64, 30]) })
-        }),
-        F05: Object.freeze({
-            pieces: Object.freeze({ 'prop-0': Object.freeze([96, 56, 48, 52, 7, 4, 82, 48]), 'prop-1': Object.freeze([96, 56, 48, 52, 20, 4, 55, 48]), 'prop-2': Object.freeze([104, 144, 52, 140, 17, 4, 70, 136]), 'prop-3': Object.freeze([224, 240, 112, 236, 12, 4, 200, 232]), 'prop-4': Object.freeze([88, 64, 44, 60, 4, 9, 80, 51]), 'prop-5': Object.freeze([88, 88, 44, 84, 4, 16, 80, 68]), 'prop-6': Object.freeze([64, 72, 32, 68, 13, 4, 37, 64]), 'prop-7': Object.freeze([72, 48, 36, 44, 20, 4, 32, 40]) })
         }),
         F06: Object.freeze({
             pieces: Object.freeze({ 'prop-0': Object.freeze([96, 56, 48, 52, 4, 21, 88, 31]), 'prop-1': Object.freeze([96, 56, 48, 52, 4, 4, 88, 48]), 'prop-2': Object.freeze([104, 144, 52, 140, 19, 4, 65, 136]), 'prop-3': Object.freeze([224, 240, 112, 236, 4, 75, 216, 161]), 'prop-4': Object.freeze([88, 64, 44, 60, 4, 14, 80, 46]), 'prop-5': Object.freeze([88, 88, 44, 84, 4, 39, 80, 45]), 'prop-6': Object.freeze([64, 72, 32, 68, 5, 4, 53, 64]), 'prop-7': Object.freeze([72, 48, 36, 44, 4, 4, 64, 40]) })
@@ -57,20 +53,47 @@ const STAGE_REGIONS = Object.freeze({
         }),
         F14: Object.freeze({
             pieces: Object.freeze({ 'prop-0': Object.freeze([96, 56, 48, 52, 8, 4, 80, 48]), 'prop-1': Object.freeze([96, 56, 48, 52, 11, 4, 73, 48]), 'prop-2': Object.freeze([104, 144, 52, 140, 9, 4, 85, 136]), 'prop-3': Object.freeze([224, 240, 112, 236, 4, 77, 216, 159]), 'prop-4': Object.freeze([88, 64, 44, 60, 4, 5, 80, 55]), 'prop-5': Object.freeze([88, 88, 44, 84, 4, 15, 80, 69]), 'prop-6': Object.freeze([64, 72, 32, 68, 4, 25, 56, 43]), 'prop-7': Object.freeze([72, 48, 36, 44, 4, 16, 64, 28]) })
+        }),
+        A02: Object.freeze({
+            pieces: Object.freeze({ 'prop-0': Object.freeze([96, 56, 48, 52, 25, 4, 45, 48]), 'prop-1': Object.freeze([96, 56, 48, 52, 4, 9, 88, 43]), 'prop-2': Object.freeze([104, 144, 52, 140, 21, 4, 61, 136]), 'prop-3': Object.freeze([224, 240, 112, 236, 4, 4, 215, 232]), 'prop-4': Object.freeze([88, 64, 44, 60, 4, 15, 80, 45]), 'prop-5': Object.freeze([88, 88, 44, 84, 4, 18, 80, 66]), 'prop-6': Object.freeze([64, 72, 32, 68, 12, 4, 39, 64]), 'prop-7': Object.freeze([72, 48, 36, 44, 5, 13, 61, 31]) })
+        }),
+        A03: Object.freeze({
+            pieces: Object.freeze({ 'prop-0': Object.freeze([96, 56, 48, 52, 4, 4, 87, 48]), 'prop-1': Object.freeze([96, 56, 48, 52, 4, 13, 88, 39]), 'prop-2': Object.freeze([104, 144, 52, 140, 20, 4, 64, 136]), 'prop-3': Object.freeze([224, 240, 112, 236, 6, 4, 213, 232]), 'prop-4': Object.freeze([88, 64, 44, 60, 4, 12, 80, 48]), 'prop-5': Object.freeze([88, 88, 44, 84, 4, 11, 80, 73]), 'prop-6': Object.freeze([64, 72, 32, 68, 6, 4, 52, 64]), 'prop-7': Object.freeze([72, 48, 36, 44, 7, 4, 57, 40]) })
+        }),
+        A04: Object.freeze({
+            pieces: Object.freeze({ 'prop-0': Object.freeze([96, 56, 48, 52, 15, 4, 66, 48]), 'prop-1': Object.freeze([96, 56, 48, 52, 5, 20, 87, 32]), 'prop-2': Object.freeze([104, 144, 52, 140, 16, 4, 71, 136]), 'prop-3': Object.freeze([224, 240, 112, 236, 4, 81, 216, 155]), 'prop-4': Object.freeze([88, 64, 44, 60, 4, 9, 80, 51]), 'prop-5': Object.freeze([88, 88, 44, 84, 4, 18, 79, 66]), 'prop-6': Object.freeze([64, 72, 32, 68, 5, 4, 53, 64]), 'prop-7': Object.freeze([72, 48, 36, 44, 4, 15, 64, 29]) })
+        }),
+        A05: Object.freeze({
+            pieces: Object.freeze({ 'prop-0': Object.freeze([96, 56, 48, 52, 4, 12, 88, 40]), 'prop-1': Object.freeze([96, 56, 48, 52, 12, 4, 71, 48]), 'prop-2': Object.freeze([104, 144, 52, 140, 7, 4, 89, 136]), 'prop-3': Object.freeze([224, 240, 112, 236, 4, 61, 216, 175]), 'prop-4': Object.freeze([88, 64, 44, 60, 4, 12, 80, 48]), 'prop-5': Object.freeze([88, 88, 44, 84, 4, 39, 80, 45]), 'prop-6': Object.freeze([64, 72, 32, 68, 8, 4, 47, 64]), 'prop-7': Object.freeze([72, 48, 36, 44, 4, 14, 64, 30]) })
+        }),
+        A06: Object.freeze({
+            pieces: Object.freeze({ 'prop-0': Object.freeze([96, 56, 48, 52, 25, 4, 45, 48]), 'prop-1': Object.freeze([96, 56, 48, 52, 4, 9, 88, 43]), 'prop-2': Object.freeze([104, 144, 52, 140, 21, 4, 61, 136]), 'prop-3': Object.freeze([224, 240, 112, 236, 4, 4, 215, 232]), 'prop-4': Object.freeze([88, 64, 44, 60, 4, 15, 80, 45]), 'prop-5': Object.freeze([88, 88, 44, 84, 4, 18, 80, 66]), 'prop-6': Object.freeze([64, 72, 32, 68, 12, 4, 39, 64]), 'prop-7': Object.freeze([72, 48, 36, 44, 5, 13, 63, 31]) })
+        }),
+        A07: Object.freeze({
+            pieces: Object.freeze({ 'prop-0': Object.freeze([96, 56, 48, 52, 4, 4, 87, 48]), 'prop-1': Object.freeze([96, 56, 48, 52, 4, 13, 88, 39]), 'prop-2': Object.freeze([104, 144, 52, 140, 20, 4, 64, 136]), 'prop-3': Object.freeze([224, 240, 112, 236, 6, 4, 213, 232]), 'prop-4': Object.freeze([88, 64, 44, 60, 4, 12, 80, 48]), 'prop-5': Object.freeze([88, 88, 44, 84, 4, 11, 80, 73]), 'prop-6': Object.freeze([64, 72, 32, 68, 6, 4, 52, 64]), 'prop-7': Object.freeze([72, 48, 36, 44, 7, 4, 57, 40]) })
+        }),
+        A08: Object.freeze({
+            pieces: Object.freeze({ 'prop-0': Object.freeze([96, 56, 48, 52, 15, 4, 66, 48]), 'prop-1': Object.freeze([96, 56, 48, 52, 5, 20, 87, 32]), 'prop-2': Object.freeze([104, 144, 52, 140, 16, 4, 71, 136]), 'prop-3': Object.freeze([224, 240, 112, 236, 4, 81, 216, 155]), 'prop-4': Object.freeze([88, 64, 44, 60, 4, 9, 80, 51]), 'prop-5': Object.freeze([88, 88, 44, 84, 4, 18, 79, 66]), 'prop-6': Object.freeze([64, 72, 32, 68, 5, 4, 53, 64]), 'prop-7': Object.freeze([72, 48, 36, 44, 4, 15, 64, 29]) })
+        }),
+        A09: Object.freeze({
+            pieces: Object.freeze({ 'prop-0': Object.freeze([96, 56, 48, 52, 7, 4, 82, 48]), 'prop-1': Object.freeze([96, 56, 48, 52, 20, 4, 55, 48]), 'prop-2': Object.freeze([104, 144, 52, 140, 17, 4, 70, 136]), 'prop-3': Object.freeze([224, 240, 112, 236, 12, 4, 200, 232]), 'prop-4': Object.freeze([88, 64, 44, 60, 4, 9, 80, 51]), 'prop-5': Object.freeze([88, 88, 44, 84, 4, 16, 80, 68]), 'prop-6': Object.freeze([64, 72, 32, 68, 13, 4, 37, 64]), 'prop-7': Object.freeze([72, 48, 36, 44, 21, 4, 31, 40]) })
+        }),
+        A10: Object.freeze({
+            pieces: Object.freeze({ 'prop-0': Object.freeze([96, 56, 48, 52, 7, 4, 82, 48]), 'prop-1': Object.freeze([96, 56, 48, 52, 20, 4, 55, 48]), 'prop-2': Object.freeze([104, 144, 52, 140, 17, 4, 70, 136]), 'prop-3': Object.freeze([224, 240, 112, 236, 12, 4, 200, 232]), 'prop-4': Object.freeze([88, 64, 44, 60, 4, 9, 80, 51]), 'prop-5': Object.freeze([88, 88, 44, 84, 4, 16, 80, 68]), 'prop-6': Object.freeze([64, 72, 32, 68, 13, 4, 37, 64]), 'prop-7': Object.freeze([72, 48, 36, 44, 21, 4, 31, 40]) })
         })
     }),
     regions: Object.freeze({
-        'act-02': Object.freeze({ name: '액트 2, 가지치기의 중정', width: 1672, height: 941, ground: 392, door: 0.5, family: 'F01', sky: '#5e4c3a', earth: '#262321', normal: Object.freeze([0, 6]), elite: Object.freeze([2, 0]), boss: Object.freeze([3]), bossSide: 'east' }),
+        'act-02': Object.freeze({ name: '액트 2, 가지치기의 중정', width: 1672, height: 941, ground: 392, door: 0.5, family: 'A02', sky: '#90774e', earth: '#534331', normal: Object.freeze([0, 6]), elite: Object.freeze([2, 0]), boss: Object.freeze([3]), bossSide: 'east', rooms: Object.freeze({ elite: 'act-02-elite', boss: 'act-02-boss' }) }),
         'rift-past': Object.freeze({ name: '시간의 균열, 과거', width: 1672, height: 941, ground: 392, door: 0.5, family: 'F01', sky: '#7a5f44', earth: '#2c2724', normal: Object.freeze([0, 6]), elite: Object.freeze([2, 0]), boss: Object.freeze([3]), bossSide: 'east' }),
-        'act-03': Object.freeze({ name: '액트 3, 허공뿌리 현수림', width: 1672, height: 941, ground: 418, door: 0.5, family: 'F02', sky: '#585f73', earth: '#4d3f3c', normal: Object.freeze([1, 6]), elite: Object.freeze([2, 0]), boss: Object.freeze([3]), bossSide: 'east' }),
-        'act-04': Object.freeze({ name: '액트 4, 갈림뿌리 미궁', width: 1671, height: 941, ground: 392, door: 0.27, family: 'F03', sky: '#52423f', earth: '#44322e', normal: Object.freeze([1, 6]), elite: Object.freeze([2, 0]), boss: Object.freeze([3]), bossSide: 'east' }),
-        'act-05': Object.freeze({ name: '액트 5, 지주근의 침묵 성소', width: 1672, height: 941, ground: 398, door: 0.62, family: 'F04', sky: '#2e2d37', earth: '#2c2b33', normal: Object.freeze([0, 6]), elite: Object.freeze([2, 1]), boss: Object.freeze([3]), bossSide: 'west' }),
-        'act-06': Object.freeze({ name: '액트 6, 가지치기의 중정, 재방문', width: 1672, height: 941, ground: 392, door: 0.5, family: 'F01', sky: '#4a404a', earth: '#282021', normal: Object.freeze([1, 7]), elite: Object.freeze([2, 1]), boss: Object.freeze([3]), bossSide: 'east' }),
+        'act-03': Object.freeze({ name: '액트 3, 허공뿌리 현수림', width: 1672, height: 941, ground: 418, door: 0.5, family: 'A03', sky: '#838984', earth: '#6a665a', normal: Object.freeze([1, 6]), elite: Object.freeze([2, 0]), boss: Object.freeze([]), bossSide: 'east', rooms: Object.freeze({ elite: 'act-03-elite', boss: 'act-03-boss' }) }),
+        'act-04': Object.freeze({ name: '액트 4, 갈림뿌리 미궁', width: 1671, height: 941, ground: 392, door: 0.27, family: 'A04', sky: '#555246', earth: '#454139', normal: Object.freeze([1, 6]), elite: Object.freeze([2, 0]), boss: Object.freeze([]), bossSide: 'east', rooms: Object.freeze({ elite: 'act-04-elite', boss: 'act-04-boss' }) }),
+        'act-05': Object.freeze({ name: '액트 5, 지주근의 침묵 성소', width: 1672, height: 941, ground: 398, door: 0.62, family: 'A05', sky: '#62516b', earth: '#5b5661', normal: Object.freeze([0, 6]), elite: Object.freeze([2, 1]), boss: Object.freeze([]), bossSide: 'west', rooms: Object.freeze({ elite: 'act-05-elite', boss: 'act-05-boss' }) }),
+        'act-06': Object.freeze({ name: '액트 6, 가지치기의 중정, 재방문', width: 1672, height: 941, ground: 392, door: 0.5, family: 'A06', sky: '#61666b', earth: '#413e3d', normal: Object.freeze([1, 7]), elite: Object.freeze([2, 1]), boss: Object.freeze([]), bossSide: 'east', rooms: Object.freeze({ elite: 'act-06-elite', boss: 'act-06-boss' }) }),
         'rift-future': Object.freeze({ name: '시간의 균열, 미래', width: 1672, height: 941, ground: 392, door: 0.5, family: 'F01', sky: '#594f5e', earth: '#2f2524', normal: Object.freeze([1, 7]), elite: Object.freeze([2, 1]), boss: Object.freeze([3]), bossSide: 'east' }),
-        'act-07': Object.freeze({ name: '액트 7, 말라가는 큰 줄기', width: 1672, height: 941, ground: 453, door: 0.5, family: 'F02', sky: '#75625d', earth: '#63524d', normal: Object.freeze([0, 1]), elite: Object.freeze([2, 6]), boss: Object.freeze([3]), bossSide: 'west' }),
-        'act-08': Object.freeze({ name: '액트 8, 끝없는 장막의 줄기', width: 1672, height: 941, ground: 405, door: 0.38, family: 'F03', sky: '#534045', earth: '#6b5a59', normal: Object.freeze([0]), elite: Object.freeze([2, 6]), boss: Object.freeze([3]), bossSide: 'west' }),
-        'act-09': Object.freeze({ name: '액트 9, 비탄의 교차', width: 1672, height: 941, ground: 449, door: 0.27, family: 'F05', sky: '#664839', earth: '#4a3a3b', normal: Object.freeze([1, 6]), elite: Object.freeze([2, 0]), boss: Object.freeze([3]), bossSide: 'east' }),
-        'act-10': Object.freeze({ name: '액트 10, 합일의 차륜', width: 1672, height: 941, ground: 420, door: 0.2, family: 'F05', sky: '#453937', earth: '#393035', normal: Object.freeze([0]), elite: Object.freeze([2]), boss: Object.freeze([3]), bossSide: 'west' }),
+        'act-07': Object.freeze({ name: '액트 7, 말라가는 큰 줄기', width: 1672, height: 941, ground: 453, door: 0.5, family: 'A07', sky: '#7c776b', earth: '#696358', normal: Object.freeze([0, 1]), elite: Object.freeze([2, 6]), boss: Object.freeze([]), bossSide: 'west', rooms: Object.freeze({ elite: 'act-07-elite', boss: 'act-07-boss' }) }),
+        'act-08': Object.freeze({ name: '액트 8, 끝없는 장막의 줄기', width: 1672, height: 941, ground: 405, door: 0.38, family: 'A08', sky: '#a69c9a', earth: '#6c6364', normal: Object.freeze([0]), elite: Object.freeze([2, 6]), boss: Object.freeze([]), bossSide: 'west', rooms: Object.freeze({ elite: 'act-08-elite', boss: 'act-08-boss' }) }),
+        'act-09': Object.freeze({ name: '액트 9, 비탄의 교차', width: 1672, height: 941, ground: 449, door: 0.27, family: 'A09', sky: '#b9a579', earth: '#6e5c46', normal: Object.freeze([1, 6]), elite: Object.freeze([2, 0]), boss: Object.freeze([]), bossSide: 'east', rooms: Object.freeze({ elite: 'act-09-elite', boss: 'act-09-boss' }) }),
+        'act-10': Object.freeze({ name: '액트 10, 합일의 차륜', width: 1672, height: 941, ground: 420, door: 0.2, family: 'A10', sky: '#908173', earth: '#b9a983', normal: Object.freeze([0]), elite: Object.freeze([2]), boss: Object.freeze([3]), bossSide: 'west', rooms: Object.freeze({ general: 'act-10-general', elite: 'act-10-elite' }) }),
         'trial-01': Object.freeze({ name: '1차 시련, 칼날 회랑', width: 1672, height: 941, ground: 449, door: 0.52, family: 'F04', sky: '#443637', earth: '#433331', normal: Object.freeze([0, 6]), elite: Object.freeze([2]), boss: Object.freeze([3]), bossSide: 'east' }),
         'trial-02': Object.freeze({ name: '2차 시련, 삼원 제단', width: 1672, height: 941, ground: 394, door: 0.84, family: 'F04', sky: '#3b3033', earth: '#3c3033', normal: Object.freeze([0, 6]), elite: Object.freeze([2]), boss: Object.freeze([3]), bossSide: 'west' }),
         'trial-03': Object.freeze({ name: '3차 시련, 독무 정원', width: 1672, height: 941, ground: 414, door: 0.33, family: 'F04', sky: '#352c32', earth: '#2b2524', normal: Object.freeze([0, 6]), elite: Object.freeze([2]), boss: Object.freeze([3]), bossSide: 'east' }),
