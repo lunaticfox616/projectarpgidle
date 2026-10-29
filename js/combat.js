@@ -8862,16 +8862,20 @@ const explorationPackFormation=(()=>{
         const front=melee.length?melee:pool,back=ranged.length?ranged:pool;
         return [front[seed%front.length],back[Math.floor(seed/7)%back.length]];
     }
+    /** Keep the elite leader and the original wisp/root rolls before choosing ordinary species. No combat RNG is consumed. */
+    function ordinarySlots(zone,shape) {
+        return shape.cells.map((_,index)=>index).filter(index=>{
+            if(shape.elite && index===0)return false;
+            const seed=Math.abs(getEnemySeeds(zone,{at:shape.at},index).variantSeed);
+            return seed%WISP_ENEMY_RULES.spawnOneIn!==0 && !getRootMonsterVisualDefinition(seed);
+        });
+    }
     /** Content reserves evenly spaced ordinary slots before spawn. Rare eligibility depends only on the existing variant seed,
      * not on the element that createEnemy will roll once. Other slots keep their natural species, even duplicate roster members. */
     function encounterOrdinaryRoster(zone,encounter,shape) {
         const desired=ATLAS.encounters[encounter]?.ordinaryRoster;
         if(zone.type!=='atlasMap' || !desired)return [];
-        const slots=shape.cells.map((_,index)=>index).filter(index=>{
-            if(shape.elite && index===0)return false;
-            const seed=Math.abs(getEnemySeeds(zone,{at:shape.at},index).variantSeed);
-            return seed%WISP_ENEMY_RULES.spawnOneIn!==0 && !getRootMonsterVisualDefinition(seed);
-        });
+        const slots=ordinarySlots(zone,shape);
         const roster=[],count=Math.min(slots.length,desired.length);
         if(!count)return roster;
         if(count===1){
@@ -8886,13 +8890,27 @@ const explorationPackFormation=(()=>{
         }
         return roster;
     }
-    function roster(zone,stage,encounter,shape,formation) {
-        if(stage!==null || formation?.cast || formation?.rescue)return [];
-        if(!['act','abyss','atlasMap'].includes(zone.type) || getRealmMonsterVisualSet(zone))return [];
-        if(encounter)return encounterOrdinaryRoster(zone,encounter,shape);
+    /** A labyrinth room has both roles when two ordinary slots survive. The run seed includes the floor;
+     * use higher hash bits for the extra role so neighboring room IDs do not all pick the same emphasis. */
+    function labyrinthRoomRoster(zone,shape) {
+        const slots=ordinarySlots(zone,shape),roster=[];
+        if(!slots.length)return roster;
+        const seed=Math.abs(hashSeed(`${zone.exploration.seed}:${shape.key}:roster`)),pair=rosterPair(zone,seed);
+        const pattern=Math.floor(seed/13)%2?[0,1,1]:[0,1,0];
+        slots.forEach((slot,index)=>{roster[slot]=pair[slots.length===1?seed%2:pattern[index%pattern.length]];});
+        return roster;
+    }
+    function ordinaryRoomRoster(zone,shape) {
+        if(zone.type==='labyrinth')return labyrinthRoomRoster(zone,shape);
         const seed=Math.abs(hashSeed(`${zone.atlasSeed || zone.id}:${shape.key}:roster`)),pair=rosterPair(zone,seed);
         const pattern=[[0,0,1],[0,0,1],[0,0,0,1],[0,1,1]][seed%4];
         return shape.cells.map((_,index)=>pair[pattern[index%pattern.length]]);
+    }
+    function roster(zone,stage,encounter,shape,formation) {
+        if(stage!==null || formation?.cast || formation?.rescue)return [];
+        if(!['act','abyss','atlasMap','labyrinth'].includes(zone.type) || getRealmMonsterVisualSet(zone))return [];
+        if(encounter)return encounterOrdinaryRoster(zone,encounter,shape);
+        return ordinaryRoomRoster(zone,shape);
     }
     /** 이미 확보한 칸의 주인만 바꾼다. 몬스터 수, 칸 점유, 무리의 열쇠와 목록 순서를 바꾸지 않는다. */
     function placeRanks(waiting,formation) {
