@@ -361,6 +361,27 @@ const bossAttackView = (() => {
         }
     }
 
-    return { groundAlpha, pendingAlpha, drawMarks, addMotions, spriteOffsetY, drawImpact, drawGround, warningShare, now: smoothCombatTime };
+    /** A brief mouth cue on the attached head. Physical bites close two small jaws; breaths light the muzzle. */
+    function drawHeadRelease(ctx, fx, now) {
+        if (fx.type !== 'bossRelease' || !Number.isInteger(fx.cerberusHead)) return;
+        const t = (now - fx.start) / 240, mouth = stageRoster.headOrigin(fx.enemyId, fx.cerberusHead, null);
+        if (!mouth || t < 0 || t >= 1) return;
+        const colours = { fire: '#f5ad5d', cold: '#b4e4ee', phys: '#eee0b8' };
+        ctx.save();
+        ctx.translate(Math.round(mouth.x), Math.round(mouth.y));
+        ctx.scale(mouth.west ? -mouth.dot : mouth.dot, mouth.dot);
+        ctx.globalAlpha = (1 - t) * 0.85;
+        ctx.strokeStyle = colours[fx.element] || '#bca7d6';
+        ctx.lineWidth = 2;
+        const gap = fx.element === 'phys' ? 8 * (1 - t) : 4 + t * 5;
+        ctx.beginPath();
+        for (const side of [-1, 1]) {
+            ctx.moveTo(0, side * gap); ctx.lineTo(5, side * (gap + 2));
+            ctx.lineTo(10, side * gap); ctx.lineTo(14, side * (gap - 3));
+        }
+        ctx.stroke(); ctx.restore();
+    }
+
+    return { groundAlpha, pendingAlpha, drawMarks, addMotions, spriteOffsetY, drawImpact, drawGround, drawHeadRelease, warningShare, now: smoothCombatTime };
 })();
 safeExposeGlobals({ bossAttackView });

@@ -5,280 +5,283 @@
    등록해야 getComputedStyle이 계산된 px로 돌려준다. */
 @property --dock-fit-width { syntax: '<length>'; inherits: false; initial-value: 0px; }
 @layer overrides {
-:root body #item-tab-equip { --eqw-gold: #ecc982; --eqw-muted: #a39883; --eqw-ink: #e6dcc6; --eqw-edge: #8a6a36; container: eqw / inline-size; }
-:root body #item-tab-equip .equipment-window { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; align-items: start; }
-:root body #item-tab-equip .equipment-window .equipment-loadout-panel { display: flex; flex-direction: column; gap: 8px; min-width: 0; padding: 0; border: 0;
+:root body :is(#item-tab-equip, #stump-equip-host) { --eqw-gold: #ecc982; --eqw-muted: #a39883; --eqw-ink: #e6dcc6; --eqw-edge: #8a6a36; container: eqw / inline-size; }
+/* 그루터기 함의 오른쪽 열에는 가방만 온다(장착 칸이 없다). 넓은 장비 창의 두세 칸 규칙(@container eqw)이 걸리면 최대화한 그루터기 창에서
+   가방이 좁은 첫 칸에 들어가 칸이 작아지고 도구 줄이 판을 덮었다 */
+:root body #stump-equip-host { container-name: stump-bag; }
+:root body :is(#item-tab-equip, #stump-equip-host) .equipment-window { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; align-items: start; }
+:root body :is(#item-tab-equip, #stump-equip-host) .equipment-window .equipment-loadout-panel { display: flex; flex-direction: column; gap: 8px; min-width: 0; padding: 0; border: 0;
   background: none; box-shadow: none; }
 
 /* 판: 금빛 실선과 안쪽 한 줄(이중 테), 제목 띠 */
-:root body #item-tab-equip .equipment-window .eqw-card { position: relative; min-width: 0; padding: 10px 12px; border: 1px solid var(--eqw-edge); border-radius: 0;
+:root body :is(#item-tab-equip, #stump-equip-host) .equipment-window .eqw-card { position: relative; min-width: 0; padding: 10px 12px; border: 1px solid var(--eqw-edge); border-radius: 0;
   background: linear-gradient(180deg, #1d1712 0%, #120e0a 100%);
   box-shadow: 0 0 0 1px #000, inset 0 0 0 3px #120e0a, inset 0 0 0 4px rgba(227, 189, 114, .32), 0 10px 24px rgba(0, 0, 0, .55); }
-:root body #item-tab-equip .equipment-window .eqw-title { display: flex; gap: 8px; align-items: baseline; margin: -10px -12px 10px; padding: 6px 12px 5px;
+:root body :is(#item-tab-equip, #stump-equip-host) .equipment-window .eqw-title { display: flex; gap: 8px; align-items: baseline; margin: -10px -12px 10px; padding: 6px 12px 5px;
   color: var(--eqw-gold); font-size: var(--font-size-ui); letter-spacing: 1px; text-shadow: 0 1px 0 #000;
   background: linear-gradient(90deg, rgba(227, 189, 114, .22), rgba(227, 189, 114, .04) 70%, transparent); border-bottom: 1px solid rgba(227, 189, 114, .45); }
-:root body #item-tab-equip .equipment-window .eqw-title small { margin-left: auto; color: var(--eqw-muted); font-size: 11px; font-weight: 400; letter-spacing: 0; text-align: right; }
-:root body #item-tab-equip .equipment-window .eqw-title small.is-warning { color: #ff9a80; }
+:root body :is(#item-tab-equip, #stump-equip-host) .equipment-window .eqw-title small { margin-left: auto; color: var(--eqw-muted); font-size: 11px; font-weight: 400; letter-spacing: 0; text-align: right; }
+:root body :is(#item-tab-equip, #stump-equip-host) .equipment-window .eqw-title small.is-warning { color: #ff9a80; }
 
 /* 장착 장비: 인형 배치. 칸마다 위에 칸 이름, 그림, 아래에 아이템 이름(등급 색, 두 줄까지). 2026-10-11: 개편 때 아이템 이름을 빼고 칸 이름을
    10px 흐린 글로 줄였더니 무엇을 꼈는지 칸마다 마우스를 올려야 알 수 있었다. 빼기는 두 번 누르기와 선택한 장비의 단추.
    2026-10-21: 옆 두 칸은 정수 px로 자른다(round). 1 : 1.16 : 1이 71.5px처럼 소수로 나뉘면 칸 이름과 아이템 이름이 화소 사이에서 시작해
    번졌다. 12px 이름이 기본 창의 옆 칸(72px)에서 두 줄에 들도록 칸 틈은 6px, 이름 좌우 여백은 2px. */
-:root body :is(#item-tab-equip #ui-equip-list, .build-set-paperdoll).equipment-paperdoll { display: grid; gap: 5px 6px; margin: 0; padding: 2px 0; border: 0;
+:root body :is(:is(#item-tab-equip, #stump-equip-host) #ui-equip-list, .build-set-paperdoll).equipment-paperdoll { display: grid; gap: 5px 6px; margin: 0; padding: 2px 0; border: 0;
   --eqw-doll-side: round(down, calc((100% - 12px) / 3.16), 1px);
   grid-template-columns: var(--eqw-doll-side) minmax(0, 1fr) var(--eqw-doll-side); grid-template-rows: repeat(5, var(--eqw-doll-row, 68px));
   grid-template-areas: "amulet helm core" "weapon body shield" "weapon body shield" "glove1 belt glove2" "ring1 boots ring2";
   background: radial-gradient(ellipse 50% 58% at 50% 46%, rgba(227, 189, 114, .16), transparent 72%); }
-:root body :is(#item-tab-equip #ui-equip-list, .build-set-paperdoll) .slot-목걸이 { grid-area: amulet; }
-:root body :is(#item-tab-equip #ui-equip-list, .build-set-paperdoll) .slot-투구 { grid-area: helm; }
-:root body :is(#item-tab-equip #ui-equip-list, .build-set-paperdoll) .slot-코어 { grid-area: core; }
-:root body :is(#item-tab-equip #ui-equip-list, .build-set-paperdoll) .slot-무기 { grid-area: weapon; }
-:root body :is(#item-tab-equip #ui-equip-list, .build-set-paperdoll) .slot-갑옷 { grid-area: body; }
-:root body :is(#item-tab-equip #ui-equip-list, .build-set-paperdoll) .slot-방패 { grid-area: shield; }
-:root body :is(#item-tab-equip #ui-equip-list, .build-set-paperdoll) .slot-장갑1 { grid-area: glove1; }
-:root body :is(#item-tab-equip #ui-equip-list, .build-set-paperdoll) .slot-허리띠 { grid-area: belt; }
-:root body :is(#item-tab-equip #ui-equip-list, .build-set-paperdoll) .slot-장갑2 { grid-area: glove2; }
-:root body :is(#item-tab-equip #ui-equip-list, .build-set-paperdoll) .slot-반지1 { grid-area: ring1; }
-:root body :is(#item-tab-equip #ui-equip-list, .build-set-paperdoll) .slot-신발 { grid-area: boots; }
-:root body :is(#item-tab-equip #ui-equip-list, .build-set-paperdoll) .slot-반지2 { grid-area: ring2; }
+:root body :is(:is(#item-tab-equip, #stump-equip-host) #ui-equip-list, .build-set-paperdoll) .slot-목걸이 { grid-area: amulet; }
+:root body :is(:is(#item-tab-equip, #stump-equip-host) #ui-equip-list, .build-set-paperdoll) .slot-투구 { grid-area: helm; }
+:root body :is(:is(#item-tab-equip, #stump-equip-host) #ui-equip-list, .build-set-paperdoll) .slot-코어 { grid-area: core; }
+:root body :is(:is(#item-tab-equip, #stump-equip-host) #ui-equip-list, .build-set-paperdoll) .slot-무기 { grid-area: weapon; }
+:root body :is(:is(#item-tab-equip, #stump-equip-host) #ui-equip-list, .build-set-paperdoll) .slot-갑옷 { grid-area: body; }
+:root body :is(:is(#item-tab-equip, #stump-equip-host) #ui-equip-list, .build-set-paperdoll) .slot-방패 { grid-area: shield; }
+:root body :is(:is(#item-tab-equip, #stump-equip-host) #ui-equip-list, .build-set-paperdoll) .slot-장갑1 { grid-area: glove1; }
+:root body :is(:is(#item-tab-equip, #stump-equip-host) #ui-equip-list, .build-set-paperdoll) .slot-허리띠 { grid-area: belt; }
+:root body :is(:is(#item-tab-equip, #stump-equip-host) #ui-equip-list, .build-set-paperdoll) .slot-장갑2 { grid-area: glove2; }
+:root body :is(:is(#item-tab-equip, #stump-equip-host) #ui-equip-list, .build-set-paperdoll) .slot-반지1 { grid-area: ring1; }
+:root body :is(:is(#item-tab-equip, #stump-equip-host) #ui-equip-list, .build-set-paperdoll) .slot-신발 { grid-area: boots; }
+:root body :is(:is(#item-tab-equip, #stump-equip-host) #ui-equip-list, .build-set-paperdoll) .slot-반지2 { grid-area: ring2; }
 /* 세 번째 반지(초월 공허 '세 번째 손가락', js/canvas-passive-tree.js getPaperdollSlots): 코어 칸이 없으면 그 자리, 코어가 있으면 신발 아래 줄. */
-:root body :is(#item-tab-equip #ui-equip-list, .build-set-paperdoll) .slot-반지3 { grid-area: ring3; }
-:root body :is(#item-tab-equip #ui-equip-list, .build-set-paperdoll).equipment-paperdoll.has-ring3:not(.has-core) {
+:root body :is(:is(#item-tab-equip, #stump-equip-host) #ui-equip-list, .build-set-paperdoll) .slot-반지3 { grid-area: ring3; }
+:root body :is(:is(#item-tab-equip, #stump-equip-host) #ui-equip-list, .build-set-paperdoll).equipment-paperdoll.has-ring3:not(.has-core) {
   grid-template-areas: "amulet helm ring3" "weapon body shield" "weapon body shield" "glove1 belt glove2" "ring1 boots ring2"; }
-:root body :is(#item-tab-equip #ui-equip-list, .build-set-paperdoll).equipment-paperdoll.has-ring3.has-core { grid-template-rows: repeat(6, var(--eqw-doll-row, 68px));
+:root body :is(:is(#item-tab-equip, #stump-equip-host) #ui-equip-list, .build-set-paperdoll).equipment-paperdoll.has-ring3.has-core { grid-template-rows: repeat(6, var(--eqw-doll-row, 68px));
   grid-template-areas: "amulet helm core" "weapon body shield" "weapon body shield" "glove1 belt glove2" "ring1 boots ring2" ". ring3 ."; }
-:root body :is(#item-tab-equip #ui-equip-list, .build-set-paperdoll) > .equipment-slot.slot-반지3.is-off { opacity: .45; filter: grayscale(.6); }
-:root body #item-tab-equip #ui-equip-list > .equipment-slot { --r: color-mix(in srgb, var(--equipment-rarity, #5d4a2e) 75%, #000); position: relative; display: grid;
+:root body :is(:is(#item-tab-equip, #stump-equip-host) #ui-equip-list, .build-set-paperdoll) > .equipment-slot.slot-반지3.is-off { opacity: .45; filter: grayscale(.6); }
+:root body :is(#item-tab-equip, #stump-equip-host) #ui-equip-list > .equipment-slot { --r: color-mix(in srgb, var(--equipment-rarity, #5d4a2e) 75%, #000); position: relative; display: grid;
   grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto;
   min-width: 0; min-height: 0; height: auto; margin: 0; padding: 0; overflow: visible; border: 1px solid var(--r); border-radius: 0;
   background: linear-gradient(180deg, color-mix(in srgb, var(--equipment-rarity, #7d8996) var(--rarity-fill, 14%), #0c0b09),
     color-mix(in srgb, var(--equipment-rarity, #7d8996) calc(var(--rarity-fill, 14%) * .55), #060504));
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .9), inset 0 0 12px rgba(0, 0, 0, .8), 0 0 10px color-mix(in srgb, var(--r) 22%, transparent); }
 /* 장착 칸도 가방 칸처럼 등급이 바탕색으로 보인다(2026-10-26 사용자: "장착 칸도 배경 색 입혀줘"): 구석 삼각형은 두지 않는다 */
-:root body #item-tab-equip #ui-equip-list > .equipment-slot .equipment-slot-visual::after { content: none; }
-:root body #item-tab-equip #ui-equip-list > .equipment-slot-empty { --r: #3a2f20; border-style: dashed; background: radial-gradient(circle at 50% 38%, #2a2017 0%, #0b0907 72%); }
-:root body #item-tab-equip #ui-equip-list > .equipment-slot :is(.equipment-slot-action, .equipment-empty-mark, .equipment-empty-label) { display: none; }
+:root body :is(#item-tab-equip, #stump-equip-host) #ui-equip-list > .equipment-slot .equipment-slot-visual::after { content: none; }
+:root body :is(#item-tab-equip, #stump-equip-host) #ui-equip-list > .equipment-slot-empty { --r: #3a2f20; border-style: dashed; background: radial-gradient(circle at 50% 38%, #2a2017 0%, #0b0907 72%); }
+:root body :is(#item-tab-equip, #stump-equip-host) #ui-equip-list > .equipment-slot :is(.equipment-slot-action, .equipment-empty-mark, .equipment-empty-label) { display: none; }
 /* 그림 칸(첫 줄)에 칸 이름과 소켓 표시, 조건 부족 표가 겹쳐 놓이고, 둘째 줄이 아이템 이름이다. */
-:root body #item-tab-equip #ui-equip-list > .equipment-slot .equipment-slot-visual { grid-area: 1 / 1; position: relative; inset: auto; height: auto; margin: 0; border: 0; background: none; }
-:root body #item-tab-equip #ui-equip-list > .equipment-slot .equipment-slot-visual img { position: absolute; inset: 7px 5px 1px; width: calc(100% - 10px); height: calc(100% - 8px);
+:root body :is(#item-tab-equip, #stump-equip-host) #ui-equip-list > .equipment-slot .equipment-slot-visual { grid-area: 1 / 1; position: relative; inset: auto; height: auto; margin: 0; border: 0; background: none; }
+:root body :is(#item-tab-equip, #stump-equip-host) #ui-equip-list > .equipment-slot .equipment-slot-visual img { position: absolute; inset: 7px 5px 1px; width: calc(100% - 10px); height: calc(100% - 8px);
   max-height: none; object-fit: contain; image-rendering: pixelated; }
-:root body #item-tab-equip #ui-equip-list > .equipment-slot.equipment-slot-empty .equipment-slot-visual img { opacity: .22; }
-:root body #item-tab-equip #ui-equip-list > .equipment-slot .equipment-slot-head { grid-area: 1 / 1; position: relative; z-index: 2; display: block; padding: 0; pointer-events: none; }
-:root body #item-tab-equip #ui-equip-list > .equipment-slot .equipment-slot-head > span:first-child { position: absolute; left: 15px; top: 1px; color: #d9cdb4;
+:root body :is(#item-tab-equip, #stump-equip-host) #ui-equip-list > .equipment-slot.equipment-slot-empty .equipment-slot-visual img { opacity: .22; }
+:root body :is(#item-tab-equip, #stump-equip-host) #ui-equip-list > .equipment-slot .equipment-slot-head { grid-area: 1 / 1; position: relative; z-index: 2; display: block; padding: 0; pointer-events: none; }
+:root body :is(#item-tab-equip, #stump-equip-host) #ui-equip-list > .equipment-slot .equipment-slot-head > span:first-child { position: absolute; left: 15px; top: 1px; color: #d9cdb4;
   font-size: var(--font-size-ui); line-height: 14px; text-shadow: 1px 1px 0 #000, 0 0 3px #000; }
-:root body #item-tab-equip #ui-equip-list > .equipment-slot.equipment-slot-empty .equipment-slot-head > span:first-child { left: 4px; color: var(--eqw-muted); }
-:root body #item-tab-equip #ui-equip-list > .equipment-slot .equipment-socket-pips { position: absolute; top: 3px; right: 3px; }
-:root body #item-tab-equip #ui-equip-list > .equipment-slot .equipment-requirement-badge { grid-area: 1 / 1; position: static; align-self: end; justify-self: end; z-index: 3; margin: 0 2px 1px 0; }
-:root body #item-tab-equip #ui-equip-list > .equipment-slot .equipment-slot-name { grid-area: 2 / 1; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; margin: 0 0 3px;
+:root body :is(#item-tab-equip, #stump-equip-host) #ui-equip-list > .equipment-slot.equipment-slot-empty .equipment-slot-head > span:first-child { left: 4px; color: var(--eqw-muted); }
+:root body :is(#item-tab-equip, #stump-equip-host) #ui-equip-list > .equipment-slot .equipment-socket-pips { position: absolute; top: 3px; right: 3px; }
+:root body :is(#item-tab-equip, #stump-equip-host) #ui-equip-list > .equipment-slot .equipment-requirement-badge { grid-area: 1 / 1; position: static; align-self: end; justify-self: end; z-index: 3; margin: 0 2px 1px 0; }
+:root body :is(#item-tab-equip, #stump-equip-host) #ui-equip-list > .equipment-slot .equipment-slot-name { grid-area: 2 / 1; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; margin: 0 0 3px;
   justify-self: start; width: fit-content; max-width: 100%; position: relative; left: round(down, 50%, 1px); translate: round(up, -50%, 1px);
   padding: 0 2px; overflow: hidden; font-size: var(--font-size-ui); font-weight: 700; line-height: 14px; text-align: center; white-space: normal; word-break: keep-all; overflow-wrap: anywhere;
   text-shadow: 0 1px 0 #000; }
-:root body #item-tab-equip #ui-equip-list > .equipment-slot.is-menu-selected,
-:root body #item-tab-equip #ui-equip-list > .equipment-slot.selected { box-shadow: 0 0 0 2px #000, 0 0 14px rgba(255, 210, 122, .85), inset 0 0 12px rgba(0, 0, 0, .8); }
-:root body #item-tab-equip #ui-equip-list > .ward-slot-row { grid-column: 1 / -1; gap: 4px; margin-top: 2px; }
+:root body :is(#item-tab-equip, #stump-equip-host) #ui-equip-list > .equipment-slot.is-menu-selected,
+:root body :is(#item-tab-equip, #stump-equip-host) #ui-equip-list > .equipment-slot.selected { box-shadow: 0 0 0 2px #000, 0 0 14px rgba(255, 210, 122, .85), inset 0 0 12px rgba(0, 0, 0, .8); }
+:root body :is(#item-tab-equip, #stump-equip-host) #ui-equip-list > .ward-slot-row { grid-column: 1 / -1; gap: 4px; margin-top: 2px; }
 /* 액막이 칸은 그림 24px과 두 줄 글(12px, 줄 14px)에 맞춘 높이: 기본 창에서 요약의 유효 생명력까지 한 화면에 들어오게 왼쪽 칸의 세로를 줄였다(2026-10-11). */
-:root body #item-tab-equip #ui-equip-list .ward-slot-cells .ward-slot { min-height: 58px; padding: 3px; }
-:root body #item-tab-equip #ui-equip-list .ward-slot-cells .ward-slot img { width: 24px; height: 24px; }
-:root body #item-tab-equip #ui-equip-list .ward-slot-cells .ward-slot-line { font-size: var(--font-size-ui); line-height: 14px; }
+:root body :is(#item-tab-equip, #stump-equip-host) #ui-equip-list .ward-slot-cells .ward-slot { min-height: 58px; padding: 3px; }
+:root body :is(#item-tab-equip, #stump-equip-host) #ui-equip-list .ward-slot-cells .ward-slot img { width: 24px; height: 24px; }
+:root body :is(#item-tab-equip, #stump-equip-host) #ui-equip-list .ward-slot-cells .ward-slot-line { font-size: var(--font-size-ui); line-height: 14px; }
 
 /* 요약: DPS 한 줄과 유효 생명력, 판 없이 장착 장비 판 바로 아래에 둔다(2026-10-24 사용자: "박스지우고 간결하게". 2026-10-21 사용자:
    저항과 그 밖의 능력치는 지웠다). 휴대폰은 아래 휴대폰 규칙의 한 줄 요약이다. */
-:root body #item-tab-equip .equipment-window .equipment-loadout-summary { display: block; margin: 0; }
-:root body #item-tab-equip .eqw-summary-mini { display: none; }
+:root body :is(#item-tab-equip, #stump-equip-host) .equipment-window .equipment-loadout-summary { display: block; margin: 0; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-summary-mini { display: none; }
 @media (min-width: 1081px) {
-  :root body #item-tab-equip .equipment-window .eqw-summary-card { padding: 0 4px; border: 0; background: none; box-shadow: none; }
+  :root body :is(#item-tab-equip, #stump-equip-host) .equipment-window .eqw-summary-card { padding: 0 4px; border: 0; background: none; box-shadow: none; }
 }
 /* 왼쪽은 이름(DPS, 유효 생명력)끼리 가운데 맞추고, 오른쪽 수치 칸은 세로 줄로 묶어 원소 다섯 값이 줄바꿈되어도 한 부류로 읽힌다
    (2026-10-24 사용자) */
-:root body #item-tab-equip .eqw-summary-full { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; row-gap: 4px; }
-:root body #item-tab-equip .eqw-sum-label { padding-right: 8px; color: #c9b48a; font-size: var(--font-size-ui); text-align: center; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-summary-full { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; row-gap: 4px; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-sum-label { padding-right: 8px; color: #c9b48a; font-size: var(--font-size-ui); text-align: center; }
 /* 이름의 .px-center(반 화소 되돌리기, css/themes/pixel.css)는 inline-block이라 기준선 맞춤이면 1px 위로 올라 옆 수치와 어긋났다 */
-:root body #item-tab-equip .eqw-sum-label > .px-center { vertical-align: top; }
-:root body #item-tab-equip .eqw-sum-value { min-width: 0; padding-left: 8px; border-left: 1px solid rgba(227, 189, 114, .3); }
-:root body #item-tab-equip .eqw-dps b { color: var(--c); font-size: var(--font-size-ui); }
-:root body #item-tab-equip .eqw-ehp { display: flex; flex-wrap: wrap; gap: 0 10px; margin-top: 2px; }
-:root body #item-tab-equip .eqw-ehp > span { color: var(--eqw-muted); font-size: var(--font-size-ui); }
-:root body #item-tab-equip .eqw-ehp > span b { color: var(--c); }
-:root body #item-tab-equip .eqw-ehp .eqw-ehp-label { color: #c9b48a; }
-:root body #item-tab-equip .eqw-summary-full .eqw-ehp { margin-top: 0; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-sum-label > .px-center { vertical-align: top; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-sum-value { min-width: 0; padding-left: 8px; border-left: 1px solid rgba(227, 189, 114, .3); }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-dps b { color: var(--c); font-size: var(--font-size-ui); }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-ehp { display: flex; flex-wrap: wrap; gap: 0 10px; margin-top: 2px; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-ehp > span { color: var(--eqw-muted); font-size: var(--font-size-ui); }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-ehp > span b { color: var(--c); }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-ehp .eqw-ehp-label { color: #c9b48a; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-summary-full .eqw-ehp { margin-top: 0; }
 
 /* 장착 장비 머리: 제목 오른쪽에 세팅 I, II, III, 저장, ⋯(이름 바꾸기, 비우기). 번호를 누르면 저장된 빌드 비교 창을 연다.
    2026-10-21 사용자: 맨 밑의 세팅 칸을 '장착 장비' 있는 곳으로(js/equipment-loadouts-ui.js) */
-:root body #item-tab-equip .equipment-window .eqw-doll-head { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 4px; align-items: center; padding-block: 3px; }
-:root body #item-tab-equip .eqw-doll-head > h4 { margin: 0; color: inherit; font: inherit; letter-spacing: inherit; }
-:root body #item-tab-equip .eqw-doll-head > #ui-equipment-presets { display: contents; }
-:root body #item-tab-equip .equipment-preset-panel { display: contents; margin: 0; padding: 0; border: 0; background: none; box-shadow: none; }
-:root body #item-tab-equip .equipment-preset-row { display: flex; justify-content: flex-end; gap: 3px; align-items: stretch; }
-:root body #item-tab-equip .equipment-preset-row .equipment-preset-slot { display: block; min-width: 28px; min-height: 0; padding: 2px 6px;
+:root body :is(#item-tab-equip, #stump-equip-host) .equipment-window .eqw-doll-head { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 4px; align-items: center; padding-block: 3px; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-doll-head > h4 { margin: 0; color: inherit; font: inherit; letter-spacing: inherit; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-doll-head > #ui-equipment-presets { display: contents; }
+:root body :is(#item-tab-equip, #stump-equip-host) .equipment-preset-panel { display: contents; margin: 0; padding: 0; border: 0; background: none; box-shadow: none; }
+:root body :is(#item-tab-equip, #stump-equip-host) .equipment-preset-row { display: flex; justify-content: flex-end; gap: 3px; align-items: stretch; }
+:root body :is(#item-tab-equip, #stump-equip-host) .equipment-preset-row .equipment-preset-slot { display: block; min-width: 28px; min-height: 0; padding: 2px 6px;
   border: 1px solid #6b5431; border-radius: 0; background: linear-gradient(180deg, #241c14, #17120d); color: var(--eqw-ink); font-size: 12px; text-align: center; }
-:root body #item-tab-equip .equipment-preset-row .equipment-preset-slot.empty { color: var(--eqw-muted); }
-:root body #item-tab-equip .equipment-preset-row .equipment-preset-slot.applied { border-color: #e3bd72; color: #fff3d6; background: linear-gradient(180deg, #4a3618, #2c2010); }
-:root body #item-tab-equip .equipment-preset-row .equipment-preset-slot.missing { border-color: #a5523f; }
-:root body #item-tab-equip .equipment-preset-row .equipment-preset-slot.selected:not(.applied) { box-shadow: inset 0 0 0 1px rgba(227, 189, 114, .55); }
+:root body :is(#item-tab-equip, #stump-equip-host) .equipment-preset-row .equipment-preset-slot.empty { color: var(--eqw-muted); }
+:root body :is(#item-tab-equip, #stump-equip-host) .equipment-preset-row .equipment-preset-slot.applied { border-color: #e3bd72; color: #fff3d6; background: linear-gradient(180deg, #4a3618, #2c2010); }
+:root body :is(#item-tab-equip, #stump-equip-host) .equipment-preset-row .equipment-preset-slot.missing { border-color: #a5523f; }
+:root body :is(#item-tab-equip, #stump-equip-host) .equipment-preset-row .equipment-preset-slot.selected:not(.applied) { box-shadow: inset 0 0 0 1px rgba(227, 189, 114, .55); }
 /* height 100%는 테두리와 여백까지 줄 높이에 넣어야 한다(content-box면 ⋯ 칸이 줄 아래로 12px 삐져나왔다). */
-:root body #item-tab-equip .equipment-preset-more > summary { box-sizing: border-box; display: grid; place-items: center; min-height: 0; height: 100%; padding: 2px 6px; border: 1px solid #4a3a22; background: transparent; color: var(--eqw-muted);
+:root body :is(#item-tab-equip, #stump-equip-host) .equipment-preset-more > summary { box-sizing: border-box; display: grid; place-items: center; min-height: 0; height: 100%; padding: 2px 6px; border: 1px solid #4a3a22; background: transparent; color: var(--eqw-muted);
   font-size: 12px; list-style: none; cursor: pointer; }
-:root body #item-tab-equip .equipment-preset-more > summary::-webkit-details-marker { display: none; }
-:root body #item-tab-equip .equipment-preset-more .eqw-more-panel { width: 150px; }
-:root body #item-tab-equip .equipment-preset-row .equipment-preset-save { flex: 0 0 auto; min-height: 0; padding: 2px 6px; border: 1px solid #4a3a22; border-radius: 0;
+:root body :is(#item-tab-equip, #stump-equip-host) .equipment-preset-more > summary::-webkit-details-marker { display: none; }
+:root body :is(#item-tab-equip, #stump-equip-host) .equipment-preset-more .eqw-more-panel { width: 150px; }
+:root body :is(#item-tab-equip, #stump-equip-host) .equipment-preset-row .equipment-preset-save { flex: 0 0 auto; min-height: 0; padding: 2px 6px; border: 1px solid #4a3a22; border-radius: 0;
   background: transparent; color: var(--eqw-muted); font-size: 12px; }
 
 /* 가방: 머리 한 줄(칸 수, 검색), 그 아래 쪽 단추 줄, 가방 오른쪽 도구 줄(2026-10-19 사용자 정리: 정렬 고르기 삭제, ⋯ 대신 도구 줄) */
-:root body #item-tab-equip .equipment-window .eqw-bag-card { padding: 8px 10px 10px; }
-:root body #item-tab-equip .eqw-bag-head { position: relative; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 8px; padding-bottom: 8px;
+:root body :is(#item-tab-equip, #stump-equip-host) .equipment-window .eqw-bag-card { padding: 8px 10px 10px; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-bag-head { position: relative; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 8px; padding-bottom: 8px;
   border-bottom: 1px solid rgba(227, 189, 114, .3); }
-:root body #item-tab-equip .eqw-cap { display: grid; grid-template-columns: auto auto; grid-template-rows: auto 5px; column-gap: 6px; align-items: baseline; padding-right: 4px; }
-:root body #item-tab-equip .eqw-cap b { color: var(--eqw-gold); font-size: var(--font-size-ui); text-shadow: 0 0 8px rgba(227, 189, 114, .35); }
-:root body #item-tab-equip .eqw-cap small { color: var(--eqw-muted); font-size: 11px; }
-:root body #item-tab-equip .eqw-cap i { position: relative; grid-column: 1 / span 2; height: 5px; background: #241d16; border: 1px solid #000; }
-:root body #item-tab-equip .eqw-cap i::after { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: var(--v); background: #b98a3e; }
-:root body #item-tab-equip .eqw-cap.is-full i::after { background: #d0563b; }
-:root body #item-tab-equip .eqw-search { flex: 1 1 96px; display: flex; align-items: center; gap: 6px; min-width: 96px; padding: 3px 8px; border: 1px solid #6b5431;
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-cap { display: grid; grid-template-columns: auto auto; grid-template-rows: auto 5px; column-gap: 6px; align-items: baseline; padding-right: 4px; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-cap b { color: var(--eqw-gold); font-size: var(--font-size-ui); text-shadow: 0 0 8px rgba(227, 189, 114, .35); }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-cap small { color: var(--eqw-muted); font-size: 11px; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-cap i { position: relative; grid-column: 1 / span 2; height: 5px; background: #241d16; border: 1px solid #000; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-cap i::after { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: var(--v); background: #b98a3e; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-cap.is-full i::after { background: #d0563b; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-search { flex: 1 1 96px; display: flex; align-items: center; gap: 6px; min-width: 96px; padding: 3px 8px; border: 1px solid #6b5431;
   background: #0d0a07; color: var(--eqw-muted); }
-:root body #item-tab-equip .eqw-search input { flex: 1; min-width: 0; min-height: 0; padding: 2px 0; border: 0; background: transparent; box-shadow: none; color: var(--eqw-ink);
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-search input { flex: 1; min-width: 0; min-height: 0; padding: 2px 0; border: 0; background: transparent; box-shadow: none; color: var(--eqw-ink);
   font-size: 12px; outline: 0; }
 /* 세팅 줄의 ⋯ 메뉴(js/equipment-loadouts-ui.js) */
-:root body #item-tab-equip .eqw-more { position: relative; margin-left: auto; }
-:root body #item-tab-equip .eqw-more > summary { list-style: none; font-weight: 700; letter-spacing: 1px; cursor: pointer; }
-:root body #item-tab-equip .eqw-more > summary::-webkit-details-marker { display: none; }
-:root body #item-tab-equip .eqw-more[open] > summary { border-color: #e3bd72; color: var(--eqw-gold); }
-:root body #item-tab-equip :is(.eqw-more-panel, .eqw-rail-panel) { position: absolute; right: 0; top: calc(100% + 6px); z-index: 40; display: grid; gap: 8px; width: min(360px, 86vw);
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-more { position: relative; margin-left: auto; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-more > summary { list-style: none; font-weight: 700; letter-spacing: 1px; cursor: pointer; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-more > summary::-webkit-details-marker { display: none; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-more[open] > summary { border-color: #e3bd72; color: var(--eqw-gold); }
+:root body :is(#item-tab-equip, #stump-equip-host) :is(.eqw-more-panel, .eqw-rail-panel) { position: absolute; right: 0; top: calc(100% + 6px); z-index: 40; display: grid; gap: 8px; width: min(360px, 86vw);
   padding: 10px; border: 1px solid #c79a4a; background: linear-gradient(180deg, #221a12, #120e0a);
   box-shadow: 0 0 0 1px #000, inset 0 0 0 3px #17120d, inset 0 0 0 4px rgba(227, 189, 114, .3), 0 12px 24px rgba(0, 0, 0, .75); }
 /* 도구 줄: 단추 하나가 가방 한 칸 높이다. 펼침 창은 단추 왼쪽, 가방 위에 뜬다(js/equipment-window-ui.js가 하나만 열어 둔다). */
 /* 판은 도구 줄 맨 위에서 가방 쪽으로 열린다(단추 높이에서 열면 기본 창에서 아래가 잘렸다). */
-:root body #item-tab-equip .eqw-rail { position: relative; display: grid; grid-auto-rows: var(--equipment-grid-cell-size); align-content: start; }
-:root body #item-tab-equip .eqw-rail-tool { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; box-sizing: border-box;
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-rail { position: relative; display: grid; grid-auto-rows: var(--equipment-grid-cell-size); align-content: start; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-rail-tool { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; box-sizing: border-box;
   width: 100%; height: var(--equipment-grid-cell-size); min-height: 0; padding: 0 2px; border: 1px solid rgba(160, 132, 82, .55); border-radius: 0;
   background: linear-gradient(180deg, #1d1710, #110d09); color: #e3cf9f; font-size: 11px; line-height: 1; list-style: none; cursor: pointer; user-select: none; }
-:root body #item-tab-equip .eqw-rail-tool::-webkit-details-marker { display: none; }
-:root body #item-tab-equip .eqw-rail-tool svg { width: 14px; height: 14px; }
-:root body #item-tab-equip .eqw-rail-tool svg .m { fill: #d7ad5d; }
-:root body #item-tab-equip .eqw-rail-tool svg .f { fill: #6d5426; }
-:root body #item-tab-equip :is(.eqw-rail-tool:hover, .eqw-rail-menu[open] > .eqw-rail-tool, .eqw-rail-tool[aria-pressed="true"]) { border-color: #e3bd72; color: var(--eqw-gold); }
-:root body #item-tab-equip .eqw-rail-tool.is-danger { color: #f0b4a0; }
-:root body #item-tab-equip #btn-salvage-recovery.has-items { border-color: rgba(105, 213, 159, .72); }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-rail-tool::-webkit-details-marker { display: none; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-rail-tool svg { width: 14px; height: 14px; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-rail-tool svg .m { fill: #d7ad5d; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-rail-tool svg .f { fill: #6d5426; }
+:root body :is(#item-tab-equip, #stump-equip-host) :is(.eqw-rail-tool:hover, .eqw-rail-menu[open] > .eqw-rail-tool, .eqw-rail-tool[aria-pressed="true"]) { border-color: #e3bd72; color: var(--eqw-gold); }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-rail-tool.is-danger { color: #f0b4a0; }
+:root body :is(#item-tab-equip, #stump-equip-host) #btn-salvage-recovery.has-items { border-color: rgba(105, 213, 159, .72); }
 /* 배치(손으로 끌어 옮기기)는 손가락으로 누르는 기기에서만 보인다 */
-:root body #item-tab-equip #equipment-touch-arrange { display: none; }
-@media (pointer: coarse) { :root body #item-tab-equip #equipment-touch-arrange { display: flex; } }
-:root body #item-tab-equip .eqw-rail-tool.is-danger svg .m { fill: #e0866a; }
+:root body :is(#item-tab-equip, #stump-equip-host) #equipment-touch-arrange { display: none; }
+@media (pointer: coarse) { :root body :is(#item-tab-equip, #stump-equip-host) #equipment-touch-arrange { display: flex; } }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-rail-tool.is-danger svg .m { fill: #e0866a; }
 /* 필터가 걸려 있으면 금빛 점, 자동해체가 켜져 있으면 초록 점 */
-:root body #item-tab-equip .eqw-rail-tool:is([data-active="true"], [data-enabled="true"])::after { content: ''; position: absolute; top: 4px; right: 4px; width: 6px; height: 6px;
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-rail-tool:is([data-active="true"], [data-enabled="true"])::after { content: ''; position: absolute; top: 4px; right: 4px; width: 6px; height: 6px;
   border-radius: 50%; background: #e3bd72; }
-:root body #item-tab-equip .eqw-rail-tool[data-enabled="true"]::after { background: #a8d5a7; }
-:root body #item-tab-equip .eqw-rail-tool small { position: absolute; top: 2px; right: 2px; min-width: 14px; height: 14px; padding: 0 3px; border-radius: 999px; color: #081018;
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-rail-tool[data-enabled="true"]::after { background: #a8d5a7; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-rail-tool small { position: absolute; top: 2px; right: 2px; min-width: 14px; height: 14px; padding: 0 3px; border-radius: 999px; color: #081018;
   background: #75d5a1; font-size: 9px; font-weight: 900; line-height: 14px; text-align: center; }
-:root body #item-tab-equip .eqw-rail-panel { right: calc(100% + 6px); top: 0; width: min(340px, 78vw); max-height: calc(var(--equipment-grid-cell-size) * 10); overflow: auto; }
-:root body #item-tab-equip .eqw-rail-title { margin: 0; color: var(--eqw-gold); font-size: 12px; }
-:root body #item-tab-equip .eqw-rail-title b { margin-left: 6px; color: var(--eqw-muted); font-weight: 400; }
-:root body #item-tab-equip .eqw-rail-title b.is-on { color: #a8d5a7; }
-:root body #item-tab-equip .eqw-rail-panel :is(button, select) { min-height: 30px; padding: 3px 8px; border: 1px solid #6b5431; border-radius: 0;
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-rail-panel { right: calc(100% + 6px); top: 0; width: min(340px, 78vw); max-height: calc(var(--equipment-grid-cell-size) * 10); overflow: auto; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-rail-title { margin: 0; color: var(--eqw-gold); font-size: 12px; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-rail-title b { margin-left: 6px; color: var(--eqw-muted); font-weight: 400; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-rail-title b.is-on { color: #a8d5a7; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-rail-panel :is(button, select) { min-height: 30px; padding: 3px 8px; border: 1px solid #6b5431; border-radius: 0;
   background: linear-gradient(180deg, #241c14, #17120d); color: var(--eqw-ink); font-size: 12px; }
-:root body #item-tab-equip .eqw-rail-panel .equipment-triage-host { display: grid; gap: 6px; margin: 0; padding: 0; border: 0; }
-:root body #item-tab-equip .eqw-rail-panel .equipment-triage-copy { display: block; }
-:root body #item-tab-equip .eqw-rail-panel .equipment-triage-copy strong { display: none; }
-:root body #item-tab-equip .eqw-rail-panel .equipment-triage-copy small { color: var(--eqw-muted); font-size: 11px; }
-:root body #item-tab-equip .eqw-rail-panel .equipment-triage-controls { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-:root body #item-tab-equip .eqw-rail-panel .equipment-triage-controls label { display: flex; gap: 4px; align-items: center; color: var(--eqw-muted); font-size: 12px; }
-:root body #item-tab-equip .eqw-rail-panel .equipment-salvage-actions { position: static; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; width: auto;
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-rail-panel .equipment-triage-host { display: grid; gap: 6px; margin: 0; padding: 0; border: 0; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-rail-panel .equipment-triage-copy { display: block; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-rail-panel .equipment-triage-copy strong { display: none; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-rail-panel .equipment-triage-copy small { color: var(--eqw-muted); font-size: 11px; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-rail-panel .equipment-triage-controls { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-rail-panel .equipment-triage-controls label { display: flex; gap: 4px; align-items: center; color: var(--eqw-muted); font-size: 12px; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-rail-panel .equipment-salvage-actions { position: static; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; width: auto;
   margin: 0; padding: 0; border: 0; background: none; box-shadow: none; }
 /* 정리 기준: 두 줄 두 칸, 마지막에 고른 기준은 금빛 테(js/equipment-window-ui.js markFilter) */
-:root body #item-tab-equip .eqw-rail-panel .eqw-arrange-orders { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
-:root body #item-tab-equip .eqw-rail-panel .eqw-arrange-orders > button[aria-pressed="true"] { border-color: #e3bd72; background: linear-gradient(180deg, #4a3618, #2c2010); }
-:root body #item-tab-equip .eqw-rail-panel .inventory-view-filter { display: flex; flex-wrap: wrap; gap: 0; margin: 0; }
-:root body #item-tab-equip .eqw-rail-panel .rarity-filter-chip { margin: 0; color: var(--chip, var(--eqw-ink)); opacity: .55; }
-:root body #item-tab-equip .eqw-rail-panel .inventory-view-filter .rarity-filter-chip { border-right-width: 0; }
-:root body #item-tab-equip .eqw-rail-panel .inventory-view-filter .rarity-filter-chip:last-child { border-right-width: 1px; }
-:root body #item-tab-equip .eqw-rail-panel .rarity-filter-chip.active { opacity: 1; border-color: #e3bd72; background: linear-gradient(180deg, #4a3618, #2c2010); }
-:root body #item-tab-equip .eqw-rail-panel .rarity-filter-chip.rarity-normal { --chip: #d6cdb8; }
-:root body #item-tab-equip .eqw-rail-panel .rarity-filter-chip.rarity-magic { --chip: #86b2e2; }
-:root body #item-tab-equip .eqw-rail-panel .rarity-filter-chip.rarity-rare { --chip: #e2c466; }
-:root body #item-tab-equip .eqw-rail-panel .rarity-filter-chip.rarity-unique { --chip: #ff9f43; }
-:root body #item-tab-equip .eqw-rail-panel #ui-equipment-slot-filter { justify-self: start; min-width: 140px; }
-:root body #item-tab-equip .eqw-auto-salvage { display: grid; gap: 6px; padding-bottom: 8px; border-bottom: 1px solid rgba(227, 189, 114, .25); }
-:root body #item-tab-equip .eqw-auto-salvage .loot-filter-grades { display: flex; flex-wrap: wrap; gap: 4px; }
-:root body #item-tab-equip .eqw-auto-salvage #auto-salvage-toggle-btn { justify-self: start; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-rail-panel .eqw-arrange-orders { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-rail-panel .eqw-arrange-orders > button[aria-pressed="true"] { border-color: #e3bd72; background: linear-gradient(180deg, #4a3618, #2c2010); }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-rail-panel .inventory-view-filter { display: flex; flex-wrap: wrap; gap: 0; margin: 0; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-rail-panel .rarity-filter-chip { margin: 0; color: var(--chip, var(--eqw-ink)); opacity: .55; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-rail-panel .inventory-view-filter .rarity-filter-chip { border-right-width: 0; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-rail-panel .inventory-view-filter .rarity-filter-chip:last-child { border-right-width: 1px; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-rail-panel .rarity-filter-chip.active { opacity: 1; border-color: #e3bd72; background: linear-gradient(180deg, #4a3618, #2c2010); }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-rail-panel .rarity-filter-chip.rarity-normal { --chip: #d6cdb8; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-rail-panel .rarity-filter-chip.rarity-magic { --chip: #86b2e2; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-rail-panel .rarity-filter-chip.rarity-rare { --chip: #e2c466; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-rail-panel .rarity-filter-chip.rarity-unique { --chip: #ff9f43; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-rail-panel #ui-equipment-slot-filter { justify-self: start; min-width: 140px; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-auto-salvage { display: grid; gap: 6px; padding-bottom: 8px; border-bottom: 1px solid rgba(227, 189, 114, .25); }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-auto-salvage .loot-filter-grades { display: flex; flex-wrap: wrap; gap: 4px; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-auto-salvage #auto-salvage-toggle-btn { justify-self: start; }
 /* 꺼져 있으면 등급 칩은 아무 일도 하지 않는다: 설정 아이템 필터의 꺼진 조건처럼 흐리게(고를 수는 있다). */
-:root body #item-tab-equip .eqw-auto-salvage:has(.eqw-rail-title b:not(.is-on)) #auto-salvage-rarity-chips { opacity: .5; }
-:root body #item-tab-equip .eqw-rail-panel .loot-filter-note { margin: 0; color: var(--eqw-muted); font-size: var(--font-size-ui); line-height: 1.5; }
-:root body #item-tab-equip .eqw-rail-panel .eqw-rail-link { min-height: 0; padding: 0 2px; border: 0; background: none; color: var(--eqw-gold); text-decoration: underline; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-auto-salvage:has(.eqw-rail-title b:not(.is-on)) #auto-salvage-rarity-chips { opacity: .5; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-rail-panel .loot-filter-note { margin: 0; color: var(--eqw-muted); font-size: var(--font-size-ui); line-height: 1.5; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-rail-panel .eqw-rail-link { min-height: 0; padding: 0 2px; border: 0; background: none; color: var(--eqw-gold); text-decoration: underline; }
 
 /* 가방 칸: 칸마다 살짝 나뉘는 결, 고른 장비는 금빛 테, 새 아이템은 빨간 점 하나 */
-:root body #item-tab-equip #ui-inventory-list > .search-filter-panel { display: none; }
-:root body #item-tab-equip #ui-inventory-list > .search-result-list { border: 1px solid #5a4528; border-radius: 0; background: #0a0806; box-shadow: inset 0 0 24px rgba(0, 0, 0, .8); }
-:root body #item-tab-equip .equipment-grid-cell { background: rgba(255, 226, 160, .018); box-shadow: inset 1px 1px 0 rgba(255, 226, 160, .06), inset -1px -1px 0 rgba(0, 0, 0, .7); }
-:root body #item-tab-equip .equipment-grid-cell:is(.drop-valid, .drop-invalid, .drop-swap) { box-shadow: none; }
+:root body :is(#item-tab-equip, #stump-equip-host) #ui-inventory-list > .search-filter-panel { display: none; }
+:root body :is(#item-tab-equip, #stump-equip-host) #ui-inventory-list > .search-result-list { border: 1px solid #5a4528; border-radius: 0; background: #0a0806; box-shadow: inset 0 0 24px rgba(0, 0, 0, .8); }
+:root body :is(#item-tab-equip, #stump-equip-host) .equipment-grid-cell { background: rgba(255, 226, 160, .018); box-shadow: inset 1px 1px 0 rgba(255, 226, 160, .06), inset -1px -1px 0 rgba(0, 0, 0, .7); }
+:root body :is(#item-tab-equip, #stump-equip-host) .equipment-grid-cell:is(.drop-valid, .drop-invalid, .drop-swap) { box-shadow: none; }
 /* 자리 맞바꾸기(js/equipment-inventory-grid.js findSwapInLayout): 밑에 있던 장비가 갈 칸. 위에 덮는 미리보기 판이 없어 칸에 칠한다 */
-:root body #item-tab-equip .equipment-grid-cell.drop-swap { border-color: #e3bd72; background: rgba(227, 189, 114, .28); }
-:root body #item-tab-equip .equipment-grid-item { outline: 1px solid #050403; outline-offset: -1px; border-radius: 0;
+:root body :is(#item-tab-equip, #stump-equip-host) .equipment-grid-cell.drop-swap { border-color: #e3bd72; background: rgba(227, 189, 114, .28); }
+:root body :is(#item-tab-equip, #stump-equip-host) .equipment-grid-item { outline: 1px solid #050403; outline-offset: -1px; border-radius: 0;
   box-shadow: inset 0 0 0 2px rgba(255, 226, 160, .07), inset 0 0 14px rgba(0, 0, 0, .55); }
 /* 등급은 칸 바탕색으로 보인다(2026-10-26 사용자: 등급별로 아이템 배경 색을 바꾸는 방식): 위가 조금 밝은 제 색이고 일반은 옅은 회색이라
    다른 등급이 먼저 눈에 띈다. 모든 단추에 돌 바탕을 칠하는 규칙(css/components/tabs.css)을 이기려고 이 창의 선택자로 칠한다. */
-:root body #item-tab-equip .equipment-grid-item { border-color: color-mix(in srgb, var(--item-rarity) 55%, #050403); color: inherit;
+:root body :is(#item-tab-equip, #stump-equip-host) .equipment-grid-item { border-color: color-mix(in srgb, var(--item-rarity) 55%, #050403); color: inherit;
   background: linear-gradient(180deg, color-mix(in srgb, var(--item-rarity) var(--rarity-fill), #0c0b09), color-mix(in srgb, var(--item-rarity) calc(var(--rarity-fill) * .55), #060504)); }
-:root body #item-tab-equip .equipment-grid-item:hover:not(:disabled) { border-color: color-mix(in srgb, var(--item-rarity) 85%, #fff);
+:root body :is(#item-tab-equip, #stump-equip-host) .equipment-grid-item:hover:not(:disabled) { border-color: color-mix(in srgb, var(--item-rarity) 85%, #fff);
   background: linear-gradient(180deg, color-mix(in srgb, var(--item-rarity) calc(var(--rarity-fill) + 8%), #0c0b09), color-mix(in srgb, var(--item-rarity) var(--rarity-fill), #060504)); }
 /* 타락 장비는 바깥 테두리도 붉다(css/item-influences.css의 붉은 테와 함께). 위의 등급 테두리와 마우스 올림 규칙을 같은 선택자로 이긴다. */
-:root body #item-tab-equip .equipment-grid-item.is-corrupted,
-:root body #item-tab-equip .equipment-grid-item.is-corrupted:hover:not(:disabled) { border-color: #e0463c; }
-:root body #item-tab-equip #ui-equip-list > .equipment-slot.is-corrupted { --r: #e0463c; }
-:root body #item-tab-equip .equipment-grid-item.selected { outline: 2px solid #ffd27a; outline-offset: -2px; box-shadow: 0 0 14px rgba(255, 210, 122, .75); z-index: 3; }
-:root body #item-tab-equip .eqw-new-dot { position: absolute; top: 2px; right: 2px; z-index: 6; width: 6px; height: 6px; border-radius: 50%; background: #ff3b30;
+:root body :is(#item-tab-equip, #stump-equip-host) .equipment-grid-item.is-corrupted,
+:root body :is(#item-tab-equip, #stump-equip-host) .equipment-grid-item.is-corrupted:hover:not(:disabled) { border-color: #e0463c; }
+:root body :is(#item-tab-equip, #stump-equip-host) #ui-equip-list > .equipment-slot.is-corrupted { --r: #e0463c; }
+:root body :is(#item-tab-equip, #stump-equip-host) .equipment-grid-item.selected { outline: 2px solid #ffd27a; outline-offset: -2px; box-shadow: 0 0 14px rgba(255, 210, 122, .75); z-index: 3; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-new-dot { position: absolute; top: 2px; right: 2px; z-index: 6; width: 6px; height: 6px; border-radius: 50%; background: #ff3b30;
   box-shadow: 0 0 0 1px #000; pointer-events: none; }
 
 /* 선택한 장비: 그림과 이름, 지금 장착, 바꾸면 증감표, 단추, 툴팁 */
-:root body #item-tab-equip .eqw-pick { display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: 10px; align-items: center; margin-bottom: 8px; }
-:root body #item-tab-equip .eqw-pick img { width: 48px; height: 48px; object-fit: contain; image-rendering: pixelated; border: 1px solid #6b5431; background: #000; }
-:root body #item-tab-equip .eqw-pick b { display: block; font-size: var(--font-size-ui); }
-:root body #item-tab-equip .eqw-pick small { display: block; color: var(--eqw-muted); font-size: 11px; }
-:root body #item-tab-equip :is(.eqw-pick, .eqw-pick small) :is(.normal) { color: #d6cdb8; }
-:root body #item-tab-equip :is(.eqw-pick, .eqw-pick small) :is(.magic) { color: #86b2e2; }
-:root body #item-tab-equip :is(.eqw-pick, .eqw-pick small) :is(.rare) { color: #e2c466; }
-:root body #item-tab-equip :is(.eqw-pick, .eqw-pick small) :is(.unique) { color: #ff9f43; }
-:root body #item-tab-equip .eqw-deltas { margin-bottom: 8px; padding: 6px 8px; border: 1px solid #4a3a22; background: linear-gradient(180deg, #0f0c09, #0a0806); }
-:root body #item-tab-equip .eqw-dl-head { margin-bottom: 3px; color: var(--eqw-muted); font-size: var(--font-size-ui); }
-:root body #item-tab-equip .eqw-dl { display: grid; grid-template-columns: minmax(44px, 96px) auto 14px auto minmax(max-content, 1fr); gap: 6px; align-items: baseline; padding: 2px 0;
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-pick { display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: 10px; align-items: center; margin-bottom: 8px; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-pick img { width: 48px; height: 48px; object-fit: contain; image-rendering: pixelated; border: 1px solid #6b5431; background: #000; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-pick b { display: block; font-size: var(--font-size-ui); }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-pick small { display: block; color: var(--eqw-muted); font-size: 11px; }
+:root body :is(#item-tab-equip, #stump-equip-host) :is(.eqw-pick, .eqw-pick small) :is(.normal) { color: #d6cdb8; }
+:root body :is(#item-tab-equip, #stump-equip-host) :is(.eqw-pick, .eqw-pick small) :is(.magic) { color: #86b2e2; }
+:root body :is(#item-tab-equip, #stump-equip-host) :is(.eqw-pick, .eqw-pick small) :is(.rare) { color: #e2c466; }
+:root body :is(#item-tab-equip, #stump-equip-host) :is(.eqw-pick, .eqw-pick small) :is(.unique) { color: #ff9f43; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-deltas { margin-bottom: 8px; padding: 6px 8px; border: 1px solid #4a3a22; background: linear-gradient(180deg, #0f0c09, #0a0806); }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-dl-head { margin-bottom: 3px; color: var(--eqw-muted); font-size: var(--font-size-ui); }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-dl { display: grid; grid-template-columns: minmax(44px, 96px) auto 14px auto minmax(max-content, 1fr); gap: 6px; align-items: baseline; padding: 2px 0;
   font-size: 12px; white-space: nowrap; }
-:root body #item-tab-equip .eqw-dl span { overflow: hidden; color: var(--eqw-muted); text-overflow: ellipsis; }
-:root body #item-tab-equip .eqw-dl b { color: var(--eqw-ink); font-weight: 400; }
-:root body #item-tab-equip .eqw-dl i { color: var(--eqw-muted); font-style: normal; text-align: center; }
-:root body #item-tab-equip .eqw-dl em { font-style: normal; font-weight: 700; text-align: right; }
-:root body #item-tab-equip .eqw-dl.up :is(em, b:last-of-type) { color: #8fe08f; }
-:root body #item-tab-equip .eqw-dl.down :is(em, b:last-of-type) { color: #ff8a80; }
-:root body #item-tab-equip .eqw-dl-note { font-size: var(--font-size-ui); }
-:root body #item-tab-equip .eqw-dl-note.is-gain { color: #d8b5ff; }
-:root body #item-tab-equip .eqw-dl-note.is-loss { color: #c98f9f; }
-:root body #item-tab-equip .eqw-none { margin: 4px 0; color: var(--eqw-muted); font-size: 12px; }
-:root body #item-tab-equip .eqw-dl-more { display: none; }
-:root body #item-tab-equip #ui-equipment-inventory-inspector .equipment-grid-inspector-actions { display: grid; grid-template-columns: minmax(0, 1fr) repeat(3, round(down, calc((100% - 18px) / 5), 1px)); grid-auto-flow: row;
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-dl span { overflow: hidden; color: var(--eqw-muted); text-overflow: ellipsis; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-dl b { color: var(--eqw-ink); font-weight: 400; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-dl i { color: var(--eqw-muted); font-style: normal; text-align: center; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-dl em { font-style: normal; font-weight: 700; text-align: right; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-dl.up :is(em, b:last-of-type) { color: #8fe08f; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-dl.down :is(em, b:last-of-type) { color: #ff8a80; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-dl-note { font-size: var(--font-size-ui); }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-dl-note.is-gain { color: #d8b5ff; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-dl-note.is-loss { color: #c98f9f; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-none { margin: 4px 0; color: var(--eqw-muted); font-size: 12px; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-dl-more { display: none; }
+:root body :is(#item-tab-equip, #stump-equip-host) #ui-equipment-inventory-inspector .equipment-grid-inspector-actions { display: grid; grid-template-columns: minmax(0, 1fr) repeat(3, round(down, calc((100% - 18px) / 5), 1px)); grid-auto-flow: row;
   grid-row: auto; grid-column: auto; gap: 6px; margin: 0 0 8px; }
-:root body #item-tab-equip #ui-equipment-inventory-inspector .equipment-grid-inspector-actions button { min-width: 0; min-height: 32px; padding: 4px 6px; border-radius: 0; font-size: 12px; }
-:root body #item-tab-equip #ui-equipment-inventory-inspector .equipment-grid-inspector-actions .equipment-card-primary { grid-column: auto;
+:root body :is(#item-tab-equip, #stump-equip-host) #ui-equipment-inventory-inspector .equipment-grid-inspector-actions button { min-width: 0; min-height: 32px; padding: 4px 6px; border-radius: 0; font-size: 12px; }
+:root body :is(#item-tab-equip, #stump-equip-host) #ui-equipment-inventory-inspector .equipment-grid-inspector-actions .equipment-card-primary { grid-column: auto;
   border-color: #f6dc9c; background: linear-gradient(180deg, #e8c57c, #a77a2d); color: #1c1309; font-weight: 700; text-shadow: none; }
-:root body #item-tab-equip .equipment-inspection-tooltip { padding: 6px; border: 1px solid #4a3a22; background: #0b0907; }
-:root body #item-tab-equip .equipment-inspection-tooltip > * { position: static; max-width: none; transform: none; }
-:root body #item-tab-equip .eqw-inspector-body { display: contents; }
+:root body :is(#item-tab-equip, #stump-equip-host) .equipment-inspection-tooltip { padding: 6px; border: 1px solid #4a3a22; background: #0b0907; }
+:root body :is(#item-tab-equip, #stump-equip-host) .equipment-inspection-tooltip > * { position: static; max-width: none; transform: none; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-inspector-body { display: contents; }
 
 /* 선택한 장비와 지금 낀 장비의 옵션(js/equipment-window-ui.js compareNode): 칸이 넓으면(500px부터) 나란히, 좁으면 탭으로 바꿔 본다. */
-:root body #item-tab-equip .equipment-inspection-details { container: eqwpanel / inline-size; }
-:root body #item-tab-equip .eqw-compare-tabs { display: flex; margin-bottom: 6px; }
-:root body #item-tab-equip .eqw-compare-tabs > button { flex: 1; min-width: 0; min-height: 28px; padding: 3px 6px; overflow: hidden; border: 1px solid #6b5431; border-right-width: 0;
+:root body :is(#item-tab-equip, #stump-equip-host) .equipment-inspection-details { container: eqwpanel / inline-size; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-compare-tabs { display: flex; margin-bottom: 6px; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-compare-tabs > button { flex: 1; min-width: 0; min-height: 28px; padding: 3px 6px; overflow: hidden; border: 1px solid #6b5431; border-right-width: 0;
   border-radius: 0; background: linear-gradient(180deg, #241c14, #17120d); color: #cfc4ae; font-size: 12px; white-space: nowrap; text-overflow: ellipsis; }
-:root body #item-tab-equip .eqw-compare-tabs > button:last-child { border-right-width: 1px; }
-:root body #item-tab-equip .eqw-compare-tabs > button.active { border-color: #e3bd72; background: linear-gradient(180deg, #4a3618, #2c2010); color: #fff3d6; box-shadow: inset -1px 0 0 #e3bd72; }
-:root body #item-tab-equip .eqw-compare-pane { display: none; min-width: 0; }
-:root body #item-tab-equip .eqw-compare-pane.active { display: block; }
-:root body #item-tab-equip .eqw-compare-pane > h5 { display: none; margin: 0 0 4px; color: var(--eqw-gold); font-size: 12px; font-weight: 700; letter-spacing: 1px; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-compare-tabs > button:last-child { border-right-width: 1px; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-compare-tabs > button.active { border-color: #e3bd72; background: linear-gradient(180deg, #4a3618, #2c2010); color: #fff3d6; box-shadow: inset -1px 0 0 #e3bd72; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-compare-pane { display: none; min-width: 0; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-compare-pane.active { display: block; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-compare-pane > h5 { display: none; margin: 0 0 4px; color: var(--eqw-gold); font-size: 12px; font-weight: 700; letter-spacing: 1px; }
 @container eqwpanel (min-width: 500px) {
-  :root body #item-tab-equip .eqw-compare-tabs { display: none; }
-  :root body #item-tab-equip .eqw-compare-panes { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 8px; align-items: start; }
-  :root body #item-tab-equip .eqw-compare-pane { display: block; }
-  :root body #item-tab-equip .eqw-compare-pane > h5 { display: block; }
+  :root body :is(#item-tab-equip, #stump-equip-host) .eqw-compare-tabs { display: none; }
+  :root body :is(#item-tab-equip, #stump-equip-host) .eqw-compare-panes { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 8px; align-items: start; }
+  :root body :is(#item-tab-equip, #stump-equip-host) .eqw-compare-pane { display: block; }
+  :root body :is(#item-tab-equip, #stump-equip-host) .eqw-compare-pane > h5 { display: block; }
 }
-:root body #item-tab-equip .eqw-compare[data-panes="1"] :is(.eqw-compare-tabs, .eqw-compare-pane > h5) { display: none; }
+:root body :is(#item-tab-equip, #stump-equip-host) .eqw-compare[data-panes="1"] :is(.eqw-compare-tabs, .eqw-compare-pane > h5) { display: none; }
 
 /* 떠서 나오거나 올라오는 선택한 장비: 닫기 단추 자리를 비운다 */
-:root body #item-tab-equip #ui-equipment-inventory-inspector:popover-open .eqw-title { padding-right: 40px; }
+:root body :is(#item-tab-equip, #stump-equip-host) #ui-equipment-inventory-inspector:popover-open .eqw-title { padding-right: 40px; }
 
 /* 넓은 PC 창: 세 칸, 선택한 장비는 오른쪽에 붙는다 */
 @media (min-width: 1081px) {
@@ -290,28 +293,28 @@
   :root body.desktop-windowed-ui :is(#tab-items, #tab-items .merged-subtab-pane[data-tab-id="tab-items"]) > .subtab-row > .subtab-btn { min-height: 0; height: 28px; padding-block: 0; }
   /* 가방 판은 칸 열 개 폭이고 도구 줄은 바로 옆이다: 판이 칸보다 넓으면 남는 폭이 가방의 검은 바탕으로 보였다(2026-10-21 사용자: "가방이랑
      옆메뉴 사이에 그 검은공간 없애주고"). 남는 폭은 도구 줄 바깥으로 간다 */
-  :root body #item-tab-equip .equipment-window .equipment-inventory-grid-shell { grid-template-columns: max-content 52px; justify-content: start; }
+  :root body :is(#item-tab-equip, #stump-equip-host) .equipment-window .equipment-inventory-grid-shell { grid-template-columns: max-content 52px; justify-content: start; }
   @container eqw (min-width: 1170px) {
     /* 왼쪽 칸은 창이 넓어지는 만큼 330px까지 넓어진다: 장착 칸의 아이템 이름이 한 줄에 들어간다.
        가방 칸 600px = 52px 칸 열 개 + 도구 줄 58px + 판 테두리와 여백 22px(1300px부터는 60px 칸으로 680px). 내용으로 재지 않는다:
        가방 판은 inline-size 컨테이너라 폭을 내주지 못하고, 임시 보관함의 카드 줄은 칸을 넓힌다.
        894px = 가방 칸 600px + 선택한 장비 270px + 칸 사이 12px 두 번. */
-    :root body #item-tab-equip .equipment-window { grid-template-columns: clamp(276px, calc(100cqw - 894px), 330px) 600px minmax(270px, 1fr); }
-    :root body #item-tab-equip .equipment-window #ui-equipment-inventory-inspector { --eqw-dock: panel; position: static; inset: auto; display: block; width: auto; max-width: none;
+    :root body :is(#item-tab-equip, #stump-equip-host) .equipment-window { grid-template-columns: clamp(276px, calc(100cqw - 894px), 330px) 600px minmax(270px, 1fr); }
+    :root body :is(#item-tab-equip, #stump-equip-host) .equipment-window #ui-equipment-inventory-inspector { --eqw-dock: panel; position: static; inset: auto; display: block; width: auto; max-width: none;
       max-height: none; margin: 0; padding: 10px 12px; overflow: visible; border: 1px solid var(--eqw-edge); border-radius: 0; transform: none;
       background: linear-gradient(180deg, #1d1712 0%, #120e0a 100%);
       box-shadow: 0 0 0 1px #000, inset 0 0 0 3px #120e0a, inset 0 0 0 4px rgba(227, 189, 114, .32), 0 10px 24px rgba(0, 0, 0, .55); }
-    :root body #item-tab-equip .equipment-window #ui-equipment-inventory-inspector .equipment-grid-inspector-close { display: none; }
-    :root body #item-tab-equip .equipment-window #ui-equipment-inventory-inspector .equipment-grid-inspector-empty { padding: 10px 0; color: var(--eqw-muted); font-size: 12px; text-align: left; }
-    :root body #item-tab-equip .equipment-window .equipment-inspection-tooltip { max-height: 420px; overflow: auto; }
+    :root body :is(#item-tab-equip, #stump-equip-host) .equipment-window #ui-equipment-inventory-inspector .equipment-grid-inspector-close { display: none; }
+    :root body :is(#item-tab-equip, #stump-equip-host) .equipment-window #ui-equipment-inventory-inspector .equipment-grid-inspector-empty { padding: 10px 0; color: var(--eqw-muted); font-size: 12px; text-align: left; }
+    :root body :is(#item-tab-equip, #stump-equip-host) .equipment-window .equipment-inspection-tooltip { max-height: 420px; overflow: auto; }
   }
   @container eqw (1170px <= width < 1300px) {
-    :root body #item-tab-equip .equipment-window .equipment-inventory-grid-shell {
+    :root body :is(#item-tab-equip, #stump-equip-host) .equipment-window .equipment-inventory-grid-shell {
       --equipment-grid-cell-size: round(down, clamp(16px, min(calc((100cqw - 58px) / 10), var(--eqw-cell-fit, 52px)), 52px), 1px); }
   }
   @container eqw (min-width: 1300px) {
-    :root body #item-tab-equip .equipment-window { grid-template-columns: clamp(276px, calc(100cqw - 974px), 330px) 680px minmax(270px, 1fr); }
-    :root body #item-tab-equip .equipment-window .equipment-inventory-grid-shell { --equipment-grid-cell-size: clamp(24px, var(--eqw-cell-fit, 60px), 60px); }
+    :root body :is(#item-tab-equip, #stump-equip-host) .equipment-window { grid-template-columns: clamp(276px, calc(100cqw - 974px), 330px) 680px minmax(270px, 1fr); }
+    :root body :is(#item-tab-equip, #stump-equip-host) .equipment-window .equipment-inventory-grid-shell { --equipment-grid-cell-size: clamp(24px, var(--eqw-cell-fit, 60px), 60px); }
   }
   @container eqw (680px <= width < 1170px) {
     /* 왼쪽 칸은 262px에서 330px까지, 나머지는 가방이다. 가방 칸은 판 폭을 채우게 64px까지 커진다(52px에서 멈추던 때는 1920x1080 기본 창에서
@@ -319,8 +322,8 @@
        칸 폭의 100cqw는 가방 판(inline-size 컨테이너)의 폭이라, 창이 화면에 막혀 내용 폭(--dock-fit-width)까지 넓어지지 못해도 두 칸이 그대로고
        가방 칸만 작아진다(2026-10-26 사용자: 스팀 덱 1280x800에서 창 안쪽 738px이 두 칸 기준 760px에 못 미쳐 한 줄로 쌓였고 가방이 창 아래로
        밀렸다. "크기에 따라 자연스럽게 바뀌는 과정에서 스팀 덱과 호환"). 680px은 왼쪽 칸 262px 옆에 가방 칸 30px쯤이 드는 폭이다 */
-    :root body #item-tab-equip .equipment-window { grid-template-columns: clamp(262px, calc(100cqw - 718px), 330px) minmax(0, 1fr); }
-    :root body #item-tab-equip .equipment-window .equipment-inventory-grid-shell {
+    :root body :is(#item-tab-equip, #stump-equip-host) .equipment-window { grid-template-columns: clamp(262px, calc(100cqw - 718px), 330px) minmax(0, 1fr); }
+    :root body :is(#item-tab-equip, #stump-equip-host) .equipment-window .equipment-inventory-grid-shell {
       --equipment-grid-cell-size: round(down, clamp(24px, min(calc((100cqw - 58px) / 10), var(--eqw-cell-fit, 64px)), 64px), 1px); }
   }
   /* 장비 창은 스크롤 없이 한 화면에 든다(2026-10-24 사용자: "장비/인벤토리 창 전체가 스크롤 없이 한 화면에"). 스크롤 상자인 칸
@@ -336,82 +339,82 @@
   /* 창이 내용에 맞게 좁아질 폭(js/ui-window-manager.js getDockFitWidth): 장착 칸 열 262px, 틈 12px, 가방 판(칸 열 개, 도구 줄 52px과
      틈 6px, 판 여백과 테 22.5px)에 반올림 여유 2px. 두 칸 창의 가방 칸은 62px을 넘지 않고(왼쪽 열이 넓어지기 시작하는 폭), 두 칸 배치가
      유지되게 680px보다 좁아지지 않는다(2026-10-24 사용자: "창 기본 폭을 내용에 맞춰 줄여줘"). */
-  :root body.desktop-windowed-ui #item-tab-equip .equipment-window[data-dock-fit] {
+  :root body.desktop-windowed-ui :is(#item-tab-equip, #stump-equip-host) .equipment-window[data-dock-fit] {
     --eqw-fit-cell: clamp(24px, min(var(--eqw-cell-fit), 62px), 62px);
     --dock-fit-width: max(680px, calc(356.5px + var(--eqw-fit-cell) * 10)); }
   /* 장비 창은 스크롤이 생기지 않으니 창 몸통과 칸이 스크롤바 자리를 비워 두지 않는다(2026-10-24 사용자: "스크롤바 자리를 없애고") */
   :root body.desktop-windowed-ui #tab-items > .ui-window-body:has(.merged-subtab-pane.active[data-tab-id="tab-items"] > #item-tab-equip.active),
   :root body.desktop-windowed-ui #tab-items .merged-subtab-pane.active[data-tab-id="tab-items"]:has(> #item-tab-equip.active) { scrollbar-gutter: auto; }
-  :root body.desktop-windowed-ui #item-tab-equip #ui-equip-list.equipment-paperdoll { --eqw-doll-row: round(down, clamp(56px, calc((100cqh - 200px) / 5), 68px), 1px); }
-  :root body.desktop-windowed-ui #item-tab-equip #ui-equip-list.equipment-paperdoll.has-ring3.has-core {
+  :root body.desktop-windowed-ui :is(#item-tab-equip, #stump-equip-host) #ui-equip-list.equipment-paperdoll { --eqw-doll-row: round(down, clamp(56px, calc((100cqh - 200px) / 5), 68px), 1px); }
+  :root body.desktop-windowed-ui :is(#item-tab-equip, #stump-equip-host) #ui-equip-list.equipment-paperdoll.has-ring3.has-core {
     --eqw-doll-row: round(down, clamp(56px, calc((100cqh - 205px) / 6), 68px), 1px); }
   /* 떠서 나오는 선택한 장비(두 칸 창) */
-  :root body #item-tab-equip #ui-equipment-inventory-inspector:popover-open { display: block; width: 340px; padding: 10px 12px; overflow: auto; border: 1px solid #c79a4a; border-radius: 0;
+  :root body :is(#item-tab-equip, #stump-equip-host) #ui-equipment-inventory-inspector:popover-open { display: block; width: 340px; padding: 10px 12px; overflow: auto; border: 1px solid #c79a4a; border-radius: 0;
     background: linear-gradient(180deg, #221a12, #120e0a); box-shadow: 0 0 0 1px #000, inset 0 0 0 3px #17120d, inset 0 0 0 4px rgba(227, 189, 114, .3), 0 12px 28px rgba(0, 0, 0, .8); }
   /* 지금 낀 장비와 나란히 볼 때는 두 칸 폭. 가방을 가리지 않게 가방 옆에 뜬다(js/equipment-inventory-grid-ui.js getBesidePosition). */
-  :root body #item-tab-equip #ui-equipment-inventory-inspector:popover-open[data-eqw-panes="2"] { width: 600px; }
-  :root body #item-tab-equip #ui-equipment-inventory-inspector:popover-open .equipment-grid-inspector-close { position: absolute; top: 4px; right: 6px; min-height: 0; padding: 0 6px; }
+  :root body :is(#item-tab-equip, #stump-equip-host) #ui-equipment-inventory-inspector:popover-open[data-eqw-panes="2"] { width: 600px; }
+  :root body :is(#item-tab-equip, #stump-equip-host) #ui-equipment-inventory-inspector:popover-open .equipment-grid-inspector-close { position: absolute; top: 4px; right: 6px; min-height: 0; padding: 0 6px; }
 }
 
 /* 휴대폰: 요약 한 줄, 장착 장비 ▾로 장착 칸과 세팅을 펼친다. 선택한 장비는 아래에서 올라온다. */
 @media (max-width: 1080px) {
-  :root body #item-tab-equip .equipment-preset-row :is(.equipment-preset-slot, .equipment-preset-save, .equipment-preset-more > summary) { min-height: 44px; min-width: 36px; padding: 4px; }
-  :root body #item-tab-equip .equipment-window { grid-template-columns: minmax(0, 1fr); gap: 8px; }
-  :root body #item-tab-equip .equipment-window .equipment-loadout-panel { display: contents; }
-  :root body #item-tab-equip .equipment-window .eqw-summary-card { order: -3; padding: 7px 8px; }
-  :root body #item-tab-equip .equipment-window .eqw-doll-card { order: -2; }
-  :root body #item-tab-equip .equipment-window:not([data-mobile-pane="loadout"]) .eqw-doll-card { display: none; }
-  :root body #item-tab-equip .equipment-window .equipment-inventory-panel { display: block; }
+  :root body :is(#item-tab-equip, #stump-equip-host) .equipment-preset-row :is(.equipment-preset-slot, .equipment-preset-save, .equipment-preset-more > summary) { min-height: 44px; min-width: 36px; padding: 4px; }
+  :root body :is(#item-tab-equip, #stump-equip-host) .equipment-window { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  :root body :is(#item-tab-equip, #stump-equip-host) .equipment-window .equipment-loadout-panel { display: contents; }
+  :root body :is(#item-tab-equip, #stump-equip-host) .equipment-window .eqw-summary-card { order: -3; padding: 7px 8px; }
+  :root body :is(#item-tab-equip, #stump-equip-host) .equipment-window .eqw-doll-card { order: -2; }
+  :root body :is(#item-tab-equip, #stump-equip-host) .equipment-window:not([data-mobile-pane="loadout"]) .eqw-doll-card { display: none; }
+  :root body :is(#item-tab-equip, #stump-equip-host) .equipment-window .equipment-inventory-panel { display: block; }
   /* Let the tool rail scroll above the folded battle button (44px touch target, 4px padding and border, 8px above the menu, 8px air). */
-  :root body #item-tab-equip .equipment-window .eqw-bag-card { padding-bottom: calc(var(--size-control-touch) + 20px); }
-  :root body #item-tab-equip .eqw-summary-full { display: none; }
-  :root body #item-tab-equip .eqw-summary-mini { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 8px; align-items: center; }
-  :root body #item-tab-equip .eqw-mini-toggle { min-height: 44px; padding: 4px 10px; border: 1px solid #e3bd72; border-radius: 0; background: linear-gradient(180deg, #241c14, #17120d);
+  :root body :is(#item-tab-equip, #stump-equip-host) .equipment-window .eqw-bag-card { padding-bottom: calc(var(--size-control-touch) + 20px); }
+  :root body :is(#item-tab-equip, #stump-equip-host) .eqw-summary-full { display: none; }
+  :root body :is(#item-tab-equip, #stump-equip-host) .eqw-summary-mini { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 8px; align-items: center; }
+  :root body :is(#item-tab-equip, #stump-equip-host) .eqw-mini-toggle { min-height: 44px; padding: 4px 10px; border: 1px solid #e3bd72; border-radius: 0; background: linear-gradient(180deg, #241c14, #17120d);
     color: var(--eqw-gold); font-size: 12px; }
-  :root body #item-tab-equip .eqw-mini-dps { text-align: right; }
-  :root body #item-tab-equip .eqw-mini-dps small { display: block; color: var(--eqw-muted); font-size: 10px; }
-  :root body #item-tab-equip .eqw-mini-dps b { color: var(--c); font-size: var(--font-size-heading); text-shadow: 0 0 10px color-mix(in srgb, var(--c) 45%, transparent); }
-  :root body #item-tab-equip .eqw-mini-line { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 2px 10px; color: var(--eqw-muted); font-size: var(--font-size-ui); }
-  :root body #item-tab-equip .eqw-mini-line b { color: var(--c); }
-  :root body #item-tab-equip #ui-equip-list.equipment-paperdoll { justify-content: center; grid-template-columns: repeat(3, minmax(0, 88px)); grid-template-rows: repeat(5, 72px); }
-  :root body #item-tab-equip #ui-equip-list.equipment-paperdoll.has-ring3.has-core { grid-template-rows: repeat(6, 72px); }
-  :root body #item-tab-equip .eqw-compare-tabs { position: sticky; top: 0; z-index: 1; background: #120e0a; }
-  :root body #item-tab-equip .eqw-compare-tabs > button { min-height: 44px; }
+  :root body :is(#item-tab-equip, #stump-equip-host) .eqw-mini-dps { text-align: right; }
+  :root body :is(#item-tab-equip, #stump-equip-host) .eqw-mini-dps small { display: block; color: var(--eqw-muted); font-size: 10px; }
+  :root body :is(#item-tab-equip, #stump-equip-host) .eqw-mini-dps b { color: var(--c); font-size: var(--font-size-heading); text-shadow: 0 0 10px color-mix(in srgb, var(--c) 45%, transparent); }
+  :root body :is(#item-tab-equip, #stump-equip-host) .eqw-mini-line { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 2px 10px; color: var(--eqw-muted); font-size: var(--font-size-ui); }
+  :root body :is(#item-tab-equip, #stump-equip-host) .eqw-mini-line b { color: var(--c); }
+  :root body :is(#item-tab-equip, #stump-equip-host) #ui-equip-list.equipment-paperdoll { justify-content: center; grid-template-columns: repeat(3, minmax(0, 88px)); grid-template-rows: repeat(5, 72px); }
+  :root body :is(#item-tab-equip, #stump-equip-host) #ui-equip-list.equipment-paperdoll.has-ring3.has-core { grid-template-rows: repeat(6, 72px); }
+  :root body :is(#item-tab-equip, #stump-equip-host) .eqw-compare-tabs { position: sticky; top: 0; z-index: 1; background: #120e0a; }
+  :root body :is(#item-tab-equip, #stump-equip-host) .eqw-compare-tabs > button { min-height: 44px; }
   /* 바꾸면 표: 요약에 있는 능력치만 먼저, 나머지는 단추로 편다(js/equipment-window-ui.js restButton). */
-  :root body #item-tab-equip .eqw-dl-body:not(.is-open) .eqw-dl.is-rest { display: none; }
-  :root body #item-tab-equip .eqw-dl-more { display: block; width: 100%; min-height: 44px; margin-top: 4px; padding: 3px 8px; border: 1px solid #4a3a22; border-radius: 0;
+  :root body :is(#item-tab-equip, #stump-equip-host) .eqw-dl-body:not(.is-open) .eqw-dl.is-rest { display: none; }
+  :root body :is(#item-tab-equip, #stump-equip-host) .eqw-dl-more { display: block; width: 100%; min-height: 44px; margin-top: 4px; padding: 3px 8px; border: 1px solid #4a3a22; border-radius: 0;
     background: transparent; color: var(--eqw-muted); font-size: 12px; }
-  :root body #item-tab-equip .eqw-bag-head .eqw-search { flex: 1 1 100px; }
-  :root body #item-tab-equip #ui-equipment-inventory-inspector { --eqw-dock: sheet; }
-  :root body #item-tab-equip #ui-equipment-inventory-inspector:popover-open { position: fixed; inset: auto 8px calc(var(--mobile-nav-height, 64px) + 12px) 8px; display: flex; flex-direction: column; align-items: stretch; gap: 0;
+  :root body :is(#item-tab-equip, #stump-equip-host) .eqw-bag-head .eqw-search { flex: 1 1 100px; }
+  :root body :is(#item-tab-equip, #stump-equip-host) #ui-equipment-inventory-inspector { --eqw-dock: sheet; }
+  :root body :is(#item-tab-equip, #stump-equip-host) #ui-equipment-inventory-inspector:popover-open { position: fixed; inset: auto 8px calc(var(--mobile-nav-height, 64px) + 12px) 8px; display: flex; flex-direction: column; align-items: stretch; gap: 0;
     width: auto; max-width: none; max-height: min(80dvh, calc(100dvh - var(--mobile-nav-height, 64px) - 24px)); margin: 0; padding: 10px; overflow: visible; border: 1px solid #c79a4a; border-radius: 0;
     background: linear-gradient(180deg, #221a12, #120e0a); box-shadow: 0 0 0 1px #000, inset 0 0 0 3px #17120d, inset 0 0 0 4px rgba(227, 189, 114, .3), 0 -10px 24px rgba(0, 0, 0, .75); }
-  :root body #item-tab-equip #ui-equipment-inventory-inspector:popover-open .equipment-grid-inspector-close { position: absolute; top: 2px; right: 4px; min-height: 44px; min-width: 44px; }
+  :root body :is(#item-tab-equip, #stump-equip-host) #ui-equipment-inventory-inspector:popover-open .equipment-grid-inspector-close { position: absolute; top: 2px; right: 4px; min-height: 44px; min-width: 44px; }
   /* 휴대폰의 닫기 단추는 손가락 크기(폭 44px, css/themes/pixel-mobile.css)라 제목 줄 오른쪽 글을 가렸다: 단추 왼쪽에 12px 틈이 남게 비운다. */
-  :root body #item-tab-equip #ui-equipment-inventory-inspector:popover-open .eqw-title { min-height: 44px; box-sizing: border-box; align-items: center; padding-right: 64px; margin: -10px -10px 8px; }
-  :root body #item-tab-equip #ui-equipment-inventory-inspector:popover-open > :is(.eqw-title, .eqw-pick) { flex: none; }
-  :root body #item-tab-equip #ui-equipment-inventory-inspector:popover-open .eqw-inspector-body { display: block; min-height: 0; overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; }
-  :root body #item-tab-equip #ui-equipment-inventory-inspector:popover-open .equipment-inspection-details { overflow: visible; }
-  :root body #item-tab-equip #ui-equipment-inventory-inspector .equipment-grid-inspector-actions button { min-height: 44px; }
+  :root body :is(#item-tab-equip, #stump-equip-host) #ui-equipment-inventory-inspector:popover-open .eqw-title { min-height: 44px; box-sizing: border-box; align-items: center; padding-right: 64px; margin: -10px -10px 8px; }
+  :root body :is(#item-tab-equip, #stump-equip-host) #ui-equipment-inventory-inspector:popover-open > :is(.eqw-title, .eqw-pick) { flex: none; }
+  :root body :is(#item-tab-equip, #stump-equip-host) #ui-equipment-inventory-inspector:popover-open .eqw-inspector-body { display: block; min-height: 0; overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+  :root body :is(#item-tab-equip, #stump-equip-host) #ui-equipment-inventory-inspector:popover-open .equipment-inspection-details { overflow: visible; }
+  :root body :is(#item-tab-equip, #stump-equip-host) #ui-equipment-inventory-inspector .equipment-grid-inspector-actions button { min-height: 44px; }
   /* 장착과 관리만 고정한다. 옵션을 밀어 읽어도 대상 이름과 장착 버튼이 남고, 후기 장비의 많은 관리 작업은 충분한 터치 크기로 펼친다. */
-  :root body #item-tab-equip #ui-equipment-inventory-inspector:popover-open > .equipment-grid-inspector-actions { position: relative; flex: none; z-index: 2;
+  :root body :is(#item-tab-equip, #stump-equip-host) #ui-equipment-inventory-inspector:popover-open > .equipment-grid-inspector-actions { position: relative; flex: none; z-index: 2;
     margin: 8px -10px -10px; padding: 8px 10px 10px; background: #120e0a; box-shadow: 0 -1px 0 rgba(227, 189, 114, .3);
     grid-template-columns: minmax(0, 2fr) minmax(100px, 1fr); grid-auto-flow: row; }
-  :root body #item-tab-equip .eqw-secondary-actions { display: none; position: absolute; bottom: 100%; left: 0; right: 0; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px;
+  :root body :is(#item-tab-equip, #stump-equip-host) .eqw-secondary-actions { display: none; position: absolute; bottom: 100%; left: 0; right: 0; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px;
     max-height: 42dvh; overflow: auto; overscroll-behavior: contain; padding: 10px; border: 1px solid #8a6a36; background: #18120d; box-shadow: 0 -8px 20px rgba(0, 0, 0, .55); }
-  :root body #item-tab-equip .tools-open .eqw-secondary-actions { display: grid; }
-  :root body #item-tab-equip .eqw-manage-toggle[aria-expanded="true"] { border-color: #ecc982; color: #fff3d6; }
-  :root body #item-tab-equip .eqw-manage-toggle:disabled { display: none; }
-  :root body #item-tab-equip .equipment-grid-inspector-actions:has(.eqw-manage-toggle:disabled) .equipment-card-primary { grid-column: 1 / -1; }
+  :root body :is(#item-tab-equip, #stump-equip-host) .tools-open .eqw-secondary-actions { display: grid; }
+  :root body :is(#item-tab-equip, #stump-equip-host) .eqw-manage-toggle[aria-expanded="true"] { border-color: #ecc982; color: #fff3d6; }
+  :root body :is(#item-tab-equip, #stump-equip-host) .eqw-manage-toggle:disabled { display: none; }
+  :root body :is(#item-tab-equip, #stump-equip-host) .equipment-grid-inspector-actions:has(.eqw-manage-toggle:disabled) .equipment-card-primary { grid-column: 1 / -1; }
 }
 /* 휴대폰: 가방 판이 한 단이 되어 도구 줄은 가방 아래 가로 한 줄, 펼침 창은 위로(가방을 덮으며) 연다. */
 @media (max-width: 640px) {
-  :root body #item-tab-equip .eqw-rail { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
-  :root body #item-tab-equip .eqw-rail-menu { display: flex; flex: 1 1 0; }
-  :root body #item-tab-equip .eqw-rail > .eqw-rail-tool, :root body #item-tab-equip .eqw-rail-menu > .eqw-rail-tool { flex: 1 1 0; flex-direction: row; height: 44px; }
+  :root body :is(#item-tab-equip, #stump-equip-host) .eqw-rail { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+  :root body :is(#item-tab-equip, #stump-equip-host) .eqw-rail-menu { display: flex; flex: 1 1 0; }
+  :root body :is(#item-tab-equip, #stump-equip-host) .eqw-rail > .eqw-rail-tool, :root body :is(#item-tab-equip, #stump-equip-host) .eqw-rail-menu > .eqw-rail-tool { flex: 1 1 0; flex-direction: row; height: 44px; }
   /* 가로 단추에서는 안쪽 모서리의 개수 표시가 "복구" 글자를 덮었다(글자 뒤에 두면 그림이 밀려났다): 바깥 모서리에 얹는다. */
-  :root body #item-tab-equip .eqw-rail-tool { overflow: visible; }
-  :root body #item-tab-equip .eqw-rail-tool small { z-index: 1; top: -6px; right: -4px; box-shadow: 0 0 0 2px #0d0a07; }
-  :root body #item-tab-equip .eqw-rail-panel { left: 0; right: 0; top: auto; bottom: calc(100% + 6px); width: auto; max-height: 60vh; overflow: auto; }
+  :root body :is(#item-tab-equip, #stump-equip-host) .eqw-rail-tool { overflow: visible; }
+  :root body :is(#item-tab-equip, #stump-equip-host) .eqw-rail-tool small { z-index: 1; top: -6px; right: -4px; box-shadow: 0 0 0 2px #0d0a07; }
+  :root body :is(#item-tab-equip, #stump-equip-host) .eqw-rail-panel { left: 0; right: 0; top: auto; bottom: calc(100% + 6px); width: auto; max-height: 60vh; overflow: auto; }
 }
 }

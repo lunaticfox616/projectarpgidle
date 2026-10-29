@@ -104,14 +104,33 @@ actExplorationProgress.objects = (() => {
         return cells.sort((a,b)=>distance(a,row)-distance(b,row)).slice(0,count);
     }
     function waveSize(run,row) {return row.kind==='nest'?3:row.kind==='ambush'?4+(run.objects.seed%2):3+(run.objects.seed%2);}
-    function waveMarker(row,index) {return {at:row.wave*11+index,count:1,boss:false,elite:false,storyStage:null};}
+    /** One seed per wave: only createEnemy's group index varies. Adding index here too made every member a wisp together.
+     * The saved map owns the biome, including an abyss run whose current depth might already have changed. */
+    function wavePlan(run,row,zone) {
+        if(!['nest','ambush'].includes(row.kind)||!['act','abyss'].includes(zone.type))return null;
+        const act=zone.type==='act'?run.act:(run.source?.style==='act'?run.source.act:null);
+        if(!Number.isInteger(act)||!Object.hasOwn(MONSTER_COMBAT_ROLES.objectEncounters,act))throw Error('탐험 사건의 액트 생태가 잘못되었습니다.');
+        const recipe=MONSTER_COMBAT_ROLES.objectEncounters[act];
+        return {at:Math.abs(hashSeed(`${run.objects.seed}:${row.id}:${row.wave}:${run.zoneId}:object-wave`))%100,
+            roster:row.kind==='nest'?recipe.nest[row.wave]:recipe.ambush};
+    }
+    function waveMarker(row,index,plan) {
+        const marker={at:plan?plan.at:row.wave*11+index,count:1,boss:false,elite:false,storyStage:null};
+        if(plan)marker.packVisualId=plan.roster[index];
+        return marker;
+    }
+    function createWave(run,row,zone,plan) {
+        return Array.from({length:waveSize(run,row)},(_,index)=>createEnemy(zone,waveMarker(row,index,plan),index));
+    }
     function spawn(run,row) {
         const count=waveSize(run,row);
         const cells=spawnCells(run,row,count);
         if(cells.length<count){row.remainingMs=200;return;}
-        const key=`${row.id}:${row.wave+1}`,zone=getZone(run.zoneId);
-        const enemies=cells.map((cell,index)=>Object.assign(createEnemy(zone,waveMarker(row,index),index),
-            cell,{explorationPack:key,gridMoveTimer:0,regenBank:0,spawnStamp:getBattleSpawnStamp()}));
+        const key=`${row.id}:${row.wave+1}`,zone=getZone(run.zoneId),plan=wavePlan(run,row,zone);
+        const enemies=createWave(run,row,zone,plan);
+        enemies.forEach((enemy,index)=>Object.assign(enemy,cells[index],
+            {explorationPack:key,gridMoveTimer:0,regenBank:0,spawnStamp:getBattleSpawnStamp()}));
+        if(plan)explorationPackFormation.placeRanks(enemies,{front:game.gridPlayer});
         run.packs.push({key,roomId:row.roomId,stage:null,waiting:[],aliveIds:enemies.map(e=>e.id),eliteIds:[],objectId:row.id,objectWave:row.wave+1});
         game.enemies.push(...enemies);row.wave++;row.phase='active';row.remainingMs=0;
         dispatchRuntimeEvent('exploration-object',{kind:'spawn',name:state.labels[row.kind]});
@@ -219,9 +238,12 @@ actExplorationProgress.objects = (() => {
         if(state.isEvent(row)) {
             const zone=getZone(run.zoneId);
             for(let wave=row.kind==='nest'?2:1;wave>0;wave--,row.wave++) {
+                const plan=wavePlan(run,row,zone);
+                // New waves roll every member before any death rolls, exactly like spawn. Sealed chests keep their old order.
+                const enemies=plan?createWave(run,row,zone,plan):null;
                 // 무리 기록도 남긴다(모두 쓰러진 채, spawn과 같은 모양): 차수와 무리 수가 달라 저장이 불러와지지 않았다(validateEventOwnership, 2026-10-20)
                 run.packs.push({key:`${row.id}:${row.wave+1}`,roomId:row.roomId,stage:null,waiting:[],aliveIds:[],eliteIds:[],objectId:row.id,objectWave:row.wave+1});
-                for(let index=0;index<waveSize(run,row);index++)kill(Object.assign(createEnemy(zone,waveMarker(row,index),index),{gx:row.gx,gy:row.gy}));
+                for(let index=0;index<waveSize(run,row);index++)kill(Object.assign(enemies?enemies[index]:createEnemy(zone,waveMarker(row,index,plan),index),{gx:row.gx,gy:row.gy}));
             }
         }
         reward(run,row);

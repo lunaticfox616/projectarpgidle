@@ -44,12 +44,12 @@
 @media (prefers-reduced-motion: reduce) { .equipment-just-equipped { animation: none; outline: 2px solid var(--color-accent-gold); } }
 .inventory-search-status { margin: 8px 0 0; color: var(--color-text-secondary); font-size: 11px; }
 
-#item-tab-equip .equipment-triage-controls { grid-row: 1; justify-content: flex-start; gap: 5px; }
-#item-tab-equip .equipment-triage-copy strong { display: none; }
-#item-tab-equip .equipment-triage-copy small { font-size: 10px; }
+:is(#item-tab-equip, #stump-equip-host) .equipment-triage-controls { grid-row: 1; justify-content: flex-start; gap: 5px; }
+:is(#item-tab-equip, #stump-equip-host) .equipment-triage-copy strong { display: none; }
+:is(#item-tab-equip, #stump-equip-host) .equipment-triage-copy small { font-size: 10px; }
 @media (pointer: coarse) {
-    #item-tab-equip:not(.touch-arrange) .equipment-grid-item,
-    #item-tab-equip:not(.touch-arrange) #ui-equip-list .equipment-slot { touch-action: pan-y; }
+    :is(#item-tab-equip, #stump-equip-host):not(.touch-arrange) .equipment-grid-item,
+    :is(#item-tab-equip, #stump-equip-host):not(.touch-arrange) #ui-equip-list .equipment-slot { touch-action: pan-y; }
     #equipment-touch-arrange[aria-pressed="true"] { border-color: var(--color-accent-gold); color: var(--color-accent-gold); }
 }
 
@@ -162,16 +162,16 @@
     box-shadow: inset 0 0 0 2px rgba(240, 120, 120, .68), 0 0 12px rgba(188, 62, 62, .36);
 }
 
-#item-tab-equip #ui-inventory-list > .search-filter-panel {
+:is(#item-tab-equip, #stump-equip-host) #ui-inventory-list > .search-filter-panel {
     display: flex;
     align-items: center;
     gap: 6px;
 }
 
-#item-tab-equip #ui-inventory-list .search-filter-input { flex: 1; min-width: 0; }
-#item-tab-equip #ui-inventory-list .search-action-row { flex: 0 0 auto; }
+:is(#item-tab-equip, #stump-equip-host) #ui-inventory-list .search-filter-input { flex: 1; min-width: 0; }
+:is(#item-tab-equip, #stump-equip-host) #ui-inventory-list .search-action-row { flex: 0 0 auto; }
 
-#item-tab-equip #ui-inventory-list > .search-result-list {
+:is(#item-tab-equip, #stump-equip-host) #ui-inventory-list > .search-result-list {
     position: relative;
     grid-auto-rows: var(--equipment-grid-cell-size);
     gap: 0;
@@ -419,10 +419,10 @@
 .equipment-slot-name { text-align: center; }
 
 /* 장비 창의 장착 칸은 가방 칸과 같은 색과 몫으로 바탕을 칠한다(css/equipment-window.css) */
-#item-tab-equip .equipment-slot.rarity-normal { --equipment-rarity: #7d8996; --rarity-fill: 14%; }
-#item-tab-equip .equipment-slot.rarity-magic { --equipment-rarity: #5fb4ec; --rarity-fill: 32%; }
-#item-tab-equip .equipment-slot.rarity-rare { --equipment-rarity: #e9c355; --rarity-fill: 30%; }
-#item-tab-equip .equipment-slot.rarity-unique { --equipment-rarity: #f26a2a; --rarity-fill: 42%; }
+:is(#item-tab-equip, #stump-equip-host) .equipment-slot.rarity-normal { --equipment-rarity: #7d8996; --rarity-fill: 14%; }
+:is(#item-tab-equip, #stump-equip-host) .equipment-slot.rarity-magic { --equipment-rarity: #5fb4ec; --rarity-fill: 32%; }
+:is(#item-tab-equip, #stump-equip-host) .equipment-slot.rarity-rare { --equipment-rarity: #e9c355; --rarity-fill: 30%; }
+:is(#item-tab-equip, #stump-equip-host) .equipment-slot.rarity-unique { --equipment-rarity: #f26a2a; --rarity-fill: 42%; }
 
 .equipment-temporary-storage {
     margin: 8px 0;
@@ -462,14 +462,14 @@
 .equipment-temporary-item.rarity-unique { --item-rarity: #f26a2a; }
 
 @media (max-width: 640px) {
-    :root body #item-tab-equip .equipment-inventory-panel { padding: 8px; }
-    #item-tab-equip .equipment-triage-copy { display: none; }
-    #item-tab-equip .equipment-triage-controls { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) minmax(0, 1fr); align-items: center; gap: 6px; }
-    #item-tab-equip .equipment-triage-controls label { display: flex; align-items: center; gap: 4px; min-width: 0; font-size: 12px; white-space: nowrap; }
-    #item-tab-equip .equipment-triage-controls select { width: 100%; min-width: 0; }
-    #item-tab-equip .equipment-triage-controls button { min-width: 0; padding: 4px 6px; font-size: 12px; }
+    :root body :is(#item-tab-equip, #stump-equip-host) .equipment-inventory-panel { padding: 8px; }
+    :is(#item-tab-equip, #stump-equip-host) .equipment-triage-copy { display: none; }
+    :is(#item-tab-equip, #stump-equip-host) .equipment-triage-controls { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) minmax(0, 1fr); align-items: center; gap: 6px; }
+    :is(#item-tab-equip, #stump-equip-host) .equipment-triage-controls label { display: flex; align-items: center; gap: 4px; min-width: 0; font-size: 12px; white-space: nowrap; }
+    :is(#item-tab-equip, #stump-equip-host) .equipment-triage-controls select { width: 100%; min-width: 0; }
+    :is(#item-tab-equip, #stump-equip-host) .equipment-triage-controls button { min-width: 0; padding: 4px 6px; font-size: 12px; }
     /* 빈 칸 채우기는 아랫줄 혼자라 두 칸을 쓴다(첫 칸 폭에서 "빈 칸 채우기 6"이 잘렸다) */
-    #item-tab-equip .equipment-triage-controls .equipment-fill-empty { grid-column: span 2; }
+    :is(#item-tab-equip, #stump-equip-host) .equipment-triage-controls .equipment-fill-empty { grid-column: span 2; }
     .equipment-inventory-grid-shell {
         --equipment-grid-cell-size: round(down, clamp(16px, calc((100cqw - 2px) / 10), 52px), 1px);
         display: block;
@@ -492,20 +492,20 @@
 @layer overrides {
 .equipment-affix-inactive, .equipment-affix-inactive span { color: var(--copy-muted); }
 
-#item-tab-equip #ui-inventory-list.equipment-inventory-grid {
+:is(#item-tab-equip, #stump-equip-host) #ui-inventory-list.equipment-inventory-grid {
     display: block;
 }
 
-#item-tab-equip #ui-inventory-list > .search-filter-panel {
+:is(#item-tab-equip, #stump-equip-host) #ui-inventory-list > .search-filter-panel {
     /* Override the shared search renderer's inline margin for the equipment toolbar. */
     margin-bottom: 7px !important;
 }
-#item-tab-equip #ui-inventory-list .search-action-row {
+:is(#item-tab-equip, #stump-equip-host) #ui-inventory-list .search-action-row {
     /* The shared renderer's inline top gap belongs to stacked forms, not this toolbar row. */
     margin-top: 0 !important;
 }
 
-#item-tab-equip #ui-inventory-list > .search-result-list {
+:is(#item-tab-equip, #stump-equip-host) #ui-inventory-list > .search-result-list {
     /* The shared search renderer sets inline display:contents; dragging needs a real grid box. */
     display: grid !important;
     grid-template-columns: repeat(10, var(--equipment-grid-cell-size));

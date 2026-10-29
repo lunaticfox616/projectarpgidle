@@ -198,7 +198,7 @@
   #ui-inventory-list,
   #ui-craft-inventory-list,
   #ui-fossil-inventory-list,
-  :root body #item-tab-equip .equipment-inventory-grid { gap: 7px; }
+  :root body :is(#item-tab-equip, #stump-equip-host) .equipment-inventory-grid { gap: 7px; }
   .map-route-summary { align-items: center; padding: 9px; text-align: left; }
   .map-route-action { min-width: 80px; padding: 8px; min-height: 44px; }
   .map-item[role="group"] .map-item-actions { display: grid; grid-template-columns: auto minmax(0, 1fr); width: 100%; }
@@ -330,7 +330,7 @@
   #ui-inventory-list,
   #ui-craft-inventory-list,
   #ui-fossil-inventory-list,
-  :root body #item-tab-equip .equipment-inventory-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  :root body :is(#item-tab-equip, #stump-equip-host) .equipment-inventory-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .item-actions, .equipment-card-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   #tab-skills .gem-enhance-actions,
   #tab-skills .gem-engrave-grid,
@@ -347,7 +347,7 @@
   #ui-inventory-list,
   #ui-craft-inventory-list,
   #ui-fossil-inventory-list,
-  :root body #item-tab-equip .equipment-inventory-grid { grid-template-columns: minmax(0, 1fr); }
+  :root body :is(#item-tab-equip, #stump-equip-host) .equipment-inventory-grid { grid-template-columns: minmax(0, 1fr); }
 }
 
 @media (max-width: 1080px) and (orientation: landscape) and (max-height: 600px) {

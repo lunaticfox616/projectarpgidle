@@ -70,6 +70,29 @@ start(10,'direct');
 while(tick<600 && !run('game.enemies.some(enemy=>enemy.hp>0&&enemy.explorationPack)'))advance();
 run('clearDefeatedEncounter();game=mergeDefaults(JSON.parse(serializeSaveState(game)));');
 
+// Cerberus has one target per phase. A legacy save's living heads fold into that target only once,
+// keeping damage already dealt and unpaid rewards; the extra records never enter the target list.
+start(1,'direct');
+run(`game.currentZoneId='s6_beast_cerberus';game.season=6;game.loopCount=5;startEncounterRun(true);`);
+assert.deepEqual(copy('game.actExploration.packs.filter(p=>p.stage!==null).map(p=>p.aliveIds.length)'),[1,1,1]);
+run(`{
+    const pack=game.actExploration.packs.find(p=>p.stage===0),body=pack.waiting[0],parts=body.cerberusRewards;
+    body.hp-=7;
+    body.cerberusHeadIndex=2;
+    // Reconstitute the pre-integration save shape, not a mock of the migration owner.
+    body.hp-=parts.reduce((sum,e)=>sum+e.hp,0);body.maxHp-=parts.reduce((sum,e)=>sum+e.maxHp,0);
+    delete body.cerberusRewards;pack.waiting.push(...parts);pack.aliveIds.push(...parts.map(e=>e.id));pack.eliteIds.push(...parts.map(e=>e.id));
+}`);
+const cerberusHp=run('game.actExploration.packs[0].waiting.reduce((sum,e)=>sum+e.hp,0)');
+run('game=mergeDefaults(JSON.parse(serializeSaveState(game)));');
+assert.equal(run('game.actExploration.packs[0].waiting.length'),1);
+assert.equal(run('game.actExploration.packs[0].waiting[0].hp'),cerberusHp);
+assert.equal(run('game.actExploration.packs[0].waiting[0].cerberusRewards.length'),2);
+assert.equal(run('game.actExploration.packs[0].waiting[0].cerberusHeadIndex'),2,'reload preserves the next attached head');
+const cerberusSaved=copy('game.actExploration');
+run('game=mergeDefaults(JSON.parse(serializeSaveState(game)));');
+assert.deepEqual(copy('game.actExploration'),cerberusSaved,'repeated load cannot heal or duplicate the heads');
+
 // Manual mode waits for a destination, stops there, and resumes when switched to full exploration.
 start(1,'manual');
 const entry=copy('game.gridPlayer');

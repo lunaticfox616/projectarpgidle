@@ -139,13 +139,40 @@ const stumpCube = (() => {
         return '';
     }
 
+    function entryAt(list, cell) {
+        const x = cell % SIZE, y = Math.floor(cell / SIZE);
+        return list.find(entry => x >= entry.x && x < entry.x + entry.w && y >= entry.y && y < entry.y + entry.h) || null;
+    }
+
     /** Takes out whatever covers the cell (the item stays in its own storage). */
     function takeOut(state, cell) {
-        const x = cell % SIZE, y = Math.floor(cell / SIZE);
-        const hit = entries(state).find(entry => x >= entry.x && x < entry.x + entry.w && y >= entry.y && y < entry.y + entry.h);
+        const hit = entryAt(entries(state), cell);
         if (!hit) return false;
         of(state).slots = of(state).slots.filter(slot => !(slot.kind === hit.kind && slot.id === hit.id));
         return true;
+    }
+
+    /** Pure: where moving what covers `from` so its top left lands on `to` would put things. A same-size item sitting exactly there swaps
+     * places with it (2026-10-29 사용자: 조합창 아이템도 끌어서 옮기기). @returns {?{ hit: object, x: number, y: number, other: ?object }} */
+    function planMove(list, from, to) {
+        const hit = entryAt(list, from), x = to % SIZE, y = Math.floor(to / SIZE);
+        if (!hit || !(to >= 0 && to < SIZE * SIZE)) return null;
+        const others = list.filter(entry => entry !== hit);
+        if (spotFits(new Set(others.flatMap(entry => coveredCells(entry.x, entry.y, entry.w, entry.h))), x, y, hit.w, hit.h)) return { hit, x, y, other: null };
+        const other = entryAt(others, to);
+        return other && sameSpot(other, hit, x, y) ? { hit, x, y, other } : null;
+    }
+    /** A swap partner sits with its top left exactly on (x, y) and has the moved item's size. */
+    function sameSpot(other, hit, x, y) { return other.x === x && other.y === y && other.w === hit.w && other.h === hit.h; }
+    function canMove(state, from, to) { return !!planMove(readContents(state).list, from, to); }
+    /** Moves (or swaps) a cube item. @returns {string} '' on success, else the reason. */
+    function move(state, from, to) {
+        const plan = planMove(entries(state), from, to);
+        if (!plan) return '그 자리에는 들어가지 않습니다.';
+        const slotOf = entry => of(state).slots.find(slot => slot.kind === entry.kind && slot.id === entry.id);
+        if (plan.other) Object.assign(slotOf(plan.other), { x: plan.hit.x, y: plan.hit.y });
+        Object.assign(slotOf(plan.hit), { x: plan.x, y: plan.y });
+        return '';
     }
 
     /** Empties the cells; what the player has learned stays. */
@@ -354,7 +381,33 @@ const stumpCube = (() => {
         return '';
     }
 
-    return Object.freeze({ SIZE, KINDS, empty, normalize, of, entries, put, takeOut, clear, match, missingRecipes, preview, missingCost, transmute, candidates, footprint,
-        isRevealed, revealed, learn, readyCubeSets, fillCubeRecipe });
+    // ── 바로 합치기(2026-10-29 사용자: 그루터기 함 틀의 아래 보석, 즉석 씨앗과 수액 합치기) ─────────────
+    const MERGE_ID = 'stump_merge';
+    /** Three stored seeds or saps alike (colour, family, path) for 씨앗과 수액 합치기, the plainest first (cubeSpendOrder). With pickId
+     * (a stored item the player picked) the three include it; otherwise the first set of three. Items in the cube stay there. */
+    function mergeSet(state, pickId) {
+        const rule = STUMP_CUBE_RECIPES.find(recipe => recipe.id === MERGE_ID).inputs[0];
+        const fitting = candidates('stump', state).map(item => ({ kind: 'stump', item })).filter(entry => fitsRule(rule, entry)).sort(cubeSpendOrder);
+        const picked = fitting.find(entry => entry.item.id === pickId);
+        if (!picked) return pickCubeRow(rule, fitting);
+        const key = entry => rule.same.map(name => SAME_KEYS[name](entry)).join('|');
+        const alike = fitting.filter(entry => entry !== picked && key(entry) === key(picked)).slice(0, rule.count - 1);
+        return alike.length === rule.count - 1 ? [picked, ...alike] : null;
+    }
+    /** Merges three stored seeds or saps now (mergeSet). @returns {{ok: boolean, reason?: string, recipe?: object, item?: object}} */
+    function mergeNow(state = game, pickId = null, random = Math.random) {
+        if (state.woodsmanBuildLock) return { ok: false, reason: LOCK_REASON };
+        const set = mergeSet(state, pickId);
+        if (!set) return { ok: false, reason: '같은 색, 같은 종류의 씨앗이나 수액 3개가 보관함에 없습니다.' };
+        const result = stumpCubeRecipes.run(MERGE_ID, [set], state, random);
+        if (!result.ok) return result;
+        result.consumed.forEach(entry => REMOVERS.stump(state, entry.item));
+        const item = storeStump(state, result.outputs[0]);
+        stumpBox.invalidatePlacementUndo(state);
+        return { ok: true, recipe: STUMP_CUBE_RECIPES.find(recipe => recipe.id === MERGE_ID), item };
+    }
+
+    return Object.freeze({ SIZE, KINDS, empty, normalize, of, entries, put, takeOut, canMove, move, clear, match, missingRecipes, preview, missingCost, transmute, candidates, footprint,
+        isRevealed, revealed, learn, readyCubeSets, fillCubeRecipe, mergeNow });
 })();
 safeExposeGlobals({ stumpCube });

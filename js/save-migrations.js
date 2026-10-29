@@ -519,6 +519,25 @@ function normalizeGrandBreachCounters(run) {
     // Combat-clock deadline of the survival phase; a broken one is set again (full time) on the next tick
     if (!Number.isFinite(run.survivalEndsAt)) delete run.survivalEndsAt;
 }
+/** A wave's announced mouths and clock survive a reload together. Old or damaged plans fall back to one bounded old-style refill. */
+function normalizeGrandBreachRefillPlan(run) {
+    if (!Number.isFinite(run.nextRefillAt) || run.nextRefillAt < 0) run.nextRefillAt=0;
+    const plan=run.refillPlan;
+    if (!run.inRun || run.phase!=='survival' || getGrandBreachProgress(run.gauge).complete
+        || !isSavedGrandBreachRefillPlan(plan,run.nextRefillAt)) {
+        delete run.refillPlan;
+        return;
+    }
+    run.refillPlan={portalIndices:[...plan.portalIndices],at:plan.at,turn:plan.turn};
+}
+function isSavedGrandBreachRefillPlan(plan, at) {
+    return !!plan && Number.isFinite(plan.at) && plan.at===at && Number.isSafeInteger(plan.turn) && plan.turn>=0
+        && isSavedGrandBreachPortalPair(plan.portalIndices);
+}
+function isSavedGrandBreachPortalPair(indices) {
+    return Array.isArray(indices) && indices.length===2 && indices[0]!==indices[1]
+        && indices.every(index=>Number.isInteger(index) && index>=0 && index<6);
+}
 /** Save boundary: an absent/invalid old receipt is unknown, never an inferred payout. */
 function normalizeVoidRiftSave(state) {
     state.voidRift = (state.voidRift && typeof state.voidRift === 'object') ? state.voidRift : {};
@@ -527,6 +546,7 @@ function normalizeVoidRiftSave(state) {
     if (!run || typeof run !== 'object') return;
     run.survivalStarted = wasGrandBreachSurvivalStarted(run);
     normalizeGrandBreachCounters(run);
+    normalizeGrandBreachRefillPlan(run);
     delete run.timeLeft;
     delete run.lastTickAt;
     const paid = run.rewardVoidChisel;
@@ -769,6 +789,25 @@ mergeDefaults.supportRunes = (() => {
 
     return { migrate, finishLoadout, summon };
 })();
+
+/** Restore only valid ordinary windups. Boss pattern casts have a different shape (no targetCell).
+ * Bad windups restart from an empty gauge; never turn a broken ranged cast into an instant hit. */
+mergeDefaults.enemyCasts = function (state) {
+    // The exploration owner has already unsealed, retired and validated the saved map.
+    const map = state.actExploration ? actExplorationMap.forRun(state.actExploration) : COMBAT_GRID_CONFIG;
+    const packs = state.actExploration?.packs || [];
+    [state.enemies, ...packs.map(pack => pack.waiting)].flat().forEach(enemy => {
+        const cast = enemy.attackCast;
+        if (!cast || enemy.isBoss) return;
+        const validClock = [cast.startAt, cast.finishAt].every(at => Number.isFinite(at) && at >= 0)
+            && cast.finishAt > cast.startAt;
+        const validTarget = [[cast.targetCell?.gx, map.columns], [cast.targetCell?.gy, map.rows]]
+            .every(([cell, limit]) => Number.isInteger(cell) && cell >= 0 && cell < limit);
+        if (validClock && validTarget) return;
+        console.warn('Invalid enemy cast discarded on load:', enemy.id);
+        Object.assign(enemy, { attackCast: null, attackTimer: 0 });
+    });
+};
 
 function mergeDefaults(save) {
     function clampFiniteNumber(value, fallback, min, max) {
@@ -1477,6 +1516,7 @@ function mergeDefaults(save) {
         actExplorationState.validate(merged.actExploration, save.enemies || []);
         merged.actExploration.packs.forEach(pack=>{pack.waiting=pack.waiting.map(normalizeEnemyRecord);});
     }
+    mergeDefaults.enemyCasts(merged);
     let aliveEnemyIds = new Set((merged.enemies || []).map(enemy => String(enemy.id)));
     function pruneEnemyRuntimeMap(rawMap, options = {}) {
         let map = (rawMap && typeof rawMap === 'object') ? rawMap : {};

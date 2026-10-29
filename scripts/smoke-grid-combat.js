@@ -20,7 +20,7 @@ const files = [
   'data/core-items.js', 'data/talismans.js', 'data/stump-cube.js',
   'data/passives.js',
   'data/passive-tree-v22.js',
-  'data/bosses.js', 'data/monster-sprites.js', 'data/monster-stage-roster.js', 'data/stage-view.js', 'data/knitting.js',
+  'data/bosses.js', 'data/monster-sprites.js', 'data/monster-combat-roles.js', 'data/monster-stage-roster.js', 'data/stage-view.js', 'data/knitting.js',
   'data/rewards.js',
   'data/talent-cards.js',
   'data/content-progression.js',
@@ -339,8 +339,14 @@ const cfg = context.COMBAT_GRID_CONFIG;
     '지하계 1층을 통과할 때 사용한 중력 완화 수단은 5차 전직 시련에서도 유효해야 한다');
   assert.ok(bloomEstimate.dps >= underworldEntry.dps * 0.9 && bloomEstimate.dps <= underworldEntry.dps,
     '5차 전직 보스의 권장 DPS는 지하계 1층의 90~100% 범위여야 한다');
-  assert.ok(bloomEstimate.ehp >= underworldEntry.ehp * 0.9 && bloomEstimate.ehp <= underworldEntry.ehp,
-    '함정 압박을 고려해 5차 전직 보스의 권장 EHP는 지하계 1층보다 약간 낮아야 한다');
+  // 근접 전환 뒤 충전 속도를 낮췄다. 비행 대기를 세지 않는 기존 추정식의 90% 하한 대신 최대 한 방과 연타를 따로 지킨다.
+  assert.ok(bloomEstimate.ehp >= bloomEstimate.peakHit && bloomEstimate.ehp <= underworldEntry.ehp,
+    '5차 전직 보스의 권장 EHP는 최대 한 방 이상이며 함정 압박을 고려해 지하계 1층 이하여야 한다');
+  const fasterBloom = context.estimateMapZonePowerRequirements({ ...bloomTrial,
+    bossMods: { ...bloomTrial.bossMods, attackSpeedMul: 1 } });
+  assert.ok(fasterBloom.ehp > bloomEstimate.ehp, '더 긴 공격 간격은 연속 피격의 권장 EHP를 낮춰야 한다');
+  assert.strictEqual(fasterBloom.dps, bloomEstimate.dps, '공격 간격은 요구 DPS를 바꾸면 안 된다');
+  assert.strictEqual(fasterBloom.peakHit, bloomEstimate.peakHit, '공격 간격은 최대 한 방의 피해를 바꾸면 안 된다');
   assert.ok(bloomEstimate.peakHit >= underworldEntry.peakHit * 0.9 && bloomEstimate.peakHit <= underworldEntry.peakHit,
     '5차 전직 보스의 파쇄 강타는 지하계 1층 최대 피격량을 넘으면 안 된다');
   assert.strictEqual(bloomTrial.bossMods.patternMode, 'slam', '5차 전직 보스는 고정된 강공격 패턴을 가져야 한다');
@@ -2798,6 +2804,187 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
     'pursuit survives a save, pays one completed-wave reward, never accumulates, and clears on exit');
 }
 
+// An area hit settles every dead bee before clearing the wave or preparing another choice.
+{
+  for (const stage of [false, true]) {
+    const runtime = buildGameRuntime({'data/constants.js':fs.readFileSync('data/constants.js','utf8')
+      +'\nwindow.Image=function(){this.complete=true;this.naturalWidth=1;this.naturalHeight=1;this.addEventListener=()=>{};};'});
+    runtime.Math = Object.create(Math);
+    runtime.Math.random = () => 0.75;
+    runtime.document.body.insertAdjacentHTML = () => {};
+    for (const file of ['data/stage-room-plans.js','data/stage-regions.js','data/monster-stage-roster.js',
+      'js/stage-region-fit.js','js/act-exploration-room-plans.js'])
+      vm.runInContext(fs.readFileSync(file,'utf8'),runtime,{filename:file});
+    runtime.hiveStage = stage;
+    for (const lastTwo of [true, false]) {
+      runtime.hiveLastTwo = lastTwo;
+      const settled = JSON.parse(JSON.stringify(vm.runInContext(`(() => {
+        game=mergeDefaults({season:8,level:100,selectedClassId:'warrior',combatTimeMs:1800000000000,
+          settings:{stageRooms:hiveStage?'on':'off',stageRoomPlan:'1',autoMove:true,pauseGameOnOverlay:false}});
+        window.game=game;gameplayStarted=true;startupOverlayActive=false;
+        resetCombatRuntimesForLoadedSave();lastTime=game.combatTimeMs;
+        game.currencies.hiveKey=1;startBeehiveRun();
+        const stage=!!getBeehiveRoomRun()&&!!actExplorationMap.forRun(game.actExploration).stage;
+        const results=[];
+        for(let step=1;step<=10;step++) {
+          const choice=game.beehive.pendingChoice.b;
+          resolveBeehiveChoice('b',choice.penalty.key);
+          if(hiveStage)game.actExploration.mode='full';
+          const start=game.combatTimeMs;
+          for(let ms=100;ms<=30000&&!game.enemies.length;ms+=100) {
+            advancePlayerExplorationFrame(start+ms,getPlayerStats(false));
+            combatEquipmentStats.withinTick(()=>coreLoop(start+ms));
+          }
+          const wave=[...game.enemies],stats=getPlayerStats(false);
+          if(wave.length<2)throw Error('Hive wave '+step+' did not reach the actual battlefield');
+          const before=JSON.stringify([game.enemies,game.beehive,game.currencies]);
+          onBeehiveWaveCleared();
+          const held=before===JSON.stringify([game.enemies,game.beehive,game.currencies]);
+          if(hiveLastTwo)for(const enemy of wave.slice(0,-2)){enemy.hp=0;handleEnemyDeath(enemy,stats);}
+          const victims=[...game.enemies],kills=game.loopKills||0;
+          const dew=game.currencies.formlessDew,ledger=game.beehive.rewardLedger.length;
+          for(const enemy of victims)enemy.hp=0;
+          handleEnemyDeath(victims[0],stats);
+          const packs=game.actExploration?.packs.filter(pack=>wave.some(enemy=>enemy.explorationPack===pack.key))||[];
+          const cleared=packs.every(pack=>pack.aliveIds.length===0&&pack.waiting.length===0);
+          const credited=(game.loopKills||0)-kills===victims.length;
+          const rewarded=game.beehive.pendingWaveReward===null&&game.beehive.rewardLedger.length===ledger+1
+            &&(step!==1||game.currencies.formlessDew===dew+1);
+          const snapshot=JSON.stringify([game.loopKills,game.currencies,game.beehive.rewardLedger]);
+          for(const enemy of victims)handleEnemyDeath(enemy,stats);
+          onBeehiveWaveCleared();
+          game=mergeDefaults(JSON.parse(serializeSaveState(game)));window.game=game;recoverRuntimeState();
+          onBeehiveWaveCleared();
+          const once=snapshot===JSON.stringify([game.loopKills,game.currencies,game.beehive.rewardLedger]);
+          const records=[...game.enemies,...(game.actExploration?.packs.flatMap(pack=>pack.waiting)||[])];
+          const next=step<10 ? !!game.beehive.pendingChoice&&!game.beehive.awaitingClear&&game.enemies.length===0&&countBeehiveWaveAlive()===0
+            : game.beehive.queenActive&&game.beehive.awaitingClear&&records.length===1&&records[0].isBoss;
+          results.push({held,credited,rewarded,cleared,once,next});
+        }
+        return {stage,results};
+      })()`, runtime)));
+      const label = `${stage?'stage':'board'} / ${lastTwo?'last two':'whole wave'}`;
+      assert.strictEqual(settled.stage,stage,`${label}: use the requested production battlefield`);
+      assert.deepStrictEqual(settled.results,Array.from({length:10},()=>({held:true,credited:true,rewarded:true,cleared:true,once:true,next:true})),
+        `${label}: every victim settles once, dead pack ids survive no save, and ten waves reach the queen`);
+    }
+  }
+}
+
+// The expedition's real bees aim once, can be dodged, and keep the old wave's saved attacks intact.
+{
+  const { runtime, run } = require('./lib/replay-fixture')(77);
+  runtime.document.body.insertAdjacentHTML = () => {};
+  const result = JSON.parse(run(`JSON.stringify((() => {
+    game=mergeDefaults({});window.game=game;game.settings.stageRooms='off';
+    const lockedBefore=JSON.stringify(game);startBeehiveRun();
+    const locked=lockedBefore===JSON.stringify(game);
+    game.season=8;game.level=100;game.currencies.hiveKey=1;startBeehiveRun();
+    const choice=game.beehive.pendingChoice.a;resolveBeehiveChoice('a',choice.penalty.key);
+    const wave=game.enemies,shots=[],interrupts=[];
+    const fields=enemy=>[enemy.monsterVisualId,enemy.attackKind,enemy.attackRange,enemy.attackDelivery,enemy.attackCastMs,getGridUnitStepSec(enemy)];
+    const profiles=wave.filter(enemy=>enemy.attackKind==='ranged').map(fields);
+    const defense={maxHp:1000000,energyShield:0,dr:0,armor:0,evasion:0,evadeChance:0,
+      resF:0,resC:0,resL:0,resChaos:0,chillEffectReducePct:0,physTakenAs:{}};
+    for(const visual of ['hive-scout','hive-nurse'])for(const move of [true,false]) {
+      const enemy=JSON.parse(JSON.stringify(wave.find(row=>row.monsterVisualId===visual)));
+      Object.assign(enemy,{gx:4,gy:3,attackTimer:1,attackCast:null,ailments:[]});game.enemies=[enemy];
+      game.gridPlayer={gx:1,gy:3,gridMoveTimer:0};game.playerHp=1000000;game.playerEnergyShield=0;
+      game.combatTimeMs=1000;pendingEnemyCombatAttacks=[];performMonsterAttacks(defense);
+      const prepared=enemy.attackCast.finishAt===1000+enemy.attackCastMs;
+      const restored=mergeDefaults(JSON.parse(serializeSaveState(game)));
+      const savedWindup=JSON.stringify(restored.enemies[0].attackCast)===JSON.stringify(enemy.attackCast);
+      if(move)game.gridPlayer.gy=5;
+      game.combatTimeMs=1000+enemy.attackCastMs;performMonsterAttacks(defense);
+      const attack=pendingEnemyCombatAttacks[0],released=game.playerHp===1000000;
+      const warned=visual!=='hive-nurse'||(attack.groundCell&&attack.at===game.combatTimeMs+900);
+      enemy.hp=0;game.enemies=[];game.combatTimeMs=5000;performMonsterAttacks(defense);
+      const hp=game.playerHp;performMonsterAttacks(defense);
+      shots.push(prepared&&savedWindup&&released&&warned&&attack.targetCell.gy===3&&
+        (move?hp===1000000:hp<1000000)&&game.playerHp===hp&&pendingEnemyCombatAttacks.length===0);
+      for(const type of ['freeze','stun','silence']) {
+        Object.assign(enemy,{hp:enemy.maxHp,attackTimer:1,attackCast:null,ailments:[]});game.enemies=[enemy];
+        game.gridPlayer.gy=3;performMonsterAttacks(defense);
+        enemy.ailments=[{type,time:1}];performMonsterAttacks(defense);
+        interrupts.push(enemy.attackCast===null&&enemy.attackTimer===0&&pendingEnemyCombatAttacks.length===0);
+      }
+    }
+    game.enemies=wave;
+    const old=wave.find(enemy=>enemy.monsterVisualId==='hive-nurse');
+    Object.assign(old,{attackDelivery:'projectileTarget',attackCastMs:0,attackCastSpecial:false,attackLabel:''});
+    const before=JSON.stringify(wave.map(fields));
+    game=mergeDefaults(JSON.parse(serializeSaveState(game)));window.game=game;ensureCombatGridRuntime();
+    const saved=before===JSON.stringify(game.enemies.map(fields));
+    const isolated=['colony',null].every(set=>{
+      const bee={...old,monsterVisualSetId:set};assignEnemyGridCombatProfile(bee);
+      return MONSTER_COMBAT_ROLES.of(bee)===null&&bee.attackDelivery==='projectileTarget'&&bee.attackCastMs===0;
+    });
+    return {locked,profiles,shots,interrupts,saved,isolated};
+  })())`));
+  assert.deepStrictEqual(result.profiles,[
+    ['hive-scout','ranged',3,'projectileCell',450,cfg.enemyMoveIntervalSec],
+    ['hive-nurse','ranged',3,'magicCell',650,cfg.enemyMoveIntervalSec]
+  ],'new hive waves use two distinct attacks with the same range and movement');
+  assert(result.shots.every(Boolean),'both hive attacks lock aim, miss a moved hero, and hit once after release even if their source dies');
+  assert(result.interrupts.every(Boolean),'freeze, stun and silence cancel either hive windup before release');
+  assert(result.locked&&result.saved&&result.isolated,'locked entry does no work, saved attacks persist, and other content retains its own bees');
+}
+
+// A fresh boot must not replace a board-mode hive wave with the ordinary progress plan just because its plan is empty.
+{
+  const hiveFixture = () => {
+    const env = require('./lib/replay-fixture')(77);
+    env.runtime.Math.random = () => 0.75;
+    env.runtime.document.body.insertAdjacentHTML = () => {};
+    return env;
+  };
+  const reload = saved => {
+    const env = hiveFixture();env.runtime.savedHive = saved;
+    env.run('game=JSON.parse(savedHive);recoverRuntimeState();');
+    return env;
+  };
+  const source = hiveFixture();
+  source.run(`game=mergeDefaults({season:8,level:100});window.game=game;
+    game.settings.stageRooms='off';game.currencies.hiveKey=1;startBeehiveRun();`);
+  const waitingSave = source.run('serializeSaveState(game)');
+  source.run(`{const choice=game.beehive.pendingChoice.b;resolveBeehiveChoice('b',choice.penalty.key);ensureCombatGridRuntime();
+    const nurse=game.enemies.find(enemy=>enemy.monsterVisualId==='hive-nurse');nurse.attackTimer=1;
+    enemyAttackRules.ready(nurse,getCombatTime(),game.gridPlayer);}`);
+  const snapshot = `JSON.stringify(game.enemies.map(enemy=>[enemy.id,enemy.gx,enemy.gy,enemy.attackRange,
+    enemy.attackDelivery,enemy.attackCastMs,enemy.attackCast]))`;
+  const fight = reload(source.run('serializeSaveState(game)'));
+  assert.strictEqual(fight.run(snapshot),source.run(snapshot),'a fresh runtime preserves the paid hive wave and its in-progress windup');
+  assert.strictEqual(fight.run('game.encounterPlan.length'),0,'hive waves never become the ordinary progress plan');
+  const paid = JSON.parse(fight.run(`JSON.stringify((()=>{
+    const dew=game.currencies.formlessDew;for(const enemy of [...game.enemies]){enemy.hp=0;handleEnemyDeath(enemy,getPlayerStats());}
+    const gained=game.currencies.formlessDew-dew,ledger=game.beehive.rewardLedger.length;
+    recoverRuntimeState();onBeehiveWaveCleared();
+    return {gained,once:game.currencies.formlessDew===dew+gained&&game.beehive.rewardLedger.length===ledger,
+      choice:!!game.beehive.pendingChoice,empty:game.enemies.length===0&&game.encounterPlan.length===0};
+  })())`));
+  assert.deepStrictEqual(paid,{gained:1,once:true,choice:true,empty:true},'the restored wave pays once and stays at the next hive choice');
+  const waiting = reload(waitingSave);
+  assert(waiting.run('game.beehive.inRun&&!!game.beehive.pendingChoice&&game.enemies.length===0&&game.encounterPlan.length===0'),
+    'a saved initial hive choice is owned by the expedition');
+  waiting.run(`for(let wave=0;wave<10;wave++){
+    const key=['a','b','c'].find(key=>canPayBeehivePenalty(game.beehive.pendingChoice[key].penalty));
+    if(!key)throw Error('No payable hive choice');resolveBeehiveChoice(key,game.beehive.pendingChoice[key].penalty.key);
+    for(const enemy of [...game.enemies]){enemy.hp=0;handleEnemyDeath(enemy,getPlayerStats());}
+  }`);
+  const queen = reload(waiting.run('serializeSaveState(game)'));
+  assert(queen.run('game.beehive.queenActive&&game.beehive.awaitingClear&&game.enemies.length===1&&game.enemies[0].isBoss'),
+    'a saved queen fight survives the same fresh boot');
+  assert.strictEqual(queen.run(snapshot),waiting.run(snapshot));
+  queen.run("exitBeehiveRun('','attack-monster');");
+  const exited = reload(queen.run('serializeSaveState(game)'));
+  assert(exited.run("!game.beehive.inRun&&game.currentZoneId!=='beehive_run'&&!!(game.actExploration||game.encounterPlan.length)"),
+    'leaving the hive still recovers the ordinary destination');
+  exited.run(`game=mergeDefaults({});game.currentZoneId='beehive_run';game.enemies=[];game.encounterPlan=[];
+    game.moveTimer=0;game.beehive={inRun:true,returnZoneId:0};ensureEncounterRun();`);
+  assert(exited.run("!game.beehive.inRun&&game.currentZoneId===0&&!!(game.actExploration||game.encounterPlan.length)"),
+    'stale hive flags do not block ordinary recovery');
+}
+
 // Special encounter loot is owned by the run until its boss dies. A saved floor must still block the next wave.
 {
   const runtime = buildGameRuntime();
@@ -2893,5 +3080,211 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
     assert.deepStrictEqual(result,{returned:true,finished:true,phase:won?'done':'failed',paid:won?3:0,held:0,entry:false},
       'town return abandons unreleased loot, collects won loot once and persists a closed challenge');
   }
+}
+// A saved arena wave must emerge from the mouths it announced, even when a kill crosses the next crowd stage.
+{
+  const runtime = buildGameRuntime();
+  for (const file of ['data/stage-room-plans.js', 'data/stage-regions.js', 'js/act-exploration-room-plans.js'])
+    vm.runInContext(fs.readFileSync(file, 'utf8'), runtime, { filename: file });
+  for (const gauge of [66, 133]) {
+    runtime.breachBoundaryGauge = gauge;
+    const result = JSON.parse(vm.runInContext(`JSON.stringify((() => {
+      game=mergeDefaults({heroSelectionInitialized:true,selectedHeroId:'hero1',selectedClassId:'warrior',
+        season:10,loopCount:9,currentZoneId:29,maxZoneId:39,combatTimeMs:1800000000000});window.game=game;
+      stageActors.available=()=>true;game.settings.stageRooms='on';game.voidRift.grandBreachUnlock=true;
+      enterGrandBreach();startEncounterRun();const zone=getZone('grand_breach_run');
+      game.voidRift.grandRun.gauge=breachBoundaryGauge;tickGrandBreachRun(zone);
+      const opening=game.enemies.length,openingElites=game.enemies.filter(enemy=>enemy.isElite).length;
+      game.enemies=game.enemies.filter(enemy=>!enemy.isElite).slice(0,10);game.combatTimeMs+=300;
+      const unitRows=()=>game.enemies.map(enemy=>({id:enemy.id,gx:enemy.gx,gy:enemy.gy,hp:enemy.hp,maxHp:enemy.maxHp,
+        attackKind:enemy.attackKind,attackRange:enemy.attackRange,attackDelivery:enemy.attackDelivery,attackCastMs:enemy.attackCastMs}));
+      const plan=JSON.stringify(game.voidRift.grandRun.refillPlan),units=JSON.stringify(unitRows());
+      game=mergeDefaults(JSON.parse(serializeSaveState(game)));window.game=game;
+      const grand=game.voidRift.grandRun,restored=plan===JSON.stringify(grand.refillPlan)&&units===JSON.stringify(unitRows());
+      const field=getGrandBreachArena(zone),pair=[...grand.refillPlan.portalIndices],ids=new Set(game.enemies.map(enemy=>enemy.id));
+      grand.gauge++;game.combatTimeMs=grand.nextRefillAt-1;tickGrandBreachRun(zone);
+      const early=game.enemies.length===10&&plan===JSON.stringify(grand.refillPlan);
+      game.combatTimeMs++;tickGrandBreachRun(zone);const added=game.enemies.filter(enemy=>!ids.has(enemy.id));
+      const selected=added.every(enemy=>pair.some(index=>gridChebyshevDist(enemy.gx,enemy.gy,field.portals[index].gx,field.portals[index].gy)<=3));
+      return {opening,openingElites,restored,early,added:added.length,elites:added.filter(enemy=>enemy.isElite).length,selected,
+        walkable:added.every(enemy=>actExplorationMap.walkable(field.map,enemy)),
+        unique:new Set(game.enemies.map(enemy=>enemy.id)).size===game.enemies.length,
+        nextPair:grand.refillPlan.portalIndices,interval:grand.nextRefillAt-game.combatTimeMs};
+    })())`, runtime));
+    assert.deepStrictEqual(result, {opening:24,openingElites:6,restored:true,early:true,added:10,elites:3,selected:true,
+      walkable:true,unique:true,nextPair:gauge===66?[1,3]:[2,3],interval:900},
+    'saved warnings retain their two mouths until release; the following wave adopts the new gauge stage without changing its budget');
+  }
+}
+// Object waves survive a fresh recovery and finish once; a nest must not turn a whole wave into wisps through correlated indices.
+for (const kind of ['nest', 'ambush']) {
+  const env = require('./lib/replay-fixture')(701);
+  env.runtime.Math.random = () => 0.66;
+  env.runtime.objectKind = kind;
+  env.run(`game=mergeDefaults({heroSelectionInitialized:true,selectedHeroId:'hero1',selectedClassId:'warrior',
+    season:5,currentZoneId:4,maxZoneId:9,level:100,settings:{stageRooms:false,pauseGameOnOverlay:false,autoMove:false}});
+    startEncounterRun();game.actExploration.mode='manual';game.playerHp=getPlayerStats().maxHp;game.combatHalted=false;
+    const objectRun=game.actExploration;
+    objectRun.objects=actExplorationState.objects.create(objectRun,{seed:objectKind==='nest'?36:0,loop:5,
+      allowEvent:true,excludedRooms:[],quantity:1,rarity:0,chest:null});
+    window.eventRow=objectRun.objects.entries.find(row=>row.kind===objectKind);
+    if(!eventRow)throw Error('Object fixture did not generate its event');
+    const objectMap=actExplorationMap.forRun(objectRun),objectBlocked=getGridBlockedCells();
+    const beside=actExplorationMap.neighbors(objectMap,eventRow).find(cell=>!objectBlocked.has(cell.gx+','+cell.gy));
+    Object.assign(game.gridPlayer,beside);actExplorationState.discover(objectRun,beside);
+    if(objectKind==='nest'&&!actExplorationProgress.objects.request(eventRow.id))throw Error('Nest click rejected');
+    actExplorationProgress.objects.step(objectRun,objectKind==='nest'?900:1200);`);
+  const initial = JSON.parse(env.run('JSON.stringify(game.enemies.map(enemy=>[enemy.id,enemy.variantSeed,enemy.spriteVariantId,enemy.attackDelivery,enemy.gx,enemy.gy]))'));
+  assert.strictEqual(initial.length, kind === 'nest' ? 3 : 4);
+  assert(new Set(initial.map(enemy => enemy[1] % 5)).size > 1, 'one object wave cannot share a wisp residue from a duplicated index');
+  const recoverObject = () => {
+    env.runtime.objectSave = env.run('serializeSaveState(game)');
+    const restored = buildGameRuntime();restored.objectSave = env.runtime.objectSave;
+    vm.runInContext('game=JSON.parse(objectSave);recoverRuntimeState();', restored);
+    const before = JSON.parse(env.runtime.objectSave), after = JSON.parse(vm.runInContext('serializeSaveState(game)', restored));
+    assert.deepStrictEqual(after.actExploration.objects, before.actExploration.objects, 'object phase and wave survive a fresh boot');
+    assert.deepStrictEqual(after.actExploration.packs, before.actExploration.packs, 'event pack IDs and ownership survive a fresh boot');
+    assert.deepStrictEqual(after.enemies.map(({spawnStamp,...enemy})=>enemy), before.enemies.map(({spawnStamp,...enemy})=>enemy),
+      'saved enemies keep health, appearance, aim and placement; only the entrance animation clock resets');
+    env.run('game=JSON.parse(objectSave);recoverRuntimeState();window.eventRow=game.actExploration.objects.entries.find(row=>row.kind===objectKind);');
+  };
+  recoverObject();
+  for (let wave = 0; wave < (kind === 'nest' ? 2 : 1); wave++) {
+    env.run(`for(const enemy of [...game.enemies].filter(enemy=>enemy.explorationPack?.startsWith(eventRow.id+':'))){
+      enemy.hp=0;handleEnemyDeath(enemy,getPlayerStats());}`);
+    if (kind === 'nest' && wave === 0) {
+      assert.strictEqual(env.run('eventRow.phase'), 'warning');
+      recoverObject();
+      env.run('actExplorationProgress.objects.step(game.actExploration,900);');
+      assert.strictEqual(env.run('game.enemies.length'), 3, 'the resumed nest emits exactly its remaining wave');
+    }
+  }
+  assert.strictEqual(env.run('eventRow.phase'), 'spent');
+  assert.strictEqual(env.run('eventRow.wave'), kind === 'nest' ? 2 : 1);
+  const settled = env.run('serializeSaveState(game)');
+  env.run('actExplorationProgress.objects.afterDeath(game.actExploration);actExplorationProgress.objects.afterDeath(game.actExploration);');
+  assert.strictEqual(env.run('serializeSaveState(game)'), settled, 'repeated event completion cannot duplicate rewards');
+  recoverObject();
+}
+
+// Species change the fight through approach, reach and aim, without adding damage or persistent role state.
+{
+  const roleEnemy = (id, visual, gx = 5, gy = 3) => {
+    const enemy = makeEnemy(id, gx, gy, { spriteVariantId: visual, attackTimer: 1 });
+    context.assignEnemyGridCombatProfile(enemy);
+    return enemy;
+  };
+  const defense = { maxHp: 1000, energyShield: 0, dr: 0, armor: 0, evasion: 0, evadeChance: 0,
+    resF: 0, resC: 0, resL: 0, resChaos: 0, chillEffectReducePct: 0, physTakenAs: {} };
+  resetGame();
+  context.game.gridPlayer = { gx: 1, gy: 3, gridMoveTimer: 0 };
+  const pursuit = roleEnemy(91001, 'act1-ant'), front = roleEnemy(91002, 'act1-worm');
+  for (const enemy of [pursuit, front]) {
+    context.game.enemies = [enemy];
+    for (let tick = 0; tick < 4; tick++) context.advanceEnemyGridApproach(enemy, context.game.gridPlayer, 0);
+  }
+  assert(pursuit.gx < front.gx, 'pursuers close the same gap before the slower front line');
+  pursuit.gx = front.gx = 3;
+  assert(!context.isEnemyInGridAttackRange(pursuit) && context.isEnemyInGridAttackRange(front),
+    'the long front line can strike from two cells while pursuers must close to one');
+  assert.strictEqual(pursuit.damageMul, front.damageMul, 'roles do not multiply hit damage');
+
+  resetGame();
+  context.game.combatTimeMs = 1000;
+  const wallMap = context.actExplorationMap.layout(1, 0), wallZone = context.getZone(0), plan = context.getZoneExplorationPlan(wallZone);
+  plan.rotation = 0;
+  context.game.actExploration = context.actExplorationState.create(plan,
+    context.createExplorationPacks(wallZone, wallMap, plan.bossStages), 1000);
+  // The authored act-1 wall between these floor cells previously let a two-cell worm strike straight through it.
+  assert(!context.actExplorationMap.walkable(wallMap, { gx: 16, gy: 14 }));
+  context.game.gridPlayer = { gx: 16, gy: 15, gridMoveTimer: 0 };
+  context.game.playerHp = 1000; context.game.combatTimeMs = 10000;
+  const wallWorm = roleEnemy(91005, 'act1-worm', 16, 13);
+  context.game.enemies = [wallWorm];
+  assert(!context.isEnemyInGridAttackRange(wallWorm), 'two-cell melee requires an open strike line through terrain');
+  context.performMonsterAttacks(defense);
+  assert.strictEqual(context.game.playerHp, 1000, 'a nearby worm approaches instead of hitting through the wall');
+  const spearBoss = { ...wallWorm, isBoss: true, spriteVariantId: null, monsterVisualId: 's2_boss_storm' };
+  context.assignEnemyGridCombatProfile(spearBoss);
+  assert.strictEqual(spearBoss.attackRange, 2, 'the storm commander thrusts at two cells');
+  assert(!context.isEnemyInGridAttackRange(spearBoss), 'a boss spear cannot bypass the same terrain wall');
+  const room = wallMap.rooms.find(row => row.radiusX >= 2 && row.radiusY >= 2);
+  Object.assign(wallWorm, { gx: room.gx - 2, gy: room.gy });
+  Object.assign(spearBoss, { gx: room.gx - 2, gy: room.gy });
+  assert(context.isEnemyInGridAttackRange(spearBoss, { gx: room.gx, gy: room.gy }), 'the same spear reaches across an open two-cell gap');
+  assert(context.isEnemyInGridAttackRange(wallWorm, { gx: room.gx, gy: room.gy, isBoss: true, footprint: { columns: 2, rows: 2 } }),
+    'long melee measures the near cells of a multi-cell target');
+
+  resetGame();
+  vm.runInContext('pendingEnemyCombatAttacks = [];', context);
+  context.game.gridPlayer = { gx: 1, gy: 3, gridMoveTimer: 0 };
+  context.game.playerHp = 1000;
+  context.game.combatTimeMs = 1000;
+  const bomber = roleEnemy(91003, 'act9-chorus-bulbs');
+  context.game.enemies = [bomber];
+  context.performMonsterAttacks(defense);
+  assert(context.enemyAttackRules.castBar(bomber, 1000), 'a fixed-cell bombardment shows its existing cast bar before release');
+  context.game.gridPlayer.gy = 4;
+  context.game.combatTimeMs = 1650;
+  context.performMonsterAttacks(defense);
+  assert.strictEqual(context.game.playerHp, 1000, 'bombardment release itself does not hit');
+  context.game.combatTimeMs = 2550;
+  context.performMonsterAttacks(defense);
+  assert.strictEqual(context.game.playerHp, 1000, 'moving during the windup avoids the original aim instead of being retargeted at release');
+
+  bomber.attackTimer = 1;
+  context.performMonsterAttacks(defense);
+  context.game.combatTimeMs = 3200;
+  context.performMonsterAttacks(defense);
+  bomber.hp = 0;
+  bomber.ailments = [{ type: 'silence', time: 2 }];
+  context.game.enemies = [];
+  context.game.combatTimeMs = 4100;
+  context.performMonsterAttacks(defense);
+  assert(context.game.playerHp < 1000, 'released bombardment lands once even after its source dies or is silenced');
+  const afterImpact = context.game.playerHp;
+  context.performMonsterAttacks(defense);
+  assert.strictEqual(context.game.playerHp, afterImpact, 'the released hit cannot land twice');
+
+  bomber.hp = 100;
+  context.game.enemies = [bomber];
+  for (const type of ['freeze', 'stun', 'silence']) {
+    bomber.ailments = []; bomber.attackTimer = 1;
+    context.performMonsterAttacks(defense);
+    bomber.ailments = [{ type, time: 1 }];
+    context.performMonsterAttacks(defense);
+    assert.strictEqual(bomber.attackCast, null, `${type} interrupts bombardment before release`);
+    assert.strictEqual(bomber.attackTimer, 0, 'an interrupted bombardment must wind up again');
+  }
+  bomber.spriteVariantId = 'act1-ant';
+  context.assignEnemyGridCombatProfile(bomber);
+  assert(!bomber.attackCastSpecial && !bomber.attackLabel && !bomber.projectileToEdge,
+    'changing the picture clears the previous artillery and projectile profile');
+  const realm = roleEnemy(91004, 'act5-ant');
+  realm.monsterVisualSetId = 'colony';
+  context.assignEnemyGridCombatProfile(realm);
+  assert.strictEqual(context.getGridUnitStepSec(realm), cfg.enemyMoveIntervalSec, 'dedicated content keeps its own movement rules');
+}
+// A meteor sentinel moved into the first room must retain its owner and keep the boss gate shut after startup recovery.
+{
+  const runtime=buildGameRuntime();
+  for(const file of ['data/stage-room-plans.js','data/stage-regions.js','js/stage-region-fit.js','js/act-exploration-room-plans.js'])
+    vm.runInContext(fs.readFileSync(file,'utf8'),runtime,{filename:file});
+  const result=JSON.parse(JSON.stringify(vm.runInContext(`(()=>{
+    game=mergeDefaults({season:15,loopCount:14,level:100,currentZoneId:'meteor_fall_site',settings:{stageRooms:'on'}});window.game=game;
+    stageActors.available=()=>true;game.meteorSite.activeMeteorTier=20;startEncounterRun();
+    const [first,second]=game.actExploration.packs;
+    const mixed=[first,second].every(pack=>pack.waiting.some(enemy=>enemy.attackKind==='melee')&&pack.waiting.some(enemy=>enemy.attackKind==='ranged'));
+    const sentinelId=first.waiting.find(enemy=>enemy.monsterVisualId==='meteor-sentinel').id;
+    for(const pack of [first,second])actExplorationState.wake(game,[...pack.waiting]);
+    for(const enemy of [...game.enemies].filter(enemy=>enemy.id!==sentinelId)){enemy.hp=0;handleEnemyDeath(enemy,getPlayerStats());}
+    const saved=serializeSaveState(game);game=JSON.parse(saved);window.game=game;recoverRuntimeState();
+    const enemy=game.enemies.find(row=>row.id===sentinelId),run=game.actExploration;
+    const owner=enemy.explorationPack===run.packs[0].key&&run.packs[0].aliveIds.includes(enemy.id)&&run.packs[0].eliteIds.includes(enemy.id);
+    const held=actExplorationState.gateSealed(run);enemy.hp=0;handleEnemyDeath(enemy,getPlayerStats());
+    return {mixed,owner,held,opened:!actExplorationState.gateSealed(run),unpaid:game.meteorSite.entriesCleared===0};
+  })()`,runtime)));
+  assert.deepStrictEqual(result,{mixed:true,owner:true,held:true,opened:true,unpaid:true},
+    'mixed meteor rooms preserve ownership, gate progress and the boss-only encounter settlement across a save');
 }
 console.log('smoke-grid-combat passed');

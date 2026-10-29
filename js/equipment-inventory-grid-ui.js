@@ -16,7 +16,7 @@
     function toggleTouchArrange(button) {
         cancelCarry();
         touchArrange = !touchArrange;
-        document.getElementById('item-tab-equip').classList.toggle('touch-arrange', touchArrange);
+        ['item-tab-equip', 'stump-equip-host'].forEach(id => document.getElementById(id)?.classList.toggle('touch-arrange', touchArrange));
         button.setAttribute('aria-pressed', String(touchArrange));
         button.setAttribute('aria-label', touchArrange ? '배치 완료' : '배치 모드');
         button.querySelector('span').textContent = touchArrange ? '완료' : '배치';
@@ -117,13 +117,24 @@
     /** 떠서 나오는 선택한 장비(두 칸 창, 2026-10-11): 가방을 가리지 않는 자리를 먼저 찾는다. 가방 장비를 골랐으면 가방 왼쪽(장착 칸 위),
      * 낀 장비를 골랐으면 장착 칸 왼쪽, 거기에 자리가 없으면 가방 오른쪽. 어디에도 없으면 예전처럼 고른 칸 옆. */
     function getBesidePosition(size, bottom) {
-        const bag = document.querySelector('#item-tab-equip .equipment-inventory-panel');
+        const bag = document.querySelector('.equipment-inventory-panel'), stumpTab = bag?.closest('#tab-stump');
+        if (stumpTab) return besideStumpBag(stumpTab, bag, size, bottom);
         const side = focusedEquipmentSlot ? document.querySelector('#item-tab-equip .equipment-loadout-panel') : bag;
         if (!bag?.getClientRects().length || !side?.getClientRects().length) return null;
         const gap = 8, left = side.getBoundingClientRect().left - gap - size.width, right = bag.getBoundingClientRect().right + gap;
         const y = Math.max(gap, Math.min(bottom - size.height - gap, bag.getBoundingClientRect().top));
         if (left >= gap) return { x: left, y };
         return right + size.width <= innerWidth - gap ? { x: right, y } : null;
+    }
+
+    /** 그루터기 함 탭에 띄운 가방(왼쪽 보석, js/stump-box-ui.js): 선택한 장비는 그루터기 함 판을 가리지 않는다. 창 오른쪽, 아니면 왼쪽,
+     * 둘 다 자리가 없으면 가방 위 오른쪽 끝에 맞춘다. */
+    function besideStumpBag(tab, bag, size, bottom) {
+        const gap = 8, win = tab.getBoundingClientRect(), shelf = bag.getBoundingClientRect();
+        const y = Math.max(gap, Math.min(bottom - size.height - gap, shelf.top));
+        if (win.right + gap + size.width <= innerWidth - gap) return { x: win.right + gap, y };
+        if (win.left - gap - size.width >= gap) return { x: win.left - gap - size.width, y };
+        return { x: Math.max(gap, shelf.right - size.width), y };
     }
 
     function getFloatingPosition(rect, size, bottom) {
@@ -343,11 +354,15 @@
     /** 들고 있는 장비 아래의 채팅 창(js/social.js .social-chat-wrap: 대화, 붙인 아이템, 입력 줄): 어디에 놓아도 그 장비를 채팅에 붙인다
      * (2026-10-22 사용자 "아이템을 직접 채팅창에 끌어다가 놓아도 가능하게", 2026-10-23 "채팅창에 장비 드래그 앤 드랍하면 자동으로
      * 아이템 태그": 전에는 입력 줄 위에서만 붙었다). 위에 있는 동안 그 창의 입력 줄이 빛난다. */
-    function chatDropZoneAt(event) {
+    /** The topmost element under the pointer below the carried picture and its drop mark. */
+    function elementUnderCarry(event) {
         if (!carryState || !Number.isFinite(event.clientX) || typeof document.elementsFromPoint !== 'function') return null;
+        return document.elementsFromPoint(event.clientX, event.clientY)
+            .find(node => !(node.closest && node.closest('.equipment-grid-cursor-item,.equipment-grid-drop-preview'))) || null;
+    }
+    function chatDropZoneAt(event) {
         // 들고 있는 그림과 놓을 자리 표시 밑의 맨 위 요소만 본다: 창 뒤에 가려진 채팅 위에서 놓으면 가방 안에서 옮기는 것이다
-        let top = document.elementsFromPoint(event.clientX, event.clientY)
-            .find(node => !(node.closest && node.closest('.equipment-grid-cursor-item,.equipment-grid-drop-preview')));
+        let top = elementUnderCarry(event);
         let chat = top && top.closest && top.closest('.social-chat-wrap');
         return (chat && chat.querySelector('.social-chat-inputbar')) || null;
     }
@@ -365,6 +380,18 @@
         cancelCarry();
         return true;
     }
+
+    /** 그루터기 함 탭의 조합창 칸에 놓았다(2026-10-29, 왼쪽 보석으로 이 가방을 그 탭에 띄웠을 때): 조합창이 보이면 그 칸에 넣는다. */
+    function dropOnStumpCube(event) {
+        const cell = elementUnderCarry(event)?.closest?.('[data-stump-drop-cube]');
+        if (!cell || !stumpCubeUi.putBagItem(carryState.entry.item, Number(cell.dataset.stumpDropCube))) return false;
+        suppressClickUntil = Date.now() + 350;
+        event.preventDefault();
+        cancelCarry();
+        return true;
+    }
+    /** Where a carried bag item may land besides the bag: the chat, a worn slot, a cube cell. */
+    const CARRY_DROPS = [dropOnChat, dropOnEquipmentSlot, dropOnStumpCube];
 
     function updateEquipmentDropTarget(event) {
         clearEquipmentDropTarget();
@@ -801,7 +828,7 @@
         if (carryFrame) cancelAnimationFrame(carryFrame);
         carryFrame = 0;
         pendingPointer = null;
-        if (dropOnChat(event) || dropOnEquipmentSlot(event)) return;
+        if (CARRY_DROPS.some(drop => drop(event))) return;
         if (carryState) updateCarry(event);
         suppressClickUntil = Date.now() + 350;
         event.preventDefault();

@@ -12,9 +12,9 @@
 const MONSTER_STAGE_ROSTER = Object.freeze({
     path: 'assets/enemies/roster/',
     /** 그림 묶음의 지문: 그림을 이 값과 함께 불러, 칸이 바뀐 그림을 브라우저가 예전 것으로 쓰지 않게 한다. */
-    version: 'f5377bd07f',
+    version: 'cerberus-body-20261029',
     /** 제 새 그림이 아직 없어 다른 외형의 그림을 빌려 입는 외형(위습: 같은 속성의 새 그림). */
-    wears: Object.freeze({ 'meteor-shard': 'cosmos-star', 'meteor-melt': 'cosmos-ooze', 'meteor-sentinel': 'cosmos-sentinel' }),
+    wears: Object.freeze({ 'meteor-shard': 'cosmos-star', 'meteor-melt': 'cosmos-ooze', 'meteor-sentinel': 'cosmos-sentinel', 'cerberus-head': 's6_beast_cerberus', 'cerberus-fang': 's6_beast_cerberus' }),
     // [id, 이름, 칸 가로, 칸 세로, 발 x, 발 y, 몸 높이, 몸 너비, 걸음새, 걷기, 공격, 품, 쓰러짐, 특수 공격]
     actors: Object.freeze(Object.fromEntries([
         ['famine_beast', '기근의 맹수', 226, 140, 114, 135, 133, 201, 'legs', [6, 6, [133.33, 133.33, 133.33, 133.33, 133.33, 133.33], 'stride'], [6, 6, [200, 166.67, 166.67, 83.33, 116.67, 200], 3], [100, 101], null],
@@ -187,7 +187,10 @@ const MONSTER_STAGE_ROSTER = Object.freeze({
         ["rift-oath-warden","멈춘 서약의 파수병",160,151,68,148,109,104,"legs",[24,24,[56,55,56,55,56,55,56,55,56,56,55,56,55,56,55,56,55,56,56,55,56,55,56,55],"stride"],[6,6,[160,180,160,83,117,200],3],[37,66],null],
         ["rift-ashen-hound","퇴색한 순찰수",171,84,78,82,80,141,"legs",[8,8,[83,83,83,83,83,83,83,83],"stride"],[6,6,[160,180,160,83,117,200],3],[68,72],null],
         ["rift-seed-lantern","멈춘 씨앗 등불",74,82,35,77,75,55,"float",[8,8,[100,100,100,100,100,100,100,100],"time"],[6,6,[160,180,160,83,117,200],3],[28,26],null],
-        ["rift-archive-moth","갈라진 기록나방",122,120,58,116,103,113,"fly",[8,8,[100,100,100,100,100,100,100,100],"time"],[6,6,[160,180,160,83,117,200],3],[54,58],null]
+        ["rift-archive-moth","갈라진 기록나방",122,120,58,116,103,113,"fly",[8,8,[100,100,100,100,100,100,100,100],"time"],[6,6,[160,180,160,83,117,200],3],[54,58],null],
+        ["breach-scout","균열 척후",135,77,69,72,68,119,"legs",[6,6,[120,120,120,120,120,120],"stride"],[6,6,[160,130,150,70,120,210],3],[59,59],null],
+        ["breach-reflux","역류 사수",115,105,43,103,101,102,"legs",[6,6,[120,120,120,120,120,120],"stride"],[6,6,[160,130,150,70,120,210],3],[41,60],null],
+        ["breach-veil","장막 봉합자",125,134,42,136,133,94,"float",[6,6,[120,120,120,120,120,120],"time"],[6,6,[160,130,150,70,120,210],3],[40,53],null]
     ].map(([id, name, w, h, feetX, feetY, height, width, gait, walk, attack, reach, death, special]) => {
         const times = clip => Object.freeze(Array.isArray(clip[2]) ? clip[2] : Array(clip[0]).fill(clip[2]));
         return [id, Object.freeze({

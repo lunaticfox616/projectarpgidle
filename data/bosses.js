@@ -132,7 +132,7 @@ const REALM_MONSTER_VISUAL_SETS = Object.freeze({
         zoneTypes: Object.freeze(['skyTower']), pinnacleTracks: Object.freeze(['sky']),
         members: Object.freeze([
             ['sky-imp', '구름 도깨비', 'normal', 'ranged'], ['sky-roc', '어린 뇌조', 'normal', 'melee'],
-            ['sky-harpy', '질풍 하피', 'normal', 'ranged'],
+            ['sky-harpy', '질풍 하피', 'normal', 'melee'],
             ['sky-griffin', '태양 그리핀', 'elite', 'melee'],
             ['sky-titan', '창공 거신', 'boss', 'melee']
         ].map(([id, name, role, attack]) => Object.freeze({ id, name, role, attack })))
@@ -361,11 +361,18 @@ function getWispMonsterVisualDefinition(variantSeed, element) {
     return candidates[Math.floor(seed / WISP_ENEMY_RULES.spawnOneIn) % candidates.length];
 }
 
-/** 이 지역의 일반·정예 외형 목록: 스토리 액트는 그 액트 몫, 나머지(혼돈 이후)는 부제 네 팔레트와 액트 7~10의 몬스터. */
+/** 아틀라스는 지역의 생물군을 쓴다. 위습과 무기 뿌리는 기존 희귀 등장 굴림에서만 고른다. */
+const ATLAS_MONSTER_POOLS = Object.freeze({
+    roots: Object.freeze(['act1-ant', 'act3-worm', 'act3-slime', 'postchaos-inverted-sapling']),
+    trunk: Object.freeze(['act7-husk-stag', 'act7-crackback-tick', 'act8-shroud-toad', 'postchaos-inverted-sapling']),
+    canopy: Object.freeze(['atlas-canopy-leafglider', 'act8-veil-moth', 'act9-dirge-crane']),
+    garden: Object.freeze(['atlas-garden-bonsai-snail', 'act7-husk-stag', 'act9-chorus-bulbs']),
+    sanctum: Object.freeze(['deacon-act8-melee', 'deacon-act8-ranged', 'act10-graft-beast', 'act9-chorus-bulbs'])
+});
+/** 이 지역의 일반·정예 외형 목록: 스토리 액트와 아틀라스는 지역 몫, 그 밖은 혼돈 목록. */
 function getActMonsterPool(zone) {
     const act = zone && zone.type === 'act' && Number.isInteger(Number(zone.id)) ? Number(zone.id) + 1 : 0;
-    if (zone?.atlasRegion === 'canopy') return ['atlas-canopy-leafglider', 'act8-veil-moth', 'deacon-act8-ranged'];
-    if (zone?.atlasRegion === 'garden') return ['atlas-garden-bonsai-snail', 'act7-husk-stag', 'act9-chorus-bulbs'];
+    if (ATLAS_MONSTER_POOLS[zone?.atlasRegion]) return ATLAS_MONSTER_POOLS[zone.atlasRegion];
     return ACT_MONSTER_POOLS[act] || ACT_MONSTER_POOLS.postChaos;
 }
 
@@ -389,7 +396,9 @@ function getMonsterVariantDefinition(variantSeed, element, zone, marker) {
     if (seed % WISP_ENEMY_RULES.spawnOneIn === 0) return getWispMonsterVisualDefinition(seed, element);
     const root = getRootMonsterVisualDefinition(seed);
     if (root) return root;
-    const elementOffset = element === 'fire' ? 1 : (element === 'cold' ? 2 : (element === 'light' ? 3 : (element === 'chaos' ? 4 : 0)));
+    // 무리의 일반 배역만 지정한다. 위습/무기 뿌리와 그 방어·드랍 규칙은 위의 기존 굴림을 따른다.
+    if (marker?.packVisualId) return ACT_MONSTER_VISUAL_BY_ID[marker.packVisualId];
+    const elementOffset = Math.max(0, ['phys', 'fire', 'cold', 'light', 'chaos'].indexOf(element));
     const pool = getActMonsterPool(zone);
     return ACT_MONSTER_VISUAL_BY_ID[pool[(seed + elementOffset) % pool.length]];
 }
@@ -410,6 +419,7 @@ function getMonsterVisualAttackKind(visualId) {
 const BOSS_REACH = Object.freeze({
     kinds: Object.freeze({
         melee: Object.freeze({ id: 'melee', label: '근접', range: COMBAT_GRID_CONFIG.meleeAttackRange }),
+        polearm: Object.freeze({ id: 'melee', label: '장병기', range: 2 }),
         ranged: Object.freeze({ id: 'ranged', label: '원거리', range: 4 }),
         far: Object.freeze({ id: 'far', label: '사거리 무한', range: COMBAT_GRID_CONFIG.bossAttackRange })
     }),
@@ -421,7 +431,12 @@ const BOSS_REACH = Object.freeze({
         bossAct10_1: 'far', bossAct10_2: 'far', bossAct10_3: 'far', bossAct10_4: 'far', bossAct10_5: 'far'
     }),
     byVisual: Object.freeze({ 'atlas-garden-1': 'melee', 'atlas-garden-2': 'ranged', 'atlas-sanctum-4': 'ranged',
-        'atlas-sanctum-5': 'far', 'colony-boss': 'melee' }),
+        'atlas-sanctum-5': 'far', 'colony-boss': 'melee',
+        // 칼날 앞다리와 겨울 짐승의 발구르기는 붙어서 친다. 예고 특수기는 castRange를 그대로 쓴다.
+        trial_1: 'melee', trial_5: 'melee',
+        // 불칼은 붙어서 베고, 얼음 지팡이는 주문을 쏘며, 장창은 두 칸 앞까지 찌른다.
+        s2_boss_flame: 'melee', s2_boss_frost: 'ranged', s2_boss_storm: 'polearm',
+        'cerberus-head': 'ranged', 'cerberus-fang': 'melee', s6_beast_cerberus: 'melee' }),
     /** 예고하는 특수기(지면 강타, 충격파 등)는 대상이 이 칸 수 안이면 사거리 밖이어도 그 자리에서 쓴다: 근접 보스에게서 달아나기만
      * 하면 아무것도 맞지 않는 싸움이 되지 않게. */
     castRange: 6,

@@ -3,8 +3,9 @@
 // 바꾼다)이나 보관함을 누른다. 끌기 — js/stump-box-drag-ui.js가 이 모듈의 dropOnCell · dropOnStorage를 부른다.
 // 마우스를 올리면 게임 툴팁(tipFor)이 나온다. 규칙 · 계산은 js/stump-box.js.
 // 부적(색 없는 세 번째 계열)의 설명 · 합계 · 봉인 풀기 조각은 js/stump-talisman-ui.js가, 5×5 조합창은 js/stump-cube-ui.js가 준다.
-// 틀(2026-10-25 사용자 그림, scripts/build-stump-frames.cjs): 어두운 틀은 판, 뼈빛 틀은 조합창이고 틀 위 보석을 누르면 서로 바뀐다
-// (전에는 판 아래에 조합창이 따로 있었다). 옵션 합계와 아래 탭(수확 일지, 함 해금, 부적)은 접혀 있다가 누르면 펼친다: 기본 화면에
+// 틀(2026-10-28 디렉터 전달본, scripts/build-stump-frames.cjs): 다크 목재 틀은 판, 상아색 틀은 조합창이다. 틀의 버튼 넷(2026-10-29 사용자):
+// 위 생명의 나무는 판과 조합창을 바꾸고, 왼쪽 보석은 오른쪽 열을 보관함과 장비 창의 인벤토리로 바꾸고, 오른쪽 보석은 판과 조합창을 함께
+// 비우고, 아래 보석은 조합창이면 조합, 판이면 보관함의 씨앗과 수액을 바로 합친다. 올리거나 누르면 그 버튼 조각만 바뀌고 틀은 그대로다. 옵션 합계와 아래 탭(수확 일지, 함 해금, 부적)은 접혀 있다가 누르면 펼친다: 기본 화면에
 // 스크롤이 생기지 않게(사용자). 보관함은 100칸씩 쪽으로 나눈다.
 // 접붙이기(루프 18부터): 판의 칸(빈 칸도 누르면 고른다)을 골라 [접붙이기]로 단계를 올린다. 단계는 칸 왼쪽 위 숫자로 보인다.
 // 수확 일지, 줄 선물, 함 해금 목록과 그 알림은 js/stump-harvest-ui.js가 준다(2026-10-07 해금 1차).
@@ -22,6 +23,10 @@ const stumpBoxUi = (() => {
     let storageSort = 'quality-desc', stateFilter = 'all', compareOpen = false, comparedId = null;
     // 틀이 보여 주는 것('box' 판, 'cube' 조합창), 접는 칸, 보관함 쪽: 화면만의 상태다(저장하지 않는다).
     let frameView = 'box', frameSwitching = false, summaryOpen = false, moreOpen = false, storagePage = 0;
+    // 오른쪽 열: 'storage' 그루터기 보관함, 'bag' 장비 창의 인벤토리(왼쪽 보석). 화면만의 상태다.
+    let rightView = 'storage', firedTimer = 0;
+    /** 누른 버튼의 눌린 조각과 빛이 남는 시간(css/stump-box.css stump-frame-fire와 같다). */
+    const FRAME_FIRE_MS = 320;
     // A double-click acts only when its first click picked nothing up: with something picked, that click already moved it.
     let firstClickFree = true, detailGuard = 0;
     /** How long a just-opened detail panel lets presses through (longer than a double-click's gap). */
@@ -108,16 +113,80 @@ const stumpBoxUi = (() => {
     }
     /** The cell's place on the board grid: the odd tracks are the frame's holes, the even ones its bars (css/stump-box.css). */
     const stumpCellPlace = cell => `grid-column:${cell % STUMP_BOX_SIZE * 2 + 1};grid-row:${Math.floor(cell / STUMP_BOX_SIZE) * 2 + 1}`;
-    /** The frame: the dark one holds the board, the bone one the cube; its gem switches them (aria names the other side). */
+    /** What each frame button does now, as its name (aria-label and title). */
+    function frameButtonLabels() {
+        const cube = frameView === 'cube';
+        return { top: `${cube ? '그루터기 함' : '조합창'}으로 바꾸기`, left: rightView === 'bag' ? '그루터기 보관함 보기' : '장비 인벤토리 보기',
+            right: '그루터기 함과 조합창 비우기', bottom: cube ? '조합하기' : '씨앗과 수액 합치기' };
+    }
+    /** The frame art (the dark one holds the board, the ivory one the cube) and its four buttons, in the art's own 256px canvas. */
+    function stumpFrameHtml() {
+        const buttons = Object.entries(frameButtonLabels()).map(([side, label]) => `<button type="button" class="stump-frame-button is-${side}"`
+            + ` data-stump-action="frame-button" data-side="${side}" aria-label="${label}" title="${label}"`
+            + `${side === 'left' ? ` aria-pressed="${rightView === 'bag'}"` : ''}></button>`).join('');
+        return `<div class="stump-frame">${buttons}</div>`;
+    }
     function stumpBoardHtml(result) {
         const cube = frameView === 'cube';
         const grid = cube ? stumpCubeUi.cubeGridHtml()
             : Array.from({ length: STUMP_BOX_SIZE * STUMP_BOX_SIZE }, (_, cell) => stumpCellHtml(cell, result)).join('');
-        const other = cube ? '그루터기 함' : '조합창';
         return `<div class="stump-board is-${frameView}"${cube ? '' : ' role="grid" aria-label="그루터기 함 판"'}>`
-            + `<button type="button" class="stump-frame-gem" data-stump-action="frame-gem" aria-label="${other}으로 바꾸기" title="${other}으로 바꾸기"></button>`
-            + `<div class="stump-board-grid">${grid}</div></div>`
+            + `<div class="stump-board-grid">${grid}</div>${stumpFrameHtml()}</div>`
+            + `<div class="stump-board-foot">${stumpCubeUi.bookButtonHtml()}</div>`
             + '<div id="stump-placement-preview" class="stump-placement-preview" role="status" aria-live="polite" hidden></div>';
+    }
+    // ── 틀의 버튼 넷 ───────────────────────────────────────
+    const FRAME_BUTTONS = Object.freeze({
+        top: button => switchFrame(button),
+        left: () => toggleRightView(),
+        right: () => emptyBoardAndCube(),
+        bottom: () => (frameView === 'cube' ? stumpCubeUi.transmuteCube() : mergeStumpNow())
+    });
+    function pressFrameButton(side, button) {
+        if (!FRAME_BUTTONS[side]) return;
+        fireFrameButton(side);
+        FRAME_BUTTONS[side](button);
+    }
+    /** The pressed piece and a short glow stay on the button a moment after the click. The mark sits on #stump-box-board, which outlives
+     * the board's repaints (css/stump-box.css [data-fired]). */
+    function fireFrameButton(side) {
+        const holder = document.getElementById('stump-box-board');
+        if (!holder) return;
+        holder.dataset.fired = side;
+        clearTimeout(firedTimer);
+        firedTimer = setTimeout(() => { delete holder.dataset.fired; }, FRAME_FIRE_MS);
+    }
+    /** Right gem: the board's items back to storage (one move [배치 되돌리기] undoes) and the cube emptied, together. */
+    function emptyBoardAndCube() {
+        const placed = game.stumpBox.board.some(id => id !== null), inCube = stumpCube.entries().length > 0;
+        if (!placed && !inCube) return notifyStump('그루터기 함과 조합창이 비어 있습니다.');
+        // A board that may not be emptied (full storage, woodsman fight) keeps the cube as it is too.
+        const refusal = placed ? stumpBox.unplaceAllReason(game) : '';
+        if (refusal) return notifyStump(refusal);
+        playUiFeedbackSound('uiCancel');
+        if (inCube) stumpCube.clear();
+        if (placed) return unplaceAllStump();
+        commitStumpChange();
+    }
+    /** Bottom gem on the board: three stored seeds or saps alike merge now (stumpCube.mergeNow), the picked one among them when it can
+     * be. On a wide screen the new item is picked, so its floating detail shows what came out; up to 1080px that detail is a sheet over
+     * the box, so a toast says it instead. */
+    function mergeStumpNow() {
+        const result = stumpCube.mergeNow(game, selectedId);
+        playUiFeedbackSound(result.ok ? 'craftSuccess' : 'craftFailure');
+        if (!result.ok) return notifyStump(result.reason);
+        const made = `${result.recipe.name}: ${stumpBox.label(result.item)} 품질 ${Math.round(result.item.roll * 100)}%`;
+        addLog(`🧩 ${made}`, 'loot-rare');
+        if (uiDisplay.matches('(max-width: 1080px)')) notifyStump(made);
+        else { selectedId = result.item.id; selectedCell = null; }
+        commitStumpChange();
+    }
+    /** Left gem: the right column shows the stump storage or the equipment window's bag (drawn by updateStaticUI). */
+    function toggleRightView() {
+        playUiFeedbackSound('uiSelect');
+        rightView = rightView === 'bag' ? 'storage' : 'bag';
+        renderStumpBoxTab(true);
+        updateStaticUI();
     }
     /** The gem: the wood latch sounds, the frame shows the other side at once under a copy of the old board, and a ring of light
      * spreads from the gem uncovering it (2026-10-27 사용자: 보석 빛 번짐, 그루터기 함 안에서만, 목재 장치 소리; css/stump-box.css). */
@@ -129,7 +198,7 @@ const stumpBoxUi = (() => {
         clearPlacementPreview();
         renderStumpBoxTab(true);
         const board = document.querySelector('#stump-box-board .stump-board');
-        board?.querySelector('.stump-frame-gem')?.focus({ preventScroll: true });
+        board?.querySelector('.stump-frame-button.is-top')?.focus({ preventScroll: true });
         if (!ghost) return;
         frameSwitching = true;
         board?.classList.add('is-revealing');
@@ -189,7 +258,14 @@ const stumpBoxUi = (() => {
             stumpLoopRule()];
         if (stumpBox.graftOpen(game)) rules.push(`접붙이기: 단계마다 그 칸의 효과 +${STUMP_BOX_GRAFT.pctPerRank}%`);
         rules.push(...stumpRipeningUi.rulesLines());
-        return '<div class="tooltip-title">그루터기 함</div>' + rules.map(rule => `<div class="tooltip-line">${escStump(rule)}</div>`).join('');
+        return '<div class="tooltip-title">그루터기 함</div><div class="stump-rules-tip">' + rules.map(stumpRuleLineHtml).join('') + '</div>';
+    }
+    /** One rule in colour (2026-10-29 사용자: ? 도움말에 색감): the name before ':' in gold, stump words (화염, 씨앗, 수액, 호박석...) in their
+     * own colours as in the recipe book, then the game's stat words and numbers (경험치, +25%) as everywhere else. */
+    function stumpRuleLineHtml(rule) {
+        const at = rule.indexOf(': '), head = at > 0 ? rule.slice(0, at) : '', body = at > 0 ? rule.slice(at + 2) : rule;
+        const lead = head ? `<span class="stump-rules-head">${escStump(head)}</span>: ` : '';
+        return `<div class="tooltip-line">${lead}${statToneText.markup(stumpCubeUi.recipeToneHtml(body))}</div>`;
     }
 
     // ── 접붙이기 ───────────────────────────────────────────
@@ -468,7 +544,7 @@ const stumpBoxUi = (() => {
         const unlockInputs = [stumpBox.storageLimit(game), stumpBox.openUnlocks(game).map(row => row.id)];
         return JSON.stringify([game.stumpBox, selectedId, moreTab, moreOpen, colorFilter, storageSort, stateFilter, compareOpen, comparedId,
             stumpBox.canUndoPlacement(game), stumpBox.openCount(game), !!game.woodsmanBuildLock, talismanInputs,
-            graftInputs, unlockInputs, frameView, summaryOpen, storagePage, stumpCubeUi.cubeSignature()]);
+            graftInputs, unlockInputs, frameView, rightView, summaryOpen, storagePage, stumpCubeUi.cubeSignature()]);
     }
     /** Called for the visible tab (renderVisibleManagementPanels) and once a second while it stays open. */
     function renderStumpBoxTab(force) {
@@ -487,11 +563,58 @@ const stumpBoxUi = (() => {
         paintStumpPart('stump-box-detail', stumpDetailHtml(result));
         paintStumpPart('stump-box-storage', stumpStorageHtml());
         paintStumpPart('stump-box-more', stumpMoreHtml());
+        showRightView();
         placeStumpDetail();
         renderPlacementPreview();
         // 따라 하기(시작 선물 놓기)는 고를 때마다 가리키는 칸을 옮긴다: 보관함의 씨앗 → 판의 빈 칸(룬 고르기 창과 같은 방식).
         refreshStumpTutorial();
     }
+    /** The right column's parts for rightView: the storage and the tabs, or the host the equipment bag moves into. */
+    function showRightView() {
+        const bag = rightView === 'bag';
+        [['stump-box-storage', bag], ['stump-box-more', bag], ['stump-equip-host', !bag]].forEach(([id, hidden]) => {
+            const node = document.getElementById(id);
+            if (node && node.hidden !== hidden) node.hidden = hidden;
+        });
+    }
+
+    // ── 장비 인벤토리(왼쪽 보석, 2026-10-29 사용자: 장비 탭을 통째로 열지 않고 오른쪽에 장비 창의 인벤토리) ─────────────
+    // 장비 창의 가방(가방 판과 고른 장비 창)을 그대로 #stump-equip-host로 옮겼다가, 장비 창이 그려질 때나 이 화면을 떠날 때 돌려놓는다.
+    // css/*.css의 장비 창 규칙은 #item-tab-equip과 #stump-equip-host를 같이 본다. 그리기는 js/ui.js renderEquipmentBagPanel.
+    const isStumpTabDrawn = () => typeof getRenderingUiTabIds === 'function' && getRenderingUiTabIds().has('tab-stump');
+    function moveEquipmentBag(toStump) {
+        const card = document.querySelector('.equipment-inventory-panel'), inspector = document.getElementById('ui-equipment-inventory-inspector');
+        const target = document.querySelector(toStump ? '#stump-equip-host > .equipment-window' : '#item-tab-equip .equipment-window');
+        if (!card || !inspector || !target || card.parentElement === target) return;
+        equipmentInventoryInteraction.focus(null);
+        target.append(card, inspector);
+    }
+    /** From updateStaticUI: puts the bag where it shows. @returns {boolean} true when this tab shows it (the caller then draws it). Both
+     * windows open on a PC: the equipment window keeps its bag and this column goes back to the storage. */
+    function syncEquipmentBag(itemsTabDrawn) {
+        const drawn = isStumpTabDrawn();
+        if (itemsTabDrawn && drawn && rightView === 'bag') {
+            rightView = 'storage';
+            renderStumpBoxTab(true);
+        }
+        const shown = !itemsTabDrawn && drawn && rightView === 'bag';
+        moveEquipmentBag(shown);
+        return shown;
+    }
+    /** With the frame on the cube, a double-clicked bag item goes into the cube, not onto the hero (capture phase, before the bag's own
+     * double-click equips it). */
+    function onBagDoubleClick(event) {
+        const card = frameView === 'cube' && event.target.closest?.('.equipment-grid-item');
+        if (!card) return;
+        event.stopPropagation();
+        event.preventDefault();
+        const item = (game.inventory || []).find(row => equipmentInventoryGridRuntime.getItemKey(row) === card.dataset.equipmentGridKey);
+        equipmentInventoryInteraction.focus(null);
+        if (item) stumpCubeUi.putBagItem(item);
+    }
+    /** Whether a bag item dropped on the cube goes in (the frame shows the cube). */
+    const frameShowsCube = () => frameView === 'cube';
+
     function refreshStumpTabIfVisible() {
         if (typeof getRenderingUiTabIds === 'function' && getRenderingUiTabIds().has('tab-stump')) renderStumpBoxTab();
     }
@@ -813,6 +936,10 @@ const stumpBoxUi = (() => {
         selectedId = null;
         return stumpCubeUi.putStumpItem(id, cell);
     }
+    /** A cube item dragged to another cube cell moves there (to = its new top left); dragged to the storage or the bag (to = null) it comes out. */
+    function dropCubeItem(from, to) {
+        return to === null ? stumpCubeUi.takeOutCubeCell(from) : stumpCubeUi.moveCubeItem(from, to);
+    }
     /** A board item goes to storage; a stored one onto the best empty cell, or into the cube while the frame shows it. */
     function quickMoveStumpItem(id) {
         const item = stumpBox.itemById(game, id);
@@ -901,7 +1028,8 @@ const stumpBoxUi = (() => {
     }
     /** Right of the window, else left of it, level with the storage. */
     function besideStumpWindow(tab, size, gap) {
-        const win = tab.getBoundingClientRect(), y = document.getElementById('stump-box-storage')?.getBoundingClientRect().top ?? win.top;
+        const column = ['stump-box-storage', 'stump-equip-host'].map(id => document.getElementById(id)).find(node => node?.getClientRects().length);
+        const win = tab.getBoundingClientRect(), y = column ? column.getBoundingClientRect().top : win.top;
         if (win.right + gap + size.width <= innerWidth - gap) return { x: win.right + gap, y };
         return win.left - gap - size.width >= gap ? { x: win.left - gap - size.width, y } : null;
     }
@@ -934,7 +1062,7 @@ const stumpBoxUi = (() => {
         lock: () => toggleStumpLock(),
         bulk: data => bulkStump(data.kind),
         'more-tab': data => { moreOpen = !(moreOpen && moreTab === data.tab); moreTab = data.tab; renderStumpBoxTab(true); },
-        'frame-gem': (data, button) => switchFrame(button),
+        'frame-button': (data, button) => pressFrameButton(data.side, button),
         summary: () => { summaryOpen = !summaryOpen; renderStumpBoxTab(true); },
         'storage-page': data => { storagePage = Number(data.page) || 0; renderStumpBoxTab(true); },
         deselect: () => selectStumpItem(null),
@@ -953,9 +1081,7 @@ const stumpBoxUi = (() => {
         // The second click of a double-click that took an item out lands on the emptied cell: it does not open the picker.
         'cube-open': (data, button, event) => { if (event.detail < 2) stumpCubeUi.openCubePicker(); },
         'cube-quick': data => stumpCubeUi.quickFillCube(data.recipe),
-        'cube-transmute': () => stumpCubeUi.transmuteCube(),
-        'cube-clear': () => stumpCubeUi.clearCube(),
-        'cube-book': () => stumpCubeUi.toggleCubeBook()
+        'recipe-book': (data, button) => stumpCubeUi.openRecipeBook(button)
     };
     function onStumpTabClick(event) {
         const target = event.target.closest('[data-stump-action]');
@@ -985,6 +1111,7 @@ const stumpBoxUi = (() => {
         new MutationObserver(placeStumpDetail).observe(document.body, { childList: true });
         window.addEventListener('resize', placeStumpDetail);
         document.addEventListener('pointerdown', onStumpOutsidePress, true);
+        document.getElementById('stump-equip-host')?.addEventListener('dblclick', onBagDoubleClick, true);
     }
 
     // ── 획득 안내·처치 소식 ─────────────────────────────────
@@ -1101,7 +1228,7 @@ const stumpBoxUi = (() => {
         return stumpItemTipHtml(item, stumpBox.evaluate(state), -1);
     }
 
-    return { renderStumpBoxTab, refreshStumpTabNow, revealMoreTab, checkStumpBoxUnlock, tipFor, dropOnCell, dropOnStorage, dropOnCube, claimReward,
-        itemTipHtml, previewCell, hoverCell, clearPlacementPreview };
+    return { renderStumpBoxTab, refreshStumpTabNow, revealMoreTab, checkStumpBoxUnlock, tipFor, dropOnCell, dropOnStorage, dropOnCube, dropCubeItem, claimReward,
+        itemTipHtml, previewCell, hoverCell, clearPlacementPreview, syncEquipmentBag, frameShowsCube };
 })();
 safeExposeGlobals({ stumpBoxUi });

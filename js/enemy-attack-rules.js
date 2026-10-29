@@ -6,6 +6,27 @@
  * attackCastSpecial; transient attackCast.isSpecial shares the boss-pattern distinction.
  */
 const enemyAttackRules = (() => {
+    // A live colony defense's chosen target, shared with drawing without saving or retargeting in the renderer.
+    const aims = new WeakMap();
+    const aimRun = () => game.currentZoneId === 'colony_run' && game.colony?.inRun
+        ? actExplorationState.current(game) : null;
+    /** Called by combat only when a real defense core exists; null clears an obsolete aim. */
+    function noteAim(enemy, target) {
+        const run = target && aimRun();
+        if (!run) { aims.delete(enemy); return; }
+        const cell = enemy.attackCast?.targetCell || target;
+        // Assassination reads cardinal facing in combat too; recompute when the enemy moved even if its aim stayed put.
+        enemy.facingDirection = skillGemCasts.facing(enemy, cell);
+        const previous = aims.get(enemy);
+        if (previous?.run === run && previous.cell.gx === cell.gx && previous.cell.gy === cell.gy) return;
+        aims.set(enemy, { run, cell: { gx: cell.gx, gy: cell.gy } });
+    }
+    /** Read-only cell snapshot. A finished defense, replaced run or restored enemy cannot inherit an old aim. */
+    function aimCell(enemy) {
+        const run = aimRun(), aim = run && aims.get(enemy);
+        return aim?.run === run ? aim.cell : null;
+    }
+
     function controls(enemy) {
         const active = new Set((enemy.ailments || []).filter(ail => ail.time > 0).map(ail => ail.type));
         return {hard: active.has('freeze') || active.has('stun'), silence: active.has('silence')};
@@ -17,6 +38,18 @@ const enemyAttackRules = (() => {
         if (enemy.attackKind !== 'ranged') return 'instantTarget';
         return enemy.attackDelivery || 'projectileTarget';
     }
+
+    /** One body, one attack clock. Only a consumed ordinary strike advances the attached head (0..2).
+     * The shot owns its element: changing heads must not recolour the body or an already released shot. */
+    function cerberusAttack(enemy, pattern) {
+        if (pattern.isSpecial || !enemy.isBoss || !Number.isInteger(enemy.cerberusHeadIndex)) return;
+        pattern.cerberusHead = enemy.cerberusHeadIndex;
+        pattern.attackElement = enemy.monsterVisualId === 'cerberus-head'
+            ? ['fire', 'cold', 'fire'][pattern.cerberusHead] : enemy.ele;
+        enemy.cerberusHeadIndex = (enemy.cerberusHeadIndex + 1) % 3;
+    }
+
+    const element = (enemy, pattern) => pattern?.attackElement || enemy.ele || 'phys';
 
     function units(state) {
         const alive = state.playerHp > 0 ? [state.gridPlayer] : [];
@@ -74,6 +107,28 @@ const enemyAttackRules = (() => {
         return lengthSq ? clampNumber(projection/lengthSq,enter,leave) : 1;
     }
 
+    /** Only the few cells between a long melee strike's endpoints; corner-only contacts follow projectile geometry. */
+    function openMeleeLine(source, end, terrain) {
+        for (let gy = Math.min(source.gy,end.gy); gy <= Math.max(source.gy,end.gy); gy++) {
+            for (let gx = Math.min(source.gx,end.gx); gx <= Math.max(source.gx,end.gx); gx++) {
+                if (terrain.mask[gy*terrain.map.columns+gx]) continue;
+                if (cellProgress(source,end,{gx,gy}) !== null) return false;
+            }
+        }
+        return true;
+    }
+
+    /** Long melee cannot reach through a wall or sealed gate; any in-range pair of occupied body cells may connect. */
+    function meleeReach(enemy, target) {
+        if (enemy.attackKind !== 'melee' || enemy.attackRange <= 1) return true;
+        const terrain = getGridPlacementTerrain();
+        if (!terrain.map.tiles) return true;
+        terrain.mask = gridWalkMask(terrain.map,terrain.sealed);
+        const targets = getGridUnitCells(target);
+        return getGridUnitCells(enemy).some(source => targets.some(end =>
+            gridChebyshevDist(source.gx,source.gy,end.gx,end.gy) <= enemy.attackRange && openMeleeLine(source,end,terrain)));
+    }
+
     function flightCells(source, end) {
         const cells = [], size = getCombatGridSize();
         for (let gy=0;gy<size.rows;gy++) {
@@ -99,7 +154,15 @@ const enemyAttackRules = (() => {
         if (Number.isFinite(attack.bossPattern?.castStartedAt)) attack.castStartAt = attack.bossPattern.castStartedAt;
         enemy.attackCast = attack.delivery === 'patternArea' ? {startAt:attack.castStartAt,finishAt:attack.at,
             isSpecial:attack.bossPattern.isSpecial !== false,label:attack.bossPattern.label} : null;
-        if (attack.delivery !== 'projectileCell') return {duration};
+        if (attack.delivery !== 'projectileCell') {
+            const role = MONSTER_COMBAT_ROLES.of(enemy);
+            if (attack.delivery === 'magicCell' && role?.flightMs) {
+                duration = Math.max(duration, role.flightMs);
+                attack.at = getCombatTime() + duration;
+                attack.groundCell = true; // Transient rendering marker: this authored shot warns exactly its one impact tile.
+            }
+            return {duration};
+        }
         attack.targetCell = flightEnd(attack.sourceCell,attack.targetCell,enemy.projectileToEdge);
         let cells = flightCells(attack.sourceCell,attack.targetCell);
         if (!cells.length) cells = [{...attack.targetCell,progress:1}];
@@ -199,6 +262,6 @@ const enemyAttackRules = (() => {
         return special && pattern.label ? `${enemy.name} (${pattern.label})` : enemy.name;
     }
 
-    return {delivery,impactTargets,trajectory,advanceFlight,interrupt,cancelPending,ready,castBar,damageName};
+    return {delivery,cerberusAttack,element,impactTargets,trajectory,advanceFlight,interrupt,cancelPending,ready,castBar,damageName,meleeReach,noteAim,aimCell};
 })();
 safeExposeGlobals({enemyAttackRules});

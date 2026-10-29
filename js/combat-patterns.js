@@ -197,6 +197,7 @@
         if (!state) return null;
         if (enemy.patternArea) state.area = enemy.patternArea;
         noteBossSpecial(enemy, state);
+        enemyAttackRules.cerberusAttack(enemy, state);
         bossMoves.plan(state, enemy); // the special lands over time: shots, a beam, bursts one after another (js/boss-moves.js)
         const recovery = recoveryOf(state);
         if (recovery) {

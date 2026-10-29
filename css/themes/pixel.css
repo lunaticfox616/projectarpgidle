@@ -241,6 +241,15 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 :root body[data-ui-skin] :is(.story-scene-copy, .game-dialog-body) {
   padding: var(--space-1) var(--space-2);
 }
+/* 조합법 책(css/stump-box.css .stump-book, 2026-10-29 사용자: 글씨를 게임 글꼴 규칙 크기로): 재료, 결과, 덧붙임은 긴 글 14/15,
+   부류 표와 재료/결과/비용 이름표는 짧은 정보 11/12(이름표는 굵게). 조합법 이름도 내용과 같은 14/15(사용자: 제목도 같은 크기) */
+:root body[data-ui-skin] :is(.stump-book-entry-head strong, .stump-book-line > span, .stump-book-note, .stump-book-list li.is-hidden) {
+  font-family: var(--font-pixel-read); font-size: var(--font-size-reading); font-weight: var(--font-weight-regular); line-height: 1.6;
+}
+:root body[data-ui-skin] :is(.stump-book-group, .stump-book-line > b) {
+  font-family: var(--font-pixel); font-size: var(--font-size-ui); line-height: 1.5;
+}
+:root body[data-ui-skin] .stump-book-line > b { font-weight: var(--font-weight-emphasis); }
 :root body[data-ui-skin] :is(.story-scene-copy, .game-dialog-body) :is(p, b, strong, em) {
   font-family: inherit; font-size: inherit; font-weight: var(--font-weight-regular); font-style: normal;
 }

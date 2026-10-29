@@ -76,16 +76,24 @@ const stumpCubeRecipes = (() => {
         return { ok: true, consumed: [], outputs: [{ kind: 'equipment', existing: equipment.item }] };
     }
 
-    /** Best quality + a step, up to the box's quality cap (130%, 140% and 150% with the loop 35 and 45 unlocks); golden if any was
-     * golden, ancient (고대 씨앗) if any was ancient. */
-    function stumpMergeSpec(list, state) {
-        const roll = Math.min(stumpBox.rollCap(state), Math.max(...list.map(item => Number(item.roll) || 1)) + STUMP_CUBE_STUMP_ROLL_STEP);
-        return { family: list[0].family, color: list[0].color, path: list[0].path, roll, golden: list.some(item => item.golden === true),
-            ancient: list.some(item => item.ancient === true) };
+    /** The merged quality (data/stump-cube.js STUMP_CUBE_MERGE): the inputs' average + 1~10% up to the box's quality cap (130%, raised by
+     * the loop 35 and 45 unlocks); now and then their best + 1~10% up to the cap, or their average + 11% that may pass the cap (overCap). */
+    function mergedRoll(list, state, random) {
+        const rolls = list.map(item => Number(item.roll) || 1), cap = stumpBox.rollCap(state), rule = STUMP_CUBE_MERGE;
+        const average = rolls.reduce((sum, roll) => sum + roll, 0) / rolls.length;
+        const step = () => (rule.step[0] + Math.floor(random() * (rule.step[1] - rule.step[0] + 1))) / 100, luck = random();
+        if (luck < rule.overChance) return { roll: average + rule.over, overCap: true };
+        if (luck < rule.overChance + rule.bestChance) return { roll: Math.min(cap, Math.max(...rolls) + step()) };
+        return { roll: Math.min(cap, average + step()) };
+    }
+    /** The merged item: same colour, family and path, the rolled quality; golden if any was golden, ancient (고대 씨앗) if any was ancient. */
+    function stumpMergeSpec(list, state, random) {
+        return { family: list[0].family, color: list[0].color, path: list[0].path, ...mergedRoll(list, state, random),
+            golden: list.some(item => item.golden === true), ancient: list.some(item => item.ancient === true) };
     }
 
-    function stumpMerge([group], state) {
-        return { ok: true, consumed: group, outputs: [{ kind: 'stump', spec: stumpMergeSpec(items(group), state) }] };
+    function stumpMerge([group], state, random) {
+        return { ok: true, consumed: group, outputs: [{ kind: 'stump', spec: stumpMergeSpec(items(group), state, random) }] };
     }
 
     function talismanSource(group) {
@@ -172,11 +180,18 @@ const stumpCubeRecipes = (() => {
             keep: '장비와 기존 옵션, 품질', change: `공허 소켓에 ${jewel.name} 장착` };
     }
 
+    /** The usual result's quality range (average + 1~10%, to the cap), in whole percent. */
+    function mergeRange(list, state) {
+        const cap = stumpBox.rollCap(state), rule = STUMP_CUBE_MERGE;
+        const average = list.reduce((sum, item) => sum + (Number(item.roll) || 1), 0) / list.length;
+        const [low, high] = rule.step.map(step => Math.round(Math.min(cap, average + step / 100) * 100));
+        return low === high ? String(low) : `${low}~${high}`;
+    }
     function mergePreview([group], state) {
-        const spec = stumpMergeSpec(items(group), state), color = STUMP_BOX_COLORS[spec.color].label;
-        const label = spec.family === 'sap' ? `${color} 수액` : `${color} ${STUMP_BOX_STAGES[spec.path].label} 씨앗`;
-        const marks = [spec.golden ? '황금' : '', spec.ancient ? '고대' : ''].filter(Boolean);
-        return { label, quality: Math.round(spec.roll * 100), qualityCap: Math.round(stumpBox.rollCap(state) * 100),
+        const list = items(group), first = list[0], color = STUMP_BOX_COLORS[first.color].label;
+        const label = first.family === 'sap' ? `${color} 수액` : `${color} ${STUMP_BOX_STAGES[first.path].label} 씨앗`;
+        const marks = [list.some(item => item.golden === true) ? '황금' : '', list.some(item => item.ancient === true) ? '고대' : ''].filter(Boolean);
+        return { label, quality: mergeRange(list, state), qualityCap: Math.round(stumpBox.rollCap(state) * 100),
             keep: ['색과 종류', ...marks].join(', '), change: '성장 경험치와 수확 옵션 초기화', note: '새 재료 1개로 합쳐짐' };
     }
 

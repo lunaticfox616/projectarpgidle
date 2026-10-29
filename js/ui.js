@@ -3122,6 +3122,8 @@ function completeBeehiveRun(){
 function onBeehiveWaveCleared(){
     let b = game.beehive || {};
     if (!b.inRun || !b.awaitingClear) return;
+    // HP 0 victims still in the field need their own loot and pack death records before the wave can advance.
+    if (countBeehiveWaveAlive() > 0) return;
     b.waveExtra = 0;
     game.enemies = [];
     game.encounterPlan = [];
@@ -3140,7 +3142,7 @@ function onBeehiveWaveCleared(){
     game.combatHalted = true;
     game.runProgress = Math.min(100, Math.max(0, Math.floor(b.branchStep || 0)) * 10);
     queueImportantSave(200);
-    if ((b.branchStep || 0) >= 10) {
+    if (b.branchStep >= 10) {
         b.awaitingClear = true;
         b.queenActive = true;
         game.combatHalted = false;
@@ -7983,6 +7985,7 @@ function updateUiEnemyTraitPanel(traitEl, labels, display, fullTooltip, isBoss) 
     setElementAttribute(traitEl, 'data-enemy-trait-tooltip', fullTooltip || display.fullText || '');
     setElementAttribute(traitEl, 'data-enemy-trait-kind', isBoss ? '보스 특성' : '정예 특성');
     setElementAttribute(traitEl, 'aria-label', fullTooltip || display.fullText || '');
+    setElementAttribute(traitEl, 'tabindex', '0');
     if (!visible) {
         clearUiEnemyTraitRotation(traitEl);
         traitEl.__traitSignature = '';
@@ -8007,11 +8010,9 @@ function updateUiEnemyTraitPanel(traitEl, labels, display, fullTooltip, isBoss) 
     clearUiEnemyTraitRotation(traitEl);
     traitEl.classList.remove('is-overflowing', 'is-rotating');
     if (!isBoss) {
-        traitEl.removeAttribute('tabindex');
         setUiEnemyTraitText(track, display.compactText);
         return;
     }
-    traitEl.setAttribute('tabindex', '0');
     if (!mobile || reducedMotion || labels.length === 1) {
         scheduleUiEnemyTraitOverflow(traitEl, track, display.fullText, signature);
         return;
@@ -8048,12 +8049,38 @@ function showEnemyTraitTooltip(event) {
         ? event.target.closest('.enemy-traits') : null);
     if (!anchor) return;
     let detail = anchor.getAttribute('data-enemy-trait-tooltip') || '';
-    if (!detail) return hideInfoTooltip();
+    if (!detail) return showEnemyTraitTooltip.hide();
     let title = anchor.getAttribute('data-enemy-trait-kind') || '적 특성';
     let html = `<div class="tooltip-title">${escapeHTML(title)}</div>`
         + String(detail).split('\n').map(line => `<div class="tooltip-line">${statToneText.html(line)}</div>`).join('');
-    showInfoTooltipHtml(event.clientX, event.clientY, html, '#d99a8f');
+    const rect = anchor.getBoundingClientRect();
+    showEnemyTraitTooltip.current = { anchor, detail, title };
+    showInfoTooltipHtml(event.clientX || rect.left + rect.width / 2, event.clientY || rect.bottom, html, '#d99a8f', anchor);
 }
+/** Only dismiss the popup still owned by this enemy line; another tooltip may have replaced it. */
+showEnemyTraitTooltip.hide = () => {
+    const anchor = showEnemyTraitTooltip.current?.anchor;
+    showEnemyTraitTooltip.current = null;
+    if (anchor && activeInfoTooltipToken === anchor) hideInfoTooltip();
+};
+/** Follow HUD replacement and changing cast/trait text without polling or retaining a detached anchor. */
+showEnemyTraitTooltip.sync = () => {
+    const current = showEnemyTraitTooltip.current;
+    if (!current) return;
+    const { anchor, detail, title } = current;
+    if (activeInfoTooltipToken !== anchor) { showEnemyTraitTooltip.current = null; return; }
+    if (!anchor.isConnected || anchor.style.display === 'none' || anchor.closest('[hidden]')) return showEnemyTraitTooltip.hide();
+    if (detail !== (anchor.getAttribute('data-enemy-trait-tooltip') || '')
+        || title !== (anchor.getAttribute('data-enemy-trait-kind') || '적 특성')) showEnemyTraitTooltip({ currentTarget: anchor });
+};
+/** The same disclosure works from the keyboard without sending combat shortcuts. */
+showEnemyTraitTooltip.onKey = event => {
+    if (!['Enter', ' ', 'Escape'].includes(event.key)) return;
+    event.stopPropagation();
+    event.preventDefault();
+    if (event.key === 'Escape') { event.currentTarget.blur(); showEnemyTraitTooltip.hide(); }
+    else showEnemyTraitTooltip(event);
+};
 
 function buildEnemyCombatEffectIcons(activeAilments, enemyDebuffs, now, enemy) {
     let ailmentIcons = (activeAilments || []).filter(ail => ail && (ail.time || 0) > 0).map(ail => {
@@ -8354,7 +8381,7 @@ function updateCombatUI(pStats) {
         if (enemyListEl.dataset.enemyId !== focusedKey || !enemyListEl.querySelector('.enemy-card.targeted')) {
             clearUiEnemyTraitRotation(enemyListEl.querySelector('.enemy-traits'));
             enemyListEl.dataset.enemyId = focusedKey;
-            let traitMarkup = '<div class="enemy-tags muted enemy-traits" data-info-tooltip-anchor="1" onmouseenter="showEnemyTraitTooltip(event)" onmousemove="showEnemyTraitTooltip(event)" onmouseleave="hideInfoTooltip()"><span class="enemy-trait-marquee"></span></div>';
+            let traitMarkup = '<div class="enemy-tags muted enemy-traits" role="button" tabindex="0" aria-controls="info-tooltip" data-info-tooltip-anchor="1" onmouseenter="showEnemyTraitTooltip(event)" onmousemove="showEnemyTraitTooltip(event)" onfocus="showEnemyTraitTooltip(event)" onclick="event.stopPropagation(); showEnemyTraitTooltip(event)" onkeydown="showEnemyTraitTooltip.onKey(event)" onblur="showEnemyTraitTooltip.hide()" onmouseleave="if(document.activeElement!==this) showEnemyTraitTooltip.hide()"><span class="enemy-trait-marquee"></span></div>';
             let effectMarkup = '<div class="enemy-tags muted enemy-ailments combat-effect-strip enemy-combat-effect-strip" aria-label="활성 상태이상 및 효과"></div>';
             let metaMarkup = `<div class="enemy-hud-meta">${traitMarkup}</div>`;
             enemyListEl.innerHTML = `
@@ -8408,6 +8435,7 @@ function updateCombatUI(pStats) {
         patchCombatEffectStrip(ailmentEl, effectMarkup);
         if (traitEl) updateFocusedEnemyTraitPanel(traitEl, focusedEnemy, enemyHudTier === 'mob' ? [] : tags);
     }
+    showEnemyTraitTooltip.sync();
 }
 
 // passive render cache dirty helper: 구조 변경/노드 상태 변경 시 호출
@@ -8798,6 +8826,7 @@ function renderEquipmentLoadoutSummary(pStats) {
     knittingUi.render();
 }
 
+
 function updateInventoryFullWarnings() {
     let changed = false;
     // 장비 인벤토리가 가득 차면 켜고, 몇 칸인지는 툴팁으로 알린다(주얼 보관함은 장비창의 단추가 알린다).
@@ -8894,6 +8923,33 @@ function prepareCraftItemPickerDialog(overlay, kind, closePicker) {
         target?.focus({ preventScroll: true });
     };
 }
+
+    /** The equipment bag (head, rail, filters, analysis, pages, picked gear, grid): drawn with the equipment window, or alone when the stump
+     * tab's left gem shows it there (js/stump-box-ui.js syncEquipmentBag). The rarity helpers are performUpdateStaticUI's own. */
+    function renderEquipmentBagPanel(sf, isItemRarityVisible, renderRarityFilterChips) {
+        syncSalvageControlsFromSettings();
+        if (typeof salvageRecoveryUi !== 'undefined') salvageRecoveryUi.refreshShortcut();
+        equipmentWindowUi.renderBag();
+        let invRarityFilterHost = document.getElementById('ui-inventory-rarity-filter');
+        if (invRarityFilterHost) writeHtmlIfChanged(invRarityFilterHost, renderRarityFilterChips('inventory'));
+        if (window.equipmentTriage) {
+            window.equipmentTriage.autoStart();
+            window.equipmentTriage.render();
+        }
+        const equipInvRows = getSortedEquipmentInventoryRows(sf.equip, isItemRarityVisible);
+        const equipmentGridLayout = equipmentInventoryGridRuntime.ensureState(game);
+        const equipmentPage = equipmentInventoryInteraction.renderPageControls(equipmentGridLayout, equipInvRows, sf.equip);
+        const equipmentPageLayout = equipmentInventoryGridRuntime.getPageLayout(equipmentGridLayout, equipmentPage);
+        const equipmentPageKeys = new Set(equipmentPageLayout.entries.map(entry => entry.key));
+        const equipmentPageRows = equipInvRows.filter(row => equipmentPageKeys.has(equipmentInventoryGridRuntime.getItemKey(row.item)));
+        renderEquipmentInventoryInspector(equipmentPageRows);
+        // 드래그 중에는 포인터 캡처 중인 DOM을 유지하고, 놓을 때 배치를 갱신한다.
+        if (!equipmentInventoryInteraction.isCarrying()) {
+            renderSearchSection('ui-inventory-list', 'equip', '장비 검색 (이름/슬롯/옵션)', renderEquipmentInventoryGrid(equipmentPageLayout, equipmentPageRows), '', '');
+            let equipmentGridElement = document.querySelector('#ui-inventory-list > .search-result-list');
+            if (equipmentGridElement) equipmentGridElement.dataset.equipmentGridRows = String(equipmentPageLayout.rows);
+        }
+    }
 
 return function performUpdateStaticUI() {
     craftingWorkspaceState.capture(game);
@@ -8999,33 +9055,14 @@ return function performUpdateStaticUI() {
     }
 
     if (itemsTabActive) {
-    syncSalvageControlsFromSettings();
-    if (typeof salvageRecoveryUi !== 'undefined') salvageRecoveryUi.refreshShortcut();
     syncEquipmentMobilePane();
     renderEquipmentLoadoutSummary(pStats);
     if (window.equipmentLoadoutUi) window.equipmentLoadoutUi.render();
     renderPaperdoll('ui-equip-list', false);
     renderCraftTargetLibrary(isItemRarityVisible);
-    let invRarityFilterHost = document.getElementById('ui-inventory-rarity-filter');
-    if (invRarityFilterHost) writeHtmlIfChanged(invRarityFilterHost, renderRarityFilterChips('inventory'));
-    if (window.equipmentTriage) {
-        window.equipmentTriage.autoStart();
-        window.equipmentTriage.render();
     }
-    const equipInvRows = getSortedEquipmentInventoryRows(sf.equip, isItemRarityVisible);
-    const equipmentGridLayout = equipmentInventoryGridRuntime.ensureState(game);
-    const equipmentPage = equipmentInventoryInteraction.renderPageControls(equipmentGridLayout, equipInvRows, sf.equip);
-    const equipmentPageLayout = equipmentInventoryGridRuntime.getPageLayout(equipmentGridLayout, equipmentPage);
-    const equipmentPageKeys = new Set(equipmentPageLayout.entries.map(entry => entry.key));
-    const equipmentPageRows = equipInvRows.filter(row => equipmentPageKeys.has(equipmentInventoryGridRuntime.getItemKey(row.item)));
-    renderEquipmentInventoryInspector(equipmentPageRows);
-    // 드래그 중에는 포인터 캡처 중인 DOM을 유지하고, 놓을 때 배치를 갱신한다.
-    if (!equipmentInventoryInteraction.isCarrying()) {
-        renderSearchSection('ui-inventory-list', 'equip', '장비 검색 (이름/슬롯/옵션)', renderEquipmentInventoryGrid(equipmentPageLayout, equipmentPageRows), '', '');
-        let equipmentGridElement = document.querySelector('#ui-inventory-list > .search-result-list');
-        if (equipmentGridElement) equipmentGridElement.dataset.equipmentGridRows = String(equipmentPageLayout.rows);
-    }
-    }
+    // 가방은 장비 창, 또는 그루터기 함 탭의 왼쪽 보석이 띄운 자리에 그린다(그 자리로 옮기는 것은 syncEquipmentBag).
+    if (stumpBoxUi.syncEquipmentBag(itemsTabActive) || itemsTabActive) renderEquipmentBagPanel(sf, isItemRarityVisible, renderRarityFilterChips);
 
 function getJewelStatToneColor(statId) {
     if (!statId) return '#d7e9ff';

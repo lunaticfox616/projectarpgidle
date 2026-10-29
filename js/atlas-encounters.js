@@ -63,16 +63,30 @@ const atlasEncounters = (() => {
         enemy.damageMul = (Number(enemy.damageMul) || 1) * mul.damage;
         enemy.atkMul = (Number(enemy.atkMul) || 1) * mul.attack;
         enemy.expMul = (Number(enemy.expMul) || 1) * mul.exp;
-        enemy.name = rule.names ? rule.names[Number(!!enemy.isElite)] : `${rule.prefix} ${enemy.name}`;
-        // A room with its own look (the hive's bees) draws that sheet; its attack follows the picture (assigned on the first tick).
-        if (rule.visuals) Object.assign(enemy, { monsterVisualSetId: null, monsterVisualId: rule.visuals[Number(!!enemy.isElite)],
-            spriteVariantId: null, monsterArchetype: null });
+        if (rule.roster) dressRosterMember(enemy, type, zone);
+        else enemy.name = `${rule.prefix} ${enemy.name}`;
         // 잿불 터: 속성 몫을 화염으로 치고, 잿불 테와 불씨로 보인다(js/ui.js getEnemyOutlineStyle, js/canvas-battlefield.js).
         if (rule.ele) enemy.ele = rule.ele;
         if (rule.outline) Object.assign(enemy, { encounterOutline: rule.outline, encounterSparks: rule.sparks || null });
         enemy.atlasEncounter = type;
         dressGolden(enemy, zone, type);
         return enemy;
+    }
+    /** A content pack cycles its own species from a fixed map/room offset, without consuming combat randomness. The combat
+     * caller reapplies assignEnemyGridCombatProfile after this final look; an old profile must not survive a changed body. */
+    function dressRosterMember(enemy, type, zone) {
+        const roster = ATLAS.encounters[type].roster, pool = roster[enemy.isElite ? 'elite' : 'normal'];
+        const offset = Math.abs(hashSeed(`${zone?.atlasSeed || zone?.id || 'atlas'}:${type}:${enemy.spawnAt}`));
+        const id = pool[(offset + enemy.groupIndex) % pool.length], visual = getRealmMonsterVisualDefinitionById(id);
+        if (!visual) throw new Error(`Unknown atlas encounter monster: ${type}/${id}`);
+        Object.assign(enemy, { name: rosterName(enemy, visual.name), baseMonsterName: visual.name, monsterVisualSetId: null, monsterVisualId: id,
+            spriteVariantId: null, monsterArchetype: null });
+    }
+    /** Spawn already marked reward carriers before choosing this body. Preserve their labels and the elite trait; golden
+     * dressing adds its prefix last. Reward flags remain owned by atlasBoard and atlasEndgame. */
+    function rosterName(enemy, name) {
+        return [enemy.craftOmen ? '뿌리를 품은' : '', enemy.boardCarrier ? '나이테 길잡이:' : '',
+            enemy.isElite ? enemy.traitName : '', name].filter(Boolean).join(' ');
     }
     /** Golden rooms of a new map: each ordinary content room by goldenRoom.chance + the goldenRoom passive (%), fixed by the map uid
      * and the type (a hash, no random draw). A late altar never is. */
@@ -90,10 +104,10 @@ const atlasEncounters = (() => {
         enemy.damageMul = (Number(enemy.damageMul) || 1) * gold.damageMul;
         Object.assign(enemy, { name: `${gold.prefix} ${enemy.name}`, encounterOutline: gold.outline, encounterSparks: gold.sparks, atlasGolden: true });
     }
-    /** A room with its own look (the hive's bees) rolls no act monster, root or wisp under it: a wisp's rolled defenses stayed on
-     * the bees drawn over it (2026-10-07 review). Read by createEnemy through its spawn marker. */
+    /** A content roster rolls no unrelated act monster, root or wisp beneath its final body. In particular, wisp defenses must
+     * not stay on a bee drawn over it. Read by createEnemy through its spawn marker. */
     function hasOwnLook(type) {
-        return !!(type && ATLAS.encounters[type] && ATLAS.encounters[type].visuals);
+        return !!(type && ATLAS.encounters[type] && ATLAS.encounters[type].roster);
     }
     /** The pack a kill empties (checked before the engine removes the enemy from its pack), or null. A golden sap slime
      * (js/combat-incidents.js) is in its pack but not counted: its death empties nothing, and the last other monster's does. */

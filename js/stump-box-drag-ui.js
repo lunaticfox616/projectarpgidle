@@ -1,8 +1,9 @@
 // 그루터기 함: 끌어 옮기기와 마우스 툴팁(2026-10-04 사용자 요청, 장비 창 js/equipment-inventory-grid-ui.js와 같은 손맛).
 // 마우스 · 펜은 6px 움직이면 끌기가 시작되고, 손가락은 0.28초 누르고 있어야 시작된다(그 전에 움직이면 화면이 스크롤된다).
-// 판의 칸(빈 칸이면 옮기고, 찬 칸이면 자리를 바꾼다)이나 보관함, 틀이 조합창이면 조합창 칸(2026-10-28 사용자)에 놓는다. 판정 · 다시
-// 그리기 · 툴팁 내용은 stumpBoxUi가 맡고(dropOnCell · dropOnStorage · dropOnCube · tipFor), 이 모듈은 포인터 상태와 끌리는 그림,
-// 놓을 자리 표시만 다룬다.
+// 판의 칸(빈 칸이면 옮기고, 찬 칸이면 자리를 바꾼다)이나 보관함, 틀이 조합창이면 조합창 칸(2026-10-28 사용자)에 놓는다. 조합창에 든
+// 아이템도 끌어서 다른 칸으로 옮기거나(같은 크기 아이템과는 자리를 바꾼다) 보관함, 장비 가방 쪽에 놓아 꺼낸다(2026-10-29 사용자).
+// 판정 · 다시 그리기 · 툴팁 내용은 stumpBoxUi가 맡고(dropOnCell · dropOnStorage · dropOnCube · dropCubeItem · tipFor), 이 모듈은
+// 포인터 상태와 끌리는 그림, 놓을 자리 표시만 다룬다.
 (function () {
     'use strict';
     const DRAG_PX = 6, HOLD_MS = 280, TOUCH_SLOP_PX = 10;
@@ -26,12 +27,12 @@
         if (press || drag || event.button > 0 || event.isPrimary === false) return;
         const target = stumpTarget(event);
         closeTouchTooltip(event, target);
-        const source = target && target.closest('[data-stump-drag]');
+        const source = target && target.closest('[data-stump-drag], [data-stump-drag-cube]');
         if (source) holdSource(event, source);
     }
     function holdSource(event, source) {
-        const touch = event.pointerType === 'touch';
-        press = { pointerId: event.pointerId, id: Number(source.dataset.stumpDrag), source, x: event.clientX, y: event.clientY, armed: !touch, timer: 0 };
+        const touch = event.pointerType === 'touch', cube = source.dataset.stumpDragCube !== undefined ? cubeGrab(source, event) : null;
+        press = { pointerId: event.pointerId, id: cube ? null : Number(source.dataset.stumpDrag), cube, source, x: event.clientX, y: event.clientY, armed: !touch, timer: 0 };
         if (touch) press.timer = setTimeout(() => { if (press) { press.armed = true; press.source.classList.add('is-held'); } }, HOLD_MS);
     }
     function ghostFor(source) {
@@ -44,9 +45,27 @@
         document.body.appendChild(ghost);
         return ghost;
     }
+    /** The cell under (x, y) of a cube cell or of a cube item (an item covers several cells; its own cell is its top left). */
+    function cubeCellAt(zone, x, y) {
+        const at = Number(zone.dataset.stumpDropCube), w = Number(zone.dataset.cubeW) || 1, h = Number(zone.dataset.cubeH) || 1;
+        const rect = zone.getBoundingClientRect(), clamp = (v, n) => Math.max(0, Math.min(n - 1, v));
+        const dx = clamp(Math.floor((x - rect.left) / (rect.width / w)), w), dy = clamp(Math.floor((y - rect.top) / (rect.height / h)), h);
+        return at + dy * stumpCube.SIZE + dx;
+    }
+    /** Which cube item is picked up, and which of its cells the pointer holds (a big item lands so that cell is under the drop). */
+    function cubeGrab(source, event) {
+        const from = Number(source.dataset.stumpDragCube), held = cubeCellAt(source, event.clientX, event.clientY);
+        return { from, dx: held % stumpCube.SIZE - from % stumpCube.SIZE, dy: Math.floor(held / stumpCube.SIZE) - Math.floor(from / stumpCube.SIZE) };
+    }
+    /** The new top left for a cube item dropped on this zone at (x, y), or -1 when it would stick out of the cube. */
+    function cubeTarget(zone, x, y) {
+        const cell = cubeCellAt(zone, x, y), size = stumpCube.SIZE;
+        const tx = cell % size - drag.cube.dx, ty = Math.floor(cell / size) - drag.cube.dy;
+        return tx < 0 || ty < 0 ? -1 : ty * size + tx;
+    }
     function beginDrag(event) {
         stumpBoxUi.clearPlacementPreview();
-        drag = { id: press.id, source: press.source, ghost: ghostFor(press.source), zone: null };
+        drag = { id: press.id, cube: press.cube, source: press.source, ghost: ghostFor(press.source), zone: null, point: null };
         clearPress();
         drag.source.classList.add('is-dragging');
         document.getElementById('tab-stump')?.classList.add('is-stump-dragging');
@@ -66,28 +85,32 @@
 
     // ── 끄는 중 ────────────────────────────────────────────
     function zoneAt(x, y) {
-        const hit = document.elementFromPoint(x, y);
-        return hit && hit.closest ? hit.closest('#tab-stump [data-stump-drop-cell], #tab-stump [data-stump-drop-storage], #tab-stump [data-stump-drop-cube]') : null;
+        const hit = document.elementFromPoint(x, y), bag = drag?.cube ? ', #tab-stump #stump-equip-host' : '';
+        return hit && hit.closest ? hit.closest(`#tab-stump [data-stump-drop-cell], #tab-stump [data-stump-drop-storage], #tab-stump [data-stump-drop-cube]${bag}`) : null;
     }
     /** Whether dropping here would do anything: another open cell, storage for an item that is on the board, or the cube for a stored
-     * item it can take. */
+     * item it can take. A cube item goes to a cube spot it fits, or out to the storage or the bag. */
     function zoneAccepts(zone) {
+        if (drag.cube) return zone.dataset.stumpDropCube === undefined ? zone.dataset.stumpDropCell === undefined
+            : stumpCube.canMove(game, drag.cube.from, cubeTarget(zone, drag.point.clientX, drag.point.clientY));
         if (zone.dataset.stumpDropStorage) return game.stumpBox.board.includes(drag.id);
         if (zone.dataset.stumpDropCube !== undefined) return stumpCube.candidates('stump').some(item => item.id === drag.id);
         const cell = Number(zone.dataset.stumpDropCell);
         return stumpBox.isOpen(game, cell) && game.stumpBox.board[cell] !== drag.id;
     }
     function markZone(zone) {
-        if (drag.zone === zone) return;
+        // A cube item crossing a big item stays on one zone while the cell under it changes, so cube drags re-mark every move.
+        if (drag.zone === zone && !drag.cube) return;
         drag.zone?.classList.remove('is-drop-ok', 'is-drop-bad');
         drag.zone = zone;
         if (zone) zone.classList.add(zoneAccepts(zone) ? 'is-drop-ok' : 'is-drop-bad');
-        if (zone?.dataset.stumpDropCell !== undefined && zoneAccepts(zone)) stumpBoxUi.previewCell(drag.id, Number(zone.dataset.stumpDropCell));
+        if (!drag.cube && zone?.dataset.stumpDropCell !== undefined && zoneAccepts(zone)) stumpBoxUi.previewCell(drag.id, Number(zone.dataset.stumpDropCell));
         else stumpBoxUi.clearPlacementPreview(true);
     }
     function follow(point) {
         if (!drag) return;
         const scale = uiDisplay.factor || 1;
+        drag.point = point;
         drag.ghost.style.transform = `translate3d(${Math.round(point.clientX / scale)}px,${Math.round(point.clientY / scale)}px,0)`;
         markZone(zoneAt(point.clientX, point.clientY));
     }
@@ -109,15 +132,23 @@
     }
     function finishDrag(event) {
         const id = drag.id, zone = zoneAt(event.clientX, event.clientY);
+        const cubeDrop = drag.cube && zone ? cubeDropTarget(zone, event) : undefined, from = drag.cube?.from;
         endDrag();
         // The release makes one click on whatever is under the pointer; only that click is swallowed.
         swallowClick = true;
         setTimeout(() => { swallowClick = false; }, 0);
         if (!zone) return;
+        if (cubeDrop !== undefined) return cubeDrop === false ? undefined : stumpBoxUi.dropCubeItem(from, cubeDrop);
         if (zone.dataset.stumpDropStorage) stumpBoxUi.dropOnStorage(id);
         else if (zone.dataset.stumpDropCube !== undefined) stumpBoxUi.dropOnCube(id, Number(zone.dataset.stumpDropCube));
         else if (event.pointerType === 'touch') stumpBoxUi.previewCell(id, Number(zone.dataset.stumpDropCell), true);
         else stumpBoxUi.dropOnCell(id, Number(zone.dataset.stumpDropCell));
+    }
+
+    /** Where a dropped cube item goes: a new top left in the cube, null to take it out (storage or bag), false for a board cell. */
+    function cubeDropTarget(zone, point) {
+        if (zone.dataset.stumpDropCube !== undefined) return cubeTarget(zone, point.clientX, point.clientY);
+        return zone.dataset.stumpDropCell === undefined ? null : false;
     }
 
     // ── 포인터 이벤트 ──────────────────────────────────────

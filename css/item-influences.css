@@ -86,7 +86,7 @@
 @layer overrides {
 :root body #item-tooltip-box[data-influence][data-influence]:not(.item-compare-tooltip),
 :root body #item-tooltip-box[data-influence][data-influence].item-compare-tooltip .item-tooltip-main,
-:root body #item-tab-equip .equipment-inspection-tooltip[data-influence][data-influence] {
+:root body :is(#item-tab-equip, #stump-equip-host) .equipment-inspection-tooltip[data-influence][data-influence] {
     border-style: solid;
     border-width: var(--px-light-border, 2px);
     border-image: linear-gradient(90deg, var(--infl-a) 0 50%, var(--infl-b) 50% 100%) 1;

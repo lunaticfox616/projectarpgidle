@@ -187,7 +187,7 @@ run(`game = mergeDefaults({ ...JSON.parse(serializeSaveState(game)), stumpBox: {
         { id: 4, family: 'rock', color: 'fire' }, { id: 5, family: 'sap', color: 'cold', xp: -5 }],
     board: [3, 3, 99, 5] } }); window.game = game;`);
 assert.deepStrictEqual(json('game.stumpBox.items.map(item => [item.id, item.family, item.xp, item.ripe, item.roll])'),
-    [[3, 'seed', STUMP_GROWTH_NEED.seed, true, 1.3], [5, 'sap', 0, false, 1]], 'duplicate and unknown items drop, values clamp (stored quality tops out at 130%, the cube merge cap)');
+    [[3, 'seed', STUMP_GROWTH_NEED.seed, true, 1.41], [5, 'sap', 0, false, 1]], 'duplicate and unknown items drop, values clamp (stored quality tops out at 141%: the 130% cap and the rare merge past it)');
 assert.deepStrictEqual(json('game.stumpBox.board.slice(0, 5)'), [3, null, null, 5, null], 'each item sits on at most one cell');
 assert.strictEqual(run('game.stumpBox.nextId'), 6, 'new ids never reuse saved ones');
 run('game = mergeDefaults({ ...JSON.parse(serializeSaveState(game)), stumpBox: "broken" }); window.game = game;');
