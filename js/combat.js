@@ -8856,21 +8856,28 @@ const explorationPackFormation=(()=>{
         const front=melee.length?melee:pool,back=ranged.length?ranged:pool;
         return [front[seed%front.length],back[Math.floor(seed/7)%back.length]];
     }
-    /** Content may reserve two ordinary slots before spawn. Rare eligibility depends only on the existing variant seed,
-     * not on the element that createEnemy will roll once. Other slots keep their natural species, even duplicate pair members. */
+    /** Content reserves evenly spaced ordinary slots before spawn. Rare eligibility depends only on the existing variant seed,
+     * not on the element that createEnemy will roll once. Other slots keep their natural species, even duplicate roster members. */
     function encounterOrdinaryRoster(zone,encounter,shape) {
-        const pair=ATLAS.encounters[encounter]?.ordinaryPair;
-        if(zone.type!=='atlasMap' || !pair)return [];
+        const desired=ATLAS.encounters[encounter]?.ordinaryRoster;
+        if(zone.type!=='atlasMap' || !desired)return [];
         const slots=shape.cells.map((_,index)=>index).filter(index=>{
             if(shape.elite && index===0)return false;
             const seed=Math.abs(getEnemySeeds(zone,{at:shape.at},index).variantSeed);
             return seed%WISP_ENEMY_RULES.spawnOneIn!==0 && !getRootMonsterVisualDefinition(seed);
         });
-        const roster=[];
-        if(!slots.length)return roster;
-        const seed=Math.abs(hashSeed(`${zone.atlasSeed || zone.id}:${shape.key}:ordinaryPair`));
-        roster[slots[0]]=pair[slots.length===1?seed%pair.length:0];
-        if(slots.length>1)roster[slots[slots.length-1]]=pair[1];
+        const roster=[],count=Math.min(slots.length,desired.length);
+        if(!count)return roster;
+        if(count===1){
+            // Keep the original salt so renaming the setting does not reroll a one-slot garden room.
+            const seed=Math.abs(hashSeed(`${zone.atlasSeed || zone.id}:${shape.key}:ordinaryPair`));
+            roster[slots[0]]=desired[seed%desired.length];
+            return roster;
+        }
+        for(let index=0;index<count;index++){
+            const slot=slots[Math.round(index*(slots.length-1)/(count-1))];
+            roster[slot]=desired[Math.round(index*(desired.length-1)/(count-1))];
+        }
         return roster;
     }
     function roster(zone,stage,encounter,shape,formation) {
