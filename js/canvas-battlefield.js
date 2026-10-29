@@ -2884,19 +2884,7 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
             requestBattleHitStop(fx);
             let enemyPos = enemyPosMap[fx.enemyId] || battleVisualState.enemyGhostPos[fx.enemyId] || { x: width * 0.72, y: height * 0.58 };
             if (typeof fx.damage === 'number') {
-                spawnDamageText({
-                    start: now,
-                    x: enemyPos.x,
-                    y: getDamageTextBodyY(enemyPos.y, getEnemyBodyHeight(enemyPos)),
-                    value: Number.isFinite(Number(fx.rawDamage)) ? Number(fx.rawDamage) : fx.damage,
-                    crit: !!fx.crit,
-                    dot: !!fx.dot,
-                    dotType: fx.element || '',
-                    impactTier: fx.impactTier || 'normal',
-                    damageRatio: fx.damageRatio || 0,
-                    // Same skill/target within 250 ms shares a sum and hit count at high attack speeds.
-                    aggregateKey: `${fx.skillName}:${fx.enemyId}:${Math.floor(fx.start / 250)}`
-                });
+                spawnDamageText.fromHit(fx, enemyPos.x, getDamageTextBodyY(enemyPos.y, getEnemyBodyHeight(enemyPos)), now);
             }
             if (!fx.dot && fx.skillName) {
                 const viewportSkillFxScale = Math.min(width / 960, height / 540);
