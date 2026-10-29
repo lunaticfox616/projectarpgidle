@@ -560,6 +560,8 @@ const actExplorationState = (() => {
         for(let i=enemies.length-1;i>=0;i--)if(removed.has(enemies[i].id))enemies.splice(i,1);
     }
     function fitCerberusBody(body,stage,map) {
+        // Old or malformed saves restart only the head order, never HP, attack charge or rewards.
+        if(!Number.isInteger(body.cerberusHeadIndex)||body.cerberusHeadIndex<0||body.cerberusHeadIndex>2)body.cerberusHeadIndex=0;
         Object.assign(body,{name:'👿 야수왕 케르베로스',spriteVariantId:null,bossAssetKey:null,bossVisualTint:null,
             monsterVisualSetId:null,monsterVisualId:['cerberus-head','cerberus-fang','s6_beast_cerberus'][stage]});
         const footprint={columns:3,rows:2};

@@ -13756,16 +13756,17 @@ function getClosestLivingSummonToPlayer() {
     })[0] || null;
 }
 
-function applyMonsterDamageToSummon(summon, rawDamage, enemy, pStats) {
+function applyMonsterDamageToSummon(summon, rawDamage, enemy, pStats, bossPattern) {
     if (summon && summon.isGhost) return 0;
     let evade = getSummonEvadeChance(summon, enemy);
     if (resolveEntropyEvasion(summon, evade, getCombatTime())) return 0;
     let damage = Math.max(1, Math.floor(rawDamage || 1));
-    if (enemy.ele === 'phys') {
+    const attackElement = enemyAttackRules.element(enemy, bossPattern);
+    if (attackElement === 'phys') {
         let armorReduction = Math.min(85, (summon.armor || 0) / ((summon.armor || 0) + damage * 8) * 100);
         damage = Math.max(1, Math.floor(damage * (1 - armorReduction / 100)));
     } else {
-        let resKey = { fire: 'resFire', cold: 'resCold', light: 'resLight', chaos: 'resChaos' }[enemy.ele];
+        let resKey = { fire: 'resFire', cold: 'resCold', light: 'resLight', chaos: 'resChaos' }[attackElement];
         let resistance = resKey ? Math.max(-60, Math.min(85, Number(summon[resKey]) || 0)) : 0;
         damage = Math.max(1, Math.floor(damage * (1 - resistance / 100)));
     }
@@ -13775,7 +13776,7 @@ function applyMonsterDamageToSummon(summon, rawDamage, enemy, pStats) {
         addBattleFx('summonHit', {
             summonId: summon.id,
             damage: damage,
-            element: enemy && enemy.ele ? enemy.ele : 'phys',
+            element: attackElement,
             duration: 260
         });
     }
@@ -13791,12 +13792,12 @@ function applyMonsterDamageToSummon(summon, rawDamage, enemy, pStats) {
 }
 
 /** Apply each summon hit once; return whether the player's defense pipeline must also run. */
-function dispatchMonsterHitTargets(targets, damage, enemy, pStats) {
+function dispatchMonsterHitTargets(targets, damage, enemy, pStats, bossPattern) {
     const coreHit=targets.some(unit=>unit.isColonyCore);
     if(coreHit)strikeColonyDefenseCore(damage);
     if(coreHit && !game.colony?.inRun)return false;
     targets.filter(unit => unit !== game.gridPlayer && !unit.isColonyCore)
-        .forEach(summon => applyMonsterDamageToSummon(summon, damage, enemy, pStats));
+        .forEach(summon => applyMonsterDamageToSummon(summon, damage, enemy, pStats, bossPattern));
     return targets.includes(game.gridPlayer);
 }
 
@@ -13839,7 +13840,7 @@ function queueEnemyCombatAttack(enemy, target, bossPattern, delivery) {
     addBattleFx('combatTravel', {
         owner: 'enemy', sourceId: enemy.id, sourceCell, targetCells: [attack.targetCell], travelPath:flight.path, enemyFlight:attack,
         targetType, targetId: attack.targetId,
-        delivery, element: enemy.ele || 'phys', releaseDelayMs: 0,
+        delivery, element: enemyAttackRules.element(enemy, bossPattern), cerberusHead: bossPattern?.cerberusHead, releaseDelayMs: 0,
         flightMs: travelMs, duration: Math.max(travelMs + 260, releaseMs)
     });
     return true;
@@ -13851,7 +13852,8 @@ function queueEnemyCombatAttack(enemy, target, bossPattern, delivery) {
 function announceEnemyAttackRelease(enemy, bossPattern, delivery, target) {
     if (enemy.isBoss) {
         const slam = delivery === 'patternArea' && !['line', 'fan'].includes(bossPattern.area.kind);
-        addBattleFx('bossRelease', { enemyId: enemy.id, slam, special: !!(bossPattern && bossPattern.isSpecial), duration: 560 });
+        addBattleFx('bossRelease', { enemyId: enemy.id, slam, special: !!(bossPattern && bossPattern.isSpecial), duration: 560,
+            cerberusHead: bossPattern?.cerberusHead, element: enemyAttackRules.element(enemy, bossPattern) });
     }
     const actor = getBossStageActor(enemy);
     const remaining = actor?.attackMs ? actor.attackMs.slice(actor.impactFrame).reduce((sum, ms) => sum + ms, 0) : 0;
@@ -14069,26 +14071,26 @@ function performMonsterAttacks(pStats) {
             }
             if (!enemy.isBoss) dmg = Math.floor(dmg * crowdPenalty);
             dmg = Math.floor(dmg * (abyssScale.dmgMul || 1) * (abyssScale.playerTakenMul || 1) * (enemy.isBoss ? (abyssScale.bossMul || 1) : 1));
-            if (!dispatchMonsterHitTargets(impactTargets, dmg, enemy, pStats)) break;
+            if (!dispatchMonsterHitTargets(impactTargets, dmg, enemy, pStats, bossPattern)) break;
             if (getCombatTime() < Math.max(0, Number(game.realmInvulnerableBarrierUntil) || 0)) {
                 addBattleFx('statusText', { text: '균열 장막', color: '#c49bff', duration: 220 });
                 continue;
             }
-            // 몬스터 혼합 타격은 '원본 피해'를 먼저 50:50으로 분할한 뒤,
-            // 물리/속성을 각각 별도로 방어 계산한다. (한쪽 감소 후 재분할 금지)
+            // 원본 피해를 먼저 50:50 분할한다. 머리별 속성은 본체 속성과 분리한다.
+            let attackElement = enemyAttackRules.element(enemy, bossPattern);
             let physicalPortion = Math.floor(dmg * 0.5);
             let elementalPortion = Math.max(0, dmg - physicalPortion);
             if (zone.type === 'outsideChaos' && enemy.maxHp > 0) {
                 let phaseProgress = getWoodsmanPhaseProgress(enemy);
                 let phase = Math.max(0, Math.floor(phaseProgress / 0.05));
                 let cycle = ['phys','fire','cold','light','chaos'];
-                enemy.ele = cycle[phase % cycle.length];
+                enemy.ele = attackElement = cycle[phase % cycle.length];
                 enemy.atkMul = 1 + Math.pow(phaseProgress, 1.4) * 3.2;
                 enemy.attackSpeedVar = (1 + Math.pow(phaseProgress, 1.2) * 1.8) * 1.5;
                 enemy.penetration = 8 + Math.floor(phaseProgress * 28);
                 enemy.dr = 10 + Math.floor(phaseProgress * 40);
             }
-            if (enemy.ele === 'phys') {
+            if (attackElement === 'phys') {
                 physicalPortion = dmg;
                 elementalPortion = 0;
             }
@@ -14111,8 +14113,8 @@ function performMonsterAttacks(pStats) {
                 if (mitigated > 0) convertedTakenAsBreakdown.push({ ele, amount: mitigated });
             });
             physicalPortion = Math.max(0, originalPhysicalPortion - totalShiftedPhysical);
-            let elementalRes = ['fire', 'cold', 'light', 'chaos'].includes(enemy.ele)
-                ? getPlayerResistanceAfterEnemyModifiers(pStats, enemy.ele, enemy)
+            let elementalRes = ['fire', 'cold', 'light', 'chaos'].includes(attackElement)
+                ? getPlayerResistanceAfterEnemyModifiers(pStats, attackElement, enemy)
                 : 0;
             let physRes = Math.max(-60, pStats.dr + getArmorPhysicalReductionPct(pStats.armor, physicalPortion));
             if (pStats.cosmosBalanceMitigation) {
@@ -14127,7 +14129,7 @@ function performMonsterAttacks(pStats) {
                 damageBreakdown = getCosmosEqualSplitDamageBreakdown(dmg, pStats, enemy);
             } else {
                 if (mitigatedPhysical > 0) damageBreakdown.push({ ele: 'phys', amount: mitigatedPhysical });
-                if (mitigatedElemental > 0) damageBreakdown.push({ ele: enemy.ele, amount: mitigatedElemental });
+                if (mitigatedElemental > 0) damageBreakdown.push({ ele: attackElement, amount: mitigatedElemental });
             }
             if (convertedTakenAsBreakdown.length > 0) damageBreakdown = damageBreakdown.concat(convertedTakenAsBreakdown);
             damageBreakdown = damageBreakdown.map(row => {
@@ -14184,11 +14186,11 @@ function performMonsterAttacks(pStats) {
             if (pStats.passiveAshura && typeof applyPassiveAshuraDamageBreakdown === 'function') {
                 damageBreakdown = applyPassiveAshuraDamageBreakdown(damageBreakdown, game.playerAilments, pStats.cycle);
             }
-            if (damageBreakdown.length === 0) damageBreakdown.push({ ele: enemy.ele === 'phys' ? 'phys' : enemy.ele, amount: 1 });
+            if (damageBreakdown.length === 0) damageBreakdown.push({ ele: attackElement, amount: 1 });
             let sumBreakdown = () => damageBreakdown.reduce((sum, row) => sum + Math.max(0, Math.floor(row.amount || 0)), 0);
             let scaleBreakdown = (mul) => {
                 damageBreakdown = damageBreakdown.map(row => ({ ele: row.ele, amount: Math.max(0, Math.floor((row.amount || 0) * mul)) })).filter(row => row.amount > 0);
-                if (damageBreakdown.length === 0) damageBreakdown.push({ ele: enemy.ele === 'phys' ? 'phys' : enemy.ele, amount: 1 });
+                if (damageBreakdown.length === 0) damageBreakdown.push({ ele: attackElement, amount: 1 });
             };
             let scaleBreakdownToTotal = (targetTotal) => {
                 targetTotal = Math.max(1, Math.floor(targetTotal || 1));
@@ -14201,7 +14203,7 @@ function performMonsterAttacks(pStats) {
                     remainingTotal = Math.max(0, remainingTotal - amount);
                     return { ele: row.ele, amount };
                 }).filter(row => row.amount > 0);
-                if (damageBreakdown.length === 0) damageBreakdown.push({ ele: enemy.ele === 'phys' ? 'phys' : enemy.ele, amount: targetTotal });
+                if (damageBreakdown.length === 0) damageBreakdown.push({ ele: attackElement, amount: targetTotal });
                 return Math.max(1, sumBreakdown());
             };
             dmg = Math.max(1, sumBreakdown());
@@ -14235,7 +14237,7 @@ function performMonsterAttacks(pStats) {
                     : Math.max(0, Math.min(95, Number(pStats.uniqueGuardianArmor.takenLessPct || 0)));
                 dmg = Math.max(1, Math.floor(dmg * (1 - less / 100)));
             }
-            if (pStats.uniquePhysDrHalfTakenAsMore && enemy.ele === 'phys') {
+            if (pStats.uniquePhysDrHalfTakenAsMore && attackElement === 'phys') {
                 let ratio = Math.max(0, Number(pStats.uniquePhysDrHalfTakenAsMore.ratio || 0.5));
                 let takenMore = Math.max(0, (Math.max(0, Number(pStats.dr) || 0) / 100) * ratio);
                 dmg = Math.max(1, Math.floor(dmg * (1 + takenMore)));
@@ -14320,8 +14322,8 @@ function performMonsterAttacks(pStats) {
                 enemyAilmentChance = getPassiveAshuraAilmentChance(enemyAilmentChance, pStats.cycle);
             }
             if (enemyAilmentChance > 0 && ailRoll < enemyAilmentChance) {
-                let ail = enemy.ele === 'fire' ? 'ignite' : enemy.ele === 'cold' ? 'chill'
-                    : enemy.ele === 'light' ? 'shock' : enemy.ele === 'phys' ? 'bleed' : 'poison';
+                let ail = attackElement === 'fire' ? 'ignite' : attackElement === 'cold' ? 'chill'
+                    : attackElement === 'light' ? 'shock' : attackElement === 'phys' ? 'bleed' : 'poison';
                 let hitRatio = Math.max(0.001, Math.min(0.35, dmg / Math.max(1, pStats.maxHp || 1)));
                 let damageAilment = isDamageAilmentType(ail);
                 let ailPower = damageAilment
@@ -14335,7 +14337,7 @@ function performMonsterAttacks(pStats) {
                 });
                 let ailmentLabel = ail === 'ignite' ? '점화' : ail === 'chill' ? '냉각'
                     : ail === 'shock' ? '감전' : ail === 'bleed' ? '출혈' : '중독';
-                if (game.settings.showCombatLog) addLog(`☣️ 상태이상: ${ailmentLabel} (${enemy.isBoss ? 5 : 3}초)`, 'attack-monster', { element:enemy.ele });
+                if (game.settings.showCombatLog) addLog(`☣️ 상태이상: ${ailmentLabel} (${enemy.isBoss ? 5 : 3}초)`, 'attack-monster', { element:attackElement });
             }
 
             grantWarriorRageOnHit(getCombatTime());
@@ -14366,10 +14368,10 @@ function performMonsterAttacks(pStats) {
                         // 직접 맞을 때와 같은 회피(명중 기반, 고르게 피하는 굴림). 2026-10-18 사용자 결정, 전에는 회피/(회피+300) 따로 굴렸다.
                         if (resolveEntropyEvasion(guard, getSummonEvadeChance(guard, enemy), getCombatTime())) share = 0;
                         let guardRes = 0;
-                        if (enemy.ele === 'fire') guardRes = guard.resFire || 0;
-                        else if (enemy.ele === 'cold') guardRes = guard.resCold || 0;
-                        else if (enemy.ele === 'light') guardRes = guard.resLight || 0;
-                        else if (enemy.ele === 'chaos') guardRes = guard.resChaos || 0;
+                        if (attackElement === 'fire') guardRes = guard.resFire || 0;
+                        else if (attackElement === 'cold') guardRes = guard.resCold || 0;
+                        else if (attackElement === 'light') guardRes = guard.resLight || 0;
+                        else if (attackElement === 'chaos') guardRes = guard.resChaos || 0;
                         let reduced = Math.max(0, Math.floor(share * (1 - (Math.max(-60, guardRes) / 100))));
                         let armorRed = Math.min(85, (guard.armor || 0) / ((guard.armor || 0) + Math.max(1, reduced) * 8) * 100);
                         reduced = Math.max(0, Math.floor(reduced * (1 - armorRed / 100)));
@@ -14468,7 +14470,7 @@ function performMonsterAttacks(pStats) {
             if (hasKeystone('a2')) game.assassinBlurred = false;
             let topDamageEntry = damageBreakdown
                 .filter(row => row && row.amount > 0)
-                .sort((a, b) => (b.amount || 0) - (a.amount || 0))[0] || { ele: enemy.ele === 'phys' ? 'phys' : (enemy.ele || 'phys'), amount: dmg };
+                .sort((a, b) => (b.amount || 0) - (a.amount || 0))[0] || { ele: attackElement, amount: dmg };
             const damageSource = enemyAttackRules.damageName(enemy, bossPattern);
             damageBreakdown.forEach(row => recordIncomingDamage(row.ele, row.amount, damageSource, {
                 sourceType: 'monster', sourceId: enemy.id, sourceName: enemy.name

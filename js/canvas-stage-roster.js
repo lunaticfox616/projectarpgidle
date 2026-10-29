@@ -275,7 +275,7 @@ const stageRoster = (() => {
         shadow(ctx, actor, p, dot, hop);
         noteEnemyDrawnHeight(enemy, actor.height * dot);   // 뛰는 높이는 넣지 않는다: 체력 막대가 걸음마다 따라 튄다
         const west = stageView.facing(enemy, p.facing) === 'west';
-        notePlacement(enemy, actor, p, dot, west);
+        notePlacement(enemy, actor, p, { dot, west, frame: pose.index, clip: pose.clip });
         ctx.save();
         if (west) { ctx.translate(p.x * 2, 0); ctx.scale(-1, 1); }
         const left = monsterActors.snap(p.x - (size.pad + actor.feet[0]) * dot), top = monsterActors.snap(p.y - (size.pad + actor.feet[1] + hop) * dot);
@@ -316,9 +316,9 @@ const stageRoster = (() => {
     /** The looks the test panel can pick: [id, name], by name. */
     const looks = () => (table() ? Object.values(table().actors).map(actor => [actor.id, actor.name]).sort((a, b) => a[1].localeCompare(b[1], 'ko')) : []);
 
-    function notePlacement(enemy, actor, p, dot, west) {
+    function notePlacement(enemy, actor, p, pose) {
         if (!enemy.isBoss) return;
-        placements.set(enemy.id, { x: p.x, y: p.y, dot, west, strikeFrame: actor.impactFrame || 0, at: tick });
+        placements.set(enemy.id, { x: p.x, y: p.y, ...pose, actor: actor.id, strikeFrame: actor.impactFrame || 0, at: tick });
         // 쓰러진 보스의 자리는 지운다(2026-10-26: 한 판에 만난 보스마다 하나씩 남았다). placementOf는 1초 안의 자리만 돌려준다.
         if (placements.size > 8) for (const [id, placed] of placements) if (tick - placed.at > 1000) placements.delete(id);
     }
@@ -328,6 +328,21 @@ const stageRoster = (() => {
         return placed && performance.now() - placed.at < 1000 ? placed : null;
     }
 
-    return Object.freeze({ draw, drawDeath, drawClip, looks, keepFor, placementOf, bodySize });
+    // Authored mouth pixels in the existing 233x146 attack sheet; front, rear, upper. Feet are (129,143).
+    const CERBERUS_MOUTHS = [
+        [[204,73],[108,61],[184,22]], [[210,93],[110,70],[187,64]], [[181,121],[104,87],[219,111]],
+        [[208,89],[112,66],[205,54]], [[210,79],[112,62],[207,53]], [[204,75],[110,62],[184,24]]
+    ];
+    /** Visual origin only: it never creates another enemy, hitbox or target. */
+    function headOrigin(id, head, fallback) {
+        const placed = Number.isInteger(head) && placementOf(id);
+        if (!placed || placed.actor !== 's6_beast_cerberus' || head < 0 || head > 2) return fallback;
+        const frame = placed.clip === 'attack' ? placed.frame : placed.strikeFrame;
+        const [x, y] = CERBERUS_MOUTHS[frame][head];
+        return { x: placed.x + (placed.west ? -1 : 1) * (x - 129) * placed.dot,
+            y: placed.y + (y - 143) * placed.dot, dot: placed.dot, west: placed.west };
+    }
+
+    return Object.freeze({ draw, drawDeath, drawClip, looks, keepFor, placementOf, headOrigin, bodySize });
 })();
 safeExposeGlobals({ stageRoster });

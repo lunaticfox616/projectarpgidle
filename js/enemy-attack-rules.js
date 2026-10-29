@@ -39,6 +39,18 @@ const enemyAttackRules = (() => {
         return enemy.attackDelivery || 'projectileTarget';
     }
 
+    /** One body, one attack clock. Only a consumed ordinary strike advances the attached head (0..2).
+     * The shot owns its element: changing heads must not recolour the body or an already released shot. */
+    function cerberusAttack(enemy, pattern) {
+        if (pattern.isSpecial || !enemy.isBoss || !Number.isInteger(enemy.cerberusHeadIndex)) return;
+        pattern.cerberusHead = enemy.cerberusHeadIndex;
+        pattern.attackElement = enemy.monsterVisualId === 'cerberus-head'
+            ? ['fire', 'cold', 'fire'][pattern.cerberusHead] : enemy.ele;
+        enemy.cerberusHeadIndex = (enemy.cerberusHeadIndex + 1) % 3;
+    }
+
+    const element = (enemy, pattern) => pattern?.attackElement || enemy.ele || 'phys';
+
     function units(state) {
         const alive = state.playerHp > 0 ? [state.gridPlayer] : [];
         const targets=alive.concat(state.summons.filter(unit => unit.alive && !unit.isGhost && unit.hp > 0));
@@ -250,6 +262,6 @@ const enemyAttackRules = (() => {
         return special && pattern.label ? `${enemy.name} (${pattern.label})` : enemy.name;
     }
 
-    return {delivery,impactTargets,trajectory,advanceFlight,interrupt,cancelPending,ready,castBar,damageName,meleeReach,noteAim,aimCell};
+    return {delivery,cerberusAttack,element,impactTargets,trajectory,advanceFlight,interrupt,cancelPending,ready,castBar,damageName,meleeReach,noteAim,aimCell};
 })();
 safeExposeGlobals({enemyAttackRules});

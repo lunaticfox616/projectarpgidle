@@ -1124,7 +1124,8 @@ function prepareBossShot(fx, gridProj, enemyPosMap) {
     const cell = getCombatTravelScreenPos(gridProj, fx.sourceCell, null);
     if (!entry || !entry.enemy || !entry.enemy.isBoss) return fx.bossShotOffset && cell ? { x: cell.x + fx.bossShotOffset.x, y: cell.y + fx.bossShotOffset.y } : null;
     fx.screenShotScale = clampNumber(gridProj.tileW / 48, 0.75, 2) * 1.6;
-    const origin = { x: entry.x, y: entry.y - Math.max(24, (enemyDrawnHeights.get(entry.enemy) || 0) * 0.5) };
+    const origin = stageRoster.headOrigin(fx.sourceId, fx.cerberusHead,
+        { x: entry.x, y: entry.y - Math.max(24, (enemyDrawnHeights.get(entry.enemy) || 0) * 0.5) });
     if (cell) fx.bossShotOffset = { x: origin.x - cell.x, y: origin.y - cell.y };
     return origin;
 }
@@ -3070,10 +3071,10 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
     let playerHpGhostPct = clampNumber(battleVisualState.playerHpGhostPct, playerHpPct, 1);
     let playerEsPct = (pStatsNow.energyShield || 0) > 0 ? clampNumber((game.playerEnergyShield || 0) / Math.max(1, pStatsNow.energyShield), 0, 1) : 0;
     currentTargets = currentTargets.map(hit => hit.enemy && hit.enemy.id).filter(Boolean);
-
     battleFx.filter(fx => !isGroundSkillCast(fx) && !fx.loot && !fx.groundLoot).forEach(fx => {
         if (now < fx.start) return;
         let t = clampNumber((now - fx.start) / fx.duration, 0, 1);
+        bossAttackView.drawHeadRelease(ctx, fx, now);
         let ghostEnemy = (fx.enemyId && !enemyPosMap[fx.enemyId]) ? battleVisualState.enemyGhostPos[fx.enemyId] : null;
         if (ghostEnemy && !enemyPosMap[fx.enemyId]) {
             enemyPosMap[fx.enemyId] = { enemy: ghostEnemy.enemy || { id: fx.enemyId, hp: 0, maxHp: 1 }, x: ghostEnemy.x, y: ghostEnemy.y, actualAim: ghostEnemy.actualAim };
