@@ -1616,19 +1616,60 @@ function getEnemyFieldBarEdge(enemy, targeted) {
 
 function drawEliteNameplate(ctx, centerX, bottomY, enemy) {
     if (!enemy.isElite || enemy.isBoss) return;
-    const label = enemy.traitName || '정예';
+    const presentation = drawEliteNameplate.presentation(enemy);
+    let label = presentation.label;
     ctx.save();
     ctx.font = `12px ${BATTLE_PIXEL_FONT}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
+    // Measure the current font each paint: a cached fallback-font width stays wrong after Galmuri loads.
+    if (ctx.measureText(label).width > 150) {
+        const glyphs = Array.from(label);
+        let low = 0, high = glyphs.length;
+        while (low < high) {
+            const mid = Math.ceil((low + high) / 2);
+            if (ctx.measureText(glyphs.slice(0, mid).join('') + '…').width <= 150) low = mid;
+            else high = mid - 1;
+        }
+        label = glyphs.slice(0, low).join('') + '…';
+    }
     const width = Math.ceil(ctx.measureText(label).width) + 10;
     const x = Math.round(centerX), y = Math.round(bottomY);
     ctx.fillStyle = 'rgba(10, 9, 6, 0.82)';
     ctx.fillRect(Math.round(x - width / 2), y - 17, width, 16);
     // 특성 이름은 그 특성의 색(화염 장막은 화염 색, 2026-10-06), 핵심어가 없으면 예전 금빛.
-    fillPixelText(ctx, label, x, y - 3, statToneText.lineColor(label, '#f3d77a'));
+    fillPixelText(ctx, label, x, y - 3, presentation.color);
     ctx.restore();
 }
+/** Read-only labels from the saved wording, never from the current zone. Unknown traits keep their text. */
+drawEliteNameplate.presentation = (() => {
+    const cache = new WeakMap();
+    const short = { critResist: '치명저항', critDamageResist: '치명피해저항', comboGuard: '연타저항', heavySlow: '강타',
+        fast: '속공', energyShield: '보호막', evasion: '회피', armor: '장갑' };
+    const names = new Map(COSMOS_MECHANIC_DB.map(row => [row.name, short[row.id]]));
+    const habitats = new Set(Object.values(COSMOS_ROUTE_G1.habitats).map(row => row.name));
+    const metadata = /^우주계:\s*\S+\s+\d+등급\/\d+(?:\.\d+)?g$/;
+    function combatLabel(part) {
+        const match = /^우주계:\s*(.+)$/.exec(part);
+        return match && names.get(match[1].replace(/\s+\d+%$/, '')) || part;
+    }
+    function compact(raw) {
+        const parts = raw.split(',').map(part => part.trim()), cosmos = parts.some(part => metadata.test(part));
+        const labels = parts.map(part => {
+            if (cosmos && (metadata.test(part) || part.startsWith('탐사:') || habitats.has(part))) return null;
+            return combatLabel(part);
+        }).filter(Boolean);
+        if (labels.length === parts.length && labels.every((label, index) => label === parts[index])) return raw;
+        return labels.join(' · ') || '정예';
+    }
+    return enemy => {
+        const raw = String(enemy.traitName || '정예'), previous = cache.get(enemy);
+        if (previous?.raw === raw) return previous;
+        const presentation = { raw, label: compact(raw), color: statToneText.lineColor(raw, '#f3d77a') };
+        cache.set(enemy, presentation);
+        return presentation;
+    };
+})();
 
 /** Atlas sprites' drawn height this frame (js/ui.js drawEnemySprite), weakly keyed so dead enemies drop out. */
 const enemyDrawnHeights = new WeakMap();
