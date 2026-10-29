@@ -8856,9 +8856,27 @@ const explorationPackFormation=(()=>{
         const front=melee.length?melee:pool,back=ranged.length?ranged:pool;
         return [front[seed%front.length],back[Math.floor(seed/7)%back.length]];
     }
+    /** Content may reserve two ordinary slots before spawn. Rare eligibility depends only on the existing variant seed,
+     * not on the element that createEnemy will roll once. Other slots keep their natural species, even duplicate pair members. */
+    function encounterOrdinaryRoster(zone,encounter,shape) {
+        const pair=ATLAS.encounters[encounter]?.ordinaryPair;
+        if(zone.type!=='atlasMap' || !pair)return [];
+        const slots=shape.cells.map((_,index)=>index).filter(index=>{
+            if(shape.elite && index===0)return false;
+            const seed=Math.abs(getEnemySeeds(zone,{at:shape.at},index).variantSeed);
+            return seed%WISP_ENEMY_RULES.spawnOneIn!==0 && !getRootMonsterVisualDefinition(seed);
+        });
+        const roster=[];
+        if(!slots.length)return roster;
+        const seed=Math.abs(hashSeed(`${zone.atlasSeed || zone.id}:${shape.key}:ordinaryPair`));
+        roster[slots[0]]=pair[slots.length===1?seed%pair.length:0];
+        if(slots.length>1)roster[slots[slots.length-1]]=pair[1];
+        return roster;
+    }
     function roster(zone,stage,encounter,shape,formation) {
-        if(stage!==null || encounter || formation?.cast || formation?.rescue)return [];
+        if(stage!==null || formation?.cast || formation?.rescue)return [];
         if(!['act','abyss','atlasMap'].includes(zone.type) || getRealmMonsterVisualSet(zone))return [];
+        if(encounter)return encounterOrdinaryRoster(zone,encounter,shape);
         const seed=Math.abs(hashSeed(`${zone.atlasSeed || zone.id}:${shape.key}:roster`)),pair=rosterPair(zone,seed);
         const pattern=[[0,0,1],[0,0,1],[0,0,0,1],[0,1,1]][seed%4];
         return shape.cells.map((_,index)=>pair[pattern[index%pattern.length]]);

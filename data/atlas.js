@@ -161,6 +161,8 @@ const ATLAS = Object.freeze({
             outline: '#7fd99a', sparks: '#b8f0a0', enemy: Object.freeze({ hp: 1.3, damage: 1.1, attack: 1.05, exp: 1.5 }),
             rewards: Object.freeze([['magicBud', 3, 0.2]]), mapChance: 0.15 }),
         witheredGarden: Object.freeze({ name: '시든 정원', chance: 8, packExtra: 3, prefix: '시든', minLoop: 36, regionChance: Object.freeze({ roots: 2 }),
+            // 희귀 굴림과 정예를 남기고 보통 슬롯 최대 둘에만 전열·후열을 지정한다. ownLook을 켜는 roster와 다르다.
+            ordinaryPair: Object.freeze(['atlas-garden-bonsai-snail', 'act9-chorus-bulbs']),
             ele: 'chaos', outline: '#a8c97f', sparks: '#cfe0a0', enemy: Object.freeze({ hp: 1.4, damage: 1.2, attack: 1.1, exp: 1.6 }),
             rewards: Object.freeze([[Object.freeze(['oilFire','oilCold','oilLight','oilChaos']), 2, 0.15]]), mapChance: 0.15,
             golden: Object.freeze([[Object.freeze(['oilFire','oilCold','oilLight','oilChaos']), 2]]), chest: Object.freeze([Object.freeze(['oilFire','oilCold','oilLight','oilChaos']), 1]),
