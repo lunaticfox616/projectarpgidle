@@ -363,7 +363,7 @@ function auditRegularCurrency() {
 
 function sourceFingerprint() {
     const files = ['data/player-stall.js', 'js/item-appraisal.js', 'js/player-stall.js', 'js/loot.js',
-        'data/items.js', 'data/affix-tags.js', 'data/region-affixes.js', 'data/item-influences.js', 'data/colony-wards.js', 'js/items.js', 'js/passives.js', 'data/ascendancies.js', 'js/state.js'];
+        'data/items.js', 'data/affix-tags.js', 'data/region-affixes.js', 'data/item-influences.js', 'data/colony-wards.js', 'js/items.js', 'js/passives.js', 'js/item-save-slim.js', 'data/ascendancies.js', 'js/state.js'];
     const hash = crypto.createHash('sha256');
     for (const file of files) hash.update(file).update(fs.readFileSync(file));
     return hash.digest('hex');

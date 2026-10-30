@@ -150,15 +150,47 @@ returns jsonb language sql immutable set search_path = public as $$
     select case when jsonb_typeof(value_data) = 'array' then value_data else '[]'::jsonb end;
 $$;
 
-create or replace function public.hall_roll_quality(stat_data jsonb)
-returns numeric language plpgsql immutable set search_path = public as $$
+-- 장비 한 줄의 굴림 범위 [아래, 위](2026-10-30). 클라이언트가 다시 만들 수 있는 범위를 빼고 저장하므로(js/item-save-slim.js) 줄에 적힌 범위 대신 표를 본다:
+--   추가 옵션 줄(line_kind 'stat')은 추가 옵션 표에서 (sourceModId, 티어)로. sourceModId가 없는 줄은 제단·화석·바다의 작업대 줄이라 제 범위를
+--     들고 오면 그 범위를 쓰고(표의 같은 이름 다른 옵션과 섞이지 않게), 범위도 없으면 (id, 티어)로 표를 본다.
+--   베이스 줄(line_kind 'base')은 베이스 옵션 표(db/hall-base-table-20261030.sql)에서 (baseId, 줄 id)로.
+--   표에 없는 줄과 그 밖의 줄(line_kind 'other': 복합 옵션의 둘째 수치, 잿불, 하급 부여, 혼돈 주입, 잠식)은 줄의 valMin/valMax(없으면
+--     baseRollMin/baseRollMax)를 쓰고, 그것도 없으면 null이다.
+-- 표는 RLS만 켜고 정책이 없어 보안 정의자 함수(guard_hall_listing, quote_hall_item, create_hall_listing)에서만 보인다.
+create or replace function public.hall_line_bounds(item_data jsonb, line jsonb, line_kind text)
+returns numeric[] language plpgsql stable set search_path = public as $$
+declare
+    low_val numeric;
+    high_val numeric;
+    mod_key text := line ->> 'sourceModId';
+begin
+    if line_kind = 'base' then
+        select min_val, max_val into low_val, high_val from public.hall_base_table
+         where base_id = coalesce(item_data ->> 'baseId', '') and stat_id = coalesce(line ->> 'id', '');
+    elsif line_kind = 'stat' and jsonb_typeof(line -> 'tier') = 'number'
+          and (mod_key is not null or jsonb_typeof(line -> 'valMin') is distinct from 'number'
+               or jsonb_typeof(line -> 'valMax') is distinct from 'number') then
+        select min_val, max_val into low_val, high_val from public.hall_affix_table
+         where mod_id = coalesce(mod_key, line ->> 'id', '') and tier = (line ->> 'tier')::numeric;
+    end if;
+    if low_val is null then
+        low_val := public.hall_number(coalesce(nullif(line -> 'valMin', 'null'::jsonb), line -> 'baseRollMin'), null, -9000000000000, 9000000000000);
+        high_val := public.hall_number(coalesce(nullif(line -> 'valMax', 'null'::jsonb), line -> 'baseRollMax'), null, -9000000000000, 9000000000000);
+    end if;
+    if low_val is null or high_val is null then return null; end if;
+    return array[least(low_val, high_val), greatest(low_val, high_val)];
+end;
+$$;
+
+-- 줄의 굴림 품질 0~1(범위 안 어디쯤인가). 범위는 hall_line_bounds가 표와 줄에서 찾고, 없거나 폭이 0이면 0.75다.
+create or replace function public.hall_roll_quality(item_data jsonb, stat_data jsonb, line_kind text)
+returns numeric language plpgsql stable set search_path = public as $$
 declare
     rolled numeric := public.hall_number(stat_data -> 'val', 0, -9000000000000, 9000000000000);
-    low_roll numeric := public.hall_number(coalesce(stat_data -> 'valMin', stat_data -> 'baseRollMin'), rolled, -9000000000000, 9000000000000);
-    high_roll numeric := public.hall_number(coalesce(stat_data -> 'valMax', stat_data -> 'baseRollMax'), rolled, -9000000000000, 9000000000000);
+    bounds numeric[] := public.hall_line_bounds(item_data, stat_data, line_kind);
 begin
-    if high_roll <= low_roll then return 0.75; end if;
-    return least(1, greatest(0, (rolled - low_roll) / (high_roll - low_roll)));
+    if bounds is null or bounds[2] <= bounds[1] then return 0.75; end if;
+    return least(1, greatest(0, (rolled - bounds[1]) / (bounds[2] - bounds[1])));
 end;
 $$;
 
@@ -182,8 +214,9 @@ returns numeric language sql immutable set search_path = public as $$
         else 2 end;
 $$;
 
+-- 전시 점수. 굴림 품질은 표와 줄에서 범위를 찾으므로(hall_roll_quality) immutable이 아니라 stable이다(2026-10-30).
 create or replace function public.hall_item_score(item_data jsonb)
-returns bigint language plpgsql immutable set search_path = public as $$
+returns bigint language plpgsql stable set search_path = public as $$
 declare
     rarity_name text := coalesce(item_data ->> 'rarity', '');
     slot_name text := coalesce(item_data ->> 'slot', '');
@@ -196,7 +229,7 @@ declare
     roll_quality numeric;
 begin
     for stat_data in select value from jsonb_array_elements(public.hall_array(item_data -> 'baseStats')) loop
-        roll_quality := public.hall_roll_quality(stat_data);
+        roll_quality := public.hall_roll_quality(item_data, stat_data, 'base');
         score_value := score_value + 100 + 180 * roll_quality
             + abs(public.hall_number(stat_data -> 'val', 0, -9000000000000, 9000000000000))
                 * public.hall_base_stat_weight(coalesce(stat_data ->> 'id', '')) * (0.7 + roll_quality * 0.3);
@@ -207,7 +240,7 @@ begin
         for stat_data in select value from jsonb_array_elements(public.hall_array(item_data -> 'stats')) loop
             stat_tier := public.hall_number(stat_data -> 'tier', 1, 1, 20);
             stat_weight := public.hall_affix_weight(coalesce(stat_data ->> 'id', ''));
-            roll_quality := public.hall_roll_quality(stat_data);
+            roll_quality := public.hall_roll_quality(item_data, stat_data, 'stat');
             score_value := score_value + power(stat_tier, 2) * 9 * stat_weight * (0.75 + roll_quality * 0.5);
         end loop;
         if jsonb_typeof(item_data -> 'chaosInfusion') = 'object' then score_value := score_value + 650; end if;
@@ -219,7 +252,7 @@ begin
         for stat_data in select value from jsonb_array_elements(public.hall_array(item_data -> 'stats')) loop
             stat_tier := public.hall_number(stat_data -> 'tier', 0, 0, 20);
             stat_weight := public.hall_affix_weight(coalesce(stat_data ->> 'id', ''));
-            roll_quality := public.hall_roll_quality(stat_data);
+            roll_quality := public.hall_roll_quality(item_data, stat_data, 'stat');
             score_value := score_value + (260 + 460 * roll_quality) * stat_weight;
             if stat_tier > 0 then score_value := score_value + power(stat_tier, 2) * 12 * stat_weight; end if;
         end loop;
@@ -230,7 +263,7 @@ end;
 $$;
 
 create or replace function public.hall_item_price(item_data jsonb)
-returns integer language plpgsql immutable set search_path = public as $$
+returns integer language plpgsql stable set search_path = public as $$
 declare score_value bigint := public.hall_item_score(item_data);
 begin
     if item_data ->> 'rarity' = 'unique' then
@@ -254,6 +287,17 @@ create table if not exists public.hall_affix_table (
 create index if not exists hall_affix_table_stat_idx on public.hall_affix_table (stat_id);
 alter table public.hall_affix_table enable row level security;
 revoke all on public.hall_affix_table from anon, authenticated;
+
+-- 베이스 옵션 표(2026-10-30): db/hall-base-table-20261030.sql이 채운다(scripts/export-hall-affix-table.cjs). 비어 있는 동안 베이스 줄은 줄에 적힌 범위로 본다.
+create table if not exists public.hall_base_table (
+    base_id text not null,
+    stat_id text not null,
+    min_val numeric not null,
+    max_val numeric not null,
+    primary key (base_id, stat_id)
+);
+alter table public.hall_base_table enable row level security;
+revoke all on public.hall_base_table from anon, authenticated;
 
 -- 추가 옵션 한 줄이 표와 맞지 않는가: 표에 그 능력치가 있는데 이 슬롯에 주는 행이 없다, 티어가 그 능력치의 티어 범위 밖이다, 값이 그 티어의
 -- 최솟값과 최댓값 밖이다. 표에 없는 능력치(고유 전용 줄처럼 특수한 줄)는 걸리지 않고 기존 범위 검사(db/anti-cheat.sql)로 넘어간다.
@@ -571,7 +615,8 @@ $$;
 revoke all on function public.hall_inventory_limit(jsonb) from public, anon, authenticated;
 revoke all on function public.hall_number(jsonb, numeric, numeric, numeric) from public, anon, authenticated;
 revoke all on function public.hall_array(jsonb) from public, anon, authenticated;
-revoke all on function public.hall_roll_quality(jsonb) from public, anon, authenticated;
+revoke all on function public.hall_line_bounds(jsonb, jsonb, text) from public, anon, authenticated;
+revoke all on function public.hall_roll_quality(jsonb, jsonb, text) from public, anon, authenticated;
 revoke all on function public.hall_affix_weight(text) from public, anon, authenticated;
 revoke all on function public.hall_base_stat_weight(text) from public, anon, authenticated;
 revoke all on function public.hall_item_score(jsonb) from public, anon, authenticated;

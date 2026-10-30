@@ -2435,7 +2435,7 @@ const defaultGame = {
     // (js/weapon-mastery.js) and the chronicle's claimed rings (js/chronicle.js).
     weaponMastery: { xp: {} },
     chronicle: { rings: 0 },
-    saveVersion: 19,
+    saveVersion: 20,   // 20(2026-10-30): 장비 줄의 다시 만들 수 있는 칸을 빼고 저장한다(js/item-save-slim.js)
     // Permanent ledger: income follows CONTENT_UNLOCK_POINT_AWARDS (contentProgression.earnedBy), starting at loop two. carry: points a
     // save from before 2026-10-21 keeps beyond those awards (the earlier table's), 0 for a new game. The default stays version 9: a save
     // without a ledger takes it during the load, and the bag counts its pages by loop until contentProgression.restore makes the ledger
