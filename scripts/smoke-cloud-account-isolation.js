@@ -1,343 +1,237 @@
+// 계정 저장과 게스트 저장의 분리(2026-10-30): 게스트 칸은 서버와 통신하지 않고, 계정 칸은 서버 저장의 사본이며, 서버가 기준이다.
+// 게임 전체를 vm에 올리고(scripts/lib/game-runtime.js) 서버(fetch)와 기기 저장소(localStorage)만 가짜로 두어 실제 진입 흐름을 돈다.
 const assert = require('assert');
 const fs = require('fs');
 const vm = require('vm');
+const { buildGameRuntime } = require('./lib/game-runtime');
 
-const source = fs.readFileSync('js/ui.js', 'utf8');
-const saveSource = fs.readFileSync('js/save.js', 'utf8');
 const indexSource = fs.readFileSync('index.html', 'utf8');
-assert.match(indexSource, /js\/ui\.js[^\"]*save-guard=20260826-1/, 'save rollback guard must invalidate cached cloud reconciliation code');
-
-function sourceBetween(startMarker, endMarker, text = source) {
-  const start = text.indexOf(startMarker);
-  const end = text.indexOf(endMarker, start);
-  assert(start >= 0 && end > start, `Could not extract ${startMarker}`);
-  return text.slice(start, end);
+for (const file of ['js/save.js', 'js/ui.js']) {
+    assert.match(indexSource, new RegExp(`${file.replace(/[./]/g, '\\$&')}\\?[^"]*save-slots=20261030-1`), `${file} must leave the cache with the save slots`);
 }
 
-// The release check (js/save.js) runs as written, on a page that is the release RUNNING_BUILD (2026-10-28).
-const RUNNING_BUILD = '2026-10-28T00:00:00.000Z';
-const buildCheckSource = sourceBetween('/** The release this page runs', 'function canPersistLocalSave', saveSource);
-const buildRecordSource = sourceBetween('function cloudRecordForThisBuild', '/** A preflight/upload');
+const USER = 'account-b', OTHER = 'account-a';
+const BUILD = '2026-10-28T00:00:00.000Z';
 
-const ownershipSource = sourceBetween('function getCloudSaveOwnerId', 'function applyExternalSave');
-const loopGuardSource = sourceBetween('function getSaveLoopNumber', 'function shouldPreferRemoteOverBootstrapLocal');
-const staleGuardSource = sourceBetween('async function guardAgainstStaleLocalOverwrite', 'async function commitCloudSavePayload');
-const revisionResolutionSource = sourceBetween('async function resolveCloudRevisionConflict', 'async function reconcileCloudSaveState');
-const reconcileSource = sourceBetween('async function reconcileCloudSaveState', 'let cloudSyncTimer');
-
-function createContext(localSave, remoteRecord, flow = {}) {
-  const writes = [];
-  const confirmations = [];
-  const choices = [];
-  const detached = [];
-  let pushes = 0;
-  let fullReads = 0;
-  let summaryReads = 0;
-  const context = {
-    JSON, Math, Number, Date,
-    game: JSON.parse(JSON.stringify(localSave)),
-    defaultGame: { level: 1, saveMeta: { lastModifiedAt: 0, lastCloudSyncAt: 0, cloudUserId: null, cloudRevision: 0 } },
-    cloudState: {
-      user: { id: 'account-b' },
-      lastRemoteUpdatedAt: 0,
-      lastRemoteRevision: remoteRecord && Number.isFinite(Number(remoteRecord.revision)) ? Number(remoteRecord.revision) : 0,
-      revisionSupported: !!(remoteRecord && Object.prototype.hasOwnProperty.call(remoteRecord, 'revision'))
-    },
-    cloneDefaultGame() { return JSON.parse(JSON.stringify(context.defaultGame)); },
-    ensureSaveMeta() {
-      if (!context.game.saveMeta || typeof context.game.saveMeta !== 'object') context.game.saveMeta = {};
-      if (!Number.isFinite(context.game.saveMeta.lastModifiedAt)) context.game.saveMeta.lastModifiedAt = 0;
-      if (!Number.isFinite(context.game.saveMeta.lastCloudSyncAt)) context.game.saveMeta.lastCloudSyncAt = 0;
-      context.game.saveMeta.cloudRevision = Math.max(0, Math.floor(Number(context.game.saveMeta.cloudRevision) || 0));
-    },
-    persistLocalSave() { writes.push(JSON.parse(JSON.stringify(context.game))); return true; },
-    fetchCloudSaveRecord: async () => {
-      fullReads += 1;
-      if (remoteRecord && Object.prototype.hasOwnProperty.call(remoteRecord, 'revision')) {
-        context.cloudState.lastRemoteRevision = Math.max(0, Math.floor(Number(remoteRecord.revision) || 0));
-      }
-      return remoteRecord;
-    },
-    // The upload checks read only this summary (2026-10-03): the full save is read only to pull it.
-    fetchCloudSaveSummary: async () => {
-      summaryReads += 1;
-      if (remoteRecord && Object.prototype.hasOwnProperty.call(remoteRecord, 'revision')) {
-        context.cloudState.lastRemoteRevision = Math.max(0, Math.floor(Number(remoteRecord.revision) || 0));
-      }
-      if (!remoteRecord) return null;
-      const save = remoteRecord.save_data || {};
-      return { updated_at: remoteRecord.updated_at, revision: remoteRecord.revision, summaryOnly: true,
-        save_data: { season: save.season, loopCount: save.loopCount, saveMeta: save.saveMeta || {} } };
-    },
-    getLocalSaveStamp() { return context.game.saveMeta.lastModifiedAt || 0; },
-    getLocalCloudRevision() { context.ensureSaveMeta(); return context.game.saveMeta.cloudRevision; },
-    getRemoteSaveStamp(record) { return new Date(record.updated_at).getTime(); },
-    applyExternalSave(snapshot) {
-      context.game = JSON.parse(JSON.stringify(snapshot));
-      context.ensureSaveMeta();
-      context.game.saveMeta.cloudUserId = context.cloudState.user.id;
-      context.persistLocalSave();
-    },
-    pushCloudSave: async () => { pushes += 1; },
-    requestGameConfirmation: async (message, options) => { confirmations.push({ message, options }); return flow.confirm === true; },
-    // Guest save adoption (2026-10-03): the save check (js/guest-save-check.js) answers per case here.
-    guestSaveCheck: { inspect: () => flow.verdict || { ok: true, keys: [], problems: [] } },
-    requestGameChoice: async options => { choices.push(options); return flow.fate === undefined ? null : flow.fate; },
-    markSkipOAuthRestoreOnce() {},
-    clearSupabasePersistedSession() {},
-    applyCloudSession(session) { detached.push(session); context.cloudState.user = session ? session.user : null; },
-    formatCloudTime(value) { return new Date(value).toISOString(); },
-    setCloudMessage() {},
-    addLog() {},
-    CLOUD_REMOTE_TIME_SKEW_MS: 0,
-    CLOUD_STALE_OVERWRITE_GUARD_MS: 5000,
-    localSaveRuntimeState: { status: 'ok' },
-    document: { querySelector: selector => (selector === 'meta[name="game-build"]' ? { content: RUNNING_BUILD } : null) }
-  };
-  vm.createContext(context);
-  vm.runInContext(buildCheckSource, context, { filename: 'save-build-check.js' });
-  vm.runInContext(buildRecordSource, context, { filename: 'cloud-build-record.js' });
-  vm.runInContext(ownershipSource, context, { filename: 'cloud-ownership.js' });
-  vm.runInContext(loopGuardSource, context, { filename: 'cloud-loop-guards.js' });
-  vm.runInContext(staleGuardSource, context, { filename: 'cloud-stale-guard.js' });
-  vm.runInContext(revisionResolutionSource, context, { filename: 'cloud-revision-resolution.js' });
-  vm.runInContext(reconcileSource, context, { filename: 'cloud-reconcile.js' });
-  return { context, writes, confirmations, choices, detached, getPushes: () => pushes, getFullReads: () => fullReads, getSummaryReads: () => summaryReads };
+/** A game runtime on a fake device (storage map) talking to a fake server (one cloud_saves row). */
+function createDevice({ guestSave = null, accountSave = null, serverSave = null, serverRevision = 0 } = {}) {
+    // 브라우저 localStorage처럼 저장한 키가 Object.keys에 보여야 한다(js/save.js가 그렇게 훑는다): 메서드는 열거되지 않게 둔다.
+    const storage = {};
+    Object.defineProperties(storage, {
+        getItem: { value: key => (Object.prototype.hasOwnProperty.call(storage, key) ? storage[key] : null) },
+        setItem: { value: (key, value) => { storage[key] = String(value); } },
+        removeItem: { value: key => { delete storage[key]; } },
+        has: { value: key => Object.prototype.hasOwnProperty.call(storage, key) }
+    });
+    const server = { row: serverSave ? { revision: serverRevision, updated_at: '2026-10-30T00:00:00Z', save_data: serverSave } : null, commits: [], down: false };
+    const runtime = buildGameRuntime({}, null, { querySelector: selector => (selector === 'meta[name="game-build"]' ? { content: BUILD } : null) });
+    runtime.localStorage = storage;
+    // 화면을 다시 그리는 길(refreshRuntimeForLoadedSave)이 요소를 찾으므로 id마다 빈 요소 하나를 준다. 화면은 검사하지 않는다.
+    const elements = new Map();
+    const stubElement = () => {
+        const el = runtime.document.createElement('div');
+        const noop = () => {};
+        Object.assign(el, { querySelector: () => stubElement(), scrollIntoView: noop, focus: noop, blur: noop, scrollTo: noop, dispatchEvent: noop,
+            matches: () => false, contains: () => false, insertAdjacentHTML: noop, replaceChildren: noop, append: noop, prepend: noop, before: noop,
+            after: noop, replaceWith: noop, cloneNode: () => stubElement(), animate: () => ({ cancel: noop, finished: Promise.resolve() }) });
+        Object.defineProperty(el, 'parentElement', { get: () => stubElement() });
+        return el;
+    };
+    runtime.document.getElementById = id => { if (!elements.has(id)) elements.set(id, stubElement()); return elements.get(id); };
+    runtime.location.reload = () => { runtime.__reloaded = true; };
+    runtime.CLOUD_SAVE_CONFIG = { enabled: true, supabaseUrl: 'https://test.invalid', supabaseAnonKey: 'anon' };
+    const confirmations = [], toasts = [], downloads = [];
+    let answer = false;
+    runtime.requestGameConfirmation = async (message, options) => { confirmations.push({ message, options }); return answer; };
+    runtime.showGameToast = message => toasts.push(String(message));
+    runtime.addLog = () => {};
+    const createElement = runtime.document.createElement;
+    runtime.document.createElement = tag => tag === 'a'
+        ? { click() { downloads.push(this.download); }, remove() {}, set href(value) { this.url = value; }, get href() { return this.url || ''; } }
+        : createElement(tag);
+    runtime.URL = { createObjectURL: () => 'blob:test', revokeObjectURL: () => {} };
+    runtime.Blob = class { constructor(parts) { this.size = parts.join('').length; } };
+    runtime.fetch = async (url, init = {}) => {
+        if (server.down) throw new Error('network unavailable');
+        const json = (status, body) => ({ ok: status < 400, status, text: async () => JSON.stringify(body) });
+        if (/\/rpc\/claim_cloud_session|\/cloud_sessions/.test(url)) return json(404, { message: 'not found' });   // 접속 표 장치는 꺼진 채
+        if (url.includes('/rest/v1/cloud_saves?')) {
+            if (!server.row) return json(200, []);
+            const summary = url.includes('save_data->');
+            const { revision, updated_at, save_data } = server.row;
+            return json(200, [summary
+                ? { user_id: USER, updated_at, revision, season: save_data.season, loopCount: save_data.loopCount, saveMeta: save_data.saveMeta || {} }
+                : { user_id: USER, updated_at, revision, save_data }]);
+        }
+        if (url.endsWith('/rpc/commit_cloud_save')) {
+            const body = JSON.parse(init.body);
+            server.commits.push(body);
+            const stored = server.row ? server.row.revision : 0;
+            if (Math.max(0, body.expected_revision) !== stored) return json(200, [{ committed: false, current_revision: stored }]);
+            server.row = { revision: stored + 1, updated_at: new Date().toISOString(), save_data: body.next_save_data };
+            return json(200, [{ committed: true, current_revision: stored + 1, saved_at: server.row.updated_at }]);
+        }
+        return json(200, []);
+    };
+    const key = runtime.LOCAL_SAVE_KEY, accountKey = runtime.accountSaveKey(USER);
+    if (guestSave) storage.setItem(key, JSON.stringify(guestSave));
+    if (accountSave) storage.setItem(accountKey, JSON.stringify(accountSave));
+    runtime.loadGameAtBoot();   // 부팅: 게스트 칸(그 전에 한 키 시절의 계정 저장을 옮긴다)
+    const signIn = (id = USER) => runtime.applyCloudSession({ access_token: 't', refresh_token: 'r', expires_at: 4102444800, user: { id, email: `${id}@example.invalid` } });
+    const slot = () => runtime.getSaveSlot();
+    // 최상위 let(cloudState, gameplayStarted)은 전역 객체의 속성이 아니라 문맥 안에서 읽고 쓴다.
+    const cloud = () => vm.runInContext('cloudState', runtime);
+    const startPlay = () => vm.runInContext('gameplayStarted = true; setStartupOverlayActive(false);', runtime);
+    const stored = name => (storage.has(name) ? JSON.parse(storage.getItem(name)) : null);
+    return { runtime, storage, server, confirmations, toasts, downloads, key, accountKey, signIn, slot, cloud, startPlay, stored, setAnswer: value => { answer = value; } };
 }
+
+const guestSave = { level: 42, season: 3, loopCount: 2, maxZoneId: 9, saveMeta: { lastModifiedAt: 500 } };
+const serverSave = { level: 7, season: 1, loopCount: 0, maxZoneId: 5, saveMeta: { lastModifiedAt: 100, cloudRevision: 7 } };
+const ownedCopy = (level, revision, pending) => ({ level, season: 4, loopCount: 3, maxZoneId: 12, saveMeta: { lastModifiedAt: 900, cloudUserId: USER, cloudRevision: revision, cloudPending: pending } });
 
 async function run() {
-  const remoteRecord = {
-    updated_at: '2026-07-22T00:00:00Z',
-    save_data: { level: 7, season: 1, loopCount: 0, maxZoneId: 5, saveMeta: { lastModifiedAt: 100 } }
-  };
-  const foreignLocal = { level: 99, saveMeta: { lastModifiedAt: 999999, cloudUserId: 'account-a' } };
-  const remoteCase = createContext(foreignLocal, remoteRecord);
-  const remoteStatus = await vm.runInContext('reconcileCloudSaveState({ strictRemoteResume: true })', remoteCase.context);
-  assert.strictEqual(remoteStatus, 'pulled-remote-strict-resume');
-  assert.strictEqual(remoteCase.context.game.level, 7, 'a new account must replace the previous account cache with its remote save');
-  assert.strictEqual(remoteCase.context.game.saveMeta.cloudUserId, 'account-b', 'the replaced cache must be owned by the active account');
-  assert.strictEqual(remoteCase.getPushes(), 0, 'foreign high-progress local data must never be uploaded during account login');
-  assert.strictEqual(remoteCase.writes.at(-1).level, 7, 'the local cache must finish with the connected account save');
+    // 1. Login to an account with a server save: the server save becomes the account slot; the guest slot is not touched or uploaded.
+    {
+        const d = createDevice({ guestSave, serverSave, serverRevision: 7 });
+        d.signIn();
+        assert.strictEqual(await d.runtime.enterAccountSave(), 'pulled-server');
+        assert.deepStrictEqual([d.runtime.game.level, d.slot().kind, d.runtime.game.saveMeta.cloudUserId, d.runtime.game.saveMeta.cloudRevision], [7, 'account', USER, 7]);
+        assert.strictEqual(d.stored(d.key).level, 42, 'the guest save stays as it was');
+        assert.strictEqual(d.stored(d.accountKey).level, 7, 'the account slot holds the server copy');
+        assert.strictEqual(d.server.commits.length, 0, 'a guest save never goes up on login');
+        assert.strictEqual(d.confirmations.length, 0, 'login asks nothing');
+    }
+    // 2. A failed server read leaves every slot and the running game as they were.
+    {
+        const d = createDevice({ guestSave, serverSave, serverRevision: 7 });
+        d.signIn();
+        d.server.down = true;
+        await assert.rejects(d.runtime.enterAccountSave(), /network unavailable/);
+        assert.deepStrictEqual([d.runtime.game.level, d.slot().kind, d.storage.has(d.accountKey)], [42, 'guest', false]);
+    }
+    // 3. Login to an account without a server save starts a fresh account save (revision 1); the guest save stays a guest save.
+    {
+        const d = createDevice({ guestSave });
+        d.signIn();
+        assert.strictEqual(await d.runtime.enterAccountSave(), 'pushed-first');
+        assert.deepStrictEqual([d.runtime.game.level, d.server.row.revision, d.server.row.save_data.level, d.stored(d.key).level], [1, 1, 1, 42]);
+        // 설정의 게스트 저장 옮기기: 계정 저장이 아직 새 게임인 동안만. 옮기면 게스트 칸은 비고 서버 저장이 된다.
+        assert.strictEqual(d.runtime.canMoveGuestSaveIntoAccount(), true);
+        d.setAnswer(true);
+        await d.runtime.moveGuestSaveIntoAccount();
+        assert.deepStrictEqual([d.runtime.game.level, d.server.row.revision, d.server.row.save_data.level, d.storage.has(d.key)], [42, 2, 42, false]);
+        assert.strictEqual(d.runtime.canMoveGuestSaveIntoAccount(), false, 'nothing left to move');
+    }
+    // 4. Sign-up adopts the guest save as the first server save (the 2026-10-03 rule); a save that fails the check stays a guest save.
+    {
+        const d = createDevice({ guestSave });
+        d.signIn();
+        assert.strictEqual(await d.runtime.enterAccountSave({ signUp: true }), 'pushed-guest');
+        assert.deepStrictEqual([d.runtime.game.level, d.server.row.save_data.level, d.storage.has(d.key)], [42, 42, false]);
+        const tampered = createDevice({ guestSave: { ...guestSave, currencies: { embers: 999999999 } } });
+        tampered.signIn();
+        assert.strictEqual(await tampered.runtime.enterAccountSave({ signUp: true }), 'pushed-first');
+        assert.deepStrictEqual([tampered.runtime.game.level, tampered.server.row.save_data.level, tampered.stored(tampered.key).level], [1, 1, 42]);
+        assert.match(tampered.cloud().lastMessage, /정상 플레이로는 나올 수 없는 값/);
+        assert.match(tampered.toasts[0] || '', /정상 플레이로는 나올 수 없는 값/, 'the refusal is shown, not only kept in the panel');
+    }
+    // 5. The account slot at the server's revision: pending changes go up first; nothing pending, nothing is sent.
+    {
+        const d = createDevice({ guestSave, accountSave: ownedCopy(50, 7, true), serverSave, serverRevision: 7 });
+        d.signIn();
+        assert.strictEqual(await d.runtime.enterAccountSave(), 'pushed-pending');
+        assert.deepStrictEqual([d.runtime.game.level, d.server.row.revision, d.server.row.save_data.level, d.runtime.game.saveMeta.cloudPending], [50, 8, 50, false]);
+        const clean = createDevice({ guestSave, accountSave: ownedCopy(50, 7, false), serverSave, serverRevision: 7 });
+        clean.signIn();
+        assert.strictEqual(await clean.runtime.enterAccountSave(), 'cached-current');
+        assert.deepStrictEqual([clean.runtime.game.level, clean.server.commits.length], [50, 0]);
+    }
+    // 6. Another device committed since: the server wins. Pending progress is offered as a file once, then dropped; nothing goes up.
+    {
+        const d = createDevice({ guestSave, accountSave: ownedCopy(50, 7, true), serverSave: { ...serverSave, level: 70 }, serverRevision: 9 });
+        d.signIn();
+        d.setAnswer(true);
+        assert.strictEqual(await d.runtime.enterAccountSave(), 'pulled-server');
+        assert.strictEqual(d.confirmations.length, 1);
+        assert.match(d.confirmations[0].message, /아직 올리지 못한 진행\(루프 4, 레벨 50/);
+        assert.deepStrictEqual([d.downloads.length, d.runtime.game.level, d.runtime.game.saveMeta.cloudRevision, d.runtime.game.saveMeta.cloudPending, d.server.commits.length], [1, 70, 9, false, 0]);
+        const quiet = createDevice({ guestSave, accountSave: ownedCopy(50, 7, false), serverSave: { ...serverSave, level: 70 }, serverRevision: 9 });
+        quiet.signIn();
+        assert.strictEqual(await quiet.runtime.enterAccountSave(), 'pulled-server');
+        assert.deepStrictEqual([quiet.confirmations.length, quiet.runtime.game.level], [0, 70], 'nothing pending: no question');
+    }
+    // 7. A server save from a later release stops the entry before any slot changes (2026-10-28).
+    {
+        const later = { ...serverSave, saveMeta: { ...serverSave.saveMeta, gameBuild: '2026-10-29T00:00:00.000Z' } };
+        const d = createDevice({ guestSave, serverSave: later, serverRevision: 7 });
+        d.signIn();
+        await assert.rejects(d.runtime.enterAccountSave(), error => error.code === 'GAME_BUILD_OUTDATED');
+        assert.deepStrictEqual([d.runtime.game.level, d.slot().kind, d.server.commits.length], [42, 'guest', 0]);
+    }
+    // 8. In play, a commit the server refuses (another device moved on) halts auto uploads and the page-exit upload, with one toast;
+    //    a connection failure keeps the progress pending and says so once per streak. Entering the account again clears both.
+    {
+        const d = createDevice({ guestSave, accountSave: ownedCopy(50, 7, false), serverSave, serverRevision: 7 });
+        d.signIn();
+        await d.runtime.enterAccountSave();
+        d.startPlay();
+        d.runtime.game.level = 51;
+        d.runtime.saveGame({ skipCloudSync: true });
+        assert.strictEqual(d.runtime.isCloudSaveDirty(), true, 'a save in the account slot is pending');
+        d.server.row.revision = 9;   // 다른 기기가 올렸다
+        await d.runtime.syncCloudSave({ automatic: true }).catch(error => d.runtime.noteAutoCloudSyncFailure(error));
+        await d.runtime.syncCloudSave({ automatic: true }).catch(error => d.runtime.noteAutoCloudSyncFailure(error));
+        assert.deepStrictEqual([d.cloud().syncHalted, d.toasts.length, d.server.row.revision, d.runtime.pushCloudSaveOnPageExit('pagehide')], [true, 1, 9, false]);
+        assert.match(d.toasts[0], /다른 기기에서 서버 저장이 바뀌어/);
+        assert.strictEqual(d.stored(d.accountKey).level, 51, 'the progress stays in the slot');
+        d.server.row.save_data = { ...serverSave, level: 80 };
+        assert.strictEqual(await d.runtime.enterAccountSave(), 'pulled-server');
+        assert.deepStrictEqual([d.cloud().syncHalted, d.runtime.game.level], [false, 80]);
 
-  const fetchFailureCase = createContext(foreignLocal, remoteRecord);
-  fetchFailureCase.context.fetchCloudSaveRecord = async () => { throw new Error('network unavailable'); };
-  await assert.rejects(
-    vm.runInContext('reconcileCloudSaveState({ strictRemoteResume: true })', fetchFailureCase.context),
-    /network unavailable/
-  );
-  assert.strictEqual(fetchFailureCase.context.game.level, 99, 'a failed cloud lookup must leave the previous local cache untouched');
-  assert.strictEqual(fetchFailureCase.context.game.saveMeta.cloudUserId, 'account-a');
-  assert.strictEqual(fetchFailureCase.writes.length, 0, 'a failed cloud lookup must not write a blank replacement cache');
-
-  const noRemoteCase = createContext(foreignLocal, null);
-  const noRemoteStatus = await vm.runInContext('reconcileCloudSaveState({ createRemoteFromLocal: true })', noRemoteCase.context);
-  assert.strictEqual(noRemoteStatus, 'no-remote');
-  assert.strictEqual(noRemoteCase.context.game.level, 1, 'a foreign cache must be discarded even when the new account has no remote row');
-  assert.strictEqual(noRemoteCase.context.game.saveMeta.cloudUserId, 'account-b');
-  assert.strictEqual(noRemoteCase.getPushes(), 0, 'discarded foreign data must not create or overwrite another account save');
-
-  const guestLocal = { level: 42, saveMeta: { lastModifiedAt: 500 } };
-  const signupCase = createContext(guestLocal, null);
-  const signupStatus = await vm.runInContext('reconcileCloudSaveState({ createRemoteFromLocal: true, allowLocalBootstrap: true })', signupCase.context);
-  assert.strictEqual(signupStatus, 'pushed-local');
-  assert.strictEqual(signupCase.context.game.level, 42, 'a newly created account may explicitly adopt an unlinked guest save');
-  assert.strictEqual(signupCase.context.game.saveMeta.cloudUserId, 'account-b');
-  assert.strictEqual(signupCase.getPushes(), 1);
-  assert.strictEqual(signupCase.choices.length, 0, 'sign-up moves the guest save without asking');
-
-  // 게스트 저장(2026-10-03): 이메일 인증 뒤 로그인, Google, 카카오는 로그인 경로라 예전에는 게스트 저장을 확인 없이 지웠다.
-  // 이제 옮기거나(서버 저장이 없는 계정, 조작 검사 통과), 묻고 지우거나, 계정 연결을 끊고 게스트로 남는다.
-  // 따로 남기는 사본은 없어서 게스트 저장 하나가 두 계정으로 갈 수 없다.
-  const loginOptions = '{ preferRemoteOnResume: true, strictRemoteResume: true }';
-  const login = made => vm.runInContext(`reconcileCloudSaveState(${loginOptions})`, made.context);
-
-  // A server save from a later release (2026-10-28) stops the login before any question, pull, write or upload; this release's
-  // own and earlier releases' saves load as before.
-  const stamped = gameBuild => ({ ...remoteRecord, save_data: { ...remoteRecord.save_data, saveMeta: { lastModifiedAt: 100, gameBuild } } });
-  const laterCase = createContext(guestLocal, stamped('2026-10-29T00:00:00.000Z'), { fate: 'move', confirm: true });
-  await assert.rejects(login(laterCase), error => error.code === 'GAME_BUILD_OUTDATED' && /더 새 버전의 게임/.test(error.message));
-  assert.strictEqual(laterCase.context.game.level, 42, 'the device save stays as it was');
-  assert.deepStrictEqual([laterCase.writes.length, laterCase.getPushes(), laterCase.confirmations.length, laterCase.choices.length], [0, 0, 0, 0]);
-  for (const gameBuild of [RUNNING_BUILD, '2026-10-27T00:00:00.000Z']) {
-    const loadable = createContext(foreignLocal, stamped(gameBuild));
-    assert.strictEqual(await vm.runInContext('reconcileCloudSaveState({ strictRemoteResume: true })', loadable.context), 'pulled-remote-strict-resume');
-    assert.strictEqual(loadable.context.game.level, 7);
-  }
-
-  const moveCase = createContext(guestLocal, null, { fate: 'move' });
-  assert.strictEqual(await login(moveCase), 'pushed-local');
-  assert.strictEqual(moveCase.choices.length, 1, 'a login asks what to do with the guest save');
-  assert.match(moveCase.choices[0].message, /레벨 42/);
-  assert.strictEqual(moveCase.context.game.level, 42, 'moving makes it the account save');
-  assert.strictEqual(moveCase.context.game.saveMeta.cloudUserId, 'account-b', 'marked, so it can never move to another account');
-  assert.strictEqual(moveCase.getPushes(), 1, 'and it goes up as the first cloud save');
-
-  const discardCase = createContext(guestLocal, null, { fate: 'discard' });
-  assert.strictEqual(await login(discardCase), 'no-remote');
-  assert.strictEqual(discardCase.context.game.level, 1, 'deleting starts the account fresh and leaves no guest copy');
-  assert.strictEqual(discardCase.getPushes(), 0);
-
-  const keepCase = createContext(guestLocal, null, {});
-  await assert.rejects(login(keepCase), /계정 연결을 취소/);
-  assert.strictEqual(keepCase.context.game.level, 42, 'cancelling keeps the guest save as it was');
-  assert.strictEqual(keepCase.context.game.saveMeta.cloudUserId, undefined);
-  assert.strictEqual(keepCase.writes.length, 0);
-  assert.deepStrictEqual([keepCase.detached, keepCase.context.cloudState.user], [[null], null], 'and drops the account link on this device');
-
-  const tamperedVerdict = { ok: false, keys: ['currency'], problems: ['화폐'] };
-  const tamperedCase = createContext(guestLocal, null, { fate: 'move', verdict: tamperedVerdict, confirm: true });
-  assert.strictEqual(await login(tamperedCase), 'no-remote');
-  assert.strictEqual(tamperedCase.getPushes(), 0, 'a save that fails the check never reaches the account');
-  assert.match(tamperedCase.confirmations[0].message, /화폐/, 'the player is told why before it is deleted');
-  assert.strictEqual(tamperedCase.context.game.level, 1);
-
-  const tamperedKeepCase = createContext(guestLocal, null, { fate: 'move', verdict: tamperedVerdict, confirm: false });
-  await assert.rejects(login(tamperedKeepCase), /계정 연결을 취소/);
-  assert.strictEqual(tamperedKeepCase.context.game.level, 42);
-
-  const signupTamperedCase = createContext(guestLocal, null, { verdict: { ok: false, keys: ['clock'], problems: ['기기 시간'] }, confirm: true });
-  const signupTamperedStatus = await vm.runInContext('reconcileCloudSaveState({ createRemoteFromLocal: true, allowLocalBootstrap: true })', signupTamperedCase.context);
-  assert.strictEqual(signupTamperedStatus, 'no-remote');
-  assert.strictEqual(signupTamperedCase.getPushes(), 0, 'sign-up checks the guest save too');
-  assert.strictEqual(signupTamperedCase.context.game.level, 1);
-
-  const guestWithRemoteCase = createContext(guestLocal, remoteRecord, { confirm: true });
-  assert.strictEqual(await login(guestWithRemoteCase), 'pulled-remote-strict-resume');
-  assert.strictEqual(guestWithRemoteCase.choices.length, 0, 'an account with a cloud save never takes a guest save');
-  assert.match(guestWithRemoteCase.confirmations[0].message, /이미 저장이 있어/, 'deleting it is asked first');
-  assert.strictEqual(guestWithRemoteCase.context.game.level, 7);
-
-  const guestWithRemoteKeepCase = createContext(guestLocal, remoteRecord, { confirm: false });
-  await assert.rejects(login(guestWithRemoteKeepCase), /계정 연결을 취소/);
-  assert.strictEqual(guestWithRemoteKeepCase.context.game.level, 42);
-  assert.strictEqual(guestWithRemoteKeepCase.writes.length, 0);
-
-  const remoteStamp = new Date(remoteRecord.updated_at).getTime();
-  const newerOwnedLocal = { level: 42, season: 3, saveMeta: { lastModifiedAt: remoteStamp + 1000, cloudUserId: 'account-b' } };
-  const newerOwnedCase = createContext(newerOwnedLocal, remoteRecord);
-  const newerOwnedStatus = await vm.runInContext(
-    'reconcileCloudSaveState({ preferRemoteOnResume: true, strictRemoteResume: true })',
-    newerOwnedCase.context
-  );
-  assert.strictEqual(newerOwnedStatus, 'pushed-local-higher-loop');
-  assert.strictEqual(newerOwnedCase.context.game.level, 42, 're-login must keep a newer local save owned by the same account');
-  assert.strictEqual(newerOwnedCase.getPushes(), 1, 'newer same-account local progress must update the cloud save');
-
-  const olderOwnedLocal = { level: 5, season: 1, saveMeta: { lastModifiedAt: remoteStamp - 1000, cloudUserId: 'account-b' } };
-  const olderOwnedCase = createContext(olderOwnedLocal, remoteRecord);
-  const olderOwnedStatus = await vm.runInContext(
-    'reconcileCloudSaveState({ preferRemoteOnResume: true, strictRemoteResume: true })',
-    olderOwnedCase.context
-  );
-  assert.strictEqual(olderOwnedStatus, 'pulled-remote-resume-preferred');
-  assert.strictEqual(olderOwnedCase.context.game.level, 7, 're-login must still apply a newer cloud save for the same account');
-  assert.strictEqual(olderOwnedCase.getPushes(), 0);
-
-  const higherLoopRemote = {
-    updated_at: '2026-07-21T00:00:00Z',
-    save_data: { level: 30, season: 4, loopCount: 3, maxZoneId: 10, saveMeta: { lastModifiedAt: 200 } }
-  };
-  const newerLowerLoopLocal = { level: 50, season: 3, loopCount: 2, saveMeta: { lastModifiedAt: remoteStamp + 2000, cloudUserId: 'account-b' } };
-  const lowerLoopCase = createContext(newerLowerLoopLocal, higherLoopRemote);
-  const lowerLoopStatus = await vm.runInContext(
-    'reconcileCloudSaveState({ preferRemoteOnResume: true, strictRemoteResume: true })',
-    lowerLoopCase.context
-  );
-  assert.strictEqual(lowerLoopStatus, 'pulled-remote-higher-loop');
-  assert.strictEqual(lowerLoopCase.context.game.season, 4, 'a newer timestamp must not let a lower-loop local save replace higher-loop cloud progress');
-  assert.strictEqual(lowerLoopCase.getPushes(), 0, 'the real loop guard must block lower-loop local uploads');
-
-  const lowerLoopNewerRemote = {
-    updated_at: '2026-07-25T00:00:00Z',
-    revision: 8,
-    save_data: { level: 70, season: 6, loopCount: 5, saveMeta: { lastModifiedAt: 800, cloudRevision: 8 } }
-  };
-  const higherLoopOlderLocal = {
-    level: 90, season: 8, loopCount: 7,
-    saveMeta: { lastModifiedAt: new Date('2026-07-24T00:00:00Z').getTime(), cloudUserId: 'account-b', cloudRevision: 8 }
-  };
-  const monotonicResumeCase = createContext(higherLoopOlderLocal, lowerLoopNewerRemote);
-  const monotonicResumeStatus = await vm.runInContext(
-    'reconcileCloudSaveState({ preferRemoteOnResume: true, strictRemoteResume: true })',
-    monotonicResumeCase.context
-  );
-  assert.strictEqual(monotonicResumeStatus, 'pushed-local-higher-loop');
-  assert.strictEqual(monotonicResumeCase.context.game.season, 8, 'a newer cloud timestamp must never roll back a higher-loop local save');
-  assert.strictEqual(monotonicResumeCase.getPushes(), 1, 'the higher-loop local save should repair the stale cloud save');
-
-  const sameLoopRemoteForGuard = {
-    updated_at: '2026-07-25T00:00:00Z', revision: 8,
-    save_data: { level: 70, season: 8, loopCount: 7, maxZoneId: 12, saveMeta: { lastModifiedAt: 800, cloudRevision: 8 } }
-  };
-  const autoSyncGuardCase = createContext(higherLoopOlderLocal, lowerLoopNewerRemote);
-  const autoSyncGuard = await vm.runInContext('guardAgainstStaleLocalOverwrite({ automatic: true })', autoSyncGuardCase.context);
-  assert.strictEqual(autoSyncGuard.status, 'safe-to-push-higher-loop');
-  assert.strictEqual(autoSyncGuardCase.context.game.season, 8, 'automatic sync must not replace a higher-loop local save by timestamp');
-  assert.strictEqual(autoSyncGuardCase.getSummaryReads(), 1, 'the automatic upload check reads the save summary');
-  assert.strictEqual(autoSyncGuardCase.getFullReads(), 0, 'the automatic upload check must not download the whole save');
-
-  // The summary decides, the full save is applied: a pull never applies the few summary fields.
-  const guardPullCase = createContext(newerLowerLoopLocal, higherLoopRemote);
-  const guardPull = await vm.runInContext('guardAgainstStaleLocalOverwrite({ automatic: true })', guardPullCase.context);
-  assert.strictEqual(guardPull.status, 'pulled-remote-higher-loop');
-  assert.strictEqual(guardPullCase.getFullReads(), 1, 'pulling a higher-loop cloud save reads the whole save once');
-  assert.strictEqual(guardPullCase.context.game.level, 30, 'the pulled save is the full remote save');
-  assert.strictEqual(guardPullCase.context.game.maxZoneId, 10, 'fields outside the summary arrive with the pull');
-  const olderSameLoopLocal = { level: 90, season: 8, loopCount: 7,
-    saveMeta: { lastModifiedAt: new Date('2026-07-20T00:00:00Z').getTime(), cloudUserId: 'account-b', cloudRevision: 8 } };
-  const newerRemoteCase = createContext(olderSameLoopLocal, { ...sameLoopRemoteForGuard });
-  const newerRemote = await vm.runInContext('guardAgainstStaleLocalOverwrite({ automatic: true })', newerRemoteCase.context);
-  assert.strictEqual(newerRemote.status, 'pulled-remote');
-  assert.strictEqual(newerRemoteCase.getFullReads(), 1);
-  assert.strictEqual(newerRemoteCase.context.game.level, 70, 'a newer same-loop cloud save is pulled in full');
-
-  const revisionConflictLocal = JSON.parse(JSON.stringify(higherLoopOlderLocal));
-  revisionConflictLocal.saveMeta.cloudRevision = 7;
-  const revisionConflictCase = createContext(revisionConflictLocal, lowerLoopNewerRemote);
-  const revisionConflictStatus = await vm.runInContext(
-    'reconcileCloudSaveState({ preferRemoteOnResume: true, strictRemoteResume: true })',
-    revisionConflictCase.context
-  );
-  assert.strictEqual(revisionConflictStatus, 'pushed-local-higher-loop-conflict');
-  assert.strictEqual(revisionConflictCase.context.game.season, 8, 'a cloud revision conflict must preserve the higher-loop local save');
-  assert.strictEqual(revisionConflictCase.context.game.saveMeta.cloudRevision, 8, 'the protected local save should advance to the checked remote revision');
-  assert.strictEqual(revisionConflictCase.getPushes(), 1);
-
-  const sameLoopRemote = {
-    updated_at: '2026-07-25T00:00:00Z', revision: 8,
-    save_data: { level: 70, season: 8, loopCount: 7, saveMeta: { lastModifiedAt: 800, cloudRevision: 8 } }
-  };
-  const sameLoopLocal = {
-    level: 90, season: 8, loopCount: 7,
-    saveMeta: { lastModifiedAt: new Date('2026-07-26T00:00:00Z').getTime(), cloudUserId: 'account-b', cloudRevision: 7 }
-  };
-  const choiceCase = createContext(sameLoopLocal, sameLoopRemote);
-  const choiceStatus = await vm.runInContext(
-    'reconcileCloudSaveState({ preferRemoteOnResume: true, strictRemoteResume: true })',
-    choiceCase.context
-  );
-  assert.strictEqual(choiceStatus, 'pulled-remote-conflict');
-  assert.strictEqual(choiceCase.confirmations.length, 1, 'same-loop revision conflict must ask which save to use once');
-  assert.deepStrictEqual(JSON.parse(JSON.stringify(choiceCase.confirmations[0].options)), {
-    title: '저장 충돌', tone: 'danger', confirmLabel: '현재 기기 사용', cancelLabel: '서버 기록 사용'
-  });
-  assert.match(choiceCase.confirmations[0].message, /^현재 기기 기록\n루프 8, 마지막 저장 .*\n\n서버 기록\n루프 8, 마지막 저장 /,
-    'save choices must show only each record loop and last-save time');
-
-  const bootstrapOwnedLocal = { level: 1, season: 1, loopCount: 0, saveMeta: { lastModifiedAt: remoteStamp + 3000, cloudUserId: 'account-b' } };
-  const bootstrapOwnedCase = createContext(bootstrapOwnedLocal, remoteRecord);
-  const bootstrapOwnedStatus = await vm.runInContext(
-    'reconcileCloudSaveState({ preferRemoteOnResume: true, strictRemoteResume: true })',
-    bootstrapOwnedCase.context
-  );
-  assert.strictEqual(bootstrapOwnedStatus, 'pulled-remote-higher-loop');
-  assert.strictEqual(bootstrapOwnedCase.context.game.level, 7, 'a bootstrap local save must yield to the existing same-account cloud save');
-  assert.strictEqual(bootstrapOwnedCase.getPushes(), 0, 'the real bootstrap guard must block cloud overwrite');
+        d.runtime.game.level = 81;
+        d.runtime.saveGame({ skipCloudSync: true });
+        d.server.down = true;
+        await d.runtime.syncCloudSave({ automatic: true }).catch(error => d.runtime.noteAutoCloudSyncFailure(error));
+        await d.runtime.syncCloudSave({ automatic: true }).catch(error => d.runtime.noteAutoCloudSyncFailure(error));
+        assert.deepStrictEqual([d.toasts.length, d.runtime.isCloudSaveDirty()], [2, true]);
+        assert.match(d.toasts[1], /서버에 올리지 못했습니다/);
+        d.server.down = false;
+        await d.runtime.syncCloudSave({ automatic: true });
+        assert.deepStrictEqual([d.server.row.revision, d.server.row.save_data.level, d.runtime.isCloudSaveDirty()], [10, 81, false]);
+    }
+    // 9. Leaving the account (게스트로 시작, 다른 계정 사용, 로그아웃): pending changes go up, the guest slot comes back untouched.
+    {
+        const d = createDevice({ guestSave, accountSave: ownedCopy(50, 7, true), serverSave, serverRevision: 7 });
+        d.signIn();
+        await d.runtime.enterAccountSave();
+        d.runtime.game.level = 52;
+        d.runtime.saveGame({ skipCloudSync: true });
+        await d.runtime.leaveAccountForGuest();
+        assert.deepStrictEqual([d.server.row.save_data.level, d.cloud().user, d.slot().kind, d.runtime.game.level, d.stored(d.accountKey).level], [52, null, 'guest', 42, 52]);
+    }
+    // 10. Before the slots one key held whichever save was last played: an account's save there moves to its slot at boot and the guest
+    //     slot empties, so it can never be moved into another account as a guest save.
+    {
+        const d = createDevice({ guestSave: ownedCopy(60, 5, false) });
+        assert.deepStrictEqual([d.storage.has(d.key), d.stored(d.accountKey).level, d.runtime.game.level, d.slot().kind], [false, 60, 1, 'guest']);
+        d.signIn(OTHER);
+        assert.strictEqual(await d.runtime.enterAccountSave({ signUp: true }), 'pushed-first');
+        assert.strictEqual(d.server.row.save_data.level, 1, 'another account gets a fresh save, not the moved one');
+    }
+    // 11. The account reset commits a blank save at the server's revision into the account slot only.
+    {
+        const d = createDevice({ guestSave, accountSave: ownedCopy(50, 7, false), serverSave, serverRevision: 7 });
+        d.signIn();
+        await d.runtime.enterAccountSave();
+        await d.runtime.resetProgressStorage(USER);
+        assert.deepStrictEqual([d.server.row.revision, d.server.row.save_data.level, d.stored(d.accountKey).level, d.stored(d.key).level, d.runtime.__reloaded], [8, 1, 1, 42, true]);
+    }
 }
 
 run()
-  .then(() => console.log('smoke-cloud-account-isolation passed'))
-  .catch(error => {
-    console.error(error);
-    process.exitCode = 1;
-  });
+    .then(() => console.log('smoke-cloud-account-isolation passed'))
+    .catch(error => {
+        console.error(error);
+        process.exitCode = 1;
+    });

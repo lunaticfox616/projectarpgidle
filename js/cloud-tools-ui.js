@@ -97,11 +97,13 @@ async function restoreCloudSaveVersion(revision) {
 }
 
 /** 설정 > 클라우드 세이브의 계정 삭제 단추. 지워지는 것을 알린 뒤 "삭제"를 그대로 쳐야 delete_my_account(db/cloud-and-playtest.sql)를 부른다.
- * 서버가 auth.users 한 줄을 지우면 모든 표가 외래키로 따라 지워지므로 이쪽은 이 기기의 토큰만 치운다. 이 기기의 저장은 남는다. */
+ * 서버가 auth.users 한 줄을 지우면 모든 표가 외래키로 따라 지워지므로 이쪽은 이 기기의 토큰과 그 계정의 저장 칸을 치우고(js/ui.js
+ * forgetDeletedAccountSave) 게스트 저장으로 시작 화면을 연다. 게스트 저장은 그대로 있다. */
 async function deleteCloudAccount() {
     if (!cloudState || !cloudState.user) return setCloudMessage('로그인한 계정이 없습니다.');
     if (cloudState.busy) return setCloudMessage('클라우드 작업이 끝난 뒤 다시 눌러 주세요.');
     if (!(await confirmAccountDeletion())) return;
+    let userId = cloudState.user.id;
     cloudState.busy = true;
     setCloudMessage('계정을 지우는 중입니다...');
     updateCloudSaveUI();
@@ -114,10 +116,10 @@ async function deleteCloudAccount() {
     }
     await forgetDeletedAccountSession();
     cloudState.busy = false;
-    updateCloudSaveUI();
+    forgetDeletedAccountSave(userId);
     setCloudMessage(outcome.alreadyGone
-        ? '이미 지워진 계정이라 이 기기의 로그인 정보만 치웠습니다. 이 기기의 저장은 그대로 있습니다.'
-        : '계정과 클라우드 자료를 지웠습니다. 이 기기의 저장은 그대로 있습니다.');
+        ? '이미 지워진 계정이라 이 기기의 로그인 정보와 계정 저장을 치웠습니다. 게스트 저장은 그대로 있습니다.'
+        : '계정과 클라우드 자료를 지웠습니다. 게스트 저장은 그대로 있습니다.');
     showGameToast('계정을 지웠습니다.', 'success');
 }
 
@@ -150,7 +152,7 @@ async function requestAccountDeletion() {
 /** 두 단계 확인: 지워지는 것의 목록, 그 다음 "삭제"를 그대로 쳐야 한다(다른 글은 입력 칸 아래 안내로 막힌다). */
 async function confirmAccountDeletion() {
     let agreed = await requestGameConfirmation(
-        '이 계정을 지울까요?\n클라우드 저장과 저장 이력, 공개 프로필과 닉네임, 채팅, 전당 전시와 구매, 고스트 기록이 모두 지워지고 되돌릴 수 없습니다.\n이 기기의 저장은 남습니다.',
+        '이 계정을 지울까요?\n클라우드 저장과 저장 이력, 공개 프로필과 닉네임, 채팅, 전당 전시와 구매, 고스트 기록이 모두 지워지고 되돌릴 수 없습니다.\n이 기기의 게스트 저장은 남습니다.',
         { title: '계정 삭제', tone: 'danger', confirmLabel: '계속' });
     if (!agreed) return false;
     let typed = await requestGameText({
