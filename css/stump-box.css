@@ -574,6 +574,13 @@
   .stump-badges > span { padding: 0 4px; border: 1px solid currentColor; font-size: 11px; line-height: 1.4; }
   .stump-badges > .is-golden { color: #f3c64a; }
   .stump-badges > .is-ancient { color: #b8f0a0; }
+  .stump-badges > .is-albino { color: #e8ddff; }
+  #tab-stump :is(.stump-cell, .stump-item).is-albino {
+    background: radial-gradient(ellipse at center, #62556f 0%, #3b344c 60%, #282435 100%);
+    border-color: #d8c8ed;
+    box-shadow: inset 0 0 0 1px #9d8cb3, inset 0 0 12px #cbb8e329;
+  }
+  #tab-stump :is(.stump-cell, .stump-item).is-albino:not(.is-suppressed) img { filter: drop-shadow(0 0 2px #e8ddff80); }
   .stump-badges > .is-bumper { color: #9fd46a; }
   .stump-badges > .is-bloom { color: #e8a0d8; }
   .stump-extra { margin: 2px 0; padding-left: 8px; border-left: 2px solid #3b2f1e; font-size: 12px; line-height: 1.5; }

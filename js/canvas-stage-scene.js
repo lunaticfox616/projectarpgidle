@@ -1,10 +1,11 @@
-/** 무대 조각 묶음으로 방을 조립한다 (2026-10-11 사용자가 이미지 생성으로 만들어 온 "뿌리 성소 무대 조각": 먼 배경, 뒤쪽 띠, 바닥 세 가지,
- * 작은 소품 열, 앞쪽 소품 넷, 네 방향 문의 닫힌 모습과 열린 모습). 던파의 무대처럼 층과 조각을 겹친다. 규격과 놓는 규칙은
- * data/stage-view.js STAGE_SCENES에 있고, 그 묶음을 만든 쪽의 조립 화면(묶음의 index.html)을 따른다.
+/** 무대 조각 묶음으로 방을 조립한다 (2026-10-11 사용자가 이미지 생성으로 만들어 온 "뿌리 성소 무대 조각", 2026-10-30 PixelLab Pro로 다시 그린
+ * 액트 1: 먼 배경, 뒤쪽 띠, 바닥 세 가지, 바닥 양옆의 수액 계단, 보스 방의 구조물). 던파의 무대처럼 층과 조각을 겹친다. 규격과 놓는 규칙은
+ * data/stage-view.js STAGE_SCENES에 있고, 그 묶음을 만든 쪽의 조립 화면을 따른다.
  * - 먼 배경: 좌우로 이어 붙는 띠. 카메라보다 느리게 움직인다.
- * - 바닥과 뒤쪽 띠: 지도 왼쪽 끝에서 센 자리에 이어 붙는 띠(방마다 한 번 그려 둔다). 뒤쪽 띠가 바닥과 배경이 만나는 줄을 덮는다.
- * - 소품과 문: 캐릭터와 같은 깊이 순서로 그리는 배우. 뒤쪽 줄은 캐릭터 뒤에, 앞쪽 조각은 캐릭터 앞에 선다. 문은 공용 뿌리 봉인으로
- *   막고 풀릴 때 아래로 접힌다. 주인공이 조각 뒤에 서면 그 조각이 비쳐 보인다.
+ * - 바닥과 뒤쪽 띠: 지도 왼쪽 끝에서 센 자리에 이어 붙는 띠(방마다 한 번 그려 둔다). 뒤쪽 띠가 바닥과 배경이 만나는 줄을 덮고, 수액
+ *   계단이 그 위에 바닥과 같은 자리로 한 장 얹힌다.
+ * - 보스 구조물과 문: 캐릭터와 같은 깊이 순서로 그리는 배우. 문은 공용 뿌리 봉인으로 막고 풀릴 때 아래로 접힌다. 주인공이 조각 뒤에
+ *   서면 그 조각이 비쳐 보인다.
  * 그림은 한 장이 캐릭터 도트 하나에 1px이라 캐릭터와 같은 배율로 찍는다(js/canvas-stage-dots.js). 그림 폴더가 없는 판에서는 ready가
  * 거짓이라 코드로 그린 임시 무대(js/canvas-stage-sanctum.js)가 그대로 나온다. 그리기만 하고 전투와 길 찾기에는 닿지 않는다.
  * 지도에 지역 무대 그림(js/canvas-stage-region.js: 방 그림 한 장과 문, 소품)이 정해져 있고 그 그림이 준비됐으면 그쪽이 방을 그린다:
@@ -33,7 +34,9 @@ const stageScene = (() => {
         const image = images.get(path);
         return image.complete && image.naturalWidth > 0 ? image : null;
     }
-    const filesOf = kit => [kit.far.file, ...Object.values(kit.far.rooms || {}), kit.back.file, ...kit.floor.files, ...Object.keys(kit.pieces).map(name => name + '.png')];
+    const terraceFiles = (kit, side) => kit.terraces.files.map(name => name + side + '.png');
+    const filesOf = kit => [kit.far.file, ...Object.values(kit.far.rooms), kit.back.file, ...kit.floor.files, ...kit.terraces.sides.flatMap(side => terraceFiles(kit, side)),
+        ...Object.keys(kit.pieces).map(name => name + '.png')];
     /** 그 방의 먼 배경: 구실(정예, 보스)에 따로 그린 것이 있으면 그것. */
     const farFile = (kit, room) => (kit.far.rooms && kit.far.rooms[room.role]) || kit.far.file;
     /** 지역 무대 그림의 형편: 'ready', 'pending'(불러오는 중), 'failed'(그림이 없다), 지역이 없는 지도면 null. */
@@ -129,6 +132,9 @@ const stageScene = (() => {
         const floorShift = Math.round((room.x0 + room.x1 + 1) * WIDE / 2 - kit.floor.width / 2);
         strip(ctx, box, picture(kit, floor), { width: kit.floor.width, shift: floorShift, y: top + kit.floor.top, fadeTop: 28 });
         strip(ctx, box, picture(kit, kit.back.file), { width: kit.back.width, shift: kit.back.shift, y: top + kit.back.bottom - kit.back.height, fadeBottom: 14 });
+        // 수액 계단: 바닥 그림과 같은 자리에 한 장. 놓임새(양쪽, 왼쪽만, 오른쪽만)는 바닥처럼 방마다 정해진 하나다.
+        const side = kit.terraces.sides[(room.index + (Number(map.act) || 0)) % kit.terraces.sides.length];
+        for (const file of terraceFiles(kit, side)) ctx.drawImage(picture(kit, file), floorShift, top + kit.terraces.top);
         shadeBeyond(ctx, kit, room, box);
         return canvas;
     }
@@ -144,28 +150,10 @@ const stageScene = (() => {
     }
 
     // ---------------------------------------------------------------- pieces and doors (actors)
-    /** 그 방의 문이 벽을 따라 놓인 자리(도트): 그 둘레에는 소품을 놓지 않는다. */
-    function doorSpots(map, room, side) {
-        return map.doors.filter(door => door.room === room.index && door.side === side).map(door => (door.cell.gx + 0.5) * WIDE);
-    }
-    const clear = (spots, x, reach) => spots.every(spot => Math.abs(spot - x) > reach);
-    /** 한 줄로 놓이는 소품: 이름을 차례로 돌리고 간격과 깊이도 차례로 바꾼다(묶음의 조립 화면과 같은 규칙). */
-    function rowOf(list, rule, span, spots) {
-        for (let i = 0, x = span.left + rule.from; x < span.right - rule.until; i++, x += rule.gaps[i % rule.gaps.length]) {
-            if (clear(spots, x, rule.clear)) list.push({ name: rule.names[i % rule.names.length], x: Math.round(x), y: span.top + rule.drops[i % rule.drops.length] });
-        }
-    }
-    /** 방 하나에 놓이는 조각의 자리(도트, 지도 좌표). y는 그림의 맨 아래 줄이 놓이는 줄이다. 문은 따로 센다(doorsOf). */
+    /** 방 하나에 놓이는 조각의 자리(도트, 지도 좌표): 보스 방의 큰 구조물 하나. y는 그림의 맨 아래 줄이 놓이는 줄이다. 문은 따로 센다(doorsOf). */
     function layoutOf(map, room, kit) {
-        const span = { left: room.x0 * WIDE, right: (room.x1 + 1) * WIDE, top: room.y0 * DEEP }, list = [], rows = kit.rows;
-        const boss = room.role === 'boss' && rows.boss ? { name: rows.boss.name, x: Math.round((span.left + span.right) / 2), y: span.top + rows.boss.drop } : null;
-        rowOf(list, rows.back, span, doorSpots(map, room, 'north'));
-        if (boss) list.splice(0, list.length, ...list.filter(piece => Math.abs(piece.x - boss.x) > rows.boss.clear), boss);
-        rowOf(list, rows.inner, span, doorSpots(map, room, 'south'));
-        rowOf(list, rows.front, span, doorSpots(map, room, 'south'));
-        list.push({ name: rows.corners.left[0], x: span.left + rows.corners.left[1], y: span.top + rows.corners.left[2] });
-        list.push({ name: rows.corners.right[0], x: span.right + rows.corners.right[1], y: span.top + rows.corners.right[2] });
-        return list;
+        if (room.role !== 'boss') return [];
+        return [{ name: kit.boss.name, x: Math.round((room.x0 + room.x1 + 1) * WIDE / 2), y: room.y0 * DEEP + kit.boss.drop }];
     }
     function piecesOf(map, room, kit) {
         if (!layouts.has(map)) layouts.set(map, new Map());

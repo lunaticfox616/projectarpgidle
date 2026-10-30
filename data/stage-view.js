@@ -245,25 +245,23 @@ const STAGE_PROPS = Object.freeze({
         })
     })
 });
-// 무대 조각 묶음 (js/canvas-stage-scene.js). 2026-10-11 사용자가 이미지 생성으로 만들어 온 "뿌리 성소 무대 조각"(root-stage-kit-20261011):
-// 먼 배경, 뒤쪽 띠, 바닥 세 가지, 작은 소품 열, 앞쪽 소품 넷(문은 공용 뿌리 봉인이 맡는다). 그림 한 장이 캐릭터 도트 하나에 1px이다.
-// 수치는 모두 도트이고 방 바닥의 뒤쪽 끝(바닥선)과 왼쪽 끝에서 잰다. 묶음의 조립 화면(화면 px, 1.5배)을 도트로 옮긴 값이다.
+// 무대 조각 묶음 (js/canvas-stage-scene.js). 2026-10-11 사용자가 이미지 생성으로 만들어 온 "뿌리 성소 무대 조각"(root-stage-kit-20261011)을
+// 2026-10-30 PixelLab Pro로 다시 그린 액트 1 배포로 바꿨다(scripts/build-stage-regions.cjs --act-rework, 배포의 ground-layers.json).
+// 먼 배경, 뒤쪽 띠, 바닥 세 가지, 바닥 양옆의 수액 계단(terraces), 보스 방의 구조물이다. 예전 묶음의 작은 소품과 앞쪽 소품 열네 가지는
+// 배포가 끈 것이라 지웠다(문은 공용 뿌리 봉인이 맡는다). 그림 한 장이 캐릭터 도트 하나에 1px이다.
+// 수치는 모두 도트이고 방 바닥의 뒤쪽 끝(바닥선)과 왼쪽 끝에서 잰다.
 //   far    먼 배경: 좌우로 이어 붙는 띠. bottom = 바닥선 아래로 내려오는 깊이, parallax = 카메라를 따라 움직이는 비율, shift = 띠를 미는 양.
+//          rooms = 그 구실의 방(elite, boss)에만 쓰는 먼 배경.
 //   back   뒤쪽 띠: 낮은 뿌리와 부서진 목질. bottom = 바닥선 아래로 내려오는 깊이. 바닥 띠와 이음매가 엇갈리게 shift만큼 민다.
 //   floor  바닥: 방마다 한 가지를 고른다. top = 바닥선 위로 올라가는 높이(음수).
+//   terraces 바닥과 같은 자리에 겹치는 수액 계단 셋(뿌리옹이 둑, 고인 수액, 흘러내리는 수액, 이 차례로 그린다). sides = 방마다 하나를 고르는
+//          놓임새의 파일 끝(양쪽, 왼쪽만, 오른쪽만).
 //   pieces 조각: 이름(= 파일 이름) → [그림 가로, 세로, 조각이 차지하는 상자의 왼쪽, 위, 가로, 세로]. 상자의 맨 아래 줄이 발 자리다.
-//   rows   줄지어 놓는 규칙: names를 차례로 돌리며 from부터 gaps 간격으로, 방 끝에서 until 앞까지. drops = 발 자리의 깊이(차례로).
-//          clear = 문 둘레에 비우는 반경. back 바닥 뒤쪽 끝, inner 바닥 앞쪽에 놓이는 낮은 조각, front 바닥 밖 앞쪽(캐릭터를 가린다).
-//          corners = 방의 왼쪽 앞, 오른쪽 앞 구석에 하나씩 [이름, 가로 자리, 깊이].
+//   boss   보스 방의 뒤쪽 가운데에 서는 큰 구조물(drop = 발 자리의 깊이).
 //   doors  문의 뿌리 봉인(rootSeal)이 서는 자리: 방향 → 뒤쪽과 앞쪽 문은 발 자리의 깊이, 좌우 문은 방 끝에서 바깥으로 나가는 거리다.
 //   fill 그림이 닿지 않는 땅의 색, sky 먼 배경 위쪽의 색, beyond 방의 옆쪽 바깥을 누르는 어둠의 세기.
-//   far.rooms 그 구실의 방(elite, boss)에만 쓰는 먼 배경. rows.boss 보스 방의 뒤쪽 가운데에 서는 큰 구조물(drop = 발 자리의 깊이,
-//          뒤쪽 줄 소품은 그 둘레 clear만큼 비운다).
-// 2026-10-30 PixelLab Pro로 다시 그린 액트 1~10 배포(scripts/build-stage-regions.cjs --act-rework): 먼 배경, 뒤쪽 띠, 바닥 셋과 정예, 보스 방의
-// 먼 배경, 보스 구조물이 그 배포의 그림이다. 작은 소품과 앞쪽 소품은 배포에 없어 예전 그림이다.
-// 물을 제거한 뿌리끝 성소 v5 시안 기준 조각. 캐릭터 원본과 별도 경로에 보관한다.
 const STAGE_SCENES = Object.freeze({
-    version: 'pixellab-20261030',
+    version: 'pixellab-20261030-2',
     path: 'assets/stage-scenes/',
     biomes: Object.freeze({
         root: Object.freeze({
@@ -272,24 +270,10 @@ const STAGE_SCENES = Object.freeze({
                 width: 1536, height: 384, bottom: 19, parallax: 0.4, shift: 0 }),
             back: Object.freeze({ file: 'rear-strip.png', width: 1024, height: 192, bottom: 20, shift: -207 }),
             floor: Object.freeze({ files: Object.freeze(['floor-a.png', 'floor-b.png', 'floor-c.png']), width: 1536, height: 320, top: -24 }),
-            pieces: Object.freeze({
-                'rock-low': Object.freeze([96, 64, 4, 25, 88, 35]), 'root-low': Object.freeze([160, 64, 4, 17, 152, 43]),
-                'rock-small': Object.freeze([64, 48, 8, 4, 47, 40]), 'rock-tall': Object.freeze([80, 112, 7, 4, 65, 104]),
-                'root-stump': Object.freeze([112, 112, 4, 48, 104, 60]), 'bark-chip': Object.freeze([64, 48, 5, 25, 55, 19]),
-                'root-broken': Object.freeze([96, 80, 4, 35, 88, 41]), 'mushrooms': Object.freeze([64, 48, 4, 8, 56, 36]),
-                'sanctum-slab': Object.freeze([208, 128, 4, 40, 200, 84]), 'sanctum-pillar': Object.freeze([80, 112, 7, 4, 65, 104]),
-                'front-bark': Object.freeze([256, 160, 4, 84, 248, 72]), 'front-root-low': Object.freeze([256, 160, 4, 97, 248, 59]),
-                'front-root': Object.freeze([384, 192, 4, 17, 376, 171]), 'front-root-stone': Object.freeze([384, 192, 4, 37, 376, 151]),
-                'boss-object': Object.freeze([320, 320, 60, 74, 200, 196])
-            }),
-            rows: Object.freeze({
-                back: Object.freeze({ names: Object.freeze(['root-low', 'sanctum-slab', 'root-broken', 'sanctum-pillar', 'root-stump', 'rock-low', 'mushrooms', 'rock-tall']),
-                    from: 51, until: 65, gaps: Object.freeze([213, 271, 229]), drops: Object.freeze([4, 8, 12]), clear: 163 }),
-                inner: Object.freeze({ names: Object.freeze(['bark-chip', 'rock-small', 'mushrooms']), from: 184, until: 104, gaps: Object.freeze([473]), drops: Object.freeze([188, 216]), clear: 133 }),
-                front: Object.freeze({ names: Object.freeze(['front-bark', 'front-root-low']), from: 451, until: 337, gaps: Object.freeze([653, 547]), drops: Object.freeze([332]), clear: 160 }),
-                corners: Object.freeze({ left: Object.freeze(['front-root-stone', 27, 327]), right: Object.freeze(['front-root', -64, 325]) }),
-                boss: Object.freeze({ name: 'boss-object', drop: -19, clear: 200 })
-            }),
+            terraces: Object.freeze({ files: Object.freeze(['terrace-banks', 'terrace-pools', 'terrace-flow']), sides: Object.freeze(['', '-left', '-right']),
+                width: 1536, height: 384, top: -24 }),
+            pieces: Object.freeze({ 'boss-object': Object.freeze([320, 320, 60, 74, 200, 196]) }),
+            boss: Object.freeze({ name: 'boss-object', drop: -19 }),
             doors: Object.freeze({ north: 13, south: 293, west: 1, east: -1 })
         })
     })

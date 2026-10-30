@@ -14,6 +14,7 @@ const stumpRipeningUi = (() => {
     /** 황금, 풍작 and 만개 (three extra lines). */
     function badges(item) {
         const out = [];
+        if (item.albino) out.push(['is-albino', '고유 알비노: 하나만 배치, 봉인해야 다음 루프에 유지']);
         if (isGolden(item)) out.push(['is-golden', `황금 ×${STUMP_BOX_RIPENING.golden.mul}`]);
         if (item.ancient) out.push(['is-ancient', `고대: 모든 색 공명, 이웃 접붙이기 +${STUMP_BOX_ANCIENT.graftRanks}`]);
         if (item.harvest && item.harvest.bonus) out.push(['is-bumper', `풍작 +${Math.round(item.harvest.bonus * 100)}%`]);
@@ -55,7 +56,7 @@ const stumpRipeningUi = (() => {
     }
     /** A stored seed or sap thrown away: golden and ancient ones ask first, the rest go at once. */
     async function confirmDiscard(item) {
-        if (!isGolden(item) && !item.ancient) return true;
+        if (!isGolden(item) && !item.ancient && !item.albino) return true;
         const options = { title: '버리기', tone: 'danger', confirmLabel: '버리기', cancelLabel: '취소' };
         return requestGameConfirmation(`${withObjectParticle(stumpBox.shortName(item))} 버립니다. 되돌릴 수 없습니다.`, options);
     }

@@ -3757,6 +3757,8 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     finalBleedChance *= bleedChanceMultiplier;
     ailmentCritChance.bleed *= bleedChanceMultiplier;
     let isSpellSkill = Array.isArray(skill.tags) && skill.tags.includes('spell');
+    // Reuse extra casts; this source applies to spells only and cannot recursively repeat itself.
+    if (isSpellSkill) reward.ds += Number(reward.spellRepeatChance) || 0;
     let isDotSkill = window.GameModules.combat.supports.nativeDot(skill);
     let spellFlatDmg = 0;
     if (isSpellSkill) {

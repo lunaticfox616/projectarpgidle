@@ -41,6 +41,7 @@ const stumpBoxUi = (() => {
     function escStump(text) { return escapeHTML(String(text)); }
     function stumpTone(color) { return STUMP_BOX_COLORS[color].tone; }
     function itemTone(item) {
+        if (item.albino) return STUMP_BOX_RIPENING.albino.tone;
         if (item.family === 'talisman') return stumpTalismanUi.tone(item);
         return item.family === 'scar' ? STUMP_BOX_SCAR.tone : stumpTone(item.color);
     }
@@ -60,6 +61,7 @@ const stumpBoxUi = (() => {
         if (suppressed) out.push('is-suppressed');
         if (stumpBox.isMature(item)) out.push('is-ripe');
         if (stumpRipeningUi.isGolden(item)) out.push('is-golden');
+        if (item.albino) out.push('is-albino');
         if (item.locked) out.push('is-item-locked');
         if (!suppressed && stumpBox.isMature(item) && result.resonant.has(item.color)) out.push('is-resonant');
         return out;
@@ -436,7 +438,7 @@ const stumpBoxUi = (() => {
     // ── 보관함 ─────────────────────────────────────────────
     function stumpStorageCard(item) {
         const growing = item.xp > 0 && !stumpBox.isMature(item) ? stumpBar(item) : '';
-        const classes = `stump-item${item.id === selectedId ? ' is-selected' : ''}${stumpRipeningUi.isGolden(item) ? ' is-golden' : ''}${item.locked ? ' is-item-locked' : ''}`;
+        const classes = `stump-item${item.id === selectedId ? ' is-selected' : ''}${stumpRipeningUi.isGolden(item) ? ' is-golden' : ''}${item.albino ? ' is-albino' : ''}${item.locked ? ' is-item-locked' : ''}`;
         return `<button type="button" class="${classes}" data-stump-action="item" data-item="${item.id}"`
             + ` data-stump-drag="${item.id}" data-stump-tip="item" data-info-tooltip-anchor="1"`
             + ` aria-label="${escStump(comparisonLabel(item))}${item.locked ? ', 잠금' : ''}" style="--stump-tone:${itemTone(item)}">${stumpIcon(item)}${growing}${stumpLockMark(item)}</button>`;
@@ -784,6 +786,8 @@ const stumpBoxUi = (() => {
     function dropOnCell(id, cell) {
         const item = stumpBox.itemById(game, id);
         if (!item || game.stumpBox.board[cell] === id) return false;
+        const uniqueReason = stumpBox.albinoPlacementReason(game, id, cell);
+        if (uniqueReason) { notifyStump(uniqueReason); return false; }
         if (!stumpBox.isOpen(game, cell)) {
             notifyStump(`이 칸은 루프 ${stumpBox.opensAt(game, cell)}에 열립니다.`);
             return false;
@@ -1196,6 +1200,9 @@ const stumpBoxUi = (() => {
     /** Ripening is the box's payoff: a toast (what it gives now) and a chime instead of one scrolling log line. */
     function announceStumpRipened(ripened) {
         if (!ripened.length) return;
+        ripened.filter(item => item.albino).forEach(item => dispatchRuntimeEvent('incident', {
+            text: `${stumpBox.shortName(item)} 개화${stumpBox.cellOf(game, item.id) < 0 ? ', 보관함으로 이동' : ''}`, tone: 'chase', chase: true
+        }));
         const gain = ripened.length === 1 ? stumpRipeGain(ripened[0]) : '';
         const names = ripened.length <= 3 ? ripened.map(stumpRipeName).join(', ') : `${ripened.length}개 성장 완료`;
         const gift = stumpBox.pendingGifts(game).length ? ', 수확 일지 보상을 받으세요' : '', note = stumpRipeningUi.ripenNote(ripened);

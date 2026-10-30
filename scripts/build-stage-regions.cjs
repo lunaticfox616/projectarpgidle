@@ -194,10 +194,15 @@ function importActRegion(from, layout, table, act) {
     if (Object.keys(rooms).length) region.rooms = rooms;
     else delete region.rooms;
 }
-/** 액트 1: 뿌리 성소 묶음의 그림(이름은 그대로)과 정예, 보스 방의 먼 배경(backdrop-elite, backdrop-boss), 보스 구조물(boss-object). */
+/** 액트 1: 뿌리 성소 묶음의 그림(이름은 그대로)과 정예, 보스 방의 먼 배경(backdrop-elite, backdrop-boss), 보스 구조물(boss-object),
+ * 수액 계단(terrace-banks, -pools, -flow와 그 -left, -right 놓임새). 배포가 끈 예전 소품은 지운다. */
 function importActOne(from, layout) {
     const kit = path.join(root, 'assets/stage-scenes/root-end-v5'), put = (source, name) => fs.copyFileSync(path.join(from, source), path.join(kit, name));
     for (const name of ['backdrop', 'rear-strip', 'floor-a', 'floor-b', 'floor-c']) put(`assets/stage-scenes/root-end-v5/${name}.png`, name + '.png');
+    const ground = JSON.parse(fs.readFileSync(path.join(from, 'baseline/source230/baseline/metadata/act-01/ground-layers.json'), 'utf8'));
+    const names = { banks: 'terrace-banks', pools: 'terrace-pools', flow: 'terrace-flow' }, sides = { both: '', 'left-only': '-left', 'right-only': '-right' };
+    for (const variant of ground.variants) for (const layer of variant.layers) put(layer.path, names[layer.id] + sides[variant.id] + '.png');
+    for (const name of ground.suppressed_legacy_prop_names) fs.rmSync(path.join(kit, name + '.png'), { force: true });
     for (const role of layout.roles.filter(row => row.act === 1 && row.room_type !== 'general')) {
         put(role.compatible_composite.path, `backdrop-${role.room_type}.png`);
         const object = role.native_layers_back_to_front.find(layer => layer.id === 'boss-object');

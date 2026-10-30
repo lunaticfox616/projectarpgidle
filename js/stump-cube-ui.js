@@ -23,6 +23,7 @@ const stumpCubeUi = (() => {
     }
 
     function itemTone(kind, item) {
+        if (kind === 'stump' && item.albino) return STUMP_BOX_RIPENING.albino.tone;
         if (kind === 'stump' && item.color) return STUMP_BOX_COLORS[item.color].tone;
         if (kind === 'stump' && item.family === 'scar') return STUMP_BOX_SCAR.tone;
         return getRarityColor(item.rarity || 'normal');
@@ -232,6 +233,10 @@ const stumpCubeUi = (() => {
 
     function stumpFirstOption(item) {
         if (item.family === 'talisman') return item.uniqueEffect || (item.lines[0] ? talismans.describeLine(item.lines[0]) : '');
+        if (item.albino) {
+            const line = STUMP_BOX_RIPENING.albino.variants[stumpBox.yieldKind(item)][item.color][0];
+            return stumpBox.lineText(line.stat, line.value);
+        }
         const gain = stumpBox.yieldOf(item);
         return gain ? gain.text.replace('{v}', String(Math.round(gain.value * stumpBox.qualityOf(item) * stumpBox.goldenMul(item) * 100) / 100)) : '';
     }
