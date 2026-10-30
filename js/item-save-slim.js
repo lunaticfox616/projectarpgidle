@@ -2,7 +2,7 @@
 // valueStep, fixedValue, baseRollMin/baseRollMax였다. 그 값은 MOD_DB(sourceModId 없으면 id, tier)와 BASE_ITEM_DB(baseId, 줄 id)에서
 // 똑같이 다시 만들 수 있으므로 저장할 때(js/save.js serializeSaveState, createSaveSnapshot, createCloudSyncPayload) 뺀 복사본을 쓰고,
 // 불러올 때(js/save-migrations.js mergeDefaults, 전당·노점에서 받은 장비 normalizeItem) 다시 채운다.
-// 규칙: 다시 만든 값과 똑같은 칸만 뺀다. 메아리 줄(반값), 잿불 줄, 옛 범위를 지닌 줄, MOD_DB에서 사라진 줄, 고유 장비의 줄(티어 0)은
+// 규칙: 다시 만든 값과 똑같은 칸만 뺀다(범위는 아래위가 둘 다 같을 때 쌍으로). 메아리 줄(반값), 잿불 줄, 옛 범위를 지닌 줄, MOD_DB에서 사라진 줄, 고유 장비의 줄(티어 0)은
 // 저장된 칸을 그대로 둔다. 복합 옵션의 둘째 수치(extraStats)와 주입·부여·잠식 줄도 건드리지 않는다(서버의 전당 검사가 그 줄은 적힌 범위로 본다,
 // db/anti-cheat.sql hall_item_out_of_range). affixBalanceVersion, id, val, tier, sourceModId는 남는다. originalVal은 null일 때만 뺀다
 // (normalizeItem이 없으면 null로 둔다). 저장 형식은 saveVersion 20(js/state.js)이고, 옛 세이브는 칸이 다 있어 그대로 읽힌다.
@@ -42,14 +42,18 @@ const itemSaveSlim = (() => {
     function isLine(stat) {
         return !!stat && typeof stat === 'object' && typeof stat.id === 'string';
     }
-    /** The line without the fields that equal their remade values; the line itself when nothing goes. */
+    const RANGE_PAIRS = [['valMin', 'valMax'], ['baseRollMin', 'baseRollMax']];
+    /** The line without the fields that equal their remade values; the line itself when nothing goes. A range goes only as a pair
+     * (both ends equal), so the server never sees one end without the other (db/equipment-hall.sql hall_line_bounds). */
     function slimLine(stat, fields) {
         if (!isLine(stat)) return stat;
-        let copy = null;
-        const drop = key => { if (!copy) copy = { ...stat }; delete copy[key]; };
-        if (fields) Object.keys(fields).forEach(key => { if (stat[key] === fields[key]) drop(key); });
-        if (stat.originalVal === null) drop('originalVal');
-        return copy || stat;
+        const gone = new Set(fields ? Object.keys(fields).filter(key => stat[key] === fields[key]) : []);
+        RANGE_PAIRS.forEach(([low, high]) => { if (gone.has(low) !== gone.has(high)) { gone.delete(low); gone.delete(high); } });
+        if (stat.originalVal === null) gone.add('originalVal');
+        if (!gone.size) return stat;
+        const copy = { ...stat };
+        gone.forEach(key => delete copy[key]);
+        return copy;
     }
     function expandLine(stat, fields) {
         if (!isLine(stat)) return;

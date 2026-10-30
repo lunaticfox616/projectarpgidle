@@ -153,7 +153,8 @@ $$;
 -- 장비 한 줄의 굴림 범위 [아래, 위](2026-10-30). 클라이언트가 다시 만들 수 있는 범위를 빼고 저장하므로(js/item-save-slim.js) 줄에 적힌 범위 대신 표를 본다:
 --   추가 옵션 줄(line_kind 'stat')은 추가 옵션 표에서 (sourceModId, 티어)로. sourceModId가 없는 줄은 제단·화석·바다의 작업대 줄이라 제 범위를
 --     들고 오면 그 범위를 쓰고(표의 같은 이름 다른 옵션과 섞이지 않게), 범위도 없으면 (id, 티어)로 표를 본다.
---   베이스 줄(line_kind 'base')은 베이스 옵션 표(db/hall-base-table-20261030.sql)에서 (baseId, 줄 id)로.
+--   베이스 줄(line_kind 'base')은 제 범위를 들고 오면 그 범위를 쓰고(방패 업그레이드가 이월한 막기 확률처럼 정의와 다른 범위, js/items.js
+--     rollUpgradedBaseStats), 없으면 베이스 옵션 표(db/hall-base-table-20261030.sql)에서 (baseId, 줄 id)로.
 --   표에 없는 줄과 그 밖의 줄(line_kind 'other': 복합 옵션의 둘째 수치, 잿불, 하급 부여, 혼돈 주입, 잠식)은 줄의 valMin/valMax(없으면
 --     baseRollMin/baseRollMax)를 쓰고, 그것도 없으면 null이다.
 -- 표는 RLS만 켜고 정책이 없어 보안 정의자 함수(guard_hall_listing, quote_hall_item, create_hall_listing)에서만 보인다.
@@ -164,7 +165,8 @@ declare
     high_val numeric;
     mod_key text := line ->> 'sourceModId';
 begin
-    if line_kind = 'base' then
+    if line_kind = 'base' and (jsonb_typeof(line -> 'valMin') is distinct from 'number'
+                               or jsonb_typeof(line -> 'valMax') is distinct from 'number') then
         select min_val, max_val into low_val, high_val from public.hall_base_table
          where base_id = coalesce(item_data ->> 'baseId', '') and stat_id = coalesce(line ->> 'id', '');
     elsif line_kind = 'stat' and jsonb_typeof(line -> 'tier') = 'number'

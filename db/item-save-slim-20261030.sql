@@ -8,7 +8,8 @@
 --   1) 이 파일 db/item-save-slim-20261030.sql: 베이스 옵션 표와 범위 함수를 만들고 검사 함수를 바꾼다. 여러 번 실행해도 안전하고 기존 데이터는
 --      지우지 않는다. 한 묶음이라 중간에 오류가 나면 아무것도 바뀌지 않는다.
 --   2) db/hall-base-table-20261030.sql: 베이스 옵션 표를 채운다(비우고 다시 채운다). 게임의 베이스(BASE_ITEM_DB)가 바뀌면
---      node scripts/export-hall-affix-table.cjs 로 다시 만들어 다시 실행한다. 채우기 전까지 베이스 줄은 줄에 적힌 범위로만 본다.
+--      node scripts/export-hall-affix-table.cjs 로 다시 만들어 다시 실행한다. 채우기 전까지 베이스 줄은 줄에 적힌 범위로만 보는데,
+--      saveVersion 20 세이브의 베이스 줄은 범위를 들고 오지 않으므로 2)를 돌리기 전에는 값 천만·티어 20 검사만 받는다(거절은 없다).
 --   db/equipment-hall.sql과 db/anti-cheat.sql을 실행한 프로젝트에 쓴다. 1절~3절의 문장은 원본 db/equipment-hall.sql(표, hall_line_bounds,
 --   hall_roll_quality, hall_item_score, hall_item_price)과 db/anti-cheat.sql(hall_item_out_of_range)에도 같은 문장으로 들어 있어 새로 설치하는
 --   프로젝트는 원본만 실행하면 된다(scripts/check-db-mirror.js가 두 사본이 같은지 본다).
@@ -24,8 +25,22 @@
 begin;
 
 -- ---------------------------------------------------------------------------
--- 1) 베이스 옵션 표 (db/equipment-hall.sql과 같은 문장)
+-- 1) 추가 옵션 표와 베이스 옵션 표 (db/equipment-hall.sql과 같은 문장). 추가 옵션 표는 0)이 이미 만들었으면 그대로 두고,
+--    아니면 빈 표로 만들어 hall_line_bounds가 없는 표를 읽다 죽지 않게 한다(빈 동안은 줄의 범위로 검사).
 -- ---------------------------------------------------------------------------
+create table if not exists public.hall_affix_table (
+    mod_id  text not null,
+    stat_id text not null,
+    tier    integer not null check (tier between 1 and 20),
+    min_val numeric not null,
+    max_val numeric not null,
+    slots   text[] not null,
+    primary key (mod_id, tier)
+);
+create index if not exists hall_affix_table_stat_idx on public.hall_affix_table (stat_id);
+alter table public.hall_affix_table enable row level security;
+revoke all on public.hall_affix_table from anon, authenticated;
+
 create table if not exists public.hall_base_table (
     base_id text not null,
     stat_id text not null,
@@ -42,7 +57,8 @@ revoke all on public.hall_base_table from anon, authenticated;
 -- 장비 한 줄의 굴림 범위 [아래, 위](2026-10-30). 클라이언트가 다시 만들 수 있는 범위를 빼고 저장하므로(js/item-save-slim.js) 줄에 적힌 범위 대신 표를 본다:
 --   추가 옵션 줄(line_kind 'stat')은 추가 옵션 표에서 (sourceModId, 티어)로. sourceModId가 없는 줄은 제단·화석·바다의 작업대 줄이라 제 범위를
 --     들고 오면 그 범위를 쓰고(표의 같은 이름 다른 옵션과 섞이지 않게), 범위도 없으면 (id, 티어)로 표를 본다.
---   베이스 줄(line_kind 'base')은 베이스 옵션 표(db/hall-base-table-20261030.sql)에서 (baseId, 줄 id)로.
+--   베이스 줄(line_kind 'base')은 제 범위를 들고 오면 그 범위를 쓰고(방패 업그레이드가 이월한 막기 확률처럼 정의와 다른 범위, js/items.js
+--     rollUpgradedBaseStats), 없으면 베이스 옵션 표(db/hall-base-table-20261030.sql)에서 (baseId, 줄 id)로.
 --   표에 없는 줄과 그 밖의 줄(line_kind 'other': 복합 옵션의 둘째 수치, 잿불, 하급 부여, 혼돈 주입, 잠식)은 줄의 valMin/valMax(없으면
 --     baseRollMin/baseRollMax)를 쓰고, 그것도 없으면 null이다.
 -- 표는 RLS만 켜고 정책이 없어 보안 정의자 함수(guard_hall_listing, quote_hall_item, create_hall_listing)에서만 보인다.
@@ -53,7 +69,8 @@ declare
     high_val numeric;
     mod_key text := line ->> 'sourceModId';
 begin
-    if line_kind = 'base' then
+    if line_kind = 'base' and (jsonb_typeof(line -> 'valMin') is distinct from 'number'
+                               or jsonb_typeof(line -> 'valMax') is distinct from 'number') then
         select min_val, max_val into low_val, high_val from public.hall_base_table
          where base_id = coalesce(item_data ->> 'baseId', '') and stat_id = coalesce(line ->> 'id', '');
     elsif line_kind = 'stat' and jsonb_typeof(line -> 'tier') = 'number'
