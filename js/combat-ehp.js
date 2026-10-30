@@ -218,8 +218,9 @@ function getMapPowerReadiness(stats, estimate) {
         const ratio = row.entropy / Math.max(1, recommended);
         if (!limiting || ratio < limiting.ratio) limiting = { element, ratio, player: row.entropy, recommended };
     });
+    // 앞 구간의 껍질 효과는 그 지역에서만이라, 지도의 권장 전투력 비교에는 넣지 않는다.
     const playerDps = Math.max(0, Number(stats && stats.totalDps)
-        || (Number(stats && stats.dps) || 0) + (Number(stats && stats.summonDps) || 0));
+        || (Number(stats && stats.dps) || 0) + (Number(stats && stats.summonDps) || 0)) / (1 + getWorldTreeBarkEffect().damagePct / 100);
     const activeZoneId = stats && stats.activeZoneId;
     const estimateZoneId = estimate && estimate.zoneId;
     const alreadyInZone = activeZoneId != null && estimateZoneId != null

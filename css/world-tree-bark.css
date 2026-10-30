@@ -1,0 +1,43 @@
+/* 세계수 껍질(js/world-tree-bark-ui.js): 나이테 머리, 남은 포인트, 구간 눈금, 배분 카드(능력치 색 --stat-tone), 포인트 출처, 지도 표시. */
+@layer features {
+  #world-tree-bark-panel { display: grid; gap: 10px; }
+  .bark-head { display: flex; align-items: center; gap: 14px; }
+  .bark-rings { flex: none; width: 84px; height: 84px; }
+  .bark-head-copy { display: grid; gap: 2px; min-width: 0; }
+  .bark-head-copy b { color: #e0c283; font-size: 22px; font-weight: 400; line-height: 1; }
+  .bark-head-copy span { color: var(--px-copy, #dbd0b9); font-size: 12px; }
+  .bark-head-copy small { color: var(--px-copy-muted, #9d927d); font-size: 11px; }
+  .bark-allocate-head { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border: 1px solid #3a2c1c;
+    background: repeating-linear-gradient(90deg, rgba(120, 88, 52, .1) 0 2px, transparent 2px 7px, rgba(120, 88, 52, .05) 7px 9px, transparent 9px 16px), #15100a; }
+  .bark-allocate-head span { color: var(--px-copy-muted, #9d927d); font-size: 12px; }
+  .bark-allocate-head b { color: #e0c283; font-size: 18px; font-weight: 400; line-height: 1; }
+  .bark-allocate-head button { margin-left: auto; }
+  .bark-route { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: baseline; gap: 4px 10px; padding: 6px 10px; border: 1px solid #2a2218; background: rgba(10, 8, 6, .45); }
+  .bark-route span { color: var(--px-copy-muted, #9d927d); font-size: 12px; }
+  .bark-route b { color: #9fd46a; font-size: 13px; font-weight: 400; }
+  .bark-route-ticks { display: grid; grid-column: 1 / -1; grid-template-columns: repeat(30, minmax(0, 1fr)); gap: 2px; }
+  .bark-route-ticks i { height: 8px; background: #241d14; }
+  .bark-route-ticks i.is-on { background: #9fd46a; box-shadow: 0 0 4px rgba(159, 212, 106, .5); }
+  .bark-route-ticks i.is-cleared { background: #4b5c34; }
+  .bark-route-ticks i.is-chaos-start { margin-left: 4px; }
+  .bark-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr)); gap: 6px; }
+  .bark-stat { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: 'name value' 'per per' 'buttons buttons'; gap: 3px 8px; padding: 8px 10px;
+    border: 1px solid #3a2c1c; border-left: 3px solid var(--stat-tone); background: #15100a; }
+  .bark-stat strong { grid-area: name; color: var(--stat-tone); font-size: 13px; font-weight: 400; }
+  .bark-stat b { grid-area: value; color: #f3d28c; font-size: 13px; font-weight: 400; text-align: right; }
+  .bark-stat small { grid-area: per; color: var(--px-copy-muted, #9d927d); font-size: 11px; }
+  .bark-stat-buttons { display: grid; grid-area: buttons; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 3px; }
+  .bark-stat-buttons button { min-width: 0; padding: 3px 0; font-size: 12px; }
+  .bark-sources { display: grid; gap: 3px; margin: 0; padding: 0; list-style: none; }
+  .bark-sources li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 4px 10px; border: 1px solid #241d14; background: rgba(10, 8, 6, .45); font-size: 12px; }
+  .bark-sources span { color: var(--px-copy-muted, #9d927d); }
+  .bark-sources em { display: flex; gap: 4px; font-style: normal; }
+  .bark-sources em i { padding: 0 4px; border: 1px solid #3a2c1c; color: #6f6656; font-size: 11px; font-style: normal; }
+  .bark-sources em i.is-on { border-color: #4b5c34; color: #9fd46a; }
+  .bark-sources b { margin-left: auto; color: #f3d28c; font-weight: 400; }
+  /* 루프 정산 화면(13200)보다 위에 뜬다: 정산 화면에서 바로 나눈다 */
+  body #bark-allocate-dialog { z-index: 13300; }
+  .bark-dialog { display: grid; align-content: start; gap: 8px; width: min(560px, calc(100vw - 32px)); max-height: min(720px, calc(100dvh - 32px)); overflow-y: auto; }
+  .map-bark-chip { justify-self: start; padding: 0 4px; border: 1px solid #4b5c34; color: #9fd46a; font-size: 11px; font-style: normal; }
+  .map-chaos-tile .map-bark-chip { justify-self: center; border: 0; padding: 0; }
+}

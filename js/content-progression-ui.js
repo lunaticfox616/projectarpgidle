@@ -157,7 +157,7 @@ const contentUnlockUi = {
     /** An NPC unlock's mark: the face of the NPC who gives it, on the corner of its picture (stage art; a missing one is dropped). */
     npcFace(def) {
         if (!def.npc) return '';
-        return `<span class="unlock-npc-face" title="${escapeHTML(contentProgression.npcName(def.npc))}에게서 받는 해금"><img src="${STAGE_NPC_ART.path}${def.npc}-portrait.png" alt=""></span>`;
+        return `<span class="unlock-npc-face" title="${escapeHTML(contentProgression.npcName(def.npc))}에게서 받는 해금"><img src="${STAGE_NPC_ART.path}${def.npc}-portrait.webp" alt=""></span>`;
     },
     branchRoot(def) {
         if (def.displayBranch) return def.displayBranch;
@@ -333,7 +333,7 @@ const contentUnlockUi = {
         const lore = STORY_LOOP_MILESTONES[id];
         if (!lore) return '';
         const npc = Object.values(STORY_NPCS).find(row => this.personal(row.name) === this.personal(lore.speaker));
-        const face = npc && stageView.enabled() ? `<img class="unlock-lore-face" src="${STAGE_NPC_ART.path}${npc.id}-portrait.png" alt="">` : '';
+        const face = npc && stageView.enabled() ? `<img class="unlock-lore-face" src="${STAGE_NPC_ART.path}${npc.id}-portrait.webp" alt="">` : '';
         return `<blockquote class="story-scene-quote${face ? ' has-face' : ''}">${face}<p>${lore.narration.map(escapeHTML).join(' ')}</p>
             <p><strong>${escapeHTML(lore.speaker)}</strong> ${escapeHTML(lore.quote)}</p></blockquote>`;
     },
@@ -507,7 +507,7 @@ const contentUnlockUi = {
     renderNpc(dialog, view) {
         const npc = view.npc;
         dialog.classList.toggle('is-shop', view.mode === 'shop');
-        dialog.innerHTML = `<figure class="npc-dialog-figure"><img class="npc-dialog-portrait" src="${STAGE_NPC_ART.path}${npc.id}-portrait.png" alt=""></figure>
+        dialog.innerHTML = `<figure class="npc-dialog-figure"><img class="npc-dialog-portrait" src="${STAGE_NPC_ART.path}${npc.id}-portrait.webp" alt=""></figure>
             <div class="npc-dialog-main"><header class="npc-dialog-head"><div class="npc-dialog-who">
             <h2 id="npc-dialog-name">${escapeHTML(npc.name)}</h2><p class="npc-dialog-title">${escapeHTML(npc.title || '')}</p></div>
             <button type="button" class="npc-dialog-close" data-npc-close>닫기</button></header>

@@ -30,7 +30,7 @@
 }
 
 :root body #loop-hero-select-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -67,9 +67,8 @@
   width: calc(100% - 18px);
   height: calc(100% - 51px);
   border-radius: 2px 11px 0 0;
-  object-fit: contain;
-  object-position: center;
-  image-rendering: pixelated;
+  object-fit: cover;
+  object-position: center top;
   filter: saturate(.94) contrast(1.04) drop-shadow(0 10px 12px rgba(0, 0, 0, .38));
   pointer-events: none;
   user-select: none;

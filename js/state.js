@@ -1324,6 +1324,40 @@ function enterUnlockedEndlessDepth(depth) {
     updateStaticUI();
 }
 
+/** Layers of 세계수 껍질 (data/maps.js WORLD_TREE_BARK) at this loop: one per milestone loop reached. */
+function getWorldTreeBarkLayers(season) {
+    const loop = Math.max(1, Math.floor(Number(season) || 1));
+    return WORLD_TREE_BARK.loops.filter(at => loop >= at).length;
+}
+
+/** The zones the bark effect reaches from the first act (zone ids below this): the base plus 구간 넓이. */
+function getWorldTreeBarkReach(owner) {
+    return Math.min(WORLD_TREE_BARK.maxZones, WORLD_TREE_BARK.baseZones + Math.max(0, Math.floor(Number((owner.worldTreeBark || {}).reach) || 0)));
+}
+/** 껍질 포인트 earned: the loops from the start loop on, the pinnacles' first kills (the journal), the act 10 time goals reached. None before the start loop. */
+function getWorldTreeBarkEarned(owner) {
+    const rule = WORLD_TREE_BARK.points, loop = Math.max(1, Math.floor(Number(owner.season) || 1));
+    if (loop < rule.startLoop) return 0;
+    const journal = Array.isArray(owner.journalEntries) ? owner.journalEntries : [], goals = (owner.worldTreeBark || {}).timeGoals;
+    return rule.start + (loop - rule.startLoop) * rule.perLoop + PINNACLE_FIRST_KILL_JOURNALS.filter(id => journal.includes(id)).length * rule.pinnacle
+        + (Array.isArray(goals) ? goals.length : 0) * rule.actTenGoal;
+}
+/** Load boundary. The points in each stat within its cap, and within what the save has earned. timeGoals: the act 10 goals reached, in minutes; a save from before
+ * them starts from its best recorded time, whatever way that clear was made (js/world-tree-bark.js noteActTenClear counts only clears in play from then on). */
+function normalizeWorldTreeBark(raw, owner) {
+    const bark = raw && typeof raw === 'object' ? raw : {}, rule = WORLD_TREE_BARK.points;
+    const best = Math.floor(Number((((owner.records || {}).actBest) || {})[rule.actTenZoneId]) || 0);
+    const timeGoals = Array.isArray(bark.timeGoals) ? rule.actTenMinutes.filter(goal => bark.timeGoals.includes(goal)) : rule.actTenMinutes.filter(goal => best > 0 && best <= goal * 60000);
+    const clean = { timeGoals };
+    let room = getWorldTreeBarkEarned({ ...owner, worldTreeBark: clean });
+    WORLD_TREE_BARK.stats.forEach(def => {
+        const points = Math.max(0, Math.floor(Number(bark[def.key]) || 0));
+        clean[def.key] = Math.min(points, room, def.max === null ? Infinity : def.max);
+        room -= clean[def.key];
+    });
+    return clean;
+}
+
 function getLoopDeepStatCost(statKey) {
     game.loopDeepStats = game.loopDeepStats || { flatHp: 0, flatDmg: 0, resChaos: 0, aspd: 0, move: 0, dr: 0, crit: 0 };
     let lv = Math.max(0, Math.floor(game.loopDeepStats[statKey] || 0));
@@ -2698,6 +2732,7 @@ const defaultGame = {
     abyssEndlessDepth: 20,
     abyssUnlockedDepths: [20],
     loopDeepStats: { flatHp: 0, flatDmg: 0, resChaos: 0, aspd: 0, move: 0, dr: 0, crit: 0 },
+    worldTreeBark: { damage: 0, taken: 0, move: 0, reach: 0, timeGoals: null },
     loopProgressBase: { abyssEndlessDepth: 20, labyrinthUnlockedMaxFloor: 1, specialBosses: [] },
     // Floor records count cleared floors; null in migrated saves means this loop was not recorded.
     loopProgressCurrent: { specialBosses: [], chaos20Cleared: false, bestAbyssDepth: 0, bestLabyrinthFloor: 0, bestChaosRealmFloor: 0, bestSkyFloor: 0, bestUnderworldFloor: 0, cosmosPlanets: [] },

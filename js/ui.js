@@ -1904,7 +1904,7 @@ function getTabNotiSignature() {
 
 /** 쓸 포인트가 남은 동안 스킬트리와 전직 알림 점을 켜 둔다(2026-10-26 사용자: "1포인트라도 있으면"). 그 화면을 보는 동안은 끈다. */
 function applyStandingTabNotices() {
-    const standing = { char: game.passivePoints > 0, traits: !!game.unlocks.traits && (game.ascendPoints > 0 || game.ascendKeystonePoints > 0) };
+    const standing = { char: game.passivePoints > 0, traits: !!game.unlocks.traits && (game.ascendPoints > 0 || game.ascendKeystonePoints > 0), season: worldTreeBark.barkHasFreePoints(game) };
     Object.entries(standing).forEach(([key, on]) => { if (on && lastActiveTabId !== 'tab-' + key) game.noti[key] = true; });
 }
 
@@ -6079,7 +6079,7 @@ function itemExplicitAffixHeaderHtml(item, count) {
         ? { text: `추가 옵션 ${count}개 (계승 ${item.stats.filter(stat => stat.fusedFromRare).length}개)`, over: false }
         : equipmentCrafting.affixHeader(item.rarity, count, used);
     const style = header.over ? ' style="color:#ffb454;"' : '';
-    const note = header.over ? '<div class="tooltip-line" style="color:#ffb454;">예전 규칙으로 한도를 넘은 장비: 넘친 종류에는 더 붙지 않습니다.</div>' : '';
+    const note = header.over ? '<div class="tooltip-line" style="color:#ffb454;">레거시 아이템</div>' : '';
     return `<div class="tooltip-line tooltip-section tooltip-section-explicit"${style}><span class="px-center">${header.text}</span></div>${note}`;
 }
 
@@ -9793,7 +9793,7 @@ function buildCraftActionButtons(item) {
     let seasonVisible = game.season > 1 || game.seasonPoints > 0;
     document.getElementById('trait-season-section').style.display = seasonVisible ? 'block' : 'none';
     document.getElementById('season-content-section').style.display = seasonVisible ? 'block' : 'none';
-    loopClimbUi.render();
+    loopClimbUi.render(); worldTreeBarkUi.renderBarkPanel();
     let seasonRoadmapKeys = Object.keys(SEASON_CONTENT_ROADMAP).map(Number).filter(v => Number.isFinite(v) && v >= 1).sort((a, b) => a - b);
     let collapsePast = game.settings.collapsePastLoopMilestones !== false;
     let roadmapToggle = document.getElementById('btn-toggle-past-loop-milestones');

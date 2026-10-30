@@ -2712,7 +2712,7 @@ function getBattlefieldCaption() {
     if (game.woodsmanEntrancePending) return '혼돈 밖이 침묵합니다… 나무꾼이 다가옵니다.';
     if (game.moveTimer > 0) return '';
     const left = getMapMonstersLeft();
-    return left > 0 && left <= MAP_MONSTERS_LEFT_HINT ? `몬스터 ${left}마리 남음` : '';
+    return [getWorldTreeBarkEffect().on ? '세계수 껍질 구간' : '', left > 0 && left <= MAP_MONSTERS_LEFT_HINT ? `몬스터 ${left}마리 남음` : ''].filter(Boolean).join(', ');
 }
 
 // A monster's arrival: rings, a floor glow and, for a boss, rays (the values renderBattlefield drew inline until 2026-10-19).

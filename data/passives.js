@@ -134,7 +134,7 @@ const HERO_SELECTION_DEFS = {
 const PLAYER_CLASS_DEFS = Object.freeze({
     occultist: {
         id: 'occultist', label: '비술사', blindLabel: '비술사',
-        portrait: 'assets/portraits/classes/occultist.png',
+        portrait: 'assets/portraits/classes/occultist.webp',
         recommendedTalentHeroId: 'hero9',
         attackAnimationDurationScale: 1.2,
         strips: { idle: 'playerClassOccultistIdle',
@@ -149,7 +149,7 @@ const PLAYER_CLASS_DEFS = Object.freeze({
     },
     wanderer: {
         id: 'wanderer', label: '방랑자', blindLabel: '방랑자',
-        portrait: 'assets/portraits/classes/wanderer.png',
+        portrait: 'assets/portraits/classes/wanderer.webp',
         recommendedTalentHeroId: 'hero4',
         strips: { idle: 'playerClassWandererIdle',
             idleDirections: { north: 'playerClassWandererIdleNorth', east: 'playerClassWandererIdle', south: 'playerClassWandererIdleSouth' }, walk: 'playerClassWandererWalk',
@@ -163,7 +163,7 @@ const PLAYER_CLASS_DEFS = Object.freeze({
     },
     cleric: {
         id: 'cleric', label: '성직자', blindLabel: '성직자',
-        portrait: 'assets/portraits/classes/cleric.png',
+        portrait: 'assets/portraits/classes/cleric.webp',
         recommendedTalentHeroId: 'hero5',
         attackAnimationDurationScale: 1.2,
         strips: { idle: 'playerClassClericIdle',
@@ -174,7 +174,7 @@ const PLAYER_CLASS_DEFS = Object.freeze({
     },
     archer: {
         id: 'archer', label: '궁수', blindLabel: '궁수',
-        portrait: 'assets/portraits/classes/archer.png',
+        portrait: 'assets/portraits/classes/archer.webp',
         recommendedTalentHeroId: 'hero1',
         attackAnimationDurationScale: 1.2,
         strips: { idle: 'playerClassArcherIdle',
@@ -189,7 +189,7 @@ const PLAYER_CLASS_DEFS = Object.freeze({
     },
     alchemist: {
         id: 'alchemist', label: '연금술사', blindLabel: '연금술사',
-        portrait: 'assets/portraits/classes/alchemist.png',
+        portrait: 'assets/portraits/classes/alchemist.webp',
         recommendedTalentHeroId: 'hero10',
         attackAnimationDurationScale: 1.15,
         attackVariantWeights: [49, 49, 2],
@@ -205,7 +205,7 @@ const PLAYER_CLASS_DEFS = Object.freeze({
     },
     warrior: {
         id: 'warrior', label: '전사', blindLabel: '전사',
-        portrait: 'assets/portraits/classes/warrior.png',
+        portrait: 'assets/portraits/classes/warrior.webp',
         recommendedTalentHeroId: 'hero2',
         attackAnimationDurationScale: 1.15,
         // Feet, not the sword tip: each directional sheet uses a different canvas size.

@@ -51,7 +51,7 @@ const mapListUi = (() => {
         const title = actTitle(facts.zone), story = facts.zone.type === 'act' ? getStoryActByZoneId(facts.id) : null, land = actLandscape(facts);
         const cls = ['map-act-card', facts.current ? 'current' : '', facts.cleared ? 'is-cleared' : '', facts.recommended ? 'is-recommended' : '', facts.reveal ? 'map-unlock-reveal' : ''];
         return `<div class="${cls.filter(Boolean).join(' ')}" role="group"${facts.current ? ' aria-current="true"' : ''}${land ? ` style="--act-land:url('${land}')"` : ''}>`
-            + `<div class="map-act-body">${title.label ? `<small>${esc(title.label)}</small>` : ''}<strong>${esc(title.name)}</strong>`
+            + `<div class="map-act-body">${title.label ? `<small>${esc(title.label)}</small>` : ''}<strong>${esc(title.name)}</strong>${worldTreeBarkUi.barkMapChipHtml(facts.zone)}`
             + `${story ? `<span class="map-act-boss">보스 ${esc(story.bossName)}</span>` : ''}${buildMapPowerEstimateHtml(facts.zone, { hideReward })}</div>`
             + `<div class="map-act-actions">${actActionsHtml(facts)}</div></div>`;
     }
@@ -78,7 +78,7 @@ const mapListUi = (() => {
         const go = facts.current ? ` onclick="switchTab('tab-battle')"` : ` data-exploration-departure onclick="changeZone(${facts.id})"`;
         const tip = parts ? ` ${parts.attrs} ${POWER_TIP}` : '';
         return `<button type="button" class="${chaosTileClass(facts, next, parts)}"${go} aria-label="혼돈 ${depth}, ${state}"${tip}>`
-            + `<small>혼돈</small><b>${depth}</b><span class="map-chaos-dots">${dots}</span><em>${state}${cut}</em>${parts ? parts.environment : ''}</button>`;
+            + `<small>혼돈</small><b>${depth}</b><span class="map-chaos-dots">${dots}</span><em>${state}${cut}</em>${worldTreeBarkUi.barkMapChipHtml(facts.zone)}${parts ? parts.environment : ''}</button>`;
     }
     function chaosHtml(list) {
         const deep = getDeepChaosMapEntryHtml();

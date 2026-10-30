@@ -5710,6 +5710,7 @@ function unlockJournalEntry(entryId, state = game) {
         state.noti.journal = true;
         if (state === game) {
             addLog(`📓 저널 해금: ${JOURNAL_DB[entryId].title}`, 'loot-rare');
+            worldTreeBark.rewardPinnacleFirstKill(entryId);
             if (typeof requestGoalSystemRefresh === 'function') requestGoalSystemRefresh();
         }
     }
