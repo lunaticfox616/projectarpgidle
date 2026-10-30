@@ -76,7 +76,7 @@ const stageScene = (() => {
             stageRegion.drawFar(ctx, view, p, area);
             return;
         }
-        const kit = kitOf(view.map), far = kit.far, dot = p.tileW / WIDE, w = far.width * dot, h = far.height * dot;
+        const kit = kitOf(view.map), far = kit.far, dot = p.tileW / WIDE, w = stageDots.span(far.width * dot), h = stageDots.span(far.height * dot);
         const y = Math.round(p.mapY + view.room.y0 * p.tileH + far.bottom * dot - h);
         const centre = p.mapX + (view.room.x0 + view.room.x1 + 1) * p.tileW / 2;
         const origin = (area.width - w) / 2 + (centre - area.width / 2) * far.parallax + far.shift * dot;
@@ -86,7 +86,7 @@ const stageScene = (() => {
         ctx.fillStyle = kit.sky;
         ctx.fillRect(0, 0, area.width, Math.max(0, y + 2));
         ctx.imageSmoothingEnabled = false;
-        for (let x = offset - w; x < area.width; x += w) ctx.drawImage(image, Math.round(x), y, w, h);
+        for (let x = Math.round(offset - w); x < area.width; x += w) ctx.drawImage(image, x, y, w, h);
     }
 
     /** 방의 먼 그림(지역 그림, 없으면 조각 묶음의 먼 띠)이 화면 위끝까지 닿는 가장 작은 칸 너비(px). 그림의 위끝은 바닥의 앞쪽 끝
@@ -215,7 +215,7 @@ const stageScene = (() => {
         ctx.save();
         ctx.imageSmoothingEnabled = false;
         if (hidesHero(actor, state, size, dot)) ctx.globalAlpha *= 0.5;
-        ctx.drawImage(fitted(kit, name + '.png', dot), Math.round(actor.point.x - size[0] / 2 * dot), Math.round(actor.y - (size[3] + size[5]) * dot), size[0] * dot, size[1] * dot);
+        ctx.drawImage(fitted(kit, name + '.png', dot), Math.round(actor.point.x - size[0] / 2 * dot), Math.round(actor.y - (size[3] + size[5]) * dot), stageDots.span(size[0] * dot), stageDots.span(size[1] * dot));
         ctx.restore();
     }
     /** 열린 좌우 문의 화살표: 뿌리가 접힌 자리에 세운다. 좌우 문은 화면

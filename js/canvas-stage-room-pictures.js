@@ -22,11 +22,15 @@ const stageRoomPictures = (() => {
     const mapIds = new WeakMap();
     let lastMapId = 0, wanted = [], job = null, pumping = false;
 
-    /** 방 그림이 담는 칸 범위: 방과 둘레의 벽. 배경 그림을 쓰는 방(open)은 바닥과 길이 화면 끝까지 가도록 더 넓게 담는다. */
-    function boxOf(map, room, open) {
-        const frame = open ? STAGE_ROOMS.openFrame : STAGE_ROOMS.frame;
-        const x = Math.max(0, room.x0 - frame.side), y = Math.max(0, room.y0 - frame.top);
-        return { x, y, columns: Math.min(map.columns, room.x1 + frame.side + 1) - x, rows: Math.min(map.rows, room.y1 + frame.bottom + 1) - y };
+    /** 방 그림이 담는 칸 범위: 방과 둘레의 벽. 배경 그림을 쓰는 방(open)은 바닥과 길이 화면 끝까지 가도록 더 넓게 담는다.
+     * 그림 묶음으로 그리는 방(kit)은 지도의 칸을 읽지 않으므로 지도 끝에서 자르지 않는다. 2026-10-30 사용자 "에셋 틈사이사이의 선": 지도 아래 끝에서
+     * 그늘이 끊겨 바닥을 가로지르는 곧은 선이 보였다. */
+    function boxOf(map, room, mode) {
+        const frame = mode.open ? STAGE_ROOMS.openFrame : STAGE_ROOMS.frame;
+        const left = room.x0 - frame.side, top = room.y0 - frame.top, right = room.x1 + frame.side + 1, bottom = room.y1 + frame.bottom + 1;
+        if (mode.kit) return { x: left, y: top, columns: right - left, rows: bottom - top };
+        const x = Math.max(0, left), y = Math.max(0, top);
+        return { x, y, columns: Math.min(map.columns, right) - x, rows: Math.min(map.rows, bottom) - y };
     }
     /** 이 지도의 방을 무엇으로 그리는가: kit 조각 묶음, open 벽 없는 방(묶음이나 배경 그림), layers 불러와진 층 그림의 수. */
     function modeOf(map) {
@@ -87,7 +91,7 @@ const stageRoomPictures = (() => {
     const STEPS = Object.freeze([
         row => {
             const spec = row.spec;
-            row.box = boxOf(spec.map, spec.room, spec.mode.open);
+            row.box = boxOf(spec.map, spec.room, spec.mode);
             row.fitter = stageDots.fitter(assembled(spec.map, spec.room, row.box, spec.mode), spec.dot);
             row.pieces = stageScene.fitJobs(spec.map, spec.room, spec.dot);
             return true;

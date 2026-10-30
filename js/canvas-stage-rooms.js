@@ -295,7 +295,7 @@ const stageRoomsView = (() => {
         else if (view.open) drawBackdrop(ctx, view, p, area);
         else drawWallDark(ctx, map, area);
         ctx.imageSmoothingEnabled = false;
-        ctx.drawImage(view.canvas, p.mapX + box.x * p.tileW, p.mapY + box.y * p.tileH, box.columns * p.tileW, box.rows * p.tileH);
+        ctx.drawImage(view.canvas, p.mapX + box.x * p.tileW, p.mapY + box.y * p.tileH, stageDots.span(box.columns * p.tileW), stageDots.span(box.rows * p.tileH));
         drawChaosHaze(ctx, map, area);
         drawSpecialGround(ctx, map, p);
         for (const row of actExplorationDoors.doorsHere(run)) drawDoor(ctx, row, p, { run, kit: view.kit });

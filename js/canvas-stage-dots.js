@@ -122,14 +122,14 @@ const stageDots = (() => {
     function fitter(source, scale) {
         if (whole(scale)) return { canvas: source, step: () => true };
         const k = pxPerDot(scale), out = document.createElement('canvas');
-        out.width = Math.round(source.width * k);
-        out.height = Math.round(source.height * k);
+        out.width = spanPx(source.width * scale);
+        out.height = spanPx(source.height * scale);
         const ctx = out.getContext('2d');
         let x = 0, y = 0;
         function step() {
             if (y >= source.height) return true;
             const w = Math.min(TILE, source.width - x), h = Math.min(TILE, source.height - y);
-            blitRaw(ctx, source, { x, y, w, h }, { x: x * k, y: y * k, k });
+            blitRaw(ctx, source, { x, y, w, h }, k);
             x += TILE;
             if (x >= source.width) { x = 0; y += TILE; }
             if (y < source.height) return false;
@@ -146,16 +146,29 @@ const stageDots = (() => {
         while (!job.step()) { /* 조각마다 한 걸음 */ }
         return job.canvas;
     }
-    /** blit in canvas px (k px per dot), for fitted. */
-    function blitRaw(ctx, source, from, at) {
-        const up = Math.abs(at.k * 2 - Math.round(at.k * 2)) < 0.01 ? Math.round(at.k * 2) : Math.ceil(at.k), big = surface(from.w * up, from.h * up);
-        big.drawImage(source, from.x, from.y, from.w, from.h, 0, 0, from.w * up, from.h * up);
+    /** 조각 하나를 k배(캔버스 px)로 옮긴다, for fitted. 2026-10-30 사용자 "에셋 틈사이사이의 선": 조각의 끝이 캔버스 픽셀 사이에 걸리면 GPU 캔버스에서
+     * 양쪽 조각이 그 픽셀을 일부만 덮어 조각 경계마다(그림 512px 간격) 반투명한 선이 남았다. 둘레의 한 도트까지 함께 줄이고 픽셀에 맞춘 상자로
+     * 잘라, 나눠 옮겨도 한 번에 옮긴 것과 같게 한다. */
+    function blitRaw(ctx, source, from, k) {
+        const up = Math.abs(k * 2 - Math.round(k * 2)) < 0.01 ? Math.round(k * 2) : Math.ceil(k);
+        const left = Math.max(0, from.x - 1), top = Math.max(0, from.y - 1), w = Math.min(source.width, from.x + from.w + 1) - left, h = Math.min(source.height, from.y + from.h + 1) - top;
+        const big = surface(w * up, h * up), x0 = Math.round(from.x * k), y0 = Math.round(from.y * k);
+        big.drawImage(source, left, top, w, h, 0, 0, w * up, h * up);
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(x0, y0, Math.round((from.x + from.w) * k) - x0, Math.round((from.y + from.h) * k) - y0);
+        ctx.clip();
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'low';
-        ctx.drawImage(scratch, 0, 0, from.w * up, from.h * up, at.x, at.y, from.w * at.k, from.h * at.k);
+        ctx.drawImage(scratch, 0, 0, w * up, h * up, left * k, top * k, w * k, h * k);
+        ctx.restore();
     }
     /** 캔버스 픽셀의 정수배가 되도록 올림한 도트 크기: 배경 그림처럼 도트 격자를 스스로 정할 수 있는 그림에 쓴다. */
     const wholeDot = scale => Math.max(1, Math.ceil(pxPerDot(scale) - 0.01)) / canvasPx();
-    return Object.freeze({ blit, fitted, fitter, whole, wholeDot, colorFilterOnly });
+    /** 화면 길이가 차지하는 캔버스 픽셀 수(옮겨 둔 그림의 크기). 끝에 반쯤 걸리는 줄은 버린다: 반투명한 끝줄이 남지 않는다. */
+    const spanPx = length => Math.max(1, Math.floor(length * canvasPx() + 0.01));
+    /** 옮겨 둔 그림을 찍을 크기(화면 단위): 그림의 픽셀과 캔버스 픽셀이 1:1이라 보간 없이 찍어도 줄이 겹치거나 빠지지 않는다. */
+    const span = length => spanPx(length) / canvasPx();
+    return Object.freeze({ blit, fitted, fitter, whole, wholeDot, span, colorFilterOnly });
 })();
 safeExposeGlobals({ stageDots });
